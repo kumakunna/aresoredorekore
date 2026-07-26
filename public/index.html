@@ -51,7 +51,20 @@
     animation:scrIn .3s ease;
   }
   .screen.active{display:flex;}
-  @keyframes scrIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  /* UI基準1・4：画面遷移は横スライド。進む=右から左、戻る=左から右。0.22秒でテンポ優先 */
+  .screen{animation:none;}
+  .screen.scr-in-fwd{animation:scrInFwd .22s cubic-bezier(.32,.72,0,1);}
+  .screen.scr-in-back{animation:scrInBack .22s cubic-bezier(.32,.72,0,1);}
+  @keyframes scrInFwd{from{opacity:.4;transform:translateX(28px);}to{opacity:1;transform:translateX(0);}}
+  @keyframes scrInBack{from{opacity:.4;transform:translateX(-28px);}to{opacity:1;transform:translateX(0);}}
+  @media (prefers-reduced-motion: reduce){
+    .screen.scr-in-fwd, .screen.scr-in-back{animation:none;}
+  }
+  /* UI基準2：すべてのボタンはタップした瞬間に沈んで反応する */
+  button{transition:transform .12s ease, opacity .12s ease, background .12s ease;}
+  button:active:not(:disabled){transform:scale(.96);}
+  /* UI基準3：押せない状態は見て分かるようにする */
+  button:disabled{opacity:.4;cursor:default;filter:grayscale(.5);}
 
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;
@@ -303,6 +316,12 @@
   .floating-gear:active{opacity:1;}
   /* A：⚙の分だけ右側を空けて、トップバーのボタンと重ならないようにする */
   .play-topbar, .bomb-topbar{padding-right:42px;}
+  /* 第10弾：あそびかた設定・オプションタグ */
+  .opt-block{margin-bottom:20px;}
+  .opt-block .seg-btn{font-size:13px;padding:10px 4px;}
+  .opt-tag-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px;}
+  .opt-tag{font-size:11px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--ink-soft);}
+  .record-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
   /* 問題1：AI生成中の待機表示 */
   .ai-wait-note{
     margin-top:10px;font-size:12px;color:var(--stamp-deep);text-align:center;
@@ -364,7 +383,8 @@
     border:1px dashed var(--line);border-radius:8px;padding:10px 12px;text-align:left;
   }
   .picker-overlay{background:var(--paper);}
-  .picker-panel{width:100%;max-width:460px;height:100%;display:flex;flex-direction:column;padding:20px;}
+  /* UI基準1：フルスクリーンのピッカーも下からスライドインさせる */
+  .picker-panel{width:100%;max-width:460px;height:100%;display:flex;flex-direction:column;padding:20px;animation:panelUp .22s ease;}
   .picker-back{align-self:flex-start;background:none;border:none;font-size:15px;font-weight:700;color:var(--ink);cursor:pointer;padding:8px 0;}
   .picker-title{font-family:'Shippori Mincho',serif;font-weight:800;font-size:20px;margin:10px 0 20px;text-align:center;}
   .picker-grid{flex:1;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
@@ -658,6 +678,50 @@
     </div>
   </div>
 
+  <!-- 4g: あそびかたの設定（第10弾：出題方法・封印ワード・脱落を1画面で） -->
+  <div class="screen" id="scr-set-playstyle">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepPlaystyle"></span><h2 class="scr-title">あそびかた</h2></div>
+    <p class="wiz-lead">選んだモードの設定です。そのままでもOK、ここで自由に組み合わせられます。</p>
+    <div class="wiz-body">
+      <div class="opt-block">
+        <div class="tp-label">🎤 出題方法</div>
+        <div class="seg" id="optDescribeSeg">
+          <button class="seg-btn" data-v="human">人間が説明</button>
+          <button class="seg-btn" data-v="ai">AIが読み上げ</button>
+          <button class="seg-btn" data-v="hint">AIが一言ヒント</button>
+        </div>
+      </div>
+      <div class="opt-block">
+        <div class="tp-label">🔒 封印ワード</div>
+        <div class="seg" id="optSealSeg">
+          <button class="seg-btn" data-v="none">なし</button>
+          <button class="seg-btn" data-v="on">あり</button>
+          <button class="seg-btn" data-v="strict">即アウト</button>
+        </div>
+        <div class="toggle-row-mini" id="optShowSealRow" style="display:none;">
+          <div>禁止ワードを画面に表示する
+            <div class="mic-status" id="optShowSealSub"></div>
+          </div>
+          <div class="switch" id="optShowSealToggle"></div>
+        </div>
+        <div class="mic-status" id="optSealNote" style="margin-top:6px;"></div>
+      </div>
+      <div class="opt-block">
+        <div class="tp-label">💀 脱落ルール</div>
+        <div class="toggle-row-mini">
+          <div>毎ラウンド最下位が脱落する
+            <div class="mic-status">最後まで残った1人が優勝。出題者の指定はできなくなります</div>
+          </div>
+          <div class="switch" id="optSurvivalToggle"></div>
+        </div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
   <!-- 4.5: mode rules (first time only) -->
   <div class="screen" id="scr-mode-rules">
     <h2 class="scr-title" id="rulesTitle">モード説明</h2>
@@ -885,6 +949,8 @@
       <div class="topic-name" id="topicName">-</div>
       <span class="one-word-badge" id="oneWordBadge" style="display:none;">💬 説明は一言だけ！</span>
       <div class="ng-words" id="ngWordsBox" style="display:none;"></div>
+      <!-- 第10弾：封印ワードが非表示設定でも、見たい人はここから確認できる -->
+      <button class="btn btn-ghost" id="sealPeekBtn" style="display:none;font-size:12px;padding:6px 10px;margin-top:6px;opacity:.7;">🔒 封印ワードを見る</button>
       <div class="ai-description" id="aiDescriptionBox" style="display:none;"></div>
       <button class="btn btn-outline" id="replaySpeechBtn" style="display:none;margin-top:10px;">🔊 もう一度読み上げる</button>
       <button class="btn btn-outline" id="moreHintBtn" style="display:none;margin-top:8px;">💡 もう一言ください</button>
@@ -1026,7 +1092,7 @@
       </div>
 
       <div class="card">
-        <div class="sec-title">ゲームでしぼりこむ</div>
+        <div class="sec-title">あそびかたでしぼりこむ（複数えらべます）</div>
         <div class="handicap-picker" id="recordsGameChips"></div>
         <div class="tp-label" style="margin-top:12px;">並び順</div>
         <div class="seg" id="recordsSortSeg">
@@ -1102,21 +1168,27 @@
 
   var MODES = [
     {id:"normal", icon:"🙂", title:"通常プレイ", sub:"3分ラウンド・封印ワードなし", timer:180, advanced:false, strict:false, oneWord:false,
+      opts:{describe:'human', seal:'none', survival:false, showSeal:true},
       rules:"3分間のラウンドの中で、出題者がお題を言葉だけで説明し、他のプレイヤーが当てます。お題の名前を言う・カードを見せる・ジェスチャーをするのは禁止です。",
       bullets:["出題者がお題を言葉だけで説明する","ほかの人はお題が何かを当てる","名前を言う・見せる・ジェスチャーは禁止","制限時間内にたくさん当てよう"]},
     {id:"seal",   icon:"🔒", title:"封印ワード",   sub:"3分ラウンド・禁止ワードを自動表示", timer:180, advanced:true, strict:false, oneWord:false,
+      opts:{describe:'human', seal:'on', survival:false, showSeal:true},
       rules:"通常プレイに加えて、お題ごとの禁止ワードが自動で表示されます。禁止ワードを使わずに説明する、少し高度なモードです。",
       bullets:["通常プレイと同じルールで説明・回答する","お題ごとに禁止ワードが自動で表示される","禁止ワードを使わずに説明しよう"]},
     {id:"speed",  icon:"⏱",  title:"秒でこれ",     sub:"1分のスピードラウンド", timer:60, advanced:false, strict:false, oneWord:false, hidden:true,
+      opts:{describe:'human', seal:'none', survival:false, showSeal:true},
       rules:"1分間のスピードラウンド。テンポよく答えを重ねていく瞬発力型のモードです。",
       bullets:["1分間のスピードラウンド","テンポよく次々に当てていく","瞬発力が勝負"]},
     {id:"outstrict", icon:"📣", title:"一発アウト", sub:"禁止ワードを言ったら即アウト・次のお題へ", timer:180, advanced:true, strict:true, oneWord:false,
+      opts:{describe:'human', seal:'strict', survival:false, showSeal:true},
       rules:"禁止ワードを言ってしまったらその場でアウト、自動的に次のお題に進みます。封印ワードよりもシビアな真剣勝負モードです。",
       bullets:["禁止ワードを言ったら即アウト","アウトになると自動で次のお題へ","封印ワードよりシビアな真剣勝負"]},
     {id:"oneword", icon:"💬", title:"ひとことで、あれ", sub:"AIが一言ヒント・もっと欲しければ追加", timer:180, advanced:false, strict:false, oneWord:true, ai:true,
+      opts:{describe:'hint', seal:'none', survival:false, showSeal:false},
       rules:"出題者はいません。AIがお題を連想できる「単語ひとつ」だけをヒントとして出して読み上げます。分からなければ「もう一言ください」で最大3個までヒントを増やせます。少ないヒントで当てるほど気持ちいい発想ゲームです。",
       bullets:["出題者なし・AIが一言ヒントを出す","ヒントは単語ひとつだけ","「もう一言」で最大3個まで増やせる","少ないヒントで当てよう"]},
     {id:"ai", icon:"🤖", title:"AI読み上げ", sub:"出題者なし・AIが説明を読み上げる", timer:180, advanced:false, strict:false, oneWord:false, ai:true,
+      opts:{describe:'ai', seal:'none', survival:false, showSeal:false},
       rules:"出題者はいません。AIがお題の説明を考えて読み上げてくれるので、全員で一緒に聞いて当てます。お題の名前は画面にも表示されません。",
       bullets:["出題者はいない","AIがお題の説明を読み上げる","全員で聞いて答えを当てる","お題の名前は画面に出ない"]},
     {id:"wordwolf", icon:"🐺", title:"ワードウルフ", sub:"1人だけ違うお題・話し合って探り合う（複数ラウンド）", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, hidden:true, game:'wordwolf',
@@ -1129,6 +1201,7 @@
       rules:"自分の番になったら、5段階の難易度から挑戦するものを選びます。難しいほど高得点（かんたん1点〜むりなんだが8点）。AIの説明文を読んで3択で答え、正解すればその点数がもらえます。外れても減点はありません。気に入らないお題はパスできます。",
       bullets:["自分の番に挑戦する難易度を選ぶ","難しいほど高得点（1〜8点）","AIの説明文を読んで3択で答える","正解で得点、外れても減点なし","気に入らないお題はパスできる"]},
     {id:"survival", icon:"💀", title:"サバイバル勝ち抜き戦", sub:"毎ラウンド最下位が脱落・最後の1人が優勝", timer:180, advanced:false, strict:false, oneWord:false, survival:true,
+      opts:{describe:'human', seal:'none', survival:true, showSeal:true},
       rules:"通常プレイと同じルールで説明・回答します。ラウンドが終わるたびに、そのラウンドで一番得点が低かった人（同点なら全員）が脱落します。脱落した人は以降のラウンドでは得点できません。最後まで残った1人が優勝です。",
       bullets:["通常プレイと同じルールで進める","毎ラウンド最下位が脱落する","同点なら全員脱落","最後まで残った1人が優勝"]},
     {id:"buzzer", icon:"🥊", title:"早押しトーナメント", sub:"1vs1勝ち抜き・先に3問正解した方が勝ち", advanced:false, strict:false, oneWord:false, buzzer:true, hidden:true, game:'buzzer',
@@ -1161,6 +1234,65 @@
   }
   function currentGameId(){ return gameIdForMode(state.selectedModeId); }
 
+  // ===== あそびかたオプション（第10弾：モードをオプションの掛け合わせに再設計） =====
+  // モードカードは「よく使う組み合わせへのショートカット（プリセット）」。
+  // 実際の挙動は state.opts が決める。旧 m.ai / m.advanced / m.strict / m.survival /
+  // m.oneWord は、すべて下の導出関数に置き換わっている。
+  //   describe : 'human'（人間が説明）| 'ai'（AIが説明を読み上げ）| 'hint'（AIが一言ヒント）
+  //   seal     : 'none' | 'on'（禁止ワードあり）| 'strict'（言ったら即アウト）
+  //   survival : 毎ラウンド最下位が脱落
+  //   showSeal : 禁止ワードを画面に出すか（AI出題では既定OFF＝答えがバレるため。見たい時はボタンで表示）
+  var OPT_DEFAULTS = { describe:'human', seal:'none', survival:false, showSeal:true };
+  function cloneOpts(o){ return Object.assign({}, OPT_DEFAULTS, o || {}); }
+  function curMode(){ return modeById(state.selectedModeId); }
+  // 独立ゲーム（ワードウルフ等）はオプション制の対象外。従来どおりMODESのフラグで動く
+  function isOptionGame(){ return gameIdForMode(state.selectedModeId) === DEFAULT_GAME_ID; }
+  function optDescribe(){
+    if(isOptionGame()) return state.opts.describe;
+    var m = curMode();
+    return m.oneWord ? 'hint' : (m.ai ? 'ai' : 'human');
+  }
+  function optSeal(){
+    if(isOptionGame()) return state.opts.seal;
+    var m = curMode();
+    return m.strict ? 'strict' : (m.advanced ? 'on' : 'none');
+  }
+  function optSurvival(){ return isOptionGame() ? !!state.opts.survival : !!curMode().survival; }
+  function optShowSeal(){ return isOptionGame() ? !!state.opts.showSeal : true; }
+  function isAIDescribe(){ return optDescribe() !== 'human'; }   // 旧 m.ai 相当
+  function isHintDescribe(){ return optDescribe() === 'hint'; }  // 旧 m.oneWord 相当
+  function isSealOn(){ return optSeal() !== 'none'; }             // 旧 m.advanced 相当
+  function isSealStrict(){ return optSeal() === 'strict'; }       // 旧 m.strict 相当
+  // プリセットの値をそのまま使っているか（違えば「カスタム」表示）
+  function isCustomOpts(){
+    if(!isOptionGame()) return false;
+    var base = cloneOpts(curMode().opts);
+    return ['describe','seal','survival','showSeal'].some(function(k){ return state.opts[k] !== base[k]; });
+  }
+  function currentPlayTitle(){
+    if(!isOptionGame()) return curMode().title;
+    return isCustomOpts() ? 'カスタム' : curMode().title;
+  }
+  function applyPreset(modeId){
+    state.selectedModeId = modeId;
+    var m = modeById(modeId);
+    if(m.opts) state.opts = cloneOpts(m.opts);
+  }
+  // 記録に残すオプション構成のスナップショット（タグ絞り込み用）
+  function optSnapshot(){
+    return { describe: optDescribe(), seal: optSeal(), survival: optSurvival() };
+  }
+  // オプションのタグ定義（ready画面のサマリと、記録画面の絞り込みで共用）
+  var OPTION_TAGS = [
+    { id:'ai',       icon:'🤖', label:'AI出題',     match:function(o){ return o.describe === 'ai'; } },
+    { id:'hint',     icon:'💡', label:'一言ヒント', match:function(o){ return o.describe === 'hint'; } },
+    { id:'seal',     icon:'🔒', label:'封印ワード', match:function(o){ return o.seal && o.seal !== 'none'; } },
+    { id:'strict',   icon:'📣', label:'即アウト',   match:function(o){ return o.seal === 'strict'; } },
+    { id:'survival', icon:'💀', label:'脱落あり',   match:function(o){ return !!o.survival; } }
+  ];
+  function tagsForOpts(o){ return OPTION_TAGS.filter(function(t){ return o && t.match(o); }); }
+  function optionTags(){ return tagsForOpts(optSnapshot()); }
+
   var state = {
     topics: [],
     players: [],
@@ -1184,6 +1316,7 @@
     bombLocked: { easy: false, normal: false, hard: false, nanisore: false, muri: false },
     bombLayout: 'sorted', // 'sorted'（難易度別整列）| 'mixed'（ごちゃまぜ）
     bombLives: 3,
+    opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     autoSaveRecords: true, // 5：対戦記録をサーバーへ自動保存するか（localStorageに永続化）
     matchRoundsLogged: 0,  // このマッチでサーバーに送ったラウンド数（記録のゲーム判別用）
     pool: null, // 統合お題プールのキャッシュ（お題取得後に構築）
@@ -1450,7 +1583,8 @@
     if(!state.autoSaveRecords) return; // 5：自動送信しない
     if(!state.matchId) return;
     try{
-      await api('/api/matches/'+state.matchId+'/round', { method:'PATCH', body:{ mode: mode, score_deltas: scoreDeltas } });
+      // 第10弾：どのオプションで遊んだかも一緒に残す（サーバーはroundsをそのまま保持するので改修不要）
+      await api('/api/matches/'+state.matchId+'/round', { method:'PATCH', body:{ mode: mode, opts: optSnapshot(), score_deltas: scoreDeltas } });
       state.matchRoundsLogged++;
     }catch(e){}
   }
@@ -1469,7 +1603,7 @@
     try{
       // rounds が空だと「どのゲームの記録か」が判別できないため、マーカーを1件入れておく
       if(state.matchRoundsLogged === 0){
-        await api('/api/matches/'+id+'/round', { method:'PATCH', body:{ mode: state.selectedModeId, score_deltas: {} } });
+        await api('/api/matches/'+id+'/round', { method:'PATCH', body:{ mode: state.selectedModeId, opts: optSnapshot(), score_deltas: {} } });
         state.matchRoundsLogged++;
       }
       var finalScores = {};
@@ -1613,6 +1747,8 @@
   }
 
   // ---------- screen nav ----------
+  // 「戻る」方向で画面遷移する（アニメーションが左から右になる）
+  function goBack(id){ goTo._back = true; goTo(id); }
   function goTo(id){
     // #1（第5弾）：プレイ画面から完全に抜ける瞬間に、読み上げ・音声認識を必ず止める
     var prevScreen = document.querySelector('.screen.active');
@@ -1620,8 +1756,13 @@
       try{ window.speechSynthesis.cancel(); }catch(e){}
       stopVoice();
     }
-    document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
-    el(id).classList.add('active');
+    // UI基準1：進む=右から左／戻る=左から右。方向を逆にすることで「どこにいるか」が分かる
+    var back = (goTo._back === true); goTo._back = false;
+    document.querySelectorAll('.screen').forEach(function(s){
+      s.classList.remove('active', 'scr-in-fwd', 'scr-in-back');
+    });
+    var next = el(id);
+    next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
     var noGear = ['scr-splash','scr-login','scr-setup','scr-mode','scr-countdown'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
@@ -1794,6 +1935,7 @@
     wolfcfg:   { screen:'scr-set-wolf',      badge:'wizStepWolf',      render:renderWolfSection },
     bombcfg:   { screen:'scr-set-bomb',      badge:'wizStepBomb',      render:renderBombSection },
     bomblife:  { screen:'scr-set-bomblife',   badge:'wizStepBombLife',   render:renderBombLifeStep },
+    playstyle: { screen:'scr-set-playstyle',  badge:'wizStepPlaystyle',  render:renderPlaystyleStep },
     difficulty:{ screen:'scr-set-difficulty', badge:'wizStepDifficulty', render:renderDifficultyStep },
     timer:     { screen:'scr-set-timer',      badge:'wizStepTimer',      render:renderTimerStep },
     handicap:  { screen:'scr-set-handicap',   badge:'wizStepHandicap',   render:renderHandicapPicker },
@@ -1806,17 +1948,65 @@
     if(m.quiz || m.auction) return ['handicap'];
     // ワードウルフはお題が関連ペア固定なので難易度選択は不要
     if(m.wolf) return ['wolfcfg', 'timer', 'handicap'];
-    var steps = ['difficulty']; // ④：統合プールを使う通常系モードに難易度選択
+    var steps = ['playstyle', 'difficulty']; // 第10弾：あそびかた（オプション）→ 難易度
     if(!m.buzzer) steps.push('timer'); // 早押しは対戦ごとの独自タイマー
     steps.push('handicap');
     // 判断1：サバイバルは全員が回答者。固定出題者は構造上100%脱落するので出題者ステップを外す
-    if(!(m.ai || m.buzzer || m.survival)) steps.push('describer');
+    // 出題者を選ぶのは「人間が説明」かつ「脱落なし」のときだけ
+    // （脱落ONで固定出題者にすると、その人は得点できず構造上100%脱落するため）
+    if(!(isAIDescribe() || m.buzzer || optSurvival())) steps.push('describer');
     return steps;
   }
   function renderBombLifeStep(){
     el('bombLifeValue').textContent = state.bombLives;
     el('bombLifeDisplay').textContent = '❤️'.repeat(state.bombLives);
   }
+  // ---------- あそびかた設定（第10弾） ----------
+  function renderPlaystyleStep(){
+    var o = state.opts;
+    Array.prototype.forEach.call(el('optDescribeSeg').children, function(b){ b.classList.toggle('on', b.dataset.v === o.describe); });
+    Array.prototype.forEach.call(el('optSealSeg').children, function(b){ b.classList.toggle('on', b.dataset.v === o.seal); });
+    el('optSurvivalToggle').classList.toggle('on', !!o.survival);
+    // 封印ワードONのときだけ「画面に表示する」を出す
+    var sealOn = o.seal !== 'none';
+    el('optShowSealRow').style.display = sealOn ? 'flex' : 'none';
+    el('optShowSealToggle').classList.toggle('on', !!o.showSeal);
+    el('optShowSealSub').textContent = (o.describe === 'human')
+      ? '出題者が「使ってはいけない言葉」を確認できます'
+      : '答えのヒントになるので、ふだんはOFFがおすすめ（プレイ中に見るボタンあり）';
+    // 出題方法と封印ワードの関係をひとことで説明する
+    var note = '';
+    if(!sealOn){
+      note = '';
+    } else if(o.describe === 'human'){
+      note = o.seal === 'strict' ? '出題者が禁止ワードを言ったら、その場でアウト＝次のお題へ進みます。'
+                                 : '出題者は禁止ワードを使わずに説明します。';
+    } else {
+      note = 'AIは禁止ワードを使わずに説明します。' +
+             (o.seal === 'strict' ? '（AIは違反しないため「即アウト」は実質はたらきません）' : '');
+    }
+    el('optSealNote').textContent = note;
+  }
+  el('optDescribeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('.seg-btn'); if(!b) return;
+    state.opts.describe = b.dataset.v;
+    // AI出題に切り替えたら、禁止ワードは既定で伏せる（答えがバレるため）。人間に戻したら表示に戻す
+    state.opts.showSeal = (state.opts.describe === 'human');
+    renderPlaystyleStep();
+  });
+  el('optSealSeg').addEventListener('click', function(e){
+    var b = e.target.closest('.seg-btn'); if(!b) return;
+    state.opts.seal = b.dataset.v;
+    renderPlaystyleStep();
+  });
+  el('optShowSealToggle').addEventListener('click', function(){
+    state.opts.showSeal = !state.opts.showSeal;
+    renderPlaystyleStep();
+  });
+  el('optSurvivalToggle').addEventListener('click', function(){
+    state.opts.survival = !state.opts.survival;
+    renderPlaystyleStep();
+  });
   function renderDifficultyStep(){
     el('difficultyChips').innerHTML = BOMB_TIERS.map(function(t){
       var on = state.topicDifficulties.indexOf(t.id) >= 0;
@@ -1859,8 +2049,8 @@
   }
   function wizardNext(){ state.wizIndex++; gotoWizardStep(); }
   function wizardBack(){
-    if(state.wizIndex <= 0){ goTo('scr-mode'); return; }
-    state.wizIndex--; gotoWizardStep();
+    if(state.wizIndex <= 0){ goBack('scr-mode'); return; }
+    state.wizIndex--; goTo._back = true; gotoWizardStep();
   }
   function finishWizard(){
     if(!state.seenRules[state.selectedModeId]){
@@ -2060,7 +2250,7 @@
   function renderDescriberPicker(){
     var m = modeById(state.selectedModeId);
     var section = el('describerSection');
-    if(m.ai || m.wolf){ section.style.display = 'none'; return; }
+    if(isAIDescribe() || m.wolf){ section.style.display = 'none'; return; }
     section.style.display = 'block';
     el('describerChips').innerHTML = state.players.map(function(p){
       return '<span class="hp-chip'+(state.describerPlayerId===p.id?' on':'')+'" data-id="'+p.id+'">'+escapeHtml(p.name)+'</span>';
@@ -2081,7 +2271,7 @@
   el('modeCards').addEventListener('click', function(e){
     var card = e.target.closest('.mode-card');
     if(!card) return;
-    state.selectedModeId = card.dataset.id;
+    applyPreset(card.dataset.id); // 第10弾：プリセット＝オプションの初期セット
     saveLocalPrefs();
     enterMode();
   });
@@ -2126,12 +2316,16 @@
 
   // ===================== 5. ready =====================
   function enterReady(){
-    var m = modeById(state.selectedModeId);
     var names = state.players.map(function(p){ return p.name; }).join('、');
-    el('readySummary').innerHTML = '<b>'+m.title+'</b>　'+escapeHtml(names);
+    // 第10弾：プリセット名（変更していれば「カスタム」）＋いま有効なオプションを見せる
+    var tags = optionTags().map(function(t){
+      return '<span class="opt-tag">'+t.icon+' '+escapeHtml(t.label)+'</span>';
+    }).join('');
+    el('readySummary').innerHTML = '<b>'+escapeHtml(currentPlayTitle())+'</b>　'+escapeHtml(names)+
+      (tags ? '<div class="opt-tag-row">'+tags+'</div>' : '');
     resetHoldRing();
   }
-  el('readyBackBtn').addEventListener('click', function(){ goTo('scr-mode'); });
+  el('readyBackBtn').addEventListener('click', function(){ goBack('scr-mode'); });
 
   var HOLD_MS = 1000, holdStart = null, holdRAF = null;
   var RING_CIRC = 2 * Math.PI * 85;
@@ -3128,7 +3322,7 @@
     play.running = false;
     play.roundStartScores = {};
     state.players.forEach(function(p){ play.roundStartScores[p.id] = p.score; });
-    if(!m.ai && state.describerPlayerId){
+    if(!isAIDescribe() && state.describerPlayerId){
       var idx = state.players.findIndex(function(p){ return p.id === state.describerPlayerId; });
       play.describerIndex = (idx === -1) ? null : idx;
     } else {
@@ -3168,7 +3362,7 @@
       return;
     }
     // ④(第2弾)：AI/一言ヒントモードは音声判定をデフォルトON（人間の判定を挟まず自動化）
-    if(mWolf.ai){
+    if(isAIDescribe()){
       state.voiceDetect = true;
       play.aiVoiceAuto = true;
     } else if(play.aiVoiceAuto){
@@ -3187,19 +3381,19 @@
     renderDescriber();
     setupPlayTimerUI();
     // ②：答えを確認ボタンはAI/一言ヒントモードのみ。毎ラウンド隠した状態に戻す
-    el('revealAnswerBtn').style.display = mWolf.ai ? 'inline-flex' : 'none';
+    el('revealAnswerBtn').style.display = isAIDescribe() ? 'inline-flex' : 'none';
     el('revealAnswerBtn').textContent = '🔍 答えを確認';
     el('revealAnswerBox').style.display = 'none';
-    if(!mWolf.ai) el('moreHintBtn').style.display = 'none';
-    // AI/一言ヒントモードは禁止ワードの概念が無いので「反則」ボタンは出さない
-    el('btnFoul').style.display = mWolf.ai ? 'none' : 'inline-flex';
+    if(!isAIDescribe()) el('moreHintBtn').style.display = 'none';
+    // 反則は「人間が説明」のときだけ（お題を言った・ジェスチャー等も含むので封印なしでも使う）
+    el('btnFoul').style.display = isAIDescribe() ? 'none' : 'inline-flex';
     el('btnPass').style.display = 'inline-flex'; // 新規4：全モードでパス可能
-    el('describerOnlyNote').style.display = mWolf.ai ? 'none' : 'block'; // 判断2：人間出題モードのみ注意書き
+    el('describerOnlyNote').style.display = isAIDescribe() ? 'none' : 'block'; // 判断2：人間出題モードのみ注意書き
     nextTopic();
     renderPlayTimer();
     if(state.timerEnabled) startPlayTimer();
     // ④(第2弾)：AIモードは音声認識を自動起動して、答えを言えば自動で正解フローへ
-    if(mWolf.ai && state.voiceDetect && voiceSupported()){
+    if(isAIDescribe() && state.voiceDetect && voiceSupported()){
       if(recognizer){ try{ recognizer.onend = null; recognizer.stop(); }catch(e){} recognizer = null; }
       startVoice();
     }
@@ -3223,9 +3417,8 @@
     el('revealAnswerBox').style.display = 'none'; // ②：新しいお題では答えを隠した状態に戻す
     el('revealAnswerBtn').textContent = '🔍 答えを確認';
     if(state.voiceDetect) updateLiveTranscript('');
-    var m = modeById(state.selectedModeId);
-    if(m.ai){
-      el('ngWordsBox').style.display = 'none';
+    renderSealWords(); // 封印ワードの表示／非表示（出題方法に関わらず共通）
+    if(isAIDescribe()){
       el('oneWordBadge').style.display = 'none';
       aiDescribeAndSpeak(pick);
     } else {
@@ -3235,9 +3428,29 @@
       renderTopic();
     }
   }
+  // 封印ワードの表示制御（第10弾）。AI出題でも封印ワードは有効で、
+  // 画面に出すかどうかだけを showSeal で切り替える。非表示でも「見る」ボタンで確認できる。
+  function renderSealWords(){
+    var box = el('ngWordsBox'), btn = el('sealPeekBtn');
+    var t = play.currentTopic;
+    var has = isSealOn() && t && t.ng_words && t.ng_words.length;
+    play.sealRevealed = false;
+    if(!has){
+      box.style.display = 'none';
+      if(btn) btn.style.display = 'none';
+      return;
+    }
+    box.innerHTML = t.ng_words.map(function(w){ return '<span class="ng-chip">'+escapeHtml(w)+'</span>'; }).join('');
+    if(optShowSeal()){
+      box.style.display = 'flex';
+      if(btn) btn.style.display = 'none';
+    } else {
+      box.style.display = 'none';
+      if(btn){ btn.style.display = 'inline-flex'; btn.textContent = '🔒 封印ワードを見る'; }
+    }
+  }
   async function aiDescribeAndSpeak(topic){
-    var m = modeById(state.selectedModeId);
-    var hint = !!m.oneWord; // 一言ヒントモード（③）
+    var hint = isHintDescribe(); // 一言ヒント（③）
     el('topicName').textContent = hint ? '💡 ヒントを考え中…' : '🤖 説明を考え中…';
     el('aiDescriptionBox').style.display = 'none';
     el('replaySpeechBtn').style.display = 'none';
@@ -3324,17 +3537,17 @@
       this.textContent = '🔍 答えを確認';
     }
   });
+  // 第10弾：封印ワードが非表示のとき、押した人だけが確認する
+  el('sealPeekBtn').addEventListener('click', function(){
+    var box = el('ngWordsBox');
+    play.sealRevealed = !play.sealRevealed;
+    box.style.display = play.sealRevealed ? 'flex' : 'none';
+    this.textContent = play.sealRevealed ? '🙈 封印ワードを隠す' : '🔒 封印ワードを見る';
+  });
   function renderTopic(){
-    var m = modeById(state.selectedModeId);
     el('topicName').textContent = play.currentTopic.name;
-    var ngBox = el('ngWordsBox');
-    if(m.advanced && play.currentTopic.ng_words && play.currentTopic.ng_words.length){
-      ngBox.style.display = 'flex';
-      ngBox.innerHTML = play.currentTopic.ng_words.map(function(w){ return '<span class="ng-chip">'+escapeHtml(w)+'</span>'; }).join('');
-    } else {
-      ngBox.style.display = 'none';
-    }
-    el('oneWordBadge').style.display = m.oneWord ? 'inline-block' : 'none';
+    // 封印ワードの出し分けは renderSealWords() に集約済み
+    el('oneWordBadge').style.display = isHintDescribe() ? 'inline-block' : 'none';
   }
   function renderPlayTimer(){
     var d = el('playTimer');
@@ -3477,7 +3690,7 @@
     wrongSound();
     // AI/一言ヒントモードはお題名を隠す設計なので、不正解表示に名前を出さない
     var name = play.currentTopic ? play.currentTopic.name : '';
-    showFlash(m.ai ? '❌ 不正解' : ('❌ 不正解：'+name), 'hit-wrong');
+    showFlash(isAIDescribe() ? '❌ 不正解' : ('❌ 不正解：'+name), 'hit-wrong');
     if(state.hardMode){
       play.autoAdvancing = true;
       setTimeout(function(){ play.autoAdvancing = false; nextTopic(); }, 700);
@@ -3487,8 +3700,7 @@
     if(play.aiLoading) return;     // 問題1：AI生成中は無効（保険）
     if(play.autoAdvancing) return; // 連打による二重送りを防ぐ
     logResult('foul'); buzz(); showFlash('🚫 反則を記録しました', 'hit');
-    var m = modeById(state.selectedModeId);
-    if(m.strict){
+    if(isSealStrict()){
       play.autoAdvancing = true;
       setTimeout(function(){ play.autoAdvancing = false; nextTopic(); }, 700);
     }
@@ -3507,10 +3719,9 @@
   // voice detection (beta)
   function voiceSupported(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
   function voiceHintText(){
-    var m = modeById(state.selectedModeId);
-    return m.advanced
-      ? 'お題を言うと正解、禁止ワードで反則、「パス」で不正解に'
-      : 'お題を言うと正解、「パス」で不正解になります';
+    return isSealOn()
+      ? 'お題を言うと正解、禁止ワードで反則、「パス」でつぎのお題へ'
+      : 'お題を言うと正解、「パス」でつぎのお題へ';
   }
   function renderMicStatus(extra){
     el('micStatus').textContent = (extra || (state.voiceDetect ? '🎙 聞き取り中…' : 'オフ')) + '　' + voiceHintText();
@@ -3572,10 +3783,11 @@
     if(play.aiLoading) return; // 問題2：AI生成中は音声でもコマンドを実行しない
     var transcript = normalizeJp(rawTranscript);
     if(!transcript) return;
-    var m = modeById(state.selectedModeId);
 
     // 1) NGワード（禁止ワード）検知 → 反則
-    if(m.advanced && play.currentTopic.ng_words){
+    // 出題者の発話を捕まえる機能なので「人間が説明」のときだけ。AI出題で有効にすると、
+    // 回答者が推測で口にした禁止ワードを誤検知してしまう。
+    if(optDescribe() === 'human' && isSealOn() && play.currentTopic.ng_words){
       for(var n = 0; n < play.currentTopic.ng_words.length; n++){
         var word = play.currentTopic.ng_words[n];
         var w = normalizeJp(word);
@@ -3585,7 +3797,7 @@
           voiceFlaggedWords['ng:'+w] = true;
           logResult('foul');
           buzz(); showFlash('🚫 「'+word+'」を検知しました', 'hit');
-          if(m.strict) setTimeout(nextTopic, 700);
+          if(isSealStrict()) setTimeout(nextTopic, 700);
           return;
         }
       }
@@ -3650,10 +3862,9 @@
     var scoreDeltas = {};
     rows.forEach(function(r){ if(r.delta !== 0) scoreDeltas[r.p.name] = r.delta; });
 
-    var m = modeById(state.selectedModeId);
     var banner = el('survivalBanner');
     banner.style.display = 'none';
-    if(m.survival){
+    if(optSurvival()){
       var active = state.players.filter(function(p){ return !p.eliminated; });
       if(active.length > 1){
         var deltaOf = function(p){
@@ -3705,22 +3916,21 @@
       '</div>';
     }).join('');
 
-    var m = modeById(state.selectedModeId);
     var active = state.players.filter(function(p){ return !p.eliminated; });
-    var champion = (m.survival && active.length <= 1);
-    var survivalOngoing = (m.survival && active.length > 1); // ①：まだ優勝が決まっていない
+    var champion = (optSurvival() && active.length <= 1);
+    var survivalOngoing = (optSurvival() && active.length > 1); // ①：まだ優勝が決まっていない
     // サバイバルは決着前に「モードをえらびなおす」で離脱できないようにする。
     // 「もう一度（つぎのラウンド）」と「終了して記録」は途中でも押せる。
     el('playAgainBtn').style.display = champion ? 'none' : 'inline-flex';
     el('chooseModeBtn').style.display = (champion || survivalOngoing) ? 'none' : 'inline-flex';
-    el('playAgainBtn').textContent = m.survival ? '▶️ つぎのラウンドへ' : '🔁 もう一度';
+    el('playAgainBtn').textContent = optSurvival() ? '▶️ つぎのラウンドへ' : '🔁 もう一度';
     if(champion){
       el('scoreList').insertAdjacentHTML('afterbegin',
         '<div class="wolf-result-topic">🏆 <b>' + escapeHtml(active[0] ? active[0].name : '?') + '</b> の優勝です！</div>');
     }
   }
   el('playAgainBtn').addEventListener('click', function(){ goTo('scr-ready'); });
-  el('chooseModeBtn').addEventListener('click', function(){ goTo('scr-mode'); });
+  el('chooseModeBtn').addEventListener('click', function(){ goBack('scr-mode'); });
   el('finishMatchBtn').addEventListener('click', async function(){
     if(!confirm('今回の対戦を終了して記録しますか？')) return;
     var finalScores = {};
@@ -3755,7 +3965,8 @@
     try{ window.speechSynthesis.cancel(); }catch(e){}
     if(play.interval) clearInterval(play.interval);
     el('settingsOverlay').classList.remove('show');
-    goTo('scr-splash');
+    // タスク3：終了後はモード選択へ（プレイヤーはそのまま。すぐ次のゲームを始められる）
+    goTo('scr-mode');
   });
 
   // ---------- 2：プレイヤー編集（ゲーム共通） ----------
@@ -3837,7 +4048,7 @@
 
   // ---------- 4：記録専用画面（ゲーム共通） ----------
   var recordsCache = [];
-  var recordsFilter = 'all';   // 'all' or ゲームID
+  var recordsTagFilter = [];   // 第10弾：オプションタグの複数選択（すべて満たすものだけ＝AND）
   var recordsSort = 'time';    // 'time' | 'score'
   function matchGameId(m){
     // 記録がどのゲームのものかは rounds[].mode から判別する
@@ -3847,6 +4058,23 @@
     }
     return null; // 判別できない古い記録
   }
+  // 第10弾：記録のオプションタグ。opts が無い過去の記録は、モードIDから推測して壊さない
+  function matchOpts(m){
+    var rounds = m.rounds || [];
+    for(var i = 0; i < rounds.length; i++){
+      if(rounds[i] && rounds[i].opts) return rounds[i].opts;
+    }
+    for(var k = 0; k < rounds.length; k++){
+      if(rounds[k] && rounds[k].mode){
+        var lm = MODES.find(function(x){ return x.id === rounds[k].mode; });
+        if(lm) return { describe: lm.oneWord ? 'hint' : (lm.ai ? 'ai' : 'human'),
+                        seal: lm.strict ? 'strict' : (lm.advanced ? 'on' : 'none'),
+                        survival: !!lm.survival };
+      }
+    }
+    return null; // オプション情報なし（さらに古い記録）
+  }
+  function matchTags(m){ var o = matchOpts(m); return o ? tagsForOpts(o) : []; }
   function matchTopScore(m){
     var s = m.final_scores || {};
     var vals = Object.keys(s).map(function(n){ return s[n]; });
@@ -3873,22 +4101,19 @@
     renderRecords();
   }
   function renderRecordsGameChips(){
-    // 実際に記録があるゲームだけを候補に出す（将来ゲームが増えても自動で並ぶ）
-    var ids = [];
-    recordsCache.forEach(function(m){
-      var gid = matchGameId(m);
-      if(gid && ids.indexOf(gid) === -1) ids.push(gid);
-    });
-    var chips = '<span class="hp-chip'+(recordsFilter==='all'?' on':'')+'" data-game="all">すべて</span>';
-    chips += ids.map(function(gid){
-      var g = gameById(gid);
-      return '<span class="hp-chip'+(recordsFilter===gid?' on':'')+'" data-game="'+gid+'">'+g.icon+' '+escapeHtml(g.title)+'</span>';
+    // 第10弾：オプションタグでの絞り込み（複数選択＝すべて満たす記録だけ表示）
+    var chips = '<span class="hp-chip'+(recordsTagFilter.length===0?' on':'')+'" data-tag="all">すべて</span>';
+    chips += OPTION_TAGS.map(function(t){
+      var on = recordsTagFilter.indexOf(t.id) >= 0;
+      return '<span class="hp-chip'+(on?' on':'')+'" data-tag="'+t.id+'">'+t.icon+' '+escapeHtml(t.label)+(on?' ✅':'')+'</span>';
     }).join('');
     el('recordsGameChips').innerHTML = chips;
   }
   function renderRecords(){
     var list = recordsCache.filter(function(m){
-      return recordsFilter === 'all' || matchGameId(m) === recordsFilter;
+      if(recordsTagFilter.length === 0) return true;
+      var ids = matchTags(m).map(function(t){ return t.id; });
+      return recordsTagFilter.every(function(f){ return ids.indexOf(f) >= 0; });
     });
     list.sort(function(a, b){
       if(recordsSort === 'score') return matchTopScore(b) - matchTopScore(a);
@@ -3908,19 +4133,31 @@
       var scoreLine = names.map(function(n){
         return (scores[n] === top && top > 0) ? ('<b>👑'+escapeHtml(n)+' '+scores[n]+'</b>') : (escapeHtml(n)+' '+scores[n]);
       }).join('　');
+      // ゲーム名＋オプションタグの2階層で表示（タグが無い古い記録は「記録なし」と出す）
+      var tags = matchTags(m);
+      var tagHtml = tags.length
+        ? tags.map(function(t){ return '<span class="opt-tag">'+t.icon+' '+escapeHtml(t.label)+'</span>'; }).join('')
+        : '<span class="opt-tag" style="opacity:.6;">設定の記録なし</span>';
       return '<div class="record-item">'+
         '<div class="record-top">'+
           '<span class="record-game">'+(g ? g.icon+' '+escapeHtml(g.title) : '🎲 記録')+'</span>'+
           '<span class="record-date">'+dateStr+'</span>'+
         '</div>'+
         '<div class="record-scores">'+(scoreLine || 'スコアなし')+'</div>'+
+        '<div class="record-tags">'+tagHtml+'</div>'+
       '</div>';
     }).join('');
   }
   el('recordsGameChips').addEventListener('click', function(e){
     var chip = e.target.closest('.hp-chip');
     if(!chip) return;
-    recordsFilter = chip.dataset.game;
+    var tag = chip.dataset.tag;
+    if(tag === 'all'){
+      recordsTagFilter = [];
+    } else {
+      var i = recordsTagFilter.indexOf(tag);
+      if(i >= 0) recordsTagFilter.splice(i, 1); else recordsTagFilter.push(tag);
+    }
     renderRecordsGameChips();
     renderRecords();
   });

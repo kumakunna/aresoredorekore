@@ -20,6 +20,10 @@
     --teal:#2F6F63;
     --line:rgba(36,39,46,0.14);
     --shadow:0 8px 24px rgba(36,27,10,0.14);
+    /* 第12弾：棚の木（既存のクリーム色の世界観に合う暖かい茶色） */
+    --wood:#8B5E3C;
+    --wood-dark:#6B4630;
+    --wood-light:#A87450;
   }
   *{box-sizing:border-box;}
   body{
@@ -316,6 +320,91 @@
   .floating-gear:active{opacity:1;}
   /* A：⚙の分だけ右側を空けて、トップバーのボタンと重ならないようにする */
   .play-topbar, .bomb-topbar{padding-right:42px;}
+  /* ===== 第12弾：棚とカセット（あつまれ、あれこれ） ===== */
+  #scr-shelf{padding:18px 0 24px;}
+  .shelf-head{text-align:center;padding:0 18px;margin-bottom:14px;}
+  .shelf-head .logo{font-family:'Shippori Mincho',serif;font-weight:800;font-size:21px;}
+  .shelf-head .logo .c{color:var(--stamp);}
+  .shelf-head .sub{font-size:11px;color:var(--ink-soft);margin-top:3px;}
+  .shelf{margin:0 0 26px;position:relative;}
+  .shelf-inner{background:linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.02) 26%, transparent 46%);padding:14px 0 0;}
+  /* カセットの並び（中央が大きいカルーセル） */
+  .rail{
+    display:flex;align-items:flex-end;gap:8px;
+    padding:0 calc(50% - 62px);
+    overflow-x:auto;scroll-snap-type:x mandatory;
+    scrollbar-width:none;-ms-overflow-style:none;
+  }
+  .rail::-webkit-scrollbar{display:none;}
+  .rail.reordering{scroll-snap-type:none;touch-action:none;}
+  .cart{
+    flex:none;width:124px;scroll-snap-align:center;
+    transition:transform .26s cubic-bezier(.2,.7,.3,1), filter .26s ease;
+    transform:scale(.74) translateY(6px);
+    filter:brightness(.9) saturate(.85);
+    cursor:pointer;border:none;background:none;padding:0;
+  }
+  .cart.center{transform:scale(1) translateY(-6px);filter:none;}
+  .cart:active:not(:disabled){transform:scale(.97) translateY(-4px);}
+  .cart.center:active:not(:disabled){transform:scale(.97) translateY(-4px);}
+  .cart.dragging{transform:scale(1.04) translateY(-10px);filter:none;opacity:.92;z-index:5;transition:none;}
+  .cart-body{
+    width:100%;aspect-ratio:1/1.1;border-radius:7px 7px 4px 4px;
+    background:linear-gradient(180deg,#F3EBD9,#DCD0B6);
+    box-shadow:0 8px 16px rgba(0,0,0,.28), inset 0 -3px 0 rgba(0,0,0,.12);
+    position:relative;overflow:hidden;display:flex;flex-direction:column;
+  }
+  .cart-body::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:11px;
+    background:repeating-linear-gradient(90deg, rgba(0,0,0,.10) 0 3px, transparent 3px 7px);
+    border-bottom:1px solid rgba(0,0,0,.12);
+  }
+  .cart-label{
+    margin:16px 8px 8px;flex:1;border-radius:4px;
+    background:var(--card);border:1px solid rgba(0,0,0,.12);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.08);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:6px 5px;text-align:center;overflow:hidden;
+  }
+  .cart-label .icon{font-size:24px;line-height:1;margin-bottom:5px;}
+  .cart-label .title{font-family:'Shippori Mincho',serif;font-weight:800;font-size:12px;line-height:1.25;}
+  .cart.center .cart-label .icon{font-size:30px;}
+  .cart.center .cart-label .title{font-size:13.5px;}
+  /* 中央のカセットにだけ出す情報（狭い画面で全部に出すと読めなくなるため） */
+  .cart-meta{
+    height:0;opacity:0;overflow:hidden;
+    transition:height .22s ease, opacity .18s ease;
+    font-size:9.5px;color:var(--ink-soft);margin-top:4px;line-height:1.5;
+  }
+  .cart.center .cart-meta{height:26px;opacity:1;}
+  /* 近日公開（無効に見えるが、壊れて見えないように） */
+  .cart.soon .cart-label{background:repeating-linear-gradient(45deg,#EDE6D4 0 7px,#E4DBC5 7px 14px);}
+  .cart.soon .cart-label .icon{opacity:.55;}
+  .cart.soon .cart-body{filter:saturate(.35);}
+  .soon-tag{
+    position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:var(--paper);font-size:8px;letter-spacing:.06em;
+    padding:2px 7px;border-radius:99px;white-space:nowrap;
+  }
+  .board{
+    height:15px;margin-top:9px;position:relative;
+    background:linear-gradient(180deg,var(--wood-light),var(--wood) 42%,var(--wood-dark));
+    box-shadow:0 5px 12px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.2);
+    border-radius:2px;
+  }
+  .sticker{
+    position:absolute;left:16px;top:-9px;
+    background:var(--card);border:1px solid rgba(0,0,0,.14);
+    padding:3px 10px;border-radius:3px;font-size:10px;font-weight:700;
+    box-shadow:0 2px 5px rgba(0,0,0,.24);transform:rotate(-1.4deg);color:var(--ink);
+  }
+  .sticker::after{content:'';position:absolute;inset:2px;border:1px dashed rgba(36,39,46,.18);border-radius:2px;}
+  .shelf-hint{text-align:center;font-size:10.5px;color:var(--ink-soft);padding:6px 20px 0;line-height:1.7;}
+  .shelf-reorder-note{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:70;
+    background:var(--ink);color:var(--paper);font-size:11px;padding:7px 14px;border-radius:99px;
+    box-shadow:0 4px 12px rgba(0,0,0,.3);
+  }
   /* 第10弾：あそびかた設定・オプションタグ */
   .opt-block{margin-bottom:20px;}
   .opt-block .seg-btn{font-size:13px;padding:10px 4px;}
@@ -482,6 +571,16 @@
     <div class="splash-hint">アイコンをタップしてはじめよう</div>
   </div>
 
+  <!-- 1.5: 棚（第12弾・あつまれ、あれこれのトップ） -->
+  <div class="screen" id="scr-shelf">
+    <div class="shelf-head">
+      <div class="logo">あつまれ<span class="c">、</span>あれこれ</div>
+      <div class="sub">あそぶゲームをえらんでね</div>
+    </div>
+    <div id="shelfList"></div>
+    <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ</div>
+  </div>
+
   <!-- 2: login -->
   <div class="screen" id="scr-login">
     <h2 class="scr-title" id="loginTitle">ログイン</h2>
@@ -532,6 +631,7 @@
     <div class="wiz-foot" style="flex-direction:column;">
       <button class="btn btn-main" id="modeNextBtn">つぎへ ▶</button>
       <button class="btn btn-outline" id="modeAutoBtn" style="margin-top:0;">⚡ おまかせで始める</button>
+      <button class="btn btn-ghost" id="backToShelfBtn" style="margin-top:0;">← ゲームをえらびなおす</button>
     </div>
   </div>
 
@@ -1212,6 +1312,199 @@
       bullets:["全員チップ20枚からスタート","難易度が出たらチップを賭ける","最初の正解者が賭け金×倍率＋αを獲得","外れた人は賭け金を没収","6ラウンド後のチップ数がスコア"]}
   ];
 
+  // ===== 第12弾：棚とカセット（あつまれ、あれこれのトップ画面） =====
+  // カセット＝1つのゲーム。ready:false は「近日公開予定」で、押しても遊べない。
+  // genre で棚の段に振り分ける。'all' の段には全カセットを再掲する。
+  var SHELF_GENRES = [
+    { id:'word',  label:'ことばであそぶ' },
+    { id:'deal',  label:'かけひき' },
+    { id:'move',  label:'からだをうごかす' },
+    { id:'all',   label:'ぜんぶ' }
+  ];
+  var CASSETTES = [
+    { id:'aresoredorekore', genre:'word', ready:true,  icon:'🎴', title:'あれそれ<br>どれこれ',
+      meta:'2〜8人 / 10分〜<br>ことばで説明して当てる' },
+    // 第4段階でカセットとして復活予定。名前は見せて期待を持たせつつ、まだ遊べないことを明示する
+    { id:'jinro',           genre:'word', ready:false, icon:'🐺', title:'人狼<br>ゲーム',
+      meta:'3〜10人 / 15分〜<br>正体を隠して探り合う' },
+    { id:'word-soon-1',     genre:'word', ready:false, icon:'？' },
+    { id:'deal-soon-1',     genre:'deal', ready:false, icon:'？' },
+    { id:'deal-soon-2',     genre:'deal', ready:false, icon:'？' },
+    { id:'deal-soon-3',     genre:'deal', ready:false, icon:'？' },
+    { id:'move-soon-1',     genre:'move', ready:false, icon:'？' },
+    { id:'move-soon-2',     genre:'move', ready:false, icon:'？' }
+  ];
+  function cassetteById(id){ return CASSETTES.find(function(c){ return c.id === id; }); }
+  // 並び順は段ごとに localStorage で保存する
+  function loadShelfOrder(){
+    try{ return JSON.parse(localStorage.getItem('acac-shelf-order') || '{}') || {}; }
+    catch(e){ return {}; }
+  }
+  function saveShelfOrder(order){
+    try{ localStorage.setItem('acac-shelf-order', JSON.stringify(order)); }catch(e){}
+  }
+  function cassettesForGenre(genreId){
+    var list = (genreId === 'all') ? CASSETTES.slice() : CASSETTES.filter(function(c){ return c.genre === genreId; });
+    var saved = (loadShelfOrder() || {})[genreId];
+    if(saved && saved.length){
+      var byId = {}; list.forEach(function(c){ byId[c.id] = c; });
+      var ordered = [];
+      saved.forEach(function(id){ if(byId[id]){ ordered.push(byId[id]); delete byId[id]; } });
+      list.forEach(function(c){ if(byId[c.id]) ordered.push(c); }); // 保存後に増えたカセットは末尾へ
+      list = ordered;
+    }
+    return list;
+  }
+  function cartHtml(c){
+    var soon = !c.ready;
+    return '<button class="cart' + (soon ? ' soon' : '') + '" data-cart="' + c.id + '">' +
+      '<div class="cart-body">' +
+        '<div class="cart-label">' +
+          '<div class="icon">' + c.icon + '</div>' +
+          (c.title ? '<div class="title">' + c.title + '</div>' : '') +
+        '</div>' +
+        (soon ? '<div class="soon-tag">近日公開予定</div>' : '') +
+      '</div>' +
+      '<div class="cart-meta">' + (c.meta || 'おたのしみに') + '</div>' +
+    '</button>';
+  }
+  function renderShelf(){
+    el('shelfList').innerHTML = SHELF_GENRES.map(function(g){
+      var carts = cassettesForGenre(g.id).map(cartHtml).join('');
+      return '<div class="shelf">' +
+        '<div class="shelf-inner"><div class="rail" data-rail="' + g.id + '">' + carts + '</div></div>' +
+        '<div class="board"><span class="sticker">' + escapeHtml(g.label) + '</span></div>' +
+      '</div>';
+    }).join('');
+    document.querySelectorAll('#shelfList .rail').forEach(function(rail){
+      updateRailCenter(rail);
+      var t = null;
+      rail.addEventListener('scroll', function(){
+        updateRailCenter(rail);
+        clearTimeout(t);
+        t = setTimeout(function(){ updateRailCenter(rail); }, 40);
+      });
+    });
+  }
+  // 中央のカセットだけを大きくする（情報も中央にだけ出す）
+  function updateRailCenter(rail){
+    var rect = rail.getBoundingClientRect();
+    var cx = rect.left + rect.width / 2;
+    var best = null, bestD = Infinity;
+    Array.prototype.forEach.call(rail.querySelectorAll('.cart'), function(c){
+      var r = c.getBoundingClientRect();
+      var d = Math.abs((r.left + r.width / 2) - cx);
+      if(d < bestD){ bestD = d; best = c; }
+    });
+    // 変化がないときは触らない。毎回 class を付け外しすると拡大アニメが再開し続けて
+    // 中央のカセットが大きくならず、高さ変化でスクロールも揺れてしまう
+    if(rail._centerEl === best) return;
+    if(rail._centerEl) rail._centerEl.classList.remove('center');
+    if(best) best.classList.add('center');
+    rail._centerEl = best;
+  }
+  function enterShelf(){
+    renderShelf();
+    // レイアウト確定後に中央を計算し直す
+    setTimeout(function(){
+      document.querySelectorAll('#shelfList .rail').forEach(updateRailCenter);
+    }, 30);
+  }
+  // カセットのタップ：中央なら選択、そうでなければ中央へ寄せる
+  el('shelfList').addEventListener('click', function(e){
+    if(shelfDrag.moved) return; // 並び替え直後のクリックは無視
+    var cart = e.target.closest('.cart');
+    if(!cart) return;
+    var rail = cart.closest('.rail');
+    if(!cart.classList.contains('center')){
+      cart.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+      return;
+    }
+    var c = cassetteById(cart.dataset.cart);
+    if(!c || !c.ready){
+      showFlash('🔧 このゲームは近日公開予定です', 'hit');
+      return;
+    }
+    startCassette(c.id);
+  });
+  function startCassette(id){
+    if(id !== 'aresoredorekore') return; // 第3段階で3階層に対応する
+    // 第12弾-7：プレイヤー設定は初回のみ。以降は「変更する」と答えた時だけ聞く
+    if(state.players.length === 0 || state.needPlayerSetup){
+      state.needPlayerSetup = false;
+      goTo('scr-setup');
+    } else {
+      goTo('scr-mode');
+    }
+  }
+  // ---- 長押しドラッグでカセットを並び替える ----
+  var shelfDrag = { active:false, moved:false, cart:null, rail:null, timer:null, startX:0 };
+  function cancelShelfDragTimer(){ clearTimeout(shelfDrag.timer); shelfDrag.timer = null; }
+  function endShelfReorder(){
+    if(shelfDrag.rail){
+      shelfDrag.rail.classList.remove('reordering');
+      // 並び順を保存
+      var ids = Array.prototype.map.call(shelfDrag.rail.querySelectorAll('.cart'), function(c){ return c.dataset.cart; });
+      var order = loadShelfOrder();
+      order[shelfDrag.rail.dataset.rail] = ids;
+      saveShelfOrder(order);
+    }
+    if(shelfDrag.cart) shelfDrag.cart.classList.remove('dragging');
+    var note = el('shelfReorderNote');
+    if(note) note.remove();
+    shelfDrag.active = false; shelfDrag.cart = null; shelfDrag.rail = null;
+  }
+  el('shelfList').addEventListener('pointerdown', function(e){
+    var cart = e.target.closest('.cart');
+    if(!cart) return;
+    shelfDrag.moved = false;
+    shelfDrag.startX = e.clientX;
+    cancelShelfDragTimer();
+    shelfDrag.timer = setTimeout(function(){
+      shelfDrag.active = true;
+      shelfDrag.cart = cart;
+      shelfDrag.rail = cart.closest('.rail');
+      shelfDrag.rail.classList.add('reordering');
+      cart.classList.add('dragging');
+      if(navigator.vibrate) navigator.vibrate(30);
+      var note = document.createElement('div');
+      note.className = 'shelf-reorder-note';
+      note.id = 'shelfReorderNote';
+      note.textContent = '↔ ドラッグで並び替え・はなすと確定';
+      document.body.appendChild(note);
+    }, 450);
+  });
+  el('shelfList').addEventListener('pointermove', function(e){
+    if(!shelfDrag.active){
+      // 長押し前に大きく動いたらスワイプ扱い（並び替えに入らない）
+      if(shelfDrag.timer && Math.abs(e.clientX - shelfDrag.startX) > 8) cancelShelfDragTimer();
+      return;
+    }
+    e.preventDefault();
+    shelfDrag.moved = true;
+    var carts = Array.prototype.slice.call(shelfDrag.rail.querySelectorAll('.cart'));
+    var target = null;
+    carts.forEach(function(c){
+      if(c === shelfDrag.cart) return;
+      var r = c.getBoundingClientRect();
+      if(e.clientX >= r.left && e.clientX <= r.right) target = c;
+    });
+    if(target){
+      var cur = carts.indexOf(shelfDrag.cart), tgt = carts.indexOf(target);
+      if(cur < tgt) target.after(shelfDrag.cart); else target.before(shelfDrag.cart);
+      updateRailCenter(shelfDrag.rail);
+    }
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(function(ev){
+    el('shelfList').addEventListener(ev, function(){
+      cancelShelfDragTimer();
+      if(shelfDrag.active){
+        endShelfReorder();
+        setTimeout(function(){ shelfDrag.moved = false; }, 50);
+      }
+    });
+  });
+
   // ===== ゲームレジストリ（共通化の土台） =====
   // 「あつまれ、あれこれ」に将来ゲームが増えても記録が破綻しないよう、モードは必ずどれかのゲームに属する。
   // MODES に game: を書かなければ既定ゲーム（あれそれどれこれ）扱い。Unity製など別技術のゲームが
@@ -1317,6 +1610,7 @@
     bombLayout: 'sorted', // 'sorted'（難易度別整列）| 'mixed'（ごちゃまぜ）
     bombLives: 3,
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
+    needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
     autoSaveRecords: true, // 5：対戦記録をサーバーへ自動保存するか（localStorageに永続化）
     matchRoundsLogged: 0,  // このマッチでサーバーに送ったラウンド数（記録のゲーム判別用）
     pool: null, // 統合お題プールのキャッシュ（お題取得後に構築）
@@ -1819,8 +2113,9 @@
     var next = el(id);
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-splash','scr-login','scr-setup','scr-mode','scr-countdown'];
+    var noGear = ['scr-splash','scr-login','scr-shelf','scr-setup','scr-mode','scr-countdown'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
+    if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-setup') enterSetup();
     if(id === 'scr-mode') enterMode();
     if(id === 'scr-ready') enterReady();
@@ -1846,7 +2141,7 @@
     el('startBtn').disabled = false;
     if(loggedIn){
       await fetchTopics();
-      goTo('scr-setup');
+      goTo('scr-shelf'); // 第12弾：まず棚からゲームを選ぶ
     } else {
       goTo('scr-login');
     }
@@ -1880,7 +2175,7 @@
       }
       state.username = res.username;
       await fetchTopics();
-      goTo('scr-setup');
+      goTo('scr-shelf'); // 第12弾：ログイン後も棚へ
     } catch(e){
       el('loginError').textContent = e.message || 'エラーが発生しました';
       var card = el('scr-login');
@@ -2372,6 +2667,7 @@
     p.handicap = !p.handicap;
     renderHandicapPicker();
   });
+  el('backToShelfBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
   el('modeNextBtn').addEventListener('click', startWizard);
   el('modeAutoBtn').addEventListener('click', function(){
     // おまかせ：全設定をデフォルトのまま一気にready画面へ
@@ -4030,9 +4326,14 @@
     var finalScores = {};
     state.players.forEach(function(p){ finalScores[p.name] = p.score; });
     await finishMatch(finalScores);
-    // バグ3（第11弾）：設定内のゲーム終了ボタンと挙動を揃える。プレイヤーは保持したままモード選択へ
-    goTo('scr-mode');
+    askPlayerChange();   // 第12弾-7：次回もこのメンバーで遊ぶか確認する
+    goTo('scr-shelf');   // 第12弾：ゲームを終えたら棚に戻って、次のゲームを選べる
   });
+  // 第12弾-7：毎回プレイヤーを入力させると煩わしいので、終わる時に一度だけ聞く
+  function askPlayerChange(){
+    if(!state.players.length) return;
+    state.needPlayerSetup = confirm('つぎはプレイヤーを変更しますか？\n\nOK＝つぎに始める時に入力しなおす\nキャンセル＝このメンバーのまま続ける');
+  }
 
   // ===================== settings overlay =====================
   function openSettings(){
@@ -4060,8 +4361,8 @@
     try{ window.speechSynthesis.cancel(); }catch(e){}
     if(play.interval) clearInterval(play.interval);
     el('settingsOverlay').classList.remove('show');
-    // タスク3：終了後はモード選択へ（プレイヤーはそのまま。すぐ次のゲームを始められる）
-    goTo('scr-mode');
+    askPlayerChange();  // 第12弾-7
+    goTo('scr-shelf');  // 第12弾：棚に戻って次のゲームを選ぶ
   });
 
   // ---------- 2：プレイヤー編集（ゲーム共通） ----------

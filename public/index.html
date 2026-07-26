@@ -366,6 +366,9 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     padding:6px 5px;text-align:center;overflow:hidden;
   }
+  /* ロゴを貼るカセットは、ラベル枠いっぱいに収める（棚は落ち着いたトーン、カセットで個性を出す） */
+  .cart-label.has-logo{padding:5px;}
+  .cart-logo{width:100%;height:100%;object-fit:contain;display:block;}
   .cart-label .icon{font-size:24px;line-height:1;margin-bottom:5px;}
   .cart-label .title{font-family:'Shippori Mincho',serif;font-weight:800;font-size:12px;line-height:1.25;}
   .cart.center .cart-label .icon{font-size:30px;}
@@ -1315,16 +1318,18 @@
   // ===== 第12弾：棚とカセット（あつまれ、あれこれのトップ画面） =====
   // カセット＝1つのゲーム。ready:false は「近日公開予定」で、押しても遊べない。
   // genre で棚の段に振り分ける。'all' の段には全カセットを再掲する。
+  // 「ぜんぶ」の段は、カセットが増えて探しにくくなったら復活させる
+  // （いまは中身のあるカセットが少なく、他の段とほぼ同じ並びになって冗長なため外している）
   var SHELF_GENRES = [
     { id:'word',  label:'ことばであそぶ' },
     { id:'deal',  label:'かけひき' },
-    { id:'move',  label:'からだをうごかす' },
-    { id:'all',   label:'ぜんぶ' }
+    { id:'move',  label:'からだをうごかす' }
   ];
+  // 名前を出すのは「中身が決まっているカセット」だけ。未定のものは icon:'？' のまま伏せる
   var CASSETTES = [
-    { id:'aresoredorekore', genre:'word', ready:true,  icon:'🎴', title:'あれそれ<br>どれこれ',
+    { id:'aresoredorekore', genre:'word', ready:true,  logo:'img/logo-aresoredorekore.png', title:'あれそれどれこれ',
       meta:'2〜8人 / 10分〜<br>ことばで説明して当てる' },
-    // 第4段階でカセットとして復活予定。名前は見せて期待を持たせつつ、まだ遊べないことを明示する
+    // 第4段階でカセットとして復活予定。中身は決まっているので名前を見せ、まだ遊べないことを明示する
     { id:'jinro',           genre:'word', ready:false, icon:'🐺', title:'人狼<br>ゲーム',
       meta:'3〜10人 / 15分〜<br>正体を隠して探り合う' },
     { id:'word-soon-1',     genre:'word', ready:false, icon:'？' },
@@ -1357,12 +1362,13 @@
   }
   function cartHtml(c){
     var soon = !c.ready;
+    // ロゴ画像があるカセットは、絵文字＋文字ではなくロゴを1枚貼る（ソフトのパッケージらしくなる）
+    var face = c.logo
+      ? '<img class="cart-logo" src="' + c.logo + '" alt="' + escapeHtml((c.title || '').replace(/<br>/g, '')) + '">'
+      : '<div class="icon">' + c.icon + '</div>' + (c.title ? '<div class="title">' + c.title + '</div>' : '');
     return '<button class="cart' + (soon ? ' soon' : '') + '" data-cart="' + c.id + '">' +
       '<div class="cart-body">' +
-        '<div class="cart-label">' +
-          '<div class="icon">' + c.icon + '</div>' +
-          (c.title ? '<div class="title">' + c.title + '</div>' : '') +
-        '</div>' +
+        '<div class="cart-label' + (c.logo ? ' has-logo' : '') + '">' + face + '</div>' +
         (soon ? '<div class="soon-tag">近日公開予定</div>' : '') +
       '</div>' +
       '<div class="cart-meta">' + (c.meta || 'おたのしみに') + '</div>' +

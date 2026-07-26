@@ -999,7 +999,7 @@
     <div class="score-actions">
       <button class="btn btn-main" id="playAgainBtn">🔁 もう一度</button>
       <button class="btn btn-outline" id="chooseModeBtn">🎛 モードをえらびなおす</button>
-      <button class="btn btn-ghost" id="finishMatchBtn">✅ 今日はここまで（終了して記録）</button>
+      <button class="btn btn-ghost" id="finishMatchBtn">🏁 記録して、つぎのゲームへ</button>
     </div>
   </div>
 
@@ -1429,18 +1429,73 @@
   };
   var ALL_TIERS = ['easy','normal','hard','nanisore','muri'];
   // QUIZ_BANK（難易度確定）＋サーバー110件（対応表でタグ付け）を名前で重複排除した統合プール
+  // ===== 別名（第11弾）=====
+  // 方針：判定は寛容に、表示は正式名称で。
+  //   display … お題の表示名を正式名称に差し替える（元の名前は自動で別名になる）
+  //   aliases … 正解として認める言い方（略称・日常的な同義語）
+  // 「お題として独立して存在する語は他のお題の別名にしない」というルールは、
+  // プール構築時に自動でチェックして弾いているので、ここには気軽に書いてよい。
+  var TOPIC_ALIASES = {
+    // 略称の方が有名なもの（表示は正式名称にして「へえ」を残す）
+    'パトカー':           { display:'パトロールカー',       aliases:['パトカー'] },
+    'コンビニ':           { display:'コンビニエンスストア', aliases:['コンビニ'] },
+    'スーパー':           { display:'スーパーマーケット',   aliases:['スーパー'] },
+    'リュック':           { display:'リュックサック',       aliases:['リュック','バックパック','ナップサック'] },
+    // 正式名称がお題名。略称や言い換えを正解に加える
+    'スマートフォン':     { aliases:['スマホ','ケータイ','携帯電話','携帯'] },
+    '遊園地':             { aliases:['テーマパーク'] },
+    '自動販売機':         { aliases:['自販機'] },
+    '目覚まし時計':       { aliases:['目覚まし','アラーム','目覚し時計'] },
+    'セロハンテープ':     { aliases:['セロテープ'] },
+    'ホッチキス':         { aliases:['ホチキス','ステープラー'] },
+    'トイレットペーパー': { aliases:['トイレぺーパー','トイペ'] },
+    'アイスクリーム':     { aliases:['アイス'] },
+    'チョコレート':       { aliases:['チョコ'] },
+    'ハンバーガー':       { aliases:['バーガー'] },
+    'おにぎり':           { aliases:['おむすび'] },
+    'ヘリコプター':       { aliases:['ヘリ'] },
+    'ヘッドホン':         { aliases:['ヘッドフォン'] },
+    '自動車':             { aliases:['車','クルマ','マイカー'] },
+    '自転車':             { aliases:['チャリ','ママチャリ','チャリンコ'] },
+    '眼鏡':               { aliases:['メガネ'] },
+    '石けん':             { aliases:['石鹸','せっけん','ソープ'] },
+    '電卓':               { aliases:['計算機'] },
+    '習字道具':           { aliases:['書道セット','習字セット'] },
+    '上履き':             { aliases:['上靴','うわぐつ'] },
+    'エアコン':           { aliases:['クーラー','冷房','エアコンディショナー'] },
+    '冷蔵庫':             { aliases:['れいぞうこ'] },
+    'テレビ':             { aliases:['テレビジョン'] }
+  };
+  function decorateTopic(base, tier){
+    var ex = TOPIC_ALIASES[base.name] || {};
+    var display = ex.display || base.name;
+    var aliases = (ex.aliases || []).slice();
+    if(ex.display) aliases.push(base.name); // 表示名を変えた場合、元の名前も正解として残す
+    aliases = aliases.filter(function(a, i){ return a && aliases.indexOf(a) === i; }); // 重複を除く
+    return { name:display, yomi:base.yomi || '', ng_words:base.ng_words || [], tier:tier, aliases:aliases };
+  }
   function getPool(){
     if(state.pool) return state.pool;
     var pool = [], seen = {};
+    function add(t){
+      if(seen[t.name]) return; seen[t.name] = true;
+      pool.push(t);
+    }
     Object.keys(QUIZ_BANK).forEach(function(tier){
-      QUIZ_BANK[tier].forEach(function(t){
-        if(seen[t.name]) return; seen[t.name] = true;
-        pool.push({ name:t.name, yomi:t.yomi || '', ng_words:t.ng_words || [], tier:tier });
-      });
+      QUIZ_BANK[tier].forEach(function(t){ add(decorateTopic(t, tier)); });
     });
     (state.topics || []).forEach(function(t){
-      if(seen[t.name]) return; seen[t.name] = true;
-      pool.push({ name:t.name, yomi:t.yomi || '', ng_words:t.ng_words || [], tier: TOPIC_DIFFICULTY[t.name] || 'normal' });
+      add(decorateTopic(t, TOPIC_DIFFICULTY[t.name] || 'normal'));
+    });
+    // 「独立したお題として存在する語」は、ほかのお題の別名にしない。
+    // （例：遊園地とテーマパークが両方お題だと、答えが食い違って混乱するため）
+    var isTopicName = {};
+    pool.forEach(function(t){ isTopicName[normalizeJp(t.name)] = true; });
+    pool.forEach(function(t){
+      t.aliases = (t.aliases || []).filter(function(a){
+        var n = normalizeJp(a);
+        return n && !isTopicName[n];
+      });
     });
     state.pool = pool;
     return pool;
@@ -1993,6 +2048,7 @@
     // AI出題に切り替えたら、禁止ワードは既定で伏せる（答えがバレるため）。人間に戻したら表示に戻す
     state.opts.showSeal = (state.opts.describe === 'human');
     renderPlaystyleStep();
+    refreshWizSteps(); // AI出題なら出題者ステップが消える
   });
   el('optSealSeg').addEventListener('click', function(e){
     var b = e.target.closest('.seg-btn'); if(!b) return;
@@ -2006,6 +2062,7 @@
   el('optSurvivalToggle').addEventListener('click', function(){
     state.opts.survival = !state.opts.survival;
     renderPlaystyleStep();
+    refreshWizSteps(); // 脱落ONなら出題者ステップが消える
   });
   function renderDifficultyStep(){
     el('difficultyChips').innerHTML = BOMB_TIERS.map(function(t){
@@ -2039,6 +2096,21 @@
     state.wizIndex = 0;
     gotoWizardStep();
   }
+  // バグ1（第11弾）：あそびかたを変えるとステップ構成も変わる（例：AI出題なら出題者を選ばない）。
+  // 画面は動かさず、いま見ているステップに留まったまま一覧だけ作り直す。
+  function refreshWizSteps(){
+    if(!state.wizSteps || !state.wizSteps.length) return;
+    var currentId = state.wizSteps[state.wizIndex];
+    var next = modeSteps(modeById(state.selectedModeId));
+    var i = next.indexOf(currentId);
+    state.wizSteps = next;
+    state.wizIndex = (i >= 0) ? i : Math.min(state.wizIndex, next.length - 1);
+    var step = WIZARD_STEPS[state.wizSteps[state.wizIndex]];
+    if(step){
+      var badge = el(step.badge);
+      if(badge) badge.textContent = '設定 ' + (state.wizIndex + 1) + ' / ' + state.wizSteps.length;
+    }
+  }
   function gotoWizardStep(){
     if(state.wizIndex >= state.wizSteps.length){ finishWizard(); return; }
     var step = WIZARD_STEPS[state.wizSteps[state.wizIndex]];
@@ -2063,22 +2135,37 @@
   // ---- タイマー設定画面（②：スクロール式ピッカー） ----
   var WHEEL_ITEM_H = 50;
   var TIMER_PRESETS = [30, 60, 180, 300, 600]; // 0:30 / 1:00 / 3:00 / 5:00 / 10:00
-  function buildWheel(col, max, value){
+  function buildWheel(col, max, value, min){
+    min = min || 0;
     var html = '<div class="wheel-pad"></div>';
-    for(var i = 0; i <= max; i++){ html += '<div class="wheel-item" data-v="' + i + '">' + pad(i) + '</div>'; }
+    for(var i = min; i <= max; i++){ html += '<div class="wheel-item" data-v="' + i + '">' + pad(i) + '</div>'; }
     html += '<div class="wheel-pad"></div>';
     col.innerHTML = html;
-    col.scrollTop = value * WHEEL_ITEM_H;
+    col._min = min;
+    col.scrollTop = (value - min) * WHEEL_ITEM_H;
     markWheelSel(col, value);
   }
-  function getWheelValue(col){ return Math.round(col.scrollTop / WHEEL_ITEM_H); }
+  function getWheelValue(col){ return Math.round(col.scrollTop / WHEEL_ITEM_H) + (col._min || 0); }
   function markWheelSel(col, value){
     Array.prototype.forEach.call(col.querySelectorAll('.wheel-item'), function(it){
       it.classList.toggle('sel', parseInt(it.dataset.v, 10) === value);
     });
   }
+  // バグ2（第11弾）：分が00のときは秒の00を選べなくして、00:00を作れないようにする。
+  // タイマーを切りたい場合は「タイマーを使う」トグルを使う。
+  function syncSecWheelRange(){
+    if(buildWheel._busy) return;
+    var minSec = (getWheelValue(el('wheelM')) === 0) ? 1 : 0;
+    var col = el('wheelS');
+    if((col._min || 0) === minSec) return;
+    var cur = Math.max(minSec, getWheelValue(col));
+    buildWheel._busy = true;                 // 再構築で発生するscrollイベントによる再入を防ぐ
+    buildWheel(col, 59, cur, minSec);
+    setTimeout(function(){ buildWheel._busy = false; }, 60);
+  }
   function updateTimerFromWheels(){
     // 判断3：時の列は廃止。分・秒のみ（最大59:59）
+    syncSecWheelRange();
     var m = getWheelValue(el('wheelM')), s = getWheelValue(el('wheelS'));
     state.customTimer = m * 60 + s;
     renderTimerPresets();
@@ -2090,8 +2177,10 @@
   }
   function setWheelsToSeconds(t){
     if(t > 3599) t = 3599; // 分・秒のみなので上限59:59
-    buildWheel(el('wheelM'), 59, Math.floor(t / 60));
-    buildWheel(el('wheelS'), 59, t % 60);
+    if(t < 1) t = 1;       // バグ2：00:00は作れない（最短1秒）
+    var mm = Math.floor(t / 60), ss = t % 60;
+    buildWheel(el('wheelM'), 59, mm);
+    buildWheel(el('wheelS'), 59, ss, mm === 0 ? 1 : 0);
   }
   function positionWheelBand(){
     // 各カラムは同じ高さ・同じ位置にあるので wheelM を基準にバンドを合わせる
@@ -3803,11 +3892,16 @@
       }
     }
 
-    // 2) お題そのもの（漢字表記 or ひらがな読み）を言った → 正解
+    // 2) お題そのもの（正式名称・ひらがな読み・別名）を言った → 正解
+    // 第11弾：判定は寛容に。略称や日常的な言い換え（パトカー／スマホ等）も正解として認める
     if(!voiceFlaggedWords.correct){
-      var name = normalizeJp(play.currentTopic.name);
-      var yomi = normalizeJp(play.currentTopic.yomi || '');
-      if((name && transcript.indexOf(name) !== -1) || (yomi && transcript.indexOf(yomi) !== -1)){
+      var accepted = [play.currentTopic.name, play.currentTopic.yomi || '']
+        .concat(play.currentTopic.aliases || []);
+      var hit = accepted.some(function(c){
+        var n = normalizeJp(c);
+        return n && transcript.indexOf(n) !== -1;
+      });
+      if(hit){
         if(!voiceCommandAllowed()) return;
         voiceFlaggedWords.correct = true;
         openChooser();
@@ -3932,11 +4026,12 @@
   el('playAgainBtn').addEventListener('click', function(){ goTo('scr-ready'); });
   el('chooseModeBtn').addEventListener('click', function(){ goBack('scr-mode'); });
   el('finishMatchBtn').addEventListener('click', async function(){
-    if(!confirm('今回の対戦を終了して記録しますか？')) return;
+    if(!confirm('いまのゲームを記録して終わりますか？（プレイヤーはそのまま、つぎのゲームを選べます）')) return;
     var finalScores = {};
     state.players.forEach(function(p){ finalScores[p.name] = p.score; });
     await finishMatch(finalScores);
-    goTo('scr-splash');
+    // バグ3（第11弾）：設定内のゲーム終了ボタンと挙動を揃える。プレイヤーは保持したままモード選択へ
+    goTo('scr-mode');
   });
 
   // ===================== settings overlay =====================

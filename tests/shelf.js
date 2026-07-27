@@ -245,6 +245,34 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第18弾：人数上限をゲームごとに分ける ----
+  await r.test('人数上限：あれそれどれこれは8人まで、人狼は8人を超えて増やせる', async () => {
+    // あれそれどれこれ：物理カード由来の8人上限は据え置き
+    const a = await launch();
+    pickCart(a.doc, 'aresoredorekore');
+    await waitScreen(a.win, a.doc, 'scr-setup', 3000);
+    for (let i = 0; i < 20; i++) click(a.doc, 'playerPlusBtn');
+    await sleep(a.win, 60);
+    assertEqual(el(a.doc, 'playerCountLabel').textContent, '8', 'あれそれどれこれは8人が上限');
+    assertNoErrors(a.errors, 'あれそれどれこれの人数設定で未捕捉の例外');
+    a.win.close();
+
+    // 人狼：上限なし（8人を超えて増やせる）
+    const b = await launch();
+    pickCart(b.doc, 'jinro');
+    await waitScreen(b.win, b.doc, 'scr-game', 3000);
+    b.doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    await sleep(b.win, 60);
+    await waitScreen(b.win, b.doc, 'scr-setup', 3000);
+    for (let i = 0; i < 12; i++) click(b.doc, 'playerPlusBtn');
+    await sleep(b.win, 60);
+    const n = parseInt(el(b.doc, 'playerCountLabel').textContent, 10);
+    assert(n > 8, '人狼は8人を超えて増やせる（' + n + '人）');
+    assertEqual(b.doc.querySelectorAll('#nameRows .name-row').length, n, '人数ぶん入力欄が増える');
+    assertNoErrors(b.errors, '人狼の人数設定で未捕捉の例外');
+    b.win.close();
+  });
+
   // ---- 第15弾：カセット → ゲーム → モードの3階層 ----
   // 複数ゲームのカセットは本番にまだ無いので、テスト時だけ差し込んで経路を確認する
   const MULTI = {

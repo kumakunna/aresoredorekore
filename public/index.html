@@ -926,7 +926,7 @@
         </div>
         <div class="toggle-row-mini" id="wrAttackRow" style="display:none;">
           <div>人狼の襲撃先を多数決で決める
-            <div class="mic-status">OFFなら代表1人が決めます</div>
+            <div class="mic-status">OFFなら各自が別々に襲えます（同じ人を選んだら1人だけ死にます）</div>
           </div>
           <div class="switch" id="wrAttackToggle"></div>
         </div>
@@ -1901,9 +1901,11 @@
   var DEFAULT_GAME_ID = 'aresoredorekore';
   // sub は、1つのカセットに複数ゲームが入る時のゲーム選択画面で使う一言説明
   var GAMES = [
-    { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる' },
-    { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う' },
-    { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要' },
+    // maxPlayers：そのゲームで遊べる人数の上限（省略時は8人）。
+    // あれそれどれこれの8人は元の物理カードに由来する制限なので変えない。
+    { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる', maxPlayers:8 },
+    { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う', maxPlayers:12 },
+    { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要', maxPlayers:0 }, // 0＝上限なし
     { id:'bomb',            title:'時限爆弾',           icon:'💣', sub:'コードを解除する協力プレイ' },
     { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点' },
     { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち' },
@@ -2632,8 +2634,15 @@
     }
     renderNameRows();
   }
+  // いま選んでいるゲームの人数上限。0や未指定は「上限なし」扱い（人狼など）
+  var PLAYER_HARD_CAP = 30; // 画面が破綻しない現実的な上限
+  function maxPlayersForGame(){
+    var g = gameById(state.selectedGameId || DEFAULT_GAME_ID);
+    if(g.maxPlayers === 0) return PLAYER_HARD_CAP; // 上限なし
+    return g.maxPlayers || 8;
+  }
   function setPlayerCount(n){
-    playerDraftCount = Math.max(2, Math.min(8, n));
+    playerDraftCount = Math.max(2, Math.min(maxPlayersForGame(), n));
     while(playerDraft.length < playerDraftCount) playerDraft.push({name:'',handicap:false});
     while(playerDraft.length > playerDraftCount) playerDraft.pop();
     renderNameRows();
@@ -2855,7 +2864,7 @@
       cfg.revealRoleOnDeath = !cfg.revealRoleOnDeath;
       if(cfg.revealRoleOnDeath) cfg.counts.medium = 0; // 公開設定では霊媒師は成立しない
     }
-    else if(id2 === 'wrAttackToggle') cfg.wolfAttackDecision = (cfg.wolfAttackDecision === 'vote') ? 'leader' : 'vote';
+    else if(id2 === 'wrAttackToggle') cfg.wolfAttackDecision = (cfg.wolfAttackDecision === 'vote') ? 'each' : 'vote';
     else if(id2 === 'wrTeruteruToggle') cfg.teruteruContinue = !cfg.teruteruContinue;
     else if(id2 === 'wrLoversToggle') cfg.lovers = !cfg.lovers;
     renderWolfRoleStep();
@@ -5505,7 +5514,7 @@
     settingsDraft.pop(); renderSettingsPlayers();
   });
   el('setPlayerPlusBtn').addEventListener('click', function(){
-    if(settingsDraft.length >= 8) return;
+    if(settingsDraft.length >= maxPlayersForGame()) return;
     settingsDraft.push({id:null,name:'',handicap:false}); renderSettingsPlayers();
   });
   el('setNameRows').addEventListener('input', function(e){

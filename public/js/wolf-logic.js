@@ -71,7 +71,7 @@
     seerResult: 'binary',      // 'binary'（白黒のみ）| 'detail'（陣営まで）
     seerShowsThird: false,     // binaryの時に第三陣営も分かるようにするか
     revealRoleOnDeath: true,   // 死亡者の役職をその場で公開するか
-    wolfAttackDecision: 'vote', // 人狼が2人以上の時 'vote'（多数決）| 'leader'（代表が決める）
+    wolfAttackDecision: 'vote', // 人狼が2人以上の時 'vote'（全員で多数決）| 'each'（各自が独立に選ぶ）
     teruteruContinue: false,   // てるてる坊主が勝った後も試合を続けるか
     nightTimeLimit: 0          // 夜の行動の制限秒数（0＝無制限）
   };
@@ -253,13 +253,7 @@
     alivePlayers(game).forEach(function (p) {
       var r = roleById(p.role);
       if (!r.night) return;
-      if (r.night === 'attack') {
-        // 人狼が2人以上いて「代表が決める」設定なら、代表だけが選ぶ
-        if (game.config.wolfAttackDecision === 'leader') {
-          var wolves = playersWithRole(game, 'wolf', true);
-          if (wolves.length > 1 && wolves[0].id !== p.id) return;
-        }
-      }
+      // 襲撃は人狼全員がそれぞれ選ぶ（多数決でも各自選択でも、全員に聞く）
       out.push({
         playerId: p.id, role: p.role, kind: r.night,
         targets: nightTargets(game, p, r.night)
@@ -307,22 +301,20 @@
       if (t) guarded[t] = true;
     });
 
-    // 3) 襲撃（人狼が複数なら設定に応じて決める）
-    var attackTarget = decideAttackTarget(game);
-    if (attackTarget) {
-      var victim = findPlayer(game, attackTarget);
-      if (victim && victim.alive) {
-        if (guarded[victim.id]) {
-          game.log.push({ turn: game.turn, type: 'guarded', id: victim.id });
-        } else if (victim.role === 'fox') {
-          // 妖狐は人狼の襲撃では死なない
-          game.log.push({ turn: game.turn, type: 'attackFailed', id: victim.id });
-        } else {
-          victim.alive = false; victim.deadTurn = game.turn; victim.deadCause = 'attacked';
-          deaths.push({ id: victim.id, cause: 'attacked' });
-        }
+    // 3) 襲撃（設定に応じて1人 or 人狼それぞれが選んだ相手）
+    decideAttackTargets(game).forEach(function (targetId) {
+      var victim = findPlayer(game, targetId);
+      if (!victim || !victim.alive) return;
+      if (guarded[victim.id]) {
+        game.log.push({ turn: game.turn, type: 'guarded', id: victim.id });
+      } else if (victim.role === 'fox') {
+        // 妖狐は人狼の襲撃では死なない
+        game.log.push({ turn: game.turn, type: 'attackFailed', id: victim.id });
+      } else {
+        victim.alive = false; victim.deadTurn = game.turn; victim.deadCause = 'attacked';
+        deaths.push({ id: victim.id, cause: 'attacked' });
       }
-    }
+    });
 
     // 4) 恋人の後追い
     deaths = deaths.concat(applyLoverDeaths(game));
@@ -343,18 +335,24 @@
     return { deaths: deaths, info: info };
   }
 
-  function decideAttackTarget(game) {
+  // 襲撃先を決める。返り値は「襲う相手の一覧」。
+  //   'vote'  … 人狼全員で多数決。襲うのは1人
+  //   'each'  … 人狼それぞれが独立に選ぶ。同じ相手を選んだら重なるだけで死者は増えない
+  function decideAttackTargets(game) {
     var wolves = playersWithRole(game, 'wolf', true);
-    if (!wolves.length) return null;
+    if (!wolves.length) return [];
     var picks = wolves.map(function (w) { return game.nightActions[w.id]; }).filter(Boolean);
-    if (!picks.length) return null;
-    if (game.config.wolfAttackDecision === 'leader') return picks[0];
+    if (!picks.length) return [];
+    if (game.config.wolfAttackDecision === 'each') {
+      // 重複を取り除く（2人が同じ相手を選んでも死ぬのは1人）
+      return picks.filter(function (id, i) { return picks.indexOf(id) === i; });
+    }
     // 多数決。同数なら先に選ばれた方を採用する
     var count = {};
     picks.forEach(function (id) { count[id] = (count[id] || 0) + 1; });
     var best = picks[0], bestN = 0;
     picks.forEach(function (id) { if (count[id] > bestN) { bestN = count[id]; best = id; } });
-    return best;
+    return [best];
   }
 
   // 占い結果の見え方。狂人は村人に見える（＝looksLike を使う）

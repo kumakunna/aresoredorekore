@@ -291,20 +291,52 @@ function kill(game, name, cause) {
     assert(!guard.targets.some(t => t.id === p(g, 'C').id), '騎士は自分を守れない');
   });
 
-  await r.test('人狼が複数：多数決と代表決めのどちらでも襲撃先が決まる', async () => {
-    // 多数決
-    const g = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager' },
+  await r.test('襲撃：多数決なら1人だけが襲われる', async () => {
+    const g = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager', F: 'villager' },
       { turnLimit: 3, wolfAttackDecision: 'vote' });
+    // 人狼2人が別々の相手を選んでも、多数決では1人しか襲われない
     W.setNightAction(g, p(g, 'A').id, p(g, 'C').id);
-    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id);
-    W.resolveNight(g);
-    assertEqual(p(g, 'C').alive, false, '多数決で選ばれた人が襲撃される');
-
-    // 代表決め：代表だけが行動対象になる
-    const g2 = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager' },
-      { turnLimit: 3, wolfAttackDecision: 'leader' });
+    W.setNightAction(g, p(g, 'B').id, p(g, 'D').id);
+    const out = W.resolveNight(g);
+    assertEqual(out.deaths.length, 1, '多数決では死者は1人');
+    // 人狼は全員が襲撃先を選ぶ（代表制は廃止した）
+    const g2 = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager', F: 'villager' },
+      { turnLimit: 3, wolfAttackDecision: 'vote' });
     const attackers = W.pendingNightActions(g2).filter(a => a.kind === 'attack');
-    assertEqual(attackers.length, 1, '代表1人だけが襲撃先を選ぶ');
+    assertEqual(attackers.length, 2, '人狼全員が襲撃先を選ぶ');
+  });
+
+  await r.test('襲撃：各自が独立に選ぶと、別々なら2人・同じなら1人が死ぬ', async () => {
+    // 別々の相手を選んだ場合 → 2人死ぬ
+    const g = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager', F: 'villager' },
+      { turnLimit: 3, wolfAttackDecision: 'each' });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'C').id);
+    W.setNightAction(g, p(g, 'B').id, p(g, 'D').id);
+    const out = W.resolveNight(g);
+    assertEqual(out.deaths.length, 2, '別々の相手なら2人死ぬ');
+    assertEqual(p(g, 'C').alive, false, 'Cが死ぬ');
+    assertEqual(p(g, 'D').alive, false, 'Dが死ぬ');
+
+    // 同じ相手を選んだ場合 → 重なるだけで1人しか死なない
+    const g2 = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager', F: 'villager' },
+      { turnLimit: 3, wolfAttackDecision: 'each' });
+    W.setNightAction(g2, p(g2, 'A').id, p(g2, 'C').id);
+    W.setNightAction(g2, p(g2, 'B').id, p(g2, 'C').id);
+    const out2 = W.resolveNight(g2);
+    assertEqual(out2.deaths.length, 1, '同じ相手なら1人だけ死ぬ（重複しても増えない）');
+    assertEqual(p(g2, 'D').alive, true, '選ばれていない人は生きている');
+  });
+
+  await r.test('襲撃：各自が独立に選んでも、守られた人は死なない', async () => {
+    const g = makeGame({ A: 'wolf', B: 'wolf', C: 'knight', D: 'villager', E: 'villager', F: 'villager' },
+      { turnLimit: 3, wolfAttackDecision: 'each' });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'D').id);
+    W.setNightAction(g, p(g, 'B').id, p(g, 'E').id);
+    W.setNightAction(g, p(g, 'C').id, p(g, 'D').id); // 騎士がDを守る
+    const out = W.resolveNight(g);
+    assertEqual(p(g, 'D').alive, true, '守られたDは生き残る');
+    assertEqual(p(g, 'E').alive, false, '守られていないEは死ぬ');
+    assertEqual(out.deaths.length, 1, '死者は1人だけ');
   });
 
   // ---------- プリセットからの自動配置（指示18） ----------

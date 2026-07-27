@@ -23,7 +23,9 @@ app.set('trust proxy', 1); // Nginxの後ろで動かす前提。X-Forwarded-Pro
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-app.use(session({
+// 第19弾：socket.io にも同じセッションを通すため、ミドルウェアを変数に取り出しておく。
+// これで socket.request.session.userId と req.session.userId が同じものになる。
+const sessionMiddleware = session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -34,7 +36,8 @@ app.use(session({
     sameSite: 'lax',
     maxAge: 1000 * 60 * 60 * 24 * 30 // 30日
   }
-}));
+});
+app.use(sessionMiddleware);
 
 // -------------------- 認証まわり --------------------
 
@@ -275,6 +278,17 @@ function rowToMatch(row) {
 // -------------------- フロントエンド（静的ファイル）配信 --------------------
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => {
+// -------------------- リアルタイム同期の土台（第19弾） --------------------
+// 別ポートは立てず、既存のHTTPサーバーに socket.io を相乗りさせる。
+// 一人一台前提の既存ゲームは、この機能を一切使わないので影響を受けない。
+const http = require('http');
+const { attachRealtime } = require('./realtime');
+
+const httpServer = http.createServer(app);
+attachRealtime(httpServer, sessionMiddleware);
+
+httpServer.listen(PORT, () => {
   console.log(`[server] あれそれどれこれ backend running on port ${PORT}`);
 });
+
+module.exports = { app, httpServer, sessionMiddleware };

@@ -4,7 +4,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/wolf-logic.js && node tests/smoke.js && node tests/aresore.js && node tests/shelf.js"
+    "test": "node tests/wolf-logic.js && node tests/realtime.js && node tests/smoke.js && node tests/aresore.js && node tests/shelf.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -12,9 +12,11 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "express-session": "^1.19.0"
+    "express-session": "^1.19.0",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "socket.io-client": "^4.8.3"
   }
 }

@@ -819,24 +819,89 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('役職ありワードウルフ：2〜ターン版では占い師・狂人が選べる', async () => {
+  await r.test('役職ありワードウルフ：2〜ターン版も、占い師の有無が外から分からない', async () => {
     const { win, doc, errors } = await launch();
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     await startWordwolfWithRoles(win, doc, 'wordwolf-multi', ['seer', 'madman'], players);
     // 1ターン専用の役職は出ない（逆も同様）
     assert(!doc.querySelector('#wolfRoleRows [data-wwrole="peek"]'), '2〜ターン版に のぞき見役 は出ない');
-    let guard = 0, seerSeen = false;
+
+    const taps = [], handoffs = [], boxes = [];
+    let guard = 0, seerSeen = false, madmanSeen = false;
     while (activeScreen(doc) === 'scr-wolf-pass' && guard++ < 12) {
-      click(doc, 'wolfRevealBtn');
+      // 手渡し画面の文言は、役職の有無にかかわらず同じでなければならない
+      handoffs.push(doc.querySelector('.wolf-handoff-sub').textContent.trim() +
+        '|' + el(doc, 'wolfRevealBtn').textContent.trim());
+      let t = 0;
+      click(doc, 'wolfRevealBtn'); t++;
       await sleep(win, 40);
-      if (/占い師/.test(el(doc, 'wolfRoleBox').textContent)) seerSeen = true;
+      const box = el(doc, 'wolfRoleBox').textContent;
+      boxes.push(box);
+      if (/占い師/.test(box)) seerSeen = true;
+      if (/狂人/.test(box)) madmanSeen = true;
       const pick = doc.querySelector('#wolfRolePickGrid button[data-wwpick]');
-      if (pick && el(doc, 'wolfRolePickGrid').style.display !== 'none') pick.click();
-      else click(doc, 'wolfNextRevealBtn');
+      if (pick && el(doc, 'wolfRolePickGrid').style.display !== 'none') { pick.click(); t++; }
+      else { click(doc, 'wolfNextRevealBtn'); t++; }
+      taps.push(t);
       await sleep(win, 50);
     }
     assert(seerSeen, '占い師が配られる');
+    assert(madmanSeen, '狂人が配られる');
+    assertEqual(taps.length, players.length, '全員にスマホが回る');
+    assert(handoffs.every(h => h === handoffs[0]), '手渡し画面の文言が全員同じ');
+    assert(taps.every(t => t === 2), '占い師も村人も2タップで揃う（' + taps.join(',') + '）');
+    assert(boxes.every(b => /あなたの役職/.test(b)), '役職欄は全員に出る');
+    // 狂人の画面は村人と同じ構え（選択グリッドなし・つぎへボタンあり）でなければならない
+    const madmanBox = boxes.find(b => /狂人/.test(b));
+    assert(!/占います|覗きます|公開します/.test(madmanBox), '狂人には選択を求めない（村人と同じ構え）');
+    assert(!/夜/.test(boxes.join('')), 'ワードウルフに夜は無いので、説明文に「夜」を出さない');
+
+    // 1ターン目の結果で役職を割ってしまうと、残りのターンが成立しない
     await waitScreen(win, doc, 'scr-play', 5000);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+    guard = 0;
+    while (activeScreen(doc) === 'scr-wolf-pass' && guard++ < 12) {
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      const t = doc.querySelector('#wolfVoteGrid button');
+      if (!t) break;
+      t.click();
+      await sleep(win, 50);
+    }
+    await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+    click(doc, 'wolfTallyBtn');
+    await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    const mid = el(doc, 'wolfResultTopics').textContent;
+    assert(!/占い師|狂人/.test(mid), '途中のターンでは役職の答え合わせを出さない');
+
+    // 決着したターンでは明かす
+    click(doc, 'wolfResultNextBtn');
+    await sleep(win, 200);
+    let g2 = 0;
+    while (!/スコアへ/.test(el(doc, 'wolfResultNextBtn').textContent) && g2++ < 6) {
+      if (activeScreen(doc) === 'scr-play') {
+        click(doc, 'endRoundBtn');
+        await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+        let g3 = 0;
+        while (activeScreen(doc) === 'scr-wolf-pass' && g3++ < 12) {
+          click(doc, 'wolfRevealBtn');
+          await sleep(win, 40);
+          const t = doc.querySelector('#wolfVoteGrid button');
+          if (!t) break;
+          t.click();
+          await sleep(win, 50);
+        }
+        await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+        click(doc, 'wolfTallyBtn');
+        await waitScreen(win, doc, 'scr-wolf-result', 8000);
+      }
+      if (/スコアへ/.test(el(doc, 'wolfResultNextBtn').textContent)) break;
+      click(doc, 'wolfResultNextBtn');
+      await sleep(win, 200);
+    }
+    const final = el(doc, 'wolfResultTopics').textContent;
+    assert(/占い師/.test(final) && /狂人/.test(final), '決着したら役職の答え合わせが出る');
     assertNoErrors(errors, '2〜ターン版の役職ありワードウルフで未捕捉の例外');
     win.close();
   });

@@ -3285,15 +3285,19 @@
       if(majority[k]) play.wwRoles[majority[k]] = id;
     });
   }
+  var WW_ROLE_DESC = {
+    seer:   'お題を見るときに1人を占うと、その人がウルフ🐺側かシープ🐑側か分かります。',
+    madman: 'ウルフ🐺の味方です。お題はシープ🐑と同じで、ウルフが誰かは知りません。'
+  };
   function wwRoleOf(playerId){ return (play.wwRoles || {})[playerId] || null; }
   // お題を見る画面で「1人選ぶ」役職か
   function wwPicksAtReveal(roleId){
     return roleId === 'seer' || roleId === 'peek' || roleId === 'involve';
   }
-  // 選んだ相手の見え方（にせもの役は人狼側に見える／狂人は村人に見える）
+  // 選んだ相手の見え方（にせもの役はウルフ側に見える／狂人はシープ側に見える）
   function wwTeamLabel(targetId){
-    if(wwRoleOf(targetId) === 'fake') return '人狼側';
-    return (play.wolfMinorityIds.indexOf(targetId) !== -1) ? '人狼側' : '村人側';
+    if(wwRoleOf(targetId) === 'fake') return 'ウルフ🐺側';
+    return (play.wolfMinorityIds.indexOf(targetId) !== -1) ? 'ウルフ🐺側' : 'シープ🐑側';
   }
 
   function renderWolfSection(){
@@ -3600,8 +3604,9 @@
     play.wolfRevealed = true;
     renderWolfPass();
   });
-  // 結果画面に足す情報：まきこみ役が指名した人の投票先と、役職の答え合わせ
-  function renderWolfRoleReveal(){
+  // 結果画面に足す情報：まきこみ役が指名した人の投票先と、役職の答え合わせ。
+  // withRoles=false なら、まだ続くゲームなので役職は伏せたままにする。
+  function renderWolfRoleReveal(withRoles){
     if(!play.wwRoles || !Object.keys(play.wwRoles).length) return '';
     var html = '';
     if(play.wwRevealVoteOf){
@@ -3613,6 +3618,7 @@
           '<b>' + escapeHtml(voted ? voted.name : '（棄権）') + '</b> でした</div>';
       }
     }
+    if(!withRoles) return html;
     var lines = Object.keys(play.wwRoles).map(function(pid){
       var p = state.players.find(function(x){ return x.id === pid; });
       return p ? escapeHtml(p.name) + '＝' + escapeHtml(WolfLogic.roleById(play.wwRoles[pid]).name) : '';
@@ -3637,7 +3643,9 @@
     // 全員に同じ体裁で役職を出す（狂人も村人と同じ見た目・同じ文字数感）
     var label = roleId ? WolfLogic.roleById(roleId).name
               : (isMinority && state.wolfAware ? '人狼' : '村人');
-    var desc = roleId ? WolfLogic.roleById(roleId).desc : '特別な力はありません。';
+    // 占い師・狂人は人狼ゲームから借りた役職なので、説明文だけワードウルフの言葉に置き換える
+    // （ワードウルフに夜フェーズは無いし、陣営の呼び方もウルフ／シープ）
+    var desc = roleId ? (WW_ROLE_DESC[roleId] || WolfLogic.roleById(roleId).desc) : '特別な力はありません。';
     box.style.display = 'block';
     box.innerHTML = '<div class="wolf-topic-label" style="margin-top:14px;">あなたの役職</div>' +
       '<div class="wolf-topic-name">' + escapeHtml(label) + '</div>' +
@@ -3714,7 +3722,9 @@
     });
     el('wolfResultTopics').innerHTML =
       'シープ🐑のお題：<b>'+escapeHtml(play.wolfMajorityTopic.name)+'</b>　／　ウルフ🐺のお題：<b>'+escapeHtml(play.wolfMinorityTopic.name)+'</b>'+
-      renderWolfRoleReveal(); // 第18弾-6：役職ありなら、まきこみの公開と答え合わせを添える
+      // 第18弾-6：役職ありなら、まきこみの公開と答え合わせを添える。
+      // ただし2〜ターン版は途中で役職を割ると残りのターンが成立しないので、決着時だけ出す。
+      renderWolfRoleReveal(!play.wmActive);
 
     var scoreDeltas = {};
     // 狂人は多数派のお題を持つが、スコアの上では人狼側として扱う。
@@ -3862,9 +3872,10 @@
     // ここは必ず結果画面から呼ばれる。goTo を呼ぶと enterWolfResult が再実行されて
     // 得点が二重に入り、履歴にも同じラウンドが2回残ってしまうので、移動せず書き換えるだけにする。
     if(!el('scr-wolf-result').classList.contains('active')) goTo('scr-wolf-result');
-    el('wolfResultTopics').innerHTML = play.wmWinner
+    el('wolfResultTopics').innerHTML = (play.wmWinner
       ? (play.wmWinner === 'wolf' ? '🐺 ウルフの逃げ切り！ウルフ側の勝ちです' : '🎉 ウルフを当てました！村人側の勝ちです')
-      : '🏁 ' + state.wmCfg.turnLimit + 'ターン終了！合計得点で決着です';
+      : '🏁 ' + state.wmCfg.turnLimit + 'ターン終了！合計得点で決着です')
+      + renderWolfRoleReveal(true); // 決着したので、ここで役職を明かす
     el('wolfResultList').innerHTML = state.players.map(function(p){
       var isWolf = play.wolfMinorityIds.indexOf(p.id) !== -1;
       return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (isWolf ? ' 🐺' : '') +

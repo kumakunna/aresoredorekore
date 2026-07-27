@@ -17,7 +17,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ---- テスト用のサーバー ----
 // 本番の server.js と同じ形（express-session を socket.io と共有）を最小構成で組む。
 // DBやAIには触れないので、テストが外部要因で落ちない。
-function startTestServer() {
+function startTestServer(realtimeOpts) {
   const app = express();
   const sessionMiddleware = session({
     secret: 'test-secret-for-realtime-suite',
@@ -35,7 +35,7 @@ function startTestServer() {
 
   const httpServer = http.createServer(app);
   const store = new RoomStore();
-  const io = attachRealtime(httpServer, sessionMiddleware, { store });
+  const io = attachRealtime(httpServer, sessionMiddleware, Object.assign({ store }, realtimeOpts || {}));
 
   return new Promise((resolve) => {
     httpServer.listen(0, '127.0.0.1', () => {
@@ -377,6 +377,88 @@ async function waitUntil(fn, label, timeoutMs) {
       assertEqual(res.error, 'too_few_players', '理由が分かる');
 
       owner.close(); g1.close();
+    } finally { await srv.close(); }
+  });
+
+  // ---- レビューで確認を求められた2点 ----
+
+  await r.test('オーナーが退出しても、部屋のオーナー(記録先)は残る', async () => {
+    const srv = await startTestServer();
+    try {
+      const cookie = await login(srv.url, 1234);
+      const owner = await connect(srv.url, cookie);
+      const room = await send(owner, 'room:create', { name: 'くまくん' });
+      const g1 = await connect(srv.url);
+      const j1 = await send(g1, 'room:join', { code: room.code, name: 'びび' });
+      const g2 = await connect(srv.url);
+      await send(g2, 'room:join', { code: room.code, name: 'ちか' });
+
+      // 明示的に退出する（メンバー一覧からも消える）
+      await send(owner, 'room:leave', {});
+      const stored = srv.store.get(room.code);
+      assert(stored, '部屋そのものは残る');
+      assertEqual(stored.ownerUserId, 1234, 'オーナーのアカウントは残る（記録先が失われない）');
+      assert(!stored.members.has(room.memberId), 'メンバー一覧からは消える');
+      assertEqual(stored.hostMemberId, j1.memberId, 'ホストは残った端末へ移る');
+      assertEqual(stored.members.size, 2, '残りの2人で続けられる');
+
+      // 残った人が状態を進められる＝オーナー不在でも部屋は生きている
+      const res = await send(g1, 'room:setState', { phase: 'playing' });
+      assertEqual(res.ok, true, 'オーナーが居なくても新ホストが進行できる');
+      assertEqual(srv.store.get(room.code).ownerUserId, 1234, '進行してもオーナーは変わらない');
+
+      owner.close(); g1.close(); g2.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('誰もいなくなった部屋は、猶予のあとメモリから消える', async () => {
+    // 掃除の周期と猶予を短くして、実際に消えるところまで見る
+    const srv = await startTestServer({ sweepIntervalMs: 100, emptyRoomTtlMs: 300 });
+    try {
+      const cookie = await login(srv.url, 1);
+      const owner = await connect(srv.url, cookie);
+      const room = await send(owner, 'room:create', { name: 'ホスト' });
+      const guest = await connect(srv.url);
+      await send(guest, 'room:join', { code: room.code, name: 'びび' });
+      assert(srv.store.get(room.code), '遊んでいる間は残る');
+
+      // 1人抜けただけでは消えない
+      guest.close();
+      await sleep(500);
+      assert(srv.store.get(room.code), '1人残っていれば消えない');
+
+      // 全員いなくなったら猶予のあとに消える
+      owner.close();
+      await waitUntil(() => !srv.store.get(room.code), '空の部屋がメモリから消える', 4000);
+      assertEqual(srv.store.rooms.size, 0, '部屋の置き場が空になる');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('全員が一時的に切れただけの部屋は、戻ってこられる', async () => {
+    // 電波が途切れた程度で部屋を消さない（猶予の意味を確かめる）
+    const srv = await startTestServer({ sweepIntervalMs: 100, emptyRoomTtlMs: 3000 });
+    try {
+      const cookie = await login(srv.url, 1);
+      const owner = await connect(srv.url, cookie);
+      const room = await send(owner, 'room:create', { name: 'ホスト' });
+      const memberId = room.memberId;
+
+      owner.close();
+      await sleep(400);
+      assert(srv.store.get(room.code), '猶予の間は部屋が残っている');
+
+      // 同じメンバーIDで入り直す（別人が増えない）
+      const again = await connect(srv.url, cookie);
+      const rejoined = await send(again, 'room:join', { code: room.code, name: 'ホスト', memberId });
+      assertEqual(rejoined.ok, true, '戻ってこられる');
+      assertEqual(rejoined.memberId, memberId, '同じメンバーとして復帰する');
+      assertEqual(rejoined.room.memberCount, 1, '人数が二重に増えない');
+      assertEqual(srv.store.get(room.code).hostMemberId, memberId, 'ホストも戻る');
+
+      await sleep(500);
+      assert(srv.store.get(room.code), '戻ってきたら猶予はリセットされ、消えない');
+
+      again.close();
     } finally { await srv.close(); }
   });
 

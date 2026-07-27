@@ -145,6 +145,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   const { Server } = require('socket.io');
   const opts = options || {};
   const store = opts.store || new RoomStore();
+  // 掃除の間隔と猶予はテストから短くできるようにする（本番は既定値のまま）
+  const sweepIntervalMs = opts.sweepIntervalMs || SWEEP_INTERVAL_MS;
+  const emptyRoomTtlMs = opts.emptyRoomTtlMs != null ? opts.emptyRoomTtlMs : EMPTY_ROOM_TTL_MS;
 
   const io = new Server(httpServer, {
     cors: { origin: true, credentials: true },
@@ -230,10 +233,13 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         if (!m.connected) continue;
         if (now - m.lastSeen > HEARTBEAT_TIMEOUT_MS) markDisconnected(m, room);
       }
-      // 誰も繋がっていない状態が続いた部屋は片付ける（メモリを永久に食わないように）
-      if (room.emptySince && now - room.emptySince > EMPTY_ROOM_TTL_MS) store.delete(code);
+      // 誰も繋がっていない状態が続いた部屋は片付ける（メモリを永久に食わないように）。
+      // サーバーはpushするまで動き続けるので、ここが無いと遊び終わった部屋が溜まり続ける。
+      // 保険として、emptySince の付け忘れがあってもここで拾い直す。
+      if (!connectedMembers(room).length && !room.emptySince) room.emptySince = now;
+      if (room.emptySince && now - room.emptySince > emptyRoomTtlMs) store.delete(code);
     }
-  }, SWEEP_INTERVAL_MS));
+  }, sweepIntervalMs));
 
   timers.forEach((t) => { if (t.unref) t.unref(); });
 

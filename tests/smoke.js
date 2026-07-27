@@ -270,8 +270,8 @@ async function startModeWithTimerOff(win, doc, id) {
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
-    assert(ids.length >= 6, 'プリセットが6枚以上並ぶ（' + ids.length + '枚）');
-    ['wolf-casual', 'wolf-normal', 'wolf-special', 'wolf-quick', 'wolf-deep', 'wolf-chaos'].forEach(id => {
+    assert(ids.length >= 5, 'プリセットが5枚以上並ぶ（' + ids.length + '枚）');
+    ['wolf-casual', 'wolf-normal', 'wolf-special', 'wolf-deep', 'wolf-chaos'].forEach(id => {
       assert(ids.indexOf(id) >= 0, id + ' がモードカードとして並ぶ');
     });
     assert(ids.every(id => /^wolf-/.test(id)), 'ワードウルフのモードが混ざらない');
@@ -281,7 +281,8 @@ async function startModeWithTimerOff(win, doc, id) {
 
   // ---- 第18弾：役職あり人狼の是正 ----
   // 役職あり人狼を、指定した手順で1ターン進めるヘルパー
-  async function startWolfRole(win, doc, presetId, players) {
+  // onWizard: 役職設定画面（scr-set-wolfrole）で追加の操作をしたいときに使う
+  async function startWolfRole(win, doc, presetId, players, onWizard) {
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
@@ -293,6 +294,7 @@ async function startModeWithTimerOff(win, doc, id) {
     click(doc, doc.querySelector('.mode-card[data-id="' + presetId + '"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    if (onWizard) { onWizard(); await sleep(win, 40); }
     click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
     await waitScreen(win, doc, 'scr-set-timer', 3000);
     if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
@@ -383,8 +385,17 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('再発防止：投票前の単発行動も、生存者全員にスマホが回る', async () => {
     const { win, doc, errors } = await launch();
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
-    // サクッと人狼＝1ターン版。のぞき見役・まきこみ役だけに回すと消去法でバレる
-    await startWolfRole(win, doc, 'wolf-quick', players);
+    // ターン数を1にすると1ターン専用の役職セットに切り替わる。
+    // のぞき見役・まきこみ役だけに回すと消去法でバレるので、全員に回るかを見る
+    await startWolfRole(win, doc, 'wolf-casual', players, function () {
+      // ターン数を1まで下げてから、のぞき見役を1人入れる
+      const minus = doc.querySelector('#scr-set-wolfrole [data-wrturn="-1"]');
+      for (let i = 0; i < 8; i++) minus.click();
+      assertEqual(el(doc, 'wrTurnValue').textContent, '1', 'ターン数が1になる');
+      const peekPlus = doc.querySelector('#scr-set-wolfrole [data-wrrole="peek"][data-d="1"]');
+      assert(peekPlus, 'ターン数1では、のぞき見役が選べるようになる');
+      peekPlus.click();
+    });
     await runWrHandoffs(win, doc, players.length);   // 役職確認
 
     const shown = [];
@@ -691,6 +702,224 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(['sameTopic', 'newTopic'].indexOf(last.detail.variant) >= 0, 'お題変更の有無が残る（' + last.detail.variant + '）');
     assertNoErrors(errors, '2〜ターン（お題変更なし）で未捕捉の例外');
     win.close();
+  });
+
+  // ---- 第18弾 第6部-2：役職ありワードウルフ ----
+  // ワードウルフを、役職を配った状態で始める。
+  // modeId: 'wordwolf'（1ターン）/ 'wordwolf-multi'（2〜ターン）
+  async function startWordwolfWithRoles(win, doc, modeId, roleIds, players) {
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="' + modeId + '"]'));
+    click(doc, 'modeNextBtn');
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-set-wolfmulti') {
+      const minus = doc.querySelector('#scr-set-wolfmulti [data-wmturn="-1"]');
+      for (let i = 0; i < 5; i++) minus.click();          // 2ターンに固定
+      click(doc, doc.querySelector('#scr-set-wolfmulti [data-wiz-next]'));
+      await sleep(win, 40);
+    }
+    await waitScreen(win, doc, 'scr-set-wolf', 3000);
+    assert(el(doc, 'wolfRoleSection').style.display !== 'none', '役職の欄が出る');
+    roleIds.forEach(id => {
+      const plus = doc.querySelector('#wolfRoleRows [data-wwrole="' + id + '"][data-d="1"]');
+      assert(plus && !plus.disabled, id + ' を選べる');
+      plus.click();
+    });
+    await sleep(win, 40);
+    for (let i = 0; i < 6; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      if (cur === 'scr-set-timer' && el(doc, 'timerEnableToggle').classList.contains('on')) {
+        click(doc, 'timerEnableToggle');
+        await sleep(win, 30);
+      }
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 30);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-wolf-pass', 8000);
+  }
+
+  // scr-wolf-pass を1人ぶん流し、その人が何回タップしたかを返す
+  async function passOneWithTapCount(win, doc, onReveal) {
+    const name = el(doc, 'wrHandoffName') && false; // 使わない（人狼カセット側の要素）
+    let taps = 0;
+    click(doc, 'wolfRevealBtn'); taps++;
+    await sleep(win, 40);
+    if (onReveal) onReveal();
+    const pick = doc.querySelector('#wolfRolePickGrid button[data-wwpick]');
+    const nextBtn = el(doc, 'wolfNextRevealBtn');
+    if (pick && el(doc, 'wolfRolePickGrid').style.display !== 'none') {
+      assertEqual(nextBtn.style.display, 'none', '選ぶ画面では「つぎへ」を出さない（タップ数を増やさない）');
+      pick.click(); taps++;
+    } else {
+      click(doc, 'wolfNextRevealBtn'); taps++;
+    }
+    await sleep(win, 50);
+    return taps;
+  }
+
+  await r.test('役職ありワードウルフ：役職の有無にかかわらずタップ数が揃う', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWordwolfWithRoles(win, doc, 'wordwolf', ['peek', 'involve'], players);
+
+    const taps = [];
+    const bodies = [];
+    let guard = 0;
+    while (activeScreen(doc) === 'scr-wolf-pass' && guard++ < 12) {
+      taps.push(await passOneWithTapCount(win, doc, () => {
+        bodies.push(el(doc, 'wolfRoleBox').textContent);
+      }));
+    }
+    assertEqual(taps.length, players.length, '全員にスマホが回る');
+    assert(taps.every(t => t === taps[0]), 'お題を見るフェーズのタップ数が全員同じ（' + taps.join(',') + '）');
+    assertEqual(taps[0], 2, 'お題を見る＋選ぶ／つぎへ で2タップ');
+    assert(bodies.every(b => /あなたの役職/.test(b)), '役職欄は全員に出る（消去法で役職がバレない）');
+
+    // 投票フェーズも、能力持ちだけ操作が増えたりしない
+    await waitScreen(win, doc, 'scr-play', 5000);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+    const voteTaps = [];
+    let sawInfo = false;
+    guard = 0;
+    while (activeScreen(doc) === 'scr-wolf-pass' && guard++ < 12) {
+      let t = 0;
+      click(doc, 'wolfRevealBtn'); t++;
+      await sleep(win, 40);
+      if (el(doc, 'wolfVoteInfo').style.display !== 'none') sawInfo = true;
+      const target = doc.querySelector('#wolfVoteGrid button');
+      if (!target) break;
+      target.click(); t++;
+      await sleep(win, 50);
+      voteTaps.push(t);
+    }
+    assert(voteTaps.every(t => t === 2), '投票フェーズも全員2タップ（' + voteTaps.join(',') + '）');
+    assert(sawInfo, 'のぞき見の結果が、投票の直前に本人だけに出る');
+
+    await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+    click(doc, 'wolfTallyBtn');
+    await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    const res = el(doc, 'wolfResultTopics').textContent;
+    assert(/📢/.test(res), 'まきこみ役が指名した人の投票先が公開される');
+    assert(/のぞき見役/.test(res) && /まきこみ役/.test(res), '結果画面で役職の答え合わせが出る');
+    assertNoErrors(errors, '役職ありワードウルフで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('役職ありワードウルフ：2〜ターン版では占い師・狂人が選べる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWordwolfWithRoles(win, doc, 'wordwolf-multi', ['seer', 'madman'], players);
+    // 1ターン専用の役職は出ない（逆も同様）
+    assert(!doc.querySelector('#wolfRoleRows [data-wwrole="peek"]'), '2〜ターン版に のぞき見役 は出ない');
+    let guard = 0, seerSeen = false;
+    while (activeScreen(doc) === 'scr-wolf-pass' && guard++ < 12) {
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      if (/占い師/.test(el(doc, 'wolfRoleBox').textContent)) seerSeen = true;
+      const pick = doc.querySelector('#wolfRolePickGrid button[data-wwpick]');
+      if (pick && el(doc, 'wolfRolePickGrid').style.display !== 'none') pick.click();
+      else click(doc, 'wolfNextRevealBtn');
+      await sleep(win, 50);
+    }
+    assert(seerSeen, '占い師が配られる');
+    await waitScreen(win, doc, 'scr-play', 5000);
+    assertNoErrors(errors, '2〜ターン版の役職ありワードウルフで未捕捉の例外');
+    win.close();
+  });
+
+  // 役職ありワードウルフを1ターンぶん流し、だれがウルフ／狂人だったかと結果画面の加点を返す。
+  // voteFor(wolfId, players) が投票先のプレイヤーIDを返す
+  async function playWordwolfRoleTurn(win, doc, roleIds, players, voteFor) {
+    await startWordwolfWithRoles(win, doc, 'wordwolf-multi', roleIds, players);
+    const topics = {}; const roles = {};
+    let guard = 0;
+    while (activeScreen(doc) === 'scr-wolf-pass' && guard++ < 12) {
+      const who = el(doc, 'wolfHandoffName').textContent.trim();
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      topics[who] = el(doc, 'wolfTopicText').textContent.trim();
+      roles[who] = el(doc, 'wolfRoleBox').textContent;
+      const pick = doc.querySelector('#wolfRolePickGrid button[data-wwpick]');
+      if (pick && el(doc, 'wolfRolePickGrid').style.display !== 'none') pick.click();
+      else click(doc, 'wolfNextRevealBtn');
+      await sleep(win, 50);
+    }
+    // 少数派＝そのお題を持つのが1人だけの方
+    const counts = {};
+    Object.keys(topics).forEach(n => { counts[topics[n]] = (counts[topics[n]] || 0) + 1; });
+    const wolfName = Object.keys(topics).find(n => counts[topics[n]] === 1);
+    const madmanName = Object.keys(roles).find(n => /狂人/.test(roles[n]));
+
+    await waitScreen(win, doc, 'scr-play', 5000);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+    guard = 0;
+    while (activeScreen(doc) === 'scr-wolf-pass' && guard++ < 12) {
+      const who = el(doc, 'wolfHandoffName').textContent.trim();
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      const want = voteFor(wolfName, who);
+      const btns = Array.from(doc.querySelectorAll('#wolfVoteGrid button'));
+      const target = btns.find(b => b.textContent.trim() === want) || btns[0];
+      target.click();
+      await sleep(win, 50);
+    }
+    await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+    click(doc, 'wolfTallyBtn');
+    await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    const deltas = {};
+    doc.querySelectorAll('#wolfResultList .reveal-row').forEach(row => {
+      const name = row.querySelector('.rn').textContent.replace('🐺', '').trim();
+      deltas[name] = row.querySelector('.rd').textContent.trim();
+    });
+    return { wolfName, madmanName, deltas };
+  }
+
+  await r.test('狂人はワードウルフのスコアで人狼側として扱われる', async () => {
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+
+    // ① ウルフが当てられたケース：狂人は当てても加点されない
+    {
+      const { win, doc, errors } = await launch();
+      const { wolfName, madmanName, deltas } = await playWordwolfRoleTurn(
+        win, doc, ['madman'], players,
+        (wolf, me) => (me === wolf ? players.find(n => n !== wolf) : wolf) // ウルフ以外は全員ウルフに投票
+      );
+      assert(madmanName, '狂人が配られる');
+      assertEqual(deltas[wolfName], '', 'ウルフは当てられたので加点なし');
+      assertEqual(deltas[madmanName], '', '狂人はウルフに投票しても加点されない');
+      const villagers = players.filter(n => n !== wolfName && n !== madmanName);
+      villagers.forEach(n => assertEqual(deltas[n], '+1', n + ' は当てたので +1'));
+      assertNoErrors(errors, '狂人あり（ウルフ発覚）で未捕捉の例外');
+      win.close();
+    }
+
+    // ② ウルフが逃げ切ったケース：狂人もウルフと一緒に加点される
+    {
+      const { win, doc, errors } = await launch();
+      const { wolfName, madmanName, deltas } = await playWordwolfRoleTurn(
+        win, doc, ['madman'], players,
+        (wolf, me) => players.find(n => n !== wolf && n !== me) // だれもウルフに投票しない
+      );
+      assertEqual(deltas[wolfName], '+1', 'ウルフは逃げ切ったので +1');
+      assertEqual(deltas[madmanName], '+1', '狂人は人狼側として一緒に +1');
+      assertNoErrors(errors, '狂人あり（逃げ切り）で未捕捉の例外');
+      win.close();
+    }
   });
 
   // ---- 再発防止：サバイバルの脱落フラグが他モードに持ち越されないこと ----

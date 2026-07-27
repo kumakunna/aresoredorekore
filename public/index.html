@@ -853,6 +853,12 @@
           <div class="switch" id="wolfAwareToggle"></div>
         </div>
       </div>
+      <!-- 第18弾-6：ワードウルフにも役職を足せるようにする。夜フェーズは作らない -->
+      <div class="bomb-section" id="wolfRoleSection" style="margin-top:14px;">
+        <div class="tp-label">役職（いれなくてもOK）</div>
+        <div id="wolfRoleRows"></div>
+        <div class="mic-status" id="wolfRoleNote" style="margin-top:8px;"></div>
+      </div>
     </div>
     <div class="wiz-foot">
       <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
@@ -1071,9 +1077,12 @@
         <div class="wolf-topic-label">あなたのお題</div>
         <div class="wolf-topic-name" id="wolfTopicText">-</div>
         <span class="ng-chip" id="wolfAwareTag" style="display:none;">⚠️ あなたはウルフ🐺です。バレないようシープ🐑のふりをして話しましょう</span>
+        <div id="wolfRoleBox" style="display:none;"></div>
+        <div class="picker-grid" id="wolfRolePickGrid" style="display:none;margin-top:14px;"></div>
         <button class="btn btn-main" id="wolfNextRevealBtn" style="margin-top:24px;">見た！つぎの人へわたす</button>
       </div>
       <div id="wolfVoteArea" style="display:none;">
+        <div id="wolfVoteInfo" style="display:none;"></div>
         <div class="wolf-topic-label">だれがウルフ🐺だと思う？</div>
         <div class="picker-grid" id="wolfVoteGrid"></div>
       </div>
@@ -1564,10 +1573,6 @@
       wolfPreset:{ roles:['wolf','seer','medium','knight','madman','mason','fox'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, minPlayers:7 },
       rules:"狂人・共有者・妖狐が加わった本格ルールです。狂人は人狼の味方ですが占いでは村人に見えます。共有者は2人でお互いを知っています。妖狐はどちらが勝っても生き残っていれば勝ちですが、占われると死んでしまいます。",
       bullets:["狂人・共有者・妖狐が加わる","狂人は占いでは村人に見える","共有者は2人でお互いを知る","妖狐は占われると死ぬ","7人以上がおすすめ"]},
-    {id:"wolf-quick", icon:"⚡", title:"サクッと人狼", sub:"1ターンだけ・専用役職で短時間決着", timer:120, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
-      wolfPreset:{ roles:['wolf','peek','fake','involve'], turnLimit:1, seerResult:'binary', minPlayers:4 },
-      rules:"夜を挟まず、1回の話し合いと投票だけで決着する短いルールです。この形でしか使えない専用役職が入ります。のぞき見役は投票前に1人の陣営が分かり、にせもの役はのぞかれると人狼側に見え、まきこみ役は誰か1人の投票先を全員に公開させます。",
-      bullets:["1ターンだけ・短時間で終わる","夜フェーズは無し","のぞき見役・にせもの役・まきこみ役","投票の直前に1回だけ使える","4人以上がおすすめ"]},
     {id:"wolf-deep", icon:"🕯️", title:"がっつり人狼", sub:"ノーマル構成・夜の時間制限なしでじっくり", timer:300, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf','seer','medium','knight'], turnLimit:8, seerResult:'detail', revealRoleOnDeath:false, nightTimeLimit:0, minPlayers:5 },
       rules:"ノーマル人狼と同じ構成で、ターン数を多く、話し合いの時間を長めに取ったルールです。夜の行動にも時間制限がないので、じっくり考えて遊びたい時にどうぞ。",
@@ -2028,6 +2033,7 @@
     winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
     wrCfg: null,                                  // 第17弾：役職あり人狼の設定
     wmCfg: { turnLimit:3, changeTopic:true },     // 第17弾：ワードウルフ（2〜ターン）の設定
+    wwRoles: {},                                  // 第18弾：ワードウルフに入れる役職の人数
     selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット
     selectedGameId: DEFAULT_GAME_ID,       // 第15弾：カセットの中で選んだゲーム（モード一覧の絞り込みに使う）
     autoSaveRecords: true, // 5：対戦記録をサーバーへ自動保存するか（localStorageに永続化）
@@ -3207,6 +3213,89 @@
     });
     renderBombSection();
   });
+  // ===== ワードウルフの役職（第18弾-6） =====
+  // 夜フェーズは作らない。役職はお題を配る時に決まり、能力は「お題を見る画面で1人選ぶ」だけ。
+  // 選んだ結果は投票の直前に本人へ見せる。
+  // ロジック層からは役職の定義（陣営・見え方）だけを借り、進行と投票は既存のワードウルフのまま
+  // にする（game.phase を持ち込むと、投票が黙って拒否される不具合を繰り返すため）。
+  var WW_ROLE_SETS = {
+    single: ['peek', 'fake', 'involve'], // 1ターン版：投票前に1回だけ使う単発役職
+    multi:  ['seer', 'madman']           // 2〜ターン版：夜に依存しない役職だけ
+  };
+  function wwRoleIds(){
+    return modeById(state.selectedModeId).wolfMulti ? WW_ROLE_SETS.multi : WW_ROLE_SETS.single;
+  }
+  function wwAssignedCount(){
+    return wwRoleIds().reduce(function(n, id){ return n + (state.wwRoles[id] || 0); }, 0);
+  }
+  // 役職は多数派（村人側のお題を持つ人）から配る。少数派に混ぜると実質2人目のウルフになる
+  function wwMajorityCount(){ return state.players.length - (play.wolfMinorityIds || []).length; }
+
+  function renderWolfRoleRows(){
+    var ids = wwRoleIds();
+    var section = el('wolfRoleSection');
+    var maxAssignable = Math.max(0, state.players.length - state.wolfCount - 1); // 村人を1人は残す
+    el('wolfRoleRows').innerHTML = ids.map(function(id){
+      var r = WolfLogic.roleById(id);
+      var v = state.wwRoles[id] || 0;
+      var canAdd = v < 1 && wwAssignedCount() < maxAssignable; // 各役職1人まで
+      return '<div class="bomb-tier-row">'+
+        '<span>'+r.name+'</span>'+
+        '<div class="bomb-tier-controls">'+
+          '<button class="bomb-minus" data-wwrole="'+id+'" data-d="-1"'+(v<=0?' disabled':'')+'>−</button>'+
+          '<span id="wwCount-'+id+'">'+v+'</span>'+
+          '<button class="bomb-plus" data-wwrole="'+id+'" data-d="1"'+(canAdd?'':' disabled')+'>＋</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+    var n = wwAssignedCount();
+    el('wolfRoleNote').textContent = n === 0
+      ? '役職なしの、いつものワードウルフです'
+      : '役職 '+n+'人（ウルフ以外の人に配られます）';
+    section.style.display = maxAssignable > 0 ? 'block' : 'none';
+  }
+  el('scr-set-wolf').addEventListener('click', function(e){
+    var b = e.target.closest('[data-wwrole]');
+    if(!b) return;
+    var id = b.dataset.wwrole, d = parseInt(b.dataset.d, 10);
+    var cur = state.wwRoles[id] || 0;
+    var maxAssignable = Math.max(0, state.players.length - state.wolfCount - 1);
+    var next = Math.max(0, Math.min(1, cur + d));
+    if(next > cur && wwAssignedCount() + 1 > maxAssignable) return;
+    state.wwRoles[id] = next;
+    renderWolfRoleRows();
+  });
+
+  // お題を配るときに役職も配る（多数派の中から）
+  function assignWolfRoles(){
+    play.wwRoles = {};
+    play.wwInfo = {};
+    play.wwRevealVoteOf = null;
+    var ids = wwRoleIds().filter(function(id){ return (state.wwRoles[id] || 0) > 0; });
+    if(!ids.length) return;
+    var majority = state.players
+      .filter(function(p){ return play.wolfMinorityIds.indexOf(p.id) === -1; })
+      .map(function(p){ return p.id; });
+    // シャッフルしてから先頭に配る
+    for(var i = majority.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = majority[i]; majority[i] = majority[j]; majority[j] = t;
+    }
+    ids.forEach(function(id, k){
+      if(majority[k]) play.wwRoles[majority[k]] = id;
+    });
+  }
+  function wwRoleOf(playerId){ return (play.wwRoles || {})[playerId] || null; }
+  // お題を見る画面で「1人選ぶ」役職か
+  function wwPicksAtReveal(roleId){
+    return roleId === 'seer' || roleId === 'peek' || roleId === 'involve';
+  }
+  // 選んだ相手の見え方（にせもの役は人狼側に見える／狂人は村人に見える）
+  function wwTeamLabel(targetId){
+    if(wwRoleOf(targetId) === 'fake') return '人狼側';
+    return (play.wolfMinorityIds.indexOf(targetId) !== -1) ? '人狼側' : '村人側';
+  }
+
   function renderWolfSection(){
     var m = modeById(state.selectedModeId);
     var section = el('wolfSection');
@@ -3220,6 +3309,7 @@
     el('wolfCountSlider').value = state.wolfCount;
     el('wolfCountValue').textContent = state.wolfCount;
     el('wolfAwareToggle').classList.toggle('on', state.wolfAware);
+    renderWolfRoleRows();
   }
   el('wolfCountSlider').addEventListener('input', function(){
     state.wolfCount = parseInt(this.value, 10);
@@ -3434,6 +3524,7 @@
     play.wolfRevealed = false;
     play.wolfPhase = 'reveal';
     play.wolfVotes = {};
+    assignWolfRoles(); // 第18弾-6：役職を使う設定なら、多数派の中から配る
   }
   function currentWolfPlayer(){
     var id = play.wolfOrder[play.wolfIndex];
@@ -3462,9 +3553,22 @@
       var topic = isMinority ? play.wolfMinorityTopic : play.wolfMajorityTopic;
       el('wolfTopicText').textContent = topic.name;
       el('wolfAwareTag').style.display = (state.wolfAware && isMinority) ? 'inline-block' : 'none';
+      renderWolfRevealRole(p, isMinority);
     } else {
       el('wolfRevealArea').style.display = 'none';
       el('wolfVoteArea').style.display = 'block';
+      // 能力で得た情報は、投票の直前に本人にだけ見せる（追加のタップは要らない）
+      var myInfo = (play.wwInfo || {})[p.id];
+      var infoBox = el('wolfVoteInfo');
+      if(myInfo){
+        infoBox.style.display = 'block';
+        infoBox.innerHTML = '<div class="wolf-topic-label">' +
+          (myInfo.kind === 'seer' ? '占いの結果' : 'のぞき見の結果') + '</div>' +
+          '<div class="wolf-topic-name">' + escapeHtml(myInfo.targetName) + ' は ' + escapeHtml(myInfo.label) + '</div>';
+      } else {
+        infoBox.style.display = 'none';
+        infoBox.innerHTML = '';
+      }
       // 2〜ターン版（お題変更なし）では、脱落した人は投票先に出さない
       var others = state.players.filter(function(pp){
         if(pp.id === p.id) return false;
@@ -3495,6 +3599,82 @@
   el('wolfRevealBtn').addEventListener('click', function(){
     play.wolfRevealed = true;
     renderWolfPass();
+  });
+  // 結果画面に足す情報：まきこみ役が指名した人の投票先と、役職の答え合わせ
+  function renderWolfRoleReveal(){
+    if(!play.wwRoles || !Object.keys(play.wwRoles).length) return '';
+    var html = '';
+    if(play.wwRevealVoteOf){
+      var who = state.players.find(function(x){ return x.id === play.wwRevealVoteOf; });
+      var votedId = play.wolfVotes[play.wwRevealVoteOf];
+      var voted = state.players.find(function(x){ return x.id === votedId; });
+      if(who){
+        html += '<div style="margin-top:10px;">📢 ' + escapeHtml(who.name) + ' の投票先は ' +
+          '<b>' + escapeHtml(voted ? voted.name : '（棄権）') + '</b> でした</div>';
+      }
+    }
+    var lines = Object.keys(play.wwRoles).map(function(pid){
+      var p = state.players.find(function(x){ return x.id === pid; });
+      return p ? escapeHtml(p.name) + '＝' + escapeHtml(WolfLogic.roleById(play.wwRoles[pid]).name) : '';
+    }).filter(Boolean);
+    if(lines.length) html += '<div class="mic-status" style="margin-top:8px;">' + lines.join('　') + '</div>';
+    return html;
+  }
+
+  // お題を見る画面に、役職と（能力があれば）選択先を出す。
+  // タップ数を全員そろえるのが要点：役職なしは「見る→つぎへ」の2タップ、
+  // 能力持ちは「見る→相手を選ぶ」の2タップ。選ぶ操作が「つぎへ」を兼ねる。
+  function renderWolfRevealRole(p, isMinority){
+    var box = el('wolfRoleBox'), grid = el('wolfRolePickGrid'), nextBtn = el('wolfNextRevealBtn');
+    var roleId = wwRoleOf(p.id);
+    var usingRoles = Object.keys(play.wwRoles || {}).length > 0;
+    if(!usingRoles){
+      // 役職を使わない設定なら、いつものワードウルフのまま
+      box.style.display = 'none'; grid.style.display = 'none';
+      nextBtn.style.display = 'inline-flex';
+      return;
+    }
+    // 全員に同じ体裁で役職を出す（狂人も村人と同じ見た目・同じ文字数感）
+    var label = roleId ? WolfLogic.roleById(roleId).name
+              : (isMinority && state.wolfAware ? '人狼' : '村人');
+    var desc = roleId ? WolfLogic.roleById(roleId).desc : '特別な力はありません。';
+    box.style.display = 'block';
+    box.innerHTML = '<div class="wolf-topic-label" style="margin-top:14px;">あなたの役職</div>' +
+      '<div class="wolf-topic-name">' + escapeHtml(label) + '</div>' +
+      '<div class="mic-status" style="margin-top:6px;line-height:1.7;">' + escapeHtml(desc) + '</div>';
+
+    if(roleId && wwPicksAtReveal(roleId)){
+      var prompt = roleId === 'seer' ? 'だれを占いますか？'
+                 : roleId === 'peek' ? 'だれを覗きますか？'
+                 : 'だれの投票先を公開しますか？';
+      box.innerHTML += '<div class="wolf-topic-label" style="margin-top:14px;">' + escapeHtml(prompt) + '</div>';
+      grid.style.display = 'flex';
+      grid.innerHTML = state.players.filter(function(x){ return x.id !== p.id; }).map(function(x){
+        return '<button class="pk-btn" data-wwpick="' + x.id + '">' + escapeHtml(x.name) + '</button>';
+      }).join('');
+      nextBtn.style.display = 'none'; // 選ぶ操作がそのまま「つぎへ」になる
+    } else {
+      grid.style.display = 'none'; grid.innerHTML = '';
+      nextBtn.style.display = 'inline-flex';
+    }
+  }
+  // 能力の対象を選んだ → 結果を控えて、そのまま次の人へ渡す（タップ数を増やさない）
+  el('wolfRolePickGrid').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-wwpick]');
+    if(!b) return;
+    var me = currentWolfPlayer();
+    if(!me) return;
+    var targetId = b.dataset.wwpick;
+    var target = state.players.find(function(x){ return x.id === targetId; });
+    var roleId = wwRoleOf(me.id);
+    if(roleId === 'seer' || roleId === 'peek'){
+      play.wwInfo[me.id] = {
+        kind: roleId, targetName: target ? target.name : '?', label: wwTeamLabel(targetId)
+      };
+    } else if(roleId === 'involve'){
+      play.wwRevealVoteOf = targetId; // 投票のあと、この人の投票先を全員に見せる
+    }
+    advanceWolfTurn();
   });
   el('wolfNextRevealBtn').addEventListener('click', function(){
     advanceWolfTurn();
@@ -3533,26 +3713,34 @@
       if(tally[target] != null) tally[target]++;
     });
     el('wolfResultTopics').innerHTML =
-      'シープ🐑のお題：<b>'+escapeHtml(play.wolfMajorityTopic.name)+'</b>　／　ウルフ🐺のお題：<b>'+escapeHtml(play.wolfMinorityTopic.name)+'</b>';
+      'シープ🐑のお題：<b>'+escapeHtml(play.wolfMajorityTopic.name)+'</b>　／　ウルフ🐺のお題：<b>'+escapeHtml(play.wolfMinorityTopic.name)+'</b>'+
+      renderWolfRoleReveal(); // 第18弾-6：役職ありなら、まきこみの公開と答え合わせを添える
 
     var scoreDeltas = {};
+    // 狂人は多数派のお題を持つが、スコアの上では人狼側として扱う。
+    // ウルフを当てても加点されず、ウルフが逃げ切ったときにウルフと一緒に加点される。
+    function isWolfSide(pid){
+      return play.wolfMinorityIds.indexOf(pid) !== -1 || wwRoleOf(pid) === 'madman';
+    }
     Object.keys(play.wolfVotes).forEach(function(voterId){
       var voter = state.players.find(function(p){ return p.id === voterId; });
       if(!voter) return;
-      var voterIsMinority = play.wolfMinorityIds.indexOf(voterId) !== -1;
       var votedMinority = play.wolfMinorityIds.indexOf(play.wolfVotes[voterId]) !== -1;
-      if(!voterIsMinority && votedMinority){
+      if(!isWolfSide(voterId) && votedMinority){
         scoreDeltas[voter.name] = (scoreDeltas[voter.name] || 0) + 1;
         scorePlayer(voter.id, 1);
       }
     });
-    var majorityCount = state.players.length - play.wolfMinorityIds.length;
+    // 逃げ切り判定の母数は「ウルフを探している人」＝狂人を除いた多数派
+    var majorityCount = state.players.filter(function(p){ return !isWolfSide(p.id); }).length;
+    var escaped = false;
     play.wolfMinorityIds.forEach(function(mid){
       var correctVotesAgainst = 0;
       Object.keys(play.wolfVotes).forEach(function(voterId){
         if(play.wolfVotes[voterId] === mid) correctVotesAgainst++;
       });
       if(correctVotesAgainst < majorityCount / 2){
+        escaped = true;
         var mp = state.players.find(function(p){ return p.id === mid; });
         if(mp){
           scoreDeltas[mp.name] = (scoreDeltas[mp.name] || 0) + 1;
@@ -3560,6 +3748,13 @@
         }
       }
     });
+    if(escaped){
+      state.players.forEach(function(p){
+        if(wwRoleOf(p.id) !== 'madman') return;
+        scoreDeltas[p.name] = (scoreDeltas[p.name] || 0) + 1;
+        scorePlayer(p.id, 1);
+      });
+    }
 
     var sorted = state.players.slice().sort(function(a, b){ return (tally[b.id]||0) - (tally[a.id]||0); });
     el('wolfResultList').innerHTML = sorted.map(function(p, i){

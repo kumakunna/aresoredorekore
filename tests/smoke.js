@@ -380,6 +380,66 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  await r.test('再発防止：投票前の単発行動も、生存者全員にスマホが回る', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    // サクッと人狼＝1ターン版。のぞき見役・まきこみ役だけに回すと消去法でバレる
+    await startWolfRole(win, doc, 'wolf-quick', players);
+    await runWrHandoffs(win, doc, players.length);   // 役職確認
+
+    const shown = [];
+    await runWrHandoffs(win, doc, players.length, function (info) { shown.push(info); });
+    assertEqual(shown.length, players.length, '投票前の行動でも全員にスマホが回る');
+    const acting = shown.filter(s => s.choices > 0);
+    assert(acting.length >= 1 && acting.length < players.length, '実際に行動するのは一部だけ');
+    shown.filter(s => s.choices === 0).forEach(s => {
+      assert(/特にすることはありません/.test(s.body), '行動が無い人には一律の案内が出る（' + s.body.slice(0, 20) + '）');
+    });
+    assertNoErrors(errors, '投票前の単発行動で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('匿名性：夜の画面は、役職が違っても行動が無ければ同じ文言になる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    // ノーマル人狼には霊媒師が入る。霊媒師は夜に選ぶことがないので、
+    // 村人と同じ文言でないと「霊媒師だ」と分かってしまう
+    await startWolfRole(win, doc, 'wolf-normal', players);
+    await runWrHandoffs(win, doc, players.length);   // 役職確認
+
+    const shown = [];
+    await runWrHandoffs(win, doc, players.length, function (info) { shown.push(info); });
+    const idle = shown.filter(s => s.choices === 0);
+    assert(idle.length >= 1, '行動しない人がいる（霊媒師や村人）');
+    const texts = idle.map(s => s.body.replace(/\s+/g, ''));
+    const uniq = texts.filter((t, i, a) => a.indexOf(t) === i);
+    assertEqual(uniq.length, 1, '行動が無い人の画面はすべて同じ文言（' + uniq.join(' / ') + '）');
+    assert(/特にすることはありません/.test(uniq[0]), '一律の案内になっている');
+    assertNoErrors(errors, '夜の匿名性で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('占い師・霊媒師は、投票の直前に自分の結果を見られる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-normal', players);
+    await runWrHandoffs(win, doc, players.length);   // 役職確認
+    await runWrHandoffs(win, doc, players.length);   // 夜（占い・護衛・襲撃）
+    await waitScreen(win, doc, 'scr-wr-day', 6000);
+    click(doc, 'wrToVoteBtn');
+    await waitScreen(win, doc, 'scr-wr-pass', 3000);
+
+    const shown = [];
+    await runWrHandoffs(win, doc, players.length, function (info) { shown.push(info); });
+    // 能力を使った人には結果が出ていること（出ないと占う意味がない）
+    const withResult = shown.filter(s => /占いの結果|霊媒の結果/.test(s.body));
+    assert(withResult.length >= 1, '占い師か霊媒師に結果が表示される');
+    const divine = shown.find(s => /占いの結果/.test(s.body));
+    if (divine) assert(/人狼|村人|第三/.test(divine.body), '占い結果に相手の陣営が出る（' + divine.body.slice(0, 40) + '）');
+    assertNoErrors(errors, '結果表示で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('再発防止：おまかせで始めても、初回のルール説明は出る', async () => {
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="jinro"]');

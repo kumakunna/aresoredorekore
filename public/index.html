@@ -3778,7 +3778,9 @@
   function startWrPreVote(){
     wr.step = 'prevote';
     wr.pending = WolfLogic.pendingPreVoteActions(wr.game);
-    wr.queue = wr.pending.map(function(a){ return a.playerId; });
+    // 匿名性：夜と同じく、行動がある人だけに回すと消去法で役職がバレる。
+    // 生存者全員に、同じ体裁で順番にスマホを回す。
+    wr.queue = WolfLogic.alivePlayers(wr.game).map(function(p){ return p.id; });
     wr.idx = 0;
     if(!wr.queue.length){ WolfLogic.resolvePreVote(wr.game); startWrVote(); return; }
     goTo('scr-wr-pass');
@@ -3870,9 +3872,14 @@
               : act.kind === 'guard' ? 'だれを守りますか？'
               : '';
     if(act.kind === 'medium'){
-      // 霊媒師は選ばずに結果を見るだけ（結果は夜の処理後に配る）
-      uiHandoffContent({ name: p.name, html: '<div class="wolf-topic-label">霊媒</div>' +
-        '<div class="mic-status">前に亡くなった人の正体は、朝に分かります。</div>' });
+      // 霊媒師は夜に選ぶことがない（結果は投票の直前に本人へ渡す）。
+      // ここで専用の文言を出すと、行動が無い人と見分けがついて役職がバレるため、
+      // 「特にすることはありません」と同じ体裁に揃える。
+      uiHandoffContent({
+        name: p.name,
+        html: '<div class="wolf-topic-label">夜がふけました</div>' +
+              '<div class="mic-status" style="margin-top:8px;line-height:1.8;">今夜、あなたに特にすることはありません。<br>そのまま次の人にスマホを渡してください。</div>'
+      });
       return;
     }
     uiHandoffContent({
@@ -3884,7 +3891,15 @@
 
   function showWrPreVoteAction(p){
     var act = wrActionOf(p.id);
-    if(!act) return advanceWrQueue();
+    // 行動が無い人にも、夜と同じ体裁の画面を出す（外から区別がつかないように）
+    if(!act){
+      uiHandoffContent({
+        name: p.name,
+        html: '<div class="wolf-topic-label">投票のまえに</div>' +
+              '<div class="mic-status" style="margin-top:8px;line-height:1.8;">あなたに特にすることはありません。<br>そのまま次の人にスマホを渡してください。</div>'
+      });
+      return;
+    }
     var label = act.kind === 'peek' ? 'だれを覗きますか？' : 'だれの投票先を公開しますか？';
     uiHandoffContent({ name: p.name, html: '<div class="wolf-topic-label">' + escapeHtml(label) + '</div>', choices: act.targets });
   }
@@ -3893,12 +3908,23 @@
     var targets = WolfLogic.alivePlayers(wr.game)
       .filter(function(t){ return t.id !== p.id; })
       .map(function(t){ return { id:t.id, name:t.name }; });
-    // のぞき見の結果は、投票の直前に本人にだけ見せる
-    var peeked = wr.info && wr.info[p.id];
+    // 夜に得た情報（占い・霊媒・のぞき見）は、投票の直前に本人にだけ見せる。
+    // どれか1種類だけを描くと、能力を使ったのに結果が見られない役職が出てしまう。
+    var info = wr.info && wr.info[p.id];
     var html = '';
-    if(peeked && peeked.kind === 'peek'){
+    if(info && info.kind === 'divine'){
+      html += '<div class="wolf-topic-label">占いの結果</div>' +
+              '<div class="wolf-topic-name">' + escapeHtml(info.targetName) + ' は ' + escapeHtml(info.result.label) + '</div>';
+    } else if(info && info.kind === 'peek'){
       html += '<div class="wolf-topic-label">のぞき見の結果</div>' +
-              '<div class="wolf-topic-name">' + escapeHtml(peeked.targetName) + ' は ' + escapeHtml(peeked.label) + '</div>';
+              '<div class="wolf-topic-name">' + escapeHtml(info.targetName) + ' は ' + escapeHtml(info.label) + '</div>';
+    } else if(info && info.kind === 'medium'){
+      html += '<div class="wolf-topic-label">霊媒の結果</div>' +
+              (info.deaths.length
+                ? '<div class="wolf-topic-name">' + info.deaths.map(function(d){
+                    return escapeHtml(d.name) + ' は ' + escapeHtml(d.roleName);
+                  }).join('<br>') + '</div>'
+                : '<div class="mic-status">まだ亡くなった人はいません</div>');
     }
     html += '<div class="wolf-topic-label" style="margin-top:10px;">だれに投票しますか？</div>';
     uiHandoffContent({ name: p.name, html: html, choices: targets });

@@ -479,6 +479,134 @@ function kill(game, name, cause) {
     assertEqual(s[p(g, 'B').id].points, 10, '投票機会が無ければ満額の10点');
   });
 
+  // ---------- フェーズ遷移の契約（第18弾の全体検証） ----------
+  // 投票が丸ごと無効になっていたバグは「phase を戻し忘れた」ことが原因だった。
+  // 同じ種類の漏れを検出できるよう、各操作が「どの phase を要求するか」を固定する。
+  await r.test('フェーズ：各操作は正しい phase でないと受け付けない', async () => {
+    const g = makeGame({ A: 'wolf', B: 'seer', C: 'villager', D: 'villager' }, { turnLimit: 3 });
+    assertEqual(g.phase, 'night', '夜のあるゲームは night から始まる');
+
+    // night 以外では夜の行動を受け付けない
+    g.phase = 'day';
+    assertEqual(W.setNightAction(g, p(g, 'A').id, p(g, 'C').id), false, 'day では夜の行動を受け付けない');
+    assertEqual(W.pendingNightActions(g).length, 0, 'day では夜の行動一覧も空');
+    // vote 以外では投票を受け付けない（これが今回のバグの正体）
+    assertEqual(W.setVote(g, p(g, 'C').id, p(g, 'A').id), false, 'day では投票を受け付けない');
+    g.phase = 'vote';
+    assertEqual(W.setVote(g, p(g, 'C').id, p(g, 'A').id), true, 'vote なら投票できる');
+  });
+
+  await r.test('フェーズ：夜→朝→投票→次の夜、と正しく遷移する', async () => {
+    const g = makeGame({ A: 'wolf', B: 'seer', C: 'villager', D: 'villager', E: 'villager' }, { turnLimit: 3 });
+    const seen = [g.phase];
+    W.setNightAction(g, p(g, 'A').id, p(g, 'E').id);
+    W.resolveNight(g); seen.push(g.phase);          // → day
+    g.phase = 'vote';                                // 画面側が投票に入る時に切り替える
+    W.setVote(g, p(g, 'C').id, p(g, 'A').id);
+    W.setVote(g, p(g, 'D').id, p(g, 'A').id);
+    const out = W.executeVote(g);
+    assert(out.executed, '票が入っていれば処刑される');
+    seen.push('afterVote');
+    W.nextTurn(g); seen.push(g.phase);               // → night（次のターン）
+    assertEqual(seen.join('→'), 'night→day→afterVote→night', '遷移の順番が崩れていない');
+    assertEqual(g.turn, 2, 'ターンが進む');
+    // 2ターン目も夜の行動を受け付ける
+    assertEqual(W.setNightAction(g, p(g, 'A').id, p(g, 'D').id), true, '2ターン目も夜の行動ができる');
+  });
+
+  await r.test('フェーズ：1ターン戦は preVote から始まり、解決すると vote になる', async () => {
+    const g = W.createGame({
+      players: [1, 2, 3, 4].map(i => ({ id: 'p' + i, name: 'P' + i })),
+      turnLimit: 1, counts: { wolf: 1, peek: 1 }
+    });
+    assertEqual(g.phase, 'preVote', '1ターン戦は preVote から');
+    assertEqual(W.setVote(g, 'p1', 'p2'), false, 'preVote では投票できない');
+    W.resolvePreVote(g);
+    assertEqual(g.phase, 'vote', '解決すると vote になる');
+    assertEqual(W.setVote(g, 'p1', 'p2'), true, 'vote なら投票できる');
+  });
+
+  await r.test('フェーズ：最終ターンは夜を飛ばして finalVote になる', async () => {
+    const g = makeGame({ A: 'wolf', B: 'villager', C: 'villager', D: 'villager' }, { turnLimit: 2 });
+    g.turn = 2;
+    assertEqual(W.isFinalTurn(g), true, '上限ターンに達している');
+    assertEqual(W.nextTurn(g), 'finalVote', '夜ではなく最終投票へ');
+    assertEqual(g.turn, 2, '最終ターンではターンを進めない');
+  });
+
+  // ---------- 役職構成の組み合わせ（第18弾の全体検証） ----------
+  await r.test('闇鍋（村人0人）でも勝敗判定が破綻しない', async () => {
+    // 全員が何らかの役職。村人という役職の人がいない
+    const g = makeGame({ A: 'wolf', B: 'seer', C: 'knight', D: 'madman' });
+    assertEqual(W.evaluate(g).ended, false, '開始直後は決着しない');
+    kill(g, 'B'); kill(g, 'C');
+    // 生き残りは 人狼1・狂人1。数える側は狂人だけなので人狼の勝ち
+    const res = W.evaluate(g);
+    assert(res.ended, '決着する');
+    assertEqual(res.winner, 'wolf', '人狼陣営の勝ち');
+    // スコアも計算できる（0除算などで壊れない）
+    W.finish(g, res);
+    const s = W.scoreGame(g);
+    assert(s[p(g, 'A').id].points > 0, '人狼に点が入る');
+    assert(typeof s[p(g, 'D').id].points === 'number', '狂人の点が数値として出る');
+  });
+
+  await r.test('人狼が1人もいない編成でも、計算が壊れない', async () => {
+    const g = makeGame({ A: 'seer', B: 'villager', C: 'fox' });
+    const res = W.evaluate(g);
+    assertEqual(res.ended, true, '人狼0なら即決着');
+    // 妖狐が生きているので妖狐の勝ち
+    assertEqual(res.winner, 'fox', '妖狐が優先される');
+    W.finish(g, res);
+    const s = W.scoreGame(g);
+    assert(Object.keys(s).length === 3, '全員ぶんのスコアが出る');
+    assert(isFinite(s[p(g, 'A').id].points), '0除算にならない（有限の数値）');
+  });
+
+  await r.test('恋人が妖狐を兼ねている場合でも、判定が矛盾しない', async () => {
+    const g = makeGame({ A: 'wolf', B: 'villager', C: 'fox', D: 'villager' });
+    p(g, 'C').isLover = true; p(g, 'D').isLover = true;   // 妖狐が恋人でもある
+    g.loverIds = [p(g, 'C').id, p(g, 'D').id];
+    kill(g, 'A', 'executed');                              // 人狼が処刑された
+    const res = W.evaluate(g);
+    assertEqual(res.winner, 'fox', '妖狐が生きているので妖狐の勝ち');
+    assertEqual(res.loversWin, true, '恋人2人とも生存しているので恋人も勝ち');
+    W.finish(g, res);
+    const s = W.scoreGame(g);
+    // 妖狐の個人勝利15＋恋人12が両方入る
+    assertEqual(s[p(g, 'C').id].points, 27, '妖狐と恋人の両方が加算される');
+    assert(s[p(g, 'C').id].reasons.length >= 2, '理由も両方残る');
+  });
+
+  await r.test('恋人の片方が呪殺されたら、もう片方も後を追う', async () => {
+    const g = makeGame({ A: 'wolf', B: 'seer', C: 'fox', D: 'villager', E: 'villager' }, { turnLimit: 3 });
+    p(g, 'C').isLover = true; p(g, 'D').isLover = true;
+    g.loverIds = [p(g, 'C').id, p(g, 'D').id];
+    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id); // 妖狐を占う → 呪殺
+    W.setNightAction(g, p(g, 'A').id, p(g, 'E').id);
+    const out = W.resolveNight(g);
+    assertEqual(p(g, 'C').alive, false, '妖狐は呪殺される');
+    assertEqual(p(g, 'D').alive, false, '恋人も後を追う');
+    assert(out.deaths.some(d => d.cause === 'lover'), '後追いが結果に含まれる');
+  });
+
+  await r.test('共有者は互いを知り、片方が死んでも判定に影響しない', async () => {
+    const g = makeGame({ A: 'wolf', B: 'mason', C: 'mason', D: 'villager', E: 'villager', F: 'villager' });
+    const masons = W.playersWithRole(g, 'mason', false);
+    assertEqual(masons.length, 2, '共有者は2人1組');
+    kill(g, 'B');
+    assertEqual(W.evaluate(g).ended, false, '片方が死んでも試合は続く');
+    assertEqual(W.playersWithRole(g, 'mason', true).length, 1, '生存している共有者は1人');
+  });
+
+  await r.test('スコア：決着していない状態で呼んでも勝利点は入らない', async () => {
+    const g = makeGame({ A: 'wolf', B: 'villager', C: 'villager', D: 'villager' }, { turnLimit: 5 });
+    g.log.push({ turn: 1, type: 'vote', votes: { [p(g, 'B').id]: p(g, 'A').id } });
+    const s = W.scoreGame(g); // finish していない
+    assertEqual(s[p(g, 'B').id].win, false, 'まだ勝っていない');
+    assertEqual(s[p(g, 'B').id].points, 2, '読みの精度ぶんだけが入る（勝利点は入らない）');
+  });
+
   // ---------- 履歴 ----------
   await r.test('履歴：ターン数・役職構成・勝敗が残る', async () => {
     const g = makeGame({ A: 'wolf', B: 'villager', C: 'seer', D: 'villager' }, { turnLimit: 4 });

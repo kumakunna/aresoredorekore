@@ -480,6 +480,12 @@
   .opt-tag-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px;}
   .opt-tag{font-size:11px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--ink-soft);}
   .record-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
+  /* 第14弾：AIが続けて落ちた時の案内（代わりの遊び方に気づいてもらう） */
+  .ai-fallback-note{
+    margin-top:10px;padding:8px 10px;border-radius:6px;
+    background:var(--card);border:1px solid var(--line);
+    font-size:11px;color:var(--ink-soft);line-height:1.7;text-align:left;
+  }
   /* 問題1：AI生成中の待機表示 */
   .ai-wait-note{
     margin-top:10px;font-size:12px;color:var(--stamp-deep);text-align:center;
@@ -2118,10 +2124,34 @@
   // AIが失敗してもロックされたまま詰むことはない。
   // 新しいゲームを足すときも、AI呼び出しは必ずこの callAI() を通すこと。
   var VOICE_CMD_COOLDOWN_MS = 2500;
+  // 第14弾：AIが続けて落ちた時の案内。Gemini自体が止まっていると「もう一度取得」を
+  // 何度押しても無駄なので、代わりの遊び方があることに気づけるようにする。
+  // 強制的にモードは変えない（プレイ中に勝手に仕様が変わると混乱するため）。
+  var AI_FAIL_LIMIT = 2; // 連続でこの回数失敗したら案内を出す
+  function canSwitchToHumanDescribe(){
+    // 出題方法を「人が説明」に変えられるのは、あそびかたオプションを持つゲームだけ。
+    // 時限爆弾・クイズ王・オークションはAI出題が前提なので切り替え先がない。
+    return isOptionGame();
+  }
+  function aiFallbackMessage(){
+    if((play.aiFailStreak || 0) < AI_FAIL_LIMIT) return '';
+    return canSwitchToHumanDescribe()
+      ? 'AIの調子が悪いようです。設定に戻って「人が説明」モードに切り替えられます。'
+      : 'AIの調子が悪いようです。しばらく時間をおいて再試行してください。';
+  }
+  function aiFallbackNoteHtml(){
+    var msg = aiFallbackMessage();
+    return msg ? '<div class="ai-fallback-note">💡 ' + escapeHtml(msg) + '</div>' : '';
+  }
   async function callAI(body){
     beginAILoading();
     try{
-      return await api('/api/ai-describe', { method:'POST', body: body });
+      var res = await api('/api/ai-describe', { method:'POST', body: body });
+      play.aiFailStreak = 0; // 成功したらリセット
+      return res;
+    } catch(e){
+      play.aiFailStreak = (play.aiFailStreak || 0) + 1;
+      throw e;
     } finally {
       endAILoading();
     }
@@ -3283,7 +3313,8 @@
         if(play.currentBombWire !== w) return; // #2
         // #3：失敗しても詰まないよう「もう一度取得」ボタンを出す（タイマーは止めたまま）
         el('bombWireDescription').textContent = 'AIの説明を取得できませんでした。もう一度お試しください。';
-        el('bombWireChoices').innerHTML = '<button class="btn btn-outline" id="bombRetryBtn">🔄 もう一度取得</button>';
+        el('bombWireChoices').innerHTML = '<button class="btn btn-outline" id="bombRetryBtn">🔄 もう一度取得</button>' +
+          aiFallbackNoteHtml(); // 第14弾
         var rb = el('bombRetryBtn');
         if(rb) rb.addEventListener('click', function(){ loadBombWireDescription(w); });
       });
@@ -3408,7 +3439,8 @@
       })
       .catch(function(e){
         if(play.quizCurrent !== thisQuestion) return;
-        el('quizDescription').textContent = 'AIの説明を取得できませんでした：' + (e.message || 'サーバーにGEMINI_API_KEYが設定されているか確認してください');
+        el('quizDescription').innerHTML = escapeHtml('AIの説明を取得できませんでした：' + (e.message || 'サーバーにGEMINI_API_KEYが設定されているか確認してください')) +
+          aiFallbackNoteHtml(); // 第14弾
       });
   }
   function renderQuizChoices(){
@@ -3748,7 +3780,8 @@
         if(play.auctionTopic !== topic) return;
         // #3：失敗しても詰まないよう「もう一度取得」ボタン
         el('auctionDescription').innerHTML = escapeHtml('AIの説明を取得できませんでした。もう一度お試しください。') +
-          '<br><button class="btn btn-outline" id="auctionRetryBtn" style="margin-top:8px;">🔄 もう一度取得</button>';
+          '<br><button class="btn btn-outline" id="auctionRetryBtn" style="margin-top:8px;">🔄 もう一度取得</button>' +
+          aiFallbackNoteHtml(); // 第14弾
         el('auctionReplayBtn').style.display = 'none';
         var rb = el('auctionRetryBtn');
         if(rb) rb.addEventListener('click', function(){ loadAuctionDescription(topic); });
@@ -4007,7 +4040,8 @@
       el('topicName').textContent = 'AIの取得に失敗しました';
       // #3：失敗しても詰まないよう「もう一度取得」ボタンを出す
       el('aiDescriptionBox').innerHTML = escapeHtml(e.message || 'しばらく待ってからもう一度お試しください') +
-        '<br><button class="btn btn-outline" id="aiRetryBtn" style="margin-top:8px;">🔄 もう一度取得</button>';
+        '<br><button class="btn btn-outline" id="aiRetryBtn" style="margin-top:8px;">🔄 もう一度取得</button>' +
+        aiFallbackNoteHtml(); // 第14弾：連続で失敗した時だけ、代わりの遊び方を案内する
       el('aiDescriptionBox').style.display = 'block';
       el('moreHintBtn').style.display = 'none';
       var rb = el('aiRetryBtn');

@@ -1,4 +1,9 @@
 node_modules/
+# package-lock.json は今のところ追跡しない。
+# VPSは git pull のあと npm install を自動実行するため、ロックファイルを入れると
+# better-sqlite3（ネイティブビルドが必要）の再インストールが走る可能性があり、
+# 失敗すると自動デプロイでサーバーが落ちるリスクがあるため。
+package-lock.json
 .env
 .env.*
 !.env.example

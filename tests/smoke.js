@@ -131,7 +131,8 @@ async function startModeWithTimerOff(win, doc, id) {
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
-    assertEqual(ids.join(','), 'wordwolf', 'モード選択にワードウルフだけが並ぶ');
+    assert(ids.indexOf('wordwolf') >= 0, 'モード選択にワードウルフがある');
+    assert(ids.every(id => id === 'wordwolf' || id === 'wolfrole'), '人狼ゲームのモードだけが並ぶ（' + ids.join(',') + '）');
 
     click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
     click(doc, 'modeAutoBtn');
@@ -168,6 +169,91 @@ async function startModeWithTimerOff(win, doc, id) {
     await waitScreen(win, doc, 'scr-wolf-result', 8000);
     assert(el(doc, 'wolfResultNextBtn'), '結果画面に「つぎへ」がある');
     assertNoErrors(errors, 'ワードウルフの通しプレイで未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第17弾：役職あり人狼が手渡し方式で1試合通ること ----
+  await r.test('役職あり人狼：役職確認→夜→朝→投票→集計が通り、決着する', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    // 棚 → 人狼カセット → プレイヤー4人
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const card = doc.querySelector('.mode-card[data-id="wolfrole"]');
+    assert(card, 'モード一覧に「人狼（役職あり）」がある');
+    click(doc, card);
+
+    // 話し合いタイマーは切っておく（テストで3分待たないため）
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+
+    // 役職確認：4人ぶん手渡し
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+    const seenRoles = [];
+    for (let i = 0; i < 4; i++) {
+      click(doc, 'wrRevealBtn');
+      await sleep(win, 40);
+      seenRoles.push(el(doc, 'wrContentBody').textContent);
+      click(doc, 'wrNextBtn');
+      await sleep(win, 40);
+    }
+    assert(seenRoles.some(t => /人狼/.test(t)), '誰かに人狼が配られている');
+
+    // 夜の行動：選択肢が出た人は選ぶ、出ない人は次へ
+    let guard = 0;
+    while (activeScreen(doc) === 'scr-wr-pass' && guard++ < 20) {
+      click(doc, 'wrRevealBtn');
+      await sleep(win, 40);
+      const choice = doc.querySelector('#wrChoiceGrid button[data-choice]');
+      if (choice) choice.click();
+      else click(doc, 'wrNextBtn');
+      await sleep(win, 50);
+    }
+    // 夜が明けるか、決着していればそのまま結果へ
+    assert(['scr-wr-day', 'scr-wr-result'].indexOf(activeScreen(doc)) >= 0,
+      '夜のあと朝か結果に進む（現在: ' + activeScreen(doc) + '）');
+
+    if (activeScreen(doc) === 'scr-wr-day') {
+      assert(el(doc, 'wrDayNews').textContent.length > 0, '朝に夜の結果が出る');
+      click(doc, 'wrToVoteBtn');
+      // 投票：生存者ぶん手渡し
+      await waitScreen(win, doc, 'scr-wr-pass', 3000);
+      guard = 0;
+      while (activeScreen(doc) === 'scr-wr-pass' && guard++ < 20) {
+        click(doc, 'wrRevealBtn');
+        await sleep(win, 40);
+        const v = doc.querySelector('#wrChoiceGrid button[data-choice]');
+        if (v) v.click(); else click(doc, 'wrNextBtn');
+        await sleep(win, 50);
+      }
+      await waitScreen(win, doc, 'scr-wr-gather', 3000);
+      click(doc, 'wrTallyBtn');
+      await waitScreen(win, doc, 'scr-wr-result', 8000);
+    }
+    assert(el(doc, 'wrResultSummary').textContent.length > 0, '結果が表示される');
+    assertNoErrors(errors, '役職あり人狼で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('役職あり人狼：既存のワードウルフと同じカセットに2モード並ぶ', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    assertEqual(ids.join(','), 'wordwolf,wolfrole', 'ワードウルフと役職あり人狼が並ぶ');
+    assertNoErrors(errors, 'モード一覧で未捕捉の例外');
     win.close();
   });
 

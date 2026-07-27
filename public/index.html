@@ -995,6 +995,53 @@
     <button class="btn btn-main" id="wolfResultNextBtn" style="margin-top:20px;">つぎへ</button>
   </div>
 
+  <!-- ===== 役職あり人狼（第17弾）=====
+       画面はここ、ルールは public/js/wolf-logic.js。役職の判定や勝敗はこの画面では行わない。 -->
+  <!-- 手渡し（役職確認・夜の行動・投票をすべてここで扱う） -->
+  <div class="screen" id="scr-wr-pass">
+    <div id="wrHandoff" class="wolf-handoff">
+      <div class="wolf-handoff-label">つぎは</div>
+      <div class="wolf-handoff-name" id="wrHandoffName">-</div>
+      <div class="wolf-handoff-sub" id="wrHandoffSub">この人にスマホを渡してください</div>
+      <button class="btn btn-main" id="wrRevealBtn">タップして見る</button>
+    </div>
+    <div id="wrContent" class="wolf-content" style="display:none;">
+      <div class="wolf-you"><span id="wrContentName">-</span>さんの番です</div>
+      <div id="wrContentBody"></div>
+      <div class="picker-grid" id="wrChoiceGrid" style="display:none;"></div>
+      <button class="btn btn-main" id="wrNextBtn" style="margin-top:24px;">見た！つぎの人へわたす</button>
+    </div>
+  </div>
+
+  <!-- 昼（夜の結果 → 話し合い） -->
+  <div class="screen" id="scr-wr-day">
+    <div class="wolf-handoff">
+      <div class="wolf-handoff-label" id="wrDayTurn">1日目の朝</div>
+      <div class="wolf-result-topic" id="wrDayNews"></div>
+      <div class="play-timer" id="wrDayTimer" style="display:none;">03:00</div>
+      <div class="wolf-handoff-sub">話し合って、あやしい人を決めましょう</div>
+      <button class="btn btn-main" id="wrToVoteBtn">投票へすすむ</button>
+    </div>
+  </div>
+
+  <!-- 集計 -->
+  <div class="screen" id="scr-wr-gather">
+    <div class="wolf-handoff">
+      <div class="wolf-handoff-label">投票おわり！</div>
+      <div class="wolf-handoff-sub">スマホをテーブルの真ん中に置いてください</div>
+      <div class="cd-number" id="wrCdNumber" style="display:none;">3</div>
+      <button class="btn btn-main" id="wrTallyBtn">集計する</button>
+    </div>
+  </div>
+
+  <!-- 結果（ターンごと／最終） -->
+  <div class="screen" id="scr-wr-result">
+    <h2 class="scr-title" id="wrResultTitle">けっか</h2>
+    <div class="wolf-result-topic" id="wrResultSummary"></div>
+    <div class="reveal-list" id="wrResultList"></div>
+    <button class="btn btn-main" id="wrResultNextBtn" style="margin-top:20px;">つぎへ</button>
+  </div>
+
   <!-- bomb: gameplay -->
   <div class="screen" id="scr-bomb-play">
     <div class="bomb-topbar">
@@ -1360,6 +1407,8 @@
 
 </div>
 
+<!-- 役職あり人狼の「ルール」層。DOMに触れない純粋なロジックなので、単体テストもできる -->
+<script src="js/wolf-logic.js"></script>
 <script>
 (function(){
   "use strict";
@@ -1394,6 +1443,9 @@
     {id:"wordwolf", icon:"🐺", title:"ワードウルフ", sub:"1人だけ違うお題・話し合って探り合う（複数ラウンド）", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, game:'wordwolf',
       rules:"1人だけ違うお題（ウルフ🐺）が混ざります。ほかはシープ🐑です。自由に話し合いながら、誰がウルフかを探り合いましょう。ウルフだと自覚がある設定の場合、バレないようシープのふりをするのがコツです。話し合いのあとは全員で投票してウルフを当てます。",
       bullets:["1人だけ違うお題（ウルフ🐺）が混ざる","ほかはシープ🐑・お題は似ている","自由に話し合って探り合う","スマホを回して全員で投票","ウルフを当てられるか勝負"]},
+    {id:"wolfrole", icon:"🌙", title:"人狼（役職あり）", sub:"役職を配って夜と昼をくり返す・進行役はアプリがやります", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wordwolf',
+      rules:"役職を配って、夜と昼をくり返して遊びます。夜は人狼が誰かを襲い、占い師や騎士はそれぞれの力を使います。昼はみんなで話し合い、あやしい人を投票で決めます。進行はすべてアプリが行うので、進行役（GM）は要りません。人狼を全員見つければ村人側の勝ち、人狼が村人と同じ数まで減らせば人狼側の勝ちです。",
+      bullets:["役職はアプリが配る・進行役は不要","夜は人狼が襲撃、占い師などが能力を使う","昼はみんなで話し合って投票","人狼を全員見つけたら村人側の勝ち","人狼が村人と同数になったら人狼側の勝ち"]},
     {id:"bomb", icon:"💣", title:"時限爆弾", sub:"難易度別のコードを解除・ライフ3つの協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, hidden:true, game:'bomb',
       rules:"チームで協力して爆弾を解除します。コードをタップすると、AIが考えた説明文が表示されます。読んで3択で答えましょう。外れるとライフが1つ減りますが、そのコードは何度でも再挑戦できます。ライフが0になると爆発、すべてのコードを解除できればチームの勝利です。",
       bullets:["チームで協力して爆弾を解除する","コードをタップするとAIの説明文が出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る","ライフが0で爆発・全解除で勝利"]},
@@ -2140,12 +2192,15 @@
       state.matchId = res.id;
     }catch(e){ state.matchId = null; }
   }
-  async function logRound(mode, scoreDeltas){
+  // detail：そのゲーム固有の記録（第17弾の人狼なら役職構成・勝った陣営など）
+  async function logRound(mode, scoreDeltas, detail){
     if(!state.autoSaveRecords) return; // 5：自動送信しない
     if(!state.matchId) return;
     try{
       // 第10弾：どのオプションで遊んだかも一緒に残す（サーバーはroundsをそのまま保持するので改修不要）
-      await api('/api/matches/'+state.matchId+'/round', { method:'PATCH', body:{ mode: mode, opts: optSnapshot(), score_deltas: scoreDeltas } });
+      var body = { mode: mode, opts: optSnapshot(), score_deltas: scoreDeltas };
+      if(detail) body.detail = detail;
+      await api('/api/matches/'+state.matchId+'/round', { method:'PATCH', body: body });
       state.matchRoundsLogged++;
     }catch(e){}
   }
@@ -2351,6 +2406,10 @@
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
     var noGear = ['scr-door','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
+    // 役職あり人狼：話し合いタイマーは、その画面を離れたら必ず止める
+    if(prevScreen && prevScreen.id === 'scr-wr-day' && id !== 'scr-wr-day') stopWrDayTimer();
+    if(id === 'scr-wr-pass') enterWrPass();
+    if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -2534,6 +2593,8 @@
     if(m.quiz || m.auction) return ['handicap'];
     // ワードウルフはお題が関連ペア固定なので難易度選択は不要
     if(m.wolf) return ['wolfcfg', 'timer', 'handicap'];
+    // 役職あり人狼：役職などの詳細設定はこの後の弾で追加する。今は話し合い時間だけ
+    if(m.wolfRole) return ['timer'];
     var steps = ['playstyle', 'difficulty']; // 第10弾：あそびかた（オプション）→ 難易度
     if(!m.buzzer) steps.push('timer'); // 早押しは対戦ごとの独自タイマー
     steps.push('handicap');
@@ -3017,7 +3078,9 @@
           beep(1046, 220);
           startRound();
           var m = modeById(state.selectedModeId);
-          if(m.wolf){
+          if(m.wolfRole){
+            initWolfRoleRound(); // 役職あり人狼。画面遷移は中で行う
+          } else if(m.wolf){
             initWolfRound();
             goTo('scr-wolf-pass');
           } else if(m.bomb){
@@ -3206,6 +3269,397 @@
   el('wolfResultNextBtn').addEventListener('click', function(){
     goTo('scr-score');
   });
+
+  // ===================== 手渡し方式の共通UI部品（第17弾） =====================
+  // 既存のワードウルフと同じ見た目にするため、同じCSSクラスを使う。
+  // 「誰に渡すか」「何を見せるか」は呼び出し側が決める。ここはゲームのルールを知らない。
+  function uiHandoff(opts){
+    el('wrHandoff').style.display = 'block';
+    el('wrContent').style.display = 'none';
+    el('wrHandoffName').textContent = opts.name || '-';
+    el('wrHandoffSub').textContent = opts.sub || 'この人にスマホを渡してください';
+    el('wrRevealBtn').textContent = opts.buttonLabel || 'タップして見る';
+  }
+  // 手渡しのあと、本人だけに見せる中身を出す
+  function uiHandoffContent(opts){
+    el('wrHandoff').style.display = 'none';
+    el('wrContent').style.display = 'block';
+    el('wrContentName').textContent = opts.name || '-';
+    el('wrContentBody').innerHTML = opts.html || '';
+    var grid = el('wrChoiceGrid');
+    if(opts.choices && opts.choices.length){
+      grid.style.display = 'flex';
+      grid.innerHTML = opts.choices.map(function(c){
+        return '<button class="pk-btn" data-choice="' + escapeHtml(String(c.id)) + '">' + escapeHtml(c.name) + '</button>';
+      }).join('');
+      el('wrNextBtn').style.display = 'none'; // 選ぶと進むので「つぎへ」は出さない
+    } else {
+      grid.style.display = 'none';
+      grid.innerHTML = '';
+      el('wrNextBtn').style.display = 'inline-flex';
+      el('wrNextBtn').textContent = opts.nextLabel || '見た！つぎの人へわたす';
+    }
+  }
+  // 集計前のカウントダウン（3→2→1）
+  function uiTallyCountdown(numberEl, btnEl, done){
+    btnEl.style.display = 'none';
+    numberEl.style.display = 'block';
+    var n = 3;
+    numberEl.textContent = n;
+    var iv = setInterval(function(){
+      n--;
+      if(n <= 0){
+        clearInterval(iv);
+        numberEl.style.display = 'none';
+        btnEl.style.display = 'inline-flex';
+        done();
+        return;
+      }
+      numberEl.textContent = n;
+      beep(600 + (3 - n) * 120, 120);
+    }, 700);
+  }
+
+  // ===================== 役職あり人狼：プレゼンテーション層（第17弾） =====================
+  // ルールの判断は WolfLogic に任せ、ここは「今どの画面を出すか」だけを担当する。
+  // 将来1人1台のリアルタイム版にする時は、この層だけを差し替えればよい。
+  var wr = null; // { game, queue, idx, step, info }
+
+  function initWolfRoleRound(){
+    var players = state.players.map(function(p){ return { id:p.id, name:p.name }; });
+    var counts = WolfLogic.autoCounts(players.length);
+    wr = {
+      game: WolfLogic.createGame({
+        players: players,
+        turnLimit: state.wrTurnLimit || 5,
+        counts: counts
+      }),
+      queue: [], idx: 0, step: 'role', info: {}
+    };
+    startWrRoleReveal();
+  }
+
+  // ---- 役職確認（初回・全員に配る。時間は無制限） ----
+  function startWrRoleReveal(){
+    wr.step = 'role';
+    wr.queue = WolfLogic.alivePlayers(wr.game).map(function(p){ return p.id; });
+    wr.idx = 0;
+    goTo('scr-wr-pass');
+  }
+
+  // ---- 夜の行動 ----
+  function startWrNight(){
+    wr.step = 'night';
+    wr.pending = WolfLogic.pendingNightActions(wr.game);
+    wr.queue = wr.pending.map(function(a){ return a.playerId; });
+    wr.idx = 0;
+    if(!wr.queue.length){ finishWrNight(); return; }
+    goTo('scr-wr-pass');
+  }
+
+  // ---- 投票前の単発行動（ターン数1の役職） ----
+  function startWrPreVote(){
+    wr.step = 'prevote';
+    wr.pending = WolfLogic.pendingPreVoteActions(wr.game);
+    wr.queue = wr.pending.map(function(a){ return a.playerId; });
+    wr.idx = 0;
+    if(!wr.queue.length){ WolfLogic.resolvePreVote(wr.game); startWrVote(); return; }
+    goTo('scr-wr-pass');
+  }
+
+  // ---- 投票 ----
+  function startWrVote(){
+    wr.step = 'vote';
+    wr.queue = WolfLogic.alivePlayers(wr.game).map(function(p){ return p.id; });
+    wr.idx = 0;
+    goTo('scr-wr-pass');
+  }
+
+  function enterWrPass(){
+    var id = wr.queue[wr.idx];
+    var p = WolfLogic.findPlayer(wr.game, id);
+    if(!p){ advanceWrQueue(); return; }
+    var sub = wr.step === 'vote' ? 'この人にスマホを渡してください（投票）'
+            : wr.step === 'night' ? 'この人にスマホを渡してください（夜の行動）'
+            : 'この人にスマホを渡してください';
+    uiHandoff({ name: p.name, sub: sub });
+  }
+
+  // 「タップして見る」を押した時、その人に見せる中身を組み立てる
+  el('wrRevealBtn').addEventListener('click', function(){
+    var p = WolfLogic.findPlayer(wr.game, wr.queue[wr.idx]);
+    if(!p) return;
+    if(wr.step === 'role') return showWrRole(p);
+    if(wr.step === 'night') return showWrNightAction(p);
+    if(wr.step === 'prevote') return showWrPreVoteAction(p);
+    if(wr.step === 'vote') return showWrVote(p);
+  });
+
+  function showWrRole(p){
+    var role = WolfLogic.roleById(p.role);
+    var extra = '';
+    // 共有者は相方が誰かを知っている
+    if(p.role === 'mason'){
+      var mates = WolfLogic.playersWithRole(wr.game, 'mason', false)
+        .filter(function(x){ return x.id !== p.id; })
+        .map(function(x){ return x.name; });
+      if(mates.length) extra = '<div class="wolf-topic-label" style="margin-top:14px;">もう1人の共有者</div>' +
+        '<div class="wolf-topic-name">' + escapeHtml(mates.join('、')) + '</div>';
+    }
+    // 人狼は仲間を知っている
+    if(p.role === 'wolf'){
+      var pack = WolfLogic.playersWithRole(wr.game, 'wolf', false)
+        .filter(function(x){ return x.id !== p.id; })
+        .map(function(x){ return x.name; });
+      extra = '<div class="wolf-topic-label" style="margin-top:14px;">仲間の人狼</div>' +
+        '<div class="wolf-topic-name">' + escapeHtml(pack.length ? pack.join('、') : 'あなただけです') + '</div>';
+    }
+    if(p.isLover){
+      var lover = (wr.game.loverIds || []).filter(function(x){ return x !== p.id; })
+        .map(function(x){ var q = WolfLogic.findPlayer(wr.game, x); return q ? q.name : ''; });
+      extra += '<div class="wolf-topic-label" style="margin-top:14px;">恋人</div>' +
+        '<div class="wolf-topic-name">💞 ' + escapeHtml(lover.join('、')) + '</div>';
+    }
+    uiHandoffContent({
+      name: p.name,
+      html: '<div class="wolf-topic-label">あなたの役職</div>' +
+            '<div class="wolf-topic-name">' + escapeHtml(role.name) + '</div>' +
+            '<div class="mic-status" style="margin-top:10px;line-height:1.7;">' + escapeHtml(role.desc) + '</div>' +
+            extra
+    });
+  }
+
+  function wrActionOf(playerId){
+    return (wr.pending || []).find(function(a){ return a.playerId === playerId; });
+  }
+
+  function showWrNightAction(p){
+    var act = wrActionOf(p.id);
+    if(!act) return advanceWrQueue();
+    var label = act.kind === 'attack' ? 'だれを襲いますか？'
+              : act.kind === 'divine' ? 'だれを占いますか？'
+              : act.kind === 'guard' ? 'だれを守りますか？'
+              : '';
+    if(act.kind === 'medium'){
+      // 霊媒師は選ばずに結果を見るだけ（結果は夜の処理後に配る）
+      uiHandoffContent({ name: p.name, html: '<div class="wolf-topic-label">霊媒</div>' +
+        '<div class="mic-status">前に亡くなった人の正体は、朝に分かります。</div>' });
+      return;
+    }
+    uiHandoffContent({
+      name: p.name,
+      html: '<div class="wolf-topic-label">' + escapeHtml(label) + '</div>',
+      choices: act.targets
+    });
+  }
+
+  function showWrPreVoteAction(p){
+    var act = wrActionOf(p.id);
+    if(!act) return advanceWrQueue();
+    var label = act.kind === 'peek' ? 'だれを覗きますか？' : 'だれの投票先を公開しますか？';
+    uiHandoffContent({ name: p.name, html: '<div class="wolf-topic-label">' + escapeHtml(label) + '</div>', choices: act.targets });
+  }
+
+  function showWrVote(p){
+    var targets = WolfLogic.alivePlayers(wr.game)
+      .filter(function(t){ return t.id !== p.id; })
+      .map(function(t){ return { id:t.id, name:t.name }; });
+    // のぞき見の結果は、投票の直前に本人にだけ見せる
+    var peeked = wr.info && wr.info[p.id];
+    var html = '';
+    if(peeked && peeked.kind === 'peek'){
+      html += '<div class="wolf-topic-label">のぞき見の結果</div>' +
+              '<div class="wolf-topic-name">' + escapeHtml(peeked.targetName) + ' は ' + escapeHtml(peeked.label) + '</div>';
+    }
+    html += '<div class="wolf-topic-label" style="margin-top:10px;">だれに投票しますか？</div>';
+    uiHandoffContent({ name: p.name, html: html, choices: targets });
+  }
+
+  // 選択肢を押した時（夜の行動・投票の共通処理）
+  el('wrChoiceGrid').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-choice]');
+    if(!b) return;
+    var me = wr.queue[wr.idx];
+    var targetId = b.dataset.choice;
+    if(wr.step === 'night') WolfLogic.setNightAction(wr.game, me, targetId);
+    else if(wr.step === 'prevote') WolfLogic.setPreVoteAction(wr.game, me, targetId);
+    else if(wr.step === 'vote') WolfLogic.setVote(wr.game, me, targetId);
+    advanceWrQueue();
+  });
+  el('wrNextBtn').addEventListener('click', advanceWrQueue);
+
+  // 次の人へ。全員終わったら、そのステップの締めに進む
+  function advanceWrQueue(){
+    wr.idx++;
+    if(wr.idx < wr.queue.length){ enterWrPass(); return; }
+    if(wr.step === 'role'){
+      // 役職確認が終わったら、1ターン戦は投票前の行動へ、それ以外は夜へ
+      if(wr.game.config.turnLimit === 1) startWrPreVote();
+      else startWrNight();
+      return;
+    }
+    if(wr.step === 'night'){ finishWrNight(); return; }
+    if(wr.step === 'prevote'){
+      var out = WolfLogic.resolvePreVote(wr.game);
+      wr.info = out.info;
+      startWrVote();
+      return;
+    }
+    if(wr.step === 'vote'){ goTo('scr-wr-gather'); return; }
+  }
+
+  // ---- 夜の締め → 朝 ----
+  function finishWrNight(){
+    var out = WolfLogic.resolveNight(wr.game);
+    wr.nightOut = out;
+    var res = WolfLogic.evaluate(wr.game);
+    if(res.ended){ showWrFinal(res); return; }
+    goTo('scr-wr-day');
+  }
+
+  function enterWrDay(){
+    el('wrDayTurn').textContent = wr.game.turn + '日目の朝';
+    var deaths = (wr.nightOut && wr.nightOut.deaths) || [];
+    var news;
+    if(!deaths.length){
+      news = '🌤️ 誰も欠けませんでした';
+    } else {
+      news = deaths.map(function(d){
+        var p = WolfLogic.findPlayer(wr.game, d.id);
+        var cause = d.cause === 'cursed' ? '謎の死' : (d.cause === 'lover' ? '後を追った' : '襲われた');
+        var role = wr.game.config.revealRoleOnDeath
+          ? '（' + WolfLogic.roleById(p.role).name + '）' : '';
+        return '🌙 ' + escapeHtml(p.name) + escapeHtml(role) + ' が' + cause;
+      }).join('<br>');
+    }
+    // 夜に得た情報（占い・霊媒）は、本人に見せるため次の手渡しで配る
+    el('wrDayNews').innerHTML = news;
+    startWrDayTimer();
+  }
+
+  // 話し合いタイマー（この画面専用。既存のプレイ画面のタイマーには手を入れない）
+  function startWrDayTimer(){
+    stopWrDayTimer();
+    if(!state.timerEnabled){ el('wrDayTimer').style.display = 'none'; return; }
+    var total = state.customTimer || 180;
+    wr.remaining = total;
+    el('wrDayTimer').style.display = 'block';
+    renderWrDayTimer();
+    wr.timer = setInterval(function(){
+      wr.remaining--;
+      renderWrDayTimer();
+      if(wr.remaining <= 0){
+        stopWrDayTimer();
+        timesUpChime();
+        setTimeout(function(){ if(el('scr-wr-day').classList.contains('active')) goToWrVote(); }, 700);
+      }
+    }, 1000);
+  }
+  function renderWrDayTimer(){
+    var m = Math.floor(wr.remaining / 60), s = wr.remaining % 60;
+    el('wrDayTimer').textContent = pad(m) + ':' + pad(s);
+  }
+  function stopWrDayTimer(){ if(wr && wr.timer){ clearInterval(wr.timer); wr.timer = null; } }
+
+  function goToWrVote(){
+    stopWrDayTimer();
+    // 夜に得た情報を本人に配ってから投票へ（占い師・霊媒師）
+    wr.info = (wr.nightOut && wr.nightOut.info) || {};
+    startWrVote();
+  }
+  el('wrToVoteBtn').addEventListener('click', goToWrVote);
+
+  // ---- 集計 → 処刑 → 判定 ----
+  el('wrTallyBtn').addEventListener('click', function(){
+    uiTallyCountdown(el('wrCdNumber'), el('wrTallyBtn'), function(){
+      var out = WolfLogic.executeVote(wr.game);
+      wr.voteOut = out;
+      if(out.executed) WolfLogic.checkTeruteru(wr.game, out.executed);
+      var res = WolfLogic.evaluate(wr.game);
+      // てるてる坊主が勝った時、設定によっては試合を終える
+      if(res.teruteruWin && !wr.game.config.teruteruContinue){
+        showWrFinal(WolfLogic.finish(wr.game, res.ended ? res : null));
+        return;
+      }
+      if(res.ended){ showWrFinal(WolfLogic.finish(wr.game, res)); return; }
+      // 上限ターンなら、これ以上続けずに決着させる
+      if(WolfLogic.isFinalTurn(wr.game)){ showWrFinal(WolfLogic.finish(wr.game)); return; }
+      showWrTurnResult(out);
+    });
+  });
+
+  // ターンの途中結果（処刑者を見せて、次の夜へ）
+  function showWrTurnResult(out){
+    el('wrResultTitle').textContent = wr.game.turn + '日目の結果';
+    var ex = out.executed;
+    var role = (ex && wr.game.config.revealRoleOnDeath) ? '（' + WolfLogic.roleById(ex.role).name + '）' : '';
+    el('wrResultSummary').innerHTML = ex
+      ? '⚖️ ' + escapeHtml(ex.name) + escapeHtml(role) + ' が処刑されました'
+      : '🤝 同数のため、誰も処刑されませんでした';
+    el('wrResultList').innerHTML = renderWrAliveList();
+    el('wrResultNextBtn').textContent = 'つぎの夜へ ▶';
+    wr.finished = false;
+    goTo('scr-wr-result');
+  }
+
+  function showWrFinal(res){
+    WolfLogic.finish(wr.game, res);
+    var r = wr.game.result;
+    el('wrResultTitle').textContent = '決着！';
+    var winnerLabel = r.winner === 'village' ? '🏘️ 村人陣営の勝ち'
+                    : r.winner === 'wolf' ? '🐺 人狼陣営の勝ち'
+                    : r.winner === 'fox' ? '🦊 妖狐の勝ち' : '決着';
+    var extra = '';
+    if(r.teruteruWin) extra += '<br>🎏 てるてる坊主の個人勝利';
+    if(r.loversWin) extra += '<br>💞 恋人2人の勝利';
+    if(r.reason === 'turnLimit') extra += '<br><span style="font-size:11px;">（ターン上限のため）</span>';
+    el('wrResultSummary').innerHTML = winnerLabel + extra;
+    el('wrResultList').innerHTML = renderWrRoleList();
+    el('wrResultNextBtn').textContent = 'スコアへ ▶';
+    wr.finished = true;
+    goTo('scr-wr-result');
+  }
+
+  function renderWrAliveList(){
+    return wr.game.players.map(function(p){
+      return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (p.alive ? '' : ' 💀') + '</div>' +
+        '<div class="rs">' + (p.alive ? '生存' : '脱落') + '</div></div>';
+    }).join('');
+  }
+  function renderWrRoleList(){
+    return wr.game.players.map(function(p){
+      return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (p.alive ? '' : ' 💀') + '</div>' +
+        '<div class="rs">' + escapeHtml(WolfLogic.roleById(p.role).name) + '</div></div>';
+    }).join('');
+  }
+
+  el('wrResultNextBtn').addEventListener('click', function(){
+    if(!wr.finished){
+      WolfLogic.nextTurn(wr.game);
+      if(wr.game.phase === 'finalVote'){ startWrVote(); return; }
+      startWrNight();
+      return;
+    }
+    // 決着：スコアに反映して記録を残す
+    applyWolfRoleScores();
+    goTo('scr-score');
+  });
+
+  // 勝った陣営に加点し、履歴に構成と結果を残す
+  function applyWolfRoleScores(){
+    var r = wr.game.result || {};
+    var deltas = {};
+    wr.game.players.forEach(function(p){
+      var team = WolfLogic.teamOf(p);
+      var win = (r.winner === 'village' && team === 'village')
+             || (r.winner === 'wolf' && team === 'wolf')
+             || (r.winner === 'fox' && p.role === 'fox');
+      if(r.teruteruWin && p.role === 'teruteru') win = true;
+      if(r.loversWin && p.isLover) win = true;
+      if(win){ scorePlayer(p.id, 10); deltas[p.name] = 10; }
+    });
+    logRound('wordwolf', deltas, WolfLogic.summary(wr.game));
+  }
 
   // ===================== bomb: time bomb mode =====================
   function initBombRound(){

@@ -27,7 +27,7 @@
     villager: { id: 'villager', name: '村人', team: TEAM.VILLAGE, looksLike: 'villager', night: null,
       desc: '特別な力はありません。話し合いで人狼を見つけましょう。' },
     wolf: { id: 'wolf', name: '人狼', team: TEAM.WOLF, looksLike: 'wolf', night: 'attack',
-      desc: '夜に village を襲撃します。昼は正体を隠しましょう。' },
+      desc: '夜に1人を襲撃します。昼は正体を隠しきりましょう。' },
     seer: { id: 'seer', name: '占い師', team: TEAM.VILLAGE, looksLike: 'villager', night: 'divine',
       desc: '夜に1人を占い、その正体の手がかりを得ます。' },
     medium: { id: 'medium', name: '霊媒師', team: TEAM.VILLAGE, looksLike: 'villager', night: 'medium',
@@ -114,6 +114,23 @@
   // 必要な最低人数（役職の合計＋村人1人）
   function minPlayers(counts) {
     return Math.max(3, countAssigned(counts) + 1);
+  }
+
+  // 人数に見合った標準的な編成を返す（設定を触らない人向けの初期値）
+  function autoCounts(playerCount) {
+    var c = { wolf: 1, seer: 0, medium: 0, knight: 0, madman: 0, mason: 0, fox: 0, teruteru: 0 };
+    if (playerCount >= 7) c.wolf = 2;
+    if (playerCount >= 11) c.wolf = 3;
+    if (playerCount >= 5) c.seer = 1;
+    if (playerCount >= 8) c.knight = 1;
+    // 村人が最低1人は残るように削る
+    while (countAssigned(c) >= playerCount) {
+      if (c.knight) c.knight = 0;
+      else if (c.seer) c.seer = 0;
+      else if (c.wolf > 1) c.wolf--;
+      else break;
+    }
+    return c;
   }
 
   // ===== 役職の配布 =====
@@ -512,6 +529,7 @@
     ONE_TURN_ROLE_IDS: ONE_TURN_ROLE_IDS, NORMAL_ROLE_IDS: NORMAL_ROLE_IDS,
     roleById: roleById, selectableRoles: selectableRoles, isRoleSelectable: isRoleSelectable,
     normalizeCounts: normalizeCounts, minPlayers: minPlayers, countAssigned: countAssigned,
+    autoCounts: autoCounts,
     createGame: createGame,
     findPlayer: findPlayer, alivePlayers: alivePlayers, playersWithRole: playersWithRole, teamOf: teamOf,
     pendingNightActions: pendingNightActions, setNightAction: setNightAction, resolveNight: resolveNight,

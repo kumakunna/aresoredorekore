@@ -201,12 +201,14 @@ app.post('/api/matches', requireAuth, (req, res) => {
 app.patch('/api/matches/:id/round', requireAuth, (req, res) => {
   const match = getOwnedMatch(req);
   if (!match) return res.status(404).json({ error: '見つかりません' });
-  const { mode, score_deltas, opts } = req.body || {};
+  const { mode, score_deltas, opts, detail } = req.body || {};
   const rounds = JSON.parse(match.rounds || '[]');
   // opts＝そのラウンドのあそびかた（出題方法・封印ワード・脱落）。記録のタグ絞り込みに使う。
-  // 無い場合（古いクライアント）は従来どおり mode だけを保存する。
+  // detail＝そのゲーム固有の記録（人狼なら役職構成・勝った陣営など）。
+  // どちらも無い場合（古いクライアント）は従来どおり mode だけを保存する。
   const round = { mode: mode || null, score_deltas: score_deltas || {}, at: new Date().toISOString() };
   if (opts && typeof opts === 'object') round.opts = opts;
+  if (detail && typeof detail === 'object') round.detail = detail;
   rounds.push(round);
   db.prepare('UPDATE matches SET rounds = ? WHERE id = ?').run(JSON.stringify(rounds), match.id);
   res.json({ ok: true, rounds_count: rounds.length });

@@ -67,6 +67,13 @@ function makeApi(opts) {
 async function launch(opts) {
   opts = opts || {};
   let html = fs.readFileSync(HTML, 'utf8');
+  // jsdom は <script src> を読み込まないので、public/js/*.js は中身を埋め込んでから起動する。
+  // （本番のブラウザでは普通に外部ファイルとして読み込まれる）
+  html = html.replace(/<script src="(js\/[^"]+)"><\/script>/g, function (m, src) {
+    const p = path.join(ROOT, 'public', src);
+    if (!fs.existsSync(p)) throw new Error('読み込めません: ' + src);
+    return '<script>' + fs.readFileSync(p, 'utf8') + '</script>';
+  });
   // 独立ゲーム（ワードウルフ・時限爆弾など）は hidden:true で棚から選べないようにしてある。
   // 復活させた時に壊れていないかを確かめたいので、テスト時だけ一時的に表示させる。
   // 変えるのは表示フラグだけで、ゲームのロジックには触れていない。

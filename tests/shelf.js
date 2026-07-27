@@ -222,7 +222,9 @@ function pickCart(doc, id) {
     await H.fillPlayerForm(win, doc, ['あき', 'びび', 'ちか']);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c2 => c2.dataset.id);
-    assertEqual(ids.join(','), 'wordwolf', 'ワードウルフだけが並ぶ（他ゲームのモードが混ざらない）');
+    assert(ids.indexOf('wordwolf') >= 0, 'ワードウルフがある');
+    assert(ids.every(id => id === 'wordwolf' || id === 'wolfrole'),
+      '人狼ゲームのモードだけが並ぶ（他ゲームが混ざらない）: ' + ids.join(','));
 
     // 1ゲームのカセットなので「もどる」は棚へ
     click(doc, 'backToShelfBtn');
@@ -285,8 +287,10 @@ function pickCart(doc, id) {
     doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
-    assertEqual(ids.length, 1, 'ワードウルフのモードは1つ');
-    assertEqual(ids[0], 'wordwolf', '他のゲームのモードが混ざらない');
+    assert(ids.indexOf('wordwolf') >= 0, 'ワードウルフが出る');
+    assert(ids.every(id => id === 'wordwolf' || id === 'wolfrole'),
+      '人狼ゲームのモードだけが並ぶ（' + ids.join(',') + '）');
+    assert(ids.indexOf('normal') === -1, 'あれそれどれこれのモードが混ざらない');
 
     // あれそれどれこれを選び直すと、そちらのモードに切り替わる
     click(doc, 'backToShelfBtn');

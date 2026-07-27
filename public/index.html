@@ -1290,6 +1290,7 @@
       <button class="pause-btn" id="peekBtn" style="display:none;">⏱</button>
       <button class="pause-btn" id="pauseBtn">⏸</button>
       <button class="pause-btn" id="endRoundBtn" style="display:none;">🏁</button>
+      <button class="pause-btn" id="wolfSkipBtn" style="display:none;" aria-label="投票へすすむ">⏭</button>
     </div>
     <div class="describer-banner" id="describerBanner" style="display:none;"></div>
     <div class="topic-card">
@@ -5122,7 +5123,15 @@
     el('peekBtn').classList.remove('on'); // 7：ラウンド開始時は「非表示」状態から
     el('endRoundBtn').style.display = on ? 'none' : 'inline-flex';
     el('pauseBtn').textContent = '⏸';
+    // 第18弾-6：ワードウルフの話し合いは、時間を待たずに投票へ進めるようにする
+    // （話がまとまったのに待たされるのはテンポが悪いため）
+    var m = modeById(state.selectedModeId);
+    var skipping = !!(m.wolf && play.wolfPhase === 'discuss' && on);
+    el('wolfSkipBtn').style.display = skipping ? 'inline-flex' : 'none';
   }
+  el('wolfSkipBtn').addEventListener('click', function(){
+    finishPlayRound(); // タイマー満了と同じ扱いで投票へ進む
+  });
   el('pauseBtn').addEventListener('click', function(){
     if(play.running){
       clearInterval(play.interval); play.running = false; el('pauseBtn').textContent = '▶';

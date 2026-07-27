@@ -408,6 +408,41 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  await r.test('第18弾：ワードウルフの話し合いは、時間を待たずに投票へ進める', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    // タイマーONのまま進める（スキップできることを確かめたいので切らない）
+    click(doc, 'modeAutoBtn');
+    await sleep(win, 80);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+
+    await waitScreen(win, doc, 'scr-wolf-pass', 8000);
+    for (let i = 0; i < PLAYERS.length; i++) {
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      click(doc, 'wolfNextRevealBtn');
+      await sleep(win, 50);
+    }
+    await waitScreen(win, doc, 'scr-play', 5000);
+    // タイマーONなので「🏁（手動終了）」は出ないが、スキップは出る
+    assertEqual(el(doc, 'endRoundBtn').style.display, 'none', 'タイマーONでは手動終了は出ない');
+    assert(el(doc, 'wolfSkipBtn').style.display !== 'none', '話し合いをスキップするボタンが出る');
+    click(doc, 'wolfSkipBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);   // 待たずに投票へ進む
+    assertNoErrors(errors, 'タイマースキップで未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第6部：対戦履歴に、どちらのゲームだったかが残ること ----
   // サーバーへ送る /round の中身をそのまま覗いて確認する
   function captureRounds(win) {

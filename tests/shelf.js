@@ -338,6 +338,8 @@ function pickCart(doc, id) {
     await setupPlayers(win, doc);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, 'modeAutoBtn');
+    await sleep(win, 80);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
     await waitScreen(win, doc, 'scr-ready', 3000);
     el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
     await waitScreen(win, doc, 'scr-play', 8000);

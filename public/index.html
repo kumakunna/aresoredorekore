@@ -3255,9 +3255,10 @@
   });
   el('modeNextBtn').addEventListener('click', startWizard);
   el('modeAutoBtn').addEventListener('click', function(){
-    // おまかせ：全設定をデフォルトのまま一気にready画面へ
+    // おまかせ：設定は飛ばすが、初回のルール説明は飛ばさない。
+    // （ここで直接 scr-ready へ行くと、はじめて遊ぶモードでも説明が出ないままになる）
     applyModeDefaults();
-    goTo('scr-ready');
+    finishWizard();
   });
   el('gearBtn').addEventListener('click', openSettings);
 
@@ -3739,7 +3740,9 @@
   function startWrNight(){
     wr.step = 'night';
     wr.pending = WolfLogic.pendingNightActions(wr.game);
-    wr.queue = wr.pending.map(function(a){ return a.playerId; });
+    // 匿名性：行動がある人だけに回すと、消去法で役職がバレる。
+    // 毎晩かならず生存者全員に、同じ見た目・同じ手順でスマホを回す。
+    wr.queue = WolfLogic.alivePlayers(wr.game).map(function(p){ return p.id; });
     wr.idx = 0;
     if(!wr.queue.length){ finishWrNight(); return; }
     goTo('scr-wr-pass');
@@ -3758,6 +3761,10 @@
   // ---- 投票 ----
   function startWrVote(){
     wr.step = 'vote';
+    // ロジック層は phase が 'vote' でないと投票を受け付けない。
+    // 夜のあとは 'day' のままなので、ここで必ず切り替える
+    // （これを忘れると1票も入らず、全員が正しく投票しても誰も処刑されない）
+    wr.game.phase = 'vote';
     wr.queue = WolfLogic.alivePlayers(wr.game).map(function(p){ return p.id; });
     wr.idx = 0;
     goTo('scr-wr-pass');
@@ -3823,7 +3830,15 @@
 
   function showWrNightAction(p){
     var act = wrActionOf(p.id);
-    if(!act) return advanceWrQueue();
+    // 行動が無い人にも同じ形の画面を出す（外から見て区別がつかないようにする）
+    if(!act){
+      uiHandoffContent({
+        name: p.name,
+        html: '<div class="wolf-topic-label">夜がふけました</div>' +
+              '<div class="mic-status" style="margin-top:8px;line-height:1.8;">今夜、あなたに特にすることはありません。<br>そのまま次の人にスマホを渡してください。</div>'
+      });
+      return;
+    }
     var label = act.kind === 'attack' ? 'だれを襲いますか？'
               : act.kind === 'divine' ? 'だれを占いますか？'
               : act.kind === 'guard' ? 'だれを守りますか？'

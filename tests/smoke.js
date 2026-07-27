@@ -139,6 +139,8 @@ async function startModeWithTimerOff(win, doc, id) {
 
     click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
     click(doc, 'modeAutoBtn');
+    await sleep(win, 80);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
     await waitScreen(win, doc, 'scr-ready', 3000);
     el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
 
@@ -274,6 +276,135 @@ async function startModeWithTimerOff(win, doc, id) {
     });
     assert(ids.every(id => /^wolf-/.test(id)), 'ワードウルフのモードが混ざらない');
     assertNoErrors(errors, 'ゲーム選択で未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第18弾：役職あり人狼の是正 ----
+  // 役職あり人狼を、指定した手順で1ターン進めるヘルパー
+  async function startWolfRole(win, doc, presetId, players) {
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="' + presetId + '"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+  }
+
+  // 手渡しをちょうど count 人ぶん流す。
+  // 役職確認も夜も投票も同じ scr-wr-pass を使うので、人数で区切らないと隣の段階まで進んでしまう。
+  async function runWrHandoffs(win, doc, count, onShow, pick) {
+    for (let i = 0; i < count; i++) {
+      if (activeScreen(doc) !== 'scr-wr-pass') break;
+      const name = el(doc, 'wrHandoffName').textContent;
+      click(doc, 'wrRevealBtn');
+      await sleep(win, 30);
+      const choices = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
+      if (onShow) onShow({ name: name, body: el(doc, 'wrContentBody').textContent, choices: choices.length });
+      if (choices.length) {
+        const target = pick ? pick(name, choices) : choices[0];
+        (target || choices[0]).click();
+      } else {
+        click(doc, 'wrNextBtn');
+      }
+      await sleep(win, 40);
+    }
+  }
+
+  await r.test('再発防止：全員が同じ人に投票したら、その人が必ず処刑される', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players);
+
+    await runWrHandoffs(win, doc, players.length);  // 役職確認
+    await runWrHandoffs(win, doc, players.length);  // 夜（全員に回る）
+    await waitScreen(win, doc, 'scr-wr-day', 6000);
+    const deadAtNight = /🌙/.test(el(doc, 'wrDayNews').textContent);
+    click(doc, 'wrToVoteBtn');
+    await waitScreen(win, doc, 'scr-wr-pass', 3000);
+
+    // 全員が「あき」に投票する（あき本人の番だけは別の人へ）
+    const voters = players.length - (deadAtNight ? 1 : 0);
+    await runWrHandoffs(win, doc, voters, null, function (voter, choices) {
+      const aki = choices.find(c => c.textContent === 'あき');
+      return (voter === 'あき') ? choices[0] : (aki || choices[0]);
+    });
+    await waitScreen(win, doc, 'scr-wr-gather', 5000);
+    click(doc, 'wrTallyBtn');
+    await waitScreen(win, doc, 'scr-wr-result', 8000);
+
+    // 「あき」が生きていれば処刑されているはず。
+    // （夜に襲われていた場合は投票対象から外れるので、その時は検証をスキップする）
+    const summary = el(doc, 'wrResultSummary').textContent;
+    const list = el(doc, 'wrResultList').textContent;
+    assert(!/同数/.test(summary), '票が入っているので「同数」にはならない（' + summary + '）');
+    assert(/あき/.test(list), '結果一覧にあきがいる');
+    assert(/あき\s*💀/.test(list.replace(/\s+/g, ' ')) || /あき/.test(summary),
+      'あきが処刑されている（結果: ' + summary + ' / ' + list.replace(/\s+/g, ' ').slice(0, 80) + '）');
+    assertNoErrors(errors, '投票処刑で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('夜フェーズ：行動が無い人にもスマホが回り、消去法でバレない', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players); // 人狼1・村人4
+    await runWrHandoffs(win, doc, players.length);          // 役職確認
+
+    // 夜：全員に回ること、行動が無い人にも画面が出ることを確認する
+    const shown = [];
+    await runWrHandoffs(win, doc, players.length, function (info) { shown.push(info); });
+    assertEqual(shown.length, players.length, '生存者全員にスマホが回る（' + shown.length + '人）');
+    const withChoice = shown.filter(s => s.choices > 0);
+    assertEqual(withChoice.length, 1, '実際に行動するのは人狼1人だけ');
+    const without = shown.filter(s => s.choices === 0);
+    assertEqual(without.length, players.length - 1, '残りの人にも画面が出る');
+    without.forEach(s => {
+      assert(/特にすることはありません/.test(s.body), '行動が無い人には一律の案内が出る');
+    });
+    assertNoErrors(errors, '夜フェーズで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('再発防止：おまかせで始めても、初回のルール説明は出る', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, 'modeAutoBtn');                       // ⚡ おまかせ
+    await sleep(win, 100);
+    assertEqual(activeScreen(doc), 'scr-mode-rules', 'はじめてのモードでは説明が出る');
+    assert(/ウルフ/.test(el(doc, 'rulesBody').textContent), 'ワードウルフの説明が出ている');
+
+    // 2回目は説明を飛ばす
+    click(doc, 'rulesStartBtn');
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    click(doc, 'readyBackBtn');
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'modeAutoBtn');
+    await sleep(win, 100);
+    assertEqual(activeScreen(doc), 'scr-ready', '2回目は説明を飛ばして準備画面へ');
+    assertNoErrors(errors, 'おまかせで未捕捉の例外');
     win.close();
   });
 

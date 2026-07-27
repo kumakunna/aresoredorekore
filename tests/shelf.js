@@ -202,6 +202,92 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第15弾：カセット → ゲーム → モードの3階層 ----
+  // 複数ゲームのカセットは本番にまだ無いので、テスト時だけ差し込んで経路を確認する
+  const MULTI = {
+    id: 'testmulti', genre: 'word', ready: true, icon: '🧪', title: 'テスト用カセット',
+    games: ['aresoredorekore', 'wordwolf'], meta: 'テスト用'
+  };
+
+  await r.test('ゲームが1つのカセットは、ゲーム選択を飛ばして直接すすむ', async () => {
+    const { win, doc, errors } = await launch();
+    pickCart(doc, 'aresoredorekore');
+    await waitScreen(win, doc, 'scr-setup', 3000);
+    assertEqual(activeScreen(doc), 'scr-setup', 'scr-game を経由しない');
+    assertNoErrors(errors, '1ゲームのカセットで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ゲームが2つのカセットは、ゲーム選択画面が出る', async () => {
+    const { win, doc, errors } = await launch({ testCassettes: [MULTI] });
+    pickCart(doc, 'testmulti');
+    await waitScreen(win, doc, 'scr-game', 3000);
+    const cards = Array.from(doc.querySelectorAll('#gameCards .mode-card'));
+    assertEqual(cards.length, 2, '2つのゲームが並ぶ');
+    assert(/あれそれどれこれ/.test(cards[0].textContent), '1つ目はあれそれどれこれ');
+    assert(/ワードウルフ/.test(cards[1].textContent), '2つ目はワードウルフ');
+    assert(doc.querySelector('#scr-game [data-go-shelf]'), 'ゲーム選択にも「棚にもどる」がある');
+    assertNoErrors(errors, 'ゲーム選択画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ゲームを選ぶと、そのゲームのモードだけがモード選択に出る', async () => {
+    // ワードウルフは本番では hidden なので、モードが見える状態にして絞り込みを確かめる
+    const { win, doc, errors } = await launch({ testCassettes: [MULTI], showHiddenModes: true });
+    await setupPlayers(win, doc);          // 先にプレイヤーを登録しておく
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'backToShelfBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+
+    pickCart(doc, 'testmulti');
+    await waitScreen(win, doc, 'scr-game', 3000);
+    // ワードウルフを選ぶ → ワードウルフのモードだけが出る
+    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    assertEqual(ids.length, 1, 'ワードウルフのモードは1つ');
+    assertEqual(ids[0], 'wordwolf', '他のゲームのモードが混ざらない');
+
+    // あれそれどれこれを選び直すと、そちらのモードに切り替わる
+    click(doc, 'backToShelfBtn');
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="aresoredorekore"]').click();
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const ids2 = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    assert(ids2.length >= 5, 'あれそれどれこれのモードが並ぶ（' + ids2.length + '件）');
+    assert(ids2.indexOf('wordwolf') === -1, 'ワードウルフが混ざらない');
+    assertNoErrors(errors, 'ゲーム切替で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('モード選択の「もどる」：1ゲームなら棚、複数ゲームならゲーム選択へ', async () => {
+    // 1ゲームのカセット → 棚に戻る
+    const a = await launch();
+    await setupPlayers(a.win, a.doc);
+    await waitScreen(a.win, a.doc, 'scr-mode', 3000);
+    click(a.doc, 'backToShelfBtn');
+    await waitScreen(a.win, a.doc, 'scr-shelf', 3000);
+    assertEqual(activeScreen(a.doc), 'scr-shelf', '1ゲームなら棚へ直接戻る');
+    assertNoErrors(a.errors, '1ゲームの戻りで未捕捉の例外');
+    a.win.close();
+
+    // 2ゲームのカセット → ゲーム選択に戻る
+    const b = await launch({ testCassettes: [MULTI] });
+    await setupPlayers(b.win, b.doc);
+    await waitScreen(b.win, b.doc, 'scr-mode', 3000);
+    click(b.doc, 'backToShelfBtn');
+    await waitScreen(b.win, b.doc, 'scr-shelf', 3000);
+    pickCart(b.doc, 'testmulti');
+    await waitScreen(b.win, b.doc, 'scr-game', 3000);
+    b.doc.querySelector('#gameCards .mode-card[data-game="aresoredorekore"]').click();
+    await waitScreen(b.win, b.doc, 'scr-mode', 3000);
+    click(b.doc, 'backToShelfBtn');
+    await waitScreen(b.win, b.doc, 'scr-game', 3000);
+    assertEqual(activeScreen(b.doc), 'scr-game', '複数ゲームならゲーム選択へ戻る');
+    assertNoErrors(b.errors, '複数ゲームの戻りで未捕捉の例外');
+    b.win.close();
+  });
+
   await r.test('ゲームを終えると棚に戻り、扉は再表示されない', async () => {
     const { win, doc, errors } = await launch();
     win.confirm = () => true;

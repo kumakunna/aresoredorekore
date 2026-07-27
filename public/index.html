@@ -698,6 +698,20 @@
     <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">🏠 棚にもどる</button>
   </div>
 
+  <!-- 3.5: game（第15弾・1つのカセットに複数ゲームが入っている時だけ通る画面） -->
+  <div class="screen" id="scr-game">
+    <div class="scr-head-row">
+      <div>
+        <h2 class="scr-title" id="gameTitle">ゲーム</h2>
+        <p class="scr-sub">このカセットのどれであそぶ？</p>
+      </div>
+    </div>
+    <div class="wiz-body"><div id="gameCards"></div></div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">🏠 棚にもどる</button>
+    </div>
+  </div>
+
   <!-- 4: mode (モードを選ぶだけのシンプルな一覧) -->
   <div class="screen" id="scr-mode">
     <div class="scr-head-row">
@@ -1410,7 +1424,9 @@
   ];
   // 名前を出すのは「中身が決まっているカセット」だけ。未定のものは icon:'？' のまま伏せる
   var CASSETTES = [
+    // games：このカセットに入っているゲーム。2つ以上ならゲーム選択画面を挟む
     { id:'aresoredorekore', genre:'word', ready:true,  logo:'img/logo-aresoredorekore.png', title:'あれそれどれこれ',
+      games:['aresoredorekore'],
       meta:'2〜8人 / 10分〜<br>ことばで説明して当てる' },
     // 第4段階でカセットとして復活予定。中身は決まっているので名前を見せ、まだ遊べないことを明示する
     { id:'jinro',           genre:'word', ready:false, icon:'🐺', title:'人狼<br>ゲーム',
@@ -1577,8 +1593,31 @@
     }
     startCassette(c.id);
   });
+  // 第15弾：棚 → カセット →（ゲーム）→ モード。
+  // 中身が1つしかない階層は自動でスキップして、無駄なタップを増やさない。
+  function cassetteGames(c){
+    if(!c) return [];
+    return (c.games && c.games.length) ? c.games : [DEFAULT_GAME_ID];
+  }
   function startCassette(id){
-    if(id !== 'aresoredorekore') return; // 第3段階で3階層に対応する
+    var c = cassetteById(id);
+    if(!c || !c.ready) return;
+    state.selectedCassetteId = id;
+    var games = cassetteGames(c);
+    if(games.length > 1){
+      goTo('scr-game'); // どのゲームで遊ぶか選んでもらう
+      return;
+    }
+    selectGame(games[0]);
+  }
+  // ゲームが決まったら、プレイヤー設定 or モード選択へ進む（従来と同じ分岐）
+  function selectGame(gameId){
+    state.selectedGameId = gameId;
+    // モードが今のゲームのものでなければ、そのゲームの先頭モードに切り替える
+    var list = visibleModes();
+    if(list.length && !list.some(function(m){ return m.id === state.selectedModeId; })){
+      applyPreset(list[0].id);
+    }
     // 第12弾-7：プレイヤー設定は初回のみ。以降は「変更する」と答えた時だけ聞く
     if(state.players.length === 0 || state.needPlayerSetup){
       state.needPlayerSetup = false;
@@ -1587,6 +1626,25 @@
       goTo('scr-mode');
     }
   }
+  function enterGame(){
+    var c = cassetteById(state.selectedCassetteId);
+    el('gameTitle').textContent = c ? (c.title || '').replace(/<br>/g, '') : 'ゲーム';
+    el('gameCards').innerHTML = cassetteGames(c).map(function(gid){
+      var g = gameById(gid);
+      var sel = gid === state.selectedGameId;
+      return '<div class="mode-card' + (sel ? ' selected' : '') + '" data-game="' + gid + '">' +
+        '<div class="m-icon">' + g.icon + '</div>' +
+        '<div class="m-text"><div class="m-title">' + escapeHtml(g.title) + '</div>' +
+        '<div class="m-sub">' + escapeHtml(g.sub || '') + '</div></div>' +
+        '<div class="m-check"></div>' +
+      '</div>';
+    }).join('');
+  }
+  el('gameCards').addEventListener('click', function(e){
+    var card = e.target.closest('.mode-card');
+    if(!card) return;
+    selectGame(card.dataset.game); // 選んだらそのまま次へ（余計なタップを足さない）
+  });
   // ---- 長押しドラッグでカセットを並び替える ----
   var shelfDrag = { active:false, moved:false, cart:null, rail:null, timer:null, startX:0 };
   function cancelShelfDragTimer(){ clearTimeout(shelfDrag.timer); shelfDrag.timer = null; }
@@ -1660,13 +1718,14 @@
   // MODES に game: を書かなければ既定ゲーム（あれそれどれこれ）扱い。Unity製など別技術のゲームが
   // 増える場合も、ここに1行足せば記録の絞り込み・表示に乗る。
   var DEFAULT_GAME_ID = 'aresoredorekore';
+  // sub は、1つのカセットに複数ゲームが入る時のゲーム選択画面で使う一言説明
   var GAMES = [
-    { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴' },
-    { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺' },
-    { id:'bomb',            title:'時限爆弾',           icon:'💣' },
-    { id:'quizking',        title:'クイズ王決定戦',     icon:'👑' },
-    { id:'buzzer',          title:'早押しトーナメント', icon:'🥊' },
-    { id:'auction',         title:'オークションバトル', icon:'💰' }
+    { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる' },
+    { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う' },
+    { id:'bomb',            title:'時限爆弾',           icon:'💣', sub:'コードを解除する協力プレイ' },
+    { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点' },
+    { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち' },
+    { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う' }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -1761,6 +1820,8 @@
     bombLives: 3,
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
+    selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット
+    selectedGameId: DEFAULT_GAME_ID,       // 第15弾：カセットの中で選んだゲーム（モード一覧の絞り込みに使う）
     autoSaveRecords: true, // 5：対戦記録をサーバーへ自動保存するか（localStorageに永続化）
     matchRoundsLogged: 0,  // このマッチでサーバーに送ったラウンド数（記録のゲーム判別用）
     pool: null, // 統合お題プールのキャッシュ（お題取得後に構築）
@@ -2287,9 +2348,10 @@
     var next = el(id);
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-door','scr-login','scr-shelf','scr-setup','scr-mode','scr-countdown'];
+    var noGear = ['scr-door','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
     if(id === 'scr-shelf') enterShelf();
+    if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
     if(id === 'scr-mode') enterMode();
     if(id === 'scr-ready') enterReady();
@@ -2422,14 +2484,25 @@
       return '<span class="hp-chip'+(p.handicap?' on':'')+'" data-id="'+p.id+'">★ '+escapeHtml(p.name)+'</span>';
     }).join('');
   }
-  function visibleModes(){ return MODES.filter(function(m){ return !m.hidden; }); }
+  // 第15弾：いま選んでいるゲームのモードだけを出す（カセット→ゲーム→モードの3階層）
+  function visibleModes(){
+    var gid = state.selectedGameId || DEFAULT_GAME_ID;
+    return MODES.filter(function(m){ return !m.hidden && gameIdForMode(m.id) === gid; });
+  }
   function enterMode(){
     // ⑤(第2弾)：サバイバルの脱落フラグを次のモードに持ち越さない。
     // 1の修正でサバイバル決着前はこの画面に来られないため、ここでのリセットは安全。
     state.players.forEach(function(p){ p.eliminated = false; });
     // 第6弾：独立ゲームは hidden で一覧から除外。選択中が非表示なら先頭の表示モードに戻す
-    if(modeById(state.selectedModeId).hidden){ state.selectedModeId = visibleModes()[0].id; }
-    el('modeCards').innerHTML = visibleModes().map(function(m){
+    // 選択中モードが今の一覧に無ければ（非表示 or 別ゲームのモード）先頭に戻す
+    var list = visibleModes();
+    // 保険：そのゲームに出せるモードが1つも無い場合でも、空の一覧を見せない
+    if(!list.length){
+      list = MODES.filter(function(m){ return !m.hidden; });
+      state.selectedGameId = DEFAULT_GAME_ID;
+    }
+    if(!list.some(function(m){ return m.id === state.selectedModeId; })) applyPreset(list[0].id);
+    el('modeCards').innerHTML = list.map(function(m){
       var sel = m.id === state.selectedModeId;
       return '<div class="mode-card'+(sel?' selected':'')+'" data-id="'+m.id+'">'+
         '<div class="m-icon">'+m.icon+'</div>'+
@@ -2838,7 +2911,11 @@
     if(!b) return;
     goBack('scr-shelf');
   });
-  el('backToShelfBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
+  // 第15弾：複数ゲームのカセットならゲーム選択へ、1つだけなら（その画面を飛ばしているので）棚へ
+  el('backToShelfBtn').addEventListener('click', function(){
+    var c = cassetteById(state.selectedCassetteId);
+    goBack(cassetteGames(c).length > 1 ? 'scr-game' : 'scr-shelf');
+  });
   el('modeNextBtn').addEventListener('click', startWizard);
   el('modeAutoBtn').addEventListener('click', function(){
     // おまかせ：全設定をデフォルトのまま一気にready画面へ

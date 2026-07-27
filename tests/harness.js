@@ -75,6 +75,14 @@ async function launch(opts) {
     html = html.replace(/hidden:true/g, 'hidden:false');
     if (before === 0) throw new Error('hidden:true が見つかりません（MODESの書式が変わった可能性があります）');
   }
+  // 複数ゲームを持つカセットは本番にまだ無いので、テスト時だけ差し込む。
+  // 本番のカセット構成は変えずに「ゲーム選択画面を通る経路」を確認するため。
+  if (opts.testCassettes && opts.testCassettes.length) {
+    const marker = '  var CASSETTES = [';
+    if (html.indexOf(marker) < 0) throw new Error('CASSETTES が見つかりません（書式が変わった可能性があります）');
+    const injected = opts.testCassettes.map(c => '    ' + JSON.stringify(c) + ',').join('\n');
+    html = html.replace(marker, marker + '\n' + injected);
+  }
   // setTimeout / rAF の中で投げられた例外は window の error イベントに乗らないことがあるので、
   // VirtualConsole の jsdomError も拾う（これを見ないとクラッシュを見逃す）
   const jsdomErrors = [];
@@ -204,22 +212,27 @@ async function setupPlayers(win, doc, names) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click(); // 中央でなければ2回目で選択
   }
-  if (activeScreen(doc) === 'scr-setup') {
-    // 入力欄は初期2行なので、必要な人数まで「＋」を押して増やす
-    let guard = 0;
-    while (doc.querySelectorAll('#scr-setup input.draft-name').length < names.length && guard++ < 10) {
-      el(doc, 'playerPlusBtn').click();
-      await sleep(win, 10);
-    }
-    const inputs = doc.querySelectorAll('#scr-setup input.draft-name');
-    if (inputs.length < names.length) throw new Error('プレイヤー入力欄が足りません（' + inputs.length + '/' + names.length + '）');
-    names.forEach((n, i) => {
-      inputs[i].value = n;
-      inputs[i].dispatchEvent(new win.Event('input', { bubbles: true }));
-    });
-    click(doc, 'setupNextBtn');
-    await waitScreen(win, doc, 'scr-mode', 4000);
+  await fillPlayerForm(win, doc, names);
+}
+
+// プレイヤー設定画面が出ていれば、名前を入れて次へ進む
+async function fillPlayerForm(win, doc, names) {
+  if (activeScreen(doc) !== 'scr-setup') return false;
+  // 入力欄は初期2行なので、必要な人数まで「＋」を押して増やす
+  let guard = 0;
+  while (doc.querySelectorAll('#scr-setup input.draft-name').length < names.length && guard++ < 10) {
+    el(doc, 'playerPlusBtn').click();
+    await sleep(win, 10);
   }
+  const inputs = doc.querySelectorAll('#scr-setup input.draft-name');
+  if (inputs.length < names.length) throw new Error('プレイヤー入力欄が足りません（' + inputs.length + '/' + names.length + '）');
+  names.forEach((n, i) => {
+    inputs[i].value = n;
+    inputs[i].dispatchEvent(new win.Event('input', { bubbles: true }));
+  });
+  click(doc, 'setupNextBtn');
+  await waitScreen(win, doc, 'scr-mode', 4000);
+  return true;
 }
 
 // ウィザードを最後まで進めて play 画面まで到達させる
@@ -285,5 +298,5 @@ function assertNoErrors(errors, label) {
 
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  setupPlayers, runWizardToPlay, createRunner, assert, assertEqual, assertNoErrors
+  setupPlayers, fillPlayerForm, runWizardToPlay, createRunner, assert, assertEqual, assertNoErrors
 };

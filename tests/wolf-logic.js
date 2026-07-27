@@ -307,6 +307,44 @@ function kill(game, name, cause) {
     assertEqual(attackers.length, 1, '代表1人だけが襲撃先を選ぶ');
   });
 
+  // ---------- プリセットからの自動配置（指示18） ----------
+  await r.test('プリセット：人数に応じてバランスよく配られ、村人が最低1人残る', async () => {
+    const normal = ['wolf', 'seer', 'medium', 'knight'];
+    const c5 = W.balancedCounts(normal, 5);
+    assert(W.countAssigned(c5) < 5, '5人でも村人が1人以上残る');
+    assertEqual(c5.wolf, 1, '5人なら人狼は1人');
+    const c8 = W.balancedCounts(normal, 8);
+    assertEqual(c8.wolf, 2, '7人以上なら人狼は2人');
+    assert(W.countAssigned(c8) < 8, '8人でも村人が残る');
+    const c12 = W.balancedCounts(normal, 12);
+    assertEqual(c12.wolf, 3, '11人以上なら人狼は3人');
+    // 3人でも破綻しない
+    const c3 = W.balancedCounts(normal, 3);
+    assert(W.countAssigned(c3) < 3, '3人でも村人が残る');
+    assert(c3.wolf >= 1, '人狼は必ず1人以上');
+  });
+
+  await r.test('共有者は2人1組、妖狐やてるてる坊主は1人までに制限される', async () => {
+    const c = W.balancedCounts(['wolf', 'mason', 'fox', 'teruteru'], 10);
+    assertEqual(c.mason, 2, '共有者は2人');
+    assertEqual(c.fox, 1, '妖狐は1人');
+    assertEqual(c.teruteru, 1, 'てるてる坊主は1人');
+    assertEqual(W.roleMax('fox', 10), 1, '妖狐の上限は1');
+    assertEqual(W.roleMax('teruteru', 10), 1, 'てるてる坊主の上限は1');
+    assertEqual(W.roleMax('mason', 10), 2, '共有者の上限は2');
+    assert(W.roleMax('seer', 10) > 1, '占い師は重複配布できる（闇鍋）');
+  });
+
+  await r.test('ターン数1のプリセットでは、人狼と専用役職だけが選べる', async () => {
+    const ids = W.selectableRoles(1).map(x => x.id);
+    assert(ids.indexOf('wolf') >= 0, '人狼は1ターンでも必要');
+    assert(ids.indexOf('peek') >= 0, 'のぞき見役が選べる');
+    assert(ids.indexOf('seer') === -1, '占い師は選べない');
+    const c = W.balancedCounts(['wolf', 'peek', 'fake', 'involve'], 5);
+    assertEqual(c.wolf, 1, '人狼が配られる');
+    assertEqual(c.peek, 1, 'のぞき見役が1人');
+  });
+
   // ---------- 履歴 ----------
   await r.test('履歴：ターン数・役職構成・勝敗が残る', async () => {
     const g = makeGame({ A: 'wolf', B: 'villager', C: 'seer', D: 'villager' }, { turnLimit: 4 });

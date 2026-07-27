@@ -876,6 +876,108 @@
     </div>
   </div>
 
+  <!-- 4h: 役職あり人狼の設定（第17弾改訂：役職ごとのステッパー＋細かい設定） -->
+  <div class="screen" id="scr-set-wolfrole">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepWolfRole"></span><h2 class="scr-title">役職の配分</h2></div>
+    <p class="wiz-lead">プリセットの内容が入っています。そのままでもOK、増やしたり減らしたりもできます。</p>
+    <div class="wiz-body">
+      <div class="bomb-section">
+        <div class="tp-label">ターン数（何日目まで続けるか）</div>
+        <div class="bomb-tier-row">
+          <span>ターン数</span>
+          <div class="bomb-tier-controls">
+            <button class="bomb-minus" data-wrturn="-1">−</button>
+            <span id="wrTurnValue">5</span>
+            <button class="bomb-plus" data-wrturn="1">＋</button>
+          </div>
+        </div>
+        <div class="mic-status" id="wrTurnNote" style="margin-top:4px;"></div>
+      </div>
+
+      <div class="bomb-section" style="margin-top:14px;">
+        <div class="tp-label">役職の人数</div>
+        <div id="wrRoleRows"></div>
+        <div class="bomb-tier-row" style="opacity:.75;">
+          <span>村人（自動）</span>
+          <div class="bomb-tier-controls"><span id="wrVillagerCount">0</span></div>
+        </div>
+        <div class="mic-status" id="wrRoleStatus" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="bomb-section" style="margin-top:14px;">
+        <div class="tp-label">こまかい設定</div>
+        <div class="toggle-row-mini">
+          <div>占い・霊媒の結果をくわしく出す
+            <div class="mic-status">OFFなら「人狼かどうか」だけ</div>
+          </div>
+          <div class="switch" id="wrSeerDetailToggle"></div>
+        </div>
+        <div class="toggle-row-mini" id="wrShowThirdRow" style="display:none;">
+          <div>第三陣営かどうかも分かるようにする
+            <div class="mic-status">妖狐などが混ざっている時だけ効きます</div>
+          </div>
+          <div class="switch" id="wrShowThirdToggle"></div>
+        </div>
+        <div class="toggle-row-mini">
+          <div>亡くなった人の役職をその場で公開する
+            <div class="mic-status" id="wrRevealNote">公開すると霊媒師は選べなくなります</div>
+          </div>
+          <div class="switch" id="wrRevealToggle"></div>
+        </div>
+        <div class="toggle-row-mini" id="wrAttackRow" style="display:none;">
+          <div>人狼の襲撃先を多数決で決める
+            <div class="mic-status">OFFなら代表1人が決めます</div>
+          </div>
+          <div class="switch" id="wrAttackToggle"></div>
+        </div>
+        <div class="toggle-row-mini" id="wrTeruteruRow" style="display:none;">
+          <div>てるてる坊主が勝っても試合を続ける
+            <div class="mic-status">OFFならその場で試合終了</div>
+          </div>
+          <div class="switch" id="wrTeruteruToggle"></div>
+        </div>
+        <div class="toggle-row-mini" id="wrLoversRow">
+          <div>恋人を入れる（2人1組）
+            <div class="mic-status">どちらかが死ぬともう1人も後を追います</div>
+          </div>
+          <div class="switch" id="wrLoversToggle"></div>
+        </div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
+  <!-- 4i: ワードウルフ（2〜ターン）の設定 -->
+  <div class="screen" id="scr-set-wolfmulti">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepWolfMulti"></span><h2 class="scr-title">ターンの設定</h2></div>
+    <p class="wiz-lead">何回くり返すか、お題を毎回変えるかを決めよう。</p>
+    <div class="wiz-body">
+      <div class="bomb-section">
+        <div class="bomb-tier-row">
+          <span>ターン数</span>
+          <div class="bomb-tier-controls">
+            <button class="bomb-minus" data-wmturn="-1">−</button>
+            <span id="wmTurnValue">3</span>
+            <button class="bomb-plus" data-wmturn="1">＋</button>
+          </div>
+        </div>
+      </div>
+      <div class="toggle-row-mini" style="margin-top:14px;">
+        <div>毎ターン お題を変える
+          <div class="mic-status" id="wmChangeNote"></div>
+        </div>
+        <div class="switch" id="wmChangeToggle"></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
   <!-- 4g: あそびかたの設定（第10弾：出題方法・封印ワード・脱落を1画面で） -->
   <div class="screen" id="scr-set-playstyle">
     <div class="wiz-head"><span class="wiz-step" id="wizStepPlaystyle"></span><h2 class="scr-title">あそびかた</h2></div>
@@ -1443,9 +1545,35 @@
     {id:"wordwolf", icon:"🐺", title:"ワードウルフ", sub:"1人だけ違うお題・話し合って探り合う（複数ラウンド）", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, game:'wordwolf',
       rules:"1人だけ違うお題（ウルフ🐺）が混ざります。ほかはシープ🐑です。自由に話し合いながら、誰がウルフかを探り合いましょう。ウルフだと自覚がある設定の場合、バレないようシープのふりをするのがコツです。話し合いのあとは全員で投票してウルフを当てます。",
       bullets:["1人だけ違うお題（ウルフ🐺）が混ざる","ほかはシープ🐑・お題は似ている","自由に話し合って探り合う","スマホを回して全員で投票","ウルフを当てられるか勝負"]},
-    {id:"wolfrole", icon:"🌙", title:"人狼（役職あり）", sub:"役職を配って夜と昼をくり返す・進行役はアプリがやります", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wordwolf',
-      rules:"役職を配って、夜と昼をくり返して遊びます。夜は人狼が誰かを襲い、占い師や騎士はそれぞれの力を使います。昼はみんなで話し合い、あやしい人を投票で決めます。進行はすべてアプリが行うので、進行役（GM）は要りません。人狼を全員見つければ村人側の勝ち、人狼が村人と同じ数まで減らせば人狼側の勝ちです。",
-      bullets:["役職はアプリが配る・進行役は不要","夜は人狼が襲撃、占い師などが能力を使う","昼はみんなで話し合って投票","人狼を全員見つけたら村人側の勝ち","人狼が村人と同数になったら人狼側の勝ち"]},
+    {id:"wordwolf-multi", icon:"🔁", title:"ワードウルフ（2〜ターン）", sub:"何回かくり返して遊ぶ・お題を変えるかも選べる", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, wolfMulti:true, game:'wordwolf',
+      rules:"ワードウルフを決めた回数だけくり返します。「毎ターンお題を変える」を選ぶと、毎回ちがうお題で仕切り直し、合計得点で勝敗を決めます。「変えない」を選ぶと同じお題のまま話し合いと投票をくり返し、ウルフを当てられたらその時点で村人側の勝ち、最後まで逃げ切られたらウルフの勝ちです。",
+      bullets:["決めた回数だけくり返す","お題を毎回変えるかを選べる","変える場合は合計得点で決着","変えない場合は当てられたら村人側の勝ち","逃げ切られたらウルフの勝ち"]},
+    // ---- 役職あり人狼。プリセットごとに独立したモードカードにする（あれそれどれこれと同じ流儀） ----
+    // wolfPreset：カードを選んだ時に入る初期設定。役職の数はウィザードで人数に合わせて自動配置される
+    {id:"wolf-casual", icon:"🌱", title:"カジュアル人狼", sub:"村人と人狼だけ・3人から遊べる入門ルール", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+      wolfPreset:{ roles:['wolf'], turnLimit:3, seerResult:'binary', minPlayers:3 },
+      rules:"村人と人狼だけのシンプルな人狼です。夜になると人狼が1人を襲い、昼はみんなで話し合って投票します。特別な役職が無いぶんルールが分かりやすいので、はじめての人におすすめです。人狼を全員見つければ村人側の勝ち、人狼が村人と同じ数まで減らせば人狼側の勝ちです。",
+      bullets:["村人と人狼だけのシンプル構成","3人から遊べる","夜は人狼が1人を襲う","昼は話し合って投票","進行役（GM）は不要"]},
+    {id:"wolf-normal", icon:"🌙", title:"ノーマル人狼", sub:"占い師・霊媒師・騎士が加わる標準ルール", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+      wolfPreset:{ roles:['wolf','seer','medium','knight'], turnLimit:5, seerResult:'detail', revealRoleOnDeath:false, minPlayers:5 },
+      rules:"占い師・霊媒師・騎士が加わった、いちばん標準的な人狼です。占い師は夜に1人を占い、騎士は1人を守り、霊媒師は亡くなった人の正体を知ります。役職の情報をどう使い、どう隠すかが勝負どころです。",
+      bullets:["占い師・霊媒師・騎士が入る","5人以上がおすすめ","夜の行動はスマホを回して秘密に","情報をどう使うかが勝負","進行役（GM）は不要"]},
+    {id:"wolf-special", icon:"✨", title:"スペシャル人狼", sub:"狂人・共有者・妖狐も入る本格ルール", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+      wolfPreset:{ roles:['wolf','seer','medium','knight','madman','mason','fox'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, minPlayers:7 },
+      rules:"狂人・共有者・妖狐が加わった本格ルールです。狂人は人狼の味方ですが占いでは村人に見えます。共有者は2人でお互いを知っています。妖狐はどちらが勝っても生き残っていれば勝ちですが、占われると死んでしまいます。",
+      bullets:["狂人・共有者・妖狐が加わる","狂人は占いでは村人に見える","共有者は2人でお互いを知る","妖狐は占われると死ぬ","7人以上がおすすめ"]},
+    {id:"wolf-quick", icon:"⚡", title:"サクッと人狼", sub:"1ターンだけ・専用役職で短時間決着", timer:120, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+      wolfPreset:{ roles:['wolf','peek','fake','involve'], turnLimit:1, seerResult:'binary', minPlayers:4 },
+      rules:"夜を挟まず、1回の話し合いと投票だけで決着する短いルールです。この形でしか使えない専用役職が入ります。のぞき見役は投票前に1人の陣営が分かり、にせもの役はのぞかれると人狼側に見え、まきこみ役は誰か1人の投票先を全員に公開させます。",
+      bullets:["1ターンだけ・短時間で終わる","夜フェーズは無し","のぞき見役・にせもの役・まきこみ役","投票の直前に1回だけ使える","4人以上がおすすめ"]},
+    {id:"wolf-deep", icon:"🕯️", title:"がっつり人狼", sub:"ノーマル構成・夜の時間制限なしでじっくり", timer:300, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+      wolfPreset:{ roles:['wolf','seer','medium','knight'], turnLimit:8, seerResult:'detail', revealRoleOnDeath:false, nightTimeLimit:0, minPlayers:5 },
+      rules:"ノーマル人狼と同じ構成で、ターン数を多く、話し合いの時間を長めに取ったルールです。夜の行動にも時間制限がないので、じっくり考えて遊びたい時にどうぞ。",
+      bullets:["ノーマルと同じ役職構成","ターン数が多い","話し合いの時間が長め","夜の行動も時間無制限","じっくり遊びたい時に"]},
+    {id:"wolf-chaos", icon:"🎪", title:"カオス人狼", sub:"恋人・てるてる坊主まで全部入り", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+      wolfPreset:{ roles:['wolf','seer','medium','knight','madman','mason','fox','teruteru'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, lovers:true, teruteruContinue:false, minPlayers:8 },
+      rules:"スペシャル人狼に、恋人とてるてる坊主まで加えた全部盛りです。恋人は2人1組で、どちらかが死ぬともう1人も後を追います。2人とも生き残れば恋人の勝ち。てるてる坊主は昼の投票で処刑されると、その人だけの勝ちになります。",
+      bullets:["スペシャルに恋人・てるてる坊主を追加","恋人はどちらかが死ぬと後を追う","2人生き残れば恋人の勝ち","てるてる坊主は処刑されると勝ち","8人以上がおすすめ"]},
     {id:"bomb", icon:"💣", title:"時限爆弾", sub:"難易度別のコードを解除・ライフ3つの協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, hidden:true, game:'bomb',
       rules:"チームで協力して爆弾を解除します。コードをタップすると、AIが考えた説明文が表示されます。読んで3択で答えましょう。外れるとライフが1つ減りますが、そのコードは何度でも再挑戦できます。ライフが0になると爆発、すべてのコードを解除できればチームの勝利です。",
       bullets:["チームで協力して爆弾を解除する","コードをタップするとAIの説明文が出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る","ライフが0で爆発・全解除で勝利"]},
@@ -1482,7 +1610,7 @@
       meta:'2〜8人 / 10分〜<br>ことばで説明して当てる' },
     // 第4段階でカセットとして復活予定。中身は決まっているので名前を見せ、まだ遊べないことを明示する
     { id:'jinro',           genre:'word', ready:true,  icon:'🐺', title:'人狼<br>ゲーム',
-      games:['wordwolf'],
+      games:['wordwolf', 'wolfrole'],
       meta:'3〜10人 / 15分〜<br>正体を隠して探り合う' },
     { id:'word-soon-1',     genre:'word', ready:false, icon:'？' },
     { id:'deal-soon-1',     genre:'deal', ready:false, icon:'？' },
@@ -1775,6 +1903,7 @@
   var GAMES = [
     { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる' },
     { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う' },
+    { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要' },
     { id:'bomb',            title:'時限爆弾',           icon:'💣', sub:'コードを解除する協力プレイ' },
     { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点' },
     { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち' },
@@ -1832,6 +1961,24 @@
     state.selectedModeId = modeId;
     var m = modeById(modeId);
     if(m.opts) state.opts = cloneOpts(m.opts);
+    if(m.wolfPreset) applyWolfPreset(m);
+  }
+  // 役職あり人狼：プリセットを選んだ瞬間、人数に合わせた配置が入って
+  // そのまま遊べる状態にする（何も触らなくてよい、が原則）
+  function applyWolfPreset(m){
+    var pre = m.wolfPreset;
+    var n = state.players.length || 4;
+    state.wrCfg = {
+      turnLimit: pre.turnLimit,
+      counts: WolfLogic.balancedCounts(pre.roles, n),
+      seerResult: pre.seerResult || 'binary',
+      seerShowsThird: !!pre.seerShowsThird,
+      revealRoleOnDeath: (pre.revealRoleOnDeath === undefined) ? true : !!pre.revealRoleOnDeath,
+      wolfAttackDecision: pre.wolfAttackDecision || 'vote',
+      teruteruContinue: !!pre.teruteruContinue,
+      lovers: !!pre.lovers,
+      nightTimeLimit: pre.nightTimeLimit || 0
+    };
   }
   // 記録に残すオプション構成のスナップショット（タグ絞り込み用）
   function optSnapshot(){
@@ -1873,6 +2020,8 @@
     bombLives: 3,
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
+    wrCfg: null,                                  // 第17弾：役職あり人狼の設定
+    wmCfg: { turnLimit:3, changeTopic:true },     // 第17弾：ワードウルフ（2〜ターン）の設定
     selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット
     selectedGameId: DEFAULT_GAME_ID,       // 第15弾：カセットの中で選んだゲーム（モード一覧の絞り込みに使う）
     autoSaveRecords: true, // 5：対戦記録をサーバーへ自動保存するか（localStorageに永続化）
@@ -2580,6 +2729,8 @@
     wolfcfg:   { screen:'scr-set-wolf',      badge:'wizStepWolf',      render:renderWolfSection },
     bombcfg:   { screen:'scr-set-bomb',      badge:'wizStepBomb',      render:renderBombSection },
     bomblife:  { screen:'scr-set-bomblife',   badge:'wizStepBombLife',   render:renderBombLifeStep },
+    wolfrole:  { screen:'scr-set-wolfrole',   badge:'wizStepWolfRole',   render:renderWolfRoleStep },
+    wolfmulti: { screen:'scr-set-wolfmulti',  badge:'wizStepWolfMulti',  render:renderWolfMultiStep },
     playstyle: { screen:'scr-set-playstyle',  badge:'wizStepPlaystyle',  render:renderPlaystyleStep },
     difficulty:{ screen:'scr-set-difficulty', badge:'wizStepDifficulty', render:renderDifficultyStep },
     timer:     { screen:'scr-set-timer',      badge:'wizStepTimer',      render:renderTimerStep },
@@ -2591,10 +2742,13 @@
     if(m.bomb) return ['bombcfg', 'bomblife', 'timer'];
     // クイズ王・オークションは各ラウンドで難易度を選ぶ＆AIが出題するので難易度/出題者選択は不要
     if(m.quiz || m.auction) return ['handicap'];
+    // ワードウルフ（2〜ターン）：ターン設定 → ウルフ設定 → 時間
+    // ※ wolf フラグも持つので、必ず m.wolf より先に判定する
+    if(m.wolfMulti) return ['wolfmulti', 'wolfcfg', 'timer', 'handicap'];
     // ワードウルフはお題が関連ペア固定なので難易度選択は不要
     if(m.wolf) return ['wolfcfg', 'timer', 'handicap'];
-    // 役職あり人狼：役職などの詳細設定はこの後の弾で追加する。今は話し合い時間だけ
-    if(m.wolfRole) return ['timer'];
+    // 役職あり人狼：役職の配分 → 話し合いの時間
+    if(m.wolfRole) return ['wolfrole', 'timer'];
     var steps = ['playstyle', 'difficulty']; // 第10弾：あそびかた（オプション）→ 難易度
     if(!m.buzzer) steps.push('timer'); // 早押しは対戦ごとの独自タイマー
     steps.push('handicap');
@@ -2608,6 +2762,127 @@
     el('bombLifeValue').textContent = state.bombLives;
     el('bombLifeDisplay').textContent = '❤️'.repeat(state.bombLives);
   }
+  // ---------- 役職あり人狼の設定（第17弾改訂・指示18の人数調整を統合） ----------
+  function wrCfg(){
+    if(!state.wrCfg) applyWolfPreset(modeById(state.selectedModeId));
+    return state.wrCfg;
+  }
+  function wrAssigned(cfg){ return WolfLogic.countAssigned(cfg.counts); }
+  function wrVillagers(cfg){ return Math.max(0, state.players.length - wrAssigned(cfg)); }
+
+  function renderWolfRoleStep(){
+    var cfg = wrCfg();
+    var n = state.players.length;
+    el('wrTurnValue').textContent = cfg.turnLimit;
+    el('wrTurnNote').textContent = cfg.turnLimit === 1
+      ? '1ターンだけ。夜はなく、話し合って1回投票します（専用の役職に切り替わります）'
+      : '決着がつかないまま最後のターンを終えたら、最終投票で決めます';
+
+    // 役職ごとのステッパー。村人は「総人数 − 役職の合計」で自動計算（読み取り専用）
+    var roles = WolfLogic.selectableRoles(cfg.turnLimit).filter(function(r){
+      // 死亡者の役職を公開する設定では、霊媒師は選択肢そのものから消す
+      if(r.id === 'medium' && cfg.revealRoleOnDeath) return false;
+      return true;
+    });
+    el('wrRoleRows').innerHTML = roles.map(function(r){
+      var v = cfg.counts[r.id] || 0;
+      var max = WolfLogic.roleMax(r.id, n);
+      return '<div class="bomb-tier-row">'+
+        '<span>'+r.name+'</span>'+
+        '<div class="bomb-tier-controls">'+
+          '<button class="bomb-minus" data-wrrole="'+r.id+'" data-d="-1"'+(v<=0?' disabled':'')+'>−</button>'+
+          '<span id="wrCount-'+r.id+'">'+v+'</span>'+
+          '<button class="bomb-plus" data-wrrole="'+r.id+'" data-d="1"'+((v>=max||wrVillagers(cfg)<=0)?' disabled':'')+'>＋</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+    el('wrVillagerCount').textContent = wrVillagers(cfg);
+
+    var assigned = wrAssigned(cfg);
+    el('wrRoleStatus').textContent = assigned > n
+      ? '⚠️ 役職の合計が人数を超えています'
+      : (wrVillagers(cfg) === 0 ? '🍲 全員が役職あり（闇鍋）です' : '役職 '+assigned+'人 ＋ 村人 '+wrVillagers(cfg)+'人 ＝ '+n+'人');
+
+    // こまかい設定
+    el('wrSeerDetailToggle').classList.toggle('on', cfg.seerResult === 'detail');
+    var hasThird = (cfg.counts.fox || 0) > 0 || cfg.lovers || (cfg.counts.teruteru || 0) > 0;
+    el('wrShowThirdRow').style.display = (cfg.seerResult === 'binary' && hasThird) ? 'flex' : 'none';
+    el('wrShowThirdToggle').classList.toggle('on', !!cfg.seerShowsThird);
+    el('wrRevealToggle').classList.toggle('on', !!cfg.revealRoleOnDeath);
+    // 人狼が2人以上の時だけ、襲撃先の決め方を出す
+    el('wrAttackRow').style.display = ((cfg.counts.wolf || 0) > 1) ? 'flex' : 'none';
+    el('wrAttackToggle').classList.toggle('on', cfg.wolfAttackDecision === 'vote');
+    el('wrTeruteruRow').style.display = ((cfg.counts.teruteru || 0) > 0) ? 'flex' : 'none';
+    el('wrTeruteruToggle').classList.toggle('on', !!cfg.teruteruContinue);
+    el('wrLoversRow').style.display = (cfg.turnLimit === 1) ? 'none' : 'flex';
+    el('wrLoversToggle').classList.toggle('on', !!cfg.lovers);
+  }
+
+  el('scr-set-wolfrole').addEventListener('click', function(e){
+    var cfg = wrCfg();
+    var t = e.target.closest('[data-wrturn]');
+    if(t){
+      var nv = cfg.turnLimit + parseInt(t.dataset.wrturn, 10);
+      cfg.turnLimit = Math.max(1, Math.min(10, nv));
+      // ターン数1と2以上では使える役職が違うので、配分を組み直す
+      cfg.counts = WolfLogic.normalizeCounts(cfg.counts, state.players.length, cfg.turnLimit);
+      if(WolfLogic.countAssigned(cfg.counts) === 0){
+        var pre = modeById(state.selectedModeId).wolfPreset;
+        cfg.counts = WolfLogic.balancedCounts(pre ? pre.roles : ['wolf'], state.players.length);
+        cfg.counts = WolfLogic.normalizeCounts(cfg.counts, state.players.length, cfg.turnLimit);
+      }
+      renderWolfRoleStep();
+      return;
+    }
+    var b = e.target.closest('[data-wrrole]');
+    if(b){
+      var id = b.dataset.wrrole, d = parseInt(b.dataset.d, 10);
+      var cur = cfg.counts[id] || 0;
+      var max = WolfLogic.roleMax(id, state.players.length);
+      var step = (id === 'mason') ? 2 : 1; // 共有者は2人1組でしか成立しない
+      var next = Math.max(0, Math.min(max, cur + d * step));
+      // 総人数を超える操作はブロックする
+      if(next > cur && (wrAssigned(cfg) + (next - cur)) > state.players.length) return;
+      cfg.counts[id] = next;
+      renderWolfRoleStep();
+      return;
+    }
+    var id2 = e.target.closest('.switch') && e.target.closest('.switch').id;
+    if(!id2) return;
+    if(id2 === 'wrSeerDetailToggle') cfg.seerResult = (cfg.seerResult === 'detail') ? 'binary' : 'detail';
+    else if(id2 === 'wrShowThirdToggle') cfg.seerShowsThird = !cfg.seerShowsThird;
+    else if(id2 === 'wrRevealToggle'){
+      cfg.revealRoleOnDeath = !cfg.revealRoleOnDeath;
+      if(cfg.revealRoleOnDeath) cfg.counts.medium = 0; // 公開設定では霊媒師は成立しない
+    }
+    else if(id2 === 'wrAttackToggle') cfg.wolfAttackDecision = (cfg.wolfAttackDecision === 'vote') ? 'leader' : 'vote';
+    else if(id2 === 'wrTeruteruToggle') cfg.teruteruContinue = !cfg.teruteruContinue;
+    else if(id2 === 'wrLoversToggle') cfg.lovers = !cfg.lovers;
+    renderWolfRoleStep();
+  });
+
+  // ---------- ワードウルフ（2〜ターン）の設定 ----------
+  function renderWolfMultiStep(){
+    var c = state.wmCfg;
+    el('wmTurnValue').textContent = c.turnLimit;
+    el('wmChangeToggle').classList.toggle('on', !!c.changeTopic);
+    el('wmChangeNote').textContent = c.changeTopic
+      ? '毎回ちがうお題で仕切り直し。合計得点で決めます'
+      : '同じお題のまま。ウルフを当てたら村人側の勝ち、逃げ切られたらウルフの勝ち';
+  }
+  el('scr-set-wolfmulti').addEventListener('click', function(e){
+    var t = e.target.closest('[data-wmturn]');
+    if(t){
+      state.wmCfg.turnLimit = Math.max(2, Math.min(10, state.wmCfg.turnLimit + parseInt(t.dataset.wmturn, 10)));
+      renderWolfMultiStep();
+      return;
+    }
+    if(e.target.closest('#wmChangeToggle')){
+      state.wmCfg.changeTopic = !state.wmCfg.changeTopic;
+      renderWolfMultiStep();
+    }
+  });
+
   // ---------- あそびかた設定（第10弾） ----------
   function renderPlaystyleStep(){
     var o = state.opts;
@@ -3078,8 +3353,11 @@
           beep(1046, 220);
           startRound();
           var m = modeById(state.selectedModeId);
+          play.wmActive = false; // 2〜ターン版のフラグは毎回リセット（1ターン版に影響させない）
           if(m.wolfRole){
             initWolfRoleRound(); // 役職あり人狼。画面遷移は中で行う
+          } else if(m.wolfMulti){
+            initWolfMultiGame(); // ワードウルフ（2〜ターン）
           } else if(m.wolf){
             initWolfRound();
             goTo('scr-wolf-pass');
@@ -3160,7 +3438,12 @@
     } else {
       el('wolfRevealArea').style.display = 'none';
       el('wolfVoteArea').style.display = 'block';
-      var others = state.players.filter(function(pp){ return pp.id !== p.id; });
+      // 2〜ターン版（お題変更なし）では、脱落した人は投票先に出さない
+      var others = state.players.filter(function(pp){
+        if(pp.id === p.id) return false;
+        if(play.wmOut && play.wmOut[pp.id]) return false;
+        return true;
+      });
       el('wolfVoteGrid').innerHTML = others.map(function(pp){
         return '<button class="pk-btn" data-id="'+pp.id+'">'+escapeHtml(pp.name)+'</button>';
       }).join('');
@@ -3267,8 +3550,105 @@
     logRound('wordwolf', scoreDeltas);
   }
   el('wolfResultNextBtn').addEventListener('click', function(){
+    // 2〜ターン版だけ、次のターンへ進むか判定する（1ターン版の動きは変えない）
+    if(play.wmActive && !play.wmFinished){ nextWolfMultiTurn(); return; }
     goTo('scr-score');
   });
+
+  // ===================== ワードウルフ（2〜ターン）：第17弾改訂 =====================
+  // 既存の1ターン版の画面をそのまま使い、ターンの回し方だけを足す。
+  function initWolfMultiGame(){
+    play.wmActive = true;
+    play.wmFinished = false;
+    play.wmTurn = 1;
+    play.wmOut = {};      // 脱落した人（お題変更なしのときだけ使う）
+    play.wmWinner = null;
+    initWolfRound();
+    goTo('scr-wolf-pass');
+  }
+
+  function nextWolfMultiTurn(){
+    var cfg = state.wmCfg;
+    if(state.wmCfg.changeTopic){
+      // お題を変える：毎ターン仕切り直して、合計得点で決める
+      if(play.wmTurn >= cfg.turnLimit){ finishWolfMulti(null); return; }
+      play.wmTurn++;
+      initWolfRound();
+      goTo('scr-wolf-pass');
+      return;
+    }
+    // お題を変えない：ウルフを当てられたか／逃げ切られたかで決まる
+    var caught = wolfMultiCaught();
+    if(caught){ finishWolfMulti('village'); return; }
+    if(play.wmTurn >= cfg.turnLimit){ finishWolfMulti('wolf'); return; } // 逃げ切り＝ウルフの勝ち
+    play.wmTurn++;
+    // 同じお題のまま、話し合いからやり直す（役職の再配布はしない）
+    play.wolfPhase = 'discuss';
+    play.wolfIndex = 0;
+    play.wolfRevealed = false;
+    play.wolfVotes = {};
+    goTo('scr-play');
+  }
+
+  // 直前の投票で最多票だった人を求め、ウルフなら「当てた」、違えばその人が脱落する
+  function wolfMultiCaught(){
+    var tally = {};
+    Object.keys(play.wolfVotes || {}).forEach(function(v){
+      var t = play.wolfVotes[v];
+      if(t) tally[t] = (tally[t] || 0) + 1;
+    });
+    var top = null, max = 0, tie = false;
+    Object.keys(tally).forEach(function(id){
+      if(tally[id] > max){ max = tally[id]; top = id; tie = false; }
+      else if(tally[id] === max){ tie = true; }
+    });
+    if(!top || tie) return false;                       // 同数なら誰も脱落しない
+    if(play.wolfMinorityIds.indexOf(top) !== -1) return true; // ウルフを当てた
+    play.wmOut[top] = true;                             // 外した人は観戦に回る
+    // 生き残っている人だけで次のターンを回す
+    play.wolfOrder = state.players
+      .filter(function(p){ return !play.wmOut[p.id]; })
+      .map(function(p){ return p.id; });
+    return false;
+  }
+
+  function finishWolfMulti(winner){
+    play.wmFinished = true;
+    play.wmWinner = winner;
+    if(winner){
+      // お題変更なしの決着：勝った側に加点する
+      var deltas = {};
+      state.players.forEach(function(p){
+        var isWolf = play.wolfMinorityIds.indexOf(p.id) !== -1;
+        var win = (winner === 'wolf') ? isWolf : !isWolf;
+        if(win){ scorePlayer(p.id, 5); deltas[p.name] = 5; }
+      });
+      logRound('wordwolf-multi', deltas, {
+        game:'wordwolf', variant:'sameTopic', turnLimit: state.wmCfg.turnLimit,
+        turnsPlayed: play.wmTurn, winner: winner
+      });
+    } else {
+      logRound('wordwolf-multi', {}, {
+        game:'wordwolf', variant:'newTopic', turnLimit: state.wmCfg.turnLimit,
+        turnsPlayed: play.wmTurn
+      });
+    }
+    showWolfMultiFinal();
+  }
+
+  function showWolfMultiFinal(){
+    // 先に画面へ移る。goTo が enterWolfResult を呼ぶので、表示の差し替えはそのあとに行う
+    goTo('scr-wolf-result');
+    el('wolfResultTopics').innerHTML = play.wmWinner
+      ? (play.wmWinner === 'wolf' ? '🐺 ウルフの逃げ切り！ウルフ側の勝ちです' : '🎉 ウルフを当てました！村人側の勝ちです')
+      : '🏁 ' + state.wmCfg.turnLimit + 'ターン終了！合計得点で決着です';
+    el('wolfResultList').innerHTML = state.players.map(function(p){
+      var isWolf = play.wolfMinorityIds.indexOf(p.id) !== -1;
+      return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (isWolf ? ' 🐺' : '') +
+        (play.wmOut[p.id] ? ' 💀' : '') + '</div><div class="rs">' + p.score + '</div></div>';
+    }).join('');
+    el('wolfResultNextBtn').textContent = 'スコアへ ▶';
+  }
 
   // ===================== 手渡し方式の共通UI部品（第17弾） =====================
   // 既存のワードウルフと同じ見た目にするため、同じCSSクラスを使う。
@@ -3327,12 +3707,19 @@
 
   function initWolfRoleRound(){
     var players = state.players.map(function(p){ return { id:p.id, name:p.name }; });
-    var counts = WolfLogic.autoCounts(players.length);
+    var cfg = wrCfg(); // ウィザードで決めた設定（触っていなければプリセットのまま）
     wr = {
       game: WolfLogic.createGame({
         players: players,
-        turnLimit: state.wrTurnLimit || 5,
-        counts: counts
+        turnLimit: cfg.turnLimit,
+        counts: cfg.counts,
+        seerResult: cfg.seerResult,
+        seerShowsThird: cfg.seerShowsThird,
+        revealRoleOnDeath: cfg.revealRoleOnDeath,
+        wolfAttackDecision: cfg.wolfAttackDecision,
+        teruteruContinue: cfg.teruteruContinue,
+        lovers: cfg.lovers,
+        nightTimeLimit: cfg.nightTimeLimit
       }),
       queue: [], idx: 0, step: 'role', info: {}
     };
@@ -3658,7 +4045,11 @@
       if(r.loversWin && p.isLover) win = true;
       if(win){ scorePlayer(p.id, 10); deltas[p.name] = 10; }
     });
-    logRound('wordwolf', deltas, WolfLogic.summary(wr.game));
+    // 第6部：どのゲームだったか（wordwolf / wolfrole）も残す。将来のリーダーボード用
+    var summary = WolfLogic.summary(wr.game);
+    summary.game = 'wolfrole';
+    summary.preset = state.selectedModeId;
+    logRound(state.selectedModeId, deltas, summary);
   }
 
   // ===================== bomb: time bomb mode =====================

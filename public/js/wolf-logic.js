@@ -54,9 +54,11 @@
   var NORMAL_ROLE_IDS = ['wolf', 'seer', 'medium', 'knight', 'madman', 'mason', 'fox', 'teruteru'];
 
   function roleById(id) { return ROLES[id] || ROLES.villager; }
-  // ターン数に応じて、選べる役職の集合が切り替わる（両方は同時に選べない）
+  // ターン数に応じて、選べる役職の集合が切り替わる（通常役職と1ターン専用役職は同時に選べない）。
+  // 人狼だけはどちらでも必要なので常に含める。
   function selectableRoles(turnLimit) {
-    return (turnLimit === 1 ? ONE_TURN_ROLE_IDS : NORMAL_ROLE_IDS).map(roleById);
+    var ids = (turnLimit === 1) ? ['wolf'].concat(ONE_TURN_ROLE_IDS) : NORMAL_ROLE_IDS;
+    return ids.map(roleById);
   }
 
   // ===== 設定 =====
@@ -114,6 +116,38 @@
   // 必要な最低人数（役職の合計＋村人1人）
   function minPlayers(counts) {
     return Math.max(3, countAssigned(counts) + 1);
+  }
+
+  // プリセットで有効にした役職を、人数に合わせてバランスよく配る。
+  // プリセットを選んだ瞬間、何も触らなくても遊べる状態にするために使う。
+  function balancedCounts(roleIds, playerCount) {
+    var c = { wolf: 0, seer: 0, medium: 0, knight: 0, madman: 0, mason: 0, fox: 0, teruteru: 0,
+              peek: 0, fake: 0, involve: 0 };
+    var has = function (id) { return (roleIds || []).indexOf(id) >= 0; };
+    if (has('wolf')) c.wolf = playerCount >= 11 ? 3 : (playerCount >= 7 ? 2 : 1);
+    ['seer', 'medium', 'knight', 'madman'].forEach(function (id) { if (has(id)) c[id] = 1; });
+    if (has('mason')) c.mason = 2;                  // 共有者は必ず2人1組
+    // 妖狐・てるてる坊主・1ターン専用役職は1人まで
+    ['fox', 'teruteru', 'peek', 'fake', 'involve'].forEach(function (id) { if (has(id)) c[id] = 1; });
+    // 村人が最低1人は残るように、影響の小さい役職から削る
+    var order = ['medium', 'madman', 'mason', 'knight', 'teruteru', 'fox', 'seer', 'fake', 'involve', 'peek'];
+    var guard = 0;
+    while (countAssigned(c) >= playerCount && guard++ < 50) {
+      var removed = false;
+      for (var i = 0; i < order.length; i++) {
+        if (c[order[i]]) { c[order[i]] = 0; removed = true; break; }
+      }
+      if (!removed) { if (c.wolf > 1) c.wolf--; else break; }
+    }
+    return c;
+  }
+
+  // 重複配布（闇鍋）で1人（1組）までに制限する役職
+  var SINGLE_ONLY_ROLE_IDS = ['fox', 'teruteru', 'peek', 'fake', 'involve'];
+  function roleMax(roleId, playerCount) {
+    if (roleId === 'mason') return 2;                       // 共有者は2人1組で固定
+    if (SINGLE_ONLY_ROLE_IDS.indexOf(roleId) >= 0) return 1; // 妖狐・てるてる坊主などは1人まで
+    return Math.max(0, playerCount);
   }
 
   // 人数に見合った標準的な編成を返す（設定を触らない人向けの初期値）
@@ -529,7 +563,8 @@
     ONE_TURN_ROLE_IDS: ONE_TURN_ROLE_IDS, NORMAL_ROLE_IDS: NORMAL_ROLE_IDS,
     roleById: roleById, selectableRoles: selectableRoles, isRoleSelectable: isRoleSelectable,
     normalizeCounts: normalizeCounts, minPlayers: minPlayers, countAssigned: countAssigned,
-    autoCounts: autoCounts,
+    autoCounts: autoCounts, balancedCounts: balancedCounts,
+    roleMax: roleMax, SINGLE_ONLY_ROLE_IDS: SINGLE_ONLY_ROLE_IDS,
     createGame: createGame,
     findPlayer: findPlayer, alivePlayers: alivePlayers, playersWithRole: playersWithRole, teamOf: teamOf,
     pendingNightActions: pendingNightActions, setNightAction: setNightAction, resolveNight: resolveNight,

@@ -213,22 +213,23 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('人狼ゲームカセット：ゲーム選択を飛ばし、モードはワードウルフだけ', async () => {
+  await r.test('人狼ゲームカセット：ゲーム選択を経由し、選んだゲームのモードだけが出る', async () => {
     const { win, doc, errors } = await launch();
     pickCart(doc, 'jinro');
-    // games が1件なので scr-game は経由しない
-    await waitScreen(win, doc, 'scr-setup', 3000);
-    assertEqual(activeScreen(doc), 'scr-setup', 'ゲーム選択を経由しない');
+    // games が2件になったので scr-game を経由する
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await sleep(win, 60);
     await H.fillPlayerForm(win, doc, ['あき', 'びび', 'ちか']);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c2 => c2.dataset.id);
     assert(ids.indexOf('wordwolf') >= 0, 'ワードウルフがある');
-    assert(ids.every(id => id === 'wordwolf' || id === 'wolfrole'),
-      '人狼ゲームのモードだけが並ぶ（他ゲームが混ざらない）: ' + ids.join(','));
+    assert(ids.every(id => /^wordwolf/.test(id)),
+      'ワードウルフのモードだけが並ぶ（人狼が混ざらない）: ' + ids.join(','));
 
-    // 1ゲームのカセットなので「もどる」は棚へ
+    // 複数ゲームのカセットなので「もどる」はゲーム選択へ
     click(doc, 'backToShelfBtn');
-    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await waitScreen(win, doc, 'scr-game', 3000);
     assertNoErrors(errors, '人狼カセットの導線で未捕捉の例外');
     win.close();
   });
@@ -288,8 +289,7 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
     assert(ids.indexOf('wordwolf') >= 0, 'ワードウルフが出る');
-    assert(ids.every(id => id === 'wordwolf' || id === 'wolfrole'),
-      '人狼ゲームのモードだけが並ぶ（' + ids.join(',') + '）');
+    assert(ids.every(id => /^wordwolf/.test(id)), 'ワードウルフのモードだけが並ぶ（' + ids.join(',') + '）');
     assert(ids.indexOf('normal') === -1, 'あれそれどれこれのモードが混ざらない');
 
     // あれそれどれこれを選び直すと、そちらのモードに切り替わる

@@ -126,13 +126,16 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(cart, '人狼ゲームのカセットが棚にある');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    // games が1件なのでゲーム選択は経由しない
-    assertEqual(activeScreen(doc), 'scr-setup', 'ゲーム選択を飛ばしてプレイヤー設定へ');
+    // ゲームが2つ（ワードウルフ／人狼）になったので、ゲーム選択を経由する
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
     assert(ids.indexOf('wordwolf') >= 0, 'モード選択にワードウルフがある');
-    assert(ids.every(id => id === 'wordwolf' || id === 'wolfrole'), '人狼ゲームのモードだけが並ぶ（' + ids.join(',') + '）');
+    assert(ids.indexOf('wordwolf-multi') >= 0, '2〜ターン版も並ぶ');
+    assert(ids.every(id => /^wordwolf/.test(id)), 'ワードウルフのモードだけが並ぶ（' + ids.join(',') + '）');
 
     click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
     click(doc, 'modeAutoBtn');
@@ -180,14 +183,20 @@ async function startModeWithTimerOff(win, doc, id) {
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    const card = doc.querySelector('.mode-card[data-id="wolfrole"]');
-    assert(card, 'モード一覧に「人狼（役職あり）」がある');
+    const card = doc.querySelector('.mode-card[data-id="wolf-normal"]');
+    assert(card, 'モード一覧にノーマル人狼がある');
     click(doc, card);
 
-    // 話し合いタイマーは切っておく（テストで3分待たないため）
+    // 役職の配分はプリセットのまま。話し合いタイマーは切っておく（テストで待たないため）
     click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    assert(el(doc, 'wrVillagerCount').textContent !== '', '村人の人数が自動計算される');
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
     await waitScreen(win, doc, 'scr-set-timer', 3000);
     if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
     click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
@@ -244,16 +253,122 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('役職あり人狼：既存のワードウルフと同じカセットに2モード並ぶ', async () => {
+  await r.test('人狼カセット：ゲーム選択を経由し、ゲームごとにモードが分かれる', async () => {
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    const games = Array.from(doc.querySelectorAll('#gameCards .mode-card')).map(c => c.dataset.game);
+    assertEqual(games.join(','), 'wordwolf,wolfrole', 'ワードウルフと人狼の2ゲームが並ぶ');
+
+    // 人狼側：プリセットがそれぞれ独立したモードカードになっている
+    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
-    assertEqual(ids.join(','), 'wordwolf,wolfrole', 'ワードウルフと役職あり人狼が並ぶ');
-    assertNoErrors(errors, 'モード一覧で未捕捉の例外');
+    assert(ids.length >= 6, 'プリセットが6枚以上並ぶ（' + ids.length + '枚）');
+    ['wolf-casual', 'wolf-normal', 'wolf-special', 'wolf-quick', 'wolf-deep', 'wolf-chaos'].forEach(id => {
+      assert(ids.indexOf(id) >= 0, id + ' がモードカードとして並ぶ');
+    });
+    assert(ids.every(id => /^wolf-/.test(id)), 'ワードウルフのモードが混ざらない');
+    assertNoErrors(errors, 'ゲーム選択で未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第17弾改訂：ワードウルフ（2〜ターン） ----
+  // 1周（お題配布→話し合い→投票→集計）を回すヘルパー
+  async function runWolfRound(win, doc, opts) {
+    opts = opts || {};
+    if (!opts.skipReveal) {
+      await waitScreen(win, doc, 'scr-wolf-pass', 8000);
+      let g = 0;
+      while (activeScreen(doc) === 'scr-wolf-pass' && g++ < 20) {
+        click(doc, 'wolfRevealBtn');
+        await sleep(win, 40);
+        click(doc, 'wolfNextRevealBtn'); // お題を見た → つぎの人へ
+        await sleep(win, 50);
+      }
+    }
+    await waitScreen(win, doc, 'scr-play', 5000);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+    let g2 = 0;
+    while (activeScreen(doc) === 'scr-wolf-pass' && g2++ < 20) {
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      const t = doc.querySelector('#wolfVoteGrid button');
+      if (t) t.click(); else break;
+      await sleep(win, 50);
+    }
+    await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+    click(doc, 'wolfTallyBtn');
+    await waitScreen(win, doc, 'scr-wolf-result', 8000);
+  }
+
+  async function startWolfMulti(win, doc, changeTopic) {
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf-multi"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfmulti', 3000);
+    // ターン数を2にして、お題変更の有無を設定する
+    const minus = doc.querySelector('#scr-set-wolfmulti [data-wmturn="-1"]');
+    for (let i = 0; i < 5; i++) minus.click();
+    assertEqual(el(doc, 'wmTurnValue').textContent, '2', 'ターン数の下限は2');
+    if (el(doc, 'wmChangeToggle').classList.contains('on') !== changeTopic) click(doc, 'wmChangeToggle');
+    // 残りのウィザードを進めつつ、タイマーは切る
+    for (let i = 0; i < 6; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      if (cur === 'scr-set-timer' && el(doc, 'timerEnableToggle').classList.contains('on')) {
+        click(doc, 'timerEnableToggle');
+        await sleep(win, 30);
+      }
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 30);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+  }
+
+  await r.test('ワードウルフ2〜ターン（お題変更あり）：2ターン遊んで合計得点で決着する', async () => {
+    const { win, doc, errors } = await launch();
+    await startWolfMulti(win, doc, true);
+    await runWolfRound(win, doc);                    // 1ターン目
+    assertEqual(el(doc, 'wolfResultNextBtn').textContent.indexOf('スコアへ'), -1, '1ターン目ではまだ終わらない');
+    click(doc, 'wolfResultNextBtn');
+    await runWolfRound(win, doc);                    // 2ターン目（お題が変わるので配布からやり直す）
+    click(doc, 'wolfResultNextBtn');
+    await waitScreen(win, doc, 'scr-wolf-result', 5000);
+    assert(/ターン終了/.test(el(doc, 'wolfResultTopics').textContent), '合計得点での決着が表示される');
+    assertNoErrors(errors, '2〜ターン（お題変更あり）で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ワードウルフ2〜ターン（お題変更なし）：逃げ切られたらウルフ側の勝ち', async () => {
+    const { win, doc, errors } = await launch();
+    await startWolfMulti(win, doc, false);
+    await runWolfRound(win, doc);                    // 1ターン目
+    click(doc, 'wolfResultNextBtn');
+    // お題は変わらないので、配布を挟まず話し合いから始まる
+    await waitScreen(win, doc, 'scr-play', 5000);
+    await runWolfRound(win, doc, { skipReveal: true });
+    click(doc, 'wolfResultNextBtn');
+    await waitScreen(win, doc, 'scr-wolf-result', 5000);
+    const text = el(doc, 'wolfResultTopics').textContent;
+    assert(/ウルフ側の勝ち|村人側の勝ち/.test(text), '当てたか逃げ切ったかで決着する（' + text + '）');
+    assertNoErrors(errors, '2〜ターン（お題変更なし）で未捕捉の例外');
     win.close();
   });
 

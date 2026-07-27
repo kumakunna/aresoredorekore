@@ -118,6 +118,59 @@ async function startModeWithTimerOff(win, doc, id) {
     });
   }
 
+  // ---- 第16弾：人狼ゲームカセットを本番データのまま通しでプレイする ----
+  await r.test('人狼ゲームカセット：お題配布→話し合い→投票→結果まで通る', async () => {
+    // テスト用の細工なしで、棚に出ている本番のカセットをそのまま遊ぶ
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    assert(cart, '人狼ゲームのカセットが棚にある');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    // games が1件なのでゲーム選択は経由しない
+    assertEqual(activeScreen(doc), 'scr-setup', 'ゲーム選択を飛ばしてプレイヤー設定へ');
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    assertEqual(ids.join(','), 'wordwolf', 'モード選択にワードウルフだけが並ぶ');
+
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, 'modeAutoBtn');
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+
+    // お題配布：1人ずつスマホを渡して自分のお題を見る
+    await waitScreen(win, doc, 'scr-wolf-pass', 8000);
+    for (let i = 0; i < PLAYERS.length; i++) {
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      const next = doc.querySelector('#wolfContentScreen .btn');
+      assert(next, (i + 1) + '人目のお題確認に進むボタンがある');
+      next.click();
+      await sleep(win, 60);
+    }
+    // 話し合い（既存のプレイ画面を流用）→ 手動で終了して投票へ
+    await waitScreen(win, doc, 'scr-play', 5000);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+
+    // 投票：1人ずつ誰かに投票する
+    for (let i = 0; i < PLAYERS.length; i++) {
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      const target = doc.querySelector('#wolfVoteGrid button');
+      assert(target, (i + 1) + '人目の投票先が出る');
+      target.click();
+      await sleep(win, 60);
+    }
+    // 集計 → 結果
+    await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+    click(doc, 'wolfTallyBtn');
+    await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    assert(el(doc, 'wolfResultNextBtn'), '結果画面に「つぎへ」がある');
+    assertNoErrors(errors, 'ワードウルフの通しプレイで未捕捉の例外');
+    win.close();
+  });
+
   // ---- 再発防止：サバイバルの脱落フラグが他モードに持ち越されないこと ----
   await r.test('再発防止：サバイバルで脱落しても、次のモードに脱落状態が残らない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

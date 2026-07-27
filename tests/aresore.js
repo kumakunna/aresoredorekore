@@ -154,17 +154,21 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     click(doc, 'voiceToggle');
     await waitFor(win, () => !!win.__rec, 3000, '音声認識が開始される');
 
-    // 別名を持つお題が出るまでパスで送る
+    // 別名を持つお題が出るまで送る。
+    // 同一マッチ内はお題が重複しない（pickUnused）ので、プールを一周すれば必ず当たる。
+    // パスは演出待ちが入るため、待ち時間のない「正解者を選ばずに次へ」で素早く送る。
     const aliasOf = { 'パトロールカー': 'パトカー', 'スマートフォン': 'スマホ', '自動販売機': '自販機', '遊園地': 'テーマパーク' };
     let target = null;
-    for (let i = 0; i < 30 && !target; i++) {
+    for (let i = 0; i < 250 && !target; i++) {
       const t = topicText(doc);
       if (aliasOf[t]) { target = t; break; }
-      const before = t;
-      click(doc, 'btnPass');
-      await waitFor(win, () => topicText(doc) !== before, 3000, 'パスで次へ');
+      click(doc, 'btnCorrect');
+      const skip = doc.getElementById('pickerSkipBtn');
+      if (!skip) break;
+      skip.click();
+      await sleep(win, 5);
     }
-    assert(target, '別名を持つお題に到達する');
+    assert(target, '別名を持つお題に到達する（プールを一周しても見つからない）');
 
     // 略称を発話 → 正解ピッカーが開く
     win.__rec.onresult({ resultIndex: 0, results: { 0: { 0: { transcript: aliasOf[target] }, length: 1 }, length: 1 } });

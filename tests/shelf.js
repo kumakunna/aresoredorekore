@@ -202,6 +202,46 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第16弾：人狼ゲームカセットが棚に出ている ----
+  await r.test('人狼ゲームカセットが棚に出ていて、近日公開ではない', async () => {
+    const { win, doc, errors } = await launch();
+    const c = cart(doc, 'jinro');
+    assert(c, '人狼ゲームのカセットが棚にある');
+    assert(!c.classList.contains('soon'), '近日公開ではなく、遊べる状態');
+    assert(!c.querySelector('.soon-tag'), '「近日公開予定」タグが付いていない');
+    assertNoErrors(errors, '棚の描画で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('人狼ゲームカセット：ゲーム選択を飛ばし、モードはワードウルフだけ', async () => {
+    const { win, doc, errors } = await launch();
+    pickCart(doc, 'jinro');
+    // games が1件なので scr-game は経由しない
+    await waitScreen(win, doc, 'scr-setup', 3000);
+    assertEqual(activeScreen(doc), 'scr-setup', 'ゲーム選択を経由しない');
+    await H.fillPlayerForm(win, doc, ['あき', 'びび', 'ちか']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c2 => c2.dataset.id);
+    assertEqual(ids.join(','), 'wordwolf', 'ワードウルフだけが並ぶ（他ゲームのモードが混ざらない）');
+
+    // 1ゲームのカセットなので「もどる」は棚へ
+    click(doc, 'backToShelfBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertNoErrors(errors, '人狼カセットの導線で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('あれそれどれこれのモード一覧に、ワードウルフが混ざらない', async () => {
+    const { win, doc, errors } = await launch();
+    await setupPlayers(win, doc);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c2 => c2.dataset.id);
+    assert(ids.indexOf('wordwolf') === -1, 'ワードウルフが混ざらない（' + ids.join(',') + '）');
+    assert(ids.length >= 5, 'あれそれどれこれのモードは揃っている');
+    assertNoErrors(errors, 'モード一覧で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第15弾：カセット → ゲーム → モードの3階層 ----
   // 複数ゲームのカセットは本番にまだ無いので、テスト時だけ差し込んで経路を確認する
   const MULTI = {

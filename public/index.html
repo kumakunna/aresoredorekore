@@ -1391,7 +1391,7 @@
       opts:{describe:'ai', seal:'none', survival:false, showSeal:false},
       rules:"出題者はいません。AIがお題の説明を考えて読み上げてくれるので、全員で一緒に聞いて当てます。お題の名前は画面にも表示されません。",
       bullets:["出題者はいない","AIがお題の説明を読み上げる","全員で聞いて答えを当てる","お題の名前は画面に出ない"]},
-    {id:"wordwolf", icon:"🐺", title:"ワードウルフ", sub:"1人だけ違うお題・話し合って探り合う（複数ラウンド）", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, hidden:true, game:'wordwolf',
+    {id:"wordwolf", icon:"🐺", title:"ワードウルフ", sub:"1人だけ違うお題・話し合って探り合う（複数ラウンド）", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, game:'wordwolf',
       rules:"1人だけ違うお題（ウルフ🐺）が混ざります。ほかはシープ🐑です。自由に話し合いながら、誰がウルフかを探り合いましょう。ウルフだと自覚がある設定の場合、バレないようシープのふりをするのがコツです。話し合いのあとは全員で投票してウルフを当てます。",
       bullets:["1人だけ違うお題（ウルフ🐺）が混ざる","ほかはシープ🐑・お題は似ている","自由に話し合って探り合う","スマホを回して全員で投票","ウルフを当てられるか勝負"]},
     {id:"bomb", icon:"💣", title:"時限爆弾", sub:"難易度別のコードを解除・ライフ3つの協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, hidden:true, game:'bomb',
@@ -1429,7 +1429,8 @@
       games:['aresoredorekore'],
       meta:'2〜8人 / 10分〜<br>ことばで説明して当てる' },
     // 第4段階でカセットとして復活予定。中身は決まっているので名前を見せ、まだ遊べないことを明示する
-    { id:'jinro',           genre:'word', ready:false, icon:'🐺', title:'人狼<br>ゲーム',
+    { id:'jinro',           genre:'word', ready:true,  icon:'🐺', title:'人狼<br>ゲーム',
+      games:['wordwolf'],
       meta:'3〜10人 / 15分〜<br>正体を隠して探り合う' },
     { id:'word-soon-1',     genre:'word', ready:false, icon:'？' },
     { id:'deal-soon-1',     genre:'deal', ready:false, icon:'？' },

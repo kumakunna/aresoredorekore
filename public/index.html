@@ -3637,8 +3637,9 @@
   }
 
   function showWolfMultiFinal(){
-    // 先に画面へ移る。goTo が enterWolfResult を呼ぶので、表示の差し替えはそのあとに行う
-    goTo('scr-wolf-result');
+    // ここは必ず結果画面から呼ばれる。goTo を呼ぶと enterWolfResult が再実行されて
+    // 得点が二重に入り、履歴にも同じラウンドが2回残ってしまうので、移動せず書き換えるだけにする。
+    if(!el('scr-wolf-result').classList.contains('active')) goTo('scr-wolf-result');
     el('wolfResultTopics').innerHTML = play.wmWinner
       ? (play.wmWinner === 'wolf' ? '🐺 ウルフの逃げ切り！ウルフ側の勝ちです' : '🎉 ウルフを当てました！村人側の勝ちです')
       : '🏁 ' + state.wmCfg.turnLimit + 'ターン終了！合計得点で決着です';

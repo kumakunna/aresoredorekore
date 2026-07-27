@@ -277,6 +277,89 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  // ---- 第6部：対戦履歴に、どちらのゲームだったかが残ること ----
+  // サーバーへ送る /round の中身をそのまま覗いて確認する
+  function captureRounds(win) {
+    const posts = [];
+    const orig = win.fetch;
+    win.fetch = function (u, o) {
+      if (o && o.method && /\/round$/.test(String(u))) {
+        try { posts.push(JSON.parse(o.body)); } catch (e) { /* 解析できないものは無視 */ }
+      }
+      return orig.apply(this, arguments);
+    };
+    return posts;
+  }
+
+  await r.test('履歴：役職あり人狼の記録に game:wolfrole と役職構成が残る', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    const posts = captureRounds(win);
+
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]')); // 役職が少なく早く決着する
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+
+    // 決着するまでターンを回す（カウントダウンを抜けるまで少し待つ）
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+    let guard = 0;
+    while (guard++ < 200) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-wr-pass') {
+        click(doc, 'wrRevealBtn');
+        await sleep(win, 30);
+        const c = doc.querySelector('#wrChoiceGrid button[data-choice]');
+        if (c) c.click(); else click(doc, 'wrNextBtn');
+        await sleep(win, 40);
+      } else if (cur === 'scr-wr-day') {
+        click(doc, 'wrToVoteBtn');
+        await sleep(win, 60);
+      } else if (cur === 'scr-wr-gather') {
+        click(doc, 'wrTallyBtn');
+        await sleep(win, 2600); // 集計のカウントダウンを待つ
+      } else if (cur === 'scr-wr-result') {
+        const done = /スコアへ/.test(el(doc, 'wrResultNextBtn').textContent);
+        click(doc, 'wrResultNextBtn');
+        await sleep(win, 100);
+        if (done) break;
+      } else {
+        await sleep(win, 60);
+      }
+    }
+    await waitScreen(win, doc, 'scr-score', 5000);
+
+    // ここが今回の確認点：記録にゲーム種別が入っているか
+    // （ターンごとのラウンドも送られるので、詳細が付いたものを取り出す）
+    const detailed = posts.filter(p => p.detail);
+    const last = detailed[detailed.length - 1];
+    assert(posts.length > 0, 'サーバーへラウンドが送られている');
+    assert(last, '詳細（detail）付きのラウンドが送られている');
+    assertEqual(detailed.length, 1, '詳細付きの記録は1件だけ（重複しない）');
+    assertEqual(last.detail.game, 'wolfrole', '記録に game:wolfrole が残る');
+    assert(last.detail.preset && /^wolf-/.test(last.detail.preset), 'どのプリセットで遊んだかが残る（' + last.detail.preset + '）');
+    assert(last.detail.roles && last.detail.roles.wolf >= 1, '役職構成が残る');
+    assert(['village', 'wolf', 'fox'].indexOf(last.detail.winner) >= 0, '勝った陣営が残る（' + last.detail.winner + '）');
+    assert(typeof last.detail.turnsPlayed === 'number', '何ターンで終わったかが残る');
+    assertNoErrors(errors, '履歴の記録で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第17弾改訂：ワードウルフ（2〜ターン） ----
   // 1周（お題配布→話し合い→投票→集計）を回すヘルパー
   async function runWolfRound(win, doc, opts) {
@@ -358,16 +441,28 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('ワードウルフ2〜ターン（お題変更なし）：逃げ切られたらウルフ側の勝ち', async () => {
     const { win, doc, errors } = await launch();
+    const posts = captureRounds(win);
     await startWolfMulti(win, doc, false);
     await runWolfRound(win, doc);                    // 1ターン目
     click(doc, 'wolfResultNextBtn');
-    // お題は変わらないので、配布を挟まず話し合いから始まる
-    await waitScreen(win, doc, 'scr-play', 5000);
-    await runWolfRound(win, doc, { skipReveal: true });
-    click(doc, 'wolfResultNextBtn');
+    await sleep(win, 200);
+    // 1ターン目でウルフを当てていれば即決着。当てていなければ、
+    // お題は変わらないので配布を挟まず話し合いから2ターン目が始まる
+    if (activeScreen(doc) === 'scr-play') {
+      await runWolfRound(win, doc, { skipReveal: true });
+      click(doc, 'wolfResultNextBtn');
+      await sleep(win, 200);
+    }
     await waitScreen(win, doc, 'scr-wolf-result', 5000);
     const text = el(doc, 'wolfResultTopics').textContent;
     assert(/ウルフ側の勝ち|村人側の勝ち/.test(text), '当てたか逃げ切ったかで決着する（' + text + '）');
+    // 履歴：こちらは wordwolf 側のゲームとして残ること
+    const detailed = posts.filter(p => p.detail);
+    const last = detailed[detailed.length - 1];
+    assert(last, 'ラウンドの詳細が送られている');
+    assertEqual(detailed.length, 1, '詳細付きの記録は1件だけ（二重に残らない）');
+    assertEqual(last.detail.game, 'wordwolf', '記録に game:wordwolf が残る');
+    assert(['sameTopic', 'newTopic'].indexOf(last.detail.variant) >= 0, 'お題変更の有無が残る（' + last.detail.variant + '）');
     assertNoErrors(errors, '2〜ターン（お題変更なし）で未捕捉の例外');
     win.close();
   });

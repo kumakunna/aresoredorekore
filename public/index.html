@@ -637,6 +637,92 @@
   .describer-only-note{font-size:11px;color:var(--muted);opacity:.75;text-align:center;margin-bottom:6px;}
   #wolfVoteArea{width:100%;}
   #wolfVoteArea .picker-grid{flex:none;max-height:60vh;}
+  /* ===================================================================
+     第18弾 第5部：人狼カセット専用の「夜」テーマ
+     ここから下はすべて追加専用。既存のルールは1行も書き換えていない。
+     `.app.theme-wolf` が付いている間だけ効き、外れれば完全に元の見た目に戻る。
+     テーマを付ける条件は goTo() の applyGameTheme() が一元管理している。
+     ------------------------------------------------------------------- */
+  .app.theme-wolf{
+    --paper:#161A29;
+    --paper-deep:#0F1320;
+    --card:#212840;
+    --ink:#EDEBF5;
+    --ink-soft:#9BA2C2;
+    --line:rgba(237,235,245,0.16);
+    --shadow:0 10px 30px rgba(0,0,0,0.55);
+    background:
+      radial-gradient(circle at 78% 10%, rgba(226,232,255,0.16), transparent 42%),
+      radial-gradient(circle at 18% 84%, rgba(88,108,190,0.15), transparent 52%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .5s ease, color .5s ease;
+  }
+  /* PCでは.appの外側（body）も一緒に沈める。:has非対応でも枠内は暗くなるので壊れない */
+  body:has(.app.theme-wolf){
+    background:
+      radial-gradient(circle at 50% 0%, #1E2440, transparent 60%),
+      #0C0F1A;
+  }
+  /* 月あかり。手渡し画面の上に薄く浮かべる（装飾なのでpointer-events無し） */
+  .app.theme-wolf .screen.active > .wolf-handoff::before{
+    content:'';position:absolute;top:52px;right:26px;
+    width:74px;height:74px;border-radius:50%;
+    background:radial-gradient(circle at 36% 32%, #FBF6E2, #D9CFA6 62%, rgba(217,207,166,0) 72%);
+    box-shadow:0 0 44px 12px rgba(251,246,226,0.20);
+    opacity:.55;pointer-events:none;
+  }
+
+  /* --- 直書きの白が残っている部品を、夜でも読める色に置き換える --- */
+  .app.theme-wolf .picker-grid .pk-btn{
+    background:var(--card);color:var(--ink);border-color:rgba(237,235,245,0.34);
+  }
+  .app.theme-wolf .picker-grid .pk-btn:active{background:var(--ink);color:var(--paper);}
+  .app.theme-wolf .bomb-tier-controls button,
+  .app.theme-wolf .close-x,
+  .app.theme-wolf .stepper button{background:var(--card);color:var(--ink);}
+  .app.theme-wolf .mode-card.selected{background:var(--card);}
+  .app.theme-wolf input[type="text"],
+  .app.theme-wolf input[type="password"]{background:var(--card);color:var(--ink);}
+  .app.theme-wolf .ng-chip{
+    background:rgba(237,235,245,0.07);border-color:#E07A6C;color:#FFB6AA;
+  }
+  .app.theme-wolf .turn-banner .final{color:#FF9E7A;}
+  /* ⚙は白丸のままだと夜に浮くので、月あかりに寄せる（位置・大きさは変えない） */
+  .app.theme-wolf .floating-gear{background:rgba(237,235,245,.14);color:var(--ink);}
+  .app.theme-wolf .wolf-handoff-name,
+  .app.theme-wolf .wolf-topic-name{text-shadow:0 0 22px rgba(226,232,255,0.28);}
+
+  /* --- 夜フェーズはさらに沈め、朝はわずかに藍を明るくする --- */
+  .app.theme-wolf.phase-night{--paper:#0F1322;--paper-deep:#0A0D17;--card:#1A2036;}
+  .app.theme-wolf.phase-day{--paper:#1E2540;--paper-deep:#161C33;--card:#2A3252;}
+
+  /* --- 朝夜の切り替え演出。0.55秒で暗幕がスッと引かれる --- */
+  .night-fx{
+    position:absolute;inset:0;z-index:60;pointer-events:none;opacity:0;
+    background:linear-gradient(180deg, #060812 0%, #0C1020 55%, #060812 100%);
+  }
+  .night-fx.run-night{animation:nightWipe .55s ease both;}
+  .night-fx.run-day{animation:dayWipe .55s ease both;}
+  .night-fx .fx-word{
+    position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+    text-align:center;font-family:'Shippori Mincho',serif;font-weight:800;
+    font-size:30px;color:#EDEBF5;letter-spacing:.22em;
+  }
+  @keyframes nightWipe{
+    0%{opacity:0;}
+    35%{opacity:1;}
+    70%{opacity:1;}
+    100%{opacity:0;}
+  }
+  @keyframes dayWipe{
+    0%{opacity:1;}
+    100%{opacity:0;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .night-fx.run-night, .night-fx.run-day{animation-duration:.01s;}
+    .app.theme-wolf{transition:none;}
+  }
 </style>
 </head>
 <body>
@@ -644,6 +730,9 @@
 
   <!-- 1：ゲーム中どこからでも設定（＝ゲーム終了）に入れる共通ボタン。全ゲームで使える -->
   <button class="floating-gear" id="floatingGearBtn" style="display:none;">⚙</button>
+
+  <!-- 第18弾-5：朝夜の切り替え演出。ふだんは opacity:0 で当たり判定も無い -->
+  <div class="night-fx" id="nightFx"><div class="fx-word" id="nightFxWord"></div></div>
 
   <!-- 1: splash -->
   <!-- 0: 扉（第13弾・起動時に自動で開く。友達の部屋に入るイメージ） -->
@@ -1930,8 +2019,8 @@
     //   第18弾-5：設定画面の「お題を追加」は、このゲームを遊んでいる時だけ出す。
     //   ワードウルフは WOLF_PAIRS、人狼はお題そのものを使わないので対象外。
     { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる', maxPlayers:8, usesTopicPool:true },
-    { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う', maxPlayers:0 },
-    { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要', maxPlayers:0 }, // 0＝上限なし
+    { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う', maxPlayers:0, theme:'wolf' },
+    { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要', maxPlayers:0, theme:'wolf' }, // 0＝上限なし
     { id:'bomb',            title:'時限爆弾',           icon:'💣', sub:'コードを解除する協力プレイ', usesTopicPool:true },
     { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点', usesTopicPool:true },
     { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち', usesTopicPool:true },
@@ -2545,6 +2634,126 @@
     setTimeout(function(){ beep(880, 220); }, 160);
     if(navigator.vibrate) navigator.vibrate(60);
   }
+  // ===================== 第18弾 第5部：人狼カセットの効果音 =====================
+  // 音源ファイルは持っていないので、すべて WebAudio の合成音。
+  // 既存の beep/buzz と同じく「使うたびに ctx を作って閉じる」形に揃えている。
+  // ※合成で作れるのはここまで。鐘・獣の声・環境音のような録音でしか出ない質感は再現できない。
+  function withAudio(fn){
+    try{
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var stop = fn(ctx);
+      setTimeout(function(){ try{ ctx.close(); }catch(e){} }, stop || 1000);
+    }catch(e){}
+  }
+  // ホワイトノイズ（風・ざわめきの土台）
+  function noiseSource(ctx, seconds){
+    var len = Math.floor(ctx.sampleRate * seconds);
+    var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    var d = buf.getChannelData(0);
+    for(var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    return src;
+  }
+  // 夜がふける：低いドローンが沈み、風がひと吹きする
+  function sfxNightFall(){
+    withAudio(function(ctx){
+      var t = ctx.currentTime;
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(220, t);
+      o.frequency.exponentialRampToValueAtTime(70, t + 1.1);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.10, t + 0.18);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 1.25);
+
+      var n = noiseSource(ctx, 1.3), nf = ctx.createBiquadFilter(), ng = ctx.createGain();
+      nf.type = 'lowpass';
+      nf.frequency.setValueAtTime(900, t);
+      nf.frequency.exponentialRampToValueAtTime(240, t + 1.2);
+      ng.gain.setValueAtTime(0.0001, t);
+      ng.gain.exponentialRampToValueAtTime(0.05, t + 0.35);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+      n.connect(nf); nf.connect(ng); ng.connect(ctx.destination); n.start(t);
+      return 1500;
+    });
+    if(navigator.vibrate) navigator.vibrate(40);
+  }
+  // 朝がくる：低い所からふわりと上がる二音。勝ち負けの音ではないので明るくしすぎない
+  function sfxMorning(){
+    withAudio(function(ctx){
+      var t = ctx.currentTime;
+      [[392, 0], [587, 0.16]].forEach(function(p){
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'triangle';
+        o.frequency.value = p[0];
+        g.gain.setValueAtTime(0.0001, t + p[1]);
+        g.gain.exponentialRampToValueAtTime(0.07, t + p[1] + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + p[1] + 0.75);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t + p[1]); o.stop(t + p[1] + 0.8);
+      });
+      return 1100;
+    });
+  }
+  // 遠吠え：のこぎり波にゆらぎを掛け、ローパスを開いてから閉じる
+  // 本物の獣の声には遠く及ばないが、「なにか居る」合図としては機能する
+  function sfxHowl(){
+    withAudio(function(ctx){
+      var t = ctx.currentTime;
+      var o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(180, t);
+      o.frequency.exponentialRampToValueAtTime(340, t + 0.35);
+      o.frequency.setValueAtTime(340, t + 0.9);
+      o.frequency.exponentialRampToValueAtTime(150, t + 1.5);
+      // ゆらぎ（ビブラート）
+      var lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+      lfo.frequency.value = 5.5; lfoGain.gain.value = 11;
+      lfo.connect(lfoGain); lfoGain.connect(o.frequency);
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(700, t);
+      f.frequency.exponentialRampToValueAtTime(2200, t + 0.5);
+      f.frequency.exponentialRampToValueAtTime(500, t + 1.5);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.075, t + 0.25);
+      g.gain.setValueAtTime(0.075, t + 1.0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.55);
+      o.connect(f); f.connect(g); g.connect(ctx.destination);
+      o.start(t); lfo.start(t); o.stop(t + 1.6); lfo.stop(t + 1.6);
+      return 1800;
+    });
+    if(navigator.vibrate) navigator.vibrate([60, 40, 90]);
+  }
+  // 処刑・襲撃：短く重い一撃
+  function sfxThud(){
+    withAudio(function(ctx){
+      var t = ctx.currentTime;
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(42, t + 0.32);
+      g.gain.setValueAtTime(0.16, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.45);
+      var n = noiseSource(ctx, 0.14), nf = ctx.createBiquadFilter(), ng = ctx.createGain();
+      nf.type = 'lowpass'; nf.frequency.value = 420;
+      ng.gain.setValueAtTime(0.10, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+      n.connect(nf); nf.connect(ng); ng.connect(ctx.destination); n.start(t);
+      return 700;
+    });
+    if(navigator.vibrate) navigator.vibrate(120);
+  }
+  // 朝夜の切り替え演出。0.55秒の暗幕＋見出し。テーマが効いていない時は何もしない
+  function playPhaseFx(tone, word){
+    if(!el('app').classList.contains('theme-wolf')) return;
+    var fx = el('nightFx');
+    el('nightFxWord').textContent = word || '';
+    fx.classList.remove('run-night', 'run-day');
+    void fx.offsetWidth; // アニメーションを確実に再生させる
+    fx.classList.add(tone === 'night' ? 'run-night' : 'run-day');
+  }
   function playStamp(){
     var fx = el('stampFx');
     if(fx.getAnimations){ fx.getAnimations().forEach(function(a){ a.cancel(); }); }
@@ -2568,6 +2777,28 @@
   // ---------- screen nav ----------
   // 「戻る」方向で画面遷移する（アニメーションが左から右になる）
   function goBack(id){ goTo._back = true; goTo(id); }
+  // ---- 第18弾-5：ゲーム別テーマ ----
+  // 夜の配色を当てるのは「人狼カセットを実際に遊んでいる画面」だけ。
+  // 棚・カセット選択・プレイヤー設定・ウィザードは、アプリ共通のクリーム色のまま。
+  // ここ1箇所だけで着脱するので、あれそれどれこれ側にテーマが漏れる経路が無い。
+  var WOLF_THEME_SCREENS = [
+    'scr-play', 'scr-countdown',
+    'scr-wolf-pass', 'scr-wolf-gather', 'scr-wolf-result',
+    'scr-wr-pass', 'scr-wr-day', 'scr-wr-gather', 'scr-wr-result'
+  ];
+  function applyGameTheme(screenId){
+    var app = el('app');
+    var g = gameById(currentGameId());
+    var on = g.theme === 'wolf' && WOLF_THEME_SCREENS.indexOf(screenId) !== -1;
+    app.classList.toggle('theme-wolf', on);
+    if(!on) app.classList.remove('phase-night', 'phase-day');
+  }
+  // 夜／朝で暗さを変える。人狼(wolfrole)だけが持つ概念なので、それ以外では素の夜色に戻す
+  function setWolfPhaseTone(tone){
+    var app = el('app');
+    app.classList.toggle('phase-night', tone === 'night');
+    app.classList.toggle('phase-day', tone === 'day');
+  }
   function goTo(id){
     // #1（第5弾）：プレイ画面から完全に抜ける瞬間に、読み上げ・音声認識を必ず止める
     var prevScreen = document.querySelector('.screen.active');
@@ -2582,6 +2813,7 @@
     });
     var next = el(id);
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
+    applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
     var noGear = ['scr-door','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
@@ -4022,6 +4254,10 @@
     wr.idx = 0;
     if(!wr.queue.length){ finishWrNight(); return; }
     goTo('scr-wr-pass');
+    // 第18弾-5：goToのあとに演出。テーマが乗ってからでないと暗幕が出ない
+    setWolfPhaseTone('night');
+    playPhaseFx('night', '夜がふけました');
+    sfxNightFall();
   }
 
   // ---- 投票前の単発行動（ターン数1の役職） ----
@@ -4226,6 +4462,9 @@
   function enterWrDay(){
     // 第18弾-5：朝も夜と同じ書式で、何ターン目か・最終ターンかを出す
     el('wrDayTurn').innerHTML = turnBannerHtml(wr.game.turn, wr.game.config.turnLimit, '日目の朝');
+    setWolfPhaseTone('day');
+    playPhaseFx('day', '');
+    sfxMorning();
     var deaths = (wr.nightOut && wr.nightOut.deaths) || [];
     var news;
     if(!deaths.length){
@@ -4241,6 +4480,11 @@
     }
     // 夜に得た情報（占い・霊媒）は、本人に見せるため次の手渡しで配る
     el('wrDayNews').innerHTML = news;
+    // 第18弾-5：襲撃で欠けた朝だけ、朝の音のあとに遠吠えを重ねる。
+    // 誰も欠けなかった朝と、音でも区別がつくようにする
+    if(deaths.some(function(d){ return d.cause !== 'lover'; })){
+      setTimeout(sfxHowl, 620);
+    }
     startWrDayTimer();
   }
 
@@ -4307,6 +4551,7 @@
     el('wrResultNextBtn').textContent = 'つぎの夜へ ▶';
     wr.finished = false;
     goTo('scr-wr-result');
+    if(ex) sfxThud(); // 第18弾-5：処刑は短く重い一撃で区切る
   }
 
   function showWrFinal(res){

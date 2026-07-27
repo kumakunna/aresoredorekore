@@ -1116,6 +1116,97 @@ async function startModeWithTimerOff(win, doc, id) {
     two.win.close();
   });
 
+  // ---- 第18弾 第5部：夜のテーマ ----
+  await r.test('テーマ：夜の配色は人狼カセットの遊んでいる画面にだけ乗る', async () => {
+    const { win, doc, errors } = await launch();
+    const app = el(doc, 'app');
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+
+    // 棚・ゲーム選択・プレイヤー設定・モード選択・ウィザードは素のまま
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    assert(!app.classList.contains('theme-wolf'), 'ゲーム選択では夜にしない');
+    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    assert(!app.classList.contains('theme-wolf'), 'モード選択では夜にしない');
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    assert(!app.classList.contains('theme-wolf'), '設定ウィザードでは夜にしない');
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+
+    // 実際に遊びはじめたら夜になる
+    assert(app.classList.contains('theme-wolf'), '遊んでいる画面は夜になる');
+    await runWrHandoffs(win, doc, players.length);   // 役職確認 → 夜
+    assert(app.classList.contains('phase-night'), '夜フェーズはさらに沈める');
+    await runWrHandoffs(win, doc, players.length);   // 夜 → 朝
+    if (activeScreen(doc) === 'scr-wr-day') {
+      assert(app.classList.contains('phase-day'), '朝は藍を明るくする');
+      assert(!app.classList.contains('phase-night'), '朝と夜は同時に立たない');
+    }
+    assertNoErrors(errors, '夜テーマで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('テーマ：あれそれどれこれには一切漏れない', async () => {
+    const { win, doc, errors } = await launch();
+    const app = el(doc, 'app');
+    // 先に人狼を遊んで夜にしてから、あれそれどれこれへ移る
+    await startWolfRole(win, doc, 'wolf-casual', ['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    assert(app.classList.contains('theme-wolf'), '人狼では夜になっている');
+
+    // jsdomのconfirm/alertは未実装なので、OKを押した扱いにする
+    win.confirm = () => true;
+    win.alert = () => {};
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    click(doc, 'endGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 5000);
+    assert(!app.classList.contains('theme-wolf'), 'ゲームを終えたら夜が外れる');
+
+    const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
+    if (cart) {
+      cart.click();
+      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await sleep(win, 80);
+      if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
+      await waitScreen(win, doc, 'scr-mode', 3000);
+      click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+      click(doc, 'modeNextBtn');
+      await sleep(win, 60);
+      for (let i = 0; i < 8; i++) {
+        const cur = activeScreen(doc);
+        if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+        if (cur === 'scr-set-timer' && el(doc, 'timerEnableToggle').classList.contains('on')) {
+          click(doc, 'timerEnableToggle'); await sleep(win, 30);
+        }
+        const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+        if (!next) break;
+        next.click(); await sleep(win, 30);
+      }
+      if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+      await waitScreen(win, doc, 'scr-ready', 3000);
+      el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+      await waitScreen(win, doc, 'scr-play', 8000);
+      assert(!app.classList.contains('theme-wolf'),
+        'あれそれどれこれのプレイ画面に夜が乗らない（scr-playは両者で共用なので要注意）');
+    }
+    assertNoErrors(errors, 'テーマの持ち越しで未捕捉の例外');
+    win.close();
+  });
+
   // ---- 再発防止：サバイバルの脱落フラグが他モードに持ち越されないこと ----
   await r.test('再発防止：サバイバルで脱落しても、次のモードに脱落状態が残らない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

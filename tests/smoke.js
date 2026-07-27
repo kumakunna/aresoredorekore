@@ -987,6 +987,135 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第18弾 第5部：設定画面の分離とターン表示 ----
+  await r.test('設定：人狼カセットでは「お題を追加」を出さない', async () => {
+    const { win, doc, errors } = await launch();
+    await startWolfRole(win, doc, 'wolf-casual', ['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    assert(el(doc, 'settingsOverlay').classList.contains('show'), '設定が開く');
+    assertEqual(el(doc, 'topicPoolSettings').style.display, 'none', '人狼ではお題まわりを隠す');
+    // 共通の項目は残っていること（隠しすぎていないか）
+    assert(el(doc, 'endGameBtn').offsetParent !== undefined, 'ゲーム終了は残る');
+    assert(el(doc, 'setNameRows'), 'プレイヤー編集は残る');
+    assert(el(doc, 'autoSaveToggle'), '記録の保存は残る');
+    assertNoErrors(errors, '人狼の設定画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：あれそれどれこれでは「お題を追加」が出る', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await sleep(win, 80);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, 'modeNextBtn');
+    await sleep(win, 60);
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    assertEqual(el(doc, 'topicPoolSettings').style.display, 'block', 'あれそれどれこれではお題まわりを出す');
+    assertNoErrors(errors, 'あれそれどれこれの設定画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('人狼：朝も夜も、いま何ターン目かと最終ターンが分かる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    // ターン数2の設定にして、2ターン目で「最終ターン」が出ることを確かめる
+    await startWolfRole(win, doc, 'wolf-casual', players, () => {
+      const minus = doc.querySelector('#scr-set-wolfrole [data-wrturn="-1"]');
+      for (let i = 0; i < 8; i++) minus.click();
+      const plus = doc.querySelector('#scr-set-wolfrole [data-wrturn="1"]');
+      plus.click();
+      assertEqual(el(doc, 'wrTurnValue').textContent, '2', 'ターン数を2にする');
+    });
+    // 役職確認中はターン数を出さない（まだゲームが始まっていない）
+    assertEqual(el(doc, 'wrTurnBanner').style.display, 'none', '役職確認では帯を出さない');
+    await runWrHandoffs(win, doc, players.length);
+
+    // 1日目の夜
+    assertEqual(el(doc, 'wrTurnBanner').style.display, 'block', '夜には帯が出る');
+    const night1 = el(doc, 'wrTurnBanner').textContent;
+    assert(/1日目の夜/.test(night1), '「1日目の夜」が出る（' + night1 + '）');
+    assert(/1／2/.test(night1), '上限つきで何ターン目かが分かる（' + night1 + '）');
+    assert(!/最終ターン/.test(night1), '1ターン目はまだ最終ではない');
+    await runWrHandoffs(win, doc, players.length);
+
+    // 1日目の朝
+    if (activeScreen(doc) === 'scr-wr-day') {
+      const day1 = el(doc, 'wrDayTurn').textContent;
+      assert(/日目の朝/.test(day1) && /／2/.test(day1), '朝にも上限つきターン数が出る（' + day1 + '）');
+      click(doc, 'wrToVoteBtn');
+      await sleep(win, 80);
+    }
+    // 1日目の投票
+    if (activeScreen(doc) === 'scr-wr-pass') {
+      assert(/投票/.test(el(doc, 'wrTurnBanner').textContent), '投票フェーズも帯に出る');
+    }
+    assertNoErrors(errors, 'ターン表示で未捕捉の例外');
+    win.close();
+
+    // ターン数1なら、最初から「最終ターン」と分かる
+    const one = await launch();
+    await startWolfRole(one.win, one.doc, 'wolf-casual', players, () => {
+      const m = one.doc.querySelector('#scr-set-wolfrole [data-wrturn="-1"]');
+      for (let i = 0; i < 8; i++) m.click();
+      assertEqual(el(one.doc, 'wrTurnValue').textContent, '1', 'ターン数を1にする');
+    });
+    await runWrHandoffs(one.win, one.doc, players.length);   // 役職確認
+    const banner = el(one.doc, 'wrTurnBanner');
+    assertEqual(banner.style.display, 'block', '1ターン版でも帯は出る');
+    assert(/最終ターン/.test(banner.textContent), '最終ターンだと分かる（' + banner.textContent + '）');
+    assert(!/1／1/.test(banner.textContent), '最終ターンのときは「1／1」を重ねて出さない');
+    assertNoErrors(one.errors, '最終ターン表示で未捕捉の例外');
+    one.win.close();
+  });
+
+  await r.test('ワードウルフ2〜ターン：何ターン目かが手渡し画面に出る', async () => {
+    const { win, doc, errors } = await launch();
+    await startWolfMulti(win, doc, true);
+    await waitScreen(win, doc, 'scr-wolf-pass', 8000);
+    const b1 = el(doc, 'wolfTurnBanner');
+    assertEqual(b1.style.display, 'block', '2〜ターン版では帯を出す');
+    assert(/1ターン目/.test(b1.textContent), '1ターン目と出る（' + b1.textContent + '）');
+    assert(/1／2/.test(b1.textContent), '上限つきで出る（' + b1.textContent + '）');
+    win.close();
+
+    // 1ターン版では帯そのものを出さない
+    const two = await launch();
+    const cart = two.doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(two.doc) === 'scr-shelf') cart.click();
+    await waitScreen(two.win, two.doc, 'scr-game', 3000);
+    two.doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await sleep(two.win, 60);
+    await fillPlayerForm(two.win, two.doc, PLAYERS);
+    await waitScreen(two.win, two.doc, 'scr-mode', 3000);
+    click(two.doc, two.doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(two.doc, 'modeNextBtn');
+    await sleep(two.win, 60);
+    for (let i = 0; i < 6; i++) {
+      const cur = activeScreen(two.doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      if (cur === 'scr-set-timer' && el(two.doc, 'timerEnableToggle').classList.contains('on')) {
+        click(two.doc, 'timerEnableToggle'); await sleep(two.win, 30);
+      }
+      const next = two.doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click(); await sleep(two.win, 30);
+    }
+    if (activeScreen(two.doc) === 'scr-mode-rules') { click(two.doc, 'rulesStartBtn'); await sleep(two.win, 60); }
+    await waitScreen(two.win, two.doc, 'scr-ready', 3000);
+    el(two.doc, 'holdBtn').dispatchEvent(new two.win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(two.win, two.doc, 'scr-wolf-pass', 8000);
+    assertEqual(el(two.doc, 'wolfTurnBanner').style.display, 'none', '1ターン版では帯を出さない');
+    assertNoErrors(two.errors, 'ワードウルフのターン表示で未捕捉の例外');
+    two.win.close();
+  });
+
   // ---- 再発防止：サバイバルの脱落フラグが他モードに持ち越されないこと ----
   await r.test('再発防止：サバイバルで脱落しても、次のモードに脱落状態が残らない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

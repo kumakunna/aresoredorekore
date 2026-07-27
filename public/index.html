@@ -563,6 +563,13 @@
   .wolf-handoff{
     flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;
   }
+  /* 第18弾-5：いま何ターン目かの帯。画面の一番上に固定で置き、手渡し中も常に見える */
+  .turn-banner{
+    flex:none;text-align:center;font-size:12px;letter-spacing:.08em;
+    color:var(--ink-soft);padding:10px 0 2px;
+  }
+  .turn-banner b{color:var(--ink);font-weight:700;}
+  .turn-banner .final{color:#B3452F;font-weight:700;}
   .wolf-handoff-label{font-size:13px;color:var(--ink-soft);letter-spacing:.1em;}
   .wolf-handoff-name{font-family:'Shippori Mincho',serif;font-weight:800;font-size:44px;margin:6px 0 4px;}
   .wolf-handoff-sub{font-size:13px;color:var(--ink-soft);margin-bottom:28px;}
@@ -1065,6 +1072,7 @@
 
   <!-- wolf: pass-the-phone (reveal / vote) -->
   <div class="screen" id="scr-wolf-pass">
+    <div class="turn-banner" id="wolfTurnBanner" style="display:none;"></div>
     <div id="wolfHandoffScreen" class="wolf-handoff">
       <div class="wolf-handoff-label">つぎは</div>
       <div class="wolf-handoff-name" id="wolfHandoffName">-</div>
@@ -1111,6 +1119,8 @@
        画面はここ、ルールは public/js/wolf-logic.js。役職の判定や勝敗はこの画面では行わない。 -->
   <!-- 手渡し（役職確認・夜の行動・投票をすべてここで扱う） -->
   <div class="screen" id="scr-wr-pass">
+    <!-- 第18弾-5：いま何ターン目かを常に出す。全員に同じものを出すので匿名性には影響しない -->
+    <div class="turn-banner" id="wrTurnBanner"></div>
     <div id="wrHandoff" class="wolf-handoff">
       <div class="wolf-handoff-label">つぎは</div>
       <div class="wolf-handoff-name" id="wrHandoffName">-</div>
@@ -1128,7 +1138,7 @@
   <!-- 昼（夜の結果 → 話し合い） -->
   <div class="screen" id="scr-wr-day">
     <div class="wolf-handoff">
-      <div class="wolf-handoff-label" id="wrDayTurn">1日目の朝</div>
+      <div class="wolf-handoff-label turn-banner" id="wrDayTurn">1日目の朝</div>
       <div class="wolf-result-topic" id="wrDayNews"></div>
       <div class="play-timer" id="wrDayTimer" style="display:none;">03:00</div>
       <div class="wolf-handoff-sub">話し合って、あやしい人を決めましょう</div>
@@ -1399,7 +1409,11 @@
         <button class="btn btn-teal" id="applyPlayersBtn" style="margin-top:10px;">変更を適用</button>
       </div>
 
-      <!-- 3：お題追加（プレイヤー設定より下に配置） -->
+      <!-- 3：お題追加（プレイヤー設定より下に配置）
+           第18弾-5：共通プールのお題を使うゲームのときだけ出す。
+           人狼カセットを遊んでいる最中に「お題を追加」が並んでいると、
+           人狼のお題を足せると誤解させてしまうため。 -->
+      <div id="topicPoolSettings">
       <div class="card">
         <div class="sec-title">お題を追加</div>
         <div class="pack-note">AIが説明を作るので、みんなが知っている一般的なもの（物・場所・食べ物など）にしてください。内輪ネタや実在しない言葉だと、AIがうまく説明できません。</div>
@@ -1423,6 +1437,7 @@
         <div id="packList"></div>
         <div class="empty-note" id="packEmptyNote">まだ追加したお題はありません。</div>
       </div>
+      </div><!-- /topicPoolSettings -->
 
       <!-- 5・6：記録の保存設定と手動保存（ゲーム共通） -->
       <div class="card">
@@ -1911,13 +1926,16 @@
     // maxPlayers：そのゲームで遊べる人数の上限（省略時は8人、0は上限なし）。
     // あれそれどれこれの8人は元の物理カードに由来する制限なので変えない。
     // ワードウルフは手渡しが reveal・vote の各1周だけで人数に比例して増えないため、上限は設けない。
-    { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる', maxPlayers:8 },
+    // usesTopicPool：共通のお題プール（getPool）からお題を引くゲーム。
+    //   第18弾-5：設定画面の「お題を追加」は、このゲームを遊んでいる時だけ出す。
+    //   ワードウルフは WOLF_PAIRS、人狼はお題そのものを使わないので対象外。
+    { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる', maxPlayers:8, usesTopicPool:true },
     { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う', maxPlayers:0 },
     { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要', maxPlayers:0 }, // 0＝上限なし
-    { id:'bomb',            title:'時限爆弾',           icon:'💣', sub:'コードを解除する協力プレイ' },
-    { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点' },
-    { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち' },
-    { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う' }
+    { id:'bomb',            title:'時限爆弾',           icon:'💣', sub:'コードを解除する協力プレイ', usesTopicPool:true },
+    { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点', usesTopicPool:true },
+    { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち', usesTopicPool:true },
+    { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う', usesTopicPool:true }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -3541,6 +3559,7 @@
   function renderWolfPass(){
     var p = currentWolfPlayer();
     if(!p) return;
+    renderWolfTurnBanner();
     el('wolfHandoffName').textContent = p.name;
     el('wolfContentName').textContent = p.name;
     if(!play.wolfRevealed){
@@ -3887,6 +3906,31 @@
   // ===================== 手渡し方式の共通UI部品（第17弾） =====================
   // 既存のワードウルフと同じ見た目にするため、同じCSSクラスを使う。
   // 「誰に渡すか」「何を見せるか」は呼び出し側が決める。ここはゲームのルールを知らない。
+  // 第18弾-5：いま何ターン目か・あと何ターンかを、朝も夜も同じ書式で出す。
+  // 最終ターンは色を変えて明示する（ここを逃すと決着してしまうため）。
+  function turnBannerHtml(turn, limit, suffix){
+    var head = '<b>' + turn + suffix + '</b>';
+    if(!limit) return head;
+    if(turn >= limit) return head + '　<span class="final">🔥 最終ターン</span>';
+    return head + '　<span>全' + limit + 'ターン中 ' + turn + '／' + limit + '</span>';
+  }
+  function renderWrTurnBanner(){
+    var banner = el('wrTurnBanner');
+    // 役職確認はゲームが始まる前の配布なので、ターン数は出さない
+    if(!wr || !wr.game || wr.step === 'role'){ banner.style.display = 'none'; return; }
+    banner.style.display = 'block';
+    var suffix = (wr.step === 'night') ? '日目の夜'
+               : (wr.step === 'vote' || wr.step === 'preVote') ? '日目の投票'
+               : '日目';
+    banner.innerHTML = turnBannerHtml(wr.game.turn, wr.game.config.turnLimit, suffix);
+  }
+  // ワードウルフ（2〜ターン）用。1ターン版では帯そのものを出さない
+  function renderWolfTurnBanner(){
+    var banner = el('wolfTurnBanner');
+    if(!play.wmActive){ banner.style.display = 'none'; return; }
+    banner.style.display = 'block';
+    banner.innerHTML = turnBannerHtml(play.wmTurn, state.wmCfg.turnLimit, 'ターン目');
+  }
   function uiHandoff(opts){
     el('wrHandoff').style.display = 'block';
     el('wrContent').style.display = 'none';
@@ -4008,6 +4052,7 @@
     var id = wr.queue[wr.idx];
     var p = WolfLogic.findPlayer(wr.game, id);
     if(!p){ advanceWrQueue(); return; }
+    renderWrTurnBanner();
     var sub = wr.step === 'vote' ? 'この人にスマホを渡してください（投票）'
             : wr.step === 'night' ? 'この人にスマホを渡してください（夜の行動）'
             : 'この人にスマホを渡してください';
@@ -4179,7 +4224,8 @@
   }
 
   function enterWrDay(){
-    el('wrDayTurn').textContent = wr.game.turn + '日目の朝';
+    // 第18弾-5：朝も夜と同じ書式で、何ターン目か・最終ターンかを出す
+    el('wrDayTurn').innerHTML = turnBannerHtml(wr.game.turn, wr.game.config.turnLimit, '日目の朝');
     var deaths = (wr.nightOut && wr.nightOut.deaths) || [];
     var news;
     if(!deaths.length){
@@ -5727,7 +5773,10 @@
     var g = gameById(currentGameId());
     el('currentGameLabel').textContent = g.icon + ' ' + g.title + '（' + modeById(state.selectedModeId).title + '）';
     initSettingsPlayers();
-    renderPack();
+    // 第18弾-5：お題プールを使わないゲーム（人狼カセット）では、お題まわりを丸ごと隠す
+    var usesPool = !!g.usesTopicPool;
+    el('topicPoolSettings').style.display = usesPool ? 'block' : 'none';
+    if(usesPool) renderPack();
     el('autoSaveToggle').classList.toggle('on', state.autoSaveRecords);
     el('autoSaveSub').textContent = state.autoSaveRecords
       ? 'ラウンドごと・終了時に自動送信します'

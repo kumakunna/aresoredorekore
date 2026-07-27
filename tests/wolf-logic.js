@@ -377,6 +377,108 @@ function kill(game, name, cause) {
     assertEqual(c.peek, 1, 'のぞき見役が1人');
   });
 
+  // ---------- スコア（第18弾） ----------
+  // 投票の履歴を作る小道具（誰が誰に入れたかを1ターンぶん記録する）
+  function castVotes(game, votes) {
+    game.phase = 'vote';
+    Object.keys(votes).forEach(function (name) {
+      W.setVote(game, p(game, name).id, p(game, votes[name]).id);
+    });
+    return W.executeVote(game);
+  }
+
+  await r.test('スコア：人狼側は人数が少ないぶん、1人あたりの配点が上がる', async () => {
+    // 村人4・人狼1で人狼が勝つ → 10 × (4/1) = 40 だが上限20
+    const g = makeGame({ A: 'wolf', B: 'villager', C: 'villager', D: 'villager', E: 'villager' });
+    ['B', 'C', 'D'].forEach(n => kill(g, n));
+    W.finish(g);
+    const s = W.scoreGame(g);
+    assertEqual(s[p(g, 'A').id].points, 20, '人狼は上限の20点');
+    assertEqual(s[p(g, 'A').id].win, true, '人狼は勝ち');
+    assertEqual(s[p(g, 'E').id].points, 0, '負けた村人は0点');
+
+    // 村人2・人狼1なら 10 × 2 = 20（ちょうど上限）
+    const g2 = makeGame({ A: 'wolf', B: 'villager', C: 'villager' });
+    kill(g2, 'B');
+    W.finish(g2);
+    assertEqual(W.scoreGame(g2)[p(g2, 'A').id].points, 20, '2対1でも20点');
+  });
+
+  await r.test('スコア：村人側の勝利は10点、人狼を当てるとターンごとに加点（上限6）', async () => {
+    const g = makeGame({ A: 'wolf', B: 'villager', C: 'villager', D: 'villager' }, { turnLimit: 5 });
+    // 1ターン目：BとCが人狼Aに投票、Dは外す
+    castVotes(g, { B: 'A', C: 'A', D: 'B' });
+    W.finish(g);
+    const s = W.scoreGame(g);
+    assertEqual(s[p(g, 'B').id].points, 12, '勝利10＋人狼を1回当てて2＝12点');
+    assertEqual(s[p(g, 'C').id].points, 12, '同じく12点');
+    // Dは一度も人狼に投票できなかったので勝利点が半分
+    assertEqual(s[p(g, 'D').id].points, 5, '外した人は勝利点が半分（10→5）');
+    assertEqual(s[p(g, 'D').id].goodVotes, 0, '当てた回数は0');
+  });
+
+  await r.test('スコア：読みの精度は上限6点まで（勝利点を上回らない）', async () => {
+    const g = makeGame({ A: 'wolf', B: 'villager', C: 'villager', D: 'villager', E: 'villager' }, { turnLimit: 8 });
+    // 5ターンぶん、Bはずっと人狼に投票し続ける（2点×5＝10点ぶんだが上限6）
+    for (let i = 0; i < 5; i++) {
+      g.turn = i + 1;
+      g.log.push({ turn: g.turn, type: 'vote', votes: { [p(g, 'B').id]: p(g, 'A').id } });
+    }
+    W.finish(g);
+    const s = W.scoreGame(g);
+    assertEqual(s[p(g, 'B').id].goodVotes, 5, '5回当てている');
+    assertEqual(s[p(g, 'B').id].points, 16, '勝利10＋精度は上限6＝16点');
+    assert(s[p(g, 'B').id].points < 20, '読みが当たっても、勝った人狼（20点）は超えない');
+  });
+
+  await r.test('スコア：半減は人狼を探す側だけ。人狼・狂人・第三陣営は対象外', async () => {
+    // 人狼側が勝つ試合。狂人は村人に投票しているが、それは正しい立ち回り
+    const g = makeGame({ A: 'wolf', B: 'madman', C: 'villager', D: 'villager' });
+    g.log.push({ turn: 1, type: 'vote', votes: { [p(g, 'B').id]: p(g, 'C').id } });
+    kill(g, 'C'); kill(g, 'D');
+    W.finish(g);
+    const s = W.scoreGame(g);
+    const wolfPts = s[p(g, 'A').id].points;
+    assertEqual(s[p(g, 'B').id].points, wolfPts, '狂人は人狼と同じ点（半減されない）');
+    assert(!s[p(g, 'B').id].reasons.some(x => /半分/.test(x)), '狂人に半減の理由が付かない');
+    assertEqual(W.isVillageTeam(p(g, 'B')), false, '狂人は村人陣営ではない');
+  });
+
+  await r.test('スコア：妖狐・てるてる坊主・恋人の個人勝利', async () => {
+    // 妖狐
+    const g = makeGame({ A: 'wolf', B: 'villager', C: 'fox' });
+    kill(g, 'A', 'executed');
+    W.finish(g);
+    assertEqual(W.scoreGame(g)[p(g, 'C').id].points, 15, '妖狐の個人勝利は15点');
+
+    // てるてる坊主（処刑されて個人勝利、試合はまだ続く想定でも点は入る）
+    const g2 = makeGame({ A: 'wolf', B: 'teruteru', C: 'villager', D: 'villager' });
+    g2.phase = 'vote';
+    ['A', 'C', 'D'].forEach(n => W.setVote(g2, p(g2, n).id, p(g2, 'B').id));
+    const out = W.executeVote(g2);
+    W.checkTeruteru(g2, out.executed);
+    W.finish(g2);
+    assert(W.scoreGame(g2)[p(g2, 'B').id].points >= 15, 'てるてる坊主の個人勝利が入る');
+
+    // 恋人
+    const g3 = makeGame({ A: 'wolf', B: 'villager', C: 'villager', D: 'villager' });
+    p(g3, 'B').isLover = true; p(g3, 'C').isLover = true;
+    g3.loverIds = [p(g3, 'B').id, p(g3, 'C').id];
+    kill(g3, 'A', 'executed');
+    W.finish(g3);
+    const s3 = W.scoreGame(g3);
+    assert(s3[p(g3, 'B').id].points >= 12, '恋人の勝利分が入る');
+    assert(s3[p(g3, 'B').id].reasons.some(x => /恋人/.test(x)), '理由に恋人の勝利が出る');
+  });
+
+  await r.test('スコア：一度も投票していない人は「外した」扱いにしない', async () => {
+    const g = makeGame({ A: 'wolf', B: 'villager', C: 'villager' }, { turnLimit: 3 });
+    kill(g, 'A', 'executed'); // 投票を経ずに決着した場合
+    W.finish(g);
+    const s = W.scoreGame(g);
+    assertEqual(s[p(g, 'B').id].points, 10, '投票機会が無ければ満額の10点');
+  });
+
   // ---------- 履歴 ----------
   await r.test('履歴：ターン数・役職構成・勝敗が残る', async () => {
     const g = makeGame({ A: 'wolf', B: 'villager', C: 'seer', D: 'villager' }, { turnLimit: 4 });

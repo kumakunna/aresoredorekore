@@ -694,6 +694,7 @@
       <button id="playerPlusBtn">＋</button>
     </div>
     <div class="name-rows" id="nameRows"></div>
+    <div class="mic-status" id="playerCountNote" style="display:none;line-height:1.7;"></div>
     <button class="btn btn-main" id="setupNextBtn" style="margin-top:auto;">つぎへ</button>
     <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">🏠 棚にもどる</button>
   </div>
@@ -1901,10 +1902,11 @@
   var DEFAULT_GAME_ID = 'aresoredorekore';
   // sub は、1つのカセットに複数ゲームが入る時のゲーム選択画面で使う一言説明
   var GAMES = [
-    // maxPlayers：そのゲームで遊べる人数の上限（省略時は8人）。
+    // maxPlayers：そのゲームで遊べる人数の上限（省略時は8人、0は上限なし）。
     // あれそれどれこれの8人は元の物理カードに由来する制限なので変えない。
+    // ワードウルフは手渡しが reveal・vote の各1周だけで人数に比例して増えないため、上限は設けない。
     { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる', maxPlayers:8 },
-    { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う', maxPlayers:12 },
+    { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う', maxPlayers:0 },
     { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要', maxPlayers:0 }, // 0＝上限なし
     { id:'bomb',            title:'時限爆弾',           icon:'💣', sub:'コードを解除する協力プレイ' },
     { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点' },
@@ -2022,6 +2024,7 @@
     bombLives: 3,
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
+    winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
     wrCfg: null,                                  // 第17弾：役職あり人狼の設定
     wmCfg: { turnLimit:3, changeTopic:true },     // 第17弾：ワードウルフ（2〜ターン）の設定
     selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット
@@ -2647,6 +2650,18 @@
     while(playerDraft.length > playerDraftCount) playerDraft.pop();
     renderNameRows();
   }
+  // 人数が多い時だけ、体験面の注意を一言添える（制限はしない）
+  function renderPlayerCountNote(){
+    var note = el('playerCountNote');
+    if(!note) return;
+    var n = playerDraftCount;
+    var g = state.selectedGameId || DEFAULT_GAME_ID;
+    var msg = '';
+    if(g === 'wordwolf' && n >= 9) msg = '👥 人数が多いと、話し合いで全員が発言しにくくなります。時間を長めにするのがおすすめです。';
+    else if(g === 'wolfrole' && n >= 11) msg = '👥 人数が多いと、夜にスマホを回す回数も増えます。時間に余裕をもってどうぞ。';
+    note.textContent = msg;
+    note.style.display = msg ? 'block' : 'none';
+  }
   function renderNameRows(){
     el('playerCountLabel').textContent = playerDraftCount;
     el('nameRows').innerHTML = playerDraft.map(function(p, i){
@@ -2655,6 +2670,7 @@
         '<button class="handi-toggle'+(p.handicap?' on':'')+'" data-idx="'+i+'">★ハンデ</button>'+
       '</div>';
     }).join('');
+    renderPlayerCountNote();
   }
   el('playerMinusBtn').addEventListener('click', function(){ setPlayerCount(playerDraftCount - 1); });
   el('playerPlusBtn').addEventListener('click', function(){ setPlayerCount(playerDraftCount + 1); });
@@ -4038,10 +4054,15 @@
         '<div class="rs">' + (p.alive ? '生存' : '脱落') + '</div></div>';
     }).join('');
   }
+  // 最終結果：役職に加えて、その人が何点入ったか（と理由）も見せる
   function renderWrRoleList(){
+    var scores = WolfLogic.scoreGame(wr.game);
     return wr.game.players.map(function(p){
-      return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (p.alive ? '' : ' 💀') + '</div>' +
-        '<div class="rs">' + escapeHtml(WolfLogic.roleById(p.role).name) + '</div></div>';
+      var s = scores[p.id] || { points:0, reasons:[] };
+      var why = s.reasons.length ? '<div class="mic-status" style="text-align:right;">' + escapeHtml(s.reasons.join('／')) + '</div>' : '';
+      return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (p.alive ? '' : ' 💀') +
+        '<div class="mic-status">' + escapeHtml(WolfLogic.roleById(p.role).name) + '</div></div>' +
+        '<div class="rs">' + (s.points > 0 ? '+' + s.points : '0') + why + '</div></div>';
     }).join('');
   }
 
@@ -4057,19 +4078,17 @@
     goTo('scr-score');
   });
 
-  // 勝った陣営に加点し、履歴に構成と結果を残す
+  // スコアを反映し、履歴に構成と結果を残す（配点はロジック層が計算する）
   function applyWolfRoleScores(){
-    var r = wr.game.result || {};
+    var scores = WolfLogic.scoreGame(wr.game);
     var deltas = {};
     wr.game.players.forEach(function(p){
-      var team = WolfLogic.teamOf(p);
-      var win = (r.winner === 'village' && team === 'village')
-             || (r.winner === 'wolf' && team === 'wolf')
-             || (r.winner === 'fox' && p.role === 'fox');
-      if(r.teruteruWin && p.role === 'teruteru') win = true;
-      if(r.loversWin && p.isLover) win = true;
-      if(win){ scorePlayer(p.id, 10); deltas[p.name] = 10; }
+      var s = scores[p.id];
+      if(!s) return;
+      if(s.points > 0){ scorePlayer(p.id, s.points); deltas[p.name] = s.points; }
+      if(s.win) state.winCounts[p.id] = (state.winCounts[p.id] || 0) + 1; // 案B：勝利数も数える
     });
+    wr.scores = scores;
     // 第6部：どのゲームだったか（wordwolf / wolfrole）も残す。将来のリーダーボード用
     var summary = WolfLogic.summary(wr.game);
     summary.game = 'wolfrole';
@@ -5424,7 +5443,10 @@
       var rankMark = i === 0 && p.score > 0 ? '👑' : (i+1);
       return '<div class="player-row'+(p.eliminated ? '" style="opacity:.5;' : '')+'">'+
         '<div class="rank'+(i===0 && p.score>0 ? ' gold':'')+'">'+rankMark+'</div>'+
-        '<div class="p-name">'+escapeHtml(p.name)+(p.eliminated ? ' 💀' : '')+'</div>'+
+        '<div class="p-name">'+escapeHtml(p.name)+(p.eliminated ? ' 💀' : '')+
+          // 第18弾（案B併記）：積み重ねが見えるよう、勝った回数も小さく出す
+          (state.winCounts[p.id] ? '<div class="mic-status">🏅 '+state.winCounts[p.id]+'勝</div>' : '')+
+        '</div>'+
         '<div class="p-score">'+p.score+'</div>'+
       '</div>';
     }).join('');

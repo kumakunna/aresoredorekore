@@ -460,8 +460,11 @@
         game.lastDeaths = [p.id].concat(applyLoverDeaths(game).map(function (d) { return d.id; }));
       }
     }
+    // 誰が誰に入れたかも残す（スコアの「読みが当たったか」の判定に使う）
+    var castVotes = Object.assign({}, game.votes);
     game.votes = {};
-    game.log.push({ turn: game.turn, type: 'vote', executed: executed ? executed.id : null, counts: t.counts });
+    game.log.push({ turn: game.turn, type: 'vote', executed: executed ? executed.id : null,
+                    counts: t.counts, votes: castVotes });
     return { tally: t, executed: executed };
   }
 
@@ -539,6 +542,85 @@
     return res;
   }
 
+  // ===== スコア（第18弾・人狼専用の配点） =====
+  // 考え方：
+  //   ・勝敗が主、読みの精度が従。読みが当たっても負けた人が、勝った人を上回らないようにする
+  //   ・人数が少ない陣営ほど1人あたりの配点を上げて、人狼側の少人数ハンデをならす
+  //   ・「人狼を当てられなかった」ペナルティは、人狼を探す側（村人陣営）にだけ効かせる
+  //     人狼が村人に投票するのは正しい立ち回りであって「外した」ではないため
+  var SCORE = {
+    win: 10,          // 陣営勝利の基本点
+    wolfWinCap: 20,   // 人狼側の1人あたり上限
+    soloWin: 15,      // 妖狐・てるてる坊主の個人勝利
+    loversWin: 12,    // 恋人2人の勝利
+    perGoodVote: 2,   // 人狼に投票できたターンごと
+    goodVoteCap: 6    // 読みの精度で得られる上限
+  };
+
+  function isVillageTeam(player) { return roleById(player.role).team === TEAM.VILLAGE; }
+
+  // 各プレイヤーが「人狼に投票できたターン数」を数える
+  function goodVoteTurns(game, playerId) {
+    var n = 0;
+    (game.log || []).forEach(function (entry) {
+      if (entry.type !== 'vote' || !entry.votes) return;
+      var target = entry.votes[playerId];
+      if (!target) return;
+      var t = findPlayer(game, target);
+      if (t && t.role === 'wolf') n++;
+    });
+    return n;
+  }
+  // その人が一度でも投票したか（一度も投票していない人を「外した」扱いにしない）
+  function votedAtAll(game, playerId) {
+    return (game.log || []).some(function (entry) {
+      return entry.type === 'vote' && entry.votes && entry.votes[playerId];
+    });
+  }
+
+  function scoreGame(game) {
+    var res = game.result || evaluate(game);
+    var winner = res.winner;
+    var alive = alivePlayers(game);
+    var wolfCount = game.players.filter(function (p) { return roleById(p.role).team === TEAM.WOLF; }).length;
+    var villageCount = game.players.filter(isVillageTeam).length;
+    // 人狼側は人数が少ないぶん、1人あたりの配点を上げる
+    var wolfWin = Math.min(SCORE.wolfWinCap,
+      Math.round(SCORE.win * (wolfCount ? (villageCount / wolfCount) : 1)));
+
+    var out = {};
+    game.players.forEach(function (p) {
+      var team = roleById(p.role).team;
+      var points = 0;
+      var reasons = [];
+      var won = false;
+
+      if (winner === TEAM.VILLAGE && team === TEAM.VILLAGE) { won = true; points += SCORE.win; reasons.push('村人陣営の勝利'); }
+      else if (winner === TEAM.WOLF && team === TEAM.WOLF) { won = true; points += wolfWin; reasons.push('人狼陣営の勝利'); }
+      else if (winner === 'fox' && p.role === 'fox') { won = true; points += SCORE.soloWin; reasons.push('妖狐の勝利'); }
+
+      // 読みの精度（人狼を探す側だけの評価）
+      var good = 0;
+      if (isVillageTeam(p)) {
+        good = goodVoteTurns(game, p.id);
+        var acc = Math.min(SCORE.goodVoteCap, good * SCORE.perGoodVote);
+        if (acc > 0) { points += acc; reasons.push('人狼を見抜いた（' + good + '回）'); }
+        // 一度も人狼に投票できなかった人は、陣営の勝利点が半分になる
+        if (won && good === 0 && votedAtAll(game, p.id)) {
+          points = Math.floor(points / 2);
+          reasons.push('人狼を当てられなかったため半分');
+        }
+      }
+
+      // 個人勝利は陣営の勝敗と別に加算する
+      if (res.teruteruWin && p.role === 'teruteru') { won = true; points += SCORE.soloWin; reasons.push('てるてる坊主の個人勝利'); }
+      if (res.loversWin && p.isLover) { won = true; points += SCORE.loversWin; reasons.push('恋人の勝利'); }
+
+      out[p.id] = { points: points, win: won, goodVotes: good, reasons: reasons, alive: p.alive };
+    });
+    return out;
+  }
+
   // ===== 対戦履歴に残す内容 =====
   function summary(game) {
     var used = {};
@@ -569,6 +651,7 @@
     pendingPreVoteActions: pendingPreVoteActions, setPreVoteAction: setPreVoteAction, resolvePreVote: resolvePreVote,
     setVote: setVote, tallyVotes: tallyVotes, executeVote: executeVote, checkTeruteru: checkTeruteru,
     evaluate: evaluate, isFinalTurn: isFinalTurn, nextTurn: nextTurn, finish: finish,
+    SCORE: SCORE, scoreGame: scoreGame, isVillageTeam: isVillageTeam, goodVoteTurns: goodVoteTurns,
     summary: summary
   };
 });

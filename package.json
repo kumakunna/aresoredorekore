@@ -4,7 +4,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/wolf-logic.js && node tests/realtime.js && node tests/smoke.js && node tests/aresore.js && node tests/shelf.js"
+    "test": "node tests/wolf-logic.js && node tests/realtime.js && node tests/smoke.js && node tests/aresore.js && node tests/shelf.js",
+    "playthrough": "node tests/playthrough.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

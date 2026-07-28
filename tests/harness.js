@@ -251,9 +251,10 @@ async function setupPlayers(win, doc, names) {
 // プレイヤー設定画面が出ていれば、名前を入れて次へ進む
 async function fillPlayerForm(win, doc, names) {
   if (activeScreen(doc) !== 'scr-setup') return false;
-  // 入力欄は初期2行なので、必要な人数まで「＋」を押して増やす
+  // 入力欄は初期2行なので、必要な人数まで「＋」を押して増やす。
+  // 人狼カセットは人数無制限なので、押す回数の上限は人数ぶん確保する
   let guard = 0;
-  while (doc.querySelectorAll('#scr-setup input.draft-name').length < names.length && guard++ < 10) {
+  while (doc.querySelectorAll('#scr-setup input.draft-name').length < names.length && guard++ < names.length + 4) {
     el(doc, 'playerPlusBtn').click();
     await sleep(win, 10);
   }

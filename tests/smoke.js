@@ -1000,6 +1000,143 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第10部：複数ウルフ時の投票回数 ----
+  // ワードウルフを、ウルフ人数を指定して話し合いまで進める。
+  // 誰がウルフかは、配られたお題の少数派から割り出す。
+  async function startWordwolfWithWolves(win, doc, players, wolfCount) {
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wordwolf');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolf', 3000);
+    const sl = el(doc, 'wolfCountSlider');
+    sl.value = String(wolfCount);
+    sl.dispatchEvent(new win.Event('input', { bubbles: true }));
+    assertEqual(el(doc, 'wolfCountValue').textContent, String(wolfCount), 'ウルフの人数を設定できる');
+    for (let i = 0; i < 8; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      if (cur === 'scr-set-timer' && el(doc, 'timerEnableToggle').classList.contains('on')) {
+        click(doc, 'timerEnableToggle'); await sleep(win, 30);
+      }
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click(); await sleep(win, 35);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-wolf-pass', 8000);
+
+    const topicOf = {};
+    for (let i = 0; i < players.length; i++) {
+      if (activeScreen(doc) !== 'scr-wolf-pass') break;
+      const who = el(doc, 'wolfHandoffName').textContent.trim();
+      click(doc, 'wolfRevealBtn'); await sleep(win, 35);
+      topicOf[who] = el(doc, 'wolfTopicText').textContent.trim();
+      click(doc, 'wolfNextRevealBtn'); await sleep(win, 45);
+    }
+    const counts = {};
+    Object.keys(topicOf).forEach(n => { counts[topicOf[n]] = (counts[topicOf[n]] || 0) + 1; });
+    const minTopic = Object.keys(counts).sort((a, b) => counts[a] - counts[b])[0];
+    const wolves = Object.keys(topicOf).filter(n => topicOf[n] === minTopic);
+    await waitScreen(win, doc, 'scr-play', 5000);
+    await holdPress(win, doc, 'wolfDiscussBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+    return wolves;
+  }
+
+  // 投票を1周ぶん流す。pick は (投票する人, ボタン配列) => 押すボタン
+  async function wolfVotePass(win, doc, pick) {
+    const voters = [];
+    let g = 0;
+    while (activeScreen(doc) === 'scr-wolf-pass' && g++ < 20) {
+      const who = el(doc, 'wolfHandoffName').textContent.trim();
+      voters.push(who);
+      click(doc, 'wolfRevealBtn'); await sleep(win, 35);
+      const c = Array.from(doc.querySelectorAll('#wolfVoteGrid button'));
+      if (!c.length) break;
+      (pick(who, c) || c[0]).click();
+      await sleep(win, 45);
+    }
+    await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+    click(doc, 'wolfTallyBtn');
+    await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    return voters;
+  }
+
+  await r.test('ウルフが1人なら、投票は今までどおり1回で終わる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    const wolves = await startWordwolfWithWolves(win, doc, players, 1);
+    assertEqual(wolves.length, 1, 'ウルフは1人');
+    await wolfVotePass(win, doc, (who, c) => c[0]);
+    assert(!/つぎの投票/.test(el(doc, 'wolfResultNextBtn').textContent),
+      '投票をくり返さない（' + el(doc, 'wolfResultNextBtn').textContent + '）');
+    assert(/シープ🐑のお題/.test(el(doc, 'wolfResultTopics').textContent), 'そのまま結果が出る');
+    assertNoErrors(errors, 'ウルフ1人で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ウルフが2人なら、全員あぶり出すまで投票をくり返す', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+    const wolves = await startWordwolfWithWolves(win, doc, players, 2);
+    assertEqual(wolves.length, 2, 'ウルフは2人');
+
+    // シープは生きているウルフに投票し、ウルフはシープに逃げる
+    const toWolf = (who, c) => {
+      if (wolves.indexOf(who) !== -1) return c.find(b => wolves.indexOf(b.textContent.trim()) === -1);
+      return c.find(b => wolves.indexOf(b.textContent.trim()) !== -1);
+    };
+
+    const v1 = await wolfVotePass(win, doc, toWolf);
+    assertEqual(v1.length, players.length, '1回目は全員が投票する');
+    assertEqual(el(doc, 'wolfResultNextBtn').textContent, 'つぎの投票へ ▶', 'もう一度投票する');
+    assert(/1回目の投票/.test(el(doc, 'wolfResultTopics').textContent), '何回目か分かる');
+    assert(/ウルフでした/.test(el(doc, 'wolfResultTopics').textContent), '処刑された人の正体が分かる');
+    assert(/のこりのウルフ🐺 1人/.test(el(doc, 'wolfResultTopics').textContent), '残りの人数が分かる');
+    // まだ決着していないので、お題は伏せたまま
+    assert(!/シープ🐑のお題/.test(el(doc, 'wolfResultTopics').textContent), '途中でお題は明かさない');
+
+    click(doc, 'wolfResultNextBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 5000);
+    const v2 = await wolfVotePass(win, doc, toWolf);
+    assertEqual(v2.length, players.length - 1, '処刑された人は投票に加わらない');
+    const res = el(doc, 'wolfResultTopics').textContent;
+    assert(/シープ🐑側の勝ち/.test(res), 'ウルフを全員あぶり出せば村人側の勝ち');
+    assert(/シープ🐑のお題/.test(res), '決着したのでお題が明かされる');
+    assertEqual(el(doc, 'wolfResultNextBtn').textContent, 'つぎへ', 'ボタンが元に戻る');
+    assertNoErrors(errors, 'ウルフ2人で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ウルフを当てられないまま回数を使い切ると、ウルフ側の勝ち', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+    const wolves = await startWordwolfWithWolves(win, doc, players, 2);
+    // 全員がシープに投票し続ける＝ウルフは1人も処刑されない
+    const toSheep = (who, c) => c.find(b => wolves.indexOf(b.textContent.trim()) === -1) || c[0];
+
+    await wolfVotePass(win, doc, toSheep);
+    assertEqual(el(doc, 'wolfResultNextBtn').textContent, 'つぎの投票へ ▶', '2回目がある');
+    click(doc, 'wolfResultNextBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 5000);
+    await wolfVotePass(win, doc, toSheep);
+
+    const res = el(doc, 'wolfResultTopics').textContent;
+    assert(/ウルフ側の勝ち/.test(res), '回数を使い切ったらウルフ側の勝ち（' + res.slice(0, 30) + '）');
+    assert(!/つぎの投票/.test(el(doc, 'wolfResultNextBtn').textContent), 'これ以上は投票しない');
+    assertNoErrors(errors, '逃げ切りで未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第20弾 第9部：プリセットの再編 ----
   await r.test('プリセット：全部のせ人狼とカオス人狼（闇鍋）が別々に並ぶ', async () => {
     const { win, doc, errors } = await launch();

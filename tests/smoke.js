@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, setupPlayers, holdPress, createRunner, assert, assertEqual, assertNoErrors } = H;
+const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, createRunner, assert, assertEqual, assertNoErrors } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -52,9 +52,7 @@ async function gotoModeScreen(win, doc, gameId) {
     if (activeScreen(doc) === 'scr-shelf') cart.click(); // 中央でなければ2回目で選択
     await waitScreen(win, doc, 'scr-game', 3000);
   }
-  const gcard = doc.querySelector('#gameCards .mode-card[data-game="' + gameId + '"]');
-  assert(gcard, 'ゲーム ' + gameId + ' がカセットに含まれる');
-  gcard.click();
+  pickGame(doc, gameId);
   await sleep(win, 60);
   await fillPlayerForm(win, doc, PLAYERS); // 初回だけプレイヤー設定を通る
   await waitScreen(win, doc, 'scr-mode', 4000);
@@ -128,7 +126,7 @@ async function startModeWithTimerOff(win, doc, id) {
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     // ゲームが2つ（ワードウルフ／人狼）になったので、ゲーム選択を経由する
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -186,7 +184,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん']);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -265,7 +263,7 @@ async function startModeWithTimerOff(win, doc, id) {
     assertEqual(games.join(','), 'wordwolf,wolfrole', 'ワードウルフと人狼の2ゲームが並ぶ');
 
     // 人狼側：プリセットがそれぞれ独立したモードカードになっている
-    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -287,7 +285,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -467,7 +465,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -495,7 +493,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -548,7 +546,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん']);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -643,7 +641,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -723,7 +721,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -998,6 +996,90 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第3部：操作方式の統一 ----
+  await r.test('ゲーム選択はタップで即決定せず、「つぎへ」で確定する', async () => {
+    // 実機で、棚から来た勢いのまま誤って選んでしまう問題があった
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+
+    const wordwolf = doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]');
+    const wolfrole = doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]');
+    assert(wordwolf.classList.contains('selected'), '最初は先頭が選ばれている（未選択にしない）');
+
+    // 押しても画面は動かない
+    wolfrole.click();
+    await sleep(win, 80);
+    assertEqual(activeScreen(doc), 'scr-game', 'タップだけでは進まない');
+    assert(doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').classList.contains('selected'),
+      '選択だけが移る');
+    assert(!doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').classList.contains('selected'),
+      '前の選択は外れる');
+
+    // 選び直しても大丈夫
+    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    await sleep(win, 60);
+    assertEqual(activeScreen(doc), 'scr-game', '選び直しても進まない');
+
+    click(doc, 'gameNextBtn');
+    await sleep(win, 100);
+    assert(activeScreen(doc) !== 'scr-game', '「つぎへ」で初めて進む（' + activeScreen(doc) + '）');
+    assertNoErrors(errors, 'ゲーム選択で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('人狼の朝：話し合いの時間を止められる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    // タイマーONのまま始めたいので、ウィザードでは時間設定を触らない
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, 'modeNextBtn');
+    await sleep(win, 80);
+    for (let i = 0; i < 8; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click(); await sleep(win, 40);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+    await runWrHandoffs(win, doc, players.length); // 役職確認
+    await runWrHandoffs(win, doc, players.length); // 夜
+    await waitScreen(win, doc, 'scr-wr-day', 6000);
+
+    assert(el(doc, 'wrDayTimer').style.display !== 'none', '朝にタイマーが出る');
+    assert(el(doc, 'wrDayPauseBtn').style.display !== 'none', '一時停止ボタンが出る');
+    const t0 = el(doc, 'wrDayTimer').textContent;
+    await sleep(win, 1200);
+    assert(el(doc, 'wrDayTimer').textContent !== t0, '動いている');
+
+    click(doc, 'wrDayPauseBtn');
+    const paused = el(doc, 'wrDayTimer').textContent;
+    assertEqual(el(doc, 'wrDayPauseBtn').textContent, '▶', '止めたことがボタンで分かる');
+    await sleep(win, 1200);
+    assertEqual(el(doc, 'wrDayTimer').textContent, paused, '止まっている');
+
+    click(doc, 'wrDayPauseBtn');
+    assertEqual(el(doc, 'wrDayPauseBtn').textContent, '⏸', '再開したことが分かる');
+    await sleep(win, 1200);
+    assert(el(doc, 'wrDayTimer').textContent !== paused, 'また動き出す');
+    assertNoErrors(errors, '朝のタイマー操作で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第20弾 第2部：情報はその場で渡す ----
   await r.test('占い師は、占ったその場で結果を受け取る', async () => {
     const { win, doc, errors } = await launch();
@@ -1137,7 +1219,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか']); // 3人
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -1297,7 +1379,7 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(two.doc) === 'scr-shelf') cart.click();
     await waitScreen(two.win, two.doc, 'scr-game', 3000);
-    two.doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    pickGame(two.doc, 'wordwolf');
     await sleep(two.win, 60);
     await fillPlayerForm(two.win, two.doc, PLAYERS);
     await waitScreen(two.win, two.doc, 'scr-mode', 3000);
@@ -1335,7 +1417,7 @@ async function startModeWithTimerOff(win, doc, id) {
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
     assert(!app.classList.contains('theme-wolf'), 'ゲーム選択では夜にしない');
-    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);

@@ -5,7 +5,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  setupPlayers, createRunner, assert, assertEqual, assertNoErrors } = H;
+  setupPlayers, pickGame, createRunner, assert, assertEqual, assertNoErrors } = H;
 
 function cart(doc, id) { return doc.querySelector('.cart[data-cart="' + id + '"]'); }
 function cartIds(rail) { return Array.from(rail.querySelectorAll('.cart')).map(c => c.dataset.cart); }
@@ -218,7 +218,7 @@ function pickCart(doc, id) {
     pickCart(doc, 'jinro');
     // games が2件になったので scr-game を経由する
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await H.fillPlayerForm(win, doc, ['あき', 'びび', 'ちか']);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -261,7 +261,7 @@ function pickCart(doc, id) {
     const b = await launch();
     pickCart(b.doc, 'jinro');
     await waitScreen(b.win, b.doc, 'scr-game', 3000);
-    b.doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    pickGame(b.doc, 'wolfrole');
     await sleep(b.win, 60);
     await waitScreen(b.win, b.doc, 'scr-setup', 3000);
     for (let i = 0; i < 12; i++) click(b.doc, 'playerPlusBtn');
@@ -313,7 +313,7 @@ function pickCart(doc, id) {
     pickCart(doc, 'testmulti');
     await waitScreen(win, doc, 'scr-game', 3000);
     // ワードウルフを選ぶ → ワードウルフのモードだけが出る
-    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    pickGame(doc, 'wordwolf');
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
     assert(ids.indexOf('wordwolf') >= 0, 'ワードウルフが出る');
@@ -323,7 +323,7 @@ function pickCart(doc, id) {
     // あれそれどれこれを選び直すと、そちらのモードに切り替わる
     click(doc, 'backToShelfBtn');
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="aresoredorekore"]').click();
+    pickGame(doc, 'aresoredorekore');
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids2 = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
     assert(ids2.length >= 5, 'あれそれどれこれのモードが並ぶ（' + ids2.length + '件）');
@@ -351,7 +351,7 @@ function pickCart(doc, id) {
     await waitScreen(b.win, b.doc, 'scr-shelf', 3000);
     pickCart(b.doc, 'testmulti');
     await waitScreen(b.win, b.doc, 'scr-game', 3000);
-    b.doc.querySelector('#gameCards .mode-card[data-game="aresoredorekore"]').click();
+    pickGame(b.doc, 'aresoredorekore');
     await waitScreen(b.win, b.doc, 'scr-mode', 3000);
     click(b.doc, 'backToShelfBtn');
     await waitScreen(b.win, b.doc, 'scr-game', 3000);

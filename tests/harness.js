@@ -274,6 +274,16 @@ async function runWizardToPlay(win, doc, opts) {
   el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
 }
 
+// ゲーム選択画面でゲームを選んで確定する。
+// 第20弾-3-1でタップ即決定をやめ、「選ぶ→つぎへ」の2手になった。
+function pickGame(doc, gameId) {
+  const card = doc.querySelector('#gameCards .mode-card[data-game="' + gameId + '"]');
+  if (!card) throw new Error('ゲームカードが見つかりません: ' + gameId);
+  card.click();
+  el(doc, 'gameNextBtn').click();
+  return card;
+}
+
 // 長押しボタンを押す（第20弾で準備OK以外にも増えた）。
 // 途中でもう一度押すと計測が振り出しに戻るので、溜まりきる時間をここで確保してから返す。
 // テストでは HOLD_MS_TEST まで縮めてあるので、本番の1秒を待つ必要はない。
@@ -324,5 +334,6 @@ function assertNoErrors(errors, label) {
 
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  setupPlayers, fillPlayerForm, runWizardToPlay, holdPress, createRunner, assert, assertEqual, assertNoErrors
+  setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress,
+  createRunner, assert, assertEqual, assertNoErrors
 };

@@ -815,7 +815,10 @@
       </div>
     </div>
     <div class="wiz-body"><div id="gameCards"></div></div>
+    <!-- 第20弾-3-1：実機で誤操作が出たので、タップで即決定をやめ、
+         モード選択と同じ「選んでから確定」に揃えた -->
     <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="gameNextBtn">つぎへ ▶</button>
       <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">🏠 棚にもどる</button>
     </div>
   </div>
@@ -1964,7 +1967,10 @@
   function enterGame(){
     var c = cassetteById(state.selectedCassetteId);
     el('gameTitle').textContent = c ? (c.title || '').replace(/<br>/g, '') : 'ゲーム';
-    el('gameCards').innerHTML = cassetteGames(c).map(function(gid){
+    // 選択中がこのカセットのものでなければ、先頭に寄せる（何も選ばれていない状態を作らない）
+    var ids = cassetteGames(c);
+    if(ids.indexOf(state.selectedGameId) === -1) state.selectedGameId = ids[0];
+    el('gameCards').innerHTML = ids.map(function(gid){
       var g = gameById(gid);
       var sel = gid === state.selectedGameId;
       return '<div class="mode-card' + (sel ? ' selected' : '') + '" data-game="' + gid + '">' +
@@ -1975,10 +1981,16 @@
       '</div>';
     }).join('');
   }
+  // 第20弾-3-1：タップした瞬間に進むと、棚から来た勢いで誤操作しやすかった。
+  // ここでは選ぶだけにして、進むのは「つぎへ」に任せる（モード選択と同じ流儀）。
   el('gameCards').addEventListener('click', function(e){
     var card = e.target.closest('.mode-card');
     if(!card) return;
-    selectGame(card.dataset.game); // 選んだらそのまま次へ（余計なタップを足さない）
+    state.selectedGameId = card.dataset.game;
+    enterGame();
+  });
+  el('gameNextBtn').addEventListener('click', function(){
+    selectGame(state.selectedGameId);
   });
   // ---- 長押しドラッグでカセットを並び替える ----
   var shelfDrag = { active:false, moved:false, cart:null, rail:null, timer:null, startX:0 };

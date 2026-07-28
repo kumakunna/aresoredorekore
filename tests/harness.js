@@ -12,6 +12,8 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
 const HTML = path.join(ROOT, 'public', 'index.html');
+// テスト中の長押しの溜め時間（本番は1000ms）。詳しくは launch() の置換部分を参照
+const HOLD_MS_TEST = 60;
 
 // ---------- 疑似サーバー ----------
 // 本物のサーバーを立てずに /api/* を返す。失敗させたい時は opts で切り替える。
@@ -81,6 +83,15 @@ async function launch(opts) {
     const before = (html.match(/hidden:true/g) || []).length;
     html = html.replace(/hidden:true/g, 'hidden:false');
     if (before === 0) throw new Error('hidden:true が見つかりません（MODESの書式が変わった可能性があります）');
+  }
+  // 長押しボタンは本番で1秒かけて溜める。テストでは1回ごとに1秒待つのが積み上がり、
+  // 第20弾で長押しが増えた結果、全体の実行時間が10分近くまで伸びた。
+  // 押し心地の検証はテストの目的ではないので、待ち時間だけ縮める。
+  // （リング演出・完了処理・イベントの流れは本番とまったく同じものが走る）
+  {
+    const before = html;
+    html = html.replace('var HOLD_MS = 1000;', 'var HOLD_MS = ' + HOLD_MS_TEST + ';');
+    if (html === before) throw new Error('HOLD_MS が見つかりません（長押しの実装が変わった可能性があります）');
   }
   // 複数ゲームを持つカセットは本番にまだ無いので、テスト時だけ差し込む。
   // 本番のカセット構成は変えずに「ゲーム選択画面を通る経路」を確認するため。
@@ -264,11 +275,11 @@ async function runWizardToPlay(win, doc, opts) {
 }
 
 // 長押しボタンを押す（第20弾で準備OK以外にも増えた）。
-// 完了まで1秒かかる。途中でもう一度押すと計測が振り出しに戻るので、
-// 押しっぱなしの時間をここで確保してから返す。
+// 途中でもう一度押すと計測が振り出しに戻るので、溜まりきる時間をここで確保してから返す。
+// テストでは HOLD_MS_TEST まで縮めてあるので、本番の1秒を待つ必要はない。
 async function holdPress(win, doc, id) {
   el(doc, id).dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
-  await sleep(win, 1200);
+  await sleep(win, HOLD_MS_TEST + 60);
 }
 
 // ---------- テストランナー ----------

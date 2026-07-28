@@ -800,10 +800,38 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(taps.every(t => t === taps[0]), 'お題を見るフェーズのタップ数が全員同じ（' + taps.join(',') + '）');
     assertEqual(taps[0], 2, 'お題を見る＋選ぶ／つぎへ で2タップ');
     assert(bodies.every(b => /あなたの役職/.test(b)), '役職欄は全員に出る（消去法で役職がバレない）');
+    // 第22弾-4：のぞき見・まきこみは、お題を見る時には動かない
+    assert(!bodies.some(b => /覗きますか|投票先を公開しますか/.test(b)),
+      'お題を見る画面では、投票直前の役職は動かない');
 
-    // 投票フェーズも、能力持ちだけ操作が増えたりしない
+    // 話し合いのあと、投票の直前の手渡し
     await waitScreen(win, doc, 'scr-play', 5000);
     click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+    // 投票のまえと投票は同じ画面を使うので、人数ぶんで区切らないと隣の段階まで進む
+    const preTaps = [], preBodies = [];
+    for (let i = 0; i < players.length; i++) {
+      if (activeScreen(doc) !== 'scr-wolf-pass') break;
+      let t = 0;
+      click(doc, 'wolfRevealBtn'); t++;
+      await sleep(win, 40);
+      preBodies.push(el(doc, 'wolfRoleBox').textContent);
+      const pick = doc.querySelector('#wolfRolePickGrid button[data-wwpick]');
+      if (pick && el(doc, 'wolfRolePickGrid').style.display !== 'none') { pick.click(); t++; }
+      else { click(doc, 'wolfNextRevealBtn'); t++; }
+      await sleep(win, 50);
+      preTaps.push(t);
+    }
+    assertEqual(preTaps.length, players.length, '投票のまえも全員にスマホが回る');
+    assert(preTaps.every(t => t === 2), '投票のまえのタップ数も全員2で揃う（' + preTaps.join(',') + '）');
+    assert(preBodies.some(b => /覗きますか/.test(b)), 'ここでのぞき見役が動く');
+    assert(preBodies.some(b => /投票先を公開しますか/.test(b)), 'ここでまきこみ役が動く');
+    // 行動が無い人は、全員まったく同じ文言でなければならない
+    const idle = preBodies.filter(b => !/覗きますか|投票先を公開しますか/.test(b))
+      .map(b => b.replace(/\s+/g, ''));
+    assert(idle.length >= 1, '行動が無い人がいる');
+    assert(idle.every(b => b === idle[0]), '行動が無い人の文言は完全に同じ（' + idle.join(' / ') + '）');
+
     await waitScreen(win, doc, 'scr-wolf-pass', 6000);
     const voteTaps = [];
     let sawInfo = false;

@@ -4086,9 +4086,23 @@
     madman: 'ウルフ🐺の味方です。お題はシープ🐑と同じで、ウルフが誰かは知りません。'
   };
   function wwRoleOf(playerId){ return (play.wwRoles || {})[playerId] || null; }
-  // お題を見る画面で「1人選ぶ」役職か
+  // お題を見る画面で「1人選ぶ」役職か。
+  // 第22弾-4：のぞき見役・まきこみ役は、役職説明どおり「投票の直前」に動く。
+  // お題を見る時に覗いてしまうと、その情報を話し合いで使えてしまい、
+  // 「こっそり分かる」という設計が成り立たなくなる。
+  // 占い師（2〜ターン版）は、第18弾で「reveal時に占う」と決めた仕様のまま。
   function wwPicksAtReveal(roleId){
-    return roleId === 'seer' || roleId === 'peek' || roleId === 'involve';
+    return roleId === 'seer';
+  }
+  // 投票の直前に動く役職か
+  function wwPicksBeforeVote(roleId){
+    return roleId === 'peek' || roleId === 'involve';
+  }
+  // その回に「投票のまえに」のステップが要るか（該当役職が配られている時だけ）
+  function wwHasPreVoteStep(){
+    return Object.keys(play.wwRoles || {}).some(function(pid){
+      return wwPicksBeforeVote(play.wwRoles[pid]);
+    });
   }
   // 選んだ相手の見え方（にせもの役はウルフ側に見える／狂人はシープ側に見える）
   function wwTeamLabel(targetId){
@@ -4748,6 +4762,17 @@
     goTo('scr-wolf-pass');
     setWolfPhaseTone('night'); // また1人ずつの手渡しに戻る
   }
+  // 第22弾-4：話し合いが終わったあと、投票が始まる前の手渡し。
+  // 該当役職が誰にも配られていない回は、この手間をかけずに投票へ進む。
+  function startWolfPreVotePass(){
+    if(!wwHasPreVoteStep()){ startWolfVotePass(); return; }
+    play.wolfPhase = 'prevote';
+    play.wolfOrder = wolfSurvivors().map(function(p){ return p.id; });
+    play.wolfIndex = 0;
+    play.wolfRevealed = false;
+    goTo('scr-wolf-pass');
+    setWolfPhaseTone('night');
+  }
   function currentWolfPlayer(){
     var id = play.wolfOrder[play.wolfIndex];
     return state.players.find(function(p){ return p.id === id; });
@@ -4777,6 +4802,14 @@
       el('wolfTopicText').textContent = topic.name;
       el('wolfAwareTag').style.display = (state.wolfAware && isMinority) ? 'inline-block' : 'none';
       renderWolfRevealRole(p, isMinority);
+    } else if(play.wolfPhase === 'prevote'){
+      // 第22弾-4：話し合いのあと・投票の前。全員に同じ体裁で回し、
+      // 該当役職の人だけ選ぶ（タップ数はどちらも2で揃う）
+      el('wolfRevealArea').style.display = 'block';
+      el('wolfVoteArea').style.display = 'none';
+      el('wolfTopicText').textContent = '投票のまえに';
+      el('wolfAwareTag').style.display = 'none';
+      renderWolfPreVoteRole(p);
     } else {
       el('wolfRevealArea').style.display = 'none';
       el('wolfVoteArea').style.display = 'block';
@@ -4811,10 +4844,11 @@
         play.wolfPhase = 'discuss';
         goTo('scr-play');
         return;
-      } else {
-        goTo('scr-wolf-gather');
-        return;
       }
+      // 第22弾-4：投票のまえのステップが終わったら、そのまま投票へ
+      if(play.wolfPhase === 'prevote'){ startWolfVotePass(); return; }
+      goTo('scr-wolf-gather');
+      return;
     }
     renderWolfPass();
   }
@@ -4884,6 +4918,33 @@
       nextBtn.style.display = 'inline-flex';
     }
   }
+  // 第22弾-4：投票のまえの手渡し。
+  // 行動が無い人にも、まったく同じ体裁・同じタップ数の画面を出す
+  // （役職の有無が外から分かってはいけない）。
+  function renderWolfPreVoteRole(p){
+    var box = el('wolfRoleBox'), grid = el('wolfRolePickGrid'), nextBtn = el('wolfNextRevealBtn');
+    var roleId = wwRoleOf(p.id);
+    box.style.display = 'block';
+    if(roleId && wwPicksBeforeVote(roleId)){
+      var prompt = (roleId === 'peek') ? 'だれを覗きますか？' : 'だれの投票先を公開しますか？';
+      box.innerHTML = '<div class="mic-status" style="line-height:1.8;">' +
+        escapeHtml(WW_ROLE_DESC[roleId] || WolfLogic.roleById(roleId).desc) + '</div>' +
+        '<div class="wolf-topic-label" style="margin-top:14px;">' + escapeHtml(prompt) + '</div>';
+      grid.style.display = 'flex';
+      grid.innerHTML = state.players.filter(function(x){
+        return x.id !== p.id && !wolfIsOut(x.id);
+      }).map(function(x){
+        return '<button class="pk-btn" data-wwpick="' + x.id + '">' + escapeHtml(x.name) + '</button>';
+      }).join('');
+      nextBtn.style.display = 'none'; // 選ぶ操作がそのまま「つぎへ」になる
+    } else {
+      box.innerHTML = '<div class="mic-status" style="line-height:1.8;">' +
+        'あなたに特にすることはありません。<br>そのまま次の人にスマホを渡してください。</div>';
+      grid.style.display = 'none'; grid.innerHTML = '';
+      nextBtn.style.display = 'inline-flex';
+    }
+  }
+
   // 能力の対象を選んだ → 結果を控えて、そのまま次の人へ渡す（タップ数を増やさない）
   el('wolfRolePickGrid').addEventListener('click', function(e){
     var b = e.target.closest('button[data-wwpick]');
@@ -6928,7 +6989,8 @@
     timesUpChime(); // #3：時間切れはニュートラルな音（不正解音ではない）
     var m = modeById(state.selectedModeId);
     if(m.wolf && play.wolfPhase === 'discuss'){
-      setTimeout(function(){ startWolfVotePass(); }, 900);
+      // 第22弾-4：投票の直前に動く役職がいれば、先にその手渡しを挟む
+      setTimeout(function(){ startWolfPreVotePass(); }, 900);
     } else {
       setTimeout(function(){ goTo('scr-reveal'); }, 900);
     }

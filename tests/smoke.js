@@ -1000,6 +1000,105 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第22弾 第2〜3部：表記と、カオス人狼の稀な村人 ----
+  await r.test('人狼カセットのタイマーは「話し合いの時間」と出る', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    // 人狼（役職あり）
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    assertEqual(el(doc, 'timerStepTitle').textContent, '話し合いの時間', '人狼：見出しが正しい');
+    assert(/話し合いの時間を決めよう/.test(el(doc, 'timerStepLead').textContent), '人狼：説明も正しい');
+    assert(!/せいげん時間|ラウンドの制限時間/.test(
+      el(doc, 'timerStepTitle').textContent + el(doc, 'timerStepLead').textContent),
+      '人狼：古い表記が残っていない');
+    win.close();
+
+    // ワードウルフ
+    const b = await launch();
+    const cart2 = b.doc.querySelector('.cart[data-cart="jinro"]');
+    cart2.click();
+    if (activeScreen(b.doc) === 'scr-shelf') cart2.click();
+    await waitScreen(b.win, b.doc, 'scr-game', 3000);
+    pickGame(b.doc, 'wordwolf');
+    await sleep(b.win, 60);
+    await fillPlayerForm(b.win, b.doc, players);
+    await waitScreen(b.win, b.doc, 'scr-mode', 3000);
+    click(b.doc, b.doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(b.doc, 'modeNextBtn');
+    await waitScreen(b.win, b.doc, 'scr-set-wolf', 3000);
+    click(b.doc, b.doc.querySelector('#scr-set-wolf [data-wiz-next]'));
+    await waitScreen(b.win, b.doc, 'scr-set-timer', 3000);
+    assertEqual(el(b.doc, 'timerStepTitle').textContent, '話し合いの時間', 'ワードウルフ：見出しが正しい');
+    assertNoErrors(errors, 'タイマー表記で未捕捉の例外');
+    assertNoErrors(b.errors, 'タイマー表記（ワードウルフ）で未捕捉の例外');
+    b.win.close();
+  });
+
+  await r.test('カオス人狼：ルール文に英語が混ざっていない', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く'];
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-yaminabe"]'));
+    click(doc, 'modeNextBtn');
+    await sleep(win, 80);
+    if (activeScreen(doc) === 'scr-mode-rules') {
+      const t = el(doc, 'scr-mode-rules').textContent;
+      assert(!/village/i.test(t), 'ルール説明に英語が混ざっていない');
+      assert(/稀に/.test(t), 'ごく稀に村人が紛れることが書いてある');
+    }
+    assertNoErrors(errors, 'カオス人狼のルールで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('カオス人狼：設定画面では、稀な村人をネタバレしない', async () => {
+    // ここで「村人 1人」と出ると、始まる前に全員に分かってしまう
+    const { win, doc, errors } = await launch();
+    const players = ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く'];
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    // 何度選び直しても、設定画面は必ず「全員が役職あり」でなければならない
+    for (let i = 0; i < 30; i++) {
+      click(doc, doc.querySelector('.mode-card[data-id="wolf-normal"]'));
+      await sleep(win, 10);
+      click(doc, doc.querySelector('.mode-card[data-id="wolf-yaminabe"]'));
+      await sleep(win, 10);
+      click(doc, 'modeNextBtn');
+      await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+      const note = el(doc, 'scr-set-wolfrole').textContent;
+      assert(/全員が役職あり/.test(note), '設定画面は常に闇鍋として出る（' + i + '回目）');
+      assert(!/村人 1人/.test(note), '村人の人数を見せない（' + i + '回目）');
+      click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-back]'));
+      await waitScreen(win, doc, 'scr-mode', 3000);
+    }
+    assertNoErrors(errors, '闇鍋の設定画面で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第21弾 第4〜5部：手渡し／1人1台の切り替えと、部屋の入り口 ----
   await r.test('人狼だけ「手渡し／1人1台」を選べ、既定は手渡しのまま', async () => {
     const { win, doc, errors } = await launch();

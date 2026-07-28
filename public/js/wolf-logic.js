@@ -173,10 +173,19 @@
   // 闇鍋：村人を1人も作らず、全員が何かしらの役職を持つ編成を返す（第20弾-9-2）。
   // balancedCounts は必ず村人を1人残すので、こちらは席を全部埋めるための別関数。
   // ※共有者は「2人1組」かつ normalizeCounts が村人0になる時に落とすので、ここでは扱わない。
-  function chaosCounts(roleIds, playerCount) {
+  // 第22弾-3：ごく稀に、何の役職も持たない村人が1人だけ紛れる。
+  // 全員が役職持ちだと「自分は村人だ」という主張が絶対に嘘になるので、
+  // その前提をたまに崩して、場に揺さぶりを入れるための仕掛け。
+  var CHAOS_VILLAGER_CHANCE = 0.05; // 5%
+  function chaosCounts(roleIds, playerCount, rng) {
     var c = { wolf: 0, seer: 0, medium: 0, knight: 0, madman: 0, mason: 0, fox: 0, teruteru: 0,
               peek: 0, fake: 0, involve: 0 };
     var has = function (id) { return (roleIds || []).indexOf(id) >= 0; };
+    // 村人を1人だけ紛れさせる時は、埋める席を1つ減らして計算する。
+    // 5人未満で使うと人狼だけが残りかねないので、余裕がある時だけ。
+    var roll = rng ? rng() : Math.random();
+    var sneakVillager = (playerCount >= 5) && (roll < CHAOS_VILLAGER_CHANCE);
+    var seats = sneakVillager ? (playerCount - 1) : playerCount;
     // 人狼は多すぎると即決着するので、必ず過半数未満に収める
     var wolfCap = Math.max(1, Math.floor((playerCount - 1) / 2));
     if (has('wolf')) c.wolf = Math.min(wolfCap, playerCount >= 11 ? 3 : (playerCount >= 7 ? 2 : 1));
@@ -185,15 +194,15 @@
 
     // 席より多いなら、影響の小さい役職から落とす
     var dropOrder = ['teruteru', 'fox', 'madman', 'medium', 'knight', 'seer'];
-    for (var i = 0; i < dropOrder.length && countAssigned(c) > playerCount; i++) {
+    for (var i = 0; i < dropOrder.length && countAssigned(c) > seats; i++) {
       if (c[dropOrder[i]]) c[dropOrder[i]] = 0;
     }
-    while (countAssigned(c) > playerCount && c.wolf > 1) c.wolf--;
+    while (countAssigned(c) > seats && c.wolf > 1) c.wolf--;
 
     // 席が余っているぶんは、重ねられる役職を増やして埋める（村人を作らないのが闇鍋）
     var repeatable = ['seer', 'medium', 'knight', 'madman'].filter(has);
     var k = 0, guard = 0;
-    while (countAssigned(c) < playerCount && guard++ < 200) {
+    while (countAssigned(c) < seats && guard++ < 200) {
       if (repeatable.length) { c[repeatable[k % repeatable.length]]++; k++; }
       else if (has('wolf') && c.wolf < wolfCap) c.wolf++;
       else break; // 埋められない（村人が残る）ときは、そこで諦める

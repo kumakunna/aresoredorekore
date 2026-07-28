@@ -740,23 +740,49 @@ function kill(game, name, cause) {
   const CHAOS_ROLES = ['wolf', 'seer', 'medium', 'knight', 'madman', 'fox', 'teruteru'];
   const sum = (c) => Object.keys(c).reduce((n, k) => n + c[k], 0);
 
-  await r.test('闇鍋：席をぴったり埋めて、村人を1人も作らない', async () => {
+  // 第22弾-3で「ごく稀に村人が1人だけ紛れる」が入った。
+  // rng を渡して当たり/外れを決め打ちすると、どちらの編成も確かめられる。
+  const noVillager = () => 0.9;   // 5%の抽選を外す
+  const withVillager = () => 0.01; // 当てる
+
+  await r.test('闇鍋：ふだんは席をぴったり埋めて、村人を1人も作らない', async () => {
     [5, 6, 7, 8, 9, 10, 12, 16, 24].forEach(n => {
-      const c = W.chaosCounts(CHAOS_ROLES, n);
+      const c = W.chaosCounts(CHAOS_ROLES, n, noVillager);
       assertEqual(sum(c), n, n + '人ちょうどに配れる（村人が残らない）');
       assert(c.wolf >= 1, n + '人：人狼が必ずいる');
     });
   });
 
+  await r.test('闇鍋：ごく稀に、ただの村人が1人だけ紛れる', async () => {
+    [5, 6, 8, 12, 20].forEach(n => {
+      const c = W.chaosCounts(CHAOS_ROLES, n, withVillager);
+      assertEqual(sum(c), n - 1, n + '人：役職は1つぶん少なく、村人が1人残る');
+      assert(c.wolf >= 1, n + '人：人狼はいる');
+      assert(c.wolf < n - c.wolf, n + '人：紛れても人狼が過半数にならない');
+    });
+    // 4人以下では紛れさせない（人狼だけが残りかねないため）
+    assertEqual(sum(W.chaosCounts(CHAOS_ROLES, 4, withVillager)), 4, '4人では紛れない');
+  });
+
+  await r.test('闇鍋：紛れる確率は数%におさまっている', async () => {
+    let hit = 0;
+    const n = 8, tries = 4000;
+    for (let i = 0; i < tries; i++) {
+      if (sum(W.chaosCounts(CHAOS_ROLES, n)) === n - 1) hit++;
+    }
+    const rate = hit / tries;
+    assert(rate > 0.02 && rate < 0.09, 'ごく低い確率（実測 ' + (rate * 100).toFixed(1) + '%）');
+  });
+
   await r.test('闇鍋：人狼が過半数にならない（始まった瞬間に決着しない）', async () => {
     [5, 6, 7, 8, 9, 10, 12, 16, 24].forEach(n => {
-      const c = W.chaosCounts(CHAOS_ROLES, n);
+      const c = W.chaosCounts(CHAOS_ROLES, n, noVillager);
       assert(c.wolf < n - c.wolf, n + '人：人狼(' + c.wolf + ')より村人側(' + (n - c.wolf) + ')が多い');
     });
   });
 
   await r.test('闇鍋：席が足りなければ、影響の小さい役職から落とす', async () => {
-    const c = W.chaosCounts(CHAOS_ROLES, 5);
+    const c = W.chaosCounts(CHAOS_ROLES, 5, noVillager);
     assertEqual(sum(c), 5, '5人ぴったり');
     assertEqual(c.teruteru, 0, 'てるてる坊主から落とす');
     assertEqual(c.fox, 0, '次に妖狐を落とす');
@@ -764,7 +790,7 @@ function kill(game, name, cause) {
   });
 
   await r.test('闇鍋：人数が多いと、同じ役職が2人以上いる', async () => {
-    const c = W.chaosCounts(CHAOS_ROLES, 12);
+    const c = W.chaosCounts(CHAOS_ROLES, 12, noVillager);
     assertEqual(sum(c), 12, '12人ぴったり');
     const dup = ['seer', 'medium', 'knight', 'madman'].filter(id => c[id] >= 2);
     assert(dup.length > 0, '重ねられる役職が増えて席を埋める（' + JSON.stringify(c) + '）');
@@ -774,12 +800,24 @@ function kill(game, name, cause) {
     const players = [];
     for (let i = 0; i < 8; i++) players.push({ id: 'p' + i, name: 'P' + i });
     const g = W.createGame({
-      players, counts: W.chaosCounts(CHAOS_ROLES, 8),
+      players, counts: W.chaosCounts(CHAOS_ROLES, 8, noVillager),
       turnLimit: 7, revealRoleOnDeath: false
     });
     const villagers = g.players.filter(p => p.role === 'villager');
     assertEqual(villagers.length, 0, '村人が1人もいない');
     assertEqual(g.players.length, 8, '全員に役職が行き渡る');
+  });
+
+  await r.test('闇鍋：村人が紛れた時は、その1人だけが村人になる', async () => {
+    const players = [];
+    for (let i = 0; i < 8; i++) players.push({ id: 'p' + i, name: 'P' + i });
+    const g = W.createGame({
+      players, counts: W.chaosCounts(CHAOS_ROLES, 8, withVillager),
+      turnLimit: 7, revealRoleOnDeath: false
+    });
+    const villagers = g.players.filter(p => p.role === 'villager');
+    assertEqual(villagers.length, 1, '村人はちょうど1人');
+    assertEqual(g.players.length, 8, '人数は変わらない');
   });
 
   // ---------- 履歴 ----------

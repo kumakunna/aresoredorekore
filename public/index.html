@@ -2059,10 +2059,10 @@
       rules:"スペシャル人狼に、恋人とてるてる坊主まで加えた全部盛りです。恋人は2人1組で、どちらかが死ぬともう1人も後を追います。2人とも生き残れば恋人の勝ち。てるてる坊主は昼の投票で処刑されると、その人だけの勝ちになります。",
       bullets:["スペシャルに恋人・てるてる坊主を追加","恋人はどちらかが死ぬと後を追う","2人生き残れば恋人の勝ち","てるてる坊主は処刑されると勝ち","8人以上がおすすめ"]},
     // 第20弾-9-2：村人が1人もいない編成（闇鍋）。全員が何かしらの役職を持つ
-    {id:"wolf-yaminabe", icon:"🍲", title:"カオス人狼", sub:"村人ゼロ・全員が何かの役職", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+    {id:"wolf-yaminabe", icon:"🍲", title:"カオス人狼", sub:"ほぼ全員が何かの役職を持つ", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf','seer','medium','knight','madman','fox','teruteru'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, chaos:true, minPlayers:5 },
-      rules:"村人が1人もいない、全員が何かしらの役職を持つ編成です。人数に合わせて占い師や霊媒師が2人以上いることもあります。「自分は村人だから分からない」が通用しないので、全員が何かを主張することになります。誰の言うことも怪しく聞こえるはずです。",
-      bullets:["村人ゼロ・全員が役職持ち","人数によっては同じ役職が2人以上いる","「village」だからと黙っていられない","占い師が複数いると主張がぶつかる","5人以上で遊べる"]},
+      rules:"全員が何かしらの役職を持っている編成です。人数に合わせて占い師や霊媒師が2人以上いることもあります。「自分には何も分からない」が通用しないので、全員が何かを主張することになります。誰の言うことも怪しく聞こえるはずです。なお、ごく稀に、何も役職を持たない村人が1人だけ紛れていることがあります。",
+      bullets:["ほぼ全員が役職持ち","人数によっては同じ役職が2人以上いる","「何も分からない」で黙っていられない","占い師が複数いると主張がぶつかる","ごく稀に、ただの村人が1人だけ紛れる"]},
     {id:"bomb", icon:"💣", title:"時限爆弾", sub:"難易度別のコードを解除・ライフ3つの協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, hidden:true, game:'bomb',
       rules:"チームで協力して爆弾を解除します。コードをタップすると、AIが考えた説明文が表示されます。読んで3択で答えましょう。外れるとライフが1つ減りますが、そのコードは何度でも再挑戦できます。ライフが0になると爆発、すべてのコードを解除できればチームの勝利です。",
       bullets:["チームで協力して爆弾を解除する","コードをタップするとAIの説明文が出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る","ライフが0で爆発・全解除で勝利"]},
@@ -2477,8 +2477,14 @@
     var n = state.players.length || 4;
     state.wrCfg = {
       turnLimit: pre.turnLimit,
-      // 闇鍋は村人を1人も作らないので、席を全部埋める方の計算を使う
-      counts: pre.chaos ? WolfLogic.chaosCounts(pre.roles, n) : WolfLogic.balancedCounts(pre.roles, n),
+      // 闇鍋は村人を1人も作らないので、席を全部埋める方の計算を使う。
+      // 第22弾-3：「ごく稀に村人が1人紛れる」の抽選はここでは引かない。
+      // ここで引くと、設定画面に「村人 1人」と出て始まる前にバレてしまう。
+      // 抽選はゲームを始める瞬間（initWolfRoleRound）に回す。
+      counts: pre.chaos ? WolfLogic.chaosCounts(pre.roles, n, function(){ return 1; })
+                        : WolfLogic.balancedCounts(pre.roles, n),
+      chaos: !!pre.chaos,
+      chaosRoles: pre.chaos ? pre.roles.slice() : null,
       seerResult: pre.seerResult || 'binary',
       seerShowsThird: !!pre.seerShowsThird,
       revealRoleOnDeath: (pre.revealRoleOnDeath === undefined) ? true : !!pre.revealRoleOnDeath,
@@ -3848,13 +3854,19 @@
   }
   function renderTimerStep(){
     var m = modeById(state.selectedModeId);
-    el('timerStepTitle').textContent = m.wolf ? '話し合い時間' : 'せいげん時間';
-    el('timerStepLead').textContent = m.wolf
+    // 第22弾-2：人狼カセットのタイマーは「話し合いの時間」であって、
+    // ラウンドの制限時間ではない。ワードウルフだけ直っていて、
+    // 人狼（wolfRole）が条件から漏れ、「せいげん時間」のままだった。
+    var isTalk = !!(m.wolf || m.wolfRole);
+    el('timerStepTitle').textContent = isTalk ? '話し合いの時間' : 'せいげん時間';
+    el('timerStepLead').textContent = isTalk
       ? '話し合いの時間を決めよう。時間になったら自動で投票へ進みます。'
       : 'このラウンドの制限時間を決めよう。こだわらなければそのまま「つぎへ」でOK。';
     el('timerEnableToggle').classList.toggle('on', state.timerEnabled);
     el('timerConfigArea').style.display = state.timerEnabled ? 'block' : 'none';
-    el('timerEnableSub').textContent = state.timerEnabled ? '制限時間ありでプレイ' : 'ストップウォッチなし・手動で終了';
+    el('timerEnableSub').textContent = state.timerEnabled
+      ? (isTalk ? '時間になったら投票へ進みます' : '制限時間ありでプレイ')
+      : (isTalk ? '時間をはからず、長押しで投票へ進みます' : 'ストップウォッチなし・手動で終了');
     var t = state.customTimer || m.timer || 180;
     setWheelsToSeconds(t);
     positionWheelBand();
@@ -4299,6 +4311,7 @@
     // 設定はプリセットのまま送る。人数に合わせた配分はサーバーが計算する
     var res = await rt.startWolf({
       roles: pre.roles || ['wolf', 'seer'],
+      chaos: !!pre.chaos, // 闇鍋なら席を全部埋める（稀に村人が1人紛れる）
       turnLimit: pre.turnLimit || 5,
       seerResult: pre.seerResult,
       revealRoleOnDeath: pre.revealRoleOnDeath,
@@ -5281,6 +5294,14 @@
   function initWolfRoleRound(){
     var players = state.players.map(function(p){ return { id:p.id, name:p.name }; });
     var cfg = wrCfg(); // ウィザードで決めた設定（触っていなければプリセットのまま）
+    // 第22弾-3：闇鍋の「ごく稀に村人が1人紛れる」は、ここで初めて抽選する。
+    // 設定画面では常に「全員が役職あり」と出るので、始まるまで誰にも分からない。
+    // ただし、ウィザードで配分を触っていた場合はその意思を尊重して抽選しない
+    // （席がぴったり埋まっている＝闇鍋のままの時だけ）。
+    if(cfg.chaos && cfg.chaosRoles &&
+       WolfLogic.countAssigned(cfg.counts) === players.length){
+      cfg.counts = WolfLogic.chaosCounts(cfg.chaosRoles, players.length);
+    }
     wr = {
       game: WolfLogic.createGame({
         players: players,

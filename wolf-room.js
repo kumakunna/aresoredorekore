@@ -34,7 +34,12 @@ function startGame(room, config) {
   if (members.length < 3) return { ok: false, error: 'too_few_players', message: '3人以上必要です' };
 
   const cfg = config || {};
-  const counts = cfg.counts || WolfLogic.balancedCounts(cfg.roles || ['wolf', 'seer'], members.length);
+  // 第22弾-3：闇鍋（chaos）は席を全部埋める計算を使う。
+  // 「ごく稀に村人が1人紛れる」の抽選もここで回るので、
+  // 手渡し方式と1人1台で編成の作られ方が食い違わない。
+  const counts = cfg.counts || (cfg.chaos
+    ? WolfLogic.chaosCounts(cfg.roles || ['wolf', 'seer'], members.length)
+    : WolfLogic.balancedCounts(cfg.roles || ['wolf', 'seer'], members.length));
   const game = WolfLogic.createGame({
     players: members.map((m) => ({ id: m.id, name: m.name })),
     counts,

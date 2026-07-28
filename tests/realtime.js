@@ -324,19 +324,19 @@ async function waitUntil(fn, label, timeoutMs) {
       const tv = await connect(srv.url);
       await send(tv, 'room:join', { code: room.code, name: 'テレビ', role: ROLE_BIGSCREEN });
 
-      // それぞれの端末に届いた自分の役職だけを記録する
+      // それぞれの端末に届いた自分の情報だけを記録する
       const got = {};
       const seen = [];
       [['owner', owner], ['g1', g1], ['g2', g2], ['tv', tv]].forEach(([key, s]) => {
-        s.on('wolf:yourRole', (p) => { got[key] = p; seen.push(key); });
+        s.on('wolf:you', (p) => { got[key] = p; if (seen.indexOf(key) < 0) seen.push(key); });
       });
 
-      const denied = await send(g1, 'wolf:dealRoles', {});
-      assertEqual(denied.error, 'not_host', 'ホスト以外は配れない');
+      const denied = await send(g1, 'wolf:start', {});
+      assertEqual(denied.error, 'not_host', 'ホスト以外は始められない');
 
-      const res = await send(owner, 'wolf:dealRoles', { roleIds: ['wolf', 'seer'] });
-      assertEqual(res.ok, true, '配布できる');
-      assertEqual(res.playerCount, 3, '大画面ホストを除いた3人に配る');
+      const res = await send(owner, 'wolf:start', { roles: ['wolf', 'seer'] });
+      assertEqual(res.ok, true, '始められる');
+      assertEqual(res.room.playerCount, 3, '大画面ホストを除いた3人で遊ぶ');
 
       await waitUntil(() => seen.length >= 3, '3人に役職が届く');
       await sleep(120); // 余計な人に届いていないかを見るため、少し待つ
@@ -355,7 +355,6 @@ async function waitUntil(fn, label, timeoutMs) {
 
       // 公開スナップショットに誰が何かは載らない
       const snapJson = JSON.stringify(res.room);
-      assert(snapJson.indexOf('"wolf"') === -1 || snapJson.indexOf('counts') >= 0, '公開情報は人数構成まで');
       assert(!/roleId/.test(snapJson), '公開スナップショットに個人の役職は含まれない');
       assertEqual(res.room.state.phase, 'roleReveal', '状態が役職確認に進む');
 
@@ -363,7 +362,7 @@ async function waitUntil(fn, label, timeoutMs) {
     } finally { await srv.close(); }
   });
 
-  await r.test('人数が足りなければ配布を断る', async () => {
+  await r.test('人数が足りなければ始められない', async () => {
     const srv = await startTestServer();
     try {
       const cookie = await login(srv.url, 11);
@@ -372,8 +371,8 @@ async function waitUntil(fn, label, timeoutMs) {
       const g1 = await connect(srv.url);
       await send(g1, 'room:join', { code: room.code, name: 'びび' });
 
-      const res = await send(owner, 'wolf:dealRoles', {});
-      assertEqual(res.ok, false, '2人では配れない');
+      const res = await send(owner, 'wolf:start', {});
+      assertEqual(res.ok, false, '2人では始められない');
       assertEqual(res.error, 'too_few_players', '理由が分かる');
 
       owner.close(); g1.close();

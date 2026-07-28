@@ -1000,6 +1000,74 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第21弾 第4〜5部：手渡し／1人1台の切り替えと、部屋の入り口 ----
+  await r.test('人狼だけ「手渡し／1人1台」を選べ、既定は手渡しのまま', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+
+    // ワードウルフには出さない（手渡しだけのゲーム）
+    pickGame(doc, 'wordwolf');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    assertEqual(el(doc, 'wolfStyleRow').style.display, 'none', 'ワードウルフには切り替えを出さない');
+
+    // 人狼には出す
+    click(doc, 'backToShelfBtn');
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 80);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    assertEqual(el(doc, 'wolfStyleRow').style.display, 'block', '人狼には切り替えを出す');
+    const seg = id => doc.querySelector('#wolfStyleSeg [data-wolfstyle="' + id + '"]');
+    assert(seg('handoff').classList.contains('on'), '既定は手渡し（今までどおり）');
+    assert(!seg('realtime').classList.contains('on'), '1人1台は選ばれていない');
+
+    // 手渡しのままなら、これまでどおりウィザードへ進む
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    assertNoErrors(errors, '切り替えの表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('1人1台を選ぶと、手渡しのウィザードではなく部屋の画面へ行く', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+
+    click(doc, doc.querySelector('#wolfStyleSeg [data-wolfstyle="realtime"]'));
+    await sleep(win, 60);
+    assert(/部屋を作って/.test(el(doc, 'wolfStyleNote').textContent), '何が起きるか説明が出る');
+
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    assert(doc.getElementById('rtCreateBtn'), '部屋をつくる導線がある');
+    assert(doc.getElementById('rtJoinCode'), '部屋コードで入る導線がある');
+    // socket.io を読み込めない環境では、その旨を出して手渡しへ誘導する
+    assert(/通信の準備/.test(el(doc, 'rtLobbyStatus').textContent),
+      'つながらない時は理由が出る（' + el(doc, 'rtLobbyStatus').textContent.slice(0, 20) + '）');
+    assert(el(doc, 'rtCreateBtn').disabled, 'つながらないうちは押せない');
+
+    // モードに戻れば、手渡しのまま遊べる
+    click(doc, 'rtLobbyBackBtn');
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('#wolfStyleSeg [data-wolfstyle="handoff"]'));
+    await sleep(win, 60);
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    assertNoErrors(errors, '1人1台の入り口で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第21弾 第3部：記録画面に detail を出す ----
   await r.test('記録：人狼の記録に、勝った陣営・ターン数・役職構成が出る', async () => {
     const { win, doc, errors } = await launch();

@@ -589,6 +589,18 @@
   .seg-btn{flex:1;background:var(--card);border:none;padding:11px 8px;font-size:14px;color:var(--muted);cursor:pointer;}
   .seg-btn.on{background:var(--stamp);color:#fff;}
   .seg-btn + .seg-btn{border-left:1px solid var(--line);}
+  /* 第21弾-4：遊び方の切り替え（手渡し／1人1台） */
+  .seg-sub{font-size:10.5px;opacity:.75;font-weight:400;}
+  #wolfStyleRow{margin-bottom:14px;}
+  /* 第21弾-5：部屋の画面 */
+  .rt-code-box{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;}
+  .rt-code-label{font-size:11px;color:var(--ink-soft);letter-spacing:.14em;}
+  .rt-code{font-family:'DotGothic16',monospace;font-size:44px;letter-spacing:.16em;margin:4px 0 6px;}
+  .rt-member{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px dashed var(--line);font-size:14px;}
+  .rt-member:last-child{border-bottom:none;}
+  .rt-member .rm-name{flex:1;}
+  .rt-member .rm-tag{font-size:11px;color:var(--ink-soft);background:var(--paper-deep);border-radius:999px;padding:2px 9px;}
+  .rt-member.off{opacity:.45;}
   .ai-description{
     margin-top:10px;font-size:14px;color:var(--ink);line-height:1.6;background:#fff;
     border:1px dashed var(--line);border-radius:8px;padding:10px 12px;text-align:left;
@@ -949,6 +961,16 @@
       </div>
     </div>
     <div class="mode-score-preview" id="modeScorePreview" style="display:none;"></div>
+    <!-- 第21弾-4：人狼だけ、プリセットを選ぶ前に遊び方（何台で遊ぶか）を選ぶ。
+         全プリセットに共通の切り替えなので、カードより上に置く -->
+    <div id="wolfStyleRow" style="display:none;">
+      <div class="tp-label">何台のスマホで遊ぶ？</div>
+      <div class="seg" id="wolfStyleSeg">
+        <button class="seg-btn on" data-wolfstyle="handoff">📱 手渡し<br><span class="seg-sub">1台をまわす</span></button>
+        <button class="seg-btn" data-wolfstyle="realtime">👥 1人1台<br><span class="seg-sub">みんなのスマホ</span></button>
+      </div>
+      <div class="mic-status" id="wolfStyleNote" style="margin-top:8px;"></div>
+    </div>
     <div class="wiz-body"><div id="modeCards"></div></div>
     <div class="wiz-foot" style="flex-direction:column;">
       <button class="btn btn-main" id="modeNextBtn">つぎへ ▶</button>
@@ -1222,6 +1244,65 @@
     <div class="wiz-foot">
       <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
       <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
+  <!-- ===== 第21弾：1人1台モード（scr-rt-*）=====
+       手渡し方式の画面（scr-wr-*）とは完全に別物。あちらには一切手を入れていない。 -->
+
+  <!-- 部屋を作るか、入るか -->
+  <div class="screen" id="scr-rt-lobby">
+    <h2 class="scr-title">1人1台であそぶ</h2>
+    <p class="scr-sub">みんなのスマホをつないで遊びます</p>
+    <div class="wiz-body">
+      <div class="mic-status" id="rtLobbyStatus" style="margin-bottom:14px;"></div>
+      <div class="card">
+        <div class="sec-title">🏠 部屋をつくる</div>
+        <div class="mic-status" style="margin-bottom:10px;">ログインしている人だけが作れます。作った人が最初の進行役になります。</div>
+        <input type="text" id="rtCreateName" placeholder="あなたの名前" maxlength="12">
+        <button class="btn btn-main" id="rtCreateBtn" style="margin-top:10px;">部屋をつくる</button>
+      </div>
+      <div class="card">
+        <div class="sec-title">🚪 部屋に入る</div>
+        <div class="mic-status" style="margin-bottom:10px;">ログインは要りません。部屋コードと名前だけでどうぞ。</div>
+        <input type="text" id="rtJoinCode" placeholder="部屋コード（6文字）" maxlength="6" autocapitalize="characters">
+        <input type="text" id="rtJoinName" placeholder="あなたの名前" maxlength="12" style="margin-top:8px;">
+        <div class="tp-label" style="margin-top:12px;">この端末の役割</div>
+        <div class="seg" id="rtJoinRoleSeg">
+          <button class="seg-btn on" data-rtrole="player">🙋 プレイヤー</button>
+          <button class="seg-btn" data-rtrole="bigscreen">📺 大画面</button>
+        </div>
+        <div class="mic-status" id="rtJoinRoleNote" style="margin-top:6px;"></div>
+        <button class="btn btn-teal" id="rtJoinBtn" style="margin-top:12px;">部屋に入る</button>
+      </div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-ghost" id="rtLobbyBackBtn">← モードにもどる</button>
+    </div>
+  </div>
+
+  <!-- 部屋の待合。参加者がそのまま名簿になる -->
+  <div class="screen" id="scr-rt-room">
+    <h2 class="scr-title">部屋</h2>
+    <div class="rt-code-box">
+      <div class="rt-code-label">部屋コード</div>
+      <div class="rt-code" id="rtRoomCode">------</div>
+      <div class="mic-status">このコードを、みんなに伝えてください</div>
+    </div>
+    <div class="wiz-body">
+      <div class="tp-label">参加している人<span id="rtRoomCount">0人</span></div>
+      <div id="rtMemberList"></div>
+      <div class="mic-status" id="rtRoomNote" style="margin-top:10px;"></div>
+      <div class="toggle-row-mini" style="margin-top:14px;">
+        <div>この端末は大画面として使う
+          <div class="mic-status">ONにすると人数に数えません（TVやPC向け）</div>
+        </div>
+        <div class="switch" id="rtMyRoleToggle"></div>
+      </div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="rtStartBtn">はじめる ▶</button>
+      <button class="btn btn-ghost" id="rtLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -1843,7 +1924,11 @@
 </div>
 
 <!-- 役職あり人狼の「ルール」層。DOMに触れない純粋なロジックなので、単体テストもできる -->
+<!-- socket.io は本番のサーバーが自動で配る。読み込めなくても
+     手渡し方式は動き続ける（rt-client が available:false を返すだけ） -->
+<script src="/socket.io/socket.io.js"></script>
 <script src="js/wolf-logic.js"></script>
+<script src="js/rt-client.js"></script>
 <script>
 (function(){
   "use strict";
@@ -2393,6 +2478,7 @@
     bombLives: 3,
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
+    wolfPlayStyle: 'handoff', // 第21弾-4：'handoff'（1台をまわす）| 'realtime'（1人1台）
     winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
     wrCfg: null,                                  // 第17弾：役職あり人狼の設定
     wmCfg: { turnLimit:3, changeTopic:true },     // 第17弾：ワードウルフ（2〜ターン）の設定
@@ -3077,6 +3163,8 @@
     if(prevScreen && prevScreen.id === 'scr-wr-pass' && id !== 'scr-wr-pass') stopWrNightTimer();
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
+    if(id === 'scr-rt-lobby') enterRtLobby();
+    if(id === 'scr-rt-room') enterRtRoom();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -3269,7 +3357,32 @@
       '</div>';
     }).join('');
     renderScorePreview();
+    renderWolfStyle();
   }
+  // ---- 第21弾-4：手渡し／1人1台の切り替え ----
+  // 人狼（役職あり）だけの切り替え。全プリセットに共通なので、カードより上に置く。
+  // 手渡し方式の画面と処理はここから一切呼ばない（選んだ時だけ別の入り口へ進む）。
+  function renderWolfStyle(){
+    var row = el('wolfStyleRow');
+    var isWolfRole = (state.selectedGameId === 'wolfrole');
+    row.style.display = isWolfRole ? 'block' : 'none';
+    if(!isWolfRole) return;
+    var style = state.wolfPlayStyle;
+    Array.prototype.forEach.call(el('wolfStyleSeg').querySelectorAll('[data-wolfstyle]'), function(b){
+      b.classList.toggle('on', b.dataset.wolfstyle === style);
+    });
+    el('wolfStyleNote').textContent = style === 'realtime'
+      ? '部屋を作って、みんなのスマホから参加します。夜の行動も投票も、全員が同時に自分の画面で行います。'
+      : '1台のスマホを順番にまわします。まわりの人には見えないように渡してください。';
+  }
+  el('wolfStyleSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-wolfstyle]');
+    if(!b) return;
+    state.wolfPlayStyle = b.dataset.wolfstyle;
+    saveLocalPrefs();
+    renderWolfStyle();
+  });
+
   // その遊び方に必要な最低人数。プリセットに書いてあればそれ、
   // 書いていない人狼系は3人（1人だけ違う役を作れる最小）、それ以外は2人。
   function modeMinPlayers(m){
@@ -4002,18 +4115,131 @@
     showFlash(m.title + 'は' + modeMinPlayers(m) + '人以上必要です（いま' + state.players.length + '人）', 'hit-wrong');
     return false;
   }
+  // 1人1台を選んでいる時は、人数も設定も部屋のほうで決まるので、
+  // 手渡し方式のウィザード（プレイヤー設定・役職の配分）には入らない
+  function goingRealtime(){
+    return state.selectedGameId === 'wolfrole' && state.wolfPlayStyle === 'realtime';
+  }
   el('modeNextBtn').addEventListener('click', function(){
+    if(goingRealtime()){ goTo('scr-rt-lobby'); return; }
     if(!guardMinPlayers()) return;
     startWizard();
   });
   el('modeAutoBtn').addEventListener('click', function(){
     // おまかせ：設定は飛ばすが、初回のルール説明は飛ばさない。
     // （ここで直接 scr-ready へ行くと、はじめて遊ぶモードでも説明が出ないままになる）
+    if(goingRealtime()){ goTo('scr-rt-lobby'); return; }
     if(!guardMinPlayers()) return;
     applyModeDefaults();
     finishWizard();
   });
   el('gearBtn').addEventListener('click', openSettings);
+
+  // ===================== 第21弾-5：1人1台の部屋 =====================
+  // 手渡し方式とは別の入り口。ここから先の画面は scr-rt-* だけを使う。
+  var rt = (typeof RTClient !== 'undefined') ? RTClient.create() : null;
+  var rtJoinRole = 'player';
+
+  function rtUnavailableMsg(){
+    return '通信の準備ができていません。ページを開き直すか、手渡し方式でお楽しみください。';
+  }
+  function enterRtLobby(){
+    el('rtLobbyStatus').textContent = (rt && rt.available())
+      ? '' : rtUnavailableMsg();
+    el('rtCreateBtn').disabled = !(rt && rt.available());
+    el('rtJoinBtn').disabled = !(rt && rt.available());
+    if(rt && rt.available()) rt.connect();
+    // ログイン名が分かっていれば、作る側の名前に入れておく
+    if(state.username && !el('rtCreateName').value) el('rtCreateName').value = state.username;
+    renderRtJoinRole();
+  }
+  function renderRtJoinRole(){
+    Array.prototype.forEach.call(el('rtJoinRoleSeg').querySelectorAll('[data-rtrole]'), function(b){
+      b.classList.toggle('on', b.dataset.rtrole === rtJoinRole);
+    });
+    el('rtJoinRoleNote').textContent = rtJoinRole === 'bigscreen'
+      ? 'TVやPCなど、みんなで見る画面として使います。ゲームの人数には数えません。'
+      : 'この端末で自分の役職を見て、夜の行動や投票をします。';
+  }
+  el('rtJoinRoleSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-rtrole]');
+    if(!b) return;
+    rtJoinRole = b.dataset.rtrole;
+    renderRtJoinRole();
+  });
+  el('rtLobbyBackBtn').addEventListener('click', function(){ goBack('scr-mode'); });
+
+  el('rtCreateBtn').addEventListener('click', async function(){
+    var name = el('rtCreateName').value.trim();
+    if(!name){ el('rtLobbyStatus').textContent = '名前を入れてください'; return; }
+    this.disabled = true;
+    var res = await rt.createRoom(name, 'player');
+    this.disabled = false;
+    if(!res.ok){
+      el('rtLobbyStatus').textContent = (res.error === 'auth_required')
+        ? '部屋を作るにはログインが必要です（設定からログインしてください）'
+        : (res.message || '部屋を作れませんでした');
+      return;
+    }
+    goTo('scr-rt-room');
+  });
+  el('rtJoinBtn').addEventListener('click', async function(){
+    var code = el('rtJoinCode').value.trim().toUpperCase();
+    var name = el('rtJoinName').value.trim();
+    if(!code || !name){ el('rtLobbyStatus').textContent = '部屋コードと名前を入れてください'; return; }
+    this.disabled = true;
+    var res = await rt.joinRoom(code, name, rtJoinRole);
+    this.disabled = false;
+    if(!res.ok){
+      el('rtLobbyStatus').textContent = res.message || '部屋に入れませんでした';
+      return;
+    }
+    goTo('scr-rt-room');
+  });
+
+  function enterRtRoom(){ renderRtRoom(); }
+  function renderRtRoom(){
+    var room = rt && rt.state.room;
+    if(!room) return;
+    el('rtRoomCode').textContent = room.code;
+    el('rtRoomCount').textContent = room.playerCount + '人';
+    var meId = rt.state.memberId;
+    el('rtMemberList').innerHTML = (room.members || []).map(function(m){
+      var tags = [];
+      if(m.isHost) tags.push('進行役');
+      if(m.role === 'bigscreen') tags.push('大画面');
+      if(m.id === meId) tags.push('あなた');
+      return '<div class="rt-member'+(m.connected?'':' off')+'">'+
+        '<span class="rm-name">'+escapeHtml(m.name)+'</span>'+
+        tags.map(function(t){ return '<span class="rm-tag">'+t+'</span>'; }).join('')+
+        (m.connected ? '' : '<span class="rm-tag">切断中</span>')+
+      '</div>';
+    }).join('');
+    var me = rt.me();
+    el('rtMyRoleToggle').classList.toggle('on', !!(me && me.role === 'bigscreen'));
+    // 始められるのは進行役だけ。人数が足りているかもここで見る
+    var need = modeMinPlayers(modeById(state.selectedModeId));
+    var enough = room.playerCount >= need;
+    el('rtStartBtn').disabled = !(rt.isHost() && enough);
+    el('rtRoomNote').textContent = !rt.isHost()
+      ? '進行役がはじめるのを待っています'
+      : (enough ? 'そろったら「はじめる」を押してください'
+                : need + '人以上そろうと始められます（いま' + room.playerCount + '人）');
+  }
+  el('rtMyRoleToggle').addEventListener('click', async function(){
+    var me = rt.me();
+    if(!me) return;
+    await rt.setRole(me.role === 'bigscreen' ? 'player' : 'bigscreen');
+  });
+  el('rtLeaveBtn').addEventListener('click', async function(){
+    await rt.leave();
+    goBack('scr-rt-lobby');
+  });
+  if(rt){
+    rt.on('room', function(){
+      if(el('scr-rt-room').classList.contains('active')) renderRtRoom();
+    });
+  }
 
   // ===================== 4.5 mode rules =====================
   function renderModeRules(){

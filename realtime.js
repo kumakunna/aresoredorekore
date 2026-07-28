@@ -13,6 +13,7 @@
 
 const crypto = require('crypto');
 const WolfLogic = require('./public/js/wolf-logic.js');
+const WolfRoom = require('./wolf-room.js');
 
 // 紛らわしい文字（0/O, 1/I/L など）を除いた部屋コード用の文字
 const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -27,6 +28,16 @@ const HEARTBEAT_TIMEOUT_MS = 25000;
 const SWEEP_INTERVAL_MS = 5000;
 // 空になった部屋を片付けるまでの猶予（全員が一時的に切れただけ、というケースを守る）
 const EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
+
+// db.js はネイティブモジュール（better-sqlite3）を読む。
+// 読めない環境でも realtime 自体は動かしたいので、失敗しても落とさない。
+function safeRequireDb() {
+  try { return require('./db'); }
+  catch (e) {
+    console.warn('[realtime] db を読み込めませんでした。対戦履歴は保存されません:', e.message);
+    return null;
+  }
+}
 
 function randomCode() {
   const bytes = crypto.randomBytes(CODE_LENGTH);
@@ -131,7 +142,9 @@ function publicSnapshot(room) {
     state: {
       phase: room.state.phase,
       game: room.state.game,
-      data: room.state.data
+      // 人狼が始まっていれば、公開してよい範囲だけを載せる。
+      // 役職・投票先などの秘密は publicView が一切通さない
+      data: room.wolf ? WolfRoom.publicView(room) : room.state.data
     }
   };
 }
@@ -145,6 +158,11 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   const { Server } = require('socket.io');
   const opts = options || {};
   const store = opts.store || new RoomStore();
+  // 第21弾-8：対戦履歴は、HTTP API ではなくサーバーから直接書く。
+  // /api/matches は requireAuth ＋ req.session.userId で本人性を見るため、
+  // 部屋のオーナーがゲーム終了時にその場に居ないと記録できない（指示19の申し送り）。
+  // テストからは差し替えられるようにしておく。
+  const db = (opts.db !== undefined) ? opts.db : safeRequireDb();
   // 掃除の間隔と猶予はテストから短くできるようにする（本番は既定値のまま）
   const sweepIntervalMs = opts.sweepIntervalMs || SWEEP_INTERVAL_MS;
   const emptyRoomTtlMs = opts.emptyRoomTtlMs != null ? opts.emptyRoomTtlMs : EMPTY_ROOM_TTL_MS;
@@ -179,6 +197,62 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     const s = socketOf(memberId, room);
     if (s) s.emit(event, payload);
   }
+
+  // 第21弾-7：状態が動いたら、公開情報は全員へ、秘密は本人にだけ配る。
+  // 秘密を配る先は「その人のsocket」だけなので、大画面ホストには何も届かない
+  // （大画面はプレイヤーではないので privateFor が null を返す）。
+  function pushWolfState(room) {
+    broadcast(room); // 公開情報（publicSnapshot → WolfRoom.publicView）
+    if (!room.wolf) return;
+    for (const m of room.members.values()) {
+      const mine = WolfRoom.privateFor(room, m.id);
+      if (mine) emitPrivate(room, m.id, 'wolf:you', mine);
+    }
+    if (room.wolf.phase === WolfRoom.PHASE.ENDED && !room.wolf.recorded) {
+      room.wolf.recorded = true;
+      recordWolfMatch(room);
+      io.to('room:' + room.code).emit('wolf:ended', WolfRoom.publicView(room));
+    }
+  }
+
+  // 決着したら、部屋のオーナー（アカウント）の記録として残す。
+  // オーナーがその場に居なくても書けるよう、db を直接叩く。
+  function recordWolfMatch(room) {
+    if (!db || !room.ownerUserId || !room.wolf) return;
+    try {
+      const g = room.wolf.game;
+      const summary = WolfLogic.summary(g);
+      summary.game = 'wolfrole';
+      summary.style = 'realtime';           // 手渡しと1人1台を後から見分けられるように
+      summary.preset = room.wolf.preset || null;
+      const scores = WolfLogic.scoreGame(g);
+      const deltas = {}, finalScores = {};
+      g.players.forEach((p) => {
+        const s = scores[p.id] || { points: 0 };
+        deltas[p.name] = s.points;
+        finalScores[p.name] = s.points;
+      });
+      const rounds = [{
+        mode: room.wolf.preset || 'wolfrole',
+        score_deltas: deltas,
+        at: new Date().toISOString(),
+        detail: summary
+      }];
+      db.prepare(
+        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
+        "VALUES (?, ?, ?, ?, datetime('now'))"
+      ).run(
+        room.ownerUserId,
+        JSON.stringify(g.players.map((p) => p.name)),
+        JSON.stringify(rounds),
+        JSON.stringify(finalScores)
+      );
+    } catch (e) {
+      // 記録に失敗しても、遊んでいる人の進行は止めない
+      console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
+    }
+  }
+
 
   /**
    * ホストが居なくなった／切断されたときに、別の接続中メンバーへ即座に移す。
@@ -240,6 +314,17 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (room.emptySince && now - room.emptySince > emptyRoomTtlMs) store.delete(code);
     }
   }, sweepIntervalMs));
+
+  // 第21弾-7：夜の制限時間で締める。全員そろわなくても夜が明けるようにする
+  timers.push(setInterval(() => {
+    const now = Date.now();
+    for (const room of store.rooms.values()) {
+      const w = room.wolf;
+      if (!w || !w.deadline || now < w.deadline) continue;
+      WolfRoom.advance(room);
+      pushWolfState(room);
+    }
+  }, 500));
 
   timers.forEach((t) => { if (t.unref) t.unref(); });
 
@@ -384,51 +469,55 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       broadcast(room);
     });
 
-    // ---- 第4部-2：「操作は端末から、計算と確定はサーバーで」の最小の実物 ----
-    // 検証用。人狼を最後まで遊べるようにするものではない。
-    // ホストが配布を指示 → サーバーが wolf-logic で役職を決める → 本人にだけ結果を配る、
-    // という一連の流れが実際に動くことを確かめるためのもの。
-    socket.on('wolf:dealRoles', (payload, cb) => {
+    // ---- 第21弾 第7部：1人1台の人狼 ----
+    // 進行・役職判定・勝敗判定はすべてサーバー（wolf-room.js → wolf-logic.js）。
+    // 端末は「自分の情報を受け取って表示し、操作を送る」だけ。
+    socket.on('wolf:start', (payload, cb) => {
       const room = currentRoom();
       const me = currentMember();
       if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
-      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが操作できます');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが始められます');
+      if (room.wolf) return fail(cb, 'already_started', 'もう始まっています');
 
-      // 大画面ホストは参加人数に数えない
-      const players = playerMembers(room);
-      if (players.length < 3) return fail(cb, 'too_few_players', '3人以上必要です');
+      const res = WolfRoom.startGame(room, payload || {});
+      if (!res.ok) return fail(cb, res.error, res.message);
+      if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
+      pushWolfState(room);
+    });
 
-      const roleIds = (payload && payload.roleIds) || ['wolf', 'seer'];
-      const counts = WolfLogic.balancedCounts(roleIds, players.length);
-      // 計算はサーバーで。クライアントは一切ロジックを持たない
-      const game = WolfLogic.createGame({
-        players: players.map((m) => ({ id: m.id, name: m.name })),
-        counts,
-        turnLimit: (payload && payload.turnLimit) || 5
-      });
+    // 夜の行動・役職確認。targetId が無ければ「確認しただけ」。
+    // 行動が無い人も必ずここを通るので、外からは誰が行動持ちか分からない。
+    socket.on('wolf:act', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me || !room.wolf) return fail(cb, 'not_in_room', '部屋に入っていません');
+      const res = WolfRoom.submitAction(room, me.id, (payload && payload.targetId) || null);
+      if (!res.ok) return fail(cb, res.error, '今はその操作ができません');
+      if (typeof cb === 'function') cb({ ok: true });
+      if (res.allDone) WolfRoom.advance(room);
+      pushWolfState(room);
+    });
 
-      room.state.phase = 'roleReveal';
-      room.state.game = 'wolfrole';
-      // 公開してよいのは「何の役職が何人いるか」まで。誰が何かは絶対に入れない
-      room.state.data = { counts: game.counts, turn: game.turn, dealtAt: Date.now() };
-      // 進行に必要な本体はサーバーだけが持つ（公開スナップショットには載らない）
-      room.secret = { wolfGame: game };
+    socket.on('wolf:vote', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me || !room.wolf) return fail(cb, 'not_in_room', '部屋に入っていません');
+      const res = WolfRoom.submitVote(room, me.id, (payload && payload.targetId) || null);
+      if (!res.ok) return fail(cb, res.error, '今は投票できません');
+      if (typeof cb === 'function') cb({ ok: true });
+      if (res.allDone) WolfRoom.advance(room);
+      pushWolfState(room);
+    });
 
-      // 本人にだけ、自分の役職を配る
-      game.players.forEach((p) => {
-        const role = WolfLogic.roleById(p.role);
-        emitPrivate(room, p.id, 'wolf:yourRole', {
-          roleId: p.role,
-          roleName: role ? role.name : p.role,
-          roleDesc: role ? role.desc : '',
-          team: WolfLogic.teamOf(game, p.id)
-        });
-      });
-
-      if (typeof cb === 'function') {
-        cb({ ok: true, playerCount: players.length, counts: game.counts, room: publicSnapshot(room) });
-      }
-      broadcast(room);
+    // 朝の話し合いを終える・ターンの結果を見終わる、はホストが進める
+    socket.on('wolf:next', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me || !room.wolf) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが進められます');
+      WolfRoom.advance(room);
+      if (typeof cb === 'function') cb({ ok: true });
+      pushWolfState(room);
     });
 
     socket.on('room:leave', (payload, cb) => {

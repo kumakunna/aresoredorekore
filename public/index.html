@@ -3221,6 +3221,10 @@
     if(prevScreen && prevScreen.id === 'scr-wr-day' && id !== 'scr-wr-day') stopWrDayTimer();
     // 第21弾-1：手渡し画面を離れたら、夜の持ち時間は必ず止める
     if(prevScreen && prevScreen.id === 'scr-wr-pass' && id !== 'scr-wr-pass') stopWrNightTimer();
+    // 第22弾-5：集計のカウントダウン中に画面を離れたら止める。
+    // 残しておくと、別の画面にいる間に集計が走って勝手に飛ばされる
+    if(prevScreen && (prevScreen.id === 'scr-wolf-gather' || prevScreen.id === 'scr-wr-gather')
+       && id !== prevScreen.id) stopTallyCountdown();
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-rt-lobby') enterRtLobby();
@@ -4973,28 +4977,13 @@
     if(voter) play.wolfVotes[voter.id] = btn.dataset.id;
     advanceWolfTurn();
   });
+  // 第22弾-5：人狼側と同じ uiTallyCountdown を使う（別実装をやめた）
   el('wolfTallyBtn').addEventListener('click', function(){
-    el('wolfTallyBtn').style.display = 'none';
-    var num = el('wolfCdNumber');
-    num.style.display = 'block';
-    var seq = ['3','2','1'];
-    var i = 0;
-    function tick(){
-      num.textContent = seq[i];
-      num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
-      beep(700 + i*120, 150);
-      i++;
-      if(i < seq.length){
-        setTimeout(tick, 600);
-      } else {
-        setTimeout(function(){
-          // 第20弾-10：複数ウルフなら、ここで1人ぶんの処刑を確定させる
-          if(play.wwExec && !play.wwExec.winner) resolveWolfExecution();
-          goTo('scr-wolf-result');
-        }, 500);
-      }
-    }
-    tick();
+    uiTallyCountdown(el('wolfCdNumber'), el('wolfTallyBtn'), function(){
+      // 第20弾-10：複数ウルフなら、ここで1人ぶんの処刑を確定させる
+      if(play.wwExec && !play.wwExec.winner) resolveWolfExecution();
+      goTo('scr-wolf-result');
+    });
   });
   // ---- 第20弾-10：複数ウルフ時の処刑ラウンド ----
   // 話し合いは1回のまま。投票と処刑だけを、ウルフの人数ぶんくり返す。
@@ -5328,21 +5317,40 @@
     }
   }
   // 集計前のカウントダウン（3→2→1）
+  // 集計前の 3・2・1。人狼もワードウルフもこれを使う。
+  //
+  // 第22弾-5：ワードウルフ側は同じ処理を別に書いていて、そちらは
+  // 「集計する」ボタンを display:none にしたまま戻していなかった。
+  // 1回で終わる遊び方では気づかないが、投票を2回以上まわす時
+  // （複数ウルフ・2〜ターン版）に2回目の集計画面でボタンが消え、
+  // カウントダウンの数字だけが残って進めなくなっていた。
+  // 同じ考えを2か所に書いていたことが原因なので、1つにまとめる。
+  //
+  // 進行中に画面を離れた時のために、走っているカウントダウンは必ず止める。
+  var tallyCdTimer = null;
+  function stopTallyCountdown(){
+    if(tallyCdTimer){ clearInterval(tallyCdTimer); tallyCdTimer = null; }
+  }
   function uiTallyCountdown(numberEl, btnEl, done){
+    stopTallyCountdown();
     btnEl.style.display = 'none';
     numberEl.style.display = 'block';
     var n = 3;
     numberEl.textContent = n;
-    var iv = setInterval(function(){
+    numberEl.style.animation = 'none'; void numberEl.offsetWidth; numberEl.style.animation = '';
+    beep(700, 150);
+    tallyCdTimer = setInterval(function(){
       n--;
       if(n <= 0){
-        clearInterval(iv);
+        stopTallyCountdown();
+        // 次にこの画面へ来た時のために、必ず元の状態へ戻す
         numberEl.style.display = 'none';
         btnEl.style.display = 'inline-flex';
         done();
         return;
       }
       numberEl.textContent = n;
+      numberEl.style.animation = 'none'; void numberEl.offsetWidth; numberEl.style.animation = '';
       beep(600 + (3 - n) * 120, 120);
     }, 700);
   }

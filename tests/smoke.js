@@ -1028,6 +1028,70 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第22弾 第5部：集計のカウントダウンが止まる ----
+  await r.test('再発防止：2回目の集計画面でも「集計する」が出る', async () => {
+    // ワードウルフ側が人狼側と別のカウントダウンを持っていて、
+    // そちらは「集計する」を隠したまま戻していなかった。
+    // 1回で終わる遊び方では気づかず、投票を2回まわす時だけ詰まっていた。
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+    await startWordwolfWithWolves(win, doc, players, 2); // ウルフ2人＝投票が2回
+
+    for (let round = 1; round <= 2; round++) {
+      let k = 0;
+      while (activeScreen(doc) === 'scr-wolf-pass' && k++ < 12) {
+        click(doc, 'wolfRevealBtn');
+        await sleep(win, 35);
+        const t = doc.querySelector('#wolfVoteGrid button');
+        if (!t) break;
+        t.click();
+        await sleep(win, 45);
+      }
+      await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+      assert(el(doc, 'wolfTallyBtn').style.display !== 'none',
+        round + '回目：「集計する」が出ている');
+      assertEqual(el(doc, 'wolfCdNumber').style.display, 'none',
+        round + '回目：前回の数字が残っていない');
+      click(doc, 'wolfTallyBtn');
+      await waitScreen(win, doc, 'scr-wolf-result', 8000);
+      if (!/つぎの投票/.test(el(doc, 'wolfResultNextBtn').textContent)) break;
+      click(doc, 'wolfResultNextBtn');
+      await waitScreen(win, doc, 'scr-wolf-pass', 5000);
+    }
+    assertNoErrors(errors, '2回目の集計で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('再発防止：集計の途中で画面を離れても、あとから勝手に飛ばされない', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    win.alert = () => {};
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWordwolfWithWolves(win, doc, players, 1);
+    let k = 0;
+    while (activeScreen(doc) === 'scr-wolf-pass' && k++ < 12) {
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 35);
+      const t = doc.querySelector('#wolfVoteGrid button');
+      if (!t) break;
+      t.click();
+      await sleep(win, 45);
+    }
+    await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+    click(doc, 'wolfTallyBtn');
+    await sleep(win, 100); // カウントダウンの途中
+    // 途中でゲームを終える
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    click(doc, 'endGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 6000);
+    // カウントダウンが生き残っていると、ここで結果画面へ飛ばされてしまう
+    await sleep(win, 2500);
+    assertEqual(activeScreen(doc), 'scr-shelf', '棚にいたまま動かない');
+    assertNoErrors(errors, '集計の中断で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第22弾 第2〜3部：表記と、カオス人狼の稀な村人 ----
   await r.test('人狼カセットのタイマーは「話し合いの時間」と出る', async () => {
     const { win, doc, errors } = await launch();

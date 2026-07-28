@@ -601,6 +601,13 @@
   .rt-member .rm-name{flex:1;}
   .rt-member .rm-tag{font-size:11px;color:var(--ink-soft);background:var(--paper-deep);border-radius:999px;padding:2px 9px;}
   .rt-member.off{opacity:.45;}
+  /* 第22弾-1：ログイン画面の「または」区切りと、部屋コードのQR */
+  .join-divider{display:flex;align-items:center;gap:10px;margin:18px 0 12px;color:var(--ink-soft);font-size:12px;}
+  .join-divider::before, .join-divider::after{content:'';flex:1;height:1px;background:var(--line);}
+  .qr-box{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:12px;}
+  .qr-box svg{width:150px;height:150px;border-radius:8px;background:#fff;}
+  .qr-box .qr-note{font-size:11px;color:var(--ink-soft);}
+  .big-wrap .qr-box svg{width:min(30vw,260px);height:min(30vw,260px);}
   /* 第21弾-7：自分の端末の画面 */
   .rt-phase{text-align:center;font-family:'Shippori Mincho',serif;font-weight:800;font-size:26px;margin:6px 0 12px;}
   .rt-public{text-align:center;font-size:13px;color:var(--ink-soft);line-height:1.8;margin-bottom:14px;}
@@ -922,6 +929,8 @@
     </div>
     <div id="shelfList"></div>
     <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ</div>
+    <!-- 第22弾-1：誰かの部屋に呼ばれた時は、棚からも入れる -->
+    <button class="btn btn-ghost" id="shelfJoinRoomBtn" style="margin-top:6px;">🚪 部屋に参加する</button>
   </div>
 
   <!-- 2: login -->
@@ -942,6 +951,32 @@
     <div class="serial-error" id="loginError"></div>
     <button class="btn btn-main" id="loginSubmitBtn" style="margin-top:8px;">ログイン</button>
     <button class="btn btn-ghost" id="loginToggleBtn">はじめて使う方はこちら</button>
+    <!-- 第22弾-1：呼ばれて参加するだけの人は、ログインも棚も要らない -->
+    <div class="join-divider"><span>または</span></div>
+    <button class="btn btn-outline" id="loginJoinRoomBtn">🚪 部屋に参加する（ログイン不要）</button>
+  </div>
+
+  <!-- 第22弾-1：部屋に参加するだけの入り口。どのゲームにも紐づかない。
+       QRから飛んできた場合もここに入る -->
+  <div class="screen" id="scr-join">
+    <h2 class="scr-title">部屋に参加する</h2>
+    <p class="scr-sub">部屋コードと名前だけで入れます</p>
+    <div class="wiz-body">
+      <div class="mic-status" id="joinStatus" style="margin-bottom:14px;"></div>
+      <input type="text" id="joinCodeInput" placeholder="部屋コード（6文字）" maxlength="6"
+             autocapitalize="characters" autocorrect="off" spellcheck="false">
+      <input type="text" id="joinNameInput" placeholder="あなたの名前" maxlength="12" style="margin-top:10px;">
+      <div class="tp-label" style="margin-top:16px;">この端末の役割</div>
+      <div class="seg" id="joinRoleSeg">
+        <button class="seg-btn on" data-joinrole="player">🙋 プレイヤー</button>
+        <button class="seg-btn" data-joinrole="bigscreen">📺 大画面</button>
+      </div>
+      <div class="mic-status" id="joinRoleNote" style="margin-top:6px;"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="joinGoBtn">入る ▶</button>
+      <button class="btn btn-ghost" id="joinBackBtn" style="margin-top:0;">← もどる</button>
+    </div>
   </div>
 
   <!-- 3: setup -->
@@ -1318,7 +1353,11 @@
       <div class="mic-status">このコードを、みんなに伝えてください</div>
     </div>
     <div class="wiz-body">
-      <div class="tp-label">参加している人<span id="rtRoomCount">0人</span></div>
+      <div class="qr-box" id="rtQrBox">
+      <div id="rtQr"></div>
+      <div class="qr-note">カメラで読むと、そのまま入れます</div>
+    </div>
+    <div class="tp-label" style="margin-top:14px;">参加している人<span id="rtRoomCount">0人</span></div>
       <div id="rtMemberList"></div>
       <div class="mic-status" id="rtRoomNote" style="margin-top:10px;"></div>
       <div class="toggle-row-mini" style="margin-top:14px;">
@@ -1355,6 +1394,10 @@
       <div class="big-phase" id="bigPhase">部屋コード</div>
       <div class="big-main" id="bigMain">------</div>
       <div class="big-sub" id="bigSub"></div>
+      <div class="qr-box" id="bigQrBox" style="display:none;">
+        <div id="bigQr"></div>
+        <div class="qr-note">カメラで読むと、そのまま入れます</div>
+      </div>
       <div class="big-list" id="bigList"></div>
       <button class="btn btn-ghost" id="bigLeaveBtn" style="margin-top:24px;">← 部屋を出る</button>
     </div>
@@ -1983,6 +2026,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/wolf-logic.js"></script>
 <script src="js/rt-client.js"></script>
+<script src="js/qr.js"></script>
 <script>
 (function(){
   "use strict";
@@ -3184,7 +3228,9 @@
   // 棚と扉だけは、どのカセットにも属していないので常にアプリ共通の見た目に戻す。
   // 判定はカセットの theme だけを見る（ここ1箇所で着脱するので、
   // あれそれどれこれ側にテーマが漏れる経路が無い）。
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-login', 'scr-shelf'];
+  // scr-join は「どのゲームの部屋に入るか分からない」入り口なので、
+  // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-login', 'scr-shelf', 'scr-join'];
   function applyGameTheme(screenId){
     var app = el('app');
     var c = cassetteById(state.selectedCassetteId);
@@ -3227,6 +3273,7 @@
        && id !== prevScreen.id) stopTallyCountdown();
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
+    if(id === 'scr-join') enterJoinScreen();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
     if(id === 'scr-rt-play' || id === 'scr-rt-big') rtRender();
@@ -4282,11 +4329,30 @@
     goTo(rtWantScreen()); // 大画面として入ったら、そのまま大画面へ
   });
 
+  // ---- 第22弾-1：部屋コードのQR ----
+  // 参加用のURLを入れる。読み取った端末は、ログインも棚も通らず参加画面に入る。
+  function roomJoinUrl(code){
+    return location.origin + location.pathname + '?room=' + encodeURIComponent(code);
+  }
+  function renderRoomQr(boxId, code, opts){
+    var box = el(boxId);
+    if(!code || typeof QR === 'undefined'){ box.innerHTML = ''; return; }
+    try{
+      box.innerHTML = QR.toSvg(roomJoinUrl(code), opts || {});
+    }catch(e){
+      box.innerHTML = ''; // QRが作れなくても、コードの手入力で参加できる
+    }
+  }
+
   function enterRtRoom(){ renderRtRoom(); }
   function renderRtRoom(){
     var room = rt && rt.state.room;
     if(!room) return;
     el('rtRoomCode').textContent = room.code;
+    if(el('rtQr').dataset.code !== room.code){
+      el('rtQr').dataset.code = room.code;
+      renderRoomQr('rtQr', room.code);
+    }
     el('rtRoomCount').textContent = room.playerCount + '人';
     var meId = rt.state.memberId;
     el('rtMemberList').innerHTML = (room.members || []).map(function(m){
@@ -4361,11 +4427,18 @@
   // 状態が動いたら、いるべき画面へ移して描き直す。
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
   var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-big'];
+  // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
+  // 今は人狼だけだが、爆弾などが増えてもここに1行足せば済むようにしておく。
+  var RT_GAME_SCREENS = { wolfrole: 'scr-rt-play' };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
     var v = rtView();
     var started = !!(v && v.phase && v.phase !== 'lobby');
-    return started ? 'scr-rt-play' : 'scr-rt-room';
+    if(!started) return 'scr-rt-room';
+    var room = rt && rt.state.room;
+    var game = room && room.state && room.state.game;
+    // まだ対応していないゲームの部屋に入った時は、待合に留めて置き去りにしない
+    return RT_GAME_SCREENS[game] || 'scr-rt-room';
   }
   function rtSync(){
     if(!rt || !rt.state.room) return;
@@ -4537,6 +4610,12 @@
       el('bigPhase').textContent = '部屋コード';
       el('bigMain').classList.add('is-code'); // コードは読み取る文字なので書体を変える
       el('bigMain').textContent = room.code;
+      // 大画面にもQRを出す。離れた席からでもカメラを向ければ入れる
+      el('bigQrBox').style.display = 'flex';
+      if(el('bigQr').dataset.code !== room.code){
+        el('bigQr').dataset.code = room.code;
+        renderRoomQr('bigQr', room.code);
+      }
       el('bigSub').textContent = 'このコードを入れて参加してください';
       el('bigList').innerHTML = (room.members || [])
         .filter(function(m){ return m.role === 'player'; })
@@ -4546,6 +4625,7 @@
     el('bigTurn').textContent = v.turn + ' / ' + v.turnLimit + 'ターン';
     el('bigPhase').textContent = RT_PHASE_LABEL[v.phase] || v.phase;
     el('bigMain').classList.remove('is-code');
+    el('bigQrBox').style.display = 'none'; // 始まったらQRは要らない
 
     var main = '', sub = '';
     if(v.phase === 'roleReveal'){ main = '役職を配りました'; sub = '自分のスマホで確認してください'; }
@@ -4591,6 +4671,55 @@
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){ rtSync(); });
   }
+
+  // ---- 第22弾-1：ゲームに紐づかない「部屋に参加する」入り口 ----
+  // ログインも棚もカセット選択も通らない。QRから飛んできた場合もここに入る。
+  // 参加したあとは、ホストが選んでいるゲームに応じた画面へ進む。
+  var joinRole = 'player';
+  var joinBackTo = 'scr-login';
+  function renderJoinRole(){
+    Array.prototype.forEach.call(el('joinRoleSeg').querySelectorAll('[data-joinrole]'), function(b){
+      b.classList.toggle('on', b.dataset.joinrole === joinRole);
+    });
+    el('joinRoleNote').textContent = joinRole === 'bigscreen'
+      ? 'TVやPCなど、みんなで見る画面として使います。ゲームの人数には数えません。'
+      : 'この端末で自分の役職を見て、行動や投票をします。';
+  }
+  function enterJoinScreen(){
+    el('joinStatus').textContent = (rt && rt.available())
+      ? '' : '通信の準備ができていません。ページを開き直してください。';
+    el('joinGoBtn').disabled = !(rt && rt.available());
+    if(rt && rt.available()) rt.connect();
+    renderJoinRole();
+  }
+  function openJoinScreen(from){
+    joinBackTo = from || 'scr-login';
+    goTo('scr-join');
+  }
+  el('joinRoleSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-joinrole]');
+    if(!b) return;
+    joinRole = b.dataset.joinrole;
+    renderJoinRole();
+  });
+  el('joinBackBtn').addEventListener('click', function(){ goBack(joinBackTo); });
+  el('loginJoinRoomBtn').addEventListener('click', function(){ openJoinScreen('scr-login'); });
+  el('shelfJoinRoomBtn').addEventListener('click', function(){ openJoinScreen('scr-shelf'); });
+  el('joinGoBtn').addEventListener('click', async function(){
+    var code = el('joinCodeInput').value.trim().toUpperCase();
+    var name = el('joinNameInput').value.trim();
+    if(!code || !name){ el('joinStatus').textContent = '部屋コードと名前を入れてください'; return; }
+    this.disabled = true;
+    el('joinStatus').textContent = '入っています…';
+    var res = await rt.joinRoom(code, name, joinRole);
+    this.disabled = false;
+    if(!res.ok){
+      el('joinStatus').textContent = res.message || '部屋に入れませんでした';
+      return;
+    }
+    el('joinStatus').textContent = '';
+    goTo(rtWantScreen());
+  });
 
   // ===================== 4.5 mode rules =====================
   function renderModeRules(){
@@ -7829,11 +7958,25 @@
   // 起動時に必ず1回だけ通る。開くのは自動（待てない人はタップでも開く）。
   // 扉は .screen なので、開いた後は display:none になり棚を覆い続ける心配がない。
   var doorOpened = false;
+  // 第22弾-1：QRから来た時は ?room=XXXX が付いている
+  function roomCodeFromUrl(){
+    try{
+      var m = /[?&]room=([A-Za-z0-9]{4,8})/.exec(location.search || '');
+      return m ? m[1].toUpperCase() : null;
+    }catch(e){ return null; }
+  }
   async function openDoorAndEnter(){
     if(doorOpened) return;
     doorOpened = true;
     // ログイン確認は扉が開く裏で進めておく（待ち時間を足さない）
     var nextPromise = (async function(){
+      // QRで呼ばれた人は、ログインも棚も通さずに参加画面へ直行する
+      var invited = roomCodeFromUrl();
+      if(invited){
+        el('joinCodeInput').value = invited;
+        joinBackTo = 'scr-login';
+        return 'scr-join';
+      }
       try{
         var ok = await checkAuth();
         if(ok){ await fetchTopics(); return 'scr-shelf'; }

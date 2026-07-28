@@ -263,5 +263,116 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ---- 第22弾 第1部：ゲームに紐づかない参加の入り口 ----
+  await r.test('ログイン画面からも棚からも「部屋に参加する」に入れる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    // 未ログインだとログイン画面に出るので、そこから
+    if (activeScreen(doc) === 'scr-login') {
+      assert(doc.getElementById('loginJoinRoomBtn'), 'ログイン画面に導線がある');
+      click(doc, 'loginJoinRoomBtn');
+      await waitScreen(win, doc, 'scr-join', 3000);
+      assert(doc.getElementById('joinCodeInput'), '部屋コードを入れられる');
+      assert(doc.getElementById('joinNameInput'), '名前を入れられる');
+      click(doc, 'joinBackBtn');
+      await waitScreen(win, doc, 'scr-login', 3000);
+    }
+    win.close();
+
+    // ログイン済み（棚から入る場合）
+    const b = await launch(LAUNCH);
+    await waitScreen(b.win, b.doc, 'scr-shelf', 4000);
+    assert(b.doc.getElementById('shelfJoinRoomBtn'), '棚にも導線がある');
+    click(b.doc, 'shelfJoinRoomBtn');
+    await waitScreen(b.win, b.doc, 'scr-join', 3000);
+    // どのカセットにも属さない画面なので、前のテーマを引きずらない
+    assert(!el(b.doc, 'app').classList.contains('theme-wolf'), '前のカセットのテーマが乗らない');
+    click(b.doc, 'joinBackBtn');
+    await waitScreen(b.win, b.doc, 'scr-shelf', 3000);
+    assertNoErrors(errors, '参加の入り口で未捕捉の例外');
+    assertNoErrors(b.errors, '棚からの参加で未捕捉の例外');
+    b.win.close();
+  });
+
+  await r.test('参加すると、ホストが選んでいるゲームの画面へ進む', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    click(doc, 'shelfJoinRoomBtn');
+    await waitScreen(win, doc, 'scr-join', 3000);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+
+    // まだ始まっていない部屋 → 待合へ
+    fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm2', room: roomSnapshot() }) };
+    el(doc, 'joinCodeInput').value = 'ABC234';
+    el(doc, 'joinNameInput').value = 'びび';
+    click(doc, 'joinGoBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    assertEqual(el(doc, 'rtRoomCode').textContent, 'ABC234', '部屋コードが出る');
+
+    // ホストが人狼を始めたら、人狼の画面へ移る
+    push(fake, roomSnapshot({ state: { phase: 'roleReveal', game: 'wolfrole', data: wolfView() } }));
+    pushYou(fake, {
+      phase: 'roleReveal', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: false, info: null, choices: []
+    });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    assert(/村人/.test(el(doc, 'rtYouBox').textContent), '自分の役職が出る');
+    assertNoErrors(errors, '参加後の遷移で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('まだ対応していないゲームの部屋でも、置き去りにしない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    click(doc, 'shelfJoinRoomBtn');
+    await waitScreen(win, doc, 'scr-join', 3000);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm2', room: roomSnapshot() }) };
+    el(doc, 'joinCodeInput').value = 'ABC234';
+    el(doc, 'joinNameInput').value = 'びび';
+    click(doc, 'joinGoBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+
+    // 将来のゲーム（まだ画面が無い）が始まった場合
+    push(fake, roomSnapshot({ state: { phase: 'playing', game: 'bomb', data: { phase: 'playing' } } }));
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-room', '待合に留まる（真っ白な画面にしない）');
+    assertNoErrors(errors, '未対応ゲームで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('部屋コードのQRが、待合と大画面に出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    const svg = doc.querySelector('#rtQr svg');
+    assert(svg, '待合にQRが出る');
+    assert(/viewBox/.test(svg.outerHTML), 'SVGとして描かれている');
+    // xmlns に http が入るので、外部参照そのもの（画像・href・url()）だけを見る
+    assert(!/<image|href=|url\(/.test(svg.outerHTML), '外部の画像を読み込まない');
+    win.close();
+
+    // 大画面：始まる前はQRあり、始まったら消える
+    const b = await launch(LAUNCH);
+    const fake2 = await toRoom(b.win, b.doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    push(fake2, roomSnapshot({
+      members: roomSnapshot().members.map(m => m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m),
+      playerCount: 4
+    }));
+    await sleep(b.win, 120);
+    assertEqual(el(b.doc, 'bigQrBox').style.display, 'flex', '始まる前はQRを出す');
+    assert(b.doc.querySelector('#bigQr svg'), '大画面にもQRが描かれる');
+
+    push(fake2, roomSnapshot({
+      members: roomSnapshot().members.map(m => m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m),
+      state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) }
+    }));
+    await sleep(b.win, 120);
+    assertEqual(el(b.doc, 'bigQrBox').style.display, 'none', '始まったらQRは消す');
+    assertNoErrors(errors, 'QR表示で未捕捉の例外');
+    assertNoErrors(b.errors, '大画面のQRで未捕捉の例外');
+    b.win.close();
+  });
+
   r.finish();
 })();

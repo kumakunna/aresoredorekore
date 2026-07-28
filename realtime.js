@@ -281,6 +281,13 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     member.socketId = null;
     const changed = ensureHost(room, 'disconnect');
     if (!connectedMembers(room).length) room.emptySince = Date.now();
+    // 第21弾：切れた人は待たない。残っている人が全員終わっていれば、
+    // ここで先へ進める。数え直さないと、最後の1人が切れた時に止まったままになる。
+    if (room.wolf && WolfRoom.isAllDone(room)) {
+      WolfRoom.advance(room);
+      pushWolfState(room);
+      return changed;
+    }
     broadcast(room);
     return changed;
   }
@@ -415,6 +422,13 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         cb({ ok: true, code: room.code, memberId: member.id, room: publicSnapshot(room) });
       }
       broadcast(room);
+      // 第21弾：画面ロックなどで一度切れた人が戻ってきた時、
+      // 自分の役職と今の局面をすぐ受け取れるようにする。
+      // これが無いと、戻ってきても画面が止まったままになる。
+      if (room.wolf) {
+        const mine = WolfRoom.privateFor(room, member.id);
+        if (mine) emitPrivate(room, member.id, 'wolf:you', mine);
+      }
     });
 
     // ---- 第2部-3：役割の変更（自動判定はあくまで初期値。最後は本人が選ぶ） ----

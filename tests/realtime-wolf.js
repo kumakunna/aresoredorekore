@@ -302,6 +302,58 @@ async function playToEnd(rm, guard) {
     } finally { await srv.close(); }
   });
 
+  await r.test('画面ロックで切れても、戻れば同じ役職・同じ局面に復帰する', async () => {
+    // スマホの画面を消すとJSが止まり、ハートビートに応えられず切断扱いになる。
+    // プレイ中に頻繁に起きるので、戻った時に別人として増えたら困る。
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 5, false);
+      await rm.host.call('wolf:start', { roles: ['wolf', 'seer', 'knight'], turnLimit: 5 });
+      await waitUntil(() => rm.all.every((d) => d.you && d.you.roleId), '役職が配られる');
+
+      const target = rm.guests[0];
+      const myId = target.memberId;
+      const myRole = target.you.roleId;
+      const beforeCount = rm.host.room.playerCount;
+
+      // 役職確認をこの人以外が済ませる（この人は画面を消したまま）
+      for (const d of rm.all) { if (d !== target) await actOnce(d); }
+
+      // 画面が消えて切断される
+      target.close();
+      await waitUntil(() => {
+        const m = srv.store.get(rm.code).members.get(myId);
+        return m && !m.connected;
+      }, '切断として扱われる');
+
+      // 待たないので、残りの人だけで先へ進む
+      await waitUntil(() => rm.host.room.state.data.phase !== 'roleReveal',
+        '切れた人を待たずに進む', 5000);
+      const phaseNow = rm.host.room.state.data.phase;
+
+      // 画面ロックを解除して戻ってくる（socket.io がつなぎ直し、memberId を添えて入り直す）
+      const back = await device(srv.url);
+      const res = await back.call('room:join', {
+        code: rm.code, name: 'P2', memberId: myId
+      });
+      assertEqual(res.ok, true, '戻ってこられる');
+      assertEqual(res.memberId, myId, '同じメンバーとして戻る（別人として増えない）');
+      assertEqual(res.room.playerCount, beforeCount, '人数が増えていない');
+
+      // 戻った瞬間に、自分の役職と今の局面が届く
+      await waitUntil(() => back.you && back.you.roleId, '自分の情報がすぐ届く');
+      assertEqual(back.you.roleId, myRole, '役職は前と同じ（配り直されない）');
+      assertEqual(back.you.phase, phaseNow, 'いまの局面が分かる');
+
+      // 続きから遊べる
+      const stillPlaying = { host: rm.host, all: [rm.host].concat(rm.guests.slice(1), [back]) };
+      const done = await playToEnd(stillPlaying, 200);
+      assert(done, '復帰したあとも決着まで遊べる（現在: ' + rm.host.room.state.data.phase + '）');
+
+      rm.host.close(); rm.guests.slice(1).forEach((d) => d.close()); back.close();
+    } finally { await srv.close(); }
+  });
+
   await r.test('進行の判定はサーバーだけが持つ（端末は結果を受け取るだけ）', async () => {
     const srv = await startTestServer();
     try {

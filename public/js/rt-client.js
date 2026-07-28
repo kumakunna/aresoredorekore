@@ -20,8 +20,11 @@
       connected: false,
       code: null,        // 部屋コード
       memberId: null,    // 自分のメンバーID
+      name: null,        // 入り直す時に使う
+      role: 'player',
       room: null,        // 公開スナップショット（全員に配られるもの）
       secret: null,      // 自分だけに届いた情報（役職など）
+      rejoining: false,
       error: null
     };
     var socket = null;
@@ -51,6 +54,24 @@
       socket.on('connect', function () {
         state.connected = true;
         emitLocal('status', state);
+        // スマホの画面を消すと、しばらくして接続が切れる（JSが止まって
+        // ハートビートに応えられなくなるため）。socket.io は自動でつなぎ直すが、
+        // それだけではサーバーから見て「切断したまま」なので、
+        // 前と同じメンバーとして入り直す。新しい参加者として増えないよう
+        // memberId を必ず添える。
+        if (state.code && state.memberId && !state.rejoining) {
+          state.rejoining = true;
+          call('room:join', {
+            code: state.code, name: state.name, role: state.role, memberId: state.memberId
+          }).then(function (res) {
+            state.rejoining = false;
+            if (res && res.ok) {
+              state.room = res.room;
+              emitLocal('rejoined', state);
+            }
+            emitLocal('status', state);
+          });
+        }
       });
       socket.on('disconnect', function () {
         state.connected = false;
@@ -91,23 +112,31 @@
     async function createRoom(name, role) {
       connect();
       var res = await call('room:create', { name: name, role: role });
-      if (res.ok) { state.code = res.code; state.memberId = res.memberId; state.room = res.room; }
-      else state.error = res.message || res.error;
+      if (res.ok) {
+        state.code = res.code; state.memberId = res.memberId; state.room = res.room;
+        state.name = name; state.role = role || 'player';
+      } else state.error = res.message || res.error;
       emitLocal('status', state);
       return res;
     }
     async function joinRoom(code, name, role) {
       connect();
       var res = await call('room:join', { code: code, name: name, role: role, memberId: state.memberId });
-      if (res.ok) { state.code = res.code; state.memberId = res.memberId; state.room = res.room; }
-      else state.error = res.message || res.error;
+      if (res.ok) {
+        state.code = res.code; state.memberId = res.memberId; state.room = res.room;
+        state.name = name; state.role = role || 'player';
+      } else state.error = res.message || res.error;
       emitLocal('status', state);
       return res;
     }
-    function setRole(role) { return call('room:setRole', { role: role }); }
+    function setRole(role) {
+      state.role = role; // 入り直す時にも同じ役割で戻れるように覚えておく
+      return call('room:setRole', { role: role });
+    }
     function transferHost(memberId) { return call('room:transferHost', { memberId: memberId }); }
     function leave() {
-      state.code = null; state.room = null; state.secret = null;
+      // 自分から出た時は、つなぎ直しで戻らないように印も消す
+      state.code = null; state.memberId = null; state.room = null; state.secret = null;
       return call('room:leave', {});
     }
 

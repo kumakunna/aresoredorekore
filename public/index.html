@@ -4412,7 +4412,8 @@
         nightTimeLimit: cfg.nightTimeLimit,
         showVoteCounts: cfg.showVoteCounts !== false
       }),
-      queue: [], idx: 0, step: 'role', info: {}
+      queue: [], idx: 0, step: 'role', info: {},
+      pendingEnd: null // 第20弾-6：前の試合の決着状態を持ち越さない
     };
     startWrRoleReveal();
   }
@@ -4845,14 +4846,19 @@
       wr.voteOut = out;
       if(out.executed) WolfLogic.checkTeruteru(wr.game, out.executed);
       var res = WolfLogic.evaluate(wr.game);
-      // てるてる坊主が勝った時、設定によっては試合を終える
+      // 第20弾-6：決着していても、まず「そのターンの投票結果」を見せる。
+      // 以前はいきなり決着画面へ飛んでいたので、最後の投票だけ
+      // 誰に何票入ったのか・誰が処刑されたのかが見えないまま終わっていた。
+      // ここでは決着を決めるだけにして、実際に締めるのは「結果を見る」を押した時。
       if(res.teruteruWin && !wr.game.config.teruteruContinue){
-        showWrFinal(WolfLogic.finish(wr.game, res.ended ? res : null));
-        return;
+        wr.pendingEnd = { res: res.ended ? res : null };
+      } else if(res.ended){
+        wr.pendingEnd = { res: res };
+      } else if(WolfLogic.isFinalTurn(wr.game)){
+        wr.pendingEnd = { res: null }; // 上限ターンに到達
+      } else {
+        wr.pendingEnd = null;
       }
-      if(res.ended){ showWrFinal(WolfLogic.finish(wr.game, res)); return; }
-      // 上限ターンなら、これ以上続けずに決着させる
-      if(WolfLogic.isFinalTurn(wr.game)){ showWrFinal(WolfLogic.finish(wr.game)); return; }
       showWrTurnResult(out);
     });
   });
@@ -4867,7 +4873,8 @@
       : '🤝 同数のため、誰も処刑されませんでした')
       + renderWrVoteCounts(out.tally);
     el('wrResultList').innerHTML = renderWrAliveList();
-    el('wrResultNextBtn').textContent = 'つぎの夜へ ▶';
+    // 決着していれば、この先は次の夜ではなく最終結果へ進む
+    el('wrResultNextBtn').textContent = wr.pendingEnd ? '結果を見る ▶' : 'つぎの夜へ ▶';
     wr.finished = false;
     goTo('scr-wr-result');
     if(ex) sfxThud(); // 第18弾-5：処刑は短く重い一撃で区切る
@@ -4936,15 +4943,22 @@
   }
 
   el('wrResultNextBtn').addEventListener('click', function(){
-    if(!wr.finished){
-      WolfLogic.nextTurn(wr.game);
-      if(wr.game.phase === 'finalVote'){ startWrVote(); return; }
-      startWrNight();
+    // 決着画面まで来ていれば、スコアに反映して記録を残す
+    if(wr.finished){
+      applyWolfRoleScores();
+      goTo('scr-score');
       return;
     }
-    // 決着：スコアに反映して記録を残す
-    applyWolfRoleScores();
-    goTo('scr-score');
+    // 第20弾-6：ターンの結果を見たあと、決着していれば最終結果へ
+    if(wr.pendingEnd){
+      var pe = wr.pendingEnd;
+      wr.pendingEnd = null;
+      showWrFinal(WolfLogic.finish(wr.game, pe.res));
+      return;
+    }
+    WolfLogic.nextTurn(wr.game);
+    if(wr.game.phase === 'finalVote'){ startWrVote(); return; }
+    startWrNight();
   });
 
   // スコアを反映し、履歴に構成と結果を残す（配点はロジック層が計算する）

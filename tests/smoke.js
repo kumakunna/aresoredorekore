@@ -1000,6 +1000,64 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第6部：最終ターンの2段階表示 ----
+  await r.test('最終ターンは、投票結果を見てから最終結果に進む', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    // ターン数1にすれば、その1回の投票が必ず最終ターンになる
+    await startWolfRole(win, doc, 'wolf-casual', players, () => {
+      const m = doc.querySelector('#scr-set-wolfrole [data-wrturn="-1"]');
+      for (let i = 0; i < 8; i++) m.click();
+      assertEqual(el(doc, 'wrTurnValue').textContent, '1', 'ターン数を1にする');
+    });
+    await runWrHandoffs(win, doc, players.length); // 役職確認
+    await runWrHandoffs(win, doc, players.length); // 投票前の単発行動
+    await runWrHandoffs(win, doc, players.length); // 投票
+    await waitScreen(win, doc, 'scr-wr-gather', 5000);
+    click(doc, 'wrTallyBtn');
+    await waitScreen(win, doc, 'scr-wr-result', 8000);
+
+    // 1段目：そのターンの投票結果
+    const title1 = el(doc, 'wrResultTitle').textContent;
+    assert(/日目の結果/.test(title1), 'まずターンの結果が出る（' + title1 + '）');
+    assert(!/決着/.test(title1), 'いきなり決着画面にはしない');
+    const summary1 = el(doc, 'wrResultSummary').textContent;
+    assert(/処刑されました|誰も処刑されませんでした/.test(summary1), '誰が処刑されたか分かる');
+    assert(el(doc, 'wrResultSummary').querySelector('.vote-counts'),
+      '最後の投票でも票数が見られる（ここが今回直したところ）');
+    assertEqual(el(doc, 'wrResultNextBtn').textContent, '結果を見る ▶',
+      '次に進むボタンが「結果を見る」になる');
+
+    // 2段目：試合全体の決着
+    click(doc, 'wrResultNextBtn');
+    await sleep(win, 120);
+    assertEqual(el(doc, 'wrResultTitle').textContent, '決着！', '押すと最終結果になる');
+    assert(/勝ち|決着/.test(el(doc, 'wrResultSummary').textContent), '勝った陣営が出る');
+    assert(el(doc, 'wrResultList').textContent.length > 0, '全員の役職と結果が並ぶ');
+    assertEqual(el(doc, 'wrResultNextBtn').textContent, 'スコアへ ▶', '最後はスコアへ');
+
+    click(doc, 'wrResultNextBtn');
+    await waitScreen(win, doc, 'scr-score', 5000);
+    assertNoErrors(errors, '最終ターンの2段階表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('決着していないターンは、今までどおり次の夜へ進む', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+    await startWolfRole(win, doc, 'wolf-normal', players); // ターン数5
+    await playOneWolfTurn(win, doc, players);
+    await waitScreen(win, doc, 'scr-wr-gather', 5000);
+    click(doc, 'wrTallyBtn');
+    await waitScreen(win, doc, 'scr-wr-result', 8000);
+    assertEqual(el(doc, 'wrResultNextBtn').textContent, 'つぎの夜へ ▶', '決着前は次の夜へ');
+    click(doc, 'wrResultNextBtn');
+    await waitScreen(win, doc, 'scr-nightfall', 5000);
+    assert(/夜になりました/.test(el(doc, 'scr-nightfall').textContent), '次の夜が始まる');
+    assertNoErrors(errors, '通常ターンの進行で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第20弾 第5部：情報表示の充実 ----
   // 人狼を1ターン進めて、投票直前に各自が見る画面を集める。
   //

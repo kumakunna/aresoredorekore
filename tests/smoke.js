@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, createRunner, assert, assertEqual, assertNoErrors } = H;
+const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -218,6 +218,7 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(seenRoles.some(t => /人狼/.test(t)), '誰かに人狼が配られている');
 
     // 夜の行動：選択肢が出た人は選ぶ、出ない人は次へ
+    if (passNightfall(doc)) await sleep(win, 60);
     let guard = 0;
     while (activeScreen(doc) === 'scr-wr-pass' && guard++ < 20) {
       click(doc, 'wrRevealBtn');
@@ -309,6 +310,8 @@ async function startModeWithTimerOff(win, doc, id) {
   // 第20弾-2で、夜と投票前は中身が2画面（行動 → 確認）になった。
   // onShow に渡すのは「1画面目」＝手渡された人が最初に見るもの。
   async function runWrHandoffs(win, doc, count, onShow, pick) {
+    // 夜の頭には「夜になりました」の関門が入る（第20弾-4-1）
+    if (passNightfall(doc)) await sleep(win, 60);
     for (let i = 0; i < count; i++) {
       if (activeScreen(doc) !== 'scr-wr-pass') break;
       const name = el(doc, 'wrHandoffName').textContent;
@@ -567,6 +570,7 @@ async function startModeWithTimerOff(win, doc, id) {
     let guard = 0;
     while (guard++ < 200) {
       const cur = activeScreen(doc);
+      if (cur === 'scr-nightfall') { passNightfall(doc); await sleep(win, 60); continue; }
       if (cur === 'scr-wr-pass') {
         click(doc, 'wrRevealBtn');
         await sleep(win, 30);
@@ -996,6 +1000,96 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第4部：夜・朝の画面 ----
+  await r.test('夜は「押すまで進まない」画面になり、ターン数が大きく出る', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players); // ターン数3のプリセット
+
+    // 役職確認を全員ぶん流すと、夜の入り口で止まる
+    for (let i = 0; i < players.length; i++) {
+      click(doc, 'wrRevealBtn'); await sleep(win, 30);
+      click(doc, 'wrNextBtn'); await sleep(win, 45);
+    }
+    await waitScreen(win, doc, 'scr-nightfall', 4000);
+
+    assert(/夜になりました/.test(el(doc, 'scr-nightfall').textContent), '「夜になりました」が出る');
+    assert(/全員伏せてください/.test(el(doc, 'scr-nightfall').textContent), '「全員伏せてください」が出る');
+    assertEqual(el(doc, 'nfTurn').style.display, 'block', 'ターン数の欄が出る');
+    assertEqual(el(doc, 'nfTurnLabel').textContent, '全3ターン中', '全体のターン数が分かる');
+    assert(/1 \/ 3/.test(el(doc, 'nfTurnBig').textContent), 'いま何ターン目かが分かる');
+    assert(!/最終ターン/.test(el(doc, 'nfTurnBig').textContent), '1ターン目はまだ最終ではない');
+    assert(el(doc, 'app').classList.contains('phase-night'), '夜の配色になる');
+
+    // 押すまで進まない（時間が経っても勝手に動かない）
+    await sleep(win, 900);
+    assertEqual(activeScreen(doc), 'scr-nightfall', '自動では進まない');
+    click(doc, 'nfNextBtn');
+    await waitScreen(win, doc, 'scr-wr-pass', 4000);
+    assertEqual(activeScreen(doc), 'scr-wr-pass', '「つぎへ」で手渡しが始まる');
+    assertNoErrors(errors, '夜の入り口で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ワードウルフでも、お題を配る前に伏せる画面が出る', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wordwolf');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, 'modeNextBtn');
+    await sleep(win, 60);
+    for (let i = 0; i < 8; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click(); await sleep(win, 30);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-nightfall', 8000);
+    assert(/全員伏せてください/.test(el(doc, 'scr-nightfall').textContent), 'ワードウルフでも出る');
+    // 1ターンしかない遊び方では、数字を出しても意味が無い
+    assertEqual(el(doc, 'nfTurn').style.display, 'none', '1ターンならターン数は出さない');
+    click(doc, 'nfNextBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 4000);
+    assertNoErrors(errors, 'ワードウルフの夜の入り口で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('朝は明るい配色になり、欠けた人が目立つ形で出る', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+    await startWolfRole(win, doc, 'wolf-normal', players);
+    await runWrHandoffs(win, doc, players.length); // 役職確認
+    await runWrHandoffs(win, doc, players.length); // 夜
+    await waitScreen(win, doc, 'scr-wr-day', 6000);
+
+    const app = el(doc, 'app');
+    assert(app.classList.contains('phase-day'), '朝は明るい配色に切り替わる');
+    assert(!app.classList.contains('phase-night'), '夜の配色は外れる');
+    assert(app.classList.contains('theme-wolf'), '人狼のテーマ自体は続いている');
+
+    const turn = el(doc, 'wrDayTurn');
+    assert(/日目の朝/.test(turn.textContent), '朝の見出しが出る');
+    assert(turn.querySelector('b'), 'ターンの見出しは大きく出す（b要素）');
+
+    const news = el(doc, 'wrDayNews');
+    const died = news.querySelector('.day-death');
+    const peace = news.querySelector('.day-peace');
+    assert(died || peace, '欠けた人か「誰も欠けませんでした」のどちらかが出る');
+    if (died) assert(/襲われた|謎の死|後を追った/.test(died.textContent), '原因まで分かる');
+    assertNoErrors(errors, '朝の画面で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第20弾 第3部：操作方式の統一 ----
   await r.test('ゲーム選択はタップで即決定せず、「つぎへ」で確定する', async () => {
     // 実機で、棚から来た勢いのまま誤って選んでしまう問題があった
@@ -1089,6 +1183,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
     // 夜：全員ぶん流し、誰が何を見たかと、何タップしたかを集める
     const taps = [], seen = [], handoffs = [];
+    if (passNightfall(doc)) await sleep(win, 60);
     for (let i = 0; i < players.length; i++) {
       if (activeScreen(doc) !== 'scr-wr-pass') break;
       handoffs.push(doc.querySelector('#wrHandoff .wolf-handoff-sub').textContent.trim() +
@@ -1145,6 +1240,8 @@ async function startModeWithTimerOff(win, doc, id) {
     await runWrHandoffs(win, doc, players.length); // 役職確認
 
     const taps = [], seen = [];
+
+    if (passNightfall(doc)) await sleep(win, 60);
     for (let i = 0; i < players.length; i++) {
       if (activeScreen(doc) !== 'scr-wr-pass') break;
       let t = 0;
@@ -1325,7 +1422,9 @@ async function startModeWithTimerOff(win, doc, id) {
     assertEqual(el(doc, 'wrTurnBanner').style.display, 'none', '役職確認では帯を出さない');
     await runWrHandoffs(win, doc, players.length);
 
-    // 1日目の夜
+    // 1日目の夜（「夜になりました」の関門を抜けてから）
+    passNightfall(doc);
+    await waitScreen(win, doc, 'scr-wr-pass', 4000);
     assertEqual(el(doc, 'wrTurnBanner').style.display, 'block', '夜には帯が出る');
     const night1 = el(doc, 'wrTurnBanner').textContent;
     assert(/1日目の夜/.test(night1), '「1日目の夜」が出る（' + night1 + '）');
@@ -1355,6 +1454,7 @@ async function startModeWithTimerOff(win, doc, id) {
       assertEqual(el(one.doc, 'wrTurnValue').textContent, '1', 'ターン数を1にする');
     });
     await runWrHandoffs(one.win, one.doc, players.length);   // 役職確認
+    await waitScreen(one.win, one.doc, 'scr-wr-pass', 4000); // 投票前の単発行動へ
     const banner = el(one.doc, 'wrTurnBanner');
     assertEqual(banner.style.display, 'block', '1ターン版でも帯は出る');
     assert(/最終ターン/.test(banner.textContent), '最終ターンだと分かる（' + banner.textContent + '）');

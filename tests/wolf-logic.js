@@ -643,6 +643,49 @@ function kill(game, name, cause) {
     assertEqual(m.deaths[0].roleName, '村人', '正体も分かる');
   });
 
+  // ---------- 第20弾-4-2：襲撃先が重なったことを伝えられるか ----------
+  await r.test('襲撃：人狼が別々に選んで狙いが重なったら、その事実が残る', async () => {
+    const g = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager' },
+      { wolfAttackDecision: 'each' });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'C').id);
+    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id); // 2人とも同じ相手
+    const out = W.resolveNight(g);
+    assertEqual(out.deaths.length, 1, '同じ相手を選んでも死ぬのは1人');
+    assertEqual(out.attackOverlap, true, '狙いが重なったことが分かる');
+  });
+
+  await r.test('襲撃：別々の相手を選んだ夜は、重なった扱いにしない', async () => {
+    const g = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager' },
+      { wolfAttackDecision: 'each' });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'C').id);
+    W.setNightAction(g, p(g, 'B').id, p(g, 'D').id);
+    const out = W.resolveNight(g);
+    assertEqual(out.deaths.length, 2, 'それぞれの相手が欠ける');
+    assertEqual(out.attackOverlap, false, '重なっていない');
+  });
+
+  await r.test('襲撃：多数決の設定では、重なった扱いにしない（元々1人しか襲わない）', async () => {
+    const g = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager' },
+      { wolfAttackDecision: 'vote' });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'C').id);
+    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id);
+    const out = W.resolveNight(g);
+    assertEqual(out.deaths.length, 1, '1人が欠ける');
+    assertEqual(out.attackOverlap, false, '多数決は仕様どおりなので、わざわざ知らせない');
+  });
+
+  await r.test('襲撃：重なりの記録は毎晩リセットされる', async () => {
+    const g = makeGame({ A: 'wolf', B: 'wolf', C: 'villager', D: 'villager', E: 'villager', F: 'villager' },
+      { wolfAttackDecision: 'each', turnLimit: 5 });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'C').id);
+    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id);
+    assertEqual(W.resolveNight(g).attackOverlap, true, '1晩目は重なった');
+    g.phase = 'night'; g.turn = 2;
+    W.setNightAction(g, p(g, 'A').id, p(g, 'D').id);
+    W.setNightAction(g, p(g, 'B').id, p(g, 'E').id);
+    assertEqual(W.resolveNight(g).attackOverlap, false, '2晩目は重なっていない（前の晩を持ち越さない）');
+  });
+
   // ---------- 履歴 ----------
   await r.test('履歴：ターン数・役職構成・勝敗が残る', async () => {
     const g = makeGame({ A: 'wolf', B: 'villager', C: 'seer', D: 'villager' }, { turnLimit: 4 });

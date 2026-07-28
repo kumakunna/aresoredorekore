@@ -176,20 +176,35 @@ function sleep(win, ms) {
   return new Promise(r => win.setTimeout(r, ms));
 }
 
-async function waitFor(win, cond, timeout, label) {
+// keepNightfall=true にすると「夜になりました」画面を素通りさせない（その画面自体を調べたい時用）
+async function waitFor(win, cond, timeout, label, keepNightfall) {
   const limit = timeout || 4000;
   const start = Date.now();
+  const doc = win.document;
   while (Date.now() - start < limit) {
     let ok = false;
     try { ok = cond(); } catch (e) { ok = false; }
     if (ok) return true;
+    if (!keepNightfall) passNightfall(doc);
     await sleep(win, 20);
   }
   throw new Error('待機がタイムアウトしました: ' + (label || cond.toString()));
 }
 
+// 第20弾-4-1で「夜になりました（全員伏せてください）」が挟まるようになった。
+// 押すまで進まない関門なので、他の画面を待っている間は自動で通過させる。
+// この画面そのものの中身は、専用のテストで確認している。
+function passNightfall(doc) {
+  if (activeScreen(doc) !== 'scr-nightfall') return false;
+  const btn = doc.getElementById('nfNextBtn');
+  if (!btn) return false;
+  btn.click();
+  return true;
+}
+
 async function waitScreen(win, doc, id, timeout) {
-  await waitFor(win, () => activeScreen(doc) === id, timeout, '画面 ' + id + ' へ遷移（現在: ' + activeScreen(doc) + '）');
+  await waitFor(win, () => activeScreen(doc) === id, timeout,
+    '画面 ' + id + ' へ遷移（現在: ' + activeScreen(doc) + '）', id === 'scr-nightfall');
 }
 
 function el(doc, id) {
@@ -334,6 +349,6 @@ function assertNoErrors(errors, label) {
 
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress,
+  setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall,
   createRunner, assert, assertEqual, assertNoErrors
 };

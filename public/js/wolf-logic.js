@@ -281,6 +281,7 @@
   function resolveNight(game) {
     var info = {};   // playerId -> その人が得た情報
     var deaths = [];
+    game.attackOverlap = false; // 毎晩リセット（前の晩の記録を持ち越さない）
 
     // 1) 占い（先に処理する。妖狐は占われた時点で死ぬ＝呪殺）
     playersWithRole(game, 'seer', true).forEach(function (seer) {
@@ -332,7 +333,7 @@
     game.nightActions = {};
     game.phase = 'day';
     game.log.push({ turn: game.turn, type: 'night', deaths: deaths.slice() });
-    return { deaths: deaths, info: info };
+    return { deaths: deaths, info: info, attackOverlap: !!game.attackOverlap };
   }
 
   // 襲撃先を決める。返り値は「襲う相手の一覧」。
@@ -344,9 +345,14 @@
     var picks = wolves.map(function (w) { return game.nightActions[w.id]; }).filter(Boolean);
     if (!picks.length) return [];
     if (game.config.wolfAttackDecision === 'each') {
-      // 重複を取り除く（2人が同じ相手を選んでも死ぬのは1人）
-      return picks.filter(function (id, i) { return picks.indexOf(id) === i; });
+      // 重複を取り除く（2人が同じ相手を選んでも死ぬのは1人）。
+      // 第20弾-4-2：被ったこと自体を朝に伝えたいので、記録に残しておく。
+      // 結果だけ見ても「なぜ1人しか欠けていないのか」が分からないため。
+      var uniq = picks.filter(function (id, i) { return picks.indexOf(id) === i; });
+      game.attackOverlap = (picks.length > uniq.length);
+      return uniq;
     }
+    game.attackOverlap = false;
     // 多数決。同数なら先に選ばれた方を採用する
     var count = {};
     picks.forEach(function (id) { count[id] = (count[id] || 0) + 1; });

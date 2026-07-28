@@ -1000,6 +1000,42 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第7部：テーマ範囲とフォント ----
+  await r.test('フォント：筆文字は大きな一行の演出だけ、実用テキストには使わない', async () => {
+    // 読みやすさが未検証の書体を、頻繁に読む文字に使わないための歯止め
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'));
+
+    assert(/Yuji\+Syuku/.test(html), 'Yuji Syuku を読み込んでいる');
+
+    // Yuji Syuku を指定しているセレクタを全部集める
+    const users = [];
+    css.replace(/([^{}]+)\{([^{}]*)\}/g, (m, sel, body) => {
+      if (/Yuji Syuku/.test(body)) users.push(sel.trim().replace(/\s+/g, ' '));
+      return m;
+    });
+    assert(users.length > 0, '実際に使われている');
+    users.forEach(sel => {
+      assert(/\.theme-wolf/.test(sel), '人狼カセットの外では使わない（' + sel + '）');
+    });
+    // 演出テキスト以外に混ざっていないか、名指しで確かめる
+    const allowed = ['.nf-title', '.fx-word', '#wrResultTitle', '.scr-title'];
+    users.forEach(sel => {
+      assert(allowed.some(a => sel.indexOf(a) >= 0),
+        '演出テキスト以外には使わない（' + sel + '）');
+    });
+    // 役職名・お題・手渡しの名前など、よく読む文字には入っていないこと
+    ['.wolf-topic-name', '.wolf-handoff-name', '.mic-status', '.pk-btn', '.mode-card']
+      .forEach(k => {
+        assert(!users.some(sel => sel.indexOf(k) >= 0), k + ' には筆文字を使わない');
+      });
+    // 数字は桁が揃う書体のままにする
+    assert(/\.app\.theme-wolf[^{]*\.play-timer[^{]*\{[^}]*DotGothic16/.test(css.replace(/\s+/g, ' ')),
+      'タイマーの数字は DotGothic16 のまま');
+  });
+
   // ---- 第20弾 第6部：最終ターンの2段階表示 ----
   await r.test('最終ターンは、投票結果を見てから最終結果に進む', async () => {
     const { win, doc, errors } = await launch();
@@ -1690,26 +1726,28 @@ async function startModeWithTimerOff(win, doc, id) {
   });
 
   // ---- 第18弾 第5部：夜のテーマ ----
-  await r.test('テーマ：夜の配色は人狼カセットの遊んでいる画面にだけ乗る', async () => {
+  await r.test('テーマ：カセットを選んだ時点から、その先すべてが夜になる', async () => {
+    // 第20弾-7-1で範囲を広げた。棚と扉だけが例外
     const { win, doc, errors } = await launch();
     const app = el(doc, 'app');
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
 
-    // 棚・ゲーム選択・プレイヤー設定・モード選択・ウィザードは素のまま
+    assert(!app.classList.contains('theme-wolf'), '棚では素のまま');
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-    assert(!app.classList.contains('theme-wolf'), 'ゲーム選択では夜にしない');
+    assert(app.classList.contains('theme-wolf'), 'ゲーム選択からもう夜になる');
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
+    assert(app.classList.contains('theme-wolf'), 'プレイヤー設定でも続く');
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    assert(!app.classList.contains('theme-wolf'), 'モード選択では夜にしない');
+    assert(app.classList.contains('theme-wolf'), 'モード選択でも続く');
     click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
-    assert(!app.classList.contains('theme-wolf'), '設定ウィザードでは夜にしない');
+    assert(app.classList.contains('theme-wolf'), '設定ウィザードでも続く');
     click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
     await waitScreen(win, doc, 'scr-set-timer', 3000);
     if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');

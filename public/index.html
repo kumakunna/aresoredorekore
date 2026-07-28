@@ -1835,6 +1835,21 @@
     {id:"wordwolf-multi", icon:"🔁", title:"ワードウルフ（2〜ターン）", sub:"何回かくり返して遊ぶ・お題を変えるかも選べる", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, wolfMulti:true, game:'wordwolf',
       rules:"ワードウルフを決めた回数だけくり返します。「毎ターンお題を変える」を選ぶと、毎回ちがうお題で仕切り直し、合計得点で勝敗を決めます。「変えない」を選ぶと同じお題のまま話し合いと投票をくり返し、ウルフを当てられたらその時点で村人側の勝ち、最後まで逃げ切られたらウルフの勝ちです。",
       bullets:["決めた回数だけくり返す","お題を毎回変えるかを選べる","変える場合は合計得点で決着","変えない場合は当てられたら村人側の勝ち","逃げ切られたらウルフの勝ち"]},
+    // ---- 第20弾-8：役職ありワードウルフも独立したカードにする ----
+    // wwPreset の役職は、カードを選んだ瞬間に人数へ合わせて自動で配られる。
+    // 細かく変えたい人は、ウィザードのステッパーで足し引きできる。
+    {id:"wordwolf-peek", icon:"👀", title:"のぞき見ワードウルフ", sub:"1人だけ、誰かの正体をこっそり覗ける", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, game:'wordwolf', minPlayers:4,
+      wwPreset:{ roles:['peek'] },
+      rules:"いつものワードウルフに「のぞき見役」を1人だけ足したルールです。のぞき見役は、お題を見るときに1人を選ぶと、その人がウルフ🐺側かシープ🐑側かが分かります。ただし本人がそれを話すと、ウルフに正体を知られて疑われるかもしれません。情報をどう使うかが勝負どころです。",
+      bullets:["いつものワードウルフ＋のぞき見役1人","お題を見るときに1人の陣営が分かる","話すと自分の正体もバレる","4人以上で遊べる","話し合いは1回・投票で決着"]},
+    {id:"wordwolf-trick", icon:"🎭", title:"かき乱しワードウルフ", sub:"のぞき見・にせもの・まきこみが入り乱れる", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, game:'wordwolf', minPlayers:6,
+      wwPreset:{ roles:['peek', 'fake', 'involve'] },
+      rules:"1ターン専用の役職を全部入れたルールです。のぞき見役は1人の陣営が分かり、にせもの役はシープ🐑なのに「ウルフ側」に見え、まきこみ役は指名した人の投票先を全員に公開します。情報が正しいとは限らないので、話し合いがぐちゃぐちゃになります。",
+      bullets:["のぞき見役・にせもの役・まきこみ役が入る","にせもの役は覗くとウルフ側に見える","まきこみ役は誰かの投票先を公開する","情報が正しいとは限らない","6人以上がおすすめ"]},
+    {id:"wordwolf-seer", icon:"🔮", title:"占いワードウルフ", sub:"占い師と狂人を入れて何ターンか遊ぶ", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, wolfMulti:true, game:'wordwolf', minPlayers:5,
+      wwPreset:{ roles:['seer', 'madman'] },
+      rules:"2〜ターン版のワードウルフに、占い師と狂人を足したルールです。占い師はお題を見るときに1人を占い、その人の陣営が分かります。狂人はシープ🐑と同じお題を持ちますが、勝敗はウルフ🐺側として数えます。ウルフが誰かは知らないので、自分で推理して庇うことになります。",
+      bullets:["占い師が1人の陣営を見抜く","狂人はウルフの味方だが正体を知らない","狂人は占っても村人に見える","くり返し遊んで合計得点で決着","5人以上で遊べる"]},
     // ---- 役職あり人狼。プリセットごとに独立したモードカードにする（あれそれどれこれと同じ流儀） ----
     // wolfPreset：カードを選んだ時に入る初期設定。役職の数はウィザードで人数に合わせて自動配置される
     {id:"wolf-casual", icon:"🌱", title:"カジュアル人狼", sub:"村人と人狼だけ・3人から遊べる入門ルール", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
@@ -2262,6 +2277,7 @@
     var m = modeById(modeId);
     if(m.opts) state.opts = cloneOpts(m.opts);
     if(m.wolfPreset) applyWolfPreset(m);
+    if(m.wolf) applyWordwolfPreset(m); // 第20弾-8：ワードウルフの役職もカードで決まる
   }
   // 役職あり人狼：プリセットを選んだ瞬間、人数に合わせた配置が入って
   // そのまま遊べる状態にする（何も触らなくてよい、が原則）
@@ -3200,6 +3216,7 @@
   // その遊び方に必要な最低人数。プリセットに書いてあればそれ、
   // 書いていない人狼系は3人（1人だけ違う役を作れる最小）、それ以外は2人。
   function modeMinPlayers(m){
+    if(m.minPlayers) return m.minPlayers;                      // カードに直接書いてあるもの
     if(m.wolfPreset && m.wolfPreset.minPlayers) return m.wolfPreset.minPlayers;
     if(m.wolfRole || m.wolf) return 3;
     return 2;
@@ -3683,6 +3700,29 @@
   }
   function wwAssignedCount(){
     return wwRoleIds().reduce(function(n, id){ return n + (state.wwRoles[id] || 0); }, 0);
+  }
+  // 第20弾-8：カードを選んだ瞬間、人数に合わせて役職が入っている状態にする。
+  // 人狼側（wolfPreset）と同じ流儀。村人が1人も残らない配分にはしない。
+  // 入りきらない時は、影響の小さい役職から落とす。
+  var WW_DROP_ORDER = ['fake', 'involve', 'madman', 'peek', 'seer'];
+  function wwBalancedCounts(roleIds, playerCount, wolfCount){
+    var counts = {};
+    (roleIds || []).forEach(function(id){ counts[id] = 1; }); // どの役職も1人まで
+    var room = Math.max(0, playerCount - wolfCount - 1); // 村人を1人は残す
+    var total = function(){
+      return Object.keys(counts).reduce(function(n, k){ return n + counts[k]; }, 0);
+    };
+    for(var i = 0; i < WW_DROP_ORDER.length && total() > room; i++){
+      if(counts[WW_DROP_ORDER[i]]) counts[WW_DROP_ORDER[i]] = 0;
+    }
+    return counts;
+  }
+  function applyWordwolfPreset(m){
+    // 役職を使わないカード（いつものワードウルフ）を選んだら、前のカードの配分を残さない
+    if(!m.wwPreset){ state.wwRoles = {}; return; }
+    var ids = m.wwPreset.roles || [];
+    var n = state.players.length || 4;
+    state.wwRoles = wwBalancedCounts(ids, n, state.wolfCount || 1);
   }
   // 役職は多数派（村人側のお題を持つ人）から配る。少数派に混ぜると実質2人目のウルフになる
   function wwMajorityCount(){ return state.players.length - (play.wolfMinorityIds || []).length; }

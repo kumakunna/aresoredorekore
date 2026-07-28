@@ -1000,6 +1000,84 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第8部：役職ありワードウルフをカードにする ----
+  // ワードウルフのモード選択まで進む
+  async function toWordwolfModes(win, doc, players) {
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wordwolf');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+  }
+
+  await r.test('役職ありワードウルフが、独立したカードとして並ぶ', async () => {
+    const { win, doc, errors } = await launch();
+    await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん']);
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    ['wordwolf', 'wordwolf-multi', 'wordwolf-peek', 'wordwolf-trick', 'wordwolf-seer']
+      .forEach(id => assert(ids.indexOf(id) >= 0, id + ' が並ぶ'));
+    assert(ids.every(id => /^wordwolf/.test(id)), '人狼側のカードは混ざらない（' + ids.join(',') + '）');
+    assertNoErrors(errors, 'カード一覧で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('カードを選んだ瞬間、人数に合った役職が入っている', async () => {
+    const { win, doc, errors } = await launch();
+    await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん']);
+
+    // かき乱し（3役職）を選んでウィザードへ
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf-trick"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolf', 3000);
+    const val = id => el(doc, 'wwCount-' + id).textContent;
+    assertEqual(val('peek'), '1', 'のぞき見役が入っている');
+    assertEqual(val('fake'), '1', 'にせもの役が入っている');
+    assertEqual(val('involve'), '1', 'まきこみ役が入っている');
+    assert(/役職 3人/.test(el(doc, 'wolfRoleNote').textContent), '注記も合っている');
+
+    // 役職なしのカードに戻すと、前の配分が残らない
+    click(doc, doc.querySelector('#scr-set-wolf [data-wiz-back]'));
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolf', 3000);
+    assertEqual(val('peek'), '0', '前のカードの役職を持ち越さない');
+    assert(/役職なし/.test(el(doc, 'wolfRoleNote').textContent), 'いつものワードウルフに戻る');
+    assertNoErrors(errors, 'カード切り替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('人数が足りない役職カードは、選べないようにする', async () => {
+    const { win, doc, errors } = await launch();
+    await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか']); // 3人
+    const locked = id => doc.querySelector('.mode-card[data-id="' + id + '"]').classList.contains('locked');
+    assert(!locked('wordwolf'), 'いつものワードウルフは3人でも遊べる');
+    assert(locked('wordwolf-peek'), 'のぞき見（4人〜）は選べない');
+    assert(locked('wordwolf-trick'), 'かき乱し（6人〜）は選べない');
+    assert(locked('wordwolf-seer'), '占い（5人〜）は選べない');
+    assertNoErrors(errors, '人数制限で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('人数が少ないと、入りきらない役職は自動で落とす', async () => {
+    // 村人が1人も残らない配分にしないこと（かき乱しは3役職だが、6人だと全部は入らない）
+    const { win, doc, errors } = await launch();
+    await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう']); // 6人
+    click(doc, doc.querySelector('.mode-card[data-id="wordwolf-trick"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolf', 3000);
+    const n = ['peek', 'fake', 'involve']
+      .reduce((s, id) => s + parseInt(el(doc, 'wwCount-' + id).textContent, 10), 0);
+    // 6人・ウルフ1人なら、村人を1人残すと役職は4人まで入る
+    assert(n >= 1 && n <= 4, '人数に収まる配分になる（役職' + n + '人）');
+    assert(n + 1 + 1 <= 6, 'ウルフと村人のぶんが残っている');
+    assertNoErrors(errors, '自動配分で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第20弾 第7部：テーマ範囲とフォント ----
   await r.test('フォント：筆文字は大きな一行の演出だけ、実用テキストには使わない', async () => {
     // 読みやすさが未検証の書体を、頻繁に読む文字に使わないための歯止め

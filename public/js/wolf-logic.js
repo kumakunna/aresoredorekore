@@ -73,7 +73,10 @@
     revealRoleOnDeath: true,   // 死亡者の役職をその場で公開するか
     wolfAttackDecision: 'vote', // 人狼が2人以上の時 'vote'（全員で多数決）| 'each'（各自が独立に選ぶ）
     teruteruContinue: false,   // てるてる坊主が勝った後も試合を続けるか
-    nightTimeLimit: 0          // 夜の行動の制限秒数（0＝無制限）
+    nightTimeLimit: 0,         // 夜の行動の制限秒数（0＝無制限）
+    // 第20弾-5-2：誰に何票入ったかを結果で見せるか。
+    // ここに書かないと mergeConfig が既定値しか通さず、画面側の設定が届かない。
+    showVoteCounts: true
   };
 
   function mergeConfig(cfg) {
@@ -297,6 +300,7 @@
 
     // 2) 護衛
     var guarded = {};
+    var guardSaved = {}; // 実際に襲撃を防いだ相手
     playersWithRole(game, 'knight', true).forEach(function (k) {
       var t = game.nightActions[k.id];
       if (t) guarded[t] = true;
@@ -307,6 +311,7 @@
       var victim = findPlayer(game, targetId);
       if (!victim || !victim.alive) return;
       if (guarded[victim.id]) {
+        guardSaved[victim.id] = true; // 第20弾-5-1：騎士に「守れた」と伝えるため
         game.log.push({ turn: game.turn, type: 'guarded', id: victim.id });
       } else if (victim.role === 'fox') {
         // 妖狐は人狼の襲撃では死なない
@@ -319,6 +324,21 @@
 
     // 4) 恋人の後追い
     deaths = deaths.concat(applyLoverDeaths(game));
+
+    // 4.5) 護衛の結果（第20弾-5-1）
+    // 騎士は、自分の守りが実際に働いたのかが分からないと、次の夜の判断ができない。
+    // 守った相手が襲われていたか＝守れたかどうかを本人にだけ伝える。
+    // ※ここで初めて確定するので、夜のうちには渡せない（次に手渡された時に見せる）
+    playersWithRole(game, 'knight', true).forEach(function (k) {
+      var t = game.nightActions[k.id];
+      if (!t) return;
+      var target = findPlayer(game, t);
+      if (!target) return;
+      info[k.id] = {
+        kind: 'guard', targetId: target.id, targetName: target.name,
+        saved: !!guardSaved[target.id]
+      };
+    });
 
     // 5) 霊媒（前回亡くなった人の正体）
     playersWithRole(game, 'medium', true).forEach(function (m) {

@@ -1000,6 +1000,132 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第5部：情報表示の充実 ----
+  // 人狼を1ターン進めて、投票直前に各自が見る画面を集める。
+  //
+  // 役職はランダムに配られるので、そのまま流すと「騎士が夜に死んで守りの結果が出ない」
+  // 「1ターン目で決着して結果画面に届かない」といった揺れでテストが不安定になる。
+  // 役職確認の画面から誰が何かを読み取り、夜の狙いをこちらで決めて固定する。
+  async function playOneWolfTurn(win, doc, players) {
+    const roleOf = {};
+    await runWrHandoffs(win, doc, players.length, (info) => {
+      const m = /あなたの役職\s*(\S+?)(?:夜|昼|前の|特別|話し合い|人狼の味方|どちら)/.exec(
+        info.body.replace(/\s+/g, ''));
+      roleOf[info.name] = m ? m[1] : info.body.replace(/\s+/g, '').slice(5, 9);
+    });
+
+    // 人狼が狙う相手＝役職を持たない村人（騎士や占い師を落とさない）
+    const villager = players.find(n => /村人/.test(roleOf[n] || ''));
+    await runWrHandoffs(win, doc, players.length, null, (name, choices) => {
+      const role = roleOf[name] || '';
+      // 人狼も騎士も同じ村人を選ぶ → 守りが働き、騎士は生き残る
+      if (/人狼|騎士/.test(role)) {
+        return choices.find(b => b.textContent.trim() === villager) || choices[0];
+      }
+      // 占い師などは、その村人以外を選ぶ（呪殺で人数が減るのを避ける）
+      return choices.find(b => b.textContent.trim() !== villager) || choices[0];
+    });
+
+    await waitScreen(win, doc, 'scr-wr-day', 6000);
+    await holdPress(win, doc, 'wrToVoteBtn');
+    await waitScreen(win, doc, 'scr-wr-pass', 5000);
+    const voteScreens = [];
+    for (let i = 0; i < players.length; i++) {
+      if (activeScreen(doc) !== 'scr-wr-pass') break;
+      click(doc, 'wrRevealBtn');
+      await sleep(win, 40);
+      voteScreens.push(el(doc, 'wrContentBody').textContent);
+      const c = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
+      // 人狼を吊ると1ターン目で決着してしまい、ターンの結果画面に届かない。
+      // 確かめたいのは結果画面の中身なので、村人に票を集めてゲームを続かせる。
+      if (c.length) {
+        const safe = c.find(b => /村人/.test(roleOf[b.textContent.trim()] || ''));
+        (safe || c[0]).click();
+      } else click(doc, 'wrNextBtn');
+      await sleep(win, 45);
+    }
+    return { voteScreens, roleOf };
+  }
+
+  await r.test('騎士は、自分の守りが働いたかどうかを知れる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+    await startWolfRole(win, doc, 'wolf-normal', players); // 騎士が入る構成
+    const { voteScreens: seen } = await playOneWolfTurn(win, doc, players);
+    const all = seen.join('\n');
+    assert(/守りの結果/.test(all), '騎士に守りの結果が出る');
+    assert(/守りきりました|襲われませんでした/.test(all), '守れたかどうかが言葉で分かる');
+    // 守りの結果を見るのは1人だけ（他の人に漏れていない）
+    const guards = seen.filter(s => /守りの結果/.test(s));
+    assertEqual(guards.length, 1, '守りの結果を見るのは騎士だけ（' + guards.length + '人）');
+    assertNoErrors(errors, '守りの結果表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('投票の票数は、設定で出し分けられる', async () => {
+    // 1ターン目で決着するとターンの結果画面に届かないので、人数に余裕をもたせる
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+
+    // 既定はON：誰に何票入ったかが出る
+    {
+      const { win, doc, errors } = await launch();
+      await startWolfRole(win, doc, 'wolf-casual', players, () => {
+        assert(el(doc, 'wrShowVotesToggle').classList.contains('on'), '既定はON');
+      });
+      await playOneWolfTurn(win, doc, players);
+      await waitScreen(win, doc, 'scr-wr-gather', 5000);
+      click(doc, 'wrTallyBtn');
+      await waitScreen(win, doc, 'scr-wr-result', 8000);
+      const box = el(doc, 'wrResultSummary');
+      assert(box.querySelector('.vote-counts'), '票数が出る');
+      assert(box.querySelectorAll('.vc-item').length >= 1, '名前と票数の組が並ぶ');
+      assertNoErrors(errors, '票数表示で未捕捉の例外');
+      win.close();
+    }
+
+    // OFFにすると出ない
+    {
+      const { win, doc, errors } = await launch();
+      await startWolfRole(win, doc, 'wolf-casual', players, () => {
+        click(doc, 'wrShowVotesToggle');
+        assert(!el(doc, 'wrShowVotesToggle').classList.contains('on'), 'OFFにできる');
+      });
+      await playOneWolfTurn(win, doc, players);
+      await waitScreen(win, doc, 'scr-wr-gather', 5000);
+      click(doc, 'wrTallyBtn');
+      await waitScreen(win, doc, 'scr-wr-result', 8000);
+      assert(!el(doc, 'wrResultSummary').querySelector('.vote-counts'), 'OFFなら票数は出さない');
+      assert(/処刑されました|誰も処刑されませんでした/.test(el(doc, 'wrResultSummary').textContent),
+        '結果そのものは出る');
+      assertNoErrors(errors, '票数OFFで未捕捉の例外');
+      win.close();
+    }
+  });
+
+  await r.test('結果画面に、脱落した原因と何日目かが出る', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+    await startWolfRole(win, doc, 'wolf-normal', players);
+    await playOneWolfTurn(win, doc, players);
+    await waitScreen(win, doc, 'scr-wr-gather', 5000);
+    click(doc, 'wrTallyBtn');
+    await waitScreen(win, doc, 'scr-wr-result', 8000);
+
+    const rows = Array.from(doc.querySelectorAll('#wrResultList .reveal-row'));
+    assertEqual(rows.length, players.length, '全員ぶん並ぶ');
+    const dead = rows.filter(rw => /💀/.test(rw.textContent));
+    assert(dead.length >= 1, '誰かは欠けている');
+    dead.forEach(rw => {
+      assert(/処刑|襲撃|呪殺|後追い/.test(rw.textContent),
+        '原因が分かる（' + rw.textContent.replace(/\s+/g, ' ').trim() + '）');
+      assert(/日目/.test(rw.textContent), '何日目かも分かる');
+    });
+    assert(rows.filter(rw => !/💀/.test(rw.textContent)).every(rw => /生存/.test(rw.textContent)),
+      '生きている人は「生存」のまま');
+    assertNoErrors(errors, '脱落原因の表示で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第20弾 第4部：夜・朝の画面 ----
   await r.test('夜は「押すまで進まない」画面になり、ターン数が大きく出る', async () => {
     const { win, doc, errors } = await launch();

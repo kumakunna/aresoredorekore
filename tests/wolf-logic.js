@@ -686,6 +686,56 @@ function kill(game, name, cause) {
     assertEqual(W.resolveNight(g).attackOverlap, false, '2晩目は重なっていない（前の晩を持ち越さない）');
   });
 
+  // ---------- 第20弾-5-1：騎士は守れたかどうかを知る ----------
+  await r.test('騎士：守った相手が襲われていたら「守れた」と分かる', async () => {
+    const g = makeGame({ A: 'knight', B: 'wolf', C: 'villager', D: 'villager' });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'C').id); // Cを守る
+    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id); // 人狼もCを狙う
+    const out = W.resolveNight(g);
+    assertEqual(out.deaths.length, 0, '守られたので誰も欠けない');
+    const info = out.info[p(g, 'A').id];
+    assertEqual(info.kind, 'guard', '騎士に守りの結果が届く');
+    assertEqual(info.targetName, 'C', '誰を守ったかが分かる');
+    assertEqual(info.saved, true, '実際に守れたことが分かる');
+  });
+
+  await r.test('騎士：狙われていなければ「守れた」とは言わない', async () => {
+    const g = makeGame({ A: 'knight', B: 'wolf', C: 'villager', D: 'villager' });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'C').id); // Cを守る
+    W.setNightAction(g, p(g, 'B').id, p(g, 'D').id); // 人狼はDを狙う
+    const out = W.resolveNight(g);
+    const info = out.info[p(g, 'A').id];
+    assertEqual(info.saved, false, '守りは働かなかった');
+    assertEqual(out.deaths.length, 1, '狙われたDが欠ける');
+  });
+
+  await r.test('騎士：守りの結果は本人にしか渡らない', async () => {
+    const g = makeGame({ A: 'knight', B: 'wolf', C: 'seer', D: 'villager' });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'D').id);
+    W.setNightAction(g, p(g, 'B').id, p(g, 'D').id);
+    W.setNightAction(g, p(g, 'C').id, p(g, 'B').id);
+    const out = W.resolveNight(g);
+    const guardInfos = Object.keys(out.info).filter(id => out.info[id].kind === 'guard');
+    assertEqual(guardInfos.length, 1, '守りの結果を受け取るのは1人だけ');
+    assertEqual(guardInfos[0], p(g, 'A').id, 'その1人は騎士本人');
+  });
+
+  await r.test('脱落の原因が、あとから区別できる形で残る', async () => {
+    const g = makeGame({ A: 'wolf', B: 'seer', C: 'fox', D: 'villager', E: 'villager', F: 'villager' },
+      { turnLimit: 5 });
+    W.setNightAction(g, p(g, 'A').id, p(g, 'D').id); // 襲撃
+    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id); // 妖狐を占って呪殺
+    W.resolveNight(g);
+    assertEqual(p(g, 'D').deadCause, 'attacked', '襲われた人は attacked');
+    assertEqual(p(g, 'C').deadCause, 'cursed', '呪殺された人は cursed');
+    assertEqual(p(g, 'D').deadTurn, 1, '何日目に欠けたかも残る');
+    g.phase = 'vote';
+    W.setVote(g, p(g, 'B').id, p(g, 'E').id);
+    W.setVote(g, p(g, 'F').id, p(g, 'E').id);
+    W.executeVote(g);
+    assertEqual(p(g, 'E').deadCause, 'executed', '処刑された人は executed');
+  });
+
   // ---------- 履歴 ----------
   await r.test('履歴：ターン数・役職構成・勝敗が残る', async () => {
     const g = makeGame({ A: 'wolf', B: 'villager', C: 'seer', D: 'villager' }, { turnLimit: 4 });

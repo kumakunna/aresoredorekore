@@ -215,6 +215,15 @@
   .day-death{color:#C0392B;font-size:19px;font-weight:700;line-height:1.7;}
   .day-peace{font-size:16px;color:var(--ink-soft);}
   .day-note{font-size:13px;color:var(--ink-soft);margin-top:8px;}
+  /* 第20弾-5-2：誰に何票入ったか */
+  .vote-counts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px;}
+  .vc-item{
+    font-size:12.5px;color:var(--ink-soft);background:var(--card);
+    border:1px solid var(--line);border-radius:999px;padding:4px 12px;
+  }
+  .vc-item b{font-family:'DotGothic16',monospace;font-size:15px;color:var(--ink);margin-left:2px;}
+  /* 第20弾-5-3：脱落した人は原因ごと控えめに出す */
+  .reveal-row .rs.dead{color:var(--ink-soft);font-size:12.5px;}
 
   /* ---------- countdown ---------- */
   #scr-countdown{align-items:center;justify-content:center;}
@@ -1104,6 +1113,13 @@
             <div class="mic-status">OFFならその場で試合終了</div>
           </div>
           <div class="switch" id="wrTeruteruToggle"></div>
+        </div>
+        <!-- 第20弾-5-2：誰に何票入ったかを見せるか -->
+        <div class="toggle-row-mini">
+          <div>投票の票数を見せる
+            <div class="mic-status">OFFなら誰が処刑されたかだけ分かります</div>
+          </div>
+          <div class="switch on" id="wrShowVotesToggle"></div>
         </div>
         <div class="toggle-row-mini" id="wrLoversRow">
           <div>恋人を入れる（2人1組）
@@ -2216,7 +2232,9 @@
       wolfAttackDecision: pre.wolfAttackDecision || 'vote',
       teruteruContinue: !!pre.teruteruContinue,
       lovers: !!pre.lovers,
-      nightTimeLimit: pre.nightTimeLimit || 0
+      nightTimeLimit: pre.nightTimeLimit || 0,
+      // 第20弾-5-2：票数を見せるか。既定はON（なぜその人が処刑されたのかが分かる方が納得しやすい）
+      showVoteCounts: (pre.showVoteCounts === undefined) ? true : !!pre.showVoteCounts
     };
   }
   // 記録に残すオプション構成のスナップショット（タグ絞り込み用）
@@ -3241,6 +3259,7 @@
     el('wrTeruteruToggle').classList.toggle('on', !!cfg.teruteruContinue);
     el('wrLoversRow').style.display = (cfg.turnLimit === 1) ? 'none' : 'flex';
     el('wrLoversToggle').classList.toggle('on', !!cfg.lovers);
+    el('wrShowVotesToggle').classList.toggle('on', cfg.showVoteCounts !== false);
   }
 
   el('scr-set-wolfrole').addEventListener('click', function(e){
@@ -3282,6 +3301,7 @@
     }
     else if(id2 === 'wrAttackToggle') cfg.wolfAttackDecision = (cfg.wolfAttackDecision === 'vote') ? 'each' : 'vote';
     else if(id2 === 'wrTeruteruToggle') cfg.teruteruContinue = !cfg.teruteruContinue;
+    else if(id2 === 'wrShowVotesToggle') cfg.showVoteCounts = (cfg.showVoteCounts === false);
     else if(id2 === 'wrLoversToggle') cfg.lovers = !cfg.lovers;
     renderWolfRoleStep();
   });
@@ -4389,7 +4409,8 @@
         wolfAttackDecision: cfg.wolfAttackDecision,
         teruteruContinue: cfg.teruteruContinue,
         lovers: cfg.lovers,
-        nightTimeLimit: cfg.nightTimeLimit
+        nightTimeLimit: cfg.nightTimeLimit,
+        showVoteCounts: cfg.showVoteCounts !== false
       }),
       queue: [], idx: 0, step: 'role', info: {}
     };
@@ -4646,6 +4667,14 @@
     } else if(info && info.kind === 'peek'){
       html += '<div class="wolf-topic-label">のぞき見の結果</div>' +
               '<div class="wolf-topic-name">' + escapeHtml(info.targetName) + ' は ' + escapeHtml(info.label) + '</div>';
+    } else if(info && info.kind === 'guard'){
+      // 第20弾-5-1：守りが働いたかは夜明けに初めて決まるので、ここが最初に渡せる場所
+      html += '<div class="wolf-topic-label">守りの結果</div>' +
+              '<div class="wolf-topic-name">' + escapeHtml(info.targetName) +
+              (info.saved ? ' を守りきりました 🛡️' : ' は襲われませんでした') + '</div>' +
+              '<div class="mic-status" style="margin-top:6px;">' +
+              (info.saved ? '人狼の襲撃を防ぎました。' : '今夜は、その人が狙われていませんでした。') +
+              '</div>';
     } else if(info && info.kind === 'medium'){
       html += '<div class="wolf-topic-label">霊媒の結果</div>' +
               (info.deaths.length
@@ -4833,9 +4862,10 @@
     el('wrResultTitle').textContent = wr.game.turn + '日目の結果';
     var ex = out.executed;
     var role = (ex && wr.game.config.revealRoleOnDeath) ? '（' + WolfLogic.roleById(ex.role).name + '）' : '';
-    el('wrResultSummary').innerHTML = ex
+    el('wrResultSummary').innerHTML = (ex
       ? '⚖️ ' + escapeHtml(ex.name) + escapeHtml(role) + ' が処刑されました'
-      : '🤝 同数のため、誰も処刑されませんでした';
+      : '🤝 同数のため、誰も処刑されませんでした')
+      + renderWrVoteCounts(out.tally);
     el('wrResultList').innerHTML = renderWrAliveList();
     el('wrResultNextBtn').textContent = 'つぎの夜へ ▶';
     wr.finished = false;
@@ -4861,10 +4891,33 @@
     goTo('scr-wr-result');
   }
 
+  // 第20弾-5-2：誰に何票入ったか。設定でOFFにもできる
+  function renderWrVoteCounts(tally){
+    if(!tally || wr.game.config.showVoteCounts === false) return '';
+    var counts = tally.counts || {};
+    var rows = Object.keys(counts).map(function(id){
+      var p = WolfLogic.findPlayer(wr.game, id);
+      return { name: p ? p.name : '?', n: counts[id] };
+    }).sort(function(a, b){ return b.n - a.n; });
+    if(!rows.length) return '';
+    return '<div class="vote-counts">' + rows.map(function(r){
+      return '<span class="vc-item">' + escapeHtml(r.name) + ' <b>' + r.n + '</b></span>';
+    }).join('') + '</div>';
+  }
+  // 第20弾-5-3：ただの「脱落」では、いつ何で欠けたのかが分からない
+  var DEAD_CAUSE_LABEL = {
+    executed: '処刑',
+    attacked: '襲撃',
+    cursed:   '呪殺',
+    lover:    '後追い'
+  };
   function renderWrAliveList(){
     return wr.game.players.map(function(p){
+      var cause = p.alive ? '生存'
+        : (DEAD_CAUSE_LABEL[p.deadCause] || '脱落') +
+          (p.deadTurn ? '（' + p.deadTurn + '日目）' : '');
       return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (p.alive ? '' : ' 💀') + '</div>' +
-        '<div class="rs">' + (p.alive ? '生存' : '脱落') + '</div></div>';
+        '<div class="rs' + (p.alive ? '' : ' dead') + '">' + escapeHtml(cause) + '</div></div>';
     }).join('');
   }
   // 最終結果：役職に加えて、その人が何点入ったか（と理由）も見せる
@@ -4873,8 +4926,11 @@
     return wr.game.players.map(function(p){
       var s = scores[p.id] || { points:0, reasons:[] };
       var why = s.reasons.length ? '<div class="mic-status" style="text-align:right;">' + escapeHtml(s.reasons.join('／')) + '</div>' : '';
+      // 第20弾-5-3：役職の下に、いつ何で欠けたのかも添える
+      var fate = p.alive ? '' :
+        '／' + (DEAD_CAUSE_LABEL[p.deadCause] || '脱落') + (p.deadTurn ? p.deadTurn + '日目' : '');
       return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (p.alive ? '' : ' 💀') +
-        '<div class="mic-status">' + escapeHtml(WolfLogic.roleById(p.role).name) + '</div></div>' +
+        '<div class="mic-status">' + escapeHtml(WolfLogic.roleById(p.role).name + fate) + '</div></div>' +
         '<div class="rs">' + (s.points > 0 ? '+' + s.points : '0') + why + '</div></div>';
     }).join('');
   }

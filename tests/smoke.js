@@ -1572,7 +1572,7 @@ async function startModeWithTimerOff(win, doc, id) {
       assert(/\.theme-wolf/.test(sel), '人狼カセットの外では使わない（' + sel + '）');
     });
     // 演出テキスト以外に混ざっていないか、名指しで確かめる
-    const allowed = ['.nf-title', '.fx-word', '#wrResultTitle', '.scr-title'];
+    const allowed = ['.nf-title', '.fx-word', '#wrResultTitle', '.scr-title', '.big-main'];
     users.forEach(sel => {
       assert(allowed.some(a => sel.indexOf(a) >= 0),
         '演出テキスト以外には使わない（' + sel + '）');
@@ -1585,6 +1585,13 @@ async function startModeWithTimerOff(win, doc, id) {
     // 数字は桁が揃う書体のままにする
     assert(/\.app\.theme-wolf[^{]*\.play-timer[^{]*\{[^}]*DotGothic16/.test(css.replace(/\s+/g, ' ')),
       'タイマーの数字は DotGothic16 のまま');
+    // 部屋コードは「読んで入力する文字」なので筆文字にしない
+    assert(/\.big-main\.is-code\s*\{[^}]*DotGothic16/.test(css.replace(/\s+/g, ' ')),
+      '部屋コードは桁の揃う書体で出す');
+    users.forEach(sel => {
+      assert(!/\.big-main(?!:not)/.test(sel) || /:not\(\.is-code\)/.test(sel),
+        '大画面の見出しは、コード表示のときは筆文字を外す（' + sel + '）');
+    });
   });
 
   // ---- 第20弾 第6部：最終ターンの2段階表示 ----

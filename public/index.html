@@ -601,6 +601,33 @@
   .rt-member .rm-name{flex:1;}
   .rt-member .rm-tag{font-size:11px;color:var(--ink-soft);background:var(--paper-deep);border-radius:999px;padding:2px 9px;}
   .rt-member.off{opacity:.45;}
+  /* 第21弾-7：自分の端末の画面 */
+  .rt-phase{text-align:center;font-family:'Shippori Mincho',serif;font-weight:800;font-size:26px;margin:6px 0 12px;}
+  .rt-public{text-align:center;font-size:13px;color:var(--ink-soft);line-height:1.8;margin-bottom:14px;}
+  .rt-you{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;}
+  .rt-you .ry-label{font-size:11px;letter-spacing:.14em;color:var(--ink-soft);}
+  .rt-you .ry-name{font-family:'Shippori Mincho',serif;font-weight:800;font-size:30px;margin:4px 0;}
+  .rt-you .ry-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.7;}
+  .rt-you .ry-info{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);}
+  /* 第21弾-6：大画面（TV・PC）。離れて見えるよう、とにかく大きく */
+  #scr-rt-big{align-items:center;justify-content:center;text-align:center;}
+  .big-wrap{width:100%;}
+  .big-turn{font-size:clamp(14px,2.4vw,22px);color:var(--ink-soft);letter-spacing:.16em;}
+  .big-phase{font-size:clamp(18px,3vw,30px);color:var(--ink-soft);margin-top:6px;letter-spacing:.2em;}
+  .big-main{
+    font-size:clamp(48px,11vw,132px);line-height:1.15;margin:10px 0;letter-spacing:.06em;
+    font-family:'Shippori Mincho',serif;
+  }
+  /* 部屋コードは「読んで入力する文字」なので、桁が揃って紛れない書体のままにする
+     （夜・投票・決着といった演出の見出しだけを筆文字にする） */
+  .big-main.is-code{font-family:'DotGothic16',monospace;letter-spacing:.14em;}
+  .big-sub{font-size:clamp(16px,2.6vw,28px);line-height:1.7;margin-bottom:12px;}
+  .big-list{
+    display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
+    font-size:clamp(14px,2.2vw,24px);
+  }
+  .big-list .bl-item{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 18px;}
+  .big-list .bl-item.dead{opacity:.4;text-decoration:line-through;}
   .ai-description{
     margin-top:10px;font-size:14px;color:var(--ink);line-height:1.6;background:#fff;
     border:1px dashed var(--line);border-radius:8px;padding:10px 12px;text-align:left;
@@ -726,6 +753,7 @@
   .app.theme-wolf .nf-title,
   .app.theme-wolf .night-fx .fx-word,
   .app.theme-wolf #wrResultTitle,
+  .app.theme-wolf .big-main:not(.is-code),
   .app.theme-wolf #scr-wolf-result .scr-title{
     font-family:'Yuji Syuku', 'Shippori Mincho', serif;
     letter-spacing:.1em;
@@ -1303,6 +1331,32 @@
     <div class="wiz-foot" style="flex-direction:column;">
       <button class="btn btn-main" id="rtStartBtn">はじめる ▶</button>
       <button class="btn btn-ghost" id="rtLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
+    </div>
+  </div>
+
+  <!-- 1人1台：自分の端末。自分の情報と、いま自分がやることだけを出す -->
+  <div class="screen" id="scr-rt-play">
+    <div class="turn-banner" id="rtTurnBanner"></div>
+    <div class="rt-phase" id="rtPhase">-</div>
+    <div class="wiz-body">
+      <div id="rtPublicBox" class="rt-public"></div>
+      <div id="rtYouBox" class="rt-you"></div>
+      <div class="picker-grid" id="rtChoiceGrid" style="display:none;"></div>
+      <button class="btn btn-main" id="rtConfirmBtn" style="display:none;">確認しました</button>
+      <div class="mic-status" id="rtWaitNote" style="margin-top:14px;text-align:center;"></div>
+      <button class="btn btn-main" id="rtNextBtn" style="display:none;margin-top:14px;">つぎへ ▶</button>
+    </div>
+  </div>
+
+  <!-- 1人1台：大画面（TV・PC）。公開情報だけを大きく出す -->
+  <div class="screen" id="scr-rt-big">
+    <div class="big-wrap">
+      <div class="big-turn" id="bigTurn"></div>
+      <div class="big-phase" id="bigPhase">部屋コード</div>
+      <div class="big-main" id="bigMain">------</div>
+      <div class="big-sub" id="bigSub"></div>
+      <div class="big-list" id="bigList"></div>
+      <button class="btn btn-ghost" id="bigLeaveBtn" style="margin-top:24px;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -3165,6 +3219,7 @@
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
+    if(id === 'scr-rt-play' || id === 'scr-rt-big') rtRender();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -4181,7 +4236,7 @@
         : (res.message || '部屋を作れませんでした');
       return;
     }
-    goTo('scr-rt-room');
+    goTo(rtWantScreen()); // 大画面として入ったら、そのまま大画面へ
   });
   el('rtJoinBtn').addEventListener('click', async function(){
     var code = el('rtJoinCode').value.trim().toUpperCase();
@@ -4194,7 +4249,7 @@
       el('rtLobbyStatus').textContent = res.message || '部屋に入れませんでした';
       return;
     }
-    goTo('scr-rt-room');
+    goTo(rtWantScreen()); // 大画面として入ったら、そのまま大画面へ
   });
 
   function enterRtRoom(){ renderRtRoom(); }
@@ -4231,14 +4286,279 @@
     if(!me) return;
     await rt.setRole(me.role === 'bigscreen' ? 'player' : 'bigscreen');
   });
-  el('rtLeaveBtn').addEventListener('click', async function(){
+  async function rtLeaveRoom(){
     await rt.leave();
     goBack('scr-rt-lobby');
-  });
-  if(rt){
-    rt.on('room', function(){
-      if(el('scr-rt-room').classList.contains('active')) renderRtRoom();
+  }
+  el('rtLeaveBtn').addEventListener('click', rtLeaveRoom);
+  el('bigLeaveBtn').addEventListener('click', rtLeaveRoom);
+  el('rtStartBtn').addEventListener('click', async function(){
+    var m = modeById(state.selectedModeId);
+    var pre = (m && m.wolfPreset) || {};
+    this.disabled = true;
+    // 設定はプリセットのまま送る。人数に合わせた配分はサーバーが計算する
+    var res = await rt.startWolf({
+      roles: pre.roles || ['wolf', 'seer'],
+      turnLimit: pre.turnLimit || 5,
+      seerResult: pre.seerResult,
+      revealRoleOnDeath: pre.revealRoleOnDeath,
+      wolfAttackDecision: pre.wolfAttackDecision,
+      teruteruContinue: pre.teruteruContinue,
+      lovers: pre.lovers,
+      nightTimeLimit: pre.nightTimeLimit || 0,
+      preset: state.selectedModeId
     });
+    this.disabled = false;
+    if(!res.ok) el('rtRoomNote').textContent = res.message || 'はじめられませんでした';
+  });
+
+  // ===================== 第21弾 第6・7部：1人1台の画面 =====================
+  // 自分の端末（scr-rt-play）と大画面（scr-rt-big）。
+  // 大画面には、サーバーが公開情報しか送ってこない（wolf:you が届かない）。
+  var RT_PHASE_LABEL = {
+    roleReveal: '役職の確認', night: '夜', preVote: '投票のまえに',
+    day: '朝', vote: '投票', turnResult: '結果', ended: '決着'
+  };
+  function rtView(){
+    var room = rt && rt.state.room;
+    return (room && room.state && room.state.data) || null;
+  }
+  function rtIsBigScreen(){
+    var me = rt && rt.me();
+    return !!(me && me.role === 'bigscreen');
+  }
+  // 状態が動いたら、いるべき画面へ移して描き直す。
+  // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
+  var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-big'];
+  function rtWantScreen(){
+    if(rtIsBigScreen()) return 'scr-rt-big';
+    var v = rtView();
+    var started = !!(v && v.phase && v.phase !== 'lobby');
+    return started ? 'scr-rt-play' : 'scr-rt-room';
+  }
+  function rtSync(){
+    if(!rt || !rt.state.room) return;
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    // ロビーで入力中の人を引っぱらない。すでに部屋の画面にいる時だけ動かす
+    if(RT_SCREENS.indexOf(cur) === -1) return;
+    var want = rtWantScreen();
+    if(cur !== want){ goTo(want); return; }
+    rtRenderCurrent();
+  }
+  function rtRenderCurrent(){
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    if(cur === 'scr-rt-room') renderRtRoom();
+    else if(cur === 'scr-rt-big') renderRtBig();
+    else if(cur === 'scr-rt-play') renderRtPlay();
+  }
+  function rtRender(){
+    if(rtIsBigScreen()) renderRtBig(); else renderRtPlay();
+  }
+
+  // ---- 自分の端末 ----
+  function renderRtPlay(){
+    var v = rtView(), you = rt.state.secret;
+    if(!v) return;
+    el('rtTurnBanner').innerHTML = turnBannerHtml(v.turn, v.turnLimit, '日目');
+    el('rtPhase').textContent = RT_PHASE_LABEL[v.phase] || v.phase;
+    el('rtPublicBox').innerHTML = rtPublicHtml(v);
+
+    var grid = el('rtChoiceGrid'), confirm = el('rtConfirmBtn'), next = el('rtNextBtn');
+    grid.style.display = 'none'; grid.innerHTML = '';
+    confirm.style.display = 'none';
+    next.style.display = 'none';
+    el('rtWaitNote').textContent = '';
+
+    if(!you){ el('rtYouBox').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>'; return; }
+    el('rtYouBox').innerHTML = rtYouHtml(v, you);
+
+    // 決着したら、もう操作は無い
+    if(v.phase === 'ended') return;
+    // 朝と結果の画面は、ホストだけが進める
+    if(v.phase === 'day' || v.phase === 'turnResult'){
+      if(rt.isHost()){
+        next.style.display = 'inline-flex';
+        next.textContent = (v.phase === 'day') ? '投票へすすむ ▶' : 'つぎへ ▶';
+      } else {
+        el('rtWaitNote').textContent = '進行役がすすめるのを待っています';
+      }
+      return;
+    }
+    // まだ操作していなければ、選ぶ／確認する
+    if(!you.done && you.alive !== false){
+      if((you.choices || []).length){
+        grid.style.display = 'flex';
+        grid.innerHTML = you.choices.map(function(c){
+          return '<button class="pk-btn" data-rtpick="'+escapeHtml(String(c.id))+'">'+escapeHtml(c.name)+'</button>';
+        }).join('');
+      } else {
+        confirm.style.display = 'inline-flex';
+        confirm.textContent = (v.phase === 'roleReveal') ? '役職を確認しました' : '確認しました';
+      }
+    } else {
+      // 終わった人には、誰を待っているかを出す（名前だけなので秘密は漏れない）
+      el('rtWaitNote').textContent = (v.waiting || []).length
+        ? 'まだの人：' + v.waiting.join('、')
+        : 'みんなの操作を待っています';
+    }
+  }
+  function rtPublicHtml(v){
+    var lines = [];
+    if(v.phase === 'day' && v.morning){
+      if(!v.morning.deaths.length) lines.push('🌤️ 誰も欠けませんでした');
+      else v.morning.deaths.forEach(function(d){
+        lines.push('<span class="day-death">🌙 ' + escapeHtml(d.name) +
+          (d.role ? '（' + escapeHtml(d.role) + '）' : '') + ' が' + rtCauseLabel(d.cause) + '</span>');
+      });
+      if(v.morning.attackOverlap) lines.push('🐺 人狼たちの狙いが重なりました');
+    }
+    if(v.phase === 'turnResult' && v.turnResult){
+      var ex = v.turnResult.executed;
+      lines.push(ex ? ('⚖️ ' + escapeHtml(ex.name) + (ex.role ? '（' + escapeHtml(ex.role) + '）' : '') + ' が処刑されました')
+                    : '🤝 同数のため、誰も処刑されませんでした');
+      if(v.turnResult.counts){
+        lines.push('<div class="vote-counts">' + v.turnResult.counts.map(function(c){
+          return '<span class="vc-item">' + escapeHtml(c.name) + ' <b>' + c.n + '</b></span>';
+        }).join('') + '</div>');
+      }
+    }
+    if(v.phase === 'ended' && v.result){
+      lines.push('<b>' + rtWinnerLabel(v.result.winner) + '</b>');
+      lines.push(v.result.roles.map(function(p){
+        return escapeHtml(p.name) + '＝' + escapeHtml(p.roleName);
+      }).join('　'));
+    }
+    lines.push('のこり ' + v.aliveCount + '人');
+    return lines.join('<br>');
+  }
+  function rtCauseLabel(c){
+    return c === 'cursed' ? '謎の死' : (c === 'lover' ? '後を追った' : '襲われた');
+  }
+  function rtWinnerLabel(w){
+    return w === 'village' ? '🏘️ 村人陣営の勝ち'
+         : w === 'wolf' ? '🐺 人狼陣営の勝ち'
+         : w === 'fox' ? '🦊 妖狐の勝ち' : '決着';
+  }
+  function rtYouHtml(v, you){
+    var html = '<div class="ry-label">あなたの役職</div>' +
+      '<div class="ry-name">' + escapeHtml(you.roleName) + '</div>' +
+      '<div class="ry-desc">' + escapeHtml(you.roleDesc) + '</div>';
+    if(you.mates && you.mates.length){
+      html += '<div class="ry-info"><div class="ry-label">仲間</div>' +
+        '<div class="ry-name" style="font-size:20px;">' + escapeHtml(you.mates.join('、')) + '</div></div>';
+    }
+    if(you.lovers && you.lovers.length){
+      html += '<div class="ry-info"><div class="ry-label">恋人</div>' +
+        '<div class="ry-name" style="font-size:20px;">💞 ' + escapeHtml(you.lovers.join('、')) + '</div></div>';
+    }
+    if(you.info) html += '<div class="ry-info">' + rtInfoHtml(you.info) + '</div>';
+    if(you.alive === false) html += '<div class="ry-info"><div class="ry-desc">💀 あなたは脱落しています</div></div>';
+    return html;
+  }
+  function rtInfoHtml(info){
+    if(info.kind === 'divine'){
+      return '<div class="ry-label">占いの結果</div><div class="ry-name" style="font-size:20px;">' +
+        escapeHtml(info.targetName) + ' は ' + escapeHtml(info.result.label) + '</div>';
+    }
+    if(info.kind === 'peek'){
+      return '<div class="ry-label">のぞき見の結果</div><div class="ry-name" style="font-size:20px;">' +
+        escapeHtml(info.targetName) + ' は ' + escapeHtml(info.label) + '</div>';
+    }
+    if(info.kind === 'medium'){
+      return '<div class="ry-label">霊媒の結果</div><div class="ry-desc">' +
+        (info.deaths.length ? info.deaths.map(function(d){
+          return escapeHtml(d.name) + ' は ' + escapeHtml(d.roleName);
+        }).join('<br>') : 'まだ亡くなった人はいません') + '</div>';
+    }
+    if(info.kind === 'guard'){
+      return '<div class="ry-label">守りの結果</div><div class="ry-desc">' +
+        escapeHtml(info.targetName) + (info.saved ? ' を守りきりました 🛡️' : ' は襲われませんでした') + '</div>';
+    }
+    return '';
+  }
+  el('rtChoiceGrid').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-rtpick]');
+    if(!b) return;
+    var v = rtView();
+    if(!v) return;
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){ x.disabled = true; });
+    if(v.phase === 'vote') await rt.vote(b.dataset.rtpick);
+    else await rt.act(b.dataset.rtpick);
+  });
+  el('rtConfirmBtn').addEventListener('click', async function(){
+    this.disabled = true;
+    await rt.act(null);
+    this.disabled = false;
+  });
+  el('rtNextBtn').addEventListener('click', async function(){
+    this.disabled = true;
+    await rt.nextPhase();
+    this.disabled = false;
+  });
+
+  // ---- 大画面（TV・PC）。公開情報だけを大きく出す ----
+  function renderRtBig(){
+    var v = rtView();
+    var room = rt && rt.state.room;
+    if(!room) return;
+    if(!v || !v.phase || v.phase === 'lobby'){
+      el('bigTurn').textContent = '';
+      el('bigPhase').textContent = '部屋コード';
+      el('bigMain').classList.add('is-code'); // コードは読み取る文字なので書体を変える
+      el('bigMain').textContent = room.code;
+      el('bigSub').textContent = 'このコードを入れて参加してください';
+      el('bigList').innerHTML = (room.members || [])
+        .filter(function(m){ return m.role === 'player'; })
+        .map(function(m){ return '<span class="bl-item">' + escapeHtml(m.name) + '</span>'; }).join('');
+      return;
+    }
+    el('bigTurn').textContent = v.turn + ' / ' + v.turnLimit + 'ターン';
+    el('bigPhase').textContent = RT_PHASE_LABEL[v.phase] || v.phase;
+    el('bigMain').classList.remove('is-code');
+
+    var main = '', sub = '';
+    if(v.phase === 'roleReveal'){ main = '役職を配りました'; sub = '自分のスマホで確認してください'; }
+    else if(v.phase === 'night' || v.phase === 'preVote'){ main = '夜'; sub = '全員、自分のスマホを見てください'; }
+    else if(v.phase === 'day'){
+      var d = (v.morning && v.morning.deaths) || [];
+      main = d.length ? d.map(function(x){ return x.name; }).join('・') : '誰も欠けませんでした';
+      sub = d.length
+        ? d.map(function(x){ return (x.role ? '（' + x.role + '）' : '') + rtCauseLabel(x.cause); }).join(' ／ ')
+        : '平和な朝です';
+      if(v.morning && v.morning.attackOverlap) sub += ' ／ 人狼たちの狙いが重なりました';
+    }
+    else if(v.phase === 'vote'){ main = '投票'; sub = '自分のスマホでえらんでください'; }
+    else if(v.phase === 'turnResult'){
+      var ex = v.turnResult && v.turnResult.executed;
+      main = ex ? ex.name : '処刑なし';
+      sub = ex ? ((ex.role ? '（' + ex.role + '）' : '') + ' が処刑されました') : '同数だったため';
+      if(v.turnResult && v.turnResult.counts){
+        sub += '<br>' + v.turnResult.counts.map(function(c){ return c.name + ' ' + c.n; }).join('　');
+      }
+    }
+    else if(v.phase === 'ended'){
+      main = rtWinnerLabel(v.result && v.result.winner);
+      sub = (v.result && v.result.roles || []).map(function(p){
+        return p.name + '＝' + p.roleName;
+      }).join('　');
+    }
+    el('bigMain').textContent = main;
+    el('bigSub').innerHTML = sub;
+
+    // 生死は公開情報。役職は決着するまで出さない
+    el('bigList').innerHTML = (v.players || []).map(function(p){
+      return '<span class="bl-item' + (p.alive ? '' : ' dead') + '">' + escapeHtml(p.name) + '</span>';
+    }).join('');
+    if([ 'roleReveal', 'night', 'preVote', 'vote' ].indexOf(v.phase) >= 0 && (v.waiting || []).length){
+      el('bigSub').innerHTML = sub + '<br><span style="opacity:.7;">まだの人：' +
+        escapeHtml(v.waiting.join('、')) + '</span>';
+    }
+  }
+
+  if(rt){
+    rt.on('room', function(){ rtSync(); });
+    rt.on('you', function(){ rtSync(); });
+    rt.on('rejoined', function(){ rtSync(); });
   }
 
   // ===================== 4.5 mode rules =====================

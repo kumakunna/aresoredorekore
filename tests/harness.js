@@ -91,6 +91,37 @@ async function launch(opts) {
     html = html.replace(/hidden:true/g, 'hidden:false');
     if (before === 0) throw new Error('hidden:true が見つかりません（MODESの書式が変わった可能性があります）');
   }
+  // 第21弾：1人1台モードの画面を jsdom で確かめるための疑似 socket.io。
+  // 本番のブラウザはサーバーが配る /socket.io/socket.io.js を読むが、
+  // jsdom は外部スクリプトを読まないので window.io が無い。
+  // テストからサーバー→端末のイベントを流し込めるよう、最小の代役を差し込む。
+  // 本番コードには一切手を入れていない（window.io があるかないかだけの違い）。
+  if (opts.fakeSocket) {
+    const fake = `<script>
+      window.__rtFake = { emits: [], handlers: {}, connected: false };
+      window.io = function(){
+        var f = window.__rtFake;
+        var s = {
+          on: function(name, fn){ (f.handlers[name] = f.handlers[name] || []).push(fn); return s; },
+          emit: function(name, payload, cb){
+            f.emits.push({ name: name, payload: payload });
+            var reply = f.replies && f.replies[name];
+            if (cb) cb(typeof reply === 'function' ? reply(payload) : (reply || { ok: true }));
+            return s;
+          },
+          close: function(){ s.disconnect(); },
+          disconnect: function(){ f.connected = false; f.fire('disconnect'); }
+        };
+        f.socket = s;
+        f.fire = function(name, payload){
+          (f.handlers[name] || []).forEach(function(fn){ fn(payload); });
+        };
+        setTimeout(function(){ f.connected = true; f.fire('connect'); }, 0);
+        return s;
+      };
+    </script>`;
+    html = html.replace('<script src="/socket.io/socket.io.js"></script>', fake);
+  }
   // 長押しボタンは本番で1秒かけて溜める。テストでは1回ごとに1秒待つのが積み上がり、
   // 第20弾で長押しが増えた結果、全体の実行時間が10分近くまで伸びた。
   // 押し心地の検証はテストの目的ではないので、待ち時間だけ縮める。

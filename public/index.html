@@ -158,6 +158,9 @@
     border-radius:10px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .15s, background .15s;
   }
   .mode-card.selected{border-color:var(--ink);background:#fff;box-shadow:var(--shadow);}
+  /* 第20弾：人数が足りなくて選べない遊び方。押せることは押せて、理由が出る */
+  .mode-card.locked{opacity:.45;filter:grayscale(1);}
+  .mode-card.locked .m-check{display:none;}
   .mode-card .m-icon{
     width:44px;height:44px;border-radius:50%;background:var(--paper-deep);flex:none;
     display:flex;align-items:center;justify-content:center;font-size:20px;
@@ -190,6 +193,12 @@
     font-family:'Zen Maru Gothic';font-weight:700;font-size:14px;cursor:pointer;user-select:none;
   }
   .hold-btn .big{font-size:26px;}
+  /* 第20弾-3-2：話し合い終了の長押しボタン。準備OK画面と同じ大きさで揃える */
+  .discuss-hold{text-align:center;margin:18px 0 6px;}
+  .discuss-hold .hold-wrap{margin-bottom:8px;}
+  /* 第20弾-4-2：朝の話し合いタイマーは大きく。一時停止ボタンと横に並べる */
+  .day-timer-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0 6px;}
+  .day-timer-row .play-timer{font-size:46px;}
 
   /* ---------- countdown ---------- */
   #scr-countdown{align-items:center;justify-content:center;}
@@ -205,6 +214,8 @@
   /* ---------- play ---------- */
   #scr-play{padding-bottom:20px;}
   .play-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  /* 第20弾-1-3：ボタン群は1つの塊として右に寄せる。中身が増減しても位置が動かない */
+  .topbar-actions{display:flex;align-items:center;gap:8px;flex:none;}
   .timer-chip{
     font-family:'DotGothic16',monospace;font-size:22px;color:var(--stamp-deep);
     background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 16px;
@@ -1229,9 +1240,23 @@
     <div class="wolf-handoff">
       <div class="wolf-handoff-label turn-banner" id="wrDayTurn">1日目の朝</div>
       <div class="wolf-result-topic" id="wrDayNews"></div>
-      <div class="play-timer" id="wrDayTimer" style="display:none;">03:00</div>
+      <!-- 第20弾-3-3：ワードウルフ側と同じく、話し合いの時間を止められるようにする -->
+      <div class="day-timer-row">
+        <div class="play-timer" id="wrDayTimer" style="display:none;">03:00</div>
+        <button class="pause-btn" id="wrDayPauseBtn" style="display:none;">⏸</button>
+      </div>
       <div class="wolf-handoff-sub">話し合って、あやしい人を決めましょう</div>
-      <button class="btn btn-main" id="wrToVoteBtn">投票へすすむ</button>
+      <!-- 第20弾-3-2：ワードウルフ側と同じ長押しボタンに統一 -->
+      <div class="hold-wrap">
+        <svg viewBox="0 0 190 190">
+          <circle class="hold-track" cx="95" cy="95" r="85"></circle>
+          <circle class="hold-ring" id="wrDayHoldRing" cx="95" cy="95" r="85"></circle>
+        </svg>
+        <button class="hold-btn" id="wrToVoteBtn">
+          <span class="big">🗳️</span>
+          <span>長押しで投票へ</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1393,12 +1418,30 @@
 
   <!-- 7: play -->
   <div class="screen" id="scr-play">
+    <!-- 第20弾-1-3：ボタンは表示/非表示が切り替わるので、まとめて右に寄せる。
+         space-between に直接並べると、見えているボタンの数で配置が毎回ズレる -->
     <div class="play-topbar">
       <div class="timer-chip" id="playTimer">03:00</div>
-      <button class="pause-btn" id="peekBtn" style="display:none;">⏱</button>
-      <button class="pause-btn" id="pauseBtn">⏸</button>
-      <button class="pause-btn" id="endRoundBtn" style="display:none;">🏁</button>
-      <button class="pause-btn" id="wolfSkipBtn" style="display:none;" aria-label="投票へすすむ">⏭</button>
+      <div class="topbar-actions">
+        <button class="pause-btn" id="peekBtn" style="display:none;">⏱</button>
+        <button class="pause-btn" id="pauseBtn">⏸</button>
+        <button class="pause-btn" id="endRoundBtn" style="display:none;">🏁</button>
+      </div>
+    </div>
+    <!-- 第20弾-3-2：ワードウルフの話し合いを終える長押しボタン。
+         人狼(scr-wr-day)と同じ大きさ・同じリング演出に揃える -->
+    <div class="discuss-hold" id="wolfDiscussHold" style="display:none;">
+      <div class="wolf-handoff-sub">話がまとまったら、長押しで投票へ</div>
+      <div class="hold-wrap">
+        <svg viewBox="0 0 190 190">
+          <circle class="hold-track" cx="95" cy="95" r="85"></circle>
+          <circle class="hold-ring" id="wolfDiscussRing" cx="95" cy="95" r="85"></circle>
+        </svg>
+        <button class="hold-btn" id="wolfDiscussBtn">
+          <span class="big">🗳️</span>
+          <span>長押しで投票へ</span>
+        </button>
+      </div>
     </div>
     <div class="describer-banner" id="describerBanner" style="display:none;"></div>
     <div class="topic-card">
@@ -1719,10 +1762,10 @@
     { id:'aresoredorekore', genre:'word', ready:true,  logo:'img/logo-aresoredorekore.png', title:'あれそれどれこれ',
       games:['aresoredorekore'],
       meta:'2〜8人 / 10分〜<br>ことばで説明して当てる' },
-    // 第4段階でカセットとして復活予定。中身は決まっているので名前を見せ、まだ遊べないことを明示する
     { id:'jinro',           genre:'word', ready:true,  icon:'🐺', title:'人狼<br>ゲーム',
       games:['wordwolf', 'wolfrole'],
-      meta:'3〜10人 / 15分〜<br>正体を隠して探り合う' },
+      // 第18弾で人数上限を撤廃した（手渡しの回数が人数に比例して増えないため）
+      meta:'3人〜人数無制限 / 15分〜<br>正体を隠して探り合う' },
     { id:'word-soon-1',     genre:'word', ready:false, icon:'？' },
     { id:'deal-soon-1',     genre:'deal', ready:false, icon:'？' },
     { id:'deal-soon-2',     genre:'deal', ready:false, icon:'？' },
@@ -2992,16 +3035,37 @@
       list = MODES.filter(function(m){ return !m.hidden; });
       state.selectedGameId = DEFAULT_GAME_ID;
     }
-    if(!list.some(function(m){ return m.id === state.selectedModeId; })) applyPreset(list[0].id);
+    // 第20弾-1-2：人数が足りない遊び方は選べないようにする。
+    // 選択中がもう遊べない人数になっていたら、遊べるものへ寄せる（行き止まりを作らない）
+    var playable = list.filter(canPlayMode);
+    if(!list.some(function(m){ return m.id === state.selectedModeId; })
+       || !canPlayMode(modeById(state.selectedModeId))){
+      applyPreset((playable[0] || list[0]).id);
+    }
     el('modeCards').innerHTML = list.map(function(m){
       var sel = m.id === state.selectedModeId;
-      return '<div class="mode-card'+(sel?' selected':'')+'" data-id="'+m.id+'">'+
+      var need = modeMinPlayers(m);
+      var ok = canPlayMode(m);
+      var sub = ok ? m.sub
+        : '👥 ' + need + '人以上で遊べます（いま' + state.players.length + '人）';
+      return '<div class="mode-card'+(sel?' selected':'')+(ok?'':' locked')+'" data-id="'+m.id+'"'+
+          (ok ? '' : ' data-locked="'+need+'"')+'>'+
         '<div class="m-icon">'+m.icon+'</div>'+
-        '<div class="m-text"><div class="m-title">'+m.title+'</div><div class="m-sub">'+m.sub+'</div></div>'+
+        '<div class="m-text"><div class="m-title">'+m.title+'</div><div class="m-sub">'+sub+'</div></div>'+
         '<div class="m-check"></div>'+
       '</div>';
     }).join('');
     renderScorePreview();
+  }
+  // その遊び方に必要な最低人数。プリセットに書いてあればそれ、
+  // 書いていない人狼系は3人（1人だけ違う役を作れる最小）、それ以外は2人。
+  function modeMinPlayers(m){
+    if(m.wolfPreset && m.wolfPreset.minPlayers) return m.wolfPreset.minPlayers;
+    if(m.wolfRole || m.wolf) return 3;
+    return 2;
+  }
+  function canPlayMode(m){
+    return !m || state.players.length >= modeMinPlayers(m);
   }
 
   // ===================== 設定ウィザード（①） =====================
@@ -3597,6 +3661,11 @@
   el('modeCards').addEventListener('click', function(e){
     var card = e.target.closest('.mode-card');
     if(!card) return;
+    // 第20弾-1-2：人数が足りない遊び方は選ばせない。押しても理由が分かるようにする
+    if(card.dataset.locked){
+      showFlash('この遊び方は' + card.dataset.locked + '人以上必要です', 'hit-wrong');
+      return;
+    }
     applyPreset(card.dataset.id); // 第10弾：プリセット＝オプションの初期セット
     saveLocalPrefs();
     enterMode();
@@ -3623,10 +3692,22 @@
     var c = cassetteById(state.selectedCassetteId);
     goBack(cassetteGames(c).length > 1 ? 'scr-game' : 'scr-shelf');
   });
-  el('modeNextBtn').addEventListener('click', startWizard);
+  // 第20弾-1-2：カードを押せなくするだけでは、設定画面から戻って人数を減らした場合に
+  // 足りないまま先へ進めてしまう。開始の手前でも必ず確かめる。
+  function guardMinPlayers(){
+    var m = modeById(state.selectedModeId);
+    if(canPlayMode(m)) return true;
+    showFlash(m.title + 'は' + modeMinPlayers(m) + '人以上必要です（いま' + state.players.length + '人）', 'hit-wrong');
+    return false;
+  }
+  el('modeNextBtn').addEventListener('click', function(){
+    if(!guardMinPlayers()) return;
+    startWizard();
+  });
   el('modeAutoBtn').addEventListener('click', function(){
     // おまかせ：設定は飛ばすが、初回のルール説明は飛ばさない。
     // （ここで直接 scr-ready へ行くと、はじめて遊ぶモードでも説明が出ないままになる）
+    if(!guardMinPlayers()) return;
     applyModeDefaults();
     finishWizard();
   });
@@ -3668,43 +3749,42 @@
   }
   el('readyBackBtn').addEventListener('click', function(){ goBack('scr-mode'); });
 
-  var HOLD_MS = 1000, holdStart = null, holdRAF = null;
+  // ---- 長押しボタン（第20弾-3-2で使い回せる形に切り出した） ----
+  // 準備OK画面のリング演出をそのまま、話し合い終了ボタンでも使う。
+  // 1つの実装を共有するので、押し心地が画面によって変わらない。
+  var HOLD_MS = 1000;
   var RING_CIRC = 2 * Math.PI * 85;
-  function resetHoldRing(){
-    el('holdRing').style.strokeDashoffset = RING_CIRC;
-  }
-  function setHoldProgress(pct){
-    el('holdRing').style.strokeDashoffset = RING_CIRC * (1 - pct);
-  }
-  function holdTick(){
-    var elapsed = performance.now() - holdStart;
-    var pct = Math.min(1, elapsed / HOLD_MS);
-    setHoldProgress(pct);
-    if(pct >= 1){ holdStart = null; onHoldComplete(); return; }
-    holdRAF = requestAnimationFrame(holdTick);
-  }
-  function onHoldStart(e){
-    e.preventDefault();
-    holdStart = performance.now();
-    holdTick();
-  }
-  function onHoldEnd(){
-    if(holdStart !== null){
-      holdStart = null;
-      cancelAnimationFrame(holdRAF);
-      resetHoldRing();
+  function makeHoldButton(btnId, ringId, onComplete){
+    var start = null, raf = null;
+    var btn = el(btnId), ring = el(ringId);
+    function reset(){ ring.style.strokeDashoffset = RING_CIRC; }
+    function tick(){
+      var pct = Math.min(1, (performance.now() - start) / HOLD_MS);
+      ring.style.strokeDashoffset = RING_CIRC * (1 - pct);
+      if(pct >= 1){ start = null; complete(); return; }
+      raf = requestAnimationFrame(tick);
     }
+    function complete(){
+      reset();
+      beep(1046, 180);
+      if(navigator.vibrate) navigator.vibrate(80);
+      onComplete();
+    }
+    function onStart(e){ e.preventDefault(); start = performance.now(); tick(); }
+    function onEnd(){
+      if(start === null) return;
+      start = null;
+      cancelAnimationFrame(raf);
+      reset();
+    }
+    btn.addEventListener('pointerdown', onStart);
+    btn.addEventListener('pointerup', onEnd);
+    btn.addEventListener('pointerleave', onEnd);
+    btn.addEventListener('pointercancel', onEnd);
+    return { reset: reset };
   }
-  function onHoldComplete(){
-    beep(1046, 180);
-    if(navigator.vibrate) navigator.vibrate(80);
-    goTo('scr-countdown');
-  }
-  var holdBtn = el('holdBtn');
-  holdBtn.addEventListener('pointerdown', onHoldStart);
-  holdBtn.addEventListener('pointerup', onHoldEnd);
-  holdBtn.addEventListener('pointerleave', onHoldEnd);
-  holdBtn.addEventListener('pointercancel', onHoldEnd);
+  var readyHold = makeHoldButton('holdBtn', 'holdRing', function(){ goTo('scr-countdown'); });
+  function resetHoldRing(){ readyHold.reset(); }
 
   // ===================== 6. countdown =====================
   function enterCountdown(){
@@ -4465,6 +4545,7 @@
     setWolfPhaseTone('day');
     playPhaseFx('day', '');
     sfxMorning();
+    wrDayHold.reset(); // 前のターンの進捗が残らないように
     var deaths = (wr.nightOut && wr.nightOut.deaths) || [];
     var news;
     if(!deaths.length){
@@ -4491,11 +4572,21 @@
   // 話し合いタイマー（この画面専用。既存のプレイ画面のタイマーには手を入れない）
   function startWrDayTimer(){
     stopWrDayTimer();
-    if(!state.timerEnabled){ el('wrDayTimer').style.display = 'none'; return; }
+    if(!state.timerEnabled){
+      el('wrDayTimer').style.display = 'none';
+      el('wrDayPauseBtn').style.display = 'none';
+      return;
+    }
     var total = state.customTimer || 180;
     wr.remaining = total;
     el('wrDayTimer').style.display = 'block';
+    el('wrDayPauseBtn').style.display = 'inline-flex';
+    el('wrDayPauseBtn').textContent = '⏸';
     renderWrDayTimer();
+    tickWrDayTimer();
+  }
+  // 第20弾-3-3：一時停止できるように、進行部分を分けた
+  function tickWrDayTimer(){
     wr.timer = setInterval(function(){
       wr.remaining--;
       renderWrDayTimer();
@@ -4506,6 +4597,15 @@
       }
     }, 1000);
   }
+  el('wrDayPauseBtn').addEventListener('click', function(){
+    if(wr && wr.timer){
+      stopWrDayTimer();
+      this.textContent = '▶';
+    } else {
+      tickWrDayTimer();
+      this.textContent = '⏸';
+    }
+  });
   function renderWrDayTimer(){
     var m = Math.floor(wr.remaining / 60), s = wr.remaining % 60;
     el('wrDayTimer').textContent = pad(m) + ':' + pad(s);
@@ -4518,7 +4618,8 @@
     wr.info = (wr.nightOut && wr.nightOut.info) || {};
     startWrVote();
   }
-  el('wrToVoteBtn').addEventListener('click', goToWrVote);
+  // 第20弾-3-2：人狼側も長押しに統一（押し間違いで投票へ飛ぶ事故を防ぐ）
+  var wrDayHold = makeHoldButton('wrToVoteBtn', 'wrDayHoldRing', goToWrVote);
 
   // ---- 集計 → 処刑 → 判定 ----
   el('wrTallyBtn').addEventListener('click', function(){
@@ -5648,11 +5749,16 @@
     el('pauseBtn').textContent = '⏸';
     // 第18弾-6：ワードウルフの話し合いは、時間を待たずに投票へ進めるようにする
     // （話がまとまったのに待たされるのはテンポが悪いため）
+    // 第20弾-3-2：小さい⏭ボタンをやめ、人狼と同じ大きな長押しボタンに統一した。
+    // タイマーOFFでも話し合いは終える必要があるので、時間の有無にかかわらず出す。
     var m = modeById(state.selectedModeId);
-    var skipping = !!(m.wolf && play.wolfPhase === 'discuss' && on);
-    el('wolfSkipBtn').style.display = skipping ? 'inline-flex' : 'none';
+    var discussing = !!(m.wolf && play.wolfPhase === 'discuss');
+    el('wolfDiscussHold').style.display = discussing ? 'block' : 'none';
+    wolfDiscussHold.reset();
+    // 話し合い中は🏁（手動でラウンドを終える）を出さない。長押しボタンと役割が重なるため
+    if(discussing) el('endRoundBtn').style.display = 'none';
   }
-  el('wolfSkipBtn').addEventListener('click', function(){
+  var wolfDiscussHold = makeHoldButton('wolfDiscussBtn', 'wolfDiscussRing', function(){
     finishPlayRound(); // タイマー満了と同じ扱いで投票へ進む
   });
   el('pauseBtn').addEventListener('click', function(){
@@ -6084,10 +6190,28 @@
     settingsDraft[i].handicap = !settingsDraft[i].handicap;
     renderSettingsPlayers();
   });
+  // 第20弾-1-4：人狼カセットは「誰にどのお題・どの役職を配ったか」でゲームが成り立っている。
+  // ラウンドの途中で名簿が変わると、配った相手とズレて破綻する
+  // （抜けた人にスマホが回り、増えた人にはお題が無い）。
+  // 名前の変更は無害なので許可し、人の増減だけを止める。
+  function wolfRoundInProgress(){
+    var m = modeById(state.selectedModeId);
+    if(!(m.wolf || m.wolfRole)) return false;
+    if(wr && wr.game && !wr.finished) return true;
+    return !!(play.wolfOrder && play.wolfOrder.length && play.wolfPhase);
+  }
   el('applyPlayersBtn').addEventListener('click', function(){
     // 減らす場合は、消えるプレイヤーのスコアが失われることを確認
     var keptIds = settingsDraft.map(function(d){ return d.id; }).filter(Boolean);
     var removed = state.players.filter(function(p){ return keptIds.indexOf(p.id) === -1; });
+    var added = settingsDraft.filter(function(d){ return !d.id; });
+    if((removed.length || added.length) && wolfRoundInProgress()){
+      alert('遊んでいる途中は、人を増やしたり減らしたりできません。\n\n' +
+            'いま配っているお題や役職がズレてしまうためです。\n' +
+            'このラウンドを終えてから変更してください。（名前の変更はできます）');
+      initSettingsPlayers(); // 触った下書きを元に戻す
+      return;
+    }
     if(removed.length){
       var names = removed.map(function(p){ return p.name + '（' + p.score + '点）'; }).join('、');
       if(!confirm(names + ' を削除します。この記録は失われますがよろしいですか？')) return;
@@ -6157,6 +6281,8 @@
     return vals.length ? Math.max.apply(null, vals) : 0;
   }
   async function openRecords(){
+    // 記録画面は設定の上に重ねて開く。ここで時間を戻すと、記録を見ている間に
+    // 進んでしまうので、再開は記録を閉じた時（closeRecordsBtn）に任せる
     el('settingsOverlay').classList.remove('show');
     el('recordsOverlay').classList.add('show');
     el('statsLookupResult').innerHTML = '';
@@ -6244,13 +6370,43 @@
     Array.prototype.forEach.call(this.children, function(x){ x.classList.toggle('on', x === b); });
     renderRecords();
   });
+  // 第20弾-1-4：設定を開く間はタイマーを止めるが、閉じたら必ず戻す。
+  // 以前は止めっぱなしで、設定を開いただけで時間が進まなくなっていた
+  // （人数を変えたせいだと見えていたが、原因は設定を開いたこと自体だった）。
+  // 自分で⏸を押して止めていた人の意図は尊重したいので、
+  // 「設定のために止めた」ときだけ再開する。
+  var pausedForSettings = false;
   el('floatingGearBtn').addEventListener('click', function(){
-    if(play.running){ clearInterval(play.interval); play.running = false; el('pauseBtn').textContent = '▶'; } // 設定を開く間はタイマーを止める
+    pausedForSettings = false;
+    if(play.running){
+      clearInterval(play.interval); play.running = false; el('pauseBtn').textContent = '▶';
+      pausedForSettings = true;
+    }
+    // 人狼の朝（話し合い）タイマーも同じように止める
+    if(wr && wr.timer){
+      stopWrDayTimer(); el('wrDayPauseBtn').textContent = '▶';
+      pausedForSettings = true;
+    }
     openSettings();
   });
+  // 設定を閉じる唯一の入口。どの経路で閉じても、止めた時間が戻るようにする
+  function closeSettings(){
+    el('settingsOverlay').classList.remove('show');
+    if(!pausedForSettings) return;
+    pausedForSettings = false;
+    if(el('scr-play').classList.contains('active') && !play.running && state.timerEnabled){
+      startPlayTimer(); el('pauseBtn').textContent = '⏸';
+    }
+    if(el('scr-wr-day').classList.contains('active') && wr && !wr.timer && state.timerEnabled){
+      tickWrDayTimer(); el('wrDayPauseBtn').textContent = '⏸';
+    }
+  }
   el('recordsBtn').addEventListener('click', openRecords);
   el('openRecordsBtn').addEventListener('click', openRecords);
-  el('closeRecordsBtn').addEventListener('click', function(){ el('recordsOverlay').classList.remove('show'); });
+  el('closeRecordsBtn').addEventListener('click', function(){
+    el('recordsOverlay').classList.remove('show');
+    closeSettings(); // 設定経由で開いていた場合、ここで止めた時間を戻す
+  });
   el('statsLookupBtn').addEventListener('click', async function(){
     var name = el('statsLookupInput').value.trim();
     if(!name) return;
@@ -6270,7 +6426,7 @@
       el('statsLookupResult').textContent = e.message || '取得に失敗しました';
     }
   });
-  el('closeSettingsBtn').addEventListener('click', function(){ el('settingsOverlay').classList.remove('show'); });
+  el('closeSettingsBtn').addEventListener('click', closeSettings);
   async function addPack(name, yomi, ngs){
     name = (name||'').trim();
     if(!name) return;

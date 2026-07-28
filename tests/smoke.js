@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, createRunner, assert, assertEqual, assertNoErrors } = H;
+const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, setupPlayers, holdPress, createRunner, assert, assertEqual, assertNoErrors } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -235,7 +235,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
     if (activeScreen(doc) === 'scr-wr-day') {
       assert(el(doc, 'wrDayNews').textContent.length > 0, '朝に夜の結果が出る');
-      click(doc, 'wrToVoteBtn');
+      await holdPress(win, doc, 'wrToVoteBtn');
       // 投票：生存者ぶん手渡し
       await waitScreen(win, doc, 'scr-wr-pass', 3000);
       guard = 0;
@@ -336,7 +336,7 @@ async function startModeWithTimerOff(win, doc, id) {
     await runWrHandoffs(win, doc, players.length);  // 夜（全員に回る）
     await waitScreen(win, doc, 'scr-wr-day', 6000);
     const deadAtNight = /🌙/.test(el(doc, 'wrDayNews').textContent);
-    click(doc, 'wrToVoteBtn');
+    await holdPress(win, doc, 'wrToVoteBtn');
     await waitScreen(win, doc, 'scr-wr-pass', 3000);
 
     // 全員が「あき」に投票する（あき本人の番だけは別の人へ）
@@ -437,7 +437,7 @@ async function startModeWithTimerOff(win, doc, id) {
     await runWrHandoffs(win, doc, players.length);   // 役職確認
     await runWrHandoffs(win, doc, players.length);   // 夜（占い・護衛・襲撃）
     await waitScreen(win, doc, 'scr-wr-day', 6000);
-    click(doc, 'wrToVoteBtn');
+    await holdPress(win, doc, 'wrToVoteBtn');
     await waitScreen(win, doc, 'scr-wr-pass', 3000);
 
     const shown = [];
@@ -507,8 +507,9 @@ async function startModeWithTimerOff(win, doc, id) {
     await waitScreen(win, doc, 'scr-play', 5000);
     // タイマーONなので「🏁（手動終了）」は出ないが、スキップは出る
     assertEqual(el(doc, 'endRoundBtn').style.display, 'none', 'タイマーONでは手動終了は出ない');
-    assert(el(doc, 'wolfSkipBtn').style.display !== 'none', '話し合いをスキップするボタンが出る');
-    click(doc, 'wolfSkipBtn');
+    // 第20弾-3-2：小さい⏭ボタンをやめ、人狼と同じ大きな長押しボタンに統一した
+    assert(el(doc, 'wolfDiscussHold').style.display !== 'none', '話し合いを終える長押しボタンが出る');
+    await holdPress(win, doc, 'wolfDiscussBtn');
     await waitScreen(win, doc, 'scr-wolf-pass', 6000);   // 待たずに投票へ進む
     assertNoErrors(errors, 'タイマースキップで未捕捉の例外');
     win.close();
@@ -565,7 +566,7 @@ async function startModeWithTimerOff(win, doc, id) {
         if (c) c.click(); else click(doc, 'wrNextBtn');
         await sleep(win, 40);
       } else if (cur === 'scr-wr-day') {
-        click(doc, 'wrToVoteBtn');
+        await holdPress(win, doc, 'wrToVoteBtn');
         await sleep(win, 60);
       } else if (cur === 'scr-wr-gather') {
         click(doc, 'wrTallyBtn');
@@ -987,6 +988,114 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第1部：実機で見つかったバグ ----
+  await r.test('再発防止：設定を開いて閉じたら、タイマーが元どおり動く', async () => {
+    // 実機で「人数を変えるとタイマーが止まる」と報告された件。
+    // 実際の原因は「設定を開くと止めるのに、閉じても戻していなかった」で、
+    // 人数変更は無関係だった。全ゲーム共通の経路なので、あれそれどれこれで固定する。
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    win.alert = () => {};
+    await setupPlayers(win, doc, ['あき', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, 'modeNextBtn');
+    await sleep(win, 60);
+    for (let i = 0; i < 8; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click(); await sleep(win, 30);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-play', 8000);
+
+    const t0 = el(doc, 'playTimer').textContent;
+    await sleep(win, 1200);
+    assert(el(doc, 'playTimer').textContent !== t0, '開く前は動いている');
+
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    const paused = el(doc, 'playTimer').textContent;
+    await sleep(win, 1200);
+    assertEqual(el(doc, 'playTimer').textContent, paused, '設定を開いている間は止まる');
+
+    click(doc, 'closeSettingsBtn');
+    await sleep(win, 80);
+    const resumed = el(doc, 'playTimer').textContent;
+    await sleep(win, 1200);
+    assert(el(doc, 'playTimer').textContent !== resumed, '閉じたら動き出す（ここが直したところ）');
+    assertEqual(el(doc, 'pauseBtn').textContent, '⏸', 'ボタンの表示も再生中に戻る');
+    assertNoErrors(errors, 'タイマー再開で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('人数が足りない遊び方は選べず、理由が出る', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか']); // 3人
+    await waitScreen(win, doc, 'scr-mode', 3000);
+
+    const casual = doc.querySelector('.mode-card[data-id="wolf-casual"]');
+    const normal = doc.querySelector('.mode-card[data-id="wolf-normal"]');
+    assert(!casual.classList.contains('locked'), 'カジュアル（3人〜）は3人で選べる');
+    assert(normal.classList.contains('locked'), 'ノーマル（5人〜）は3人では選べない');
+    assert(/5人以上/.test(normal.textContent), '必要な人数が読める（' + normal.textContent.trim() + '）');
+
+    // 押しても選択が移らない
+    normal.click();
+    await sleep(win, 60);
+    assert(doc.querySelector('.mode-card[data-id="wolf-normal"]').classList.contains('locked'),
+      '押しても選ばれない');
+    assert(!doc.querySelector('.mode-card[data-id="wolf-normal"]').classList.contains('selected'),
+      '選択状態にならない');
+    assertNoErrors(errors, '人数制限で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('遊んでいる途中は、人を増やしたり減らしたりできない', async () => {
+    // お題や役職を配ったあとに名簿が変わると、配った相手とズレて破綻する
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players);
+    let alerted = '';
+    win.confirm = () => true;
+    win.alert = (m) => { alerted = m; };
+
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    click(doc, 'setPlayerPlusBtn');
+    await sleep(win, 40);
+    const rows = doc.querySelectorAll('#setNameRows input');
+    rows[rows.length - 1].value = 'あとから';
+    rows[rows.length - 1].dispatchEvent(new win.Event('input', { bubbles: true }));
+    click(doc, 'applyPlayersBtn');
+    await sleep(win, 80);
+
+    assert(/途中は/.test(alerted), '理由が出る（' + alerted.split('\n')[0] + '）');
+    assertEqual(doc.querySelectorAll('#setNameRows input').length, players.length,
+      '下書きも元に戻る（増やしかけが残らない）');
+
+    // 名前の変更は今までどおりできる
+    alerted = '';
+    const first = doc.querySelectorAll('#setNameRows input')[0];
+    first.value = 'あき改';
+    first.dispatchEvent(new win.Event('input', { bubbles: true }));
+    click(doc, 'applyPlayersBtn');
+    await sleep(win, 80);
+    assert(!/途中は/.test(alerted), '名前の変更は止めない');
+    assertNoErrors(errors, '途中の人数変更で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第18弾 第5部：設定画面の分離とターン表示 ----
   await r.test('設定：人狼カセットでは「お題を追加」を出さない', async () => {
     const { win, doc, errors } = await launch();
@@ -1048,7 +1157,7 @@ async function startModeWithTimerOff(win, doc, id) {
     if (activeScreen(doc) === 'scr-wr-day') {
       const day1 = el(doc, 'wrDayTurn').textContent;
       assert(/日目の朝/.test(day1) && /／2/.test(day1), '朝にも上限つきターン数が出る（' + day1 + '）');
-      click(doc, 'wrToVoteBtn');
+      await holdPress(win, doc, 'wrToVoteBtn');
       await sleep(win, 80);
     }
     // 1日目の投票

@@ -263,6 +263,14 @@ async function runWizardToPlay(win, doc, opts) {
   el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
 }
 
+// 長押しボタンを押す（第20弾で準備OK以外にも増えた）。
+// 完了まで1秒かかる。途中でもう一度押すと計測が振り出しに戻るので、
+// 押しっぱなしの時間をここで確保してから返す。
+async function holdPress(win, doc, id) {
+  el(doc, id).dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+  await sleep(win, 1200);
+}
+
 // ---------- テストランナー ----------
 function createRunner(title) {
   const results = [];
@@ -305,5 +313,5 @@ function assertNoErrors(errors, label) {
 
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  setupPlayers, fillPlayerForm, runWizardToPlay, createRunner, assert, assertEqual, assertNoErrors
+  setupPlayers, fillPlayerForm, runWizardToPlay, holdPress, createRunner, assert, assertEqual, assertNoErrors
 };

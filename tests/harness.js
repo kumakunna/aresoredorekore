@@ -52,7 +52,14 @@ function makeApi(opts) {
     let mm;
     if ((mm = p.match(/^\/api\/matches\/(\d+)\/round$/))) {
       const m = matches.find(x => x.id == mm[1]);
-      if (m) { const rd = { mode: body.mode, score_deltas: body.score_deltas || {}, at: new Date().toISOString() }; if (body.opts) rd.opts = body.opts; m.rounds.push(rd); }
+      // 本番の server.js は opts と detail の両方を保存する。
+      // 疑似APIが detail を捨てていると、記録画面の表示をテストできない
+      if (m) {
+        const rd = { mode: body.mode, score_deltas: body.score_deltas || {}, at: new Date().toISOString() };
+        if (body.opts) rd.opts = body.opts;
+        if (body.detail) rd.detail = body.detail;
+        m.rounds.push(rd);
+      }
       return json(200, { ok: true });
     }
     if ((mm = p.match(/^\/api\/matches\/(\d+)\/finish$/))) {

@@ -208,6 +208,8 @@
   .nf-turn-big{font-family:'DotGothic16',monospace;font-size:52px;line-height:1.2;margin-top:4px;}
   .nf-turn-big .final{font-size:24px;color:#FF9E7A;display:block;margin-top:6px;}
   .nightfall .btn{margin-top:20px;}
+  /* 第21弾-1：夜の持ち時間。話し合いタイマーと同じ見た目の chip を使う */
+  .night-timer-row{display:flex;justify-content:center;margin:6px 0 2px;}
   /* 第20弾-4-2：朝の話し合いタイマーは大きく。一時停止ボタンと横に並べる */
   .day-timer-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0 6px;}
   .day-timer-row .play-timer{font-size:46px;}
@@ -518,6 +520,13 @@
   .opt-tag-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px;}
   .opt-tag{font-size:11px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--ink-soft);}
   .record-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
+  /* 第21弾-3：人狼・ワードウルフの結末（勝った陣営・ターン数・役職構成） */
+  .record-detail{margin-top:6px;}
+  .rd-chip{
+    display:inline-block;font-size:11px;margin:0 5px 4px 0;padding:3px 9px;border-radius:999px;
+    background:var(--paper-deep);color:var(--ink);
+  }
+  .record-detail-roles{font-size:11px;color:var(--ink-soft);line-height:1.6;}
   /* 第14弾：AIが続けて落ちた時の案内（代わりの遊び方に気づいてもらう） */
   .ai-fallback-note{
     margin-top:10px;padding:8px 10px;border-radius:6px;
@@ -1113,6 +1122,16 @@
           </div>
         </div>
         <div class="mic-status" id="wrTurnNote" style="margin-top:4px;"></div>
+        <!-- 第21弾-1：夜にスマホを持っている人の持ち時間。0でなし -->
+        <div class="bomb-tier-row">
+          <span>夜の持ち時間</span>
+          <div class="bomb-tier-controls">
+            <button class="bomb-minus" data-wrnight="-15">−</button>
+            <span id="wrNightValue">なし</span>
+            <button class="bomb-plus" data-wrnight="15">＋</button>
+          </div>
+        </div>
+        <div class="mic-status" id="wrNightNote" style="margin-top:4px;"></div>
       </div>
 
       <div class="bomb-section" style="margin-top:14px;">
@@ -1198,6 +1217,29 @@
           <div class="mic-status" id="wmChangeNote"></div>
         </div>
         <div class="switch" id="wmChangeToggle"></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
+  <!-- 4j: 恋人の決め方（第21弾-2・恋人を入れた時だけ通る） -->
+  <div class="screen" id="scr-set-lovers">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepLovers"></span><h2 class="scr-title">恋人の決め方</h2></div>
+    <p class="wiz-lead">ふつうはランダムでOK。誰と誰にするか決めたい時だけ手動にしてください。</p>
+    <div class="wiz-body">
+      <div class="toggle-row-mini">
+        <div>恋人を手動で決める
+          <div class="mic-status" id="wrLoversPickNote"></div>
+        </div>
+        <div class="switch" id="wrLoversPickToggle"></div>
+      </div>
+      <div id="wrLoversPickBox" style="display:none;margin-top:14px;">
+        <div class="tp-label">恋人にする2人をえらぶ<span id="wrLoversCount">0 / 2</span></div>
+        <div class="handicap-picker" id="wrLoversGrid"></div>
+        <div class="mic-status" id="wrLoversWarn" style="margin-top:10px;"></div>
       </div>
     </div>
     <div class="wiz-foot">
@@ -1335,6 +1377,10 @@
   <div class="screen" id="scr-wr-pass">
     <!-- 第18弾-5：いま何ターン目かを常に出す。全員に同じものを出すので匿名性には影響しない -->
     <div class="turn-banner" id="wrTurnBanner"></div>
+    <!-- 第21弾-1：夜の持ち時間。全員に同じ見た目で出るので、役職の手がかりにはならない -->
+    <div class="night-timer-row" id="wrNightTimerRow" style="display:none;">
+      <div class="timer-chip" id="wrNightTimer">00:30</div>
+    </div>
     <div id="wrHandoff" class="wolf-handoff">
       <div class="wolf-handoff-label">つぎは</div>
       <div class="wolf-handoff-name" id="wrHandoffName">-</div>
@@ -2300,6 +2346,8 @@
       wolfAttackDecision: pre.wolfAttackDecision || 'vote',
       teruteruContinue: !!pre.teruteruContinue,
       lovers: !!pre.lovers,
+      loversPick: 'random', // 第21弾-2：既定はランダム。手動はウィザードで選ぶ
+      loverIds: null,
       nightTimeLimit: pre.nightTimeLimit || 0,
       // 第20弾-5-2：票数を見せるか。既定はON（なぜその人が処刑されたのかが分かる方が納得しやすい）
       showVoteCounts: (pre.showVoteCounts === undefined) ? true : !!pre.showVoteCounts
@@ -3025,6 +3073,8 @@
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
     // 役職あり人狼：話し合いタイマーは、その画面を離れたら必ず止める
     if(prevScreen && prevScreen.id === 'scr-wr-day' && id !== 'scr-wr-day') stopWrDayTimer();
+    // 第21弾-1：手渡し画面を離れたら、夜の持ち時間は必ず止める
+    if(prevScreen && prevScreen.id === 'scr-wr-pass' && id !== 'scr-wr-pass') stopWrNightTimer();
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-shelf') enterShelf();
@@ -3240,6 +3290,7 @@
     bombcfg:   { screen:'scr-set-bomb',      badge:'wizStepBomb',      render:renderBombSection },
     bomblife:  { screen:'scr-set-bomblife',   badge:'wizStepBombLife',   render:renderBombLifeStep },
     wolfrole:  { screen:'scr-set-wolfrole',   badge:'wizStepWolfRole',   render:renderWolfRoleStep },
+    lovers:    { screen:'scr-set-lovers',     badge:'wizStepLovers',     render:renderLoversStep },
     wolfmulti: { screen:'scr-set-wolfmulti',  badge:'wizStepWolfMulti',  render:renderWolfMultiStep },
     playstyle: { screen:'scr-set-playstyle',  badge:'wizStepPlaystyle',  render:renderPlaystyleStep },
     difficulty:{ screen:'scr-set-difficulty', badge:'wizStepDifficulty', render:renderDifficultyStep },
@@ -3258,7 +3309,11 @@
     // ワードウルフはお題が関連ペア固定なので難易度選択は不要
     if(m.wolf) return ['wolfcfg', 'timer', 'handicap'];
     // 役職あり人狼：役職の配分 → 話し合いの時間
-    if(m.wolfRole) return ['wolfrole', 'timer'];
+    // 第21弾-2：恋人を入れた時だけ「恋人の決め方」を挟む
+    if(m.wolfRole){
+      var cfgL = state.wrCfg;
+      return (cfgL && cfgL.lovers) ? ['wolfrole', 'lovers', 'timer'] : ['wolfrole', 'timer'];
+    }
     var steps = ['playstyle', 'difficulty']; // 第10弾：あそびかた（オプション）→ 難易度
     if(!m.buzzer) steps.push('timer'); // 早押しは対戦ごとの独自タイマー
     steps.push('handicap');
@@ -3280,10 +3335,55 @@
   function wrAssigned(cfg){ return WolfLogic.countAssigned(cfg.counts); }
   function wrVillagers(cfg){ return Math.max(0, state.players.length - wrAssigned(cfg)); }
 
+  // ---- 第21弾-2：恋人を手動で決める（上級者向け・既定はランダム） ----
+  function renderLoversStep(){
+    var cfg = wrCfg();
+    var manual = cfg.loversPick === 'manual';
+    el('wrLoversPickToggle').classList.toggle('on', manual);
+    el('wrLoversPickNote').textContent = manual
+      ? 'えらんだ2人が恋人になります'
+      : 'ランダムで2人が恋人になります';
+    el('wrLoversPickBox').style.display = manual ? 'block' : 'none';
+    var picked = cfg.loverIds || [];
+    el('wrLoversCount').textContent = picked.length + ' / 2';
+    el('wrLoversGrid').innerHTML = state.players.map(function(p){
+      var on = picked.indexOf(p.id) !== -1;
+      return '<div class="hp-chip'+(on?' on':'')+'" data-loverid="'+p.id+'">'+
+        (on ? '💞 ' : '') + escapeHtml(p.name) + '</div>';
+    }).join('');
+    el('wrLoversWarn').textContent = (manual && picked.length !== 2)
+      ? '2人えらんでください。えらばないまま進むと、ランダムになります。' : '';
+  }
+  el('scr-set-lovers').addEventListener('click', function(e){
+    var cfg = wrCfg();
+    if(e.target.closest('#wrLoversPickToggle')){
+      cfg.loversPick = (cfg.loversPick === 'manual') ? 'random' : 'manual';
+      if(cfg.loversPick === 'random') cfg.loverIds = null;
+      renderLoversStep();
+      return;
+    }
+    var chip = e.target.closest('[data-loverid]');
+    if(!chip) return;
+    var id = chip.dataset.loverid;
+    var list = (cfg.loverIds || []).slice();
+    var at = list.indexOf(id);
+    if(at >= 0) list.splice(at, 1);
+    else if(list.length < 2) list.push(id);
+    else return; // 3人目は選べない（恋人は2人1組）
+    cfg.loverIds = list;
+    renderLoversStep();
+  });
+
   function renderWolfRoleStep(){
     var cfg = wrCfg();
     var n = state.players.length;
     el('wrTurnValue').textContent = cfg.turnLimit;
+    // 第21弾-1：夜の持ち時間（1人あたり）
+    var nsec = cfg.nightTimeLimit || 0;
+    el('wrNightValue').textContent = nsec ? (nsec + '秒') : 'なし';
+    el('wrNightNote').textContent = nsec
+      ? '1人ずつの持ち時間です。時間切れになると、その人は何もしなかった扱いで次の人に渡ります。'
+      : '時間制限なし。じっくり考えたい時はこのままで。';
     el('wrTurnNote').textContent = cfg.turnLimit === 1
       ? '1ターンだけ。夜はなく、話し合って1回投票します（専用の役職に切り替わります）'
       : '決着がつかないまま最後のターンを終えたら、最終投票で決めます';
@@ -3345,6 +3445,14 @@
       renderWolfRoleStep();
       return;
     }
+    // 第21弾-1：夜の持ち時間（0＝なし、15秒刻み、最大180秒）
+    var nt = e.target.closest('[data-wrnight]');
+    if(nt){
+      var nv2 = (cfg.nightTimeLimit || 0) + parseInt(nt.dataset.wrnight, 10);
+      cfg.nightTimeLimit = Math.max(0, Math.min(180, nv2));
+      renderWolfRoleStep();
+      return;
+    }
     var b = e.target.closest('[data-wrrole]');
     if(b){
       var id = b.dataset.wrrole, d = parseInt(b.dataset.d, 10);
@@ -3369,7 +3477,12 @@
     else if(id2 === 'wrAttackToggle') cfg.wolfAttackDecision = (cfg.wolfAttackDecision === 'vote') ? 'each' : 'vote';
     else if(id2 === 'wrTeruteruToggle') cfg.teruteruContinue = !cfg.teruteruContinue;
     else if(id2 === 'wrShowVotesToggle') cfg.showVoteCounts = (cfg.showVoteCounts === false);
-    else if(id2 === 'wrLoversToggle') cfg.lovers = !cfg.lovers;
+    else if(id2 === 'wrLoversToggle'){
+      cfg.lovers = !cfg.lovers;
+      if(!cfg.lovers){ cfg.loversPick = 'random'; cfg.loverIds = null; }
+      // 第21弾-2：恋人の有無でウィザードの枚数が変わるので、一覧を組み直す
+      refreshWizSteps();
+    }
     renderWolfRoleStep();
   });
 
@@ -4633,6 +4746,9 @@
         wolfAttackDecision: cfg.wolfAttackDecision,
         teruteruContinue: cfg.teruteruContinue,
         lovers: cfg.lovers,
+        // 第21弾-2：手動で2人えらんだ時だけ渡す。えらんでいなければランダムのまま
+        loverIds: (cfg.loversPick === 'manual' && (cfg.loverIds || []).length === 2)
+          ? cfg.loverIds.slice() : null,
         nightTimeLimit: cfg.nightTimeLimit,
         showVoteCounts: cfg.showVoteCounts !== false
       }),
@@ -4716,6 +4832,7 @@
     var p = WolfLogic.findPlayer(wr.game, id);
     if(!p){ advanceWrQueue(); return; }
     wr.sub = null; // 第20弾-2：夜の2画面目（確認）はここでリセットする
+    stopWrNightTimer(); // 手渡し中は計らない。中身を見てから始める
     renderWrTurnBanner();
     var sub = wr.step === 'vote' ? 'この人にスマホを渡してください（投票）'
             : wr.step === 'night' ? 'この人にスマホを渡してください（夜の行動）'
@@ -4727,6 +4844,7 @@
   el('wrRevealBtn').addEventListener('click', function(){
     var p = WolfLogic.findPlayer(wr.game, wr.queue[wr.idx]);
     if(!p) return;
+    startWrNightTimer(); // 第21弾-1：中身を見た瞬間から持ち時間を計る
     if(wr.step === 'role') return showWrRole(p);
     if(wr.step === 'night') return showWrNightAction(p);
     if(wr.step === 'prevote') return showWrPreVoteAction(p);
@@ -4946,8 +5064,50 @@
     advanceWrQueue();
   });
 
+  // ---- 第21弾-1：夜の持ち時間（1人あたり） ----
+  // スマホを持っている人が考え込みすぎると、他の全員が待つことになる。
+  // 「タップして見る」で始まり、0になったらその人は何もしなかった扱いで次へ渡る。
+  // 表示はどの役職でもまったく同じなので、匿名性には影響しない。
+  function nightLimitSec(){
+    if(!wr || !wr.game) return 0;
+    if(wr.step !== 'night' && wr.step !== 'prevote') return 0; // 役職確認と投票は制限しない
+    return wr.game.config.nightTimeLimit || 0;
+  }
+  function stopWrNightTimer(){
+    if(wr && wr.nightTimer){ clearInterval(wr.nightTimer); wr.nightTimer = null; }
+    el('wrNightTimerRow').style.display = 'none';
+  }
+  function renderWrNightTimer(){
+    var d = el('wrNightTimer');
+    var m = Math.floor(wr.nightRemaining / 60), s = wr.nightRemaining % 60;
+    d.textContent = pad(m) + ':' + pad(s);
+    d.classList.remove('warn', 'done');
+    if(wr.nightRemaining <= 0) d.classList.add('done');
+    else if(wr.nightRemaining <= 5) d.classList.add('warn');
+  }
+  function startWrNightTimer(){
+    stopWrNightTimer();
+    var sec = nightLimitSec();
+    if(!sec) return;
+    wr.nightRemaining = sec;
+    el('wrNightTimerRow').style.display = 'flex';
+    renderWrNightTimer();
+    wr.nightTimer = setInterval(function(){
+      wr.nightRemaining--;
+      renderWrNightTimer();
+      if(wr.nightRemaining <= 0){
+        stopWrNightTimer();
+        timesUpChime();
+        // 何も選ばないまま時間切れ＝その夜は行動しなかった扱い。
+        // 選択を記録していないので、ロジック層は「行動なし」として処理する。
+        if(el('scr-wr-pass').classList.contains('active')) advanceWrQueue();
+      }
+    }, 1000);
+  }
+
   // 次の人へ。全員終わったら、そのステップの締めに進む
   function advanceWrQueue(){
+    stopWrNightTimer();
     wr.idx++;
     if(wr.idx < wr.queue.length){ enterWrPass(); return; }
     if(wr.step === 'role'){
@@ -6791,6 +6951,51 @@
     }).join('');
     el('recordsGameChips').innerHTML = chips;
   }
+  // ---- 第21弾-3：人狼・ワードウルフの記録に、保存済みの detail を出す ----
+  // detail はサーバーに残っていたのに、どこにも表示していなかった。
+  // 「どんな編成で、何ターンで、どちらが勝ったか」が見えないと、記録を見返す意味が薄い。
+  var WINNER_LABEL = {
+    village: '🏘️ 村人陣営の勝ち',
+    wolf:    '🐺 人狼陣営の勝ち',
+    fox:     '🦊 妖狐の勝ち'
+  };
+  function matchDetail(m){
+    var rounds = m.rounds || [];
+    // 最後に detail を持つラウンドが、その試合の結末
+    for(var i = rounds.length - 1; i >= 0; i--){
+      if(rounds[i] && rounds[i].detail) return rounds[i].detail;
+    }
+    return null;
+  }
+  function renderMatchDetail(m){
+    var d = matchDetail(m);
+    if(!d) return '';
+    var parts = [];
+    if(d.winner && WINNER_LABEL[d.winner]) parts.push(WINNER_LABEL[d.winner]);
+    if(d.teruteruWin) parts.push('🎏 てるてる坊主の勝ち');
+    if(d.loversWin) parts.push('💞 恋人の勝ち');
+    if(d.turnsPlayed){
+      parts.push('⏱ ' + d.turnsPlayed + (d.turnLimit ? '／' + d.turnLimit : '') + 'ターン');
+    }
+    // ワードウルフ（2〜ターン）は役職構成を持たないので、遊び方だけ添える
+    if(d.variant === 'sameTopic') parts.push('お題は変えずにくり返し');
+    if(d.variant === 'newTopic') parts.push('毎ターンお題を変える');
+    var roleLine = '';
+    if(d.roles){
+      var names = Object.keys(d.roles)
+        .filter(function(k){ return d.roles[k] > 0; })
+        .map(function(k){
+          var r = WolfLogic.roleById(k);
+          return (r ? r.name : k) + (d.roles[k] > 1 ? ('×' + d.roles[k]) : '');
+        });
+      if(names.length) roleLine = '<div class="record-detail-roles">' + escapeHtml(names.join('・')) + '</div>';
+    }
+    if(!parts.length && !roleLine) return '';
+    return '<div class="record-detail">' + parts.map(function(p){
+      return '<span class="rd-chip">' + escapeHtml(p) + '</span>';
+    }).join('') + roleLine + '</div>';
+  }
+
   function renderRecords(){
     var list = recordsCache.filter(function(m){
       if(recordsTagFilter.length === 0) return true;
@@ -6826,6 +7031,7 @@
           '<span class="record-date">'+dateStr+'</span>'+
         '</div>'+
         '<div class="record-scores">'+(scoreLine || 'スコアなし')+'</div>'+
+        renderMatchDetail(m)+
         '<div class="record-tags">'+tagHtml+'</div>'+
       '</div>';
     }).join('');

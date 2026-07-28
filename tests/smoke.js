@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors } = H;
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -998,6 +998,180 @@ async function startModeWithTimerOff(win, doc, id) {
       assertNoErrors(errors, '狂人あり（逃げ切り）で未捕捉の例外');
       win.close();
     }
+  });
+
+  // ---- 第21弾 第3部：記録画面に detail を出す ----
+  await r.test('記録：人狼の記録に、勝った陣営・ターン数・役職構成が出る', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    win.alert = () => {};
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-normal', players);
+
+    // 決着まで回して記録を作る
+    let g = 0;
+    while (g++ < 200) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-nightfall') { passNightfall(doc); await sleep(win, 60); continue; }
+      if (cur === 'scr-wr-pass') { await runWrHandoffs(win, doc, players.length); continue; }
+      if (cur === 'scr-wr-day') { await holdPress(win, doc, 'wrToVoteBtn'); await sleep(win, 60); continue; }
+      if (cur === 'scr-wr-gather') { click(doc, 'wrTallyBtn'); await sleep(win, 2600); continue; }
+      if (cur === 'scr-wr-result') { click(doc, 'wrResultNextBtn'); await sleep(win, 120); continue; }
+      if (cur === 'scr-score') break;
+      await sleep(win, 60);
+    }
+    await waitScreen(win, doc, 'scr-score', 8000);
+    click(doc, 'finishMatchBtn');
+    await waitScreen(win, doc, 'scr-shelf', 6000);
+
+    // 記録画面を開く
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    click(doc, 'openRecordsBtn');
+    await waitFor(win, () => doc.querySelectorAll('#recordsList .record-item').length > 0,
+      6000, '記録が並ぶ');
+
+    const item = doc.querySelector('#recordsList .record-item');
+    const detail = item.querySelector('.record-detail');
+    assert(detail, '結末の欄が出る');
+    const txt = detail.textContent;
+    assert(/陣営の勝ち|妖狐の勝ち/.test(txt), 'どちらが勝ったか分かる（' + txt.slice(0, 40) + '）');
+    assert(/ターン/.test(txt), '何ターンで終わったか分かる');
+    const roles = item.querySelector('.record-detail-roles');
+    assert(roles, '役職構成が出る');
+    assert(/人狼/.test(roles.textContent), '人狼が構成に含まれる（' + roles.textContent + '）');
+    assert(/占い師|霊媒師|騎士|村人/.test(roles.textContent), '他の役職も出る');
+    assertNoErrors(errors, '記録画面で未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第21弾 第2部：恋人の手動選択 ----
+  await r.test('恋人：手動で2人えらぶと、その2人が恋人になる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん', 'はな'];
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-chaos"]')); // 恋人ありのプリセット
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    assert(el(doc, 'wrLoversToggle').classList.contains('on'), 'このプリセットは恋人あり');
+
+    // 恋人ありなら「恋人の決め方」の画面が挟まる
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-lovers', 3000);
+    assertEqual(el(doc, 'wrLoversPickBox').style.display, 'none', '既定はランダム（選ぶ欄は出ない）');
+    assert(/ランダム/.test(el(doc, 'wrLoversPickNote').textContent), 'ランダムだと分かる');
+
+    click(doc, 'wrLoversPickToggle');
+    await sleep(win, 60);
+    assertEqual(el(doc, 'wrLoversPickBox').style.display, 'block', '手動にすると選ぶ欄が出る');
+    assertEqual(el(doc, 'wrLoversCount').textContent, '0 / 2', '何人えらんだか分かる');
+    assert(/2人えらんでください/.test(el(doc, 'wrLoversWarn').textContent), '足りないと促される');
+
+    const chips = () => Array.from(doc.querySelectorAll('#wrLoversGrid .hp-chip'));
+    chips()[0].click(); await sleep(win, 40);
+    chips()[2].click(); await sleep(win, 40);
+    assertEqual(el(doc, 'wrLoversCount').textContent, '2 / 2', '2人えらべる');
+    assertEqual(el(doc, 'wrLoversWarn').textContent, '', '2人そろえば促されない');
+    // 3人目は選べない（恋人は2人1組）
+    chips()[4].click(); await sleep(win, 40);
+    assertEqual(el(doc, 'wrLoversCount').textContent, '2 / 2', '3人目は選べない');
+    // 選び直しはできる
+    chips()[0].click(); await sleep(win, 40);
+    assertEqual(el(doc, 'wrLoversCount').textContent, '1 / 2', 'もう一度押すと外れる');
+    chips()[0].click(); await sleep(win, 40);
+
+    const chosen = chips().filter(c => /💞/.test(c.textContent))
+      .map(c => c.textContent.replace('💞', '').trim());
+    assertEqual(chosen.length, 2, '2人が選ばれている');
+
+    // 実際に配られた恋人が、選んだ2人と一致すること
+    click(doc, doc.querySelector('#scr-set-lovers [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+
+    const lovers = [];
+    await runWrHandoffs(win, doc, players.length, (info) => {
+      if (/恋人/.test(info.body)) lovers.push(info.name);
+    });
+    assertEqual(lovers.length, 2, '恋人は2人だけ');
+    assertEqual(lovers.slice().sort().join(','), chosen.slice().sort().join(','),
+      'えらんだ2人がそのまま恋人になる（えらんだ: ' + chosen + ' / 実際: ' + lovers + '）');
+    assertNoErrors(errors, '恋人の手動選択で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('恋人を使わないプリセットでは、恋人の画面を出さない', async () => {
+    const { win, doc, errors } = await launch();
+    await startWolfRole(win, doc, 'wolf-normal', ['あき', 'びび', 'ちか', 'でん', 'えみ'], () => {
+      assert(!el(doc, 'wrLoversToggle').classList.contains('on'), 'このプリセットは恋人なし');
+    });
+    // ウィザードに恋人の画面が挟まらないまま、ゲームが始まっている
+    assertNoErrors(errors, '恋人なしで未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第21弾 第1部：夜の持ち時間 ----
+  await r.test('夜の持ち時間：設定でき、時間切れで次の人に渡る', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-normal', players, () => {
+      // 既定はなし。＋で15秒ずつ増える
+      assertEqual(el(doc, 'wrNightValue').textContent, 'なし', '既定は時間制限なし');
+      const plus = doc.querySelector('#scr-set-wolfrole [data-wrnight="15"]');
+      assert(plus, '夜の持ち時間を増やせる');
+      plus.click();
+      assertEqual(el(doc, 'wrNightValue').textContent, '15秒', '15秒刻みで増える');
+      assert(/時間切れ/.test(el(doc, 'wrNightNote').textContent), '時間切れの扱いが説明される');
+      const minus = doc.querySelector('#scr-set-wolfrole [data-wrnight="-15"]');
+      minus.click();
+      assertEqual(el(doc, 'wrNightValue').textContent, 'なし', '0未満にはならない');
+      plus.click(); // 15秒で始める
+    });
+
+    // 役職確認では時間を計らない（考える必要が無く、急かす意味がない）
+    assertEqual(el(doc, 'wrNightTimerRow').style.display, 'none', '手渡し画面ではまだ出ない');
+    click(doc, 'wrRevealBtn');
+    await sleep(win, 60);
+    assertEqual(el(doc, 'wrNightTimerRow').style.display, 'none', '役職確認では出ない');
+    click(doc, 'wrNextBtn');
+    await sleep(win, 60);
+    await runWrHandoffs(win, doc, players.length - 1); // 残りの役職確認
+
+    // 夜：中身を見た瞬間からカウントが始まる
+    passNightfall(doc);
+    await waitScreen(win, doc, 'scr-wr-pass', 4000);
+    assertEqual(el(doc, 'wrNightTimerRow').style.display, 'none', '手渡し中は計らない');
+    click(doc, 'wrRevealBtn');
+    await sleep(win, 60);
+    assertEqual(el(doc, 'wrNightTimerRow').style.display, 'flex', '中身を見たら出る');
+    const t0 = el(doc, 'wrNightTimer').textContent;
+    assertEqual(t0, '00:15', '設定した秒数から始まる');
+    await sleep(win, 1200);
+    assert(el(doc, 'wrNightTimer').textContent !== t0, 'カウントが進む');
+
+    // 時間切れ：何も選ばないまま次の人へ渡る
+    const who = el(doc, 'wrContentName').textContent;
+    // 残り時間を短くして、時間切れを待つ
+    await waitFor(win, () => {
+      const now = el(doc, 'wrHandoffName').textContent;
+      return el(doc, 'wrHandoff').style.display !== 'none' && now !== who;
+    }, 20000, '時間切れで次の人に渡る');
+    assertEqual(el(doc, 'wrNightTimerRow').style.display, 'none', '渡したら止まる');
+    assertNoErrors(errors, '夜の持ち時間で未捕捉の例外');
+    win.close();
   });
 
   // ---- 第20弾 第10部：複数ウルフ時の投票回数 ----

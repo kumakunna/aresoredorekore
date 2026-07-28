@@ -308,21 +308,31 @@ async function startModeWithTimerOff(win, doc, id) {
 
   // 手渡しをちょうど count 人ぶん流す。
   // 役職確認も夜も投票も同じ scr-wr-pass を使うので、人数で区切らないと隣の段階まで進んでしまう。
+  // 第20弾-2で、夜と投票前は中身が2画面（行動 → 確認）になった。
+  // onShow に渡すのは「1画面目」＝手渡された人が最初に見るもの。
   async function runWrHandoffs(win, doc, count, onShow, pick) {
     for (let i = 0; i < count; i++) {
       if (activeScreen(doc) !== 'scr-wr-pass') break;
       const name = el(doc, 'wrHandoffName').textContent;
       click(doc, 'wrRevealBtn');
       await sleep(win, 30);
-      const choices = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
-      if (onShow) onShow({ name: name, body: el(doc, 'wrContentBody').textContent, choices: choices.length });
-      if (choices.length) {
-        const target = pick ? pick(name, choices) : choices[0];
-        (target || choices[0]).click();
-      } else {
-        click(doc, 'wrNextBtn');
+      let first = true;
+      let g = 0;
+      // その人の中身の画面をすべて流し切ってから、次の人へ
+      while (g++ < 5 && activeScreen(doc) === 'scr-wr-pass' && el(doc, 'wrContent').style.display !== 'none') {
+        const choices = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
+        if (first && onShow) {
+          onShow({ name: name, body: el(doc, 'wrContentBody').textContent, choices: choices.length });
+        }
+        first = false;
+        if (choices.length) {
+          const target = pick ? pick(name, choices) : choices[0];
+          (target || choices[0]).click();
+        } else {
+          click(doc, 'wrNextBtn');
+        }
+        await sleep(win, 45);
       }
-      await sleep(win, 40);
     }
   }
 
@@ -376,7 +386,7 @@ async function startModeWithTimerOff(win, doc, id) {
     const without = shown.filter(s => s.choices === 0);
     assertEqual(without.length, players.length - 1, '残りの人にも画面が出る');
     without.forEach(s => {
-      assert(/特にすることはありません/.test(s.body), '行動が無い人には一律の案内が出る');
+      assert(/静かに夜を過ごしましょう/.test(s.body), '行動が無い人には一律の案内が出る');
     });
     assertNoErrors(errors, '夜フェーズで未捕捉の例外');
     win.close();
@@ -404,7 +414,7 @@ async function startModeWithTimerOff(win, doc, id) {
     const acting = shown.filter(s => s.choices > 0);
     assert(acting.length >= 1 && acting.length < players.length, '実際に行動するのは一部だけ');
     shown.filter(s => s.choices === 0).forEach(s => {
-      assert(/特にすることはありません/.test(s.body), '行動が無い人には一律の案内が出る（' + s.body.slice(0, 20) + '）');
+      assert(/静かに待ちましょう/.test(s.body), '行動が無い人には一律の案内が出る（' + s.body.slice(0, 20) + '）');
     });
     assertNoErrors(errors, '投票前の単発行動で未捕捉の例外');
     win.close();
@@ -425,7 +435,7 @@ async function startModeWithTimerOff(win, doc, id) {
     const texts = idle.map(s => s.body.replace(/\s+/g, ''));
     const uniq = texts.filter((t, i, a) => a.indexOf(t) === i);
     assertEqual(uniq.length, 1, '行動が無い人の画面はすべて同じ文言（' + uniq.join(' / ') + '）');
-    assert(/特にすることはありません/.test(uniq[0]), '一律の案内になっている');
+    assert(/静かに夜を過ごしましょう/.test(uniq[0]), '一律の案内になっている');
     assertNoErrors(errors, '夜の匿名性で未捕捉の例外');
     win.close();
   });
@@ -986,6 +996,94 @@ async function startModeWithTimerOff(win, doc, id) {
       assertNoErrors(errors, '狂人あり（逃げ切り）で未捕捉の例外');
       win.close();
     }
+  });
+
+  // ---- 第20弾 第2部：情報はその場で渡す ----
+  await r.test('占い師は、占ったその場で結果を受け取る', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+    await startWolfRole(win, doc, 'wolf-normal', players);
+    await runWrHandoffs(win, doc, players.length); // 役職確認
+
+    // 夜：全員ぶん流し、誰が何を見たかと、何タップしたかを集める
+    const taps = [], seen = [], handoffs = [];
+    for (let i = 0; i < players.length; i++) {
+      if (activeScreen(doc) !== 'scr-wr-pass') break;
+      handoffs.push(doc.querySelector('#wrHandoff .wolf-handoff-sub').textContent.trim() +
+        '|' + el(doc, 'wrRevealBtn').textContent.trim());
+      let t = 0;
+      click(doc, 'wrRevealBtn'); t++;
+      await sleep(win, 40);
+      const screens = [];
+      let g = 0;
+      while (g++ < 5 && activeScreen(doc) === 'scr-wr-pass' && el(doc, 'wrContent').style.display !== 'none') {
+        screens.push(el(doc, 'wrContentBody').textContent);
+        const c = doc.querySelectorAll('#wrChoiceGrid button[data-choice]');
+        if (c.length) { c[0].click(); t++; } else { click(doc, 'wrNextBtn'); t++; }
+        await sleep(win, 50);
+      }
+      taps.push(t);
+      seen.push(screens.join(' → '));
+    }
+
+    const all = seen.join('\n');
+    assert(/占いの結果/.test(all), '夜のうちに占いの結果が出る（投票直前ではなく）');
+    assert(/霊媒の結果/.test(all), '霊媒の結果も夜のうちに出る');
+    assert(/今夜おそう相手/.test(all), '人狼にも選んだ相手の確認が出る');
+    assert(/今夜まもる相手/.test(all), '騎士にも選んだ相手の確認が出る');
+
+    // ここが肝心：占い師だけタップ数が増えると、数えるだけで占い師が特定できる
+    assertEqual(taps.length, players.length, '全員にスマホが回る');
+    assert(taps.every(t => t === taps[0]), '夜のタップ数が全員同じ（' + taps.join(',') + '）');
+    assertEqual(taps[0], 3, '見る→選ぶ/確認→つぎの人へ で3タップ');
+    assert(handoffs.every(h => h === handoffs[0]), '手渡し画面の文言が全員同じ');
+
+    // 行動が無い人と霊媒師の1画面目は、まったく同じ文言でなければならない
+    const first = seen.map(s => s.split(' → ')[0]);
+    const idle = first.filter(s => /夜がふけました/.test(s));
+    assert(idle.length >= 2, '行動が無い人が複数いる');
+    assert(idle.every(s => s === idle[0]), '行動が無い人の文言は完全に同じ');
+    assertNoErrors(errors, '夜の情報表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('のぞき見役も、覗いたその場で結果を受け取る', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    // ターン数1にすると、夜のかわりに投票前の単発行動になる
+    await startWolfRole(win, doc, 'wolf-casual', players, () => {
+      const m = doc.querySelector('#scr-set-wolfrole [data-wrturn="-1"]');
+      for (let i = 0; i < 8; i++) m.click();
+      assertEqual(el(doc, 'wrTurnValue').textContent, '1', 'ターン数を1にする');
+      // 1ターン戦の役職一覧にのぞき見役が出るので、1人配る
+      const peek = doc.querySelector('#wrRoleRows [data-wrrole="peek"][data-d="1"]');
+      assert(peek, 'ターン数1ならのぞき見役を選べる');
+      peek.click();
+    });
+    await runWrHandoffs(win, doc, players.length); // 役職確認
+
+    const taps = [], seen = [];
+    for (let i = 0; i < players.length; i++) {
+      if (activeScreen(doc) !== 'scr-wr-pass') break;
+      let t = 0;
+      click(doc, 'wrRevealBtn'); t++;
+      await sleep(win, 40);
+      const screens = [];
+      let g = 0;
+      while (g++ < 5 && activeScreen(doc) === 'scr-wr-pass' && el(doc, 'wrContent').style.display !== 'none') {
+        screens.push(el(doc, 'wrContentBody').textContent);
+        const c = doc.querySelectorAll('#wrChoiceGrid button[data-choice]');
+        if (c.length) { c[0].click(); t++; } else { click(doc, 'wrNextBtn'); t++; }
+        await sleep(win, 50);
+      }
+      taps.push(t);
+      seen.push(screens.join(' → '));
+    }
+    assert(/のぞき見の結果/.test(seen.join('\n')), '覗いたその場で結果が出る');
+    assert(taps.every(t => t === taps[0]), '投票前のタップ数も全員同じ（' + taps.join(',') + '）');
+    assertEqual(taps[0], 3, 'ここも3タップに揃う');
+    assertNoErrors(errors, '投票前の情報表示で未捕捉の例外');
+    win.close();
   });
 
   // ---- 第20弾 第1部：実機で見つかったバグ ----

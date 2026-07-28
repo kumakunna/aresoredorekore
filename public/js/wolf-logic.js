@@ -370,6 +370,35 @@
     return { team: isWolf ? TEAM.WOLF : TEAM.VILLAGE, label: isWolf ? '⚫ 人狼' : '⚪ 人狼ではない' };
   }
 
+  // 第20弾-2：占い結果は「対象の役職」だけで決まるので、夜が明けるのを待たずに出せる。
+  // 状態を一切変えない（呪殺などの反映は今までどおり resolveNight が行う）。
+  function previewDivine(game, targetId) {
+    var target = findPlayer(game, targetId);
+    if (!target) return null;
+    var res = divineResult(game, target);
+    return { kind: 'divine', targetId: target.id, targetName: target.name, result: res };
+  }
+  // 霊媒師が知るのは「前のターンに亡くなった人の正体」。
+  // これも夜の頭には確定しているので、その場で渡せる。
+  function previewMedium(game) {
+    var last = (game.lastDeaths || []).map(function (id) {
+      var p = findPlayer(game, id);
+      return p ? { id: p.id, name: p.name, role: p.role, roleName: roleById(p.role).name } : null;
+    }).filter(Boolean);
+    return { kind: 'medium', deaths: last };
+  }
+
+  // のぞき見も、覗いた瞬間に結果が確定している（状態は変えない）
+  function previewPeek(game, targetId) {
+    var t = findPlayer(game, targetId);
+    if (!t) return null;
+    var team = (t.role === 'fake') ? TEAM.WOLF : teamOf(t);
+    return {
+      kind: 'peek', targetId: t.id, targetName: t.name, team: team,
+      label: team === TEAM.WOLF ? '人狼側' : (team === TEAM.THIRD ? '第三陣営' : '村人側')
+    };
+  }
+
   // 恋人は片方が死ぬともう片方も死ぬ
   function applyLoverDeaths(game) {
     if (!game.loverIds) return [];
@@ -648,6 +677,7 @@
     createGame: createGame,
     findPlayer: findPlayer, alivePlayers: alivePlayers, playersWithRole: playersWithRole, teamOf: teamOf,
     pendingNightActions: pendingNightActions, setNightAction: setNightAction, resolveNight: resolveNight,
+    previewDivine: previewDivine, previewMedium: previewMedium, previewPeek: previewPeek,
     pendingPreVoteActions: pendingPreVoteActions, setPreVoteAction: setPreVoteAction, resolvePreVote: resolvePreVote,
     setVote: setVote, tallyVotes: tallyVotes, executeVote: executeVote, checkTeruteru: checkTeruteru,
     evaluate: evaluate, isFinalTurn: isFinalTurn, nextTurn: nextTurn, finish: finish,

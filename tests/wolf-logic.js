@@ -607,6 +607,42 @@ function kill(game, name, cause) {
     assertEqual(s[p(g, 'B').id].points, 2, '読みの精度ぶんだけが入る（勝利点は入らない）');
   });
 
+  // ---------- 第20弾-2：結果を「その場で」出すための先読み ----------
+  await r.test('先読み：占い結果は夜が明ける前でも同じ答えになる', async () => {
+    const g = makeGame({ A: 'seer', B: 'wolf', C: 'villager', D: 'villager' }, { seerResult: 'detail' });
+    const pre = W.previewDivine(g, p(g, 'B').id);
+    assertEqual(pre.result.label, '人狼側', '占う前に人狼だと分かる');
+    assertEqual(pre.targetName, 'B', '相手の名前も返る');
+    // 先読みは状態を一切変えない（ここが崩れると夜の処理が壊れる）
+    assertEqual(Object.keys(g.nightActions).length, 0, '夜の行動を勝手に記録しない');
+    assertEqual(p(g, 'B').alive, true, '呪殺などの判定も動かさない');
+    assertEqual(g.phase, 'night', 'フェーズも変えない');
+
+    // 実際に夜を解決した結果と一致すること
+    W.setNightAction(g, p(g, 'A').id, p(g, 'B').id);
+    const out = W.resolveNight(g);
+    assertEqual(out.info[p(g, 'A').id].result.label, pre.result.label, '夜明けの結果と食い違わない');
+  });
+
+  await r.test('先読み：狂人は村人に見え、にせもの役は人狼側に見える', async () => {
+    const g = makeGame({ A: 'seer', B: 'madman', C: 'wolf', D: 'villager' }, { seerResult: 'detail' });
+    assertEqual(W.previewDivine(g, p(g, 'B').id).result.label, '村人側', '狂人は村人に見える');
+    const g2 = makeGame({ A: 'wolf', B: 'fake', C: 'peek', D: 'villager' }, { turnLimit: 1 });
+    assertEqual(W.previewPeek(g2, p(g2, 'B').id).label, '人狼側', 'にせもの役は人狼側に見える');
+    assertEqual(W.previewPeek(g2, p(g2, 'D').id).label, '村人側', '村人は村人側に見える');
+  });
+
+  await r.test('先読み：霊媒は前のターンに亡くなった人を返す', async () => {
+    const g = makeGame({ A: 'medium', B: 'wolf', C: 'villager', D: 'villager' });
+    assertEqual(W.previewMedium(g).deaths.length, 0, '誰も死んでいなければ空');
+    kill(g, 'C', 'attacked');
+    g.lastDeaths = [p(g, 'C').id];
+    const m = W.previewMedium(g);
+    assertEqual(m.deaths.length, 1, '亡くなった人が1人返る');
+    assertEqual(m.deaths[0].name, 'C', '誰かが分かる');
+    assertEqual(m.deaths[0].roleName, '村人', '正体も分かる');
+  });
+
   // ---------- 履歴 ----------
   await r.test('履歴：ターン数・役職構成・勝敗が残る', async () => {
     const g = makeGame({ A: 'wolf', B: 'villager', C: 'seer', D: 'villager' }, { turnLimit: 4 });

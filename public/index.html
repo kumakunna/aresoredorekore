@@ -4368,6 +4368,7 @@
     var id = wr.queue[wr.idx];
     var p = WolfLogic.findPlayer(wr.game, id);
     if(!p){ advanceWrQueue(); return; }
+    wr.sub = null; // 第20弾-2：夜の2画面目（確認）はここでリセットする
     renderWrTurnBanner();
     var sub = wr.step === 'vote' ? 'この人にスマホを渡してください（投票）'
             : wr.step === 'night' ? 'この人にスマホを渡してください（夜の行動）'
@@ -4423,14 +4424,25 @@
     return (wr.pending || []).find(function(a){ return a.playerId === playerId; });
   }
 
+  // 第20弾-2：夜は「見る → 選ぶ／確認 → つぎの人へ」の3タップに全員そろえる。
+  //
+  // なぜ確認の一手を全員に足したか：
+  //   占い結果をその場で見せるには、選んだあとにもう1画面必要になる。
+  //   占い師だけ3タップにすると、外からタップ数を数えるだけで
+  //   「占い師は誰か」が分かってしまう（人狼で最も価値のある情報）。
+  //   人狼・騎士にも確認画面を出すことで数を揃えつつ、
+  //   「誰を襲う/守るつもりだったか」の押し間違いにも気づけるようにした。
   function showWrNightAction(p){
+    // 確認ステップ（2タップ目のあと）
+    if(wr.sub === 'confirm'){ return showWrNightConfirm(p); }
     var act = wrActionOf(p.id);
-    // 行動が無い人にも同じ形の画面を出す（外から見て区別がつかないようにする）
-    if(!act){
+    // 行動が無い人・選ぶことが無い役職（霊媒師）にも、まったく同じ文言の画面を出す
+    if(!act || act.kind === 'medium'){
       uiHandoffContent({
         name: p.name,
         html: '<div class="wolf-topic-label">夜がふけました</div>' +
-              '<div class="mic-status" style="margin-top:8px;line-height:1.8;">今夜、あなたに特にすることはありません。<br>そのまま次の人にスマホを渡してください。</div>'
+              '<div class="mic-status" style="margin-top:8px;line-height:1.8;">静かに夜を過ごしましょう。</div>',
+        nextLabel: '確認する'
       });
       return;
     }
@@ -4438,45 +4450,93 @@
               : act.kind === 'divine' ? 'だれを占いますか？'
               : act.kind === 'guard' ? 'だれを守りますか？'
               : '';
-    if(act.kind === 'medium'){
-      // 霊媒師は夜に選ぶことがない（結果は投票の直前に本人へ渡す）。
-      // ここで専用の文言を出すと、行動が無い人と見分けがついて役職がバレるため、
-      // 「特にすることはありません」と同じ体裁に揃える。
-      uiHandoffContent({
-        name: p.name,
-        html: '<div class="wolf-topic-label">夜がふけました</div>' +
-              '<div class="mic-status" style="margin-top:8px;line-height:1.8;">今夜、あなたに特にすることはありません。<br>そのまま次の人にスマホを渡してください。</div>'
-      });
-      return;
-    }
     uiHandoffContent({
       name: p.name,
       html: '<div class="wolf-topic-label">' + escapeHtml(label) + '</div>',
       choices: act.targets
     });
   }
-
-  function showWrPreVoteAction(p){
+  // 夜の2画面目。ここで占い・霊媒の結果を「得た瞬間に」本人へ渡す。
+  // 朝の話し合いに、結果を持った状態で参加できるようにするため。
+  function showWrNightConfirm(p){
     var act = wrActionOf(p.id);
-    // 行動が無い人にも、夜と同じ体裁の画面を出す（外から区別がつかないように）
+    var picked = wr.game.nightActions[p.id];
+    var target = picked ? WolfLogic.findPlayer(wr.game, picked) : null;
+    var html;
+    if(act && act.kind === 'divine' && target){
+      var res = WolfLogic.previewDivine(wr.game, picked);
+      html = '<div class="wolf-topic-label">占いの結果</div>' +
+             '<div class="wolf-topic-name">' + escapeHtml(target.name) + '</div>' +
+             '<div class="wolf-topic-name" style="margin-top:4px;">' + escapeHtml(res.result.label) + '</div>' +
+             '<div class="mic-status" style="margin-top:10px;">朝の話し合いで、この情報をどう使うかはあなた次第です。</div>';
+    } else if(act && act.kind === 'medium'){
+      var m = WolfLogic.previewMedium(wr.game);
+      html = '<div class="wolf-topic-label">霊媒の結果</div>' +
+        (m.deaths.length
+          ? m.deaths.map(function(d){
+              return '<div class="wolf-topic-name">' + escapeHtml(d.name) + '</div>' +
+                     '<div class="wolf-topic-name" style="margin-top:4px;">' + escapeHtml(d.roleName) + '</div>';
+            }).join('')
+          : '<div class="mic-status" style="margin-top:8px;">まだ誰も亡くなっていません。</div>');
+    } else if(act && act.kind === 'attack' && target){
+      html = '<div class="wolf-topic-label">今夜おそう相手</div>' +
+             '<div class="wolf-topic-name">' + escapeHtml(target.name) + '</div>';
+    } else if(act && act.kind === 'guard' && target){
+      html = '<div class="wolf-topic-label">今夜まもる相手</div>' +
+             '<div class="wolf-topic-name">' + escapeHtml(target.name) + '</div>';
+    } else {
+      html = '<div class="wolf-topic-label">今夜のあなた</div>' +
+             '<div class="mic-status" style="margin-top:8px;line-height:1.8;">とくに何も起きませんでした。</div>';
+    }
+    uiHandoffContent({ name: p.name, html: html });
+  }
+
+  // 第20弾-2：1ターン戦の単発行動も、夜と同じ「見る→選ぶ/確認→渡す」の3タップに揃える。
+  // のぞき見役は覗いた瞬間に結果を受け取れる（話し合いの武器として使えるように）。
+  function showWrPreVoteAction(p){
+    if(wr.sub === 'confirm'){ return showWrPreVoteConfirm(p); }
+    var act = wrActionOf(p.id);
+    // 行動が無い人にも、まったく同じ文言の画面を出す（外から区別がつかないように）
     if(!act){
       uiHandoffContent({
         name: p.name,
         html: '<div class="wolf-topic-label">投票のまえに</div>' +
-              '<div class="mic-status" style="margin-top:8px;line-height:1.8;">あなたに特にすることはありません。<br>そのまま次の人にスマホを渡してください。</div>'
+              '<div class="mic-status" style="margin-top:8px;line-height:1.8;">静かに待ちましょう。</div>',
+        nextLabel: '確認する'
       });
       return;
     }
     var label = act.kind === 'peek' ? 'だれを覗きますか？' : 'だれの投票先を公開しますか？';
     uiHandoffContent({ name: p.name, html: '<div class="wolf-topic-label">' + escapeHtml(label) + '</div>', choices: act.targets });
   }
+  function showWrPreVoteConfirm(p){
+    var act = wrActionOf(p.id);
+    var picked = wr.game.preVoteActions[p.id];
+    var target = picked ? WolfLogic.findPlayer(wr.game, picked) : null;
+    var html;
+    if(act && act.kind === 'peek' && target){
+      var res = WolfLogic.previewPeek(wr.game, picked);
+      html = '<div class="wolf-topic-label">のぞき見の結果</div>' +
+             '<div class="wolf-topic-name">' + escapeHtml(target.name) + '</div>' +
+             '<div class="wolf-topic-name" style="margin-top:4px;">' + escapeHtml(res.label) + '</div>';
+    } else if(act && act.kind === 'involve' && target){
+      html = '<div class="wolf-topic-label">投票先を公開する相手</div>' +
+             '<div class="wolf-topic-name">' + escapeHtml(target.name) + '</div>' +
+             '<div class="mic-status" style="margin-top:10px;">投票が終わったら、全員に公開されます。</div>';
+    } else {
+      html = '<div class="wolf-topic-label">投票のまえに</div>' +
+             '<div class="mic-status" style="margin-top:8px;line-height:1.8;">とくに何も起きませんでした。</div>';
+    }
+    uiHandoffContent({ name: p.name, html: html });
+  }
 
   function showWrVote(p){
     var targets = WolfLogic.alivePlayers(wr.game)
       .filter(function(t){ return t.id !== p.id; })
       .map(function(t){ return { id:t.id, name:t.name }; });
-    // 夜に得た情報（占い・霊媒・のぞき見）は、投票の直前に本人にだけ見せる。
-    // どれか1種類だけを描くと、能力を使ったのに結果が見られない役職が出てしまう。
+    // 第20弾-2で、占い・霊媒・のぞき見の結果は「得た瞬間」に本人へ渡すようになった。
+    // ここに残しているのは、投票の時にもう一度思い出せるようにするための控え。
+    // 表示だけなのでタップ数は変わらず、匿名性にも影響しない。
     var info = wr.info && wr.info[p.id];
     var html = '';
     if(info && info.kind === 'divine'){
@@ -4503,12 +4563,33 @@
     if(!b) return;
     var me = wr.queue[wr.idx];
     var targetId = b.dataset.choice;
-    if(wr.step === 'night') WolfLogic.setNightAction(wr.game, me, targetId);
-    else if(wr.step === 'prevote') WolfLogic.setPreVoteAction(wr.game, me, targetId);
-    else if(wr.step === 'vote') WolfLogic.setVote(wr.game, me, targetId);
+    if(wr.step === 'night'){
+      WolfLogic.setNightAction(wr.game, me, targetId);
+      // 第20弾-2：選んだら確認画面へ。占い師はここで結果を受け取る
+      wr.sub = 'confirm';
+      showWrNightAction(WolfLogic.findPlayer(wr.game, me));
+      return;
+    }
+    if(wr.step === 'prevote'){
+      WolfLogic.setPreVoteAction(wr.game, me, targetId);
+      wr.sub = 'confirm'; // のぞき見はここで結果を受け取る
+      showWrPreVoteAction(WolfLogic.findPlayer(wr.game, me));
+      return;
+    }
+    if(wr.step === 'vote') WolfLogic.setVote(wr.game, me, targetId);
     advanceWrQueue();
   });
-  el('wrNextBtn').addEventListener('click', advanceWrQueue);
+  el('wrNextBtn').addEventListener('click', function(){
+    // 夜と投票前だけは「確認」を挟む。行動が無い人も同じタップ数になるように
+    var needsConfirm = (wr.step === 'night' || wr.step === 'prevote');
+    if(needsConfirm && wr.sub !== 'confirm'){
+      wr.sub = 'confirm';
+      var me = WolfLogic.findPlayer(wr.game, wr.queue[wr.idx]);
+      if(wr.step === 'night') showWrNightAction(me); else showWrPreVoteAction(me);
+      return;
+    }
+    advanceWrQueue();
+  });
 
   // 次の人へ。全員終わったら、そのステップの締めに進む
   function advanceWrQueue(){

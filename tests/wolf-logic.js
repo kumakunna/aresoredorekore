@@ -736,6 +736,52 @@ function kill(game, name, cause) {
     assertEqual(p(g, 'E').deadCause, 'executed', '処刑された人は executed');
   });
 
+  // ---------- 第20弾-9-2：闇鍋（村人ゼロ）の編成 ----------
+  const CHAOS_ROLES = ['wolf', 'seer', 'medium', 'knight', 'madman', 'fox', 'teruteru'];
+  const sum = (c) => Object.keys(c).reduce((n, k) => n + c[k], 0);
+
+  await r.test('闇鍋：席をぴったり埋めて、村人を1人も作らない', async () => {
+    [5, 6, 7, 8, 9, 10, 12, 16, 24].forEach(n => {
+      const c = W.chaosCounts(CHAOS_ROLES, n);
+      assertEqual(sum(c), n, n + '人ちょうどに配れる（村人が残らない）');
+      assert(c.wolf >= 1, n + '人：人狼が必ずいる');
+    });
+  });
+
+  await r.test('闇鍋：人狼が過半数にならない（始まった瞬間に決着しない）', async () => {
+    [5, 6, 7, 8, 9, 10, 12, 16, 24].forEach(n => {
+      const c = W.chaosCounts(CHAOS_ROLES, n);
+      assert(c.wolf < n - c.wolf, n + '人：人狼(' + c.wolf + ')より村人側(' + (n - c.wolf) + ')が多い');
+    });
+  });
+
+  await r.test('闇鍋：席が足りなければ、影響の小さい役職から落とす', async () => {
+    const c = W.chaosCounts(CHAOS_ROLES, 5);
+    assertEqual(sum(c), 5, '5人ぴったり');
+    assertEqual(c.teruteru, 0, 'てるてる坊主から落とす');
+    assertEqual(c.fox, 0, '次に妖狐を落とす');
+    assert(c.seer >= 1, '占い師は残る（情報役は最後まで残す）');
+  });
+
+  await r.test('闇鍋：人数が多いと、同じ役職が2人以上いる', async () => {
+    const c = W.chaosCounts(CHAOS_ROLES, 12);
+    assertEqual(sum(c), 12, '12人ぴったり');
+    const dup = ['seer', 'medium', 'knight', 'madman'].filter(id => c[id] >= 2);
+    assert(dup.length > 0, '重ねられる役職が増えて席を埋める（' + JSON.stringify(c) + '）');
+  });
+
+  await r.test('闇鍋：実際にゲームを作っても村人が0人のまま', async () => {
+    const players = [];
+    for (let i = 0; i < 8; i++) players.push({ id: 'p' + i, name: 'P' + i });
+    const g = W.createGame({
+      players, counts: W.chaosCounts(CHAOS_ROLES, 8),
+      turnLimit: 7, revealRoleOnDeath: false
+    });
+    const villagers = g.players.filter(p => p.role === 'villager');
+    assertEqual(villagers.length, 0, '村人が1人もいない');
+    assertEqual(g.players.length, 8, '全員に役職が行き渡る');
+  });
+
   // ---------- 履歴 ----------
   await r.test('履歴：ターン数・役職構成・勝敗が残る', async () => {
     const g = makeGame({ A: 'wolf', B: 'villager', C: 'seer', D: 'villager' }, { turnLimit: 4 });

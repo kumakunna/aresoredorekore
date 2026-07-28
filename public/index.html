@@ -1868,10 +1868,16 @@
       wolfPreset:{ roles:['wolf','seer','medium','knight'], turnLimit:8, seerResult:'detail', revealRoleOnDeath:false, nightTimeLimit:0, minPlayers:5 },
       rules:"ノーマル人狼と同じ構成で、ターン数を多く、話し合いの時間を長めに取ったルールです。夜の行動にも時間制限がないので、じっくり考えて遊びたい時にどうぞ。",
       bullets:["ノーマルと同じ役職構成","ターン数が多い","話し合いの時間が長め","夜の行動も時間無制限","じっくり遊びたい時に"]},
-    {id:"wolf-chaos", icon:"🎪", title:"カオス人狼", sub:"恋人・てるてる坊主まで全部入り", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+    // 第20弾-9-1：中身は変えず名前だけ変更。idは記録に残っているので触らない
+    {id:"wolf-chaos", icon:"🎪", title:"全部のせ人狼", sub:"恋人・てるてる坊主まで全部入り", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf','seer','medium','knight','madman','mason','fox','teruteru'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, lovers:true, teruteruContinue:false, minPlayers:8 },
       rules:"スペシャル人狼に、恋人とてるてる坊主まで加えた全部盛りです。恋人は2人1組で、どちらかが死ぬともう1人も後を追います。2人とも生き残れば恋人の勝ち。てるてる坊主は昼の投票で処刑されると、その人だけの勝ちになります。",
       bullets:["スペシャルに恋人・てるてる坊主を追加","恋人はどちらかが死ぬと後を追う","2人生き残れば恋人の勝ち","てるてる坊主は処刑されると勝ち","8人以上がおすすめ"]},
+    // 第20弾-9-2：村人が1人もいない編成（闇鍋）。全員が何かしらの役職を持つ
+    {id:"wolf-yaminabe", icon:"🍲", title:"カオス人狼", sub:"村人ゼロ・全員が何かの役職", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
+      wolfPreset:{ roles:['wolf','seer','medium','knight','madman','fox','teruteru'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, chaos:true, minPlayers:5 },
+      rules:"村人が1人もいない、全員が何かしらの役職を持つ編成です。人数に合わせて占い師や霊媒師が2人以上いることもあります。「自分は村人だから分からない」が通用しないので、全員が何かを主張することになります。誰の言うことも怪しく聞こえるはずです。",
+      bullets:["村人ゼロ・全員が役職持ち","人数によっては同じ役職が2人以上いる","「village」だからと黙っていられない","占い師が複数いると主張がぶつかる","5人以上で遊べる"]},
     {id:"bomb", icon:"💣", title:"時限爆弾", sub:"難易度別のコードを解除・ライフ3つの協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, hidden:true, game:'bomb',
       rules:"チームで協力して爆弾を解除します。コードをタップすると、AIが考えた説明文が表示されます。読んで3択で答えましょう。外れるとライフが1つ減りますが、そのコードは何度でも再挑戦できます。ライフが0になると爆発、すべてのコードを解除できればチームの勝利です。",
       bullets:["チームで協力して爆弾を解除する","コードをタップするとAIの説明文が出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る","ライフが0で爆発・全解除で勝利"]},
@@ -2286,7 +2292,8 @@
     var n = state.players.length || 4;
     state.wrCfg = {
       turnLimit: pre.turnLimit,
-      counts: WolfLogic.balancedCounts(pre.roles, n),
+      // 闇鍋は村人を1人も作らないので、席を全部埋める方の計算を使う
+      counts: pre.chaos ? WolfLogic.chaosCounts(pre.roles, n) : WolfLogic.balancedCounts(pre.roles, n),
       seerResult: pre.seerResult || 'binary',
       seerShowsThird: !!pre.seerShowsThird,
       revealRoleOnDeath: (pre.revealRoleOnDeath === undefined) ? true : !!pre.revealRoleOnDeath,

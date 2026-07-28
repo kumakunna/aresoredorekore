@@ -1000,6 +1000,66 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  // ---- 第20弾 第9部：プリセットの再編 ----
+  await r.test('プリセット：全部のせ人狼とカオス人狼（闇鍋）が別々に並ぶ', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く', 'け']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+
+    const title = id => doc.querySelector('.mode-card[data-id="' + id + '"] .m-title').textContent;
+    assertEqual(title('wolf-chaos'), '全部のせ人狼', '元のカオス人狼は名前だけ変わった');
+    assertEqual(title('wolf-yaminabe'), 'カオス人狼', '新しいカオス人狼が入った');
+    // 記録との整合：中身を持つidは変えていない
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    assert(ids.indexOf('wolf-chaos') >= 0, '既存のidは残っている（過去の記録が迷子にならない）');
+    assertNoErrors(errors, 'プリセット一覧で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('カオス人狼（闇鍋）を選ぶと、村人が0人になる', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く'];
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-yaminabe"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+
+    assert(/闇鍋|全員が役職/.test(doc.getElementById('scr-set-wolfrole').textContent),
+      '「全員が役職あり（闇鍋）」と出る');
+
+    // そのまま始めて、全員に村人でない役職が配られること
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+
+    const roles = [];
+    await runWrHandoffs(win, doc, players.length, (info) => { roles.push(info.body); });
+    assertEqual(roles.length, players.length, '全員に配られる');
+    roles.forEach(b => assert(!/あなたの役職\s*村人/.test(b.replace(/\s+/g, ' ')),
+      '村人が1人もいない（' + b.replace(/\s+/g, '').slice(0, 16) + '）'));
+    assertNoErrors(errors, '闇鍋で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第20弾 第8部：役職ありワードウルフをカードにする ----
   // ワードウルフのモード選択まで進む
   async function toWordwolfModes(win, doc, players) {

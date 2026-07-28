@@ -170,6 +170,37 @@
     return c;
   }
 
+  // 闇鍋：村人を1人も作らず、全員が何かしらの役職を持つ編成を返す（第20弾-9-2）。
+  // balancedCounts は必ず村人を1人残すので、こちらは席を全部埋めるための別関数。
+  // ※共有者は「2人1組」かつ normalizeCounts が村人0になる時に落とすので、ここでは扱わない。
+  function chaosCounts(roleIds, playerCount) {
+    var c = { wolf: 0, seer: 0, medium: 0, knight: 0, madman: 0, mason: 0, fox: 0, teruteru: 0,
+              peek: 0, fake: 0, involve: 0 };
+    var has = function (id) { return (roleIds || []).indexOf(id) >= 0; };
+    // 人狼は多すぎると即決着するので、必ず過半数未満に収める
+    var wolfCap = Math.max(1, Math.floor((playerCount - 1) / 2));
+    if (has('wolf')) c.wolf = Math.min(wolfCap, playerCount >= 11 ? 3 : (playerCount >= 7 ? 2 : 1));
+    ['seer', 'medium', 'knight', 'madman'].forEach(function (id) { if (has(id)) c[id] = 1; });
+    ['fox', 'teruteru'].forEach(function (id) { if (has(id)) c[id] = 1; });
+
+    // 席より多いなら、影響の小さい役職から落とす
+    var dropOrder = ['teruteru', 'fox', 'madman', 'medium', 'knight', 'seer'];
+    for (var i = 0; i < dropOrder.length && countAssigned(c) > playerCount; i++) {
+      if (c[dropOrder[i]]) c[dropOrder[i]] = 0;
+    }
+    while (countAssigned(c) > playerCount && c.wolf > 1) c.wolf--;
+
+    // 席が余っているぶんは、重ねられる役職を増やして埋める（村人を作らないのが闇鍋）
+    var repeatable = ['seer', 'medium', 'knight', 'madman'].filter(has);
+    var k = 0, guard = 0;
+    while (countAssigned(c) < playerCount && guard++ < 200) {
+      if (repeatable.length) { c[repeatable[k % repeatable.length]]++; k++; }
+      else if (has('wolf') && c.wolf < wolfCap) c.wolf++;
+      else break; // 埋められない（村人が残る）ときは、そこで諦める
+    }
+    return c;
+  }
+
   // ===== 役職の配布 =====
   function shuffle(arr, rng) {
     var a = arr.slice();
@@ -698,7 +729,7 @@
     ONE_TURN_ROLE_IDS: ONE_TURN_ROLE_IDS, NORMAL_ROLE_IDS: NORMAL_ROLE_IDS,
     roleById: roleById, selectableRoles: selectableRoles, isRoleSelectable: isRoleSelectable,
     normalizeCounts: normalizeCounts, minPlayers: minPlayers, countAssigned: countAssigned,
-    autoCounts: autoCounts, balancedCounts: balancedCounts,
+    autoCounts: autoCounts, balancedCounts: balancedCounts, chaosCounts: chaosCounts,
     roleMax: roleMax, SINGLE_ONLY_ROLE_IDS: SINGLE_ONLY_ROLE_IDS,
     createGame: createGame,
     findPlayer: findPlayer, alivePlayers: alivePlayers, playersWithRole: playersWithRole, teamOf: teamOf,

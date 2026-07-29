@@ -214,8 +214,12 @@ function sleep(win, ms) {
   return new Promise(r => win.setTimeout(r, ms));
 }
 
-// keepNightfall=true にすると「夜になりました」画面を素通りさせない（その画面自体を調べたい時用）
-async function waitFor(win, cond, timeout, label, keepNightfall) {
+// 待っているあいだ、関門の画面は自動で通過させる。
+//   keepNightfall=true …「夜になりました」を素通りさせない
+//   keepMeeting=true   … 作戦会議を素通りさせない
+// （その画面自体を調べたい時だけ立てる。関門ごとに分けているのは、
+//   「夜になりました」を調べたい時でも作戦会議は通過させたいため）
+async function waitFor(win, cond, timeout, label, keepNightfall, keepMeeting) {
   const limit = timeout || 4000;
   const start = Date.now();
   const doc = win.document;
@@ -224,6 +228,7 @@ async function waitFor(win, cond, timeout, label, keepNightfall) {
     try { ok = cond(); } catch (e) { ok = false; }
     if (ok) return true;
     if (!keepNightfall) passNightfall(doc);
+    if (!keepMeeting) passWrMeeting(win, doc);
     await sleep(win, 20);
   }
   throw new Error('待機がタイムアウトしました: ' + (label || cond.toString()));
@@ -237,6 +242,23 @@ function passNightfall(doc) {
   const btn = doc.getElementById('nfNextBtn');
   if (!btn) return false;
   btn.click();
+  return true;
+}
+
+// 第24弾-2：役職確認のあとに「作戦会議」が入った。
+// 朝と同じ scr-wr-day を使うので、長押しボタンの文言で見分ける。
+// 押すのは1回だけでよい（長押しは HOLD_MS で勝手に完了する）。
+// この画面そのものは専用のテストで確認している。
+let wrMeetingPressed = false;
+function passWrMeeting(win, doc) {
+  const label = doc.getElementById('wrDayHoldLabel');
+  const onMeeting = activeScreen(doc) === 'scr-wr-day' && label && /夜へ/.test(label.textContent);
+  if (!onMeeting) { wrMeetingPressed = false; return false; }
+  if (wrMeetingPressed) return false;
+  const btn = doc.getElementById('wrToVoteBtn');
+  if (!btn) return false;
+  wrMeetingPressed = true;
+  btn.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
   return true;
 }
 
@@ -388,6 +410,6 @@ function assertNoErrors(errors, label) {
 
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall,
+  setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
   createRunner, assert, assertEqual, assertNoErrors
 };

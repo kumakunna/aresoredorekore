@@ -399,6 +399,15 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 同じ端末が入り直した時は、前のメンバーとして復帰する（再接続で別人が増えないように）
       const rejoinId = payload && payload.memberId;
       let member = rejoinId ? room.members.get(rejoinId) : null;
+      // 第24弾-3：memberId を持っていない入り直し（ページを読み込み直した、
+      // 一度出てからコードを入れ直した、など）でも、同じ名前の人が2人に増えないようにする。
+      // 切れている同名の枠があれば、それをそのまま引き継ぐ。
+      // つながったままの同名は「別人が同じ名前で入ってきた」なので、増やす方が正しい。
+      if (!member) {
+        member = Array.from(room.members.values()).find(
+          (m) => !m.connected && m.name === name
+        ) || null;
+      }
       if (member) {
         member.name = name;
         if (payload && payload.role) member.role = normalizeRole(payload.role);
@@ -532,6 +541,19 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       WolfRoom.advance(room);
       if (typeof cb === 'function') cb({ ok: true });
       pushWolfState(room);
+    });
+
+    // ---- 第24弾-3-5：ホストが終了したら、部屋ごと終わらせる ----
+    // ホストの端末だけ終了して、他の人が置き去りになっていた。
+    // 部屋にいる全員に伝えてから部屋を畳む。
+    socket.on('room:close', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが終了できます');
+      io.to('room:' + room.code).emit('room:closed', { by: me.name });
+      store.delete(room.code);
+      if (typeof cb === 'function') cb({ ok: true });
     });
 
     socket.on('room:leave', (payload, cb) => {

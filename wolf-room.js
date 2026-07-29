@@ -16,6 +16,7 @@ const WolfLogic = require(path.join(__dirname, 'public', 'js', 'wolf-logic.js'))
 const PHASE = {
   LOBBY: 'lobby',
   ROLE: 'roleReveal',   // 各自が自分の役職を確認する
+  MEETING: 'meeting',   // 作戦会議（第24弾-2）。夜が来る前に話す時間
   NIGHT: 'night',       // 夜の行動（同時）
   PREVOTE: 'preVote',   // 1ターン戦の単発行動（同時）
   DAY: 'day',           // 朝の発表＋話し合い
@@ -63,6 +64,8 @@ function startGame(room, config) {
     nightOut: null,
     voteOut: null,
     runoff: null,        // 決選投票の途中かどうか（第23弾-1）
+    // 第24弾-2：作戦会議の持ち時間（秒）。0なら時間制限なし＝進行役が進めるまで待つ
+    meetingSec: Math.max(0, parseInt(cfg.meetingSec, 10) || 0),
     pendingEnd: null,
     deadline: null,      // 制限時間の期限（ミリ秒）。0なら無し
     preset: cfg.preset || null
@@ -306,6 +309,14 @@ function advance(room) {
   const g = w.game;
 
   if (w.phase === PHASE.ROLE) {
+    // 第24弾-2：役職を配ったら、夜の前に作戦会議。
+    // 実機で「何をやっているのか分からない」「話す時間が無かった」と言われた通り、
+    // 役職確認のあといきなり夜が来ていた。
+    setPhase(room, PHASE.MEETING);
+    if (w.meetingSec) w.deadline = Date.now() + w.meetingSec * 1000;
+    return { changed: true };
+  }
+  if (w.phase === PHASE.MEETING) {
     startActionPhase(room, g.config.turnLimit === 1 ? PHASE.PREVOTE : PHASE.NIGHT);
     return { changed: true };
   }

@@ -374,5 +374,100 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     b.win.close();
   });
 
+  // ---- 第24弾-3：実機フィードバックの修正 ----
+
+  await r.test('決着したら、行き先のボタンが必ず出る', async () => {
+    // 以前はボタンが1つも出ず、結果を見たあと何もできなくなっていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc); // m1 ＝ ホスト
+    push(fake, roomSnapshot({
+      state: {
+        phase: 'ended', game: 'wolfrole', data: wolfView({
+          phase: 'ended',
+          result: {
+            winner: 'village', reason: null, teruteruWin: false,
+            roles: [{ name: 'あき', role: 'wolf', roleName: '人狼', alive: false }],
+            scores: {}, voteLog: []
+          }
+        })
+      }
+    }));
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-play', '自分の端末は進行画面のまま');
+    assert(el(doc, 'rtPlayLeaveBtn').style.display !== 'none', '部屋を出るボタンが出る');
+    assert(el(doc, 'rtEndBtn').style.display !== 'none', 'ホストには終了ボタンが出る');
+    assert(/全員が終わります/.test(el(doc, 'rtWaitNote').textContent), '全員に効くと伝える');
+    assertNoErrors(errors, '決着後の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('決着後、ホスト以外には終了ボタンを出さない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' }); // ホストは m1
+    push(fake, roomSnapshot({
+      state: {
+        phase: 'ended', game: 'wolfrole', data: wolfView({
+          phase: 'ended',
+          result: { winner: 'wolf', roles: [], scores: {}, voteLog: [] }
+        })
+      }
+    }));
+    await sleep(win, 150);
+    assertEqual(el(doc, 'rtEndBtn').style.display, 'none', 'ホスト以外に終了ボタンは出さない');
+    assert(el(doc, 'rtPlayLeaveBtn').style.display !== 'none', '自分で抜けることはできる');
+    assertNoErrors(errors, '参加者側の決着画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ホストが終了したら、部屋の画面から出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    win.alert = () => {};
+    assertEqual(activeScreen(doc), 'scr-rt-room', '部屋にいる');
+    fake.fire('room:closed', { by: 'あき' });
+    await sleep(win, 200);
+    assertEqual(activeScreen(doc), 'scr-shelf', '棚に戻る（置き去りにしない）');
+    assertNoErrors(errors, '部屋が畳まれた時に未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('部屋コードで参加した人にも、人狼のテーマが当たる', async () => {
+    // 棚からカセットを選ばずに入ると、テーマが当たらず
+    // 「ホストだけ暗い画面」になっていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = win.__rtFake;
+    fake.replies = {
+      'room:join': () => ({
+        ok: true, code: 'ABC234', memberId: 'm2',
+        room: roomSnapshot({ state: { phase: 'roleReveal', game: 'wolfrole', data: wolfView() } })
+      })
+    };
+    // 棚を通らずに「部屋に参加する」から入る
+    click(doc, 'shelfJoinRoomBtn');
+    await waitScreen(win, doc, 'scr-join', 3000);
+    assert(!el(doc, 'app').classList.contains('theme-wolf'), '入り口ではまだテーマは付かない');
+    el(doc, 'joinCodeInput').value = 'ABC234';
+    el(doc, 'joinNameInput').value = 'びび';
+    click(doc, 'joinGoBtn');
+    await waitFor(win, () => activeScreen(doc) === 'scr-rt-play', 4000, '進行画面へ');
+    assert(el(doc, 'app').classList.contains('theme-wolf'),
+      '部屋のゲームからテーマが決まる（ホストだけ夜、にならない）');
+    assertNoErrors(errors, '部屋コード参加のテーマで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面は、横長の画面では幅の制限を外す', async () => {
+    // jsdom はレイアウトしないので、CSSの決まりごとを直接確かめる
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/\.app:has\(#scr-rt-big\.active\)\s*\{[^}]*max-width:\s*none/.test(html),
+      '大画面を出している間はスマホ幅の制限を外す');
+    assert(/@media\s*\(min-width:\s*900px\)\s*\{[\s\S]*?#scr-rt-big\.active/.test(html),
+      '広い画面ではレイアウトを組み替える');
+    // ふだんの画面は今までどおり460pxのまま
+    assert(/\.app\{[^}]*max-width:\s*460px/.test(html), 'ふだんの幅は変えていない');
+  });
+
   r.finish();
 })();

@@ -653,6 +653,25 @@
   }
   .big-list .bl-item{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 18px;}
   .big-list .bl-item.dead{opacity:.4;text-decoration:line-through;}
+  /* 第24弾-3-1：大画面をPCやTVに映している間だけ、スマホ幅の制限を外す。
+     ふだんは 460px の帯に収めているが、その幅のままだと横長の画面で
+     細長い柱のようになり、離れた席から読めなかった。 */
+  .app:has(#scr-rt-big.active){
+    max-width:none;
+    border-left:none;
+    border-right:none;
+  }
+  /* 横長で十分な広さがある時は、余白を広げて文字をさらに大きく使う */
+  @media (min-width:900px){
+    #scr-rt-big.active{padding:32px 48px;}
+    .big-wrap{max-width:1600px;margin:0 auto;}
+    .big-turn{font-size:clamp(16px,1.5vw,28px);}
+    .big-phase{font-size:clamp(20px,2vw,40px);}
+    .big-main{font-size:clamp(64px,9vw,200px);}
+    .big-sub{font-size:clamp(20px,2.1vw,38px);}
+    .big-list{font-size:clamp(16px,1.5vw,30px);gap:12px 18px;}
+    .big-wrap .qr-box svg{width:min(20vw,320px);height:min(20vw,320px);}
+  }
   .ai-description{
     margin-top:10px;font-size:14px;color:var(--ink);line-height:1.6;background:#fff;
     border:1px dashed var(--line);border-radius:8px;padding:10px 12px;text-align:left;
@@ -1402,6 +1421,9 @@
       <button class="btn btn-main" id="rtConfirmBtn" style="display:none;">確認しました</button>
       <div class="mic-status" id="rtWaitNote" style="margin-top:14px;text-align:center;"></div>
       <button class="btn btn-main" id="rtNextBtn" style="display:none;margin-top:14px;">つぎへ ▶</button>
+      <!-- 第24弾-3-4：決着したあとの行き先。以前はここに何も無く、動けなくなっていた -->
+      <button class="btn btn-main" id="rtEndBtn" style="display:none;margin-top:14px;">🏁 みんなでゲームを終了する</button>
+      <button class="btn btn-ghost" id="rtPlayLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -1617,7 +1639,7 @@
         <div class="play-timer" id="wrDayTimer" style="display:none;">03:00</div>
         <button class="pause-btn" id="wrDayPauseBtn" style="display:none;">⏸</button>
       </div>
-      <div class="wolf-handoff-sub">話し合って、あやしい人を決めましょう</div>
+      <div class="wolf-handoff-sub" id="wrDaySub">話し合って、あやしい人を決めましょう</div>
       <!-- 第20弾-3-2：ワードウルフ側と同じ長押しボタンに統一 -->
       <div class="hold-wrap">
         <svg viewBox="0 0 190 190">
@@ -1625,8 +1647,8 @@
           <circle class="hold-ring" id="wrDayHoldRing" cx="95" cy="95" r="85"></circle>
         </svg>
         <button class="hold-btn" id="wrToVoteBtn">
-          <span class="big">🗳️</span>
-          <span>長押しで投票へ</span>
+          <span class="big" id="wrDayHoldIcon">🗳️</span>
+          <span id="wrDayHoldLabel">長押しで投票へ</span>
         </button>
       </div>
     </div>
@@ -3228,10 +3250,27 @@
   // scr-join は「どのゲームの部屋に入るか分からない」入り口なので、
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   var THEME_FREE_SCREENS = ['scr-door', 'scr-login', 'scr-shelf', 'scr-join'];
+  // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
+  // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
+  // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
+  // カセットが選ばれていない時は、いま入っている部屋のゲームから引く。
+  function cassetteOfGame(gameId){
+    if(!gameId) return null;
+    return CASSETTES.find(function(c){
+      return (c.games || []).indexOf(gameId) !== -1;
+    }) || null;
+  }
+  function currentThemeName(){
+    var c = cassetteById(state.selectedCassetteId);
+    if(c && c.theme) return c.theme;
+    var room = (typeof rt !== 'undefined' && rt && rt.state) ? rt.state.room : null;
+    var game = room && room.state && room.state.game;
+    var rc = cassetteOfGame(game);
+    return (rc && rc.theme) || null;
+  }
   function applyGameTheme(screenId){
     var app = el('app');
-    var c = cassetteById(state.selectedCassetteId);
-    var name = (c && c.theme) || null;
+    var name = currentThemeName();
     var on = name === 'wolf' && THEME_FREE_SCREENS.indexOf(screenId) === -1;
     app.classList.toggle('theme-wolf', on);
     if(!on) app.classList.remove('phase-night', 'phase-day');
@@ -4385,6 +4424,15 @@
   }
   el('rtLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('bigLeaveBtn').addEventListener('click', rtLeaveRoom);
+  el('rtPlayLeaveBtn').addEventListener('click', rtLeaveRoom);
+  // 第24弾-3-5：ホストの終了を、部屋にいる全員に反映する
+  el('rtEndBtn').addEventListener('click', async function(){
+    if(!confirm('ゲームを終了しますか？（部屋にいる全員が終わります）')) return;
+    this.disabled = true;
+    var res = await rt.closeRoom();
+    this.disabled = false;
+    if(!res.ok) el('rtWaitNote').textContent = res.message || '終了できませんでした';
+  });
   el('rtStartBtn').addEventListener('click', async function(){
     var m = modeById(state.selectedModeId);
     var pre = (m && m.wolfPreset) || {};
@@ -4400,6 +4448,8 @@
       teruteruContinue: pre.teruteruContinue,
       lovers: pre.lovers,
       nightTimeLimit: pre.nightTimeLimit || 0,
+      // 第24弾-2：役職確認のあとの作戦会議。話し合いの時間の設定をそのまま使う
+      meetingSec: state.timerEnabled ? (state.customTimer || m.timer || 180) : 0,
       preset: state.selectedModeId
     });
     this.disabled = false;
@@ -4410,7 +4460,7 @@
   // 自分の端末（scr-rt-play）と大画面（scr-rt-big）。
   // 大画面には、サーバーが公開情報しか送ってこない（wolf:you が届かない）。
   var RT_PHASE_LABEL = {
-    roleReveal: '役職の確認', night: '夜', preVote: '投票のまえに',
+    roleReveal: '役職の確認', meeting: '作戦会議', night: '夜', preVote: '投票のまえに',
     day: '朝', vote: '投票', turnResult: '結果', ended: '決着'
   };
   function rtView(){
@@ -4448,6 +4498,9 @@
   }
   function rtRenderCurrent(){
     var cur = (document.querySelector('.screen.active') || {}).id;
+    // 第24弾-3：部屋のゲームが分かった時点でテーマを当て直す。
+    // 部屋コードで参加した人は棚を通らないので、画面遷移だけでは決まらない
+    applyGameTheme(cur);
     if(cur === 'scr-rt-room') renderRtRoom();
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-play') renderRtPlay();
@@ -4470,20 +4523,38 @@
     grid.style.display = 'none'; grid.innerHTML = '';
     confirm.style.display = 'none';
     next.style.display = 'none';
+    el('rtEndBtn').style.display = 'none';
+    el('rtPlayLeaveBtn').style.display = 'none';
     el('rtWaitNote').textContent = '';
+
+    // 第24弾-3-4：決着したら、必ずここから先に進める。
+    // 以前はボタンが1つも出ず、結果を見たあと何もできなくなっていた。
+    // 観戦している端末にも出す（部屋から出られないと困るため）
+    if(v.phase === 'ended'){
+      el('rtYouBox').innerHTML = you ? rtYouHtml(v, you)
+        : '<div class="ry-desc">この端末は観戦していました</div>';
+      el('rtPlayLeaveBtn').style.display = 'inline-flex';
+      if(rt.isHost()){
+        el('rtEndBtn').style.display = 'inline-flex';
+        el('rtWaitNote').textContent = '終了すると、部屋にいる全員が終わります';
+      } else {
+        el('rtWaitNote').textContent = '進行役が終了するまで、結果を見ていられます';
+      }
+      return;
+    }
 
     if(!you){ el('rtYouBox').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>'; return; }
     el('rtYouBox').innerHTML = rtYouHtml(v, you);
-
-    // 決着したら、もう操作は無い
-    if(v.phase === 'ended') return;
-    // 朝と結果の画面は、ホストだけが進める
-    if(v.phase === 'day' || v.phase === 'turnResult'){
+    // 作戦会議・朝・結果の画面は、ホストだけが進める
+    if(v.phase === 'meeting' || v.phase === 'day' || v.phase === 'turnResult'){
       if(rt.isHost()){
         next.style.display = 'inline-flex';
-        next.textContent = (v.phase === 'day') ? '投票へすすむ ▶' : 'つぎへ ▶';
+        next.textContent = (v.phase === 'meeting') ? '夜へすすむ ▶'
+                         : (v.phase === 'day') ? '投票へすすむ ▶' : 'つぎへ ▶';
       } else {
-        el('rtWaitNote').textContent = '進行役がすすめるのを待っています';
+        el('rtWaitNote').textContent = (v.phase === 'meeting')
+          ? '話し終わったら、進行役がすすめます'
+          : '進行役がすすめるのを待っています';
       }
       return;
     }
@@ -4519,6 +4590,10 @@
   }
   function rtPublicHtml(v){
     var lines = [];
+    // 第24弾-2：役職を配った直後の作戦会議。まだ誰も欠けていない
+    if(v.phase === 'meeting'){
+      lines.push('🗣️ 役職を配りました。夜が来る前に、少し話しましょう');
+    }
     if(v.phase === 'day' && v.morning){
       if(!v.morning.deaths.length) lines.push('🌤️ 誰も欠けませんでした');
       else v.morning.deaths.forEach(function(d){
@@ -4655,6 +4730,8 @@
 
     var main = '', sub = '';
     if(v.phase === 'roleReveal'){ main = '役職を配りました'; sub = '自分のスマホで確認してください'; }
+    // 第24弾-2：夜が来る前に話す時間。大画面は「いま話していい」ことだけ伝える
+    else if(v.phase === 'meeting'){ main = '作戦会議'; sub = '夜が来る前に、話しましょう'; }
     else if(v.phase === 'night' || v.phase === 'preVote'){ main = '夜'; sub = '全員、自分のスマホを見てください'; }
     else if(v.phase === 'day'){
       var d = (v.morning && v.morning.deaths) || [];
@@ -4707,6 +4784,15 @@
     rt.on('room', function(){ rtSync(); });
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){ rtSync(); });
+    // 第24弾-3-5：ホストが終了したら、この端末も部屋から抜けて棚に戻る
+    rt.on('closed', function(p){
+      var cur = (document.querySelector('.screen.active') || {}).id;
+      if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
+      goBack('scr-shelf');
+      setTimeout(function(){
+        alert('進行役' + (p && p.by ? '（' + p.by + 'さん）' : '') + 'がゲームを終了しました。');
+      }, 400);
+    });
   }
 
   // ---- 第22弾-1：ゲームに紐づかない「部屋に参加する」入り口 ----
@@ -6080,9 +6166,8 @@
     wr.idx++;
     if(wr.idx < wr.queue.length){ enterWrPass(); return; }
     if(wr.step === 'role'){
-      // 役職確認が終わったら、1ターン戦は投票前の行動へ、それ以外は夜へ
-      if(wr.game.config.turnLimit === 1) startWrPreVote();
-      else startWrNight();
+      // 第24弾-2：役職確認が終わったら、まず作戦会議。夜（や投票）はその後
+      startWrMeeting();
       return;
     }
     if(wr.step === 'night'){ finishWrNight(); return; }
@@ -6105,6 +6190,13 @@
   }
 
   function enterWrDay(){
+    // 第24弾-2：役職を配った直後の作戦会議も、この画面をそのまま使う。
+    // 話し合いの時間・一時停止・長押しで進む、はどれも朝とまったく同じものなので、
+    // 別の画面を作るとタイマーの実装が2つに増えてしまう。
+    if(wr.step === 'meeting') return enterWrMeeting();
+    el('wrDaySub').textContent = '話し合って、あやしい人を決めましょう';
+    el('wrDayHoldIcon').textContent = '🗳️';
+    el('wrDayHoldLabel').textContent = '長押しで投票へ';
     // 第18弾-5：朝も夜と同じ書式で、何ターン目か・最終ターンかを出す
     el('wrDayTurn').innerHTML = turnBannerHtml(wr.game.turn, wr.game.config.turnLimit, '日目の朝');
     setWolfPhaseTone('day');
@@ -6137,6 +6229,22 @@
     if(deaths.some(function(d){ return d.cause !== 'lover'; })){
       setTimeout(sfxHowl, 620);
     }
+    startWrDayTimer();
+  }
+
+  // 第24弾-2：役職を配ったあとの作戦会議。
+  // 実機で「何をやっているのか分からない」「話す時間が無かった」と言われた通り、
+  // 役職確認のあとすぐ夜が来ていた。夜に入る前に、話す時間をここで作る。
+  function enterWrMeeting(){
+    el('wrDayTurn').innerHTML = '<b>作戦会議</b>';
+    el('wrDayNews').innerHTML =
+      '<div class="day-peace">🗣️ 役職を配りました</div>' +
+      '<div class="day-note">まだ誰も欠けていません。夜が来る前に、少し話しましょう</div>';
+    el('wrDaySub').textContent = 'このあと夜が来ます。話し終わったら進んでください';
+    el('wrDayHoldIcon').textContent = '🌙';
+    el('wrDayHoldLabel').textContent = '長押しで夜へ';
+    setWolfPhaseTone('day');
+    wrDayHold.reset();
     startWrDayTimer();
   }
 
@@ -6183,6 +6291,21 @@
   }
   function stopWrDayTimer(){ if(wr && wr.timer){ clearInterval(wr.timer); wr.timer = null; } }
 
+  // 第24弾-2：作戦会議のあとは夜（1ターン戦なら投票前の行動）へ。
+  // 会議中はまだ夜の情報が無いので、朝と同じ扱いにしないよう分けている。
+  function startWrMeeting(){
+    wr.step = 'meeting';
+    goTo('scr-wr-day');
+  }
+  function leaveWrDay(){
+    stopWrDayTimer();
+    if(wr.step === 'meeting'){
+      if(wr.game.config.turnLimit === 1) startWrPreVote();
+      else startWrNight();
+      return;
+    }
+    goToWrVote();
+  }
   function goToWrVote(){
     stopWrDayTimer();
     // 夜に得た情報を本人に配ってから投票へ（占い師・霊媒師）
@@ -6190,7 +6313,7 @@
     startWrVote();
   }
   // 第20弾-3-2：人狼側も長押しに統一（押し間違いで投票へ飛ぶ事故を防ぐ）
-  var wrDayHold = makeHoldButton('wrToVoteBtn', 'wrDayHoldRing', goToWrVote);
+  var wrDayHold = makeHoldButton('wrToVoteBtn', 'wrDayHoldRing', leaveWrDay);
 
   // ---- 集計 → 処刑 → 判定 ----
   el('wrTallyBtn').addEventListener('click', function(){

@@ -89,6 +89,13 @@
         emitLocal('you', p);
       });
       socket.on('wolf:ended', function (p) { emitLocal('ended', p); });
+      // 第24弾-3-5：ホストがゲームを終了すると、部屋ごと畳まれる。
+      // 全員がここで抜ける（ホストだけ終わって他が置き去りにならないように）
+      socket.on('room:closed', function (p) {
+        state.code = null; state.memberId = null; state.room = null; state.secret = null;
+        emitLocal('closed', p || {});
+        emitLocal('status', state);
+      });
       // サーバーからの死活確認。返さないと切断扱いになる
       socket.on('hb:ping', function () { socket.emit('hb:pong'); });
       return true;
@@ -139,6 +146,8 @@
       state.code = null; state.memberId = null; state.room = null; state.secret = null;
       return call('room:leave', {});
     }
+    // 第24弾-3-5：ホストだけが呼べる。部屋にいる全員を終わらせる
+    function closeRoom() { return call('room:close', {}); }
 
     // ---- 人狼（1人1台） ----
     function startWolf(config) { return call('wolf:start', config || {}); }
@@ -158,7 +167,7 @@
     return {
       state: state, on: on, available: available, connect: connect,
       createRoom: createRoom, joinRoom: joinRoom, setRole: setRole,
-      transferHost: transferHost, leave: leave,
+      transferHost: transferHost, leave: leave, closeRoom: closeRoom,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,
       isHost: isHost, me: me,
       // テストから中身を差し替えられるように（socket.io本体は持たせない）

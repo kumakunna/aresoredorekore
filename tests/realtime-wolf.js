@@ -154,7 +154,8 @@ async function playToEnd(rm, guard) {
     const phase = rm.host.room && rm.host.room.state && rm.host.room.state.data
       ? rm.host.room.state.data.phase : null;
     if (phase === 'ended') return true;
-    if (phase === 'day' || phase === 'turnResult') {
+    // 第24弾-2：作戦会議もホストが進める段階
+    if (phase === 'meeting' || phase === 'day' || phase === 'turnResult') {
       await rm.host.call('wolf:next', {});
     } else {
       for (const d of rm.all) await actOnce(d);
@@ -263,6 +264,9 @@ async function playToEnd(rm, guard) {
 
       // 役職確認を全員が終える（ホストも含む）
       for (const d of rm.all) await actOnce(d);
+      // 第24弾-2：役職確認のあとは作戦会議。ホストが進めると夜になる
+      await waitUntil(() => rm.host.room.state.data.phase === 'meeting', '作戦会議になる');
+      await rm.host.call('wolf:next', {});
       await waitUntil(() => rm.guests[0].room.state.data.phase === 'night', '夜になる');
 
       // ここでホストの電池が切れる
@@ -290,6 +294,8 @@ async function playToEnd(rm, guard) {
       });
       await waitUntil(() => rm.all.every((d) => d.you && d.you.roleId), '役職が配られる');
       for (const d of rm.all) await actOnce(d); // 役職確認は全員が済ませる
+      await waitUntil(() => rm.host.room.state.data.phase === 'meeting', '作戦会議になる');
+      await rm.host.call('wolf:next', {});      // 第24弾-2：作戦会議を抜けて夜へ
       await waitUntil(() => rm.host.room.state.data.phase === 'night', '夜になる');
       assert(rm.host.room.state.data.deadline, '期限が全員に伝わる');
 
@@ -372,6 +378,75 @@ async function playToEnd(rm, guard) {
       assertEqual(wrong.ok, false, '役職確認の段階では投票できない');
 
       rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  // ---- 第24弾-3-2：入り直しで同じ人が2人に増えない ----
+  await r.test('一度出て入り直しても、同じ人が2人に増えない', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3, false);
+      const room = srv.store.get(rm.code);
+      assertEqual(room.members.size, 3, '最初は3人');
+
+      // ① 自分から出て、コードを入れ直す（memberId は手放している）
+      const g = rm.guests[0];
+      await g.call('room:leave', {});
+      await waitUntil(() => srv.store.get(rm.code).members.size === 2, '出ると人数が減る');
+      const back = await g.call('room:join', { code: rm.code, name: 'P2' });
+      assertEqual(back.ok, true, '入り直せる');
+      assertEqual(srv.store.get(rm.code).members.size, 3, '入り直しても3人のまま');
+
+      // ② ページを読み込み直した想定：同じ名前で、memberId を持たずに入り直す
+      const g2 = rm.guests[1];
+      const oldId = g2.memberId;
+      g2.close();
+      await waitUntil(() => {
+        const m = srv.store.get(rm.code).members.get(oldId);
+        return m && !m.connected;
+      }, '切断が伝わる', 6000);
+      const reloaded = await device(srv.url);
+      const rejoin = await reloaded.call('room:join', { code: rm.code, name: 'P3' });
+      assertEqual(rejoin.ok, true, '入り直せる');
+      assertEqual(rejoin.memberId, oldId, '切れていた同じ名前の枠を引き継ぐ');
+      assertEqual(srv.store.get(rm.code).members.size, 3, '名前が2つに増えない');
+
+      // ③ つながったままの同名は別人なので、こちらは増やす
+      const other = await device(srv.url);
+      const dup = await other.call('room:join', { code: rm.code, name: 'P3' });
+      assertEqual(dup.ok, true, '同じ名前でも入れる');
+      assert(dup.memberId !== oldId, 'つながっている人の枠は奪わない');
+      assertEqual(srv.store.get(rm.code).members.size, 4, '別人として増える');
+
+      [rm.host, g, reloaded, other].forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  // ---- 第24弾-3-5：ホストの終了を部屋全体に反映する ----
+  await r.test('ホストがゲームを終了すると、全員が部屋から出る', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 4, true);
+      await rm.host.call('wolf:start', { roles: ['wolf', 'seer'], turnLimit: 5 });
+      await waitUntil(() => rm.all.every((d) => d.you && d.you.roleId), '役職が配られる');
+
+      // ホスト以外は終了できない
+      const denied = await rm.guests[0].call('room:close', {});
+      assertEqual(denied.ok, false, 'ホスト以外は終了できない');
+      assertEqual(denied.error, 'not_host', '理由が分かる');
+
+      // 全端末（大画面も含む）が room:closed を受け取る
+      const got = [];
+      [rm.host].concat(rm.guests).concat([rm.big]).forEach((d) => {
+        d.socket.on('room:closed', (p) => got.push({ id: d.memberId, by: p && p.by }));
+      });
+      const res = await rm.host.call('room:close', {});
+      assertEqual(res.ok, true, 'ホストは終了できる');
+      await waitUntil(() => got.length === 5, '全員に届く（大画面も含む）', 4000);
+      assert(got.every((x) => x.by === 'ホスト'), '誰が終了したのかが分かる');
+      assertEqual(srv.store.get(rm.code), null, '部屋そのものが片付く');
+
+      rm.all.concat([rm.big]).forEach((d) => d.close());
     } finally { await srv.close(); }
   });
 

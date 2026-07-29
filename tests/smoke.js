@@ -217,8 +217,12 @@ async function startModeWithTimerOff(win, doc, id) {
     }
     assert(seenRoles.some(t => /人狼/.test(t)), '誰かに人狼が配られている');
 
+    // 第24弾-2：役職確認のあとは、まず作戦会議
+    assertEqual(activeScreen(doc), 'scr-wr-day', '役職確認のあとは作戦会議');
+    assert(/作戦会議/.test(el(doc, 'wrDayTurn').textContent), '作戦会議だと分かる');
+
     // 夜の行動：選択肢が出た人は選ぶ、出ない人は次へ
-    if (passNightfall(doc)) await sleep(win, 60);
+    await waitScreen(win, doc, 'scr-wr-pass', 9000);
     let guard = 0;
     while (activeScreen(doc) === 'scr-wr-pass' && guard++ < 20) {
       click(doc, 'wrRevealBtn');
@@ -310,7 +314,9 @@ async function startModeWithTimerOff(win, doc, id) {
   // 第20弾-2で、夜と投票前は中身が2画面（行動 → 確認）になった。
   // onShow に渡すのは「1画面目」＝手渡された人が最初に見るもの。
   async function runWrHandoffs(win, doc, count, onShow, pick) {
-    // 夜の頭には「夜になりました」の関門が入る（第20弾-4-1）
+    // 段階の変わり目には「作戦会議」（第24弾-2）と「夜になりました」（第20弾-4-1）が挟まる。
+    // 待っているあいだに自動で通過するので、まず手渡しの画面に着くまで待つ
+    await waitScreen(win, doc, 'scr-wr-pass', 9000);
     if (passNightfall(doc)) await sleep(win, 60);
     for (let i = 0; i < count; i++) {
       if (activeScreen(doc) !== 'scr-wr-pass') break;
@@ -2193,8 +2199,9 @@ async function startModeWithTimerOff(win, doc, id) {
     await runWrHandoffs(win, doc, players.length); // 役職確認
 
     // 夜：全員ぶん流し、誰が何を見たかと、何タップしたかを集める
+    // （役職確認と夜のあいだに作戦会議が入る。待つあいだに自動で通過する）
     const taps = [], seen = [], handoffs = [];
-    if (passNightfall(doc)) await sleep(win, 60);
+    await waitScreen(win, doc, 'scr-wr-pass', 9000);
     for (let i = 0; i < players.length; i++) {
       if (activeScreen(doc) !== 'scr-wr-pass') break;
       handoffs.push(doc.querySelector('#wrHandoff .wolf-handoff-sub').textContent.trim() +
@@ -2252,7 +2259,8 @@ async function startModeWithTimerOff(win, doc, id) {
 
     const taps = [], seen = [];
 
-    if (passNightfall(doc)) await sleep(win, 60);
+    // 作戦会議を抜けて、投票前の単発行動へ（待つあいだに自動で通過する）
+    await waitScreen(win, doc, 'scr-wr-pass', 9000);
     for (let i = 0; i < players.length; i++) {
       if (activeScreen(doc) !== 'scr-wr-pass') break;
       let t = 0;
@@ -2551,7 +2559,8 @@ async function startModeWithTimerOff(win, doc, id) {
 
     // 実際に遊びはじめたら夜になる
     assert(app.classList.contains('theme-wolf'), '遊んでいる画面は夜になる');
-    await runWrHandoffs(win, doc, players.length);   // 役職確認 → 夜
+    await runWrHandoffs(win, doc, players.length);   // 役職確認
+    await waitScreen(win, doc, 'scr-wr-pass', 9000); // 作戦会議を抜けて夜へ
     assert(app.classList.contains('phase-night'), '夜フェーズはさらに沈める');
     await runWrHandoffs(win, doc, players.length);   // 夜 → 朝
     if (activeScreen(doc) === 'scr-wr-day') {

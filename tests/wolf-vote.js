@@ -929,9 +929,10 @@ function votesFrom(list) {
     assert(started.ok, 'ゲームが始まる');
     const ids = Array.from(room.members.keys());
 
-    // 役職確認 → 夜 → 朝 → 投票 まで進める
+    // 役職確認 → 作戦会議 → 夜 → 朝 → 投票 まで進める
     ids.forEach((id) => WolfRoom.submitAction(room, id, null));
-    WolfRoom.advance(room);                       // ROLE → NIGHT
+    WolfRoom.advance(room);                       // ROLE → MEETING
+    WolfRoom.advance(room);                       // MEETING → NIGHT
     WolfRoom.expectedMembers(room).forEach((id) => {
       const v = WolfRoom.privateFor(room, id);
       WolfRoom.submitAction(room, id, (v.choices && v.choices.length) ? v.choices[0].id : null);
@@ -1036,6 +1037,96 @@ function votesFrom(list) {
       '決着したら投票の中身が届く');
     const row = done.result.voteLog[0].rows[0];
     assert(row && row.from && row.to, 'だれが→だれに の形で届く');
+  });
+
+  // ---------- ⑧ 役職確認のあとの作戦会議（第24弾-2） ----------
+
+  await r.test('1人1台：役職確認のあとは作戦会議。ホストが進めると夜になる', async () => {
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    WolfRoom.startGame(room, { roles: ['wolf', 'seer'], turnLimit: 5, meetingSec: 180 });
+    assertEqual(room.wolf.phase, 'roleReveal', 'まず役職確認');
+    WolfRoom.expectedMembers(room).forEach((id) => WolfRoom.submitAction(room, id, null));
+    WolfRoom.advance(room);
+    assertEqual(room.wolf.phase, 'meeting', '役職確認のあとは作戦会議');
+    assert(room.wolf.deadline, '話し合いの持ち時間が設定される');
+
+    const pub = WolfRoom.publicView(room);
+    assertEqual(pub.phase, 'meeting', '全員に作戦会議だと伝わる');
+    assert(pub.deadline, '残り時間も全員に伝わる');
+    // まだ誰も欠けていないので、朝の知らせは出ない
+    assert(!pub.morning, '作戦会議に朝の知らせは出ない');
+    // この段階では、誰も個別の操作を求められない
+    WolfRoom.expectedMembers(room).forEach((id) => {
+      const v = WolfRoom.privateFor(room, id);
+      assert(!v.action, '作戦会議では誰も操作しない（' + id + '）');
+    });
+
+    WolfRoom.advance(room);
+    assertEqual(room.wolf.phase, 'night', '作戦会議のあとは夜');
+  });
+
+  await r.test('1人1台：1ターン戦でも、作戦会議のあとに投票前の行動へ進む', async () => {
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    WolfRoom.startGame(room, { roles: ['wolf', 'peek'], turnLimit: 1 });
+    WolfRoom.expectedMembers(room).forEach((id) => WolfRoom.submitAction(room, id, null));
+    WolfRoom.advance(room);
+    assertEqual(room.wolf.phase, 'meeting', '1ターン戦でも作戦会議は入る');
+    assertEqual(room.wolf.deadline, null, '持ち時間を渡さなければ時間制限なし');
+    WolfRoom.advance(room);
+    assertEqual(room.wolf.phase, 'preVote', '夜が無い遊び方では投票前の行動へ');
+  });
+
+  await r.test('実機・人狼：役職確認のあとに作戦会議が入り、長押しで夜へ進む', async () => {
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    // タイマーはONのまま（作戦会議にも時間が出ることを確かめたい）
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+
+    // 役職確認を全員ぶん
+    await waitScreen(win, doc, 'scr-wr-pass', 9000);
+    for (let i = 0; i < players.length; i++) {
+      click(doc, 'wrRevealBtn');
+      await sleep(win, 40);
+      click(doc, 'wrNextBtn');
+      await sleep(win, 45);
+    }
+    // 作戦会議（自動で通過させずに、その画面自体を見る）
+    await waitFor(win, () => activeScreen(doc) === 'scr-wr-day', 6000, '作戦会議', false, true);
+    assert(/作戦会議/.test(el(doc, 'wrDayTurn').textContent), '作戦会議だと分かる');
+    assert(/役職を配りました/.test(el(doc, 'wrDayNews').textContent), '何が起きたのかが出る');
+    assert(!/欠けました|襲われた/.test(el(doc, 'wrDayNews').textContent),
+      'まだ誰も欠けていないので、朝の知らせは出ない');
+    assert(/夜へ/.test(el(doc, 'wrDayHoldLabel').textContent), '長押しで夜へ進むと分かる');
+    assertEqual(el(doc, 'wrDayTimer').style.display, 'block', '話し合いの時間が出る');
+    assert(el(doc, 'wrDayPauseBtn').style.display !== 'none', '一時停止もできる');
+
+    // 時間が動いていること（朝と同じ仕組みを使っている）
+    const t0 = el(doc, 'wrDayTimer').textContent;
+    await sleep(win, 1200);
+    assert(el(doc, 'wrDayTimer').textContent !== t0, '作戦会議でも時間が進む');
+
+    await holdPress(win, doc, 'wrToVoteBtn');
+    await waitScreen(win, doc, 'scr-wr-pass', 9000);
+    assert(el(doc, 'app').classList.contains('phase-night'), '作戦会議のあとは夜になる');
+    assertNoErrors(errors, '作戦会議で未捕捉の例外');
+    win.close();
   });
 
   // ---------- ⑦ 決着後だけ、誰が誰に入れたかを開示する（第23弾-2） ----------

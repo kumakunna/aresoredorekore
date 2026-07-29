@@ -148,7 +148,8 @@ async function launch(opts) {
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
-    url: 'http://localhost/',
+    // 第26弾-1：QRから来た人は ?room=コード 付きで開く
+    url: opts.url || 'http://localhost/',
     virtualConsole
   });
   const win = dom.window;

@@ -381,5 +381,73 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第26弾 第2部：ログインしていなくても棚まで来られる ----
+
+  await r.test('ログインしていなくても、扉のあとは棚に着く', async () => {
+    const { win, doc, errors } = await launch({ loggedOut: true });
+    assertEqual(activeScreen(doc), 'scr-shelf', 'ログイン画面で止めない');
+    assert(doc.querySelector('.shelf-bar'), '下部バーが出ている');
+    assert(doc.getElementById('shelfRoomBtn'), '「部屋」ボタンがある');
+    assert(doc.getElementById('shelfGearBtn'), '「設定」ボタンがある');
+    assertNoErrors(errors, '未ログインの起動で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('未ログインの名前と二つ名は、候補から選ばれて開いている間は変わらない', async () => {
+    const NAMES = ['準備中！', 'まだログインしてない', 'まだ待ってね', 'ログインしないと！'];
+    const TITLES = ['まだ準備してるよ！', 'ログインしないとまだできない', 'みらいのげんせき', 'まだがんばっているとちゅう！'];
+    const { win, doc, errors } = await launch({ loggedOut: true });
+    const name0 = el(doc, 'shelfName').textContent;
+    const title0 = el(doc, 'shelfTitle').textContent;
+    assert(NAMES.includes(name0), '名前が候補の中から選ばれている：' + name0);
+    assert(TITLES.includes(title0), '二つ名が候補の中から選ばれている：' + title0);
+
+    // 画面を往復しても選び直さない（自分の名前がチラつくと壊れて見える）
+    click(doc, 'shelfRoomBtn');
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    click(doc, 'rtLobbyBackBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertEqual(el(doc, 'shelfName').textContent, name0, '名前は開いている間ずっと同じ');
+    assertEqual(el(doc, 'shelfTitle').textContent, title0, '二つ名も同じ');
+    assertNoErrors(errors, '未ログインの棚で未捕捉の例外');
+    win.close();
+
+    // 開き直した時は選び直してよい（同じ端末で必ず同じにはしない）
+    const seen = new Set();
+    for (let i = 0; i < 12; i++) {
+      const t = await launch({ loggedOut: true });
+      seen.add(el(t.doc, 'shelfName').textContent);
+      t.win.close();
+    }
+    assert(seen.size > 1, '開き直すと選び直される（12回で' + seen.size + '種類）');
+  });
+
+  await r.test('ログインしていない人がカセットを押すと、ログインに案内される', async () => {
+    const { win, doc, errors } = await launch({ loggedOut: true });
+    pickCart(doc, 'aresoredorekore');
+    await sleep(win, 80);
+    assertEqual(activeScreen(doc), 'scr-login', '手渡しで遊ぶにはログインが要る');
+    // 断らずに棚へ戻れる（行き止まりにしない）
+    click(doc, 'loginBackBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertNoErrors(errors, 'ログイン案内で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ログインすると、頼まれた用事の続きに戻る', async () => {
+    const { win, doc, errors } = await launch({ loggedOut: true, fakeSocket: true });
+    click(doc, 'shelfRoomBtn');
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    click(doc, 'rtCreateBtn'); // 立てるにはログインが要る
+    await waitScreen(win, doc, 'scr-login', 3000);
+    el(doc, 'loginUsername').value = 'test';
+    el(doc, 'loginPassword').value = 'pw';
+    click(doc, 'loginSubmitBtn');
+    await waitScreen(win, doc, 'scr-rt-lobby', 4000);
+    assertEqual(el(doc, 'shelfName').textContent, 'test', 'バーの名前がログイン名になる');
+    assertNoErrors(errors, 'ログイン後の復帰で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

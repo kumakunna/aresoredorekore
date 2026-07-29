@@ -527,6 +527,24 @@
   }
   .sticker::after{content:'';position:absolute;inset:2px;border:1px dashed rgba(36,39,46,.18);border-radius:2px;}
   .shelf-hint{text-align:center;font-size:10.5px;color:var(--ink-soft);padding:6px 20px 0;line-height:1.7;}
+  /* 第26弾-2：棚の下部バー。ログインしていてもいなくても、いつも同じ場所に出る */
+  .shelf-bar{
+    margin-top:auto;display:flex;align-items:center;gap:10px;
+    padding:10px 14px;margin:auto 14px 0;
+    background:var(--paper-2,rgba(0,0,0,.03));border:1px solid var(--line);border-radius:14px;
+  }
+  .shelf-me{display:flex;align-items:center;gap:10px;flex:1;min-width:0;
+    background:none;border:none;padding:4px;margin:0;text-align:left;cursor:pointer;font:inherit;color:inherit;border-radius:10px;}
+  .shelf-me:active{background:rgba(0,0,0,.06);}
+  .shelf-avatar{
+    width:40px;height:40px;flex:none;border-radius:50%;border:1px solid var(--line);
+    background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:21px;line-height:1;
+  }
+  .shelf-me-text{min-width:0;}
+  .shelf-title{font-size:11px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .shelf-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .shelf-bar-btns{display:flex;gap:6px;flex:none;}
+  .shelf-bar-btns .btn{margin:0;padding:9px 12px;font-size:12.5px;width:auto;}
   .shelf-reorder-note{
     position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:70;
     background:var(--ink);color:var(--paper);font-size:11px;padding:7px 14px;border-radius:99px;
@@ -966,8 +984,21 @@
     </div>
     <div id="shelfList"></div>
     <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ</div>
-    <!-- 第22弾-1：誰かの部屋に呼ばれた時は、棚からも入れる -->
-    <button class="btn btn-ghost" id="shelfJoinRoomBtn" style="margin-top:6px;">🚪 部屋に参加する</button>
+    <!-- 第26弾-2：下部バー。ログインしていなくても同じ形で出る。
+         左半分（アイコン・二つ名・名前）をタップすると称号を選び直せる -->
+    <div class="shelf-bar">
+      <button class="shelf-me" id="shelfMeBtn">
+        <div class="shelf-avatar" id="shelfAvatar">🙂</div>
+        <div class="shelf-me-text">
+          <div class="shelf-title" id="shelfTitle">はじめの一歩</div>
+          <div class="shelf-name" id="shelfName">-</div>
+        </div>
+      </button>
+      <div class="shelf-bar-btns">
+        <button class="btn btn-outline" id="shelfRoomBtn">🚪 部屋</button>
+        <button class="btn btn-ghost" id="shelfGearBtn">⚙</button>
+      </div>
+    </div>
   </div>
 
   <!-- 2: login -->
@@ -991,29 +1022,8 @@
     <!-- 第22弾-1：呼ばれて参加するだけの人は、ログインも棚も要らない -->
     <div class="join-divider"><span>または</span></div>
     <button class="btn btn-outline" id="loginJoinRoomBtn">🚪 部屋に参加する（ログイン不要）</button>
-  </div>
-
-  <!-- 第22弾-1：部屋に参加するだけの入り口。どのゲームにも紐づかない。
-       QRから飛んできた場合もここに入る -->
-  <div class="screen" id="scr-join">
-    <h2 class="scr-title">部屋に参加する</h2>
-    <p class="scr-sub">部屋コードと名前だけで入れます</p>
-    <div class="wiz-body">
-      <div class="mic-status" id="joinStatus" style="margin-bottom:14px;"></div>
-      <input type="text" id="joinCodeInput" placeholder="部屋コード（6文字）" maxlength="6"
-             autocapitalize="characters" autocorrect="off" spellcheck="false">
-      <input type="text" id="joinNameInput" placeholder="あなたの名前" maxlength="12" style="margin-top:10px;">
-      <div class="tp-label" style="margin-top:16px;">この端末の役割</div>
-      <div class="seg" id="joinRoleSeg">
-        <button class="seg-btn on" data-joinrole="player">🙋 プレイヤー</button>
-        <button class="seg-btn" data-joinrole="bigscreen">📺 大画面</button>
-      </div>
-      <div class="mic-status" id="joinRoleNote" style="margin-top:6px;"></div>
-    </div>
-    <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-main" id="joinGoBtn">入る ▶</button>
-      <button class="btn btn-ghost" id="joinBackBtn" style="margin-top:0;">← もどる</button>
-    </div>
+    <!-- 第26弾-2：棚が先に来るようになったので、ログインしないで戻る道を残す -->
+    <button class="btn btn-ghost" id="loginBackBtn">← 棚にもどる</button>
   </div>
 
   <!-- 3: setup -->
@@ -1352,11 +1362,11 @@
 
   <!-- 部屋を作るか、入るか -->
   <div class="screen" id="scr-rt-lobby">
-    <h2 class="scr-title">1人1台であそぶ</h2>
-    <p class="scr-sub">みんなのスマホをつないで遊びます</p>
+    <h2 class="scr-title" id="rtLobbyTitle">部屋</h2>
+    <p class="scr-sub" id="rtLobbySub">みんなのスマホをつないで遊びます</p>
     <div class="wiz-body">
       <div class="mic-status" id="rtLobbyStatus" style="margin-bottom:14px;"></div>
-      <div class="card">
+      <div class="card" id="rtCreateCard">
         <div class="sec-title">🏠 部屋をつくる</div>
         <div class="mic-status" style="margin-bottom:10px;">ログインしている人だけが作れます。作った人が最初の進行役になります。</div>
         <input type="text" id="rtCreateName" placeholder="あなたの名前" maxlength="12">
@@ -1981,6 +1991,8 @@
       <button class="btn btn-outline" id="openRecordsBtn">📊 記録を見る</button>
       <button class="btn btn-ghost" id="resetAllBtn">プレイヤー・スコア・統計を全部リセットして最初から</button>
       <button class="btn btn-ghost" id="logoutBtn">ログアウト</button>
+      <!-- 第26弾-2：ログインしていなくても設定は開ける。ここから入れるようにしておく -->
+      <button class="btn btn-main" id="settingsLoginBtn" style="display:none;">ログインする</button>
     </div>
   </div>
 
@@ -2303,8 +2315,34 @@
     if(l) l.disabled = (i <= 0);
     if(r) r.disabled = (i >= carts.length - 1);
   }
+  // ---------- 第26弾-2：棚の下部バー ----------
+  // ログインしていない人にも、同じ形のバーを出す。
+  // 仮の名前はアプリを開いた時に1回だけ選ぶ。画面を移るたびに選び直すと、
+  // 自分の名前がチラついて「壊れている」ように見えるため。
+  var GUEST_NAMES = ['準備中！', 'まだログインしてない', 'まだ待ってね', 'ログインしないと！'];
+  var GUEST_TITLES = ['まだ準備してるよ！', 'ログインしないとまだできない', 'みらいのげんせき', 'まだがんばっているとちゅう！'];
+  function pickOne(list){ return list[Math.floor(Math.random() * list.length)]; }
+  var guestIdentity = { name: pickOne(GUEST_NAMES), title: pickOne(GUEST_TITLES), icon: '🙂' };
+  function loggedIn(){ return !!state.username; }
+  // 称号（第26弾-4）が入るところ。ログインしている人の見た目はここだけが決める
+  function myIcon(){ return '🙂'; }
+  function myTitleText(){ return 'はじめの一歩'; }
+  function renderShelfBar(){
+    var inn = loggedIn();
+    el('shelfAvatar').textContent = inn ? myIcon() : guestIdentity.icon;
+    el('shelfTitle').textContent = inn ? myTitleText() : guestIdentity.title;
+    el('shelfName').textContent = inn ? state.username : guestIdentity.name;
+    // ログインしていない人は、まだ選べる称号を持っていない
+    // 第26弾-4で「選び直す画面」につなぐまでは、押しても何も起きないので押させない
+    el('shelfMeBtn').disabled = true;
+    el('shelfMeBtn').style.opacity = inn ? '' : '.75';
+  }
+  el('shelfRoomBtn').addEventListener('click', function(){ openRoomLobby('scr-shelf'); });
+  el('shelfGearBtn').addEventListener('click', function(){ openSettings(); });
+  // 「自分」の欄は第26弾-4で称号を選ぶ画面につながる。それまでは表示だけ
   function enterShelf(){
     renderShelf();
+    renderShelfBar();
     // レイアウト確定後に中央を計算し直す
     setTimeout(function(){
       document.querySelectorAll('#shelfList .rail').forEach(updateRailCenter);
@@ -2327,6 +2365,8 @@
       showFlash('🔧 このゲームは近日公開予定です', 'hit');
       return;
     }
+    // 第26弾-3：カセットを直接タップ＝手渡し方式。ここは今まで通りログインが要る
+    if(!requireLogin('遊んだ記録を残すので、ログインしてください')) return;
     startCassette(c.id);
   });
   // 第15弾：棚 → カセット →（ゲーム）→ モード。
@@ -2881,13 +2921,19 @@
     }
     return data;
   }
+  // 第26弾-2：名乗りは棚の下部バーにいつも出ているので、
+  // ログイン状態が動いたら必ずここを通して、バーの表示も一緒に更新する
+  function setUser(name){
+    state.username = name || null;
+    renderShelfBar();
+  }
   async function checkAuth(){
     try{
       var me = await api('/api/auth/me');
-      state.username = me.username;
+      setUser(me.username);
       return true;
     }catch(e){
-      state.username = null;
+      setUser(null);
       return false;
     }
   }
@@ -3241,9 +3287,9 @@
   // 棚と扉だけは、どのカセットにも属していないので常にアプリ共通の見た目に戻す。
   // 判定はカセットの theme だけを見る（ここ1箇所で着脱するので、
   // あれそれどれこれ側にテーマが漏れる経路が無い）。
-  // scr-join は「どのゲームの部屋に入るか分からない」入り口なので、
+  // scr-rt-lobby は「どのゲームの部屋に入るか分からない」入り口なので、
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-login', 'scr-shelf', 'scr-join'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-login', 'scr-shelf', 'scr-rt-lobby'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -3303,7 +3349,6 @@
        && id !== prevScreen.id) stopTallyCountdown();
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
-    if(id === 'scr-join') enterJoinScreen();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
     if(id === 'scr-rt-play' || id === 'scr-rt-big') rtRender();
@@ -3329,6 +3374,17 @@
 
   // ===================== 1. splash =====================
   // ===================== 2. login / register =====================
+  // 第26弾-2：棚まではログイン不要になったので、ログインは「必要になった時に頼む」形にする。
+  // 済んだら呼び出し元の画面に返す（頼んだ用事を続けられるように）
+  var loginReturnTo = 'scr-shelf';
+  var LOGIN_SUB_DEFAULT = 'ホストのアカウントでログインしてください';
+  function requireLogin(why, backTo){
+    if(loggedIn()) return true;
+    loginReturnTo = backTo || 'scr-shelf';
+    el('loginSub').textContent = why || LOGIN_SUB_DEFAULT;
+    goTo('scr-login');
+    return false;
+  }
   var authMode = 'login';
   el('loginToggleBtn').addEventListener('click', function(){
     authMode = authMode === 'login' ? 'register' : 'login';
@@ -3354,9 +3410,12 @@
           username: el('regUsername').value.trim(), password: el('regPassword').value, code: el('regCode').value.trim()
         }});
       }
-      state.username = res.username;
+      setUser(res.username);
       await fetchTopics();
-      goTo('scr-shelf'); // 第12弾：ログイン後も棚へ
+      // 第26弾-2：ログインを頼んだ用事の続きへ返す（既定は棚）
+      var back = loginReturnTo; loginReturnTo = 'scr-shelf';
+      el('loginSub').textContent = LOGIN_SUB_DEFAULT;
+      goTo(back);
     } catch(e){
       el('loginError').textContent = e.message || 'エラーが発生しました';
       var card = el('scr-login');
@@ -3366,6 +3425,11 @@
     }
   }
   el('loginSubmitBtn').addEventListener('click', submitAuth);
+  el('loginBackBtn').addEventListener('click', function(){
+    loginReturnTo = 'scr-shelf';
+    el('loginSub').textContent = LOGIN_SUB_DEFAULT;
+    goBack('scr-shelf');
+  });
   el('loginPassword').addEventListener('keydown', function(e){ if(e.key === 'Enter') submitAuth(); });
   el('regCode').addEventListener('keydown', function(e){ if(e.key === 'Enter') submitAuth(); });
 
@@ -3881,7 +3945,8 @@
       goTo('scr-mode-rules');
     } else {
       // 第24弾：1人1台なら、設定のあとは「準備OK」ではなく部屋へ
-      goTo(goingRealtime() ? 'scr-rt-lobby' : 'scr-ready');
+      if(goingRealtime()){ openRoomLobby('scr-mode'); return; }
+      goTo('scr-ready');
     }
   }
   // ---- タイマー設定画面（②：スクロール式ピッカー） ----
@@ -4254,14 +4319,14 @@
     return goingRealtime() && state.selectedGameId === 'wordwolf';
   }
   el('modeNextBtn').addEventListener('click', function(){
-    if(goingRealtime() && !realtimeNeedsWizard()){ goTo('scr-rt-lobby'); return; }
+    if(goingRealtime() && !realtimeNeedsWizard()){ openRoomLobby('scr-mode'); return; }
     if(!guardMinPlayers()) return;
     startWizard();
   });
   el('modeAutoBtn').addEventListener('click', function(){
     // おまかせ：設定は飛ばすが、初回のルール説明は飛ばさない。
     // （ここで直接 scr-ready へ行くと、はじめて遊ぶモードでも説明が出ないままになる）
-    if(goingRealtime()){ goTo('scr-rt-lobby'); return; }
+    if(goingRealtime()){ openRoomLobby('scr-mode'); return; }
     if(!guardMinPlayers()) return;
     applyModeDefaults();
     finishWizard();
@@ -4276,12 +4341,32 @@
   function rtUnavailableMsg(){
     return '通信の準備ができていません。ページを開き直すか、手渡し方式でお楽しみください。';
   }
+  // 第26弾-2：「部屋に参加する」画面は scr-rt-lobby ひとつに寄せた。
+  // 以前は scr-join にも同じもの（コード欄・名前欄・役割の選択・joinRoom の呼び出し）が
+  // 書いてあり、片方だけ直す事故が起きる形になっていた。
+  // 呼ばれて入るだけの人（QR・ログイン画面から）には「部屋をつくる」が要らないので隠す。
+  var rtLobbyJoinOnly = false;
+  function openRoomLobby(from){
+    rtLobbyBackTo = from || 'scr-shelf';
+    rtLobbyJoinOnly = false;
+    goTo('scr-rt-lobby');
+  }
+  function openJoinScreen(from){
+    rtLobbyBackTo = from || 'scr-shelf';
+    rtLobbyJoinOnly = true;
+    goTo('scr-rt-lobby');
+  }
   function enterRtLobby(){
     el('rtLobbyStatus').textContent = (rt && rt.available())
       ? '' : rtUnavailableMsg();
     el('rtCreateBtn').disabled = !(rt && rt.available());
     el('rtJoinBtn').disabled = !(rt && rt.available());
     if(rt && rt.available()) rt.connect();
+    el('rtCreateCard').style.display = rtLobbyJoinOnly ? 'none' : '';
+    el('rtLobbyTitle').textContent = rtLobbyJoinOnly ? '部屋に参加する' : '部屋';
+    el('rtLobbySub').textContent = rtLobbyJoinOnly
+      ? '部屋コードと名前だけで入れます'
+      : 'みんなのスマホをつないで遊びます';
     // ログイン名が分かっていれば、作る側の名前に入れておく
     if(state.username && !el('rtCreateName').value) el('rtCreateName').value = state.username;
     renderRtJoinRole();
@@ -4300,9 +4385,14 @@
     rtJoinRole = b.dataset.rtrole;
     renderRtJoinRole();
   });
-  el('rtLobbyBackBtn').addEventListener('click', function(){ goBack('scr-mode'); });
+  // 第26弾-2：部屋には棚の「部屋」ボタンからも入る。来た道に返す
+  var rtLobbyBackTo = 'scr-mode';
+  el('rtLobbyBackBtn').addEventListener('click', function(){ goBack(rtLobbyBackTo); });
 
   el('rtCreateBtn').addEventListener('click', async function(){
+    // 第26弾-3：部屋を立てるのはログインが要る（サーバー側でも弾くが、
+    // 名前を入れさせてから断るのは気の毒なので先に頼む）
+    if(!requireLogin('部屋を立てるにはログインが必要です', 'scr-rt-lobby')) return;
     var name = el('rtCreateName').value.trim();
     if(!name){ el('rtLobbyStatus').textContent = '名前を入れてください'; return; }
     this.disabled = true;
@@ -4949,54 +5039,7 @@
     });
   }
 
-  // ---- 第22弾-1：ゲームに紐づかない「部屋に参加する」入り口 ----
-  // ログインも棚もカセット選択も通らない。QRから飛んできた場合もここに入る。
-  // 参加したあとは、ホストが選んでいるゲームに応じた画面へ進む。
-  var joinRole = 'player';
-  var joinBackTo = 'scr-login';
-  function renderJoinRole(){
-    Array.prototype.forEach.call(el('joinRoleSeg').querySelectorAll('[data-joinrole]'), function(b){
-      b.classList.toggle('on', b.dataset.joinrole === joinRole);
-    });
-    el('joinRoleNote').textContent = joinRole === 'bigscreen'
-      ? 'TVやPCなど、みんなで見る画面として使います。ゲームの人数には数えません。'
-      : 'この端末で自分の役職を見て、行動や投票をします。';
-  }
-  function enterJoinScreen(){
-    el('joinStatus').textContent = (rt && rt.available())
-      ? '' : '通信の準備ができていません。ページを開き直してください。';
-    el('joinGoBtn').disabled = !(rt && rt.available());
-    if(rt && rt.available()) rt.connect();
-    renderJoinRole();
-  }
-  function openJoinScreen(from){
-    joinBackTo = from || 'scr-login';
-    goTo('scr-join');
-  }
-  el('joinRoleSeg').addEventListener('click', function(e){
-    var b = e.target.closest('[data-joinrole]');
-    if(!b) return;
-    joinRole = b.dataset.joinrole;
-    renderJoinRole();
-  });
-  el('joinBackBtn').addEventListener('click', function(){ goBack(joinBackTo); });
   el('loginJoinRoomBtn').addEventListener('click', function(){ openJoinScreen('scr-login'); });
-  el('shelfJoinRoomBtn').addEventListener('click', function(){ openJoinScreen('scr-shelf'); });
-  el('joinGoBtn').addEventListener('click', async function(){
-    var code = el('joinCodeInput').value.trim().toUpperCase();
-    var name = el('joinNameInput').value.trim();
-    if(!code || !name){ el('joinStatus').textContent = '部屋コードと名前を入れてください'; return; }
-    this.disabled = true;
-    el('joinStatus').textContent = '入っています…';
-    var res = await rt.joinRoom(code, name, joinRole);
-    this.disabled = false;
-    if(!res.ok){
-      el('joinStatus').textContent = res.message || '部屋に入れませんでした';
-      return;
-    }
-    el('joinStatus').textContent = '';
-    goTo(rtWantScreen());
-  });
 
   // ===================== 4.5 mode rules =====================
   // 第23弾-3：以前は bullets が無いモード向けに rules（長文）も持っていたが、
@@ -5018,7 +5061,8 @@
     state.seenRules[state.selectedModeId] = true;
     saveLocalPrefs();
     // 第24弾：1人1台なら、ルールを読んだあとは部屋へ
-    goTo(goingRealtime() ? 'scr-rt-lobby' : 'scr-ready');
+    if(goingRealtime()){ openRoomLobby('scr-mode'); return; }
+    goTo('scr-ready');
   });
   el('rulesReviewBtn').addEventListener('click', function(){
     renderModeRules();
@@ -8026,7 +8070,13 @@
 
   // ===================== settings overlay =====================
   function openSettings(){
-    el('loggedInAs').textContent = state.username ? ('ログイン中：'+state.username) : '';
+    // 第26弾-2：棚から開いた時は、まだログインしていないことがある。
+    // 記録に関わる操作は、ログインしてからでないと意味がないので隠す
+    var inn = loggedIn();
+    el('loggedInAs').textContent = inn ? ('ログイン中：'+state.username) : 'ログインしていません';
+    el('logoutBtn').style.display = inn ? '' : 'none';
+    el('settingsLoginBtn').style.display = inn ? 'none' : '';
+    el('openRecordsBtn').style.display = inn ? '' : 'none';
     var g = gameById(currentGameId());
     el('currentGameLabel').textContent = g.icon + ' ' + g.title + '（' + modeById(state.selectedModeId).title + '）';
     initSettingsPlayers();
@@ -8444,13 +8494,17 @@
     el('settingsOverlay').classList.remove('show');
     goTo('scr-shelf'); // 第13弾：扉は起動時だけ。リセット後は棚に戻る
   });
+  el('settingsLoginBtn').addEventListener('click', function(){
+    el('settingsOverlay').classList.remove('show');
+    requireLogin();
+  });
   el('logoutBtn').addEventListener('click', async function(){
     // A：スマホを回して遊ぶので、誤タップで抜けないよう確認を挟む
     if(!confirm('ログアウトしますか？（進行中のゲームは記録されません）')) return;
     try{ await api('/api/auth/logout', { method:'POST' }); }catch(e){}
-    state.username = null;
+    setUser(null);
     el('settingsOverlay').classList.remove('show');
-    goTo('scr-login'); // ログアウトしたので、部屋の中のログインへ戻る
+    goTo('scr-shelf'); // 第26弾-2：ログアウトしても棚は見られる
   });
 
   // ---------- init ----------
@@ -8473,15 +8527,16 @@
       // QRで呼ばれた人は、ログインも棚も通さずに参加画面へ直行する
       var invited = roomCodeFromUrl();
       if(invited){
-        el('joinCodeInput').value = invited;
-        joinBackTo = 'scr-login';
-        return 'scr-join';
+        el('rtJoinCode').value = invited;
+        rtLobbyBackTo = 'scr-shelf';
+        rtLobbyJoinOnly = true;
+        return 'scr-rt-lobby';
       }
+      // 第26弾-2：棚まではログイン不要。ログインは、記録が要る用事の時にだけ頼む
       try{
-        var ok = await checkAuth();
-        if(ok){ await fetchTopics(); return 'scr-shelf'; }
+        if(await checkAuth()) await fetchTopics();
       }catch(e){}
-      return 'scr-login'; // 扉の内側でログイン。扉自体に鍵はかかっていない
+      return 'scr-shelf';
     })();
     el('doorScene').classList.add('opened');
     var next = await nextPromise;

@@ -4867,44 +4867,61 @@
     play.wolfRevealed = false;
     play.wolfPhase = 'reveal';
     play.wolfVotes = {};
+    // 第22弾-6：この試合で行われた投票を、ぜんぶここに積む。
+    // 複数ウルフの投票くり返しも、2〜ターン版のターンくり返しも、
+    // 「投票が何回かある」という同じ形なので、記録も1か所にまとめる。
+    play.wolfVoteRounds = [];
+    // 第22弾-6：脱落した人の記録もここ1か所だけ。
+    // 以前は wmOut（2〜ターン版）と wwExec.elim（複数ウルフ）の2か所にあり、
+    // 前の試合の wmOut が残ったまま次の試合が始まる不具合もあった。
+    play.wolfExecutedIds = [];
+    play.wwLast = null;   // 直前の投票の集計結果（結果画面はこれを見る）
+    play.wwScored = false;
     // 第20弾-10：ウルフが2人以上なら、投票と処刑をウルフの人数ぶんくり返す。
     // 1回の投票では最大1人しか処刑できず、残りのウルフが無条件で逃げ切れてしまうため。
     // ウルフが1人の時は、これまでどおり投票1回で終わる（挙動を変えない）。
-    play.wwExec = (wolfN >= 2) ? {
-      round: 1, limit: wolfN, elim: {}, log: [], winner: null, votesByRound: []
+    // 第22弾-6：2〜ターン版は「ターンをくり返すこと」自体が同じ役割を果たすので、
+    // ここで重ねて投票をくり返さない（同じ仕組みを二重に走らせない）。
+    play.wwExec = (wolfN >= 2 && !play.wmActive) ? {
+      round: 1, limit: wolfN, log: [], winner: null
     } : null;
     assignWolfRoles(); // 第18弾-6：役職を使う設定なら、多数派の中から配る
   }
-  // 第20弾-10：処刑された人・2〜ターン版で脱落した人は、投票にも投票先にも出さない
+  // 処刑された人・2〜ターン版で脱落した人は、投票にも投票先にも出さない
   function wolfIsOut(pid){
-    if(play.wmOut && play.wmOut[pid]) return true;
-    if(play.wwExec && play.wwExec.elim[pid]) return true;
-    return false;
+    return (play.wolfExecutedIds || []).indexOf(pid) !== -1;
+  }
+  // まだ残っているウルフ／シープ（「あと何人か」の判定はここだけを見る）
+  function wolfSideAlive(){
+    return play.wolfMinorityIds.filter(function(id){ return !wolfIsOut(id); });
+  }
+  function villageSideAlive(){
+    return wolfSurvivors().filter(function(p){ return play.wolfMinorityIds.indexOf(p.id) === -1; });
   }
   function wolfSurvivors(){
     return state.players.filter(function(p){ return !wolfIsOut(p.id); });
   }
-  // 投票の1周を始める。スマホが回るのは生き残っている人だけ
-  // （処刑された人・2〜ターン版で脱落した人には回さない）
-  function startWolfVotePass(){
-    play.wolfPhase = 'vote';
+  // 手渡しの1周を始める。スマホが回るのは生き残っている人だけ
+  // （処刑された人・2〜ターン版で脱落した人には回さない）。
+  // 第22弾-6：投票の周も、その直前の周も、始め方はまったく同じだった。
+  // 片方だけ直す事故を防ぐため、1つにまとめる。
+  function startWolfPass(phase){
+    play.wolfPhase = phase;
     play.wolfOrder = wolfSurvivors().map(function(p){ return p.id; });
     play.wolfIndex = 0;
     play.wolfRevealed = false;
-    play.wolfVotes = {};
     goTo('scr-wolf-pass');
     setWolfPhaseTone('night'); // また1人ずつの手渡しに戻る
+  }
+  function startWolfVotePass(){
+    play.wolfVotes = {};  // 投票の周だけ、前回の票を消してから始める
+    startWolfPass('vote');
   }
   // 第22弾-4：話し合いが終わったあと、投票が始まる前の手渡し。
   // 該当役職が誰にも配られていない回は、この手間をかけずに投票へ進む。
   function startWolfPreVotePass(){
     if(!wwHasPreVoteStep()){ startWolfVotePass(); return; }
-    play.wolfPhase = 'prevote';
-    play.wolfOrder = wolfSurvivors().map(function(p){ return p.id; });
-    play.wolfIndex = 0;
-    play.wolfRevealed = false;
-    goTo('scr-wolf-pass');
-    setWolfPhaseTone('night');
+    startWolfPass('prevote');
   }
   function currentWolfPlayer(){
     var id = play.wolfOrder[play.wolfIndex];
@@ -5025,9 +5042,11 @@
       nextBtn.style.display = 'inline-flex';
       return;
     }
-    // 全員に同じ体裁で役職を出す（狂人も村人と同じ見た目・同じ文字数感）
+    // 全員に同じ体裁で役職を出す（狂人もシープと同じ見た目）。
+    // 第22弾-7：ここだけ人狼ゲームの言葉（村人／人狼）が残っていた。
+    // このゲームの陣営はシープ🐑とウルフ🐺なので、そちらに揃える。
     var label = roleId ? WolfLogic.roleById(roleId).name
-              : (isMinority && state.wolfAware ? '人狼' : '村人');
+              : (isMinority && state.wolfAware ? 'ウルフ🐺' : 'シープ🐑');
     // 占い師・狂人は人狼ゲームから借りた役職なので、説明文だけワードウルフの言葉に置き換える
     // （ワードウルフに夜フェーズは無いし、陣営の呼び方もウルフ／シープ）
     var desc = roleId ? (WW_ROLE_DESC[roleId] || WolfLogic.roleById(roleId).desc) : '特別な力はありません。';
@@ -5109,51 +5128,50 @@
   // 第22弾-5：人狼側と同じ uiTallyCountdown を使う（別実装をやめた）
   el('wolfTallyBtn').addEventListener('click', function(){
     uiTallyCountdown(el('wolfCdNumber'), el('wolfTallyBtn'), function(){
-      // 第20弾-10：複数ウルフなら、ここで1人ぶんの処刑を確定させる
-      if(play.wwExec && !play.wwExec.winner) resolveWolfExecution();
+      resolveWolfVote();
       goTo('scr-wolf-result');
     });
   });
+
+  // ---- 第22弾-6：ワードウルフの投票集計 ----
+  // 集計そのものは人狼と同じ WolfLogic.tally に任せる。
+  // ここでやるのは「その結果を、このゲームの言葉に置き換える」ことだけ。
+  function wolfVoteOutcome(){
+    var t = WolfLogic.tally(play.wolfVotes);
+    var executed = t.executedId
+      ? state.players.find(function(p){ return p.id === t.executedId; })
+      : null;
+    return {
+      counts: t.counts, tie: t.tie, max: t.max,
+      executedId: t.executedId,
+      executed: executed,
+      wasWolf: !!executed && play.wolfMinorityIds.indexOf(executed.id) !== -1
+    };
+  }
+
+  // 投票を締める。集計と、それに伴う脱落の反映を、この1か所だけで行う。
+  // 第22弾-6：以前は結果画面の描画と「つぎへ」ボタンが別々に集計をやり直していて、
+  // 集計のタイミングが2つあった（しかも片方は別のルールだった）。
+  function resolveWolfVote(){
+    var o = wolfVoteOutcome();
+    play.wwLast = o;
+    play.wolfVoteRounds.push(Object.assign({}, play.wolfVotes));
+    if(o.executedId) play.wolfExecutedIds.push(o.executedId);
+    if(play.wwExec && !play.wwExec.winner) advanceWolfExecRound(o);
+    return o;
+  }
+
   // ---- 第20弾-10：複数ウルフ時の処刑ラウンド ----
   // 話し合いは1回のまま。投票と処刑だけを、ウルフの人数ぶんくり返す。
-  //   ・全員のウルフを処刑できたら、その時点で村人側の勝ち
-  //   ・ウルフを残したまま村人側がウルフ以下の人数になったら人狼側の勝ち
-  //   ・くり返せる回数を使い切ってもウルフが残っていれば人狼側の勝ち
+  //   ・全員のウルフを処刑できたら、その時点でシープ🐑側の勝ち
+  //   ・ウルフを残したままシープがウルフ以下の人数になったらウルフ🐺側の勝ち
+  //   ・くり返せる回数を使い切ってもウルフが残っていればウルフ🐺側の勝ち
   // 同数で決められなかった回は、処刑なしのままその回を消費する（無限に投票しない）。
-  function wolfTallyTop(){
-    var counts = {};
-    Object.keys(play.wolfVotes).forEach(function(voterId){
-      var t = play.wolfVotes[voterId];
-      if(t) counts[t] = (counts[t] || 0) + 1;
-    });
-    var max = 0;
-    Object.keys(counts).forEach(function(id){ if(counts[id] > max) max = counts[id]; });
-    var top = Object.keys(counts).filter(function(id){ return counts[id] === max; });
-    return { counts: counts, top: top, tie: top.length > 1, max: max };
-  }
-  function wolfSideAlive(){
-    return play.wolfMinorityIds.filter(function(id){ return !wolfIsOut(id); });
-  }
-  function villageSideAlive(){
-    return wolfSurvivors().filter(function(p){ return play.wolfMinorityIds.indexOf(p.id) === -1; });
-  }
-  // 1回ぶんの投票を締める。決着したかどうかを返す
-  function resolveWolfExecution(){
+  function advanceWolfExecRound(o){
     var ex = play.wwExec;
-    var t = wolfTallyTop();
-    ex.votesByRound.push(Object.assign({}, play.wolfVotes));
-    var executedId = t.tie ? null : t.top[0];
-    var executed = executedId ? state.players.find(function(p){ return p.id === executedId; }) : null;
-    if(executed){
-      ex.elim[executed.id] = true;
-      ex.log.push({
-        round: ex.round, id: executed.id, name: executed.name,
-        wasWolf: play.wolfMinorityIds.indexOf(executed.id) !== -1
-      });
-    } else {
-      ex.log.push({ round: ex.round, id: null, name: null, wasWolf: false, tie: true });
-    }
-    // 判定
+    ex.log.push(o.executed
+      ? { round: ex.round, id: o.executed.id, name: o.executed.name, wasWolf: o.wasWolf }
+      : { round: ex.round, id: null, name: null, wasWolf: false, tie: true });
     if(!wolfSideAlive().length){ ex.winner = 'village'; return true; }
     if(villageSideAlive().length <= wolfSideAlive().length){ ex.winner = 'wolf'; return true; }
     if(ex.round >= ex.limit){ ex.winner = 'wolf'; return true; } // 使い切ってもウルフが残った
@@ -5175,24 +5193,53 @@
       '<div class="wolf-topic-label">' + last.round + '回目の投票</div>' + head +
       '<div class="day-note">のこりのウルフ🐺 ' + wolfSideAlive().length + '人 ／ ' +
       'シープ🐑 ' + villageSideAlive().length + '人</div>';
-    el('wolfResultList').innerHTML = wolfSurvivors().map(function(p){
-      return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + '</div>' +
-        '<div class="rs">生存</div></div>';
-    }).join('');
+    el('wolfResultList').innerHTML = wolfInterimList(play.wwLast);
     el('wolfResultNextBtn').textContent = 'つぎの投票へ ▶';
+  }
+
+  // 途中経過の一覧。まだ答え合わせをしていないので、出せるのは
+  // 「誰に何票入ったか」と「誰が抜けたか」だけ。
+  // 第22弾-6：複数ウルフの途中経過と2〜ターン版の途中経過で、
+  // 同じものを別の書式で出していたので揃えた。
+  function wolfInterimList(o){
+    var counts = (o && o.counts) || {};
+    return state.players.map(function(p){
+      return '<div class="reveal-row">' +
+        '<div class="rn">' + escapeHtml(p.name) + (wolfIsOut(p.id) ? ' 💀' : '') + '</div>' +
+        '<div class="rs">' + (counts[p.id] || 0) + '票</div></div>';
+    }).join('');
+  }
+
+  // 同じお題のまま続く2〜ターン版の、ターンとターンのあいだの画面。
+  // ここでお題やウルフを明かすと残りのターンが成立しないので、
+  // 「誰が脱落したか」と票数だけを出し、その人がウルフだったかは伏せる。
+  function renderWolfMultiInterim(o){
+    o = o || wolfVoteOutcome(); // 画面を開き直した時のための保険
+    // ウルフが1人なら「まだ続く＝外した」はルール上すぐ分かるので、はっきり書く。
+    // 2人以上いる時は、脱落した人がウルフだったかどうかが勝負どころなので伏せる。
+    var implied = (o.executedId && play.wolfMinorityIds.length === 1)
+      ? '<div class="day-peace" style="margin-top:6px;">🐑 シープでした…</div>' : '';
+    var head = !o.executedId
+      ? '<div class="day-peace">🤝 同数だったので、だれも脱落しませんでした</div>'
+      : '<div class="day-death">⚖️ ' + escapeHtml(o.executed.name) + ' が脱落しました</div>' + implied;
+    el('wolfResultTopics').innerHTML =
+      '<div class="wolf-topic-label">' + play.wmTurn + 'ターン目の投票</div>' + head +
+      '<div class="day-note">お題はこのままです。のこり ' + wolfSurvivors().length + '人で話し合います</div>';
+    el('wolfResultList').innerHTML = wolfInterimList(o);
+    el('wolfResultNextBtn').textContent = 'つぎのターンへ ▶';
+    playStamp();
   }
 
   function enterWolfResult(){
     // 複数ウルフの途中経過は、専用の描画にする
     if(play.wwExec && !play.wwExec.winner){ return renderWolfExecRound(); }
+    // 同じお題のまま次のターンがあるなら、まだ答え合わせをしない
+    if(wolfMultiContinues()){ return renderWolfMultiInterim(play.wwLast); }
     // 途中経過で書き換えたボタンを、最後は元に戻す
     el('wolfResultNextBtn').textContent = 'つぎへ';
-    var tally = {};
-    state.players.forEach(function(p){ tally[p.id] = 0; });
-    Object.keys(play.wolfVotes).forEach(function(voterId){
-      var target = play.wolfVotes[voterId];
-      if(tally[target] != null) tally[target]++;
-    });
+    // 表示する票数も、処刑を決めたのと同じ集計をそのまま使う
+    // （第22弾-6：ここでも別に数え直していたので、4か所目の集計になっていた）
+    var tally = (play.wwLast || wolfVoteOutcome()).counts;
     // 第20弾-10：複数ウルフなら、どちらが勝ったのかと処刑の経過を先に出す
     var execHead = '';
     if(play.wwExec){
@@ -5204,6 +5251,16 @@
           return l.tie ? l.round + '回目：同数で処刑なし'
                        : l.round + '回目：' + escapeHtml(l.name) + (l.wasWolf ? '（ウルフ🐺）' : '（シープ🐑）');
         }).join('<br>') + '</div>';
+    }
+    // 第22弾-6：投票1回で終わる遊び方でも、誰が処刑され、ウルフだったのかを言葉で出す。
+    // これまでは票数の一覧しか無く、捕まえられたのかどうかが読み取りにくかった。
+    if(!play.wwExec && play.wwLast){
+      var o = play.wwLast;
+      execHead = '<div class="wolf-topic-label">' +
+        (wolfSideAlive().length ? '🐺 ウルフの逃げ切り' : '🎉 ウルフをあぶり出しました') + '</div>' +
+        '<div class="day-note">' + (o.executedId
+          ? escapeHtml(o.executed.name) + ' が処刑されました（' + (o.wasWolf ? 'ウルフ🐺' : 'シープ🐑') + '）'
+          : '同数だったので、だれも処刑されませんでした') + '</div>';
     }
     el('wolfResultTopics').innerHTML = execHead +
       'シープ🐑のお題：<b>'+escapeHtml(play.wolfMajorityTopic.name)+'</b>　／　ウルフ🐺のお題：<b>'+escapeHtml(play.wolfMinorityTopic.name)+'</b>'+
@@ -5217,56 +5274,39 @@
     function isWolfSide(pid){
       return play.wolfMinorityIds.indexOf(pid) !== -1 || wwRoleOf(pid) === 'madman';
     }
+    // 第22弾-6：加点は「集計が終わった1回だけ」。
+    // この画面は演出のたびに描き直されることがあり、以前は
+    // 描画のたびに得点が入りかねない書き方になっていた。
+    var scored = play.wwScored;
+    play.wwScored = true;
+    function give(p, n){
+      if(!p) return;
+      scoreDeltas[p.name] = (scoreDeltas[p.name] || 0) + n;
+      if(!scored) scorePlayer(p.id, n);
+    }
     // ウルフに入れられた票は、何回目の投票でも加点する。
-    // 複数ウルフだと投票をくり返すので、1回ぶんだけ見ると読みの精度が拾いきれない。
-    var voteRounds = (play.wwExec && play.wwExec.votesByRound.length)
-      ? play.wwExec.votesByRound : [play.wolfVotes];
-    voteRounds.forEach(function(votes){
+    // 投票をくり返す遊び方（複数ウルフ・2〜ターン）だと、
+    // 1回ぶんだけ見ても読みの精度が拾いきれない。
+    (play.wolfVoteRounds.length ? play.wolfVoteRounds : [play.wolfVotes]).forEach(function(votes){
       Object.keys(votes).forEach(function(voterId){
         var voter = state.players.find(function(p){ return p.id === voterId; });
         if(!voter) return;
         var votedMinority = play.wolfMinorityIds.indexOf(votes[voterId]) !== -1;
-        if(!isWolfSide(voterId) && votedMinority){
-          scoreDeltas[voter.name] = (scoreDeltas[voter.name] || 0) + 1;
-          scorePlayer(voter.id, 1);
-        }
+        if(!isWolfSide(voterId) && votedMinority) give(voter, 1);
       });
     });
-    var escaped = false;
-    if(play.wwExec){
-      // 複数ウルフ：処刑を生き延びたウルフが逃げ切り
-      escaped = wolfSideAlive().length > 0;
-      wolfSideAlive().forEach(function(mid){
-        var mp = state.players.find(function(p){ return p.id === mid; });
-        if(mp){
-          scoreDeltas[mp.name] = (scoreDeltas[mp.name] || 0) + 1;
-          scorePlayer(mp.id, 1);
-        }
-      });
-    } else {
-      // ウルフ1人：これまでどおり「票が集まらなければ逃げ切り」
-      // 逃げ切り判定の母数は「ウルフを探している人」＝狂人を除いた多数派
-      var majorityCount = state.players.filter(function(p){ return !isWolfSide(p.id); }).length;
-      play.wolfMinorityIds.forEach(function(mid){
-        var correctVotesAgainst = 0;
-        Object.keys(play.wolfVotes).forEach(function(voterId){
-          if(play.wolfVotes[voterId] === mid) correctVotesAgainst++;
-        });
-        if(correctVotesAgainst < majorityCount / 2){
-          escaped = true;
-          var mp = state.players.find(function(p){ return p.id === mid; });
-          if(mp){
-            scoreDeltas[mp.name] = (scoreDeltas[mp.name] || 0) + 1;
-            scorePlayer(mp.id, 1);
-          }
-        }
-      });
-    }
+    // 第22弾-6：逃げ切りの判定を1つに揃えた。
+    // 以前はウルフ1人の時だけ「過半数の票を集めないと捕まらない」という
+    // 別のルールで、一番多く投票されたウルフが逃げ切ってしまうことがあった。
+    // いまはウルフの人数にかかわらず「処刑されずに残ったウルフ＝逃げ切り」で統一している。
+    var escapedWolves = wolfSideAlive();
+    var escaped = escapedWolves.length > 0;
+    escapedWolves.forEach(function(mid){
+      give(state.players.find(function(p){ return p.id === mid; }), 1);
+    });
     if(escaped){
       state.players.forEach(function(p){
-        if(wwRoleOf(p.id) !== 'madman') return;
-        scoreDeltas[p.name] = (scoreDeltas[p.name] || 0) + 1;
-        scorePlayer(p.id, 1);
+        if(wwRoleOf(p.id) === 'madman') give(p, 1);
       });
     }
 
@@ -5283,7 +5323,7 @@
     sorted.forEach(function(p, i){
       animateCount('wolfVoteScore'+i, 0, tally[p.id] || 0, 800);
     });
-    logRound('wordwolf', scoreDeltas);
+    if(!scored) logRound('wordwolf', scoreDeltas);
   }
   el('wolfResultNextBtn').addEventListener('click', function(){
     // 第20弾-10：処刑ラウンドが残っていれば、生き残りだけでもう一度投票する
@@ -5299,15 +5339,26 @@
     play.wmActive = true;
     play.wmFinished = false;
     play.wmTurn = 1;
-    play.wmOut = {};      // 脱落した人（お題変更なしのときだけ使う）
     play.wmWinner = null;
     initWolfRound();
     showNightfall(play.wmTurn, state.wmCfg.turnLimit, function(){ goTo('scr-wolf-pass'); });
   }
 
+  // 同じお題のまま、まだ次のターンがあるか。
+  // 第22弾-6：この判定は「結果画面をどこまで見せるか」と「つぎに何をするか」の
+  // 両方が必要とする。以前は後者だけが判定していて、結果画面のほうが先に
+  // お題とウルフを明かしてしまい、残りのターンが成立しなくなっていた。
+  function wolfMultiContinues(){
+    if(!play.wmActive || play.wmFinished) return false;
+    if(state.wmCfg.changeTopic) return false;                            // 毎ターン仕切り直す遊び方
+    if(!wolfSideAlive().length) return false;                            // ウルフを全員あぶり出した
+    if(villageSideAlive().length <= wolfSideAlive().length) return false; // シープが数で負けた
+    return play.wmTurn < state.wmCfg.turnLimit;                          // 残りターンがある
+  }
+
   function nextWolfMultiTurn(){
     var cfg = state.wmCfg;
-    if(state.wmCfg.changeTopic){
+    if(cfg.changeTopic){
       // お題を変える：毎ターン仕切り直して、合計得点で決める
       if(play.wmTurn >= cfg.turnLimit){ finishWolfMulti(null); return; }
       play.wmTurn++;
@@ -5315,10 +5366,13 @@
       showNightfall(play.wmTurn, cfg.turnLimit, function(){ goTo('scr-wolf-pass'); });
       return;
     }
-    // お題を変えない：ウルフを当てられたか／逃げ切られたかで決まる
-    var caught = wolfMultiCaught();
-    if(caught){ finishWolfMulti('village'); return; }
-    if(play.wmTurn >= cfg.turnLimit){ finishWolfMulti('wolf'); return; } // 逃げ切り＝ウルフの勝ち
+    // お題を変えない：ウルフを全員あぶり出せたか／逃げ切られたかで決まる。
+    // 誰が脱落したかは集計した時点で確定しているので、ここは数えるだけ
+    // （第22弾-6：以前はここでもう一度、別のやり方で集計し直していた）。
+    if(!wolfMultiContinues()){
+      finishWolfMulti(wolfSideAlive().length ? 'wolf' : 'village');
+      return;
+    }
     play.wmTurn++;
     // 同じお題のまま、話し合いからやり直す（役職の再配布はしない）
     play.wolfPhase = 'discuss';
@@ -5326,28 +5380,6 @@
     play.wolfRevealed = false;
     play.wolfVotes = {};
     goTo('scr-play');
-  }
-
-  // 直前の投票で最多票だった人を求め、ウルフなら「当てた」、違えばその人が脱落する
-  function wolfMultiCaught(){
-    var tally = {};
-    Object.keys(play.wolfVotes || {}).forEach(function(v){
-      var t = play.wolfVotes[v];
-      if(t) tally[t] = (tally[t] || 0) + 1;
-    });
-    var top = null, max = 0, tie = false;
-    Object.keys(tally).forEach(function(id){
-      if(tally[id] > max){ max = tally[id]; top = id; tie = false; }
-      else if(tally[id] === max){ tie = true; }
-    });
-    if(!top || tie) return false;                       // 同数なら誰も脱落しない
-    if(play.wolfMinorityIds.indexOf(top) !== -1) return true; // ウルフを当てた
-    play.wmOut[top] = true;                             // 外した人は観戦に回る
-    // 生き残っている人だけで次のターンを回す
-    play.wolfOrder = state.players
-      .filter(function(p){ return !play.wmOut[p.id]; })
-      .map(function(p){ return p.id; });
-    return false;
   }
 
   function finishWolfMulti(winner){
@@ -5378,14 +5410,19 @@
     // ここは必ず結果画面から呼ばれる。goTo を呼ぶと enterWolfResult が再実行されて
     // 得点が二重に入り、履歴にも同じラウンドが2回残ってしまうので、移動せず書き換えるだけにする。
     if(!el('scr-wolf-result').classList.contains('active')) goTo('scr-wolf-result');
+    // ウルフが2人以上いる編成では「全員」あぶり出さないと勝ちにならないので、そう書く
+    var allWolves = play.wolfMinorityIds.length > 1 ? 'ウルフを全員' : 'ウルフを';
     el('wolfResultTopics').innerHTML = (play.wmWinner
-      ? (play.wmWinner === 'wolf' ? '🐺 ウルフの逃げ切り！ウルフ側の勝ちです' : '🎉 ウルフを当てました！村人側の勝ちです')
+      ? (play.wmWinner === 'wolf' ? '🐺 ウルフの逃げ切り！ウルフ🐺側の勝ちです'
+                                  : '🎉 ' + allWolves + '当てました！シープ🐑側の勝ちです')
       : '🏁 ' + state.wmCfg.turnLimit + 'ターン終了！合計得点で決着です')
+      + '<div class="day-note">シープ🐑のお題：<b>' + escapeHtml(play.wolfMajorityTopic.name) +
+        '</b>　／　ウルフ🐺のお題：<b>' + escapeHtml(play.wolfMinorityTopic.name) + '</b></div>'
       + renderWolfRoleReveal(true); // 決着したので、ここで役職を明かす
     el('wolfResultList').innerHTML = state.players.map(function(p){
       var isWolf = play.wolfMinorityIds.indexOf(p.id) !== -1;
       return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (isWolf ? ' 🐺' : '') +
-        (play.wmOut[p.id] ? ' 💀' : '') + '</div><div class="rs">' + p.score + '</div></div>';
+        (wolfIsOut(p.id) ? ' 💀' : '') + '</div><div class="rs">' + p.score + '</div></div>';
     }).join('');
     el('wolfResultNextBtn').textContent = 'スコアへ ▶';
   }

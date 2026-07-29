@@ -529,23 +529,41 @@
     return true;
   }
 
-  function tallyVotes(game) {
+  // 投票の集計。この関数だけが「誰が処刑されるか」を決める。
+  //
+  // 第22弾-6：ここに集約する前は、同じ集計がアプリの中に3か所あった。
+  // そのうち1か所だけが「過半数（50%超）を集めないと処刑されない」という
+  // 別のルールのまま残っていて、一番多く票を集めたウルフが逃げ切ってしまう
+  // バグになっていた。ルールを1つにするために、集計はここへ一本化する。
+  //
+  //   ・一番多く票を集めた人が処刑される（過半数である必要はない）
+  //   ・同数で並んだら、誰も処刑しない
+  //   ・1票も入っていなければ、やはり処刑なし
+  //
+  // ゲームの状態ではなく「誰が誰に入れたか」だけを受け取るので、
+  // 人狼からもワードウルフからも同じものを呼べる。
+  function tally(votes) {
     var counts = {};
-    Object.keys(game.votes).forEach(function (voter) {
-      var t = game.votes[voter];
+    Object.keys(votes || {}).forEach(function (voter) {
+      var t = votes[voter];
       if (!t) return;
       counts[t] = (counts[t] || 0) + 1;
     });
     var max = 0;
     Object.keys(counts).forEach(function (id) { if (counts[id] > max) max = counts[id]; });
     var top = Object.keys(counts).filter(function (id) { return counts[id] === max; });
-    return { counts: counts, top: top, tie: top.length > 1, max: max };
+    var tie = top.length > 1;
+    return {
+      counts: counts, top: top, tie: tie, max: max,
+      executedId: (tie || !top.length) ? null : top[0]
+    };
   }
+  function tallyVotes(game) { return tally(game.votes); }
 
   // 処刑を実行する。同数の時は誰も処刑しない（画面側で決選投票にしてもよい）
   function executeVote(game, forcedId) {
     var t = tallyVotes(game);
-    var targetId = forcedId || (t.tie || !t.top.length ? null : t.top[0]);
+    var targetId = forcedId || t.executedId;
     var executed = null;
     if (targetId) {
       var p = findPlayer(game, targetId);
@@ -745,7 +763,7 @@
     pendingNightActions: pendingNightActions, setNightAction: setNightAction, resolveNight: resolveNight,
     previewDivine: previewDivine, previewMedium: previewMedium, previewPeek: previewPeek,
     pendingPreVoteActions: pendingPreVoteActions, setPreVoteAction: setPreVoteAction, resolvePreVote: resolvePreVote,
-    setVote: setVote, tallyVotes: tallyVotes, executeVote: executeVote, checkTeruteru: checkTeruteru,
+    setVote: setVote, tally: tally, tallyVotes: tallyVotes, executeVote: executeVote, checkTeruteru: checkTeruteru,
     evaluate: evaluate, isFinalTurn: isFinalTurn, nextTurn: nextTurn, finish: finish,
     SCORE: SCORE, scoreGame: scoreGame, isVillageTeam: isVillageTeam, goodVoteTurns: goodVoteTurns,
     summary: summary

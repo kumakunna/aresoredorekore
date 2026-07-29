@@ -705,7 +705,7 @@ async function startModeWithTimerOff(win, doc, id) {
     }
     await waitScreen(win, doc, 'scr-wolf-result', 5000);
     const text = el(doc, 'wolfResultTopics').textContent;
-    assert(/ウルフ側の勝ち|村人側の勝ち/.test(text), '当てたか逃げ切ったかで決着する（' + text + '）');
+    assert(/ウルフ🐺側の勝ち|シープ🐑側の勝ち/.test(text), '当てたか逃げ切ったかで決着する（' + text + '）');
     // 履歴：こちらは wordwolf 側のゲームとして残ること
     const detailed = posts.filter(p => p.detail);
     const last = detailed[detailed.length - 1];
@@ -809,10 +809,15 @@ async function startModeWithTimerOff(win, doc, id) {
     click(doc, 'endRoundBtn');
     await waitScreen(win, doc, 'scr-wolf-pass', 6000);
     // 投票のまえと投票は同じ画面を使うので、人数ぶんで区切らないと隣の段階まで進む
-    const preTaps = [], preBodies = [];
+    const preTaps = [], preBodies = [], preHandoffs = [];
     for (let i = 0; i < players.length; i++) {
       if (activeScreen(doc) !== 'scr-wolf-pass') break;
       let t = 0;
+      // 渡す前の画面は、役職があってもなくても同じでなければならない。
+      // ここに差が出ると、覗く人が誰かを渡す側に悟られる（第22弾-7で追加）
+      preHandoffs.push(el(doc, 'wolfHandoffScreen').textContent
+        .replace(el(doc, 'wolfHandoffName').textContent.trim(), '＿')
+        .replace(/\s+/g, ''));
       click(doc, 'wolfRevealBtn'); t++;
       await sleep(win, 40);
       preBodies.push(el(doc, 'wolfRoleBox').textContent);
@@ -822,6 +827,8 @@ async function startModeWithTimerOff(win, doc, id) {
       await sleep(win, 50);
       preTaps.push(t);
     }
+    assert(preHandoffs.every(h => h === preHandoffs[0]),
+      '渡す前の画面は、名前以外まったく同じ（' + preHandoffs.join(' / ') + '）');
     assertEqual(preTaps.length, players.length, '投票のまえも全員にスマホが回る');
     assert(preTaps.every(t => t === 2), '投票のまえのタップ数も全員2で揃う（' + preTaps.join(',') + '）');
     assert(preBodies.some(b => /覗きますか/.test(b)), 'ここでのぞき見役が動く');
@@ -2139,6 +2146,25 @@ async function startModeWithTimerOff(win, doc, id) {
     assertEqual(el(doc, 'wrDayPauseBtn').textContent, '⏸', '再開したことが分かる');
     await sleep(win, 1200);
     assert(el(doc, 'wrDayTimer').textContent !== paused, 'また動き出す');
+
+    // 第22弾-6：話し合いのタイマーは、ワードウルフ側（scr-play）と人狼側（scr-wr-day）で
+    // 別々に書かれている。片方だけ直して片方が取り残される事故が実際に起きているので、
+    // 「設定を開いて閉じたら戻る」を人狼側でも固定しておく。
+    // （あれそれどれこれ側は「再発防止：設定を開いて閉じたら〜」で固定済み）
+    win.confirm = () => true;
+    win.alert = () => {};
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    const gearPaused = el(doc, 'wrDayTimer').textContent;
+    assertEqual(el(doc, 'wrDayPauseBtn').textContent, '▶', '設定を開くと止まる');
+    await sleep(win, 1200);
+    assertEqual(el(doc, 'wrDayTimer').textContent, gearPaused, '開いている間は止まったまま');
+
+    click(doc, 'closeSettingsBtn');
+    await sleep(win, 80);
+    assertEqual(el(doc, 'wrDayPauseBtn').textContent, '⏸', '閉じたら再生中の表示に戻る');
+    await sleep(win, 1200);
+    assert(el(doc, 'wrDayTimer').textContent !== gearPaused, '閉じたら人狼の朝のタイマーも動き出す');
     assertNoErrors(errors, '朝のタイマー操作で未捕捉の例外');
     win.close();
   });

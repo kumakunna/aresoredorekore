@@ -374,6 +374,50 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     b.win.close();
   });
 
+  // ---- 第26弾-1：QRが出せなかった時の見え方 ----
+
+  await r.test('QRを出せなかったら、そのことが読む人に伝わる', async () => {
+    // 以前は黙って空欄になるので、画面からは「QRが使えない」としか見えず、
+    // 手入力に切り替えればよいことも伝わらなかった
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    const note = doc.querySelector('#rtQrBox .qr-note');
+    assert(note, 'QRの下に説明が付いている');
+
+    el(doc, 'rtQr').dataset.code = '';
+    el(doc, 'rtQr').innerHTML = '';
+    win.QR.toSvg = () => { throw new Error('QRを作れない端末'); };
+    push(fake, roomSnapshot({ playerCount: 3 }));
+    await sleep(win, 120);
+    assertEqual(doc.querySelector('#rtQr svg'), null, '失敗したらSVGは残さない');
+    assert(/手で入れて/.test(note.textContent), '手入力に切り替えられることを伝える');
+    assertNoErrors(errors, 'QR失敗で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('一度失敗したQRが、次の更新で描き直される', async () => {
+    // 描く前に「この部屋コードは済み」と覚えていたので、
+    // 最初の1回が失敗するとその部屋では二度とQRが出なかった
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    const real = win.QR.toSvg;
+
+    el(doc, 'rtQr').dataset.code = '';
+    el(doc, 'rtQr').innerHTML = '';
+    win.QR.toSvg = () => { throw new Error('一度だけ失敗'); };
+    push(fake, roomSnapshot({ playerCount: 3 }));
+    await sleep(win, 120);
+    assertEqual(doc.querySelector('#rtQr svg'), null, '失敗した回はQRが無い');
+    assertEqual(el(doc, 'rtQr').dataset.code, '', '失敗を「済み」と覚えない');
+
+    win.QR.toSvg = real;
+    push(fake, roomSnapshot({ playerCount: 4 }));
+    await sleep(win, 120);
+    assert(doc.querySelector('#rtQr svg'), '次の更新で描き直される');
+    assertNoErrors(errors, 'QR再描画で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第24弾-3：実機フィードバックの修正 ----
 
   await r.test('決着したら、行き先のボタンが必ず出る', async () => {

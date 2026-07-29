@@ -1391,10 +1391,10 @@
     </div>
     <div class="wiz-body">
       <div class="qr-box" id="rtQrBox">
-      <div id="rtQr"></div>
-      <div class="qr-note">カメラで読むと、そのまま入れます</div>
-    </div>
-    <div class="tp-label" style="margin-top:14px;">参加している人<span id="rtRoomCount">0人</span></div>
+        <div id="rtQr"></div>
+        <div class="qr-note">カメラで読むと、そのまま入れます</div>
+      </div>
+      <div class="tp-label" style="margin-top:14px;">参加している人<span id="rtRoomCount">0人</span></div>
       <div id="rtMemberList"></div>
       <div class="mic-status" id="rtRoomNote" style="margin-top:10px;"></div>
       <div class="toggle-row-mini" style="margin-top:14px;">
@@ -4335,13 +4335,33 @@
   function roomJoinUrl(code){
     return location.origin + location.pathname + '?room=' + encodeURIComponent(code);
   }
+  // 第26弾-1：QRが出せなかった時に、黙って空欄にしない。
+  // 以前は失敗しても何も出ないので、画面からは「QRが使えない」としか見えず、
+  // 手入力に切り替えればよいことも伝わらなかった。
+  // 成否を返して、呼び出し側が「描けた時だけ描き直さない」判断をできるようにする。
   function renderRoomQr(boxId, code, opts){
     var box = el(boxId);
-    if(!code || typeof QR === 'undefined'){ box.innerHTML = ''; return; }
+    var note = box.parentNode ? box.parentNode.querySelector('.qr-note') : null;
+    if(!code || typeof QR === 'undefined'){
+      box.innerHTML = '';
+      if(note) note.textContent = '部屋コードを伝えて、手で入れてもらってください';
+      return false;
+    }
     try{
       box.innerHTML = QR.toSvg(roomJoinUrl(code), opts || {});
+      if(note){
+        // localhost で開いていると、QRの中身は他の端末から届かないURLになる。
+        // 読み取れているのに入れない、という一番わかりにくい失敗なので先に言っておく
+        var local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+        note.textContent = local
+          ? 'この端末だけのURLなので、他のスマホからは読めません（コードを手で入れてください）'
+          : 'カメラで読むと、そのまま入れます';
+      }
+      return true;
     }catch(e){
-      box.innerHTML = ''; // QRが作れなくても、コードの手入力で参加できる
+      box.innerHTML = '';
+      if(note) note.textContent = 'QRを出せませんでした。部屋コードを手で入れてもらってください';
+      return false;
     }
   }
 
@@ -4350,9 +4370,10 @@
     var room = rt && rt.state.room;
     if(!room) return;
     el('rtRoomCode').textContent = room.code;
+    // 描けた時だけ「この部屋コードは済み」と覚える。
+    // 先に覚えてしまうと、一度失敗したQRが二度と描き直されない。
     if(el('rtQr').dataset.code !== room.code){
-      el('rtQr').dataset.code = room.code;
-      renderRoomQr('rtQr', room.code);
+      if(renderRoomQr('rtQr', room.code)) el('rtQr').dataset.code = room.code;
     }
     el('rtRoomCount').textContent = room.playerCount + '人';
     var meId = rt.state.memberId;
@@ -4800,8 +4821,7 @@
       // 大画面にもQRを出す。離れた席からでもカメラを向ければ入れる
       el('bigQrBox').style.display = 'flex';
       if(el('bigQr').dataset.code !== room.code){
-        el('bigQr').dataset.code = room.code;
-        renderRoomQr('bigQr', room.code);
+        if(renderRoomQr('bigQr', room.code)) el('bigQr').dataset.code = room.code;
       }
       el('bigSub').textContent = 'このコードを入れて参加してください';
       el('bigList').innerHTML = (room.members || [])

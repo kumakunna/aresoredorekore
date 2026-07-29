@@ -175,29 +175,32 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
     }
   });
 
-  await r.test('ワードウルフ：全モードを3周ずつ、決着まで通す', async () => {
+  // 第22弾-7：周ごとに人数を変える。役職やお題の配り方は毎回ランダムなので、
+  // 同じ人数で3回まわすより、人数を変えたほうが通る道筋が広がる。
+  // （どのモードにも下限があるので、下限を割らないところまで下げる）
+  await r.test('ワードウルフ：全モードを、人数を変えて3周ずつ決着まで通す', async () => {
     for (const modeId of WORDWOLF_MODES) {
-      for (let round = 1; round <= 3; round++) {
+      for (const n of [6, 7, 9]) {
         const { win, doc, errors } = await launch();
-        await toModeScreen(win, doc, 'jinro', 'wordwolf', names(7));
+        await toModeScreen(win, doc, 'jinro', 'wordwolf', names(n));
         await startMode(win, doc, modeId, { noTimer: true });
         const done = await playWordwolfToEnd(win, doc);
-        assert(done, modeId + ' の ' + round + '周目が決着する（現在: ' + activeScreen(doc) + '）');
-        assertNoErrors(errors, modeId + ' の ' + round + '周目');
+        assert(done, modeId + ' の ' + n + '人が決着する（現在: ' + activeScreen(doc) + '）');
+        assertNoErrors(errors, modeId + ' の ' + n + '人');
         win.close();
       }
     }
   });
 
-  await r.test('役職あり人狼：全プリセットを3周ずつ、決着まで通す', async () => {
+  await r.test('役職あり人狼：全プリセットを、人数を変えて3周ずつ決着まで通す', async () => {
     for (const modeId of WOLFROLE_MODES) {
-      for (let round = 1; round <= 3; round++) {
+      for (const n of [8, 9, 12]) {
         const { win, doc, errors } = await launch();
-        await toModeScreen(win, doc, 'jinro', 'wolfrole', names(9));
+        await toModeScreen(win, doc, 'jinro', 'wolfrole', names(n));
         await startMode(win, doc, modeId, { noTimer: true });
         const done = await playWolfRoleToEnd(win, doc);
-        assert(done, modeId + ' の ' + round + '周目が決着する（現在: ' + activeScreen(doc) + '）');
-        assertNoErrors(errors, modeId + ' の ' + round + '周目');
+        assert(done, modeId + ' の ' + n + '人が決着する（現在: ' + activeScreen(doc) + '）');
+        assertNoErrors(errors, modeId + ' の ' + n + '人');
         win.close();
       }
     }

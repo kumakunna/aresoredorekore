@@ -2066,6 +2066,7 @@
      手渡し方式は動き続ける（rt-client が available:false を返すだけ） -->
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/wolf-logic.js"></script>
+<script src="js/wordwolf-logic.js"></script>
 <script src="js/rt-client.js"></script>
 <script src="js/qr.js"></script>
 <script>
@@ -2808,16 +2809,9 @@
     return pick;
   }
   // ===== ワードウルフ用・関連ペア（⑤）。シープ🐑とウルフ🐺に近いお題を渡すと盛り上がる =====
-  var WOLF_PAIRS = [
-    {a:"傘",b:"レインコート"}, {a:"犬",b:"猫"}, {a:"コーヒー",b:"紅茶"}, {a:"電車",b:"バス"},
-    {a:"鉛筆",b:"シャープペン"}, {a:"醤油",b:"ソース"}, {a:"りんご",b:"みかん"}, {a:"海",b:"川"},
-    {a:"布団",b:"ベッド"}, {a:"お箸",b:"フォーク"}, {a:"消しゴム",b:"修正テープ"}, {a:"冷蔵庫",b:"冷凍庫"},
-    {a:"財布",b:"カバン"}, {a:"眼鏡",b:"サングラス"}, {a:"ラーメン",b:"うどん"}, {a:"ピアノ",b:"ギター"},
-    {a:"野球",b:"サッカー"}, {a:"山",b:"森"}, {a:"太陽",b:"月"}, {a:"手袋",b:"マフラー"},
-    {a:"掃除機",b:"ほうき"}, {a:"テレビ",b:"ラジオ"}, {a:"パン",b:"ごはん"}, {a:"自転車",b:"バイク"},
-    {a:"鏡",b:"窓"}, {a:"歯ブラシ",b:"歯みがき粉"}, {a:"ケーキ",b:"プリン"}, {a:"扇風機",b:"エアコン"},
-    {a:"靴",b:"スリッパ"}, {a:"石けん",b:"シャンプー"}
-  ];
+  // 第24弾：お題のペアもルールの一部なので、共通層（wordwolf-logic.js）に移した。
+  // 1人1台モードのサーバー側からも同じものを使う。
+  var WOLF_PAIRS = WordwolfLogic.PAIRS;
 
   var play = {
     currentTopic:null,
@@ -4078,31 +4072,16 @@
   // 選んだ結果は投票の直前に本人へ見せる。
   // ロジック層からは役職の定義（陣営・見え方）だけを借り、進行と投票は既存のワードウルフのまま
   // にする（game.phase を持ち込むと、投票が黙って拒否される不具合を繰り返すため）。
-  var WW_ROLE_SETS = {
-    single: ['peek', 'fake', 'involve'], // 1ターン版：投票前に1回だけ使う単発役職
-    multi:  ['seer', 'madman']           // 2〜ターン版：夜に依存しない役職だけ
-  };
   function wwRoleIds(){
-    return modeById(state.selectedModeId).wolfMulti ? WW_ROLE_SETS.multi : WW_ROLE_SETS.single;
+    return WordwolfLogic.roleIdsFor(!!modeById(state.selectedModeId).wolfMulti);
   }
   function wwAssignedCount(){
     return wwRoleIds().reduce(function(n, id){ return n + (state.wwRoles[id] || 0); }, 0);
   }
   // 第20弾-8：カードを選んだ瞬間、人数に合わせて役職が入っている状態にする。
-  // 人狼側（wolfPreset）と同じ流儀。村人が1人も残らない配分にはしない。
-  // 入りきらない時は、影響の小さい役職から落とす。
-  var WW_DROP_ORDER = ['fake', 'involve', 'madman', 'peek', 'seer'];
+  // 配分の決め方は共通層（第24弾で切り出し）。1人1台側と同じものを使う。
   function wwBalancedCounts(roleIds, playerCount, wolfCount){
-    var counts = {};
-    (roleIds || []).forEach(function(id){ counts[id] = 1; }); // どの役職も1人まで
-    var room = Math.max(0, playerCount - wolfCount - 1); // 村人を1人は残す
-    var total = function(){
-      return Object.keys(counts).reduce(function(n, k){ return n + counts[k]; }, 0);
-    };
-    for(var i = 0; i < WW_DROP_ORDER.length && total() > room; i++){
-      if(counts[WW_DROP_ORDER[i]]) counts[WW_DROP_ORDER[i]] = 0;
-    }
-    return counts;
+    return WordwolfLogic.balancedCounts(roleIds, playerCount, wolfCount);
   }
   function applyWordwolfPreset(m){
     // 役職を使わないカード（いつものワードウルフ）を選んだら、前のカードの配分を残さない
@@ -4151,50 +4130,23 @@
 
   // お題を配るときに役職も配る（多数派の中から）
   function assignWolfRoles(){
-    play.wwRoles = {};
     play.wwInfo = {};
     play.wwRevealVoteOf = null;
-    var ids = wwRoleIds().filter(function(id){ return (state.wwRoles[id] || 0) > 0; });
-    if(!ids.length) return;
-    var majority = state.players
-      .filter(function(p){ return play.wolfMinorityIds.indexOf(p.id) === -1; })
-      .map(function(p){ return p.id; });
-    // シャッフルしてから先頭に配る
-    for(var i = majority.length - 1; i > 0; i--){
-      var j = Math.floor(Math.random() * (i + 1));
-      var t = majority[i]; majority[i] = majority[j]; majority[j] = t;
-    }
-    ids.forEach(function(id, k){
-      if(majority[k]) play.wwRoles[majority[k]] = id;
-    });
+    var counts = {};
+    wwRoleIds().forEach(function(id){ counts[id] = state.wwRoles[id] || 0; });
+    play.wwRoles = WordwolfLogic.assignRoles(
+      state.players.map(function(p){ return p.id; }),
+      play.wolfMinorityIds,
+      counts
+    );
   }
-  var WW_ROLE_DESC = {
-    seer:   'お題を見るときに1人を占うと、その人がウルフ🐺側かシープ🐑側か分かります。',
-    madman: 'ウルフ🐺の味方です。お題はシープ🐑と同じで、ウルフが誰かは知りません。'
-  };
   function wwRoleOf(playerId){ return (play.wwRoles || {})[playerId] || null; }
-  // お題を見る画面で「1人選ぶ」役職か。
-  // 第22弾-4：のぞき見役・まきこみ役は、役職説明どおり「投票の直前」に動く。
-  // お題を見る時に覗いてしまうと、その情報を話し合いで使えてしまい、
-  // 「こっそり分かる」という設計が成り立たなくなる。
-  // 占い師（2〜ターン版）は、第18弾で「reveal時に占う」と決めた仕様のまま。
-  function wwPicksAtReveal(roleId){
-    return roleId === 'seer';
-  }
-  // 投票の直前に動く役職か
-  function wwPicksBeforeVote(roleId){
-    return roleId === 'peek' || roleId === 'involve';
-  }
-  // その回に「投票のまえに」のステップが要るか（該当役職が配られている時だけ）
-  function wwHasPreVoteStep(){
-    return Object.keys(play.wwRoles || {}).some(function(pid){
-      return wwPicksBeforeVote(play.wwRoles[pid]);
-    });
-  }
-  // 選んだ相手の見え方（にせもの役はウルフ側に見える／狂人はシープ側に見える）
+  // 能力のタイミング・陣営の見え方は、どちらの遊び方でも同じルール（共通層）
+  function wwPicksAtReveal(roleId){ return WordwolfLogic.picksAtReveal(roleId); }
+  function wwPicksBeforeVote(roleId){ return WordwolfLogic.picksBeforeVote(roleId); }
+  function wwHasPreVoteStep(){ return WordwolfLogic.hasPreVoteStep(play.wwRoles); }
   function wwTeamLabel(targetId){
-    if(wwRoleOf(targetId) === 'fake') return 'ウルフ🐺側';
-    return (play.wolfMinorityIds.indexOf(targetId) !== -1) ? 'ウルフ🐺側' : 'シープ🐑側';
+    return WordwolfLogic.teamLabel(play.wwRoles, play.wolfMinorityIds, targetId);
   }
 
   function renderWolfSection(){
@@ -4970,25 +4922,17 @@
 
   // ===================== wolf: word wolf mode =====================
   function initWolfRound(){
-    // ⑤：関連ペアから1組選び、シープ🐑とウルフ🐺のお題にランダム割り当て
-    var idx;
-    var guard = 0;
-    do{ idx = Math.floor(Math.random() * WOLF_PAIRS.length); guard++; }
-    while(idx === play.wolfLastPairIdx && WOLF_PAIRS.length > 1 && guard < 10);
-    play.wolfLastPairIdx = idx;
-    var pair = WOLF_PAIRS[idx];
-    var flip = Math.random() < 0.5;
-    play.wolfMajorityTopic = { name: flip ? pair.a : pair.b }; // シープ側（多数派）
-    play.wolfMinorityTopic = { name: flip ? pair.b : pair.a }; // ウルフ側（少数派）
+    // ⑤：関連ペアから1組選び、シープ🐑とウルフ🐺のお題にランダム割り当て。
+    // 第24弾：お題の選び方もウルフの決め方も共通層（1人1台側と同じもの）
+    var picked = WordwolfLogic.pickPair(play.wolfLastPairIdx);
+    play.wolfLastPairIdx = picked.index;
+    play.wolfMajorityTopic = { name: picked.majority }; // シープ側（多数派）
+    play.wolfMinorityTopic = { name: picked.minority }; // ウルフ側（少数派）
 
-    var ids = state.players.map(function(p){ return p.id; });
-    for(var i = ids.length - 1; i > 0; i--){
-      var j = Math.floor(Math.random() * (i + 1));
-      var t = ids[i]; ids[i] = ids[j]; ids[j] = t;
-    }
-    var wolfN = Math.min(state.wolfCount, Math.max(1, ids.length - 2));
-    play.wolfMinorityIds = ids.slice(0, wolfN);
-    play.wolfOrder = state.players.map(function(p){ return p.id; });
+    var allIds = state.players.map(function(p){ return p.id; });
+    play.wolfMinorityIds = WordwolfLogic.assignWolves(allIds, state.wolfCount);
+    var wolfN = play.wolfMinorityIds.length;
+    play.wolfOrder = allIds.slice();
     play.wolfIndex = 0;
     play.wolfRevealed = false;
     play.wolfPhase = 'reveal';
@@ -5004,29 +4948,34 @@
     play.wwLast = null;      // 直前の投票の集計結果（結果画面はこれを見る）
     play.wolfRunoff = null;  // 決選投票の途中かどうか（第23弾-1）
     play.wwScored = false;
-    // 第20弾-10：ウルフが2人以上なら、投票と処刑をウルフの人数ぶんくり返す。
-    // 1回の投票では最大1人しか処刑できず、残りのウルフが無条件で逃げ切れてしまうため。
-    // ウルフが1人の時は、これまでどおり投票1回で終わる（挙動を変えない）。
-    // 第22弾-6：2〜ターン版は「ターンをくり返すこと」自体が同じ役割を果たすので、
-    // ここで重ねて投票をくり返さない（同じ仕組みを二重に走らせない）。
-    play.wwExec = (wolfN >= 2 && !play.wmActive) ? {
-      round: 1, limit: wolfN, log: [], winner: null
-    } : null;
+    // 投票を何回くり返すかも共通層が決める（第20弾-10・第22弾-6の考え方）
+    var execRounds = WordwolfLogic.execRoundsFor(wolfN, !!play.wmActive);
+    play.wwExec = execRounds ? { round: 1, limit: execRounds, log: [], winner: null } : null;
     assignWolfRoles(); // 第18弾-6：役職を使う設定なら、多数派の中から配る
   }
+  // 第24弾：勝敗まわりの判定は共通層に渡して決めてもらう。
+  // ここでやるのは、画面が使いやすい形（プレイヤーの並び）に直すことだけ。
+  function wwState(){
+    return {
+      playerIds: state.players.map(function(p){ return p.id; }),
+      wolfIds: play.wolfMinorityIds || [],
+      roles: play.wwRoles || {},
+      executedIds: play.wolfExecutedIds || [],
+      votes: play.wolfVotes || {},
+      voteRounds: play.wolfVoteRounds || []
+    };
+  }
   // 処刑された人・2〜ターン版で脱落した人は、投票にも投票先にも出さない
-  function wolfIsOut(pid){
-    return (play.wolfExecutedIds || []).indexOf(pid) !== -1;
-  }
+  function wolfIsOut(pid){ return WordwolfLogic.isOut(wwState(), pid); }
   // まだ残っているウルフ／シープ（「あと何人か」の判定はここだけを見る）
-  function wolfSideAlive(){
-    return play.wolfMinorityIds.filter(function(id){ return !wolfIsOut(id); });
-  }
+  function wolfSideAlive(){ return WordwolfLogic.wolvesAlive(wwState()); }
   function villageSideAlive(){
-    return wolfSurvivors().filter(function(p){ return play.wolfMinorityIds.indexOf(p.id) === -1; });
+    var ids = WordwolfLogic.sheepAlive(wwState());
+    return state.players.filter(function(p){ return ids.indexOf(p.id) !== -1; });
   }
   function wolfSurvivors(){
-    return state.players.filter(function(p){ return !wolfIsOut(p.id); });
+    var ids = WordwolfLogic.survivors(wwState());
+    return state.players.filter(function(p){ return ids.indexOf(p.id) !== -1; });
   }
   // 手渡しの1周を始める。スマホが回るのは生き残っている人だけ
   // （処刑された人・2〜ターン版で脱落した人には回さない）。
@@ -5184,7 +5133,7 @@
               : (isMinority && state.wolfAware ? 'ウルフ🐺' : 'シープ🐑');
     // 占い師・狂人は人狼ゲームから借りた役職なので、説明文だけワードウルフの言葉に置き換える
     // （ワードウルフに夜フェーズは無いし、陣営の呼び方もウルフ／シープ）
-    var desc = roleId ? (WW_ROLE_DESC[roleId] || WolfLogic.roleById(roleId).desc) : '特別な力はありません。';
+    var desc = WordwolfLogic.roleDesc(roleId);
     box.style.display = 'block';
     box.innerHTML = '<div class="wolf-topic-label" style="margin-top:14px;">あなたの役職</div>' +
       '<div class="wolf-topic-name">' + escapeHtml(label) + '</div>' +
@@ -5215,7 +5164,7 @@
     if(roleId && wwPicksBeforeVote(roleId)){
       var prompt = (roleId === 'peek') ? 'だれを覗きますか？' : 'だれの投票先を公開しますか？';
       box.innerHTML = '<div class="mic-status" style="line-height:1.8;">' +
-        escapeHtml(WW_ROLE_DESC[roleId] || WolfLogic.roleById(roleId).desc) + '</div>' +
+        escapeHtml(WordwolfLogic.roleDesc(roleId)) + '</div>' +
         '<div class="wolf-topic-label" style="margin-top:14px;">' + escapeHtml(prompt) + '</div>';
       grid.style.display = 'flex';
       grid.innerHTML = state.players.filter(function(x){
@@ -5273,16 +5222,15 @@
   // ここでやるのは「その結果を、このゲームの言葉に置き換える」ことだけ。
   function wolfVoteOutcome(vo){
     // 画面を開き直した時などは、決選投票なしで素直に集計し直す
-    vo = vo || WolfLogic.voteOutcome(play.wolfVotes, { isRunoff: true });
-    var executedId = (vo.kind === 'execute') ? vo.targetId : null;
-    var executed = executedId
-      ? state.players.find(function(p){ return p.id === executedId; })
+    vo = vo || WordwolfLogic.voteOutcome(wwState(), play.wolfVotes, { isRunoff: true });
+    var executed = vo.executedId
+      ? state.players.find(function(p){ return p.id === vo.executedId; })
       : null;
     return {
-      counts: vo.tally.counts, tie: vo.tally.tie, max: vo.tally.max,
-      executedId: executedId,
+      counts: vo.counts, tie: vo.tie, max: vo.max,
+      executedId: vo.executedId,
       executed: executed,
-      wasWolf: !!executed && play.wolfMinorityIds.indexOf(executed.id) !== -1,
+      wasWolf: vo.wasWolf,
       runoff: null
     };
   }
@@ -5291,7 +5239,7 @@
   function startWolfRunoff(vo){
     play.wolfRunoff = {
       candidates: vo.candidates,
-      firstTally: vo.tally,
+      firstTally: { counts: vo.counts, tie: vo.tie },
       firstVotes: Object.assign({}, play.wolfVotes)
     };
     startWolfVotePass(); // 票を消して、手渡しからやり直す
@@ -5302,12 +5250,12 @@
   // 集計のタイミングが2つあった（しかも片方は別のルールだった）。
   // 決選投票に入った場合は false を返す（まだ結果を出す段階ではない）。
   function resolveWolfVote(){
-    var vo = WolfLogic.voteOutcome(play.wolfVotes, { isRunoff: !!play.wolfRunoff });
+    var vo = WordwolfLogic.voteOutcome(wwState(), play.wolfVotes, { isRunoff: !!play.wolfRunoff });
     if(vo.kind === 'runoff'){ startWolfRunoff(vo); return false; }
     var o = wolfVoteOutcome(vo);
     if(play.wolfRunoff){
       // 記録と票数は1回目のものに戻す。誰が処刑されたかだけが決選投票の結果
-      o.runoff = { counts: vo.tally.counts, candidates: play.wolfRunoff.candidates };
+      o.runoff = { counts: vo.counts, candidates: play.wolfRunoff.candidates };
       o.counts = play.wolfRunoff.firstTally.counts;
       o.tie = play.wolfRunoff.firstTally.tie;
       play.wolfVotes = play.wolfRunoff.firstVotes;
@@ -5483,47 +5431,21 @@
       // 第23弾-2：ここまで来た＝この回は答え合わせ済みなので、投票の中身も開ける
       renderWolfVoteLog();
 
-    var scoreDeltas = {};
-    // 狂人は多数派のお題を持つが、スコアの上では人狼側として扱う。
-    // ウルフを当てても加点されず、ウルフが逃げ切ったときにウルフと一緒に加点される。
-    function isWolfSide(pid){
-      return play.wolfMinorityIds.indexOf(pid) !== -1 || wwRoleOf(pid) === 'madman';
-    }
-    // 第22弾-6：加点は「集計が終わった1回だけ」。
-    // この画面は演出のたびに描き直されることがあり、以前は
-    // 描画のたびに得点が入りかねない書き方になっていた。
+    // 第24弾：配点の決め方は共通層（1人1台側と同じもの）。
+    // ・ウルフに投票できた人は、投票の回ごとに1点
+    // ・逃げ切ったウルフは1点。逃げ切った時は狂人も一緒に1点
+    // 第22弾-6：加点は「集計が終わった1回だけ」。この画面は演出のたびに
+    // 描き直されることがあり、以前は描画のたびに得点が入りかねなかった。
     var scored = play.wwScored;
     play.wwScored = true;
-    function give(p, n){
+    var scoreDeltas = {};
+    var byId = WordwolfLogic.scoreRound(wwState());
+    Object.keys(byId).forEach(function(pid){
+      var p = state.players.find(function(x){ return x.id === pid; });
       if(!p) return;
-      scoreDeltas[p.name] = (scoreDeltas[p.name] || 0) + n;
-      if(!scored) scorePlayer(p.id, n);
-    }
-    // ウルフに入れられた票は、何回目の投票でも加点する。
-    // 投票をくり返す遊び方（複数ウルフ・2〜ターン）だと、
-    // 1回ぶんだけ見ても読みの精度が拾いきれない。
-    (play.wolfVoteRounds.length ? play.wolfVoteRounds : [play.wolfVotes]).forEach(function(votes){
-      Object.keys(votes).forEach(function(voterId){
-        var voter = state.players.find(function(p){ return p.id === voterId; });
-        if(!voter) return;
-        var votedMinority = play.wolfMinorityIds.indexOf(votes[voterId]) !== -1;
-        if(!isWolfSide(voterId) && votedMinority) give(voter, 1);
-      });
+      scoreDeltas[p.name] = (scoreDeltas[p.name] || 0) + byId[pid];
+      if(!scored) scorePlayer(pid, byId[pid]);
     });
-    // 第22弾-6：逃げ切りの判定を1つに揃えた。
-    // 以前はウルフ1人の時だけ「過半数の票を集めないと捕まらない」という
-    // 別のルールで、一番多く投票されたウルフが逃げ切ってしまうことがあった。
-    // いまはウルフの人数にかかわらず「処刑されずに残ったウルフ＝逃げ切り」で統一している。
-    var escapedWolves = wolfSideAlive();
-    var escaped = escapedWolves.length > 0;
-    escapedWolves.forEach(function(mid){
-      give(state.players.find(function(p){ return p.id === mid; }), 1);
-    });
-    if(escaped){
-      state.players.forEach(function(p){
-        if(wwRoleOf(p.id) === 'madman') give(p, 1);
-      });
-    }
 
     var sorted = state.players.slice().sort(function(a, b){ return (tally[b.id]||0) - (tally[a.id]||0); });
     el('wolfResultList').innerHTML = sorted.map(function(p, i){

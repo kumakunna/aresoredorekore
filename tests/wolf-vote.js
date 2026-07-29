@@ -13,9 +13,10 @@
 const fs = require('fs');
 const path = require('path');
 const WolfLogic = require('../public/js/wolf-logic.js');
+const WolfRoom = require('../wolf-room.js');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
-  launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, pickGame
+  launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame, holdPress
 } = require('./harness');
 
 // 「誰が誰に入れたか」の形に組み立てる。['A','A','B'] → 3人がそれぞれ A,A,B に入れた
@@ -124,6 +125,35 @@ function votesFrom(list) {
     }
   });
 
+  // ---------- ①-2 決選投票の判断（第23弾-1） ----------
+
+  await r.test('同数なら決選投票、並んだ人だけが候補になる', async () => {
+    const o = WolfLogic.voteOutcome(votesFrom(['a', 'a', 'b', 'b', 'c']));
+    assertEqual(o.kind, 'runoff', '同数なので決選投票');
+    assertEqual(o.candidates.slice().sort().join(','), 'a,b', '並んだ2人だけが候補');
+    assertEqual(o.targetId, null, 'この時点では処刑しない');
+  });
+
+  await r.test('決選投票は1回まで。2回目の同数はそこで処刑なし', async () => {
+    const votes = votesFrom(['a', 'a', 'b', 'b']);
+    assertEqual(WolfLogic.voteOutcome(votes).kind, 'runoff', '1回目の同数は決選投票へ');
+    const second = WolfLogic.voteOutcome(votes, { isRunoff: true });
+    assertEqual(second.kind, 'none', '決選投票でも同数なら、そこで打ち切る');
+    assertEqual(second.targetId, null, '誰も処刑しない');
+  });
+
+  await r.test('決着がついている投票は、決選投票に入らない', async () => {
+    assertEqual(WolfLogic.voteOutcome(votesFrom(['a', 'a', 'b'])).kind, 'execute', '最多が1人なら即決');
+    assertEqual(WolfLogic.voteOutcome({}).kind, 'none', '票が無ければ何もしない');
+    assertEqual(WolfLogic.voteOutcome({ v1: null }).kind, 'none', '棄権だけでも決選投票にしない');
+  });
+
+  await r.test('3人以上が並んだ時も、その全員が候補になる', async () => {
+    const o = WolfLogic.voteOutcome(votesFrom(['a', 'b', 'c']));
+    assertEqual(o.kind, 'runoff', '3人が1票ずつでも決選投票');
+    assertEqual(o.candidates.slice().sort().join(','), 'a,b,c', '3人とも候補');
+  });
+
   // ---------- ② 人狼側も同じ結論を使っている ----------
 
   await r.test('人狼の処刑も、tally の結論をそのまま使う', async () => {
@@ -169,7 +199,8 @@ function votesFrom(list) {
     ['majorityCount', 'correctVotesAgainst', 'wolfTallyTop', 'wolfMultiCaught'].forEach(name => {
       assert(html.indexOf(name) === -1, name + ' が残っている（集計がまた分かれている可能性）');
     });
-    assert(/WolfLogic\.tally\(/.test(html), 'ワードウルフも WolfLogic.tally を呼んでいる');
+    // ワードウルフ側も、集計と「同数のときどうするか」を WolfLogic に任せている
+    assert(/WolfLogic\.voteOutcome\(/.test(html), 'ワードウルフも WolfLogic.voteOutcome を呼んでいる');
   });
 
   await r.test('脱落者の記録も1か所だけになっている', async () => {
@@ -187,7 +218,8 @@ function votesFrom(list) {
   // ここでは、そのルールが本当に画面の結果まで届いているかを見る。
 
   // ワードウルフを、人数とウルフの人数を指定して始める（タイマーは切る）
-  async function startWordwolf(win, doc, modeId, players, wolfCount, wmOpts) {
+  async function startWordwolf(win, doc, modeId, players, wolfCount, wmOpts, opts) {
+    opts = opts || {};
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
@@ -223,6 +255,11 @@ function votesFrom(list) {
       if (!next) break;
       next.click();
       await sleep(win, 30);
+    }
+    // ルール画面そのものを調べたい時は、ここで止める
+    if (opts.stopAtRules) {
+      await waitScreen(win, doc, 'scr-mode-rules', 4000);
+      return;
     }
     if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
     await waitScreen(win, doc, 'scr-ready', 3000);
@@ -267,15 +304,27 @@ function votesFrom(list) {
     }
   }
 
-  // 話し合いを終え、投票して集計まで進める
-  async function voteAndTally(win, doc, voteFor) {
+  // 話し合いを終え、投票して集計まで進める。
+  // 第23弾-1：同数だと決選投票に入るので、その1周も面倒を見る。
+  // opts.runoffFor(名前) が決選投票での投票先を返す（省略すると最初の候補）。
+  async function voteAndTally(win, doc, voteFor, opts) {
+    opts = opts || {};
     await waitScreen(win, doc, 'scr-play', 5000);
     click(doc, 'endRoundBtn');
     await waitScreen(win, doc, 'scr-wolf-pass', 6000);
     await castVotes(win, doc, voteFor, true);
     await waitScreen(win, doc, 'scr-wolf-gather', 5000);
     click(doc, 'wolfTallyBtn');
-    await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    // 結果へ行くか、決選投票のためにもう一周するか
+    await waitFor(win, () => ['scr-wolf-result', 'scr-wolf-pass'].indexOf(activeScreen(doc)) >= 0,
+      8000, '結果 または 決選投票');
+    if (activeScreen(doc) === 'scr-wolf-pass') {
+      if (opts.onRunoff) opts.onRunoff();
+      await castVotes(win, doc, opts.runoffFor || (() => []), false);
+      await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+      click(doc, 'wolfTallyBtn');
+      await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    }
   }
 
   // 結果一覧から、名前 → 加点表示 を取り出す
@@ -330,7 +379,7 @@ function votesFrom(list) {
     win.close();
   });
 
-  await r.test('実機：同数で並んだら、誰も処刑されずウルフが逃げ切る', async () => {
+  await r.test('実機：同数なら決選投票に入り、そこでも同数なら逃げ切る', async () => {
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう'];
     const { win, doc, errors } = await launch();
     await startWordwolf(win, doc, 'wordwolf', players, 1);
@@ -340,13 +389,71 @@ function votesFrom(list) {
     const plan = {};
     plan[sheep[0]] = w; plan[sheep[1]] = w; plan[sheep[2]] = w;
     plan[sheep[3]] = sheep[0]; plan[sheep[4]] = sheep[0]; plan[w] = sheep[0];
-    await voteAndTally(win, doc, name => plan[name]);
+    // 決選投票でも同じ割れ方にして、処刑なしで確定させる
+    const runoffPlan = {};
+    runoffPlan[w] = sheep[0]; runoffPlan[sheep[0]] = w;
+    runoffPlan[sheep[1]] = w; runoffPlan[sheep[2]] = w;
+    runoffPlan[sheep[3]] = sheep[0]; runoffPlan[sheep[4]] = sheep[0];
+    let sawRunoff = false;
+    let candidates = null;
+    await voteAndTally(win, doc, name => plan[name], {
+      runoffFor: name => runoffPlan[name],
+      onRunoff: () => {
+        sawRunoff = true;
+        candidates = Array.from(doc.querySelectorAll('#wolfVoteGrid button'));
+      }
+    });
+    assert(sawRunoff, '同数だったので決選投票に入る');
 
     const text = el(doc, 'wolfResultTopics').textContent;
-    assert(/逃げ切り/.test(text), '同数なら逃げ切り（' + text.slice(0, 60) + '）');
-    assert(/同数だったので/.test(text), '同数だったことが伝わる');
+    assert(/逃げ切り/.test(text), '決選投票でも同数なら逃げ切り（' + text.slice(0, 70) + '）');
+    assert(/決選投票でも同数だったので/.test(text), '決選投票を経たことが伝わる');
+    assert(text.indexOf('決選投票を行いました') >= 0, '誰で決選投票したかが出る');
     assertEqual(deltasOf(doc)[w], '+1', '逃げ切ったウルフに加点が入る');
-    assertNoErrors(errors, '同数の投票で未捕捉の例外');
+    assertNoErrors(errors, '決選投票でも同数の時に未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実機：決選投票では、並んだ人だけが候補になる', async () => {
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう'];
+    const { win, doc, errors } = await launch();
+    await startWordwolf(win, doc, 'wordwolf', players, 1);
+    const { wolves, sheep } = await revealTopics(win, doc);
+    const w = wolves[0];
+    const plan = {};
+    plan[sheep[0]] = w; plan[sheep[1]] = w; plan[sheep[2]] = w;
+    plan[sheep[3]] = sheep[0]; plan[sheep[4]] = sheep[0]; plan[w] = sheep[0];
+    const tied = [w, sheep[0]];       // 3票ずつで並ぶ2人
+
+    await waitScreen(win, doc, 'scr-play', 5000);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+    await castVotes(win, doc, name => plan[name], true);
+    await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+    click(doc, 'wolfTallyBtn');
+    await waitScreen(win, doc, 'scr-wolf-pass', 8000);
+
+    // 決選投票の1周を、全員ぶん中身を見ながら回す
+    let guard = 0;
+    const seen = [];
+    while (activeScreen(doc) === 'scr-wolf-pass' && guard++ < 20) {
+      const who = el(doc, 'wolfHandoffName').textContent.trim();
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      const btns = Array.from(doc.querySelectorAll('#wolfVoteGrid button')).map(b => b.textContent.trim());
+      seen.push({ who: who, btns: btns });
+      assertEqual(el(doc, 'wolfVoteTitle').textContent, '⚖️ 決選投票', who + '：決選投票だと分かる');
+      assert(el(doc, 'wolfVoteNote').style.display !== 'none', who + '：説明が出ている');
+      // 候補以外は選べない。自分が候補なら自分は出ない
+      const want = tied.filter(n => n !== who);
+      assertEqual(btns.slice().sort().join(','), want.slice().sort().join(','),
+        who + ' の選択肢は並んだ人だけ（' + btns.join('/') + '）');
+      const btn = Array.from(doc.querySelectorAll('#wolfVoteGrid button'))[0];
+      btn.click();
+      await sleep(win, 50);
+    }
+    assertEqual(seen.length, players.length, '決選投票も全員に回る');
+    assertNoErrors(errors, '決選投票の候補しぼりこみで未捕捉の例外');
     win.close();
   });
 
@@ -389,7 +496,7 @@ function votesFrom(list) {
       assert(topics.indexOf(word) === -1, '途中でお題「' + word + '」を出さない（' + topics + '）');
     });
     assert(list.indexOf('🐺') === -1, '途中で誰がウルフかを出さない（' + list + '）');
-    assert(topics.indexOf(sheep[0] + ' が脱落しました') >= 0, '誰が脱落したかは伝える');
+    assert(topics.indexOf(sheep[0] + ' が処刑されました') >= 0, '誰が処刑されたかは伝える');
     // ウルフ1人の設定では「まだ続く＝外した」がルール上すぐ分かるので、そこは書いてよい。
     // 逆に「ウルフでした」は、書いた時点でゲームが終わっていなければならない
     assert(!/ウルフでした/.test(topics), 'まだ続くのに、ウルフを当てたとは出さない');
@@ -517,10 +624,21 @@ function votesFrom(list) {
     return plan;
   }
 
+  // 決選投票での投票先。候補以外には入れられないので、
+  // 各自「自分を除いた候補」から順に選ぶ（人数によって決まったり同数のままだったりする）
+  function makeRunoffPlan(candidates, players) {
+    const plan = {};
+    players.forEach((n, i) => {
+      const opts = candidates.filter(c => c !== n);
+      plan[n] = opts[i % opts.length];
+    });
+    return plan;
+  }
+
   const PATTERNS = [
     { id: 'unanimous', label: '全員がウルフに入れる' },
     { id: 'plurality', label: 'ウルフが最多だが過半数に届かない' },
-    { id: 'tie', label: '同数で並ぶ' },
+    { id: 'tie', label: '同数で並ぶ（決選投票に入る）' },
     { id: 'sheep', label: 'シープに票が集まる' }
   ];
   const ALL_NAMES = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん', 'はな'];
@@ -537,18 +655,30 @@ function votesFrom(list) {
         assertEqual(Object.keys(plan).length, count, pat.label + '：全員ぶんの投票を決めた');
 
         // 集計側が出すはずの答えを、先に計算しておく（名前をそのままIDとして扱う）
-        const expect = WolfLogic.tally(plan);
-        const caught = expect.executedId === w;
+        const first = WolfLogic.voteOutcome(plan);
         const where = count + '人／' + pat.label;
         // 意図した形になっているかも、ここで確かめる
         if (pat.id === 'plurality' && count >= 5) {
-          assert(expect.executedId === w && expect.max * 2 < count,
-            where + '：ウルフが最多だが過半数未満（' + JSON.stringify(expect.counts) + '）');
+          assert(first.kind === 'execute' && first.targetId === w && first.tally.max * 2 < count,
+            where + '：ウルフが最多だが過半数未満（' + JSON.stringify(first.tally.counts) + '）');
         }
-        if (pat.id === 'tie') assertEqual(expect.tie, true, where + '：ほんとうに同数');
-        if (pat.id === 'unanimous') assertEqual(expect.executedId, w, where + '：満場一致でウルフ');
+        if (pat.id === 'tie') assertEqual(first.kind, 'runoff', where + '：決選投票に入る');
+        if (pat.id === 'unanimous') assertEqual(first.targetId, w, where + '：満場一致でウルフ');
 
-        await voteAndTally(win, doc, name => plan[name]);
+        // 決選投票に入る場合は、その1周ぶんの投票先も決めておく
+        const runoffPlan = (first.kind === 'runoff')
+          ? makeRunoffPlan(first.candidates, players) : null;
+        const second = runoffPlan ? WolfLogic.voteOutcome(runoffPlan, { isRunoff: true }) : null;
+        const executedId = second ? second.targetId : first.targetId;
+        const caught = executedId === w;
+
+        let sawRunoff = false;
+        await voteAndTally(win, doc, name => plan[name], {
+          runoffFor: name => (runoffPlan ? runoffPlan[name] : []),
+          onRunoff: () => { sawRunoff = true; }
+        });
+        assertEqual(sawRunoff, first.kind === 'runoff', where + '：決選投票の有無が一致する');
+
         const text = el(doc, 'wolfResultTopics').textContent;
         if (caught) {
           assert(/ウルフをあぶり出しました/.test(text), where + '：捕まる（' + text.slice(0, 50) + '）');
@@ -558,11 +688,15 @@ function votesFrom(list) {
           assertEqual(deltasOf(doc)[w], '+1', where + '：逃げ切ったウルフに加点');
         }
         // 誰が処刑されたかも、集計と食い違わない
-        if (expect.executedId) {
-          assert(text.indexOf(expect.executedId + ' が処刑されました') >= 0,
-            where + '：処刑された人が一致する');
+        if (executedId) {
+          assert(text.indexOf(executedId + ' が処刑されました') >= 0,
+            where + '：処刑された人が一致する（' + text.slice(0, 80) + '）');
         } else {
-          assert(/同数だったので/.test(text), where + '：処刑なしと出る');
+          assert(/同数だったので、だれも処刑されませんでした|決選投票でも同数だったので/.test(text),
+            where + '：処刑なしと出る（' + text.slice(0, 80) + '）');
+        }
+        if (sawRunoff) {
+          assert(text.indexOf('決選投票を行いました') >= 0, where + '：決選投票をしたことが残る');
         }
         assertNoErrors(errors, where);
         win.close();
@@ -600,6 +734,356 @@ function votesFrom(list) {
         win.close();
       }
     }
+  });
+
+  // ---------- ④-2 ルール説明が、実際の挙動と食い違っていないか（第23弾-3） ----------
+
+  function modesOf(html) {
+    const m = html.match(/var MODES = \[([\s\S]*?)\n {2}\];/);
+    assert(m, 'MODES が見つかる');
+    return m[1].split(/(?=\{id:")/).filter(b => b.trim().startsWith('{id:')).map(b => ({
+      id: b.match(/\{id:"([^"]+)"/)[1],
+      src: b,
+      bullets: (function () {
+        const bl = b.match(/bullets:\[([^\]]*)\]/);
+        return bl ? bl[1].split('","').map(s => s.replace(/^"|"$/g, '')) : [];
+      })()
+    }));
+  }
+
+  await r.test('rules: は残っていない（表示されない死んだ説明文だった）', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(!/^\s*rules:"/m.test(html), 'rules: フィールドが残っている');
+    // 画面側も rules を読みに行かない
+    assert(!/m\.rules/.test(html), 'm.rules を読んでいる箇所が残っている');
+    modesOf(html).forEach((mode) => {
+      assert(mode.bullets.length >= 3, mode.id + ' に説明が3つ以上ある');
+    });
+  });
+
+  await r.test('投票があるモードは、ルール説明に投票の決まりが書いてある', async () => {
+    // 第23弾-3：ルールに書いていない決まりでプレイヤーが不意打ちされないように。
+    // 決選投票を足したので、なおさら食い違わせない。
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const voting = modesOf(html).filter(m => /wolf:true|wolfRole:true/.test(m.src.replace(/\s/g, '')));
+    assert(voting.length >= 11, '投票のあるモードが揃っている（' + voting.length + '件）');
+    voting.forEach((mode) => {
+      const text = mode.bullets.join('｜');
+      assert(/票が一番多い人が処刑される/.test(text), mode.id + '：最多得票のルールが書いてある');
+      assert(/過半数でなくてよい/.test(text), mode.id + '：過半数は要らないと書いてある');
+      assert(/同数なら決選投票/.test(text), mode.id + '：同数なら決選投票と書いてある');
+      assert(/それでも同数なら処刑なし/.test(text), mode.id + '：決選投票でも同数なら処刑なしと書いてある');
+    });
+  });
+
+  await r.test('ワードウルフのルール説明に、人狼ゲームの言葉が混ざっていない', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const ww = modesOf(html).filter(m => /game:'wordwolf'/.test(m.src));
+    assert(ww.length >= 5, 'ワードウルフのモードが揃っている（' + ww.length + '件）');
+    ww.forEach((mode) => {
+      mode.bullets.forEach((b) => {
+        assert(!/村人/.test(b), mode.id + '：ルールに「村人」が出ない（' + b + '）');
+      });
+    });
+  });
+
+  await r.test('ルール説明の画面に、そのモードの説明が全部出る', async () => {
+    const { win, doc, errors } = await launch();
+    await startWordwolf(win, doc, 'wordwolf', ['あき', 'びび', 'ちか', 'でん'], 1, null, { stopAtRules: true });
+    const items = Array.from(doc.querySelectorAll('#rulesBody li')).map(li => li.textContent);
+    assert(items.length >= 5, 'ルールが箇条書きで出る（' + items.length + '件）');
+    const joined = items.join('｜');
+    assert(/票が一番多い人が処刑される/.test(joined), '投票のルールが実際に画面に出る');
+    assert(/同数なら決選投票/.test(joined), '決選投票のことも画面に出る');
+    assertNoErrors(errors, 'ルール画面で未捕捉の例外');
+    win.close();
+  });
+
+  // ---------- ⑤-2 人狼（手渡し）でも同じ決選投票（第23弾-1） ----------
+
+  await r.test('実機・人狼：同数なら決選投票に入り、候補だけが選択肢になる', async () => {
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう'];
+    const { win, doc, errors } = await launch();
+    // 役職の少ないカジュアル人狼で、投票の道筋だけを見る
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+
+    // 手渡しを1周ぶん流す（役職確認 → 夜）
+    async function runPass(pick) {
+      // 段階の変わり目には「夜になりました」の関門が入る（第20弾-4-1）
+      await waitScreen(win, doc, 'scr-wr-pass', 8000);
+      const seen = [];
+      let i = 0;
+      while (i++ < players.length && activeScreen(doc) === 'scr-wr-pass') {
+        const who = el(doc, 'wrHandoffName').textContent.trim();
+        click(doc, 'wrRevealBtn');
+        await sleep(win, 40);
+        let g = 0;
+        while (g++ < 4 && activeScreen(doc) === 'scr-wr-pass' && el(doc, 'wrContent').style.display !== 'none') {
+          const choices = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
+          if (g === 1) seen.push({ who: who, body: el(doc, 'wrContentBody').textContent, choices: choices.map(c => c.textContent.trim()) });
+          if (choices.length) (pick ? (pick(who, choices) || choices[0]) : choices[0]).click();
+          else click(doc, 'wrNextBtn');
+          await sleep(win, 45);
+        }
+      }
+      return seen;
+    }
+    await runPass();                       // 役職確認
+    await runPass();                       // 夜
+    await waitScreen(win, doc, 'scr-wr-day', 8000);
+    await holdPress(win, doc, 'wrToVoteBtn');
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+
+    // 生きている人の名前を、最初の投票画面の選択肢から拾う
+    const firstName = el(doc, 'wrHandoffName').textContent.trim();
+    click(doc, 'wrRevealBtn');
+    await sleep(win, 40);
+    const opts = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]')).map(b => b.textContent.trim());
+    const alive = [firstName].concat(opts);
+    const a = alive[0], b = alive[1];
+    // きっちり半分ずつに割って同数にする
+    let n = 0;
+    const want = (who) => {
+      const t = (n++ % 2 === 0) ? a : b;
+      return (t === who) ? (t === a ? b : a) : t;
+    };
+    // いま開いている1人目から投票させる
+    let target = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'))
+      .find(x => x.textContent.trim() === want(firstName));
+    (target || doc.querySelector('#wrChoiceGrid button[data-choice]')).click();
+    await sleep(win, 50);
+    let guard = 0;
+    while (activeScreen(doc) === 'scr-wr-pass' && guard++ < 12) {
+      const who = el(doc, 'wrHandoffName').textContent.trim();
+      click(doc, 'wrRevealBtn');
+      await sleep(win, 40);
+      const btns = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
+      if (!btns.length) break;
+      const w2 = want(who);
+      (btns.find(x => x.textContent.trim() === w2) || btns[0]).click();
+      await sleep(win, 50);
+    }
+    await waitScreen(win, doc, 'scr-wr-gather', 6000);
+    click(doc, 'wrTallyBtn');
+    await waitFor(win, () => ['scr-wr-result', 'scr-wr-pass'].indexOf(activeScreen(doc)) >= 0,
+      8000, '結果 または 決選投票');
+
+    if (activeScreen(doc) === 'scr-wr-pass') {
+      // 決選投票の1周：候補だけが選択肢で、決選投票だと分かる
+      let g2 = 0;
+      while (activeScreen(doc) === 'scr-wr-pass' && g2++ < 12) {
+        const who = el(doc, 'wrHandoffName').textContent.trim();
+        click(doc, 'wrRevealBtn');
+        await sleep(win, 40);
+        const body = el(doc, 'wrContentBody').textContent;
+        assert(/決選投票/.test(body), who + '：決選投票だと分かる（' + body.slice(0, 40) + '）');
+        const btns = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
+        if (!btns.length) break;
+        const names = btns.map(x => x.textContent.trim());
+        assert(names.length <= 2, who + '：候補だけに絞られている（' + names.join('/') + '）');
+        assert(names.indexOf(who) === -1, who + '：自分は選択肢に出ない');
+        btns[0].click();
+        await sleep(win, 50);
+      }
+      await waitScreen(win, doc, 'scr-wr-gather', 6000);
+      click(doc, 'wrTallyBtn');
+      await waitScreen(win, doc, 'scr-wr-result', 8000);
+      assert(/決選投票を行いました/.test(el(doc, 'wrResultSummary').textContent),
+        '結果に決選投票のことが残る');
+    }
+    assertNoErrors(errors, '人狼の決選投票で未捕捉の例外');
+    win.close();
+  });
+
+  // ---------- ⑥ 1人1台モードでも、まったく同じ決選投票（第23弾-1） ----------
+  // 手渡しだけ直して1人1台が取り残される、という事故を防ぐために
+  // サーバー側の進行（wolf-room.js）も直接動かして確かめる。
+
+  function fakeRoom(names) {
+    const members = new Map();
+    names.forEach((n, i) => members.set('m' + i, { id: 'm' + i, name: n, role: 'player', connected: true }));
+    return { members: members, state: {} };
+  }
+
+  await r.test('1人1台：同数なら決選投票に入り、候補以外には投票できない', async () => {
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう']);
+    const started = WolfRoom.startGame(room, { roles: ['wolf'], turnLimit: 5, revealRoleOnDeath: true });
+    assert(started.ok, 'ゲームが始まる');
+    const ids = Array.from(room.members.keys());
+
+    // 役職確認 → 夜 → 朝 → 投票 まで進める
+    ids.forEach((id) => WolfRoom.submitAction(room, id, null));
+    WolfRoom.advance(room);                       // ROLE → NIGHT
+    WolfRoom.expectedMembers(room).forEach((id) => {
+      const v = WolfRoom.privateFor(room, id);
+      WolfRoom.submitAction(room, id, (v.choices && v.choices.length) ? v.choices[0].id : null);
+    });
+    WolfRoom.advance(room);                       // NIGHT → DAY
+    if (room.wolf.phase === 'ended') { assert(true, '初日で決着したので確認を省略'); return; }
+    WolfRoom.advance(room);                       // DAY → VOTE
+    assertEqual(room.wolf.phase, 'vote', '投票の段階になる');
+
+    // 生きている人を2人に絞って、きっちり半分ずつ入れる
+    const alive = WolfRoom.expectedMembers(room);
+    const a = alive[0], b = alive[1];
+    alive.forEach((id, i) => {
+      const want = (i % 2 === 0) ? a : b;
+      // 自分には入れられないので、その時は相手側へ
+      WolfRoom.submitVote(room, id, want === id ? (want === a ? b : a) : want);
+    });
+    const before = JSON.stringify(room.wolf.game.votes);
+    WolfRoom.advance(room);
+
+    if (room.wolf.runoff) {
+      assertEqual(room.wolf.phase, 'vote', '決選投票なので、もう一度投票の段階');
+      const cands = room.wolf.runoff.candidates;
+      assert(cands.length >= 2, '候補が2人以上いる');
+      // 候補以外は選択肢に出ない
+      WolfRoom.expectedMembers(room).forEach((id) => {
+        const v = WolfRoom.privateFor(room, id);
+        assertEqual(v.runoff, true, '端末に決選投票だと伝わる');
+        (v.choices || []).forEach((c) => {
+          assert(cands.indexOf(c.id) !== -1, '候補以外は選択肢に出ない');
+        });
+        assert((v.choices || []).every((c) => c.id !== id), '自分は選択肢に出ない');
+      });
+      // 候補以外への投票は、サーバー側で弾く
+      const outsider = WolfRoom.expectedMembers(room).find((id) => cands.indexOf(id) === -1);
+      if (outsider) {
+        const bad = WolfRoom.submitVote(room, WolfRoom.expectedMembers(room)[0], outsider);
+        assertEqual(bad.ok, false, '候補以外への投票は拒否される');
+        assertEqual(bad.error, 'not_candidate', '理由が分かる');
+      }
+      // 大画面にも候補が出る（誰が投票したかは出ない）
+      const pub = WolfRoom.publicView(room);
+      assert(pub.runoff && pub.runoff.candidates.length === cands.length, '大画面に候補が出る');
+      assert(!JSON.stringify(pub).includes('"votes"'), '公開情報に投票先そのものは入らない');
+
+      // 決選投票を済ませて、ちゃんと先に進むこと
+      WolfRoom.expectedMembers(room).forEach((id) => {
+        const v = WolfRoom.privateFor(room, id);
+        if (v.choices && v.choices.length) WolfRoom.submitVote(room, id, v.choices[0].id);
+      });
+      WolfRoom.advance(room);
+      assert(['turnResult', 'ended'].indexOf(room.wolf.phase) >= 0,
+        '決選投票のあとは結果へ進む（現在: ' + room.wolf.phase + '）');
+      // 記録に残るのは1回目の投票
+      const log = (room.wolf.game.log || []).filter((e) => e.type === 'vote');
+      assert(log.length >= 1, '投票が記録される');
+      assertEqual(JSON.stringify(log[log.length - 1].votes), before,
+        '記録に残るのは、絞り込む前の1回目の投票');
+    } else {
+      assertEqual(room.wolf.phase, 'turnResult', '同数にならなかった回は、そのまま結果へ');
+    }
+  });
+
+  await r.test('1人1台：投票の段階に入るたび、前の決選投票は消える', async () => {
+    // 前のターンの候補が残っていると、次のターンで選択肢が絞られてしまう
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    WolfRoom.startGame(room, { roles: ['wolf'], turnLimit: 5, revealRoleOnDeath: true });
+    room.wolf.runoff = { candidates: ['m0'], firstTally: null, firstVotes: {} };
+    room.wolf.phase = 'day';
+    room.wolf.game.phase = 'day';
+    WolfRoom.advance(room);  // DAY → VOTE（決選投票ではない）
+    assertEqual(room.wolf.phase, 'vote', '投票の段階になる');
+    assertEqual(room.wolf.runoff, null, '前の決選投票の状態が消えている');
+  });
+
+  await r.test('1人1台：投票の中身は、決着するまで公開情報に入らない', async () => {
+    // 大画面には公開情報しか届かない。ここに投票先が混ざると全員に見えてしまう
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    WolfRoom.startGame(room, { roles: ['wolf'], turnLimit: 3, revealRoleOnDeath: true });
+    let guard = 0;
+    let sawVote = false;
+    while (room.wolf.phase !== 'ended' && guard++ < 40) {
+      const pub = WolfRoom.publicView(room);
+      assert(!pub.result || !pub.result.voteLog || room.wolf.phase === 'ended',
+        '決着前の公開情報に投票の中身が入らない');
+      assert(JSON.stringify(pub).indexOf('だれに') === -1, '公開情報に投票の中身が混ざらない');
+      if (room.wolf.phase === 'vote') sawVote = true;
+      WolfRoom.expectedMembers(room).forEach((id) => {
+        const v = WolfRoom.privateFor(room, id);
+        if (room.wolf.phase === 'vote') {
+          if (v.choices && v.choices.length) WolfRoom.submitVote(room, id, v.choices[0].id);
+        } else {
+          WolfRoom.submitAction(room, id, (v.choices && v.choices.length) ? v.choices[0].id : null);
+        }
+      });
+      WolfRoom.advance(room);
+    }
+    assert(sawVote, '途中で投票の段階を通っている');
+    assertEqual(room.wolf.phase, 'ended', '決着する');
+    const done = WolfRoom.publicView(room);
+    assert(done.result && Array.isArray(done.result.voteLog) && done.result.voteLog.length,
+      '決着したら投票の中身が届く');
+    const row = done.result.voteLog[0].rows[0];
+    assert(row && row.from && row.to, 'だれが→だれに の形で届く');
+  });
+
+  // ---------- ⑦ 決着後だけ、誰が誰に入れたかを開示する（第23弾-2） ----------
+
+  await r.test('実機：決着した回だけ、だれが だれに 入れたかが出る', async () => {
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    const { win, doc, errors } = await launch();
+    // 同じお題のまま続く2〜ターン版：1ターン目は途中なので出さない
+    await startWordwolf(win, doc, 'wordwolf-multi', players, 1, { turnLimit: 2, changeTopic: false });
+    const { wolves, sheep } = await revealTopics(win, doc);
+    const w = wolves[0];
+    const plan = {};
+    players.forEach(n => { plan[n] = (n === sheep[0]) ? sheep[1] : sheep[0]; });
+    await voteAndTally(win, doc, name => plan[name]);
+    assert(/つぎのターンへ/.test(el(doc, 'wolfResultNextBtn').textContent), 'まだ続く');
+    assert(el(doc, 'wolfResultTopics').textContent.indexOf('だれが だれに 入れたか') === -1,
+      '途中のターンでは投票の中身を出さない');
+
+    // 2ターン目でウルフを吊って決着させる
+    click(doc, 'wolfResultNextBtn');
+    await waitScreen(win, doc, 'scr-play', 6000);
+    await voteAndTally(win, doc, name => (name === w ? sheep[1] : w));
+    const done = el(doc, 'wolfResultTopics').textContent;
+    assert(done.indexOf('だれが だれに 入れたか') >= 0, '決着したら投票の中身が出る');
+    // 1ターン目・2ターン目の両方が残っていること
+    assert(done.indexOf('1ターン目') >= 0 && done.indexOf('2ターン目') >= 0,
+      'ターンごとに分けて出る（' + done.slice(-160) + '）');
+    players.forEach(n => {
+      assert(done.indexOf(n + ' → ') >= 0, n + ' の投票先が出ている');
+    });
+    assertNoErrors(errors, '投票内容の公開で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実機：投票1回で終わる遊び方でも、決着後に投票の中身が出る', async () => {
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    const { win, doc, errors } = await launch();
+    await startWordwolf(win, doc, 'wordwolf', players, 1);
+    const { wolves, sheep } = await revealTopics(win, doc);
+    const w = wolves[0];
+    await voteAndTally(win, doc, name => (name === w ? sheep[0] : w));
+    const text = el(doc, 'wolfResultTopics').textContent;
+    assert(text.indexOf('だれが だれに 入れたか') >= 0, '投票の中身が出る');
+    assert(text.indexOf('1ターン目') === -1 && text.indexOf('1回目') === -1,
+      '1回しかないので、回の見出しは出さない（' + text.slice(-120) + '）');
+    assert(text.indexOf(w + ' → ' + sheep[0]) >= 0, 'ウルフの投票先も出る');
+    assertNoErrors(errors, '1ターン版の投票公開で未捕捉の例外');
+    win.close();
   });
 
   r.finish();

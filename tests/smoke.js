@@ -1507,7 +1507,23 @@ async function startModeWithTimerOff(win, doc, id) {
     }
     await waitScreen(win, doc, 'scr-wolf-gather', 5000);
     click(doc, 'wolfTallyBtn');
-    await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    // 第23弾-1：同数だと決選投票の1周が挟まる。その周も同じ選び方で流す
+    await waitFor(win, () => ['scr-wolf-result', 'scr-wolf-pass'].indexOf(activeScreen(doc)) >= 0,
+      8000, '結果 または 決選投票');
+    if (activeScreen(doc) === 'scr-wolf-pass') {
+      let g2 = 0;
+      while (activeScreen(doc) === 'scr-wolf-pass' && g2++ < 20) {
+        const who = el(doc, 'wolfHandoffName').textContent.trim();
+        click(doc, 'wolfRevealBtn'); await sleep(win, 35);
+        const c = Array.from(doc.querySelectorAll('#wolfVoteGrid button'));
+        if (!c.length) break;
+        (pick(who, c) || c[0]).click();
+        await sleep(win, 45);
+      }
+      await waitScreen(win, doc, 'scr-wolf-gather', 5000);
+      click(doc, 'wolfTallyBtn');
+      await waitScreen(win, doc, 'scr-wolf-result', 8000);
+    }
     return voters;
   }
 
@@ -1577,37 +1593,37 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('同数が続いて誰も処刑できなくても、必ず決着する（ウルフ側の勝ち）', async () => {
-    // 指示17改訂で決めた「決着しなければウルフ側の勝ち」と同じフェイルセーフ。
-    // 再投票にすると同数が続いた時に終わらなくなるので、回数は必ず使い切って打ち切る。
+  await r.test('ウルフを当てられないまま回数を使い切ると、必ず止まる（ウルフ側の勝ち）', async () => {
+    // 指示17改訂で決めた「決着しなければウルフ側の勝ち」というフェイルセーフ。
+    // 第23弾-1で同数のときに決選投票が挟まるようになったので、
+    // それでも無限に投票し続けず、必ず打ち切られることをここで固定する。
     const { win, doc, errors } = await launch();
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
-    await startWordwolfWithWolves(win, doc, players, 2);
+    const wolves = await startWordwolfWithWolves(win, doc, players, 2);
+    assertEqual(wolves.length, 2, 'ウルフは2人');
 
-    // 全員がバラバラに投票する（1人1票ずつ）＝ 最多が並んで誰も処刑されない
-    const allTie = (who, c) => {
-      const alive = c.map(b => b.textContent.trim());
-      const i = alive.indexOf(who); // 自分は選べないので、順番をずらして1票ずつ散らす
-      const idx = (players.indexOf(who) + 1) % alive.length;
-      return c[idx >= 0 ? idx : 0];
+    // 誰もウルフに入れない＝ウルフは最後まで生き残る。
+    // 誰が吊られるかは回によって変わるので、シープの中から順に選ぶ
+    const avoidWolves = (who, c) => {
+      const sheep = c.filter(b => wolves.indexOf(b.textContent.trim()) === -1);
+      const pool = sheep.length ? sheep : c;
+      return pool[players.indexOf(who) % pool.length];
     };
 
-    await wolfVotePass(win, doc, allTie);
+    await wolfVotePass(win, doc, avoidWolves);
     let res = el(doc, 'wolfResultTopics').textContent;
-    assert(/同数/.test(res), '1回目は同数で処刑なし（' + res.slice(0, 40) + '）');
-    assert(/のこりのウルフ🐺 2人/.test(res), 'ウルフは2人とも残っている');
+    assert(/のこりのウルフ🐺 2人/.test(res), '1回目でウルフは減っていない（' + res.slice(0, 60) + '）');
     assertEqual(el(doc, 'wolfResultNextBtn').textContent, 'つぎの投票へ ▶', '回数はまだ残っている');
 
     click(doc, 'wolfResultNextBtn');
     await waitScreen(win, doc, 'scr-wolf-pass', 5000);
-    const v2 = await wolfVotePass(win, doc, allTie);
-    assertEqual(v2.length, players.length, '誰も処刑されていないので、全員がまた投票する');
+    await wolfVotePass(win, doc, avoidWolves);
 
     res = el(doc, 'wolfResultTopics').textContent;
-    assert(/ウルフ側の勝ち/.test(res), '回数を使い切ったらウルフ側の勝ち（' + res.slice(0, 40) + '）');
+    assert(/ウルフ側の勝ち/.test(res), '回数を使い切ったらウルフ側の勝ち（' + res.slice(0, 60) + '）');
     assert(!/つぎの投票/.test(el(doc, 'wolfResultNextBtn').textContent), 'ここで必ず止まる（無限に投票しない）');
     assert(/シープ🐑のお題/.test(res), '決着したのでお題が明かされる');
-    assertNoErrors(errors, '同数連発で未捕捉の例外');
+    assertNoErrors(errors, '決選投票をはさんでも打ち切られること');
     win.close();
   });
 

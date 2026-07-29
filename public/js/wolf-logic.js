@@ -560,7 +560,30 @@
   }
   function tallyVotes(game) { return tally(game.votes); }
 
-  // 処刑を実行する。同数の時は誰も処刑しない（画面側で決選投票にしてもよい）
+  // 投票のあと、次に何をするかを決める。
+  //
+  // 第23弾-1：決選投票を足すにあたって、その判断もここに置く。
+  // 集計は tally に任せ、ここは「同数だったらどうするか」だけを決める。
+  // 画面側は返ってきた kind に従うだけなので、ワードウルフでも人狼でも
+  // まったく同じ手順になる（また2通りの実装が生えないように）。
+  //
+  //   { kind:'execute', targetId }   … その人を処刑する
+  //   { kind:'runoff',  candidates } … 同数。並んだ人だけでもう一度投票する
+  //   { kind:'none' }                … 誰も処刑しない
+  //
+  // 決選投票は1回まで（opts.isRunoff）。決選投票でも同数なら、
+  // そこで処刑なしに確定する。無限に投票し続けないための歯止め。
+  function voteOutcome(votes, opts) {
+    opts = opts || {};
+    var t = tally(votes);
+    if (t.executedId) return { tally: t, kind: 'execute', targetId: t.executedId, candidates: [] };
+    if (t.tie && !opts.isRunoff) {
+      return { tally: t, kind: 'runoff', targetId: null, candidates: t.top.slice() };
+    }
+    return { tally: t, kind: 'none', targetId: null, candidates: [] };
+  }
+
+  // 処刑を実行する。同数の時は誰も処刑しない（決選投票の結果は forcedId で渡す）
   function executeVote(game, forcedId) {
     var t = tallyVotes(game);
     var targetId = forcedId || t.executedId;
@@ -763,7 +786,8 @@
     pendingNightActions: pendingNightActions, setNightAction: setNightAction, resolveNight: resolveNight,
     previewDivine: previewDivine, previewMedium: previewMedium, previewPeek: previewPeek,
     pendingPreVoteActions: pendingPreVoteActions, setPreVoteAction: setPreVoteAction, resolvePreVote: resolvePreVote,
-    setVote: setVote, tally: tally, tallyVotes: tallyVotes, executeVote: executeVote, checkTeruteru: checkTeruteru,
+    setVote: setVote, tally: tally, tallyVotes: tallyVotes, voteOutcome: voteOutcome,
+    executeVote: executeVote, checkTeruteru: checkTeruteru,
     evaluate: evaluate, isFinalTurn: isFinalTurn, nextTurn: nextTurn, finish: finish,
     SCORE: SCORE, scoreGame: scoreGame, isVillageTeam: isVillageTeam, goodVoteTurns: goodVoteTurns,
     summary: summary

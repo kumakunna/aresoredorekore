@@ -62,6 +62,7 @@ function startGame(room, config) {
     info: {},            // memberId -> その人が得た情報
     nightOut: null,
     voteOut: null,
+    runoff: null,        // 決選投票の途中かどうか（第23弾-1）
     pendingEnd: null,
     deadline: null,      // 制限時間の期限（ミリ秒）。0なら無し
     preset: cfg.preset || null
@@ -106,14 +107,32 @@ function publicView(room) {
       attackOverlap: !!w.nightOut.attackOverlap
     };
   }
+  // 第23弾-1：決選投票の最中は、候補が誰かを全員に見せる（誰が投票するかは伏せたまま）
+  if (w.phase === PHASE.VOTE && w.runoff) {
+    view.runoff = {
+      candidates: w.runoff.candidates.map((id) => {
+        const p = WolfLogic.findPlayer(g, id);
+        return p ? p.name : '?';
+      })
+    };
+  }
   if (w.phase === PHASE.TURN_RESULT && w.voteOut) {
     const ex = w.voteOut.executed;
+    const ro = w.voteOut.runoff;
     view.turnResult = {
       executed: ex ? {
         name: ex.name,
         role: g.config.revealRoleOnDeath ? ex.roleName : null
       } : null,
-      counts: g.config.showVoteCounts ? namedCounts(g, w.voteOut.tally.counts) : null
+      counts: g.config.showVoteCounts ? namedCounts(g, w.voteOut.tally.counts) : null,
+      // 決選投票を行った回は、候補と2回目の票数も添える
+      runoff: ro ? {
+        candidates: ro.candidates.map((id) => {
+          const p = WolfLogic.findPlayer(g, id);
+          return p ? p.name : '?';
+        }),
+        counts: g.config.showVoteCounts ? namedCounts(g, ro.tally.counts) : null
+      } : null
     };
   }
   if (w.phase === PHASE.ENDED && g.result) {
@@ -123,7 +142,19 @@ function publicView(room) {
       teruteruWin: !!g.teruteruWin,
       // 決着したので、ここで初めて全員の役職を明かす
       roles: g.players.map((p) => ({ name: p.name, role: p.role, roleName: WolfLogic.roleById(p.role).name, alive: p.alive })),
-      scores: WolfLogic.scoreGame(g)
+      scores: WolfLogic.scoreGame(g),
+      // 第23弾-2：決着したこの瞬間だけ、誰が誰に入れたかも開ける。
+      // 手渡し方式と同じ扱いにする（片方だけ見られる、を作らない）
+      voteLog: g.config.showVoteCounts === false ? null : (g.log || [])
+        .filter((e) => e.type === 'vote' && e.votes && Object.keys(e.votes).length)
+        .map((e) => ({
+          turn: e.turn,
+          rows: Object.keys(e.votes).map((voter) => {
+            const from = WolfLogic.findPlayer(g, voter);
+            const to = WolfLogic.findPlayer(g, e.votes[voter]);
+            return { from: from ? from.name : '?', to: to ? to.name : '?' };
+          })
+        }))
     };
   }
   return view;
@@ -209,9 +240,11 @@ function privateFor(room, memberId) {
   }
   if (p.alive && w.phase === PHASE.VOTE) {
     out.action = 'vote';
+    // 第23弾-1：決選投票では、同数で並んだ人だけが候補になる
     out.choices = WolfLogic.alivePlayers(g)
-      .filter((t) => t.id !== p.id)
+      .filter((t) => t.id !== p.id && (!w.runoff || w.runoff.candidates.indexOf(t.id) !== -1))
       .map((t) => ({ id: t.id, name: t.name }));
+    if (w.runoff) out.runoff = true;
   }
   return out;
 }
@@ -250,6 +283,10 @@ function submitVote(room, memberId, targetId) {
   if (w.phase !== PHASE.VOTE) return { ok: false, error: 'wrong_phase' };
   if (expectedMembers(room).indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
   if (!targetId) return { ok: false, error: 'target_required' };
+  // 決選投票では、候補以外に入れられない（端末が古い画面のまま送ってきても弾く）
+  if (w.runoff && w.runoff.candidates.indexOf(targetId) === -1) {
+    return { ok: false, error: 'not_candidate' };
+  }
   WolfLogic.setVote(w.game, memberId, targetId);
   w.done[memberId] = true;
   return { ok: true, allDone: isAllDone(room) };
@@ -284,16 +321,34 @@ function advance(room) {
   if (w.phase === PHASE.PREVOTE) {
     const out = WolfLogic.resolvePreVote(g);
     Object.keys(out.info || {}).forEach((id) => { w.info[id] = out.info[id]; });
-    startActionPhase(room, PHASE.VOTE);
+    startVotePhase(room);
     return { changed: true };
   }
   if (w.phase === PHASE.DAY) {
     g.phase = 'vote'; // ロジック層は phase が合わないと投票を黙って捨てる
-    startActionPhase(room, PHASE.VOTE);
+    startVotePhase(room);
     return { changed: true };
   }
   if (w.phase === PHASE.VOTE) {
-    const out = WolfLogic.executeVote(g);
+    // 第23弾-1：同数なら、並んだ人だけでもう一度。
+    // 手渡し方式とまったく同じ判断（WolfLogic.voteOutcome）を使う。
+    const vo = WolfLogic.voteOutcome(g.votes, { isRunoff: !!w.runoff });
+    if (vo.kind === 'runoff') {
+      w.runoff = {
+        candidates: vo.candidates,
+        firstTally: vo.tally,
+        firstVotes: Object.assign({}, g.votes)
+      };
+      g.votes = {};
+      startVotePhase(room, true);
+      return { changed: true };
+    }
+    // 記録に残すのは1回目の投票。誰を処刑するかだけを決選投票の結果で上書きする
+    const runoff = w.runoff;
+    if (runoff) g.votes = runoff.firstVotes;
+    const out = WolfLogic.executeVote(g, vo.kind === 'execute' ? vo.targetId : null);
+    out.runoff = runoff ? { tally: vo.tally, candidates: runoff.candidates } : null;
+    w.runoff = null;
     w.voteOut = out;
     if (out.executed) WolfLogic.checkTeruteru(g, out.executed);
     const res = WolfLogic.evaluate(g);
@@ -314,7 +369,7 @@ function advance(room) {
   if (w.phase === PHASE.TURN_RESULT) {
     if (w.willEnd) { finish(room, w.pendingEnd || null); return { changed: true }; }
     WolfLogic.nextTurn(g);
-    if (g.phase === 'finalVote') { startActionPhase(room, PHASE.VOTE); return { changed: true }; }
+    if (g.phase === 'finalVote') { startVotePhase(room); return { changed: true }; }
     startActionPhase(room, PHASE.NIGHT);
     return { changed: true };
   }
@@ -329,6 +384,13 @@ function setPhase(room, phase) {
   room.state.phase = phase;
 }
 // 全員の操作を待つ段階に入る。制限時間があればここで期限を決める
+// 投票の段階に入る唯一の入口。
+// 第23弾-1：決選投票からの呼び出し以外は、前の決選投票の状態を必ず消す。
+// （ここを通さずに投票を始めると、前のターンの候補が残ったままになる）
+function startVotePhase(room, keepRunoff) {
+  if (!keepRunoff) room.wolf.runoff = null;
+  startActionPhase(room, PHASE.VOTE);
+}
 function startActionPhase(room, phase) {
   setPhase(room, phase);
   const sec = room.wolf.game.config.nightTimeLimit || 0;

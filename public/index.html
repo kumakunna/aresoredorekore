@@ -226,6 +226,24 @@
     border:1px solid var(--line);border-radius:999px;padding:4px 12px;
   }
   .vc-item b{font-family:'DotGothic16',monospace;font-size:15px;color:var(--ink);margin-left:2px;}
+  /* 第23弾-2：決着後だけ出す「だれが だれに 入れたか」。
+     振り返りで読むものなので、票数のチップより一段落ち着いた見た目にする */
+  .vote-log{margin-top:16px;text-align:left;}
+  .vl-title{
+    font-size:12px;color:var(--ink-soft);letter-spacing:.06em;
+    text-align:center;margin-bottom:8px;
+  }
+  .vl-turn{
+    display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;
+    padding:8px 10px;border-top:1px solid var(--line);
+  }
+  .vl-turn:last-child{border-bottom:1px solid var(--line);}
+  .vl-day{
+    font-family:'DotGothic16',monospace;font-size:12px;color:var(--ink-soft);
+    min-width:5.2em;
+  }
+  .vl-row{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+  .vl-row b{color:var(--ink);font-weight:600;}
   /* 第20弾-5-3：脱落した人は原因ごと控えめに出す */
   .reveal-row .rs.dead{color:var(--ink-soft);font-size:12.5px;}
 
@@ -1525,7 +1543,8 @@
       </div>
       <div id="wolfVoteArea" style="display:none;">
         <div id="wolfVoteInfo" style="display:none;"></div>
-        <div class="wolf-topic-label">だれがウルフ🐺だと思う？</div>
+        <div class="wolf-topic-label" id="wolfVoteTitle">だれがウルフ🐺だと思う？</div>
+        <div class="mic-status" id="wolfVoteNote" style="display:none;"></div>
         <div class="picker-grid" id="wolfVoteGrid"></div>
       </div>
     </div>
@@ -2036,93 +2055,71 @@
   var MODES = [
     {id:"normal", icon:"🙂", title:"通常プレイ", sub:"3分ラウンド・封印ワードなし", timer:180, advanced:false, strict:false, oneWord:false,
       opts:{describe:'human', seal:'none', survival:false, showSeal:true},
-      rules:"3分間のラウンドの中で、出題者がお題を言葉だけで説明し、他のプレイヤーが当てます。お題の名前を言う・カードを見せる・ジェスチャーをするのは禁止です。",
       bullets:["出題者がお題を言葉だけで説明する","ほかの人はお題が何かを当てる","名前を言う・見せる・ジェスチャーは禁止","制限時間内にたくさん当てよう"]},
     {id:"seal",   icon:"🔒", title:"封印ワード",   sub:"3分ラウンド・禁止ワードを自動表示", timer:180, advanced:true, strict:false, oneWord:false,
       opts:{describe:'human', seal:'on', survival:false, showSeal:true},
-      rules:"通常プレイに加えて、お題ごとの禁止ワードが自動で表示されます。禁止ワードを使わずに説明する、少し高度なモードです。",
       bullets:["通常プレイと同じルールで説明・回答する","お題ごとに禁止ワードが自動で表示される","禁止ワードを使わずに説明しよう"]},
     {id:"speed",  icon:"⏱",  title:"秒でこれ",     sub:"1分のスピードラウンド", timer:60, advanced:false, strict:false, oneWord:false, hidden:true,
       opts:{describe:'human', seal:'none', survival:false, showSeal:true},
-      rules:"1分間のスピードラウンド。テンポよく答えを重ねていく瞬発力型のモードです。",
       bullets:["1分間のスピードラウンド","テンポよく次々に当てていく","瞬発力が勝負"]},
     {id:"outstrict", icon:"📣", title:"一発アウト", sub:"禁止ワードを言ったら即アウト・次のお題へ", timer:180, advanced:true, strict:true, oneWord:false,
       opts:{describe:'human', seal:'strict', survival:false, showSeal:true},
-      rules:"禁止ワードを言ってしまったらその場でアウト、自動的に次のお題に進みます。封印ワードよりもシビアな真剣勝負モードです。",
       bullets:["禁止ワードを言ったら即アウト","アウトになると自動で次のお題へ","封印ワードよりシビアな真剣勝負"]},
     {id:"oneword", icon:"💬", title:"ひとことで、あれ", sub:"AIが一言ヒント・もっと欲しければ追加", timer:180, advanced:false, strict:false, oneWord:true, ai:true,
       opts:{describe:'hint', seal:'none', survival:false, showSeal:false},
-      rules:"出題者はいません。AIがお題を連想できる「単語ひとつ」だけをヒントとして出して読み上げます。分からなければ「もう一言ください」で最大3個までヒントを増やせます。少ないヒントで当てるほど気持ちいい発想ゲームです。",
       bullets:["出題者なし・AIが一言ヒントを出す","ヒントは単語ひとつだけ","「もう一言」で最大3個まで増やせる","少ないヒントで当てよう"]},
     {id:"ai", icon:"🤖", title:"AI読み上げ", sub:"出題者なし・AIが説明を読み上げる", timer:180, advanced:false, strict:false, oneWord:false, ai:true,
       opts:{describe:'ai', seal:'none', survival:false, showSeal:false},
-      rules:"出題者はいません。AIがお題の説明を考えて読み上げてくれるので、全員で一緒に聞いて当てます。お題の名前は画面にも表示されません。",
       bullets:["出題者はいない","AIがお題の説明を読み上げる","全員で聞いて答えを当てる","お題の名前は画面に出ない"]},
     {id:"wordwolf", icon:"🐺", title:"ワードウルフ", sub:"1人だけ違うお題・話し合って探り合う（複数ラウンド）", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, game:'wordwolf',
-      rules:"1人だけ違うお題（ウルフ🐺）が混ざります。ほかはシープ🐑です。自由に話し合いながら、誰がウルフかを探り合いましょう。ウルフだと自覚がある設定の場合、バレないようシープのふりをするのがコツです。話し合いのあとは全員で投票してウルフを当てます。",
-      bullets:["1人だけ違うお題（ウルフ🐺）が混ざる","ほかはシープ🐑・お題は似ている","自由に話し合って探り合う","スマホを回して全員で投票","ウルフを当てられるか勝負"]},
+      bullets:["1人だけ違うお題（ウルフ🐺）が混ざる","ほかはシープ🐑・お題は似ている","自由に話し合って探り合う","ウルフに自覚がある設定なら、シープのふりをする","スマホを回して全員で投票","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし"]},
     {id:"wordwolf-multi", icon:"🔁", title:"ワードウルフ（2〜ターン）", sub:"何回かくり返して遊ぶ・お題を変えるかも選べる", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, wolfMulti:true, game:'wordwolf',
-      rules:"ワードウルフを決めた回数だけくり返します。「毎ターンお題を変える」を選ぶと、毎回ちがうお題で仕切り直し、合計得点で勝敗を決めます。「変えない」を選ぶと同じお題のまま話し合いと投票をくり返し、ウルフを当てられたらその時点で村人側の勝ち、最後まで逃げ切られたらウルフの勝ちです。",
-      bullets:["決めた回数だけくり返す","お題を毎回変えるかを選べる","変える場合は合計得点で決着","変えない場合は当てられたら村人側の勝ち","逃げ切られたらウルフの勝ち"]},
+      bullets:["決めた回数だけくり返す","お題を毎回変えるかを選べる","変える場合は合計得点で決着","変えない場合は当てられたらシープ🐑側の勝ち","逃げ切られたらウルフ🐺側の勝ち","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし"]},
     // ---- 第20弾-8：役職ありワードウルフも独立したカードにする ----
     // wwPreset の役職は、カードを選んだ瞬間に人数へ合わせて自動で配られる。
     // 細かく変えたい人は、ウィザードのステッパーで足し引きできる。
     {id:"wordwolf-peek", icon:"👀", title:"のぞき見ワードウルフ", sub:"1人だけ、誰かの正体をこっそり覗ける", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, game:'wordwolf', minPlayers:4,
       wwPreset:{ roles:['peek'] },
-      rules:"いつものワードウルフに「のぞき見役」を1人だけ足したルールです。のぞき見役は、お題を見るときに1人を選ぶと、その人がウルフ🐺側かシープ🐑側かが分かります。ただし本人がそれを話すと、ウルフに正体を知られて疑われるかもしれません。情報をどう使うかが勝負どころです。",
-      bullets:["いつものワードウルフ＋のぞき見役1人","お題を見るときに1人の陣営が分かる","話すと自分の正体もバレる","4人以上で遊べる","話し合いは1回・投票で決着"]},
+      bullets:["いつものワードウルフ＋のぞき見役1人","のぞき見役は投票の直前に1人の陣営が分かる","話すと自分の正体もバレる","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","話し合いは1回・4人以上で遊べる"]},
     {id:"wordwolf-trick", icon:"🎭", title:"かき乱しワードウルフ", sub:"のぞき見・にせもの・まきこみが入り乱れる", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, game:'wordwolf', minPlayers:6,
       wwPreset:{ roles:['peek', 'fake', 'involve'] },
-      rules:"1ターン専用の役職を全部入れたルールです。のぞき見役は1人の陣営が分かり、にせもの役はシープ🐑なのに「ウルフ側」に見え、まきこみ役は指名した人の投票先を全員に公開します。情報が正しいとは限らないので、話し合いがぐちゃぐちゃになります。",
-      bullets:["のぞき見役・にせもの役・まきこみ役が入る","にせもの役は覗くとウルフ側に見える","まきこみ役は誰かの投票先を公開する","情報が正しいとは限らない","6人以上がおすすめ"]},
+      bullets:["のぞき見役・にせもの役・まきこみ役が入る","のぞき見とまきこみは投票の直前に動く","にせもの役は覗くとウルフ🐺側に見える","まきこみ役は誰かの投票先を公開する","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","情報が正しいとは限らない・6人以上がおすすめ"]},
     {id:"wordwolf-seer", icon:"🔮", title:"占いワードウルフ", sub:"占い師と狂人を入れて何ターンか遊ぶ", timer:180, advanced:false, strict:false, oneWord:false, wolf:true, wolfMulti:true, game:'wordwolf', minPlayers:5,
       wwPreset:{ roles:['seer', 'madman'] },
-      rules:"2〜ターン版のワードウルフに、占い師と狂人を足したルールです。占い師はお題を見るときに1人を占い、その人の陣営が分かります。狂人はシープ🐑と同じお題を持ちますが、勝敗はウルフ🐺側として数えます。ウルフが誰かは知らないので、自分で推理して庇うことになります。",
-      bullets:["占い師が1人の陣営を見抜く","狂人はウルフの味方だが正体を知らない","狂人は占っても村人に見える","くり返し遊んで合計得点で決着","5人以上で遊べる"]},
+      bullets:["占い師はお題を見るときに1人の陣営を見抜く","狂人はウルフの味方だが、ウルフが誰かは知らない","狂人は占ってもシープ🐑に見える","くり返し遊んで合計得点で決着","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","5人以上で遊べる"]},
     // ---- 役職あり人狼。プリセットごとに独立したモードカードにする（あれそれどれこれと同じ流儀） ----
     // wolfPreset：カードを選んだ時に入る初期設定。役職の数はウィザードで人数に合わせて自動配置される
     {id:"wolf-casual", icon:"🌱", title:"カジュアル人狼", sub:"村人と人狼だけ・3人から遊べる入門ルール", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf'], turnLimit:3, seerResult:'binary', minPlayers:3 },
-      rules:"村人と人狼だけのシンプルな人狼です。夜になると人狼が1人を襲い、昼はみんなで話し合って投票します。特別な役職が無いぶんルールが分かりやすいので、はじめての人におすすめです。人狼を全員見つければ村人側の勝ち、人狼が村人と同じ数まで減らせば人狼側の勝ちです。",
-      bullets:["村人と人狼だけのシンプル構成","3人から遊べる","夜は人狼が1人を襲う","昼は話し合って投票","進行役（GM）は不要"]},
+      bullets:["村人と人狼だけのシンプル構成","3人から遊べる・進行役（GM）は不要","夜は人狼が1人を襲う","昼は話し合って投票","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","人狼を全員見つければ村人側、人狼が村人と同数になれば人狼側の勝ち"]},
     {id:"wolf-normal", icon:"🌙", title:"ノーマル人狼", sub:"占い師・霊媒師・騎士が加わる標準ルール", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf','seer','medium','knight'], turnLimit:5, seerResult:'detail', revealRoleOnDeath:false, minPlayers:5 },
-      rules:"占い師・霊媒師・騎士が加わった、いちばん標準的な人狼です。占い師は夜に1人を占い、騎士は1人を守り、霊媒師は亡くなった人の正体を知ります。役職の情報をどう使い、どう隠すかが勝負どころです。",
-      bullets:["占い師・霊媒師・騎士が入る","5人以上がおすすめ","夜の行動はスマホを回して秘密に","情報をどう使うかが勝負","進行役（GM）は不要"]},
+      bullets:["占い師・霊媒師・騎士が入る","占い師は夜に1人を占う／騎士は夜に1人を守る","霊媒師は亡くなった人の正体を知る","夜の行動はスマホを回して秘密に","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","5人以上がおすすめ・進行役（GM）は不要"]},
     {id:"wolf-special", icon:"✨", title:"スペシャル人狼", sub:"狂人・共有者・妖狐も入る本格ルール", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf','seer','medium','knight','madman','mason','fox'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, minPlayers:7 },
-      rules:"狂人・共有者・妖狐が加わった本格ルールです。狂人は人狼の味方ですが占いでは村人に見えます。共有者は2人でお互いを知っています。妖狐はどちらが勝っても生き残っていれば勝ちですが、占われると死んでしまいます。",
-      bullets:["狂人・共有者・妖狐が加わる","狂人は占いでは村人に見える","共有者は2人でお互いを知る","妖狐は占われると死ぬ","7人以上がおすすめ"]},
+      bullets:["狂人・共有者・妖狐が加わる","狂人は占いでは村人に見える","共有者は2人でお互いを知る","妖狐は生き残れば勝ち・占われると死ぬ（襲撃では死なない）","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","7人以上がおすすめ"]},
     {id:"wolf-deep", icon:"🕯️", title:"がっつり人狼", sub:"ノーマル構成・夜の時間制限なしでじっくり", timer:300, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf','seer','medium','knight'], turnLimit:8, seerResult:'detail', revealRoleOnDeath:false, nightTimeLimit:0, minPlayers:5 },
-      rules:"ノーマル人狼と同じ構成で、ターン数を多く、話し合いの時間を長めに取ったルールです。夜の行動にも時間制限がないので、じっくり考えて遊びたい時にどうぞ。",
-      bullets:["ノーマルと同じ役職構成","ターン数が多い","話し合いの時間が長め","夜の行動も時間無制限","じっくり遊びたい時に"]},
+      bullets:["ノーマルと同じ役職構成","ターン数が多い・話し合いの時間が長め","夜の行動も時間無制限","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","じっくり遊びたい時に"]},
     // 第20弾-9-1：中身は変えず名前だけ変更。idは記録に残っているので触らない
     {id:"wolf-chaos", icon:"🎪", title:"全部のせ人狼", sub:"恋人・てるてる坊主まで全部入り", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf','seer','medium','knight','madman','mason','fox','teruteru'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, lovers:true, teruteruContinue:false, minPlayers:8 },
-      rules:"スペシャル人狼に、恋人とてるてる坊主まで加えた全部盛りです。恋人は2人1組で、どちらかが死ぬともう1人も後を追います。2人とも生き残れば恋人の勝ち。てるてる坊主は昼の投票で処刑されると、その人だけの勝ちになります。",
-      bullets:["スペシャルに恋人・てるてる坊主を追加","恋人はどちらかが死ぬと後を追う","2人生き残れば恋人の勝ち","てるてる坊主は処刑されると勝ち","8人以上がおすすめ"]},
+      bullets:["スペシャルに恋人・てるてる坊主を追加","恋人はどちらかが死ぬと後を追う","2人生き残れば恋人の勝ち","てるてる坊主は処刑されると勝ち","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","8人以上がおすすめ"]},
     // 第20弾-9-2：村人が1人もいない編成（闇鍋）。全員が何かしらの役職を持つ
     {id:"wolf-yaminabe", icon:"🍲", title:"カオス人狼", sub:"ほぼ全員が何かの役職を持つ", timer:180, advanced:false, strict:false, oneWord:false, wolfRole:true, game:'wolfrole',
       wolfPreset:{ roles:['wolf','seer','medium','knight','madman','fox','teruteru'], turnLimit:7, seerResult:'detail', revealRoleOnDeath:false, chaos:true, minPlayers:5 },
-      rules:"全員が何かしらの役職を持っている編成です。人数に合わせて占い師や霊媒師が2人以上いることもあります。「自分には何も分からない」が通用しないので、全員が何かを主張することになります。誰の言うことも怪しく聞こえるはずです。なお、ごく稀に、何も役職を持たない村人が1人だけ紛れていることがあります。",
-      bullets:["ほぼ全員が役職持ち","人数によっては同じ役職が2人以上いる","「何も分からない」で黙っていられない","占い師が複数いると主張がぶつかる","ごく稀に、ただの村人が1人だけ紛れる"]},
+      bullets:["ほぼ全員が役職持ち","人数によっては同じ役職が2人以上いて、主張がぶつかる","「何も分からない」で黙っていられない","ごく稀に、ただの村人が1人だけ紛れる","票が一番多い人が処刑される（過半数でなくてよい）","同数なら決選投票。それでも同数なら処刑なし","5人以上で遊べる"]},
     {id:"bomb", icon:"💣", title:"時限爆弾", sub:"難易度別のコードを解除・ライフ3つの協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, hidden:true, game:'bomb',
-      rules:"チームで協力して爆弾を解除します。コードをタップすると、AIが考えた説明文が表示されます。読んで3択で答えましょう。外れるとライフが1つ減りますが、そのコードは何度でも再挑戦できます。ライフが0になると爆発、すべてのコードを解除できればチームの勝利です。",
-      bullets:["チームで協力して爆弾を解除する","コードをタップするとAIの説明文が出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る","ライフが0で爆発・全解除で勝利"]},
+      bullets:["チームで協力して爆弾を解除する","コードをタップするとAIの説明文が出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る（同じコードは何度でも再挑戦できる）","ライフが0で爆発・全解除で勝利"]},
     {id:"quizking", icon:"👑", title:"クイズ王決定戦", sub:"難易度を選んで挑戦・高難易度ほど高得点", advanced:false, strict:false, oneWord:false, quiz:true, hidden:true, game:'quizking',
-      rules:"自分の番になったら、5段階の難易度から挑戦するものを選びます。難しいほど高得点（かんたん1点〜むりなんだが8点）。AIの説明文を読んで3択で答え、正解すればその点数がもらえます。外れても減点はありません。気に入らないお題はパスできます。",
       bullets:["自分の番に挑戦する難易度を選ぶ","難しいほど高得点（1〜8点）","AIの説明文を読んで3択で答える","正解で得点、外れても減点なし","気に入らないお題はパスできる"]},
     {id:"survival", icon:"💀", title:"サバイバル勝ち抜き戦", sub:"毎ラウンド最下位が脱落・最後の1人が優勝", timer:180, advanced:false, strict:false, oneWord:false, survival:true,
       opts:{describe:'human', seal:'none', survival:true, showSeal:true},
-      rules:"通常プレイと同じルールで説明・回答します。ラウンドが終わるたびに、そのラウンドで一番得点が低かった人（同点なら全員）が脱落します。脱落した人は以降のラウンドでは得点できません。最後まで残った1人が優勝です。",
-      bullets:["通常プレイと同じルールで進める","毎ラウンド最下位が脱落する","同点なら全員脱落","最後まで残った1人が優勝"]},
+      bullets:["通常プレイと同じルールで進める","毎ラウンド最下位が脱落する（同点なら全員）","脱落した人は、以降のラウンドで得点できない","最後まで残った1人が優勝"]},
     {id:"buzzer", icon:"🥊", title:"早押しトーナメント", sub:"1vs1勝ち抜き・先に3問正解した方が勝ち", advanced:false, strict:false, oneWord:false, buzzer:true, hidden:true, game:'buzzer',
-      rules:"1対1のトーナメント形式です。お題を早く正解した方が1ポイント、先に3ポイント取った方がその対戦の勝者。人数が奇数の場合は不戦勝が発生することがあります。勝者はどんどん勝ち上がり、最後まで勝ち残った1人が優勝です。",
-      bullets:["1対1のトーナメント形式","早く正解した方が1ポイント","先に3ポイントで勝ち上がり","最後まで勝ち残った1人が優勝"]},
+      bullets:["1対1のトーナメント形式","早く正解した方が1ポイント","先に3ポイントで勝ち上がり","人数が奇数だと不戦勝が出ることがある","最後まで勝ち残った1人が優勝"]},
     {id:"auction", icon:"💰", title:"オークションバトル", sub:"チップを賭けて正解を競う・駆け引き必至", advanced:false, strict:false, oneWord:false, auction:true, hidden:true, game:'auction',
-      rules:"全員チップ20枚からスタート。毎ラウンド、難易度が発表されたらチップを賭けます（持ちチップが多い人ほど最低ベット額が高くなります）。最初に正解した人は、賭けた分×難易度倍率＋ボーナスに加えて、外れた人の賭け金の半分をもらえます。外れた人は賭けた分を没収されます。チップでアイテムも買えます。6ラウンド終了時に残ったチップ数がそのままスコアになります。",
-      bullets:["全員チップ20枚からスタート","難易度が出たらチップを賭ける","最初の正解者が賭け金×倍率＋αを獲得","外れた人は賭け金を没収","6ラウンド後のチップ数がスコア"]}
+      bullets:["全員チップ20枚からスタート","難易度が出たらチップを賭ける（持ちチップが多い人ほど最低額も高い）","最初の正解者が賭け金×倍率＋外れた人の賭け金の半分を獲得","外れた人は賭け金を没収","チップでアイテムも買える","6ラウンド後のチップ数がスコア"]}
   ];
 
   // ===== 第12弾：棚とカセット（あつまれ、あれこれのトップ画面） =====
@@ -4464,7 +4461,9 @@
     var v = rtView(), you = rt.state.secret;
     if(!v) return;
     el('rtTurnBanner').innerHTML = turnBannerHtml(v.turn, v.turnLimit, '日目');
-    el('rtPhase').textContent = RT_PHASE_LABEL[v.phase] || v.phase;
+    // 第23弾-1：決選投票は、ふつうの投票と見分けがつくようにする
+    el('rtPhase').textContent = (v.phase === 'vote' && v.runoff)
+      ? '決選投票' : (RT_PHASE_LABEL[v.phase] || v.phase);
     el('rtPublicBox').innerHTML = rtPublicHtml(v);
 
     var grid = el('rtChoiceGrid'), confirm = el('rtConfirmBtn'), next = el('rtNextBtn');
@@ -4506,6 +4505,18 @@
         : 'みんなの操作を待っています';
     }
   }
+  // 第23弾-2：決着した時だけサーバーから届く「だれが だれに 入れたか」。
+  // 手渡し方式の renderWrVoteLog と同じ見た目に揃える。
+  function rtVoteLogHtml(log){
+    if(!log || !log.length) return '';
+    return '<div class="vote-log"><div class="vl-title">🗳️ だれが だれに 入れたか</div>' +
+      log.map(function(e){
+        return '<div class="vl-turn"><span class="vl-day">' + e.turn + '日目</span>' +
+          e.rows.map(function(x){
+            return '<span class="vl-row">' + escapeHtml(x.from) + ' → <b>' + escapeHtml(x.to) + '</b></span>';
+          }).join('') + '</div>';
+      }).join('') + '</div>';
+  }
   function rtPublicHtml(v){
     var lines = [];
     if(v.phase === 'day' && v.morning){
@@ -4516,14 +4527,28 @@
       });
       if(v.morning.attackOverlap) lines.push('🐺 人狼たちの狙いが重なりました');
     }
+    // 第23弾-1：決選投票の最中は、候補が誰かを全員に見せる
+    if(v.phase === 'vote' && v.runoff){
+      lines.push('⚖️ 決選投票：' + escapeHtml(v.runoff.candidates.join('・')));
+    }
     if(v.phase === 'turnResult' && v.turnResult){
       var ex = v.turnResult.executed;
+      var ro = v.turnResult.runoff;
       lines.push(ex ? ('⚖️ ' + escapeHtml(ex.name) + (ex.role ? '（' + escapeHtml(ex.role) + '）' : '') + ' が処刑されました')
-                    : '🤝 同数のため、誰も処刑されませんでした');
+                    : (ro ? '🤝 決選投票でも同数のため、誰も処刑されませんでした'
+                          : '🤝 同数のため、誰も処刑されませんでした'));
       if(v.turnResult.counts){
         lines.push('<div class="vote-counts">' + v.turnResult.counts.map(function(c){
           return '<span class="vc-item">' + escapeHtml(c.name) + ' <b>' + c.n + '</b></span>';
         }).join('') + '</div>');
+      }
+      if(ro){
+        lines.push('⚖️ 同数だったので、' + escapeHtml(ro.candidates.join('・')) + ' で決選投票を行いました');
+        if(ro.counts){
+          lines.push('<div class="vote-counts">' + ro.counts.map(function(c){
+            return '<span class="vc-item">' + escapeHtml(c.name) + ' <b>' + c.n + '</b></span>';
+          }).join('') + '</div>');
+        }
       }
     }
     if(v.phase === 'ended' && v.result){
@@ -4531,6 +4556,7 @@
       lines.push(v.result.roles.map(function(p){
         return escapeHtml(p.name) + '＝' + escapeHtml(p.roleName);
       }).join('　'));
+      lines.push(rtVoteLogHtml(v.result.voteLog));
     }
     lines.push('のこり ' + v.aliveCount + '人');
     return lines.join('<br>');
@@ -4638,13 +4664,24 @@
         : '平和な朝です';
       if(v.morning && v.morning.attackOverlap) sub += ' ／ 人狼たちの狙いが重なりました';
     }
-    else if(v.phase === 'vote'){ main = '投票'; sub = '自分のスマホでえらんでください'; }
+    else if(v.phase === 'vote'){
+      main = v.runoff ? '決選投票' : '投票';
+      sub = v.runoff
+        ? v.runoff.candidates.join('・') + ' のどちらかをえらんでください'
+        : '自分のスマホでえらんでください';
+    }
     else if(v.phase === 'turnResult'){
       var ex = v.turnResult && v.turnResult.executed;
+      var bro = v.turnResult && v.turnResult.runoff;
       main = ex ? ex.name : '処刑なし';
-      sub = ex ? ((ex.role ? '（' + ex.role + '）' : '') + ' が処刑されました') : '同数だったため';
+      sub = ex ? ((ex.role ? '（' + ex.role + '）' : '') + ' が処刑されました')
+               : (bro ? '決選投票でも同数だったため' : '同数だったため');
       if(v.turnResult && v.turnResult.counts){
         sub += '<br>' + v.turnResult.counts.map(function(c){ return c.name + ' ' + c.n; }).join('　');
+      }
+      if(bro){
+        sub += '<br>⚖️ 決選投票：' + bro.candidates.join('・');
+        if(bro.counts) sub += '　' + bro.counts.map(function(c){ return c.name + ' ' + c.n; }).join('　');
       }
     }
     else if(v.phase === 'ended'){
@@ -4722,6 +4759,9 @@
   });
 
   // ===================== 4.5 mode rules =====================
+  // 第23弾-3：以前は bullets が無いモード向けに rules（長文）も持っていたが、
+  // 全22モードに bullets があるため rules は一度も表示されていなかった。
+  // 中身は bullets に統合して、フィールドごと消してある。
   function renderModeRules(){
     var m = modeById(state.selectedModeId);
     el('rulesTitle').textContent = m.title + ' のルール';
@@ -4731,7 +4771,7 @@
         m.bullets.map(function(b){ return '<li>' + escapeHtml(b) + '</li>'; }).join('') +
         '</ol>';
     } else {
-      body.textContent = m.rules || m.sub;
+      body.textContent = m.sub; // bullets を書き忘れた時の保険
     }
   }
   el('rulesStartBtn').addEventListener('click', function(){
@@ -4875,7 +4915,8 @@
     // 以前は wmOut（2〜ターン版）と wwExec.elim（複数ウルフ）の2か所にあり、
     // 前の試合の wmOut が残ったまま次の試合が始まる不具合もあった。
     play.wolfExecutedIds = [];
-    play.wwLast = null;   // 直前の投票の集計結果（結果画面はこれを見る）
+    play.wwLast = null;      // 直前の投票の集計結果（結果画面はこれを見る）
+    play.wolfRunoff = null;  // 決選投票の途中かどうか（第23弾-1）
     play.wwScored = false;
     // 第20弾-10：ウルフが2人以上なら、投票と処刑をウルフの人数ぶんくり返す。
     // 1回の投票では最大1人しか処刑できず、残りのウルフが無条件で逃げ切れてしまうため。
@@ -4975,10 +5016,18 @@
         infoBox.style.display = 'none';
         infoBox.innerHTML = '';
       }
+      // 第23弾-1：決選投票では、同数で並んだ人だけが候補になる
+      var runoff = play.wolfRunoff;
+      el('wolfVoteTitle').textContent = runoff ? '⚖️ 決選投票' : 'だれがウルフ🐺だと思う？';
+      el('wolfVoteNote').style.display = runoff ? 'block' : 'none';
+      el('wolfVoteNote').textContent = runoff
+        ? '同数で並んだ人だけが候補です。これで決まらなければ処刑なしです' : '';
       // 脱落した人・処刑された人は投票先に出さない
       var others = state.players.filter(function(pp){
         if(pp.id === p.id) return false;
-        return !wolfIsOut(pp.id);
+        if(wolfIsOut(pp.id)) return false;
+        if(runoff && runoff.candidates.indexOf(pp.id) === -1) return false;
+        return true;
       });
       el('wolfVoteGrid').innerHTML = others.map(function(pp){
         return '<button class="pk-btn" data-id="'+pp.id+'">'+escapeHtml(pp.name)+'</button>';
@@ -5128,37 +5177,61 @@
   // 第22弾-5：人狼側と同じ uiTallyCountdown を使う（別実装をやめた）
   el('wolfTallyBtn').addEventListener('click', function(){
     uiTallyCountdown(el('wolfCdNumber'), el('wolfTallyBtn'), function(){
-      resolveWolfVote();
-      goTo('scr-wolf-result');
+      // 決選投票に入った回は、結果画面へ行かずにもう一度スマホを回す
+      if(resolveWolfVote()) goTo('scr-wolf-result');
     });
   });
 
   // ---- 第22弾-6：ワードウルフの投票集計 ----
-  // 集計そのものは人狼と同じ WolfLogic.tally に任せる。
+  // 集計そのものは人狼と同じ WolfLogic に任せる。
   // ここでやるのは「その結果を、このゲームの言葉に置き換える」ことだけ。
-  function wolfVoteOutcome(){
-    var t = WolfLogic.tally(play.wolfVotes);
-    var executed = t.executedId
-      ? state.players.find(function(p){ return p.id === t.executedId; })
+  function wolfVoteOutcome(vo){
+    // 画面を開き直した時などは、決選投票なしで素直に集計し直す
+    vo = vo || WolfLogic.voteOutcome(play.wolfVotes, { isRunoff: true });
+    var executedId = (vo.kind === 'execute') ? vo.targetId : null;
+    var executed = executedId
+      ? state.players.find(function(p){ return p.id === executedId; })
       : null;
     return {
-      counts: t.counts, tie: t.tie, max: t.max,
-      executedId: t.executedId,
+      counts: vo.tally.counts, tie: vo.tally.tie, max: vo.tally.max,
+      executedId: executedId,
       executed: executed,
-      wasWolf: !!executed && play.wolfMinorityIds.indexOf(executed.id) !== -1
+      wasWolf: !!executed && play.wolfMinorityIds.indexOf(executed.id) !== -1,
+      runoff: null
     };
+  }
+
+  // 第23弾-1：同数だった時の決選投票。並んだ人だけを選択肢にして、もう一度回す
+  function startWolfRunoff(vo){
+    play.wolfRunoff = {
+      candidates: vo.candidates,
+      firstTally: vo.tally,
+      firstVotes: Object.assign({}, play.wolfVotes)
+    };
+    startWolfVotePass(); // 票を消して、手渡しからやり直す
   }
 
   // 投票を締める。集計と、それに伴う脱落の反映を、この1か所だけで行う。
   // 第22弾-6：以前は結果画面の描画と「つぎへ」ボタンが別々に集計をやり直していて、
   // 集計のタイミングが2つあった（しかも片方は別のルールだった）。
+  // 決選投票に入った場合は false を返す（まだ結果を出す段階ではない）。
   function resolveWolfVote(){
-    var o = wolfVoteOutcome();
+    var vo = WolfLogic.voteOutcome(play.wolfVotes, { isRunoff: !!play.wolfRunoff });
+    if(vo.kind === 'runoff'){ startWolfRunoff(vo); return false; }
+    var o = wolfVoteOutcome(vo);
+    if(play.wolfRunoff){
+      // 記録と票数は1回目のものに戻す。誰が処刑されたかだけが決選投票の結果
+      o.runoff = { counts: vo.tally.counts, candidates: play.wolfRunoff.candidates };
+      o.counts = play.wolfRunoff.firstTally.counts;
+      o.tie = play.wolfRunoff.firstTally.tie;
+      play.wolfVotes = play.wolfRunoff.firstVotes;
+      play.wolfRunoff = null;
+    }
     play.wwLast = o;
     play.wolfVoteRounds.push(Object.assign({}, play.wolfVotes));
     if(o.executedId) play.wolfExecutedIds.push(o.executedId);
     if(play.wwExec && !play.wwExec.winner) advanceWolfExecRound(o);
-    return o;
+    return true;
   }
 
   // ---- 第20弾-10：複数ウルフ時の処刑ラウンド ----
@@ -5184,17 +5257,66 @@
     var ex = play.wwExec;
     var last = ex.log[ex.log.length - 1];
     var head = last.tie
-      ? '<div class="day-peace">🤝 同数だったので、誰も処刑されませんでした</div>'
+      ? '<div class="day-peace">🤝 ' +
+        ((play.wwLast && play.wwLast.runoff) ? '決選投票でも同数だったので' : '同数だったので') +
+        '、誰も処刑されませんでした</div>'
       : '<div class="day-death">⚖️ ' + escapeHtml(last.name) + ' が処刑されました</div>' +
         '<div class="' + (last.wasWolf ? 'day-death' : 'day-peace') + '" style="margin-top:6px;">' +
         (last.wasWolf ? '🐺 ウルフでした！' : '🐑 シープでした…') + '</div>';
     el('wolfResultTopics').innerHTML =
       // ex.round は次の回に進んでいるので、いま締めた回は log から取る
       '<div class="wolf-topic-label">' + last.round + '回目の投票</div>' + head +
+      renderWolfRunoffNote(play.wwLast) +
       '<div class="day-note">のこりのウルフ🐺 ' + wolfSideAlive().length + '人 ／ ' +
       'シープ🐑 ' + villageSideAlive().length + '人</div>';
     el('wolfResultList').innerHTML = wolfInterimList(play.wwLast);
     el('wolfResultNextBtn').textContent = 'つぎの投票へ ▶';
+  }
+
+  // 第23弾-1：決選投票が行われた回は、そのことと2回目の票数を添える。
+  // 1回目の票数だけでは「なぜこの人に決まったのか」が分からないため。
+  function renderWolfRunoffNote(o){
+    if(!o || !o.runoff) return '';
+    var names = o.runoff.candidates.map(function(id){
+      var p = state.players.find(function(x){ return x.id === id; });
+      return p ? p.name : '?';
+    });
+    var counts = o.runoff.counts || {};
+    var rows = Object.keys(counts).map(function(id){
+      var p = state.players.find(function(x){ return x.id === id; });
+      return escapeHtml(p ? p.name : '?') + ' <b>' + counts[id] + '</b>';
+    });
+    return '<div class="mic-status" style="margin-top:8px;">⚖️ 同数だったので、' +
+      escapeHtml(names.join('・')) + ' で決選投票を行いました</div>' +
+      (rows.length ? '<div class="vote-counts">' +
+        rows.map(function(r){ return '<span class="vc-item">' + r + '</span>'; }).join('') +
+        '</div>' : '');
+  }
+
+  // 第23弾-2：決着したあとだけ、誰が誰に入れたかを開示する。
+  // 途中のターンでは出さない（指示18で決めた「答え合わせは決着してから」の原則）。
+  // 投票が何回かあった時（複数ウルフ・2〜ターン）は、回ごとに分けて出す。
+  function renderWolfVoteLog(){
+    var rounds = play.wolfVoteRounds || [];
+    if(!rounds.length) return '';
+    var nameOf = function(id){
+      var p = state.players.find(function(x){ return x.id === id; });
+      return p ? p.name : '?';
+    };
+    // 何を「1回」と呼ぶかは遊び方で変わる。回が1つだけなら見出しは要らない
+    var label = function(i){
+      if(rounds.length < 2) return '';
+      var word = play.wwExec ? (i + 1) + '回目' : (i + 1) + 'ターン目';
+      return '<span class="vl-day">' + word + '</span>';
+    };
+    return '<div class="vote-log"><div class="vl-title">🗳️ だれが だれに 入れたか</div>' +
+      rounds.map(function(votes, i){
+        var rows = Object.keys(votes).map(function(voter){
+          return '<span class="vl-row">' + escapeHtml(nameOf(voter)) + ' → <b>' +
+            escapeHtml(nameOf(votes[voter])) + '</b></span>';
+        }).join('');
+        return '<div class="vl-turn">' + label(i) + rows + '</div>';
+      }).join('') + '</div>';
   }
 
   // 途中経過の一覧。まだ答え合わせをしていないので、出せるのは
@@ -5220,10 +5342,13 @@
     var implied = (o.executedId && play.wolfMinorityIds.length === 1)
       ? '<div class="day-peace" style="margin-top:6px;">🐑 シープでした…</div>' : '';
     var head = !o.executedId
-      ? '<div class="day-peace">🤝 同数だったので、だれも脱落しませんでした</div>'
-      : '<div class="day-death">⚖️ ' + escapeHtml(o.executed.name) + ' が脱落しました</div>' + implied;
+      ? '<div class="day-peace">🤝 ' + (o.runoff ? '決選投票でも同数だったので' : '同数だったので') +
+        '、だれも処刑されませんでした</div>'
+      // 第23弾-3：ルール説明も画面も「処刑」で揃える（ここだけ「脱落」と呼んでいた）
+      : '<div class="day-death">⚖️ ' + escapeHtml(o.executed.name) + ' が処刑されました</div>' + implied;
     el('wolfResultTopics').innerHTML =
       '<div class="wolf-topic-label">' + play.wmTurn + 'ターン目の投票</div>' + head +
+      renderWolfRunoffNote(o) +
       '<div class="day-note">お題はこのままです。のこり ' + wolfSurvivors().length + '人で話し合います</div>';
     el('wolfResultList').innerHTML = wolfInterimList(o);
     el('wolfResultNextBtn').textContent = 'つぎのターンへ ▶';
@@ -5260,13 +5385,17 @@
         (wolfSideAlive().length ? '🐺 ウルフの逃げ切り' : '🎉 ウルフをあぶり出しました') + '</div>' +
         '<div class="day-note">' + (o.executedId
           ? escapeHtml(o.executed.name) + ' が処刑されました（' + (o.wasWolf ? 'ウルフ🐺' : 'シープ🐑') + '）'
-          : '同数だったので、だれも処刑されませんでした') + '</div>';
+          : (o.runoff ? '決選投票でも同数だったので、だれも処刑されませんでした'
+                      : '同数だったので、だれも処刑されませんでした')) + '</div>' +
+        renderWolfRunoffNote(o);
     }
     el('wolfResultTopics').innerHTML = execHead +
       'シープ🐑のお題：<b>'+escapeHtml(play.wolfMajorityTopic.name)+'</b>　／　ウルフ🐺のお題：<b>'+escapeHtml(play.wolfMinorityTopic.name)+'</b>'+
       // 第18弾-6：役職ありなら、まきこみの公開と答え合わせを添える。
       // ただし2〜ターン版は途中で役職を割ると残りのターンが成立しないので、決着時だけ出す。
-      renderWolfRoleReveal(!play.wmActive);
+      renderWolfRoleReveal(!play.wmActive) +
+      // 第23弾-2：ここまで来た＝この回は答え合わせ済みなので、投票の中身も開ける
+      renderWolfVoteLog();
 
     var scoreDeltas = {};
     // 狂人は多数派のお題を持つが、スコアの上では人狼側として扱う。
@@ -5418,7 +5547,8 @@
       : '🏁 ' + state.wmCfg.turnLimit + 'ターン終了！合計得点で決着です')
       + '<div class="day-note">シープ🐑のお題：<b>' + escapeHtml(play.wolfMajorityTopic.name) +
         '</b>　／　ウルフ🐺のお題：<b>' + escapeHtml(play.wolfMinorityTopic.name) + '</b></div>'
-      + renderWolfRoleReveal(true); // 決着したので、ここで役職を明かす
+      + renderWolfRoleReveal(true)  // 決着したので、ここで役職を明かす
+      + renderWolfVoteLog();        // 第23弾-2：投票の中身も開ける
     el('wolfResultList').innerHTML = state.players.map(function(p){
       var isWolf = play.wolfMinorityIds.indexOf(p.id) !== -1;
       return '<div class="reveal-row"><div class="rn">' + escapeHtml(p.name) + (isWolf ? ' 🐺' : '') +
@@ -5618,8 +5748,10 @@
   }
 
   // ---- 投票 ----
-  function startWrVote(){
+  function startWrVote(keepRunoff){
     wr.step = 'vote';
+    // 決選投票からの呼び出し以外は、前の決選投票の状態を必ず消す
+    if(!keepRunoff) wr.runoff = null;
     // ロジック層は phase が 'vote' でないと投票を受け付けない。
     // 夜のあとは 'day' のままなので、ここで必ず切り替える
     // （これを忘れると1票も入らず、全員が正しく投票しても誰も処刑されない）
@@ -5627,6 +5759,17 @@
     wr.queue = WolfLogic.alivePlayers(wr.game).map(function(p){ return p.id; });
     wr.idx = 0;
     goTo('scr-wr-pass');
+  }
+  // 第23弾-1：同数だった時の決選投票。並んだ人だけを選択肢にして、もう一度回す。
+  // 1回目の投票は残しておく（記録と「読みの精度」は、絞り込む前の1票で測る）。
+  function startWrRunoff(vo){
+    wr.runoff = {
+      candidates: vo.candidates,
+      firstTally: vo.tally,
+      firstVotes: Object.assign({}, wr.game.votes)
+    };
+    wr.game.votes = {};
+    startWrVote(true);
   }
 
   function enterWrPass(){
@@ -5798,7 +5941,11 @@
   }
 
   function showWrVote(p){
-    var targets = WolfLogic.alivePlayers(wr.game)
+    // 第23弾-1：決選投票では、同数で並んだ人だけが選択肢になる
+    var pool = WolfLogic.alivePlayers(wr.game).filter(function(t){
+      return !wr.runoff || wr.runoff.candidates.indexOf(t.id) !== -1;
+    });
+    var targets = pool
       .filter(function(t){ return t.id !== p.id; })
       .map(function(t){ return { id:t.id, name:t.name }; });
     // 第20弾-2で、占い・霊媒・のぞき見の結果は「得た瞬間」に本人へ渡すようになった。
@@ -5828,7 +5975,12 @@
                   }).join('<br>') + '</div>'
                 : '<div class="mic-status">まだ亡くなった人はいません</div>');
     }
-    html += '<div class="wolf-topic-label" style="margin-top:10px;">だれに投票しますか？</div>';
+    if(wr.runoff){
+      html += '<div class="wolf-topic-label" style="margin-top:10px;">⚖️ 決選投票</div>' +
+              '<div class="mic-status">同数で並んだ人だけが候補です。これで決まらなければ処刑なしです</div>';
+    } else {
+      html += '<div class="wolf-topic-label" style="margin-top:10px;">だれに投票しますか？</div>';
+    }
     uiHandoffContent({ name: p.name, html: html, choices: targets });
   }
 
@@ -6028,7 +6180,17 @@
   // ---- 集計 → 処刑 → 判定 ----
   el('wrTallyBtn').addEventListener('click', function(){
     uiTallyCountdown(el('wrCdNumber'), el('wrTallyBtn'), function(){
-      var out = WolfLogic.executeVote(wr.game);
+      // 第23弾-1：同数なら、並んだ人だけでもう一度。判断は WolfLogic に任せる
+      var vo = WolfLogic.voteOutcome(wr.game.votes, { isRunoff: !!wr.runoff });
+      if(vo.kind === 'runoff'){ startWrRunoff(vo); return; }
+      // 決選投票を経た時は、記録に残すのは1回目の投票に戻す。
+      // 「誰が人狼に入れたか」は、候補を絞る前の1票で測るのが自然なため。
+      // 誰を処刑するかだけを、決選投票の結果（forcedId）で上書きする。
+      var runoff = wr.runoff;
+      if(runoff) wr.game.votes = runoff.firstVotes;
+      var out = WolfLogic.executeVote(wr.game, vo.kind === 'execute' ? vo.targetId : null);
+      out.runoff = runoff ? { tally: vo.tally, candidates: runoff.candidates, decided: vo.kind === 'execute' } : null;
+      wr.runoff = null;
       wr.voteOut = out;
       if(out.executed) WolfLogic.checkTeruteru(wr.game, out.executed);
       var res = WolfLogic.evaluate(wr.game);
@@ -6056,8 +6218,10 @@
     var role = (ex && wr.game.config.revealRoleOnDeath) ? '（' + WolfLogic.roleById(ex.role).name + '）' : '';
     el('wrResultSummary').innerHTML = (ex
       ? '⚖️ ' + escapeHtml(ex.name) + escapeHtml(role) + ' が処刑されました'
-      : '🤝 同数のため、誰も処刑されませんでした')
-      + renderWrVoteCounts(out.tally);
+      : (out.runoff ? '🤝 決選投票でも同数のため、誰も処刑されませんでした'
+                    : '🤝 同数のため、誰も処刑されませんでした'))
+      + renderWrVoteCounts(out.tally)
+      + renderWrRunoffNote(out);
     el('wrResultList').innerHTML = renderWrAliveList();
     // 決着していれば、この先は次の夜ではなく最終結果へ進む
     el('wrResultNextBtn').textContent = wr.pendingEnd ? '結果を見る ▶' : 'つぎの夜へ ▶';
@@ -6077,7 +6241,7 @@
     if(r.teruteruWin) extra += '<br>🎏 てるてる坊主の個人勝利';
     if(r.loversWin) extra += '<br>💞 恋人2人の勝利';
     if(r.reason === 'turnLimit') extra += '<br><span style="font-size:11px;">（ターン上限のため）</span>';
-    el('wrResultSummary').innerHTML = winnerLabel + extra;
+    el('wrResultSummary').innerHTML = winnerLabel + extra + renderWrVoteLog();
     el('wrResultList').innerHTML = renderWrRoleList();
     el('wrResultNextBtn').textContent = 'スコアへ ▶';
     wr.finished = true;
@@ -6096,6 +6260,42 @@
     return '<div class="vote-counts">' + rows.map(function(r){
       return '<span class="vc-item">' + escapeHtml(r.name) + ' <b>' + r.n + '</b></span>';
     }).join('') + '</div>';
+  }
+  // 第23弾-2：決着したあとだけ、誰が誰に入れたかを開示する。
+  // 途中のターンで出すと、まだ生きている推理を壊してしまう
+  // （指示18で決めた「答え合わせは決着してから」の原則と同じ）。
+  // 票数を隠す設定の時は、こちらも出さない（より詳しい情報なので）。
+  function renderWrVoteLog(){
+    if(wr.game.config.showVoteCounts === false) return '';
+    var rounds = (wr.game.log || []).filter(function(e){
+      return e.type === 'vote' && e.votes && Object.keys(e.votes).length;
+    });
+    if(!rounds.length) return '';
+    var nameOf = function(id){
+      var p = WolfLogic.findPlayer(wr.game, id);
+      return p ? p.name : '?';
+    };
+    return '<div class="vote-log"><div class="vl-title">🗳️ だれが だれに 入れたか</div>' +
+      rounds.map(function(e){
+        var rows = Object.keys(e.votes).map(function(voter){
+          return '<span class="vl-row">' + escapeHtml(nameOf(voter)) + ' → <b>' +
+            escapeHtml(nameOf(e.votes[voter])) + '</b></span>';
+        }).join('');
+        return '<div class="vl-turn"><span class="vl-day">' + e.turn + '日目</span>' + rows + '</div>';
+      }).join('') + '</div>';
+  }
+
+  // 第23弾-1：決選投票が行われた回は、そのことと2回目の票数を添える。
+  // 1回目の票数だけ見て「なぜこの人が処刑されたのか」が分からなくならないように。
+  function renderWrRunoffNote(out){
+    if(!out || !out.runoff) return '';
+    var names = out.runoff.candidates.map(function(id){
+      var p = WolfLogic.findPlayer(wr.game, id);
+      return p ? p.name : '?';
+    });
+    return '<div class="mic-status" style="margin-top:8px;">⚖️ 同数だったので、' +
+      escapeHtml(names.join('・')) + ' で決選投票を行いました</div>' +
+      renderWrVoteCounts(out.runoff.tally);
   }
   // 第20弾-5-3：ただの「脱落」では、いつ何で欠けたのかが分からない
   var DEAD_CAUSE_LABEL = {

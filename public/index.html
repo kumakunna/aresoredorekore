@@ -3707,7 +3707,8 @@
   function enterMode(){
     // ⑤(第2弾)：サバイバルの脱落フラグを次のモードに持ち越さない。
     // 1の修正でサバイバル決着前はこの画面に来られないため、ここでのリセットは安全。
-    state.players.forEach(function(p){ p.eliminated = false; });
+    // 第26弾-4：「最下位候補だった」印も、次のサバイバルに持ち越さない
+    state.players.forEach(function(p){ p.eliminated = false; p.wasLastPlace = false; });
     // 第6弾：独立ゲームは hidden で一覧から除外。選択中が非表示なら先頭の表示モードに戻す
     // 選択中モードが今の一覧に無ければ（非表示 or 別ゲームのモード）先頭に戻す
     var list = visibleModes();
@@ -5734,8 +5735,10 @@
     if(vo.kind === 'runoff'){ startWolfRunoff(vo); return false; }
     var o = wolfVoteOutcome(vo);
     if(play.wolfRunoff){
-      // 記録と票数は1回目のものに戻す。誰が処刑されたかだけが決選投票の結果
-      o.runoff = { counts: vo.counts, candidates: play.wolfRunoff.candidates };
+      // 記録と票数は1回目のものに戻す。誰が処刑されたかだけが決選投票の結果。
+      // 第26弾-4：「決選投票で逆転に貢献したか」は、戻す前の票でしか分からない
+      o.runoff = { counts: vo.counts, candidates: play.wolfRunoff.candidates,
+                   votes: Object.assign({}, play.wolfVotes) };
       o.counts = play.wolfRunoff.firstTally.counts;
       o.tie = play.wolfRunoff.firstTally.tie;
       play.wolfVotes = play.wolfRunoff.firstVotes;
@@ -6910,10 +6913,17 @@
         if(!caught){ add.wordwolfEscapes = 1; add.wolfEscapes = 1; }
         if(wolvesLeft){ add.wins = 1; add.wolfWins = 1; }
       } else {
-        if(!wolvesLeft){ add.wins = 1; add.villageWins = 1; }
-        // シープ側が正しくウルフに入れた回数
+        var won = !wolvesLeft;
+        if(won){ add.wins = 1; add.villageWins = 1; }
+        // シープ側が正しくウルフに入れた回数。
+        // play.wolfVotes は決選投票のあとも1回目の票に戻されているので、
+        // 「最初の投票でウルフを指せたか」を素直に見られる
         var o = play.wwLast;
-        if(o && o.wasWolf && o.votes && o.votes[id] === o.executedId) add.correctVotes = 1;
+        if(o && o.wasWolf && play.wolfVotes && play.wolfVotes[id] === o.executedId) add.correctVotes = 1;
+        // 決選投票で処刑された人に入れて、勝ち切った＝逆転に貢献した
+        if(won && o && o.runoff && o.runoff.votes && o.runoff.votes[id] === o.executedId){
+          add.runoffComeback = 1;
+        }
       }
     }
     recordTitleStats('jinro', add);
@@ -7691,6 +7701,7 @@
     play.remaining = t;
     play.running = false;
     play.roundStartScores = {};
+    play.titlePending = {}; // 第26弾-4：お題ごとに数えた称号のぶんも、ラウンドごとに仕切り直す
     state.players.forEach(function(p){ play.roundStartScores[p.id] = p.score; });
     if(!isAIDescribe() && state.describerPlayerId){
       var idx = state.players.findIndex(function(p){ return p.id === state.describerPlayerId; });
@@ -8047,16 +8058,38 @@
   });
   el('pickerSkipBtn').addEventListener('click', function(){
     if(!el('correctPickerOverlay').classList.contains('show')) return; // 連打二重処理防止
+    noteOneHint(null); // 誰が当てたかは分からないが、出題側のぶんは数えられる
     logResult('correct');
     el('correctPickerOverlay').classList.remove('show');
     nextTopic();
   });
+  /**
+   * 第26弾-4：「一発で当てさせた／ヒント1つで当てた」を数える。
+   * ヒントが何個出ていたかは、正解が出たその瞬間にしか分からない
+   * （次のお題に進むと play.hintWords が作り直される）ので、ここで数える。
+   * 保存は1問ごとではなくラウンドの終わりにまとめる（通信を増やさない）。
+   */
+  function noteOneHint(answererId){
+    if(!isHintDescribe()) return;                  // ヒントを数えるのは一言ヒントの遊び方だけ
+    if((play.hintWords || []).length !== 1) return; // 増やしてもらったら「一発」ではない
+    play.titlePending = play.titlePending || {};
+    var meId = myPlayerId(state.players);
+    if(!meId) return;
+    if(play.describerIndex != null && state.players[play.describerIndex] &&
+       state.players[play.describerIndex].id === meId){
+      play.titlePending.oneHintGiven = (play.titlePending.oneHintGiven || 0) + 1;
+    }
+    if(answererId && answererId === meId){
+      play.titlePending.oneHintAnswered = (play.titlePending.oneHintAnswered || 0) + 1;
+    }
+  }
   el('pickerGrid').addEventListener('click', function(e){
     var btn = e.target.closest('button[data-id]');
     if(!btn) return;
     if(!el('correctPickerOverlay').classList.contains('show')) return; // 連打で二重加点しない
     scorePlayer(btn.dataset.id, 1);
     var p = state.players.find(function(pp){ return pp.id === btn.dataset.id; });
+    noteOneHint(btn.dataset.id);
     logResult('correct', p ? p.name : null);
     playStamp();
     if(state.describerScores && play.describerIndex != null && state.players[play.describerIndex]){
@@ -8254,6 +8287,12 @@
     banner.style.display = 'none';
     if(optSurvival()){
       var active = state.players.filter(function(p){ return !p.eliminated; });
+      // 第26弾-4：「不屈」のために、このラウンドを最下位で迎えた人に印をつける。
+      // 誰が最下位候補かの決め方は titles.js に置いてある（条件と同じ場所）
+      TitleLogic.lastPlaceIds(active, play.roundStartScores).forEach(function(id){
+        var p = state.players.find(function(x){ return x.id === id; });
+        if(p) p.wasLastPlace = true;
+      });
       if(active.length > 1){
         var deltaOf = function(p){
           var s = play.roundStartScores[p.id] !== undefined ? play.roundStartScores[p.id] : p.score;
@@ -8313,13 +8352,22 @@
       // 封印ワード縛りのまま当ててもらえた
       if(seal && state.describerPlayerId === me.id && best > 0) add.sealedSuccess = 1;
     }
+    // お題ごとに数えておいたぶん（ヒント1つで当てた／当てさせた）を合流させる
+    Object.keys(play.titlePending || {}).forEach(function(k){
+      add[k] = (add[k] || 0) + play.titlePending[k];
+    });
+    play.titlePending = {};
     recordTitleStats('aresore', add);
   }
   // サバイバルの優勝は、決着した時に1回だけ数える（スコア画面は何度も開ける）
   function awardAresoreChampion(championId){
     var id = myPlayerId(state.players);
     if(!id || id !== championId) return;
-    recordTitleStats('aresore', { survivalWins: 1, wins: 1 });
+    var me = state.players.find(function(p){ return p.id === id; });
+    var add = { survivalWins: 1, wins: 1 };
+    // 一度は総合最下位に並んでいたのに、そこから勝ち切った
+    if(me && me.wasLastPlace) add.comebackWins = 1;
+    recordTitleStats('aresore', add);
   }
   function animateCount(elId, from, to, dur){
     if(from === to) return;

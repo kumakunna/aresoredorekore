@@ -240,6 +240,34 @@
     ]
   };
 
+  /**
+   * サバイバルで「最下位候補」になった人を選ぶ（称号「不屈」の前半分）。
+   *
+   * 見るのは、そのラウンドが始まった時点の通算スコア。
+   * ラウンドの伸びで脱落が決まるので、通算で最下位でも生き残ることがあり、
+   * そこから勝ち上がったことを「一度最下位候補になってから優勝」と呼ぶ。
+   *
+   * 全員が並んでいる時（初回など）は誰も最下位候補にしない。
+   * そうしないと1回目で全員に印が付いて、優勝者が必ず不屈になってしまう。
+   *
+   * @param {Array} active  まだ脱落していない人 [{id}]
+   * @param {Object} startScores  ラウンド開始時の通算スコア（id -> 点）
+   * @returns {Array} 最下位候補になった人のid
+   */
+  function lastPlaceIds(active, startScores) {
+    var list = (active || []).filter(function (p) { return p && p.id != null; });
+    if (list.length < 2) return [];
+    var scoreOf = function (p) {
+      var v = (startScores || {})[p.id];
+      return (typeof v === 'number' && isFinite(v)) ? v : 0;
+    };
+    var min = Math.min.apply(null, list.map(scoreOf));
+    var max = Math.max.apply(null, list.map(scoreOf));
+    if (min === max) return []; // 全員並んでいるなら、誰も遅れていない
+    return list.filter(function (p) { return scoreOf(p) === min; })
+               .map(function (p) { return p.id; });
+  }
+
   // 最初から全員が持っているもの
   var DEFAULTS = {};
   Object.keys(CATALOG).forEach(function (part) {
@@ -324,6 +352,7 @@
     normalizeStats: normalizeStats,
     partsOf: partsOf,
     partById: partById,
+    lastPlaceIds: lastPlaceIds,
     unlockedIds: unlockedIds,
     mergeUnlocked: mergeUnlocked,
     newlyUnlocked: newlyUnlocked,

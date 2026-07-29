@@ -519,5 +519,83 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第26弾 第4部（続き）：残りの3条件 ----
+
+  await r.test('一言ヒント：ヒント1つで当てたら「聞き上手」が手に入る', async () => {
+    // ヒントが何個出ていたかは、正解が出たその瞬間にしか分からない
+    // （次のお題に進むと作り直される）。そこで数えられていることを確かめる
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    // 自分（test）を含む2人で、一言ヒントの遊び方を始める
+    await setupPlayers(win, doc, ['test', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="oneword"]'));
+    click(doc, 'modeAutoBtn');
+    await sleep(win, 100);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-play', 8000);
+
+    // 一言ヒントは出題者を置かないので、当てた側だけが数えられる
+    click(doc, 'btnCorrect');
+    await sleep(win, 80);
+    const who = Array.from(doc.querySelectorAll('#pickerGrid button[data-id]'));
+    const meBtn = who.find(b => /test/.test(b.textContent)) || who[0];
+    meBtn.click();
+    await sleep(win, 150);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-score', 8000);
+
+    const stats = win.eval('JSON.stringify(0)') && null; // 内部は見ないで、画面から確かめる
+    click(doc, 'chooseModeBtn');
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'backToShelfBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    const kiki = doc.querySelector('#titleGroups [data-tid="first-kikijozu"]');
+    assert(kiki && !kiki.classList.contains('locked'),
+      'ヒント1つで当てたので「聞き上手」が手に入る');
+    assertNoErrors(errors, '一言ヒントの称号で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('一言ヒント：もう一言もらってから当てたら、数えない', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    await setupPlayers(win, doc, ['test', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="oneword"]'));
+    click(doc, 'modeAutoBtn');
+    await sleep(win, 100);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-play', 8000);
+
+    click(doc, 'moreHintBtn');            // ヒントを増やしてもらう
+    await sleep(win, 250);
+    click(doc, 'btnCorrect');
+    await sleep(win, 80);
+    const who = Array.from(doc.querySelectorAll('#pickerGrid button[data-id]'));
+    (who.find(b => /test/.test(b.textContent)) || who[0]).click();
+    await sleep(win, 150);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-score', 8000);
+
+    click(doc, 'chooseModeBtn');
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'backToShelfBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    const kiki = doc.querySelector('#titleGroups [data-tid="first-kikijozu"]');
+    assert(kiki && kiki.classList.contains('locked'),
+      'ヒントを増やしてもらったら「一発」ではない');
+    assertNoErrors(errors, 'ヒント追加の称号で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

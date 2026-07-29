@@ -1339,5 +1339,60 @@ function votesFrom(list) {
     win.close();
   });
 
+  // ---- 第26弾 第4部：決選投票で逆転に貢献した（手渡しワードウルフ） ----
+
+  await r.test('実機：決選投票で処刑された人に入れて勝つと「大胆」が手に入る', async () => {
+    // 決選投票の票は、集計のあと1回目の票に戻される。
+    // 逆転に貢献したかは戻す前の票でしか分からないので、そこを残せているかを見る
+    const players = ['test', 'びび', 'ちか', 'でん', 'えみ', 'ふう'];
+    const { win, doc, errors } = await launch();
+    await startWordwolf(win, doc, 'wordwolf', players, 1);
+    const { wolves, sheep } = await revealTopics(win, doc);
+    const w = wolves[0];
+    // ウルフに3票、シープの1人に3票 → 同数で決選投票へ
+    const plan = {};
+    plan[sheep[0]] = w; plan[sheep[1]] = w; plan[sheep[2]] = w;
+    plan[sheep[3]] = sheep[0]; plan[sheep[4]] = sheep[0]; plan[w] = sheep[0];
+    // 決選投票では全員がウルフを指す → ウルフが処刑され、シープ側の勝ち
+    const runoffPlan = {};
+    players.forEach((n) => { runoffPlan[n] = w; });
+    let sawRunoff = false;
+    await voteAndTally(win, doc, name => plan[name], {
+      runoffFor: name => runoffPlan[name],
+      onRunoff: () => { sawRunoff = true; }
+    });
+    assert(sawRunoff, '同数だったので決選投票に入る');
+    const text = el(doc, 'wolfResultTopics').textContent;
+    assert(/あぶり出しました/.test(text), '決選投票でウルフが捕まる（' + text.slice(0, 60) + '）');
+
+    // 称号の画面で確かめる
+    click(doc, 'wolfResultNextBtn');
+    await sleep(win, 200);
+    let guard = 0;
+    while (activeScreen(doc) !== 'scr-shelf' && guard++ < 10) {
+      const cur = activeScreen(doc);
+      let btn = doc.querySelector('#' + cur + ' [data-go-shelf]')
+        || (cur === 'scr-score' ? doc.getElementById('chooseModeBtn') : null)
+        || (cur === 'scr-mode' ? doc.getElementById('backToShelfBtn') : null);
+      if (!btn) break;
+      btn.click();
+      await sleep(win, 80);
+    }
+    assertEqual(activeScreen(doc), 'scr-shelf', '棚まで戻れる');
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    const daitan = doc.querySelector('#titleGroups [data-tid="first-daitan"]');
+    assert(daitan, '「大胆」が目録にある');
+    if (players[0] === w) {
+      // test がウルフだった回は、逆転に貢献しようがない
+      assert(daitan.classList.contains('locked'), 'ウルフ側だったので手に入らない');
+    } else {
+      assert(!daitan.classList.contains('locked'),
+        '決選投票でウルフを指して勝ったので手に入る');
+    }
+    assertNoErrors(errors, '決選投票の称号で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

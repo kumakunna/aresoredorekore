@@ -170,5 +170,19 @@ const CASES = [
     assertEqual(s.aresore.plays, 0, '足りないカセットは0で埋める');
   });
 
+  await r.test('サバイバル：ラウンドを最下位で迎えた人だけが「最下位候補」になる', async () => {
+    const P = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    assertEqual(T.lastPlaceIds(P, { a: 1, b: 3, c: 3 }).join(','), 'a', '一番遅れている人');
+    assertEqual(T.lastPlaceIds(P, { a: 1, b: 1, c: 3 }).sort().join(','), 'a,b', '並んでいれば両方');
+    // 全員同点の回で印を付けると、優勝者が必ず不屈になってしまう
+    assertEqual(T.lastPlaceIds(P, { a: 0, b: 0, c: 0 }).length, 0, '全員並んでいるなら誰も候補にしない');
+    assertEqual(T.lastPlaceIds(P, {}).length, 0, 'まだ点が無い回（全員0）も同じ');
+    // 脱落して1人になったら、もう順位を争っていない
+    assertEqual(T.lastPlaceIds([{ id: 'a' }], { a: 0 }).length, 0, '1人だけなら候補なし');
+    assertEqual(T.lastPlaceIds(null, null).length, 0, '空でも落ちない');
+    // マイナスや欠けた値でも壊れない
+    assertEqual(T.lastPlaceIds(P, { a: 2, b: 5 }).join(','), 'c', '点の記録が無い人は0点として扱う');
+  });
+
   r.finish();
 })();

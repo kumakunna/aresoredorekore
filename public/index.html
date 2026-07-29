@@ -4596,9 +4596,9 @@
     }
     if(info.kind === 'medium'){
       return '<div class="ry-label">霊媒の結果</div><div class="ry-desc">' +
-        (info.deaths.length ? info.deaths.map(function(d){
-          return escapeHtml(d.name) + ' は ' + escapeHtml(d.roleName);
-        }).join('<br>') : 'まだ亡くなった人はいません') + '</div>';
+        (info.executed
+          ? escapeHtml(info.executed.name) + ' は ' + escapeHtml(info.executed.roleName)
+          : mediumEmptyText()) + '</div>';
     }
     if(info.kind === 'guard'){
       return '<div class="ry-label">守りの結果</div><div class="ry-desc">' +
@@ -5833,6 +5833,15 @@
   function wrActionOf(playerId){
     return (wr.pending || []).find(function(a){ return a.playerId === playerId; });
   }
+  // 第24弾-1：霊媒師に見せるものが無い時の文言。
+  // 「まだ誰も亡くなっていません」だと、夜に襲われた人がいる時に嘘になるうえ、
+  // 本人には「能力が動いていない」ようにしか見えなかった。
+  // 何も分からないのが正常であることが伝わるように書く。
+  function mediumEmptyText(){
+    return (wr && wr.game && wr.game.turn > 1)
+      ? '前の昼は、誰も処刑されませんでした。今回は分かることがありません。'
+      : 'まだ処刑された人がいません。次の昼のあとから分かります。';
+  }
 
   // 第20弾-2：夜は「見る → 選ぶ／確認 → つぎの人へ」の3タップに全員そろえる。
   //
@@ -5882,12 +5891,11 @@
     } else if(act && act.kind === 'medium'){
       var m = WolfLogic.previewMedium(wr.game);
       html = '<div class="wolf-topic-label">霊媒の結果</div>' +
-        (m.deaths.length
-          ? m.deaths.map(function(d){
-              return '<div class="wolf-topic-name">' + escapeHtml(d.name) + '</div>' +
-                     '<div class="wolf-topic-name" style="margin-top:4px;">' + escapeHtml(d.roleName) + '</div>';
-            }).join('')
-          : '<div class="mic-status" style="margin-top:8px;">まだ誰も亡くなっていません。</div>');
+        (m.executed
+          ? '<div class="wolf-topic-name">' + escapeHtml(m.executed.name) + '</div>' +
+            '<div class="wolf-topic-name" style="margin-top:4px;">' + escapeHtml(m.executed.roleName) + '</div>' +
+            '<div class="mic-status" style="margin-top:10px;">前の昼に処刑された人です。朝の話し合いで、この情報をどう使うかはあなた次第です。</div>'
+          : '<div class="mic-status" style="margin-top:8px;line-height:1.8;">' + mediumEmptyText() + '</div>');
     } else if(act && act.kind === 'attack' && target){
       html = '<div class="wolf-topic-label">今夜おそう相手</div>' +
              '<div class="wolf-topic-name">' + escapeHtml(target.name) + '</div>';
@@ -5969,11 +5977,10 @@
               '</div>';
     } else if(info && info.kind === 'medium'){
       html += '<div class="wolf-topic-label">霊媒の結果</div>' +
-              (info.deaths.length
-                ? '<div class="wolf-topic-name">' + info.deaths.map(function(d){
-                    return escapeHtml(d.name) + ' は ' + escapeHtml(d.roleName);
-                  }).join('<br>') + '</div>'
-                : '<div class="mic-status">まだ亡くなった人はいません</div>');
+              (info.executed
+                ? '<div class="wolf-topic-name">' + escapeHtml(info.executed.name) +
+                  ' は ' + escapeHtml(info.executed.roleName) + '</div>'
+                : '<div class="mic-status">' + mediumEmptyText() + '</div>');
     }
     if(wr.runoff){
       html += '<div class="wolf-topic-label" style="margin-top:10px;">⚖️ 決選投票</div>' +
@@ -5993,14 +6000,12 @@
     if(wr.step === 'night'){
       WolfLogic.setNightAction(wr.game, me, targetId);
       // 第20弾-2：選んだら確認画面へ。占い師はここで結果を受け取る
-      wr.sub = 'confirm';
-      showWrNightAction(WolfLogic.findPlayer(wr.game, me));
+      enterWrConfirm();
       return;
     }
     if(wr.step === 'prevote'){
       WolfLogic.setPreVoteAction(wr.game, me, targetId);
-      wr.sub = 'confirm'; // のぞき見はここで結果を受け取る
-      showWrPreVoteAction(WolfLogic.findPlayer(wr.game, me));
+      enterWrConfirm(); // のぞき見はここで結果を受け取る
       return;
     }
     if(wr.step === 'vote') WolfLogic.setVote(wr.game, me, targetId);
@@ -6010,13 +6015,23 @@
     // 夜と投票前だけは「確認」を挟む。行動が無い人も同じタップ数になるように
     var needsConfirm = (wr.step === 'night' || wr.step === 'prevote');
     if(needsConfirm && wr.sub !== 'confirm'){
-      wr.sub = 'confirm';
-      var me = WolfLogic.findPlayer(wr.game, wr.queue[wr.idx]);
-      if(wr.step === 'night') showWrNightAction(me); else showWrPreVoteAction(me);
+      enterWrConfirm();
       return;
     }
     advanceWrQueue();
   });
+  // 第24弾-1：確認の画面（占い・霊媒・守りの結果を見せる画面）に入ったら、
+  // 夜の持ち時間を止める。
+  // 持ち時間は「誰を選ぶか迷う時間」を区切るためのもので、
+  // 選び終わったあとの結果を読む時間まで打ち切ると、
+  // 霊媒師のように結果を読むだけの役職が、能力を使えないまま次の人へ渡ってしまう。
+  // 止めるのは全員共通なので、誰が情報持ちかは外から分からないまま。
+  function enterWrConfirm(){
+    stopWrNightTimer();
+    wr.sub = 'confirm';
+    var me = WolfLogic.findPlayer(wr.game, wr.queue[wr.idx]);
+    if(wr.step === 'night') showWrNightAction(me); else showWrPreVoteAction(me);
+  }
 
   // ---- 第21弾-1：夜の持ち時間（1人あたり） ----
   // スマホを持っている人が考え込みすぎると、他の全員が待つことになる。

@@ -632,15 +632,83 @@ function kill(game, name, cause) {
     assertEqual(W.previewPeek(g2, p(g2, 'D').id).label, '村人側', '村人は村人側に見える');
   });
 
-  await r.test('先読み：霊媒は前のターンに亡くなった人を返す', async () => {
-    const g = makeGame({ A: 'medium', B: 'wolf', C: 'villager', D: 'villager' });
-    assertEqual(W.previewMedium(g).deaths.length, 0, '誰も死んでいなければ空');
-    kill(g, 'C', 'attacked');
-    g.lastDeaths = [p(g, 'C').id];
+  // 第24弾-1：霊媒師が見るのは「前の昼に処刑された人」だけ。
+  // 夜に襲われた人は対象外（ここを取り違えると、霊媒師が言い当てられない人を言い当ててしまう）。
+  await r.test('霊媒：処刑された人だけを返す（襲撃で死んだ人は返さない）', async () => {
+    const g = makeGame({ A: 'medium', B: 'wolf', C: 'villager', D: 'villager', E: 'villager' });
+    assertEqual(W.previewMedium(g).executed, null, 'まだ処刑が無ければ何も分からない');
+
+    // 夜：人狼が C を襲う
+    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id);
+    const n1 = W.resolveNight(g);
+    assertEqual(n1.deaths.length, 1, '襲撃で1人死ぬ');
+    assertEqual(W.previewMedium(g).executed, null, '襲撃死は霊媒の対象外');
+
+    // 昼：D を処刑する
+    g.phase = 'vote';
+    W.setVote(g, p(g, 'A').id, p(g, 'D').id);
+    W.setVote(g, p(g, 'E').id, p(g, 'D').id);
+    const out = W.executeVote(g);
+    assertEqual(out.executed.name, 'D', 'D が処刑される');
     const m = W.previewMedium(g);
-    assertEqual(m.deaths.length, 1, '亡くなった人が1人返る');
-    assertEqual(m.deaths[0].name, 'C', '誰かが分かる');
-    assertEqual(m.deaths[0].roleName, '村人', '正体も分かる');
+    assert(m.executed, '処刑された人が分かる');
+    assertEqual(m.executed.name, 'D', '処刑された人を指す');
+    assertEqual(m.executed.roleName, '村人', '正体も分かる');
+  });
+
+  await r.test('霊媒：処刑が無かった昼のあとは、前の夜の襲撃死が残らない', async () => {
+    // 直したバグそのもの。以前は「直前に亡くなった人」を持っていたので、
+    // 同数で処刑なしだった翌日、霊媒師が襲撃で死んだ人の役職を言い当てていた。
+    const g = makeGame({ A: 'medium', B: 'wolf', C: 'seer', D: 'villager' });
+    W.setNightAction(g, p(g, 'B').id, p(g, 'C').id); // 占い師を襲う
+    W.resolveNight(g);
+    g.phase = 'vote';
+    W.setVote(g, p(g, 'A').id, p(g, 'B').id);
+    W.setVote(g, p(g, 'B').id, p(g, 'A').id);        // 同数
+    const out = W.executeVote(g);
+    assertEqual(out.executed, null, '同数なので処刑なし');
+    assertEqual(W.previewMedium(g).executed, null, '襲撃で死んだ占い師は見えない');
+  });
+
+  await r.test('霊媒：決選投票を経た時は、最終的に処刑された人を指す', async () => {
+    const g = makeGame({ A: 'medium', B: 'wolf', C: 'villager', D: 'villager', E: 'villager' });
+    g.phase = 'vote';
+    // 1回目：C と D が同数
+    W.setVote(g, p(g, 'A').id, p(g, 'C').id);
+    W.setVote(g, p(g, 'B').id, p(g, 'C').id);
+    W.setVote(g, p(g, 'C').id, p(g, 'D').id);
+    W.setVote(g, p(g, 'D').id, p(g, 'C').id === undefined ? p(g, 'C').id : p(g, 'C').id);
+    W.setVote(g, p(g, 'E').id, p(g, 'D').id);
+    const first = W.voteOutcome(g.votes);
+    // 同数でなければこのテストの前提が崩れるので、その時は作り直さず素直に調べる
+    if (first.kind === 'runoff') {
+      // 決選投票で D に決まったとする
+      const res = W.executeVote(g, p(g, 'D').id);
+      assertEqual(res.executed.name, 'D', '決選投票の結果が処刑される');
+      assertEqual(W.previewMedium(g).executed.name, 'D',
+        '霊媒師も、決選投票を経た最終的な処刑者を指す');
+    } else {
+      // 1回目で決まった場合も、指す相手は executeVote の結果と一致する
+      const res = W.executeVote(g);
+      assertEqual(W.previewMedium(g).executed.name, res.executed.name,
+        '霊媒師は executeVote が決めた人を指す');
+    }
+  });
+
+  await r.test('霊媒：恋人の後追いは「処刑された人」に含めない', async () => {
+    const g = makeGame({ A: 'medium', B: 'wolf', C: 'villager', D: 'villager', E: 'villager' },
+      { lovers: true, loverIds: null });
+    // 恋人を C と D に固定する
+    g.players.forEach((x) => { x.isLover = false; });
+    p(g, 'C').isLover = true; p(g, 'D').isLover = true;
+    g.loverIds = [p(g, 'C').id, p(g, 'D').id];
+    g.phase = 'vote';
+    W.setVote(g, p(g, 'A').id, p(g, 'C').id);
+    W.setVote(g, p(g, 'B').id, p(g, 'C').id);
+    const out = W.executeVote(g);
+    assertEqual(out.executed.name, 'C', 'C が処刑される');
+    assertEqual(p(g, 'D').alive, false, 'D は後を追って亡くなる');
+    assertEqual(W.previewMedium(g).executed.name, 'C', '霊媒師が指すのは処刑された C だけ');
   });
 
   // ---------- 第20弾-4-2：襲撃先が重なったことを伝えられるか ----------

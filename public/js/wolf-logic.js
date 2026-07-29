@@ -31,7 +31,7 @@
     seer: { id: 'seer', name: '占い師', team: TEAM.VILLAGE, looksLike: 'villager', night: 'divine',
       desc: '夜に1人を占い、その正体の手がかりを得ます。' },
     medium: { id: 'medium', name: '霊媒師', team: TEAM.VILLAGE, looksLike: 'villager', night: 'medium',
-      desc: '前の夜・前の昼に亡くなった人の正体が分かります。' },
+      desc: '前の昼に処刑された人の正体が分かります。夜に襲われた人は分かりません。' },
     knight: { id: 'knight', name: '騎士', team: TEAM.VILLAGE, looksLike: 'villager', night: 'guard',
       desc: '夜に1人を守り、人狼の襲撃から救います。' },
     madman: { id: 'madman', name: '狂人', team: TEAM.WOLF, looksLike: 'villager', night: null,
@@ -257,7 +257,10 @@
       votes: {},          // voterId -> targetId
       preVoteActions: {}, // playerId -> targetId（1ターン戦の単発役職）
       log: [],            // 何が起きたかの記録（履歴用）
-      lastDeaths: [],     // 直前に亡くなった人（霊媒師が見る）
+      // 第24弾-1：霊媒師が見るのは「前の昼に処刑された人」だけ。
+      // 以前は「直前に亡くなった人」を持っていたので、処刑が無かった翌日は
+      // 夜に襲われた人の役職を霊媒師が言い当ててしまっていた。
+      lastExecuted: null,
       result: null        // 決着したら入る
     };
     if (cfg.lovers) assignLovers(game, config && config.loverIds);
@@ -380,16 +383,11 @@
       };
     });
 
-    // 5) 霊媒（前回亡くなった人の正体）
+    // 5) 霊媒（前の昼に処刑された人の正体）
     playersWithRole(game, 'medium', true).forEach(function (m) {
-      var last = game.lastDeaths.map(function (id) {
-        var p = findPlayer(game, id);
-        return p ? { id: p.id, name: p.name, role: p.role, roleName: roleById(p.role).name } : null;
-      }).filter(Boolean);
-      info[m.id] = { kind: 'medium', deaths: last };
+      info[m.id] = mediumInfo(game);
     });
 
-    game.lastDeaths = deaths.map(function (d) { return d.id; });
     game.nightActions = {};
     game.phase = 'day';
     game.log.push({ turn: game.turn, type: 'night', deaths: deaths.slice() });
@@ -444,15 +442,28 @@
     var res = divineResult(game, target);
     return { kind: 'divine', targetId: target.id, targetName: target.name, result: res };
   }
-  // 霊媒師が知るのは「前のターンに亡くなった人の正体」。
-  // これも夜の頭には確定しているので、その場で渡せる。
-  function previewMedium(game) {
-    var last = (game.lastDeaths || []).map(function (id) {
-      var p = findPlayer(game, id);
-      return p ? { id: p.id, name: p.name, role: p.role, roleName: roleById(p.role).name } : null;
-    }).filter(Boolean);
-    return { kind: 'medium', deaths: last };
+  // 霊媒師が知るのは「前の昼に処刑された人の正体」だけ。
+  //
+  // 第24弾-1：夜に襲われた人は対象外。決選投票を経た場合は、
+  // その最終的な処刑者を指す（executeVote が確定した1人をそのまま持つので、
+  // 1回目の投票で最多だった人を誤って指すことはない）。
+  // 夜の頭には確定しているので、その場で渡せる。
+  function mediumInfo(game) {
+    var ex = game.lastExecuted;
+    if (!ex) return { kind: 'medium', executed: null };
+    var p = findPlayer(game, ex.id);
+    return {
+      kind: 'medium',
+      executed: {
+        id: ex.id,
+        name: p ? p.name : ex.name,
+        role: ex.role,
+        roleName: roleById(ex.role).name,
+        team: roleById(ex.role).team
+      }
+    };
   }
+  function previewMedium(game) { return mediumInfo(game); }
 
   // のぞき見も、覗いた瞬間に結果が確定している（状態は変えない）
   function previewPeek(game, targetId) {
@@ -593,9 +604,13 @@
       if (p && p.alive) {
         p.alive = false; p.deadTurn = game.turn; p.deadCause = 'executed';
         executed = { id: p.id, name: p.name, role: p.role, roleName: roleById(p.role).name };
-        game.lastDeaths = [p.id].concat(applyLoverDeaths(game).map(function (d) { return d.id; }));
+        applyLoverDeaths(game); // 恋人は後を追うが、処刑されたわけではない
       }
     }
+    // 第24弾-1：霊媒師が見るのはここで決まった1人だけ。
+    // 処刑が無かった昼は、必ず null に戻す（前の夜の襲撃死が残らないように）。
+    // 恋人の後追いも「処刑された人」ではないので含めない。
+    game.lastExecuted = executed;
     // 誰が誰に入れたかも残す（スコアの「読みが当たったか」の判定に使う）
     var castVotes = Object.assign({}, game.votes);
     game.votes = {};

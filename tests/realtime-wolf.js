@@ -450,6 +450,37 @@ async function playToEnd(rm, guard) {
     } finally { await srv.close(); }
   });
 
+  // ---- 第26弾 第4部：称号のもとになる仕事ぶり ----
+
+  await r.test('決着したら、自分の仕事ぶりが本人にだけ届く', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 5, true);
+      await rm.host.call('wolf:start', {
+        roles: ['wolf', 'seer', 'medium', 'knight'], turnLimit: 5, preset: 'wolf-normal'
+      });
+      assert(await playToEnd(rm), '決着まで通る');
+      await waitUntil(() => rm.all.every((d) => d.you && d.you.phase === 'ended'), '全員が決着を受け取る');
+
+      rm.all.forEach((d) => {
+        assert(d.you.achievements, d.you.roleName + ' に仕事ぶりが届く');
+        assertEqual(d.you.achievements.plays, 1, '遊んだ回数は1');
+      });
+      // 中身は「自分のぶん」だけ。他人の的中は入っていない
+      const seer = rm.all.find((d) => d.you.roleId === 'seer');
+      const villager = rm.all.find((d) => d.you.roleId === 'villager');
+      if (villager) assert(!villager.you.achievements.seerHits, '村人に占いの的中は付かない');
+      if (seer) assert(typeof seer.you.achievements.correctVotes === 'number', '占い師には投票の的中数が付く');
+
+      // 公開情報にも大画面にも漏れない
+      const pub = JSON.stringify(rm.host.room.state.data);
+      assert(pub.indexOf('achievements') === -1, '公開情報には入らない');
+      assertEqual(rm.big.you, null, '大画面には何も届かない');
+
+      rm.all.concat([rm.big]).forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   // ---- 第26弾 第3部：部屋はカセットに紐づかない箱 ----
 
   await r.test('遊び終わって別のゲームを選んでも、部屋も参加者も残る', async () => {

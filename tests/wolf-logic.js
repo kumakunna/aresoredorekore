@@ -903,5 +903,71 @@ function kill(game, name, cause) {
     assertEqual(s.players.length, 4, '全員分の結果が残る');
   });
 
+  // ---- 第26弾 第4部：称号のもとになる「仕事ぶり」 ----
+
+  await r.test('称号：占い・護衛・霊媒の仕事ぶりが、起きた瞬間に数えられる', async () => {
+    // 起きた時にしか分からないので、決着してから振り返っても数えられない。
+    // 夜のたびに数え、決着時に achievements がそれを返す
+    const g = makeGame({ 占:'seer', 騎:'knight', 霊:'medium', 狼:'wolf', 村:'villager' });
+    const seer = p(g, '占'), knight = p(g, '騎'), medium = p(g, '霊'),
+          wolf = p(g, '狼'), villager = p(g, '村');
+
+    // 1晩目：占い師が人狼を当て、騎士が襲撃先を守る
+    W.setNightAction(g, seer.id, wolf.id);
+    W.setNightAction(g, knight.id, villager.id);
+    W.setNightAction(g, wolf.id, villager.id);
+    W.resolveNight(g);
+    assertEqual(seer.ach.seerHits, 1, '人狼を占い当てたら1');
+    assertEqual(knight.ach.knightSaves, 1, '守りが実際に働いたら1');
+    assertEqual(medium.ach.mediumHits, 0, 'まだ誰も処刑されていないので0');
+    assert(villager.alive, '守られた人は生きている');
+
+    // 昼：人狼を処刑 → 次の夜、霊媒師が「人狼だった」と分かる
+    g.phase = 'vote';
+    [seer, knight, medium, villager].forEach((x) => W.setVote(g, x.id, wolf.id));
+    W.executeVote(g);
+    assert(!wolf.alive, '人狼が処刑された');
+    W.nextTurn(g);
+    if (g.phase === 'night') W.resolveNight(g);
+    assertEqual(medium.ach.mediumHits, 1, '処刑されたのが人狼側だったと分かったら1');
+
+    // 決着したら、その数字がそのまま称号のカウンタに乗る
+    g.result = W.evaluate(g);
+    const a = W.achievements(g, seer.id);
+    assertEqual(a.seerHits, 1, '占いの的中が渡る');
+    assertEqual(a.plays, 1, '遊んだ回数も1');
+    assertEqual(a.villageWins, 1, '村人側の勝ちが渡る');
+    assertEqual(a.correctVotes, 1, '人狼に投票できた回数も渡る');
+    assertEqual(W.achievements(g, knight.id).knightSaves, 1, '護衛成功が渡る');
+    assertEqual(W.achievements(g, medium.id).mediumHits, 1, '霊媒の的中が渡る');
+  });
+
+  await r.test('称号：人狼側で処刑されずに終わったら「逃げ切り」', async () => {
+    const g = makeGame({ 狼:'wolf', A:'villager', B:'villager' }, { turnLimit: 1 });
+    const wolf = p(g, '狼'), a = p(g, 'A'), b = p(g, 'B');
+    g.phase = 'vote';
+    W.setVote(g, wolf.id, a.id); W.setVote(g, a.id, b.id); W.setVote(g, b.id, a.id);
+    W.executeVote(g);
+    g.result = W.evaluate(g);
+    assertEqual(W.achievements(g, wolf.id).wolfEscapes, 1, '処刑されなかった人狼は逃げ切り');
+    assertEqual(W.achievements(g, b.id).wolfEscapes, undefined, '村人側は逃げ切りにならない');
+
+    // 処刑された人狼は逃げ切りにしない
+    const g2 = makeGame({ 狼:'wolf', A:'villager', B:'villager' }, { turnLimit: 1 });
+    const w2 = p(g2, '狼'), a2 = p(g2, 'A'), b2 = p(g2, 'B');
+    g2.phase = 'vote';
+    W.setVote(g2, a2.id, w2.id); W.setVote(g2, b2.id, w2.id); W.setVote(g2, w2.id, a2.id);
+    W.executeVote(g2);
+    g2.result = W.evaluate(g2);
+    assertEqual(W.achievements(g2, w2.id).wolfEscapes, undefined, '処刑された人狼は逃げ切りではない');
+    assertEqual(W.achievements(g2, a2.id).correctVotes, 1, '人狼に入れた村人は1回当てている');
+  });
+
+  await r.test('称号：決着していない試合は数えない', async () => {
+    const g = makeGame({ A:'wolf', B:'villager', C:'villager', D:'villager' });
+    assertEqual(Object.keys(W.achievements(g, p(g, 'A').id)).length, 0, '途中では何も返さない');
+    assertEqual(Object.keys(W.achievements(g, 'いない人')).length, 0, '知らない人にも落ちない');
+  });
+
   r.finish();
 })();

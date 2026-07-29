@@ -52,7 +52,6 @@
       survivalPlays: 0,     // サバイバルを遊んだ
       normalWins: 0,
       sealedWins: 0,
-      survivalWins2: 0,     // 接続詞「たる」用。survivalWins と同じ出来事を数える
       oneHintAnswered: 0,   // 正解者として、ヒント1つで当てた
       ownVoiceQuestions: 0, // AI読み上げを使わず、自分の声で出題した
       asGiver: 0,           // 出題者として出題した回数

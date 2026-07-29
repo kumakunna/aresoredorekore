@@ -1059,6 +1059,9 @@
         <div class="shelf-name" id="titlePreviewName">-</div>
       </div>
     </div>
+    <!-- 手渡しは1台をみんなで回すので、アプリからは誰が持ち主か分からない。
+         名前を合わせてもらえば、その人の活躍として数えられる -->
+    <div class="mic-status" id="titleHandoffNote" style="line-height:1.7;"></div>
     <div class="wiz-body" id="titleGroups"></div>
     <div class="wiz-foot" style="flex-direction:column;">
       <button class="btn btn-main" id="titlesDoneBtn">これにする ▶</button>
@@ -2417,6 +2420,21 @@
     if(got.length) showTitleGot(got);
     return got;
   }
+  /**
+   * 称号を数える時の「あなた」。
+   *   1人1台 … 自分の端末のメンバーそのもの。迷いようがない
+   *   手渡し … 1台をみんなで回すので、アプリからは誰が持ち主か分からない。
+   *            プレイヤー名がログイン名と同じ人を「あなた」とみなす。
+   *            見つからない時は、遊んだ回数（誰の活躍でもない数字）だけを数える。
+   * 他人の活躍まで自分のものにすると、8人で遊んだだけで全陣営制覇が埋まってしまい、
+   * 集める楽しみが無くなるため、ここは緩めていない。
+   */
+  function myPlayerId(players){
+    if(rt && rt.state.room && rt.state.memberId) return rt.state.memberId;
+    if(!state.username) return null;
+    var me = (players || []).find(function(p){ return p.name === state.username; });
+    return me ? me.id : null;
+  }
   function showTitleGot(ids){
     var names = ids.map(function(id){
       for(var i = 0; i < TitleLogic.PART_KEYS.length; i++){
@@ -2455,6 +2473,10 @@
     el('titlePreviewIcon').textContent = TitleLogic.iconEmoji(titleDraft);
     el('titlePreviewTitle').textContent = TitleLogic.titleText(titleDraft);
     el('titlePreviewName').textContent = state.username || '-';
+    el('titleHandoffNote').textContent = state.username
+      ? '📱 1台をまわして遊ぶ時は、プレイヤー名を「' + state.username +
+        '」にしておくと、あなたの活躍として数えます（1人1台なら自動です）'
+      : '';
     el('titleGroups').innerHTML = TitleLogic.PART_KEYS.map(function(part){
       var list = TitleLogic.partsOf(part);
       var owned = list.filter(function(p){ return have[p.id]; }).length;
@@ -4744,6 +4766,39 @@
     reveal: 'お題の確認', discuss: '話し合い', roundResult: '結果'
   };
   // いま部屋で遊んでいるのがワードウルフか
+  // ---- 第26弾-4：1人1台の称号 ----
+  // 端末＝1人なので「あなた」は迷いようがない。進行はサーバーが持っていて
+  // 手元に game オブジェクトが無いので、決着ビューから分かるぶんだけを数える。
+  // （役職ごとの仕事ぶりは、サーバーが配る result に載っていない）
+  var rtTitlesDone = null; // 同じ試合で二重に数えないための印
+  function awardRtTitles(v, you){
+    if(!v || !v.result) return;
+    var room = rt && rt.state.room;
+    var key = (room ? room.code : '') + ':' + (v.startedAt || v.turn) + ':' + (rt && rt.state.memberId);
+    if(rtTitlesDone === key) return;
+    rtTitlesDone = key;
+    if(!you) return; // 大画面・観戦は数えない
+    var wordwolf = rtIsWordwolf();
+    // 人狼はサーバーが自分の仕事ぶりまで数えて渡してくれる（手渡しと同じ achievements）
+    if(!wordwolf && you.achievements){ recordTitleStats('jinro', you.achievements); return; }
+    var add = { plays: 1 };
+    if(wordwolf) add.wordwolfPlays = 1;
+    var mine = (v.result.roles || []).find(function(p){ return p.id === rt.state.memberId; });
+    var team = mine && mine.team;
+    var won = mine && (typeof mine.win === 'boolean' ? mine.win : (v.result.winner === team));
+    if(won){
+      add.wins = 1;
+      if(team === 'village') add.villageWins = 1;
+      else if(team === 'wolf') add.wolfWins = 1;
+      if(mine && mine.role === 'fox'){ add.foxWins = 1; add.foxSolo = 1; }
+    }
+    // ウルフ側で、最後まで生き残っていた＝当てられなかった
+    if((team === 'wolf' || (wordwolf && mine && mine.wolf)) && mine && mine.alive){
+      add.wolfEscapes = 1;
+      if(wordwolf) add.wordwolfEscapes = 1;
+    }
+    recordTitleStats('jinro', add);
+  }
   function rtIsWordwolf(){
     var room = rt && rt.state.room;
     return !!(room && room.state && room.state.game === 'wordwolf');
@@ -4824,6 +4879,7 @@
     // 以前はボタンが1つも出ず、結果を見たあと何もできなくなっていた。
     // 観戦している端末にも出す（部屋から出られないと困るため）
     if(v.phase === 'ended'){
+      awardRtTitles(v, you);
       el('rtYouBox').innerHTML = you ? rtYouHtml(v, you)
         : '<div class="ry-desc">この端末は観戦していました</div>';
       el('rtPlayLeaveBtn').style.display = 'inline-flex';
@@ -5862,6 +5918,8 @@
     // 描き直されることがあり、以前は描画のたびに得点が入りかねなかった。
     var scored = play.wwScored;
     play.wwScored = true;
+    // 第26弾-4：称号も「集計が終わった1回だけ」。この画面は演出のたびに描き直される
+    if(!scored) awardWordwolfTitles();
     var scoreDeltas = {};
     var byId = WordwolfLogic.scoreRound(wwState());
     Object.keys(byId).forEach(function(pid){
@@ -6831,6 +6889,36 @@
     startWrNight();
   });
 
+  // ---- 第26弾-4：人狼カセットの称号を数える ----
+  // 役職あり人狼。自分が誰か分かる時だけ活躍を数え、分からなくても回数は数える
+  function awardWolfroleTitles(game){
+    var id = myPlayerId(game.players);
+    var add = id ? WolfLogic.achievements(game, id) : { plays: 1 };
+    recordTitleStats('jinro', add);
+  }
+  // ワードウルフ。役職ありの時は同じ achievements を通し、
+  // ワードウルフ固有（逃げ切り・遊んだ回数）だけをここで足す
+  function awardWordwolfTitles(){
+    var players = state.players;
+    var id = myPlayerId(players);
+    var add = { plays: 1, wordwolfPlays: 1 };
+    if(id){
+      var isWolf = play.wolfMinorityIds.indexOf(id) !== -1;
+      var caught = (play.wolfExecutedIds || []).indexOf(id) !== -1;
+      var wolvesLeft = wolfSideAlive().length > 0;
+      if(isWolf){
+        if(!caught){ add.wordwolfEscapes = 1; add.wolfEscapes = 1; }
+        if(wolvesLeft){ add.wins = 1; add.wolfWins = 1; }
+      } else {
+        if(!wolvesLeft){ add.wins = 1; add.villageWins = 1; }
+        // シープ側が正しくウルフに入れた回数
+        var o = play.wwLast;
+        if(o && o.wasWolf && o.votes && o.votes[id] === o.executedId) add.correctVotes = 1;
+      }
+    }
+    recordTitleStats('jinro', add);
+  }
+
   // スコアを反映し、履歴に構成と結果を残す（配点はロジック層が計算する）
   function applyWolfRoleScores(){
     var scores = WolfLogic.scoreGame(wr.game);
@@ -6842,6 +6930,9 @@
       if(s.win) state.winCounts[p.id] = (state.winCounts[p.id] || 0) + 1; // 案B：勝利数も数える
     });
     wr.scores = scores;
+    // 第26弾-4：この試合の活躍を称号のカウンタに足す。
+    // 何をどう数えるかは wolf-logic の achievements に集約してある
+    awardWolfroleTitles(wr.game);
     // 第6部：どのゲームだったか（wordwolf / wolfrole）も残す。将来のリーダーボード用
     var summary = WolfLogic.summary(wr.game);
     summary.game = 'wolfrole';
@@ -8186,7 +8277,49 @@
     }
 
     logRound(state.selectedModeId, scoreDeltas);
+    awardAresoreTitles(scoreDeltas);
     setTimeout(function(){ goTo('scr-score'); }, 2200);
+  }
+  // ---- 第26弾-4：あれそれどれこれの称号を数える ----
+  // 1ラウンド終わるごとに呼ぶ。誰が「あなた」かの決め方は人狼カセットと同じ
+  function awardAresoreTitles(scoreDeltas){
+    var add = { plays: 1 };
+    var seal = optSeal() !== 'none';
+    var survival = optSurvival();
+    if(survival) add.survivalPlays = 1;
+    else if(seal) add.sealedPlays = 1;
+    else add.normalPlays = 1;
+    if(optDescribe() === 'ai') add.aiReadPlays = 1;
+
+    var id = myPlayerId(state.players);
+    var me = id ? state.players.find(function(p){ return p.id === id; }) : null;
+    if(me){
+      // このラウンドで一番点を取った人を「勝ち」とみなす（0点だけの回は勝ちなし）
+      var best = 0;
+      Object.keys(scoreDeltas || {}).forEach(function(name){
+        if(scoreDeltas[name] > best) best = scoreDeltas[name];
+      });
+      if(best > 0 && scoreDeltas[me.name] === best){
+        add.wins = 1;
+        // サバイバルの「勝ち」は優勝が決まった時に数えるので、ここでは足さない
+        if(seal && !survival) add.sealedWins = 1;
+        else if(!survival) add.normalWins = 1;
+      }
+      // 出題者か、当てた側か
+      if(state.describerPlayerId === me.id) add.asGiver = 1;
+      else if((scoreDeltas[me.name] || 0) > 0) add.asAnswerer = 1;
+      // 出題者が自分の声で説明した回（AI読み上げ・AIヒントではない回）
+      if(state.describerPlayerId === me.id && optDescribe() === 'human') add.ownVoiceQuestions = 1;
+      // 封印ワード縛りのまま当ててもらえた
+      if(seal && state.describerPlayerId === me.id && best > 0) add.sealedSuccess = 1;
+    }
+    recordTitleStats('aresore', add);
+  }
+  // サバイバルの優勝は、決着した時に1回だけ数える（スコア画面は何度も開ける）
+  function awardAresoreChampion(championId){
+    var id = myPlayerId(state.players);
+    if(!id || id !== championId) return;
+    recordTitleStats('aresore', { survivalWins: 1, wins: 1 });
   }
   function animateCount(elId, from, to, dur){
     if(from === to) return;
@@ -8227,6 +8360,11 @@
     if(champion){
       el('scoreList').insertAdjacentHTML('afterbegin',
         '<div class="wolf-result-topic">🏆 <b>' + escapeHtml(active[0] ? active[0].name : '?') + '</b> の優勝です！</div>');
+      // 第26弾-4：優勝は1回だけ数える（この画面は何度でも開ける）
+      if(active[0] && !play.championAwarded){
+        play.championAwarded = true;
+        awardAresoreChampion(active[0].id);
+      }
     }
   }
   el('playAgainBtn').addEventListener('click', function(){ goTo('scr-ready'); });

@@ -217,6 +217,11 @@ function privateFor(room, memberId) {
     info: w.info[memberId] || null,
     choices: []
   };
+  // 第26弾-4：称号のもとになる「自分の仕事ぶり」。
+  // 占い・護衛・霊媒の的中は、その夜に起きたことなので決着ビューからは分からない。
+  // サーバーは game を持っているのでここで数え、本人の端末にだけ渡す
+  // （公開ビューに入れると、誰が占い師かが漏れる）。
+  if (w.phase === PHASE.ENDED) out.achievements = WolfLogic.achievements(g, p.id);
   // 仲間・相方（役職確認の段階で分かるもの）
   if (p.role === 'wolf') {
     out.mates = WolfLogic.playersWithRole(g, 'wolf', false)

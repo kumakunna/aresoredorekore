@@ -250,7 +250,12 @@
         return {
           id: p.id, name: p.name, role: roles[i],
           alive: true, isLover: false,
-          deadTurn: null, deadCause: null
+          deadTurn: null, deadCause: null,
+          // 第26弾-4：称号のもとになる「その人の仕事ぶり」。
+          // 起きた瞬間にしか分からないもの（占って人狼だった・護衛が働いた・
+          // 霊媒で人狼を見た・欺いた）を、その場で数えておく。
+          // 公開ビューは項目を明示して組み立てるので、ここに足しても外へは漏れない。
+          ach: { seerHits: 0, knightSaves: 0, mediumHits: 0, tricks: 0 }
         };
       }),
       nightActions: {},   // playerId -> targetId
@@ -282,6 +287,12 @@
 
   function findPlayer(game, id) {
     return game.players.find(function (p) { return p.id === id; }) || null;
+  }
+  // 第26弾-4：仕事ぶりのカウンタ。古いセーブや外から作った game でも落ちないようにする
+  function bumpAch(player, key, n) {
+    if (!player) return;
+    if (!player.ach) player.ach = { seerHits: 0, knightSaves: 0, mediumHits: 0, tricks: 0 };
+    player.ach[key] = (player.ach[key] || 0) + (n == null ? 1 : n);
   }
   function alivePlayers(game) { return game.players.filter(function (p) { return p.alive; }); }
   function playersWithRole(game, roleId, aliveOnly) {
@@ -335,6 +346,8 @@
       var target = targetId ? findPlayer(game, targetId) : null;
       if (!target) return;
       info[seer.id] = { kind: 'divine', targetId: target.id, targetName: target.name, result: divineResult(game, target) };
+      // 第26弾-4：占った相手が本当に人狼だった回数（称号「千里眼」「予言者」）
+      if (target.role === 'wolf') bumpAch(seer, 'seerHits');
       if (target.role === 'fox' && target.alive) {
         target.alive = false; target.deadTurn = game.turn; target.deadCause = 'cursed';
         deaths.push({ id: target.id, cause: 'cursed' });
@@ -381,11 +394,17 @@
         kind: 'guard', targetId: target.id, targetName: target.name,
         saved: !!guardSaved[target.id]
       };
+      // 第26弾-4：守りが実際に働いた回数（称号「忠実」「守護者」）
+      if (guardSaved[target.id]) bumpAch(k, 'knightSaves');
     });
 
     // 5) 霊媒（前の昼に処刑された人の正体）
     playersWithRole(game, 'medium', true).forEach(function (m) {
-      info[m.id] = mediumInfo(game);
+      var mi = mediumInfo(game);
+      info[m.id] = mi;
+      // 第26弾-4：処刑されたのが人狼側だったと分かった回数（称号「亡霊」）。
+      // 「誰も処刑されなかった」夜は何も分からないので数えない
+      if (mi.executed && mi.executed.team === TEAM.WOLF) bumpAch(m, 'mediumHits');
     });
 
     game.nightActions = {};
@@ -729,6 +748,65 @@
     });
   }
 
+  /**
+   * 第26弾-4：称号のもとになる「その人がこの試合で何をしたか」。
+   * 数え方をここ1か所に置く（画面ごとに数え直すと、片方だけ古くなるため）。
+   * 返すのは titles.js の jinro カウンタと同じ名前の増分。
+   *
+   * 判断が要ったところ：
+   *   ・逃げ切り … 人狼側で、一度も処刑されずに試合が終わったこと。
+   *                襲われて死ぬことはないので「当てられなかった」と同じ意味になる。
+   *   ・欺いた   … のぞき見役・にせもの役・まきこみ役が能力を使い、自分の側が勝ったこと。
+   *   ・逆転     … 決選投票（同じターンの2回目の投票）で処刑された人に入れ、勝ったこと。
+   */
+  function achievements(game, playerId) {
+    var p = findPlayer(game, playerId);
+    var out = {};
+    if (!p) return out;
+    var res = game.result || evaluate(game);
+    if (!res || !res.winner) return out;   // 決着していない試合は数えない
+    var team = teamOf(p);
+    var s = scoreGame(game)[p.id] || {};
+    var ach = p.ach || {};
+    var votes = (game.log || []).filter(function (e) { return e.type === 'vote'; });
+    var executedMe = votes.some(function (e) { return e.executed === p.id; });
+
+    out.plays = 1;
+    if (s.win) {
+      out.wins = 1;
+      if (team === TEAM.VILLAGE) out.villageWins = 1;
+      else if (team === TEAM.WOLF) out.wolfWins = 1;
+      if (p.role === 'fox') out.foxWins = 1;
+    }
+    out.correctVotes = goodVoteTurns(game, p.id);
+    if (ach.seerHits) out.seerHits = ach.seerHits;
+    if (ach.knightSaves) out.knightSaves = ach.knightSaves;
+    if (ach.mediumHits) out.mediumHits = ach.mediumHits;
+
+    if (team === TEAM.WOLF && !executedMe) out.wolfEscapes = 1;
+    if (p.role === 'madman' && !executedMe) out.madmanHidden = 1;
+    if (p.role === 'fox' && res.winner === 'fox') out.foxSolo = 1;
+    if (p.isLover && (game.loverIds || []).every(function (id) {
+      var l = findPlayer(game, id); return l && l.alive;
+    })) out.loversSurvived = 1;
+
+    // 一手だけの特殊役職。能力を使って、自分の側が勝てたら「欺けた」とみなす
+    if (['peek', 'fake', 'involve'].indexOf(p.role) >= 0 &&
+        (game.preVoteActions || {})[p.id] && s.win) out.tricks = 1;
+
+    // 決選投票（同じターンに2回目の投票があった回）で、処刑された人に入れていたか
+    var byTurn = {};
+    votes.forEach(function (e) { (byTurn[e.turn] = byTurn[e.turn] || []).push(e); });
+    var comeback = Object.keys(byTurn).some(function (t) {
+      var list = byTurn[t];
+      if (list.length < 2) return false;
+      var last = list[list.length - 1];
+      return last.executed && last.votes && last.votes[p.id] === last.executed;
+    });
+    if (comeback && s.win) out.runoffComeback = 1;
+    return out;
+  }
+
   function scoreGame(game) {
     var res = game.result || evaluate(game);
     var winner = res.winner;
@@ -805,6 +883,7 @@
     executeVote: executeVote, checkTeruteru: checkTeruteru,
     evaluate: evaluate, isFinalTurn: isFinalTurn, nextTurn: nextTurn, finish: finish,
     SCORE: SCORE, scoreGame: scoreGame, isVillageTeam: isVillageTeam, goodVoteTurns: goodVoteTurns,
+    achievements: achievements,
     summary: summary
   };
 });

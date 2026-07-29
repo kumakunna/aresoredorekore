@@ -449,5 +449,75 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第26弾 第4部：称号 ----
+
+  await r.test('棚のバーから、称号を選び直せる', async () => {
+    const { win, doc, errors } = await launch();
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    assert(!el(doc, 'shelfMeBtn').disabled, 'ログインしていれば押せる');
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    assertEqual(el(doc, 'titlePreviewTitle').textContent, 'はじめの一歩', '初期の名乗り');
+    assertEqual(el(doc, 'titlePreviewName').textContent, 'test', 'ユーザー名が出る');
+    // 持っていないパーツは中身を伏せ、どうすれば手に入るかだけ見せる
+    const locked = doc.querySelectorAll('#titleGroups .tg-item.locked');
+    assert(locked.length > 0, 'まだ持っていないパーツも並んでいる（' + locked.length + '個）');
+    assert(locked[0].disabled, '持っていないものは選べない');
+    assert(/？？？/.test(locked[0].textContent), '中身は伏せる');
+    assert(!/？？？/.test(locked[0].querySelector('.tg-hint').textContent), '手に入れ方は見せる');
+    // 手渡しで自分の活躍として数えてもらう方法を案内する
+    assert(/test/.test(el(doc, 'titleHandoffNote').textContent), '名前を合わせる案内が出る');
+    click(doc, 'titlesBackBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertNoErrors(errors, '称号画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ログインしていない人は、称号を選べない', async () => {
+    const { win, doc, errors } = await launch({ loggedOut: true });
+    assert(el(doc, 'shelfMeBtn').disabled, '押せない（まだ持ち物が無い）');
+    assertNoErrors(errors, '未ログインのバーで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('あれそれどれこれを1回あそぶと、参加証が手に入る', async () => {
+    // 手渡しでは「プレイヤー名＝ユーザー名」の人を本人とみなす。
+    // ここでは本人がいない編成でも、遊んだ回数だけは数えることを確かめる
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    await setupPlayers(win, doc);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'modeAutoBtn');
+    await sleep(win, 80);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-play', 8000);
+    click(doc, 'btnCorrect');
+    await sleep(win, 80);
+    const who = doc.querySelectorAll('#pickerGrid button[data-id]');
+    if (who.length) { who[0].click(); await sleep(win, 120); }
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-score', 8000);
+
+    // 称号の画面で、参加証が持ち物に入っている
+    click(doc, 'chooseModeBtn');
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'backToShelfBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    const balloon = doc.querySelector('#titleGroups [data-tid="icon-are-1"]');
+    assert(balloon && !balloon.classList.contains('locked'), '🎈 はじめの参加証が手に入っている');
+    // 選んで確定すると、棚のバーに反映される
+    balloon.click();
+    await sleep(win, 60);
+    click(doc, 'titlesDoneBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertEqual(el(doc, 'shelfAvatar').textContent, '🎈', 'バーのアイコンが変わる');
+    assertNoErrors(errors, '称号の獲得で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

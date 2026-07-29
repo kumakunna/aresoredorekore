@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const TitleLogic = require('../public/js/titles');
 
 const ROOT = path.join(__dirname, '..');
 const HTML = path.join(ROOT, 'public', 'index.html');
@@ -24,6 +25,12 @@ function makeApi(opts) {
     .map((name, i) => ({ id: i + 1, name, yomi: '', ng_words: ['ヒント1', 'ヒント2'], is_default: true }));
   const matches = [];
   let nextId = 1;
+  // 第26弾-4：称号の預かり先（アカウントごとの持ち物）
+  let titleStore = {
+    stats: TitleLogic.emptyStats(),
+    unlocked: TitleLogic.unlockedIds(null),
+    equipped: TitleLogic.normalizeEquipped(null, [])
+  };
 
   return async function fakeFetch(url, init) {
     init = init || {};
@@ -68,6 +75,25 @@ function makeApi(opts) {
       return json(200, { ok: true });
     }
     if (p === '/api/matches/stats') return json(200, { name: 'test', play_count: 1, win_count: 1, win_rate: 100, total_score: 5, avg_score: 5 });
+    // 第26弾-4：称号。本番のサーバーと同じく「持ち物は減らさない」ように預かる
+    if (p === '/api/titles') {
+      if (opts.loggedOut) return json(401, { error: '未ログイン' });
+      if ((init.method || 'GET') === 'PUT') {
+        const stats = TitleLogic.normalizeStats(body.stats);
+        Object.keys(stats).forEach((cas) => {
+          Object.keys(stats[cas]).forEach((k) => {
+            stats[cas][k] = Math.max(titleStore.stats[cas][k], stats[cas][k]);
+          });
+        });
+        const unlocked = TitleLogic.mergeUnlocked(titleStore.unlocked.concat(body.unlocked || []), stats);
+        titleStore = {
+          stats,
+          unlocked,
+          equipped: TitleLogic.normalizeEquipped(body.equipped || titleStore.equipped, unlocked)
+        };
+      }
+      return json(200, JSON.parse(JSON.stringify(titleStore)));
+    }
     return json(200, { ok: true });
   };
 }

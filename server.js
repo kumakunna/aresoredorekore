@@ -233,6 +233,51 @@ app.get('/api/matches', requireAuth, (req, res) => {
   res.json(rows.map(rowToMatch));
 });
 
+// -------------------- 称号API（第26弾-4） --------------------
+// 一度手に入れたパーツは永久に残る。だから「持ち物」はサーバーに置き、
+// 端末を変えても、記録を消しても失われないようにする。
+//
+// 条件の判定は titles.js（画面と共通）が持つ。ここは中身を見ずに預かるだけ。
+// ただし端末が送ってきた「持ち物」を鵜呑みにすると減ってしまうので、
+// 保存時は必ず前の持ち物との和をとる（増えることはあっても減らない）。
+const TitleLogic = require('./public/js/titles');
+
+function readTitles(userId) {
+  const row = db.prepare('SELECT * FROM user_titles WHERE user_id = ?').get(userId);
+  const parse = (s, fallback) => { try { return JSON.parse(s); } catch (e) { return fallback; } };
+  const stats = TitleLogic.normalizeStats(row ? parse(row.stats, {}) : {});
+  const unlocked = TitleLogic.mergeUnlocked(row ? parse(row.unlocked, []) : [], stats);
+  const equipped = TitleLogic.normalizeEquipped(row ? parse(row.equipped, {}) : {}, unlocked);
+  return { stats, unlocked, equipped };
+}
+
+app.get('/api/titles', requireAuth, (req, res) => {
+  res.json(readTitles(req.session.userId));
+});
+
+app.put('/api/titles', requireAuth, (req, res) => {
+  const body = req.body || {};
+  const prev = readTitles(req.session.userId);
+  // 成績は端末が積み上げたものを受け取るが、減る方向には動かさない
+  const incoming = TitleLogic.normalizeStats(body.stats);
+  const stats = TitleLogic.emptyStats();
+  Object.keys(stats).forEach((cas) => {
+    Object.keys(stats[cas]).forEach((k) => {
+      stats[cas][k] = Math.max(prev.stats[cas][k], incoming[cas][k]);
+    });
+  });
+  const unlocked = TitleLogic.mergeUnlocked(prev.unlocked.concat(body.unlocked || []), stats);
+  const equipped = TitleLogic.normalizeEquipped(body.equipped || prev.equipped, unlocked);
+  db.prepare(`
+    INSERT INTO user_titles (user_id, stats, unlocked, equipped, updated_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(user_id) DO UPDATE SET
+      stats = excluded.stats, unlocked = excluded.unlocked,
+      equipped = excluded.equipped, updated_at = excluded.updated_at
+  `).run(req.session.userId, JSON.stringify(stats), JSON.stringify(unlocked), JSON.stringify(equipped));
+  res.json({ stats, unlocked, equipped });
+});
+
 app.get('/api/matches/stats', requireAuth, (req, res) => {
   const name = (req.query.name || '').trim();
   if (!name) return res.status(400).json({ error: 'name クエリが必要です' });

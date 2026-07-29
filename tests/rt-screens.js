@@ -22,7 +22,9 @@ function roomSnapshot(over) {
       { id: 'm4', name: 'でん', role: 'player', connected: true, isHost: false },
       { id: 'm5', name: 'えみ', role: 'player', connected: true, isHost: false }
     ],
-    state: { phase: 'lobby', game: null, data: {} }
+    // 第26弾-3：待合でホストがゲームを選ぶと、サーバーが state.game を全員に配る。
+    // ここのテストはどれも人狼の部屋なので、選び終わった状態を既定にしておく
+    state: { phase: 'lobby', game: 'wolfrole', data: {} }
   }, over || {});
 }
 function wolfView(over) {
@@ -40,19 +42,11 @@ function wolfView(over) {
   }, over || {});
 }
 
-// モード選択 →「1人1台」→ 部屋（作成側 or 参加側）
+// 第26弾-3：棚の「部屋」→ 立てる／参加する → 待合。
+// 何を遊ぶかは部屋に入ってから選ぶ（部屋はカセットに紐づかない箱）
 async function toRoom(win, doc, opts) {
   opts = opts || {};
-  const cart = doc.querySelector('.cart[data-cart="jinro"]');
-  cart.click();
-  if (activeScreen(doc) === 'scr-shelf') cart.click();
-  await waitScreen(win, doc, 'scr-game', 3000);
-  pickGame(doc, 'wolfrole');
-  await sleep(win, 60);
-  await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ']);
-  await waitScreen(win, doc, 'scr-mode', 3000);
-  click(doc, doc.querySelector('#wolfStyleSeg [data-wolfstyle="realtime"]'));
-  click(doc, 'modeNextBtn');
+  click(doc, 'shelfRoomBtn');
   await waitScreen(win, doc, 'scr-rt-lobby', 3000);
 
   const fake = win.__rtFake;
@@ -74,7 +68,26 @@ async function toRoom(win, doc, opts) {
     click(doc, 'rtCreateBtn');
   }
   await waitFor(win, () => ['scr-rt-room','scr-rt-big'].indexOf(activeScreen(doc)) >= 0, 4000, '部屋の画面に入る');
+  if (opts.pick !== false && !opts.join && role !== 'bigscreen') {
+    await pickGameForRoom(win, doc, opts.game || 'wolfrole');
+  }
   return fake;
+}
+
+// 待合から棚へ出て、カセット→ゲーム→モードを歩いて待合にもどる（ホストの流れ）
+async function pickGameForRoom(win, doc, gameId) {
+  click(doc, 'rtPickGameBtn');
+  await waitScreen(win, doc, 'scr-shelf', 3000);
+  const cart = doc.querySelector('.cart[data-cart="jinro"]');
+  cart.click();
+  if (activeScreen(doc) === 'scr-shelf') cart.click();
+  await waitScreen(win, doc, 'scr-game', 3000);
+  pickGame(doc, gameId);
+  await waitScreen(win, doc, 'scr-mode', 3000);
+  click(doc, 'modeAutoBtn');
+  await sleep(win, 100);
+  if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 80); }
+  await waitScreen(win, doc, 'scr-rt-room', 3000);
 }
 
 // サーバーからの配信を流し込む
@@ -291,6 +304,105 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ---- 第26弾 第3部：部屋はカセットに紐づかない箱 ----
+
+  await r.test('待合でゲームを選んでいない間は、はじめられない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    push(fake, roomSnapshot({ state: { phase: 'lobby', game: null, data: {} } }));
+    await sleep(win, 100);
+    assert(el(doc, 'rtStartBtn').disabled, 'ゲームが決まるまで始められない');
+    assert(el(doc, 'rtPickGameBtn').style.display !== 'none', 'ホストには「ゲームをえらぶ」が出る');
+    assert(/ゲームをえらぶ/.test(el(doc, 'rtRoomNote').textContent), '何をすればいいか書いてある');
+
+    // ホストでない人には、選ぶ側の案内は出さない
+    push(fake, roomSnapshot({ hostMemberId: 'm2', state: { phase: 'lobby', game: null, data: {} } }));
+    await sleep(win, 80);
+    assertEqual(el(doc, 'rtPickGameBtn').style.display, 'none', '選ぶのは進行役だけ');
+    assert(/進行役がゲームを選んでいます/.test(el(doc, 'rtRoomNote').textContent), '待つ側の案内が出る');
+    assertNoErrors(errors, 'ゲーム未選択の待合で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('人狼もワードウルフも、部屋のために同じ流れを歩く', async () => {
+    // 第24弾では人狼だけウィザードを飛ばしていた（カードに設定が入っているため）。
+    // 第26弾-3で「何台で遊ぶ？」を消し、ホストが必ずカセット→ゲーム→モードを
+    // 歩くようになったので、飛ばす側／通す側の区別そのものが無くなった。
+    for (const gameId of ['wolfrole', 'wordwolf']) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      await toRoom(win, doc, { pick: false });
+      click(doc, 'rtPickGameBtn');
+      await waitScreen(win, doc, 'scr-shelf', 3000);
+      const cart = doc.querySelector('.cart[data-cart="jinro"]');
+      cart.click();
+      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await waitScreen(win, doc, 'scr-game', 3000);
+      pickGame(doc, gameId);
+      await waitScreen(win, doc, 'scr-mode', 3000);
+      assert(/部屋/.test(el(doc, 'modeRoomNote').textContent), gameId + '：部屋のために選んでいると分かる');
+
+      click(doc, 'modeNextBtn');
+      await sleep(win, 120);
+      const after = activeScreen(doc);
+      assert(/^scr-set-/.test(after), gameId + '：設定ウィザードを通る（' + after + '）');
+
+      // つぎへを繰り返せば、必ず待合にもどる
+      let guard = 0;
+      while (activeScreen(doc) !== 'scr-rt-room' && guard++ < 12) {
+        const cur = activeScreen(doc);
+        const next = doc.querySelector('#' + cur + ' [data-wiz-next]')
+          || (cur === 'scr-mode-rules' ? doc.getElementById('rulesStartBtn') : null);
+        if (!next) break;
+        next.click();
+        await sleep(win, 60);
+      }
+      assertEqual(activeScreen(doc), 'scr-rt-room', gameId + '：設定を終えると待合にもどる');
+      assertNoErrors(errors, gameId + ' の設定で未捕捉の例外');
+      win.close();
+    }
+  });
+
+  await r.test('まだ1人1台に対応していないカセットを選んでも、待合で止まって理由が出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    // ホストがあれそれどれこれを選んだ状態
+    win.eval('(function(){ })');
+    push(fake, roomSnapshot({ hostMemberId: 'm2', state: { phase: 'lobby', game: 'aresoredorekore', data: {} } }));
+    await sleep(win, 100);
+    assertEqual(activeScreen(doc), 'scr-rt-room', '待合に留まる');
+    assert(el(doc, 'rtStartBtn').disabled, 'はじめられない');
+    assert(/まだ1人1台に対応していません/.test(el(doc, 'rtRoomNote').textContent),
+      '理由が書いてある（' + el(doc, 'rtRoomNote').textContent.slice(0, 30) + '）');
+    assertNoErrors(errors, '未対応カセットの待合で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('遊び終わっても部屋は解散せず、次のゲームを選びに行ける', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    push(fake, roomSnapshot({
+      state: {
+        phase: 'ended', game: 'wolfrole',
+        data: wolfView({
+          phase: 'ended',
+          result: { winner: 'village', reason: null, teruteruWin: false, roles: [], scores: {}, voteLog: [] }
+        })
+      }
+    }));
+    pushYou(fake, { phase: 'ended', roleId: 'villager', roleName: '村人', roleDesc: '', alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+
+    click(doc, 'rtAgainBtn');
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    // 部屋を閉じてはいない（room:close を送っていない）
+    const sent = fake.emits.map(e => e.name);
+    assertEqual(sent.indexOf('room:close'), -1, '部屋は閉じない');
+    const reset = fake.emits.filter(e => e.name === 'room:setState').pop();
+    assert(reset && reset.payload.reset === true, '前のゲームを捨てるよう頼んでいる');
+    assertNoErrors(errors, '次のゲームを選ぶところで未捕捉の例外');
+    win.close();
+  });
+
   await r.test('参加すると、ホストが選んでいるゲームの画面へ進む', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     await waitScreen(win, doc, 'scr-shelf', 4000);
@@ -437,8 +549,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-play', '自分の端末は進行画面のまま');
     assert(el(doc, 'rtPlayLeaveBtn').style.display !== 'none', '部屋を出るボタンが出る');
-    assert(el(doc, 'rtEndBtn').style.display !== 'none', 'ホストには終了ボタンが出る');
-    assert(/全員が終わります/.test(el(doc, 'rtWaitNote').textContent), '全員に効くと伝える');
+    // 第26弾-3：遊び終わっても部屋は解散しない。次を選ぶ道が先に来る
+    assert(el(doc, 'rtAgainBtn').style.display !== 'none', 'ホストには「べつのゲームをえらぶ」が出る');
+    assert(el(doc, 'rtEndBtn').style.display !== 'none', 'ホストには「部屋を閉じる」も出る');
+    assert(/そのまま残ります/.test(el(doc, 'rtWaitNote').textContent), '部屋が残ることを伝える');
     assertNoErrors(errors, '決着後の画面で未捕捉の例外');
     win.close();
   });

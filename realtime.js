@@ -40,6 +40,17 @@ function driverStateOf(room) {
   }
   return null;
 }
+/**
+ * 第26弾-3：部屋はカセットに紐づかない箱。
+ * 遊ぶゲームが変わったら、前のゲームの進行状態は意味を持たないので必ず捨てる。
+ * 端末に任せると「片方の端末にだけ前の役職が残る」形の事故になるので、
+ * サーバー側で落とす。記録は決着した時点で済んでいるので、ここで消えるものはない。
+ */
+function clearGameState(room) {
+  for (const id of Object.keys(GAME_DRIVERS)) delete room[GAME_DRIVERS[id].key];
+  room.state.phase = 'lobby';
+  room.state.data = {};
+}
 
 // 紛らわしい文字（0/O, 1/I/L など）を除いた部屋コード用の文字
 const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -570,6 +581,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
       if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが操作できます');
       const p = payload || {};
+      // 第26弾-3：ゲームが変わった時と、明示的にやり直す時は前の進行を捨てる。
+      // 同じゲームをもう一度遊ぶ時は game が変わらないので reset を見る
+      const gameChanged = (p.game !== undefined && p.game !== room.state.game);
+      if (gameChanged || p.reset) clearGameState(room);
       if (typeof p.phase === 'string') room.state.phase = p.phase;
       if (p.game !== undefined) room.state.game = p.game;
       if (p.data && typeof p.data === 'object') {

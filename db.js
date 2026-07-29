@@ -33,6 +33,18 @@ db.exec(`
     started_at TEXT DEFAULT (datetime('now')),
     ended_at TEXT
   );
+  -- 第26弾-4：称号（アイコン・二つ名）。
+  -- 一度手に入れたものは永久に残るので、対戦記録とは別に持つ
+  -- （記録を消してもパーツは失われない）。
+  -- stats は獲得条件の判定に使う積み上げ、unlocked は獲得済みID、
+  -- equipped はいま名乗っている組み合わせ。中身の意味は titles.js が決める。
+  CREATE TABLE IF NOT EXISTS user_titles (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    stats TEXT NOT NULL DEFAULT '{}',
+    unlocked TEXT NOT NULL DEFAULT '[]',
+    equipped TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 module.exports = db;

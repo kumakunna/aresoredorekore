@@ -545,6 +545,28 @@
   .shelf-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .shelf-bar-btns{display:flex;gap:6px;flex:none;}
   .shelf-bar-btns .btn{margin:0;padding:9px 12px;font-size:12.5px;width:auto;}
+  /* 第26弾-4：称号を選ぶ画面 */
+  .title-preview{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 14px;margin-bottom:16px;
+    background:var(--paper-2,rgba(0,0,0,.03));border:1px solid var(--line);border-radius:14px;
+  }
+  .title-preview .shelf-title{font-size:12.5px;}
+  .title-preview .shelf-name{font-size:16px;}
+  .tg-head{display:flex;align-items:baseline;gap:8px;margin:18px 0 8px;}
+  .tg-head h3{font-size:13px;font-weight:800;margin:0;}
+  .tg-head .tg-count{font-size:11px;color:var(--ink-soft);}
+  .tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}
+  .tg-item{
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:10px 6px;border:1px solid var(--line);border-radius:12px;
+    background:var(--paper);cursor:pointer;font:inherit;color:inherit;text-align:center;
+  }
+  .tg-item.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);}
+  .tg-item.locked{opacity:.45;cursor:default;}
+  .tg-emoji{font-size:24px;line-height:1;}
+  .tg-label{font-size:12.5px;font-weight:700;}
+  .tg-hint{font-size:10px;color:var(--ink-soft);line-height:1.5;}
   .shelf-reorder-note{
     position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:70;
     background:var(--ink);color:var(--paper);font-size:11px;padding:7px 14px;border-radius:99px;
@@ -1026,10 +1048,33 @@
     <button class="btn btn-ghost" id="loginBackBtn">← 棚にもどる</button>
   </div>
 
+  <!-- 第26弾-4：称号（アイコンと二つ名）。持っているものから組み合わせを選ぶ -->
+  <div class="screen" id="scr-titles">
+    <h2 class="scr-title">なまえと二つ名</h2>
+    <p class="scr-sub">あそんで手に入れたパーツから、自分の名乗りを作れます</p>
+    <div class="title-preview">
+      <div class="shelf-avatar" id="titlePreviewIcon">🙂</div>
+      <div>
+        <div class="shelf-title" id="titlePreviewTitle">はじめの一歩</div>
+        <div class="shelf-name" id="titlePreviewName">-</div>
+      </div>
+    </div>
+    <div class="wiz-body" id="titleGroups"></div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="titlesDoneBtn">これにする ▶</button>
+      <button class="btn btn-ghost" id="titlesBackBtn" style="margin-top:0;">← もどる</button>
+    </div>
+  </div>
+
   <!-- 3: setup -->
   <div class="screen" id="scr-setup">
     <h2 class="scr-title">プレイヤー</h2>
     <p class="scr-sub">人数と名前を決めよう（★はハンデつき）</p>
+    <!-- 第26弾-3-6：ここは1台をまわす遊び方。1人1台で遊びたい人が、
+         気づかないまま進んでしまわないように控えめに置いておく（止めはしない） -->
+    <div class="mic-status" style="margin-bottom:12px;line-height:1.7;">
+      みんなでスマホを使いたい時は、先に下の「部屋」から始めてください。
+    </div>
     <div class="stepper">
       <button id="playerMinusBtn">−</button>
       <div class="count" id="playerCountLabel">2</div>
@@ -1071,16 +1116,10 @@
       </div>
     </div>
     <div class="mode-score-preview" id="modeScorePreview" style="display:none;"></div>
-    <!-- 第21弾-4：人狼だけ、プリセットを選ぶ前に遊び方（何台で遊ぶか）を選ぶ。
-         全プリセットに共通の切り替えなので、カードより上に置く -->
-    <div id="wolfStyleRow" style="display:none;">
-      <div class="tp-label">何台のスマホで遊ぶ？</div>
-      <div class="seg" id="wolfStyleSeg">
-        <button class="seg-btn on" data-wolfstyle="handoff">📱 手渡し<br><span class="seg-sub">1台をまわす</span></button>
-        <button class="seg-btn" data-wolfstyle="realtime">👥 1人1台<br><span class="seg-sub">みんなのスマホ</span></button>
-      </div>
-      <div class="mic-status" id="wolfStyleNote" style="margin-top:8px;"></div>
-    </div>
+    <!-- 第26弾-3：「何台のスマホで遊ぶ？」はここから消した。
+         棚からカセットを直接タップ＝手渡し、部屋から入る＝1人1台と、
+         入り口の時点でもう決まっているため -->
+    <div class="mic-status" id="modeRoomNote" style="display:none;margin-bottom:12px;"></div>
     <div class="wiz-body"><div id="modeCards"></div></div>
     <div class="wiz-foot" style="flex-direction:column;">
       <button class="btn btn-main" id="modeNextBtn">つぎへ ▶</button>
@@ -1415,6 +1454,8 @@
       </div>
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
+      <!-- 第26弾-3：部屋はカセットに紐づかない箱。何を遊ぶかは、この部屋にいるまま選び直せる -->
+      <button class="btn btn-outline" id="rtPickGameBtn" style="display:none;">🎮 ゲームをえらぶ</button>
       <button class="btn btn-main" id="rtStartBtn">はじめる ▶</button>
       <button class="btn btn-ghost" id="rtLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
     </div>
@@ -1432,7 +1473,9 @@
       <div class="mic-status" id="rtWaitNote" style="margin-top:14px;text-align:center;"></div>
       <button class="btn btn-main" id="rtNextBtn" style="display:none;margin-top:14px;">つぎへ ▶</button>
       <!-- 第24弾-3-4：決着したあとの行き先。以前はここに何も無く、動けなくなっていた -->
-      <button class="btn btn-main" id="rtEndBtn" style="display:none;margin-top:14px;">🏁 みんなでゲームを終了する</button>
+      <!-- 第26弾-3：遊び終わっても部屋は解散しない。別のゲームを選び直せる -->
+      <button class="btn btn-main" id="rtAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
+      <button class="btn btn-outline" id="rtEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="rtPlayLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
   </div>
@@ -2079,6 +2122,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/wolf-logic.js"></script>
 <script src="js/wordwolf-logic.js"></script>
+<script src="js/titles.js"></script>
 <script src="js/rt-client.js"></script>
 <script src="js/qr.js"></script>
 <script>
@@ -2324,22 +2368,124 @@
   function pickOne(list){ return list[Math.floor(Math.random() * list.length)]; }
   var guestIdentity = { name: pickOne(GUEST_NAMES), title: pickOne(GUEST_TITLES), icon: '🙂' };
   function loggedIn(){ return !!state.username; }
-  // 称号（第26弾-4）が入るところ。ログインしている人の見た目はここだけが決める
-  function myIcon(){ return '🙂'; }
-  function myTitleText(){ return 'はじめの一歩'; }
+
+  // ---------- 第26弾-4：称号（アイコン・二つ名） ----------
+  // 目録と獲得条件は titles.js が持つ（サーバーも同じものを使う）。
+  // ここは「集めたものを預かって、選んでもらって、保存する」だけ。
+  var myTitles = {
+    stats: TitleLogic.emptyStats(),
+    unlocked: TitleLogic.unlockedIds(null), // 最初は初期パーツだけ
+    equipped: TitleLogic.normalizeEquipped(null, [])
+  };
+  function myIcon(){ return TitleLogic.iconEmoji(myTitles.equipped); }
+  function myTitleText(){ return TitleLogic.titleText(myTitles.equipped); }
+  function applyTitles(data){
+    var stats = TitleLogic.normalizeStats(data && data.stats);
+    var unlocked = TitleLogic.mergeUnlocked((data && data.unlocked) || [], stats);
+    myTitles = {
+      stats: stats,
+      unlocked: unlocked,
+      equipped: TitleLogic.normalizeEquipped(data && data.equipped, unlocked)
+    };
+    renderShelfBar();
+  }
+  async function loadTitles(){
+    if(!loggedIn()){ applyTitles(null); return; }
+    try{ applyTitles(await api('/api/titles')); }
+    catch(e){ applyTitles(null); } // 取れなくても遊べる（初期の名乗りになるだけ）
+  }
+  async function saveTitles(){
+    if(!loggedIn()) return;
+    try{ applyTitles(await api('/api/titles', { method:'PUT', body: myTitles })); }
+    catch(e){}
+  }
+  /**
+   * 遊び終わりに呼ぶ。カセットのカウンタを足して、新しく手に入ったものを返す。
+   * どの出来事がどのカウンタになるかは呼び出し側が決め、
+   * 「そのカウンタで何が手に入るか」は titles.js だけが決める。
+   */
+  function recordTitleStats(cassette, add){
+    if(!add || !myTitles.stats[cassette]) return [];
+    var before = myTitles.unlocked.slice();
+    Object.keys(add).forEach(function(k){
+      if(typeof myTitles.stats[cassette][k] !== 'number') return; // 知らないカウンタは無視
+      myTitles.stats[cassette][k] += (add[k] || 0);
+    });
+    myTitles.unlocked = TitleLogic.mergeUnlocked(myTitles.unlocked, myTitles.stats);
+    var got = TitleLogic.newlyUnlocked(before, myTitles.unlocked);
+    saveTitles();
+    if(got.length) showTitleGot(got);
+    return got;
+  }
+  function showTitleGot(ids){
+    var names = ids.map(function(id){
+      for(var i = 0; i < TitleLogic.PART_KEYS.length; i++){
+        var p = TitleLogic.partById(TitleLogic.PART_KEYS[i], id);
+        if(p) return (p.emoji ? p.emoji + ' ' : '') + p.label;
+      }
+      return id;
+    });
+    showFlash('🎉 ' + names.join('、') + ' を手に入れました！', 'hit');
+  }
   function renderShelfBar(){
     var inn = loggedIn();
     el('shelfAvatar').textContent = inn ? myIcon() : guestIdentity.icon;
     el('shelfTitle').textContent = inn ? myTitleText() : guestIdentity.title;
     el('shelfName').textContent = inn ? state.username : guestIdentity.name;
     // ログインしていない人は、まだ選べる称号を持っていない
-    // 第26弾-4で「選び直す画面」につなぐまでは、押しても何も起きないので押させない
-    el('shelfMeBtn').disabled = true;
+    // ログインしていない人は、まだ選べる称号を持っていない
+    el('shelfMeBtn').disabled = !inn;
     el('shelfMeBtn').style.opacity = inn ? '' : '.75';
   }
   el('shelfRoomBtn').addEventListener('click', function(){ openRoomLobby('scr-shelf'); });
   el('shelfGearBtn').addEventListener('click', function(){ openSettings(); });
-  // 「自分」の欄は第26弾-4で称号を選ぶ画面につながる。それまでは表示だけ
+  el('shelfMeBtn').addEventListener('click', function(){ goTo('scr-titles'); });
+
+  // ---- 称号を選ぶ画面 ----
+  // 持っていないパーツも並べて、どうすれば手に入るかを見せる（集める楽しみのため）
+  var TITLE_GROUP_LABEL = { icon:'アイコン', first:'はじめの言葉', joiner:'つなぎの言葉', last:'おわりの言葉' };
+  var titleDraft = null; // 「これにする」を押すまでは仮のまま
+  function enterTitles(){
+    titleDraft = Object.assign({}, myTitles.equipped);
+    renderTitleScreen();
+  }
+  function renderTitleScreen(){
+    var have = {};
+    myTitles.unlocked.forEach(function(id){ have[id] = true; });
+    el('titlePreviewIcon').textContent = TitleLogic.iconEmoji(titleDraft);
+    el('titlePreviewTitle').textContent = TitleLogic.titleText(titleDraft);
+    el('titlePreviewName').textContent = state.username || '-';
+    el('titleGroups').innerHTML = TitleLogic.PART_KEYS.map(function(part){
+      var list = TitleLogic.partsOf(part);
+      var owned = list.filter(function(p){ return have[p.id]; }).length;
+      return '<div class="tg-head"><h3>' + TITLE_GROUP_LABEL[part] + '</h3>' +
+        '<span class="tg-count">' + owned + ' / ' + list.length + '</span></div>' +
+        '<div class="tg-grid">' + list.map(function(p){
+          var got = !!have[p.id];
+          return '<button class="tg-item' + (got ? '' : ' locked') +
+            (titleDraft[part] === p.id ? ' on' : '') + '"' +
+            ' data-tpart="' + part + '" data-tid="' + p.id + '"' + (got ? '' : ' disabled') + '>' +
+            (p.emoji ? '<span class="tg-emoji">' + p.emoji + '</span>' : '') +
+            '<span class="tg-label">' + escapeHtml(got ? p.label : '？？？') + '</span>' +
+            '<span class="tg-hint">' + escapeHtml(got ? p.label : p.hint) + '</span>' +
+          '</button>';
+        }).join('') + '</div>';
+    }).join('');
+  }
+  el('titleGroups').addEventListener('click', function(e){
+    var b = e.target.closest('[data-tpart]');
+    if(!b || b.disabled) return;
+    titleDraft[b.dataset.tpart] = b.dataset.tid;
+    renderTitleScreen();
+  });
+  el('titlesDoneBtn').addEventListener('click', async function(){
+    myTitles.equipped = TitleLogic.normalizeEquipped(titleDraft, myTitles.unlocked);
+    renderShelfBar();
+    await saveTitles();
+    goBack('scr-shelf');
+  });
+  el('titlesBackBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
+
   function enterShelf(){
     renderShelf();
     renderShelfBar();
@@ -2394,6 +2540,8 @@
     if(list.length && !list.some(function(m){ return m.id === state.selectedModeId; })){
       applyPreset(list[0].id);
     }
+    // 第26弾-3：部屋のために選んでいる時は、誰が遊ぶかを部屋が持っている
+    if(goingRealtime()){ goTo('scr-mode'); return; }
     // 第12弾-7：プレイヤー設定は初回のみ。以降は「変更する」と答えた時だけ聞く
     if(state.players.length === 0 || state.needPlayerSetup){
       state.needPlayerSetup = false;
@@ -2642,7 +2790,6 @@
     bombLives: 3,
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
-    wolfPlayStyle: 'handoff', // 第21弾-4：'handoff'（1台をまわす）| 'realtime'（1人1台）
     winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
     wrCfg: null,                                  // 第17弾：役職あり人狼の設定
     wmCfg: { turnLimit:3, changeTopic:true },     // 第17弾：ワードウルフ（2〜ターン）の設定
@@ -2924,7 +3071,11 @@
   // 第26弾-2：名乗りは棚の下部バーにいつも出ているので、
   // ログイン状態が動いたら必ずここを通して、バーの表示も一緒に更新する
   function setUser(name){
+    var changed = (state.username || null) !== (name || null);
     state.username = name || null;
+    // 第26弾-4：称号はアカウントに付くので、人が変わったら取り直す。
+    // ログアウトした時に前の人の名乗りが残らないよう、必ずここを通す
+    if(changed) loadTitles();
     renderShelfBar();
   }
   async function checkAuth(){
@@ -3289,7 +3440,7 @@
   // あれそれどれこれ側にテーマが漏れる経路が無い）。
   // scr-rt-lobby は「どのゲームの部屋に入るか分からない」入り口なので、
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-login', 'scr-shelf', 'scr-rt-lobby'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rt-lobby'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -3349,6 +3500,7 @@
        && id !== prevScreen.id) stopTallyCountdown();
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
+    if(id === 'scr-titles') enterTitles();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
     if(id === 'scr-rt-play' || id === 'scr-rt-big') rtRender();
@@ -3563,35 +3715,17 @@
       '</div>';
     }).join('');
     renderScorePreview();
-    renderWolfStyle();
+    renderModeRoomNote();
   }
-  // ---- 第21弾-4：手渡し／1人1台の切り替え ----
-  // 人狼（役職あり）だけの切り替え。全プリセットに共通なので、カードより上に置く。
-  // 手渡し方式の画面と処理はここから一切呼ばない（選んだ時だけ別の入り口へ進む）。
-  function renderWolfStyle(){
-    var row = el('wolfStyleRow');
-    // 第24弾：ワードウルフも1人1台で遊べるようになった
-    var canRealtime = (state.selectedGameId === 'wolfrole' || state.selectedGameId === 'wordwolf');
-    row.style.display = canRealtime ? 'block' : 'none';
-    if(!canRealtime) return;
-    var style = state.wolfPlayStyle;
-    Array.prototype.forEach.call(el('wolfStyleSeg').querySelectorAll('[data-wolfstyle]'), function(b){
-      b.classList.toggle('on', b.dataset.wolfstyle === style);
-    });
-    var isWordwolf = (state.selectedGameId === 'wordwolf');
-    el('wolfStyleNote').textContent = style === 'realtime'
-      ? (isWordwolf
-          ? '部屋を作って、みんなのスマホから参加します。お題の確認も投票も、全員が同時に自分の画面で行います。'
-          : '部屋を作って、みんなのスマホから参加します。夜の行動も投票も、全員が同時に自分の画面で行います。')
-      : '1台のスマホを順番にまわします。まわりの人には見えないように渡してください。';
+  // 第26弾-3：部屋のために選んでいる時は、そのことを見えるようにしておく。
+  // 手渡しのつもりで人数を数えている人が、ここで気づけるように
+  function renderModeRoomNote(){
+    var note = el('modeRoomNote');
+    if(!goingRealtime()){ note.style.display = 'none'; return; }
+    note.style.display = 'block';
+    note.textContent = '👥 部屋「' + (rt.state.room ? rt.state.room.code : '') +
+      '」のために選んでいます。決まったら待合にもどって「はじめる」を押してください。';
   }
-  el('wolfStyleSeg').addEventListener('click', function(e){
-    var b = e.target.closest('[data-wolfstyle]');
-    if(!b) return;
-    state.wolfPlayStyle = b.dataset.wolfstyle;
-    saveLocalPrefs();
-    renderWolfStyle();
-  });
 
   // その遊び方に必要な最低人数。プリセットに書いてあればそれ、
   // 書いていない人狼系は3人（1人だけ違う役を作れる最小）、それ以外は2人。
@@ -3945,7 +4079,7 @@
       goTo('scr-mode-rules');
     } else {
       // 第24弾：1人1台なら、設定のあとは「準備OK」ではなく部屋へ
-      if(goingRealtime()){ openRoomLobby('scr-mode'); return; }
+      if(goingRealtime()){ backToRoomWithGame(); return; }
       goTo('scr-ready');
     }
   }
@@ -4305,29 +4439,32 @@
     showFlash(m.title + 'は' + modeMinPlayers(m) + '人以上必要です（いま' + state.players.length + '人）', 'hit-wrong');
     return false;
   }
-  // 1人1台を選んでいる時は、人数も設定も部屋のほうで決まるので、
-  // 手渡し方式のウィザード（プレイヤー設定・役職の配分）には入らない
+  // 第26弾-3：遊び方は入り口で決まっている。
+  // 部屋を立てた人（＝いま部屋の進行役）は、そのまま部屋のためにカセットを選ぶ。
+  // それ以外（棚からカセットを直接タップした人）は手渡し方式。
+  // 以前は「何台で遊ぶ？」の選択を state.wolfPlayStyle に覚えていたが、
+  // 入り口が2つに分かれた今は、その選択そのものが要らない。
   function goingRealtime(){
-    if(state.wolfPlayStyle !== 'realtime') return false;
-    return state.selectedGameId === 'wolfrole' || state.selectedGameId === 'wordwolf';
+    return !!(rt && rt.state.room && rt.isHost());
   }
-  // 第24弾：1人1台でも、ワードウルフだけは設定ウィザードを通す。
-  // 人狼はカード（wolfPreset）に役職もターン数も入っているが、
-  // ワードウルフの「ウルフの人数」「ターン数」「お題を変えるか」は
-  // ウィザードでしか決まらないため、飛ばすと必ず既定値になってしまう。
-  function realtimeNeedsWizard(){
-    return goingRealtime() && state.selectedGameId === 'wordwolf';
+  // 人数は部屋が持っているので、手渡し方式の人数チェックは通さない
+  function guardPlayersForFlow(){
+    return goingRealtime() ? true : guardMinPlayers();
+  }
+  // 設定まで決めたら待合にもどる。何を遊ぶかは部屋のみんなにも伝える
+  // （ここで前のゲームの進行状態はサーバー側が捨てる）
+  function backToRoomWithGame(){
+    rt.pickGame(state.selectedGameId, { reset: true });
+    goTo('scr-rt-room');
   }
   el('modeNextBtn').addEventListener('click', function(){
-    if(goingRealtime() && !realtimeNeedsWizard()){ openRoomLobby('scr-mode'); return; }
-    if(!guardMinPlayers()) return;
+    if(!guardPlayersForFlow()) return;
     startWizard();
   });
   el('modeAutoBtn').addEventListener('click', function(){
     // おまかせ：設定は飛ばすが、初回のルール説明は飛ばさない。
     // （ここで直接 scr-ready へ行くと、はじめて遊ぶモードでも説明が出ないままになる）
-    if(goingRealtime()){ openRoomLobby('scr-mode'); return; }
-    if(!guardMinPlayers()) return;
+    if(!guardPlayersForFlow()) return;
     applyModeDefaults();
     finishWizard();
   });
@@ -4480,15 +4617,44 @@
     }).join('');
     var me = rt.me();
     el('rtMyRoleToggle').classList.toggle('on', !!(me && me.role === 'bigscreen'));
-    // 始められるのは進行役だけ。人数が足りているかもここで見る
+    // 第26弾-3：部屋はカセットに紐づかないので、何を遊ぶかは待合で決まる
+    var host = rt.isHost();
+    // 何を遊ぶかは部屋が持っている（端末ごとの selectedGameId ではなく、
+    // ホストが選んでサーバーが全員に配ったもの）。ここが割れると、
+    // ホストだけ始められて他の人には別のゲームが見える、という形になる
+    var picked = (room.state && room.state.game) || null;
+    var supported = !!RT_GAME_SCREENS[picked];
     var need = modeMinPlayers(modeById(state.selectedModeId));
     var enough = room.playerCount >= need;
-    el('rtStartBtn').disabled = !(rt.isHost() && enough);
-    el('rtRoomNote').textContent = !rt.isHost()
-      ? '進行役がはじめるのを待っています'
-      : (enough ? 'そろったら「はじめる」を押してください'
-                : need + '人以上そろうと始められます（いま' + room.playerCount + '人）');
+    el('rtPickGameBtn').style.display = host ? '' : 'none';
+    el('rtPickGameBtn').textContent = picked ? '🎮 ゲームをえらびなおす' : '🎮 ゲームをえらぶ';
+    el('rtStartBtn').style.display = host ? '' : 'none';
+    el('rtStartBtn').disabled = !(host && enough && picked && supported);
+    el('rtRoomNote').textContent = rtRoomNoteText(host, picked, supported, enough, need, room.playerCount);
   }
+  // 待合に出す一言。「いま何を待てばいいか」だけを書く
+  function rtRoomNoteText(host, picked, supported, enough, need, count){
+    if(!picked){
+      return host ? 'まず「ゲームをえらぶ」から、遊ぶカセットを選んでください'
+                  : '進行役がゲームを選んでいます';
+    }
+    // 第26弾-3-5：まだ1人1台に対応していないカセットでも、待合には入れる
+    if(!supported){
+      return '「' + gameTitleOf(picked) + '」は、まだ1人1台に対応していません。' +
+             (host ? '別のゲームを選ぶか、1台をまわす手渡し方式で遊んでください。'
+                   : '進行役が別のゲームを選ぶのを待ってください。');
+    }
+    // 何を遊ぶのかは、待っている人にも見えるようにしておく
+    var name = '「' + gameTitleOf(picked) + '」';
+    if(!host) return name + 'を遊びます。進行役がはじめるのを待っています';
+    return enough ? name + 'の準備ができました。そろったら「はじめる」を押してください'
+                  : need + '人以上そろうと始められます（いま' + count + '人）';
+  }
+  function gameTitleOf(gameId){
+    var g = gameById(gameId);
+    return g ? g.title : String(gameId || '');
+  }
+  el('rtPickGameBtn').addEventListener('click', function(){ goTo('scr-shelf'); });
   el('rtMyRoleToggle').addEventListener('click', async function(){
     var me = rt.me();
     if(!me) return;
@@ -4496,14 +4662,23 @@
   });
   async function rtLeaveRoom(){
     await rt.leave();
-    goBack('scr-rt-lobby');
+    goBack('scr-shelf'); // 第26弾-2：部屋の入り口は棚に移った
   }
   el('rtLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('bigLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('rtPlayLeaveBtn').addEventListener('click', rtLeaveRoom);
+  // 第26弾-3：遊び終わったら、部屋を残したまま次のゲームを選びに行く。
+  // ここで前のゲームの進行状態はサーバー側が捨てる（端末に残さない）
+  el('rtAgainBtn').addEventListener('click', async function(){
+    this.disabled = true;
+    var res = await rt.pickGame(null, { reset: true });
+    this.disabled = false;
+    if(!res.ok){ el('rtWaitNote').textContent = res.message || 'えらび直せませんでした'; return; }
+    goTo('scr-shelf');
+  });
   // 第24弾-3-5：ホストの終了を、部屋にいる全員に反映する
   el('rtEndBtn').addEventListener('click', async function(){
-    if(!confirm('ゲームを終了しますか？（部屋にいる全員が終わります）')) return;
+    if(!confirm('部屋を閉じますか？（部屋にいる全員が終わります）')) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -4641,6 +4816,7 @@
     confirm.style.display = 'none';
     next.style.display = 'none';
     el('rtEndBtn').style.display = 'none';
+    el('rtAgainBtn').style.display = 'none';
     el('rtPlayLeaveBtn').style.display = 'none';
     el('rtWaitNote').textContent = '';
 
@@ -4652,10 +4828,11 @@
         : '<div class="ry-desc">この端末は観戦していました</div>';
       el('rtPlayLeaveBtn').style.display = 'inline-flex';
       if(rt.isHost()){
+        el('rtAgainBtn').style.display = 'inline-flex';
         el('rtEndBtn').style.display = 'inline-flex';
-        el('rtWaitNote').textContent = '終了すると、部屋にいる全員が終わります';
+        el('rtWaitNote').textContent = 'べつのゲームを選んでも、この部屋とみんなはそのまま残ります';
       } else {
-        el('rtWaitNote').textContent = '進行役が終了するまで、結果を見ていられます';
+        el('rtWaitNote').textContent = '進行役がつぎを選ぶまで、結果を見ていられます';
       }
       return;
     }
@@ -5061,7 +5238,7 @@
     state.seenRules[state.selectedModeId] = true;
     saveLocalPrefs();
     // 第24弾：1人1台なら、ルールを読んだあとは部屋へ
-    if(goingRealtime()){ openRoomLobby('scr-mode'); return; }
+    if(goingRealtime()){ backToRoomWithGame(); return; }
     goTo('scr-ready');
   });
   el('rulesReviewBtn').addEventListener('click', function(){

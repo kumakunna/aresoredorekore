@@ -148,6 +148,11 @@
     }
     // 第24弾-3-5：ホストだけが呼べる。部屋にいる全員を終わらせる
     function closeRoom() { return call('room:close', {}); }
+    // 第26弾-3：部屋は残したまま、これから遊ぶゲームを選び直す。
+    // ゲームが変わった時と reset を付けた時は、サーバー側で前の進行が捨てられる
+    function pickGame(gameId, opts) {
+      return call('room:setState', Object.assign({ phase: 'lobby', game: gameId || null }, opts || {}));
+    }
 
     // ---- 人狼（1人1台） ----
     function startWolf(config) { return call('wolf:start', config || {}); }
@@ -167,7 +172,7 @@
     return {
       state: state, on: on, available: available, connect: connect,
       createRoom: createRoom, joinRoom: joinRoom, setRole: setRole,
-      transferHost: transferHost, leave: leave, closeRoom: closeRoom,
+      transferHost: transferHost, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,
       isHost: isHost, me: me,
       // テストから中身を差し替えられるように（socket.io本体は持たせない）

@@ -1204,58 +1204,43 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  // ---- 第21弾 第4〜5部：手渡し／1人1台の切り替えと、部屋の入り口 ----
-  await r.test('人狼もワードウルフも「手渡し／1人1台」を選べ、既定は手渡しのまま', async () => {
+  // ---- 第26弾 第3部：遊び方は入り口で決まる（「何台で遊ぶ？」の選択は消した） ----
+  await r.test('棚からカセットを直接タップしたら、これまで通り手渡しのウィザードへ行く', async () => {
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
-
-    // 第24弾：ワードウルフも1人1台で遊べるようになった
-    pickGame(doc, 'wordwolf');
+    pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    assertEqual(el(doc, 'wolfStyleRow').style.display, 'block', 'ワードウルフにも切り替えを出す');
-    assert(/お題の確認も投票も/.test(el(doc, 'wolfStyleNote').textContent) ||
-      doc.querySelector('#wolfStyleSeg [data-wolfstyle="handoff"]').classList.contains('on'),
-      '既定は手渡しなので、説明も手渡しのもの');
-
-    // 人狼にも出す
-    click(doc, 'backToShelfBtn');
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'wolfrole');
-    await sleep(win, 80);
-    await waitScreen(win, doc, 'scr-mode', 3000);
-    assertEqual(el(doc, 'wolfStyleRow').style.display, 'block', '人狼には切り替えを出す');
-    const seg = id => doc.querySelector('#wolfStyleSeg [data-wolfstyle="' + id + '"]');
-    assert(seg('handoff').classList.contains('on'), '既定は手渡し（今までどおり）');
-    assert(!seg('realtime').classList.contains('on'), '1人1台は選ばれていない');
-
-    // 手渡しのままなら、これまでどおりウィザードへ進む
+    // 「何台のスマホで遊ぶ？」はもう聞かない
+    assert(!doc.getElementById('wolfStyleRow'), '遊び方の選択は残っていない');
+    assertEqual(el(doc, 'modeRoomNote').style.display, 'none', '部屋のための選択ではない');
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
-    assertNoErrors(errors, '切り替えの表示で未捕捉の例外');
+    assertNoErrors(errors, '手渡しの入り口で未捕捉の例外');
     win.close();
   });
 
-  await r.test('1人1台を選ぶと、手渡しのウィザードではなく部屋の画面へ行く', async () => {
+  await r.test('手渡しのプレイヤー設定に、1人1台で遊びたい人への案内がある', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'wolfrole');
-    await sleep(win, 60);
-    await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ']);
-    await waitScreen(win, doc, 'scr-mode', 3000);
+    await waitScreen(win, doc, 'scr-setup', 3000);
+    assert(/「部屋」から始めて/.test(el(doc, 'scr-setup').textContent),
+      '先に「部屋」から始める道があることを伝える');
+    // 止めはしない（ポップアップにしない）
+    assertEqual(doc.querySelectorAll('#scr-setup .overlay.show').length, 0, '進行は止めない');
+    assertNoErrors(errors, 'プレイヤー設定の案内で未捕捉の例外');
+    win.close();
+  });
 
-    click(doc, doc.querySelector('#wolfStyleSeg [data-wolfstyle="realtime"]'));
-    await sleep(win, 60);
-    assert(/部屋を作って/.test(el(doc, 'wolfStyleNote').textContent), '何が起きるか説明が出る');
-
-    click(doc, 'modeNextBtn');
+  await r.test('部屋の入り口は棚から入れて、つながらない時は理由が出る', async () => {
+    const { win, doc, errors } = await launch();
+    click(doc, 'shelfRoomBtn');
     await waitScreen(win, doc, 'scr-rt-lobby', 3000);
     assert(doc.getElementById('rtCreateBtn'), '部屋をつくる導線がある');
     assert(doc.getElementById('rtJoinCode'), '部屋コードで入る導線がある');
@@ -1263,15 +1248,9 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(/通信の準備/.test(el(doc, 'rtLobbyStatus').textContent),
       'つながらない時は理由が出る（' + el(doc, 'rtLobbyStatus').textContent.slice(0, 20) + '）');
     assert(el(doc, 'rtCreateBtn').disabled, 'つながらないうちは押せない');
-
-    // モードに戻れば、手渡しのまま遊べる
     click(doc, 'rtLobbyBackBtn');
-    await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('#wolfStyleSeg [data-wolfstyle="handoff"]'));
-    await sleep(win, 60);
-    click(doc, 'modeNextBtn');
-    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
-    assertNoErrors(errors, '1人1台の入り口で未捕捉の例外');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertNoErrors(errors, '部屋の入り口で未捕捉の例外');
     win.close();
   });
 

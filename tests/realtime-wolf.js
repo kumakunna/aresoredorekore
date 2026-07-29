@@ -450,5 +450,73 @@ async function playToEnd(rm, guard) {
     } finally { await srv.close(); }
   });
 
+  // ---- 第26弾 第3部：部屋はカセットに紐づかない箱 ----
+
+  await r.test('遊び終わって別のゲームを選んでも、部屋も参加者も残る', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 5, false);
+      await rm.host.call('wolf:start', { game: 'wolfrole', roles: ['wolf', 'seer'], turnLimit: 5, preset: 'wolf-normal' });
+      assert(await playToEnd(rm), '1つめのゲームが決着する');
+      assertEqual(srv.store.get(rm.code).wolf.phase, 'ended', '決着している');
+      const recordedAfterFirst = srv.db.inserted.length;
+      assert(recordedAfterFirst > 0, '決着した時点で記録されている');
+
+      // ホストが別のカセットを選び直す
+      const res = await rm.host.call('room:setState', { phase: 'lobby', game: 'wordwolf' });
+      assertEqual(res.ok, true, '選び直せる');
+
+      const room = srv.store.get(rm.code);
+      assert(room, '部屋は解散しない');
+      assertEqual(room.members.size, 5, '参加者もそのまま残る');
+      assertEqual(room.state.game, 'wordwolf', 'これから遊ぶゲームが変わっている');
+      assertEqual(room.wolf, undefined, '前のゲームの進行状態は残らない');
+      assertEqual(Object.keys(room.state.data).length, 0, '前のゲームの公開情報も残らない');
+      assertEqual(srv.db.inserted.length, recordedAfterFirst, '選び直しで記録が増えたりはしない');
+
+      // そのまま次のゲームを始められる（already_started で断られない）
+      const started = await rm.host.call('wolf:start', { game: 'wordwolf', wolfCount: 1, turnLimit: 1 });
+      assertEqual(started.ok, true, '同じ部屋で次のゲームを始められる');
+
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('同じゲームをもう一度選んでも、前の回は持ち越さない', async () => {
+    // ゲーム名が変わらないので、reset を見ないと前の役職が残ってしまう
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 5, false);
+      await rm.host.call('wolf:start', { game: 'wolfrole', roles: ['wolf', 'seer'], turnLimit: 5, preset: 'wolf-normal' });
+      assert(await playToEnd(rm), '決着する');
+      const firstRoles = srv.store.get(rm.code).wolf.game.players.map((p) => p.id + ':' + p.role).join(',');
+
+      const res = await rm.host.call('room:setState', { phase: 'lobby', game: 'wolfrole', reset: true });
+      assertEqual(res.ok, true, '同じゲームで選び直せる');
+      assertEqual(srv.store.get(rm.code).wolf, undefined, '前の回の役職は消えている');
+
+      const started = await rm.host.call('wolf:start', { game: 'wolfrole', roles: ['wolf', 'seer'], turnLimit: 5, preset: 'wolf-normal' });
+      assertEqual(started.ok, true, 'もう一度始められる');
+      const w = srv.store.get(rm.code).wolf;
+      assertEqual(w.phase, WolfRoom.PHASE.ROLE, '最初からやり直しになっている');
+      assert(w.game.players.every((p) => p.alive), '前の回の死亡が持ち越されていない');
+      assert(typeof firstRoles === 'string' && firstRoles.length > 0, '1回目の配役は取れていた');
+
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('ホスト以外は、遊ぶゲームを選び直せない', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3, false);
+      const denied = await rm.guests[0].call('room:setState', { phase: 'lobby', game: 'wordwolf' });
+      assertEqual(denied.ok, false, 'ホスト以外は変えられない');
+      assertEqual(denied.error, 'not_host', '理由が分かる');
+      assertEqual(srv.store.get(rm.code).state.game, null, 'ゲームは変わっていない');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 })();

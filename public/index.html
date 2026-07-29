@@ -3506,15 +3506,19 @@
   // 手渡し方式の画面と処理はここから一切呼ばない（選んだ時だけ別の入り口へ進む）。
   function renderWolfStyle(){
     var row = el('wolfStyleRow');
-    var isWolfRole = (state.selectedGameId === 'wolfrole');
-    row.style.display = isWolfRole ? 'block' : 'none';
-    if(!isWolfRole) return;
+    // 第24弾：ワードウルフも1人1台で遊べるようになった
+    var canRealtime = (state.selectedGameId === 'wolfrole' || state.selectedGameId === 'wordwolf');
+    row.style.display = canRealtime ? 'block' : 'none';
+    if(!canRealtime) return;
     var style = state.wolfPlayStyle;
     Array.prototype.forEach.call(el('wolfStyleSeg').querySelectorAll('[data-wolfstyle]'), function(b){
       b.classList.toggle('on', b.dataset.wolfstyle === style);
     });
+    var isWordwolf = (state.selectedGameId === 'wordwolf');
     el('wolfStyleNote').textContent = style === 'realtime'
-      ? '部屋を作って、みんなのスマホから参加します。夜の行動も投票も、全員が同時に自分の画面で行います。'
+      ? (isWordwolf
+          ? '部屋を作って、みんなのスマホから参加します。お題の確認も投票も、全員が同時に自分の画面で行います。'
+          : '部屋を作って、みんなのスマホから参加します。夜の行動も投票も、全員が同時に自分の画面で行います。')
       : '1台のスマホを順番にまわします。まわりの人には見えないように渡してください。';
   }
   el('wolfStyleSeg').addEventListener('click', function(e){
@@ -3876,7 +3880,8 @@
       renderModeRules();
       goTo('scr-mode-rules');
     } else {
-      goTo('scr-ready');
+      // 第24弾：1人1台なら、設定のあとは「準備OK」ではなく部屋へ
+      goTo(goingRealtime() ? 'scr-rt-lobby' : 'scr-ready');
     }
   }
   // ---- タイマー設定画面（②：スクロール式ピッカー） ----
@@ -4238,10 +4243,18 @@
   // 1人1台を選んでいる時は、人数も設定も部屋のほうで決まるので、
   // 手渡し方式のウィザード（プレイヤー設定・役職の配分）には入らない
   function goingRealtime(){
-    return state.selectedGameId === 'wolfrole' && state.wolfPlayStyle === 'realtime';
+    if(state.wolfPlayStyle !== 'realtime') return false;
+    return state.selectedGameId === 'wolfrole' || state.selectedGameId === 'wordwolf';
+  }
+  // 第24弾：1人1台でも、ワードウルフだけは設定ウィザードを通す。
+  // 人狼はカード（wolfPreset）に役職もターン数も入っているが、
+  // ワードウルフの「ウルフの人数」「ターン数」「お題を変えるか」は
+  // ウィザードでしか決まらないため、飛ばすと必ず既定値になってしまう。
+  function realtimeNeedsWizard(){
+    return goingRealtime() && state.selectedGameId === 'wordwolf';
   }
   el('modeNextBtn').addEventListener('click', function(){
-    if(goingRealtime()){ goTo('scr-rt-lobby'); return; }
+    if(goingRealtime() && !realtimeNeedsWizard()){ goTo('scr-rt-lobby'); return; }
     if(!guardMinPlayers()) return;
     startWizard();
   });
@@ -4387,10 +4400,39 @@
   });
   el('rtStartBtn').addEventListener('click', async function(){
     var m = modeById(state.selectedModeId);
-    var pre = (m && m.wolfPreset) || {};
     this.disabled = true;
+    var res = (m && m.game === 'wordwolf')
+      ? await rt.startWolf(rtWordwolfConfig(m))
+      : await rt.startWolf(rtWolfroleConfig(m));
+    this.disabled = false;
+    if(!res.ok) el('rtRoomNote').textContent = res.message || 'はじめられませんでした';
+  });
+  // 第24弾：1人1台のワードウルフ。カードの設定とウィザードの設定をそのまま送る。
+  // 誰がウルフか・誰にどの役職を配るかはサーバーが決める（端末には自分のぶんだけ届く）。
+  function rtWordwolfConfig(m){
+    var roles = {};
+    WordwolfLogic.roleIdsFor(!!m.wolfMulti).forEach(function(id){
+      roles[id] = state.wwRoles[id] || 0;
+    });
+    var sec = state.timerEnabled ? (state.customTimer || m.timer || 180) : 0;
+    return {
+      game: 'wordwolf',
+      wolfCount: state.wolfCount || 1,
+      wolfAware: state.wolfAware,
+      roles: roles,
+      multiTurn: !!m.wolfMulti,
+      turnLimit: state.wmCfg.turnLimit,
+      changeTopic: state.wmCfg.changeTopic,
+      meetingSec: sec,
+      discussSec: sec,
+      preset: state.selectedModeId
+    };
+  }
+  function rtWolfroleConfig(m){
+    var pre = (m && m.wolfPreset) || {};
     // 設定はプリセットのまま送る。人数に合わせた配分はサーバーが計算する
-    var res = await rt.startWolf({
+    return {
+      game: 'wolfrole',
       roles: pre.roles || ['wolf', 'seer'],
       chaos: !!pre.chaos, // 闇鍋なら席を全部埋める（稀に村人が1人紛れる）
       turnLimit: pre.turnLimit || 5,
@@ -4403,18 +4445,30 @@
       // 第24弾-2：役職確認のあとの作戦会議。話し合いの時間の設定をそのまま使う
       meetingSec: state.timerEnabled ? (state.customTimer || m.timer || 180) : 0,
       preset: state.selectedModeId
-    });
-    this.disabled = false;
-    if(!res.ok) el('rtRoomNote').textContent = res.message || 'はじめられませんでした';
-  });
+    };
+  }
 
   // ===================== 第21弾 第6・7部：1人1台の画面 =====================
   // 自分の端末（scr-rt-play）と大画面（scr-rt-big）。
   // 大画面には、サーバーが公開情報しか送ってこない（wolf:you が届かない）。
   var RT_PHASE_LABEL = {
     roleReveal: '役職の確認', meeting: '作戦会議', night: '夜', preVote: '投票のまえに',
-    day: '朝', vote: '投票', turnResult: '結果', ended: '決着'
+    day: '朝', vote: '投票', turnResult: '結果', ended: '決着',
+    // ワードウルフ側の段階（第24弾）
+    reveal: 'お題の確認', discuss: '話し合い', roundResult: '結果'
   };
+  // いま部屋で遊んでいるのがワードウルフか
+  function rtIsWordwolf(){
+    var room = rt && rt.state.room;
+    return !!(room && room.state && room.state.game === 'wordwolf');
+  }
+  // ホストが進める段階（誰かの操作待ちではなく、話し終わったら進む段階）
+  var RT_HOST_PHASES = ['meeting', 'discuss', 'day', 'turnResult', 'roundResult'];
+  function rtHostNextLabel(phase){
+    if(phase === 'meeting') return rtIsWordwolf() ? '話し合いへ ▶' : '夜へすすむ ▶';
+    if(phase === 'discuss' || phase === 'day') return '投票へすすむ ▶';
+    return 'つぎへ ▶';
+  }
   function rtView(){
     var room = rt && rt.state.room;
     return (room && room.state && room.state.data) || null;
@@ -4428,7 +4482,7 @@
   var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-big'];
   // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
   // 今は人狼だけだが、爆弾などが増えてもここに1行足せば済むようにしておく。
-  var RT_GAME_SCREENS = { wolfrole: 'scr-rt-play' };
+  var RT_GAME_SCREENS = { wolfrole: 'scr-rt-play', wordwolf: 'scr-rt-play' };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
     var v = rtView();
@@ -4497,14 +4551,13 @@
 
     if(!you){ el('rtYouBox').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>'; return; }
     el('rtYouBox').innerHTML = rtYouHtml(v, you);
-    // 作戦会議・朝・結果の画面は、ホストだけが進める
-    if(v.phase === 'meeting' || v.phase === 'day' || v.phase === 'turnResult'){
+    // 作戦会議・話し合い・朝・結果の画面は、ホストだけが進める
+    if(RT_HOST_PHASES.indexOf(v.phase) !== -1){
       if(rt.isHost()){
         next.style.display = 'inline-flex';
-        next.textContent = (v.phase === 'meeting') ? '夜へすすむ ▶'
-                         : (v.phase === 'day') ? '投票へすすむ ▶' : 'つぎへ ▶';
+        next.textContent = rtHostNextLabel(v.phase);
       } else {
-        el('rtWaitNote').textContent = (v.phase === 'meeting')
+        el('rtWaitNote').textContent = (v.phase === 'meeting' || v.phase === 'discuss')
           ? '話し終わったら、進行役がすすめます'
           : '進行役がすすめるのを待っています';
       }
@@ -4534,13 +4587,17 @@
     if(!log || !log.length) return '';
     return '<div class="vote-log"><div class="vl-title">🗳️ だれが だれに 入れたか</div>' +
       log.map(function(e){
-        return '<div class="vl-turn"><span class="vl-day">' + e.turn + '日目</span>' +
+        // 人狼は「N日目」、ワードウルフは「Nターン目／N回目」（1回だけなら見出し無し）
+        var label = (e.label !== undefined) ? e.label : (e.turn + '日目');
+        return '<div class="vl-turn"><span class="vl-day">' + escapeHtml(label) + '</span>' +
           e.rows.map(function(x){
             return '<span class="vl-row">' + escapeHtml(x.from) + ' → <b>' + escapeHtml(x.to) + '</b></span>';
           }).join('') + '</div>';
       }).join('') + '</div>';
   }
   function rtPublicHtml(v){
+    // 第24弾：ワードウルフは出すものが違う（お題も役職も伏せたまま進む）
+    if(rtIsWordwolf()) return rtPublicWordwolfHtml(v);
     var lines = [];
     // 第24弾-2：役職を配った直後の作戦会議。まだ誰も欠けていない
     if(v.phase === 'meeting'){
@@ -4597,6 +4654,8 @@
          : w === 'fox' ? '🦊 妖狐の勝ち' : '決着';
   }
   function rtYouHtml(v, you){
+    // 第24弾：ワードウルフは「お題」が主役。役職はある時だけ添える
+    if(rtIsWordwolf()) return rtYouWordwolfHtml(v, you);
     var html = '<div class="ry-label">あなたの役職</div>' +
       '<div class="ry-name">' + escapeHtml(you.roleName) + '</div>' +
       '<div class="ry-desc">' + escapeHtml(you.roleDesc) + '</div>';
@@ -4610,6 +4669,81 @@
     }
     if(you.info) html += '<div class="ry-info">' + rtInfoHtml(you.info) + '</div>';
     if(you.alive === false) html += '<div class="ry-info"><div class="ry-desc">💀 あなたは脱落しています</div></div>';
+    return html;
+  }
+  // 第24弾：1人1台のワードウルフの、全員に見えている情報。
+  // まだ続く回では、お題も誰がウルフだったかも出さない（第22弾-6と同じ原則）。
+  function rtPublicWordwolfHtml(v){
+    var lines = [];
+    if(v.phase === 'reveal') lines.push('🃏 お題を配りました。自分のスマホで確認してください');
+    if(v.phase === 'meeting') lines.push('🗣️ 話し合いの前に、少し作戦を立てましょう');
+    if(v.phase === 'discuss') lines.push('💬 話し合いの時間です');
+    if(v.phase === 'preVote') lines.push('👀 投票のまえに、動く人がいます');
+    if(v.phase === 'vote' && v.runoff){
+      lines.push('⚖️ 決選投票：' + escapeHtml(v.runoff.candidates.join('・')));
+    }
+    var rr = v.roundResult;
+    if(v.phase === 'roundResult' && rr){
+      lines.push(rr.executed
+        ? '⚖️ ' + escapeHtml(rr.executed.name) + ' が処刑されました' +
+          (rr.wasWolf === true ? '（ウルフ🐺）' : rr.wasWolf === false ? '（シープ🐑）' : '')
+        : (rr.runoff ? '🤝 決選投票でも同数のため、誰も処刑されませんでした'
+                     : '🤝 同数のため、誰も処刑されませんでした'));
+      if(rr.counts && rr.counts.length){
+        lines.push('<div class="vote-counts">' + rr.counts.map(function(c){
+          return '<span class="vc-item">' + escapeHtml(c.name) + ' <b>' + c.n + '</b></span>';
+        }).join('') + '</div>');
+      }
+      if(rr.runoff){
+        lines.push('⚖️ 同数だったので、' + escapeHtml(rr.runoff.candidates.join('・')) + ' で決選投票を行いました');
+      }
+      if(rr.exec){
+        lines.push('のこりのウルフ🐺 ' + rr.exec.wolvesLeft + '人 ／ シープ🐑 ' + rr.exec.sheepLeft + '人');
+      }
+      if(rr.continues) lines.push('お題はこのままです。まだ続きます');
+    }
+    var r = v.result;
+    if(v.phase === 'ended' && r){
+      lines.push('<b>' + (r.winner === 'sheep' ? '🎉 ウルフをあぶり出しました！シープ🐑側の勝ち'
+                        : r.winner === 'wolf' ? '🐺 ウルフの逃げ切り！ウルフ🐺側の勝ち'
+                        : '🏁 ' + v.turnLimit + 'ターン終了！合計得点で決着') + '</b>');
+      lines.push('シープ🐑のお題：<b>' + escapeHtml(r.majorityTopic) +
+                 '</b>　／　ウルフ🐺のお題：<b>' + escapeHtml(r.minorityTopic) + '</b>');
+      lines.push('ウルフ🐺：' + escapeHtml(r.wolves.join('、')));
+      if(r.roles.length){
+        lines.push(r.roles.map(function(x){
+          return escapeHtml(x.name) + '＝' + escapeHtml(x.roleName);
+        }).join('　'));
+      }
+      if(r.revealVoteOf){
+        lines.push('📢 ' + escapeHtml(r.revealVoteOf.name) + ' の投票先は ' +
+          escapeHtml(r.revealVoteOf.votedFor || '（棄権）') + ' でした');
+      }
+      if(r.scores.length){
+        lines.push('<div class="vote-counts">' + r.scores.map(function(s){
+          return '<span class="vc-item">' + escapeHtml(s.name) + ' <b>' + s.points + '</b></span>';
+        }).join('') + '</div>');
+      }
+      lines.push(rtVoteLogHtml(r.voteLog || []));
+    }
+    lines.push('のこり ' + v.aliveCount + '人');
+    return lines.filter(Boolean).join('<br>');
+  }
+
+  // 第24弾：1人1台のワードウルフで、自分の端末に出すもの。
+  // 役職なしの回でも同じ体裁にして、役職の有無が外から分からないようにする。
+  function rtYouWordwolfHtml(v, you){
+    var html = '<div class="ry-label">あなたのお題</div>' +
+      '<div class="ry-name">' + escapeHtml(you.topic) + '</div>';
+    if(you.youAreWolf){
+      html += '<div class="ry-desc">⚠️ あなたはウルフ🐺です。バレないようシープ🐑のふりをして話しましょう</div>';
+    }
+    html += '<div class="ry-info"><div class="ry-label">あなたの役職</div>' +
+      '<div class="ry-name" style="font-size:20px;">' +
+      escapeHtml(you.roleName || 'シープ🐑') + '</div>' +
+      '<div class="ry-desc">' + escapeHtml(you.roleDesc) + '</div></div>';
+    if(you.info) html += '<div class="ry-info">' + rtInfoHtml(you.info) + '</div>';
+    if(you.out) html += '<div class="ry-info"><div class="ry-desc">💀 あなたは処刑されています</div></div>';
     return html;
   }
   function rtInfoHtml(info){
@@ -4679,6 +4813,7 @@
     el('bigPhase').textContent = RT_PHASE_LABEL[v.phase] || v.phase;
     el('bigMain').classList.remove('is-code');
     el('bigQrBox').style.display = 'none'; // 始まったらQRは要らない
+    if(rtIsWordwolf()) return renderRtBigWordwolf(v);
 
     var main = '', sub = '';
     if(v.phase === 'roleReveal'){ main = '役職を配りました'; sub = '自分のスマホで確認してください'; }
@@ -4727,6 +4862,53 @@
       return '<span class="bl-item' + (p.alive ? '' : ' dead') + '">' + escapeHtml(p.name) + '</span>';
     }).join('');
     if([ 'roleReveal', 'night', 'preVote', 'vote' ].indexOf(v.phase) >= 0 && (v.waiting || []).length){
+      el('bigSub').innerHTML = sub + '<br><span style="opacity:.7;">まだの人：' +
+        escapeHtml(v.waiting.join('、')) + '</span>';
+    }
+  }
+
+  // 第24弾：1人1台ワードウルフの大画面。
+  // お題は最後まで出さない（大画面は全員が見ているので、出したら終わる）。
+  function renderRtBigWordwolf(v){
+    var main = '', sub = '';
+    if(v.phase === 'reveal'){ main = 'お題を配りました'; sub = '自分のスマホで確認してください'; }
+    else if(v.phase === 'meeting'){ main = '作戦会議'; sub = '話し合いの前に、少し作戦を'; }
+    else if(v.phase === 'discuss'){ main = '話し合い'; sub = 'だれが違うお題を持っているか、探り合いましょう'; }
+    else if(v.phase === 'preVote'){ main = '投票のまえに'; sub = '全員、自分のスマホを見てください'; }
+    else if(v.phase === 'vote'){
+      main = v.runoff ? '決選投票' : '投票';
+      sub = v.runoff ? v.runoff.candidates.join('・') + ' のどちらかをえらんでください'
+                     : '自分のスマホでえらんでください';
+    }
+    else if(v.phase === 'roundResult'){
+      var rr = v.roundResult || {};
+      main = rr.executed ? rr.executed.name : '処刑なし';
+      sub = rr.executed
+        ? ('が処刑されました' + (rr.wasWolf === true ? '（ウルフ🐺）'
+            : rr.wasWolf === false ? '（シープ🐑）' : ''))
+        : (rr.runoff ? '決選投票でも同数だったため' : '同数だったため');
+      if(rr.counts && rr.counts.length){
+        sub += '<br>' + rr.counts.map(function(c){ return c.name + ' ' + c.n; }).join('　');
+      }
+      if(rr.exec) sub += '<br>のこりのウルフ🐺 ' + rr.exec.wolvesLeft + '人';
+    }
+    else if(v.phase === 'ended'){
+      var r = v.result || {};
+      main = r.winner === 'sheep' ? 'シープ🐑の勝ち'
+           : r.winner === 'wolf' ? 'ウルフ🐺の勝ち' : '合計得点で決着';
+      sub = 'シープ🐑：' + r.majorityTopic + '　／　ウルフ🐺：' + r.minorityTopic +
+        '<br>ウルフ🐺は ' + (r.wolves || []).join('、');
+      if((r.scores || []).length){
+        sub += '<br>' + r.scores.map(function(s){ return s.name + ' ' + s.points; }).join('　');
+      }
+    }
+    el('bigMain').textContent = main;
+    el('bigSub').innerHTML = sub;
+    // 処刑された人は薄く。お題も役職も、決着するまで出さない
+    el('bigList').innerHTML = (v.players || []).map(function(p){
+      return '<span class="bl-item' + (p.out ? ' dead' : '') + '">' + escapeHtml(p.name) + '</span>';
+    }).join('');
+    if(['reveal', 'preVote', 'vote'].indexOf(v.phase) >= 0 && (v.waiting || []).length){
       el('bigSub').innerHTML = sub + '<br><span style="opacity:.7;">まだの人：' +
         escapeHtml(v.waiting.join('、')) + '</span>';
     }
@@ -4815,7 +4997,8 @@
   el('rulesStartBtn').addEventListener('click', function(){
     state.seenRules[state.selectedModeId] = true;
     saveLocalPrefs();
-    goTo('scr-ready');
+    // 第24弾：1人1台なら、ルールを読んだあとは部屋へ
+    goTo(goingRealtime() ? 'scr-rt-lobby' : 'scr-ready');
   });
   el('rulesReviewBtn').addEventListener('click', function(){
     renderModeRules();

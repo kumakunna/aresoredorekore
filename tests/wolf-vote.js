@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const WolfLogic = require('../public/js/wolf-logic.js');
 const WolfRoom = require('../wolf-room.js');
+const WordwolfRoom = require('../wordwolf-room.js');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame, holdPress
@@ -1127,6 +1128,167 @@ function votesFrom(list) {
     assert(el(doc, 'app').classList.contains('phase-night'), '作戦会議のあとは夜になる');
     assertNoErrors(errors, '作戦会議で未捕捉の例外');
     win.close();
+  });
+
+  // ---------- ⑨ 1人1台のワードウルフ（第24弾） ----------
+  // ルールは手渡しと同じ wordwolf-logic.js を通っている。
+  // ここで見るのは「サーバー側の進行が最後まで通るか」と「秘密が漏れないか」。
+
+  await r.test('1人1台ワードウルフ：お題の確認から決着まで通る', async () => {
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    const started = WordwolfRoom.startGame(room, { wolfCount: 1, roles: [], multiTurn: false });
+    assert(started.ok, 'ゲームが始まる');
+    const w = room.wordwolf;
+    assertEqual(w.phase, 'reveal', 'まずお題の確認');
+    assertEqual(w.wolfIds.length, 1, 'ウルフは1人');
+
+    // 全員がお題を見る → 作戦会議 → 話し合い → 投票
+    WordwolfRoom.expectedMembers(room).forEach((id) => WordwolfRoom.submitAction(room, id, null));
+    WordwolfRoom.advance(room);
+    assertEqual(w.phase, 'meeting', 'お題のあとは作戦会議');
+    WordwolfRoom.advance(room);
+    assertEqual(w.phase, 'discuss', '作戦会議のあとは話し合い');
+    WordwolfRoom.advance(room);
+    assertEqual(w.phase, 'vote', '役職がいなければ、そのまま投票へ');
+
+    // 全員がウルフに入れる
+    const wolf = w.wolfIds[0];
+    WordwolfRoom.expectedMembers(room).forEach((id) => {
+      const v = WordwolfRoom.privateFor(room, id);
+      WordwolfRoom.submitVote(room, id, id === wolf ? v.choices[0].id : wolf);
+    });
+    WordwolfRoom.advance(room);
+    assertEqual(w.phase, 'roundResult', '投票のあとは結果');
+    WordwolfRoom.advance(room);
+    assertEqual(w.phase, 'ended', '1ターン版はそこで決着');
+
+    const pub = WordwolfRoom.publicView(room);
+    assertEqual(pub.result.winner, 'sheep', 'ウルフを当てたのでシープ側の勝ち');
+    assert(pub.result.majorityTopic && pub.result.minorityTopic, '決着したらお題が明かされる');
+    assert(pub.result.voteLog.length === 1, '投票の中身も開く');
+  });
+
+  await r.test('1人1台ワードウルフ：お題も役職も、決着するまで公開情報に入らない', async () => {
+    // 大画面には公開情報しか届かない。ここにお題が混ざると全員に見えてしまう
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    WordwolfRoom.startGame(room, { wolfCount: 1, roles: ['peek'], multiTurn: false });
+    const w = room.wordwolf;
+    const secrets = [w.majorityTopic, w.minorityTopic];
+    let guard = 0;
+    while (w.phase !== 'ended' && guard++ < 30) {
+      const pub = JSON.stringify(WordwolfRoom.publicView(room));
+      if (w.phase !== 'ended') {
+        secrets.forEach((s) => {
+          assert(pub.indexOf(s) === -1, '「' + s + '」が公開情報に混ざっていない（' + w.phase + '）');
+        });
+        assert(pub.indexOf('"wolfIds"') === -1, '誰がウルフかは公開しない');
+        assert(pub.indexOf('peek') === -1, '誰が役職持ちかは公開しない');
+      }
+      const ph = w.phase;
+      if (ph === 'reveal' || ph === 'preVote') {
+        WordwolfRoom.expectedMembers(room).forEach((id) => {
+          const v = WordwolfRoom.privateFor(room, id);
+          WordwolfRoom.submitAction(room, id, (v.choices && v.choices.length) ? v.choices[0].id : null);
+        });
+      } else if (ph === 'vote') {
+        WordwolfRoom.expectedMembers(room).forEach((id) => {
+          const v = WordwolfRoom.privateFor(room, id);
+          if (v.choices && v.choices.length) WordwolfRoom.submitVote(room, id, v.choices[0].id);
+        });
+      }
+      WordwolfRoom.advance(room);
+    }
+    assertEqual(w.phase, 'ended', '決着する');
+    const done = JSON.stringify(WordwolfRoom.publicView(room));
+    assert(done.indexOf(w.minorityTopic) >= 0, '決着したらお題が出る');
+  });
+
+  await r.test('1人1台ワードウルフ：自分のお題は自分にだけ届く', async () => {
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    WordwolfRoom.startGame(room, { wolfCount: 1, roles: [], multiTurn: false, wolfAware: true });
+    const w = room.wordwolf;
+    const wolf = w.wolfIds[0];
+    const mine = WordwolfRoom.privateFor(room, wolf);
+    assertEqual(mine.topic, w.minorityTopic, 'ウルフには少数派のお題');
+    assertEqual(mine.youAreWolf, true, '自覚あり設定なら、自分がウルフだと分かる');
+    const sheep = w.playerIds.find((id) => id !== wolf);
+    assertEqual(WordwolfRoom.privateFor(room, sheep).topic, w.majorityTopic, 'シープには多数派のお題');
+    assertEqual(WordwolfRoom.privateFor(room, sheep).youAreWolf, false, 'シープにはウルフと出さない');
+    // 大画面（プレイヤーでない端末）には何も届かない
+    room.members.set('tv', { id: 'tv', name: 'テレビ', role: 'bigscreen', connected: true });
+    assertEqual(WordwolfRoom.privateFor(room, 'tv'), null, '大画面には秘密が届かない');
+  });
+
+  await r.test('1人1台ワードウルフ：自覚なし設定なら、ウルフにもウルフだと言わない', async () => {
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    WordwolfRoom.startGame(room, { wolfCount: 1, roles: [], multiTurn: false, wolfAware: false });
+    const w = room.wordwolf;
+    const mine = WordwolfRoom.privateFor(room, w.wolfIds[0]);
+    assertEqual(mine.youAreWolf, false, '自覚なしならウルフだと伝えない');
+    assertEqual(mine.topic, w.minorityTopic, 'お題だけが違う');
+  });
+
+  await r.test('1人1台ワードウルフ：同数なら決選投票に入り、候補以外は選べない', async () => {
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん']);
+    WordwolfRoom.startGame(room, { wolfCount: 1, roles: [], multiTurn: false });
+    const w = room.wordwolf;
+    WordwolfRoom.expectedMembers(room).forEach((id) => WordwolfRoom.submitAction(room, id, null));
+    WordwolfRoom.advance(room); // meeting
+    WordwolfRoom.advance(room); // discuss
+    WordwolfRoom.advance(room); // vote
+    // 2人ずつに割って同数にする
+    const ids = WordwolfRoom.expectedMembers(room);
+    WordwolfRoom.submitVote(room, ids[0], ids[1]);
+    WordwolfRoom.submitVote(room, ids[1], ids[0]);
+    WordwolfRoom.submitVote(room, ids[2], ids[0]);
+    WordwolfRoom.submitVote(room, ids[3], ids[1]);
+    WordwolfRoom.advance(room);
+    assertEqual(w.phase, 'vote', '同数なので、もう一度投票');
+    assert(w.runoff, '決選投票に入っている');
+    const cands = w.runoff.candidates;
+    assertEqual(cands.length, 2, '並んだ2人が候補');
+    WordwolfRoom.expectedMembers(room).forEach((id) => {
+      const v = WordwolfRoom.privateFor(room, id);
+      assertEqual(v.runoff, true, '端末に決選投票だと伝わる');
+      (v.choices || []).forEach((c) => {
+        assert(cands.indexOf(c.id) !== -1, '候補以外は選択肢に出ない');
+      });
+    });
+    const outsider = WordwolfRoom.expectedMembers(room).find((id) => cands.indexOf(id) === -1);
+    if (outsider) {
+      const bad = WordwolfRoom.submitVote(room, cands[0], outsider);
+      assertEqual(bad.ok, false, '候補以外への投票は弾く');
+      assertEqual(bad.error, 'not_candidate', '理由が分かる');
+    }
+    assertEqual(WordwolfRoom.publicView(room).runoff.candidates.length, 2, '大画面にも候補が出る');
+  });
+
+  await r.test('1人1台ワードウルフ：2〜ターン版は、決着するまでお題を明かさない', async () => {
+    const room = fakeRoom(['あき', 'びび', 'ちか', 'でん', 'えみ']);
+    WordwolfRoom.startGame(room, {
+      wolfCount: 1, roles: [], multiTurn: true, turnLimit: 3, changeTopic: false
+    });
+    const w = room.wordwolf;
+    WordwolfRoom.expectedMembers(room).forEach((id) => WordwolfRoom.submitAction(room, id, null));
+    WordwolfRoom.advance(room); // meeting
+    WordwolfRoom.advance(room); // discuss
+    WordwolfRoom.advance(room); // vote
+    // ウルフ以外の1人に全員で入れる → まだ続く
+    const wolf = w.wolfIds[0];
+    const target = w.playerIds.find((id) => id !== wolf);
+    WordwolfRoom.expectedMembers(room).forEach((id) => {
+      WordwolfRoom.submitVote(room, id, id === target ? wolf : target);
+    });
+    WordwolfRoom.advance(room);
+    const rr = WordwolfRoom.publicView(room).roundResult;
+    assertEqual(rr.continues, true, 'まだ次のターンがある');
+    // ウルフが1人の設定では「続く＝外した」がルール上分かるので、そこは書いてよい
+    assertEqual(rr.wasWolf, false, '外したことは伝わる');
+    const pub = JSON.stringify(WordwolfRoom.publicView(room));
+    assert(pub.indexOf(w.minorityTopic) === -1, '途中でお題は出さない');
+    WordwolfRoom.advance(room);
+    assertEqual(w.phase, 'discuss', '同じお題のまま次のターンの話し合いへ');
+    assertEqual(w.turn, 2, '2ターン目になる');
   });
 
   // ---------- ⑦ 決着後だけ、誰が誰に入れたかを開示する（第23弾-2） ----------

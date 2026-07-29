@@ -1205,21 +1205,24 @@ async function startModeWithTimerOff(win, doc, id) {
   });
 
   // ---- 第21弾 第4〜5部：手渡し／1人1台の切り替えと、部屋の入り口 ----
-  await r.test('人狼だけ「手渡し／1人1台」を選べ、既定は手渡しのまま', async () => {
+  await r.test('人狼もワードウルフも「手渡し／1人1台」を選べ、既定は手渡しのまま', async () => {
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
 
-    // ワードウルフには出さない（手渡しだけのゲーム）
+    // 第24弾：ワードウルフも1人1台で遊べるようになった
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    assertEqual(el(doc, 'wolfStyleRow').style.display, 'none', 'ワードウルフには切り替えを出さない');
+    assertEqual(el(doc, 'wolfStyleRow').style.display, 'block', 'ワードウルフにも切り替えを出す');
+    assert(/お題の確認も投票も/.test(el(doc, 'wolfStyleNote').textContent) ||
+      doc.querySelector('#wolfStyleSeg [data-wolfstyle="handoff"]').classList.contains('on'),
+      '既定は手渡しなので、説明も手渡しのもの');
 
-    // 人狼には出す
+    // 人狼にも出す
     click(doc, 'backToShelfBtn');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');

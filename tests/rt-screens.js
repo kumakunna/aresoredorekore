@@ -74,20 +74,72 @@ async function toRoom(win, doc, opts) {
   return fake;
 }
 
-// 待合から棚へ出て、カセット→ゲーム→モードを歩いて待合にもどる（ホストの流れ）
-async function pickGameForRoom(win, doc, gameId) {
+// 第27弾：ゲームがどのカセットに入っているか。
+// 1つしか入っていないカセットはゲーム選択画面を飛ばすので、歩き方が変わる
+const CASSETTE_OF = { wolfrole: 'jinro', wordwolf: 'jinro', bomb: 'bakudan' };
+
+// 待合から棚へ出て、カセット→（ゲーム）→モードを歩いて待合にもどる（ホストの流れ）
+async function pickGameForRoom(win, doc, gameId, modeId) {
   click(doc, 'rtPickGameBtn');
   await waitScreen(win, doc, 'scr-shelf', 3000);
-  const cart = doc.querySelector('.cart[data-cart="jinro"]');
+  const cart = doc.querySelector('.cart[data-cart="' + (CASSETTE_OF[gameId] || 'jinro') + '"]');
+  assert(cart, gameId + ' のカセットが棚にある');
   cart.click();
   if (activeScreen(doc) === 'scr-shelf') cart.click();
-  await waitScreen(win, doc, 'scr-game', 3000);
-  pickGame(doc, gameId);
+  // ゲームが1つだけのカセットは、選択画面を通らずモードへ進む
+  if (activeScreen(doc) === 'scr-game') {
+    pickGame(doc, gameId);
+  }
   await waitScreen(win, doc, 'scr-mode', 3000);
+  if (modeId) click(doc, doc.querySelector('.mode-card[data-id="' + modeId + '"]'));
   click(doc, 'modeAutoBtn');
   await sleep(win, 100);
   if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 80); }
   await waitScreen(win, doc, 'scr-rt-room', 3000);
+}
+
+// ---- 第27弾：クイズ解除の部屋 ----
+// サーバー（bomb-room.js）が配る形をそのまま真似る。
+// 公開情報にお題の名前・説明文が入っていないのは realtime-bomb.js で見ているので、
+// ここでは「届いたものを画面がどう出すか」だけを見る
+function bombView(over) {
+  return Object.assign({
+    phase: 'play', mode: 'coop', endWhen: 'first', layout: 'sorted',
+    total: 4, livesMax: 3, timerSec: 180,
+    prep: { ready: 4, dropped: 0, total: 4 },
+    team: { solved: 1, total: 4, pct: 25, lives: 2, livesMax: 3, misses: 1 },
+    board: [
+      { uid: 'w0', tier: 'easy', solved: true, solvedBy: 'あき', by: null },
+      { uid: 'w1', tier: 'easy', solved: false, solvedBy: null, by: 'びび' },
+      { uid: 'w2', tier: 'normal', solved: false, solvedBy: null, by: null },
+      { uid: 'w3', tier: 'hard', solved: false, solvedBy: null, by: null }
+    ],
+    players: [
+      { id: 'm1', name: 'あき', connected: true, solved: 1, total: 4, pct: 25, lives: 2, livesMax: 3, misses: 1, failed: false, timedOut: false, finished: false, working: null, remainingMs: 120000 },
+      { id: 'm2', name: 'びび', connected: true, solved: 1, total: 4, pct: 25, lives: 2, livesMax: 3, misses: 1, failed: false, timedOut: false, finished: false, working: 'easy', remainingMs: 120000 }
+    ],
+    remainingMs: 120000
+  }, over || {});
+}
+function bombYou(over) {
+  return Object.assign({
+    phase: 'play', mode: 'coop', total: 4, solvedCount: 1,
+    lives: 2, livesMax: 3, misses: 1,
+    failed: false, timedOut: false, finished: false,
+    remainingMs: 120000, layout: 'sorted',
+    prep: { ready: 4, dropped: 0, total: 4 },
+    board: bombView().board
+  }, over || {});
+}
+function bombRoom(over) {
+  return roomSnapshot(Object.assign({
+    playerCount: 2, memberCount: 2,
+    members: [
+      { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
+      { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false }
+    ],
+    state: { phase: 'play', game: 'bomb', data: bombView() }
+  }, over || {}));
 }
 
 // サーバーからの配信を流し込む
@@ -444,8 +496,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     click(doc, 'rtJoinBtn');
     await waitScreen(win, doc, 'scr-rt-room', 4000);
 
-    // 将来のゲーム（まだ画面が無い）が始まった場合
-    push(fake, roomSnapshot({ state: { phase: 'playing', game: 'bomb', data: { phase: 'playing' } } }));
+    // まだ1人1台に対応していないゲーム（クイズ王）が始まった場合。
+    // 第27弾で爆弾解除が対応済みになったので、ここは別のゲームに差し替えてある
+    push(fake, roomSnapshot({ state: { phase: 'playing', game: 'quizking', data: { phase: 'playing' } } }));
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-room', '待合に留まる（真っ白な画面にしない）');
     assertNoErrors(errors, '未対応ゲームで未捕捉の例外');
@@ -609,6 +662,238 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(el(doc, 'app').classList.contains('theme-wolf'),
       '部屋のゲームからテーマが決まる（ホストだけ夜、にならない）');
     assertNoErrors(errors, '部屋コード参加のテーマで未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第27弾：クイズ解除の画面 ----
+
+  await r.test('クイズ解除：待合から爆弾解除カセットを選んで戻れる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    await pickGameForRoom(win, doc, 'bomb', 'bomb');
+    const picked = fake.emits.filter(e => e.name === 'room:setState').pop();
+    assertEqual(picked.payload.game, 'bomb', '遊ぶゲームを部屋に伝えている');
+    // 待合の案内にも、何を遊ぶかが出る
+    push(fake, bombRoom({ state: { phase: 'lobby', game: 'bomb', data: {} } }));
+    await sleep(win, 80);
+    assert(/クイズ解除/.test(el(doc, 'rtRoomNote').textContent), '何を遊ぶかが待っている人にも見える');
+    assert(!el(doc, 'rtStartBtn').disabled, '進行役なら始められる');
+    assertNoErrors(errors, '爆弾解除カセットを選ぶところで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ解除：はじめる時に、お題プールと設定をサーバーへ渡す', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    await pickGameForRoom(win, doc, 'bomb', 'bomb');
+    push(fake, bombRoom({ state: { phase: 'lobby', game: 'bomb', data: {} } }));
+    await sleep(win, 80);
+    click(doc, 'rtStartBtn');
+    await sleep(win, 120);
+    const start = fake.emits.filter(e => e.name === 'wolf:start').pop();
+    assert(start, '開始を送っている');
+    assertEqual(start.payload.game, 'bomb', 'ゲームは爆弾解除');
+    assertEqual(start.payload.mode, 'coop', '通常版として始める');
+    assert(start.payload.topics.length > 0, 'お題プールを渡している');
+    assert(start.payload.topics.every(t => t.name && t.tier), 'お題には名前と難易度がある');
+    assert(start.payload.lives >= 1, 'ライフの設定を渡している');
+    assertNoErrors(errors, '開始で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ解除：準備中は本数だけ出て、盤面も説明文も出ない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, bombRoom({
+      state: { phase: 'prep', game: 'bomb', data: bombView({ phase: 'prep', prep: { ready: 2, dropped: 0, total: 6 } }) }
+    }));
+    pushYou(fake, bombYou({ phase: 'prep', board: undefined, prep: { ready: 2, dropped: 0, total: 6 } }));
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    assertEqual(el(doc, 'rtBombPhase').textContent, '準備中', '準備中だと分かる');
+    assertEqual(el(doc, 'rtBombPrepBox').style.display, 'block', '進み具合のバーが出る');
+    assert(/2 \/ 6本/.test(el(doc, 'rtBombPrepNote').textContent), '本数だけが出る');
+    assertEqual(el(doc, 'rtBombBoard').innerHTML, '', '盤面はまだ出さない');
+    assertEqual(el(doc, 'rtBombOverlay').classList.contains('show'), false, '説明文も出さない');
+    assertNoErrors(errors, '準備中の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ解除：自分の盤面・ライフ・残り時間が出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, bombRoom());
+    pushYou(fake, bombYou());
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    assertEqual(el(doc, 'rtBombLives').textContent, '❤️❤️🖤', 'ライフが減った分だけ黒くなる');
+    assertEqual(el(doc, 'rtBombProgress').textContent, '1 / 4 解除', '進捗が出る');
+    assert(/^0[12]:/.test(el(doc, 'rtBombTimer').textContent), '残り時間が出る（' + el(doc, 'rtBombTimer').textContent + '）');
+
+    const cells = doc.querySelectorAll('#rtBombBoard .bomb-wire-btn');
+    assertEqual(cells.length, 4, '4本のコードが並ぶ');
+    assert(cells[0].classList.contains('solved'), '解除済みが分かる');
+    assert(cells[1].classList.contains('taken'), '他の人が挑戦中のコードは押せない見た目になる');
+    // 誰が挑戦中かは名前で分かる（お題の中身は出さない）
+    assert(/びびが挑戦中/.test(el(doc, 'rtBombBoard').textContent), '誰が挑戦中かが分かる');
+    assert(!/せつめい/.test(el(doc, 'rtBombBoard').textContent), '説明文は盤面に出ない');
+    // 難易度別に整列していると、見出しが付く
+    assert(doc.querySelectorAll('#rtBombBoard .sec-title').length >= 2, '難易度ごとに区切られる');
+    assertNoErrors(errors, '盤面の表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ解除：コードを押すとサーバーに伝え、開いた分だけ3択が出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, bombRoom());
+    pushYou(fake, bombYou());
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+
+    // ふさがっているコードは押しても何も送らない
+    const before = fake.emits.filter(e => e.name === 'wolf:act').length;
+    doc.querySelectorAll('#rtBombBoard .bomb-wire-btn')[1].click();
+    await sleep(win, 60);
+    assertEqual(fake.emits.filter(e => e.name === 'wolf:act').length, before,
+      '他の人が挑戦中のコードは送らない');
+
+    // 空いているコードを押す
+    doc.querySelectorAll('#rtBombBoard .bomb-wire-btn')[2].click();
+    await sleep(win, 80);
+    const act = fake.emits.filter(e => e.name === 'wolf:act').pop();
+    assertEqual(act.payload.targetId, 'w2', '押したコードを伝えている');
+
+    // サーバーが説明文と3択を返してきたら、そのコードだけを出す
+    pushYou(fake, bombYou({
+      open: { uid: 'w2', tier: 'normal', description: 'まるくて甘い果物です', choices: ['りんご', 'みかん', 'すいか'] }
+    }));
+    await sleep(win, 100);
+    assert(el(doc, 'rtBombOverlay').classList.contains('show'), '3択が出る');
+    assertEqual(el(doc, 'rtBombDescription').textContent, 'まるくて甘い果物です', '説明文が出る');
+    assertEqual(doc.querySelectorAll('#rtBombChoices .pk-btn').length, 3, '3択');
+
+    // 答えると、選んだ言葉をそのまま送る
+    doc.querySelectorAll('#rtBombChoices .pk-btn')[0].click();
+    await sleep(win, 80);
+    const vote = fake.emits.filter(e => e.name === 'wolf:vote').pop();
+    assertEqual(vote.payload.targetId, 'りんご', '選んだ答えを送っている');
+
+    // 正解して閉じたら、3択は消える
+    pushYou(fake, bombYou({ solvedCount: 2 }));
+    await sleep(win, 80);
+    assert(!el(doc, 'rtBombOverlay').classList.contains('show'), '答えたら3択は閉じる');
+    assertNoErrors(errors, '3択のやりとりで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ解除：競争版では、他の人の残り本数だけが見える', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const race = bombView({
+      mode: 'race', layout: 'mixed', team: undefined, board: undefined,
+      players: [
+        { id: 'm1', name: 'あき', connected: true, solved: 3, total: 4, pct: 75, lives: 1, livesMax: 3, misses: 2, failed: false, timedOut: false, finished: false, working: 'easy', remainingMs: 90000 },
+        { id: 'm2', name: 'びび', connected: true, solved: 1, total: 4, pct: 25, lives: 3, livesMax: 3, misses: 0, failed: false, timedOut: false, finished: false, working: null, remainingMs: 150000 }
+      ]
+    });
+    push(fake, bombRoom({ state: { phase: 'play', game: 'bomb', data: race } }));
+    pushYou(fake, bombYou({ mode: 'race', layout: 'mixed' }));
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    assertEqual(el(doc, 'rtBombPhase').textContent, '競争版・解除中', '競争版だと分かる');
+    const note = el(doc, 'rtBombNote').textContent;
+    assert(/あき/.test(note) && /あと1/.test(note), '他の人の残り本数が出る');
+    assert(!/びび/.test(note), '自分の分は一覧に入れない');
+    // ごちゃまぜなら難易度の見出しは付かない
+    assertEqual(doc.querySelectorAll('#rtBombBoard .sec-title').length, 0, 'ごちゃまぜは区切らない');
+    assertNoErrors(errors, '競争版の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ解除：決着したら結果と、次に進むボタンが出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });   // 自分がホスト（m1）
+    await pickGameForRoom(win, doc, 'bomb', 'bomb');
+    const ended = bombView({
+      phase: 'ended',
+      result: {
+        mode: 'coop', success: true, cause: 'defused', solved: 4, total: 4,
+        lives: 2, livesMax: 3, misses: 1, elapsedSec: 95,
+        codes: [{ tier: 'easy', name: '傘', solved: true }, { tier: 'normal', name: '冷蔵庫', solved: true }]
+      }
+    });
+    push(fake, bombRoom({ state: { phase: 'ended', game: 'bomb', data: ended } }));
+    pushYou(fake, bombYou({ phase: 'ended', result: ended.result }));
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    const text = el(doc, 'rtBombResult').textContent;
+    assert(/解除成功/.test(text), '成功したことが出る');
+    assert(/ミス 1回/.test(text), 'ミス数が出る');
+    // 決着したこの瞬間だけ、答え合わせのために中身を開ける
+    assert(/傘/.test(text) && /冷蔵庫/.test(text), 'コードの正体が出る');
+    assert(el(doc, 'rtBombAgainBtn').style.display !== 'none', '次のゲームを選びに行ける');
+    assert(el(doc, 'rtBombEndBtn').style.display !== 'none', 'ホストは部屋を閉じられる');
+    assert(el(doc, 'rtBombLeaveBtn').style.display !== 'none', '部屋から出られる');
+    assertNoErrors(errors, '決着の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ解除：始められなかった時は、理由が出て行き止まりにならない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const aborted = bombView({
+      phase: 'ended',
+      result: { aborted: true, message: 'AIの説明文を1本も作れなかったので、始められませんでした' }
+    });
+    push(fake, bombRoom({ state: { phase: 'ended', game: 'bomb', data: aborted } }));
+    pushYou(fake, bombYou({ phase: 'ended', result: aborted.result }));
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    assert(/作れなかった/.test(el(doc, 'rtBombResult').textContent), '理由が出る');
+    assert(el(doc, 'rtBombLeaveBtn').style.display !== 'none', '部屋から出られる');
+    assertNoErrors(errors, '始められなかった時に未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面：クイズ解除は横棒グラフで進捗とライフだけを出す', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const members = bombRoom().members.concat([
+      { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
+    ]);
+    push(fake, bombRoom({ members, memberCount: 3 }));
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
+    assertEqual(el(doc, 'bigBoard').style.display, 'flex', '横棒グラフが出る');
+    const rows = doc.querySelectorAll('#bigBoard .bb-row');
+    assertEqual(rows.length, 2, 'プレイヤーぶんの棒が並ぶ');
+    assert(/あき/.test(rows[0].textContent), '名前が出る');
+    assert(/1 \/ 4/.test(rows[0].textContent), '解けた本数が出る');
+    assert(/❤️❤️🖤/.test(rows[0].textContent), 'ライフが出る');
+    assertEqual(rows[0].querySelector('.bb-fill').style.width, '25%', '棒の長さが進捗を表す');
+    // 大画面に秘密は出さない
+    const big = el(doc, 'scr-rt-big').textContent;
+    assert(!/せつめい/.test(big), '説明文は出ない');
+    assertEqual(el(doc, 'bigList').innerHTML, '', '名前だけの一覧は使わない（棒に差し替える）');
+    assertNoErrors(errors, '大画面のリーダーボードで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面：爆弾解除以外にもどったら、横棒グラフは消える', async () => {
+    // 残したままだと、人狼の部屋に前の試合の棒が出たままになる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const members = bombRoom().members.concat([
+      { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
+    ]);
+    push(fake, bombRoom({ members, memberCount: 3 }));
+    await sleep(win, 120);
+    assertEqual(el(doc, 'bigBoard').style.display, 'flex', 'まずは出ている');
+    // m5（この端末）が大画面のまま、部屋のゲームだけが人狼に切り替わった状態
+    push(fake, roomSnapshot({
+      members: roomSnapshot().members.map(m => m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m),
+      playerCount: 4,
+      state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) }
+    }));
+    await sleep(win, 120);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
+    assertEqual(el(doc, 'bigBoard').style.display, 'none', '別のゲームでは消える');
+    assertNoErrors(errors, '大画面の切り替えで未捕捉の例外');
     win.close();
   });
 

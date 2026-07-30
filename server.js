@@ -136,55 +136,24 @@ function rowToTopic(row) {
 // GEMINI_API_KEY が .env に設定されている場合のみ動作する
 // キーは https://aistudio.google.com で発行（Googleアカウントのみでクレジットカード不要）
 
+// 第27弾：プロンプトと呼び出しは ai-describe.js に移した。
+// 爆弾解除の競争版が、試合前にサーバー側だけで説明文を作る必要があり、
+// 同じプロンプトを2箇所に書くと片方だけ直る事故になるため。
+const AiDescribe = require('./ai-describe');
+// エラーの種類ごとのHTTPステータス。返す本文は今までとまったく同じ
+const AI_STATUS = { bad_request: 400, no_key: 503 };
+
 app.post('/api/ai-describe', requireAuth, async (req, res) => {
   const { name, ng_words, hint, avoid } = req.body || {};
-  if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(503).json({ error: 'サーバーにGEMINI_API_KEYが設定されていません（.envに追加してpm2 restartしてください）' });
-  }
   try {
-    const avoidList = (ng_words || []).join('、') || 'なし';
-    let prompt;
-    if (hint) {
-      // 一言ヒントモード（③）：単語ひとつだけ返す。avoid には既出のヒントを渡す
-      const already = (avoid || []).join('、');
-      prompt = 'あなたは日本語のパーティーゲーム「あれそれどれこれ」のヒント役です。プレイヤーはヒントの単語だけを聞いてお題を当てます。\n'
-        + `お題:「${name}」\n禁止ワード: ${avoidList}\n`
-        + (already ? `すでに出したヒント: ${already}\n` : '')
-        + '\nお題を連想できる「単語ひとつだけ」を日本語で出力してください。お題の名前そのもの・禁止ワード・すでに出したヒントは絶対に使わないこと。文ではなく単語のみ、説明・記号・句読点・番号は一切付けず、単語だけを返してください。';
-    } else {
-      prompt = 'あなたは日本語のパーティーゲーム「あれそれどれこれ」の出題者です。プレイヤーは言葉の説明だけを聞いて、お題が何かを当てます。\n'
-        + `お題:「${name}」\n禁止ワード: ${avoidList}\n\n`
-        + 'お題の名前そのものと禁止ワードは絶対に使わず、日本語で2〜3文の簡潔な説明をしてください。説明文以外（前置きや補足）は一切出力しないでください。';
-    }
-    // #3：無料枠のレート制限が緩い gemini-flash-lite-latest を使用
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    const reqBody = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] });
-    const callGemini = () => fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: reqBody
-    });
-    let resp = await callGemini();
-    if (resp.status === 429) {
-      // #3：レート制限（429）は数秒待って1回だけ自動リトライ
-      await new Promise((r) => setTimeout(r, 3000));
-      resp = await callGemini();
-    }
-    if (!resp.ok) {
-      const errBody = await resp.text();
-      console.error('[ai-describe] Gemini API error:', resp.status, errBody);
-      return res.status(502).json({ error: 'AI呼び出しに失敗しました（APIキーを確認してください）' });
-    }
-    const data = await resp.json();
-    const cand = data.candidates && data.candidates[0];
-    const text = cand && cand.content && cand.content.parts && cand.content.parts[0] && cand.content.parts[0].text
-      ? cand.content.parts[0].text.trim() : null;
-    if (!text) return res.status(502).json({ error: 'AIからの応答が空でした' });
-    res.json({ description: text });
+    const out = await AiDescribe.describe({ name, ng_words, hint, avoid });
+    res.json(out);
   } catch (e) {
-    console.error('[ai-describe] error:', e);
-    res.status(502).json({ error: 'AI呼び出し中にエラーが発生しました' });
+    if (e.kind === 'api_error') console.error('[ai-describe] Gemini API error:', e.status, e.body);
+    else if (e.kind !== 'no_key' && e.kind !== 'bad_request') console.error('[ai-describe] error:', e);
+    // 種類の付いていない失敗（想定外）は、中身をそのまま返さずに今までの文面にする
+    const message = e.kind ? e.message : 'AI呼び出し中にエラーが発生しました';
+    res.status(AI_STATUS[e.kind] || 502).json({ error: message });
   }
 });
 

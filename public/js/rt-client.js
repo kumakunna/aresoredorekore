@@ -154,7 +154,12 @@
       return call('room:setState', Object.assign({ phase: 'lobby', game: gameId || null }, opts || {}));
     }
 
-    // ---- 人狼（1人1台） ----
+    // ---- 1人1台の進行（人狼・ワードウルフ・爆弾解除で共通） ----
+    // イベント名は wolf: のままだが、届く先は「その部屋でいま遊んでいるゲーム」。
+    // サーバー側の約束（startGame / submitAction / submitVote / advance）が
+    // 揃っているので、ゲームが増えてもここに関数は増えない。
+    //   act  … 選ぶ・確認する（爆弾解除では「このコードを開ける」／null で閉じる）
+    //   vote … 決める（爆弾解除では「3択の答え」）
     function startWolf(config) { return call('wolf:start', config || {}); }
     function act(targetId) { return call('wolf:act', { targetId: targetId }); }
     function vote(targetId) { return call('wolf:vote', { targetId: targetId }); }

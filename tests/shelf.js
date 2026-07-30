@@ -213,6 +213,32 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第27弾：爆弾解除カセットが棚に出ている ----
+  await r.test('爆弾解除カセットが棚に出ていて、近日公開ではない', async () => {
+    const { win, doc, errors } = await launch();
+    const c = cart(doc, 'bakudan');
+    assert(c, '爆弾解除のカセットが棚にある');
+    assert(!c.classList.contains('soon'), '近日公開ではなく、遊べる状態');
+    assert(!c.querySelector('.soon-tag'), '「近日公開予定」タグが付いていない');
+    assert(/爆弾/.test(c.textContent), 'カセットの名前が出ている');
+    assertNoErrors(errors, '棚の描画で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('爆弾解除カセット：ゲームが1つなので選択画面を飛ばす', async () => {
+    const { win, doc, errors } = await launch();
+    pickCart(doc, 'bakudan');
+    await sleep(win, 60);
+    // クイズ解除しか入っていないので、無駄なタップを増やさず先へ進む
+    assert(activeScreen(doc) !== 'scr-game', 'ゲーム選択画面は通らない');
+    await H.fillPlayerForm(win, doc, ['あき', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c2 => c2.dataset.id);
+    assertEqual(ids.join(','), 'bomb,bomb-race', 'クイズ解除のモードだけが並ぶ');
+    assertNoErrors(errors, '爆弾解除カセットで未捕捉の例外');
+    win.close();
+  });
+
   await r.test('人狼ゲームカセット：ゲーム選択を経由し、選んだゲームのモードだけが出る', async () => {
     const { win, doc, errors } = await launch();
     pickCart(doc, 'jinro');

@@ -2671,6 +2671,118 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  // ---- 第27弾：爆弾解除カセットを本番データのまま通しでプレイする ----
+  await r.test('爆弾解除カセット：暗室→蓋オープン→3択→全解除まで通る', async () => {
+    // テスト用の細工なしで、棚に出ている本番のカセットをそのまま遊ぶ
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+    assert(cart, '爆弾解除のカセットが棚にある');
+    assert(!cart.classList.contains('soon'), '近日公開ではなく、遊べる状態');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    // ゲームが1つ（クイズ解除）だけなので、ゲーム選択は飛ばされる
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    assertEqual(ids.join(','), 'bomb,bomb-race', 'クイズ解除の2枚だけが並ぶ');
+    const cards = Array.from(doc.querySelectorAll('#modeCards .mode-card'));
+    assert(/クイズ解除/.test(cards[0].textContent), 'モードカードの名前が「クイズ解除」になっている');
+
+    // 競争版は部屋が必須なので、手渡し方式では選べない（理由が読める）
+    assert(cards[1].classList.contains('locked'), '競争版は手渡しでは選べない');
+    assert(/部屋/.test(cards[1].dataset.locked), '押した時に部屋が要ると分かる');
+
+    // コードの本数を少なくして、最後まで解けるようにする
+    click(doc, cards[0]);
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-bomb', 3000);
+    assert(doc.querySelectorAll('#bombTierRows .bomb-tier-row').length > 0,
+      '難易度ごとのステッパーが出る');
+    // いったん全部0にして、かんたんだけ2本にする。
+    // 押すたびに一覧が作り直されるので、その都度引き直す
+    for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
+      for (let i = 0; i < 30; i++) {
+        if (el(doc, 'bombCount-' + tier).textContent === '0') break;
+        doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();
+      }
+      assertEqual(el(doc, 'bombCount-' + tier).textContent, '0', tier + 'を0本にした');
+    }
+    for (let i = 0; i < 2; i++) {
+      doc.querySelector('#bombTierRows .bomb-plus[data-tier="easy"]').click();
+    }
+    await sleep(win, 40);
+    assertEqual(el(doc, 'bombCount-easy').textContent, '2', 'かんたんを2本にした');
+
+    // 残りのウィザードを進めて開始
+    for (let i = 0; i < 8; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 30);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+
+    // 暗室 → ライトが点く（3秒）→ 爆弾をタップして蓋が開く
+    await waitScreen(win, doc, 'scr-bomb-play', 6000);
+    await waitFor(win, () => el(doc, 'bombRoom').classList.contains('lit'), 6000, 'ライトが点く');
+    click(doc, 'bombDevice');
+    await waitFor(win, () => el(doc, 'bombInside').style.display === 'block', 3000, '蓋が開く');
+    const wires = doc.querySelectorAll('#bombWireList .bomb-wire-btn');
+    assertEqual(wires.length, 2, '設定した本数だけコードが並ぶ');
+
+    // 2本とも正解して全解除する（正解はAIの説明文と一緒に3択に入っている）
+    for (let i = 0; i < 2; i++) {
+      const btn = doc.querySelector('#bombWireList .bomb-wire-btn:not(.solved)');
+      assert(btn, (i + 1) + '本目のコードがある');
+      btn.click();
+      await waitFor(win, () => doc.querySelectorAll('#bombWireChoices .pk-btn').length === 3,
+        4000, (i + 1) + '本目の3択が出る');
+      // 疑似APIの説明文にはお題の名前が入っている。そこから正解を選ぶ
+      const desc = el(doc, 'bombWireDescription').textContent;
+      const choices = Array.from(doc.querySelectorAll('#bombWireChoices .pk-btn'));
+      const right = choices.find(c => desc.indexOf(c.textContent) >= 0);
+      assert(right, (i + 1) + '本目の正解が3択に入っている');
+      right.click();
+      await sleep(win, 600);
+    }
+    await waitScreen(win, doc, 'scr-bomb-end', 4000);
+    assert(/解除成功/.test(el(doc, 'bombEndTitle').textContent), '全解除で成功になる');
+    assertNoErrors(errors, '爆弾解除の通しプレイで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('爆弾解除：心拍は蓋が開いてから鳴り、画面を離れたら止まる', async () => {
+    // 常時BGMは入れない方針なので、解除中だけ鳴って、離れたら必ず止まること
+    const { win, doc, errors } = await launch(LAUNCH);
+    // 心拍は setInterval で刻む。鳴っているかは AudioContext が作られたかで見る
+    let contexts = 0;
+    const origAC = win.AudioContext;
+    win.AudioContext = win.webkitAudioContext = function () { contexts++; return origAC(); };
+
+    await startMode(win, doc, 'bomb');
+    await waitScreen(win, doc, 'scr-bomb-play', 6000);
+    await waitFor(win, () => el(doc, 'bombRoom').classList.contains('lit'), 6000, 'ライトが点く');
+    const beforeOpen = contexts;
+    click(doc, 'bombDevice');
+    await waitFor(win, () => el(doc, 'bombInside').style.display === 'block', 3000, '蓋が開く');
+    await sleep(win, 60);
+    assert(contexts > beforeOpen, '蓋が開いたら心拍が鳴りはじめる');
+
+    // 画面を離れたら止まる（別のゲームを遊んでいる間も鳴り続けないこと）
+    win.confirm = () => true;
+    const stamp = contexts;
+    el(doc, 'floatingGearBtn').click();
+    await sleep(win, 1400);
+    assertEqual(contexts, stamp, '画面を離れたら心拍は鳴らない');
+    assertNoErrors(errors, '心拍演出で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 再発防止：早押しの正解ボタンを連打しても1点しか入らないこと ----
   await r.test('再発防止：早押しの正解ボタンを連打しても1点しか入らない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

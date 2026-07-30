@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const WolfLogic = require('./public/js/wolf-logic.js');
 const WolfRoom = require('./wolf-room.js');
 const WordwolfRoom = require('./wordwolf-room.js');
+const BombRoom = require('./bomb-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -23,7 +24,9 @@ const WordwolfRoom = require('./wordwolf-room.js');
 // 新しいゲームをリアルタイム化する時は、ここに1行足す。
 const GAME_DRIVERS = {
   wolfrole: { driver: WolfRoom, key: 'wolf' },
-  wordwolf: { driver: WordwolfRoom, key: 'wordwolf' }
+  wordwolf: { driver: WordwolfRoom, key: 'wordwolf' },
+  // 第27弾：爆弾解除（クイズ解除）。約束の形が同じなので、足したのはこの1行だけ
+  bomb: { driver: BombRoom, key: 'bomb' }
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -72,6 +75,19 @@ function safeRequireDb() {
   try { return require('./db'); }
   catch (e) {
     console.warn('[realtime] db を読み込めませんでした。対戦履歴は保存されません:', e.message);
+    return null;
+  }
+}
+
+// 第27弾：爆弾解除は、試合が始まる前にサーバー側だけで説明文を作る。
+// 端末に頼むと、作った端末（＝進行役も1人のプレイヤー）に中身が見えてしまうため。
+// プロンプトは /api/ai-describe と共通（ai-describe.js）。
+function safeRequireAi() {
+  try {
+    const Ai = require('./ai-describe');
+    return (input) => Ai.describe(input);
+  } catch (e) {
+    console.warn('[realtime] ai-describe を読み込めませんでした:', e.message);
     return null;
   }
 }
@@ -200,6 +216,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   // 部屋のオーナーがゲーム終了時にその場に居ないと記録できない（指示19の申し送り）。
   // テストからは差し替えられるようにしておく。
   const db = (opts.db !== undefined) ? opts.db : safeRequireDb();
+  // AIの説明文づくり。テストからは network を使わないものに差し替えられる
+  const describe = (opts.describe !== undefined) ? opts.describe : safeRequireAi();
   // 掃除の間隔と猶予はテストから短くできるようにする（本番は既定値のまま）
   const sweepIntervalMs = opts.sweepIntervalMs || SWEEP_INTERVAL_MS;
   const emptyRoomTtlMs = opts.emptyRoomTtlMs != null ? opts.emptyRoomTtlMs : EMPTY_ROOM_TTL_MS;
@@ -257,6 +275,21 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   function recordMatch(room) {
     if (room.wolf) return recordWolfMatch(room);
     if (room.wordwolf) return recordWordwolfMatch(room);
+    if (room.bomb) return recordBombMatch(room);
+  }
+
+  /**
+   * 第27弾：ゲームを始める時にドライバーへ渡す入り口。
+   * ここに載せるのは「サーバーにしかできないこと」だけ:
+   *   describe … AIに説明文を作らせる（端末に見せずに作るため）
+   *   notify   … 途中の進み具合を部屋の全員へ流す
+   * 人狼・ワードウルフは受け取っても使わない（引数を無視するだけ）。
+   */
+  function driverContext() {
+    return {
+      describe: describe,
+      notify: (room) => pushWolfState(room)
+    };
   }
 
   // 決着したら、部屋のオーナー（アカウント）の記録として残す。
@@ -329,6 +362,69 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       };
       const rounds = [{
         mode: w.preset || (w.multiTurn ? 'wordwolf-multi' : 'wordwolf'),
+        score_deltas: deltas,
+        at: new Date().toISOString(),
+        detail
+      }];
+      db.prepare(
+        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
+        "VALUES (?, ?, ?, ?, datetime('now'))"
+      ).run(
+        room.ownerUserId,
+        JSON.stringify(names),
+        JSON.stringify(rounds),
+        JSON.stringify(finalScores)
+      );
+    } catch (e) {
+      console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
+    }
+  }
+
+  // 第27弾：1人1台の爆弾解除（クイズ解除）も同じ形で記録に残す。
+  // 手渡し方式の logRound('bomb') と揃えて、あとから遊び方を見分けられるようにする。
+  //   通常版は協力プレイなので、成功したら全員に同じ点を入れる（手渡しと同じ +1点）。
+  //   競争版は順位が出るので、解けた本数をそのまま点にする。
+  function recordBombMatch(room) {
+    if (!db || !room.ownerUserId || !room.bomb) return;
+    try {
+      const w = room.bomb;
+      if (w.result && w.result.aborted) return; // 始まらなかった試合は記録しない
+      const view = BombRoom.resultView(room);
+      const names = w.playerIds.map((id) => w.names[id]);
+      const deltas = {}, finalScores = {};
+      if (w.mode === 'coop') {
+        w.playerIds.forEach((id) => {
+          const pts = view.success ? 1 : 0;
+          deltas[w.names[id]] = pts;
+          finalScores[w.names[id]] = pts;
+        });
+      } else {
+        (view.ranking || []).forEach((row) => {
+          // ライフを0にした人は「記録なし・最下位扱い」なので0点にする
+          const pts = row.failed ? 0 : row.solved;
+          deltas[row.name] = pts;
+          finalScores[row.name] = pts;
+        });
+      }
+      const detail = {
+        game: 'bomb',
+        style: 'realtime',
+        variant: w.mode,                    // 'coop'（通常版・全員スマホ）| 'race'（競争版）
+        preset: w.preset || null,
+        endWhen: w.mode === 'race' ? w.endWhen : null,
+        codes: w.wires.length,
+        livesMax: w.lives,
+        timerSec: w.timerSec,
+        elapsedSec: view.elapsedSec,
+        success: (w.mode === 'coop') ? !!view.success : null,
+        cause: view.cause || null,
+        ranking: (view.ranking || []).map((r) => ({
+          name: r.name, rank: r.rank, solved: r.solved,
+          misses: r.misses, failed: !!r.failed, timedOut: !!r.timedOut
+        }))
+      };
+      const rounds = [{
+        mode: w.preset || 'bomb',
         score_deltas: deltas,
         at: new Date().toISOString(),
         detail
@@ -610,7 +706,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const gameId = (payload && payload.game) || 'wolfrole';
       const entry = GAME_DRIVERS[gameId];
       if (!entry) return fail(cb, 'unknown_game', 'そのゲームには対応していません');
-      const res = entry.driver.startGame(room, payload || {});
+      const res = entry.driver.startGame(room, payload || {}, driverContext());
       if (!res.ok) return fail(cb, res.error, res.message);
       if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
       pushWolfState(room);

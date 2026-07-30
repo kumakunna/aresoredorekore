@@ -136,6 +136,52 @@ async function playWolfRoleToEnd(win, doc, guardLimit) {
   return false;
 }
 
+// 第27弾：クイズ解除のコード配分を、かんたんだけ n 本にする。
+// ステッパーを押すたびに一覧が作り直されるので、その都度引き直す
+function setBombCodes(doc, n) {
+  for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
+    for (let i = 0; i < 30; i++) {
+      if (el(doc, 'bombCount-' + tier).textContent === '0') break;
+      doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    doc.querySelector('#bombTierRows .bomb-plus[data-tier="easy"]').click();
+  }
+}
+
+// クイズ解除（1台のスマホ）を、解除成功でも爆発でも「終わる」ところまで回す
+async function playBombToEnd(win, doc, codes) {
+  await waitScreen(win, doc, 'scr-bomb-play', 9000);
+  // 暗室 → ライトが点く（3秒）→ 爆弾をタップして蓋が開く
+  await H.waitFor(win, () => el(doc, 'bombRoom').classList.contains('lit'), 8000, 'ライトが点く');
+  click(doc, 'bombDevice');
+  await H.waitFor(win, () => el(doc, 'bombInside').style.display === 'block', 4000, '蓋が開く');
+
+  // ライフ3・コードは何度でも再挑戦できるので、押す回数は本数＋ライフぶんで足りる
+  let guard = codes * 2 + 8;
+  while (guard-- > 0) {
+    if (activeScreen(doc) === 'scr-bomb-end') return true;
+    const btn = doc.querySelector('#bombWireList .bomb-wire-btn:not(.solved)');
+    if (!btn) { await sleep(win, 200); continue; }
+    btn.click();
+    try {
+      await H.waitFor(win, () => doc.querySelectorAll('#bombWireChoices .pk-btn').length === 3,
+        4000, '3択が出る');
+    } catch (e) {
+      if (activeScreen(doc) === 'scr-bomb-end') return true;
+      throw e;
+    }
+    // 疑似APIの説明文にはお題の名前が入っている。そこから正解を選ぶ
+    const desc = el(doc, 'bombWireDescription').textContent;
+    const choices = Array.from(doc.querySelectorAll('#bombWireChoices .pk-btn'));
+    const pick = choices.find(c => desc.indexOf(c.textContent) >= 0) || choices[0];
+    pick.click();
+    await sleep(win, 700);
+  }
+  return activeScreen(doc) === 'scr-bomb-end';
+}
+
 // ワードウルフを決着まで回す
 async function playWordwolfToEnd(win, doc, guardLimit) {
   let g = 0;
@@ -203,6 +249,23 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
         assertNoErrors(errors, modeId + ' の ' + n + '人');
         win.close();
       }
+    }
+  });
+
+  // 第27弾：クイズ解除（1台のスマホ）を、コードの本数を変えて決着まで通す。
+  // 解除できるかは3択の運なので、成功でも爆発でもどちらでも「終われる」ことを見る
+  await r.test('クイズ解除：コードの本数を変えて、最後まで終われる', async () => {
+    for (const codes of [1, 3, 6]) {
+      const { win, doc, errors } = await launch();
+      await toModeScreen(win, doc, 'bakudan', 'bomb', names(3));
+      await startMode(win, doc, 'bomb', {
+        noTimer: true,
+        onStep: (cur) => { if (cur === 'scr-set-bomb') setBombCodes(doc, codes); }
+      });
+      const done = await playBombToEnd(win, doc, codes);
+      assert(done, codes + '本のクイズ解除が終わる（現在: ' + activeScreen(doc) + '）');
+      assertNoErrors(errors, codes + '本のクイズ解除');
+      win.close();
     }
   });
 

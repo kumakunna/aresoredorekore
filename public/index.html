@@ -43,7 +43,12 @@
   .app{
     width:100%;
     max-width:460px;
+    /* 第27弾-2：スマホの 100vh は、ブラウザのアドレスバー・下部バーの裏まで含む。
+       そのままだと画面のいちばん下が「見えているのに押せない」帯になる。
+       dvh（実際に見えている高さ）に対応している端末ではそちらを使う。
+       知らない端末は2行目を読み飛ばすので、今までどおり動く。 */
     min-height:100vh;
+    min-height:100dvh;
     background:var(--paper);
     position:relative;
     border-left:1px solid var(--line);
@@ -52,6 +57,7 @@
   .screen{
     display:none;
     min-height:100vh;
+    min-height:100dvh; /* 第27弾-2：.app と同じ理由 */
     flex-direction:column;
     padding:28px 22px 28px;
     animation:scrIn .3s ease;
@@ -426,7 +432,9 @@
   }
 
   /* ===== 第12弾：棚とカセット（あつまれ、あれこれ） ===== */
-  #scr-shelf{padding:18px 0 24px;}
+  /* 第27弾-2：下部バーが貼り付く先なので、下の余白は持たせない。
+     余白があると、いちばん下までスクロールした瞬間にバーがその分だけ跳ねる */
+  #scr-shelf{padding:18px 0 0;}
   .shelf-head{text-align:center;padding:0 18px;margin-bottom:14px;}
   .shelf-head .logo{font-family:'Shippori Mincho',serif;font-weight:800;font-size:21px;}
   .shelf-head .logo .c{color:var(--stamp);}
@@ -527,13 +535,24 @@
   }
   .sticker::after{content:'';position:absolute;inset:2px;border:1px dashed rgba(36,39,46,.18);border-radius:2px;}
   .shelf-hint{text-align:center;font-size:10.5px;color:var(--ink-soft);padding:6px 20px 0;line-height:1.7;}
-  /* 第26弾-2：棚の下部バー。ログインしていてもいなくても、いつも同じ場所に出る */
+  /* 第26弾-2：棚の下部バー。ログインしていてもいなくても、いつも同じ場所に出る。
+     第27弾-2：スクロールしても隠れないよう、画面の下に貼り付ける。
+       ・sticky を使う（fixed ではなく）。レイアウト上の居場所は今までどおり
+         棚のいちばん下のままなので、本文がバーの下に潜り込まない。
+         画面遷移のアニメーション（.screen に transform が乗る）でも位置が狂わない。
+       ・スクロール中は本文の上に重なるので、背景は必ず不透明にする。
+       ・iPhoneのホームバーぶんは env(safe-area-inset-bottom) で避ける。 */
   .shelf-bar{
-    margin-top:auto;display:flex;align-items:center;gap:10px;
-    padding:10px 14px;margin:auto 14px 0;
-    background:var(--paper-2,rgba(0,0,0,.03));border:1px solid var(--line);border-radius:14px;
+    position:sticky;bottom:0;z-index:5;
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    margin:auto 14px 0;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 -4px 14px rgba(0,0,0,.10);
   }
-  .shelf-me{display:flex;align-items:center;gap:10px;flex:1;min-width:0;
+  /* 第27弾-2：指で押す的を大きくする。11〜12pxの文字にぴったりの高さだと、
+     少しずれただけで外れる（実機で「押しにくい」と分かった） */
+  .shelf-me{display:flex;align-items:center;gap:10px;flex:1;min-width:0;min-height:44px;
     background:none;border:none;padding:4px;margin:0;text-align:left;cursor:pointer;font:inherit;color:inherit;border-radius:10px;}
   .shelf-me:active{background:rgba(0,0,0,.06);}
   .shelf-avatar{
@@ -544,7 +563,8 @@
   .shelf-title{font-size:11px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .shelf-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .shelf-bar-btns{display:flex;gap:6px;flex:none;}
-  .shelf-bar-btns .btn{margin:0;padding:9px 12px;font-size:12.5px;width:auto;}
+  .shelf-bar-btns .btn{margin:0;padding:9px 12px;font-size:12.5px;width:auto;
+    min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;}
   /* 第26弾-4：称号を選ぶ画面 */
   .title-preview{
     display:flex;align-items:center;gap:12px;

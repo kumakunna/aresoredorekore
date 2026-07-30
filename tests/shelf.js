@@ -407,6 +407,57 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第27弾-2：下部バーを画面の下に固定する ----
+
+  await r.test('下部バーは画面の下に貼り付き、本文の上に重なっても読める', async () => {
+    // jsdom はレイアウトしないので、決まりごとそのものを読んで確かめる
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const bar = html.match(/\.shelf-bar\{[^}]*\}/);
+    assert(bar, '.shelf-bar の決まりごとがある');
+    assert(/position:sticky/.test(bar[0]), 'スクロールしても画面の下に留まる');
+    assert(/bottom:0/.test(bar[0]), '留まる先は画面の下');
+    // 本文の上に重なるので、背景が透けると読めなくなる
+    assert(/background:var\(--card\)/.test(bar[0]), '背景が不透明');
+    assert(/z-index:\s*\d/.test(bar[0]), '本文より前に出る');
+    // iPhoneのホームバーに隠れないようにする
+    assert(/safe-area-inset-bottom/.test(bar[0]), 'ホームバーぶんを避ける');
+    // 棚の下の余白は0。残っていると、いちばん下でバーが跳ねる
+    assert(/#scr-shelf\{padding:18px 0 0;\}/.test(html), '棚の下に余白を残さない');
+    // スマホの 100vh はブラウザバーの裏まで含むので、dvh も併記する
+    assert(/min-height:100dvh/.test(html), '実際に見えている高さ（dvh）も使う');
+  });
+
+  await r.test('下部バーの3つのボタンは、どれも押すと反応する', async () => {
+    // 「押しにくい・反応しない」の報告があったので、的の大きさと反応の両方を見る
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const btns = html.match(/\.shelf-bar-btns \.btn\{[^}]*\}/);
+    assert(btns && /min-height:44px/.test(btns[0]), 'ボタンの的が44px以上ある');
+    const me = html.match(/\.shelf-me\{[^}]*\}/);
+    assert(me && /min-height:44px/.test(me[0]), '名前のところの的も44px以上ある');
+
+    const { win, doc, errors } = await launch();
+    // 「部屋」
+    click(doc, 'shelfRoomBtn');
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    click(doc, 'rtLobbyBackBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    // 「称号」（ログイン済みなら押せる）
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    click(doc, 'titlesBackBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    // 「設定」
+    click(doc, 'shelfGearBtn');
+    await sleep(win, 100);
+    assert(el(doc, 'settingsOverlay').classList.contains('show'), '設定が開く');
+    assertNoErrors(errors, '下部バーの操作で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第26弾 第2部：ログインしていなくても棚まで来られる ----
 
   await r.test('ログインしていなくても、扉のあとは棚に着く', async () => {

@@ -598,13 +598,13 @@
   }
   @keyframes aiWaitPulse{0%,100%{opacity:.45;}50%{opacity:1;}}
   /* 3：お題追加の注意書き（控えめ） */
-  .pack-note{font-size:11px;color:var(--muted);opacity:.85;line-height:1.6;margin-bottom:10px;}
+  .pack-note{font-size:11px;color:var(--ink-soft);opacity:.85;line-height:1.6;margin-bottom:10px;}
   /* 4：記録画面 */
   .record-item{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
   .record-item:last-child{border-bottom:none;}
   .record-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;}
   .record-game{font-size:11px;color:#fff;background:var(--stamp);border-radius:999px;padding:2px 10px;flex:none;}
-  .record-date{font-size:11px;color:var(--muted);}
+  .record-date{font-size:11px;color:var(--ink-soft);}
   .record-scores b{color:var(--stamp-deep);}
   .match-history-item{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
   .match-history-item:last-child{border-bottom:none;}
@@ -618,7 +618,7 @@
   /* ===== 設定ウィザード（①モード選択リニューアル） ===== */
   .wiz-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
   .wiz-step{font-family:'DotGothic16',monospace;font-size:12px;color:var(--gold);letter-spacing:1px;flex:none;}
-  .wiz-lead{font-size:13px;color:var(--muted);margin:2px 0 14px;line-height:1.5;}
+  .wiz-lead{font-size:13px;color:var(--ink-soft);margin:2px 0 14px;line-height:1.5;}
   .wiz-body{flex:1;overflow-y:auto;}
   .wiz-foot{margin-top:auto;display:flex;gap:10px;padding-top:14px;}
   .wiz-foot .btn{margin-top:0;}
@@ -632,10 +632,10 @@
   .timer-enable-row .mic-status{margin-top:2px;}
   .wheel-picker{position:relative;display:flex;justify-content:center;gap:4px;padding:0 6px;}
   .wheel-slot{display:flex;flex-direction:column;align-items:center;flex:0 0 74px;}
-  .wheel-unit-label{font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .wheel-unit-label{font-size:12px;color:var(--ink-soft);margin-bottom:4px;}
   .wheel-col{position:relative;height:150px;width:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-ms-overflow-style:none;text-align:center;}
   .wheel-col::-webkit-scrollbar{display:none;}
-  .wheel-item{height:50px;line-height:50px;scroll-snap-align:center;font-family:'DotGothic16',monospace;font-size:26px;color:var(--muted);transition:color .12s,transform .12s;}
+  .wheel-item{height:50px;line-height:50px;scroll-snap-align:center;font-family:'DotGothic16',monospace;font-size:26px;color:var(--ink-soft);transition:color .12s,transform .12s;}
   .wheel-item.sel{color:var(--stamp-deep);transform:scale(1.18);}
   .wheel-pad{height:50px;}
   .wheel-band{position:absolute;left:6px;right:6px;height:50px;border-top:2px solid var(--gold);border-bottom:2px solid var(--gold);background:rgba(196,158,74,0.08);border-radius:6px;pointer-events:none;}
@@ -644,7 +644,7 @@
   .preset-btn.on{background:var(--gold);color:#fff;border-color:var(--gold);}
   .timer-dmode{margin-top:18px;}
   .seg{display:flex;gap:0;margin-top:6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
-  .seg-btn{flex:1;background:var(--card);border:none;padding:11px 8px;font-size:14px;color:var(--muted);cursor:pointer;}
+  .seg-btn{flex:1;background:var(--card);border:none;padding:11px 8px;font-size:14px;color:var(--ink-soft);cursor:pointer;}
   .seg-btn.on{background:var(--stamp);color:#fff;}
   .seg-btn + .seg-btn{border-left:1px solid var(--line);}
   /* 第21弾-4：遊び方の切り替え（手渡し／1人1台） */
@@ -824,7 +824,7 @@
   /* ===== オークションのフェーズ表示（⑦） ===== */
   .auction-phase{align-self:center;margin:0 auto 12px;background:var(--stamp);color:#fff;font-family:'DotGothic16',monospace;font-size:13px;padding:5px 16px;border-radius:999px;letter-spacing:1px;}
   /* 判断2：出題者だけが見る注意書き（控えめ） */
-  .describer-only-note{font-size:11px;color:var(--muted);opacity:.75;text-align:center;margin-bottom:6px;}
+  .describer-only-note{font-size:11px;color:var(--ink-soft);opacity:.75;text-align:center;margin-bottom:6px;}
   #wolfVoteArea{width:100%;}
   #wolfVoteArea .picker-grid{flex:none;max-height:60vh;}
   /* ===================================================================
@@ -1987,7 +1987,7 @@
       <button class="btn btn-outline" id="btnPass" style="margin-top:8px;">⏭ パス（つぎのお題へ）</button>
       <!-- ②：AI/一言ヒントモードで、ホストだけ答えを確認できる控えめなトグル -->
       <button class="btn btn-ghost" id="revealAnswerBtn" style="display:none;font-size:12px;padding:6px 10px;margin-top:8px;opacity:.7;">🔍 答えを確認</button>
-      <div id="revealAnswerBox" style="display:none;font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:1px;"></div>
+      <div id="revealAnswerBox" style="display:none;font-size:12px;color:var(--ink-soft);margin-top:4px;letter-spacing:1px;"></div>
     </div>
     <div class="voice-row" id="hardModeRow">
       <div>

@@ -76,7 +76,7 @@ async function toRoom(win, doc, opts) {
 
 // 第27弾：ゲームがどのカセットに入っているか。
 // 1つしか入っていないカセットはゲーム選択画面を飛ばすので、歩き方が変わる
-const CASSETTE_OF = { wolfrole: 'jinro', wordwolf: 'jinro', bomb: 'bakudan' };
+const CASSETTE_OF = { wolfrole: 'jinro', wordwolf: 'jinro', bomb: 'bakudan', defuse: 'bakudan' };
 
 // 待合から棚へ出て、カセット→（ゲーム）→モードを歩いて待合にもどる（ホストの流れ）
 async function pickGameForRoom(win, doc, gameId, modeId) {
@@ -131,6 +131,47 @@ function bombYou(over) {
     board: bombView().board
   }, over || {});
 }
+// ---- 第27弾-3：実物解除の部屋 ----
+// defuse-room.js が配る形をそのまま真似る。
+// 対応表が解除役に漏れないこと自体は realtime-defuse.js で見ているので、
+// ここでは「届いたものを画面がどう出し分けるか」だけを見る
+function defuseView(over) {
+  return Object.assign({
+    phase: 'play', mode: 'normal', manual: true,
+    strikesLeft: 3, strikesMax: 3, timerSec: 0, remainingMs: null,
+    players: [
+      { id: 'm1', name: 'あき', connected: true, role: 'defuser', working: null, done: true },
+      { id: 'm2', name: 'びび', connected: true, role: 'manual', working: null, done: true }
+    ],
+    waiting: [],
+    board: {
+      total: 3, solved: 1, strikesLeft: 3, strikesMax: 3,
+      modules: [
+        { uid: 'md0', name: '面認証', icon: '🔄', solved: true },
+        { uid: 'md1', name: '傾け迷路', icon: '🌀', solved: false },
+        { uid: 'md2', name: 'イエスノー解錠', icon: '🔐', solved: false }
+      ]
+    }
+  }, over || {});
+}
+function defuseYou(over) {
+  return Object.assign({
+    phase: 'play', mode: 'normal', manual: true, role: 'defuser',
+    strikesLeft: 3, strikesMax: 3, remainingMs: null, done: false, consent: true,
+    board: defuseView().board
+  }, over || {});
+}
+function defuseRoom(over) {
+  return roomSnapshot(Object.assign({
+    playerCount: 2, memberCount: 2,
+    members: [
+      { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
+      { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false }
+    ],
+    state: { phase: 'play', game: 'defuse', data: defuseView() }
+  }, over || {}));
+}
+
 function bombRoom(over) {
   return roomSnapshot(Object.assign({
     playerCount: 2, memberCount: 2,
@@ -894,6 +935,229 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
     assertEqual(el(doc, 'bigBoard').style.display, 'none', '別のゲームでは消える');
     assertNoErrors(errors, '大画面の切り替えで未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第27弾-3：実物解除の画面 ----
+
+  await r.test('実物解除：体を動かす同意で、何をするかと断れることが出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const ask = {
+      moves: ['端末を振る', 'その場でポーズを取る'],
+      camera: true,
+      notes: ['まわりに人や物がないか確かめてください', '端末は落とさないよう、しっかり握ってください'],
+      declineNote: '「参加しない」を選んでも、マニュアル役として一緒に遊べます'
+    };
+    push(fake, defuseRoom({
+      state: { phase: 'consent', game: 'defuse', data: defuseView({ phase: 'consent', board: undefined }) }
+    }));
+    pushYou(fake, defuseYou({ phase: 'consent', role: null, board: undefined, consent: null, consentAsk: ask }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    const text = el(doc, 'dfConsentBox').textContent;
+    assert(/端末を振る/.test(text), 'どんな動作があるかが出る');
+    assert(/まわりに人や物/.test(text), '気をつけることが出る');
+    assert(/参加しない/.test(text), '断れることが出る');
+    assert(doc.getElementById('dfConsentYes'), '「参加する」がある');
+    assert(doc.getElementById('dfConsentNo'), '「参加しない」がある');
+
+    click(doc, 'dfConsentNo');
+    await sleep(win, 120);
+    const act = fake.emits.filter(e => e.name === 'wolf:act').pop();
+    assertEqual(act.payload.targetId, 'no', '断ったことを送っている');
+    assertNoErrors(errors, '同意画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：役割をえらぶと、端末で読めるセンサーも一緒に送る', async () => {
+    // これが無いと、傾きも読めない端末に傾け迷路が出て詰む
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom({
+      state: {
+        phase: 'roles', game: 'defuse',
+        data: defuseView({
+          phase: 'roles', board: undefined,
+          players: [
+            { id: 'm1', name: 'あき', connected: true, role: null, working: null, done: false },
+            { id: 'm2', name: 'びび', connected: true, role: null, working: null, done: false }
+          ]
+        })
+      }
+    }));
+    pushYou(fake, defuseYou({
+      phase: 'roles', role: null, board: undefined,
+      roleAsk: { mode: 'normal', focus: false, taken: [], physicalDeclined: false }
+    }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    assert(/解除役/.test(el(doc, 'dfRolesBox').textContent), '解除役をえらべる');
+    assert(/マニュアル役/.test(el(doc, 'dfRolesBox').textContent), 'マニュアル役もえらべる');
+    assert(/解除役が1人もいない/.test(el(doc, 'dfRolesBox').textContent), '始められない理由が出る');
+
+    click(doc, doc.querySelector('#dfRolesBox [data-dfrole="defuser"]'));
+    await sleep(win, 150);
+    const act = fake.emits.filter(e => e.name === 'wolf:act').pop();
+    assertEqual(act.payload.targetId, 'defuser', '選んだ役割を送っている');
+    assert(act.payload.caps && typeof act.payload.caps.orientation === 'boolean',
+      '端末で読めるセンサーを一緒に送っている');
+    assertNoErrors(errors, '役割えらびで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：解除役にはモジュール一覧、対応表は出ない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom());
+    pushYou(fake, defuseYou({ role: 'defuser' }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    assertEqual(el(doc, 'dfStrikes').textContent, '❤️❤️❤️', 'のこりミスが出る');
+    assertEqual(el(doc, 'dfProgress').textContent, '1 / 3 解除', '進み具合が出る');
+    const mods = doc.querySelectorAll('#dfBoardBox .df-mod');
+    assertEqual(mods.length, 3, 'モジュールが並ぶ');
+    assert(mods[0].classList.contains('solved'), '解除ずみが分かる');
+    assertEqual(el(doc, 'dfManualBox').style.display, 'none', '対応表は出ない');
+    assertNoErrors(errors, '解除役の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：マニュアル役には対応表だけ、モジュール一覧は出ない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom());
+    pushYou(fake, defuseYou({
+      role: 'manual',
+      manualPages: [{
+        uid: 'md1', type: 'shake', name: '振ってアクション', icon: '📳', solved: false,
+        manual: { kind: 'shakeTable', rows: [{ mark: '★', count: 4, tempo: 'fast' }] }
+      }]
+    }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    const box = el(doc, 'dfManualBox');
+    assert(/振ってアクション/.test(box.textContent), '受け持つ対応表が出る');
+    assert(/4回/.test(box.textContent), '中身が読める形で出る');
+    assert(/見せないで/.test(el(doc, 'dfNote').textContent), '見せないよう案内が出る');
+    assertEqual(el(doc, 'dfBoardBox').style.display, 'none', 'モジュール一覧は出ない');
+    assertNoErrors(errors, 'マニュアル役の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：モジュールを開くと中身が出て、閉じると消える', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom());
+    pushYou(fake, defuseYou({ role: 'defuser' }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+
+    doc.querySelectorAll('#dfBoardBox .df-mod')[2].click(); // イエスノー解錠
+    await sleep(win, 100);
+    const act = fake.emits.filter(e => e.name === 'wolf:act').pop();
+    assertEqual(act.payload.targetId, 'md2', '開けたいモジュールを送っている');
+
+    pushYou(fake, defuseYou({
+      role: 'defuser',
+      open: {
+        uid: 'md2', type: 'yesno', name: 'イエスノー解錠', icon: '🔐',
+        lead: '質問を選んで、はい／いいえ から正体を当てよう', solved: false,
+        hint: { questions: ['それは家の中にありますか？'], maxQuestions: 5, choices: ['傘', '帽子', '靴'] },
+        progress: { asked: [], left: 5 }
+      }
+    }));
+    await sleep(win, 150);
+    assert(el(doc, 'dfModOverlay').classList.contains('show'), 'モジュールが開く');
+    assert(/イエスノー解錠/.test(el(doc, 'dfModTitle').textContent), '名前が出る');
+    assert(doc.querySelector('#dfModBody [data-dfask]'), '質問がえらべる');
+    assert(doc.querySelector('#dfModBody [data-dfguess]'), '答えがえらべる');
+
+    doc.querySelector('#dfModBody [data-dfguess]').click();
+    await sleep(win, 120);
+    const vote = fake.emits.filter(e => e.name === 'wolf:vote').pop();
+    assertEqual(vote.payload.action.type, 'guess', '答えを送っている');
+
+    // 閉じたら消える
+    pushYou(fake, defuseYou({ role: 'defuser' }));
+    await sleep(win, 120);
+    assert(!el(doc, 'dfModOverlay').classList.contains('show'), '閉じると消える');
+    assertNoErrors(errors, 'モジュールの開け閉めで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：マニュアルなしなら、対応表がモジュールの中にも出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom({
+      state: { phase: 'play', game: 'defuse', data: defuseView({ manual: false }) }
+    }));
+    pushYou(fake, defuseYou({
+      role: 'defuser', manual: false,
+      open: {
+        uid: 'md1', type: 'shake', name: '振ってアクション', icon: '📳',
+        lead: '決まった回数・テンポで端末を振ろう', solved: false,
+        hint: { mark: '★' }, progress: { done: false },
+        manual: { kind: 'shakeTable', rows: [{ mark: '★', count: 4, tempo: 'slow' }] }
+      }
+    }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    assert(/対応表/.test(el(doc, 'dfModManual').textContent), '自力で解けるよう対応表が出る');
+    assert(/ゆっくり/.test(el(doc, 'dfModManual').textContent), '中身も読める');
+    assertNoErrors(errors, 'マニュアルなしで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：決着したら結果と、次に進むボタンが出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });   // 自分がホスト（m1）
+    await pickGameForRoom(win, doc, 'defuse', 'defuse');
+    const result = {
+      success: true, cause: 'defused', solved: 3, total: 3,
+      strikesLeft: 2, strikesMax: 3, elapsedSec: 140,
+      modules: [{ name: '面認証', icon: '🔄', solved: true }, { name: '傾け迷路', icon: '🌀', solved: true }],
+      roles: [{ name: 'あき', role: 'defuser' }, { name: 'びび', role: 'manual' }],
+      misses: [{ name: '面認証', by: 'あき', note: null }]
+    };
+    push(fake, defuseRoom({
+      state: { phase: 'ended', game: 'defuse', data: defuseView({ phase: 'ended', result }) }
+    }));
+    pushYou(fake, defuseYou({ phase: 'ended', result }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    const text = el(doc, 'dfResultBox').textContent;
+    assert(/解除成功/.test(text), '成功したことが出る');
+    assert(/3 \/ 3個/.test(text), '解除した数が出る');
+    assert(/解除役/.test(text), '誰がどの役だったかが出る');
+    assert(/どこで転んだ/.test(text), 'ミスした場所が出る（次に遊ぶ時の話のタネ）');
+    assert(el(doc, 'dfAgainBtn').style.display !== 'none', '次のゲームを選びに行ける');
+    assert(el(doc, 'dfLeaveBtn').style.display !== 'none', '部屋から出られる');
+    assertNoErrors(errors, '決着の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面：実物解除は、モジュール名と残りミスだけを出す', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const members = defuseRoom().members.concat([
+      { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
+    ]);
+    push(fake, defuseRoom({
+      members, memberCount: 3,
+      state: {
+        phase: 'play', game: 'defuse',
+        data: defuseView({
+          players: [
+            { id: 'm1', name: 'あき', connected: true, role: 'defuser', working: '傾け迷路', done: true },
+            { id: 'm2', name: 'びび', connected: true, role: 'manual', working: null, done: true }
+          ]
+        })
+      }
+    }));
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
+    assertEqual(el(doc, 'bigMain').textContent, '1 / 3個', '進み具合が大きく出る');
+    assert(/❤️❤️❤️/.test(el(doc, 'bigSub').textContent), 'のこりミスが出る');
+    assert(/あきが「傾け迷路」に挑戦中/.test(el(doc, 'bigSub').textContent), '誰が何に挑んでいるか出る');
+    assert(/面認証/.test(el(doc, 'bigList').textContent), 'モジュール名は出る');
+    // 中身（対応表・記号・迷路の地図）は大画面に出さない
+    const big = el(doc, 'scr-rt-big').textContent;
+    assert(!/対応表/.test(big), '対応表は出ない');
+    assertNoErrors(errors, '大画面の実物解除で未捕捉の例外');
     win.close();
   });
 

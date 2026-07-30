@@ -172,9 +172,16 @@
     // 揃っているので、ゲームが増えてもここに関数は増えない。
     //   act  … 選ぶ・確認する（爆弾解除では「このコードを開ける」／null で閉じる）
     //   vote … 決める（爆弾解除では「3択の答え」）
+    // 第27弾-3：extra を付けると、targetId だけでは足りない中身も一緒に送れる
+    //   act('defuser', { caps })            … 役割と、その端末で読めるセンサー
+    //   vote(null, { action:{type:'tilt'} }) … 傾き・振り・入力などの操作
     function startWolf(config) { return call('wolf:start', config || {}); }
-    function act(targetId) { return call('wolf:act', { targetId: targetId }); }
-    function vote(targetId) { return call('wolf:vote', { targetId: targetId }); }
+    function act(targetId, extra) {
+      return call('wolf:act', Object.assign({ targetId: targetId }, extra || {}));
+    }
+    function vote(targetId, extra) {
+      return call('wolf:vote', Object.assign({ targetId: targetId }, extra || {}));
+    }
     function nextPhase() { return call('wolf:next', {}); }
 
     // 自分がホスト（進行を担当している端末）か

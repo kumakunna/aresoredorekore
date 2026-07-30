@@ -225,17 +225,39 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('爆弾解除カセット：ゲームが1つなので選択画面を飛ばす', async () => {
+  await r.test('爆弾解除カセット：2つのゲームから選べ、選んだ方のモードだけが出る', async () => {
+    // 第27弾-3で実物解除が入り、ゲームが2つになったので選択画面を通る
     const { win, doc, errors } = await launch();
     pickCart(doc, 'bakudan');
+    await waitScreen(win, doc, 'scr-game', 3000);
+    const games = Array.from(doc.querySelectorAll('#gameCards .mode-card')).map(c2 => c2.dataset.game);
+    assertEqual(games.join(','), 'bomb,defuse', 'クイズ解除と実物解除が並ぶ');
+
+    pickGame(doc, 'bomb');
     await sleep(win, 60);
-    // クイズ解除しか入っていないので、無駄なタップを増やさず先へ進む
-    assert(activeScreen(doc) !== 'scr-game', 'ゲーム選択画面は通らない');
     await H.fillPlayerForm(win, doc, ['あき', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c2 => c2.dataset.id);
     assertEqual(ids.join(','), 'bomb,bomb-race', 'クイズ解除のモードだけが並ぶ');
     assertNoErrors(errors, '爆弾解除カセットで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除は手渡しでは選べず、部屋が要ると理由が出る', async () => {
+    // 解除役とマニュアル役が別々の画面を同時に見るのが肝なので、1台では成立しない
+    const { win, doc, errors } = await launch();
+    pickCart(doc, 'bakudan');
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'defuse');
+    await sleep(win, 60);
+    await H.fillPlayerForm(win, doc, ['あき', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const cards = Array.from(doc.querySelectorAll('#modeCards .mode-card'));
+    assertEqual(cards.map(c2 => c2.dataset.id).join(','), 'defuse,defuse-focus',
+      '実物解除のモードだけが並ぶ');
+    assert(cards.every(c2 => c2.classList.contains('locked')), 'どちらも手渡しでは選べない');
+    assert(/部屋/.test(cards[0].dataset.locked), '部屋が要ると分かる');
+    assertNoErrors(errors, '実物解除のモード一覧で未捕捉の例外');
     win.close();
   });
 

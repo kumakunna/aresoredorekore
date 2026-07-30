@@ -1637,7 +1637,7 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('カオス人狼（闇鍋）を選ぶと、村人が0人になる', async () => {
+  await r.test('カオス人狼（闇鍋）を選ぶと、ただの村人は多くても1人になる', async () => {
     const { win, doc, errors } = await launch();
     const players = ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く'];
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
@@ -1669,8 +1669,13 @@ async function startModeWithTimerOff(win, doc, id) {
     const roles = [];
     await runWrHandoffs(win, doc, players.length, (info) => { roles.push(info.body); });
     assertEqual(roles.length, players.length, '全員に配られる');
-    roles.forEach(b => assert(!/あなたの役職\s*村人/.test(b.replace(/\s+/g, ' ')),
-      '村人が1人もいない（' + b.replace(/\s+/g, '').slice(0, 16) + '）'));
+    // 闇鍋は「ごく稀に、ただの村人が1人だけ紛れる」仕様（第22弾-3・CHAOS_VILLAGER_CHANCE）。
+    // 「村人が0人」と決め打つと、その抽選を引いた回だけ落ちる。
+    // 落ちる原因が本物の不具合か抽選かを見分けられないテストは、あっても信用できない。
+    // ルールどおり「多くても1人」で固定する（全員村人なら、それは本物の不具合）
+    const villagers = roles.filter(b => /あなたの役職\s*村人/.test(b.replace(/\s+/g, ' ')));
+    assert(villagers.length <= 1,
+      'ただの村人は多くても1人（実際: ' + villagers.length + '人）');
     assertNoErrors(errors, '闇鍋で未捕捉の例外');
     win.close();
   });
@@ -2680,7 +2685,9 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(!cart.classList.contains('soon'), '近日公開ではなく、遊べる状態');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    // ゲームが1つ（クイズ解除）だけなので、ゲーム選択は飛ばされる
+    // 第27弾-3で実物解除が入り、ゲームが2つになったので選択画面を通る
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'bomb');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);

@@ -837,6 +837,63 @@
   .bb-row.is-failed .bb-name{opacity:.55;text-decoration:line-through;}
   .bb-row.is-done .bb-fill{background:var(--stamp);}
   .bb-row.is-off .bb-name{opacity:.5;}
+  /* ===== 第27弾-3：実物解除 ===== */
+  /* モジュール一覧。どれから手をつけてもよいので、同じ大きさで並べる */
+  .df-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;}
+  .df-mod{
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:14px 8px;border-radius:12px;border:1.5px solid var(--ink);background:var(--card);
+    font:inherit;color:inherit;cursor:pointer;min-height:88px;justify-content:center;
+  }
+  .df-mod .df-ico{font-size:26px;line-height:1;}
+  .df-mod .df-name{font-size:12px;font-weight:700;text-align:center;line-height:1.4;}
+  .df-mod.solved{background:var(--teal);border-color:var(--teal);color:#fff;opacity:.75;cursor:default;}
+  .df-mod.taken{opacity:.55;cursor:not-allowed;}
+  /* 役割えらび */
+  .df-role-btn{
+    display:flex;flex-direction:column;gap:4px;width:100%;margin-top:10px;
+    padding:14px;border-radius:12px;border:1.5px solid var(--ink);background:var(--card);
+    font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:44px;
+  }
+  .df-role-btn.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .df-role-btn[disabled]{opacity:.45;cursor:not-allowed;}
+  .df-role-btn .df-role-name{font-size:15px;font-weight:700;}
+  .df-role-btn .df-role-desc{font-size:11.5px;line-height:1.6;opacity:.85;}
+  /* 対応表（マニュアル役の手元）。読み上げるものなので、行を大きく取る */
+  .df-page{border:1.5px solid var(--line);border-radius:12px;padding:12px;margin-top:12px;background:var(--card);}
+  .df-page-head{font-size:14px;font-weight:700;margin-bottom:8px;}
+  .df-page.solved{opacity:.5;}
+  .df-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .df-table th,.df-table td{border:1px solid var(--line);padding:6px 8px;text-align:center;}
+  .df-table th{background:rgba(0,0,0,.04);font-size:11.5px;}
+  .df-big{font-size:30px;text-align:center;letter-spacing:2px;margin:8px 0;font-family:'DotGothic16',monospace;}
+  /* 迷路 */
+  .df-maze{display:grid;gap:3px;margin:10px auto;width:min(260px,80vw);}
+  .df-cell{aspect-ratio:1;border-radius:5px;border:1px solid var(--line);background:var(--paper);
+    display:flex;align-items:center;justify-content:center;font-size:15px;}
+  .df-cell.wall{background:var(--ink);border-color:var(--ink);}
+  .df-cell.trap{background:var(--stamp);border-color:var(--stamp);}
+  .df-cell.goal{background:var(--gold);border-color:var(--gold);}
+  /* 傾きの向きを出す十字。押しても動かせる（PCから遊ぶ人のため） */
+  .df-pad{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);
+    gap:4px;justify-content:center;margin:10px auto;}
+  .df-pad button{border-radius:8px;border:1.5px solid var(--ink);background:var(--card);font-size:16px;cursor:pointer;}
+  .df-pad .df-pad-mid{border:none;background:none;}
+  /* 水平器・コンパスの目安 */
+  .df-gauge{height:14px;border-radius:999px;border:1.5px solid var(--ink);background:var(--card);overflow:hidden;margin:10px 0;}
+  .df-gauge-fill{height:100%;width:0;background:var(--teal);transition:width .15s linear;}
+  .df-readout{font-family:'DotGothic16',monospace;font-size:26px;text-align:center;}
+  /* リズムの拍 */
+  .df-beats{display:flex;gap:6px;justify-content:center;margin:12px 0;}
+  .df-beat{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ink);background:var(--card);
+    display:flex;align-items:center;justify-content:center;font-size:11px;}
+  .df-beat.now{background:var(--stamp);border-color:var(--stamp);color:#fff;transform:scale(1.15);}
+  .df-beat.tapped{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .df-tap{width:100%;min-height:76px;border-radius:14px;border:1.5px dashed var(--ink);
+    background:var(--card);font:inherit;color:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+  .df-tap:active{background:rgba(0,0,0,.06);}
+  /* カメラ（ポーズ指定）。映像は端末の外に出さない */
+  .df-cam{width:100%;max-height:38vh;border-radius:12px;background:#000;transform:scaleX(-1);}
   .bomblife-display{font-size:34px;text-align:center;letter-spacing:4px;margin:18px 0;}
   .bomblife-controls{display:flex;align-items:center;justify-content:center;gap:22px;}
   .bomblife-controls span{font-family:'DotGothic16',monospace;font-size:32px;min-width:40px;text-align:center;}
@@ -1301,6 +1358,39 @@
     </div>
   </div>
 
+  <!-- 4d4: 設定ウィザード・実物解除（第27弾-3） -->
+  <div class="screen" id="scr-set-defuse">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepDefuse"></span><h2 class="scr-title">爆弾の作り方</h2></div>
+    <p class="wiz-lead">モジュールの数とミスの上限を決めよう。こだわらなければそのまま「つぎへ」でOK。</p>
+    <div class="wiz-body">
+      <div class="tp-label">モジュールの数　<span id="dfCountValue">5</span>個</div>
+      <input type="range" id="dfCountSlider" min="4" max="8" step="1" value="5">
+      <div class="tp-label" style="margin-top:16px;">ミスの上限（全員で共有）</div>
+      <div class="bomblife-display" id="dfStrikeDisplay">❤️❤️❤️</div>
+      <div class="bomblife-controls">
+        <button class="bomb-minus" id="dfStrikeMinus">−</button>
+        <span id="dfStrikeValue">3</span>
+        <button class="bomb-plus" id="dfStrikePlus">＋</button>
+      </div>
+      <div class="toggle-row-mini" style="margin-top:20px;">
+        <div>マニュアルを使う
+          <div class="mic-status" id="dfManualNote"></div>
+        </div>
+        <div class="switch" id="dfManualToggle"></div>
+      </div>
+      <div class="toggle-row-mini" style="margin-top:12px;">
+        <div>体を動かすモジュールを入れる
+          <div class="mic-status" id="dfPhysicalNote"></div>
+        </div>
+        <div class="switch" id="dfPhysicalToggle"></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
   <!-- 4e: 設定ウィザード・ワードウルフ -->
   <div class="screen" id="scr-set-wolf">
     <div class="wiz-head"><span class="wiz-step" id="wizStepWolf"></span><h2 class="scr-title">ワードウルフ設定</h2></div>
@@ -1567,6 +1657,31 @@
       <button class="btn btn-main" id="rtBombAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
       <button class="btn btn-outline" id="rtBombEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="rtBombLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
+    </div>
+  </div>
+
+  <!-- 1人1台：実物解除。役割によって出るものが変わる（第27弾-3） -->
+  <div class="screen" id="scr-rt-defuse">
+    <div class="bomb-topbar">
+      <div class="bomb-lives" id="dfStrikes">❤️❤️❤️</div>
+      <div class="bomb-progress" id="dfProgress">0 / 0 解除</div>
+      <div class="timer-chip" id="dfTimer" style="display:none;">--:--</div>
+    </div>
+    <div class="rt-phase" id="dfPhase">-</div>
+    <div class="wiz-body">
+      <div class="rt-public" id="dfNote"></div>
+      <!-- 体を動かすことへの同意（振る・ポーズが入る時だけ通る） -->
+      <div id="dfConsentBox" style="display:none;"></div>
+      <!-- 役割えらび -->
+      <div id="dfRolesBox" style="display:none;"></div>
+      <!-- 解除役：モジュール一覧 -->
+      <div id="dfBoardBox" style="display:none;"></div>
+      <!-- マニュアル役：自分が受け持つ対応表 -->
+      <div id="dfManualBox" style="display:none;"></div>
+      <div id="dfResultBox"></div>
+      <button class="btn btn-main" id="dfAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
+      <button class="btn btn-outline" id="dfEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
+      <button class="btn btn-ghost" id="dfLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -2186,6 +2301,21 @@
     </div>
   </div>
 
+  <!-- 第27弾-3：実物解除で、いま開けているモジュール。
+       解除役の端末にだけ出る。マニュアルなしの時は対応表もここに載る -->
+  <div class="overlay" id="dfModOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-head">
+        <h3 id="dfModTitle">モジュール</h3>
+        <button class="close-x" id="dfModCloseBtn">✕</button>
+      </div>
+      <div class="mic-status" id="dfModLead"></div>
+      <div id="dfModBody"></div>
+      <div id="dfModManual"></div>
+      <div class="mic-status" id="dfModStatus" style="text-align:center;margin-top:10px;"></div>
+    </div>
+  </div>
+
   <!-- 第27弾：1人1台のクイズ解除で、いま開けているコード。
        説明文と3択は、開けた本人の端末にだけ届く -->
   <div class="overlay" id="rtBombOverlay">
@@ -2229,6 +2359,7 @@
 <script src="js/wolf-logic.js"></script>
 <script src="js/wordwolf-logic.js"></script>
 <script src="js/bomb-logic.js"></script>
+<script src="js/defuse-logic.js"></script>
 <script src="js/titles.js"></script>
 <script src="js/rt-client.js"></script>
 <script src="js/qr.js"></script>
@@ -2304,6 +2435,13 @@
     // 競争版：1人1台・部屋が必須。観戦者は出ない（全員が同じコードに同時に挑む）
     {id:"bomb-race", icon:"🏁", title:"クイズ解除（競争版）", sub:"同じコードに全員で同時挑戦・順位がつく", advanced:false, strict:false, oneWord:false, bomb:true, bombRace:true, roomOnly:true, game:'bomb', minPlayers:2,
       bullets:["全員が同じコード一覧に同時に挑戦する","コードの並び順は各自ばらばら（隣を見ても場所が違う）","AIの説明文は試合が始まるまで誰にも見えない","外れるとライフが1つ減り、残り時間も10秒減る","ライフが0になると記録なし・最下位扱い","解けた本数が多い順、同数ならタイムが早い順で順位がつく"]},
+    // ---- 第27弾-3：実物解除。解除役とマニュアル役が別々の画面を同時に見るのが肝なので、
+    // 手渡し（1台を回す）では成立しない。どちらも部屋が必須 ----
+    {id:"defuse", icon:"🧰", title:"実物解除", sub:"モジュールを解除・マニュアル役と口で伝え合う", advanced:false, strict:false, oneWord:false, defuse:true, roomOnly:true, game:'defuse', minPlayers:2,
+      bullets:["解除役とマニュアル役に分かれる","解除役だけが爆弾（モジュール一覧）を見る","マニュアル役だけが対応表を見る","画面を見せ合わず、口で伝え合って解く","どれから手をつけてもよい","ミスの数は全員で共有・尽きると爆発","対応表はマニュアル役みんなで分け合う"]},
+    // 集中解除：マニュアル役1人・解除役全員という逆の構図
+    {id:"defuse-focus", icon:"🎯", title:"集中解除", sub:"マニュアル役1人・ほかは全員が解除役", advanced:false, strict:false, oneWord:false, defuse:true, defuseFocus:true, roomOnly:true, game:'defuse', minPlayers:2,
+      bullets:["マニュアル役はたった1人","ほかは全員が解除役","1人に質問が集中する・さばききれるか","対応表は全部その1人が持つ","ミスの数は全員で共有・尽きると爆発"]},
     {id:"quizking", icon:"👑", title:"クイズ王決定戦", sub:"難易度を選んで挑戦・高難易度ほど高得点", advanced:false, strict:false, oneWord:false, quiz:true, hidden:true, game:'quizking',
       bullets:["自分の番に挑戦する難易度を選ぶ","難しいほど高得点（1〜8点）","AIの説明文を読んで3択で答える","正解で得点、外れても減点なし","気に入らないお題はパスできる"]},
     {id:"survival", icon:"💀", title:"サバイバル勝ち抜き戦", sub:"毎ラウンド最下位が脱落・最後の1人が優勝", timer:180, advanced:false, strict:false, oneWord:false, survival:true,
@@ -2341,8 +2479,8 @@
     // 遊べるものに合わせて「ことばであそぶ」の段に置く。
     // 実物解除（傾け・振る・ポーズ）が入ったら「からだをうごかす」へ移すことになる
     { id:'bakudan',         genre:'word', ready:true,  icon:'💣', title:'爆弾<br>解除',
-      games:['bomb'],
-      meta:'2〜8人 / 10分〜<br>コードを解除して爆発を止める' },
+      games:['bomb', 'defuse'],
+      meta:'2人〜 / 10分〜<br>爆発を止める・伝え合って解く' },
     { id:'deal-soon-1',     genre:'deal', ready:false, icon:'？' },
     { id:'deal-soon-2',     genre:'deal', ready:false, icon:'？' },
     { id:'deal-soon-3',     genre:'deal', ready:false, icon:'？' },
@@ -2803,6 +2941,8 @@
     // 第27弾：カセット「爆弾解除」の中の1つ目のゲーム。
     // 実物解除・同時解除が入る時は、このカセットにゲームを足す形になる
     { id:'bomb',            title:'クイズ解除',         icon:'💣', sub:'AIの説明を聞いて3択・コードを解除する', usesTopicPool:true },
+    // 第27弾-3：カセット「爆弾解除」の2つ目。センサーを使うので人数上限は設けない
+    { id:'defuse',          title:'実物解除',           icon:'🧰', sub:'モジュールを解除する・マニュアル役と口で伝え合う', maxPlayers:0 },
     { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点', usesTopicPool:true },
     { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち', usesTopicPool:true },
     { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う', usesTopicPool:true }
@@ -2929,6 +3069,8 @@
     bombLayout: 'sorted', // 'sorted'（難易度別整列）| 'mixed'（ごちゃまぜ）
     bombLives: 3,
     bombEndWhen: 'first', // 第27弾・競争版の終わり方：'first'（最初の1人で終了）| 'all'（全員が終わるまで）
+    // 第27弾-3：実物解除の設定
+    dfCfg: { moduleCount:5, strikes:3, manual:true, allowPhysical:true },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
     winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
@@ -3697,12 +3839,14 @@
     // 残しておくと、別のゲームを遊んでいる間も心拍が鳴り続ける
     if(prevScreen && prevScreen.id === 'scr-bomb-play' && id !== 'scr-bomb-play') stopBombHeart();
     if(prevScreen && prevScreen.id === 'scr-rt-bomb' && id !== 'scr-rt-bomb') rtBombLeaveScreen();
+    // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
+    if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-titles') enterTitles();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
-    if(id === 'scr-rt-play' || id === 'scr-rt-bomb' || id === 'scr-rt-big') rtRender();
+    if(id === 'scr-rt-play' || id === 'scr-rt-bomb' || id === 'scr-rt-defuse' || id === 'scr-rt-big') rtRender();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -3961,6 +4105,7 @@
     bombcfg:   { screen:'scr-set-bomb',      badge:'wizStepBomb',      render:renderBombSection },
     bomblife:  { screen:'scr-set-bomblife',   badge:'wizStepBombLife',   render:renderBombLifeStep },
     bombrace:  { screen:'scr-set-bombrace',   badge:'wizStepBombRace',   render:renderBombRaceStep },
+    defusecfg: { screen:'scr-set-defuse',     badge:'wizStepDefuse',     render:renderDefuseStep },
     wolfrole:  { screen:'scr-set-wolfrole',   badge:'wizStepWolfRole',   render:renderWolfRoleStep },
     lovers:    { screen:'scr-set-lovers',     badge:'wizStepLovers',     render:renderLoversStep },
     wolfmulti: { screen:'scr-set-wolfmulti',  badge:'wizStepWolfMulti',  render:renderWolfMultiStep },
@@ -3975,6 +4120,8 @@
     // 第27弾：競争版だけ「終わり方」を1枚挟む
     if(m.bombRace) return ['bombcfg', 'bomblife', 'bombrace', 'timer'];
     if(m.bomb) return ['bombcfg', 'bomblife', 'timer'];
+    // 第27弾-3：実物解除は「爆弾の作り方」1枚 → 制限時間
+    if(m.defuse) return ['defusecfg', 'timer'];
     // クイズ王・オークションは各ラウンドで難易度を選ぶ＆AIが出題するので難易度/出題者選択は不要
     if(m.quiz || m.auction) return ['handicap'];
     // ワードウルフ（2〜ターン）：ターン設定 → ウルフ設定 → 時間
@@ -4011,6 +4158,41 @@
       ? 'まだ解いている人を待ちます。最後まで自分のペースで挑めます。'
       : '誰かが全部解いた瞬間に、その場で全員の結果が出ます。';
   }
+  // 第27弾-3：実物解除の「爆弾の作り方」
+  function renderDefuseStep(){
+    var c = state.dfCfg;
+    el('dfCountValue').textContent = c.moduleCount;
+    el('dfCountSlider').value = c.moduleCount;
+    el('dfStrikeValue').textContent = c.strikes;
+    el('dfStrikeDisplay').textContent = '❤️'.repeat(c.strikes);
+    el('dfManualToggle').classList.toggle('on', c.manual);
+    el('dfManualNote').textContent = c.manual
+      ? '対応表はマニュアル役だけが見ます。口で伝え合って解きます'
+      : '対応表を解除役の画面にも出します。1人でも解けますが、やさしくなります';
+    el('dfPhysicalToggle').classList.toggle('on', c.allowPhysical);
+    el('dfPhysicalNote').textContent = c.allowPhysical
+      ? '端末を振る・ポーズを取るモジュールが入ります（始める前に全員に確かめます）'
+      : '座ったまま遊べるモジュールだけになります';
+  }
+  el('dfCountSlider').addEventListener('input', function(){
+    state.dfCfg.moduleCount = parseInt(this.value, 10);
+    renderDefuseStep();
+  });
+  el('dfStrikeMinus').addEventListener('click', function(){
+    if(state.dfCfg.strikes > 1){ state.dfCfg.strikes--; renderDefuseStep(); }
+  });
+  el('dfStrikePlus').addEventListener('click', function(){
+    if(state.dfCfg.strikes < 5){ state.dfCfg.strikes++; renderDefuseStep(); }
+  });
+  el('dfManualToggle').addEventListener('click', function(){
+    state.dfCfg.manual = !state.dfCfg.manual;
+    renderDefuseStep();
+  });
+  el('dfPhysicalToggle').addEventListener('click', function(){
+    state.dfCfg.allowPhysical = !state.dfCfg.allowPhysical;
+    renderDefuseStep();
+  });
+
   el('bombEndWhenSeg').addEventListener('click', function(e){
     var b = e.target.closest('[data-endwhen]');
     if(!b) return;
@@ -4926,7 +5108,8 @@
   var RT_START_CONFIG = {
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
-    bomb: rtBombConfig
+    bomb: rtBombConfig,
+    defuse: rtDefuseConfig
   };
   el('rtStartBtn').addEventListener('click', async function(){
     var m = modeById(state.selectedModeId);
@@ -4998,6 +5181,23 @@
       preset: state.selectedModeId
     };
   }
+  // 第27弾-3：1人1台の実物解除。
+  // モジュールの中身を決めるのはサーバー側なので、ここから渡すのは「爆弾の作り方」だけ。
+  // 端末で読めるセンサーは、役割を選ぶ時に各自が送る（誰が解除役になるか、まだ分からない）
+  function rtDefuseConfig(m){
+    var c = state.dfCfg;
+    return {
+      game: 'defuse',
+      mode: (m && m.defuseFocus) ? 'focus' : 'normal',
+      moduleCount: c.moduleCount,
+      strikes: c.strikes,
+      manual: c.manual,
+      allowPhysical: c.allowPhysical,
+      allowCamera: c.allowPhysical, // ポーズ指定は体を動かす側なので、同じ扱いにする
+      timerSec: state.timerEnabled ? (state.customTimer || 300) : 0,
+      preset: state.selectedModeId
+    };
+  }
 
   // ===================== 第21弾 第6・7部：1人1台の画面 =====================
   // 自分の端末（scr-rt-play）と大画面（scr-rt-big）。
@@ -5065,10 +5265,13 @@
   }
   // 状態が動いたら、いるべき画面へ移して描き直す。
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
-  var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-big'];
+  var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-big'];
   // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
   // 第27弾：爆弾解除は盤面の形がまったく違うので、専用の画面を1行足した。
-  var RT_GAME_SCREENS = { wolfrole: 'scr-rt-play', wordwolf: 'scr-rt-play', bomb: 'scr-rt-bomb' };
+  var RT_GAME_SCREENS = {
+    wolfrole: 'scr-rt-play', wordwolf: 'scr-rt-play',
+    bomb: 'scr-rt-bomb', defuse: 'scr-rt-defuse'
+  };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
     var v = rtView();
@@ -5096,11 +5299,14 @@
     if(cur === 'scr-rt-room') renderRtRoom();
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-bomb') renderRtBomb();
+    else if(cur === 'scr-rt-defuse') renderRtDefuse();
     else if(cur === 'scr-rt-play') renderRtPlay();
   }
   function rtRender(){
     if(rtIsBigScreen()){ renderRtBig(); return; }
-    if(rtRoomGameId() === 'bomb'){ renderRtBomb(); return; }
+    var game = rtRoomGameId();
+    if(game === 'bomb'){ renderRtBomb(); return; }
+    if(game === 'defuse'){ renderRtDefuse(); return; }
     renderRtPlay();
   }
   // いま部屋で遊んでいるゲームのid（何も選ばれていなければ null）
@@ -5412,6 +5618,7 @@
     el('bigMain').classList.remove('is-code');
     el('bigQrBox').style.display = 'none'; // 始まったらQRは要らない
     if(rtRoomGameId() === 'bomb') return renderRtBigBomb(v);
+    if(rtRoomGameId() === 'defuse') return renderRtBigDefuse(v);
     el('bigBoard').style.display = 'none'; // 横棒グラフは爆弾解除だけが使う
     if(rtIsWordwolf()) return renderRtBigWordwolf(v);
 
@@ -5513,6 +5720,121 @@
         escapeHtml(v.waiting.join('、')) + '</span>';
     }
   }
+
+  // ===================== 第27弾-3：センサーの読み取り =====================
+  // 実物解除だけが使う。ここは「読めたら教える」だけを引き受け、
+  // 何度傾いたら正解かは一切知らない（判定はサーバーが持つ）。
+  //
+  // 端末によって読めるものが違う（PCには傾きも方位も無い）。
+  // 読めないセンサーのモジュールを出すと一生解けないマスになるので、
+  // 何が読めるかを役割を選ぶ時にサーバーへ伝える。
+  var Sensors = (function(){
+    var last = { beta:0, gamma:0, alpha:0, heading:null };
+    var listening = false;
+    var shakeState = { count:0, lastAt:0, gaps:[], armed:true };
+    var onShake = null;
+
+    function hasOrientation(){ return typeof window.DeviceOrientationEvent !== 'undefined'; }
+    function hasMotion(){ return typeof window.DeviceMotionEvent !== 'undefined'; }
+    function hasCamera(){
+      return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    }
+    // iOS 13以降は、ユーザーが押した操作の中で許可を求めないと読めない
+    function needsPermission(){
+      return !!(window.DeviceOrientationEvent &&
+        typeof window.DeviceOrientationEvent.requestPermission === 'function');
+    }
+    async function requestPermission(){
+      if(!needsPermission()) return true;
+      try{
+        var a = await window.DeviceOrientationEvent.requestPermission();
+        var b = 'granted';
+        if(window.DeviceMotionEvent && typeof window.DeviceMotionEvent.requestPermission === 'function'){
+          b = await window.DeviceMotionEvent.requestPermission();
+        }
+        return a === 'granted' && b === 'granted';
+      }catch(e){ return false; }
+    }
+
+    function onOrient(e){
+      last.beta = e.beta || 0;    // 前後の傾き
+      last.gamma = e.gamma || 0;  // 左右の傾き
+      last.alpha = e.alpha || 0;
+      // 方位は端末によって出どころが違う。Safariは webkitCompassHeading
+      if(typeof e.webkitCompassHeading === 'number') last.heading = e.webkitCompassHeading;
+      else if(e.absolute && typeof e.alpha === 'number') last.heading = (360 - e.alpha) % 360;
+    }
+    function onMotion(e){
+      var a = e.accelerationIncludingGravity;
+      if(!a) return;
+      var power = Math.abs(a.x || 0) + Math.abs(a.y || 0) + Math.abs(a.z || 0);
+      var now = Date.now();
+      // 25 は「はっきり振った」あたりの目安。小さく動かしただけでは数えない
+      if(power > 25 && shakeState.armed){
+        shakeState.armed = false;
+        if(shakeState.lastAt) shakeState.gaps.push(now - shakeState.lastAt);
+        shakeState.lastAt = now;
+        shakeState.count++;
+        if(onShake) onShake(shakeState.count);
+      }
+      // 一度静かになるまで、次の1回として数えない（1振りが何回にも化けるのを防ぐ）
+      if(power < 14) shakeState.armed = true;
+    }
+
+    function start(){
+      if(listening) return;
+      listening = true;
+      if(hasOrientation()) window.addEventListener('deviceorientation', onOrient, true);
+      if(hasMotion()) window.addEventListener('devicemotion', onMotion, true);
+    }
+    function stop(){
+      if(!listening) return;
+      listening = false;
+      window.removeEventListener('deviceorientation', onOrient, true);
+      window.removeEventListener('devicemotion', onMotion, true);
+      onShake = null;
+    }
+    function resetShake(cb){
+      shakeState = { count:0, lastAt:0, gaps:[], armed:true };
+      onShake = cb || null;
+    }
+    function shakes(){ return { count: shakeState.count, gaps: shakeState.gaps.slice() }; }
+    // いま端末がどの面を向いているか（①面認証）
+    function face(){
+      if(Math.abs(last.gamma) > 40) return last.gamma > 0 ? 'right' : 'left';
+      if(last.beta < -30) return 'down';
+      return 'up';
+    }
+    // 傾けた向き（②傾け迷路）。しきい値を超えている間だけ返す
+    function tiltDir(){
+      if(last.gamma > 22) return 'right';
+      if(last.gamma < -22) return 'left';
+      if(last.beta > 22) return 'down';
+      if(last.beta < -22) return 'up';
+      return null;
+    }
+    // 水平からのずれ（⑤水平キープ）
+    function levelDeg(){ return Math.max(Math.abs(last.beta), Math.abs(last.gamma)); }
+    function heading(){ return last.heading; }
+
+    // この端末で何が読めるか。役割を選ぶ時にサーバーへ渡す
+    function caps(){
+      return {
+        orientation: hasOrientation(),
+        // 方位は「読めるはず」でも実際に値が来ないことがある。
+        // 一度でも値が来ていれば確か、来ていなければ読めるはずの端末かで判断する
+        compass: hasOrientation() && (last.heading !== null || needsPermission()),
+        motion: hasMotion(),
+        camera: hasCamera()
+      };
+    }
+    return {
+      start: start, stop: stop, caps: caps, face: face, tiltDir: tiltDir,
+      levelDeg: levelDeg, heading: heading, resetShake: resetShake, shakes: shakes,
+      needsPermission: needsPermission, requestPermission: requestPermission,
+      hasCamera: hasCamera
+    };
+  })();
 
   // ===================== 第27弾：1人1台のクイズ解除 =====================
   // この端末に届くのは「自分の盤面」と「自分がいま開けているコードの説明文」だけ。
@@ -5845,6 +6167,794 @@
           '<span class="bb-meta">' + meta + '</span></div>' +
         '<div class="bb-bar"><div class="bb-fill" style="width:' + p.pct + '%;"></div></div>' +
       '</div>';
+    }).join('');
+  }
+
+  // ===================== 第27弾-3：1人1台の実物解除 =====================
+  // 同じ画面で、役割によって出るものが変わる。
+  //   解除役     … モジュール一覧と、開けたモジュールの中身
+  //   マニュアル役 … 自分が受け持つ対応表だけ（進み具合も答えも来ない）
+  // 判定はサーバーが持っているので、ここは「読んで送る」「届いたものを描く」だけ。
+  var dfPrev = null;          // 直前に見たミス数。音と演出の引き金
+  var dfClock = { ms:null, at:0, timer:null };
+  var dfOpenUid = null;       // いま開けているモジュール（描き直しの判断に使う）
+  var dfLoop = null;          // センサーを読むループ
+  var dfLocal = {};           // モジュールごとの、送る前の手元の状態
+
+  function dfSetClock(ms){ dfClock.ms = (ms == null) ? null : ms; dfClock.at = Date.now(); }
+  function dfRemainingSec(){
+    if(dfClock.ms == null) return null;
+    return Math.max(0, Math.round((dfClock.ms - (Date.now() - dfClock.at)) / 1000));
+  }
+  function dfRenderTimer(){
+    var chip = el('dfTimer');
+    var sec = dfRemainingSec();
+    if(sec == null){ chip.style.display = 'none'; return; }
+    chip.style.display = 'inline-block';
+    chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
+    chip.classList.toggle('warn', sec <= 10 && sec > 0);
+  }
+  // 画面から離れる時に必ず呼ぶ。センサー・カメラ・時計・心拍を残さない
+  function dfLeaveScreen(){
+    clearInterval(dfClock.timer); dfClock.timer = null;
+    dfStopModule();
+    Sensors.stop();
+    stopBombHeart();
+    el('dfModOverlay').classList.remove('show');
+    dfPrev = null; dfOpenUid = null;
+  }
+
+  function renderRtDefuse(){
+    var v = rtView(), you = rt.state.secret;
+    if(!v) return;
+    var LABEL = { consent:'確認', roles:'役割をえらぶ', play:'解除中', ended:'結果' };
+    el('dfPhase').textContent = LABEL[v.phase] || v.phase;
+
+    // 観戦（始まったあとに入ってきた端末）には何も配らない
+    if(!you){
+      dfLeaveScreen();
+      ['dfConsentBox','dfRolesBox','dfBoardBox','dfManualBox'].forEach(function(id){
+        el(id).style.display = 'none';
+      });
+      el('dfStrikes').textContent = ''; el('dfProgress').textContent = '';
+      el('dfNote').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>';
+      el('dfResultBox').innerHTML = (v.phase === 'ended') ? dfResultHtml(v) : '';
+      dfEndButtons(v.phase === 'ended');
+      return;
+    }
+
+    el('dfStrikes').textContent = '❤️'.repeat(Math.max(0, you.strikesLeft)) +
+      '🖤'.repeat(Math.max(0, you.strikesMax - you.strikesLeft));
+    var board = you.board;
+    el('dfProgress').textContent = board ? (board.solved + ' / ' + board.total + ' 解除') : '';
+
+    ['dfConsentBox','dfRolesBox','dfBoardBox','dfManualBox'].forEach(function(id){
+      el(id).style.display = 'none';
+    });
+    el('dfResultBox').innerHTML = '';
+
+    if(v.phase === 'consent'){ dfLeaveScreen(); dfRenderConsent(you); return; }
+    if(v.phase === 'roles'){ dfLeaveScreen(); dfRenderRoles(v, you); return; }
+    if(v.phase === 'ended'){
+      dfLeaveScreen();
+      el('dfNote').innerHTML = '';
+      el('dfResultBox').innerHTML = dfResultHtml(v);
+      dfEndButtons(true);
+      return;
+    }
+
+    // ---- 解除中 ----
+    dfFeedback(you);
+    dfSetClock(you.remainingMs);
+    dfRenderTimer();
+    if(!dfClock.timer) dfClock.timer = setInterval(dfRenderTimer, 500);
+    startBombHeart(you.strikesMax - you.strikesLeft);
+    dfEndButtons(false);
+
+    if(you.role === 'manual'){ dfRenderManual(v, you); return; }
+    dfRenderBoard(v, you);
+  }
+
+  // ---- 体を動かすことへの同意 ----
+  // 何をするのか・何に気をつけるのかを具体的に出す。
+  // 「参加しない」を選んでも、マニュアル役として一緒に遊べることを必ず書く
+  function dfRenderConsent(you){
+    var box = el('dfConsentBox');
+    box.style.display = 'block';
+    var ask = you.consentAsk || { moves:[], notes:[] };
+    if(you.done){
+      el('dfNote').innerHTML = '';
+      box.innerHTML = '<div class="ry-desc">' +
+        (you.consent ? '「参加する」を選びました。' : '「参加しない」を選びました。マニュアル役として一緒に遊べます。') +
+        '<br>ほかの人を待っています…</div>';
+      return;
+    }
+    el('dfNote').innerHTML = '⚠️ このゲームには、体を動かすモジュールが入ります';
+    box.innerHTML =
+      '<div class="df-page"><div class="df-page-head">こんな動作があります</div>' +
+        '<ul class="rules-ol">' + ask.moves.map(function(m){
+          return '<li>' + escapeHtml(m) + '</li>';
+        }).join('') + '</ul>' +
+        '<div class="df-page-head" style="margin-top:10px;">気をつけること</div>' +
+        '<ul class="rules-ol">' + (ask.notes || []).map(function(n){
+          return '<li>' + escapeHtml(n) + '</li>';
+        }).join('') + '</ul>' +
+      '</div>' +
+      '<div class="mic-status" style="margin-top:10px;">' + escapeHtml(ask.declineNote || '') + '</div>' +
+      '<button class="btn btn-main" id="dfConsentYes" style="margin-top:14px;">参加する</button>' +
+      '<button class="btn btn-outline" id="dfConsentNo" style="margin-top:8px;">参加しない（マニュアル役で遊ぶ）</button>';
+    el('dfConsentYes').addEventListener('click', async function(){
+      this.disabled = true;
+      // iOSは、押した操作の中で許可を求めないとセンサーが読めない
+      if(Sensors.needsPermission()) await Sensors.requestPermission();
+      Sensors.start();
+      await rt.act('yes');
+    });
+    el('dfConsentNo').addEventListener('click', async function(){
+      this.disabled = true;
+      await rt.act('no');
+    });
+  }
+
+  // ---- 役割をえらぶ ----
+  function dfRenderRoles(v, you){
+    var box = el('dfRolesBox');
+    box.style.display = 'block';
+    var ask = you.roleAsk || {};
+    var focus = !!ask.focus;
+    var manualTaken = focus && (ask.taken || []).some(function(t){ return t.role === 'manual'; })
+      && you.role !== 'manual';
+    el('dfNote').innerHTML = focus
+      ? '🎯 集中解除：マニュアル役はたった1人。ほかは全員が解除役です'
+      : '解除役は爆弾を持ちます。マニュアル役は対応表を読み上げます。<br>おたがいの画面は見せ合わないでください。';
+    box.innerHTML =
+      '<button class="df-role-btn' + (you.role === 'defuser' ? ' on' : '') + '" data-dfrole="defuser">' +
+        '<span class="df-role-name">🧰 解除役</span>' +
+        '<span class="df-role-desc">爆弾（モジュール一覧）を見て、実際に操作する人</span></button>' +
+      '<button class="df-role-btn' + (you.role === 'manual' ? ' on' : '') + '" data-dfrole="manual"' +
+        (manualTaken ? ' disabled' : '') + '>' +
+        '<span class="df-role-name">📖 マニュアル役</span>' +
+        '<span class="df-role-desc">' + (manualTaken
+          ? 'もう決まっています（集中解除は1人だけ）'
+          : '対応表を見て、解除役に口で伝える人') + '</span></button>' +
+      (ask.physicalDeclined
+        ? '<div class="mic-status" style="margin-top:10px;">体を動かすのは「参加しない」を選んでいます。マニュアル役がおすすめです。</div>'
+        : '') +
+      '<div class="tp-label" style="margin-top:16px;">いまの顔ぶれ</div>' +
+      '<div class="mic-status">' + ((v.players || []).map(function(p){
+        return escapeHtml(p.name) + '：' + (p.role === 'defuser' ? '解除役'
+          : p.role === 'manual' ? 'マニュアル役' : 'まだ');
+      }).join('　／　') || '-') + '</div>' +
+      ((v.players || []).some(function(p){ return p.role === 'defuser'; })
+        ? '' : '<div class="mic-status" style="margin-top:8px;">⚠️ 解除役が1人もいないと始められません</div>');
+  }
+  el('dfRolesBox').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-dfrole]');
+    if(!b || b.disabled) return;
+    // 端末で読めるセンサーを一緒に送る。読めないモジュールを載せられると詰むため
+    if(b.dataset.dfrole === 'defuser' && Sensors.needsPermission()){
+      await Sensors.requestPermission();
+    }
+    Sensors.start();
+    var res = await rt.act(b.dataset.dfrole, { caps: Sensors.caps() });
+    if(res && !res.ok && res.error === 'manual_taken'){
+      showFlash('マニュアル役はもう決まっています', 'hit');
+    }
+  });
+
+  // ---- 解除役：モジュール一覧 ----
+  function dfRenderBoard(v, you){
+    var box = el('dfBoardBox');
+    box.style.display = 'block';
+    var mine = (v.players || []).find(function(p){ return p.id === rt.state.memberId; });
+    var others = (v.players || []).filter(function(p){
+      return p.role === 'defuser' && p.id !== rt.state.memberId && p.working;
+    });
+    el('dfNote').innerHTML = '🧰 あなたは解除役です。' +
+      (you.manual ? 'マニュアル役に聞きながら解きましょう' : '対応表は自分の画面にも出ます') +
+      (others.length ? '<br>' + others.map(function(p){
+        return escapeHtml(p.name) + 'が「' + escapeHtml(p.working) + '」に挑戦中';
+      }).join('<br>') : '');
+    box.innerHTML = '<div class="df-grid">' + (you.board.modules || []).map(function(m){
+      var taken = others.some(function(p){ return p.working === m.name; });
+      return '<button class="df-mod' + (m.solved ? ' solved' : '') + (taken ? ' taken' : '') +
+        '" data-dfmod="' + escapeHtml(m.uid) + '">' +
+        '<span class="df-ico">' + (m.solved ? '✅' : m.icon) + '</span>' +
+        '<span class="df-name">' + escapeHtml(m.name) + '</span></button>';
+    }).join('') + '</div>';
+
+    // 開けているモジュールがあれば、その中身を出す
+    if(you.open){
+      if(dfOpenUid !== you.open.uid){ dfStopModule(); dfOpenModule(you.open, you); }
+      else dfUpdateModule(you.open);
+    } else if(dfOpenUid){
+      dfStopModule();
+      el('dfModOverlay').classList.remove('show');
+    }
+  }
+  el('dfBoardBox').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-dfmod]');
+    if(!b || b.classList.contains('solved') || b.classList.contains('taken')) return;
+    var res = await rt.act(b.dataset.dfmod);
+    if(res && !res.ok && res.error === 'taken') showFlash('そのモジュールは他の人が挑戦中です', 'hit');
+  });
+
+  // ---- マニュアル役：自分が受け持つ対応表 ----
+  function dfRenderManual(v, you){
+    var box = el('dfManualBox');
+    box.style.display = 'block';
+    var pages = you.manualPages || [];
+    el('dfNote').innerHTML = '📖 あなたはマニュアル役です。解除役に聞かれたら、ここを読み上げてください。' +
+      '<br>画面は解除役に見せないでください。';
+    box.innerHTML = pages.length
+      ? pages.map(dfManualPageHtml).join('')
+      : '<div class="ry-desc">あなたが受け持つ対応表はありません。' +
+        'ほかのマニュアル役を手伝ってください。</div>';
+  }
+  function dfManualPageHtml(page){
+    return '<div class="df-page' + (page.solved ? ' solved' : '') + '">' +
+      '<div class="df-page-head">' + page.icon + ' ' + escapeHtml(page.name) +
+      (page.solved ? '（解除ずみ）' : '') + '</div>' +
+      dfManualBodyHtml(page.manual) + '</div>';
+  }
+
+  // 対応表の中身。マニュアルなしの時は、同じものを解除役の画面にも出す
+  function dfManualBodyHtml(man){
+    if(!man) return '';
+    var C = function(id){ var c = DefuseLogic.colorById(id); return c.emoji + c.label; };
+    if(man.kind === 'faceTable'){
+      return '<table class="df-table"><tr><th>記号</th>' +
+        DefuseLogic.COLORS.map(function(c){ return '<th>' + C(c.id) + '</th>'; }).join('') + '</tr>' +
+        man.rows.map(function(r){
+          return '<tr><td><b>' + r.mark + '</b></td>' +
+            r.map.map(function(x){ return '<td>' + C(x.to) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</table>' +
+        '<div class="mic-status">面の記号の行を見て、面の色の列にある色を押してもらう</div>';
+    }
+    if(man.kind === 'mazeMap'){
+      var blocked = {}, traps = {};
+      man.blocked.forEach(function(k){ blocked[k] = true; });
+      man.traps.forEach(function(k){ traps[k] = true; });
+      var html = '<div class="df-maze" style="grid-template-columns:repeat(' + man.size + ',1fr);">';
+      for(var y = 0; y < man.size; y++){
+        for(var x = 0; x < man.size; x++){
+          var k = x + ',' + y;
+          var cls = blocked[k] ? ' wall' : traps[k] ? ' trap'
+            : (x === man.goal.x && y === man.goal.y) ? ' goal' : '';
+          html += '<div class="df-cell' + cls + '">' +
+            (x === 0 && y === 0 ? '🔵' : (x === man.goal.x && y === man.goal.y ? '🏁' : '')) + '</div>';
+        }
+      }
+      html += '</div><div class="mic-status">黒＝壁（進めない）／赤＝罠（ミス）／金＝ゴール。' +
+        '左上から1マスずつ誘導する</div>';
+      return html;
+    }
+    if(man.kind === 'shakeTable'){
+      return '<table class="df-table"><tr><th>記号</th><th>回数</th><th>テンポ</th></tr>' +
+        man.rows.map(function(r){
+          return '<tr><td><b>' + r.mark + '</b></td><td>' + r.count + '回</td><td>' +
+            (r.tempo === 'fast' ? 'はやく' : 'ゆっくり') + '</td></tr>';
+        }).join('') + '</table>';
+    }
+    if(man.kind === 'compassTable'){
+      return '<table class="df-table"><tr><th>色</th><th>方角</th></tr>' +
+        man.base.map(function(r){
+          return '<tr><td>' + C(r.color) + '</td><td>' + DefuseLogic.dirById(r.dir).label + '</td></tr>';
+        }).join('') + '</table>' +
+        '<div class="mic-status">記号が ' + man.shiftMarks.join('・') +
+        ' のどれかなら、表の方角から時計回りに1つずらす（北→東→南→西）</div>';
+    }
+    if(man.kind === 'levelTable'){
+      return '<table class="df-table"><tr><th>記号</th><th>秒数</th><th>許される傾き</th></tr>' +
+        man.rows.map(function(r){
+          return '<tr><td><b>' + r.mark + '</b></td><td>' + r.seconds + '秒</td><td>±' +
+            r.toleranceDeg + '度</td></tr>';
+        }).join('') + '</table>';
+    }
+    if(man.kind === 'rhythmTable'){
+      return '<table class="df-table"><tr><th>記号</th><th>叩く拍（' + man.beats + '拍のうち）</th></tr>' +
+        man.rows.map(function(r){
+          return '<tr><td><b>' + r.mark + '</b></td><td>' +
+            r.beats.map(function(b){ return (b + 1) + '拍目'; }).join('・') + '</td></tr>';
+        }).join('') + '</table>';
+    }
+    if(man.kind === 'poseTable'){
+      return '<table class="df-table"><tr><th>色</th><th>ポーズ</th></tr>' +
+        man.rows.map(function(r){
+          var p = DefuseLogic.poseById(r.pose);
+          return '<tr><td>' + C(r.color) + '</td><td>' + p.label + '<br>' +
+            '<span style="font-size:11px;opacity:.8;">' + p.desc + '</span></td></tr>';
+        }).join('') + '</table>';
+    }
+    if(man.kind === 'cipherParts'){
+      return '<div class="mic-status">あなたのぶんの暗号。ほかのマニュアル役とつなげてもらう</div>' +
+        man.parts.map(function(p){
+          return '<div class="df-big">' + escapeHtml(p.text) + '</div>';
+        }).join('');
+    }
+    return '';
+  }
+
+  function dfEndButtons(ended){
+    el('dfLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
+    var host = ended && rt.isHost();
+    el('dfAgainBtn').style.display = host ? 'inline-flex' : 'none';
+    el('dfEndBtn').style.display = host ? 'inline-flex' : 'none';
+  }
+  function dfFeedback(you){
+    var now = { strikes: you.strikesLeft, solved: you.board ? you.board.solved : 0 };
+    if(!dfPrev){ dfPrev = now; return; }
+    if(now.solved > dfPrev.solved) snipSound();
+    if(now.strikes < dfPrev.strikes){
+      wrongSound();
+      var s = el('dfStrikes');
+      s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake');
+      showFlash('💔 ミス！のこり ' + Math.max(0, now.strikes), 'hit-wrong');
+    }
+    dfPrev = now;
+  }
+
+  function dfResultHtml(v){
+    var r = v.result;
+    if(!r) return '';
+    var lines = [];
+    lines.push('<b>' + (r.success ? '💚 解除成功！' : '💥 爆発してしまった…') + '</b>');
+    lines.push(r.solved + ' / ' + r.total + '個を解除　のこりミス ' + Math.max(0, r.strikesLeft));
+    if(!r.success && r.cause === 'time') lines.push('⏱ 時間切れでした');
+    if(!r.success && r.cause === 'strikes') lines.push('ミスの上限に達しました');
+    if((r.modules || []).length){
+      lines.push('<div class="vote-counts">' + r.modules.map(function(m){
+        return '<span class="vc-item">' + (m.solved ? '✅' : '❌') + ' ' + escapeHtml(m.name) + '</span>';
+      }).join('') + '</div>');
+    }
+    if((r.roles || []).length){
+      lines.push('<div class="mic-status">' + r.roles.map(function(x){
+        return escapeHtml(x.name) + '：' + (x.role === 'defuser' ? '解除役' : x.role === 'manual' ? 'マニュアル役' : '-');
+      }).join('　／　') + '</div>');
+    }
+    if((r.misses || []).length){
+      lines.push('<div class="vote-log"><div class="vl-title">💔 どこで転んだか</div><div class="vl-turn">' +
+        r.misses.map(function(m){
+          return '<span class="vl-row">' + escapeHtml(m.name) + '（' + escapeHtml(m.by || '') + '）</span>';
+        }).join('') + '</div></div>');
+    }
+    return lines.join('<br>');
+  }
+
+  el('dfLeaveBtn').addEventListener('click', rtLeaveRoom);
+  el('dfAgainBtn').addEventListener('click', async function(){
+    this.disabled = true;
+    var res = await rt.pickGame(null, { reset: true });
+    this.disabled = false;
+    if(!res.ok){ el('dfNote').textContent = res.message || 'えらび直せませんでした'; return; }
+    goTo('scr-shelf');
+  });
+  el('dfEndBtn').addEventListener('click', async function(){
+    if(!confirm('部屋を閉じますか？（部屋にいる全員が終わります）')) return;
+    this.disabled = true;
+    var res = await rt.closeRoom();
+    this.disabled = false;
+    if(!res.ok) el('dfNote').textContent = res.message || '終了できませんでした';
+  });
+  // ---- 9種のモジュールの画面 ----
+  // どれも同じ約束で書く：
+  //   html(open)  … 中身のHTML
+  //   start(open) … センサーの読み取りや、押した時の処理をつなぐ
+  //   tick(open)  … センサーを見て、必要ならサーバーへ送る（120msごと）
+  // 正解は持っていないので、送るのは「押した」「傾いた」という事実だけ。
+  function dfSend(action){ return rt.vote(null, { action: action }); }
+  function dfStatus(text){ el('dfModStatus').textContent = text || ''; }
+  var DF_UI = {};
+
+  // ① 面認証：端末を回して出た面のとおりにボタンを押す
+  DF_UI.face = {
+    html: function(open){
+      var faces = open.hint.faces || [];
+      var step = open.progress.step || 0;
+      return '<div class="df-readout" id="dfFaceNow">…</div>' +
+        '<div class="mic-status" style="text-align:center;">' +
+        (step) + ' / 4 面おわり　いまの面：<span id="dfFaceLabel">-</span></div>' +
+        '<div class="picker-grid" style="margin-top:12px;">' +
+        DefuseLogic.COLORS.map(function(c){
+          return '<button class="pk-btn" data-dfcolor="' + c.id + '">' + c.emoji + c.label + '</button>';
+        }).join('') + '</div>' +
+        '<div class="mic-status" style="margin-top:8px;">' +
+        '端末を回すと面が変わります。' + (faces.length ? '' : '（面の情報が届いていません）') + '</div>';
+    },
+    tick: function(open){
+      var f = Sensors.face();
+      dfLocal.face = f;
+      var cell = (open.hint.faces || []).find(function(x){ return x.face === f; });
+      var lab = el('dfFaceLabel'), now = el('dfFaceNow');
+      var def = DefuseLogic.FACES.find(function(x){ return x.id === f; });
+      if(lab) lab.textContent = def ? def.label : '-';
+      if(now && cell){
+        var c = DefuseLogic.colorById(cell.color);
+        now.textContent = c.emoji + ' ' + cell.mark;
+      }
+    },
+    click: function(e, open){
+      var b = e.target.closest('[data-dfcolor]');
+      if(!b) return;
+      dfSend({ type:'press', face: dfLocal.face || 'up', color: b.dataset.dfcolor })
+        .then(function(res){
+          if(res && res.note === 'wrongFace') dfStatus('その面はまだ順番ではありません');
+        });
+    }
+  };
+
+  // ② 傾け迷路：傾けた向きに1マスずつ。押しても動かせる（PCから遊ぶ人のため）
+  DF_UI.maze = {
+    html: function(open){
+      var n = open.hint.size;
+      var man = open.manual; // マニュアルなしの時だけ届く
+      var blocked = {}, traps = {};
+      if(man){ man.blocked.forEach(function(k){ blocked[k] = true; }); man.traps.forEach(function(k){ traps[k] = true; }); }
+      var html = '<div class="df-maze" id="dfMaze" style="grid-template-columns:repeat(' + n + ',1fr);">';
+      for(var y = 0; y < n; y++){
+        for(var x = 0; x < n; x++){
+          var k = x + ',' + y;
+          var cls = man && blocked[k] ? ' wall' : man && traps[k] ? ' trap'
+            : (x === open.hint.goal.x && y === open.hint.goal.y) ? ' goal' : '';
+          html += '<div class="df-cell' + cls + '" data-cell="' + k + '"></div>';
+        }
+      }
+      html += '</div>' +
+        '<div class="df-pad">' +
+          '<span></span><button data-dfstep="up">▲</button><span></span>' +
+          '<button data-dfstep="left">◀</button><span class="df-pad-mid"></span><button data-dfstep="right">▶</button>' +
+          '<span></span><button data-dfstep="down">▼</button><span></span>' +
+        '</div>' +
+        '<div class="mic-status" style="text-align:center;">端末を傾けても、ボタンでも動かせます</div>';
+      return html;
+    },
+    start: function(){ dfLocal.mazeAt = null; dfLocal.mazeLast = 0; },
+    tick: function(open){
+      // ボールの位置を描き直す
+      var at = open.progress.at;
+      var maze = el('dfMaze');
+      if(maze){
+        Array.prototype.forEach.call(maze.children, function(c){
+          if(c.dataset.cell === at.x + ',' + at.y) c.textContent = '🔵';
+          else if(c.textContent === '🔵') c.textContent = '';
+        });
+        var goal = maze.querySelector('[data-cell="' + open.hint.goal.x + ',' + open.hint.goal.y + '"]');
+        if(goal && goal.textContent !== '🔵') goal.textContent = '🏁';
+      }
+      // 傾けっぱなしで走り続けないよう、1マスごとに間を置く
+      var dir = Sensors.tiltDir();
+      if(dir && Date.now() - dfLocal.mazeLast > 420){
+        dfLocal.mazeLast = Date.now();
+        dfSend({ type:'step', dir: dir }).then(function(res){
+          if(res && res.note === 'wall') dfStatus('壁だ！');
+        });
+      }
+    },
+    click: function(e){
+      var b = e.target.closest('[data-dfstep]');
+      if(!b) return;
+      dfSend({ type:'step', dir: b.dataset.dfstep }).then(function(res){
+        if(res && res.note === 'wall') dfStatus('壁だ！');
+      });
+    }
+  };
+
+  // ③ 振ってアクション：指定の回数・テンポで振る
+  DF_UI.shake = {
+    html: function(open){
+      return '<div class="df-readout" style="font-size:44px;">' + open.hint.mark + '</div>' +
+        '<div class="mic-status" style="text-align:center;">この記号のとおりに振ってください</div>' +
+        '<div class="df-readout" id="dfShakeCount" style="margin-top:12px;">0 回</div>' +
+        '<button class="btn btn-outline" id="dfShakeManual" style="margin-top:8px;">端末を振れない時はここを押す</button>' +
+        '<button class="btn btn-main" id="dfShakeDone" style="margin-top:8px;">振り終わった</button>' +
+        '<button class="btn btn-ghost" id="dfShakeReset" style="margin-top:4px;">数え直す</button>';
+    },
+    start: function(){
+      Sensors.resetShake(function(n){
+        var e2 = el('dfShakeCount'); if(e2) e2.textContent = n + ' 回';
+      });
+      dfLocal.manualShakes = { count:0, gaps:[], lastAt:0 };
+      el('dfShakeManual').addEventListener('click', function(){
+        var s = dfLocal.manualShakes, now = Date.now();
+        if(s.lastAt) s.gaps.push(now - s.lastAt);
+        s.lastAt = now; s.count++;
+        el('dfShakeCount').textContent = s.count + ' 回';
+      });
+      el('dfShakeReset').addEventListener('click', function(){
+        Sensors.resetShake(function(n){ el('dfShakeCount').textContent = n + ' 回'; });
+        dfLocal.manualShakes = { count:0, gaps:[], lastAt:0 };
+        el('dfShakeCount').textContent = '0 回';
+        dfStatus('');
+      });
+      el('dfShakeDone').addEventListener('click', function(){
+        var s = Sensors.shakes();
+        // センサーで数えられていなければ、押した回数を使う
+        if(!s.count) s = dfLocal.manualShakes;
+        dfSend({ type:'shakes', count: s.count, gaps: s.gaps });
+      });
+    }
+  };
+
+  // ④ コンパス方角：決まった方角へ向けてキープ
+  DF_UI.compass = {
+    html: function(open){
+      var c = DefuseLogic.colorById(open.hint.color);
+      return '<div class="df-readout" style="font-size:40px;">' + c.emoji + ' ' + open.hint.mark + '</div>' +
+        '<div class="df-readout" id="dfHeading" style="margin-top:10px;">--</div>' +
+        '<div class="df-gauge"><div class="df-gauge-fill" id="dfHoldBar"></div></div>' +
+        '<div class="mic-status" style="text-align:center;">向きを合わせて、そのまま止めてください</div>';
+    },
+    start: function(){ dfLocal.lastSend = 0; },
+    tick: function(open){
+      var h = Sensors.heading();
+      var out = el('dfHeading');
+      if(out){
+        out.textContent = (h == null) ? '方位が読めません' : Math.round(h) + '°';
+      }
+      var bar = el('dfHoldBar');
+      if(bar) bar.style.width = Math.min(100, (open.progress.holdMs / open.progress.needMs) * 100) + '%';
+      if(h == null) return;
+      var now = Date.now();
+      if(now - dfLocal.lastSend < 350) return;
+      var dt = dfLocal.lastSend ? (now - dfLocal.lastSend) : 350;
+      dfLocal.lastSend = now;
+      dfSend({ type:'heading', deg: h, dtMs: dt });
+    }
+  };
+
+  // ⑤ 水平キープ：決まった秒数だけ水平を保つ
+  DF_UI.level = {
+    html: function(open){
+      return '<div class="df-readout" style="font-size:40px;">' + open.hint.mark + '</div>' +
+        '<div class="df-readout" id="dfTilt" style="margin-top:10px;">--</div>' +
+        '<div class="df-gauge"><div class="df-gauge-fill" id="dfLevelBar"></div></div>' +
+        '<div class="mic-status" style="text-align:center;">端末を水平にして、そのまま止めてください</div>';
+    },
+    start: function(){ dfLocal.lastSend = 0; },
+    tick: function(open){
+      var deg = Sensors.levelDeg();
+      var out = el('dfTilt');
+      if(out) out.textContent = Math.round(deg) + '° かたむき';
+      var bar = el('dfLevelBar');
+      if(bar) bar.style.width = Math.min(100, (open.progress.holdMs / open.progress.needMs) * 100) + '%';
+      var now = Date.now();
+      if(now - dfLocal.lastSend < 350) return;
+      var dt = dfLocal.lastSend ? (now - dfLocal.lastSend) : 350;
+      dfLocal.lastSend = now;
+      dfSend({ type:'tilt', deg: deg, dtMs: dt });
+    }
+  };
+
+  // ⑥ リズム合わせ：心拍に合わせて、決められた拍だけ叩く
+  DF_UI.rhythm = {
+    html: function(open){
+      var n = open.hint.beats;
+      var beats = '';
+      for(var i = 0; i < n; i++) beats += '<div class="df-beat" data-beat="' + i + '">' + (i + 1) + '</div>';
+      return '<div class="df-readout" style="font-size:40px;">' + open.hint.mark + '</div>' +
+        '<div class="df-beats" id="dfBeats">' + beats + '</div>' +
+        '<button class="df-tap" id="dfTapPad">ここを叩く</button>' +
+        '<button class="btn btn-main" id="dfRhythmDone" style="margin-top:10px;">これで送る</button>' +
+        '<button class="btn btn-ghost" id="dfRhythmReset" style="margin-top:4px;">やり直す</button>' +
+        '<div class="mic-status" style="text-align:center;margin-top:6px;">' +
+        '光っている拍のときに叩くと、その拍を選んだことになります</div>';
+    },
+    start: function(open){
+      dfLocal.beat = 0;
+      dfLocal.tapped = {};
+      // 拍の速さは、クイズ解除の心拍とそろえる（同じカセットの演出）
+      var ms = BombLogic.heartIntervalMs(0);
+      dfLocal.beatTimer = setInterval(function(){
+        dfLocal.beat = (dfLocal.beat + 1) % open.hint.beats;
+        var list = document.querySelectorAll('#dfBeats .df-beat');
+        Array.prototype.forEach.call(list, function(b, i){
+          b.classList.toggle('now', i === dfLocal.beat);
+        });
+      }, ms);
+      el('dfTapPad').addEventListener('click', function(){
+        dfLocal.tapped[dfLocal.beat] = true;
+        var b = document.querySelector('#dfBeats .df-beat[data-beat="' + dfLocal.beat + '"]');
+        if(b) b.classList.add('tapped');
+      });
+      el('dfRhythmReset').addEventListener('click', function(){
+        dfLocal.tapped = {};
+        Array.prototype.forEach.call(document.querySelectorAll('#dfBeats .df-beat'), function(b){
+          b.classList.remove('tapped');
+        });
+      });
+      el('dfRhythmDone').addEventListener('click', function(){
+        var beats = Object.keys(dfLocal.tapped).map(Number).sort(function(a, b){ return a - b; });
+        dfSend({ type:'taps', beats: beats });
+      });
+    },
+    stop: function(){ clearInterval(dfLocal.beatTimer); dfLocal.beatTimer = null; }
+  };
+
+  // ⑧ ポーズ指定：カメラは端末の中だけで使う。映像は外に出さない
+  DF_UI.pose = {
+    html: function(open){
+      var c = DefuseLogic.colorById(open.hint.color);
+      return '<div class="df-readout" style="font-size:40px;">' + c.emoji + '</div>' +
+        '<video class="df-cam" id="dfCam" playsinline muted autoplay></video>' +
+        '<div class="mic-status" id="dfPoseNote" style="text-align:center;">カメラを準備しています…</div>' +
+        '<div class="picker-grid" style="margin-top:10px;">' +
+        DefuseLogic.POSES.map(function(p){
+          return '<button class="pk-btn" data-dfpose="' + p.id + '">' + escapeHtml(p.label) + '</button>';
+        }).join('') + '</div>' +
+        '<div class="mic-status" style="margin-top:8px;">' +
+        '姿勢の見分けがうまくいかない時は、ポーズを取ってからボタンで選んでください。' +
+        'カメラの映像は端末の外に出しませんし、保存もしません。</div>';
+    },
+    start: async function(){
+      try{
+        var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' }, audio: false });
+        dfLocal.stream = stream;
+        var v = el('dfCam');
+        if(v){ v.srcObject = stream; }
+        el('dfPoseNote').textContent = 'ポーズを取って、ボタンで選んでください';
+      }catch(e){
+        el('dfPoseNote').textContent = 'カメラを使えませんでした。ポーズを取ってからボタンで選んでください';
+      }
+    },
+    stop: function(){
+      if(dfLocal.stream){
+        dfLocal.stream.getTracks().forEach(function(t){ t.stop(); });
+        dfLocal.stream = null;
+      }
+    },
+    click: function(e){
+      var b = e.target.closest('[data-dfpose]');
+      if(!b) return;
+      dfSend({ type:'pose', pose: b.dataset.dfpose });
+    }
+  };
+
+  // ⑨ 分割暗号：マニュアル役みんなのぶんをつなげて入力する
+  DF_UI.cipher = {
+    html: function(open){
+      return '<div class="mic-status" style="text-align:center;">' +
+        'マニュアル役 ' + open.hint.parts + '人ぶんをつなげた ' + open.hint.length + ' 文字</div>' +
+        '<input type="text" id="dfCipherInput" maxlength="' + (open.hint.length + 4) + '" ' +
+        'autocapitalize="characters" placeholder="暗号を入力" style="margin-top:10px;text-align:center;' +
+        'font-family:\'DotGothic16\',monospace;font-size:22px;letter-spacing:4px;">' +
+        '<button class="btn btn-main" id="dfCipherSend" style="margin-top:10px;">送る</button>';
+    },
+    start: function(){
+      el('dfCipherSend').addEventListener('click', function(){
+        var t = el('dfCipherInput').value.trim();
+        if(!t) return;
+        dfSend({ type:'code', text: t });
+      });
+    }
+  };
+
+  // ⑩ イエスノー解錠：質問して、はい／いいえ から正体を当てる
+  DF_UI.yesno = {
+    html: function(open){
+      var asked = open.progress.asked || [];
+      var LABEL = { yes:'はい', no:'いいえ', unknown:'わからない' };
+      return '<div class="mic-status" style="text-align:center;">あと ' + open.progress.left + ' 回きけます</div>' +
+        (asked.length ? '<div class="df-page"><div class="df-page-head">聞いたこと</div>' +
+          asked.map(function(a){
+            return '<div style="font-size:13px;line-height:1.8;">' + escapeHtml(a.q) +
+              ' → <b>' + LABEL[a.a] + '</b></div>';
+          }).join('') + '</div>' : '') +
+        (open.progress.left > 0
+          ? '<div class="tp-label" style="margin-top:12px;">きくことをえらぶ</div>' +
+            (open.hint.questions || []).filter(function(q){
+              return !asked.some(function(a){ return a.q === q; });
+            }).map(function(q){
+              return '<button class="btn btn-outline" data-dfask="' + escapeHtml(q) + '" ' +
+                'style="margin-top:6px;font-size:13px;">' + escapeHtml(q) + '</button>';
+            }).join('')
+          : '<div class="mic-status" style="margin-top:10px;">もう質問できません。答えを選んでください</div>') +
+        '<div class="tp-label" style="margin-top:14px;">正体はどれ？</div>' +
+        '<div class="picker-grid">' + (open.hint.choices || []).map(function(c){
+          return '<button class="pk-btn" data-dfguess="' + escapeHtml(c) + '">' + escapeHtml(c) + '</button>';
+        }).join('') + '</div>';
+    },
+    click: function(e){
+      var ask = e.target.closest('[data-dfask]');
+      if(ask){ dfSend({ type:'ask', question: ask.dataset.dfask }); return; }
+      var g = e.target.closest('[data-dfguess]');
+      if(g) dfSend({ type:'guess', name: g.dataset.dfguess });
+    }
+  };
+
+  // ---- モジュールを開く／閉じる ----
+  function dfOpenModule(open, you){
+    dfOpenUid = open.uid;
+    dfLocal = {};
+    var ui = DF_UI[open.type];
+    el('dfModTitle').textContent = open.icon + ' ' + open.name;
+    el('dfModLead').textContent = open.lead || '';
+    el('dfModBody').innerHTML = ui ? ui.html(open) : '';
+    // マニュアルなしの設定なら、対応表もここに出す（自力で解ける）
+    el('dfModManual').innerHTML = open.manual
+      ? '<div class="df-page"><div class="df-page-head">📖 対応表</div>' +
+        dfManualBodyHtml(open.manual) + '</div>'
+      : '';
+    dfStatus('');
+    el('dfModOverlay').classList.add('show');
+    if(ui && ui.start) ui.start(open);
+    // センサーを見るループ。開けている間だけ回す
+    clearInterval(dfLoop);
+    dfLoop = setInterval(function(){
+      var cur = rt.state.secret && rt.state.secret.open;
+      if(!cur || cur.uid !== dfOpenUid) return;
+      var u = DF_UI[cur.type];
+      if(u && u.tick) u.tick(cur);
+    }, 120);
+  }
+  function dfUpdateModule(open){
+    // サーバーから届いた進み具合だけを描き直す。
+    // 入力中の欄を壊さないよう、中身は作り直さない（tick が数字を更新する）
+    var ui = DF_UI[open.type];
+    if(ui && ui.redraw) ui.redraw(open);
+    // イエスノー解錠だけは、聞いた答えが増えるので作り直す
+    if(open.type === 'yesno'){
+      el('dfModBody').innerHTML = ui.html(open);
+    }
+  }
+  function dfStopModule(){
+    clearInterval(dfLoop); dfLoop = null;
+    // どのモジュールを開けていたかに関わらず、後始末は全部呼ぶ。
+    // カメラや拍が回りっぱなしになるのが一番まずいので、取りこぼさない方を選ぶ
+    Object.keys(DF_UI).forEach(function(k){
+      if(DF_UI[k].stop){ try{ DF_UI[k].stop(); }catch(e){} }
+    });
+    dfOpenUid = null;
+  }
+  // 開いているモジュールの中で押された時は、そのモジュールの受け口へ渡す
+  el('dfModBody').addEventListener('click', function(e){
+    var open = rt.state.secret && rt.state.secret.open;
+    if(!open) return;
+    var ui = DF_UI[open.type];
+    if(ui && ui.click) ui.click(e, open);
+  });
+
+  el('dfModCloseBtn').addEventListener('click', async function(){
+    el('dfModOverlay').classList.remove('show');
+    dfStopModule();
+    await rt.act(null);
+  });
+
+  // ---- 大画面：実物解除（第27弾-3） ----
+  // 出すのは公開情報だけ。モジュールの中身も対応表も、ここには一切出さない。
+  function renderRtBigDefuse(v){
+    el('bigBoard').style.display = 'none';
+    var main = '', sub = '';
+    if(v.phase === 'consent'){
+      main = '体を動かす確認';
+      sub = '全員が自分のスマホで答えてください';
+    } else if(v.phase === 'roles'){
+      main = '役割をえらぶ';
+      sub = (v.players || []).map(function(p){
+        return p.name + '：' + (p.role === 'defuser' ? '解除役' : p.role === 'manual' ? 'マニュアル役' : 'まだ');
+      }).join('　');
+    } else if(v.phase === 'ended'){
+      var r = v.result || {};
+      main = r.success ? '解除成功！' : '爆発…';
+      sub = r.solved + ' / ' + r.total + '個を解除　のこりミス ' + Math.max(0, r.strikesLeft);
+    } else {
+      var b = v.board || { solved:0, total:0, modules:[] };
+      main = b.solved + ' / ' + b.total + '個';
+      sub = 'のこりミス ' + '❤️'.repeat(Math.max(0, v.strikesLeft)) +
+        '🖤'.repeat(Math.max(0, v.strikesMax - v.strikesLeft));
+      var working = (v.players || []).filter(function(p){ return p.working; });
+      if(working.length){
+        sub += '<br>' + working.map(function(p){
+          return escapeHtml(p.name) + 'が「' + escapeHtml(p.working) + '」に挑戦中';
+        }).join(' ／ ');
+      }
+    }
+    el('bigMain').textContent = main;
+    el('bigSub').innerHTML = sub;
+    // モジュールは名前と解除済みかだけ。中身は出さない
+    var mods = (v.board && v.board.modules) || [];
+    el('bigList').innerHTML = mods.map(function(m){
+      return '<span class="bl-item' + (m.solved ? ' dead' : '') + '">' +
+        m.icon + ' ' + escapeHtml(m.name) + '</span>';
     }).join('');
   }
 

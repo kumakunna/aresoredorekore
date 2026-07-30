@@ -483,24 +483,40 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     return changed;
   }
 
+  /**
+   * 第27弾-1：部屋ごとの見回り。1つの部屋で例外が飛んでも、
+   * 他の部屋とサーバー本体は巻き添えにしない。
+   *
+   * setInterval の中で投げた例外は誰も受け取らないので、Node はプロセスごと終了する。
+   * そうなるとメモリ上の部屋が「全部」消え、遊んでいる全員が同時に切断される
+   * （実機で起きた症状と一致する）。あるゲームの取りこぼしが、
+   * 別のゲームを遊んでいる部屋まで巻き込むのは、どう考えても割に合わない。
+   */
+  function eachRoom(label, fn) {
+    for (const [code, room] of store.rooms) {
+      try { fn(room, code); }
+      catch (e) { console.error('[realtime] ' + label + '（部屋 ' + code + '）で例外:', e); }
+    }
+  }
+
   // ---- ハートビート ----
   // socket.io 自身の ping/pong とは別に、アプリ側でも疎通を確認する。
   // 「接続は張られているが応答が返らない」端末を切断扱いにするため。
   const timers = [];
   timers.push(setInterval(() => {
     const now = Date.now();
-    for (const room of store.rooms.values()) {
+    eachRoom('ハートビート送信', (room) => {
       for (const m of room.members.values()) {
         if (!m.connected) continue;
         const s = socketOf(m.id, room);
         if (s) s.emit('hb:ping', { at: now });
       }
-    }
+    });
   }, HEARTBEAT_INTERVAL_MS));
 
   timers.push(setInterval(() => {
     const now = Date.now();
-    for (const [code, room] of store.rooms) {
+    eachRoom('切断の見回り', (room, code) => {
       for (const m of room.members.values()) {
         if (!m.connected) continue;
         if (now - m.lastSeen > HEARTBEAT_TIMEOUT_MS) markDisconnected(m, room);
@@ -510,20 +526,20 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 保険として、emptySince の付け忘れがあってもここで拾い直す。
       if (!connectedMembers(room).length && !room.emptySince) room.emptySince = now;
       if (room.emptySince && now - room.emptySince > emptyRoomTtlMs) store.delete(code);
-    }
+    });
   }, sweepIntervalMs));
 
   // 第21弾-7：制限時間で締める。全員そろわなくても先へ進めるようにする
   // （夜の持ち時間・作戦会議・話し合い。どのゲームでも deadline の扱いは同じ）
   timers.push(setInterval(() => {
     const now = Date.now();
-    for (const room of store.rooms.values()) {
+    eachRoom('時間切れの見回り', (room) => {
       const dr = driverOf(room);
       const w = driverStateOf(room);
-      if (!dr || !w || !w.deadline || now < w.deadline) continue;
+      if (!dr || !w || !w.deadline || now < w.deadline) return;
       dr.advance(room);
       pushWolfState(room);
-    }
+    });
   }, 500));
 
   timers.forEach((t) => { if (t.unref) t.unref(); });

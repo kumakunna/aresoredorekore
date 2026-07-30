@@ -461,6 +461,61 @@ async function waitUntil(fn, label, timeoutMs) {
     } finally { await srv.close(); }
   });
 
+  // ---- 第27弾-1：実機で起きた「全員が同時に切断される」の調査から ----
+
+  await r.test('ひとつの部屋で例外が飛んでも、他の部屋とサーバーは巻き添えにならない', async () => {
+    // setInterval の中で投げた例外は誰も受け取らず、Node はプロセスごと終了する。
+    // そうなるとメモリ上の部屋が全部消え、遊んでいる全員が同時に切断される。
+    // 壊れた部屋を1つ混ぜて、隣の部屋が生き残ることを確かめる。
+    const srv = await startTestServer({ sweepIntervalMs: 30 });
+    try {
+      const cookie = await login(srv.url, 91);
+      const a = await connect(srv.url, cookie);
+      const resA = await send(a, 'room:create', { name: 'あき' });
+      const b = await connect(srv.url, cookie);
+      const resB = await send(b, 'room:create', { name: 'びび' });
+      assert(resA.ok && resB.ok, '部屋を2つ作れる');
+
+      // 片方の部屋に、見回りが触ると必ず転ぶ進行状態を仕込む。
+      // 時間切れの見回りは w.deadline を必ず読むので、そこで投げさせる
+      const broken = srv.store.get(resA.code);
+      broken.wolf = {
+        get deadline() { throw new Error('わざと壊した部屋'); }
+      };
+
+      // 時間切れの見回りは500msごと。必ず2周以上まわる長さだけ待つ
+      // （ここでプロセスが落ちれば、この先は1行も動かない）
+      await sleep(1200);
+      assert(srv.store.get(resB.code), '隣の部屋は残っている');
+      const ping = await send(b, 'room:setState', { phase: 'lobby' });
+      assertEqual(ping.ok, true, 'サーバーは生きていて、隣の部屋はふつうに操作できる');
+
+      a.close(); b.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('部屋が消えたあとに入り直すと、見つからないと返る', async () => {
+    // サーバー再起動・部屋の片付けのどちらでも、端末から見える形はこれになる。
+    // 端末側がこの返事を無視していたのが「画面が固まる」の原因だった
+    // （画面側の直しは tests/rt-screens.js で見ている）。
+    const srv = await startTestServer();
+    try {
+      const cookie = await login(srv.url, 92);
+      const d = await connect(srv.url, cookie);
+      const created = await send(d, 'room:create', { name: 'あき' });
+      assertEqual(created.ok, true, '部屋を作れる');
+
+      srv.store.delete(created.code); // 再起動でメモリ上の部屋が消えたのと同じ状態
+
+      const again = await send(d, 'room:join', {
+        code: created.code, name: 'あき', memberId: created.memberId
+      });
+      assertEqual(again.ok, false, '入り直せない');
+      assertEqual(again.error, 'room_not_found', '理由がはっきり返る');
+      d.close();
+    } finally { await srv.close(); }
+  });
+
   await r.test('既存の一人一台前提のAPIは、socket.ioを入れても素通りする', async () => {
     // server.js の配線（http.createServer + attachRealtime）を実際に起動して確かめる
     const srv = await startTestServer();

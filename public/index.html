@@ -5832,6 +5832,17 @@
     rt.on('room', function(){ rtSync(); });
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){ rtSync(); });
+    // 第27弾-1：つなぎ直したら部屋が無くなっていた時。
+    // サーバーが再起動したか、誰も繋がっていない時間が続いて片付けられたか。
+    // 以前はここで何も起きず、画面が前のまま固まっていた（押しても無反応）。
+    rt.on('lost', function(){
+      var cur = (document.querySelector('.screen.active') || {}).id;
+      if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
+      goBack('scr-shelf');
+      setTimeout(function(){
+        alert('部屋がなくなっていました。\nサーバーが再起動したか、しばらく誰もいない状態が続いたためです。\nもう一度、部屋を作り直してください。');
+      }, 400);
+    });
     // 第24弾-3-5：ホストが終了したら、この端末も部屋から抜けて棚に戻る
     rt.on('closed', function(p){
       var cur = (document.querySelector('.screen.active') || {}).id;

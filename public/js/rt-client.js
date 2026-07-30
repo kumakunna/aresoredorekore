@@ -68,6 +68,18 @@
             if (res && res.ok) {
               state.room = res.room;
               emitLocal('rejoined', state);
+            } else if (res && res.error === 'room_not_found') {
+              // 第27弾-1：入り直そうとしたら、その部屋がもう無かった。
+              // サーバーが再起動した（メモリ上の部屋は消える仕様）か、
+              // 誰も繋がっていない時間が続いて片付けられたか、のどちらか。
+              //
+              // ここで黙っていたのが、実機で起きた「全員が固まって、
+              // ブラウザを立ち上げ直すまで直らない」の正体。
+              // 画面は前のままなのに、押しても何も起きない状態になっていた。
+              // 部屋の印を落として、画面側に知らせる。
+              state.code = null; state.memberId = null;
+              state.room = null; state.secret = null;
+              emitLocal('lost', { reason: 'room_not_found', message: res.message || '' });
             }
             emitLocal('status', state);
           });

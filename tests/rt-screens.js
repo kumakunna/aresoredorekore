@@ -897,6 +897,52 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ---- 第27弾-1：実機で起きた「全員が固まる」の直し ----
+
+  await r.test('つなぎ直して部屋が無くなっていたら、固まらずに理由が出て棚にもどる', async () => {
+    // サーバーが再起動した（メモリ上の部屋は消える仕様）か、
+    // 誰も繋がっていない時間が続いて部屋が片付けられたか。
+    // 以前は入り直しの失敗を黙って捨てていたので、画面が前のまま固まり、
+    // ブラウザを立ち上げ直すまで直らなかった。
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    assertEqual(activeScreen(doc), 'scr-rt-room', 'まず部屋にいる');
+
+    let msg = null;
+    win.alert = (m) => { msg = m; };
+    fake.replies = {
+      'room:join': () => ({ ok: false, error: 'room_not_found', message: 'その部屋コードは見つかりません' })
+    };
+    // 接続が切れて、socket.io が自動でつなぎ直したところ
+    fake.fire('disconnect');
+    fake.fire('connect');
+
+    await waitFor(win, () => activeScreen(doc) === 'scr-shelf', 3000,
+      '棚にもどる（現在: ' + activeScreen(doc) + '）');
+    await waitFor(win, () => !!msg, 2000, '理由が出る');
+    assert(/部屋がなくなって/.test(msg), '何が起きたかが伝わる（実際: ' + msg + '）');
+    assertNoErrors(errors, '部屋が消えていた時に未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('一時的に切れただけなら、入り直せて部屋に留まる', async () => {
+    // 上の直しが効きすぎて、ふつうの再接続まで追い出さないことを見る
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    let msg = null;
+    win.alert = (m) => { msg = m; };
+    fake.replies = {
+      'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() })
+    };
+    fake.fire('disconnect');
+    fake.fire('connect');
+    await sleep(win, 300);
+    assertEqual(activeScreen(doc), 'scr-rt-room', '部屋に留まる');
+    assertEqual(msg, null, '余計な知らせは出さない');
+    assertNoErrors(errors, '再接続で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('大画面は、横長の画面では幅の制限を外す', async () => {
     // jsdom はレイアウトしないので、CSSの決まりごとを直接確かめる
     const fs = require('fs');

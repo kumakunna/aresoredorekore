@@ -165,6 +165,37 @@ async function passBrief(srv, rm) {
 }
 
 /**
+ * solveModule の逆。「わざと間違える操作」を作って返す。
+ * どのモジュールが載るかは毎回変わるので、種類を決め打ちすると
+ * 「その種類が載らなかった回」だけ落ちるテストになってしまう。
+ *
+ * 方位当て・水平合わせにはミスが無い（間違えても減らない設計）ので、
+ * その2つだけ null を返す。呼び出し側は「null でないもの」を探せばよい。
+ */
+function wrongActionFor(inst) {
+  const a = inst.answer;
+  switch (inst.type) {
+    case 'face':
+      // 順番どおりの面でないと判定されないので、いま押すべき面を使う
+      return { type: 'press', face: inst.hint.order[inst.progress.step], color: '__wrong__' };
+    case 'shake':
+      return { type: 'shakes', count: a.count + 1, gaps: [] };
+    case 'rhythm':
+      return { type: 'taps', beats: a.beats.concat([99]) };
+    case 'pose':
+      return { type: 'pose', pose: '__wrong__' };
+    case 'cipher':
+      // 答えより長い文字列にするので、まぐれで当たることがない
+      return { type: 'code', text: 'Z'.repeat(a.code.length + 4) };
+    case 'yesno':
+      return { type: 'guess', name: '__wrong__' };
+    default:
+      // maze は罠の位置しだいで必ず踏めるとは限らないので、ここでは使わない
+      return null;
+  }
+}
+
+/**
  * テストだけが使える覗き見。端末には届いていない答えを取り出して、正解の操作を送る。
  * センサーの読み取りそのものは実機でしか確かめられないので、
  * ここでは「端末が正しい値を送ってきたらサーバーが解除と判定するか」を見ている。
@@ -542,18 +573,15 @@ async function solveAll(srv, rm, d) {
       await rm.host.call('wolf:start', startConfig({ strikes: 2, moduleCount: 4 }));
       await toPlay(srv, rm, [[rm.host, 'defuser'], [rm.guests[0], 'manual']]);
 
-      // わざと外せるモジュール（面認証）を探して、違う色を押す
+      // 載っているモジュールは毎回変わるので、種類を決め打ちしない。
+      // 「わざと外せる種類」の中から、実際に載っているものを選ぶ
+      // （面認証とリズム合わせを決め打っていたため、どちらも載らない回に落ちていた）
       const w = defuseOf(srv, rm.code);
-      let inst = w.modules.find((m) => m.type === 'face');
-      if (!inst) {
-        // 面認証が載っていない回もあるので、リズム合わせで代用する
-        inst = w.modules.find((m) => m.type === 'rhythm');
-      }
-      assert(inst, '外せるモジュールがある');
+      const inst = w.modules.find((m) => wrongActionFor(m));
+      assert(inst, 'わざと外せるモジュールが載っている（' +
+        w.modules.map((m) => m.type).join(',') + '）');
       await rm.host.call('wolf:act', { targetId: inst.uid });
-      const wrong = inst.type === 'face'
-        ? { type: 'press', face: inst.hint.order[0], color: inst.answer.buttons[0] === 'red' ? 'blue' : 'red' }
-        : { type: 'taps', beats: [0, 1, 2, 3, 4, 5, 6, 7] };
+      const wrong = wrongActionFor(inst);
       const miss1 = await rm.host.call('wolf:vote', { action: wrong });
       assertEqual(miss1.miss, true, 'ミスとして返る');
       await waitUntil(() => defuseOf(srv, rm.code).strikesLeft === 1, 'ミスが1つ減る');

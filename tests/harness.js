@@ -23,8 +23,13 @@ function makeApi(opts) {
   const topics = ['傘', '習字道具', '自動販売機', 'ヘリコプター', '目覚まし時計',
     '冷蔵庫', 'ペンギン', '遊園地', '信号機', 'ズッキーニ', 'パトカー', 'スマートフォン']
     .map((name, i) => ({ id: i + 1, name, yomi: '', ng_words: ['ヒント1', 'ヒント2'], is_default: true }));
-  const matches = [];
-  let nextId = 1;
+  // opts.seedMatches：あらかじめ入っている対戦記録。
+  // 「昔のIDで残っている記録が、いまも正しく表示されるか」を確かめるために使う
+  const matches = (opts.seedMatches || []).map((m, i) => Object.assign({
+    id: i + 1, player_names: [], rounds: [], final_scores: null,
+    started_at: new Date().toISOString(), ended_at: new Date().toISOString()
+  }, m));
+  let nextId = matches.length + 1;
   // 第26弾-4：称号の預かり先（アカウントごとの持ち物）
   let titleStore = {
     stats: TitleLogic.emptyStats(),

@@ -178,7 +178,7 @@ function viewOf(d) {
 function startConfig(patch) {
   return Object.assign({
     game: 'bomb', mode: 'coop', counts: { easy: 3 }, lives: 3,
-    layout: 'sorted', timerSec: 0, topics: makeTopics(8)
+    timerSec: 0, topics: makeTopics(8)
   }, patch || {});
 }
 
@@ -375,9 +375,9 @@ async function missOne(srv, d) {
     try {
       const rm = await makeRoom(srv, 3, false);
       rm.guests.forEach((g) => { g.code = rm.code; });
-      // 「ごちゃまぜ」で本数を多くすると、偶然そろう確率が無視できる
+      // 本数を多くすると、偶然そろう確率が無視できる
       await rm.host.call('wolf:start', startConfig({
-        mode: 'race', layout: 'mixed', counts: { easy: 8 }, topics: makeTopics(12)
+        mode: 'race', counts: { easy: 8 }, topics: makeTopics(12)
       }));
       await waitUntil(() => rm.all.every((d) => d.you && d.you.phase === 'play'), '解除が始まる');
       const orders = rm.all.map((d) => d.you.board.map((c) => c.uid).join(','));

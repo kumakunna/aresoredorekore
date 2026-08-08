@@ -81,7 +81,6 @@
       // 競争版だけの設定。通常版では使わないが、既定値は入れておく
       endWhen: (c.endWhen === END_WHEN.ALL) ? END_WHEN.ALL : END_WHEN.FIRST,
       lives: clampInt(c.lives, 1, MAX_LIVES, 3),
-      layout: (c.layout === 'mixed') ? 'mixed' : 'sorted',
       // 0＝時間制限なし。1台のスマホ版の「タイマーを使う」OFFと同じ扱い
       timerSec: clampInt(c.timerSec, 0, 59 * 60 + 59, 180),
       counts: counts,
@@ -116,10 +115,23 @@
   }
 
   /**
+   * 第28弾-1：盤面に並べる順番。必ずばらばらに混ぜる。
+   *
+   * 以前は「難易度別に整列」を選べたが、そうすると盤面が
+   * 緑→黄→橙→赤のグラデーションに見え、どこが難しいかが一目で分かってしまった。
+   * 難易度は枠の色で分かるので、並び順まで揃える必要はない。
+   * 並べ方の設定そのものを無くしたので、ここを通れば必ず混ざる。
+   */
+  function shuffleWires(wires, rnd) {
+    return shuffled(wires, rnd);
+  }
+
+  /**
    * 爆弾に仕込むコードを選ぶ。
    * 難易度ごとに希望の本数を引く。プールが足りない難易度は、あるだけで我慢する
    * （「30本の設定なのに10本しか出ない」は起こるが、黙って別の難易度で埋めると
    *   設定した人の意図と違うものが出るので、そちらは選ばない）。
+   * 並び順は難易度ごとに固まったままなので、盤面に出す前に必ず shuffleWires を通す。
    */
   function pickWires(topics, counts, rnd) {
     var wires = [];
@@ -214,7 +226,7 @@
     MISS_TIME_PENALTY_SEC: MISS_TIME_PENALTY_SEC,
     HEART_BASE_MS: HEART_BASE_MS, HEART_MIN_MS: HEART_MIN_MS,
     normalizeConfig: normalizeConfig, normalizeTopics: normalizeTopics,
-    pickWires: pickWires, buildChoices: buildChoices, isCorrect: isCorrect,
+    pickWires: pickWires, shuffleWires: shuffleWires, buildChoices: buildChoices, isCorrect: isCorrect,
     heartIntervalMs: heartIntervalMs, rankPlayers: rankPlayers,
     progressPct: progressPct, shuffled: shuffled, topicsByTier: topicsByTier
   };

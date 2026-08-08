@@ -41,12 +41,11 @@ function pool(spec) {
   await r.test('設定は端末の言い値を鵜呑みにせず、枠に収める', async () => {
     const c = B.normalizeConfig({
       mode: 'race', endWhen: 'all', lives: 99, timerSec: 999999,
-      layout: 'mixed', counts: { easy: 999, normal: 3 }
+      counts: { easy: 999, normal: 3 }
     });
     assertEqual(c.mode, 'race', '遊び方');
     assertEqual(c.endWhen, 'all', '終わり方');
     assertEqual(c.lives, B.MAX_LIVES, 'ライフは上限まで');
-    assertEqual(c.layout, 'mixed', '見せ方');
     assert(c.timerSec <= 59 * 60 + 59, '時間は59:59まで');
     assertEqual(c.total, B.MAX_WIRES, 'コードの合計は上限を超えない');
     // 前の難易度の希望を優先し、あふれた分は後ろから削る
@@ -55,11 +54,32 @@ function pool(spec) {
   });
 
   await r.test('知らない値が来ても既定に寄せる（行き止まりを作らない）', async () => {
-    const c = B.normalizeConfig({ mode: 'なにこれ', endWhen: 'なにこれ', layout: 'なにこれ', lives: null });
-    assertEqual(c.mode, B.MODE.COOP, '既定は通常版');
+    const c = B.normalizeConfig({ mode: 'なにこれ', endWhen: 'なにこれ', lives: null });
+    assertEqual(c.mode, B.MODE.COOP, '既定は協力版');
     assertEqual(c.endWhen, B.END_WHEN.FIRST, '既定は最初の1人で終了');
-    assertEqual(c.layout, 'sorted', '既定は難易度別に整列');
     assertEqual(c.lives, 3, '既定のライフは3');
+  });
+
+  await r.test('コードの並び順は必ず混ざる（難易度のグラデーションを作らない）', async () => {
+    // 難易度ごとに固まったまま並べると、盤面が緑→黄→橙→赤に見えて
+    // どこが難しいか一目で分かってしまう。並べ方の設定そのものを無くした
+    const topics = pool({ easy: 4, normal: 4, hard: 4 });
+    const wires = B.pickWires(topics, { easy: 4, normal: 4, hard: 4 }, rndZero);
+    // 抽選した直後は難易度ごとにまとまっている
+    assertEqual(wires.map((w) => w.tier).join(','),
+      'easy,easy,easy,easy,normal,normal,normal,normal,hard,hard,hard,hard',
+      '抽選の直後は難易度順に並んでいる');
+    // 盤面に出す前に必ず通す shuffleWires で、そのまとまりが崩れる
+    let mixedAtLeastOnce = false;
+    for (let i = 0; i < 30; i++) {
+      const order = B.shuffleWires(wires).map((w) => w.tier).join(',');
+      if (order !== wires.map((w) => w.tier).join(',')) { mixedAtLeastOnce = true; break; }
+    }
+    assert(mixedAtLeastOnce, '並びが混ざる');
+    // 中身は減らない（混ぜるだけ）
+    const before = wires.map((w) => w.uid).sort().join(',');
+    const after = B.shuffleWires(wires).map((w) => w.uid).sort().join(',');
+    assertEqual(after, before, '混ぜても本数と中身は変わらない');
   });
 
   await r.test('お題プールは、名前が無いもの・重複を捨てる', async () => {

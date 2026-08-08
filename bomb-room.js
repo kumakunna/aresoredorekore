@@ -68,18 +68,12 @@ function activeMembers(room) {
 
 /**
  * コードの並び順を決める。
- * 「難易度別に整列」でも、同じ難易度の中は各自ばらばらに混ぜる。
- * こうすると設定した見せ方は守られたまま、隣の画面を見ても場所が一致しない
- * （競争版の「並び順は各自別々にシャッフル」を、設定を犠牲にせずに満たす）。
+ * 第28弾-1：難易度別に並べる選択肢は無くしたので、必ず全部を混ぜる。
+ * 整列させると盤面がグラデーションに見え、どこが難しいかが一目で分かってしまう。
+ * 競争版では各自ばらばらに引くので、隣の画面を見ても場所が一致しない。
  */
-function orderFor(wires, layout, rnd) {
-  if (layout === 'mixed') return BombLogic.shuffled(wires, rnd).map((x) => x.uid);
-  const out = [];
-  BombLogic.TIERS.forEach((tier) => {
-    const inTier = wires.filter((x) => x.tier === tier);
-    BombLogic.shuffled(inTier, rnd).forEach((x) => out.push(x.uid));
-  });
-  return out;
+function orderFor(wires, rnd) {
+  return BombLogic.shuffleWires(wires, rnd).map((x) => x.uid);
 }
 
 function makeEntry(w, order) {
@@ -134,7 +128,6 @@ function startGame(room, config, ctx) {
   const w = {
     mode: cfg.mode,
     endWhen: cfg.endWhen,
-    layout: cfg.layout,
     lives: cfg.lives,
     timerSec: cfg.timerSec,
     preset: cfg.preset,
@@ -161,9 +154,9 @@ function startGame(room, config, ctx) {
   members.forEach((m) => { w.names[m.id] = m.name; });
 
   if (cfg.mode === BombLogic.MODE.COOP) {
-    w.entries[TEAM_KEY] = makeEntry(w, orderFor(wires, cfg.layout, rnd));
+    w.entries[TEAM_KEY] = makeEntry(w, orderFor(wires, rnd));
   } else {
-    ids.forEach((id) => { w.entries[id] = makeEntry(w, orderFor(wires, cfg.layout, rnd)); });
+    ids.forEach((id) => { w.entries[id] = makeEntry(w, orderFor(wires, rnd)); });
   }
 
   room.bomb = w;
@@ -285,7 +278,6 @@ function publicView(room) {
     phase: w.phase,
     mode: w.mode,
     endWhen: w.endWhen,
-    layout: w.layout,
     total: w.wires.length,
     livesMax: w.lives,
     timerSec: w.timerSec,
@@ -427,7 +419,6 @@ function privateFor(room, memberId) {
     timedOut: !!(e && e.timedOut),
     finished: !!(e && e.finishedAt != null),
     remainingMs: remainingMsOf(e),
-    layout: w.layout,
     // 待機中は本数だけ。説明文はまだ1文字も出さない
     prep: { ready: w.ready, dropped: w.dropped, total: w.wires.length }
   };

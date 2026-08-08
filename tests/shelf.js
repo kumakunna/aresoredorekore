@@ -238,7 +238,7 @@ function pickCart(doc, id) {
     await H.fillPlayerForm(win, doc, ['あき', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c2 => c2.dataset.id);
-    assertEqual(ids.join(','), 'bomb,bomb-race', 'クイズ解除のモードだけが並ぶ');
+    assertEqual(ids.join(','), 'bomb-coop,bomb-race', 'クイズ解除のモードだけが並ぶ');
     assertNoErrors(errors, '爆弾解除カセットで未捕捉の例外');
     win.close();
   });

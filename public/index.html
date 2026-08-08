@@ -788,22 +788,7 @@
   .bomb-wire-btn.solved{background:var(--teal);border-color:var(--teal);color:#fff;opacity:.7;cursor:default;}
   /* ===== 時限爆弾の演出（③） ===== */
   .bomb-topbar .timer-chip{font-size:15px;padding:2px 10px;}
-  .bomb-stage{display:flex;align-items:center;justify-content:center;min-height:56vh;}
-  .bomb-room{
-    width:100%;min-height:56vh;border-radius:16px;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:18px;background:#0b0d12;
-    box-shadow:inset 0 0 60px rgba(0,0,0,0.9);transition:background .6s,box-shadow .6s;position:relative;overflow:hidden;
-  }
-  .bomb-room::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 38%, rgba(255,220,150,0) 0%, rgba(0,0,0,0.85) 70%);transition:background .6s;pointer-events:none;}
-  .bomb-room.lit{background:#241d17;box-shadow:inset 0 0 40px rgba(0,0,0,0.5);}
-  .bomb-room.lit::before{background:radial-gradient(circle at 50% 38%, rgba(255,214,140,0.35) 0%, rgba(0,0,0,0.35) 75%);}
-  .bomb-device{position:relative;z-index:1;cursor:default;transition:transform .3s;filter:brightness(.35);}
-  .bomb-room.lit .bomb-device{filter:brightness(1);cursor:pointer;}
-  .bomb-room.lit .bomb-device:active{transform:scale(.94);}
-  .bomb-emoji{font-size:96px;line-height:1;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6));}
-  .bomb-device.opening{animation:bombLidOpen .55s ease forwards;}
-  @keyframes bombLidOpen{0%{transform:scale(1) rotate(0);}40%{transform:scale(1.15) rotate(-3deg);}100%{transform:scale(2.2);opacity:0;}}
-  .bomb-hint{z-index:1;color:#ffd78c;font-family:'DotGothic16',monospace;font-size:14px;letter-spacing:1px;text-align:center;}
+  /* 第28弾-1：暗室・爆弾本体・蓋オープンの見た目は、演出ごと無くした */
   .bomb-inside{animation:bombInsideIn .4s ease;}
   @keyframes bombInsideIn{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
   .bomb-wire-btn.t-easy{border-color:#43a047;box-shadow:inset 0 0 0 3px #43a047;}
@@ -1302,12 +1287,11 @@
         <button class="btn btn-outline" id="bombAutoFillBtn" style="width:100%;margin-top:10px;">🎲 残りを自動で決める</button>
         <div class="mic-status" id="bombSumStatus" style="margin-top:8px;"></div>
       </div>
-      <div class="timer-dmode">
-        <div class="tp-label">コードの見せ方</div>
-        <div class="seg" id="bombLayoutSeg">
-          <button class="seg-btn" data-layout="sorted">難易度別に整列</button>
-          <button class="seg-btn" data-layout="mixed">ごちゃまぜ</button>
-        </div>
+      <!-- 第28弾-1：「コードの見せ方」の設定は無くした。
+           難易度別に整列させると盤面がグラデーションに見え、
+           どこが難しいかが一目で分かってしまうため、必ずばらばらに混ぜる -->
+      <div class="mic-status" style="margin-top:12px;">
+        コードは毎回ばらばらに並びます。難しさは枠の色で見分けてください。
       </div>
     </div>
     <div class="wiz-foot">
@@ -1940,19 +1924,24 @@
       <div class="bomb-progress" id="bombProgress">0 / 30 解除</div>
       <div class="timer-chip" id="bombTimer" style="display:none;">--:--</div>
     </div>
-    <!-- 閉じた爆弾（暗い部屋→点灯→タップで蓋オープン） -->
-    <div class="bomb-stage" id="bombStageClosed">
-      <div class="bomb-room" id="bombRoom">
-        <div class="bomb-device" id="bombDevice">
-          <div class="bomb-emoji">💣</div>
-          <div class="bomb-lid" id="bombLid"></div>
-        </div>
-        <div class="bomb-hint" id="bombHint">…</div>
-      </div>
-    </div>
-    <!-- 開いた爆弾の中の配線一覧 -->
-    <div class="bomb-inside" id="bombInside" style="display:none;">
+    <!-- 第28弾-1：暗室→点灯→蓋オープンの演出は無くした。
+         カウントダウンのあと、そのままコード一覧が出る -->
+    <div class="bomb-inside" id="bombInside">
       <div id="bombWireList"></div>
+    </div>
+  </div>
+
+  <!-- 第28弾-1：協力版でも、遊び始める前に説明文を全部そろえる。
+       競争版（部屋）が待合で出しているものと同じ形にしてある -->
+  <div class="screen" id="scr-bomb-prep">
+    <h2 class="scr-title">じゅんび中</h2>
+    <p class="scr-sub">🤖 AIが説明文を用意しています</p>
+    <div class="wiz-body">
+      <div class="bomb-prep-bar"><div class="bomb-prep-fill" id="bombPrepFill"></div></div>
+      <div class="mic-status" id="bombPrepNote" style="text-align:center;"></div>
+      <div class="mic-status" style="margin-top:18px;text-align:center;">
+        先に全部そろえるので、始まってからは待たされません。
+      </div>
     </div>
   </div>
 
@@ -2430,7 +2419,9 @@
     // idは記録に残っているので触らない（旧「時限爆弾」の記録と地続きにする）。
     // 通常版は入り口で遊び方が決まる：棚からカセットを直接タップ＝1台のスマホ、
     // 棚の「部屋」から入って選ぶ＝全員スマホ。だからカードは1枚で足りる。
-    {id:"bomb", icon:"💣", title:"クイズ解除", sub:"AIの説明を聞いて3択・ライフ制の協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, game:'bomb',
+    // 第28弾-1：「通常版」→「協力版」に改名。競争版と名前の形をそろえた。
+    // idも bomb-coop に変えたが、旧IDの記録は LEGACY_MODE_IDS で拾い直すので壊れない
+    {id:"bomb-coop", icon:"💣", title:"クイズ解除（協力版）", sub:"AIの説明を聞いて3択・ライフ制の協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, game:'bomb',
       bullets:["チームで協力して爆弾を解除する","コードをタップするとAIの説明文が出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る（同じコードは何度でも再挑戦できる）","ライフが0で爆発・全解除で勝利","部屋を立てて遊ぶと、全員が同じ盤面を自分のスマホで見られる"]},
     // 競争版：1人1台・部屋が必須。観戦者は出ない（全員が同じコードに同時に挑む）
     {id:"bomb-race", icon:"🏁", title:"クイズ解除（競争版）", sub:"同じコードに全員で同時挑戦・順位がつく", advanced:false, strict:false, oneWord:false, bomb:true, bombRace:true, roomOnly:true, game:'bomb', minPlayers:2,
@@ -2950,8 +2941,20 @@
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
   }
+  // 第28弾-1：モードの名前を変えた時に、そのIDで残っている記録を迷子にしないための対応表。
+  // 記録は rounds[].mode にモードIDをそのまま持っているので、
+  // IDを変えると過去の記録がどのゲームのものか分からなくなり、
+  // 「爆弾解除で遊んだ記録が、あれそれどれこれとして表示される」ことになる。
+  // 名前を変えるたびに、ここへ1行足す。
+  var LEGACY_MODE_IDS = {
+    bomb: 'bomb-coop'   // 第28弾-1：クイズ解除「通常版」→「協力版」
+  };
+  function resolveModeId(modeId){
+    return LEGACY_MODE_IDS[modeId] || modeId;
+  }
   function gameIdForMode(modeId){
-    var m = MODES.find(function(x){ return x.id === modeId; });
+    var id = resolveModeId(modeId);
+    var m = MODES.find(function(x){ return x.id === id; });
     return (m && m.game) || DEFAULT_GAME_ID;
   }
   function currentGameId(){ return gameIdForMode(state.selectedModeId); }
@@ -3066,7 +3069,6 @@
     bombMax: 30,
     bombCounts: { easy: 12, normal: 10, hard: 6, nanisore: 2, muri: 0 },
     bombLocked: { easy: false, normal: false, hard: false, nanisore: false, muri: false },
-    bombLayout: 'sorted', // 'sorted'（難易度別整列）| 'mixed'（ごちゃまぜ）
     bombLives: 3,
     bombEndWhen: 'first', // 第27弾・競争版の終わり方：'first'（最初の1人で終了）| 'all'（全員が終わるまで）
     // 第27弾-3：実物解除の設定
@@ -3307,7 +3309,11 @@
     });
   }
   function allTopics(){ return state.topics; }
-  function modeById(id){ return MODES.find(function(m){ return m.id === id; }) || MODES[0]; }
+  // 第28弾-1：名前を変える前のIDで来ても、いまのモードを返す（記録から引く時に効く）
+  function modeById(id){
+    var want = resolveModeId(id);
+    return MODES.find(function(m){ return m.id === want; }) || MODES[0];
+  }
 
   // ---------- local prefs (難易度統計など軽いものだけブラウザ内に保存) ----------
   function loadLocalPrefs(){
@@ -4624,16 +4630,7 @@
     }).join('');
     var sum = BOMB_TIERS.reduce(function(s, t){ return s + state.bombCounts[t.id]; }, 0);
     el('bombSumStatus').textContent = '合計 ' + sum + ' / ' + state.bombMax + '本';
-    Array.prototype.forEach.call(el('bombLayoutSeg').children, function(x){
-      x.classList.toggle('on', x.dataset.layout === state.bombLayout);
-    });
   }
-  el('bombLayoutSeg').addEventListener('click', function(e){
-    var b = e.target.closest('.seg-btn');
-    if(!b) return;
-    state.bombLayout = b.dataset.layout;
-    Array.prototype.forEach.call(el('bombLayoutSeg').children, function(x){ x.classList.toggle('on', x === b); });
-  });
   el('bombLifeMinus').addEventListener('click', function(){
     if(state.bombLives > 1){ state.bombLives--; renderBombLifeStep(); }
   });
@@ -5173,7 +5170,6 @@
       endWhen: race ? state.bombEndWhen : null,
       counts: Object.assign({}, state.bombCounts),
       lives: state.bombLives,
-      layout: state.bombLayout,
       timerSec: state.timerEnabled ? (state.customTimer || 180) : 0,
       topics: getPool().map(function(t){
         return { name:t.name, tier:t.tier, ng_words:t.ng_words || [], aliases:t.aliases || [] };
@@ -5886,34 +5882,22 @@
     return t ? t.label : '';
   }
   // 盤面のマス1つ。お題の名前も説明文も、ここには届いていない（難易度と状態だけ）
-  function rtBombCellHtml(c, mine){
-    var cls = BOMB_TIER_CLASS[c.tier] || '';
-    var face = '🔌';
-    if(c.solved) face = '✅';
-    else if(c.uid === mine) { cls += ' mine'; face = '🔎'; }
-    else if(c.by) { cls += ' taken'; face = escapeHtml(String(c.by).slice(0, 1)); }
-    return '<button class="bomb-wire-btn ' + cls + (c.solved ? ' solved' : '') +
-      '" data-rtbomb="' + escapeHtml(c.uid) + '">' + face + '</button>';
+  // 第28弾-1：盤面のマスは協力版（1台）と共通の部品（bombGridHtml）で描く。
+  // ここが決めるのは「マスに何の顔を出すか」だけ
+  function rtBombCell(c, mine){
+    var cell = { uid: c.uid, tier: c.tier, solved: c.solved };
+    if(c.solved) cell.face = '✅';
+    else if(c.uid === mine){ cell.extraClass = 'mine'; cell.face = '🔎'; }
+    else if(c.by){ cell.extraClass = 'taken'; cell.face = escapeHtml(String(c.by).slice(0, 1)); }
+    else cell.face = '🔌';
+    return cell;
   }
   function rtBombBoardHtml(you){
     var board = you.board || [];
     if(!board.length) return '';
     var mine = you.open ? you.open.uid : null;
-    var html = '';
-    if(you.layout === 'sorted'){
-      // 並びは難易度ごとにまとまって届く。同じ難易度の中は各自ばらばら
-      BOMB_TIERS.forEach(function(t){
-        var inTier = board.filter(function(c){ return c.tier === t.id; });
-        if(!inTier.length) return;
-        html += '<div class="sec-title">' + t.label + '</div><div class="bomb-wire-grid">';
-        inTier.forEach(function(c){ html += rtBombCellHtml(c, mine); });
-        html += '</div>';
-      });
-    } else {
-      html += '<div class="bomb-wire-grid">';
-      board.forEach(function(c){ html += rtBombCellHtml(c, mine); });
-      html += '</div>';
-    }
+    // 並び順はサーバーが混ぜて配ってくる。届いた順にそのまま並べる
+    var html = bombGridHtml(board.map(function(c){ return rtBombCell(c, mine); }));
     // 通常版は盤面がひとつなので、誰がどこに挑戦中かを名前で出す
     var taken = board.filter(function(c){ return !c.solved && c.by; });
     if(taken.length){
@@ -6084,9 +6068,10 @@
   }
 
   el('rtBombBoard').addEventListener('click', async function(e){
-    var b = e.target.closest('[data-rtbomb]');
+    // 第28弾-1：マスは協力版と共通の部品なので、目印も共通（data-id）
+    var b = e.target.closest('.bomb-wire-btn');
     if(!b || b.classList.contains('solved') || b.classList.contains('taken')) return;
-    var res = await rt.act(b.dataset.rtbomb);
+    var res = await rt.act(b.dataset.id);
     // 通常版で、同じコードを同時に開こうとした時だけ起きる
     if(res && !res.ok && res.error === 'taken') showFlash('そのコードは他の人が挑戦中です', 'hit');
   });
@@ -7092,8 +7077,9 @@
             // 第20弾-4-1：お題を配りはじめる前に、全員が伏せる時間を作る
             showNightfall(1, 1, function(){ goTo('scr-wolf-pass'); });
           } else if(m.bomb){
+            // 第28弾-1：説明文を全部そろえてから盤面に入る（開くたびに待たせない）
             initBombRound();
-            goTo('scr-bomb-play');
+            startBombPrep();
           } else if(m.quiz){
             initQuizRound();
             goTo('scr-quiz-turn');
@@ -8680,73 +8666,109 @@
         pool.push(item);
       }
     });
-    play.bombWires = pool;
+    // 第28弾-1：難易度ごとに固まったまま並べると、盤面が緑→黄→橙→赤の
+    // グラデーションに見え、どこが難しいか一目で分かってしまう。必ず混ぜる
+    play.bombWires = BombLogic.shuffleWires(pool);
     play.bombLives = state.bombLives;
     play.bombLivesMax = state.bombLives;
     play.bombMisses = 0; // 第27弾：心拍を速くしていく目安
     play.currentBombWire = null;
   }
+
+  /**
+   * 第28弾-1：協力版でも、遊び始める前に説明文を全部そろえる。
+   *
+   * 以前はコードを開いた時にその場でAIを呼んでいたので、毎回そこで待たされた。
+   * 競争版はもともとサーバー側で先に作っているので、待ち方をそちらに合わせる。
+   * 1台のスマホ版はこの端末が持ち主なので、ここで作って手元に置いてよい。
+   *
+   * 作れなかったコードは盤面から外す（開いても答えようがないマスを置かない）。
+   */
+  async function prepareBombDescriptions(onProgress){
+    var wires = play.bombWires || [];
+    var done = 0, dropped = 0;
+    // 同時に呼びすぎるとレート制限に当たるので、3本ずつ
+    var next = 0;
+    async function worker(){
+      for(;;){
+        var i = next++;
+        if(i >= wires.length) return;
+        var w = wires[i];
+        for(var attempt = 0; attempt < 2 && !w.description; attempt++){
+          try{
+            var res = await callAI({ name: w.name, ng_words: w.ng_words });
+            w.description = res.description;
+          }catch(e){ /* もう一度だけ試す */ }
+        }
+        if(!w.description) dropped++;
+        done++;
+        if(onProgress) onProgress(done, wires.length, dropped);
+      }
+    }
+    await Promise.all([worker(), worker(), worker()]);
+    play.bombWires = wires.filter(function(w){ return !!w.description; });
+    return { total: wires.length, dropped: dropped, left: play.bombWires.length };
+  }
   var BOMB_TIER_CLASS = { easy:'t-easy', normal:'t-normal', hard:'t-hard', nanisore:'t-nanisore', muri:'t-muri' };
-  // ---- 演出（③）：暗室 → 点灯 → 蓋オープン → 配線一覧 ----
+
+  // ---- 第28弾-1：コードの盤面。協力版（1台）と競争版（部屋）で同じ部品を使う ----
+  // 中身のデータだけが違う（人数の扱い・順位の有無）。
+  // 見た目を2箇所に書くと、片方だけ直して古いまま残る事故になる。
+  //   cell = { uid, tier, solved, face（マスに出す文字）, extraClass }
+  function bombCellHtml(cell){
+    var cls = 'bomb-wire-btn ' + (BOMB_TIER_CLASS[cell.tier] || '') +
+      (cell.solved ? ' solved' : '') + (cell.extraClass ? ' ' + cell.extraClass : '');
+    return '<button class="' + cls + '" data-id="' + escapeHtml(cell.uid) + '">' +
+      (cell.face || (cell.solved ? '✅' : '🔌')) + '</button>';
+  }
+  // 並び順は渡された順のまま出す（混ぜるのは配る側の仕事）
+  function bombGridHtml(cells){
+    return '<div class="bomb-wire-grid">' + cells.map(bombCellHtml).join('') + '</div>';
+  }
+
+  // 第28弾-1：説明文がそろうまでの画面。そろったら盤面へ入る
+  function startBombPrep(){
+    goTo('scr-bomb-prep');
+    el('bombPrepFill').style.width = '0%';
+    el('bombPrepNote').textContent = '0 / ' + (play.bombWires || []).length + '本';
+    prepareBombDescriptions(function(done, total, dropped){
+      el('bombPrepFill').style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+      el('bombPrepNote').textContent = done + ' / ' + total + '本' +
+        (dropped ? '（' + dropped + '本は用意できませんでした）' : '');
+    }).then(function(res){
+      // 1本も作れなかった時は、行き止まりにせず理由を出して結果へ
+      if(!res.left){
+        enterBombEnd(false, 'AIの説明文を1本も作れなかったので、始められませんでした');
+        goTo('scr-bomb-end');
+        return;
+      }
+      goTo('scr-bomb-play');
+    });
+  }
+
+  // ---- 第28弾-1：暗室→点灯→蓋オープンの演出は無くした ----
+  // 他のゲームと同じカウントダウンのあと、そのままコード一覧に入る。
+  // 説明文は始まる前に全部そろえてあるので、開いた瞬間から待たされない。
   function enterBombPlay(){
     renderBombLives();
     stopBombHeart(); // もう一度遊ぶ時に、前の回の心拍が残らないようにする
-    el('bombInside').style.display = 'none';
-    el('bombStageClosed').style.display = 'flex';
-    el('bombDevice').classList.remove('opening');
-    el('bombRoom').classList.remove('lit');
-    el('bombHint').textContent = '暗くて何も見えない…';
     el('bombWireOverlay').classList.remove('show');
-    play.bombPhase = 'intro';
     setupBombTimerUI();
-    setTimeout(function(){
-      el('bombRoom').classList.add('lit');
-      el('bombHint').textContent = '💡 ライトが点いた！爆弾をタップ';
-      beep(600, 120);
-      play.bombPhase = 'closed';
-      if(state.timerEnabled) startBombTimer();
-    }, 3000);
+    play.bombPhase = 'open';
+    renderBombList();
+    if(state.timerEnabled) startBombTimer();
+    startBombHeart(play.bombMisses);
   }
-  el('bombDevice').addEventListener('click', function(){
-    if(play.bombPhase !== 'closed') return;
-    play.bombPhase = 'opening';
-    el('bombDevice').classList.add('opening');
-    beep(520, 90); setTimeout(function(){ beep(720, 130); }, 130);
-    setTimeout(function(){
-      el('bombStageClosed').style.display = 'none';
-      el('bombInside').style.display = 'block';
-      play.bombPhase = 'open';
-      renderBombList();
-      // 第27弾：蓋が開いてから心拍が始まる（暗室の演出中は静かなままにする）
-      startBombHeart(play.bombMisses);
-    }, 560);
-  });
   function renderBombLives(){
     var max = play.bombLivesMax || state.bombLives || 3;
     var full = Math.max(0, play.bombLives);
     el('bombLives').textContent = '❤️'.repeat(full) + '🖤'.repeat(Math.max(0, max - full));
   }
-  function bombWireBtnHtml(w){
-    var cls = BOMB_TIER_CLASS[w.tier] || '';
-    return '<button class="bomb-wire-btn ' + cls + (w.solved ? ' solved' : '') + '" data-id="' + w.uid + '">' + (w.solved ? '✅' : '🔌') + '</button>';
-  }
   function renderBombList(){
     if(!play.bombWires || play.bombWires.length === 0){ defuseComplete(); return; }
-    var html = '';
-    if(state.bombLayout === 'mixed'){
-      html += '<div class="bomb-wire-grid">';
-      play.bombWires.forEach(function(w){ html += bombWireBtnHtml(w); });
-      html += '</div>';
-    } else {
-      BOMB_TIERS.forEach(function(t){
-        var wiresInTier = play.bombWires.filter(function(w){ return w.tier === t.id; });
-        if(wiresInTier.length === 0) return;
-        html += '<div class="sec-title">' + t.label + '</div><div class="bomb-wire-grid">';
-        wiresInTier.forEach(function(w){ html += bombWireBtnHtml(w); });
-        html += '</div>';
-      });
-    }
-    el('bombWireList').innerHTML = html;
+    el('bombWireList').innerHTML = bombGridHtml(play.bombWires.map(function(w){
+      return { uid: w.uid, tier: w.tier, solved: w.solved };
+    }));
     var solvedCount = play.bombWires.filter(function(w){ return w.solved; }).length;
     el('bombProgress').textContent = solvedCount + ' / ' + play.bombWires.length + ' 解除';
   }
@@ -8831,31 +8853,9 @@
     var tierInfo = BOMB_TIERS.find(function(t){ return t.id === w.tier; }) || BOMB_TIERS[0];
     el('bombWireTierLabel').textContent = tierInfo.label;
     el('bombWireOverlay').classList.add('show');
-    if(w.description){
-      renderBombChoices(w);
-    } else {
-      loadBombWireDescription(w);
-    }
-  }
-  function loadBombWireDescription(w){
-    el('bombWireDescription').textContent = '🤖 説明を考え中…';
-    el('bombWireChoices').innerHTML = '';
-    // タイマー停止・再開は callAI が共通で面倒を見る（第9弾）
-    callAI({ name: w.name, ng_words: w.ng_words })
-      .then(function(res){
-        if(play.currentBombWire !== w) return; // #2：別のコードを開いていたら結果を無視（競合ガード）
-        w.description = res.description;
-        renderBombChoices(w);
-      })
-      .catch(function(e){
-        if(play.currentBombWire !== w) return; // #2
-        // #3：失敗しても詰まないよう「もう一度取得」ボタンを出す（タイマーは止めたまま）
-        el('bombWireDescription').textContent = 'AIの説明を取得できませんでした。もう一度お試しください。';
-        el('bombWireChoices').innerHTML = '<button class="btn btn-outline" id="bombRetryBtn">🔄 もう一度取得</button>' +
-          aiFallbackNoteHtml(); // 第14弾
-        var rb = el('bombRetryBtn');
-        if(rb) rb.addEventListener('click', function(){ loadBombWireDescription(w); });
-      });
+    // 第28弾-1：説明文は始まる前にそろえてあるので、ここで待つことはない。
+    // 作れなかったコードは盤面から外してあるので、description は必ず入っている
+    renderBombChoices(w);
   }
   function renderBombChoices(w){
     el('bombWireDescription').textContent = w.description;
@@ -8908,9 +8908,12 @@
       else startBombHeart(play.bombMisses); // ミスするほど心拍が速くなる
     }
   });
-  function enterBombEnd(success){
-    el('bombEndTitle').textContent = success ? '💚 解除成功！' : '💥 爆発してしまった…';
-    el('bombEndSub').textContent = success ? '全員に+1点！' : '残念、次はがんばろう';
+  // reason：始められなかった時など、ふつうの勝ち負けでない理由がある場合に出す
+  function enterBombEnd(success, reason){
+    el('bombEndTitle').textContent = reason ? '⚠️ 始められませんでした'
+      : (success ? '💚 解除成功！' : '💥 爆発してしまった…');
+    el('bombEndSub').textContent = reason ? reason
+      : (success ? '全員に+1点！' : '残念、次はがんばろう');
     var scoreDeltas = {};
     if(success){
       state.players.forEach(function(p){
@@ -8919,8 +8922,11 @@
       });
     }
     // 第27弾：1人1台と同じ形の detail を残す。片方だけ記録が濃い状態にしない（原則9）
+    // 第28弾-1：モードIDを直書きしていたのを、いま遊んでいるモードに直した。
+    // 直書きのままだと、これから書く記録にも古いIDが入り続け、
+    // LEGACY_MODE_IDS を永久に外せなくなる（他のゲームは全部こう書いている）
     var wires = play.bombWires || [];
-    logRound('bomb', scoreDeltas, {
+    logRound(state.selectedModeId, scoreDeltas, {
       game: 'bomb',
       style: 'handoff',          // 1台のスマホを回す遊び方
       variant: 'coop',

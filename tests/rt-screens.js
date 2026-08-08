@@ -104,7 +104,7 @@ async function pickGameForRoom(win, doc, gameId, modeId) {
 // ここでは「届いたものを画面がどう出すか」だけを見る
 function bombView(over) {
   return Object.assign({
-    phase: 'play', mode: 'coop', endWhen: 'first', layout: 'sorted',
+    phase: 'play', mode: 'coop', endWhen: 'first',
     total: 4, livesMax: 3, timerSec: 180,
     prep: { ready: 4, dropped: 0, total: 4 },
     team: { solved: 1, total: 4, pct: 25, lives: 2, livesMax: 3, misses: 1 },
@@ -126,7 +126,7 @@ function bombYou(over) {
     phase: 'play', mode: 'coop', total: 4, solvedCount: 1,
     lives: 2, livesMax: 3, misses: 1,
     failed: false, timedOut: false, finished: false,
-    remainingMs: 120000, layout: 'sorted',
+    remainingMs: 120000,
     prep: { ready: 4, dropped: 0, total: 4 },
     board: bombView().board
   }, over || {});
@@ -711,7 +711,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('クイズ解除：待合から爆弾解除カセットを選んで戻れる', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
-    await pickGameForRoom(win, doc, 'bomb', 'bomb');
+    await pickGameForRoom(win, doc, 'bomb', 'bomb-coop');
     const picked = fake.emits.filter(e => e.name === 'room:setState').pop();
     assertEqual(picked.payload.game, 'bomb', '遊ぶゲームを部屋に伝えている');
     // 待合の案内にも、何を遊ぶかが出る
@@ -726,7 +726,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('クイズ解除：はじめる時に、お題プールと設定をサーバーへ渡す', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
-    await pickGameForRoom(win, doc, 'bomb', 'bomb');
+    await pickGameForRoom(win, doc, 'bomb', 'bomb-coop');
     push(fake, bombRoom({ state: { phase: 'lobby', game: 'bomb', data: {} } }));
     await sleep(win, 80);
     click(doc, 'rtStartBtn');
@@ -776,8 +776,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 誰が挑戦中かは名前で分かる（お題の中身は出さない）
     assert(/びびが挑戦中/.test(el(doc, 'rtBombBoard').textContent), '誰が挑戦中かが分かる');
     assert(!/せつめい/.test(el(doc, 'rtBombBoard').textContent), '説明文は盤面に出ない');
-    // 難易度別に整列していると、見出しが付く
-    assert(doc.querySelectorAll('#rtBombBoard .sec-title').length >= 2, '難易度ごとに区切られる');
+    // 第28弾-1：難易度で区切らず、届いた順にひとつのグリッドで並べる。
+    // 区切ると盤面が緑→黄→橙→赤のグラデーションに見えてしまう
+    assertEqual(doc.querySelectorAll('#rtBombBoard .sec-title').length, 0, '難易度で区切らない');
+    assertEqual(doc.querySelectorAll('#rtBombBoard .bomb-wire-grid').length, 1,
+      'ひとつのグリッドにまとめて並べる');
+    // 難易度そのものは枠の色で分かる
+    assert(cells[0].className.indexOf('t-') >= 0, '難易度は枠の色で示す');
     assertNoErrors(errors, '盤面の表示で未捕捉の例外');
     win.close();
   });
@@ -829,21 +834,23 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
     const race = bombView({
-      mode: 'race', layout: 'mixed', team: undefined, board: undefined,
+      mode: 'race', team: undefined, board: undefined,
       players: [
         { id: 'm1', name: 'あき', connected: true, solved: 3, total: 4, pct: 75, lives: 1, livesMax: 3, misses: 2, failed: false, timedOut: false, finished: false, working: 'easy', remainingMs: 90000 },
         { id: 'm2', name: 'びび', connected: true, solved: 1, total: 4, pct: 25, lives: 3, livesMax: 3, misses: 0, failed: false, timedOut: false, finished: false, working: null, remainingMs: 150000 }
       ]
     });
     push(fake, bombRoom({ state: { phase: 'play', game: 'bomb', data: race } }));
-    pushYou(fake, bombYou({ mode: 'race', layout: 'mixed' }));
+    pushYou(fake, bombYou({ mode: 'race' }));
     await waitScreen(win, doc, 'scr-rt-bomb', 4000);
     assertEqual(el(doc, 'rtBombPhase').textContent, '競争版・解除中', '競争版だと分かる');
     const note = el(doc, 'rtBombNote').textContent;
     assert(/あき/.test(note) && /あと1/.test(note), '他の人の残り本数が出る');
     assert(!/びび/.test(note), '自分の分は一覧に入れない');
-    // ごちゃまぜなら難易度の見出しは付かない
-    assertEqual(doc.querySelectorAll('#rtBombBoard .sec-title').length, 0, 'ごちゃまぜは区切らない');
+    // 協力版と同じ部品で描く（見た目の部品は共通、中身のデータだけが違う）
+    assertEqual(doc.querySelectorAll('#rtBombBoard .sec-title').length, 0, '難易度で区切らない');
+    assertEqual(doc.querySelectorAll('#rtBombBoard .bomb-wire-grid').length, 1,
+      '協力版と同じひとつのグリッド');
     assertNoErrors(errors, '競争版の画面で未捕捉の例外');
     win.close();
   });
@@ -851,7 +858,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('クイズ解除：決着したら結果と、次に進むボタンが出る', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });   // 自分がホスト（m1）
-    await pickGameForRoom(win, doc, 'bomb', 'bomb');
+    await pickGameForRoom(win, doc, 'bomb', 'bomb-coop');
     const ended = bombView({
       phase: 'ended',
       result: {

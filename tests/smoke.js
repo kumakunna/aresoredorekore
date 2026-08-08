@@ -19,7 +19,7 @@ const MODES = [
   { id: 'survival', game: 'aresoredorekore', screen: 'scr-play' },
   { id: 'speed', game: 'aresoredorekore', screen: 'scr-play' },
   { id: 'wordwolf', game: 'wordwolf', screen: 'scr-wolf-pass' },
-  { id: 'bomb', game: 'bomb', screen: 'scr-bomb-play' },
+  { id: 'bomb-coop', game: 'bomb', screen: 'scr-bomb-play' },
   { id: 'quizking', game: 'quizking', screen: 'scr-quiz-turn' },
   { id: 'buzzer', game: 'buzzer', screen: 'scr-tourney-vs' },
   { id: 'auction', game: 'auction', screen: 'scr-auction-bid' }
@@ -2677,7 +2677,7 @@ async function startModeWithTimerOff(win, doc, id) {
   });
 
   // ---- 第27弾：爆弾解除カセットを本番データのまま通しでプレイする ----
-  await r.test('爆弾解除カセット：暗室→蓋オープン→3択→全解除まで通る', async () => {
+  await r.test('爆弾解除カセット：カウントダウン→説明文の準備→3択→全解除まで通る', async () => {
     // テスト用の細工なしで、棚に出ている本番のカセットをそのまま遊ぶ
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="bakudan"]');
@@ -2692,7 +2692,7 @@ async function startModeWithTimerOff(win, doc, id) {
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
-    assertEqual(ids.join(','), 'bomb,bomb-race', 'クイズ解除の2枚だけが並ぶ');
+    assertEqual(ids.join(','), 'bomb-coop,bomb-race', 'クイズ解除の2枚だけが並ぶ');
     const cards = Array.from(doc.querySelectorAll('#modeCards .mode-card'));
     assert(/クイズ解除/.test(cards[0].textContent), 'モードカードの名前が「クイズ解除」になっている');
 
@@ -2734,11 +2734,9 @@ async function startModeWithTimerOff(win, doc, id) {
     await waitScreen(win, doc, 'scr-ready', 3000);
     el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
 
-    // 暗室 → ライトが点く（3秒）→ 爆弾をタップして蓋が開く
-    await waitScreen(win, doc, 'scr-bomb-play', 6000);
-    await waitFor(win, () => el(doc, 'bombRoom').classList.contains('lit'), 6000, 'ライトが点く');
-    click(doc, 'bombDevice');
-    await waitFor(win, () => el(doc, 'bombInside').style.display === 'block', 3000, '蓋が開く');
+    // 第28弾-1：暗室の演出は無くなった。説明文をそろえてから盤面に入る。
+    // 準備画面は本数が少ないと一瞬で終わるので、通過したことは確かめない
+    await waitScreen(win, doc, 'scr-bomb-play', 12000);
     const wires = doc.querySelectorAll('#bombWireList .bomb-wire-btn');
     assertEqual(wires.length, 2, '設定した本数だけコードが並ぶ');
 
@@ -2763,7 +2761,7 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('爆弾解除：心拍は蓋が開いてから鳴り、画面を離れたら止まる', async () => {
+  await r.test('爆弾解除：心拍は盤面に入ってから鳴り、画面を離れたら止まる', async () => {
     // 常時BGMは入れない方針なので、解除中だけ鳴って、離れたら必ず止まること
     const { win, doc, errors } = await launch(LAUNCH);
     // 心拍は setInterval で刻む。鳴っているかは AudioContext が作られたかで見る
@@ -2771,14 +2769,12 @@ async function startModeWithTimerOff(win, doc, id) {
     const origAC = win.AudioContext;
     win.AudioContext = win.webkitAudioContext = function () { contexts++; return origAC(); };
 
-    await startMode(win, doc, 'bomb');
-    await waitScreen(win, doc, 'scr-bomb-play', 6000);
-    await waitFor(win, () => el(doc, 'bombRoom').classList.contains('lit'), 6000, 'ライトが点く');
-    const beforeOpen = contexts;
-    click(doc, 'bombDevice');
-    await waitFor(win, () => el(doc, 'bombInside').style.display === 'block', 3000, '蓋が開く');
-    await sleep(win, 60);
-    assert(contexts > beforeOpen, '蓋が開いたら心拍が鳴りはじめる');
+    await startMode(win, doc, 'bomb-coop');
+    // 第28弾-1：盤面に入ってから鳴りはじめる
+    const beforePlay = contexts;
+    await waitScreen(win, doc, 'scr-bomb-play', 12000);
+    await sleep(win, 120);
+    assert(contexts > beforePlay, '盤面に入ったら心拍が鳴りはじめる');
 
     // 画面を離れたら止まる（別のゲームを遊んでいる間も鳴り続けないこと）
     win.confirm = () => true;
@@ -2787,6 +2783,50 @@ async function startModeWithTimerOff(win, doc, id) {
     await sleep(win, 1400);
     assertEqual(contexts, stamp, '画面を離れたら心拍は鳴らない');
     assertNoErrors(errors, '心拍演出で未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第28弾-1：モードのIDを変えても、昔の記録が迷子にならないこと ----
+
+  await r.test('昔のIDで残っている記録も、正しいゲームとして表示される', async () => {
+    // 記録は rounds[].mode にモードIDをそのまま持っている。
+    // IDを変えた時に対応表を置き忘れると、爆弾解除で遊んだ記録が
+    // 「あれそれどれこれ」として表示される（実際に起こりうる壊れ方）
+    const { win, doc, errors } = await launch({
+      seedMatches: [{
+        player_names: ['あき', 'びび'],
+        // 第28弾-1より前に書かれた記録。モードIDは古い 'bomb'
+        rounds: [{ mode: 'bomb', score_deltas: { あき: 1, びび: 1 }, at: new Date().toISOString() }],
+        final_scores: { あき: 1, びび: 1 }
+      }]
+    });
+    click(doc, 'recordsBtn');
+    await sleep(win, 300);
+    const item = doc.querySelector('#recordsList .record-item');
+    assert(item, '記録が1件出る');
+    const gameName = item.querySelector('.record-game').textContent;
+    assert(/クイズ解除/.test(gameName),
+      '古いIDでも爆弾解除の記録として出る（実際: ' + gameName + '）');
+    assert(!/あれそれどれこれ/.test(gameName), 'ほかのゲームに化けない');
+    assertNoErrors(errors, '古い記録の表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('これから書く記録には、いまのモードIDが入る', async () => {
+    // 古いIDを書き続けると、対応表を永久に外せなくなる
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'bomb');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const card = doc.querySelector('.mode-card[data-id="bomb-coop"]');
+    assert(card, '協力版のカードがある（IDが bomb-coop になっている）');
+    assert(/協力版/.test(card.textContent), 'カードの名前が「協力版」になっている');
+    assertNoErrors(errors, 'モード一覧で未捕捉の例外');
     win.close();
   });
 

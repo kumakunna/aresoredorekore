@@ -152,11 +152,8 @@ function setBombCodes(doc, n) {
 
 // クイズ解除（1台のスマホ）を、解除成功でも爆発でも「終わる」ところまで回す
 async function playBombToEnd(win, doc, codes) {
-  await waitScreen(win, doc, 'scr-bomb-play', 9000);
-  // 暗室 → ライトが点く（3秒）→ 爆弾をタップして蓋が開く
-  await H.waitFor(win, () => el(doc, 'bombRoom').classList.contains('lit'), 8000, 'ライトが点く');
-  click(doc, 'bombDevice');
-  await H.waitFor(win, () => el(doc, 'bombInside').style.display === 'block', 4000, '蓋が開く');
+  // 第28弾-1：暗室の演出は無くなり、説明文をそろえてからコード一覧に入る
+  await waitScreen(win, doc, 'scr-bomb-play', 15000);
 
   // ライフ3・コードは何度でも再挑戦できるので、押す回数は本数＋ライフぶんで足りる
   let guard = codes * 2 + 8;
@@ -258,7 +255,7 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
     for (const codes of [1, 3, 6]) {
       const { win, doc, errors } = await launch();
       await toModeScreen(win, doc, 'bakudan', 'bomb', names(3));
-      await startMode(win, doc, 'bomb', {
+      await startMode(win, doc, 'bomb-coop', {
         noTimer: true,
         onStep: (cur) => { if (cur === 'scr-set-bomb') setBombCodes(doc, codes); }
       });

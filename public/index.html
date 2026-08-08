@@ -1094,6 +1094,8 @@
   .quiz-said, .quiz-order{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
   .quiz-order .bl-item.now{outline:2px solid var(--stamp);font-weight:700;}
   .quiz-order .bl-item.dead{opacity:.4;text-decoration:line-through;}
+  /* 大画面で、いま挑んでいる難易度を名前の横に小さく出す */
+  .bl-tier{font-size:.62em;opacity:.85;margin-left:.5em;}
   .quiz-board{margin-top:16px;display:flex;flex-direction:column;gap:4px;}
   .qb-row{display:flex;justify-content:space-between;align-items:center;
     padding:7px 12px;border-radius:8px;background:var(--card);font-size:14px;}
@@ -7063,9 +7065,15 @@
     }
     el('bigMain').textContent = main;
     el('bigSub').innerHTML = escapeHtml(sub);
-    // 得点は公開情報。問題の中身は入れない
+    // 得点は公開情報。問題の中身は入れない。
+    // クイズラッシュだけは「いまどの難易度に挑んでいるか」も公開情報なので出す
+    // （誰が高い難易度で粘っているかが、見ている人にも伝わるように）
+    var rushBoard = (v.variant === 'quizrush' && v.rush) ? v.rush.board : null;
     el('bigList').innerHTML = (v.players || []).map(function(p){
-      return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.score + '</span>';
+      var row = rushBoard && rushBoard.find(function(x){ return x.id === p.id; });
+      var tier = (row && row.tier) ? ('<span class="bl-tier">' +
+        escapeHtml(QuizLogic.TIER_LABEL[row.tier] || row.tier) + '</span>') : '';
+      return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.score + tier + '</span>';
     }).join('');
   }
 

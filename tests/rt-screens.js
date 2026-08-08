@@ -1595,6 +1595,32 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('大画面：クイズラッシュは、得点といま挑んでいる難易度を出す', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const rush = {
+      round: 1, roundsToWin: 0, roundResult: null,
+      board: [
+        { id: 'm1', name: 'あき', score: 5, wins: 0, answered: 3, hits: 2, tier: 'muri' },
+        { id: 'm2', name: 'びび', score: 3, wins: 0, answered: 4, hits: 3, tier: 'easy' }
+      ]
+    };
+    const room = quizRoom('quizrush', quizView('quizrush', { rush: rush }));
+    room.members = room.members.concat([
+      { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
+    ]);
+    room.memberCount = 3;
+    push(fake, room);
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
+    const list = el(doc, 'bigList').textContent;
+    assert(/あき 5/.test(list), '得点が出る');
+    assert(/むりなんだが/.test(list), 'いま挑んでいる難易度が出る');
+    assert(/かんたん/.test(list), '人ごとに違う難易度が出る');
+    assertNoErrors(errors, '大画面で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('大画面：クイズ王は得点と進み具合だけを出す', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });

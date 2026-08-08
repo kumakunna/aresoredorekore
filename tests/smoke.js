@@ -2921,6 +2921,40 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  await r.test('テーマ：スタジオと競り市が、追加専用のスコープで書かれている（オークション）', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/\.app\.theme-auction\{[\s\S]*?--paper:#1A1012/.test(html), '背景が濃いえんじになっている');
+    assert(/\.app\.theme-auction\{[\s\S]*?--gold:#D4A537/.test(html), '金色が入っている');
+    assert(/\.app\.theme-auction\{[\s\S]*?radial-gradient\(ellipse[^;]*rgba\(212,165,55/.test(html),
+      '品物に光が当たっている');
+    // 品物の一枚だけを光らせる（そこが競り市の主役なので）
+    assert(/\.app\.theme-auction \.au-teaser\{[\s\S]*?rgba\(212,165,55/.test(html),
+      '品物の一枚だけが光る');
+  });
+
+  await r.test('オークションのカセットが棚にあり、選ぶと競り市の見た目になる', async () => {
+    const { win, doc, errors } = await launch();
+    const app = el(doc, 'app');
+    assert(!app.classList.contains('theme-auction'), '棚では素のまま');
+    const cart = doc.querySelector('.cart[data-cart="auction"]');
+    assert(cart, 'オークションのカセットが棚にある');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await sleep(win, 120);
+    if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    assert(app.classList.contains('theme-auction'), 'モード選択から競り市になる');
+    assert(doc.querySelector('.mode-card[data-id="auction-open"]'), 'せり上げ式が出る');
+    assert(doc.querySelector('.mode-card[data-id="auction-sealed"]'), '秘密入札が出る');
+    // 作り直す前の手渡し版は、棚には出さない
+    assert(!doc.querySelector('.mode-card[data-id="auction"]'), '前の手渡し版は出さない');
+    assert(/部屋/.test(el(doc, 'scr-mode').textContent), '部屋が必要なことが書いてある');
+    assertNoErrors(errors, 'オークションのカセットで未捕捉の例外');
+    win.close();
+  });
+
   await r.test('クイズ王の4つは、部屋が必須だと分かるようになっている', async () => {
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="quizou"]');

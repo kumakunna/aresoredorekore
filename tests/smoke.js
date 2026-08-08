@@ -2786,6 +2786,78 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  // ---- 第28弾-2：爆弾解除カセット専用テーマ ----
+
+  await r.test('テーマ：爆弾解除カセットを選ぶと、その先すべてが制御盤になる', async () => {
+    const { win, doc, errors } = await launch();
+    const app = el(doc, 'app');
+    assert(!app.classList.contains('theme-bomb'), '棚では素のまま');
+
+    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    assert(app.classList.contains('theme-bomb'), 'ゲーム選択からもう制御盤になる');
+    pickGame(doc, 'bomb');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    assert(app.classList.contains('theme-bomb'), 'モード選択でも続く');
+    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-bomb', 3000);
+    assert(app.classList.contains('theme-bomb'), '設定ウィザードでも続く');
+    // 人狼のテーマは混ざらない
+    assert(!app.classList.contains('theme-wolf'), '別のカセットのテーマは付かない');
+    assertNoErrors(errors, '爆弾解除のテーマで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('テーマ：カセットを移ると、前のテーマが残らない', async () => {
+    // 一覧で付け外ししていないと「爆弾解除の黒いまま人狼を遊ぶ」ことになる
+    const { win, doc, errors } = await launch();
+    const app = el(doc, 'app');
+    const bomb = doc.querySelector('.cart[data-cart="bakudan"]');
+    bomb.click();
+    if (activeScreen(doc) === 'scr-shelf') bomb.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    assert(app.classList.contains('theme-bomb'), 'まず爆弾解除のテーマ');
+
+    click(doc, doc.querySelector('#scr-game [data-go-shelf]'));
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assert(!app.classList.contains('theme-bomb'), '棚では外れる');
+
+    const wolf = doc.querySelector('.cart[data-cart="jinro"]');
+    wolf.click();
+    if (activeScreen(doc) === 'scr-shelf') wolf.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    assert(app.classList.contains('theme-wolf'), '人狼のテーマが付く');
+    assert(!app.classList.contains('theme-bomb'), '爆弾解除のテーマは残らない');
+    assertNoErrors(errors, 'テーマの切り替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('テーマ：制御盤の見た目が、追加専用のスコープで書かれている', async () => {
+    // jsdom はレイアウトしないので、決まりごとそのものを読んで確かめる
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // 濃い背景・角を落とさないパネル・ハザードストライプ
+    assert(/\.app\.theme-bomb\{[^}]*--paper:#1[0-9A-Fa-f]/.test(html), '背景が濃い色になっている');
+    assert(/\.app\.theme-bomb \.bomb-wire-btn\{[^}]*border-radius:2px/.test(html),
+      'コードのボタンが四角い');
+    assert(/\.app\.theme-bomb \.bomb-wire-btn::before\{[\s\S]*?repeating-linear-gradient/.test(html),
+      '難易度がハザードストライプで示される');
+    // 数字はDotGothic16のまま（桁が揃う書体を崩さない）
+    assert(/\.app\.theme-bomb \.big-main:not\(\.is-code\)\{[\s\S]*?DotGothic16/.test(html),
+      '見出しは角ばった書体');
+    // テーマの外の見た目を書き換えていない（すべて .app.theme-bomb で始まる）
+    const block = html.slice(html.indexOf('第28弾-2 第2部'), html.indexOf('</style>'));
+    const selectors = block.match(/^\s{2}([.#][^{]*)\{/gm) || [];
+    const leaked = selectors.filter(s => !/\.app\.theme-bomb/.test(s));
+    assertEqual(leaked.join(''), '', 'テーマの外を書き換えていない');
+  });
+
   // ---- 第28弾-1：モードのIDを変えても、昔の記録が迷子にならないこと ----
 
   await r.test('昔のIDで残っている記録も、正しいゲームとして表示される', async () => {

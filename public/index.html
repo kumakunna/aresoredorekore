@@ -1053,6 +1053,171 @@
     .night-fx.run-night, .night-fx.run-day{animation-duration:.01s;}
     .app.theme-wolf{transition:none;}
   }
+
+  /* ===================================================================
+     第28弾-2 第2部：爆弾解除カセット専用の「制御盤」テーマ
+     ここから下はすべて追加専用。既存のルールは1行も書き換えていない。
+     `.app.theme-bomb` が付いている間だけ効き、外れれば完全に元の見た目に戻る。
+     テーマを付ける条件は goTo() の applyGameTheme() が一元管理している
+     （人狼テーマとまったく同じ考え方・同じスコープの取り方）。
+
+     考えたこと：
+       クリーム色と丸いカードのままだと「爆弾を解除している」感じが出ない。
+       目指したのは、機械の中の制御盤を覗き込んでいる感じ。
+         背景  … 黒に近い濃いグレー。奥まっていて、光が当たっていない
+         パネル … 少しだけ明るい鉄板。角は落とさない（丸いと機械に見えない）
+         注意色 … 黄×黒の斜めストライプ。工事現場や機械の警告表示の記号
+       操作（タップして問題が出る・正誤判定）は一切変えていない。見た目だけ。
+
+     フォントの使い分けは人狼テーマの方針を踏襲する：
+       見出し・ラベル → DotGothic16。もともと数字に使っている書体で、
+                        角ばっていて機械の表示らしい。読み込みも増えない。
+       本文           → Zen Maru Gothic のまま。密度が高い文字を崩さない。
+       数字・タイマー → DotGothic16 のまま（今までどおり）。
+     ------------------------------------------------------------------- */
+  .app.theme-bomb{
+    --paper:#15171B;
+    --paper-deep:#0D0F12;
+    --card:#232830;
+    --ink:#E8EAED;
+    --ink-soft:#9AA3AF;
+    --line:rgba(232,234,237,0.16);
+    --shadow:0 10px 26px rgba(0,0,0,0.6);
+    /* 暗い背景では赤が沈むので、警告色は明るい側へ寄せる */
+    --stamp:#FF6B5A;
+    --stamp-deep:#FF8F80;
+    --teal:#3FBFA5;
+    --gold:#E8B93C;
+    /* 注意喚起の黄。ハザードストライプに使う */
+    --hazard:#F2C230;
+    background:
+      /* 上からの照明と、うっすらした走査線で「機械の中」を出す */
+      linear-gradient(180deg, rgba(255,255,255,0.05), transparent 30%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 4px),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  /* PCでは.appの外側も一緒に沈める。:has非対応でも枠内は暗くなるので壊れない */
+  body:has(.app.theme-bomb){
+    background:
+      radial-gradient(circle at 50% 0%, #1B1F26, transparent 60%),
+      #08090B;
+  }
+  /* --- 見出し・ラベルを角ばった書体に --- */
+  .app.theme-bomb .scr-title,
+  .app.theme-bomb .sec-title,
+  .app.theme-bomb .tp-label,
+  .app.theme-bomb .rt-phase,
+  .app.theme-bomb .wiz-step,
+  .app.theme-bomb .bomb-progress,
+  .app.theme-bomb .big-phase,
+  .app.theme-bomb .big-main:not(.is-code){
+    font-family:'DotGothic16', monospace;
+    letter-spacing:.06em;
+  }
+  /* --- 面（カード・パネル）は角を落とさない --- */
+  .app.theme-bomb .card,
+  .app.theme-bomb .df-page,
+  .app.theme-bomb .overlay-panel,
+  .app.theme-bomb .rt-public,
+  .app.theme-bomb .rt-you{
+    border-radius:4px;
+    background:var(--card);
+    border:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .app.theme-bomb .btn{border-radius:4px;}
+  .app.theme-bomb input[type="text"],
+  .app.theme-bomb input[type="password"]{
+    border-radius:4px;background:var(--paper-deep);color:var(--ink);border:1px solid var(--line);
+  }
+  /* --- コードのボタン：丸いカードではなく、四角い端子 --- */
+  .app.theme-bomb .bomb-wire-btn{
+    border-radius:2px;
+    background:linear-gradient(180deg, #2C323C, #1C2029);
+    border:1px solid rgba(0,0,0,.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 2px 0 rgba(0,0,0,.5);
+    color:var(--ink);
+    position:relative;
+    overflow:hidden;
+  }
+  .app.theme-bomb .bomb-wire-btn:active{
+    transform:translateY(1px);
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.6);
+  }
+  /* 難易度は、パステルの枠線ではなく上辺のハザードストライプで示す。
+     色そのものは残すので、5段階の見分けはこれまでどおりつく */
+  .app.theme-bomb .bomb-wire-btn::before{
+    content:'';position:absolute;left:0;right:0;top:0;height:7px;
+    background:repeating-linear-gradient(
+      -45deg,
+      var(--tier-color, var(--hazard)) 0 6px,
+      #14161A 6px 12px
+    );
+  }
+  .app.theme-bomb .bomb-wire-btn.t-easy{--tier-color:#5FD07A;}
+  .app.theme-bomb .bomb-wire-btn.t-normal{--tier-color:#F2C230;}
+  .app.theme-bomb .bomb-wire-btn.t-hard{--tier-color:#F59331;}
+  .app.theme-bomb .bomb-wire-btn.t-nanisore{--tier-color:#F2564B;}
+  .app.theme-bomb .bomb-wire-btn.t-muri{--tier-color:#B972E8;}
+  /* 元のパステル枠線は、テーマの中では消す（二重に色が付かないように） */
+  .app.theme-bomb .bomb-wire-btn.t-easy,
+  .app.theme-bomb .bomb-wire-btn.t-normal,
+  .app.theme-bomb .bomb-wire-btn.t-hard,
+  .app.theme-bomb .bomb-wire-btn.t-nanisore,
+  .app.theme-bomb .bomb-wire-btn.t-muri{
+    border-color:rgba(0,0,0,.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 2px 0 rgba(0,0,0,.5);
+  }
+  .app.theme-bomb .bomb-wire-btn.solved{
+    background:linear-gradient(180deg, #24493F, #16302A);
+    border-color:rgba(0,0,0,.6);
+    opacity:.65;
+  }
+  .app.theme-bomb .bomb-wire-btn.solved::before{opacity:.35;}
+  /* --- 実物解除のモジュールも同じ端子の見た目にそろえる --- */
+  .app.theme-bomb .df-mod{
+    border-radius:3px;
+    background:linear-gradient(180deg, #2C323C, #1C2029);
+    border:1px solid rgba(0,0,0,.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 2px 0 rgba(0,0,0,.5);
+    color:var(--ink);
+    position:relative;overflow:hidden;
+  }
+  .app.theme-bomb .df-mod::before{
+    content:'';position:absolute;left:0;right:0;top:0;height:6px;
+    background:repeating-linear-gradient(-45deg, var(--hazard) 0 6px, #14161A 6px 12px);
+  }
+  .app.theme-bomb .df-mod.solved{background:linear-gradient(180deg, #24493F, #16302A);}
+  .app.theme-bomb .df-mod.solved::before{opacity:.35;}
+  .app.theme-bomb .df-role-btn{border-radius:3px;background:var(--card);color:var(--ink);}
+  .app.theme-bomb .df-cell{border-radius:2px;background:var(--paper-deep);}
+  .app.theme-bomb .df-table th{background:rgba(255,255,255,.06);}
+  /* --- 上のバー（ライフ・進捗・タイマー）を計器らしく --- */
+  .app.theme-bomb .bomb-topbar{
+    background:var(--paper-deep);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:8px 10px;
+  }
+  .app.theme-bomb .timer-chip{
+    background:#0A0C0F;color:var(--hazard);border:1px solid var(--line);border-radius:2px;
+  }
+  .app.theme-bomb .timer-chip.warn{color:var(--stamp-deep);}
+  /* --- 準備中のバーも同じ質感に --- */
+  .app.theme-bomb .bomb-prep-bar{border-radius:2px;border-color:var(--line);background:var(--paper-deep);}
+  .app.theme-bomb .bomb-prep-fill{background:var(--hazard);}
+  .app.theme-bomb .df-gauge{border-radius:2px;border-color:var(--line);background:var(--paper-deep);}
+  /* --- 大画面のリーダーボード --- */
+  .app.theme-bomb .bb-bar{border-radius:2px;border-color:var(--line);background:var(--paper-deep);}
+  .app.theme-bomb .bb-fill{background:var(--hazard);}
+  .app.theme-bomb .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  /* 棚（scr-shelf）は THEME_FREE_SCREENS に入っていて、どのテーマも当たらない。
+     棚はどのカセットにも属していない場所なので、そこは共通の見た目のままにする */
+  @media (prefers-reduced-motion: reduce){
+    .app.theme-bomb{transition:none;}
+  }
 </style>
 </head>
 <body>
@@ -2471,6 +2636,8 @@
     // 実物解除（傾け・振る・ポーズ）が入ったら「からだをうごかす」へ移すことになる
     { id:'bakudan',         genre:'word', ready:true,  icon:'💣', title:'爆弾<br>解除',
       games:['bomb', 'defuse'],
+      // 第28弾-2：このカセットを選んだ時点から、制御盤の見た目にする
+      theme:'bomb',
       meta:'2人〜 / 10分〜<br>爆発を止める・伝え合って解く' },
     { id:'deal-soon-1',     genre:'deal', ready:false, icon:'？' },
     { id:'deal-soon-2',     genre:'deal', ready:false, icon:'？' },
@@ -3802,12 +3969,20 @@
     var rc = cassetteOfGame(game);
     return (rc && rc.theme) || null;
   }
+  // 第28弾-2：テーマは1種類（人狼）だけを見ていたが、爆弾解除にも作った。
+  // カセットが増えるたびに if を足していくと必ず消し忘れるので、一覧で持つ。
+  // 新しいテーマを作る時は、ここに1行と、CSSに .theme-◯◯ のかたまりを足す。
+  var THEME_CLASSES = { wolf: 'theme-wolf', bomb: 'theme-bomb' };
   function applyGameTheme(screenId){
     var app = el('app');
     var name = currentThemeName();
-    var on = name === 'wolf' && THEME_FREE_SCREENS.indexOf(screenId) === -1;
-    app.classList.toggle('theme-wolf', on);
-    if(!on) app.classList.remove('phase-night', 'phase-day');
+    var free = THEME_FREE_SCREENS.indexOf(screenId) !== -1;
+    var on = free ? null : name;
+    // いま当てるもの以外は必ず外す（カセットを移った時に前のテーマが残らない）
+    Object.keys(THEME_CLASSES).forEach(function(k){
+      app.classList.toggle(THEME_CLASSES[k], k === on);
+    });
+    if(on !== 'wolf') app.classList.remove('phase-night', 'phase-day');
   }
   // 夜／朝で暗さを変える。人狼(wolfrole)だけが持つ概念なので、それ以外では素の夜色に戻す
   function setWolfPhaseTone(tone){

@@ -24,6 +24,9 @@ const PHASE = {
   LOBBY: 'lobby',
   CONSENT: 'consent',
   ROLES: 'roles',
+  // 第28弾-3：初めて挑戦するモジュールの説明を読む時間。
+  // 誰か1人でも読んでいる間は解除を始めない（既存の「準備完了」と同じ考え方）
+  BRIEF: 'brief',
   PLAY: 'play',
   ENDED: 'ended'
 };
@@ -102,8 +105,11 @@ function setPhase(room, phase) {
  * 役割が決まったら、その人数に合わせてモジュールを選ぶ。
  * マニュアル役の人数で出せるモジュールが変わる（分割暗号は2人以上）ので、
  * 役割が決まる前には作れない。
+ *
+ * 第28弾-3：選んだあとは、すぐ解除に入らず説明の時間を挟む。
+ * 何が載っているか分からないと説明のしようがないので、この順番になる。
  */
-function startPlay(room) {
+function pickAndBrief(room) {
   const w = room.defuse;
   const holders = manualHolders(w);
   const cfg = {
@@ -122,6 +128,15 @@ function startPlay(room) {
   w.manualOf = DefuseLogic.splitManual(
     w.modules.filter((m) => !!m.manual).map((m) => m.uid), holders
   );
+  setPhase(room, PHASE.BRIEF);
+}
+
+/**
+ * 説明を読み終わったら、いよいよ解除に入る。
+ * 制限時間はここから数えはじめる（説明を読んでいる間は減らさない）。
+ */
+function beginPlay(room) {
+  const w = room.defuse;
   setPhase(room, PHASE.PLAY);
   w.startedAt = Date.now();
   if (w.timerSec > 0) w.deadline = w.startedAt + w.timerSec * 1000;
@@ -163,7 +178,7 @@ function publicView(room) {
     }),
     waiting: waitingNames(room)
   };
-  if (w.phase === PHASE.PLAY || w.phase === PHASE.ENDED) {
+  if (w.phase === PHASE.BRIEF || w.phase === PHASE.PLAY || w.phase === PHASE.ENDED) {
     view.board = DefuseLogic.publicProgress(w.modules, w.strikesLeft, w.strikesMax);
   }
   if (w.phase === PHASE.ENDED) view.result = resultView(room);
@@ -242,6 +257,16 @@ function privateFor(room, memberId) {
     return out;
   }
 
+  // 第28弾-3：この爆弾に載っているモジュールの説明。
+  // 何を初めて見るかは端末が覚えているので、ここでは全部渡して選ばせる
+  // （いつでも見返せるボタンからも同じものを使う）。
+  // 対応表も答えも含まないので、解除役とマニュアル役の両方に配ってよい
+  if (w.modules.length) {
+    out.briefs = DefuseLogic.moduleTypesOf(w.modules)
+      .map((t) => DefuseLogic.briefFor(t))
+      .filter(Boolean);
+  }
+
   if (w.phase === PHASE.PLAY || w.phase === PHASE.ENDED) {
     out.board = DefuseLogic.publicProgress(w.modules, w.strikesLeft, w.strikesMax);
     if (role === ROLE.DEFUSER) {
@@ -282,6 +307,13 @@ function submitAction(room, memberId, targetId, payload) {
   if (w.phase === PHASE.CONSENT) {
     if (targetId !== 'yes' && targetId !== 'no') return { ok: false, error: 'bad_answer' };
     w.consent[memberId] = (targetId === 'yes');
+    w.done[memberId] = true;
+    return { ok: true, allDone: isAllDone(room) };
+  }
+
+  // 第28弾-3：説明を読み終わった（またはスキップした）という合図。
+  // どこまで読んだかは端末が覚えている（何を初めて見るかは人によって違う）
+  if (w.phase === PHASE.BRIEF) {
     w.done[memberId] = true;
     return { ok: true, allDone: isAllDone(room) };
   }
@@ -403,7 +435,11 @@ function advance(room) {
     // 解除役が1人もいないままでは始められない。
     // 決めていない人・断った人を解除役にはしないので、ここで自動では埋めない
     if (!defusers(w).length) return { changed: false, error: 'need_defuser' };
-    startPlay(room);
+    pickAndBrief(room);
+    return { changed: true };
+  }
+  if (w.phase === PHASE.BRIEF) {
+    beginPlay(room);
     return { changed: true };
   }
   if (w.phase === PHASE.PLAY) {
@@ -414,10 +450,13 @@ function advance(room) {
 }
 
 // その段階で操作を待つ人。切れている人は待たない
+// 全員の返事を待つ段階。ここに並んでいる間は先へ進まない
+const WAITING_PHASES = [PHASE.CONSENT, PHASE.ROLES, PHASE.BRIEF];
+
 function expectedMembers(room) {
   const w = room.defuse;
   if (!w) return [];
-  if (w.phase === PHASE.CONSENT || w.phase === PHASE.ROLES) {
+  if (WAITING_PHASES.indexOf(w.phase) !== -1) {
     return connectedIds(room, w.playerIds);
   }
   return [];
@@ -425,7 +464,7 @@ function expectedMembers(room) {
 function isAllDone(room) {
   const w = room.defuse;
   if (!w) return false;
-  if (w.phase !== PHASE.CONSENT && w.phase !== PHASE.ROLES) return false;
+  if (WAITING_PHASES.indexOf(w.phase) === -1) return false;
   const expected = expectedMembers(room);
   if (!expected.length) return false;
   if (!expected.every((id) => w.done[id])) return false;

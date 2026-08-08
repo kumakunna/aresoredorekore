@@ -506,6 +506,136 @@
     rhythmModule, poseModule, cipherModule, yesnoModule];
   function moduleById(id) { return MODULES.find(function (m) { return m.id === id; }) || null; }
 
+  // ================= 第28弾-3：モジュールの説明 =================
+  // 初めてそのモジュールに挑戦する時に、1つずつ見せる。
+  // 遊び方そのものなので、ルールと同じ場所に置く（画面側に書くと、
+  // ルールを直した時に説明だけ古いまま残る）。
+  //
+  // 書き方の決め： 解除役から見た手順を書く。答えや対応表の中身には触れない。
+  var BRIEFS = {
+    face: {
+      how: [
+        '端末を回すと、4つの面が順番に出てくる',
+        'いま出ている面の「色と記号」をマニュアル役に伝える',
+        '言われた色のボタンを押す',
+        '4つの面ぶん、正しく押せたら解除'
+      ],
+      tip: '順番でない面のボタンを押しても、間違いにはなりません'
+    },
+    maze: {
+      how: [
+        '端末を傾けると、ボールが1マスずつ動く',
+        '壁と罠は自分の画面には見えない。マニュアル役に道を聞く',
+        '罠を踏むとミス1回。スタートに戻される',
+        'ゴール（🏁）に着いたら解除'
+      ],
+      tip: '傾きが使えない時は、画面の十字ボタンでも動かせます'
+    },
+    shake: {
+      how: [
+        '画面に出ている記号をマニュアル役に伝える',
+        '「何回」「どのテンポで」振るかを教えてもらう',
+        'そのとおりに端末を振る',
+        '振り終わったらボタンを押して送る'
+      ],
+      tip: 'まわりに人や物がないか確かめてから振ってください'
+    },
+    compass: {
+      how: [
+        '画面に出ている色と記号をマニュアル役に伝える',
+        '向けるべき方角を教えてもらう',
+        'その方角へ端末を向けて、そのまま止める',
+        'ゲージがたまりきったら解除'
+      ],
+      tip: '少しくらいのずれは大丈夫です'
+    },
+    level: {
+      how: [
+        '画面に出ている記号をマニュアル役に伝える',
+        '「何秒」「どれくらいの傾きまで」保つかを教えてもらう',
+        '端末を水平にして、そのまま止める',
+        'ゲージがたまりきったら解除'
+      ],
+      tip: '手が揺れて範囲から外れても、ミスにはなりません（ゲージが戻るだけ）'
+    },
+    rhythm: {
+      how: [
+        '画面に出ている記号をマニュアル役に伝える',
+        '8つの拍のうち、どれを叩くかを教えてもらう',
+        '光っている拍のときに叩く',
+        '選び終わったら「これで送る」を押す'
+      ],
+      tip: '叩く順番は関係ありません。拍が合っていれば解除できます'
+    },
+    pose: {
+      how: [
+        '画面に出ている色をマニュアル役に伝える',
+        '取るべきポーズを教えてもらう',
+        'そのポーズを取る',
+        '取れたらボタンで選ぶ'
+      ],
+      tip: 'カメラの映像は端末の外に出しませんし、保存もしません'
+    },
+    cipher: {
+      how: [
+        'マニュアル役は全員、それぞれ暗号のかけらを持っている',
+        'マニュアル役どうしで相談して、順番につなげてもらう',
+        '出来上がった暗号を入力する'
+      ],
+      tip: '1人ぶんだけでは足りません。マニュアル役全員の相談が要ります'
+    },
+    yesno: {
+      how: [
+        '質問を選ぶと、はい／いいえ／わからない が返ってくる',
+        '聞ける回数はかぎられている',
+        '答えだと思うものを選ぶ'
+      ],
+      tip: 'このモジュールにマニュアル役は要りません。答えるのはアプリです'
+    }
+  };
+
+  /**
+   * そのモジュールの説明。画面はこれをそのまま並べるだけにする。
+   */
+  function briefFor(id) {
+    var def = moduleById(id);
+    var b = BRIEFS[id];
+    if (!def || !b) return null;
+    return {
+      type: id, name: def.name, icon: def.icon, lead: def.lead,
+      how: b.how.slice(), tip: b.tip,
+      physical: !!def.physical,
+      needsLevelCheck: needsLevelCheck(id)
+    };
+  }
+
+  /**
+   * 第28弾-3：遊ぶ前に「端末を水平にしてください」を挟むモジュール。
+   *
+   * 傾き・向きを使うものは、持ち方が斜めのまま始めると
+   * 最初から範囲の外にいることになり、「反応しない」と感じてしまう。
+   * どのモジュールが対象かは needs（使うセンサー）から決める。
+   * ここを手書きの一覧にすると、モジュールを足した時に付け忘れる。
+   */
+  function needsLevelCheck(id) {
+    var def = moduleById(id);
+    if (!def) return false;
+    return (def.needs || []).some(function (k) {
+      return k === 'orientation' || k === 'compass';
+    });
+  }
+
+  // その爆弾に載っているモジュールの種類（説明を出す順番に使う。重複は除く）
+  function moduleTypesOf(instances) {
+    var seen = {}, out = [];
+    (instances || []).forEach(function (m) {
+      if (seen[m.type]) return;
+      seen[m.type] = true;
+      out.push(m.type);
+    });
+    return out;
+  }
+
   // ---- 設定 ----
   var MIN_MODULES = 4, MAX_MODULES = 8;
   var MIN_STRIKES = 1, MAX_STRIKES = 5;
@@ -672,6 +802,7 @@
     normalizeConfig: normalizeConfig, availableModules: availableModules,
     pickModules: pickModules, openView: openView, manualView: manualView,
     splitManual: splitManual, publicProgress: publicProgress, hasPhysical: hasPhysical,
-    mergeCaps: mergeCaps, shuffled: shuffled
+    mergeCaps: mergeCaps, shuffled: shuffled,
+    briefFor: briefFor, needsLevelCheck: needsLevelCheck, moduleTypesOf: moduleTypesOf
   };
 }));

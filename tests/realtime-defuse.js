@@ -151,6 +151,16 @@ async function toPlay(srv, rm, roles, caps) {
   for (const [d, role] of roles) {
     await d.call('wolf:act', { targetId: role, caps: caps === undefined ? ALL_CAPS : caps });
   }
+  // 第28弾-3：役割のあと、モジュールの説明を読む時間が入る。
+  // 全員が読み終わる（またはスキップする）まで解除は始まらない
+  await passBrief(srv, rm);
+}
+
+// 説明の時間を全員ぶん済ませて、解除が始まるまで進める
+async function passBrief(srv, rm) {
+  const w = () => defuseOf(srv, rm.code);
+  await waitUntil(() => w().phase === 'brief', '説明の時間になる');
+  for (const d of rm.all) await d.call('wolf:act', {});
   await waitUntil(() => w().phase === 'play', '解除が始まる');
 }
 
@@ -365,7 +375,7 @@ async function solveAll(srv, rm, d) {
       });
       await rm.guests[0].call('wolf:act', { targetId: 'defuser', caps: ALL_CAPS });
       await rm.guests[1].call('wolf:act', { targetId: 'defuser', caps: ALL_CAPS });
-      await waitUntil(() => defuseOf(srv, rm.code).phase === 'play', '解除が始まる');
+      await passBrief(srv, rm);
       const types = defuseOf(srv, rm.code).modules.map((m) => m.type);
       const sensor = ['face', 'maze', 'shake', 'compass', 'level', 'pose'];
       assert(sensor.some((t) => types.indexOf(t) >= 0), 'センサーのモジュールも載る');
@@ -464,7 +474,7 @@ async function solveAll(srv, rm, d) {
       await waitUntil(() => defuseOf(srv, rm.code).phase === 'roles', '役割決めに進む');
       await rm.host.call('wolf:act', { targetId: 'defuser', caps: ALL_CAPS });
       await rm.guests[0].call('wolf:act', { targetId: 'manual', caps: ALL_CAPS });
-      await waitUntil(() => defuseOf(srv, rm.code).phase === 'play', '解除が始まる');
+      await passBrief(srv, rm);
 
       const types = defuseOf(srv, rm.code).modules.map((m) => m.type);
       assert(types.indexOf('shake') === -1, '振るモジュールは出ない');
@@ -501,7 +511,7 @@ async function solveAll(srv, rm, d) {
       assertEqual(defuseOf(srv, rm.code).phase, 'roles', '押しても進まない');
       // 1人が解除役に変えれば進む
       await rm.host.call('wolf:act', { targetId: 'defuser' });
-      await waitUntil(() => defuseOf(srv, rm.code).phase === 'play', '進めるようになる');
+      await passBrief(srv, rm);
     } finally { await srv.close(); }
   });
 
@@ -518,7 +528,7 @@ async function solveAll(srv, rm, d) {
       assertEqual(second.error, 'manual_taken', '埋まっていることが伝わる');
       await rm.guests[1].call('wolf:act', { targetId: 'defuser' });
       await rm.host.call('wolf:act', { targetId: 'defuser' });
-      await waitUntil(() => defuseOf(srv, rm.code).phase === 'play', '解除が始まる');
+      await passBrief(srv, rm);
       assertEqual(defuseOf(srv, rm.code).modules.length, 4, 'モジュールが載る');
     } finally { await srv.close(); }
   });

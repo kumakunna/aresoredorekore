@@ -391,6 +391,53 @@ function judge(inst, action) { return D.moduleById(inst.type).judge(inst, action
     assertEqual(D.moduleById('yesno').noManualNeeded, true, 'マニュアル不要の印が付いている');
   });
 
+  // ---- 第28弾-3：モジュールの説明と、水平の確認 ----
+
+  await r.test('9種すべてに説明があり、答えや対応表の中身に触れていない', async () => {
+    D.MODULES.forEach((def) => {
+      const b = D.briefFor(def.id);
+      assert(b, def.name + '：説明がある');
+      assert(b.how.length >= 2, def.name + '：手順が書いてある');
+      assert(b.name && b.icon, def.name + '：名前とアイコンがある');
+      // 説明に答えそのものが書いてあったら、遊びが成立しない
+      const text = JSON.stringify(b);
+      assert(!/answer|正解は/.test(text), def.name + '：答えに触れていない');
+    });
+  });
+
+  await r.test('体を動かすモジュールの説明には、その旨が書いてある', async () => {
+    assertEqual(D.briefFor('shake').physical, true, '振るのは体を動かす');
+    assertEqual(D.briefFor('pose').physical, true, 'ポーズも体を動かす');
+    assertEqual(D.briefFor('yesno').physical, false, 'イエスノーは座ったまま');
+    // 注意書きも説明に入っている
+    assert(/まわり|落とさ/.test(D.briefFor('shake').tip), '振る前の注意が書いてある');
+    assert(/端末の外に出しません|保存/.test(D.briefFor('pose').tip), 'カメラの扱いが書いてある');
+  });
+
+  await r.test('水平の確認は、傾き・向きを使うモジュールだけに入る', async () => {
+    // 一覧を手書きにすると、モジュールを足した時に付け忘れる。
+    // 使うセンサー（needs）から決まっていることを固定しておく
+    ['face', 'maze', 'compass', 'level'].forEach((id) => {
+      assertEqual(D.needsLevelCheck(id), true, id + ' は水平を取ってから始める');
+    });
+    ['shake', 'rhythm', 'pose', 'cipher', 'yesno'].forEach((id) => {
+      assertEqual(D.needsLevelCheck(id), false, id + ' は水平を取る必要がない');
+    });
+  });
+
+  await r.test('説明に出す種類は、載っているものだけ・重複なし', async () => {
+    const cfg = D.normalizeConfig({ moduleCount: 8, allowPhysical: true, allowCamera: true });
+    const mods = D.pickModules(cfg, 2, seeded(11));
+    const types = D.moduleTypesOf(mods);
+    assertEqual(new Set(types).size, types.length, '同じ種類が2回出てこない');
+    types.forEach((t) => {
+      assert(mods.some((m) => m.type === t), '載っている種類だけが並ぶ');
+    });
+    // 同じ種類が2つ載っている爆弾でも、説明は1回だけ
+    const dup = D.pickModules(D.normalizeConfig({ moduleCount: 4, manual: true }), 0);
+    assertEqual(D.moduleTypesOf(dup).length, 1, '同じ種類ばかりの爆弾では説明も1つ');
+  });
+
   // ---- 設定とモジュールの選ばれ方 ----
 
   await r.test('設定は端末の言い値を鵜呑みにせず、枠に収める', async () => {

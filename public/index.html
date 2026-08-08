@@ -879,6 +879,8 @@
   .df-tap:active{background:rgba(0,0,0,.06);}
   /* カメラ（ポーズ指定）。映像は端末の外に出さない */
   .df-cam{width:100%;max-height:38vh;border-radius:12px;background:#000;transform:scaleX(-1);}
+  /* 第28弾-3：モジュールの説明・水平の確認の見出し */
+  .df-brief-head{font-size:17px;font-weight:700;margin-bottom:6px;}
   .bomblife-display{font-size:34px;text-align:center;letter-spacing:4px;margin:18px 0;}
   .bomblife-controls{display:flex;align-items:center;justify-content:center;gap:22px;}
   .bomblife-controls span{font-family:'DotGothic16',monospace;font-size:32px;min-width:40px;text-align:center;}
@@ -1823,11 +1825,15 @@
       <div id="dfConsentBox" style="display:none;"></div>
       <!-- 役割えらび -->
       <div id="dfRolesBox" style="display:none;"></div>
+      <!-- 第28弾-3：モジュールの説明。初めて挑戦する種類だけを1つずつ出す -->
+      <div id="dfBriefBox" style="display:none;"></div>
       <!-- 解除役：モジュール一覧 -->
       <div id="dfBoardBox" style="display:none;"></div>
       <!-- マニュアル役：自分が受け持つ対応表 -->
       <div id="dfManualBox" style="display:none;"></div>
       <div id="dfResultBox"></div>
+      <!-- 第28弾-3：説明はいつでも何度でも見返せる -->
+      <button class="btn btn-ghost" id="dfHelpBtn" style="display:none;margin-top:14px;">📘 モジュールの説明を見る</button>
       <button class="btn btn-main" id="dfAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
       <button class="btn btn-outline" id="dfEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="dfLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
@@ -6373,9 +6379,10 @@
     // 観戦（始まったあとに入ってきた端末）には何も配らない
     if(!you){
       dfLeaveScreen();
-      ['dfConsentBox','dfRolesBox','dfBoardBox','dfManualBox'].forEach(function(id){
+      ['dfConsentBox','dfRolesBox','dfBriefBox','dfBoardBox','dfManualBox'].forEach(function(id){
         el(id).style.display = 'none';
       });
+      el('dfHelpBtn').style.display = 'none';
       el('dfStrikes').textContent = ''; el('dfProgress').textContent = '';
       el('dfNote').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>';
       el('dfResultBox').innerHTML = (v.phase === 'ended') ? dfResultHtml(v) : '';
@@ -6388,13 +6395,16 @@
     var board = you.board;
     el('dfProgress').textContent = board ? (board.solved + ' / ' + board.total + ' 解除') : '';
 
-    ['dfConsentBox','dfRolesBox','dfBoardBox','dfManualBox'].forEach(function(id){
+    ['dfConsentBox','dfRolesBox','dfBriefBox','dfBoardBox','dfManualBox'].forEach(function(id){
       el(id).style.display = 'none';
     });
     el('dfResultBox').innerHTML = '';
+    // 説明は解除中でも決着後でも見返せる（役割がどちらでも）
+    el('dfHelpBtn').style.display = (v.phase === 'play' || v.phase === 'ended') ? 'inline-flex' : 'none';
 
     if(v.phase === 'consent'){ dfLeaveScreen(); dfRenderConsent(you); return; }
     if(v.phase === 'roles'){ dfLeaveScreen(); dfRenderRoles(v, you); return; }
+    if(v.phase === 'brief'){ dfLeaveScreen(); dfRenderBrief(v, you); return; }
     if(v.phase === 'ended'){
       dfLeaveScreen();
       el('dfNote').innerHTML = '';
@@ -6500,6 +6510,111 @@
     if(res && !res.ok && res.error === 'manual_taken'){
       showFlash('マニュアル役はもう決まっています', 'hit');
     }
+  });
+
+  // ---- 第28弾-3：モジュールの説明 ----
+  // 「初めて挑戦する時に1つずつ」出す。何を初めて見るかは人によって違うので、
+  // 見たことのある種類は端末が覚えておく（サーバーは知らなくてよい）。
+  var DF_SEEN_KEY = 'acac-defuse-seen';
+  function dfSeenTypes(){
+    try{ return JSON.parse(localStorage.getItem(DF_SEEN_KEY) || '[]') || []; }
+    catch(e){ return []; }
+  }
+  function dfMarkSeen(types){
+    try{
+      var all = dfSeenTypes();
+      (types || []).forEach(function(t){ if(all.indexOf(t) === -1) all.push(t); });
+      localStorage.setItem(DF_SEEN_KEY, JSON.stringify(all));
+    }catch(e){}
+  }
+  // いま見ている説明の状態。review=true は「見返す」から開いた時（全部見せる）
+  var dfBrief = { pages: [], at: 0, review: false };
+
+  function dfRenderBrief(v, you){
+    var box = el('dfBriefBox');
+    box.style.display = 'block';
+    var all = you.briefs || [];
+
+    if(you.done && !dfBrief.review){
+      el('dfNote').innerHTML = '';
+      var waiting = v.waiting || [];
+      box.innerHTML = '<div class="ry-desc">読み終わりました。' +
+        'ほかの人が読み終わるのを待っています…</div>' +
+        (waiting.length
+          ? '<div class="mic-status" style="margin-top:10px;">まだの人：' +
+            escapeHtml(waiting.join('、')) + '</div>'
+          : '');
+      return;
+    }
+
+    // まだ読んでいない種類だけを並べる。全部見たことがあれば、待たせずに済ませる
+    if(!dfBrief.pages.length){
+      var seen = dfSeenTypes();
+      dfBrief.pages = all.filter(function(b){ return seen.indexOf(b.type) === -1; });
+      dfBrief.at = 0;
+      if(!dfBrief.pages.length){
+        // 初めてのモジュールが無い人は、すぐ準備完了にする
+        dfMarkSeen(all.map(function(b){ return b.type; }));
+        rt.act(null);
+        return;
+      }
+    }
+    el('dfNote').innerHTML = '📘 はじめて出てくるモジュールの説明です';
+    box.innerHTML = dfBriefPageHtml(dfBrief.pages[dfBrief.at], dfBrief.at, dfBrief.pages.length, false);
+  }
+
+  function dfBriefPageHtml(b, at, total, review){
+    if(!b) return '';
+    return '<div class="df-page">' +
+      '<div class="mic-status" style="text-align:right;">' + (at + 1) + ' / ' + total + '</div>' +
+      '<div class="df-brief-head">' + b.icon + ' ' + escapeHtml(b.name) + '</div>' +
+      '<div class="mic-status" style="margin-bottom:8px;">' + escapeHtml(b.lead || '') + '</div>' +
+      '<ol class="rules-ol">' + b.how.map(function(h){
+        return '<li>' + escapeHtml(h) + '</li>';
+      }).join('') + '</ol>' +
+      (b.tip ? '<div class="mic-status" style="margin-top:8px;">💡 ' + escapeHtml(b.tip) + '</div>' : '') +
+      (b.physical ? '<div class="mic-status" style="margin-top:6px;">🏃 体を動かします。まわりを確かめてください</div>' : '') +
+    '</div>' +
+    '<button class="btn btn-main" id="dfBriefNext" style="margin-top:12px;">' +
+      (at + 1 < total ? 'つぎへ ▶' : (review ? '閉じる' : '準備OK')) + '</button>' +
+    (at + 1 < total || !review
+      ? '<button class="btn btn-ghost" id="dfBriefSkip" style="margin-top:6px;">' +
+        (review ? '閉じる' : 'スキップ（全部読まずに始める）') + '</button>'
+      : '');
+  }
+
+  el('dfBriefBox').addEventListener('click', async function(e){
+    if(e.target.closest('#dfBriefNext')){
+      if(dfBrief.at + 1 < dfBrief.pages.length){
+        dfBrief.at++;
+        el('dfBriefBox').innerHTML = dfBriefPageHtml(
+          dfBrief.pages[dfBrief.at], dfBrief.at, dfBrief.pages.length, dfBrief.review);
+        return;
+      }
+      await dfFinishBrief();
+      return;
+    }
+    if(e.target.closest('#dfBriefSkip')) await dfFinishBrief();
+  });
+  // 読み終わり／スキップ。どちらでも「この爆弾に載っている種類は見た」ことにする
+  async function dfFinishBrief(){
+    dfMarkSeen(dfBrief.pages.map(function(b){ return b.type; }));
+    var wasReview = dfBrief.review;
+    dfBrief = { pages: [], at: 0, review: false };
+    if(wasReview){ renderRtDefuse(); return; }
+    await rt.act(null);
+  }
+  // いつでも見返せる。こちらは「初めてかどうか」に関係なく全部出す
+  el('dfHelpBtn').addEventListener('click', function(){
+    var you = rt.state.secret;
+    if(!you || !(you.briefs || []).length) return;
+    dfBrief = { pages: you.briefs.slice(), at: 0, review: true };
+    ['dfBoardBox','dfManualBox','dfResultBox'].forEach(function(id){
+      el(id).style.display = 'none';
+    });
+    el('dfHelpBtn').style.display = 'none';
+    el('dfBriefBox').style.display = 'block';
+    el('dfBriefBox').innerHTML = dfBriefPageHtml(dfBrief.pages[0], 0, dfBrief.pages.length, true);
   });
 
   // ---- 解除役：モジュール一覧 ----
@@ -7021,13 +7136,58 @@
     }
   };
 
+  // ---- 第28弾-3：傾き・向きを使うモジュールの、水平の確認 ----
+  // 斜めに持ったまま始めると、最初から範囲の外にいることになり
+  // 「反応しない」と感じてしまう。始める前に一度だけ水平を取ってもらう。
+  // 対象かどうかはルール層が決める（モジュールを足した時に付け忘れないように）。
+  function dfLevelGateHtml(){
+    return '<div class="df-page" style="text-align:center;">' +
+      '<div class="df-brief-head">📐 まず端末を水平に</div>' +
+      '<div class="mic-status" style="margin:8px 0;">' +
+      '机の上に置くか、まっすぐ持ってください。<br>' +
+      '傾いたまま始めると、うまく反応しません。</div>' +
+      '<div class="df-readout" id="dfGateTilt">--</div>' +
+      '<div class="df-gauge"><div class="df-gauge-fill" id="dfGateBar"></div></div>' +
+      '</div>' +
+      '<button class="btn btn-main" id="dfGateStart" disabled style="margin-top:12px;">はじめる</button>' +
+      '<div class="mic-status" id="dfGateNote" style="text-align:center;margin-top:6px;"></div>';
+  }
+  // 水平とみなす角度。これより傾いていたら始めさせない
+  var DF_LEVEL_OK_DEG = 12;
+  function dfStartLevelGate(open){
+    el('dfModBody').innerHTML = dfLevelGateHtml();
+    el('dfModManual').innerHTML = '';
+    var canRead = Sensors.caps().orientation;
+    if(!canRead){
+      // 傾きが読めない端末は、そもそもこの種類のモジュールが載らない。
+      // それでも念のため、行き止まりにはしない
+      el('dfGateNote').textContent = 'この端末では傾きを読めません。そのまま始めます。';
+      el('dfGateStart').disabled = false;
+    }
+    el('dfGateStart').addEventListener('click', function(){
+      dfLocal.gatePassed = true;
+      dfShowModuleBody(open);
+    });
+    clearInterval(dfLoop);
+    dfLoop = setInterval(function(){
+      if(dfLocal.gatePassed) return;
+      var deg = Sensors.levelDeg();
+      var out = el('dfGateTilt');
+      if(out) out.textContent = Math.round(deg) + '°';
+      var bar = el('dfGateBar');
+      // 水平に近いほどゲージが伸びる
+      if(bar) bar.style.width = Math.max(0, 100 - (deg / DF_LEVEL_OK_DEG) * 100) + '%';
+      var ok = canRead ? (deg <= DF_LEVEL_OK_DEG) : true;
+      var btn = el('dfGateStart');
+      if(btn) btn.disabled = !ok;
+      var note = el('dfGateNote');
+      if(note && canRead) note.textContent = ok ? '水平になりました' : 'もう少しまっすぐに…';
+    }, 120);
+  }
+
   // ---- モジュールを開く／閉じる ----
-  function dfOpenModule(open, you){
-    dfOpenUid = open.uid;
-    dfLocal = {};
+  function dfShowModuleBody(open){
     var ui = DF_UI[open.type];
-    el('dfModTitle').textContent = open.icon + ' ' + open.name;
-    el('dfModLead').textContent = open.lead || '';
     el('dfModBody').innerHTML = ui ? ui.html(open) : '';
     // マニュアルなしの設定なら、対応表もここに出す（自力で解ける）
     el('dfModManual').innerHTML = open.manual
@@ -7046,7 +7206,20 @@
       if(u && u.tick) u.tick(cur);
     }, 120);
   }
+  // モジュールを開けた入口。傾きを使うものは、先に水平を取ってもらう
+  function dfOpenModule(open){
+    dfOpenUid = open.uid;
+    dfLocal = {};
+    el('dfModTitle').textContent = open.icon + ' ' + open.name;
+    el('dfModLead').textContent = open.lead || '';
+    dfStatus('');
+    el('dfModOverlay').classList.add('show');
+    if(DefuseLogic.needsLevelCheck(open.type)) dfStartLevelGate(open);
+    else dfShowModuleBody(open);
+  }
   function dfUpdateModule(open){
+    // 水平を取っている最中は、まだ中身を出さない
+    if(DefuseLogic.needsLevelCheck(open.type) && !dfLocal.gatePassed) return;
     // サーバーから届いた進み具合だけを描き直す。
     // 入力中の欄を壊さないよう、中身は作り直さない（tick が数字を更新する）
     var ui = DF_UI[open.type];

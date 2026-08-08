@@ -1011,6 +1011,161 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // 第28弾-3：説明に出す中身。サーバー（defuse-logic）が配る形をそのまま真似る
+  function defuseBriefs() {
+    return [
+      { type: 'maze', name: '傾け迷路', icon: '🌀', lead: '端末を傾けて、ボールをゴールまで運ぼう',
+        how: ['端末を傾けると、ボールが1マスずつ動く', '壁と罠は自分の画面には見えない'],
+        tip: '傾きが使えない時は、画面の十字ボタンでも動かせます',
+        physical: false, needsLevelCheck: true },
+      { type: 'shake', name: '振ってアクション', icon: '📳', lead: '決まった回数・テンポで端末を振ろう',
+        how: ['画面に出ている記号をマニュアル役に伝える', 'そのとおりに端末を振る'],
+        tip: 'まわりに人や物がないか確かめてから振ってください',
+        physical: true, needsLevelCheck: false }
+    ];
+  }
+
+  await r.test('実物解除：初めてのモジュールだけ、1つずつ説明が出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const briefs = defuseBriefs();
+    push(fake, defuseRoom({
+      state: { phase: 'brief', game: 'defuse', data: defuseView({ phase: 'brief' }) }
+    }));
+    pushYou(fake, defuseYou({ phase: 'brief', done: false, briefs }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+
+    const box = el(doc, 'dfBriefBox');
+    assert(/傾け迷路/.test(box.textContent), '1つ目の説明が出る');
+    assert(/1 \/ 2/.test(box.textContent), '何枚目かが分かる');
+    assert(!/振ってアクション/.test(box.textContent), '2つ目はまだ出ない（1つずつ）');
+    assert(doc.getElementById('dfBriefSkip'), 'スキップできる');
+
+    click(doc, 'dfBriefNext');
+    await sleep(win, 80);
+    assert(/振ってアクション/.test(el(doc, 'dfBriefBox').textContent), '「つぎへ」で2つ目に進む');
+    assert(/体を動かします/.test(el(doc, 'dfBriefBox').textContent), '体を動かすことが書いてある');
+
+    click(doc, 'dfBriefNext');
+    await sleep(win, 120);
+    const act = fake.emits.filter(e => e.name === 'wolf:act').pop();
+    assert(act, '読み終わったことをサーバーに伝える');
+    assertNoErrors(errors, 'モジュールの説明で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：一度見た種類は、次からは説明が出ない', async () => {
+    // 毎回全部読まされると、2回目以降がだるくなる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const briefs = defuseBriefs();
+    // 見たことのある種類として記録しておく（端末が覚えている）
+    win.localStorage.setItem('acac-defuse-seen', JSON.stringify(['maze', 'shake']));
+    push(fake, defuseRoom({
+      state: { phase: 'brief', game: 'defuse', data: defuseView({ phase: 'brief' }) }
+    }));
+    pushYou(fake, defuseYou({ phase: 'brief', done: false, briefs }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    await sleep(win, 150);
+    // 初めての種類が無いので、待たせずに準備完了を送る
+    const act = fake.emits.filter(e => e.name === 'wolf:act').pop();
+    assert(act, '読むものが無ければ、すぐ準備完了にする');
+    // 説明そのものは1枚も出さない（ここが出ていたら、既読の判定が効いていない）
+    const box = el(doc, 'dfBriefBox');
+    assert(!/傾け迷路/.test(box.textContent), '見たことのある説明は出さない');
+    assert(!doc.getElementById('dfBriefNext'), '「つぎへ」も出ない');
+    assertNoErrors(errors, '既読の説明で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：説明はあとからいつでも見返せる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom());
+    pushYou(fake, defuseYou({ role: 'defuser', briefs: defuseBriefs() }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    assert(el(doc, 'dfHelpBtn').style.display !== 'none', '解除中も説明のボタンが出ている');
+
+    click(doc, 'dfHelpBtn');
+    await sleep(win, 100);
+    const box = el(doc, 'dfBriefBox');
+    assertEqual(box.style.display, 'block', '説明が開く');
+    // 見返す時は、初めてかどうかに関係なく全部見られる
+    assert(/傾け迷路/.test(box.textContent), '1枚目が出る');
+    assert(/1 \/ 2/.test(box.textContent), '全部の枚数が出る');
+    assertNoErrors(errors, '説明の見返しで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：全員が読み終わるまで、解除は始まらない', async () => {
+    // 「準備完了」と同じ考え方。読んでいる人を置いていかない
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom({
+      state: {
+        phase: 'brief', game: 'defuse',
+        data: defuseView({ phase: 'brief', waiting: ['あき'] })
+      }
+    }));
+    pushYou(fake, defuseYou({ phase: 'brief', done: true, briefs: defuseBriefs() }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    const box = el(doc, 'dfBriefBox');
+    assert(/待って/.test(box.textContent), '待っていることが分かる');
+    assert(/あき/.test(box.textContent), 'まだの人の名前が出る');
+    assertEqual(el(doc, 'dfBoardBox').style.display, 'none', '盤面はまだ出さない');
+    assertNoErrors(errors, '説明の待ち合わせで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：傾きを使うモジュールは、水平を取ってから始まる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom());
+    pushYou(fake, defuseYou({
+      role: 'defuser',
+      open: {
+        uid: 'md1', type: 'maze', name: '傾け迷路', icon: '🌀',
+        lead: '端末を傾けて、ボールをゴールまで運ぼう', solved: false,
+        hint: { size: 5, start: { x: 0, y: 0 }, goal: { x: 4, y: 4 }, at: { x: 0, y: 0 } },
+        progress: { at: { x: 0, y: 0 }, steps: 0 }
+      }
+    }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    await sleep(win, 150);
+    assert(el(doc, 'dfModOverlay').classList.contains('show'), 'モジュールが開く');
+    // 迷路そのものではなく、まず水平の確認が出る
+    assert(/水平/.test(el(doc, 'dfModBody').textContent), '水平にするよう出る');
+    assert(doc.getElementById('dfGateStart'), 'はじめるボタンがある');
+    assertEqual(doc.querySelectorAll('#dfModBody .df-maze').length, 0, '迷路はまだ出ていない');
+
+    click(doc, 'dfGateStart');
+    await sleep(win, 120);
+    assert(doc.querySelectorAll('#dfModBody .df-maze').length > 0, '押したら迷路が出る');
+    assertNoErrors(errors, '水平の確認で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：傾きを使わないモジュールは、水平の確認を挟まない', async () => {
+    // 出しすぎると、ただの手間になる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, defuseRoom());
+    pushYou(fake, defuseYou({
+      role: 'defuser',
+      open: {
+        uid: 'md2', type: 'cipher', name: '分割暗号', icon: '🧩',
+        lead: 'マニュアル役みんなの暗号をつなげて入力しよう', solved: false,
+        hint: { length: 4, parts: 2 }, progress: { done: false }
+      }
+    }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    await sleep(win, 150);
+    assert(!/水平/.test(el(doc, 'dfModBody').textContent), '水平の確認は出ない');
+    assert(doc.getElementById('dfCipherInput'), 'すぐ入力できる');
+    assertNoErrors(errors, '分割暗号で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('実物解除：解除役にはモジュール一覧、対応表は出ない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });

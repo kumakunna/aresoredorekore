@@ -1228,6 +1228,57 @@
   .app.theme-bomb .bb-bar{border-radius:2px;border-color:var(--line);background:var(--paper-deep);}
   .app.theme-bomb .bb-fill{background:var(--hazard);}
   .app.theme-bomb .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  /* --- 第29弾-7-1：直書きの白が残っている部品を、暗い背景でも読める色にする ---
+     テーマ自体は棚を出た時点から全画面に当たっているが、
+     部品の中に background:#fff / var(--paper) を直に書いてあるものがあり、
+     文字色（--ink）だけが明るく置き換わって「白背景に白文字」になっていた。
+     人狼テーマでも同じ種類の見落としが起きているので、同じ部品を面倒みる。
+     設定・ウィザードの部品を中心に、遊ぶ画面まで一通り。 */
+  .app.theme-bomb .picker-grid .pk-btn{
+    background:var(--card);color:var(--ink);border-color:rgba(232,234,237,0.34);
+  }
+  .app.theme-bomb .picker-grid .pk-btn:active{background:var(--ink);color:var(--paper);}
+  /* コード数・ライフ・ミス上限の ＋／− と、閉じる✕ */
+  .app.theme-bomb .bomb-tier-controls button,
+  .app.theme-bomb .bomblife-controls button,
+  .app.theme-bomb .close-x,
+  .app.theme-bomb .stepper button{
+    background:var(--card);color:var(--ink);border-color:var(--line);
+  }
+  .app.theme-bomb .bomb-minus,
+  .app.theme-bomb .bomb-plus{background:var(--card);color:var(--ink);border-color:var(--line);}
+  /* モード選択・ゲーム選択のカード */
+  .app.theme-bomb .mode-card{background:var(--card);color:var(--ink);border-color:var(--line);}
+  .app.theme-bomb .mode-card.selected{background:var(--card);border-color:var(--hazard);}
+  .app.theme-bomb .mode-card.locked{opacity:.55;}
+  /* 段の見出し・区切り */
+  .app.theme-bomb .sec-title,
+  .app.theme-bomb .tp-label{color:var(--ink);}
+  .app.theme-bomb .mic-status,
+  .app.theme-bomb .wiz-lead,
+  .app.theme-bomb .scr-sub{color:var(--ink-soft);}
+  /* トグルのOFF側がクリーム色のままだと、暗い画面で光って見える */
+  .app.theme-bomb .switch{background:rgba(232,234,237,0.22);}
+  .app.theme-bomb .switch::after{background:#E8EAED;}
+  .app.theme-bomb .toggle-row-mini{background:var(--card);border-color:var(--line);}
+  /* 難易度別の本数の行 */
+  .app.theme-bomb .bomb-tier-row{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-bomb .bomblife-display{color:var(--ink);}
+  /* スライダー。トラックが白いままだと背景と喧嘩する */
+  .app.theme-bomb input[type="range"]{background:var(--paper-deep);}
+  /* ⚙・戻る矢印。白丸のままだと暗い画面で浮く */
+  .app.theme-bomb .floating-gear{background:rgba(232,234,237,.14);color:var(--ink);}
+  .app.theme-bomb .floating-back{border-color:var(--ink);color:var(--ink);}
+  /* 3択のオーバーレイ・説明文 */
+  .app.theme-bomb .ai-description{background:var(--paper-deep);color:var(--ink);border-color:var(--line);}
+  .app.theme-bomb .overlay-head h3{color:var(--ink);}
+  /* 結果・スコアまわり */
+  .app.theme-bomb .vote-counts .vc-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-bomb .vote-log{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-bomb .rules-ol li{color:var(--ink);}
+  .app.theme-bomb .wolf-handoff-name,
+  .app.theme-bomb .wolf-handoff-sub{color:var(--ink);}
+
   /* 棚（scr-shelf）は THEME_FREE_SCREENS に入っていて、どのテーマも当たらない。
      棚はどのカセットにも属していない場所なので、そこは共通の見た目のままにする */
   @media (prefers-reduced-motion: reduce){
@@ -4901,7 +4952,13 @@
     var tier = (minus || plus).dataset.tier;
     var sum = BOMB_TIERS.reduce(function(s, t){ return s + state.bombCounts[t.id]; }, 0);
     if(plus){
-      if(sum >= state.bombMax) state.bombMax = sum + 1;
+      // 第29弾-7：上限に達していたら、それ以上は増やせない。
+      // 以前はここで上限そのものを引き上げていたので、押し続ければ
+      // いくらでも増やせてしまった（設定した上限が意味を成していなかった）
+      if(sum >= state.bombMax){
+        showFlash('コードは最大 ' + state.bombMax + '本までです', 'hit');
+        return;
+      }
       state.bombCounts[tier]++;
       state.bombLocked[tier] = true;
     }

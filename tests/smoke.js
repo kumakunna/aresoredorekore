@@ -2786,6 +2786,88 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  // ---- 第29弾-7：見つかっていた2件のバグ ----
+
+  await r.test('コード数の「＋」は、上限に達したらそれ以上増やせない', async () => {
+    // 以前は上限そのものを引き上げていたので、押し続ければいくらでも増やせた
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'bomb');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-bomb', 3000);
+
+    const max = parseInt(el(doc, 'bombMaxValue').textContent, 10);
+    assert(max > 0, '上限が読める（' + max + '）');
+    // ひたすら押す（上限＋30回）
+    for (let i = 0; i < max + 30; i++) {
+      doc.querySelector('#bombTierRows .bomb-plus[data-tier="easy"]').click();
+    }
+    await sleep(win, 60);
+    const sum = ['easy', 'normal', 'hard', 'nanisore', 'muri']
+      .reduce((s, t) => s + parseInt(el(doc, 'bombCount-' + t).textContent, 10), 0);
+    assert(sum <= max, '合計が上限を超えない（合計' + sum + ' / 上限' + max + '）');
+    assertEqual(parseInt(el(doc, 'bombMaxValue').textContent, 10), max, '上限そのものが動かない');
+    assertNoErrors(errors, 'コード数の設定で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('テーマ：設定・ウィザードの部品にも色が届いている（白背景に白文字を作らない）', async () => {
+    // テーマ自体は全画面に当たっているが、部品の中に白を直に書いてあると
+    // 文字色だけが明るく置き換わって読めなくなる。人狼テーマでも同じ見落としがあった
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // 設定画面で使う部品に、テーマ側の指定があること
+    const mustCover = [
+      '.bomb-tier-controls button', '.bomblife-controls button',
+      '.bomb-minus', '.bomb-plus', '.bomb-tier-row',
+      '.mode-card', '.switch', '.toggle-row-mini',
+      'input\\[type="range"\\]', '.picker-grid .pk-btn',
+      '.floating-gear', '.floating-back'
+    ];
+    mustCover.forEach((sel) => {
+      const re = new RegExp('\\.app\\.theme-bomb[^{]*' + sel);
+      assert(re.test(html), sel + ' に爆弾解除テーマの指定がある');
+    });
+    // ウィザードの画面がテーマ対象外になっていないこと
+    assert(!/THEME_FREE_SCREENS\s*=\s*\[[^\]]*scr-set-/.test(html),
+      '設定ウィザードをテーマの対象外にしていない');
+  });
+
+  await r.test('テーマ：爆弾解除の設定画面まで制御盤の見た目が続く', async () => {
+    const { win, doc, errors } = await launch();
+    const app = el(doc, 'app');
+    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'bomb');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, 'modeNextBtn');
+    // コード配分 → ライフ → タイマー、どの設定画面でもテーマが続く
+    for (let i = 0; i < 4; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      assert(app.classList.contains('theme-bomb'), cur + ' でもテーマが当たっている');
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 40);
+    }
+    assertNoErrors(errors, '設定画面のテーマで未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第28弾-2：爆弾解除カセット専用テーマ ----
 
   await r.test('テーマ：爆弾解除カセットを選ぶと、その先すべてが制御盤になる', async () => {

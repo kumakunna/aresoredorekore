@@ -186,7 +186,15 @@
   }
 
   // ---- 取り出し ----
-  function questionsOf(tier) { return (QUESTIONS[tier] || []).slice(); }
+  // 難易度は QUESTIONS の鍵として持っているだけで、問題そのものには入っていない。
+  // 取り出す時に必ず貼っておく（貼り忘れると、得点の計算がどの難易度でも
+  // 1点になってしまう。実際にそうなった）。
+  // ついでに複製も作る。呼び出し側がうっかり書き換えても、バンクは壊れない
+  function questionsOf(tier) {
+    return (QUESTIONS[tier] || []).map(function (q) {
+      return { q: q.q, choices: q.choices.slice(), correct: q.correct, tier: tier };
+    });
+  }
   function countOf(tier) { return (QUESTIONS[tier] || []).length; }
   function allCounts() {
     var out = {};

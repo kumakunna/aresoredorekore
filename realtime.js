@@ -17,6 +17,7 @@ const WolfRoom = require('./wolf-room.js');
 const WordwolfRoom = require('./wordwolf-room.js');
 const BombRoom = require('./bomb-room.js');
 const DefuseRoom = require('./defuse-room.js');
+const QuizRoom = require('./quiz-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -29,7 +30,15 @@ const GAME_DRIVERS = {
   // 第27弾：爆弾解除（クイズ解除）。約束の形が同じなので、足したのはこの1行だけ
   bomb: { driver: BombRoom, key: 'bomb' },
   // 第27弾-3：爆弾解除（実物解除）。センサーを使うが、約束の形は変わらない
-  defuse: { driver: DefuseRoom, key: 'defuse' }
+  defuse: { driver: DefuseRoom, key: 'defuse' },
+  // 第30弾：カセット「クイズ王」の4ゲーム。
+  // 得点・順番・時間の扱いが同じなので、進行役は1つ（quiz-room.js）を共有し、
+  // 部屋に置く状態も1つ（room.quiz）にまとめてある。
+  // 4つ別々に書くと、片方だけ直してもう片方に反映し忘れる事故が必ず起きるため。
+  quizrush: { driver: QuizRoom, key: 'quiz' },
+  quizlist: { driver: QuizRoom, key: 'quiz' },
+  quizreveal: { driver: QuizRoom, key: 'quiz' },
+  buzzer: { driver: QuizRoom, key: 'quiz' }
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -280,6 +289,46 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.wordwolf) return recordWordwolfMatch(room);
     if (room.bomb) return recordBombMatch(room);
     if (room.defuse) return recordDefuseMatch(room);
+    if (room.quiz) return recordQuizMatch(room);
+  }
+
+  // 第30弾：クイズ王。4ゲームとも「順位と得点」という同じ形で終わるので、
+  // 記録の作り方も1つで足りる。どのゲームだったかは detail.game に残す
+  function recordQuizMatch(room) {
+    if (!db || !room.ownerUserId || !room.quiz) return;
+    try {
+      const w = room.quiz;
+      const view = QuizRoom.resultView(room);
+      const names = w.playerIds.map((id) => w.names[id]);
+      const deltas = {}, finalScores = {};
+      view.ranking.forEach((row) => {
+        deltas[row.name] = row.score;
+        finalScores[row.name] = row.score;
+      });
+      const detail = Object.assign({}, view, {
+        game: w.variant,
+        style: 'realtime',
+        preset: w.preset || null,
+        timerSec: w.cfg.timerSec
+      });
+      const rounds = [{
+        mode: w.preset || w.variant,
+        score_deltas: deltas,
+        at: new Date().toISOString(),
+        detail
+      }];
+      db.prepare(
+        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
+        "VALUES (?, ?, ?, ?, datetime('now'))"
+      ).run(
+        room.ownerUserId,
+        JSON.stringify(names),
+        JSON.stringify(rounds),
+        JSON.stringify(finalScores)
+      );
+    } catch (e) {
+      console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
+    }
   }
 
   // 第27弾-3：実物解除。協力プレイなので、成功したら全員に同じ点を入れる。

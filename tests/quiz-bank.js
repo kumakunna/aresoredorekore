@@ -58,6 +58,30 @@ const { createRunner, assert, assertEqual } = require('./harness');
     assert(checked > 0, '確かめた問題がある');
   });
 
+  await r.test('取り出した問題には、必ず難易度が付いている', async () => {
+    // 難易度は QUESTIONS の鍵として持っているだけなので、
+    // 取り出す時に貼り忘れると、得点の計算がどの難易度でも1点になる。
+    // 実際にそうなったので、ここで見張る
+    Q.TIERS.forEach((tier) => {
+      Q.questionsOf(tier).forEach((q) => {
+        assertEqual(q.tier, tier, '「' + q.q + '」に難易度が付いている');
+      });
+      Q.pickQuestions(tier, 3, {}).forEach((q) => {
+        assertEqual(q.tier, tier, '抽選で取り出しても難易度が残る');
+        assertEqual(Q.shuffleChoices(q).tier, tier, '選択肢を混ぜても難易度が残る');
+      });
+    });
+  });
+
+  await r.test('取り出した問題を書き換えても、バンクは壊れない', async () => {
+    const first = Q.questionsOf('easy')[0];
+    const text = first.q;
+    first.q = '書き換えた';
+    first.choices[0] = '書き換えた';
+    assertEqual(Q.questionsOf('easy')[0].q, text, 'バンク側は元のまま');
+    assert(Q.questionsOf('easy')[0].choices[0] !== '書き換えた', '選択肢も元のまま');
+  });
+
   await r.test('抽選：頼んだ数だけ返り、同じ問題が2つ入らない', async () => {
     const got = Q.pickQuestions('easy', 5, {});
     assertEqual(got.length, 5, '5問返る');

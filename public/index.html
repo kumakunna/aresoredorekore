@@ -4270,6 +4270,87 @@
     }catch(e){}
     if(navigator.vibrate) navigator.vibrate(150);
   }
+  // ---------- 第30・31弾：クイズ王とオークションの効果音 ----------
+  // 既存の beep / buzz と同じで、音のファイルは持たない（読み込みを増やさない）。
+  // 音を切っている端末でも遊びが成立するよう、音は「ただの合図」であって
+  // 情報そのものは必ず画面にも出す。
+  // クイズ王：正解のファンファーレ。3音を上がっていくだけの短いもの
+  function fanfareSound(){
+    try{
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var t = ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5].forEach(function(f, i){
+        var o = ctx.createOscillator(); var g = ctx.createGain();
+        o.type = 'triangle'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t + i * 0.08);
+        g.gain.exponentialRampToValueAtTime(0.09, t + i * 0.08 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.08 + 0.22);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t + i * 0.08); o.stop(t + i * 0.08 + 0.24);
+      });
+      setTimeout(function(){ ctx.close(); }, 700);
+    }catch(e){}
+    if(navigator.vibrate) navigator.vibrate([30, 40, 60]);
+  }
+  // クイズ王：時間切れ。下がっていく2音
+  function timeUpSound(){
+    try{
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var o = ctx.createOscillator(); var g = ctx.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(660, ctx.currentTime);
+      o.frequency.setValueAtTime(440, ctx.currentTime + 0.18);
+      g.gain.value = 0.07;
+      o.connect(g); g.connect(ctx.destination); o.start();
+      setTimeout(function(){ o.stop(); ctx.close(); }, 420);
+    }catch(e){}
+    if(navigator.vibrate) navigator.vibrate([90, 60, 90]);
+  }
+  // オークション：木槌（ガベル）。短くて硬い、木を叩く音
+  function gavelSound(){
+    try{
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var t = ctx.currentTime;
+      // 短いノイズ＋低い胴鳴りで「コン」を作る
+      var len = Math.floor(ctx.sampleRate * 0.06);
+      var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      var data = buf.getChannelData(0);
+      for(var i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      var n = ctx.createBufferSource(); n.buffer = buf;
+      var nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1800;
+      var ng = ctx.createGain(); ng.gain.value = 0.12;
+      n.connect(nf); nf.connect(ng); ng.connect(ctx.destination); n.start(t);
+      var o = ctx.createOscillator(); var g = ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(220, t);
+      o.frequency.exponentialRampToValueAtTime(90, t + 0.09);
+      g.gain.setValueAtTime(0.10, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.14);
+      setTimeout(function(){ ctx.close(); }, 400);
+    }catch(e){}
+    if(navigator.vibrate) navigator.vibrate(50);
+  }
+  // オークション：落札できた時。木槌のあとに、金貨の跳ねる音
+  function soldSound(){
+    gavelSound();
+    setTimeout(function(){
+      try{
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var t = ctx.currentTime;
+        [1046.5, 1318.5].forEach(function(f, i){
+          var o = ctx.createOscillator(); var g = ctx.createGain();
+          o.type = 'sine'; o.frequency.value = f;
+          g.gain.setValueAtTime(0.0001, t + i * 0.07);
+          g.gain.exponentialRampToValueAtTime(0.07, t + i * 0.07 + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.07 + 0.30);
+          o.connect(g); g.connect(ctx.destination);
+          o.start(t + i * 0.07); o.stop(t + i * 0.07 + 0.32);
+        });
+        setTimeout(function(){ ctx.close(); }, 600);
+      }catch(e){}
+    }, 130);
+  }
+
   // ---------- 第27弾：爆弾解除カセット共通の心拍演出 ----------
   // 背景に心拍音を薄く流し、ミスするほど速くする。
   // 常時BGMは入れない方針（音声認識の邪魔になる）ので、
@@ -6617,6 +6698,7 @@
   var qzClock = { ms:null, at:0, timer:null };
   var qzSpoken = null;   // 早押しで読み上げた問題（同じ問題を二度読まないため）
   var qzPrevScore = null;
+  var qzPrevPhase = null; // 段階が変わった瞬間だけ音を出すための目印
 
   function qzSetClock(ms){ qzClock.ms = (ms == null) ? null : ms; qzClock.at = Date.now(); }
   function qzRemainingSec(){
@@ -6700,11 +6782,14 @@
     }
 
     el('qzScore').textContent = you.score + '点';
-    // 得点が増えた瞬間だけ音を鳴らす（描き直すたびに鳴らさない）
-    if(qzPrevScore != null && you.score > qzPrevScore) snipSound();
+    // 得点が増えた瞬間だけ鳴らす（描き直すたびに鳴らさない）
+    if(qzPrevScore != null && you.score > qzPrevScore) fanfareSound();
     qzPrevScore = you.score;
 
     if(v.phase === 'ended'){
+      // 決着の音は1回だけ。結果を見ている間ずっと鳴り続けないように
+      if(qzPrevPhase !== 'ended') timeUpSound();
+      qzPrevPhase = v.phase;
       qzLeaveScreen();
       el('qzRound').textContent = '';
       el('qzTimer').style.display = 'none';
@@ -6721,6 +6806,7 @@
     el('qzResult').innerHTML = '';
     qzEndButtons(false);
 
+    qzPrevPhase = v.phase;
     if(v.variant === 'quizrush') return qzRenderRush(v, you);
     if(v.variant === 'quizlist') return qzRenderList(v, you);
     if(v.variant === 'quizreveal') return qzRenderReveal(v, you);
@@ -6988,6 +7074,8 @@
   // 品物の正体・価値は、落札が決まるまでサーバーが送ってこない（原則4.3）。
   var auClock = { ms:null, at:0, timer:null };
   var auBidValue = 0;      // 手元で選んでいる金額（まだ送っていない）
+  var auPrevPhase = null;  // 段階が変わった瞬間だけ音を出すための目印
+  var auPrevHighest = null; // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす
 
   function auSetClock(ms){ auClock.ms = (ms == null) ? null : ms; auClock.at = Date.now(); }
   function auRemainingSec(){
@@ -7010,6 +7098,8 @@
     clearInterval(auClock.timer); auClock.timer = null;
     auClock.ms = null;
     auBidValue = 0;
+    auPrevPhase = null;
+    auPrevHighest = null;
   }
   function auEndButtons(ended){
     el('auLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
@@ -7048,6 +7138,20 @@
     }
 
     el('auChips').textContent = you.chips + '枚';
+    // 落札が決まった瞬間に1回だけ鳴らす。結果を見ている間ずっと鳴らさない
+    if(v.phase === 'result' && auPrevPhase !== 'result'){
+      var lr = v.lastResult || {};
+      if(lr.passed) gavelSound(); else soldSound();
+    }
+    // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす
+    if(v.phase === 'bid' && v.mode === 'open'){
+      var top = v.highest ? v.highest.amount : 0;
+      if(auPrevHighest != null && top > auPrevHighest) gavelSound();
+      auPrevHighest = top;
+    } else {
+      auPrevHighest = null;
+    }
+    auPrevPhase = v.phase;
 
     if(v.phase === 'ended'){
       auLeaveScreen();

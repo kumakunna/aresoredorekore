@@ -429,6 +429,91 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第28弾-4：どの画面からも「一個前」に戻れる矢印 ----
+
+  await r.test('戻る矢印：来た道を1つずつ戻れる', async () => {
+    const { win, doc, errors } = await launch();
+    const back = el(doc, 'floatingBackBtn');
+    // 棚は起点なので出さない
+    assertEqual(back.style.display, 'none', '棚では出ない');
+
+    pickCart(doc, 'aresoredorekore');
+    await waitScreen(win, doc, 'scr-setup', 3000);
+    assert(back.style.display !== 'none', 'プレイヤー設定では出る');
+
+    await H.fillPlayerForm(win, doc, ['あき', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, 'modeNextBtn');
+    await sleep(win, 100);
+    const wizard = activeScreen(doc);
+    assert(/^scr-set-/.test(wizard), '設定ウィザードに入る（' + wizard + '）');
+
+    // 1つ戻るとモード選択、もう1つ戻るとプレイヤー設定
+    click(doc, 'floatingBackBtn');
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'floatingBackBtn');
+    await waitScreen(win, doc, 'scr-setup', 3000);
+    click(doc, 'floatingBackBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertEqual(back.style.display, 'none', '棚に着いたら出なくなる');
+    assertNoErrors(errors, '戻る矢印で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('戻る矢印：行ったり来たりしても、道が積み上がらない', async () => {
+    // 押すたびに1つずつ戻れないと、何回押せば着くのか分からなくなる
+    const { win, doc, errors } = await launch();
+    await setupPlayers(win, doc);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    // モード⇄棚を3往復する
+    for (let i = 0; i < 3; i++) {
+      click(doc, 'backToShelfBtn');
+      await waitScreen(win, doc, 'scr-shelf', 3000);
+      pickCart(doc, 'aresoredorekore');
+      await waitScreen(win, doc, 'scr-mode', 3000);
+    }
+    // 1回押せば棚に着く（往復ぶんが溜まっていない）
+    click(doc, 'floatingBackBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertEqual(activeScreen(doc), 'scr-shelf', '1回で棚に着く');
+    assertNoErrors(errors, '往復で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('戻る矢印：遊んでいる最中は出さない（進行が壊れないように）', async () => {
+    const { win, doc, errors } = await launch();
+    await setupPlayers(win, doc);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, 'modeAutoBtn');
+    await sleep(win, 100);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 80); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    assert(el(doc, 'floatingBackBtn').style.display !== 'none', '準備OKでは出る');
+
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-play', 9000);
+    assertEqual(el(doc, 'floatingBackBtn').style.display, 'none',
+      '遊んでいる最中は出さない（⚙から終わるのが正しい出口）');
+    assertNoErrors(errors, 'プレイ中の戻る矢印で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('戻る矢印：枠線だけの正方形で、画面の中の「もどる」と見分けられる', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const rule = html.match(/\.floating-back\{[^}]*\}/);
+    assert(rule, '.floating-back の決まりごとがある');
+    assert(/background:transparent/.test(rule[0]), '枠線だけ（塗りつぶさない）');
+    assert(/border:1\.5px solid/.test(rule[0]), '枠線がある');
+    assert(/width:32px;height:32px/.test(rule[0]), '正方形');
+    assert(/border-radius:4px/.test(rule[0]), '丸ではない（⚙と見分けられる）');
+    // 画面の中の「もどる」は横長のボタンなので、位置でも形でも混ざらない
+    assert(/position:absolute;top:6px;left:8px/.test(rule[0]), '画面の隅に置く');
+  });
+
   // ---- 第27弾-2：下部バーを画面の下に固定する ----
 
   await r.test('下部バーは画面の下に貼り付き、本文の上に重なっても読める', async () => {

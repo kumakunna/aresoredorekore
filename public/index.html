@@ -377,8 +377,21 @@
     background:rgba(255,255,255,.85);border:1px solid var(--line);font-size:14px;cursor:pointer;opacity:.55;
   }
   .floating-gear:active{opacity:1;}
-  /* A：⚙の分だけ右側を空けて、トップバーのボタンと重ならないようにする */
-  .play-topbar, .bomb-topbar{padding-right:42px;}
+  /* 第28弾-4：どの画面からも一個前に戻れる矢印。
+     ⚙と左右で対になる位置に置く。枠線だけの正方形にしてあるのは、
+     画面の中にある「もどる」ボタン（横長・行き先が決まっている）と
+     見た目でも役割でも混ざらないようにするため。
+     こちらは「来た道を1つ戻る」だけを引き受ける。 */
+  .floating-back{
+    position:absolute;top:6px;left:8px;z-index:60;width:32px;height:32px;border-radius:4px;
+    background:transparent;border:1.5px solid var(--ink);color:var(--ink);
+    font-size:15px;line-height:1;cursor:pointer;opacity:.55;
+    display:flex;align-items:center;justify-content:center;padding:0;
+  }
+  .floating-back:active{opacity:1;background:rgba(0,0,0,.06);}
+  /* A：⚙の分だけ右側を空けて、トップバーのボタンと重ならないようにする。
+     第28弾-4：戻る矢印のぶん、左側も同じだけ空ける */
+  .play-topbar, .bomb-topbar{padding-right:42px;padding-left:42px;}
   /* ===== 第13弾：扉（友達の部屋に入るイメージ・奥に開く） ===== */
   #scr-door{padding:0;overflow:hidden;}
   .door-scene{
@@ -1226,6 +1239,7 @@
 <div class="app" id="app">
 
   <!-- 1：ゲーム中どこからでも設定（＝ゲーム終了）に入れる共通ボタン。全ゲームで使える -->
+  <button class="floating-back" id="floatingBackBtn" style="display:none;" aria-label="一個前の画面にもどる">←</button>
   <button class="floating-gear" id="floatingGearBtn" style="display:none;">⚙</button>
 
   <!-- 第18弾-5：朝夜の切り替え演出。ふだんは opacity:0 で当たり判定も無い -->
@@ -3949,6 +3963,39 @@
   // ---------- screen nav ----------
   // 「戻る」方向で画面遷移する（アニメーションが左から右になる）
   function goBack(id){ goTo._back = true; goTo(id); }
+
+  // ---- 第28弾-4：どの画面からも「一個前」に戻る ----
+  // 行き先を決め打つ goBack(id) と違って、こちらは来た道をたどる。
+  var screenStack = [];
+  // 矢印を出さない画面。出しても意味がないか、戻ると進行が壊れるところ。
+  //   扉・棚      … ここが起点で、戻る先が無い
+  //   カウントダウン … 数えている最中に抜けると進行が壊れる
+  //   遊んでいる画面 … 途中で前の画面に戻ると、配ったお題や役職と食い違う。
+  //                    ここは⚙（設定→ゲームを終了）が正しい出口
+  //   部屋の画面   … サーバーと状態を合わせているので、勝手に戻るとずれる。
+  //                  「部屋を出る」が正しい出口
+  var BACK_FREE_SCREENS = [
+    'scr-door', 'scr-shelf', 'scr-countdown',
+    'scr-play', 'scr-reveal', 'scr-score',
+    'scr-bomb-prep', 'scr-bomb-play', 'scr-bomb-end',
+    'scr-quiz-turn', 'scr-tourney-match', 'scr-tourney-vs', 'scr-tourney-champion',
+    'scr-auction-bid', 'scr-auction-handoff', 'scr-auction-question', 'scr-auction-result',
+    'scr-wolf-pass', 'scr-wolf-gather', 'scr-wolf-result',
+    'scr-wr-pass', 'scr-wr-day', 'scr-wr-gather', 'scr-wr-result', 'scr-nightfall',
+    'scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-big'
+  ];
+  function canGoBackOne(screenId){
+    if(BACK_FREE_SCREENS.indexOf(screenId) !== -1) return false;
+    return screenStack.length > 0;
+  }
+  function goBackOne(){
+    var to = screenStack.pop();
+    if(!to) return;
+    goTo._back = true;
+    goTo._fromStack = true; // もう積み下ろしたので、goTo では触らせない
+    goTo(to);
+  }
+  el('floatingBackBtn').addEventListener('click', goBackOne);
   // ---- カセット別テーマ（第18弾-5 → 第20弾-7-1で範囲を広げた） ----
   // カセットを選んだ時点から、そのカセットに属する画面すべてに専用テーマを当てる。
   // 棚と扉だけは、どのカセットにも属していないので常にアプリ共通の見た目に戻す。
@@ -4005,6 +4052,19 @@
     }
     // UI基準1：進む=右から左／戻る=左から右。方向を逆にすることで「どこにいるか」が分かる
     var back = (goTo._back === true); goTo._back = false;
+    var fromStack = (goTo._fromStack === true); goTo._fromStack = false;
+    // 第28弾-4：来た道を覚えておく。「一個前に戻る」矢印がここを見る。
+    // 戻る方向に動いた時は、その画面まで巻き戻す（同じ画面が積み上がらないように）
+    if(prevScreen && prevScreen.id !== id && !fromStack){
+      if(back){
+        var at = screenStack.lastIndexOf(id);
+        screenStack.length = (at >= 0) ? at : 0;
+      } else {
+        screenStack.push(prevScreen.id);
+        // 行き来を繰り返しても、際限なく伸びないようにする
+        if(screenStack.length > 30) screenStack.shift();
+      }
+    }
     document.querySelectorAll('.screen').forEach(function(s){
       s.classList.remove('active', 'scr-in-fwd', 'scr-in-back');
     });
@@ -4014,6 +4074,8 @@
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
     var noGear = ['scr-door','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
+    // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
+    el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';
     // 役職あり人狼：話し合いタイマーは、その画面を離れたら必ず止める
     if(prevScreen && prevScreen.id === 'scr-wr-day' && id !== 'scr-wr-day') stopWrDayTimer();
     // 第21弾-1：手渡し画面を離れたら、夜の持ち時間は必ず止める

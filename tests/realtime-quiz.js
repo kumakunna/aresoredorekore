@@ -534,10 +534,11 @@ async function run() {
     } finally { await srv.close(); }
   });
 
-  return r.finish();
+  // finish() は失敗した時だけ process.exit(1) する。
+  // 成功時に何も返さないので、返り値で終了コードを決めてはいけない
+  // （緑なのに exit 1 になり、npm test の連鎖がそこで止まる）
+  r.finish();
 }
 
-if (require.main === module) {
-  run().then((ok) => process.exit(ok ? 0 : 1));
-}
+if (require.main === module) run();
 module.exports = { run };

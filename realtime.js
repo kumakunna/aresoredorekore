@@ -18,6 +18,7 @@ const WordwolfRoom = require('./wordwolf-room.js');
 const BombRoom = require('./bomb-room.js');
 const DefuseRoom = require('./defuse-room.js');
 const QuizRoom = require('./quiz-room.js');
+const AuctionRoom = require('./auction-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -38,7 +39,9 @@ const GAME_DRIVERS = {
   quizrush: { driver: QuizRoom, key: 'quiz' },
   quizlist: { driver: QuizRoom, key: 'quiz' },
   quizreveal: { driver: QuizRoom, key: 'quiz' },
-  buzzer: { driver: QuizRoom, key: 'quiz' }
+  buzzer: { driver: QuizRoom, key: 'quiz' },
+  // 第31弾：オークションバトル（作り直し）。約束の形は変わらない
+  auction: { driver: AuctionRoom, key: 'auction' }
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -290,6 +293,46 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.bomb) return recordBombMatch(room);
     if (room.defuse) return recordDefuseMatch(room);
     if (room.quiz) return recordQuizMatch(room);
+    if (room.auction) return recordAuctionMatch(room);
+  }
+
+  // 第31弾：オークションバトル。最後に持っていたチップがそのまま成績
+  function recordAuctionMatch(room) {
+    if (!db || !room.ownerUserId || !room.auction) return;
+    try {
+      const w = room.auction;
+      const view = AuctionRoom.resultView(room);
+      const names = w.playerIds.map((id) => w.names[id]);
+      const deltas = {}, finalScores = {};
+      view.ranking.forEach((row) => {
+        deltas[row.name] = row.chips;
+        finalScores[row.name] = row.chips;
+      });
+      const detail = Object.assign({}, view, {
+        game: 'auction',
+        style: 'realtime',
+        variant: w.mode,            // 'open'（せり上げ式）| 'sealed'（秘密入札）
+        preset: w.preset || null,
+        startChips: w.cfg.startChips
+      });
+      const rounds = [{
+        mode: w.preset || 'auction',
+        score_deltas: deltas,
+        at: new Date().toISOString(),
+        detail
+      }];
+      db.prepare(
+        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
+        "VALUES (?, ?, ?, ?, datetime('now'))"
+      ).run(
+        room.ownerUserId,
+        JSON.stringify(names),
+        JSON.stringify(rounds),
+        JSON.stringify(finalScores)
+      );
+    } catch (e) {
+      console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
+    }
   }
 
   // 第30弾：クイズ王。4ゲームとも「順位と得点」という同じ形で終わるので、

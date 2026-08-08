@@ -1069,6 +1069,47 @@
     .app.theme-wolf{transition:none;}
   }
 
+  /* ---- 第30弾：クイズ王の画面（4ゲームで共有する部品） ---- */
+  .quiz-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;}
+  .quiz-score{font-family:'DotGothic16',monospace;font-size:20px;font-weight:700;}
+  .quiz-round{font-size:12.5px;color:var(--ink-soft);}
+  .quiz-topbar .timer-chip{font-size:15px;padding:2px 10px;}
+  .quiz-q{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:18px 16px;font-size:18px;line-height:1.7;margin:12px 0;}
+  .quiz-q-listen{text-align:center;color:var(--ink-soft);font-size:16px;}
+  /* 伏せ字は等幅で出す。字が動くと「開いてきた」ことが分かりにくい */
+  .quiz-reveal{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 16px;margin:12px 0;font-family:'DotGothic16',monospace;
+    font-size:20px;line-height:1.9;letter-spacing:.08em;word-break:break-all;}
+  .quiz-choices{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+  .quiz-choices .pk-btn[disabled]{opacity:.4;pointer-events:none;}
+  .quiz-tiers{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .quiz-actions{display:flex;gap:8px;margin-top:12px;}
+  .quiz-buzz{margin-top:14px;font-size:20px;padding:22px 16px;}
+  .quiz-topic{font-size:22px;font-weight:800;text-align:center;margin:8px 0 14px;}
+  .quiz-answer{display:flex;gap:8px;margin-bottom:12px;}
+  .quiz-answer input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);font-size:16px;}
+  .quiz-answer .btn{flex:0 0 auto;}
+  .quiz-said, .quiz-order{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .quiz-order .bl-item.now{outline:2px solid var(--stamp);font-weight:700;}
+  .quiz-order .bl-item.dead{opacity:.4;text-decoration:line-through;}
+  .quiz-board{margin-top:16px;display:flex;flex-direction:column;gap:4px;}
+  .qb-row{display:flex;justify-content:space-between;align-items:center;
+    padding:7px 12px;border-radius:8px;background:var(--card);font-size:14px;}
+  .qb-row.me{outline:2px solid var(--stamp);}
+  .qb-row.off{opacity:.45;}
+  .qb-row.win{background:var(--gold);color:#2A2013;font-weight:800;}
+  .qb-score{font-family:'DotGothic16',monospace;font-size:17px;}
+  .quiz-vs{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 16px;}
+  .qv-side{flex:1;text-align:center;padding:12px 6px;border-radius:12px;background:var(--card);}
+  .qv-side.me{outline:2px solid var(--stamp);}
+  .qv-name{font-size:15px;font-weight:700;}
+  .qv-wins{font-family:'DotGothic16',monospace;font-size:26px;}
+  .qv-mid{font-size:13px;color:var(--ink-soft);}
+  .quiz-roundresult, .quiz-result{text-align:center;}
+  .quiz-roundresult h3, .quiz-result h3{font-size:20px;margin:6px 0;}
+
   /* ===================================================================
      第28弾-2 第2部：爆弾解除カセット専用の「制御盤」テーマ
      ここから下はすべて追加専用。既存のルールは1行も書き換えていない。
@@ -1283,6 +1324,109 @@
      棚はどのカセットにも属していない場所なので、そこは共通の見た目のままにする */
   @media (prefers-reduced-motion: reduce){
     .app.theme-bomb{transition:none;}
+  }
+
+  /* ===================================================================
+     第30弾 第4部：クイズ王カセット専用の「スタジオ」テーマ
+     ここから下もすべて追加専用。既存のルールは1行も書き換えていない。
+     `.app.theme-quiz` が付いている間だけ効き、外れれば完全に元の見た目に戻る。
+     付ける条件は applyGameTheme() が一元管理している（人狼・爆弾解除と同じ）。
+
+     考えたこと：
+       目指したのは、テレビのクイズ番組のスタジオ。暗くするのは爆弾解除と
+       同じだが、あちらが「機械の中」なのに対して、こちらは「舞台の上」。
+         背景  … 濃紺。夜のスタジオの奥
+         光    … 上から降りるスポットライト（放射グラデーション）
+         配色  … 金と青。金は得点と勝者、青は落ち着いた地の色
+         面    … 角は落とす（丸い方が、テレビのパネルらしい）
+       操作（押す・答える・判定）は一切変えていない。見た目だけ。
+
+     フォントは人狼・爆弾解除と同じ考え方で、見出しだけ DotGothic16 に寄せる。
+     読み込むフォントは増やさない。
+     ------------------------------------------------------------------- */
+  .app.theme-quiz{
+    --paper:#10182E;
+    --paper-deep:#0A1020;
+    --card:#1C2743;
+    --ink:#F2F5FA;
+    --ink-soft:#A9B6CE;
+    --line:rgba(242,245,250,0.18);
+    --shadow:0 10px 26px rgba(0,0,0,0.55);
+    /* 暗い紺の上では、赤より金の方が「当たり」に見える */
+    --stamp:#F0B429;
+    --stamp-deep:#FFD166;
+    --teal:#4CC9E0;
+    --gold:#F0B429;
+    background:
+      /* 上から降りるスポットライト。舞台に立っている感じを出す */
+      radial-gradient(ellipse 70% 45% at 50% -5%, rgba(240,180,41,0.20), transparent 70%),
+      radial-gradient(ellipse 50% 30% at 50% 100%, rgba(76,201,224,0.10), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  body:has(.app.theme-quiz){
+    background:
+      radial-gradient(circle at 50% 0%, #16213C, transparent 60%),
+      #070C18;
+  }
+  /* --- 見出しは角ばった書体。数字・得点はもともと DotGothic16 --- */
+  .app.theme-quiz .scr-title,
+  .app.theme-quiz .sec-title,
+  .app.theme-quiz .tp-label,
+  .app.theme-quiz .rt-phase,
+  .app.theme-quiz .wiz-step,
+  .app.theme-quiz .quiz-round,
+  .app.theme-quiz .big-phase,
+  .app.theme-quiz .big-main:not(.is-code){
+    font-family:'DotGothic16', monospace;
+    letter-spacing:.06em;
+  }
+  /* --- 面（カード・パネル）--- */
+  .app.theme-quiz .card,
+  .app.theme-quiz .overlay-panel,
+  .app.theme-quiz .rt-public,
+  .app.theme-quiz .rt-you,
+  .app.theme-quiz .quiz-q,
+  .app.theme-quiz .quiz-reveal,
+  .app.theme-quiz .qb-row,
+  .app.theme-quiz .qv-side{
+    background:var(--card);
+    border:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  /* いま出ている問題だけ、スポットライトが当たっているように光らせる */
+  .app.theme-quiz .quiz-q,
+  .app.theme-quiz .quiz-reveal{
+    box-shadow:0 0 0 1px rgba(240,180,41,.25), 0 12px 30px rgba(0,0,0,.45);
+  }
+  /* --- ボタン --- */
+  .app.theme-quiz .pk-btn,
+  .app.theme-quiz .hp-chip{
+    background:var(--card);
+    border-color:var(--line);
+    color:var(--ink);
+  }
+  .app.theme-quiz .hp-chip.on{background:var(--gold);color:#2A2013;border-color:var(--gold);}
+  .app.theme-quiz .btn-outline{border-color:var(--ink);color:var(--ink);}
+  .app.theme-quiz .btn-ghost{color:var(--ink-soft);}
+  .app.theme-quiz .seg{border-color:var(--line);}
+  .app.theme-quiz .seg-btn{background:var(--card);color:var(--ink-soft);}
+  .app.theme-quiz .seg-btn.on{background:var(--gold);color:#2A2013;}
+  .app.theme-quiz .seg-btn + .seg-btn{border-left-color:var(--line);}
+  /* --- 細かいところ。暗い地の上で読めなくならないように --- */
+  .app.theme-quiz .mic-status,
+  .app.theme-quiz .wiz-lead,
+  .app.theme-quiz .ry-desc{color:var(--ink-soft);}
+  .app.theme-quiz .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-quiz .quiz-answer input{background:var(--paper-deep);color:var(--ink);border-color:var(--line);}
+  .app.theme-quiz .quiz-answer input::placeholder{color:var(--ink-soft);}
+  .app.theme-quiz .floating-gear{background:rgba(242,245,250,.14);color:var(--ink);}
+  .app.theme-quiz .floating-back{border-color:var(--ink);color:var(--ink);}
+  .app.theme-quiz .rules-ol li{color:var(--ink);}
+  .app.theme-quiz .vote-counts .vc-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  @media (prefers-reduced-motion: reduce){
+    .app.theme-quiz{transition:none;}
   }
 </style>
 </head>
@@ -1607,6 +1751,93 @@
     </div>
   </div>
 
+  <!-- 4d5: 設定ウィザード・クイズ王（第30弾）
+       4ゲームで1枚を共有し、いま選んでいる遊びに関係するところだけを出す。
+       ゲームごとに画面を分けると、直す時に片方だけ直す形になる（落とし穴1） -->
+  <div class="screen" id="scr-set-quiz">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepQuiz"></span><h2 class="scr-title" id="quizCfgTitle">クイズの設定</h2></div>
+    <p class="wiz-lead" id="quizCfgLead">こだわらなければ、そのまま「つぎへ」でOK。</p>
+    <div class="wiz-body">
+
+      <!-- クイズラッシュ -->
+      <div id="quizCfgRush" style="display:none;">
+        <div class="tp-label">パスできる回数　<span id="qkPassValue">3</span>回</div>
+        <input type="range" id="qkPassSlider" min="0" max="10" step="1" value="3">
+        <div class="toggle-row-mini" style="margin-top:16px;">
+          <div>難易度を途中で変えられる
+            <div class="mic-status" id="qkChangeNote"></div>
+          </div>
+          <div class="switch" id="qkChangeToggle"></div>
+        </div>
+        <div class="timer-dmode" style="margin-top:18px;">
+          <div class="tp-label">ラウンド制</div>
+          <div class="seg" id="qkRoundsSeg">
+            <button class="seg-btn" data-rounds="0">1回で決める</button>
+            <button class="seg-btn" data-rounds="3">3先取</button>
+            <button class="seg-btn" data-rounds="5">5先取</button>
+          </div>
+          <div class="mic-status" id="qkRoundsNote" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- つぎつぎクイズ -->
+      <div id="quizCfgList" style="display:none;">
+        <div class="timer-dmode">
+          <div class="tp-label">遊び方</div>
+          <div class="seg" id="qkStyleSeg">
+            <button class="seg-btn" data-style="coop">協力（目標まで出す）</button>
+            <button class="seg-btn" data-style="survival">脱落（最後の1人）</button>
+          </div>
+          <div class="mic-status" id="qkStyleNote" style="margin-top:8px;"></div>
+        </div>
+        <div class="tp-label" id="qkTargetLabel" style="margin-top:16px;">目標の数　<span id="qkTargetValue">10</span>個</div>
+        <input type="range" id="qkTargetSlider" min="3" max="30" step="1" value="10">
+        <div class="tp-label" style="margin-top:16px;">1人の持ち時間　<span id="qkTurnValue">20</span>秒</div>
+        <input type="range" id="qkTurnSlider" min="5" max="60" step="5" value="20">
+      </div>
+
+      <!-- とくとくクイズ -->
+      <div id="quizCfgReveal" style="display:none;">
+        <div class="tp-label">問題の数　<span id="qkQCountValue">8</span>問</div>
+        <input type="range" id="qkQCountSlider" min="1" max="20" step="1" value="8">
+        <div class="tp-label" style="margin-top:16px;">全部見えるまで　<span id="qkRevealValue">20</span>秒</div>
+        <input type="range" id="qkRevealSlider" min="5" max="60" step="5" value="20">
+        <div class="mic-status" style="margin-top:10px;">
+          短くすると、あっという間に全部見えます。長くすると、早く押した人の得点が高くなります。
+        </div>
+      </div>
+
+      <!-- 早押しトーナメント -->
+      <div id="quizCfgBuzzer" style="display:none;">
+        <div class="tp-label">先に何問正解で勝ち　<span id="qkWinsValue">3</span>問</div>
+        <input type="range" id="qkWinsSlider" min="1" max="5" step="1" value="3">
+        <div class="timer-dmode" style="margin-top:18px;">
+          <div class="tp-label">問題の出し方</div>
+          <div class="seg" id="qkDeliverySeg">
+            <button class="seg-btn" data-delivery="speak">読み上げる</button>
+            <button class="seg-btn" data-delivery="text">文字で出す</button>
+          </div>
+          <div class="mic-status" id="qkDeliveryNote" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- 難易度（つぎつぎ・とくとく・早押しで使う） -->
+      <div id="quizCfgTier" style="display:none;margin-top:18px;">
+        <div class="tp-label">難易度</div>
+        <div class="seg" id="qkTierSeg"></div>
+        <div class="mic-status" id="qkTierNote" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="mic-status" style="margin-top:18px;">
+        問題はあらかじめ作ってある問題バンクから出ます。遊んでいる最中にAIを待つことはありません。
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
   <!-- 4e: 設定ウィザード・ワードウルフ -->
   <div class="screen" id="scr-set-wolf">
     <div class="wiz-head"><span class="wiz-step" id="wizStepWolf"></span><h2 class="scr-title">ワードウルフ設定</h2></div>
@@ -1902,6 +2133,25 @@
       <button class="btn btn-main" id="dfAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
       <button class="btn btn-outline" id="dfEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="dfLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
+    </div>
+  </div>
+
+  <!-- 1人1台：クイズ王（第30弾）。4ゲームで1枚を共有し、中身だけ差し替える。
+       画面を4枚に分けると、直す時に片方だけ直す形になる（落とし穴1） -->
+  <div class="screen" id="scr-rt-quiz">
+    <div class="quiz-topbar">
+      <div class="quiz-score" id="qzScore">0点</div>
+      <div class="quiz-round" id="qzRound"></div>
+      <div class="timer-chip" id="qzTimer" style="display:none;">--:--</div>
+    </div>
+    <div class="rt-phase" id="qzPhase">-</div>
+    <div class="wiz-body">
+      <div class="rt-public" id="qzNote"></div>
+      <div id="qzBody"></div>
+      <div id="qzResult"></div>
+      <button class="btn btn-main" id="qzAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
+      <button class="btn btn-outline" id="qzEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
+      <button class="btn btn-ghost" id="qzLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -2585,6 +2835,8 @@
 <script src="js/wordwolf-logic.js"></script>
 <script src="js/bomb-logic.js"></script>
 <script src="js/defuse-logic.js"></script>
+<script src="js/quiz-bank.js"></script>
+<script src="js/quiz-logic.js"></script>
 <script src="js/titles.js"></script>
 <script src="js/rt-client.js"></script>
 <script src="js/qr.js"></script>
@@ -2671,6 +2923,17 @@
       bullets:["マニュアル役はたった1人","ほかは全員が解除役","1人に質問が集中する・さばききれるか","対応表は全部その1人が持つ","ミスの数は全員で共有・尽きると爆発"]},
     {id:"quizking", icon:"👑", title:"クイズ王決定戦", sub:"難易度を選んで挑戦・高難易度ほど高得点", advanced:false, strict:false, oneWord:false, quiz:true, hidden:true, game:'quizking',
       bullets:["自分の番に挑戦する難易度を選ぶ","難しいほど高得点（1〜8点）","AIの説明文を読んで3択で答える","正解で得点、外れても減点なし","気に入らないお題はパスできる"]},
+    // ---- 第30弾：カセット「クイズ王」。4つとも1人1台・部屋が必須 ----
+    // 全員が同時に別々の画面を見る（自分の問題・自分の番・自分の押しボタン）ので、
+    // 1台を回す手渡しでは成立しない。出題は問題バンクから（ゲーム中にAIは呼ばない）
+    {id:"quizrush", icon:"⚡", title:"クイズラッシュ", sub:"難易度を選んで解き続ける・時間いっぱい", advanced:false, strict:false, oneWord:false, quizKing:true, quizRush:true, roomOnly:true, game:'quizrush', minPlayers:2, timer:180,
+      bullets:["5段階の難易度から、挑む難易度を自分で選ぶ","難しいほど高得点（1〜8点）","制限時間いっぱい、次々に答え続ける","答えたくない問題はパスできる（回数は設定できる）","難易度は途中で変えられる（変えられなくもできる）","ラウンド制にすると、勝ったラウンド数で優勝を決める"]},
+    {id:"quizlist", icon:"🔁", title:"つぎつぎクイズ", sub:"順番に1つずつ答える・既出はアウト", advanced:false, strict:false, oneWord:false, quizKing:true, quizList:true, roomOnly:true, game:'quizlist', minPlayers:2, timer:180,
+      bullets:["お題が1つ出る（例：赤い食べ物）","順番に1人1個ずつ、まだ出ていない答えを言う","間違い・既出・時間切れはアウト","協力形式：みんなで目標の数まで出せたら成功","脱落形式：最後まで残った1人が勝ち","誰の番かは全員の画面にリアルタイムで出る"]},
+    {id:"quizreveal", icon:"🔎", title:"とくとくクイズ", sub:"だんだん見えてくる・早いほど高得点", advanced:false, strict:false, oneWord:false, quizKing:true, quizReveal:true, roomOnly:true, game:'quizreveal', minPlayers:2, timer:180,
+      bullets:["問題文が1文字ずつ開いていく","分かった瞬間に、自分の端末で押して答える","早く押して当てるほど高得点","外したら、その問題にはもう答えられない","他の人はそのまま続けられる","大画面にも、開き具合がそのまま出る"]},
+    {id:"buzzer-rt", icon:"🥊", title:"早押しトーナメント", sub:"1対1の勝ち抜き・自分の端末で押す", advanced:false, strict:false, oneWord:false, quizKing:true, quizBuzzer:true, roomOnly:true, game:'buzzer', minPlayers:2,
+      bullets:["1対1のトーナメント形式","問題は対戦する2人の端末へ同時に届く","読み上げか、文字で出すかを選べる","早押しの判定はサーバーが受け取った順","先に決めた数だけ正解した方が勝ち上がり","人数が奇数だと不戦勝が出ることがある"]},
     {id:"survival", icon:"💀", title:"サバイバル勝ち抜き戦", sub:"毎ラウンド最下位が脱落・最後の1人が優勝", timer:180, advanced:false, strict:false, oneWord:false, survival:true,
       opts:{describe:'human', seal:'none', survival:true, showSeal:true},
       bullets:["通常プレイと同じルールで進める","毎ラウンド最下位が脱落する（同点なら全員）","脱落した人は、以降のラウンドで得点できない","最後まで残った1人が優勝"]},
@@ -2710,6 +2973,12 @@
       // 第28弾-2：このカセットを選んだ時点から、制御盤の見た目にする
       theme:'bomb',
       meta:'2人〜 / 10分〜<br>爆発を止める・伝え合って解く' },
+    // 第30弾：クイズ王。4つとも1人1台・部屋が必須（全員が別々の画面を同時に見る遊びなので、
+    // 1台を回す手渡しでは成立しない）
+    { id:'quizou',          genre:'word', ready:true,  icon:'👑', title:'クイズ<br>王',
+      games:['quizrush', 'quizlist', 'quizreveal', 'buzzer'],
+      theme:'quiz',
+      meta:'2人〜 / 10分〜<br>1人1台で解いて競う' },
     { id:'deal-soon-1',     genre:'deal', ready:false, icon:'？' },
     { id:'deal-soon-2',     genre:'deal', ready:false, icon:'？' },
     { id:'deal-soon-3',     genre:'deal', ready:false, icon:'？' },
@@ -3173,6 +3442,11 @@
     // 第27弾-3：カセット「爆弾解除」の2つ目。センサーを使うので人数上限は設けない
     { id:'defuse',          title:'実物解除',           icon:'🧰', sub:'モジュールを解除する・マニュアル役と口で伝え合う', maxPlayers:0 },
     { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点', usesTopicPool:true },
+    // 第30弾：カセット「クイズ王」の4ゲーム。出題は問題バンク（quiz-bank.js）から。
+    // ゲーム中にAIは呼ばないので usesTopicPool は付けない（お題プールも使わない）
+    { id:'quizrush',        title:'クイズラッシュ',     icon:'⚡', sub:'難易度を選んで解き続ける・時間いっぱい', maxPlayers:0 },
+    { id:'quizlist',        title:'つぎつぎクイズ',     icon:'🔁', sub:'順番に1つずつ答える・既出はアウト', maxPlayers:0 },
+    { id:'quizreveal',      title:'とくとくクイズ',     icon:'🔎', sub:'だんだん見えてくる・早いほど高得点', maxPlayers:0 },
     { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち', usesTopicPool:true },
     { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う', usesTopicPool:true }
   ];
@@ -3186,6 +3460,10 @@
   // 名前を変えるたびに、ここへ1行足す。
   var LEGACY_MODE_IDS = {
     bomb: 'bomb-coop'   // 第28弾-1：クイズ解除「通常版」→「協力版」
+    // 第30弾のメモ：クイズ王決定戦（手渡し・quizking）は、クイズラッシュ（1人1台）に
+    // 作り直したが、ここへ別名を書いてはいけない。手渡しの方が同じIDのまま残っているので、
+    // 別名を張るとそのモード自身が自分のゲームの一覧から消える（gameIdForMode がずれる）。
+    // 別名が要るのは「古いIDのモードがもう無い」時だけ。
   };
   function resolveModeId(modeId){
     return LEGACY_MODE_IDS[modeId] || modeId;
@@ -3311,6 +3589,15 @@
     bombEndWhen: 'first', // 第27弾・競争版の終わり方：'first'（最初の1人で終了）| 'all'（全員が終わるまで）
     // 第27弾-3：実物解除の設定
     dfCfg: { moduleCount:5, strikes:3, manual:true, allowPhysical:true },
+    // 第30弾：クイズ王の設定。4ゲームぶんを1つに持つ（画面も1枚で共有している）。
+    // tier の null は「おまかせ（全部の難易度から）」
+    qkCfg: {
+      passLimit:3, canChangeTier:true, roundsToWin:0,
+      style:'coop', targetCount:10, turnSec:20,
+      questionCount:8, revealSec:20,
+      winsNeeded:3, delivery:'speak',
+      tier:null
+    },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
     winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
@@ -4033,7 +4320,7 @@
     'scr-auction-bid', 'scr-auction-handoff', 'scr-auction-question', 'scr-auction-result',
     'scr-wolf-pass', 'scr-wolf-gather', 'scr-wolf-result',
     'scr-wr-pass', 'scr-wr-day', 'scr-wr-gather', 'scr-wr-result', 'scr-nightfall',
-    'scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-big'
+    'scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-big'
   ];
   function canGoBackOne(screenId){
     if(BACK_FREE_SCREENS.indexOf(screenId) !== -1) return false;
@@ -4076,7 +4363,7 @@
   // 第28弾-2：テーマは1種類（人狼）だけを見ていたが、爆弾解除にも作った。
   // カセットが増えるたびに if を足していくと必ず消し忘れるので、一覧で持つ。
   // 新しいテーマを作る時は、ここに1行と、CSSに .theme-◯◯ のかたまりを足す。
-  var THEME_CLASSES = { wolf: 'theme-wolf', bomb: 'theme-bomb' };
+  var THEME_CLASSES = { wolf: 'theme-wolf', bomb: 'theme-bomb', quiz: 'theme-quiz' };
   function applyGameTheme(screenId){
     var app = el('app');
     var name = currentThemeName();
@@ -4141,12 +4428,13 @@
     if(prevScreen && prevScreen.id === 'scr-rt-bomb' && id !== 'scr-rt-bomb') rtBombLeaveScreen();
     // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
     if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
+    if(prevScreen && prevScreen.id === 'scr-rt-quiz' && id !== 'scr-rt-quiz') qzLeaveScreen();
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-titles') enterTitles();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
-    if(id === 'scr-rt-play' || id === 'scr-rt-bomb' || id === 'scr-rt-defuse' || id === 'scr-rt-big') rtRender();
+    if(id === 'scr-rt-play' || id === 'scr-rt-bomb' || id === 'scr-rt-defuse' || id === 'scr-rt-quiz' || id === 'scr-rt-big') rtRender();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -4406,6 +4694,9 @@
     bomblife:  { screen:'scr-set-bomblife',   badge:'wizStepBombLife',   render:renderBombLifeStep },
     bombrace:  { screen:'scr-set-bombrace',   badge:'wizStepBombRace',   render:renderBombRaceStep },
     defusecfg: { screen:'scr-set-defuse',     badge:'wizStepDefuse',     render:renderDefuseStep },
+    // 第30弾：クイズ王は4ゲームで1枚の設定画面を共有し、遊びに関係するところだけ出す。
+    // ゲームごとに画面を作ると、直す時に片方だけ直す形になる（落とし穴1）
+    quizcfg:   { screen:'scr-set-quiz',       badge:'wizStepQuiz',       render:renderQuizStep },
     wolfrole:  { screen:'scr-set-wolfrole',   badge:'wizStepWolfRole',   render:renderWolfRoleStep },
     lovers:    { screen:'scr-set-lovers',     badge:'wizStepLovers',     render:renderLoversStep },
     wolfmulti: { screen:'scr-set-wolfmulti',  badge:'wizStepWolfMulti',  render:renderWolfMultiStep },
@@ -4422,6 +4713,9 @@
     if(m.bomb) return ['bombcfg', 'bomblife', 'timer'];
     // 第27弾-3：実物解除は「爆弾の作り方」1枚 → 制限時間
     if(m.defuse) return ['defusecfg', 'timer'];
+    // 第30弾：クイズ王は設定1枚 →（早押し以外は）制限時間。
+    // 早押しは「先に何問正解で勝ち」で終わるので、全体の制限時間は使わない
+    if(m.quizKing) return m.quizBuzzer ? ['quizcfg'] : ['quizcfg', 'timer'];
     // クイズ王・オークションは各ラウンドで難易度を選ぶ＆AIが出題するので難易度/出題者選択は不要
     if(m.quiz || m.auction) return ['handicap'];
     // ワードウルフ（2〜ターン）：ターン設定 → ウルフ設定 → 時間
@@ -4491,6 +4785,148 @@
   el('dfPhysicalToggle').addEventListener('click', function(){
     state.dfCfg.allowPhysical = !state.dfCfg.allowPhysical;
     renderDefuseStep();
+  });
+
+  // ---------- クイズ王の設定（第30弾） ----------
+  // 4ゲームで1枚を共有し、いま選んでいる遊びに関係するところだけを出す。
+  // どの区画を出すかはモードの印から導く（手で条件を書き足す形にしない・落とし穴4）
+  var QUIZ_CFG_SECTIONS = [
+    { flag:'quizRush',   box:'quizCfgRush',   title:'クイズラッシュの設定', tier:false,
+      lead:'パスできる回数と、難易度を変えられるかを決めよう。' },
+    { flag:'quizList',   box:'quizCfgList',   title:'つぎつぎクイズの設定', tier:true,
+      lead:'協力で積み上げるか、脱落で競うかを決めよう。' },
+    { flag:'quizReveal', box:'quizCfgReveal', title:'とくとくクイズの設定', tier:true,
+      lead:'問題の数と、全部見えるまでの時間を決めよう。' },
+    { flag:'quizBuzzer', box:'quizCfgBuzzer', title:'早押しトーナメントの設定', tier:true,
+      lead:'何問先取で勝ちか、問題をどう出すかを決めよう。' }
+  ];
+  // 難易度の選択肢。おまかせを先頭に置く（迷う人がそのまま進める）
+  function quizTierOptions(){
+    var out = [{ id:'', label:'おまかせ' }];
+    (QuizLogic.TIERS || []).forEach(function(t){
+      out.push({ id:t, label:QuizLogic.TIER_LABEL[t] || t });
+    });
+    return out;
+  }
+  function renderQuizStep(){
+    var m = modeById(state.selectedModeId) || {};
+    var c = state.qkCfg;
+    var sec = QUIZ_CFG_SECTIONS.find(function(s){ return m[s.flag]; }) || QUIZ_CFG_SECTIONS[0];
+    QUIZ_CFG_SECTIONS.forEach(function(s){
+      el(s.box).style.display = (s === sec) ? 'block' : 'none';
+    });
+    el('quizCfgTitle').textContent = sec.title;
+    el('quizCfgLead').textContent = sec.lead;
+
+    // クイズラッシュ
+    el('qkPassValue').textContent = c.passLimit;
+    el('qkPassSlider').value = c.passLimit;
+    el('qkChangeToggle').classList.toggle('on', c.canChangeTier);
+    el('qkChangeNote').textContent = c.canChangeTier
+      ? '苦戦したら、途中でやさしい難易度に逃げられます'
+      : '最初に選んだ難易度で、最後まで通します';
+    Array.prototype.forEach.call(el('qkRoundsSeg').children, function(b){
+      b.classList.toggle('on', parseInt(b.dataset.rounds, 10) === c.roundsToWin);
+    });
+    el('qkRoundsNote').textContent = c.roundsToWin > 0
+      ? '1ラウンドごとに、いちばん点の多い人へ1ポイント。' + c.roundsToWin + 'ポイント先取で優勝します'
+      : '1ラウンドだけ遊んで、合計点で決めます';
+
+    // つぎつぎクイズ
+    Array.prototype.forEach.call(el('qkStyleSeg').children, function(b){
+      b.classList.toggle('on', b.dataset.style === c.style);
+    });
+    var coop = (c.style === 'coop');
+    el('qkStyleNote').textContent = coop
+      ? '間違えても終わりません。みんなで目標の数まで積み上げます'
+      : '間違い・既出・時間切れで脱落。最後まで残った1人が勝ちです';
+    el('qkTargetLabel').style.display = coop ? '' : 'none';
+    el('qkTargetSlider').style.display = coop ? '' : 'none';
+    el('qkTargetValue').textContent = c.targetCount;
+    el('qkTargetSlider').value = c.targetCount;
+    el('qkTurnValue').textContent = c.turnSec;
+    el('qkTurnSlider').value = c.turnSec;
+
+    // とくとくクイズ
+    el('qkQCountValue').textContent = c.questionCount;
+    el('qkQCountSlider').value = c.questionCount;
+    el('qkRevealValue').textContent = c.revealSec;
+    el('qkRevealSlider').value = c.revealSec;
+
+    // 早押し
+    el('qkWinsValue').textContent = c.winsNeeded;
+    el('qkWinsSlider').value = c.winsNeeded;
+    Array.prototype.forEach.call(el('qkDeliverySeg').children, function(b){
+      b.classList.toggle('on', b.dataset.delivery === c.delivery);
+    });
+    el('qkDeliveryNote').textContent = (c.delivery === 'speak')
+      ? '2人の端末が、同じ問題を同時に読み上げます'
+      : '2人の端末に、同じ問題を同時に文字で出します';
+
+    // 難易度（つぎつぎ・とくとく・早押しだけ）
+    el('quizCfgTier').style.display = sec.tier ? 'block' : 'none';
+    if(sec.tier){
+      // つぎつぎクイズは「おまかせ」も選べる。ほかは1つに決める
+      var opts = quizTierOptions().filter(function(o){
+        return m.quizList ? true : o.id !== '';
+      });
+      var cur = c.tier || (m.quizList ? '' : 'normal');
+      el('qkTierSeg').innerHTML = opts.map(function(o){
+        return '<button class="seg-btn' + (o.id === cur ? ' on' : '') +
+          '" data-tier="' + o.id + '">' + escapeHtml(o.label) + '</button>';
+      }).join('');
+      el('qkTierNote').textContent = cur
+        ? 'この難易度の問題だけが出ます'
+        : 'いろいろな難易度のお題から出ます';
+    }
+  }
+  el('qkPassSlider').addEventListener('input', function(){
+    state.qkCfg.passLimit = parseInt(this.value, 10);
+    renderQuizStep();
+  });
+  el('qkChangeToggle').addEventListener('click', function(){
+    state.qkCfg.canChangeTier = !state.qkCfg.canChangeTier;
+    renderQuizStep();
+  });
+  el('qkRoundsSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-rounds]'); if(!b) return;
+    state.qkCfg.roundsToWin = parseInt(b.dataset.rounds, 10);
+    renderQuizStep();
+  });
+  el('qkStyleSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-style]'); if(!b) return;
+    state.qkCfg.style = b.dataset.style;
+    renderQuizStep();
+  });
+  el('qkTargetSlider').addEventListener('input', function(){
+    state.qkCfg.targetCount = parseInt(this.value, 10);
+    renderQuizStep();
+  });
+  el('qkTurnSlider').addEventListener('input', function(){
+    state.qkCfg.turnSec = parseInt(this.value, 10);
+    renderQuizStep();
+  });
+  el('qkQCountSlider').addEventListener('input', function(){
+    state.qkCfg.questionCount = parseInt(this.value, 10);
+    renderQuizStep();
+  });
+  el('qkRevealSlider').addEventListener('input', function(){
+    state.qkCfg.revealSec = parseInt(this.value, 10);
+    renderQuizStep();
+  });
+  el('qkWinsSlider').addEventListener('input', function(){
+    state.qkCfg.winsNeeded = parseInt(this.value, 10);
+    renderQuizStep();
+  });
+  el('qkDeliverySeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-delivery]'); if(!b) return;
+    state.qkCfg.delivery = b.dataset.delivery;
+    renderQuizStep();
+  });
+  el('qkTierSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-tier]'); if(!b) return;
+    state.qkCfg.tier = b.dataset.tier || null;
+    renderQuizStep();
   });
 
   el('bombEndWhenSeg').addEventListener('click', function(e){
@@ -5406,7 +5842,12 @@
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
     bomb: rtBombConfig,
-    defuse: rtDefuseConfig
+    defuse: rtDefuseConfig,
+    // 第30弾：クイズ王。4ゲームとも同じ作り方で送る（送る中身だけ違う）
+    quizrush: rtQuizConfig,
+    quizlist: rtQuizConfig,
+    quizreveal: rtQuizConfig,
+    buzzer: rtQuizConfig
   };
   el('rtStartBtn').addEventListener('click', async function(){
     var m = modeById(state.selectedModeId);
@@ -5495,6 +5936,34 @@
     };
   }
 
+  // 第30弾：クイズ王。4ゲームぶんをまとめて送る（サーバー側が遊びに要るものだけ拾う）。
+  // 遊びの種類は game で決まるので、端末が variant を偽っても効かない
+  function rtQuizConfig(m){
+    var c = state.qkCfg;
+    var sec = state.timerEnabled ? (state.customTimer || (m && m.timer) || 180) : 180;
+    return {
+      game: (m && m.game) || 'quizrush',
+      timerSec: sec,
+      // クイズラッシュ
+      passLimit: c.passLimit,
+      canChangeTier: c.canChangeTier,
+      roundsToWin: c.roundsToWin,
+      // つぎつぎクイズ
+      style: c.style,
+      targetCount: c.targetCount,
+      turnSec: c.turnSec,
+      // とくとくクイズ
+      questionCount: c.questionCount,
+      revealSec: c.revealSec,
+      // 早押し
+      winsNeeded: c.winsNeeded,
+      delivery: c.delivery,
+      // 難易度（おまかせは送らない＝サーバー側の既定にまかせる）
+      tier: c.tier || undefined,
+      preset: state.selectedModeId
+    };
+  }
+
   // ===================== 第21弾 第6・7部：1人1台の画面 =====================
   // 自分の端末（scr-rt-play）と大画面（scr-rt-big）。
   // 大画面には、サーバーが公開情報しか送ってこない（wolf:you が届かない）。
@@ -5561,12 +6030,17 @@
   }
   // 状態が動いたら、いるべき画面へ移して描き直す。
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
-  var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-big'];
+  var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-big'];
+  // 第30弾：クイズ王の4ゲーム。1枚の画面が中身を差し替えて受け持つ
+  var RT_QUIZ_GAMES = ['quizrush', 'quizlist', 'quizreveal', 'buzzer'];
   // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
   // 第27弾：爆弾解除は盤面の形がまったく違うので、専用の画面を1行足した。
   var RT_GAME_SCREENS = {
     wolfrole: 'scr-rt-play', wordwolf: 'scr-rt-play',
-    bomb: 'scr-rt-bomb', defuse: 'scr-rt-defuse'
+    bomb: 'scr-rt-bomb', defuse: 'scr-rt-defuse',
+    // 第30弾：クイズ王。4つとも同じ1枚に送る
+    quizrush: 'scr-rt-quiz', quizlist: 'scr-rt-quiz',
+    quizreveal: 'scr-rt-quiz', buzzer: 'scr-rt-quiz'
   };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
@@ -5596,6 +6070,7 @@
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-bomb') renderRtBomb();
     else if(cur === 'scr-rt-defuse') renderRtDefuse();
+    else if(cur === 'scr-rt-quiz') renderRtQuiz();
     else if(cur === 'scr-rt-play') renderRtPlay();
   }
   function rtRender(){
@@ -5603,6 +6078,7 @@
     var game = rtRoomGameId();
     if(game === 'bomb'){ renderRtBomb(); return; }
     if(game === 'defuse'){ renderRtDefuse(); return; }
+    if(RT_QUIZ_GAMES.indexOf(game) !== -1){ renderRtQuiz(); return; }
     renderRtPlay();
   }
   // いま部屋で遊んでいるゲームのid（何も選ばれていなければ null）
@@ -5887,6 +6363,379 @@
   });
 
   // ---- 大画面（TV・PC）。公開情報だけを大きく出す ----
+  // ===================== 第30弾：1人1台のクイズ王 =====================
+  // 4ゲームで1枚の画面を共有する。判定はサーバーが持っているので、
+  // ここは「届いたものを描く」「押されたら送る」だけ。
+  // 正解の位置は届かないので、この画面には答え合わせの材料が無い（原則4.3）。
+  var qzClock = { ms:null, at:0, timer:null };
+  var qzSpoken = null;   // 早押しで読み上げた問題（同じ問題を二度読まないため）
+  var qzPrevScore = null;
+
+  function qzSetClock(ms){ qzClock.ms = (ms == null) ? null : ms; qzClock.at = Date.now(); }
+  function qzRemainingSec(){
+    if(qzClock.ms == null) return null;
+    return Math.max(0, Math.round((qzClock.ms - (Date.now() - qzClock.at)) / 1000));
+  }
+  function qzRenderTimer(){
+    var chip = el('qzTimer');
+    var sec = qzRemainingSec();
+    if(sec == null){ chip.style.display = 'none'; return; }
+    chip.style.display = 'inline-block';
+    chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
+    chip.classList.toggle('warn', sec <= 10 && sec > 0);
+  }
+  function qzStartTicking(){
+    if(qzClock.timer) return;
+    qzClock.timer = setInterval(qzRenderTimer, 250);
+  }
+  // 画面から離れる時に必ず呼ぶ。時計と読み上げを残さない
+  function qzLeaveScreen(){
+    clearInterval(qzClock.timer); qzClock.timer = null;
+    qzClock.ms = null;
+    qzSpoken = null;
+    qzPrevScore = null;
+    try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  }
+  function qzEndButtons(ended){
+    el('qzLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
+    var host = ended && rt.isHost();
+    el('qzAgainBtn').style.display = host ? 'inline-flex' : 'none';
+    el('qzEndBtn').style.display = host ? 'inline-flex' : 'none';
+  }
+  var QZ_PHASE_LABEL = { play:'挑戦中', break:'ラウンドの結果', ended:'結果' };
+  var QZ_TITLE = {
+    quizrush:'クイズラッシュ', quizlist:'つぎつぎクイズ',
+    quizreveal:'とくとくクイズ', buzzer:'早押しトーナメント'
+  };
+
+  // 3択・4択のボタン。押した中身ではなく「何番目か」を送る
+  // （文字を送ると、同じ文字の選択肢が2つある問題で取り違える）
+  function qzChoicesHtml(choices, disabled){
+    return '<div class="quiz-choices">' + (choices || []).map(function(c, i){
+      return '<button class="pk-btn" data-qzans="' + i + '"' +
+        (disabled ? ' disabled' : '') + '>' + escapeHtml(c) + '</button>';
+    }).join('') + '</div>';
+  }
+  function qzTierButtonsHtml(current){
+    return '<div class="quiz-tiers">' + (QuizLogic.TIERS || []).map(function(t){
+      return '<button class="hp-chip' + (t === current ? ' on' : '') +
+        '" data-qztier="' + t + '">' + escapeHtml(QuizLogic.TIER_LABEL[t] || t) +
+        ' <b>' + (QuizLogic.TIER_POINTS[t] || 1) + '点</b></button>';
+    }).join('') + '</div>';
+  }
+  // 全員の得点。公開情報なので、自分の端末にも出してよい
+  function qzBoardHtml(v){
+    return '<div class="quiz-board">' + (v.players || []).map(function(p){
+      var me = (p.id === rt.state.memberId);
+      return '<div class="qb-row' + (me ? ' me' : '') + (p.connected ? '' : ' off') + '">' +
+        '<span class="qb-name">' + escapeHtml(p.name) + '</span>' +
+        '<span class="qb-score">' + p.score + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  function renderRtQuiz(){
+    var v = rtView(), you = rt.state.secret;
+    if(!v) return;
+    el('qzPhase').textContent = (QZ_TITLE[v.variant] || '') +
+      '・' + (QZ_PHASE_LABEL[v.phase] || v.phase);
+
+    // 観戦（始まったあとに入ってきた端末）には、公開情報だけを出す
+    if(!you){
+      qzLeaveScreen();
+      el('qzScore').textContent = '';
+      el('qzRound').textContent = '';
+      el('qzTimer').style.display = 'none';
+      el('qzNote').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>';
+      el('qzBody').innerHTML = qzBoardHtml(v);
+      el('qzResult').innerHTML = (v.phase === 'ended') ? qzResultHtml(v) : '';
+      qzEndButtons(v.phase === 'ended');
+      return;
+    }
+
+    el('qzScore').textContent = you.score + '点';
+    // 得点が増えた瞬間だけ音を鳴らす（描き直すたびに鳴らさない）
+    if(qzPrevScore != null && you.score > qzPrevScore) snipSound();
+    qzPrevScore = you.score;
+
+    if(v.phase === 'ended'){
+      qzLeaveScreen();
+      el('qzRound').textContent = '';
+      el('qzTimer').style.display = 'none';
+      el('qzNote').innerHTML = '';
+      el('qzBody').innerHTML = '';
+      el('qzResult').innerHTML = qzResultHtml(v);
+      qzEndButtons(true);
+      return;
+    }
+
+    qzSetClock(v.remainingMs);
+    qzRenderTimer();
+    qzStartTicking();
+    el('qzResult').innerHTML = '';
+    qzEndButtons(false);
+
+    if(v.variant === 'quizrush') return qzRenderRush(v, you);
+    if(v.variant === 'quizlist') return qzRenderList(v, you);
+    if(v.variant === 'quizreveal') return qzRenderReveal(v, you);
+    return qzRenderBuzzer(v, you);
+  }
+
+  // ---- クイズラッシュ ----
+  function qzRenderRush(v, you){
+    var r = v.rush || {}, mine = you.rush || {};
+    el('qzRound').textContent = r.roundsToWin > 0
+      ? ('第' + r.round + 'ラウンド／' + r.roundsToWin + '先取') : '';
+
+    if(v.phase === 'break'){
+      var rr = r.roundResult;
+      el('qzNote').innerHTML = '<div class="ry-desc">つぎのラウンドがすぐ始まります</div>';
+      el('qzBody').innerHTML = '<div class="quiz-roundresult"><h3>第' +
+        (rr ? rr.round : r.round) + 'ラウンドの結果</h3>' +
+        (rr && rr.winners.length
+          ? '<p>🏆 ' + escapeHtml(rr.winners.join('・')) + '</p>'
+          : '<p>だれも得点しませんでした</p>') +
+        '<div class="quiz-board">' + (rr ? rr.scores : []).map(function(s){
+          return '<div class="qb-row"><span class="qb-name">' + escapeHtml(s.name) +
+            '</span><span class="qb-score">' + s.score + '点／' + s.wins + 'P</span></div>';
+        }).join('') + '</div></div>';
+      return;
+    }
+
+    var note = [];
+    note.push('のこりパス ' + mine.passesLeft + '回');
+    if(mine.last === 'hit') note.push('⭕️ 正解！');
+    if(mine.last === 'miss') note.push('❌ はずれ');
+    if(mine.last === 'pass') note.push('⏭ パスした');
+    el('qzNote').innerHTML = '<div class="ry-desc">' + note.join('　') + '</div>';
+
+    var html = '';
+    if(!mine.tier){
+      html += '<p class="wiz-lead">挑む難易度をえらんでください</p>' + qzTierButtonsHtml(null);
+    } else if(mine.question){
+      html += '<div class="quiz-q">' + escapeHtml(mine.question.text) + '</div>';
+      html += qzChoicesHtml(mine.question.choices, false);
+      html += '<div class="quiz-actions">';
+      if(mine.passesLeft > 0) html += '<button class="btn btn-ghost" data-qzpass="1">⏭ パスする</button>';
+      html += '</div>';
+      if(mine.canChangeTier){
+        html += '<div class="tp-label" style="margin-top:14px;">難易度をかえる</div>' +
+          qzTierButtonsHtml(mine.tier);
+      }
+    } else {
+      html += '<p class="wiz-lead">この難易度の問題を出しきりました。ほかの難易度をえらんでください</p>' +
+        qzTierButtonsHtml(mine.tier);
+    }
+    html += qzBoardHtml(v);
+    el('qzBody').innerHTML = html;
+  }
+
+  // ---- つぎつぎクイズ ----
+  function qzRenderList(v, you){
+    var l = v.list || {}, mine = you.list || {};
+    el('qzRound').textContent = (l.style === 'coop')
+      ? (l.saidCount + ' / ' + l.targetCount + '個') : (l.saidCount + '個');
+
+    var note = [];
+    if(l.lastNote){
+      var vd = l.lastNote.verdict;
+      var word = (vd === 'correct') ? '⭕️ 正解' : (vd === 'duplicate') ? '🔁 もう出ています'
+        : (vd === 'timeout') ? '⏱ 時間切れ' : '❌ ちがいます';
+      note.push(escapeHtml(l.lastNote.name) + '：' +
+        (l.lastNote.text ? escapeHtml(l.lastNote.text) + ' → ' : '') + word);
+    }
+    note.push(mine.yourTurn ? '👉 あなたの番です' : ('いまは ' + escapeHtml(l.turnName || '') + ' さんの番'));
+    if(!mine.alive) note.push('（あなたは脱落しています）');
+    el('qzNote').innerHTML = '<div class="ry-desc">' + note.join('<br>') + '</div>';
+
+    var html = '<div class="quiz-topic">' + escapeHtml(l.topic || '') + '</div>';
+    if(mine.yourTurn && mine.alive){
+      html += '<div class="quiz-answer"><input type="text" id="qzAnswerInput" ' +
+        'placeholder="まだ出ていない答えを入れる" autocomplete="off">' +
+        '<button class="btn btn-main" data-qzsend="1">こたえる</button></div>';
+    }
+    html += '<div class="quiz-said">' + (l.said || []).map(function(s){
+      return '<span class="bl-item">' + escapeHtml(s) + '</span>';
+    }).join('') + '</div>';
+    html += '<div class="quiz-order">' + (l.order || []).map(function(p){
+      return '<span class="bl-item' + (p.alive ? '' : ' dead') +
+        (p.id === l.turnId ? ' now' : '') + '">' + escapeHtml(p.name) + '</span>';
+    }).join('') + '</div>';
+    el('qzBody').innerHTML = html;
+    var input = el('qzAnswerInput');
+    if(input) input.focus();
+  }
+
+  // ---- とくとくクイズ ----
+  function qzRenderReveal(v, you){
+    var rv = v.reveal || {}, mine = you.reveal || {};
+    el('qzRound').textContent = (rv.index + 1) + ' / ' + rv.total + '問';
+
+    var note = [];
+    if(rv.lastNote){
+      note.push(escapeHtml(rv.lastNote.name) + '：' +
+        (rv.lastNote.hit ? ('⭕️ 正解 +' + rv.lastNote.gained + '点')
+          : (rv.lastNote.timeout ? '⏱ 答えられませんでした' : '❌ はずれ')));
+    }
+    if(rv.buzzedId) note.push('🖐 ' + escapeHtml(rv.buzzedName || '') + ' さんが答えます');
+    else if(mine.locked) note.push('この問題には、もう答えられません');
+    else note.push('分かったら押してください（早いほど高得点）');
+    el('qzNote').innerHTML = '<div class="ry-desc">' + note.join('<br>') + '</div>';
+
+    var html = '<div class="quiz-reveal">' + escapeHtml(rv.text || '') + '</div>';
+    if(mine.yours){
+      html += qzChoicesHtml(rv.choices, false);
+    } else if(mine.canBuzz){
+      html += '<button class="btn btn-main quiz-buzz" data-qzbuzz="1">🖐 わかった！</button>';
+    } else {
+      html += qzChoicesHtml(rv.choices, true);
+    }
+    html += qzBoardHtml(v);
+    el('qzBody').innerHTML = html;
+  }
+
+  // ---- 早押しトーナメント ----
+  function qzRenderBuzzer(v, you){
+    var b = v.buzzer || {}, mine = you.buzzer || {};
+    el('qzRound').textContent = '第' + b.roundNum + '回戦／' + b.winsNeeded + '問先取';
+
+    if(v.phase === 'break'){
+      var mr = b.matchResult;
+      el('qzNote').innerHTML = '<div class="ry-desc">つぎの対戦がすぐ始まります</div>';
+      el('qzBody').innerHTML = '<div class="quiz-roundresult"><h3>' +
+        (mr ? escapeHtml(mr.winner) + ' の勝ち' : '対戦おわり') + '</h3>' +
+        '<div class="quiz-board">' + ((mr && mr.wins) || []).map(function(x){
+          return '<div class="qb-row"><span class="qb-name">' + escapeHtml(x.name) +
+            '</span><span class="qb-score">' + x.wins + '</span></div>';
+        }).join('') + '</div></div>';
+      return;
+    }
+
+    var note = [];
+    if(!mine.inMatch) note.push('👀 いまは他の2人の対戦です');
+    if(b.lastNote && b.lastNote.name){
+      note.push(escapeHtml(b.lastNote.name) + '：' +
+        (b.lastNote.hit ? '⭕️ 正解' : (b.lastNote.timeout ? '⏱ 答えられませんでした' : '❌ はずれ')));
+    }
+    if(b.buzzedId) note.push('🖐 ' + escapeHtml(b.buzzedName || '') + ' さんが答えます');
+    el('qzNote').innerHTML = '<div class="ry-desc">' + (note.join('<br>') || '　') + '</div>';
+
+    var html = '<div class="quiz-vs">' + (b.pair || []).map(function(p){
+      return '<div class="qv-side' + (p.id === rt.state.memberId ? ' me' : '') + '">' +
+        '<div class="qv-name">' + escapeHtml(p.name) + '</div>' +
+        '<div class="qv-wins">' + p.wins + '</div></div>';
+    }).join('<div class="qv-mid">VS</div>') + '</div>';
+
+    if(b.question){
+      // 読み上げにした時は、文字を出さずに耳だけで勝負する。
+      // 文字も出すと「読み上げを待たずに読んだ人」が必ず勝つので、選んだ意味が消える
+      if(b.delivery === 'text'){
+        html += '<div class="quiz-q">' + escapeHtml(b.question.text) + '</div>';
+      } else {
+        html += '<div class="quiz-q quiz-q-listen">🔊 読み上げています</div>';
+      }
+      if(mine.yours){
+        html += qzChoicesHtml(b.question.choices, false);
+      } else if(mine.canBuzz){
+        html += '<button class="btn btn-main quiz-buzz" data-qzbuzz="1">🖐 はやおし！</button>';
+      } else {
+        html += qzChoicesHtml(b.question.choices, true);
+      }
+    }
+    html += '<div class="mic-status">🏆 ' + (b.champion ? escapeHtml(b.champion) + ' が優勝' : '') + '</div>';
+    el('qzBody').innerHTML = html;
+
+    // 読み上げは、新しい問題が出た時だけ1回。描き直すたびに読み直さない
+    if(b.question && b.delivery === 'speak' && qzSpoken !== b.askedAt){
+      qzSpoken = b.askedAt;
+      speakJapanese(b.question.text);
+    }
+  }
+
+  function qzResultHtml(v){
+    var res = v.result || {};
+    var rows = (res.ranking || []).map(function(x){
+      return '<div class="qb-row' + (x.rank === 1 ? ' win' : '') + '">' +
+        '<span class="qb-name">' + x.rank + '位　' + escapeHtml(x.name) + '</span>' +
+        '<span class="qb-score">' + x.score + '</span></div>';
+    }).join('');
+    var head = '';
+    if(res.variant === 'buzzer'){
+      head = '<h3>🏆 ' + escapeHtml(res.champion || '') + ' の優勝</h3>' +
+        (res.runnerUp ? '<p>準優勝：' + escapeHtml(res.runnerUp) + '</p>' : '');
+    } else if(res.variant === 'quizlist'){
+      head = '<h3>' + (res.success ? '🎉 成功' : '⏱ とどきませんでした') + '</h3>' +
+        '<p>「' + escapeHtml(res.topic || '') + '」で ' + (res.said || []).length + '個</p>' +
+        (res.winner ? '<p>🏆 ' + escapeHtml(res.winner) + '</p>' : '') +
+        '<div class="quiz-said">' + (res.said || []).map(function(s){
+          return '<span class="bl-item">' + escapeHtml(s) + '</span>';
+        }).join('') + '</div>';
+    } else {
+      head = '<h3>' + ((res.ranking && res.ranking[0]) ? ('🏆 ' + escapeHtml(res.ranking[0].name)) : '結果') + '</h3>';
+    }
+    return '<div class="quiz-result">' + head + '<div class="quiz-board">' + rows + '</div></div>';
+  }
+
+  // 押されたものを送る。何が起きたかはサーバーが決め、次の状態で返ってくる
+  el('qzBody').addEventListener('click', async function(e){
+    var tier = e.target.closest('[data-qztier]');
+    if(tier) return void (await rt.act(tier.dataset.qztier));
+    if(e.target.closest('[data-qzpass]')) return void (await rt.act('pass'));
+    if(e.target.closest('[data-qzbuzz]')) return void (await rt.act('buzz'));
+    var ans = e.target.closest('[data-qzans]');
+    if(ans && !ans.disabled) return void (await rt.vote(parseInt(ans.dataset.qzans, 10)));
+    if(e.target.closest('[data-qzsend]')) return void (await qzSendAnswer());
+  });
+  el('qzBody').addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && e.target && e.target.id === 'qzAnswerInput') qzSendAnswer();
+  });
+  async function qzSendAnswer(){
+    var input = el('qzAnswerInput');
+    if(!input) return;
+    var text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    var res = await rt.vote(text);
+    if(res && !res.ok) showFlash('いまは答えられません', 'hit-wrong');
+  }
+  el('qzLeaveBtn').addEventListener('click', rtLeaveRoom);
+  el('qzAgainBtn').addEventListener('click', function(){ el('rtAgainBtn').click(); });
+  el('qzEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
+
+  // 大画面。公開情報だけを大きく出す（正解の位置も、まだ見えていない文字も来ない）
+  function renderRtBigQuiz(v){
+    el('bigBoard').style.display = 'none';
+    el('bigPhase').textContent = QZ_TITLE[v.variant] || 'クイズ王';
+    var main = '', sub = '';
+    if(v.phase === 'ended'){
+      var res = v.result || {};
+      main = (res.ranking && res.ranking[0]) ? res.ranking[0].name : '結果';
+      sub = (res.ranking || []).map(function(x){ return x.rank + '位 ' + x.name + '（' + x.score + '）'; }).join('　');
+    } else if(v.variant === 'quizreveal' && v.reveal){
+      main = v.reveal.text || '';
+      sub = (v.reveal.index + 1) + ' / ' + v.reveal.total + '問' +
+        (v.reveal.buzzedName ? '　🖐 ' + v.reveal.buzzedName : '');
+    } else if(v.variant === 'quizlist' && v.list){
+      main = v.list.topic || '';
+      sub = (v.list.style === 'coop')
+        ? (v.list.saidCount + ' / ' + v.list.targetCount + '個　いまは ' + (v.list.turnName || '') + ' さん')
+        : ('出た数 ' + v.list.saidCount + '　いまは ' + (v.list.turnName || '') + ' さん');
+    } else if(v.variant === 'buzzer' && v.buzzer){
+      main = (v.buzzer.pair || []).map(function(p){ return p.name + '（' + p.wins + '）'; }).join('　VS　');
+      // 読み上げにした時は、大画面にも文字を出さない（耳で勝負する遊びなので）
+      sub = (v.buzzer.question && v.buzzer.delivery === 'text') ? v.buzzer.question.text : '';
+      if(v.buzzer.buzzedName) sub += '　🖐 ' + v.buzzer.buzzedName;
+    } else if(v.variant === 'quizrush' && v.rush){
+      main = (v.rush.roundsToWin > 0) ? ('第' + v.rush.round + 'ラウンド') : 'クイズラッシュ';
+      sub = '各自のスマホで挑戦中';
+    }
+    el('bigMain').textContent = main;
+    el('bigSub').innerHTML = escapeHtml(sub);
+    // 得点は公開情報。問題の中身は入れない
+    el('bigList').innerHTML = (v.players || []).map(function(p){
+      return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.score + '</span>';
+    }).join('');
+  }
+
   function renderRtBig(){
     var v = rtView();
     var room = rt && rt.state.room;
@@ -5915,6 +6764,7 @@
     el('bigQrBox').style.display = 'none'; // 始まったらQRは要らない
     if(rtRoomGameId() === 'bomb') return renderRtBigBomb(v);
     if(rtRoomGameId() === 'defuse') return renderRtBigDefuse(v);
+    if(RT_QUIZ_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigQuiz(v);
     el('bigBoard').style.display = 'none'; // 横棒グラフは爆弾解除だけが使う
     if(rtIsWordwolf()) return renderRtBigWordwolf(v);
 
@@ -9531,13 +10381,11 @@
   });
 
   // ===================== buzzer tournament =====================
+  // 第30弾：組み方は quiz-logic.js に移した。手渡し版と1人1台版で
+  // 別々に持つと、片方だけ直してもう片方に反映し忘れる（落とし穴1）。
+  // 中身は元のまま（奇数なら最後の1人が不戦勝）
   function buildTourneyPairs(ids){
-    var pairs = [];
-    for(var i = 0; i < ids.length; i += 2){
-      if(i + 1 < ids.length) pairs.push([ids[i], ids[i+1]]);
-      else pairs.push([ids[i], null]);
-    }
-    return pairs;
+    return QuizLogic.buildPairs(ids);
   }
   function tourneyPlayerName(id){
     var p = state.players.find(function(x){ return x.id === id; });

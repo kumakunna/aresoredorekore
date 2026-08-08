@@ -2895,6 +2895,55 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  // 第30弾 第4部：テーマの適用範囲が漏れていないこと（落とし穴3）。
+  // 棚 → ゲーム選択 → モード選択 → 設定ウィザード まで実際にたどる
+  await r.test('テーマ：クイズ王カセットを選ぶと、その先すべてがスタジオになる', async () => {
+    const { win, doc, errors } = await launch();
+    const app = el(doc, 'app');
+    assert(!app.classList.contains('theme-quiz'), '棚では素のまま');
+
+    const cart = doc.querySelector('.cart[data-cart="quizou"]');
+    assert(cart, 'クイズ王のカセットが棚にある');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    assert(app.classList.contains('theme-quiz'), 'ゲーム選択からもうスタジオになる');
+    pickGame(doc, 'quizrush');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    assert(app.classList.contains('theme-quiz'), 'モード選択でも続く');
+    // 4つとも部屋が必須なので、手渡しでは選べない案内が出る（行き止まりにしない）
+    const card = doc.querySelector('.mode-card[data-id="quizrush"]');
+    assert(card, 'クイズラッシュのカードが出る');
+    assert(!app.classList.contains('theme-bomb'), '別のカセットのテーマは付かない');
+    assertNoErrors(errors, 'クイズ王のテーマで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ王の4つは、部屋が必須だと分かるようになっている', async () => {
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="quizou"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    for (const gameId of ['quizrush', 'quizlist', 'quizreveal', 'buzzer']) {
+      pickGame(doc, gameId);
+      await sleep(win, 60);
+      if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
+      await waitScreen(win, doc, 'scr-mode', 3000);
+      const cards = Array.from(doc.querySelectorAll('.mode-card'));
+      assert(cards.length > 0, gameId + ' に遊び方のカードが出る');
+      // 手渡しでは遊べないことが、押す前に読める
+      const text = doc.getElementById('scr-mode').textContent;
+      assert(/部屋/.test(text), gameId + '：部屋が必要なことが書いてある');
+      click(doc, 'backToShelfBtn');
+      await waitScreen(win, doc, 'scr-game', 3000);
+    }
+    assertNoErrors(errors, 'クイズ王のモード選択で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('テーマ：カセットを移ると、前のテーマが残らない', async () => {
     // 一覧で付け外ししていないと「爆弾解除の黒いまま人狼を遊ぶ」ことになる
     const { win, doc, errors } = await launch();
@@ -2933,11 +2982,30 @@ async function startModeWithTimerOff(win, doc, id) {
     // 数字はDotGothic16のまま（桁が揃う書体を崩さない）
     assert(/\.app\.theme-bomb \.big-main:not\(\.is-code\)\{[\s\S]*?DotGothic16/.test(html),
       '見出しは角ばった書体');
-    // テーマの外の見た目を書き換えていない（すべて .app.theme-bomb で始まる）
+    // テーマの外の見た目を書き換えていない。
+    // ここから下は「カセット専用テーマだけを書く場所」なので、
+    // どのテーマが増えても .app.theme-〇〇 で始まっていなければならない。
+    // テーマ名を手で書き足す形にすると、増やした時に見張りから漏れる（落とし穴4）
     const block = html.slice(html.indexOf('第28弾-2 第2部'), html.indexOf('</style>'));
     const selectors = block.match(/^\s{2}([.#][^{]*)\{/gm) || [];
-    const leaked = selectors.filter(s => !/\.app\.theme-bomb/.test(s));
+    const leaked = selectors.filter(s => !/\.app\.theme-[a-z]+/.test(s));
     assertEqual(leaked.join(''), '', 'テーマの外を書き換えていない');
+  });
+
+  await r.test('テーマ：スタジオの見た目が、追加専用のスコープで書かれている', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // 濃い紺の背景・金色・上から降りるスポットライト
+    assert(/\.app\.theme-quiz\{[\s\S]*?--paper:#10182E/.test(html), '背景が濃い紺になっている');
+    assert(/\.app\.theme-quiz\{[\s\S]*?--gold:#F0B429/.test(html), '金色が入っている');
+    assert(/\.app\.theme-quiz\{[\s\S]*?radial-gradient\(ellipse[^;]*rgba\(240,180,41/.test(html),
+      'スポットライトが当たっている');
+    assert(/\.app\.theme-quiz \.big-main:not\(\.is-code\)\{[\s\S]*?DotGothic16/.test(html),
+      '見出しは角ばった書体');
+    // 問題のパネルだけ光らせる（スポットライトが当たっているように見せる）
+    assert(/\.app\.theme-quiz \.quiz-q,[\s\S]*?box-shadow:0 0 0 1px rgba\(240,180,41/.test(html),
+      'いま出ている問題が光る');
   });
 
   // ---- 第28弾-1：モードのIDを変えても、昔の記録が迷子にならないこと ----

@@ -76,7 +76,10 @@ async function toRoom(win, doc, opts) {
 
 // 第27弾：ゲームがどのカセットに入っているか。
 // 1つしか入っていないカセットはゲーム選択画面を飛ばすので、歩き方が変わる
-const CASSETTE_OF = { wolfrole: 'jinro', wordwolf: 'jinro', bomb: 'bakudan', defuse: 'bakudan' };
+const CASSETTE_OF = {
+  wolfrole: 'jinro', wordwolf: 'jinro', bomb: 'bakudan', defuse: 'bakudan',
+  quizrush: 'quizou', quizlist: 'quizou', quizreveal: 'quizou', buzzer: 'quizou'
+};
 
 // 待合から棚へ出て、カセット→（ゲーム）→モードを歩いて待合にもどる（ホストの流れ）
 async function pickGameForRoom(win, doc, gameId, modeId) {
@@ -181,6 +184,38 @@ function bombRoom(over) {
     ],
     state: { phase: 'play', game: 'bomb', data: bombView() }
   }, over || {}));
+}
+
+// ---- 第30弾：クイズ王の部屋 ----
+// quiz-room.js が配る形をそのまま真似る。
+// 正解の位置が配られないことは realtime-quiz.js で見ているので、
+// ここでは「届いたものを画面がどう出すか」だけを見る
+function quizPlayers() {
+  return [
+    { id: 'm1', name: 'あき', connected: true, score: 5 },
+    { id: 'm2', name: 'びび', connected: true, score: 3 }
+  ];
+}
+function quizView(variant, over) {
+  return Object.assign({
+    phase: 'play', variant: variant, timerSec: 180, remainingMs: 120000,
+    players: quizPlayers()
+  }, over || {});
+}
+function quizYou(variant, over) {
+  return Object.assign({
+    phase: 'play', variant: variant, score: 5, remainingMs: 120000
+  }, over || {});
+}
+function quizRoom(variant, data) {
+  return roomSnapshot({
+    playerCount: 2, memberCount: 2,
+    members: [
+      { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
+      { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false }
+    ],
+    state: { phase: 'play', game: variant, data: data }
+  });
 }
 
 // サーバーからの配信を流し込む
@@ -1324,6 +1359,228 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   });
 
   // ---- 第27弾-1：実機で起きた「全員が固まる」の直し ----
+
+  // ---- 第30弾：クイズ王の4ゲーム。1枚の画面が中身を差し替える ----
+
+  await r.test('クイズ王：4つとも設定画面まで歩けて、その遊びの設定だけが出る', async () => {
+    // 部屋が必須なので、設定ウィザードは部屋の中からしか通らない。
+    // ここを歩かないと「設定画面で落ちる」ことに気づけない
+    const CASES = [
+      { game: 'quizrush',   mode: 'quizrush',   box: 'quizCfgRush',   tier: false, word: 'パス' },
+      { game: 'quizlist',   mode: 'quizlist',   box: 'quizCfgList',   tier: true,  word: '協力' },
+      { game: 'quizreveal', mode: 'quizreveal', box: 'quizCfgReveal', tier: true,  word: '見える' },
+      { game: 'buzzer',     mode: 'buzzer-rt',  box: 'quizCfgBuzzer', tier: true,  word: '読み上げ' }
+    ];
+    const BOXES = ['quizCfgRush', 'quizCfgList', 'quizCfgReveal', 'quizCfgBuzzer'];
+    for (const c of CASES) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      await toRoom(win, doc, { pick: false });
+      click(doc, 'rtPickGameBtn');
+      await waitScreen(win, doc, 'scr-shelf', 3000);
+      const cart = doc.querySelector('.cart[data-cart="quizou"]');
+      cart.click();
+      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await waitScreen(win, doc, 'scr-game', 3000);
+      pickGame(doc, c.game);
+      await waitScreen(win, doc, 'scr-mode', 3000);
+      click(doc, doc.querySelector('.mode-card[data-id="' + c.mode + '"]'));
+      click(doc, 'modeNextBtn');
+      await waitScreen(win, doc, 'scr-set-quiz', 3000);
+
+      // その遊びの区画だけが出ている（ほかの遊びの設定は出さない）
+      BOXES.forEach((id) => {
+        assertEqual(el(doc, id).style.display, id === c.box ? 'block' : 'none',
+          c.game + '：' + id + ' の出し分け');
+      });
+      assertEqual(el(doc, 'quizCfgTier').style.display, c.tier ? 'block' : 'none',
+        c.game + '：難易度をえらべるかどうか');
+      assert(new RegExp(c.word).test(el(doc, 'scr-set-quiz').textContent),
+        c.game + '：その遊びの言葉が出ている');
+      assert(doc.querySelector('.app').classList.contains('theme-quiz'),
+        c.game + '：設定画面でもスタジオの見た目が続く');
+      assertNoErrors(errors, c.game + ' の設定画面で未捕捉の例外');
+      win.close();
+    }
+  });
+
+  await r.test('クイズ王：4つとも、そのゲームとして開始を送る', async () => {
+    // ここがずれると「早押しを選んだのにクイズラッシュが始まる」ことになる
+    const CASES = [
+      { game: 'quizrush', mode: 'quizrush' },
+      { game: 'quizlist', mode: 'quizlist' },
+      { game: 'quizreveal', mode: 'quizreveal' },
+      { game: 'buzzer', mode: 'buzzer-rt' }
+    ];
+    for (const c of CASES) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { pick: false });
+      await pickGameForRoom(win, doc, c.game, c.mode);
+      // 疑似socketは部屋の中身を持たないので、選んだ結果を流し込む
+      push(fake, quizRoom(c.game, {}));
+      await sleep(win, 80);
+      click(doc, 'rtStartBtn');
+      await sleep(win, 120);
+      const start = fake.emits.filter(e => e.name === 'wolf:start').pop();
+      assert(start, c.game + '：開始を送っている');
+      assertEqual(start.payload.game, c.game, c.game + '：そのゲームとして始める');
+      assertEqual(start.payload.preset, c.mode, c.game + '：どの遊び方かも残す');
+      assertNoErrors(errors, c.game + ' の開始で未捕捉の例外');
+      win.close();
+    }
+  });
+
+  await r.test('クイズラッシュ：まず難易度をえらび、えらぶと問題が出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const rush = { round: 1, roundsToWin: 0, roundResult: null, board: [] };
+    push(fake, quizRoom('quizrush', quizView('quizrush', { rush: rush })));
+    pushYou(fake, quizYou('quizrush', {
+      rush: { tier: null, canChangeTier: true, passesLeft: 3, score: 0, answered: 0, hits: 0, last: null, question: null }
+    }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    assert(/クイズラッシュ/.test(el(doc, 'qzPhase').textContent), 'どのゲームか分かる');
+    assert(doc.querySelector('[data-qztier="easy"]'), '難易度のボタンが出る');
+    assert(!doc.querySelector('[data-qzans]'), 'えらぶ前に問題は出ない');
+
+    pushYou(fake, quizYou('quizrush', {
+      rush: {
+        tier: 'normal', canChangeTier: true, passesLeft: 3, score: 0, answered: 0, hits: 0, last: null,
+        question: { text: 'これはなに？', choices: ['あ', 'い', 'う'], tier: 'normal' }
+      }
+    }));
+    await sleep(win, 80);
+    assert(/これはなに？/.test(el(doc, 'qzBody').textContent), '問題が出る');
+    assertEqual(doc.querySelectorAll('[data-qzans]').length, 3, '選択肢が3つ出る');
+    assert(doc.querySelector('[data-qzpass]'), 'パスできる');
+    assertNoErrors(errors, 'クイズラッシュの画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズラッシュ：選択肢を押すと「何番目か」を送る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, quizRoom('quizrush', quizView('quizrush', { rush: { round: 1, roundsToWin: 0, roundResult: null, board: [] } })));
+    pushYou(fake, quizYou('quizrush', {
+      rush: {
+        tier: 'easy', canChangeTier: true, passesLeft: 3, score: 0, answered: 0, hits: 0, last: null,
+        question: { text: 'とい', choices: ['ぜろ', 'いち', 'に'], tier: 'easy' }
+      }
+    }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    // いちばん左（0番）を押す。文字ではなく位置を送る
+    click(doc, doc.querySelector('[data-qzans="0"]'));
+    await sleep(win, 80);
+    const vote = fake.emits.filter(e => e.name === 'wolf:vote').pop();
+    assert(vote, '答えを送っている');
+    assertEqual(vote.payload.targetId, 0, '0番として送る（文字では送らない）');
+    assertNoErrors(errors, '答えを送るところで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('つぎつぎクイズ：自分の番だけ入力欄が出て、誰の番かが出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const list = {
+      style: 'coop', topic: '赤い食べ物', tier: 'easy', targetCount: 10,
+      said: ['りんご'], saidCount: 1, turnId: 'm1', turnName: 'あき',
+      turnRemainingMs: 15000, lastNote: null,
+      order: [{ id: 'm1', name: 'あき', alive: true }, { id: 'm2', name: 'びび', alive: true }]
+    };
+    push(fake, quizRoom('quizlist', quizView('quizlist', { list: list })));
+    pushYou(fake, quizYou('quizlist', { list: { yourTurn: false, alive: true, turnRemainingMs: 15000 } }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    assert(/赤い食べ物/.test(el(doc, 'qzBody').textContent), 'お題が出る');
+    assert(/りんご/.test(el(doc, 'qzBody').textContent), '出た答えが並ぶ');
+    assert(/あき/.test(el(doc, 'qzNote').textContent), '誰の番かが出る');
+    assert(!doc.getElementById('qzAnswerInput'), '自分の番でなければ入力欄は出ない');
+
+    pushYou(fake, quizYou('quizlist', { list: { yourTurn: true, alive: true, turnRemainingMs: 15000 } }));
+    await sleep(win, 80);
+    assert(doc.getElementById('qzAnswerInput'), '自分の番なら入力欄が出る');
+    doc.getElementById('qzAnswerInput').value = 'いちご';
+    click(doc, doc.querySelector('[data-qzsend]'));
+    await sleep(win, 80);
+    const vote = fake.emits.filter(e => e.name === 'wolf:vote').pop();
+    assertEqual(vote.payload.targetId, 'いちご', '答えた言葉を送る');
+    assertNoErrors(errors, 'つぎつぎクイズの画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('とくとくクイズ：伏せ字のまま出て、押すまで選択肢は押せない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const reveal = {
+      index: 0, total: 5, tier: 'normal',
+      text: 'にほんで◻◻◻◻◻', shown: 5, length: 10,
+      choices: ['ふじさん', 'きただけ', 'やりがたけ'],
+      buzzedId: null, buzzedName: null, answerRemainingMs: null, lastNote: null
+    };
+    push(fake, quizRoom('quizreveal', quizView('quizreveal', { reveal: reveal })));
+    pushYou(fake, quizYou('quizreveal', { reveal: { locked: false, yours: false, canBuzz: true } }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    assert(/◻/.test(el(doc, 'qzBody').textContent), '伏せ字のまま出る');
+    assert(doc.querySelector('[data-qzbuzz]'), '押すボタンが出る');
+    assertEqual(doc.querySelectorAll('[data-qzans]').length, 0, '押す前は選択肢を出さない');
+
+    pushYou(fake, quizYou('quizreveal', { reveal: { locked: false, yours: true, canBuzz: false } }));
+    await sleep(win, 80);
+    assertEqual(doc.querySelectorAll('[data-qzans]').length, 3, '押した人だけ選択肢が出る');
+    assertNoErrors(errors, 'とくとくクイズの画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('早押し：読み上げにすると、画面に問題文を出さない', async () => {
+    // 文字も出すと、読み上げを待たずに読んだ人が必ず勝つ。選んだ意味が消える
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const buzzer = {
+      roundNum: 1, winsNeeded: 3, delivery: 'speak',
+      pair: [{ id: 'm1', name: 'あき', wins: 1 }, { id: 'm2', name: 'びび', wins: 0 }],
+      question: { text: 'ひみつの問題文', choices: ['あ', 'い', 'う'], tier: 'normal' },
+      askedAt: 111, buzzedId: null, buzzedName: null, answerRemainingMs: null,
+      matchResult: null, champion: null, lastNote: null
+    };
+    push(fake, quizRoom('buzzer', quizView('buzzer', { buzzer: buzzer })));
+    pushYou(fake, quizYou('buzzer', {
+      buzzer: { inMatch: true, locked: false, yours: false, canBuzz: true, wins: 0 }
+    }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    assertEqual(/ひみつの問題文/.test(el(doc, 'qzBody').textContent), false, '読み上げなら文字は出さない');
+    assert(doc.querySelector('[data-qzbuzz]'), '早押しボタンが出る');
+    assert(/あき/.test(el(doc, 'qzBody').textContent), '対戦相手が出る');
+
+    // 文字で出す設定なら、ちゃんと文字が出る
+    const textOne = Object.assign({}, buzzer, { delivery: 'text' });
+    push(fake, quizRoom('buzzer', quizView('buzzer', { buzzer: textOne })));
+    await sleep(win, 80);
+    assert(/ひみつの問題文/.test(el(doc, 'qzBody').textContent), '文字で出す設定なら出る');
+    assertNoErrors(errors, '早押しの画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面：クイズ王は得点と進み具合だけを出す', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const reveal = {
+      index: 1, total: 5, tier: 'normal',
+      text: 'にほんで◻◻◻◻◻', shown: 5, length: 10,
+      choices: ['ふじさん', 'きただけ', 'やりがたけ'],
+      buzzedId: null, buzzedName: null, answerRemainingMs: null, lastNote: null
+    };
+    const room = quizRoom('quizreveal', quizView('quizreveal', { reveal: reveal }));
+    room.members = room.members.concat([
+      { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
+    ]);
+    room.memberCount = 3;
+    push(fake, room);
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
+    assert(/◻/.test(el(doc, 'bigMain').textContent), '開き具合がそのまま出る');
+    assert(/2 \/ 5問/.test(el(doc, 'bigSub').textContent), '何問目かが出る');
+    assert(/あき 5/.test(el(doc, 'bigList').textContent), '得点が出る');
+    assertNoErrors(errors, '大画面で未捕捉の例外');
+    win.close();
+  });
 
   await r.test('つなぎ直して部屋が無くなっていたら、固まらずに理由が出て棚にもどる', async () => {
     // サーバーが再起動した（メモリ上の部屋は消える仕様）か、

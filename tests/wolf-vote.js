@@ -1381,7 +1381,12 @@ function votesFrom(list) {
     assertEqual(activeScreen(doc), 'scr-shelf', '棚まで戻れる');
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    const daitan = doc.querySelector('#titleGroups [data-tid="first-daitan"]');
+    // 第32弾-B-2：称号は「プロフィール → 二つ名 → スロットの一覧」で選ぶ形になった
+    doc.querySelector('[data-profgo="name2"]').click();
+    await waitScreen(win, doc, 'scr-title-name', 3000);
+    doc.querySelector('[data-tnslot="first"]').click();
+    await waitScreen(win, doc, 'scr-title-slot', 3000);
+    const daitan = doc.querySelector('#tsList [data-tsid="first-daitan"]');
     assert(daitan, '「大胆」が目録にある');
     if (players[0] === w) {
       // test がウルフだった回は、逆転に貢献しようがない

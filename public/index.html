@@ -537,6 +537,18 @@
   }
   .set-member .sm-btn.danger{border-color:var(--stamp);color:var(--stamp);}
 
+  /* ---- 第32弾-B 第3部：絵文字をSVGにそろえる ----
+     iOS・Android・PCで見た目が違うと、同じ部屋にいる人どうしで
+     同じアイコンが別の絵に見える。称号は見せ合うものなので、そこが崩れると台無しになる。
+     元の文字もDOMに残してあり、画像が読めなかった時はそちらを出す
+     （絵文字が消えてボタンが空になる、という壊れ方をさせない）。 */
+  .emj{display:inline-block;line-height:1;}
+  /* 既定は文字。画像が読めた時にだけ入れ替える（読めない時に何も出ない、を作らない） */
+  .emj img{width:1em;height:1em;vertical-align:-0.125em;display:none;}
+  .emj .emj-txt{display:inline;}
+  .emj.emj-ok img{display:block;}
+  .emj.emj-ok .emj-txt{display:none;}
+
   /* ---- 第32弾-B 第2部：プロフィール・称号 ---- */
   .prof-head{text-align:center;padding:10px 16px 16px;}
   .prof-head.small{padding-bottom:10px;}
@@ -3365,7 +3377,7 @@
       <!-- ログイン導線は、どのページからでも押せるように下に置く -->
       <button class="btn btn-ghost" id="logoutBtn" style="display:none;">ログアウト</button>
       <button class="btn btn-main" id="settingsLoginBtn" style="display:none;">ログインする</button>
-      <div class="set-credit" id="setCredit"></div>
+      <div class="set-credit" id="setCredit">絵文字は Twemoji（© 2020 Twitter, Inc and other contributors / CC-BY 4.0）を使っています。</div>
     </div>
   </div>
 
@@ -3486,6 +3498,8 @@
 <script src="js/quiz-logic.js"></script>
 <script src="js/auction-items.js"></script>
 <script src="js/auction-logic.js"></script>
+<script src="js/emoji.js"></script>
+<script src="js/emoji-list.js"></script>
 <script src="js/titles.js"></script>
 <script src="js/rt-client.js"></script>
 <script src="js/qr.js"></script>
@@ -14212,12 +14226,42 @@
   el('doorScene').addEventListener('click', openDoorAndEnter);
 
   // ---------- init ----------
+  /**
+   * 第32弾-B-3：画面に出た絵文字を、出たときにSVGへ差し替える。
+   *
+   * 727箇所の文字列を書き換えて回ると、必ずどこかを直し忘れるし、
+   * これから書く画面でも同じことを繰り返すことになる（落とし穴1・4）。
+   * だから「DOMが変わったら、その部分だけ差し替える」形にした。
+   * これ1か所で、いま在る画面もこれから作る画面も自動でそろう。
+   */
+  function startEmojiSwap(){
+    if(typeof EmojiSvg === 'undefined') return;
+    var app = el('app');
+    if(!app) return;
+    var pending = false;
+    function sweep(){
+      pending = false;
+      try{ EmojiSvg.parse(app, document); }catch(e){}
+    }
+    sweep();
+    try{
+      var mo = new MutationObserver(function(){
+        // 差し替え自体もDOMを変えるので、まとめて1回にする（無限に呼ばれないように）
+        if(pending) return;
+        pending = true;
+        setTimeout(sweep, 0);
+      });
+      mo.observe(app, { childList:true, subtree:true, characterData:true });
+    }catch(e){}
+  }
+
   document.addEventListener('DOMContentLoaded', function(){
     loadLocalPrefs();
     // 第32弾-B-1：音量・文字サイズなどは、起動した瞬間から効いていてほしい
     loadAppPrefs();
     applyAppPrefs();
     loadTitleGotAt();
+    startEmojiSwap();
     setTimeout(openDoorAndEnter, 240); // タップ不要で自動的に開く
   });
 })();

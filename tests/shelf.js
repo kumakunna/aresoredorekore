@@ -712,6 +712,95 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第32弾-B 第3部：絵文字をSVGにそろえる ----
+
+  await r.test('絵文字はSVGに差し替わり、必要なぶんだけ読み込む', async () => {
+    const { win, doc, errors } = await launch();
+    await sleep(win, 200);
+    const imgs = Array.from(doc.querySelectorAll('#app .emj img'));
+    assert(imgs.length > 10, '絵文字がSVGに差し替わっている（' + imgs.length + '個）');
+    imgs.forEach((im) => {
+      assert(/^img\/emoji\/[0-9a-f-]+\.svg$/.test(im.getAttribute('src')),
+        'SVGを指している：' + im.getAttribute('src'));
+      assertEqual(im.getAttribute('loading'), null,
+        '遅延読み込みは付けない（2〜4KBのアイコンには向かず、読み込みが始まらない環境がある）');
+    });
+    assertNoErrors(errors, '絵文字の差し替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('絵文字を差し替えても、元の文字はDOMに残る', async () => {
+    // 画像が読めなかった時に文字で出るようにするため。
+    // 「絵文字が消えてボタンが空になる」という壊れ方をさせない
+    const { win, doc, errors } = await launch();
+    await sleep(win, 200);
+    assertEqual(el(doc, 'shelfAvatar').textContent, '🙂', 'アイコンの文字が残っている');
+    const span = doc.querySelector('#app .emj');
+    assert(span.querySelector('.emj-txt'), '文字を持つ入れ物がある');
+    // 画像が読めた時にだけ入れ替える（読めない時に何も出ない、を作らない）
+    assertEqual(span.classList.contains('emj-ok'), false, '読めるまでは文字のまま');
+    assertEqual(span.getAttribute('role'), 'img', '画像として読み上げられる');
+    assert(span.getAttribute('aria-label'), '読み上げ用の名前が付いている');
+    assertNoErrors(errors, '絵文字の差し替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('UIの記号（← → ★ ✕）は、絵文字にせず文字のまま出す', async () => {
+    // Twemoji にも入っていない、絵文字ではない記号。
+    // 手元にあるSVGとだけ突き合わせるので、勝手に画像にならないし、
+    // 読めない画像（壊れたアイコン）も出ない
+    const { win, doc, errors } = await launch();
+    await sleep(win, 200);
+    assertEqual(el(doc, 'floatingBackBtn').querySelectorAll('img').length, 0, '戻る矢印は文字のまま');
+    assertEqual(el(doc, 'floatingBackBtn').textContent, '←', '矢印が消えていない');
+    const EmojiSvg = require('../public/js/emoji');
+    EmojiSvg.setFiles(require('../public/js/emoji-list'));
+    ['←', '→', '★', '✕'].forEach((ch) => {
+      assertEqual(EmojiSvg.html(ch), ch, '「' + ch + '」は差し替えない');
+    });
+    assert(EmojiSvg.html('🐺') !== '🐺', '絵文字はちゃんと差し替える');
+    assertNoErrors(errors, 'UI記号の表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('置いてあるSVGと一覧ファイルが食い違っていない', async () => {
+    // 一覧を手で書くと、ファイルを足した時に更新し忘れる。
+    // node tools/gen-emoji-list.js で作り直せる
+    const fs = require('fs');
+    const path = require('path');
+    const dir = path.join(__dirname, '..', 'public', 'img', 'emoji');
+    const onDisk = fs.readdirSync(dir).filter(f => f.endsWith('.svg'))
+      .map(f => f.replace(/\.svg$/, '')).sort();
+    const listed = require('../public/js/emoji-list').slice().sort();
+    assertEqual(listed.join(','), onDisk.join(','), '一覧と置いてあるファイルが一致する');
+    assert(onDisk.length > 50, '使っている絵文字ぶんが置いてある（' + onDisk.length + '個）');
+  });
+
+  await r.test('アプリで使っている絵文字が、全部そろっている', async () => {
+    // 新しい絵文字を使った時に、SVGを置き忘れたまま出さないための見張り
+    const fs = require('fs');
+    const path = require('path');
+    const EmojiSvg = require('../public/js/emoji');
+    const root = path.join(__dirname, '..');
+    let text = '';
+    ['public/index.html', 'public/js/titles.js', 'public/js/defuse-logic.js',
+     'public/js/auction-items.js', 'public/js/quiz-logic.js', 'public/js/auction-logic.js']
+      .forEach((f) => {
+        const p = path.join(root, f);
+        if (fs.existsSync(p)) text += fs.readFileSync(p, 'utf8');
+      });
+    const used = EmojiSvg.collect(text);
+    const listed = {};
+    require('../public/js/emoji-list').forEach((n) => { listed[n] = true; });
+    // 差し替え対象にならない記号（← → ★ など）は、そもそも一覧に入れていない
+    // ← → ★ ✕ ✚ は絵文字ではなく記号なので、そもそも差し替え対象にしていない
+    const NOT_EMOJI = ['2605', '2192', '2190', '2715', '271a'];
+    const missing = Object.keys(used)
+      .filter((ch) => !listed[used[ch]] && NOT_EMOJI.indexOf(used[ch]) === -1)
+      .map((ch) => ch + '(' + used[ch] + ')');
+    assertEqual(missing.join(' '), '', 'SVGを置き忘れている絵文字が無い');
+  });
+
   // ---- 第32弾-B 第2部：称号の画面 ----
 
   await r.test('二つ名は、スロットごとの一覧から選ぶ（獲得済みが上）', async () => {

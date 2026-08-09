@@ -212,6 +212,9 @@
 
   /* ---------- ready ---------- */
   #scr-ready{align-items:center;justify-content:center;text-align:center;}
+  /* 第32弾-C-2：あれそれどれこれの手渡し。人狼の手渡しと同じ見た目にそろえる
+     （画面ごとに渡し方の体裁が違うと、同じ動作なのに毎回読み直すことになる） */
+  #scr-topic-pass{align-items:center;justify-content:center;text-align:center;}
   .ready-summary{font-size:12.5px;color:var(--ink-soft);margin-bottom:30px;}
   .ready-summary b{color:var(--ink);}
   .hold-wrap{position:relative;width:190px;height:190px;margin:0 auto 26px;}
@@ -299,6 +302,19 @@
   }
   .timer-chip.warn{color:var(--gold);}
   .timer-chip.done{color:var(--stamp);}
+  /* 第32弾-C-2：説明中はタイマーが画面の主役。
+     いままで右上の小さな数字だったので、残り時間が視界に入らなかった。
+     大きくするだけで「あと何秒か」が説明しながらでも分かる */
+  #scr-play .timer-chip{font-size:38px;padding:2px 20px;letter-spacing:.04em;}
+  /* 残り10秒。赤く脈打たせて、見ただけで終わりが近いと分かるようにする */
+  #scr-play .timer-chip.hurry{
+    color:var(--stamp);border-color:var(--stamp);
+    animation:timerHurry 1s ease-in-out infinite;
+  }
+  @keyframes timerHurry{
+    0%,100%{transform:scale(1);box-shadow:none;}
+    50%{transform:scale(1.06);box-shadow:0 0 0 4px rgba(210,74,60,.18);}
+  }
   .pause-btn{width:38px;height:38px;border-radius:50%;background:var(--card);border:1px solid var(--line);font-size:15px;cursor:pointer;}
   .pause-btn.on{background:var(--gold);border-color:var(--gold);color:#fff;} /* 7：peek表示中が分かるように */
   .describer-banner{
@@ -2983,6 +2999,20 @@
     <div class="cd-label">まもなくスタート</div>
   </div>
 
+  <!-- 6.5: あれそれどれこれの手渡し（第32弾-C-2）
+       カウントダウンの直後に1回だけ入る。
+       ここまで「誰が説明するのか」が画面のどこにも出ないまま
+       いきなりお題が出ていたので、初めての人が固まっていた。
+       この画面がやることは1つ（スマホを渡す）だけにしてある。 -->
+  <div class="screen" id="scr-topic-pass">
+    <div class="wolf-handoff">
+      <div class="wolf-handoff-label">📱 スマホをわたす</div>
+      <div class="wolf-handoff-name" id="topicPassName">-</div>
+      <div class="wolf-handoff-sub" id="topicPassSub">この人が説明します</div>
+      <button class="btn btn-main" id="topicPassBtn">わたしました</button>
+    </div>
+  </div>
+
   <!-- wolf: pass-the-phone (reveal / vote) -->
   <div class="screen" id="scr-wolf-pass">
     <div class="turn-banner" id="wolfTurnBanner" style="display:none;"></div>
@@ -3307,20 +3337,10 @@
       <button class="btn btn-ghost" id="revealAnswerBtn" style="display:none;font-size:12px;padding:6px 10px;margin-top:8px;opacity:.7;">🔍 答えを確認</button>
       <div id="revealAnswerBox" style="display:none;font-size:12px;color:var(--ink-soft);margin-top:4px;letter-spacing:1px;"></div>
     </div>
-    <div class="voice-row" id="hardModeRow">
-      <div>
-        ⚡ ハードモード
-        <div class="mic-status">不正解で自動的に次のお題へ進みます</div>
-      </div>
-      <div class="switch" id="hardModeToggle"></div>
-    </div>
-    <div class="voice-row" id="voiceRow" style="display:none;">
-      <div>
-        🎙 音声で判定
-        <div class="mic-status" id="micStatus"></div>
-      </div>
-      <div class="switch" id="voiceToggle"></div>
-    </div>
+    <!-- 第32弾-C-2 原則A：ハードモードと音声判定のスイッチは⚙へ移した。
+         説明している最中に見るものではないので、遊んでいる画面には置かない。
+         聞き取りの状態だけは、この画面にいる人が知る必要があるので残す -->
+    <div class="mic-status" id="micStatus" style="display:none;text-align:center;margin-top:10px;"></div>
     <div class="live-transcript" id="liveTranscript" style="display:none;"></div>
   </div>
 
@@ -4582,7 +4602,13 @@
    *
    * 色の表はCSSに1つだけ持たせてある（ここにも書くと、テーマを足した時にずれる）。
    */
-  var WARP_MS = 240;  // 色が画面を覆いきるまで。全体では0.4秒（残りは次の画面の上で溶ける）
+  // 第32弾-C：演出の長さは、ここ1か所にまとめてある。
+  // テストではここを0にして「押した直後に画面が変わる」形で動かす（HOLD_MS と同じ考え方）。
+  // 0のときは待ちを挟まずその場で進む＝「演出の速さ＝スキップ」と同じ挙動になる。
+  //   warp      … カセットの世界に入る（全体0.4秒。ここは色が覆いきるまで）
+  //   celebrate … 正解を褒めちぎる
+  //   flip      … お題カードをめくる
+  var FX_MS = { warp:240, celebrate:800, flip:300 };
   function cassetteWarp(cart, c, next){
     function go(){ if(typeof next === 'function') next(); }
     if(typeof FxKit === 'undefined'){ go(); return Promise.resolve(true); }
@@ -4590,7 +4616,7 @@
     if(!app){ go(); return Promise.resolve(true); }
     // 演出を切っている人は、間を空けずにその場で入る。
     // 待たせないことがこの設定の目的なので、1フレームも挟まない
-    if(!WARP_MS || appPrefs.fxSpeed === 'skip'){ go(); return Promise.resolve(true); }
+    if(!FX_MS.warp || appPrefs.fxSpeed === 'skip'){ go(); return Promise.resolve(true); }
     var ov = document.createElement('div');
     ov.className = 'cassette-warp';
     ov.setAttribute('data-theme', (c && c.theme) || 'none');
@@ -4607,7 +4633,7 @@
       if(ov.parentNode) ov.parentNode.removeChild(ov);
     }
     // 色が画面を覆いきるころ。ここで次の画面に替える
-    return FxKit.hold(WARP_MS).then(function(skipped){
+    return FxKit.hold(FX_MS.warp).then(function(skipped){
       go();
       if(skipped){ drop(); return true; }
       ov.classList.add('warp-out');
@@ -5791,6 +5817,19 @@
     ov.classList.remove('hit','hit-wrong'); void ov.offsetWidth; ov.classList.add(variantClass);
     setTimeout(function(){ t.classList.remove('show'); }, 1600);
   }
+  /**
+   * 第32弾-C 原則C：責める側の一言。
+   * 画面いっぱいのフラッシュは付けず、文字だけを控えめに出す。
+   * 光り方は FxKit.flash('bad') に任せる（同じ場所で二重に光らせない）。
+   *
+   * 文字を残しているのは、音を切っている人にも
+   * 何が起きたかが必ず伝わるようにするため（第8部-1）。
+   */
+  function showQuietNote(msg){
+    var t = el('foulToast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 1600);
+  }
 
   // ---------- screen nav ----------
   // 「戻る」方向で画面遷移する（アニメーションが左から右になる）
@@ -5808,7 +5847,7 @@
   //                  「部屋を出る」が正しい出口
   var BACK_FREE_SCREENS = [
     'scr-door', 'scr-howto', 'scr-shelf', 'scr-countdown',
-    'scr-play', 'scr-reveal', 'scr-score',
+    'scr-topic-pass', 'scr-play', 'scr-reveal', 'scr-score',
     'scr-bomb-prep', 'scr-bomb-play', 'scr-bomb-end',
     'scr-quiz-turn', 'scr-tourney-match', 'scr-tourney-vs', 'scr-tourney-champion',
     'scr-auction-bid', 'scr-auction-handoff', 'scr-auction-question', 'scr-auction-result',
@@ -5951,6 +5990,7 @@
     if(id === 'scr-mode') enterMode();
     if(id === 'scr-ready') enterReady();
     if(id === 'scr-countdown') enterCountdown();
+    if(id === 'scr-topic-pass') enterTopicPass();
     if(id === 'scr-play') enterPlay();
     if(id === 'scr-wolf-pass') enterWolfPass();
     if(id === 'scr-bomb-play') enterBombPlay();
@@ -10634,6 +10674,10 @@
           } else if(m.auction){
             initAuctionRound();
             startAuctionRound();
+          } else if(needsTopicPass()){
+            // 第32弾-C-2：人が説明するモードは、スマホを出題者に渡してから始める。
+            // ここを飛ばすと、誰が説明するのか決まらないままお題が出てしまう
+            goTo('scr-topic-pass');
           } else {
             goTo('scr-play');
           }
@@ -12927,6 +12971,24 @@
       play.describerIndex = null;
     }
   }
+  /**
+   * 第32弾-C-2：手渡し画面を挟むかどうか。
+   * 「人が説明する」モードだけ。AI読み上げ・一言ヒントは出題者がいないので、
+   * 渡す相手がいない（挟むと意味のないタップが1回増えるだけになる）。
+   */
+  function needsTopicPass(){
+    var m = modeById(state.selectedModeId) || {};
+    if(m.wolf || m.wolfRole || m.bomb || m.quiz || m.buzzer || m.auction || m.defuse) return false;
+    return !isAIDescribe();
+  }
+  function enterTopicPass(){
+    var d = (play.describerIndex != null) ? state.players[play.describerIndex] : null;
+    el('topicPassName').textContent = d ? d.name : '出題する人';
+    el('topicPassSub').textContent = d
+      ? 'この人がお題を説明します'
+      : '説明する人にスマホをわたしてください';
+  }
+  el('topicPassBtn').addEventListener('click', function(){ goTo('scr-play'); });
   function renderDescriber(){
     var box = el('describerBanner');
     if(play.describerIndex == null || !state.players[play.describerIndex]){
@@ -12940,8 +13002,6 @@
     var mWolf = modeById(state.selectedModeId);
     if(mWolf.wolf && play.wolfPhase === 'discuss'){
       el('describerBanner').style.display = 'none';
-      el('hardModeRow').style.display = 'none';
-      el('voiceRow').style.display = 'none';
       el('liveTranscript').style.display = 'none';
       el('oneWordBadge').style.display = 'none';
       el('ngWordsBox').style.display = 'none';
@@ -12973,12 +13033,7 @@
       if(recognizer){ try{ recognizer.onend = null; recognizer.stop(); }catch(e){} recognizer = null; }
     }
     el('resultRow').style.display = 'flex';
-    el('voiceRow').style.display = 'flex';
-    el('voiceToggle').classList.toggle('on', state.voiceDetect);
-    el('liveTranscript').style.display = state.voiceDetect ? 'block' : 'none';
-    renderMicStatus();
-    el('hardModeRow').style.display = 'flex';
-    el('hardModeToggle').classList.toggle('on', state.hardMode);
+    applyVoiceDetectUI();
     renderDescriber();
     setupPlayTimerUI();
     // ②：答えを確認ボタンはAI/一言ヒントモードのみ。毎ラウンド隠した状態に戻す
@@ -12999,10 +13054,6 @@
       startVoice();
     }
   }
-  el('hardModeToggle').addEventListener('click', function(){
-    state.hardMode = !state.hardMode;
-    this.classList.toggle('on', state.hardMode);
-  });
   function nextTopic(){
     try{ window.speechSynthesis.cancel(); }catch(e){} // #4：前のお題の読み上げを即停止してから次へ
     var topics = poolForTiers(effectiveTiers()); // ④：選択難易度で絞った統合プール
@@ -13026,8 +13077,21 @@
       el('aiDescriptionBox').style.display = 'none';
       el('replaySpeechBtn').style.display = 'none';
       el('moreHintBtn').style.display = 'none';
-      renderTopic();
+      // 第32弾-C-2：お題は、カードが裏から表にめくれて出る。
+      // 中身を入れるのは裏を向ききった所（先に入れると、めくる前に答えが見える）。
+      // 出題者しか見ない画面なので、ここが一番の「開ける」瞬間になる
+      revealTopicCard();
     }
+  }
+  /**
+   * 第32弾-C-2：お題カードをめくって見せる。
+   * めくり自体は共通部品（FxKit.flip）。ここでは中身の差し替えだけを渡す。
+   */
+  function revealTopicCard(){
+    var card = document.querySelector('#scr-play .topic-card');
+    if(typeof FxKit === 'undefined' || !card || !FX_MS.flip
+       || appPrefs.fxSpeed === 'skip'){ renderTopic(); return; }
+    FxKit.flip(card, renderTopic, FX_MS.flip);
   }
   // 封印ワードの表示制御（第10弾）。AI出題でも封印ワードは有効で、
   // 画面に出すかどうかだけを showSeal で切り替える。非表示でも「見る」ボタンで確認できる。
@@ -13167,9 +13231,18 @@
     var d = el('playTimer');
     var m = Math.floor(play.remaining/60), s = play.remaining%60;
     d.textContent = pad(m)+':'+pad(s);
-    d.classList.remove('warn','done');
+    d.classList.remove('warn','done','hurry');
     if(play.remaining === 0) d.classList.add('done');
-    else if(play.remaining <= 10) d.classList.add('warn');
+    else if(play.remaining <= 10) d.classList.add('warn','hurry');
+  }
+  /**
+   * 第32弾-C-2：残り10秒の秒読み。
+   * 1秒ごとに少しずつ高い音にして、耳でも終わりが近いことが分かるようにする。
+   * 音を切っている人のために、画面の側でも赤く脈打たせてある（片方だけに頼らない）。
+   */
+  function hurryTick(remaining){
+    if(remaining <= 0 || remaining > 10) return;
+    beep(700 + (10 - remaining) * 45, 70);
   }
   // タイマー満了 or 手動終了で、ラウンドを締める共通処理（②）
   function finishPlayRound(){
@@ -13193,6 +13266,7 @@
         return;
       }
       renderPlayTimer();
+      hurryTick(play.remaining);
     }, 1000);
   }
   // プレイ画面トップバーの出し分け（②：ON/OFF・常時表示/見たい時だけ）
@@ -13290,7 +13364,7 @@
     noteOneHint(null); // 誰が当てたかは分からないが、出題側のぶんは数えられる
     logResult('correct');
     el('correctPickerOverlay').classList.remove('show');
-    nextTopic();
+    celebrateCorrect(null, null, function(){ nextTopic(); });
   });
   /**
    * 第26弾-4：「一発で当てさせた／ヒント1つで当てた」を数える。
@@ -13316,26 +13390,51 @@
     var btn = e.target.closest('button[data-id]');
     if(!btn) return;
     if(!el('correctPickerOverlay').classList.contains('show')) return; // 連打で二重加点しない
-    scorePlayer(btn.dataset.id, 1);
+    var before = null;
     var p = state.players.find(function(pp){ return pp.id === btn.dataset.id; });
+    if(p) before = p.score;
+    scorePlayer(btn.dataset.id, 1);
     noteOneHint(btn.dataset.id);
     logResult('correct', p ? p.name : null);
-    playStamp();
     if(state.describerScores && play.describerIndex != null && state.players[play.describerIndex]){
       scorePlayer(state.players[play.describerIndex].id, 1);
     }
     el('correctPickerOverlay').classList.remove('show');
-    nextTopic();
+    celebrateCorrect(p, before, function(){ nextTopic(); });
   });
+  /**
+   * 第32弾-C-2 原則C：正解の瞬間は、画面いっぱいで褒めちぎる。
+   * みんなが説明を頑張っているのは、この0.8秒のため。
+   * 当てた人・お題・入った点を、そろえて一度に出す。
+   *
+   * 演出はタップで飛ばせる（2周目の人を毎回待たせない）。
+   */
+  function celebrateCorrect(p, beforeScore, done){
+    playStamp();
+    if(typeof FxKit === 'undefined' || !FX_MS.celebrate){ done(); return; }
+    var topic = play.currentTopic ? play.currentTopic.name : '';
+    var gained = (p && beforeScore != null) ? (p.score - beforeScore) : 0;
+    FxKit.flash('good');
+    FxKit.banner({
+      kind: 'good',
+      icon: '⭕',
+      text: topic || 'せいかい！',
+      sub: p ? (p.name + 'さん　＋' + gained + '点') : 'せいかい！',
+      ms: FX_MS.celebrate
+    }).then(done);
+  }
   el('btnWrong').addEventListener('click', function(){
     if(play.aiLoading) return;     // 問題1：AI生成中は無効（保険）
     if(play.autoAdvancing) return; // 連打による二重処理を防ぐ（自動送り待ちの間はブロック）
     var m = modeById(state.selectedModeId);
     logResult('wrong');
-    wrongSound();
+    // 第32弾-C-2 原則C：責める時は静かに。
+    // 0.15秒の薄い赤と短い音だけ。みんなで遊ぶ場で恥をかかせないため。
+    // 文字は残す（音を切っている人にも、何が起きたかは伝わらないといけない）
+    if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else wrongSound();
     // AI/一言ヒントモードはお題名を隠す設計なので、不正解表示に名前を出さない
     var name = play.currentTopic ? play.currentTopic.name : '';
-    showFlash(isAIDescribe() ? '❌ 不正解' : ('❌ 不正解：'+name), 'hit-wrong');
+    showQuietNote(isAIDescribe() ? '❌ 不正解' : ('❌ 不正解：'+name));
     if(state.hardMode){
       play.autoAdvancing = true;
       setTimeout(function(){ play.autoAdvancing = false; nextTopic(); }, 700);
@@ -13344,7 +13443,11 @@
   el('btnFoul').addEventListener('click', function(){
     if(play.aiLoading) return;     // 問題1：AI生成中は無効（保険）
     if(play.autoAdvancing) return; // 連打による二重送りを防ぐ
-    logResult('foul'); buzz(); showFlash('🚫 反則を記録しました', 'hit');
+    // 第32弾-C-2 原則C：反則も責める側。派手に光らせず、短く伝えるだけにする
+    logResult('foul');
+    if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else buzz();
+    doVibrate([120,60,120]);
+    showQuietNote('🚫 反則を記録しました');
     if(isSealStrict()){
       play.autoAdvancing = true;
       setTimeout(function(){ play.autoAdvancing = false; nextTopic(); }, 700);
@@ -13356,7 +13459,8 @@
     if(play.autoAdvancing || !play.currentTopic) return; // 連打防止
     logResult('pass'); // 統計は「パス」として記録（不正解にはしない）
     play.autoAdvancing = true;
-    showFlash('⏭ パス', 'hit');
+    // パスは失敗ではないので、赤くも緑にもしない。文字だけ静かに出す
+    showQuietNote('⏭ パス');
     setTimeout(function(){ play.autoAdvancing = false; nextTopic(); }, 450);
   }
   el('btnPass').addEventListener('click', doPass);
@@ -13381,7 +13485,7 @@
   function startVoice(){
     if(!voiceSupported()){
       renderMicStatus('このブラウザは音声認識に対応していません');
-      state.voiceDetect = false; el('voiceToggle').classList.remove('on');
+      state.voiceDetect = false;
       return;
     }
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -13485,11 +13589,22 @@
       }
     }
   }
-  el('voiceToggle').addEventListener('click', function(){
-    state.voiceDetect = !state.voiceDetect;
-    this.classList.toggle('on', state.voiceDetect);
+  /**
+   * 第32弾-C-2：音声判定の見た目だけを整える。
+   * プレイ画面に入った時と、⚙で切り替えた時の両方から呼ぶ。
+   * 2か所で別々に書くと、片方だけ直して食い違う。
+   */
+  function applyVoiceDetectUI(){
+    var on = !!state.voiceDetect;
+    el('liveTranscript').style.display = on ? 'block' : 'none';
+    el('micStatus').style.display = on ? 'block' : 'none';
+    renderMicStatus();
+  }
+  // ⚙で切り替えた時は、見た目に加えて聞き取り自体も入り切りする
+  function applyVoiceDetect(){
+    applyVoiceDetectUI();
     if(state.voiceDetect) startVoice(); else stopVoice();
-  });
+  }
 
   // ===================== 8. reveal =====================
   function enterReveal(){
@@ -13598,17 +13713,16 @@
     if(me && me.wasLastPlace) add.comebackWins = 1;
     recordTitleStats('aresore', add);
   }
+  /**
+   * 第32弾-C-2：点数のカウントアップは共通部品（FxKit.countUp）に寄せた。
+   * 以前はここに専用の実装があり、演出の速さの設定もスキップも効かなかった。
+   * 同じものが2つあると、片方だけ直して反映し忘れる。
+   */
   function animateCount(elId, from, to, dur){
-    if(from === to) return;
-    var startTime = performance.now();
-    function step(now){
-      var t = Math.min(1, (now - startTime) / dur);
-      var val = Math.round(from + (to - from) * t);
-      var node = el(elId);
-      if(node) node.textContent = val;
-      if(t < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
+    var node = el(elId);
+    if(!node) return;
+    if(typeof FxKit === 'undefined'){ node.textContent = String(to); return; }
+    FxKit.countUp(node, from, to, dur);
   }
 
   // ===================== 9. score =====================
@@ -13625,7 +13739,6 @@
         '<div class="p-score">'+p.score+'</div>'+
       '</div>';
     }).join('');
-
     var active = state.players.filter(function(p){ return !p.eliminated; });
     var champion = (optSurvival() && active.length <= 1);
     var survivalOngoing = (optSurvival() && active.length > 1); // ①：まだ優勝が決まっていない
@@ -13642,6 +13755,14 @@
         play.championAwarded = true;
         awardAresoreChampion(active[0].id);
       }
+    }
+    // 第32弾-C-2：順位は1位から順に出す。
+    // いっぺんに出すと、どこが1位か目で探すことになる。
+    // 1つずつ出れば、上から順に見るだけで順位が伝わる（演出はタップで飛ばせる）。
+    // 優勝の帯を差し込んだ「あと」に呼ぶこと。先に呼ぶと帯だけ出てこない
+    if(typeof FxKit !== 'undefined'){
+      el('scoreList').classList.add('fx-stagger');
+      FxKit.stagger(el('scoreList').children, 160);
     }
   }
   el('playAgainBtn').addEventListener('click', function(){ goTo('scr-ready'); });
@@ -13772,6 +13893,26 @@
   function liveGameSettings(){
     var m = modeById(state.selectedModeId) || {};
     var out = [];
+    // 第32弾-C-2 原則A：あれそれどれこれの遊んでいる画面には、
+    // 「ハードモード」と「音声で判定」のスイッチが据え置かれていた。
+    // 説明している最中に見るものではないので、⚙の中へ移した。
+    // 画面に残っているのは、タイマー・お題・判定だけになる。
+    if(!m.wolf && !m.wolfRole && !m.bomb && !m.defuse && !m.quiz && !m.buzzer && !m.auction){
+      out.push({ id:'hardMode', type:'toggle', label:'⚡ ハードモード',
+        get:function(){ return !!state.hardMode; },
+        set:function(v){ state.hardMode = !!v; },
+        note:'不正解で自動的に次のお題へ進みます' });
+      if(voiceSupported()){
+        out.push({ id:'voiceDetect', type:'toggle', label:'🎙 音声で判定',
+          get:function(){ return !!state.voiceDetect; },
+          set:function(v){
+            state.voiceDetect = !!v;
+            // 切り替えた瞬間から効かせる（次のお題まで待たせない）
+            applyVoiceDetect();
+          },
+          note:voiceHintText() });
+      }
+    }
     if(m.bomb){
       out.push({ id:'bombLives', label:'ライフの数', min:1, max:5, step:1,
         get:function(){ return state.bombLives; },
@@ -13847,6 +13988,15 @@
   function renderSetGameCfg(){
     var items = liveGameSettings();
     el('setGameCfgBody').innerHTML = items.map(function(it){
+      // 第32弾-C-2：ON/OFFのものも、つまみのものと同じ場所で扱えるようにした。
+      // これができるまで、ON/OFFの設定は遊んでいる画面に置きっぱなしになっていた
+      if(it.type === 'toggle'){
+        return '<div class="card"><div class="voice-row" style="margin:0;">' +
+          '<div>' + escapeHtml(it.label) +
+            '<div class="mic-status">' + escapeHtml(it.note || '') + '</div></div>' +
+          '<div class="switch' + (it.get() ? ' on' : '') + '" data-cfgtoggle="' + it.id + '"></div>' +
+        '</div></div>';
+      }
       return '<div class="card">' +
         '<div class="tp-label">' + escapeHtml(it.label) + '　<span data-cfgval="' + it.id + '">' +
           it.get() + '</span></div>' +
@@ -13864,6 +14014,15 @@
     it.set(v);
     var label = el('setGameCfgBody').querySelector('[data-cfgval="' + it.id + '"]');
     if(label) label.textContent = v;
+    saveLocalPrefs();
+  });
+  el('setGameCfgBody').addEventListener('click', function(e){
+    var sw = e.target.closest('[data-cfgtoggle]');
+    if(!sw) return;
+    var it = liveGameSettings().find(function(x){ return x.id === sw.dataset.cfgtoggle; });
+    if(!it) return;
+    it.set(!it.get());
+    sw.classList.toggle('on', !!it.get());
     saveLocalPrefs();
   });
 

@@ -151,7 +151,19 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
       this.onresult = null; this.onerror = null; this.onend = null;
     };
     win.webkitSpeechRecognition = win.SpeechRecognition;
-    click(doc, 'voiceToggle');
+    // 第32弾-C-2：音声判定のスイッチは、遊んでいる画面から⚙の中へ移した
+    //（説明している最中に見るものではないため）
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    doc.querySelector('#setRootMenu [data-setpage="game"]').click();
+    await sleep(win, 60);
+    doc.querySelector('#setGameMenu [data-setpage="gamecfg"]').click();
+    await sleep(win, 60);
+    const vsw = doc.querySelector('#setGameCfgBody [data-cfgtoggle="voiceDetect"]');
+    assert(vsw, '⚙の中に「音声で判定」がある');
+    vsw.click();
+    click(doc, 'closeSettingsBtn');
+    await sleep(win, 60);
     await waitFor(win, () => !!win.__rec, 3000, '音声認識が開始される');
 
     // 別名を持つお題が出るまで送る。
@@ -176,6 +188,186 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
       '略称「' + aliasOf[target] + '」で正解になる');
     assertEqual(topicText(doc), target, '表示は正式名称のまま');
     assertNoErrors(errors, '別名判定で未捕捉の例外');
+    win.close();
+  });
+
+  // ===================================================================
+  // 第32弾-C 第2部：あそびの流れ
+  // 演出そのものを見るので、ここだけ本物の速さで動かす（launch({fx:true})）
+  // ===================================================================
+
+  await r.test('手渡し：人が説明するモードは、渡してから始まる', async () => {
+    const { win, doc, errors } = await launch({ fx: true });
+    await setupPlayers(win, doc, ['あき', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, 'modeNextBtn');
+    for (let i = 0; i < 10; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 25);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 50); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    // カウントダウンのあと、いきなりお題ではなく手渡しに入る
+    await waitFor(win, () => activeScreen(doc) === 'scr-topic-pass', 8000, '手渡しに入る');
+    // この画面でやることは1つだけ（原則A）
+    assertEqual(doc.querySelectorAll('#scr-topic-pass button').length, 1,
+      '手渡し画面のボタンは1つだけ');
+    assert(/わたして|説明します/.test(el(doc, 'topicPassSub').textContent),
+      '誰に渡すのかが書いてある');
+    click(doc, 'topicPassBtn');
+    await waitScreen(win, doc, 'scr-play', 3000);
+    assertNoErrors(errors, '手渡しで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('手渡し：出題者がいないモードでは、余計なタップを増やさない', async () => {
+    // AI読み上げは出題者がいない。渡す相手がいないのに画面を挟むと、
+    // 意味のないタップが1回増えるだけになる
+    const { win, doc, errors } = await launch({ fx: true });
+    await startPlay(win, doc, 'ai');
+    assertEqual(activeScreen(doc), 'scr-play', '手渡しを挟まずに始まる');
+    assertNoErrors(errors, 'AI読み上げで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('お題は、カードがめくれてから見える', async () => {
+    const { win, doc, errors } = await launch({ fx: true });
+    await startPlay(win, doc, 'normal');
+    const card = doc.querySelector('#scr-play .topic-card');
+    assert(card, 'お題カードがある');
+    // めくり終わればお題が出ている
+    await waitFor(win, () => topicText(doc) !== '-' && topicText(doc) !== '', 3000, 'お題が出る');
+    await waitFor(win, () => card.className === 'topic-card', 2000, 'めくりの印が残らない');
+    assertNoErrors(errors, 'お題のめくりで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('残り10秒を切ると、タイマーが赤く脈打つ', async () => {
+    // 音を切っている人にも終わりが近いと分かるように、画面の側でも出す。
+    // 実際に30秒のラウンドを走らせて確かめる（時計まわりは作り物だと嘘になりやすい）
+    const { win, doc, errors } = await launch();
+    await setupPlayers(win, doc, ['あき', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, 'modeNextBtn');
+    for (let i = 0; i < 10; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      if (cur === 'scr-set-timer') {
+        // タイマーは入れたまま、いちばん短い30秒にする
+        doc.querySelector('#timerPresets [data-sec="30"]').click();
+        await sleep(win, 30);
+      }
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 25);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 50); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-play', 8000);
+    const t = el(doc, 'playTimer');
+    assert(!t.classList.contains('hurry'), '始まったばかりでは脈打たない');
+    await waitFor(win, () => t.classList.contains('hurry'), 26000, '残り10秒で脈打ちはじめる');
+    assert(/^00:0\d$|^00:10$/.test(t.textContent),
+      '脈打ちはじめるのは10秒を切ってから（実際: ' + t.textContent + '）');
+    assertNoErrors(errors, 'タイマーの脈で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('正解：画面いっぱいで褒め、お題と入った点を出す（原則C）', async () => {
+    const { win, doc, errors } = await launch({ fx: true });
+    await startPlay(win, doc, 'normal');
+    await waitFor(win, () => topicText(doc) !== '-', 3000, 'お題が出る');
+    const topic = topicText(doc);
+    click(doc, 'btnCorrect');
+    await sleep(win, 60);
+    doc.querySelector('#pickerGrid button[data-id]').click();
+    await sleep(win, 80);
+    const b = doc.querySelector('.fx-banner');
+    assert(b, '画面いっぱいの演出が出る');
+    assert(b.classList.contains('fx-banner-good'), '褒める色で出る');
+    assert(b.textContent.indexOf(topic) >= 0, '当てたお題が大きく出る');
+    assert(/＋1点/.test(b.textContent), '入った点が出る（実際: ' + b.textContent + '）');
+    // 演出はタップで飛ばせる（2周目の人を毎回待たせない）
+    doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+    await waitFor(win, () => !doc.querySelector('.fx-banner'), 2000, '演出が飛ぶ');
+    assertNoErrors(errors, '正解の演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('不正解：画面いっぱいの演出は出さない（原則C）', async () => {
+    // みんなで遊ぶ場で恥をかかせない。赤いフラッシュと短い文字だけ
+    const { win, doc, errors } = await launch({ fx: true });
+    await startPlay(win, doc, 'normal');
+    await waitFor(win, () => topicText(doc) !== '-', 3000, 'お題が出る');
+    click(doc, 'btnWrong');
+    await sleep(win, 60);
+    assert(!doc.querySelector('.fx-banner'), '画面いっぱいの演出は出ない');
+    assert(doc.querySelector('.fx-flash-bad'), '控えめな赤いフラッシュだけ出る');
+    assert(el(doc, 'foulToast').classList.contains('show'),
+      '何が起きたかは文字でも伝わる（音を切っていても分かる）');
+    assertNoErrors(errors, '不正解の演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('結果：順位が1位から順に出て、最後は全員そろう', async () => {
+    const { win, doc, errors } = await launch({ fx: true });
+    await startPlay(win, doc, 'normal');
+    await waitFor(win, () => topicText(doc) !== '-', 3000, 'お題が出る');
+    click(doc, 'btnCorrect');
+    await sleep(win, 60);
+    doc.querySelector('#pickerGrid button[data-id]').click();
+    doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+    await sleep(win, 120);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-score', 8000);
+    const rows = doc.querySelectorAll('#scoreList .player-row');
+    assert(rows.length >= 2, '全員ぶんの行がある');
+    // 飛ばしても、途中で止まって誰かが消えたままにならない
+    doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+    await waitFor(win, () => doc.querySelectorAll('#scoreList .fx-in').length === rows.length,
+      3000, '全員ぶんが出そろう');
+    assertNoErrors(errors, '結果の順位発表で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('原則A：遊んでいる画面に、設定のスイッチを置かない', async () => {
+    // 「ハードモード」「音声で判定」は説明している最中に見るものではない。
+    // 画面に据え置くと、何に集中すればいいか分からなくなる
+    const { win, doc, errors } = await launch();
+    await startPlay(win, doc, 'normal');
+    assertEqual(doc.querySelectorAll('#scr-play .switch').length, 0,
+      '遊んでいる画面にスイッチが無い');
+    // ⚙の中には、ちゃんとある（消したのではなく移した）
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    doc.querySelector('#setRootMenu [data-setpage="game"]').click();
+    await sleep(win, 60);
+    doc.querySelector('#setGameMenu [data-setpage="gamecfg"]').click();
+    await sleep(win, 60);
+    const hard = doc.querySelector('#setGameCfgBody [data-cfgtoggle="hardMode"]');
+    assert(hard, '⚙の中に「ハードモード」がある');
+    assert(!hard.classList.contains('on'), 'はじめはオフ');
+    hard.click();
+    assert(hard.classList.contains('on'), '切り替えられる');
+    click(doc, 'closeSettingsBtn');
+    await sleep(win, 60);
+    // 見た目だけでなく、本当に効いていること
+    //（ハードモード＝不正解で自動的に次のお題へ進む）
+    await waitFor(win, () => topicText(doc) !== '-', 3000, 'お題が出る');
+    const before = topicText(doc);
+    click(doc, 'btnWrong');
+    await waitFor(win, () => topicText(doc) !== before, 3000,
+      'ハードモードでは不正解で次のお題へ進む');
+    assertNoErrors(errors, '⚙のスイッチで未捕捉の例外');
     win.close();
   });
 

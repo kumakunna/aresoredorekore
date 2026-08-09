@@ -165,14 +165,17 @@ async function launch(opts) {
     html = html.replace('var HOLD_MS = 1000;', 'var HOLD_MS = ' + HOLD_MS_TEST + ';');
     if (html === before) throw new Error('HOLD_MS が見つかりません（長押しの実装が変わった可能性があります）');
   }
-  // 第32弾-C-1：カセットをタップした時、テーマ色が広がってから次の画面へ移る。
-  // 待ちが入ると「押した直後に画面が変わる」前提のテストが全部ずれるので、
+  // 第32弾-C：演出は「入りきってから次へ」進むので、待ちが入る。
+  // そのままだと「押した直後に画面が変わる」前提のテストが全部ずれるので、
   // 演出そのものを見るテスト（opts.fx）以外では0にする。HOLD_MS と同じ考え方。
+  // 本番のコードは、0のときは待ちを挟まずその場で進む
+  //（＝「演出の速さ＝スキップ」を選んだ人と同じ動き）。
   {
-    if (html.indexOf('var WARP_MS = 240;') < 0) {
-      throw new Error('WARP_MS が見つかりません（カセットの演出の実装が変わった可能性があります）');
+    const src = 'var FX_MS = { warp:240, celebrate:800, flip:300 };';
+    if (html.indexOf(src) < 0) {
+      throw new Error('FX_MS が見つかりません（演出の実装が変わった可能性があります）');
     }
-    if (!opts.fx) html = html.replace('var WARP_MS = 240;', 'var WARP_MS = 0;');
+    if (!opts.fx) html = html.replace(src, 'var FX_MS = { warp:0, celebrate:0, flip:0 };');
   }
   // 複数ゲームを持つカセットは本番にまだ無いので、テスト時だけ差し込む。
   // 本番のカセット構成は変えずに「ゲーム選択画面を通る経路」を確認するため。
@@ -321,6 +324,18 @@ function passWrMeeting(win, doc) {
 }
 
 async function waitScreen(win, doc, id, timeout) {
+  // 第32弾-C-2：人が説明するモードは、遊びはじめる前に手渡しを1回はさむ。
+  // 25か所のテストに同じタップを書き足すと必ずどこかを漏らすので、
+  // 「遊ぶ画面を待っている時に手渡しに来たら通す」をここ1か所に置く。
+  // 手渡しそのものは tests/aresore.js が正面から確かめている。
+  if (id === 'scr-play') {
+    await waitFor(win, () => activeScreen(doc) === id || activeScreen(doc) === 'scr-topic-pass',
+      timeout, '画面 ' + id + ' へ遷移（現在: ' + activeScreen(doc) + '）');
+    if (activeScreen(doc) === 'scr-topic-pass') {
+      el(doc, 'topicPassBtn').click();
+      await sleep(win, 30);
+    }
+  }
   await waitFor(win, () => activeScreen(doc) === id, timeout,
     '画面 ' + id + ' へ遷移（現在: ' + activeScreen(doc) + '）', id === 'scr-nightfall');
 }
@@ -361,7 +376,11 @@ async function setupPlayers(win, doc, names) {
   if (activeScreen(doc) === 'scr-shelf') {
     const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
     cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click(); // 中央でなければ2回目で選択
+    // 第32弾-C-1：カセットに入る演出が入ったので、押した直後はまだ棚にいることがある。
+    // 「中央でなければ2回目で選択」と区別するため、演出が始まっていないときだけ押し直す
+    await sleep(win, 20);
+    if (activeScreen(doc) === 'scr-shelf' && !doc.querySelector('.cassette-warp')) cart.click();
+    await waitFor(win, () => activeScreen(doc) !== 'scr-shelf', 4000, 'カセットの中に入る');
   }
   await fillPlayerForm(win, doc, names);
 }

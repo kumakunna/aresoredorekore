@@ -44,10 +44,20 @@ function wolfView(over) {
 
 // 第26弾-3：棚の「部屋」→ 立てる／参加する → 待合。
 // 何を遊ぶかは部屋に入ってから選ぶ（部屋はカセットに紐づかない箱）
+// 第32弾-A：部屋への入口は「あそびかたをえらぶ」に一本化した。
+// 棚にいる時は、棚の見出しのボタンからそこへ戻ってから「みんなのスマホ」を選ぶ
+async function toRoomLobby(win, doc) {
+  if (activeScreen(doc) === 'scr-shelf') {
+    click(doc, 'shelfFlowBtn');
+    await waitScreen(win, doc, 'scr-howto', 3000);
+  }
+  click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+  await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+}
+
 async function toRoom(win, doc, opts) {
   opts = opts || {};
-  click(doc, 'shelfRoomBtn');
-  await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+  await toRoomLobby(win, doc);
 
   const fake = win.__rtFake;
   await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
@@ -442,20 +452,21 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   });
 
   // ---- 第22弾 第1部／第26弾 第2部：ゲームに紐づかない参加の入り口 ----
-  await r.test('棚の「部屋」ボタンから、立てるにも参加するにも進める', async () => {
-    const b = await launch(LAUNCH);
-    await waitScreen(b.win, b.doc, 'scr-shelf', 4000);
-    assert(b.doc.getElementById('shelfRoomBtn'), '棚に「部屋」ボタンがある');
-    click(b.doc, 'shelfRoomBtn');
+  await r.test('「みんなのスマホであそぶ」から、立てるにも参加するにも進める', async () => {
+    // 第32弾-A：部屋への導線はここ1本。棚の下部バーからは無くなった
+    const b = await launch(Object.assign({}, LAUNCH, { playFlow: false }));
+    await waitScreen(b.win, b.doc, 'scr-howto', 4000);
+    assert(!b.doc.getElementById('shelfRoomBtn'), '棚に「部屋」ボタンは無い');
+    click(b.doc, b.doc.querySelector('#scr-howto [data-howto="room"]'));
     await waitScreen(b.win, b.doc, 'scr-rt-lobby', 3000);
     assert(b.doc.getElementById('rtJoinCode'), '部屋コードを入れられる');
     assert(b.doc.getElementById('rtJoinName'), '名前を入れられる');
-    assertEqual(el(b.doc, 'rtCreateCard').style.display, '', '棚からは「立てる」も出る');
+    assertEqual(el(b.doc, 'rtCreateCard').style.display, '', 'ここからは「立てる」も出る');
     // どのカセットにも属さない画面なので、前のテーマを引きずらない
     assert(!el(b.doc, 'app').classList.contains('theme-wolf'), '前のカセットのテーマが乗らない');
     click(b.doc, 'rtLobbyBackBtn');
-    await waitScreen(b.win, b.doc, 'scr-shelf', 3000);
-    assertNoErrors(b.errors, '棚からの部屋で未捕捉の例外');
+    await waitScreen(b.win, b.doc, 'scr-howto', 3000);
+    assertNoErrors(b.errors, '部屋の入口で未捕捉の例外');
     b.win.close();
   });
 
@@ -571,8 +582,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('参加すると、ホストが選んでいるゲームの画面へ進む', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     await waitScreen(win, doc, 'scr-shelf', 4000);
-    click(doc, 'shelfRoomBtn');
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    await toRoomLobby(win, doc);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
 
@@ -599,8 +609,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('まだ対応していないゲームの部屋でも、置き去りにしない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     await waitScreen(win, doc, 'scr-shelf', 4000);
-    click(doc, 'shelfRoomBtn');
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    await toRoomLobby(win, doc);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
     fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm2', room: roomSnapshot() }) };
@@ -765,8 +774,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       })
     };
     // 棚を通らずに「部屋に参加する」から入る
-    click(doc, 'shelfRoomBtn');
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    await toRoomLobby(win, doc);
     assert(!el(doc, 'app').classList.contains('theme-wolf'), '入り口ではまだテーマは付かない');
     el(doc, 'rtJoinCode').value = 'ABC234';
     el(doc, 'rtJoinName').value = 'びび';

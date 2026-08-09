@@ -1238,9 +1238,10 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('部屋の入り口は棚から入れて、つながらない時は理由が出る', async () => {
-    const { win, doc, errors } = await launch();
-    click(doc, 'shelfRoomBtn');
+  await r.test('部屋の入り口は「あそびかたをえらぶ」から入れて、つながらない時は理由が出る', async () => {
+    // 第32弾-A：部屋への導線はここ1本になった（棚の下部バーからは無くなった）
+    const { win, doc, errors } = await launch({ playFlow: false });
+    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
     await waitScreen(win, doc, 'scr-rt-lobby', 3000);
     assert(doc.getElementById('rtCreateBtn'), '部屋をつくる導線がある');
     assert(doc.getElementById('rtJoinCode'), '部屋コードで入る導線がある');
@@ -1249,7 +1250,7 @@ async function startModeWithTimerOff(win, doc, id) {
       'つながらない時は理由が出る（' + el(doc, 'rtLobbyStatus').textContent.slice(0, 20) + '）');
     assert(el(doc, 'rtCreateBtn').disabled, 'つながらないうちは押せない');
     click(doc, 'rtLobbyBackBtn');
-    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await waitScreen(win, doc, 'scr-howto', 3000);
     assertNoErrors(errors, '部屋の入り口で未捕捉の例外');
     win.close();
   });
@@ -2897,27 +2898,37 @@ async function startModeWithTimerOff(win, doc, id) {
 
   // 第30弾 第4部：テーマの適用範囲が漏れていないこと（落とし穴3）。
   // 棚 → ゲーム選択 → モード選択 → 設定ウィザード まで実際にたどる
-  await r.test('テーマ：クイズ王カセットを選ぶと、その先すべてがスタジオになる', async () => {
-    const { win, doc, errors } = await launch();
-    const app = el(doc, 'app');
-    assert(!app.classList.contains('theme-quiz'), '棚では素のまま');
-
+  // 第32弾-A-3-5：部屋が必須のカセットは、ゲームを選ぶ前に分かるようにする。
+  // 以前は「選べるのに、モード画面で押せなくなる」形で、そこで詰んでいた。
+  // （クイズ王・オークションのテーマが最後まで続くことは、
+  //   部屋がある状態で歩く rt-screens.js の方で見ている）
+  await r.test('手渡しの棚では、部屋が必須のカセットは押す前に理由が読める', async () => {
+    const { win, doc, errors } = await launch({ playFlow: 'handoff' });
+    for (const id of ['quizou', 'auction']) {
+      const cart = doc.querySelector('.cart[data-cart="' + id + '"]');
+      assert(cart, id + ' のカセットは棚に並んでいる（隠さない）');
+      assert(cart.classList.contains('locked'), id + '：遊べないことが見て分かる');
+      assert(/みんなのスマホ/.test(cart.textContent), id + '：理由が読める');
+    }
+    // 押しても始まらず、理由が出るだけ（行き止まりにしない）
     const cart = doc.querySelector('.cart[data-cart="quizou"]');
-    assert(cart, 'クイズ王のカセットが棚にある');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    assert(app.classList.contains('theme-quiz'), 'ゲーム選択からもうスタジオになる');
-    pickGame(doc, 'quizrush');
-    await sleep(win, 60);
-    await fillPlayerForm(win, doc, PLAYERS);
-    await waitScreen(win, doc, 'scr-mode', 3000);
-    assert(app.classList.contains('theme-quiz'), 'モード選択でも続く');
-    // 4つとも部屋が必須なので、手渡しでは選べない案内が出る（行き止まりにしない）
-    const card = doc.querySelector('.mode-card[data-id="quizrush"]');
-    assert(card, 'クイズラッシュのカードが出る');
-    assert(!app.classList.contains('theme-bomb'), '別のカセットのテーマは付かない');
-    assertNoErrors(errors, 'クイズ王のテーマで未捕捉の例外');
+    await sleep(win, 120);
+    assertEqual(activeScreen(doc), 'scr-shelf', '押しても棚から出ない');
+    assertNoErrors(errors, '手渡しの棚で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('みんなのスマホの棚では、1台専用のカセットに理由が出る', async () => {
+    // あれそれどれこれは部屋に未対応。逆向きも同じように分かる形にする
+    const { win, doc, errors } = await launch({ playFlow: false });
+    // 棚だけ見たいので、部屋を立てずに棚のあそびかただけ切り替える
+    click(doc, doc.querySelector('#scr-howto [data-howto="browse"]'));
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assert(!doc.querySelector('.cart[data-cart="quizou"]').classList.contains('locked'),
+      '見るだけの時は、どれも開ける');
+    assertNoErrors(errors, '見るだけの棚で未捕捉の例外');
     win.close();
   });
 
@@ -2934,47 +2945,30 @@ async function startModeWithTimerOff(win, doc, id) {
       '品物の一枚だけが光る');
   });
 
-  await r.test('オークションのカセットが棚にあり、選ぶと競り市の見た目になる', async () => {
-    const { win, doc, errors } = await launch();
-    const app = el(doc, 'app');
-    assert(!app.classList.contains('theme-auction'), '棚では素のまま');
-    const cart = doc.querySelector('.cart[data-cart="auction"]');
-    assert(cart, 'オークションのカセットが棚にある');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await sleep(win, 120);
-    if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
-    await waitScreen(win, doc, 'scr-mode', 3000);
-    assert(app.classList.contains('theme-auction'), 'モード選択から競り市になる');
-    assert(doc.querySelector('.mode-card[data-id="auction-open"]'), 'せり上げ式が出る');
-    assert(doc.querySelector('.mode-card[data-id="auction-sealed"]'), '秘密入札が出る');
-    // 作り直す前の手渡し版は、棚には出さない
-    assert(!doc.querySelector('.mode-card[data-id="auction"]'), '前の手渡し版は出さない');
-    assert(/部屋/.test(el(doc, 'scr-mode').textContent), '部屋が必要なことが書いてある');
-    assertNoErrors(errors, 'オークションのカセットで未捕捉の例外');
-    win.close();
-  });
-
-  await r.test('クイズ王の4つは、部屋が必須だと分かるようになっている', async () => {
-    const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="quizou"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    for (const gameId of ['quizrush', 'quizlist', 'quizreveal', 'buzzer']) {
-      pickGame(doc, gameId);
-      await sleep(win, 60);
-      if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
-      await waitScreen(win, doc, 'scr-mode', 3000);
-      const cards = Array.from(doc.querySelectorAll('.mode-card'));
-      assert(cards.length > 0, gameId + ' に遊び方のカードが出る');
-      // 手渡しでは遊べないことが、押す前に読める
-      const text = doc.getElementById('scr-mode').textContent;
-      assert(/部屋/.test(text), gameId + '：部屋が必要なことが書いてある');
-      click(doc, 'backToShelfBtn');
-      await waitScreen(win, doc, 'scr-game', 3000);
+  await r.test('カセットの説明で、何台のスマホが要るかと中身が読める', async () => {
+    // 第32弾-A：「棚を見る」から開く説明画面。ここでは遊び始めない
+    const { win, doc, errors } = await launch({ playFlow: 'browse' });
+    const CASES = [
+      { cart: 'auction',  need: true,  words: ['せり上げ式', '秘密入札'] },
+      { cart: 'quizou',   need: true,  words: ['クイズラッシュ', 'つぎつぎクイズ', 'とくとくクイズ', '早押し'] },
+      { cart: 'aresoredorekore', need: false, words: ['あれそれどれこれ'] }
+    ];
+    for (const c of CASES) {
+      const cart = doc.querySelector('.cart[data-cart="' + c.cart + '"]');
+      assert(cart, c.cart + ' のカセットが棚にある');
+      cart.click();
+      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await waitScreen(win, doc, 'scr-cassette', 3000);
+      const text = el(doc, 'scr-cassette').textContent;
+      if (c.need) assert(/みんなのスマホが必要/.test(text), c.cart + '：みんなのスマホが要ると分かる');
+      else assert(/1台でもあそべる/.test(text), c.cart + '：1台でも遊べると分かる');
+      c.words.forEach((w) => {
+        assert(text.indexOf(w) !== -1, c.cart + '：中身に「' + w + '」が出る');
+      });
+      click(doc, 'ctBackBtn');
+      await waitScreen(win, doc, 'scr-shelf', 3000);
     }
-    assertNoErrors(errors, 'クイズ王のモード選択で未捕捉の例外');
+    assertNoErrors(errors, 'カセットの説明で未捕捉の例外');
     win.close();
   });
 

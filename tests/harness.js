@@ -233,6 +233,18 @@ async function launch(opts) {
   // 扉が自動で開くまで待つ（起動時は必ず扉を通る）
   await waitFor(win, () => activeScreen(doc) !== 'scr-door', 5000, '扉が開く');
 
+  // 第32弾-A：扉の次に「あそびかたをえらぶ」が入った。
+  // ほとんどのテストは、その先（棚・部屋）を見たいので、ここで1回だけ通す。
+  // この画面そのものを見たいテストは playFlow:false を渡して止められる
+  if (opts.playFlow !== false && activeScreen(doc) === 'scr-howto') {
+    const flow = opts.playFlow || 'handoff';
+    const btn = doc.querySelector('#scr-howto [data-howto="' + flow + '"]');
+    if (btn) {
+      btn.click();
+      await waitFor(win, () => activeScreen(doc) !== 'scr-howto', 4000, 'あそびかたを選ぶ');
+    }
+  }
+
   return { dom, win, doc, errors };
 }
 

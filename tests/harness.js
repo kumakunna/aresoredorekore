@@ -165,6 +165,15 @@ async function launch(opts) {
     html = html.replace('var HOLD_MS = 1000;', 'var HOLD_MS = ' + HOLD_MS_TEST + ';');
     if (html === before) throw new Error('HOLD_MS が見つかりません（長押しの実装が変わった可能性があります）');
   }
+  // 第32弾-C-1：カセットをタップした時、テーマ色が広がってから次の画面へ移る。
+  // 待ちが入ると「押した直後に画面が変わる」前提のテストが全部ずれるので、
+  // 演出そのものを見るテスト（opts.fx）以外では0にする。HOLD_MS と同じ考え方。
+  {
+    if (html.indexOf('var WARP_MS = 240;') < 0) {
+      throw new Error('WARP_MS が見つかりません（カセットの演出の実装が変わった可能性があります）');
+    }
+    if (!opts.fx) html = html.replace('var WARP_MS = 240;', 'var WARP_MS = 0;');
+  }
   // 複数ゲームを持つカセットは本番にまだ無いので、テスト時だけ差し込む。
   // 本番のカセット構成は変えずに「ゲーム選択画面を通る経路」を確認するため。
   if (opts.testCassettes && opts.testCassettes.length) {

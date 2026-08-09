@@ -1047,5 +1047,112 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ===================================================================
+  // 第32弾-C 第1部：扉・棚の演出
+  // 演出そのものを見るので、ここだけ本物の速さで動かす（launch({fx:true})）
+  // ===================================================================
+
+  await r.test('扉：開いた先で何が始まるかが、扉に書いてある', async () => {
+    const { win, doc, errors } = await launch();
+    // 初めて触る人は、扉が開くまで何が起きるか分からないまま待たされていた
+    const lead = el(doc, 'doorLead');
+    assert(lead, '扉に一言が置いてある');
+    assert(/あそび/.test(lead.textContent), '何をするところかが分かる（実際: ' + lead.textContent + '）');
+    assertNoErrors(errors, '扉で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('棚：いま選んでいるカセットだけが浮き、影が濃くなる', async () => {
+    const { win, doc, errors } = await launch();
+    const rail = doc.querySelector('#shelfList .rail');
+    const center = rail.querySelector('.cart.center');
+    assert(center, '中央のカセットがある');
+    // 「中央だけ」であること。全部が浮いていたら、どれを選んでいるか分からない
+    assertEqual(rail.querySelectorAll('.cart.center').length, 1, '浮いているのは1つだけ');
+    const on = win.getComputedStyle(center.querySelector('.cart-body')).boxShadow;
+    const other = Array.from(rail.querySelectorAll('.cart')).find(c => !c.classList.contains('center'));
+    if (other) {
+      const off = win.getComputedStyle(other.querySelector('.cart-body')).boxShadow;
+      assert(on !== off, '中央と両隣で影の濃さが違う');
+    }
+    assertNoErrors(errors, '棚の中央表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('棚：カセットの切り替えは0.25秒（速さの設定にも従う）', async () => {
+    // jsdom は calc() と CSS変数を解けないので、書いてある指定そのものを見る
+    const css = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const rule = css.slice(css.indexOf('\n  .cart{'), css.indexOf('\n  .cart.center{'));
+    assert(/transform calc\(0\.25s \* var\(--fx-scale\)\)/.test(rule),
+      '0.25秒で横に移る');
+    // 「演出の速さ」を掛けてあること。掛け忘れると、速い・スキップにしても棚だけ遅いまま
+    assert(/var\(--fx-scale\)/.test(rule), '速さの設定が効く');
+    // 段の中も、飛ばずに滑って移る
+    assert(/\.rail\{[\s\S]*?scroll-behavior:smooth/.test(css), '中央を移す時、滑って移る');
+  });
+
+  await r.test('棚：カセットをタップすると、テーマ色が広がってから中に入る', async () => {
+    const { win, doc, errors } = await launch({ fx: true });
+    const c = cart(doc, 'jinro');
+    c.click();
+    if (!doc.querySelector('.cassette-warp')) c.click(); // 中央でなければ2回目で選択
+    // 広がっている最中は、まだ棚にいる（色が覆う前に画面が変わると繋がらない）
+    const warp = doc.querySelector('.cassette-warp');
+    assert(warp, 'テーマ色が広がる幕が出る');
+    assertEqual(warp.getAttribute('data-theme'), 'wolf', '人狼カセットの色で広がる');
+    assert(c.classList.contains('cart-warp'), 'カセットが手前にせり出す');
+    assertEqual(activeScreen(doc), 'scr-shelf', '覆いきるまでは、まだ棚');
+    // 覆いきったら中へ
+    await waitFor(win, () => activeScreen(doc) !== 'scr-shelf', 2000, 'カセットの中に入る');
+    await sleep(win, 400);
+    assert(!doc.querySelector('.cassette-warp'), '幕が残らない');
+    assertNoErrors(errors, 'カセットに入る演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('棚：演出の途中でタップすれば、待たされずに入れる', async () => {
+    // 2周目の人が毎回0.4秒待たされるのは、パーティゲームとして致命的
+    const { win, doc, errors } = await launch({ fx: true });
+    const c = cart(doc, 'jinro');
+    c.click();
+    if (!doc.querySelector('.cassette-warp')) c.click();
+    assertEqual(activeScreen(doc), 'scr-shelf', 'まだ棚');
+    doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+    await sleep(win, 30);
+    assert(activeScreen(doc) !== 'scr-shelf', 'タップした時点で中に入る');
+    assert(!doc.querySelector('.cassette-warp'), '幕もその場で消える');
+    assertNoErrors(errors, '演出のスキップで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('棚：入れないカセットには、世界に入る演出を出さない', async () => {
+    // 近日公開を押した時に「入った」演出が出ると、入れたと勘違いする
+    const { win, doc, errors } = await launch({ fx: true });
+    const soon = doc.querySelector('.cart.soon');
+    soon.click(); soon.click();
+    await sleep(win, 60);
+    assert(!doc.querySelector('.cassette-warp'), '幕は出ない');
+    assertEqual(activeScreen(doc), 'scr-shelf', '棚のまま');
+    assertNoErrors(errors, '近日公開カセットで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('棚：テーマを持つカセットは、全部ぶんの色が用意されている', async () => {
+    // テーマを足した時に色を足し忘れると、そこだけ既定色で広がって世界観が切れる
+    const { win, doc, errors } = await launch();
+    const css = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const themes = Array.from(new Set(
+      (css.match(/theme:'([a-z]+)'/g) || []).map(s => s.replace(/theme:'|'/g, ''))));
+    assert(themes.length >= 4, 'テーマを持つカセットが見つかる（' + themes.join(',') + '）');
+    themes.forEach((t) => {
+      assert(css.indexOf('.cassette-warp[data-theme="' + t + '"]') >= 0,
+        t + ' の広がる色が決めてある');
+    });
+    assertNoErrors(errors, 'テーマ色の確認で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

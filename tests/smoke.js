@@ -3048,10 +3048,23 @@ async function startModeWithTimerOff(win, doc, id) {
     const fs = require('fs');
     const path = require('path');
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-    // sfxOut の中以外に ctx.destination へ直接つなぐ場所が無いこと
-    const direct = (html.match(/connect\((?:ctx|bombHeart\.ctx)\.destination\)/g) || []);
-    assertEqual(direct.length, 0, '音の出口を素通りしている場所が無い');
     assert(/function sfxOut\(ctx\)/.test(html), '音の出口が1か所にある');
+    // 第32弾-C：以前ここは「ctx.destination へつなぐ場所は0か所」と書いていた。
+    // ところが出口そのものはスピーカーにつながないと音が出ない。
+    // その矛盾を通すために出口が自分自身を呼ぶ形になり、
+    // つまみが数珠つなぎになって音量が壊れていた（テストがバグを作った）。
+    // 正しくは「出口の中で1回だけ、外では0回」。
+    const outStart = html.indexOf('function sfxOut(ctx)');
+    const outEnd = html.indexOf('function doVibrate', outStart);
+    assert(outStart > 0 && outEnd > outStart, '音の出口の範囲が取れる');
+    const inside = html.slice(outStart, outEnd);
+    const outside = html.slice(0, outStart) + html.slice(outEnd);
+    const rx = /connect\((?:ctx|bombHeart\.ctx)\.destination\)/g;
+    assertEqual((inside.match(rx) || []).length, 1, '出口はスピーカーに1回だけつながる');
+    assertEqual((outside.match(rx) || []).length, 0, '音の出口を素通りしている場所が無い');
+    // 出口の中から出口を呼ばないこと。外の音源が g.connect(sfxOut(ctx)) と書くのは正しい
+    assert(!/sfxOut\(/.test(inside.replace('function sfxOut(ctx)', '')),
+      '出口が自分自身を呼んでいない');
     // 振動も1か所を通る
     const rawVibrate = (html.match(/navigator\.vibrate\(/g) || []).length;
     assertEqual(rawVibrate, 1, '振動を鳴らす場所も1か所だけ（doVibrate の中）');
@@ -3086,6 +3099,12 @@ async function startModeWithTimerOff(win, doc, id) {
     await sleep(win, 120);
     assert(gains.length > 0, '音を作ろうとする');
     assert(gains.some((g) => g.gain.value === 1), '出口のつまみが最大になっている');
+    // 第32弾-C：出口が自分自身を呼んでいて、つまみが数珠つなぎになっていた。
+    // 掛け算で効いてしまうので、100未満にすると完全な無音になっていた。
+    // 「どれかが正しい値」だけを見ていたので、この壊れ方を見逃していた。
+    // 1回の音で作られるつまみは、出口1つと音そのもの1つの、ほんの数個で足りる
+    assert(gains.length <= 4,
+      '1回の音でつまみを作りすぎていない（実際: ' + gains.length + '個）');
 
     // 0にすると、出口のつまみが0になる（鳴らす場所を1つも直さずに全部が静かになる）
     vol.value = '0';

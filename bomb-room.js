@@ -20,6 +20,8 @@
 
 const path = require('path');
 const BombLogic = require(path.join(__dirname, 'public', 'js', 'bomb-logic.js'));
+// 第32弾-A-3-6：出題は問題バンクから。ゲーム中にAIは呼ばない
+const QuizBank = require(path.join(__dirname, 'public', 'js', 'quiz-bank.js'));
 
 // 進行の段階。人狼・ワードウルフの PHASE とは別物
 const PHASE = {
@@ -106,23 +108,15 @@ function startGame(room, config, ctx) {
     return { ok: false, error: 'too_few_players', message: MIN_PLAYERS + '人以上必要です' };
   }
   const c = ctx || {};
-  if (typeof c.describe !== 'function') {
-    return { ok: false, error: 'ai_unavailable', message: 'AIの説明文を作れないため、いまは始められません' };
-  }
-
   const cfg = BombLogic.normalizeConfig(config);
-  const topics = BombLogic.normalizeTopics(config && config.topics);
-  if (!topics.length) {
-    return { ok: false, error: 'no_topics', message: 'お題が届いていません。進行役の端末を開き直してください' };
-  }
-  if (topics.length < BombLogic.CHOICE_COUNT) {
-    return { ok: false, error: 'too_few_topics', message: '3択を作るには、お題が3つ以上必要です' };
-  }
   const rnd = (config && config.rnd) || null;
-  const wires = BombLogic.pickWires(topics, cfg.counts, rnd);
+  // 第32弾-A-3-6：問題バンクから作る。AIは呼ばないので、
+  // 「説明文ができるまで待つ」段階そのものが無くなった
+  const wires = BombLogic.pickQuestionWires(QuizBank, cfg.counts, rnd, {});
   if (!wires.length) {
     return { ok: false, error: 'no_wires', message: 'コードが1本もありません。設定を見直してください' };
   }
+  const topics = [];
 
   const ids = members.map((m) => m.id);
   const w = {
@@ -161,11 +155,11 @@ function startGame(room, config, ctx) {
 
   room.bomb = w;
   room.state.game = 'bomb';
-  room.state.phase = PHASE.PREP;
-
-  // 説明文づくりは待たせない（ackを返してから裏で進める）。
-  // 途中の進み具合は ctx.notify で待合に流れる
-  prepare(room, c).catch(() => { /* 進行を止めないため、ここでは握る */ });
+  // 第32弾-A-3-6：問題は最初から揃っているので、待つ段階を通らずにそのまま始める。
+  // PREP そのものは残してある（画面・記録が段階名を見ているため）が、
+  // ここを通り過ぎるので、遊ぶ人からは見えない
+  w.ready = w.wires.length;
+  finishPrep(room, c);
   return { ok: true };
 }
 

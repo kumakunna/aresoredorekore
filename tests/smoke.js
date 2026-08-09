@@ -2678,7 +2678,7 @@ async function startModeWithTimerOff(win, doc, id) {
   });
 
   // ---- 第27弾：爆弾解除カセットを本番データのまま通しでプレイする ----
-  await r.test('爆弾解除カセット：カウントダウン→説明文の準備→3択→全解除まで通る', async () => {
+  await r.test('爆弾解除カセット：カウントダウン→3択→全解除まで通る', async () => {
     // テスト用の細工なしで、棚に出ている本番のカセットをそのまま遊ぶ
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="bakudan"]');
@@ -2735,23 +2735,25 @@ async function startModeWithTimerOff(win, doc, id) {
     await waitScreen(win, doc, 'scr-ready', 3000);
     el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
 
-    // 第28弾-1：暗室の演出は無くなった。説明文をそろえてから盤面に入る。
-    // 準備画面は本数が少ないと一瞬で終わるので、通過したことは確かめない
+    // 第32弾-A-3-6：出題を問題バンクへ移したので、
+    // 説明文をそろえる待ち画面そのものが無くなった
     await waitScreen(win, doc, 'scr-bomb-play', 12000);
     const wires = doc.querySelectorAll('#bombWireList .bomb-wire-btn');
     assertEqual(wires.length, 2, '設定した本数だけコードが並ぶ');
 
-    // 2本とも正解して全解除する（正解はAIの説明文と一緒に3択に入っている）
+    // 2本とも正解して全解除する。正解は問題バンクの中にある（画面には出ていない）
     for (let i = 0; i < 2; i++) {
       const btn = doc.querySelector('#bombWireList .bomb-wire-btn:not(.solved)');
       assert(btn, (i + 1) + '本目のコードがある');
       btn.click();
       await waitFor(win, () => doc.querySelectorAll('#bombWireChoices .pk-btn').length === 3,
         4000, (i + 1) + '本目の3択が出る');
-      // 疑似APIの説明文にはお題の名前が入っている。そこから正解を選ぶ
+      // 問題文から、問題バンクの元データを引いて正解を知る（画面には出ていない）
       const desc = el(doc, 'bombWireDescription').textContent;
       const choices = Array.from(doc.querySelectorAll('#bombWireChoices .pk-btn'));
-      const right = choices.find(c => desc.indexOf(c.textContent) >= 0);
+      const bank = win.QuizBank.QUESTIONS.easy.find(q => q.q === desc);
+      assert(bank, (i + 1) + '本目の問題文が問題バンクから来ている');
+      const right = choices.find(c => c.textContent === bank.choices[bank.correct]);
       assert(right, (i + 1) + '本目の正解が3択に入っている');
       right.click();
       await sleep(win, 600);
@@ -2930,6 +2932,66 @@ async function startModeWithTimerOff(win, doc, id) {
       '見るだけの時は、どれも開ける');
     assertNoErrors(errors, '見るだけの棚で未捕捉の例外');
     win.close();
+  });
+
+  await r.test('準備OK画面に、この設定だと だいたい何分かかるかが出る', async () => {
+    // 第32弾-A-3-9：カセットの「15分〜」は設定で大きく変わる。
+    // 集まりの中では「あと何分で終わるか」が分からないと遊びづらい
+    const t = await launch();
+    const cart = t.doc.querySelector('.cart[data-cart="aresoredorekore"]');
+    cart.click();
+    if (activeScreen(t.doc) === 'scr-shelf') cart.click();
+    await fillPlayerForm(t.win, t.doc, PLAYERS);
+    await waitScreen(t.win, t.doc, 'scr-mode', 3000);
+    click(t.doc, 'modeAutoBtn');
+    await sleep(t.win, 100);
+    if (activeScreen(t.doc) === 'scr-mode-rules') { click(t.doc, 'rulesStartBtn'); await sleep(t.win, 80); }
+    await waitScreen(t.win, t.doc, 'scr-ready', 3000);
+    const est = el(t.doc, 'readyEst');
+    assert(est, '目安が出ている');
+    assert(/だいたい\s*\d+\s*分/.test(est.textContent), '「だいたい〇分」の形（' + est.textContent + '）');
+    assertNoErrors(t.errors, '目安の表示で未捕捉の例外');
+    t.win.close();
+  });
+
+  await r.test('選んだモードのカードが、どのテーマでも読める', async () => {
+    // 第32弾-A-3-3：.mode-card.selected が background:#fff を直書きしていた。
+    // 暗いテーマでは文字色が明るくなるので「白背景×白文字」で読めなくなる。
+    // 指示28で直した「爆弾解除の設定画面が白背景に白文字」とまったく同じ形なので、
+    // 色を決め打ちしていないこと自体を見張る
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const rule = html.match(/\.mode-card\.selected\{[^}]*\}/);
+    assert(rule, '.mode-card.selected の決まりごとがある');
+    assertEqual(/background:#fff/i.test(rule[0]), false, '白を直書きしていない');
+    assert(/var\(--/.test(rule[0]), 'テーマが持っている色から作っている');
+
+    // 選択中と分かる手がかりは、色以外にも残っている
+    assert(/\.mode-card\.selected\{[^}]*border-color/.test(html), '枠の濃さで分かる');
+    assert(/\.mode-card\.selected \.m-check\{/.test(html), 'チェックマークでも分かる');
+
+    // 実際に各テーマで選んでも、背景に白が入らない
+    for (const c of [{ cart: 'jinro', game: 'wolfrole', theme: 'theme-wolf' },
+                     { cart: 'bakudan', game: 'bomb', theme: 'theme-bomb' }]) {
+      const { win, doc, errors } = await launch();
+      const cart = doc.querySelector('.cart[data-cart="' + c.cart + '"]');
+      cart.click();
+      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await sleep(win, 100);
+      // ゲームが2つ以上入っているカセットは、どれで遊ぶかを選ぶ画面を挟む
+      if (activeScreen(doc) === 'scr-game') { pickGame(doc, c.game); await sleep(win, 80); }
+      if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
+      await waitScreen(win, doc, 'scr-mode', 3000);
+      assert(el(doc, 'app').classList.contains(c.theme), c.cart + '：テーマが当たっている');
+      const sel = doc.querySelector('.mode-card.selected');
+      assert(sel, c.cart + '：選ばれているカードがある');
+      const bg = win.getComputedStyle(sel).backgroundColor;
+      assertEqual(/^rgb\(255,\s*255,\s*255\)$/.test(bg), false,
+        c.cart + '：選択中の背景が真っ白になっていない（' + bg + '）');
+      assertNoErrors(errors, c.cart + ' のモードカードで未捕捉の例外');
+      win.close();
+    }
   });
 
   await r.test('テーマ：スタジオと競り市が、追加専用のスコープで書かれている（オークション）', async () => {

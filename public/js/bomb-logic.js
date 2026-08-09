@@ -155,10 +155,56 @@
   }
 
   /**
+   * 第32弾-A-3-6：問題バンクからコードを作る。
+   *
+   * これまでのクイズ解除は「AIがお題を説明する → 3択で当てる」だったが、
+   * ライブでAIを呼ぶ以上、失敗する回が必ず出るし、事前生成の待ち時間もかかる。
+   * クイズ王の4ゲームは既に問題バンクへ移してあるのに、元祖だけ残っていた。
+   *
+   * バンクから作ったコードは、問題文と3択を最初から持っている。
+   * だから「用意する時間」も「AIが失敗する回」も、まるごと無くなる。
+   *
+   * @param bank quiz-bank.js（テストから差し替えられるように引数で受ける）
+   * @param used 出した問題（同じ問題を続けて出さないため）
+   */
+  function pickQuestionWires(bank, counts, rnd, used) {
+    var wires = [];
+    var n = 0;
+    var seen = used || {};
+    TIERS.forEach(function (tier) {
+      var want = (counts || {})[tier] || 0;
+      if (want <= 0) return;
+      var picked = bank.pickQuestions(tier, want, seen, rnd);
+      picked.forEach(function (q) {
+        seen[q.q] = true;
+        var mixed = bank.shuffleChoices(q, rnd);
+        wires.push({
+          uid: 'w' + (n++),
+          tier: tier,
+          // お題の名前ではなく「正解の選択肢」が答えになる
+          name: mixed.choices[mixed.correct],
+          question: mixed.q,
+          choices: mixed.choices.slice(),
+          correct: mixed.correct,
+          // 説明文はもう作らない（AIを呼ばない）。問題文がそのまま出る
+          description: mixed.q
+        });
+      });
+    });
+    return wires;
+  }
+  // そのコードが問題バンクから来たものか
+  function isBankWire(wire) {
+    return !!(wire && wire.choices && typeof wire.correct === 'number');
+  }
+
+  /**
    * 3択を作る。正解＋同じ難易度のダミー2つ。
    * 同じ難易度に足りなければ全体から借りる（1台のスマホ版の pickDecoys と同じ考え）。
+   * 問題バンクから来たコードは、はじめから3択を持っているのでそれを使う。
    */
   function buildChoices(wire, topics, rnd) {
+    if (isBankWire(wire)) return wire.choices.slice();
     var sameTier = topicsByTier(topics, wire.tier)
       .map(function (t) { return t.name; })
       .filter(function (nm) { return nm !== wire.name; });
@@ -173,6 +219,8 @@
   // 別名を持つお題が3択に混ざった時に「同じものを指しているのに不正解」になるのを防ぐ）
   function isCorrect(wire, answer) {
     var a = String(answer == null ? '' : answer);
+    // 問題バンクから来たコードは、正解の選択肢そのものと突き合わせる
+    if (isBankWire(wire)) return a === wire.choices[wire.correct];
     if (a === wire.name) return true;
     return (wire.aliases || []).indexOf(a) !== -1;
   }
@@ -226,7 +274,8 @@
     MISS_TIME_PENALTY_SEC: MISS_TIME_PENALTY_SEC,
     HEART_BASE_MS: HEART_BASE_MS, HEART_MIN_MS: HEART_MIN_MS,
     normalizeConfig: normalizeConfig, normalizeTopics: normalizeTopics,
-    pickWires: pickWires, shuffleWires: shuffleWires, buildChoices: buildChoices, isCorrect: isCorrect,
+    pickWires: pickWires, pickQuestionWires: pickQuestionWires, isBankWire: isBankWire,
+    shuffleWires: shuffleWires, buildChoices: buildChoices, isCorrect: isCorrect,
     heartIntervalMs: heartIntervalMs, rankPlayers: rankPlayers,
     progressPct: progressPct, shuffled: shuffled, topicsByTier: topicsByTier
   };

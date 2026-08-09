@@ -329,44 +329,48 @@ async function missOne(srv, d) {
       await rm.host.call('wolf:start', startConfig({ counts: { easy: 3 } }));
       await waitUntil(() => rm.host.you && rm.host.you.phase === 'play', '解除が始まる');
 
-      // 開ける前は、説明文も3択もどこにも無い
+      // 開ける前は、問題文も3択もどこにも無い
       assertEqual(rm.host.you.open, undefined, '開けていないので中身は無い');
-      assert(JSON.stringify(rm.host.you).indexOf(DESC_MARK) === -1, '説明文が1つも届いていない');
+      const wires = bombOf(srv, rm.code).wires;
+      wires.forEach((x) => {
+        assertEqual(JSON.stringify(rm.host.you).indexOf(x.question), -1,
+          '開ける前は問題文が1つも届いていない');
+      });
 
       const uid = rm.host.you.board[1].uid;
       await rm.host.call('wolf:act', { targetId: uid });
       await waitUntil(() => rm.host.you.open && rm.host.you.open.uid === uid, '開けたものだけ届く');
       const text = JSON.stringify(rm.host.you);
-      assertEqual(text.split(DESC_MARK).length - 1, 1, '届いている説明文は1本ぶんだけ');
-      // 相手の端末には、その説明文は届いていない
-      assert(JSON.stringify(rm.guests[0].you).indexOf(DESC_MARK) === -1,
+      const opened = wires.find((x) => x.uid === uid);
+      assert(text.indexOf(opened.question) !== -1, '開けたコードの問題文は届く');
+      wires.filter((x) => x.uid !== uid).forEach((x) => {
+        assertEqual(text.indexOf(x.question), -1, '開けていないコードの問題文は届かない');
+      });
+      // 相手の端末には、その問題文は届いていない
+      assertEqual(JSON.stringify(rm.guests[0].you).indexOf(opened.question), -1,
         '他の人の端末には届かない');
     } finally { await srv.close(); }
   });
 
   // ---- 競争版 ----
 
-  await r.test('競争版：説明文は試合が始まるまで、誰の端末にも届かない', async () => {
-    // 説明文づくりをゆっくりにして、待機中の状態をつかむ
-    const srv = await startTestServer({ describe: fakeDescribe(60) });
+  await r.test('競争版：待たされずに始まり、問題文は開けた分しか届かない', async () => {
+    // 第32弾-A-3-6：出題を問題バンクへ移したので、AIの説明文を作る待ち時間が無くなった。
+    // 以前はここで「準備中」の段階を通っていた
+    const srv = await startTestServer();
     try {
       const rm = await makeRoom(srv, 2, true);
       rm.guests.forEach((g) => { g.code = rm.code; });
       await rm.host.call('wolf:start', startConfig({ mode: 'race', counts: { easy: 6 } }));
-
-      // 準備中：本数だけが進んでいく
-      await waitUntil(() => rm.host.you && rm.host.you.phase === 'prep' && rm.host.you.prep.ready > 0,
-        '準備の進み具合が届く');
-      assertEqual(rm.host.you.board, undefined, '準備中は盤面すら配らない');
-      const duringPrep = JSON.stringify([rm.host.youLog, rm.guests[0].youLog, rm.big.roomLog]);
-      assert(duringPrep.indexOf(DESC_MARK) === -1, '準備中に説明文が届いていない');
-      assert(duringPrep.indexOf(TOPIC_MARK) === -1, '準備中にお題の名前も届いていない');
-      // サーバー側には、もうできている
-      assert(bombOf(srv, rm.code).wires.some((x) => x.description),
-        'サーバーだけが説明文を持っている');
-
-      await waitUntil(() => rm.host.you.phase === 'play', '始まったら盤面が届く', 6000);
+      await waitUntil(() => rm.host.you && rm.host.you.phase === 'play', '待たされずに始まる');
       assertEqual(rm.host.you.board.length, 6, '6本の盤面');
+
+      // 開ける前は、どの問題文もどこにも届いていない（大画面を含む）
+      const wires = bombOf(srv, rm.code).wires;
+      const seen = JSON.stringify([rm.host.youLog, rm.guests[0].youLog, rm.big.roomLog]);
+      wires.forEach((x) => {
+        assertEqual(seen.indexOf(x.question), -1, '開ける前は問題文が届かない');
+      });
     } finally { await srv.close(); }
   });
 
@@ -521,7 +525,9 @@ async function missOne(srv, d) {
     } finally { await srv.close(); }
   });
 
-  await r.test('AIが1本も作れなかったら、始まらずに理由が出る', async () => {
+  await r.test('AIを渡さなくても始められる（出題は問題バンクから）', async () => {
+    // 第32弾-A-3-6：クイズ解除だけがライブでAIを呼んでいた。
+    // 移行したので、AIが使えない状態でも普通に遊べる
     const srv = await startTestServer({
       describe: async () => { throw new Error('AIが調子悪い'); }
     });
@@ -529,12 +535,13 @@ async function missOne(srv, d) {
       const rm = await makeRoom(srv, 2, false);
       rm.guests.forEach((g) => { g.code = rm.code; });
       const res = await rm.host.call('wolf:start', startConfig({ counts: { easy: 2 } }));
-      assertEqual(res.ok, true, '始める操作そのものは通る');
-      await waitUntil(() => rm.host.you && rm.host.you.phase === 'ended', '始まらずに終わる', 6000);
-      assertEqual(rm.host.you.result.aborted, true, '始められなかったことが分かる');
-      assert(rm.host.you.result.message, '理由が出る');
-      // 始まらなかった試合は記録に残さない
-      assertEqual(srv.db.inserted.length, 0, '記録は書かれない');
+      assertEqual(res.ok, true, '始められる');
+      await waitUntil(() => rm.host.you && rm.host.you.phase === 'play', 'AIが落ちていても始まる');
+      assertEqual(rm.host.you.board.length, 2, '盤面が届く');
+      // 問題文はバンクから来ている（AIの返事ではない）
+      bombOf(srv, rm.code).wires.forEach((x) => {
+        assert(x.question && x.choices.length >= 3, '問題文と3択を持っている');
+      });
     } finally { await srv.close(); }
   });
 
@@ -548,13 +555,14 @@ async function missOne(srv, d) {
     } finally { await srv.close(); }
   });
 
-  await r.test('お題が届いていなければ始められない', async () => {
+  await r.test('お題プールを渡さなくても始められる', async () => {
+    // 第32弾-A-3-6：お題プールではなく問題バンクから出すようになった
     const srv = await startTestServer();
     try {
       const rm = await makeRoom(srv, 2, false);
       const res = await rm.host.call('wolf:start', startConfig({ topics: [] }));
-      assertEqual(res.ok, false, 'お題なしでは始められない');
-      assertEqual(res.error, 'no_topics', '理由が返る');
+      assertEqual(res.ok, true, 'お題なしでも始められる');
+      await waitUntil(() => rm.host.you && rm.host.you.phase === 'play', '解除が始まる');
     } finally { await srv.close(); }
   });
 

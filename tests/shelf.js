@@ -32,12 +32,23 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('棚の構成：3段・シール・カセットが並ぶ', async () => {
+  await r.test('棚の構成：段・シール・カセットが並び、どの段も空にならない', async () => {
     const { win, doc, errors } = await launch();
     const stickers = Array.from(doc.querySelectorAll('#shelfList .sticker')).map(s => s.textContent);
-    assertEqual(stickers.length, 3, '段は3つ');
     assertEqual(stickers[0], 'ことばであそぶ', '1段目のジャンル名');
     assert(!stickers.includes('ぜんぶ'), '「ぜんぶ」の段は出していない');
+    // 第32弾-A-3-8：段の構成を実態に合わせ直した
+    ['ことばであそぶ', '正体をさぐる', 'あたまをつかう', 'かけひき', 'からだをうごかす']
+      .forEach((label) => {
+        assert(stickers.includes(label), '「' + label + '」の段がある');
+      });
+    // 空の段を出さない（何も無い棚は壊れて見える）
+    doc.querySelectorAll('#shelfList .rail').forEach((rail) => {
+      assert(rail.querySelectorAll('.cart').length > 0, 'どの段にもカセットが並んでいる');
+    });
+    // 爆弾解除は、クイズ解除（頭）と実物解除（体）の両方が入っているので2段に並ぶ
+    assertEqual(doc.querySelectorAll('.cart[data-cart="bakudan"]').length, 2,
+      '性格の違うゲームが入ったカセットは、両方の段から見つかる');
     assert(cart(doc, 'aresoredorekore'), 'あれそれどれこれのカセットがある');
     // ロゴ画像を貼っていること
     const logo = doc.querySelector('.cart[data-cart="aresoredorekore"] .cart-logo');
@@ -500,18 +511,23 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('戻る矢印：枠線だけの正方形で、画面の中の「もどる」と見分けられる', async () => {
+  await r.test('戻る矢印：枠線を出さず、矢印だけを画面の隅に置く', async () => {
+    // 第32弾-A-3-4：正方形の枠線が文字に被って違和感があったので枠を消した。
+    // 押せる大きさ（32px）は残す
     const fs = require('fs');
     const path = require('path');
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
     const rule = html.match(/\.floating-back\{[^}]*\}/);
     assert(rule, '.floating-back の決まりごとがある');
-    assert(/background:transparent/.test(rule[0]), '枠線だけ（塗りつぶさない）');
-    assert(/border:1\.5px solid/.test(rule[0]), '枠線がある');
-    assert(/width:32px;height:32px/.test(rule[0]), '正方形');
-    assert(/border-radius:4px/.test(rule[0]), '丸ではない（⚙と見分けられる）');
-    // 画面の中の「もどる」は横長のボタンなので、位置でも形でも混ざらない
+    assert(/background:transparent/.test(rule[0]), '塗りつぶさない');
+    assert(/border:none/.test(rule[0]), '枠線を出さない');
+    assert(/width:32px;height:32px/.test(rule[0]), '押せる大きさは残す');
     assert(/position:absolute;top:6px;left:8px/.test(rule[0]), '画面の隅に置く');
+    // テーマ側でも枠線を足し直していないこと（片方だけ直す事故を防ぐ）
+    const themed = html.match(/\.app\.theme-[a-z]+ \.floating-back\{[^}]*\}/g) || [];
+    themed.forEach((t) => {
+      assertEqual(/border(-color)?:/.test(t), false, 'テーマ側でも枠線を足していない：' + t);
+    });
   });
 
   // ---- 第27弾-2：下部バーを画面の下に固定する ----

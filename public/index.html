@@ -165,7 +165,21 @@
     display:flex;align-items:center;gap:14px;background:var(--card);border:1.5px solid var(--line);
     border-radius:10px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .15s, background .15s;
   }
-  .mode-card.selected{border-color:var(--ink);background:#fff;box-shadow:var(--shadow);}
+  /* 第32弾-A-3-3：ここは以前 background:#fff を直書きしていた。
+     暗いテーマ（人狼・爆弾解除・クイズ王・オークション）では文字色が
+     明るい色になるので、「白背景×白文字」で読めなくなっていた。
+     指示28で直した「爆弾解除の設定画面が白背景に白文字」とまったく同じ形。
+     色を決め打ちせず、テーマが持っている変数から作る。
+     選択中だと分かるのは、枠の濃さ・影・チェックマークで足りる */
+  .mode-card.selected{
+    border-color:var(--ink);
+    background:color-mix(in srgb, var(--card) 82%, var(--ink) 18%);
+    box-shadow:var(--shadow);
+  }
+  /* color-mix が使えない環境向けの控えめな代替（読めなくならないことを優先） */
+  @supports not (background: color-mix(in srgb, red 50%, blue)){
+    .mode-card.selected{background:var(--card);}
+  }
   /* 第20弾：人数が足りなくて選べない遊び方。押せることは押せて、理由が出る */
   .mode-card.locked{opacity:.45;filter:grayscale(1);}
   .mode-card.locked .m-check{display:none;}
@@ -382,13 +396,15 @@
      画面の中にある「もどる」ボタン（横長・行き先が決まっている）と
      見た目でも役割でも混ざらないようにするため。
      こちらは「来た道を1つ戻る」だけを引き受ける。 */
+  /* 第32弾-A-3-4：正方形の枠線が文字に被って違和感があったので、枠を消して矢印だけにした。
+     的の大きさ（32px）はそのまま残す */
   .floating-back{
     position:absolute;top:6px;left:8px;z-index:60;width:32px;height:32px;border-radius:4px;
-    background:transparent;border:1.5px solid var(--ink);color:var(--ink);
-    font-size:15px;line-height:1;cursor:pointer;opacity:.55;
+    background:transparent;border:none;color:var(--ink);
+    font-size:20px;line-height:1;cursor:pointer;opacity:.55;
     display:flex;align-items:center;justify-content:center;padding:0;
   }
-  .floating-back:active{opacity:1;background:rgba(0,0,0,.06);}
+  .floating-back:active{opacity:1;}
   /* A：⚙の分だけ右側を空けて、トップバーのボタンと重ならないようにする。
      第28弾-4：戻る矢印のぶん、左側も同じだけ空ける */
   .play-topbar, .bomb-topbar{padding-right:42px;padding-left:42px;}
@@ -463,6 +479,8 @@
     cursor:pointer;font-family:inherit;
   }
 
+  /* 第32弾-A-3-9：この設定だと だいたい何分かかるか */
+  .ready-est{margin-top:8px;font-size:13px;color:var(--ink-soft);}
   /* 第32弾-A：みんなの状況を開くボタン。⚙の隣に置く */
   .floating-status{
     position:fixed;top:10px;right:52px;z-index:60;
@@ -757,9 +775,12 @@
   .join-divider{display:flex;align-items:center;gap:10px;margin:18px 0 12px;color:var(--ink-soft);font-size:12px;}
   .join-divider::before, .join-divider::after{content:'';flex:1;height:1px;background:var(--line);}
   .qr-box{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:12px;}
-  .qr-box svg{width:150px;height:150px;border-radius:8px;background:#fff;}
+  /* 第32弾-A-3-1：150px固定だと、参加用URLが長い時にマス目が細かくなりすぎて
+     カメラが認識できない。1マスあたりの大きさを稼ぐため、画面幅いっぱいに近づける。
+     （クワイエットゾーンは qr.js が4モジュール確保しているので、そこは触らない） */
+  .qr-box svg{width:min(78vw,280px);height:min(78vw,280px);border-radius:8px;background:#fff;padding:6px;}
   .qr-box .qr-note{font-size:11px;color:var(--ink-soft);}
-  .big-wrap .qr-box svg{width:min(30vw,260px);height:min(30vw,260px);}
+  .big-wrap .qr-box svg{width:min(42vw,420px);height:min(42vw,420px);}
   /* 第21弾-7：自分の端末の画面 */
   .rt-phase{text-align:center;font-family:'Shippori Mincho',serif;font-weight:800;font-size:26px;margin:6px 0 12px;}
   .rt-public{text-align:center;font-size:13px;color:var(--ink-soft);line-height:1.8;margin-bottom:14px;}
@@ -804,7 +825,7 @@
     .big-main{font-size:clamp(64px,9vw,200px);}
     .big-sub{font-size:clamp(20px,2.1vw,38px);}
     .big-list{font-size:clamp(16px,1.5vw,30px);gap:12px 18px;}
-    .big-wrap .qr-box svg{width:min(20vw,320px);height:min(20vw,320px);}
+    .big-wrap .qr-box svg{width:min(34vw,520px);height:min(34vw,520px);}
   }
   .ai-description{
     margin-top:10px;font-size:14px;color:var(--ink);line-height:1.6;background:#fff;
@@ -1391,7 +1412,7 @@
   .app.theme-bomb input[type="range"]{background:var(--paper-deep);}
   /* ⚙・戻る矢印。白丸のままだと暗い画面で浮く */
   .app.theme-bomb .floating-gear{background:rgba(232,234,237,.14);color:var(--ink);}
-  .app.theme-bomb .floating-back{border-color:var(--ink);color:var(--ink);}
+  .app.theme-bomb .floating-back{color:var(--ink);}
   /* 3択のオーバーレイ・説明文 */
   .app.theme-bomb .ai-description{background:var(--paper-deep);color:var(--ink);border-color:var(--line);}
   .app.theme-bomb .overlay-head h3{color:var(--ink);}
@@ -1504,7 +1525,7 @@
   .app.theme-quiz .quiz-answer input{background:var(--paper-deep);color:var(--ink);border-color:var(--line);}
   .app.theme-quiz .quiz-answer input::placeholder{color:var(--ink-soft);}
   .app.theme-quiz .floating-gear{background:rgba(242,245,250,.14);color:var(--ink);}
-  .app.theme-quiz .floating-back{border-color:var(--ink);color:var(--ink);}
+  .app.theme-quiz .floating-back{color:var(--ink);}
   .app.theme-quiz .rules-ol li{color:var(--ink);}
   .app.theme-quiz .vote-counts .vc-item{background:var(--card);border-color:var(--line);color:var(--ink);}
   @media (prefers-reduced-motion: reduce){
@@ -1592,7 +1613,7 @@
   .app.theme-auction .ry-desc{color:var(--ink-soft);}
   .app.theme-auction .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
   .app.theme-auction .floating-gear{background:rgba(245,237,230,.14);color:var(--ink);}
-  .app.theme-auction .floating-back{border-color:var(--ink);color:var(--ink);}
+  .app.theme-auction .floating-back{color:var(--ink);}
   .app.theme-auction .rules-ol li{color:var(--ink);}
   .app.theme-auction .qb-row.win{background:var(--gold);color:#2A2013;}
   @media (prefers-reduced-motion: reduce){
@@ -3250,18 +3271,34 @@
   // genre で棚の段に振り分ける。'all' の段には全カセットを再掲する。
   // 「ぜんぶ」の段は、カセットが増えて探しにくくなったら復活させる
   // （いまは中身のあるカセットが少なく、他の段とほぼ同じ並びになって冗長なため外している）
+  // 第32弾-A-3-8：段の構成を実態に合わせ直した。
+  // 「ことばであそぶ」に爆弾解除とクイズ王が同居していて、
+  // 実物解除（体を動かす）が入った今は、どう見ても合っていなかった。
+  //
+  // 難しいのは、段はカセット単位なのに、1つのカセットに性格の違うゲームが
+  // 入っていること（爆弾解除＝クイズ解除は頭、実物解除は体）。
+  // どちらか一方に押し込むと必ず嘘になるので、
+  // **1つのカセットが複数の段に並べる**ようにした（genre は配列でもよい）。
+  // 棚は「探す場所」なので、同じものが2か所から見つかって困ることはない。
   var SHELF_GENRES = [
     { id:'word',  label:'ことばであそぶ' },
+    { id:'hide',  label:'正体をさぐる' },
+    { id:'brain', label:'あたまをつかう' },
     { id:'deal',  label:'かけひき' },
     { id:'move',  label:'からだをうごかす' }
   ];
+  function cassetteGenres(c){
+    if(!c || !c.genre) return [];
+    return Array.isArray(c.genre) ? c.genre : [c.genre];
+  }
   // 名前を出すのは「中身が決まっているカセット」だけ。未定のものは icon:'？' のまま伏せる
   var CASSETTES = [
     // games：このカセットに入っているゲーム。2つ以上ならゲーム選択画面を挟む
-    { id:'aresoredorekore', genre:'word', ready:true,  logo:'img/logo-aresoredorekore.png', title:'あれそれどれこれ',
+    { id:'aresoredorekore', genre:['word'], ready:true,  logo:'img/logo-aresoredorekore.png', title:'あれそれどれこれ',
       games:['aresoredorekore'],
       meta:'2〜8人 / 10分〜<br>ことばで説明して当てる' },
-    { id:'jinro',           genre:'word', ready:true,  icon:'🐺', title:'人狼<br>ゲーム',
+    // 話して探る遊びなので、ことばの段にも正体の段にも並べる
+    { id:'jinro',           genre:['hide', 'word'], ready:true,  icon:'🐺', title:'人狼<br>ゲーム',
       games:['wordwolf', 'wolfrole'],
       // 第20弾-7-1：このカセットを選んだ時点から専用テーマにする
       theme:'wolf',
@@ -3270,27 +3307,31 @@
     // 第27弾：爆弾解除。いま中身があるのは「クイズ解除」だけなので、
     // 遊べるものに合わせて「ことばであそぶ」の段に置く。
     // 実物解除（傾け・振る・ポーズ）が入ったら「からだをうごかす」へ移すことになる
-    { id:'bakudan',         genre:'word', ready:true,  icon:'💣', title:'爆弾<br>解除',
+    // クイズ解除は頭、実物解除は体。どちらか一方に押し込むと嘘になるので両方に並べる
+    { id:'bakudan',         genre:['brain', 'move'], ready:true,  icon:'💣', title:'爆弾<br>解除',
       games:['bomb', 'defuse'],
       // 第28弾-2：このカセットを選んだ時点から、制御盤の見た目にする
       theme:'bomb',
       meta:'2人〜 / 10分〜<br>爆発を止める・伝え合って解く' },
     // 第30弾：クイズ王。4つとも1人1台・部屋が必須（全員が別々の画面を同時に見る遊びなので、
     // 1台を回す手渡しでは成立しない）
-    { id:'quizou',          genre:'word', ready:true,  icon:'👑', title:'クイズ<br>王',
+    { id:'quizou',          genre:['brain'], ready:true,  icon:'👑', title:'クイズ<br>王',
       games:['quizrush', 'quizlist', 'quizreveal', 'buzzer'],
       theme:'quiz',
       meta:'2人〜 / 10分〜<br>1人1台で解いて競う' },
     // 第31弾：オークションバトル（作り直し）。1人1台・部屋が必須。
     // 「かけひき」の段にちょうど合うので、空いていた枠に入れる
-    { id:'auction',         genre:'deal', ready:true,  icon:'💰', title:'オーク<br>ション',
+    { id:'auction',         genre:['deal'], ready:true,  icon:'💰', title:'オーク<br>ション',
       games:['auction'],
       theme:'auction',
       meta:'2人〜 / 15分〜<br>値をつけて競り合う' },
-    { id:'deal-soon-2',     genre:'deal', ready:false, icon:'？' },
-    { id:'deal-soon-3',     genre:'deal', ready:false, icon:'？' },
-    { id:'move-soon-1',     genre:'move', ready:false, icon:'？' },
-    { id:'move-soon-2',     genre:'move', ready:false, icon:'？' }
+    { id:'word-soon-1',     genre:['word'],  ready:false, icon:'？' },
+    { id:'hide-soon-1',     genre:['hide'],  ready:false, icon:'？' },
+    { id:'brain-soon-1',    genre:['brain'], ready:false, icon:'？' },
+    { id:'deal-soon-2',     genre:['deal'],  ready:false, icon:'？' },
+    { id:'deal-soon-3',     genre:['deal'],  ready:false, icon:'？' },
+    { id:'move-soon-1',     genre:['move'],  ready:false, icon:'？' },
+    { id:'move-soon-2',     genre:['move'],  ready:false, icon:'？' }
   ];
   function cassetteById(id){ return CASSETTES.find(function(c){ return c.id === id; }); }
 
@@ -3349,7 +3390,8 @@
     try{ localStorage.setItem('acac-shelf-order', JSON.stringify(order)); }catch(e){}
   }
   function cassettesForGenre(genreId){
-    var list = (genreId === 'all') ? CASSETTES.slice() : CASSETTES.filter(function(c){ return c.genre === genreId; });
+    var list = (genreId === 'all') ? CASSETTES.slice()
+      : CASSETTES.filter(function(c){ return cassetteGenres(c).indexOf(genreId) !== -1; });
     var saved = (loadShelfOrder() || {})[genreId];
     if(saved && saved.length){
       var byId = {}; list.forEach(function(c){ byId[c.id] = c; });
@@ -4270,6 +4312,7 @@
   var play = {
     currentTopic:null,
     usedTopics:{}, // 同一マッチ内で出したお題名（重複防止）
+    usedQuestions:{}, // 第32弾-A：同一マッチ内で出した問題（問題バンクの重複防止）
     timerTotal:180,
     remaining:180,
     running:false,
@@ -4385,6 +4428,7 @@
   }
   async function startMatch(playerNames){
     play.usedTopics = {}; // 新しいマッチ開始で重複防止をリセット
+    play.usedQuestions = {};
     state.matchId = null;
     state.matchRoundsLogged = 0;
     if(!state.autoSaveRecords) return; // 5：自動保存OFFなら手動保存まで何も作らない
@@ -9381,13 +9425,73 @@
   });
 
   // ===================== 5. ready =====================
+  /**
+   * 第32弾-A-3-9：この設定だと、だいたい何分かかるか。
+   *
+   * カセットに書いてある「15分〜」は、設定（ターン数・制限時間・人数）で
+   * 大きく変わる。集まりの中では「あと何分で終わるか」が分からないと遊びづらい。
+   * 正確である必要はない。目安として伝わればいい。
+   *
+   * @returns {{min:number, perRound:boolean}} perRound=true は
+   *   「終わりが決まっていない遊び（1ラウンドあたり）」という意味
+   */
+  function estimatePlayMinutes(){
+    var m = modeById(state.selectedModeId) || {};
+    var room = rt && rt.state.room;
+    var n = Math.max(2, room ? room.playerCount : state.players.length);
+    var sec = state.timerEnabled ? (state.customTimer || m.timer || 180) : (m.timer || 180);
+    var round = function(v){ return Math.max(1, Math.round(v / 60)); };
+
+    // クイズ解除：コード1本あたり、読んで選んで約25秒
+    if(m.bomb){
+      var wires = BOMB_TIERS.reduce(function(s, t){ return s + (state.bombCounts[t.id] || 0); }, 0);
+      return { min: round(wires * 25 + 60), perRound: false };
+    }
+    // 実物解除：モジュール1つあたり、伝え合って約90秒
+    if(m.defuse){
+      return { min: round((state.dfCfg.moduleCount || 5) * 90 + 90), perRound: false };
+    }
+    // クイズ王：遊びごとに終わり方が違う
+    if(m.quizKing){
+      var c = state.qkCfg;
+      if(m.quizRush){
+        var rounds = c.roundsToWin > 0 ? (c.roundsToWin * 2 - 1) : 1; // 先取なので最短〜最長の間を取る
+        return { min: round(sec * rounds + 30 * rounds), perRound: false };
+      }
+      if(m.quizList) return { min: round(sec + 60), perRound: false };
+      if(m.quizReveal) return { min: round(c.questionCount * (c.revealSec + 12) + 60), perRound: false };
+      // 早押し：対戦数は人数から決まる（勝ち抜きなので おおよそ n-1 試合）
+      return { min: round((n - 1) * c.winsNeeded * 35 + 60), perRound: false };
+    }
+    // オークション：1ラウンドあたり「品物を見る＋入札＋結果」
+    if(m.auctionNew){
+      var per = 25 + (m.auctionSealed ? state.auCfg.bidSec : state.auCfg.extendSec * 2) + 8;
+      return { min: round(state.auCfg.rounds * per + 60), perRound: false };
+    }
+    // 役職あり人狼：夜＋話し合い＋投票 を、ターン数ぶん
+    if(m.wolfRole){
+      var turns = Math.max(2, Math.min(6, Math.ceil(n / 2)));
+      return { min: round(turns * (60 + sec + 45) + 90), perRound: false };
+    }
+    // ワードウルフ：話し合い＋投票 を、ターン数ぶん
+    if(m.wolf){
+      var wt = m.wolfMulti ? (state.wmCfg.turnLimit || 3) : 1;
+      return { min: round(wt * (sec + 60) + n * 15 + 60), perRound: false };
+    }
+    // あれそれどれこれ系：終わりを決めずに遊ぶので、1ラウンドあたりで出す
+    return { min: round(n * (sec + 20)), perRound: true };
+  }
+
   function enterReady(){
     var names = state.players.map(function(p){ return p.name; }).join('、');
     // 第10弾：プリセット名（変更していれば「カスタム」）＋いま有効なオプションを見せる
     var tags = optionTags().map(function(t){
       return '<span class="opt-tag">'+t.icon+' '+escapeHtml(t.label)+'</span>';
     }).join('');
+    var est = estimatePlayMinutes();
     el('readySummary').innerHTML = '<b>'+escapeHtml(currentPlayTitle())+'</b>　'+escapeHtml(names)+
+      '<div class="ready-est" id="readyEst">⏳ ' +
+        (est.perRound ? '1ラウンド だいたい ' : 'だいたい ') + est.min + '分</div>' +
       (tags ? '<div class="opt-tag-row">'+tags+'</div>' : '');
     resetHoldRing();
   }
@@ -11030,66 +11134,23 @@
 
   // ===================== bomb: time bomb mode =====================
   function initBombRound(){
-    var pool = [];
-    var uidCounter = 0;
-    BOMB_TIERS.forEach(function(t){
-      var n = state.bombCounts[t.id] || 0;
-      var full = poolByTier(t.id); // ④：統合プールから該当難易度を取得
-      var bank = full.filter(function(x){ return !play.usedTopics[x.name]; });
-      if(bank.length < n) bank = full.slice(); else bank = bank.slice();
-      for(var i = bank.length - 1; i > 0; i--){
-        var j = Math.floor(Math.random() * (i + 1));
-        var tmp = bank[i]; bank[i] = bank[j]; bank[j] = tmp;
-      }
-      for(var k = 0; k < Math.min(n, bank.length); k++){
-        var item = Object.assign({}, bank[k], { tier: t.id, uid: 'w' + (uidCounter++), solved: false });
-        play.usedTopics[item.name] = true;
-        pool.push(item);
-      }
+    // 第32弾-A-3-6：出題を問題バンクへ移した。
+    // 以前はお題プールから引いて、開くたび（のちに開始前に）AIへ説明文を頼んでいた。
+    // クイズ王の4ゲームは既に移してあったのに、元祖だけ残っていた。
+    // バンクの問題は文と3択を最初から持っているので、待ち時間もAIの失敗も無くなる。
+    // ルール層（bomb-logic）を通すので、1人1台版とまったく同じ作り方になる。
+    var wires = BombLogic.pickQuestionWires(QuizBank, state.bombCounts, null, play.usedQuestions);
+    // 難易度ごとに固まったまま並べると、盤面が緑→黄→橙→赤のグラデーションに見え、
+    // どこが難しいか一目で分かってしまう。必ず混ぜる
+    play.bombWires = BombLogic.shuffleWires(wires).map(function(w){
+      return Object.assign({}, w, { solved: false });
     });
-    // 第28弾-1：難易度ごとに固まったまま並べると、盤面が緑→黄→橙→赤の
-    // グラデーションに見え、どこが難しいか一目で分かってしまう。必ず混ぜる
-    play.bombWires = BombLogic.shuffleWires(pool);
     play.bombLives = state.bombLives;
     play.bombLivesMax = state.bombLives;
     play.bombMisses = 0; // 第27弾：心拍を速くしていく目安
     play.currentBombWire = null;
   }
 
-  /**
-   * 第28弾-1：協力版でも、遊び始める前に説明文を全部そろえる。
-   *
-   * 以前はコードを開いた時にその場でAIを呼んでいたので、毎回そこで待たされた。
-   * 競争版はもともとサーバー側で先に作っているので、待ち方をそちらに合わせる。
-   * 1台のスマホ版はこの端末が持ち主なので、ここで作って手元に置いてよい。
-   *
-   * 作れなかったコードは盤面から外す（開いても答えようがないマスを置かない）。
-   */
-  async function prepareBombDescriptions(onProgress){
-    var wires = play.bombWires || [];
-    var done = 0, dropped = 0;
-    // 同時に呼びすぎるとレート制限に当たるので、3本ずつ
-    var next = 0;
-    async function worker(){
-      for(;;){
-        var i = next++;
-        if(i >= wires.length) return;
-        var w = wires[i];
-        for(var attempt = 0; attempt < 2 && !w.description; attempt++){
-          try{
-            var res = await callAI({ name: w.name, ng_words: w.ng_words });
-            w.description = res.description;
-          }catch(e){ /* もう一度だけ試す */ }
-        }
-        if(!w.description) dropped++;
-        done++;
-        if(onProgress) onProgress(done, wires.length, dropped);
-      }
-    }
-    await Promise.all([worker(), worker(), worker()]);
-    play.bombWires = wires.filter(function(w){ return !!w.description; });
-    return { total: wires.length, dropped: dropped, left: play.bombWires.length };
-  }
   var BOMB_TIER_CLASS = { easy:'t-easy', normal:'t-normal', hard:'t-hard', nanisore:'t-nanisore', muri:'t-muri' };
 
   // ---- 第28弾-1：コードの盤面。協力版（1台）と競争版（部屋）で同じ部品を使う ----
@@ -11107,24 +11168,9 @@
     return '<div class="bomb-wire-grid">' + cells.map(bombCellHtml).join('') + '</div>';
   }
 
-  // 第28弾-1：説明文がそろうまでの画面。そろったら盤面へ入る
+  // 第32弾-A-3-6：問題は最初から揃っているので、用意する画面を通らずに盤面へ入る
   function startBombPrep(){
-    goTo('scr-bomb-prep');
-    el('bombPrepFill').style.width = '0%';
-    el('bombPrepNote').textContent = '0 / ' + (play.bombWires || []).length + '本';
-    prepareBombDescriptions(function(done, total, dropped){
-      el('bombPrepFill').style.width = (total ? Math.round(done / total * 100) : 0) + '%';
-      el('bombPrepNote').textContent = done + ' / ' + total + '本' +
-        (dropped ? '（' + dropped + '本は用意できませんでした）' : '');
-    }).then(function(res){
-      // 1本も作れなかった時は、行き止まりにせず理由を出して結果へ
-      if(!res.left){
-        enterBombEnd(false, 'AIの説明文を1本も作れなかったので、始められませんでした');
-        goTo('scr-bomb-end');
-        return;
-      }
-      goTo('scr-bomb-play');
-    });
+    goTo('scr-bomb-play');
   }
 
   // ---- 第28弾-1：暗室→点灯→蓋オープンの演出は無くした ----
@@ -11239,16 +11285,9 @@
     renderBombChoices(w);
   }
   function renderBombChoices(w){
-    el('bombWireDescription').textContent = w.description;
-    if(!w.choices){
-      var decoys = pickDecoys(w, 2);
-      var choices = [w.name].concat(decoys);
-      for(var i = choices.length - 1; i > 0; i--){
-        var j = Math.floor(Math.random() * (i + 1));
-        var tmp = choices[i]; choices[i] = choices[j]; choices[j] = tmp;
-      }
-      w.choices = choices;
-    }
+    // 第32弾-A-3-6：AIの説明文ではなく、問題バンクの問題文をそのまま出す。
+    // 3択もコードが最初から持っているので、ここで作ることはもう無い
+    el('bombWireDescription').textContent = w.question || w.description;
     el('bombWireChoices').innerHTML = w.choices.map(function(c){
       return '<button class="pk-btn" data-choice="' + escapeHtml(c) + '">' + escapeHtml(c) + '</button>';
     }).join('');
@@ -11263,7 +11302,7 @@
     if(!btn) return;
     var w = play.currentBombWire;
     if(!w) return;
-    var correct = btn.dataset.choice === w.name;
+    var correct = BombLogic.isCorrect(w, btn.dataset.choice);
     el('bombWireOverlay').classList.remove('show');
     play.currentBombWire = null;
     if(correct){

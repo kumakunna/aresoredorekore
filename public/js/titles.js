@@ -58,6 +58,44 @@
       asAnswerer: 0,        // 正解者として正解した回数
       aiReadPlays: 0,       // AI読み上げモードで遊んだ回数
       comebackWins: 0       // 最下位候補から優勝した
+    },
+    // ---- 第32弾-B-2：新しい3カセットぶん ----
+    // 数えられないカウンタは作らない。作ると「絶対に手に入らない称号」が
+    // コレクション画面に永久に並ぶことになる（同時解除がまだ無いので、その分は入れていない）。
+    bakudan: {
+      plays: 0,             // 爆弾解除カセットを遊んだ回数
+      wins: 0,              // 解除に成功した回数
+      noMissClears: 0,      // ミス0で解除しきった
+      raceWins: 0,          // 競争版で1位になった
+      raceWinStreak: 0,     // 競争版の通算勝ち数
+      defusePlays: 0,       // 実物解除を遊んだ
+      defuseWins: 0,        // 実物解除に成功した
+      defuseNoMiss: 0,      // 実物解除をミス0で終えた
+      manualHelps: 0,       // マニュアル役として解除を成功に導いた
+      focusWins: 0,         // 集中解除に成功した
+      comebacks: 0          // ライフ1まで減ってから解除しきった
+    },
+    quizou: {
+      plays: 0,             // クイズ王カセットを遊んだ回数
+      wins: 0,              // 1位になった回数
+      rushPlays: 0, rushWins: 0,
+      rushNoPass: 0,        // パスを1回も使わずにラウンドを終えた
+      listPlays: 0, listBest: 0,   // つぎつぎで出せた最高数
+      revealPlays: 0, revealHits: 0, revealEarly: 0, // 開き始めてすぐ当てた
+      buzzerPlays: 0, buzzerWins: 0, buzzerPerfect: 0, // 無失点で勝ち抜き
+      hardHits: 0,          // むずかしい以上を正解した数
+      muriHits: 0           // 「むりなんだが」を正解した数
+    },
+    auction: {
+      plays: 0,             // オークションを遊んだ回数
+      wins: 0,              // 1位になった回数
+      jackpots: 0,          // 大当たりを落札した
+      duds: 0,              // 大ハズレを落札した
+      bestProfit: 0,        // 1ラウンドの最高収支
+      appraises: 0,         // 鑑定眼を使った回数
+      doubleHits: 0,        // ダブルアップで当たりを引いた
+      allInWins: 0,         // 持ちチップを全部出して落札し、勝った
+      quietWins: 0          // 一度も落札せずに勝った
     }
   };
 
@@ -121,6 +159,47 @@
       { id: 'icon-are-seal', cassette: 'aresore', emoji: '🚫', label: '封印破りの証',
         hint: '封印ワードモードで1回でも正解させる',
         need: function (s) { return s('aresore', 'sealedSuccess') >= 1; } },
+      // ---- 第32弾-B-2：爆弾解除 ----
+      { id: 'icon-bomb-1', cassette: 'bakudan', emoji: '💣', label: '解除班の証',
+        hint: '爆弾解除カセットを1回あそぶ',
+        need: function (s) { return s('bakudan', 'plays') >= 1; } },
+      { id: 'icon-bomb-10', cassette: 'bakudan', emoji: '🧨', label: 'ベテラン解除班の証',
+        hint: '爆弾解除カセットを通算10回あそぶ',
+        need: function (s) { return s('bakudan', 'plays') >= 10; } },
+      { id: 'icon-bomb-defuse', cassette: 'bakudan', emoji: '🧰', label: '実物解除の証',
+        hint: '実物解除を1回成功させる',
+        need: function (s) { return s('bakudan', 'defuseWins') >= 1; } },
+      { id: 'icon-bomb-clean', cassette: 'bakudan', emoji: '🎯', label: '無傷の証',
+        hint: 'ミス0で解除しきる',
+        need: function (s) { return s('bakudan', 'noMissClears') >= 1; } },
+
+      // ---- 第32弾-B-2：クイズ王 ----
+      { id: 'icon-quiz-1', cassette: 'quizou', emoji: '🎓', label: '挑戦者の証',
+        hint: 'クイズ王カセットを1回あそぶ',
+        need: function (s) { return s('quizou', 'plays') >= 1; } },
+      { id: 'icon-quiz-10', cassette: 'quizou', emoji: '👑', label: 'クイズ王の証',
+        hint: 'クイズ王カセットを通算10回あそぶ',
+        need: function (s) { return s('quizou', 'plays') >= 10; } },
+      { id: 'icon-quiz-buzzer', cassette: 'quizou', emoji: '🥊', label: '早押し王の証',
+        hint: '早押しトーナメントで優勝する',
+        need: function (s) { return s('quizou', 'buzzerWins') >= 1; } },
+      { id: 'icon-quiz-muri', cassette: 'quizou', emoji: '🧠', label: '難問撃破の証',
+        hint: '「むりなんだが」の問題を正解する',
+        need: function (s) { return s('quizou', 'muriHits') >= 1; } },
+
+      // ---- 第32弾-B-2：オークション ----
+      { id: 'icon-auc-1', cassette: 'auction', emoji: '💰', label: '競り人の証',
+        hint: 'オークションを1回あそぶ',
+        need: function (s) { return s('auction', 'plays') >= 1; } },
+      { id: 'icon-auc-10', cassette: 'auction', emoji: '🏛', label: '常連の証',
+        hint: 'オークションを通算10回あそぶ',
+        need: function (s) { return s('auction', 'plays') >= 10; } },
+      { id: 'icon-auc-jackpot', cassette: 'auction', emoji: '💎', label: '大当たりの証',
+        hint: '大当たりの品物を落札する',
+        need: function (s) { return s('auction', 'jackpots') >= 1; } },
+      { id: 'icon-auc-quiet', cassette: 'auction', emoji: '🕊', label: '静観の証',
+        hint: '一度も落札せずに1位になる',
+        need: function (s) { return s('auction', 'quietWins') >= 1; } },
       { id: 'icon-are-survivor', cassette: 'aresore', emoji: '🏆', label: '生き残りの証',
         hint: 'サバイバルで優勝する',
         need: function (s) { return s('aresore', 'survivalWins') >= 1; } }
@@ -170,8 +249,56 @@
         need: function (s) { return s('aresore', 'oneHintAnswered') >= 1; } },
       { id: 'first-jozetsu', cassette: 'aresore', label: '饒舌',
         hint: 'AI読み上げを使わず、自分の声で10回以上出題する',
-        need: function (s) { return s('aresore', 'ownVoiceQuestions') >= 10; } }
-    ],
+        need: function (s) { return s('aresore', 'ownVoiceQuestions') >= 10; } },
+
+      // ---- 第32弾-B-2：爆弾解除（指示の設計どおり。同時解除はまだ無いので入れていない）----
+      { id: 'first-reisei', cassette: 'bakudan', label: '冷静',
+        hint: 'ミス0で解除しきる',
+        need: function (s) { return s('bakudan', 'noMissClears') >= 1; } },
+      { id: 'first-jinsoku', cassette: 'bakudan', label: '迅速',
+        hint: 'クイズ解除（競争版）で1位になる',
+        need: function (s) { return s('bakudan', 'raceWins') >= 1; } },
+      { id: 'first-shincho', cassette: 'bakudan', label: '慎重',
+        hint: '実物解除をミス0で終える',
+        need: function (s) { return s('bakudan', 'defuseNoMiss') >= 1; } },
+      { id: 'first-koko', cassette: 'bakudan', label: '孤高',
+        hint: '集中解除（マニュアル役1人）を成功させる',
+        need: function (s) { return s('bakudan', 'focusWins') >= 1; } },
+      { id: 'first-fukutsu-bomb', cassette: 'bakudan', label: '不屈',
+        hint: 'ライフが残り1まで減ってから解除しきる',
+        need: function (s) { return s('bakudan', 'comebacks') >= 1; } },
+
+      // ---- 第32弾-B-2：クイズ王（瞬発力・記憶・リスク判断・反射神経）----
+      { id: 'first-shunsoku', cassette: 'quizou', label: '瞬速',
+        hint: 'クイズラッシュでラウンドに勝つ',
+        need: function (s) { return s('quizou', 'rushWins') >= 1; } },
+      { id: 'first-hakushiki-quiz', cassette: 'quizou', label: '博識',
+        hint: 'むずかしい以上の問題を通算20問正解する',
+        need: function (s) { return s('quizou', 'hardHits') >= 20; } },
+      { id: 'first-shunen', cassette: 'quizou', label: '執念',
+        hint: 'つぎつぎクイズで10個以上出す',
+        need: function (s) { return s('quizou', 'listBest') >= 10; } },
+      { id: 'first-godan', cassette: 'quizou', label: '豪胆',
+        hint: 'とくとくクイズで、ほとんど見えないうちに当てる',
+        need: function (s) { return s('quizou', 'revealEarly') >= 1; } },
+      { id: 'first-denko', cassette: 'quizou', label: '電光',
+        hint: '早押しトーナメントを、1問も落とさずに勝ち抜く',
+        need: function (s) { return s('quizou', 'buzzerPerfect') >= 1; } },
+
+      // ---- 第32弾-B-2：オークション（読み合い）----
+      { id: 'first-mekiki', cassette: 'auction', label: '目利き',
+        hint: '鑑定眼を使って、大当たりを落札する',
+        need: function (s) { return s('auction', 'appraises') >= 1 && s('auction', 'jackpots') >= 1; } },
+      { id: 'first-gowan', cassette: 'auction', label: '豪腕',
+        hint: '持ちチップを全部出して落札し、そのまま1位になる',
+        need: function (s) { return s('auction', 'allInWins') >= 1; } },
+      { id: 'first-goyoku', cassette: 'auction', label: '強欲',
+        hint: 'ダブルアップで当たりの品物を2倍にする',
+        need: function (s) { return s('auction', 'doubleHits') >= 1; } },
+      { id: 'first-seikan', cassette: 'auction', label: '静観',
+        hint: '一度も落札せずに1位になる',
+        need: function (s) { return s('auction', 'quietWins') >= 1; } }
+        ],
 
     // 接続詞は語彙こそ共通だが、条件はカセットごとに別（どちらで満たしても手に入る）
     joiner: [
@@ -197,8 +324,18 @@
         hint: '通常プレイ・封印ワード・サバイバルで、それぞれ1勝以上する',
         need: function (s) {
           return s('aresore', 'normalWins') >= 1 && s('aresore', 'sealedWins') >= 1 && s('aresore', 'survivalWins') >= 1;
-        } }
-    ],
+        } },
+
+      { id: 'joiner-naru-bomb', cassette: 'bakudan', label: 'なる',
+        hint: '爆弾解除カセットで通算5回、解除に成功する',
+        need: function (s) { return s('bakudan', 'wins') >= 5; } },
+      { id: 'joiner-koso-quiz', cassette: 'quizou', label: 'こそ',
+        hint: 'クイズ王カセットで通算5回1位になる',
+        need: function (s) { return s('quizou', 'wins') >= 5; } },
+      { id: 'joiner-taru-auc', cassette: 'auction', label: 'たる',
+        hint: 'オークションで通算5回1位になる',
+        need: function (s) { return s('auction', 'wins') >= 5; } }
+        ],
 
     last: [
       { id: 'last-ippo', cassette: null, label: '一歩', free: true, hint: '最初から使えます' },
@@ -236,7 +373,55 @@
         need: function (s) { return s('aresore', 'aiReadPlays') >= 5; } },
       { id: 'last-fukutsu', cassette: 'aresore', label: '不屈',
         hint: 'サバイバルで、一度最下位候補になってから優勝する',
-        need: function (s) { return s('aresore', 'comebackWins') >= 1; } }
+        need: function (s) { return s('aresore', 'comebackWins') >= 1; } },
+
+      // ---- 第32弾-B-2：爆弾解除 ----
+      { id: 'last-shokunin', cassette: 'bakudan', label: '職人',
+        hint: '実物解除を5回成功させる',
+        need: function (s) { return s('bakudan', 'defuseWins') >= 5; } },
+      { id: 'last-meishu-bomb', cassette: 'bakudan', label: '名手',
+        hint: 'クイズ解除（競争版）で通算5勝する',
+        need: function (s) { return s('bakudan', 'raceWinStreak') >= 5; } },
+      { id: 'last-michibikite', cassette: 'bakudan', label: '導き手',
+        hint: 'マニュアル役として5回、解除を成功に導く',
+        need: function (s) { return s('bakudan', 'manualHelps') >= 5; } },
+      { id: 'last-kaitaiya', cassette: 'bakudan', label: '解体屋',
+        hint: 'ミス0での解除を3回やりとげる',
+        need: function (s) { return s('bakudan', 'noMissClears') >= 3; } },
+      { id: 'last-mamorite', cassette: 'bakudan', label: '守り手',
+        hint: 'みんなで協力して、解除に成功する',
+        need: function (s) { return s('bakudan', 'wins') >= 1; } },
+
+      // ---- 第32弾-B-2：クイズ王 ----
+      { id: 'last-hayauchi', cassette: 'quizou', label: '早撃ち',
+        hint: '早押しトーナメントで通算5回優勝する',
+        need: function (s) { return s('quizou', 'buzzerWins') >= 5; } },
+      { id: 'last-monoshiri', cassette: 'quizou', label: '物知り',
+        hint: 'クイズ王カセットを通算20回あそぶ',
+        need: function (s) { return s('quizou', 'plays') >= 20; } },
+      { id: 'last-kiokujutsushi', cassette: 'quizou', label: '記憶術師',
+        hint: 'つぎつぎクイズで20個以上出す',
+        need: function (s) { return s('quizou', 'listBest') >= 20; } },
+      { id: 'last-yomite', cassette: 'quizou', label: '読み手',
+        hint: 'とくとくクイズで通算10問正解する',
+        need: function (s) { return s('quizou', 'revealHits') >= 10; } },
+      { id: 'last-muso', cassette: 'quizou', label: '無双',
+        hint: 'クイズラッシュで、パスを1回も使わずにラウンドを終える',
+        need: function (s) { return s('quizou', 'rushNoPass') >= 1; } },
+
+      // ---- 第32弾-B-2：オークション ----
+      { id: 'last-serinin', cassette: 'auction', label: '競り人',
+        hint: 'オークションで通算5回1位になる',
+        need: function (s) { return s('auction', 'wins') >= 5; } },
+      { id: 'last-kanteishi', cassette: 'auction', label: '鑑定士',
+        hint: '鑑定眼を通算10回使う',
+        need: function (s) { return s('auction', 'appraises') >= 10; } },
+      { id: 'last-daishonin', cassette: 'auction', label: '大商人',
+        hint: '1ラウンドで差し引き+15枚以上を出す',
+        need: function (s) { return s('auction', 'bestProfit') >= 15; } },
+      { id: 'last-godan-auc', cassette: 'auction', label: '剛胆',
+        hint: '大ハズレを落札しても、そのゲームで1位になる',
+        need: function (s) { return s('auction', 'duds') >= 1 && s('auction', 'wins') >= 1; } }
     ]
   };
 

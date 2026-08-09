@@ -2063,6 +2063,46 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('新しい3カセットも、部屋で遊んだぶんが称号に数えられる', async () => {
+    // 第32弾-B-2：爆弾解除・クイズ王・オークション。
+    // 数えるのは rtRenderCurrent の1か所なので、ゲームが増えても数え忘れない
+    const CASES = [
+      { label: 'クイズ解除', game: 'bomb', cassette: 'bakudan',
+        room: () => bombRoom({ state: { phase: 'ended', game: 'bomb',
+          data: bombView({ phase: 'ended', result: { mode: 'coop', success: true, misses: 0, lives: 3, total: 4, codes: [] } }) } }),
+        you: () => bombYou({ phase: 'ended' }),
+        check: (st) => { assertEqual(st.plays, 1, '遊んだ回数'); assertEqual(st.noMissClears, 1, 'ミス0で解除'); } },
+      { label: '実物解除', game: 'defuse', cassette: 'bakudan',
+        room: () => defuseRoom({ state: { phase: 'ended', game: 'defuse',
+          data: defuseView({ phase: 'ended', strikesLeft: 3, strikesMax: 3,
+            result: { success: true, roles: [{ id: 'm2', name: 'びび', role: 'defuser' }] } }) } }),
+        you: () => defuseYou({ phase: 'ended' }),
+        check: (st) => { assertEqual(st.defuseWins, 1, '実物解除の成功'); assertEqual(st.defuseNoMiss, 1, 'ミス0'); } },
+      { label: 'クイズ王', game: 'quizrush', cassette: 'quizou',
+        room: () => quizRoom('quizrush', quizView('quizrush', { phase: 'ended',
+          rush: { round: 1, roundsToWin: 0, roundResult: null, board: [], passLimit: 3 },
+          result: { variant: 'quizrush', ranking: [{ id: 'm2', name: 'びび', score: 9, rank: 1 }] } })),
+        you: () => quizYou('quizrush', { phase: 'ended', rush: { passesLeft: 3 } }),
+        check: (st) => { assertEqual(st.plays, 1, '遊んだ回数'); assertEqual(st.wins, 1, '1位'); } },
+      { label: 'オークション', game: 'auction', cassette: 'auction',
+        room: () => auctionRoom(auctionView({ phase: 'ended',
+          result: { ranking: [{ id: 'm2', name: 'びび', chips: 30, rank: 1 }] } })),
+        you: () => auctionYou({ phase: 'ended' }),
+        check: (st) => { assertEqual(st.plays, 1, '遊んだ回数'); assertEqual(st.wins, 1, '1位'); } }
+    ];
+    for (const c of CASES) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      const sent = titlePuts(win);
+      push(fake, c.room());
+      pushYou(fake, c.you());
+      await waitFor(win, () => sent.length >= 1, 3000, c.label + '：称号を記録しにいく');
+      c.check(sent[sent.length - 1].stats[c.cassette]);
+      assertNoErrors(errors, c.label + ' の称号で未捕捉の例外');
+      win.close();
+    }
+  });
+
   await r.test('同じ部屋で2回目を遊んでも、称号がちゃんと数えられる', async () => {
     // 第32弾-A 第4部で見つけた不具合：
     // 二重に数えない印を「部屋コード＋ターン数」で作っていたので、

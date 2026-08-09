@@ -691,18 +691,134 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-titles', 3000);
     assertEqual(el(doc, 'titlePreviewTitle').textContent, 'はじめの一歩', '初期の名乗り');
     assertEqual(el(doc, 'titlePreviewName').textContent, 'test', 'ユーザー名が出る');
-    // 持っていないパーツは中身を伏せ、どうすれば手に入るかだけ見せる
-    const locked = doc.querySelectorAll('#titleGroups .tg-item.locked');
+    // 第32弾-B-2：ここはプロフィール。変えたいものを選ぶと専用画面が開く
+    assert(doc.querySelector('[data-profgo="icon"]'), 'アイコンを変える入口がある');
+    assert(doc.querySelector('[data-profgo="name2"]'), '二つ名を変える入口がある');
+    assert(doc.querySelector('[data-profgo="collection"]'), '集めたものへの入口がある');
+    // 持っていないパーツは影で出し、どうすれば手に入るかだけ見せる
+    doc.querySelector('[data-profgo="icon"]').click();
+    await waitScreen(win, doc, 'scr-title-icon', 3000);
+    const locked = doc.querySelectorAll('#tiGroups .ti-item.locked');
     assert(locked.length > 0, 'まだ持っていないパーツも並んでいる（' + locked.length + '個）');
-    assert(locked[0].disabled, '持っていないものは選べない');
     assert(/？？？/.test(locked[0].textContent), '中身は伏せる');
-    assert(!/？？？/.test(locked[0].querySelector('.tg-hint').textContent), '手に入れ方は見せる');
+    assert(locked[0].querySelector('.ti-hint'), '手に入れ方は見せる');
+    click(doc, 'tiBackBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
     // 手渡しで自分の活躍として数えてもらう方法を案内する
     assert(/test/.test(el(doc, 'titleHandoffNote').textContent), '名前を合わせる案内が出る');
     click(doc, 'titlesBackBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     assertNoErrors(errors, '称号画面で未捕捉の例外');
     win.close();
+  });
+
+  // ---- 第32弾-B 第2部：称号の画面 ----
+
+  await r.test('二つ名は、スロットごとの一覧から選ぶ（獲得済みが上）', async () => {
+    const { win, doc, errors } = await launch();
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    doc.querySelector('[data-profgo="name2"]').click();
+    await waitScreen(win, doc, 'scr-title-name', 3000);
+    assertEqual(doc.querySelectorAll('#tnSlots .tn-slot').length, 3, '3つのスロットが並ぶ');
+    assertEqual(el(doc, 'tnPreview').textContent, 'はじめの一歩', 'プレビューが常に上にある');
+
+    doc.querySelector('[data-tnslot="first"]').click();
+    await waitScreen(win, doc, 'scr-title-slot', 3000);
+    const rows = Array.from(doc.querySelectorAll('#tsList .ts-row'));
+    assert(rows.length > 1, 'そのスロットの候補が並ぶ');
+    // 獲得済みが上、未獲得は下
+    const firstLocked = rows.findIndex(x => x.classList.contains('locked'));
+    const lastOwned = rows.map(x => x.classList.contains('locked')).lastIndexOf(false);
+    assert(lastOwned < firstLocked, '獲得済みが上、未獲得が下');
+    assert(/？？？/.test(rows[firstLocked].textContent), '未獲得は中身を伏せる');
+    assert(rows[firstLocked].querySelector('.ts-hint'), '未獲得は条件が読める');
+    assertNoErrors(errors, '二つ名の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('集めたものに、カセットごとの獲得率が出る', async () => {
+    const { win, doc, errors } = await launch();
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    doc.querySelector('[data-profgo="collection"]').click();
+    await waitScreen(win, doc, 'scr-collection', 3000);
+    const bars = doc.querySelectorAll('#collectBody .tg-cas-bar');
+    assert(bars.length >= 5, 'カセットごとにバーが出る（' + bars.length + '本）');
+    const text = el(doc, 'collectBody').textContent;
+    ['人狼', 'あれそれどれこれ', '爆弾', 'クイズ', 'オーク'].forEach((w) => {
+      assert(text.indexOf(w) !== -1, '「' + w + '」の区切りがある');
+    });
+    assert(/\d+ \/ \d+/.test(text), '「持っている数 / 全部の数」が出る');
+    assertNoErrors(errors, '集めたもので未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('手に入った瞬間に、何をなぜ手に入れたかが大きく出る', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    // あれそれどれこれを1回あそぶと「はじめの参加証」が手に入る
+    await setupPlayers(win, doc);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'modeAutoBtn');
+    await sleep(win, 80);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-play', 8000);
+    click(doc, 'btnCorrect');
+    await sleep(win, 80);
+    const who = doc.querySelectorAll('#pickerGrid button[data-id]');
+    if (who.length) { who[0].click(); await sleep(win, 120); }
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-score', 8000);
+    await sleep(win, 200);
+
+    assert(el(doc, 'titleGotOverlay').classList.contains('show'), '手に入った演出が出る');
+    const got = el(doc, 'gotList').textContent;
+    assert(/はじめの参加証/.test(got), '何を手に入れたかが出る');
+    assert(/あそぶ/.test(got), 'なぜ手に入ったかも出る');
+    // その場で着けられる
+    click(doc, 'gotEquipBtn');
+    await sleep(win, 150);
+    assert(!el(doc, 'titleGotOverlay').classList.contains('show'), '閉じる');
+    assertEqual(el(doc, 'shelfAvatar').textContent, '🎈', 'すぐ着けられる');
+    assertNoErrors(errors, '獲得の演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('手に入った演出は、スキップも「今後出さない」もできる', async () => {
+    // 演出をスキップにしていると、大きな演出は出さず一言だけにする
+    const t = await launch();
+    t.win.confirm = () => true;
+    click(t.doc, 'shelfGearBtn');
+    await sleep(t.win, 100);
+    t.doc.querySelector('#setRootMenu [data-setpage="app"]').click();
+    await sleep(t.win, 60);
+    t.doc.querySelector('#setAppMenu [data-setpage="display"]').click();
+    await sleep(t.win, 60);
+    t.doc.querySelector('#setFxSeg [data-fx="skip"]').click();
+    await sleep(t.win, 60);
+    click(t.doc, 'closeSettingsBtn');
+    await sleep(t.win, 60);
+    await setupPlayers(t.win, t.doc);
+    await waitScreen(t.win, t.doc, 'scr-mode', 3000);
+    click(t.doc, 'modeAutoBtn');
+    await sleep(t.win, 80);
+    if (activeScreen(t.doc) === 'scr-mode-rules') { click(t.doc, 'rulesStartBtn'); await sleep(t.win, 60); }
+    await waitScreen(t.win, t.doc, 'scr-ready', 3000);
+    el(t.doc, 'holdBtn').dispatchEvent(new t.win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(t.win, t.doc, 'scr-play', 8000);
+    click(t.doc, 'btnCorrect');
+    await sleep(t.win, 80);
+    const who2 = t.doc.querySelectorAll('#pickerGrid button[data-id]');
+    if (who2.length) { who2[0].click(); await sleep(t.win, 120); }
+    click(t.doc, 'endRoundBtn');
+    await waitScreen(t.win, t.doc, 'scr-score', 8000);
+    await sleep(t.win, 200);
+    assert(!el(t.doc, 'titleGotOverlay').classList.contains('show'),
+      '演出をスキップにしていたら、大きな演出は出さない');
+    t.win.close();
   });
 
   await r.test('ログインしていない人は、称号を選べない', async () => {
@@ -739,12 +855,17 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-shelf', 3000);
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    const balloon = doc.querySelector('#titleGroups [data-tid="icon-are-1"]');
+    doc.querySelector('[data-profgo="icon"]').click();
+    await waitScreen(win, doc, 'scr-title-icon', 3000);
+    const balloon = doc.querySelector('#tiGroups [data-ticon="icon-are-1"]');
     assert(balloon && !balloon.classList.contains('locked'), '🎈 はじめの参加証が手に入っている');
-    // 選んで確定すると、棚のバーに反映される
+    // 選んだ瞬間、上のプレビューが変わる
     balloon.click();
     await sleep(win, 60);
-    click(doc, 'titlesDoneBtn');
+    assertEqual(el(doc, 'tiPreviewIcon').textContent, '🎈', 'プレビューがすぐ変わる');
+    click(doc, 'tiDoneBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    click(doc, 'titlesBackBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     assertEqual(el(doc, 'shelfAvatar').textContent, '🎈', 'バーのアイコンが変わる');
     assertNoErrors(errors, '称号の獲得で未捕捉の例外');
@@ -786,7 +907,11 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-shelf', 3000);
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    const kiki = doc.querySelector('#titleGroups [data-tid="first-kikijozu"]');
+    doc.querySelector('[data-profgo="name2"]').click();
+    await waitScreen(win, doc, 'scr-title-name', 3000);
+    doc.querySelector('[data-tnslot="first"]').click();
+    await waitScreen(win, doc, 'scr-title-slot', 3000);
+    const kiki = doc.querySelector('#tsList [data-tsid="first-kikijozu"]');
     assert(kiki && !kiki.classList.contains('locked'),
       'ヒント1つで当てたので「聞き上手」が手に入る');
     assertNoErrors(errors, '一言ヒントの称号で未捕捉の例外');
@@ -822,7 +947,11 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-shelf', 3000);
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    const kiki = doc.querySelector('#titleGroups [data-tid="first-kikijozu"]');
+    doc.querySelector('[data-profgo="name2"]').click();
+    await waitScreen(win, doc, 'scr-title-name', 3000);
+    doc.querySelector('[data-tnslot="first"]').click();
+    await waitScreen(win, doc, 'scr-title-slot', 3000);
+    const kiki = doc.querySelector('#tsList [data-tsid="first-kikijozu"]');
     assert(kiki && kiki.classList.contains('locked'),
       'ヒントを増やしてもらったら「一発」ではない');
     assertNoErrors(errors, 'ヒント追加の称号で未捕捉の例外');

@@ -77,6 +77,21 @@ app.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
+// 第32弾-B-2：名前を変える。
+// 名前は棚のバーにも、部屋の名簿にも、記録にも出るので、あとから直せないと困る。
+// 記録は user_id で紐づいているので、名前を変えても過去の記録は残る。
+app.put('/api/auth/name', requireAuth, (req, res) => {
+  const name = String((req.body && req.body.username) || '').trim();
+  if (!name || name.length > 20) {
+    return res.status(400).json({ error: '名前は1〜20文字で入れてください' });
+  }
+  const taken = db.prepare('SELECT id FROM users WHERE username = ? AND id <> ?')
+    .get(name, req.session.userId);
+  if (taken) return res.status(409).json({ error: 'その名前は既に使われています' });
+  db.prepare('UPDATE users SET username = ? WHERE id = ?').run(name, req.session.userId);
+  res.json({ id: req.session.userId, username: name });
+});
+
 app.get('/api/auth/me', (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: '未ログイン' });
   const user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.session.userId);

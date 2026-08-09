@@ -537,6 +537,55 @@
   }
   .set-member .sm-btn.danger{border-color:var(--stamp);color:var(--stamp);}
 
+  /* ---- 第32弾-B 第2部：プロフィール・称号 ---- */
+  .prof-head{text-align:center;padding:10px 16px 16px;}
+  .prof-head.small{padding-bottom:10px;}
+  .prof-icon{font-size:56px;line-height:1.2;}
+  .prof-head.small .prof-icon{font-size:40px;}
+  .prof-title{font-size:22px;font-weight:800;margin-top:4px;}
+  .prof-name{font-size:13px;color:var(--ink-soft);margin-top:2px;}
+  /* カセットごとの区切り */
+  .tg-cas{margin-bottom:18px;}
+  .tg-cas-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .tg-cas-head h3{font-size:14px;margin:0;}
+  .tg-cas-bar{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:6px;}
+  .tg-cas-fill{height:100%;background:var(--teal);border-radius:999px;}
+  .tg-cas-count{font-size:11.5px;color:var(--ink-soft);}
+  /* あと1つで揃うものは目立たせる（次に遊ぶ理由になる） */
+  .tg-cas.near .tg-cas-head h3::after{content:' ✨ あと1つ';font-size:11px;color:var(--gold);}
+  .tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;}
+  .ti-item{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 6px;text-align:center;cursor:pointer;font-family:inherit;color:var(--ink);
+  }
+  .ti-item.on{outline:2px solid var(--stamp);}
+  /* 未獲得は影のシルエット。押すと条件が読める */
+  .ti-item.locked .ti-emoji{filter:brightness(0) opacity(.3);}
+  .ti-item.locked .ti-label{color:var(--ink-soft);}
+  .ti-emoji{font-size:26px;line-height:1.2;}
+  .ti-label{display:block;font-size:10.5px;margin-top:4px;line-height:1.4;}
+  .ti-hint{display:block;font-size:9.5px;color:var(--ink-soft);margin-top:3px;line-height:1.4;}
+  /* 二つ名のスロット一覧 */
+  .tn-slot{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px;margin-bottom:8px;cursor:pointer;font-family:inherit;color:var(--ink);}
+  .tn-slot .tn-label{flex:1;font-size:13px;color:var(--ink-soft);}
+  .tn-slot .tn-value{font-size:16px;font-weight:700;}
+  .ts-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;margin-bottom:6px;cursor:pointer;font-family:inherit;color:var(--ink);}
+  .ts-row.on{outline:2px solid var(--stamp);}
+  .ts-row.locked{color:var(--ink-soft);}
+  .ts-row .ts-hint{font-size:11px;color:var(--ink-soft);}
+  .ts-sep{font-size:11.5px;color:var(--ink-soft);margin:14px 0 6px;}
+  /* 手に入った瞬間 */
+  .got-panel{text-align:center;}
+  .got-lead{font-size:14px;color:var(--ink-soft);}
+  .got-item{margin:16px 0;}
+  .got-emoji{font-size:64px;line-height:1.1;}
+  .got-label{font-size:26px;font-weight:800;margin-top:6px;}
+  .got-why{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.7;}
+
   /* 第32弾-B-1：演出の速さ。スキップにしたら、画面の動きを全部止める
      （待たされるのが苦手な人・急いでいる時のため。情報は必ず画面にも出す） */
   .app.fx-skip *,
@@ -1822,23 +1871,120 @@
   </div>
 
   <!-- 第26弾-4：称号（アイコンと二つ名）。持っているものから組み合わせを選ぶ -->
+  <!-- 第32弾-B 第2部：プロフィール。
+       パーツが増えるほど1画面では選びにくくなるので、
+       「今の姿を見せる → 変えたいものを選ぶ → 専用の一覧へ」の形にした。
+       この形なら、パーツが100個に増えても選びやすさが変わらない。 -->
   <div class="screen" id="scr-titles">
-    <h2 class="scr-title">なまえと二つ名</h2>
-    <p class="scr-sub">あそんで手に入れたパーツから、自分の名乗りを作れます</p>
-    <div class="title-preview">
-      <div class="shelf-avatar" id="titlePreviewIcon">🙂</div>
-      <div>
-        <div class="shelf-title" id="titlePreviewTitle">はじめの一歩</div>
-        <div class="shelf-name" id="titlePreviewName">-</div>
-      </div>
+    <div class="prof-head">
+      <div class="prof-icon" id="titlePreviewIcon">🙂</div>
+      <div class="prof-title" id="titlePreviewTitle">はじめの一歩</div>
+      <div class="prof-name" id="titlePreviewName">-</div>
     </div>
     <!-- 手渡しは1台をみんなで回すので、アプリからは誰が持ち主か分からない。
          名前を合わせてもらえば、その人の活躍として数えられる -->
     <div class="mic-status" id="titleHandoffNote" style="line-height:1.7;"></div>
-    <div class="wiz-body" id="titleGroups"></div>
+    <div class="wiz-body">
+      <button class="set-row" data-profgo="icon">
+        <span class="sr-icon">🖼</span>
+        <span class="sr-text">アイコンを変える<span class="sr-sub" id="profIconSub"></span></span>
+        <span class="sr-arrow">›</span>
+      </button>
+      <button class="set-row" data-profgo="name2">
+        <span class="sr-icon">🏷</span>
+        <span class="sr-text">二つ名を変える<span class="sr-sub" id="profName2Sub"></span></span>
+        <span class="sr-arrow">›</span>
+      </button>
+      <button class="set-row" data-profgo="rename">
+        <span class="sr-icon">📛</span>
+        <span class="sr-text">名前を変える<span class="sr-sub" id="profRenameSub"></span></span>
+        <span class="sr-arrow">›</span>
+      </button>
+      <button class="set-row" data-profgo="collection" style="margin-top:14px;">
+        <span class="sr-icon">📊</span>
+        <span class="sr-text">集めたもの<span class="sr-sub" id="profCollectSub"></span></span>
+        <span class="sr-arrow">›</span>
+      </button>
+    </div>
     <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-main" id="titlesDoneBtn">これにする ▶</button>
       <button class="btn btn-ghost" id="titlesBackBtn" style="margin-top:0;">← もどる</button>
+    </div>
+  </div>
+
+  <!-- アイコンをえらぶ。カセットごとに区切って、未獲得は影で出す -->
+  <div class="screen" id="scr-title-icon">
+    <div class="prof-head small">
+      <div class="prof-icon" id="tiPreviewIcon">🙂</div>
+      <div class="prof-title" id="tiPreviewTitle">はじめの一歩</div>
+    </div>
+    <div class="wiz-body" id="tiGroups"></div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="tiDoneBtn">これにする ▶</button>
+      <button class="btn btn-ghost" id="tiBackBtn" style="margin-top:0;">← もどる</button>
+    </div>
+  </div>
+
+  <!-- 二つ名。3つのスロットを選ぶ入口 -->
+  <div class="screen" id="scr-title-name">
+    <div class="prof-head small">
+      <div class="prof-title" id="tnPreview">はじめの一歩</div>
+      <div class="mic-status">上のプレビューは、選ぶたびに変わります</div>
+    </div>
+    <div class="wiz-body" id="tnSlots"></div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="tnDoneBtn">これにする ▶</button>
+      <button class="btn btn-ghost" id="tnBackBtn" style="margin-top:0;">← もどる</button>
+    </div>
+  </div>
+
+  <!-- スロット1つぶんの一覧。獲得済みが上、未獲得は下にグレーで -->
+  <div class="screen" id="scr-title-slot">
+    <div class="prof-head small">
+      <div class="prof-title" id="tsPreview">はじめの一歩</div>
+      <div class="mic-status" id="tsLead"></div>
+    </div>
+    <div class="wiz-body" id="tsList"></div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-ghost" id="tsBackBtn" style="margin-top:0;">← もどる</button>
+    </div>
+  </div>
+
+  <!-- 集めたもの。カセットごとの獲得率と、あと1つで揃うもの -->
+  <div class="screen" id="scr-collection">
+    <div class="wiz-head"><h2 class="scr-title">集めたもの</h2></div>
+    <div class="wiz-body" id="collectBody"></div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-ghost" id="collectBackBtn" style="margin-top:0;">← もどる</button>
+    </div>
+  </div>
+
+  <!-- 名前を変える -->
+  <div class="screen" id="scr-rename">
+    <div class="wiz-head"><h2 class="scr-title">名前を変える</h2></div>
+    <p class="wiz-lead">棚のバー・部屋の名簿・記録に出る名前です。変えても、いままでの記録は残ります。</p>
+    <div class="wiz-body">
+      <input type="text" id="renameInput" maxlength="20" placeholder="あたらしい名前">
+      <div class="mic-status" id="renameNote" style="margin-top:8px;"></div>
+      <button class="btn btn-main" id="renameBtn" style="margin-top:12px;">この名前にする</button>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-ghost" id="renameBackBtn" style="margin-top:0;">← もどる</button>
+    </div>
+  </div>
+
+  <!-- 第32弾-B-2：手に入った瞬間。結果画面のあとに1回だけ出す -->
+  <div class="overlay" id="titleGotOverlay">
+    <div class="overlay-panel got-panel">
+      <div class="got-lead">新しく手に入れた！</div>
+      <div id="gotList"></div>
+      <button class="btn btn-main" id="gotEquipBtn" style="margin-top:16px;">すぐ着ける</button>
+      <button class="btn btn-ghost" id="gotSkipBtn">あとで（このまま進む）</button>
+      <div class="toggle-row-mini" style="margin-top:14px;">
+        <div>この演出を今後は出さない
+          <div class="mic-status">設定の「見た目と演出」からいつでも戻せます</div>
+        </div>
+        <div class="switch" id="gotMuteToggle"></div>
+      </div>
     </div>
   </div>
 
@@ -3851,16 +3997,80 @@
     var me = (players || []).find(function(p){ return p.name === state.username; });
     return me ? me.id : null;
   }
-  function showTitleGot(ids){
-    var names = ids.map(function(id){
-      for(var i = 0; i < TitleLogic.PART_KEYS.length; i++){
-        var p = TitleLogic.partById(TitleLogic.PART_KEYS[i], id);
-        if(p) return (p.emoji ? p.emoji + ' ' : '') + p.label;
-      }
-      return id;
-    });
-    showFlash('🎉 ' + names.join('、') + ' を手に入れました！', 'hit');
+  // どの種類のパーツかを探す（icon / first / joiner / last）
+  function findTitlePart(id){
+    for(var i = 0; i < TitleLogic.PART_KEYS.length; i++){
+      var part = TitleLogic.PART_KEYS[i];
+      var p = TitleLogic.partById(part, id);
+      if(p) return { part: part, def: p };
+    }
+    return null;
   }
+  /**
+   * 第32弾-B-2：手に入った瞬間。
+   * それまでは小さな一言が流れるだけで、気づかないまま終わっていた。
+   * 何を・なぜ手に入れたかを大きく出して、その場で着けられるようにする。
+   * 演出が邪魔な人のために、スキップと「今後出さない」も置く。
+   */
+  var titleGotPending = [];
+  function showTitleGot(ids){
+    if(!ids || !ids.length) return;
+    // 手に入れた日を覚えておく（コレクション画面で出す）
+    var today = new Date().toISOString().slice(0, 10);
+    myTitles.gotAt = myTitles.gotAt || {};
+    ids.forEach(function(id){ if(!myTitles.gotAt[id]) myTitles.gotAt[id] = today; });
+    saveTitleGotAt();
+
+    if(appPrefs.fxSpeed === 'skip' || !appPrefs.titleFanfare){
+      // 演出を切っている人には、今までどおり一言だけ
+      var names = ids.map(function(id){
+        var f = findTitlePart(id);
+        return f ? ((f.def.emoji ? f.def.emoji + ' ' : '') + f.def.label) : id;
+      });
+      showFlash('🎉 ' + names.join('、') + ' を手に入れました！', 'hit');
+      return;
+    }
+    titleGotPending = ids.slice();
+    el('gotList').innerHTML = ids.map(function(id){
+      var f = findTitlePart(id);
+      if(!f) return '';
+      return '<div class="got-item">' +
+        (f.def.emoji ? '<div class="got-emoji">' + f.def.emoji + '</div>' : '') +
+        '<div class="got-label">' + escapeHtml(f.def.label) + '</div>' +
+        '<div class="got-why">' + escapeHtml(f.def.hint) + '</div></div>';
+    }).join('');
+    el('gotMuteToggle').classList.toggle('on', !appPrefs.titleFanfare);
+    el('titleGotOverlay').classList.add('show');
+    fanfareSound();
+  }
+  function saveTitleGotAt(){
+    try{ localStorage.setItem('acac-title-gotat', JSON.stringify(myTitles.gotAt || {})); }catch(e){}
+  }
+  function loadTitleGotAt(){
+    try{ myTitles.gotAt = JSON.parse(localStorage.getItem('acac-title-gotat') || '{}') || {}; }
+    catch(e){ myTitles.gotAt = {}; }
+  }
+  el('gotSkipBtn').addEventListener('click', function(){
+    titleGotPending = [];
+    el('titleGotOverlay').classList.remove('show');
+  });
+  el('gotEquipBtn').addEventListener('click', async function(){
+    // その場で着ける。同じ種類が複数あれば、最後のものになる
+    titleGotPending.forEach(function(id){
+      var f = findTitlePart(id);
+      if(f) myTitles.equipped[f.part] = id;
+    });
+    myTitles.equipped = TitleLogic.normalizeEquipped(myTitles.equipped, myTitles.unlocked);
+    titleGotPending = [];
+    el('titleGotOverlay').classList.remove('show');
+    renderShelfBar();
+    await saveTitles();
+  });
+  el('gotMuteToggle').addEventListener('click', function(){
+    appPrefs.titleFanfare = !appPrefs.titleFanfare;
+    saveAppPrefs();
+    el('gotMuteToggle').classList.toggle('on', !appPrefs.titleFanfare);
+  });
   function renderShelfBar(){
     var inn = loggedIn();
     el('shelfAvatar').textContent = inn ? myIcon() : guestIdentity.icon;
@@ -3878,13 +4088,39 @@
   // 持っていないパーツも並べて、どうすれば手に入るかを見せる（集める楽しみのため）
   var TITLE_GROUP_LABEL = { icon:'アイコン', first:'はじめの言葉', joiner:'つなぎの言葉', last:'おわりの言葉' };
   var titleDraft = null; // 「これにする」を押すまでは仮のまま
+  // ===================== 第32弾-B 第2部：プロフィールと称号 =====================
+  // 1画面に全部並べると、パーツが増えるほど選びにくくなる。
+  // 「今の姿を見せる → 変えたいものを選ぶ → 専用の一覧」の3段にした。
+  function haveMap(){
+    var have = {};
+    myTitles.unlocked.forEach(function(id){ have[id] = true; });
+    return have;
+  }
+  // カセットのid → 画面に出す名前。カセットの一覧から作るので、増えても書き足さない
+  function titleCassetteLabel(id){
+    if(!id) return '最初から使えるもの';
+    var c = cassetteById(id === 'aresore' ? 'aresoredorekore' : id);
+    if(c) return (c.title || id).replace(/<br>/g, '');
+    return id;
+  }
+  // 称号のカセット並び順。目録に出てくる順そのまま（手で並べ直さない）
+  function titleCassettes(){
+    var seen = [], out = [];
+    TitleLogic.PART_KEYS.forEach(function(part){
+      TitleLogic.partsOf(part).forEach(function(p){
+        var key = p.cassette || '';
+        if(seen.indexOf(key) === -1){ seen.push(key); out.push(p.cassette || null); }
+      });
+    });
+    return out;
+  }
+
   function enterTitles(){
     titleDraft = Object.assign({}, myTitles.equipped);
     renderTitleScreen();
   }
   function renderTitleScreen(){
-    var have = {};
-    myTitles.unlocked.forEach(function(id){ have[id] = true; });
+    var have = haveMap();
     el('titlePreviewIcon').textContent = TitleLogic.iconEmoji(titleDraft);
     el('titlePreviewTitle').textContent = TitleLogic.titleText(titleDraft);
     el('titlePreviewName').textContent = state.username || '-';
@@ -3892,36 +4128,197 @@
       ? '📱 1台をまわして遊ぶ時は、プレイヤー名を「' + state.username +
         '」にしておくと、あなたの活躍として数えます（1人1台なら自動です）'
       : '';
-    el('titleGroups').innerHTML = TitleLogic.PART_KEYS.map(function(part){
-      var list = TitleLogic.partsOf(part);
-      var owned = list.filter(function(p){ return have[p.id]; }).length;
-      return '<div class="tg-head"><h3>' + TITLE_GROUP_LABEL[part] + '</h3>' +
-        '<span class="tg-count">' + owned + ' / ' + list.length + '</span></div>' +
-        '<div class="tg-grid">' + list.map(function(p){
-          var got = !!have[p.id];
-          return '<button class="tg-item' + (got ? '' : ' locked') +
-            (titleDraft[part] === p.id ? ' on' : '') + '"' +
-            ' data-tpart="' + part + '" data-tid="' + p.id + '"' + (got ? '' : ' disabled') + '>' +
-            (p.emoji ? '<span class="tg-emoji">' + p.emoji + '</span>' : '') +
-            '<span class="tg-label">' + escapeHtml(got ? p.label : '？？？') + '</span>' +
-            '<span class="tg-hint">' + escapeHtml(got ? p.label : p.hint) + '</span>' +
+    var icons = TitleLogic.partsOf('icon');
+    el('profIconSub').textContent = icons.filter(function(p){ return have[p.id]; }).length +
+      ' / ' + icons.length + ' 個もっています';
+    el('profName2Sub').textContent = TitleLogic.titleText(titleDraft);
+    el('profRenameSub').textContent = state.username || '（ログインすると使えます）';
+    var all = 0, owned = 0;
+    TitleLogic.PART_KEYS.forEach(function(part){
+      TitleLogic.partsOf(part).forEach(function(p){
+        all++; if(have[p.id]) owned++;
+      });
+    });
+    el('profCollectSub').textContent = owned + ' / ' + all + ' 個';
+  }
+  el('scr-titles').addEventListener('click', function(e){
+    var b = e.target.closest('[data-profgo]');
+    if(!b) return;
+    var to = b.dataset.profgo;
+    if(to === 'icon') goTo('scr-title-icon');
+    if(to === 'name2') goTo('scr-title-name');
+    if(to === 'rename'){
+      if(!requireLogin('名前を変えるには、ログインしてください', 'scr-titles')) return;
+      goTo('scr-rename');
+    }
+    if(to === 'collection') goTo('scr-collection');
+  });
+  el('titlesBackBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
+
+  // ---- アイコンをえらぶ ----
+  function enterTitleIcon(){ renderTitleIcon(); }
+  function renderTitleIcon(){
+    var have = haveMap();
+    el('tiPreviewIcon').textContent = TitleLogic.iconEmoji(titleDraft);
+    el('tiPreviewTitle').textContent = TitleLogic.titleText(titleDraft);
+    var list = TitleLogic.partsOf('icon');
+    el('tiGroups').innerHTML = titleCassettes().map(function(cas){
+      var group = list.filter(function(p){ return (p.cassette || null) === cas; });
+      if(!group.length) return '';
+      var got = group.filter(function(p){ return have[p.id]; }).length;
+      return '<div class="tg-cas' + (group.length - got === 1 ? ' near' : '') + '">' +
+        '<div class="tg-cas-head"><h3>' + escapeHtml(titleCassetteLabel(cas)) + '</h3>' +
+        '<span class="tg-cas-count">' + got + ' / ' + group.length + '</span></div>' +
+        '<div class="tg-grid">' + group.map(function(p){
+          var owned = !!have[p.id];
+          return '<button class="ti-item' + (owned ? '' : ' locked') +
+            (titleDraft.icon === p.id ? ' on' : '') + '" data-ticon="' + p.id + '">' +
+            '<span class="ti-emoji">' + p.emoji + '</span>' +
+            '<span class="ti-label">' + escapeHtml(owned ? p.label : '？？？') + '</span>' +
+            (owned ? '' : '<span class="ti-hint">' + escapeHtml(p.hint) + '</span>') +
           '</button>';
-        }).join('') + '</div>';
+        }).join('') + '</div></div>';
     }).join('');
   }
-  el('titleGroups').addEventListener('click', function(e){
-    var b = e.target.closest('[data-tpart]');
-    if(!b || b.disabled) return;
-    titleDraft[b.dataset.tpart] = b.dataset.tid;
-    renderTitleScreen();
+  el('tiGroups').addEventListener('click', function(e){
+    var b = e.target.closest('[data-ticon]');
+    if(!b) return;
+    var p = TitleLogic.partById('icon', b.dataset.ticon);
+    if(!p) return;
+    if(!haveMap()[p.id]){
+      // 未獲得は選べないが、どうすれば手に入るかはその場で読める
+      showFlash('🔒 ' + p.hint, 'hit');
+      return;
+    }
+    titleDraft.icon = p.id;
+    renderTitleIcon(); // 選んだ瞬間、上のプレビューが変わる
   });
-  el('titlesDoneBtn').addEventListener('click', async function(){
+  el('tiBackBtn').addEventListener('click', function(){ goBack('scr-titles'); });
+  el('tiDoneBtn').addEventListener('click', saveTitleDraft);
+
+  // ---- 二つ名（3つのスロット）----
+  var TITLE_SLOT_LABEL = { first: '① はじめの言葉', joiner: '② 接続詞', last: '③ 終わりの言葉' };
+  function enterTitleName(){ renderTitleName(); }
+  function renderTitleName(){
+    el('tnPreview').textContent = TitleLogic.titleText(titleDraft);
+    el('tnSlots').innerHTML = TitleLogic.PARTS.map(function(part){
+      var p = TitleLogic.partById(part, titleDraft[part]);
+      return '<button class="tn-slot" data-tnslot="' + part + '">' +
+        '<span class="tn-label">' + TITLE_SLOT_LABEL[part] + '</span>' +
+        '<span class="tn-value">' + escapeHtml(p ? p.label : '-') + '</span>' +
+        '<span class="sr-arrow">›</span></button>';
+    }).join('');
+  }
+  el('tnSlots').addEventListener('click', function(e){
+    var b = e.target.closest('[data-tnslot]');
+    if(!b) return;
+    titleSlotEditing = b.dataset.tnslot;
+    goTo('scr-title-slot');
+  });
+  el('tnBackBtn').addEventListener('click', function(){ goBack('scr-titles'); });
+  el('tnDoneBtn').addEventListener('click', saveTitleDraft);
+
+  // ---- スロット1つぶんの一覧（獲得済みが上、未獲得は下）----
+  var titleSlotEditing = 'first';
+  function enterTitleSlot(){ renderTitleSlot(); }
+  function renderTitleSlot(){
+    var have = haveMap();
+    var part = titleSlotEditing;
+    el('tsPreview').textContent = TitleLogic.titleText(titleDraft);
+    el('tsLead').textContent = TITLE_SLOT_LABEL[part] + ' をえらぶ';
+    var list = TitleLogic.partsOf(part);
+    var owned = list.filter(function(p){ return have[p.id]; });
+    var locked = list.filter(function(p){ return !have[p.id]; });
+    function rowHtml(p, got){
+      return '<button class="ts-row' + (got ? '' : ' locked') +
+        (titleDraft[part] === p.id ? ' on' : '') + '" data-tsid="' + p.id + '">' +
+        '<span style="flex:1;">' + escapeHtml(got ? p.label : '？？？') +
+        (got ? '' : '<div class="ts-hint">' + escapeHtml(p.hint) + '</div>') + '</span>' +
+        '<span class="mic-status">' + escapeHtml(got ? titleCassetteLabel(p.cassette) : '🔒') + '</span>' +
+      '</button>';
+    }
+    el('tsList').innerHTML =
+      owned.map(function(p){ return rowHtml(p, true); }).join('') +
+      (locked.length ? '<div class="ts-sep">まだ手に入っていないもの（' + locked.length + '）</div>' : '') +
+      locked.map(function(p){ return rowHtml(p, false); }).join('');
+  }
+  el('tsList').addEventListener('click', function(e){
+    var b = e.target.closest('[data-tsid]');
+    if(!b) return;
+    var p = TitleLogic.partById(titleSlotEditing, b.dataset.tsid);
+    if(!p) return;
+    if(!haveMap()[p.id]){ showFlash('🔒 ' + p.hint, 'hit'); return; }
+    titleDraft[titleSlotEditing] = p.id;
+    // 選んだら前の画面に戻り、プレビューが変わる
+    goBack('scr-title-name');
+  });
+  el('tsBackBtn').addEventListener('click', function(){ goBack('scr-title-name'); });
+
+  async function saveTitleDraft(){
     myTitles.equipped = TitleLogic.normalizeEquipped(titleDraft, myTitles.unlocked);
     renderShelfBar();
     await saveTitles();
-    goBack('scr-shelf');
+    goBack('scr-titles');
+    renderTitleScreen();
+  }
+
+  // ---- 集めたもの ----
+  // ここが「もう1回あそぼう」の動機になる。未獲得が見えることで、
+  // 「これを取るために次はこのモードをやろう」という遊ぶ理由が生まれる。
+  // ただし原則3のとおり、焦らせるための仕組みにはしない
+  //（毎日来ないと損、のような作りは絶対に入れない）。
+  function enterCollection(){
+    var have = haveMap();
+    var got = myTitles.gotAt || {};
+    el('collectBody').innerHTML = titleCassettes().map(function(cas){
+      var group = [];
+      TitleLogic.PART_KEYS.forEach(function(part){
+        TitleLogic.partsOf(part).forEach(function(p){
+          if((p.cassette || null) === cas) group.push(p);
+        });
+      });
+      if(!group.length) return '';
+      var owned = group.filter(function(p){ return have[p.id]; });
+      var pct = Math.round(owned.length / group.length * 100);
+      var left = group.length - owned.length;
+      return '<div class="tg-cas' + (left === 1 ? ' near' : '') + '">' +
+        '<div class="tg-cas-head"><h3>' + escapeHtml(titleCassetteLabel(cas)) + '</h3>' +
+        '<span class="tg-cas-count">' + owned.length + ' / ' + group.length + '</span></div>' +
+        '<div class="tg-cas-bar"><div class="tg-cas-fill" style="width:' + pct + '%;"></div></div>' +
+        '<div class="quiz-said" style="margin-top:8px;">' + group.map(function(p){
+          var mine = !!have[p.id];
+          var when = got[p.id];
+          return '<span class="bl-item' + (mine ? '' : ' dead') + '" title="' +
+            escapeHtml(mine ? (when ? when + ' に手に入れた' : '') : p.hint) + '">' +
+            (p.emoji ? p.emoji + ' ' : '') + escapeHtml(mine ? p.label : '？？？') +
+            (mine && when ? '<span class="mic-status">' + escapeHtml(when) + '</span>' : '') +
+          '</span>';
+        }).join('') + '</div></div>';
+    }).join('');
+  }
+  el('collectBackBtn').addEventListener('click', function(){ goBack('scr-titles'); });
+
+  // ---- 名前を変える ----
+  function enterRename(){
+    el('renameInput').value = state.username || '';
+    el('renameNote').textContent = '棚のバー・部屋の名簿・記録に出ます';
+  }
+  el('renameBackBtn').addEventListener('click', function(){ goBack('scr-titles'); });
+  el('renameBtn').addEventListener('click', async function(){
+    var name = el('renameInput').value.trim();
+    if(!name){ el('renameNote').textContent = '名前を入れてください'; return; }
+    this.disabled = true;
+    try{
+      var res = await api('/api/auth/name', { method:'PUT', body:{ username: name } });
+      setUser(res.username);
+      el('renameNote').textContent = '「' + res.username + '」にしました';
+      goBack('scr-titles');
+      renderTitleScreen();
+    }catch(e){
+      el('renameNote').textContent = e.message || '変えられませんでした';
+    }
+    this.disabled = false;
   });
-  el('titlesBackBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
 
   function enterShelf(){
     // 第32弾-A：いまのあそびかたを、棚の見出しにも出す。
@@ -4775,7 +5172,8 @@
     fxSpeed: 'normal', // 演出の速さ 'normal' | 'fast' | 'skip'
     brightness: 100,   // 画面の明るさ補正（70〜140）
     fontScale: 100,    // 文字サイズ（85〜130）
-    vibrate: true      // 振動
+    vibrate: true,     // 振動
+    titleFanfare: true // 称号を手に入れた瞬間の演出
   };
   function loadAppPrefs(){
     try{
@@ -5188,7 +5586,7 @@
   // あれそれどれこれ側にテーマが漏れる経路が無い）。
   // scr-rt-lobby は「どのゲームの部屋に入るか分からない」入り口なので、
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rt-lobby'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -5259,7 +5657,7 @@
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-door','scr-howto','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown'];
+    var noGear = ['scr-door','scr-howto','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-title-icon','scr-title-name','scr-title-slot','scr-collection','scr-rename'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
     // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
     el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';
@@ -5289,6 +5687,11 @@
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-titles') enterTitles();
     if(id === 'scr-howto') enterHowto();
+    if(id === 'scr-title-icon') enterTitleIcon();
+    if(id === 'scr-title-name') enterTitleName();
+    if(id === 'scr-title-slot') enterTitleSlot();
+    if(id === 'scr-collection') enterCollection();
+    if(id === 'scr-rename') enterRename();
     if(id === 'scr-cassette') enterCassetteDetail();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
@@ -6958,6 +7361,104 @@
   // 手元に game オブジェクトが無いので、決着ビューから分かるぶんだけを数える。
   // （役職ごとの仕事ぶりは、サーバーが配る result に載っていない）
   var rtTitlesDone = false; // 同じ試合で二重に数えないための印
+  /**
+   * 第32弾-B-2：爆弾解除・クイズ王・オークションの称号を数える。
+   *
+   * 人狼はサーバーが仕事ぶりまで数えて渡してくれるが、この3つは
+   * 「決着の公開情報」と「自分に届いた情報」から数えられるぶんだけを見る。
+   * ここで数えられないものはカウンタ自体を作っていない
+   * （作ると、絶対に手に入らない称号がコレクション画面に並ぶことになる）。
+   *
+   * @returns {{cassette:string, add:object}|null}
+   */
+  function rtTitleGainFor(game, v, you){
+    var res = (v && v.result) || {};
+    var meId = rt.state.memberId;
+    var rank1 = function(){
+      var top = (res.ranking || [])[0];
+      return !!(top && top.id === meId);
+    };
+    if(game === 'bomb'){
+      var add = { plays: 1 };
+      if(v.mode === 'race'){
+        if(rank1()){ add.wins = 1; add.raceWins = 1; add.raceWinStreak = 1; }
+      } else if(res.success){
+        add.wins = 1;
+        if(!res.misses) add.noMissClears = 1;
+        // ライフが残り1まで減ってから解除しきった
+        if(res.misses && res.lives === 1) add.comebacks = 1;
+      }
+      return { cassette: 'bakudan', add: add };
+    }
+    if(game === 'defuse'){
+      var d = { plays: 1, defusePlays: 1 };
+      if(res.success){
+        d.wins = 1; d.defuseWins = 1;
+        if(v.strikesLeft === v.strikesMax) d.defuseNoMiss = 1;
+        if(v.mode === 'focus') d.focusWins = 1;
+        // マニュアル役として、成功した試合に加わっていた
+        var mine = (res.roles || []).find(function(p){ return p.id === meId; });
+        if(mine && mine.role === 'manual') d.manualHelps = 1;
+      }
+      return { cassette: 'bakudan', add: d };
+    }
+    if(RT_QUIZ_GAMES.indexOf(game) !== -1){
+      var q = { plays: 1 };
+      if(rank1()) q.wins = 1;
+      if(game === 'quizrush'){
+        q.rushPlays = 1;
+        if(rank1()) q.rushWins = 1;
+        // パスを1回も使わなかった
+        if(you && you.rush && you.rush.passesLeft === (v.rush && v.rush.passLimit)) q.rushNoPass = 1;
+      }
+      if(game === 'quizlist'){
+        q.listPlays = 1;
+        // 最高記録は足し算ではなく更新。いまの値との差だけを足して、結果として最大値になるようにする
+        q.listBest = bestDelta('quizou', 'listBest', (res.said || []).length);
+      }
+      if(game === 'quizreveal'){ q.revealPlays = 1; }
+      if(game === 'buzzer'){
+        q.buzzerPlays = 1;
+        if(res.champion && res.champion === (v.names || {})[meId]) q.buzzerWins = 1;
+        else if(rank1()) q.buzzerWins = 1;
+      }
+      return { cassette: 'quizou', add: q };
+    }
+    if(game === 'auction'){
+      var a = { plays: 1 };
+      if(rank1()) a.wins = 1;
+      return { cassette: 'auction', add: a };
+    }
+    return null;
+  }
+
+  // 「最高記録」を数えるためのしかけ。recordTitleStats は足し算しかしないので、
+  // いまの値との差だけを足して、結果として最大値が残るようにする
+  function bestDelta(cassette, key, value){
+    var now = (myTitles.stats[cassette] || {})[key] || 0;
+    return Math.max(0, (value || 0) - now);
+  }
+
+  /**
+   * 第32弾-B-2：部屋で遊んだぶんの称号を数える。
+   * 部屋の画面はゲームごとに分かれているので、画面ごとに書くと
+   * ゲームを足した時に数え忘れる。だから rtRenderCurrent から1回だけ通す。
+   */
+  function awardRoomTitles(){
+    var v = rtView(), you = rt && rt.state.secret;
+    var game = rtRoomGameId();
+    if(!v) return;
+    if(v.phase !== 'ended'){ rtTitlesDone = false; return; }
+    if(!v.result || rtTitlesDone) return;
+    // 決着は「部屋の状態」と「自分の情報」に分かれて届く。
+    // 自分の情報が来る前に印を立てると、一度も数えられない（第32弾-Aで踏んだ）
+    if(!you) return;
+    if(game === 'wolfrole' || game === 'wordwolf'){ awardRtTitles(v, you); return; }
+    rtTitlesDone = true;
+    var gain = rtTitleGainFor(game, v, you);
+    if(gain) recordTitleStats(gain.cassette, gain.add);
+  }
+
   function awardRtTitles(v, you){
     if(!v) return;
     // 第32弾-A-4：印を「部屋コード＋ターン数」で作っていたので、
@@ -7053,6 +7554,9 @@
     // 第24弾-3：部屋のゲームが分かった時点でテーマを当て直す。
     // 部屋コードで参加した人は棚を通らないので、画面遷移だけでは決まらない
     applyGameTheme(cur);
+    // 第32弾-B-2：称号を数えるのは、部屋の画面すべてが通るここ1か所。
+    // 画面ごとに書くと、ゲームを足した時に数え忘れる
+    awardRoomTitles();
     if(cur === 'scr-rt-room') renderRtRoom();
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-bomb') renderRtBomb();
@@ -7098,8 +7602,6 @@
     // 第24弾-3-4：決着したら、必ずここから先に進める。
     // 以前はボタンが1つも出ず、結果を見たあと何もできなくなっていた。
     // 観戦している端末にも出す（部屋から出られないと困るため）
-    // 決着していない間に印を外しておく（次の試合で数えられるように）
-    awardRtTitles(v, you);
     if(v.phase === 'ended'){
       el('rtYouBox').innerHTML = you ? rtYouHtml(v, you)
         : '<div class="ry-desc">この端末は観戦していました</div>';
@@ -13715,6 +14217,7 @@
     // 第32弾-B-1：音量・文字サイズなどは、起動した瞬間から効いていてほしい
     loadAppPrefs();
     applyAppPrefs();
+    loadTitleGotAt();
     setTimeout(openDoorAndEnter, 240); // タップ不要で自動的に開く
   });
 })();

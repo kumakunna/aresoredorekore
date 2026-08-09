@@ -65,7 +65,56 @@ const CASES = [
   ['last-annainin', 'aresore', { asGiver: 9 }, { asGiver: 10 }],
   ['last-hayamimi', 'aresore', { asAnswerer: 9 }, { asAnswerer: 10 }],
   ['last-kataribe', 'aresore', { aiReadPlays: 4 }, { aiReadPlays: 5 }],
-  ['last-fukutsu', 'aresore', {}, { comebackWins: 1 }]
+  ['last-fukutsu', 'aresore', {}, { comebackWins: 1 }],
+
+  // ---- 第32弾-B-2：爆弾解除 ----
+  ['icon-bomb-1', 'bakudan', {}, { plays: 1 }],
+  ['icon-bomb-10', 'bakudan', { plays: 9 }, { plays: 10 }],
+  ['icon-bomb-defuse', 'bakudan', {}, { defuseWins: 1 }],
+  ['icon-bomb-clean', 'bakudan', {}, { noMissClears: 1 }],
+  ['first-reisei', 'bakudan', {}, { noMissClears: 1 }],
+  ['first-jinsoku', 'bakudan', {}, { raceWins: 1 }],
+  ['first-shincho', 'bakudan', {}, { defuseNoMiss: 1 }],
+  ['first-koko', 'bakudan', {}, { focusWins: 1 }],
+  ['first-fukutsu-bomb', 'bakudan', {}, { comebacks: 1 }],
+  ['joiner-naru-bomb', 'bakudan', { wins: 4 }, { wins: 5 }],
+  ['last-shokunin', 'bakudan', { defuseWins: 4 }, { defuseWins: 5 }],
+  ['last-meishu-bomb', 'bakudan', { raceWinStreak: 4 }, { raceWinStreak: 5 }],
+  ['last-michibikite', 'bakudan', { manualHelps: 4 }, { manualHelps: 5 }],
+  ['last-kaitaiya', 'bakudan', { noMissClears: 2 }, { noMissClears: 3 }],
+  ['last-mamorite', 'bakudan', {}, { wins: 1 }],
+
+  // ---- 第32弾-B-2：クイズ王 ----
+  ['icon-quiz-1', 'quizou', {}, { plays: 1 }],
+  ['icon-quiz-10', 'quizou', { plays: 9 }, { plays: 10 }],
+  ['icon-quiz-buzzer', 'quizou', {}, { buzzerWins: 1 }],
+  ['icon-quiz-muri', 'quizou', {}, { muriHits: 1 }],
+  ['first-shunsoku', 'quizou', {}, { rushWins: 1 }],
+  ['first-hakushiki-quiz', 'quizou', { hardHits: 19 }, { hardHits: 20 }],
+  ['first-shunen', 'quizou', { listBest: 9 }, { listBest: 10 }],
+  ['first-godan', 'quizou', {}, { revealEarly: 1 }],
+  ['first-denko', 'quizou', {}, { buzzerPerfect: 1 }],
+  ['joiner-koso-quiz', 'quizou', { wins: 4 }, { wins: 5 }],
+  ['last-hayauchi', 'quizou', { buzzerWins: 4 }, { buzzerWins: 5 }],
+  ['last-monoshiri', 'quizou', { plays: 19 }, { plays: 20 }],
+  ['last-kiokujutsushi', 'quizou', { listBest: 19 }, { listBest: 20 }],
+  ['last-yomite', 'quizou', { revealHits: 9 }, { revealHits: 10 }],
+  ['last-muso', 'quizou', {}, { rushNoPass: 1 }],
+
+  // ---- 第32弾-B-2：オークション ----
+  ['icon-auc-1', 'auction', {}, { plays: 1 }],
+  ['icon-auc-10', 'auction', { plays: 9 }, { plays: 10 }],
+  ['icon-auc-jackpot', 'auction', {}, { jackpots: 1 }],
+  ['icon-auc-quiet', 'auction', {}, { quietWins: 1 }],
+  ['first-mekiki', 'auction', { appraises: 1 }, { appraises: 1, jackpots: 1 }],
+  ['first-gowan', 'auction', {}, { allInWins: 1 }],
+  ['first-goyoku', 'auction', {}, { doubleHits: 1 }],
+  ['first-seikan', 'auction', {}, { quietWins: 1 }],
+  ['joiner-taru-auc', 'auction', { wins: 4 }, { wins: 5 }],
+  ['last-serinin', 'auction', { wins: 4 }, { wins: 5 }],
+  ['last-kanteishi', 'auction', { appraises: 9 }, { appraises: 10 }],
+  ['last-daishonin', 'auction', { bestProfit: 14 }, { bestProfit: 15 }],
+  ['last-godan-auc', 'auction', { duds: 1 }, { duds: 1, wins: 1 }]
 ];
 
 (async function main() {

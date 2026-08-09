@@ -2387,9 +2387,14 @@ async function startModeWithTimerOff(win, doc, id) {
     click(doc, 'floatingGearBtn');
     await sleep(win, 80);
     assert(el(doc, 'settingsOverlay').classList.contains('show'), '設定が開く');
-    assertEqual(el(doc, 'topicPoolSettings').style.display, 'none', '人狼ではお題まわりを隠す');
+    // 第32弾-B-1：設定は「項目を選ぶ→専用画面が開く」形になった。
+    // お題を追加は「いま遊んでいるゲーム」の中に入り、使うゲームの時だけ入口が出る
+    doc.querySelector('#setRootMenu [data-setpage="game"]').click();
+    await sleep(win, 60);
+    assert(!doc.querySelector('#setGameMenu [data-setpage="topics"]'), '人狼ではお題の入口を出さない');
     // 共通の項目は残っていること（隠しすぎていないか）
-    assert(el(doc, 'endGameBtn').offsetParent !== undefined, 'ゲーム終了は残る');
+    assert(doc.querySelector('#setGameMenu [data-setpage="rules"]'), 'ルールの見返しは出る');
+    assert(el(doc, 'endGameBtn'), 'ゲーム終了は残る');
     assert(el(doc, 'setNameRows'), 'プレイヤー編集は残る');
     assert(el(doc, 'autoSaveToggle'), '記録の保存は残る');
     assertNoErrors(errors, '人狼の設定画面で未捕捉の例外');
@@ -2409,7 +2414,14 @@ async function startModeWithTimerOff(win, doc, id) {
     await sleep(win, 60);
     click(doc, 'floatingGearBtn');
     await sleep(win, 80);
-    assertEqual(el(doc, 'topicPoolSettings').style.display, 'block', 'あれそれどれこれではお題まわりを出す');
+    doc.querySelector('#setRootMenu [data-setpage="game"]').click();
+    await sleep(win, 60);
+    const topicRow = doc.querySelector('#setGameMenu [data-setpage="topics"]');
+    assert(topicRow, 'あれそれどれこれではお題の入口が出る');
+    topicRow.click();
+    await sleep(win, 60);
+    assertEqual(doc.querySelector('.set-page[data-page="topics"]').style.display, 'block', 'お題の画面が開く');
+    assert(el(doc, 'packNameInput'), 'お題を足す入力欄がある');
     assertNoErrors(errors, 'あれそれどれこれの設定画面で未捕捉の例外');
     win.close();
   });
@@ -2931,6 +2943,160 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(!doc.querySelector('.cart[data-cart="quizou"]').classList.contains('locked'),
       '見るだけの時は、どれも開ける');
     assertNoErrors(errors, '見るだけの棚で未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第32弾-B 第1部：設定の再設計 ----
+
+  await r.test('設定：項目を選ぶと専用画面が開き、もどれる', async () => {
+    const { win, doc, errors } = await launch();
+    click(doc, 'shelfGearBtn');
+    await sleep(win, 100);
+    assertEqual(el(doc, 'setTitle').textContent, '設定', '入口の見出し');
+    assertEqual(el(doc, 'setBackBtn').style.display, 'none', '入口では戻る矢印を出さない');
+
+    doc.querySelector('#setRootMenu [data-setpage="app"]').click();
+    await sleep(win, 60);
+    assertEqual(el(doc, 'setTitle').textContent, 'アプリ全体', '専用画面が開く');
+    assert(el(doc, 'setBackBtn').style.display !== 'none', '戻る矢印が出る');
+    doc.querySelector('#setAppMenu [data-setpage="sound"]').click();
+    await sleep(win, 60);
+    assertEqual(el(doc, 'setTitle').textContent, '音量', 'さらに奥へ進める');
+
+    click(doc, 'setBackBtn');
+    await sleep(win, 60);
+    assertEqual(el(doc, 'setTitle').textContent, 'アプリ全体', '1つ前にもどる');
+    click(doc, 'setBackBtn');
+    await sleep(win, 60);
+    assertEqual(el(doc, 'setTitle').textContent, '設定', '入口までもどる');
+    assertNoErrors(errors, '設定の行き来で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：危険な操作は、他とはっきり分けて一番下に置く', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // 色でも見分けられる
+    assert(/\.set-row\.danger\{[^}]*var\(--stamp\)/.test(html), '危険な操作は色を分ける');
+
+    const { win, doc, errors } = await launch();
+    click(doc, 'shelfGearBtn');
+    await sleep(win, 100);
+    const rows = Array.from(doc.querySelectorAll('#setRootMenu .set-row'));
+    const danger = rows[rows.length - 1];
+    assertEqual(danger.dataset.setpage, 'danger', '危険な操作は一番下');
+    assert(danger.classList.contains('danger'), '見た目でも分かれている');
+
+    // ゲーム終了も、以前は一番上にあって誤って押しやすかった
+    doc.querySelector('#setRootMenu [data-setpage="game"]').click();
+    await sleep(win, 60);
+    const gameRows = Array.from(doc.querySelectorAll('.set-page[data-page="game"] .set-row'));
+    assertEqual(gameRows[gameRows.length - 1].id, 'endGameBtn', 'ゲーム終了は一番下');
+    assert(el(doc, 'endGameBtn').classList.contains('danger'), '見た目でも分かれている');
+
+    // 確認なしでは進まない
+    let asked = 0;
+    win.confirm = () => { asked++; return false; };
+    click(doc, 'endGameBtn');
+    await sleep(win, 100);
+    assertEqual(asked, 1, '確認を挟む');
+    assert(el(doc, 'settingsOverlay').classList.contains('show'), '断ったら何も起きない');
+    assertNoErrors(errors, '危険な操作の表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：音量・文字サイズ・演出の速さが、その場で効く', async () => {
+    const { win, doc, errors } = await launch();
+    click(doc, 'shelfGearBtn');
+    await sleep(win, 100);
+    doc.querySelector('#setRootMenu [data-setpage="app"]').click();
+    await sleep(win, 60);
+    doc.querySelector('#setAppMenu [data-setpage="display"]').click();
+    await sleep(win, 60);
+
+    // 文字サイズ
+    const font = el(doc, 'setFont');
+    font.value = '125';
+    font.dispatchEvent(new win.Event('input'));
+    await sleep(win, 60);
+    assertEqual(el(doc, 'app').style.getPropertyValue('--font-scale'), '1.25', '文字サイズが効く');
+    // 明るさ
+    const bright = el(doc, 'setBright');
+    bright.value = '130';
+    bright.dispatchEvent(new win.Event('input'));
+    await sleep(win, 60);
+    assertEqual(el(doc, 'app').style.getPropertyValue('--screen-bright'), '1.30', '明るさが効く');
+    // 演出の速さ（スキップにすると、動きを止める印が付く）
+    doc.querySelector('#setFxSeg [data-fx="skip"]').click();
+    await sleep(win, 60);
+    assert(el(doc, 'app').classList.contains('fx-skip'), 'スキップが効く');
+
+    // 開き直しても覚えている
+    click(doc, 'closeSettingsBtn');
+    await sleep(win, 60);
+    const saved = JSON.parse(win.localStorage.getItem('acac-app-prefs') || '{}');
+    assertEqual(saved.fontScale, 125, '文字サイズを覚えている');
+    assertEqual(saved.fxSpeed, 'skip', '演出の速さも覚えている');
+    assertNoErrors(errors, '設定の反映で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：音を鳴らす所は、すべて音量の設定を通る', async () => {
+    // 音を鳴らす場所は15か所ある。それぞれに音量を効かせて回ると、
+    // 必ずどこかが半分だけ効く形になるので、出口を1つに絞ってある
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // sfxOut の中以外に ctx.destination へ直接つなぐ場所が無いこと
+    const direct = (html.match(/connect\((?:ctx|bombHeart\.ctx)\.destination\)/g) || []);
+    assertEqual(direct.length, 0, '音の出口を素通りしている場所が無い');
+    assert(/function sfxOut\(ctx\)/.test(html), '音の出口が1か所にある');
+    // 振動も1か所を通る
+    const rawVibrate = (html.match(/navigator\.vibrate\(/g) || []).length;
+    assertEqual(rawVibrate, 1, '振動を鳴らす場所も1か所だけ（doVibrate の中）');
+  });
+
+  await r.test('設定：音量を0にすると、効果音が鳴らなくなる', async () => {
+    const { win, doc, errors } = await launch();
+    // 鳴らそうとした時に作られる音量つまみを全部集めて、
+    // 「出口のつまみ」が設定どおりになっているかを見る
+    const OrigAC = win.AudioContext;
+    let gains = [];
+    win.AudioContext = win.webkitAudioContext = function () {
+      const ctx = new OrigAC();
+      const origCreateGain = ctx.createGain.bind(ctx);
+      ctx.createGain = function () { const g = origCreateGain(); gains.push(g); return g; };
+      return ctx;
+    };
+    click(doc, 'shelfGearBtn');
+    await sleep(win, 100);
+    doc.querySelector('#setRootMenu [data-setpage="app"]').click();
+    await sleep(win, 60);
+    doc.querySelector('#setAppMenu [data-setpage="sound"]').click();
+    await sleep(win, 60);
+
+    // まず、鳴る状態で出口のつまみが上がっていること
+    const vol = el(doc, 'setSeVol');
+    vol.value = '100';
+    vol.dispatchEvent(new win.Event('input'));
+    await sleep(win, 40);
+    gains = [];
+    click(doc, 'setSeTestBtn');
+    await sleep(win, 120);
+    assert(gains.length > 0, '音を作ろうとする');
+    assert(gains.some((g) => g.gain.value === 1), '出口のつまみが最大になっている');
+
+    // 0にすると、出口のつまみが0になる（鳴らす場所を1つも直さずに全部が静かになる）
+    vol.value = '0';
+    vol.dispatchEvent(new win.Event('input'));
+    await sleep(win, 40);
+    gains = [];
+    click(doc, 'setSeTestBtn');
+    await sleep(win, 120);
+    assert(gains.length > 0, '音を作ろうとはする');
+    assert(gains.some((g) => g.gain.value === 0), '出口のつまみが0になっている');
+    assertNoErrors(errors, '音量0で未捕捉の例外');
     win.close();
   });
 

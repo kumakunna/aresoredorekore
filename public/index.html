@@ -43,6 +43,16 @@
   .app{
     width:100%;
     max-width:460px;
+    /* 第32弾-B-1：アプリ全体の設定はここ1か所に当てる。
+       画面ごとに style をいじると、新しい画面を作った時に当て忘れる。
+         --font-scale    文字サイズ（0.85〜1.30）
+         --screen-bright 画面の明るさ補正（暗いテーマを屋外で遊ぶ時のため）
+         --fx-scale      演出の速さ（1=ふつう / 0.5=速い / 0=スキップ） */
+    --font-scale:1;
+    --screen-bright:1;
+    --fx-scale:1;
+    font-size:calc(15px * var(--font-scale));
+    filter:brightness(var(--screen-bright));
     /* 第27弾-2：スマホの 100vh は、ブラウザのアドレスバー・下部バーの裏まで含む。
        そのままだと画面のいちばん下が「見えているのに押せない」帯になる。
        dvh（実際に見えている高さ）に対応している端末ではそちらを使う。
@@ -479,6 +489,63 @@
     cursor:pointer;font-family:inherit;
   }
 
+  /* ---- 第32弾-B-1：設定（項目を選ぶ→専用画面が開く） ---- */
+  .overlay-head{position:relative;}
+  .set-back{
+    position:absolute;left:0;top:50%;transform:translateY(-50%);
+    background:transparent;border:none;color:var(--ink);
+    font-size:20px;line-height:1;cursor:pointer;padding:4px 8px;
+  }
+  .overlay-head h3{flex:1;text-align:center;}
+  /* 一覧の行。押すと専用画面が開く */
+  .set-row{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px 14px;margin-bottom:8px;cursor:pointer;
+    font-family:inherit;color:var(--ink);font-size:15px;min-height:52px;
+  }
+  .set-row:active{background:rgba(0,0,0,.05);}
+  .set-row .sr-icon{font-size:19px;flex:0 0 auto;}
+  .set-row .sr-text{flex:1;}
+  .set-row .sr-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .set-row .sr-arrow{color:var(--ink-soft);font-size:15px;}
+  /* 危険な操作は、見た目ではっきり分ける */
+  .set-row.danger{border-color:var(--stamp);color:var(--stamp);}
+  .set-row.danger .sr-sub{color:var(--stamp);opacity:.8;}
+  .danger-note{
+    border:1px solid var(--stamp);border-radius:12px;padding:12px 14px;
+    color:var(--stamp);font-size:12.5px;margin-bottom:12px;line-height:1.7;
+  }
+  .set-select{
+    width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);font-size:15px;font-family:inherit;
+  }
+  .set-credit{font-size:10.5px;color:var(--ink-soft);text-align:center;margin-top:14px;line-height:1.7;}
+  /* 部屋のメンバー一覧 */
+  .set-member{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-bottom:8px;
+  }
+  .set-member.off{opacity:.5;}
+  .set-member .sm-name{flex:1;font-size:14.5px;}
+  .set-member .sm-dot{width:9px;height:9px;border-radius:50%;background:var(--teal);flex:0 0 auto;}
+  .set-member.off .sm-dot{background:var(--ink-soft);}
+  .set-member .sm-btn{
+    background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:5px 10px;font-size:11.5px;cursor:pointer;color:var(--ink);font-family:inherit;
+  }
+  .set-member .sm-btn.danger{border-color:var(--stamp);color:var(--stamp);}
+
+  /* 第32弾-B-1：演出の速さ。スキップにしたら、画面の動きを全部止める
+     （待たされるのが苦手な人・急いでいる時のため。情報は必ず画面にも出す） */
+  .app.fx-skip *,
+  .app.fx-skip *::before,
+  .app.fx-skip *::after{
+    animation-duration:0.001s !important;
+    animation-delay:0s !important;
+    transition-duration:0.001s !important;
+  }
   /* 第32弾-A-3-9：この設定だと だいたい何分かかるか */
   .ready-est{margin-top:8px;font-size:13px;color:var(--ink-soft);}
   /* 第32弾-A：みんなの状況を開くボタン。⚙の隣に置く */
@@ -2955,82 +3022,204 @@
     </div>
   </div>
 
+  <!-- 第32弾-B 第1部：設定。スマホの設定アプリと同じ「項目を選ぶ→専用画面が開く」形。
+       1画面に全部並べると、項目が増えるほど探せなくなる。
+       どのページを出すかは setPages のデータから作るので、
+       ページを足す時に出し分けの条件を書き足す場所が散らない（落とし穴4）。 -->
   <div class="overlay" id="settingsOverlay">
     <div class="overlay-panel">
       <div class="overlay-head">
-        <h3>設定</h3>
+        <button class="set-back" id="setBackBtn" style="display:none;" aria-label="ひとつ前にもどる">←</button>
+        <h3 id="setTitle">設定</h3>
         <button class="close-x" id="closeSettingsBtn">✕</button>
       </div>
-      <div id="loggedInAs" style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;"></div>
+      <div id="loggedInAs" style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;"></div>
 
-      <!-- 1：ゲーム終了（いつでも使える・ゲーム共通） -->
-      <div class="card">
-        <div class="sec-title">🏁 いまのゲーム</div>
-        <div class="mic-status" id="currentGameLabel" style="margin-bottom:10px;"></div>
-        <button class="btn btn-main" id="endGameBtn">🏁 ゲームを終了する</button>
+      <!-- ===== 入口 ===== -->
+      <div class="set-page" data-page="root">
+        <div id="setRootMenu"></div>
       </div>
 
-      <!-- 2：プレイヤー編集（ゲーム共通） -->
-      <div class="card">
-        <div class="sec-title">👥 プレイヤー</div>
-        <div class="stepper" style="margin-bottom:12px;">
-          <button id="setPlayerMinusBtn">−</button>
-          <div class="count" id="setPlayerCountLabel">2</div>
-          <button id="setPlayerPlusBtn">＋</button>
-        </div>
-        <div class="name-rows" id="setNameRows"></div>
-        <div class="mic-status" style="margin-top:6px;">スコアは維持されます。人数を減らすと、後ろの人の記録は消えます。</div>
-        <button class="btn btn-teal" id="applyPlayersBtn" style="margin-top:10px;">変更を適用</button>
+      <!-- ===== A. いま遊んでいるゲーム ===== -->
+      <div class="set-page" data-page="game" style="display:none;">
+        <div class="mic-status" id="currentGameLabel" style="margin-bottom:12px;"></div>
+        <div id="setGameMenu"></div>
+        <!-- 第32弾-B-1：ゲーム終了は、以前は設定の一番上にあって
+             プレイ中に誤って押しやすかった。ここへ下げ、色でも他と分ける -->
+        <button class="set-row danger" id="endGameBtn">
+          <span class="sr-icon">🏁</span>
+          <span class="sr-text">ゲームを終了する
+            <span class="sr-sub">この時点のスコアを記録して、棚にもどります（確認します）</span>
+          </span>
+        </button>
       </div>
 
-      <!-- 3：お題追加（プレイヤー設定より下に配置）
-           第18弾-5：共通プールのお題を使うゲームのときだけ出す。
-           人狼カセットを遊んでいる最中に「お題を追加」が並んでいると、
-           人狼のお題を足せると誤解させてしまうため。 -->
-      <div id="topicPoolSettings">
-      <div class="card">
-        <div class="sec-title">お題を追加</div>
-        <div class="pack-note">AIが説明を作るので、みんなが知っている一般的なもの（物・場所・食べ物など）にしてください。内輪ネタや実在しない言葉だと、AIがうまく説明できません。</div>
-        <div class="pack-form">
-          <label>お題の名前</label>
-          <input type="text" id="packNameInput" placeholder="例：加湿器">
-          <label>よみ（ひらがな・音声認識用・任意）</label>
-          <input type="text" id="packYomiInput" placeholder="例：かしつき">
-          <label>禁止ワード（封印ワードモード用・任意）</label>
-          <div class="ng-input-row">
-            <input type="text" id="packNg1" placeholder="ワード1">
-            <input type="text" id="packNg2" placeholder="ワード2">
-            <input type="text" id="packNg3" placeholder="ワード3">
+      <div class="set-page" data-page="rules" style="display:none;">
+        <div id="setRulesBody"></div>
+      </div>
+
+      <div class="set-page" data-page="gamecfg" style="display:none;">
+        <div class="mic-status" style="margin-bottom:10px;">遊んでいる途中で変えても、進行が壊れない項目だけを置いています。</div>
+        <div id="setGameCfgBody"></div>
+      </div>
+
+      <div class="set-page" data-page="players" style="display:none;">
+        <div class="card">
+          <div class="sec-title">👥 プレイヤー</div>
+          <div class="stepper" style="margin-bottom:12px;">
+            <button id="setPlayerMinusBtn">−</button>
+            <div class="count" id="setPlayerCountLabel">2</div>
+            <button id="setPlayerPlusBtn">＋</button>
           </div>
-          <button class="btn btn-main" id="addPackBtn" style="margin-top:12px;">パックに追加</button>
+          <div class="name-rows" id="setNameRows"></div>
+          <div class="mic-status" style="margin-top:6px;">スコアは維持されます。人数を減らすと、後ろの人の記録は消えます。</div>
+          <button class="btn btn-teal" id="applyPlayersBtn" style="margin-top:10px;">変更を適用</button>
         </div>
       </div>
 
-      <div class="card">
-        <div class="sec-title">追加したお題（<span id="packCount">0</span>）</div>
-        <div id="packList"></div>
-        <div class="empty-note" id="packEmptyNote">まだ追加したお題はありません。</div>
-      </div>
-      </div><!-- /topicPoolSettings -->
-
-      <!-- 5・6：記録の保存設定と手動保存（ゲーム共通） -->
-      <div class="card">
-        <div class="sec-title">💾 記録の保存</div>
-        <div class="toggle-row-mini">
-          <div>対戦記録を自動でサーバーに保存する
-            <div class="mic-status" id="autoSaveSub">ラウンドごと・終了時に自動送信します</div>
+      <!-- お題を追加（共通お題プールを使うゲームの時だけ入口が出る） -->
+      <div class="set-page" data-page="topics" style="display:none;">
+        <div id="topicPoolSettings">
+        <div class="card">
+          <div class="sec-title">お題を追加</div>
+          <div class="pack-note">AIが説明を作るので、みんなが知っている一般的なもの（物・場所・食べ物など）にしてください。内輪ネタや実在しない言葉だと、AIがうまく説明できません。</div>
+          <div class="pack-form">
+            <label>お題の名前</label>
+            <input type="text" id="packNameInput" placeholder="例：加湿器">
+            <label>よみ（ひらがな・音声認識用・任意）</label>
+            <input type="text" id="packYomiInput" placeholder="例：かしつき">
+            <label>禁止ワード（封印ワードモード用・任意）</label>
+            <div class="ng-input-row">
+              <input type="text" id="packNg1" placeholder="ワード1">
+              <input type="text" id="packNg2" placeholder="ワード2">
+              <input type="text" id="packNg3" placeholder="ワード3">
+            </div>
+            <button class="btn btn-main" id="addPackBtn" style="margin-top:12px;">パックに追加</button>
           </div>
-          <div class="switch on" id="autoSaveToggle"></div>
         </div>
-        <button class="btn btn-teal" id="manualSaveBtn" style="margin-top:12px;">💾 現在の記録を保存する</button>
-        <div class="mic-status" id="manualSaveResult" style="margin-top:8px;"></div>
+        <div class="card">
+          <div class="sec-title">追加したお題（<span id="packCount">0</span>）</div>
+          <div id="packList"></div>
+          <div class="empty-note" id="packEmptyNote">まだ追加したお題はありません。</div>
+        </div>
+        </div><!-- /topicPoolSettings -->
       </div>
 
-      <button class="btn btn-outline" id="openRecordsBtn">📊 記録を見る</button>
-      <button class="btn btn-ghost" id="resetAllBtn">プレイヤー・スコア・統計を全部リセットして最初から</button>
-      <button class="btn btn-ghost" id="logoutBtn">ログアウト</button>
-      <!-- 第26弾-2：ログインしていなくても設定は開ける。ここから入れるようにしておく -->
+      <!-- ===== B. 部屋 ===== -->
+      <div class="set-page" data-page="room" style="display:none;">
+        <div id="setRoomBody"></div>
+      </div>
+
+      <div class="set-page" data-page="roomcode" style="display:none;">
+        <div class="rt-code-box">
+          <div class="rt-code-label">部屋コード</div>
+          <div class="rt-code" id="setRoomCode">------</div>
+          <div class="mic-status">このコードを、みんなに伝えてください</div>
+        </div>
+        <div class="qr-box" id="setQrBox">
+          <div id="setQr"></div>
+          <div class="qr-note">カメラで読むと、そのまま入れます</div>
+        </div>
+      </div>
+
+      <!-- ===== C. アプリ全体 ===== -->
+      <div class="set-page" data-page="app" style="display:none;">
+        <div id="setAppMenu"></div>
+      </div>
+
+      <div class="set-page" data-page="sound" style="display:none;">
+        <div class="card">
+          <div class="tp-label">効果音　<span id="setSeVolValue">70</span></div>
+          <input type="range" id="setSeVol" min="0" max="100" step="5" value="70">
+          <div class="mic-status">0にすると、効果音は鳴りません</div>
+          <button class="btn btn-outline" id="setSeTestBtn" style="margin-top:10px;">🔊 音を鳴らして確かめる</button>
+        </div>
+        <div class="card">
+          <div class="tp-label">読み上げ　<span id="setSpeechVolValue">100</span></div>
+          <input type="range" id="setSpeechVol" min="0" max="100" step="5" value="100">
+          <div class="mic-status">早押しトーナメントなどで、問題を読み上げる音の大きさです</div>
+        </div>
+      </div>
+
+      <div class="set-page" data-page="speech" style="display:none;">
+        <div class="card">
+          <div class="tp-label">読み上げの速さ　<span id="setRateValue">0.95</span>倍</div>
+          <input type="range" id="setRate" min="50" max="150" step="5" value="95">
+          <div class="tp-label" style="margin-top:16px;">声</div>
+          <select id="setVoice" class="set-select"></select>
+          <div class="mic-status" id="setVoiceNote" style="margin-top:6px;"></div>
+          <button class="btn btn-outline" id="setSpeechTestBtn" style="margin-top:12px;">🔊 読み上げて確かめる</button>
+        </div>
+      </div>
+
+      <div class="set-page" data-page="display" style="display:none;">
+        <div class="card">
+          <div class="tp-label">演出の速さ</div>
+          <div class="seg" id="setFxSeg">
+            <button class="seg-btn" data-fx="normal">ふつう</button>
+            <button class="seg-btn" data-fx="fast">速い</button>
+            <button class="seg-btn" data-fx="skip">スキップ</button>
+          </div>
+          <div class="mic-status" id="setFxNote" style="margin-top:8px;"></div>
+        </div>
+        <div class="card">
+          <div class="tp-label">画面の明るさ　<span id="setBrightValue">100</span>%</div>
+          <input type="range" id="setBright" min="70" max="140" step="5" value="100">
+          <div class="mic-status">人狼・爆弾解除のように暗い見た目のカセットを、明るい場所で遊ぶ時に上げてください</div>
+        </div>
+        <div class="card">
+          <div class="tp-label">文字サイズ　<span id="setFontValue">100</span>%</div>
+          <input type="range" id="setFont" min="85" max="130" step="5" value="100">
+          <div class="mic-status">この文の大きさも、その場で変わります</div>
+        </div>
+        <div class="card">
+          <div class="toggle-row-mini">
+            <div>振動する
+              <div class="mic-status">正解・ミスなどで、端末を短く振動させます</div>
+            </div>
+            <div class="switch on" id="setVibrateToggle"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-page" data-page="records" style="display:none;">
+        <div class="card">
+          <div class="sec-title">💾 記録の保存</div>
+          <div class="toggle-row-mini">
+            <div>対戦記録を自動でサーバーに保存する
+              <div class="mic-status" id="autoSaveSub">ラウンドごと・終了時に自動送信します</div>
+            </div>
+            <div class="switch on" id="autoSaveToggle"></div>
+          </div>
+          <button class="btn btn-teal" id="manualSaveBtn" style="margin-top:12px;">💾 現在の記録を保存する</button>
+          <div class="mic-status" id="manualSaveResult" style="margin-top:8px;"></div>
+        </div>
+        <button class="btn btn-outline" id="openRecordsBtn">📊 記録を見る</button>
+      </div>
+
+      <!-- ===== D. 危険な操作 ===== -->
+      <div class="set-page" data-page="danger" style="display:none;">
+        <div class="danger-note">
+          ここから先は、押すと戻せません。かならず確認が出ます。
+        </div>
+        <button class="set-row danger" id="resetAllBtn">
+          <span class="sr-icon">🗑</span>
+          <span class="sr-text">全部リセットして最初から
+            <span class="sr-sub">プレイヤー・スコア・統計を、すべて削除します</span>
+          </span>
+        </button>
+        <button class="set-row danger" id="setCloseRoomBtn" style="display:none;">
+          <span class="sr-icon">🏠</span>
+          <span class="sr-text">部屋を解散する
+            <span class="sr-sub">部屋にいる全員が終わります（進行役だけ）</span>
+          </span>
+        </button>
+      </div>
+
+      <!-- ログイン導線は、どのページからでも押せるように下に置く -->
+      <button class="btn btn-ghost" id="logoutBtn" style="display:none;">ログアウト</button>
       <button class="btn btn-main" id="settingsLoginBtn" style="display:none;">ログインする</button>
+      <div class="set-credit" id="setCredit"></div>
     </div>
   </div>
 
@@ -3874,7 +4063,7 @@
       shelfDrag.rail = cart.closest('.rail');
       shelfDrag.rail.classList.add('reordering');
       cart.classList.add('dragging');
-      if(navigator.vibrate) navigator.vibrate(30);
+      doVibrate(30);
       var note = document.createElement('div');
       note.className = 'shelf-reorder-note';
       note.id = 'shelfReorderNote';
@@ -4572,13 +4761,83 @@
     return true;
   }
 
+  // ===================== 第32弾-B 第1部：アプリ全体の設定 =====================
+  // 音量・読み上げ・演出の速さ・明るさ・文字サイズ・振動。
+  // どれも「どこか1か所を通る」形にしてある。
+  // 音を鳴らす場所は今15か所あり、振動は12か所ある。
+  // それぞれに設定を効かせて回ると、必ずどこかが半分だけ効く形になる（落とし穴1）。
+  var APP_PREFS_KEY = 'acac-app-prefs';
+  var appPrefs = {
+    seVolume: 70,      // 効果音（0〜100）
+    speechVolume: 100, // 読み上げ（0〜100）
+    speechRate: 95,    // 読み上げの速さ（50〜150 ＝ 0.5〜1.5倍）
+    speechVoice: '',   // 読み上げの声（空＝おまかせ）
+    fxSpeed: 'normal', // 演出の速さ 'normal' | 'fast' | 'skip'
+    brightness: 100,   // 画面の明るさ補正（70〜140）
+    fontScale: 100,    // 文字サイズ（85〜130）
+    vibrate: true      // 振動
+  };
+  function loadAppPrefs(){
+    try{
+      var raw = localStorage.getItem(APP_PREFS_KEY);
+      if(!raw) return;
+      var p = JSON.parse(raw) || {};
+      Object.keys(appPrefs).forEach(function(k){
+        if(typeof p[k] === typeof appPrefs[k]) appPrefs[k] = p[k];
+      });
+    }catch(e){}
+  }
+  function saveAppPrefs(){
+    try{ localStorage.setItem(APP_PREFS_KEY, JSON.stringify(appPrefs)); }catch(e){}
+  }
+  /**
+   * 見た目に関わる設定を、CSS変数として1か所から当てる。
+   * 画面ごとに style をいじると、新しい画面を作った時に当て忘れる。
+   */
+  function applyAppPrefs(){
+    var app = el('app');
+    if(!app) return;
+    app.style.setProperty('--font-scale', (appPrefs.fontScale / 100).toFixed(2));
+    app.style.setProperty('--screen-bright', (appPrefs.brightness / 100).toFixed(2));
+    // 演出の速さ。0 はスキップ（時間0で終わる）
+    var fx = appPrefs.fxSpeed === 'fast' ? 0.5 : (appPrefs.fxSpeed === 'skip' ? 0 : 1);
+    app.style.setProperty('--fx-scale', String(fx));
+    app.classList.toggle('fx-skip', appPrefs.fxSpeed === 'skip');
+  }
+  // 演出の待ち時間。setTimeout の代わりにこれを通すと、速さの設定が効く
+  function fxMs(ms){
+    if(appPrefs.fxSpeed === 'skip') return 0;
+    if(appPrefs.fxSpeed === 'fast') return Math.round(ms * 0.5);
+    return ms;
+  }
+  /**
+   * 効果音の出口。音を鳴らす所は必ずここへ繋ぐ（ctx.destination には直接繋がない）。
+   * 音量はここ1か所で効くので、鳴らす場所が増えても設定し忘れが起きない。
+   */
+  function sfxOut(ctx){
+    if(!ctx) return null;
+    if(ctx.__out) return ctx.__out;
+    try{
+      var g = ctx.createGain();
+      g.gain.value = Math.max(0, Math.min(1, appPrefs.seVolume / 100));
+      g.connect(sfxOut(ctx));
+      ctx.__out = g;
+      return g;
+    }catch(e){ return ctx.destination; }
+  }
+  // 振動も1か所にまとめる。設定でOFFにしたら、どこからも鳴らない
+  function doVibrate(pattern){
+    if(!appPrefs.vibrate) return;
+    try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
+  }
+
   // ---------- sound / fx ----------
   function beep(freq, dur){
     try{
       var ctx = new (window.AudioContext || window.webkitAudioContext)();
       var o = ctx.createOscillator(); var g = ctx.createGain();
       o.type = 'square'; o.frequency.value = freq || 880; g.gain.value = 0.06;
-      o.connect(g); g.connect(ctx.destination); o.start();
+      o.connect(g); g.connect(sfxOut(ctx)); o.start();
       setTimeout(function(){ o.stop(); ctx.close(); }, dur || 220);
     }catch(e){}
   }
@@ -4587,10 +4846,10 @@
       var ctx = new (window.AudioContext || window.webkitAudioContext)();
       var o = ctx.createOscillator(); var g = ctx.createGain();
       o.type = 'sawtooth'; o.frequency.value = 140; g.gain.value = 0.08;
-      o.connect(g); g.connect(ctx.destination); o.start();
+      o.connect(g); g.connect(sfxOut(ctx)); o.start();
       setTimeout(function(){ o.stop(); ctx.close(); }, 350);
     }catch(e){}
-    if(navigator.vibrate) navigator.vibrate([120,60,120]);
+    doVibrate([120,60,120]);
   }
   function wrongSound(){
     try{
@@ -4600,10 +4859,10 @@
       o.frequency.setValueAtTime(420, ctx.currentTime);
       o.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.3);
       g.gain.value = 0.07;
-      o.connect(g); g.connect(ctx.destination); o.start();
+      o.connect(g); g.connect(sfxOut(ctx)); o.start();
       setTimeout(function(){ o.stop(); ctx.close(); }, 320);
     }catch(e){}
-    if(navigator.vibrate) navigator.vibrate(150);
+    doVibrate(150);
   }
   // ---------- 第30・31弾：クイズ王とオークションの効果音 ----------
   // 既存の beep / buzz と同じで、音のファイルは持たない（読み込みを増やさない）。
@@ -4620,12 +4879,12 @@
         g.gain.setValueAtTime(0.0001, t + i * 0.08);
         g.gain.exponentialRampToValueAtTime(0.09, t + i * 0.08 + 0.02);
         g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.08 + 0.22);
-        o.connect(g); g.connect(ctx.destination);
+        o.connect(g); g.connect(sfxOut(ctx));
         o.start(t + i * 0.08); o.stop(t + i * 0.08 + 0.24);
       });
       setTimeout(function(){ ctx.close(); }, 700);
     }catch(e){}
-    if(navigator.vibrate) navigator.vibrate([30, 40, 60]);
+    doVibrate([30, 40, 60]);
   }
   // クイズ王：時間切れ。下がっていく2音
   function timeUpSound(){
@@ -4636,10 +4895,10 @@
       o.frequency.setValueAtTime(660, ctx.currentTime);
       o.frequency.setValueAtTime(440, ctx.currentTime + 0.18);
       g.gain.value = 0.07;
-      o.connect(g); g.connect(ctx.destination); o.start();
+      o.connect(g); g.connect(sfxOut(ctx)); o.start();
       setTimeout(function(){ o.stop(); ctx.close(); }, 420);
     }catch(e){}
-    if(navigator.vibrate) navigator.vibrate([90, 60, 90]);
+    doVibrate([90, 60, 90]);
   }
   // オークション：木槌（ガベル）。短くて硬い、木を叩く音
   function gavelSound(){
@@ -4654,16 +4913,16 @@
       var n = ctx.createBufferSource(); n.buffer = buf;
       var nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1800;
       var ng = ctx.createGain(); ng.gain.value = 0.12;
-      n.connect(nf); nf.connect(ng); ng.connect(ctx.destination); n.start(t);
+      n.connect(nf); nf.connect(ng); ng.connect(sfxOut(ctx)); n.start(t);
       var o = ctx.createOscillator(); var g = ctx.createGain();
       o.type = 'sine'; o.frequency.setValueAtTime(220, t);
       o.frequency.exponentialRampToValueAtTime(90, t + 0.09);
       g.gain.setValueAtTime(0.10, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.14);
+      o.connect(g); g.connect(sfxOut(ctx)); o.start(t); o.stop(t + 0.14);
       setTimeout(function(){ ctx.close(); }, 400);
     }catch(e){}
-    if(navigator.vibrate) navigator.vibrate(50);
+    doVibrate(50);
   }
   // オークション：落札できた時。木槌のあとに、金貨の跳ねる音
   function soldSound(){
@@ -4678,7 +4937,7 @@
           g.gain.setValueAtTime(0.0001, t + i * 0.07);
           g.gain.exponentialRampToValueAtTime(0.07, t + i * 0.07 + 0.01);
           g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.07 + 0.30);
-          o.connect(g); g.connect(ctx.destination);
+          o.connect(g); g.connect(sfxOut(ctx));
           o.start(t + i * 0.07); o.stop(t + i * 0.07 + 0.32);
         });
         setTimeout(function(){ ctx.close(); }, 600);
@@ -4716,7 +4975,7 @@
         g.gain.setValueAtTime(0.0001, at);
         g.gain.linearRampToValueAtTime(0.09, at + 0.02);
         g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
-        o.connect(g); g.connect(ctx.destination);
+        o.connect(g); g.connect(sfxOut(ctx));
         o.start(at); o.stop(at + 0.16);
       });
     }catch(e){}
@@ -4744,7 +5003,7 @@
   function timesUpChime(){
     beep(660, 150);
     setTimeout(function(){ beep(880, 220); }, 160);
-    if(navigator.vibrate) navigator.vibrate(60);
+    doVibrate(60);
   }
   // ===================== 第18弾 第5部：人狼カセットの効果音 =====================
   // 音源ファイルは持っていないので、すべて WebAudio の合成音。
@@ -4778,7 +5037,7 @@
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(0.10, t + 0.18);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
-      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 1.25);
+      o.connect(g); g.connect(sfxOut(ctx)); o.start(t); o.stop(t + 1.25);
 
       var n = noiseSource(ctx, 1.3), nf = ctx.createBiquadFilter(), ng = ctx.createGain();
       nf.type = 'lowpass';
@@ -4787,10 +5046,10 @@
       ng.gain.setValueAtTime(0.0001, t);
       ng.gain.exponentialRampToValueAtTime(0.05, t + 0.35);
       ng.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
-      n.connect(nf); nf.connect(ng); ng.connect(ctx.destination); n.start(t);
+      n.connect(nf); nf.connect(ng); ng.connect(sfxOut(ctx)); n.start(t);
       return 1500;
     });
-    if(navigator.vibrate) navigator.vibrate(40);
+    doVibrate(40);
   }
   // 朝がくる：低い所からふわりと上がる二音。勝ち負けの音ではないので明るくしすぎない
   function sfxMorning(){
@@ -4803,7 +5062,7 @@
         g.gain.setValueAtTime(0.0001, t + p[1]);
         g.gain.exponentialRampToValueAtTime(0.07, t + p[1] + 0.05);
         g.gain.exponentialRampToValueAtTime(0.0001, t + p[1] + 0.75);
-        o.connect(g); g.connect(ctx.destination);
+        o.connect(g); g.connect(sfxOut(ctx));
         o.start(t + p[1]); o.stop(t + p[1] + 0.8);
       });
       return 1100;
@@ -4832,11 +5091,11 @@
       g.gain.exponentialRampToValueAtTime(0.075, t + 0.25);
       g.gain.setValueAtTime(0.075, t + 1.0);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 1.55);
-      o.connect(f); f.connect(g); g.connect(ctx.destination);
+      o.connect(f); f.connect(g); g.connect(sfxOut(ctx));
       o.start(t); lfo.start(t); o.stop(t + 1.6); lfo.stop(t + 1.6);
       return 1800;
     });
-    if(navigator.vibrate) navigator.vibrate([60, 40, 90]);
+    doVibrate([60, 40, 90]);
   }
   // 処刑・襲撃：短く重い一撃
   function sfxThud(){
@@ -4848,14 +5107,14 @@
       o.frequency.exponentialRampToValueAtTime(42, t + 0.32);
       g.gain.setValueAtTime(0.16, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
-      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.45);
+      o.connect(g); g.connect(sfxOut(ctx)); o.start(t); o.stop(t + 0.45);
       var n = noiseSource(ctx, 0.14), nf = ctx.createBiquadFilter(), ng = ctx.createGain();
       nf.type = 'lowpass'; nf.frequency.value = 420;
       ng.gain.setValueAtTime(0.10, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
-      n.connect(nf); nf.connect(ng); ng.connect(ctx.destination); n.start(t);
+      n.connect(nf); nf.connect(ng); ng.connect(sfxOut(ctx)); n.start(t);
       return 700;
     });
-    if(navigator.vibrate) navigator.vibrate(120);
+    doVibrate(120);
   }
   // 朝夜の切り替え演出。0.55秒の暗幕＋見出し。テーマが効いていない時は何もしない
   function playPhaseFx(tone, word){
@@ -9401,6 +9660,14 @@
         alert('進行役' + (p && p.by ? '（' + p.by + 'さん）' : '') + 'がゲームを終了しました。');
       }, 400);
     });
+    // 第32弾-B-1：部屋から出された。黙って画面が固まらないよう、理由を出して棚へ返す
+    rt.on('kicked', function(p){
+      el('settingsOverlay').classList.remove('show');
+      goBack('scr-shelf');
+      setTimeout(function(){
+        alert('進行役' + (p && p.by ? '（' + p.by + 'さん）' : '') + 'が、あなたを部屋から出しました。');
+      }, 400);
+    });
   }
 
   el('loginJoinRoomBtn').addEventListener('click', function(){ openJoinScreen('scr-login'); });
@@ -9524,7 +9791,7 @@
     function complete(){
       reset();
       beep(1046, 180);
-      if(navigator.vibrate) navigator.vibrate(80);
+      doVibrate(80);
       onComplete();
     }
     function onStart(e){ e.preventDefault(); start = performance.now(); tick(); }
@@ -11245,7 +11512,7 @@
   }
   function snipSound(){
     beep(900, 70); setTimeout(function(){ beep(1250, 60); }, 80);
-    if(navigator.vibrate) navigator.vibrate(40);
+    doVibrate(40);
   }
   function defuseComplete(){
     play.bombPhase = 'over';
@@ -12046,12 +12313,24 @@
     }).join('');
     box.style.display = 'block';
   }
+  // 第32弾-B-1：読み上げも1か所を通す。音量・速さ・声の設定はここだけで効く
+  function speechVoices(){
+    try{ return (window.speechSynthesis.getVoices() || []).filter(function(v){
+      return /^ja/i.test(v.lang || '');
+    }); }catch(e){ return []; }
+  }
   function speakJapanese(text){
     try{
       window.speechSynthesis.cancel();
+      if(appPrefs.speechVolume <= 0) return; // 消音なら鳴らさない
       var u = new SpeechSynthesisUtterance(text);
       u.lang = 'ja-JP';
-      u.rate = 0.95;
+      u.rate = Math.max(0.5, Math.min(1.5, appPrefs.speechRate / 100));
+      u.volume = Math.max(0, Math.min(1, appPrefs.speechVolume / 100));
+      if(appPrefs.speechVoice){
+        var v = speechVoices().find(function(x){ return x.name === appPrefs.speechVoice; });
+        if(v) u.voice = v;
+      }
       window.speechSynthesis.speak(u);
     }catch(e){}
   }
@@ -12598,6 +12877,352 @@
   }
 
   // ===================== settings overlay =====================
+  // ===================== 第32弾-B 第1部：設定 =====================
+  // スマホの設定アプリと同じ「項目を選ぶ → 専用画面が開く」形。
+  // 1画面に全部並べると、項目が増えるほど探せなくなる。
+  //
+  // どのページに何を出すかは、下の一覧（データ）から作る。
+  // 出し分けの条件を画面のあちこちに書くと、ページを足した時に
+  // 「このモードだけ〇〇が出ない」という形の抜けが起きる（落とし穴4）。
+  var setStack = [];        // どのページを通ってきたか（戻るボタン用）
+  var SET_TITLES = {
+    root: '設定', game: 'いま遊んでいるゲーム', rules: 'ルールをもう一度見る',
+    gamecfg: 'このゲームの設定', players: 'プレイヤー', topics: 'お題を追加',
+    room: '部屋', roomcode: '部屋コード', app: 'アプリ全体',
+    sound: '音量', speech: '読み上げ', display: '見た目と演出',
+    records: '記録', danger: '危険な操作'
+  };
+  function inRoomNow(){ return !!(rt && rt.state.room); }
+  function setRowHtml(item){
+    return '<button class="set-row' + (item.danger ? ' danger' : '') + '"' +
+      (item.page ? ' data-setpage="' + item.page + '"' : '') +
+      (item.act ? ' data-setact="' + item.act + '"' : '') + '>' +
+      '<span class="sr-icon">' + item.icon + '</span>' +
+      '<span class="sr-text">' + escapeHtml(item.label) +
+        (item.sub ? '<span class="sr-sub">' + escapeHtml(item.sub) + '</span>' : '') +
+      '</span>' +
+      (item.page ? '<span class="sr-arrow">›</span>' : '') +
+      '</button>';
+  }
+  function setMenuHtml(items){
+    return items.filter(function(x){ return !x.when || x.when(); }).map(setRowHtml).join('');
+  }
+  function goSetPage(page, push){
+    if(push !== false && setStack[setStack.length - 1] !== page) setStack.push(page);
+    document.querySelectorAll('#settingsOverlay .set-page').forEach(function(el2){
+      el2.style.display = (el2.dataset.page === page) ? 'block' : 'none';
+    });
+    el('setTitle').textContent = SET_TITLES[page] || '設定';
+    el('setBackBtn').style.display = (setStack.length > 1) ? 'block' : 'none';
+    renderSetPage(page);
+  }
+  el('setBackBtn').addEventListener('click', function(){
+    setStack.pop();
+    goSetPage(setStack[setStack.length - 1] || 'root', false);
+  });
+  el('settingsOverlay').addEventListener('click', function(e){
+    var p = e.target.closest('[data-setpage]');
+    if(p){ goSetPage(p.dataset.setpage); return; }
+    var a = e.target.closest('[data-setact]');
+    if(a){ runSetAction(a.dataset.setact); return; }
+  });
+
+  // ---- 入口の一覧 ----
+  var SET_ROOT_ITEMS = [
+    { icon:'🎮', label:'いま遊んでいるゲーム', page:'game',
+      sub:'ルールの見返し・このゲームの設定' },
+    { icon:'🚪', label:'部屋', page:'room', when:inRoomNow,
+      sub:'メンバー・つながり具合・部屋コード' },
+    { icon:'⚙', label:'アプリ全体', page:'app',
+      sub:'音・読み上げ・見た目・記録' },
+    { icon:'⚠️', label:'危険な操作', page:'danger', danger:true,
+      sub:'押すと戻せないもの' }
+  ];
+  var SET_GAME_ITEMS = [
+    { icon:'📖', label:'ルールをもう一度見る', page:'rules' },
+    { icon:'🎛', label:'このゲームの設定', page:'gamecfg',
+      when:function(){ return liveGameSettings().length > 0; },
+      sub:'遊んでいる途中でも変えられるもの' },
+    { icon:'👥', label:'プレイヤー', page:'players',
+      when:function(){ return !inRoomNow(); }, sub:'名前・人数・ハンデ' },
+    { icon:'➕', label:'お題を追加', page:'topics',
+      when:function(){ return !!gameById(currentGameId()).usesTopicPool; } },
+    { icon:'🔄', label:'別のゲームに変える', act:'pickGame',
+      when:function(){ return inRoomNow() && rt.isHost(); },
+      sub:'部屋はそのまま。ゲームだけ選び直します' }
+  ];
+  var SET_APP_ITEMS = [
+    { icon:'🔊', label:'音量', page:'sound', sub:'効果音と読み上げを別々に' },
+    { icon:'🗣', label:'読み上げ', page:'speech', sub:'速さと声' },
+    { icon:'🎨', label:'見た目と演出', page:'display', sub:'演出の速さ・明るさ・文字サイズ・振動' },
+    { icon:'🏷', label:'アイコン・二つ名', act:'titles',
+      when:loggedIn, sub:'集めたものから選びます' },
+    { icon:'💾', label:'記録', page:'records', when:loggedIn, sub:'保存の設定と、記録を見る' }
+  ];
+  function runSetAction(act){
+    if(act === 'pickGame'){
+      el('settingsOverlay').classList.remove('show');
+      el('rtPickGameBtn').click();
+      return;
+    }
+    if(act === 'titles'){
+      el('settingsOverlay').classList.remove('show');
+      goTo('scr-titles');
+      return;
+    }
+    if(act === 'leaveRoom'){
+      if(!confirm('部屋を出ますか？')) return;
+      el('settingsOverlay').classList.remove('show');
+      rtLeaveRoom();
+      return;
+    }
+    if(act === 'toBig'){ rtSetDisplayMode(true); el('settingsOverlay').classList.remove('show'); return; }
+    if(act === 'toPlayer'){ rtSetDisplayMode(false); el('settingsOverlay').classList.remove('show'); return; }
+  }
+
+  /**
+   * いま遊んでいるゲームで、途中で変えても進行が壊れない設定。
+   * 「壊れない」の判断はここ1か所に集める。
+   * ゲームごとの設定画面をそのまま出すと、途中で変えると壊れるものまで出てしまう。
+   */
+  function liveGameSettings(){
+    var m = modeById(state.selectedModeId) || {};
+    var out = [];
+    if(m.bomb){
+      out.push({ id:'bombLives', label:'ライフの数', min:1, max:5, step:1,
+        get:function(){ return state.bombLives; },
+        set:function(v){ state.bombLives = v; },
+        note:'次のゲームから効きます（いま遊んでいる分は変わりません）' });
+    }
+    if(m.defuse){
+      out.push({ id:'dfStrikes', label:'ミスの上限', min:1, max:5, step:1,
+        get:function(){ return state.dfCfg.strikes; },
+        set:function(v){ state.dfCfg.strikes = v; },
+        note:'次のゲームから効きます' });
+    }
+    if(m.quizKing){
+      out.push({ id:'qkTimer', label:'制限時間（秒）', min:30, max:600, step:30,
+        get:function(){ return state.customTimer || m.timer || 180; },
+        set:function(v){ state.customTimer = v; state.timerEnabled = true; },
+        note:'次のゲームから効きます' });
+    }
+    if(m.auctionNew){
+      out.push({ id:'auRounds', label:'ラウンド数', min:3, max:12, step:1,
+        get:function(){ return state.auCfg.rounds; },
+        set:function(v){ state.auCfg.rounds = v; },
+        note:'次のゲームから効きます' });
+    }
+    if(m.wolfRole || m.wolf){
+      out.push({ id:'wolfSec', label:'話し合いの時間（秒）', min:30, max:600, step:30,
+        get:function(){ return state.customTimer || m.timer || 180; },
+        set:function(v){ state.customTimer = v; state.timerEnabled = true; },
+        note:'次のターンから効きます' });
+    }
+    return out;
+  }
+
+  // ---- ページごとの中身を描く ----
+  function renderSetPage(page){
+    if(page === 'root'){ el('setRootMenu').innerHTML = setMenuHtml(SET_ROOT_ITEMS); return; }
+    if(page === 'game'){
+      var g = gameById(currentGameId());
+      el('currentGameLabel').textContent = g.icon + ' ' + g.title +
+        '（' + (modeById(state.selectedModeId) || {}).title + '）';
+      el('setGameMenu').innerHTML = setMenuHtml(SET_GAME_ITEMS);
+      return;
+    }
+    if(page === 'rules'){ renderSetRules(); return; }
+    if(page === 'gamecfg'){ renderSetGameCfg(); return; }
+    if(page === 'players'){ initSettingsPlayers(); return; }
+    if(page === 'topics'){ renderPack(); return; }
+    if(page === 'room'){ renderSetRoom(); return; }
+    if(page === 'roomcode'){ renderSetRoomCode(); return; }
+    if(page === 'app'){ el('setAppMenu').innerHTML = setMenuHtml(SET_APP_ITEMS); return; }
+    if(page === 'sound' || page === 'speech' || page === 'display'){ renderSetPrefs(); return; }
+    if(page === 'records'){ renderSetRecords(); return; }
+    if(page === 'danger'){
+      var host = inRoomNow() && rt.isHost();
+      el('setCloseRoomBtn').style.display = host ? '' : 'none';
+      return;
+    }
+  }
+
+  // ルールの見返し。モードが持っている bullets をそのまま出す
+  // （実物解除で作ったモジュール説明の見返しと同じ考え方）
+  function renderSetRules(){
+    var m = modeById(state.selectedModeId) || {};
+    var g = gameById(currentGameId());
+    el('setRulesBody').innerHTML = '<div class="card">' +
+      '<div class="sec-title">' + g.icon + ' ' + escapeHtml(m.title || g.title) + '</div>' +
+      '<div class="mic-status" style="margin-bottom:10px;">' + escapeHtml(m.sub || g.sub || '') + '</div>' +
+      '<ol class="rules-ol">' + ((m.bullets || []).map(function(b){
+        return '<li>' + escapeHtml(b) + '</li>';
+      }).join('') || '<li>このゲームの説明は、まだ用意できていません</li>') + '</ol></div>';
+  }
+
+  function renderSetGameCfg(){
+    var items = liveGameSettings();
+    el('setGameCfgBody').innerHTML = items.map(function(it){
+      return '<div class="card">' +
+        '<div class="tp-label">' + escapeHtml(it.label) + '　<span data-cfgval="' + it.id + '">' +
+          it.get() + '</span></div>' +
+        '<input type="range" data-cfgset="' + it.id + '" min="' + it.min + '" max="' + it.max +
+          '" step="' + it.step + '" value="' + it.get() + '">' +
+        '<div class="mic-status">' + escapeHtml(it.note || '') + '</div></div>';
+    }).join('');
+  }
+  el('setGameCfgBody').addEventListener('input', function(e){
+    var slider = e.target.closest('[data-cfgset]');
+    if(!slider) return;
+    var it = liveGameSettings().find(function(x){ return x.id === slider.dataset.cfgset; });
+    if(!it) return;
+    var v = parseInt(slider.value, 10);
+    it.set(v);
+    var label = el('setGameCfgBody').querySelector('[data-cfgval="' + it.id + '"]');
+    if(label) label.textContent = v;
+    saveLocalPrefs();
+  });
+
+  // ---- 部屋 ----
+  function renderSetRoom(){
+    var room = rt && rt.state.room;
+    if(!room){ el('setRoomBody').innerHTML = '<div class="mic-status">いまは部屋に入っていません</div>'; return; }
+    var host = rt.isHost();
+    var me = rt.me();
+    var members = (room.members || []);
+    var connected = members.filter(function(m){ return m.connected; }).length;
+    var html = '<div class="mic-status" style="margin-bottom:10px;">' +
+      'いまつながっているのは ' + connected + ' / ' + members.length + ' 人です。' +
+      '<br>丸が灰色の人は、通信が切れています（電波・画面ロックなど）。' +
+      '</div>';
+    html += members.map(function(m){
+      var tags = [];
+      if(m.isHost) tags.push('進行役');
+      if(m.role === 'bigscreen') tags.push('大画面');
+      if(m.id === rt.state.memberId) tags.push('あなた');
+      return '<div class="set-member' + (m.connected ? '' : ' off') + '">' +
+        '<span class="sm-dot"></span>' +
+        '<span class="sm-name">' + escapeHtml(m.name) +
+          (tags.length ? '<span class="mic-status">' + tags.join('・') + '</span>' : '') + '</span>' +
+        (host && m.id !== rt.state.memberId
+          ? '<button class="sm-btn" data-sethost="' + m.id + '">進行役にする</button>' +
+            '<button class="sm-btn danger" data-setkick="' + m.id + '">出す</button>'
+          : '') +
+      '</div>';
+    }).join('');
+    // 自分の表示モード（32-Aで役割から表示モードにしたものを、ここからも切り替えられる）
+    var big = !!(me && me.role === 'bigscreen');
+    html += setMenuHtml([
+      { icon: big ? '🙋' : '📺',
+        label: big ? 'プレイヤーにもどる' : 'この画面を大画面にする',
+        act: big ? 'toPlayer' : 'toBig',
+        sub: big ? '遊ぶ人数に数えられるようになります' : '大画面にしている間は、遊ぶ人数に数えません' },
+      { icon:'🔑', label:'部屋コード・QRを出す', page:'roomcode',
+        sub:'あとから来た人に見せる時に' },
+      { icon:'🚪', label:'部屋を出る', act:'leaveRoom', danger:true }
+    ]);
+    el('setRoomBody').innerHTML = html;
+  }
+  el('setRoomBody').addEventListener('click', async function(e){
+    var h = e.target.closest('[data-sethost]');
+    if(h){
+      if(!confirm('進行役をこの人に譲りますか？')) return;
+      var r1 = await rt.transferHost(h.dataset.sethost);
+      if(!r1.ok) showFlash(r1.message || '譲れませんでした', 'hit-wrong');
+      renderSetRoom();
+      return;
+    }
+    var k = e.target.closest('[data-setkick]');
+    if(k){
+      if(!confirm('この人を部屋から出しますか？')) return;
+      var r2 = await rt.kick(k.dataset.setkick);
+      if(!r2.ok) showFlash(r2.message || '出せませんでした', 'hit-wrong');
+      renderSetRoom();
+      return;
+    }
+  });
+  function renderSetRoomCode(){
+    var room = rt && rt.state.room;
+    if(!room) return;
+    el('setRoomCode').textContent = room.code;
+    if(el('setQr').dataset.code !== room.code){
+      if(renderRoomQr('setQr', room.code)) el('setQr').dataset.code = room.code;
+    }
+  }
+  el('setCloseRoomBtn').addEventListener('click', function(){
+    if(!confirm('部屋を解散しますか？（部屋にいる全員が終わります）')) return;
+    el('settingsOverlay').classList.remove('show');
+    el('rtEndBtn').click();
+  });
+
+  // ---- アプリ全体の設定 ----
+  function renderSetPrefs(){
+    el('setSeVol').value = appPrefs.seVolume;
+    el('setSeVolValue').textContent = appPrefs.seVolume;
+    el('setSpeechVol').value = appPrefs.speechVolume;
+    el('setSpeechVolValue').textContent = appPrefs.speechVolume;
+    el('setRate').value = appPrefs.speechRate;
+    el('setRateValue').textContent = (appPrefs.speechRate / 100).toFixed(2);
+    var voices = speechVoices();
+    el('setVoice').innerHTML = '<option value="">おまかせ</option>' + voices.map(function(v){
+      return '<option value="' + escapeHtml(v.name) + '"' +
+        (v.name === appPrefs.speechVoice ? ' selected' : '') + '>' + escapeHtml(v.name) + '</option>';
+    }).join('');
+    el('setVoiceNote').textContent = voices.length
+      ? '' : 'この端末では、日本語の声が見つかりませんでした（読み上げは端末の既定の声になります）';
+    Array.prototype.forEach.call(el('setFxSeg').children, function(b){
+      b.classList.toggle('on', b.dataset.fx === appPrefs.fxSpeed);
+    });
+    el('setFxNote').textContent = appPrefs.fxSpeed === 'skip'
+      ? '画面の動きを止めます。伝えることは必ず文字でも出します'
+      : (appPrefs.fxSpeed === 'fast' ? '演出を半分の時間で終わらせます' : '演出をそのままの速さで出します');
+    el('setBright').value = appPrefs.brightness;
+    el('setBrightValue').textContent = appPrefs.brightness;
+    el('setFont').value = appPrefs.fontScale;
+    el('setFontValue').textContent = appPrefs.fontScale;
+    el('setVibrateToggle').classList.toggle('on', appPrefs.vibrate);
+  }
+  function bindPref(id, key, labelId, fmt){
+    el(id).addEventListener('input', function(){
+      appPrefs[key] = parseInt(this.value, 10);
+      if(labelId) el(labelId).textContent = fmt ? fmt(appPrefs[key]) : appPrefs[key];
+      applyAppPrefs();
+      saveAppPrefs();
+    });
+  }
+  bindPref('setSeVol', 'seVolume', 'setSeVolValue');
+  bindPref('setSpeechVol', 'speechVolume', 'setSpeechVolValue');
+  bindPref('setRate', 'speechRate', 'setRateValue', function(v){ return (v / 100).toFixed(2); });
+  bindPref('setBright', 'brightness', 'setBrightValue');
+  bindPref('setFont', 'fontScale', 'setFontValue');
+  el('setVoice').addEventListener('change', function(){
+    appPrefs.speechVoice = this.value || '';
+    saveAppPrefs();
+  });
+  el('setFxSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-fx]');
+    if(!b) return;
+    appPrefs.fxSpeed = b.dataset.fx;
+    applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
+  });
+  el('setVibrateToggle').addEventListener('click', function(){
+    appPrefs.vibrate = !appPrefs.vibrate;
+    saveAppPrefs(); renderSetPrefs();
+    if(appPrefs.vibrate) doVibrate(40); // ONにした時だけ、効いていることを1回だけ伝える
+  });
+  el('setSeTestBtn').addEventListener('click', function(){ snipSound(); });
+  el('setSpeechTestBtn').addEventListener('click', function(){
+    speakJapanese('この速さと声で読み上げます');
+  });
+
+  function renderSetRecords(){
+    el('autoSaveToggle').classList.toggle('on', state.autoSaveRecords);
+    el('autoSaveSub').textContent = state.autoSaveRecords
+      ? 'ラウンドごと・終了時に自動送信します'
+      : '自動送信しません（下の保存ボタンだけが有効）';
+    el('manualSaveResult').textContent = '';
+  }
+
   function openSettings(){
     // 第26弾-2：棚から開いた時は、まだログインしていないことがある。
     // 記録に関わる操作は、ログインしてからでないと意味がないので隠す
@@ -12605,19 +13230,8 @@
     el('loggedInAs').textContent = inn ? ('ログイン中：'+state.username) : 'ログインしていません';
     el('logoutBtn').style.display = inn ? '' : 'none';
     el('settingsLoginBtn').style.display = inn ? 'none' : '';
-    el('openRecordsBtn').style.display = inn ? '' : 'none';
-    var g = gameById(currentGameId());
-    el('currentGameLabel').textContent = g.icon + ' ' + g.title + '（' + modeById(state.selectedModeId).title + '）';
-    initSettingsPlayers();
-    // 第18弾-5：お題プールを使わないゲーム（人狼カセット）では、お題まわりを丸ごと隠す
-    var usesPool = !!g.usesTopicPool;
-    el('topicPoolSettings').style.display = usesPool ? 'block' : 'none';
-    if(usesPool) renderPack();
-    el('autoSaveToggle').classList.toggle('on', state.autoSaveRecords);
-    el('autoSaveSub').textContent = state.autoSaveRecords
-      ? 'ラウンドごと・終了時に自動送信します'
-      : '自動送信しません（下の保存ボタンだけが有効）';
-    el('manualSaveResult').textContent = '';
+    setStack = ['root'];
+    goSetPage('root', false);
     el('settingsOverlay').classList.add('show');
   }
 
@@ -13098,6 +13712,9 @@
   // ---------- init ----------
   document.addEventListener('DOMContentLoaded', function(){
     loadLocalPrefs();
+    // 第32弾-B-1：音量・文字サイズなどは、起動した瞬間から効いていてほしい
+    loadAppPrefs();
+    applyAppPrefs();
     setTimeout(openDoorAndEnter, 240); // タップ不要で自動的に開く
   });
 })();

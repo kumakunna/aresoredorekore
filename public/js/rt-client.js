@@ -103,6 +103,12 @@
       socket.on('wolf:ended', function (p) { emitLocal('ended', p); });
       // 第24弾-3-5：ホストがゲームを終了すると、部屋ごと畳まれる。
       // 全員がここで抜ける（ホストだけ終わって他が置き去りにならないように）
+      // 第32弾-B-1：部屋から出された。理由を伝えて、画面が固まらないようにする
+      socket.on('room:kicked', function (p) {
+        state.code = null; state.memberId = null; state.room = null; state.secret = null;
+        emitLocal('kicked', p || {});
+        emitLocal('status', state);
+      });
       socket.on('room:closed', function (p) {
         state.code = null; state.memberId = null; state.room = null; state.secret = null;
         emitLocal('closed', p || {});
@@ -156,6 +162,8 @@
       return call('room:setRole', { role: role });
     }
     function transferHost(memberId) { return call('room:transferHost', { memberId: memberId }); }
+    // 第32弾-B-1：進行役が、その人を部屋から出す
+    function kick(memberId) { return call('room:kick', { memberId: memberId }); }
     function leave() {
       // 自分から出た時は、つなぎ直しで戻らないように印も消す
       state.code = null; state.memberId = null; state.room = null; state.secret = null;
@@ -199,7 +207,7 @@
     return {
       state: state, on: on, available: available, connect: connect,
       createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, peekRoom: peekRoom,
-      transferHost: transferHost, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
+      transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,
       isHost: isHost, me: me,
       // テストから中身を差し替えられるように（socket.io本体は持たせない）

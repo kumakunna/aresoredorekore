@@ -209,6 +209,40 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  // ---- 第32弾-B-1：メンバー管理（進行役が、その人を部屋から出す） ----
+
+  await r.test('進行役は、その人を部屋から出せる（出された人には理由が届く）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);
+      const target = rm.guests[0];
+      let kicked = null;
+      target.socket.on('room:kicked', (p) => { kicked = p; });
+
+      const res = await rm.host.call('room:kick', { memberId: target.memberId });
+      assertEqual(res.ok, true, '出せる');
+      await waitUntil(() => kicked, '出された人に理由が届く');
+      assertEqual(kicked.by, 'あき', '誰に出されたかが分かる');
+      assertEqual(roomOf(srv, rm.code).members.has(target.memberId), false, '名簿から消える');
+      await waitUntil(() => rm.guests[1].room.playerCount === 2, '残った人の名簿も更新される');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('進行役でない人は、誰も出せない。進行役も自分は出せない', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);
+      const denied = await rm.guests[0].call('room:kick', { memberId: rm.guests[1].memberId });
+      assertEqual(denied.ok, false, '進行役以外は出せない');
+      assertEqual(denied.error, 'not_host', '理由がはっきり返る');
+
+      const self = await rm.host.call('room:kick', { memberId: rm.host.memberId });
+      assertEqual(self.ok, false, '自分は出せない');
+      assertEqual(self.error, 'cannot_kick_self', '理由がはっきり返る');
+      assertEqual(roomOf(srv, rm.code).members.size, 3, '誰も減っていない');
+    } finally { await srv.close(); }
+  });
+
   // ---- 3. 部屋コード ----
 
   await r.test('部屋コードは、いま使われているものと重ならない', async () => {

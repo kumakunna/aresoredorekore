@@ -950,6 +950,33 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (typeof cb === 'function') cb({ ok: true });
     });
 
+    // ---- 第32弾-B-1：メンバー管理。進行役が、その人を部屋から出す ----
+    // 出された人には理由を伝えて、黙って画面が固まらないようにする。
+    // 自分は出せない（進行役がいなくなると、誰も進められなくなる）。
+    socket.on('room:kick', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが操作できます');
+      const targetId = payload && payload.memberId;
+      const target = targetId ? room.members.get(targetId) : null;
+      if (!target) return fail(cb, 'member_not_found', 'その人は部屋にいません');
+      if (target.id === me.id) return fail(cb, 'cannot_kick_self', '自分は出せません');
+
+      const s = socketOf(target.id, room);
+      room.members.delete(target.id);
+      if (s) {
+        s.emit('room:kicked', { by: me.name });
+        s.leave('room:' + room.code);
+        s.data.roomCode = null;
+        s.data.memberId = null;
+      }
+      ensureHost(room, 'kick');
+      if (!connectedMembers(room).length) room.emptySince = Date.now();
+      if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
+      broadcast(room);
+    });
+
     socket.on('room:leave', (payload, cb) => {
       const room = currentRoom();
       const me = currentMember();

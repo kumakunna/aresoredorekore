@@ -1947,6 +1947,83 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     }
   });
 
+  // ---- 第32弾-B 第1部：設定（項目を選ぶ→専用画面が開く） ----
+
+  await r.test('設定：部屋にいる時だけ「部屋」の入口が出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    // 棚では出ない
+    click(doc, 'shelfGearBtn');
+    await sleep(win, 80);
+    assert(!doc.querySelector('#setRootMenu [data-setpage="room"]'), '部屋の外では出さない');
+    click(doc, 'closeSettingsBtn');
+    await sleep(win, 60);
+
+    await toRoom(win, doc, { pick: false });
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    assert(doc.querySelector('#setRootMenu [data-setpage="room"]'), '部屋にいる時は出る');
+    assertNoErrors(errors, '設定の入口で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：部屋のページに、つながり具合とメンバー操作が出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false }); // 自分が進行役（m1）
+    // 1人切れている状態を配る
+    push(fake, roomSnapshot({
+      members: roomSnapshot().members.map((m) => (
+        m.id === 'm3' ? Object.assign({}, m, { connected: false }) : m
+      ))
+    }));
+    await sleep(win, 80);
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    doc.querySelector('#setRootMenu [data-setpage="room"]').click();
+    await sleep(win, 80);
+
+    const body = el(doc, 'setRoomBody');
+    assert(/4 \/ 5 人/.test(body.textContent), 'いま何人つながっているかが出る');
+    assert(/通信が切れています/.test(body.textContent), '切れている人がいることが分かる');
+    assertEqual(body.querySelectorAll('.set-member').length, 5, '全員ぶん並ぶ');
+    assertEqual(body.querySelectorAll('.set-member.off').length, 1, '切れている人が分かる');
+    // 進行役なので、他の人に対して操作が出る（自分には出ない）
+    assert(body.querySelector('[data-setkick="m2"]'), '出すボタンが出る');
+    assert(body.querySelector('[data-sethost="m2"]'), '進行役を譲るボタンが出る');
+    assert(!body.querySelector('[data-setkick="m1"]'), '自分は出せない');
+    // 大画面への切り替えもここから
+    assert(body.querySelector('[data-setact="toBig"]'), '大画面に切り替えられる');
+    assertNoErrors(errors, '部屋の設定で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：進行役でなければ、メンバーを操作するボタンは出ない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toRoom(win, doc, { join: true, memberId: 'm2' }); // 進行役は m1
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    doc.querySelector('#setRootMenu [data-setpage="room"]').click();
+    await sleep(win, 80);
+    const body = el(doc, 'setRoomBody');
+    assertEqual(body.querySelectorAll('[data-setkick]').length, 0, '出すボタンは出ない');
+    assertEqual(body.querySelectorAll('[data-sethost]').length, 0, '譲るボタンも出ない');
+    // 抜ける・大画面にする は、進行役でなくてもできる
+    assert(body.querySelector('[data-setact="leaveRoom"]'), '部屋を出られる');
+    assert(body.querySelector('[data-setact="toBig"]'), '大画面にもできる');
+    assertNoErrors(errors, '参加者の設定で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：部屋を解散するのは、進行役だけに出る', async () => {
+    const { win, doc } = await launch(LAUNCH);
+    await toRoom(win, doc, { join: true, memberId: 'm2' });
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    doc.querySelector('#setRootMenu [data-setpage="danger"]').click();
+    await sleep(win, 80);
+    assertEqual(el(doc, 'setCloseRoomBtn').style.display, 'none', '参加者には出さない');
+    win.close();
+  });
+
   // ---- 第32弾-A 第4部：称号が1人1台でも数えられるか ----
 
   // 称号は /api/titles に預ける形なので、預けにきた中身を見て確かめる（ハーネスが記録している）

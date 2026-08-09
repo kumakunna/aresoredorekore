@@ -516,6 +516,35 @@ async function waitUntil(fn, label, timeoutMs) {
     } finally { await srv.close(); }
   });
 
+  await r.test('入る前に部屋を覗けるが、名簿までは見えない', async () => {
+    // 第32弾-A-3-2：「部屋に入る」画面で、何のゲームの部屋かを先に出すため。
+    // コードを当てずっぽうで入れた人に、誰がいるかまで見せる必要は無い
+    const srv = await startTestServer();
+    try {
+      const cookie = await login(srv.url, 93);
+      const host = await connect(srv.url, cookie);
+      const created = await send(host, 'room:create', { name: 'あき' });
+      const guest = await connect(srv.url);
+      await send(guest, 'room:join', { code: created.code, name: 'びび' });
+
+      const before = await send(guest, 'room:peek', { code: created.code });
+      assertEqual(before.ok, true, '覗ける');
+      assertEqual(before.game, null, 'まだゲームは選ばれていない');
+      assertEqual(before.playerCount, 2, '何人いるかは分かる');
+      assertEqual(JSON.stringify(before).indexOf('あき'), -1, '名前は返さない');
+      assertEqual(JSON.stringify(before).indexOf('members'), -1, '名簿も返さない');
+
+      await send(host, 'room:setState', { phase: 'lobby', game: 'quizrush' });
+      const after = await send(guest, 'room:peek', { code: created.code });
+      assertEqual(after.game, 'quizrush', '選ばれたゲームが分かる');
+
+      const missing = await send(guest, 'room:peek', { code: 'ZZZZZZ' });
+      assertEqual(missing.ok, false, '無い部屋は無いと返る');
+      assertEqual(missing.error, 'room_not_found', '理由がはっきり返る');
+      host.close(); guest.close();
+    } finally { await srv.close(); }
+  });
+
   await r.test('既存の一人一台前提のAPIは、socket.ioを入れても素通りする', async () => {
     // server.js の配線（http.createServer + attachRealtime）を実際に起動して確かめる
     const srv = await startTestServer();

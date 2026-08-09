@@ -148,6 +148,9 @@
       emitLocal('status', state);
       return res;
     }
+    // 第32弾-A-3-2：入る前に、その部屋を軽く覗く。
+    // 返ってくるのは「あるかどうか・何のゲームか・何人いるか」だけ（名簿は来ない）
+    function peekRoom(code) { return call('room:peek', { code: code }); }
     function setRole(role) {
       state.role = role; // 入り直す時にも同じ役割で戻れるように覚えておく
       return call('room:setRole', { role: role });
@@ -195,7 +198,7 @@
 
     return {
       state: state, on: on, available: available, connect: connect,
-      createRoom: createRoom, joinRoom: joinRoom, setRole: setRole,
+      createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, peekRoom: peekRoom,
       transferHost: transferHost, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,
       isHost: isHost, me: me,

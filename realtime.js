@@ -746,6 +746,23 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       broadcast(room);
     });
 
+    // ---- 第32弾-A-3-2：入る前に、その部屋を軽く覗く ----
+    // 「部屋に入る」画面で、何のゲームの部屋なのかを先に出すため。
+    // コードを当てずっぽうで入れた人に名簿まで見せる必要は無いので、
+    // 返すのは「あるかどうか・何のゲームか・何人いるか・始まっているか」だけにする。
+    socket.on('room:peek', (payload, cb) => {
+      if (typeof cb !== 'function') return;
+      const room = store.get(payload && payload.code);
+      if (!room) return cb({ ok: false, error: 'room_not_found' });
+      cb({
+        ok: true,
+        code: room.code,
+        game: (room.state && room.state.game) || null,
+        phase: (room.state && room.state.phase) || 'lobby',
+        playerCount: playerMembers(room).length
+      });
+    });
+
     // ---- 第2部-2：部屋に入る（ログイン不要。コード＋名前だけ） ----
     socket.on('room:join', (payload, cb) => {
       const room = store.get(payload && payload.code);

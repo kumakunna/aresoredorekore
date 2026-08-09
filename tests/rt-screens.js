@@ -71,13 +71,27 @@ async function toRoom(win, doc, opts) {
   if (opts.join) {
     el(doc, 'rtJoinCode').value = 'ABC234';
     el(doc, 'rtJoinName').value = 'びび';
-    if (role === 'bigscreen') click(doc, doc.querySelector('#rtJoinRoleSeg [data-rtrole="bigscreen"]'));
     click(doc, 'rtJoinBtn');
   } else {
     el(doc, 'rtCreateName').value = 'あき';
     click(doc, 'rtCreateBtn');
   }
   await waitFor(win, () => ['scr-rt-room','scr-rt-big'].indexOf(activeScreen(doc)) >= 0, 4000, '部屋の画面に入る');
+  // 第32弾-A-2：大画面は参加時の役割ではなく、部屋の画面から切り替える表示モードになった。
+  // サーバーは切り替えた結果の部屋を返してくるので、疑似socketにも同じものを返させる
+  if (role === 'bigscreen') {
+    fake.replies['room:setRole'] = () => ({
+      ok: true, role: 'bigscreen',
+      room: roomSnapshot({
+        // 自分の枠を大画面に書き換える（増やすと、同じidが2つ並んで先頭が拾われる）
+        members: roomSnapshot().members.map((m) => (
+          m.id === memberId ? Object.assign({}, m, { role: 'bigscreen' }) : m
+        ))
+      })
+    });
+    click(doc, 'rtToBigBtn');
+    await waitScreen(win, doc, 'scr-rt-big', 3000);
+  }
   if (opts.pick !== false && !opts.join && role !== 'bigscreen') {
     await pickGameForRoom(win, doc, opts.game || 'wolfrole');
   }
@@ -468,6 +482,134 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await waitScreen(b.win, b.doc, 'scr-howto', 3000);
     assertNoErrors(b.errors, '部屋の入口で未捕捉の例外');
     b.win.close();
+  });
+
+  // ---- 第32弾-A 第2部：大画面は「役割」ではなく「表示モード」 ----
+
+  await r.test('参加する時に役割を選ばせない（全員プレイヤーとして入る）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toRoomLobby(win, doc);
+    assert(!doc.getElementById('rtJoinRoleSeg'), '役割の選択欄が無い');
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    fake.replies = { 'room:join': (p) => ({ ok: true, code: 'ABC234', memberId: 'm5', room: roomSnapshot() }) };
+    el(doc, 'rtJoinCode').value = 'ABC234';
+    el(doc, 'rtJoinName').value = 'えみ';
+    click(doc, 'rtJoinBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    const join = fake.emits.filter(e => e.name === 'room:join').pop();
+    assertEqual(join.payload.role, 'player', 'かならずプレイヤーとして入る');
+    assertNoErrors(errors, '参加で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('「部屋に入る」画面に、人狼専用の文言を出さない', async () => {
+    // 部屋はカセットに紐づかない箱なので、「役職を見て、夜の行動や投票をします」は矛盾していた
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toRoomLobby(win, doc);
+    const text = el(doc, 'scr-rt-lobby').textContent;
+    ['役職', '夜の行動', '投票', '人狼'].forEach((w) => {
+      assertEqual(text.indexOf(w), -1, '「' + w + '」が出ていない');
+    });
+    assertNoErrors(errors, '部屋に入る画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('部屋コードを入れると、その部屋で何を遊ぶのかが出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toRoomLobby(win, doc);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    fake.replies = fake.replies || {};
+
+    // まだゲームが選ばれていない部屋
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 2 });
+    el(doc, 'rtJoinCode').value = 'ABC234';
+    el(doc, 'rtJoinCode').dispatchEvent(new win.Event('input'));
+    await waitFor(win, () => /待っています/.test(el(doc, 'rtJoinPeek').textContent), 2000, '待ちの案内が出る');
+    assert(/2人/.test(el(doc, 'rtJoinPeek').textContent), '何人いるかも出る');
+
+    // ゲームが選ばれている部屋
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: 'quizrush', phase: 'lobby', playerCount: 3 });
+    el(doc, 'rtJoinCode').value = 'ABC235';
+    el(doc, 'rtJoinCode').dispatchEvent(new win.Event('input'));
+    await waitFor(win, () => /クイズラッシュ/.test(el(doc, 'rtJoinPeek').textContent), 2000, 'ゲーム名が出る');
+
+    // 無い部屋
+    fake.replies['room:peek'] = () => ({ ok: false, error: 'room_not_found' });
+    el(doc, 'rtJoinCode').value = 'ZZZZZZ';
+    el(doc, 'rtJoinCode').dispatchEvent(new win.Event('input'));
+    await waitFor(win, () => /見つかりません/.test(el(doc, 'rtJoinPeek').textContent), 2000, '無い時は理由が出る');
+    assertNoErrors(errors, '部屋を覗くところで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面にしても、プレイヤーに戻る道が常に出ている', async () => {
+    // 実機で「参加者が大画面を選ぶと、部屋を抜ける以外に戻る手段が無い」状態だった
+    const { win, doc } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面になっている');
+    const back = el(doc, 'bigToPlayerBtn');
+    assert(back && back.offsetParent !== null || back, 'プレイヤーに戻るボタンが出ている');
+
+    // 押すとプレイヤーに戻れる
+    fake.replies['room:setRole'] = () => ({ ok: true, role: 'player', room: roomSnapshot() });
+    click(doc, 'bigToPlayerBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 3000);
+    const last = fake.emits.filter(e => e.name === 'room:setRole').pop();
+    assertEqual(last.payload.role, 'player', 'プレイヤーに戻す');
+    win.close();
+  });
+
+  await r.test('ホストが大画面にしても、管理操作を続けられる', async () => {
+    // 実機で「ホストが大画面を選ぶと、ゲーム選択も部屋の管理も何もできない」状態だった
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false }); // 自分がホスト（m1）
+    fake.replies['room:setRole'] = () => ({
+      ok: true, role: 'bigscreen',
+      room: roomSnapshot({
+        members: roomSnapshot().members.map((m) => (
+          m.id === 'm1' ? Object.assign({}, m, { role: 'bigscreen' }) : m
+        ))
+      })
+    });
+    click(doc, 'rtToBigBtn');
+    await waitScreen(win, doc, 'scr-rt-big', 3000);
+    assert(el(doc, 'bigPickGameBtn').style.display !== 'none', 'ゲームをえらべる');
+    assert(el(doc, 'bigEndBtn').style.display !== 'none', '部屋を閉じられる');
+    assert(el(doc, 'bigToPlayerBtn'), 'プレイヤーにも戻れる');
+    // 「ゲームをえらぶ」は待合と同じ動き（棚へ出る）
+    click(doc, 'bigPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertNoErrors(errors, 'ホストの大画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面が無くても、みんなの状況を自分のスマホから見られる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, bombRoom());
+    pushYou(fake, bombYou());
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    assert(el(doc, 'floatingStatusBtn').style.display !== 'none', 'みんなの状況を開くボタンが出る');
+    click(doc, 'floatingStatusBtn');
+    await sleep(win, 80);
+    assert(el(doc, 'rtStatusOverlay').classList.contains('show'), '開く');
+    const text = el(doc, 'rtStatusList').textContent;
+    assert(/あき/.test(text) && /びび/.test(text), '全員ぶん出る');
+    assert(/解除/.test(text), '公開されている数字が出る');
+    click(doc, 'closeRtStatusBtn');
+    await sleep(win, 60);
+    assert(!el(doc, 'rtStatusOverlay').classList.contains('show'), '閉じられる');
+    assertNoErrors(errors, 'みんなの状況で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面では「みんなの状況」ボタンを出さない（それ自体が状況なので）', async () => {
+    const { win, doc } = await launch(LAUNCH);
+    await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    assertEqual(el(doc, 'floatingStatusBtn').style.display, 'none', '大画面には出さない');
+    win.close();
   });
 
   await r.test('呼ばれて入るだけの人には「部屋をつくる」を出さない', async () => {

@@ -463,6 +463,26 @@
     cursor:pointer;font-family:inherit;
   }
 
+  /* 第32弾-A：みんなの状況を開くボタン。⚙の隣に置く */
+  .floating-status{
+    position:fixed;top:10px;right:52px;z-index:60;
+    width:32px;height:32px;border-radius:50%;border:none;
+    background:rgba(0,0,0,.06);color:var(--ink);
+    font-size:15px;line-height:1;cursor:pointer;padding:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .rt-status-row{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:8px 12px;border-radius:8px;background:var(--card);
+    border:1px solid var(--line);margin-top:6px;font-size:14px;
+  }
+  .rt-status-row.me{outline:2px solid var(--stamp);}
+  .rt-status-row.off{opacity:.45;}
+  .rt-status-vals{font-family:'DotGothic16',monospace;font-size:15px;white-space:nowrap;}
+  /* 大画面の下に置く操作。大きな画面でも押しやすい大きさにする */
+  .big-tools{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:24px;}
+  .big-tools .btn{width:auto;min-width:180px;margin:0;}
+
   /* ---- 第32弾-A：あそびかたをえらぶ ---- */
   .howto-card{
     display:flex;align-items:center;gap:14px;width:100%;text-align:left;
@@ -1586,6 +1606,8 @@
   <!-- 1：ゲーム中どこからでも設定（＝ゲーム終了）に入れる共通ボタン。全ゲームで使える -->
   <button class="floating-back" id="floatingBackBtn" style="display:none;" aria-label="一個前の画面にもどる">←</button>
   <button class="floating-gear" id="floatingGearBtn" style="display:none;">⚙</button>
+  <!-- 第32弾-A-2-4：大画面が無い部屋でも、みんなの状況を各自のスマホから見られる -->
+  <button class="floating-status" id="floatingStatusBtn" style="display:none;" aria-label="みんなの状況を見る">👥</button>
 
   <!-- 第18弾-5：朝夜の切り替え演出。ふだんは opacity:0 で当たり判定も無い -->
   <div class="night-fx" id="nightFx"><div class="fx-word" id="nightFxWord"></div></div>
@@ -2254,12 +2276,11 @@
         <div class="mic-status" style="margin-bottom:10px;">ログインは要りません。部屋コードと名前だけでどうぞ。</div>
         <input type="text" id="rtJoinCode" placeholder="部屋コード（6文字）" maxlength="6" autocapitalize="characters">
         <input type="text" id="rtJoinName" placeholder="あなたの名前" maxlength="12" style="margin-top:8px;">
-        <div class="tp-label" style="margin-top:12px;">この端末の役割</div>
-        <div class="seg" id="rtJoinRoleSeg">
-          <button class="seg-btn on" data-rtrole="player">🙋 プレイヤー</button>
-          <button class="seg-btn" data-rtrole="bigscreen">📺 大画面</button>
-        </div>
-        <div class="mic-status" id="rtJoinRoleNote" style="margin-top:6px;"></div>
+        <!-- 第32弾-A-2：役割の選択はここから外した。全員プレイヤーとして入る。
+             大画面は「一度選んだら変えられない役割」ではなく、
+             部屋の画面からいつでも切り替えられる表示モードにした -->
+        <!-- 第32弾-A-3-2：どのカセットの部屋なのかを、入る前に出す -->
+        <div class="mic-status" id="rtJoinPeek" style="margin-top:10px;"></div>
         <button class="btn btn-teal" id="rtJoinBtn" style="margin-top:12px;">部屋に入る</button>
       </div>
     </div>
@@ -2284,12 +2305,9 @@
       <div class="tp-label" style="margin-top:14px;">参加している人<span id="rtRoomCount">0人</span></div>
       <div id="rtMemberList"></div>
       <div class="mic-status" id="rtRoomNote" style="margin-top:10px;"></div>
-      <div class="toggle-row-mini" style="margin-top:14px;">
-        <div>この端末は大画面として使う
-          <div class="mic-status">ONにすると人数に数えません（TVやPC向け）</div>
-        </div>
-        <div class="switch" id="rtMyRoleToggle"></div>
-      </div>
+      <!-- 第32弾-A-2：大画面は「表示モード」。いつでも切り替えられて、いつでも戻れる -->
+      <button class="btn btn-outline" id="rtToBigBtn" style="margin-top:14px;">📺 この画面を大画面にする</button>
+      <div class="mic-status" id="rtToBigNote" style="margin-top:6px;"></div>
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
       <!-- 第26弾-3：部屋はカセットに紐づかない箱。何を遊ぶかは、この部屋にいるまま選び直せる -->
@@ -2422,7 +2440,15 @@
       <!-- 第27弾：爆弾解除のリーダーボード（横棒グラフ）。
            出すのは進捗とライフだけで、問題の中身も正誤の詳細も入れない -->
       <div class="big-board" id="bigBoard" style="display:none;"></div>
-      <button class="btn btn-ghost" id="bigLeaveBtn" style="margin-top:24px;">← 部屋を出る</button>
+      <!-- 第32弾-A-2：大画面にしても行き止まりにしない。
+           戻る道と、進行役の管理操作は、いつでもここから出せる -->
+      <div class="big-tools">
+        <button class="btn btn-main" id="bigToPlayerBtn">🙋 プレイヤーにもどる</button>
+        <button class="btn btn-outline" id="bigPickGameBtn" style="display:none;">🎮 ゲームをえらぶ</button>
+        <button class="btn btn-outline" id="bigStartBtn" style="display:none;">はじめる ▶</button>
+        <button class="btn btn-ghost" id="bigEndBtn" style="display:none;">🏁 部屋を閉じる</button>
+        <button class="btn btn-ghost" id="bigLeaveBtn">← 部屋を出る</button>
+      </div>
     </div>
   </div>
 
@@ -2895,6 +2921,19 @@
   <div class="foul-toast" id="foulToast"></div>
 
   <!-- settings overlay -->
+  <!-- 第32弾-A-2-4：みんなの状況。大画面が無い部屋でも、公開情報を各自のスマホから見られる。
+       常に出しておくと自分の操作画面が狭くなるので、押した時だけ開く -->
+  <div class="overlay" id="rtStatusOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-head">
+        <h3>みんなの状況</h3>
+        <button class="close-x" id="closeRtStatusBtn">✕</button>
+      </div>
+      <div class="mic-status" id="rtStatusNote"></div>
+      <div id="rtStatusList"></div>
+    </div>
+  </div>
+
   <div class="overlay" id="settingsOverlay">
     <div class="overlay-panel">
       <div class="overlay-head">
@@ -4921,6 +4960,12 @@
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
     // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
     el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';
+    // 第32弾-A-2-4：部屋で遊んでいる画面では、みんなの状況をいつでも開ける。
+    // 大画面はそれ自体がみんなの状況なので、出さない
+    var inRoomGame = id.indexOf('scr-rt-') === 0 && id !== 'scr-rt-big'
+      && id !== 'scr-rt-lobby' && id !== 'scr-rt-room';
+    el('floatingStatusBtn').style.display = inRoomGame ? 'flex' : 'none';
+    if(!inRoomGame) el('rtStatusOverlay').classList.remove('show');
     // 役職あり人狼：話し合いタイマーは、その画面を離れたら必ず止める
     if(prevScreen && prevScreen.id === 'scr-wr-day' && id !== 'scr-wr-day') stopWrDayTimer();
     // 第21弾-1：手渡し画面を離れたら、夜の持ち時間は必ず止める
@@ -6196,7 +6241,6 @@
   // ===================== 第21弾-5：1人1台の部屋 =====================
   // 手渡し方式とは別の入り口。ここから先の画面は scr-rt-* だけを使う。
   var rt = (typeof RTClient !== 'undefined') ? RTClient.create() : null;
-  var rtJoinRole = 'player';
 
   function rtUnavailableMsg(){
     return '通信の準備ができていません。ページを開き直すか、手渡し方式でお楽しみください。';
@@ -6229,21 +6273,45 @@
       : 'みんなのスマホをつないで遊びます';
     // ログイン名が分かっていれば、作る側の名前に入れておく
     if(state.username && !el('rtCreateName').value) el('rtCreateName').value = state.username;
-    renderRtJoinRole();
+    renderRtJoinPeek(null);
+    if(el('rtJoinCode').value.trim().length === 6) peekJoinRoom();
   }
-  function renderRtJoinRole(){
-    Array.prototype.forEach.call(el('rtJoinRoleSeg').querySelectorAll('[data-rtrole]'), function(b){
-      b.classList.toggle('on', b.dataset.rtrole === rtJoinRole);
-    });
-    el('rtJoinRoleNote').textContent = rtJoinRole === 'bigscreen'
-      ? 'TVやPCなど、みんなで見る画面として使います。ゲームの人数には数えません。'
-      : 'この端末で自分の役職を見て、夜の行動や投票をします。';
+  // 第32弾-A-3-2：「部屋に入る」画面に、人狼専用の文言が出ていた
+  // （役職・夜の行動・投票）。部屋がカセットに紐づかない箱になった今、
+  // クイズ王の部屋に入ろうとしても人狼の話が出るのは矛盾している。
+  // カセットに依存しない書き方にして、代わりに「その部屋で何を遊ぶのか」を出す
+  function renderRtJoinPeek(info){
+    var note = el('rtJoinPeek');
+    if(!info){
+      note.textContent = '部屋コードを入れると、その部屋で何を遊ぶのかが出ます';
+      note.className = 'mic-status';
+      return;
+    }
+    if(info.error === 'room_not_found'){
+      note.textContent = 'そのコードの部屋は見つかりません。もう一度たしかめてください';
+      note.className = 'mic-status warn';
+      return;
+    }
+    note.className = 'mic-status';
+    if(!info.game){
+      note.textContent = '🕒 ホストがゲームを選ぶのを待っています（いま' + info.playerCount + '人）';
+      return;
+    }
+    note.textContent = '🎮「' + gameTitleOf(info.game) + '」で遊ぼうとしています（いま' +
+      info.playerCount + '人）';
   }
-  el('rtJoinRoleSeg').addEventListener('click', function(e){
-    var b = e.target.closest('[data-rtrole]');
-    if(!b) return;
-    rtJoinRole = b.dataset.rtrole;
-    renderRtJoinRole();
+  var peekTimer = null;
+  async function peekJoinRoom(){
+    var code = el('rtJoinCode').value.trim().toUpperCase();
+    if(code.length < 6 || !(rt && rt.available())){ renderRtJoinPeek(null); return; }
+    var res = await rt.peekRoom(code);
+    // 入れ替わりで別のコードを打っていたら、古い返事は捨てる
+    if(el('rtJoinCode').value.trim().toUpperCase() !== code) return;
+    renderRtJoinPeek(res && res.ok ? res : { error: 'room_not_found' });
+  }
+  el('rtJoinCode').addEventListener('input', function(){
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(peekJoinRoom, 250);
   });
   // 第26弾-2：部屋には棚の「部屋」ボタンからも入る。来た道に返す
   var rtLobbyBackTo = 'scr-mode';
@@ -6264,14 +6332,14 @@
         : (res.message || '部屋を作れませんでした');
       return;
     }
-    goTo(rtWantScreen()); // 大画面として入ったら、そのまま大画面へ
+    goTo(rtWantScreen());
   });
   el('rtJoinBtn').addEventListener('click', async function(){
     var code = el('rtJoinCode').value.trim().toUpperCase();
     var name = el('rtJoinName').value.trim();
     if(!code || !name){ el('rtLobbyStatus').textContent = '部屋コードと名前を入れてください'; return; }
     this.disabled = true;
-    var res = await rt.joinRoom(code, name, rtJoinRole);
+    var res = await rt.joinRoom(code, name, 'player');
     this.disabled = false;
     if(!res.ok){
       el('rtLobbyStatus').textContent = res.message || '部屋に入れませんでした';
@@ -6339,7 +6407,9 @@
       '</div>';
     }).join('');
     var me = rt.me();
-    el('rtMyRoleToggle').classList.toggle('on', !!(me && me.role === 'bigscreen'));
+    // 第32弾-A-2：大画面は表示モード。人数から外れることを、押す前に伝える
+    el('rtToBigNote').textContent =
+      'TVやPCの画面に。大画面にしている間は、遊ぶ人数に数えません（いつでも戻せます）';
     // 第26弾-3：部屋はカセットに紐づかないので、何を遊ぶかは待合で決まる
     var host = rt.isHost();
     // 何を遊ぶかは部屋が持っている（端末ごとの selectedGameId ではなく、
@@ -6383,11 +6453,22 @@
     setPlayFlow('room');
     goTo('scr-shelf');
   });
-  el('rtMyRoleToggle').addEventListener('click', async function(){
-    var me = rt.me();
-    if(!me) return;
-    await rt.setRole(me.role === 'bigscreen' ? 'player' : 'bigscreen');
-  });
+  // 第32弾-A-2：大画面にする／プレイヤーに戻る。どちらもいつでも押せる。
+  // 以前は参加する時に一度だけ選ぶ「役割」だったので、選ぶと戻れなくなっていた
+  async function rtSetDisplayMode(big){
+    if(!rt || !rt.me()) return;
+    var res = await rt.setRole(big ? 'bigscreen' : 'player');
+    if(res && res.ok === false){
+      showFlash(res.message || '切り替えられませんでした', 'hit-wrong');
+      return;
+    }
+    // 返ってきた部屋を先に反映する。配信を待ってから画面を決めると、
+    // 押してから切り替わるまでに一拍空いて「押しても何も起きない」に見える
+    if(res && res.room) rt.state.room = res.room;
+    goTo(rtWantScreen());
+  }
+  el('rtToBigBtn').addEventListener('click', function(){ rtSetDisplayMode(true); });
+  el('bigToPlayerBtn').addEventListener('click', function(){ rtSetDisplayMode(false); });
   async function rtLeaveRoom(){
     await rt.leave();
     goBack('scr-shelf'); // 第26弾-2：部屋の入り口は棚に移った
@@ -7647,10 +7728,81 @@
     }).join('');
   }
 
+  // ===== 第32弾-A-2-4：みんなの状況 =====
+  // 大画面向けに作った公開情報は、大画面が無い部屋でも各自のスマホから見られるようにする。
+  // 大画面は「あれば便利」であって、無いと遊べないものにはしない。
+  //
+  // 出す中身は、公開情報（publicView）の players に入っている数字から作る。
+  // ゲームごとに専用の描き方を書くと、ゲームを足すたびに書き足すことになる（落とし穴4）。
+  // ここでは「名前が付いている項目だけを並べる」形にして、
+  // 新しいゲームでも名前・つながり具合は必ず出るようにしてある。
+  var RT_STATUS_LABELS = {
+    score: '点', chips: '枚', solved: '解除', lives: '❤️', livesMax: null,
+    misses: 'ミス', pct: '%', wins: '勝', items: '🎒', total: null
+  };
+  function rtStatusValsHtml(p){
+    return Object.keys(RT_STATUS_LABELS).filter(function(k){
+      return RT_STATUS_LABELS[k] && typeof p[k] === 'number';
+    }).map(function(k){
+      return p[k] + RT_STATUS_LABELS[k];
+    }).join('　');
+  }
+  function renderRtStatus(){
+    var v = rtView(), room = rt && rt.state.room;
+    var players = (v && v.players) || (room && (room.members || []).filter(function(m){
+      return m.role === 'player';
+    })) || [];
+    el('rtStatusNote').textContent = players.length
+      ? 'ここに出ているのは、みんなに公開されている情報だけです'
+      : 'まだ始まっていません';
+    el('rtStatusList').innerHTML = players.map(function(p){
+      var vals = rtStatusValsHtml(p);
+      return '<div class="rt-status-row' + (p.id === rt.state.memberId ? ' me' : '') +
+        (p.connected === false ? ' off' : '') + '">' +
+        '<span>' + escapeHtml(p.name) + (p.connected === false ? '（切断中）' : '') + '</span>' +
+        '<span class="rt-status-vals">' + vals + '</span></div>';
+    }).join('');
+  }
+  function openRtStatus(){
+    renderRtStatus();
+    el('rtStatusOverlay').classList.add('show');
+  }
+  el('floatingStatusBtn').addEventListener('click', openRtStatus);
+  el('closeRtStatusBtn').addEventListener('click', function(){
+    el('rtStatusOverlay').classList.remove('show');
+  });
+  el('rtStatusOverlay').addEventListener('click', function(e){
+    if(e.target === this) this.classList.remove('show');
+  });
+
+  // 第32弾-A-2：大画面にしても、進行役は管理を続けられる。
+  // 以前はホストが大画面を選ぶと、ゲーム選択も部屋の管理もできなくなって詰んでいた。
+  // 出す・出さないの条件は待合（renderRtRoom）と同じものを使う
+  function renderBigTools(){
+    var room = rt && rt.state.room;
+    if(!room) return;
+    var host = rt.isHost();
+    var picked = (room.state && room.state.game) || null;
+    var supported = !!RT_GAME_SCREENS[picked];
+    var started = !!(room.state && room.state.phase && room.state.phase !== 'lobby');
+    var need = modeMinPlayers(modeById(state.selectedModeId));
+    var enough = room.playerCount >= need;
+    el('bigPickGameBtn').style.display = (host && !started) ? '' : 'none';
+    el('bigPickGameBtn').textContent = picked ? '🎮 ゲームをえらびなおす' : '🎮 ゲームをえらぶ';
+    el('bigStartBtn').style.display = (host && !started) ? '' : 'none';
+    el('bigStartBtn').disabled = !(host && enough && picked && supported);
+    el('bigEndBtn').style.display = host ? '' : 'none';
+  }
+  // 管理の中身は待合のボタンと同じものを呼ぶ（2つ書くと、片方だけ直す事故になる）
+  el('bigPickGameBtn').addEventListener('click', function(){ el('rtPickGameBtn').click(); });
+  el('bigStartBtn').addEventListener('click', function(){ el('rtStartBtn').click(); });
+  el('bigEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
+
   function renderRtBig(){
     var v = rtView();
     var room = rt && rt.state.room;
     if(!room) return;
+    renderBigTools();
     if(!v || !v.phase || v.phase === 'lobby'){
       el('bigTurn').textContent = '';
       el('bigBoard').style.display = 'none';

@@ -1947,6 +1947,77 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     }
   });
 
+  // ---- 第32弾-A 第4部：称号が1人1台でも数えられるか ----
+
+  // 称号は /api/titles に預ける形なので、預けにきた中身を見て確かめる（ハーネスが記録している）
+  function titlePuts(win) { return win.__titlePuts || []; }
+  function endedWolfRoom() {
+    return roomSnapshot({
+      state: { phase: 'ended', game: 'wolfrole', data: wolfView({
+        phase: 'ended', turn: 3,
+        result: { winner: 'village', roles: [{ id: 'm2', name: 'びび', team: 'village', role: 'villager', alive: true }] }
+      }) }
+    });
+  }
+  function endedWolfYou(achievements) {
+    return {
+      phase: 'ended', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [], achievements: achievements
+    };
+  }
+
+  await r.test('部屋で遊んだぶんも称号に数え、同じ試合で二重には数えない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const sent = titlePuts(win);
+
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou({ plays: 1, wins: 1 }));
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    await waitFor(win, () => sent.length >= 1, 3000, '称号を記録しにいく');
+    assertEqual(sent[0].stats.jinro.plays, 1, '遊んだ回数が1つ入る');
+
+    // 同じ決着を何度描き直しても、増えない
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou({ plays: 1, wins: 1 }));
+    await sleep(win, 200);
+    assertEqual(sent.length, 1, '同じ試合では二重に数えない');
+    assertNoErrors(errors, '称号の記録で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('同じ部屋で2回目を遊んでも、称号がちゃんと数えられる', async () => {
+    // 第32弾-A 第4部で見つけた不具合：
+    // 二重に数えない印を「部屋コード＋ターン数」で作っていたので、
+    // 同じ部屋で2回目を遊んで、同じターン数で決着すると
+    // 1回目と同じ印になり、2回目が数えられていなかった
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const sent = titlePuts(win);
+
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou({ plays: 1 }));
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    await waitFor(win, () => sent.length >= 1, 3000, '1回目が数えられる');
+
+    // 部屋はそのままで、もう一度あそぶ
+    push(fake, roomSnapshot({
+      state: { phase: 'roleReveal', game: 'wolfrole', data: wolfView({ phase: 'roleReveal', turn: 1 }) }
+    }));
+    pushYou(fake, {
+      phase: 'roleReveal', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: false, choices: []
+    });
+    await sleep(win, 150);
+
+    // 2回目。ターン数まで1回目と同じ
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou({ plays: 1 }));
+    await waitFor(win, () => sent.length >= 2, 3000, '2回目もちゃんと数えられる');
+    assertNoErrors(errors, '2回目の称号で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('つなぎ直して部屋が無くなっていたら、固まらずに理由が出て棚にもどる', async () => {
     // サーバーが再起動した（メモリ上の部屋は消える仕様）か、
     // 誰も繋がっていない時間が続いて部屋が片付けられたか。

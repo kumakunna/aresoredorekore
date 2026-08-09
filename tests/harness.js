@@ -18,7 +18,7 @@ const HOLD_MS_TEST = 60;
 
 // ---------- 疑似サーバー ----------
 // 本物のサーバーを立てずに /api/* を返す。失敗させたい時は opts で切り替える。
-function makeApi(opts) {
+function makeApi(opts, titlePuts) {
   opts = opts || {};
   const topics = ['傘', '習字道具', '自動販売機', 'ヘリコプター', '目覚まし時計',
     '冷蔵庫', 'ペンギン', '遊園地', '信号機', 'ズッキーニ', 'パトカー', 'スマートフォン']
@@ -83,6 +83,9 @@ function makeApi(opts) {
     // 第26弾-4：称号。本番のサーバーと同じく「持ち物は減らさない」ように預かる
     if (p === '/api/titles') {
       if (opts.loggedOut) return json(401, { error: '未ログイン' });
+      // 第32弾-A 第4部：称号を「いつ・何回」預けにきたかを、テストから見られるようにする。
+      // 二重に数えていないか／2回目がちゃんと数えられているかは、ここでしか分からない
+      if ((init.method || 'GET') === 'PUT') titlePuts.push(body);
       if ((init.method || 'GET') === 'PUT') {
         const stats = TitleLogic.normalizeStats(body.stats);
         Object.keys(stats).forEach((cas) => {
@@ -194,7 +197,9 @@ async function launch(opts) {
   win.console.error = function (...a) { errors.push('console.error: ' + a.join(' ')); origConsoleError.apply(this, a); };
 
   // --- jsdom に無いブラウザ機能を埋める ---
-  win.fetch = makeApi(opts);
+  const titlePuts = [];
+  win.fetch = makeApi(opts, titlePuts);
+  win.__titlePuts = titlePuts; // 第32弾-A 第4部：称号を預けにきた回数と中身
   win.HTMLElement.prototype.scrollIntoView = function () {};
   win.speechSynthesis = { speak() {}, cancel() {} };
   win.SpeechSynthesisUtterance = function () {};

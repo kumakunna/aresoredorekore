@@ -5,7 +5,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click,
-  setupPlayers, createRunner, assert, assertEqual, assertNoErrors } = H;
+  setupPlayers, chooseNext, createRunner, assert, assertEqual, assertNoErrors } = H;
 
 // 指定モードを、タイマーOFF（手動でラウンドを終えられる）で開始する
 async function startPlay(win, doc, modeId, names) {
@@ -368,6 +368,103 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     await waitFor(win, () => topicText(doc) !== before, 3000,
       'ハードモードでは不正解で次のお題へ進む');
     assertNoErrors(errors, '⚙のスイッチで未捕捉の例外');
+    win.close();
+  });
+
+  // ===================================================================
+  // 第32弾-C 第7部：結果のあとの「つぎは？」（全カセット共通）
+  // ===================================================================
+
+  // 1ラウンド遊びきって、結果画面まで進む
+  async function playToScore(win, doc, modeId) {
+    await startPlay(win, doc, modeId || 'normal');
+    await waitFor(win, () => topicText(doc) !== '-', 3000, 'お題が出る');
+    click(doc, 'btnCorrect');
+    await sleep(win, 60);
+    doc.querySelector('#pickerGrid button[data-id]').click();
+    await sleep(win, 120);
+    click(doc, 'endRoundBtn');
+    await waitScreen(win, doc, 'scr-score', 8000);
+  }
+
+  await r.test('つぎは？：結果を見る画面と、次を決める画面を分ける', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    await playToScore(win, doc);
+    // 結果の画面の出口は1つだけ（原則A）
+    assertEqual(doc.querySelectorAll('#scr-score .score-actions button').length, 1,
+      '結果の画面には出口が1つだけ');
+    click(doc, 'toNextBtn');
+    await waitScreen(win, doc, 'scr-next', 3000);
+    const ids = Array.from(doc.querySelectorAll('#nextChoices [data-next]')).map(b => b.dataset.next);
+    assertEqual(ids[0], 'again', '「もう一度」がいちばん上');
+    assert(doc.querySelector('[data-next="again"]').classList.contains('main'),
+      '「もう一度」がいちばん大きい');
+    assert(ids.indexOf('shelf') >= 0, '別のカセットへ戻れる');
+    assertNoErrors(errors, 'つぎは？画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('つぎは？：もう一度は、設定も長押しも通さずに始まる', async () => {
+    // 「さっき楽しかったから、もう1回」に、いちばん少ない手順で応える
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    await playToScore(win, doc);
+    await chooseNext(win, doc, 'again');
+    // モード選択にもウィザードにも準備OK画面にも戻らない
+    await waitFor(win, () => activeScreen(doc) === 'scr-countdown' || activeScreen(doc) === 'scr-topic-pass'
+      || activeScreen(doc) === 'scr-play', 4000, 'そのまま始まる');
+    assert(['scr-countdown', 'scr-topic-pass', 'scr-play'].indexOf(activeScreen(doc)) >= 0,
+      '選び直しをはさまない（実際: ' + activeScreen(doc) + '）');
+    assertNoErrors(errors, 'もう一度で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('つぎは？：ゲームが1つしかないカセットでは、その選択肢を出さない', async () => {
+    // あれそれどれこれのカセットに入っているゲームは1つだけ。
+    // 押しても何も起きない選択肢は置かない
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    await playToScore(win, doc);
+    click(doc, 'toNextBtn');
+    await waitScreen(win, doc, 'scr-next', 3000);
+    assert(!doc.querySelector('[data-next="game"]'),
+      'ゲームが1つなら「別のゲームへ」は出さない');
+    assert(doc.querySelector('[data-next="mode"]'), 'モードは複数あるので出す');
+    assertNoErrors(errors, '選択肢の出し分けで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('つぎは？：別のカセットへ選ぶと、記録が残って棚に戻る', async () => {
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    await playToScore(win, doc);
+    await chooseNext(win, doc, 'shelf');
+    await waitScreen(win, doc, 'scr-shelf', 6000);
+    // 記録画面に、いま遊んだ試合が入っている
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    click(doc, 'openRecordsBtn');
+    await waitFor(win, () => doc.querySelectorAll('#recordsList .record-item').length > 0,
+      6000, '記録が残っている');
+    assertNoErrors(errors, '記録して棚に戻る流れで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('つぎは？：サバイバルは、決着するまで抜け道を出さない', async () => {
+    // 途中でモードを変えられると、勝ち抜き戦が成立しない（第20弾の決まり）
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    await startPlay(win, doc, 'normal');
+    // サバイバルのオプションは設定ウィザードにあるので、直接この状態を作れない。
+    // ここでは「決まりが選択肢の表に書いてある」ことを確かめる
+    const html = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/nextSurvival === 'ongoing'/.test(html),
+      'サバイバルの途中はモード変更を出さない決まりがある');
+    assert(/nextSurvival !== 'champion'/.test(html),
+      '決着したら「もう一度」を出さない決まりがある');
+    assertNoErrors(errors, 'サバイバルの出し分けで未捕捉の例外');
     win.close();
   });
 

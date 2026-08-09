@@ -710,7 +710,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     pushYou(fake, { phase: 'ended', roleId: 'villager', roleName: '村人', roleDesc: '', alive: true, done: true, choices: [] });
     await waitScreen(win, doc, 'scr-rt-play', 4000);
 
+    // 第32弾-C-7：出口は共通の「つぎは？」画面に一本化した
     click(doc, 'rtAgainBtn');
+    await waitScreen(win, doc, 'scr-next', 4000);
+    doc.querySelector('#nextChoices [data-next="shelf"]').click();
     await waitScreen(win, doc, 'scr-shelf', 4000);
     // 部屋を閉じてはいない（room:close を送っていない）
     const sent = fake.emits.map(e => e.name);
@@ -867,7 +870,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(activeScreen(doc), 'scr-rt-play', '自分の端末は進行画面のまま');
     assert(el(doc, 'rtPlayLeaveBtn').style.display !== 'none', '部屋を出るボタンが出る');
     // 第26弾-3：遊び終わっても部屋は解散しない。次を選ぶ道が先に来る
-    assert(el(doc, 'rtAgainBtn').style.display !== 'none', 'ホストには「べつのゲームをえらぶ」が出る');
+    assert(el(doc, 'rtAgainBtn').style.display !== 'none', 'ホストには「つぎは？」が出る');
+    assert(!el(doc, 'rtAgainBtn').disabled, '進行役は押せる');
     assert(el(doc, 'rtEndBtn').style.display !== 'none', 'ホストには「部屋を閉じる」も出る');
     assert(/そのまま残ります/.test(el(doc, 'rtWaitNote').textContent), '部屋が残ることを伝える');
     assertNoErrors(errors, '決着後の画面で未捕捉の例外');
@@ -888,6 +892,14 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 150);
     assertEqual(el(doc, 'rtEndBtn').style.display, 'none', 'ホスト以外に終了ボタンは出さない');
     assert(el(doc, 'rtPlayLeaveBtn').style.display !== 'none', '自分で抜けることはできる');
+    // 第32弾-C-7：押せないボタンを黙って置くと、固まっているのか
+    // 待たされているのか分からない。「待っている」と分かる形で出す
+    const nextBtn = el(doc, 'rtAgainBtn');
+    assert(nextBtn.style.display !== 'none', '参加者にも同じ場所に出る');
+    assert(nextBtn.disabled, '参加者は押せない');
+    assert(/進行役/.test(nextBtn.textContent),
+      '進行役が選んでいると分かる（実際: ' + nextBtn.textContent + '）');
+    assert(nextBtn.classList.contains('fx-alive'), '止まっていないことが分かる');
     assertNoErrors(errors, '参加者側の決着画面で未捕捉の例外');
     win.close();
   });

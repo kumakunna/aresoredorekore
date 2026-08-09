@@ -5,7 +5,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  setupPlayers, pickGame, createRunner, assert, assertEqual, assertNoErrors } = H;
+  setupPlayers, pickGame, createRunner, assert, assertEqual, assertNoErrors, chooseNext } = H;
 
 function cart(doc, id) { return doc.querySelector('.cart[data-cart="' + id + '"]'); }
 function cartIds(rail) { return Array.from(rail.querySelectorAll('.cart')).map(c => c.dataset.cart); }
@@ -938,7 +938,7 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-score', 8000);
 
     // 称号の画面で、参加証が持ち物に入っている
-    click(doc, 'chooseModeBtn');
+    await chooseNext(win, doc, 'mode');
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, 'backToShelfBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
@@ -990,7 +990,7 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-score', 8000);
 
     const stats = win.eval('JSON.stringify(0)') && null; // 内部は見ないで、画面から確かめる
-    click(doc, 'chooseModeBtn');
+    await chooseNext(win, doc, 'mode');
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, 'backToShelfBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
@@ -1030,7 +1030,7 @@ function pickCart(doc, id) {
     click(doc, 'endRoundBtn');
     await waitScreen(win, doc, 'scr-score', 8000);
 
-    click(doc, 'chooseModeBtn');
+    await chooseNext(win, doc, 'mode');
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, 'backToShelfBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);

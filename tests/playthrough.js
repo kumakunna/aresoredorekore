@@ -8,7 +8,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, pickGame,
-  holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors } = H;
+  holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext } = H;
 
 // 本番のカセット構成のまま到達できるモード（棚に出ているもの）
 const ARESORE_MODES = ['normal', 'seal', 'outstrict', 'oneword', 'ai', 'survival'];
@@ -434,7 +434,7 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
     assert(await playWolfRoleToEnd(win, doc), '1回目が決着する');
 
     // スコア画面から、もう一度同じカセットへ
-    click(doc, 'finishMatchBtn');
+    await chooseNext(win, doc, 'shelf');
     await waitScreen(win, doc, 'scr-shelf', 6000);
     await toModeScreen(win, doc, 'jinro', 'wolfrole', names(7));
     await startMode(win, doc, 'wolf-normal', { noTimer: true });

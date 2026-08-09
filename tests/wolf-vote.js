@@ -17,7 +17,8 @@ const WolfRoom = require('../wolf-room.js');
 const WordwolfRoom = require('../wordwolf-room.js');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
-  launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame, holdPress
+  launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame, holdPress,
+  chooseNext
 } = require('./harness');
 
 // 「誰が誰に入れたか」の形に組み立てる。['A','A','B'] → 3人がそれぞれ A,A,B に入れた
@@ -540,7 +541,7 @@ function votesFrom(list) {
     // 「記録して終わりますか？」→はい、「つぎはプレイヤーを変更しますか？」→いいえ
     let asked = 0;
     win.confirm = (msg) => { asked++; return /記録して終わり/.test(msg); };
-    click(doc, 'finishMatchBtn');
+    await chooseNext(win, doc, 'shelf');
     await sleep(win, 200);
     assert(asked >= 1, '終了の確認が出る');
     await waitScreen(win, doc, 'scr-shelf', 8000);
@@ -1368,11 +1369,13 @@ function votesFrom(list) {
     // 称号の画面で確かめる
     click(doc, 'wolfResultNextBtn');
     await sleep(win, 200);
+    // 第32弾-C-7：結果のあとは共通の「つぎは？」画面。
+    // ここでは記録を残さずに棚まで戻りたいので、モード選択を経由する
+    if (activeScreen(doc) === 'scr-score') await chooseNext(win, doc, 'mode');
     let guard = 0;
     while (activeScreen(doc) !== 'scr-shelf' && guard++ < 10) {
       const cur = activeScreen(doc);
       let btn = doc.querySelector('#' + cur + ' [data-go-shelf]')
-        || (cur === 'scr-score' ? doc.getElementById('chooseModeBtn') : null)
         || (cur === 'scr-mode' ? doc.getElementById('backToShelfBtn') : null);
       if (!btn) break;
       btn.click();

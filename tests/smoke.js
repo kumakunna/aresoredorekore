@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors } = H;
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -1276,7 +1276,7 @@ async function startModeWithTimerOff(win, doc, id) {
       await sleep(win, 60);
     }
     await waitScreen(win, doc, 'scr-score', 8000);
-    click(doc, 'finishMatchBtn');
+    await chooseNext(win, doc, 'shelf');
     await waitScreen(win, doc, 'scr-shelf', 6000);
 
     // 記録画面を開く
@@ -2643,7 +2643,7 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(eliminatedInSurvival > 0, 'サバイバルで少なくとも1人が脱落している');
 
     // 通常プレイに切り替えて、1ラウンド遊んでスコア画面を見る
-    click(doc, 'finishMatchBtn');
+    await chooseNext(win, doc, 'shelf');
     await waitScreen(win, doc, 'scr-shelf', 4000);
     await startModeWithTimerOff(win, doc, 'normal');
     await waitScreen(win, doc, 'scr-play', 6000);

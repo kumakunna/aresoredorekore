@@ -371,6 +371,37 @@
   .p-score{font-family:'DotGothic16', monospace;font-size:24px;color:var(--stamp-deep);min-width:34px;text-align:right;}
   .score-actions{display:flex;flex-direction:column;gap:10px;margin-top:auto;}
 
+  /* ---------- 第32弾-C-7：つぎは？（全カセット共通） ---------- */
+  #scr-next{justify-content:center;}
+  .next-choices{display:flex;flex-direction:column;gap:10px;margin-top:18px;}
+  .next-card{
+    display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;cursor:pointer;color:var(--ink);
+    font-family:'Zen Maru Gothic',sans-serif;
+    box-shadow:0 3px 10px rgba(0,0,0,.10);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .next-card:active{transform:scale(.985);}
+  /* 「もう一度」がいちばん自然な欲求。いちばん大きく、いちばん押しやすい所に置く */
+  .next-card.main{
+    background:var(--teal);border-color:var(--teal);color:#fff;
+    padding:22px 18px;box-shadow:0 8px 20px rgba(31,122,106,.28);
+  }
+  .next-icon{font-size:26px;line-height:1;flex:none;}
+  .next-card.main .next-icon{font-size:34px;}
+  .next-text{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .next-text b{font-size:16px;font-weight:800;}
+  .next-card.main .next-text b{font-size:21px;}
+  .next-text span{font-size:11.5px;opacity:.75;line-height:1.5;}
+  /* 直前の結果発表の余韻を少し残す。
+     急に無音・無演出の画面へ切り替えると、テンションがそこで切れる */
+  .next-afterglow{animation:nextGlow calc(1.1s * var(--fx-scale)) ease-out;}
+  @keyframes nextGlow{
+    from{box-shadow:inset 0 0 90px 20px rgba(240,196,74,.35);}
+    to{box-shadow:inset 0 0 0 0 rgba(240,196,74,0);}
+  }
+
   /* ---------- stamp / flash fx (shared) ---------- */
   .stamp-fx{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0) rotate(-18deg);width:150px;height:150px;pointer-events:none;z-index:80;opacity:0;}
   .flash-overlay{position:fixed;inset:0;background:var(--stamp);opacity:0;pointer-events:none;z-index:81;}
@@ -2776,7 +2807,7 @@
       <button class="btn btn-main" id="rtNextBtn" style="display:none;margin-top:14px;">つぎへ ▶</button>
       <!-- 第24弾-3-4：決着したあとの行き先。以前はここに何も無く、動けなくなっていた -->
       <!-- 第26弾-3：遊び終わっても部屋は解散しない。別のゲームを選び直せる -->
-      <button class="btn btn-main" id="rtAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
+      <button class="btn btn-main" id="rtAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="rtEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="rtPlayLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
@@ -2799,7 +2830,7 @@
       </div>
       <div id="rtBombBoard"></div>
       <div id="rtBombResult"></div>
-      <button class="btn btn-main" id="rtBombAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
+      <button class="btn btn-main" id="rtBombAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="rtBombEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="rtBombLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
@@ -2828,7 +2859,7 @@
       <div id="dfResultBox"></div>
       <!-- 第28弾-3：説明はいつでも何度でも見返せる -->
       <button class="btn btn-ghost" id="dfHelpBtn" style="display:none;margin-top:14px;">📘 モジュールの説明を見る</button>
-      <button class="btn btn-main" id="dfAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
+      <button class="btn btn-main" id="dfAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="dfEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="dfLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
@@ -2847,7 +2878,7 @@
       <div class="rt-public" id="qzNote"></div>
       <div id="qzBody"></div>
       <div id="qzResult"></div>
-      <button class="btn btn-main" id="qzAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
+      <button class="btn btn-main" id="qzAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="qzEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="qzLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
@@ -2865,7 +2896,7 @@
       <div class="rt-public" id="auNote"></div>
       <div id="auBody"></div>
       <div id="auResult"></div>
-      <button class="btn btn-main" id="auAgainBtn" style="display:none;margin-top:14px;">🎮 べつのゲームをえらぶ</button>
+      <button class="btn btn-main" id="auAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="auEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="auLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
@@ -3354,13 +3385,24 @@
   <!-- 9: score -->
   <div class="screen" id="scr-score">
     <h2 class="scr-title">スコア</h2>
-    <p class="scr-sub">つぎのアクションをえらんでね</p>
+    <p class="scr-sub" id="scoreSub">みんなの結果</p>
     <div class="score-list" id="scoreList"></div>
     <div class="score-actions">
-      <button class="btn btn-main" id="playAgainBtn">🔁 もう一度</button>
-      <button class="btn btn-outline" id="chooseModeBtn">🎛 モードをえらびなおす</button>
-      <button class="btn btn-ghost" id="finishMatchBtn">🏁 記録して、つぎのゲームへ</button>
+      <!-- 第32弾-C-7：出口は「つぎは？」画面に一本化した。
+           結果を見る画面と、次を決める画面を分ける（原則A） -->
+      <button class="btn btn-main" id="toNextBtn">つぎは？ ▶</button>
     </div>
+  </div>
+
+  <!-- 9.5: つぎは？（第32弾-C 第7部・全カセット共通）
+       1試合終わるたびに棚まで戻ってカセット→ゲーム→モードを選び直していた。
+       盛り上がった直後に何段階も選ばせると、せっかくの熱が冷める。
+       「さっき楽しかったから、もう1回」に、いちばん少ない手順で応える。 -->
+  <div class="screen" id="scr-next">
+    <h2 class="scr-title">つぎは？</h2>
+    <p class="scr-sub" id="nextSub">えらんでね</p>
+    <div class="mic-status" id="nextWaitNote" style="display:none;text-align:center;margin-top:24px;"></div>
+    <div class="next-choices" id="nextChoices"></div>
   </div>
 
   <svg class="stamp-fx" id="stampFx" viewBox="0 0 200 200">
@@ -6003,6 +6045,7 @@
     if(id === 'scr-wolf-result') enterWolfResult();
     if(id === 'scr-reveal') enterReveal();
     if(id === 'scr-score') enterScore();
+    if(id === 'scr-next') enterNext();
   }
 
   // ===================== 1. splash =====================
@@ -7473,12 +7516,28 @@
   el('rtPlayLeaveBtn').addEventListener('click', rtLeaveRoom);
   // 第26弾-3：遊び終わったら、部屋を残したまま次のゲームを選びに行く。
   // ここで前のゲームの進行状態はサーバー側が捨てる（端末に残さない）
-  el('rtAgainBtn').addEventListener('click', async function(){
-    this.disabled = true;
-    var res = await rt.pickGame(null, { reset: true });
-    this.disabled = false;
-    if(!res.ok){ el('rtWaitNote').textContent = res.message || 'えらび直せませんでした'; return; }
-    goTo('scr-shelf');
+  /**
+   * 第32弾-C-7：決着したあとの「つぎは？」ボタン。
+   *
+   * 部屋の画面は5つ（人狼・爆弾・実物・クイズ・オークション）あって、
+   * それぞれが同じボタンを別々に持っていた。5か所に同じ文言があると、
+   * 1か所だけ直して食い違う。出し方をここ1つにまとめる。
+   *
+   * 進行役以外にも「待っている」ことが伝わる形で出す（原則D・第7部）。
+   * 押せないボタンを黙って置くと、固まっているのか待たされているのか分からない。
+   */
+  function rtNextButton(btnId, ended, host){
+    var b = el(btnId);
+    if(!b) return;
+    b.style.display = ended ? 'inline-flex' : 'none';
+    b.disabled = !host;
+    b.textContent = host ? 'つぎは？ ▶' : '進行役が つぎを選んでいます…';
+    if(typeof FxKit !== 'undefined') FxKit.alive(b, ended && !host);
+  }
+  // 5つのボタンは、どれも同じ「つぎは？」画面へ行く
+  ['rtAgainBtn','rtBombAgainBtn','dfAgainBtn','qzAgainBtn','auAgainBtn'].forEach(function(id){
+    var b = el(id);
+    if(b) b.addEventListener('click', function(){ if(!this.disabled) goTo('scr-next'); });
   });
   // 第24弾-3-5：ホストの終了を、部屋にいる全員に反映する
   el('rtEndBtn').addEventListener('click', async function(){
@@ -7895,13 +7954,11 @@
       el('rtYouBox').innerHTML = you ? rtYouHtml(v, you)
         : '<div class="ry-desc">この端末は観戦していました</div>';
       el('rtPlayLeaveBtn').style.display = 'inline-flex';
-      if(rt.isHost()){
-        el('rtAgainBtn').style.display = 'inline-flex';
-        el('rtEndBtn').style.display = 'inline-flex';
-        el('rtWaitNote').textContent = 'べつのゲームを選んでも、この部屋とみんなはそのまま残ります';
-      } else {
-        el('rtWaitNote').textContent = '進行役がつぎを選ぶまで、結果を見ていられます';
-      }
+      rtNextButton('rtAgainBtn', true, rt.isHost());
+      el('rtEndBtn').style.display = rt.isHost() ? 'inline-flex' : 'none';
+      el('rtWaitNote').textContent = rt.isHost()
+        ? 'べつのあそびを選んでも、この部屋とみんなはそのまま残ります'
+        : '進行役がつぎを選ぶまで、結果を見ていられます';
       return;
     }
 
@@ -8181,7 +8238,7 @@
   function qzEndButtons(ended){
     el('qzLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
     var host = ended && rt.isHost();
-    el('qzAgainBtn').style.display = host ? 'inline-flex' : 'none';
+    rtNextButton('qzAgainBtn', ended, host);
     el('qzEndBtn').style.display = host ? 'inline-flex' : 'none';
   }
   var QZ_PHASE_LABEL = { play:'挑戦中', break:'ラウンドの結果', ended:'結果' };
@@ -8484,7 +8541,6 @@
     if(res && !res.ok) showFlash('いまは答えられません', 'hit-wrong');
   }
   el('qzLeaveBtn').addEventListener('click', rtLeaveRoom);
-  el('qzAgainBtn').addEventListener('click', function(){ el('rtAgainBtn').click(); });
   el('qzEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
   // 大画面。公開情報だけを大きく出す（正解の位置も、まだ見えていない文字も来ない）
@@ -8563,7 +8619,7 @@
   function auEndButtons(ended){
     el('auLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
     var host = ended && rt.isHost();
-    el('auAgainBtn').style.display = host ? 'inline-flex' : 'none';
+    rtNextButton('auAgainBtn', ended, host);
     el('auEndBtn').style.display = host ? 'inline-flex' : 'none';
   }
   var AU_PHASE_LABEL = { show:'品物をみる', bid:'入札', result:'結果', ended:'決着' };
@@ -8795,7 +8851,6 @@
     }
   });
   el('auLeaveBtn').addEventListener('click', rtLeaveRoom);
-  el('auAgainBtn').addEventListener('click', function(){ el('rtAgainBtn').click(); });
   el('auEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
   // 大画面。品物の正体は、落札が決まるまで出さない
@@ -9364,7 +9419,7 @@
   function rtBombEndButtons(ended){
     el('rtBombLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
     var host = ended && rt.isHost();
-    el('rtBombAgainBtn').style.display = host ? 'inline-flex' : 'none';
+    rtNextButton('rtBombAgainBtn', ended, host);
     el('rtBombEndBtn').style.display = host ? 'inline-flex' : 'none';
   }
 
@@ -9403,13 +9458,6 @@
     await rt.act(null);
   });
   el('rtBombLeaveBtn').addEventListener('click', rtLeaveRoom);
-  el('rtBombAgainBtn').addEventListener('click', async function(){
-    this.disabled = true;
-    var res = await rt.pickGame(null, { reset: true });
-    this.disabled = false;
-    if(!res.ok){ el('rtBombNote').textContent = res.message || 'えらび直せませんでした'; return; }
-    goTo('scr-shelf');
-  });
   el('rtBombEndBtn').addEventListener('click', async function(){
     if(!confirm('部屋を閉じますか？（部屋にいる全員が終わります）')) return;
     this.disabled = true;
@@ -9889,7 +9937,7 @@
   function dfEndButtons(ended){
     el('dfLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
     var host = ended && rt.isHost();
-    el('dfAgainBtn').style.display = host ? 'inline-flex' : 'none';
+    rtNextButton('dfAgainBtn', ended, host);
     el('dfEndBtn').style.display = host ? 'inline-flex' : 'none';
   }
   function dfFeedback(you){
@@ -9933,13 +9981,6 @@
   }
 
   el('dfLeaveBtn').addEventListener('click', rtLeaveRoom);
-  el('dfAgainBtn').addEventListener('click', async function(){
-    this.disabled = true;
-    var res = await rt.pickGame(null, { reset: true });
-    this.disabled = false;
-    if(!res.ok){ el('dfNote').textContent = res.message || 'えらび直せませんでした'; return; }
-    goTo('scr-shelf');
-  });
   el('dfEndBtn').addEventListener('click', async function(){
     if(!confirm('部屋を閉じますか？（部屋にいる全員が終わります）')) return;
     this.disabled = true;
@@ -13742,11 +13783,12 @@
     var active = state.players.filter(function(p){ return !p.eliminated; });
     var champion = (optSurvival() && active.length <= 1);
     var survivalOngoing = (optSurvival() && active.length > 1); // ①：まだ優勝が決まっていない
-    // サバイバルは決着前に「モードをえらびなおす」で離脱できないようにする。
-    // 「もう一度（つぎのラウンド）」と「終了して記録」は途中でも押せる。
-    el('playAgainBtn').style.display = champion ? 'none' : 'inline-flex';
-    el('chooseModeBtn').style.display = (champion || survivalOngoing) ? 'none' : 'inline-flex';
-    el('playAgainBtn').textContent = optSurvival() ? '▶️ つぎのラウンドへ' : '🔁 もう一度';
+    // 第32弾-C-7：出口は「つぎは？」画面に一本化した。
+    // サバイバルは決着前に抜けられない、という決まりはそのまま
+    // （どの選択肢を出すかは、つぎは？側の nextSurvivalState が見る）
+    play.nextSurvival = champion ? 'champion' : (survivalOngoing ? 'ongoing' : null);
+    el('scoreSub').textContent = survivalOngoing
+      ? 'まだ決着していません' : 'みんなの結果';
     if(champion){
       el('scoreList').insertAdjacentHTML('afterbegin',
         '<div class="wolf-result-topic">🏆 <b>' + escapeHtml(active[0] ? active[0].name : '?') + '</b> の優勝です！</div>');
@@ -13765,16 +13807,113 @@
       FxKit.stagger(el('scoreList').children, 160);
     }
   }
-  el('playAgainBtn').addEventListener('click', function(){ goTo('scr-ready'); });
-  el('chooseModeBtn').addEventListener('click', function(){ goBack('scr-mode'); });
-  el('finishMatchBtn').addEventListener('click', async function(){
-    if(!confirm('いまのゲームを記録して終わりますか？（プレイヤーはそのまま、つぎのゲームを選べます）')) return;
+  el('toNextBtn').addEventListener('click', function(){ goTo('scr-next'); });
+
+  // ===================== 9.5 つぎは？（第32弾-C 第7部） =====================
+  /**
+   * 全カセット共通の出口。
+   *
+   * それまでは、1試合終わるたびに棚まで戻って
+   * カセット→ゲーム→モードを選び直す必要があった。
+   * 盛り上がった直後に何段階も選ばせると、せっかくの熱が冷める。
+   *
+   * 選択肢の並びと文言は、この表1つだけが持つ。
+   * 手渡しと部屋で別々に書くと、片方だけ直して食い違う（今日何度も踏んだ形）。
+   * 上から順に「いちばんやりたいこと」の順に並べてある。
+   */
+  var NEXT_CHOICES = [
+    { id:'again', icon:'🔁', label:'もう一度', sub:'さっきと同じ設定でそのまま', main:true,
+      // サバイバルは決着したら、そのまま次のラウンドには進めない
+      when:function(){ return play.nextSurvival !== 'champion'; } },
+    { id:'mode',  icon:'🎛', label:'モードを変える', sub:'同じゲームの中で選び直す',
+      when:function(){
+        // サバイバルの途中で抜けられてしまうと、勝負が成立しない（第20弾の決まり）
+        if(play.nextSurvival === 'ongoing') return false;
+        return modesForGame(currentGameId()).length > 1;
+      } },
+    { id:'game',  icon:'🎮', label:'別のゲームへ', sub:'このカセットの中の別のゲーム',
+      when:function(){
+        var c = cassetteById(state.selectedCassetteId);
+        return cassetteGames(c).length > 1;
+      } },
+    { id:'shelf', icon:'📚', label:'別のカセットへ', sub:'棚にもどる' }
+  ];
+  function nextChoicesHtml(){
+    // サバイバルは「ラウンドを重ねて1人になるまで」なので、言葉だけ合わせる
+    var survival = (play.nextSurvival === 'ongoing');
+    return NEXT_CHOICES.filter(function(c){ return !c.when || c.when(); }).map(function(c){
+      var label = (c.id === 'again' && survival) ? 'つぎのラウンドへ' : c.label;
+      var sub = (c.id === 'again' && survival) ? 'まだ決着していません' : c.sub;
+      return '<button class="next-card' + (c.main ? ' main' : '') + '" data-next="' + c.id + '">' +
+        '<span class="next-icon">' + c.icon + '</span>' +
+        '<span class="next-text"><b>' + escapeHtml(label) + '</b>' +
+          '<span>' + escapeHtml(sub) + '</span></span></button>';
+    }).join('');
+  }
+  function enterNext(){
+    var room = rt && rt.state && rt.state.room;
+    var host = !room || rt.isHost();
+    el('nextChoices').innerHTML = host ? nextChoicesHtml() : '';
+    el('nextChoices').style.display = host ? '' : 'none';
+    // 部屋では、次を決めるのは進行役ひとり。
+    // 他の人には「何も起きていない」ではなく「待っている」と分かる形で出す（原則D）
+    var wait = el('nextWaitNote');
+    wait.style.display = host ? 'none' : 'block';
+    wait.textContent = '進行役が、つぎのあそびを選んでいます…';
+    if(typeof FxKit !== 'undefined') FxKit.alive(wait, !host);
+    el('nextSub').textContent = host ? 'えらんでね' : 'すこし待ってね';
+    // 直前の結果発表の余韻を少しだけ残す。
+    // 急に無音・無演出の画面へ切り替えると、テンションがそこで切れる
+    var scr = el('scr-next');
+    scr.classList.remove('next-afterglow');
+    void scr.offsetWidth;
+    scr.classList.add('next-afterglow');
+  }
+  el('nextChoices').addEventListener('click', function(e){
+    var b = e.target.closest('[data-next]');
+    if(!b) return;
+    doNextChoice(b.dataset.next);
+  });
+  /**
+   * 選んだあとの動き。手渡しと部屋で行き先が違うのはここだけ。
+   * 「もう一度」は、設定も長押しも通さずに、そのまま数え始める
+   * （さっき楽しかったからもう1回、に、いちばん少ない手順で応える）。
+   */
+  async function doNextChoice(id){
+    var room = rt && rt.state && rt.state.room;
+    if(room) return doNextChoiceInRoom(id, room);
+    if(id === 'again'){ goTo('scr-countdown'); return; }
+    if(id === 'mode'){ goBack('scr-mode'); return; }
+    // ここから先は、この試合を終える。記録は今まで通りここで残す
+    await finishHandoffMatch();
+    if(id === 'game'){ goTo('scr-game'); return; }
+    goTo('scr-shelf');
+  }
+  async function finishHandoffMatch(){
     var finalScores = {};
     state.players.forEach(function(p){ finalScores[p.name] = p.score; });
     await finishMatch(finalScores);
     askPlayerChange();   // 第12弾-7：次回もこのメンバーで遊ぶか確認する
-    goTo('scr-shelf');   // 第12弾：ゲームを終えたら棚に戻って、次のゲームを選べる
-  });
+  }
+  async function doNextChoiceInRoom(id, room){
+    var gameId = (room.state && room.state.game) || null;
+    if(id === 'again'){
+      // 同じゲーム・同じ設定で、もう一度立ち上げる
+      var m = modeById(state.selectedModeId);
+      var reset = await rt.pickGame(gameId, { reset: true });
+      if(!reset.ok){ el('nextSub').textContent = reset.message || 'やり直せませんでした'; return; }
+      var build = RT_START_CONFIG[gameId] || rtWolfroleConfig;
+      var res = await rt.startWolf(build(m));
+      if(!res.ok){ el('nextSub').textContent = res.message || 'はじめられませんでした'; return; }
+      return;
+    }
+    // ここから先は、部屋を待機に戻してから選び直す
+    var back = await rt.pickGame(id === 'mode' ? gameId : null, { reset: true });
+    if(!back.ok){ el('nextSub').textContent = back.message || 'えらび直せませんでした'; return; }
+    if(id === 'mode'){ goTo('scr-mode'); return; }
+    if(id === 'game'){ goTo('scr-game'); return; }
+    goTo('scr-shelf');
+  }
   // 第12弾-7：毎回プレイヤーを入力させると煩わしいので、終わる時に一度だけ聞く
   function askPlayerChange(){
     if(!state.players.length) return;

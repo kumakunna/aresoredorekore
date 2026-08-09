@@ -427,6 +427,30 @@ async function runWizardToPlay(win, doc, opts) {
   el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
 }
 
+/**
+ * 第32弾-C-7：結果のあとは、共通の「つぎは？」画面で行き先を選ぶ。
+ * カセットごとに出口のボタンが別々だったのをやめたので、
+ * テスト側も「どのボタンか」ではなく「どこへ行きたいか」で書く。
+ *   again … もう一度（同じ設定でそのまま）
+ *   mode  … モードを変える
+ *   game  … 別のゲームへ
+ *   shelf … 別のカセットへ（棚にもどる／ここで記録が残る）
+ */
+async function chooseNext(win, doc, id) {
+  if (activeScreen(doc) === 'scr-score') {
+    click(doc, 'toNextBtn');
+    await sleep(win, 40);
+  }
+  await waitScreen(win, doc, 'scr-next', 3000);
+  const b = doc.querySelector('#nextChoices [data-next="' + id + '"]');
+  if (!b) {
+    const have = Array.from(doc.querySelectorAll('#nextChoices [data-next]')).map(x => x.dataset.next);
+    throw new Error('「つぎは？」に選択肢がありません: ' + id + '（あるのは: ' + have.join(',') + '）');
+  }
+  b.click();
+  await sleep(win, 60);
+}
+
 // ゲーム選択画面でゲームを選んで確定する。
 // 第20弾-3-1でタップ即決定をやめ、「選ぶ→つぎへ」の2手になった。
 function pickGame(doc, gameId) {
@@ -488,5 +512,6 @@ function assertNoErrors(errors, label) {
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
   setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
+  chooseNext,
   createRunner, assert, assertEqual, assertNoErrors
 };

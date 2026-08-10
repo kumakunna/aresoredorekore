@@ -85,6 +85,21 @@
    * 元の文字も一緒に残す。画像が読めなかったら文字の方を出す
    * （絵文字が消えてボタンが空になる、という壊れ方をさせない）。
    */
+  // 一度でも読み込めた絵文字を覚えておく。
+  //
+  // 第32弾-C（実機の不具合）：画面を描き直すたびに、絵文字は文字に戻って
+  // また差し替えられる。その時「文字 → onload → 画像」と1フレームだけ
+  // 文字が見えるので、押すたびに点滅しているように見えていた。
+  // 一度読めたものは、はじめから画像の状態で出せば、この瞬間が消える。
+  var LOADED = {};
+  function markLoaded(img) {
+    try {
+      if (img.parentNode) img.parentNode.classList.add('emj-ok');
+      var m = /([0-9a-f-]+)\.svg$/.exec(img.getAttribute('src') || '');
+      if (m) LOADED[m[1]] = true;
+    } catch (e) {}
+  }
+
   function spanHtml(seq) {
     if (!hasFile(fileName(seq))) return seq;
     // 既定では文字の方を出しておき、**画像が読めた時にだけ**入れ替える。
@@ -95,9 +110,12 @@
     // 環境によっては読み込み自体が始まらない。
     // 「起動を重くしない」は、置くファイルを使っている分だけに絞ることで達成している
     // （全部入りの3723個ではなく127個・合計356KB）。
-    return '<span class="emj" role="img" aria-label="' + seq + '">' +
-      '<img src="' + BASE + fileName(seq) + '.svg" alt="" decoding="async" ' +
-      'onload="this.parentNode.classList.add(\'emj-ok\')">' +
+    var name = fileName(seq);
+    // 一度読めているものは、はじめから画像の状態で出す（点滅させない）
+    var cls = 'emj' + (LOADED[name] ? ' emj-ok' : '');
+    return '<span class="' + cls + '" role="img" aria-label="' + seq + '">' +
+      '<img src="' + BASE + name + '.svg" alt="" decoding="async" ' +
+      'onload="EmojiSvg.ok(this)">' +
       '<span class="emj-txt">' + seq + '</span></span>';
   }
 
@@ -151,6 +169,7 @@
 
   return {
     BASE: BASE, RE: RE, fileName: fileName, html: html, parse: parse, collect: collect,
-    setFiles: setFiles, hasFile: hasFile
+    setFiles: setFiles, hasFile: hasFile,
+    ok: markLoaded   // img の onload から呼ぶ
   };
 }));

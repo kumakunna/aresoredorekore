@@ -2579,5 +2579,41 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ===================================================================
+  // 実機で出た不具合その2：
+  //   未ログインで部屋の画面 → 部屋をつくる → ログイン画面 → ログイン成功
+  //   → 戻ってきて、もう一度押すとサーバーに弾かれる
+  // ===================================================================
+
+  await r.test('ログインしたあとは、つなぎ直してから部屋を立てる', async () => {
+    // socket.io のセッションは「つないだ時」のもので固定される。
+    // ログイン前につないだままだと、サーバーからは
+    // いつまでも未ログインに見えて、部屋を立てられない。
+    const { win, doc, errors } = await launch({ fakeSocket: true, loggedOut: true, playFlow: false });
+    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    const firstSocket = fake.socket;
+
+    // 未ログインなので、部屋を立てようとするとログイン画面へ
+    el(doc, 'rtCreateName').value = 'あき';
+    click(doc, 'rtCreateBtn');
+    await waitScreen(win, doc, 'scr-login', 3000);
+
+    // ログインする（ここから先はログイン済み）
+    el(doc, 'loginUsername').value = 'kumakunn';
+    el(doc, 'loginPassword').value = 'himitsu';
+    click(doc, 'loginSubmitBtn');
+    await waitScreen(win, doc, 'scr-rt-lobby', 4000);
+
+    // ログインした瞬間に、つなぎ直していること。
+    // つなぎ直さないと、サーバーは古いセッションのまま見つづける
+    await waitFor(win, () => fake.socket !== firstSocket, 3000,
+      'ログインのあと、つなぎ直す');
+    assertNoErrors(errors, 'ログイン後の再接続で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

@@ -1305,6 +1305,19 @@
   /* ライフが1つ砕けた瞬間 */
   .bomb-lives.broke{animation:bombShake calc(0.5s * var(--fx-scale)), livesBreak calc(0.5s * var(--fx-scale));}
   @keyframes livesBreak{0%{filter:none;}25%{filter:brightness(1.6) saturate(1.6);}100%{filter:none;}}
+  /* 第32弾-C：爆発。赤ではっきり出すが、明滅も揺れもさせない。
+     酔わないように・目に悪くならないように、1回だけ広がって引く */
+  .bomb-boom{
+    position:fixed;inset:0;pointer-events:none;z-index:85;
+    background:radial-gradient(circle at 50% 55%, rgba(255,214,120,.95) 0%,
+      rgba(240,90,50,.92) 26%, rgba(160,26,18,.86) 52%, rgba(40,8,6,.75) 78%);
+    opacity:0;animation:bombBoom calc(0.7s * var(--fx-scale)) cubic-bezier(.15,.7,.3,1) forwards;
+  }
+  @keyframes bombBoom{
+    0%{opacity:0;transform:scale(.25);}
+    16%{opacity:1;transform:scale(1);}
+    100%{opacity:0;transform:scale(1.12);}
+  }
   /* 第32弾-C-4：ライフがあと1つ。数えなくても、もう後がないと分かる。
      数字（❤️の数）も出ているので、色だけに頼っていない（第8部-2） */
   .app.bomb-danger::before{
@@ -2825,6 +2838,13 @@
             <div class="mic-status">OFFならその場で試合終了</div>
           </div>
           <div class="switch" id="wrTeruteruToggle"></div>
+        </div>
+        <!-- 第32弾-C：同数だった時に、決選投票をするか -->
+        <div class="toggle-row-mini">
+          <div>同数なら決選投票をする
+            <div class="mic-status">OFFなら、同数のときは誰も処刑せずに次へ進みます</div>
+          </div>
+          <div class="switch" id="wrRunoffToggle"></div>
         </div>
         <!-- 第20弾-5-2：誰に何票入ったかを見せるか -->
         <div class="toggle-row-mini">
@@ -5102,7 +5122,11 @@
       loverIds: null,
       nightTimeLimit: pre.nightTimeLimit || 0,
       // 第20弾-5-2：票数を見せるか。既定はON（なぜその人が処刑されたのかが分かる方が納得しやすい）
-      showVoteCounts: (pre.showVoteCounts === undefined) ? true : !!pre.showVoteCounts
+      showVoteCounts: (pre.showVoteCounts === undefined) ? true : !!pre.showVoteCounts,
+      // 第32弾-C：同数だった時に決選投票をするか。既定はしない。
+      // 決選投票はもう1周スマホを回すことになるので、人数が多いほど重い。
+      // 「同数なら今日は誰も処刑しない」で終われた方が、テンポが良い回も多い
+      runoff: !!pre.runoff
     };
   }
   // 記録に残すオプション構成のスナップショット（タグ絞り込み用）
@@ -6273,6 +6297,11 @@
         }});
       }
       setUser(res.username);
+      // 第32弾-C（実機の不具合）：サーバーは「つないだ時」のセッションを見る。
+      // ログイン前につないだソケットは、あとでログインしても
+      // サーバーからはずっと未ログインに見えたままで、部屋を立てると弾かれていた。
+      // 画面はログイン済みなのに判定だけが古い、の正体はこれ。
+      if(rt && rt.available()) rt.reconnect();
       await fetchTopics();
       // 第26弾-2：ログインを頼んだ用事の続きへ返す（既定は棚）
       var back = loginReturnTo; loginReturnTo = 'scr-shelf';
@@ -6867,6 +6896,7 @@
     el('wrLoversRow').style.display = (cfg.turnLimit === 1) ? 'none' : 'flex';
     el('wrLoversToggle').classList.toggle('on', !!cfg.lovers);
     el('wrShowVotesToggle').classList.toggle('on', cfg.showVoteCounts !== false);
+    el('wrRunoffToggle').classList.toggle('on', !!cfg.runoff);
   }
 
   el('scr-set-wolfrole').addEventListener('click', function(e){
@@ -6917,6 +6947,7 @@
     else if(id2 === 'wrAttackToggle') cfg.wolfAttackDecision = (cfg.wolfAttackDecision === 'vote') ? 'each' : 'vote';
     else if(id2 === 'wrTeruteruToggle') cfg.teruteruContinue = !cfg.teruteruContinue;
     else if(id2 === 'wrShowVotesToggle') cfg.showVoteCounts = (cfg.showVoteCounts === false);
+    else if(id2 === 'wrRunoffToggle') cfg.runoff = !cfg.runoff;
     else if(id2 === 'wrLoversToggle'){
       cfg.lovers = !cfg.lovers;
       if(!cfg.lovers){ cfg.loversPick = 'random'; cfg.loverIds = null; }
@@ -11965,7 +11996,8 @@
         loverIds: (cfg.loversPick === 'manual' && (cfg.loverIds || []).length === 2)
           ? cfg.loverIds.slice() : null,
         nightTimeLimit: cfg.nightTimeLimit,
-        showVoteCounts: cfg.showVoteCounts !== false
+        showVoteCounts: cfg.showVoteCounts !== false,
+        runoff: !!cfg.runoff
       }),
       queue: [], idx: 0, step: 'role', info: {},
       pendingEnd: null // 第20弾-6：前の試合の決着状態を持ち越さない
@@ -12297,6 +12329,10 @@
                   ' は ' + escapeHtml(info.executed.roleName) + '</div>'
                 : '<div class="mic-status">' + mediumEmptyText() + '</div>');
     }
+    // 第32弾-C：席を外している人がいても止まらないよう、投票を飛ばせるようにする。
+    // 飛ばした人の票は入らない（棄権）
+    html += '<div class="vote-skip-row"><button class="btn btn-ghost" id="wrVoteSkipBtn">' +
+      'この人の投票をとばす</button></div>';
     if(wr.runoff){
       html += '<div class="wolf-topic-label" style="margin-top:10px;">⚖️ 決選投票</div>' +
               '<div class="mic-status">同数で並んだ人だけが候補です。これで決まらなければ処刑なしです</div>';
@@ -12360,6 +12396,13 @@
       wr.sub = null;
       wr.voteDraft = null;
       showWrVote(WolfLogic.findPlayer(wr.game, wr.queue[wr.idx]));
+      return;
+    }
+    if(e.target.closest('#wrVoteSkipBtn')){
+      // 棄権。票は入れずに次の人へ渡す
+      wr.sub = null;
+      wr.voteDraft = null;
+      advanceWrQueue();
       return;
     }
     if(e.target.closest('#wrVoteOkBtn')){
@@ -12614,7 +12657,8 @@
   el('wrTallyBtn').addEventListener('click', function(){
     uiTallyCountdown(el('wrCdNumber'), el('wrTallyBtn'), function(){
       // 第23弾-1：同数なら、並んだ人だけでもう一度。判断は WolfLogic に任せる
-      var vo = WolfLogic.voteOutcome(wr.game.votes, { isRunoff: !!wr.runoff });
+      var vo = WolfLogic.voteOutcome(wr.game.votes, 
+        { isRunoff: !!wr.runoff, runoff: !!wr.game.config.runoff });
       if(vo.kind === 'runoff'){ startWrRunoff(vo); return; }
       // 決選投票を経た時は、記録に残すのは1回目の投票に戻す。
       // 「誰が人狼に入れたか」は、候補を絞る前の1票で測るのが自然なため。
@@ -13020,11 +13064,16 @@
     el('bombWireOverlay').classList.remove('show');
     play.currentBombWire = null;
     el('app').classList.remove('bomb-danger');
-    // 第32弾-C-4：爆発は「静かに、しかしはっきりと」。
-    // 失敗を大音量で囃し立てない（原則C）。画面は灰色に沈めて、はっきり伝える
+    // 第32弾-C：爆発が地味すぎたので、赤ではっきり出す。
+    // ただし「責める」のではなく「爆弾が爆発した」ことを出す演出にする。
+    // 誰かの失敗を囃し立てるのではないので、赤は0.5秒で引き、
+    // 明滅・振動はさせない（酔わないように・目に悪くならないように）
     if(typeof FxKit !== 'undefined'){
-      doVibrate([120,60,120]);
-      FxKit.flash('gray');
+      doVibrate([140,70,140]);
+      var boom = document.createElement('div');
+      boom.className = 'bomb-boom';
+      el('app').appendChild(boom);
+      setTimeout(function(){ if(boom.parentNode) boom.parentNode.removeChild(boom); }, fxMs(700));
       FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
         sub:'つぎは、もう少しだけ慎重に', ms:900 })
         .then(function(){ enterBombEnd(false); goTo('scr-bomb-end'); });
@@ -14522,7 +14571,10 @@
   async function doNextChoice(id){
     var room = rt && rt.state && rt.state.room;
     if(room) return doNextChoiceInRoom(id, room);
-    if(id === 'again'){ goTo('scr-countdown'); return; }
+    // 第32弾-C：カウントダウンに直行させない。長押しの画面をはさむ。
+    // 「もう一度」を押した人以外は、まだ心の準備ができていない。
+    // 設定を選び直させないのが要点で、始まる合図まで飛ばすことではない
+    if(id === 'again'){ goTo('scr-ready'); return; }
     if(id === 'mode'){ goBack('scr-mode'); return; }
     // ここから先は、この試合を終える。記録は今まで通りここで残す
     await finishHandoffMatch();
@@ -15388,6 +15440,8 @@
     if(!confirm('ログアウトしますか？（進行中のゲームは記録されません）')) return;
     try{ await api('/api/auth/logout', { method:'POST' }); }catch(e){}
     setUser(null);
+    // ログアウトした時も同じ。古いセッションのまま繋がったままにしない
+    if(rt && rt.available()) rt.reconnect();
     el('settingsOverlay').classList.remove('show');
     goTo('scr-shelf'); // 第26弾-2：ログアウトしても棚は見られる
   });
@@ -15466,13 +15520,37 @@
     var app = el('app');
     if(!app) return;
     var pending = false;
+    var dirty = [];   // 変わった所だけを覚えておく
     function sweep(){
       pending = false;
-      try{ EmojiSvg.parse(app, document); }catch(e){}
+      var todo = dirty;
+      dirty = [];
+      // innerHTML で一気に差し替えると、入れ子のノードがまとめて積まれる。
+      // それを1つずつ歩くと、同じ部分木を何度も歩き直して二乗に膨らむ。
+      // 数が多い時は、まとめて1回だけ全体を見るほうが速い
+      if(!todo.length || todo.length > 12) todo = [app];
+      todo.forEach(function(node){
+        try{ EmojiSvg.parse(node, document); }catch(e){}
+      });
     }
     sweep();
     try{
-      var mo = new MutationObserver(function(){
+      var mo = new MutationObserver(function(records){
+        // 第32弾-C：画面全体を毎回歩き直していた。
+        // 押すたびにアプリ全部を走査するのは重いうえ、
+        // 差し替え直後の画像が読み直されて点滅の原因にもなる。
+        // 変わった所だけを見る
+        records.forEach(function(r){
+          if(r.type === 'characterData'){
+            if(r.target && r.target.parentNode) dirty.push(r.target.parentNode);
+            return;
+          }
+          for(var i = 0; i < r.addedNodes.length; i++){
+            var n = r.addedNodes[i];
+            if(n.nodeType === 1) dirty.push(n);
+            else if(n.nodeType === 3 && n.parentNode) dirty.push(n.parentNode);
+          }
+        });
         // 差し替え自体もDOMを変えるので、まとめて1回にする（無限に呼ばれないように）
         if(pending) return;
         pending = true;

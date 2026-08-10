@@ -204,8 +204,30 @@
       return (state.room.members || []).find(function (m) { return m.id === state.memberId; }) || null;
     }
 
+    /**
+     * つなぎ直す（第32弾-C：実機の不具合）。
+     *
+     * サーバーは socket.request.session を見る。これは「つないだ時」の
+     * セッションで固定される。ログイン前につないだソケットは、あとで
+     * ログインしても、サーバーからはずっと未ログインに見えたままだった。
+     * そのせいで「画面はログイン済みなのに、部屋を立てると弾かれる」が起きていた。
+     *
+     * ログインした時・ログアウトした時に呼ぶ。
+     * 部屋に入っている最中は、つなぎ直すと入り直しが走るので触らない。
+     */
+    function reconnect() {
+      if (!available()) return false;
+      if (state.code) return false;   // 部屋にいる時は触らない
+      if (socket) {
+        try { socket.close(); } catch (e) {}
+        socket = null;
+      }
+      state.connected = false;
+      return connect();
+    }
+
     return {
-      state: state, on: on, available: available, connect: connect,
+      state: state, on: on, available: available, connect: connect, reconnect: reconnect,
       createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, peekRoom: peekRoom,
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,

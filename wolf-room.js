@@ -53,7 +53,9 @@ function startGame(room, config) {
     lovers: cfg.lovers,
     loverIds: cfg.loverIds || null,
     nightTimeLimit: cfg.nightTimeLimit || 0,
-    showVoteCounts: cfg.showVoteCounts !== false
+    showVoteCounts: cfg.showVoteCounts !== false,
+    // 第32弾-C：同数だった時に決選投票をするか（既定はしない）
+    runoff: !!cfg.runoff
   });
 
   room.wolf = {
@@ -348,7 +350,7 @@ function advance(room) {
   if (w.phase === PHASE.VOTE) {
     // 第23弾-1：同数なら、並んだ人だけでもう一度。
     // 手渡し方式とまったく同じ判断（WolfLogic.voteOutcome）を使う。
-    const vo = WolfLogic.voteOutcome(g.votes, { isRunoff: !!w.runoff });
+    const vo = WolfLogic.voteOutcome(g.votes, { isRunoff: !!w.runoff, runoff: !!g.config.runoff });
     if (vo.kind === 'runoff') {
       w.runoff = {
         candidates: vo.candidates,

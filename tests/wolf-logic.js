@@ -969,5 +969,30 @@ function kill(game, name, cause) {
     assertEqual(Object.keys(W.achievements(g, 'いない人')).length, 0, '知らない人にも落ちない');
   });
 
+  await r.test('決選投票をしない設定なら、同数はそのまま処刑なしで終わる', async () => {
+    // 第32弾-C：決選投票はもう1周スマホを回すことになる。
+    // 「同数なら今日は誰も処刑しない」で終われた方がテンポの良い回もある
+    const tie = { a: 'x', b: 'y', c: 'x', d: 'y' };
+    // 付けなかった時は、今までどおり決選投票をする（既存の呼び出しを壊さない）
+    assertEqual(W.voteOutcome(tie, {}).kind, 'runoff', '既定は今までどおり');
+    assertEqual(W.voteOutcome(tie, { runoff: true }).kind, 'runoff', 'ONなら決選投票');
+    assertEqual(W.voteOutcome(tie, { runoff: false }).kind, 'none', 'OFFなら処刑なし');
+    // 同数でなければ、設定に関係なく処刑される
+    const clear = { a: 'x', b: 'x', c: 'y' };
+    assertEqual(W.voteOutcome(clear, { runoff: false }).kind, 'execute',
+      '同数でなければ、設定に関係なく処刑する');
+    assertEqual(W.voteOutcome(clear, { runoff: false }).targetId, 'x', '一番多い人');
+  });
+
+  await r.test('棄権した人がいても、票の数え方は変わらない', async () => {
+    // 第32弾-C：投票を飛ばせるようにした。飛ばした人の票は入らない
+    const withSkip = { a: 'x', b: 'x' };          // c は棄権
+    const all = { a: 'x', b: 'x', c: 'y' };
+    assertEqual(W.voteOutcome(withSkip, {}).targetId, 'x', '棄権があっても数えられる');
+    assertEqual(W.voteOutcome(all, {}).targetId, 'x', '全員入れても同じ');
+    // 全員が棄権したら、誰も処刑されない
+    assertEqual(W.voteOutcome({}, {}).kind, 'none', '誰も入れなければ処刑なし');
+  });
+
   r.finish();
 })();

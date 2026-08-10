@@ -607,7 +607,10 @@
     opts = opts || {};
     var t = tally(votes);
     if (t.executedId) return { tally: t, kind: 'execute', targetId: t.executedId, candidates: [] };
-    if (t.tie && !opts.isRunoff) {
+    // 第32弾-C：決選投票をしない設定（opts.runoff === false）なら、
+    // 同数はそのまま「処刑なし」で確定する。
+    // 付けなかった時は今までどおり決選投票をする（既存の呼び出しに影響しない）。
+    if (t.tie && !opts.isRunoff && opts.runoff !== false) {
       return { tally: t, kind: 'runoff', targetId: null, candidates: t.top.slice() };
     }
     return { tally: t, kind: 'none', targetId: null, candidates: [] };

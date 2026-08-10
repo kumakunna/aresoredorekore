@@ -405,17 +405,23 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     win.close();
   });
 
-  await r.test('つぎは？：もう一度は、設定も長押しも通さずに始まる', async () => {
-    // 「さっき楽しかったから、もう1回」に、いちばん少ない手順で応える
+  await r.test('つぎは？：もう一度は、設定を選び直さずに長押しの画面へ', async () => {
+    // 「さっき楽しかったから、もう1回」に、いちばん少ない手順で応える。
+    //
+    // 第32弾-C（実機の指摘）：はじめカウントダウンへ直行させていたが、
+    // 押した人以外はまだ心の準備ができていない。
+    // 省きたいのは「設定の選び直し」であって、始まる合図ではない。
     const { win, doc, errors } = await launch();
     win.confirm = () => true;
     await playToScore(win, doc);
     await chooseNext(win, doc, 'again');
-    // モード選択にもウィザードにも準備OK画面にも戻らない
-    await waitFor(win, () => activeScreen(doc) === 'scr-countdown' || activeScreen(doc) === 'scr-topic-pass'
-      || activeScreen(doc) === 'scr-play', 4000, 'そのまま始まる');
-    assert(['scr-countdown', 'scr-topic-pass', 'scr-play'].indexOf(activeScreen(doc)) >= 0,
-      '選び直しをはさまない（実際: ' + activeScreen(doc) + '）');
+    await waitScreen(win, doc, 'scr-ready', 4000);
+    // モード選択にもウィザードにも戻らない
+    assert(doc.getElementById('holdBtn'), '長押しで始められる');
+    // 押せば、そのまま始まる（設定の画面は1つも挟まらない）
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitFor(win, () => ['scr-countdown', 'scr-topic-pass', 'scr-play']
+      .indexOf(activeScreen(doc)) >= 0, 4000, 'そのまま始まる');
     assertNoErrors(errors, 'もう一度で未捕捉の例外');
     win.close();
   });

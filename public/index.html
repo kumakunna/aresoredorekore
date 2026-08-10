@@ -1572,14 +1572,65 @@
     font-size:20px;line-height:1.9;letter-spacing:.08em;word-break:break-all;}
   .quiz-choices{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
   .quiz-choices .pk-btn[disabled]{opacity:.4;pointer-events:none;}
-  .quiz-tiers{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  /* 第32弾-C-5：難易度は大きなボタンで縦に並べる。
+     小さなチップが横に5つ並んでいて、点数も難易度も読み取りづらかった */
+  .quiz-tiers{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+  .tier-card{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    width:100%;padding:16px 18px;border-radius:12px;cursor:pointer;
+    background:var(--card);border:2px solid var(--line);color:var(--ink);
+    font-family:'Zen Maru Gothic',sans-serif;
+    transition:transform .12s ease;
+  }
+  .tier-card:active{transform:scale(.985);}
+  .tier-card.on{border-color:var(--gold);}
+  .tier-name{font-size:17px;font-weight:800;}
+  .tier-pt{font-size:12px;opacity:.8;}
+  .tier-pt b{font-size:26px;font-family:'DotGothic16',monospace;margin-right:2px;}
+  /* 難易度は色でも分けるが、名前と点数が文字で出ているので色だけに頼っていない（第8部-2） */
+  .tier-card.t-easy{border-left:8px solid #5FD07A;}
+  .tier-card.t-normal{border-left:8px solid #F2C230;}
+  .tier-card.t-hard{border-left:8px solid #F59331;}
+  .tier-card.t-nanisore{border-left:8px solid #F2564B;}
+  .tier-card.t-muri{border-left:8px solid #B972E8;}
+  /* 問題の画面に出す「いまの難易度」。小さく、じゃまをしない */
+  .quiz-tiernow{
+    display:inline-block;font-size:11.5px;opacity:.8;margin-bottom:8px;
+    padding:3px 10px;border-radius:999px;border:1px solid var(--line);
+  }
+  .quiz-tiernow b{font-family:'DotGothic16',monospace;font-size:14px;}
+  /* 第32弾-C-5：とくとくクイズ「いま押せば〇点」。この遊びの核 */
+  .reveal-points{
+    display:flex;align-items:baseline;justify-content:center;gap:4px;margin-bottom:10px;
+  }
+  .rp-lead{font-size:12px;opacity:.75;}
+  .rp-num{font-family:'DotGothic16',monospace;font-size:44px;color:var(--gold);line-height:1;}
+  .rp-unit{font-size:14px;opacity:.85;}
+  /* 第32弾-C-5：つぎつぎクイズ。出た答えが下に積み上がる */
+  .quiz-topic-sub{text-align:center;font-size:13px;opacity:.8;margin:-8px 0 14px;}
+  .said-list{display:flex;flex-direction:column;gap:4px;margin-top:14px;}
+  .said-row{
+    display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;
+    background:var(--card);border:1px solid var(--line);font-size:14px;
+  }
+  .said-row.fresh{animation:saidIn calc(0.4s * var(--fx-scale)) ease-out;border-color:var(--teal);}
+  @keyframes saidIn{0%{opacity:0;transform:translateY(-6px);}100%{opacity:1;transform:none;}}
+  .said-no{font-family:'DotGothic16',monospace;font-size:12px;opacity:.55;min-width:20px;}
+  .said-text{font-weight:700;}
+  /* 第32弾-C-5：早押しの先取ゲージ。残りいくつかを引き算させない */
+  .qv-dot{
+    display:inline-block;width:14px;height:14px;border-radius:50%;margin:0 3px;
+    border:2px solid var(--line);vertical-align:middle;
+  }
+  .qv-dot.on{background:var(--gold);border-color:var(--gold);}
   .quiz-actions{display:flex;gap:8px;margin-top:12px;}
   .quiz-buzz{margin-top:14px;font-size:20px;padding:22px 16px;}
   .quiz-topic{font-size:22px;font-weight:800;text-align:center;margin:8px 0 14px;}
-  .quiz-answer{display:flex;gap:8px;margin-bottom:12px;}
+  /* 第32弾-C-5：入力欄が回答ボタンと横並びで、打った文字が見えないほど狭かった */
+  .quiz-answer{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
   .quiz-answer input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);font-size:16px;}
-  .quiz-answer .btn{flex:0 0 auto;}
+  .quiz-answer .btn{width:100%;margin-top:0;}
   .quiz-said, .quiz-order{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
   .quiz-order .bl-item.now{outline:2px solid var(--stamp);font-weight:700;}
   .quiz-order .bl-item.dead{opacity:.4;text-decoration:line-through;}
@@ -2132,9 +2183,12 @@
           <div class="shelf-name" id="shelfName">-</div>
         </div>
       </button>
-      <!-- 第32弾-A：部屋への入口は「あそびかたをえらぶ」に一本化したので、
-           下部バーはアイコン・二つ名・名前・設定だけになった -->
+      <!-- 第32弾-A：部屋への入口の本筋は「あそびかたをえらぶ」画面。
+           第32弾-C：ただし棚を見ている最中に部屋を開きたくなることがあるので、
+           近道としてここにも置く。本筋を置き換えるものではないので、
+           見た目は控えめ（⚙と同じ大きさの記号ひとつ）にしてある -->
       <div class="shelf-bar-btns">
+        <button class="btn btn-ghost" id="shelfRoomBtn" aria-label="部屋をひらく">👥</button>
         <button class="btn btn-ghost" id="shelfGearBtn">⚙</button>
       </div>
     </div>
@@ -4063,7 +4117,7 @@
     if(!b) return;
     pickPlayFlow(b.dataset.howto);
   });
-  function pickPlayFlow(flow){
+  async function pickPlayFlow(flow){
     setPlayFlow(flow);
     if(flow === 'room'){
       // 部屋への入口はここに一本化した。棚の下部バーからは無くなっている
@@ -4072,7 +4126,7 @@
     }
     if(flow === 'handoff'){
       // 手渡しは遊んだ記録を残すので、今まで通りログインが要る
-      if(!requireLogin('遊んだ記録を残すので、ログインしてください', 'scr-howto')) return;
+      if(!loggedIn() && !(await requireLogin('遊んだ記録を残すので、ログインしてください', 'scr-howto'))) return;
     }
     // 「棚を見る」で説明を読んで「このゲームであそぶ」を押していたら、
     // 棚を通さずにそのカセットへ連れていく（同じものを2回選ばせない）
@@ -4398,6 +4452,21 @@
   }
   el('shelfGearBtn').addEventListener('click', function(){ openSettings(); });
   el('shelfMeBtn').addEventListener('click', function(){ goTo('scr-titles'); });
+  /**
+   * 第32弾-C：棚から部屋へ入る近道。
+   *
+   * 部屋への入口の本筋は「あそびかたをえらぶ」画面のままで、そちらは変えていない。
+   * ここは「棚を見ていて、やっぱりみんなのスマホで遊びたくなった」時の近道。
+   *
+   * あそびかたも一緒に切り替える。切り替えずに部屋だけ開くと、
+   * 棚は手渡し用に絞られたままなのに部屋の中にいる、というねじれが起きる
+   *（32-Aで直したのは、まさにそのねじれ）。
+   * 戻り先は棚にしてあるので、部屋をやめたら元の場所に返る。
+   */
+  el('shelfRoomBtn').addEventListener('click', function(){
+    setPlayFlow('room');
+    openRoomLobby('scr-shelf');
+  });
 
   // ---- 称号を選ぶ画面 ----
   // 持っていないパーツも並べて、どうすれば手に入るかを見せる（集める楽しみのため）
@@ -4456,14 +4525,14 @@
     });
     el('profCollectSub').textContent = owned + ' / ' + all + ' 個';
   }
-  el('scr-titles').addEventListener('click', function(e){
+  el('scr-titles').addEventListener('click', async function(e){
     var b = e.target.closest('[data-profgo]');
     if(!b) return;
     var to = b.dataset.profgo;
     if(to === 'icon') goTo('scr-title-icon');
     if(to === 'name2') goTo('scr-title-name');
     if(to === 'rename'){
-      if(!requireLogin('名前を変えるには、ログインしてください', 'scr-titles')) return;
+      if(!loggedIn() && !(await requireLogin('名前を変えるには、ログインしてください', 'scr-titles'))) return;
       goTo('scr-rename');
     }
     if(to === 'collection') goTo('scr-collection');
@@ -4652,7 +4721,7 @@
     }, 30);
   }
   // カセットのタップ：中央なら選択、そうでなければ中央へ寄せる
-  el('shelfList').addEventListener('click', function(e){
+  el('shelfList').addEventListener('click', async function(e){
     if(shelfDrag.moved) return; // 並び替え直後のクリックは無視
     var cart = e.target.closest('.cart');
     if(!cart) return;
@@ -4674,8 +4743,10 @@
     }
     // 第32弾-A：部屋のために選んでいる時は、そのまま部屋のゲームとして選ぶ。
     // 手渡しの時は、今まで通りログインが要る（遊んだ記録を残すため）
+    // ログイン済みの人は、ここで await を通らない（画面遷移が遅れない）。
+    // 未ログインに見える時だけ、サーバーに聞き直しにいく
     if(state.playFlow !== 'browse' && state.playFlow !== 'room'
-      && !requireLogin('遊んだ記録を残すので、ログインしてください')) return;
+      && !loggedIn() && !(await requireLogin('遊んだ記録を残すので、ログインしてください'))) return;
     // 第32弾-C-1：ここから、そのカセットの世界に入る
     cassetteWarp(cart, c, function(){
       // 第32弾-A：「棚を見る」で来た人は、タップしても遊び始めない。
@@ -6112,8 +6183,23 @@
   // 棚に出てしまう。頼んだ画面に返す
   var loginCameFrom = 'scr-shelf';
   var LOGIN_SUB_DEFAULT = 'ホストのアカウントでログインしてください';
-  function requireLogin(why, backTo){
+  /**
+   * ログインが要る用事の前に呼ぶ。
+   *
+   * 第32弾-C（実機の不具合）：ここは state.username だけを見ていた。
+   * その値が入るのは、起動した時に1回だけ走る checkAuth() の結果だけ。
+   * 本番のサーバーは2分ごとに git pull → pm2 restart で入れ替わるので、
+   * ちょうどその瞬間にアプリを開いた人は /api/auth/me だけが落ちる。
+   * セッションのクッキーは生きているのに、その端末は
+   * 「ログインしていない」と思い込んだまま、アプリを開き直すまで直らなかった。
+   * これが「ログインしているのに部屋を立てられない」の正体。
+   *
+   * 未ログインに見える時だけ、サーバーに聞き直す。
+   * ログインしている人は今までどおり通信しないので、待たされない。
+   */
+  async function requireLogin(why, backTo){
     if(loggedIn()) return true;
+    if(await checkAuth()) return true; // 思い込みかもしれないので、一度だけ確かめる
     loginReturnTo = backTo || 'scr-shelf';
     var cur = (document.querySelector('.screen.active') || {}).id;
     loginCameFrom = (cur && cur !== 'scr-login') ? cur : (backTo || 'scr-shelf');
@@ -7412,7 +7498,7 @@
   el('rtCreateBtn').addEventListener('click', async function(){
     // 第26弾-3：部屋を立てるのはログインが要る（サーバー側でも弾くが、
     // 名前を入れさせてから断るのは気の毒なので先に頼む）
-    if(!requireLogin('部屋を立てるにはログインが必要です', 'scr-rt-lobby')) return;
+    if(!(await requireLogin('部屋を立てるにはログインが必要です', 'scr-rt-lobby'))) return;
     var name = el('rtCreateName').value.trim();
     if(!name){ el('rtLobbyStatus').textContent = '名前を入れてください'; return; }
     this.disabled = true;
@@ -8261,6 +8347,9 @@
   // 正解の位置は届かないので、この画面には答え合わせの材料が無い（原則4.3）。
   var qzClock = { ms:null, at:0, timer:null };
   var qzSpoken = null;   // 早押しで読み上げた問題（同じ問題を二度読まないため）
+  // 第32弾-C-5：この端末が「いま何の画面を見ているか」だけを持つ。
+  // 勝敗にも進行にも関わらないので、サーバーには送らない
+  var qzUi = { pickingTier: false };
   var qzPrevScore = null;
   var qzPrevPhase = null; // 段階が変わった瞬間だけ音を出すための目印
 
@@ -8283,6 +8372,7 @@
   }
   // 画面から離れる時に必ず呼ぶ。時計と読み上げを残さない
   function qzLeaveScreen(){
+    qzUi.pickingTier = false; // 第32弾-C-5：次に来た時に選び直しの画面から始まらないように
     clearInterval(qzClock.timer); qzClock.timer = null;
     qzClock.ms = null;
     qzSpoken = null;
@@ -8309,11 +8399,18 @@
         (disabled ? ' disabled' : '') + '>' + escapeHtml(c) + '</button>';
     }).join('') + '</div>';
   }
+  /**
+   * 第32弾-C-5：難易度は、大きなボタンで縦に並べる。
+   * 小さなチップが横に5つ並んでいたので、点数も難易度も読み取りづらかった。
+   * 点数を大きく出すのは、これが選ぶ理由そのものだから。
+   */
   function qzTierButtonsHtml(current){
     return '<div class="quiz-tiers">' + (QuizLogic.TIERS || []).map(function(t){
-      return '<button class="hp-chip' + (t === current ? ' on' : '') +
-        '" data-qztier="' + t + '">' + escapeHtml(QuizLogic.TIER_LABEL[t] || t) +
-        ' <b>' + (QuizLogic.TIER_POINTS[t] || 1) + '点</b></button>';
+      return '<button class="tier-card t-' + t + (t === current ? ' on' : '') +
+        '" data-qztier="' + t + '">' +
+        '<span class="tier-name">' + escapeHtml(QuizLogic.TIER_LABEL[t] || t) + '</span>' +
+        '<span class="tier-pt"><b>' + (QuizLogic.TIER_POINTS[t] || 1) + '</b>点</span>' +
+      '</button>';
     }).join('') + '</div>';
   }
   // 全員の得点。公開情報なので、自分の端末にも出してよい
@@ -8405,22 +8502,36 @@
     if(mine.last === 'pass') note.push('⏭ パスした');
     el('qzNote').innerHTML = '<div class="ry-desc">' + note.join('　') + '</div>';
 
+    // 第32弾-C-5：難易度をえらぶ画面と、問題の画面を分ける。
+    // 同じ画面に両方あると「いま何をすればいいのか」が読み取れない（原則A）。
+    // 難易度を変えられる設定でも、変えたい時だけ選び直しの画面へ移る形にした
+    // （できることは何も減らしていない）。
     var html = '';
-    if(!mine.tier){
-      html += '<p class="wiz-lead">挑む難易度をえらんでください</p>' + qzTierButtonsHtml(null);
-    } else if(mine.question){
+    var picking = !mine.tier || !mine.question || qzUi.pickingTier;
+    if(picking){
+      html += '<p class="wiz-lead">' + (mine.tier && !mine.question
+        ? 'この難易度の問題を出しきりました。ほかの難易度をえらんでください'
+        : '挑む難易度をえらんでください') + '</p>';
+      html += qzTierButtonsHtml(mine.tier || null);
+      if(qzUi.pickingTier && mine.question){
+        html += '<button class="btn btn-ghost" data-qztierback="1" style="margin-top:12px;">← 問題にもどる</button>';
+      }
+    } else {
+      // 問題の画面。出すのは「いまの難易度・問題文・選択肢・パス」だけ
+      html += '<div class="quiz-tiernow t-' + mine.tier + '">' +
+        escapeHtml(QuizLogic.TIER_LABEL[mine.tier] || mine.tier) +
+        ' <b>' + (QuizLogic.TIER_POINTS[mine.tier] || 1) + '点</b></div>';
       html += '<div class="quiz-q">' + escapeHtml(mine.question.text) + '</div>';
       html += qzChoicesHtml(mine.question.choices, false);
       html += '<div class="quiz-actions">';
-      if(mine.passesLeft > 0) html += '<button class="btn btn-ghost" data-qzpass="1">⏭ パスする</button>';
-      html += '</div>';
-      if(mine.canChangeTier){
-        html += '<div class="tp-label" style="margin-top:14px;">難易度をかえる</div>' +
-          qzTierButtonsHtml(mine.tier);
+      if(mine.passesLeft > 0){
+        html += '<button class="btn btn-ghost" data-qzpass="1">⏭ パスする（あと' +
+          mine.passesLeft + '回）</button>';
       }
-    } else {
-      html += '<p class="wiz-lead">この難易度の問題を出しきりました。ほかの難易度をえらんでください</p>' +
-        qzTierButtonsHtml(mine.tier);
+      if(mine.canChangeTier){
+        html += '<button class="btn btn-ghost" data-qztierpick="1">🎚 難易度をかえる</button>';
+      }
+      html += '</div>';
     }
     html += qzBoardHtml(v);
     el('qzBody').innerHTML = html;
@@ -8444,14 +8555,25 @@
     if(!mine.alive) note.push('（あなたは脱落しています）');
     el('qzNote').innerHTML = '<div class="ry-desc">' + note.join('<br>') + '</div>';
 
+    // 第32弾-C-5：お題は画面いっぱいに大きく。何を答えるゲームなのかが主役
     var html = '<div class="quiz-topic">' + escapeHtml(l.topic || '') + '</div>';
+    if(l.style === 'coop'){
+      html += '<div class="quiz-topic-sub">あと' +
+        Math.max(0, (l.targetCount || 0) - (l.saidCount || 0)) + '個</div>';
+    }
     if(mine.yourTurn && mine.alive){
-      html += '<div class="quiz-answer"><input type="text" id="qzAnswerInput" ' +
+      // 入力欄が回答ボタンと横並びで、打った文字が見えないほど狭かった。
+      // 画面幅いっぱいにして、ボタンは下に置く
+      html += '<div class="quiz-answer">' +
+        '<input type="text" id="qzAnswerInput" inputmode="text" ' +
         'placeholder="まだ出ていない答えを入れる" autocomplete="off">' +
         '<button class="btn btn-main" data-qzsend="1">こたえる</button></div>';
     }
-    html += '<div class="quiz-said">' + (l.said || []).map(function(s){
-      return '<span class="bl-item">' + escapeHtml(s) + '</span>';
+    // これまでに出た答えを、下に積み上げていく。新しいものが上
+    html += '<div class="said-list">' + (l.said || []).slice().reverse().map(function(str, i){
+      return '<div class="said-row' + (i === 0 ? ' fresh' : '') + '">' +
+        '<span class="said-no">' + ((l.said || []).length - i) + '</span>' +
+        '<span class="said-text">' + escapeHtml(str) + '</span></div>';
     }).join('') + '</div>';
     html += '<div class="quiz-order">' + (l.order || []).map(function(p){
       return '<span class="bl-item' + (p.alive ? '' : ' dead') +
@@ -8478,7 +8600,14 @@
     else note.push('分かったら押してください（早いほど高得点）');
     el('qzNote').innerHTML = '<div class="ry-desc">' + note.join('<br>') + '</div>';
 
-    var html = '<div class="quiz-reveal">' + escapeHtml(rv.text || '') + '</div>';
+    // 第32弾-C-5：いま押せば何点か。早いほど高い、というこの遊びの核が
+    // 数字で見えていないと、いつ押すか迷いようがない
+    var html = '';
+    if(rv.nowPoints != null && !rv.buzzedId){
+      html += '<div class="reveal-points"><span class="rp-lead">いま押せば</span>' +
+        '<span class="rp-num">' + rv.nowPoints + '</span><span class="rp-unit">点</span></div>';
+    }
+    html += '<div class="quiz-reveal">' + escapeHtml(rv.text || '') + '</div>';
     if(mine.yours){
       html += qzChoicesHtml(rv.choices, false);
     } else if(mine.canBuzz){
@@ -8490,6 +8619,15 @@
     el('qzBody').innerHTML = html;
   }
 
+  // 第32弾-C-5：先取ゲージ。取ったぶんは塗り、残りは空のまま並べる
+  function qzWinDotsHtml(wins, need){
+    var n = Math.max(1, need || 3);
+    var out = '';
+    for(var i = 0; i < n; i++){
+      out += '<span class="qv-dot' + (i < wins ? ' on' : '') + '"></span>';
+    }
+    return out;
+  }
   // ---- 早押しトーナメント ----
   function qzRenderBuzzer(v, you){
     var b = v.buzzer || {}, mine = you.buzzer || {};
@@ -8519,7 +8657,9 @@
     var html = '<div class="quiz-vs">' + (b.pair || []).map(function(p){
       return '<div class="qv-side' + (p.id === rt.state.memberId ? ' me' : '') + '">' +
         '<div class="qv-name">' + escapeHtml(p.name) + '</div>' +
-        '<div class="qv-wins">' + p.wins + '</div></div>';
+        // 第32弾-C-5：あと何問で勝ち抜けるかを、数字ではなく○の並びで出す。
+        // 「3問先取」を数字だけで出すと、残りいくつかを毎回引き算することになる
+        '<div class="qv-wins">' + qzWinDotsHtml(p.wins, b.winsNeeded) + '</div></div>';
     }).join('<div class="qv-mid">VS</div>') + '</div>';
 
     if(b.question){
@@ -8575,8 +8715,14 @@
   // 押されたものを送る。何が起きたかはサーバーが決め、次の状態で返ってくる
   el('qzBody').addEventListener('click', async function(e){
     var tier = e.target.closest('[data-qztier]');
-    if(tier) return void (await rt.act(tier.dataset.qztier));
-    if(e.target.closest('[data-qzpass]')) return void (await rt.act('pass'));
+    if(tier){
+      qzUi.pickingTier = false;   // えらんだら問題の画面へ戻る
+      return void (await rt.act(tier.dataset.qztier));
+    }
+    // 第32弾-C-5：難易度の選び直しは、問題の画面に並べず、別の画面として開く
+    if(e.target.closest('[data-qztierpick]')){ qzUi.pickingTier = true; renderRtQuiz(); return; }
+    if(e.target.closest('[data-qztierback]')){ qzUi.pickingTier = false; renderRtQuiz(); return; }
+    if(e.target.closest('[data-qzpass]')){ qzUi.pickingTier = false; return void (await rt.act('pass')); }
     if(e.target.closest('[data-qzbuzz]')) return void (await rt.act('buzz'));
     var ans = e.target.closest('[data-qzans]');
     if(ans && !ans.disabled) return void (await rt.vote(parseInt(ans.dataset.qzans, 10)));

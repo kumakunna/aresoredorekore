@@ -486,6 +486,9 @@ function revealPublic(w) {
     text: QuizLogic.maskedText(q.q, rv.shown),
     shown: rv.shown, length: q.q.length,
     choices: q.choices.slice(),          // 選択肢は全員に見せてよい（正解の位置は送らない）
+    // 第32弾-C-5：いま押したら何点か。全員に同じ数が出るので秘密にはあたらない。
+    // これが見えないと「早く押すほど高い」という遊びの核が伝わらない
+    nowPoints: QuizLogic.revealScore(q.tier, Date.now() - rv.askedAt, w.cfg.revealSec),
     buzzedId: rv.buzzed,
     buzzedName: rv.buzzed ? w.names[rv.buzzed] : null,
     answerRemainingMs: rv.buzzed ? Math.max(0, rv.answerEndsAt - Date.now()) : null,

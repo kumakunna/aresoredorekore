@@ -467,10 +467,11 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
   // ---- 第22弾 第1部／第26弾 第2部：ゲームに紐づかない参加の入り口 ----
   await r.test('「みんなのスマホであそぶ」から、立てるにも参加するにも進める', async () => {
-    // 第32弾-A：部屋への導線はここ1本。棚の下部バーからは無くなった
+    // 第32弾-A：部屋への導線の本筋はここ。
+    // 第32弾-C：棚の下部バーにも近道を戻した。本筋を置き換えたのではなく、
+    // 棚を見ている最中に思い立った時のための近道（別のテストで確かめている）
     const b = await launch(Object.assign({}, LAUNCH, { playFlow: false }));
     await waitScreen(b.win, b.doc, 'scr-howto', 4000);
-    assert(!b.doc.getElementById('shelfRoomBtn'), '棚に「部屋」ボタンは無い');
     click(b.doc, b.doc.querySelector('#scr-howto [data-howto="room"]'));
     await waitScreen(b.win, b.doc, 'scr-rt-lobby', 3000);
     assert(b.doc.getElementById('rtJoinCode'), '部屋コードを入れられる');
@@ -2202,6 +2203,216 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       '広い画面ではレイアウトを組み替える');
     // ふだんの画面は今までどおり460pxのまま
     assert(/\.app\{[^}]*max-width:\s*460px/.test(html), 'ふだんの幅は変えていない');
+  });
+
+  // ===================================================================
+  // 第32弾-C 第5部：クイズ王の画面を分ける
+  // 指示に「画面が分かれていないため、何をやっているのか分からない」と
+  // 名指しで書かれていた場所
+  // ===================================================================
+
+  await r.test('ラッシュ：難易度をえらぶ画面と、問題の画面を同時に出さない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, quizRoom('quizrush', quizView('quizrush', { rush: { round: 1, roundsToWin: 0, roundResult: null, board: [] } })));
+    pushYou(fake, quizYou('quizrush', {
+      rush: {
+        tier: 'normal', canChangeTier: true, passesLeft: 3, score: 0, answered: 0, hits: 0, last: null,
+        question: { text: 'これはなに？', choices: ['あ', 'い', 'う'], tier: 'normal' }
+      }
+    }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    // 問題を出している間は、難易度の一覧を並べない（原則A）
+    assert(/これはなに？/.test(el(doc, 'qzBody').textContent), '問題が出ている');
+    assert(!doc.querySelector('[data-qztier]'), '問題の画面に難易度の一覧を並べない');
+    // どの難易度で挑んでいるかは、小さく出ている
+    const now = doc.querySelector('.quiz-tiernow');
+    assert(now, 'いまの難易度が出ている');
+    assert(/点/.test(now.textContent), '何点の問題かも分かる');
+    // パスは残り回数つき
+    const pass = doc.querySelector('[data-qzpass]');
+    assert(pass && /あと3回/.test(pass.textContent),
+      'パスの残り回数が出る（実際: ' + (pass ? pass.textContent : 'なし') + '）');
+
+    // 変えたい時だけ、選び直しの画面へ移る（できることは減っていない）
+    click(doc, doc.querySelector('[data-qztierpick]'));
+    await sleep(win, 60);
+    assert(doc.querySelector('[data-qztier="easy"]'), '選び直しの画面が開く');
+    assert(!/これはなに？/.test(el(doc, 'qzBody').textContent), '問題は引っ込む');
+    click(doc, doc.querySelector('[data-qztierback]'));
+    await sleep(win, 60);
+    assert(/これはなに？/.test(el(doc, 'qzBody').textContent), '問題にもどれる');
+    assertNoErrors(errors, 'ラッシュの画面分割で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ラッシュ：難易度は大きなボタンで縦に並び、点数が大きく出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, quizRoom('quizrush', quizView('quizrush', { rush: { round: 1, roundsToWin: 0, roundResult: null, board: [] } })));
+    pushYou(fake, quizYou('quizrush', {
+      rush: { tier: null, canChangeTier: true, passesLeft: 3, score: 0, answered: 0, hits: 0, last: null, question: null }
+    }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    const cards = doc.querySelectorAll('.tier-card');
+    assertEqual(cards.length, 5, '5段階が並ぶ');
+    cards.forEach((c) => {
+      assert(c.querySelector('.tier-name'), '難易度の名前が出る');
+      assert(c.querySelector('.tier-pt b'), '点数が大きく出る');
+    });
+    // 縦に並ぶ（横に5つ詰めると読めない）
+    const css = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/\.quiz-tiers\{display:flex;flex-direction:column/.test(css), '縦に並ぶ');
+    assertNoErrors(errors, '難易度の並びで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('つぎつぎ：入力欄が画面幅いっぱいで、出た答えが積み上がる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const list = {
+      style: 'coop', topic: '赤い食べ物', tier: 'easy', targetCount: 10,
+      said: ['りんご', 'いちご', 'トマト'], saidCount: 3, turnId: 'm2', turnName: 'びび',
+      turnRemainingMs: 15000, lastNote: null,
+      order: [{ id: 'm1', name: 'あき', alive: true }, { id: 'm2', name: 'びび', alive: true }]
+    };
+    push(fake, quizRoom('quizlist', quizView('quizlist', { list: list })));
+    pushYou(fake, quizYou('quizlist', { list: { yourTurn: true, alive: true, turnRemainingMs: 15000 } }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    // 出た答えが1行ずつ積み上がる（横並びのチップではない）
+    const rows = doc.querySelectorAll('.said-list .said-row');
+    assertEqual(rows.length, 3, '出た答えが行で積み上がる');
+    assert(/トマト/.test(rows[0].textContent), '新しいものが上にくる');
+    assert(rows[0].classList.contains('fresh'), 'いちばん新しい行が光る');
+    assert(/3/.test(rows[0].querySelector('.said-no').textContent), '何個目かが分かる');
+    // 入力欄は全幅（ボタンと横並びにしない）
+    const css = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/\.quiz-answer\{display:flex;flex-direction:column/.test(css),
+      '入力欄と回答ボタンを横に並べない');
+    assert(doc.getElementById('qzAnswerInput'), '入力欄が出る');
+    // 協力形式では、あと何個かが出る
+    assert(/あと7個/.test(el(doc, 'qzBody').textContent), 'あと何個かが分かる');
+    assertNoErrors(errors, 'つぎつぎの画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('とくとく：いま押せば何点かが、大きな数字で出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const rv = {
+      index: 0, total: 5, tier: 'normal', text: 'に○ん○いち○○の…',
+      shown: 4, length: 12, choices: ['あ', 'い', 'う'],
+      nowPoints: 80, buzzedId: null, buzzedName: null, answerRemainingMs: null, lastNote: null
+    };
+    push(fake, quizRoom('quizreveal', quizView('quizreveal', { reveal: rv })));
+    pushYou(fake, quizYou('quizreveal', { reveal: { yours: false, canBuzz: true, locked: false } }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    const pts = doc.querySelector('.reveal-points');
+    assert(pts, 'いま押せば何点かが出る');
+    assertEqual(pts.querySelector('.rp-num').textContent, '80', '点数が出る');
+    assert(/いま押せば/.test(pts.textContent), '何の数字か分かる');
+    // 誰かが押したあとは、もう「いま押せば」ではない
+    push(fake, quizRoom('quizreveal', quizView('quizreveal', {
+      reveal: Object.assign({}, rv, { buzzedId: 'm1', buzzedName: 'あき' })
+    })));
+    await sleep(win, 80);
+    assert(!doc.querySelector('.reveal-points'), '誰かが答えている間は出さない');
+    assert(/あき/.test(el(doc, 'qzNote').textContent), '誰が答えているか分かる');
+    assertNoErrors(errors, 'とくとくの得点表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('早押し：あと何問で勝ち抜けるかが、○の並びで分かる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const b = {
+      roundNum: 1, winsNeeded: 3, delivery: 'text', matchResult: null,
+      pair: [{ id: 'm1', name: 'あき', wins: 2 }, { id: 'm2', name: 'びび', wins: 0 }],
+      buzzedId: null, buzzedName: null, lastNote: null,
+      question: { text: 'これはなに？', choices: ['あ', 'い'] }
+    };
+    push(fake, quizRoom('buzzer', quizView('buzzer', { buzzer: b })));
+    pushYou(fake, quizYou('buzzer', { buzzer: { inMatch: true, canBuzz: true, yours: false } }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    const sides = doc.querySelectorAll('.qv-side');
+    assertEqual(sides.length, 2, '2人が左右に出る');
+    const dots = sides[0].querySelectorAll('.qv-dot');
+    assertEqual(dots.length, 3, '3問先取なら○が3つ');
+    assertEqual(sides[0].querySelectorAll('.qv-dot.on').length, 2, '取ったぶんだけ点く');
+    assertEqual(sides[1].querySelectorAll('.qv-dot.on').length, 0, 'まだの人は点かない');
+    assertNoErrors(errors, '早押しのゲージで未捕捉の例外');
+    win.close();
+  });
+
+  // ===================================================================
+  // 実機で出た不具合：ログインしているのに、部屋を立てられない
+  // ===================================================================
+
+  await r.test('起動時のログイン確認が一度こけても、部屋を立てられる', async () => {
+    // 本番のサーバーは2分ごとに git pull → pm2 restart で入れ替わる。
+    // ちょうどその瞬間にアプリを開くと /api/auth/me だけが落ちる。
+    // セッションのクッキーは生きているのに、この端末は
+    // 「ログインしていない」と思い込んだまま、そのあとずっと直らなかった。
+    const { win, doc, errors } = await launch({ fakeSocket: true, authFlaky: true, playFlow: false });
+    // 起動時の確認は落ちているので、この時点では未ログインに見えている
+    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }) };
+    el(doc, 'rtCreateName').value = 'あき';
+    click(doc, 'rtCreateBtn');
+    await sleep(win, 200);
+    // ログイン画面に飛ばされない＝サーバーに聞き直している
+    assert(activeScreen(doc) !== 'scr-login',
+      'ログイン画面に飛ばされない（いまの画面: ' + activeScreen(doc) + '）');
+    const sent = fake.emits.filter(e => e.name === 'room:create');
+    assertEqual(sent.length, 1, '部屋を立てにいっている');
+    assertNoErrors(errors, '部屋を立てるところで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('棚の下部バーから、部屋への近道が開ける', async () => {
+    // 入口の本筋は「あそびかたをえらぶ」のままで、こちらは近道
+    const { win, doc, errors } = await launch({ fakeSocket: true });
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    const btn = el(doc, 'shelfRoomBtn');
+    assert(btn, '下部バーに部屋のボタンがある');
+    btn.click();
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    // あそびかたも一緒に切り替わる（棚が手渡し用に絞られたまま部屋にいる、を防ぐ）
+    click(doc, 'rtLobbyBackBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assert(/みんなのスマホ/.test(el(doc, 'shelfFlowBtn').textContent),
+      'あそびかたが部屋に切り替わっている（実際: ' + el(doc, 'shelfFlowBtn').textContent + '）');
+    assertNoErrors(errors, '部屋への近道で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('あそびかたをえらぶ画面が、部屋への本筋のまま', async () => {
+    // 近道を足しても、主導線を置き換えていないこと
+    const { win, doc, errors } = await launch({ fakeSocket: true, playFlow: false });
+    assertEqual(activeScreen(doc), 'scr-howto', '扉のつぎは、あそびかたをえらぶ画面');
+    assert(doc.querySelector('#scr-howto [data-howto="room"]'), 'ここから部屋に入れる');
+    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    assertNoErrors(errors, 'あそびかたからの部屋入りで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('本当にログインしていない時は、いままで通りログイン画面へ', async () => {
+    // 聞き直した結果ほんとうに未ログインなら、今までどおり案内する
+    const { win, doc, errors } = await launch({ fakeSocket: true, loggedOut: true, playFlow: false });
+    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    el(doc, 'rtCreateName').value = 'あき';
+    click(doc, 'rtCreateBtn');
+    await waitScreen(win, doc, 'scr-login', 3000);
+    assert(/ログイン/.test(el(doc, 'loginSub').textContent), '理由が出ている');
+    assertNoErrors(errors, '未ログインの案内で未捕捉の例外');
+    win.close();
   });
 
   r.finish();

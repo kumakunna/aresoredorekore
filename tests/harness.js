@@ -48,6 +48,14 @@ function makeApi(opts, titlePuts) {
     });
 
     if (p === '/api/auth/me') {
+      // 第32弾-C：起動時のログイン確認が1回だけ失敗する状況を作る。
+      // 本番のサーバーは2分ごとに git pull → pm2 restart で入れ替わるので、
+      // ちょうどその瞬間にアプリを開いた人は、これを実際に踏む。
+      // セッションのクッキーは生きているのに、確認だけが落ちる。
+      if (opts.authFlaky && !fakeFetch.__authTried) {
+        fakeFetch.__authTried = true;
+        return json(503, { error: 'サーバーが再起動中です（テスト）' });
+      }
       return opts.loggedOut ? json(401, { error: '未ログイン' }) : json(200, { id: 1, username: 'test' });
     }
     if (p === '/api/auth/login' || p === '/api/auth/register') return json(200, { id: 1, username: 'test' });

@@ -563,9 +563,9 @@ function pickCart(doc, id) {
     assert(me && /min-height:44px/.test(me[0]), '名前のところの的も44px以上ある');
 
     const { win, doc, errors } = await launch();
-    // 第32弾-A：部屋への入口は「あそびかたをえらぶ」に一本化したので、
-    // 下部バーから「部屋」は無くなった
-    assert(!doc.getElementById('shelfRoomBtn'), '下部バーに「部屋」は無い');
+    // 第32弾-A：部屋への入口の本筋は「あそびかたをえらぶ」画面。
+    // 第32弾-C：棚を見ている最中に思い立った時のため、下部バーにも近道を戻した
+    assert(doc.getElementById('shelfRoomBtn'), '下部バーから部屋へ行ける');
     // 代わりに、棚の見出しからあそびかたを選び直せる
     click(doc, 'shelfFlowBtn');
     await waitScreen(win, doc, 'scr-howto', 3000);

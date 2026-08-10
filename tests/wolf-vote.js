@@ -1405,8 +1405,10 @@ function votesFrom(list) {
   // 第32弾-C-3：役職あり人狼を、カジュアル構成で始める（この節の共通の下ごしらえ）
   async function startWolfRole(win, doc, presetId, players){
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    // 棚に入った直後は、30ms後に中央が計算し直される。
+    // ここで間を空けると、その計算が「中央にした指定」を取り消してしまうので、
+    // 間を空けずに2回押す（既存のテストと同じ書き方）
     cart.click();
-    await sleep(win, 20);
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');

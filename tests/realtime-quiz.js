@@ -174,7 +174,45 @@ async function run() {
       assertEqual(res.ok, true, '答えられる');
       await waitUntil(() => rm.host.you.rush.score > 0, '点が入る');
       assertEqual(rm.host.you.rush.score, QuizLogic.TIER_POINTS.normal, 'ふつうは2点');
-      assert(rm.host.you.rush.question, '続けて次の問題が出る');
+      // 第33弾 C-1：正解でも、1問ごとに難易度選択にもどる
+      assertEqual(rm.host.you.rush.question, null, '1問ごとに難易度選択へもどる');
+      assertEqual(rm.host.you.rush.coolMs, 0, '正解なら待たされない');
+      await rm.host.call('wolf:act', { targetId: 'normal' });
+      await waitUntil(() => rm.host.you.rush.question, '同じ難易度をえらび直すと、つぎの問題が出る');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('クイズラッシュ：おてつきは少し待たされる。パスは待たずに同じ難易度で続く（第33弾 C）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 2, false);
+      await rm.host.call('wolf:start', { game: 'quizrush', timerSec: 60 });
+      await waitUntil(() => rm.host.you && rm.host.you.rush, '自分の状態が届く');
+      await rm.host.call('wolf:act', { targetId: 'easy' });
+      await waitUntil(() => rm.host.you.rush.question, '問題が届く');
+
+      // パス：難易度選択にもどらず、同じ難易度のまま次の問題（C-1の例外）
+      const passed = await rm.host.call('wolf:act', { targetId: 'pass' });
+      assertEqual(passed.ok, true, 'パスできる');
+      await waitUntil(() => rm.host.you.rush.last === 'pass', 'パスが伝わる');
+      assert(rm.host.you.rush.question, 'パスは同じ難易度のまま、すぐ次の問題');
+
+      // おてつき：まちがえた選択肢を選ぶ
+      const idx = rushAnswerIndex(srv, rm.code, rm.host.memberId);
+      await rm.host.call('wolf:vote', { targetId: (idx + 1) % 3 });
+      await waitUntil(() => rm.host.you.rush.last === 'miss', 'はずれが伝わる');
+      assertEqual(rm.host.you.rush.question, null, 'はずれても難易度選択にもどる');
+      assert(rm.host.you.rush.coolMs > 0, 'おてつきの待ち時間が付く');
+
+      const blocked = await rm.host.call('wolf:act', { targetId: 'easy' });
+      assertEqual(blocked.ok, false, '待ちの間は次の問題を引けない');
+      assertEqual(blocked.error, 'cooling', '理由が分かる');
+
+      // 待ちが明ければ引ける（実時間で5秒待たず、期限を過ぎたことにする）
+      quizOf(srv, rm.code).rush.seats[rm.host.memberId].coolUntil = Date.now() - 1;
+      const ok = await rm.host.call('wolf:act', { targetId: 'easy' });
+      assertEqual(ok.ok, true, '待ちが明ければ引ける');
+      await waitUntil(() => rm.host.you.rush.question, 'つぎの問題が届く');
     } finally { await srv.close(); }
   });
 
@@ -235,14 +273,11 @@ async function run() {
       await rm.host.call('wolf:act', { targetId: 'easy' });
       await waitUntil(() => rm.host.you.rush.question, '問題が届く');
 
-      // 0番が正解になるまで、パスの代わりに答え続けて問題を送る
-      let tries = 0;
-      while (rushAnswerIndex(srv, rm.code, rm.host.memberId) !== 0 && tries++ < 40) {
-        const idx = rushAnswerIndex(srv, rm.code, rm.host.memberId);
-        await rm.host.call('wolf:vote', { targetId: (idx + 1) % 3 });
-        await sleep(20);
-      }
-      assertEqual(rushAnswerIndex(srv, rm.code, rm.host.memberId), 0, '0番が正解の問題が出た');
+      // 第33弾 C-1で「答えるたびに難易度選択へもどる」ようになったので、
+      // まちがえ続けて0番の問題を探す方法は使えない（おてつきの待ちも入る）。
+      // 見たいのは「0 がサーバーに 0 のまま届くか」だけなので、
+      // テストだけの覗き見で、いま出ている問題の正解を0番に置き直す
+      quizOf(srv, rm.code).rush.seats[rm.host.memberId].q.correct = 0;
       const before = rm.host.you.rush.score;
       const res = await rm.host.call('wolf:vote', { targetId: 0 });
       assertEqual(res.ok, true, '0番を選べる');

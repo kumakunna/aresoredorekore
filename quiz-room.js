@@ -48,6 +48,10 @@ const ANSWER_MS = 10000;
 // 早押しで、誰も押さないまま次の問題へ行くまでの時間。
 // これが無いと、対戦相手の電波が切れた瞬間に対戦が永久に止まる
 const ASK_MS = 30000;
+// 第33弾 C-2：クイズラッシュのおてつき（不正解）のあと、次の問題を引けるまでの待ち。
+// 3択を当てずっぽうで押し続けても損をしない、を無くすための時間ペナルティ。
+// 取った点は奪わない（責める時は静かに）
+const RUSH_MISS_COOLDOWN_MS = 5000;
 
 function playersOf(room) {
   return Array.from(room.members.values()).filter((m) => m.role === 'player');
@@ -127,7 +131,8 @@ function startRush(w) {
   w.playerIds.forEach((id) => {
     seats[id] = {
       tier: null, q: null, passesLeft: w.cfg.passLimit,
-      answered: 0, hits: 0, score: 0, last: null
+      answered: 0, hits: 0, score: 0, last: null,
+      coolUntil: 0   // 第33弾 C-2：おてつき（不正解）のあと、次を引けるようになる時刻
     };
   });
   w.rush = {
@@ -149,6 +154,7 @@ function rushNewRound(w) {
     const s = r.seats[id];
     s.tier = null; s.q = null; s.score = 0;
     s.passesLeft = w.cfg.passLimit; s.answered = 0; s.hits = 0; s.last = null;
+    s.coolUntil = 0;   // おてつきの待ちを、次のラウンドへ持ち越さない
   });
   w.phase = PHASE.PLAY;
   w.deadline = Date.now() + w.cfg.timerSec * 1000;
@@ -537,6 +543,8 @@ function privateFor(room, memberId) {
       passesLeft: s.passesLeft,
       score: s.score, answered: s.answered, hits: s.hits,
       last: s.last,
+      // 第33弾 C-2：おてつきの待ちが、あと何ミリ秒残っているか
+      coolMs: Math.max(0, (s.coolUntil || 0) - Date.now()),
       // 出しているのは問題文と選択肢だけ。正解の位置は入れない
       question: s.q ? { text: s.q.q, choices: s.q.choices.slice(), tier: s.q.tier } : null
     };
@@ -620,6 +628,10 @@ function rushAction(w, memberId, targetId) {
   }
   // 難易度を選ぶ（＝1問目を引く／難易度を変える）
   if (QuizLogic.TIERS.indexOf(targetId) === -1) return { ok: false, error: 'unknown_tier' };
+  // 第33弾 C-2：おてつきの待ち時間中は、次の問題を引けない
+  if (Date.now() < (s.coolUntil || 0)) {
+    return { ok: false, error: 'cooling', message: 'おてつき中です。少し待ってください' };
+  }
   if (s.tier && !w.cfg.canChangeTier && s.tier !== targetId) {
     return { ok: false, error: 'tier_locked' };
   }
@@ -709,10 +721,16 @@ function rushAnswer(w, memberId, targetId) {
   // 結果画面のランキングが見る w.scores（全ラウンド合計）に足していなかったので、
   // 決着しても全員0点のままだった。両方に足す
   if (judged.correct) { s.hits++; s.score += judged.gained; w.scores[memberId] = (w.scores[memberId] || 0) + judged.gained; }
+  // 第33弾 C-2：おてつきは、少しのあいだ次の問題を引けない。
+  // 取った点は奪わない（責める時は静かに）。3択を当てずっぽうで
+  // 押し続けても、待たされるぶん時間で損をする形にする
+  else s.coolUntil = Date.now() + RUSH_MISS_COOLDOWN_MS;
   // 「correct」という言葉は端末へ配るものに使わない（正解の位置と紛れるため）
   s.last = judged.correct ? 'hit' : 'miss';
-  // 続けて次の問題を出す（同じ難易度）。手を止めずに挑み続けられるように
-  s.q = drawQuestion(w, s.tier);
+  // 第33弾 C-1：正解でも不正解でも、1問ごとに難易度選択にもどる。
+  // 「じっくり低い点を重ねるか、一気に高い点を狙うか」を毎問選び直させる。
+  // パスの時だけは、同じ難易度のまま次の問題が出る（rushAction 側）
+  s.q = null;
   return { ok: true, correct: judged.correct, allDone: false };
 }
 
@@ -963,7 +981,7 @@ function isAllDone(room) {
 }
 
 module.exports = {
-  PHASE, MIN_PLAYERS, MAX_ROUNDS, BREAK_MS, ANSWER_MS,
+  PHASE, MIN_PLAYERS, MAX_ROUNDS, BREAK_MS, ANSWER_MS, RUSH_MISS_COOLDOWN_MS,
   startGame, publicView, privateFor,
   submitAction, submitVote, isAllDone, advance,
   playersOf, expectedMembers, resultView

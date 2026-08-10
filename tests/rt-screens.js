@@ -1281,6 +1281,28 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('ラッシュ：おてつき中は残り秒が出て、難易度が押せない（第33弾 C-2）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2', game: 'quizrush' });
+    push(fake, quizRoom('quizrush', quizView('quizrush', { rush: { round: 1, roundsToWin: 0, roundResult: null, board: [] } })));
+    pushYou(fake, quizYou('quizrush', {
+      rush: { tier: 'easy', canChangeTier: true, passesLeft: 3, score: 0,
+        answered: 1, hits: 0, last: 'miss', question: null, coolMs: 700 }
+    }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    assert(/おてつき/.test(el(doc, 'qzBody').textContent), '待たされていることが分かる');
+    const tiers = doc.querySelectorAll('#qzBody .tier-card');
+    assert(tiers.length > 0 && tiers[0].disabled, '難易度は押せない');
+    // 待ちが明けると、そのまま（サーバーを待たずに）選べる画面へ戻る
+    await waitFor(win, () => {
+      const t = doc.querySelectorAll('#qzBody .tier-card');
+      return t.length > 0 && !t[0].disabled;
+    }, 3000, 'おてつきが明けて選べるようになる');
+    assert(!/おてつき/.test(el(doc, 'qzBody').textContent), '待ちの表示が消える');
+    assertNoErrors(errors, 'おてつきの表示で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('全員が投票をとばした回は「同数」と言わない（第33弾 B-7）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });

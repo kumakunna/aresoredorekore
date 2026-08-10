@@ -1630,6 +1630,8 @@
     font-family:'Zen Maru Gothic',sans-serif;
     transition:transform .12s ease;
   }
+  /* 第33弾 C-2：おてつきの待ち時間中は、押せないことが見た目でも分かる */
+  .tier-card:disabled{opacity:.45;cursor:default;}
   .tier-card:active{transform:scale(.985);}
   .tier-card.on{border-color:var(--gold);}
   .tier-name{font-size:17px;font-weight:800;}
@@ -8564,6 +8566,17 @@
       if(qzPacedEl && qzPacedText){
         qzPacedEl.textContent = qzSpeechPaced(qzPacedText, qzPacedAt);
       }
+      // 第33弾 C-2：おてつきの残り秒を数え、明けたら描き直して難易度を選べるようにする
+      if(qzUi.coolUntil){
+        var left = qzUi.coolUntil - Date.now();
+        if(left <= 0){
+          qzUi.coolUntil = null;
+          renderRtQuiz();
+        } else {
+          var n = el('qzCoolLeft');
+          if(n) n.textContent = String(Math.ceil(left / 1000));
+        }
+      }
     }, 250);
   }
   // 読み上げの代わりに開いていく問題文（開き終わるまで、この3つを持つ）
@@ -8571,6 +8584,7 @@
   // 画面から離れる時に必ず呼ぶ。時計と読み上げを残さない
   function qzLeaveScreen(){
     qzUi.pickingTier = false; // 第32弾-C-5：次に来た時に選び直しの画面から始まらないように
+    qzUi.coolUntil = null; qzUi.coolSrc = null; // おてつきの待ちも持ち越さない
     clearInterval(qzClock.timer); qzClock.timer = null;
     qzClock.ms = null;
     qzSpoken = null;
@@ -8603,10 +8617,10 @@
    * 小さなチップが横に5つ並んでいたので、点数も難易度も読み取りづらかった。
    * 点数を大きく出すのは、これが選ぶ理由そのものだから。
    */
-  function qzTierButtonsHtml(current){
+  function qzTierButtonsHtml(current, disabled){
     return '<div class="quiz-tiers">' + (QuizLogic.TIERS || []).map(function(t){
       return '<button class="tier-card t-' + t + (t === current ? ' on' : '') +
-        '" data-qztier="' + t + '">' +
+        '" data-qztier="' + t + '"' + (disabled ? ' disabled' : '') + '>' +
         '<span class="tier-name">' + escapeHtml(QuizLogic.TIER_LABEL[t] || t) + '</span>' +
         '<span class="tier-pt"><b>' + (QuizLogic.TIER_POINTS[t] || 1) + '</b>点</span>' +
       '</button>';
@@ -8703,15 +8717,31 @@
 
     // 第32弾-C-5：難易度をえらぶ画面と、問題の画面を分ける。
     // 同じ画面に両方あると「いま何をすればいいのか」が読み取れない（原則A）。
-    // 難易度を変えられる設定でも、変えたい時だけ選び直しの画面へ移る形にした
-    // （できることは何も減らしていない）。
+    // 第33弾 C-1：正解でも不正解でも、1問ごとにこの画面へもどってくる。
+    // 「じっくり低い点を重ねるか、一気に高い点を狙うか」を毎問選び直させる
     var html = '';
+    // 第33弾 C-2：おてつきの待ち時間。
+    // 期限は「サーバーからの新しい状態が届いた時」に一度だけ計算する。
+    // 描き直すたびに coolMs から計算し直すと、待ちが明けた後の描き直しでも
+    // 古い coolMs を読んで、永遠に待たされ続けてしまう
+    if(you !== qzUi.coolSrc){
+      qzUi.coolSrc = you;
+      qzUi.coolUntil = (mine.coolMs || 0) > 0 ? (Date.now() + mine.coolMs) : null;
+    }
+    var cooling = !!(qzUi.coolUntil && Date.now() < qzUi.coolUntil);
+    if(!cooling) qzUi.coolUntil = null;
     var picking = !mine.tier || !mine.question || qzUi.pickingTier;
     if(picking){
-      html += '<p class="wiz-lead">' + (mine.tier && !mine.question
-        ? 'この難易度の問題を出しきりました。ほかの難易度をえらんでください'
-        : '挑む難易度をえらんでください') + '</p>';
-      html += qzTierButtonsHtml(mine.tier || null);
+      if(cooling){
+        // 残り秒は qzStartTicking の時計が描き直す
+        html += '<p class="wiz-lead">❌ おてつき！<b id="qzCoolLeft">' +
+          Math.ceil((qzUi.coolUntil - Date.now()) / 1000) + '</b>秒待つと、つぎの問題に挑めます</p>';
+      } else {
+        html += '<p class="wiz-lead">' + (mine.tier && !mine.question
+          ? 'つぎに挑む難易度をえらんでください'
+          : '挑む難易度をえらんでください') + '</p>';
+      }
+      html += qzTierButtonsHtml(mine.tier || null, cooling);
       if(qzUi.pickingTier && mine.question){
         html += '<button class="btn btn-ghost" data-qztierback="1" style="margin-top:12px;">← 問題にもどる</button>';
       }

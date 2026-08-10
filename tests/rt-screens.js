@@ -2415,5 +2415,102 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ===================================================================
+  // 第32弾-C：部屋の画面まとめて（第6部・第4部の残り・観戦モード）
+  // ===================================================================
+
+  await r.test('オークション：品物はスポットライトの下に出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, auctionRoom(auctionView({ phase: 'show', teaser: 'むかし、ある人が大切にしていた…' })));
+    pushYou(fake, auctionYou({ ready: false, hints: [], inventory: [], shop: [] }));
+    await waitScreen(win, doc, 'scr-rt-auction', 4000);
+    assert(doc.querySelector('.au-stage'), '舞台の上に出る');
+    assert(doc.querySelector('.au-spot'), 'スポットライトが降りる');
+    assert(/むかし、ある人が/.test(el(doc, 'auBody').textContent), '謎めいた一言が出る');
+    assertNoErrors(errors, '品物登場で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('オークション：同額なら先に出した人、と理由が書いてある', async () => {
+    // 同額で負けた時に「なぜ」が分からないと後味が悪い
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, auctionRoom(auctionView({
+      phase: 'bid', mode: 'open', highest: { name: 'あき', amount: 5 }
+    })));
+    pushYou(fake, auctionYou({ chips: 20, myBid: null }));
+    await waitScreen(win, doc, 'scr-rt-auction', 4000);
+    assert(/先に出した人/.test(el(doc, 'auNote').textContent),
+      '同額の決まりが読める（実際: ' + el(doc, 'auNote').textContent + '）');
+    assertNoErrors(errors, '入札の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('オークション：価値が開く瞬間に、大当たりと大ハズレで見た目が変わる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // 大当たり
+    push(fake, auctionRoom(auctionView({
+      phase: 'result', round: 1,
+      lastResult: { passed: false, winner: 'あき', bid: 5, paid: 5, value: 30, delta: 25,
+        teaser: 'なぞ', reveal: '幻の名品', tier: 'jackpot' }
+    })));
+    pushYou(fake, auctionYou({ chips: 20 }));
+    await waitScreen(win, doc, 'scr-rt-auction', 4000);
+    await sleep(win, 80);
+    let b = doc.querySelector('.fx-banner');
+    assert(b && b.classList.contains('fx-banner-gold'), '大当たりは金色（' + (b ? b.className : 'なし') + '）');
+    // 落札した人以外は損しないことを、その場で伝える
+    assert(/払ったのは あき さんだけ/.test(b.textContent),
+      'ほかの人は損しないと分かる（実際: ' + b.textContent + '）');
+    doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+    await sleep(win, 120);
+
+    // 大ハズレ（別のラウンドとして届く）
+    push(fake, auctionRoom(auctionView({
+      phase: 'result', round: 2,
+      lastResult: { passed: false, winner: 'あき', bid: 8, paid: 8, value: 0, delta: -8,
+        teaser: 'なぞ', reveal: 'ただのガラクタ', tier: 'dud' }
+    })));
+    await sleep(win, 120);
+    b = doc.querySelector('.fx-banner');
+    assert(b && b.classList.contains('fx-banner-gray'), '大ハズレは灰色に沈む');
+    // 結果の欄にも、損したのは落札した人だけだと残る
+    assert(/1枚も減っていません/.test(el(doc, 'auBody').textContent),
+      '結果の欄にも残る');
+    assertNoErrors(errors, '価値の開示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('観戦モード：脱落した人も、生きている人と欠けた人を見ていられる', async () => {
+    // それまでは脱落を告げられるだけで、以降なにも見えなかった
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({
+      state: {
+        phase: 'play', game: 'wolfrole', data: wolfView({
+          phase: 'day', turn: 2,
+          players: [
+            { id: 'm1', name: 'あき', alive: true, role: null, deadCause: null, deadTurn: null },
+            { id: 'm2', name: 'びび', alive: false, role: null, deadCause: 'vote', deadTurn: 1 },
+            { id: 'm3', name: 'ちか', alive: true, role: null, deadCause: null, deadTurn: null }
+          ]
+        })
+      }
+    }));
+    pushYou(fake, { phase: 'day', roleId: 'villager', roleName: '村人', roleDesc: '', alive: false, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    const box = el(doc, 'rtYouBox');
+    assert(/観戦/.test(box.textContent), '観戦だと分かる');
+    const board = box.querySelector('.wolf-board');
+    assert(board, '盤面が見られる');
+    assert(/あき/.test(board.textContent) && /ちか/.test(board.textContent), '生きている人が分かる');
+    assert(/びび/.test(board.textContent), '欠けた人も分かる');
+    assert(/処刑/.test(board.textContent), 'どう欠けたかも分かる');
+    assertNoErrors(errors, '観戦モードで未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

@@ -1679,6 +1679,25 @@
   .au-mybid{text-align:center;font-size:18px;margin:14px 0;}
   .au-mybid b{font-family:'DotGothic16',monospace;font-size:26px;}
   .au-reveal{text-align:center;margin-top:8px;}
+  /* 第32弾-C-6：暗い舞台にスポットライトが降り、謎めいた一言が遅れて浮かぶ。
+     品物が「出てきた」瞬間が無いと、ただの文章に見える */
+  .au-stage{position:relative;overflow:hidden;border-radius:14px;}
+  .au-spot{
+    position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at 50% -10%, rgba(255,236,190,.55), transparent 62%);
+    opacity:0;animation:auSpot calc(0.5s * var(--fx-scale)) ease-out forwards;
+  }
+  @keyframes auSpot{from{opacity:0;transform:translateY(-14px) scaleY(.7);}to{opacity:1;transform:none;}}
+  .au-stage .au-teaser{
+    opacity:0;animation:auTeaserIn calc(0.5s * var(--fx-scale)) ease-out .28s forwards;
+  }
+  @keyframes auTeaserIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  /* 木槌が振り下ろされた合図 */
+  .au-sold{
+    font-family:'Shippori Mincho',serif;font-weight:800;font-size:26px;margin:0 0 6px;
+    animation:auSold calc(0.4s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1);
+  }
+  @keyframes auSold{0%{transform:scale(.5) rotate(-8deg);opacity:0;}60%{transform:scale(1.08);opacity:1;}100%{transform:none;opacity:1;}}
   .au-truth{font-size:16px;line-height:1.7;margin:8px 0;}
   .au-value{font-family:'DotGothic16',monospace;font-size:22px;margin:6px 0;}
   .au-delta{font-family:'DotGothic16',monospace;font-size:20px;}
@@ -8237,7 +8256,15 @@
         '<div class="ry-name" style="font-size:20px;">💞 ' + escapeHtml(you.lovers.join('、')) + '</div></div>';
     }
     if(you.info) html += '<div class="ry-info">' + rtInfoHtml(you.info) + '</div>';
-    if(you.alive === false) html += '<div class="ry-info"><div class="ry-desc">💀 あなたは脱落しています</div></div>';
+    // 第32弾-C-3：脱落した人は「観戦」に入る。
+    // それまでは脱落を告げられるだけで、以降なにも見えなかった。
+    // 生きている人と、誰がどう欠けたかは公開情報なので、そのまま見せてよい。
+    // 手渡し側とまったく同じ盤面を使う（見え方を2つ作らない）
+    if(you.alive === false){
+      html += '<div class="ry-info"><div class="ry-desc">💀 あなたは脱落しました。ここからは観戦です</div>' +
+        wolfBoardHtml(wolfBoardFromView(v), {}) +
+        '<div class="mic-status">結果が出るまで、みんなの様子を見ていられます</div></div>';
+    }
     return html;
   }
   // 第24弾：1人1台のワードウルフの、全員に見えている情報。
@@ -8831,6 +8858,7 @@
     auBidValue = 0;
     auPrevPhase = null;
     auPrevHighest = null;
+    auShownResult = null; // 第32弾-C-6：次に来た時に、開示の演出をやり直せるように
   }
   function auEndButtons(ended){
     el('auLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
@@ -8916,7 +8944,11 @@
     note.push(you.ready ? 'ほかの人を待っています' : '正体は伏せられています。いくらまで出せるか考えよう');
     el('auNote').innerHTML = '<div class="ry-desc">' + note.join('<br>') + '</div>';
 
-    var html = '<div class="au-teaser">' + escapeHtml(v.teaser || '') + '</div>';
+    // 第32弾-C-6：暗い舞台にスポットライトが降り、
+    // 謎めいた一言が少し遅れて浮かび上がる。
+    // 品物が「出てきた」瞬間が無いと、ただの文章に見える
+    var html = '<div class="au-stage"><div class="au-spot"></div>' +
+      '<div class="au-teaser">' + escapeHtml(v.teaser || '') + '</div></div>';
     if((you.hints || []).length){
       html += '<div class="au-hints">' + you.hints.map(function(h){
         return '<div class="au-hint">🔍 ' + escapeHtml(h) + '</div>';
@@ -8956,6 +8988,9 @@
         ? ('🔨 いまは ' + escapeHtml(v.highest.name) + ' さんの ' + v.highest.amount + '枚')
         : 'まだ誰も値をつけていません');
       note.push('誰かが値をつけるたびに、締め切りが延びます');
+      // 第32弾-C-6：同額で負けた時に「なぜ」が分からないと、後味が悪い。
+      // ルールをその場に書いておく（判定そのものはルール層のまま）
+      note.push('同じ金額なら、先に出した人が落札します');
     } else {
       note.push(you.myBid == null ? 'こっそり金額を決めて出そう' : ('出した金額：' + you.myBid + '枚'));
       if((v.doneNames || []).length) note.push('出した人：' + escapeHtml(v.doneNames.join('、')));
@@ -9004,6 +9039,14 @@
   function auRenderResult(v, you){
     var res = v.lastResult || {};
     el('auNote').innerHTML = '<div class="ry-desc">つぎのラウンドがすぐ始まります</div>';
+    // 第32弾-C-6：ここがこの遊びの最大の見せ場。
+    // 大当たりは金色に爆ぜ、大ハズレは画面が灰色に沈む。
+    // その落差が面白さの核なので、地味なフェードで済ませない。
+    // 同じラウンドの結果で何度も鳴らさないよう、1回だけ出す
+    if(auShownResult !== v.round){
+      auShownResult = v.round;
+      auRevealValue(res);
+    }
     var html = '<div class="au-reveal">' +
       '<div class="au-teaser">' + escapeHtml(res.teaser || '') + '</div>' +
       '<div class="au-truth">' + escapeHtml(res.reveal || '') + '</div>' +
@@ -9012,14 +9055,45 @@
     if(res.passed){
       html += '<p>だれも値をつけなかったので、品物は流れました</p>';
     } else {
-      html += '<p>🔨 ' + escapeHtml(res.winner || '') + ' さんが ' + res.bid + '枚で落札' +
+      html += '<p class="au-sold">🔨 落札！</p>' +
+        '<p>' + escapeHtml(res.winner || '') + ' さんが ' + res.bid + '枚で落札' +
         (res.halfticket ? '（半額チケットで ' + res.paid + '枚）' : '') +
         (res.doubleup ? '（ダブルアップ）' : '') + '</p>' +
         '<p class="au-delta' + (res.delta >= 0 ? ' plus' : ' minus') + '">差し引き ' +
-        (res.delta >= 0 ? '+' : '') + res.delta + '枚</p>';
+        (res.delta >= 0 ? '+' : '') + res.delta + '枚</p>' +
+        // 第32弾-C-6：払ったのは落札した人だけ。ほかの人は1枚も減らない
+        '<p class="mic-status">チップが動いたのは ' + escapeHtml(res.winner || '') +
+        ' さんだけです。ほかの人は1枚も減っていません</p>';
     }
     html += '</div>' + auBoardHtml(v);
     el('auBody').innerHTML = html;
+  }
+  var auShownResult = null;
+  /**
+   * 第32弾-C-6：品物の正体が開く瞬間。
+   * 値が大きいほど派手に、大きく損した時ほど静かに沈める（原則C）。
+   * 損したことを大音量で囃し立てない。
+   */
+  function auRevealValue(res){
+    if(typeof FxKit === 'undefined' || !res || res.value == null) return;
+    var big = res.value >= 20;      // 大当たり
+    var bad = res.value <= 0;       // ハズレ
+    if(res.passed){
+      FxKit.banner({ kind:'plain', icon:'🌫', text:'流れました',
+        sub:'だれも値をつけませんでした', ms:700 });
+      return;
+    }
+    FxKit.flash(big ? 'gold' : (bad ? 'gray' : 'good'));
+    FxKit.banner({
+      kind: big ? 'gold' : (bad ? 'gray' : 'good'),
+      icon: big ? '💎' : (bad ? '🗑' : '🎁'),
+      text: res.reveal || '',
+      // 落札した人以外は1枚も損しない。これが分からないと、
+      // 自分に関係のない結果まで悪い知らせに見える
+      sub: auTierLabel(res.tier) + '　' + (res.value >= 0 ? '+' : '') + res.value + '枚' +
+           '　／　払ったのは ' + (res.winner || '') + ' さんだけです',
+      ms: 900
+    });
   }
   function auTierLabel(tier){
     var t = AuctionItems.tierById(tier);
@@ -9472,6 +9546,19 @@
   // 盤面のマス1つ。お題の名前も説明文も、ここには届いていない（難易度と状態だけ）
   // 第28弾-1：盤面のマスは協力版（1台）と共通の部品（bombGridHtml）で描く。
   // ここが決めるのは「マスに何の顔を出すか」だけ
+  /**
+   * 第32弾-C-4：誰かが挑戦中のマスは、枠を脈打たせる。
+   * 名前は下に出ているが、盤面のどれなのかが結びついていなかった。
+   * 名前も併記したままにしてあるので、色だけには頼っていない（第8部-2）。
+   */
+  function rtBombMarkWorking(){
+    if(typeof FxKit === 'undefined') return;
+    var board = el('rtBombBoard');
+    if(!board) return;
+    board.querySelectorAll('.bomb-wire-btn').forEach(function(b){
+      FxKit.alive(b, b.classList.contains('taken'));
+    });
+  }
   function rtBombCell(c, mine){
     var cell = { uid: c.uid, tier: c.tier, solved: c.solved };
     if(c.solved) cell.face = '✅';
@@ -9563,6 +9650,7 @@
 
     el('rtBombNote').innerHTML = rtBombNoteHtml(v, you);
     el('rtBombBoard').innerHTML = rtBombBoardHtml(you);
+    rtBombMarkWorking();
     el('rtBombResult').innerHTML = '';
     rtBombEndButtons(false);
 
@@ -11632,12 +11720,18 @@
    *   opts.me       … その人だけに見せる「これまでに得た情報」を出す
    *   opts.compact  … 夜の行動画面用。場所を取らないように履歴をたたむ
    */
-  function wolfBoardHtml(game, opts){
+  /**
+   * 第32弾-C-3／C：手渡しと部屋の両方から使う。
+   * 受け取るのは「正規化した一覧」だけにしてある。
+   * 手渡しの game と部屋の公開情報は形が違うので、
+   * ここで両方を受けようとすると、片方を直した時にもう片方が壊れる。
+   *   list … [{ name, alive, deadCause, deadTurn, roleName }]
+   */
+  function wolfBoardHtml(list, opts){
     opts = opts || {};
-    if(!game || !game.players) return '';
-    var alive = game.players.filter(function(p){ return p.alive; });
-    var dead = game.players.filter(function(p){ return !p.alive; });
-    var revealRole = !!(game.config && game.config.revealRoleOnDeath);
+    if(!list || !list.length) return '';
+    var alive = list.filter(function(p){ return p.alive; });
+    var dead = list.filter(function(p){ return !p.alive; });
     var html = '<div class="wolf-board">';
     html += '<div class="wb-row"><span class="wb-label">生きている</span>' +
       '<span class="wb-items">' + alive.map(function(p){
@@ -11650,7 +11744,7 @@
           var cause = p.deadCause === 'vote' ? '処刑'
                     : p.deadCause === 'cursed' ? '謎の死'
                     : p.deadCause === 'lover' ? '後を追った' : '襲撃';
-          var role = revealRole ? '・' + WolfLogic.roleById(p.role).name : '';
+          var role = p.roleName ? '・' + p.roleName : '';
           return '<span class="wb-chip dead">' + escapeHtml(p.name) +
             '<small>' + escapeHtml((p.deadTurn ? p.deadTurn + '日目' : '') + cause + role) + '</small></span>';
         }).join('') + '</span></div>';
@@ -11666,6 +11760,28 @@
     }
     html += '</div>';
     return html;
+  }
+  // 手渡しの game を、盤面が読める形にそろえる
+  function wolfBoardFromGame(game){
+    if(!game || !game.players) return [];
+    var reveal = !!(game.config && game.config.revealRoleOnDeath);
+    return game.players.map(function(p){
+      return {
+        id: p.id, name: p.name, alive: p.alive,
+        deadCause: p.deadCause, deadTurn: p.deadTurn,
+        roleName: (!p.alive && reveal) ? WolfLogic.roleById(p.role).name : null
+      };
+    });
+  }
+  // 部屋の公開情報を、同じ形にそろえる（役職は公開されている時だけ入っている）
+  function wolfBoardFromView(v){
+    return ((v && v.players) || []).map(function(p){
+      return {
+        id: p.id, name: p.name, alive: p.alive,
+        deadCause: p.deadCause, deadTurn: p.deadTurn,
+        roleName: p.role ? WolfLogic.roleById(p.role).name : null
+      };
+    });
   }
   /**
    * その人がこれまでに得た情報（占い・霊媒・のぞき見の結果）。
@@ -12011,7 +12127,7 @@
       name: p.name,
       // 第32弾-C-3：生きている人と、自分がこれまでに得た情報を、選ぶ時に見えるようにする。
       // 記憶に頼らせるのは初心者に厳しすぎる
-      html: wolfBoardHtml(wr.game, { me: p, compact: true }) +
+      html: wolfBoardHtml(wolfBoardFromGame(wr.game), { me: p, compact: true }) +
             '<div class="wolf-topic-label">' + escapeHtml(label) + '</div>',
       choices: act.targets
     });
@@ -12138,7 +12254,7 @@
     // 第32弾-C-3：誰が生きていて、誰がどう欠けたか。投票の材料を画面に出す
     uiHandoffContent({
       name: p.name,
-      html: wolfBoardHtml(wr.game, { me: p }) + html,
+      html: wolfBoardHtml(wolfBoardFromGame(wr.game), { me: p }) + html,
       choices: targets
     });
   }
@@ -12345,7 +12461,7 @@
     }
     // 夜に得た情報（占い・霊媒）は、本人に見せるため次の手渡しで配る
     // 第32弾-C-3：ターン数・生きている人・欠けた人と理由を、話し合いの間じゅう出す
-    el('wrDayNews').innerHTML = news + wolfBoardHtml(wr.game, {});
+    el('wrDayNews').innerHTML = news + wolfBoardHtml(wolfBoardFromGame(wr.game), {});
     // 犠牲者の名前だけ、少し遅れて浮かび上がる。この「間」が緊張感を作る
     if(deaths.length && typeof FxKit !== 'undefined'){
       var names = el('wrDayNews').querySelectorAll('.day-death');

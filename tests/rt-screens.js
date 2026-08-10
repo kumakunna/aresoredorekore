@@ -1117,6 +1117,53 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('クイズ解除：部屋版でも、爆発・解除成功の瞬間の演出が出る（第33弾 A-2）', async () => {
+    // 前回まで手渡し版にだけ実装していて、部屋版は結果の文字が出るだけだった。
+    // 実機テストは部屋で行われたので「爆発のアニメーションが無い」ように見えた（落とし穴1）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // まず解除中の画面を見る（決着の演出は、見ていた人にだけ出す）
+    push(fake, bombRoom());
+    pushYou(fake, bombYou());
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    assertEqual(doc.querySelectorAll('.bomb-boom').length, 0, 'まだ爆発は出ていない');
+    // 協力版の失敗で決着 → 爆発の演出（赤い閃光）が出る
+    const lost = bombView({
+      phase: 'ended',
+      result: { mode: 'coop', success: false, cause: 'lives', solved: 2, total: 4,
+        lives: 0, livesMax: 3, misses: 3, elapsedSec: 120, codes: [] }
+    });
+    push(fake, bombRoom({ state: { phase: 'ended', game: 'bomb', data: lost } }));
+    pushYou(fake, bombYou({ phase: 'ended', lives: 0, result: lost.result }));
+    await sleep(win, 100);
+    assertEqual(doc.querySelectorAll('.bomb-boom').length, 1, '爆発の閃光が出る');
+    assert(/爆発/.test(el(doc, 'rtBombResult').textContent), '結果も出ている');
+    // 決着の画面を描き直しても、爆発は繰り返さない（1回だけの閃光）
+    const firstBoom = doc.querySelector('.bomb-boom');
+    push(fake, bombRoom({ state: { phase: 'ended', game: 'bomb', data: lost } }));
+    await sleep(win, 100);
+    const booms = doc.querySelectorAll('.bomb-boom');
+    assert(booms.length === 1 && booms[0] === firstBoom, '2発目の閃光は出ない');
+    await sleep(win, 800);
+    assertEqual(doc.querySelectorAll('.bomb-boom').length, 0, '閃光は時間で消える');
+    assertNoErrors(errors, '爆発の演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('クイズ解除：競争版で自分のライフが尽きた瞬間、自分の端末で爆発が出る（第33弾 A-2）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, bombRoom());
+    pushYou(fake, bombYou({ mode: 'race', lives: 1 }));
+    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    // 最後のライフを失った（ゲーム自体はまだ続いている）
+    pushYou(fake, bombYou({ mode: 'race', lives: 0, misses: 3, failed: true }));
+    await sleep(win, 100);
+    assertEqual(doc.querySelectorAll('.bomb-boom').length, 1, '自分の爆弾が爆発する');
+    assertNoErrors(errors, '競争版の爆発で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('クイズ解除：始められなかった時は、理由が出て行き止まりにならない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });

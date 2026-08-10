@@ -781,6 +781,10 @@
      元の文字もDOMに残してあり、画像が読めなかった時はそちらを出す
      （絵文字が消えてボタンが空になる、という壊れ方をさせない）。 */
   .emj{display:inline-block;line-height:1;}
+  /* 第33弾 A-1：中身を覚えたSVGはインラインで出す（画像読み込みが無いので点滅しない） */
+  .emj svg{width:1em;height:1em;vertical-align:-0.125em;display:none;}
+  .emj.emj-svg svg{display:block;}
+  .emj.emj-svg .emj-txt{display:none;}
   /* 既定は文字。画像が読めた時にだけ入れ替える（読めない時に何も出ない、を作らない） */
   .emj img{width:1em;height:1em;vertical-align:-0.125em;display:none;}
   .emj .emj-txt{display:inline;}
@@ -9585,6 +9589,9 @@
   // 通信の返事に載せてもらうと「サーバーの状態」と「画面が鳴らした音」が
   // ずれる余地ができるので、必ず状態の変化だけを見る。
   var rtBombPrev = null;   // 直前に見た自分の成績。音と演出の引き金にする
+  // 第33弾 A-2：解除中の画面を見ていた人にだけ、決着の瞬間の演出を出す。
+  // あとから部屋をのぞいた端末（観戦・入り直し）には、いきなり爆発を見せない
+  var rtBombLive = false;
   var rtBombClock = { ms:null, at:0, timer:null };
 
   function rtBombSetClock(ms){
@@ -9720,10 +9727,21 @@
       el('rtBombTimer').style.display = 'none'; // 止まった時計を残さない
       el('rtBombResult').innerHTML = rtBombResultHtml(v);
       rtBombEndButtons(true);
+      // 第33弾 A-2：決着の瞬間の演出。手渡し版と同じものを出す（落とし穴1）。
+      // 解除中の画面を見ていた端末にだけ・1回だけ
+      if(rtBombLive){
+        rtBombLive = false;
+        var r = v.result;
+        if(r && !r.aborted && r.mode === 'coop'){
+          if(r.success) bombClearFx();
+          else bombBoomFx();
+        }
+      }
       return;
     }
 
     // ---- 解除中 ----
+    rtBombLive = true;
     // 前回との差から、正解・ミスを見つけて音と演出を出す
     rtBombFeedback(you);
     rtBombSetClock(you.remainingMs);
@@ -9812,7 +9830,7 @@
 
   // サーバーの成績が動いた分だけ、音と演出を出す
   function rtBombFeedback(you){
-    var now = { solved: you.solvedCount, misses: you.misses };
+    var now = { solved: you.solvedCount, misses: you.misses, failed: !!you.failed };
     if(!rtBombPrev){ rtBombPrev = now; return; }
     if(now.solved > rtBombPrev.solved) snipSound();
     if(now.misses > rtBombPrev.misses){
@@ -9823,6 +9841,9 @@
         ? '💔 ちがう！ライフ−1・残り時間−10秒'
         : '💔 ちがう！ライフが割れた', 'hit-wrong');
     }
+    // 第33弾 A-2：競争版で自分のライフが尽きた瞬間。
+    // ゲーム自体は続いていても、自分の爆弾はここで爆発している
+    if(now.failed && !rtBombPrev.failed) bombBoomFx();
     rtBombPrev = now;
   }
 
@@ -13038,6 +13059,33 @@
     beep(900, 70); setTimeout(function(){ beep(1250, 60); }, 80);
     doVibrate(40);
   }
+  /**
+   * 第33弾 A-2：解除成功・爆発の見せ場は、共通部品にして両方から呼ぶ。
+   * 前回まで手渡し版（explode / defuseComplete）にだけ実装していて、
+   * 部屋（1人1台）版は結果の文字が出るだけだった。実機テストは部屋で
+   * 行われたので「爆発のアニメーションが無い」ように見えた（落とし穴1）。
+   */
+  // 第32弾-C-4 原則C：褒める時は全力で。画面全体が緑に染まる
+  function bombClearFx(){
+    if(typeof FxKit === 'undefined') return Promise.resolve();
+    FxKit.flash('good');
+    return FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',
+      sub:'全部のコードを止めました', ms:900 });
+  }
+  // 第32弾-C：爆発は赤ではっきり出す。
+  // ただし「責める」のではなく「爆弾が爆発した」ことを出す演出にする。
+  // 誰かの失敗を囃し立てるのではないので、赤は0.5秒で引き、
+  // 明滅・振動の繰り返しはさせない（酔わないように・目に悪くならないように）
+  function bombBoomFx(){
+    if(typeof FxKit === 'undefined') return Promise.resolve();
+    doVibrate([140,70,140]);
+    var boom = document.createElement('div');
+    boom.className = 'bomb-boom';
+    el('app').appendChild(boom);
+    setTimeout(function(){ if(boom.parentNode) boom.parentNode.removeChild(boom); }, fxMs(700));
+    return FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
+      sub:'つぎは、もう少しだけ慎重に', ms:900 });
+  }
   function defuseComplete(){
     play.bombPhase = 'over';
     stopBombTimer();
@@ -13047,12 +13095,8 @@
     beep(784, 140); setTimeout(function(){ beep(1046, 240); }, 170);
     var inside = el('bombInside');
     inside.classList.remove('bomb-defused'); void inside.offsetWidth; inside.classList.add('bomb-defused');
-    // 第32弾-C-4 原則C：褒める時は全力で。画面全体が緑に染まる
     if(typeof FxKit !== 'undefined'){
-      FxKit.flash('good');
-      FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',
-        sub:'全部のコードを止めました', ms:900 })
-        .then(function(){ enterBombEnd(true); goTo('scr-bomb-end'); });
+      bombClearFx().then(function(){ enterBombEnd(true); goTo('scr-bomb-end'); });
       return;
     }
     setTimeout(function(){ enterBombEnd(true); goTo('scr-bomb-end'); }, 750);
@@ -13064,19 +13108,8 @@
     el('bombWireOverlay').classList.remove('show');
     play.currentBombWire = null;
     el('app').classList.remove('bomb-danger');
-    // 第32弾-C：爆発が地味すぎたので、赤ではっきり出す。
-    // ただし「責める」のではなく「爆弾が爆発した」ことを出す演出にする。
-    // 誰かの失敗を囃し立てるのではないので、赤は0.5秒で引き、
-    // 明滅・振動はさせない（酔わないように・目に悪くならないように）
     if(typeof FxKit !== 'undefined'){
-      doVibrate([140,70,140]);
-      var boom = document.createElement('div');
-      boom.className = 'bomb-boom';
-      el('app').appendChild(boom);
-      setTimeout(function(){ if(boom.parentNode) boom.parentNode.removeChild(boom); }, fxMs(700));
-      FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
-        sub:'つぎは、もう少しだけ慎重に', ms:900 })
-        .then(function(){ enterBombEnd(false); goTo('scr-bomb-end'); });
+      bombBoomFx().then(function(){ enterBombEnd(false); goTo('scr-bomb-end'); });
       return;
     }
     buzz();
@@ -15519,27 +15552,27 @@
     if(typeof EmojiSvg === 'undefined') return;
     var app = el('app');
     if(!app) return;
-    var pending = false;
-    var dirty = [];   // 変わった所だけを覚えておく
-    function sweep(){
-      pending = false;
-      var todo = dirty;
-      dirty = [];
+    function sweep(todo){
       // innerHTML で一気に差し替えると、入れ子のノードがまとめて積まれる。
       // それを1つずつ歩くと、同じ部分木を何度も歩き直して二乗に膨らむ。
       // 数が多い時は、まとめて1回だけ全体を見るほうが速い
-      if(!todo.length || todo.length > 12) todo = [app];
+      if(!todo || !todo.length || todo.length > 12) todo = [app];
       todo.forEach(function(node){
         try{ EmojiSvg.parse(node, document); }catch(e){}
       });
     }
     sweep();
+    // SVGの中身を先に取り寄せておく（以後の差し替えはインラインで一瞬も欠けない）
+    try{ EmojiSvg.prefetch(); }catch(e){}
     try{
       var mo = new MutationObserver(function(records){
-        // 第32弾-C：画面全体を毎回歩き直していた。
-        // 押すたびにアプリ全部を走査するのは重いうえ、
-        // 差し替え直後の画像が読み直されて点滅の原因にもなる。
-        // 変わった所だけを見る
+        // 第33弾 A-1：差し替えは「この場で・同期で」行う。
+        // MutationObserver は描画の前（microtask）に呼ばれるので、
+        // ここで差し替えきれば「生の絵文字が1フレーム見えてから画像に変わる」
+        // という瞬間そのものが存在しなくなる。
+        // 前回まで setTimeout(sweep, 0) で後回しにしていたが、実機では
+        // その間に1フレーム描かれてしまい、押すたびに点滅して見えていた。
+        var dirty = [];   // 変わった所だけを見る（全部を歩き直さない）
         records.forEach(function(r){
           if(r.type === 'characterData'){
             if(r.target && r.target.parentNode) dirty.push(r.target.parentNode);
@@ -15551,10 +15584,11 @@
             else if(n.nodeType === 3 && n.parentNode) dirty.push(n.parentNode);
           }
         });
-        // 差し替え自体もDOMを変えるので、まとめて1回にする（無限に呼ばれないように）
-        if(pending) return;
-        pending = true;
-        setTimeout(sweep, 0);
+        if(!dirty.length) return;
+        sweep(dirty);
+        // 差し替え自体が積んだ変更は、もう差し替え済みなので捨てる
+        //（次のコールバックで無駄にもう一周しない・無限に呼ばれない）
+        mo.takeRecords();
       });
       mo.observe(app, { childList:true, subtree:true, characterData:true });
     }catch(e){}

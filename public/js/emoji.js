@@ -100,8 +100,54 @@
     } catch (e) {}
   }
 
+  // 第33弾 A-1：実機ではそれでもまだ点滅した。
+  // emj-ok を付けても <img> は再描画のたびに作り直され、実機（スマホ）では
+  // 「作り直された画像がもう一度描かれるまでの空白」が1フレーム見える。
+  // だからSVGの中身そのものを一度だけ取り寄せて覚えておき、
+  // 2回目からは <svg> をインラインで出す。インラインなら読み込みも
+  // デコードの待ちも無く、描き直しても絶対に空白の瞬間が生まれない。
+  var SVG_CACHE = {};
+
+  /**
+   * 手元にあるSVGの中身を先に取り寄せておく。
+   * 同時に取りに行く数は絞る（起動直後の他の読み込みを邪魔しない）。
+   * fetch が無い環境（テストのjsdomなど）では何もしない。
+   */
+  function prefetch() {
+    if (typeof fetch !== 'function' || !FILES) return;
+    var names = Object.keys(FILES).filter(function (n) { return !SVG_CACHE[n]; });
+    var i = 0, active = 0, LIMIT = 4;
+    function pump() {
+      while (active < LIMIT && i < names.length) {
+        (function (name) {
+          active++;
+          Promise.resolve().then(function () { return fetch(BASE + name + '.svg'); })
+            .then(function (r) {
+              return (r && r.ok && typeof r.text === 'function') ? r.text() : null;
+            })
+            .then(function (t) {
+              if (!t) return;
+              var s = t.indexOf('<svg');
+              // 読み上げは外側の span（role="img"）に任せ、中身は二重に読ませない
+              if (s >= 0) SVG_CACHE[name] = t.slice(s).replace('<svg', '<svg aria-hidden="true"');
+            })
+            .catch(function () {})
+            .then(function () { active--; pump(); });
+        })(names[i++]);
+      }
+    }
+    pump();
+  }
+
   function spanHtml(seq) {
     if (!hasFile(fileName(seq))) return seq;
+    // 中身を覚えているものは、インラインの <svg> で出す（上のコメント参照）。
+    // 画像読み込みという工程そのものが無いので、点滅のしようがない
+    var cached = SVG_CACHE[fileName(seq)];
+    if (cached) {
+      return '<span class="emj emj-svg" role="img" aria-label="' + seq + '">' +
+        cached + '<span class="emj-txt">' + seq + '</span></span>';
+    }
     // 既定では文字の方を出しておき、**画像が読めた時にだけ**入れ替える。
     // 逆（既定で画像・失敗したら文字）にすると、
     // 読み込みが始まらない環境で「何も出ない」状態になる。実際にそうなった。
@@ -169,7 +215,7 @@
 
   return {
     BASE: BASE, RE: RE, fileName: fileName, html: html, parse: parse, collect: collect,
-    setFiles: setFiles, hasFile: hasFile,
+    setFiles: setFiles, hasFile: hasFile, prefetch: prefetch,
     ok: markLoaded   // img の onload から呼ぶ
   };
 }));

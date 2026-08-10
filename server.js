@@ -305,6 +305,13 @@ function rowToMatch(row) {
 }
 
 // -------------------- フロントエンド（静的ファイル）配信 --------------------
+// 絵文字SVGは中身が変わらない（Twemojiのコードポイント＝ファイル名）。
+// キャッシュ指定なしだと実機は再描画のたびに 304 の往復をして、
+// その待ちが絵文字の点滅（第33弾 A-1）の一因になっていた。長く覚えてもらう
+app.use('/img/emoji', express.static(path.join(__dirname, 'public', 'img', 'emoji'), {
+  maxAge: '30d',
+  immutable: true
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // -------------------- リアルタイム同期の土台（第19弾） --------------------

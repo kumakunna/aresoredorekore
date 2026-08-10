@@ -182,6 +182,7 @@
       counts: vo.tally.counts,
       tie: vo.tally.tie,
       max: vo.tally.max,
+      noVotes: !!vo.tally.noVotes,   // 第33弾 B-7：全員がとばした（同数とは別）
       executedId: executedId,
       wasWolf: !!executedId && state.wolfIds.indexOf(executedId) !== -1
     };

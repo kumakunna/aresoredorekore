@@ -574,9 +574,11 @@
   // 人狼からもワードウルフからも同じものを呼べる。
   function tally(votes) {
     var counts = {};
+    var cast = 0;   // 実際に投じられた票の数（とばした人は数えない）
     Object.keys(votes || {}).forEach(function (voter) {
       var t = votes[voter];
       if (!t) return;
+      cast++;
       counts[t] = (counts[t] || 0) + 1;
     });
     var max = 0;
@@ -584,7 +586,10 @@
     var top = Object.keys(counts).filter(function (id) { return counts[id] === max; });
     var tie = top.length > 1;
     return {
-      counts: counts, top: top, tie: tie, max: max,
+      counts: counts, top: top, tie: tie, max: max, cast: cast,
+      // 第33弾 B-7：1票も入らなかった（全員がとばした）ことを、同数と区別する。
+      // 表示側が「同数のため」と言ってしまわないための印
+      noVotes: cast === 0,
       executedId: (tie || !top.length) ? null : top[0]
     };
   }

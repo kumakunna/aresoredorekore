@@ -129,6 +129,8 @@ function publicView(room) {
         name: ex.name,
         role: g.config.revealRoleOnDeath ? ex.roleName : null
       } : null,
+      // 第33弾 B-7：全員が投票をとばした回を「同数」と言わないための印
+      noVotes: !!(w.voteOut.tally && w.voteOut.tally.noVotes),
       counts: g.config.showVoteCounts ? namedCounts(g, w.voteOut.tally.counts) : null,
       // 決選投票を行った回は、候補と2回目の票数も添える
       runoff: ro ? {

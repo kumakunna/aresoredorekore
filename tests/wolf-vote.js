@@ -72,6 +72,24 @@ function votesFrom(list) {
     assertEqual(WolfLogic.tally(null).executedId, null, 'そもそも渡されていない');
   });
 
+  await r.test('全員が投票をとばした回は「同数」ではなく「票なし」と分かる（第33弾 B-7）', async () => {
+    // 全員スキップを「同数のため」と表示すると、誰かに票が入っていたように読める
+    const none = WolfLogic.tally({ a: null, b: null, c: null });
+    assertEqual(none.noVotes, true, '票なしの印が立つ');
+    assertEqual(none.cast, 0, '投じられた票は0');
+    assertEqual(none.tie, false, '同数扱いにはしない');
+    const one = WolfLogic.tally({ a: 'W', b: null, c: null });
+    assertEqual(one.noVotes, false, '1票でも入れば票なしではない');
+    assertEqual(one.cast, 1, '投じられた票は1');
+    // 同数（本物）は今までどおり
+    const tie = WolfLogic.tally(votesFrom(['a', 'a', 'b', 'b']));
+    assertEqual(tie.noVotes, false, '同数は票なしではない');
+    // voteOutcome から見えること（表示側はここを読む）
+    const o = WolfLogic.voteOutcome({ a: null, b: null }, {});
+    assertEqual(o.kind, 'none', '処刑なしになる');
+    assertEqual(o.tally.noVotes, true, '理由が「票なし」だと分かる');
+  });
+
   await r.test('棄権が混じっても、入っている票だけで数える', async () => {
     const t = WolfLogic.tally({ v1: 'a', v2: 'a', v3: null, v4: 'b' });
     assertEqual(t.counts.a, 2, 'aは2票');

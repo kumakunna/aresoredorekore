@@ -129,6 +129,8 @@ function roundResultView(w) {
   })).sort((a, b) => b.n - a.n);
   const out = {
     executed: o.executedId ? { name: w.names[o.executedId] } : null,
+    // 第33弾 B-7：全員が投票をとばした回を「同数」と言わないための印
+    noVotes: !!o.noVotes,
     counts: named(o.counts),
     runoff: o.runoff ? {
       candidates: o.runoff.candidates.map((id) => w.names[id]),

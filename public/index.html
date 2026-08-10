@@ -835,8 +835,25 @@
   /* 手に入った瞬間 */
   .got-panel{text-align:center;}
   .got-lead{font-size:14px;color:var(--ink-soft);}
-  .got-item{margin:16px 0;}
-  .got-emoji{font-size:64px;line-height:1.1;}
+  /* 第33弾 B-6：手に入れた瞬間の演出。
+     パネルが上がったあと、絵文字が弾んで出て、名前が続く。
+     複数同時に手に入れた時は、1つずつ順番に現れる */
+  .got-item{margin:16px 0;
+    animation:gotItemIn calc(0.4s * var(--fx-scale)) cubic-bezier(.2,1.5,.4,1) backwards;}
+  .got-item:nth-child(2){animation-delay:calc(0.16s * var(--fx-scale));}
+  .got-item:nth-child(3){animation-delay:calc(0.32s * var(--fx-scale));}
+  .got-item:nth-child(n+4){animation-delay:calc(0.48s * var(--fx-scale));}
+  @keyframes gotItemIn{from{transform:translateY(16px) scale(.6);opacity:0;}
+    to{transform:translateY(0) scale(1);opacity:1;}}
+  .got-emoji{font-size:64px;line-height:1.1;
+    animation:gotEmojiPop calc(0.7s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) backwards;
+    animation-delay:inherit;}
+  @keyframes gotEmojiPop{0%{transform:scale(0) rotate(-12deg);}
+    62%{transform:scale(1.22) rotate(3deg);}100%{transform:scale(1) rotate(0);}}
+  /* 「新しく手に入れた！」の見出しも、ひと呼吸置いて輝く */
+  .got-lead{animation:gotLeadGlow calc(1s * var(--fx-scale)) ease-out;}
+  @keyframes gotLeadGlow{0%{text-shadow:none;}40%{text-shadow:0 0 18px rgba(240,196,74,.9);}
+    100%{text-shadow:none;}}
   .got-label{font-size:26px;font-weight:800;margin-top:6px;}
   .got-why{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.7;}
 
@@ -4180,6 +4197,21 @@
     pickPlayFlow(b.dataset.howto);
   });
   async function pickPlayFlow(flow){
+    // 第33弾 B-3：部屋を持ったまま「1台のスマホで遊ぶ」へ入らない。
+    // 部屋に紐づいたまま手渡しへ進むと、「もう一度」や「ゲームを終了」が
+    // 部屋の方に流れて、状態が混ざる（実機で起きた）。
+    if(flow === 'handoff' && rt && rt.state.room){
+      var isHost = rt.isHost();
+      if(!confirm(isHost
+        ? 'いま部屋を開いています。\n部屋を閉じてから、1台のスマホで遊びますか？\n（部屋にいる全員が終わります）'
+        : 'いま部屋に参加しています。\n部屋を抜けてから、1台のスマホで遊びますか？')) return;
+      if(isHost){
+        var closed = await rt.closeRoom();
+        if(!closed.ok){ showFlash(closed.message || '部屋を閉じられませんでした', 'hit'); return; }
+      } else {
+        await rt.leave();
+      }
+    }
     setPlayFlow(flow);
     if(flow === 'room'){
       // 部屋への入口はここに一本化した。棚の下部バーからは無くなっている
@@ -6200,6 +6232,9 @@
     // 残しておくと、別のゲームを遊んでいる間も心拍が鳴り続ける
     if(prevScreen && prevScreen.id === 'scr-bomb-play' && id !== 'scr-bomb-play') stopBombHeart();
     if(prevScreen && prevScreen.id === 'scr-rt-bomb' && id !== 'scr-rt-bomb') rtBombLeaveScreen();
+    // 第33弾 B-2：人狼の部屋画面を離れたら、演出の引き金もリセットする。
+    // 残しておくと、あとで戻った瞬間に古い変わり目の演出が出てしまう
+    if(prevScreen && prevScreen.id === 'scr-rt-play' && id !== 'scr-rt-play') rtWolfSeen = null;
     // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
     if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
     if(prevScreen && prevScreen.id === 'scr-rt-quiz' && id !== 'scr-rt-quiz') qzLeaveScreen();
@@ -8142,6 +8177,78 @@
   }
 
   // ---- 自分の端末 ----
+  /**
+   * 第33弾 B-2：部屋（1人1台）の人狼・ワードウルフにも、
+   * 手渡し版と同じ見せ場（役職の色照明・処刑の発表・決着の陣営色）を出す。
+   * 32-Cで手渡し側にだけ演出を入れて、部屋側が素のままだった（落とし穴1）。
+   *
+   * サーバーから届く「段階の変わり目」を引き金にする。
+   * 開いた直後（途中参加・入り直し）は、目の前で起きたことではないので出さない。
+   */
+  var rtWolfSeen = null;   // 直前に見た { phase, turn, runoff }
+  function rtPlayFx(v, you){
+    if(typeof FxKit === 'undefined') return;
+    var prev = rtWolfSeen;
+    // 決選投票は phase が vote のまま runoff だけが立つので、変わり目として数える
+    rtWolfSeen = { phase: v.phase, turn: v.turn || 0, runoff: !!v.runoff };
+    if(!prev) return;
+    if(prev.phase === v.phase && prev.turn === rtWolfSeen.turn
+       && prev.runoff === rtWolfSeen.runoff) return;
+    var ww = rtIsWordwolf();
+
+    // 役職・お題が配られた瞬間：自分の陣営の色で縁を照らす（手渡し版と同じ）。
+    // ワードウルフはお題が主役なので、ウルフだった時だけ気づかせる
+    if(v.phase === 'roleReveal' && !ww && you && you.roleId && typeof WolfLogic !== 'undefined'){
+      flashRoleEdge(WolfLogic.roleById(you.roleId).team);
+      return;
+    }
+    if(v.phase === 'reveal' && ww && you && you.youAreWolf){
+      flashRoleEdge('wolf');
+      return;
+    }
+    // 決選投票に入った瞬間
+    if(v.phase === 'vote' && v.runoff){
+      FxKit.banner({ kind:'plain', icon:'⚖️', text:'同数でした',
+        sub:'並んだ人だけで、もう一度投票します', ms:900 });
+      return;
+    }
+    // 朝：誰かが欠けていたら、名前が1人ずつ現れる（手渡し版と同じ）
+    if(v.phase === 'day' && v.morning && (v.morning.deaths || []).length){
+      var rows = el('rtPublicBox').querySelectorAll('.day-death');
+      if(rows.length) FxKit.stagger(rows, 300);
+      return;
+    }
+    // 投票の結果：処刑は静かに・重く（原則C）。無かった回は穏やかに
+    var tr = (v.phase === 'turnResult' && v.turnResult) ? v.turnResult
+           : (v.phase === 'roundResult' && v.roundResult) ? v.roundResult : null;
+    if(tr){
+      if(tr.executed){
+        FxKit.banner({ kind:'gray', icon:'⚖️', text: tr.executed.name + ' が処刑',
+          sub: tr.executed.role ? tr.executed.role + ' でした'
+             : (tr.wasWolf === true ? 'ウルフ🐺でした！' : tr.wasWolf === false ? 'シープ🐑でした…' : ''),
+          ms:900 });
+      } else {
+        FxKit.banner({ kind:'plain', icon:'🤝', text:'処刑なし',
+          sub: wolfNoExecReason(tr), ms:900 });
+      }
+      var counts = el('rtPublicBox').querySelectorAll('.vote-counts .vc-item');
+      if(counts.length) FxKit.stagger(counts, 120);
+      return;
+    }
+    // 決着：勝った陣営の色で染める（手渡し版と同じ）
+    if(v.phase === 'ended' && v.result){
+      var w2 = v.result.winner;
+      var team = (w2 === 'wolf') ? 'wolf' : (w2 === 'village' || w2 === 'sheep') ? 'village' : 'third';
+      flashRoleEdge(team);
+      FxKit.flash(team === 'village' ? 'good' : 'gold');
+      FxKit.banner({
+        kind: team === 'village' ? 'good' : 'gold',
+        icon: team === 'wolf' ? '🐺' : (w2 === 'fox' ? '🦊' : (ww ? '🐑' : '🏘️')),
+        text: ww ? (w2 === 'sheep' ? 'シープ側の勝ち' : w2 === 'wolf' ? 'ウルフの逃げ切り' : '合計得点で決着')
+                 : rtWinnerLabel(w2).replace(/^[^ ]+ /, ''),
+        sub: '全員の正体を開きます', ms:1000 });
+    }
+  }
   function renderRtPlay(){
     var v = rtView(), you = rt.state.secret;
     if(!v) return;
@@ -8150,6 +8257,8 @@
     el('rtPhase').textContent = (v.phase === 'vote' && v.runoff)
       ? '決選投票' : (RT_PHASE_LABEL[v.phase] || v.phase);
     el('rtPublicBox').innerHTML = rtPublicHtml(v);
+    // 演出は、名前の一覧などを描き終えてから（stagger の対象がここで生まれるため）
+    rtPlayFx(v, you);
 
     var grid = el('rtChoiceGrid'), confirm = el('rtConfirmBtn'), next = el('rtNextBtn');
     grid.style.display = 'none'; grid.innerHTML = '';
@@ -8245,8 +8354,8 @@
       var ex = v.turnResult.executed;
       var ro = v.turnResult.runoff;
       lines.push(ex ? ('⚖️ ' + escapeHtml(ex.name) + (ex.role ? '（' + escapeHtml(ex.role) + '）' : '') + ' が処刑されました')
-                    : (ro ? '🤝 決選投票でも同数のため、誰も処刑されませんでした'
-                          : '🤝 同数のため、誰も処刑されませんでした'));
+                    : '🤝 ' + wolfNoExecReason({ noVotes: v.turnResult.noVotes, runoff: ro }) +
+                      '、誰も処刑されませんでした');
       if(v.turnResult.counts){
         lines.push('<div class="vote-counts">' + v.turnResult.counts.map(function(c){
           return '<span class="vc-item">' + escapeHtml(c.name) + ' <b>' + c.n + '</b></span>';
@@ -8321,8 +8430,7 @@
       lines.push(rr.executed
         ? '⚖️ ' + escapeHtml(rr.executed.name) + ' が処刑されました' +
           (rr.wasWolf === true ? '（ウルフ🐺）' : rr.wasWolf === false ? '（シープ🐑）' : '')
-        : (rr.runoff ? '🤝 決選投票でも同数のため、誰も処刑されませんでした'
-                     : '🤝 同数のため、誰も処刑されませんでした'));
+        : '🤝 ' + wolfNoExecReason(rr) + '、誰も処刑されませんでした');
       if(rr.counts && rr.counts.length){
         lines.push('<div class="vote-counts">' + rr.counts.map(function(c){
           return '<span class="vc-item">' + escapeHtml(c.name) + ' <b>' + c.n + '</b></span>';
@@ -9391,7 +9499,8 @@
       var bro = v.turnResult && v.turnResult.runoff;
       main = ex ? ex.name : '処刑なし';
       sub = ex ? ((ex.role ? '（' + ex.role + '）' : '') + ' が処刑されました')
-               : (bro ? '決選投票でも同数だったため' : '同数だったため');
+               : (v.turnResult && v.turnResult.noVotes ? '全員が投票をとばしたため'
+                  : bro ? '決選投票でも同数だったため' : '同数だったため');
       if(v.turnResult && v.turnResult.counts){
         sub += '<br>' + v.turnResult.counts.map(function(c){ return c.name + ' ' + c.n; }).join('　');
       }
@@ -9438,7 +9547,8 @@
       sub = rr.executed
         ? ('が処刑されました' + (rr.wasWolf === true ? '（ウルフ🐺）'
             : rr.wasWolf === false ? '（シープ🐑）' : ''))
-        : (rr.runoff ? '決選投票でも同数だったため' : '同数だったため');
+        : (rr.noVotes ? '全員が投票をとばしたため'
+           : rr.runoff ? '決選投票でも同数だったため' : '同数だったため');
       if(rr.counts && rr.counts.length){
         sub += '<br>' + rr.counts.map(function(c){ return c.name + ' ' + c.n; }).join('　');
       }
@@ -11444,11 +11554,22 @@
       : null;
     return {
       counts: vo.counts, tie: vo.tie, max: vo.max,
+      noVotes: !!vo.noVotes,   // 第33弾 B-7：全員がとばした（同数とは別）
       executedId: vo.executedId,
       executed: executed,
       wasWolf: vo.wasWolf,
       runoff: null
     };
+  }
+
+  /**
+   * 第33弾 B-7：処刑が無かった理由を言葉にする。
+   * 全員が投票をとばした回は「同数」ではない。同数と言われると、
+   * 誰かに票が入っていたように読めてしまう（実機での指摘）。
+   */
+  function wolfNoExecReason(o){
+    if(o && o.noVotes) return '全員が投票をとばしたので';
+    return (o && o.runoff) ? '決選投票でも同数だったので' : '同数だったので';
   }
 
   // 第23弾-1：同数だった時の決選投票。並んだ人だけを選択肢にして、もう一度回す
@@ -11496,7 +11617,7 @@
     var ex = play.wwExec;
     ex.log.push(o.executed
       ? { round: ex.round, id: o.executed.id, name: o.executed.name, wasWolf: o.wasWolf }
-      : { round: ex.round, id: null, name: null, wasWolf: false, tie: true });
+      : { round: ex.round, id: null, name: null, wasWolf: false, tie: true, noVotes: !!o.noVotes });
     if(!wolfSideAlive().length){ ex.winner = 'village'; return true; }
     if(villageSideAlive().length <= wolfSideAlive().length){ ex.winner = 'wolf'; return true; }
     if(ex.round >= ex.limit){ ex.winner = 'wolf'; return true; } // 使い切ってもウルフが残った
@@ -11510,7 +11631,7 @@
     var last = ex.log[ex.log.length - 1];
     var head = last.tie
       ? '<div class="day-peace">🤝 ' +
-        ((play.wwLast && play.wwLast.runoff) ? '決選投票でも同数だったので' : '同数だったので') +
+        wolfNoExecReason({ noVotes: last.noVotes, runoff: play.wwLast && play.wwLast.runoff }) +
         '、誰も処刑されませんでした</div>'
       : '<div class="day-death">⚖️ ' + escapeHtml(last.name) + ' が処刑されました</div>' +
         '<div class="' + (last.wasWolf ? 'day-death' : 'day-peace') + '" style="margin-top:6px;">' +
@@ -11594,7 +11715,7 @@
     var implied = (o.executedId && play.wolfMinorityIds.length === 1)
       ? '<div class="day-peace" style="margin-top:6px;">🐑 シープでした…</div>' : '';
     var head = !o.executedId
-      ? '<div class="day-peace">🤝 ' + (o.runoff ? '決選投票でも同数だったので' : '同数だったので') +
+      ? '<div class="day-peace">🤝 ' + wolfNoExecReason(o) +
         '、だれも処刑されませんでした</div>'
       // 第23弾-3：ルール説明も画面も「処刑」で揃える（ここだけ「脱落」と呼んでいた）
       : '<div class="day-death">⚖️ ' + escapeHtml(o.executed.name) + ' が処刑されました</div>' + implied;
@@ -11625,7 +11746,7 @@
                                           : '🐺 ウルフが生き残りました。ウルフ側の勝ち') +
         '</div>' +
         '<div class="day-note">' + play.wwExec.log.map(function(l){
-          return l.tie ? l.round + '回目：同数で処刑なし'
+          return l.tie ? l.round + '回目：' + (l.noVotes ? '全員が投票をとばして処刑なし' : '同数で処刑なし')
                        : l.round + '回目：' + escapeHtml(l.name) + (l.wasWolf ? '（ウルフ🐺）' : '（シープ🐑）');
         }).join('<br>') + '</div>';
     }
@@ -11637,8 +11758,7 @@
         (wolfSideAlive().length ? '🐺 ウルフの逃げ切り' : '🎉 ウルフをあぶり出しました') + '</div>' +
         '<div class="day-note">' + (o.executedId
           ? escapeHtml(o.executed.name) + ' が処刑されました（' + (o.wasWolf ? 'ウルフ🐺' : 'シープ🐑') + '）'
-          : (o.runoff ? '決選投票でも同数だったので、だれも処刑されませんでした'
-                      : '同数だったので、だれも処刑されませんでした')) + '</div>' +
+          : wolfNoExecReason(o) + '、だれも処刑されませんでした') + '</div>' +
         renderWolfRunoffNote(o);
     }
     el('wolfResultTopics').innerHTML = execHead +
@@ -12716,8 +12836,8 @@
     var role = (ex && wr.game.config.revealRoleOnDeath) ? '（' + WolfLogic.roleById(ex.role).name + '）' : '';
     var verdict = ex
       ? '⚖️ ' + escapeHtml(ex.name) + escapeHtml(role) + ' が処刑されました'
-      : (out.runoff ? '🤝 決選投票でも同数のため、誰も処刑されませんでした'
-                    : '🤝 同数のため、誰も処刑されませんでした');
+      : '🤝 ' + wolfNoExecReason({ noVotes: out.tally && out.tally.noVotes, runoff: out.runoff }) +
+        '、誰も処刑されませんでした';
     // 第32弾-C-3：票が1つずつ集まってから、処刑を発表する。
     // いっぺんに出すと「何票入ったか」と「誰が処刑されたか」を同時に読むことになり、
     // どちらも頭に入らない。まず票、集まりきってから結論
@@ -14623,13 +14743,14 @@
   async function doNextChoiceInRoom(id, room){
     var gameId = (room.state && room.state.game) || null;
     if(id === 'again'){
-      // 同じゲーム・同じ設定で、もう一度立ち上げる
-      var m = modeById(state.selectedModeId);
+      // 第33弾 B-1：ここで即 startWolf しない。
+      // 以前は押した瞬間に始まり、押した本人（ホスト）以外は
+      // カウントダウンも合図も無いままゲームに放り込まれていた。
+      // 全員を待合にもどし、ホストの「はじめる ▶」から
+      // 最初のゲームとまったく同じ流れで始める（設定は選び直させない）。
       var reset = await rt.pickGame(gameId, { reset: true });
       if(!reset.ok){ el('nextSub').textContent = reset.message || 'やり直せませんでした'; return; }
-      var build = RT_START_CONFIG[gameId] || rtWolfroleConfig;
-      var res = await rt.startWolf(build(m));
-      if(!res.ok){ el('nextSub').textContent = res.message || 'はじめられませんでした'; return; }
+      goTo('scr-rt-room');
       return;
     }
     // ここから先は、部屋を待機に戻してから選び直す
@@ -14818,6 +14939,15 @@
       el('currentGameLabel').textContent = g.icon + ' ' + g.title +
         '（' + (modeById(state.selectedModeId) || {}).title + '）';
       el('setGameMenu').innerHTML = setMenuHtml(SET_GAME_ITEMS);
+      // 第33弾 B-4：部屋の時は動きが違う（記録ではなく、待合にもどす／部屋を抜ける）。
+      // 書いてあることと実際に起きることを一致させる
+      var endSub = el('endGameBtn').querySelector('.sr-sub');
+      if(endSub){
+        endSub.textContent = !inRoomNow()
+          ? 'この時点のスコアを記録して、棚にもどります（確認します）'
+          : (rt.isHost() ? '部屋のみんなが待合にもどります。部屋は残ります（確認します）'
+                         : '自分だけ部屋から抜けます。ゲームはほかの人で続きます（確認します）');
+      }
       return;
     }
     if(page === 'rules'){ renderSetRules(); return; }
@@ -15044,8 +15174,29 @@
 
   // ---------- 1：ゲーム終了（ゲーム共通） ----------
   el('endGameBtn').addEventListener('click', async function(){
+    var btn = this;
+    // 第33弾 B-4：部屋で遊んでいる時は、手渡しの記録処理を通さない。
+    // 以前はここが手渡し専用のままで、「プレイヤーがいません」と言いながら
+    // 部屋のゲームは動き続ける、というちぐはぐが起きていた。
+    if(rt && rt.state.room){
+      if(rt.isHost()){
+        if(!confirm('いまのゲームを終了しますか？\n（部屋のみんなが待合にもどります。部屋はそのまま残ります）')) return;
+        btn.disabled = true;
+        var gameId = (rt.state.room.state && rt.state.room.state.game) || null;
+        var res2 = await rt.pickGame(gameId, { reset: true });
+        btn.disabled = false;
+        if(!res2.ok){ alert(res2.message || '終了できませんでした'); return; }
+        el('settingsOverlay').classList.remove('show');
+        goTo('scr-rt-room');
+      } else {
+        if(!confirm('この部屋から抜けますか？\n（ゲームはほかの人たちで続きます）')) return;
+        el('settingsOverlay').classList.remove('show');
+        rtLeaveRoom();
+      }
+      return;
+    }
     if(!confirm('いまのゲームを終了して、この時点のスコアを記録しますか？')) return;
-    var btn = this; btn.disabled = true;
+    btn.disabled = true;
     var res = await saveRecordsNow(false);
     btn.disabled = false;
     if(!res.ok && res.msg) alert(res.msg);

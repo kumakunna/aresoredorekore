@@ -178,6 +178,29 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  await r.test('クイズラッシュ：決着の結果に、合計得点がちゃんと入る（第33弾 B-5）', async () => {
+    // 得点はラウンドの席（seats）にしか足しておらず、
+    // 結果画面が見る合計（w.scores）がずっと0のままだった
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 2, false);
+      await rm.host.call('wolf:start', { game: 'quizrush', timerSec: 60 });
+      await waitUntil(() => rm.host.you && rm.host.you.rush, '自分の状態が届く');
+      await rm.host.call('wolf:act', { targetId: 'normal' });
+      await waitUntil(() => rm.host.you.rush.question, '問題が届く');
+      const idx = rushAnswerIndex(srv, rm.code, rm.host.memberId);
+      await rm.host.call('wolf:vote', { targetId: idx });
+      await waitUntil(() => rm.host.you.rush.score > 0, '点が入る');
+
+      expire(srv, rm.code);
+      await waitUntil(() => viewOf(rm.host).phase === 'ended', '決着する');
+      const result = viewOf(rm.host).result;
+      const me = (result.ranking || []).find((x) => x.name === 'あき');
+      assert(me, '結果に自分がいる');
+      assertEqual(me.score, QuizLogic.TIER_POINTS.normal, '取った点が結果に出る');
+    } finally { await srv.close(); }
+  });
+
   await r.test('クイズラッシュ：正解の位置は、どの端末にも届かない', async () => {
     const srv = await startTestServer();
     try {

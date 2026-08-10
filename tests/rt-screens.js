@@ -1164,6 +1164,140 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ---- 第33弾 B：部屋あり・1人1台まわりの不具合 ----
+
+  await r.test('部屋の「もう一度」は、全員が待合にもどってホストの合図で始まる（第33弾 B-1）', async () => {
+    // 以前は押した瞬間に始まり、押した本人以外は心の準備なくゲームに放り込まれた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);   // ホスト・wolfrole 選択済み
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou());
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    click(doc, 'rtAgainBtn');
+    await waitScreen(win, doc, 'scr-next', 3000);
+    const startsBefore = fake.emits.filter(e => e.name === 'wolf:start').length;
+    doc.querySelector('#nextChoices [data-next="again"]').click();
+    await waitScreen(win, doc, 'scr-rt-room', 3000);
+    const reset = fake.emits.filter(e => e.name === 'room:setState').pop();
+    assert(reset && reset.payload.reset === true, '前の進行を捨てて待合にもどす');
+    assertEqual(reset.payload.game, 'wolfrole', '同じゲームのまま（設定は選び直させない）');
+    assertEqual(fake.emits.filter(e => e.name === 'wolf:start').length, startsBefore,
+      '勝手にはゲームを始めない（ホストの「はじめる」を待つ）');
+    assertNoErrors(errors, '「もう一度」で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('部屋が待合にもどったら、ほかのプレイヤーの画面も待合へ動く', async () => {
+    // B-1 の相方：ホストが「もう一度」でもどした時、非ホストが結果画面に取り残されない
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou());
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    push(fake, roomSnapshot());   // サーバーが待合（lobby）にもどした
+    await waitScreen(win, doc, 'scr-rt-room', 3000);
+    assertNoErrors(errors, '待合へもどる時に未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定の「ゲームを終了」：部屋のホストは、全員を待合にもどす（第33弾 B-4）', async () => {
+    // 以前は手渡し専用の処理のままで、「プレイヤーがいません」と言いながら
+    // 部屋のゲームは動き続けていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote' }) } }));
+    pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    win.confirm = () => true;
+    click(doc, 'endGameBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 3000);
+    const reset = fake.emits.filter(e => e.name === 'room:setState').pop();
+    assert(reset && reset.payload.reset === true && reset.payload.game === 'wolfrole',
+      '進行を捨てて、部屋ごと待合にもどす');
+    assertNoErrors(errors, 'ゲーム終了（ホスト）で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定の「ゲームを終了」：部屋のプレイヤーは、自分だけ部屋から抜ける（第33弾 B-4）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote' }) } }));
+    pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    win.confirm = () => true;
+    click(doc, 'endGameBtn');
+    await waitFor(win, () => fake.emits.some(e => e.name === 'room:leave'), 3000, '部屋から抜ける');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertNoErrors(errors, 'ゲーム終了（非ホスト）で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('部屋を持ったまま「1台のスマホで遊ぶ」を選ぶと、確認してから部屋を閉じる（第33弾 B-3）', async () => {
+    // 以前は部屋に紐づいたまま手渡しへ進めてしまい、状態が混ざっていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });   // ホスト・待合にいる
+    let asked = null;
+    win.confirm = (m) => { asked = m; return true; };
+    click(doc, 'rtPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    click(doc, 'shelfFlowBtn');
+    await waitScreen(win, doc, 'scr-howto', 3000);
+    doc.querySelector('#scr-howto [data-howto="handoff"]').click();
+    await waitFor(win, () => fake.emits.some(e => e.name === 'room:close'), 3000, '部屋を閉じにいく');
+    assert(/部屋を閉じて/.test(asked || ''), '確認の文言が出る（実際: ' + asked + '）');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertNoErrors(errors, '手渡しへの切り替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('部屋の人狼にも、処刑の発表と決着の陣営色が出る（第33弾 B-2）', async () => {
+    // 32-Cの演出が手渡し側にだけ入っていて、部屋側は文字が変わるだけだった
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote', turn: 1 }) } }));
+    pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    // 処刑の発表
+    push(fake, roomSnapshot({ state: { phase: 'turnResult', game: 'wolfrole', data: wolfView({
+      phase: 'turnResult', turn: 1,
+      turnResult: { executed: { name: 'ちか', role: null }, noVotes: false,
+        counts: [{ name: 'ちか', n: 3 }], runoff: null }
+    }) } }));
+    pushYou(fake, { phase: 'turnResult', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await sleep(win, 150);
+    const banner = doc.querySelector('.fx-banner');
+    assert(banner && /処刑/.test(banner.textContent), '処刑の発表が出る');
+    // 決着：勝った陣営の色で照らされる
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou());
+    await sleep(win, 150);
+    assert(doc.getElementById('app').classList.contains('edge-village'),
+      '勝った陣営の色で画面が照らされる');
+    assertNoErrors(errors, '部屋の人狼の演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('全員が投票をとばした回は「同数」と言わない（第33弾 B-7）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({ state: { phase: 'turnResult', game: 'wolfrole', data: wolfView({
+      phase: 'turnResult', turn: 1,
+      turnResult: { executed: null, noVotes: true, counts: [], runoff: null }
+    }) } }));
+    pushYou(fake, { phase: 'turnResult', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    const text = el(doc, 'rtPublicBox').textContent;
+    assert(/全員が投票をとばした/.test(text), 'とばしたことが伝わる（実際: ' + text.slice(0, 60) + '）');
+    assert(!/同数/.test(text), '「同数」とは言わない');
+    assertNoErrors(errors, '投票スキップの表示で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('クイズ解除：始められなかった時は、理由が出て行き止まりにならない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });

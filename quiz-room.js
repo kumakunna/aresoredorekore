@@ -705,7 +705,10 @@ function rushAnswer(w, memberId, targetId) {
   if (picked === -1) return { ok: false, error: 'not_a_choice' };
   const judged = QuizLogic.rushJudge(s.q, picked);
   s.answered++;
-  if (judged.correct) { s.hits++; s.score += judged.gained; }
+  // 第33弾 B-5：s.score はラウンドごとにリセットされる「そのラウンドの点」。
+  // 結果画面のランキングが見る w.scores（全ラウンド合計）に足していなかったので、
+  // 決着しても全員0点のままだった。両方に足す
+  if (judged.correct) { s.hits++; s.score += judged.gained; w.scores[memberId] = (w.scores[memberId] || 0) + judged.gained; }
   // 「correct」という言葉は端末へ配るものに使わない（正解の位置と紛れるため）
   s.last = judged.correct ? 'hit' : 'miss';
   // 続けて次の問題を出す（同じ難易度）。手を止めずに挑み続けられるように

@@ -428,6 +428,27 @@ async function runWizardToPlay(win, doc, opts) {
 }
 
 /**
+ * 第32弾-C-3：人狼の手渡し画面で選択肢を押す。
+ * 投票は「選ぶ → 確認 → 決定」の2手になったので、確認が出ていれば通す。
+ * 各テストがこの手順を書き写すと、確認をもう1つ足した時に全部直すことになる。
+ *   target … 番号 / 表示名 / 要素そのもの
+ */
+async function wolfPick(win, doc, target) {
+  const btns = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
+  let b = target;
+  if (typeof target === 'number') b = btns[target];
+  else if (typeof target === 'string') {
+    b = btns.find(x => x.dataset.choice === target || x.textContent.trim() === target);
+  }
+  if (!b) throw new Error('選択肢が見つかりません: ' + target);
+  b.click();
+  await sleep(win, 20);
+  const ok = doc.getElementById('wrVoteOkBtn');
+  if (ok) { ok.click(); await sleep(win, 20); }
+  return b;
+}
+
+/**
  * 第32弾-C-7：結果のあとは、共通の「つぎは？」画面で行き先を選ぶ。
  * カセットごとに出口のボタンが別々だったのをやめたので、
  * テスト側も「どのボタンか」ではなく「どこへ行きたいか」で書く。
@@ -512,6 +533,6 @@ function assertNoErrors(errors, label) {
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
   setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
-  chooseNext,
+  chooseNext, wolfPick,
   createRunner, assert, assertEqual, assertNoErrors
 };

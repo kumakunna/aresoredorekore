@@ -371,6 +371,33 @@
   .p-score{font-family:'DotGothic16', monospace;font-size:24px;color:var(--stamp-deep);min-width:34px;text-align:right;}
   .score-actions{display:flex;flex-direction:column;gap:10px;margin-top:auto;}
 
+  /* ---------- 第32弾-C-3：人狼の「いつでも見えていてほしいもの」 ----------
+     それまで議論の材料が画面に何も無く、誰が生きているか・誰がどう欠けたか・
+     自分が何を知っていたかを、全部おぼえておく必要があった。
+     控えめな見た目にして、主役（選ぶこと）の邪魔をしない。 */
+  .wolf-board{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-bottom:16px;text-align:left;
+  }
+  .wb-row{display:flex;gap:8px;align-items:flex-start;padding:4px 0;}
+  .wb-row + .wb-row{border-top:1px solid var(--line);}
+  .wb-label{font-size:10px;color:var(--ink-soft);letter-spacing:.08em;flex:none;width:74px;padding-top:3px;}
+  .wb-items{display:flex;flex-wrap:wrap;gap:5px;flex:1;min-width:0;}
+  .wb-chip{
+    background:var(--paper);border:1px solid var(--line);border-radius:999px;
+    padding:3px 9px;font-size:12px;font-weight:700;
+  }
+  /* 欠けた人は、色だけでなく打ち消し線と小さな理由でも分かるようにする（第8部-2） */
+  .wb-chip.dead{opacity:.62;text-decoration:line-through;}
+  .wb-chip.dead small{
+    display:block;font-size:9.5px;opacity:.85;text-decoration:none;font-weight:400;margin-top:1px;
+  }
+  .wb-row.mine .wb-label{color:var(--teal);}
+  .wb-chip.know{border-color:var(--teal);color:var(--teal);text-decoration:none;}
+  /* 投票の確認。押し間違いで確定しないよう、決めるまでもう1手はさむ */
+  .vote-confirm-row{display:flex;gap:10px;margin-top:20px;}
+  .vote-confirm-row .btn{flex:1;margin-top:0;}
+
   /* ---------- 第32弾-C-7：つぎは？（全カセット共通） ---------- */
   #scr-next{justify-content:center;}
   .next-choices{display:flex;flex-direction:column;gap:10px;margin-top:18px;}
@@ -11405,6 +11432,67 @@
     banner.style.display = 'block';
     banner.innerHTML = turnBannerHtml(play.wmTurn, state.wmCfg.turnLimit, 'ターン目');
   }
+  /**
+   * 第32弾-C-3：話し合いと夜の行動で、いつでも見えていてほしいもの。
+   *
+   * それまで議論の材料が画面に何も無く、
+   * 「誰が生きているか」「誰がどう欠けたか」「自分は何を知っていたか」を
+   * 全部おぼえておく必要があった。初心者には厳しすぎる。
+   *
+   * 人狼とワードウルフの両方から呼ぶので、ここ1つにまとめてある。
+   *   opts.me       … その人だけに見せる「これまでに得た情報」を出す
+   *   opts.compact  … 夜の行動画面用。場所を取らないように履歴をたたむ
+   */
+  function wolfBoardHtml(game, opts){
+    opts = opts || {};
+    if(!game || !game.players) return '';
+    var alive = game.players.filter(function(p){ return p.alive; });
+    var dead = game.players.filter(function(p){ return !p.alive; });
+    var revealRole = !!(game.config && game.config.revealRoleOnDeath);
+    var html = '<div class="wolf-board">';
+    html += '<div class="wb-row"><span class="wb-label">生きている</span>' +
+      '<span class="wb-items">' + alive.map(function(p){
+        return '<span class="wb-chip">' + escapeHtml(p.name) + '</span>';
+      }).join('') + '</span></div>';
+    if(dead.length){
+      html += '<div class="wb-row"><span class="wb-label">欠けた人</span>' +
+        '<span class="wb-items">' + dead.map(function(p){
+          // なぜ欠けたかまで出す。結果だけでは議論の材料にならない
+          var cause = p.deadCause === 'vote' ? '処刑'
+                    : p.deadCause === 'cursed' ? '謎の死'
+                    : p.deadCause === 'lover' ? '後を追った' : '襲撃';
+          var role = revealRole ? '・' + WolfLogic.roleById(p.role).name : '';
+          return '<span class="wb-chip dead">' + escapeHtml(p.name) +
+            '<small>' + escapeHtml((p.deadTurn ? p.deadTurn + '日目' : '') + cause + role) + '</small></span>';
+        }).join('') + '</span></div>';
+    }
+    if(opts.me){
+      var known = wrKnownFor(opts.me.id);
+      if(known.length){
+        html += '<div class="wb-row mine"><span class="wb-label">あなたが得た情報</span>' +
+          '<span class="wb-items">' + known.map(function(k){
+            return '<span class="wb-chip know">' + escapeHtml(k) + '</span>';
+          }).join('') + '</span></div>';
+      }
+    }
+    html += '</div>';
+    return html;
+  }
+  /**
+   * その人がこれまでに得た情報（占い・霊媒・のぞき見の結果）。
+   *
+   * ルール層には持たせない。ここは「誰に何を見せたか」という画面の記憶であって、
+   * 勝敗の判定には一切関わらないため（ルールは変えない）。
+   */
+  function wrKnownFor(playerId){
+    return ((wr && wr.known) || {})[playerId] || [];
+  }
+  function wrRemember(playerId, text){
+    if(!wr) return;
+    wr.known = wr.known || {};
+    wr.known[playerId] = wr.known[playerId] || [];
+    if(wr.known[playerId].indexOf(text) === -1) wr.known[playerId].push(text);
+  }
   function uiHandoff(opts){
     el('wrHandoff').style.display = 'block';
     el('wrContent').style.display = 'none';
@@ -11691,7 +11779,10 @@
               : '';
     uiHandoffContent({
       name: p.name,
-      html: '<div class="wolf-topic-label">' + escapeHtml(label) + '</div>',
+      // 第32弾-C-3：生きている人と、自分がこれまでに得た情報を、選ぶ時に見えるようにする。
+      // 記憶に頼らせるのは初心者に厳しすぎる
+      html: wolfBoardHtml(wr.game, { me: p, compact: true }) +
+            '<div class="wolf-topic-label">' + escapeHtml(label) + '</div>',
       choices: act.targets
     });
   }
@@ -11704,12 +11795,15 @@
     var html;
     if(act && act.kind === 'divine' && target){
       var res = WolfLogic.previewDivine(wr.game, picked);
+      // 第32弾-C-3：得た情報は、次のターン以降も本人の画面に残す
+      wrRemember(p.id, wr.game.turn + '日目 占い：' + target.name + '＝' + res.result.label);
       html = '<div class="wolf-topic-label">占いの結果</div>' +
              '<div class="wolf-topic-name">' + escapeHtml(target.name) + '</div>' +
              '<div class="wolf-topic-name" style="margin-top:4px;">' + escapeHtml(res.result.label) + '</div>' +
              '<div class="mic-status" style="margin-top:10px;">朝の話し合いで、この情報をどう使うかはあなた次第です。</div>';
     } else if(act && act.kind === 'medium'){
       var m = WolfLogic.previewMedium(wr.game);
+      if(m.executed) wrRemember(p.id, wr.game.turn + '日目 霊媒：' + m.executed.name + '＝' + m.executed.roleName);
       html = '<div class="wolf-topic-label">霊媒の結果</div>' +
         (m.executed
           ? '<div class="wolf-topic-name">' + escapeHtml(m.executed.name) + '</div>' +
@@ -11769,6 +11863,9 @@
   }
 
   function showWrVote(p){
+    // 第32弾-C-3：押し間違い対策。選んだあと「〇〇に投票しますか？」を1回はさむ。
+    // 投票は取り返しがつかないのに、指が滑ったらそのまま確定していた
+    if(wr.sub === 'voteConfirm') return showWrVoteConfirm(p);
     // 第23弾-1：決選投票では、同数で並んだ人だけが選択肢になる
     var pool = WolfLogic.alivePlayers(wr.game).filter(function(t){
       return !wr.runoff || wr.runoff.candidates.indexOf(t.id) !== -1;
@@ -11808,7 +11905,29 @@
     } else {
       html += '<div class="wolf-topic-label" style="margin-top:10px;">だれに投票しますか？</div>';
     }
-    uiHandoffContent({ name: p.name, html: html, choices: targets });
+    // 第32弾-C-3：誰が生きていて、誰がどう欠けたか。投票の材料を画面に出す
+    uiHandoffContent({
+      name: p.name,
+      html: wolfBoardHtml(wr.game, { me: p }) + html,
+      choices: targets
+    });
+  }
+  /**
+   * 第32弾-C-3：投票の確認。
+   * 「えらび直す」で戻れる。押した瞬間に確定させない。
+   */
+  function showWrVoteConfirm(p){
+    var t = WolfLogic.findPlayer(wr.game, wr.voteDraft);
+    uiHandoffContent({
+      name: p.name,
+      html: '<div class="wolf-topic-label">この人に投票しますか？</div>' +
+            '<div class="wolf-topic-name">' + escapeHtml(t ? t.name : '?') + '</div>' +
+            '<div class="vote-confirm-row">' +
+              '<button class="btn btn-ghost" id="wrVoteBackBtn">えらび直す</button>' +
+              '<button class="btn btn-main" id="wrVoteOkBtn">これで決定</button>' +
+            '</div>'
+    });
+    el('wrNextBtn').style.display = 'none';
   }
 
   // 選択肢を押した時（夜の行動・投票の共通処理）
@@ -11828,8 +11947,29 @@
       enterWrConfirm(); // のぞき見はここで結果を受け取る
       return;
     }
-    if(wr.step === 'vote') WolfLogic.setVote(wr.game, me, targetId);
+    if(wr.step === 'vote'){
+      // 第32弾-C-3：ここではまだ入れない。確認してから確定する
+      wr.voteDraft = targetId;
+      wr.sub = 'voteConfirm';
+      showWrVote(WolfLogic.findPlayer(wr.game, me));
+      return;
+    }
     advanceWrQueue();
+  });
+  // 投票の確認。えらび直すか、決めるか
+  el('wrContentBody').addEventListener('click', function(e){
+    if(e.target.closest('#wrVoteBackBtn')){
+      wr.sub = null;
+      wr.voteDraft = null;
+      showWrVote(WolfLogic.findPlayer(wr.game, wr.queue[wr.idx]));
+      return;
+    }
+    if(e.target.closest('#wrVoteOkBtn')){
+      WolfLogic.setVote(wr.game, wr.queue[wr.idx], wr.voteDraft);
+      wr.sub = null;
+      wr.voteDraft = null;
+      advanceWrQueue();
+    }
   });
   el('wrNextBtn').addEventListener('click', function(){
     // 夜と投票前だけは「確認」を挟む。行動が無い人も同じタップ数になるように
@@ -11923,6 +12063,18 @@
     goTo('scr-wr-day');
   }
 
+  /**
+   * 第32弾-C-3：今夜、守りが襲撃を防いだか。
+   * ルール層が残している記録を読むだけ（ルールには手を入れない）。
+   * 「誰も欠けませんでした」だけだと、狙われなかったのか守られたのかが
+   * 分からず、騎士がいる意味が伝わらない。
+   */
+  function wolfGuardWorked(){
+    if(!wr || !wr.game || !wr.game.log) return false;
+    return wr.game.log.some(function(e){
+      return e.turn === wr.game.turn && e.type === 'guarded';
+    });
+  }
   function enterWrDay(){
     // 第24弾-2：役職を配った直後の作戦会議も、この画面をそのまま使う。
     // 話し合いの時間・一時停止・長押しで進む、はどれも朝とまったく同じものなので、
@@ -11956,8 +12108,19 @@
         news += '<div class="day-note">🐺 人狼たちの狙いが重なりました</div>';
       }
     }
+    // 第32弾-C-3：守りが働いた夜は、そのことを言葉にする。
+    // 「誰も欠けなかった」だけでは、狙われなかったのか守られたのかが分からない
+    if(wolfGuardWorked()){
+      news += '<div class="day-note">🛡️ 今夜は誰も襲われませんでした（守りが働きました）</div>';
+    }
     // 夜に得た情報（占い・霊媒）は、本人に見せるため次の手渡しで配る
-    el('wrDayNews').innerHTML = news;
+    // 第32弾-C-3：ターン数・生きている人・欠けた人と理由を、話し合いの間じゅう出す
+    el('wrDayNews').innerHTML = news + wolfBoardHtml(wr.game, {});
+    // 犠牲者の名前だけ、少し遅れて浮かび上がる。この「間」が緊張感を作る
+    if(deaths.length && typeof FxKit !== 'undefined'){
+      var names = el('wrDayNews').querySelectorAll('.day-death');
+      FxKit.stagger(names, 300);
+    }
     // 第18弾-5：襲撃で欠けた朝だけ、朝の音のあとに遠吠えを重ねる。
     // 誰も欠けなかった朝と、音でも区別がつくようにする
     if(deaths.some(function(d){ return d.cause !== 'lover'; })){

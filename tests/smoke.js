@@ -228,7 +228,7 @@ async function startModeWithTimerOff(win, doc, id) {
       click(doc, 'wrRevealBtn');
       await sleep(win, 40);
       const choice = doc.querySelector('#wrChoiceGrid button[data-choice]');
-      if (choice) choice.click();
+      if (choice) { choice.click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click(); }
       else click(doc, 'wrNextBtn');
       await sleep(win, 50);
     }
@@ -246,7 +246,7 @@ async function startModeWithTimerOff(win, doc, id) {
         click(doc, 'wrRevealBtn');
         await sleep(win, 40);
         const v = doc.querySelector('#wrChoiceGrid button[data-choice]');
-        if (v) v.click(); else click(doc, 'wrNextBtn');
+        if (v) { v.click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click(); } else click(doc, 'wrNextBtn');
         await sleep(win, 50);
       }
       await waitScreen(win, doc, 'scr-wr-gather', 3000);
@@ -335,6 +335,7 @@ async function startModeWithTimerOff(win, doc, id) {
         if (choices.length) {
           const target = pick ? pick(name, choices) : choices[0];
           (target || choices[0]).click();
+          const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click();
         } else {
           click(doc, 'wrNextBtn');
         }
@@ -581,7 +582,7 @@ async function startModeWithTimerOff(win, doc, id) {
         click(doc, 'wrRevealBtn');
         await sleep(win, 30);
         const c = doc.querySelector('#wrChoiceGrid button[data-choice]');
-        if (c) c.click(); else click(doc, 'wrNextBtn');
+        if (c) { c.click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click(); } else click(doc, 'wrNextBtn');
         await sleep(win, 40);
       } else if (cur === 'scr-wr-day') {
         await holdPress(win, doc, 'wrToVoteBtn');
@@ -1900,7 +1901,7 @@ async function startModeWithTimerOff(win, doc, id) {
       // 確かめたいのは結果画面の中身なので、村人に票を集めてゲームを続かせる。
       if (c.length) {
         const safe = c.find(b => /村人/.test(roleOf[b.textContent.trim()] || ''));
-        (safe || c[0]).click();
+        (safe || c[0]).click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click();
       } else click(doc, 'wrNextBtn');
       await sleep(win, 45);
     }
@@ -2202,7 +2203,7 @@ async function startModeWithTimerOff(win, doc, id) {
       while (g++ < 5 && activeScreen(doc) === 'scr-wr-pass' && el(doc, 'wrContent').style.display !== 'none') {
         screens.push(el(doc, 'wrContentBody').textContent);
         const c = doc.querySelectorAll('#wrChoiceGrid button[data-choice]');
-        if (c.length) { c[0].click(); t++; } else { click(doc, 'wrNextBtn'); t++; }
+        if (c.length) { c[0].click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click(); t++; } else { click(doc, 'wrNextBtn'); t++; }
         await sleep(win, 50);
       }
       taps.push(t);
@@ -2259,7 +2260,7 @@ async function startModeWithTimerOff(win, doc, id) {
       while (g++ < 5 && activeScreen(doc) === 'scr-wr-pass' && el(doc, 'wrContent').style.display !== 'none') {
         screens.push(el(doc, 'wrContentBody').textContent);
         const c = doc.querySelectorAll('#wrChoiceGrid button[data-choice]');
-        if (c.length) { c[0].click(); t++; } else { click(doc, 'wrNextBtn'); t++; }
+        if (c.length) { c[0].click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click(); t++; } else { click(doc, 'wrNextBtn'); t++; }
         await sleep(win, 50);
       }
       taps.push(t);

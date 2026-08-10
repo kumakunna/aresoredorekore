@@ -108,7 +108,7 @@ async function drainWrPass(win, doc, limit) {
     let s = 0;
     while (s++ < 4 && activeScreen(doc) === 'scr-wr-pass' && el(doc, 'wrContent').style.display !== 'none') {
       const c = doc.querySelectorAll('#wrChoiceGrid button[data-choice]');
-      if (c.length) c[0].click(); else click(doc, 'wrNextBtn');
+      if (c.length) { c[0].click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click(); } else click(doc, 'wrNextBtn');
       await sleep(win, 35);
     }
   }

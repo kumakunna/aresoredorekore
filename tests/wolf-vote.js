@@ -841,7 +841,7 @@ function votesFrom(list) {
         while (g++ < 4 && activeScreen(doc) === 'scr-wr-pass' && el(doc, 'wrContent').style.display !== 'none') {
           const choices = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
           if (g === 1) seen.push({ who: who, body: el(doc, 'wrContentBody').textContent, choices: choices.map(c => c.textContent.trim()) });
-          if (choices.length) (pick ? (pick(who, choices) || choices[0]) : choices[0]).click();
+          if (choices.length) { (pick ? (pick(who, choices) || choices[0]) : choices[0]).click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click(); }
           else click(doc, 'wrNextBtn');
           await sleep(win, 45);
         }
@@ -870,7 +870,7 @@ function votesFrom(list) {
     // いま開いている1人目から投票させる
     let target = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'))
       .find(x => x.textContent.trim() === want(firstName));
-    (target || doc.querySelector('#wrChoiceGrid button[data-choice]')).click();
+    (target || doc.querySelector('#wrChoiceGrid button[data-choice]')).click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click();
     await sleep(win, 50);
     let guard = 0;
     while (activeScreen(doc) === 'scr-wr-pass' && guard++ < 12) {
@@ -880,7 +880,7 @@ function votesFrom(list) {
       const btns = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'));
       if (!btns.length) break;
       const w2 = want(who);
-      (btns.find(x => x.textContent.trim() === w2) || btns[0]).click();
+      (btns.find(x => x.textContent.trim() === w2) || btns[0]).click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click();
       await sleep(win, 50);
     }
     await waitScreen(win, doc, 'scr-wr-gather', 6000);
@@ -902,7 +902,7 @@ function votesFrom(list) {
         const names = btns.map(x => x.textContent.trim());
         assert(names.length <= 2, who + '：候補だけに絞られている（' + names.join('/') + '）');
         assert(names.indexOf(who) === -1, who + '：自分は選択肢に出ない');
-        btns[0].click();
+        btns[0].click(); const __ok = doc.getElementById('wrVoteOkBtn'); if (__ok) __ok.click();
         await sleep(win, 50);
       }
       await waitScreen(win, doc, 'scr-wr-gather', 6000);
@@ -1400,6 +1400,156 @@ function votesFrom(list) {
     }
     assertNoErrors(errors, '決選投票の称号で未捕捉の例外');
     win.close();
+  });
+
+  // 第32弾-C-3：役職あり人狼を、カジュアル構成で始める（この節の共通の下ごしらえ）
+  async function startWolfRole(win, doc, presetId, players){
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    await sleep(win, 20);
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, players);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="' + presetId + '"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await sleep(win, 200);
+  }
+
+  // ===================================================================
+  // 第32弾-C 第3部：人狼／ワードウルフの流れ
+  // ===================================================================
+
+  await r.test('夜と投票で、生きている人と欠けた人が画面に出ている', async () => {
+    // それまで議論の材料が画面に何も無く、全部おぼえておく必要があった
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players);
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+    click(doc, 'wrRevealBtn');
+    await sleep(win, 60);
+    // 役職確認では盤面を出さない（まだ全員生きていて、材料にならない）
+    // 夜の行動まで進める
+    let g = 0;
+    while (activeScreen(doc) === 'scr-wr-pass' && g++ < 40) {
+      if (el(doc, 'wrContent').style.display === 'none') { click(doc, 'wrRevealBtn'); await sleep(win, 40); continue; }
+      const board = doc.querySelector('#wrContentBody .wolf-board');
+      if (board) {
+        // 誰が生きているかが、選ぶ時に見えている
+        const names = Array.from(board.querySelectorAll('.wb-chip')).map(x => x.textContent);
+        assert(names.length >= 2, '生きている人が並んでいる（' + names.join('/') + '）');
+        break;
+      }
+      const c = doc.querySelector('#wrChoiceGrid button[data-choice]');
+      if (c) { c.click(); const ok = doc.getElementById('wrVoteOkBtn'); if (ok) ok.click(); }
+      else click(doc, 'wrNextBtn');
+      await sleep(win, 45);
+    }
+    assert(g < 40, '夜の行動画面まで届く');
+    assertNoErrors(errors, '盤面の表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('投票は、選んだあと確認をはさむ（押し間違い対策）', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players);
+    // 投票まで進める（作戦会議 → 夜 → 朝 → 投票）
+    let g = 0;
+    let reached = false;
+    while (g++ < 200 && !reached) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-wr-day') { await holdPress(win, doc, 'wrToVoteBtn'); await sleep(win, 100); continue; }
+      if (cur === 'scr-nightfall') { click(doc, 'nfNextBtn'); await sleep(win, 60); continue; }
+      if (cur !== 'scr-wr-pass') { await sleep(win, 40); continue; }
+      if (el(doc, 'wrContent').style.display === 'none') { click(doc, 'wrRevealBtn'); await sleep(win, 40); continue; }
+      const body = el(doc, 'wrContentBody').textContent;
+      if (/だれに投票しますか|決選投票/.test(body)) { reached = true; break; }
+      const c = doc.querySelector('#wrChoiceGrid button[data-choice]');
+      if (c) { c.click(); const ok = doc.getElementById('wrVoteOkBtn'); if (ok) ok.click(); }
+      else click(doc, 'wrNextBtn');
+      await sleep(win, 45);
+    }
+    assert(reached, '投票画面に着く（いまの画面: ' + activeScreen(doc) + '）');
+    const first = doc.querySelector('#wrChoiceGrid button[data-choice]');
+    const picked = first.textContent.trim();
+    first.click();
+    await sleep(win, 40);
+    // 押した瞬間には確定しない
+    const body = el(doc, 'wrContentBody').textContent;
+    assert(/この人に投票しますか/.test(body), '確認をはさむ（' + body.slice(0, 40) + '）');
+    assert(body.indexOf(picked) >= 0, '誰に入れようとしているかが出る');
+    // えらび直せる
+    doc.getElementById('wrVoteBackBtn').click();
+    await sleep(win, 40);
+    assert(doc.querySelectorAll('#wrChoiceGrid button[data-choice]').length > 0, '選び直しに戻れる');
+    assertNoErrors(errors, '投票の確認で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('話し合いの画面に、ターン数と生存者と脱落の履歴が出ている', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players);
+    let g = 0;
+    while (activeScreen(doc) !== 'scr-wr-day' && g++ < 80) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-nightfall') { click(doc, 'nfNextBtn'); await sleep(win, 60); continue; }
+      if (cur === 'scr-wr-pass') {
+        if (el(doc, 'wrContent').style.display === 'none') { click(doc, 'wrRevealBtn'); await sleep(win, 40); continue; }
+        const c = doc.querySelector('#wrChoiceGrid button[data-choice]');
+        if (c) { c.click(); const ok = doc.getElementById('wrVoteOkBtn'); if (ok) ok.click(); }
+        else click(doc, 'wrNextBtn');
+        await sleep(win, 45);
+        continue;
+      }
+      await sleep(win, 40);
+    }
+    // 作戦会議のあとの「朝」まで進める
+    if (/作戦会議/.test(el(doc, 'wrDayTurn').textContent)) {
+      await holdPress(win, doc, 'wrToVoteBtn');
+      await sleep(win, 120);
+      g = 0;
+      while (activeScreen(doc) !== 'scr-wr-day' && g++ < 80) {
+        const cur = activeScreen(doc);
+        if (cur === 'scr-nightfall') { click(doc, 'nfNextBtn'); await sleep(win, 60); continue; }
+        if (cur === 'scr-wr-pass') {
+          if (el(doc, 'wrContent').style.display === 'none') { click(doc, 'wrRevealBtn'); await sleep(win, 40); continue; }
+          const c = doc.querySelector('#wrChoiceGrid button[data-choice]');
+          if (c) { c.click(); const ok = doc.getElementById('wrVoteOkBtn'); if (ok) ok.click(); }
+          else click(doc, 'wrNextBtn');
+          await sleep(win, 45);
+          continue;
+        }
+        await sleep(win, 40);
+      }
+    }
+    assertEqual(activeScreen(doc), 'scr-wr-day', '朝まで進む');
+    assert(/日目/.test(el(doc, 'wrDayTurn').textContent), '何日目かが出ている');
+    const board = doc.querySelector('#wrDayNews .wolf-board');
+    assert(board, '話し合いの材料が画面に出ている');
+    assert(/生きている/.test(board.textContent), '生存者が分かる');
+    assertNoErrors(errors, '話し合いの盤面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('欠けた人は、色だけでなく理由の文字でも分かる（第8部-2）', async () => {
+    // 色覚特性のある人にも伝わるように、打ち消し線と理由の文字を併記する
+    const css = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/\.wb-chip\.dead\{[^}]*line-through/.test(css), '打ち消し線でも分かる');
+    assert(/deadCause === 'vote' \? '処刑'/.test(css), '理由を文字で出している');
   });
 
   r.finish();

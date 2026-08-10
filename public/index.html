@@ -371,7 +371,32 @@
   .p-score{font-family:'DotGothic16', monospace;font-size:24px;color:var(--stamp-deep);min-width:34px;text-align:right;}
   .score-actions{display:flex;flex-direction:column;gap:10px;margin-top:auto;}
 
-  /* ---------- 第32弾-C-3：人狼の「いつでも見えていてほしいもの」 ----------
+  /* 第32弾-C-3：手渡しの順番。誰の次に誰かが分かれば、スマホが止まらない */
+  .wolf-order{
+    display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;
+    margin:-18px 0 26px;font-size:11px;color:var(--ink-soft);
+  }
+  .wo-item{opacity:.55;}
+  .wo-item.done{opacity:.3;text-decoration:line-through;}
+  .wo-item.now{opacity:1;font-weight:800;color:var(--ink);}
+  .wo-sep{opacity:.3;}
+  /* 第32弾-C-3：陣営の色で、画面の縁を一瞬だけ照らす。
+     色だけに頼らせないため、役職名と説明は必ず文字でも出る（第8部-2） */
+  .app.edge-village, .app.edge-wolf, .app.edge-third{
+    position:relative;
+  }
+  .app.edge-village::after, .app.edge-wolf::after, .app.edge-third::after{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:83;
+    animation:edgeGlow calc(0.7s * var(--fx-scale)) ease-out;
+  }
+  .app.edge-village::after{box-shadow:inset 0 0 60px 12px rgba(63,191,165,.85);}
+  .app.edge-wolf::after{box-shadow:inset 0 0 60px 12px rgba(226,88,74,.85);}
+  .app.edge-third::after{box-shadow:inset 0 0 60px 12px rgba(240,196,74,.85);}
+  @keyframes edgeGlow{0%{opacity:0;}22%{opacity:1;}100%{opacity:0;}}
+  /* 集計：票が集まりきってから出す結論 */
+  .wr-verdict{margin-bottom:8px;}
+
+  /* ---------- 第32弾-C-3：人狼の「いつでも見えていてほしいもの」 ---------- */
      それまで議論の材料が画面に何も無く、誰が生きているか・誰がどう欠けたか・
      自分が何を知っていたかを、全部おぼえておく必要があった。
      控えめな見た目にして、主役（選ぶこと）の邪魔をしない。 */
@@ -3131,6 +3156,8 @@
       <div class="wolf-handoff-label">つぎは</div>
       <div class="wolf-handoff-name" id="wrHandoffName">-</div>
       <div class="wolf-handoff-sub" id="wrHandoffSub">この人にスマホを渡してください</div>
+      <!-- 第32弾-C-3：誰の次に誰か。名前と順番だけで、役職には触れない -->
+      <div class="wolf-order" id="wrHandoffOrder" style="display:none;"></div>
       <button class="btn btn-main" id="wrRevealBtn">タップして見る</button>
     </div>
     <div id="wrContent" class="wolf-content" style="display:none;">
@@ -11493,12 +11520,30 @@
     wr.known[playerId] = wr.known[playerId] || [];
     if(wr.known[playerId].indexOf(text) === -1) wr.known[playerId].push(text);
   }
+  /**
+   * 第32弾-C-3：手渡しの順番の全体像。
+   * 「つぎは誰か」しか出ていないと、あと何人待つのか・自分はもう済んだのかが
+   * 分からず、スマホが止まる。誰の次に誰かを小さく添える。
+   * 出すのは名前と順番だけで、役職や行動には一切触れない（匿名性は保つ）。
+   */
+  function wrOrderHtml(){
+    if(!wr || !wr.queue || wr.queue.length < 2) return '';
+    return wr.queue.map(function(id, i){
+      var q = WolfLogic.findPlayer(wr.game, id);
+      var done = i < wr.idx;
+      var now = i === wr.idx;
+      return '<span class="wo-item' + (done ? ' done' : '') + (now ? ' now' : '') + '">' +
+        escapeHtml(q ? q.name : '?') + '</span>';
+    }).join('<span class="wo-sep">→</span>');
+  }
   function uiHandoff(opts){
     el('wrHandoff').style.display = 'block';
     el('wrContent').style.display = 'none';
     el('wrHandoffName').textContent = opts.name || '-';
     el('wrHandoffSub').textContent = opts.sub || 'この人にスマホを渡してください';
     el('wrRevealBtn').textContent = opts.buttonLabel || 'タップして見る';
+    el('wrHandoffOrder').innerHTML = opts.order || '';
+    el('wrHandoffOrder').style.display = opts.order ? 'flex' : 'none';
   }
   // 手渡しのあと、本人だけに見せる中身を出す
   function uiHandoffContent(opts){
@@ -11671,6 +11716,12 @@
   // 第23弾-1：同数だった時の決選投票。並んだ人だけを選択肢にして、もう一度回す。
   // 1回目の投票は残しておく（記録と「読みの精度」は、絞り込む前の1票で測る）。
   function startWrRunoff(vo){
+    // 第32弾-C-3：唐突に2択が出ると「なぜ選び直すのか」が分からない。
+    // 同数だったことを一度だけ大きく出してから、決選投票に入る
+    if(typeof FxKit !== 'undefined'){
+      FxKit.banner({ kind:'plain', icon:'⚖️', text:'同数でした',
+        sub:'並んだ人だけで、もう一度投票します', ms:900 });
+    }
     wr.runoff = {
       candidates: vo.candidates,
       firstTally: vo.tally,
@@ -11690,7 +11741,7 @@
     var sub = wr.step === 'vote' ? 'この人にスマホを渡してください（投票）'
             : wr.step === 'night' ? 'この人にスマホを渡してください（夜の行動）'
             : 'この人にスマホを渡してください';
-    uiHandoff({ name: p.name, sub: sub });
+    uiHandoff({ name: p.name, sub: sub, order: wrOrderHtml() });
   }
 
   // 「タップして見る」を押した時、その人に見せる中身を組み立てる
@@ -11729,6 +11780,9 @@
       extra += '<div class="wolf-topic-label" style="margin-top:14px;">恋人</div>' +
         '<div class="wolf-topic-name">💞 ' + escapeHtml(lover.join('、')) + '</div>';
     }
+    // 第32弾-C-3：役職の色で画面の縁を一瞬照らす。
+    // 「今、自分が何になったか」を、読む前に体で分かるようにする
+    flashRoleEdge(WolfLogic.roleById(p.role).team);
     uiHandoffContent({
       name: p.name,
       html: '<div class="wolf-topic-label">あなたの役職</div>' +
@@ -11738,6 +11792,20 @@
     });
   }
 
+  /**
+   * 第32弾-C-3：陣営の色で画面の縁を一瞬だけ照らす。
+   * 色だけに頼らせないため、役職名と説明は今までどおり文字で必ず出る（第8部-2）。
+   */
+  function flashRoleEdge(team){
+    var app = el('app');
+    if(!app) return;
+    // ルール層の陣営は village / wolf / third の3つ。それ以外は third 扱いにする
+    var cls = 'edge-' + (team === 'wolf' ? 'wolf' : (team === 'village' ? 'village' : 'third'));
+    app.classList.remove('edge-village', 'edge-wolf', 'edge-third');
+    void app.offsetWidth;
+    app.classList.add(cls);
+    setTimeout(function(){ app.classList.remove(cls); }, fxMs(700));
+  }
   function wrActionOf(playerId){
     return (wr.pending || []).find(function(a){ return a.playerId === playerId; });
   }
@@ -12251,18 +12319,39 @@
     el('wrResultTitle').textContent = wr.game.turn + '日目の結果';
     var ex = out.executed;
     var role = (ex && wr.game.config.revealRoleOnDeath) ? '（' + WolfLogic.roleById(ex.role).name + '）' : '';
-    el('wrResultSummary').innerHTML = (ex
+    var verdict = ex
       ? '⚖️ ' + escapeHtml(ex.name) + escapeHtml(role) + ' が処刑されました'
       : (out.runoff ? '🤝 決選投票でも同数のため、誰も処刑されませんでした'
-                    : '🤝 同数のため、誰も処刑されませんでした'))
-      + renderWrVoteCounts(out.tally)
-      + renderWrRunoffNote(out);
+                    : '🤝 同数のため、誰も処刑されませんでした');
+    // 第32弾-C-3：票が1つずつ集まってから、処刑を発表する。
+    // いっぺんに出すと「何票入ったか」と「誰が処刑されたか」を同時に読むことになり、
+    // どちらも頭に入らない。まず票、集まりきってから結論
+    el('wrResultSummary').innerHTML =
+      '<div id="wrVerdict" class="wr-verdict" style="visibility:hidden;">' + verdict + '</div>' +
+      renderWrVoteCounts(out.tally) +
+      renderWrRunoffNote(out);
     el('wrResultList').innerHTML = renderWrAliveList();
     // 決着していれば、この先は次の夜ではなく最終結果へ進む
     el('wrResultNextBtn').textContent = wr.pendingEnd ? '結果を見る ▶' : 'つぎの夜へ ▶';
     wr.finished = false;
     goTo('scr-wr-result');
-    if(ex) sfxThud(); // 第18弾-5：処刑は短く重い一撃で区切る
+    revealWrTally(ex);
+  }
+  /**
+   * 第32弾-C-3：票が1つずつ、その人の名前の横に集まっていく。
+   * 全部集まりきってから処刑を発表する（演出はタップで飛ばせる）。
+   */
+  function revealWrTally(executed){
+    var verdictEl = el('wrVerdict');
+    function show(){
+      if(verdictEl) verdictEl.style.visibility = '';
+      if(executed) sfxThud(); // 第18弾-5：処刑は短く重い一撃で区切る
+    }
+    var items = document.querySelectorAll('#wrResultSummary .vote-counts .vc-item');
+    if(typeof FxKit === 'undefined' || !items.length){ show(); return; }
+    var box = document.querySelector('#wrResultSummary .vote-counts');
+    if(box) box.classList.add('fx-stagger');
+    FxKit.stagger(items, 100).then(show);
   }
 
   function showWrFinal(res){
@@ -12277,6 +12366,19 @@
     if(r.loversWin) extra += '<br>💞 恋人2人の勝利';
     if(r.reason === 'turnLimit') extra += '<br><span style="font-size:11px;">（ターン上限のため）</span>';
     el('wrResultSummary').innerHTML = winnerLabel + extra + renderWrVoteLog();
+    // 第32弾-C-3：勝った陣営の色で画面全体が染まる。
+    // 誰が勝ったかを、文字を読む前に分かるようにする
+    if(typeof FxKit !== 'undefined'){
+      flashRoleEdge(r.winner === 'wolf' ? 'wolf' : (r.winner === 'village' ? 'village' : 'third'));
+      FxKit.flash(r.winner === 'village' ? 'good' : 'gold');
+      FxKit.banner({
+        kind: r.winner === 'village' ? 'good' : 'gold',
+        text: winnerLabel.replace(/^[^ ]+ /, ''),
+        sub: '全員の役職と、誰が誰に入れたかを開きます',
+        icon: r.winner === 'wolf' ? '🐺' : (r.winner === 'fox' ? '🦊' : '🏘️'),
+        ms: 1000
+      });
+    }
     el('wrResultList').innerHTML = renderWrRoleList();
     el('wrResultNextBtn').textContent = 'スコアへ ▶';
     wr.finished = true;

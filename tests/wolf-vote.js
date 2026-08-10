@@ -1544,6 +1544,94 @@ function votesFrom(list) {
     win.close();
   });
 
+  await r.test('手渡しに、誰の次に誰かの順番が出ている', async () => {
+    // 「つぎは誰か」しか無いと、あと何人待つのか・自分はもう済んだのかが
+    // 分からず、スマホが止まる
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players);
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+    const order = el(doc, 'wrHandoffOrder');
+    assert(order.style.display !== 'none', '順番が出ている');
+    const items = order.querySelectorAll('.wo-item');
+    assertEqual(items.length, players.length, '全員ぶん並ぶ');
+    assertEqual(order.querySelectorAll('.wo-item.now').length, 1, 'いま渡す人が1人だけ目立つ');
+    // 1人ぶん進めると、済んだ人に印が付く
+    click(doc, 'wrRevealBtn');
+    await sleep(win, 50);
+    click(doc, 'wrNextBtn');
+    await sleep(win, 80);
+    if (activeScreen(doc) === 'scr-wr-pass') {
+      assertEqual(el(doc, 'wrHandoffOrder').querySelectorAll('.wo-item.done').length, 1,
+        '見終わった人に印が付く');
+    }
+    assertNoErrors(errors, '手渡しの順番で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('役職を見た瞬間、陣営の色が画面の縁を照らす', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players);
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+    click(doc, 'wrRevealBtn');
+    await sleep(win, 60);
+    const app = el(doc, 'app');
+    const lit = ['edge-village', 'edge-wolf', 'edge-third'].some(c => app.classList.contains(c));
+    assert(lit, '陣営の色で縁が照らされる（' + app.className + '）');
+    // 色だけに頼らない。役職名と説明は文字でも必ず出る（第8部-2）
+    const body = el(doc, 'wrContentBody').textContent;
+    assert(/あなたの役職/.test(body), '役職名が文字でも出る');
+    // 一瞬で消える（出しっぱなしにしない）
+    await waitFor(win, () => !['edge-village', 'edge-wolf', 'edge-third']
+      .some(c => app.classList.contains(c)), 3000, '縁の光が消える');
+    assertNoErrors(errors, '役職の照明で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('集計は、票が集まりきってから処刑を発表する', async () => {
+    const { win, doc, errors } = await launch();
+    const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    await startWolfRole(win, doc, 'wolf-casual', players);
+    // 投票を終えて集計まで進める
+    let g = 0;
+    while (activeScreen(doc) !== 'scr-wr-result' && g++ < 300) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-wr-day') { await holdPress(win, doc, 'wrToVoteBtn'); await sleep(win, 100); continue; }
+      if (cur === 'scr-nightfall') { click(doc, 'nfNextBtn'); await sleep(win, 60); continue; }
+      if (cur === 'scr-wr-gather') {
+        // 集計ボタンは押すと隠れる。隠れたまま押し続けると、
+        // カウントダウンが何度も振り出しに戻って先へ進まない
+        const b = el(doc, 'wrTallyBtn');
+        if (b.style.display !== 'none') b.click();
+        await sleep(win, 400);
+        continue;
+      }
+      if (cur === 'scr-wr-pass') {
+        if (el(doc, 'wrContent').style.display === 'none') { click(doc, 'wrRevealBtn'); await sleep(win, 40); continue; }
+        const c = doc.querySelector('#wrChoiceGrid button[data-choice]');
+        if (c) { c.click(); const ok = doc.getElementById('wrVoteOkBtn'); if (ok) ok.click(); }
+        else click(doc, 'wrNextBtn');
+        await sleep(win, 45);
+        continue;
+      }
+      await sleep(win, 50);
+    }
+    assertEqual(activeScreen(doc), 'scr-wr-result', 'ターンの結果まで進む');
+    // 票が1つずつ出そろい、最後に結論が見える
+    await waitFor(win, () => {
+      const v = doc.getElementById('wrVerdict');
+      return v && v.style.visibility !== 'hidden';
+    }, 5000, '票が集まりきってから結論が出る');
+    const items = doc.querySelectorAll('#wrResultSummary .vote-counts .vc-item');
+    if (items.length) {
+      assertEqual(doc.querySelectorAll('#wrResultSummary .vote-counts .vc-item.fx-in').length,
+        items.length, '票は全部出そろう（途中で止まらない）');
+    }
+    assertNoErrors(errors, '集計の演出で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('欠けた人は、色だけでなく理由の文字でも分かる（第8部-2）', async () => {
     // 色覚特性のある人にも伝わるように、打ち消し線と理由の文字を併記する
     const css = require('fs').readFileSync(

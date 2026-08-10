@@ -2154,6 +2154,9 @@
     <div class="shelf-head">
       <div class="logo">あつまれ<span class="c">、</span>あれこれ</div>
       <div class="sub">きょうは、どうやってあそぶ？</div>
+      <!-- 第32弾-C 第8部-4：友達の家で初めて触る人が、いきなり棚を見ても分からない。
+           このアプリが何なのかを、選ぶ前に一言だけ置く -->
+      <div class="mic-status" style="text-align:center;margin-top:6px;">みんなで集まって遊ぶ、パーティゲームの棚です</div>
     </div>
     <div class="wiz-body">
       <button class="howto-card" data-howto="handoff">
@@ -2174,7 +2177,7 @@
         <div class="howto-icon">👀</div>
         <div class="howto-text">
           <div class="howto-title">棚を見る</div>
-          <div class="howto-sub">どんなゲームがあるか見てみる</div>
+          <div class="howto-sub">はじめての人はここから。どんなゲームがあるか見られます</div>
         </div>
       </button>
       <div class="mic-status" id="howtoNote" style="margin-top:16px;text-align:center;"></div>
@@ -2564,9 +2567,9 @@
   <!-- 4d4: 設定ウィザード・実物解除（第27弾-3） -->
   <div class="screen" id="scr-set-defuse">
     <div class="wiz-head"><span class="wiz-step" id="wizStepDefuse"></span><h2 class="scr-title">爆弾の作り方</h2></div>
-    <p class="wiz-lead">モジュールの数とミスの上限を決めよう。こだわらなければそのまま「つぎへ」でOK。</p>
+    <p class="wiz-lead">しかけの数とミスの上限を決めよう。こだわらなければそのまま「つぎへ」でOK。</p>
     <div class="wiz-body">
-      <div class="tp-label">モジュールの数　<span id="dfCountValue">5</span>個</div>
+      <div class="tp-label">しかけの数　<span id="dfCountValue">5</span>個</div>
       <input type="range" id="dfCountSlider" min="4" max="8" step="1" value="5">
       <div class="tp-label" style="margin-top:16px;">ミスの上限（全員で共有）</div>
       <div class="bomblife-display" id="dfStrikeDisplay">❤️❤️❤️</div>
@@ -2582,7 +2585,7 @@
         <div class="switch" id="dfManualToggle"></div>
       </div>
       <div class="toggle-row-mini" style="margin-top:12px;">
-        <div>体を動かすモジュールを入れる
+        <div>体を動かすしかけを入れる
           <div class="mic-status" id="dfPhysicalNote"></div>
         </div>
         <div class="switch" id="dfPhysicalToggle"></div>
@@ -2997,7 +3000,7 @@
       <div id="dfManualBox" style="display:none;"></div>
       <div id="dfResultBox"></div>
       <!-- 第28弾-3：説明はいつでも何度でも見返せる -->
-      <button class="btn btn-ghost" id="dfHelpBtn" style="display:none;margin-top:14px;">📘 モジュールの説明を見る</button>
+      <button class="btn btn-ghost" id="dfHelpBtn" style="display:none;margin-top:14px;">📘 しかけの説明を見る</button>
       <button class="btn btn-main" id="dfAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="dfEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="dfLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
@@ -3397,7 +3400,7 @@
 
   <!-- auction: bid -->
   <div class="screen" id="scr-auction-bid">
-    <div class="auction-phase">💰 入札フェーズ</div>
+    <div class="auction-phase">💰 値をつける</div>
     <div class="wolf-you" id="auctionRoundLabel">第1/6ラウンド・🟢かんたん</div>
     <div class="wolf-you" id="auctionBidderName" style="font-size:20px;font-weight:800;">-</div>
     <div class="tp-label">所持チップ：<span id="auctionBidderChips">20</span></div>
@@ -3427,7 +3430,7 @@
 
   <!-- auction: AI出題（第4弾：AIが説明を生成・読み上げ。お題名は表示しない） -->
   <div class="screen" id="scr-auction-question">
-    <div class="auction-phase">🧠 お題フェーズ</div>
+    <div class="auction-phase">🧠 お題を当てる</div>
     <div class="wolf-you" id="auctionQTierLabel">🟢 かんたん</div>
     <div class="topic-card">
       <div class="topic-label">🔊 聞いて当てよう</div>
@@ -3827,7 +3830,7 @@
   <div class="overlay" id="dfModOverlay">
     <div class="overlay-panel">
       <div class="overlay-head">
-        <h3 id="dfModTitle">モジュール</h3>
+        <h3 id="dfModTitle">しかけ</h3>
         <button class="close-x" id="dfModCloseBtn">✕</button>
       </div>
       <div class="mic-status" id="dfModLead"></div>
@@ -3969,8 +3972,8 @@
       bullets:["全員が同じコード一覧に同時に挑戦する","コードの並び順は各自ばらばら（隣を見ても場所が違う）","AIの説明文は試合が始まるまで誰にも見えない","外れるとライフが1つ減り、残り時間も10秒減る","ライフが0になると記録なし・最下位扱い","解けた本数が多い順、同数ならタイムが早い順で順位がつく"]},
     // ---- 第27弾-3：実物解除。解除役とマニュアル役が別々の画面を同時に見るのが肝なので、
     // 手渡し（1台を回す）では成立しない。どちらも部屋が必須 ----
-    {id:"defuse", icon:"🧰", title:"実物解除", sub:"モジュールを解除・マニュアル役と口で伝え合う", advanced:false, strict:false, oneWord:false, defuse:true, roomOnly:true, game:'defuse', minPlayers:2,
-      bullets:["解除役とマニュアル役に分かれる","解除役だけが爆弾（モジュール一覧）を見る","マニュアル役だけが対応表を見る","画面を見せ合わず、口で伝え合って解く","どれから手をつけてもよい","ミスの数は全員で共有・尽きると爆発","対応表はマニュアル役みんなで分け合う"]},
+    {id:"defuse", icon:"🧰", title:"実物解除", sub:"しかけを解除・マニュアル役と口で伝え合う", advanced:false, strict:false, oneWord:false, defuse:true, roomOnly:true, game:'defuse', minPlayers:2,
+      bullets:["解除役とマニュアル役に分かれる","解除役だけが爆弾（しかけ一覧）を見る","マニュアル役だけが対応表を見る","画面を見せ合わず、口で伝え合って解く","どれから手をつけてもよい","ミスの数は全員で共有・尽きると爆発","対応表はマニュアル役みんなで分け合う"]},
     // 集中解除：マニュアル役1人・解除役全員という逆の構図
     {id:"defuse-focus", icon:"🎯", title:"集中解除", sub:"マニュアル役1人・ほかは全員が解除役", advanced:false, strict:false, oneWord:false, defuse:true, defuseFocus:true, roomOnly:true, game:'defuse', minPlayers:2,
       bullets:["マニュアル役はたった1人","ほかは全員が解除役","1人に質問が集中する・さばききれるか","対応表は全部その1人が持つ","ミスの数は全員で共有・尽きると爆発"]},
@@ -4993,7 +4996,7 @@
     // 実物解除・同時解除が入る時は、このカセットにゲームを足す形になる
     { id:'bomb',            title:'クイズ解除',         icon:'💣', sub:'AIの説明を聞いて3択・コードを解除する', usesTopicPool:true },
     // 第27弾-3：カセット「爆弾解除」の2つ目。センサーを使うので人数上限は設けない
-    { id:'defuse',          title:'実物解除',           icon:'🧰', sub:'モジュールを解除する・マニュアル役と口で伝え合う', maxPlayers:0 },
+    { id:'defuse',          title:'実物解除',           icon:'🧰', sub:'しかけを解除する・マニュアル役と口で伝え合う', maxPlayers:0 },
     { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点', usesTopicPool:true },
     // 第30弾：カセット「クイズ王」の4ゲーム。出題は問題バンク（quiz-bank.js）から。
     // ゲーム中にAIは呼ばないので usesTopicPool は付けない（お題プールも使わない）
@@ -6548,8 +6551,8 @@
       : '対応表を解除役の画面にも出します。1人でも解けますが、やさしくなります';
     el('dfPhysicalToggle').classList.toggle('on', c.allowPhysical);
     el('dfPhysicalNote').textContent = c.allowPhysical
-      ? '端末を振る・ポーズを取るモジュールが入ります（始める前に全員に確かめます）'
-      : '座ったまま遊べるモジュールだけになります';
+      ? '端末を振る・ポーズを取るしかけが入ります（始める前に全員に確かめます）'
+      : '座ったまま遊べるしかけだけになります';
   }
   el('dfCountSlider').addEventListener('input', function(){
     state.dfCfg.moduleCount = parseInt(this.value, 10);
@@ -8411,14 +8414,24 @@
   }
   function qzStartTicking(){
     if(qzClock.timer) return;
-    qzClock.timer = setInterval(qzRenderTimer, 250);
+    qzClock.timer = setInterval(function(){
+      qzRenderTimer();
+      // 第32弾-C 第8部-1：音が出せない端末では、問題文が1文字ずつ開いていく。
+      // 時計と同じ間隔で描き直す（そのためだけの時計を増やさない）
+      if(qzPacedEl && qzPacedText){
+        qzPacedEl.textContent = qzSpeechPaced(qzPacedText, qzPacedAt);
+      }
+    }, 250);
   }
+  // 読み上げの代わりに開いていく問題文（開き終わるまで、この3つを持つ）
+  var qzPacedEl = null, qzPacedText = null, qzPacedAt = 0;
   // 画面から離れる時に必ず呼ぶ。時計と読み上げを残さない
   function qzLeaveScreen(){
     qzUi.pickingTier = false; // 第32弾-C-5：次に来た時に選び直しの画面から始まらないように
     clearInterval(qzClock.timer); qzClock.timer = null;
     qzClock.ms = null;
     qzSpoken = null;
+    qzPacedEl = null; qzPacedText = null; qzPacedAt = 0;
     qzPrevScore = null;
     try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
   }
@@ -8710,8 +8723,19 @@
       // 文字も出すと「読み上げを待たずに読んだ人」が必ず勝つので、選んだ意味が消える
       if(b.delivery === 'text'){
         html += '<div class="quiz-q">' + escapeHtml(b.question.text) + '</div>';
-      } else {
+      } else if(canHearSpeech()){
         html += '<div class="quiz-q quiz-q-listen">🔊 読み上げています</div>';
+      } else {
+        // 第32弾-C 第8部-1：音を切っている端末・読み上げに対応していない端末には、
+        // 「🔊 読み上げています」しか出ていなかった。問題が一文字も分からないまま
+        // 早押しに参加させられ、この遊びがまったく成立していなかった。
+        //
+        // 文字を全部出すと「読むほうが速い人」が必ず勝つので、それはできない。
+        // 読み上げと同じ速さで1文字ずつ開いていく形にして、耳で聞く人と
+        // 目で読む人が同じタイミングで分かるようにする。
+        html += '<div class="quiz-q quiz-q-listen">' +
+          escapeHtml(qzSpeechPaced(b.question.text, b.askedAt)) + '</div>' +
+          '<div class="mic-status">🔇 音が出せないので、読み上げに合わせて文字を出しています</div>';
       }
       if(mine.yours){
         html += qzChoicesHtml(b.question.choices, false);
@@ -8724,6 +8748,13 @@
     html += '<div class="mic-status">🏆 ' + (b.champion ? escapeHtml(b.champion) + ' が優勝' : '') + '</div>';
     el('qzBody').innerHTML = html;
 
+    // 開いていく文の置き場所を持っておく（次の描き直しで書き換えるため）
+    qzPacedEl = null; qzPacedText = null; qzPacedAt = 0;
+    if(b.question && b.delivery === 'speak' && !canHearSpeech()){
+      qzPacedEl = el('qzBody').querySelector('.quiz-q-listen');
+      qzPacedText = b.question.text;
+      qzPacedAt = b.askedAt;
+    }
     // 読み上げは、新しい問題が出た時だけ1回。描き直すたびに読み直さない
     if(b.question && b.delivery === 'speak' && qzSpoken !== b.askedAt){
       qzSpoken = b.askedAt;
@@ -8731,6 +8762,27 @@
     }
   }
 
+  /**
+   * 第32弾-C 第8部-1：この端末で読み上げが聞こえるか。
+   * 音量を0にしている人と、読み上げに対応していないブラウザは「聞こえない」。
+   */
+  function canHearSpeech(){
+    if(appPrefs.speechVolume <= 0) return false;
+    try{ return !!window.speechSynthesis; }catch(e){ return false; }
+  }
+  /**
+   * 読み上げと同じ速さで、問題文を1文字ずつ開く。
+   * 読む速さは1秒に8文字くらい（ふつうの読み上げの速さ）。
+   * 開き方の計算は、とくとくクイズと同じ共通層のものを使う。
+   */
+  var SPEECH_CPS = 8;
+  function qzSpeechPaced(text, askedAt){
+    var t = String(text || '');
+    if(!askedAt) return t;
+    var sec = Math.max(1, t.length / SPEECH_CPS);
+    var shown = QuizLogic.revealedCount(t, Date.now() - askedAt, sec);
+    return QuizLogic.maskedText(t, shown);
+  }
   function qzResultHtml(v){
     var res = v.result || {};
     var rows = (res.ranking || []).map(function(x){
@@ -9927,7 +9979,7 @@
         '<br>ほかの人を待っています…</div>';
       return;
     }
-    el('dfNote').innerHTML = '⚠️ このゲームには、体を動かすモジュールが入ります';
+    el('dfNote').innerHTML = '⚠️ このゲームには、体を動かすしかけが入ります';
     box.innerHTML =
       '<div class="df-page"><div class="df-page-head">こんな動作があります</div>' +
         '<ul class="rules-ol">' + ask.moves.map(function(m){
@@ -9968,7 +10020,7 @@
     box.innerHTML =
       '<button class="df-role-btn' + (you.role === 'defuser' ? ' on' : '') + '" data-dfrole="defuser">' +
         '<span class="df-role-name">🧰 解除役</span>' +
-        '<span class="df-role-desc">爆弾（モジュール一覧）を見て、実際に操作する人</span></button>' +
+        '<span class="df-role-desc">爆弾（しかけ一覧）を見て、実際に操作する人</span></button>' +
       '<button class="df-role-btn' + (you.role === 'manual' ? ' on' : '') + '" data-dfrole="manual"' +
         (manualTaken ? ' disabled' : '') + '>' +
         '<span class="df-role-name">📖 マニュアル役</span>' +
@@ -10047,7 +10099,7 @@
         return;
       }
     }
-    el('dfNote').innerHTML = '📘 はじめて出てくるモジュールの説明です';
+    el('dfNote').innerHTML = '📘 はじめて出てくるしかけの説明です';
     box.innerHTML = dfBriefPageHtml(dfBrief.pages[dfBrief.at], dfBrief.at, dfBrief.pages.length, false);
   }
 
@@ -10139,7 +10191,7 @@
     var b = e.target.closest('[data-dfmod]');
     if(!b || b.classList.contains('solved') || b.classList.contains('taken')) return;
     var res = await rt.act(b.dataset.dfmod);
-    if(res && !res.ok && res.error === 'taken') showFlash('そのモジュールは他の人が挑戦中です', 'hit');
+    if(res && !res.ok && res.error === 'taken') showFlash('そのしかけは他の人が挑戦中です', 'hit');
   });
 
   // ---- マニュアル役：自分が受け持つ対応表 ----

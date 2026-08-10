@@ -1154,5 +1154,41 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ===================================================================
+  // 第32弾-C 第8部：全体を通しての配慮
+  // ===================================================================
+
+  await r.test('はじめて触る人にも、これが何のアプリか分かる（第8部-4）', async () => {
+    // 友達の家で初めて触る人が、いきなり棚を見せられても分からない
+    const { win, doc, errors } = await launch({ playFlow: false });
+    assertEqual(activeScreen(doc), 'scr-howto', '扉のつぎの画面');
+    const text = el(doc, 'scr-howto').textContent;
+    assert(/パーティゲーム/.test(text), '何のアプリか書いてある');
+    const browse = doc.querySelector('#scr-howto [data-howto="browse"]');
+    assert(/はじめての人/.test(browse.textContent),
+      'はじめての人の行き先が分かる（実際: ' + browse.textContent.trim() + '）');
+    assertNoErrors(errors, 'あそびかたの画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('専門用語を、集まりで通じる言葉に置き換えてある（第8部-3）', async () => {
+    // 子供から年配の人まで遊ぶ。「モジュール」「フェーズ」は通じない
+    const html = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // 画面に出る文字だけを見る（コードのコメントや変数名は読む相手が違う）
+    const shown = html
+      .replace(/\/\*[\s\S]*?\*\//g, '')      // CSSコメント
+      .replace(/^\s*\/\/.*$/gm, '')          // 行コメント
+      .replace(/<!--[\s\S]*?-->/g, '');      // HTMLコメント
+    const bad = [];
+    ['モジュール', 'フェーズ'].forEach((w) => {
+      // 行をまたがせない。またぐと、行末に書いたコメントまで拾ってしまう
+      const re = new RegExp('[>\'"][^<\'"\\r\\n]*' + w, 'g');
+      const hit = shown.match(re);
+      if (hit) bad.push(w + '（' + hit.length + '件）');
+    });
+    assertEqual(bad.join('、'), '', '画面に出る文字に専門用語が残っていない');
+  });
+
   r.finish();
 })();

@@ -2512,5 +2512,72 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ===================================================================
+  // 第32弾-C 第8部-1：音が出せない環境でも遊べるか
+  // ===================================================================
+
+  await r.test('早押し：読み上げが聞こえる端末には、問題文を出さない', async () => {
+    // 文字も出すと「読むほうが速い人」が必ず勝ち、読み上げを選んだ意味が消える
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const b = {
+      roundNum: 1, winsNeeded: 3, delivery: 'speak', matchResult: null,
+      pair: [{ id: 'm1', name: 'あき', wins: 0 }, { id: 'm2', name: 'びび', wins: 0 }],
+      question: { text: '日本でいちばん高い山は？', choices: ['富士山', '北岳'] },
+      askedAt: Date.now(), buzzedId: null, buzzedName: null, lastNote: null
+    };
+    push(fake, quizRoom('buzzer', quizView('buzzer', { buzzer: b })));
+    pushYou(fake, quizYou('buzzer', { buzzer: { inMatch: true, canBuzz: true, yours: false } }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    const text = el(doc, 'qzBody').textContent;
+    assert(!/日本でいちばん高い山/.test(text), '問題文は出さない');
+    assert(/読み上げ/.test(text), '読み上げ中だと分かる');
+    assertNoErrors(errors, '読み上げモードで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('早押し：音を切っている端末には、読み上げに合わせて文字が開く', async () => {
+    // それまで「🔊 読み上げています」しか出ず、問題が一文字も分からないまま
+    // 早押しに参加させられていた。この遊びが成立していなかった
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // 読み上げの音量を0にする（＝この端末では聞こえない）
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    doc.querySelector('#setRootMenu [data-setpage="app"]').click();
+    await sleep(win, 60);
+    doc.querySelector('#setAppMenu [data-setpage="sound"]').click();
+    await sleep(win, 60);
+    const vol = el(doc, 'setSpeechVol');
+    vol.value = '0';
+    vol.dispatchEvent(new win.Event('input'));
+    await sleep(win, 40);
+    click(doc, 'closeSettingsBtn');
+    await sleep(win, 60);
+
+    const q = '日本でいちばん高い山はなんでしょう';
+    const b = {
+      roundNum: 1, winsNeeded: 3, delivery: 'speak', matchResult: null,
+      pair: [{ id: 'm1', name: 'あき', wins: 0 }, { id: 'm2', name: 'びび', wins: 0 }],
+      question: { text: q, choices: ['富士山', '北岳'] },
+      askedAt: Date.now(), buzzedId: null, buzzedName: null, lastNote: null
+    };
+    push(fake, quizRoom('buzzer', quizView('buzzer', { buzzer: b })));
+    pushYou(fake, quizYou('buzzer', { buzzer: { inMatch: true, canBuzz: true, yours: false } }));
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    const body = el(doc, 'qzBody').textContent;
+    assert(/音が出せないので/.test(body), 'なぜ文字が出ているのかが分かる');
+    // 出はじめは、まだ全部は開いていない（読むほうが速い人が勝たないように）
+    const shown = doc.querySelector('.quiz-q-listen').textContent;
+    assert(shown.indexOf(q) === -1, '最初から全文は出さない（実際: ' + shown + '）');
+    assert(shown.length > 0, '何かは出ている');
+    // 時間が経つと、文字が開いていく
+    await sleep(win, 700);
+    const later = doc.querySelector('.quiz-q-listen').textContent;
+    assert(later !== shown, '読み上げに合わせて開いていく');
+    assertNoErrors(errors, '消音での早押しで未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

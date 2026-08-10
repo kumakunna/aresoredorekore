@@ -215,17 +215,22 @@
    * 渡した要素を、頭から1つずつ見せる。
    * 順位発表は「1位から順に」なので、1位を先頭にした配列で渡す。
    */
+  var TICK_MAX = 8;
   function stagger(nodes, gap, cls) {
     var list = Array.prototype.slice.call(nodes || []);
     var c = cls || 'fx-in';
     var g = gap == null ? 120 : gap;
+    // たくさん並ぶ時は、1つずつ音を鳴らさない。
+    // 30個のコードが点灯するだけで30回鳴ることになり、うるさいだけで何も伝わらない。
+    // 数えられるくらいの数（順位発表など）の時だけ、1つずつ鳴らす。
+    var tickable = list.length <= TICK_MAX;
     list.forEach(function (n) { if (n && n.classList) n.classList.remove(c); });
     var p = Promise.resolve(true);
     list.forEach(function (n, i) {
       p = p.then(function () {
         return hold(i === 0 ? 0 : g).then(function (s) {
           if (n && n.classList) n.classList.add(c);
-          if (i > 0) play('tick');
+          if (i > 0 && tickable) play('tick');
           return s;
         });
       });

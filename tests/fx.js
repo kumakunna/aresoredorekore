@@ -203,6 +203,23 @@ function freshFx() {
     assertEqual(box.querySelectorAll('.fx-in').length, 4, '4件とも出ている');
   });
 
+  await r.test('順に出す：たくさん並ぶ時は、1つずつ音を鳴らさない', async () => {
+    // 30個のコードが点灯するだけで30回鳴ると、うるさいだけで何も伝わらない
+    const { Fx, doc, log } = freshFx();
+    function box(n) {
+      const b = doc.createElement('div');
+      for (let i = 0; i < n; i++) b.appendChild(doc.createElement('div'));
+      return b;
+    }
+    await Fx.stagger(box(5).children, 0);
+    const few = log.sounds.filter(s => s === 'tick').length;
+    assert(few > 0, '数えられる数なら、1つずつ鳴らす');
+    log.sounds.length = 0;
+    await Fx.stagger(box(30).children, 0);
+    assertEqual(log.sounds.filter(s => s === 'tick').length, 0,
+      'たくさん並ぶ時は鳴らさない');
+  });
+
   await r.test('カードめくり：中身の差し替えは、裏を向いてからになる', async () => {
     // 先に差し替えると、めくる前に答えが見えてしまう
     const { Fx, doc } = freshFx();

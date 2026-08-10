@@ -1298,7 +1298,21 @@
   .bomb-wire-btn.t-hard{border-color:#ef6c00;box-shadow:inset 0 0 0 3px #ef6c00;}
   .bomb-wire-btn.t-nanisore{border-color:#e53935;box-shadow:inset 0 0 0 3px #e53935;}
   .bomb-wire-btn.t-muri{border-color:#8e24aa;box-shadow:inset 0 0 0 3px #8e24aa;}
-  .bomb-wire-btn.snipping{animation:bombSnip .5s ease forwards;}
+  .bomb-wire-btn.snipping{animation:bombSnip calc(0.5s * var(--fx-scale)) ease forwards;}
+  /* 第32弾-C-4：解けたマスは、消える前に緑に光る */
+  .bomb-wire-btn.cut-ok{background:var(--teal) !important;border-color:var(--teal) !important;
+    box-shadow:0 0 18px 4px rgba(63,191,165,.7);}
+  /* ライフが1つ砕けた瞬間 */
+  .bomb-lives.broke{animation:bombShake calc(0.5s * var(--fx-scale)), livesBreak calc(0.5s * var(--fx-scale));}
+  @keyframes livesBreak{0%{filter:none;}25%{filter:brightness(1.6) saturate(1.6);}100%{filter:none;}}
+  /* 第32弾-C-4：ライフがあと1つ。数えなくても、もう後がないと分かる。
+     数字（❤️の数）も出ているので、色だけに頼っていない（第8部-2） */
+  .app.bomb-danger::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:70;
+    box-shadow:inset 0 0 46px 10px rgba(226,88,74,.55);
+    animation:dangerEdge 1.1s ease-in-out infinite;
+  }
+  @keyframes dangerEdge{0%,100%{opacity:.35;}50%{opacity:1;}}
   @keyframes bombSnip{0%{transform:scale(1) rotate(0);}30%{transform:scale(1.2) rotate(8deg);}100%{transform:scale(.6) rotate(-14deg);opacity:.25;}}
   .bomb-lives.shake{animation:bombShake .5s;}
   @keyframes bombShake{0%,100%{transform:translateX(0);}20%{transform:translateX(-6px);}40%{transform:translateX(6px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
@@ -3826,6 +3840,8 @@
       </div>
       <div class="ai-description" id="bombWireDescription">🤖 説明を考え中…</div>
       <div class="picker-grid" id="bombWireChoices" style="margin-top:16px;"></div>
+      <!-- 第32弾-C-4：外しても、このコードには何度でも挑める -->
+      <div class="mic-status" id="bombWireRetryNote" style="margin-top:12px;text-align:center;"></div>
     </div>
   </div>
 
@@ -12733,6 +12749,7 @@
   // 他のゲームと同じカウントダウンのあと、そのままコード一覧に入る。
   // 説明文は始まる前に全部そろえてあるので、開いた瞬間から待たされない。
   function enterBombPlay(){
+    bombLitOnce = false;   // 入り直したら、点灯からやり直す
     renderBombLives();
     stopBombHeart(); // もう一度遊ぶ時に、前の回の心拍が残らないようにする
     el('bombWireOverlay').classList.remove('show');
@@ -12746,6 +12763,9 @@
     var max = play.bombLivesMax || state.bombLives || 3;
     var full = Math.max(0, play.bombLives);
     el('bombLives').textContent = '❤️'.repeat(full) + '🖤'.repeat(Math.max(0, max - full));
+    // 第32弾-C-4：あと1つになったら、画面の縁が赤く脈打つ。
+    // ライフの数を数えなくても、もう後がないことが目に入る
+    el('app').classList.toggle('bomb-danger', full === 1);
   }
   function renderBombList(){
     if(!play.bombWires || play.bombWires.length === 0){ defuseComplete(); return; }
@@ -12754,7 +12774,19 @@
     }));
     var solvedCount = play.bombWires.filter(function(w){ return w.solved; }).length;
     el('bombProgress').textContent = solvedCount + ' / ' + play.bombWires.length + ' 解除';
+    // 第32弾-C-4：はじめの1回だけ、コードが上から順に点灯していく。
+    // 盤面がいきなり全部出ると、どこから手を付けるか目が迷う。
+    // 描き直すたびにやると、解除のたびに全部が点滅してうるさい
+    if(!bombLitOnce && typeof FxKit !== 'undefined'){
+      bombLitOnce = true;
+      var grid = el('bombWireList').querySelector('.bomb-wire-grid');
+      if(grid){
+        grid.classList.add('fx-stagger');
+        FxKit.stagger(grid.children, 50);
+      }
+    }
   }
+  var bombLitOnce = false;
   // ---- 爆弾のタイマー（③：ONなら点灯後にカウントダウン、0で爆発） ----
   function setupBombTimerUI(){
     el('bombTimer').style.display = state.timerEnabled ? 'inline-block' : 'none';
@@ -12799,9 +12831,18 @@
     stopBombTimer();
     stopBombHeart();
     el('bombWireOverlay').classList.remove('show');
+    el('app').classList.remove('bomb-danger');
     beep(784, 140); setTimeout(function(){ beep(1046, 240); }, 170);
     var inside = el('bombInside');
     inside.classList.remove('bomb-defused'); void inside.offsetWidth; inside.classList.add('bomb-defused');
+    // 第32弾-C-4 原則C：褒める時は全力で。画面全体が緑に染まる
+    if(typeof FxKit !== 'undefined'){
+      FxKit.flash('good');
+      FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',
+        sub:'全部のコードを止めました', ms:900 })
+        .then(function(){ enterBombEnd(true); goTo('scr-bomb-end'); });
+      return;
+    }
     setTimeout(function(){ enterBombEnd(true); goTo('scr-bomb-end'); }, 750);
   }
   function explode(){
@@ -12810,6 +12851,17 @@
     stopBombHeart();
     el('bombWireOverlay').classList.remove('show');
     play.currentBombWire = null;
+    el('app').classList.remove('bomb-danger');
+    // 第32弾-C-4：爆発は「静かに、しかしはっきりと」。
+    // 失敗を大音量で囃し立てない（原則C）。画面は灰色に沈めて、はっきり伝える
+    if(typeof FxKit !== 'undefined'){
+      doVibrate([120,60,120]);
+      FxKit.flash('gray');
+      FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
+        sub:'つぎは、もう少しだけ慎重に', ms:900 })
+        .then(function(){ enterBombEnd(false); goTo('scr-bomb-end'); });
+      return;
+    }
     buzz();
     setTimeout(function(){ enterBombEnd(false); goTo('scr-bomb-end'); }, 650);
   }
@@ -12834,13 +12886,19 @@
     if(!w || w.solved) return;
     play.currentBombWire = w;
     var tierInfo = BOMB_TIERS.find(function(t){ return t.id === w.tier; }) || BOMB_TIERS[0];
-    el('bombWireTierLabel').textContent = tierInfo.label;
+    // 第32弾-C-4：どのコードを開いたのか（番号・難易度）を出す。
+    // 30個の中から選んで開いたのに、開いた先に手がかりが無かった
+    var no = play.bombWires.indexOf(w) + 1;
+    el('bombWireTierLabel').textContent = 'コード' + no + '　' + tierInfo.label;
     el('bombWireOverlay').classList.add('show');
     // 第28弾-1：説明文は始まる前にそろえてあるので、ここで待つことはない。
     // 作れなかったコードは盤面から外してあるので、description は必ず入っている
     renderBombChoices(w);
   }
   function renderBombChoices(w){
+    // 第32弾-C-4：外しても、同じコードにまた挑める。
+    // それが分からないと、1回外しただけで詰んだように見える
+    el('bombWireRetryNote').textContent = 'まちがえても、このコードには何度でも挑めます';
     // 第32弾-A-3-6：AIの説明文ではなく、問題バンクの問題文をそのまま出す。
     // 3択もコードが最初から持っているので、ここで作ることはもう無い
     el('bombWireDescription').textContent = w.question || w.description;
@@ -12866,7 +12924,8 @@
       snipSound();
       // 配線が「パチン」と切れる演出
       var wireBtn = el('bombWireList').querySelector('.bomb-wire-btn[data-id="' + w.uid + '"]');
-      if(wireBtn) wireBtn.classList.add('snipping');
+      // 第32弾-C-4：解けたマスは、緑に光ってから消える
+      if(wireBtn) wireBtn.classList.add('snipping', 'cut-ok');
       setTimeout(function(){
         renderBombList();
         if(play.bombWires.every(function(x){ return x.solved; })) defuseComplete();
@@ -12874,11 +12933,13 @@
     } else {
       play.bombLives--;
       play.bombMisses = (play.bombMisses || 0) + 1;
-      wrongSound();
-      // ライフの心マークが割れる演出（トップバーを揺らす）
+      // 第32弾-C-4 原則C：責める時は静かに。0.15秒の薄い赤と短い音だけ
+      if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else wrongSound();
       var lives = el('bombLives');
-      lives.classList.remove('shake'); void lives.offsetWidth; lives.classList.add('shake');
-      showFlash('💔 ちがう！ライフが割れた', 'hit-wrong');
+      lives.classList.remove('shake', 'broke');
+      void lives.offsetWidth;
+      lives.classList.add('shake', 'broke');   // ライフが1つ砕ける
+      showQuietNote('💔 ちがう！ライフが1つ割れた');
       renderBombLives();
       if(play.bombLives <= 0) explode();
       else startBombHeart(play.bombMisses); // ミスするほど心拍が速くなる

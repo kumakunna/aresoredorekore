@@ -2777,6 +2777,120 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  // ---- 第32弾-C 第4部：爆弾解除の演出 ----
+
+  /**
+   * 第32弾-C-4：クイズ解除（協力版）を、かんたん n本・ライフ lives で始める。
+   * 演出を見るテストが増えたので、同じ下ごしらえを何度も書き写さない。
+   */
+  async function startBombCoop(win, doc, codes, lives) {
+    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'bomb');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-bomb', 3000);
+    for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
+      for (let i = 0; i < 30; i++) {
+        if (el(doc, 'bombCount-' + tier).textContent === '0') break;
+        doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();
+      }
+    }
+    for (let i = 0; i < codes; i++) {
+      doc.querySelector('#bombTierRows .bomb-plus[data-tier="easy"]').click();
+    }
+    await sleep(win, 40);
+    for (let i = 0; i < 10; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      if (cur === 'scr-set-bomblife' && lives) {
+        // ライフの数を指定したい時だけ、ここで下げる
+        for (let k = 0; k < 6; k++) {
+          if (parseInt(el(doc, 'bombLifeValue').textContent, 10) <= lives) break;
+          el(doc, 'bombLifeMinus').click();
+          await sleep(win, 20);
+        }
+      }
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 30);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-bomb-play', 12000);
+    await sleep(win, 120);
+  }
+
+  await r.test('爆弾解除：どのコードを開いたかと、何度でも挑めることが分かる', async () => {
+    const { win, doc, errors } = await launch();
+    await startBombCoop(win, doc, 3);
+    const btns = Array.from(doc.querySelectorAll('#bombWireList .bomb-wire-btn'));
+    btns[1].click();
+    await waitFor(win, () => doc.querySelectorAll('#bombWireChoices .pk-btn').length === 3,
+      4000, '3択が出る');
+    // 30個の中から選んで開いたのに、開いた先に手がかりが無かった
+    const label = el(doc, 'bombWireTierLabel').textContent;
+    assert(/コード2/.test(label), '何番のコードかが出る（実際: ' + label + '）');
+    assert(/かんたん|ふつう|むずかしい|なにそれ|むり/.test(label), '難易度も出る');
+    // 外しても詰まないことを、その場で伝える
+    assert(/何度でも/.test(el(doc, 'bombWireRetryNote').textContent),
+      'また挑めることが分かる');
+    assertNoErrors(errors, 'コードを開くところで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('爆弾解除：外しても画面いっぱいの演出は出さない（原則C）', async () => {
+    const { win, doc, errors } = await launch();
+    await startBombCoop(win, doc, 3);
+    doc.querySelector('#bombWireList .bomb-wire-btn').click();
+    await waitFor(win, () => doc.querySelectorAll('#bombWireChoices .pk-btn').length === 3,
+      4000, '3択が出る');
+    // わざと外す（問題バンクを見て、正解でないものを押す）
+    const desc = el(doc, 'bombWireDescription').textContent;
+    const bank = win.QuizBank.QUESTIONS.easy.find(q => q.q === desc);
+    const choices = Array.from(doc.querySelectorAll('#bombWireChoices .pk-btn'));
+    const wrong = choices.find(c => c.textContent !== bank.choices[bank.correct]);
+    wrong.click();
+    await sleep(win, 80);
+    assert(!doc.querySelector('.fx-banner'), 'みんなの前で大きく責めない');
+    assert(doc.querySelector('.fx-flash-bad'), '控えめな赤いフラッシュだけ');
+    assert(el(doc, 'foulToast').classList.contains('show'),
+      '何が起きたかは文字でも伝わる（音を切っていても分かる）');
+    assert(el(doc, 'bombLives').classList.contains('broke'), 'ライフが1つ砕ける');
+    assertNoErrors(errors, '外した時の演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('爆弾解除：ライフが残り1になると、画面の縁が赤く脈打つ', async () => {
+    // ライフの数を数えなくても、もう後がないことが目に入るように
+    const { win, doc, errors } = await launch();
+    await startBombCoop(win, doc, 5, 2);   // ライフ2で始める
+    const app = el(doc, 'app');
+    assert(!app.classList.contains('bomb-danger'), 'はじめは脈打たない');
+    // 1回外してライフを1にする
+    doc.querySelector('#bombWireList .bomb-wire-btn').click();
+    await waitFor(win, () => doc.querySelectorAll('#bombWireChoices .pk-btn').length === 3,
+      4000, '3択が出る');
+    const desc = el(doc, 'bombWireDescription').textContent;
+    const bank = win.QuizBank.QUESTIONS.easy.find(q => q.q === desc);
+    const wrong = Array.from(doc.querySelectorAll('#bombWireChoices .pk-btn'))
+      .find(c => c.textContent !== bank.choices[bank.correct]);
+    wrong.click();
+    await sleep(win, 80);
+    assert(app.classList.contains('bomb-danger'), 'あと1つで脈打ちはじめる');
+    // 数（❤️の数）も出ているので、色だけに頼っていない（第8部-2）
+    assert(/❤️/.test(el(doc, 'bombLives').textContent), 'ライフの数も文字で出ている');
+    assertNoErrors(errors, 'ライフ残り1の演出で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('爆弾解除：心拍は盤面に入ってから鳴り、画面を離れたら止まる', async () => {
     // 常時BGMは入れない方針なので、解除中だけ鳴って、離れたら必ず止まること
     const { win, doc, errors } = await launch(LAUNCH);

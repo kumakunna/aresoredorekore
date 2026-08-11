@@ -485,7 +485,10 @@ async function run() {
     try {
       const rm = await makeRoom(srv, 2, true);
       await rm.host.call('wolf:start', { game: 'buzzer', winsNeeded: 2 });
-      await waitUntil(() => viewOf(rm.host).buzzer && viewOf(rm.host).buzzer.question, '問題が届く');
+      // 第34弾：ホストにだけ届くのを待つと、ゲスト側の配信がまだのことがある
+      //（開始の3-2-1の放送が増えて、配信のタイミングが僅かに変わり顕在化した競合）
+      await waitUntil(() => viewOf(rm.host).buzzer && viewOf(rm.host).buzzer.question
+        && viewOf(rm.guests[0]).buzzer && viewOf(rm.guests[0]).buzzer.question, '2人とも問題が届く');
       const v = viewOf(rm.host).buzzer;
       const v2 = viewOf(rm.guests[0]).buzzer;
       assertEqual(v.question.text, v2.question.text, '2人に同じ問題が届く');

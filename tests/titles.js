@@ -118,7 +118,11 @@ const CASES = [
   // ---- 第32弾-F：季節イベント（夏） ----
   ['icon-season-summer', 'season', {}, { summerPlays: 1 }],
   ['icon-season-hanabi', 'season', { summerPlays: 9 }, { summerCrowd: 1 }],
-  ['first-natsu', 'season', { summerPlays: 2 }, { summerPlays: 3 }]
+  ['first-natsu', 'season', { summerPlays: 2 }, { summerPlays: 3 }],
+  // ---- 第34弾 2-2：みんなからのおくりもの（カセットを問わない） ----
+  ['icon-thanks-1', 'social', {}, { thanksGot: 1 }],
+  ['icon-thanks-10', 'social', { thanksGot: 9 }, { thanksGot: 10 }],
+  ['first-tayori', 'social', { thanksGot: 2 }, { thanksGot: 3 }]
 ];
 
 (async function main() {

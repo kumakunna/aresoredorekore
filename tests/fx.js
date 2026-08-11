@@ -316,6 +316,16 @@ function freshFx() {
     assert(!app.querySelector('.fx-callout'), '出しっぱなしにならない');
   });
 
+  await r.test('3-2-1：数字が出て、タップで飛ばせて、あとに残らない（第34弾 2-1）', async () => {
+    const { Fx, app } = freshFx();
+    const p = Fx.countdown(3);
+    const box = app.querySelector('.fx-countdown');
+    assert(box && /3/.test(box.textContent), '3から数え始める');
+    Fx.skipNow();   // 原則B：タップで飛ばせる
+    await p;
+    assert(!app.querySelector('.fx-countdown'), '飛ばしたら残らない');
+  });
+
   await r.test('場面に合わせた振動：名前で呼べて、パターンで震える', async () => {
     const { Fx, log } = freshFx();
     Fx.vibe('rise');

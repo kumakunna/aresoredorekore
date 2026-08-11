@@ -72,6 +72,33 @@ function votesFrom(list) {
     assertEqual(WolfLogic.tally(null).executedId, null, 'そもそも渡されていない');
   });
 
+  await r.test('部屋のワードウルフの称号は、サーバーが本人の結果を数える（第34弾）', async () => {
+    // 端末側で数えようとしていたが、公開ビューの roles には id が無く、
+    // ワードウルフの勝ちは一度も数えられていなかった
+    const base = {
+      wolfIds: ['w1'], roles: { m1: 'madman' }, executedIds: [],
+      scores: { w1: 2, s1: 0, m1: 1 }
+    };
+    // ウルフの逃げ切り：ウルフ側（狂人含む）が勝ち。シープは負け
+    const escaped = Object.assign({}, base, { winner: 'wolf' });
+    const wolfAch = WordwolfRoom.achievementsFor(escaped, 'w1');
+    assertEqual(wolfAch.wins, 1, 'ウルフの勝ち');
+    assertEqual(wolfAch.wolfWins, 1, 'ウルフ側で勝った');
+    assertEqual(wolfAch.wordwolfEscapes, 1, '当てられずに逃げ切った');
+    assertEqual(wolfAch.wordwolfPlays, 1, 'ワードウルフとして数える');
+    assertEqual(WordwolfRoom.achievementsFor(escaped, 'm1').wolfWins, 1, '狂人もウルフ側の勝ち');
+    assertEqual(WordwolfRoom.achievementsFor(escaped, 's1').wins, undefined, 'シープに勝ちは付かない');
+    // ウルフをあぶり出した：シープ側の勝ち。処刑されたウルフに逃げ切りは付かない
+    const caught = Object.assign({}, base, { winner: 'sheep', executedIds: ['w1'] });
+    assertEqual(WordwolfRoom.achievementsFor(caught, 's1').villageWins, 1, 'シープ側で勝った');
+    assertEqual(WordwolfRoom.achievementsFor(caught, 'w1').wins, undefined, '捕まったウルフは負け');
+    assertEqual(WordwolfRoom.achievementsFor(caught, 'w1').wordwolfEscapes, undefined, '逃げ切りも付かない');
+    // 合計得点で決める遊び方：一番点を取った人の勝ち
+    const byScore = Object.assign({}, base, { winner: null });
+    assertEqual(WordwolfRoom.achievementsFor(byScore, 'w1').wins, 1, '最高得点の人が勝ち');
+    assertEqual(WordwolfRoom.achievementsFor(byScore, 's1').wins, undefined, 'それ以外は付かない');
+  });
+
   await r.test('全員が投票をとばした回は「同数」ではなく「票なし」と分かる（第33弾 B-7）', async () => {
     // 全員スキップを「同数のため」と表示すると、誰かに票が入っていたように読める
     const none = WolfLogic.tally({ a: null, b: null, c: null });

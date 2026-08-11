@@ -123,6 +123,8 @@
       socket.on('room:reacted', function (p) { emitLocal('reacted', p || {}); });
       socket.on('room:thanked', function (p) { emitLocal('thanked', p || {}); });
       socket.on('album:update', function (p) { emitLocal('albumUpdate', p || {}); });
+      // 第34弾 2-1：ゲームが始まる前の、みんなで見る3-2-1
+      socket.on('room:countdown', function (p) { emitLocal('countdown', p || {}); });
       // サーバーからの死活確認。返さないと切断扱いになる
       socket.on('hb:ping', function () { socket.emit('hb:pong'); });
       return true;

@@ -1326,6 +1326,35 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('部屋ゲームの開始前に、全員で見る3-2-1が出る（第34弾 2-1）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // サーバーが「始まる合図」を全員に放送してくる
+    fake.fire('room:countdown', { seconds: 3 });
+    await sleep(win, 120);
+    const cd = doc.querySelector('.fx-countdown');
+    assert(cd && /3/.test(cd.textContent), '3から数え始める');
+    // 原則B：タップで飛ばせる（飛ぶのは自分の画面だけ）
+    doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+    await sleep(win, 120);
+    assert(!doc.querySelector('.fx-countdown'), 'タップで飛ばせて、あとに残らない');
+    assertNoErrors(errors, '開始カウントダウンで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('「ありがとう」を受け取ると、おくりものの称号に数えられる（第34弾 2-2）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const sent = titlePuts(win);
+    fake.fire('room:thanked', { from: 'あき', kind: 'help', label: '今日、いちばん助かった' });
+    await waitFor(win, () => sent.length >= 1, 3000, '数えにいく');
+    const last = sent[sent.length - 1];
+    assertEqual(last.stats.social.thanksGot, 1, '受け取った1回が数えられる');
+    assert(last.unlocked.indexOf('icon-thanks-1') >= 0, '1回で「はじめてのありがとう」');
+    assertNoErrors(errors, 'ありがとうの称号で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('リアクション：ゲーム画面に帯が出て、届いた絵文字がふっと浮かぶ（第32弾-E 第4部）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
@@ -2408,6 +2437,59 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       alive: true, done: true, choices: [], achievements: achievements
     };
   }
+
+  await r.test('決着が「部屋→自分の情報」の順で届いても、称号を取りこぼさない（第34弾）', async () => {
+    // 実機で発生：部屋の決着が先に届くと、手元の「自分の情報」は
+    // まだ遊んでいる途中の古いもので、それで数えて勝ち数を取りこぼしていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const sent = titlePuts(win);
+    // 遊んでいる途中の自分の情報（achievements はまだ無い）
+    push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote' }) } }));
+    pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    // 部屋の決着が先に届く
+    push(fake, endedWolfRoom());
+    await sleep(win, 200);
+    assertEqual(sent.length, 0, '古い情報では数えない（自分の決着情報を待つ）');
+    // 自分の決着情報があとから届く
+    pushYou(fake, endedWolfYou({ plays: 1, wins: 1, villageWins: 1 }));
+    await waitFor(win, () => sent.length >= 1, 3000, '数えられる');
+    const last = sent[sent.length - 1].stats.jinro;
+    assertEqual(last.wins, 1, '勝ちを取りこぼさない');
+    assertEqual(last.plays, 1, '遊んだ回数は1回だけ');
+    assertNoErrors(errors, '決着の順番ずれで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('部屋のワードウルフでも、サーバーの数えた結果で称号が付く（第34弾）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const sent = titlePuts(win);
+    push(fake, roomSnapshot({
+      state: { phase: 'ended', game: 'wordwolf', data: {
+        phase: 'ended', turn: 1, turnLimit: 1, aliveCount: 4,
+        players: [{ id: 'm2', name: 'びび', out: false }],
+        result: { winner: 'wolf', majorityTopic: '傘', minorityTopic: 'レインコート',
+          wolves: ['びび'], roles: [], scores: [], voteLog: [] }
+      } }
+    }));
+    pushYou(fake, {
+      phase: 'ended', topic: 'レインコート', youAreWolf: true,
+      roleId: null, roleName: null, roleDesc: '', out: false, done: true, info: null,
+      achievements: { plays: 1, wordwolfPlays: 1, wins: 1, wolfWins: 1,
+        wolfEscapes: 1, wordwolfEscapes: 1 }
+    });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    await waitFor(win, () => sent.length >= 1, 3000, '数えられる');
+    const st = sent[sent.length - 1].stats.jinro;
+    assertEqual(st.wordwolfPlays, 1, 'ワードウルフとして数える');
+    assertEqual(st.wins, 1, '勝ちが付く');
+    assertEqual(st.wordwolfEscapes, 1, '逃げ切りが付く');
+    assertNoErrors(errors, 'ワードウルフの称号で未捕捉の例外');
+    win.close();
+  });
 
   await r.test('部屋で遊んだぶんも称号に数え、同じ試合で二重には数えない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

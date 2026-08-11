@@ -103,6 +103,12 @@
     season: {
       summerPlays: 0,       // 夏まつりの期間中に、集まって遊んだ回数
       summerCrowd: 0        // うち、5人以上で遊んだ回数
+    },
+    // ---- 第34弾 2-2：みんなからのおくりもの ----
+    // カセットを問わない、アプリ全体を通しての数字。
+    // 「ありがとう」は勝敗と関係なくプレイヤー同士が贈り合うもの（第32弾-E 第5部）
+    social: {
+      thanksGot: 0          // 「ありがとう」を受け取った回数
     }
   };
 
@@ -191,6 +197,13 @@
       { id: 'icon-are-seal', cassette: 'aresore', emoji: '🚫', label: '封印破りの証',
         hint: '封印ワードモードで1回でも正解させる',
         need: function (s) { return s('aresore', 'sealedSuccess') >= 1; } },
+      // ---- 第34弾 2-2：みんなからのおくりもの（カセットを問わない） ----
+      { id: 'icon-thanks-1', cassette: 'social', emoji: '🎁', label: 'はじめてのありがとう',
+        hint: 'だれかから「ありがとう」を1回もらう',
+        need: function (s) { return s('social', 'thanksGot') >= 1; } },
+      { id: 'icon-thanks-10', cassette: 'social', emoji: '💐', label: 'ありがとうの花束',
+        hint: '「ありがとう」を通算10回もらう',
+        need: function (s) { return s('social', 'thanksGot') >= 10; } },
       // ---- 第32弾-F：季節限定（夏）。期間中に集まって遊んだ人だけ。
       //      一度手に入れたら、夏が終わっても永久に残る ----
       { id: 'icon-season-summer', cassette: 'season', emoji: '🎐', label: 'あの夏の記念',
@@ -247,6 +260,11 @@
 
     first: [
       { id: 'first-hajime', cassette: null, label: 'はじめ', free: true, hint: '最初から使えます' },
+
+      // 第34弾 2-2：みんなからのおくりもの
+      { id: 'first-tayori', cassette: 'social', label: 'たよりになる',
+        hint: 'だれかから「ありがとう」を3回もらう',
+        need: function (s) { return s('social', 'thanksGot') >= 3; } },
 
       // 第32弾-F：季節限定（夏）
       { id: 'first-natsu', cassette: 'season', label: 'なつまつりの',

@@ -1383,6 +1383,18 @@
   }
   @keyframes bigCdPulse{0%{transform:scale(.6);opacity:0;}18%{transform:scale(1.08);opacity:1;}
     60%{transform:scale(1);opacity:.95;}100%{transform:scale(1.25);opacity:0;}}
+  /* 第34弾 2-1：ゲームが始まる前の、みんなで見る3-2-1 */
+  .fx-countdown{
+    position:fixed;inset:0;z-index:94;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(20,22,28,.28);
+  }
+  .fx-countdown .fx-cd-num{
+    font-family:'Arial Black','Zen Maru Gothic',sans-serif;font-weight:900;
+    font-size:min(40vw,280px);color:#fff;
+    text-shadow:0 6px 44px rgba(0,0,0,.5);
+    animation:bigCdPulse 0.95s cubic-bezier(.1,.8,.2,1);
+  }
   /* 第24弾-3-1：大画面をPCやTVに映している間だけ、スマホ幅の制限を外す。
      ふだんは 460px の帯に収めているが、その幅のままだと横長の画面で
      細長い柱のようになり、離れた席から読めなかった。 */
@@ -4847,6 +4859,7 @@
   function titleCassetteLabel(id){
     if(!id) return '最初から使えるもの';
     if(id === 'season') return '季節のイベント';   // 第32弾-F：カセットではないまとまり
+    if(id === 'social') return 'みんなからのおくりもの';   // 第34弾 2-2：同上
     var c = cassetteById(id === 'aresore' ? 'aresoredorekore' : id);
     if(c) return (c.title || id).replace(/<br>/g, '');
     return id;
@@ -8549,8 +8562,12 @@
     if(v.phase !== 'ended'){ rtTitlesDone = false; return; }
     if(!v.result || rtTitlesDone) return;
     // 決着は「部屋の状態」と「自分の情報」に分かれて届く。
-    // 自分の情報が来る前に印を立てると、一度も数えられない（第32弾-Aで踏んだ）
-    if(!you) return;
+    // 自分の情報が来る前に印を立てると、一度も数えられない（第32弾-Aで踏んだ）。
+    // 第34弾：存在するだけでは足りない。部屋の決着が先に届いた時、
+    // 手元の「自分の情報」はまだ遊んでいる途中の古いもので、
+    // それで数えると勝ち数などを取りこぼす（実機で発生）。
+    // 自分の情報も「決着のもの」になるまで待つ
+    if(!you || you.phase !== 'ended') return;
     if(game === 'wolfrole' || game === 'wordwolf'){ awardRtTitles(v, you); return; }
     rtTitlesDone = true;
     var gain = rtTitleGainFor(game, v, you);
@@ -8569,12 +8586,15 @@
     // 部屋の方が先に届くので、その時点では自分の情報がまだ無い。
     // ここで先に印を立ててしまうと、あとから自分の情報が届いても
     // 「もう数えた」と見なされて、部屋で遊んだぶんが一度も数えられない。
-    // 印を立てるのは、実際に数える直前にする
-    if(!you) return; // 大画面・観戦は数えない（届く前かもしれないので、印はまだ立てない）
+    // 印を立てるのは、実際に数える直前にする。
+    // 第34弾：自分の情報が「決着のもの」になるまで待つ（awardRoomTitles と同じ理由）
+    if(!you || you.phase !== 'ended') return;
     rtTitlesDone = true;
     var wordwolf = rtIsWordwolf();
-    // 人狼はサーバーが自分の仕事ぶりまで数えて渡してくれる（手渡しと同じ achievements）
-    if(!wordwolf && you.achievements){ recordTitleStats('jinro', you.achievements); return; }
+    // 人狼もワードウルフも、サーバーが自分の仕事ぶりまで数えて渡してくれる。
+    // 第34弾：ワードウルフは端末側で数えようとしていたが、公開ビューの roles には
+    // id が無く、一度も勝ちが数えられていなかった。サーバーの achievements に揃えた
+    if(you.achievements){ recordTitleStats('jinro', you.achievements); return; }
     var add = { plays: 1 };
     if(wordwolf) add.wordwolfPlays = 1;
     var mine = (v.result.roles || []).find(function(p){ return p.id === rt.state.memberId; });
@@ -11955,9 +11975,15 @@
   el('albumCloseBtn').addEventListener('click', function(){ el('albumOverlay').classList.remove('show'); });
 
   if(rt){
+    // 第34弾 2-1：ゲームが始まる前の合図。全員の画面で同じタイミングで3-2-1
+    rt.on('countdown', function(p){
+      if(typeof FxKit !== 'undefined') FxKit.countdown(p && p.seconds);
+    });
     rt.on('reacted', function(p){ showReaction(p); });
     rt.on('thanked', function(p){
       // 選ばれた人にだけ届く。誰から贈られたかも分かる
+      // 第34弾 2-2：受け取った「ありがとう」は、カセットを問わない称号にもつながる
+      recordTitleStats('social', { thanksGot: 1 });
       if(typeof FxKit === 'undefined') return;
       FxKit.vibe('win');
       FxKit.banner({ kind:'gold', icon:'🎁',

@@ -75,7 +75,7 @@ function device(url, cookie) {
     const s = ioClient(url, opts);
     const d = {
       socket: s, room: null, memberId: null, name: null,
-      reacted: [], thanked: [], albumUpdates: [],
+      reacted: [], thanked: [], albumUpdates: [], countdowns: [],
       call(event, payload) {
         return new Promise((res) => {
           const t = setTimeout(() => res({ ok: false, error: 'timeout' }), 6000);
@@ -88,6 +88,7 @@ function device(url, cookie) {
     s.on('room:reacted', (p) => d.reacted.push(p));
     s.on('room:thanked', (p) => d.thanked.push(p));
     s.on('album:update', (p) => d.albumUpdates.push(p));
+    s.on('room:countdown', (p) => d.countdowns.push(p));
     s.on('hb:ping', () => s.emit('hb:pong'));
     const t = setTimeout(() => reject(new Error('接続がタイムアウト')), 5000);
     s.on('connect', () => { clearTimeout(t); resolve(d); });
@@ -212,6 +213,19 @@ async function run() {
       assertEqual(last.cleared, true, '消したことがはっきり伝わる');
       const after = await rm.host.call('album:get', {});
       assertEqual(after.ok, false, '消えた後は受け取れない');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('ゲームが始まる時、全員に3-2-1の合図が届く（第34弾 2-1）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, ['あき', 'びび']);
+      const started = await rm.host.call('wolf:start', { game: 'quizrush', timerSec: 60 });
+      assertEqual(started.ok, true, '始められる');
+      await sleep(200);
+      assertEqual(rm.host.countdowns.length, 1, 'ホストにも合図が届く');
+      assertEqual(rm.guests[0].countdowns.length, 1, '他の人にも同じ合図が届く');
+      assertEqual(rm.guests[0].countdowns[0].seconds, 3, '3秒から数える');
     } finally { await srv.close(); }
   });
 

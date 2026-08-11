@@ -394,6 +394,42 @@
     });
   }
 
+  // ---------- 第34弾 2-1：みんなで見る 3-2-1 ----------
+  /**
+   * ゲームが始まる前の合図。数字が画面いっぱいに1秒ずつ脈打つ。
+   * 部屋では、全員の端末に同じ放送が届いた瞬間から数えるので、そろって見える。
+   * 原則B：hold() を通しているので、タップで飛ばせる（飛ぶのは自分の画面だけ）。
+   * 振動は1秒ごとに少しずつ強く（第32弾-D 第3部と同じ考え）。
+   */
+  function countdown(n) {
+    var h = host();
+    if (!h) return Promise.resolve(true);
+    var total = (n == null || !(n > 0)) ? 3 : Math.min(9, Math.floor(n));
+    var box = mk('fx-countdown');
+    if (!box) return Promise.resolve(true);
+    h.appendChild(box);
+    function show(num) {
+      box.innerHTML = '<div class="fx-cd-num">' + num + '</div>';
+      play('tick');
+      buzzIt(40 + (total - num) * 40);
+    }
+    // 最初の数字はその場で出す（合図が届いた瞬間から数え始めて見える）
+    show(total);
+    var p = hold(1000);
+    var step = function (num) {
+      p = p.then(function (skipped) {
+        if (skipped) return true;
+        show(num);
+        return hold(1000);
+      });
+    };
+    for (var i = total - 1; i >= 1; i--) step(i);
+    return p.then(function (skipped) {
+      if (box.parentNode) box.parentNode.removeChild(box);
+      return skipped;
+    });
+  }
+
   // ---------- 第32弾-D 第3部：場面に合わせた振動 ----------
   // 名前で呼べる振動パターン。ゲーム側が配列を直書きすると場面ごとにばらばらになる。
   // ON/OFFは cfg.vibrate（呼び出し側が設定を見て握りつぶす）に任せる
@@ -417,6 +453,7 @@
     flash: flash, banner: banner, flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,
     shake: shake, confetti: confetti, callout: callout, vibe: vibe,
+    countdown: countdown,
     _cfg: cfg
   };
   return api;

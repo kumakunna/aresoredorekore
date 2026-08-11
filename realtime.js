@@ -953,6 +953,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const res = entry.driver.startGame(room, payload || {}, driverContext());
       if (!res.ok) return fail(cb, res.error, res.message);
       if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
+      // 第34弾 2-1：始まる合図。全員の端末に同じ放送が届いた瞬間から
+      // 3-2-1を数えるので、そろって見える（ゲームの状態はその下に描かれて待つ）
+      io.to('room:' + room.code).emit('room:countdown', { seconds: 3 });
       pushWolfState(room);
     });
 

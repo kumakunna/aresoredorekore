@@ -185,6 +185,9 @@ function privateFor(room, memberId) {
   const isWolf = w.wolfIds.indexOf(memberId) !== -1;
   const roleId = w.roles[memberId] || null;
   const out = {
+    // 第34弾：どの段階の情報かを添える。端末側はこれで「決着の情報が届いたか」を
+    // 見分ける（部屋の決着が先に届いた時、古い情報で称号を数えてしまわないように）
+    phase: w.phase,
     topic: isWolf ? w.minorityTopic : w.majorityTopic,
     // ウルフに自覚がある設定の時だけ、自分がウルフだと伝える
     youAreWolf: (isWolf && w.wolfAware) ? true : false,
@@ -195,6 +198,10 @@ function privateFor(room, memberId) {
     done: !!w.done[memberId],
     info: w.info[memberId] || null
   };
+  // 第34弾：称号のもとになる「自分の結果」は、サーバーが数えて本人にだけ渡す。
+  // 端末側で数えようとしていたが、公開ビューの roles には id が無く、
+  // ワードウルフの勝ちは一度も数えられていなかった（人狼と同じ形に揃える・落とし穴1）
+  if (w.phase === PHASE.ENDED) out.achievements = achievementsFor(w, memberId);
   const alive = WW.survivors(w).filter((id) => id !== memberId);
   if (!out.out && w.phase === PHASE.REVEAL && WW.picksAtReveal(roleId)) {
     out.action = 'divine';
@@ -210,6 +217,34 @@ function privateFor(room, memberId) {
       .filter((id) => !w.runoff || w.runoff.candidates.indexOf(id) !== -1)
       .map((id) => ({ id, name: w.names[id] }));
     if (w.runoff) out.runoff = true;
+  }
+  return out;
+}
+
+/**
+ * 第34弾：本人の結果（称号のもと）。人狼の achievements と同じ考え方で、
+ * サーバーだけが知っている確定情報から数える。
+ */
+function achievementsFor(w, memberId) {
+  const out = { plays: 1, wordwolfPlays: 1 };
+  const wolfSide = WW.isWolfSide(w, memberId);
+  let won = false;
+  if (w.winner === 'sheep') won = !wolfSide;
+  else if (w.winner === 'wolf') won = wolfSide;
+  else {
+    // 合計得点で決める遊び方：一番点を取った人（並んだら全員）の勝ち
+    const best = Math.max.apply(null, Object.keys(w.scores).map((id) => w.scores[id] || 0));
+    won = best > 0 && (w.scores[memberId] || 0) === best;
+  }
+  if (won) {
+    out.wins = 1;
+    if (wolfSide) out.wolfWins = 1;
+    else out.villageWins = 1;
+  }
+  // ウルフとして最後まで処刑されなかった＝当てられずに逃げ切った
+  if (w.wolfIds.indexOf(memberId) !== -1 && !WW.isOut(w, memberId)) {
+    out.wolfEscapes = 1;
+    out.wordwolfEscapes = 1;
   }
   return out;
 }
@@ -428,5 +463,6 @@ function startVotePhase(room, keepRunoff) {
 module.exports = {
   PHASE, startGame, publicView, privateFor,
   submitAction, submitVote, isAllDone, advance,
-  playersOf, expectedMembers, continues
+  playersOf, expectedMembers, continues,
+  achievementsFor   // 第34弾：称号の数え方をテストから直接確かめられるように
 };

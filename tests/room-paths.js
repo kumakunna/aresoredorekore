@@ -4,10 +4,13 @@
 // 新しいゲームが GAME_DRIVERS に増えたら、このテストは自動的にそのゲームも見る。
 // 増えたのに開始設定（RT_START_MIN_CONFIG）を書き忘れた場合は「追加漏れ検出」が赤くなる。
 
+const fs = require('fs');
+const path = require('path');
 const { createRunner, assert, assertEqual } = require('./harness');
 const { startTestServer, device, waitUntil, makeRoom, sleep } = require('./room-edge');
 const {
-  RT_GAME_IDS, RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS
+  RT_GAME_IDS, CASSETTE_GAME_IDS, HANDOFF_ONLY_GAME_IDS,
+  RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS
 } = require('./inventory');
 
 async function run() {
@@ -131,6 +134,38 @@ async function run() {
       assertEqual(legacy.ok, true, '従来の覗きも動く');
       assertEqual(legacy.you, undefined, '従来の応答は変わらない');
     } finally { await srv.close(); }
+  });
+
+  // ---- 追加漏れ検出（第35弾B：カセットのゲームと検証マトリクス） ----
+
+  await r.test('カセットの全ゲームが、部屋対応（GAME_DRIVERS）か手渡し専用宣言のどちらかに入っている', async () => {
+    // 新しいゲームをカセットに足した時、GAME_DRIVERS への登録を忘れると、
+    // 手渡し専用のつもりなのか登録漏れなのかが分からないまま進んでしまう。
+    // どちらなのかを必ず宣言させる（HANDOFF_ONLY_GAME_IDS は意識して書く例外の一覧）
+    assert(CASSETTE_GAME_IDS.length >= 10, 'カセットからゲームを抽出できている（いま' + CASSETTE_GAME_IDS.length + '件）');
+    CASSETTE_GAME_IDS.forEach((id) => {
+      assert(RT_GAME_IDS.indexOf(id) !== -1 || HANDOFF_ONLY_GAME_IDS.indexOf(id) !== -1,
+        id + ' が GAME_DRIVERS にも手渡し専用の宣言（inventory.js）にもありません。' +
+        '部屋対応するなら GAME_DRIVERS へ、手渡し専用なら HANDOFF_ONLY_GAME_IDS へ書いてください');
+    });
+    // 逆向き：手渡し専用と宣言したゲームが、カセットから消えたのに残っている（落とし穴5）
+    HANDOFF_ONLY_GAME_IDS.forEach((id) => {
+      assert(CASSETTE_GAME_IDS.indexOf(id) !== -1,
+        id + ' はカセットに無いのに手渡し専用の宣言だけ残っています');
+    });
+  });
+
+  await r.test('検証マトリクスに、カセットの全ゲームの行がある（落とし穴4の恒久対策）', async () => {
+    // docs/監査_プレイ検証マトリクス.md はフェーズBの検証台帳。
+    // 新しいゲームを足したのにマトリクスへ行を足し忘れると、網羅検証から漏れる。
+    // 行頭セルにゲームidを書く約束（`| id |`）を機械で照合する
+    const p = path.join(__dirname, '..', 'docs', '監査_プレイ検証マトリクス.md');
+    assert(fs.existsSync(p), 'docs/監査_プレイ検証マトリクス.md がありません');
+    const md = fs.readFileSync(p, 'utf8');
+    CASSETTE_GAME_IDS.forEach((id) => {
+      assert(new RegExp('^\\|\\s*' + id + '\\s*\\|', 'm').test(md),
+        id + ' の行が検証マトリクスにありません（| ' + id + ' | で始まる行を足してください）');
+    });
   });
 
   // ---- 正本の形の健全性（一覧が壊れると上のループが空回りする） ----

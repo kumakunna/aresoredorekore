@@ -10,10 +10,27 @@
 //   ・新しい経路を作ったら、実装と同じコミットでここに1行足す
 //   ・docs/監査_棚卸し一覧.md には概要とこのファイルへの参照だけを書く（二重管理しない）
 
+const fs = require('fs');
+const path = require('path');
 const { GAME_DRIVERS } = require('../realtime');
 
 // ---- 部屋（1人1台）で遊べるゲーム一覧（realtime.js の GAME_DRIVERS から自動導出） ----
 const RT_GAME_IDS = Object.keys(GAME_DRIVERS);
+
+// ---- カセットに入っている全ゲーム（public/index.html の CASSETTES から自動抽出） ----
+// 検証マトリクス（docs/監査_プレイ検証マトリクス.md）の行はこれを正とする。
+// 手で一覧を書くと、新しいカセット・ゲームを足した時に検証から漏れる（落とし穴4）
+const INDEX_HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+const CASSETTE_GAME_IDS = Array.from(new Set(
+  Array.from(INDEX_HTML.matchAll(/games:\s*\[([^\]]*)\]/g))
+    .flatMap((m) => m[1].split(',').map((s) => s.replace(/['"\s]/g, '')).filter(Boolean))
+));
+
+// 手渡し（1台を回す）専用のゲーム。ここは「意識して書く例外の一覧」：
+// 新しいゲームをカセットに足したのに GAME_DRIVERS に登録しなかった場合、
+// この一覧に書き足さない限り tests/room-paths.js の検出テストが赤くなる。
+// （部屋対応を忘れたのか、手渡し専用のつもりなのかを、コミットで宣言させる形）
+const HANDOFF_ONLY_GAME_IDS = ['aresoredorekore'];
 
 // 部屋のゲーム開始イベント。全ゲームがこの1本を通る
 // （rtStartBtn → rt.startWolf → サーバー wolf:start → room:countdown 放送）。
@@ -114,6 +131,8 @@ const RT_START_MIN_CONFIG = {
 
 module.exports = {
   RT_GAME_IDS,
+  CASSETTE_GAME_IDS,
+  HANDOFF_ONLY_GAME_IDS,
   RT_START_EVENT,
   RT_START_MIN_CONFIG,
   ROOM_ENTRY_PATHS,

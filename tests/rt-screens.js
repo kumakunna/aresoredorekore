@@ -3180,13 +3180,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('誰かが部屋を抜けたら、残っている人に「抜けました」と伝わる', async () => {
     // 実機報告（第35弾B）：切断は「席を外しました」が出るのに、
     // 退室・kickで名簿から消えた人は無言で消えていた。
-    // 気づかないまま「あの人の入力待ちかな」と待ち続けてしまう
+    // 理由（自分で抜けた／出された）はサーバーが room:memberGone で教えてくれる
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    // まず全員そろった公開情報が一度届く（本番では入った直後に必ず配られる）
     push(fake, roomSnapshot());
     await sleep(win, 100);
-    // でん（m4）が部屋を抜けた（名簿から消えた公開情報が届く）
+    // でん（m4）が部屋を抜けた（本番では放送と名簿更新の両方が届く）
+    fake.fire('room:memberGone', { name: 'でん', reason: 'leave' });
     const snap = roomSnapshot();
     snap.members = snap.members.filter(m => m.id !== 'm4');
     snap.playerCount = 4; snap.memberCount = 4;
@@ -3195,7 +3195,26 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       const box = doc.getElementById('fxNotices');
       return box && /でん/.test(box.textContent) && /抜けました/.test(box.textContent);
     }, 2000, '「でんさんが部屋を抜けました」と出る');
+    // 放送と名簿差分で二重に出ない
+    await sleep(win, 200);
+    const count = doc.querySelectorAll('#fxNotices .fx-notice').length;
+    assertEqual(count, 1, '知らせは1回だけ（放送と名簿更新で二重にならない）');
     assertNoErrors(errors, '退室の知らせで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('出された人は「出されました」、抜けた人は「抜けました」と区別して伝わる', async () => {
+    // 自主的に抜けたのか、進行役が対応したのかで、残った人の受け取り方が変わる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot());
+    await sleep(win, 100);
+    fake.fire('room:memberGone', { name: 'ちか', reason: 'kick' });
+    await waitFor(win, () => {
+      const box = doc.getElementById('fxNotices');
+      return box && /ちか/.test(box.textContent) && /出されました/.test(box.textContent);
+    }, 2000, '「ちかさんが部屋から出されました」と出る');
+    assertNoErrors(errors, '出された知らせで未捕捉の例外');
     win.close();
   });
 

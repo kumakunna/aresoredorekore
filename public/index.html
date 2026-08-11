@@ -11745,26 +11745,17 @@
    * （32-Aの「切断した人を待たない」を、演出の側から壊さないため）。
    */
   var rtSeenConnected = null;
-  var rtSeenNames = null;   // 第35弾B：名簿から消えた人の名前を出すために覚えておく
   var rtSeenCode = null;
   function rtNoticeConnections(){
     if(typeof FxKit === 'undefined') return;
     var room = rt && rt.state && rt.state.room;
-    if(!room || !room.members){ rtSeenConnected = null; rtSeenNames = null; rtSeenCode = null; return; }
+    if(!room || !room.members){ rtSeenConnected = null; rtSeenCode = null; return; }
     // 別の部屋に移ったら覚えていたものは捨てる。
     // 残すと、入った瞬間に「戻りました」が出てしまう
-    if(rtSeenCode !== room.code){ rtSeenConnected = null; rtSeenNames = null; rtSeenCode = room.code; }
-    var now = {}, names = {};
-    room.members.forEach(function(m){ now[m.id] = !!m.connected; names[m.id] = m.name; });
+    if(rtSeenCode !== room.code){ rtSeenConnected = null; rtSeenCode = room.code; }
+    var now = {};
+    room.members.forEach(function(m){ now[m.id] = !!m.connected; });
     if(rtSeenConnected){
-      // 第35弾B：名簿から消えた人（退室・kick）を伝える。
-      // 切断は「席を外しました」が出るのに、抜けた人は無言で消えていた。
-      // 気づかないまま「あの人の入力待ちかな」と待ち続けてしまう（実機報告）
-      Object.keys(rtSeenConnected).forEach(function(id){
-        if(now[id] !== undefined) return;        // まだ居る
-        if(id === rt.state.memberId) return;     // 自分が抜ける時は自分の画面ごと変わる
-        FxKit.notice((rtSeenNames && rtSeenNames[id] || '?') + 'さんが部屋を抜けました');
-      });
       room.members.forEach(function(m){
         var was = rtSeenConnected[m.id];
         if(was === undefined) return;         // 今きたばかりの人は「復帰」ではない
@@ -11774,11 +11765,21 @@
       });
     }
     rtSeenConnected = now;
-    rtSeenNames = names;
+  }
+  // 第35弾B：名簿から消えた人（退室・kick）は、サーバーが理由つきで教えてくれる。
+  // 名簿の差分で推測しない（理由が分からず「抜けた」「出された」を区別できないため）。
+  // 切断（席を外しました）と同じく原則E：音も振動も鳴らさない
+  function rtNoticeMemberGone(p){
+    if(typeof FxKit === 'undefined') return;
+    var name = (p && p.name) || '?';
+    FxKit.notice(p && p.reason === 'kick'
+      ? name + 'さんが部屋から出されました'
+      : name + 'さんが部屋を抜けました');
   }
 
   if(rt){
     rt.on('room', function(){ rtNoticeConnections(); rtSync(); });
+    rt.on('memberGone', rtNoticeMemberGone); // 第35弾B：退室・kickの知らせ（理由つき）
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){ rtSync(); });
     // 第27弾-1：つなぎ直したら部屋が無くなっていた時。

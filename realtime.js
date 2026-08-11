@@ -1053,6 +1053,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         s.data.roomCode = null;
         s.data.memberId = null;
       }
+      // 第35弾B：出されたことを残った人に言葉で伝える（出された本人には room:kicked が届く）
+      io.to('room:' + room.code).emit('room:memberGone', { name: target.name, reason: 'kick' });
       ensureHost(room, 'kick');
       if (!connectedMembers(room).length) room.emptySince = Date.now();
       if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
@@ -1075,6 +1077,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (room && me) {
         room.members.delete(me.id);
         socket.leave('room:' + room.code);
+        // 第35弾B：抜けたことを残った人に言葉で伝える（理由つき。kickと文言を分けるため）。
+        // socket.leave の後に放送するので、抜けた本人には届かない
+        io.to('room:' + room.code).emit('room:memberGone', { name: me.name, reason: 'leave' });
         ensureHost(room, 'leave');
         if (!connectedMembers(room).length) room.emptySince = Date.now();
         // 抜けた人が最後の待ち相手だったら、残った人の待ちをここで解く（第35弾B）

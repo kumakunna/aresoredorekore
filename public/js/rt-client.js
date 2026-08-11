@@ -132,6 +132,8 @@
       socket.on('album:update', function (p) { emitLocal('albumUpdate', p || {}); });
       // 第34弾 2-1：ゲームが始まる前の、みんなで見る3-2-1
       socket.on('room:countdown', function (p) { emitLocal('countdown', p || {}); });
+      // 第35弾B：誰かが名簿から消えた（自分で退室 or 出された）。理由つきで届く
+      socket.on('room:memberGone', function (p) { emitLocal('memberGone', p || {}); });
       // サーバーからの死活確認。返さないと切断扱いになる
       socket.on('hb:ping', function () { socket.emit('hb:pong'); });
       return true;

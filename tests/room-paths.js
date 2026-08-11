@@ -176,6 +176,31 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  await r.test('抜けた理由（自分で退室／出された）が、残った人に理由つきで放送される', async () => {
+    // 通知の文言を「抜けました」と「出されました」で分けるため、
+    // サーバーが room:memberGone を reason つきで放送する（クライアントの名簿差分では理由が分からない）
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 4);
+      const gone = [];
+      rm.guests[0].socket.on('room:memberGone', (p) => gone.push(p));
+      const leaverGone = [];
+      rm.guests[2].socket.on('room:memberGone', (p) => leaverGone.push(p));
+      // 自分で退室
+      await rm.guests[2].call('room:leave', { code: rm.code, memberId: rm.guests[2].memberId });
+      await waitUntil(() => gone.length === 1, '退室が放送される');
+      assertEqual(gone[0].name, 'P4', '誰が抜けたか分かる');
+      assertEqual(gone[0].reason, 'leave', '自分で抜けたと分かる');
+      assertEqual(leaverGone.length, 0, '抜けた本人には流さない');
+      // 進行役が出す
+      const res = await rm.host.call('room:kick', { memberId: rm.guests[1].memberId });
+      assertEqual(res.ok, true, '出せる');
+      await waitUntil(() => gone.length === 2, 'kickも放送される');
+      assertEqual(gone[1].name, 'P3', '誰が出されたか分かる');
+      assertEqual(gone[1].reason, 'kick', '出されたと分かる');
+    } finally { await srv.close(); }
+  });
+
   // ---- 追加漏れ検出（第35弾B：カセットのゲームと検証マトリクス） ----
 
   await r.test('カセットの全ゲームが、部屋対応（GAME_DRIVERS）か手渡し専用宣言のどちらかに入っている', async () => {

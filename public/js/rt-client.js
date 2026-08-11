@@ -66,6 +66,13 @@
           }).then(function (res) {
             state.rejoining = false;
             if (res && res.ok) {
+              // 第35弾A：入り直しの往復中に、本人が「部屋を出る」を押していた場合。
+              // ここで room を書き戻すと「画面は棚なのに部屋に居る」ゾンビ状態になる。
+              // サーバー側に入り直してしまった自分の枠を、あらためて出しておく
+              if (!state.code) {
+                call('room:leave', { code: res.code, memberId: res.memberId });
+                return;
+              }
               state.room = res.room;
               emitLocal('rejoined', state);
             } else if (res && res.error === 'room_not_found') {
@@ -166,8 +173,18 @@
       return res;
     }
     // 第32弾-A-3-2：入る前に、その部屋を軽く覗く。
-    // 返ってくるのは「あるかどうか・何のゲームか・何人いるか」だけ（名簿は来ない）
-    function peekRoom(code) { return call('room:peek', { code: code }); }
+    // 返ってくるのは「あるかどうか・何のゲームか・何人いるか」だけ（名簿は来ない）。
+    // 第35弾A：memberId を添えると「自分がまだ名簿にいるか（you）」も返る。
+    // 「部屋」ボタンの在室判定はこれで行う（端末の記憶ではなくサーバーが権威）
+    function peekRoom(code, memberId) {
+      return call('room:peek', { code: code, memberId: memberId || undefined });
+    }
+    // 第35弾A：部屋の印を端末から落とす（サーバーに「もう無い」と言われた時用）。
+    // lost と違って画面側が自分の文脈で使うので、ここでは何も報せない
+    function dropRoom() {
+      state.code = null; state.memberId = null; state.room = null; state.secret = null;
+      emitLocal('status', state);
+    }
     function setRole(role, memberId) {
       // 第32弾-E 第3部：進行役は memberId を付けて、他の人の表示モードも切り替えられる
       if (!memberId || memberId === state.memberId) {
@@ -179,9 +196,12 @@
     // 第32弾-B-1：進行役が、その人を部屋から出す
     function kick(memberId) { return call('room:kick', { memberId: memberId }); }
     function leave() {
-      // 自分から出た時は、つなぎ直しで戻らないように印も消す
+      // 自分から出た時は、つなぎ直しで戻らないように印も消す。
+      // 第35弾A：code+memberId を添えて頼む。つなぎ直した直後は
+      // サーバー側の socket が部屋の印を失っていて、空の頼みだと無視されるため
+      var code = state.code, memberId = state.memberId;
       state.code = null; state.memberId = null; state.room = null; state.secret = null;
-      return call('room:leave', {});
+      return call('room:leave', { code: code, memberId: memberId });
     }
     // 第24弾-3-5：ホストだけが呼べる。部屋にいる全員を終わらせる
     function closeRoom() { return call('room:close', {}); }
@@ -250,7 +270,7 @@
 
     return {
       state: state, on: on, available: available, connect: connect, reconnect: reconnect,
-      createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, peekRoom: peekRoom,
+      createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, peekRoom: peekRoom, dropRoom: dropRoom,
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,
       react: react, thanks: thanks,

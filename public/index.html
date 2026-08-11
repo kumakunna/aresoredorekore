@@ -4838,8 +4838,24 @@
    *（32-Aで直したのは、まさにそのねじれ）。
    * 戻り先は棚にしてあるので、部屋をやめたら元の場所に返る。
    */
-  el('shelfRoomBtn').addEventListener('click', function(){
+  el('shelfRoomBtn').addEventListener('click', async function(){
     setPlayFlow('room');
+    // 第35弾A：すでに部屋に入っているなら、その部屋の画面へ直接飛ぶ。
+    // 在室判定は端末の記憶だけで決めず、押した時点でサーバーに確かめる
+    // （記憶が古いまま消えた部屋に飛ぶと、新しい不整合バグを生む。サーバーが権威）
+    if(rt && rt.state.code && rt.state.memberId){
+      var res = await rt.peekRoom(rt.state.code, rt.state.memberId);
+      if(res && res.ok && res.you){
+        goTo(rtWantScreen());
+        return;
+      }
+      if(res && (res.error === 'room_not_found' || (res.ok && !res.you))){
+        // サーバー側ではもう部屋に居ない。端末の印を落としてから選択画面へ
+        rt.dropRoom();
+      }
+      // 返事が来ない（通信中断など）時も、今まで通り選択画面に出す。
+      // 消えたかどうか分からない部屋の画面へ入れてしまう方が危ない
+    }
     openRoomLobby('scr-shelf');
   });
 
@@ -8270,8 +8286,12 @@
       return;
     }
   });
-  async function rtLeaveRoom(){
-    await rt.leave();
+  function rtLeaveRoom(){
+    // 第35弾A：サーバーの返事を待たずに画面を出す。
+    // 通信が詰まっていると、待つ作りでは最大8秒ボタンが無反応に見えて
+    // 「部屋を出るを押しても出ない」になる。退室の頼みは裏で届く
+    // （rt.leave() が code+memberId を添えるので、つなぎ直し後でも消してもらえる）
+    rt.leave();
     goBack('scr-shelf'); // 第26弾-2：部屋の入り口は棚に移った
   }
   el('rtLeaveBtn').addEventListener('click', rtLeaveRoom);

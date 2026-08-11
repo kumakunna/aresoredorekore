@@ -1,0 +1,150 @@
+// tests/room-paths.js — 部屋の出入り・開始合図をループ形式で固定する（第35弾フェーズA）
+//
+// 個別ケースを手書きせず、正本（tests/inventory.js）を回す。
+// 新しいゲームが GAME_DRIVERS に増えたら、このテストは自動的にそのゲームも見る。
+// 増えたのに開始設定（RT_START_MIN_CONFIG）を書き忘れた場合は「追加漏れ検出」が赤くなる。
+
+const { createRunner, assert, assertEqual } = require('./harness');
+const { startTestServer, device, waitUntil, makeRoom, sleep } = require('./room-edge');
+const {
+  RT_GAME_IDS, RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS
+} = require('./inventory');
+
+async function run() {
+  const r = createRunner('room-paths：出入りと開始合図（正本ループ）');
+
+  // ---- 追加漏れ検出（落とし穴4の恒久対策） ----
+
+  await r.test('GAME_DRIVERS の全ゲームに、テスト用の開始設定が登録されている', async () => {
+    RT_GAME_IDS.forEach((id) => {
+      assert(RT_START_MIN_CONFIG[id],
+        id + ' の開始設定が tests/inventory.js の RT_START_MIN_CONFIG にありません。' +
+        '新しいゲームを GAME_DRIVERS に足したら、開始設定も1行足してください');
+    });
+    // 逆向き：ゲームを消したのに設定が残っている（古いidの取り残し。落とし穴5）
+    Object.keys(RT_START_MIN_CONFIG).forEach((id) => {
+      assert(RT_GAME_IDS.indexOf(id) !== -1,
+        id + ' は GAME_DRIVERS に無いのに開始設定だけ残っています');
+    });
+  });
+
+  // ---- 開始の3-2-1：全ゲームで、全員に room:countdown が届く ----
+
+  await r.test('全ゲーム：はじめた瞬間に、全員へ開始の合図（room:countdown）が届く', async () => {
+    for (const gameId of RT_GAME_IDS) {
+      const srv = await startTestServer();
+      try {
+        const rm = await makeRoom(srv, 6);
+        const got = new Map(); // 端末ごとに届いた合図
+        rm.all.forEach((d, i) => {
+          d.socket.on('room:countdown', (p) => got.set(i, p));
+        });
+        const res = await rm.host.call(RT_START_EVENT, RT_START_MIN_CONFIG[gameId]);
+        assertEqual(res.ok, true, gameId + '：始められる（' + (res.error || '') + '）');
+        await waitUntil(() => got.size === rm.all.length,
+          gameId + '：全員に合図が届く（' + got.size + '/' + rm.all.length + '）');
+        got.forEach((p) => assertEqual(p.seconds, 3, gameId + '：3秒の合図'));
+        rm.all.forEach((d) => d.close());
+      } finally { await srv.close(); }
+    }
+  });
+
+  await r.test('全ゲーム：「もう一度」（待合に戻ってから再開）でも、合図がもう一度届く', async () => {
+    // 再戦は「全員が待合に戻り、ホストのはじめるから」始める（第33弾B-1）。
+    // つまり開始経路は初回とまったく同じ1本のはず。それを全ゲームで確かめる
+    for (const gameId of RT_GAME_IDS) {
+      const srv = await startTestServer();
+      try {
+        const rm = await makeRoom(srv, 6);
+        let count = 0;
+        rm.guests[0].socket.on('room:countdown', () => { count += 1; });
+        const first = await rm.host.call(RT_START_EVENT, RT_START_MIN_CONFIG[gameId]);
+        assertEqual(first.ok, true, gameId + '：1回目が始まる');
+        await waitUntil(() => count === 1, gameId + '：1回目の合図');
+        // 「もう一度」＝ホストが同じゲームを reset 付きで選び直し、もう一度はじめる
+        const reset = await rm.host.call('room:setState', { phase: 'lobby', game: gameId, reset: true });
+        assertEqual(reset.ok, true, gameId + '：待合に戻せる');
+        const second = await rm.host.call(RT_START_EVENT, RT_START_MIN_CONFIG[gameId]);
+        assertEqual(second.ok, true, gameId + '：2回目も始まる（' + (second.error || '') + '）');
+        await waitUntil(() => count === 2, gameId + '：再戦でも合図が届く');
+        rm.all.forEach((d) => d.close());
+      } finally { await srv.close(); }
+    }
+  });
+
+  // ---- 退室：サーバー側の約束 ----
+
+  await r.test('つなぎ直した直後（部屋の印を失ったsocket）でも、code+memberId があれば退室できる', async () => {
+    // 実機の「部屋を出るを押しても出ない」の正体のひとつ。
+    // スリープ復帰などで socket がつなぎ直ると、サーバー側の socket.data は空になる。
+    // その状態の room:leave は今まで「ok と返すのに名簿から消えない」嘘の応答だった
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);
+      const target = rm.guests[0];
+      // 画面ロック→復帰でsocketが切り替わった状態を作る（入り直しの前に「出る」を押した）
+      target.close();
+      await waitUntil(() => {
+        const m = srv.store.get(rm.code).members.get(target.memberId);
+        return m && !m.connected;
+      }, '切断が伝わる', 6000);
+      const fresh = await device(srv.url);
+      const res = await fresh.call('room:leave', { code: rm.code, memberId: target.memberId });
+      assertEqual(res.ok, true, '退室できたと返る');
+      assertEqual(srv.store.get(rm.code).members.has(target.memberId), false,
+        '名簿からも本当に消えている（嘘のokを返さない）');
+      fresh.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('code+memberId がでたらめな退室は、他人を消さない', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);
+      const fresh = await device(srv.url);
+      // 存在しないメンバー
+      await fresh.call('room:leave', { code: rm.code, memberId: 'm_zzzzzzzzzzzzzzzz' });
+      assertEqual(srv.store.get(rm.code).members.size, 3, '名簿は減らない');
+      // 別の部屋のコード
+      await fresh.call('room:leave', { code: 'ZZZZZZ', memberId: rm.guests[0].memberId });
+      assertEqual(srv.store.get(rm.code).members.size, 3, '名簿は減らない（部屋違い）');
+      fresh.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('在室確認（room:peek + memberId）で、自分がまだ部屋にいるか分かる', async () => {
+    // 「部屋」ボタンの在室判定は、端末の記憶ではなくサーバーに聞く（サーバーが権威）。
+    // peek に memberId を添えると、部屋の存在だけでなく「自分がまだ名簿にいるか」も返す
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 2);
+      const inRoom = await rm.guests[0].call('room:peek', { code: rm.code, memberId: rm.guests[0].memberId });
+      assertEqual(inRoom.ok, true, '部屋がある');
+      assertEqual(inRoom.you, true, '自分はまだ名簿にいる');
+      // 退室したら you は false になる
+      await rm.guests[0].call('room:leave', { code: rm.code, memberId: rm.guests[0].memberId });
+      const outRoom = await rm.guests[0].call('room:peek', { code: rm.code, memberId: rm.guests[0].memberId });
+      assertEqual(outRoom.ok, true, '部屋はまだある');
+      assertEqual(outRoom.you, false, '自分はもう名簿にいない');
+      // memberId を送らない従来の呼び出しは、今まで通り（you は付かない）
+      const legacy = await rm.host.call('room:peek', { code: rm.code });
+      assertEqual(legacy.ok, true, '従来の覗きも動く');
+      assertEqual(legacy.you, undefined, '従来の応答は変わらない');
+    } finally { await srv.close(); }
+  });
+
+  // ---- 正本の形の健全性（一覧が壊れると上のループが空回りする） ----
+
+  await r.test('正本（inventory）の一覧が空でなく、退室経路に room:leave と room:close の両方がある', async () => {
+    assert(RT_GAME_IDS.length >= 9, 'ゲーム一覧が GAME_DRIVERS から導出されている（いま' + RT_GAME_IDS.length + '件）');
+    const kinds = ROOM_EXIT_PATHS.map((p) => p.kind);
+    assert(kinds.indexOf('leave') !== -1, '自分だけ出る経路がある');
+    assert(kinds.indexOf('close') !== -1, '部屋ごと終わる経路がある');
+    assert(kinds.indexOf('passive') !== -1, '出される側の経路がある');
+  });
+
+  r.finish();
+}
+
+if (require.main === module) run();
+module.exports = { run };

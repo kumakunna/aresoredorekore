@@ -148,7 +148,16 @@ async function launch(opts) {
           emit: function(name, payload, cb){
             f.emits.push({ name: name, payload: payload });
             var reply = f.replies && f.replies[name];
-            if (cb) cb(typeof reply === 'function' ? reply(payload) : (reply || { ok: true }));
+            if (!cb) return s;
+            if (typeof reply === 'function') {
+              // 第35弾A：reply(payload, cb) が undefined を返したら、その場では返事しない。
+              // cb を受け取った側が、あとで呼ぶ（遅い返事）or 呼ばない（返事が来ない）を選べる。
+              // 値を返す既存の書き方は今まで通りその場で返る
+              var out = reply(payload, cb);
+              if (out !== undefined) cb(out);
+            } else {
+              cb(reply || { ok: true });
+            }
             return s;
           },
           close: function(){ s.disconnect(); },

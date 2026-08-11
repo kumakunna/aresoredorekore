@@ -807,13 +807,18 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (typeof cb !== 'function') return;
       const room = store.get(payload && payload.code);
       if (!room) return cb({ ok: false, error: 'room_not_found' });
-      cb({
+      const res = {
         ok: true,
         code: room.code,
         game: (room.state && room.state.game) || null,
         phase: (room.state && room.state.phase) || 'lobby',
         playerCount: playerMembers(room).length
-      });
+      };
+      // 第35弾A：「部屋」ボタンの在室判定用。memberId を添えて覗くと、
+      // 部屋があるかどうかに加えて「自分がまだ名簿にいるか」も返す。
+      // 在室判定は端末の記憶ではなく、必ずこの返事で決める（サーバーが権威）
+      if (payload && payload.memberId) res.you = room.members.has(payload.memberId);
+      cb(res);
     });
 
     // ---- 第2部-2：部屋に入る（ログイン不要。コード＋名前だけ） ----
@@ -1044,8 +1049,17 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     });
 
     socket.on('room:leave', (payload, cb) => {
-      const room = currentRoom();
-      const me = currentMember();
+      let room = currentRoom();
+      let me = currentMember();
+      // 第35弾A：スリープ復帰などでsocketがつなぎ直ると、socket.data の部屋の印は空になる。
+      // その状態で「部屋を出る」と、今までは ok と返すのに名簿から消えない嘘の応答だった。
+      // 端末が覚えている code+memberId で本人の枠を確かめて出す。
+      // memberId は推測できない乱数で、room:join の入り直しと同じ信頼モデル。
+      if ((!room || !me) && payload && payload.code && payload.memberId) {
+        const r2 = store.get(payload.code);
+        const m2 = r2 ? r2.members.get(payload.memberId) : null;
+        if (r2 && m2) { room = r2; me = m2; }
+      }
       if (room && me) {
         room.members.delete(me.id);
         socket.leave('room:' + room.code);
@@ -1177,6 +1191,9 @@ module.exports = {
   publicSnapshot,
   playerMembers,
   pickNextHost,
+  // 第35弾：監査の正本（tests/inventory.js）がゲーム一覧を自動導出するために公開。
+  // 手書きの一覧は登録漏れの温床になる（落とし穴4）ので、必ずここから引く
+  GAME_DRIVERS,
   // 第32弾-E：アルバムのHTML生成（server.js の受け渡しルートが使う）と、
   // リアクション絵文字の一覧（端末側と食い違っていないかテストが見張る）
   buildAlbumHtml,

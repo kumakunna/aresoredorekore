@@ -7,6 +7,8 @@
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm,
   pickGame, createRunner, assert, assertEqual, assertNoErrors } = H;
+// 第35弾：経路の正本。ゲーム一覧・退室経路はここから回す（手書きの列挙をしない）
+const INV = require('./inventory');
 
 const LAUNCH = { fakeSocket: true };
 
@@ -3048,6 +3050,150 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       'ログインのあと、つなぎ直す');
     assertNoErrors(errors, 'ログイン後の再接続で未捕捉の例外');
     win.close();
+  });
+
+  // ===================================================================
+  // 第35弾フェーズA：部屋の出入り・開始合図（報告バグの再現と、正本ループでの固定）
+  // ===================================================================
+
+  await r.test('「部屋を出る」：サーバーの返事が来なくても、すぐに棚へ出る', async () => {
+    // 実機の「押しても出ない」の一因。返事を待つ作りだと、通信が詰まった時に
+    // 最大8秒ボタンが無反応に見える。画面は待たせず、退室の頼みは裏で届ける
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    fake.replies['room:leave'] = function(){ return undefined; }; // 返事が来ない状況
+    click(doc, 'rtLeaveBtn');
+    await waitScreen(win, doc, 'scr-shelf', 1500);
+    const left = fake.emits.filter(e => e.name === 'room:leave').pop();
+    assert(left, '退室は頼んでいる');
+    assertEqual(left.payload.code, 'ABC234', '部屋コードを添える（つなぎ直し後でも消してもらえる）');
+    assertEqual(left.payload.memberId, 'm1', '自分のmemberIdも添える');
+    assertNoErrors(errors, '返事なし退室で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('入り直しの途中で「部屋を出る」を押しても、部屋がよみがえらない', async () => {
+    // 画面ロック→復帰でつなぎ直しが走っている最中に退室すると、
+    // 遅れて届いた入り直しの返事が部屋の状態を書き戻し、
+    // 「画面は棚なのにサーバーでは部屋に居る」ゾンビ状態になっていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    let joinCb = null;
+    fake.replies['room:join'] = function(p, cb){ joinCb = cb; return undefined; }; // 返事はまだ来ない
+    fake.fire('disconnect');
+    fake.fire('connect');
+    await waitFor(win, () => !!joinCb, 2000, '入り直しが走る');
+    click(doc, 'rtLeaveBtn'); // その間に本人が「部屋を出る」
+    await waitScreen(win, doc, 'scr-shelf', 1500);
+    joinCb({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }); // 遅れて返事が届く
+    await sleep(win, 120);
+    const leaves = fake.emits.filter(e => e.name === 'room:leave');
+    assertEqual(leaves.length, 2, '入り直してしまった枠も、あらためて出しておく');
+    assertEqual(leaves[1].payload.memberId, 'm1', '出すのは自分の枠');
+    assertEqual(activeScreen(doc), 'scr-shelf', '画面は棚のまま（引き戻されない）');
+    assertNoErrors(errors, '入り直し競合で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('「部屋」ボタン：部屋に入っている時は、その部屋の画面に直接飛ぶ', async () => {
+    // 第33弾で復活させた近道は、在室でも常に「立てる／入る」の選択画面を出していた。
+    // そこから2つ目の部屋を立てられてしまい、状態が割れる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false }); // ホスト・待機中
+    click(doc, 'rtPickGameBtn'); // 「ゲームをえらぶ」で棚に出た（部屋には入ったまま）
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 5, you: true });
+    click(doc, 'shelfRoomBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 2000);
+    const peek = fake.emits.filter(e => e.name === 'room:peek').pop();
+    assert(peek && peek.payload.code === 'ABC234' && peek.payload.memberId === 'm1',
+      '在室判定は端末の記憶ではなく、サーバーに聞いて決める');
+    assertNoErrors(errors, '部屋ボタン（在室）で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('「部屋」ボタン：ゲームが始まっていたら、そのゲームの画面に飛ぶ', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    click(doc, 'rtPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    // 棚を見ている間に、部屋ではゲームが始まっていた
+    push(fake, roomSnapshot({ state: { phase: 'roleReveal', game: 'wolfrole', data: wolfView() } }));
+    await sleep(win, 80);
+    assertEqual(activeScreen(doc), 'scr-shelf', '棚で選んでいる人を引っぱらない（今まで通り）');
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: 'wolfrole', phase: 'roleReveal', playerCount: 5, you: true });
+    click(doc, 'shelfRoomBtn');
+    await waitScreen(win, doc, 'scr-rt-play', 2000);
+    assertNoErrors(errors, '部屋ボタン（ゲーム中）で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('「部屋」ボタン：部屋に入っていなければ、今まで通り選択画面', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    click(doc, 'shelfRoomBtn');
+    await waitScreen(win, doc, 'scr-rt-lobby', 2000);
+    const peeks = (win.__rtFake ? win.__rtFake.emits : []).filter(e => e.name === 'room:peek');
+    assertEqual(peeks.length, 0, '入っていない時はサーバーに聞くまでもない');
+    assertNoErrors(errors, '部屋ボタン（未在室）で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('「部屋」ボタン：サーバー側で部屋が消えていたら、選択画面に出て印を捨てる', async () => {
+    // 記憶が古いまま消えた部屋に飛ぶと、退室バグと同種の不整合を新しく生む。
+    // サーバーに「無い」と言われたら、端末の印を捨ててから選択画面に出す
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    click(doc, 'rtPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    fake.replies['room:peek'] = () => ({ ok: false, error: 'room_not_found' });
+    click(doc, 'shelfRoomBtn');
+    await waitScreen(win, doc, 'scr-rt-lobby', 2000);
+    // 印を捨てた＝つなぎ直しても、もう入り直しに行かない
+    const joinsBefore = fake.emits.filter(e => e.name === 'room:join').length;
+    fake.fire('disconnect');
+    fake.fire('connect');
+    await sleep(win, 120);
+    const joinsAfter = fake.emits.filter(e => e.name === 'room:join').length;
+    assertEqual(joinsAfter, joinsBefore, '消えた部屋へ入り直しに行かない');
+    assertNoErrors(errors, '部屋ボタン（部屋消滅）で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('全ゲーム：開始の合図が届くと3-2-1が画面に出る（正本ループ）', async () => {
+    // どのゲームの部屋でも、同じ合図で同じ3-2-1が出ること。
+    // ゲーム一覧は正本（GAME_DRIVERS由来）から回すので、新ゲームも自動で対象になる
+    for (const gameId of INV.RT_GAME_IDS) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      push(fake, roomSnapshot({ state: { phase: 'lobby', game: gameId, data: {} } }));
+      await sleep(win, 60);
+      fake.fire('room:countdown', { seconds: 3 });
+      await waitFor(win, () => doc.querySelector('.fx-countdown'), 2000, gameId + '：3-2-1が出る');
+      const num = doc.querySelector('.fx-countdown .fx-cd-num');
+      assert(num && num.textContent === '3', gameId + '：3から数える');
+      assertNoErrors(errors, gameId + ' の合図で未捕捉の例外');
+      win.close();
+    }
+  });
+
+  await r.test('すべての「← 部屋を出る」ボタンが、同じ退室処理につながっている（正本ループ）', async () => {
+    // ボタンは7画面に散らばっている。1つずつ手書きすると、画面を足した時に漏れる。
+    // 正本（ROOM_EXIT_PATHS）の btn 持ちを全部回す
+    const paths = INV.ROOM_EXIT_PATHS.filter(p => p.kind === 'leave' && p.btn && p.btn !== 'endGameBtn');
+    assert(paths.length >= 7, '退室ボタンの経路が正本に揃っている（いま' + paths.length + '件）');
+    for (const p of paths) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      click(doc, p.btn);
+      await waitFor(win, () => fake.emits.some(e => e.name === 'room:leave'), 2000, p.id + '：退室を頼む');
+      const left = fake.emits.filter(e => e.name === 'room:leave').pop();
+      assertEqual(left.payload.code, 'ABC234', p.id + '：部屋コードを添える');
+      assertEqual(left.payload.memberId, 'm2', p.id + '：自分のmemberIdを添える');
+      await waitScreen(win, doc, 'scr-shelf', 2000);
+      assertNoErrors(errors, p.id + ' で未捕捉の例外');
+      win.close();
+    }
   });
 
   r.finish();

@@ -413,4 +413,6 @@ async function run() {
 }
 
 if (require.main === module) run();
-module.exports = { run };
+// startTestServer などは tests/room-paths.js（第35弾のループ形式テスト）も使う。
+// 同じ土台を2回書くと片方だけ直る事故になる（落とし穴1）ので、ここから輸出する
+module.exports = { run, startTestServer, login, device, waitUntil, makeRoom, sleep };

@@ -188,7 +188,7 @@ app.post('/api/matches', requireAuth, (req, res) => {
 app.patch('/api/matches/:id/round', requireAuth, (req, res) => {
   const match = getOwnedMatch(req);
   if (!match) return res.status(404).json({ error: '見つかりません' });
-  const { mode, score_deltas, opts, detail } = req.body || {};
+  const { mode, score_deltas, opts, detail, players } = req.body || {};
   const rounds = JSON.parse(match.rounds || '[]');
   // opts＝そのラウンドのあそびかた（出題方法・封印ワード・脱落）。記録のタグ絞り込みに使う。
   // detail＝そのゲーム固有の記録（人狼なら役職構成・勝った陣営など）。
@@ -198,7 +198,17 @@ app.patch('/api/matches/:id/round', requireAuth, (req, res) => {
   if (detail && typeof detail === 'object') round.detail = detail;
   rounds.push(round);
   db.prepare('UPDATE matches SET rounds = ? WHERE id = ?').run(JSON.stringify(rounds), match.id);
-  res.json({ ok: true, rounds_count: rounds.length });
+  // 第32弾-E 第1部：1ゲーム遊ぶごとに、その場の全部の2人組へ+1。
+  // players はそのラウンドに居た全員（点が入らなかった人も含む）。
+  // 送ってこない古いクライアントは、試合の登録メンバーで数える
+  let pairNote = null;
+  try {
+    const who = (Array.isArray(players) && players.length)
+      ? players : JSON.parse(match.player_names || '[]');
+    if (db.countPairs) db.countPairs(req.session.userId, who);
+    if (db.pairInfo) pairNote = db.pairInfo(req.session.userId, who);
+  } catch (e) { /* 2人組の記録に失敗しても、ラウンドの記録は済んでいる */ }
+  res.json({ ok: true, rounds_count: rounds.length, pairNote });
 });
 
 app.patch('/api/matches/:id/finish', requireAuth, (req, res) => {

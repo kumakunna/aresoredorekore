@@ -92,6 +92,11 @@
       // 部屋の公開情報。誰が見てもよいものだけが入っている
       socket.on('room:update', function (room) {
         state.room = room;
+        // 第32弾-E 第3部：進行役が待機画面から自分の表示モードを切り替えることがある。
+        // 覚えている役割が古いまま入り直すと、切り替えが巻き戻ってしまうので、
+        // 部屋の公開情報にある「いまの自分」に必ず合わせておく
+        var mine = ((room && room.members) || []).find(function (m) { return m.id === state.memberId; });
+        if (mine && mine.role) state.role = mine.role;
         emitLocal('room', room);
       });
       socket.on('room:hostChanged', function (p) { emitLocal('hostChanged', p); });
@@ -114,18 +119,22 @@
         emitLocal('closed', p || {});
         emitLocal('status', state);
       });
+      // 第32弾-E：リアクション・感謝・アルバム。どれも進行そのものには関係しない
+      socket.on('room:reacted', function (p) { emitLocal('reacted', p || {}); });
+      socket.on('room:thanked', function (p) { emitLocal('thanked', p || {}); });
+      socket.on('album:update', function (p) { emitLocal('albumUpdate', p || {}); });
       // サーバーからの死活確認。返さないと切断扱いになる
       socket.on('hb:ping', function () { socket.emit('hb:pong'); });
       return true;
     }
 
-    function call(event, payload) {
+    function call(event, payload, timeoutMs) {
       return new Promise(function (resolve) {
         if (!socket) { resolve({ ok: false, error: 'not_connected' }); return; }
         var done = false;
         var t = setTimeout(function () {
           if (!done) { done = true; resolve({ ok: false, error: 'timeout' }); }
-        }, 8000);
+        }, timeoutMs || 8000);
         socket.emit(event, payload || {}, function (res) {
           if (done) return;
           done = true; clearTimeout(t);
@@ -157,9 +166,12 @@
     // 第32弾-A-3-2：入る前に、その部屋を軽く覗く。
     // 返ってくるのは「あるかどうか・何のゲームか・何人いるか」だけ（名簿は来ない）
     function peekRoom(code) { return call('room:peek', { code: code }); }
-    function setRole(role) {
-      state.role = role; // 入り直す時にも同じ役割で戻れるように覚えておく
-      return call('room:setRole', { role: role });
+    function setRole(role, memberId) {
+      // 第32弾-E 第3部：進行役は memberId を付けて、他の人の表示モードも切り替えられる
+      if (!memberId || memberId === state.memberId) {
+        state.role = role; // 入り直す時にも同じ役割で戻れるように覚えておく
+      }
+      return call('room:setRole', { role: role, memberId: memberId || undefined });
     }
     function transferHost(memberId) { return call('room:transferHost', { memberId: memberId }); }
     // 第32弾-B-1：進行役が、その人を部屋から出す
@@ -187,6 +199,14 @@
     //   act('defuser', { caps })            … 役割と、その端末で読めるセンサー
     //   vote(null, { action:{type:'tilt'} }) … 傾き・振り・入力などの操作
     function startWolf(config) { return call('wolf:start', config || {}); }
+    // 第32弾-E：リアクション・感謝・アルバム
+    function react(emoji) { return call('room:react', { emoji: emoji }); }
+    function thanks(memberId, kind) { return call('room:thanks', { memberId: memberId, kind: kind }); }
+    function albumAdd(photo) { return call('album:add', { photo: photo }, 30000); }
+    function albumRemove() { return call('album:remove', {}); }
+    // アルバム本体は写真が全部入った大きな1枚なので、待ち時間を長めに取る
+    function albumGet() { return call('album:get', {}, 60000); }
+    function albumDone() { return call('album:done', {}); }
     function act(targetId, extra) {
       return call('wolf:act', Object.assign({ targetId: targetId }, extra || {}));
     }
@@ -231,6 +251,8 @@
       createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, peekRoom: peekRoom,
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,
+      react: react, thanks: thanks,
+      albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,
       // テストから中身を差し替えられるように（socket.io本体は持たせない）
       _call: call

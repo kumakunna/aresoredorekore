@@ -17,7 +17,8 @@ const CDN = 'https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/';
 // アプリの中で絵文字を書いている場所。増えたらここに足す
 const SOURCES = ['public/index.html', 'public/js/titles.js'];
 // 絵文字にしないもの。UIの部品として文字で出ているのが正しく、Twemojiにも無い
-const NOT_EMOJI = ['2605', '2715', '2190', '2192', '271a'];
+// （2713 ✓ は第32弾-D 第4部・安全の案内のチェック印）
+const NOT_EMOJI = ['2605', '2715', '2190', '2192', '271a', '2713'];
 
 function listFiles() {
   return fs.readdirSync(DIR)

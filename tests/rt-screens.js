@@ -1282,6 +1282,155 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('待機画面から、進行役が直接メンバーを操作できる（第32弾-E 第3部）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });   // ホスト（m1）
+    win.confirm = () => true;
+    // 各メンバーの行に、進行役だけの操作が付く
+    const kick = doc.querySelector('#rtMemberList [data-rmkick="m2"]');
+    const toBig = doc.querySelector('#rtMemberList [data-rmrole="m2"]');
+    const toHost = doc.querySelector('#rtMemberList [data-rmhost="m2"]');
+    assert(kick && toBig && toHost, 'キック・大画面・進行役の操作が並ぶ');
+    assert(!doc.querySelector('#rtMemberList [data-rmkick="m1"]'), '自分の行には出ない');
+    toBig.click();
+    await waitFor(win, () => fake.emits.some(e => e.name === 'room:setRole'
+      && e.payload.memberId === 'm2' && e.payload.role === 'bigscreen'), 3000, '大画面へ切り替えを送る');
+    kick.click();
+    await waitFor(win, () => fake.emits.some(e => e.name === 'room:kick'
+      && e.payload.memberId === 'm2'), 3000, 'キックを送る');
+    assertNoErrors(errors, 'メンバー操作で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('待機画面でない人（非ホスト）には、メンバー操作が出ない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toRoom(win, doc, { join: true, memberId: 'm2' });
+    assertEqual(doc.querySelectorAll('#rtMemberList .rm-op').length, 0, '操作ボタンが無い');
+    assertNoErrors(errors, '非ホストの表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('待機画面に、2人組の記録の一言が静かに出る（第32弾-E 第1部・第2部）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({
+      pairNote: { top: { a: 'あき', b: 'びび', count: 7 }, fresh: [{ a: 'ちか', b: 'でん' }] }
+    }));
+    await sleep(win, 100);
+    const text = el(doc, 'rtPairNote').textContent;
+    assert(/あき さんと びび さん/.test(text) && /7回/.test(text), '一番長い付き合いが出る');
+    assert(/ちか さんと でん さん/.test(text) && /初めての組み合わせ/.test(text), '初組み合わせを静かに祝う');
+    // 一覧は出さない（回数の少ない人が疎外感を持つ表示にしない）
+    assertEqual((text.match(/回/g) || []).length, 1, '回数が出るのは一番の組だけ');
+    assertNoErrors(errors, '2人組の一言で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('リアクション：ゲーム画面に帯が出て、届いた絵文字がふっと浮かぶ（第32弾-E 第4部）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote' }) } }));
+    pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    assertEqual(el(doc, 'reactBar').style.display, 'flex', 'ゲーム画面では帯が出る');
+    assertEqual(doc.querySelectorAll('#reactBar .react-btn').length, 5, '絵文字は5つに絞る');
+    // 押すとサーバーへ送る（自分の画面に出るのは、全員へ配られて戻ってきた時）
+    doc.querySelector('#reactBar [data-react]').click();
+    await waitFor(win, () => fake.emits.some(e => e.name === 'room:react'), 3000, '送っている');
+    // 届いたら、ふっと浮かんで消える
+    fake.fire('room:reacted', { name: 'あき', emoji: '🔥' });
+    await sleep(win, 80);
+    assertEqual(doc.querySelectorAll('.react-fly').length, 1, '浮かんでいる');
+    await sleep(win, 2200);
+    assertEqual(doc.querySelectorAll('.react-fly').length, 0, '一瞬で消える（残らない）');
+    assertNoErrors(errors, 'リアクションで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('リアクション：設定でOFFにすると、帯も他の人の反応も出ない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // 設定を切る（トグルはどの画面からでも同じ部品なので、直接押す）
+    click(doc, 'setReactionsToggle');
+    push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote' }) } }));
+    pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    assertEqual(el(doc, 'reactBar').style.display, 'none', '帯が出ない');
+    fake.fire('room:reacted', { name: 'あき', emoji: '🔥' });
+    await sleep(win, 80);
+    assertEqual(doc.querySelectorAll('.react-fly').length, 0, '他の人の反応も出ない');
+    assertNoErrors(errors, 'リアクションOFFで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('感謝：決着したら🎁が出て、項目→相手の順に選んで贈れる（第32弾-E 第5部）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou());
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    assert(el(doc, 'thanksBtn').style.display !== 'none', '決着したら🎁が出る');
+    click(doc, 'thanksBtn');
+    await sleep(win, 50);
+    assertEqual(doc.querySelectorAll('#thanksKinds [data-thkind]').length, 3, '勝敗と関係ない3つの項目');
+    doc.querySelector('[data-thkind="laugh"]').click();
+    await sleep(win, 50);
+    const whoBtns = doc.querySelectorAll('#thanksWho [data-thwho]');
+    assert(whoBtns.length >= 1, '相手を選べる');
+    assert(!Array.prototype.some.call(whoBtns, b => b.dataset.thwho === 'm2'), '自分は選べない');
+    whoBtns[0].click();
+    await waitFor(win, () => fake.emits.some(e => e.name === 'room:thanks'
+      && e.payload.kind === 'laugh'), 3000, '贈っている');
+    await sleep(win, 80);
+    assertEqual(el(doc, 'thanksBtn').style.display, 'none', '贈ったら🎁は引っ込む（1決着に1回）');
+    assertNoErrors(errors, '感謝で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('感謝：贈られた本人には、誰からかが分かるお祝いが出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, endedWolfRoom());
+    pushYou(fake, endedWolfYou());
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    fake.fire('room:thanked', { from: 'あき', kind: 'help', label: '今日、いちばん助かった' });
+    await sleep(win, 100);
+    const banner = doc.querySelector('.fx-banner');
+    assert(banner && /助かった/.test(banner.textContent) && /あき/.test(banner.textContent),
+      '何に選ばれ、誰からかが分かる');
+    assertNoErrors(errors, '感謝の受け取りで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('アルバム：待機画面に箱があり、進行役だけが受け取れる（第32弾-E 第6部）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });   // ホスト
+    const line = el(doc, 'albumStatusLine').textContent;
+    assert(/AIには一切渡しません/.test(line), 'AIに渡さないことが書いてある');
+    assert(/サーバーから消します/.test(line), '消すことが書いてある');
+    assertEqual(el(doc, 'albumGetBtn').style.display, 'none', '箱が空なら受け取りは出ない');
+    // 2枚入った知らせが来ると、進行役に受け取りボタンが出る
+    fake.fire('album:update', { count: 2, names: ['あき', 'びび'] });
+    await sleep(win, 80);
+    assert(/2枚/.test(el(doc, 'albumStatusLine').textContent), '箱の中身が分かる');
+    assert(el(doc, 'albumGetBtn').style.display !== 'none', '進行役に受け取りが出る');
+    click(doc, 'albumGetBtn');
+    await sleep(win, 50);
+    assert(el(doc, 'albumOverlay').classList.contains('show'), '受け渡しの画面が開く');
+    const warn = doc.querySelector('#albumOverlay .album-warn').textContent;
+    assert(/サーバーから消されます！/.test(warn), '赤字の明示①（指示の必須事項）');
+    assert(/今この一度しか/.test(warn), '赤字の明示②');
+    // サーバーから消えた知らせは、はっきり伝わる
+    fake.fire('album:update', { count: 0, names: [], cleared: true });
+    await sleep(win, 80);
+    assert(!el(doc, 'albumOverlay').classList.contains('show'), '受け渡しの画面は閉じる');
+    assert(/削除しました/.test(doc.body.textContent), '消したことが画面に出る');
+    assertNoErrors(errors, 'アルバムで未捕捉の例外');
+    win.close();
+  });
+
   await r.test('ラッシュ：おてつき中は残り秒が出て、難易度が押せない（第33弾 C-2）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2', game: 'quizrush' });

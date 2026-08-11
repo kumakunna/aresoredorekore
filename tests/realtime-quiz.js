@@ -559,6 +559,26 @@ async function run() {
 
   // ================= 共通 =================
 
+  await r.test('決着したら、2人組の記録が数えられ、一言が部屋に配られる（第32弾-E 第1部）', async () => {
+    const srv = await startTestServer();
+    // 疑似DBに、2人組の記録の口だけを足す（呼ばれ方を見る）
+    srv.db.pairCalls = [];
+    srv.db.countPairs = (uid, names) => { srv.db.pairCalls.push({ uid, names: names.slice().sort() }); };
+    srv.db.pairInfo = () => ({ top: { a: 'あき', b: 'びび', count: 7 }, fresh: [] });
+    try {
+      const rm = await makeRoom(srv, 2, false);
+      await rm.host.call('wolf:start', { game: 'quizrush', timerSec: 60 });
+      await waitUntil(() => rm.host.you && rm.host.you.rush, '始まる');
+      expire(srv, rm.code);
+      await waitUntil(() => viewOf(rm.host).phase === 'ended', '決着する');
+      await waitUntil(() => srv.db.pairCalls.length >= 1, '2人組が数えられる');
+      assertEqual(srv.db.pairCalls[0].uid, 4321, '記録の持ち主は部屋のオーナー');
+      assertEqual(srv.db.pairCalls[0].names.join(','), 'あき,びび', 'その場の全員で数える');
+      await waitUntil(() => rm.host.room && rm.host.room.pairNote, '一言が部屋に配られる');
+      assertEqual(rm.host.room.pairNote.top.count, 7, '一番長い付き合いが届く');
+    } finally { await srv.close(); }
+  });
+
   await r.test('決着したら、部屋のオーナーの記録として残る', async () => {
     const srv = await startTestServer();
     try {

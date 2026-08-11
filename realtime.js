@@ -77,6 +77,61 @@ const CODE_LENGTH = 6;
 const ROLE_PLAYER = 'player';
 const ROLE_BIGSCREEN = 'bigscreen';
 
+// 第32弾-E 第4部：リアクションで使える絵文字。
+// 数を絞る（多いと選ぶのに時間がかかり、ゲームの邪魔になる）。
+// 端末側の一覧と食い違わないよう、サーバーはこの一覧しか通さない
+const REACTION_EMOJI = ['👏', '😂', '😮', '❤️', '🔥'];
+
+// 第32弾-E 第5部：感謝の項目。勝敗と関係のないものだけを並べる
+const THANKS_KINDS = {
+  help: '今日、いちばん助かった',
+  laugh: '今日、いちばん笑わせてくれた',
+  close: '今日、いちばんおしかった'
+};
+
+// 第32弾-E 第6部：アルバムの現在地（公開してよい範囲だけ）。写真そのものは入れない
+function albumStatus(room) {
+  const a = room.album;
+  return {
+    count: a ? a.photos.size : 0,
+    names: a ? Array.from(a.photos.values()).map((p) => p.name) : []
+  };
+}
+
+/**
+ * 第32弾-E 第6部：アルバム本体。写真を埋め込んだ1枚のHTMLにまとめる。
+ * ・外部への読み込みが無い「自己完結のファイル」なので、保存すればオフラインでも開ける
+ * ・AIによる解析・加工・タグ付けは一切しない（ただ並べるだけ）
+ */
+function buildAlbumHtml(room) {
+  const a = room.album;
+  if (!a || !a.photos.size) return null;
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const d = new Date();
+  const date = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+  const shots = Array.from(a.photos.values()).map((p) =>
+    '<figure><img src="' + p.photo + '" alt="">' +
+    '<figcaption>' + esc(p.name) + '</figcaption></figure>'
+  ).join('\n');
+  return '<!doctype html><html lang="ja"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<title>あつまれ、あれこれ アルバム ' + esc(date) + '</title>' +
+    '<style>' +
+    'body{font-family:sans-serif;background:#faf6ef;color:#333;margin:0;padding:24px;text-align:center;}' +
+    'h1{font-size:20px;}p{color:#8a8378;font-size:13px;}' +
+    'main{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;max-width:1100px;margin:20px auto;}' +
+    'figure{margin:0;background:#fff;padding:10px 10px 6px;border-radius:10px;' +
+    'box-shadow:0 2px 10px rgba(0,0,0,.12);}' +
+    'img{max-width:320px;max-height:320px;border-radius:6px;display:block;}' +
+    'figcaption{font-size:13px;padding:6px 0 2px;}' +
+    '</style></head><body>' +
+    '<h1>あつまれ、あれこれ</h1>' +
+    '<p>' + esc(date) + '　みんなで集まった記念（' + a.photos.size + '枚）</p>' +
+    '<main>' + shots + '</main>' +
+    '</body></html>';
+}
+
 // ハートビート：この間隔で ping を送り、この時間返事が無ければ切断扱いにする
 const HEARTBEAT_INTERVAL_MS = 10000;
 const HEARTBEAT_TIMEOUT_MS = 25000;
@@ -198,6 +253,10 @@ function publicSnapshot(room) {
     hostMemberId: room.hostMemberId,
     playerCount: playerMembers(room).length, // 大画面ホストを除いた人数
     memberCount: room.members.size,
+    // 第32弾-E 第1部：待機画面に出す控えめな一言のもと。
+    // 「一番長い付き合いの2人」と「今日が初めての組み合わせ」だけ
+    //（回数の一覧は出さない。少ない人が疎外感を持つ表示を作らない）
+    pairNote: room.pairNote || null,
     members: memberList(room)
       .sort((a, b) => a.joinedAt - b.joinedAt)
       .map((m) => ({
@@ -236,12 +295,17 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   // 掃除の間隔と猶予はテストから短くできるようにする（本番は既定値のまま）
   const sweepIntervalMs = opts.sweepIntervalMs || SWEEP_INTERVAL_MS;
   const emptyRoomTtlMs = opts.emptyRoomTtlMs != null ? opts.emptyRoomTtlMs : EMPTY_ROOM_TTL_MS;
+  // 第32弾-E 第6部：アルバムを自動で消すまでの時間（1時間）
+  const albumTtlMs = opts.albumTtlMs != null ? opts.albumTtlMs : 60 * 60 * 1000;
 
   const io = new Server(httpServer, {
     cors: { origin: true, credentials: true },
     // engine.io 自身の死活監視。アプリ側のハートビートとは別に、これも効かせておく
     pingInterval: HEARTBEAT_INTERVAL_MS,
-    pingTimeout: HEARTBEAT_TIMEOUT_MS
+    pingTimeout: HEARTBEAT_TIMEOUT_MS,
+    // 第32弾-E 第6部：アルバムの写真（縮小済みJPEGのdataURL）を受け取るため、
+    // 既定の1MBから広げる。写真は端末側で縮小してから送る約束
+    maxHttpBufferSize: 3 * 1024 * 1024
   });
 
   // express-session をそのまま socket.io にも通す。
@@ -296,6 +360,37 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.auction) return recordAuctionMatch(room);
   }
 
+  /**
+   * 第32弾-E 第1部：対戦履歴の保存は、全ゲームここを通す。
+   * あわせて「その場にいた全部の2人組」に+1し、待機画面の一言（pairNote）を作り直す。
+   * ゲームごとにINSERTを書いていた時の形だと、新しいゲームで数え忘れる（落とし穴4）。
+   */
+  function saveMatchRecord(room, names, rounds, finalScores) {
+    db.prepare(
+      'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
+      "VALUES (?, ?, ?, ?, datetime('now'))"
+    ).run(
+      room.ownerUserId,
+      JSON.stringify(names),
+      JSON.stringify(rounds),
+      JSON.stringify(finalScores)
+    );
+    try {
+      if (db.countPairs) db.countPairs(room.ownerUserId, names);
+      refreshPairNote(room);
+      // 決着時の配信は saveMatchRecord より先に済んでいるので、
+      // 作り直した一言はもう一度配らないと誰にも届かない
+      if (room.pairNote) broadcast(room);
+    } catch (e) { /* 2人組の記録に失敗しても、対戦履歴は残っている */ }
+  }
+  // 待機画面に出す控えめな一言のもと。部屋に人が入った時と、遊び終わった時に作り直す
+  function refreshPairNote(room) {
+    if (!db || !db.pairInfo || !room.ownerUserId) return;
+    try {
+      room.pairNote = db.pairInfo(room.ownerUserId, playerMembers(room).map((m) => m.name));
+    } catch (e) { /* 一言が出ないだけ。進行は止めない */ }
+  }
+
   // 第31弾：オークションバトル。最後に持っていたチップがそのまま成績
   function recordAuctionMatch(room) {
     if (!db || !room.ownerUserId || !room.auction) return;
@@ -321,15 +416,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         at: new Date().toISOString(),
         detail
       }];
-      db.prepare(
-        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
-        "VALUES (?, ?, ?, ?, datetime('now'))"
-      ).run(
-        room.ownerUserId,
-        JSON.stringify(names),
-        JSON.stringify(rounds),
-        JSON.stringify(finalScores)
-      );
+      saveMatchRecord(room, names, rounds, finalScores);
     } catch (e) {
       console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
     }
@@ -360,15 +447,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         at: new Date().toISOString(),
         detail
       }];
-      db.prepare(
-        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
-        "VALUES (?, ?, ?, ?, datetime('now'))"
-      ).run(
-        room.ownerUserId,
-        JSON.stringify(names),
-        JSON.stringify(rounds),
-        JSON.stringify(finalScores)
-      );
+      saveMatchRecord(room, names, rounds, finalScores);
     } catch (e) {
       console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
     }
@@ -412,15 +491,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         at: new Date().toISOString(),
         detail
       }];
-      db.prepare(
-        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
-        "VALUES (?, ?, ?, ?, datetime('now'))"
-      ).run(
-        room.ownerUserId,
-        JSON.stringify(names),
-        JSON.stringify(rounds),
-        JSON.stringify(finalScores)
-      );
+      saveMatchRecord(room, names, rounds, finalScores);
     } catch (e) {
       console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
     }
@@ -463,15 +534,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         at: new Date().toISOString(),
         detail: summary
       }];
-      db.prepare(
-        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
-        "VALUES (?, ?, ?, ?, datetime('now'))"
-      ).run(
-        room.ownerUserId,
-        JSON.stringify(g.players.map((p) => p.name)),
-        JSON.stringify(rounds),
-        JSON.stringify(finalScores)
-      );
+      saveMatchRecord(room, g.players.map((p) => p.name), rounds, finalScores);
     } catch (e) {
       // 記録に失敗しても、遊んでいる人の進行は止めない
       console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
@@ -514,15 +577,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         at: new Date().toISOString(),
         detail
       }];
-      db.prepare(
-        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
-        "VALUES (?, ?, ?, ?, datetime('now'))"
-      ).run(
-        room.ownerUserId,
-        JSON.stringify(names),
-        JSON.stringify(rounds),
-        JSON.stringify(finalScores)
-      );
+      saveMatchRecord(room, names, rounds, finalScores);
     } catch (e) {
       console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
     }
@@ -577,15 +632,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         at: new Date().toISOString(),
         detail
       }];
-      db.prepare(
-        'INSERT INTO matches (user_id, player_names, rounds, final_scores, ended_at) ' +
-        "VALUES (?, ?, ?, ?, datetime('now'))"
-      ).run(
-        room.ownerUserId,
-        JSON.stringify(names),
-        JSON.stringify(rounds),
-        JSON.stringify(finalScores)
-      );
+      saveMatchRecord(room, names, rounds, finalScores);
     } catch (e) {
       console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
     }
@@ -674,6 +721,12 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 保険として、emptySince の付け忘れがあってもここで拾い直す。
       if (!connectedMembers(room).length && !room.emptySince) room.emptySince = now;
       if (room.emptySince && now - room.emptySince > emptyRoomTtlMs) store.delete(code);
+      // 第32弾-E 第6部：アルバムは一定時間さわられなければ自動で消す。
+      // ホストが操作せずに部屋を閉じた場合に、写真がサーバーに残り続けない保険
+      if (room.album && now - room.album.updatedAt > albumTtlMs) {
+        delete room.album;
+        io.to('room:' + room.code).emit('album:update', albumStatus(room));
+      }
     });
   }, sweepIntervalMs));
 
@@ -800,6 +853,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       }
       attachMember(room, member);
       ensureHost(room, 'join'); // ホスト不在の部屋に入ったら、その人がホストになる
+      refreshPairNote(room);    // 第32弾-E 第1部：顔ぶれが変わったら一言を作り直す
 
       if (typeof cb === 'function') {
         cb({ ok: true, code: room.code, memberId: member.id, room: publicSnapshot(room) });
@@ -820,8 +874,17 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = currentRoom();
       const me = currentMember();
       if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
-      me.role = normalizeRole(payload && payload.role);
-      if (typeof cb === 'function') cb({ ok: true, role: me.role, room: publicSnapshot(room) });
+      // 第32弾-E 第3部：ホストは、待機画面から他の人の表示モードも切り替えられる。
+      // memberId を付けなければ今まで通り自分（既存の呼び出しに影響しない）
+      let target = me;
+      const targetId = payload && payload.memberId;
+      if (targetId && targetId !== me.id) {
+        if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが操作できます');
+        target = room.members.get(targetId);
+        if (!target) return fail(cb, 'member_not_found', 'その人は部屋にいません');
+      }
+      target.role = normalizeRole(payload && payload.role);
+      if (typeof cb === 'function') cb({ ok: true, role: target.role, room: publicSnapshot(room) });
       broadcast(room);
     });
 
@@ -992,6 +1055,103 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (typeof cb === 'function') cb({ ok: true });
     });
 
+    // ---- 第32弾-E 第4部：リアクション ----
+    // ゲームの進行に一切関係しない、一瞬の絵文字。サーバーは状態を持たず撒くだけ。
+    // 連打で全員の画面が埋まらないよう、1人あたり0.5秒に1回まで
+    socket.on('room:react', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      const emoji = String((payload && payload.emoji) || '');
+      if (REACTION_EMOJI.indexOf(emoji) === -1) {
+        return fail(cb, 'unknown_emoji', 'その絵文字は使えません');
+      }
+      const now = Date.now();
+      if (me.lastReactAt && now - me.lastReactAt < 500) {
+        if (typeof cb === 'function') cb({ ok: true, throttled: true });
+        return;
+      }
+      me.lastReactAt = now;
+      io.to('room:' + room.code).emit('room:reacted', { name: me.name, emoji });
+      if (typeof cb === 'function') cb({ ok: true });
+    });
+
+    // ---- 第32弾-E 第5部：感謝を贈る ----
+    // 勝敗と関係のない項目で、誰か1人に一言。届くのは本人にだけ（見せびらかさない）
+    socket.on('room:thanks', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      const kind = THANKS_KINDS[payload && payload.kind] ? payload.kind : null;
+      if (!kind) return fail(cb, 'unknown_kind', 'その項目はありません');
+      const target = room.members.get(payload && payload.memberId);
+      if (!target) return fail(cb, 'member_not_found', 'その人は部屋にいません');
+      if (target.id === me.id) return fail(cb, 'cannot_thank_self', '自分には贈れません');
+      emitPrivate(room, target.id, 'room:thanked', {
+        from: me.name, kind, label: THANKS_KINDS[kind]
+      });
+      if (typeof cb === 'function') cb({ ok: true, toName: target.name });
+    });
+
+    // ---- 第32弾-E 第6部：アルバム ----
+    // 写真は一番デリケートなデータ。約束：
+    //   ・入れるのは本人の操作だけ（同意の確認は端末側で必ず挟む）
+    //   ・サーバーはまとめて渡すまでの一時置き場。AIには一切渡さない
+    //   ・ホストが「保存しました」と言うか、1時間さわられなければ消す
+    socket.on('album:add', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      const photo = String((payload && payload.photo) || '');
+      if (!/^data:image\/(jpeg|png|webp);base64,/.test(photo)) {
+        return fail(cb, 'bad_photo', '写真の形式が読めません');
+      }
+      if (photo.length > 1.6 * 1024 * 1024) {
+        return fail(cb, 'too_large', '写真が大きすぎます（端末側で縮小してから送ってください）');
+      }
+      room.album = room.album || { photos: new Map(), updatedAt: Date.now() };
+      room.album.photos.set(me.id, { name: me.name, photo, at: Date.now() });
+      room.album.updatedAt = Date.now();
+      io.to('room:' + room.code).emit('album:update', albumStatus(room));
+      if (typeof cb === 'function') cb({ ok: true, count: room.album.photos.size });
+    });
+    // 参加をやめる（自分の写真を箱から出す）
+    socket.on('album:remove', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (room.album) {
+        room.album.photos.delete(me.id);
+        room.album.updatedAt = Date.now();
+        if (!room.album.photos.size) delete room.album;
+      }
+      io.to('room:' + room.code).emit('album:update', albumStatus(room));
+      if (typeof cb === 'function') cb({ ok: true });
+    });
+    // ホストがアルバムを受け取る。写真が全部入った自己完結の1枚（HTML）を渡す。
+    // ここでは消さない。「受け取り始めた＝保存できた」ではないため。
+    // 消すのは、ホストが「保存しました」を押した時（album:done）か、1時間の自動削除
+    socket.on('album:get', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが受け取れます');
+      const html = buildAlbumHtml(room);
+      if (!html) return fail(cb, 'no_album', 'アルバムに写真がありません');
+      if (typeof cb === 'function') cb({ ok: true, html, count: room.album.photos.size });
+    });
+    // ホストが保存を終えた（またはやめた）。ここで初めてサーバーから消す
+    socket.on('album:done', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが操作できます');
+      delete room.album;
+      // 消したことは、はっきり全員に伝える
+      io.to('room:' + room.code).emit('album:update', Object.assign(albumStatus(room), { cleared: true }));
+      if (typeof cb === 'function') cb({ ok: true });
+    });
+
     // ---- 第3部-2：切断されたら即座に別の端末へ引き継ぐ ----
     socket.on('disconnect', () => {
       const room = currentRoom();
@@ -1014,6 +1174,12 @@ module.exports = {
   publicSnapshot,
   playerMembers,
   pickNextHost,
+  // 第32弾-E：アルバムのHTML生成（server.js の受け渡しルートが使う）と、
+  // リアクション絵文字の一覧（端末側と食い違っていないかテストが見張る）
+  buildAlbumHtml,
+  albumStatus,
+  REACTION_EMOJI,
+  THANKS_KINDS,
   randomCode,
   CODE_ALPHABET,
   CODE_LENGTH,

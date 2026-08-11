@@ -1260,6 +1260,56 @@
   .rt-member .rm-name{flex:1;}
   .rt-member .rm-tag{font-size:11px;color:var(--ink-soft);background:var(--paper-deep);border-radius:999px;padding:2px 9px;}
   .rt-member.off{opacity:.45;}
+  /* 第32弾-E 第3部：待機画面から直接メンバーを操作する（進行役だけに出る） */
+  .rt-member .rm-ops{display:flex;gap:6px;flex:none;}
+  .rt-member .rm-op{
+    width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
+    background:var(--card);font-size:15px;cursor:pointer;line-height:1;
+  }
+  .rt-member .rm-op.danger{color:#c0392b;border-color:#e2b4ae;}
+  /* 第32弾-E 第1部：2人組の記録の一言。目立たせない */
+  .pair-note{
+    margin-top:10px;padding:9px 12px;border-radius:10px;
+    background:var(--paper-deep);color:var(--ink-soft);
+    font-size:12.5px;line-height:1.9;
+  }
+  /* 第32弾-E 第4部：リアクション。ゲームの邪魔にならない小さな帯と、一瞬の演出 */
+  #reactBar{position:fixed;left:10px;bottom:10px;z-index:65;display:flex;gap:6px;}
+  .react-btn{
+    width:38px;height:38px;border-radius:50%;border:1px solid var(--line);
+    background:rgba(255,255,255,.78);font-size:19px;cursor:pointer;padding:0;line-height:1;
+  }
+  .react-btn:active{transform:scale(1.18);}
+  .react-fly{
+    position:fixed;bottom:64px;z-index:66;font-size:30px;pointer-events:none;
+    animation:reactUp 1.8s ease-out forwards;
+  }
+  @keyframes reactUp{
+    0%{transform:translateY(0) scale(.6);opacity:0;}
+    12%{opacity:1;transform:translateY(-12px) scale(1);}
+    100%{transform:translateY(-150px) scale(1.05);opacity:0;}}
+  /* 大画面は「観客席」。端から端まで流れて消える（第32弾-D 5-2の予告分） */
+  .react-fly.big{
+    bottom:auto;left:-70px;font-size:52px;
+    animation:reactAcross var(--fly-dur,4s) linear forwards;
+  }
+  @keyframes reactAcross{
+    0%{transform:translateX(0) translateY(0);opacity:0;}
+    6%{opacity:.95;}
+    90%{opacity:.9;}
+    100%{transform:translateX(calc(100vw + 140px)) translateY(-30px);opacity:0;}}
+  /* 第32弾-E 第5部：感謝を贈るボタン（決着した時だけ） */
+  #thanksBtn{
+    position:fixed;right:12px;bottom:64px;z-index:65;
+    width:48px;height:48px;border-radius:50%;border:1px solid var(--line);
+    background:var(--gold);font-size:22px;cursor:pointer;line-height:1;
+    box-shadow:0 3px 12px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;
+  }
+  /* 第32弾-E 第6部：アルバムの赤字の明示（指示で必須とされている） */
+  .album-warn{
+    color:#c62828;font-weight:700;font-size:13.5px;line-height:1.9;
+    background:#fdecea;border:1px solid #f2b8b2;border-radius:10px;padding:10px 12px;
+  }
   /* 第22弾-1：ログイン画面の「または」区切りと、部屋コードのQR */
   .join-divider{display:flex;align-items:center;gap:10px;margin:18px 0 12px;color:var(--ink-soft);font-size:12px;}
   .join-divider::before, .join-divider::after{content:'';flex:1;height:1px;background:var(--line);}
@@ -2493,6 +2543,32 @@
   </div>
 
   <!-- 第32弾-B-2：手に入った瞬間。結果画面のあとに1回だけ出す -->
+  <!-- 第32弾-E 第4部：リアクション。部屋のゲーム画面でだけ出る小さな帯 -->
+  <div id="reactBar" style="display:none;"></div>
+  <!-- 第32弾-E 第5部：感謝を贈る。決着した時だけ出る -->
+  <button id="thanksBtn" title="ありがとうを贈る" style="display:none;">🎁</button>
+  <div class="overlay" id="thanksOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-head"><h3>🎁 ありがとうを贈る</h3>
+        <button class="close-x" id="thanksCloseBtn">✕</button></div>
+      <div class="mic-status" style="margin-bottom:10px;">勝ち負けとは関係ありません。今日の1人へどうぞ（贈らなくても大丈夫です）</div>
+      <div id="thanksKinds"></div>
+      <div id="thanksWho" style="display:none;"></div>
+    </div>
+  </div>
+  <!-- 第32弾-E 第6部：アルバムの受け渡し（ホストだけが開く） -->
+  <div class="overlay" id="albumOverlay">
+    <div class="overlay-panel">
+      <div class="overlay-head"><h3>📖 アルバムをうけとる</h3>
+        <button class="close-x" id="albumCloseBtn">✕</button></div>
+      <div class="album-warn">アルバムは個人情報保護の観点から、サーバーから消されます！<br>そのため、今この一度しかアルバムは保存できません！</div>
+      <div class="mic-status" id="albumOvStatus" style="margin:10px 0;"></div>
+      <button class="btn btn-main" id="albumDownloadBtn">⬇️ アルバムを保存する</button>
+      <button class="btn btn-teal" id="albumDoneBtn" style="display:none;margin-top:8px;">💾 保存しました（サーバーから消す）</button>
+      <div class="mic-status" style="margin-top:10px;">保存がすんだら、かならず「保存しました」を押してください。押すまでは消しません（通信が切れても失われないように）。1時間さわられなければ自動で消えます。</div>
+    </div>
+  </div>
+
   <div class="overlay" id="titleGotOverlay">
     <div class="overlay-panel got-panel">
       <div class="got-lead">新しく手に入れた！</div>
@@ -3065,6 +3141,18 @@
       </div>
       <div class="tp-label" style="margin-top:14px;">参加している人<span id="rtRoomCount">0人</span></div>
       <div id="rtMemberList"></div>
+      <!-- 第32弾-E 第1部：2人組の記録の、控えめな一言 -->
+      <div id="rtPairNote"></div>
+      <!-- 第32弾-E 第6部：アルバム。写真は端末で縮めてから箱（サーバー）へ、
+           ホストに渡し終えたら消す。AIには一切渡さない -->
+      <div class="card" id="rtAlbumBox" style="margin-top:14px;">
+        <div class="sec-title">📸 きょうのアルバム</div>
+        <div class="mic-status" id="albumStatusLine" style="margin-bottom:10px;"></div>
+        <input type="file" id="albumFile" accept="image/*" capture="environment" style="display:none;">
+        <button class="btn btn-outline" id="albumAddBtn">📷 写真をとって、箱に入れる</button>
+        <button class="btn btn-ghost" id="albumRemoveBtn" style="display:none;">自分の写真を箱から出す</button>
+        <button class="btn btn-main" id="albumGetBtn" style="display:none;">📖 アルバムをうけとる（進行役）</button>
+      </div>
       <div class="mic-status" id="rtRoomNote" style="margin-top:10px;"></div>
       <!-- 第32弾-A-2：大画面は「表示モード」。いつでも切り替えられて、いつでも戻れる -->
       <button class="btn btn-outline" id="rtToBigBtn" style="margin-top:14px;">📺 この画面を大画面にする</button>
@@ -3673,6 +3761,8 @@
     <h2 class="scr-title">スコア</h2>
     <p class="scr-sub" id="scoreSub">みんなの結果</p>
     <div class="score-list" id="scoreList"></div>
+    <!-- 第32弾-E 第1部・第2部：2人組の記録の、控えめな一言 -->
+    <div id="scorePairNote"></div>
     <div class="score-actions">
       <!-- 第32弾-C-7：出口は「つぎは？」画面に一本化した。
            結果を見る画面と、次を決める画面を分ける（原則A） -->
@@ -3858,6 +3948,15 @@
           <div class="tp-label">文字サイズ　<span id="setFontValue">100</span>%</div>
           <input type="range" id="setFont" min="85" max="130" step="5" value="100">
           <div class="mic-status">この文の大きさも、その場で変わります</div>
+        </div>
+        <!-- 第32弾-E 第4部：リアクションのON/OFF（うるさいと感じる人のために） -->
+        <div class="card">
+          <div class="toggle-row-mini">
+            <div>リアクションを出す
+              <div class="mic-status">部屋で遊んでいる時、絵文字の反応を送れる・見えるようにします</div>
+            </div>
+            <div class="switch on" id="setReactionsToggle"></div>
+          </div>
         </div>
       </div>
 
@@ -5706,8 +5805,12 @@
       // 第10弾：どのオプションで遊んだかも一緒に残す（サーバーはroundsをそのまま保持するので改修不要）
       var body = { mode: mode, opts: optSnapshot(), score_deltas: scoreDeltas };
       if(detail) body.detail = detail;
-      await api('/api/matches/'+state.matchId+'/round', { method:'PATCH', body: body });
+      // 第32弾-E 第1部：2人組の記録のため、点が入らなかった人も含めた全員を送る
+      body.players = state.players.map(function(p){ return p.name; });
+      var out = await api('/api/matches/'+state.matchId+'/round', { method:'PATCH', body: body });
       state.matchRoundsLogged++;
+      // 控えめな一言のもと（スコア画面の隅に出す）
+      state.pairNote = (out && out.pairNote) || null;
     }catch(e){}
   }
   async function finishMatch(finalScores){
@@ -5853,7 +5956,8 @@
     fxFlash: true,     // 光の点滅（フラッシュ・明滅する縁）
     fxShake: true,     // 画面の揺れ
     fxBody: true,      // 体を動かす演出（実物解除のポーズ指定など）
-    bgmVolume: 40      // 第32弾-D 第1部：BGMの音量（効果音・読み上げとは別）
+    bgmVolume: 40,     // 第32弾-D 第1部：BGMの音量（効果音・読み上げとは別）
+    reactions: true    // 第32弾-E 第4部：リアクション（送る・見える）
   };
   function loadAppPrefs(){
     try{
@@ -6540,6 +6644,9 @@
     if(prevScreen && prevScreen.id === 'scr-rt-play' && id !== 'scr-rt-play') rtWolfSeen = null;
     // 第32弾-D：大画面を離れた時も同じ（入場・コールアウトの引き金を残さない）
     if(prevScreen && prevScreen.id === 'scr-rt-big' && id !== 'scr-rt-big') rtBigResetFx();
+    // 第32弾-E 第4部・第5部：リアクションの帯と🎁は、部屋の画面でだけ
+    updateReactBar();
+    if(RT_SCREENS.indexOf(id) === -1) el('thanksBtn').style.display = 'none';
     // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
     if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
     if(prevScreen && prevScreen.id === 'scr-rt-quiz' && id !== 'scr-rt-quiz') qzLeaveScreen();
@@ -7844,11 +7951,13 @@
   function openRoomLobby(from){
     rtLobbyBackTo = from || 'scr-shelf';
     rtLobbyJoinOnly = false;
+    resetAlbumUi();   // 第32弾-E 第6部：前の部屋のアルバムの状態を持ち込まない
     goTo('scr-rt-lobby');
   }
   function openJoinScreen(from){
     rtLobbyBackTo = from || 'scr-shelf';
     rtLobbyJoinOnly = true;
+    resetAlbumUi();
     goTo('scr-rt-lobby');
   }
   function enterRtLobby(){
@@ -7986,17 +8095,36 @@
     }
     el('rtRoomCount').textContent = room.playerCount + '人';
     var meId = rt.state.memberId;
+    // 第32弾-E 第3部：メンバーの操作は待機画面から直接。
+    // 設定の奥（32-B）は補助として残っているが、こちらが主
+    var amHost = rt.isHost();
     el('rtMemberList').innerHTML = (room.members || []).map(function(m){
       var tags = [];
       if(m.isHost) tags.push('進行役');
       if(m.role === 'bigscreen') tags.push('大画面');
       if(m.id === meId) tags.push('あなた');
+      var ops = '';
+      if(amHost && m.id !== meId){
+        ops = '<span class="rm-ops">' +
+          '<button class="rm-op" data-rmhost="' + m.id + '" title="進行役にする">👑</button>' +
+          '<button class="rm-op" data-rmrole="' + m.id + '" data-to="' +
+            (m.role === 'bigscreen' ? 'player' : 'bigscreen') + '" title="' +
+            (m.role === 'bigscreen' ? 'プレイヤーにもどす' : '大画面にする') + '">' +
+            (m.role === 'bigscreen' ? '🙋' : '📺') + '</button>' +
+          '<button class="rm-op danger" data-rmkick="' + m.id + '" title="部屋から出す">✕</button>' +
+        '</span>';
+      }
       return '<div class="rt-member'+(m.connected?'':' off')+'">'+
         '<span class="rm-name">'+escapeHtml(m.name)+'</span>'+
         tags.map(function(t){ return '<span class="rm-tag">'+t+'</span>'; }).join('')+
         (m.connected ? '' : '<span class="rm-tag">切断中</span>')+
+        ops +
       '</div>';
     }).join('');
+    // 第32弾-E 第1部：2人組の記録の一言（静かに）
+    el('rtPairNote').innerHTML = pairNoteHtml(room.pairNote);
+    // 第32弾-E 第6部：アルバムの箱
+    renderAlbumBox();
     var me = rt.me();
     // 第32弾-A-2：大画面は表示モード。人数から外れることを、押す前に伝える
     el('rtToBigNote').textContent =
@@ -8060,6 +8188,42 @@
   }
   el('rtToBigBtn').addEventListener('click', function(){ rtSetDisplayMode(true); });
   el('bigToPlayerBtn').addEventListener('click', function(){ rtSetDisplayMode(false); });
+  // 第32弾-E 第3部：待機画面のメンバー一覧から、進行役が直接操作する
+  el('rtMemberList').addEventListener('click', async function(e){
+    var room = rt && rt.state.room;
+    if(!room) return;
+    var nameOf = function(id){
+      var m = (room.members || []).find(function(x){ return x.id === id; });
+      return m ? m.name : 'その人';
+    };
+    var h = e.target.closest('[data-rmhost]');
+    if(h){
+      var hid = h.dataset.rmhost;
+      if(!confirm('進行役を ' + nameOf(hid) + ' さんに譲りますか？')) return;
+      var r1 = await rt.transferHost(hid);
+      if(!r1.ok) showFlash(r1.message || '譲れませんでした', 'hit-wrong');
+      return;
+    }
+    var ro = e.target.closest('[data-rmrole]');
+    if(ro){
+      var rid = ro.dataset.rmrole;
+      var to = ro.dataset.to;
+      if(!confirm(nameOf(rid) + ' さんを' +
+        (to === 'bigscreen' ? '大画面にしますか？（遊ぶ人数に数えません）'
+                            : 'プレイヤーにもどしますか？'))) return;
+      var r2 = await rt.setRole(to, rid);
+      if(!r2.ok) showFlash(r2.message || '切り替えられませんでした', 'hit-wrong');
+      return;
+    }
+    var k = e.target.closest('[data-rmkick]');
+    if(k){
+      var kid = k.dataset.rmkick;
+      if(!confirm(nameOf(kid) + ' さんを部屋から出しますか？')) return;
+      var r3 = await rt.kick(kid);
+      if(!r3.ok) showFlash(r3.message || '出せませんでした', 'hit-wrong');
+      return;
+    }
+  });
   async function rtLeaveRoom(){
     await rt.leave();
     goBack('scr-shelf'); // 第26弾-2：部屋の入り口は棚に移った
@@ -8458,6 +8622,8 @@
     // 第32弾-B-2：称号を数えるのは、部屋の画面すべてが通るここ1か所。
     // 画面ごとに書くと、ゲームを足した時に数え忘れる
     awardRoomTitles();
+    // 第32弾-E 第5部：決着した時だけ🎁を出す（これも全ゲーム共通のここ1か所）
+    refreshThanksBtn();
     if(cur === 'scr-rt-room') renderRtRoom();
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-bomb') renderRtBomb();
@@ -11559,6 +11725,221 @@
       setTimeout(function(){
         alert('進行役' + (p && p.by ? '（' + p.by + 'さん）' : '') + 'が、あなたを部屋から出しました。');
       }, 400);
+    });
+  }
+
+  // ===================== 第32弾-E：リアクション・感謝・アルバム =====================
+
+  // ---- 第4部：リアクション ----
+  // realtime.js の REACTION_EMOJI と同じ並び（食い違いはテストが見張る）
+  var REACTIONS = ['👏', '😂', '😮', '❤️', '🔥'];
+  var RT_GAME_SCREEN_IDS = ['scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction'];
+  el('reactBar').innerHTML = REACTIONS.map(function(e){
+    return '<button class="react-btn" data-react="' + e + '">' + e + '</button>';
+  }).join('');
+  el('reactBar').addEventListener('click', function(ev){
+    var b = ev.target.closest('[data-react]');
+    if(!b || !rt || !rt.state.room) return;
+    rt.react(b.dataset.react);  // 自分の画面に出るのは、サーバーから返ってきた時（全員と同時）
+  });
+  // 部屋のゲーム画面でだけ出す。設定でOFFなら出さない
+  function updateReactBar(){
+    var id = (document.querySelector('.screen.active') || {}).id;
+    var on = appPrefs.reactions && rt && rt.state.room && RT_GAME_SCREEN_IDS.indexOf(id) >= 0;
+    el('reactBar').style.display = on ? 'flex' : 'none';
+  }
+  /**
+   * 届いたリアクションを、ふっと浮かべて消す。
+   * スマホ：下からすっと昇って消える（自分の操作を邪魔しない一瞬の演出）
+   * 大画面：観客席のように、端から端まで流れる（第32弾-D 5-2の予告分）
+   */
+  function showReaction(p){
+    if(!appPrefs.reactions || !p || !p.emoji) return;
+    var scr = (document.querySelector('.screen.active') || {}).id;
+    if(RT_GAME_SCREEN_IDS.indexOf(scr) === -1 && scr !== 'scr-rt-big' && scr !== 'scr-rt-room') return;
+    var big = (scr === 'scr-rt-big');
+    var n = document.createElement('div');
+    n.className = 'react-fly' + (big ? ' big' : '');
+    n.innerHTML = (typeof EmojiSvg !== 'undefined') ? EmojiSvg.html(p.emoji) : p.emoji;
+    if(big){
+      n.style.top = (12 + Math.random() * 66) + '%';
+      n.style.setProperty('--fly-dur', (3.6 + Math.random() * 1.6) + 's');
+    } else {
+      n.style.left = (14 + Math.random() * 72) + '%';
+    }
+    el('app').appendChild(n);
+    setTimeout(function(){ if(n.parentNode) n.parentNode.removeChild(n); }, big ? 5600 : 1900);
+  }
+
+  // ---- 第5部：感謝を贈る ----
+  // 勝敗と関係のない項目だけ。システムではなく、プレイヤー同士が贈り合う
+  var THANKS_UI = [
+    { id:'help',  icon:'🙏', label:'今日、いちばん助かった' },
+    { id:'laugh', icon:'😂', label:'今日、いちばん笑わせてくれた' },
+    { id:'close', icon:'👏', label:'今日、いちばんおしかった' }
+  ];
+  var thanksSent = false;   // 1決着につき1回。次のゲームが始まったら戻る
+  var thanksKind = null;
+  // 決着した時だけ🎁を出す。全ゲーム共通の描画経路（rtRenderCurrent）から呼ばれる
+  function refreshThanksBtn(){
+    var v = rtView();
+    var ended = !!(v && v.phase === 'ended');
+    if(!ended) thanksSent = false;
+    var on = ended && !thanksSent && rt && rt.state.room && !rtIsBigScreen();
+    el('thanksBtn').style.display = on ? 'flex' : 'none';
+  }
+  el('thanksBtn').addEventListener('click', function(){
+    thanksKind = null;
+    el('thanksKinds').innerHTML = THANKS_UI.map(function(k){
+      return '<button class="set-row" data-thkind="' + k.id + '"><span class="sr-icon">' + k.icon +
+        '</span><span class="sr-text">' + k.label + '</span><span class="sr-arrow">›</span></button>';
+    }).join('');
+    el('thanksWho').style.display = 'none';
+    el('thanksOverlay').classList.add('show');
+  });
+  el('thanksOverlay').addEventListener('click', async function(e){
+    if(e.target === this){ this.classList.remove('show'); return; }
+    var kb = e.target.closest('[data-thkind]');
+    if(kb){
+      thanksKind = kb.dataset.thkind;
+      var room = rt.state.room, me = rt.state.memberId;
+      el('thanksWho').innerHTML =
+        '<div class="mic-status" style="margin:10px 0 6px;">だれに贈りますか？</div>' +
+        (room.members || [])
+          .filter(function(m){ return m.id !== me && m.role === 'player'; })
+          .map(function(m){
+            return '<button class="set-row" data-thwho="' + m.id + '">' +
+              '<span class="sr-text">' + escapeHtml(m.name) + '</span></button>';
+          }).join('');
+      el('thanksWho').style.display = 'block';
+      return;
+    }
+    var wb = e.target.closest('[data-thwho]');
+    if(wb && thanksKind){
+      var res = await rt.thanks(wb.dataset.thwho, thanksKind);
+      el('thanksOverlay').classList.remove('show');
+      if(res.ok){
+        thanksSent = true;
+        refreshThanksBtn();
+        showFlash('🎁 ' + (res.toName || '') + ' さんに贈りました', 'hit');
+      } else {
+        showFlash(res.message || '贈れませんでした', 'hit-wrong');
+      }
+    }
+  });
+  el('thanksCloseBtn').addEventListener('click', function(){ el('thanksOverlay').classList.remove('show'); });
+
+  // ---- 第6部：アルバム ----
+  var albumState = { count: 0, names: [] };
+  var albumMine = false;   // 自分の写真が箱に入っているか
+  function resetAlbumUi(){
+    albumState = { count: 0, names: [] };
+    albumMine = false;
+  }
+  function renderAlbumBox(){
+    var room = rt && rt.state.room;
+    if(!room) return;
+    var line = 'みんなの写真を1冊にまとめて、進行役が持ち帰れます。' +
+      '写真は渡し終えたらサーバーから消します（AIには一切渡しません）。';
+    if(albumState.count){
+      line += '<br>📦 いま箱の中に <b>' + albumState.count + '枚</b>（' +
+        (albumState.names || []).map(escapeHtml).join('・') + '）';
+    }
+    el('albumStatusLine').innerHTML = line;
+    el('albumRemoveBtn').style.display = albumMine ? 'inline-flex' : 'none';
+    el('albumGetBtn').style.display = (rt.isHost() && albumState.count > 0) ? 'inline-flex' : 'none';
+  }
+  el('albumAddBtn').addEventListener('click', function(){ el('albumFile').click(); });
+  el('albumFile').addEventListener('change', async function(){
+    var f = this.files && this.files[0];
+    this.value = '';
+    if(!f) return;
+    // アップロード前の同意（必須）。「箱に入れる＝サーバーに送る」を必ず確認する
+    if(!confirm('みんなの写真をアルバムにまとめますか？\n（サーバーに一時的に送られます。まとめて渡したら消します）')) return;
+    var photo;
+    try{ photo = await albumShrink(f); }
+    catch(e){ showFlash('写真を読み込めませんでした', 'hit-wrong'); return; }
+    var res = await rt.albumAdd(photo);
+    if(res.ok){ albumMine = true; showFlash('📦 箱に入れました', 'hit'); renderAlbumBox(); }
+    else showFlash(res.message || '入れられませんでした', 'hit-wrong');
+  });
+  // 写真は端末の中で縮めてから送る（顔が写る一番デリケートなデータを、大きいまま外に出さない）
+  function albumShrink(file){
+    return new Promise(function(resolve, reject){
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function(){
+        try{
+          var MAX = 1280;
+          var scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale);
+          c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          resolve(c.toDataURL('image/jpeg', 0.8));
+        }catch(e){ reject(e); }
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+  el('albumRemoveBtn').addEventListener('click', async function(){
+    if(!confirm('自分の写真を箱から出しますか？')) return;
+    var res = await rt.albumRemove();
+    if(res.ok){ albumMine = false; renderAlbumBox(); }
+  });
+  el('albumGetBtn').addEventListener('click', function(){
+    el('albumOvStatus').textContent = '箱の中の ' + albumState.count + '枚を、1冊にまとめて渡します';
+    el('albumDoneBtn').style.display = 'none';
+    el('albumDownloadBtn').disabled = false;
+    el('albumOverlay').classList.add('show');
+  });
+  el('albumDownloadBtn').addEventListener('click', async function(){
+    var btn = this;
+    btn.disabled = true;
+    var res = await rt.albumGet();
+    btn.disabled = false;
+    if(!res.ok){ showFlash(res.message || '受け取れませんでした', 'hit-wrong'); return; }
+    var blob = new Blob([res.html], { type: 'text/html' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    var d = new Date();
+    a.download = 'album-' + d.getFullYear() +
+      ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2) + '.html';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    // 保存が本当に済んだかは端末にしか分からない。
+    // 勝手に消さず、ホストに「保存しました」を押してもらってから消す
+    el('albumDoneBtn').style.display = 'inline-flex';
+  });
+  el('albumDoneBtn').addEventListener('click', async function(){
+    if(!confirm('アルバムは保存できましたか？\n「OK」を押すと、サーバーからすべての写真を消します。')) return;
+    var res = await rt.albumDone();
+    if(!res.ok) showFlash(res.message || '消せませんでした', 'hit-wrong');
+  });
+  el('albumCloseBtn').addEventListener('click', function(){ el('albumOverlay').classList.remove('show'); });
+
+  if(rt){
+    rt.on('reacted', function(p){ showReaction(p); });
+    rt.on('thanked', function(p){
+      // 選ばれた人にだけ届く。誰から贈られたかも分かる
+      if(typeof FxKit === 'undefined') return;
+      FxKit.vibe('win');
+      FxKit.banner({ kind:'gold', icon:'🎁',
+        text: '「' + (p.label || '') + '」',
+        sub: (p.from || '?') + ' さんから贈られました！', ms: 1600 });
+    });
+    rt.on('albumUpdate', function(p){
+      albumState = { count: (p && p.count) || 0, names: (p && p.names) || [] };
+      if(p && p.cleared){
+        albumMine = false;
+        el('albumOverlay').classList.remove('show');
+        // 消したことは、はっきり伝える（指示の必須事項）
+        if(typeof FxKit !== 'undefined') FxKit.notice('アルバムをサーバーから削除しました');
+      }
+      if((document.querySelector('.screen.active') || {}).id === 'scr-rt-room') renderAlbumBox();
     });
   }
 
@@ -15166,6 +15547,8 @@
         awardAresoreChampion(active[0].id);
       }
     }
+    // 第32弾-E 第1部・第2部：2人組の一言（隅に静かに）
+    el('scorePairNote').innerHTML = pairNoteHtml(state.pairNote);
     // 第32弾-C-2：順位は1位から順に出す。
     // いっぺんに出すと、どこが1位か目で探すことになる。
     // 1つずつ出れば、上から順に見るだけで順位が伝わる（演出はタップで飛ばせる）。
@@ -15174,6 +15557,25 @@
       el('scoreList').classList.add('fx-stagger');
       FxKit.stagger(el('scoreList').children, 160);
     }
+  }
+  /**
+   * 第32弾-E 第1部・第2部：2人組の記録の一言。
+   * 出すのは「一番長い付き合い」と「今日が初めての組み合わせ」だけ。
+   * 回数の一覧は出さない（少ない人が疎外感を持つ表示を作らない）。
+   */
+  function pairNoteHtml(note){
+    if(!note) return '';
+    var lines = [];
+    (note.fresh || []).slice(0, 2).forEach(function(f){
+      lines.push('✨ ' + escapeHtml(f.a) + ' さんと ' + escapeHtml(f.b) +
+        ' さんは、今日が初めての組み合わせです');
+    });
+    if(note.top){
+      lines.push('🤝 いちばん長い付き合いは ' + escapeHtml(note.top.a) + ' さんと ' +
+        escapeHtml(note.top.b) + ' さん（一緒に' + note.top.count + '回遊びました）');
+    }
+    if(!lines.length) return '';
+    return '<div class="pair-note">' + lines.join('<br>') + '</div>';
   }
   el('toNextBtn').addEventListener('click', function(){ goTo('scr-next'); });
 
@@ -15655,6 +16057,8 @@
     // 第32弾-D 第1部：BGMの音量
     el('setBgmVol').value = appPrefs.bgmVolume;
     el('setBgmVolValue').textContent = appPrefs.bgmVolume;
+    // 第32弾-E 第4部：リアクション
+    el('setReactionsToggle').classList.toggle('on', appPrefs.reactions);
   }
   function bindPref(id, key, labelId, fmt){
     el(id).addEventListener('input', function(){
@@ -15697,6 +16101,12 @@
   el('setBodyToggle').addEventListener('click', function(){
     appPrefs.fxBody = !appPrefs.fxBody;
     saveAppPrefs(); renderSetPrefs();
+  });
+  // 第32弾-E 第4部：リアクションのON/OFF。切り替えた瞬間から帯にも効く
+  el('setReactionsToggle').addEventListener('click', function(){
+    appPrefs.reactions = !appPrefs.reactions;
+    saveAppPrefs(); renderSetPrefs();
+    updateReactBar();
   });
   el('setSeTestBtn').addEventListener('click', function(){ snipSound(); });
   el('setSpeechTestBtn').addEventListener('click', function(){

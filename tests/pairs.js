@@ -53,13 +53,36 @@ function cleanup() {
 
     await r.test('一言のもとは「一番長い付き合い」と「今日はじめて」だけ', async () => {
       const info = db.pairInfo(TEST_USER, ['あき', 'びび', 'ふゆ']);
-      assertEqual(info.top.a, 'あき', '一番の組のa');
-      assertEqual(info.top.b, 'びび', '一番の組のb');
-      assertEqual(info.top.count, 3, '回数');
-      // このテストで数えた組は全部「今日」なので、初めての組として出る
+      // このテストで数えた組は全部「今日はじめて」なので、初めての組として出る。
+      // 第35弾B：今日はじめての組は top（長い付き合い）としては出さない（矛盾表示の防止）
+      assertEqual(info.top, null, '今日はじめての組しか居なければ、長い付き合いは出さない');
       assert(info.fresh.some((f) => f.a === 'あき' && f.b === 'ふゆ'), '今日はじめての組が入る');
       // 一覧そのものは返さない（疎外感を生む表示を作らせない）
       assertEqual(Object.keys(info).sort().join(','), 'fresh,top', '返すのは top と fresh だけ');
+    });
+
+    await r.test('今日はじめての組は「一番長い付き合い」と同時に出ない（矛盾表示の防止）', async () => {
+      // 実機（第35弾B）で出た矛盾の再現：今日はじめて遊んだ2人が同じ日に5回重ねると、
+      // 「今日が初めての組み合わせ✨」と「いちばん長い付き合い（5回）🤝」が
+      // 同じ2人に同時に表示されていた。初めての日の相手は「初めて」として祝い、
+      // 「付き合いの長さ」は前の日から続く組にだけ言う
+      for (let i = 0; i < 5; i++) db.countPairs(TEST_USER, ['そら', 'うみ']);
+      const info = db.pairInfo(TEST_USER, ['そら', 'うみ']);
+      assert(info.fresh.some((f) =>
+        (f.a === 'うみ' && f.b === 'そら') || (f.a === 'そら' && f.b === 'うみ')
+      ), '初めての組としては祝う');
+      assertEqual(info.top, null, '同じ2人を「長い付き合い」として同時に出さない');
+    });
+
+    await r.test('前の日から続く組は、今日はじめての組と両方出せる', async () => {
+      // 昨日以前から遊んでいる組（first_at を過去にして直接作る）
+      db.prepare(
+        "INSERT INTO pairs (user_id, a, b, count, first_at) VALUES (?, 'かこ', 'むかし', 4, '2026-08-01 12:00:00')"
+      ).run(TEST_USER);
+      const info = db.pairInfo(TEST_USER, ['かこ', 'むかし', 'そら', 'うみ']);
+      assertEqual(info.top && info.top.a, 'かこ', '長い付き合いは過去から続く組');
+      assertEqual(info.top && info.top.count, 4, '回数も正しい');
+      assert(info.fresh.some((f) => f.a === 'うみ' || f.b === 'うみ'), '今日はじめての組も出る');
     });
 
     await r.test('1回しか遊んでいない組は「一番長い付き合い」にならない', async () => {

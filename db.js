@@ -99,11 +99,18 @@ db.pairInfo = function pairInfo(userId, names) {
   const here = {};
   uniq.forEach((n) => { here[n] = true; });
   const mine = rows.filter((r) => here[r.a] && here[r.b]);
+  const isFreshToday = (r) =>
+    db.prepare("SELECT date(?, 'localtime') = date('now', 'localtime') AS today").get(r.first_at).today;
+  const freshRows = mine.filter(isFreshToday);
+  // 第35弾B：今日はじめての組は「一番長い付き合い」としては出さない。
+  // 初めての日に何回も遊ぶと、同じ2人に「初めての組み合わせ✨」と
+  // 「いちばん長い付き合い（n回）🤝」が同時に表示されて矛盾していた（実機で発生）。
+  // 初めての日の相手は「初めて」として祝い、付き合いの長さは前の日から続く組にだけ言う
   let top = null;
-  mine.forEach((r) => { if (r.count >= 2 && (!top || r.count > top.count)) top = r; });
-  const fresh = mine.filter((r) =>
-    db.prepare("SELECT date(?, 'localtime') = date('now', 'localtime') AS today").get(r.first_at).today
-  ).map((r) => ({ a: r.a, b: r.b }));
+  mine.forEach((r) => {
+    if (r.count >= 2 && !isFreshToday(r) && (!top || r.count > top.count)) top = r;
+  });
+  const fresh = freshRows.map((r) => ({ a: r.a, b: r.b }));
   return {
     top: top ? { a: top.a, b: top.b, count: top.count } : null,
     fresh

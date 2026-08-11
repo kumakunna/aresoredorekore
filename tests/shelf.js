@@ -793,8 +793,9 @@ function pickCart(doc, id) {
     const listed = {};
     require('../public/js/emoji-list').forEach((n) => { listed[n] = true; });
     // 差し替え対象にならない記号（← → ★ など）は、そもそも一覧に入れていない
-    // ← → ★ ✕ ✚ は絵文字ではなく記号なので、そもそも差し替え対象にしていない
-    const NOT_EMOJI = ['2605', '2192', '2190', '2715', '271a'];
+    // ← → ★ ✕ ✚ ✓ は絵文字ではなく記号なので、そもそも差し替え対象にしていない
+    // （✓は第32弾-D 第4部の安全の案内のチェック印）
+    const NOT_EMOJI = ['2605', '2192', '2190', '2715', '271a', '2713'];
     const missing = Object.keys(used)
       .filter((ch) => !listed[used[ch]] && NOT_EMOJI.indexOf(used[ch]) === -1)
       .map((ch) => ch + '(' + used[ch] + ')');
@@ -876,6 +877,47 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第32弾-D 第4部：安全の案内と安全に関する設定 ----
+
+  await r.test('初回は扉の前に安全の案内が出て、その場でオフにできる（第32弾-D 第4部）', async () => {
+    const { win, doc, errors } = await launch({ keepSafetyGate: true });
+    await sleep(win, 400);
+    assert(el(doc, 'safetyGate').style.display !== 'none', '安全の案内が出ている');
+    assertEqual(activeScreen(doc), 'scr-door', '扉はまだ開かない');
+    // 読むだけでなく、その場で自衛できる
+    click(doc, 'sgShakeBtn');
+    await sleep(win, 30);
+    assert(!el(doc, 'sgShakeBtn').classList.contains('on'), '画面の揺れをその場でオフにできる');
+    assert(el(doc, 'app').classList.contains('no-shake'), '切った瞬間から効いている');
+    click(doc, 'sgStartBtn');
+    await waitFor(win, () => activeScreen(doc) !== 'scr-door', 4000, '扉が開く');
+    assertEqual(el(doc, 'safetyGate').style.display, 'none', '案内は閉じた');
+    assertEqual(win.localStorage.getItem('acac-safety-seen'), '1', '2回目からは出ない印が残る');
+    assertNoErrors(errors, '安全の案内で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('安全に関する設定に、光・揺れ・振動・速さ・体を動かす演出が並ぶ', async () => {
+    const t = await launch();
+    click(t.doc, 'shelfGearBtn');
+    await sleep(t.win, 100);
+    t.doc.querySelector('#setRootMenu [data-setpage="app"]').click();
+    await sleep(t.win, 60);
+    const row = t.doc.querySelector('#setAppMenu [data-setpage="safety"]');
+    assert(row, '「安全に関する設定」の入口がある');
+    row.click();
+    await sleep(t.win, 60);
+    ['setFlashToggle', 'setShakeToggle', 'setVibrateToggle', 'setFxSeg', 'setBodyToggle']
+      .forEach((id) => assert(el(t.doc, id), id + ' が並んでいる'));
+    // 光の点滅を切ると、その瞬間から画面に印がつく（CSSがまとめて止める）
+    click(t.doc, 'setFlashToggle');
+    await sleep(t.win, 30);
+    assert(el(t.doc, 'app').classList.contains('no-flash'), '光の点滅オフが効いている');
+    assertEqual(t.win.FxKit._cfg.can.flash(), false, '演出部品からも見える');
+    assertNoErrors(t.errors, '安全に関する設定で未捕捉の例外');
+    t.win.close();
+  });
+
   await r.test('手に入った演出は、スキップも「今後出さない」もできる', async () => {
     // 演出をスキップにしていると、大きな演出は出さず一言だけにする
     const t = await launch();
@@ -884,7 +926,8 @@ function pickCart(doc, id) {
     await sleep(t.win, 100);
     t.doc.querySelector('#setRootMenu [data-setpage="app"]').click();
     await sleep(t.win, 60);
-    t.doc.querySelector('#setAppMenu [data-setpage="display"]').click();
+    // 第32弾-D 第4部：演出の速さは「安全に関する設定」へ移った
+    t.doc.querySelector('#setAppMenu [data-setpage="safety"]').click();
     await sleep(t.win, 60);
     t.doc.querySelector('#setFxSeg [data-fx="skip"]').click();
     await sleep(t.win, 60);

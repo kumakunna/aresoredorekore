@@ -421,7 +421,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(/1 \/ 5/.test(el(doc, 'bigTurn').textContent), 'ターン数が出る');
     assert(/まだの人/.test(el(doc, 'bigSub').textContent), '誰を待っているかは公開情報なので出す');
     // 生死は出るが、役職は出さない
-    const items = doc.querySelectorAll('#bigList .bl-item');
+    // 第32弾-D 5-3：人狼の大画面は、文字の一覧ではなく盤面（カード）になった
+    const items = doc.querySelectorAll('#bigList .bl-card');
     assertEqual(items.length, 5, '全員が並ぶ');
     const txt = el(doc, 'scr-rt-big').textContent;
     ['占い師', '人狼', '騎士', '霊媒師'].forEach(n => {

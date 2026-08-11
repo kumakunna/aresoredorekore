@@ -255,6 +255,19 @@ async function launch(opts) {
   }
 
   await waitFor(win, () => doc.readyState === 'complete', 5000, '読み込み完了');
+  // 第32弾-D 第4部：初回起動は、扉の前に安全の案内が出る。
+  // テストのjsdomは毎回まっさらなlocalStorageなので、必ず初回になる。
+  // この画面そのものを見たいテストは keepSafetyGate:true で止められる
+  // （その場合は扉より先へ進まないので、ここで返す）
+  if (opts.keepSafetyGate) return { dom, win, doc, errors };
+  await waitFor(win, () => {
+    const gate = doc.getElementById('safetyGate');
+    if (gate && gate.style.display !== 'none') {
+      const btn = doc.getElementById('sgStartBtn');
+      if (btn) btn.click();
+    }
+    return !gate || gate.style.display === 'none';
+  }, 5000, '安全の案内を通過');
   // 扉が自動で開くまで待つ（起動時は必ず扉を通る）
   await waitFor(win, () => activeScreen(doc) !== 'scr-door', 5000, '扉が開く');
 

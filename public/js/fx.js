@@ -25,8 +25,11 @@
     doc: null,
     root: null,                       // 演出を差し込む親（.app）
     ms: function (n) { return n; },   // 演出の速さ設定を通す関数
-    sound: {},                        // { good, bad, tick, big } 無くてよい
-    vibrate: function () {}
+    sound: {},                        // { good, bad, tick, big, cheer } 無くてよい
+    vibrate: function () {},
+    // 第32弾-D 第4部：安全に関する設定。「今の設定」を返す関数を渡してもらう
+    //（設定を切り替えた瞬間から効くように、値ではなく関数で持つ）
+    can: { flash: function () { return true; }, shake: function () { return true; } }
   };
 
   // ---------- スキップ ----------
@@ -91,6 +94,7 @@
     if (typeof opt.ms === 'function') cfg.ms = opt.ms;
     if (opt.sound) cfg.sound = opt.sound;
     if (typeof opt.vibrate === 'function') cfg.vibrate = opt.vibrate;
+    if (opt.can) cfg.can = Object.assign(cfg.can, opt.can);
     var d = doc();
     if (d && !init._bound) {
       // 画面のどこを触ってもスキップ。押した内容は殺さない
@@ -313,6 +317,95 @@
     while (box.children.length > 3) box.removeChild(box.firstChild);
   }
 
+  // ---------- 第32弾-D 4-1：画面の揺れ ----------
+  /**
+   * 衝撃の大きい瞬間に、画面全体が一瞬だけ揺れる。
+   * 0.2秒以内・1回だけ。繰り返さない（乗り物酔いのような不快感を避ける）。
+   * 「画面の揺れをつかう」を切っている人には出さない。
+   *   strength: 'big' なら少し大きく（爆発など）。省略でふつう
+   */
+  function shake(strength) {
+    var h = host();
+    if (!h) return Promise.resolve(true);
+    if (cfg.can.shake && !cfg.can.shake()) return Promise.resolve(true);
+    var cls = strength === 'big' ? 'fx-shake-big' : 'fx-shake';
+    h.classList.remove('fx-shake', 'fx-shake-big');
+    void h.offsetWidth;
+    h.classList.add(cls);
+    return hold(200).then(function (skipped) {
+      h.classList.remove(cls);
+      return skipped;
+    });
+  }
+
+  // ---------- 第32弾-D 4-2：紙吹雪・光の粒子 ----------
+  /**
+   * 一番の勝利の瞬間だけに使う。1ラウンド勝った程度では使わない
+   * （使いすぎると安っぽくなる）。色はカセットのテーマに合わせて渡す。
+   * 歓声（4-3）もここで重ねる：実際には無音のはずの瞬間に、
+   * その場にいる人数分の歓声があるような感覚を足す。
+   */
+  function confetti(colors) {
+    var h = host();
+    var d = doc();
+    if (!h || !d) return Promise.resolve(true);
+    var box = mk('fx-confetti');
+    if (!box) return Promise.resolve(true);
+    var palette = (colors && colors.length) ? colors : ['#f0c44a', '#3fbfa5', '#e2584a', '#5a8fd6'];
+    for (var i = 0; i < 54; i++) {
+      var p = d.createElement('i');
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.background = palette[i % palette.length];
+      p.style.animationDelay = (Math.random() * 0.5) + 's';
+      p.style.animationDuration = (1.1 + Math.random() * 0.9) + 's';
+      p.style.setProperty('--fx-cx', ((Math.random() * 2 - 1) * 60) + 'px');
+      p.style.setProperty('--fx-cr', ((Math.random() * 2 - 1) * 540) + 'deg');
+      box.appendChild(p);
+    }
+    h.appendChild(box);
+    play('cheer');
+    return hold(1800).then(function (skipped) {
+      if (box.parentNode) box.parentNode.removeChild(box);
+      return skipped;
+    });
+  }
+
+  // ---------- 第32弾-D 第2部：テキストコールアウト ----------
+  /**
+   * 緊張が高まる瞬間の、短い英単語（TIEBREAKER / DEFUSED など）。
+   * 大画面にだけ出す約束（スマホは自分の操作に集中させる）。
+   * 「大画面かどうか」はここでは分からないので、呼ぶ側が判断する。
+   *   opt: { kind:'danger'|'gold'|なし, ms }
+   */
+  function callout(text, opt) {
+    opt = opt || {};
+    var h = host();
+    if (!h) return Promise.resolve(true);
+    var n = mk('fx-callout' + (opt.kind ? ' fx-callout-' + opt.kind : ''), esc(text));
+    if (!n) return Promise.resolve(true);
+    h.appendChild(n);
+    play(opt.kind === 'danger' ? 'bad' : 'big');
+    return hold(opt.ms == null ? 1100 : opt.ms).then(function (skipped) {
+      n.classList.add('fx-out');
+      return hold(150).then(function () {
+        if (n.parentNode) n.parentNode.removeChild(n);
+        return skipped;
+      });
+    });
+  }
+
+  // ---------- 第32弾-D 第3部：場面に合わせた振動 ----------
+  // 名前で呼べる振動パターン。ゲーム側が配列を直書きすると場面ごとにばらばらになる。
+  // ON/OFFは cfg.vibrate（呼び出し側が設定を見て握りつぶす）に任せる
+  var VIBES = {
+    rise:   [40, 90, 45, 75, 50, 60, 55, 45, 60, 30, 70],  // 鼓動が速くなっていく感覚
+    win:    [120],                  // 短く・強く・1回（手応え）
+    miss:   [40],                   // 短く・弱く・1回だけ（原則C）
+    sold:   [160],                  // 木槌のように「ドン」と1回
+    count3: [50], count2: [80], count1: [120]  // カウントダウンの最後3秒
+  };
+  function vibe(name) { buzzIt(VIBES[name] || 60); }
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -323,6 +416,7 @@
     init: init, hold: hold, skipNow: skipNow, busy: busy,
     flash: flash, banner: banner, flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,
+    shake: shake, confetti: confetti, callout: callout, vibe: vibe,
     _cfg: cfg
   };
   return api;

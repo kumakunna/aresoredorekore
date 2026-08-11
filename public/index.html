@@ -648,6 +648,67 @@
      第28弾-4：戻る矢印のぶん、左側も同じだけ空ける */
   .play-topbar, .bomb-topbar{padding-right:42px;padding-left:42px;}
   /* ===== 第13弾：扉（友達の部屋に入るイメージ・奥に開く） ===== */
+  /* 第32弾-D 第4部：初回だけの安全の案内。黒背景・白文字・押せるトグル */
+  #safetyGate{
+    position:fixed;inset:0;z-index:200;background:#0d0f13;color:#fff;
+    display:flex;align-items:center;justify-content:center;text-align:center;
+  }
+  #safetyGate .sg-body{max-width:340px;padding:24px;}
+  #safetyGate .sg-lead{font-size:16px;line-height:2;margin:0 0 14px;}
+  #safetyGate .sg-sub{font-size:12.5px;line-height:1.9;opacity:.75;margin:0 0 22px;}
+  .sg-toggle{
+    display:flex;align-items:center;gap:10px;width:100%;margin:10px 0;
+    padding:14px 16px;border-radius:12px;border:1.5px solid rgba(255,255,255,.35);
+    background:transparent;color:#fff;font-size:14.5px;cursor:pointer;
+    font-family:'Zen Maru Gothic',sans-serif;
+  }
+  .sg-toggle .sg-check{width:22px;height:22px;border-radius:6px;flex:none;
+    border:1.5px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;
+    font-size:14px;color:transparent;}
+  .sg-toggle.on .sg-check{color:#0d0f13;background:#fff;border-color:#fff;}
+  .sg-toggle.on{border-color:#fff;}
+  /* 第32弾-D 第4部：光の点滅・画面の揺れを切っている人の画面。
+     出す側に条件を書かせず、クラス1つで該当する演出がまとめて止まる */
+  .app.no-flash .fx-flash{display:none;}
+  .app.no-flash .bomb-boom{display:none;}
+  .app.no-flash.bomb-danger::before{animation:none;opacity:.8;}
+  .app.no-shake.fx-shake,.app.no-shake.fx-shake-big{animation:none;}
+  /* 第32弾-D 4-1：画面の揺れ。0.2秒以内・1回だけ・繰り返さない */
+  .fx-shake{animation:fxShake 0.18s linear;}
+  .fx-shake-big{animation:fxShakeBig 0.2s linear;}
+  @keyframes fxShake{0%,100%{transform:translate(0,0);}
+    25%{transform:translate(-4px,2px);}50%{transform:translate(3px,-2px);}75%{transform:translate(-2px,1px);}}
+  @keyframes fxShakeBig{0%,100%{transform:translate(0,0);}
+    20%{transform:translate(-7px,3px);}40%{transform:translate(6px,-4px);}
+    60%{transform:translate(-5px,2px);}80%{transform:translate(3px,-2px);}}
+  /* 第32弾-D 4-2：紙吹雪。一番の勝利の瞬間だけ */
+  .fx-confetti{position:fixed;inset:0;pointer-events:none;z-index:96;overflow:hidden;}
+  .fx-confetti i{position:absolute;top:-14px;width:8px;height:13px;border-radius:2px;opacity:0;
+    animation:fxConfettiFall linear forwards;}
+  @keyframes fxConfettiFall{
+    0%{transform:translate(0,-14px) rotate(0);opacity:1;}
+    100%{transform:translate(var(--fx-cx,0),105vh) rotate(var(--fx-cr,360deg));opacity:.9;}}
+  /* 第32弾-D 第2部：コールアウト（大画面だけ）。一瞬で読める短い英単語 */
+  .fx-callout{
+    position:fixed;left:0;right:0;top:36%;z-index:97;text-align:center;pointer-events:none;
+    font-family:'Arial Black','Zen Maru Gothic',sans-serif;font-weight:900;
+    font-size:min(14vw,120px);letter-spacing:.05em;color:#fff;
+    text-shadow:0 4px 34px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.4);
+    animation:fxCalloutIn calc(0.3s * var(--fx-scale)) cubic-bezier(.15,1.4,.3,1);
+  }
+  .fx-callout-danger{color:#ff5c4a;}
+  .fx-callout-gold{color:#f0c44a;}
+  .fx-callout.fx-out{animation:fxCalloutOut calc(0.15s * var(--fx-scale)) ease-in forwards;}
+  @keyframes fxCalloutIn{from{transform:scale(2.4);opacity:0;}to{transform:scale(1);opacity:1;}}
+  @keyframes fxCalloutOut{to{transform:scale(.92);opacity:0;}}
+  /* 第32弾-D 5-5：BGMに合わせて大画面の縁がかすかに脈打つ。
+     視野に占める面積が大きいので、スマホより明暗差は控えめに（安全基準） */
+  #scr-rt-big.bgm-beat::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:60;
+    box-shadow:inset 0 0 44px 6px var(--bgm-glow, rgba(90,143,214,.35));
+    animation:bgmBeatFade 0.9s ease-out forwards;
+  }
+  @keyframes bgmBeatFade{from{opacity:.85;}to{opacity:0;}}
   #scr-door{padding:0;overflow:hidden;}
   .door-scene{
     position:absolute;inset:0;z-index:5;
@@ -1236,6 +1297,30 @@
   }
   .big-list .bl-item{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 18px;}
   .big-list .bl-item.dead{opacity:.4;text-decoration:line-through;}
+  /* 第32弾-D 5-3：人狼の大画面は、顔が並んだ盤面。脱落した人には大きくバツ */
+  .big-list .bl-card{
+    position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:4px;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px 16px 10px;min-width:86px;
+  }
+  .big-list .bl-card .blc-face{font-size:30px;line-height:1;}
+  .big-list .bl-card .blc-name{font-size:14px;}
+  .big-list .bl-card.out{opacity:.55;}
+  .big-list .bl-card.out .blc-x{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:56px;font-weight:900;color:rgba(226,88,74,.85);pointer-events:none;
+  }
+  /* 第32弾-D 5-4：大画面の巨大カウントダウン。数字がズームしながら脈打つ */
+  .big-cd{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:95;pointer-events:none;
+    font-family:'Arial Black','Zen Maru Gothic',sans-serif;font-weight:900;
+    font-size:min(46vw,420px);color:rgba(255,255,255,.92);
+    text-shadow:0 6px 50px rgba(0,0,0,.55), 0 0 12px rgba(0,0,0,.3);
+    animation:bigCdPulse 0.9s cubic-bezier(.1,.8,.2,1) forwards;
+  }
+  @keyframes bigCdPulse{0%{transform:scale(.6);opacity:0;}18%{transform:scale(1.08);opacity:1;}
+    60%{transform:scale(1);opacity:.95;}100%{transform:scale(1.25);opacity:0;}}
   /* 第24弾-3-1：大画面をPCやTVに映している間だけ、スマホ幅の制限を外す。
      ふだんは 460px の帯に収めているが、その幅のままだと横長の画面で
      細長い柱のようになり、離れた席から読めなかった。 */
@@ -2159,6 +2244,20 @@
 
   <!-- 第18弾-5：朝夜の切り替え演出。ふだんは opacity:0 で当たり判定も無い -->
   <div class="night-fx" id="nightFx"><div class="fx-word" id="nightFxWord"></div></div>
+
+  <!-- 0.5: 第32弾-D 第4部：初回だけの安全の案内（扉が開く前）。
+       読ませて終わりにせず、その場でOFFにできる＝実際に自衛できる手段にする。
+       体を動かす演出は、ここには出さない（実物解除の直前の同意画面が担当。
+       出会わない人にまで意味不明な同意を求めると、本当に大事な警告が埋もれる） -->
+  <div id="safetyGate" style="display:none;">
+    <div class="sg-body">
+      <p class="sg-lead">このアプリには、光の点滅や画面の揺れを<br>使った演出が含まれます。</p>
+      <p class="sg-sub">気分が悪くなる方は、ここでオフにできます。<br>（あとから設定でも変えられます）</p>
+      <button class="sg-toggle" id="sgFlashBtn"><span class="sg-check">✓</span> 光の点滅をつかう</button>
+      <button class="sg-toggle" id="sgShakeBtn"><span class="sg-check">✓</span> 画面の揺れをつかう</button>
+      <button class="btn btn-main" id="sgStartBtn" style="margin-top:26px;">はじめる</button>
+    </div>
+  </div>
 
   <!-- 1: splash -->
   <!-- 0: 扉（第13弾・起動時に自動で開く。友達の部屋に入るイメージ） -->
@@ -3730,6 +3829,12 @@
           <input type="range" id="setSpeechVol" min="0" max="100" step="5" value="100">
           <div class="mic-status">早押しトーナメントなどで、問題を読み上げる音の大きさです</div>
         </div>
+        <!-- 第32弾-D 第1部：BGMは効果音とは別に切れるようにする -->
+        <div class="card">
+          <div class="tp-label">BGM　<span id="setBgmVolValue">40</span></div>
+          <input type="range" id="setBgmVol" min="0" max="100" step="5" value="40">
+          <div class="mic-status">人狼の夜やオークションの入札中など、声を使わない場面でだけ流れます。0にすると流れません</div>
+        </div>
       </div>
 
       <div class="set-page" data-page="speech" style="display:none;">
@@ -3745,15 +3850,6 @@
 
       <div class="set-page" data-page="display" style="display:none;">
         <div class="card">
-          <div class="tp-label">演出の速さ</div>
-          <div class="seg" id="setFxSeg">
-            <button class="seg-btn" data-fx="normal">ふつう</button>
-            <button class="seg-btn" data-fx="fast">速い</button>
-            <button class="seg-btn" data-fx="skip">スキップ</button>
-          </div>
-          <div class="mic-status" id="setFxNote" style="margin-top:8px;"></div>
-        </div>
-        <div class="card">
           <div class="tp-label">画面の明るさ　<span id="setBrightValue">100</span>%</div>
           <input type="range" id="setBright" min="70" max="140" step="5" value="100">
           <div class="mic-status">人狼・爆弾解除のように暗い見た目のカセットを、明るい場所で遊ぶ時に上げてください</div>
@@ -3763,12 +3859,52 @@
           <input type="range" id="setFont" min="85" max="130" step="5" value="100">
           <div class="mic-status">この文の大きさも、その場で変わります</div>
         </div>
+      </div>
+
+      <!-- ===== 第32弾-D 第4部：安全に関する設定 =====
+           体に触る演出（光・揺れ・振動・体を動かす）を1か所にまとめる。
+           演出の速さ・振動は「見た目と演出」からここへ移した（2か所に置かない） -->
+      <div class="set-page" data-page="safety" style="display:none;">
+        <div class="mic-status" style="margin-bottom:10px;">気分が悪くなる演出は、ここでまとめて切れます。切っても、伝えることは必ず文字でも出ます。</div>
+        <div class="card">
+          <div class="toggle-row-mini">
+            <div>光の点滅をつかう
+              <div class="mic-status">正解・爆発などの、画面が光る演出です</div>
+            </div>
+            <div class="switch on" id="setFlashToggle"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="toggle-row-mini">
+            <div>画面の揺れをつかう
+              <div class="mic-status">爆発などの大きな瞬間に、画面が一瞬（0.2秒だけ）揺れます</div>
+            </div>
+            <div class="switch on" id="setShakeToggle"></div>
+          </div>
+        </div>
         <div class="card">
           <div class="toggle-row-mini">
             <div>振動する
               <div class="mic-status">正解・ミスなどで、端末を短く振動させます</div>
             </div>
             <div class="switch on" id="setVibrateToggle"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="tp-label">演出の速さ</div>
+          <div class="seg" id="setFxSeg">
+            <button class="seg-btn" data-fx="normal">ふつう</button>
+            <button class="seg-btn" data-fx="fast">速い</button>
+            <button class="seg-btn" data-fx="skip">スキップ</button>
+          </div>
+          <div class="mic-status" id="setFxNote" style="margin-top:8px;"></div>
+        </div>
+        <div class="card">
+          <div class="toggle-row-mini">
+            <div>体を動かす演出をつかう
+              <div class="mic-status">実物解除の「ポーズ指定」など、体を動かすしかけです。切ると、そのしかけは出てきません</div>
+            </div>
+            <div class="switch on" id="setBodyToggle"></div>
           </div>
         </div>
       </div>
@@ -5712,7 +5848,12 @@
     brightness: 100,   // 画面の明るさ補正（70〜140）
     fontScale: 100,    // 文字サイズ（85〜130）
     vibrate: true,     // 振動
-    titleFanfare: true // 称号を手に入れた瞬間の演出
+    titleFanfare: true, // 称号を手に入れた瞬間の演出
+    // 第32弾-D 第4部：安全に関する設定。体に触る演出はまとめて切れるようにする
+    fxFlash: true,     // 光の点滅（フラッシュ・明滅する縁）
+    fxShake: true,     // 画面の揺れ
+    fxBody: true,      // 体を動かす演出（実物解除のポーズ指定など）
+    bgmVolume: 40      // 第32弾-D 第1部：BGMの音量（効果音・読み上げとは別）
   };
   function loadAppPrefs(){
     try{
@@ -5740,6 +5881,21 @@
     var fx = appPrefs.fxSpeed === 'fast' ? 0.5 : (appPrefs.fxSpeed === 'skip' ? 0 : 1);
     app.style.setProperty('--fx-scale', String(fx));
     app.classList.toggle('fx-skip', appPrefs.fxSpeed === 'skip');
+    // 第32弾-D 第4部：光の点滅・画面の揺れを切っている人には出さない。
+    // CSSのクラス1つで全部の該当演出が止まる形にする（出す側に条件を書かせない）
+    app.classList.toggle('no-flash', !appPrefs.fxFlash);
+    app.classList.toggle('no-shake', !appPrefs.fxShake);
+  }
+  /**
+   * 第32弾-D 第3部：カウントダウンの最後3秒を、1秒ごとに強くなる振動で伝える。
+   * クイズ・爆弾・オークションの時計がみんなここを通る（画面ごとに書かない）。
+   * 直前の秒を1つだけ覚えれば足りる（同時に動く時計は1画面に1つ）
+   */
+  var cdVibePrev = null;
+  function countdownVibe(sec){
+    if(typeof FxKit === 'undefined') return;
+    if(sec != null && sec >= 1 && sec <= 3 && sec !== cdVibePrev) FxKit.vibe('count' + sec);
+    cdVibePrev = sec;
   }
   // 演出の待ち時間。setTimeout の代わりにこれを通すと、速さの設定が効く
   function fxMs(ms){
@@ -5825,6 +5981,151 @@
       setTimeout(function(){ ctx.close(); }, 700);
     }catch(e){}
     doVibrate([30, 40, 60]);
+  }
+  // ===================== 第32弾-D 第1部：BGM =====================
+  // 方針：音声認識・読み上げを使う場面では絶対に鳴らさない（この制約は今も生きている）。
+  // 「常に音楽が鳴る」のではなく「ここぞという静寂の時間に、緊張感を音で作る」。
+  // 音のファイルは持たない（beep 等と同じ。読み込みを増やさない）。
+  //
+  // どんな音が鳴るかは BGM_KINDS に、いつ鳴るかは bgmDesired() に集める。
+  // 個々の画面に start/stop を書かせると、離れた時の止め忘れが必ず起きる（落とし穴7）。
+  var bgm = { ctx: null, gain: null, timer: null, kind: null, step: 0 };
+  function bgmGainValue(){
+    return Math.max(0, Math.min(100, appPrefs.bgmVolume || 0)) / 100 * 0.12;
+  }
+  // 1音だけ鳴らす小さな部品。すべてのBGMはこれの組み合わせで作る
+  function bgmNote(freq, dur, type, vol){
+    if(!bgm.ctx || !bgm.gain) return;
+    try{
+      var t = bgm.ctx.currentTime;
+      var o = bgm.ctx.createOscillator();
+      var g = bgm.ctx.createGain();
+      o.type = type || 'sine';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol == null ? 1 : vol, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.5));
+      o.connect(g); g.connect(bgm.gain);
+      o.start(t); o.stop(t + (dur || 0.5) + 0.05);
+    }catch(e){}
+  }
+  // 第6部：カセットの世界観に合わせた音。glow は大画面の明滅（5-5）の色
+  var BGM_KINDS = {
+    // 人狼の夜：静寂に、緊張感のある低音がゆっくり脈打つ（藍色）
+    wolfNight: { stepMs: 1600, glow: 'rgba(63,81,181,.4)', play: function(step){
+      bgmNote(step % 2 ? 82.4 : 55, 1.4, 'sine', 1.0);
+      if(step % 4 === 3) bgmNote(220, 0.5, 'sine', 0.25);
+    } },
+    // オークションの入札：競り市の弦楽器的な緊張感（えんじ色）
+    auctionBid: { stepMs: 460, glow: 'rgba(155,52,68,.4)', play: function(step){
+      var seq = [110, 110, 164.8, 110, 130.8, 110, 164.8, 196];
+      bgmNote(seq[step % seq.length], 0.2, 'sawtooth', 0.45);
+      if(step % 8 === 0) bgmNote(55, 0.45, 'triangle', 0.8);
+    } },
+    // 結果や準備を待つ間：主張しない、やわらかい保留音
+    waiting: { stepMs: 1200, glow: 'rgba(240,196,74,.3)', play: function(step){
+      var seq = [261.6, 329.6, 392, 329.6];
+      bgmNote(seq[step % 4], 0.9, 'triangle', 0.35);
+    } }
+  };
+  function bgmStart(kind){
+    if(bgm.kind === kind) return;
+    bgmStop();
+    var def = BGM_KINDS[kind];
+    if(!def || !(appPrefs.bgmVolume > 0)) return;
+    try{
+      bgm.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      bgm.gain = bgm.ctx.createGain();
+      bgm.gain.gain.value = bgmGainValue();
+      bgm.gain.connect(bgm.ctx.destination);
+    }catch(e){ bgm.ctx = null; return; }
+    bgm.kind = kind;
+    bgm.step = 0;
+    var tick = function(){
+      try{ def.play(bgm.step); }catch(e){}
+      bgmBeat(def);   // 第5部-5：大画面の縁を音に合わせて脈打たせる
+      bgm.step++;
+    };
+    tick();
+    bgm.timer = setInterval(tick, def.stepMs);
+  }
+  function bgmStop(){
+    clearInterval(bgm.timer); bgm.timer = null;
+    bgm.kind = null;
+    if(bgm.ctx){ try{ bgm.ctx.close(); }catch(e){} bgm.ctx = null; bgm.gain = null; }
+  }
+  /**
+   * どの画面・段階でBGMを鳴らすかを、ここ1か所で決める。
+   * 500msごとの見回り（bgmSync）が呼ぶので、画面側は何もしなくていい。
+   * 【鳴らしてはいけない場面】あれそれどれこれの説明中・早押しの読み上げ中・
+   * つぎつぎクイズの回答中（声で相談する）。これらはここに書かない＝鳴らない
+   */
+  function bgmDesired(){
+    var scr = (document.querySelector('.screen.active') || {}).id;
+    // 手渡しの人狼・ワードウルフ：スマホを回して秘密の行動をする時間（誰も声を出さない）
+    if(scr === 'scr-wr-pass') return 'wolfNight';
+    var v = rtView();
+    var game = rtRoomGameId();
+    if(v && game){
+      var big = (scr === 'scr-rt-big');
+      if((scr === 'scr-rt-play' || big) && (game === 'wolfrole' || game === 'wordwolf')
+         && (v.phase === 'night' || v.phase === 'preVote')) return 'wolfNight';
+      if((scr === 'scr-rt-auction' || big) && game === 'auction' && v.phase === 'bid') return 'auctionBid';
+      if((scr === 'scr-rt-bomb' || big) && game === 'bomb' && v.phase === 'prep') return 'waiting';
+    }
+    return null;
+  }
+  function bgmSync(){
+    var want = (appPrefs.bgmVolume > 0) ? bgmDesired() : null;
+    if(want) bgmStart(want);
+    else bgmStop();
+    if(bgm.gain) bgm.gain.gain.value = bgmGainValue(); // 音量設定は即座に効かせる
+  }
+  // iOS はユーザー操作の中でしか音を開始できない。触った時に眠っていたら起こす
+  document.addEventListener('pointerdown', function(){
+    if(bgm.ctx && bgm.ctx.state === 'suspended'){ try{ bgm.ctx.resume(); }catch(e){} }
+  }, true);
+  /**
+   * 第32弾-D 5-5：BGMに合わせて、大画面の縁がかすかに脈打つ。
+   * 音を出せない環境でも、大画面さえあれば緊張感が伝わる。
+   * 明滅なので「光の点滅」を切っている人には出さない。
+   * 拍はBGMの間隔（最短でも0.46秒）なので、1秒3回の基準に収まる。
+   */
+  function bgmBeat(def){
+    if(!appPrefs.fxFlash) return;
+    var big = el('scr-rt-big');
+    if(!big || !big.classList.contains('active')) return;
+    big.style.setProperty('--bgm-glow', def.glow || 'rgba(90,143,214,.35)');
+    big.classList.remove('bgm-beat');
+    void big.offsetWidth;
+    big.classList.add('bgm-beat');
+  }
+
+  // 第32弾-D 4-3：歓声のような効果音。
+  // ノイズを帯域フィルタに通して一瞬ふくらませると「わっ」という声のかたまりに聞こえる。
+  // 一瞬だけの短い音なので、音声認識の邪魔にはならない
+  function cheerSound(){
+    try{
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var t = ctx.currentTime;
+      var len = Math.floor(ctx.sampleRate * 0.6) || 1;
+      var buf = ctx.createBuffer(1, len, ctx.sampleRate || 44100);
+      var data = buf.getChannelData(0);
+      for(var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      var src = ctx.createBufferSource(); src.buffer = buf;
+      var f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.Q.value = 1.2;
+      f.frequency.setValueAtTime(700, t);
+      f.frequency.exponentialRampToValueAtTime(1500, t + 0.18);
+      f.frequency.exponentialRampToValueAtTime(900, t + 0.5);
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.16, t + 0.12);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+      src.connect(f); f.connect(g); g.connect(sfxOut(ctx));
+      src.start(t); src.stop(t + 0.6);
+      setTimeout(function(){ ctx.close(); }, 700);
+    }catch(e){}
   }
   // クイズ王：時間切れ。下がっていく2音
   function timeUpSound(){
@@ -6237,6 +6538,8 @@
     // 第33弾 B-2：人狼の部屋画面を離れたら、演出の引き金もリセットする。
     // 残しておくと、あとで戻った瞬間に古い変わり目の演出が出てしまう
     if(prevScreen && prevScreen.id === 'scr-rt-play' && id !== 'scr-rt-play') rtWolfSeen = null;
+    // 第32弾-D：大画面を離れた時も同じ（入場・コールアウトの引き金を残さない）
+    if(prevScreen && prevScreen.id === 'scr-rt-big' && id !== 'scr-rt-big') rtBigResetFx();
     // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
     if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
     if(prevScreen && prevScreen.id === 'scr-rt-quiz' && id !== 'scr-rt-quiz') qzLeaveScreen();
@@ -8214,8 +8517,10 @@
         sub:'並んだ人だけで、もう一度投票します', ms:900 });
       return;
     }
-    // 朝：誰かが欠けていたら、名前が1人ずつ現れる（手渡し版と同じ）
+    // 朝：誰かが欠けていたら、名前が1人ずつ現れる（手渡し版と同じ）。
+    // 襲撃は強め・短くの振動（第32弾-D 第6部）
     if(v.phase === 'day' && v.morning && (v.morning.deaths || []).length){
+      FxKit.vibe('win');
       var rows = el('rtPublicBox').querySelectorAll('.day-death');
       if(rows.length) FxKit.stagger(rows, 300);
       return;
@@ -8225,6 +8530,7 @@
            : (v.phase === 'roundResult' && v.roundResult) ? v.roundResult : null;
     if(tr){
       if(tr.executed){
+        FxKit.vibe('win');   // 処刑は強め・短く（第32弾-D 第6部）
         FxKit.banner({ kind:'gray', icon:'⚖️', text: tr.executed.name + ' が処刑',
           sub: tr.executed.role ? tr.executed.role + ' でした'
              : (tr.wasWolf === true ? 'ウルフ🐺でした！' : tr.wasWolf === false ? 'シープ🐑でした…' : ''),
@@ -8237,12 +8543,16 @@
       if(counts.length) FxKit.stagger(counts, 120);
       return;
     }
-    // 決着：勝った陣営の色で染める（手渡し版と同じ）
+    // 決着：勝った陣営の色で染める（手渡し版と同じ）。
+    // ゲーム全体の決着なので、紙吹雪も陣営の色で舞う（第32弾-D 4-2）
     if(v.phase === 'ended' && v.result){
       var w2 = v.result.winner;
       var team = (w2 === 'wolf') ? 'wolf' : (w2 === 'village' || w2 === 'sheep') ? 'village' : 'third';
       flashRoleEdge(team);
       FxKit.flash(team === 'village' ? 'good' : 'gold');
+      FxKit.confetti(team === 'wolf' ? ['#e2584a', '#a33a2f', '#f0c44a']
+                   : team === 'village' ? ['#3fbfa5', '#8fd6c5', '#f0c44a']
+                   : ['#f0c44a', '#d9a53a', '#fff8e1']);
       FxKit.banner({
         kind: team === 'village' ? 'good' : 'gold',
         icon: team === 'wolf' ? '🐺' : (w2 === 'fox' ? '🦊' : (ww ? '🐑' : '🏘️')),
@@ -8556,6 +8866,7 @@
     chip.style.display = 'inline-block';
     chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
     chip.classList.toggle('warn', sec <= 10 && sec > 0);
+    countdownVibe(sec);
   }
   function qzStartTicking(){
     if(qzClock.timer) return;
@@ -8662,7 +8973,11 @@
 
     if(v.phase === 'ended'){
       // 決着の音は1回だけ。結果を見ている間ずっと鳴り続けないように
-      if(qzPrevPhase !== 'ended') timeUpSound();
+      if(qzPrevPhase !== 'ended'){
+        timeUpSound();
+        // 第32弾-D 4-2：ゲーム全体の決着なので、金・青の紙吹雪（第6部）
+        if(typeof FxKit !== 'undefined') FxKit.confetti(['#f0c44a', '#5a8fd6', '#fff8e1']);
+      }
       qzPrevPhase = v.phase;
       qzLeaveScreen();
       el('qzRound').textContent = '';
@@ -9072,6 +9387,7 @@
     chip.style.display = 'inline-block';
     chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
     chip.classList.toggle('warn', sec <= 5 && sec > 0);
+    countdownVibe(sec);
   }
   function auStartTicking(){
     if(auClock.timer) return;
@@ -9126,6 +9442,12 @@
     if(v.phase === 'result' && auPrevPhase !== 'result'){
       var lr = v.lastResult || {};
       if(lr.passed) gavelSound(); else soldSound();
+      // 第32弾-D 第6部：落札の瞬間、木槌のように「ドン」と1回の振動
+      if(!lr.passed && typeof FxKit !== 'undefined') FxKit.vibe('sold');
+    }
+    // 第32弾-D 4-2：全ラウンド終了＝このゲームの決着。金貨が舞うような紙吹雪
+    if(v.phase === 'ended' && auPrevPhase !== 'ended' && typeof FxKit !== 'undefined'){
+      FxKit.confetti(['#f0c44a', '#d9a53a', '#fff3c4']);
     }
     // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす
     if(v.phase === 'bid' && v.mode === 'open'){
@@ -9471,6 +9793,142 @@
   el('bigStartBtn').addEventListener('click', function(){ el('rtStartBtn').click(); });
   el('bigEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
+  // ===== 第32弾-D 第2部・第5部：大画面ならではの演出 =====
+  // 大画面は「その場にいる全員で見る見世物」。コールアウト・入場・巨大カウントダウンは
+  // ここにだけ出す（スマホは自分の操作に集中させる、という分担）。
+  var rtBig = { seen: null, members: null, bombLives: null, auction: null, clock: null };
+  function rtBigResetFx(){
+    rtBig.seen = null; rtBig.members = null; rtBig.bombLives = null;
+    rtBig.auction = null; rtBig.clock = null;
+  }
+  // 第5部-1：入場演出。「みんなが揃うのを待つ」時間を、盛り上がりに変える
+  function rtBigEntrance(room){
+    if(typeof FxKit === 'undefined') return;
+    var players = (room.members || []).filter(function(m){ return m.role === 'player'; });
+    var ids = players.map(function(m){ return m.id; });
+    if(rtBig.members){
+      players.forEach(function(m){
+        if(rtBig.members.indexOf(m.id) === -1){
+          FxKit.banner({ kind:'plain', icon:'🎮', text: m.name,
+            sub: (players.length) + '人目の参加者が入場！', ms: 1000 });
+        }
+      });
+    }
+    rtBig.members = ids;
+  }
+  // 段階の変わり目から、コールアウト・揺れ・紙吹雪を出す。
+  // あとから見始めた端末（入り直し）には出さない（rtPlayFx と同じ考え）
+  function rtBigFx(v, game){
+    if(typeof FxKit === 'undefined' || !v) return;
+    var prev = rtBig.seen;
+    rtBig.seen = { phase: v.phase, turn: v.turn || 0, runoff: !!v.runoff, game: game };
+    var changed = !prev || prev.game !== game
+      || prev.phase !== v.phase || prev.turn !== rtBig.seen.turn || prev.runoff !== rtBig.seen.runoff;
+    if(!prev || prev.game !== game){
+      rtBig.bombLives = (v.team ? v.team.lives : null);
+      rtBig.auction = null;
+      return;   // 見始めた直後は静かに
+    }
+
+    if(game === 'wolfrole' || game === 'wordwolf'){
+      // 決選投票に入った瞬間
+      if(changed && v.phase === 'vote' && v.runoff){
+        FxKit.callout('TIEBREAKER', { kind:'danger' });
+        return;
+      }
+      var tr = (v.phase === 'turnResult' && v.turnResult) ||
+               (v.phase === 'roundResult' && v.roundResult) || null;
+      if(changed && tr && tr.executed){
+        FxKit.shake();  // 処刑の衝撃。大画面は使ってよい（スマホは爆発だけ＝安全基準）
+        return;
+      }
+      if(changed && v.phase === 'ended' && v.result){
+        var w2 = v.result.winner;
+        var team = (w2 === 'wolf') ? 'wolf' : (w2 === 'village' || w2 === 'sheep') ? 'village' : 'third';
+        flashRoleEdge(team);
+        FxKit.confetti(team === 'wolf' ? ['#e2584a', '#a33a2f', '#f0c44a']
+                     : team === 'village' ? ['#3fbfa5', '#8fd6c5', '#f0c44a']
+                     : ['#f0c44a', '#d9a53a', '#fff8e1']);
+      }
+      return;
+    }
+    if(game === 'bomb'){
+      // 残りミス1：数えなくても「もう後がない」ことが全員に伝わる
+      var lives = v.team ? v.team.lives : null;
+      if(lives != null && rtBig.bombLives != null && lives < rtBig.bombLives && lives === 1){
+        FxKit.callout('CRITICAL', { kind:'danger' });
+      }
+      if(lives != null) rtBig.bombLives = lives;
+      if(changed && v.phase === 'ended' && v.result && !v.result.aborted && v.result.mode === 'coop'){
+        if(v.result.success){
+          FxKit.callout('DEFUSED', { kind:'gold' });
+          FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);  // 火花のようなオレンジ
+        } else {
+          FxKit.shake('big');
+          var boom = document.createElement('div');
+          boom.className = 'bomb-boom';
+          el('app').appendChild(boom);
+          setTimeout(function(){ if(boom.parentNode) boom.parentNode.removeChild(boom); }, fxMs(700));
+        }
+      }
+      return;
+    }
+    if(RT_QUIZ_GAMES.indexOf(game) !== -1){
+      // ラウンドの締めで、出した問題を全部当てた人がいたら PERFECT
+      var closing = changed && (v.phase === 'break' || v.phase === 'ended');
+      if(closing && v.rush && (v.rush.board || []).some(function(b){
+        return b.answered >= 5 && b.hits === b.answered;
+      })){
+        FxKit.callout('PERFECT', { kind:'gold' });
+      }
+      if(changed && v.phase === 'ended'){
+        FxKit.confetti(['#f0c44a', '#5a8fd6', '#fff8e1']);  // 金・青
+      }
+      return;
+    }
+    if(game === 'auction'){
+      // せり上げ式：値の付け替えが続いたら、競り合いが白熱している
+      if(v.phase === 'bid' && v.mode === 'open' && v.highest){
+        var a = rtBig.auction || { round: v.round, raises: 0, last: null, heated: false };
+        if(a.round !== v.round) a = { round: v.round, raises: 0, last: null, heated: false };
+        var key = v.highest.name + ':' + v.highest.amount;
+        if(a.last && a.last !== key) a.raises++;
+        a.last = key;
+        if(!a.heated && a.raises >= 4){
+          a.heated = true;
+          FxKit.callout('HEATING UP', { kind:'danger' });
+        }
+        rtBig.auction = a;
+      }
+      if(changed && v.phase === 'result' && v.lastResult && !v.lastResult.passed){
+        FxKit.callout('SOLD', { kind:'gold' });
+      }
+      if(changed && v.phase === 'ended'){
+        FxKit.confetti(['#f0c44a', '#d9a53a', '#fff3c4']);  // 金貨が舞う
+      }
+      return;
+    }
+  }
+  // 第5部-4：カウントダウンを大画面の主役にする。
+  // 残り5秒からは、数字が画面いっぱいにズームしながら脈打つ
+  var bigCd = { last: null };
+  function bigCountdownTick(){
+    var scr = (document.querySelector('.screen.active') || {}).id;
+    if(scr !== 'scr-rt-big' || !rtBig.clock || rtBig.clock.ms == null){ bigCd.last = null; return; }
+    var msLeft = rtBig.clock.ms - (Date.now() - rtBig.clock.at);
+    var sec = Math.ceil(msLeft / 1000);
+    if(sec < 1 || sec > 5){ bigCd.last = null; return; }
+    if(sec === bigCd.last) return;
+    bigCd.last = sec;
+    var d = document.createElement('div');
+    d.className = 'big-cd';
+    d.textContent = String(sec);
+    el('scr-rt-big').appendChild(d);
+    beep(600 + (5 - sec) * 120, 90);
+    setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 900);
+  }
+  setInterval(bigCountdownTick, 200);
+
   function renderRtBig(){
     var v = rtView();
     var room = rt && rt.state.room;
@@ -9488,6 +9946,10 @@
         if(renderRoomQr('bigQr', room.code)) el('bigQr').dataset.code = room.code;
       }
       el('bigSub').textContent = 'このコードを入れて参加してください';
+      // 第32弾-D 5-1：あとから来た人が「入場」してくる
+      rtBigEntrance(room);
+      rtBig.seen = null;
+      rtBig.clock = null;
       el('bigList').innerHTML = (room.members || [])
         .filter(function(m){ return m.role === 'player'; })
         .map(function(m){ return '<span class="bl-item">' + escapeHtml(m.name) + '</span>'; }).join('');
@@ -9498,6 +9960,10 @@
     el('bigPhase').textContent = RT_PHASE_LABEL[v.phase] || v.phase;
     el('bigMain').classList.remove('is-code');
     el('bigQrBox').style.display = 'none'; // 始まったらQRは要らない
+    // 第32弾-D：段階の変わり目から、大画面だけの演出（コールアウトなど）を出す
+    rtBigFx(v, rtRoomGameId());
+    // 第5部-4：残り時間つきのゲームなら、最後の5秒を巨大な数字で数える
+    rtBig.clock = (v.remainingMs != null) ? { ms: v.remainingMs, at: Date.now() } : null;
     if(rtRoomGameId() === 'bomb') return renderRtBigBomb(v);
     if(rtRoomGameId() === 'defuse') return renderRtBigDefuse(v);
     if(RT_QUIZ_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigQuiz(v);
@@ -9548,9 +10014,14 @@
     el('bigMain').textContent = main;
     el('bigSub').innerHTML = sub;
 
-    // 生死は公開情報。役職は決着するまで出さない
+    // 生死は公開情報。役職は決着するまで出さない。
+    // 第32弾-D 5-3：大画面では文字の一覧ではなく、顔が並んだ盤面のように。
+    // 脱落した人には大きくバツがつく（ボードゲームの駒が倒れる感覚）
     el('bigList').innerHTML = (v.players || []).map(function(p){
-      return '<span class="bl-item' + (p.alive ? '' : ' dead') + '">' + escapeHtml(p.name) + '</span>';
+      return '<span class="bl-card' + (p.alive ? '' : ' out') + '">' +
+        '<span class="blc-face">' + (p.alive ? '🙂' : '💀') + '</span>' +
+        '<span class="blc-name">' + escapeHtml(p.name) + '</span>' +
+        (p.alive ? '' : '<span class="blc-x">✕</span>') + '</span>';
     }).join('');
     if([ 'roleReveal', 'night', 'preVote', 'vote' ].indexOf(v.phase) >= 0 && (v.waiting || []).length){
       el('bigSub').innerHTML = sub + '<br><span style="opacity:.7;">まだの人：' +
@@ -9752,6 +10223,7 @@
     chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
     chip.classList.toggle('warn', sec <= 10 && sec > 0);
     chip.classList.toggle('done', sec === 0);
+    countdownVibe(sec);
   }
   function rtBombStartTicking(){
     if(rtBombClock.timer) return;
@@ -10172,6 +10644,9 @@
       return;
     }
     el('dfNote').innerHTML = '⚠️ このゲームには、体を動かすしかけが入ります';
+    // 第32弾-D 第4部：設定で「体を動かす演出」を切っている人には、
+    // 「参加する」を選ばせない（この画面は残す：なぜマニュアル役なのかが分かるように）
+    var bodyOff = !appPrefs.fxBody;
     box.innerHTML =
       '<div class="df-page"><div class="df-page-head">こんな動作があります</div>' +
         '<ul class="rules-ol">' + ask.moves.map(function(m){
@@ -10183,9 +10658,13 @@
         }).join('') + '</ul>' +
       '</div>' +
       '<div class="mic-status" style="margin-top:10px;">' + escapeHtml(ask.declineNote || '') + '</div>' +
-      '<button class="btn btn-main" id="dfConsentYes" style="margin-top:14px;">参加する</button>' +
-      '<button class="btn btn-outline" id="dfConsentNo" style="margin-top:8px;">参加しない（マニュアル役で遊ぶ）</button>';
-    el('dfConsentYes').addEventListener('click', async function(){
+      (bodyOff
+        ? '<div class="mic-status" style="margin-top:10px;">🛡 設定の「安全に関する設定」で、体を動かす演出を切っています。マニュアル役として参加します</div>'
+        : '<button class="btn btn-main" id="dfConsentYes" style="margin-top:14px;">参加する</button>') +
+      '<button class="btn ' + (bodyOff ? 'btn-main' : 'btn-outline') +
+        '" id="dfConsentNo" style="margin-top:8px;">参加しない（マニュアル役で遊ぶ）</button>';
+    var yes = el('dfConsentYes');
+    if(yes) yes.addEventListener('click', async function(){
       this.disabled = true;
       // iOSは、押した操作の中で許可を求めないとセンサーが読めない
       if(Sensors.needsPermission()) await Sensors.requestPermission();
@@ -11799,6 +12278,14 @@
       // 第23弾-2：ここまで来た＝この回は答え合わせ済みなので、投票の中身も開ける
       renderWolfVoteLog();
 
+    // 第32弾-D 4-2：決着（ゲーム全体の勝敗が出た）瞬間だけ、勝った側の色で紙吹雪。
+    // 加点と同じ「1回だけ」の印を使う（描き直しのたびに舞わせない）
+    if(!play.wwScored && typeof FxKit !== 'undefined'){
+      FxKit.confetti(wolfSideAlive().length
+        ? ['#e2584a', '#a33a2f', '#f0c44a']      // ウルフの逃げ切り
+        : ['#3fbfa5', '#8fd6c5', '#f0c44a']);    // シープ側の勝ち
+    }
+
     // 第24弾：配点の決め方は共通層（1人1台側と同じもの）。
     // ・ウルフに投票できた人は、投票の回ごとに1点
     // ・逃げ切ったウルフは1点。逃げ切った時は狂人も一緒に1点
@@ -12916,6 +13403,10 @@
     if(typeof FxKit !== 'undefined'){
       flashRoleEdge(r.winner === 'wolf' ? 'wolf' : (r.winner === 'village' ? 'village' : 'third'));
       FxKit.flash(r.winner === 'village' ? 'good' : 'gold');
+      // 第32弾-D 4-2：ゲーム全体の決着なので、陣営の色の紙吹雪が舞う
+      FxKit.confetti(r.winner === 'wolf' ? ['#e2584a', '#a33a2f', '#f0c44a']
+                   : r.winner === 'village' ? ['#3fbfa5', '#8fd6c5', '#f0c44a']
+                   : ['#f0c44a', '#d9a53a', '#fff8e1']);
       FxKit.banner({
         kind: r.winner === 'village' ? 'good' : 'gold',
         text: winnerLabel.replace(/^[^ ]+ /, ''),
@@ -13219,6 +13710,8 @@
   function bombClearFx(){
     if(typeof FxKit === 'undefined') return Promise.resolve();
     FxKit.flash('good');
+    // 第32弾-D 4-2：全解除はこのゲーム一番の勝利。火花のようなオレンジで舞う
+    FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
     return FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',
       sub:'全部のコードを止めました', ms:900 });
   }
@@ -13228,7 +13721,10 @@
   // 明滅・振動の繰り返しはさせない（酔わないように・目に悪くならないように）
   function bombBoomFx(){
     if(typeof FxKit === 'undefined') return Promise.resolve();
-    doVibrate([140,70,140]);
+    // 第32弾-D：爆発は「ミスで弱く・爆発で強く長く」の強い側。
+    // スマホの画面の揺れは、1試合に一度きりのこの瞬間だけに限定する（安全基準）
+    doVibrate([220, 90, 220]);
+    FxKit.shake('big');
     var boom = document.createElement('div');
     boom.className = 'bomb-boom';
     el('app').appendChild(boom);
@@ -14810,6 +15306,7 @@
     gamecfg: 'このゲームの設定', players: 'プレイヤー', topics: 'お題を追加',
     room: '部屋', roomcode: '部屋コード', app: 'アプリ全体',
     sound: '音量', speech: '読み上げ', display: '見た目と演出',
+    safety: '安全に関する設定',
     records: '記録', danger: '危険な操作'
   };
   function inRoomNow(){ return !!(rt && rt.state.room); }
@@ -14874,7 +15371,10 @@
   var SET_APP_ITEMS = [
     { icon:'🔊', label:'音量', page:'sound', sub:'効果音と読み上げを別々に' },
     { icon:'🗣', label:'読み上げ', page:'speech', sub:'速さと声' },
-    { icon:'🎨', label:'見た目と演出', page:'display', sub:'演出の速さ・明るさ・文字サイズ・振動' },
+    { icon:'🎨', label:'見た目と演出', page:'display', sub:'明るさ・文字サイズ' },
+    // 第32弾-D 第4部：体に触る演出（光・揺れ・振動・体を動かす）は1か所にまとめる
+    { icon:'🛡', label:'安全に関する設定', page:'safety',
+      sub:'光の点滅・画面の揺れ・振動・演出の速さ' },
     { icon:'🏷', label:'アイコン・二つ名', act:'titles',
       when:loggedIn, sub:'集めたものから選びます' },
     { icon:'💾', label:'記録', page:'records', when:loggedIn, sub:'保存の設定と、記録を見る' }
@@ -14987,7 +15487,7 @@
     if(page === 'room'){ renderSetRoom(); return; }
     if(page === 'roomcode'){ renderSetRoomCode(); return; }
     if(page === 'app'){ el('setAppMenu').innerHTML = setMenuHtml(SET_APP_ITEMS); return; }
-    if(page === 'sound' || page === 'speech' || page === 'display'){ renderSetPrefs(); return; }
+    if(page === 'sound' || page === 'speech' || page === 'display' || page === 'safety'){ renderSetPrefs(); return; }
     if(page === 'records'){ renderSetRecords(); return; }
     if(page === 'danger'){
       var host = inRoomNow() && rt.isHost();
@@ -15148,6 +15648,13 @@
     el('setFont').value = appPrefs.fontScale;
     el('setFontValue').textContent = appPrefs.fontScale;
     el('setVibrateToggle').classList.toggle('on', appPrefs.vibrate);
+    // 第32弾-D 第4部：安全に関する設定
+    el('setFlashToggle').classList.toggle('on', appPrefs.fxFlash);
+    el('setShakeToggle').classList.toggle('on', appPrefs.fxShake);
+    el('setBodyToggle').classList.toggle('on', appPrefs.fxBody);
+    // 第32弾-D 第1部：BGMの音量
+    el('setBgmVol').value = appPrefs.bgmVolume;
+    el('setBgmVolValue').textContent = appPrefs.bgmVolume;
   }
   function bindPref(id, key, labelId, fmt){
     el(id).addEventListener('input', function(){
@@ -15159,6 +15666,7 @@
   }
   bindPref('setSeVol', 'seVolume', 'setSeVolValue');
   bindPref('setSpeechVol', 'speechVolume', 'setSpeechVolValue');
+  bindPref('setBgmVol', 'bgmVolume', 'setBgmVolValue');
   bindPref('setRate', 'speechRate', 'setRateValue', function(v){ return (v / 100).toFixed(2); });
   bindPref('setBright', 'brightness', 'setBrightValue');
   bindPref('setFont', 'fontScale', 'setFontValue');
@@ -15176,6 +15684,19 @@
     appPrefs.vibrate = !appPrefs.vibrate;
     saveAppPrefs(); renderSetPrefs();
     if(appPrefs.vibrate) doVibrate(40); // ONにした時だけ、効いていることを1回だけ伝える
+  });
+  // 第32弾-D 第4部：安全に関する設定。切り替えた瞬間から効く
+  el('setFlashToggle').addEventListener('click', function(){
+    appPrefs.fxFlash = !appPrefs.fxFlash;
+    applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
+  });
+  el('setShakeToggle').addEventListener('click', function(){
+    appPrefs.fxShake = !appPrefs.fxShake;
+    applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
+  });
+  el('setBodyToggle').addEventListener('click', function(){
+    appPrefs.fxBody = !appPrefs.fxBody;
+    saveAppPrefs(); renderSetPrefs();
   });
   el('setSeTestBtn').addEventListener('click', function(){ snipSound(); });
   el('setSpeechTestBtn').addEventListener('click', function(){
@@ -15724,7 +16245,13 @@
         good: function(){ beep(880, 140); },
         bad:  wrongSound,
         tick: function(){ beep(1200, 45); },
-        big:  fanfareSound
+        big:  fanfareSound,
+        cheer: cheerSound   // 第32弾-D 4-3：勝利の瞬間の歓声
+      },
+      // 第32弾-D 第4部：安全に関する設定。切り替えた瞬間から効くよう関数で渡す
+      can: {
+        flash: function(){ return appPrefs.fxFlash; },
+        shake: function(){ return appPrefs.fxShake; }
       }
     });
   }
@@ -15775,6 +16302,40 @@
     }catch(e){}
   }
 
+  /**
+   * 第32弾-D 第4部：初めて起動した時だけ、扉が開く前に安全の案内を出す。
+   * 読ませるだけでなく、その場でOFFにできる（実際に自衛できる手段にする）。
+   * 2回目以降は出さない。設定はいつでも「安全に関する設定」から変えられる。
+   */
+  var SAFETY_SEEN_KEY = 'acac-safety-seen';
+  function maybeShowSafetyGate(){
+    var seen = false;
+    try{ seen = !!localStorage.getItem(SAFETY_SEEN_KEY); }catch(e){}
+    if(seen) return false;
+    var gate = el('safetyGate');
+    if(!gate) return false;
+    function syncGate(){
+      el('sgFlashBtn').classList.toggle('on', appPrefs.fxFlash);
+      el('sgShakeBtn').classList.toggle('on', appPrefs.fxShake);
+    }
+    el('sgFlashBtn').addEventListener('click', function(){
+      appPrefs.fxFlash = !appPrefs.fxFlash;
+      applyAppPrefs(); saveAppPrefs(); syncGate();
+    });
+    el('sgShakeBtn').addEventListener('click', function(){
+      appPrefs.fxShake = !appPrefs.fxShake;
+      applyAppPrefs(); saveAppPrefs(); syncGate();
+    });
+    el('sgStartBtn').addEventListener('click', function(){
+      try{ localStorage.setItem(SAFETY_SEEN_KEY, '1'); }catch(e){}
+      gate.style.display = 'none';
+      setTimeout(openDoorAndEnter, 240);
+    });
+    syncGate();
+    gate.style.display = 'flex';
+    return true;
+  }
+
   document.addEventListener('DOMContentLoaded', function(){
     loadLocalPrefs();
     // 第32弾-B-1：音量・文字サイズなどは、起動した瞬間から効いていてほしい
@@ -15783,7 +16344,12 @@
     loadTitleGotAt();
     startFx();
     startEmojiSwap();
-    setTimeout(openDoorAndEnter, 240); // タップ不要で自動的に開く
+    // 第32弾-D 第1部：BGMの見回り。鳴らす場面かどうかを1か所で判断し続ける
+    setInterval(bgmSync, 500);
+    // 初回だけ安全の案内が先。「はじめる」を押したら扉が開く
+    if(!maybeShowSafetyGate()){
+      setTimeout(openDoorAndEnter, 240); // タップ不要で自動的に開く
+    }
   });
 })();
 </script>

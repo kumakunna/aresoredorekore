@@ -275,5 +275,56 @@ function freshFx() {
     assert(true, '落ちない');
   });
 
+  // ---------- 第32弾-D：揺れ・紙吹雪・コールアウト・振動 ----------
+
+  await r.test('画面の揺れ：0.2秒以内に1回だけで、終わったら消える', async () => {
+    const { Fx, app } = freshFx();
+    const p = Fx.shake();
+    assert(app.classList.contains('fx-shake'), '揺れている');
+    await p;
+    assert(!app.classList.contains('fx-shake'), '揺れは残らない（繰り返さない）');
+  });
+
+  await r.test('画面の揺れ：「画面の揺れをつかう」を切っている人には出さない', async () => {
+    const { Fx, app } = freshFx();
+    Fx.init({ can: { shake: () => false } });
+    await Fx.shake('big');
+    assert(!app.classList.contains('fx-shake') && !app.classList.contains('fx-shake-big'),
+      '設定を切っていれば揺れない');
+  });
+
+  await r.test('紙吹雪：舞って、終わったら片付く。歓声も重なる', async () => {
+    const { Fx, app, log } = freshFx();
+    Fx.init({ sound: { cheer: () => log.sounds.push('cheer') } });
+    const p = Fx.confetti(['#f0c44a']);
+    const box = app.querySelector('.fx-confetti');
+    assert(box && box.children.length > 20, '紙吹雪が舞う');
+    assert(log.sounds.indexOf('cheer') >= 0, '歓声が重なる（4-3）');
+    Fx.skipNow();
+    await p;
+    assert(!app.querySelector('.fx-confetti'), '終わったら残らない');
+  });
+
+  await r.test('コールアウト：短い英単語が出て、消える', async () => {
+    const { Fx, app } = freshFx();
+    const p = Fx.callout('TIEBREAKER', { kind: 'danger' });
+    const n = app.querySelector('.fx-callout');
+    assert(n && /TIEBREAKER/.test(n.textContent), '言葉が出る');
+    assert(n.classList.contains('fx-callout-danger'), '場面に合わせた色になる');
+    Fx.skipNow();
+    await p;
+    assert(!app.querySelector('.fx-callout'), '出しっぱなしにならない');
+  });
+
+  await r.test('場面に合わせた振動：名前で呼べて、パターンで震える', async () => {
+    const { Fx, log } = freshFx();
+    Fx.vibe('rise');
+    assert(Array.isArray(log.vibes[0]) && log.vibes[0].length > 4, '鼓動が速くなるパターン');
+    Fx.vibe('sold');
+    assert(log.vibes.length === 2, '木槌の1回');
+    Fx.vibe('しらないなまえ');
+    assert(log.vibes.length === 3, '知らない名前でも落ちずに短く震える');
+  });
+
   r.finish();
 })();

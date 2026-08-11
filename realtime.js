@@ -660,21 +660,32 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     return true;
   }
 
+  /**
+   * 誰かが居なくなった（切断・退室・kick）あとの共通処理。
+   * 残っている人だけで全員済みになっていれば、ここで先へ進める。
+   * 第21弾で切断にだけ入れていた数え直しを、第35弾Bで退室・kickにも通す
+   * （退室では数え直しておらず、最後の待ち相手が抜けると全員が待ちっぱなしだった。
+   *  時間制限の無い段階では無期限に止まる。実機報告のバグ）。
+   */
+  function settleAfterMemberGone(room) {
+    const dr = driverOf(room);
+    if (dr && dr.isAllDone(room)) {
+      dr.advance(room);
+      pushWolfState(room);
+      return true;
+    }
+    broadcast(room);
+    return false;
+  }
+
   function markDisconnected(member, room) {
     if (!member.connected) return;
     member.connected = false;
     member.socketId = null;
     const changed = ensureHost(room, 'disconnect');
     if (!connectedMembers(room).length) room.emptySince = Date.now();
-    // 第21弾：切れた人は待たない。残っている人が全員終わっていれば、
-    // ここで先へ進める。数え直さないと、最後の1人が切れた時に止まったままになる。
-    const dr = driverOf(room);
-    if (dr && dr.isAllDone(room)) {
-      dr.advance(room);
-      pushWolfState(room);
-      return changed;
-    }
-    broadcast(room);
+    // 第21弾：切れた人は待たない。数え直さないと、最後の1人が切れた時に止まったままになる
+    settleAfterMemberGone(room);
     return changed;
   }
 
@@ -1045,7 +1056,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       ensureHost(room, 'kick');
       if (!connectedMembers(room).length) room.emptySince = Date.now();
       if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
-      broadcast(room);
+      // 出した人が最後の待ち相手だったら、残った人の待ちをここで解く（第35弾B）
+      settleAfterMemberGone(room);
     });
 
     socket.on('room:leave', (payload, cb) => {
@@ -1065,7 +1077,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         socket.leave('room:' + room.code);
         ensureHost(room, 'leave');
         if (!connectedMembers(room).length) room.emptySince = Date.now();
-        broadcast(room);
+        // 抜けた人が最後の待ち相手だったら、残った人の待ちをここで解く（第35弾B）
+        settleAfterMemberGone(room);
       }
       socket.data.roomCode = null;
       socket.data.memberId = null;

@@ -136,6 +136,46 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  // ---- 退室・kickでゲームが止まらないこと（第35弾B・実機報告のバグ） ----
+
+  await r.test('待っている最後の1人が退室したら、その瞬間に段階が進む（全員が待ちっぱなしにならない）', async () => {
+    // 実機報告：「誰かが部屋を抜けたときに、残っているメンバーに反映されない」。
+    // 切断（markDisconnected）は isAllDone を数え直して進めるのに、
+    // room:leave は数え直していなかった。時間制限の無い段階だと無期限に止まる
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 4);
+      const start = await rm.host.call(RT_START_EVENT, RT_START_MIN_CONFIG.wolfrole);
+      assertEqual(start.ok, true, '人狼が始まる');
+      // 役職確認は全員必須。3人だけ確認した状態を作る
+      for (const d of [rm.host, rm.guests[0], rm.guests[1]]) {
+        const res = await d.call('wolf:act', { targetId: null });
+        assertEqual(res.ok, true, '確認できる');
+      }
+      assertEqual(srv.store.get(rm.code).wolf.phase, 'roleReveal', 'まだ全員待ち');
+      // 最後の1人（4人目）が部屋を出る
+      await rm.guests[2].call('room:leave', { code: rm.code, memberId: rm.guests[2].memberId });
+      await waitUntil(() => srv.store.get(rm.code).wolf.phase !== 'roleReveal',
+        '残った3人の待ちが解けて、次の段階へ進む');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('待っている最後の1人を進行役が出したら、その瞬間に段階が進む', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 4);
+      await rm.host.call(RT_START_EVENT, RT_START_MIN_CONFIG.wolfrole);
+      for (const d of [rm.host, rm.guests[0], rm.guests[1]]) {
+        await d.call('wolf:act', { targetId: null });
+      }
+      assertEqual(srv.store.get(rm.code).wolf.phase, 'roleReveal', 'まだ全員待ち');
+      const res = await rm.host.call('room:kick', { memberId: rm.guests[2].memberId });
+      assertEqual(res.ok, true, '出せる');
+      await waitUntil(() => srv.store.get(rm.code).wolf.phase !== 'roleReveal',
+        '残った3人の待ちが解けて、次の段階へ進む');
+    } finally { await srv.close(); }
+  });
+
   // ---- 追加漏れ検出（第35弾B：カセットのゲームと検証マトリクス） ----
 
   await r.test('カセットの全ゲームが、部屋対応（GAME_DRIVERS）か手渡し専用宣言のどちらかに入っている', async () => {

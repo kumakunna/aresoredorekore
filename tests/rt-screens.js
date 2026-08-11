@@ -3177,6 +3177,40 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     }
   });
 
+  await r.test('誰かが部屋を抜けたら、残っている人に「抜けました」と伝わる', async () => {
+    // 実機報告（第35弾B）：切断は「席を外しました」が出るのに、
+    // 退室・kickで名簿から消えた人は無言で消えていた。
+    // 気づかないまま「あの人の入力待ちかな」と待ち続けてしまう
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // まず全員そろった公開情報が一度届く（本番では入った直後に必ず配られる）
+    push(fake, roomSnapshot());
+    await sleep(win, 100);
+    // でん（m4）が部屋を抜けた（名簿から消えた公開情報が届く）
+    const snap = roomSnapshot();
+    snap.members = snap.members.filter(m => m.id !== 'm4');
+    snap.playerCount = 4; snap.memberCount = 4;
+    push(fake, snap);
+    await waitFor(win, () => {
+      const box = doc.getElementById('fxNotices');
+      return box && /でん/.test(box.textContent) && /抜けました/.test(box.textContent);
+    }, 2000, '「でんさんが部屋を抜けました」と出る');
+    assertNoErrors(errors, '退室の知らせで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('自分が部屋に入り直した直後に、他の人の「抜けました」が誤って出ない', async () => {
+    // 差分の取り方を間違えると、部屋に入った瞬間（前の記憶が無い状態）や
+    // 別の部屋に移った時に、大量の誤通知が出る。初回は覚えるだけにする
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    await sleep(win, 150);
+    const box = doc.getElementById('fxNotices');
+    assert(!box || !/抜けました/.test(box.textContent), '入った直後に誤通知が無い');
+    assertNoErrors(errors, '入室直後の通知で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('すべての「← 部屋を出る」ボタンが、同じ退室処理につながっている（正本ループ）', async () => {
     // ボタンは7画面に散らばっている。1つずつ手書きすると、画面を足した時に漏れる。
     // 正本（ROOM_EXIT_PATHS）の btn 持ちを全部回す

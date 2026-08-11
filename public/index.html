@@ -1310,6 +1310,18 @@
     color:#c62828;font-weight:700;font-size:13.5px;line-height:1.9;
     background:#fdecea;border:1px solid #f2b8b2;border-radius:10px;padding:10px 12px;
   }
+  /* 第32弾-F：季節の装飾（夏）。背景・小物だけ。操作と中身には一切触らない */
+  #seasonDeco{position:fixed;top:8px;right:12px;z-index:5;pointer-events:none;opacity:.5;font-size:22px;}
+  #seasonDeco .sd-b{display:none;}
+  /* 夜のテーマ（人狼）では、風鈴のかわりに遠くの花火が見える */
+  .app.season-summer.theme-jinro #seasonDeco .sd-a{display:none;}
+  .app.season-summer.theme-jinro #seasonDeco .sd-b{display:inline;}
+  /* 棚：夏の空気をうっすら重ねる（読みやすさを損なわない濃さに留める） */
+  .app.season-summer #scr-shelf{
+    background-image:linear-gradient(180deg, rgba(110,190,255,.14), rgba(110,190,255,0) 40%);
+  }
+  /* 扉：ようこその一言に風鈴をひとつ */
+  .app.season-summer #scr-door .door-lead::after{content:' 🎐';}
   /* 第22弾-1：ログイン画面の「または」区切りと、部屋コードのQR */
   .join-divider{display:flex;align-items:center;gap:10px;margin:18px 0 12px;color:var(--ink-soft);font-size:12px;}
   .join-divider::before, .join-divider::after{content:'';flex:1;height:1px;background:var(--line);}
@@ -2389,6 +2401,8 @@
     <div class="shelf-head">
       <div class="logo">あつまれ<span class="c">、</span>あれこれ</div>
       <div class="sub" id="shelfSub">あそぶゲームをえらんでね</div>
+      <!-- 第32弾-F：期間中だけの控えめな一言。「あと〇日」のような焦らせる表示は出さない -->
+      <div class="mic-status" id="seasonBadge" style="display:none;text-align:center;margin-top:4px;"></div>
       <!-- 第32弾-A：最初に選ばされたあそびかたを、ここでいつでも変えられる -->
       <button class="shelf-flow" id="shelfFlowBtn">📱 1台であそぶ　▾</button>
     </div>
@@ -2543,6 +2557,8 @@
   </div>
 
   <!-- 第32弾-B-2：手に入った瞬間。結果画面のあとに1回だけ出す -->
+  <!-- 第32弾-F：季節の小物（期間中だけ）。操作の邪魔をしない縁の飾り -->
+  <div id="seasonDeco" aria-hidden="true" style="display:none;"><span class="sd-a">🎐</span><span class="sd-b">🎆</span></div>
   <!-- 第32弾-E 第4部：リアクション。部屋のゲーム画面でだけ出る小さな帯 -->
   <div id="reactBar" style="display:none;"></div>
   <!-- 第32弾-E 第5部：感謝を贈る。決着した時だけ出る -->
@@ -4676,6 +4692,22 @@
       if(typeof myTitles.stats[cassette][k] !== 'number') return; // 知らないカウンタは無視
       myTitles.stats[cassette][k] += (add[k] || 0);
     });
+    // 第32弾-F：どのカセットの award もここを通るので、季節の分もここで数える。
+    // 数えるのは「期間中に、実際に集まって遊んだこと」だけ。
+    // ログイン・起動では何も増えない（毎日開かせる仕組みは絶対に作らない）。
+    // 期間外は seasonFor が null を返すので、完全に無効になる
+    if(cassette !== 'season' && add.plays >= 1){
+      var season = TitleLogic.seasonFor();
+      if(season && myTitles.stats.season){
+        var players = (rt && rt.state.room) ? rt.state.room.playerCount : state.players.length;
+        if(typeof myTitles.stats.season[season.id + 'Plays'] === 'number'){
+          myTitles.stats.season[season.id + 'Plays'] += 1;
+        }
+        if(players >= 5 && typeof myTitles.stats.season[season.id + 'Crowd'] === 'number'){
+          myTitles.stats.season[season.id + 'Crowd'] += 1;
+        }
+      }
+    }
     myTitles.unlocked = TitleLogic.mergeUnlocked(myTitles.unlocked, myTitles.stats);
     var got = TitleLogic.newlyUnlocked(before, myTitles.unlocked);
     saveTitles();
@@ -4814,6 +4846,7 @@
   // カセットのid → 画面に出す名前。カセットの一覧から作るので、増えても書き足さない
   function titleCassetteLabel(id){
     if(!id) return '最初から使えるもの';
+    if(id === 'season') return '季節のイベント';   // 第32弾-F：カセットではないまとまり
     var c = cassetteById(id === 'aresore' ? 'aresoredorekore' : id);
     if(c) return (c.title || id).replace(/<br>/g, '');
     return id;
@@ -16717,6 +16750,31 @@
    * 読ませるだけでなく、その場でOFFにできる（実際に自衛できる手段にする）。
    * 2回目以降は出さない。設定はいつでも「安全に関する設定」から変えられる。
    */
+  /**
+   * 第32弾-F：季節の装飾を当てる。
+   * 期間と中身は titles.js の SEASONS が持つ（コードを書き換えずに増やせる）。
+   * 変えるのは背景・小物・控えめな一言だけで、カセットの中身・操作には一切触らない。
+   */
+  function applySeason(){
+    if(typeof TitleLogic === 'undefined' || !TitleLogic.seasonFor) return;
+    var app = el('app');
+    var s = TitleLogic.seasonFor();
+    (TitleLogic.SEASONS || []).forEach(function(x){ app.classList.remove(x.theme); });
+    var badge = el('seasonBadge');
+    var deco = el('seasonDeco');
+    if(!s){
+      if(badge) badge.style.display = 'none';
+      if(deco) deco.style.display = 'none';
+      return;
+    }
+    app.classList.add(s.theme);
+    if(deco) deco.style.display = 'block';
+    if(badge){
+      badge.style.display = 'block';
+      badge.textContent = s.icon + ' ' + s.label + ' 開催中（期間中に集まって遊ぶと、記念のパーツが手に入ります）';
+    }
+  }
+
   var SAFETY_SEEN_KEY = 'acac-safety-seen';
   function maybeShowSafetyGate(){
     var seen = false;
@@ -16754,6 +16812,7 @@
     loadTitleGotAt();
     startFx();
     startEmojiSwap();
+    applySeason();   // 第32弾-F：期間中なら、季節の装飾を重ねる（期間外は何も起きない）
     // 第32弾-D 第1部：BGMの見回り。鳴らす場面かどうかを1か所で判断し続ける
     setInterval(bgmSync, 500);
     // 初回だけ安全の案内が先。「はじめる」を押したら扉が開く

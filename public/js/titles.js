@@ -96,8 +96,40 @@
       doubleHits: 0,        // ダブルアップで当たりを引いた
       allInWins: 0,         // 持ちチップを全部出して落札し、勝った
       quietWins: 0          // 一度も落札せずに勝った
+    },
+    // ---- 第32弾-F：季節イベント ----
+    // 数えるのは「期間中に、実際に集まって遊んだこと」だけ。
+    // ログイン・起動の回数は数えない（毎日開かせる仕組みは作らない）
+    season: {
+      summerPlays: 0,       // 夏まつりの期間中に、集まって遊んだ回数
+      summerCrowd: 0        // うち、5人以上で遊んだ回数
     }
   };
+
+  // ===== 第32弾-F：季節イベントの期間 =====
+  // 「期間」を1件登録すれば季節が増える形。コードの書き換えでON/OFFしない。
+  // 月・日で判定するので、毎年その期間になれば自動で始まり、過ぎれば自動で終わる。
+  // 一度手に入れた称号は、期間が終わっても永久に残る（それが「あの夏の記念」になる）。
+  var SEASONS = [
+    { id: 'summer', label: '夏まつり', icon: '🎐', theme: 'season-summer',
+      from: { m: 7, d: 1 }, to: { m: 8, d: 31 } }
+    // 正月・春・ハロウィン・クリスマスなどは、ここに1件足し、
+    // season のカウンタと CATALOG のパーツを添えるだけでよい
+  ];
+  // いまの季節。期間外は null（装飾も獲得条件も、完全に無効になる）
+  function seasonFor(date) {
+    var d = date || new Date();
+    var md = (d.getMonth() + 1) * 100 + d.getDate();
+    for (var i = 0; i < SEASONS.length; i++) {
+      var s = SEASONS[i];
+      var a = s.from.m * 100 + s.from.d;
+      var b = s.to.m * 100 + s.to.d;
+      // 年またぎ（12月末〜1月の正月など）にも対応しておく
+      var hit = (a <= b) ? (md >= a && md <= b) : (md >= a || md <= b);
+      if (hit) return s;
+    }
+    return null;
+  }
 
   function emptyStats() {
     var out = {};
@@ -159,6 +191,14 @@
       { id: 'icon-are-seal', cassette: 'aresore', emoji: '🚫', label: '封印破りの証',
         hint: '封印ワードモードで1回でも正解させる',
         need: function (s) { return s('aresore', 'sealedSuccess') >= 1; } },
+      // ---- 第32弾-F：季節限定（夏）。期間中に集まって遊んだ人だけ。
+      //      一度手に入れたら、夏が終わっても永久に残る ----
+      { id: 'icon-season-summer', cassette: 'season', emoji: '🎐', label: 'あの夏の記念',
+        hint: '夏まつり（7/1〜8/31）の間に、みんなで集まって1回あそぶ',
+        need: function (s) { return s('season', 'summerPlays') >= 1; } },
+      { id: 'icon-season-hanabi', cassette: 'season', emoji: '🎆', label: '夏の夜空の証',
+        hint: '夏まつりの間に、5人以上で集まってあそぶ',
+        need: function (s) { return s('season', 'summerCrowd') >= 1; } },
       // ---- 第32弾-B-2：爆弾解除 ----
       { id: 'icon-bomb-1', cassette: 'bakudan', emoji: '💣', label: '解除班の証',
         hint: '爆弾解除カセットを1回あそぶ',
@@ -207,6 +247,11 @@
 
     first: [
       { id: 'first-hajime', cassette: null, label: 'はじめ', free: true, hint: '最初から使えます' },
+
+      // 第32弾-F：季節限定（夏）
+      { id: 'first-natsu', cassette: 'season', label: 'なつまつりの',
+        hint: '夏まつり（7/1〜8/31）の間に、みんなで集まって3回あそぶ',
+        need: function (s) { return s('season', 'summerPlays') >= 3; } },
 
       { id: 'first-utagai', cassette: 'jinro', label: '疑り深き',
         hint: '投票でウルフ・人狼を正しく当てた回数が5回以上',
@@ -533,6 +578,8 @@
     PART_KEYS: ['icon'].concat(PARTS),
     DEFAULTS: DEFAULTS,
     STAT_SHAPE: STAT_SHAPE,
+    SEASONS: SEASONS,       // 第32弾-F：季節イベントの期間と装飾のまとまり
+    seasonFor: seasonFor,   // いまの季節（期間外は null）
     emptyStats: emptyStats,
     normalizeStats: normalizeStats,
     partsOf: partsOf,

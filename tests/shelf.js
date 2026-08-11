@@ -847,6 +847,9 @@ function pickCart(doc, id) {
   await r.test('手に入った瞬間に、何をなぜ手に入れたかが大きく出る', async () => {
     const { win, doc, errors } = await launch();
     win.confirm = () => true;
+    // このテストが見るのは演出の仕組み。実行する日が季節イベント中だと
+    // 季節のパーツも同時に手に入って装備が変わるので、季節は切っておく
+    win.TitleLogic.seasonFor = () => null;
     // あれそれどれこれを1回あそぶと「はじめの参加証」が手に入る
     await setupPlayers(win, doc);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -916,6 +919,70 @@ function pickCart(doc, id) {
     assertEqual(t.win.FxKit._cfg.can.flash(), false, '演出部品からも見える');
     assertNoErrors(t.errors, '安全に関する設定で未捕捉の例外');
     t.win.close();
+  });
+
+  // ---- 第32弾-F：季節イベント ----
+
+  // あれそれどれこれを1ラウンド遊びきる（季節の数えは、遊んだ事実だけに紐づく）
+  async function playOneRound(t){
+    await setupPlayers(t.win, t.doc);
+    await waitScreen(t.win, t.doc, 'scr-mode', 3000);
+    click(t.doc, 'modeAutoBtn');
+    await sleep(t.win, 80);
+    if (activeScreen(t.doc) === 'scr-mode-rules') { click(t.doc, 'rulesStartBtn'); await sleep(t.win, 60); }
+    await waitScreen(t.win, t.doc, 'scr-ready', 3000);
+    el(t.doc, 'holdBtn').dispatchEvent(new t.win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(t.win, t.doc, 'scr-play', 8000);
+    click(t.doc, 'btnCorrect');
+    await sleep(t.win, 80);
+    const who = t.doc.querySelectorAll('#pickerGrid button[data-id]');
+    if (who.length) { who[0].click(); await sleep(t.win, 120); }
+    click(t.doc, 'endRoundBtn');
+    await waitScreen(t.win, t.doc, 'scr-score', 8000);
+    await waitFor(t.win, () => (t.win.__titlePuts || []).length >= 1, 4000, '称号を預けにいく');
+    const puts = t.win.__titlePuts;
+    return puts[puts.length - 1].stats;
+  }
+
+  await r.test('季節イベント：期間中に集まって遊ぶと、その1回だけが数えられる（第32弾-F）', async () => {
+    const t = await launch();
+    // 期間の判定だけ差し替える（実行する日の日付に左右されないテストにする）
+    t.win.TitleLogic.seasonFor = () => ({ id: 'summer', label: '夏まつり', icon: '🎐', theme: 'season-summer' });
+    const stats = await playOneRound(t);
+    assertEqual(stats.season.summerPlays, 1, '集まって遊んだ1回が数えられる');
+    assertEqual(stats.season.summerCrowd, 0, '2人では「5人以上」は数えない');
+    assertNoErrors(t.errors, '季節の数えで未捕捉の例外');
+    t.win.close();
+  });
+
+  await r.test('季節イベント：期間外は、獲得条件が完全に無効', async () => {
+    const t = await launch();
+    t.win.TitleLogic.seasonFor = () => null;   // 期間外
+    const stats = await playOneRound(t);
+    assertEqual(stats.season.summerPlays, 0, '期間外は1つも増えない');
+    assertEqual(stats.season.summerCrowd, 0, '同上');
+    assertNoErrors(t.errors, '期間外の扱いで未捕捉の例外');
+    t.win.close();
+  });
+
+  await r.test('季節イベント：棚の一言は開催の事実だけ（焦らせる表示は無い）', async () => {
+    const { win, doc, errors } = await launch();
+    // 実行する日によって開催中かどうかは変わる。どちらの場合も約束を守っていること
+    const active = win.TitleLogic.seasonFor();
+    const badge = el(doc, 'seasonBadge');
+    if (active) {
+      assert(badge.style.display !== 'none', '開催中は控えめな一言が出る');
+      assert(/開催中/.test(badge.textContent), '開催していることが分かる');
+      assert(!/あと\s*\d+\s*日|残り|終了まで/.test(badge.textContent),
+        '「あと〇日」のような、焦らせる表示は出さない');
+      assert(el(doc, 'app').classList.contains(active.theme), '季節の装飾クラスが当たっている');
+      assert(el(doc, 'seasonDeco').style.display !== 'none', '小物の飾りが出る');
+    } else {
+      assertEqual(badge.style.display, 'none', '期間外は何も出ない');
+      assertEqual(el(doc, 'seasonDeco').style.display, 'none', '飾りも出ない');
+    }
+    assertNoErrors(errors, '季節の装飾で未捕捉の例外');
+    win.close();
   });
 
   await r.test('手に入った演出は、スキップも「今後出さない」もできる', async () => {

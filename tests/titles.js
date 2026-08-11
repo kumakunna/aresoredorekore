@@ -114,7 +114,11 @@ const CASES = [
   ['last-serinin', 'auction', { wins: 4 }, { wins: 5 }],
   ['last-kanteishi', 'auction', { appraises: 9 }, { appraises: 10 }],
   ['last-daishonin', 'auction', { bestProfit: 14 }, { bestProfit: 15 }],
-  ['last-godan-auc', 'auction', { duds: 1 }, { duds: 1, wins: 1 }]
+  ['last-godan-auc', 'auction', { duds: 1 }, { duds: 1, wins: 1 }],
+  // ---- 第32弾-F：季節イベント（夏） ----
+  ['icon-season-summer', 'season', {}, { summerPlays: 1 }],
+  ['icon-season-hanabi', 'season', { summerPlays: 9 }, { summerCrowd: 1 }],
+  ['first-natsu', 'season', { summerPlays: 2 }, { summerPlays: 3 }]
 ];
 
 (async function main() {
@@ -217,6 +221,36 @@ const CASES = [
     assertEqual(s.jinro.plays, 0, 'マイナスは0に直す');
     assertEqual(s.jinro.wins, 0, '数でないものは0に直す');
     assertEqual(s.aresore.plays, 0, '足りないカセットは0で埋める');
+  });
+
+  // ---- 第32弾-F：季節イベント ----
+
+  await r.test('季節イベント：期間の判定は月日で決まり、境界の外は完全に無効', async () => {
+    const d = (y, m, dd) => new Date(y, m - 1, dd, 12);
+    assertEqual(T.seasonFor(d(2026, 6, 30)), null, '6/30はまだ始まっていない');
+    assertEqual((T.seasonFor(d(2026, 7, 1)) || {}).id, 'summer', '7/1から夏まつり');
+    assertEqual((T.seasonFor(d(2026, 8, 31)) || {}).id, 'summer', '8/31まで夏まつり');
+    assertEqual(T.seasonFor(d(2026, 9, 1)), null, '9/1にはもう終わっている');
+    // 年が変わっても同じ期間で自動的に始まる（毎年の夏が同じ記念になる）
+    assertEqual((T.seasonFor(d(2031, 8, 10)) || {}).id, 'summer', '来年以降の夏も同じ');
+  });
+
+  await r.test('季節イベント：夏の称号は「期間中に集まって遊んだ数」だけで手に入る', async () => {
+    assert(!has(stats('season', { summerPlays: 0 }), 'icon-season-summer'), '遊んでいなければ手に入らない');
+    assert(has(stats('season', { summerPlays: 1 }), 'icon-season-summer'), '1回集まれば記念のアイコン');
+    assert(!has(stats('season', { summerPlays: 2 }), 'first-natsu'), '2回では二つ名はまだ');
+    assert(has(stats('season', { summerPlays: 3 }), 'first-natsu'), '3回で「なつまつりの」');
+    assert(!has(stats('season', { summerPlays: 9 }), 'icon-season-hanabi'), '回数だけでは花火は出ない');
+    assert(has(stats('season', { summerCrowd: 1 }), 'icon-season-hanabi'), '5人以上で集まると花火');
+  });
+
+  await r.test('季節イベント：一度手に入れたパーツは、期間が終わっても永久に残る', async () => {
+    const un = T.mergeUnlocked([], stats('season', { summerPlays: 3, summerCrowd: 1 }));
+    assert(un.indexOf('first-natsu') >= 0, 'まず手に入れる');
+    // 期間が終わる＝もう数えられないだけ。成績が空でも、獲得済みの一覧からは消えない
+    const later = T.mergeUnlocked(un, T.emptyStats());
+    assert(later.indexOf('first-natsu') >= 0 && later.indexOf('icon-season-summer') >= 0
+      && later.indexOf('icon-season-hanabi') >= 0, 'あの夏の記念は消えない');
   });
 
   await r.test('サバイバル：ラウンドを最下位で迎えた人だけが「最下位候補」になる', async () => {

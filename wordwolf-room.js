@@ -68,6 +68,7 @@ function startGame(room, config) {
     revealVoteOf: null,    // まきこみ役が指名した人
     votes: {},
     voteRounds: [],
+    scoredUpTo: 0,  // 第35弾B：ターンごと採点（scoreTurn）が、どこまで数え終わったか
     executedIds: [],
     last: null,            // 直前の投票の結果
     runoff: null,
@@ -144,7 +145,10 @@ function roundResultView(w) {
       sheepLeft: WW.sheepAlive(w).length,
       winner: w.exec.winner
     } : null,
-    continues: continues(w)
+    continues: continues(w),
+    // 第35弾B：次のターンでお題が変わるかどうか。画面の「お題はこのままです／
+    // 新しいお題です」の出し分けに使う（設定を見ずに「このまま」と出して誤表示だった）
+    changeTopic: !!w.changeTopic
   };
   // まだ続く回では、処刑された人がウルフだったかを伏せる。
   // ただしウルフが1人の設定では「続く＝外した」がルール上すぐ分かるので、そこは書く。
@@ -374,6 +378,11 @@ function advance(room) {
   }
   if (w.phase === PHASE.ROUND_RESULT) {
     if (w.exec && !w.exec.winner) { startVotePhase(room); return { changed: true }; }
+    // 第35弾B：お題を変える遊び方は、ターンごとに配役を引き直す。
+    // だから得点も、ターンが決まったこの場で「そのターンの配役のまま」数える。
+    // 決着時にまとめて数えると、前のターンの票が最終ターンの配役で採点され、
+    // ターン1でウルフを当てた人の+1が消えていた（実機で発生。手渡し版は毎ターン加点で正しい）
+    if (w.changeTopic) scoreTurn(w);
     if (continues(w)) {
       w.turn++;
       if (w.changeTopic) newTopic(w);
@@ -422,11 +431,23 @@ function newTopic(w) {
   w.revealVoteOf = null;
 }
 
+// そのターンのぶんだけを、いまの配役で採点して積む（お題を変える遊び方用）
+function scoreTurn(w) {
+  const turnRounds = w.voteRounds.slice(w.scoredUpTo || 0);
+  if (!turnRounds.length) return;
+  const deltas = WW.scoreRound(Object.assign({}, w, { voteRounds: turnRounds }));
+  Object.keys(deltas).forEach((id) => { w.scores[id] = (w.scores[id] || 0) + deltas[id]; });
+  w.scoredUpTo = w.voteRounds.length;
+}
+
 function finish(room) {
   const w = room.wordwolf;
-  // 配点は共通層。ターンごとに積み上げる
-  const deltas = WW.scoreRound(w);
-  Object.keys(deltas).forEach((id) => { w.scores[id] = (w.scores[id] || 0) + deltas[id]; });
+  // 配点は共通層。お題を変える遊び方はターンごとに数え終わっている（scoreTurn）ので、
+  // ここで数え直さない（二重加点と、古い配役での誤採点を防ぐ）
+  if (!w.changeTopic) {
+    const deltas = WW.scoreRound(w);
+    Object.keys(deltas).forEach((id) => { w.scores[id] = (w.scores[id] || 0) + deltas[id]; });
+  }
   if (w.multiTurn && !w.changeTopic) {
     w.winner = WW.verdict(w).caught ? 'sheep' : 'wolf';
   } else if (!w.multiTurn) {

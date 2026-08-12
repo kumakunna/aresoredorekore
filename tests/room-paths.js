@@ -201,6 +201,89 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  // ---- 部屋ワードウルフ・お題変更あり（第35弾B・実機で発見） ----
+
+  await r.test('お題変更ありの2ターン戦：ターン1でウルフを当てた人の得点が消えない', async () => {
+    // 実機で発見：得点計算が「全ターンの票」を「最終ターンのウルフ配役」で採点していた。
+    // お題変更ありは毎ターン配役を引き直すので、ターン1で正しくウルフに投票した人の
+    // +1が消える（手渡し版は毎ターン加点で正しい。部屋版だけ壊れていた並走・落とし穴1）
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 4);
+      const start = await rm.host.call(RT_START_EVENT, {
+        game: 'wordwolf', wolfCount: 1, wolfAware: false, roles: {},
+        multiTurn: true, turnLimit: 2, changeTopic: true, meetingSec: 0, discussSec: 0
+      });
+      assertEqual(start.ok, true, '始められる');
+      const room = () => srv.store.get(rm.code);
+      const deviceOf = {};
+      rm.all.forEach((d) => { deviceOf[d.memberId] = d; });
+
+      // ターン1：全員確認 → 話し合いへ → 投票へ
+      for (const d of rm.all) await d.call('wolf:act', { targetId: null });
+      await rm.host.call('wolf:next', {});
+      await rm.host.call('wolf:next', {});
+      const wolf1 = room().wordwolf.wolfIds[0];
+      const sheep1 = rm.all.filter((d) => d.memberId !== wolf1);
+      // シープ3人がウルフに投票（正解）。ウルフはシープの1人に投票
+      for (const d of sheep1) await d.call('wolf:vote', { targetId: wolf1 });
+      await deviceOf[wolf1].call('wolf:vote', { targetId: sheep1[0].memberId });
+      await waitUntil(() => room().wordwolf.phase === 'roundResult', 'ターン1が決まる');
+      await rm.host.call('wolf:next', {});
+      await waitUntil(() => room().wordwolf.phase === 'discuss', 'ターン2が始まる');
+
+      // ターン2：全員がシープの1人に投票（ウルフを外す＝ウルフ逃げ切り）
+      await rm.host.call('wolf:next', {});
+      const wolf2 = room().wordwolf.wolfIds[0];
+      const sheep2 = rm.all.filter((d) => d.memberId !== wolf2);
+      const scapegoat = sheep2[0];
+      for (const d of rm.all.filter((x) => x.memberId !== scapegoat.memberId)) {
+        await d.call('wolf:vote', { targetId: scapegoat.memberId });
+      }
+      await scapegoat.call('wolf:vote', { targetId: wolf2 });
+      await waitUntil(() => room().wordwolf.phase === 'roundResult', 'ターン2が決まる');
+      await rm.host.call('wolf:next', {});
+      await waitUntil(() => room().wordwolf.phase === 'ended', '決着する');
+
+      const scores = room().wordwolf.scores;
+      // ターン1でウルフに正しく投票したシープ3人に+1が残っていること
+      for (const d of sheep1) {
+        if (d.memberId === wolf2) continue; // ターン2でウルフになった人はターン2の逃げ切り分も混ざるので別で見る
+        assert((scores[d.memberId] || 0) >= 1,
+          'ターン1でウルフを当てた人に+1が残る（実際: ' + JSON.stringify(scores) + '）');
+      }
+      // ターン2で逃げ切ったウルフにも+1
+      assert((scores[wolf2] || 0) >= 1, 'ターン2の逃げ切りウルフに+1');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('お題変更ありのターン結果には「新しいお題で続きます」と伝わる材料がある', async () => {
+    // 実機で発見：ターン結果の公開情報に changeTopic が無く、画面は設定に関わらず
+    // 「お題はこのままです」と出していた（実際は次のターンでお題が変わる・誤表示）
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 4);
+      await rm.host.call(RT_START_EVENT, {
+        game: 'wordwolf', wolfCount: 1, wolfAware: false, roles: {},
+        multiTurn: true, turnLimit: 2, changeTopic: true, meetingSec: 0, discussSec: 0
+      });
+      const room = () => srv.store.get(rm.code);
+      for (const d of rm.all) await d.call('wolf:act', { targetId: null });
+      await rm.host.call('wolf:next', {});
+      await rm.host.call('wolf:next', {});
+      const wolf1 = room().wordwolf.wolfIds[0];
+      const sheep = rm.all.filter((d) => d.memberId !== wolf1);
+      for (const d of sheep) await d.call('wolf:vote', { targetId: wolf1 });
+      const wolfDev = rm.all.find((d) => d.memberId === wolf1);
+      await wolfDev.call('wolf:vote', { targetId: sheep[0].memberId });
+      await waitUntil(() => room().wordwolf.phase === 'roundResult', 'ターン1が決まる');
+      const WordwolfRoom = require('../wordwolf-room');
+      const rr = WordwolfRoom.publicView(room()).roundResult;
+      assertEqual(rr.continues, true, 'まだ続く');
+      assertEqual(rr.changeTopic, true, '「お題が変わるか」が公開情報に載っている');
+    } finally { await srv.close(); }
+  });
+
   // ---- 追加漏れ検出（第35弾B：カセットのゲームと検証マトリクス） ----
 
   await r.test('カセットの全ゲームが、部屋対応（GAME_DRIVERS）か手渡し専用宣言のどちらかに入っている', async () => {

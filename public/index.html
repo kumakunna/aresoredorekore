@@ -8993,7 +8993,10 @@
       if(rr.exec){
         lines.push('のこりのウルフ🐺 ' + rr.exec.wolvesLeft + '人 ／ シープ🐑 ' + rr.exec.sheepLeft + '人');
       }
-      if(rr.continues) lines.push('お題はこのままです。まだ続きます');
+      // 第35弾B：お題を変える設定なのに「このまま」と出て誤表示だった。設定で出し分ける
+      if(rr.continues) lines.push(rr.changeTopic
+        ? '🔄 つぎのターンは、新しいお題でつづきます'
+        : 'お題はこのままです。まだ続きます');
     }
     var r = v.result;
     if(v.phase === 'ended' && r){

@@ -164,11 +164,13 @@ app.post('/api/ai-describe', requireAuth, async (req, res) => {
     const out = await AiDescribe.describe({ name, ng_words, hint, avoid });
     res.json(out);
   } catch (e) {
+    // 第35弾B：運用者向けの詳細（.env・APIキー等）はサーバーログにだけ残す。
+    // 画面に返すのはプレイヤー向けの言葉のみ（詳細をそのまま返すと、
+    // 遊んでいる全員の画面に「pm2 restartしてください」が出ていた）
     if (e.kind === 'api_error') console.error('[ai-describe] Gemini API error:', e.status, e.body);
-    else if (e.kind !== 'no_key' && e.kind !== 'bad_request') console.error('[ai-describe] error:', e);
-    // 種類の付いていない失敗（想定外）は、中身をそのまま返さずに今までの文面にする
-    const message = e.kind ? e.message : 'AI呼び出し中にエラーが発生しました';
-    res.status(AI_STATUS[e.kind] || 502).json({ error: message });
+    else if (e.kind === 'no_key') console.warn('[ai-describe]', e.message);
+    else if (e.kind !== 'bad_request') console.error('[ai-describe] error:', e);
+    res.status(AI_STATUS[e.kind] || 502).json({ error: AiDescribe.playerMessage(e) });
   }
 });
 

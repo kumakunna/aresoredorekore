@@ -105,4 +105,19 @@ function available(deps) {
   return !!((d.apiKey !== undefined) ? d.apiKey : process.env.GEMINI_API_KEY);
 }
 
-module.exports = { describe, available, buildPrompt, DescribeError, MODEL };
+/**
+ * 第35弾B：プレイヤーの画面に見せてよい言葉に変える。
+ * e.message は運用者向けの詳細（.env・APIキー等）なので、そのまま画面に出すと
+ * 遊んでいる人には意味が分からない「誤表示」になる（実機で発生）。
+ * 詳細はサーバーログに残し、画面にはこの言葉だけを返すこと。
+ */
+function playerMessage(e) {
+  const kind = e && e.kind;
+  if (kind === 'bad_request') {
+    return 'お題をうまく読めませんでした。お題の名前をたしかめてください';
+  }
+  // no_key / api_error / empty / network / 想定外：理由の違いはプレイヤーには関係ない
+  return 'AIがいまつかえません。しばらくしてから、もう一度ためしてください';
+}
+
+module.exports = { describe, available, buildPrompt, DescribeError, MODEL, playerMessage };

@@ -258,6 +258,124 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  // ---- 再発防止（第35弾B）：盤面の「欠けた人」の理由が正しいこと ----
+  await r.test('処刑された人は、翌日の盤面でも「処刑」と出る（襲撃と誤表示しない）', async () => {
+    // 実機で発見：wolfBoardHtml が存在しないキー vote で処刑を判定していて、
+    // 処刑された人が既定値の「襲撃」に落ちていた（決着画面は正しい対応表を
+    // 使っていたので気づきにくい。同じ対応表の二重定義・落とし穴1の型）
+    const NAMES = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    const { win, doc, errors } = await launch();
+    win.confirm = () => true;
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'wolfrole');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, NAMES);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
+    click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
+    await waitScreen(win, doc, 'scr-set-timer', 3000);
+    if (el(doc, 'timerEnableToggle').classList.contains('on')) click(doc, 'timerEnableToggle');
+    click(doc, doc.querySelector('#scr-set-timer [data-wiz-next]'));
+    await sleep(win, 60);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+
+    // 役職確認：人狼と、身代わりにする村人（scapegoat）・襲撃させる村人を決める
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+    const roles = {};
+    for (let i = 0; i < NAMES.length; i++) {
+      click(doc, 'wrRevealBtn');
+      await sleep(win, 40);
+      roles[el(doc, 'wrContentName').textContent.trim()] = el(doc, 'wrContentBody').textContent;
+      click(doc, 'wrNextBtn');
+      await sleep(win, 40);
+    }
+    const wolfName = NAMES.find(n => /襲撃します/.test(roles[n] || ''));
+    const villagers = NAMES.filter(n => /村人/.test(roles[n] || ''));
+    assert(wolfName && villagers.length >= 2,
+      '人狼1人と村人2人以上がいる（実際: ' + JSON.stringify(roles) + '）');
+    const scapegoat = villagers[0];   // 投票で処刑する係
+    const attacked = villagers[1];    // 人狼に襲わせる係（襲撃の表示は正しいことも同時に見る）
+
+    // 夜→昼の順でも昼→夜の順でも進められる運転：
+    // 処刑（scapegoat）が結果に出るまで、画面に応じて操作を続ける
+    assertEqual(activeScreen(doc), 'scr-wr-day', '役職確認のあとは作戦会議');
+    let executed = false;
+    for (let step = 0; step < 60 && !executed; step++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-nightfall') {
+        click(doc, 'nfNextBtn');
+      } else if (cur === 'scr-wr-day') {
+        await holdPress(win, doc, 'wrToVoteBtn'); // 会議「夜へ」も朝「投票へ」も同じ長押し
+      } else if (cur === 'scr-wr-pass') {
+        click(doc, 'wrRevealBtn');
+        await sleep(win, 40);
+        const btns = Array.from(doc.querySelectorAll('#wrChoiceGrid button[data-choice]'))
+          .filter(b => b.offsetParent !== null || b.style.display !== 'none');
+        if (btns.length) {
+          const isVote = /投票/.test(el(doc, 'scr-wr-pass').textContent);
+          const voter = el(doc, 'wrContentName').textContent.trim();
+          let targetName;
+          if (isVote) targetName = (voter === scapegoat) ? wolfName : scapegoat;
+          else targetName = attacked; // 夜の襲撃（人狼だけに選択肢が出る）
+          const b = btns.find(x => x.textContent.trim() === targetName) || btns[0];
+          b.click();
+          await sleep(win, 30);
+          const ok = doc.getElementById('wrVoteOkBtn');
+          if (ok) ok.click();
+        } else {
+          click(doc, 'wrNextBtn');
+        }
+      } else if (cur === 'scr-wr-gather') {
+        click(doc, 'wrTallyBtn');
+        await waitScreen(win, doc, 'scr-wr-result', 8000);
+      } else if (cur === 'scr-wr-result') {
+        const txt = el(doc, 'scr-wr-result').textContent;
+        if (new RegExp(scapegoat + '[^。]{0,12}処刑|処刑[^。]{0,12}' + scapegoat).test(txt.replace(/\s+/g, ''))
+            || /が処刑されました/.test(txt) && txt.indexOf(scapegoat) !== -1) {
+          executed = true;
+          break;
+        }
+        const nx = Array.from(doc.querySelectorAll('#scr-wr-result button')).find(b => b.style.display !== 'none');
+        assert(nx, '結果画面から先に進めるボタンがある');
+        nx.click();
+      }
+      await sleep(win, 60);
+    }
+    assert(executed, '身代わり役（' + scapegoat + '）の処刑まで進む（現在: ' + activeScreen(doc) + '）');
+    const nx2 = Array.from(doc.querySelectorAll('#scr-wr-result button')).find(b => b.style.display !== 'none');
+    nx2.click();
+
+    // 処刑の翌フェーズ：盤面（生きている／欠けた人）が出るビューまで進めて確かめる
+    await waitScreen(win, doc, 'scr-wr-pass', 8000);
+    let board = '';
+    for (let i = 0; i < 10; i++) {
+      const reveal = doc.getElementById('wrRevealBtn');
+      if (reveal && activeScreen(doc) === 'scr-wr-pass') {
+        click(doc, 'wrRevealBtn');
+        await sleep(win, 50);
+      }
+      const t = el(doc, 'wrContentBody').textContent.replace(/\s+/g, '');
+      if (t.indexOf('欠けた人') !== -1) { board = t; break; }
+      const nx3 = doc.getElementById('wrNextBtn');
+      if (nx3 && nx3.style.display !== 'none') { nx3.click(); await sleep(win, 50); }
+      else break;
+    }
+    assert(board.indexOf('欠けた人') !== -1, '盤面に欠けた人の欄がある');
+    assert(new RegExp(scapegoat + '[^ぁ-ん]{0,8}処刑').test(board),
+      '処刑された人は「処刑」と出る（実際: ' + board.slice(0, 160) + '）');
+    assert(!new RegExp(scapegoat + '[^ぁ-ん]{0,8}襲撃').test(board),
+      '処刑を「襲撃」と誤表示しない（実際: ' + board.slice(0, 160) + '）');
+    assertNoErrors(errors, '欠けた人の理由表示で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('人狼カセット：ゲーム選択を経由し、ゲームごとにモードが分かれる', async () => {
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="jinro"]');

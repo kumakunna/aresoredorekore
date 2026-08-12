@@ -12952,8 +12952,12 @@
     if(dead.length){
       html += '<div class="wb-row"><span class="wb-label">欠けた人</span>' +
         '<span class="wb-items">' + dead.map(function(p){
-          // なぜ欠けたかまで出す。結果だけでは議論の材料にならない
-          var cause = p.deadCause === 'vote' ? '処刑'
+          // なぜ欠けたかまで出す。結果だけでは議論の材料にならない。
+          // キーは wolf-logic.js の deadCause（executed/attacked/cursed/lover）。
+          // 第35弾B：ここが存在しないキー vote で判定していて、処刑された人が
+          // 既定値の「襲撃」に落ちていた（決着画面の DEAD_CAUSE_LABEL は正しかった）。
+          // 「謎の死」は意図的な言い換え（進行中の盤面では呪殺の仕組みを明かさない）
+          var cause = p.deadCause === 'executed' ? '処刑'
                     : p.deadCause === 'cursed' ? '謎の死'
                     : p.deadCause === 'lover' ? '後を追った' : '襲撃';
           var role = p.roleName ? '・' + p.roleName : '';

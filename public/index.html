@@ -14893,6 +14893,9 @@
       el('revealAnswerBox').style.display = 'none';
       el('describerOnlyNote').style.display = 'none';
       el('btnPass').style.display = 'none';
+      // 第35弾B：直前にあれそれのAI/一言ヒントモード（音声判定が自動ON）を遊んでいると、
+      // micStatus（「お題を言うと正解…」）だけが隠し忘れで残っていた（落とし穴2・3）
+      el('micStatus').style.display = 'none';
       el('topicName').textContent = '🗣️ 話し合い中…';
       // 第20弾-4-3：暗い＝秘密の手渡し、明るい＝みんなで話す、で揃える
       setWolfPhaseTone('day');

@@ -3442,6 +3442,43 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  // ---- 再発防止（第35弾B）：AIモードの音声判定UIが、ワードウルフの話し合いに残らないこと ----
+  await r.test('AIモードのあとにワードウルフを遊んでも、音声判定の表示が残らない', async () => {
+    // 実機で発生：あれそれのAI/一言ヒントモード（音声判定が自動ON）を遊んだあと
+    // ワードウルフに移ると、話し合い画面に「お題を言うと正解、『パス』でつぎのお題へ」
+    // というあれそれの文言（micStatus）が出たままになっていた（落とし穴2・3）。
+    // 話し合い分岐は12個の要素を個別に隠していたが、micStatus だけ漏れていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    win.confirm = () => true;
+    await startMode(win, doc, 'ai');
+    await waitScreen(win, doc, 'scr-play', 6000);
+    assertEqual(el(doc, 'micStatus').style.display, 'block', '前提：AIモードでは音声判定の表示が出る');
+
+    // 設定からゲームを終了して、ワードウルフへ
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 60);
+    const gameRow = doc.querySelector('#settingsOverlay [data-setpage="game"]');
+    gameRow.click();
+    await sleep(win, 60);
+    click(doc, 'endGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+
+    await startMode(win, doc, 'wordwolf');
+    await waitScreen(win, doc, 'scr-wolf-pass', 6000);
+    // 3人分の配りを通して話し合いへ
+    for (let i = 0; i < PLAYERS.length; i++) {
+      click(doc, 'wolfRevealBtn');
+      await sleep(win, 40);
+      click(doc, 'wolfNextRevealBtn');
+      await sleep(win, 60);
+    }
+    await waitScreen(win, doc, 'scr-play', 6000);
+    assertEqual(el(doc, 'micStatus').style.display, 'none',
+      '話し合い画面にあれそれの音声判定の表示が残らない');
+    assertNoErrors(errors, '話し合い画面で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 再発防止：早押しの正解ボタンを連打しても1点しか入らないこと ----
   await r.test('再発防止：早押しの正解ボタンを連打しても1点しか入らない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

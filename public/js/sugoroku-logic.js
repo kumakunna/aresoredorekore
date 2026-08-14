@@ -1,0 +1,441 @@
+// sugoroku-logic.js — カセット「すごろく」5ゲーム共通のルール層（第36弾）
+//
+// 設計の芯は wolf-logic.js / bomb-logic.js とまったく同じ:
+//   DOM も socket.io も知らない。Node.js から require できる純粋な計算だけを置く。
+//   だから jsdom を立てずに単体テストできる。
+//
+// このカセットは5ゲーム × 遊び方（手渡し／1人1台）で、実装の文脈が8つに分かれる。
+// これまでで一番「片方だけ直して、もう片方に反映し忘れる」（落とし穴1）が
+// 起きやすい形なので、共通の計算はぜんぶここ1本に集める:
+//   ・5ゲームの性格（人数・盤の長さ・コインの有無・突然イベントの可否・目安時間）
+//   ・盤の作り方と、マスの種類
+//   ・サイコロ
+//   ・駒の進め方（あがりの扱い・効果マスの扱い）
+//   ・コインの増減
+//   ・順位（同点・引き分けの扱い）
+//
+// 進行（誰がいつ何を見られるか）は sugoroku-room.js が持つ。
+// 画面（見た目・音）は index.html が持つ。
+//
+// ランダムは必ず引数で受け取る。テストを固定した条件で安定させるため
+// （原則：ランダム性に依存するテストは、条件を固定して安定させる）。
+
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.SugorokuLogic = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // ===== 5ゲームの性格（この表が一覧の正本） =====
+  //
+  // 人数・盤の長さ・コインの有無・突然イベントの可否・遊び方・目安時間は、
+  // 画面（index.html）もサーバー（sugoroku-room.js）も、必ずここから引く。
+  // 同じ数字を2か所に書くと、片方だけ直した時に食い違う（落とし穴4）。
+  //
+  // ready: そのゲームが完成しているか。false のうちは棚に出さない。
+  //   「器だけ先に用意し、中身は1つずつ完璧にしてから次へ」（原則2）を、
+  //   宣言ではなくデータで持つための印。
+  //
+  // handoff: 手渡し（1台を回す）で遊べるか。
+  //   みえない＝自分の位置を他人に見せてはいけない、
+  //   てふだ＝手札を他人に見せてはいけない、ので false。
+  //
+  // events: 'any'＝どんな突然イベントも起こる / 'plus'＝プラス方向だけ / 'none'＝起こさない。
+  //   みえないは「全員の位置が突然動くと、申告と実際がズレて本人も混乱する」ので none。
+  //   てふだは「有限の手札で積み上げた計算が無に帰す」ので none。
+  //
+  // tiebreak: 進んだ距離が同じだった時。'coins'＝残りコインが多い方が上位 /
+  //   'same'＝同着（コインを使わないゲームでは、無理に順位をつけない）。
+  var GAMES = {
+    // ① うばいあい：駒が1つしかない。毎ターン、それを動かす権利を奪い合う
+    sugograb: {
+      id: 'sugograb', title: 'こまはひとつ', sub: 'ミニゲームで勝った人だけが、たった1つの駒を動かせる',
+      cells: 30, minPlayers: 3, maxPlayers: 8, estMin: 15,
+      handoff: true, room: true,
+      dice: true, sharedPiece: true,
+      coins: true, startCoins: 20, cellKinds: ['coin', 'forward', 'back'],
+      events: 'any', tiebreak: 'coins',
+      ready: false
+    },
+    // ② みえない：自分の位置は自分にしか見えない。申告では嘘をついてよい
+    sugohide: {
+      id: 'sugohide', title: 'どこにいる？', sub: '自分の位置は自分だけが知っている・申告では嘘をついてよい',
+      cells: 30, minPlayers: 3, maxPlayers: 6, estMin: 20,
+      handoff: false, room: true,
+      dice: true, sharedPiece: false,
+      coins: false, startCoins: 0, cellKinds: [],
+      events: 'none', tiebreak: 'same',
+      ready: false
+    },
+    // ③ ふたり：2人1組で1つの駒を共有し、出目を分け合う
+    sugopair: {
+      id: 'sugopair', title: 'ふたりでひとつ', sub: '2人で1つの駒・出た目を相談して分け合う',
+      cells: 40, minPlayers: 4, maxPlayers: 8, estMin: 15,
+      handoff: true, room: true,
+      dice: true, sharedPiece: false, pairs: true,
+      coins: false, startCoins: 0, cellKinds: ['forward'],
+      events: 'plus', tiebreak: 'same',
+      ready: false
+    },
+    // ④ つうこうりょう：先頭に近い人ほど、進む時にコインを払う
+    sugotoll: {
+      id: 'sugotoll', title: 'つうこうりょう', sub: '先頭ほど通行料が高い・払えないと進めない',
+      cells: 40, minPlayers: 3, maxPlayers: 8, estMin: 20,
+      handoff: true, room: true,
+      dice: true, sharedPiece: false,
+      coins: true, startCoins: 20, cellKinds: ['coin', 'forward', 'back'],
+      events: 'any', tiebreak: 'coins',
+      ready: false
+    },
+    // ⑤ てふだ：サイコロを振らない。手札の数字と交渉だけで進む
+    sugohand: {
+      id: 'sugohand', title: 'てふだ', sub: 'サイコロを振らない・手札を交渉して進む',
+      cells: 30, minPlayers: 3, maxPlayers: 6, estMin: 25,
+      handoff: false, room: true,
+      dice: false, sharedPiece: false,
+      // コインマスは置かない。止まるマスを自分で選べるので、置くと狙って踏み続けられる
+      coins: true, startCoins: 20, cellKinds: [],
+      events: 'none', tiebreak: 'coins',
+      ready: false
+    }
+  };
+
+  function gameById(id) { return GAMES[id] || null; }
+  function gameIds() { return Object.keys(GAMES); }
+  // 棚・ゲーム選択に出してよいもの。1つずつ完成させるので、ここで絞る
+  function readyGameIds() {
+    return gameIds().filter(function (id) { return GAMES[id].ready; });
+  }
+
+  // ===== マスの種類（この表も正本。盤面・大画面・決着画面が全部ここを引く） =====
+  //
+  // 人狼で「盤面の死因対応表」と「決着画面の対応表」が別々に存在し、
+  // 片方が古びて処刑が「襲撃」と誤表示された事故（型1）と同じ形を作らないため、
+  // 見た目（icon/tone）も効果（coins/step）も1か所に置く。
+  //
+  // tone: 見た目の調子。'plain'＝ふつう / 'good'＝良いこと / 'soft'＝良くないこと /
+  //   'gold'＝あがり。責める見た目にはしない（原則：責める時は静かに）ので、
+  //   もどるマスも赤ではなく落ち葉の色にする。
+  var CELL_KINDS = {
+    start:   { id: 'start',   label: 'ふりだし',      icon: '⛩️', tone: 'plain' },
+    plain:   { id: 'plain',   label: '',              icon: '',    tone: 'plain' },
+    coin:    { id: 'coin',    label: 'コイン3まい',   icon: '🪙',  tone: 'good', coins: 3 },
+    forward: { id: 'forward', label: '2マスすすむ',   icon: '🌸',  tone: 'good', step: 2 },
+    back:    { id: 'back',    label: '2マスもどる',   icon: '🍂',  tone: 'soft', step: -2 },
+    goal:    { id: 'goal',    label: 'あがり',        icon: '🏮',  tone: 'gold' }
+  };
+  function cellKind(id) { return CELL_KINDS[id] || CELL_KINDS.plain; }
+
+  // 効果マスを置く割合と、置いてはいけない範囲
+  var SPECIAL_RATIO = 0.25;
+  var SAFE_HEAD = 2;   // 最初の2マスには置かない
+  var SAFE_TAIL = 2;   // 最後の2マスには置かない
+  var MIN_GAP = 3;     // 効果マスどうしを、これ未満の間隔で置かない
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  /**
+   * 盤を作る。0＝ふりだし、最後＝あがり。
+   *
+   * 決めごと:
+   *   ・最初の2マスと最後の2マスには効果マスを置かない。
+   *     振り出してすぐ戻される／あと少しで戻されるのは、どちらも気持ちが折れるため。
+   *   ・効果マスどうしを3マス未満の間隔で置かない。
+   *     近すぎると効果で動いた先がまた効果マスになり、盤面が読めなくなる。
+   *   ・cellKinds が空のゲーム（みえない・てふだ）は、素の盤を返す。
+   *
+   * @param {string} gameId
+   * @param {function} [rnd] 0以上1未満を返す関数（テストで固定するために引数で受け取る）
+   * @returns {string[]} マスの種類id。長さは cells + 1
+   */
+  function makeBoard(gameId, rnd) {
+    var g = gameById(gameId);
+    var n = (g && g.cells) || 30;
+    var kinds = (g && g.cellKinds) || [];
+    var cells = [];
+    for (var i = 0; i <= n; i++) cells.push('plain');
+    cells[0] = 'start';
+    cells[n] = 'goal';
+    if (!kinds.length) return cells;
+
+    var r = rnd || Math.random;
+    var lo = SAFE_HEAD + 1;          // ここから
+    var hi = n - SAFE_TAIL - 1;      // ここまで（あがりの手前）
+    var span = hi - lo + 1;
+    if (span <= 0) return cells;
+    var want = Math.max(1, Math.round(span * SPECIAL_RATIO));
+    var placed = [];
+    // 抽選は必ず回数で打ち切る。埋まらないまま無限に回らないようにする
+    for (var tries = 0; tries < span * 20 && placed.length < want; tries++) {
+      var at = lo + Math.floor(r() * span);
+      if (at < lo || at > hi || cells[at] !== 'plain') continue;
+      var tooClose = false;
+      for (var k = 0; k < placed.length; k++) {
+        if (Math.abs(placed[k] - at) < MIN_GAP) { tooClose = true; break; }
+      }
+      if (tooClose) continue;
+      cells[at] = kinds[Math.floor(r() * kinds.length)] || 'plain';
+      placed.push(at);
+    }
+    return cells;
+  }
+
+  // ===== サイコロ =====
+  var DICE_MAX = 6;
+  /**
+   * サイコロを振る。
+   *
+   * 画面では「長押ししてスワイプ」で振るが、**スワイプの勢いは出目に一切影響させない**。
+   * 勢いで目が変わると「操作が上手い人が有利」になり、サイコロの意味が消える。
+   * 勢いは演出（転がる速さ・音）にだけ使う。
+   */
+  function rollDice(rnd) {
+    var r = rnd || Math.random;
+    return 1 + Math.floor(r() * DICE_MAX);
+  }
+
+  // ===== 駒を進める =====
+  /**
+   * 決めごと①：あがりを超える出目でも、あがり扱いにする。
+   *   「ぴったり止まらないと上がれない」にすると、最後の1人が延々と足踏みして
+   *   置き去りになる（原則10：一つの点からすべてを喜ばせる）。
+   * 決めごと②：効果マスの効果は連鎖しない。
+   *   効果で動いた先がまた効果マスでも、そこでは何も起きない。
+   *   連鎖を許すと、1回の手番で盤の端から端まで動くことがあり、
+   *   「1マスずつ進む」演出も意味を失う。
+   *
+   * @returns {{from:number, stop:number, to:number, path:number[], bonusPath:number[],
+   *            kind:string, coins:number, goal:boolean}}
+   *   path      … 出目のぶん、1マスずつ動かす道のり（演出用）
+   *   bonusPath … 効果マスで追加で動いたぶん（無ければ空）
+   */
+  function applyMove(board, from, steps) {
+    var goal = board.length - 1;
+    var start = clamp(from | 0, 0, goal);
+    var stop = clamp(start + (steps | 0), 0, goal);
+    var out = {
+      from: start, stop: stop, to: stop,
+      path: walk(start, stop), bonusPath: [],
+      kind: 'plain', coins: 0, goal: false
+    };
+    var kind = cellKind(board[stop]);
+    out.kind = kind.id;
+    // あがりに着いたら、そこで終わり。あがりのマスに効果は無い
+    if (stop >= goal) { out.goal = true; return out; }
+    if (kind.coins) out.coins = kind.coins;
+    if (kind.step) {
+      var landed = clamp(stop + kind.step, 0, goal);
+      out.bonusPath = walk(stop, landed);
+      out.to = landed;
+      out.goal = landed >= goal;
+    }
+    return out;
+  }
+  // from の次のマスから to まで、1マスずつ並べる。動かない時は空
+  function walk(from, to) {
+    var path = [];
+    if (to === from) return path;
+    var step = to > from ? 1 : -1;
+    for (var p = from + step; ; p += step) {
+      path.push(p);
+      if (p === to) break;
+    }
+    return path;
+  }
+
+  // ===== コイン =====
+  // 落とし穴8（上限・下限のチェックが片方向にしか効いていない）への備え。
+  // 増やす時も減らす時も、必ずこの1本を通す
+  function addCoins(cur, delta) {
+    return Math.max(0, (cur | 0) + (delta | 0));
+  }
+  function canPay(cur, cost) { return (cur | 0) >= (cost | 0); }
+
+  // ===== 順位 =====
+  /**
+   * 盤面の位置だけで決まる順位。同じマスにいる人は同順位。
+   *
+   * 決めごと⑥：同じマス＝同順位。「先に着いた方が上」にすると、
+   * 盤面を見ただけでは誰が何位か分からなくなる（つうこうりょうでは、
+   * 順位がそのまま支払額なので、見て分からないのは致命的）。
+   *
+   * @param {Array<{id:string,pos:number}>} players
+   * @returns {Object} id -> 順位（1始まり）
+   */
+  function positionRanks(players) {
+    var list = (players || []).slice().sort(function (a, b) {
+      return (b.pos | 0) - (a.pos | 0);
+    });
+    var out = {};
+    var rank = 0;
+    list.forEach(function (p, i) {
+      if (i === 0 || (list[i - 1].pos | 0) !== (p.pos | 0)) rank = i + 1;
+      out[p.id] = rank;
+    });
+    return out;
+  }
+
+  /**
+   * 決着の順位。
+   *   1. あがった順（早い方が上）
+   *   2. 進んだ距離（遠い方が上）
+   *   3. コインを使うゲームだけ、残りコインが多い方が上位
+   *   4. それも同じなら同着（無理に順位をつけない）
+   *
+   * 5ゲームで並べ方が2種類あるが、ゲームごとに書くと必ず片方が古びる（型1）。
+   * 違いは GAMES[gameId].tiebreak の1文字だけにしてある。
+   *
+   * @param {Array<{id:string,pos:number,coins:number,goalOrder:?number}>} players
+   * @returns {Array} rank と tied を足したもの（順位順に並ぶ）
+   */
+  function rankPlayers(gameId, players) {
+    var cmp = comparator(gameId);
+    var list = (players || []).slice().sort(cmp);
+    var out = [];
+    var rank = 0;
+    list.forEach(function (p, i) {
+      if (i === 0 || cmp(list[i - 1], p) !== 0) rank = i + 1;
+      var row = {};
+      Object.keys(p).forEach(function (k) { row[k] = p[k]; });
+      row.rank = rank;
+      out.push(row);
+    });
+    var counts = {};
+    out.forEach(function (p) { counts[p.rank] = (counts[p.rank] || 0) + 1; });
+    out.forEach(function (p) { p.tied = counts[p.rank] > 1; });
+    return out;
+  }
+  function comparator(gameId) {
+    var g = gameById(gameId) || {};
+    var byCoins = g.tiebreak === 'coins';
+    return function (a, b) {
+      var ao = (a.goalOrder == null) ? Infinity : a.goalOrder;
+      var bo = (b.goalOrder == null) ? Infinity : b.goalOrder;
+      if (ao !== bo) return ao - bo;
+      if ((b.pos | 0) !== (a.pos | 0)) return (b.pos | 0) - (a.pos | 0);
+      if (byCoins && (b.coins | 0) !== (a.coins | 0)) return (b.coins | 0) - (a.coins | 0);
+      return 0;
+    };
+  }
+
+  // ===== つうこうりょう（sugotoll）のルール =====
+  //
+  // 先頭に近い人ほど、進む時にコインを払う。逆転アイテムのような外付けではなく、
+  // ルールそのものに拮抗させる仕組みを入れる、という発想。
+  //
+  // 手渡しでも1人1台でも遊べるゲームなので、計算はここに置く。
+  // 画面側とサーバー側で別々に書くと、片方だけ直す事故になる（落とし穴1）。
+  var TOLL_RELIEF = 3;   // 払えなくて進めなかった人に入るコイン
+
+  /**
+   * 順位に応じた通行料。
+   *   1位＝出目と同じ枚数 / 2位・3位＝出目の半分（切り上げ）/ 4位以下＝無料
+   * 順位は「盤面の位置」で決まる（positionRanks）。コインで決めると
+   * 「わざと進まずコインを貯める」のが最適解になり、すごろくの目的と矛盾する。
+   */
+  function tollFor(rank, dice) {
+    if (rank <= 1) return dice | 0;
+    if (rank <= 3) return Math.ceil((dice | 0) / 2);
+    return 0;
+  }
+
+  /**
+   * 通行料を払えるか。払えなければ進めないが、**代わりにコインが3枚入る**。
+   *
+   * この救済が無いと、全員がコイン切れで団子になったまま膠着する。
+   * 足止めされても次のターンには払えるようになるので、続くことは構造的に起きない。
+   *
+   * 「払うかどうかを選べる」形にはしない。選べると、先頭の人がわざと払わずに
+   * 3枚もらい続けるのが得になり、救済が抜け道に変わる。払えるなら必ず払う。
+   */
+  function tollOutcome(coins, rank, dice) {
+    var cost = tollFor(rank, dice);
+    if (cost <= 0) return { cost: 0, paid: true, stalled: false, relief: 0 };
+    if (canPay(coins, cost)) return { cost: cost, paid: true, stalled: false, relief: 0 };
+    return { cost: cost, paid: false, stalled: true, relief: TOLL_RELIEF };
+  }
+
+  // ===== 突然イベント =====
+  //
+  // イベントは1つの一覧に集め、**どのゲームで起こるかをデータで持つ**。
+  // 「みえない・てふだでは起こさない」を条件分岐で書くと、イベントを足した人が
+  // 書き忘れて漏れる（落とし穴4）。games に書かれていないゲームには、
+  // 構造的に配れない形にしておく。
+  //
+  // tone: 'plus'＝プラス方向だけ / 'any'＝そうでないものも含む。
+  //   ふたり（events:'plus'）には、tone:'plus' のものしか渡さない。
+  //   じっくり信頼関係を育てる遊びを、荒らすイベントで壊さないため。
+  //
+  // ここは各ゲームの実装と一緒に増えていく。
+  var EVENTS = [
+    // --- つうこうりょう ---
+    // 長く先頭を走っている人がいると単調になるので、順位を崩すものを入れる。
+    // ただし「持っているものを取り上げる」形にはしない（責める演出にしない）。
+    {
+      id: 'toll-free', games: ['sugotoll'], tone: 'any',
+      icon: '⛩️', title: 'せきしょ やぶり',
+      note: 'この一巡だけ、通行料はいりません'
+    },
+    {
+      id: 'swap-ends', games: ['sugotoll'], tone: 'any',
+      icon: '🔄', title: 'みちがえ',
+      note: '先頭の人と、いちばん後ろの人が入れかわります'
+    }
+  ];
+
+  /**
+   * そのゲームで起こしてよいイベント。
+   * GAMES[gameId].events が 'none' なら、EVENTS に何が入っていても必ず空を返す。
+   * （みえない・てふだで「イベントが起きない」ことを、二重に保証する）
+   */
+  function eventsFor(gameId) {
+    var g = gameById(gameId);
+    if (!g || g.events === 'none') return [];
+    var plusOnly = g.events === 'plus';
+    return EVENTS.filter(function (e) {
+      if ((e.games || []).indexOf(gameId) === -1) return false;
+      return plusOnly ? e.tone === 'plus' : true;
+    });
+  }
+  /**
+   * イベントを1つ引く。直前に出たものは避ける（同じものが続くと飽きる）。
+   * 引けるものが無ければ null（イベントは「起きないこともある」のが普通）。
+   */
+  function pickEvent(gameId, rnd, lastId) {
+    var pool = eventsFor(gameId).filter(function (e) { return e.id !== lastId; });
+    if (!pool.length) return null;
+    var r = rnd || Math.random;
+    return pool[Math.floor(r() * pool.length)] || null;
+  }
+
+  // ===== 人数のチェック =====
+  /**
+   * その人数で始められるか。上限・下限の両方を必ず見る（落とし穴8）。
+   * @returns {{ok:boolean, message:?string}}
+   */
+  function checkPlayerCount(gameId, n) {
+    var g = gameById(gameId);
+    if (!g) return { ok: false, message: 'そのゲームはありません' };
+    var count = n | 0;
+    if (count < g.minPlayers) {
+      return { ok: false, message: g.minPlayers + '人以上必要です' };
+    }
+    if (g.maxPlayers && count > g.maxPlayers) {
+      return { ok: false, message: g.maxPlayers + '人までで遊べます' };
+    }
+    return { ok: true, message: null };
+  }
+
+  return {
+    GAMES: GAMES, CELL_KINDS: CELL_KINDS, EVENTS: EVENTS,
+    DICE_MAX: DICE_MAX, SAFE_HEAD: SAFE_HEAD, SAFE_TAIL: SAFE_TAIL, MIN_GAP: MIN_GAP,
+    gameById: gameById, gameIds: gameIds, readyGameIds: readyGameIds,
+    cellKind: cellKind, makeBoard: makeBoard,
+    rollDice: rollDice, applyMove: applyMove, walk: walk,
+    addCoins: addCoins, canPay: canPay, clamp: clamp,
+    positionRanks: positionRanks, rankPlayers: rankPlayers,
+    eventsFor: eventsFor, pickEvent: pickEvent,
+    checkPlayerCount: checkPlayerCount,
+    TOLL_RELIEF: TOLL_RELIEF, tollFor: tollFor, tollOutcome: tollOutcome
+  };
+}));

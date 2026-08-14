@@ -1684,7 +1684,9 @@ function votesFrom(list) {
     const css = require('fs').readFileSync(
       require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
     assert(/\.wb-chip\.dead\{[^}]*line-through/.test(css), '打ち消し線でも分かる');
-    assert(/deadCause === 'vote' \? '処刑'/.test(css), '理由を文字で出している');
+    // 第35弾B：サーバーが送る死因キーは 'executed'（'vote' は存在しないキーの写し間違いで、
+    // 0488d16 で盤面側を直した。このテストも実値に合わせる）
+    assert(/deadCause === 'executed' \? '処刑'/.test(css), '理由を文字で出している');
   });
 
   r.finish();

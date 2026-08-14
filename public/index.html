@@ -10875,6 +10875,8 @@
   // 何をするのか・何に気をつけるのかを具体的に出す。
   // 「参加しない」を選んでも、マニュアル役として一緒に遊べることを必ず書く
   function dfRenderConsent(you){
+    // 新しいゲームは必ずここ（か役割えらび）を通る。前のゲームの読みかけの説明を持ち越さない
+    dfBrief = { pages: [], at: 0, review: false };
     var box = el('dfConsentBox');
     box.style.display = 'block';
     var ask = you.consentAsk || { moves:[], notes:[] };
@@ -10921,6 +10923,8 @@
 
   // ---- 役割をえらぶ ----
   function dfRenderRoles(v, you){
+    // 新しいゲームは必ずここを通る。前のゲームの読みかけの説明を持ち越さない
+    dfBrief = { pages: [], at: 0, review: false };
     var box = el('dfRolesBox');
     box.style.display = 'block';
     var ask = you.roleAsk || {};
@@ -10984,6 +10988,11 @@
   var dfBrief = { pages: [], at: 0, review: false };
 
   function dfRenderBrief(v, you){
+    // 部屋の「brief段階になった」知らせは、自分の新しい秘密（説明の中身）より
+    // 先に届くことがある。古い秘密のまま組み立てると、「読むものが無い」と
+    // 誤判定して勝手に読了を送ったり（最後に役割を選んだ人の説明が丸ごと飛ぶ）、
+    // 前のゲームの説明を見せたりする。秘密がそろうまで何もしない
+    if(you.phase !== 'brief') return;
     var box = el('dfBriefBox');
     box.style.display = 'block';
     var all = you.briefs || [];

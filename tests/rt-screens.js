@@ -1697,6 +1697,81 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('実物解除：読みかけの説明が、次のゲームに持ち越されない', async () => {
+    // 第35弾B：読んでいる途中でゲームが終わった（切断中に進んだ・選び直しなど）端末は、
+    // 次のdefuseで「前のゲームの説明」をそのまま見せられていた。
+    // その場合、今回の盤面の説明は一度も出ない（初見の人が正しい遊び方を読めない）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // ゲーム1の説明（傾け迷路・振ってアクション）を1枚目まで読んで、読み終わらないまま放置
+    push(fake, defuseRoom({
+      state: { phase: 'brief', game: 'defuse', data: defuseView({ phase: 'brief' }) }
+    }));
+    pushYou(fake, defuseYou({ phase: 'brief', done: false, briefs: defuseBriefs() }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    assert(/傾け迷路/.test(el(doc, 'dfBriefBox').textContent), '前提：ゲーム1の説明が出ている');
+
+    // ゲーム2：役割えらびを経て、別の顔ぶれ（面認証）の説明フェーズへ
+    push(fake, defuseRoom({
+      state: { phase: 'roles', game: 'defuse', data: defuseView({ phase: 'roles', board: undefined }) }
+    }));
+    pushYou(fake, defuseYou({
+      phase: 'roles', role: null, board: undefined,
+      roleAsk: { mode: 'normal', focus: false, taken: [], physicalDeclined: false }
+    }));
+    await sleep(win, 150);
+    const briefs2 = [
+      { type: 'face', name: '面認証', icon: '🔄', lead: '面の色と記号をマニュアル役に伝えよう',
+        how: ['端末を回して面を出す', '色と記号を伝える'], tip: null,
+        physical: false, needsLevelCheck: false }
+    ];
+    push(fake, defuseRoom({
+      state: { phase: 'brief', game: 'defuse', data: defuseView({ phase: 'brief' }) }
+    }));
+    pushYou(fake, defuseYou({ phase: 'brief', done: false, briefs: briefs2 }));
+    await sleep(win, 200);
+
+    const box = el(doc, 'dfBriefBox');
+    assert(/面認証/.test(box.textContent), '今回のゲームの説明が出る（実際: ' + box.textContent.slice(0, 40) + '）');
+    assert(!/傾け迷路/.test(box.textContent), '前のゲームの読みかけが出ない');
+    assertNoErrors(errors, '説明の持ち越しで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('実物解除：部屋の知らせが秘密より先に届いても、説明を勝手に読了しない', async () => {
+    // 第35弾B：役割を最後に選んだ端末は、部屋の「brief段階になった」知らせが
+    // 自分の新しい秘密（説明の中身）より先に届く。その瞬間の手元の秘密は
+    // まだ役割えらび段階のもの（briefsが無い）なので、「読むものが無い」と
+    // 誤判定して自動で読了を送っていた＝最後に役割を選んだ人だけ説明が丸ごと飛ぶ
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // 役割えらび中の秘密（まだ選んでいない＝done:false・briefsは無い）
+    push(fake, defuseRoom({
+      state: { phase: 'roles', game: 'defuse', data: defuseView({ phase: 'roles', board: undefined }) }
+    }));
+    pushYou(fake, defuseYou({
+      phase: 'roles', role: null, board: undefined, done: false,
+      roleAsk: { mode: 'normal', focus: false, taken: [], physicalDeclined: false }
+    }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+
+    // 部屋の知らせだけが先に届く（自分の秘密はまだ役割えらびのまま）
+    const actsBefore = fake.emits.filter(e => e.name === 'wolf:act').length;
+    push(fake, defuseRoom({
+      state: { phase: 'brief', game: 'defuse', data: defuseView({ phase: 'brief' }) }
+    }));
+    await sleep(win, 250);
+    const actsAfter = fake.emits.filter(e => e.name === 'wolf:act').length;
+    assertEqual(actsAfter, actsBefore, '古い秘密のまま、勝手に読了を送らない');
+
+    // 遅れて秘密が届いたら、ちゃんと説明が出る
+    pushYou(fake, defuseYou({ phase: 'brief', done: false, briefs: defuseBriefs() }));
+    await sleep(win, 200);
+    assert(/傾け迷路/.test(el(doc, 'dfBriefBox').textContent), '秘密がそろってから説明が出る');
+    assertNoErrors(errors, '知らせの順番ちがいで未捕捉の例外');
+    win.close();
+  });
+
   await r.test('実物解除：説明はあとからいつでも見返せる', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
@@ -2930,7 +3005,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
           phase: 'day', turn: 2,
           players: [
             { id: 'm1', name: 'あき', alive: true, role: null, deadCause: null, deadTurn: null },
-            { id: 'm2', name: 'びび', alive: false, role: null, deadCause: 'vote', deadTurn: 1 },
+            // 第35弾B：サーバー（wolf-logic.js）が実際に送る死因は 'executed'。
+            // 以前ここが 'vote' だったのは古い対応表の写し（0488d16で盤面側を直した時に取り残し）
+            { id: 'm2', name: 'びび', alive: false, role: null, deadCause: 'executed', deadTurn: 1 },
             { id: 'm3', name: 'ちか', alive: true, role: null, deadCause: null, deadTurn: null }
           ]
         })

@@ -367,6 +367,31 @@ async function run() {
     }
   });
 
+  await r.test('手書きの画面idリストが、実在する画面だけを指している（第35弾C・正本ループ）', async () => {
+    // テーマ除外・歯車非表示などは手書きのscr-idリストで持っている（落とし穴4）。
+    // 画面の改名・削除でリストが腐っても誰も気づかない（該当画面にだけ適用漏れが出る）ので、
+    // 正本SCREEN_IDSとの包含を機械照合する
+    const inv = require('./inventory');
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const LISTS = [
+      ['THEME_FREE_SCREENS', /THEME_FREE_SCREENS = \[([^\]]*)\]/],
+      ['noGear', /var noGear = \[([^\]]*)\]/],
+      ['RT_SCREENS', /var RT_SCREENS = \[([^\]]*)\]/],
+      ['RT_GAME_SCREEN_IDS', /var RT_GAME_SCREEN_IDS = \[([^\]]*)\]/],
+    ];
+    for (const [name, re] of LISTS) {
+      const m = html.match(re);
+      assert(m, name + ' がindex.htmlに存在する');
+      const ids = m[1].split(',').map((s) => s.replace(/['"\s]/g, '')).filter(Boolean);
+      assert(ids.length > 0, name + ' が空でない');
+      for (const id of ids) {
+        assert(inv.SCREEN_IDS.indexOf(id) !== -1, name + ' の「' + id + '」が実在する画面');
+      }
+    }
+  });
+
   await r.test('画面一覧の正本と監査台帳が一致している（第35弾C・正本ループ）', async () => {
     // 画面・オーバーレイを足したら、監査台帳（docs/監査_画面一覧.md）に行を足さないと赤くなる。
     // マトリクスの行照合（上のテスト）と同じ仕組みの画面版

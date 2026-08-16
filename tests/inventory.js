@@ -129,6 +129,18 @@ const RT_START_MIN_CONFIG = {
   auction: { game: 'auction', mode: 'sealed', rounds: 3, bidSec: 60 }
 };
 
+// ---- 画面とオーバーレイの一覧（第35弾C：体験品質監査の正本） ----
+// 画面は index.html の <div class="screen" id="scr-..."> から自動抽出。
+// 画面を足せばここに自動で載り、監査台帳（docs/監査_画面一覧.md）に行が無いと
+// tests/room-paths.js の照合が赤くなる（マトリクスの行照合と同じ仕組み）
+const SCREEN_IDS = Array.from(new Set(
+  Array.from(INDEX_HTML.matchAll(/class="screen[^"]*"\s+id="(scr-[a-z0-9-]+)"/g)).map((m) => m[1])
+));
+// 画面の上にかぶさるオーバーレイ（モーダル）。命名規約「〜Overlay」から自動抽出
+const OVERLAY_IDS = Array.from(new Set(
+  Array.from(INDEX_HTML.matchAll(/id="([A-Za-z]*[Oo]verlay[A-Za-z]*)"/g)).map((m) => m[1])
+));
+
 module.exports = {
   RT_GAME_IDS,
   CASSETTE_GAME_IDS,
@@ -137,5 +149,7 @@ module.exports = {
   RT_START_MIN_CONFIG,
   ROOM_ENTRY_PATHS,
   ROOM_EXIT_PATHS,
-  COUNTDOWN_PATHS
+  COUNTDOWN_PATHS,
+  SCREEN_IDS,
+  OVERLAY_IDS
 };

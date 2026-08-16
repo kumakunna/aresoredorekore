@@ -367,6 +367,23 @@ async function run() {
     }
   });
 
+  await r.test('画面一覧の正本と監査台帳が一致している（第35弾C・正本ループ）', async () => {
+    // 画面・オーバーレイを足したら、監査台帳（docs/監査_画面一覧.md）に行を足さないと赤くなる。
+    // マトリクスの行照合（上のテスト）と同じ仕組みの画面版
+    const inv = require('./inventory');
+    assert(inv.SCREEN_IDS.length >= 60, '画面の自動抽出が動いている（実際:' + inv.SCREEN_IDS.length + '）');
+    assert(inv.OVERLAY_IDS.length >= 10, 'オーバーレイの自動抽出が動いている（実際:' + inv.OVERLAY_IDS.length + '）');
+    const fs = require('fs');
+    const path = require('path');
+    const doc = fs.readFileSync(path.join(__dirname, '..', 'docs', '監査_画面一覧.md'), 'utf8');
+    for (const id of inv.SCREEN_IDS) {
+      assert(doc.indexOf('`' + id + '`') !== -1, '台帳に画面の行がある: ' + id);
+    }
+    for (const id of inv.OVERLAY_IDS) {
+      assert(doc.indexOf('`' + id + '`') !== -1, '台帳にオーバーレイの行がある: ' + id);
+    }
+  });
+
   r.finish();
 }
 

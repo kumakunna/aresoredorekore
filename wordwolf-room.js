@@ -44,6 +44,12 @@ function startGame(room, config) {
     ? cfg.roles.slice()
     : Object.keys(cfg.roles || {}).filter((id) => cfg.roles[id] > 0);
   const roleIds = WW.roleIdsFor(isMulti).filter((id) => wanted.indexOf(id) !== -1);
+  // 第35弾B：役職入りの下限（基本3人＋役職の数）はサーバーが門番する。
+  // 画面側のボタン無効化だけだと、選択状態が端末ローカルなので素通りし得る
+  const needed = WW.minPlayersFor(roleIds);
+  if (members.length < needed) {
+    return { ok: false, error: 'too_few_players', message: needed + '人以上必要です' };
+  }
   const counts = WW.balancedCounts(roleIds, members.length, wolfIds.length);
 
   const pair = WW.pickPair(-1);

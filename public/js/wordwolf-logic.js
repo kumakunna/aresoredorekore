@@ -75,6 +75,15 @@
     return shuffle(playerIds, rng).slice(0, wolfCountFor(playerIds.length, wolfCount));
   }
 
+  // ===== 役職入りの最低人数 =====
+  // 基本の3人に、役職1つにつきシープを1人余分に求める。
+  // 3人でのぞき見を許すと覗ける相手が2人しかおらず、結果で正体がほぼ確定してしまう。
+  // モード一覧（画面側）の minPlayers（のぞき見4・かき乱し6・占い5）はこの式の写し。
+  // 下限の門はサーバー（wordwolf-room）がこの正本で見張る（第35弾B）
+  function minPlayersFor(roleIds) {
+    return 3 + (roleIds || []).length;
+  }
+
   // ===== 役職 =====
   // ターン数で使える役職の集合が変わる。
   //   1ターン版  … 投票の直前に1回だけ動く単発役職
@@ -227,7 +236,7 @@
   return {
     PAIRS: PAIRS, ROLE_SETS: ROLE_SETS, ROLE_DESC: ROLE_DESC, DROP_ORDER: DROP_ORDER,
     pickPair: pickPair, shuffle: shuffle,
-    wolfCountFor: wolfCountFor, assignWolves: assignWolves,
+    wolfCountFor: wolfCountFor, assignWolves: assignWolves, minPlayersFor: minPlayersFor,
     roleIdsFor: roleIdsFor, roleName: roleName, roleDesc: roleDesc,
     balancedCounts: balancedCounts, assignRoles: assignRoles,
     picksAtReveal: picksAtReveal, picksBeforeVote: picksBeforeVote, hasPreVoteStep: hasPreVoteStep,

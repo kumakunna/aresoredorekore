@@ -326,6 +326,47 @@ async function run() {
     assert(kinds.indexOf('passive') !== -1, '出される側の経路がある');
   });
 
+  await r.test('役職入りワードウルフの人数下限は、サーバーが門番する（正本ループ）', async () => {
+    // 実機報告「のぞき見・3人だと開始できない」の調査で発見：下限（のぞき見4人など）は
+    // クライアントの表示とボタン無効化だけで、サーバーは3人でものぞき見を開始できた。
+    // 無効化はdisabled属性頼みで、選択状態は端末ローカルのため（リロード後のホスト等）
+    // 通常UIからも素通りし得る。状態の権威はサーバー（落とし穴8・14）。
+    // 下限の式は「基本3人＋役職の数」＝モード表のminPlayers（のぞき見4・かき乱し6・占い5）と一致。
+    // 正本は wordwolf-logic の minPlayersFor に置く
+    const WW = require('../public/js/wordwolf-logic.js');
+    const CASES = [
+      { label: 'のぞき見', roles: { peek: 1 }, multiTurn: false },
+      { label: 'かき乱し', roles: { peek: 1, fake: 1, involve: 1 }, multiTurn: false },
+      { label: '占い', roles: { seer: 1, madman: 1 }, multiTurn: true },
+    ];
+    for (const c of CASES) {
+      const need = WW.minPlayersFor(Object.keys(c.roles));
+      const cfg = {
+        game: 'wordwolf', wolfCount: 1, wolfAware: true, roles: c.roles,
+        multiTurn: c.multiTurn, turnLimit: 2, meetingSec: 0, discussSec: 0
+      };
+      // 下限のひとつ下：拒否＋必要人数入りのプレイヤー向け文言
+      let srv = await startTestServer();
+      try {
+        const rm = await makeRoom(srv, need - 1);
+        const res = await rm.host.call(RT_START_EVENT, cfg);
+        assertEqual(res.ok, false, c.label + '：' + (need - 1) + '人では始まらない');
+        assert(new RegExp(need + '人以上').test(res.message || ''),
+          c.label + '：文言に必要人数が入る（実際:' + (res.message || res.error || 'なし') + '）');
+      } finally { await srv.close(); }
+      // 下限ちょうど：開始できて、役職も全部配られる
+      srv = await startTestServer();
+      try {
+        const rm = await makeRoom(srv, need);
+        const res = await rm.host.call(RT_START_EVENT, cfg);
+        assertEqual(res.ok, true, c.label + '：' + need + '人なら始まる');
+        const w = srv.store.get(rm.code).wordwolf;
+        assertEqual(Object.keys(w.roles).length, Object.keys(c.roles).length,
+          c.label + '：役職が全部配られている');
+      } finally { await srv.close(); }
+    }
+  });
+
   r.finish();
 }
 

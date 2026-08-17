@@ -283,20 +283,23 @@ async function run() {
 
   // ---- 4. 大人数 ----
 
-  await r.test('30人が入っても、名簿も公開情報も壊れない', async () => {
+  await r.test('上限の20人が入っても、名簿も公開情報も壊れない', async () => {
+    // 第35弾D（レビュー決定 8/18）：部屋はプレイヤー20人まで（realtime.jsのROOM_MAX_PLAYERS）。
+    // 以前は30人で見ていたテスト。上限そのものの門は tests/abnormal.js のd12が見る
+    const { ROOM_MAX_PLAYERS } = require('../realtime');
     const srv = await startTestServer();
     try {
-      const rm = await makeRoom(srv, 30);
-      assertEqual(roomOf(srv, rm.code).members.size, 30, '30人ぶんの名簿');
+      const rm = await makeRoom(srv, ROOM_MAX_PLAYERS);
+      assertEqual(roomOf(srv, rm.code).members.size, ROOM_MAX_PLAYERS, '上限人数ぶんの名簿');
       // 配信は非同期なので、最後の1人が届くまで待つ
-      await waitUntil(() => rm.host.room && rm.host.room.playerCount === 30,
-        '30人ぶんの名簿が全員に配られる', 6000);
-      assertEqual((rm.host.room.members || []).length, 30, '名簿が全員ぶん配られる');
+      await waitUntil(() => rm.host.room && rm.host.room.playerCount === ROOM_MAX_PLAYERS,
+        '上限人数ぶんの名簿が全員に配られる', 6000);
+      assertEqual((rm.host.room.members || []).length, ROOM_MAX_PLAYERS, '名簿が全員ぶん配られる');
 
       await rm.host.call('wolf:start', { game: 'quizrush', timerSec: 120 });
-      await waitUntil(() => rm.host.you && rm.host.you.rush, '30人でも始まる');
+      await waitUntil(() => rm.host.you && rm.host.you.rush, '上限人数でも始まる');
       const view = rm.host.room.state.data;
-      assertEqual((view.players || []).length, 30, '公開情報も30人ぶん');
+      assertEqual((view.players || []).length, ROOM_MAX_PLAYERS, '公開情報も全員ぶん');
       view.players.forEach((p) => {
         assert(p.name && typeof p.score === 'number', '一人ずつ中身が揃っている');
       });
@@ -395,7 +398,7 @@ async function run() {
     } finally { await srv.close(); }
   });
 
-  await r.test('クイズ王・オークションは、大人数でも始められる（上限は設けていない）', async () => {
+  await r.test('クイズ王・オークションは、大人数でも始められる（ゲーム側に上限なし・部屋の20人上限の内側で）', async () => {
     // 人狼と違って、手渡しの回数が人数に比例して増えないので上限を置いていない。
     // 「上限が無い」ことを、実際に多い人数で確かめておく
     const srv = await startTestServer();

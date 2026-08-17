@@ -221,6 +221,13 @@ function memberList(room) {
 }
 
 // 大画面ホストは人数に数えない。ゲームの参加人数はかならずこれを使う
+// 第35弾D（レビュー決定 8/18）：部屋はプレイヤー20人まで。
+// 技術上は30人でも余裕（実測：配布20ms・同時操作66ms）だが、話し合い・投票が
+// 成立する体験の実用域として20人に区切る。1クラス（30〜40人）は「2部屋＋大画面2台」の
+// 分割運用が濃い（docs/運用メモ.md）。上限を広げる場合は配役バランスの大人数調整が前提。
+// 大画面表示は playerCount に数えないため、この門はプレイヤー枠だけを見る
+const ROOM_MAX_PLAYERS = 20;
+
 function playerMembers(room) {
   return memberList(room).filter((m) => m.role === ROLE_PLAYER);
 }
@@ -855,6 +862,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         member.name = name;
         if (payload && payload.role) member.role = normalizeRole(payload.role);
       } else {
+        // 新しい枠が要る時だけ満員を見る（既存メンバーの復帰は満員でも締め出さない）
+        if (playerMembers(room).length >= ROOM_MAX_PLAYERS) {
+          return fail(cb, 'room_full', '満員です（20人まで）');
+        }
         member = {
           id: newId('m'),
           name,
@@ -1209,6 +1220,7 @@ module.exports = {
   publicSnapshot,
   playerMembers,
   pickNextHost,
+  ROOM_MAX_PLAYERS,
   // 第35弾：監査の正本（tests/inventory.js）がゲーム一覧を自動導出するために公開。
   // 手書きの一覧は登録漏れの温床になる（落とし穴4）ので、必ずここから引く
   GAME_DRIVERS,

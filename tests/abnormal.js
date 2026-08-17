@@ -281,6 +281,33 @@ async function run() {
     }
   });
 
+  await r.test('d12：部屋は20人まで——21人目は満員で断られ、20人ちょうど・復帰・大画面は通る', async () => {
+    // レビュー決定（8/18）：技術は30人でも余裕だが、体験が成立する実用域として上限20人。
+    // 上限・下限は両方向を見る（落とし穴8）
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 19);
+      const room = () => srv.store.get(rm.code);
+      // 20人ちょうどは入れる
+      const p20 = await device(srv.url);
+      const r20 = await p20.call('room:join', { code: rm.code, name: '二十' });
+      assertEqual(r20.ok, true, '20人ちょうどは入れる');
+      assertEqual(room().members.size, 20, '名簿20人');
+      // 21人目は満員
+      const p21 = await device(srv.url);
+      const r21 = await p21.call('room:join', { code: rm.code, name: '二十一' });
+      assertEqual(r21.ok, false, '21人目は入れない（実際:' + JSON.stringify(r21) + '）');
+      assertEqual(r21.error, 'room_full', '理由が room_full');
+      assert(/満員です（20人まで）/.test(r21.message || ''), 'プレイヤー向けの文言（実際:' + (r21.message || 'なし') + '）');
+      assertEqual(room().members.size, 20, '名簿は増えない');
+      // 満員でも「復帰」は締め出さない（20人のうちの1人が入り直すのは通る）
+      const back = await device(srv.url);
+      const rb = await back.call('room:join', { code: rm.code, name: '二十', memberId: r20.memberId });
+      assertEqual(rb.ok, true, '既存メンバーの入り直しは満員でも通る');
+      assertEqual(room().members.size, 20, '名簿は20人のまま');
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 }
 

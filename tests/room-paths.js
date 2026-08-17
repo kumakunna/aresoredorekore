@@ -392,6 +392,27 @@ async function run() {
     }
   });
 
+  await r.test('入室経路の正本に、担当テストの割り当てが揃っている（第35弾E・正本ループ）', async () => {
+    // 入室経路はUI・URL・socketと性質が違い、1本のループでは回せない。
+    // 代わりに「経路→それを固定しているテスト」の対応表をここに置き、
+    // 正本に新しい経路が増えたのに担当が決まっていない時に赤くする（落とし穴4の恒久対策）
+    const inv = require('./inventory');
+    const COVERAGE = {
+      'howto-create': 'rt-screens「参加する時に役割を選ばせない」ほか作成系＋abnormal d12（20人・復帰）',
+      'howto-join': 'room-edge join系＋abnormal d09（存在しないコード）',
+      'qr-url': 'rt-screens「部屋コードを入れると何を遊ぶのかが出る」＋smoke QR系＋D-4実機（リロード3局面）',
+      'login-join': 'rt-screens「呼ばれて入るだけの人には部屋をつくるを出さない」',
+      'shelf-room-btn': 'rt-screens 部屋ボタン4態（在室・ゲーム中・未在室・消滅）',
+      'auto-rejoin': 'room-edge「通信が切れて戻っても同じところに復帰」＋abnormal d01',
+      'manual-rejoin': 'abnormal d08（同memberId復帰・同名別人の両面）',
+    };
+    for (const p of inv.ROOM_ENTRY_PATHS) {
+      assert(COVERAGE[p.id], '入室経路「' + p.id + '」に担当テストが割り当てられている（' + p.label + '）');
+    }
+    assertEqual(Object.keys(COVERAGE).length, inv.ROOM_ENTRY_PATHS.length,
+      '対応表に余り（正本から消えた経路）が無い');
+  });
+
   await r.test('異常系シナリオの正本と監査台帳が一致している（第35弾D・正本ループ）', async () => {
     const inv = require('./inventory');
     assert(inv.ABNORMAL_SCENARIOS.length >= 14, 'シナリオ一覧がある（実際:' + inv.ABNORMAL_SCENARIOS.length + '）');

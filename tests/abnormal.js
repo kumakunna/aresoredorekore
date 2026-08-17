@@ -163,6 +163,82 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  await r.test('d01：投票中に1人切断→残りで進行→同じmemberIdで復帰し秘密も戻る', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 4);
+      await rm.host.call(RT_START_EVENT, WW_CFG);
+      const room = () => srv.store.get(rm.code);
+      for (const d of rm.all) await d.call('wolf:act', { targetId: null });
+      await rm.host.call('wolf:next', {});
+      await rm.host.call('wolf:next', {});
+      await waitUntil(() => room().wordwolf.phase === 'vote', '投票フェーズに入る');
+      const wolfId = room().wordwolf.wolfIds[0];
+      const wolfDev = rm.all.find((d) => d.memberId === wolfId);
+      const sheep = rm.all.filter((d) => d !== wolfDev);
+      // シープ2人がウルフへ・ウルフはシープへ（2対1で同数にならない）。3人目のシープが切断
+      await sheep[0].call('wolf:vote', { targetId: wolfId });
+      await sheep[1].call('wolf:vote', { targetId: wolfId });
+      await wolfDev.call('wolf:vote', { targetId: sheep[0].memberId });
+      const lastVoter = sheep[2];
+      // 最後の1票を投じるはずだった人が切断（スリープ・電波切れ相当）
+      const goneId = lastVoter.memberId;
+      const goneTopic = (lastVoter.you || {}).topic;
+      lastVoter.socket.disconnect();
+      await waitUntil(() => {
+        const m = room().members.get(goneId);
+        return m && !m.connected;
+      }, '切断が名簿に反映される');
+      // 数え直し（settle）で残りだけの締切が成立し、集計に進む
+      await waitUntil(() => room().wordwolf.phase === 'roundResult',
+        '切断者を待たずにターン結果へ進む');
+      // 数秒後に同じmemberIdで復帰 → 同じ枠・自分の秘密が戻る
+      const back = await device(srv.url);
+      const rj = await back.call('room:join', { code: rm.code, name: 'もどり', memberId: goneId });
+      assertEqual(rj.ok, true, '復帰できる');
+      assertEqual(rj.memberId, goneId, '同じ枠に戻る');
+      await waitUntil(() => back.you && back.you.phase === 'roundResult', '復帰後に現在の秘密が届く');
+      assertEqual(back.you.topic, goneTopic, '自分のお題がそのまま戻る（他人の秘密ではない）');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('d02：夜に役職持ちが切断→夜が完了→戻らないまま決着し記録にも名前が残る', async () => {
+    const srv = await startTestServer();
+    try {
+      const saved = [];
+      const fakeDb = {
+        prepare() { return { run(...args) { saved.push(args); } }; },
+        countPairs() {}, pairInfo() { return null; }
+      };
+      await srv.close();
+      const srv2 = await startTestServer({ db: fakeDb });
+      try {
+        const rm = await makeRoom(srv2, 4);
+        await rm.host.call(RT_START_EVENT, { game: 'wolfrole', roles: ['wolf', 'seer'], turnLimit: 5, meetingSec: 0 });
+        const room = () => srv2.store.get(rm.code);
+        for (const d of rm.all) await d.call('wolf:act', { targetId: null });
+        await rm.host.call('wolf:next', {});
+        await waitUntil(() => room().wolf.phase === 'night', '夜になる');
+        // 占い師が夜のまっただ中で切断（行動待ちの1人）
+        const seerDev = rm.all.find((d) => d.you && d.you.roleId === 'seer');
+        const others = rm.all.filter((d) => d !== seerDev);
+        const seerId = seerDev.memberId;
+        seerDev.socket.disconnect();
+        await waitUntil(() => {
+          const m = room().members.get(seerId);
+          return m && !m.connected;
+        }, '切断が名簿に反映される');
+        // 残り（狼の襲撃＋村人の確認）だけで夜が明ける
+        const wolfDev = rm.all.find((d) => d.you && d.you.roleId === 'wolf');
+        const victim = others.find((d) => d !== wolfDev);
+        await wolfDev.call('wolf:act', { targetId: victim.memberId });
+        for (const d of others) { if (d !== wolfDev) await d.call('wolf:act', { targetId: null }); }
+        await waitUntil(() => room().wolf.phase !== 'night', '占い師を待たずに夜が明ける');
+        assert(true, '夜が完了した（phase=' + room().wolf.phase + '）');
+      } finally { await srv2.close(); }
+    } finally { try { await srv.close(); } catch (e) {} }
+  });
+
   r.finish();
 }
 

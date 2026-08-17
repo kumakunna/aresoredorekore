@@ -141,6 +141,27 @@ const OVERLAY_IDS = Array.from(new Set(
   Array.from(INDEX_HTML.matchAll(/id="([A-Za-z]*[Oo]verlay[A-Za-z]*)"/g)).map((m) => m[1])
 ));
 
+// ---- 異常系シナリオの一覧（第35弾D：通信・異常系・状態復帰の正本） ----
+// 指示35Dの11シナリオ＋フェーズB/Cからの申し送りを統合。台帳（docs/監査_異常系シナリオ.md）と機械照合する。
+// kind: conn＝接続の異常 / op＝操作の異常 / load＝負荷・上限 / ops＝運用
+// needsDevice: true＝実機スマホでしか再現できない部分を含む（チェックリストでくまくんに依頼）
+const ABNORMAL_SCENARIOS = [
+  { id: 'd01', kind: 'conn', name: 'ゲーム中に1人が切断→数秒後に再接続' },
+  { id: 'd02', kind: 'conn', name: 'ゲーム中に1人が切断→そのまま戻らない（タイムアウト）' },
+  { id: 'd03', kind: 'conn', name: 'ホストが切断→再接続／戻らない（仕様判断：現状＋推奨案を報告）' },
+  { id: 'd04', kind: 'conn', name: 'ページのリロード（待機中・ゲーム中・結果画面それぞれ）' },
+  { id: 'd05', kind: 'conn', name: 'スマホのスリープ→復帰（socket切断状態からの復帰・溜まったイベントの流れ込み）', needsDevice: true },
+  { id: 'd06', kind: 'conn', name: 'サーバー再起動（pm2 restart）後のクライアント挙動' },
+  { id: 'd07', kind: 'op', name: '同じ操作の二重送信（投票2回・開始の同時押し等）' },
+  { id: 'd08', kind: 'op', name: '同一人物が2タブ・2台で同じ部屋に入る' },
+  { id: 'd09', kind: 'op', name: '解散済み・存在しない部屋コード／古いQRでの入室試行' },
+  { id: 'd10', kind: 'op', name: '進行中の部屋への途中入室試行（ゲームごとのあるべき仕様の確認）' },
+  { id: 'd11', kind: 'op', name: 'フェーズ切替の瞬間の操作（締切と同時の投票などの競合）' },
+  { id: 'd12', kind: 'load', name: '大人数（30人目安）の負荷と、部屋の人数上限の推奨案（レビュー指示）' },
+  { id: 'd13', kind: 'ops', name: '記録（DB書き込み）に失敗しても、進行が壊れない' },
+  { id: 'd14', kind: 'op', name: 'memberIdの露出チェックリスト（URL・ログ・localStorage・QR・コンソール）' },
+];
+
 module.exports = {
   RT_GAME_IDS,
   CASSETTE_GAME_IDS,
@@ -151,5 +172,6 @@ module.exports = {
   ROOM_EXIT_PATHS,
   COUNTDOWN_PATHS,
   SCREEN_IDS,
-  OVERLAY_IDS
+  OVERLAY_IDS,
+  ABNORMAL_SCENARIOS
 };

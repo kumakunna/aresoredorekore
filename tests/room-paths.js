@@ -392,6 +392,17 @@ async function run() {
     }
   });
 
+  await r.test('異常系シナリオの正本と監査台帳が一致している（第35弾D・正本ループ）', async () => {
+    const inv = require('./inventory');
+    assert(inv.ABNORMAL_SCENARIOS.length >= 14, 'シナリオ一覧がある（実際:' + inv.ABNORMAL_SCENARIOS.length + '）');
+    const fs = require('fs');
+    const path = require('path');
+    const doc = fs.readFileSync(path.join(__dirname, '..', 'docs', '監査_異常系シナリオ.md'), 'utf8');
+    for (const sc of inv.ABNORMAL_SCENARIOS) {
+      assert(doc.indexOf('`' + sc.id + '`') !== -1, '台帳にシナリオの行がある: ' + sc.id + ' ' + sc.name);
+    }
+  });
+
   await r.test('画面一覧の正本と監査台帳が一致している（第35弾C・正本ループ）', async () => {
     // 画面・オーバーレイを足したら、監査台帳（docs/監査_画面一覧.md）に行を足さないと赤くなる。
     // マトリクスの行照合（上のテスト）と同じ仕組みの画面版

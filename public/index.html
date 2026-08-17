@@ -12334,6 +12334,11 @@
     if(!play.wolfRevealed){
       el('wolfHandoffScreen').style.display = 'flex';
       el('wolfContentScreen').style.display = 'none';
+      // 第35弾C（レビュー決定）：渡す瞬間は、前の人の秘密を非表示にするだけでなくDOMからも消す。
+      // 将来の画面変更（コピー機能など）で「非表示のまま残った秘密」が露出する芽を摘む
+      el('wolfTopicText').textContent = '-';
+      el('wolfRoleBox').innerHTML = '';
+      el('wolfVoteInfo').innerHTML = '';
       return;
     }
     el('wolfHandoffScreen').style.display = 'none';
@@ -13045,6 +13050,8 @@
   function uiHandoff(opts){
     el('wrHandoff').style.display = 'block';
     el('wrContent').style.display = 'none';
+    // 第35弾C（レビュー決定）：渡す瞬間は、前の人の役職をDOMからも消す
+    el('wrContentBody').innerHTML = '';
     el('wrHandoffName').textContent = opts.name || '-';
     el('wrHandoffSub').textContent = opts.sub || 'この人にスマホを渡してください';
     el('wrRevealBtn').textContent = opts.buttonLabel || 'タップして見る';

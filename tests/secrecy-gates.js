@@ -103,6 +103,12 @@ async function run() {
     assertEqual(el(doc, 'wolfContentScreen').style.display, 'none', '2人目のゲートで中身が閉じ直る');
     const gate2 = visibleText(el(doc, 'scr-wolf-pass'));
     assert(gate2.indexOf(topic1) === -1, '2人目のゲートに1人目のお題が残っていない');
+    // 第35弾C（レビュー決定）：防御はDOMレイヤーでも揃える。
+    // 非表示のまま前の人の秘密が残っていると、将来の画面変更（コピー機能など）で露出の芽になる
+    assert(el(doc, 'wolfTopicText').textContent.indexOf(topic1) === -1,
+      '2人目のゲートではDOMからも1人目のお題が消えている');
+    assertEqual(el(doc, 'wolfRoleBox').innerHTML, '', '役職欄もDOMから空');
+    assertEqual(el(doc, 'wolfVoteInfo').innerHTML, '', '能力情報の欄もDOMから空');
     assertNoErrors(errors, '配りゲートで未捕捉の例外');
     win.close();
   });
@@ -131,6 +137,8 @@ async function run() {
     ['人狼', '占い師', '村人'].forEach((w) => {
       assert(gate2.indexOf(w) === -1, '2人目のゲートに役職語「' + w + '」が残っていない');
     });
+    // 第35弾C（レビュー決定）：非表示のまま残さず、DOMからも消す
+    assertEqual(el(doc, 'wrContentBody').innerHTML, '', '2人目のゲートでは役職の中身がDOMから空');
     assertNoErrors(errors, '役職配りゲートで未捕捉の例外');
     win.close();
   });

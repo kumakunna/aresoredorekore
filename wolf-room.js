@@ -273,6 +273,12 @@ function submitAction(room, memberId, targetId) {
   }
   if (expectedMembers(room).indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
 
+  // 第35弾D：夜・投票前の行動の対象も「実在して生きている人」だけ（サーバー権威）。
+  // targetId無し＝確認だけ、はこれまで通り通す
+  if (targetId && (w.phase === PHASE.NIGHT || w.phase === PHASE.PREVOTE)) {
+    const actTarget = WolfLogic.findPlayer(g, targetId);
+    if (!actTarget || !actTarget.alive) return { ok: false, error: 'unknown_target' };
+  }
   if (targetId && w.phase === PHASE.NIGHT) WolfLogic.setNightAction(g, memberId, targetId);
   if (targetId && w.phase === PHASE.PREVOTE) WolfLogic.setPreVoteAction(g, memberId, targetId);
   w.done[memberId] = true;
@@ -295,6 +301,11 @@ function submitVote(room, memberId, targetId) {
   if (w.phase !== PHASE.VOTE) return { ok: false, error: 'wrong_phase' };
   if (expectedMembers(room).indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
   if (!targetId) return { ok: false, error: 'target_required' };
+  // 第35弾D：投票先は「実在して生きている、自分以外の人」だけ。
+  // 端末側の候補一覧と同じ制限をサーバーでも見張る（サーバー権威）
+  if (targetId === memberId) return { ok: false, error: 'self_vote' };
+  const voteTarget = WolfLogic.findPlayer(w.game, targetId);
+  if (!voteTarget || !voteTarget.alive) return { ok: false, error: 'unknown_target' };
   // 決選投票では、候補以外に入れられない（端末が古い画面のまま送ってきても弾く）
   if (w.runoff && w.runoff.candidates.indexOf(targetId) === -1) {
     return { ok: false, error: 'not_candidate' };

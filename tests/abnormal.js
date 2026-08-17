@@ -239,6 +239,48 @@ async function run() {
     } finally { try { await srv.close(); } catch (e) {} }
   });
 
+  await r.test('d07拡張：投票・夜の対象は「実在する参加者」だけ（幽霊IDはサーバーが拒否・正本ループ）', async () => {
+    // 発見（8/16）：存在しないIDへの投票・夜行動が受理されていた。
+    // 改造・バグったクライアントの幽霊票が集計を歪める（幽霊が最多得票→誰も処刑されない等）。
+    // サーバー権威の原則どおり、対象の実在チェックはサーバー側に置く
+    const WordwolfRoom = require('../wordwolf-room.js');
+    const WolfRoom = require('../wolf-room.js');
+    function mockRoom(n) {
+      const members = new Map();
+      for (let i = 0; i < n; i++) {
+        const id = 'm_' + i;
+        members.set(id, { id, name: 'P' + i, role: 'player', connected: true });
+      }
+      return { members, state: {} };
+    }
+    // ① ワードウルフの投票
+    {
+      const room = mockRoom(3);
+      WordwolfRoom.startGame(room, { game: 'wordwolf', wolfCount: 1, wolfAware: true, roles: {}, meetingSec: 0, discussSec: 0 });
+      room.wordwolf.phase = 'vote';
+      const r1 = WordwolfRoom.submitVote(room, 'm_0', 'm_GHOST');
+      assertEqual(r1.ok, false, 'WW投票：幽霊IDは拒否（実際:' + JSON.stringify(r1) + '）');
+      assertEqual(Object.keys(room.wordwolf.votes).length, 0, 'WW投票：幽霊票は残らない');
+    }
+    // ② 人狼の投票
+    {
+      const room = mockRoom(4);
+      WolfRoom.startGame(room, { game: 'wolfrole', roles: ['wolf'], turnLimit: 5, meetingSec: 0 });
+      room.wolf.phase = 'vote';
+      const r2 = WolfRoom.submitVote(room, 'm_0', 'm_GHOST');
+      assertEqual(r2.ok, false, '人狼投票：幽霊IDは拒否（実際:' + JSON.stringify(r2) + '）');
+    }
+    // ③ 人狼の夜の行動（襲撃・占いの対象）
+    {
+      const room = mockRoom(4);
+      WolfRoom.startGame(room, { game: 'wolfrole', roles: ['wolf'], turnLimit: 5, meetingSec: 0 });
+      room.wolf.phase = 'night';
+      const wolfId = room.wolf.game.players.find((p) => p.role === 'wolf').id;
+      const r3 = WolfRoom.submitAction(room, wolfId, 'm_GHOST');
+      assertEqual(r3.ok, false, '夜の行動：幽霊IDは拒否（実際:' + JSON.stringify(r3) + '）');
+    }
+  });
+
   r.finish();
 }
 

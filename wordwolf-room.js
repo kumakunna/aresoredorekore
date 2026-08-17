@@ -298,6 +298,9 @@ function submitVote(room, memberId, targetId) {
   if (expectedMembers(room).indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
   if (!targetId) return { ok: false, error: 'target_required' };
   if (targetId === memberId) return { ok: false, error: 'self_vote' };
+  // 第35弾D：投票先は実在する参加者だけ。存在しないIDの票（改造・バグったクライアント）を
+  // 受け付けると、幽霊が最多得票になって集計が歪む
+  if (w.playerIds.indexOf(targetId) === -1) return { ok: false, error: 'unknown_target' };
   if (WW.isOut(w, targetId)) return { ok: false, error: 'already_out' };
   if (w.runoff && w.runoff.candidates.indexOf(targetId) === -1) {
     return { ok: false, error: 'not_candidate' };

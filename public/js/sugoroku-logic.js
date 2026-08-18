@@ -256,6 +256,33 @@
     return 1 + Math.floor(r() * DICE_MAX);
   }
 
+  // 振る操作の手ごたえ。
+  //
+  // 主役は「長押ししてスワイプ」（手首を振る動きを画面上で再現する）。
+  // ただし**それしか方法が無い作りにはしない**。片手がふさがっている・手が不自由・
+  // 画面が滑らない、はどれも実際に起きる。
+  //   ・スワイプすれば、押した時間が短くても振れる
+  //   ・スワイプできなくても、**そのまま押し続けて離せば振れる**
+  // どちらか一方でよいので、「押して離す」だけができれば必ず遊べる。
+  //
+  // 返す power は**転がる演出の勢いだけ**に使う。出目には一切影響しない
+  // （勢いで目が変われば「操作が上手い人が有利」になり、サイコロの意味が消える）。
+  // だからこの関数は、出目に使える数を1つも返さない。
+  var HOLD_MIN_MS = 500;    // これだけ押していれば、スワイプしなくても振れる
+  var SWIPE_MIN_PX = 40;    // これだけ動かせば、押した時間が短くても振れる
+
+  function rollGesture(heldMs, swipePx) {
+    var held = Math.max(0, heldMs | 0);
+    var swipe = Math.abs(swipePx || 0);
+    var bySwipe = swipe >= SWIPE_MIN_PX;
+    var byHold = held >= HOLD_MIN_MS;
+    return {
+      ok: bySwipe || byHold,
+      reason: bySwipe ? 'swipe' : (byHold ? 'hold' : null),
+      power: clamp(Math.max(swipe / 220, held / 1400), 0.15, 1)
+    };
+  }
+
   // ===== 駒を進める =====
   /**
    * 決めごと①：あがりを超える出目でも、あがり扱いにする。
@@ -496,6 +523,7 @@
     BOARD_COLS: BOARD_COLS, PIECES: PIECES,
     boardLayout: boardLayout, pieceFor: pieceFor,
     rollDice: rollDice, applyMove: applyMove, walk: walk,
+    HOLD_MIN_MS: HOLD_MIN_MS, SWIPE_MIN_PX: SWIPE_MIN_PX, rollGesture: rollGesture,
     addCoins: addCoins, canPay: canPay, clamp: clamp,
     positionRanks: positionRanks, rankPlayers: rankPlayers,
     eventsFor: eventsFor, pickEvent: pickEvent,

@@ -283,6 +283,48 @@ const SPEC = {
     }
   });
 
+  // ---- 振る操作（長押しとスワイプ） ----
+
+  await r.test('スワイプすれば、押した時間が短くても振れる', async () => {
+    const g = S.rollGesture(80, S.SWIPE_MIN_PX);
+    assertEqual(g.ok, true, '振れる');
+    assertEqual(g.reason, 'swipe', 'スワイプで振れたと分かる');
+  });
+
+  await r.test('スワイプできなくても、押し続けて離せば振れる', async () => {
+    // 片手がふさがっている・手が不自由・画面が滑らない、はどれも実際に起きる。
+    // 「押して離す」だけができれば必ず遊べる形にしておく
+    const g = S.rollGesture(S.HOLD_MIN_MS, 0);
+    assertEqual(g.ok, true, 'スワイプなしでも振れる');
+    assertEqual(g.reason, 'hold', '長押しで振れたと分かる');
+  });
+
+  await r.test('ちょっと触れただけでは振れない（置いた指で暴発しない）', async () => {
+    const g = S.rollGesture(60, 5);
+    assertEqual(g.ok, false, '振れない');
+    assertEqual(g.reason, null, '理由も無い');
+  });
+
+  await r.test('振り方の強さは、出目に使える形で返らない', async () => {
+    // 勢いで目が変われば「操作が上手い人が有利」になり、サイコロの意味が消える。
+    // 強さは演出の速さにしか使えないよう、出目になり得る数を1つも返さない
+    const g = S.rollGesture(2000, 500);
+    assertEqual(Object.keys(g).sort().join(','), 'ok,power,reason', '返すのはこの3つだけ');
+    assert(g.power <= 1, '強さは1を超えない');
+    assert(S.rollGesture(0, S.SWIPE_MIN_PX).power >= 0.15, '弱くても0にはしない（演出が止まって見えない）');
+  });
+
+  await r.test('強く振っても、出目の範囲は変わらない', async () => {
+    // rollDice は乱数しか受け取らない＝勢いを渡す口が無い、という形で担保する
+    assertEqual(S.rollDice.length, 1, 'サイコロが受け取るのは乱数だけ');
+    const strong = S.rollGesture(3000, 900);
+    assertEqual(strong.ok, true, '強く振れば振れる');
+    for (let i = 0; i < 50; i++) {
+      const v = S.rollDice(() => i / 50);
+      assert(v >= 1 && v <= S.DICE_MAX, '出目は1〜6のまま');
+    }
+  });
+
   // ---- 駒を進める ----
 
   await r.test('途中のマスを1つずつ通る（ワープしない）', async () => {

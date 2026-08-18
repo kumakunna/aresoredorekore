@@ -444,6 +444,62 @@
     return { cost: cost, paid: false, stalled: true, relief: TOLL_RELIEF };
   }
 
+  /**
+   * つうこうりょうの1手番ぶん。**手渡し版と部屋版が、同じここを通る。**
+   *
+   * 「順位を見る → 通行料 → 進む → 効果マス → あがり」という順番を2か所に書くと、
+   * 片方だけ直して必ず事故る（落とし穴1）。ルールだけでなく**順番も**共通にする。
+   *
+   * @param {{board:string[], pos:Object, coins:Object, goalOrder:Object, goalCount:number, event:?Object}} st
+   *        呼び出し側が持っている状態。この関数が直接書き換える
+   * @param {string[]} liveIds 順位を数える母集団（部屋にいる人／手渡しの参加者）
+   * @param {string} id 手番の人
+   * @param {number} dice 出目（振るのは呼び出し側。乱数の持ち方が違うため）
+   * @returns {Object} 何が起きたか。画面はこれを見て演出する
+   */
+  function tollTurn(st, liveIds, id, dice) {
+    var ranks = positionRanks((liveIds || []).map(function (x) {
+      return { id: x, pos: st.pos[x] };
+    }));
+    var rank = ranks[id] || 99;
+    var free = !!(st.event && st.event.id === 'toll-free');
+    var out = {
+      id: id, dice: dice, rank: rank, free: free,
+      toll: 0, paid: false, stalled: false, relief: 0,
+      move: null, coinsGained: 0, goal: false, coinsAfter: 0
+    };
+    var o = free
+      ? { cost: 0, paid: true, stalled: false, relief: 0 }
+      : tollOutcome(st.coins[id], rank, dice);
+    out.toll = o.cost;
+    if (o.stalled) {
+      // 進めない。ただし責める場面にしない（代わりにコインが入る、を主語にする）
+      st.coins[id] = addCoins(st.coins[id], o.relief);
+      out.stalled = true;
+      out.relief = o.relief;
+      out.coinsAfter = st.coins[id];
+      return out;
+    }
+    if (o.cost > 0) {
+      st.coins[id] = addCoins(st.coins[id], -o.cost);
+      out.paid = true;
+    }
+    var mv = applyMove(st.board, st.pos[id], dice);
+    st.pos[id] = mv.to;
+    if (mv.coins) {
+      st.coins[id] = addCoins(st.coins[id], mv.coins);
+      out.coinsGained = mv.coins;
+    }
+    if (mv.goal && st.goalOrder[id] == null) {
+      st.goalCount = (st.goalCount | 0) + 1;
+      st.goalOrder[id] = st.goalCount;
+      out.goal = true;
+    }
+    out.move = mv;
+    out.coinsAfter = st.coins[id];
+    return out;
+  }
+
   // ===== 突然イベント =====
   //
   // イベントは1つの一覧に集め、**どのゲームで起こるかをデータで持つ**。
@@ -528,6 +584,7 @@
     positionRanks: positionRanks, rankPlayers: rankPlayers,
     eventsFor: eventsFor, pickEvent: pickEvent,
     checkPlayerCount: checkPlayerCount,
-    TOLL_RELIEF: TOLL_RELIEF, tollFor: tollFor, tollOutcome: tollOutcome
+    TOLL_RELIEF: TOLL_RELIEF, tollFor: tollFor, tollOutcome: tollOutcome,
+    tollTurn: tollTurn
   };
 }));

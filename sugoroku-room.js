@@ -471,47 +471,12 @@ const GAME_RULES = {
     takeTurn(room, id, opt) {
       const w = room.sugoroku;
       const dice = S.rollDice(rndOf(w));
-      const live = w.playerIds
-        .filter((pid) => room.members.has(pid))
-        .map((pid) => ({ id: pid, pos: w.pos[pid] }));
-      const rank = S.positionRanks(live)[id] || 99;
-      const free = !!(w.event && w.event.id === 'toll-free');
-      const out = {
-        id, name: w.names[id], dice, rank,
-        auto: !!opt.auto, free,
-        toll: 0, paid: false, stalled: false, relief: 0,
-        move: null, coinsGained: 0, goal: false,
-        coinsAfter: 0
-      };
-      const o = free
-        ? { cost: 0, paid: true, stalled: false, relief: 0 }
-        : S.tollOutcome(w.coins[id], rank, dice);
-      out.toll = o.cost;
-      if (o.stalled) {
-        // 進めない。ただし責める場面にしない（代わりにコインが入る、を主語にする）
-        w.coins[id] = S.addCoins(w.coins[id], o.relief);
-        out.stalled = true;
-        out.relief = o.relief;
-        out.coinsAfter = w.coins[id];
-        return out;
-      }
-      if (o.cost > 0) {
-        w.coins[id] = S.addCoins(w.coins[id], -o.cost);
-        out.paid = true;
-      }
-      const mv = S.applyMove(w.board, w.pos[id], dice);
-      w.pos[id] = mv.to;
-      if (mv.coins) {
-        w.coins[id] = S.addCoins(w.coins[id], mv.coins);
-        out.coinsGained = mv.coins;
-      }
-      if (mv.goal && w.goalOrder[id] == null) {
-        w.goalCount++;
-        w.goalOrder[id] = w.goalCount;
-        out.goal = true;
-      }
-      out.move = mv;
-      out.coinsAfter = w.coins[id];
+      // 手番の中身は共通（S.tollTurn）。手渡し版もまったく同じものを通る。
+      // 順番を2か所に書くと、片方だけ直して事故る（落とし穴1）
+      const live = w.playerIds.filter((pid) => room.members.has(pid));
+      const out = S.tollTurn(w, live, id, dice);
+      out.name = w.names[id];
+      out.auto = !!opt.auto;    // サーバーが代わりに振ったか（部屋だけの情報）
       return out;
     },
     // 先にあがった人の勝ち

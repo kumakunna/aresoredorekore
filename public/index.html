@@ -2438,6 +2438,33 @@
   .sugo-rank{font-size:12px;color:var(--ink-soft);min-width:2.6em;text-align:right;}
   .sugo-coin{font-size:12px;min-width:3.2em;text-align:right;}
   .sugo-row.goaled .sugo-left{color:var(--stamp);}
+
+  /* 振るところ。長押ししてスワイプが主役だが、押して離すだけでも振れる */
+  .sugo-act{text-align:center;padding:2px 12px 18px;}
+  .sugo-dice{
+    width:92px;height:92px;margin:0 auto;
+    display:flex;align-items:center;justify-content:center;
+    font-size:40px;line-height:1;font-weight:800;
+    border-radius:16px;background:var(--card);
+    border:2px solid var(--line);box-shadow:var(--shadow);
+    touch-action:none;          /* スワイプをブラウザのスクロールに取られない */
+    user-select:none;-webkit-user-select:none;cursor:pointer;
+  }
+  .sugo-dice.holding{border-color:var(--stamp);animation:sugoShiver .11s linear infinite;}
+  .sugo-dice.rolling{animation:sugoRoll calc(.55s * var(--fx-scale)) ease-out;}
+  .sugo-dice.done{cursor:default;opacity:.5;}
+  @keyframes sugoShiver{
+    0%,100%{transform:translate(0,0) rotate(0);}
+    25%{transform:translate(-1.5px,1px) rotate(-2deg);}
+    75%{transform:translate(1.5px,-1px) rotate(2deg);}
+  }
+  @keyframes sugoRoll{
+    0%{transform:rotate(0) scale(1);}
+    60%{transform:rotate(330deg) scale(1.12);}
+    100%{transform:rotate(360deg) scale(1);}
+  }
+  .sugo-hint{margin-top:8px;font-size:12px;color:var(--ink-soft);min-height:1.4em;}
+  .sugo-note{margin-top:4px;font-size:13px;font-weight:700;min-height:1.4em;}
 </style>
 </head>
 <body>
@@ -3718,6 +3745,11 @@
     </div>
     <div class="sugo-board" id="sugoBoard"></div>
     <div class="sugo-me" id="sugoMe"></div>
+    <div class="sugo-act">
+      <div class="sugo-dice" id="sugoDice">🎲</div>
+      <div class="sugo-note" id="sugoNote"></div>
+      <div class="sugo-hint" id="sugoHint">長押ししてスワイプ（そのまま離しても振れます）</div>
+    </div>
   </div>
 
   <div class="screen" id="scr-bomb-play">
@@ -6853,6 +6885,8 @@
     if(prevScreen && prevScreen.id === 'scr-rt-play' && id !== 'scr-rt-play') rtWolfSeen = null;
     // 第32弾-D：大画面を離れた時も同じ（入場・コールアウトの引き金を残さない）
     if(prevScreen && prevScreen.id === 'scr-rt-big' && id !== 'scr-rt-big') rtBigResetFx();
+    // 第36弾：サイコロを押したまま画面が変わると、次の画面で誤発火する
+    if(prevScreen && prevScreen.id === 'scr-sugo-play' && id !== 'scr-sugo-play') sugoDiceReset();
     // 第32弾-E 第4部・第5部：リアクションの帯と🎁は、部屋の画面でだけ
     updateReactBar();
     if(RT_SCREENS.indexOf(id) === -1) el('thanksBtn').style.display = 'none';
@@ -12306,6 +12340,131 @@
         (spec.coins ? '<span class="sugo-coin">🪙' + sugo.coins[id] + '</span>' : '') +
         '</div>';
     }).join('');
+  }
+
+  // ---- 振る操作 ----
+  // 判定の正本は SugorokuLogic.rollGesture。ここは指の動きを渡すだけ。
+  // 「長押ししてスワイプ」が主役だが、**押して離すだけでも振れる**
+  // （片手がふさがっている・手が不自由・画面が滑らない、はどれも実際に起きる）。
+  var sugoDice = { down:false, at:0, x:0, y:0, moved:0, busy:false };
+
+  // 画面を離れる時に必ず捨てる。押したまま画面が変わると、次の画面で誤発火する
+  function sugoDiceReset(){
+    sugoDice.down = false; sugoDice.moved = 0; sugoDice.busy = false;
+    var d = el('sugoDice');
+    if(d) d.classList.remove('holding', 'rolling');
+  }
+  function sugoHint(t){ el('sugoHint').textContent = t; }
+  function sugoNote(t){ el('sugoNote').textContent = t || ''; }
+
+  (function bindSugoDice(){
+    var d = el('sugoDice');
+    if(!d) return;
+    d.addEventListener('pointerdown', function(e){
+      if(sugoDice.busy || !sugo || sugoFinished()) return;
+      sugoDice.down = true; sugoDice.at = Date.now();
+      sugoDice.x = e.clientX; sugoDice.y = e.clientY; sugoDice.moved = 0;
+      d.classList.add('holding');
+      try{ d.setPointerCapture(e.pointerId); }catch(err){}
+      sugoHint('そのまま離しても振れます');
+    });
+    d.addEventListener('pointermove', function(e){
+      if(!sugoDice.down) return;
+      var dx = e.clientX - sugoDice.x, dy = e.clientY - sugoDice.y;
+      sugoDice.moved = Math.max(sugoDice.moved, Math.sqrt(dx * dx + dy * dy));
+      var g = SugorokuLogic.rollGesture(Date.now() - sugoDice.at, sugoDice.moved);
+      if(g.reason === 'swipe') sugoRoll(g);
+    });
+    ['pointerup', 'pointercancel'].forEach(function(ev){
+      d.addEventListener(ev, function(){
+        if(!sugoDice.down) return;
+        sugoDice.down = false;
+        d.classList.remove('holding');
+        var g = SugorokuLogic.rollGesture(Date.now() - sugoDice.at, sugoDice.moved);
+        if(g.ok) sugoRoll(g);
+        else sugoHint('長押ししてスワイプ（そのまま離しても振れます）');
+      });
+    });
+  })();
+
+  function sugoFinished(){ return !!(sugo && sugo.goalCount > 0); }
+  function sugoLiveIds(){
+    return sugo.order.filter(function(id){ return sugo.goalOrder[id] == null; });
+  }
+
+  async function sugoRoll(g){
+    if(sugoDice.busy || sugoFinished()) return;
+    sugoDice.busy = true; sugoDice.down = false;
+    var d = el('sugoDice');
+    d.classList.remove('holding');
+    d.classList.add('rolling');
+    try{ FxKit.vibe('rise'); }catch(e){}
+    // 勢いは転がる速さにだけ使う。出目には影響しない
+    await FxKit.hold(Math.round(380 + 240 * (1 - g.power)));
+    d.classList.remove('rolling');
+
+    var id = sugo.turnId;
+    var dice = SugorokuLogic.rollDice();
+    // 1手番の中身は共通（部屋版もまったく同じここを通る）
+    var out = SugorokuLogic.tollTurn(sugo, sugo.order.slice(), id, dice);
+    sugo.last = out;
+    d.textContent = String(dice);
+
+    if(out.stalled){
+      // 責める場面にしない。入った方を主語にする（原則7）
+      sugoNote('かわりに コイン+' + out.relief);
+      sugoHint(sugo.names[id] + ' さんは、通行料' + out.toll + 'が払えませんでした');
+      sugoRenderStatus();
+      await FxKit.hold(900);
+    } else {
+      sugoNote(out.toll > 0 ? ('通行料 −' + out.toll + '（' + out.rank + '位）')
+                            : (out.free ? '関所やぶり中（通行料なし）' : '通行料なし（' + out.rank + '位）'));
+      sugoHint('');
+      sugoRenderStatus();
+      await sugoWalk(id, out.move);
+      if(out.coinsGained) sugoNote('コイン+' + out.coinsGained);
+    }
+    sugoNextTurn();
+    sugoDice.busy = false;
+  }
+
+  // 1マスずつ動かす。ワープさせない（進んだ実感が出るように）。
+  // 待ちは必ず FxKit.hold を通すので、タップで一気に飛ばせる
+  async function sugoWalk(id, mv){
+    if(!mv) return;
+    var steps = mv.path.concat(mv.bonusPath);
+    if(!steps.length){ sugoRenderBoard(); return; }
+    sugo.pos[id] = mv.from;
+    sugoRenderBoard();
+    for(var i = 0; i < steps.length; i++){
+      sugo.pos[id] = steps[i];
+      sugoRenderBoard();
+      await FxKit.hold(110);
+    }
+    sugo.pos[id] = mv.to;
+    sugoRenderBoard();
+  }
+
+  function sugoNextTurn(){
+    if(sugoFinished()){
+      el('sugoDice').classList.add('done');
+      sugoNote('あがり！');
+      sugoHint(sugo.names[sugo.turnId] + ' さんの勝ち');
+      sugoRenderStatus();
+      return;
+    }
+    var live = sugoLiveIds();
+    var at = live.indexOf(sugo.turnId);
+    var next = live[(at + 1) % live.length];
+    // 並び順の端を越えたら一巡（イベントの効き目もここで切れる）
+    if(at + 1 >= live.length){
+      sugo.lap++;
+      if(sugo.event && sugo.lap > sugo.event.untilLap) sugo.event = null;
+    }
+    sugo.turnId = next;
+    el('sugoDice').textContent = '🎲';
+    sugoHint('長押ししてスワイプ（そのまま離しても振れます）');
+    sugoRender();
   }
 
   // ===================== 5. ready =====================

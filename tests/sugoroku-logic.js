@@ -202,6 +202,76 @@ const SPEC = {
     });
   });
 
+  // ---- 盤面の並べ方（蛇行配置） ----
+
+  await r.test('道が途切れない：行の終わりの次は、真下のマス', async () => {
+    // 折り返しで列がずれると、道が斜めに飛んで「どっちへ進むのか」が読めなくなる
+    const board = S.makeBoard('sugotoll', rndHalf);
+    const lay = S.boardLayout(board);
+    for (let i = 0; i < lay.cells.length - 1; i++) {
+      const a = lay.cells[i];
+      const b = lay.cells[i + 1];
+      const sameRow = (a.row === b.row) && (Math.abs(a.col - b.col) === 1);
+      const straightDown = (b.row === a.row + 1) && (a.col === b.col);
+      assert(sameRow || straightDown,
+        i + '→' + (i + 1) + ' が隣でも真下でもない（' + a.row + ',' + a.col + ')→(' + b.row + ',' + b.col + ')');
+    }
+  });
+
+  await r.test('行ごとに向きが入れかわる（蛇行している）', async () => {
+    const lay = S.boardLayout(S.makeBoard('sugotoll', rndHalf));
+    assertEqual(lay.cells[0].row, 0, 'ふりだしは1行目');
+    assertEqual(lay.cells[0].col, 0, 'ふりだしは左端');
+    assertEqual(lay.cells[0].dir, 'right', '1行目は右へ');
+    const secondRow = lay.cells.find((c) => c.row === 1);
+    assertEqual(secondRow.dir, 'left', '2行目は左へ');
+    assertEqual(secondRow.col, lay.cols - 1, '2行目の入口は右端（真下に折り返す）');
+  });
+
+  await r.test('同じ場所に2つのマスが重ならない', async () => {
+    S.gameIds().forEach((id) => {
+      const lay = S.boardLayout(S.makeBoard(id, rndHalf));
+      const seen = new Set();
+      lay.cells.forEach((c) => {
+        const key = c.row + ',' + c.col;
+        assert(!seen.has(key), id + ' の ' + key + ' が重複している');
+        seen.add(key);
+      });
+    });
+  });
+
+  await r.test('いちばん長い盤（40マス）でも、1画面に収まる形に収まる', async () => {
+    // スクロールせずに見渡せることが、この遊びの前提（みんなで同じ盤を見る）
+    const lay = S.boardLayout(S.makeBoard('sugotoll', rndHalf));
+    assertEqual(lay.cells.length, 41, '0＝ふりだしを含めて41マス');
+    assert(lay.rows <= 7, '7行以内に収まる（実際:' + lay.rows + '行）');
+    assert(lay.cols <= 6, '6列以内に収まる（実際:' + lay.cols + '列）');
+  });
+
+  await r.test('列数を指定しても、道の連なりは崩れない', async () => {
+    const lay = S.boardLayout(S.makeBoard('sugohide', rndHalf), 5);
+    assertEqual(lay.cols, 5, '指定した列数になる');
+    for (let i = 0; i < lay.cells.length - 1; i++) {
+      const a = lay.cells[i], b = lay.cells[i + 1];
+      assert((a.row === b.row && Math.abs(a.col - b.col) === 1)
+        || (b.row === a.row + 1 && a.col === b.col), i + ' で道が飛んでいる');
+    }
+  });
+
+  // ---- 駒の見分け方 ----
+
+  await r.test('駒は、色に頼らず形で見分けられる', async () => {
+    // 色の見え方は人によって違う。形と名前をセットで持つ
+    const most = Math.max(...S.gameIds().map((id) => S.gameById(id).maxPlayers));
+    assert(S.PIECES.length >= most, '最大人数ぶんの形がある（必要:' + most + ' 実際:' + S.PIECES.length + '）');
+    const shapes = new Set(S.PIECES.map((p) => p.shape));
+    assertEqual(shapes.size, S.PIECES.length, '形が全部ちがう');
+    S.PIECES.forEach((p) => assert(p.name, p.shape + ' に読み方がある'));
+    assertEqual(S.pieceFor(0).shape, S.PIECES[0].shape, '1人目');
+    assertEqual(S.pieceFor(S.PIECES.length).shape, S.PIECES[0].shape, '人数を超えても壊れず、先頭に戻る');
+    assertEqual(S.pieceFor(-1).shape, S.PIECES[S.PIECES.length - 1].shape, '負の数でも壊れない');
+  });
+
   // ---- サイコロ ----
 
   await r.test('出目は1〜6に収まる', async () => {

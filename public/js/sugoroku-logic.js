@@ -180,6 +180,68 @@
     return cells;
   }
 
+  // ===== 盤面の並べ方（蛇行配置） =====
+  //
+  // 30〜40マスを、スクロールせずに1画面に収める。
+  // 一列に並べると細長くなって読めないので、行ごとに向きを変えて折り返す。
+  //
+  //    0 →  1 →  2 →  3 →  4 →  5
+  //                             ↓
+  //   11 ← 10 ←  9 ←  8 ←  7 ←  6
+  //    ↓
+  //   12 → 13 → ...
+  //
+  // 折り返しの列をそろえる（行末の次は「真下」）ので、道が斜めに飛ばない。
+  // 座標の計算をここに置くのは、**画面と大画面が同じ盤を見るため**。
+  // 別々に計算すると、片方だけ直した時に見え方が食い違う（落とし穴1）。
+  var BOARD_COLS = 6;   // 縦持ちのスマホで、1マスが指で押せる大きさに収まる列数
+
+  /**
+   * 盤の並びを、行と列の座標にする。
+   *
+   * @param {string[]} board makeBoard が返したマスの種類
+   * @param {number} [cols] 列数（省略時 BOARD_COLS）
+   * @returns {{cols:number, rows:number, cells:Array<{i:number,row:number,col:number,kind:string,dir:string}>}}
+   *   dir … その行が進む向き（'right' | 'left'）。道しるべを描く時に使う
+   */
+  function boardLayout(board, cols) {
+    var list = Array.isArray(board) ? board : [];
+    var c = Math.max(2, (cols | 0) || BOARD_COLS);
+    var cells = list.map(function (kind, i) {
+      var row = Math.floor(i / c);
+      var within = i % c;
+      var rightward = (row % 2 === 0);
+      return {
+        i: i,
+        row: row,
+        col: rightward ? within : (c - 1 - within),
+        kind: kind,
+        dir: rightward ? 'right' : 'left'
+      };
+    });
+    return { cols: c, rows: Math.ceil(list.length / c), cells: cells };
+  }
+
+  // ===== 駒の見分け方 =====
+  //
+  // **色だけで区別しない。** 色の見え方は人によって違うので、
+  // 形と名前をセットで持ち、画面はこの形をそのまま出す（原則10）。
+  // 絵文字ではなく文字の記号にしてあるのは、UIの記号は差し替えない決まりのため。
+  var PIECES = [
+    { shape: '●', name: 'まる' },
+    { shape: '▲', name: 'さんかく' },
+    { shape: '■', name: 'しかく' },
+    { shape: '◆', name: 'ひしがた' },
+    { shape: '★', name: 'ほし' },
+    { shape: '♥', name: 'はーと' },
+    { shape: '♣', name: 'くろーばー' },
+    { shape: '✚', name: 'じゅうじ' }
+  ];
+  function pieceFor(index) {
+    var n = PIECES.length;
+    return PIECES[(((index | 0) % n) + n) % n];
+  }
+
   // ===== サイコロ =====
   var DICE_MAX = 6;
   /**
@@ -431,6 +493,8 @@
     DICE_MAX: DICE_MAX, SAFE_HEAD: SAFE_HEAD, SAFE_TAIL: SAFE_TAIL, MIN_GAP: MIN_GAP,
     gameById: gameById, gameIds: gameIds, readyGameIds: readyGameIds,
     cellKind: cellKind, makeBoard: makeBoard,
+    BOARD_COLS: BOARD_COLS, PIECES: PIECES,
+    boardLayout: boardLayout, pieceFor: pieceFor,
     rollDice: rollDice, applyMove: applyMove, walk: walk,
     addCoins: addCoins, canPay: canPay, clamp: clamp,
     positionRanks: positionRanks, rankPlayers: rankPlayers,

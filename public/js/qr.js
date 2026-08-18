@@ -8,7 +8,9 @@
 //   ・Reed-Solomon の符号語を、規格の公開されている例と突き合わせる
 //   ・形式情報を規格の対応表と突き合わせる
 //   ・自分で作った matrix を読み戻して、元の文字列に戻ることを確かめる
-// （カメラで実際に読めるかは、実機でしか確認できない）
+//   ・独立実装のデコーダー（jsqr・テスト専用）で読めて、中身が一致する
+// （読み戻しは自分の配置ロジックを共有するので、置き場所の系統誤りは
+//  独立デコーダーでしか捕まらない——実機報告「QRが読み取れない」8/18の教訓）
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -177,12 +179,16 @@
       m[6][i] = (i % 2 === 0) ? 1 : 0;
       m[i][6] = (i % 2 === 0) ? 1 : 0;
     }
-    // 位置合わせパターン
+    // 位置合わせパターン。外すのは3つのファインダーと重なる角の組み合わせだけ。
+    // 「中心が埋まっていたら置かない」で代用すると、バージョン7以上で規格が要求する
+    // タイミングパターン上の位置合わせ（例：v7の(6,22)）まで消えてしまう。
+    // 重なるタイミングパターンのマスとは明暗が一致するので、上書きしてよい
     var pos = ALIGN[version];
+    var lastPos = pos.length ? pos[pos.length - 1] : 0;
     for (var a = 0; a < pos.length; a++) {
       for (var b = 0; b < pos.length; b++) {
         var r = pos[a], c = pos[b];
-        if (m[r][c] !== null) continue; // ファインダーと重なる位置は置かない
+        if ((r === 6 && c === 6) || (r === 6 && c === lastPos) || (r === lastPos && c === 6)) continue;
         for (var dr = -2; dr <= 2; dr++) {
           for (var dc = -2; dc <= 2; dc++) {
             var on = Math.max(Math.abs(dr), Math.abs(dc)) !== 1;
@@ -248,11 +254,15 @@
     var size = m.length;
     var bits = formatBits(maskId);
     function bit(i) { return (bits >> i) & 1; }
-    for (var i = 0; i <= 5; i++) m[8][i] = bit(i);
-    m[8][7] = bit(6); m[8][8] = bit(7); m[7][8] = bit(8);
-    for (var j = 9; j <= 14; j++) m[14 - j][8] = bit(j);
-    for (var k = 0; k <= 7; k++) m[size - 1 - k][8] = bit(k);
-    for (var n = 8; n <= 14; n++) m[8][size - 15 + n] = bit(n);
+    // 向きは規格で固定：左上は「縦0..5→角→横9..14」、もう1組は「右上の横0..7＋左下の縦8..14」。
+    // 行と列を入れ替えても readBack の検算は通ってしまう（読み戻しは形式情報を使わない）ので、
+    // 正しさは tests/qr.js の独立デコーダーで固定している
+    for (var i = 0; i <= 5; i++) m[i][8] = bit(i);
+    m[7][8] = bit(6); m[8][8] = bit(7); m[8][7] = bit(8);
+    for (var j = 9; j <= 14; j++) m[8][14 - j] = bit(j);
+    for (var k = 0; k <= 7; k++) m[8][size - 1 - k] = bit(k);
+    for (var n = 8; n <= 14; n++) m[size - 15 + n][8] = bit(n);
+    m[size - 8][8] = 1; // 常に暗いモジュール（形式情報のビットで潰さない）
   }
   // バージョン7以上には、別途バージョン情報が入る
   function placeVersionInfo(m, version) {

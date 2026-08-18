@@ -1,7 +1,6 @@
 // tests/qr.js — 自前のQRコード生成が正しいか（第22弾-1）
 //
-// カメラで読めるかは実機でしか分からない。
-// そこで「覚えている公開テストベクタと突き合わせる」のではなく、
+// 「覚えている公開テストベクタと突き合わせる」のではなく、
 // **数学的に成り立っていなければならない性質**を直接確かめる。
 // こうすれば、私の記憶違いでテストが嘘をつくことがない。
 //
@@ -9,6 +8,11 @@
 //   ・符号語（データ＋誤り訂正）は、それらの根で必ず 0 になる
 //   ・形式情報は生成多項式 0x537 で割り切れる
 //   ・作った matrix を読み戻すと、元の文字列に戻る
+//
+// ただし読み戻しは自分の配置ロジックを共有するので、置き場所・向きの
+// **系統的な間違いは往復で打ち消されて検出できない**（実機報告「QRが
+// 読み取れない」8/18の教訓。形式情報が転置されたまま全テスト緑だった）。
+// そこで独立実装のデコーダー（jsqr・テスト専用）でも読めることを固定する。
 
 const QR = require('../public/js/qr.js');
 const { createRunner, assert, assertEqual } = require('./harness');
@@ -164,10 +168,52 @@ function evalPoly(coeffs, x) {
     assert(/viewBox="0 0 \d+ \d+"/.test(svg), '拡大縮小できる');
     assert(/<path d="M/.test(svg), '暗いマスが描かれている');
     assert(!/<image|href=/.test(svg), '外部ファイルを読み込まない');
+    // カメラは「明るい地に暗いマス」しか読めない。既定値の反転・透過を防ぐ
+    assert(/fill="#fff"/.test(svg), '地が白（テーマの暗色が透けない）');
+    assert(/fill="#000"/.test(svg), 'マスが黒（コントラスト反転しない）');
     // 余白（クワイエットゾーン）が無いと読み取れない
     const m = /viewBox="0 0 (\d+)/.exec(svg);
     const res = QR.generate('https://example.com/?room=ABC234');
     assertEqual(Number(m[1]), res.size + 8, '四辺に4マスの余白がある');
+  });
+
+  // ---- 実機報告「QRが読み取れない」（8/18）を受けて追加 ----
+  // 理想条件（1モジュール8px・余白4モジュール・完全な白黒）で描いた行列を、
+  // 独立実装のデコーダーに読ませる。ここで読めなければカメラでは絶対に読めない。
+  await r.test('独立したデコーダーで読めて、中身が一致する（全バージョン）', async () => {
+    const jsQR = require('jsqr');
+    const rasterize = (res, scale, quiet) => {
+      const total = (res.size + quiet * 2) * scale;
+      const data = new Uint8ClampedArray(total * total * 4).fill(255);
+      for (let rr = 0; rr < res.size; rr++) {
+        for (let cc = 0; cc < res.size; cc++) {
+          if (!res.matrix[rr][cc]) continue;
+          for (let dy = 0; dy < scale; dy++) {
+            for (let dx = 0; dx < scale; dx++) {
+              const i = (((rr + quiet) * scale + dy) * total + (cc + quiet) * scale + dx) * 4;
+              data[i] = 0; data[i + 1] = 0; data[i + 2] = 0;
+            }
+          }
+        }
+      }
+      return { data, width: total, height: total };
+    };
+    // 実際の参加URLの形＋日本語＋バージョン1〜10を全部踏む長さ
+    const texts = [
+      'https://aresoredorekore.duckdns.org/?room=ABC234',
+      'あいうえお',
+      ...[10, 30, 50, 75, 100, 130, 150, 190, 230, 260].map((n) => 'x'.repeat(n))
+    ];
+    const seen = new Set();
+    texts.forEach((text) => {
+      const res = QR.generate(text);
+      seen.add(res.version);
+      const img = rasterize(res, 8, 4);
+      const decoded = jsQR(img.data, img.width, img.height);
+      assert(decoded, 'v' + res.version + '（' + text.slice(0, 24) + '）が独立デコーダーで読める');
+      assertEqual(decoded.data, text, 'v' + res.version + '：読んだ中身が元の文字列と一致する');
+    });
+    for (let v = 1; v <= 10; v++) assert(seen.has(v), 'バージョン' + v + 'を検証している');
   });
 
   r.finish();

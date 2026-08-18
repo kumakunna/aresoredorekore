@@ -1,0 +1,297 @@
+// tests/realtime-sugoroku.js — 1人1台のすごろく「つうこうりょう」（第36弾）
+//
+// 実際に socket.io サーバーを立てて、複数の端末をつないで確かめる。
+// いちばん見たいのは **手番が止まらないこと**（落とし穴17）。
+// すごろくは1人ずつ順番に動くので、手番の人が消えると全員が待ち続ける。
+// 監査（指示35）で入った settleAfterMemberGone との噛み合わせを、ここで固定する:
+//   ・手番の人が切断したら、サーバーが代わりに振って進む（席は残す）
+//   ・手番の人が退室したら、駒を動かさずに手番だけ飛ばす
+//
+// 出目はサーバーの乱数なので、値そのものではなく「守られるべき関係」を見る
+//   （進んだか／通行料のぶん減ったか／範囲に収まっているか）。
+
+const http = require('http');
+const express = require('express');
+const session = require('express-session');
+const { io: ioClient } = require('socket.io-client');
+
+const { createRunner, assert, assertEqual } = require('./harness');
+const { attachRealtime, RoomStore } = require('../realtime');
+const S = require('../public/js/sugoroku-logic');
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function fakeDb() {
+  const inserted = [];
+  return {
+    inserted,
+    prepare() { return { run: (...args) => { inserted.push(args); return { lastInsertRowid: 1 }; } }; }
+  };
+}
+
+function startTestServer() {
+  const app = express();
+  const sessionMiddleware = session({
+    secret: 'test-secret-for-realtime-sugoroku',
+    resave: false, saveUninitialized: false,
+    cookie: { httpOnly: true, secure: false, sameSite: 'lax' }
+  });
+  app.use(express.json());
+  app.use(sessionMiddleware);
+  app.post('/test-login', (req, res) => {
+    req.session.userId = (req.body && req.body.userId) || 707;
+    res.json({ ok: true });
+  });
+  const httpServer = http.createServer(app);
+  const store = new RoomStore();
+  const db = fakeDb();
+  const io = attachRealtime(httpServer, sessionMiddleware, { store, db });
+  return new Promise((resolve) => {
+    httpServer.listen(0, '127.0.0.1', () => {
+      resolve({
+        url: 'http://127.0.0.1:' + httpServer.address().port, store, io, db,
+        close: () => new Promise((r) => {
+          io.stopTimers();
+          io.close(() => httpServer.close(() => r()));
+        })
+      });
+    });
+  });
+}
+
+async function login(url, userId) {
+  const res = await fetch(url + '/test-login', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId })
+  });
+  const sc = res.headers.getSetCookie ? res.headers.getSetCookie() : [res.headers.get('set-cookie')];
+  return (sc || []).filter(Boolean).map((c) => c.split(';')[0]).join('; ');
+}
+
+function device(url, cookie) {
+  return new Promise((resolve, reject) => {
+    const opts = { transports: ['polling'], forceNew: true, reconnection: false };
+    if (cookie) opts.extraHeaders = { Cookie: cookie };
+    const s = ioClient(url, opts);
+    const d = {
+      socket: s, room: null, you: null, ended: null,
+      memberId: null, code: null, name: null,
+      call(event, payload) {
+        return new Promise((res) => {
+          const t = setTimeout(() => res({ ok: false, error: 'timeout' }), 6000);
+          s.emit(event, payload || {}, (r) => { clearTimeout(t); res(r || {}); });
+        });
+      },
+      view() { return (d.room && d.room.state && d.room.state.data) || {}; },
+      close() { s.close(); }
+    };
+    s.on('room:update', (r) => { d.room = r; });
+    s.on('wolf:you', (p) => { d.you = p; });
+    s.on('wolf:ended', (p) => { d.ended = p; });
+    s.on('hb:ping', () => s.emit('hb:pong'));
+    const t = setTimeout(() => reject(new Error('接続がタイムアウト')), 5000);
+    s.on('connect', () => { clearTimeout(t); resolve(d); });
+    s.on('connect_error', (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+async function waitUntil(fn, label, ms) {
+  const limit = Date.now() + (ms || 5000);
+  while (Date.now() < limit) {
+    if (fn()) return true;
+    await sleep(25);
+  }
+  throw new Error('条件が満たされませんでした: ' + label);
+}
+
+// 部屋を立てて、人数ぶんつなぐ
+async function makeRoom(srv, count) {
+  const cookie = await login(srv.url, 4321);
+  const host = await device(srv.url, cookie);
+  const created = await host.call('room:create', { name: 'あき' });
+  assertEqual(created.ok, true, '部屋を作れる');
+  host.memberId = created.memberId; host.code = created.code; host.name = 'あき';
+
+  const names = ['びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん'];
+  const all = [host];
+  for (let i = 1; i < count; i++) {
+    const nm = names[i - 1];
+    const g = await device(srv.url);
+    const res = await g.call('room:join', { code: created.code, name: nm });
+    assertEqual(res.ok, true, nm + ' が入れる');
+    g.memberId = res.memberId; g.code = created.code; g.name = nm;
+    all.push(g);
+  }
+  await waitUntil(() => host.room && host.room.playerCount === count, '全員そろう');
+  return { host, all, code: created.code };
+}
+
+// 全員が確認を押して、最初の手番まで進める
+async function toFirstTurn(all, host) {
+  await waitUntil(() => host.view().phase === 'ready', '確認の段階へ');
+  for (const d of all) await d.call('wolf:act', { act: 'ready' });
+  await waitUntil(() => host.view().phase === 'turn', '手番へ');
+}
+function turnDevice(all, host) {
+  const id = host.view().turn && host.view().turn.id;
+  return all.find((d) => d.memberId === id);
+}
+function playerOf(view, id) {
+  return (view.players || []).find((p) => p.id === id) || {};
+}
+
+(async function main() {
+  const r = createRunner('realtime-sugoroku：1人1台のつうこうりょう');
+
+  await r.test('人数が足りないと、サーバーが始めさせない', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host } = await makeRoom(srv, 2);
+      const res = await host.call('wolf:start', { game: 'sugotoll', events: false });
+      assertEqual(res.ok, false, '2人では始まらない');
+      assertEqual(res.error, 'too_few_players', '断る理由が端末へ届く');
+      assert((res.message || '').indexOf('3') !== -1, '何人必要かが伝わる');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('3人で始まり、全員がふりだし・同じコインから始まる', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      const res = await host.call('wolf:start', { game: 'sugotoll', events: false });
+      assertEqual(res.ok, true, '始められる');
+      await waitUntil(() => host.view().phase === 'ready', '確認の段階へ');
+      const v = host.view();
+      assertEqual(v.game, 'sugotoll', 'どのすごろくか、全員に見えている');
+      assertEqual(v.cells, S.gameById('sugotoll').cells, '盤の長さ');
+      assertEqual(v.players.length, 3, '3人ぶん');
+      v.players.forEach((p) => {
+        assertEqual(p.pos, 0, 'ふりだし');
+        assertEqual(p.coins, S.gameById('sugotoll').startCoins, '初期コイン');
+      });
+      // つうこうりょうに秘密は無いので、個別配信は起きない
+      await sleep(150);
+      assertEqual(all.every((d) => d.you === null), true, '配るものが無いので、誰にも個別配信しない');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('手番の人だけが振れる', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugotoll', events: false });
+      await toFirstTurn(all, host);
+      const me = turnDevice(all, host);
+      const other = all.find((d) => d !== me);
+      const ng = await other.call('wolf:act', { act: 'roll' });
+      assertEqual(ng.ok, false, '手番でない人は振れない');
+      const ok = await me.call('wolf:act', { act: 'roll' });
+      assertEqual(ok.ok, true, '手番の人は振れる');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('振ると、通行料のぶんコインが減って駒が進む', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugotoll', events: false });
+      await toFirstTurn(all, host);
+      const me = turnDevice(all, host);
+      const before = playerOf(host.view(), me.memberId);
+      await me.call('wolf:act', { act: 'roll' });
+      await waitUntil(() => host.view().last && host.view().last.id === me.memberId, '結果が届く');
+      const last = host.view().last;
+      assert(last.dice >= 1 && last.dice <= S.DICE_MAX, '出目が1〜6');
+      assertEqual(last.rank, 1, '全員ふりだしなので、みんな1位');
+      assertEqual(last.toll, last.dice, '1位は出目と同じ枚数を払う');
+      const after = playerOf(host.view(), me.memberId);
+      assertEqual(after.coins, before.coins - last.toll + (last.coinsGained || 0), '払ったぶん減っている');
+      assert(after.pos > 0, '駒が進んでいる');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('手番の人が切断すると、サーバーが代わりに振って先へ進む（落とし穴17）', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugotoll', events: false });
+      await toFirstTurn(all, host);
+      let me = turnDevice(all, host);
+      // ホストが手番だと、見張り役ごと落ちて確かめられない。ホスト以外の番にする
+      while (me === host) {
+        await me.call('wolf:act', { act: 'roll' });
+        await host.call('wolf:next', {});
+        await waitUntil(() => host.view().phase === 'turn', '次の手番へ');
+        me = turnDevice(all, host);
+      }
+      const gone = me;
+      const goneId = gone.memberId;
+      gone.close();   // 通信が切れた（名簿には残る）
+      // settleAfterMemberGone が手番を消化し、結果まで進む
+      await waitUntil(() => host.view().last && host.view().last.id === goneId,
+        '切れた人のぶんが消化される');
+      const last = host.view().last;
+      assertEqual(last.auto, true, 'サーバーが代わりに振ったことが分かる');
+      assert(last.move || last.stalled, '駒が動いた（置いていかれない）');
+      await host.call('wolf:next', {});
+      await waitUntil(() => host.view().phase === 'turn', '次の手番が始まる');
+      assert(host.view().turn.id !== goneId, '手番が次の人へ移った');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('手番の人が退室すると、駒を動かさずに手番だけ飛ぶ', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugotoll', events: false });
+      await toFirstTurn(all, host);
+      let me = turnDevice(all, host);
+      while (me === host) {
+        await me.call('wolf:act', { act: 'roll' });
+        await host.call('wolf:next', {});
+        await waitUntil(() => host.view().phase === 'turn', '次の手番へ');
+        me = turnDevice(all, host);
+      }
+      const gone = me;
+      const goneId = gone.memberId;
+      const posBefore = playerOf(host.view(), goneId).pos;
+      await gone.call('room:leave', { code: gone.code, memberId: goneId });
+      await waitUntil(() => host.view().last && host.view().last.id === goneId,
+        '出て行った人の手番が処理される');
+      assertEqual(host.view().last.skipped, true, '居ない人の駒は動かさない');
+      const still = playerOf(host.view(), goneId);
+      if (still.pos != null) assertEqual(still.pos, posBefore, '駒はその場のまま');
+      await host.call('wolf:next', {});
+      await waitUntil(() => host.view().phase === 'turn', '次の手番が始まる');
+      assert(host.view().turn.id !== goneId, '出て行った人に手番は回らない');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('決着すると、対戦履歴に残る', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugotoll', events: false });
+      await toFirstTurn(all, host);
+      // あがりの直前まで進めておく（盤を直接動かすのは、決着だけを見たいため）
+      const w = srv.store.get(host.code).sugoroku;
+      const goal = w.board.length - 1;
+      const me = turnDevice(all, host);
+      w.pos[me.memberId] = goal - 1;
+      w.coins[me.memberId] = 99;
+      await me.call('wolf:act', { act: 'roll' });
+      await waitUntil(() => host.view().phase === 'ended' || (host.view().last || {}).goal,
+        'あがりに届く');
+      await host.call('wolf:next', {});
+      await waitUntil(() => host.view().phase === 'ended', '決着する');
+      const res = host.view().result;
+      assertEqual(res.players.length, 3, '全員ぶんの順位が出る');
+      assertEqual(res.players[0].goaled, true, 'あがった人が1位');
+      await waitUntil(() => srv.db.inserted.length > 0, '記録が残る');
+      const row = srv.db.inserted[0];
+      assert(JSON.stringify(row).indexOf('sugotoll') !== -1, 'すごろくの記録として残る');
+    } finally { await srv.close(); }
+  });
+
+  r.finish();
+})();

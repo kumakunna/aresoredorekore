@@ -1622,7 +1622,7 @@
      ------------------------------------------------------------------- */
   .sugo-top{
     display:flex;align-items:center;justify-content:space-between;
-    gap:10px;padding:10px 14px 6px;
+    gap:10px;padding:6px 14px 4px;
   }
   .sugo-lap{font-size:12px;color:var(--ink-soft);}
   .sugo-turn{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;}
@@ -1670,10 +1670,16 @@
   /* だれが、あと何マスか。
      「27マス目」より「あと13」の方が、遊んでいる人には分かる。
      つうこうりょうは順位がそのまま支払額なので、順位と並べて出す */
+  /* だれが、あと何マスか。
+     2列に畳んで縦を節約する。1列だと、盤と振るところと合わせて
+     画面の短い端末（667px）でスクロールが要る。
+     触り心地（サイコロ92px）と盤の見やすさは削らない、という順で選んだ */
   .sugo-me{
-    max-width:420px;margin:10px auto 0;padding:0 12px 12px;
-    display:flex;flex-direction:column;gap:4px;
+    max-width:420px;margin:6px auto 0;padding:0 12px 6px;
+    display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:4px;
   }
+  /* 3人・5人のように奇数なら、最後の1人は横いっぱいに置く（余白が片側に寄らない） */
+  .sugo-me .sugo-row:last-child:nth-child(odd){grid-column:1 / -1;}
   .sugo-row{
     display:flex;align-items:center;gap:8px;
     padding:5px 9px;border-radius:7px;
@@ -1682,13 +1688,15 @@
   }
   .sugo-row.now{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp) inset;}
   .sugo-row .sugo-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sugo-row{gap:6px;padding:5px 7px;font-size:12px;}
   .sugo-left{font-weight:700;}
   .sugo-rank{font-size:12px;color:var(--ink-soft);min-width:2.6em;text-align:right;}
   .sugo-coin{font-size:12px;min-width:3.2em;text-align:right;}
   .sugo-row.goaled .sugo-left{color:var(--stamp);}
 
   /* 振るところ。長押ししてスワイプが主役だが、押して離すだけでも振れる */
-  .sugo-act{text-align:center;padding:2px 12px 18px;}
+  /* サイコロの92pxは触らない（押しやすさを削らない）。まわりの余白だけ詰める */
+  .sugo-act{text-align:center;padding:0 12px 8px;}
   .sugo-dice{
     width:92px;height:92px;margin:0 auto;
     display:flex;align-items:center;justify-content:center;
@@ -1711,8 +1719,8 @@
     60%{transform:rotate(330deg) scale(1.12);}
     100%{transform:rotate(360deg) scale(1);}
   }
-  .sugo-hint{margin-top:8px;font-size:12px;color:var(--ink-soft);min-height:1.4em;}
-  .sugo-note{margin-top:4px;font-size:13px;font-weight:700;min-height:1.4em;}
+  .sugo-hint{margin-top:4px;font-size:11px;color:var(--ink-soft);min-height:1.3em;}
+  .sugo-note{margin-top:4px;font-size:13px;font-weight:700;min-height:1.3em;}
 
   /* ===================================================================
      第18弾 第5部：人狼カセット専用の「夜」テーマ

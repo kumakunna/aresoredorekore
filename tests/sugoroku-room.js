@@ -60,10 +60,17 @@ function start(n, cfg) {
   // ---- 開始 ----
 
   await r.test('人数が足りない・多すぎると始まらない（両方向・落とし穴8）', async () => {
-    assertEqual(start(2).res.ok, false, '3人未満では始まらない');
-    assertEqual(start(3).res.ok, true, 'ちょうど下限なら始まる');
-    assertEqual(start(8).res.ok, true, 'ちょうど上限なら始まる');
-    assertEqual(start(9).res.ok, false, '上限を超えたら始まらない');
+    // 数字はテストに直書きせず、性格表（正本）から引く。
+    // 直書きすると、人数を変えた時に片方だけ直して食い違う
+    const g = S.gameById('sugotoll');
+    const few = start(g.minPlayers - 1);
+    assertEqual(few.res.ok, false, '下限未満では始まらない');
+    assertEqual(few.res.error, 'too_few_players', '断る理由が端末へ届く');
+    assertEqual(start(g.minPlayers).res.ok, true, 'ちょうど下限なら始まる');
+    assertEqual(start(g.maxPlayers).res.ok, true, 'ちょうど上限なら始まる');
+    const many = start(g.maxPlayers + 1);
+    assertEqual(many.res.ok, false, '上限を超えたら始まらない');
+    assertEqual(many.res.error, 'too_many_players', '断る理由が端末へ届く');
   });
 
   await r.test('まだ完成していないすごろくは始められない', async () => {
@@ -329,6 +336,93 @@ function start(n, cfg) {
       assert(w.phase !== R.PHASE.EVENT, 'イベントが起きている');
       R.advance(room);
     }
+  });
+
+  // ---- 第36弾-2：監査（指示35）を経た作法に合わせる ----
+
+  await r.test('突然イベントの効き目は、宣言した巡を越えて残らない（型2）', async () => {
+    // 失効の判定を「参照する場所」と別の段階に置くと、巡が変わった直後の1人だけが
+    // 古い効き目を受け取る。つうこうりょうでは、その人の通行料だけがタダになる
+    const { room } = start(3, { events: false });
+    flattenBoard(room);
+    toFirstTurn(room);
+    const w = room.sugoroku;
+    w.playerIds.forEach((id) => { w.coins[id] = 99; });
+    fixDice(1);
+    const startLap = w.lap;
+    w.event = { id: 'toll-free', untilLap: startLap };   // 「この巡だけ」
+    let guard = 0;
+    while (w.lap === startLap && guard++ < 40) {
+      if (w.phase === R.PHASE.TURN) R.submitAction(room, w.turnId, null, { act: 'roll' });
+      R.advance(room);
+    }
+    assert(w.lap > startLap, '一巡して、巡が変わった');
+    assertEqual(w.event, null, '宣言した巡を越えたら、効き目は消えている');
+    while (w.phase !== R.PHASE.TURN && guard++ < 40) R.advance(room);
+    R.submitAction(room, w.turnId, null, { act: 'roll' });
+    R.advance(room);
+    assertEqual(w.last.free, false, '新しい巡の1人目から、通行料が復活する');
+    assert(w.last.toll > 0, '実際に通行料が取られている');
+  });
+
+  await r.test('結果を見ている間は「全員そろった」と言わない', async () => {
+    // 誰も待っていない段階で every() を通すと必ず true になり、
+    // 誰か1人が切れただけで settleAfterMemberGone が advance を呼んで、
+    // まだ見ている途中の演出が全員ぶん切り捨てられる
+    const { room } = start(4, { events: false });
+    flattenBoard(room);
+    toFirstTurn(room);
+    const w = room.sugoroku;
+    R.submitAction(room, w.turnId, null, { act: 'roll' });
+    R.advance(room);
+    assertEqual(w.phase, R.PHASE.RESULT, '結果を見ている');
+    assertEqual(R.isAllDone(room), false, '見ている途中では、そろったと言わない');
+    w.phase = R.PHASE.ENDED;
+    assertEqual(R.isAllDone(room), false, '決着後も、そろったと言わない');
+  });
+
+  await r.test('操作を断る時は、理由（error）を必ず返す', async () => {
+    // realtime.js は res.error をそのまま端末へ返す。undefined だと
+    // 「なぜ押せないのか」が誰にも分からなくなる
+    const { room } = start(4);
+    toFirstTurn(room);
+    const w = room.sugoroku;
+    const other = w.playerIds.find((id) => id !== w.turnId);
+    const notMine = R.submitAction(room, other, null, { act: 'roll' });
+    assertEqual(notMine.ok, false, '手番でない人は断られる');
+    assertEqual(notMine.error, 'not_your_turn', '理由が分かる');
+    const weird = R.submitAction(room, w.turnId, null, { act: 'teleport' });
+    assertEqual(weird.ok, false, '知らない操作は断られる');
+    assertEqual(weird.error, 'bad_action', '理由が分かる');
+  });
+
+  await r.test('確認の受付は、いま待っている人だけ', async () => {
+    const { room } = start(4);
+    const w = room.sugoroku;
+    const off = w.playerIds[1];
+    room.members.get(off).connected = false;
+    const res = R.submitAction(room, off, null, { act: 'ready' });
+    assertEqual(res.ok, false, '待っていない人は受け付けない');
+    assertEqual(res.error, 'not_expected', '理由が分かる');
+  });
+
+  await r.test('居ないID・あがった人を指した操作は、受け付けない（幽霊IDの門）', async () => {
+    // つうこうりょう自身は相手を指さないが、共通の門をここで固めておく。
+    // ゲームごとに書くと、相手を指す遊び（ふたり・てふだ）で必ず書き忘れる
+    const { room } = start(4);
+    flattenBoard(room);
+    toFirstTurn(room);
+    const w = room.sugoroku;
+    const id = w.turnId;
+    const ghost = R.submitAction(room, id, 'p999', { act: 'roll', targetId: 'p999' });
+    assertEqual(ghost.ok, false, '居ないIDは断る');
+    assertEqual(ghost.error, 'unknown_target', '理由が分かる');
+    assertEqual(w.intent, null, '断った操作で、受付中の内容が汚れない');
+    const other = w.playerIds.find((x) => x !== id);
+    w.goalOrder[other] = 1;
+    const goaled = R.submitAction(room, id, other, { act: 'roll', targetId: other });
+    assertEqual(goaled.ok, false, 'もうあがった人は対象にできない');
+    assertEqual(goaled.error, 'unknown_target', '理由が分かる');
   });
 
   spec.ready = wasReady;

@@ -376,6 +376,10 @@ const SPEC = {
     assert(S.checkPlayerCount('sugohide', 2).message.indexOf('3') !== -1, '何人必要かが伝わる');
     assert(S.checkPlayerCount('sugohide', 7).message.indexOf('6') !== -1, '何人までかが伝わる');
     assertEqual(S.checkPlayerCount('sonzai-shinai', 4).ok, false, '無いゲームは始められない');
+    // 断る理由は、サーバーがそのまま端末へ返す。既存ドライバと同じ語彙にそろえる
+    assertEqual(S.checkPlayerCount('sugohide', 2).error, 'too_few_players', '下限の理由コード');
+    assertEqual(S.checkPlayerCount('sugohide', 7).error, 'too_many_players', '上限の理由コード');
+    assertEqual(S.checkPlayerCount('sonzai-shinai', 4).error, 'unknown_game', '無いゲームの理由コード');
   });
 
   // ---- つうこうりょう ----

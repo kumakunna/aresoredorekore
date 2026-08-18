@@ -16,12 +16,13 @@
 // **手番が止まらないための決めごと（落とし穴17）**
 //   誰かがいなくなる経路は複数ある（切断・退室・kick・タイムアウト・部屋解散）。
 //   すごろくは「1人ずつ順番に動く」ので、手番の人が消えると全員が待ち続ける。
-//   そうならないよう:
-//     ・expectedMembers は「いま手番で、かつ繋がっている人」だけを返す。
-//       手番の人が切れると空になり、realtime.js の settleAfterMemberGone が
-//       そのまま advance を呼ぶ（＝手番が飛ぶ）。
-//     ・手番には必ず期限（turnSec）を置く。時間切れになったら、
-//       サーバーがその人のぶんを振って進める。**止まらないことを優先する**。
+//   そうならないよう、いなくなり方で扱いを分ける（どれも advance の1本を通す）:
+//     ・**切断**（名簿には残る）… expectedMembers が空になり、realtime.js の
+//       settleAfterMemberGone が advance を呼ぶ。そこで**サーバーがその人のぶんを振る**。
+//       席を残したまま駒だけ進むので、戻ってきた人が置いていかれない。
+//     ・**退室・kick**（名簿から消える）… 居ない人の駒は動かさず、手番だけ飛ばす。
+//     ・**時間切れ**… 手番には必ず期限（turnSec）を置き、切れたらサーバーが振って進める。
+//       止まらないことを優先する（人狼の投票タイムアウトと同じ発想）。
 //     ・手番を渡す相手は、毎回「部屋にいて、まだあがっていない人」から選び直す。
 //       名簿から消えた人・あがった人の席で止まらない。
 
@@ -48,6 +49,9 @@ const EVENT_CHANCE = 0.25;     // 一巡ごとに、この確率で突然イベ�
 // テストから出目と盤を固定するための穴。本番は Math.random のまま使う
 let rnd = Math.random;
 function useRandom(fn) { rnd = fn || Math.random; }
+// 乱数は部屋ごとに持てるようにする（quiz-room.js と同じ作法）。
+// モジュール共有のままだと、1つの部屋の都合が同時進行の別の部屋にも効いてしまう
+function rndOf(w) { return (w && w.rnd) || rnd; }
 
 function playersOf(room) {
   return Array.from(room.members.values()).filter((m) => m.role === 'player');
@@ -64,14 +68,15 @@ function startGame(room, config) {
   }
   const members = playersOf(room);
   const check = S.checkPlayerCount(gameId, members.length);
-  if (!check.ok) return { ok: false, error: 'bad_player_count', message: check.message };
+  if (!check.ok) return { ok: false, error: check.error, message: check.message };
 
   const ids = members.map((m) => m.id);
   const w = {
     game: gameId,
     playerIds: ids,
     names: {},
-    board: S.makeBoard(gameId, rnd),
+    board: S.makeBoard(gameId, cfg.rnd || rnd),
+    rnd: cfg.rnd || null,
     pos: {},
     coins: {},
     goalOrder: {},        // memberId -> あがった順（1始まり）。未到達は undefined
@@ -81,6 +86,7 @@ function startGame(room, config) {
     turnSec: clampSec(cfg.turnSec),
     phase: PHASE.READY,
     done: {},
+    intent: null,      // 受付中の「やりたいこと」。段階が変わるたびに捨てる
     deadline: null,
     last: null,           // 直前の手番に何が起きたか（演出用）
     event: null,          // いま効いている突然イベント
@@ -178,11 +184,23 @@ function expectedMembers(room) {
   // 結果を見ている間・イベント中・決着後は、誰も待たない（期限で自動的に進む）
   return [];
 }
-// 空の時に true を返すのは意図。手番の人が切れた瞬間に、
-// settleAfterMemberGone が advance を呼んで手番を飛ばせるようにする（落とし穴17）
+/**
+ * 判定するのは「人を待っている段階」だけ。
+ *
+ * 結果を見ている間・イベント中・決着後は expectedMembers が空になるので、
+ * そのまま every() を通すと必ず true になる。すると誰か1人が切れただけで
+ * realtime.js の settleAfterMemberGone が advance を呼び、
+ * まだ見ている途中の演出が全員ぶん切り捨てられる。
+ * quiz-room.js / auction-room.js も同じ形のガードを持っている。
+ *
+ * READY・TURN で空の時に true を返すのは意図。手番の人が切れた瞬間に
+ * settleAfterMemberGone が手番を飛ばせるようにするため（落とし穴17）。
+ * それ以外の段階は、realtime.js の期限見回りが進めるので止まらない。
+ */
 function isAllDone(room) {
   const w = room.sugoroku;
   if (!w) return false;
+  if (w.phase !== PHASE.READY && w.phase !== PHASE.TURN) return false;
   return expectedMembers(room).every((id) => w.done[id]);
 }
 function waitingNames(room) {
@@ -195,32 +213,63 @@ function waitingNames(room) {
 // 操作は「やりたい」と伝えるだけ。実際に何が起きるかは advance が決める。
 // こうしておくと、時間切れ・切断で advance が呼ばれた時も同じ経路を通る
 // （経路ごとに書くと、片方だけ直して事故る）。
+/**
+ * 相手を指す操作の門（第35弾D-3で人狼・ワードウルフに入れたものと同じ考え方）。
+ * 実在（この試合の参加者）・生存（まだあがっていない）・在籍（部屋にいる）・本人でない、を見る。
+ *
+ * つうこうりょう自身は相手を指さないが、共通の芯にここで置いておく。
+ * ゲームごとに書くと、相手を指す遊び（ふたりの相方・てふだの交渉相手）で必ず書き忘れる（落とし穴1）。
+ *
+ * 接続（connected）は見ない。pointTurnToPlayable が「切断中でも席は残す」という
+ * 別の基準を意図して採っているので、ここに接続を混ぜると基準が2つに割れる（型1）。
+ */
+function targetError(room, memberId, targetId) {
+  if (targetId == null) return null;              // 相手を指さない操作
+  const w = room.sugoroku;
+  if (targetId === memberId) return 'self_target';
+  if (w.playerIds.indexOf(targetId) === -1) return 'unknown_target';
+  if (!room.members.has(targetId)) return 'unknown_target';
+  if (w.goalOrder[targetId] != null) return 'unknown_target';
+  return null;
+}
+
+// 断る時は必ず理由（error）を返す。realtime.js はこれをそのまま端末へ渡すので、
+// 空だと「なぜ押せないのか」が誰にも分からなくなる
 function submitAction(room, memberId, targetId, payload) {
   const w = room.sugoroku;
-  if (!w) return { ok: false };
+  if (!w) return { ok: false, error: 'not_started' };
   const act = (payload && payload.act) || null;
+  // 門は段階より先に通す（断るべき操作の中身を intent に入れない）
+  const tid = (targetId != null) ? targetId : ((payload && payload.targetId) || null);
+  const terr = targetError(room, memberId, tid);
+  if (terr) return { ok: false, error: terr };
 
   if (w.phase === PHASE.READY) {
-    if (w.playerIds.indexOf(memberId) === -1) return { ok: false };
+    // 「参加者か」ではなく「いま待っている人か」で見る（wordwolf-room.js と同じ基準）
+    if (expectedMembers(room).indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
     w.done[memberId] = true;
     return { ok: true, allDone: isAllDone(room) };
   }
   if (w.phase === PHASE.TURN) {
-    if (memberId !== w.turnId) return { ok: false };
+    if (memberId !== w.turnId) return { ok: false, error: 'not_your_turn' };
     const rules = GAME_RULES[w.game] || {};
-    if (rules.checkAction && !rules.checkAction(room, memberId, act, payload)) return { ok: false };
+    if (rules.checkAction && !rules.checkAction(room, memberId, act, payload)) {
+      return { ok: false, error: 'bad_action' };
+    }
     w.done[memberId] = true;
     w.intent = payload || {};
     return { ok: true, allDone: true };
   }
-  return { ok: false };
+  return { ok: false, error: 'wrong_phase' };
 }
 // 投票の形をとる操作（てふだの交渉など）。いまのゲームでは使わない
 function submitVote(room, memberId, targetId, payload) {
   const w = room.sugoroku;
-  if (!w) return { ok: false };
+  if (!w) return { ok: false, error: 'not_started' };
   const rules = GAME_RULES[w.game] || {};
-  if (!rules.submitVote) return { ok: false };
+  if (!rules.submitVote) return { ok: false, error: 'bad_action' };
+  const terr = targetError(room, memberId, targetId);
+  if (terr) return { ok: false, error: terr };
   return rules.submitVote(room, memberId, targetId, payload);
 }
 
@@ -312,7 +361,7 @@ function pointTurnToPlayable(room, includeCurrent) {
     const id = order[at];
     if (!room.members.has(id)) continue;       // 退室・kickでいなくなった
     if (w.goalOrder[id] != null) continue;     // もうあがった
-    if (from + step >= order.length) w.lap++;   // 並び順の端を越えた＝一巡した
+    if (from + step >= order.length) bumpLap(w);  // 並び順の端を越えた＝一巡した
     w.turnId = id;
     return true;
   }
@@ -359,15 +408,23 @@ function resultView(room) {
 // ---- 突然イベント ----
 // 一巡の切れ目にだけ起こす。手番の途中で盤が動くと、
 // いま何が起きたのかが混ざって分からなくなる
+/**
+ * 巡が変わる唯一の場所。効き目の失効を、境界そのものに結びつけておく。
+ *
+ * 失効の判定を別の段階（結果を見ている間など）に置くと、巡が変わった直後の1人だけが
+ * 古い効き目を受け取る。つうこうりょうでは、その人の通行料だけがタダになっていた
+ * （型2：境界のリセット判断。実装当初のバグ）。
+ */
+function bumpLap(w) {
+  w.lap++;
+  if (w.event && w.lap > w.event.untilLap) w.event = null;
+}
 function maybeEvent(room) {
   const w = room.sugoroku;
-  // 効き目が切れる境界は「巡」。手番ごとに切ると、一巡の切れ目で起きたイベントが
-  // 次の1人にしか効かず、「この一巡だけ」という説明と食い違う（型2：境界の判断ミス）
-  if (w.event && w.lap > w.event.untilLap) w.event = null;
   if (!w.eventsOn) return null;
   if (!atLapEnd(room)) return null;
-  if (rnd() >= EVENT_CHANCE) return null;
-  const ev = S.pickEvent(w.game, rnd, w.lastEventId);
+  if (rndOf(w)() >= EVENT_CHANCE) return null;
+  const ev = S.pickEvent(w.game, rndOf(w), w.lastEventId);
   if (!ev) return null;
   // 一覧のものをそのまま持たせると、applied などの書き込みが次の試合に残る
   return Object.assign({}, ev, { untilLap: w.lap + 1 });
@@ -413,7 +470,7 @@ const GAME_RULES = {
     },
     takeTurn(room, id, opt) {
       const w = room.sugoroku;
-      const dice = S.rollDice(rnd);
+      const dice = S.rollDice(rndOf(w));
       const live = w.playerIds
         .filter((pid) => room.members.has(pid))
         .map((pid) => ({ id: pid, pos: w.pos[pid] }));

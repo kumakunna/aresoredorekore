@@ -415,15 +415,15 @@
    */
   function checkPlayerCount(gameId, n) {
     var g = gameById(gameId);
-    if (!g) return { ok: false, message: 'そのゲームはありません' };
+    if (!g) return { ok: false, error: 'unknown_game', message: 'そのゲームはありません' };
     var count = n | 0;
     if (count < g.minPlayers) {
-      return { ok: false, message: g.minPlayers + '人以上必要です' };
+      return { ok: false, error: 'too_few_players', message: g.minPlayers + '人以上必要です' };
     }
     if (g.maxPlayers && count > g.maxPlayers) {
-      return { ok: false, message: g.maxPlayers + '人までで遊べます' };
+      return { ok: false, error: 'too_many_players', message: g.maxPlayers + '人までで遊べます' };
     }
-    return { ok: true, message: null };
+    return { ok: true, error: null, message: null };
   }
 
   return {

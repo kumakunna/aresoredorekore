@@ -28,12 +28,19 @@
 
 const path = require('path');
 const S = require(path.join(__dirname, 'public', 'js', 'sugoroku-logic.js'));
+const Mini = require(path.join(__dirname, 'public', 'js', 'sugoroku-mini.js'));
+const QuizBank = require(path.join(__dirname, 'public', 'js', 'quiz-bank.js'));
 
 // 進行の段階。ほかのゲームの PHASE とは別物
 const PHASE = {
   LOBBY: 'lobby',
   READY: 'ready',     // 盤と自分の持ちものを確認する（全員が1回押す）
   TURN: 'turn',       // 手番の人の操作を待つ
+  // ---- ここから「こまはひとつ」用（駒が1つしかないので、手番が並び順で回らない） ----
+  MINI: 'mini',       // 何のミニゲームかを、画面いっぱいに出す
+  PLAY: 'play',       // ミニゲーム本体。全員が同時に出す
+  GRAB: 'grab',       // ミニゲームの順位の順に、駒を動かす
+  // ----
   RESULT: 'result',   // その手番に何が起きたかを、全員で見る
   EVENT: 'event',     // 突然イベント
   ENDED: 'ended'
@@ -135,6 +142,7 @@ function publicView(room) {
     event: w.event,
     deadline: w.deadline || null
   };
+  if (rules.publicExtra) Object.assign(view, rules.publicExtra(room));
   if (w.phase === PHASE.ENDED) view.result = resultView(room);
   return view;
 }
@@ -168,9 +176,25 @@ function privateFor(room, memberId) {
 }
 
 // ---- 誰を待っているか ----
+/**
+ * 誰を待っているか。
+ *
+ * ゲームによって「待つ形」が違う（つうこうりょうは1人ずつ、こまはひとつは全員同時）ので、
+ * **誰を待つかだけ**をゲーム側に委ねる。ただし
+ * **「繋がっている人だけを返す」という絞り込みは、必ずこの芯で行う。**
+ * ここをゲーム側に任せると、新しいゲームで接続の確認を書き忘れて
+ * 「切れた人を待ち続けて止まる」が復活する（落とし穴17）。
+ */
 function expectedMembers(room) {
   const w = room.sugoroku;
   if (!w) return [];
+  const rules = GAME_RULES[w.game] || {};
+  if (rules.waitingIds) {
+    return rules.waitingIds(room).filter((id) => {
+      const m = room.members.get(id);
+      return m && m.connected;
+    });
+  }
   if (w.phase === PHASE.READY) {
     return w.playerIds.filter((id) => {
       const m = room.members.get(id);
@@ -200,7 +224,9 @@ function expectedMembers(room) {
 function isAllDone(room) {
   const w = room.sugoroku;
   if (!w) return false;
-  if (w.phase !== PHASE.READY && w.phase !== PHASE.TURN) return false;
+  const rules = GAME_RULES[w.game] || {};
+  const waiting = rules.waitingPhases || [PHASE.READY, PHASE.TURN];
+  if (waiting.indexOf(w.phase) === -1) return false;
   return expectedMembers(room).every((id) => w.done[id]);
 }
 function waitingNames(room) {
@@ -250,6 +276,11 @@ function submitAction(room, memberId, targetId, payload) {
     w.done[memberId] = true;
     return { ok: true, allDone: isAllDone(room) };
   }
+  const rules1 = GAME_RULES[w.game] || {};
+  if (rules1.submitAction) {
+    const res = rules1.submitAction(room, memberId, act, payload);
+    if (res) return res;
+  }
   if (w.phase === PHASE.TURN) {
     if (memberId !== w.turnId) return { ok: false, error: 'not_your_turn' };
     const rules = GAME_RULES[w.game] || {};
@@ -279,6 +310,9 @@ function submitVote(room, memberId, targetId, payload) {
 function advance(room) {
   const w = room.sugoroku;
   if (!w || w.phase === PHASE.ENDED) return { changed: false };
+  const rules0 = GAME_RULES[w.game] || {};
+  // 段階の並びが違うゲームは、自分で進める（芯の道具＝setPhase / finish / 決着判定は共有する）
+  if (rules0.advance) return rules0.advance(room);
 
   if (w.phase === PHASE.READY) {
     // 誰も進める人がいない盤で始まることは無いが、念のため決着に落とす
@@ -384,6 +418,8 @@ function finish(room) {
 function resultView(room) {
   const w = room.sugoroku;
   if (!w) return null;
+  const rules = GAME_RULES[w.game] || {};
+  if (rules.resultView) return rules.resultView(room);
   const spec = S.gameById(w.game) || {};
   const ranked = S.rankPlayers(w.game, w.playerIds.map((id) => ({
     id,
@@ -451,7 +487,131 @@ function applyEvent(room, ev) {
 // ゲームごとのルール。共通の芯からは、ここを呼ぶだけ。
 // 新しいすごろくを足す時は、この表に1つ足す（共通の芯には手を入れない）。
 // =====================================================================
+const GRAB_MINI_SHOW_MS = 2200;   // 何のミニゲームかを見せる間
+const JANKEN_MAX_RETRY = 2;       // あいこが続いた時の上限（無限に繰り返さない）
+
 const GAME_RULES = {
+  // ---- ① こまはひとつ ----
+  // 駒が1つしかない。毎ターン、それを動かす権利をミニゲームで奪い合う。
+  // 段階が READY → MINI → PLAY → GRAB → RESULT と変わるので、
+  // 芯の pointTurnToPlayable（並び順で次を探す）は使わない。
+  // 代わりに、ミニゲームの順位から「動かす順番」を作る。
+  sugograb: {
+    waitingPhases: [PHASE.READY, PHASE.PLAY, PHASE.GRAB],
+    // 誰を待つか。**繋がっているかの絞り込みは芯がやる**ので、ここでは書かない
+    waitingIds(room) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.READY || w.phase === PHASE.PLAY) return w.playerIds.slice();
+      if (w.phase === PHASE.GRAB) return w.turnId ? [w.turnId] : [];
+      return [];
+    },
+    init(w, cfg) {
+      w.piece = 0;              // 駒は1つ。位置はここ（w.pos は使わない）
+      w.mini = null;            // いま何のミニゲームか
+      w.lastMiniId = null;
+      w.entries = {};           // ミニゲームの入力
+      w.miniRank = [];          // ミニゲームの順位
+      w.order = [];             // 駒を動かす順番
+      w.orderAt = 0;
+      w.retry = 0;              // じゃんけんのあいこ
+      w.losersMove = cfg.losersMove !== false;   // 敗者も少し動く（既定ON）
+      w.quiz = null;
+      w.usedQuiz = {};
+    },
+    // 駒は1つなので、位置は人ごとに持たない。出すのはコインと「いま動かす人か」
+    publicPlayers(room) {
+      const w = room.sugoroku;
+      return w.playerIds.map((id) => {
+        const m = room.members.get(id);
+        const rk = (w.miniRank.find((x) => x.id === id) || {}).rank;
+        return {
+          id, name: w.names[id],
+          pos: null, rank: rk || null,
+          coins: w.coins[id],
+          moving: id === w.turnId,
+          goalOrder: null,
+          gone: !m, connected: !!(m && m.connected)
+        };
+      });
+    },
+    publicExtra(room) {
+      const w = room.sugoroku;
+      const out = { piece: w.piece, sharedPiece: true, losersMove: w.losersMove };
+      if (w.mini) {
+        out.mini = {
+          id: w.mini.id, kind: w.mini.kind, title: w.mini.title,
+          lead: w.mini.lead, note: w.mini.note, simulInput: w.mini.simulInput
+        };
+        // 出題は PLAY に入ってから配る。MINI（題を出すだけ）の間は見せない
+        if (w.phase === PHASE.PLAY && w.quiz) {
+          out.question = { q: w.quiz.q, choices: w.quiz.choices };
+        }
+        // 誰が出し終えたかは見せる（何を出したかは見せない）
+        out.answered = w.playerIds.filter((id) => w.entries[id] != null).map((id) => w.names[id]);
+      }
+      return out;
+    },
+    submitAction(room, memberId, act, payload) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.PLAY) {
+        if (w.playerIds.indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
+        if (w.entries[memberId] != null) return { ok: false, error: 'taken' };
+        const entry = readEntry(w, payload);
+        if (!entry) return { ok: false, error: 'bad_action' };
+        w.entries[memberId] = entry;
+        w.done[memberId] = true;
+        return { ok: true, allDone: isAllDone(room) };
+      }
+      if (w.phase === PHASE.GRAB) {
+        if (memberId !== w.turnId) return { ok: false, error: 'not_your_turn' };
+        if (act !== 'roll') return { ok: false, error: 'bad_action' };
+        w.done[memberId] = true;
+        return { ok: true, allDone: true };
+      }
+      return null;   // 芯の受け口へ戻す
+    },
+    advance(room) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.READY) { startMini(room); return { changed: true }; }
+      if (w.phase === PHASE.MINI) { startPlay(room); return { changed: true }; }
+      if (w.phase === PHASE.PLAY) { settlePlay(room); return { changed: true }; }
+      if (w.phase === PHASE.GRAB) { doGrab(room); return { changed: true }; }
+      if (w.phase === PHASE.RESULT) {
+        if (w.goalCount > 0) { finish(room); return { changed: true }; }
+        const ev = maybeEvent(room);
+        if (ev) {
+          w.event = ev; w.lastEventId = ev.id;
+          applyEvent(room, ev);
+          setPhase(room, PHASE.EVENT);
+          w.deadline = Date.now() + EVENT_MS;
+          return { changed: true };
+        }
+        startMini(room);
+        return { changed: true };
+      }
+      if (w.phase === PHASE.EVENT) { startMini(room); return { changed: true }; }
+      return { changed: false };
+    },
+    // 先にあがらせた人が勝ち。2位以下は残りコインの多い順
+    resultView(room) {
+      const w = room.sugoroku;
+      const spec = S.gameById(w.game) || {};
+      const winner = w.winnerId;
+      const rest = w.playerIds.filter((id) => id !== winner)
+        .map((id) => ({ id, name: w.names[id], pos: w.piece, coins: w.coins[id], goalOrder: null }));
+      const ranked = S.rankPlayers('sugograb', rest);
+      const players = [];
+      if (winner) {
+        players.push({ name: w.names[winner], pos: w.piece, rank: 1, tied: false,
+          coins: w.coins[winner], goaled: true });
+      }
+      ranked.forEach((p) => {
+        players.push({ name: p.name, pos: p.pos, rank: p.rank + (winner ? 1 : 0),
+          tied: p.tied, coins: p.coins, goaled: false });
+      });
+      return { game: w.game, cells: spec.cells, coinsUsed: true, lap: w.lap, players };
+    }
+  },
   // ---- ④ つうこうりょう ----
   // 先頭に近い人ほど、進む時にコインを払う。
   // 順位は盤面の位置だけで決まる（コインで決めると「わざと進まずコインを貯める」が
@@ -477,6 +637,140 @@ const GAME_RULES = {
     }
   }
 };
+
+// ===== 「こまはひとつ」の進行 =====
+
+// 端末から届いた「出したもの」を、ミニゲームごとの形に整える。
+// 知らない形は受け取らない（改造した端末が変な値を入れられないように）
+function readEntry(w, payload) {
+  const p = payload || {};
+  const id = w.mini && w.mini.id;
+  const at = Math.max(0, Date.now() - (w.playStartedAt || Date.now()));
+  if (id === 'tap') return { count: Math.max(0, p.count | 0), atMs: at };
+  if (id === 'janken') return Mini.HANDS.indexOf(p.hand) === -1 ? null : { hand: p.hand };
+  if (id === 'fingers') return (p.fingers == null) ? null : { fingers: p.fingers | 0 };
+  if (id === 'quiz') {
+    if (p.choice == null) return null;
+    return { correct: (p.choice | 0) === w.quiz.correct, atMs: at };
+  }
+  return null;
+}
+
+// 何のミニゲームかを、画面いっぱいに出す段階。
+// 何が始まったか分からないまま始まるのが、いちばん混乱する
+function startMini(room) {
+  const w = room.sugoroku;
+  w.mini = Mini.pickMini(rndOf(w), w.lastMiniId);
+  w.lastMiniId = w.mini ? w.mini.id : null;
+  w.entries = {};
+  w.miniRank = [];
+  w.order = [];
+  w.orderAt = 0;
+  w.retry = 0;
+  w.quiz = null;
+  setPhase(room, PHASE.MINI);
+  w.deadline = Date.now() + GRAB_MINI_SHOW_MS;
+}
+
+function startPlay(room) {
+  const w = room.sugoroku;
+  w.entries = {};
+  if (w.mini && w.mini.id === 'quiz') {
+    // 出題は quiz-bank.js から引く（新しい問題プールは作らない）
+    const picked = QuizBank.pickQuestions('normal', 1, w.usedQuiz, rndOf(w));
+    const q = picked && picked[0];
+    if (q) {
+      w.usedQuiz[q.q] = true;
+      w.quiz = QuizBank.shuffleChoices(q, rndOf(w));
+    }
+  }
+  setPhase(room, PHASE.PLAY);
+  w.deadline = Date.now() + ((w.mini && w.mini.sec) || 12) * 1000;
+}
+
+/**
+ * 締め切って順位をつける。
+ * **出していない人の扱いは sugoroku-mini.js が持っている**（必ず最下位に同着）ので、
+ * ここでは「締め切ったら、そのまま順位をつける」だけでよい。
+ * 切断・無操作・時間切れのどれで来ても、同じここを通る。
+ */
+function settlePlay(room) {
+  const w = room.sugoroku;
+  const res = Mini.rankMini(w.mini && w.mini.id, w.playerIds, w.entries);
+  if (res.draw) {
+    // じゃんけんのあいこ。黙って勝者を作らず、もう一度やる（無限には繰り返さない）
+    w.retry++;
+    if (w.retry <= JANKEN_MAX_RETRY) {
+      w.last = { mini: w.mini.id, draw: true, retry: w.retry };
+      startPlay(room);
+      return;
+    }
+    // 上限まで来たら、この回は誰も動かさずに次へ
+    w.last = { mini: w.mini.id, draw: true, retry: w.retry, gaveUp: true };
+    setPhase(room, PHASE.RESULT);
+    w.deadline = Date.now() + RESULT_MS;
+    return;
+  }
+  w.miniRank = res.ranked;
+  w.order = Mini.grabOrder(res.ranked).filter((id) => room.members.has(id));
+  w.orderAt = 0;
+  w.moves = [];
+  nextGrab(room);
+}
+
+// 駒を動かす人へ順に渡す。動かす人がいなくなったら結果へ
+function nextGrab(room) {
+  const w = room.sugoroku;
+  while (w.orderAt < w.order.length) {
+    const id = w.order[w.orderAt];
+    const rank = (w.miniRank.find((x) => x.id === id) || {}).rank || 99;
+    // 1位はサイコロを振る。2位以下は「敗者移動」で、決まったぶんだけ動く
+    if (rank === 1) { w.turnId = id; setPhase(room, PHASE.GRAB); w.deadline = Date.now() + w.turnSec * 1000; return; }
+    if (!w.losersMove || Mini.loserSteps(rank) <= 0) { w.orderAt++; continue; }
+    moveShared(room, id, Mini.loserSteps(rank), { loser: true, rank });
+    w.orderAt++;
+    if (w.goalCount > 0) break;   // 誰かがあがったら、そこで打ち切る
+  }
+  w.turnId = null;
+  w.last = { mini: w.mini && w.mini.id, moves: w.moves, rank: w.miniRank };
+  setPhase(room, PHASE.RESULT);
+  w.deadline = Date.now() + RESULT_MS;
+}
+
+// 1位がサイコロを振る（押していなければサーバーが代わりに振る＝止まらない）
+function doGrab(room) {
+  const w = room.sugoroku;
+  const id = w.turnId;
+  const auto = !w.done[id];
+  const dice = S.rollDice(rndOf(w));
+  moveShared(room, id, dice, { winner: true, dice, auto });
+  w.orderAt++;
+  // **1位が動かした時点であがったら、そこで終了**（敗者移動は行わない＝勝者が横取りされない）
+  if (w.goalCount > 0) {
+    w.turnId = null;
+    w.last = { mini: w.mini && w.mini.id, moves: w.moves, rank: w.miniRank };
+    setPhase(room, PHASE.RESULT);
+    w.deadline = Date.now() + RESULT_MS;
+    return;
+  }
+  nextGrab(room);
+}
+
+// たった1つの駒を動かす。動かした人が誰かを必ず残す（あがらせた人が勝ちなので）
+function moveShared(room, id, steps, info) {
+  const w = room.sugoroku;
+  const mv = S.applyMove(w.board, w.piece, steps);
+  w.piece = mv.to;
+  if (mv.coins) w.coins[id] = S.addCoins(w.coins[id], mv.coins);
+  const rec = Object.assign({ id, name: w.names[id], move: mv, coinsGained: mv.coins || 0 }, info || {});
+  if (mv.goal && !w.winnerId) {
+    w.winnerId = id;
+    w.goalCount = 1;
+    rec.goal = true;
+  }
+  (w.moves = w.moves || []).push(rec);
+  return rec;
+}
 
 module.exports = {
   PHASE, DEFAULT_TURN_SEC, RESULT_MS, EVENT_MS, EVENT_CHANCE,

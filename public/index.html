@@ -576,6 +576,12 @@
   @keyframes fxAliveBreath{0%,100%{opacity:.6;transform:scale(1);}50%{opacity:1;transform:scale(1.03);}}
   /* オークション：燭台の灯がゆらぐ */
   .app.theme-auction .fx-alive{animation:fxAliveCandle 2.8s ease-in-out infinite;}
+  /* すごろく：墨がゆっくり濃くなって、また薄まる */
+  .app.theme-sugoroku .fx-alive{animation:fxAliveSumi 2.6s ease-in-out infinite;}
+  @keyframes fxAliveSumi{
+    0%,100%{opacity:.68;}
+    50%    {opacity:1;}
+  }
   @keyframes fxAliveCandle{
     0%,100%{opacity:.6;}35%{opacity:.95;}55%{opacity:.7;}75%{opacity:1;}
   }
@@ -1061,6 +1067,7 @@
   .cassette-warp[data-theme="bomb"]{--warp-color:#15171B;}
   .cassette-warp[data-theme="quiz"]{--warp-color:#10182E;}
   .cassette-warp[data-theme="auction"]{--warp-color:#1A1012;}
+  .cassette-warp[data-theme="sugoroku"]{--warp-color:#F2E9D5;}
   .cart-body{
     width:100%;aspect-ratio:1/1.1;border-radius:7px 7px 4px 4px;
     background:linear-gradient(180deg,#F3EBD9,#DCD0B6);
@@ -2304,6 +2311,69 @@
   .app.theme-auction .qb-row.win{background:var(--gold);color:#2A2013;}
   @media (prefers-reduced-motion: reduce){
     .app.theme-auction{transition:none;}
+  }
+  /* -------------------------------------------------------------------
+     第36弾：すごろくカセット専用の「和紙」テーマ
+
+     ここから下もすべて追加専用。既存のルールは1行も書き換えていない。
+     `.app.theme-sugoroku` が付いている間だけ効き、外れれば完全に元の見た目に戻る。
+     付ける条件は applyGameTheme() が一元管理している（人狼・爆弾解除・クイズ王・
+     オークションと同じ。除外だけを並べるやり方なので、新しい画面は放っておいても対象になる）。
+
+     考えたこと：
+       他の4カセットは「暗くする」方向だったが、すごろくは逆にした。
+       日本の伝統的な遊びなので、棚のクリーム色をそのまま深める方が自然で、
+       棚から中に入った時のつながりも切れない。
+         紙   … 和紙。繊維の走りを、ごく薄い斜めの縞で出す（模様に見えない濃さに留める）
+         墨   … 文字は既定より少し濃い黒に寄せる
+         朱印 … 決め所は朱。既定の --stamp を濃くしてそのまま使う
+       操作（押す・振る・進む）は一切変えていない。見た目だけ。
+
+     フォントは既に読み込んである Shippori Mincho を見出しに使う。
+     読み込むフォントは増やさない（人狼・爆弾解除・クイズ王と同じ考え方）。
+     ------------------------------------------------------------------- */
+  .app.theme-sugoroku{
+    --paper:#F2E9D5;
+    --paper-deep:#E6D9BC;
+    --card:#FDF8EE;
+    --ink:#1F1B17;
+    --ink-soft:#5A5148;
+    --stamp:#C0392B;
+    --stamp-deep:#9B2C22;
+    --line:rgba(31,27,23,0.16);
+    --shadow:0 8px 22px rgba(70,50,20,0.16);
+    background:
+      repeating-linear-gradient(58deg, rgba(120,95,55,0.045) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(-32deg, rgba(120,95,55,0.032) 0 1px, transparent 1px 11px),
+      radial-gradient(ellipse 80% 55% at 50% -10%, rgba(255,255,255,0.55), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  body:has(.app.theme-sugoroku){
+    background:
+      radial-gradient(circle at 50% 0%, #F6EFE0, transparent 60%),
+      #E3D6B8;
+  }
+  /* 見出しだけ明朝に寄せる。本文は読みやすい丸ゴシックのまま
+     （読みやすさを削ってまで世界観を出さない） */
+  .app.theme-sugoroku .scr-title,
+  .app.theme-sugoroku .sec-title,
+  .app.theme-sugoroku .wiz-step{
+    font-family:'Shippori Mincho', serif;
+    font-weight:800;
+    letter-spacing:.04em;
+  }
+  /* 面は角を少しだけ落とす。和紙を切ったような、直線に近い角 */
+  .app.theme-sugoroku .card,
+  .app.theme-sugoroku .opt-card,
+  .app.theme-sugoroku .mode-card{
+    border-radius:8px;
+    border:1px solid var(--line);
+  }
+  /* 決め所の朱印。既存の .btn-main はそのまま、色だけ和のトーンに寄せる */
+  .app.theme-sugoroku .btn-main{
+    background:linear-gradient(180deg, var(--stamp) 0%, var(--stamp-deep) 100%);
   }
 </style>
 </head>
@@ -6631,7 +6701,8 @@
   // カセットが増えるたびに if を足していくと必ず消し忘れるので、一覧で持つ。
   // 新しいテーマを作る時は、ここに1行と、CSSに .theme-◯◯ のかたまりを足す。
   var THEME_CLASSES = {
-    wolf: 'theme-wolf', bomb: 'theme-bomb', quiz: 'theme-quiz', auction: 'theme-auction'
+    wolf: 'theme-wolf', bomb: 'theme-bomb', quiz: 'theme-quiz', auction: 'theme-auction',
+    sugoroku: 'theme-sugoroku'
   };
   function applyGameTheme(screenId){
     var app = el('app');

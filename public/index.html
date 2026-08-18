@@ -1607,6 +1607,100 @@
   .describer-only-note{font-size:11px;color:var(--ink-soft);opacity:.75;text-align:center;margin-bottom:6px;}
   #wolfVoteArea{width:100%;}
   #wolfVoteArea .picker-grid{flex:none;max-height:60vh;}
+  /* すごろくの盤面。**テーマ節より前に置くこと。**
+     ここから下はカセット専用テーマの領域で、`.app.theme-◯◯` の付いた
+     追加専用のルールしか書いてはいけない（tests/smoke.js が見張っている）。
+     盤面はテーマに依らない「形」なので、共通の部品としてこちら側に置く。 */
+  /* -------------------------------------------------------------------
+     第36弾：すごろくの盤面
+
+     30〜40マスをスクロールせずに1画面へ収める。並べ方（何行何列のどこか）は
+     SugorokuLogic.boardLayout が正本で、ここはそれを置くだけ。
+     画面側で座標を計算し直すと、大画面と食い違う（落とし穴1）。
+
+     クラス名の接頭辞が sugo- なのは、sg- が安全設定の画面で先に使われているため。
+     ------------------------------------------------------------------- */
+  .sugo-top{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:10px;padding:10px 14px 6px;
+  }
+  .sugo-lap{font-size:12px;color:var(--ink-soft);}
+  .sugo-turn{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;}
+  .sugo-turn .sugo-piece{font-size:20px;}
+
+  .sugo-board{
+    display:grid;gap:4px;
+    width:100%;max-width:420px;margin:0 auto;
+    padding:0 12px;
+  }
+  .sugo-cell{
+    position:relative;aspect-ratio:1/1;
+    border-radius:6px;border:1px solid var(--line);
+    background:var(--card);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  /* マスの調子は CELL_KINDS の tone がそのまま来る。
+     もどるマスも赤くしない（責める見た目にしない・原則7） */
+  .sugo-cell.tone-good{background:#EAF2E2;}
+  .sugo-cell.tone-soft{background:#F0E7D6;}
+  .sugo-cell.tone-gold{background:linear-gradient(180deg,#F8E9BC,#EDD79A);}
+  .sugo-no{position:absolute;top:2px;left:4px;font-size:9px;opacity:.5;line-height:1;}
+  .sugo-icon{font-size:15px;line-height:1;}
+  .sugo-icon img{width:15px;height:15px;vertical-align:-2px;}
+  .sugo-pieces{
+    position:absolute;left:0;right:0;bottom:1px;
+    display:flex;justify-content:center;gap:1px;flex-wrap:wrap;line-height:1;
+  }
+  .sugo-piece{font-size:13px;line-height:1;}
+
+  /* だれが、あと何マスか。
+     「27マス目」より「あと13」の方が、遊んでいる人には分かる。
+     つうこうりょうは順位がそのまま支払額なので、順位と並べて出す */
+  .sugo-me{
+    max-width:420px;margin:10px auto 0;padding:0 12px 12px;
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .sugo-row{
+    display:flex;align-items:center;gap:8px;
+    padding:5px 9px;border-radius:7px;
+    background:var(--card);border:1px solid var(--line);
+    font-size:13px;
+  }
+  .sugo-row.now{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp) inset;}
+  .sugo-row .sugo-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sugo-left{font-weight:700;}
+  .sugo-rank{font-size:12px;color:var(--ink-soft);min-width:2.6em;text-align:right;}
+  .sugo-coin{font-size:12px;min-width:3.2em;text-align:right;}
+  .sugo-row.goaled .sugo-left{color:var(--stamp);}
+
+  /* 振るところ。長押ししてスワイプが主役だが、押して離すだけでも振れる */
+  .sugo-act{text-align:center;padding:2px 12px 18px;}
+  .sugo-dice{
+    width:92px;height:92px;margin:0 auto;
+    display:flex;align-items:center;justify-content:center;
+    font-size:40px;line-height:1;font-weight:800;
+    border-radius:16px;background:var(--card);
+    border:2px solid var(--line);box-shadow:var(--shadow);
+    touch-action:none;          /* スワイプをブラウザのスクロールに取られない */
+    user-select:none;-webkit-user-select:none;cursor:pointer;
+  }
+  .sugo-dice.holding{border-color:var(--stamp);animation:sugoShiver .11s linear infinite;}
+  .sugo-dice.rolling{animation:sugoRoll calc(.55s * var(--fx-scale)) ease-out;}
+  .sugo-dice.done{cursor:default;opacity:.5;}
+  @keyframes sugoShiver{
+    0%,100%{transform:translate(0,0) rotate(0);}
+    25%{transform:translate(-1.5px,1px) rotate(-2deg);}
+    75%{transform:translate(1.5px,-1px) rotate(2deg);}
+  }
+  @keyframes sugoRoll{
+    0%{transform:rotate(0) scale(1);}
+    60%{transform:rotate(330deg) scale(1.12);}
+    100%{transform:rotate(360deg) scale(1);}
+  }
+  .sugo-hint{margin-top:8px;font-size:12px;color:var(--ink-soft);min-height:1.4em;}
+  .sugo-note{margin-top:4px;font-size:13px;font-weight:700;min-height:1.4em;}
+
   /* ===================================================================
      第18弾 第5部：人狼カセット専用の「夜」テーマ
      ここから下はすべて追加専用。既存のルールは1行も書き換えていない。
@@ -2376,95 +2470,6 @@
   .app.theme-sugoroku .btn-main{
     background:linear-gradient(180deg, var(--stamp) 0%, var(--stamp-deep) 100%);
   }
-  /* -------------------------------------------------------------------
-     第36弾：すごろくの盤面
-
-     30〜40マスをスクロールせずに1画面へ収める。並べ方（何行何列のどこか）は
-     SugorokuLogic.boardLayout が正本で、ここはそれを置くだけ。
-     画面側で座標を計算し直すと、大画面と食い違う（落とし穴1）。
-
-     クラス名の接頭辞が sugo- なのは、sg- が安全設定の画面で先に使われているため。
-     ------------------------------------------------------------------- */
-  .sugo-top{
-    display:flex;align-items:center;justify-content:space-between;
-    gap:10px;padding:10px 14px 6px;
-  }
-  .sugo-lap{font-size:12px;color:var(--ink-soft);}
-  .sugo-turn{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;}
-  .sugo-turn .sugo-piece{font-size:20px;}
-
-  .sugo-board{
-    display:grid;gap:4px;
-    width:100%;max-width:420px;margin:0 auto;
-    padding:0 12px;
-  }
-  .sugo-cell{
-    position:relative;aspect-ratio:1/1;
-    border-radius:6px;border:1px solid var(--line);
-    background:var(--card);
-    display:flex;align-items:center;justify-content:center;
-    overflow:hidden;
-  }
-  /* マスの調子は CELL_KINDS の tone がそのまま来る。
-     もどるマスも赤くしない（責める見た目にしない・原則7） */
-  .sugo-cell.tone-good{background:#EAF2E2;}
-  .sugo-cell.tone-soft{background:#F0E7D6;}
-  .sugo-cell.tone-gold{background:linear-gradient(180deg,#F8E9BC,#EDD79A);}
-  .sugo-no{position:absolute;top:2px;left:4px;font-size:9px;opacity:.5;line-height:1;}
-  .sugo-icon{font-size:15px;line-height:1;}
-  .sugo-icon img{width:15px;height:15px;vertical-align:-2px;}
-  .sugo-pieces{
-    position:absolute;left:0;right:0;bottom:1px;
-    display:flex;justify-content:center;gap:1px;flex-wrap:wrap;line-height:1;
-  }
-  .sugo-piece{font-size:13px;line-height:1;}
-
-  /* だれが、あと何マスか。
-     「27マス目」より「あと13」の方が、遊んでいる人には分かる。
-     つうこうりょうは順位がそのまま支払額なので、順位と並べて出す */
-  .sugo-me{
-    max-width:420px;margin:10px auto 0;padding:0 12px 12px;
-    display:flex;flex-direction:column;gap:4px;
-  }
-  .sugo-row{
-    display:flex;align-items:center;gap:8px;
-    padding:5px 9px;border-radius:7px;
-    background:var(--card);border:1px solid var(--line);
-    font-size:13px;
-  }
-  .sugo-row.now{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp) inset;}
-  .sugo-row .sugo-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .sugo-left{font-weight:700;}
-  .sugo-rank{font-size:12px;color:var(--ink-soft);min-width:2.6em;text-align:right;}
-  .sugo-coin{font-size:12px;min-width:3.2em;text-align:right;}
-  .sugo-row.goaled .sugo-left{color:var(--stamp);}
-
-  /* 振るところ。長押ししてスワイプが主役だが、押して離すだけでも振れる */
-  .sugo-act{text-align:center;padding:2px 12px 18px;}
-  .sugo-dice{
-    width:92px;height:92px;margin:0 auto;
-    display:flex;align-items:center;justify-content:center;
-    font-size:40px;line-height:1;font-weight:800;
-    border-radius:16px;background:var(--card);
-    border:2px solid var(--line);box-shadow:var(--shadow);
-    touch-action:none;          /* スワイプをブラウザのスクロールに取られない */
-    user-select:none;-webkit-user-select:none;cursor:pointer;
-  }
-  .sugo-dice.holding{border-color:var(--stamp);animation:sugoShiver .11s linear infinite;}
-  .sugo-dice.rolling{animation:sugoRoll calc(.55s * var(--fx-scale)) ease-out;}
-  .sugo-dice.done{cursor:default;opacity:.5;}
-  @keyframes sugoShiver{
-    0%,100%{transform:translate(0,0) rotate(0);}
-    25%{transform:translate(-1.5px,1px) rotate(-2deg);}
-    75%{transform:translate(1.5px,-1px) rotate(2deg);}
-  }
-  @keyframes sugoRoll{
-    0%{transform:rotate(0) scale(1);}
-    60%{transform:rotate(330deg) scale(1.12);}
-    100%{transform:rotate(360deg) scale(1);}
-  }
-  .sugo-hint{margin-top:8px;font-size:12px;color:var(--ink-soft);min-height:1.4em;}
-  .sugo-note{margin-top:4px;font-size:13px;font-weight:700;min-height:1.4em;}
 </style>
 </head>
 <body>
@@ -3113,6 +3118,27 @@
   </div>
 
   <!-- 4e: 設定ウィザード・ワードウルフ -->
+  <!-- 4d8: 設定ウィザード・すごろく（第36弾）。
+       1画面につき、やることは1つだけ。決めるのは「突然のできごと」の有無だけにしてある -->
+  <div class="screen" id="scr-set-sugoroku">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepSugoroku"></span><h2 class="scr-title">すごろくの設定</h2></div>
+    <p class="wiz-lead">先頭に近い人ほど、進むのに払うコインが増えます。長く先頭が続いた時に、盤をゆさぶるできごとを起こすかどうかを決めよう。</p>
+    <div class="wiz-body">
+      <div class="timer-dmode">
+        <div class="tp-label">突然のできごと</div>
+        <div class="seg" id="sugoEventSeg">
+          <button class="seg-btn" data-sugoevent="on">起こす</button>
+          <button class="seg-btn" data-sugoevent="off">起こさない</button>
+        </div>
+        <div class="mic-status" id="sugoEventNote" style="margin-top:8px;"></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
   <div class="screen" id="scr-set-wolf">
     <div class="wiz-head"><span class="wiz-step" id="wizStepWolf"></span><h2 class="scr-title">ワードウルフ設定</h2></div>
     <p class="wiz-lead">ウルフ🐺（1人だけ違うお題の人）の人数と、ウルフが自覚ありかどうかを決めよう。</p>
@@ -3463,6 +3489,24 @@
   </div>
 
   <!-- 1人1台：大画面（TV・PC）。公開情報だけを大きく出す -->
+  <!-- 8.6: すごろく（1人1台）。盤は手渡しと同じ部品で描く（見え方を1つに保つ） -->
+  <div class="screen" id="scr-rt-sugoroku">
+    <div class="sugo-top">
+      <div class="sugo-lap" id="rtSugoLap"></div>
+      <div class="sugo-turn" id="rtSugoTurn"></div>
+    </div>
+    <div class="sugo-board" id="rtSugoBoard"></div>
+    <div class="sugo-me" id="rtSugoMe"></div>
+    <div class="sugo-act">
+      <div class="sugo-dice" id="rtSugoDice">🎲</div>
+      <div class="sugo-note" id="rtSugoNote"></div>
+      <div class="sugo-hint" id="rtSugoHint"></div>
+    </div>
+    <div class="rt-foot" style="text-align:center;padding:0 12px 14px;">
+      <button class="btn btn-ghost" id="rtSugoLeaveBtn" style="display:none;">← 部屋を出る</button>
+    </div>
+  </div>
+
   <div class="screen" id="scr-rt-big">
     <div class="big-wrap">
       <div class="big-turn" id="bigTurn"></div>
@@ -4489,7 +4533,15 @@
     // テストごと無くなるので hidden のまま残す。game は 'auction' のまま触らない
     // （変えると、このIDで残っている記録が迷子になる）
     {id:"auction", icon:"💰", title:"オークションバトル", sub:"チップを賭けて正解を競う・駆け引き必至", advanced:false, strict:false, oneWord:false, auction:true, hidden:true, game:'auction',
-      bullets:["全員チップ20枚からスタート","難易度が出たらチップを賭ける（持ちチップが多い人ほど最低額も高い）","最初の正解者が賭け金×倍率＋外れた人の賭け金の半分を獲得","外れた人は賭け金を没収","チップでアイテムも買える","6ラウンド後のチップ数がスコア"]}
+      bullets:["全員チップ20枚からスタート","難易度が出たらチップを賭ける（持ちチップが多い人ほど最低額も高い）","最初の正解者が賭け金×倍率＋外れた人の賭け金の半分を獲得","外れた人は賭け金を没収","チップでアイテムも買える","6ラウンド後のチップ数がスコア"]},
+    // ---- 第36弾：カセット「すごろく」。まずは「つうこうりょう」だけを完成させる ----
+    // 先頭に近い人ほど、進む時にコインを払う。逆転アイテムのような外付けに頼らず、
+    // ルールそのものに拮抗させる仕組みを入れた遊び。
+    // 手渡し（1台を回す）でも、1人1台（部屋）でも遊べる。
+    // 人数・盤の長さ・目安時間の正本は public/js/sugoroku-logic.js の GAMES。
+    // ここの数字と食い違わないことは tests/sugoroku-logic.js が機械照合する
+    {id:"sugotoll", icon:"🎲", title:"つうこうりょう", sub:"先頭ほど通行料が高い・払えないと進めない", advanced:false, strict:false, oneWord:false, sugoroku:true, game:'sugotoll', minPlayers:3,
+      bullets:["盤は40マス。先にあがった人の勝ち","1位は出目と同じ枚数のコインを払う","2位・3位は出目の半分（切り上げ）","4位以下は無料で進める","順位はコインではなく、盤面の位置で決まる","払えない時は進めないが、代わりにコインが3枚入る","長押ししてスワイプでサイコロを振る（押して離すだけでも振れます）"]}
   ];
 
   // ===== 第12弾：棚とカセット（あつまれ、あれこれのトップ画面） =====
@@ -4551,6 +4603,13 @@
       games:['auction'],
       theme:'auction',
       meta:'2人〜 / 15分〜<br>値をつけて競り合う' },
+    // 第36弾：すごろく。中身があるのは「つうこうりょう」だけ（原則2：1つずつ完璧に）。
+    // 通行料の読み合いが芯なので「かけひき」の段に置く。
+    // 「どこにいる？」が入ったら「正体をさぐる」の段にも並べることになる
+    { id:'sugoroku',        genre:['deal'], ready:true,  icon:'🎲', title:'すご<br>ろく',
+      games:['sugotoll'],
+      theme:'sugoroku',
+      meta:'3〜8人 / 20分〜<br>先頭ほど、進むのが高くつく' },
     { id:'word-soon-1',     genre:['word'],  ready:false, icon:'？' },
     { id:'hide-soon-1',     genre:['hide'],  ready:false, icon:'？' },
     { id:'brain-soon-1',    genre:['brain'], ready:false, icon:'？' },
@@ -5537,7 +5596,10 @@
     { id:'quizlist',        title:'つぎつぎクイズ',     icon:'🔁', sub:'順番に1つずつ答える・既出はアウト', maxPlayers:0 },
     { id:'quizreveal',      title:'とくとくクイズ',     icon:'🔎', sub:'だんだん見えてくる・早いほど高得点', maxPlayers:0 },
     { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち', usesTopicPool:true },
-    { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う', usesTopicPool:true }
+    { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う', usesTopicPool:true },
+    // 第36弾：カセット「すごろく」。盤・サイコロ・順位は sugoroku-logic.js が正本。
+    // お題プールもAIも使わない（マス目と数字だけで成り立つ遊び）
+    { id:'sugotoll',        title:'つうこうりょう',     icon:'🎲', sub:'先頭ほど通行料が高い・払えないと進めない', maxPlayers:8 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -5693,6 +5755,8 @@
     },
     // 第31弾：オークション（作り直し）の設定。遊び方はモードで決まる
     auCfg: { rounds:6, startChips:20, bidSec:30, extendSec:8, rescue:true },
+    // 第36弾：すごろく。突然のできごとを起こすかどうか（起こすを既定に）
+    sgkCfg: { events:true },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
     winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
@@ -7203,6 +7267,8 @@
     quizcfg:   { screen:'scr-set-quiz',       badge:'wizStepQuiz',       render:renderQuizStep },
     // 第31弾：オークション（作り直し）。2つの遊び方で1枚を共有する
     auctioncfg:{ screen:'scr-set-auction',    badge:'wizStepAuction',    render:renderAuctionStep },
+    // 第36弾：すごろく。5ゲームで1枚を共有する形にしておく（ゲームごとに作らない）
+    sugorokucfg:{ screen:'scr-set-sugoroku',  badge:'wizStepSugoroku',   render:renderSugorokuStep },
     wolfrole:  { screen:'scr-set-wolfrole',   badge:'wizStepWolfRole',   render:renderWolfRoleStep },
     lovers:    { screen:'scr-set-lovers',     badge:'wizStepLovers',     render:renderLoversStep },
     wolfmulti: { screen:'scr-set-wolfmulti',  badge:'wizStepWolfMulti',  render:renderWolfMultiStep },
@@ -7225,6 +7291,9 @@
     // 第31弾：オークション（作り直し）は設定1枚だけ。
     // 制限時間は「1回の入札の考える時間」なので、共通のタイマー画面とは別物
     if(m.auctionNew) return ['auctioncfg'];
+    // 第36弾：すごろく。決めることは「突然のできごとを起こすか」だけ。
+    // 盤の長さも人数も遊びが決めているので、ここで聞くことは他に無い
+    if(m.sugoroku) return ['sugorokucfg'];
     // クイズ王・オークションは各ラウンドで難易度を選ぶ＆AIが出題するので難易度/出題者選択は不要
     if(m.quiz || m.auction) return ['handicap'];
     // ワードウルフ（2〜ターン）：ターン設定 → ウルフ設定 → 時間
@@ -7247,6 +7316,31 @@
     if(!(isAIDescribe() || m.buzzer || optSurvival())) steps.push('describer');
     return steps;
   }
+  // 第36弾：すごろくの設定。決めるのは「突然のできごと」の有無だけ
+  function renderSugorokuStep(){
+    Array.prototype.forEach.call(el('sugoEventSeg').children, function(b){
+      b.classList.toggle('on', (b.dataset.sugoevent === 'on') === !!state.sgkCfg.events);
+    });
+    el('sugoEventNote').textContent = state.sgkCfg.events
+      ? '一巡の切れ目に、たまに起きます（関所やぶり・みちがえ）'
+      : '盤の上で起きることは、サイコロと通行料だけになります';
+  }
+  el('sugoEventSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-sugoevent]');
+    if(!b) return;
+    state.sgkCfg.events = (b.dataset.sugoevent === 'on');
+    renderSugorokuStep();
+  });
+
+  // 手渡しのすごろくを始める。盤・駒・コインは毎回作り直す（境界＝試合）
+  function initSugorokuRound(){
+    var m = modeById(state.selectedModeId) || {};
+    sugoStart(m.game || 'sugotoll', state.players, { events: !!state.sgkCfg.events });
+    sugoDiceReset();
+    sugoRender();
+    goTo('scr-sugo-play');
+  }
+
   function renderBombLifeStep(){
     el('bombLifeValue').textContent = state.bombLives;
     el('bombLifeDisplay').textContent = '❤️'.repeat(state.bombLives);
@@ -8524,7 +8618,9 @@
     quizreveal: rtQuizConfig,
     buzzer: rtQuizConfig,
     // 第31弾：オークション（作り直し）
-    auction: rtAuctionConfig
+    auction: rtAuctionConfig,
+    // 第36弾：すごろく
+    sugotoll: rtSugorokuConfig
   };
   el('rtStartBtn').addEventListener('click', async function(){
     var m = modeById(state.selectedModeId);
@@ -8652,6 +8748,16 @@
       bidSec: c.bidSec,
       extendSec: c.extendSec,
       rescue: c.rescue,
+      preset: state.selectedModeId
+    };
+  }
+
+  // 第36弾：すごろく。盤・人数・目安時間は sugoroku-logic.js が持っているので、
+  // 端末から送るのは「この試合の決めごと」だけ
+  function rtSugorokuConfig(m){
+    return {
+      game: (m && m.game) || 'sugotoll',
+      events: !!state.sgkCfg.events,
       preset: state.selectedModeId
     };
   }
@@ -8835,7 +8941,7 @@
   }
   // 状態が動いたら、いるべき画面へ移して描き直す。
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
-  var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-big'];
+  var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku', 'scr-rt-big'];
   // 第30弾：クイズ王の4ゲーム。1枚の画面が中身を差し替えて受け持つ
   var RT_QUIZ_GAMES = ['quizrush', 'quizlist', 'quizreveal', 'buzzer'];
   // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
@@ -8847,7 +8953,9 @@
     quizrush: 'scr-rt-quiz', quizlist: 'scr-rt-quiz',
     quizreveal: 'scr-rt-quiz', buzzer: 'scr-rt-quiz',
     // 第31弾：オークション（作り直し）
-    auction: 'scr-rt-auction'
+    auction: 'scr-rt-auction',
+    // 第36弾：すごろく。5ゲームとも1枚を共有する（中身を差し替える）
+    sugotoll: 'scr-rt-sugoroku'
   };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
@@ -12261,7 +12369,8 @@
   // 計算を画面側に持つと、部屋版・大画面と食い違う（落とし穴1）。
   var sugo = null;   // 手渡しの進行。試合開始ごとに作り直す（境界＝試合）
 
-  function sugoStart(gameId, players){
+  function sugoStart(gameId, players, opts){
+    var o = opts || {};
     var spec = SugorokuLogic.gameById(gameId);
     var ids = players.map(function(p, i){ return 'h' + i; });
     sugo = {
@@ -12276,7 +12385,9 @@
       turnId: ids[0],
       lap: 1,
       last: null,
-      event: null
+      event: null,
+      lastEventId: null,
+      eventsOn: o.events !== false
     };
     players.forEach(function(p, i){
       sugo.names[ids[i]] = p.name;
@@ -12387,6 +12498,22 @@
     });
   })();
 
+  // 一巡の切れ目にだけ起こす。手番の途中で盤が動くと、
+  // いま何が起きたのかが混ざって分からなくなる
+  function sugoMaybeEvent(live){
+    if(!sugo.eventsOn) return;
+    if(Math.random() >= SugorokuLogic.EVENT_CHANCE) return;
+    var ev = SugorokuLogic.pickEvent(sugo.game, Math.random, sugo.lastEventId);
+    if(!ev) return;
+    ev = Object.assign({}, ev, { untilLap: sugo.lap });
+    sugo.lastEventId = ev.id;
+    SugorokuLogic.applyEventTo(sugo, live, ev);   // 効かせ方は部屋版と共通
+    sugo.event = ev;
+    sugoNote(ev.icon + ' ' + ev.title);
+    sugoHint(ev.note);
+    try{ FxKit.flash('good'); }catch(e){}
+  }
+
   function sugoFinished(){ return !!(sugo && sugo.goalCount > 0); }
   function sugoLiveIds(){
     return sugo.order.filter(function(id){ return sugo.goalOrder[id] == null; });
@@ -12459,7 +12586,10 @@
     // 並び順の端を越えたら一巡（イベントの効き目もここで切れる）
     if(at + 1 >= live.length){
       sugo.lap++;
+      // 効き目が切れる境界は「巡」。増える場所と同じところで失効させる
+      // （別の場所で判定すると、巡が変わった直後の1人だけ古い効き目を受け取る）
       if(sugo.event && sugo.lap > sugo.event.untilLap) sugo.event = null;
+      sugoMaybeEvent(live);
     }
     sugo.turnId = next;
     el('sugoDice').textContent = '🎲';
@@ -12507,6 +12637,12 @@
       return { min: round((n - 1) * c.winsNeeded * 35 + 60), perRound: false };
     }
     // オークション：1ラウンドあたり「品物を見る＋入札＋結果」
+    // すごろく：遊びごとの目安は性格表（sugoroku-logic.js）が持っている。
+    // ここで別の数字を書くと、片方だけ直した時に食い違う（落とし穴4）
+    if(m.sugoroku){
+      var sgk = SugorokuLogic.gameById(m.game) || {};
+      return { min: sgk.estMin || 20, perRound: false };
+    }
     if(m.auctionNew){
       var per = 25 + (m.auctionSealed ? state.auCfg.bidSec : state.auCfg.extendSec * 2) + 8;
       return { min: round(state.auCfg.rounds * per + 60), perRound: false };
@@ -12614,6 +12750,8 @@
           } else if(m.buzzer){
             initTourneyRound();
             advanceToNextMatch(); // ⑥：VS中間画面をはさんでから対戦へ
+          } else if(m.sugoroku){
+            initSugorokuRound();
           } else if(m.auction){
             initAuctionRound();
             startAuctionRound();

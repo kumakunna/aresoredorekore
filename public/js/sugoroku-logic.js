@@ -85,7 +85,7 @@
       dice: true, sharedPiece: false,
       coins: true, startCoins: 20, cellKinds: ['coin', 'forward', 'back'],
       events: 'any', tiebreak: 'coins',
-      ready: false
+      ready: true      // 第36弾：手渡し・部屋の両方で遊べるようになった
     },
     // ⑤ てふだ：サイコロを振らない。手札の数字と交渉だけで進む
     sugohand: {
@@ -512,6 +512,7 @@
   //   じっくり信頼関係を育てる遊びを、荒らすイベントで壊さないため。
   //
   // ここは各ゲームの実装と一緒に増えていく。
+  var EVENT_CHANCE = 0.25;   // 一巡ごとに、この確率で起きる（手渡し・部屋で同じ）
   var EVENTS = [
     // --- つうこうりょう ---
     // 長く先頭を走っている人がいると単調になるので、順位を崩すものを入れる。
@@ -527,6 +528,35 @@
       note: '先頭の人と、いちばん後ろの人が入れかわります'
     }
   ];
+
+  /**
+   * 突然イベントを実際に効かせる。**手渡し版と部屋版が、同じここを通る。**
+   * 盤を書き換えるものだけが、ここで仕事をする
+   * （toll-free は「効いている間タダ」なので、盤には何もしない）。
+   *
+   * @param {{pos:Object}} st 呼び出し側の状態（この関数が書き換える）
+   * @param {string[]} liveIds まだあがっていない人
+   * @param {Object} ev イベント
+   */
+  function applyEventTo(st, liveIds, ev) {
+    if (!ev) return ev;
+    if (ev.id === 'swap-ends') {
+      // 先頭といちばん後ろが入れかわる。同じマスに複数いる時は、並び順が先の人
+      var live = (liveIds || []).slice();
+      if (live.length < 2) { ev.applied = false; return ev; }
+      var sorted = live.slice().sort(function (a, b) { return st.pos[b] - st.pos[a]; });
+      var head = sorted[0];
+      var tail = sorted[sorted.length - 1];
+      if (head === tail || st.pos[head] === st.pos[tail]) { ev.applied = false; return ev; }
+      var tmp = st.pos[head];
+      st.pos[head] = st.pos[tail];
+      st.pos[tail] = tmp;
+      ev.applied = true;
+      return ev;
+    }
+    ev.applied = true;
+    return ev;
+  }
 
   /**
    * そのゲームで起こしてよいイベント。
@@ -582,7 +612,8 @@
     HOLD_MIN_MS: HOLD_MIN_MS, SWIPE_MIN_PX: SWIPE_MIN_PX, rollGesture: rollGesture,
     addCoins: addCoins, canPay: canPay, clamp: clamp,
     positionRanks: positionRanks, rankPlayers: rankPlayers,
-    eventsFor: eventsFor, pickEvent: pickEvent,
+    EVENT_CHANCE: EVENT_CHANCE,
+    eventsFor: eventsFor, pickEvent: pickEvent, applyEventTo: applyEventTo,
     checkPlayerCount: checkPlayerCount,
     TOLL_RELIEF: TOLL_RELIEF, tollFor: tollFor, tollOutcome: tollOutcome,
     tollTurn: tollTurn

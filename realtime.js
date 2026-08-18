@@ -19,6 +19,7 @@ const BombRoom = require('./bomb-room.js');
 const DefuseRoom = require('./defuse-room.js');
 const QuizRoom = require('./quiz-room.js');
 const AuctionRoom = require('./auction-room.js');
+const SugorokuRoom = require('./sugoroku-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -41,7 +42,11 @@ const GAME_DRIVERS = {
   quizreveal: { driver: QuizRoom, key: 'quiz' },
   buzzer: { driver: QuizRoom, key: 'quiz' },
   // 第31弾：オークションバトル（作り直し）。約束の形は変わらない
-  auction: { driver: AuctionRoom, key: 'auction' }
+  auction: { driver: AuctionRoom, key: 'auction' },
+  // 第36弾：カセット「すごろく」。5ゲームで進行役1つ・部屋に置く状態も1つ（room.sugoroku）。
+  // クイズ王が4ゲームで quiz-room.js を共有しているのと同じ形。
+  // 遊べるようになったゲームだけを、ここに1行ずつ足していく
+  sugotoll: { driver: SugorokuRoom, key: 'sugoroku' }
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -365,6 +370,32 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.defuse) return recordDefuseMatch(room);
     if (room.quiz) return recordQuizMatch(room);
     if (room.auction) return recordAuctionMatch(room);
+    if (room.sugoroku) return recordSugorokuMatch(room);
+  }
+
+  // 第36弾：すごろく。あがった順と、進んだ距離・残りコインがそのまま成績
+  function recordSugorokuMatch(room) {
+    if (!db || !room.ownerUserId || !room.sugoroku) return;
+    try {
+      const w = room.sugoroku;
+      const view = SugorokuRoom.resultView(room);
+      const names = view.players.map((p) => p.name);
+      const finalScores = {};
+      // 「何マス進んだか」を得点として残す。あがった人は満点（盤の長さ）
+      view.players.forEach((p) => { finalScores[p.name] = p.goaled ? view.cells : p.pos; });
+      const rounds = [{
+        mode: w.preset || w.game,
+        game: w.game,
+        style: 'realtime',
+        cells: view.cells,
+        laps: view.lap,
+        ranking: view.players.map((p) => ({
+          name: p.name, rank: p.rank, tied: p.tied, pos: p.pos, coins: p.coins, goaled: p.goaled
+        })),
+        deltas: finalScores
+      }];
+      saveMatchRecord(room, names, rounds, finalScores);
+    } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
   }
 
   /**

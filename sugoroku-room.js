@@ -44,7 +44,7 @@ const MIN_TURN_SEC = 15;
 const MAX_TURN_SEC = 300;
 const RESULT_MS = 2800;        // 駒が動くのを見る間（端末側はタップで飛ばせる）
 const EVENT_MS = 3200;
-const EVENT_CHANCE = 0.25;     // 一巡ごとに、この確率で突然イベント
+const EVENT_CHANCE = S.EVENT_CHANCE;   // 手渡し版と同じ数字を使う（2度書かない）
 
 // テストから出目と盤を固定するための穴。本番は Math.random のまま使う
 let rnd = Math.random;
@@ -437,22 +437,14 @@ function atLapEnd(room) {
 }
 function applyEvent(room, ev) {
   const w = room.sugoroku;
-  if (ev.id === 'swap-ends') {
-    // 先頭と最後尾が入れかわる。同じマスに複数いる時は、並び順が先の人を選ぶ
-    const live = w.playerIds.filter((id) => room.members.has(id) && w.goalOrder[id] == null);
-    if (live.length < 2) { ev.applied = false; return; }
-    const sorted = live.slice().sort((a, b) => w.pos[b] - w.pos[a]);
-    const head = sorted[0];
-    const tail = sorted[sorted.length - 1];
-    if (head === tail || w.pos[head] === w.pos[tail]) { ev.applied = false; return; }
-    const tmp = w.pos[head];
-    w.pos[head] = w.pos[tail];
-    w.pos[tail] = tmp;
-    ev.applied = true;
-    ev.detail = { head: w.names[head], tail: w.names[tail] };
+  // 効かせ方は共通（S.applyEventTo）。手渡し版もまったく同じものを通る
+  const live = w.playerIds.filter((id) => room.members.has(id) && w.goalOrder[id] == null);
+  const before = live.slice().sort((a, b) => w.pos[b] - w.pos[a]);
+  S.applyEventTo(w, live, ev);
+  if (ev.id === 'swap-ends' && ev.applied) {
+    // 誰と誰が入れかわったかは、部屋の画面に出すので名前にしておく
+    ev.detail = { head: w.names[before[0]], tail: w.names[before[before.length - 1]] };
   }
-  // toll-free は「効いている間、通行料が0」なので、盤には何もしない
-  if (ev.id === 'toll-free') ev.applied = true;
 }
 
 // =====================================================================

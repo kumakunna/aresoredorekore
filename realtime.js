@@ -862,8 +862,14 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         member.name = name;
         if (payload && payload.role) member.role = normalizeRole(payload.role);
       } else {
-        // 新しい枠が要る時だけ満員を見る（既存メンバーの復帰は満員でも締め出さない）
-        if (playerMembers(room).length >= ROOM_MAX_PLAYERS) {
+        // 新しい枠が要る時だけ満員を見る（既存メンバーの復帰は満員でも締め出さない）。
+        // 数えるのは「接続中のプレイヤー」＝いま同時に遊ぶ人数。名簿の枠数（切断中含む）で
+        // 数えると、入れ替わりの切断枠が溜まった部屋で実人数が少なくても新規が弾かれる
+        // （実機報告「QRが使えない」の真因・8/18修正）。
+        // なお切断→新規→復帰の順で一時的に21人接続になり得るが、稀で自己制限的
+        // （22人目の新規はここで止まる）なので許容する
+        const liveCount = playerMembers(room).filter((m) => m.connected).length;
+        if (liveCount >= ROOM_MAX_PLAYERS) {
           return fail(cb, 'room_full', '満員です（20人まで）');
         }
         member = {

@@ -308,6 +308,34 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  await r.test('d12追試：入れ替わりで名簿に切断枠が溜まっても、実人数が少なければ新規は入れる', async () => {
+    // 実機報告「QRが使えない」の真因（8/18）：門が名簿の枠数（切断中含む）で数えていたため、
+    // 8人しか居ない部屋でも入れ替わりの切断枠が溜まると新規参加が「満員」で拒否された。
+    // 上限20の趣旨は「同時に遊ぶ人数」なので、接続中のプレイヤー数で数える
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 8);
+      const room = () => srv.store.get(rm.code);
+      // 12人が入っては抜ける（タブを閉じた・名前を打ち直した等。枠は入り直し用に残る設計）
+      for (let i = 0; i < 12; i++) {
+        const d = await device(srv.url);
+        const r = await d.call('room:join', { code: rm.code, name: 'いれかわり' + i });
+        assertEqual(r.ok, true, (i + 1) + '人目の入れ替わりが入れる');
+        d.socket.disconnect();
+        await sleep(60);
+      }
+      await waitUntil(() => {
+        const ms = Array.from(room().members.values());
+        return ms.length === 20 && ms.filter((m) => m.connected).length === 8;
+      }, '名簿20枠・接続中8人の状態ができる');
+      // QRで来た新規の人：実人数は8人なので入れる
+      const qr = await device(srv.url);
+      const r = await qr.call('room:join', { code: rm.code, name: 'QRの新しい人' });
+      assertEqual(r.ok, true, '接続中8人なら新規は入れる（実際:' + JSON.stringify(r.error || 'ok') + '）');
+      // 接続中が20人に達している時だけ満員（趣旨どおり）
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 }
 

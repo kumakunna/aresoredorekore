@@ -2359,7 +2359,8 @@
      （読みやすさを削ってまで世界観を出さない） */
   .app.theme-sugoroku .scr-title,
   .app.theme-sugoroku .sec-title,
-  .app.theme-sugoroku .wiz-step{
+  .app.theme-sugoroku .wiz-step,
+  .app.theme-sugoroku .sugo-turn{
     font-family:'Shippori Mincho', serif;
     font-weight:800;
     letter-spacing:.04em;
@@ -2375,6 +2376,68 @@
   .app.theme-sugoroku .btn-main{
     background:linear-gradient(180deg, var(--stamp) 0%, var(--stamp-deep) 100%);
   }
+  /* -------------------------------------------------------------------
+     第36弾：すごろくの盤面
+
+     30〜40マスをスクロールせずに1画面へ収める。並べ方（何行何列のどこか）は
+     SugorokuLogic.boardLayout が正本で、ここはそれを置くだけ。
+     画面側で座標を計算し直すと、大画面と食い違う（落とし穴1）。
+
+     クラス名の接頭辞が sugo- なのは、sg- が安全設定の画面で先に使われているため。
+     ------------------------------------------------------------------- */
+  .sugo-top{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:10px;padding:10px 14px 6px;
+  }
+  .sugo-lap{font-size:12px;color:var(--ink-soft);}
+  .sugo-turn{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;}
+  .sugo-turn .sugo-piece{font-size:20px;}
+
+  .sugo-board{
+    display:grid;gap:4px;
+    width:100%;max-width:420px;margin:0 auto;
+    padding:0 12px;
+  }
+  .sugo-cell{
+    position:relative;aspect-ratio:1/1;
+    border-radius:6px;border:1px solid var(--line);
+    background:var(--card);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  /* マスの調子は CELL_KINDS の tone がそのまま来る。
+     もどるマスも赤くしない（責める見た目にしない・原則7） */
+  .sugo-cell.tone-good{background:#EAF2E2;}
+  .sugo-cell.tone-soft{background:#F0E7D6;}
+  .sugo-cell.tone-gold{background:linear-gradient(180deg,#F8E9BC,#EDD79A);}
+  .sugo-no{position:absolute;top:2px;left:4px;font-size:9px;opacity:.5;line-height:1;}
+  .sugo-icon{font-size:15px;line-height:1;}
+  .sugo-icon img{width:15px;height:15px;vertical-align:-2px;}
+  .sugo-pieces{
+    position:absolute;left:0;right:0;bottom:1px;
+    display:flex;justify-content:center;gap:1px;flex-wrap:wrap;line-height:1;
+  }
+  .sugo-piece{font-size:13px;line-height:1;}
+
+  /* だれが、あと何マスか。
+     「27マス目」より「あと13」の方が、遊んでいる人には分かる。
+     つうこうりょうは順位がそのまま支払額なので、順位と並べて出す */
+  .sugo-me{
+    max-width:420px;margin:10px auto 0;padding:0 12px 12px;
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .sugo-row{
+    display:flex;align-items:center;gap:8px;
+    padding:5px 9px;border-radius:7px;
+    background:var(--card);border:1px solid var(--line);
+    font-size:13px;
+  }
+  .sugo-row.now{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp) inset;}
+  .sugo-row .sugo-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sugo-left{font-weight:700;}
+  .sugo-rank{font-size:12px;color:var(--ink-soft);min-width:2.6em;text-align:right;}
+  .sugo-coin{font-size:12px;min-width:3.2em;text-align:right;}
+  .sugo-row.goaled .sugo-left{color:var(--stamp);}
 </style>
 </head>
 <body>
@@ -3645,6 +3708,18 @@
   </div>
 
   <!-- bomb: gameplay -->
+  <!-- 4.7: すごろく（手渡し）。1台を回して遊ぶ。
+       つうこうりょう（案E）は秘密を持たないので、画面を見せ合っても困らない。
+       「どこにいる？」「てふだ」が手渡しに対応しないのは、見えてはいけないものがあるため -->
+  <div class="screen" id="scr-sugo-play">
+    <div class="sugo-top">
+      <div class="sugo-lap" id="sugoLap"></div>
+      <div class="sugo-turn" id="sugoTurn"></div>
+    </div>
+    <div class="sugo-board" id="sugoBoard"></div>
+    <div class="sugo-me" id="sugoMe"></div>
+  </div>
+
   <div class="screen" id="scr-bomb-play">
     <div class="bomb-topbar">
       <div class="bomb-lives" id="bombLives">❤️❤️❤️</div>
@@ -4261,6 +4336,7 @@
 <script src="js/wolf-logic.js"></script>
 <script src="js/wordwolf-logic.js"></script>
 <script src="js/bomb-logic.js"></script>
+<script src="js/sugoroku-logic.js"></script>
 <script src="js/defuse-logic.js"></script>
 <script src="js/quiz-bank.js"></script>
 <script src="js/quiz-logic.js"></script>
@@ -12145,6 +12221,92 @@
     renderModeRules();
     goTo('scr-mode-rules');
   });
+
+  // ===================== すごろく（手渡し） =====================
+  // 盤の並べ方・通行料・順位は SugorokuLogic が正本。ここは並べて見せるだけ。
+  // 計算を画面側に持つと、部屋版・大画面と食い違う（落とし穴1）。
+  var sugo = null;   // 手渡しの進行。試合開始ごとに作り直す（境界＝試合）
+
+  function sugoStart(gameId, players){
+    var spec = SugorokuLogic.gameById(gameId);
+    var ids = players.map(function(p, i){ return 'h' + i; });
+    sugo = {
+      game: gameId,
+      board: SugorokuLogic.makeBoard(gameId),
+      order: ids,
+      names: {},
+      pos: {},
+      coins: {},
+      goalOrder: {},
+      goalCount: 0,
+      turnId: ids[0],
+      lap: 1,
+      last: null,
+      event: null
+    };
+    players.forEach(function(p, i){
+      sugo.names[ids[i]] = p.name;
+      sugo.pos[ids[i]] = 0;
+      sugo.coins[ids[i]] = spec.coins ? spec.startCoins : 0;
+    });
+    return sugo;
+  }
+
+  function sugoRender(){
+    if(!sugo) return;
+    sugoRenderBoard();
+    sugoRenderStatus();
+    var idx = sugo.order.indexOf(sugo.turnId);
+    el('sugoLap').textContent = sugo.lap + '巡目';
+    el('sugoTurn').innerHTML = '<b class="sugo-piece">' +
+      SugorokuLogic.pieceFor(idx).shape + '</b><span>' +
+      escapeHtml(sugo.names[sugo.turnId]) + ' さんの番</span>';
+  }
+
+  function sugoRenderBoard(){
+    var lay = SugorokuLogic.boardLayout(sugo.board);
+    var byCell = {};
+    sugo.order.forEach(function(id, idx){
+      var at = sugo.pos[id];
+      (byCell[at] = byCell[at] || []).push(idx);
+    });
+    var host = el('sugoBoard');
+    host.style.gridTemplateColumns = 'repeat(' + lay.cols + ', 1fr)';
+    host.innerHTML = lay.cells.map(function(c){
+      var kind = SugorokuLogic.cellKind(c.kind);
+      var pieces = (byCell[c.i] || []).map(function(idx){
+        return '<b class="sugo-piece">' + SugorokuLogic.pieceFor(idx).shape + '</b>';
+      }).join('');
+      return '<div class="sugo-cell tone-' + kind.tone + '" data-i="' + c.i + '"' +
+        ' style="grid-row:' + (c.row + 1) + ';grid-column:' + (c.col + 1) + ';">' +
+        '<span class="sugo-no">' + c.i + '</span>' +
+        (kind.icon ? '<span class="sugo-icon">' + kind.icon + '</span>' : '') +
+        (pieces ? '<span class="sugo-pieces">' + pieces + '</span>' : '') +
+        '</div>';
+    }).join('');
+  }
+
+  // 「あと何マスか」を主役にする。盤の番号（27マス目）より、
+  // 残り（あと13）の方が、遊んでいる人にはそのまま次の一手の判断になる
+  function sugoRenderStatus(){
+    var goal = sugo.board.length - 1;
+    var spec = SugorokuLogic.gameById(sugo.game) || {};
+    var ranks = SugorokuLogic.positionRanks(sugo.order.map(function(id){
+      return { id: id, pos: sugo.pos[id] };
+    }));
+    el('sugoMe').innerHTML = sugo.order.map(function(id, idx){
+      var left = goal - sugo.pos[id];
+      var goaled = sugo.goalOrder[id] != null || left <= 0;
+      return '<div class="sugo-row' + (id === sugo.turnId ? ' now' : '') +
+        (goaled ? ' goaled' : '') + '">' +
+        '<b class="sugo-piece">' + SugorokuLogic.pieceFor(idx).shape + '</b>' +
+        '<span class="sugo-name">' + escapeHtml(sugo.names[id]) + '</span>' +
+        '<span class="sugo-left">' + (goaled ? 'あがり' : 'あと' + left) + '</span>' +
+        '<span class="sugo-rank">' + (ranks[id] || '-') + '位</span>' +
+        (spec.coins ? '<span class="sugo-coin">🪙' + sugo.coins[id] + '</span>' : '') +
+        '</div>';
+    }).join('');
+  }
 
   // ===================== 5. ready =====================
   /**

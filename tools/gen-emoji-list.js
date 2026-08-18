@@ -14,11 +14,23 @@ const https = require('https');
 const DIR = 'public/img/emoji';
 // Twemoji（CC-BY 4.0）。docs/絵文字とアイコン.md に選んだ理由が書いてある
 const CDN = 'https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/';
-// アプリの中で絵文字を書いている場所。増えたらここに足す
-const SOURCES = ['public/index.html', 'public/js/titles.js'];
+// アプリの中で「画面に出す絵文字」を書いている場所。増えたらここに足す。
+//
+// 第36弾のメモ：一度 public/js を丸ごと見る形にしてみたが、広すぎて駄目だった。
+// ロジックのファイルには「画面に出さない絵文字」も混ざっていて（クイズの選択肢に
+// 使われる数字のキーキャップなど）、Twemojiに同じ名前で置かれていないものを
+// 取りに行ってツールごと落ちる。**画面に出すものを、意識して並べる**のが正しい。
+const SOURCES = [
+  'public/index.html',
+  'public/js/titles.js',
+  // 第36弾：すごろくのマスの絵文字（CELL_KINDS）と、突然イベントの絵文字
+  'public/js/sugoroku-logic.js'
+];
 // 絵文字にしないもの。UIの部品として文字で出ているのが正しく、Twemojiにも無い
 // （2713 ✓ は第32弾-D 第4部・安全の案内のチェック印）
-const NOT_EMOJI = ['2605', '2715', '2190', '2192', '271a', '2713'];
+// 第36弾：すごろくの駒（♥ ♣）も足した。★ ✚ と同じ「形で見分けるための記号」で、
+// 絵になってしまうと、盤の上で駒として読めなくなる
+const NOT_EMOJI = ['2605', '2715', '2190', '2192', '271a', '2713', '2663', '2665'];
 
 function listFiles() {
   return fs.readdirSync(DIR)

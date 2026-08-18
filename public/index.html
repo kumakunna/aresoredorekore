@@ -1629,12 +1629,26 @@
   .sugo-turn .sugo-piece{font-size:20px;}
 
   .sugo-board{
-    display:grid;gap:4px;
+    display:grid;gap:6px;
     width:100%;max-width:420px;margin:0 auto;
     padding:0 12px;
+    position:relative;   /* 道を後ろに敷くため */
+  }
+  /* 手描きの道。マスの中心をつないで、後ろに敷く */
+  .sugo-path{
+    position:absolute;inset:0;width:100%;height:100%;
+    pointer-events:none;z-index:0;overflow:visible;
+  }
+  .sugo-path path{
+    fill:none;
+    stroke:var(--ink);
+    stroke-opacity:.32;
+    stroke-width:3;
+    stroke-linecap:round;
+    stroke-linejoin:round;
   }
   .sugo-cell{
-    position:relative;aspect-ratio:1/1;
+    position:relative;z-index:1;aspect-ratio:1/1;
     border-radius:6px;border:1px solid var(--line);
     background:var(--card);
     display:flex;align-items:center;justify-content:center;
@@ -1645,7 +1659,6 @@
   .sugo-cell.tone-good{background:#EAF2E2;}
   .sugo-cell.tone-soft{background:#F0E7D6;}
   .sugo-cell.tone-gold{background:linear-gradient(180deg,#F8E9BC,#EDD79A);}
-  .sugo-no{position:absolute;top:2px;left:4px;font-size:9px;opacity:.5;line-height:1;}
   .sugo-icon{font-size:15px;line-height:1;}
   .sugo-icon img{width:15px;height:15px;vertical-align:-2px;}
   .sugo-pieces{
@@ -7337,8 +7350,10 @@
     var m = modeById(state.selectedModeId) || {};
     sugoStart(m.game || 'sugotoll', state.players, { events: !!state.sgkCfg.events });
     sugoDiceReset();
-    sugoRender();
+    // 先に画面を出してから描く。隠れている間は幅が0で、
+    // マスの中心が測れず道が引けない（見えない所で測らない）
     goTo('scr-sugo-play');
+    sugoRender();
   }
 
   function renderBombLifeStep(){
@@ -12402,10 +12417,26 @@
     sugoRenderBoard();
     sugoRenderStatus();
     var idx = sugo.order.indexOf(sugo.turnId);
-    el('sugoLap').textContent = sugo.lap + '巡目';
+    // 巡の数は、遊んでいる人には意味が無い。
+    // 限られた場所は「いま何が効いているか」に使う
+    el('sugoLap').textContent = sugo.event ? (sugo.event.icon + ' ' + sugo.event.title + '中') : '';
     el('sugoTurn').innerHTML = '<b class="sugo-piece">' +
       SugorokuLogic.pieceFor(idx).shape + '</b><span>' +
       escapeHtml(sugo.names[sugo.turnId]) + ' さんの番</span>';
+  }
+
+  /**
+   * マスの揺らぎ。**index から決まる固定の値**にしてある。
+   * 毎回ランダムにすると、駒が1マス進むたびに盤全体がちらついて読めなくなる。
+   * 動かすのは見た目だけで、並び（SugorokuLogic.boardLayout の行と列）には一切触らない。
+   */
+  function sugoJitter(i){
+    function frac(a, b){ var v = Math.sin(i * a + b) * 43758.5453; return v - Math.floor(v); }
+    return {
+      dx: (frac(12.9898, 78.233) - 0.5) * 3.6,   // ±1.8px（すき間6pxより小さく保つ）
+      dy: (frac(39.3468, 11.135) - 0.5) * 3.6,
+      rot: (frac(7.1234, 3.77) - 0.5) * 3.4      // ±1.7度
+    };
   }
 
   function sugoRenderBoard(){
@@ -12417,18 +12448,50 @@
     });
     var host = el('sugoBoard');
     host.style.gridTemplateColumns = 'repeat(' + lay.cols + ', 1fr)';
-    host.innerHTML = lay.cells.map(function(c){
-      var kind = SugorokuLogic.cellKind(c.kind);
-      var pieces = (byCell[c.i] || []).map(function(idx){
-        return '<b class="sugo-piece">' + SugorokuLogic.pieceFor(idx).shape + '</b>';
+    host.innerHTML = '<svg class="sugo-path" id="sugoPath" aria-hidden="true"></svg>' +
+      lay.cells.map(function(c){
+        var kind = SugorokuLogic.cellKind(c.kind);
+        var j = sugoJitter(c.i);
+        var pieces = (byCell[c.i] || []).map(function(idx){
+          return '<b class="sugo-piece">' + SugorokuLogic.pieceFor(idx).shape + '</b>';
+        }).join('');
+        // マスの番号は出さない。「あと何マス」が下に出ているので数える場面が無く、
+        // 小さい数字が並ぶと盤が濁る
+        return '<div class="sugo-cell tone-' + kind.tone + '" data-i="' + c.i + '"' +
+          ' style="grid-row:' + (c.row + 1) + ';grid-column:' + (c.col + 1) + ';' +
+          'transform:translate(' + j.dx.toFixed(2) + 'px,' + j.dy.toFixed(2) + 'px) rotate(' + j.rot.toFixed(2) + 'deg);">' +
+          (kind.icon ? '<span class="sugo-icon">' + kind.icon + '</span>' : '') +
+          (pieces ? '<span class="sugo-pieces">' + pieces + '</span>' : '') +
+          '</div>';
       }).join('');
-      return '<div class="sugo-cell tone-' + kind.tone + '" data-i="' + c.i + '"' +
-        ' style="grid-row:' + (c.row + 1) + ';grid-column:' + (c.col + 1) + ';">' +
-        '<span class="sugo-no">' + c.i + '</span>' +
-        (kind.icon ? '<span class="sugo-icon">' + kind.icon + '</span>' : '') +
-        (pieces ? '<span class="sugo-pieces">' + pieces + '</span>' : '') +
-        '</div>';
-    }).join('');
+    sugoDrawPath(host);
+  }
+
+  // マスの中心を、少したわんだ線でつなぐ。定規で引いた線にしないための曲がりも、
+  // index から決まる固定の値（毎描画で揺れると道がのたうつ）
+  function sugoDrawPath(host){
+    var svg = host.querySelector('#sugoPath');
+    var cells = Array.prototype.slice.call(host.querySelectorAll('.sugo-cell'));
+    if(!svg || cells.length < 2) return;
+    var hb = host.getBoundingClientRect();
+    if(!hb.width) return;
+    var pts = cells.map(function(c){
+      var r = c.getBoundingClientRect();
+      return { x: r.left - hb.left + r.width / 2, y: r.top - hb.top + r.height / 2 };
+    });
+    var d = 'M' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1);
+    for(var i = 1; i < pts.length; i++){
+      var a = pts[i - 1], b = pts[i];
+      var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      // 進む向きに直角な方向へ、少しだけふくらませる
+      var vx = b.x - a.x, vy = b.y - a.y;
+      var len = Math.sqrt(vx * vx + vy * vy) || 1;
+      var bow = (sugoJitter(i).dx / 1.8) * 3.2;   // ±3.2px ほど
+      d += ' Q' + (mx - vy / len * bow).toFixed(1) + ' ' + (my + vx / len * bow).toFixed(1)
+        + ' ' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+    }
+    svg.setAttribute('viewBox', '0 0 ' + hb.width.toFixed(1) + ' ' + hb.height.toFixed(1));
+    svg.innerHTML = '<path d="' + d + '"></path>';
   }
 
   // 「あと何マスか」を主役にする。盤の番号（27マス目）より、

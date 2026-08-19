@@ -1,4 +1,7 @@
-// tests/realtime-sugoroku.js — 1人1台のすごろく「つうこうりょう」（第36弾）
+// tests/realtime-sugoroku.js — 1人1台のすごろく（第36弾）
+//
+// つうこうりょう（1人ずつ順番）と、こまはひとつ（全員同時＋駒が1つ）の両方を見る。
+// 待ち方がまったく違うので、片方だけ通っても安心できない。
 //
 // 実際に socket.io サーバーを立てて、複数の端末をつないで確かめる。
 // いちばん見たいのは **手番が止まらないこと**（落とし穴17）。
@@ -290,6 +293,105 @@ function playerOf(view, id) {
       await waitUntil(() => srv.db.inserted.length > 0, '記録が残る');
       const row = srv.db.inserted[0];
       assert(JSON.stringify(row).indexOf('sugotoll') !== -1, 'すごろくの記録として残る');
+    } finally { await srv.close(); }
+  });
+
+  // ================= こまはひとつ（全員が同時に出す） =================
+
+  await r.test('こまはひとつ：確認のあと、何のミニゲームかが全員に届く', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      const res = await host.call('wolf:start', { game: 'sugograb', events: false });
+      assertEqual(res.ok, true, '始められる');
+      await waitUntil(() => host.view().phase === 'ready', '確認の段階へ');
+      assertEqual(host.view().sharedPiece, true, '駒が1つだと分かる');
+      assertEqual(host.view().piece, 0, '駒はふりだし');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'mini', 'ミニゲームの題へ');
+      const v = host.view();
+      assert(v.mini && v.mini.title && v.mini.lead, '何が始まるかが全員に見えている');
+      await waitUntil(() => host.view().phase === 'play', '本体へ（題は自動で進む）', 8000);
+    } finally { await srv.close(); }
+  });
+
+  await r.test('こまはひとつ：出していない人がいても、締め切れば先へ進む', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugograb', events: false });
+      await waitUntil(() => host.view().phase === 'ready', '確認へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'play', '本体へ', 8000);
+      // ミニゲームは毎回ランダムに選ばれ、締め切りも6〜20秒と幅がある。
+      // **実時間で待つと、負荷の高い時に落ちるテストになる**（実際に落ちた）ので、
+      // ゆびのかずあてに固定したうえで、締め切りそのものを過去にして見回りに拾わせる。
+      // 確かめたいのは「締め切れば進む」であって、秒数の実測ではない
+      const w = srv.store.get(host.code).sugoroku;
+      w.mini = { id: 'fingers', kind: 'mind', title: 'ゆびの かずあて', lead: '', sec: 14, simulInput: true };
+      w.entries = {};
+      await all[0].call('wolf:act', { fingers: 3 });   // 1人だけ出して、あとは放置
+      w.deadline = Date.now() - 1;                     // 締め切りが過ぎた状態にする
+      await waitUntil(() => host.view().phase !== 'play', '締め切って先へ進む', 10000);
+      assert(['grab', 'result', 'mini'].indexOf(host.view().phase) !== -1,
+        '止まっていない（' + host.view().phase + '）');
+      // 出していない3人は、最下位に同着で並んでいる
+      const ranks = (w.miniRank || []).map((x) => x.rank);
+      assert(ranks.length === 3, '全員ぶん順位がついている');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('こまはひとつ：勝った人だけが振れて、駒は1つだけ動く', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugograb', events: false });
+      await waitUntil(() => host.view().phase === 'ready', '確認へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'play', '本体へ', 8000);
+      // ゆびのかずあてに寄せて、勝者を1人に決める
+      const w = srv.store.get(host.code).sugoroku;
+      w.mini = { id: 'fingers', kind: 'mind', title: 'ゆびの かずあて', lead: '', sec: 14, simulInput: true };
+      w.entries = {};
+      await all[0].call('wolf:act', { fingers: 5 });
+      await all[1].call('wolf:act', { fingers: 1 });
+      await all[2].call('wolf:act', { fingers: 1 });
+      await waitUntil(() => host.view().phase === 'grab', '駒を動かす段階へ', 20000);
+      const mover = host.view().turn.id;
+      assertEqual(mover, all[0].memberId, '珍しい本数を出した人が動かす');
+      const other = all.find((d) => d.memberId !== mover);
+      const ng = await other.call('wolf:act', { act: 'roll' });
+      assertEqual(ng.ok, false, '勝っていない人は振れない');
+      assertEqual(ng.error, 'not_your_turn', '理由が分かる');
+      const me = all.find((d) => d.memberId === mover);
+      assertEqual((await me.call('wolf:act', { act: 'roll' })).ok, true, '勝った人は振れる');
+      await waitUntil(() => host.view().piece > 0, '駒が進む', 20000);
+      host.view().players.forEach((pl) => {
+        assertEqual(pl.pos, null, '人ごとの位置は持たない（駒は1つ）');
+      });
+    } finally { await srv.close(); }
+  });
+
+  await r.test('こまはひとつ：勝った人が切断していても、サーバーが代わりに振る', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugograb', events: false });
+      await waitUntil(() => host.view().phase === 'ready', '確認へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'play', '本体へ', 8000);
+      const w = srv.store.get(host.code).sugoroku;
+      w.mini = { id: 'fingers', kind: 'mind', title: 'ゆびの かずあて', lead: '', sec: 14, simulInput: true };
+      w.entries = {};
+      // ホスト以外を勝たせる（ホストが落ちると見張り役ごと消える）
+      const winner = all.find((d) => d !== host);
+      for (const d of all) await d.call('wolf:act', { fingers: d === winner ? 5 : 1 });
+      await waitUntil(() => host.view().phase === 'grab', '駒を動かす段階へ', 20000);
+      assertEqual(host.view().turn.id, winner.memberId, '勝った人の番');
+      winner.close();
+      await waitUntil(() => host.view().piece > 0 || host.view().phase !== 'grab',
+        '切れても先へ進む', 20000);
+      assert(host.view().piece > 0, '駒は進んでいる（置いていかれない）');
     } finally { await srv.close(); }
   });
 

@@ -46,7 +46,8 @@ const GAME_DRIVERS = {
   // 第36弾：カセット「すごろく」。5ゲームで進行役1つ・部屋に置く状態も1つ（room.sugoroku）。
   // クイズ王が4ゲームで quiz-room.js を共有しているのと同じ形。
   // 遊べるようになったゲームだけを、ここに1行ずつ足していく
-  sugotoll: { driver: SugorokuRoom, key: 'sugoroku' }
+  sugotoll: { driver: SugorokuRoom, key: 'sugoroku' },
+  sugograb: { driver: SugorokuRoom, key: 'sugoroku' }
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {

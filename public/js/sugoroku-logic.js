@@ -55,7 +55,7 @@
       dice: true, sharedPiece: true,
       coins: true, startCoins: 20, cellKinds: ['coin', 'forward', 'back'],
       events: 'any', tiebreak: 'coins',
-      ready: false
+      ready: true      // 第36弾：手渡し・部屋の両方で遊べるようになった
     },
     // ② みえない：自分の位置は自分にしか見えない。申告では嘘をついてよい
     sugohide: {

@@ -289,14 +289,19 @@ function sugoBoard(n) {
   b[0] = 'start'; b[n] = 'goal';
   return b;
 }
-function sugoRoom(game, data) {
+function sugoRoom(game, data, opts) {
+  const o = opts || {};
+  // 大画面のテストでは、自分（既定は m1）が「大画面」でないと、
+  // アプリがゲームの画面へ引き戻す。その時だけ役割を書き換える
+  const members = [
+    { id: 'm1', name: 'あき', role: o.bigMemberId === 'm1' ? 'bigscreen' : 'player',
+      connected: true, isHost: true },
+    { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false },
+    { id: 'm3', name: 'ちか', role: 'player', connected: true, isHost: false }
+  ];
+  const players = members.filter((m) => m.role === 'player').length;
   return roomSnapshot({
-    playerCount: 3, memberCount: 3,
-    members: [
-      { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
-      { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false },
-      { id: 'm3', name: 'ちか', role: 'player', connected: true, isHost: false }
-    ],
+    playerCount: players, memberCount: members.length, members,
     state: { phase: data.phase, game: game, data: data }
   });
 }
@@ -2343,6 +2348,95 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(/こまは あと23/.test(el(doc, 'rtSugoLap').textContent),
       '共有の駒の残りが出る（' + el(doc, 'rtSugoLap').textContent + '）');
     assertNoErrors(errors, 'こまはひとつの部屋画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（大画面）：盤が出て、人狼の表示に落ちない', async () => {
+    // 分岐が無いと人狼の大画面に落ちて、全員が💀（死亡）で並ぶ。
+    // 段階の名前も、爆弾解除の言葉（play＝解除中）が漏れる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen' });
+    push(fake, sugoRoom('sugotoll', {
+      game: 'sugotoll', phase: 'turn', cells: 40, board: sugoBoard(40),
+      coinsUsed: true, lap: 1, deadline: Date.now() + 30000,
+      turn: { id: 'm1', name: 'あき' },
+      players: [
+        { id: 'm1', name: 'あき', pos: 5, coins: 18, rank: 1, goalOrder: null, connected: true },
+        { id: 'm2', name: 'びび', pos: 3, coins: 20, rank: 2, goalOrder: null, connected: true },
+        { id: 'm3', name: 'ちか', pos: 0, coins: 20, rank: 3, goalOrder: null, connected: true }
+      ],
+      waiting: ['あき']
+    }, { bigMemberId: 'm1' }));
+    await waitScreen(win, doc, 'scr-rt-big', 4000);
+    assertEqual(doc.querySelectorAll('#bigSugoBoard .sugo-cell').length, 41, '大画面にも盤が出る');
+    assertEqual(doc.querySelectorAll('#bigSugoBoard .sugo-piece').length, 3, '3人ぶんの駒が出る');
+    const all = el(doc, 'scr-rt-big').textContent;
+    assert(all.indexOf('💀') === -1, '人狼の死亡表示が出ている（借りた世界の言葉・落とし穴2）');
+    assertEqual(el(doc, 'bigPhase').textContent, '手番', 'すごろくの言葉で段階が出る');
+    assert(/あき/.test(el(doc, 'bigMain').textContent), '誰の番かが大きく出る');
+    assert(/あと35/.test(el(doc, 'bigList').textContent), '残りマス数が出る');
+    assertNoErrors(errors, 'すごろくの大画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（大画面）：ミニゲーム中に「解除中」と出ない', async () => {
+    // こまはひとつの段階 play は、爆弾解除の play と同じ名前。
+    // 段階の対応表を1つで共用すると、爆弾解除の言葉がそのまま漏れる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen' });
+    push(fake, sugoRoom('sugograb', {
+      game: 'sugograb', phase: 'play', cells: 30, board: sugoBoard(30),
+      coinsUsed: true, lap: 1, sharedPiece: true, piece: 5,
+      deadline: Date.now() + 20000,
+      mini: { id: 'tap', kind: 'reflex', title: 'れんだ', lead: 'いそいで押す' },
+      answered: ['あき'],
+      players: [
+        { id: 'm1', name: 'あき', pos: null, coins: 20, connected: true },
+        { id: 'm2', name: 'びび', pos: null, coins: 20, connected: true },
+        { id: 'm3', name: 'ちか', pos: null, coins: 20, connected: true }
+      ],
+      waiting: ['びび', 'ちか']
+    }, { bigMemberId: 'm1' }));
+    await waitScreen(win, doc, 'scr-rt-big', 4000);
+    const phase = el(doc, 'bigPhase').textContent;
+    assert(phase.indexOf('解除') === -1, '爆弾解除の言葉が漏れている（' + phase + '）');
+    assertEqual(phase, '出しています', 'すごろくの言葉になっている');
+    assertEqual(doc.querySelectorAll('#bigSugoBoard .sugo-piece').length, 1, '共有の駒は1つだけ');
+    assertNoErrors(errors, 'ミニゲーム中の大画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('どこにいる？（大画面）：誰の駒も、誰の残りマス数も出ない', async () => {
+    // ここが**このゲームでいちばん危ない面**。TVは部屋の全員が見る。
+    // 大画面には privateFor が届かないので、実位置は持ちようがない——
+    // 隠しているのではなく、持っていないから出せない、が正しい形
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen' });
+    push(fake, sugoRoom('sugohide', {
+      game: 'sugohide', phase: 'say', cells: 30, board: sugoBoard(30),
+      coinsUsed: false, lap: 1, hidden: true, deadline: Date.now() + 40000,
+      areas: [{ id: 'a0', name: 'ふもと' }, { id: 'a2', name: 'まちなか' }],
+      clues: [{ id: 'c04', text: '人の話し声がする' }],
+      sayer: { id: 'm1', name: 'あき' },
+      said: null,
+      players: [
+        { id: 'm1', name: 'あき', pos: null, saidArea: 'a2', asking: true, connected: true },
+        { id: 'm2', name: 'びび', pos: null, saidArea: null, asking: false, connected: true },
+        { id: 'm3', name: 'ちか', pos: null, saidArea: 'a0', asking: false, connected: true }
+      ],
+      waiting: ['あき']
+    }, { bigMemberId: 'm1' }));
+    // 大画面にも「自分の秘密」が届いてしまった場合を作って、それでも出ないことを見る
+    pushYou(fake, { game: 'sugohide', phase: 'say', pos: 12, left: 18,
+      area: { id: 'a2', name: 'まちなか' }, clues: [{ id: 'c04', text: '人の話し声がする' }] });
+    await waitScreen(win, doc, 'scr-rt-big', 4000);
+    assertEqual(doc.querySelectorAll('#bigSugoBoard .sugo-cell').length, 31, '盤そのものは出してよい');
+    assertEqual(doc.querySelectorAll('#bigSugoBoard .sugo-piece').length, 0, '駒は1つも置かれない');
+    const all = el(doc, 'scr-rt-big').textContent;
+    assert(!/あと\d+/.test(all), '残りマス数が出ている（位置が割れる）');
+    assert(all.indexOf('12') === -1, '位置の数字が紛れている');
+    assert(/まちなか/.test(el(doc, 'bigList').textContent), '申告した区画は出してよい');
+    assertNoErrors(errors, 'どこにいる？の大画面で未捕捉の例外');
     win.close();
   });
 

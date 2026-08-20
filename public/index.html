@@ -1766,6 +1766,13 @@
     margin-top:10px;
   }
   .sugo-rt-input:empty{display:none;}
+  /* 大画面の盤。離れた席から見るので、マスも駒も大きくする */
+  .sugo-board.big-sugo{
+    max-width:min(70vw, 720px);
+    margin:10px auto;
+  }
+  .sugo-board.big-sugo .sugo-cell{font-size:16px;}
+  .sugo-board.big-sugo .sugo-piece{font-size:22px;}
   .sugo-tapbtn{
     width:150px;height:150px;border-radius:50%;
     background:var(--card);border:3px solid var(--stamp);
@@ -3690,6 +3697,9 @@
         <div id="bigQr"></div>
         <div class="qr-note">カメラで読むと、そのまま入れます</div>
       </div>
+      <!-- すごろく：大画面には盤そのものを出す。みんなが囲む卓になる。
+           「どこにいる？」では誰の駒も置かれない（実位置が公開ビューに無いため） -->
+      <div class="sugo-board big-sugo" id="bigSugoBoard" style="display:none;"></div>
       <div class="big-list" id="bigList"></div>
       <!-- 第27弾：爆弾解除のリーダーボード（横棒グラフ）。
            出すのは進捗とライフだけで、問題の中身も正誤の詳細も入れない -->
@@ -9058,9 +9068,12 @@
     el('rtSugoLeaveBtn').style.display = (v.phase === 'ended') ? '' : 'none';
   }
 
-  // 盤。駒の置き方はゲームによって違う（人ごと／1つだけ／組ごと／隠れている）
-  function rtSugoBoard(v, you){
-    var lay = SugorokuLogic.boardLayout(v.board);
+  /**
+   * どのマスに何の印を置くか。**部屋版と大画面が、同じここを通る。**
+   * you を渡さない（大画面）と、「どこにいる？」では駒が1つも置かれない——
+   * 実位置は公開ビューに入っていないので、構造的に置きようがないのが正しい
+   */
+  function rtSugoByCell(v, you){
     var byCell = {};
     if(v.sharedPiece){
       byCell[v.piece] = ['shared'];
@@ -9075,26 +9088,11 @@
         (byCell[p.pos] = byCell[p.pos] || []).push(i);
       });
     }
-    var host = el('rtSugoBoard');
-    host.style.gridTemplateColumns = 'repeat(' + lay.cols + ', 1fr)';
-    host.innerHTML = '<svg class="sugo-path" id="rtSugoPath" aria-hidden="true"></svg>' +
-      lay.cells.map(function(c){
-        var kind = SugorokuLogic.cellKind(c.kind);
-        var j = sugoJitter(c.i);
-        var list = byCell[c.i] || [];
-        var pieces = list.map(function(idx){
-          if(idx === 'shared') return '<b class="sugo-piece" style="font-size:18px;">◉</b>';
-          if(idx === 'me') return '<b class="sugo-piece" style="font-size:18px;color:var(--stamp);">◆</b>';
-          return '<b class="sugo-piece">' + SugorokuLogic.pieceFor(idx).shape + '</b>';
-        }).join('');
-        return '<div class="sugo-cell tone-' + kind.tone + '" data-i="' + c.i + '"' +
-          ' style="grid-row:' + (c.row + 1) + ';grid-column:' + (c.col + 1) + ';' +
-          'transform:translate(' + j.dx.toFixed(2) + 'px,' + j.dy.toFixed(2) + 'px) rotate(' + j.rot.toFixed(2) + 'deg);">' +
-          (kind.icon ? '<span class="sugo-icon">' + kind.icon + '</span>' : '') +
-          (pieces ? '<span class="sugo-pieces" data-many="' + manyKey(list.length) + '">' + pieces + '</span>' : '') +
-          '</div>';
-      }).join('');
-    sugoDrawPath(host);
+    return byCell;
+  }
+  // 盤。駒の置き方はゲームによって違う（人ごと／1つだけ／組ごと／隠れている）
+  function rtSugoBoard(v, you){
+    sugoFillBoard('rtSugoBoard', v.board, rtSugoByCell(v, you));
   }
 
   // 一覧。ゲームによって出すものが違う
@@ -9440,6 +9438,73 @@
     }
   });
 
+  /**
+   * 大画面のすごろく。
+   *
+   * ここが無かったので、人狼の大画面に落ちて**全員が💀（死亡）で並んでいた**。
+   * 段階の名前も、爆弾解除の言葉（play＝解除中）が漏れていた（落とし穴2）。
+   *
+   * 大画面は**部屋の誰もが見る**ので、privateFor は届かない。
+   * 「どこにいる？」で駒が1つも出ないのは、実位置が公開ビューに無いから——
+   * 隠す処理をここに書いているのではなく、**持っていないから出せない**のが正しい。
+   */
+  var SUGO_BIG_PHASE = {
+    ready: 'じゅんび', turn: '手番', mini: 'ミニゲーム', play: '出しています',
+    grab: '駒を動かす', roll: 'サイコロ', split: '分け合い',
+    say: '申告', judge: '見せ合い', result: '結果', event: 'できごと', ended: '決着'
+  };
+  function renderRtBigSugoroku(v){
+    el('bigBoard').style.display = 'none';
+    el('bigTurn').textContent = '';
+    el('bigPhase').textContent = SUGO_BIG_PHASE[v.phase] || '';
+    // 盤。**大画面には自分の秘密が無い**ので you は渡さない
+    el('bigSugoBoard').style.display = '';
+    sugoFillBoard('bigSugoBoard', v.board, rtSugoByCell(v, null));
+
+    var w = rtSugoHappened(v, null);
+    var main = w ? w.note : '';
+    var sub = w ? w.hint : '';
+    if(!main){
+      if(v.sayer) main = v.sayer.name + ' さんが申告します';
+      else if(v.turn) main = v.turn.name + ' さんの番';
+      else if(v.mini) main = v.mini.title;
+    }
+    if(!sub && (v.waiting || []).length) sub = v.waiting.join('・') + ' さんを待っています';
+    el('bigMain').textContent = main;
+    el('bigSub').innerHTML = escapeHtml(sub);
+
+    // 一覧。**位置を持っていないゲームでは、位置の代わりに申告した区画を出す**
+    var goal = v.cells;
+    el('bigList').innerHTML = rtSugoBigRows(v, goal).map(function(x){
+      return '<span class="bl-item">' + (x.mark ? '<b class="sugo-piece">' + x.mark + '</b> ' : '') +
+        escapeHtml(x.name) + ' ' + escapeHtml(x.right) + '</span>';
+    }).join('');
+  }
+  function rtSugoBigRows(v, goal){
+    if(v.pairs){
+      return (v.groups || []).map(function(g, i){
+        return { mark: SugorokuLogic.pieceFor(i).shape, name: g.names.join('・'),
+          right: g.goalOrder != null ? 'あがり' : ('あと' + (goal - g.pos)) };
+      });
+    }
+    if(v.hidden){
+      return (v.players || []).map(function(p){
+        var area = p.saidArea ? (SugorokuHide.areaById(p.saidArea) || {}).name : null;
+        return { mark: '', name: p.name, right: area ? ('「' + area + '」') : 'まだ申告なし' };
+      });
+    }
+    if(v.sharedPiece){
+      return (v.players || []).map(function(p){
+        return { mark: '', name: p.name, right: (v.coinsUsed ? ('🪙' + p.coins) : '') };
+      });
+    }
+    return (v.players || []).map(function(p, i){
+      return { mark: SugorokuLogic.pieceFor(i).shape, name: p.name,
+        right: (p.goalOrder != null ? 'あがり' : ('あと' + (goal - p.pos))) +
+          (v.coinsUsed ? ('　🪙' + p.coins) : '') };
+    });
+  }
+
   // ===================== 第21弾 第6・7部：1人1台の画面 =====================
   // 自分の端末（scr-rt-play）と大画面（scr-rt-big）。
   // 大画面には、サーバーが公開情報しか送ってこない（wolf:you が届かない）。
@@ -9696,6 +9761,9 @@
   var RT_GAME_SCREEN_IDS = Object.keys(RT_GAME_SCREENS)
     .map(function(g){ return RT_GAME_SCREENS[g]; })
     .filter(function(id, i, a){ return a.indexOf(id) === i; });
+  // すごろくのゲームid。ここも同じ一覧から導く（落とし穴4）
+  var SUGO_GAMES = Object.keys(RT_GAME_SCREENS)
+    .filter(function(g){ return RT_GAME_SCREENS[g] === 'scr-rt-sugoroku'; });
   // いま部屋で遊んでいるゲームのid（何も選ばれていなければ null）
   function rtRoomGameId(){
     var room = rt && rt.state.room;
@@ -11097,6 +11165,13 @@
       }
       return;
     }
+    if(SUGO_GAMES.indexOf(game) !== -1){
+      // 決着だけ祝う。手番のたびに光ると、盤を見ているのを邪魔する
+      if(changed && v.phase === 'ended'){
+        FxKit.confetti(['#b5462f', '#c9a227', '#f4efe3']);   // 朱印・金・和紙
+      }
+      return;
+    }
     if(RT_QUIZ_GAMES.indexOf(game) !== -1){
       // ラウンドの締めで、出した問題を全部当てた人がいたら PERFECT
       var closing = changed && (v.phase === 'break' || v.phase === 'ended');
@@ -11192,6 +11267,8 @@
     if(rtRoomGameId() === 'defuse') return renderRtBigDefuse(v);
     if(RT_QUIZ_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigQuiz(v);
     if(rtRoomGameId() === 'auction') return renderRtBigAuction(v);
+    if(SUGO_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigSugoroku(v);
+    el('bigSugoBoard').style.display = 'none';  // 盤はすごろくだけが使う
     el('bigBoard').style.display = 'none'; // 横棒グラフは爆弾解除だけが使う
     if(rtIsWordwolf()) return renderRtBigWordwolf(v);
 
@@ -13397,24 +13474,41 @@
         (byCell[at] = byCell[at] || []).push(idx);
       });
     }
-    var host = el('sugoBoard');
+    sugoFillBoard('sugoBoard', sugo.board, byCell);
+  }
+
+  /**
+   * 盤を描く。**手渡し版・部屋版・大画面の3つが、この1つを通る。**
+   * 同じ組み立てを写すと、片方だけ見え方が変わる（落とし穴1）。
+   *   hostId … 入れ物のid
+   *   board  … マスの並び
+   *   byCell … マス番号 -> そこに置く印（'shared' 共有の駒／'me' 自分の駒／数字 並び順）
+   *
+   * マスの番号は出さない。「あと何マス」が別に出ているので数える場面が無く、
+   * 小さい数字が並ぶと盤が濁る。
+   */
+  function sugoFillBoard(hostId, board, byCell){
+    var host = el(hostId);
+    if(!host || !board) return;
+    var lay = SugorokuLogic.boardLayout(board);
     host.style.gridTemplateColumns = 'repeat(' + lay.cols + ', 1fr)';
-    host.innerHTML = '<svg class="sugo-path" id="sugoPath" aria-hidden="true"></svg>' +
+    host.innerHTML = '<svg class="sugo-path" aria-hidden="true"></svg>' +
       lay.cells.map(function(c){
         var kind = SugorokuLogic.cellKind(c.kind);
         var j = sugoJitter(c.i);
-        var pieces = (byCell[c.i] || []).map(function(idx){
+        var list = byCell[c.i] || [];
+        var pieces = list.map(function(idx){
           // 駒が1つのゲームでは、誰のものでもない印を1つだけ置く
           if(idx === 'shared') return '<b class="sugo-piece" style="font-size:18px;">◉</b>';
+          // 自分の駒だけを置くゲーム（どこにいる？）。色で「これは自分」と分かるようにする
+          if(idx === 'me') return '<b class="sugo-piece" style="font-size:18px;color:var(--stamp);">◆</b>';
           return '<b class="sugo-piece">' + SugorokuLogic.pieceFor(idx).shape + '</b>';
         }).join('');
-        // マスの番号は出さない。「あと何マス」が下に出ているので数える場面が無く、
-        // 小さい数字が並ぶと盤が濁る
         return '<div class="sugo-cell tone-' + kind.tone + '" data-i="' + c.i + '"' +
           ' style="grid-row:' + (c.row + 1) + ';grid-column:' + (c.col + 1) + ';' +
           'transform:translate(' + j.dx.toFixed(2) + 'px,' + j.dy.toFixed(2) + 'px) rotate(' + j.rot.toFixed(2) + 'deg);">' +
           (kind.icon ? '<span class="sugo-icon">' + kind.icon + '</span>' : '') +
-          (pieces ? '<span class="sugo-pieces" data-many="' + manyKey(byCell[c.i].length) + '">' + pieces + '</span>' : '') +
+          (pieces ? '<span class="sugo-pieces" data-many="' + manyKey(list.length) + '">' + pieces + '</span>' : '') +
           '</div>';
       }).join('');
     sugoDrawPath(host);
@@ -13423,7 +13517,7 @@
   // マスの中心を、少したわんだ線でつなぐ。定規で引いた線にしないための曲がりも、
   // index から決まる固定の値（毎描画で揺れると道がのたうつ）
   function sugoDrawPath(host){
-    var svg = host.querySelector('#sugoPath');
+    var svg = host.querySelector('.sugo-path');
     var cells = Array.prototype.slice.call(host.querySelectorAll('.sugo-cell'));
     if(!svg || cells.length < 2) return;
     var hb = host.getBoundingClientRect();

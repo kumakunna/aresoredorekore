@@ -606,6 +606,26 @@
       id: 'swap-ends', games: ['sugotoll'], tone: 'any',
       icon: '🔄', title: 'みちがえ',
       note: '先頭の人と、いちばん後ろの人が入れかわります'
+    },
+    // --- こまはひとつ ---
+    // 駒は1つしかないので、位置を入れかえるものは作れない。
+    // 代わりに「次の一巡の重み」を変えて、勝った人だけが得をし続けるのを崩す
+    {
+      id: 'grab-double', games: ['sugograb'], tone: 'any',
+      icon: '🎏', title: 'かぜが つよい',
+      note: 'この一巡だけ、勝てなかった人も倍のマスだけ動きます'
+    },
+    {
+      id: 'grab-coin', games: ['sugograb'], tone: 'plus',
+      icon: '🪙', title: 'おふだ ひろい',
+      note: 'この一巡だけ、駒を動かした人にコインが1枚ずつ入ります'
+    },
+    // --- ふたりでひとつ ---
+    // じっくり信頼関係を育てる遊びなので、プラス方向のものだけ（決めごと通り）
+    {
+      id: 'pair-bonus', games: ['sugopair'], tone: 'plus',
+      icon: '🌸', title: 'おいかぜ',
+      note: 'この一巡だけ、どの組も1マスおまけに進めます'
     }
   ];
 
@@ -636,6 +656,27 @@
     }
     ev.applied = true;
     return ev;
+  }
+
+  // ===== できごとの効き目 =====
+  //
+  // 盤を書き換えるものは applyEventTo が、**その一巡のあいだ効き続けるもの**は
+  // ここが答える。呼ぶ側（手渡し・部屋）に条件を書かせない——
+  // 書かせると、片方だけ直して食い違う（落とし穴1）。
+  // 効き目が1つも無いできごとを足すと、設定だけあって何も起きない状態になるので、
+  // 新しく足す時は必ずここか applyEventTo に居場所を作る。
+
+  /** こまはひとつ：勝てなかった人が動くマス数（できごとで倍になる） */
+  function loserStepsWith(event, base) {
+    return (event && event.id === 'grab-double') ? (base | 0) * 2 : (base | 0);
+  }
+  /** こまはひとつ：駒を動かした人に入るコイン */
+  function moveBonusCoins(event) {
+    return (event && event.id === 'grab-coin') ? 1 : 0;
+  }
+  /** ふたりでひとつ：組が余分に進むマス数 */
+  function pairBonusSteps(event) {
+    return (event && event.id === 'pair-bonus') ? 1 : 0;
   }
 
   /**
@@ -779,6 +820,8 @@
     positionRanks: positionRanks, rankPlayers: rankPlayers,
     EVENT_CHANCE: EVENT_CHANCE,
     eventsFor: eventsFor, pickEvent: pickEvent, applyEventTo: applyEventTo,
+    loserStepsWith: loserStepsWith, moveBonusCoins: moveBonusCoins,
+    pairBonusSteps: pairBonusSteps,
     checkPlayerCount: checkPlayerCount,
     TOLL_RELIEF: TOLL_RELIEF, tollFor: tollFor, tollOutcome: tollOutcome,
     tollTurn: tollTurn,

@@ -3255,7 +3255,7 @@
           切ると、勝った人だけが動きます。何も起きないと、勝てない人がずっと見ているだけになります
         </div>
       </div>
-      <div class="timer-dmode">
+      <div class="timer-dmode" id="sugoEventWrap">
         <div class="tp-label">突然のできごと</div>
         <div class="seg" id="sugoEventSeg">
           <button class="seg-btn" data-sugoevent="on">起こす</button>
@@ -4807,7 +4807,7 @@
     // 通行料の読み合いが芯なので「かけひき」の段に置く。
     // 「どこにいる？」が入ったら「正体をさぐる」の段にも並べることになる
     { id:'sugoroku',        genre:['deal'], ready:true,  icon:'🎲', title:'すご<br>ろく',
-      games:['sugograb', 'sugopair', 'sugohide', 'sugotoll'],
+      games:['sugograb', 'sugopair', 'sugohide', 'sugotoll', 'sugohand'],
       theme:'sugoroku',
       meta:'3〜8人 / 20分〜<br>先頭ほど、進むのが高くつく' },
     { id:'word-soon-1',     genre:['word'],  ready:false, icon:'？' },
@@ -5802,7 +5802,8 @@
     { id:'sugohide',        title:'どこにいる？',     icon:'🌫️', sub:'自分の位置は自分だけが知っている・申告では嘘をついてよい', maxPlayers:6 },
     { id:'sugopair',        title:'ふたりでひとつ',   icon:'🤝', sub:'2人で1つの駒・出た目を相談して分け合う', maxPlayers:8 },
     { id:'sugograb',        title:'こまはひとつ',       icon:'🀄', sub:'ミニゲームで勝った人だけが、たった1つの駒を動かせる', maxPlayers:8 },
-    { id:'sugotoll',        title:'つうこうりょう',     icon:'🎲', sub:'先頭ほど通行料が高い・払えないと進めない', maxPlayers:8 }
+    { id:'sugotoll',        title:'つうこうりょう',     icon:'🎲', sub:'先頭ほど通行料が高い・払えないと進めない', maxPlayers:8 },
+    { id:'sugohand',        title:'てふだ',             icon:'🎴', sub:'サイコロを振らない・手札を交渉して進む', maxPlayers:6 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -7540,10 +7541,15 @@
       sugograb: '駒は全員で1つだけ。毎ターン、ミニゲームで勝った人がそれを動かせます。負けた人の扱いと、盤をゆさぶるできごとを決めよう。',
       sugopair: '2人1組で1つの駒を動かします。組はランダムに決まります。盤をゆさぶるできごとを起こすかどうかを決めよう。',
       sugohide: '自分の位置は、自分の画面にしか出ません。毎ターン誰か1人が「今どこにいるか」を聞かれます。嘘をついてもかまいません。',
-      sugotoll: '先頭に近い人ほど、進むのに払うコインが増えます。長く先頭が続いた時に、盤をゆさぶるできごとを起こすかどうかを決めよう。'
+      sugotoll: '先頭に近い人ほど、進むのに払うコインが増えます。長く先頭が続いた時に、盤をゆさぶるできごとを起こすかどうかを決めよう。',
+      sugohand: 'サイコロは振りません。手札から1枚出して、その数だけ進みます。ゴールはぴったりでないとあがれないので、最後に必要な札を、手番のはじめに誰かから買えます。'
     };
     el('sugoWizLead').textContent = LEADS[m.game] || LEADS.sugotoll;
     el('sugoLosersWrap').style.display = (m.game === 'sugograb') ? '' : 'none';
+    // **できごとが1つも起きないゲームでは、その設定を出さない。**
+    // 決めても何も変わらないものを見せると、決めごとが効いていないように見える。
+    // 一覧を手で持たず eventsFor から導くので、events:'none' のゲームを足しても漏れない
+    el('sugoEventWrap').style.display = SugorokuLogic.eventsFor(m.game).length ? '' : 'none';
     // 奇数の組み分けは、**分け方が実際に変わる人数の時だけ**聞く。
     // 5人・7人ではどちらも同じ結果になるので、聞くと無駄に迷わせる
     var ask = (m.game === 'sugopair') && SugorokuLogic.pairStylesDiffer(state.players.length);
@@ -7564,7 +7570,7 @@
     });
     el('sugoEventNote').textContent = state.sgkCfg.events
       ? '一巡の切れ目に、たまに起きます（関所やぶり・みちがえ）'
-      : '盤の上で起きることは、サイコロと通行料だけになります';
+      : '盤の上では、そのゲームの決めごとだけが起きます';
   }
   el('sugoPairSeg').addEventListener('click', function(e){
     var b = e.target.closest('[data-sugopair]');
@@ -8911,7 +8917,8 @@
     sugotoll: rtSugorokuConfig,
     sugograb: rtSugorokuConfig,
     sugopair: rtSugorokuConfig,
-    sugohide: rtSugorokuConfig
+    sugohide: rtSugorokuConfig,
+    sugohand: rtSugorokuConfig
   };
   el('rtStartBtn').addEventListener('click', async function(){
     var m = modeById(state.selectedModeId);
@@ -9848,7 +9855,8 @@
     sugotoll: 'scr-rt-sugoroku',
     sugograb: 'scr-rt-sugoroku',
     sugopair: 'scr-rt-sugoroku',
-    sugohide: 'scr-rt-sugoroku'
+    sugohide: 'scr-rt-sugoroku',
+    sugohand: 'scr-rt-sugoroku'
   };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
@@ -13603,7 +13611,9 @@
       var id = sugo.grabList[sugo.grabAt];
       var rank = (sugo.miniRank.find(function(x){ return x.id === id; }) || {}).rank || 99;
       if(rank === 1){ sugo.turnId = id; sugoRender(); return; }   // サイコロ待ち
-      var steps = sugo.losersMove ? SugorokuMini.loserSteps(rank) : 0;
+      // できごとの効き目はルール層が持つ（部屋版もまったく同じここを通る）
+      var steps = sugo.losersMove
+        ? SugorokuLogic.loserStepsWith(sugo.event, SugorokuMini.loserSteps(rank)) : 0;
       sugo.grabAt++;
       if(steps <= 0) continue;
       sugoNote(sugo.names[id] + ' さんは ' + rank + '位で ' + steps + 'マス');
@@ -13626,7 +13636,9 @@
       await FxKit.hold(110);
     }
     sugo.piece = mv.to;
-    if(mv.coins) sugo.coins[id] = SugorokuLogic.addCoins(sugo.coins[id], mv.coins);
+    // できごとで、駒を動かした人にコインが入ることがある（部屋版と同じ計算）
+    var bonus = SugorokuLogic.moveBonusCoins(sugo.event);
+    if(mv.coins || bonus) sugo.coins[id] = SugorokuLogic.addCoins(sugo.coins[id], (mv.coins || 0) + bonus);
     if(mv.goal && !sugo.winnerId) sugo.winnerId = id;
     sugoRender();
   }
@@ -13853,7 +13865,8 @@
 
   // 組の駒を進める
   async function sugoPairMove(g){
-    var steps = SugorokuLogic.splitSum(g.parts);
+    // できごとで、どの組も少しだけ余分に進むことがある（部屋版と同じ計算）
+    var steps = SugorokuLogic.splitSum(g.parts) + SugorokuLogic.pairBonusSteps(sugo.event);
     var mv = SugorokuLogic.applyMove(sugo.board, g.pos, steps);
     var path = mv.path.concat(mv.bonusPath);
     for(var i = 0; i < path.length; i++){

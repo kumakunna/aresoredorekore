@@ -680,5 +680,40 @@ const SPEC = {
     assert(p.note.indexOf('あき') !== -1 && p.note.indexOf('びび') !== -1, '組も全員出る');
   });
 
+  // ===== できごとの効き目（第36弾-22） =====
+  // 「設定は出るのに、何も起きない」を作らないための照合。
+  // sugograb・sugopair は events を持つ性格なのに、EVENTS に1つも無く、
+  // 設定画面にだけ「突然のできごと 起こす／起こさない」が出ていた
+
+  await r.test('できごとを持つゲームには、実際に起きるできごとがある', async () => {
+    S.gameIds().forEach((id) => {
+      const spec = S.gameById(id);
+      if (spec.events === 'none') {
+        assertEqual(S.eventsFor(id).length, 0, id + ' は起こさない性格なのに、できごとがある');
+        return;
+      }
+      assert(S.eventsFor(id).length >= 1,
+        id + ' は events:' + spec.events + ' なのに、起きるできごとが1つも無い。設定だけ出て何も起きない状態になる');
+    });
+  });
+
+  await r.test('どのできごとにも、効き目のある居場所がある', async () => {
+    // 盤を書き換えるもの（applyEventTo）か、その一巡だけ効くもの（◯◯With）か。
+    // どちらにも無いできごとを足すと、名前だけ出て何も起きない
+    const board = S.makeBoard('sugotoll');
+    S.EVENTS.forEach((ev) => {
+      const st = { pos: { a: 5, b: 12 }, coins: { a: 20, b: 20 }, board };
+      const applied = S.applyEventTo(st, ['a', 'b'], Object.assign({}, ev));
+      const 盤を動かす = applied && applied.applied && st.pos.a !== 5;
+      const 一巡だけ効く =
+        S.loserStepsWith(ev, 2) !== 2 ||
+        S.moveBonusCoins(ev) !== 0 ||
+        S.pairBonusSteps(ev) !== 0 ||
+        ev.id === 'toll-free';   // 通行料がタダになるのは tollTurn が見ている
+      assert(盤を動かす || 一巡だけ効く,
+        ev.id + ' に効き目が無い（名前だけ出て、何も起きない）');
+    });
+  });
+
   r.finish();
 })();

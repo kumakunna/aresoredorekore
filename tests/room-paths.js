@@ -296,6 +296,38 @@ async function run() {
         id + ' が GAME_DRIVERS にも手渡し専用の宣言（inventory.js）にもありません。' +
         '部屋対応するなら GAME_DRIVERS へ、手渡し専用なら HANDOFF_ONLY_GAME_IDS へ書いてください');
     });
+    // **進行役があるのに、部屋の画面につながっていない。**
+    // RT_GAME_SCREENS に無いと gameSupportsRoom が false になり、
+    // 待合で「まだ1人1台に対応していません」と出て、始めるボタンが押せない。
+    // てふだで実際に起きた（同じ形の手書き一覧が4つあった）
+    const html2 = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const screenMap = (html2.match(/var RT_GAME_SCREENS = \{([\s\S]*?)\};/) || [])[1] || '';
+    RT_GAME_IDS.forEach((id) => {
+      assert(new RegExp(id + ':').test(screenMap),
+        id + ' が RT_GAME_SCREENS にありません。待合で「まだ1人1台に対応していません」と出て始められません');
+    });
+    // **開始設定（RT_START_CONFIG）が無いと、既定の人狼設定で始まってしまう。**
+    // 待合の表示は「てふだの準備ができました」なのに、押すと人狼が始まる——
+    // てふだで実際に起きた。黙って別のゲームが始まるのが、いちばん悪い
+    const startMap = (html2.match(/var RT_START_CONFIG = \{([\s\S]*?)\};/) || [])[1] || '';
+    RT_GAME_IDS.forEach((id) => {
+      assert(new RegExp(id + ':').test(startMap),
+        id + ' が RT_START_CONFIG にありません。押すと別のゲームが始まります');
+    });
+    // 名前と説明（GAMES）も無いと、画面には生のidが出る
+    RT_GAME_IDS.forEach((id) => {
+      assert(new RegExp("id:'" + id + "'").test(html2),
+        id + ' が GAMES にありません。画面に生のidが出ます');
+    });
+    // **逆向き：進行役はあるのに、棚のカセットに入っていない。**
+    // この向きの照合が無かったので、てふだは GAME_DRIVERS に登録して ready:true にしても
+    // ゲーム選択の画面に出てこなかった（棚の games: は手書きの別一覧・落とし穴4）。
+    // 遊べない進行役は、作った人以外には存在しないのと同じ
+    RT_GAME_IDS.forEach((id) => {
+      assert(CASSETTE_GAME_IDS.indexOf(id) !== -1,
+        id + ' は GAME_DRIVERS にあるのに、どのカセットの games: にも入っていません。' +
+        '棚から選べないので、誰も遊べません');
+    });
     // 逆向き：手渡し専用と宣言したゲームが、カセットから消えたのに残っている（落とし穴5）
     HANDOFF_ONLY_GAME_IDS.forEach((id) => {
       assert(CASSETTE_GAME_IDS.indexOf(id) !== -1,

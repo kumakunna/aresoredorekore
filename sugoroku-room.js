@@ -318,7 +318,38 @@ function submitVote(room, memberId, targetId, payload) {
 // ---- 段階を進める ----
 // 全員そろった時・時間切れ・手番の人がいなくなった時・進行役が押した時から呼ばれる。
 // どこから来ても同じ経路を通す。
+/**
+ * 進める。
+ *
+ * **待っている人が1人もいない段階が続いた時は、そのまま先へ進める。**
+ * てふだで、手番の人が切れたまま「売り札を出す → 買う → 札を出す」と
+ * 続いた時、1段階ずつ締め切り（25秒）を待つことになった。止まりはしないが、
+ * 残った人はただ待たされる（落とし穴17の親戚）。
+ *
+ * 芯（realtime.js）に入れると、段階の意味が違う他のゲーム——たとえば人狼の
+ * 「朝」のように、誰も待っていないが見せるための段階——まで飛ばしてしまう。
+ * だから**すごろくの中だけ**で解く。
+ *
+ * 回数で必ず打ち切る。壊れた進行役で無限に回らないように。
+ */
+const VACANT_CHAIN_MAX = 6;
 function advance(room) {
+  const out = advanceOnce(room);
+  const w = room.sugoroku;
+  if (!w) return out;
+  const rules = GAME_RULES[w.game] || {};
+  const waits = rules.waitingPhases || [PHASE.READY, PHASE.TURN];
+  for (let i = 0; i < VACANT_CHAIN_MAX; i++) {
+    if (w.phase === PHASE.ENDED) break;
+    // 人を待つ段階なのに、待つ相手が1人もいない時だけ先へ進める
+    if (waits.indexOf(w.phase) === -1) break;
+    if (expectedMembers(room).length > 0) break;
+    advanceOnce(room);
+  }
+  return out;
+}
+
+function advanceOnce(room) {
   const w = room.sugoroku;
   if (!w || w.phase === PHASE.ENDED) return { changed: false };
   const rules0 = GAME_RULES[w.game] || {};
@@ -1375,7 +1406,8 @@ function settleSplits(room) {
       w.autoUsed[g.id] = true;
       w.locked[g.id] = true;
     }
-    const steps = S.splitSum(w.parts[g.id]);
+    // できごとで、どの組も少しだけ余分に進むことがある
+    const steps = S.splitSum(w.parts[g.id]) + S.pairBonusSteps(w.event);
     const mv = S.applyMove(w.board, g.pos, steps);
     g.pos = mv.to;
     if (mv.goal && g.goalOrder == null) {
@@ -1483,8 +1515,10 @@ function nextGrab(room) {
     const rank = (w.miniRank.find((x) => x.id === id) || {}).rank || 99;
     // 1位はサイコロを振る。2位以下は「敗者移動」で、決まったぶんだけ動く
     if (rank === 1) { w.turnId = id; setPhase(room, PHASE.GRAB); w.deadline = Date.now() + w.turnSec * 1000; return; }
-    if (!w.losersMove || Mini.loserSteps(rank) <= 0) { w.orderAt++; continue; }
-    moveShared(room, id, Mini.loserSteps(rank), { loser: true, rank });
+    // できごとで、勝てなかった人の歩数が変わることがある（効き目はルール層が持つ）
+    const lose = S.loserStepsWith(w.event, Mini.loserSteps(rank));
+    if (!w.losersMove || lose <= 0) { w.orderAt++; continue; }
+    moveShared(room, id, lose, { loser: true, rank });
     w.orderAt++;
     if (w.goalCount > 0) break;   // 誰かがあがったら、そこで打ち切る
   }
@@ -1518,7 +1552,9 @@ function moveShared(room, id, steps, info) {
   const w = room.sugoroku;
   const mv = S.applyMove(w.board, w.piece, steps);
   w.piece = mv.to;
-  if (mv.coins) w.coins[id] = S.addCoins(w.coins[id], mv.coins);
+  // できごとで、駒を動かした人にコインが入ることがある
+  const bonus = S.moveBonusCoins(w.event);
+  if (mv.coins || bonus) w.coins[id] = S.addCoins(w.coins[id], (mv.coins || 0) + bonus);
   const rec = Object.assign(
     { id, name: w.names[id], steps, move: mv, coinsGained: mv.coins || 0 }, info || {});
   if (mv.goal && !w.winnerId) {

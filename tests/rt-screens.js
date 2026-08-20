@@ -2373,6 +2373,66 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       8000, 'すごろくの画面に着く');
   }
 
+  // すごろくの設定画面まで歩く。**遊び始める手前で止める**
+  // **部屋の経路**で歩く。どこにいる？・てふだは部屋専用なので、
+  // 1台を回す経路では選べない（それが正しい形）。
+  // 部屋にいる時は人数を部屋が持っているので、人数の画面も出ない
+  async function toSugoSetup(win, doc, gameId) {
+    click(doc, 'rtPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    const cart = doc.querySelector('.cart[data-cart="sugoroku"]');
+    assert(cart, 'すごろくのカセットが棚にある');
+    cart.click();
+    await sleep(win, 20);
+    if (activeScreen(doc) === 'scr-shelf' && !doc.querySelector('.cassette-warp')) cart.click();
+    await waitScreen(win, doc, 'scr-game', 4000);
+    pickGame(doc, gameId);
+    await waitScreen(win, doc, 'scr-mode', 4000);
+    const card = doc.querySelector('#scr-mode .mode-card');
+    if (card) card.click();
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-sugoroku', 4000);
+  }
+
+  await r.test('すごろくの設定：ゲームごとに、ちがう説明が出る（第36弾）', async () => {
+    const seen = {};
+    for (const g of ['sugotoll', 'sugograb', 'sugopair', 'sugohide', 'sugohand']) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      await toRoom(win, doc, { pick: false });
+      await toSugoSetup(win, doc, g);
+      const lead = el(doc, 'sugoWizLead').textContent;
+      assert(lead.length > 10, g + ' の説明が出ていない（' + lead + '）');
+      seen[g] = lead;
+      assertNoErrors(errors, g + ' の設定画面で未捕捉の例外');
+      win.close();
+    }
+    // **同じ説明が2つのゲームで出ていないこと。**
+    // 「無い時は既定のものを出す」実装だと、足し忘れたゲームに
+    // 別のゲームの説明がそのまま出る（てふだで実際に起きた）
+    const texts = Object.keys(seen).map((g) => seen[g]);
+    assertEqual(new Set(texts).size, texts.length,
+      'ちがうゲームに同じ説明が出ている（' + JSON.stringify(seen).slice(0, 200) + '）');
+  });
+
+  await r.test('すごろくの設定：できごとが起きないゲームには、その設定を出さない（第36弾）', async () => {
+    // 決めても何も変わらない設定を見せると、決めごとが効いていないように見える。
+    // どこにいる？・てふだは events:'none'
+    for (const [g, want] of [['sugotoll', true], ['sugograb', true],
+      ['sugopair', true], ['sugohide', false], ['sugohand', false]]) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      await toRoom(win, doc, { pick: false });
+      await toSugoSetup(win, doc, g);
+      const shown = win.getComputedStyle(el(doc, 'sugoEventWrap')).display !== 'none';
+      assertEqual(shown, want,
+        g + ' の「突然のできごと」の出し方が違う（出ている: ' + shown + '）');
+      // 駒が1つのゲームだけの設定も、そのゲームでだけ出る
+      const losers = win.getComputedStyle(el(doc, 'sugoLosersWrap')).display !== 'none';
+      assertEqual(losers, g === 'sugograb', g + ' の「1位以外も動く」の出し方が違う');
+      assertNoErrors(errors, g + ' の設定画面で未捕捉の例外');
+      win.close();
+    }
+  });
+
   await r.test('すごろく（手渡し）：盤と一覧とサイコロが、実際に出る（第36弾）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     await toSugoHandoff(win, doc, 'sugotoll');

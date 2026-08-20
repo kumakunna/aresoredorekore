@@ -484,5 +484,125 @@ function playerOf(view, id) {
     } finally { await srv.close(); }
   });
 
+  // ---- てふだ（第36弾-22）----
+  // サイコロを振らない。**配られるものが正しいか**が芯なので、
+  // 手元の関数ではなく socket 越しに確かめる
+
+  // 全員が確認を押して、最初の「売り札を出す」段階まで進める
+  async function toFirstOffer(all, host) {
+    await waitUntil(() => host.view().phase === 'ready', '確認の段階へ');
+    for (const d of all) await d.call('wolf:act', { act: 'ready' });
+    await waitUntil(() => host.view().phase === 'offer', '売り札の段階へ');
+  }
+
+  await r.test('てふだ：手札は本人にだけ届き、ほかの人には枚数しか届かない', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugohand', events: false });
+      await toFirstOffer(all, host);
+      // 自分のところには手札が届く
+      for (const d of all) {
+        await waitUntil(() => d.you && Array.isArray(d.you.hand), d.name + ' に手札が届く');
+        assertEqual(d.you.hand.length, 10, d.name + ' の手札は10枚');
+        assert(d.you.sum >= 33 && d.you.sum <= 38, d.name + ' の合計が範囲内（' + d.you.sum + '）');
+      }
+      // **全員の合計が同じ**（配った時点で勝負がつかない）
+      const sums = all.map((d) => d.you.sum);
+      assertEqual(new Set(sums).size, 1, '合計が割れている（' + sums.join(',') + '）');
+      // 部屋の知らせには、数字が1つも入っていない
+      const v = host.view();
+      v.players.forEach((pl) => {
+        assertEqual(pl.cards, 10, pl.name + ' の枚数は見える');
+        assertEqual(pl.hand, undefined, pl.name + ' の手札が部屋の知らせに入っている');
+      });
+      const dump = JSON.stringify(v);
+      all.forEach((d) => {
+        assert(dump.indexOf(JSON.stringify(d.you.hand)) === -1,
+          d.name + ' の手札が丸ごと配られている');
+      });
+      assert(dump.indexOf('"sum"') === -1, '合計が部屋の知らせに入っている');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('てふだ：売って買うと、コインと札が動く', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugohand', events: false });
+      await toFirstOffer(all, host);
+      const w = srv.store.get(host.code).sugoroku;
+      const buyer = all.find((d) => d.memberId === w.turnId);
+      const seller = all.find((d) => d.memberId !== w.turnId);
+      const card = seller.you.hand[0];
+      const before = { buyer: buyer.you.coins, seller: seller.you.coins };
+      const res = await seller.call('wolf:act', { act: 'offer', card, price: 4 });
+      assertEqual(res.ok, true, '売り札を出せる');
+      await waitUntil(() => (host.view().offers || []).length >= 1, '売り札が全員に見える');
+      const offer = host.view().offers[0];
+      assertEqual(offer.card, card, '何の札かは全員に見える（出すこと自体が情報のコスト）');
+      // 売り札の段階は**手番の人以外の全員**が済ませて終わる。3人目は「出さない」
+      const other = all.find((d) => d !== buyer && d !== seller);
+      await other.call('wolf:act', { act: 'pass' });
+      await waitUntil(() => host.view().phase === 'buy', '買う段階へ');
+      const ng = await other.call('wolf:act', { act: 'buy', sellerId: seller.memberId });
+      assertEqual(ng.ok, false, '手番でない人は買えない');
+      const ok = await buyer.call('wolf:act', { act: 'buy', sellerId: seller.memberId });
+      assertEqual(ok.ok, true, '手番の人は買える');
+      await waitUntil(() => buyer.you && buyer.you.coins === before.buyer - 4, 'コインが減る');
+      await waitUntil(() => seller.you && seller.you.coins === before.seller + 4, '売った人に入る');
+      assertEqual(buyer.you.hand.length, 11, '買った人の札が1枚増える');
+      assertEqual(seller.you.hand.length, 9, '売った人の札が1枚減る');
+      assertEqual(host.view().bought.card, card, '誰が何を買ったかは全員に見える');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('てふだ：ゴールを超える札は、サーバーが受け取らない', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugohand', events: false });
+      await toFirstOffer(all, host);
+      const w = srv.store.get(host.code).sugoroku;
+      const me = all.find((d) => d.memberId === w.turnId);
+      // 手札と位置を作って、超える札とぴったりの札の両方を用意する
+      w.hands[me.memberId] = [3, 6];
+      w.pos[me.memberId] = 27;                    // 盤は30
+      for (const d of all) await d.call('wolf:act', { act: 'pass' });
+      await waitUntil(() => host.view().phase === 'buy', '買う段階へ');
+      await me.call('wolf:act', { act: 'pass' });
+      await waitUntil(() => host.view().phase === 'turn', '札を出す段階へ');
+      const ng = await me.call('wolf:act', { act: 'play', card: 6 });
+      assertEqual(ng.ok, false, '超える札は断られる');
+      const ok = await me.call('wolf:act', { act: 'play', card: 3 });
+      assertEqual(ok.ok, true, 'ぴったりなら出せる');
+      await waitUntil(() => playerOf(host.view(), me.memberId).pos === 30, 'ゴールに着く');
+      await waitUntil(() => host.view().phase === 'ended', '決着する');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('てふだ：出せる札が無い人が切断していても、止まらずに進む（落とし穴17）', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 3);
+      await host.call('wolf:start', { game: 'sugohand', events: false });
+      await toFirstOffer(all, host);
+      const w = srv.store.get(host.code).sugoroku;
+      const me = all.find((d) => d.memberId === w.turnId);
+      w.hands[me.memberId] = [6, 6];
+      w.pos[me.memberId] = 29;                    // どの札でも超える＝進めない
+      const coinsBefore = w.coins[me.memberId];
+      // 手番の人が進行役だと、切った瞬間にこちらの目も閉じる。
+      // 進行が止まらないことを見たいので、**サーバーの状態を直接見る**
+      me.socket.close();
+      // 手番の人は売り札を出す側ではない。残りの2人が済ませれば段階は終わる
+      for (const d of all) { if (d !== me) await d.call('wolf:act', { act: 'pass' }); }
+      await waitUntil(() => w.phase !== 'offer', '売り札の段階を抜ける', 12000);
+      await waitUntil(() => (w.moves || []).some((m) => m.stuck || m.skipped),
+        '進めなかったことが記録される', 12000);
+      assert(w.coins[me.memberId] >= coinsBefore, '責める代わりにコインが入る（減っていない）');
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 })();

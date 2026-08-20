@@ -301,6 +301,12 @@ function sugoRoom(game, data) {
   });
 }
 
+// 画面から送られた操作（いちばん新しいもの）
+function lastAct(fake) {
+  const list = fake.emits.filter((e) => e.name === 'wolf:act');
+  return list.length ? list[list.length - 1].payload : null;
+}
+
 // サーバーからの配信を流し込む
 function push(fake, room) { fake.fire('room:update', room); }
 function pushYou(fake, you) { fake.fire('wolf:you', you); }
@@ -2337,6 +2343,167 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(/こまは あと23/.test(el(doc, 'rtSugoLap').textContent),
       '共有の駒の残りが出る（' + el(doc, 'rtSugoLap').textContent + '）');
     assertNoErrors(errors, 'こまはひとつの部屋画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（部屋）：じゅんびOKを押すと、サーバーへ届く', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugotoll', {
+      game: 'sugotoll', phase: 'ready', cells: 40, board: sugoBoard(40),
+      coinsUsed: true, lap: 1, deadline: null,
+      players: [
+        { id: 'm1', name: 'あき', pos: 0, coins: 20, connected: true },
+        { id: 'm2', name: 'びび', pos: 0, coins: 20, connected: true },
+        { id: 'm3', name: 'ちか', pos: 0, coins: 20, connected: true }
+      ],
+      waiting: ['あき', 'びび', 'ちか']
+    }));
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    const btn = doc.querySelector('#rtSugoInput [data-rtsugo="ready"]');
+    assert(btn, 'じゅんびOKのボタンが出る');
+    click(doc, btn);
+    await sleep(win, 60);
+    const act = lastAct(fake);
+    assert(act && act.act === 'ready', 'サーバーへ「じゅんびOK」が届く（' + JSON.stringify(act) + '）');
+    assertNoErrors(errors, 'じゅんび画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（部屋）：ミニゲームの入力が出て、押したものがサーバーへ届く', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugograb', {
+      game: 'sugograb', phase: 'play', cells: 30, board: sugoBoard(30),
+      coinsUsed: true, lap: 1, sharedPiece: true, piece: 4,
+      deadline: Date.now() + 20000,
+      mini: { id: 'janken', kind: 'luck', title: 'せーの、じゃんけん', lead: 'いっせいに出す' },
+      answered: [],
+      players: [
+        { id: 'm1', name: 'あき', pos: null, coins: 20, connected: true },
+        { id: 'm2', name: 'びび', pos: null, coins: 20, connected: true },
+        { id: 'm3', name: 'ちか', pos: null, coins: 20, connected: true }
+      ],
+      waiting: ['あき', 'びび', 'ちか']
+    }));
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    const hands = doc.querySelectorAll('#rtSugoInput [data-hand]');
+    assertEqual(hands.length, 3, 'グー・チョキ・パーが出る');
+    assert(/せーの、じゃんけん/.test(el(doc, 'rtSugoNote').textContent), '何をするのか出る');
+    click(doc, hands[0]);
+    await sleep(win, 60);
+    const act = lastAct(fake);
+    assert(act && act.hand === 'g', '出した手がサーバーへ届く（' + JSON.stringify(act) + '）');
+    // 出したあとは、押せる形のまま残さない（二重に出せてしまう）
+    assertEqual(doc.querySelectorAll('#rtSugoInput [data-hand]').length, 0, '出したら選び直せない');
+    assertNoErrors(errors, 'ミニゲームの画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（部屋）：分け合いは、出た目より多い数を出せない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugopair', {
+      game: 'sugopair', phase: 'split', cells: 30, board: sugoBoard(30),
+      coinsUsed: false, lap: 1, pairs: true, deadline: Date.now() + 30000,
+      groups: [
+        { id: 'g0', names: ['あき', 'びび'], gone: [], pos: 3, rank: 1,
+          goalOrder: null, dice: 4, parts: {}, sum: 0, locked: false, solo: false, auto: false },
+        { id: 'g1', names: ['ちか'], gone: [], pos: 2, rank: 2,
+          goalOrder: null, dice: 3, parts: {}, sum: 0, locked: false, solo: true, auto: false }
+      ],
+      players: [
+        { id: 'm1', name: 'あき', pos: 3, groupId: 'g0', connected: true },
+        { id: 'm2', name: 'びび', pos: 3, groupId: 'g0', connected: true },
+        { id: 'm3', name: 'ちか', pos: 2, groupId: 'g1', connected: true }
+      ],
+      waiting: ['あき', 'びび']
+    }));
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    const pad = doc.querySelectorAll('#rtSugoInput [data-rtsplit]');
+    // 出た目が4なら、選べるのは 0〜4 の5つだけ（5マス以上は端から出てこない）
+    assertEqual(pad.length, 5, '0〜4だけが出る');
+    assertEqual(pad[pad.length - 1].dataset.rtsplit, '4', '上限は出た目そのもの');
+    click(doc, pad[2]);
+    await sleep(win, 60);
+    const act = lastAct(fake);
+    assert(act && act.act === 'split' && act.steps === 2,
+      '入れた数がサーバーへ届く（' + JSON.stringify(act) + '）');
+    assertNoErrors(errors, '分け合いの画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('どこにいる？：申告に出せるのは、自分に見えているものだけ', async () => {
+    // 嘘をつけるのは**区画**のほうで、手がかりは自分に見えているものしか言えない。
+    // 全部の手がかりを選べてしまうと、矛盾が起きようがなくなり遊びが成立しない
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugohide', {
+      game: 'sugohide', phase: 'say', cells: 30, board: sugoBoard(30),
+      coinsUsed: false, lap: 1, hidden: true, deadline: Date.now() + 40000,
+      areas: [
+        { id: 'a0', name: 'ふもと' }, { id: 'a1', name: 'かわぞい' },
+        { id: 'a2', name: 'まちなか' }, { id: 'a3', name: 'さかみち' },
+        { id: 'a4', name: 'みねちかく' }
+      ],
+      clues: [
+        { id: 'c01', text: '水の音がする' }, { id: 'c04', text: '人の話し声がする' },
+        { id: 'c07', text: '風がつめたい' }, { id: 'c09', text: '足もとがぬかるんでいる' }
+      ],
+      sayer: { id: 'm2', name: 'びび' },
+      said: null,
+      players: [
+        { id: 'm1', name: 'あき', pos: null, saidArea: null, asking: false, connected: true },
+        { id: 'm2', name: 'びび', pos: null, saidArea: null, asking: true, connected: true },
+        { id: 'm3', name: 'ちか', pos: null, saidArea: null, asking: false, connected: true }
+      ],
+      waiting: ['びび']
+    }));
+    pushYou(fake, { game: 'sugohide', phase: 'say', pos: 12, left: 18,
+      area: { id: 'a2', name: 'まちなか' },
+      clues: [{ id: 'c04', text: '人の話し声がする' }, { id: 'c09', text: '足もとがぬかるんでいる' }],
+      asking: true });
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    // 区画は5つとも選べる（嘘をつけるのはここ）
+    const areas = doc.querySelectorAll('#rtSugoInput [data-rtarea]');
+    assertEqual(areas.length, 5, '5つの区画から選べる');
+    // 自分の本当の居場所は、自分の画面にだけ出る
+    assert(/まちなか/.test(el(doc, 'rtSugoHint').textContent), '自分の居場所は自分には分かる');
+    // わざと本当とは違う区画を選ぶ
+    click(doc, doc.querySelector('[data-rtarea="a4"]'));
+    await sleep(win, 60);
+    const clues = doc.querySelectorAll('#rtSugoInput [data-rtclue]');
+    assertEqual(clues.length, 2, '言えるのは自分に見えている2つだけ');
+    const ids = Array.from(clues).map((b) => b.dataset.rtclue).sort().join(',');
+    assertEqual(ids, 'c04,c09', '配られていない手がかりは出てこない');
+    click(doc, clues[0]);
+    await sleep(win, 60);
+    const act = lastAct(fake);
+    assert(act && act.act === 'say' && act.areaId === 'a4' && act.clueId === 'c04',
+      '申告がそのまま届く（' + JSON.stringify(act) + '）');
+    assertNoErrors(errors, '申告の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（部屋）：自分の番でなければ、サイコロは出ない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugotoll', {
+      game: 'sugotoll', phase: 'turn', cells: 40, board: sugoBoard(40),
+      coinsUsed: true, lap: 1, deadline: Date.now() + 30000,
+      turn: { id: 'm1', name: 'あき' },
+      players: [
+        { id: 'm1', name: 'あき', pos: 5, coins: 18, connected: true },
+        { id: 'm2', name: 'びび', pos: 3, coins: 20, connected: true },
+        { id: 'm3', name: 'ちか', pos: 0, coins: 20, connected: true }
+      ],
+      waiting: ['あき']
+    }));
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    assertEqual(el(doc, 'rtSugoDice').style.display, 'none', '人の番ではサイコロを出さない');
+    assert(/あき/.test(el(doc, 'rtSugoHint').textContent), '誰を待っているか出る');
+    assertEqual(el(doc, 'rtSugoInput').innerHTML, '', '押せるものは何も出さない');
+    assertNoErrors(errors, '待ち側の画面で未捕捉の例外');
     win.close();
   });
 

@@ -1758,6 +1758,14 @@
     font-size:18px;font-weight:700;color:var(--ink);cursor:pointer;
   }
   .sugo-pick .sub{display:block;font-size:11px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
+  /* いま自分が入れている数（分け合い）。押した先が分かるようにする */
+  .sugo-pick.on{border-color:var(--stamp);color:var(--stamp);}
+  /* 部屋版：いま出す番のものだけが入る枠。中身は手渡し版と同じ部品で作る */
+  .sugo-rt-input{
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    margin-top:10px;
+  }
+  .sugo-rt-input:empty{display:none;}
   .sugo-tapbtn{
     width:150px;height:150px;border-radius:50%;
     background:var(--card);border:3px solid var(--stamp);
@@ -3664,6 +3672,8 @@
       <div class="sugo-dice" id="rtSugoDice">🎲</div>
       <div class="sugo-note" id="rtSugoNote"></div>
       <div class="sugo-hint" id="rtSugoHint"></div>
+      <!-- いま出す番のものだけがここに入る（じゅんびOK・ミニゲーム・分け合い・申告） -->
+      <div class="sugo-rt-input" id="rtSugoInput"></div>
     </div>
     <div class="rt-foot" style="text-align:center;padding:0 12px 14px;">
       <button class="btn btn-ghost" id="rtSugoLeaveBtn" style="display:none;">← 部屋を出る</button>
@@ -7129,6 +7139,10 @@
     if(prevScreen && prevScreen.id === 'scr-rt-big' && id !== 'scr-rt-big') rtBigResetFx();
     // 第36弾：サイコロを押したまま画面が変わると、次の画面で誤発火する
     if(prevScreen && prevScreen.id === 'scr-sugo-play' && id !== 'scr-sugo-play') sugoDiceReset();
+    // 連打のタイマーは、画面が変わっても勝手に走り続ける。必ずここで止める
+    if(prevScreen && prevScreen.id === 'scr-sugo-input' && id !== 'scr-sugo-input'){
+      if(sugoInputStop){ sugoInputStop(); sugoInputStop = null; }
+    }
     // 第32弾-E 第4部・第5部：リアクションの帯と🎁は、部屋の画面でだけ
     updateReactBar();
     if(RT_SCREENS.indexOf(id) === -1) el('thanksBtn').style.display = 'none';
@@ -7136,6 +7150,12 @@
     if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
     if(prevScreen && prevScreen.id === 'scr-rt-quiz' && id !== 'scr-rt-quiz') qzLeaveScreen();
     if(prevScreen && prevScreen.id === 'scr-rt-auction' && id !== 'scr-rt-auction') auLeaveScreen();
+    // 部屋のすごろくを離れる時。連打のタイマーと「押したまま」を必ず捨てる
+    if(prevScreen && prevScreen.id === 'scr-rt-sugoroku' && id !== 'scr-rt-sugoroku'){
+      if(rtSugo.stop){ rtSugo.stop(); rtSugo.stop = null; }
+      rtSugo.key = ''; rtSugo.sent = ''; rtSugo.busy = false; rtSugo.sayArea = null;
+      if(rtSugoRelease) rtSugoRelease();
+    }
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-titles') enterTitles();
@@ -9137,22 +9157,216 @@
     d.style.display = mine === 'roll' ? '' : 'none';
     d.classList.toggle('done', v.phase === 'ended');
     var note = '', hint = '';
-    if(v.phase === 'ready'){ note = 'じゅんびはいい？'; hint = '画面をタップ'; }
+    if(v.phase === 'ready'){ note = 'じゅんびはいい？'; hint = '盤とじぶんの持ちものを見てください'; }
     else if(v.phase === 'ended'){ note = 'おしまい'; hint = ''; }
+    else if(v.mini && (v.phase === 'mini' || v.phase === 'play')){
+      note = v.mini.title;
+      hint = (v.phase === 'mini') ? v.mini.lead : (v.mini.note || v.mini.lead);
+    }
     else if(mine === 'roll'){ note = 'あなたの番'; hint = '長押ししてスワイプ（そのまま離しても振れます）'; }
-    else if(mine === 'say'){ note = 'あなたが申告します'; hint = 'どこにいるか答えてください'; }
+    else if(mine === 'say'){ note = 'あなたが申告します'; hint = ''; }
+    else if(v.phase === 'split'){ note = '出た目を分け合います'; hint = ''; }
     else if(v.waiting && v.waiting.length){ note = ''; hint = v.waiting.join('・') + ' さんを待っています'; }
+    // 「どこにいる？」だけは、**自分の本当の居場所を、自分の画面にだけ**出す。
+    // 1人1台なので、この端末を覗かれない限り漏れない（公開ビューには入っていない）
+    if(v.hidden && you && you.area){
+      hint = 'いまいるのは「' + you.area.name + '」（あなたにしか見えません）' + (hint ? '　' + hint : '');
+    }
     el('rtSugoNote').textContent = note;
     el('rtSugoHint').textContent = hint;
+    rtSugoInputRender(v, you, mine);
   }
   function rtSugoMyTurn(v, you){
     var me = rt.state.memberId;
     if(v.phase === 'turn' && v.turn && v.turn.id === me) return 'roll';
     if(v.phase === 'grab' && v.turn && v.turn.id === me) return 'roll';
-    if(v.phase === 'roll') return 'roll';
+    if(v.phase === 'roll'){
+      // ふたりでひとつ：振るのは組で1回。もう振った組は待つ側になる
+      var g = rtSugoMyGroup(v, me);
+      return (g && g.dice == null) ? 'roll' : null;
+    }
     if(v.phase === 'say' && v.sayer && v.sayer.id === me) return 'say';
     return null;
   }
+  // 自分がどの組か。組の一覧に人のidは入っていないので、自分の枠から辿る
+  function rtSugoMyGroup(v, me){
+    var p = (v.players || []).filter(function(x){ return x.id === me; })[0];
+    if(!p || !p.groupId) return null;
+    return (v.groups || []).filter(function(g){ return g.id === p.groupId; })[0] || null;
+  }
+
+  // ---- 部屋版の操作 ----
+  //
+  // 出す・振る・分ける・申告するの入口は、**この1か所から組み立てる**。
+  // 段階ごとに別の場所へ書くと、新しい段階を足した時に片方だけ残る（落とし穴4）。
+  var rtSugo = { key:'', sent:'', stop:null, busy:false, sayArea:null };
+
+  // いまが「どの場面か」の印。変わったら入力を作り直す。
+  // 毎描画で作り直すと、連打の数がゼロに戻ってしまうので、印で見る
+  function rtSugoKey(v){
+    return [v.phase, (v.mini && v.mini.id) || '', v.deadline || 0].join('|');
+  }
+  function rtSugoInputRender(v, you, mine){
+    var host = el('rtSugoInput');
+    var key = rtSugoKey(v);
+    var me = rt.state.memberId;
+    if(rtSugo.key !== key){
+      // 場面が変わった。前の入力は捨てる（連打のタイマーも必ず止める）
+      if(rtSugo.stop){ rtSugo.stop(); rtSugo.stop = null; }
+      rtSugo.key = key;
+      rtSugo.sayArea = null;
+      host.innerHTML = '';
+    }
+    if(rtSugo.sent === key){
+      host.innerHTML = '<div class="sugo-hand-sub">出しました。みんなを待っています</div>';
+      return;
+    }
+    if(rtSugo.stop) return;      // 出している最中は作り直さない
+
+    if(v.phase === 'ready'){
+      host.innerHTML = '<button class="btn btn-main" data-rtsugo="ready">じゅんびOK</button>';
+      return;
+    }
+    if(v.phase === 'play' && v.mini){
+      if(v.mini.id === 'quiz' && !v.question){
+        host.innerHTML = '<div class="sugo-hand-sub">もんだいを待っています</div>';
+        return;
+      }
+      var limitMs = Math.max(0, (v.deadline || 0) - Date.now());
+      rtSugo.stop = sugoBuildInput(host, v.mini, v.question, limitMs, function(raw){
+        rtSugo.stop = null;
+        rtSugoSend(rtSugoPayload(v.mini, raw), key);
+      });
+      return;
+    }
+    if(v.phase === 'split'){ rtSugoSplit(host, v, me); return; }
+    if(v.phase === 'say' && mine === 'say'){ rtSugoSay(host, v, you); return; }
+    host.innerHTML = '';
+  }
+
+  // サーバーが受け取る形にする。**正解かどうかはサーバーが持っている**ので、
+  // ここでは押したものをそのまま渡す（答えを配らない＝盗み見られない）
+  function rtSugoPayload(m, raw){
+    if(!raw) return null;
+    if(m.id === 'tap') return { count: raw.count };
+    if(m.id === 'janken') return { hand: raw.hand };
+    if(m.id === 'fingers') return { fingers: raw.fingers };
+    if(m.id === 'quiz') return { choice: raw.choice };
+    return null;
+  }
+
+  /**
+   * ふたりでひとつ：出た目を、組の中で分け合う。
+   * 相談は声に出してよいのがこの遊びの芯なので、相方が入れた数も見える。
+   * 合計が出た目とぴったり合った時だけ、サーバーが確定する
+   */
+  function rtSugoSplit(host, v, me){
+    var g = rtSugoMyGroup(v, me);
+    if(!g || g.dice == null){ host.innerHTML = ''; return; }
+    if(g.locked){
+      host.innerHTML = '<div class="sugo-hand-sub">決まりました。ほかの組を待っています</div>';
+      return;
+    }
+    if(g.solo){
+      host.innerHTML = '<div class="sugo-hand-sub">相方がいないので、出た目をそのまま進みます</div>';
+      return;
+    }
+    var mineSteps = (g.parts || {})[me];
+    var pad = '';
+    for(var n = 0; n <= g.dice; n++){
+      pad += '<button class="sugo-pick' + (mineSteps === n ? ' on' : '') +
+        '" data-rtsplit="' + n + '">' + n + '<span class="sub">マス</span></button>';
+    }
+    host.innerHTML = '<div class="sugo-hand-sub">出た目は ' + g.dice +
+      '。2人で分け合って、合計をぴったり ' + g.dice + ' にしてください（いま ' + (g.sum || 0) + '）</div>' +
+      '<div class="sugo-hand-pad">' + pad + '</div>';
+  }
+
+  /**
+   * どこにいる？：どこにいるかを申告する。
+   * **嘘をついてよい。** ただし言えるのは「自分に本当に見えているもの」だけなので、
+   * 嘘の区画にその手がかりが無ければ、その場で矛盾になる。それがこの遊びの綱渡り
+   */
+  function rtSugoSay(host, v, you){
+    if(!you || !you.clues || !you.clues.length){ host.innerHTML = ''; return; }
+    if(!rtSugo.sayArea){
+      host.innerHTML = '<div class="sugo-hand-sub">どこにいると言いますか？（本当でも、嘘でもかまいません）</div>' +
+        '<div class="sugo-hand-pad">' + (v.areas || []).map(function(a){
+          return '<button class="sugo-pick" data-rtarea="' + a.id + '" style="min-width:120px;">' +
+            escapeHtml(a.name) + '</button>';
+        }).join('') + '</div>';
+      return;
+    }
+    var an = ((v.areas || []).filter(function(a){ return a.id === rtSugo.sayArea; })[0] || {}).name || '';
+    host.innerHTML = '<div class="sugo-hand-sub">「' + escapeHtml(an) + '」にいると言います。そこから何が見えますか？</div>' +
+      '<div class="sugo-hand-pad">' + you.clues.map(function(c){
+        return '<button class="sugo-pick" data-rtclue="' + c.id + '" style="min-width:180px;">' +
+          escapeHtml(c.text) + '</button>';
+      }).join('') + '</div>' +
+      '<button class="btn btn-ghost" data-rtarea="" style="margin-top:8px;">区画をえらびなおす</button>';
+  }
+
+  /**
+   * サーバーへ送る。key を渡した操作は「一度きり」として印を立てる。
+   * 入り直した直後などで二重に送っても、taken / not_expected は
+   * 「もう受け取られている」の意味なので、出した扱いにしてよい
+   */
+  async function rtSugoSend(payload, key){
+    if(!payload || !rt) return;
+    var res = await rt.act(null, payload);
+    if(key && res && (res.ok || res.error === 'taken' || res.error === 'not_expected')) rtSugo.sent = key;
+    if(res && res.ok === false && res.error && res.error !== 'taken'){
+      el('rtSugoHint').textContent = 'いまは受け取れませんでした';
+    }
+    rtRenderCurrent();
+  }
+
+  // 振る。**出目はサーバーが決める。** 勢いは転がる速さにだけ使う
+  async function rtSugoRoll(g){
+    if(rtSugo.busy) return;
+    rtSugo.busy = true;
+    var d = el('rtSugoDice');
+    d.classList.remove('holding');
+    d.classList.add('rolling');
+    try{ FxKit.vibe('rise'); }catch(e){}
+    await FxKit.hold(Math.round(380 + 240 * (1 - g.power)));
+    d.classList.remove('rolling');
+    var res = await rt.act(null, { act: 'roll' });
+    rtSugo.busy = false;
+    if(res && res.ok === false && res.error !== 'taken'){
+      el('rtSugoHint').textContent = 'いまは振れません';
+    }
+    rtRenderCurrent();
+  }
+
+  var rtSugoRelease = bindDiceGesture(el('rtSugoDice'), {
+    canRoll: function(){
+      var v = rtView();
+      return !!(v && !rtSugo.busy && rtSugoMyTurn(v, rt && rt.state.secret) === 'roll');
+    },
+    onRoll: function(g){ rtSugoRoll(g); },
+    hint: function(t){ el('rtSugoHint').textContent = t; }
+  });
+
+  // 押すところは1か所にまとめる。段階ごとに addEventListener を足すと、
+  // 画面を描き直すたびに二重に登録されていく
+  el('scr-rt-sugoroku').addEventListener('click', function(ev){
+    var b = ev.target.closest('[data-rtsugo],[data-rtsplit],[data-rtarea],[data-rtclue]');
+    if(!b) return;
+    var v = rtView();
+    if(!v) return;
+    if(b.dataset.rtsugo === 'ready'){ rtSugoSend({ act: 'ready' }, rtSugoKey(v)); return; }
+    // 分け合いは、合うまで何度でも入れ直せる。だから「一度きり」の印は立てない
+    if(b.dataset.rtsplit != null){
+      rtSugoSend({ act: 'split', steps: parseInt(b.dataset.rtsplit, 10) }, null);
+      return;
+    }
+    if(b.dataset.rtarea != null){ rtSugo.sayArea = b.dataset.rtarea || null; rtRenderCurrent(); return; }
+    if(b.dataset.rtclue){
+      rtSugoSend({ act: 'say', areaId: rtSugo.sayArea, clueId: b.dataset.rtclue }, rtSugoKey(v));
+      return;
+    }
+  });
 
   // ===================== 第21弾 第6・7部：1人1台の画面 =====================
   // 自分の端末（scr-rt-play）と大画面（scr-rt-big）。
@@ -12887,6 +13101,7 @@
 
   // 次の人へ渡す。**前の人が何を出したかは、渡す前に必ず消す**（原則1）
   function sugoInputNext(){
+    if(sugoInputStop){ sugoInputStop(); sugoInputStop = null; }
     el('sugoHandBody').innerHTML = '';
     if(sugo.inputAt >= sugo.order.length){ sugoSettleMini(); return; }
     var id = sugo.order[sugo.inputAt];
@@ -12897,85 +13112,108 @@
     goTo('scr-sugo-input');
   }
 
-  // その人の入力を出す。ミニゲームごとに形が違うのはここだけ
+  // その人の入力を出す。**組み立ては手渡し版と部屋版の共通部品**（落とし穴1）
   function sugoInputShow(id){
     var m = sugo.mini;
     el('sugoHandWho').textContent = m.title;
     el('sugoHandSub').textContent = sugo.names[id] + ' さん';
-    var body = el('sugoHandBody');
+    if(m.id === 'quiz' && !sugo.quiz){ sugoInputDone(id, null); return; }
+    sugoInputStop = sugoBuildInput(el('sugoHandBody'), m, sugo.quiz, m.sec * 1000, function(raw){
+      sugoInputStop = null;
+      sugoInputDone(id, sugoEntryOf(m, sugo.quiz, raw));
+    });
+  }
+  var sugoInputStop = null;   // 連打のタイマーを止める手（画面を離れる時に必ず呼ぶ）
+
+  /**
+   * ミニゲームの入力を組み立てる。**手渡し版と部屋版が同じ部品を通る。**
+   *   host    … 入れ物の要素
+   *   m       … ミニゲームの定義（SugorokuMini.MINIS の1つ）
+   *   quiz    … 出題（{ q, choices }。答えは持っていなくてよい）
+   *   limitMs … 連打の締め切りまで（部屋版はサーバーの deadline から出す）
+   *   onDone(raw) … 出した中身。**押した生の値だけ**を返す
+   *       連打   { count, atMs }
+   *       じゃんけん { hand }
+   *       ゆび   { fingers }
+   *       クイズ { choice, atMs }
+   *   正解かどうかの判定を、ここでは持たない。
+   *   部屋版では答えを配っていないので、ここで持つと片方でしか動かない形になる。
+   * 返り値：後片付けの関数（連打のタイマーが残るので、画面を離れる時に呼ぶ）
+   */
+  function sugoBuildInput(host, m, quiz, limitMs, onDone){
+    var fired = false;
+    function done(raw){ if(fired) return; fired = true; onDone(raw); }
     if(m.id === 'tap'){
-      body.innerHTML = '<div class="sugo-tapcount" id="sugoTapN">0</div>' +
-        '<button class="sugo-tapbtn" id="sugoTapBtn">れんだ！</button>' +
-        '<div class="sugo-hand-sub" id="sugoTapLeft"></div>';
-      sugoRunTap(id);
-      return;
+      host.innerHTML = '<div class="sugo-tapcount" id="' + host.id + 'TapN">0</div>' +
+        '<button class="sugo-tapbtn" id="' + host.id + 'TapBtn">れんだ！</button>' +
+        '<div class="sugo-hand-sub" id="' + host.id + 'TapLeft"></div>';
+      var n = 0, started = Date.now(), timer = null;
+      var num = el(host.id + 'TapN'), left = el(host.id + 'TapLeft');
+      var finish = function(){
+        if(fired) return;
+        if(timer) clearInterval(timer);
+        timer = null;
+        done({ count: n, atMs: Date.now() - started });
+      };
+      el(host.id + 'TapBtn').onclick = function(){
+        if(fired) return;
+        n++;
+        num.textContent = n;
+        if(n >= SugorokuMini.TAP_CAP) finish();   // 満タンに届いたら、そこで締める
+      };
+      timer = setInterval(function(){
+        var ms = Math.max(0, limitMs - (Date.now() - started));
+        left.textContent = Math.ceil(ms / 1000) + '秒';
+        if(ms <= 0) finish();
+      }, 100);
+      return function(){ if(timer) clearInterval(timer); timer = null; };
     }
     if(m.id === 'janken'){
-      body.innerHTML = '<div class="sugo-hand-pad">' +
+      host.innerHTML = '<div class="sugo-hand-pad">' +
         [['g','✊','グー'],['c','✌️','チョキ'],['p','✋','パー']].map(function(h){
           return '<button class="sugo-pick" data-hand="'+h[0]+'">'+h[1]+'<span class="sub">'+h[2]+'</span></button>';
         }).join('') + '</div>';
-      body.querySelectorAll('[data-hand]').forEach(function(b){
-        b.onclick = function(){ sugoInputDone(id, { hand: b.dataset.hand }); };
+      host.querySelectorAll('[data-hand]').forEach(function(b){
+        b.onclick = function(){ done({ hand: b.dataset.hand }); };
       });
-      return;
+      return function(){};
     }
     if(m.id === 'fingers'){
       var pad = '';
-      for(var n = 0; n <= SugorokuMini.FINGER_MAX; n++){
-        pad += '<button class="sugo-pick" data-fingers="'+n+'">'+n+'<span class="sub">本</span></button>';
+      for(var i = 0; i <= SugorokuMini.FINGER_MAX; i++){
+        pad += '<button class="sugo-pick" data-fingers="'+i+'">'+i+'<span class="sub">本</span></button>';
       }
-      body.innerHTML = '<div class="sugo-hand-pad">' + pad + '</div>';
-      body.querySelectorAll('[data-fingers]').forEach(function(b){
-        b.onclick = function(){ sugoInputDone(id, { fingers: parseInt(b.dataset.fingers, 10) }); };
+      host.innerHTML = '<div class="sugo-hand-pad">' + pad + '</div>';
+      host.querySelectorAll('[data-fingers]').forEach(function(b){
+        b.onclick = function(){ done({ fingers: parseInt(b.dataset.fingers, 10) }); };
       });
-      return;
+      return function(){};
     }
     if(m.id === 'quiz'){
-      if(!sugo.quiz){ sugoInputDone(id, null); return; }
+      if(!quiz){ done(null); return function(){}; }
       var at = Date.now();
-      body.innerHTML = '<div class="sugo-quiz-q">' + escapeHtml(sugo.quiz.q) + '</div>' +
+      host.innerHTML = '<div class="sugo-quiz-q">' + escapeHtml(quiz.q) + '</div>' +
         '<div class="sugo-hand-pad" style="margin-top:12px;">' +
-        sugo.quiz.choices.map(function(c, i){
-          return '<button class="sugo-pick" data-choice="'+i+'" style="min-width:150px;">'+escapeHtml(c)+'</button>';
+        quiz.choices.map(function(c, i2){
+          return '<button class="sugo-pick" data-choice="'+i2+'" style="min-width:150px;">'+escapeHtml(c)+'</button>';
         }).join('') + '</div>';
-      body.querySelectorAll('[data-choice]').forEach(function(b){
+      host.querySelectorAll('[data-choice]').forEach(function(b){
         b.onclick = function(){
-          sugoInputDone(id, {
-            correct: parseInt(b.dataset.choice, 10) === sugo.quiz.correct,
-            atMs: Date.now() - at
-          });
+          done({ choice: parseInt(b.dataset.choice, 10), atMs: Date.now() - at });
         };
       });
-      return;
+      return function(){};
     }
-    sugoInputDone(id, null);
+    done(null);
+    return function(){};
   }
 
-  // 連打。時間で締め切る（押さないまま放置しても止まらない）
-  function sugoRunTap(id){
-    var n = 0;
-    var started = Date.now();
-    var limit = sugo.mini.sec * 1000;
-    var done = false;
-    var btn = el('sugoTapBtn');
-    btn.onclick = function(){
-      if(done) return;
-      n++;
-      el('sugoTapN').textContent = n;
-      if(n >= SugorokuMini.TAP_CAP){ finish(); }   // 満タンに届いたら、そこで締める
-    };
-    var timer = setInterval(function(){
-      var left = Math.max(0, limit - (Date.now() - started));
-      el('sugoTapLeft').textContent = Math.ceil(left / 1000) + '秒';
-      if(left <= 0) finish();
-    }, 100);
-    function finish(){
-      if(done) return;
-      done = true;
-      clearInterval(timer);
-      sugoInputDone(id, { count: n, atMs: Date.now() - started });
-    }
+  // 手渡し版が持ちたい形（正解かどうか）に直す。
+  // 部屋版はサーバーが答えを持っているので、この変換は通らない
+  function sugoEntryOf(m, quiz, raw){
+    if(!raw) return null;
+    if(m.id === 'quiz') return { correct: raw.choice === quiz.correct, atMs: raw.atMs };
+    return raw;
   }
 
   function sugoInputDone(id, entry){
@@ -13312,46 +13550,64 @@
   // 判定の正本は SugorokuLogic.rollGesture。ここは指の動きを渡すだけ。
   // 「長押ししてスワイプ」が主役だが、**押して離すだけでも振れる**
   // （片手がふさがっている・手が不自由・画面が滑らない、はどれも実際に起きる）。
-  var sugoDice = { down:false, at:0, x:0, y:0, moved:0, busy:false };
+  // 振っている最中かどうかだけ。押している最中の状態は bindDiceGesture が持つ
+  var sugoDice = { busy:false };
 
   // 画面を離れる時に必ず捨てる。押したまま画面が変わると、次の画面で誤発火する
   function sugoDiceReset(){
-    sugoDice.down = false; sugoDice.moved = 0; sugoDice.busy = false;
-    var d = el('sugoDice');
-    if(d) d.classList.remove('holding', 'rolling');
+    sugoDice.busy = false;
+    if(sugoDiceRelease) sugoDiceRelease();
   }
   function sugoHint(t){ el('sugoHint').textContent = t; }
   function sugoNote(t){ el('sugoNote').textContent = t || ''; }
 
-  (function bindSugoDice(){
-    var d = el('sugoDice');
+  /**
+   * サイコロの振り方（長押ししてスワイプ）を、要素に結びつける。
+   * **手渡し版と部屋版が、同じ1つの部品を通る。**
+   * 別々に書くと、片方だけ手触りが変わる（落とし穴1）。
+   * 何が「振った」かの判定は SugorokuLogic.rollGesture だけが持っていて、
+   * ここでは勢いを出目に混ぜられない形にしてある。
+   *   opts.canRoll() … いま振ってよいか
+   *   opts.onRoll(g) … 振れた（g.power は転がる速さにだけ使う）
+   *   opts.hint(t)   … 手元に出す一言
+   */
+  function bindDiceGesture(d, opts){
     if(!d) return;
+    var st = { down:false, at:0, x:0, y:0, moved:0 };
     d.addEventListener('pointerdown', function(e){
-      if(sugoDice.busy || !sugo || sugoFinished()) return;
-      sugoDice.down = true; sugoDice.at = Date.now();
-      sugoDice.x = e.clientX; sugoDice.y = e.clientY; sugoDice.moved = 0;
+      if(!opts.canRoll()) return;
+      st.down = true; st.at = Date.now();
+      st.x = e.clientX; st.y = e.clientY; st.moved = 0;
       d.classList.add('holding');
       try{ d.setPointerCapture(e.pointerId); }catch(err){}
-      sugoHint('そのまま離しても振れます');
+      opts.hint('そのまま離しても振れます');
     });
     d.addEventListener('pointermove', function(e){
-      if(!sugoDice.down) return;
-      var dx = e.clientX - sugoDice.x, dy = e.clientY - sugoDice.y;
-      sugoDice.moved = Math.max(sugoDice.moved, Math.sqrt(dx * dx + dy * dy));
-      var g = SugorokuLogic.rollGesture(Date.now() - sugoDice.at, sugoDice.moved);
-      if(g.reason === 'swipe') sugoRoll(g);
+      if(!st.down) return;
+      var dx = e.clientX - st.x, dy = e.clientY - st.y;
+      st.moved = Math.max(st.moved, Math.sqrt(dx * dx + dy * dy));
+      var g = SugorokuLogic.rollGesture(Date.now() - st.at, st.moved);
+      if(g.reason === 'swipe'){ st.down = false; d.classList.remove('holding'); opts.onRoll(g); }
     });
     ['pointerup', 'pointercancel'].forEach(function(ev){
       d.addEventListener(ev, function(){
-        if(!sugoDice.down) return;
-        sugoDice.down = false;
+        if(!st.down) return;
+        st.down = false;
         d.classList.remove('holding');
-        var g = SugorokuLogic.rollGesture(Date.now() - sugoDice.at, sugoDice.moved);
-        if(g.ok) sugoRoll(g);
-        else sugoHint('長押ししてスワイプ（そのまま離しても振れます）');
+        var g = SugorokuLogic.rollGesture(Date.now() - st.at, st.moved);
+        if(g.ok) opts.onRoll(g);
+        else opts.hint('長押ししてスワイプ（そのまま離しても振れます）');
       });
     });
-  })();
+    // 画面を離れる時に「押したまま」を捨てるための手
+    return function(){ st.down = false; st.moved = 0; d.classList.remove('holding', 'rolling'); };
+  }
+
+  var sugoDiceRelease = bindDiceGesture(el('sugoDice'), {
+    canRoll: function(){ return !(sugoDice.busy || !sugo || sugoFinished()); },
+    onRoll: function(g){ sugoRoll(g); },
+    hint: sugoHint
+  });
 
   // 一巡の切れ目にだけ起こす。手番の途中で盤が動くと、
   // いま何が起きたのかが混ざって分からなくなる
@@ -13380,7 +13636,7 @@
 
   async function sugoRoll(g){
     if(sugoDice.busy || sugoFinished()) return;
-    sugoDice.busy = true; sugoDice.down = false;
+    sugoDice.busy = true;
     var d = el('sugoDice');
     d.classList.remove('holding');
     d.classList.add('rolling');

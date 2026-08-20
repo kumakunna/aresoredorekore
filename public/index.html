@@ -1661,11 +1661,19 @@
   .sugo-cell.tone-gold{background:linear-gradient(180deg,#F8E9BC,#EDD79A);}
   .sugo-icon{font-size:15px;line-height:1;}
   .sugo-icon img{width:15px;height:15px;vertical-align:-2px;}
+  /* 同じマスに複数の駒が乗る。ふりだしでは必ず全員が重なるので、
+     **マスからはみ出さないこと**を先に決める。
+     2つまでは大きいまま、3つ以上に増えたら小さくして1行に収める
+     （折り返して縦に伸びると、マスの外へ出てしまう） */
   .sugo-pieces{
-    position:absolute;left:0;right:0;bottom:1px;
-    display:flex;justify-content:center;gap:1px;flex-wrap:wrap;line-height:1;
+    position:absolute;left:1px;right:1px;bottom:1px;
+    display:flex;justify-content:center;align-items:flex-end;
+    gap:1px;line-height:1;overflow:hidden;
   }
   .sugo-piece{font-size:13px;line-height:1;}
+  .sugo-pieces[data-many="3"] .sugo-piece{font-size:11px;}
+  .sugo-pieces[data-many="4"] .sugo-piece{font-size:10px;}
+  .sugo-pieces[data-many="many"] .sugo-piece{font-size:9px;letter-spacing:-0.5px;}
 
   /* だれが、あと何マスか。
      「27マス目」より「あと13」の方が、遊んでいる人には分かる。
@@ -7540,22 +7548,6 @@
     sugoStart(m.game || 'sugotoll', state.players, { events: !!state.sgkCfg.events });
     sugoDiceReset();
     if(sugoIsPair()){
-      var g = sugo.curGroup;
-      g.dice = dice;
-      d.textContent = String(dice);
-      sugoDice.busy = false;
-      // 1人だけになった組は、相談する相手がいないので出目をそのまま使う
-      var here = g.members.filter(function(id){ return !!sugo.names[id]; });
-      if(here.length === 1){
-        g.parts = SugorokuLogic.soloSplit(dice, here[0]);
-        sugoNote('ひとりなので、' + dice + 'マスぜんぶ使えます');
-        sugoPairMove(g);
-        return;
-      }
-      sugoSplitShow(g);
-      return;
-    }
-    if(sugoIsPair()){
       var ids = state.players.map(function(p, i){ return 'h' + i; });
       var style = state.sgkCfg.pairStyle === 'one'
         ? SugorokuLogic.PAIR_STYLE.ONE : SugorokuLogic.PAIR_STYLE.EVEN;
@@ -12913,6 +12905,14 @@
     sugoRender();
   }
 
+  // 1マスに乗る印の数から、大きさの段階を決める。
+  // ここ1か所で計算するので、出す側が条件を書かなくてよい
+  function manyKey(n){
+    if(n >= 5) return 'many';
+    if(n >= 3) return String(n);
+    return '2';
+  }
+
   function sugoRenderBoard(){
     var lay = SugorokuLogic.boardLayout(sugo.board);
     var byCell = {};
@@ -12947,7 +12947,7 @@
           ' style="grid-row:' + (c.row + 1) + ';grid-column:' + (c.col + 1) + ';' +
           'transform:translate(' + j.dx.toFixed(2) + 'px,' + j.dy.toFixed(2) + 'px) rotate(' + j.rot.toFixed(2) + 'deg);">' +
           (kind.icon ? '<span class="sugo-icon">' + kind.icon + '</span>' : '') +
-          (pieces ? '<span class="sugo-pieces">' + pieces + '</span>' : '') +
+          (pieces ? '<span class="sugo-pieces" data-many="' + manyKey(byCell[c.i].length) + '">' + pieces + '</span>' : '') +
           '</div>';
       }).join('');
     sugoDrawPath(host);
@@ -13236,6 +13236,23 @@
 
     var id = sugo.turnId;
     var dice = SugorokuLogic.rollDice();
+    if(sugoIsPair()){
+      // ふたりでひとつ：振ったら、その組で分け合う画面へ
+      var pg = sugo.curGroup;
+      pg.dice = dice;
+      d.textContent = String(dice);
+      sugoDice.busy = false;
+      // 相方がいない組は、相談する相手がいないので出目をそのまま使う
+      var here = pg.members.filter(function(mid){ return !!sugo.names[mid]; });
+      if(here.length === 1){
+        pg.parts = SugorokuLogic.soloSplit(dice, here[0]);
+        sugoNote('ひとりなので、' + dice + 'マスぜんぶ使えます');
+        sugoPairMove(pg);
+        return;
+      }
+      sugoSplitShow(pg);
+      return;
+    }
     if(sugoIsGrab()){
       // こまはひとつ：通行料は無い。勝った人が、たった1つの駒を動かすだけ
       d.textContent = String(dice);

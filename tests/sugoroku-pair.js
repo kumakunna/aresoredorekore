@@ -189,6 +189,32 @@ function groupOf(w, id) {
     assert(w.phase !== R.PHASE.SPLIT, '止まらずに先へ進む');
   });
 
+  await r.test('3人1組でも、3人の合計が出目と一致した時だけ確定する', async () => {
+    // 奇数人数では必ず3人組ができる。2人組だけを試していると、
+    // 「3人ぶんの合計」という条件そのものを一度も通らない
+    const { room } = start(5);
+    const w = toRoll(room);
+    const g3 = w.groups.find((g) => g.members.length === 3);
+    assert(g3, '5人なら3人組が1つできる');
+    R.submitAction(room, g3.members[0], null, { act: 'roll' });
+    w.dice[g3.id] = 6;
+    R.advance(room);
+    R.submitAction(room, g3.members[0], null, { act: 'split', steps: 3 });
+    R.submitAction(room, g3.members[1], null, { act: 'split', steps: 2 });
+    assertEqual(!!w.locked[g3.id], false, '2人ぶんだけでは確定しない（合計5）');
+    R.submitAction(room, g3.members[2], null, { act: 'split', steps: 1 });
+    assertEqual(w.locked[g3.id], true, '3人ぶんで合計6になって確定');
+  });
+
+  await r.test('3人組でまとまらない時も、等分して端数は切り捨てる', async () => {
+    const { room } = start(5);
+    flatten(room);
+    const w = toSplit(room, 5);
+    const g3 = w.groups.find((g) => g.members.length === 3);
+    R.advance(room);   // 時間切れと同じ流れ
+    assertEqual(g3.pos, 3, '出目5を3人で分けて3マス（2マス分が失われる）');
+  });
+
   // ---- 決着 ----
 
   await r.test('決着は「組」で並び、コインは使わない', async () => {

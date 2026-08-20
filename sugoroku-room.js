@@ -31,6 +31,7 @@ const S = require(path.join(__dirname, 'public', 'js', 'sugoroku-logic.js'));
 const Mini = require(path.join(__dirname, 'public', 'js', 'sugoroku-mini.js'));
 const QuizBank = require(path.join(__dirname, 'public', 'js', 'quiz-bank.js'));
 const Hide = require(path.join(__dirname, 'public', 'js', 'sugoroku-hide.js'));
+const Hand = require(path.join(__dirname, 'public', 'js', 'sugoroku-hand.js'));
 
 // 進行の段階。ほかのゲームの PHASE とは別物
 const PHASE = {
@@ -44,6 +45,9 @@ const PHASE = {
   // ---- ここから「ふたりでひとつ」用（駒が「人」ではなく「組」に付く） ----
   ROLL: 'roll',       // 組ごとにサイコロを振る（誰が振ってもよい）
   SPLIT: 'split',     // 出た目を、組の中で分け合う（合計が出目と一致で確定）
+  // ---- ここから「てふだ」用（手札は本人だけが知っている） ----
+  OFFER: 'offer',     // 手番の人以外が、売り札を1枚ずつ出す（任意）
+  BUY: 'buy',         // 手番の人が、出ている売り札から1つ買う（任意）
   // ---- ここから「どこにいる？」用（実位置は本人だけが知っている） ----
   SAY: 'say',         // 求められた1人が、位置と手がかりを申告する
   JUDGE: 'judge',     // 申告が筋が通っているかを、全員で見る
@@ -441,6 +445,7 @@ function resultView(room) {
     coinsUsed: !!spec.coins,
     lap: w.lap,
     players: ranked.map((p) => ({
+      id: p.id,                       // 誰が1位かを、名前ではなくidで見分ける
       name: p.name, pos: p.pos, rank: p.rank, tied: p.tied,
       coins: spec.coins ? p.coins : null,
       goaled: p.goalOrder != null
@@ -500,10 +505,178 @@ const JANKEN_MAX_RETRY = 2;       // あいこが続いた時の上限（無限�
 const PAIR_ROLL_SEC = 45;    // 組の誰かが振るまでの期限
 const PAIR_SPLIT_SEC = 60;   // 相談がまとまるまでの期限
 
+const HAND_OFFER_SEC = 30;   // 売り札を出すのを待つ期限
+const HAND_BUY_SEC = 25;     // 手番の人が買うかどうかを待つ期限
 const HIDE_SAY_SEC = 45;     // 申告を待つ期限
 const HIDE_JUDGE_MS = 3200;  // 申告の結果を見る間
 
 const GAME_RULES = {
+  // ---- ⑤ てふだ ----
+  //
+  // **サイコロを振らない。** 何マス進むかを自分で決める。
+  // そのぶん「進める札を持っているか」がすべてになるので、
+  // 配り方の公平さ（全員の合計を同じにする）と、
+  // ぴったり上がり（ゴールを超える札は出せない）が芯になる。
+  //
+  // 何を誰に見せるか（決めごと㊶）:
+  //   手札の数字   … **本人だけ**（privateFor）。見えたら駆け引きが消える
+  //   手札の枚数   … 全員。残り枚数は読み合いの材料（数字は分からない）
+  //   手札の合計   … 誰にも出さない（実質「あと何マス進めるか」が割れる）
+  //   提示中の売り札 … 全員。出すこと自体が「その札を持っている」という情報のコスト
+  //   コインの残り  … 全員（つうこうりょうと同じ）
+  sugohand: {
+    waitingPhases: [PHASE.READY, PHASE.OFFER, PHASE.BUY, PHASE.TURN],
+    waitingIds(room) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.READY) return w.playerIds.slice();
+      // 売り札を出すのは手番の人以外。**出さないのも選べる**ので、
+      // 「出さない」を押した人は done になって待たれなくなる
+      if (w.phase === PHASE.OFFER) {
+        return handLiving(room).filter((id) => id !== w.turnId);
+      }
+      if (w.phase === PHASE.BUY || w.phase === PHASE.TURN) {
+        return w.turnId ? [w.turnId] : [];
+      }
+      return [];
+    },
+    init(w, cfg) {
+      const spec = S.gameById(w.game) || {};
+      const hands = Hand.dealHands(w.playerIds.length, rndOf(w));
+      w.hands = {};
+      w.playerIds.forEach((id, i) => { w.hands[id] = hands[i] || []; });
+      w.offers = {};        // sellerId -> { card, price }
+      w.bought = null;      // 直前の取引（公開してよい中身だけ）
+      w.moves = [];
+      w.lapMoved = false;   // この一巡で、誰か1人でも進めたか（決めごと㊴）
+      w.cells = spec.cells;
+    },
+    // 手札の**枚数**は見せる。数字は見せない
+    publicPlayers(room) {
+      const w = room.sugoroku;
+      return w.playerIds.map((id) => {
+        const m = room.members.get(id);
+        return {
+          id, name: w.names[id],
+          pos: w.pos[id],
+          coins: w.coins[id],
+          cards: (w.hands[id] || []).length,   // ★ 枚数だけ。数字は入れない
+          rank: null,
+          goalOrder: w.goalOrder[id] == null ? null : w.goalOrder[id],
+          gone: !m, connected: !!(m && m.connected)
+        };
+      });
+    },
+    publicExtra(room) {
+      const w = room.sugoroku;
+      return {
+        hand: true,
+        // 出ている売り札は全員に見せる（交渉の材料）
+        offers: Object.keys(w.offers).map((id) => ({
+          sellerId: id, name: w.names[id],
+          card: w.offers[id].card, price: w.offers[id].price
+        })),
+        bought: w.bought,
+        moves: w.moves,
+        priceMin: Hand.PRICE_MIN, priceMax: Hand.PRICE_MAX
+      };
+    },
+    /** その人だけに配る。**ここだけが手札の数字を知っている** */
+    privateFor(room, memberId) {
+      const w = room.sugoroku;
+      if (w.playerIds.indexOf(memberId) === -1) return null;
+      const hand = (w.hands[memberId] || []).slice().sort((a, b) => a - b);
+      const cells = (S.gameById(w.game) || {}).cells;
+      return {
+        game: w.game,
+        phase: w.phase,
+        hand,
+        // いま出せる札。**判定はルール層が持っている**ので、画面は並べるだけでよい
+        playable: Hand.playable(hand, w.pos[memberId], cells),
+        left: cells - w.pos[memberId],
+        coins: w.coins[memberId],
+        // 合計は自分にだけ出す（他人に見えると「あと何マス進めるか」が割れる）
+        sum: Hand.handSum(hand)
+      };
+    },
+    submitAction(room, memberId, act, payload) {
+      const w = room.sugoroku;
+      const p2 = payload || {};
+      if (w.phase === PHASE.OFFER) {
+        if (memberId === w.turnId) return { ok: false, error: 'not_expected' };
+        if (w.playerIds.indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
+        if (act === 'pass') { w.done[memberId] = true; return { ok: true, allDone: isAllDone(room) }; }
+        if (act !== 'offer') return { ok: false, error: 'bad_action' };
+        const hand = w.hands[memberId] || [];
+        if (hand.indexOf(p2.card) === -1) return { ok: false, error: 'bad_action' };
+        if (!Hand.priceOk(p2.price)) return { ok: false, error: 'bad_action' };
+        w.offers[memberId] = { card: p2.card, price: p2.price };
+        w.done[memberId] = true;
+        return { ok: true, allDone: isAllDone(room) };
+      }
+      if (w.phase === PHASE.BUY) {
+        if (memberId !== w.turnId) return { ok: false, error: 'not_your_turn' };
+        if (act === 'pass') { w.done[memberId] = true; return { ok: true, allDone: true }; }
+        if (act !== 'buy') return { ok: false, error: 'bad_action' };
+        const offer = w.offers[p2.sellerId]
+          ? Object.assign({ sellerId: p2.sellerId }, w.offers[p2.sellerId]) : null;
+        const err = Hand.buyError(offer, w.coins[memberId], memberId);
+        if (err) return { ok: false, error: err };
+        handTrade(room, memberId, p2.sellerId);
+        w.done[memberId] = true;
+        return { ok: true, allDone: true };
+      }
+      if (w.phase === PHASE.TURN) {
+        if (memberId !== w.turnId) return { ok: false, error: 'not_your_turn' };
+        if (act !== 'play') return { ok: false, error: 'bad_action' };
+        const hand = w.hands[memberId] || [];
+        const cells = (S.gameById(w.game) || {}).cells;
+        if (hand.indexOf(p2.card) === -1) return { ok: false, error: 'bad_action' };
+        // **ゴールを超える札は出せない**（決めごと㊱）。ここも門で断る
+        if (!Hand.canPlay(p2.card, w.pos[memberId], cells)) return { ok: false, error: 'bad_action' };
+        w.pending = { card: p2.card };
+        w.done[memberId] = true;
+        return { ok: true, allDone: true };
+      }
+      return null;
+    },
+    advance(room) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.READY) { handStartTurn(room, true); return { changed: true }; }
+      if (w.phase === PHASE.OFFER) {
+        setPhase(room, PHASE.BUY);
+        w.deadline = Date.now() + HAND_BUY_SEC * 1000;
+        return { changed: true };
+      }
+      if (w.phase === PHASE.BUY) {
+        setPhase(room, PHASE.TURN);
+        w.deadline = Date.now() + w.turnSec * 1000;
+        return { changed: true };
+      }
+      if (w.phase === PHASE.TURN) { handPlay(room); return { changed: true }; }
+      if (w.phase === PHASE.RESULT) {
+        if (w.goalCount > 0) { finish(room); return { changed: true }; }
+        handStartTurn(room, false);
+        return { changed: true };
+      }
+      return { changed: false };
+    },
+    resultView(room) {
+      const w = room.sugoroku;
+      const spec = S.gameById(w.game) || {};
+      const ranked = Hand.rankHands(w.playerIds.map((id) => ({
+        id, name: w.names[id], pos: w.pos[id], coins: w.coins[id],
+        goalOrder: w.goalOrder[id] == null ? null : w.goalOrder[id]
+      })));
+      return {
+        game: w.game, cells: spec.cells, coinsUsed: true, lap: w.lap,
+        players: ranked.map((p) => ({
+          id: p.id, name: p.name, pos: p.pos, rank: p.rank, tied: p.tied,
+          coins: p.coins, goaled: p.goalOrder != null
+        }))
+      };
+    }
+  },
+
   // ---- ② どこにいる？ ----
   // **秘密設計の本丸。** 自分の位置は自分にしか見えず、申告では嘘をついてよい。
   //
@@ -623,6 +796,7 @@ const GAME_RULES = {
       return {
         game: w.game, cells: spec.cells, coinsUsed: false, lap: w.lap,
         players: ranked.map((p) => ({
+          id: p.id,
           name: p.name, pos: p.pos, rank: p.rank, tied: p.tied,
           coins: null, goaled: p.goalOrder != null
         }))
@@ -784,6 +958,7 @@ const GAME_RULES = {
       return {
         game: w.game, cells: spec.cells, coinsUsed: false, lap: w.lap, pairs: true,
         players: ranked.map((p) => ({
+          id: p.id,                   // ここだけは「組」のid（人ではない）
           name: p.name, pos: p.pos, rank: p.rank, tied: p.tied,
           coins: null, goaled: p.goalOrder != null
         }))
@@ -902,11 +1077,11 @@ const GAME_RULES = {
       const ranked = S.rankPlayers('sugograb', rest);
       const players = [];
       if (winner) {
-        players.push({ name: w.names[winner], pos: w.piece, rank: 1, tied: false,
+        players.push({ id: winner, name: w.names[winner], pos: w.piece, rank: 1, tied: false,
           coins: w.coins[winner], goaled: true });
       }
       ranked.forEach((p) => {
-        players.push({ name: p.name, pos: p.pos, rank: p.rank + (winner ? 1 : 0),
+        players.push({ id: p.id, name: p.name, pos: p.pos, rank: p.rank + (winner ? 1 : 0),
           tied: p.tied, coins: p.coins, goaled: false });
       });
       return { game: w.game, cells: spec.cells, coinsUsed: true, lap: w.lap, players };
@@ -937,6 +1112,106 @@ const GAME_RULES = {
     }
   }
 };
+
+// ===== 「てふだ」の進行 =====
+
+// まだあがっていない人（部屋から消えた人は数えない）
+function handLiving(room) {
+  const w = room.sugoroku;
+  return w.playerIds.filter((id) => room.members.has(id) && w.goalOrder[id] == null);
+}
+
+/**
+ * 次の人の番。売り札の提示から始まる。
+ * **一巡して誰も進めなかったら、そこで決着**（決めごと㊴）。
+ * 補充が無いので、置かないと永久に終わらない
+ */
+function handStartTurn(room, first) {
+  const w = room.sugoroku;
+  w.offers = {};
+  w.bought = null;
+  w.pending = null;
+  w.moves = [];
+  const live = handLiving(room);
+  if (!live.length) { finish(room); return; }
+  if (!first) {
+    const at = live.indexOf(w.turnId);
+    w.turnId = live[(at + 1) % live.length];
+    if (at + 1 >= live.length) {
+      // 一巡した。誰も進めていなければ、これ以上は動かない
+      if (!w.lapMoved) { finish(room); return; }
+      w.lap++;
+      w.lapMoved = false;
+    }
+  } else {
+    w.turnId = live[0];
+    w.lapMoved = false;
+  }
+  setPhase(room, PHASE.OFFER);
+  w.deadline = Date.now() + HAND_OFFER_SEC * 1000;
+}
+
+// 取引を成立させる。**コインと札は、この1か所だけが動かす**
+function handTrade(room, buyerId, sellerId) {
+  const w = room.sugoroku;
+  const offer = w.offers[sellerId];
+  if (!offer) return;
+  const rest = Hand.useCard(w.hands[sellerId] || [], offer.card);
+  if (!rest) return;                       // 売り手がもう持っていない（買えない）
+  w.hands[sellerId] = rest;
+  w.hands[buyerId] = (w.hands[buyerId] || []).concat([offer.card]);
+  w.coins[buyerId] = S.addCoins(w.coins[buyerId], -offer.price);
+  w.coins[sellerId] = S.addCoins(w.coins[sellerId], offer.price);
+  // 誰が誰から何を買ったかは、その後の読み合いの材料になるので全員に見せる
+  w.bought = {
+    buyerId, buyerName: w.names[buyerId],
+    sellerId, sellerName: w.names[sellerId],
+    card: offer.card, price: offer.price
+  };
+  delete w.offers[sellerId];
+}
+
+/**
+ * 札を1枚出して進む。
+ * 押していなければサーバーが選ぶ（止まらないことを優先）。
+ * 出せる札が1枚も無い時は進めない。**そのかわりコインが入る**——
+ * 責める場面にしない（原則7・決めごと㊳）
+ */
+function handPlay(room) {
+  const w = room.sugoroku;
+  const id = w.turnId;
+  const cells = (S.gameById(w.game) || {}).cells;
+  const auto = !w.done[id];
+  const hand = w.hands[id] || [];
+  const able = Hand.playable(hand, w.pos[id], cells);
+
+  if (!room.members.has(id)) {
+    w.moves = [{ id, name: w.names[id], skipped: true }];
+  } else if (!able.length) {
+    w.coins[id] = S.addCoins(w.coins[id], Hand.STUCK_RELIEF);
+    w.moves = [{ id, name: w.names[id], stuck: true, relief: Hand.STUCK_RELIEF,
+      coinsAfter: w.coins[id] }];
+  } else {
+    // 押していない時は、いちばん小さい札を出す（大きい札を勝手に使わない）
+    const card = (w.pending && able.indexOf(w.pending.card) !== -1)
+      ? w.pending.card
+      : able.slice().sort((a, b) => a - b)[0];
+    w.hands[id] = Hand.useCard(hand, card);
+    w.pos[id] = w.pos[id] + card;
+    w.lapMoved = true;
+    const goal = w.pos[id] >= cells;
+    if (goal && w.goalOrder[id] == null) {
+      w.goalCount++;
+      w.goalOrder[id] = w.goalCount;
+    }
+    w.moves = [{ id, name: w.names[id], card, steps: card, auto, goal,
+      left: cells - w.pos[id] }];
+  }
+  w.pending = null;
+  w.last = { moves: w.moves };
+  setPhase(room, PHASE.RESULT);
+  w.deadline = Date.now() + RESULT_MS;
+}
 
 // ===== 「どこにいる？」の進行 =====
 

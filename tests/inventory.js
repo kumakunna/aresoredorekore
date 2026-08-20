@@ -26,6 +26,13 @@ const CASSETTE_GAME_IDS = Array.from(new Set(
     .flatMap((m) => m[1].split(',').map((s) => s.replace(/['"\s]/g, '')).filter(Boolean))
 ));
 
+// ---- 完成しているカセットのid（public/index.html の CASSETTES から自動抽出） ----
+// ready:true のものだけ。棚に出ていて実際に遊べるカセットは、
+// 称号（TitleLogic）にも項目があるはず——という照合に使う（tests/titles.js）
+const READY_CASSETTE_IDS = Array.from(INDEX_HTML.matchAll(
+  /\{\s*id:\s*'([a-z0-9-]+)',\s*genre:\s*\[[^\]]*\],\s*ready:\s*true/g
+)).map((m) => m[1]);
+
 // 手渡し（1台を回す）専用のゲーム。ここは「意識して書く例外の一覧」：
 // 新しいゲームをカセットに足したのに GAME_DRIVERS に登録しなかった場合、
 // この一覧に書き足さない限り tests/room-paths.js の検出テストが赤くなる。
@@ -131,7 +138,8 @@ const RT_START_MIN_CONFIG = {
   sugotoll: { game: 'sugotoll', events: false },
   sugograb: { game: 'sugograb', events: false },
   sugopair: { game: 'sugopair', events: false },
-  sugohide: { game: 'sugohide', events: false }
+  sugohide: { game: 'sugohide', events: false },
+  sugohand: { game: 'sugohand', events: false }
 };
 
 // ---- 画面とオーバーレイの一覧（第35弾C：体験品質監査の正本） ----
@@ -170,6 +178,7 @@ const ABNORMAL_SCENARIOS = [
 module.exports = {
   RT_GAME_IDS,
   CASSETTE_GAME_IDS,
+  READY_CASSETTE_IDS,
   HANDOFF_ONLY_GAME_IDS,
   RT_START_EVENT,
   RT_START_MIN_CONFIG,

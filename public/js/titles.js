@@ -86,6 +86,19 @@
       hardHits: 0,          // むずかしい以上を正解した数
       muriHits: 0           // 「むりなんだが」を正解した数
     },
+    sugoroku: {
+      plays: 0,             // すごろくを遊んだ回数（4つのゲーム合わせて）
+      wins: 0,              // 1位になった回数
+      goals: 0,             // あがりに着いた回数（1位でなくても）
+      tollPlays: 0,         // つうこうりょうを遊んだ
+      grabPlays: 0,         // こまはひとつを遊んだ
+      pairPlays: 0,         // ふたりでひとつを遊んだ
+      hidePlays: 0,         // どこにいる？を遊んだ
+      tollWins: 0,          // つうこうりょうで1位になった
+      grabWins: 0,          // こまはひとつで、駒をあがらせた
+      pairWins: 0,          // ふたりでひとつで、組が1位になった
+      hideWins: 0           // どこにいる？で1位になった
+    },
     auction: {
       plays: 0,             // オークションを遊んだ回数
       wins: 0,              // 1位になった回数
@@ -255,7 +268,24 @@
         need: function (s) { return s('auction', 'quietWins') >= 1; } },
       { id: 'icon-are-survivor', cassette: 'aresore', emoji: '🏆', label: '生き残りの証',
         hint: 'サバイバルで優勝する',
-        need: function (s) { return s('aresore', 'survivalWins') >= 1; } }
+        need: function (s) { return s('aresore', 'survivalWins') >= 1; } },
+
+      // ---- 第36弾：すごろく ----
+      { id: 'icon-sugo-1', cassette: 'sugoroku', emoji: '🎲', label: '道中の証',
+        hint: 'すごろくを1回あそぶ',
+        need: function (s) { return s('sugoroku', 'plays') >= 1; } },
+      { id: 'icon-sugo-10', cassette: 'sugoroku', emoji: '🏮', label: '街道の証',
+        hint: 'すごろくを通算10回あそぶ',
+        need: function (s) { return s('sugoroku', 'plays') >= 10; } },
+      { id: 'icon-sugo-all', cassette: 'sugoroku', emoji: '⛩️', label: '四つ辻の証',
+        hint: 'すごろくの4つのゲームを、ぜんぶあそぶ',
+        need: function (s) {
+          return s('sugoroku', 'tollPlays') >= 1 && s('sugoroku', 'grabPlays') >= 1 &&
+                 s('sugoroku', 'pairPlays') >= 1 && s('sugoroku', 'hidePlays') >= 1;
+        } },
+      { id: 'icon-sugo-goal', cassette: 'sugoroku', emoji: '🌸', label: 'あがりの証',
+        hint: 'あがりに着く（1位でなくても）',
+        need: function (s) { return s('sugoroku', 'goals') >= 1; } }
     ],
 
     first: [
@@ -360,7 +390,12 @@
         need: function (s) { return s('auction', 'doubleHits') >= 1; } },
       { id: 'first-seikan', cassette: 'auction', label: '静観',
         hint: '一度も落札せずに1位になる',
-        need: function (s) { return s('auction', 'quietWins') >= 1; } }
+        need: function (s) { return s('auction', 'quietWins') >= 1; } },
+
+      // ---- 第36弾：すごろく ----
+      { id: 'first-michiyuki', cassette: 'sugoroku', label: 'みちゆき',
+        hint: 'すごろくで通算3回1位になる',
+        need: function (s) { return s('sugoroku', 'wins') >= 3; } }
         ],
 
     // 接続詞は語彙こそ共通だが、条件はカセットごとに別（どちらで満たしても手に入る）
@@ -397,7 +432,10 @@
         need: function (s) { return s('quizou', 'wins') >= 5; } },
       { id: 'joiner-taru-auc', cassette: 'auction', label: 'たる',
         hint: 'オークションで通算5回1位になる',
-        need: function (s) { return s('auction', 'wins') >= 5; } }
+        need: function (s) { return s('auction', 'wins') >= 5; } },
+      { id: 'joiner-yuku-sugo', cassette: 'sugoroku', label: 'ゆく',
+        hint: 'すごろくで通算5回1位になる',
+        need: function (s) { return s('sugoroku', 'wins') >= 5; } }
         ],
 
     last: [
@@ -484,7 +522,21 @@
         need: function (s) { return s('auction', 'bestProfit') >= 15; } },
       { id: 'last-godan-auc', cassette: 'auction', label: '剛胆',
         hint: '大ハズレを落札しても、そのゲームで1位になる',
-        need: function (s) { return s('auction', 'duds') >= 1 && s('auction', 'wins') >= 1; } }
+        need: function (s) { return s('auction', 'duds') >= 1 && s('auction', 'wins') >= 1; } },
+
+      // ---- 第36弾：すごろく。4つのゲームの見せ場を1つずつ ----
+      { id: 'last-sekishoyaburi', cassette: 'sugoroku', label: '関所やぶり',
+        hint: 'つうこうりょうで1位になる',
+        need: function (s) { return s('sugoroku', 'tollWins') >= 1; } },
+      { id: 'last-hitorijime', cassette: 'sugoroku', label: 'ひとりじめ',
+        hint: 'こまはひとつで、駒をあがらせる',
+        need: function (s) { return s('sugoroku', 'grabWins') >= 1; } },
+      { id: 'last-aun', cassette: 'sugoroku', label: 'あうんの呼吸',
+        hint: 'ふたりでひとつで、組が1位になる',
+        need: function (s) { return s('sugoroku', 'pairWins') >= 1; } },
+      { id: 'last-kakuremino', cassette: 'sugoroku', label: 'かくれみの',
+        hint: 'どこにいる？で1位になる',
+        need: function (s) { return s('sugoroku', 'hideWins') >= 1; } }
     ]
   };
 

@@ -49,7 +49,8 @@ const GAME_DRIVERS = {
   sugotoll: { driver: SugorokuRoom, key: 'sugoroku' },
   sugograb: { driver: SugorokuRoom, key: 'sugoroku' },
   sugopair: { driver: SugorokuRoom, key: 'sugoroku' },
-  sugohide: { driver: SugorokuRoom, key: 'sugoroku' }
+  sugohide: { driver: SugorokuRoom, key: 'sugoroku' },
+  sugohand: { driver: SugorokuRoom, key: 'sugoroku' }
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {

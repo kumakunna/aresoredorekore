@@ -6,7 +6,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm,
-  pickGame, createRunner, assert, assertEqual, assertNoErrors } = H;
+  pickGame, runWizardToPlay, createRunner, assert, assertEqual, assertNoErrors } = H;
 // 第35弾：経路の正本。ゲーム一覧・退室経路はここから回す（手書きの列挙をしない）
 const INV = require('./inventory');
 
@@ -2348,6 +2348,161 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(/こまは あと23/.test(el(doc, 'rtSugoLap').textContent),
       '共有の駒の残りが出る（' + el(doc, 'rtSugoLap').textContent + '）');
     assertNoErrors(errors, 'こまはひとつの部屋画面で未捕捉の例外');
+    win.close();
+  });
+
+  // 手渡し（1台を回す）で、すごろくの盤まで歩く。
+  // カセット→ゲーム→モード→設定→ルール→じゅんび、と関門が多いので1か所にまとめる
+  async function toSugoHandoff(win, doc, gameId) {
+    if (activeScreen(doc) === 'scr-shelf') {
+      const cart = doc.querySelector('.cart[data-cart="sugoroku"]');
+      assert(cart, 'すごろくのカセットが棚にある');
+      cart.click();
+      await sleep(win, 20);
+      if (activeScreen(doc) === 'scr-shelf' && !doc.querySelector('.cassette-warp')) cart.click();
+      await waitFor(win, () => activeScreen(doc) !== 'scr-shelf', 4000, 'カセットの中に入る');
+    }
+    if (activeScreen(doc) === 'scr-game') pickGame(doc, gameId);
+    await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか']);
+    if (activeScreen(doc) === 'scr-game') pickGame(doc, gameId);
+    await runWizardToPlay(win, doc);
+    // こまはひとつは、盤より先に「ミニゲームの題」から始まる。
+    // 盤の中身はどちらの画面でも組み立て済みなので、着いた方で確かめられる
+    await waitFor(win, () =>
+      ['scr-sugo-play', 'scr-sugo-mini'].indexOf(activeScreen(doc)) >= 0,
+      8000, 'すごろくの画面に着く');
+  }
+
+  await r.test('すごろく（手渡し）：盤と一覧とサイコロが、実際に出る（第36弾）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toSugoHandoff(win, doc, 'sugotoll');
+    assertEqual(doc.querySelectorAll('#sugoBoard .sugo-cell').length, 41, '盤が描かれる');
+    assertEqual(doc.querySelectorAll('#sugoBoard .sugo-piece').length, 3, '3人ぶんの駒が出る');
+    const me = el(doc, 'sugoMe').textContent;
+    assert(/あき/.test(me) && /びび/.test(me) && /ちか/.test(me), '全員が一覧に出る');
+    assert(/あと40/.test(me), '残りマス数が出る（' + me.slice(0, 40) + '）');
+    assert(/あき/.test(el(doc, 'sugoTurn').textContent), '誰の番かが出る');
+    assertEqual(win.getComputedStyle(el(doc, 'sugoDice')).display !== 'none', true, 'サイコロが出ている');
+    assertNoErrors(errors, '手渡しのすごろくで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（手渡し）：長押ししてスワイプで、実際に振れる（第36弾）', async () => {
+    // 振る仕掛けは部屋版と共通の部品（bindDiceGesture）。
+    // 手渡し側で一度も試していなければ、共通化が壊れても気づけない
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toSugoHandoff(win, doc, 'sugotoll');
+    const before = el(doc, 'sugoMe').textContent;
+    const d = el(doc, 'sugoDice');
+    const ev = (type, x, y) => d.dispatchEvent(new win.PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerId: 1, clientX: x, clientY: y
+    }));
+    ev('pointerdown', 100, 300);
+    await sleep(win, 40);
+    ev('pointermove', 100, 220);   // 80px のスワイプ（しきい値は40px）
+    ev('pointerup', 100, 220);
+    await waitFor(win, () => el(doc, 'sugoMe').textContent !== before, 6000, '誰かが進む');
+    assert(/あと(3[0-9]|[0-2][0-9])/.test(el(doc, 'sugoMe').textContent),
+      '進んだぶん残りが減る（' + el(doc, 'sugoMe').textContent.slice(0, 40) + '）');
+    assertNoErrors(errors, 'サイコロを振って未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（手渡し）：こまはひとつは、駒が1つだけで、ミニゲームが出る（第36弾）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toSugoHandoff(win, doc, 'sugograb');
+    assertEqual(doc.querySelectorAll('#sugoBoard .sugo-piece').length, 1, '駒は1つだけ');
+    assert(/こまは あと30/.test(el(doc, 'sugoLap').textContent),
+      '共有の駒の残りが出る（' + el(doc, 'sugoLap').textContent + '）');
+    // ミニゲームの題が出るところまで進む
+    await waitScreen(win, doc, 'scr-sugo-mini', 6000);
+    assert(el(doc, 'sugoMiniTitle').textContent.length > 0, '何のミニゲームかが出る');
+    assert(el(doc, 'sugoMiniLead').textContent.length > 0, 'どうすればいいかが出る');
+    click(doc, 'sugoMiniGoBtn');
+    await waitScreen(win, doc, 'scr-sugo-input', 4000);
+    assert(/ほかの人に見えないように/.test(el(doc, 'sugoHandSub').textContent),
+      '渡す前に、前の人の入力が見えない案内が出る');
+    assertNoErrors(errors, 'こまはひとつ（手渡し）で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく：部屋で決着すると、称号が数えられる（第36弾）', async () => {
+    // 完成しているカセットの中で、すごろくだけ称号がゼロだった。
+    // 数える箱とパーツを足しても、**決着の時に呼ばれなければ何も起きない**
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const sent = titlePuts(win);
+    const ended = {
+      game: 'sugotoll', phase: 'ended', cells: 40, board: sugoBoard(40),
+      coinsUsed: true, lap: 6,
+      players: [
+        { id: 'm1', name: 'あき', pos: 33, coins: 4, rank: 2, goalOrder: null, connected: true },
+        { id: 'm2', name: 'びび', pos: 40, coins: 9, rank: 1, goalOrder: 1, connected: true },
+        { id: 'm3', name: 'ちか', pos: 21, coins: 12, rank: 3, goalOrder: null, connected: true }
+      ],
+      waiting: [],
+      result: {
+        game: 'sugotoll', cells: 40, coinsUsed: true, lap: 6,
+        players: [
+          { id: 'm2', name: 'びび', pos: 40, rank: 1, tied: false, coins: 9, goaled: true },
+          { id: 'm1', name: 'あき', pos: 33, rank: 2, tied: false, coins: 4, goaled: false },
+          { id: 'm3', name: 'ちか', pos: 21, rank: 3, tied: false, coins: 12, goaled: false }
+        ]
+      }
+    };
+    push(fake, sugoRoom('sugotoll', ended));
+    // 決着は「部屋の知らせ」と「自分の情報」に分かれて届く。
+    // 自分の情報も決着のものになってはじめて数える（第34弾で踏んだ順番の罠）
+    pushYou(fake, { game: 'sugotoll', phase: 'ended', pos: 40, left: 0 });
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    await waitFor(win, () => sent.length >= 1, 3000, '称号が数えられる');
+    const sg = sent[sent.length - 1].stats.sugoroku;
+    assertEqual(sg.plays, 1, 'すごろくを遊んだ回数が増える（' + JSON.stringify(sg) + '）');
+    assertEqual(sg.tollPlays, 1, 'つうこうりょうを遊んだ回数が増える');
+    assertEqual(sg.wins, 1, '1位になったことが数えられる');
+    assertEqual(sg.tollWins, 1, 'つうこうりょうで1位になったことが数えられる');
+    assertEqual(sg.goals, 1, 'あがったことも数えられる');
+    // 二重に数えない（同じ決着が何度も配信される）
+    const n = sent.length;
+    push(fake, sugoRoom('sugotoll', ended));
+    await sleep(win, 300);
+    assertEqual(sent.length, n, '同じ決着が届いても、二度は数えない');
+    assertNoErrors(errors, 'すごろくの称号で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく：1位でなくても、あがっていれば数えられる（第36弾）', async () => {
+    // 「褒める時は全力で」。勝てなかった人の手元にも、着いたことは残す
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const sent = titlePuts(win);
+    push(fake, sugoRoom('sugohide', {
+      game: 'sugohide', phase: 'ended', cells: 30, board: sugoBoard(30),
+      coinsUsed: false, lap: 5, hidden: true,
+      areas: [{ id: 'a0', name: 'ふもと' }], clues: [],
+      players: [
+        { id: 'm1', name: 'あき', pos: null, saidArea: null, asking: false, connected: true },
+        { id: 'm2', name: 'びび', pos: null, saidArea: null, asking: false, connected: true },
+        { id: 'm3', name: 'ちか', pos: null, saidArea: null, asking: false, connected: true }
+      ],
+      waiting: [],
+      result: {
+        game: 'sugohide', cells: 30, coinsUsed: false, lap: 5,
+        players: [
+          { id: 'm1', name: 'あき', pos: 30, rank: 1, tied: false, coins: null, goaled: true },
+          { id: 'm2', name: 'びび', pos: 30, rank: 2, tied: false, coins: null, goaled: true },
+          { id: 'm3', name: 'ちか', pos: 12, rank: 3, tied: false, coins: null, goaled: false }
+        ]
+      }
+    }));
+    pushYou(fake, { game: 'sugohide', phase: 'ended', pos: 30, left: 0 });
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    await waitFor(win, () => sent.length >= 1, 3000, '称号が数えられる');
+    const sg = sent[sent.length - 1].stats.sugoroku;
+    assertEqual(sg.goals, 1, 'あがったことが数えられる（' + JSON.stringify(sg) + '）');
+    assertEqual(sg.wins || 0, 0, '1位ではないので、勝ちは増えない');
+    assertEqual(sg.hidePlays, 1, 'どこにいる？を遊んだ回数は増える');
+    assertNoErrors(errors, '2位の称号で未捕捉の例外');
     win.close();
   });
 

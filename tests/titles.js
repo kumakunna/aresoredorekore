@@ -115,6 +115,18 @@ const CASES = [
   ['last-kanteishi', 'auction', { appraises: 9 }, { appraises: 10 }],
   ['last-daishonin', 'auction', { bestProfit: 14 }, { bestProfit: 15 }],
   ['last-godan-auc', 'auction', { duds: 1 }, { duds: 1, wins: 1 }],
+  // ---- 第36弾：すごろく ----
+  ['icon-sugo-1', 'sugoroku', {}, { plays: 1 }],
+  ['icon-sugo-10', 'sugoroku', { plays: 9 }, { plays: 10 }],
+  ['icon-sugo-all', 'sugoroku', { tollPlays: 1, grabPlays: 1, pairPlays: 1 },
+    { tollPlays: 1, grabPlays: 1, pairPlays: 1, hidePlays: 1 }],
+  ['icon-sugo-goal', 'sugoroku', { plays: 1 }, { goals: 1 }],
+  ['first-michiyuki', 'sugoroku', { wins: 2 }, { wins: 3 }],
+  ['joiner-yuku-sugo', 'sugoroku', { wins: 4 }, { wins: 5 }],
+  ['last-sekishoyaburi', 'sugoroku', { wins: 1 }, { tollWins: 1 }],
+  ['last-hitorijime', 'sugoroku', { wins: 1 }, { grabWins: 1 }],
+  ['last-aun', 'sugoroku', { wins: 1 }, { pairWins: 1 }],
+  ['last-kakuremino', 'sugoroku', { wins: 1 }, { hideWins: 1 }],
   // ---- 第32弾-F：季節イベント（夏） ----
   ['icon-season-summer', 'season', {}, { summerPlays: 1 }],
   ['icon-season-hanabi', 'season', { summerPlays: 9 }, { summerCrowd: 1 }],
@@ -269,6 +281,61 @@ const CASES = [
     assertEqual(T.lastPlaceIds(null, null).length, 0, '空でも落ちない');
     // マイナスや欠けた値でも壊れない
     assertEqual(T.lastPlaceIds(P, { a: 2, b: 5 }).join(','), 'c', '点の記録が無い人は0点として扱う');
+  });
+
+  // ===== 第36弾-21：完成カセットと称号の照合 =====
+
+  await r.test('完成しているカセットには、称号のパーツと数える箱がある（正本ループ）', async () => {
+    // すごろくだけ称号が1つも無い状態で、誰も気づかなかった。
+    // 「カセットを完成させたのに称号を足し忘れた」を、足した瞬間に赤くする（落とし穴4）
+    const INV = require('./inventory');
+    // カセットのidと、称号の数える箱のキーは1つだけ食い違う（歴史的な経緯）。
+    // 増やさないよう、実在するidだけを書けることも下で確かめる
+    const STATS_KEY = { aresoredorekore: 'aresore' };
+    const ids = INV.READY_CASSETTE_IDS;
+    assert(ids.length >= 6, '完成カセットが抽出できている（いま' + ids.length + '件）');
+    Object.keys(STATS_KEY).forEach((k) => {
+      assert(ids.indexOf(k) !== -1, '読み替え表の「' + k + '」が、もう存在しないカセット');
+    });
+    for (const id of ids) {
+      const key = STATS_KEY[id] || id;
+      assert(T.STAT_SHAPE[key], id + ' の数える箱（STAT_SHAPE.' + key + '）が無い');
+      const parts = T.PART_KEYS.reduce((n, slot) =>
+        n + T.CATALOG[slot].filter((x) => x.cassette === key).length, 0);
+      assert(parts >= 1, id + ' の称号パーツが1つも無い（遊んでも何も手に入らない）');
+    }
+  });
+
+  await r.test('すごろく：4つのゲームの見せ場が、それぞれ称号になっている（第36弾）', async () => {
+    const of = (slot) => T.CATALOG[slot].filter((x) => x.cassette === 'sugoroku');
+    assert(of('icon').length >= 3, '顔が3つ以上ある（いま' + of('icon').length + '）');
+    assert(of('last').length >= 4, '4つのゲームぶんの二つ名がある（いま' + of('last').length + '）');
+    // ゲームごとの勝ちが、それぞれ別の二つ名につながっている。
+    // 1つのカウンタで全部そろってしまうと「どのゲームで活躍したか」が消える
+    const got = {};
+    ['tollWins', 'grabWins', 'pairWins', 'hideWins'].forEach((k) => {
+      const s = stats('sugoroku', { [k]: 1 });
+      got[k] = of('last').filter((x) => has(s, x.id)).map((x) => x.id);
+      assert(got[k].length >= 1, k + ' で手に入る二つ名が無い');
+    });
+    const all = Object.keys(got).map((k) => got[k].join('|'));
+    assertEqual(new Set(all).size, all.length,
+      '別のゲームなのに同じ二つ名が出る（' + JSON.stringify(got) + '）');
+  });
+
+  await r.test('すごろく：4つ全部を遊ぶと「四つ辻の証」が手に入る（第36弾）', async () => {
+    const three = stats('sugoroku', { tollPlays: 1, grabPlays: 1, pairPlays: 1 });
+    const four = stats('sugoroku', { tollPlays: 1, grabPlays: 1, pairPlays: 1, hidePlays: 1 });
+    assertEqual(has(three, 'icon-sugo-all'), false, '3つでは手に入らない');
+    assertEqual(has(four, 'icon-sugo-all'), true, '4つそろって手に入る');
+  });
+
+  await r.test('すごろく：あがれば、1位でなくても1つ手に入る（第36弾）', async () => {
+    // 「褒める時は全力で」。勝てなくても、ゴールに着いたことは称える
+    const goal = stats('sugoroku', { goals: 1 });
+    assertEqual(has(goal, 'icon-sugo-goal'), true, 'あがりの証が手に入る');
+    assertEqual(has(stats('sugoroku', { plays: 1 }), 'icon-sugo-goal'), false,
+      '遊んだだけでは手に入らない');
   });
 
   r.finish();

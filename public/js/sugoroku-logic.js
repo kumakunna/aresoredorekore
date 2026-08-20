@@ -96,7 +96,7 @@
       // コインマスは置かない。止まるマスを自分で選べるので、置くと狙って踏み続けられる
       coins: true, startCoins: 20, cellKinds: [],
       events: 'none', tiebreak: 'coins',
-      ready: false
+      ready: true      // 第36弾：部屋で遊べるようになった
     }
   };
 

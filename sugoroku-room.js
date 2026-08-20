@@ -40,6 +40,9 @@ const PHASE = {
   MINI: 'mini',       // 何のミニゲームかを、画面いっぱいに出す
   PLAY: 'play',       // ミニゲーム本体。全員が同時に出す
   GRAB: 'grab',       // ミニゲームの順位の順に、駒を動かす
+  // ---- ここから「ふたりでひとつ」用（駒が「人」ではなく「組」に付く） ----
+  ROLL: 'roll',       // 組ごとにサイコロを振る（誰が振ってもよい）
+  SPLIT: 'split',     // 出た目を、組の中で分け合う（合計が出目と一致で確定）
   // ----
   RESULT: 'result',   // その手番に何が起きたかを、全員で見る
   EVENT: 'event',     // 突然イベント
@@ -490,7 +493,171 @@ function applyEvent(room, ev) {
 const GRAB_MINI_SHOW_MS = 2200;   // 何のミニゲームかを見せる間
 const JANKEN_MAX_RETRY = 2;       // あいこが続いた時の上限（無限に繰り返さない）
 
+const PAIR_ROLL_SEC = 45;    // 組の誰かが振るまでの期限
+const PAIR_SPLIT_SEC = 60;   // 相談がまとまるまでの期限
+
 const GAME_RULES = {
+  // ---- ③ ふたりでひとつ ----
+  // 駒が「人」ではなく「組」に付く。出た目を組の中で相談して分け合う。
+  //
+  // **このゲーム固有の止まり方**（設計書の決めごと⑭）:
+  //   これまでの2つは「手番の人が消える」＝待つ相手が1人だった。
+  //   ここは**合計が出目に一致するまで確定しない**ので、相方が消えると
+  //   配分が永久に一致しない。だから:
+  //     ・相方がいなくなった組は、残った1人が出目を全部使える（S.soloSplit）
+  //     ・待つのは**組ごと**。まとまった組は、他の組を待たずに確定できる
+  //     ・どちらの段階にも期限を置き、切れたらサーバーが埋める（止まらないことを優先）
+  sugopair: {
+    waitingPhases: [PHASE.READY, PHASE.ROLL, PHASE.SPLIT],
+    // 待つのは「まだ済んでいない組」の人だけ。済んだ組の人は待たれない。
+    // 繋がっているかの絞り込みは芯がやるので、ここでは書かない
+    waitingIds(room) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.READY) return w.playerIds.slice();
+      if (w.phase === PHASE.ROLL) {
+        return livingGroups(room).filter((g) => w.dice[g.id] == null)
+          .reduce((acc, g) => acc.concat(g.members), []);
+      }
+      if (w.phase === PHASE.SPLIT) {
+        return livingGroups(room).filter((g) => !w.locked[g.id])
+          .reduce((acc, g) => acc.concat(g.members), []);
+      }
+      return [];
+    },
+    init(w, cfg) {
+      const style = cfg.pairStyle === S.PAIR_STYLE.ONE ? S.PAIR_STYLE.ONE : S.PAIR_STYLE.EVEN;
+      w.groups = S.makePairs(w.playerIds, style, rndOf(w)).map((members, i) => ({
+        id: 'g' + i, members: members.slice(), pos: 0, goalOrder: null
+      }));
+      w.pairStyle = style;
+      w.dice = {};        // 組id -> 出目
+      w.parts = {};       // 組id -> { memberId: マス数 }
+      w.locked = {};      // 組id -> 確定したか
+      w.autoUsed = {};    // 組id -> 自動で等分されたか（画面で理由を出すため）
+      w.solo = {};        // 組id -> 相方がいなくなって1人になったか
+      w.moves = [];
+    },
+    // 駒は組に付く。人ごとの位置は持たない
+    publicPlayers(room) {
+      const w = room.sugoroku;
+      return w.playerIds.map((id) => {
+        const m = room.members.get(id);
+        const g = groupOf(w, id);
+        return {
+          id, name: w.names[id],
+          pos: g ? g.pos : 0,
+          groupId: g ? g.id : null,
+          rank: null, coins: null,
+          goalOrder: g && g.goalOrder != null ? g.goalOrder : null,
+          gone: !m, connected: !!(m && m.connected)
+        };
+      });
+    },
+    publicExtra(room) {
+      const w = room.sugoroku;
+      const ranks = S.positionRanks(w.groups.map((g) => ({ id: g.id, pos: g.pos })));
+      return {
+        pairs: true,
+        groups: w.groups.map((g) => ({
+          id: g.id,
+          names: g.members.map((id) => w.names[id]),
+          // 部屋から消えた人は、組の中でも「いない」ことが分かるようにする
+          gone: g.members.filter((id) => !room.members.has(id)).map((id) => w.names[id]),
+          pos: g.pos,
+          rank: ranks[g.id] || null,
+          goalOrder: g.goalOrder,
+          dice: w.dice[g.id] == null ? null : w.dice[g.id],
+          // 何を入れたかは、組の中の相談なので全員に見せてよい（声に出して相談する遊び）
+          parts: w.parts[g.id] || {},
+          sum: S.splitSum(w.parts[g.id] || {}),
+          locked: !!w.locked[g.id],
+          solo: !!w.solo[g.id],
+          auto: !!w.autoUsed[g.id]
+        })),
+        last: w.last
+      };
+    },
+    submitAction(room, memberId, act, payload) {
+      const w = room.sugoroku;
+      const g = groupOf(w, memberId);
+      if (!g) return { ok: false, error: 'not_expected' };
+      if (w.phase === PHASE.ROLL) {
+        if (act !== 'roll') return { ok: false, error: 'bad_action' };
+        if (w.dice[g.id] != null) return { ok: false, error: 'taken' };
+        w.dice[g.id] = S.rollDice(rndOf(w));
+        prepareSplit(room, g);
+        markGroupDone(room, g);
+        return { ok: true, allDone: isAllDone(room) };
+      }
+      if (w.phase === PHASE.SPLIT) {
+        if (w.locked[g.id]) return { ok: false, error: 'taken' };
+        if (act === 'split') {
+          const n = Math.max(0, (payload && payload.steps) | 0);
+          if (n > w.dice[g.id]) return { ok: false, error: 'bad_action' };
+          // 入れ物が無いまま来ても落ちない。受け口で例外を投げると、
+          // socket の向こうで何が起きたか誰にも分からなくなる
+          if (!w.parts[g.id]) prepareSplit(room, g);
+          w.parts[g.id][memberId] = n;
+          // 合計が出目とぴったり一致した時だけ確定する
+          if (S.splitReady(w.dice[g.id], w.parts[g.id])) {
+            w.locked[g.id] = true;
+            markGroupDone(room, g);
+          }
+          return { ok: true, allDone: isAllDone(room) };
+        }
+        return { ok: false, error: 'bad_action' };
+      }
+      return null;
+    },
+    advance(room) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.READY) { startRoll(room); return { changed: true }; }
+      if (w.phase === PHASE.ROLL) {
+        // 振っていない組は、サーバーが振る（止まらないことを優先）
+        livingGroups(room).forEach((g) => {
+          if (w.dice[g.id] == null) { w.dice[g.id] = S.rollDice(rndOf(w)); prepareSplit(room, g); }
+        });
+        startSplit(room);
+        return { changed: true };
+      }
+      if (w.phase === PHASE.SPLIT) {
+        settleSplits(room);
+        return { changed: true };
+      }
+      if (w.phase === PHASE.RESULT) {
+        if (w.goalCount > 0) { finish(room); return { changed: true }; }
+        const ev = maybeEvent(room);
+        if (ev) {
+          w.event = ev; w.lastEventId = ev.id;
+          applyEvent(room, ev);
+          setPhase(room, PHASE.EVENT);
+          w.deadline = Date.now() + EVENT_MS;
+          return { changed: true };
+        }
+        startRoll(room);
+        return { changed: true };
+      }
+      if (w.phase === PHASE.EVENT) { startRoll(room); return { changed: true }; }
+      return { changed: false };
+    },
+    // 決着は**組**で並べる。コインを使わないので、あがった順 → 距離 → 同着
+    resultView(room) {
+      const w = room.sugoroku;
+      const spec = S.gameById(w.game) || {};
+      const ranked = S.rankPlayers('sugopair', w.groups.map((g) => ({
+        id: g.id, name: g.members.map((id) => w.names[id]).join('・'),
+        pos: g.pos, coins: 0, goalOrder: g.goalOrder
+      })));
+      return {
+        game: w.game, cells: spec.cells, coinsUsed: false, lap: w.lap, pairs: true,
+        players: ranked.map((p) => ({
+          name: p.name, pos: p.pos, rank: p.rank, tied: p.tied,
+          coins: null, goaled: p.goalOrder != null
+        }))
+      };
+    }
+  },
+
   // ---- ① こまはひとつ ----
   // 駒が1つしかない。毎ターン、それを動かす権利をミニゲームで奪い合う。
   // 段階が READY → MINI → PLAY → GRAB → RESULT と変わるので、
@@ -637,6 +804,92 @@ const GAME_RULES = {
     }
   }
 };
+
+// ===== 「ふたりでひとつ」の進行 =====
+
+function groupOf(w, memberId) {
+  return (w.groups || []).find((g) => g.members.indexOf(memberId) !== -1) || null;
+}
+// まだあがっていない組（部屋から全員消えた組は数えない）
+function livingGroups(room) {
+  const w = room.sugoroku;
+  return (w.groups || []).filter((g) =>
+    g.goalOrder == null && g.members.some((id) => room.members.has(id)));
+}
+// その組の全員を「済み」にする。待つ単位が組なので、済んだ組の人は待たれない
+function markGroupDone(room, g) {
+  const w = room.sugoroku;
+  g.members.forEach((id) => { w.done[id] = true; });
+}
+
+/**
+ * 配分の入れ物を用意する。
+ * **相方がいなくなった組は、残った1人が出目を全部使えるようにして、その場で確定する。**
+ * 「相談する相手がいないのに相談を待つ」状態を作らない（設計書の決めごと⑭）。
+ */
+function prepareSplit(room, g) {
+  const w = room.sugoroku;
+  const here = g.members.filter((id) => room.members.has(id));
+  if (here.length === 1) {
+    w.parts[g.id] = S.soloSplit(w.dice[g.id], here[0]);
+    w.locked[g.id] = true;
+    w.solo[g.id] = true;
+    return;
+  }
+  const parts = {};
+  here.forEach((id) => { parts[id] = 0; });
+  w.parts[g.id] = parts;
+}
+
+function startRoll(room) {
+  const w = room.sugoroku;
+  w.dice = {}; w.parts = {}; w.locked = {}; w.autoUsed = {}; w.solo = {};
+  w.moves = [];
+  setPhase(room, PHASE.ROLL);
+  w.deadline = Date.now() + PAIR_ROLL_SEC * 1000;
+}
+function startSplit(room) {
+  const w = room.sugoroku;
+  setPhase(room, PHASE.SPLIT);
+  // 相方がいなくなって既に確定した組は、待たない
+  livingGroups(room).forEach((g) => { if (w.locked[g.id]) markGroupDone(room, g); });
+  w.deadline = Date.now() + PAIR_SPLIT_SEC * 1000;
+}
+
+/**
+ * 締め切って、組ごとに駒を進める。
+ * まとまらなかった組は等分・端数切り捨て（S.autoSplit）。
+ * わずかに損をする形にしてあるのは「ちゃんと交渉した方が得」という誘導。
+ */
+function settleSplits(room) {
+  const w = room.sugoroku;
+  w.moves = [];
+  livingGroups(room).forEach((g) => {
+    if (!w.locked[g.id]) {
+      const here = g.members.filter((id) => room.members.has(id));
+      w.parts[g.id] = S.autoSplit(w.dice[g.id], here);
+      w.autoUsed[g.id] = true;
+      w.locked[g.id] = true;
+    }
+    const steps = S.splitSum(w.parts[g.id]);
+    const mv = S.applyMove(w.board, g.pos, steps);
+    g.pos = mv.to;
+    if (mv.goal && g.goalOrder == null) {
+      w.goalCount++;
+      g.goalOrder = w.goalCount;
+    }
+    w.moves.push({
+      groupId: g.id,
+      names: g.members.map((id) => w.names[id]),
+      dice: w.dice[g.id], steps, move: mv,
+      auto: !!w.autoUsed[g.id], solo: !!w.solo[g.id],
+      goal: g.goalOrder != null
+    });
+  });
+  w.last = { moves: w.moves };
+  setPhase(room, PHASE.RESULT);
+  w.deadline = Date.now() + RESULT_MS;
+}
 
 // ===== 「こまはひとつ」の進行 =====
 

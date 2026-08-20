@@ -65,7 +65,7 @@
       dice: true, sharedPiece: false,
       coins: false, startCoins: 0, cellKinds: [],
       events: 'none', tiebreak: 'same',
-      ready: false
+      ready: true      // 第36弾：1人1台で遊べるようになった（手渡しには対応しない）
     },
     // ③ ふたり：2人1組で1つの駒を共有し、出目を分け合う
     sugopair: {

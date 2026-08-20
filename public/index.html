@@ -4577,6 +4577,7 @@
 <script src="js/bomb-logic.js"></script>
 <script src="js/sugoroku-logic.js"></script>
 <script src="js/sugoroku-mini.js"></script>
+<script src="js/sugoroku-hide.js"></script>
 <script src="js/defuse-logic.js"></script>
 <script src="js/quiz-bank.js"></script>
 <script src="js/quiz-logic.js"></script>
@@ -4706,6 +4707,10 @@
     // ここの数字と食い違わないことは tests/sugoroku-logic.js が機械照合する
     // 駒が1つしかない。毎ターン、それを動かす権利をミニゲームで奪い合う
     // 2人1組で1つの駒。出た目を相談して分け合う
+    // 自分の位置は自分にしか見えない。申告では嘘をついてよい。
+    // 位置を他人に見せてはいけないので、1台を回す手渡しでは成立しない
+    {id:"sugohide", icon:"🌫️", title:"どこにいる？", sub:"自分の位置は自分だけが知っている・申告では嘘をついてよい", advanced:false, strict:false, oneWord:false, sugoroku:true, roomOnly:true, game:'sugohide', minPlayers:3,
+      bullets:["盤は30マス。1人1台で遊ぶ","進んだ結果は、自分の画面にしか出ない","毎ターン、誰か1人が「今どこにいるか」を聞かれる","嘘をついてもかまわない","ただし、その場所から見えるはずのものも一緒に答える","食い違うと矛盾がバレて、3マス戻る","あがりの判定はサーバーが本当の位置で行う（嘘では勝てません）"]},
     {id:"sugopair", icon:"🤝", title:"ふたりでひとつ", sub:"2人で1つの駒・出た目を相談して分け合う", advanced:false, strict:false, oneWord:false, sugoroku:true, game:'sugopair', minPlayers:4,
       bullets:["盤は40マス。2人1組で1つの駒を動かす","組はランダムに決まる（自分たちでは選べません）","サイコロを振って、出た目を2人で分け合う","合計が出目とぴったり合えば確定","まとまらない時は自動で半分ずつ（端数は切り捨て）","先にあがった組の勝ち。届かなければ進んだ距離で順位"]},
     {id:"sugograb", icon:"🀄", title:"こまはひとつ", sub:"ミニゲームで勝った人だけが、たった1つの駒を動かせる", advanced:false, strict:false, oneWord:false, sugoroku:true, game:'sugograb', minPlayers:3,
@@ -4777,7 +4782,7 @@
     // 通行料の読み合いが芯なので「かけひき」の段に置く。
     // 「どこにいる？」が入ったら「正体をさぐる」の段にも並べることになる
     { id:'sugoroku',        genre:['deal'], ready:true,  icon:'🎲', title:'すご<br>ろく',
-      games:['sugograb', 'sugopair', 'sugotoll'],
+      games:['sugograb', 'sugopair', 'sugohide', 'sugotoll'],
       theme:'sugoroku',
       meta:'3〜8人 / 20分〜<br>先頭ほど、進むのが高くつく' },
     { id:'word-soon-1',     genre:['word'],  ready:false, icon:'？' },
@@ -5769,6 +5774,7 @@
     { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う', usesTopicPool:true },
     // 第36弾：カセット「すごろく」。盤・サイコロ・順位は sugoroku-logic.js が正本。
     // お題プールもAIも使わない（マス目と数字だけで成り立つ遊び）
+    { id:'sugohide',        title:'どこにいる？',     icon:'🌫️', sub:'自分の位置は自分だけが知っている・申告では嘘をついてよい', maxPlayers:6 },
     { id:'sugopair',        title:'ふたりでひとつ',   icon:'🤝', sub:'2人で1つの駒・出た目を相談して分け合う', maxPlayers:8 },
     { id:'sugograb',        title:'こまはひとつ',       icon:'🀄', sub:'ミニゲームで勝った人だけが、たった1つの駒を動かせる', maxPlayers:8 },
     { id:'sugotoll',        title:'つうこうりょう',     icon:'🎲', sub:'先頭ほど通行料が高い・払えないと進めない', maxPlayers:8 }
@@ -7001,7 +7007,7 @@
     'scr-auction-bid', 'scr-auction-handoff', 'scr-auction-question', 'scr-auction-result',
     'scr-wolf-pass', 'scr-wolf-gather', 'scr-wolf-result',
     'scr-wr-pass', 'scr-wr-day', 'scr-wr-gather', 'scr-wr-result', 'scr-nightfall',
-    'scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-big'
+    'scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku', 'scr-rt-big'
   ];
   function canGoBackOne(screenId){
     if(BACK_FREE_SCREENS.indexOf(screenId) !== -1) return false;
@@ -7142,7 +7148,7 @@
     if(id === 'scr-cassette') enterCassetteDetail();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
-    if(id === 'scr-rt-play' || id === 'scr-rt-bomb' || id === 'scr-rt-defuse' || id === 'scr-rt-quiz' || id === 'scr-rt-auction' || id === 'scr-rt-big') rtRender();
+    if(id === 'scr-rt-play' || id === 'scr-rt-bomb' || id === 'scr-rt-defuse' || id === 'scr-rt-quiz' || id === 'scr-rt-auction' || id === 'scr-rt-sugoroku' || id === 'scr-rt-big') rtRender();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -7497,6 +7503,7 @@
     var LEADS = {
       sugograb: '駒は全員で1つだけ。毎ターン、ミニゲームで勝った人がそれを動かせます。負けた人の扱いと、盤をゆさぶるできごとを決めよう。',
       sugopair: '2人1組で1つの駒を動かします。組はランダムに決まります。盤をゆさぶるできごとを起こすかどうかを決めよう。',
+      sugohide: '自分の位置は、自分の画面にしか出ません。毎ターン誰か1人が「今どこにいるか」を聞かれます。嘘をついてもかまいません。',
       sugotoll: '先頭に近い人ほど、進むのに払うコインが増えます。長く先頭が続いた時に、盤をゆさぶるできごとを起こすかどうかを決めよう。'
     };
     el('sugoWizLead').textContent = LEADS[m.game] || LEADS.sugotoll;
@@ -8867,7 +8874,8 @@
     // 第36弾：すごろく
     sugotoll: rtSugorokuConfig,
     sugograb: rtSugorokuConfig,
-    sugopair: rtSugorokuConfig
+    sugopair: rtSugorokuConfig,
+    sugohide: rtSugorokuConfig
   };
   el('rtStartBtn').addEventListener('click', async function(){
     var m = modeById(state.selectedModeId);
@@ -9009,6 +9017,141 @@
       pairStyle: state.sgkCfg.pairStyle || 'even',
       preset: state.selectedModeId
     };
+  }
+
+  // ===================== すごろく：1人1台の画面 =====================
+  //
+  // 4ゲームで1枚を共有する。盤の描き方は手渡し版と同じ部品（boardLayout・cellKind・
+  // pieceFor）を通すので、見え方が2つに割れない（落とし穴1）。
+  //
+  // **「どこにいる？」だけは、実位置を持っていない。** サーバーが公開ビューに
+  // 入れていないので、この画面は「自分の位置（privateFor）」と
+  // 「みんなが申告した区画」しか描けない。それが正しい。
+  function renderRtSugoroku(){
+    var v = rtView();
+    if(!v || !v.board) return;
+    var you = rt.state.secret;
+    rtSugoBoard(v, you);
+    rtSugoStatus(v, you);
+    rtSugoTop(v);
+    rtSugoAct(v, you);
+    el('rtSugoLeaveBtn').style.display = (v.phase === 'ended') ? '' : 'none';
+  }
+
+  // 盤。駒の置き方はゲームによって違う（人ごと／1つだけ／組ごと／隠れている）
+  function rtSugoBoard(v, you){
+    var lay = SugorokuLogic.boardLayout(v.board);
+    var byCell = {};
+    if(v.sharedPiece){
+      byCell[v.piece] = ['shared'];
+    } else if(v.pairs){
+      (v.groups || []).forEach(function(g, i){ (byCell[g.pos] = byCell[g.pos] || []).push(i); });
+    } else if(v.hidden){
+      // 実位置は誰も知らない。**自分の駒だけ**、自分の秘密から置く
+      if(you && you.pos != null) byCell[you.pos] = ['me'];
+    } else {
+      (v.players || []).forEach(function(p, i){
+        if(p.pos == null) return;
+        (byCell[p.pos] = byCell[p.pos] || []).push(i);
+      });
+    }
+    var host = el('rtSugoBoard');
+    host.style.gridTemplateColumns = 'repeat(' + lay.cols + ', 1fr)';
+    host.innerHTML = '<svg class="sugo-path" id="rtSugoPath" aria-hidden="true"></svg>' +
+      lay.cells.map(function(c){
+        var kind = SugorokuLogic.cellKind(c.kind);
+        var j = sugoJitter(c.i);
+        var list = byCell[c.i] || [];
+        var pieces = list.map(function(idx){
+          if(idx === 'shared') return '<b class="sugo-piece" style="font-size:18px;">◉</b>';
+          if(idx === 'me') return '<b class="sugo-piece" style="font-size:18px;color:var(--stamp);">◆</b>';
+          return '<b class="sugo-piece">' + SugorokuLogic.pieceFor(idx).shape + '</b>';
+        }).join('');
+        return '<div class="sugo-cell tone-' + kind.tone + '" data-i="' + c.i + '"' +
+          ' style="grid-row:' + (c.row + 1) + ';grid-column:' + (c.col + 1) + ';' +
+          'transform:translate(' + j.dx.toFixed(2) + 'px,' + j.dy.toFixed(2) + 'px) rotate(' + j.rot.toFixed(2) + 'deg);">' +
+          (kind.icon ? '<span class="sugo-icon">' + kind.icon + '</span>' : '') +
+          (pieces ? '<span class="sugo-pieces" data-many="' + manyKey(list.length) + '">' + pieces + '</span>' : '') +
+          '</div>';
+      }).join('');
+    sugoDrawPath(host);
+  }
+
+  // 一覧。ゲームによって出すものが違う
+  function rtSugoStatus(v, you){
+    var goal = v.cells;
+    var rows;
+    if(v.pairs){
+      rows = (v.groups || []).map(function(g, i){
+        return { mark: SugorokuLogic.pieceFor(i).shape, name: g.names.join('・'),
+          left: g.goalOrder != null ? 'あがり' : ('あと' + (goal - g.pos)),
+          side: '', now: false, goaled: g.goalOrder != null };
+      });
+    } else if(v.hidden){
+      // **他人の位置は書けない。** 書けるのは「最後に申告した区画」だけ
+      rows = (v.players || []).map(function(p){
+        var area = p.saidArea ? (SugorokuHide.areaById(p.saidArea) || {}).name : null;
+        return { mark: p.id === (you && you.id) ? '◆' : '○', name: p.name,
+          left: area ? ('「' + area + '」' + (p.asking ? '' : 'と申告')) : 'まだ申告なし',
+          side: p.asking ? '申告中' : '', now: !!p.asking, goaled: p.goalOrder != null };
+      });
+    } else if(v.sharedPiece){
+      rows = (v.players || []).map(function(p){
+        return { mark: '', name: p.name, left: p.rank ? (p.rank + '位') : '−',
+          side: v.coinsUsed ? ('🪙' + p.coins) : '', now: !!p.moving, goaled: false };
+      });
+    } else {
+      rows = (v.players || []).map(function(p, i){
+        return { mark: SugorokuLogic.pieceFor(i).shape, name: p.name,
+          left: p.goalOrder != null ? 'あがり' : ('あと' + (goal - p.pos)),
+          side: (v.coinsUsed ? ('🪙' + p.coins) : '') + (p.rank ? ('　' + p.rank + '位') : ''),
+          now: !!(v.turn && v.turn.id === p.id), goaled: p.goalOrder != null };
+      });
+    }
+    el('rtSugoMe').innerHTML = rows.map(function(x){
+      return '<div class="sugo-row' + (x.now ? ' now' : '') + (x.goaled ? ' goaled' : '') + '">' +
+        (x.mark ? '<b class="sugo-piece">' + x.mark + '</b>' : '') +
+        '<span class="sugo-name">' + escapeHtml(x.name) + '</span>' +
+        '<span class="sugo-left">' + escapeHtml(x.left) + '</span>' +
+        (x.side ? '<span class="sugo-coin">' + escapeHtml(x.side) + '</span>' : '') +
+        '</div>';
+    }).join('');
+  }
+
+  // 上の帯。**ここ1か所だけが書く**（手渡し版と同じ決めごと）
+  function rtSugoTop(v){
+    var left = '';
+    if(v.event) left = v.event.icon + ' ' + v.event.title + '中';
+    else if(v.sharedPiece) left = 'こまは あと' + (v.cells - v.piece);
+    else if(v.mini) left = v.mini.title;
+    el('rtSugoLap').textContent = left;
+    var who = v.sayer ? (v.sayer.name + ' さんが申告します')
+      : (v.turn ? (v.turn.name + ' さんの番') : '');
+    el('rtSugoTurn').innerHTML = who ? '<span>' + escapeHtml(who) + '</span>' : '';
+  }
+
+  // いま自分が何をする番か。**することが無い人には、待っていることだけを出す**
+  function rtSugoAct(v, you){
+    var d = el('rtSugoDice');
+    var mine = rtSugoMyTurn(v, you);
+    d.style.display = mine === 'roll' ? '' : 'none';
+    d.classList.toggle('done', v.phase === 'ended');
+    var note = '', hint = '';
+    if(v.phase === 'ready'){ note = 'じゅんびはいい？'; hint = '画面をタップ'; }
+    else if(v.phase === 'ended'){ note = 'おしまい'; hint = ''; }
+    else if(mine === 'roll'){ note = 'あなたの番'; hint = '長押ししてスワイプ（そのまま離しても振れます）'; }
+    else if(mine === 'say'){ note = 'あなたが申告します'; hint = 'どこにいるか答えてください'; }
+    else if(v.waiting && v.waiting.length){ note = ''; hint = v.waiting.join('・') + ' さんを待っています'; }
+    el('rtSugoNote').textContent = note;
+    el('rtSugoHint').textContent = hint;
+  }
+  function rtSugoMyTurn(v, you){
+    var me = rt.state.memberId;
+    if(v.phase === 'turn' && v.turn && v.turn.id === me) return 'roll';
+    if(v.phase === 'grab' && v.turn && v.turn.id === me) return 'roll';
+    if(v.phase === 'roll') return 'roll';
+    if(v.phase === 'say' && v.sayer && v.sayer.id === me) return 'say';
+    return null;
   }
 
   // ===================== 第21弾 第6・7部：1人1台の画面 =====================
@@ -9206,7 +9349,8 @@
     // 第36弾：すごろく。5ゲームとも1枚を共有する（中身を差し替える）
     sugotoll: 'scr-rt-sugoroku',
     sugograb: 'scr-rt-sugoroku',
-    sugopair: 'scr-rt-sugoroku'
+    sugopair: 'scr-rt-sugoroku',
+    sugohide: 'scr-rt-sugoroku'
   };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
@@ -9243,6 +9387,7 @@
     else if(cur === 'scr-rt-defuse') renderRtDefuse();
     else if(cur === 'scr-rt-quiz') renderRtQuiz();
     else if(cur === 'scr-rt-auction') renderRtAuction();
+    else if(cur === 'scr-rt-sugoroku') renderRtSugoroku();
     else if(cur === 'scr-rt-play') renderRtPlay();
   }
   function rtRender(){
@@ -12369,7 +12514,7 @@
   // ---- 第4部：リアクション ----
   // realtime.js の REACTION_EMOJI と同じ並び（食い違いはテストが見張る）
   var REACTIONS = ['👏', '😂', '😮', '❤️', '🔥'];
-  var RT_GAME_SCREEN_IDS = ['scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction'];
+  var RT_GAME_SCREEN_IDS = ['scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku'];
   el('reactBar').innerHTML = REACTIONS.map(function(e){
     return '<button class="react-btn" data-react="' + e + '">' + e + '</button>';
   }).join('');

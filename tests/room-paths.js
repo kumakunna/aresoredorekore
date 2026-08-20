@@ -392,6 +392,33 @@ async function run() {
     }
   });
 
+  await r.test('部屋のゲーム画面が、ちゃんと描画に繋がっている（第36弾）', async () => {
+    // **器（HTML）だけ足して、描画の呼び出しを忘れる**という抜け方を防ぐ。
+    // すごろく3ゲームで実際に起きた：サーバー側は正しく動き、部屋の自動テストも
+    // 通るのに、画面には何も出ない（描画関数も分岐も無かった）。
+    // 通信と状態しか見ないテストでは、画面の不在を捕まえられない。
+    const fs2 = require('fs');
+    const path2 = require('path');
+    const html = fs2.readFileSync(path2.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // RT_GAME_SCREENS が指している画面（＝部屋で使う画面）を正本にする
+    const m = html.match(/var RT_GAME_SCREENS = \{([\s\S]*?)\};/);
+    assert(m, 'RT_GAME_SCREENS がindex.htmlに存在する');
+    const screens = Array.from(new Set(
+      Array.from(m[1].matchAll(/'(scr-rt-[a-z-]+)'/g)).map((x) => x[1])
+    ));
+    assert(screens.length >= 5, '部屋の画面が抽出できている（いま' + screens.length + '件）');
+    for (const id of screens) {
+      // ① 描き直しの分岐（rtRenderCurrent）に入っている
+      assert(new RegExp("cur === '" + id + "'").test(html),
+        id + ' が rtRenderCurrent の分岐に無い（画面に何も出ない）');
+      // ② 画面へ移った時の描画（goTo）に入っている
+      assert(new RegExp("id === '" + id + "'").test(html),
+        id + ' が goTo の描画呼び出しに無い（開いた直後が空になる）');
+      // ③ 部屋のゲーム画面の一覧（リアクション・状況ボタンが出る側）に入っている
+      assert(html.indexOf("RT_GAME_SCREEN_IDS = [") !== -1, 'RT_GAME_SCREEN_IDS がある');
+    }
+  });
+
   await r.test('入室経路の正本に、担当テストの割り当てが揃っている（第35弾E・正本ループ）', async () => {
     // 入室経路はUI・URL・socketと性質が違い、1本のループでは回せない。
     // 代わりに「経路→それを固定しているテスト」の対応表をここに置き、

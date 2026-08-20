@@ -74,10 +74,21 @@ function start(n, cfg) {
   });
 
   await r.test('まだ完成していないすごろくは始められない', async () => {
-    const room = makeRoom(4);
-    const res = R.startGame(room, { game: 'sugohide' });
-    assertEqual(res.ok, false, '準備中のゲームは始まらない');
-    assertEqual(res.error, 'not_ready', '理由が分かる');
+    // **どのゲームが未完成かは、実装が進むたびに変わる。**
+    // 検体をゲーム名で決め打ちすると、そのゲームが完成した日に赤くなる（実際になった）。
+    // 見たいのは「ready の門が効くこと」なので、門そのものを試す
+    const g = S.gameById('sugotoll');
+    const was = g.ready;
+    try {
+      g.ready = false;
+      const room = makeRoom(4);
+      const res = R.startGame(room, { game: 'sugotoll' });
+      assertEqual(res.ok, false, '準備中のゲームは始まらない');
+      assertEqual(res.error, 'not_ready', '理由が分かる');
+    } finally { g.ready = was; }
+    // 性格表に無いゲームも、当然始まらない
+    assertEqual(R.startGame(makeRoom(4), { game: 'sonzai-shinai' }).error, 'not_ready',
+      '知らないゲームも断る');
   });
 
   await r.test('始まると、全員がふりだしで同じ枚数のコインを持つ', async () => {

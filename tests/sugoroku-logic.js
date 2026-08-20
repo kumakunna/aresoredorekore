@@ -478,6 +478,80 @@ const SPEC = {
     assertEqual(ranked[0].rank, 1, '順位が足される');
   });
 
+  // ---- ふたりでひとつ ----
+
+  await r.test('組はランダムに作られる（自分たちで選ばせない）', async () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const g1 = S.makePairs(ids, 'even', rndSeq([0.9, 0.1, 0.7, 0.3, 0.5]));
+    const g2 = S.makePairs(ids, 'even', rndSeq([0.2, 0.8, 0.4, 0.6, 0.1]));
+    const flat = (g) => g.map((x) => x.join('')).join('|');
+    assert(flat(g1) !== flat(g2), '乱数が違えば組も違う（固定の並びになっていない）');
+    // 全員がちょうど1つの組に入る
+    [g1, g2].forEach((gs) => {
+      const seen = gs.flat();
+      assertEqual(seen.length, ids.length, '全員が入る');
+      assertEqual(new Set(seen).size, ids.length, '同じ人が2つの組に入らない');
+    });
+  });
+
+  await r.test('偶数なら、すべて2人組になる', async () => {
+    [4, 6, 8].forEach((n) => {
+      const ids = Array.from({ length: n }, (_, i) => 'p' + i);
+      const gs = S.makePairs(ids, 'even', rndHalf);
+      gs.forEach((g) => assertEqual(g.length, 2, n + '人：2人組でない組がある'));
+      assertEqual(gs.length, n / 2, n + '人：組の数');
+    });
+  });
+
+  await r.test('奇数の分け方が、決めごとどおりに違う（9人）', async () => {
+    const ids = Array.from({ length: 9 }, (_, i) => 'p' + i);
+    const even = S.makePairs(ids, S.PAIR_STYLE.EVEN, rndHalf).map((g) => g.length).sort();
+    const one = S.makePairs(ids, S.PAIR_STYLE.ONE, rndHalf).map((g) => g.length).sort();
+    assertEqual(even.join('-'), '3-3-3', 'うまいこと＝3人組を均等に散らす');
+    assertEqual(one.join('-'), '2-2-2-3', '1つだけ＝3人組は1つ、あとは2人組');
+  });
+
+  await r.test('5人・7人では分け方が同じなので、選択肢を出す意味が無い', async () => {
+    [5, 7].forEach((n) => {
+      assertEqual(S.pairStylesDiffer(n), false, n + '人では同じ結果になる');
+      const ids = Array.from({ length: n }, (_, i) => 'p' + i);
+      const even = S.makePairs(ids, 'even', rndHalf).map((g) => g.length).sort().join('-');
+      const one = S.makePairs(ids, 'one', rndHalf).map((g) => g.length).sort().join('-');
+      assertEqual(even, one, n + '人：実際に同じ形になる');
+    });
+    assertEqual(S.pairStylesDiffer(9), true, '9人では違う結果になるので聞く');
+    assertEqual(S.pairStylesDiffer(6), false, '偶数では聞かない');
+  });
+
+  await r.test('配分は、合計が出目とぴったり一致した時だけ確定する', async () => {
+    assertEqual(S.splitReady(5, { a: 3, b: 2 }), true, 'ぴったりなら確定');
+    assertEqual(S.splitReady(5, { a: 2, b: 2 }), false, '少ないと確定しない');
+    assertEqual(S.splitReady(5, { a: 4, b: 2 }), false, '多くても確定しない（出目より進めない）');
+    assertEqual(S.splitReady(6, { a: 6, b: 0 }), true, '片方が0でもよい（全部まかせる形）');
+    assertEqual(S.splitReady(5, {}), false, '誰も入れていなければ確定しない');
+    assertEqual(S.splitSum({ a: 3, b: 2 }), 5, '合計が出る');
+  });
+
+  await r.test('まとまらない時は等分。端数は切り捨てて、わずかに損をする', async () => {
+    // 「ちゃんと交渉した方が得」という誘導（指示書どおり）
+    const two = S.autoSplit(5, ['a', 'b']);
+    assertEqual(two.a + two.b, 4, '出目5が4マスになる（1マス分が失われる）');
+    assertEqual(two.a, two.b, '等分される');
+    const even = S.autoSplit(6, ['a', 'b']);
+    assertEqual(even.a + even.b, 6, '割り切れる時は損をしない');
+    const three = S.autoSplit(5, ['a', 'b', 'c']);
+    assertEqual(three.a + three.b + three.c, 3, '3人組でも切り捨て');
+  });
+
+  await r.test('相方がいなくなったら、残った1人が出目を全部使える', async () => {
+    // 「相談する相手がいないのに相談を待つ」状態を作らない（決めごと⑭）。
+    // これが、このゲーム固有の止まり方への備え
+    const solo = S.soloSplit(6, 'a');
+    assertEqual(solo.a, 6, '出目をそのまま使える');
+    assertEqual(S.splitReady(6, solo), true, 'そのまま確定する（待たされない）');
+    assertEqual(Object.keys(solo).length, 1, '居ない人の枠は作らない');
+  });
+
   // ---- 人数のチェック ----
 
   await r.test('人数の下限・上限が、両方向に効く（落とし穴8）', async () => {

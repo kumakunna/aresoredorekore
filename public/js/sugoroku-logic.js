@@ -500,6 +500,86 @@
     return out;
   }
 
+  // ===== ふたりでひとつ（sugopair）のルール =====
+  //
+  // 駒が「人」ではなく「組」に付く。出た目を2人で相談して分け合う。
+  // 手渡しでも1人1台でも遊べるので、計算はここに置く（落とし穴1）。
+
+  var PAIR_STYLE = { EVEN: 'even', ONE: 'one' };   // 奇数のときの組み分け
+
+  /**
+   * 組を作る。**ランダム。自分たちで選ばせない**（組み合わせの妙も含めた遊び）。
+   *
+   * 奇数のときの決めごと⑤:
+   *   'even' … 3人組をなるべく均等に散らす（9人なら 3・3・3）
+   *   'one'  … 3人組は必ず1つ、残りは全部2人組（9人なら 3・2・2・2）
+   * 5人・7人ではどちらも同じ結果になるので、画面はその時に選択肢を出さない。
+   */
+  function makePairs(ids, style, rnd) {
+    var list = (ids || []).slice();
+    var r = rnd || Math.random;
+    for (var i = list.length - 1; i > 0; i--) {      // 並びを混ぜる
+      var j = Math.floor(r() * (i + 1));
+      var t = list[i]; list[i] = list[j]; list[j] = t;
+    }
+    var n = list.length;
+    var threes = 0;
+    if (n % 2 === 1) {
+      // 3人組をいくつ作るか。even は均等に散らす（3で割り切れるならすべて3人組）
+      threes = (style === PAIR_STYLE.EVEN && n % 3 === 0) ? (n / 3) : 1;
+    }
+    var groups = [];
+    var at = 0;
+    for (var k = 0; k < threes; k++) { groups.push(list.slice(at, at + 3)); at += 3; }
+    while (at < n) { groups.push(list.slice(at, at + 2)); at += 2; }
+    return groups;
+  }
+
+  /** 奇数のときに、2つの分け方が違う結果になるか（同じなら聞く意味が無い） */
+  function pairStylesDiffer(n) {
+    if ((n | 0) % 2 === 0) return false;
+    return (n | 0) % 3 === 0 && n >= 9;
+  }
+
+  /**
+   * 配分が確定したか。**合計が出目とぴったり一致した時だけ**。
+   * 多くても少なくても確定しない（多い方を許すと、出目より進めてしまう）。
+   */
+  function splitReady(dice, parts) {
+    var vals = Object.keys(parts || {}).map(function (k) { return Math.max(0, parts[k] | 0); });
+    if (!vals.length) return false;
+    var sum = vals.reduce(function (a, b) { return a + b; }, 0);
+    return sum === (dice | 0);
+  }
+  function splitSum(parts) {
+    return Object.keys(parts || {}).reduce(function (a, k) {
+      return a + Math.max(0, parts[k] | 0);
+    }, 0);
+  }
+
+  /**
+   * まとまらなかった時の自動配分。**等分して、端数は切り捨てる**。
+   * 例：出目5を2人なら 2＋2 で1マス分が失われる。
+   * わずかに損をする形にしてあるのは、「ちゃんと交渉した方が得」という誘導のため。
+   */
+  function autoSplit(dice, memberIds) {
+    var ids = (memberIds || []).slice();
+    var each = Math.floor((dice | 0) / Math.max(1, ids.length));
+    var out = {};
+    ids.forEach(function (id) { out[id] = each; });
+    return out;
+  }
+
+  /**
+   * 相方がいなくなった組の配分。**残った1人が出目を全部使える。**
+   * 「相談する相手がいないのに相談を待つ」状態を作らない（決めごと⑭）。
+   */
+  function soloSplit(dice, memberId) {
+    var out = {};
+    out[memberId] = Math.max(0, dice | 0);
+    return out;
+  }
+
   // ===== 突然イベント =====
   //
   // イベントは1つの一覧に集め、**どのゲームで起こるかをデータで持つ**。
@@ -616,6 +696,8 @@
     eventsFor: eventsFor, pickEvent: pickEvent, applyEventTo: applyEventTo,
     checkPlayerCount: checkPlayerCount,
     TOLL_RELIEF: TOLL_RELIEF, tollFor: tollFor, tollOutcome: tollOutcome,
-    tollTurn: tollTurn
+    tollTurn: tollTurn,
+    PAIR_STYLE: PAIR_STYLE, makePairs: makePairs, pairStylesDiffer: pairStylesDiffer,
+    splitReady: splitReady, splitSum: splitSum, autoSplit: autoSplit, soloSplit: soloSplit
   };
 }));

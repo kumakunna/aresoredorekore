@@ -7148,7 +7148,7 @@
     if(id === 'scr-cassette') enterCassetteDetail();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
-    if(id === 'scr-rt-play' || id === 'scr-rt-bomb' || id === 'scr-rt-defuse' || id === 'scr-rt-quiz' || id === 'scr-rt-auction' || id === 'scr-rt-sugoroku' || id === 'scr-rt-big') rtRender();
+    if(RT_GAME_SCREEN_IDS.indexOf(id) !== -1 || id === 'scr-rt-big') rtRender();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -9390,15 +9390,26 @@
     else if(cur === 'scr-rt-sugoroku') renderRtSugoroku();
     else if(cur === 'scr-rt-play') renderRtPlay();
   }
+  /**
+   * 第36弾：**描き分けは rtRenderCurrent ひとつに集約する。**
+   *
+   * ここには以前「ゲームidで分ける二つ目の一覧」があった。
+   * すごろくを rtRenderCurrent にだけ足したので、
+   * 「画面に入った直後は人狼の描画が走って盤が空、
+   * 　次の配信が届いた時だけ盤が出る」という抜け方をした（落とし穴4）。
+   *
+   * goTo はこの関数を、画面を切り替えた**あと**で呼ぶので、
+   * ここから現在の画面を見れば、同じ1つの分岐を通せる。
+   */
   function rtRender(){
     if(rtIsBigScreen()){ renderRtBig(); return; }
-    var game = rtRoomGameId();
-    if(game === 'bomb'){ renderRtBomb(); return; }
-    if(game === 'defuse'){ renderRtDefuse(); return; }
-    if(RT_QUIZ_GAMES.indexOf(game) !== -1){ renderRtQuiz(); return; }
-    if(game === 'auction'){ renderRtAuction(); return; }
-    renderRtPlay();
+    rtRenderCurrent();
   }
+  // 部屋のゲーム画面の一覧。**RT_GAME_SCREENS から導く**ので、
+  // ゲームを足した時に片方だけ更新されることが起きない（落とし穴4）
+  var RT_GAME_SCREEN_IDS = Object.keys(RT_GAME_SCREENS)
+    .map(function(g){ return RT_GAME_SCREENS[g]; })
+    .filter(function(id, i, a){ return a.indexOf(id) === i; });
   // いま部屋で遊んでいるゲームのid（何も選ばれていなければ null）
   function rtRoomGameId(){
     var room = rt && rt.state.room;
@@ -12514,7 +12525,6 @@
   // ---- 第4部：リアクション ----
   // realtime.js の REACTION_EMOJI と同じ並び（食い違いはテストが見張る）
   var REACTIONS = ['👏', '😂', '😮', '❤️', '🔥'];
-  var RT_GAME_SCREEN_IDS = ['scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku'];
   el('reactBar').innerHTML = REACTIONS.map(function(e){
     return '<button class="react-btn" data-react="' + e + '">' + e + '</button>';
   }).join('');

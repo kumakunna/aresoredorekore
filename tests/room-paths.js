@@ -379,7 +379,7 @@ async function run() {
       ['THEME_FREE_SCREENS', /THEME_FREE_SCREENS = \[([^\]]*)\]/],
       ['noGear', /var noGear = \[([^\]]*)\]/],
       ['RT_SCREENS', /var RT_SCREENS = \[([^\]]*)\]/],
-      ['RT_GAME_SCREEN_IDS', /var RT_GAME_SCREEN_IDS = \[([^\]]*)\]/],
+      // RT_GAME_SCREEN_IDS は第36弾から RT_GAME_SCREENS 由来（手書きではない）ので、ここでは見ない
     ];
     for (const [name, re] of LISTS) {
       const m = html.match(re);
@@ -411,12 +411,21 @@ async function run() {
       // ① 描き直しの分岐（rtRenderCurrent）に入っている
       assert(new RegExp("cur === '" + id + "'").test(html),
         id + ' が rtRenderCurrent の分岐に無い（画面に何も出ない）');
-      // ② 画面へ移った時の描画（goTo）に入っている
-      assert(new RegExp("id === '" + id + "'").test(html),
-        id + ' が goTo の描画呼び出しに無い（開いた直後が空になる）');
-      // ③ 部屋のゲーム画面の一覧（リアクション・状況ボタンが出る側）に入っている
-      assert(html.indexOf("RT_GAME_SCREEN_IDS = [") !== -1, 'RT_GAME_SCREEN_IDS がある');
     }
+    // ② 画面へ移った時の描画も、同じ一覧から引いている。
+    //    goTo に画面idを手で並べていると、足し忘れて「開いた直後が空」になる
+    assert(html.indexOf("if(RT_GAME_SCREEN_IDS.indexOf(id) !== -1 || id === 'scr-rt-big') rtRender();") !== -1,
+      'goTo が RT_GAME_SCREEN_IDS から引いていない（画面idの手書きが復活している）');
+    // ③ その一覧そのものも RT_GAME_SCREENS から導いている（手書きに戻っていない）
+    assert(html.indexOf('var RT_GAME_SCREEN_IDS = Object.keys(RT_GAME_SCREENS)') !== -1,
+      'RT_GAME_SCREEN_IDS が手書きに戻っている');
+    // ④ 描き分けが2か所に割れていない。
+    //    以前 rtRender に「ゲームidで分ける二つ目の一覧」があり、すごろくだけそこから落ちた。
+    //    画面に入った直後だけ人狼の描画が走り、盤が空のままだった（落とし穴4）
+    const body = (html.match(/function rtRender\(\)\{([\s\S]*?)\n  \}/) || [])[1] || '';
+    assert(body.indexOf('rtRenderCurrent()') !== -1, 'rtRender が rtRenderCurrent を通っていない');
+    assert(body.indexOf('rtRoomGameId()') === -1,
+      'rtRender に二つ目の振り分け（ゲームidで分ける一覧）が復活している');
   });
 
   await r.test('入室経路の正本に、担当テストの割り当てが揃っている（第35弾E・正本ループ）', async () => {

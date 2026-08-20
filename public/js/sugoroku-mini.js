@@ -69,7 +69,7 @@
     fingers: {
       id: 'fingers', kind: 'mind', title: 'ゆびの かずあて',
       lead: 'せーので、0〜5本を出す',
-      note: '**いちばん珍しい本数**を出した人が勝ち。かぶるほど順位が下がる',
+      note: 'いちばん珍しい本数を出した人が勝ち。かぶるほど順位が下がる',
       simulInput: true, sec: 14
     }
   };

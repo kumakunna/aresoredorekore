@@ -3182,7 +3182,7 @@
        1画面につき、やることは1つだけ。決めるのは「突然のできごと」の有無だけにしてある -->
   <div class="screen" id="scr-set-sugoroku">
     <div class="wiz-head"><span class="wiz-step" id="wizStepSugoroku"></span><h2 class="scr-title">すごろくの設定</h2></div>
-    <p class="wiz-lead">先頭に近い人ほど、進むのに払うコインが増えます。長く先頭が続いた時に、盤をゆさぶるできごとを起こすかどうかを決めよう。</p>
+    <p class="wiz-lead" id="sugoWizLead"></p>
     <div class="wiz-body">
       <div class="timer-dmode" id="sugoLosersWrap" style="display:none;margin-bottom:14px;">
         <div class="tp-label">1位以外も、少し動く</div>
@@ -7418,6 +7418,11 @@
   function renderSugorokuStep(){
     // 「1位以外も少し動く」は、駒が1つのゲームだけの決めごと
     var m = modeById(state.selectedModeId) || {};
+    // 説明はゲームごとに書く。1枚の画面を共有しているので、
+    // 決め打ちにすると別のゲームの世界観がそのまま漏れる（落とし穴2）
+    el('sugoWizLead').textContent = (m.game === 'sugograb')
+      ? '駒は全員で1つだけ。毎ターン、ミニゲームで勝った人がそれを動かせます。負けた人の扱いと、盤をゆさぶるできごとを決めよう。'
+      : '先頭に近い人ほど、進むのに払うコインが増えます。長く先頭が続いた時に、盤をゆさぶるできごとを起こすかどうかを決めよう。';
     el('sugoLosersWrap').style.display = (m.game === 'sugograb') ? '' : 'none';
     Array.prototype.forEach.call(el('sugoLosersSeg').children, function(b){
       b.classList.toggle('on', (b.dataset.sugolosers === 'on') === (state.sgkCfg.losersMove !== false));
@@ -12535,12 +12540,28 @@
     if(!sugo) return;
     sugoRenderBoard();
     sugoRenderStatus();
-    var idx = sugo.order.indexOf(sugo.turnId);
-    // 巡の数は、遊んでいる人には意味が無い。
-    // 限られた場所は「いま何が効いているか」に使う
-    el('sugoLap').textContent = sugo.event ? (sugo.event.icon + ' ' + sugo.event.title + '中') : '';
-    el('sugoTurn').innerHTML = '<b class="sugo-piece">' +
-      SugorokuLogic.pieceFor(idx).shape + '</b><span>' +
+    sugoRenderTop();
+  }
+
+  /**
+   * 上の帯（いま効いているできごと／誰の番か）。**ここ1か所だけが書く。**
+   * 以前は sugoRenderStatus と sugoRender の両方が書いていて、
+   * あとから来た方に消されていた（型1：同じ場所を2か所が書く）。
+   */
+  function sugoRenderTop(){
+    if(sugo.event){
+      el('sugoLap').textContent = sugo.event.icon + ' ' + sugo.event.title + '中';
+    } else if(sugoIsGrab()){
+      el('sugoLap').textContent = 'こまは あと' + ((sugo.board.length - 1) - sugo.piece);
+    } else {
+      el('sugoLap').textContent = '';
+    }
+    if(!sugo.turnId){ el('sugoTurn').innerHTML = ''; return; }
+    // 駒が1つのゲームでは、駒は誰のものでもない。
+    // 人ごとの形を出すと「その人の駒」に見えるので、共有の印を使う
+    var shape = sugoIsGrab() ? '◉'
+      : SugorokuLogic.pieceFor(sugo.order.indexOf(sugo.turnId)).shape;
+    el('sugoTurn').innerHTML = '<b class="sugo-piece">' + shape + '</b><span>' +
       escapeHtml(sugo.names[sugo.turnId]) + ' さんの番</span>';
   }
 
@@ -12856,7 +12877,6 @@
   // こまはひとつの一覧。駒は共有なので「あと何マス」は全員に共通。
   // 人ごとに出すのはコインと、直前のミニゲームの順位
   function sugoRenderGrabStatus(){
-    var left = (sugo.board.length - 1) - sugo.piece;
     el('sugoMe').innerHTML = sugo.order.map(function(id, idx){
       var rk = (sugo.miniRank || []).find(function(x){ return x.id === id; });
       return '<div class="sugo-row' + (id === sugo.turnId ? ' now' : '') + '">' +
@@ -12865,9 +12885,6 @@
         '<span class="sugo-coin">🪙' + sugo.coins[id] + '</span>' +
         '</div>';
     }).join('');
-    el('sugoLap').textContent = sugo.event
-      ? (sugo.event.icon + ' ' + sugo.event.title + '中')
-      : ('こまは あと' + left);
   }
 
   // ---- 振る操作 ----

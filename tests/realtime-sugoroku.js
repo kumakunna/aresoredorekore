@@ -395,5 +395,94 @@ function playerOf(view, id) {
     } finally { await srv.close(); }
   });
 
+  // ================= ふたりでひとつ（待つ単位が「組」） =================
+
+  await r.test('ふたりでひとつ：4人が2組に分かれ、駒は組に付く', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 4);
+      const res = await host.call('wolf:start', { game: 'sugopair', events: false });
+      assertEqual(res.ok, true, '始められる');
+      await waitUntil(() => host.view().phase === 'ready', '確認へ');
+      const v = host.view();
+      assertEqual(v.pairs, true, '組で遊ぶと分かる');
+      assertEqual(v.groups.length, 2, '4人なら2組');
+      v.groups.forEach((g) => assertEqual(g.names.length, 2, '2人組'));
+      // 同じ組の2人は、同じ位置を見る
+      const byGroup = {};
+      v.players.forEach((p2) => { (byGroup[p2.groupId] = byGroup[p2.groupId] || []).push(p2.pos); });
+      Object.keys(byGroup).forEach((k) => {
+        assertEqual(new Set(byGroup[k]).size, 1, '同じ組は同じ位置');
+      });
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'roll', '振る段階へ');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('ふたりでひとつ：振った組は待たれず、他の組を止めない', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 4);
+      await host.call('wolf:start', { game: 'sugopair', events: false });
+      await waitUntil(() => host.view().phase === 'ready', '確認へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'roll', '振る段階へ');
+      const g0 = host.view().groups[0];
+      const one = all.find((d) => g0.names.indexOf(d.name) !== -1);
+      assertEqual((await one.call('wolf:act', { act: 'roll' })).ok, true, '組の誰かが振れる');
+      await waitUntil(() => host.view().groups[0].dice != null, '出目が届く');
+      const again = all.find((d) => d !== one && g0.names.indexOf(d.name) !== -1);
+      assertEqual((await again.call('wolf:act', { act: 'roll' })).error, 'taken',
+        '同じ組は2回振れない');
+      // まだ振っていない組がいても、振った組は待たれない
+      assertEqual(host.view().phase, 'roll', 'もう1組を待っている');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('ふたりでひとつ：合計が出目と一致した組だけが確定する', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 4);
+      await host.call('wolf:start', { game: 'sugopair', events: false });
+      await waitUntil(() => host.view().phase === 'ready', '確認へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'roll', '振る段階へ');
+      for (const d of all) await d.call('wolf:act', { act: 'roll' });
+      await waitUntil(() => host.view().phase === 'split', '配分の段階へ', 10000);
+      const w = srv.store.get(host.code).sugoroku;
+      const g = w.groups[0];
+      w.dice[g.id] = 5;
+      const ds = g.members.map((id) => all.find((d) => d.memberId === id));
+      await ds[0].call('wolf:act', { act: 'split', steps: 3 });
+      assertEqual(!!w.locked[g.id], false, '片方だけでは確定しない');
+      await ds[1].call('wolf:act', { act: 'split', steps: 1 });
+      assertEqual(!!w.locked[g.id], false, '合計4では確定しない');
+      await ds[1].call('wolf:act', { act: 'split', steps: 2 });
+      assertEqual(w.locked[g.id], true, '合計5でぴったり確定');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('ふたりでひとつ：相方が退室しても、残った1人で進める（落とし穴17）', async () => {
+    const srv = await startTestServer();
+    try {
+      const { host, all } = await makeRoom(srv, 4);
+      await host.call('wolf:start', { game: 'sugopair', events: false });
+      await waitUntil(() => host.view().phase === 'ready', '確認へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'roll', '振る段階へ');
+      const w = srv.store.get(host.code).sugoroku;
+      // ホストが入っていない組を選ぶ（ホストを消すと見張り役ごと消える）
+      const g = w.groups.find((x) => x.members.indexOf(host.memberId) === -1);
+      const stay = all.find((d) => d.memberId === g.members[0]);
+      const gone = all.find((d) => d.memberId === g.members[1]);
+      await gone.call('room:leave', { code: gone.code, memberId: gone.memberId });
+      await sleep(150);
+      await stay.call('wolf:act', { act: 'roll' });
+      await waitUntil(() => w.locked[g.id] === true, '相方がいない組は、その場で確定する');
+      assertEqual(w.solo[g.id], true, '1人になったことが記録される');
+      assertEqual(S.splitSum(w.parts[g.id]), w.dice[g.id], '出目をそのまま使える');
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 })();

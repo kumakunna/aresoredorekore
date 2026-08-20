@@ -47,7 +47,8 @@ const GAME_DRIVERS = {
   // クイズ王が4ゲームで quiz-room.js を共有しているのと同じ形。
   // 遊べるようになったゲームだけを、ここに1行ずつ足していく
   sugotoll: { driver: SugorokuRoom, key: 'sugoroku' },
-  sugograb: { driver: SugorokuRoom, key: 'sugoroku' }
+  sugograb: { driver: SugorokuRoom, key: 'sugoroku' },
+  sugopair: { driver: SugorokuRoom, key: 'sugoroku' }
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {

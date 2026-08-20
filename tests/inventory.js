@@ -129,7 +129,8 @@ const RT_START_MIN_CONFIG = {
   auction: { game: 'auction', mode: 'sealed', rounds: 3, bidSec: 60 },
   // 第36弾：すごろく。盤も人数も遊びが決めているので、送るのはこれだけ
   sugotoll: { game: 'sugotoll', events: false },
-  sugograb: { game: 'sugograb', events: false }
+  sugograb: { game: 'sugograb', events: false },
+  sugopair: { game: 'sugopair', events: false }
 };
 
 // ---- 画面とオーバーレイの一覧（第35弾C：体験品質監査の正本） ----

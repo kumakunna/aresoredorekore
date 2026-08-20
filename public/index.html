@@ -1759,6 +1759,36 @@
   .sugo-tapbtn:active{transform:scale(.97);}
   .sugo-tapcount{font-size:30px;font-weight:800;font-family:'Shippori Mincho',serif;}
   .sugo-quiz-q{font-size:17px;font-weight:700;line-height:1.5;max-width:340px;}
+
+  /* ふたりでひとつ：組の発表と、出目の分け合い */
+  .sugo-pair-list{display:flex;flex-direction:column;gap:8px;max-width:340px;width:100%;}
+  .sugo-pair-card{
+    padding:10px 12px;border-radius:10px;
+    background:var(--card);border:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;
+  }
+  .sugo-pair-card.now{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp) inset;}
+  .sugo-pair-mark{font-size:18px;}
+  .sugo-pair-names{flex:1;font-weight:700;font-size:14px;}
+  .sugo-pair-left{font-size:12px;color:var(--ink-soft);}
+  /* 相談中：合計がいくつになっているかを、その場で出す
+     （一致した瞬間に確定できることが、見て分かるように） */
+  .sugo-split-sum{
+    font-family:'Shippori Mincho',serif;font-weight:800;
+    font-size:26px;margin:6px 0 2px;
+  }
+  .sugo-split-sum.ok{color:var(--stamp);}
+  .sugo-split-row{
+    display:flex;align-items:center;gap:8px;justify-content:center;
+    margin:4px 0;font-size:14px;
+  }
+  .sugo-split-row .who{min-width:5.5em;text-align:right;font-weight:700;}
+  .sugo-step{
+    width:38px;height:38px;border-radius:9px;
+    background:var(--card);border:2px solid var(--line);
+    font-size:16px;font-weight:700;color:var(--ink);cursor:pointer;
+  }
+  .sugo-step.on{border-color:var(--stamp);background:var(--paper-deep);}
   .sugo-rank-list{display:flex;flex-direction:column;gap:4px;max-width:340px;width:100%;}
 
   /* ===================================================================
@@ -3184,6 +3214,14 @@
     <div class="wiz-head"><span class="wiz-step" id="wizStepSugoroku"></span><h2 class="scr-title">すごろくの設定</h2></div>
     <p class="wiz-lead" id="sugoWizLead"></p>
     <div class="wiz-body">
+      <div class="timer-dmode" id="sugoPairWrap" style="display:none;margin-bottom:14px;">
+        <div class="tp-label">人数が奇数です</div>
+        <div class="seg" id="sugoPairSeg">
+          <button class="seg-btn" data-sugopair="even">3人1組を うまいこと作る</button>
+          <button class="seg-btn" data-sugopair="one">3人1組を 1つだけ作る</button>
+        </div>
+        <div class="mic-status" id="sugoPairNote" style="margin-top:8px;"></div>
+      </div>
       <div class="timer-dmode" id="sugoLosersWrap" style="display:none;margin-bottom:14px;">
         <div class="tp-label">1位以外も、少し動く</div>
         <div class="seg" id="sugoLosersSeg">
@@ -3580,6 +3618,30 @@
       <div class="sugo-hand-who" id="sugoHandWho"></div>
       <div class="sugo-hand-sub" id="sugoHandSub"></div>
       <div id="sugoHandBody"></div>
+    </div>
+  </div>
+
+  <!-- 4.10: ふたりでひとつ・組の発表（手渡し）。
+       ランダムなので、誰と組むかが分かる瞬間を演出にする -->
+  <div class="screen" id="scr-sugo-pairs">
+    <div class="sugo-hand-wrap">
+      <div class="sugo-hand-who">組が決まりました</div>
+      <div class="sugo-hand-sub">2人で1つの駒を動かします</div>
+      <div class="sugo-pair-list" id="sugoPairList"></div>
+      <button class="btn btn-main" id="sugoPairsGoBtn" style="margin-top:10px;">はじめる ▶</button>
+    </div>
+  </div>
+
+  <!-- 4.11: ふたりでひとつ・出目の分け合い（手渡し）。
+       相談は声に出してよいのがこの遊びの芯なので、伏せずに2人で同じ画面を見る -->
+  <div class="screen" id="scr-sugo-split">
+    <div class="sugo-hand-wrap">
+      <div class="sugo-hand-who" id="sugoSplitWho"></div>
+      <div class="sugo-hand-sub" id="sugoSplitSub"></div>
+      <div class="sugo-split-sum" id="sugoSplitSum"></div>
+      <div id="sugoSplitRows"></div>
+      <button class="btn btn-main" id="sugoSplitOkBtn" disabled>これでいく ▶</button>
+      <div class="sugo-hint" id="sugoSplitHint"></div>
     </div>
   </div>
 
@@ -4635,6 +4697,9 @@
     // 人数・盤の長さ・目安時間の正本は public/js/sugoroku-logic.js の GAMES。
     // ここの数字と食い違わないことは tests/sugoroku-logic.js が機械照合する
     // 駒が1つしかない。毎ターン、それを動かす権利をミニゲームで奪い合う
+    // 2人1組で1つの駒。出た目を相談して分け合う
+    {id:"sugopair", icon:"🤝", title:"ふたりでひとつ", sub:"2人で1つの駒・出た目を相談して分け合う", advanced:false, strict:false, oneWord:false, sugoroku:true, game:'sugopair', minPlayers:4,
+      bullets:["盤は40マス。2人1組で1つの駒を動かす","組はランダムに決まる（自分たちでは選べません）","サイコロを振って、出た目を2人で分け合う","合計が出目とぴったり合えば確定","まとまらない時は自動で半分ずつ（端数は切り捨て）","先にあがった組の勝ち。届かなければ進んだ距離で順位"]},
     {id:"sugograb", icon:"🀄", title:"こまはひとつ", sub:"ミニゲームで勝った人だけが、たった1つの駒を動かせる", advanced:false, strict:false, oneWord:false, sugoroku:true, game:'sugograb', minPlayers:3,
       bullets:["盤は30マス。駒は全員で1つだけ","毎ターン、ミニゲームで勝った人がサイコロを振れる","ミニゲームは4種類からランダム（連打・じゃんけん・はやおしクイズ・ゆびのかずあて）","2位・3位も、少しだけ駒を動かせる（設定で切れます）","駒をあがらせた人の勝ち","2位以下は、残ったコインの多い順"]},
     {id:"sugotoll", icon:"🎲", title:"つうこうりょう", sub:"先頭ほど通行料が高い・払えないと進めない", advanced:false, strict:false, oneWord:false, sugoroku:true, game:'sugotoll', minPlayers:3,
@@ -4704,7 +4769,7 @@
     // 通行料の読み合いが芯なので「かけひき」の段に置く。
     // 「どこにいる？」が入ったら「正体をさぐる」の段にも並べることになる
     { id:'sugoroku',        genre:['deal'], ready:true,  icon:'🎲', title:'すご<br>ろく',
-      games:['sugograb', 'sugotoll'],
+      games:['sugograb', 'sugopair', 'sugotoll'],
       theme:'sugoroku',
       meta:'3〜8人 / 20分〜<br>先頭ほど、進むのが高くつく' },
     { id:'word-soon-1',     genre:['word'],  ready:false, icon:'？' },
@@ -5696,6 +5761,7 @@
     { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う', usesTopicPool:true },
     // 第36弾：カセット「すごろく」。盤・サイコロ・順位は sugoroku-logic.js が正本。
     // お題プールもAIも使わない（マス目と数字だけで成り立つ遊び）
+    { id:'sugopair',        title:'ふたりでひとつ',   icon:'🤝', sub:'2人で1つの駒・出た目を相談して分け合う', maxPlayers:8 },
     { id:'sugograb',        title:'こまはひとつ',       icon:'🀄', sub:'ミニゲームで勝った人だけが、たった1つの駒を動かせる', maxPlayers:8 },
     { id:'sugotoll',        title:'つうこうりょう',     icon:'🎲', sub:'先頭ほど通行料が高い・払えないと進めない', maxPlayers:8 }
   ];
@@ -5854,7 +5920,7 @@
     // 第31弾：オークション（作り直し）の設定。遊び方はモードで決まる
     auCfg: { rounds:6, startChips:20, bidSec:30, extendSec:8, rescue:true },
     // 第36弾：すごろく。突然のできごとを起こすかどうか（起こすを既定に）
-    sgkCfg: { events:true, losersMove:true },
+    sgkCfg: { events:true, losersMove:true, pairStyle:'even' },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
     winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
@@ -7420,10 +7486,25 @@
     var m = modeById(state.selectedModeId) || {};
     // 説明はゲームごとに書く。1枚の画面を共有しているので、
     // 決め打ちにすると別のゲームの世界観がそのまま漏れる（落とし穴2）
-    el('sugoWizLead').textContent = (m.game === 'sugograb')
-      ? '駒は全員で1つだけ。毎ターン、ミニゲームで勝った人がそれを動かせます。負けた人の扱いと、盤をゆさぶるできごとを決めよう。'
-      : '先頭に近い人ほど、進むのに払うコインが増えます。長く先頭が続いた時に、盤をゆさぶるできごとを起こすかどうかを決めよう。';
+    var LEADS = {
+      sugograb: '駒は全員で1つだけ。毎ターン、ミニゲームで勝った人がそれを動かせます。負けた人の扱いと、盤をゆさぶるできごとを決めよう。',
+      sugopair: '2人1組で1つの駒を動かします。組はランダムに決まります。盤をゆさぶるできごとを起こすかどうかを決めよう。',
+      sugotoll: '先頭に近い人ほど、進むのに払うコインが増えます。長く先頭が続いた時に、盤をゆさぶるできごとを起こすかどうかを決めよう。'
+    };
+    el('sugoWizLead').textContent = LEADS[m.game] || LEADS.sugotoll;
     el('sugoLosersWrap').style.display = (m.game === 'sugograb') ? '' : 'none';
+    // 奇数の組み分けは、**分け方が実際に変わる人数の時だけ**聞く。
+    // 5人・7人ではどちらも同じ結果になるので、聞くと無駄に迷わせる
+    var ask = (m.game === 'sugopair') && SugorokuLogic.pairStylesDiffer(state.players.length);
+    el('sugoPairWrap').style.display = ask ? '' : 'none';
+    if(ask){
+      Array.prototype.forEach.call(el('sugoPairSeg').children, function(b){
+        b.classList.toggle('on', b.dataset.sugopair === (state.sgkCfg.pairStyle || 'even'));
+      });
+      el('sugoPairNote').textContent = (state.sgkCfg.pairStyle === 'one')
+        ? '3人1組は1つだけ。あとは全部2人組になります'
+        : '3人1組を、なるべく均等に散らします';
+    }
     Array.prototype.forEach.call(el('sugoLosersSeg').children, function(b){
       b.classList.toggle('on', (b.dataset.sugolosers === 'on') === (state.sgkCfg.losersMove !== false));
     });
@@ -7434,6 +7515,12 @@
       ? '一巡の切れ目に、たまに起きます（関所やぶり・みちがえ）'
       : '盤の上で起きることは、サイコロと通行料だけになります';
   }
+  el('sugoPairSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-sugopair]');
+    if(!b) return;
+    state.sgkCfg.pairStyle = b.dataset.sugopair;
+    renderSugorokuStep();
+  });
   el('sugoLosersSeg').addEventListener('click', function(e){
     var b = e.target.closest('[data-sugolosers]');
     if(!b) return;
@@ -7452,6 +7539,36 @@
     var m = modeById(state.selectedModeId) || {};
     sugoStart(m.game || 'sugotoll', state.players, { events: !!state.sgkCfg.events });
     sugoDiceReset();
+    if(sugoIsPair()){
+      var g = sugo.curGroup;
+      g.dice = dice;
+      d.textContent = String(dice);
+      sugoDice.busy = false;
+      // 1人だけになった組は、相談する相手がいないので出目をそのまま使う
+      var here = g.members.filter(function(id){ return !!sugo.names[id]; });
+      if(here.length === 1){
+        g.parts = SugorokuLogic.soloSplit(dice, here[0]);
+        sugoNote('ひとりなので、' + dice + 'マスぜんぶ使えます');
+        sugoPairMove(g);
+        return;
+      }
+      sugoSplitShow(g);
+      return;
+    }
+    if(sugoIsPair()){
+      var ids = state.players.map(function(p, i){ return 'h' + i; });
+      var style = state.sgkCfg.pairStyle === 'one'
+        ? SugorokuLogic.PAIR_STYLE.ONE : SugorokuLogic.PAIR_STYLE.EVEN;
+      sugo.groups = SugorokuLogic.makePairs(ids, style).map(function(members){
+        return { members: members, pos: 0, goalOrder: null, dice: null, parts: {} };
+      });
+      sugo.groupAt = 0;
+      sugo.curGroup = null;
+      sugo.goalCount = 0;
+      sugoRender();
+      sugoPairsBegin();
+      return;
+    }
     if(sugoIsGrab()){
       // 駒は1つ。人ごとの位置は持たない
       sugo.piece = 0;
@@ -8757,7 +8874,8 @@
     auction: rtAuctionConfig,
     // 第36弾：すごろく
     sugotoll: rtSugorokuConfig,
-    sugograb: rtSugorokuConfig
+    sugograb: rtSugorokuConfig,
+    sugopair: rtSugorokuConfig
   };
   el('rtStartBtn').addEventListener('click', async function(){
     var m = modeById(state.selectedModeId);
@@ -8896,6 +9014,7 @@
       game: (m && m.game) || 'sugotoll',
       events: !!state.sgkCfg.events,
       losersMove: state.sgkCfg.losersMove !== false,
+      pairStyle: state.sgkCfg.pairStyle || 'even',
       preset: state.selectedModeId
     };
   }
@@ -9094,7 +9213,8 @@
     auction: 'scr-rt-auction',
     // 第36弾：すごろく。5ゲームとも1枚を共有する（中身を差し替える）
     sugotoll: 'scr-rt-sugoroku',
-    sugograb: 'scr-rt-sugoroku'
+    sugograb: 'scr-rt-sugoroku',
+    sugopair: 'scr-rt-sugoroku'
   };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
@@ -12553,6 +12673,8 @@
       el('sugoLap').textContent = sugo.event.icon + ' ' + sugo.event.title + '中';
     } else if(sugoIsGrab()){
       el('sugoLap').textContent = 'こまは あと' + ((sugo.board.length - 1) - sugo.piece);
+    } else if(sugoIsPair() && sugo.curGroup){
+      el('sugoLap').textContent = 'この組は あと' + ((sugo.board.length - 1) - sugo.curGroup.pos);
     } else {
       el('sugoLap').textContent = '';
     }
@@ -12560,7 +12682,9 @@
     // 駒が1つのゲームでは、駒は誰のものでもない。
     // 人ごとの形を出すと「その人の駒」に見えるので、共有の印を使う
     var shape = sugoIsGrab() ? '◉'
-      : SugorokuLogic.pieceFor(sugo.order.indexOf(sugo.turnId)).shape;
+      : (sugoIsPair() && sugo.curGroup)
+        ? SugorokuLogic.pieceFor(sugo.groups.indexOf(sugo.curGroup)).shape
+        : SugorokuLogic.pieceFor(sugo.order.indexOf(sugo.turnId)).shape;
     el('sugoTurn').innerHTML = '<b class="sugo-piece">' + shape + '</b><span>' +
       escapeHtml(sugo.names[sugo.turnId]) + ' さんの番</span>';
   }
@@ -12795,6 +12919,11 @@
     if(sugoIsGrab()){
       // 駒は1つしかない。誰の駒でもないので、専用の印を1つだけ置く
       byCell[sugo.piece] = ['shared'];
+    } else if(sugoIsPair()){
+      // 駒は「組」に付く。組の並び順で形を決める
+      sugo.groups.forEach(function(g, i){
+        (byCell[g.pos] = byCell[g.pos] || []).push(i);
+      });
     } else {
       sugo.order.forEach(function(id, idx){
         var at = sugo.pos[id];
@@ -12855,6 +12984,7 @@
   // 残り（あと13）の方が、遊んでいる人にはそのまま次の一手の判断になる
   function sugoRenderStatus(){
     if(sugoIsGrab()) return sugoRenderGrabStatus();
+    if(sugoIsPair()) return sugoRenderPairStatus();
     var goal = sugo.board.length - 1;
     var spec = SugorokuLogic.gameById(sugo.game) || {};
     var ranks = SugorokuLogic.positionRanks(sugo.order.map(function(id){
@@ -12883,6 +13013,142 @@
         '<span class="sugo-name">' + escapeHtml(sugo.names[id]) + '</span>' +
         '<span class="sugo-rank">' + (rk ? rk.rank + '位' : '−') + '</span>' +
         '<span class="sugo-coin">🪙' + sugo.coins[id] + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  // ===== ふたりでひとつ（手渡し） =====
+  // 駒が「組」に付く。出た目を組の中で相談して分け合う。
+  // 相談は**声に出してよい**のがこの遊びの芯なので、こまはひとつのような
+  // 「伏せて入力」はしない。2人が同じ画面を見ながら決める（設計書の決めごと⑬）。
+  function sugoIsPair(){ return !!(sugo && sugo.game === 'sugopair'); }
+
+  // 組を発表する。ランダムなので、誰と組むかが分かる瞬間を演出にする
+  function sugoPairsBegin(){
+    var host = el('sugoPairList');
+    host.innerHTML = sugo.groups.map(function(g, i){
+      return '<div class="sugo-pair-card" style="opacity:0;">' +
+        '<b class="sugo-pair-mark">' + SugorokuLogic.pieceFor(i).shape + '</b>' +
+        '<span class="sugo-pair-names">' +
+        g.members.map(function(id){ return escapeHtml(sugo.names[id]); }).join(' ・ ') +
+        '</span></div>';
+    }).join('');
+    goTo('scr-sugo-pairs');
+    // 1組ずつ出す（誰と組むかが分かる瞬間を、まとめて流さない）
+    FxKit.stagger(host.querySelectorAll('.sugo-pair-card'), 260);
+  }
+  el('sugoPairsGoBtn').addEventListener('click', function(){
+    sugo.groupAt = 0;
+    sugoPairTurn();
+  });
+
+  // 組ごとに順番に回す。1台なので、組が入れ替わる時に前の組の相談は消す
+  function sugoPairTurn(){
+    var live = sugo.groups.filter(function(g){ return g.goalOrder == null; });
+    if(sugo.groupAt >= live.length){ sugoPairRoundEnd(); return; }
+    var g = live[sugo.groupAt];
+    sugo.curGroup = g;
+    g.dice = null;
+    g.parts = {};
+    g.members.forEach(function(id){ g.parts[id] = 0; });
+    sugo.turnId = g.members[0];
+    sugoRender();
+    sugoNote(g.members.map(function(id){ return sugo.names[id]; }).join('・') + ' さんの番');
+    sugoHint('サイコロを振って、2人で分け合ってください');
+    goTo('scr-sugo-play');
+  }
+
+  // 分け合う画面。合計がいくつになっているかを、その場で出す
+  function sugoSplitShow(g){
+    el('sugoSplitWho').textContent = g.members.map(function(id){ return sugo.names[id]; }).join(' ・ ');
+    el('sugoSplitSub').textContent = 'サイコロは ' + g.dice + '。2人で分け合ってください';
+    el('sugoSplitRows').innerHTML = g.members.map(function(id){
+      var pad = '';
+      for(var n = 0; n <= g.dice; n++){
+        pad += '<button class="sugo-step" data-who="' + id + '" data-step="' + n + '">' + n + '</button>';
+      }
+      return '<div class="sugo-split-row"><span class="who">' +
+        escapeHtml(sugo.names[id]) + '</span>' + pad + '</div>';
+    }).join('');
+    el('sugoSplitRows').querySelectorAll('[data-step]').forEach(function(b){
+      b.onclick = function(){
+        g.parts[b.dataset.who] = parseInt(b.dataset.step, 10);
+        sugoSplitRefresh(g);
+      };
+    });
+    sugoSplitRefresh(g);
+    goTo('scr-sugo-split');
+  }
+
+  // 合計と、確定できるかを出し直す。**出す側に条件を書かせず、ここ1か所で計算する**
+  function sugoSplitRefresh(g){
+    var sum = SugorokuLogic.splitSum(g.parts);
+    var ok = SugorokuLogic.splitReady(g.dice, g.parts);
+    el('sugoSplitSum').textContent = sum + ' / ' + g.dice;
+    el('sugoSplitSum').classList.toggle('ok', ok);
+    el('sugoSplitOkBtn').disabled = !ok;
+    el('sugoSplitHint').textContent = ok ? 'ぴったりです'
+      : (sum > g.dice ? '出目より多いので、確定できません' : 'あと ' + (g.dice - sum) + ' マス');
+    el('sugoSplitRows').querySelectorAll('[data-step]').forEach(function(b){
+      b.classList.toggle('on', g.parts[b.dataset.who] === parseInt(b.dataset.step, 10));
+    });
+  }
+  el('sugoSplitOkBtn').addEventListener('click', function(){
+    var g = sugo.curGroup;
+    if(!SugorokuLogic.splitReady(g.dice, g.parts)) return;
+    goTo('scr-sugo-play');
+    sugoPairMove(g);
+  });
+
+  // 組の駒を進める
+  async function sugoPairMove(g){
+    var steps = SugorokuLogic.splitSum(g.parts);
+    var mv = SugorokuLogic.applyMove(sugo.board, g.pos, steps);
+    var path = mv.path.concat(mv.bonusPath);
+    for(var i = 0; i < path.length; i++){
+      g.pos = path[i];
+      sugoRenderBoard();
+      await FxKit.hold(110);
+    }
+    g.pos = mv.to;
+    if(mv.goal && g.goalOrder == null){
+      sugo.goalCount++;
+      g.goalOrder = sugo.goalCount;
+      sugoNote(g.members.map(function(id){ return sugo.names[id]; }).join('・') + ' さんが あがり！');
+    }
+    sugoRender();
+    await FxKit.hold(600);
+    sugo.groupAt++;
+    sugoPairTurn();
+  }
+
+  // 一巡おわり。あがった組が出ていれば決着
+  function sugoPairRoundEnd(){
+    if(sugo.goalCount > 0){
+      sugo.turnId = null;
+      var done = sugo.groups.filter(function(g){ return g.goalOrder != null; })
+        .sort(function(a, b){ return a.goalOrder - b.goalOrder; });
+      sugoNote(done[0].members.map(function(id){ return sugo.names[id]; }).join('・') + ' さんの組が1位');
+      sugoHint('組で順位がつきます');
+      sugoRender();
+      return;
+    }
+    sugo.groupAt = 0;
+    sugoPairTurn();
+  }
+
+  // ふたりでひとつの一覧。人ではなく**組**で並べる
+  function sugoRenderPairStatus(){
+    var goal = sugo.board.length - 1;
+    el('sugoMe').innerHTML = sugo.groups.map(function(g, i){
+      var left = goal - g.pos;
+      var goaled = g.goalOrder != null;
+      return '<div class="sugo-row' + (sugo.curGroup === g ? ' now' : '') +
+        (goaled ? ' goaled' : '') + '">' +
+        '<b class="sugo-piece">' + SugorokuLogic.pieceFor(i).shape + '</b>' +
+        '<span class="sugo-name">' +
+        g.members.map(function(id){ return escapeHtml(sugo.names[id]); }).join('・') + '</span>' +
+        '<span class="sugo-left">' + (goaled ? 'あがり' : 'あと' + left) + '</span>' +
         '</div>';
     }).join('');
   }
@@ -12948,7 +13214,11 @@
     try{ FxKit.flash('good'); }catch(e){}
   }
 
-  function sugoFinished(){ return !!(sugo && (sugo.goalCount > 0 || sugo.winnerId)); }
+  function sugoFinished(){
+    if(!sugo) return false;
+    if(sugoIsPair()) return sugo.goalCount > 0 && !sugo.curGroup;
+    return sugo.goalCount > 0 || !!sugo.winnerId;
+  }
   function sugoLiveIds(){
     return sugo.order.filter(function(id){ return sugo.goalOrder[id] == null; });
   }

@@ -75,7 +75,7 @@
       dice: true, sharedPiece: false, pairs: true,
       coins: false, startCoins: 0, cellKinds: ['forward'],
       events: 'plus', tiebreak: 'same',
-      ready: false
+      ready: true      // 第36弾：手渡し・部屋の両方で遊べるようになった
     },
     // ④ つうこうりょう：先頭に近い人ほど、進む時にコインを払う
     sugotoll: {

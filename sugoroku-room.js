@@ -30,6 +30,7 @@ const path = require('path');
 const S = require(path.join(__dirname, 'public', 'js', 'sugoroku-logic.js'));
 const Mini = require(path.join(__dirname, 'public', 'js', 'sugoroku-mini.js'));
 const QuizBank = require(path.join(__dirname, 'public', 'js', 'quiz-bank.js'));
+const Hide = require(path.join(__dirname, 'public', 'js', 'sugoroku-hide.js'));
 
 // 進行の段階。ほかのゲームの PHASE とは別物
 const PHASE = {
@@ -43,6 +44,9 @@ const PHASE = {
   // ---- ここから「ふたりでひとつ」用（駒が「人」ではなく「組」に付く） ----
   ROLL: 'roll',       // 組ごとにサイコロを振る（誰が振ってもよい）
   SPLIT: 'split',     // 出た目を、組の中で分け合う（合計が出目と一致で確定）
+  // ---- ここから「どこにいる？」用（実位置は本人だけが知っている） ----
+  SAY: 'say',         // 求められた1人が、位置と手がかりを申告する
+  JUDGE: 'judge',     // 申告が筋が通っているかを、全員で見る
   // ----
   RESULT: 'result',   // その手番に何が起きたかを、全員で見る
   EVENT: 'event',     // 突然イベント
@@ -496,7 +500,136 @@ const JANKEN_MAX_RETRY = 2;       // あいこが続いた時の上限（無限�
 const PAIR_ROLL_SEC = 45;    // 組の誰かが振るまでの期限
 const PAIR_SPLIT_SEC = 60;   // 相談がまとまるまでの期限
 
+const HIDE_SAY_SEC = 45;     // 申告を待つ期限
+const HIDE_JUDGE_MS = 3200;  // 申告の結果を見る間
+
 const GAME_RULES = {
+  // ---- ② どこにいる？ ----
+  // **秘密設計の本丸。** 自分の位置は自分にしか見えず、申告では嘘をついてよい。
+  //
+  // 何を誰に見せるか（設計書の決めごと⑱）:
+  //   実際の位置 … **本人だけ**（privateFor）。公開ビューにも大画面にも入れない
+  //   申告した位置・手がかり・矛盾の有無 … 全員（それが遊びの材料）
+  //   あがったかどうか … 全員。**判定は自己申告と無関係に、サーバーが実位置で行う**
+  //   （嘘の申告で勝利を宣言することはできない）
+  sugohide: {
+    waitingPhases: [PHASE.READY, PHASE.TURN, PHASE.SAY],
+    waitingIds(room) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.READY) return w.playerIds.slice();
+      if (w.phase === PHASE.TURN) return w.turnId ? [w.turnId] : [];
+      if (w.phase === PHASE.SAY) return w.sayerId ? [w.sayerId] : [];
+      return [];
+    },
+    init(w) {
+      w.sayerId = null;       // いま申告を求められている人
+      w.asked = {};           // memberId -> 求められた回数
+      w.said = null;          // 直前の申告（公開してよい中身だけ）
+      w.moves = [];
+    },
+    /**
+     * 公開してよい情報。**実位置は絶対に入れない。**
+     * 入れてしまうと、大画面を含む全員に配られてゲームが終わる。
+     */
+    publicPlayers(room) {
+      const w = room.sugoroku;
+      return w.playerIds.map((id) => {
+        const m = room.members.get(id);
+        return {
+          id, name: w.names[id],
+          pos: null,                       // ★ 実位置は公開しない
+          coins: null, rank: null,
+          // 最後に申告した区画だけを見せる（本当かどうかは分からない）
+          saidArea: w.saidArea && w.saidArea[id] ? w.saidArea[id] : null,
+          goalOrder: w.goalOrder[id] == null ? null : w.goalOrder[id],
+          asking: id === w.sayerId,
+          gone: !m, connected: !!(m && m.connected)
+        };
+      });
+    },
+    publicExtra(room) {
+      const w = room.sugoroku;
+      return {
+        hidden: true,
+        areas: Hide.areas(),
+        clues: Hide.clues().map((c) => ({ id: c.id, text: c.text })),
+        sayer: w.sayerId ? { id: w.sayerId, name: w.names[w.sayerId] } : null,
+        said: w.said,        // 申告の中身（区画・手がかり・矛盾したか）。実位置は入っていない
+        moves: w.moves
+      };
+    },
+    /** その人だけに配る。**ここだけが実位置を知っている** */
+    privateFor(room, memberId) {
+      const w = room.sugoroku;
+      if (w.playerIds.indexOf(memberId) === -1) return null;
+      const cells = (S.gameById(w.game) || {}).cells;
+      const area = Hide.areaOf(w.pos[memberId], cells);
+      return {
+        game: w.game,
+        phase: w.phase,
+        pos: w.pos[memberId],                    // 自分の位置は自分だけ
+        left: cells - w.pos[memberId],
+        area: { id: area.id, name: area.name },
+        // ここから何が見えるか（嘘をつく時の材料にもなる）
+        clues: Hide.cluesOf(area.id).map((c) => ({ id: c.id, text: c.text })),
+        asking: memberId === w.sayerId
+      };
+    },
+    submitAction(room, memberId, act, payload) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.TURN) {
+        if (memberId !== w.turnId) return { ok: false, error: 'not_your_turn' };
+        if (act !== 'roll') return { ok: false, error: 'bad_action' };
+        w.done[memberId] = true;
+        return { ok: true, allDone: true };
+      }
+      if (w.phase === PHASE.SAY) {
+        if (memberId !== w.sayerId) return { ok: false, error: 'not_expected' };
+        if (act !== 'say') return { ok: false, error: 'bad_action' };
+        const p2 = payload || {};
+        if (!Hide.areaById(p2.areaId)) return { ok: false, error: 'unknown_target' };
+        if (!Hide.clueById(p2.clueId)) return { ok: false, error: 'unknown_target' };
+        w.pending = { areaId: p2.areaId, clueId: p2.clueId };
+        w.done[memberId] = true;
+        return { ok: true, allDone: true };
+      }
+      return null;
+    },
+    advance(room) {
+      const w = room.sugoroku;
+      if (w.phase === PHASE.READY) { hideStartTurn(room); return { changed: true }; }
+      if (w.phase === PHASE.TURN) { hideRoll(room); return { changed: true }; }
+      if (w.phase === PHASE.SAY) { hideJudge(room); return { changed: true }; }
+      if (w.phase === PHASE.JUDGE) {
+        if (w.goalCount > 0) { finish(room); return { changed: true }; }
+        hideStartTurn(room);
+        return { changed: true };
+      }
+      if (w.phase === PHASE.RESULT) {
+        if (w.goalCount > 0) { finish(room); return { changed: true }; }
+        hideStartTurn(room);
+        return { changed: true };
+      }
+      return { changed: false };
+    },
+    /** 決着してはじめて、実位置を明かす（それまでは誰にも見せない） */
+    resultView(room) {
+      const w = room.sugoroku;
+      const spec = S.gameById(w.game) || {};
+      const ranked = S.rankPlayers('sugohide', w.playerIds.map((id) => ({
+        id, name: w.names[id], pos: w.pos[id], coins: 0,
+        goalOrder: w.goalOrder[id] == null ? null : w.goalOrder[id]
+      })));
+      return {
+        game: w.game, cells: spec.cells, coinsUsed: false, lap: w.lap,
+        players: ranked.map((p) => ({
+          name: p.name, pos: p.pos, rank: p.rank, tied: p.tied,
+          coins: null, goaled: p.goalOrder != null
+        }))
+      };
+    }
+  },
+
   // ---- ③ ふたりでひとつ ----
   // 駒が「人」ではなく「組」に付く。出た目を組の中で相談して分け合う。
   //
@@ -804,6 +937,102 @@ const GAME_RULES = {
     }
   }
 };
+
+// ===== 「どこにいる？」の進行 =====
+
+// まだあがっていない人（部屋から消えた人は数えない）
+function hideLiving(room) {
+  const w = room.sugoroku;
+  return w.playerIds.filter((id) => room.members.has(id) && w.goalOrder[id] == null);
+}
+
+// 次の人の手番。手番の人が振り、そのあと**別の誰か**が申告を求められる
+function hideStartTurn(room) {
+  const w = room.sugoroku;
+  w.said = null;
+  w.pending = null;
+  w.moves = [];
+  const live = hideLiving(room);
+  if (!live.length) { finish(room); return; }
+  const at = live.indexOf(w.turnId);
+  w.turnId = live[(at + 1) % live.length];
+  if (at + 1 >= live.length) w.lap++;
+  setPhase(room, PHASE.TURN);
+  w.deadline = Date.now() + w.turnSec * 1000;
+}
+
+// 振って進む。**進んだ結果は本人にしか届かない**（privateFor だけが持つ）
+function hideRoll(room) {
+  const w = room.sugoroku;
+  const id = w.turnId;
+  const auto = !w.done[id];
+  if (room.members.has(id)) {
+    const dice = S.rollDice(rndOf(w));
+    const mv = S.applyMove(w.board, w.pos[id], dice);
+    w.pos[id] = mv.to;
+    if (mv.goal && w.goalOrder[id] == null) {
+      w.goalCount++;
+      w.goalOrder[id] = w.goalCount;
+    }
+    // 公開してよいのは「振った」という事実だけ。出目も位置も入れない
+    w.moves = [{ id, name: w.names[id], rolled: true, auto, goal: w.goalOrder[id] != null }];
+  } else {
+    w.moves = [{ id, name: w.names[id], skipped: true }];
+  }
+  if (w.goalCount > 0) { setPhase(room, PHASE.RESULT); w.deadline = Date.now() + RESULT_MS; return; }
+  hideAsk(room);
+}
+
+/**
+ * 誰か1人に申告を求める。**毎ターン必ず1人**（たるみ防止の仕掛け）。
+ * まだ求められていない人から先に選ぶ（決めごと㉑）。
+ */
+function hideAsk(room) {
+  const w = room.sugoroku;
+  const live = hideLiving(room);
+  if (!live.length) { finish(room); return; }
+  w.sayerId = Hide.pickAsked(live, w.asked, rndOf(w));
+  w.asked[w.sayerId] = (w.asked[w.sayerId] || 0) + 1;
+  setPhase(room, PHASE.SAY);
+  w.deadline = Date.now() + HIDE_SAY_SEC * 1000;
+}
+
+/**
+ * 申告を見る。**見るのは「申告した区画に、その手がかりが在るか」だけ。**
+ * 実位置とは比べない——嘘でも筋が通っていれば通るのが、この遊びの芯。
+ *
+ * 申告しないまま締め切られた人は、黙って通さない。
+ * 「何も言わなかった」ことが全員に見えるようにする（それも読み合いの材料）。
+ */
+function hideJudge(room) {
+  const w = room.sugoroku;
+  const id = w.sayerId;
+  const cells = (S.gameById(w.game) || {}).cells;
+  const p = w.pending;
+  w.saidArea = w.saidArea || {};
+
+  if (!p) {
+    w.said = { id, name: w.names[id], silent: true };
+  } else {
+    const bad = Hide.isContradiction(p.clueId, p.areaId);
+    w.saidArea[id] = p.areaId;
+    w.said = {
+      id, name: w.names[id],
+      areaId: p.areaId, areaName: (Hide.areaById(p.areaId) || {}).name,
+      clueId: p.clueId, clueText: (Hide.clueById(p.clueId) || {}).text,
+      caught: bad
+    };
+    if (bad) {
+      // 矛盾がバレた。数マス戻す（0未満にはしない）
+      const back = S.applyMove(w.board, w.pos[id], -Hide.CAUGHT_BACK);
+      w.pos[id] = back.to;
+      w.said.back = Hide.CAUGHT_BACK;
+    }
+  }
+  w.pending = null;
+  setPhase(room, PHASE.JUDGE);
+  w.deadline = Date.now() + HIDE_JUDGE_MS;
+}
 
 // ===== 「ふたりでひとつ」の進行 =====
 

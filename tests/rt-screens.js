@@ -2346,6 +2346,115 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('すごろく（部屋）：通行料を払ったことが、手元に出る', async () => {
+    // 部屋版は長いあいだ「何が起きたか」を一言も出せていなかった。
+    // 言い回しはルール層が持っているので、手渡し版と同じ言葉になる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugotoll', {
+      game: 'sugotoll', phase: 'result', cells: 40, board: sugoBoard(40),
+      coinsUsed: true, lap: 1, deadline: Date.now() + 2000,
+      last: { id: 'm1', name: 'あき', dice: 4, rank: 1, toll: 3, paid: true,
+        stalled: false, relief: 0, coinsGained: 2, goal: false },
+      players: [
+        { id: 'm1', name: 'あき', pos: 9, coins: 17, rank: 1, connected: true },
+        { id: 'm2', name: 'びび', pos: 3, coins: 20, rank: 2, connected: true },
+        { id: 'm3', name: 'ちか', pos: 0, coins: 20, rank: 3, connected: true }
+      ],
+      waiting: []
+    }));
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    const note = el(doc, 'rtSugoNote').textContent;
+    assert(/3/.test(note) && /1位/.test(note), 'いくら払ったか・何位だからかが出る（' + note + '）');
+    assertNoErrors(errors, '通行料の知らせで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('すごろく（部屋）：払えなかった時は、入った方を大きく出す', async () => {
+    // 原則7「褒める時は全力で、責める時は静かに」。
+    // 大きい方（note）に責める言葉を置かない
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugotoll', {
+      game: 'sugotoll', phase: 'result', cells: 40, board: sugoBoard(40),
+      coinsUsed: true, lap: 1, deadline: Date.now() + 2000,
+      last: { id: 'm2', name: 'びび', dice: 5, rank: 1, toll: 5, paid: false,
+        stalled: true, relief: 3, coinsGained: 0, goal: false },
+      players: [
+        { id: 'm1', name: 'あき', pos: 9, coins: 17, rank: 2, connected: true },
+        { id: 'm2', name: 'びび', pos: 12, coins: 3, rank: 1, connected: true },
+        { id: 'm3', name: 'ちか', pos: 0, coins: 20, rank: 3, connected: true }
+      ],
+      waiting: []
+    }));
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    const note = el(doc, 'rtSugoNote').textContent;
+    const hint = el(doc, 'rtSugoHint').textContent;
+    assert(/コイン\+3/.test(note), '入った方が大きく出る（' + note + '）');
+    assert(note.indexOf('払えません') === -1, '大きい方に、責める言葉を置かない');
+    assert(/払えません/.test(hint), '払えなかったことは小さく添える（' + hint + '）');
+    assertNoErrors(errors, '払えなかった知らせで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('どこにいる？：つじつまが合わないことが、全員の手元に出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugohide', {
+      game: 'sugohide', phase: 'judge', cells: 30, board: sugoBoard(30),
+      coinsUsed: false, lap: 1, hidden: true, deadline: Date.now() + 3000,
+      areas: [{ id: 'a0', name: 'ふもと' }, { id: 'a4', name: 'みねちかく' }],
+      clues: [{ id: 'c01', text: '水の音がする' }],
+      sayer: null,
+      said: { id: 'm1', name: 'あき', areaId: 'a4', areaName: 'みねちかく',
+        clueId: 'c01', clueText: '水の音がする', caught: true, back: 3 },
+      players: [
+        { id: 'm1', name: 'あき', pos: null, saidArea: 'a4', asking: false, connected: true },
+        { id: 'm2', name: 'びび', pos: null, saidArea: null, asking: false, connected: true },
+        { id: 'm3', name: 'ちか', pos: null, saidArea: null, asking: false, connected: true }
+      ],
+      waiting: []
+    }));
+    pushYou(fake, { game: 'sugohide', phase: 'judge', pos: 7, left: 23,
+      area: { id: 'a1', name: 'かわぞい' }, clues: [{ id: 'c01', text: '水の音がする' }] });
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    const all = el(doc, 'rtSugoNote').textContent + ' / ' + el(doc, 'rtSugoHint').textContent;
+    assert(/3マスもどる/.test(all), '何マス戻るかが出る（' + all + '）');
+    assert(/みねちかく/.test(all), '何と言ったかが出る');
+    // 嘘つき呼ばわりしない（原則7）
+    assert(all.indexOf('嘘') === -1 && all.indexOf('うそ') === -1, '責める言葉を使わない');
+    // それでも、誰の本当の位置も画面に出てこない
+    assert(!/あと23/.test(all), '自分の残りマス数を、この場面で出さない');
+    assertNoErrors(errors, '申告の結果で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('こまはひとつ：勝った人以外に「振れます」と言わない', async () => {
+    // 借りた言葉が、関係ない人の手元に出てしまう形（落とし穴2）を防ぐ
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, sugoRoom('sugograb', {
+      game: 'sugograb', phase: 'grab', cells: 30, board: sugoBoard(30),
+      coinsUsed: true, lap: 1, sharedPiece: true, piece: 6,
+      deadline: Date.now() + 20000,
+      turn: { id: 'm1', name: 'あき' },
+      mini: { id: 'tap', kind: 'reflex', title: 'れんだ', lead: 'いそいで押す' },
+      players: [
+        { id: 'm1', name: 'あき', pos: null, coins: 20, rank: 1, moving: true, connected: true },
+        { id: 'm2', name: 'びび', pos: null, coins: 20, rank: 2, moving: false, connected: true },
+        { id: 'm3', name: 'ちか', pos: null, coins: 20, rank: 3, moving: false, connected: true }
+      ],
+      waiting: ['あき']
+    }));
+    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    assert(/あき/.test(el(doc, 'rtSugoNote').textContent), '誰が勝ったかは全員に出る');
+    const hint = el(doc, 'rtSugoHint').textContent;
+    assert(hint.indexOf('振って') === -1, '振らない人に「振って」と言わない（' + hint + '）');
+    assert(/あき/.test(hint), '代わりに、誰を待っているかが出る（' + hint + '）');
+    assertNoErrors(errors, 'こまはひとつの待ちで未捕捉の例外');
+    win.close();
+  });
+
   await r.test('すごろく（部屋）：じゅんびOKを押すと、サーバーへ届く', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });

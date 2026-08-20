@@ -9167,6 +9167,16 @@
     else if(mine === 'say'){ note = 'あなたが申告します'; hint = ''; }
     else if(v.phase === 'split'){ note = '出た目を分け合います'; hint = ''; }
     else if(v.waiting && v.waiting.length){ note = ''; hint = v.waiting.join('・') + ' さんを待っています'; }
+    // 起きたことは、待っていることより優先して出す。
+    // **言い回しはルール層が持っている**ので、手渡し版と食い違いようがない。
+    // 添え書き（hint）が空の時は上書きしない——「誰を待っているか」を消さないため。
+    // 例：こまはひとつで勝った人が振る間、勝っていない人の手元には
+    //     「サイコロを振って…」ではなく「◯◯さんを待っています」が残る
+    var happened = rtSugoHappened(v, mine);
+    if(happened){
+      note = happened.note;
+      if(happened.hint) hint = happened.hint;
+    }
     // 「どこにいる？」だけは、**自分の本当の居場所を、自分の画面にだけ**出す。
     // 1人1台なので、この端末を覗かれない限り漏れない（公開ビューには入っていない）
     if(v.hidden && you && you.area){
@@ -9188,6 +9198,67 @@
     if(v.phase === 'say' && v.sayer && v.sayer.id === me) return 'say';
     return null;
   }
+  /**
+   * いま何が起きたかを言葉にする。**ここ1か所で決める。**
+   * 段階ごとに散らすと、新しい段階を足した時に片方だけ言葉が出ない。
+   * 言い回しそのものはルール層（SugorokuLogic / SugorokuHide）が持っているので、
+   * 手渡し版と部屋版で違う言い方になることが起きない（落とし穴1・2）
+   */
+  function rtSugoHappened(v, mine){
+    if(v.phase === 'event' && v.event){
+      return { note: v.event.icon + ' ' + v.event.title, hint: v.event.note || '' };
+    }
+    // 申告の結果は、**全員が見る材料**なので、次の段階へ移るまで出したままにする
+    if(v.hidden && (v.phase === 'judge' || v.phase === 'result') && v.said){
+      return SugorokuHide.sayWords(v.said);
+    }
+    if(v.phase === 'grab'){
+      var win = SugorokuLogic.grabWinWords((v.players || [])
+        .filter(function(p){ return p.rank === 1; })
+        .map(function(p){ return p.name; }));
+      // 「サイコロを振れます」は、振る本人にだけ言う
+      return { note: win.note, hint: mine === 'roll' ? win.hint : '' };
+    }
+    if(v.phase === 'ended') return rtSugoEndWords(v);
+    if(v.phase !== 'result' || !v.last) return null;
+    if(v.sharedPiece){
+      if(v.last.draw) return SugorokuLogic.drawWords(!!v.last.gaveUp);
+      return rtSugoMoveWords(v.last.moves, false);
+    }
+    if(v.pairs) return rtSugoMoveWords(v.last.moves, true);
+    if(v.hidden) return null;
+    var tw = SugorokuLogic.tollWords(v.last, v.last.name);
+    return { note: tw.note, hint: tw.hint || tw.gain };
+  }
+
+  // この回、誰が何マス動かしたか。**歩数はサーバーの記録をそのまま読む**
+  // （画面側で計算し直すと、ルールが2か所に分かれる）
+  function rtSugoMoveWords(moves, isPair){
+    var list = moves || [];
+    if(!list.length) return { note: '', hint: '' };
+    var line = list.map(function(m){
+      var who = m.names ? m.names.join('・') : m.name;
+      return who + ' +' + (m.steps == null ? 0 : m.steps);
+    }).join('　');
+    var goal = list.filter(function(m){ return m.goal; })[0];
+    if(!goal) return { note: line, hint: '' };
+    var end = isPair
+      ? SugorokuLogic.pairGoalWords(goal.names || [goal.name])
+      : SugorokuLogic.grabEndWords(goal.name);
+    return { note: end.note, hint: line };
+  }
+
+  // 決着。どのゲームでも「誰が1位か」を言い切る
+  function rtSugoEndWords(v){
+    var res = v.result;
+    if(!res || !res.players || !res.players.length) return { note: 'おしまい', hint: '' };
+    var top = res.players.filter(function(p){ return p.rank === 1; })
+      .map(function(p){ return p.name; });
+    if(v.sharedPiece) return SugorokuLogic.grabEndWords(top.join('・'));
+    if(v.pairs) return SugorokuLogic.pairFirstWords(top);
+    return SugorokuLogic.goalEndWords(top.join('・'));
+  }
+
   // 自分がどの組か。組の一覧に人のidは入っていないので、自分の枠から辿る
   function rtSugoMyGroup(v, me){
     var p = (v.players || []).filter(function(x){ return x.id === me; })[0];
@@ -9277,8 +9348,9 @@
       pad += '<button class="sugo-pick' + (mineSteps === n ? ' on' : '') +
         '" data-rtsplit="' + n + '">' + n + '<span class="sub">マス</span></button>';
     }
-    host.innerHTML = '<div class="sugo-hand-sub">出た目は ' + g.dice +
-      '。2人で分け合って、合計をぴったり ' + g.dice + ' にしてください（いま ' + (g.sum || 0) + '）</div>' +
+    var sw = SugorokuLogic.splitWords(g.dice, g.parts || {});
+    host.innerHTML = '<div class="sugo-hand-sub">出た目は ' + g.dice + '。2人で分け合ってください</div>' +
+      '<div class="sugo-hand-sub">' + sw.note + '　' + escapeHtml(sw.hint) + '</div>' +
       '<div class="sugo-hand-pad">' + pad + '</div>';
   }
 
@@ -13232,13 +13304,13 @@
         sugo.entries = {};
         sugo.inputAt = 0;
         goTo('scr-sugo-play');
-        sugoNote('あいこ！ もう一度');
+        sugoNote(SugorokuLogic.drawWords(false).note);
         await FxKit.hold(900);
         sugoInputNext();
         return;
       }
       goTo('scr-sugo-play');
-      sugoNote('あいこのまま。この回は動きません');
+      sugoNote(SugorokuLogic.drawWords(true).note);
       sugoRender();
       await FxKit.hold(1400);
       sugoMiniBegin();
@@ -13250,9 +13322,10 @@
     goTo('scr-sugo-play');
     sugoRender();
     var top = sugo.miniRank.filter(function(x){ return x.rank === 1; })
-      .map(function(x){ return sugo.names[x.id]; }).join('・');
-    sugoNote(top + ' さんの勝ち！');
-    sugoHint('サイコロを振って、駒を動かせます');
+      .map(function(x){ return sugo.names[x.id]; });
+    var win = SugorokuLogic.grabWinWords(top);
+    sugoNote(win.note);
+    sugoHint(win.hint);
     try{ FxKit.flash('good'); }catch(e){}
     sugoNextGrab();
   }
@@ -13292,8 +13365,9 @@
   }
 
   function sugoGrabFinish(){
-    sugoNote(sugo.names[sugo.winnerId] + ' さんが あがり！');
-    sugoHint('あがらせた人の勝ち');
+    var end = SugorokuLogic.grabEndWords(sugo.names[sugo.winnerId]);
+    sugoNote(end.note);
+    sugoHint(end.hint);
     el('sugoDice').classList.add('done');
     sugoRender();
   }
@@ -13446,8 +13520,9 @@
     g.members.forEach(function(id){ g.parts[id] = 0; });
     sugo.turnId = g.members[0];
     sugoRender();
-    sugoNote(g.members.map(function(id){ return sugo.names[id]; }).join('・') + ' さんの番');
-    sugoHint('サイコロを振って、2人で分け合ってください');
+    var pt = SugorokuLogic.pairTurnWords(g.members.map(function(id){ return sugo.names[id]; }));
+    sugoNote(pt.note);
+    sugoHint(pt.hint);
     goTo('scr-sugo-play');
   }
 
@@ -13475,13 +13550,11 @@
 
   // 合計と、確定できるかを出し直す。**出す側に条件を書かせず、ここ1か所で計算する**
   function sugoSplitRefresh(g){
-    var sum = SugorokuLogic.splitSum(g.parts);
-    var ok = SugorokuLogic.splitReady(g.dice, g.parts);
-    el('sugoSplitSum').textContent = sum + ' / ' + g.dice;
-    el('sugoSplitSum').classList.toggle('ok', ok);
-    el('sugoSplitOkBtn').disabled = !ok;
-    el('sugoSplitHint').textContent = ok ? 'ぴったりです'
-      : (sum > g.dice ? '出目より多いので、確定できません' : 'あと ' + (g.dice - sum) + ' マス');
+    var sw = SugorokuLogic.splitWords(g.dice, g.parts);
+    el('sugoSplitSum').textContent = sw.note;
+    el('sugoSplitSum').classList.toggle('ok', sw.ok);
+    el('sugoSplitOkBtn').disabled = !sw.ok;
+    el('sugoSplitHint').textContent = sw.hint;
     el('sugoSplitRows').querySelectorAll('[data-step]').forEach(function(b){
       b.classList.toggle('on', g.parts[b.dataset.who] === parseInt(b.dataset.step, 10));
     });
@@ -13507,7 +13580,7 @@
     if(mv.goal && g.goalOrder == null){
       sugo.goalCount++;
       g.goalOrder = sugo.goalCount;
-      sugoNote(g.members.map(function(id){ return sugo.names[id]; }).join('・') + ' さんが あがり！');
+      sugoNote(SugorokuLogic.pairGoalWords(g.members.map(function(id){ return sugo.names[id]; })).note);
     }
     sugoRender();
     await FxKit.hold(600);
@@ -13521,8 +13594,9 @@
       sugo.turnId = null;
       var done = sugo.groups.filter(function(g){ return g.goalOrder != null; })
         .sort(function(a, b){ return a.goalOrder - b.goalOrder; });
-      sugoNote(done[0].members.map(function(id){ return sugo.names[id]; }).join('・') + ' さんの組が1位');
-      sugoHint('組で順位がつきます');
+      var first = SugorokuLogic.pairFirstWords(done[0].members.map(function(id){ return sugo.names[id]; }));
+      sugoNote(first.note);
+      sugoHint(first.hint);
       sugoRender();
       return;
     }
@@ -13680,19 +13754,16 @@
     sugo.last = out;
     d.textContent = String(dice);
 
+    // 言い回しはルール層が持っている。**部屋版もまったく同じ言葉を通る**
+    var words = SugorokuLogic.tollWords(out, sugo.names[id]);
+    sugoNote(words.note);
+    sugoHint(words.hint);
+    sugoRenderStatus();
     if(out.stalled){
-      // 責める場面にしない。入った方を主語にする（原則7）
-      sugoNote('かわりに コイン+' + out.relief);
-      sugoHint(sugo.names[id] + ' さんは、通行料' + out.toll + 'が払えませんでした');
-      sugoRenderStatus();
       await FxKit.hold(900);
     } else {
-      sugoNote(out.toll > 0 ? ('通行料 −' + out.toll + '（' + out.rank + '位）')
-                            : (out.free ? '関所やぶり中（通行料なし）' : '通行料なし（' + out.rank + '位）'));
-      sugoHint('');
-      sugoRenderStatus();
       await sugoWalk(id, out.move);
-      if(out.coinsGained) sugoNote('コイン+' + out.coinsGained);
+      if(words.gain) sugoNote(words.gain);
     }
     sugoNextTurn();
     sugoDice.busy = false;
@@ -13718,8 +13789,9 @@
   function sugoNextTurn(){
     if(sugoFinished()){
       el('sugoDice').classList.add('done');
-      sugoNote('あがり！');
-      sugoHint(sugo.names[sugo.turnId] + ' さんの勝ち');
+      var ge = SugorokuLogic.goalEndWords(sugo.names[sugo.turnId]);
+      sugoNote(ge.note);
+      sugoHint(ge.hint);
       sugoRenderStatus();
       return;
     }

@@ -159,5 +159,22 @@ const rndHalf = () => 0.5;
     assertEqual(H.CAUGHT_BACK, 3, '30マス盤で3マス');
   });
 
+  await r.test('申告：通った時・矛盾した時・黙った時で、言うことが変わる（第36弾-19）', async () => {
+    const ok = H.sayWords({ name: 'あき', areaName: 'まちなか', clueText: '人の話し声がする' });
+    const bad = H.sayWords({ name: 'あき', areaName: 'みねちかく', clueText: '水の音がする',
+      caught: true, back: 3 });
+    const silent = H.sayWords({ name: 'あき', silent: true });
+    assert(ok.note.indexOf('まちなか') !== -1, '何と言ったかが出る（' + ok.note + '）');
+    assert(bad.note.indexOf('3') !== -1, '何マス戻るかが出る（' + bad.note + '）');
+    assert(bad.note !== ok.note && silent.note !== ok.note, '3つとも違う言い方');
+    // 責める場面にしない（原則7）。嘘つき呼ばわりはしない
+    assert(bad.note.indexOf('嘘') === -1 && bad.note.indexOf('うそ') === -1,
+      '矛盾を責める言葉にしない（' + bad.note + '）');
+    // **どの言い方にも、本当の位置は入らない**
+    [ok, bad, silent].forEach((w) => {
+      assert(!/[0-9]+マス目/.test(w.note + w.hint), '実際の位置が漏れていない');
+    });
+  });
+
   r.finish();
 })();

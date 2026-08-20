@@ -681,6 +681,91 @@
     return { ok: true, error: null, message: null };
   }
 
+  // ===== 言い回し =====
+  //
+  // **手渡し版と部屋版が、同じ言葉を使うための1か所。**
+  // 画面の側に直接書くと、片方を直した時にもう片方が古いまま残る。
+  // 実際、部屋版は「何が起きたか」を一言も出せていなかった（第36弾）。
+  //
+  // どれも { note, hint } を返す。note は大きく、hint は小さく出す約束。
+
+  /**
+   * つうこうりょう：1手番の結果。
+   * 払えなかった時は**責める場面にしない**。入った方を主語にする（原則7）
+   */
+  function tollWords(out, name) {
+    if (!out) return { note: '', hint: '', gain: '' };
+    if (out.skipped) return { note: '', hint: name + ' さんはいません', gain: '' };
+    if (out.stalled) {
+      return {
+        note: 'かわりに コイン+' + out.relief,
+        hint: name + ' さんは、通行料' + out.toll + 'が払えませんでした',
+        gain: ''
+      };
+    }
+    return {
+      note: out.toll > 0
+        ? ('通行料 −' + out.toll + '（' + out.rank + '位）')
+        : (out.free ? '関所やぶり中（通行料なし）' : '通行料なし（' + out.rank + '位）'),
+      hint: '',
+      gain: out.coinsGained ? ('コイン+' + out.coinsGained) : ''
+    };
+  }
+
+  /** こまはひとつ：ミニゲームに勝った人（同着なら全員） */
+  function grabWinWords(names) {
+    return {
+      note: (names || []).join('・') + ' さんの勝ち！',
+      hint: 'サイコロを振って、駒を動かせます'
+    };
+  }
+  /** こまはひとつ：あいこ。上限まで来たら、その回は動かさない */
+  function drawWords(gaveUp) {
+    return gaveUp
+      ? { note: 'あいこのまま。この回は動きません', hint: '' }
+      : { note: 'あいこ！ もう一度', hint: '' };
+  }
+  /** こまはひとつ：あがり。**あがらせた人**の勝ちなので、そう言い切る */
+  function grabEndWords(name) {
+    return { note: name + ' さんが あがり！', hint: 'あがらせた人の勝ち' };
+  }
+
+  /** つうこうりょう・どこにいる？：先にあがった人の勝ち */
+  function goalEndWords(name) {
+    return { note: 'あがり！', hint: name + ' さんの勝ち' };
+  }
+
+  /** ふたりでひとつ：その組の番 */
+  function pairTurnWords(names) {
+    return {
+      note: (names || []).join('・') + ' さんの番',
+      hint: 'サイコロを振って、2人で分け合ってください'
+    };
+  }
+  /** ふたりでひとつ：あがった組 */
+  function pairGoalWords(names) {
+    return { note: (names || []).join('・') + ' さんが あがり！', hint: '' };
+  }
+  /** ふたりでひとつ：決着 */
+  function pairFirstWords(names) {
+    return { note: (names || []).join('・') + ' さんの組が1位', hint: '組で順位がつきます' };
+  }
+
+  /**
+   * ふたりでひとつ：分け合いの途中経過。
+   * **出す側に条件を書かせない**（合計・確定できるか・一言を、ここで全部決める）
+   */
+  function splitWords(dice, parts) {
+    var sum = splitSum(parts);
+    var ok = splitReady(dice, parts);
+    return {
+      sum: sum, ok: ok,
+      note: sum + ' / ' + dice,
+      hint: ok ? 'ぴったりです'
+        : (sum > dice ? '出目より多いので、確定できません' : ('あと ' + (dice - sum) + ' マス'))
+    };
+  }
+
   return {
     GAMES: GAMES, CELL_KINDS: CELL_KINDS, EVENTS: EVENTS,
     DICE_MAX: DICE_MAX, SAFE_HEAD: SAFE_HEAD, SAFE_TAIL: SAFE_TAIL, MIN_GAP: MIN_GAP,
@@ -698,6 +783,10 @@
     TOLL_RELIEF: TOLL_RELIEF, tollFor: tollFor, tollOutcome: tollOutcome,
     tollTurn: tollTurn,
     PAIR_STYLE: PAIR_STYLE, makePairs: makePairs, pairStylesDiffer: pairStylesDiffer,
-    splitReady: splitReady, splitSum: splitSum, autoSplit: autoSplit, soloSplit: soloSplit
+    splitReady: splitReady, splitSum: splitSum, autoSplit: autoSplit, soloSplit: soloSplit,
+    tollWords: tollWords, grabWinWords: grabWinWords, drawWords: drawWords,
+    grabEndWords: grabEndWords, goalEndWords: goalEndWords,
+    pairTurnWords: pairTurnWords, pairGoalWords: pairGoalWords,
+    pairFirstWords: pairFirstWords, splitWords: splitWords
   };
 }));

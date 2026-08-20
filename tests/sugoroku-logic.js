@@ -624,5 +624,61 @@ const SPEC = {
     });
   });
 
+  // ===== 言い回し（第36弾-19） =====
+  // 手渡し版と部屋版が同じ言葉を使うための層。**両方がここを通る**ことが要点なので、
+  // 言葉そのものより「場面ごとに違うものが返る」ことを固定する
+
+  await r.test('通行料：払えた時と払えなかった時で、言うことが変わる', async () => {
+    const paid = S.tollWords({ toll: 3, rank: 2, coinsGained: 0 }, 'あき');
+    assert(paid.note.indexOf('3') !== -1, 'いくら払ったか出る（' + paid.note + '）');
+    assert(paid.note.indexOf('2位') !== -1, '何位だからかも出る');
+    const stalled = S.tollWords({ stalled: true, toll: 5, relief: 3 }, 'あき');
+    // 責める場面にしない（原則7）。**入った方が主語**になっていること
+    assert(stalled.note.indexOf('コイン+3') !== -1, '入った方を大きく出す（' + stalled.note + '）');
+    assert(stalled.hint.indexOf('あき') !== -1, '払えなかったことは小さく添える');
+    assert(stalled.note.indexOf('払えません') === -1, '大きい方に、責める言葉を置かない');
+  });
+
+  await r.test('通行料：関所やぶり中は、0でも理由が分かる', async () => {
+    const free = S.tollWords({ toll: 0, rank: 1, free: true }, 'あき');
+    const zero = S.tollWords({ toll: 0, rank: 4 }, 'あき');
+    assert(free.note !== zero.note, 'イベント中とそうでない時で言い方が違う');
+    assert(free.note.indexOf('関所') !== -1, 'なぜ0なのかが分かる（' + free.note + '）');
+  });
+
+  await r.test('通行料：もらったコインは、別の一言として出せる', async () => {
+    const got = S.tollWords({ toll: 1, rank: 1, coinsGained: 4 }, 'あき');
+    assertEqual(got.gain, 'コイン+4', 'もらった分が取り出せる');
+    assertEqual(S.tollWords({ toll: 1, rank: 1, coinsGained: 0 }, 'あき').gain, '', '無い時は空');
+  });
+
+  await r.test('分け合い：足りない・ぴったり・多すぎで、言うことが変わる', async () => {
+    const few = S.splitWords(5, { a: 1, b: 1 });
+    const just = S.splitWords(5, { a: 3, b: 2 });
+    const many = S.splitWords(5, { a: 4, b: 4 });
+    assertEqual(few.ok, false, '足りない時は確定できない');
+    assertEqual(just.ok, true, 'ぴったりなら確定できる');
+    assertEqual(many.ok, false, '多すぎる時も確定できない');
+    assert(few.hint.indexOf('3') !== -1, 'あと何マスか出る（' + few.hint + '）');
+    // 「違う言い方」では足りない。多すぎる時に残りマス数を言うと
+    // 「あと -3 マス」のような負の数が出る（それも“違う言い方”になってしまう）
+    assert(many.hint.indexOf('あと') === -1,
+      '多すぎる時に「あと◯マス」と言わない（' + many.hint + '）');
+    assert(!/-\s*\d/.test(many.hint), '負の数を出さない（' + many.hint + '）');
+    assertEqual(just.note, '5 / 5', '合計と出た目が並ぶ');
+  });
+
+  await r.test('こまはひとつ：あいこは、続ける時とあきらめる時で違う', async () => {
+    assert(S.drawWords(false).note !== S.drawWords(true).note, '言い方が違う');
+    assert(S.drawWords(true).note.indexOf('動きません') !== -1, 'あきらめた時は、動かないことが分かる');
+  });
+
+  await r.test('勝った人が複数いても、全員の名前が出る', async () => {
+    const w = S.grabWinWords(['あき', 'びび']);
+    assert(w.note.indexOf('あき') !== -1 && w.note.indexOf('びび') !== -1, '同着は全員出る');
+    const p = S.pairFirstWords(['あき', 'びび']);
+    assert(p.note.indexOf('あき') !== -1 && p.note.indexOf('びび') !== -1, '組も全員出る');
+  });
+
   r.finish();
 })();

@@ -428,6 +428,45 @@ async function run() {
       'rtRender に二つ目の振り分け（ゲームidで分ける一覧）が復活している');
   });
 
+  await r.test('すごろくの言い回しが、画面の側に直書きされていない（第36弾-19）', async () => {
+    // 手渡し版の画面に書いてあった言葉を部屋版へ写すと、必ず片方だけ古びる
+    // （落とし穴2「借りた言葉がその世界観のまま漏れる」）。
+    // ルール層に1か所だけ置き、両方の画面がそこを通る形にした。
+    // ここでは「画面の側に戻っていないこと」を機械で見張る。
+    const fs3 = require('fs');
+    const path3 = require('path');
+    const dir = path3.join(__dirname, '..');
+    const html = fs3.readFileSync(path3.join(dir, 'public', 'index.html'), 'utf8');
+    const logic = fs3.readFileSync(path3.join(dir, 'public', 'js', 'sugoroku-logic.js'), 'utf8');
+    const hide = fs3.readFileSync(path3.join(dir, 'public', 'js', 'sugoroku-hide.js'), 'utf8');
+    const rules = logic + hide;
+    const PHRASES = [
+      '通行料 −', 'かわりに コイン+', '関所やぶり中',
+      ' さんの勝ち！', ' さんが あがり！', 'あがり！',
+      'あいこ！ もう一度', 'あいこのまま。この回は動きません',
+      'サイコロを振って、駒を動かせます', 'サイコロを振って、2人で分け合ってください',
+      '出目より多いので、確定できません', 'ぴったりです', '組で順位がつきます',
+      'つじつまが合いません。', 'さんは何も言いませんでした'
+    ];
+    for (const t of PHRASES) {
+      assert(rules.indexOf(t) !== -1, '「' + t + '」がルール層にある（言い回しの置き場所）');
+      assert(html.indexOf(t) === -1,
+        '「' + t + '」が index.html に直書きされている（片方だけ古びる形）');
+    }
+  });
+
+  await r.test('部屋の移動記録が、何マス動かしたかを持っている（第36弾-19）', async () => {
+    // 持っていないと、画面の側が敗者移動の歩数を計算し直すことになり、
+    // ルールが2か所に分かれる（落とし穴1）
+    const fs4 = require('fs');
+    const path4 = require('path');
+    const src = fs4.readFileSync(path4.join(__dirname, '..', 'sugoroku-room.js'), 'utf8');
+    const m = src.match(/function moveShared\(room, id, steps, info\) \{([\s\S]*?)\n\}/);
+    assert(m, 'moveShared がある');
+    assert(m[1].indexOf('steps,') !== -1 || m[1].indexOf('steps:') !== -1,
+      '記録に歩数が入っていない（画面が計算し直すことになる）');
+  });
+
   await r.test('入室経路の正本に、担当テストの割り当てが揃っている（第35弾E・正本ループ）', async () => {
     // 入室経路はUI・URL・socketと性質が違い、1本のループでは回せない。
     // 代わりに「経路→それを固定しているテスト」の対応表をここに置き、

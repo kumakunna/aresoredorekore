@@ -146,6 +146,23 @@
     return pool[Math.floor(r() * pool.length)] || pool[0];
   }
 
+  /**
+   * 申告をどう言うか。**手渡し版と部屋版で同じ言葉を通す**ための1か所。
+   * つじつまが合わなかった時も、責める言い方にしない（原則7）
+   */
+  function sayWords(said) {
+    if (!said) return { note: '', hint: '' };
+    if (said.silent) return { note: said.name + ' さんは何も言いませんでした', hint: '' };
+    var head = said.name + ' さんは「' + said.areaName + '」にいると言いました';
+    if (said.caught) {
+      return {
+        note: 'つじつまが合いません。' + said.back + 'マスもどる',
+        hint: head + '（' + said.clueText + '）'
+      };
+    }
+    return { note: head, hint: '「' + said.clueText + '」' };
+  }
+
   return {
     AREA_COUNT: AREA_COUNT, CAUGHT_BACK: CAUGHT_BACK,
     AREAS: AREAS, CLUES: CLUES,
@@ -153,6 +170,6 @@
     areaById: areaById, clueById: clueById,
     areaOf: areaOf, cluesOf: cluesOf,
     isContradiction: isContradiction, overlappingClueCount: overlappingClueCount,
-    pickAsked: pickAsked
+    pickAsked: pickAsked, sayWords: sayWords
   };
 }));

@@ -1244,7 +1244,8 @@ function moveShared(room, id, steps, info) {
   const mv = S.applyMove(w.board, w.piece, steps);
   w.piece = mv.to;
   if (mv.coins) w.coins[id] = S.addCoins(w.coins[id], mv.coins);
-  const rec = Object.assign({ id, name: w.names[id], move: mv, coinsGained: mv.coins || 0 }, info || {});
+  const rec = Object.assign(
+    { id, name: w.names[id], steps, move: mv, coinsGained: mv.coins || 0 }, info || {});
   if (mv.goal && !w.winnerId) {
     w.winnerId = id;
     w.goalCount = 1;

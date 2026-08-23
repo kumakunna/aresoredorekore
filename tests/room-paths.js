@@ -499,6 +499,25 @@ async function run() {
       '記録に歩数が入っていない（画面が計算し直すことになる）');
   });
 
+  await r.test('完成したカセットが、棚全体の構想でも「完成」になっている（第36弾）', async () => {
+    // CLAUDE.md は「docs/ は常に最新に保つ」と決めているが、守れているかを誰も見ていなかった。
+    // すごろくを完成させた時点で、構想ドキュメントは
+    // 「すごろくの項目が無い」「オークションは作り直す前の設計のまま」
+    // 「クイズ王・早押しが非表示中のまま」「実物解除・人狼が未実装のまま」だった。
+    // 遊べるのに「未実装」と書いてあると、次に読む人が同じものをもう一度作りかねない
+    const inv = require('./inventory');
+    const doc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'あつまれあれこれ_棚全体の構想.md'), 'utf8');
+    const heads = doc.split('\n').filter((l) => l.indexOf('### ') === 0);
+    assert(heads.length >= 10, '構想ドキュメントの見出しが読めている（いま' + heads.length + '件）');
+    Object.keys(inv.READY_CASSETTE_TITLES).forEach((id) => {
+      const title = inv.READY_CASSETTE_TITLES[id];
+      const hit = heads.filter((h) => h.indexOf(title) !== -1);
+      assert(hit.length >= 1, title + '（' + id + '）の項目が、棚全体の構想にありません');
+      assert(hit.some((h) => h.indexOf('★完成') !== -1),
+        title + ' は棚に出ているのに、構想では「完成」になっていません（' + hit[0].trim() + '）');
+    });
+  });
+
   await r.test('入室経路の正本に、担当テストの割り当てが揃っている（第35弾E・正本ループ）', async () => {
     // 入室経路はUI・URL・socketと性質が違い、1本のループでは回せない。
     // 代わりに「経路→それを固定しているテスト」の対応表をここに置き、

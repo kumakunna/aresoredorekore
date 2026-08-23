@@ -33,6 +33,13 @@ const READY_CASSETTE_IDS = Array.from(INDEX_HTML.matchAll(
   /\{\s*id:\s*'([a-z0-9-]+)',\s*genre:\s*\[[^\]]*\],\s*ready:\s*true/g
 )).map((m) => m[1]);
 
+// 完成カセットの題名（棚に出ている見出しの文字）。
+// 構想ドキュメントとの照合に使う。<br> は棚での改行なので落とす
+const READY_CASSETTE_TITLES = {};
+Array.from(INDEX_HTML.matchAll(
+  /\{\s*id:\s*'([a-z0-9-]+)',\s*genre:\s*\[[^\]]*\],\s*ready:\s*true,[\s\S]{0,160}?title:\s*'([^']*)'/g
+)).forEach((m) => { READY_CASSETTE_TITLES[m[1]] = m[2].replace(/<br>/g, ''); });
+
 // 手渡し（1台を回す）専用のゲーム。ここは「意識して書く例外の一覧」：
 // 新しいゲームをカセットに足したのに GAME_DRIVERS に登録しなかった場合、
 // この一覧に書き足さない限り tests/room-paths.js の検出テストが赤くなる。
@@ -179,6 +186,7 @@ module.exports = {
   RT_GAME_IDS,
   CASSETTE_GAME_IDS,
   READY_CASSETTE_IDS,
+  READY_CASSETTE_TITLES,
   HANDOFF_ONLY_GAME_IDS,
   RT_START_EVENT,
   RT_START_MIN_CONFIG,

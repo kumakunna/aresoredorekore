@@ -113,9 +113,13 @@
     // ---- 第32弾-F：季節イベント ----
     // 数えるのは「期間中に、実際に集まって遊んだこと」だけ。
     // ログイン・起動の回数は数えない（毎日開かせる仕組みは作らない）
+    // カウンタの名前は「季節のid＋Plays／Crowd」。SEASONS に行を足したら、
+    // ここにも同じ名前で2つ足す（数えるところは1か所で、名前から引いている）
     season: {
-      summerPlays: 0,       // 夏まつりの期間中に、集まって遊んだ回数
-      summerCrowd: 0        // うち、5人以上で遊んだ回数
+      summerPlays: 0,       // 夏まつりの期間中に、集まって遊んだ回数（第36弾で開催終了）
+      summerCrowd: 0,       // うち、5人以上で遊んだ回数（同上）
+      releasePlays: 0,      // 第36弾 36-7：リリース記念の期間中に、集まって遊んだ回数
+      releaseCrowd: 0       // うち、5人以上で遊んだ回数
     },
     // ---- 第34弾 2-2：みんなからのおくりもの ----
     // カセットを問わない、アプリ全体を通しての数字。
@@ -128,10 +132,15 @@
   // ===== 第32弾-F：季節イベントの期間 =====
   // 「期間」を1件登録すれば季節が増える形。コードの書き換えでON/OFFしない。
   // 月・日で判定するので、毎年その期間になれば自動で始まり、過ぎれば自動で終わる。
-  // 一度手に入れた称号は、期間が終わっても永久に残る（それが「あの夏の記念」になる）。
+  // 一度手に入れた称号は、期間が終わっても永久に残る（それが「あの日の記念」になる）。
+  //
+  // 第36弾 36-7：夏まつり（7/1〜8/31）をここから外し、リリース記念に入れ替えた。
+  // 外し方は「この表から行を消す」だけ。seasonFor が summer を返さなくなるので、
+  // 装飾も獲得条件も（コードを1行も書き換えずに）完全に止まる。
+  // 夏の称号そのものは CATALOG に残してある——手に入れた人の持ち物を取り上げないため。
   var SEASONS = [
-    { id: 'summer', label: '夏まつり', icon: '🎐', theme: 'season-summer',
-      from: { m: 7, d: 1 }, to: { m: 8, d: 31 } }
+    { id: 'release', label: 'リリース記念', icon: '🎊', theme: 'season-release',
+      from: { m: 9, d: 24 }, to: { m: 10, d: 24 } }
     // 正月・春・ハロウィン・クリスマスなどは、ここに1件足し、
     // season のカウンタと CATALOG のパーツを添えるだけでよい
   ];
@@ -217,14 +226,24 @@
       { id: 'icon-thanks-10', cassette: 'social', emoji: '💐', label: 'ありがとうの花束',
         hint: '「ありがとう」を通算10回もらう',
         need: function (s) { return s('social', 'thanksGot') >= 10; } },
-      // ---- 第32弾-F：季節限定（夏）。期間中に集まって遊んだ人だけ。
-      //      一度手に入れたら、夏が終わっても永久に残る ----
+      // ---- 第32弾-F：季節限定。期間中に集まって遊んだ人だけ。
+      //      一度手に入れたら、その季節が終わっても永久に残る ----
+      // 第36弾 36-7：夏まつりは開催を終えた（SEASONS から外した）。
+      // 行そのものは残す——手に入れた人の持ち物を、あとから取り上げないため。
+      // summerPlays はもう増えないので、これから新しく手に入ることはない
       { id: 'icon-season-summer', cassette: 'season', emoji: '🎐', label: 'あの夏の記念',
-        hint: '夏まつり（7/1〜8/31）の間に、みんなで集まって1回あそぶ',
+        hint: '夏まつり（7/1〜8/31）の間に、みんなで集まって1回あそぶ（開催は終了しました）',
         need: function (s) { return s('season', 'summerPlays') >= 1; } },
       { id: 'icon-season-hanabi', cassette: 'season', emoji: '🎆', label: '夏の夜空の証',
-        hint: '夏まつりの間に、5人以上で集まってあそぶ',
+        hint: '夏まつりの間に、5人以上で集まってあそぶ（開催は終了しました）',
         need: function (s) { return s('season', 'summerCrowd') >= 1; } },
+      // 第36弾 36-7：リリース記念（9/24〜10/24）
+      { id: 'icon-season-release', cassette: 'season', emoji: '🎊', label: 'はじまりの日の記念',
+        hint: 'リリース記念（9/24〜10/24）の間に、みんなで集まって1回あそぶ',
+        need: function (s) { return s('season', 'releasePlays') >= 1; } },
+      { id: 'icon-season-release-crowd', cassette: 'season', emoji: '🎉', label: '開店の日の証',
+        hint: 'リリース記念の間に、5人以上で集まってあそぶ',
+        need: function (s) { return s('season', 'releaseCrowd') >= 1; } },
       // ---- 第32弾-B-2：爆弾解除 ----
       { id: 'icon-bomb-1', cassette: 'bakudan', emoji: '💣', label: '解除班の証',
         hint: '爆弾解除カセットを1回あそぶ',
@@ -296,10 +315,14 @@
         hint: 'だれかから「ありがとう」を3回もらう',
         need: function (s) { return s('social', 'thanksGot') >= 3; } },
 
-      // 第32弾-F：季節限定（夏）
+      // 第32弾-F：季節限定（夏。第36弾で開催終了・手に入れた人のぶんは残る）
       { id: 'first-natsu', cassette: 'season', label: 'なつまつりの',
-        hint: '夏まつり（7/1〜8/31）の間に、みんなで集まって3回あそぶ',
+        hint: '夏まつり（7/1〜8/31）の間に、みんなで集まって3回あそぶ（開催は終了しました）',
         need: function (s) { return s('season', 'summerPlays') >= 3; } },
+      // 第36弾 36-7：リリース記念
+      { id: 'first-hajimari', cassette: 'season', label: 'はじまりの',
+        hint: 'リリース記念（9/24〜10/24）の間に、みんなで集まって3回あそぶ',
+        need: function (s) { return s('season', 'releasePlays') >= 3; } },
 
       { id: 'first-utagai', cassette: 'jinro', label: '疑り深き',
         hint: '投票でウルフ・人狼を正しく当てた回数が5回以上',

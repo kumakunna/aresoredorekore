@@ -947,10 +947,12 @@ function pickCart(doc, id) {
   await r.test('季節イベント：期間中に集まって遊ぶと、その1回だけが数えられる（第32弾-F）', async () => {
     const t = await launch();
     // 期間の判定だけ差し替える（実行する日の日付に左右されないテストにする）
-    t.win.TitleLogic.seasonFor = () => ({ id: 'summer', label: '夏まつり', icon: '🎐', theme: 'season-summer' });
+    // 第36弾 36-7：いま登録されているのはリリース記念。
+    // 数えるところは「季節のid＋Plays」で引いているので、季節を入れ替えても書き換えは要らない
+    t.win.TitleLogic.seasonFor = () => ({ id: 'release', label: 'リリース記念', icon: '🎊', theme: 'season-release' });
     const stats = await playOneRound(t);
-    assertEqual(stats.season.summerPlays, 1, '集まって遊んだ1回が数えられる');
-    assertEqual(stats.season.summerCrowd, 0, '2人では「5人以上」は数えない');
+    assertEqual(stats.season.releasePlays, 1, '集まって遊んだ1回が数えられる');
+    assertEqual(stats.season.releaseCrowd, 0, '2人では「5人以上」は数えない');
     assertNoErrors(t.errors, '季節の数えで未捕捉の例外');
     t.win.close();
   });
@@ -959,8 +961,8 @@ function pickCart(doc, id) {
     const t = await launch();
     t.win.TitleLogic.seasonFor = () => null;   // 期間外
     const stats = await playOneRound(t);
-    assertEqual(stats.season.summerPlays, 0, '期間外は1つも増えない');
-    assertEqual(stats.season.summerCrowd, 0, '同上');
+    assertEqual(stats.season.releasePlays, 0, '期間外は1つも増えない');
+    assertEqual(stats.season.releaseCrowd, 0, '同上');
     assertNoErrors(t.errors, '期間外の扱いで未捕捉の例外');
     t.win.close();
   });

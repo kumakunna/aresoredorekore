@@ -127,10 +127,14 @@ const CASES = [
   ['last-hitorijime', 'sugoroku', { wins: 1 }, { grabWins: 1 }],
   ['last-aun', 'sugoroku', { wins: 1 }, { pairWins: 1 }],
   ['last-kakuremino', 'sugoroku', { wins: 1 }, { hideWins: 1 }],
-  // ---- 第32弾-F：季節イベント（夏） ----
+  // ---- 第32弾-F：季節イベント（夏。第36弾で開催終了・持ち物としては残る） ----
   ['icon-season-summer', 'season', {}, { summerPlays: 1 }],
   ['icon-season-hanabi', 'season', { summerPlays: 9 }, { summerCrowd: 1 }],
   ['first-natsu', 'season', { summerPlays: 2 }, { summerPlays: 3 }],
+  // ---- 第36弾 36-7：リリース記念 ----
+  ['icon-season-release', 'season', {}, { releasePlays: 1 }],
+  ['icon-season-release-crowd', 'season', { releasePlays: 9 }, { releaseCrowd: 1 }],
+  ['first-hajimari', 'season', { releasePlays: 2 }, { releasePlays: 3 }],
   // ---- 第34弾 2-2：みんなからのおくりもの（カセットを問わない） ----
   ['icon-thanks-1', 'social', {}, { thanksGot: 1 }],
   ['icon-thanks-10', 'social', { thanksGot: 9 }, { thanksGot: 10 }],
@@ -243,12 +247,20 @@ const CASES = [
 
   await r.test('季節イベント：期間の判定は月日で決まり、境界の外は完全に無効', async () => {
     const d = (y, m, dd) => new Date(y, m - 1, dd, 12);
-    assertEqual(T.seasonFor(d(2026, 6, 30)), null, '6/30はまだ始まっていない');
-    assertEqual((T.seasonFor(d(2026, 7, 1)) || {}).id, 'summer', '7/1から夏まつり');
-    assertEqual((T.seasonFor(d(2026, 8, 31)) || {}).id, 'summer', '8/31まで夏まつり');
-    assertEqual(T.seasonFor(d(2026, 9, 1)), null, '9/1にはもう終わっている');
-    // 年が変わっても同じ期間で自動的に始まる（毎年の夏が同じ記念になる）
-    assertEqual((T.seasonFor(d(2031, 8, 10)) || {}).id, 'summer', '来年以降の夏も同じ');
+    // 第36弾 36-7：いま登録されているのはリリース記念（9/24〜10/24）。
+    // 「その日が入っているか」を、始まる前・初日・最終日・翌日の4点で見る
+    assertEqual(T.seasonFor(d(2026, 9, 23)), null, '9/23はまだ始まっていない');
+    assertEqual((T.seasonFor(d(2026, 9, 24)) || {}).id, 'release', '9/24から リリース記念');
+    assertEqual((T.seasonFor(d(2026, 10, 24)) || {}).id, 'release', '10/24まで リリース記念');
+    assertEqual(T.seasonFor(d(2026, 10, 25)), null, '10/25にはもう終わっている');
+    // 指示を書いた日（9/2）は期間外。装飾も獲得条件も出ない
+    assertEqual(T.seasonFor(d(2026, 9, 2)), null, '9/2は期間外');
+    // 年が変わっても同じ期間で自動的に始まる
+    assertEqual((T.seasonFor(d(2031, 10, 1)) || {}).id, 'release', '来年以降の同じ期間も同じ');
+    // 第36弾 36-7：夏まつりは、もうどの日にも始まらない（登録から外した）
+    [[7, 1], [8, 10], [8, 31]].forEach(([m, dd]) => {
+      assertEqual(T.seasonFor(d(2026, m, dd)), null, m + '/' + dd + ' に夏まつりは始まらない');
+    });
   });
 
   await r.test('季節イベント：夏の称号は「期間中に集まって遊んだ数」だけで手に入る', async () => {

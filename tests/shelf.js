@@ -978,11 +978,11 @@ function pickCart(doc, id) {
       assert(!/あと\s*\d+\s*日|残り|終了まで/.test(badge.textContent),
         '「あと〇日」のような、焦らせる表示は出さない');
       assert(el(doc, 'app').classList.contains(active.theme), '季節の装飾クラスが当たっている');
-      assert(el(doc, 'seasonDeco').style.display !== 'none', '小物の飾りが出る');
     } else {
       assertEqual(badge.style.display, 'none', '期間外は何も出ない');
-      assertEqual(el(doc, 'seasonDeco').style.display, 'none', '飾りも出ない');
     }
+    // 第36弾 36-6：飾りを四隅に固定して置かない（設定の⚙と重なっていた）
+    assertEqual(doc.getElementById('seasonDeco'), null, '隅に固定した飾りは置かない');
     assertNoErrors(errors, '季節の装飾で未捕捉の例外');
     win.close();
   });

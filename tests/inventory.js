@@ -161,6 +161,27 @@ const OVERLAY_IDS = Array.from(new Set(
   Array.from(INDEX_HTML.matchAll(/id="([A-Za-z]*[Oo]verlay[A-Za-z]*)"/g)).map((m) => m[1])
 ));
 
+// ---- 第36弾 36-2：残り時間を出す要素の印 ----
+// 時計には `data-timer` を付ける。付いていれば、設定（appPrefs.timerView）が自動で効く。
+// 「〜Timer」という id なのに時計ではないものだけを、ここに意識して書き出す。
+// （HANDOFF_ONLY_GAME_IDS と同じ考え方：例外は、コミットで宣言させる）
+const NOT_A_CLOCK_IDS = [
+  'wizStepTimer'   // 設定ウィザードの「何枚目か」の見出し。時間ではない
+];
+
+// ---- 第36弾 36-6：画面の四隅の使い方（docs/デザインの正本.md 1 の正本） ----
+// 画面に固定で浮かぶ小さなUIは、四隅にしか置かない。1つの隅に1つの役割だけ。
+// tests/fixes36.js が index.html のCSSから「隅に居る要素」を機械的に拾い、
+// この表と双方向で突き合わせる（表に無いものを置いたら赤／表にあるのに無くても赤）。
+// sel は index.html のCSSセレクタそのまま。
+const CORNER_SLOTS = [
+  { sel: '.floating-back', corner: 'top-left', role: '1つ前に戻る' },
+  { sel: '.floating-gear', corner: 'top-right', role: '設定' },
+  { sel: '.floating-status', corner: 'top-right', role: 'みんなの状況（⚙の左隣へ横にずらす）' },
+  { sel: '#reactBar', corner: 'bottom-left', role: 'リアクションを送る' },
+  { sel: '#thanksBtn', corner: 'bottom-right', role: 'ありがとうを贈る' }
+];
+
 // ---- 異常系シナリオの一覧（第35弾D：通信・異常系・状態復帰の正本） ----
 // 指示35Dの11シナリオ＋フェーズB/Cからの申し送りを統合。台帳（docs/監査_異常系シナリオ.md）と機械照合する。
 // kind: conn＝接続の異常 / op＝操作の異常 / load＝負荷・上限 / ops＝運用
@@ -195,5 +216,7 @@ module.exports = {
   COUNTDOWN_PATHS,
   SCREEN_IDS,
   OVERLAY_IDS,
+  NOT_A_CLOCK_IDS,
+  CORNER_SLOTS,
   ABNORMAL_SCENARIOS
 };

@@ -26,6 +26,13 @@
     --wood:#8B5E3C;
     --wood-dark:#6B4630;
     --wood-light:#A87450;
+    /* 第36弾 36-5：切り替えスイッチの色。
+       OFFは全テーマ共通の灰色（「効いていない」はどのカセットでも同じ意味）。
+       ONはそのカセットのテーマ色で、各テーマが --switch-on を上書きする。
+       カセットに属さない共通の設定画面のONは、紙と木のこの世界に馴染む暖色の琥珀。
+       決めごとは docs/デザインの正本.md 2 に置いてある */
+    --switch-off:#A9A49A;
+    --switch-on:#C08A3C;
   }
   *{box-sizing:border-box;}
   body{
@@ -302,6 +309,19 @@
   }
   .timer-chip.warn{color:var(--gold);}
   .timer-chip.done{color:var(--stamp);}
+  /* 第36弾 36-2：時間の見せ方は、設定1か所（appPrefs.timerView）で全カセットに効く。
+     残り時間を出す要素には必ず data-timer を付ける。
+     tests/fixes36.js が「時計なのに data-timer が無い」と「data-timer なのに時計でない」を
+     両方向で照合するので、新しい時計に付け忘れると赤くなる（落とし穴20）。
+     出す側（各ゲーム）に表示の条件を書かせない。書かせると新しいゲームで必ず漏れる（落とし穴1） */
+  .app[data-timer-view="hidden"] [data-timer]{display:none !important;}
+  .app[data-timer-view="peek"] [data-timer]{cursor:pointer;}
+  .app[data-timer-view="peek"] [data-timer]:not(.peek-on){color:transparent;position:relative;}
+  .app[data-timer-view="peek"] [data-timer]:not(.peek-on)::after{
+    content:'--:--';position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--ink-soft);letter-spacing:.04em;
+  }
   /* 第32弾-C-2：説明中はタイマーが画面の主役。
      いままで右上の小さな数字だったので、残り時間が視界に入らなかった。
      大きくするだけで「あと何秒か」が説明しながらでも分かる */
@@ -341,8 +361,8 @@
   .chooser .chip.handicap::after{content:' ★';color:var(--gold);}
   .chooser .skip{border:none;background:none;text-decoration:underline;color:var(--ink-soft);font-size:12px;padding:7px 4px;}
   .voice-row{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:12px;}
-  .switch{width:40px;height:24px;border-radius:999px;background:#D9D0B4;position:relative;cursor:pointer;flex:none;transition:background .2s;}
-  .switch.on{background:var(--teal);}
+  .switch{width:40px;height:24px;border-radius:999px;background:var(--switch-off);position:relative;cursor:pointer;flex:none;transition:background .2s;}
+  .switch.on{background:var(--switch-on);}
   .switch::after{content:'';position:absolute;top:2.5px;left:2.5px;width:19px;height:19px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
   .switch.on::after{left:18.5px;}
   .mic-status{font-size:10.5px;color:var(--ink-soft);margin-top:4px;}
@@ -1318,17 +1338,16 @@
     background:#fdecea;border:1px solid #f2b8b2;border-radius:10px;padding:10px 12px;
   }
   /* 第32弾-F：季節の装飾（夏）。背景・小物だけ。操作と中身には一切触らない */
-  #seasonDeco{position:fixed;top:8px;right:12px;z-index:5;pointer-events:none;opacity:.5;font-size:22px;}
-  #seasonDeco .sd-b{display:none;}
-  /* 夜のテーマ（人狼）では、風鈴のかわりに遠くの花火が見える */
-  .app.season-summer.theme-jinro #seasonDeco .sd-a{display:none;}
-  .app.season-summer.theme-jinro #seasonDeco .sd-b{display:inline;}
-  /* 棚：夏の空気をうっすら重ねる（読みやすさを損なわない濃さに留める） */
-  .app.season-summer #scr-shelf{
-    background-image:linear-gradient(180deg, rgba(110,190,255,.14), rgba(110,190,255,0) 40%);
+  /* 第36弾 36-6：季節の小物は、四隅に置かない（docs/デザインの正本.md 1）。
+     以前は右上に固定していて、スマホの幅では設定の⚙とちょうど重なっていた。
+     隅は指が届く場所なので、押せない飾りを置くと押しに行かれてしまう。
+     季節が来ていることは、棚の帯（#seasonBadge）と背景の色だけで伝える */
+  /* 棚：季節の空気をうっすら重ねる（読みやすさを損なわない濃さに留める） */
+  .app.season-release #scr-shelf{
+    background-image:linear-gradient(180deg, rgba(230,180,90,.16), rgba(230,180,90,0) 40%);
   }
-  /* 扉：ようこその一言に風鈴をひとつ */
-  .app.season-summer #scr-door .door-lead::after{content:' 🎐';}
+  /* 扉：ようこその一言に、記念のひとつ */
+  .app.season-release #scr-door .door-lead::after{content:' 🎊';}
   /* 第22弾-1：ログイン画面の「または」区切りと、部屋コードのQR */
   .join-divider{display:flex;align-items:center;gap:10px;margin:18px 0 12px;color:var(--ink-soft);font-size:12px;}
   .join-divider::before, .join-divider::after{content:'';flex:1;height:1px;background:var(--line);}
@@ -1851,6 +1870,8 @@
   }
   .app.theme-wolf .nf-title{font-size:42px;}
   .app.theme-wolf{
+    /* 第36弾 36-5：ONは月あかりの藍（背景に差している rgba(88,108,190) と同じ系統） */
+    --switch-on:#7C8AE0;
     --paper:#161A29;
     --paper-deep:#0F1320;
     --card:#212840;
@@ -1903,7 +1924,6 @@
   /* ⚙は白丸のままだと夜に浮くので、月あかりに寄せる（位置・大きさは変えない） */
   .app.theme-wolf .floating-gear{background:rgba(237,235,245,.14);color:var(--ink);}
   /* トグルのOFF側がクリーム色のままだと、暗い画面で光って見える */
-  .app.theme-wolf .switch{background:rgba(237,235,245,0.22);}
   .app.theme-wolf .switch::after{background:#EDEBF5;}
   .app.theme-wolf .wolf-handoff-name,
   .app.theme-wolf .wolf-topic-name{text-shadow:0 0 22px rgba(226,232,255,0.28);}
@@ -1946,7 +1966,6 @@
   .app.theme-wolf.phase-day input[type="text"],
   .app.theme-wolf.phase-day input[type="password"]{background:#fff;color:var(--ink);}
   .app.theme-wolf.phase-day .floating-gear{background:rgba(255,255,255,.85);color:var(--ink);}
-  .app.theme-wolf.phase-day .switch{background:#D9D0B4;}
   .app.theme-wolf.phase-day .switch::after{background:#fff;}
   .app.theme-wolf.phase-day .wolf-handoff-name,
   .app.theme-wolf.phase-day .wolf-topic-name{text-shadow:none;}
@@ -2135,6 +2154,8 @@
        数字・タイマー → DotGothic16 のまま（今までどおり）。
      ------------------------------------------------------------------- */
   .app.theme-bomb{
+    /* 第36弾 36-5：ONは「止まっている＝安全」の緑（この盤の --teal と同じ） */
+    --switch-on:#3FBFA5;
     --paper:#15171B;
     --paper-deep:#0D0F12;
     --card:#232830;
@@ -2302,7 +2323,6 @@
   .app.theme-bomb .wiz-lead,
   .app.theme-bomb .scr-sub{color:var(--ink-soft);}
   /* トグルのOFF側がクリーム色のままだと、暗い画面で光って見える */
-  .app.theme-bomb .switch{background:rgba(232,234,237,0.22);}
   .app.theme-bomb .switch::after{background:#E8EAED;}
   .app.theme-bomb .toggle-row-mini{background:var(--card);border-color:var(--line);}
   /* 難易度別の本数の行 */
@@ -2348,6 +2368,8 @@
      読み込むフォントは増やさない。
      ------------------------------------------------------------------- */
   .app.theme-quiz{
+    /* 第36弾 36-5：ONは舞台に降りるスポットライトの金 */
+    --switch-on:#F0B429;
     --paper:#10182E;
     --paper-deep:#0A1020;
     --card:#1C2743;
@@ -2447,6 +2469,8 @@
        操作（入札・アイテム・判定）は一切変えていない。見た目だけ。
      ------------------------------------------------------------------- */
   .app.theme-auction{
+    /* 第36弾 36-5：ONは落札の金 */
+    --switch-on:#D4A537;
     --paper:#1A1012;
     --paper-deep:#120A0C;
     --card:#2A1A1D;
@@ -2540,6 +2564,8 @@
      読み込むフォントは増やさない（人狼・爆弾解除・クイズ王と同じ考え方）。
      ------------------------------------------------------------------- */
   .app.theme-sugoroku{
+    /* 第36弾 36-5：ONは双六の朱 */
+    --switch-on:#C0392B;
     --paper:#F2E9D5;
     --paper-deep:#E6D9BC;
     --card:#FDF8EE;
@@ -2848,7 +2874,6 @@
 
   <!-- 第32弾-B-2：手に入った瞬間。結果画面のあとに1回だけ出す -->
   <!-- 第32弾-F：季節の小物（期間中だけ）。操作の邪魔をしない縁の飾り -->
-  <div id="seasonDeco" aria-hidden="true" style="display:none;"><span class="sd-a">🎐</span><span class="sd-b">🎆</span></div>
   <!-- 第32弾-E 第4部：リアクション。部屋のゲーム画面でだけ出る小さな帯 -->
   <div id="reactBar" style="display:none;"></div>
   <!-- 第32弾-E 第5部：感謝を贈る。決着した時だけ出る -->
@@ -2969,11 +2994,15 @@
         </div>
         <div class="timer-presets" id="timerPresets"></div>
         <div class="timer-dmode">
-          <div class="tp-label">プレイ中の表示</div>
-          <div class="seg" id="timerDModeSeg">
-            <button class="seg-btn" data-dmode="always">常に表示</button>
-            <button class="seg-btn" data-dmode="peek">見たい時だけ</button>
+          <div class="tp-label">時間の見せ方</div>
+          <!-- 第36弾 36-2：ここも設定画面も、同じ appPrefs.timerView を書き換えるだけの窓口。
+               data-timerview を持つボタンは、どこに増やしても自動で同じ動きになる -->
+          <div class="seg js-timerview">
+            <button class="seg-btn" data-timerview="always">常に表示</button>
+            <button class="seg-btn" data-timerview="peek">見たい時だけ</button>
+            <button class="seg-btn" data-timerview="hidden">表示しない</button>
           </div>
+          <div class="mic-status">全部のカセットに効きます。「見たい時だけ」は、時計を押すと5秒だけ出ます</div>
         </div>
       </div>
     </div>
@@ -3535,7 +3564,7 @@
     <div class="bomb-topbar">
       <div class="bomb-lives" id="rtBombLives">❤️❤️❤️</div>
       <div class="bomb-progress" id="rtBombProgress">0 / 0 解除</div>
-      <div class="timer-chip" id="rtBombTimer" style="display:none;">--:--</div>
+      <div class="timer-chip" data-timer id="rtBombTimer" style="display:none;">--:--</div>
     </div>
     <div class="rt-phase" id="rtBombPhase">-</div>
     <div class="wiz-body">
@@ -3558,7 +3587,7 @@
     <div class="bomb-topbar">
       <div class="bomb-lives" id="dfStrikes">❤️❤️❤️</div>
       <div class="bomb-progress" id="dfProgress">0 / 0 解除</div>
-      <div class="timer-chip" id="dfTimer" style="display:none;">--:--</div>
+      <div class="timer-chip" data-timer id="dfTimer" style="display:none;">--:--</div>
     </div>
     <div class="rt-phase" id="dfPhase">-</div>
     <div class="wiz-body">
@@ -3588,7 +3617,7 @@
     <div class="quiz-topbar">
       <div class="quiz-score" id="qzScore">0点</div>
       <div class="quiz-round" id="qzRound"></div>
-      <div class="timer-chip" id="qzTimer" style="display:none;">--:--</div>
+      <div class="timer-chip" data-timer id="qzTimer" style="display:none;">--:--</div>
     </div>
     <div class="rt-phase" id="qzPhase">-</div>
     <div class="wiz-body">
@@ -3606,7 +3635,7 @@
     <div class="quiz-topbar">
       <div class="quiz-score" id="auChips">20枚</div>
       <div class="quiz-round" id="auRound"></div>
-      <div class="timer-chip" id="auTimer" style="display:none;">--:--</div>
+      <div class="timer-chip" data-timer id="auTimer" style="display:none;">--:--</div>
     </div>
     <div class="rt-phase" id="auPhase">-</div>
     <div class="wiz-body">
@@ -3885,7 +3914,7 @@
     <div class="turn-banner" id="wrTurnBanner"></div>
     <!-- 第21弾-1：夜の持ち時間。全員に同じ見た目で出るので、役職の手がかりにはならない -->
     <div class="night-timer-row" id="wrNightTimerRow" style="display:none;">
-      <div class="timer-chip" id="wrNightTimer">00:30</div>
+      <div class="timer-chip" data-timer id="wrNightTimer">00:30</div>
     </div>
     <div id="wrHandoff" class="wolf-handoff">
       <div class="wolf-handoff-label">つぎは</div>
@@ -3925,7 +3954,7 @@
       <div class="wolf-result-topic" id="wrDayNews"></div>
       <!-- 第20弾-3-3：ワードウルフ側と同じく、話し合いの時間を止められるようにする -->
       <div class="day-timer-row">
-        <div class="play-timer" id="wrDayTimer" style="display:none;">03:00</div>
+        <div class="play-timer" data-timer id="wrDayTimer" style="display:none;">03:00</div>
         <button class="pause-btn" id="wrDayPauseBtn" style="display:none;">⏸</button>
       </div>
       <div class="wolf-handoff-sub" id="wrDaySub">話し合って、あやしい人を決めましょう</div>
@@ -3983,7 +4012,7 @@
     <div class="bomb-topbar">
       <div class="bomb-lives" id="bombLives">❤️❤️❤️</div>
       <div class="bomb-progress" id="bombProgress">0 / 30 解除</div>
-      <div class="timer-chip" id="bombTimer" style="display:none;">--:--</div>
+      <div class="timer-chip" data-timer id="bombTimer" style="display:none;">--:--</div>
     </div>
     <!-- 第28弾-1：暗室→点灯→蓋オープンの演出は無くした。
          カウントダウンのあと、そのままコード一覧が出る -->
@@ -4038,7 +4067,7 @@
       <span class="tourney-score" id="tourneyScoreLine">0 - 0</span>
       <span id="tourneyNameB">-</span>
     </div>
-    <div class="timer-chip" id="tourneyTimer" style="align-self:center;margin:10px auto 16px;">00:10</div>
+    <div class="timer-chip" data-timer id="tourneyTimer" style="align-self:center;margin:10px auto 16px;">00:10</div>
     <div class="topic-card">
       <div class="topic-label">お題</div>
       <div class="topic-name" id="tourneyTopicName">-</div>
@@ -4126,9 +4155,8 @@
     <!-- 第20弾-1-3：ボタンは表示/非表示が切り替わるので、まとめて右に寄せる。
          space-between に直接並べると、見えているボタンの数で配置が毎回ズレる -->
     <div class="play-topbar">
-      <div class="timer-chip" id="playTimer">03:00</div>
+      <div class="timer-chip" data-timer id="playTimer">03:00</div>
       <div class="topbar-actions">
-        <button class="pause-btn" id="peekBtn" style="display:none;">⏱</button>
         <button class="pause-btn" id="pauseBtn">⏸</button>
         <button class="pause-btn" id="endRoundBtn" style="display:none;">🏁</button>
       </div>
@@ -4380,6 +4408,16 @@
           <div class="tp-label">文字サイズ　<span id="setFontValue">100</span>%</div>
           <input type="range" id="setFont" min="85" max="130" step="5" value="100">
           <div class="mic-status">この文の大きさも、その場で変わります</div>
+        </div>
+        <!-- 第36弾 36-2：時間の見せ方。全カセット共通の1か所 -->
+        <div class="card">
+          <div class="tp-label">時間の見せ方</div>
+          <div class="seg js-timerview">
+            <button class="seg-btn" data-timerview="always">常に表示</button>
+            <button class="seg-btn" data-timerview="peek">見たい時だけ</button>
+            <button class="seg-btn" data-timerview="hidden">表示しない</button>
+          </div>
+          <div class="mic-status">残り時間の出し方を、全部のカセットでそろえます。「見たい時だけ」は、時計を押すと5秒だけ出ます</div>
         </div>
         <!-- 第32弾-E 第4部：リアクションのON/OFF（うるさいと感じる人のために） -->
         <div class="card">
@@ -5934,7 +5972,6 @@
     username: null,
     customTimer: null,
     timerEnabled: true,
-    timerDisplay: 'always', // 'always' | 'peek'
     hardMode: false,
     describerPlayerId: null,
     describerScores: false,
@@ -6465,7 +6502,10 @@
     fxShake: true,     // 画面の揺れ
     fxBody: true,      // 体を動かす演出（実物解除のポーズ指定など）
     bgmVolume: 40,     // 第32弾-D 第1部：BGMの音量（効果音・読み上げとは別）
-    reactions: true    // 第32弾-E 第4部：リアクション（送る・見える）
+    reactions: true,   // 第32弾-E 第4部：リアクション（送る・見える）
+    // 第36弾 36-2：残り時間の見せ方。全カセット共通で、ここ1か所だけが持つ。
+    // 'always'＝常に表示 / 'peek'＝見たい時だけ（時計を押すと5秒） / 'hidden'＝表示しない
+    timerView: 'always'
   };
   function loadAppPrefs(){
     try{
@@ -6497,7 +6537,43 @@
     // CSSのクラス1つで全部の該当演出が止まる形にする（出す側に条件を書かせない）
     app.classList.toggle('no-flash', !appPrefs.fxFlash);
     app.classList.toggle('no-shake', !appPrefs.fxShake);
+    // 第36弾 36-2：時間の見せ方。ここ1か所で、全カセットの時計（data-timer）に効く。
+    // 「見たい時だけ」以外に切り替えたら、開きっぱなしの時計は閉じておく
+    app.dataset.timerView = appPrefs.timerView;
+    if(appPrefs.timerView !== 'peek') closeAllTimerPeeks();
   }
+  /**
+   * 第36弾 36-2：「見たい時だけ」の覗き。
+   * ゲームごとに専用ボタンを置くと、新しいゲームで必ず置き忘れる（落とし穴1）。
+   * 時計そのものを押す形にして、data-timer が付いていれば何もしなくても効くようにした。
+   */
+  var timerPeekTimer = null;
+  function closeAllTimerPeeks(){
+    clearTimeout(timerPeekTimer);
+    document.querySelectorAll('[data-timer].peek-on').forEach(function(x){ x.classList.remove('peek-on'); });
+  }
+  document.addEventListener('click', function(e){
+    if(appPrefs.timerView !== 'peek') return;
+    var t = e.target && e.target.closest && e.target.closest('[data-timer]');
+    if(!t) return;
+    var open = t.classList.contains('peek-on');
+    closeAllTimerPeeks();
+    if(open) return;               // もう一度押したら閉じる
+    t.classList.add('peek-on');
+    timerPeekTimer = setTimeout(function(){ t.classList.remove('peek-on'); }, 5000);
+  });
+  // 3択の窓口（ウィザード・設定画面）。増やしても、この2つを通るだけで同じ動きになる
+  function syncTimerViewSegs(){
+    document.querySelectorAll('[data-timerview]').forEach(function(b){
+      b.classList.toggle('on', b.dataset.timerview === appPrefs.timerView);
+    });
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest && e.target.closest('[data-timerview]');
+    if(!b) return;
+    appPrefs.timerView = b.dataset.timerview;
+    applyAppPrefs(); saveAppPrefs(); syncTimerViewSegs();
+  });
   /**
    * 第32弾-D 第3部：カウントダウンの最後3秒を、1秒ごとに強くなる振動で伝える。
    * クイズ・爆弾・オークションの時計がみんなここを通る（画面ごとに書かない）。
@@ -6508,6 +6584,34 @@
     if(typeof FxKit === 'undefined') return;
     if(sec != null && sec >= 1 && sec <= 3 && sec !== cdVibePrev) FxKit.vibe('count' + sec);
     cdVibePrev = sec;
+  }
+  /**
+   * 第36弾 36-3：1台で遊ぶゲームを終える時、走っているものを全部捨てる。
+   *
+   * 「クイズ解除を途中で終了 → 棚にもどる → しばらくして『爆発しました』が出る」は、
+   * 終了処理が play.interval しか止めておらず、爆弾の時計だけが生き残っていたため。
+   * 経路ごとに止めて回ると必ずどこかが漏れるので、止め方はここ1か所に集める（落とし穴17）。
+   *
+   * clearInterval では止まらない「遅れて動く処理」（setTimeout の続き）のために、
+   * 「いま何代目のゲームか」を数える。代が変わったものは、目を覚ましても黙って消える。
+   */
+  var playGen = 0;
+  function playAlive(gen){ return gen === playGen; }
+  function stopAllPlayTimers(){
+    playGen++;
+    if(play.interval){ clearInterval(play.interval); play.interval = null; }
+    play.running = false;
+    if(play.bombInterval){ clearInterval(play.bombInterval); play.bombInterval = null; }
+    play.bombPaused = false;
+    if(play.tourneyInterval){ clearInterval(play.tourneyInterval); play.tourneyInterval = null; }
+    stopBombHeart();
+    stopWrDayTimer();
+    stopWrNightTimer();
+    stopTallyCountdown();
+    closeAllTimerPeeks();
+    if(sugoInputStop){ sugoInputStop(); sugoInputStop = null; }
+    stopVoice();
+    try{ window.speechSynthesis.cancel(); }catch(e){}
   }
   // 演出の待ち時間。setTimeout の代わりにこれを通すと、速さの設定が効く
   function fxMs(ms){
@@ -7186,6 +7290,9 @@
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
     if(RT_GAME_SCREEN_IDS.indexOf(id) !== -1 || id === 'scr-rt-big') rtRender();
+    // 第36弾 36-3：棚は「どのゲームも遊んでいない場所」。
+    // ここへ来たら、走っている時計と遅れて動く処理をまとめて捨てる（落とし穴17）
+    if(id === 'scr-shelf') stopAllPlayTimers();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -8252,9 +8359,7 @@
     setWheelsToSeconds(t);
     positionWheelBand();
     renderTimerPresets();
-    Array.prototype.forEach.call(el('timerDModeSeg').children, function(b){
-      b.classList.toggle('on', b.dataset.dmode === state.timerDisplay);
-    });
+    syncTimerViewSegs();   // 第36弾 36-2：3択は共通の窓口が面倒を見る
   }
   ['wheelM', 'wheelS'].forEach(function(id){
     var col = el(id);
@@ -8274,14 +8379,6 @@
     state.customTimer = parseInt(b.dataset.sec, 10);
     setWheelsToSeconds(state.customTimer);
     renderTimerPresets();
-  });
-  el('timerDModeSeg').addEventListener('click', function(e){
-    var b = e.target.closest('.seg-btn');
-    if(!b) return;
-    state.timerDisplay = b.dataset.dmode;
-    Array.prototype.forEach.call(el('timerDModeSeg').children, function(x){
-      x.classList.toggle('on', x === b);
-    });
   });
   document.querySelectorAll('[data-wiz-next]').forEach(function(b){ b.addEventListener('click', wizardNext); });
   document.querySelectorAll('[data-wiz-back]').forEach(function(b){ b.addEventListener('click', wizardBack); });
@@ -16277,6 +16374,7 @@
       sub:'つぎは、もう少しだけ慎重に', ms:900 });
   }
   function defuseComplete(){
+    var gen = playGen;   // 第36弾 36-3
     play.bombPhase = 'over';
     stopBombTimer();
     stopBombHeart();
@@ -16286,12 +16384,13 @@
     var inside = el('bombInside');
     inside.classList.remove('bomb-defused'); void inside.offsetWidth; inside.classList.add('bomb-defused');
     if(typeof FxKit !== 'undefined'){
-      bombClearFx().then(function(){ enterBombEnd(true); goTo('scr-bomb-end'); });
+      bombClearFx().then(function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); });
       return;
     }
-    setTimeout(function(){ enterBombEnd(true); goTo('scr-bomb-end'); }, 750);
+    setTimeout(function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); }, 750);
   }
   function explode(){
+    var gen = playGen;   // 第36弾 36-3
     play.bombPhase = 'over';
     stopBombTimer();
     stopBombHeart();
@@ -16299,11 +16398,11 @@
     play.currentBombWire = null;
     el('app').classList.remove('bomb-danger');
     if(typeof FxKit !== 'undefined'){
-      bombBoomFx().then(function(){ enterBombEnd(false); goTo('scr-bomb-end'); });
+      bombBoomFx().then(function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); });
       return;
     }
     buzz();
-    setTimeout(function(){ enterBombEnd(false); goTo('scr-bomb-end'); }, 650);
+    setTimeout(function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); }, 650);
   }
   el('bombWireList').addEventListener('click', function(e){
     var btn = e.target.closest('.bomb-wire-btn');
@@ -16612,6 +16711,7 @@
     el('tourneyBBtn').textContent = '⚡ ' + tourneyPlayerName(play.tourneyCurrentPair[1]) + 'が正解';
   }
   function startTourneyTopic(){
+    var gen = playGen;   // 第36弾 36-3
     play.tourneyBusy = false;
     var topics = poolForTiers(effectiveTiers()); // ④：選択難易度で絞った統合プール
     if(!topics || topics.length === 0) return;
@@ -16625,7 +16725,7 @@
       if(play.tourneyRemaining <= 0){
         clearInterval(play.tourneyInterval);
         timesUpChime(); // #3：1問の時間切れもニュートラルな音
-        setTimeout(startTourneyTopic, 700);
+        setTimeout(function(){ if(playAlive(gen)) startTourneyTopic(); }, 700); // 第36弾 36-3
         return;
       }
       renderTourneyTimer();
@@ -16638,6 +16738,7 @@
   }
   function tourneyScorePoint(who){
     if(play.tourneyBusy) return;
+    var gen = playGen;   // 第36弾 36-3
     play.tourneyBusy = true;
     clearInterval(play.tourneyInterval);
     if(who === 'A') play.tourneyScoreA++; else play.tourneyScoreB++;
@@ -16650,9 +16751,9 @@
       play.tourneyRunnerUp = loserId;
       showFlash('🎉 ' + tourneyPlayerName(winnerId) + ' の勝ち！', 'hit');
       play.tourneyMatchIndex++;
-      setTimeout(function(){ play.tourneyBusy = false; advanceToNextMatch(); }, 1200);
+      setTimeout(function(){ if(!playAlive(gen)) return; play.tourneyBusy = false; advanceToNextMatch(); }, 1200);
     } else {
-      setTimeout(startTourneyTopic, 700);
+      setTimeout(function(){ if(playAlive(gen)) startTourneyTopic(); }, 700);
     }
   }
   el('tourneyABtn').addEventListener('click', function(){ tourneyScorePoint('A'); });
@@ -17206,11 +17307,12 @@
     clearInterval(play.interval); play.running = false;
     timesUpChime(); // #3：時間切れはニュートラルな音（不正解音ではない）
     var m = modeById(state.selectedModeId);
+    var gen = playGen;   // 第36弾 36-3：ここで終わらせたゲームの続きだけを動かす
     if(m.wolf && play.wolfPhase === 'discuss'){
       // 第22弾-4：投票の直前に動く役職がいれば、先にその手渡しを挟む
-      setTimeout(function(){ startWolfPreVotePass(); }, 900);
+      setTimeout(function(){ if(playAlive(gen)) startWolfPreVotePass(); }, 900);
     } else {
-      setTimeout(function(){ goTo('scr-reveal'); }, 900);
+      setTimeout(function(){ if(playAlive(gen)) goTo('scr-reveal'); }, 900);
     }
   }
   function startPlayTimer(){
@@ -17225,14 +17327,14 @@
       hurryTick(play.remaining);
     }, 1000);
   }
-  // プレイ画面トップバーの出し分け（②：ON/OFF・常時表示/見たい時だけ）
-  var peekTimeout = null;
+  // プレイ画面トップバーの出し分け（②：タイマーのON/OFF）
+  // 第36弾 36-2：「常に表示／見たい時だけ／表示しない」の判断はここから外し、
+  // 設定1か所（appPrefs.timerView）とCSSに寄せた。
+  // ここが決めるのは「このゲームに時間があるか」だけ（出す側に条件を書かせない）
   function setupPlayTimerUI(){
     var on = state.timerEnabled;
-    el('playTimer').style.display = (on && state.timerDisplay === 'always') ? 'inline-block' : 'none';
+    el('playTimer').style.display = on ? 'inline-block' : 'none';
     el('pauseBtn').style.display = on ? 'inline-flex' : 'none';
-    el('peekBtn').style.display = (on && state.timerDisplay === 'peek') ? 'inline-flex' : 'none';
-    el('peekBtn').classList.remove('on'); // 7：ラウンド開始時は「非表示」状態から
     el('endRoundBtn').style.display = on ? 'none' : 'inline-flex';
     el('pauseBtn').textContent = '⏸';
     // 第18弾-6：ワードウルフの話し合いは、時間を待たずに投票へ進めるようにする
@@ -17257,25 +17359,6 @@
     }
   });
   el('endRoundBtn').addEventListener('click', finishPlayRound);
-  // 7：トグル式。タップで表示／もう一度タップで即非表示（3秒の自動非表示も残す）
-  el('peekBtn').addEventListener('click', function(){
-    var d = el('playTimer');
-    var showing = d.style.display !== 'none';
-    clearTimeout(peekTimeout);
-    if(showing){
-      d.style.display = 'none';
-      this.classList.remove('on');
-      return;
-    }
-    d.style.display = 'inline-block';
-    this.classList.add('on');
-    peekTimeout = setTimeout(function(){
-      if(state.timerDisplay === 'peek'){
-        d.style.display = 'none';
-        el('peekBtn').classList.remove('on');
-      }
-    }, 3000);
-  });
 
   function getStat(name){
     if(!state.topicStats[name]) state.topicStats[name] = {correct:0, wrong:0, foul:0};
@@ -18225,6 +18308,8 @@
     el('setBgmVolValue').textContent = appPrefs.bgmVolume;
     // 第32弾-E 第4部：リアクション
     el('setReactionsToggle').classList.toggle('on', appPrefs.reactions);
+    // 第36弾 36-2：時間の見せ方
+    syncTimerViewSegs();
   }
   function bindPref(id, key, labelId, fmt){
     el(id).addEventListener('input', function(){
@@ -18327,9 +18412,9 @@
     var res = await saveRecordsNow(false);
     btn.disabled = false;
     if(!res.ok && res.msg) alert(res.msg);
-    stopVoice();
-    try{ window.speechSynthesis.cancel(); }catch(e){}
-    if(play.interval) clearInterval(play.interval);
+    // 第36弾 36-3：止めるのは play.interval だけではない（爆弾の時計・心拍・
+    // 早押しの時計・人狼の話し合い…）。1か所に集めた後片付けを通す
+    stopAllPlayTimers();
     el('settingsOverlay').classList.remove('show');
     askPlayerChange();  // 第12弾-7
     goTo('scr-shelf');  // 第12弾：棚に戻って次のゲームを選ぶ
@@ -18886,7 +18971,11 @@
   /**
    * 第32弾-F：季節の装飾を当てる。
    * 期間と中身は titles.js の SEASONS が持つ（コードを書き換えずに増やせる）。
-   * 変えるのは背景・小物・控えめな一言だけで、カセットの中身・操作には一切触らない。
+   * 変えるのは背景・控えめな一言だけで、カセットの中身・操作には一切触らない。
+   *
+   * 第36弾 36-6：隅に置いていた小物（風鈴）はやめた。
+   * 隅は指が届く場所で、押せない飾りを置くと押しに行かれるうえ、
+   * スマホの幅では設定の⚙とちょうど重なっていた（docs/デザインの正本.md 1）。
    */
   function applySeason(){
     if(typeof TitleLogic === 'undefined' || !TitleLogic.seasonFor) return;
@@ -18894,14 +18983,11 @@
     var s = TitleLogic.seasonFor();
     (TitleLogic.SEASONS || []).forEach(function(x){ app.classList.remove(x.theme); });
     var badge = el('seasonBadge');
-    var deco = el('seasonDeco');
     if(!s){
       if(badge) badge.style.display = 'none';
-      if(deco) deco.style.display = 'none';
       return;
     }
     app.classList.add(s.theme);
-    if(deco) deco.style.display = 'block';
     if(badge){
       badge.style.display = 'block';
       badge.textContent = s.icon + ' ' + s.label + ' 開催中（期間中に集まって遊ぶと、記念のパーツが手に入ります）';

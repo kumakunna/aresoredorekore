@@ -10452,7 +10452,8 @@
   // ---- クイズラッシュ ----
   function qzRenderRush(v, you){
     var r = v.rush || {}, mine = you.rush || {};
-    el('qzRound').textContent = r.roundsToWin > 0
+    // 第36弾 36-4：決着した画面にラウンド数は出さない（ラウンド制の全ゲームで同じ）
+    el('qzRound').textContent = (v.phase !== 'ended' && r.roundsToWin > 0)
       ? ('第' + r.round + 'ラウンド／' + r.roundsToWin + '先取') : '';
 
     if(v.phase === 'break'){
@@ -10871,7 +10872,10 @@
     if(!v) return;
     el('auPhase').textContent = (v.mode === 'open' ? 'せり上げ式' : '秘密入札') +
       '・' + (AU_PHASE_LABEL[v.phase] || v.phase);
-    el('auRound').textContent = v.round ? ('第' + v.round + ' / ' + v.totalRounds + 'ラウンド') : '';
+    // 第36弾 36-4：決着した画面にラウンド数は出さない。
+    // 最後のラウンドを終えた時点で round は総数+1 になるので「第7/6ラウンド」に見えていた
+    el('auRound').textContent = (v.phase !== 'ended' && v.round)
+      ? ('第' + v.round + ' / ' + v.totalRounds + 'ラウンド') : '';
 
     if(!you){
       auLeaveScreen();
@@ -11140,8 +11144,9 @@
   // 大画面。品物の正体は、落札が決まるまで出さない
   function renderRtBigAuction(v){
     el('bigBoard').style.display = 'none';
+    // 第36弾 36-4：決着した画面にラウンド数は出さない（範囲外の数字になる）
     el('bigPhase').textContent = (v.mode === 'open' ? 'せり上げ式' : '秘密入札') +
-      '　第' + v.round + '/' + v.totalRounds + 'ラウンド';
+      (v.phase === 'ended' ? '' : ('　第' + v.round + '/' + v.totalRounds + 'ラウンド'));
     var main = '', sub = '';
     if(v.phase === 'ended'){
       var res = v.result || {};

@@ -3065,6 +3065,40 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // 第36弾 36-4：実機で結果発表に「第7/6ラウンド」と出ていた。
+  // サーバーは最後のラウンドを終えた時に round を1つ進めてから決着させるので、
+  // 決着の見え方では round が総数を1つ超える。決着した画面にラウンド数は出さない
+  await r.test('36-4：決着した画面に、範囲を超えたラウンド数を出さない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const ended = {
+      phase: 'ended', round: 7, totalRounds: 6,
+      result: { ranking: [
+        { rank: 1, name: 'あき', chips: 31 },
+        { rank: 2, name: 'びび', chips: 18 }
+      ] }
+    };
+    // 条件が本当に作れているかを、主張の前に確かめる（落とし穴10 型b）
+    assert(ended.round > ended.totalRounds, '決着の時点では、ラウンド数が総数を超えている');
+
+    push(fake, auctionRoom(auctionView(ended)));
+    pushYou(fake, auctionYou({ phase: 'ended' }));
+    await waitScreen(win, doc, 'scr-rt-auction', 4000);
+    assertEqual(el(doc, 'auRound').textContent, '', '決着した画面にラウンド数は出ない');
+    const shown = el(doc, 'scr-rt-auction').textContent;
+    assert(!/ラウンド/.test(el(doc, 'auRound').textContent), 'ラウンドの文字も残らない');
+    assert(!/7\s*\/\s*6/.test(shown), '「7 / 6」のような範囲外の数字が画面に無い');
+    assert(/あき/.test(shown), '出すべきもの（順位）はちゃんと出ている');
+
+    // 遊んでいる最中は、今までどおり出る（消しすぎていないこと）
+    push(fake, auctionRoom(auctionView({ phase: 'bid', round: 3, totalRounds: 6, remainingMs: 8000 })));
+    pushYou(fake, auctionYou({ phase: 'bid' }));
+    await waitFor(win, () => /3/.test(el(doc, 'auRound').textContent), 3000, 'ラウンド数が戻る');
+    assert(/第3 \/ 6ラウンド/.test(el(doc, 'auRound').textContent), '途中では第3/6ラウンドと出る');
+    assertNoErrors(errors, '決着の画面で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('大画面：オークションは、落札が決まるまで正体を出さない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });

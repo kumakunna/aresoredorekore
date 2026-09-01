@@ -16686,7 +16686,8 @@
       play.tourneyWinners.push(pair[0]);
       showFlash('🎉 ' + tourneyPlayerName(pair[0]) + ' は不戦勝', 'hit');
       play.tourneyMatchIndex++;
-      setTimeout(advanceToNextMatch, 900);
+      var gen = playGen;   // 第36弾 36-3
+      setTimeout(function(){ if(playAlive(gen)) advanceToNextMatch(); }, 900);
       return;
     }
     play.tourneyCurrentPair = pair;

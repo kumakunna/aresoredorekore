@@ -16,7 +16,8 @@ const fs = require('fs');
 const path = require('path');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
-  launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame
+  launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame,
+  runWizardToPlay
 } = require('./harness');
 const INV = require('./inventory');
 
@@ -111,44 +112,57 @@ function px(body, prop) {
   });
 
   // ===================== 36-3 =====================
-  await r.test('36-3：1台のゲームを途中で終わらせると、走っていた時計が全部止まる', async () => {
-    const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+  // 時計の作りが違うゲームぶん回す（型(c)：分岐があるなら、全部の入力を通す）。
+  // 人狼・ワードウルフの話し合いの時計は「通常プレイ」と同じ startPlayTimer を通るので、
+  // 代表として通常プレイで見ている。
+  // 見張り方はゲームに依らない：「そのゲームが動かし始めた時計が、棚に着いた時に1つも残っていない」。
+  // 実装の内部変数（play.bombInterval など）を覗くと、変数名を変えただけで黙って素通りする
+  const TIMER_GAMES = [
+    { label: 'あれそれどれこれ（通常プレイ）', cart: 'aresoredorekore', game: null, mode: 'normal',
+      players: ['あき', 'びび'], hidden: false, clock: 'playTimer（play.interval）' },
+    { label: 'クイズ解除（協力版）', cart: 'bakudan', game: 'bomb', mode: 'bomb-coop',
+      players: ['あき', 'びび'], hidden: false, clock: 'bombTimer と心拍' },
+    { label: '早押しトーナメント', cart: 'quizou', game: 'buzzer', mode: 'buzzer',
+      players: ['あき', 'びび', 'ちか', 'でん'], hidden: true, clock: 'tourneyTimer' }
+  ];
+  for (const g of TIMER_GAMES) {
+    await r.test('36-3：' + g.label + 'を途中で終わらせると、走っていた時計が全部止まる', async () => {
+      const { win, doc, errors } = await launch(g.hidden ? { showHiddenModes: true } : undefined);
+      win.confirm = () => true;
 
-    // 「このゲームが動かしている時計」だけを数える。
-    // 実装の内部変数（play.bombInterval など）を覗くと、変数名を変えただけで
-    // テストが黙って素通りする。外から見える「走っている時計」の側で見張る
-    const live = new Map();
-    const rawSet = win.setInterval.bind(win);
-    const rawClear = win.clearInterval.bind(win);
-    win.setInterval = function (fn, ms) { const id = rawSet(fn, ms); live.set(id, ms); return id; };
-    win.clearInterval = function (id) { live.delete(id); return rawClear(id); };
+      // 「このゲームが動かしている時計」を、外から見える側で数える
+      const live = new Map();
+      const rawSet = win.setInterval.bind(win);
+      const rawClear = win.clearInterval.bind(win);
+      win.setInterval = function (fn, ms) { const id = rawSet(fn, ms); live.set(id, ms); return id; };
+      win.clearInterval = function (id) { live.delete(id); return rawClear(id); };
 
-    await startBombCoop(win, doc);
-    // 型(b)：止める対象が本当に走っているか、主張の前に確かめる
-    const running = Array.from(live.values());
-    assert(running.length > 0, 'ゲーム中は、このゲームの時計が走っている（' + running.join(',') + 'ms）');
-    assert(running.indexOf(1000) >= 0, '1秒きざみの残り時間の時計がある');
-    const started = Array.from(live.keys());
+      await startHandoffGame(win, doc, g);
+      // 型(b)：止める対象が本当に走っているか、主張の前に確かめる
+      await waitFor(win, () => Array.from(live.values()).some((ms) => ms > 0 && ms <= 1000),
+        20000, g.label + ' の時計が動き出す');
+      const started = Array.from(live.keys());
+      assert(started.length > 0, 'ゲーム中は、このゲームの時計が走っている（' + g.clock + '）');
 
-    // 設定 →「ゲームを終了する」（実機で報告された経路そのもの）
-    click(doc, 'floatingGearBtn');
-    await sleep(win, 40);
-    click(doc, doc.querySelector('#setRootMenu [data-setpage="game"]'));
-    await sleep(win, 40);
-    click(doc, 'endGameBtn');
-    await waitScreen(win, doc, 'scr-shelf', 5000);
+      // 設定 →「ゲームを終了する」（実機で報告された経路そのもの）
+      click(doc, 'floatingGearBtn');
+      await sleep(win, 60);
+      click(doc, doc.querySelector('#setRootMenu [data-setpage="game"]'));
+      await sleep(win, 60);
+      click(doc, 'endGameBtn');
+      await waitScreen(win, doc, 'scr-shelf', 8000);
 
-    const leftOver = started.filter((id) => live.has(id));
-    assertEqual(leftOver.length, 0,
-      '棚にもどった時点で、そのゲームの時計は1つも残っていない（残ると、あとで「爆発しました」が出る）');
+      const leftOver = started.filter((id) => live.has(id));
+      assertEqual(leftOver.length, 0,
+        '棚にもどった時点で、そのゲームの時計は1つも残っていない（残ると、あとで「爆発しました」が出る）');
 
-    // 走り残しが無いことを、時間を進めても何も起きないことでも確かめる
-    await sleep(win, 1200);
-    assertEqual(activeScreen(doc), 'scr-shelf', '棚にいたまま、勝手に画面が変わらない');
-    assertNoErrors(errors);
-    win.close();
-  });
+      // 走り残しが無いことを、時間を進めても何も起きないことでも確かめる
+      await sleep(win, 1500);
+      assertEqual(activeScreen(doc), 'scr-shelf', '棚にいたまま、勝手に画面が変わらない');
+      assertNoErrors(errors);
+      win.close();
+    });
+  }
 
   // ===================== 36-5 =====================
   await r.test('36-5：トグルは、OFFが共通の灰色・ONがカセットのテーマ色', async () => {
@@ -236,43 +250,31 @@ function px(body, prop) {
 })();
 
 /**
- * クイズ解除（協力版）を、かんたん2本で始める。
- * tests/smoke.js の同名の下ごしらえと同じ歩き方（あちらは演出を見るために使っている）。
- * ここで欲しいのは「時計が走っている状態」なので、コードは開かない。
+ * 手渡し（1台）で、指定のカセット・ゲーム・モードを遊びはじめるところまで進める。
+ * ここが欲しいのは「時計が動いている状態」だけなので、遊びの中身には触れない。
  */
-async function startBombCoop(win, doc) {
-  const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+async function startHandoffGame(win, doc, g) {
+  const cart = doc.querySelector('.cart[data-cart="' + g.cart + '"]');
+  if (!cart) throw new Error('カセットが棚にありません: ' + g.cart);
   cart.click();
   if (activeScreen(doc) === 'scr-shelf') cart.click();
-  await waitScreen(win, doc, 'scr-game', 3000);
-  pickGame(doc, 'bomb');
-  await sleep(win, 60);
-  await fillPlayerForm(win, doc, ['あき', 'びび']);
-  await waitScreen(win, doc, 'scr-mode', 3000);
-  click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
-  click(doc, 'modeNextBtn');
-  await waitScreen(win, doc, 'scr-set-bomb', 3000);
-  for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
-    for (let i = 0; i < 30; i++) {
-      if (el(doc, 'bombCount-' + tier).textContent === '0') break;
-      doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();
-    }
-  }
-  for (let i = 0; i < 2; i++) {
-    doc.querySelector('#bombTierRows .bomb-plus[data-tier="easy"]').click();
-  }
-  await sleep(win, 40);
-  for (let i = 0; i < 10; i++) {
+  await waitFor(win, () => activeScreen(doc) !== 'scr-shelf', 5000, 'カセットの中に入る');
+  if (activeScreen(doc) === 'scr-game') { pickGame(doc, g.game); await sleep(win, 80); }
+  await fillPlayerForm(win, doc, g.players);
+  await waitScreen(win, doc, 'scr-mode', 5000);
+  const card = doc.querySelector('.mode-card[data-id="' + g.mode + '"]');
+  if (!card) throw new Error('モードが見つかりません: ' + g.mode);
+  card.click();
+  await runWizardToPlay(win, doc, { auto: false });
+  // 遊びはじめる前の関門は、ゲームによって違う。
+  //   ・人が説明するモード … 「スマホを渡す」の手渡し
+  //   ・早押し           … 「つぎの対戦：A VS B」の一呼吸
+  // どちらも押すまで進まないので、時計を待つ前にここで通す
+  for (let i = 0; i < 60; i++) {
     const cur = activeScreen(doc);
-    if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
-    const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
-    if (!next) break;
-    next.click();
-    await sleep(win, 30);
+    if (cur === 'scr-topic-pass') { click(doc, 'topicPassBtn'); }
+    else if (cur === 'scr-tourney-vs') { click(doc, 'tourneyVsStartBtn'); }
+    else if (cur !== 'scr-countdown' && cur !== 'scr-ready') break;
+    await sleep(win, 100);
   }
-  if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
-  await waitScreen(win, doc, 'scr-ready', 3000);
-  el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
-  await waitScreen(win, doc, 'scr-bomb-play', 12000);
-  await sleep(win, 150);
 }

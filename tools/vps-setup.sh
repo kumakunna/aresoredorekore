@@ -129,7 +129,12 @@ ufw status verbose
 say "9. cron（自動反映と、毎日のバックアップ）"
 chmod +x "$APP_DIR/tools/deploy.sh"
 mkdir -p "$BACKUP_DIR"
-CRON_DEPLOY="*/2 * * * * ${APP_DIR}/tools/deploy.sh >> ${APP_DIR}/deploy.log 2>&1"
+# cronからは必ず `/bin/bash <path>` の形で呼ぶ。
+# `deploy.sh` は自分自身を含めて `git reset --hard` するので、実行権限だけを
+# 手で足していると、**最初の自動反映が成功した瞬間にそれが剥がれて**、
+# 次の回から「Permission denied」で黙って止まる（リポジトリ側の権限は644のまま）。
+# 実行権限はgit側にも入れてあるが、cronの呼び方でも効かないようにしておく
+CRON_DEPLOY="*/2 * * * * /bin/bash ${APP_DIR}/tools/deploy.sh >> ${APP_DIR}/deploy.log 2>&1"
 CRON_BACKUP="10 4 * * * /usr/bin/node ${APP_DIR}/tools/backup-db.js >> ${APP_DIR}/backup.log 2>&1"
 CRON_LOGCUT="0 5 * * 0 /usr/bin/find ${APP_DIR} -maxdepth 1 -name '*.log' -size +10M -delete"
 # DuckDNSは、長く更新の無いドメインを消すことがある。
@@ -137,7 +142,7 @@ CRON_LOGCUT="0 5 * * 0 /usr/bin/find ${APP_DIR} -maxdepth 1 -name '*.log' -size 
 CRON_DUCK=''
 if [ -f /root/duckdns.env ]; then
   chmod +x "$APP_DIR/tools/duckdns-update.sh"
-  CRON_DUCK="*/5 * * * * ${APP_DIR}/tools/duckdns-update.sh >> ${APP_DIR}/duckdns.log 2>&1"
+  CRON_DUCK="*/5 * * * * /bin/bash ${APP_DIR}/tools/duckdns-update.sh >> ${APP_DIR}/duckdns.log 2>&1"
   echo "DuckDNSの定期更新も入れます（/root/duckdns.env を見つけました）"
 else
   echo "DuckDNSの定期更新は入れません（/root/duckdns.env が無い。作り方は tools/duckdns-update.sh の先頭）"

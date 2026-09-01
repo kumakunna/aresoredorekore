@@ -7,11 +7,17 @@ const cors = require('cors');
 const path = require('path');
 const crypto = require('crypto');
 const db = require('./db');
+const { parseRegisterCodes, matchesRegisterCode } = require('./register-code');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-// 予備値は「.envが無いときに動かないための無意味な値」。実際の登録コードは必ず .env に置くこと
-const REGISTER_CODE = process.env.REGISTER_CODE || 'change-me-in-env';
+// 予備値は「.envが無いときに動かないための無意味な値」。実際の登録コードは必ず .env に置くこと。
+// 合言葉は複数置ける（REGISTER_CODE にカンマ区切り）。照合の決まりは register-code.js を見ること
+const REGISTER_CODES = parseRegisterCodes(process.env.REGISTER_CODE || '');
+if (!REGISTER_CODES.length) {
+  console.warn('[server] REGISTER_CODE が .env にありません。予備値のままなので、新規登録は事実上できません。');
+  REGISTER_CODES.push('change-me-in-env');
+}
 // セッション署名鍵。公開リポジトリに固定値を置くとcookieを偽造されるため、
 // .env に無い場合は起動ごとにランダム生成する（=推測不能。ただし再起動でログアウトされる）。
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
@@ -48,7 +54,7 @@ function requireAuth(req, res, next) {
 
 app.post('/api/auth/register', (req, res) => {
   const { username, password, code } = req.body || {};
-  if (code !== REGISTER_CODE) {
+  if (!matchesRegisterCode(code, REGISTER_CODES)) {
     return res.status(403).json({ error: '登録コードが違います' });
   }
   if (!username || !password || password.length < 6) {
@@ -337,6 +343,14 @@ attachRealtime(httpServer, sessionMiddleware);
 
 httpServer.listen(PORT, () => {
   console.log(`[server] あれそれどれこれ backend running on port ${PORT}`);
+  // 起動時に「.env が効いているか」を1行で出す（第37弾）。
+  // 予備値のまま静かに動いてしまう値が3つある（登録コード・署名鍵・NODE_ENV）。
+  // 立ち上げ直後にここを見れば、入れ忘れがその場で分かる。
+  // **合言葉そのものは絶対に出さない**（ログは残るし、人にも見せる）。数だけ
+  console.log('[server] .env: NODE_ENV=' + (process.env.NODE_ENV || '(未設定→secure cookieが無効)')
+    + ' / 合言葉 ' + REGISTER_CODES.length + '個'
+    + ' / SESSION_SECRET=' + (process.env.SESSION_SECRET ? '.envの値' : '起動ごとに生成')
+    + ' / GEMINI_API_KEY=' + (process.env.GEMINI_API_KEY ? 'あり' : 'なし（AI機能は使えない）'));
 });
 
 module.exports = { app, httpServer, sessionMiddleware };

@@ -316,12 +316,35 @@ function freshFx() {
     assert(!app.querySelector('.fx-callout'), '出しっぱなしにならない');
   });
 
-  await r.test('3-2-1：数字が出て、タップで飛ばせて、あとに残らない（第34弾 2-1）', async () => {
+  // 第36弾 36-1：ここは原則Bの唯一の例外。
+  // 3-2-1は演出ではなく「全員が同じ瞬間に始まるための合図」なので、飛ばせない。
+  // 実機では、途中を叩くと自分だけ先に進んでしまっていた。
+  await r.test('36-1：ゲーム開始の3-2-1は、タップでも設定でも飛ばせない（第34弾 2-1／第36弾 36-1）', async () => {
+    // ms を 0 にする＝「演出の速さ＝スキップ」を選んだ人と同じ設定。
+    // 合図はこの設定にも従わない（従うと、その人だけ先に始まる）
     const { Fx, app } = freshFx();
+    Fx._cfg.ms = () => 0;
+    const t0 = Date.now();
     const p = Fx.countdown(3);
     const box = app.querySelector('.fx-countdown');
-    assert(box && /3/.test(box.textContent), '3から数え始める');
-    Fx.skipNow();   // 原則B：タップで飛ばせる
+    assert(box && /3/.test(box.textContent), '3から数え始める');   // 条件が作れている
+    assertEqual(Fx.busy(), false, '飛ばせる演出の列に積まれない');
+    assertEqual(Fx.skipNow(), 0, 'タップしても、飛ばせるものが1つも無い');
+    await new Promise((r2) => setTimeout(r2, 200));
+    assert(app.querySelector('.fx-countdown'), 'タップしても消えない');
+    await p;
+    // 3秒ぶん数える。実装の定数ではなく、守りたい約束そのものを数字で書いている
+    assert(Date.now() - t0 >= 2800, '3秒ぶん数える（速さの設定でも縮まない）');
+    assert(!app.querySelector('.fx-countdown'), '数え終わったら、あとに残らない');
+  });
+
+  await r.test('36-1：本当に飛ばしてよい場面のための逃げ道は残してある', async () => {
+    // その人ひとりのための合図（手渡し）まで縛ると、待たせるだけになる。
+    // 既定は飛ばせない・明示した時だけ飛ばせる、という向きにしてある
+    const { Fx, app } = freshFx();
+    const p = Fx.countdown(9, { skippable: true });
+    assert(Fx.busy(), '飛ばせる待ちとして積まれる');
+    Fx.skipNow();
     await p;
     assert(!app.querySelector('.fx-countdown'), '飛ばしたら残らない');
   });

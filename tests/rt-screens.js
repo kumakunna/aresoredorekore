@@ -1359,21 +1359,31 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('部屋ゲームの開始前に、全員で見る3-2-1が出る（第34弾 2-1）', async () => {
-    const { win, doc, errors } = await launch(LAUNCH);
-    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    // サーバーが「始まる合図」を全員に放送してくる
-    fake.fire('room:countdown', { seconds: 3 });
-    await sleep(win, 120);
-    const cd = doc.querySelector('.fx-countdown');
-    assert(cd && /3/.test(cd.textContent), '3から数え始める');
-    // 原則B：タップで飛ばせる（飛ぶのは自分の画面だけ）
-    doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
-    await sleep(win, 120);
-    assert(!doc.querySelector('.fx-countdown'), 'タップで飛ばせて、あとに残らない');
-    assertNoErrors(errors, '開始カウントダウンで未捕捉の例外');
-    win.close();
-  });
+  // 第36弾 36-1：3-2-1は「全員が同じ瞬間に始まるための合図」であって演出ではない。
+  // 実機では途中を叩くと自分だけ先に進めてしまっていた。
+  // 進行役でも、そうでない人でも、同じように飛ばせないこと（経路は1本だが、両方から確かめる）
+  for (const who of [
+    { label: '進行役', opts: { memberId: 'm1' } },
+    { label: '進行役でない人', opts: { join: true, memberId: 'm2' } }
+  ]) {
+    await r.test('36-1：部屋の3-2-1は、' + who.label + 'の画面でもタップで飛ばせない（第34弾 2-1／第36弾 36-1）', async () => {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, who.opts);
+      // サーバーが「始まる合図」を全員に放送してくる
+      fake.fire('room:countdown', { seconds: 3 });
+      await sleep(win, 120);
+      const cd = doc.querySelector('.fx-countdown');
+      assert(cd && /3/.test(cd.textContent), '3から数え始める');
+      // 画面を叩いても、合図は縮まない
+      doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+      await sleep(win, 300);
+      assert(doc.querySelector('.fx-countdown'), 'タップしても消えない');
+      // 3秒たてば、ひとりでに終わる（あとに残らない）
+      await waitFor(win, () => !doc.querySelector('.fx-countdown'), 6000, '数え終わる');
+      assertNoErrors(errors, '開始カウントダウンで未捕捉の例外');
+      win.close();
+    });
+  }
 
   await r.test('「ありがとう」を受け取ると、おくりものの称号に数えられる（第34弾 2-2）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

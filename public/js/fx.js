@@ -398,12 +398,28 @@
   /**
    * ゲームが始まる前の合図。数字が画面いっぱいに1秒ずつ脈打つ。
    * 部屋では、全員の端末に同じ放送が届いた瞬間から数えるので、そろって見える。
-   * 原則B：hold() を通しているので、タップで飛ばせる（飛ぶのは自分の画面だけ）。
    * 振動は1秒ごとに少しずつ強く（第32弾-D 第3部と同じ考え）。
+   *
+   * 第36弾 36-1：**これは演出ではなく「全員が同じ瞬間に始まるための合図」なので、
+   * 原則Bの例外として飛ばせない。** タップでも縮まないし、「演出の速さ」設定
+   * （cfg.ms）でも縮まない。自分だけ先に数え終わると、始まる瞬間が人によってずれる。
+   * 実機で、3-2-1の途中を叩くと自分だけ先に進んでしまう状態だった。
+   *
+   * 本当に飛ばしてよい場面（手渡しの、その人ひとりのための合図など）のためだけに
+   * { skippable:true } を残してある。既定では飛ばせない。
    */
-  function countdown(n) {
+  function beat(ms) {
+    // 合図の1拍。waiters に積まない＝タップの巻き添えで消えない。
+    // cfg.ms も通さない＝速さの設定でも縮まない
+    return new Promise(function (resolve) {
+      setTimeout(function () { resolve(false); }, ms);
+    });
+  }
+  function countdown(n, opts) {
     var h = host();
     if (!h) return Promise.resolve(true);
+    var skippable = !!(opts && opts.skippable);
+    var wait = skippable ? function () { return hold(1000); } : function () { return beat(1000); };
     var total = (n == null || !(n > 0)) ? 3 : Math.min(9, Math.floor(n));
     var box = mk('fx-countdown');
     if (!box) return Promise.resolve(true);
@@ -415,12 +431,12 @@
     }
     // 最初の数字はその場で出す（合図が届いた瞬間から数え始めて見える）
     show(total);
-    var p = hold(1000);
+    var p = wait();
     var step = function (num) {
       p = p.then(function (skipped) {
         if (skipped) return true;
         show(num);
-        return hold(1000);
+        return wait();
       });
     };
     for (var i = total - 1; i >= 1; i--) step(i);

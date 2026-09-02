@@ -77,6 +77,35 @@ function clearGameState(room) {
   for (const id of Object.keys(GAME_DRIVERS)) delete room[GAME_DRIVERS[id].key];
   room.state.phase = 'lobby';
   room.state.data = {};
+  clearReady(room);   // 第37弾：前のゲームのルールに対する「準備OK」は、ここで無効になる
+}
+
+/**
+ * 第37弾：全員の「準備OK」を落とす。
+ * 落とす場所を1か所に集めてある（ゲーム変更・再戦・開始の3経路が同じ関数を通る）。
+ * 経路ごとに書くと、必ずどれかで消し忘れて「押していないのに押したことになる」
+ * ——いちばん危ない形の漏れになる（落とし穴17）。
+ */
+function clearReady(room) {
+  for (const m of room.members.values()) m.readyGame = null;
+}
+
+/**
+ * 第37弾：いま選ばれているゲームに対して「準備OK」を押した人の数と、押すべき人の数。
+ * **数えるのは「つながっているプレイヤー」だけ。** 切れた人・大画面は待たない
+ * （settleAfterMemberGone と同じ考え。待つと、寝落ちした1人で全員が止まる）。
+ */
+function readyTally(room) {
+  const game = room.state.game;
+  const waiting = playerMembers(room).filter((m) => m.connected);
+  const done = game ? waiting.filter((m) => m.readyGame === game) : [];
+  return {
+    count: done.length,
+    total: waiting.length,
+    // まだの人の名前。ホストの画面に「〇〇さんを待っています」と出す（公開情報）
+    waitingNames: game ? waiting.filter((m) => m.readyGame !== game).map((m) => m.name) : [],
+    all: !!game && waiting.length > 0 && done.length === waiting.length
+  };
 }
 
 // 紛らわしい文字（0/O, 1/I/L など）を除いた部屋コード用の文字
@@ -280,8 +309,13 @@ function publicSnapshot(room) {
         name: m.name,
         role: m.role,
         connected: m.connected,
-        isHost: m.id === room.hostMemberId
+        isHost: m.id === room.hostMemberId,
+        // 第37弾：この人が、いま選ばれているゲームのルールを読んで「準備OK」を押したか。
+        // 秘密ではない（指示37 2-2）。名前の横に✓を出すために全員へ配る
+        ready: !!(room.state.game && m.readyGame === room.state.game)
       })),
+    // 第37弾：準備OKの集まり。数えるのは「つながっているプレイヤー」だけ
+    ready: readyTally(room),
     state: {
       phase: room.state.phase,
       game: room.state.game,
@@ -840,6 +874,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         connected: false,
         joinedAt: Date.now(),
         lastSeen: Date.now(),
+        readyGame: null,  // 第37弾：ルールを読んで「準備OK」を押したゲームid
         userId: sess.userId  // 作った本人だけはアカウントが紐づく
       };
       room.members.set(member.id, member);
@@ -915,6 +950,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           connected: false,
           joinedAt: Date.now(),
           lastSeen: Date.now(),
+          readyGame: null,  // 第37弾：あとから入った人は、必ず「まだ押していない」から始まる
           userId: sessionOf(socket).userId || null
         };
         room.members.set(member.id, member);
@@ -935,6 +971,27 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         const mine = rejoinDriver.privateFor(room, member.id);
         if (mine) emitPrivate(room, member.id, 'wolf:you', mine);
       }
+    });
+
+    // ---- 第37弾：ルールを読んで「準備OK」 ----
+    // ホストがゲームを選ぶと、全員の画面にそのゲームのルールが出る。
+    // 全員が押すまで始まらない（誰が押したかは、名前の横の✓で全員に見える）。
+    // ここは「押した／取り消した」を預かるだけで、始めるかどうかは判断しない
+    //（開始は今までどおり wolf:start の1本。経路を増やさない）。
+    socket.on('room:ready', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (!room.state.game) return fail(cb, 'no_game', 'まだゲームが決まっていません');
+      if (driverOf(room)) return fail(cb, 'already_started', 'もう始まっています');
+      // 押したのが「いまのゲーム」に対してであることを、サーバー側で確かめる。
+      // 端末が古いゲームのつもりで押していたら、それは準備できていない
+      const want = (payload && payload.game) || room.state.game;
+      if (want !== room.state.game) return fail(cb, 'stale_game', 'ゲームが変わりました');
+      const ready = !(payload && payload.ready === false);
+      me.readyGame = ready ? room.state.game : null;
+      if (typeof cb === 'function') cb({ ok: true, ready, room: publicSnapshot(room) });
+      broadcast(room);
     });
 
     // ---- 第2部-3：役割の変更（自動判定はあくまで初期値。最後は本人が選ぶ） ----
@@ -1020,6 +1077,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (!entry) return fail(cb, 'unknown_game', 'そのゲームには対応していません');
       const res = entry.driver.startGame(room, payload || {}, driverContext());
       if (!res.ok) return fail(cb, res.error, res.message);
+      // 第37弾：始まったら「準備OK」は役目を終える。
+      // 残すと、再戦（待合に戻ってもう一度）の時に押していない人が押したことになる
+      clearReady(room);
       if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
       // 第34弾 2-1：始まる合図。全員の端末に同じ放送が届いた瞬間から
       // 3-2-1を数えるので、そろって見える（ゲームの状態はその下に描かれて待つ）

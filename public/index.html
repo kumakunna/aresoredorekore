@@ -178,6 +178,11 @@
     padding:7px 12px;cursor:pointer;user-select:none;
   }
   .handicap-picker .hp-chip.on{background:var(--gold);color:#fff;}
+  /* 第37弾：進行役だけに出る「ルールを見る」。押しても他の人には何も起きない */
+  .mode-peek{
+    flex:none;font-size:11px;border:1px solid var(--line);color:var(--ink-soft);
+    background:var(--paper);border-radius:999px;padding:7px 10px;cursor:pointer;white-space:nowrap;
+  }
   .mode-card{
     display:flex;align-items:center;gap:14px;background:var(--card);border:1.5px solid var(--line);
     border-radius:10px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .15s, background .15s;
@@ -972,6 +977,11 @@
   .rt-status-row.off{opacity:.45;}
   .rt-status-vals{font-family:'DotGothic16',monospace;font-size:15px;white-space:nowrap;}
   /* 大画面の下に置く操作。大きな画面でも押しやすい大きさにする */
+  /* 第37弾：大画面のルール。離れた席からも読める大きさにする */
+  .big-rules{margin:18px auto 0;max-width:900px;text-align:left;}
+  .big-rules .big-rules-title{font-size:30px;font-weight:800;text-align:center;}
+  .big-rules .big-rules-count{font-size:22px;color:var(--ink-soft);text-align:center;margin:4px 0 12px;}
+  .big-rules .rules-ol{font-size:22px;line-height:1.9;}
   .big-tools{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:24px;}
   .big-tools .btn{width:auto;min-width:180px;margin:0;}
 
@@ -1294,6 +1304,10 @@
     background:var(--card);font-size:15px;cursor:pointer;line-height:1;
   }
   .rt-member .rm-op.danger{color:#c0392b;border-color:#e2b4ae;}
+  /* 第37弾：準備OKを押した人。色だけに頼らないよう、✓の文字も出す */
+  .rm-ready{color:var(--teal);font-weight:800;margin-left:6px;}
+  .rt-member.notready .rm-name{opacity:.65;}
+  #rtRulesMembers .rt-member{margin-top:4px;}
   /* 第32弾-E 第1部：2人組の記録の一言。目立たせない */
   .pair-note{
     margin-top:10px;padding:9px 12px;border-radius:10px;
@@ -3534,9 +3548,34 @@
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
       <!-- 第26弾-3：部屋はカセットに紐づかない箱。何を遊ぶかは、この部屋にいるまま選び直せる -->
+      <!-- 第37弾：ルールを読んで「準備OK」。読んだことがあるゲームでは、
+           ルール画面をはさまずにここで押すだけでよい -->
+      <button class="btn btn-main" id="rtRoomReadyBtn" style="display:none;">✓ 準備OK</button>
+      <button class="btn btn-ghost" id="rtRoomRulesBtn" style="display:none;margin-top:0;">📖 ルールを見る</button>
       <button class="btn btn-outline" id="rtPickGameBtn" style="display:none;">🎮 ゲームをえらぶ</button>
       <button class="btn btn-main" id="rtStartBtn">はじめる ▶</button>
       <button class="btn btn-ghost" id="rtLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
+    </div>
+  </div>
+
+  <!-- 第37弾：ゲームが決まったら、全員がここでルールを読み「準備OK」を押す。
+       押すまで始まらない。読む画面なので、演出は入れない -->
+  <div class="screen" id="scr-rt-rules">
+    <h2 class="scr-title" id="rtRulesTitle">ルール</h2>
+    <p class="scr-sub" id="rtRulesSub">よく読んでから「準備OK」を押してください</p>
+    <div class="wiz-body">
+      <div class="card" id="rtRulesCard">
+        <div class="sec-title" id="rtRulesGame"></div>
+        <div class="mic-status" id="rtRulesLead" style="margin-bottom:10px;"></div>
+        <div id="rtRulesBody"></div>
+      </div>
+      <div class="tp-label" style="margin-top:14px;">準備できた人<span id="rtRulesCount">0/0</span></div>
+      <div id="rtRulesMembers"></div>
+      <div class="mic-status" id="rtRulesWaiting" style="margin-top:10px;"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="rtRulesOkBtn">✓ 準備OK</button>
+      <button class="btn btn-ghost" id="rtRulesCancelBtn" style="margin-top:0;">キャンセル</button>
     </div>
   </div>
 
@@ -3730,6 +3769,8 @@
            「どこにいる？」では誰の駒も置かれない（実位置が公開ビューに無いため） -->
       <div class="sugo-board big-sugo" id="bigSugoBoard" style="display:none;"></div>
       <div class="big-list" id="bigList"></div>
+      <!-- 第37弾：ゲームが決まってから始まるまで、みんなで同じルールを見る -->
+      <div class="big-rules" id="bigRules" style="display:none;"></div>
       <!-- 第27弾：爆弾解除のリーダーボード（横棒グラフ）。
            出すのは進捗とライフだけで、問題の中身も正誤の詳細も入れない -->
       <div class="big-board" id="bigBoard" style="display:none;"></div>
@@ -7137,7 +7178,7 @@
     'scr-auction-bid', 'scr-auction-handoff', 'scr-auction-question', 'scr-auction-result',
     'scr-wolf-pass', 'scr-wolf-gather', 'scr-wolf-result',
     'scr-wr-pass', 'scr-wr-day', 'scr-wr-gather', 'scr-wr-result', 'scr-nightfall',
-    'scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku', 'scr-rt-big'
+    'scr-rt-room', 'scr-rt-rules', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku', 'scr-rt-big'
   ];
   function canGoBackOne(screenId){
     if(BACK_FREE_SCREENS.indexOf(screenId) !== -1) return false;
@@ -7289,6 +7330,7 @@
     if(id === 'scr-cassette') enterCassetteDetail();
     if(id === 'scr-rt-lobby') enterRtLobby();
     if(id === 'scr-rt-room') enterRtRoom();
+    if(id === 'scr-rt-rules') enterRtRules();
     if(RT_GAME_SCREEN_IDS.indexOf(id) !== -1 || id === 'scr-rt-big') rtRender();
     // 第36弾 36-3：棚は「どのゲームも遊んでいない場所」。
     // ここへ来たら、走っている時計と遅れて動く処理をまとめて捨てる（落とし穴17）
@@ -7504,6 +7546,7 @@
     return MODES.filter(function(m){ return !m.hidden && gameIdForMode(m.id) === gid; });
   }
   function enterMode(){
+    rtPeekModeId = null;   // 第37弾：下見はこの画面を離れたら終わり（境界＝画面）
     // ⑤(第2弾)：サバイバルの脱落フラグを次のモードに持ち越さない。
     // 1の修正でサバイバル決着前はこの画面に来られないため、ここでのリセットは安全。
     // 第26弾-4：「最下位候補だった」印も、次のサバイバルに持ち越さない
@@ -7528,10 +7571,15 @@
       var sel = m.id === state.selectedModeId;
       var lock = modeLockReason(m);
       var sub = lock || m.sub;
+      // 第37弾：部屋の進行役にだけ「ルールを見る」を出す。
+      // 選ぶ前に自分で読んで、口頭でみんなに相談するための入口。
+      // **進行役でない人には出さない**（相談を口で起こすための、意図した不便さ・指示37 2-1）
+      var canPeek = !!(rt && rt.state.room && rt.isHost());
       return '<div class="mode-card'+(sel?' selected':'')+(lock?' locked':'')+'" data-id="'+m.id+'"'+
           (lock ? ' data-locked="'+escapeHtml(lock)+'"' : '')+'>'+
         '<div class="m-icon">'+m.icon+'</div>'+
         '<div class="m-text"><div class="m-title">'+m.title+'</div><div class="m-sub">'+escapeHtml(sub)+'</div></div>'+
+        (canPeek ? '<button class="mode-peek" data-peek="'+m.id+'">📖 ルールを見る</button>' : '')+
         '<div class="m-check"></div>'+
       '</div>';
     }).join('');
@@ -8588,6 +8636,16 @@
     this.classList.toggle('on', state.describerScores);
   });
   el('modeCards').addEventListener('click', function(e){
+    // 第37弾：「ルールを見る」は、選ぶこととは別。押しても他の人には何も起きないし、
+    // 「見た」ことをどこにも記録しない（相談の前に知らせる意味が無い・指示37 2-2）
+    var peek = e.target.closest('[data-peek]');
+    if(peek){
+      e.stopPropagation();
+      rtPeekModeId = peek.dataset.peek;
+      renderModeRules();   // 描いてから出す（描かないと前の中身のままになる）
+      goTo('scr-mode-rules');
+      return;
+    }
     var card = e.target.closest('.mode-card');
     if(!card) return;
     // 第20弾-1-2：人数が足りない遊び方は選ばせない。押しても理由が分かるようにする
@@ -8648,7 +8706,9 @@
   // 設定まで決めたら待合にもどる。何を遊ぶかは部屋のみんなにも伝える
   // （ここで前のゲームの進行状態はサーバー側が捨てる）
   function backToRoomWithGame(){
-    rt.pickGame(state.selectedGameId, { reset: true });
+    // 第37弾：モードidも一緒に配る。ルール文はモードが持っているので、
+    // これが無いと、選んでいない人（＝ホスト以外）はルールを出せない
+    rt.pickGame(state.selectedGameId, { reset: true, data: { modeId: state.selectedModeId } });
     goTo('scr-rt-room');
   }
   el('modeNextBtn').addEventListener('click', function(){
@@ -8663,6 +8723,17 @@
     finishWizard();
   });
   el('gearBtn').addEventListener('click', openSettings);
+
+  /**
+   * 第37弾：このゲームのルールを、この端末の人がもう読んだか。
+   * **部屋単位ではなく、その人の端末で1回**（途中から入った人にも必ず出す）。
+   * 境界は「部屋を出たら忘れる」だけ。ゲームを変えても再戦しても、
+   * 一度読んだゲームのルールは二度出さない（読む画面を毎回はさむと、
+   * 2周目からは「準備OKを押すだけの画面」になって邪魔になる）。
+   * docs/監査_状態と境界.md に境界を書いてある
+   */
+  var rtRulesSeen = {};
+  function rtForgetRulesSeen(){ rtRulesSeen = {}; }
 
   // ===================== 第21弾-5：1人1台の部屋 =====================
   // 手渡し方式とは別の入り口。ここから先の画面は scr-rt-* だけを使う。
@@ -8680,12 +8751,14 @@
     rtLobbyBackTo = from || 'scr-shelf';
     rtLobbyJoinOnly = false;
     resetAlbumUi();   // 第32弾-E 第6部：前の部屋のアルバムの状態を持ち込まない
+    rtForgetRulesSeen();  // 第37弾：別の部屋では、また最初から読む
     goTo('scr-rt-lobby');
   }
   function openJoinScreen(from){
     rtLobbyBackTo = from || 'scr-shelf';
     rtLobbyJoinOnly = true;
     resetAlbumUi();
+    rtForgetRulesSeen();  // 第37弾
     goTo('scr-rt-lobby');
   }
   function enterRtLobby(){
@@ -8812,6 +8885,176 @@
   }
 
   function enterRtRoom(){ renderRtRoom(); }
+  // ===================== 第37弾：ルールを読んで「準備OK」 =====================
+  // ホストがゲームを選ぶ → 全員の画面にルールが出る → 全員が押すまで始まらない。
+  //
+  // 決めごと（迷ったらここへ戻る）：
+  //  ・「誰が押したか」はサーバーが持ち、全員に配る（秘密ではない・指示37 2-2）
+  //  ・「このゲームのルールを読んだか」は端末が持つ。**部屋単位ではなく人単位**なので、
+  //    途中から入った人にも必ず出る。2周目には出さない（読む画面が邪魔になる）
+  //  ・待つのは「つながっているプレイヤー」だけ。切れた人・大画面は待たない
+  //  ・進行役でない人の「キャンセル」はゲームを止めない（決定どおり）。
+  //    その人だけが「まだ準備できていません」のまま待合に残る
+  function rtPickedGame(){
+    var room = rt && rt.state.room;
+    return (room && room.state && room.state.game) || null;
+  }
+  // ルール文はモード（MODES.bullets）が持っている。
+  // 選んだホストの端末にしか無いので、選ぶ時に部屋へ載せてある（backToRoomWithGame）
+  function rtPickedMode(){
+    var room = rt && rt.state.room;
+    var d = (room && room.state && room.state.data) || {};
+    if(!d.modeId) return null;
+    var m = modeById(d.modeId);
+    // modeById は知らないidだと先頭のモードを返す。そのまま使うと、
+    // 人狼の部屋にあれそれどれこれのルールが出る（大切なこと9）。
+    // 「そのゲームのモードか」を確かめて、違えばゲームの説明にだけ頼る
+    return (m && m.id === d.modeId && m.game === room.state.game) ? m : null;
+  }
+  function rtReadyTally(){
+    var room = rt && rt.state.room;
+    return (room && room.ready) || { count: 0, total: 0, waitingNames: [], all: false };
+  }
+  function rtIAmReady(){
+    var me = rt && rt.me();
+    return !!(me && me.ready);
+  }
+  // まだ始まっていなくて、ゲームだけ決まっている状態か
+  function rtWaitingToStart(){
+    if(!rt || !rt.state.room) return false;
+    var v = rtView();
+    if(v && v.phase && v.phase !== 'lobby') return false;
+    return !!rtPickedGame();
+  }
+  // ルールを読む画面へ引っぱるか。**読んだことがあるゲームでは引っぱらない**
+  //（2周目からは、待合の「準備OK」を押すだけでよい・指示37 2-3）
+  function rtNeedsRules(){
+    if(rtIsBigScreen()) return false;
+    if(!rtWaitingToStart()) return false;
+    if(rtIAmReady()) return false;
+    return !rtRulesSeen[rtPickedGame()];
+  }
+  // 待つ相手（自分を除く）。名前ではなく名簿から引くので、同じ名前の人がいてもずれない
+  function rtWaitingMembers(){
+    var room = rt && rt.state.room;
+    var meId = rt && rt.state.memberId;
+    return ((room && room.members) || []).filter(function(m){
+      return m.role !== 'bigscreen' && m.connected && !m.ready && m.id !== meId;
+    });
+  }
+  function rtReadyRosterHtml(){
+    var room = rt && rt.state.room;
+    return ((room && room.members) || []).filter(function(m){ return m.role !== 'bigscreen'; })
+      .map(function(m){
+        return '<div class="rt-member' + (m.ready ? '' : ' notready') + (m.connected ? '' : ' off') + '">' +
+          '<span class="rm-name">' + escapeHtml(m.name) + '</span>' +
+          // 色だけに頼らない。押した人には✓の文字を出す（指示37 2-5）
+          (m.ready ? '<span class="rm-ready">✓ 準備OK</span>' : '') +
+          (m.connected ? '' : '<span class="rm-tag">切断中</span>') +
+        '</div>';
+      }).join('');
+  }
+  // ルールの中身。読んだことがあるゲームは、たたんで出す（開けば読める）
+  function rtRulesBodyHtml(){
+    var gameId = rtPickedGame();
+    var m = rtPickedMode();
+    var bullets = (m && m.bullets) || [];
+    var list = bullets.length
+      ? '<ol class="rules-ol">' + bullets.map(function(b){ return '<li>' + escapeHtml(b) + '</li>'; }).join('') + '</ol>'
+      : '<div class="mic-status">このゲームの説明は、まだ用意できていません</div>';
+    if(!rtRulesSeen[gameId]) return list;
+    return '<details><summary style="cursor:pointer;font-size:13px;">📖 ルールをもう一度読む</summary>' + list + '</details>';
+  }
+  function enterRtRules(){ renderRtRules(); }
+  function renderRtRules(){
+    var room = rt && rt.state.room;
+    if(!room) return;
+    var gameId = rtPickedGame();
+    var m = rtPickedMode();
+    var g = gameById(gameId) || {};
+    var seen = !!rtRulesSeen[gameId];
+    el('rtRulesTitle').textContent = seen ? '準備はいい？' : 'ルール';
+    el('rtRulesSub').textContent = seen
+      ? '前に読んだゲームです。準備ができたら押してください'
+      : 'よく読んでから「準備OK」を押してください';
+    el('rtRulesGame').textContent = (g.icon ? g.icon + ' ' : '') + ((m && m.title) || g.title || gameId || '');
+    el('rtRulesLead').textContent = (m && m.sub) || g.sub || '';
+    el('rtRulesBody').innerHTML = rtRulesBodyHtml();
+    var t = rtReadyTally();
+    el('rtRulesCount').textContent = t.count + '/' + t.total;
+    el('rtRulesMembers').innerHTML = rtReadyRosterHtml();
+    var waiting = rtWaitingMembers();
+    // 責めない言い方にする（「まだ押していない人」ではなく「待っています」）
+    el('rtRulesWaiting').textContent = waiting.length
+      ? waiting.map(function(x){ return x.name; }).join('・') + ' さんを待っています'
+      : '';
+    el('rtRulesCancelBtn').textContent = rt.isHost() ? 'ゲームをえらび直す' : 'キャンセル（あとで押す）';
+  }
+  el('rtRulesOkBtn').addEventListener('click', async function(){
+    var gameId = rtPickedGame();
+    if(!gameId) return;
+    this.disabled = true;
+    var res = await rt.setReady(true);
+    this.disabled = false;
+    if(!res.ok){ showFlash(res.message || '送れませんでした', 'hit-wrong'); return; }
+    rtRulesSeen[gameId] = true;   // 押した＝読んだ。2周目からは待合で押すだけ
+    goTo('scr-rt-room');
+  });
+  el('rtRulesCancelBtn').addEventListener('click', function(){
+    var gameId = rtPickedGame();
+    if(rt.isHost()){
+      // 進行役：ゲーム未確定に戻す（全員がえらび直しの画面へ）
+      if(!confirm('ゲームをえらび直しますか？\n（みんなの画面も、えらび直しに戻ります）')) return;
+      rt.pickGame(null, { reset: true });
+      setPlayFlow('room');
+      goTo('scr-shelf');
+      return;
+    }
+    // 進行役でない人：ゲームは止めない。自分だけ「まだ準備できていません」のまま待合へ。
+    // ルールは読んだ扱いにして、この画面へ引き戻されないようにする
+    //（読み直したい時は、待合の「📖 ルールを見る」か、設定→ルールをもう一度見る）
+    if(gameId) rtRulesSeen[gameId] = true;
+    goTo('scr-rt-room');
+  });
+  // 待合からルールを読み直す。32-Bの「ルールをもう一度見る」とは別の入口だが、
+  // 出しているものは同じ（MODES.bullets）。文言も画面もここで作り直さない
+  el('rtRoomRulesBtn').addEventListener('click', function(){ goTo('scr-rt-rules'); });
+  el('rtRoomReadyBtn').addEventListener('click', async function(){
+    this.disabled = true;
+    var res = await rt.setReady(true);
+    this.disabled = false;
+    if(!res.ok) showFlash(res.message || '送れませんでした', 'hit-wrong');
+  });
+  /**
+   * 第37弾：全員そろったら、進行役の端末がそのまま始める。
+   *
+   * **「そろった瞬間」にだけ始める**（そろっている画面を開き直しただけでは始めない）。
+   * 入り直し・再描画のたびに始めようとすると、二重に始まる形の事故になる。
+   * 開始そのものは今までどおり wolf:start の1本を通る（経路を増やさない）。
+   */
+  var rtReadySeenGame = null;   // どのゲームについて見張っているか（境界＝ゲーム）
+  var rtReadyWasAll = false;
+  var rtAutoStarting = false;
+  function rtMaybeAutoStart(){
+    if(!rt || !rt.state.room){ rtReadySeenGame = null; rtReadyWasAll = false; return; }
+    var game = rtPickedGame();
+    var all = rtWaitingToStart() && rtReadyTally().all;
+    if(rtReadySeenGame !== game){
+      // このゲームを初めて見た瞬間。すでに全員そろっていても、ここでは始めない。
+      // 入り直し・画面の開き直しで勝手に始まると、
+      // 「押していないのに始まった」ように見える（いちばん驚かせる形）
+      rtReadySeenGame = game;
+      rtReadyWasAll = all;
+      return;
+    }
+    var was = rtReadyWasAll;
+    rtReadyWasAll = all;
+    if(!all || was) return;              // そろった瞬間だけ
+    if(!rt.isHost() || rtAutoStarting) return;
+    rtAutoStarting = true;
+    Promise.resolve(rtStartGameNow()).then(function(){ rtAutoStarting = false; },
+      function(){ rtAutoStarting = false; });
+  }
   function renderRtRoom(){
     var room = rt && rt.state.room;
     if(!room) return;
@@ -8844,6 +9087,8 @@
       }
       return '<div class="rt-member'+(m.connected?'':' off')+'">'+
         '<span class="rm-name">'+escapeHtml(m.name)+'</span>'+
+        // 第37弾：ルールを読んで「準備OK」を押した人。秘密ではないので全員に見せる
+        (m.ready ? '<span class="rm-ready">✓</span>' : '')+
         tags.map(function(t){ return '<span class="rm-tag">'+t+'</span>'; }).join('')+
         (m.connected ? '' : '<span class="rm-tag">切断中</span>')+
         ops +
@@ -8869,7 +9114,16 @@
     el('rtPickGameBtn').style.display = host ? '' : 'none';
     el('rtPickGameBtn').textContent = picked ? '🎮 ゲームをえらびなおす' : '🎮 ゲームをえらぶ';
     el('rtStartBtn').style.display = host ? '' : 'none';
-    el('rtStartBtn').disabled = !(host && enough && picked && supported);
+    // 第37弾：全員が「準備OK」を押すまでは始められない。
+    // ふだんは、最後の1人が押した瞬間に自動で始まるので、このボタンは押されない。
+    // 押せる形で残しているのは、自動の始まりを取りこぼした時の逃げ道
+    var allReady = rtReadyTally().all;
+    el('rtStartBtn').disabled = !(host && enough && picked && supported && allReady);
+    // 自分がまだ押していないなら、ここから押せる（ルールを読んだことがある2周目の道）
+    var needMine = !!picked && supported && !rtIAmReady() && !rtIsBigScreen();
+    el('rtRoomReadyBtn').style.display = needMine ? '' : 'none';
+    el('rtRoomRulesBtn').style.display = (picked && supported) ? '' : 'none';
+    el('rtRoomReadyBtn').disabled = false;
     el('rtRoomNote').textContent = rtRoomNoteText(host, picked, supported, enough, need, room.playerCount);
   }
   // 待合に出す一言。「いま何を待てばいいか」だけを書く
@@ -8886,9 +9140,17 @@
     }
     // 何を遊ぶのかは、待っている人にも見えるようにしておく
     var name = '「' + gameTitleOf(picked) + '」';
-    if(!host) return name + 'を遊びます。進行役がはじめるのを待っています';
-    return enough ? name + 'の準備ができました。そろったら「はじめる」を押してください'
-                  : need + '人以上そろうと始められます（いま' + count + '人）';
+    if(!enough) return host ? (need + '人以上そろうと始められます（いま' + count + '人）')
+                            : (name + 'を遊びます。人がそろうのを待っています');
+    // 第37弾：全員が「準備OK」を押したら始まる。
+    // 待っている相手を、責めない言い方で出す（「〜さんを待っています」）。
+    // 名前は名簿から引くので、同じ名前の人がいてもずれない
+    var waiting = rtWaitingMembers();
+    if(!rtIAmReady()) return name + 'を遊びます。ルールを読んで「準備OK」を押してください';
+    if(waiting.length){
+      return waiting.map(function(x){ return x.name; }).join('・') + ' さんを待っています';
+    }
+    return name + 'の準備ができました。まもなく始まります';
   }
   function gameTitleOf(gameId){
     var g = gameById(gameId);
@@ -8953,6 +9215,7 @@
     }
   });
   function rtLeaveRoom(){
+    rtForgetRulesSeen();  // 第37弾：部屋を出たら、読んだ記録も持ち出さない
     // 第35弾A：サーバーの返事を待たずに画面を出す。
     // 通信が詰まっていると、待つ作りでは最大8秒ボタンが無反応に見えて
     // 「部屋を出るを押しても出ない」になる。退室の頼みは裏で届く
@@ -9017,15 +9280,24 @@
     sugohide: rtSugorokuConfig,
     sugohand: rtSugorokuConfig
   };
-  el('rtStartBtn').addEventListener('click', async function(){
+  /**
+   * 第37弾：始めるところを1つにまとめた。
+   * 「はじめる ▶」も、全員そろった時の自動開始も、必ずここを通る。
+   * 2か所に書くと、片方だけ設定の作り方が変わって食い違う（落とし穴1）
+   */
+  async function rtStartGameNow(){
     var m = modeById(state.selectedModeId);
     var room = rt.state.room;
     var gameId = (room && room.state && room.state.game) || (m && m.game) || 'wolfrole';
     var build = RT_START_CONFIG[gameId] || rtWolfroleConfig;
-    this.disabled = true;
     var res = await rt.startWolf(build(m));
-    this.disabled = false;
     if(!res.ok) el('rtRoomNote').textContent = res.message || 'はじめられませんでした';
+    return res;
+  }
+  el('rtStartBtn').addEventListener('click', async function(){
+    this.disabled = true;
+    await rtStartGameNow();
+    this.disabled = false;
   });
   // 第24弾：1人1台のワードウルフ。カードの設定とウィザードの設定をそのまま送る。
   // 誰がウルフか・誰にどの役職を配るかはサーバーが決める（端末には自分のぶんだけ届く）。
@@ -9935,7 +10207,7 @@
   }
   // 状態が動いたら、いるべき画面へ移して描き直す。
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
-  var RT_SCREENS = ['scr-rt-room', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku', 'scr-rt-big'];
+  var RT_SCREENS = ['scr-rt-room', 'scr-rt-rules', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku', 'scr-rt-big'];
   // 第30弾：クイズ王の4ゲーム。1枚の画面が中身を差し替えて受け持つ
   var RT_QUIZ_GAMES = ['quizrush', 'quizlist', 'quizreveal', 'buzzer'];
   // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
@@ -9959,7 +10231,16 @@
     if(rtIsBigScreen()) return 'scr-rt-big';
     var v = rtView();
     var started = !!(v && v.phase && v.phase !== 'lobby');
-    if(!started) return 'scr-rt-room';
+    // 第37弾：ゲームが決まったら、まず全員がルールを読む。
+    // 読んだことがあるゲームでは引っぱらない（待合で「準備OK」を押すだけ）。
+    // ただし**自分でルール画面を開いている間は追い出さない**。
+    // 追い出すと、待合の「📖 ルールを見る」が、部屋の知らせが1つ届いた瞬間に
+    // 閉じてしまう（読んでいる途中で消える、いちばん困る形）
+    if(!started){
+      var cur = (document.querySelector('.screen.active') || {}).id;
+      if(cur === 'scr-rt-rules') return 'scr-rt-rules';
+      return rtNeedsRules() ? 'scr-rt-rules' : 'scr-rt-room';
+    }
     var room = rt && rt.state.room;
     var game = room && room.state && room.state.game;
     // まだ対応していないゲームの部屋に入った時は、待合に留めて置き去りにしない
@@ -9967,6 +10248,9 @@
   }
   function rtSync(){
     if(!rt || !rt.state.room) return;
+    // 第37弾：全員そろった瞬間に、進行役の端末が始める。
+    // 画面がどこにあっても見る（待合にいるとは限らない）
+    rtMaybeAutoStart();
     var cur = (document.querySelector('.screen.active') || {}).id;
     // ロビーで入力中の人を引っぱらない。すでに部屋の画面にいる時だけ動かす
     if(RT_SCREENS.indexOf(cur) === -1) return;
@@ -9985,6 +10269,7 @@
     // 第32弾-E 第5部：決着した時だけ🎁を出す（これも全ゲーム共通のここ1か所）
     refreshThanksBtn();
     if(cur === 'scr-rt-room') renderRtRoom();
+    if(cur === 'scr-rt-rules') renderRtRules();
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-bomb') renderRtBomb();
     else if(cur === 'scr-rt-defuse') renderRtDefuse();
@@ -11331,10 +11616,27 @@
     var started = !!(room.state && room.state.phase && room.state.phase !== 'lobby');
     var need = modeMinPlayers(modeById(state.selectedModeId));
     var enough = room.playerCount >= need;
+    // 第37弾：ゲームが決まったら、大画面にもルールと「準備できた人」を出す。
+    // みんなで同じものを見られるようにするため（指示37 2-1 大画面）。秘密は無い
+    var bigPicked = rtPickedGame();
+    if(!started && bigPicked){
+      var bt = rtReadyTally();
+      var bm = rtPickedMode();
+      var bg = gameById(bigPicked) || {};
+      el('bigRules').style.display = '';
+      el('bigRules').innerHTML = '<div class="big-rules-title">' +
+        escapeHtml((bg.icon ? bg.icon + ' ' : '') + ((bm && bm.title) || bg.title || bigPicked)) + '</div>' +
+        '<div class="big-rules-count">準備できた人 ' + bt.count + ' / ' + bt.total + '</div>' +
+        rtRulesBodyHtml();
+    } else {
+      el('bigRules').style.display = 'none';
+      el('bigRules').innerHTML = '';
+    }
     el('bigPickGameBtn').style.display = (host && !started) ? '' : 'none';
     el('bigPickGameBtn').textContent = picked ? '🎮 ゲームをえらびなおす' : '🎮 ゲームをえらぶ';
     el('bigStartBtn').style.display = (host && !started) ? '' : 'none';
-    el('bigStartBtn').disabled = !(host && enough && picked && supported);
+    // 第37弾：大画面の「はじめる」も、全員そろってから
+    el('bigStartBtn').disabled = !(host && enough && picked && supported && rtReadyTally().all);
     el('bigEndBtn').style.display = host ? '' : 'none';
   }
   // 管理の中身は待合のボタンと同じものを呼ぶ（2つ書くと、片方だけ直す事故になる）
@@ -13366,9 +13668,15 @@
   // 第23弾-3：以前は bullets が無いモード向けに rules（長文）も持っていたが、
   // 全22モードに bullets があるため rules は一度も表示されていなかった。
   // 中身は bullets に統合して、フィールドごと消してある。
+  // 第37弾：進行役の「下見」で見ているモード。選んだモードとは別物なので、
+  // state.selectedModeId には触らない（見ただけで選ばれてしまうと事故になる）。
+  // 画面を離れたら必ず null に戻す（境界＝この画面）
+  var rtPeekModeId = null;
   function renderModeRules(){
-    var m = modeById(state.selectedModeId);
+    var m = modeById(rtPeekModeId || state.selectedModeId);
     el('rulesTitle').textContent = m.title + ' のルール';
+    // 第37弾：下見のときは「はじめる」ではない。押した先が変わるので、文字も変える
+    el('rulesStartBtn').textContent = rtPeekModeId ? '← 一覧にもどる' : 'はじめる';
     var body = el('rulesBody');
     if(m.bullets && m.bullets.length){
       body.innerHTML = '<ol class="rules-ol">' +
@@ -13379,6 +13687,8 @@
     }
   }
   el('rulesStartBtn').addEventListener('click', function(){
+    // 第37弾：進行役の下見から来た時は、選んだことにせず一覧へ戻すだけ
+    if(rtPeekModeId){ rtPeekModeId = null; goBack('scr-mode'); return; }
     state.seenRules[state.selectedModeId] = true;
     saveLocalPrefs();
     // 第24弾：1人1台なら、ルールを読んだあとは部屋へ
@@ -13386,6 +13696,7 @@
     goTo('scr-ready');
   });
   el('rulesReviewBtn').addEventListener('click', function(){
+    rtPeekModeId = null;   // 第37弾：ここは「いま遊ぶモード」の見返し
     renderModeRules();
     goTo('scr-mode-rules');
   });

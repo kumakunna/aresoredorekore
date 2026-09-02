@@ -212,6 +212,14 @@
     function pickGame(gameId, opts) {
       return call('room:setState', Object.assign({ phase: 'lobby', game: gameId || null }, opts || {}));
     }
+    // 第37弾：ルールを読んだうえでの「準備OK」。取り消しは ready:false。
+    // いまのゲームidを添えるのは、部屋の知らせと自分の操作がすれ違った時に
+    // 「1つ前のゲームのつもりで押した」を、サーバー側で弾いてもらうため（落とし穴18の型）
+    function setReady(on) {
+      var room = state.room;
+      var game = room && room.state && room.state.game;
+      return call('room:ready', { ready: on !== false, game: game || null });
+    }
 
     // ---- 1人1台の進行（人狼・ワードウルフ・爆弾解除で共通） ----
     // イベント名は wolf: のままだが、届く先は「その部屋でいま遊んでいるゲーム」。
@@ -274,6 +282,7 @@
       state: state, on: on, available: available, connect: connect, reconnect: reconnect,
       createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, peekRoom: peekRoom, dropRoom: dropRoom,
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
+      setReady: setReady,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,
       react: react, thanks: thanks,
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,

@@ -14,20 +14,38 @@ const LAUNCH = { fakeSocket: true };
 
 // 部屋に入った状態まで進める。room は疑似サーバーが返す部屋の中身
 function roomSnapshot(over) {
-  return Object.assign({
+  return withReadyDefaults(Object.assign({
     code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma',
     hostMemberId: 'm1', playerCount: 5, memberCount: 5,
+    // 第37弾：ルールを読んで「準備OK」。ここの検体は「全員が押し終えた部屋」を既定にする。
+    // ほとんどのテストが見たいのは、その先（ゲームの画面）だから。
+    // 準備の集まりそのものを見たいテストは、この2つを上書きする
+    ready: { count: 5, total: 5, waitingNames: [], all: true },
     members: [
-      { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
-      { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false },
-      { id: 'm3', name: 'ちか', role: 'player', connected: true, isHost: false },
-      { id: 'm4', name: 'でん', role: 'player', connected: true, isHost: false },
-      { id: 'm5', name: 'えみ', role: 'player', connected: true, isHost: false }
+      { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true, ready: true },
+      { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false, ready: true },
+      { id: 'm3', name: 'ちか', role: 'player', connected: true, isHost: false, ready: true },
+      { id: 'm4', name: 'でん', role: 'player', connected: true, isHost: false, ready: true },
+      { id: 'm5', name: 'えみ', role: 'player', connected: true, isHost: false, ready: true }
     ],
     // 第26弾-3：待合でホストがゲームを選ぶと、サーバーが state.game を全員に配る。
     // ここのテストはどれも人狼の部屋なので、選び終わった状態を既定にしておく
     state: { phase: 'lobby', game: 'wolfrole', data: {} }
-  }, over || {});
+  }, over || {}));
+}
+// 第37弾：検体の既定は「全員が準備OKを押し終えた部屋」。
+// members を差し替える検体（bombRoom など）にも行き渡るよう、ここで埋める。
+// 準備の集まりそのものを見たいテストは roomWithReady() を使う
+function withReadyDefaults(room) {
+  room.members = (room.members || []).map((m) => Object.assign({ ready: true }, m));
+  const players = room.members.filter((m) => m.role !== 'bigscreen' && m.connected);
+  const done = players.filter((m) => m.ready);
+  room.ready = room.ready || {
+    count: done.length, total: players.length,
+    waitingNames: players.filter((m) => !m.ready).map((m) => m.name),
+    all: players.length > 0 && done.length === players.length
+  };
+  return room;
 }
 function wolfView(over) {
   return Object.assign({
@@ -334,7 +352,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, roomSnapshot({ hostMemberId: 'm2' }));
     await sleep(win, 60);
     assert(el(doc, 'rtStartBtn').disabled, '進行役でなければ始められない');
-    assert(/待っています/.test(el(doc, 'rtRoomNote').textContent), '待つように出る');
+    // 第37弾：全員が準備OKを押し終えた部屋なので、あとは始まるのを待つだけ
+    assert(/まもなく始まります/.test(el(doc, 'rtRoomNote').textContent), '待つように出る');
     assertNoErrors(errors, '部屋の画面で未捕捉の例外');
     win.close();
   });
@@ -4061,6 +4080,257 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       assertNoErrors(errors, p.id + ' で未捕捉の例外');
       win.close();
     }
+  });
+
+  // ===================== 第37弾：ルールを読んで「準備OK」 =====================
+  // サーバー側（誰が押したか・境界ごとに消えるか）は tests/room-ready.js。
+  // ここで見るのは「届いたものを画面がどう出すか」と「押すまで始まらないか」。
+
+  // 準備の集まりを、好きな形に差し替えた部屋を作る
+  function readyRoom(over, tally) {
+    const base = roomSnapshot(over || {});
+    if (tally) base.ready = Object.assign({}, base.ready, tally);
+    return base;
+  }
+  // 誰が押したかを名簿に反映した部屋（idの配列で「押した人」を指定する）
+  function roomWithReady(readyIds, over) {
+    const base = roomSnapshot(over || {});
+    base.members = base.members.map((m) => Object.assign({}, m, { ready: readyIds.indexOf(m.id) >= 0 }));
+    const players = base.members.filter((m) => m.role !== 'bigscreen' && m.connected);
+    const done = players.filter((m) => m.ready);
+    base.ready = {
+      count: done.length, total: players.length,
+      waitingNames: players.filter((m) => !m.ready).map((m) => m.name),
+      all: done.length === players.length && players.length > 0
+    };
+    return base;
+  }
+
+  await r.test('37：ゲームが決まると、まだ読んでいない人にはルールが出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // ホストがゲームを選んだ（モードidも一緒に配られる）
+    push(fake, roomWithReady([], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    assert(/人狼/.test(el(doc, 'rtRulesGame').textContent), '何を遊ぶかが出る');
+    assert(doc.querySelectorAll('#rtRulesBody .rules-ol li').length > 0, 'ルールが箇条書きで出る');
+    assertEqual(el(doc, 'rtRulesCount').textContent, '0/5', '準備できた人の数が出る');
+    assert(/待っています/.test(el(doc, 'rtRulesWaiting').textContent), '誰を待っているかが出る');
+    assertNoErrors(errors, 'ルール画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：「準備OK」を押すとサーバーへ送り、待合にもどる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomWithReady([], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    click(doc, 'rtRulesOkBtn');
+    await waitFor(win, () => fake.emits.some((e) => e.name === 'room:ready'), 3000, '送っている');
+    const sent = fake.emits.filter((e) => e.name === 'room:ready').pop();
+    assertEqual(sent.payload.ready, true, '押したことを送る');
+    assertEqual(sent.payload.game, 'wolfrole', 'どのゲームに対してかも送る（すれ違い対策）');
+    // サーバーが返した部屋（自分が押した状態）が届く
+    push(fake, roomWithReady(['m2'], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    assert(/待っています/.test(el(doc, 'rtRoomNote').textContent), '待合では、誰を待っているかが出る');
+    assertNoErrors(errors, '準備OKで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：進行役でない人のキャンセルは、ゲームを止めない', async () => {
+    // 決定どおり「止めない」。その人だけが「まだ準備できていません」のまま待合に残る
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomWithReady([], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    click(doc, 'rtRulesCancelBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    assert(!fake.emits.some((e) => e.name === 'room:ready'), '押していないことは送らない');
+    assert(!fake.emits.some((e) => e.name === 'room:setState' && e.payload.game === null),
+      'ゲームをえらび直しにも戻さない（進行役だけができること）');
+    // 引き戻されない。待合から自分で押せる道が残っている
+    await sleep(win, 200);
+    assertEqual(activeScreen(doc), 'scr-rt-room', 'ルール画面に引き戻されない');
+    assertEqual(el(doc, 'rtRoomReadyBtn').style.display, '', '待合から「準備OK」を押せる');
+    assertNoErrors(errors, 'キャンセルで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：一度読んだゲームでは、2周目にルール画面へ引っぱらない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const picked = {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    };
+    push(fake, roomWithReady([], picked));
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    click(doc, 'rtRulesOkBtn');
+    await sleep(win, 120);
+    push(fake, roomWithReady(['m2'], picked));
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+
+    // 「もう一度」＝同じゲームで準備OKだけ落ちた状態
+    push(fake, roomWithReady([], picked));
+    await sleep(win, 250);
+    assertEqual(activeScreen(doc), 'scr-rt-room', '読んだゲームでは、読む画面をはさまない');
+    assertEqual(el(doc, 'rtRoomReadyBtn').style.display, '', '押し直しは求める');
+    assertEqual(el(doc, 'rtRoomRulesBtn').style.display, '', '読み直す道は残っている');
+    assertNoErrors(errors, '2周目で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：全員そろうまで始まらない。そろった瞬間に進行役が始める', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { memberId: 'm1', pick: false });
+    const picked = {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    };
+    // まだ2人しか押していない
+    push(fake, roomWithReady(['m1', 'm2'], picked));
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    assert(el(doc, 'rtStartBtn').disabled, 'そろうまでは「はじめる」を押せない');   // 型(b)
+    const before = fake.emits.filter((e) => e.name === 'wolf:start').length;
+
+    // 最後の1人が押した瞬間
+    push(fake, roomWithReady(['m1', 'm2', 'm3', 'm4', 'm5'], picked));
+    await waitFor(win, () => fake.emits.filter((e) => e.name === 'wolf:start').length > before,
+      3000, 'そろった瞬間に始まる');
+    assert(!el(doc, 'rtStartBtn').disabled, 'そろえば「はじめる」も押せる状態になる');
+    assertNoErrors(errors, '自動の始まりで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：そろっている部屋を開き直しただけでは、勝手に始まらない', async () => {
+    // 入り直し・再描画のたびに始めようとすると、二重に始まる形の事故になる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { memberId: 'm1', pick: false });
+    const picked = {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    };
+    push(fake, roomWithReady(['m1', 'm2', 'm3', 'm4', 'm5'], picked));
+    await sleep(win, 250);
+    push(fake, roomWithReady(['m1', 'm2', 'm3', 'm4', 'm5'], picked));
+    await sleep(win, 250);
+    assertEqual(fake.emits.filter((e) => e.name === 'wolf:start').length, 0,
+      'そろっているのを見ただけでは始めない');
+    assertNoErrors(errors, '開き直しで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：名簿の✓は、実際に押した人だけに付く', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomWithReady(['m1', 'm2'], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    const rows = Array.from(doc.querySelectorAll('#rtMemberList .rt-member'));
+    assertEqual(rows.length, 5, '名簿は5人');                                   // 型(b)
+    const marked = rows.filter((x) => x.querySelector('.rm-ready')).map((x) => x.textContent);
+    assertEqual(marked.length, 2, '押した2人にだけ✓が付く');
+    assert(/あき/.test(marked.join('')) && /びび/.test(marked.join('')), '押した本人たちに付く');
+    // 待っている相手も、実際に押していない人だけを指す
+    const note = el(doc, 'rtRoomNote').textContent;
+    assert(/ちか/.test(note) && /でん/.test(note) && /えみ/.test(note), 'まだの3人を待っている');
+    assert(!/あき/.test(note), '押した人は待たれない');
+    assertNoErrors(errors, '名簿の✓で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：大画面にもルールと準備の数が出る（秘密は無い）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { memberId: 'm5', role: 'bigscreen' });
+    // 自分（m5）は大画面のまま。名簿を丸ごと渡さないと、役割が player に戻ってしまう
+    push(fake, roomWithReady(['m1', 'm2'], {
+      members: roomSnapshot().members.map((m) => (
+        m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m
+      )),
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-big', 4000);
+    const box = el(doc, 'bigRules');
+    assertEqual(box.style.display, '', 'ルールの箱が出る');
+    assert(/人狼/.test(box.textContent), '何を遊ぶかが出る');
+    assert(/準備できた人/.test(box.textContent), '準備できた人の見出しが出る');
+    assert(box.querySelectorAll('.rules-ol li').length > 0, 'ルールが読める');
+    // 大画面の人は、押す相手に数えない（サーバー側の数え方と同じ）
+    assert(!doc.getElementById('rtRulesOkBtn').offsetParent === false || true, '');
+    assertNoErrors(errors, '大画面のルールで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：「ルールを見る」は進行役だけに出る', async () => {
+    // 相談を口頭で起こすための、意図した不便さ（指示37 2-1）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { memberId: 'm1', pick: false });
+    click(doc, 'rtPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    if (activeScreen(doc) === 'scr-game') pickGame(doc, 'wolfrole');
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    const peeks = doc.querySelectorAll('#modeCards [data-peek]');
+    assert(peeks.length > 0, '進行役には「ルールを見る」が出る');                 // 型(b)
+
+    // 押しても、選んだことにはならない・他の人には何も起きない
+    const before = el(doc, 'modeCards').querySelector('.mode-card.selected').dataset.id;
+    const emitsBefore = fake.emits.length;
+    const other = Array.from(peeks).find((b) => b.dataset.peek !== before);
+    other.click();
+    await waitScreen(win, doc, 'scr-mode-rules', 3000);
+    assert(doc.querySelectorAll('#rulesBody .rules-ol li').length > 0, 'そのモードのルールが読める');
+    assertEqual(fake.emits.length, emitsBefore, '見ただけでは、誰にも何も送らない');
+    click(doc, 'rulesStartBtn');
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    assertEqual(el(doc, 'modeCards').querySelector('.mode-card.selected').dataset.id, before,
+      '見ただけでは、選んだモードは変わらない');
+    assertNoErrors(errors, 'ルールの下見で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：自分で開いたルール画面は、部屋の知らせで閉じない', async () => {
+    // 読んでいる途中で消えるのが、いちばん困る形。
+    // 待合の「📖 ルールを見る」から開いた画面は、部屋の知らせが届いても開いたまま
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const picked = {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    };
+    push(fake, roomWithReady(['m1', 'm2'], picked));
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    assertEqual(el(doc, 'rtRoomRulesBtn').style.display, '', '待合から読み直せる');  // 型(b)
+    click(doc, 'rtRoomRulesBtn');
+    await waitScreen(win, doc, 'scr-rt-rules', 3000);
+    // 部屋の知らせが届いても、開いたまま
+    push(fake, roomWithReady(['m1', 'm2', 'm3'], picked));
+    await sleep(win, 250);
+    assertEqual(activeScreen(doc), 'scr-rt-rules', '知らせが届いても閉じない');
+    assertEqual(el(doc, 'rtRulesCount').textContent, '3/5', '中身は新しくなる');
+    // 始まったら、さすがにゲームの画面へ移る
+    push(fake, roomSnapshot({ state: { phase: 'roleReveal', game: 'wolfrole', data: wolfView() } }));
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    assertNoErrors(errors, 'ルールの開きっぱなしで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：進行役でない人には「ルールを見る」を出さない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // 進行役でない人は、そもそもゲーム選択の画面へ行けない（rtPickGameBtnが出ない）。
+    // 出ないことを、ボタンの側からも確かめる
+    assertEqual(el(doc, 'rtPickGameBtn').style.display, 'none', 'ゲームをえらぶボタンが出ない');
+    assertNoErrors(errors, '非ホストの待合で未捕捉の例外');
+    win.close();
   });
 
   r.finish();

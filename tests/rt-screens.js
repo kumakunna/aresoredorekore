@@ -4298,6 +4298,78 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('37：同じゲームでも、遊び方を変えたらルールを読み直す', async () => {
+    // 実サーバーの通しで見つけた穴。「読んだ」をゲームごとに覚えていたので、
+    // ノーマル人狼を読んだ人は、カジュアル人狼に変わっても読む画面を通らなかった。
+    // 人狼は6モードあってルールが全部違うので、読まずに「準備OK」を押す形になっていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomWithReady([], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    const normal = el(doc, 'rtRulesGame').textContent;
+    assert(/ノーマル/.test(normal), 'ノーマル人狼のルールが出る');            // 型(b)
+    click(doc, 'rtRulesOkBtn');
+    await waitFor(win, () => activeScreen(doc) === 'scr-rt-room', 3000, '押したら待合へ');
+    push(fake, roomWithReady(['m2'], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await sleep(win, 120);
+
+    // 進行役が、同じ人狼の中で遊び方だけを変えた（準備OKは全員ぶん落ちる）
+    push(fake, roomWithReady([], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-casual' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    const casual = el(doc, 'rtRulesGame').textContent;
+    assert(/カジュアル/.test(casual), '新しい遊び方のルールが出る（実際: ' + casual + '）');
+    assert(doc.querySelectorAll('#rtRulesBody .rules-ol li').length > 0,
+      'たたまずに、そのまま読める形で出る');
+    assertNoErrors(errors, '遊び方の変更で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：全員そろっているところへ途中から入った人にも、ルールが出る', async () => {
+    // 「部屋単位で1回」ではなく「その人の端末で1回」。
+    // 部屋単位にすると、あとから入った人だけルールを読まないまま始まる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    // 自分（m2）以外は全員押し終えている
+    push(fake, roomWithReady(['m1', 'm3', 'm4', 'm5'], {
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }));
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    assertEqual(el(doc, 'rtRulesCount').textContent, '4/5', 'あと1人（自分）だけ');
+    assert(doc.querySelectorAll('#rtRulesBody .rules-ol li').length > 0, '読むルールが出ている');
+    assert(!/待っています/.test(el(doc, 'rtRulesWaiting').textContent),
+      '待っているのは自分だけなので、誰かを待つ文は出さない');
+    assertNoErrors(errors, '途中参加で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('37：全ゲームで、ゲームが決まったらルールを読む画面に入る（正本ループ）', async () => {
+    // 行き先を決めているのは rtWantScreen の1本なので、ゲームごとの分岐は無い。
+    // それでも全ゲームを回すのは、**GAME_DRIVERS に足しただけのゲームが
+    // この門をすり抜けていないか**を、増えた瞬間に赤で知るため（落とし穴4）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    for (const gameId of INV.RT_GAME_IDS) {
+      push(fake, roomWithReady([], { state: { phase: 'lobby', game: gameId, data: {} } }));
+      await waitScreen(win, doc, 'scr-rt-rules', 4000);
+      const shown = el(doc, 'rtRulesGame').textContent;
+      assert(shown && shown.trim().length > 0, gameId + '：何を遊ぶかが出る');
+      assertEqual(el(doc, 'rtRulesCount').textContent, '0/5', gameId + '：まだ誰も押していない');
+      // 実際の流れで戻る：押す → 待合へ → サーバーが「押した部屋」を配る
+      click(doc, 'rtRulesOkBtn');
+      await waitFor(win, () => activeScreen(doc) === 'scr-rt-room', 3000, gameId + '：押したら待合へもどる');
+      push(fake, roomWithReady(['m2'], { state: { phase: 'lobby', game: gameId, data: {} } }));
+      await sleep(win, 60);
+    }
+    assertNoErrors(errors, '全ゲームのループで未捕捉の例外');
+    win.close();
+  });
+
   await r.test('37：自分で開いたルール画面は、部屋の知らせで閉じない', async () => {
     // 読んでいる途中で消えるのが、いちばん困る形。
     // 待合の「📖 ルールを見る」から開いた画面は、部屋の知らせが届いても開いたまま

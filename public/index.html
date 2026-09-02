@@ -8734,6 +8734,20 @@
    */
   var rtRulesSeen = {};
   function rtForgetRulesSeen(){ rtRulesSeen = {}; }
+  /**
+   * 「読んだ」を数える単位。
+   * 指示37は「ゲームごと」と書いてあるが、**ルール文はモードが持っている**。
+   * 人狼は6モードあって、カジュアルとスペシャルではルールがまるで違う。
+   * ゲームごとに覚えると、ノーマル人狼を読んだ人が
+   * 全部のせ人狼に変わっても読む画面を通らず、読まずに「準備OK」を押すことになる。
+   * （実サーバーの通しで実際に起きた：ノーマル→カジュアルに変えても誰も読み直さなかった）
+   * ルールの伝え方は機能の一部（大切なこと6）なので、**読んだ中身の単位＝モード**で数える。
+   * モードが分からない部屋（古い端末が選んだ等）ではゲームidに落とす
+   */
+  function rtRulesKey(){
+    var m = rtPickedMode();
+    return m ? m.id : rtPickedGame();
+  }
 
   // ===================== 第21弾-5：1人1台の部屋 =====================
   // 手渡し方式とは別の入り口。ここから先の画面は scr-rt-* だけを使う。
@@ -8932,7 +8946,7 @@
     if(rtIsBigScreen()) return false;
     if(!rtWaitingToStart()) return false;
     if(rtIAmReady()) return false;
-    return !rtRulesSeen[rtPickedGame()];
+    return !rtRulesSeen[rtRulesKey()];
   }
   // 待つ相手（自分を除く）。名前ではなく名簿から引くので、同じ名前の人がいてもずれない
   function rtWaitingMembers(){
@@ -8956,13 +8970,12 @@
   }
   // ルールの中身。読んだことがあるゲームは、たたんで出す（開けば読める）
   function rtRulesBodyHtml(){
-    var gameId = rtPickedGame();
     var m = rtPickedMode();
     var bullets = (m && m.bullets) || [];
     var list = bullets.length
       ? '<ol class="rules-ol">' + bullets.map(function(b){ return '<li>' + escapeHtml(b) + '</li>'; }).join('') + '</ol>'
       : '<div class="mic-status">このゲームの説明は、まだ用意できていません</div>';
-    if(!rtRulesSeen[gameId]) return list;
+    if(!rtRulesSeen[rtRulesKey()]) return list;
     return '<details><summary style="cursor:pointer;font-size:13px;">📖 ルールをもう一度読む</summary>' + list + '</details>';
   }
   function enterRtRules(){ renderRtRules(); }
@@ -8972,7 +8985,7 @@
     var gameId = rtPickedGame();
     var m = rtPickedMode();
     var g = gameById(gameId) || {};
-    var seen = !!rtRulesSeen[gameId];
+    var seen = !!rtRulesSeen[rtRulesKey()];
     el('rtRulesTitle').textContent = seen ? '準備はいい？' : 'ルール';
     el('rtRulesSub').textContent = seen
       ? '前に読んだゲームです。準備ができたら押してください'
@@ -8991,17 +9004,17 @@
     el('rtRulesCancelBtn').textContent = rt.isHost() ? 'ゲームをえらび直す' : 'キャンセル（あとで押す）';
   }
   el('rtRulesOkBtn').addEventListener('click', async function(){
-    var gameId = rtPickedGame();
-    if(!gameId) return;
+    var key = rtRulesKey();
+    if(!key) return;
     this.disabled = true;
     var res = await rt.setReady(true);
     this.disabled = false;
     if(!res.ok){ showFlash(res.message || '送れませんでした', 'hit-wrong'); return; }
-    rtRulesSeen[gameId] = true;   // 押した＝読んだ。2周目からは待合で押すだけ
+    rtRulesSeen[key] = true;   // 押した＝読んだ。2周目からは待合で押すだけ
     goTo('scr-rt-room');
   });
   el('rtRulesCancelBtn').addEventListener('click', function(){
-    var gameId = rtPickedGame();
+    var key = rtRulesKey();
     if(rt.isHost()){
       // 進行役：ゲーム未確定に戻す（全員がえらび直しの画面へ）
       if(!confirm('ゲームをえらび直しますか？\n（みんなの画面も、えらび直しに戻ります）')) return;
@@ -9013,7 +9026,7 @@
     // 進行役でない人：ゲームは止めない。自分だけ「まだ準備できていません」のまま待合へ。
     // ルールは読んだ扱いにして、この画面へ引き戻されないようにする
     //（読み直したい時は、待合の「📖 ルールを見る」か、設定→ルールをもう一度見る）
-    if(gameId) rtRulesSeen[gameId] = true;
+    if(key) rtRulesSeen[key] = true;
     goTo('scr-rt-room');
   });
   // 待合からルールを読み直す。32-Bの「ルールをもう一度見る」とは別の入口だが、
@@ -10238,7 +10251,9 @@
     // 閉じてしまう（読んでいる途中で消える、いちばん困る形）
     if(!started){
       var cur = (document.querySelector('.screen.active') || {}).id;
-      if(cur === 'scr-rt-rules') return 'scr-rt-rules';
+      // ただし、進行役がゲームをえらび直したら（＝ゲームが無くなったら）待合へ戻す。
+      // 留まると、何のルールでもない空の画面に取り残される
+      if(cur === 'scr-rt-rules' && rtPickedGame()) return 'scr-rt-rules';
       return rtNeedsRules() ? 'scr-rt-rules' : 'scr-rt-room';
     }
     var room = rt && rt.state.room;

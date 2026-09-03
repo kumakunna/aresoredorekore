@@ -33,6 +33,12 @@
        決めごとは docs/デザインの正本.md 2 に置いてある */
     --switch-off:#A9A49A;
     --switch-on:#C08A3C;
+    /* 第39弾：つまみと、その縁。
+       白いつまみだけだと明るい帯（クイズの金など）に溶けるので、
+       縁で境目を作る。縁の色は帯の上に重ねて評価する
+       （tests/design-tokens.js が6配色ぶん機械照合する） */
+    --switch-knob:#FFFFFF;
+    --switch-knob-edge:rgba(0,0,0,0.70);
   }
   *{box-sizing:border-box;}
   body{
@@ -368,7 +374,12 @@
   .voice-row{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:12px;}
   .switch{width:40px;height:24px;border-radius:999px;background:var(--switch-off);position:relative;cursor:pointer;flex:none;transition:background .2s;}
   .switch.on{background:var(--switch-on);}
-  .switch::after{content:'';position:absolute;top:2.5px;left:2.5px;width:19px;height:19px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
+  .switch::after{
+    content:'';position:absolute;top:2.5px;left:2.5px;width:19px;height:19px;
+    border-radius:50%;background:var(--switch-knob);transition:left .2s;
+    /* 1本目が帯との境目、2本目が浮きの影 */
+    box-shadow:0 0 0 1px var(--switch-knob-edge), 0 1px 3px rgba(0,0,0,0.3);
+  }
   .switch.on::after{left:18.5px;}
   .mic-status{font-size:10.5px;color:var(--ink-soft);margin-top:4px;}
   .live-transcript{

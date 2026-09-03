@@ -102,5 +102,27 @@ const { createRunner, assert, assertEqual } = require('./harness');
     assertEqual(bad.join('／'), '', '偽物の文に、人を責める言葉が入っていない');
   });
 
+  await r.test('レビュー用の一覧が、品物プールに追いついている', async () => {
+    // docs/レビュー_オークション品物プール.md は、本人が中身を見るための表。
+    // 品物を足したのに表を書き換え忘れると、レビューしたつもりで
+    // 見ていない品物ができる。**表そのものを検査するのではなく、
+    // 「全部の品が載っているか」だけを見る**（体裁は自由にいじれる）
+    const fs = require('fs');
+    const path = require('path');
+    const p = path.join(__dirname, '..', 'docs', 'レビュー_オークション品物プール.md');
+    assert(fs.existsSync(p), 'レビュー用の一覧がある');
+    const md = fs.readFileSync(p, 'utf8');
+    const missing = [];
+    Items.ITEMS.forEach((it) => {
+      if (md.indexOf(it.look) === -1) missing.push(it.look);
+      // 正体の文も、品質ごとに載っていること（ここが本人の見どころ）
+      Items.QUALITIES.forEach((q) => {
+        if (md.indexOf(it.q[q.id].reveal) === -1) missing.push(it.look + '/' + q.label);
+      });
+    });
+    assertEqual(missing.join('／'), '',
+      'レビュー用の一覧に無い品物（書き出し直してください）');
+  });
+
   r.finish();
 })();

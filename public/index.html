@@ -8219,8 +8219,8 @@
     var open = !!m.auctionOpen;
     el('auCfgTitle').textContent = open ? 'せり上げ式の設定' : '秘密入札の設定';
     el('auCfgLead').textContent = open
-      ? '値が吊り上がっていく遊び方です。締め切りの長さを決めよう。'
-      : 'こっそり金額を決めて、一斉に開ける遊び方です。考える時間を決めよう。';
+      ? 'みんなの前で値が吊り上がっていく遊び方です。長さを決めよう。'
+      : 'こっそり金額を決めて、一斉に開ける遊び方です。長さを決めよう。';
     // つまみの端は、ルール層が持っている数から入れる
     var R = AuctionLogic.RULES;
     el('auRoundsSlider').min = R.ROUNDS_MIN;

@@ -263,42 +263,76 @@ function quizRoom(variant, data) {
   });
 }
 
-// ---- 第31弾：オークションの部屋 ----
-// auction-room.js が配る形をそのまま真似る。
-// 品物の正体が届かないことは realtime-auction.js で見ているので、
-// ここでは「届いたものを画面がどう出すか」だけを見る
-function auctionView(over) {
-  return Object.assign({
-    phase: 'show', mode: 'sealed', round: 1, totalRounds: 6,
-    remainingMs: 20000, rescueNote: null, teaser: '古びた壺',
-    players: [
-      { id: 'm1', name: 'あき', connected: true, chips: 20, items: 0 },
-      { id: 'm2', name: 'びび', connected: true, chips: 20, items: 1 }
-    ]
-  }, over || {});
-}
-function auctionYou(over) {
-  return Object.assign({
-    phase: 'show', mode: 'sealed', chips: 20, round: 1, totalRounds: 6,
-    remainingMs: 20000, teaser: '古びた壺',
-    shop: [
-      { id: 'halfticket', name: '半額チケット', icon: '🎟', cost: 4, lead: '半分になる', afford: true },
-      { id: 'appraise', name: '鑑定眼', icon: '🔍', cost: 3, lead: 'ヒントが出る', afford: true }
-    ],
-    inventory: [], active: {}, hints: [], ready: false
-  }, over || {});
-}
-function auctionRoom(data) {
-  return roomSnapshot({
-    playerCount: 2, memberCount: 2,
-    members: [
-      { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
-      { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false }
-    ],
-    state: { phase: data.phase, game: 'auction', data: data }
-  });
+// ---- 第38弾：相場オークションの偽の部屋 ----
+//
+// **手で書いた検体を使わない。**本物の進行役（auction-room.js）を動かして、
+// そこから publicView / privateFor を取り出して画面に流す。
+// 手で書くと、サーバーが送らない形を画面が読めてしまい、
+// 「テストは緑なのに実機では真っ白」が起きる（検体そのものが実装から離れていく）。
+// 進行役を通すので、秘密の落とし方（品質を publicView に入れない等）も
+// 本物と同じものが検査される。
+const AuctionRoom = require('../auction-room');
+const A = require('../public/js/auction-logic');
+const Items = require('../public/js/auction-items');
+
+const AU_MEMBERS = [
+  { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
+  { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false },
+  { id: 'm3', name: 'ちか', role: 'player', connected: true, isHost: false }
+];
+
+/**
+ * 本物の進行役を1つ立てて、段階を進められる形で返す。
+ *   st.w       … サーバー側の状態（検体を作るために直接いじる）
+ *   st.room    … 進行役に渡す部屋
+ *   st.you(id) … その人の端末に届くもの（privateFor）
+ *   st.toBid() / st.toGuess() / st.toReveal() … 段階を進める
+ */
+function auStage(cfg) {
+  const members = new Map();
+  AU_MEMBERS.forEach((m) => members.set(m.id, Object.assign({}, m)));
+  const room = { members: members, state: { phase: 'lobby' } };
+  const res = AuctionRoom.startGame(room, Object.assign({
+    game: 'auction', mode: 'sealed', rounds: 1, previewSec: 30
+  }, cfg || {}));
+  if (!res.ok) throw new Error('偽の部屋を作れませんでした: ' + (res.error || ''));
+  const w = room.auction;
+  const st = {
+    room: room, w: w,
+    you: (id) => AuctionRoom.privateFor(room, id),
+    view: () => AuctionRoom.publicView(room)
+  };
+  // 下見を終えて競りに入る（全員がアイテムを選ぶ＝本物と同じ道を通る）
+  st.toBid = () => {
+    w.playerIds.forEach((id) => { w.power[id] = A.POWERS[0].id; });
+    AuctionRoom.advance(room);
+    return st;
+  };
+  // 落札が決まって、値踏みの段階に入ったところ
+  st.toGuess = (winnerId) => {
+    st.toBid();
+    w.bids[winnerId] = { amount: 3, at: Date.now() };
+    AuctionRoom.advance(room);   // bid → guess（落札が決まる）
+    return st;
+  };
+  // 開示の段階。guesses には { 誰: 予想 } を渡す
+  st.toReveal = (winnerId, guesses) => {
+    st.toGuess(winnerId);
+    Object.keys(guesses || {}).forEach((id) => { w.guesses[id] = guesses[id]; });
+    AuctionRoom.advance(room);   // guess → reveal
+    return st;
+  };
+  return st;
 }
 
+// 進行役が作った状態を、そのまま部屋の知らせの形にする
+function auRoom(st, phase) {
+  return roomSnapshot({
+    playerCount: AU_MEMBERS.length, memberCount: AU_MEMBERS.length,
+    members: AU_MEMBERS.map((m) => Object.assign({}, m)),
+    state: { phase: phase, game: 'auction', data: AuctionRoom.publicView(st.room) }
+  });
+}
 // すごろくの偽の部屋。**画面が本当に描かれるか**を見るために使う。
 // 通信と状態だけを見るテストでは、画面の不在を捕まえられない（第36弾で実際に起きた）
 function sugoBoard(n) {
@@ -2989,155 +3023,270 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  // ---- 第31弾：オークションバトル（作り直し）----
+  // ---- 第38弾：相場オークション（作り直し）----
+  //
+  // **偽の部屋のデータは、手で書かずに本物の進行役から作る**（下の auStage）。
+  // 手で書くと、サーバーが送らない形を画面が読めてしまい、
+  // 「テストは緑なのに実機で真っ白」が起きる。落とし穴10-d の親戚で、
+  // 検体の形そのものが実装から離れていく型
 
-  await r.test('オークション：品物の一言だけが出て、アイテムを買える', async () => {
+  await r.test('開場：6品が全部ならび、品質はどこにも出ない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, auctionRoom(auctionView()));
-    pushYou(fake, auctionYou());
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    assert(/秘密入札/.test(el(doc, 'auPhase').textContent), 'どの遊び方か分かる');
-    assert(/古びた壺/.test(el(doc, 'auBody').textContent), '品物の一言が出る');
-    assert(doc.querySelector('[data-aubuy="appraise"]'), '鑑定眼を買える');
-    assert(doc.querySelector('[data-auready]'), '見終わったら進める');
+    const st = auStage({ mode: 'sealed' });
+    push(fake, auRoom(st, 'preview'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-open', 4000);
 
-    click(doc, doc.querySelector('[data-aubuy="appraise"]'));
-    await sleep(win, 80);
-    const act = fake.emits.filter(e => e.name === 'wolf:act').pop();
-    assertEqual(act.payload.targetId, 'buy:appraise', '買うことを送っている');
-    assertNoErrors(errors, 'オークションの画面で未捕捉の例外');
+    const cards = doc.querySelectorAll('#auOpenShelf .mk-card');
+    assertEqual(cards.length, A.RULES.ITEMS_PER_ROUND,
+      '6品が最初から全部ならぶ（このリメイクの芯）');
+    // 見比べられること：見た目の文が6つとも違う
+    const looks = Array.from(cards).map((c) => c.querySelector('.ac-look').textContent);
+    assertEqual(new Set(looks).size, looks.length, '6品とも違う品物として読める');
+    // 品質は1つも出ていない
+    const shown = el(doc, 'scr-rt-au-open').textContent;
+    Items.QUALITIES.forEach((q) => {
+      assert(shown.indexOf(q.label) === -1 || /内訳|含まれ/.test(shown),
+        q.label + ' が品物の側に出ていない');
+    });
+    Array.from(cards).forEach((c) => {
+      assertEqual(c.querySelector('.ac-q').textContent, '?', '品質は伏せられている');
+    });
+    // 内訳の数だけは公開されている（これが無いと見比べる手がかりが無い）
+    const mix = el(doc, 'auOpenMix').textContent;
+    Items.MIX.forEach((row) => {
+      assert(mix.indexOf(String(row.count)) !== -1,
+        Items.qualityById(row.quality).label + ' の数が出ている');
+    });
+    assertNoErrors(errors, '開場の画面で未捕捉の例外');
     win.close();
   });
 
-  await r.test('オークション：鑑定眼のヒントは、自分の画面にだけ出る', async () => {
+  await r.test('開場：鑑定眼で見た品は、その端末にだけ正体が出る', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, auctionRoom(auctionView()));
-    pushYou(fake, auctionYou({ hints: ['底に、消えかけた印が彫ってある'] }));
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    assert(/消えかけた印/.test(el(doc, 'auBody').textContent), '自分のヒントが出る');
-    // 公開情報（room:update で全員に配られるもの）にはヒントが入っていない
-    assertEqual(JSON.stringify(auctionView()).indexOf('消えかけた印'), -1,
-      '公開情報にヒントは混ざらない');
-    assertNoErrors(errors, 'ヒントの表示で未捕捉の例外');
+    const st = auStage({ mode: 'sealed' });
+    // m2 だけが3番を鑑定した状態にする
+    const target = st.w.items[2];
+    st.w.power.m2 = 'appraise';
+    st.w.powerUsed.m2 = true;
+    st.w.appraised.m2[target.no] = target.quality;
+
+    push(fake, auRoom(st, 'preview'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-open', 4000);
+    const q = Items.qualityById(target.quality).label;
+    const mine = doc.querySelector('#auOpenShelf [data-no="' + target.no + '"] .ac-q').textContent;
+    assert(mine.indexOf(q) !== -1,
+      '見た本人には正体が出る（実際: ' + mine + '）。出ないと「使ったのに何も起きない」になる');
+
+    // 同じ部屋の別の端末（m1）には出ない
+    const other = await launch(LAUNCH);
+    const fake2 = await toRoom(other.win, other.doc, { join: true, memberId: 'm1' });
+    push(fake2, auRoom(st, 'preview'));
+    pushYou(fake2, st.you('m1'));
+    await waitScreen(other.win, other.doc, 'scr-rt-au-open', 4000);
+    const theirs = other.doc.querySelector('#auOpenShelf [data-no="' + target.no + '"] .ac-q').textContent;
+    assertEqual(theirs, '?', '他の端末では伏せられたまま');
+    // 部屋の知らせ（全員に配られるもの）にも入っていない
+    assert(JSON.stringify(AuctionRoom.publicView(st.room)).indexOf(target.quality) === -1,
+      '公開スナップショットにも品質が入っていない');
+    assertNoErrors(errors, '鑑定眼の画面で未捕捉の例外');
+    win.close(); other.win.close();
+  });
+
+  await r.test('アイテム：3つからえらべて、えらんだものに印がつく', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const st = auStage({ mode: 'sealed' });
+    push(fake, auRoom(st, 'preview'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-open', 4000);
+
+    click(doc, 'auPowerBtn');
+    await waitScreen(win, doc, 'scr-rt-au-power', 3000);
+    const btns = doc.querySelectorAll('#auPwList .apw');
+    assertEqual(btns.length, A.POWERS.length, 'アイテムが3つならぶ');
+    A.POWERS.forEach((p) => {
+      assert(el(doc, 'auPwList').textContent.indexOf(p.label) !== -1,
+        p.label + ' が出る');
+    });
+    click(doc, btns[0]);
+    await sleep(win, 80);
+    const act = fake.emits.filter((e) => e.name === 'wolf:act').pop();
+    assertEqual(act.payload.pick, A.POWERS[0].id, 'えらんだアイテムを送っている');
+
+    // 返事が届いたら、印がつく
+    st.w.power.m2 = A.POWERS[0].id;
+    pushYou(fake, st.you('m2'));
+    await waitFor(win, () => doc.querySelector('#auPwList .apw.on'), 3000, '印がつく');
+    assertNoErrors(errors, 'アイテムの画面で未捕捉の例外');
     win.close();
   });
 
-  await r.test('秘密入札：金額を出したあと、撤回権があれば出し直せる', async () => {
+  await r.test('競り：品物・開いたヒント・入札のボタンが出て、押すと額が送られる', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, auctionRoom(auctionView({ phase: 'bid', doneNames: [], remainingMs: 30000 })));
-    pushYou(fake, auctionYou({ phase: 'bid', myBid: null, canRetract: false }));
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    assert(doc.getElementById('auBidSlider'), '金額を決められる');
-    click(doc, doc.querySelector('[data-aubid]'));
-    await sleep(win, 80);
-    const vote = fake.emits.filter(e => e.name === 'wolf:vote').pop();
-    assert(vote, '入札を送っている');
-    assertEqual(typeof vote.payload.targetId, 'number', '金額は数字で送る');
+    const st = auStage({ mode: 'open' });
+    st.toBid();
+    // ヒントが1本開いたところ（12秒経過）にする
+    st.w.bidStartAt = Date.now() - A.RULES.HINT_STEP_SEC * 1000;
+    push(fake, auRoom(st, 'bid'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-bid', 4000);
 
-    // 出したあとは、撤回権を持っている時だけ出し直せる
-    pushYou(fake, auctionYou({ phase: 'bid', myBid: 7, canRetract: false }));
+    const item = st.w.items.find((x) => x.no === st.w.order[st.w.idx]);
+    assert(el(doc, 'auBidSpot').textContent.indexOf(item.look) !== -1, '品物の見た目が出る');
+    // 見た目は上に大きく出ているので、ヒントの欄では繰り返さない
+    assert(el(doc, 'auBidHints').textContent.indexOf(item.look) === -1,
+      '同じ言葉が上下に2回ならばない');
+    assert(el(doc, 'auBidHints').textContent.indexOf(item.steps[0]) !== -1,
+      '開いた段階ヒントが出る');
+    // 残りの品が見えている（「これを見送れば次がある」が分かる）
+    assertEqual(doc.querySelectorAll('#auBidRest .ar').length, A.RULES.ITEMS_PER_ROUND,
+      '残りの品が下にならぶ');
+
+    const pad = doc.querySelectorAll('#auBidPad [data-aubid]');
+    assert(pad.length >= 2, '入札のボタンが出る');
+    click(doc, pad[0]);
     await sleep(win, 80);
-    assert(!doc.querySelector('[data-auretract]'), '撤回権が無ければ出し直せない');
-    pushYou(fake, auctionYou({ phase: 'bid', myBid: 7, canRetract: true }));
-    await sleep(win, 80);
-    assert(doc.querySelector('[data-auretract]'), '撤回権があれば出し直せる');
-    assertNoErrors(errors, '入札の画面で未捕捉の例外');
+    const vote = fake.emits.filter((e) => e.name === 'wolf:vote').pop();
+    assert(vote.payload.amount > 0, '額を送っている（実際: ' + vote.payload.amount + '）');
+    assertNoErrors(errors, '競りの画面で未捕捉の例外');
     win.close();
   });
 
-  await r.test('せり上げ式：いまの最高額が出て、それより上からしか出せない', async () => {
+  await r.test('競り：秘密入札では、他の人がいくら出したかが出ない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, auctionRoom(auctionView({
-      phase: 'bid', mode: 'open', highest: { name: 'あき', amount: 5 }, remainingMs: 8000
-    })));
-    pushYou(fake, auctionYou({ phase: 'bid', mode: 'open', myBid: null }));
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    assert(/あき/.test(el(doc, 'auNote').textContent), '誰が最高額か出る');
-    assert(/5枚/.test(el(doc, 'auNote').textContent), 'いくらかも出る');
-    assertEqual(doc.getElementById('auBidSlider').min, '6', '最高額より上からしか出せない');
-    assertNoErrors(errors, 'せり上げ式の画面で未捕捉の例外');
+    const st = auStage({ mode: 'sealed' });
+    st.toBid();
+    // m1 が7枚で入札した状態
+    st.w.bids.m1 = { amount: 7, at: Date.now() };
+    push(fake, auRoom(st, 'bid'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-bid', 4000);
+    const shown = el(doc, 'scr-rt-au-bid').textContent;
+    assert(/あき/.test(shown), '誰が出し終えたかは分かる');
+    assert(!/7枚/.test(shown), '額そのものは出ない（実際: ' + shown.slice(0, 120) + '）');
+    assertNoErrors(errors, '秘密入札の画面で未捕捉の例外');
     win.close();
   });
 
-  await r.test('オークション：落札が決まってから、正体と差し引きが出る', async () => {
+  await r.test('値踏み：落札しなかった人には3択が出て、落札した人には出ない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, auctionRoom(auctionView({
-      phase: 'result', remainingMs: 8000,
-      lastResult: {
-        passed: false, winner: 'あき', bid: 6, paid: 6, value: 15, delta: 9,
-        halfticket: false, doubleup: false,
-        teaser: '古びた壺', reveal: '三百年前の窯で焼かれた名品', tier: 'jackpot'
-      }
-    })));
-    pushYou(fake, auctionYou({ phase: 'result' }));
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    const body = el(doc, 'auBody').textContent;
-    assert(/三百年前/.test(body), '正体が明かされる');
-    assert(/大当たり/.test(body), '価値の階層が出る');
-    assert(/\+9枚/.test(body), '差し引きが出る');
+    const st = auStage({ mode: 'sealed' });
+    st.toGuess('m1');   // m1 が落札した
+    push(fake, auRoom(st, 'guess'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-guess', 4000);
+    assertEqual(doc.querySelectorAll('#auGsPad .agq').length, Items.QUALITIES.length,
+      '落札しなかった人には3択が出る');
+    click(doc, doc.querySelector('#auGsPad .agq'));
+    await sleep(win, 80);
+    const vote = fake.emits.filter((e) => e.name === 'wolf:vote').pop();
+    assertEqual(vote.payload.guess, Items.QUALITIES[0].id, '予想を送っている');
+
+    // 落札した本人（m1）の画面には3択が出ない
+    const other = await launch(LAUNCH);
+    const fake2 = await toRoom(other.win, other.doc, { join: true, memberId: 'm1' });
+    push(fake2, auRoom(st, 'guess'));
+    pushYou(fake2, st.you('m1'));
+    await waitScreen(other.win, other.doc, 'scr-rt-au-guess', 4000);
+    assertEqual(other.doc.querySelectorAll('#auGsPad .agq').length, 0,
+      '自分が落札した品は値踏みしない');
+    assert(/落札しました/.test(el(other.doc, 'auGsLead').textContent),
+      'かわりに、何が起きたかは分かる');
+    assertNoErrors(errors, '値踏みの画面で未捕捉の例外');
+    win.close(); other.win.close();
+  });
+
+  await r.test('開示：予想 → 品質 → 相場 → 得点 の順に出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const st = auStage({ mode: 'sealed' });
+    st.toReveal('m1', { m2: 'fine' });
+    push(fake, auRoom(st, 'reveal'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-reveal', 4000);
+
+    // ① 予想はすぐめくれる
+    assert(/びび/.test(el(doc, 'auRvGuesses').textContent), '誰が何と読んだかが出る');
+    // ② 品質はひと呼吸おいてから
+    assertEqual(el(doc, 'auRvQuality').textContent, '', '品質はまだ出ていない');
+    const lr = st.w.lastResult;
+    await waitFor(win, () => el(doc, 'auRvQuality').textContent !== '', 3000, '品質が出る');
+    const q = Items.qualityById(lr.quality);
+    assert(el(doc, 'auRvQuality').textContent.indexOf(q.label) !== -1,
+      '色だけでなく文字でも品質が出る（実際: ' + el(doc, 'auRvQuality').textContent + '）');
+    // ③ そのあと相場、④ そのあと得点
+    await waitFor(win, () => /相場/.test(el(doc, 'auRvNote').textContent), 3000, '相場の動きが出る');
+    await waitFor(win, () => el(doc, 'auRvPoints').textContent !== '', 3000, '得点が出る');
+    assert(el(doc, 'auRvPoints').textContent.indexOf(String(lr.points)) !== -1,
+      '得点の数が合っている');
+
+    // 描き直しが来ても、演出が最初からやり直しにならない（実機で見つけた穴）
+    push(fake, auRoom(st, 'reveal'));
+    await sleep(win, 120);
+    assert(el(doc, 'auRvQuality').textContent !== '',
+      '知らせがもう一度届いても、品質が消えて出直さない');
+    assertNoErrors(errors, '開示の画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('結果：順位と、点の内訳（品物ぶん・残りチップぶん）が出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const st = auStage({ mode: 'sealed' });
+    st.w.phase = 'ended';
+    st.w.result = AuctionRoom.resultView(st.room);
+    push(fake, auRoom(st, 'ended'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-result', 4000);
+    const rows = doc.querySelectorAll('#auRsRank .arow');
+    assertEqual(rows.length, st.w.playerIds.length, '全員ぶんの順位が出る');
+    assert(/品物/.test(el(doc, 'auRsRank').textContent) &&
+           /残り/.test(el(doc, 'auRsRank').textContent),
+      '点の内訳が読める（どこで勝ったのかが分かる）');
+    // ラウンド数は出さない（第36弾 36-4）
+    assert(!/ラウンド/.test(el(doc, 'scr-rt-au-result').textContent),
+      '決着した画面にラウンド数は出ない');
     assertNoErrors(errors, '結果の画面で未捕捉の例外');
     win.close();
   });
 
-  // 第36弾 36-4：実機で結果発表に「第7/6ラウンド」と出ていた。
-  // サーバーは最後のラウンドを終えた時に round を1つ進めてから決着させるので、
-  // 決着の見え方では round が総数を1つ超える。決着した画面にラウンド数は出さない
-  await r.test('36-4：決着した画面に、範囲を超えたラウンド数を出さない', async () => {
-    const { win, doc, errors } = await launch(LAUNCH);
-    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    const ended = {
-      phase: 'ended', round: 7, totalRounds: 6,
-      result: { ranking: [
-        { rank: 1, name: 'あき', chips: 31 },
-        { rank: 2, name: 'びび', chips: 18 }
-      ] }
-    };
-    // 条件が本当に作れているかを、主張の前に確かめる（落とし穴10 型b）
-    assert(ended.round > ended.totalRounds, '決着の時点では、ラウンド数が総数を超えている');
-
-    push(fake, auctionRoom(auctionView(ended)));
-    pushYou(fake, auctionYou({ phase: 'ended' }));
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    assertEqual(el(doc, 'auRound').textContent, '', '決着した画面にラウンド数は出ない');
-    const shown = el(doc, 'scr-rt-auction').textContent;
-    assert(!/ラウンド/.test(el(doc, 'auRound').textContent), 'ラウンドの文字も残らない');
-    assert(!/7\s*\/\s*6/.test(shown), '「7 / 6」のような範囲外の数字が画面に無い');
-    assert(/あき/.test(shown), '出すべきもの（順位）はちゃんと出ている');
-
-    // 遊んでいる最中は、今までどおり出る（消しすぎていないこと）
-    push(fake, auctionRoom(auctionView({ phase: 'bid', round: 3, totalRounds: 6, remainingMs: 8000 })));
-    pushYou(fake, auctionYou({ phase: 'bid' }));
-    await waitFor(win, () => /3/.test(el(doc, 'auRound').textContent), 3000, 'ラウンド数が戻る');
-    assert(/第3 \/ 6ラウンド/.test(el(doc, 'auRound').textContent), '途中では第3/6ラウンドと出る');
-    assertNoErrors(errors, '決着の画面で未捕捉の例外');
-    win.close();
-  });
-
-  await r.test('大画面：オークションは、落札が決まるまで正体を出さない', async () => {
+  await r.test('大画面：相場と品ぞろえが主役で、品質は絶対に出ない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
-    const room = auctionRoom(auctionView({
-      phase: 'bid', mode: 'open', highest: { name: 'あき', amount: 5 }
-    }));
+    const st = auStage({ mode: 'open' });
+    st.toBid();
+    st.w.highest = { id: 'm1', amount: 5 };
+    const room = auRoom(st, 'bid');
     room.members = room.members.concat([
       { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
     ]);
-    room.memberCount = 3;
+    room.memberCount = room.members.length;
     push(fake, room);
-    await sleep(win, 150);
+    await sleep(win, 200);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
-    assertEqual(el(doc, 'bigMain').textContent, '古びた壺', '一言だけが大きく出る');
+    const item = st.w.items.find((x) => x.no === st.w.order[st.w.idx]);
+    assert(el(doc, 'bigMain').textContent.indexOf(item.look) !== -1, '品物の見た目が大きく出る');
     assert(/あき/.test(el(doc, 'bigSub').textContent), 'いまの最高額が出る');
-    assert(/あき 20/.test(el(doc, 'bigList').textContent), 'チップが出る');
+    // 相場が主役として出ている
+    const list = el(doc, 'bigList').textContent;
+    Items.KINDS.forEach((k) => {
+      assert(list.indexOf(k.icon) !== -1, k.label + ' の相場が大画面に出る');
+    });
+    // **品質はどこにも出ない**（大画面はみんなが見る）
+    const big = el(doc, 'scr-rt-big').textContent;
+    st.w.items.forEach((it) => {
+      assert(big.indexOf(it.reveal) === -1, '正体の文が出ていない');
+    });
     assertNoErrors(errors, '大画面で未捕捉の例外');
     win.close();
   });
-
   await r.test('オークション：2つの遊び方とも、設定まで歩けて開始を送る', async () => {
     for (const c of [{ mode: 'auction-open', sent: 'open' }, { mode: 'auction-sealed', sent: 'sealed' }]) {
       const { win, doc, errors } = await launch(LAUNCH);
@@ -3162,7 +3311,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 100); }
       await waitScreen(win, doc, 'scr-rt-room', 3000);
 
-      push(fake, auctionRoom(auctionView({ phase: 'lobby' })));
+      push(fake, auRoom(auStage({ mode: c.sent }), 'lobby'));
       await sleep(win, 80);
       click(doc, 'rtStartBtn');
       await sleep(win, 120);
@@ -3366,17 +3515,30 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
         you: () => quizYou('quizrush', { phase: 'ended', rush: { passesLeft: 3 } }),
         check: (st) => { assertEqual(st.plays, 1, '遊んだ回数'); assertEqual(st.wins, 1, '1位'); } },
       { label: 'オークション', game: 'auction', cassette: 'auction',
-        room: () => auctionRoom(auctionView({ phase: 'ended',
-          result: { ranking: [{ id: 'm2', name: 'びび', chips: 30, rank: 1 }] } })),
-        you: () => auctionYou({ phase: 'ended' }),
+        // 部屋の決着と「自分の情報」は、**同じ1つの部屋から**取り出す。
+        // 別々に作ると、自分の情報だけ決着前のままになり、
+        // 称号を数える門（you.phase === ended）を通らない（第34弾で踏んだ形）
+        make: () => {
+          const st = auStage({ mode: 'sealed' });
+          // びび（m2）が勝った形にする。点の出し方はルール層に任せて、
+          // ここでは「いちばん持っている」状態だけ作る
+          st.w.chips.m2 = 60;
+          st.w.phase = 'ended';
+          st.w.result = AuctionRoom.resultView(st.room);
+          const top = st.w.result.ranking.find((x) => x.rank === 1);
+          assertEqual(top.id, 'm2', '検体として、びびが1位になっている');  // 型(b)
+          return { room: auRoom(st, 'ended'), you: st.you('m2') };
+        },
         check: (st) => { assertEqual(st.plays, 1, '遊んだ回数'); assertEqual(st.wins, 1, '1位'); } }
     ];
     for (const c of CASES) {
       const { win, doc, errors } = await launch(LAUNCH);
       const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
       const sent = titlePuts(win);
-      push(fake, c.room());
-      pushYou(fake, c.you());
+      // make があるものは、部屋と自分の情報を1つの部屋から作る
+      const made = c.make ? c.make() : { room: c.room(), you: c.you() };
+      push(fake, made.room);
+      pushYou(fake, made.you);
       await waitFor(win, () => sent.length >= 1, 3000, c.label + '：称号を記録しにいく');
       c.check(sent[sent.length - 1].stats[c.cassette]);
       assertNoErrors(errors, c.label + ' の称号で未捕捉の例外');
@@ -3686,70 +3848,6 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   // ===================================================================
   // 第32弾-C：部屋の画面まとめて（第6部・第4部の残り・観戦モード）
   // ===================================================================
-
-  await r.test('オークション：品物はスポットライトの下に出る', async () => {
-    const { win, doc, errors } = await launch(LAUNCH);
-    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, auctionRoom(auctionView({ phase: 'show', teaser: 'むかし、ある人が大切にしていた…' })));
-    pushYou(fake, auctionYou({ ready: false, hints: [], inventory: [], shop: [] }));
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    assert(doc.querySelector('.au-stage'), '舞台の上に出る');
-    assert(doc.querySelector('.au-spot'), 'スポットライトが降りる');
-    assert(/むかし、ある人が/.test(el(doc, 'auBody').textContent), '謎めいた一言が出る');
-    assertNoErrors(errors, '品物登場で未捕捉の例外');
-    win.close();
-  });
-
-  await r.test('オークション：同額なら先に出した人、と理由が書いてある', async () => {
-    // 同額で負けた時に「なぜ」が分からないと後味が悪い
-    const { win, doc, errors } = await launch(LAUNCH);
-    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, auctionRoom(auctionView({
-      phase: 'bid', mode: 'open', highest: { name: 'あき', amount: 5 }
-    })));
-    pushYou(fake, auctionYou({ chips: 20, myBid: null }));
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    assert(/先に出した人/.test(el(doc, 'auNote').textContent),
-      '同額の決まりが読める（実際: ' + el(doc, 'auNote').textContent + '）');
-    assertNoErrors(errors, '入札の画面で未捕捉の例外');
-    win.close();
-  });
-
-  await r.test('オークション：価値が開く瞬間に、大当たりと大ハズレで見た目が変わる', async () => {
-    const { win, doc, errors } = await launch(LAUNCH);
-    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    // 大当たり
-    push(fake, auctionRoom(auctionView({
-      phase: 'result', round: 1,
-      lastResult: { passed: false, winner: 'あき', bid: 5, paid: 5, value: 30, delta: 25,
-        teaser: 'なぞ', reveal: '幻の名品', tier: 'jackpot' }
-    })));
-    pushYou(fake, auctionYou({ chips: 20 }));
-    await waitScreen(win, doc, 'scr-rt-auction', 4000);
-    await sleep(win, 80);
-    let b = doc.querySelector('.fx-banner');
-    assert(b && b.classList.contains('fx-banner-gold'), '大当たりは金色（' + (b ? b.className : 'なし') + '）');
-    // 落札した人以外は損しないことを、その場で伝える
-    assert(/払ったのは あき さんだけ/.test(b.textContent),
-      'ほかの人は損しないと分かる（実際: ' + b.textContent + '）');
-    doc.getElementById('app').dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
-    await sleep(win, 120);
-
-    // 大ハズレ（別のラウンドとして届く）
-    push(fake, auctionRoom(auctionView({
-      phase: 'result', round: 2,
-      lastResult: { passed: false, winner: 'あき', bid: 8, paid: 8, value: 0, delta: -8,
-        teaser: 'なぞ', reveal: 'ただのガラクタ', tier: 'dud' }
-    })));
-    await sleep(win, 120);
-    b = doc.querySelector('.fx-banner');
-    assert(b && b.classList.contains('fx-banner-gray'), '大ハズレは灰色に沈む');
-    // 結果の欄にも、損したのは落札した人だけだと残る
-    assert(/1枚も減っていません/.test(el(doc, 'auBody').textContent),
-      '結果の欄にも残る');
-    assertNoErrors(errors, '価値の開示で未捕捉の例外');
-    win.close();
-  });
 
   await r.test('観戦モード：脱落した人も、生きている人と欠けた人を見ていられる', async () => {
     // それまでは脱落を告げられるだけで、以降なにも見えなかった

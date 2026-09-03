@@ -140,7 +140,7 @@ const RT_START_MIN_CONFIG = {
   quizlist: { game: 'quizlist', timerSec: 60 },
   quizreveal: { game: 'quizreveal', timerSec: 60 },
   buzzer: { game: 'buzzer' },
-  auction: { game: 'auction', mode: 'sealed', rounds: 3, bidSec: 60 },
+  auction: { game: 'auction', mode: 'sealed', rounds: 1, previewSec: 30 },
   // 第36弾：すごろく。盤も人数も遊びが決めているので、送るのはこれだけ
   sugotoll: { game: 'sugotoll', events: false },
   sugograb: { game: 'sugograb', events: false },
@@ -153,6 +153,14 @@ const RT_START_MIN_CONFIG = {
 // 画面は index.html の <div class="screen" id="scr-..."> から自動抽出。
 // 画面を足せばここに自動で載り、監査台帳（docs/監査_画面一覧.md）に行が無いと
 // tests/room-paths.js の照合が赤くなる（マトリクスの行照合と同じ仕組み）
+// 第38弾：モード表から「部屋が必須のモード」と、その人数下限を取り出す。
+// 端末が出す下限と、サーバーが門番する下限が食い違うと、
+// 「押せるのに始まらないボタン」ができる（落とし穴8・14）。
+// 手で並べるとモードを足した時に漏れるので、index.html から導く
+const ROOM_ONLY_MODES = Array.from(
+  INDEX_HTML.matchAll(/\{id:"([a-z0-9-]+)"[^}]*?roomOnly:true[^}]*?game:\s*'([a-z]+)'[^}]*?minPlayers:(\d+)/g)
+).map((m) => ({ id: m[1], game: m[2], minPlayers: parseInt(m[3], 10) }));
+
 const SCREEN_IDS = Array.from(new Set(
   Array.from(INDEX_HTML.matchAll(/class="screen[^"]*"\s+id="(scr-[a-z0-9-]+)"/g)).map((m) => m[1])
 ));
@@ -214,6 +222,7 @@ module.exports = {
   ROOM_ENTRY_PATHS,
   ROOM_EXIT_PATHS,
   COUNTDOWN_PATHS,
+  ROOM_ONLY_MODES,
   SCREEN_IDS,
   OVERLAY_IDS,
   NOT_A_CLOCK_IDS,

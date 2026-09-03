@@ -10,7 +10,7 @@ const { createRunner, assert, assertEqual } = require('./harness');
 const { startTestServer, device, waitUntil, makeRoom, sleep } = require('./room-edge');
 const {
   RT_GAME_IDS, CASSETTE_GAME_IDS, HANDOFF_ONLY_GAME_IDS,
-  RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS
+  RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS, ROOM_ONLY_MODES
 } = require('./inventory');
 
 async function run() {
@@ -547,6 +547,26 @@ async function run() {
     const doc = fs.readFileSync(path.join(__dirname, '..', 'docs', '監査_異常系シナリオ.md'), 'utf8');
     for (const sc of inv.ABNORMAL_SCENARIOS) {
       assert(doc.indexOf('`' + sc.id + '`') !== -1, '台帳にシナリオの行がある: ' + sc.id + ' ' + sc.name);
+    }
+  });
+
+  await r.test('部屋が必須のモードは、表に出ている下限人数でちゃんと始まる（正本ループ）', async () => {
+    // 第38弾で見つけた食い違い：相場オークションはサーバーが3人から門番するのに、
+    // モード表の minPlayers は 2 のままだった。
+    // **表が緩いと、押せるのに始まらないボタンができる**（落とし穴8・14）。
+    // 「表に書いた人数なら本当に始まる」を、モードを足しても自動で見るようにする。
+    // 表がサーバーより厳しい向き（安全側）は、ここでは咎めない
+    for (const m of ROOM_ONLY_MODES) {
+      const cfg = RT_START_MIN_CONFIG[m.game];
+      assert(cfg, m.id + ' の開始設定が正本にありません（RT_START_MIN_CONFIG に足す）');
+      const srv = await startTestServer();
+      try {
+        const rm = await makeRoom(srv, m.minPlayers);
+        const res = await rm.host.call(RT_START_EVENT, Object.assign({}, cfg, { preset: m.id }));
+        assertEqual(res.ok, true,
+          m.id + '：表に出ている' + m.minPlayers + '人で始まる（実際:' +
+          (res.message || res.error || '') + '）');
+      } finally { await srv.close(); }
     }
   });
 

@@ -369,6 +369,27 @@ function seeded(seed) {
       '最初の持ち時間と延長は、別の数として持っている');
   });
 
+  await r.test('せり上げ式：何秒の時点で入札されても、ヒント①が開く前に品が閉じない', async () => {
+    // 実機での確認で見つけた続きの穴。延長が8秒だった頃は、
+    // 3秒の時点で1人が入札すると品は11秒で閉じ、12秒のヒント①が間に合わなかった。
+    // **情報がゼロのまま落札が成立する品**ができると、
+    // 「全員が同じ情報を見た上でのタイミング勝負」という核が、その品だけ成り立たない。
+    //
+    // 見るのは数の大小ではなく振る舞い：入札のあった時刻がいつであっても、
+    // 締め切り（入札時刻＋延長）の時点でヒントが1本は開いているか
+    const item = A.buildRound({})[0];
+    for (let bidAt = 0; bidAt <= A.RULES.OPEN_START_SEC; bidAt++) {
+      const closesAt = bidAt + A.RULES.OPEN_EXTEND_SEC;
+      const seen = A.hintsVisible(item, closesAt);
+      assert(seen.length >= 2,
+        bidAt + '秒で入札された品も、閉じる時にはヒントが1本は開いている' +
+        '（実際に見えているのは' + seen.length + '本）');
+    }
+    // 開いたヒントが、木槌と同時ではなく**読める時間だけ**見えていること
+    const margin = A.RULES.OPEN_EXTEND_SEC - A.RULES.HINT_STEP_SEC;
+    assert(margin >= 2, 'ヒントが開いてから閉じるまで、最低2秒ある（実際:' + margin + '秒）');
+  });
+
   await r.test('6品は、系統が均等に並ぶ（相場が動かない系統を作らない）', async () => {
     // 無作為に6つ取っていた頃は「絵4・輝き2・壺0」のような回が普通に出た。
     // 相場が主役の遊びで、一度も相場が動かない系統ができると、

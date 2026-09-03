@@ -3390,23 +3390,13 @@
     <div class="wiz-head"><span class="wiz-step" id="wizStepAuction"></span><h2 class="scr-title" id="auCfgTitle">オークションの設定</h2></div>
     <p class="wiz-lead" id="auCfgLead">こだわらなければ、そのまま「つぎへ」でOK。</p>
     <div class="wiz-body">
-      <div class="tp-label">ラウンド数　<span id="auRoundsValue">6</span>回</div>
-      <input type="range" id="auRoundsSlider" min="3" max="12" step="1" value="6">
-      <div class="tp-label" style="margin-top:16px;">はじめのチップ　<span id="auChipsValue">20</span>枚</div>
-      <input type="range" id="auChipsSlider" min="10" max="40" step="5" value="20">
-      <div class="tp-label" style="margin-top:16px;" id="auTimeLabel">考える時間　<span id="auTimeValue">30</span>秒</div>
-      <input type="range" id="auTimeSlider" min="10" max="60" step="5" value="30">
-      <div class="mic-status" id="auTimeNote" style="margin-top:8px;"></div>
-      <div class="toggle-row-mini" style="margin-top:18px;">
-        <div>2ラウンドごとに、最下位へアイテムを配る
-          <div class="mic-status" id="auRescueNote"></div>
-        </div>
-        <div class="switch" id="auRescueToggle"></div>
-      </div>
-      <div class="mic-status" style="margin-top:18px;">
-        落札できなかった人は、何も失いません。品物の一言だけでは価値が分からないので、
-        鑑定眼と、他の人がいくら出すかの読み合いが手がかりになります。
-      </div>
+      <div class="tp-label">ラウンド数　<span id="auRoundsValue">2</span>回</div>
+      <input type="range" id="auRoundsSlider" step="1">
+      <div class="mic-status" id="auRoundsNote" style="margin-top:8px;"></div>
+      <div class="tp-label" style="margin-top:18px;">下見の長さ　<span id="auPreviewValue">60</span>秒</div>
+      <input type="range" id="auPreviewSlider" step="5">
+      <div class="mic-status" id="auPreviewNote" style="margin-top:8px;"></div>
+      <div class="mic-status" style="margin-top:18px;" id="auCfgFoot"></div>
     </div>
     <div class="wiz-foot">
       <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
@@ -5018,12 +5008,16 @@
       bullets:["通常プレイと同じルールで進める","毎ラウンド最下位が脱落する（同点なら全員）","脱落した人は、以降のラウンドで得点できない","最後まで残った1人が優勝"]},
     {id:"buzzer", icon:"🥊", title:"早押しトーナメント", sub:"1vs1勝ち抜き・先に3問正解した方が勝ち", advanced:false, strict:false, oneWord:false, buzzer:true, hidden:true, game:'buzzer',
       bullets:["1対1のトーナメント形式","早く正解した方が1ポイント","先に3ポイントで勝ち上がり","人数が奇数だと不戦勝が出ることがある","最後まで勝ち残った1人が優勝"]},
-    // ---- 第31弾：オークションバトル（作り直し）。どちらも1人1台・部屋が必須 ----
-    // 落札できなかった人は何も失わない。強制最低入札のような足枷も無い
-    {id:"auction-open", icon:"🔨", title:"せり上げ式", sub:"みんなの前で値が吊り上がっていく", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionOpen:true, roomOnly:true, game:'auction', minPlayers:2,
-      bullets:["品物が「謎めいた一言」だけで出る（正体は伏せられている）","誰かが値をつけるたびに、締め切りが延びる","いちばん高い人が落札して、その額を払う","落札できなかった人は、何も失わない","誰も入札しなければ、品物は流れる","品物の正体と価値は、落札が決まってから明かされる"]},
-    {id:"auction-sealed", icon:"✉️", title:"秘密入札", sub:"こっそり金額を決めて、一斉に開ける", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionSealed:true, roomOnly:true, game:'auction', minPlayers:2,
-      bullets:["品物が「謎めいた一言」だけで出る（正体は伏せられている）","それぞれ、こっそり金額を決めて出す","締め切りで一斉に開けて、いちばん高い人が落札","払うのは自分が出した額そのまま","同じ額なら、先に出した人が落札する","撤回権があれば、締め切り前に出し直せる"]},
+    // ---- 第38弾：相場オークション（作り直し）。どちらも1人1台・部屋が必須 ----
+    // 芯は「相場」。同じ系統が売れるたび、その系統の相場が上がる。
+    // だからみんなが群がる系統は高くつき、放っておかれた系統は安く買える。
+    // 落札できなかった人は何も失わない（それでも毎回することがある＝値踏み）。
+    // 人数の下限は auction-logic.js の MIN_PLAYERS が正本。
+    // ここの数字と食い違わないことは tests/shelf.js が機械照合する
+    {id:"auction-open", icon:"🔨", title:"せり上げ式", sub:"みんなの前で値が吊り上がっていく", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionOpen:true, roomOnly:true, game:'auction', minPlayers:3,
+      bullets:["6つの品が、はじめから全部ならぶ（見比べて選べる）","品質（上物・並物・偽物）は伏せられている。内訳の数だけ先に分かる","競りが進むと、みんなに同じヒントが順に開いていく","誰かが値をつけるたびに、締め切りが延びる","同じ系統が売れるたび、その系統の相場が上がる","得点は「品質 × 売れた時の相場」。人気の系統ほど高くつく","落札できなかった人は品質を言い当てるとチップがもらえる","最初に値をつけた人にはチップのごほうびがある"]},
+    {id:"auction-sealed", icon:"✉️", title:"秘密入札", sub:"こっそり金額を決めて、一斉に開ける", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionSealed:true, roomOnly:true, game:'auction', minPlayers:3,
+      bullets:["6つの品が、はじめから全部ならぶ（見比べて選べる）","品質（上物・並物・偽物）は伏せられている。内訳の数だけ先に分かる","競りが進むと、みんなに同じヒントが順に開いていく","それぞれ、こっそり金額を決めて出す","締め切りで一斉に開けて、いちばん高い人が落札","同じ額なら、先に出した人が落札する","同じ系統が売れるたび、その系統の相場が上がる","得点は「品質 × 売れた時の相場」。人気の系統ほど高くつく","落札できなかった人は品質を言い当てるとチップがもらえる"]},
     // 手渡し版（第4弾）。作り直したので棚には出さないが、消すとここに付いている
     // テストごと無くなるので hidden のまま残す。game は 'auction' のまま触らない
     // （変えると、このIDで残っている記録が迷子になる）
@@ -6266,7 +6260,9 @@
       tier:null
     },
     // 第31弾：オークション（作り直し）の設定。遊び方はモードで決まる
-    auCfg: { rounds:6, startChips:20, bidSec:30, extendSec:8, rescue:true },
+    // 第38弾：決められるのは長さだけ。チップ・持ち時間はルール層が持つ
+    auCfg: { rounds:AuctionLogic.RULES.ROUNDS_DEFAULT,
+             previewSec:AuctionLogic.RULES.PREVIEW_SEC_DEFAULT },
     // 第36弾：すごろく。突然のできごとを起こすかどうか（起こすを既定に）
     sgkCfg: { events:true, losersMove:true, pairStyle:'even' },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
@@ -8225,40 +8221,32 @@
     el('auCfgLead').textContent = open
       ? '値が吊り上がっていく遊び方です。締め切りの長さを決めよう。'
       : 'こっそり金額を決めて、一斉に開ける遊び方です。考える時間を決めよう。';
+    // つまみの端は、ルール層が持っている数から入れる
+    var R = AuctionLogic.RULES;
+    el('auRoundsSlider').min = R.ROUNDS_MIN;
+    el('auRoundsSlider').max = R.ROUNDS_MAX;
     el('auRoundsValue').textContent = c.rounds;
     el('auRoundsSlider').value = c.rounds;
-    el('auChipsValue').textContent = c.startChips;
-    el('auChipsSlider').value = c.startChips;
-    // せり上げ式の秒数は「最後の入札から締め切るまで」、秘密入札は「考える時間」
-    el('auTimeLabel').innerHTML = (open ? '値が動いてから締め切るまで　' : '考える時間　') +
-      '<span id="auTimeValue">' + (open ? c.extendSec : c.bidSec) + '</span>秒';
-    el('auTimeSlider').min = open ? 3 : 10;
-    el('auTimeSlider').max = open ? 30 : 60;
-    el('auTimeSlider').value = open ? c.extendSec : c.bidSec;
-    el('auTimeNote').textContent = open
-      ? '誰かが値をつけるたびに、ここまで戻ります（競り市の「他にいませんか？」）'
-      : '全員が出したら、待たずに開けます';
-    el('auRescueToggle').classList.toggle('on', c.rescue);
-    el('auRescueNote').textContent = c.rescue
-      ? '差がつきすぎた時に、追いつく手がかりを配ります'
-      : '救済なし。実力どおりに差がつきます';
+    el('auRoundsNote').textContent = '1ラウンドで' + R.ITEMS_PER_ROUND +
+      '品を競ります。ラウンドが変わると、相場は1に戻ります';
+    el('auPreviewSlider').min = R.PREVIEW_SEC_MIN;
+    el('auPreviewSlider').max = R.PREVIEW_SEC_MAX;
+    el('auPreviewValue').textContent = c.previewSec;
+    el('auPreviewSlider').value = c.previewSec;
+    el('auPreviewNote').textContent =
+      '競りが始まる前に、' + R.ITEMS_PER_ROUND + '品を見比べて話す時間です';
+    // 目安時間も、持ち時間から自動で出す（画面側で式を組み立てない）
+    var mode = open ? 'open' : 'sealed';
+    el('auCfgFoot').textContent = 'この設定だと、およそ' +
+      AuctionLogic.estimateMinutes({ mode: mode, rounds: c.rounds, previewSec: c.previewSec }) +
+      '分です。落札できなかった人は、何も失いません';
   }
   el('auRoundsSlider').addEventListener('input', function(){
     state.auCfg.rounds = parseInt(this.value, 10);
     renderAuctionStep();
   });
-  el('auChipsSlider').addEventListener('input', function(){
-    state.auCfg.startChips = parseInt(this.value, 10);
-    renderAuctionStep();
-  });
-  el('auTimeSlider').addEventListener('input', function(){
-    var m = modeById(state.selectedModeId) || {};
-    var v = parseInt(this.value, 10);
-    if(m.auctionOpen) state.auCfg.extendSec = v; else state.auCfg.bidSec = v;
-    renderAuctionStep();
-  });
-  el('auRescueToggle').addEventListener('click', function(){
-    state.auCfg.rescue = !state.auCfg.rescue;
+  el('auPreviewSlider').addEventListener('input', function(){
+    state.auCfg.previewSec = parseInt(this.value, 10);
     renderAuctionStep();
   });
 
@@ -9652,17 +9640,16 @@
     };
   }
 
-  // 第31弾：オークション（作り直し）。遊び方はモードで決まる
+  // 第38弾：相場オークション。遊び方はモードで決まる。
+  // **送るのは、遊ぶ人が決めたものだけ。**持ち時間・チップ・品数は
+  // ルール層（auction-logic.js）が持っているので、端末から送らない
   function rtAuctionConfig(m){
     var c = state.auCfg;
     return {
       game: 'auction',
       mode: (m && m.auctionSealed) ? 'sealed' : 'open',
       rounds: c.rounds,
-      startChips: c.startChips,
-      bidSec: c.bidSec,
-      extendSec: c.extendSec,
-      rescue: c.rescue,
+      previewSec: c.previewSec,
       preset: state.selectedModeId
     };
   }
@@ -14952,8 +14939,11 @@
       return { min: sgk.estMin || 20, perRound: false };
     }
     if(m.auctionNew){
-      var per = 25 + (m.auctionSealed ? state.auCfg.bidSec : state.auCfg.extendSec * 2) + 8;
-      return { min: round(state.auCfg.rounds * per + 60), perRound: false };
+      // 見積りの式はルール層に1つだけ置いてある（持ち時間を変えたら自動で追いつく）
+      return { min: AuctionLogic.estimateMinutes({
+        mode: m.auctionSealed ? 'sealed' : 'open',
+        rounds: state.auCfg.rounds, previewSec: state.auCfg.previewSec
+      }), perRound: false };
     }
     // 役職あり人狼：夜＋話し合い＋投票 を、ターン数ぶん
     if(m.wolfRole){
@@ -18790,7 +18780,9 @@
         note:'次のゲームから効きます' });
     }
     if(m.auctionNew){
-      out.push({ id:'auRounds', label:'ラウンド数', min:3, max:12, step:1,
+      // 端はルール層から。ここに数字を書くと、ルールを変えた日に食い違う
+      out.push({ id:'auRounds', label:'ラウンド数',
+        min:AuctionLogic.RULES.ROUNDS_MIN, max:AuctionLogic.RULES.ROUNDS_MAX, step:1,
         get:function(){ return state.auCfg.rounds; },
         set:function(v){ state.auCfg.rounds = v; },
         note:'次のゲームから効きます' });

@@ -66,7 +66,12 @@
     // 最初の持ち時間は、段階ヒント（HINT_STEP_SEC × HINT_STEPS）が
     // 開き切るだけの長さが要る。短いと、ヒントの仕組みごと動かない
     OPEN_START_SEC: 30,       // せり上げ：最初に配る持ち時間
-    OPEN_EXTEND_SEC: 8,       // せり上げ：値がついたら、締め切りをここまで延ばす
+    // 延長は HINT_STEP_SEC(12) より長くする。**この大小関係が約束**：
+    // 何秒の時点で入札があっても、締め切りは「入札した時刻＋14秒」なので、
+    // ヒント①（12秒）が開く前に品が閉じることが無くなる。
+    // 14 にしたのは、開いたヒントが最低でも2秒は見えるようにするため
+    // （13だと1秒で、開いた瞬間に木槌が落ちる）
+    OPEN_EXTEND_SEC: 14,      // せり上げ：値がついたら、締め切りをここまで延ばす
     SEALED_BID_SEC: 45,       // 秘密入札：考える時間
     CONFIRM_SEC: 12,          // 誰も値をつけなかった時の、最後のひと押し
     GUESS_SEC: 6,             // 値踏み予想
@@ -114,6 +119,21 @@
     hot: 'HEATING UP',
     sold: 'SOLD'
   };
+
+  /**
+   * 目安時間（分）。棚とウィザードが同じ数を出すために、ここ1か所で計算する。
+   * 1品にかかるのは「競り＋値踏み＋開示」、1ラウンドはそれ×6品＋下見。
+   * せり上げ式は延長が1回入る前提で見ておく（実際はもっと伸びることもある）
+   */
+  function estimateMinutes(cfg) {
+    var c = normalizeConfig(cfg);
+    var bidSec = (c.mode === 'open')
+      ? RULES.OPEN_START_SEC + RULES.OPEN_EXTEND_SEC
+      : RULES.SEALED_BID_SEC;
+    var perItem = bidSec + RULES.GUESS_SEC + RULES.REVEAL_SEC;
+    var perRound = c.previewSec + RULES.ITEMS_PER_ROUND * perItem;
+    return Math.max(1, Math.round(c.rounds * perRound / 60));
+  }
 
   function powerById(id) {
     for (var i = 0; i < POWERS.length; i++) if (POWERS[i].id === id) return POWERS[i];
@@ -367,6 +387,7 @@
     RULES: RULES, POWERS: POWERS, TEXT: TEXT,
     powerById: powerById,
     normalizeConfig: normalizeConfig,
+    estimateMinutes: estimateMinutes,
     newMarket: newMarket, bumpMarket: bumpMarket, isHot: isHot,
     buildRound: buildRound, mixLine: mixLine, shuffle: shuffle,
     hintsVisible: hintsVisible, hintStepsOpened: hintStepsOpened,

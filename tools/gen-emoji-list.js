@@ -24,7 +24,14 @@ const SOURCES = [
   'public/index.html',
   'public/js/titles.js',
   // 第36弾：すごろくのマスの絵文字（CELL_KINDS）と、突然イベントの絵文字
-  'public/js/sugoroku-logic.js'
+  'public/js/sugoroku-logic.js',
+  // 第38弾：ここは tests/shelf.js にもう一つ手書きの一覧があって、
+  // そちらの方が広かった。ツールが狭いと「足りない」と言われないまま素通りする
+  // （相場オークションの 🏺 が実際にそうなった）。**この一覧を正本にする**
+  'public/js/defuse-logic.js',
+  'public/js/auction-items.js',
+  'public/js/auction-logic.js',
+  'public/js/quiz-logic.js'
 ];
 // 絵文字にしないもの。UIの部品として文字で出ているのが正しく、Twemojiにも無い
 // （2713 ✓ は第32弾-D 第4部・安全の案内のチェック印）
@@ -90,6 +97,12 @@ function fetchOne(name) {
     }).on('error', reject);
   });
 }
+
+// テスト（tests/shelf.js）が同じ一覧を使えるように外に出す。
+// 手書きの一覧が2つあると、片方だけ広くなって取りこぼす
+module.exports = { SOURCES, NOT_EMOJI, findMissing, listFiles };
+
+if (require.main !== module) return;
 
 (async function main() {
   const wantFetch = process.argv.indexOf('--fetch') !== -1;

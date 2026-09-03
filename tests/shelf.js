@@ -783,8 +783,11 @@ function pickCart(doc, id) {
     const EmojiSvg = require('../public/js/emoji');
     const root = path.join(__dirname, '..');
     let text = '';
-    ['public/index.html', 'public/js/titles.js', 'public/js/defuse-logic.js',
-     'public/js/auction-items.js', 'public/js/quiz-logic.js', 'public/js/auction-logic.js']
+    // 見るファイルの一覧は、作り直すツール（tools/gen-emoji-list.js）が正本。
+    // ここに手書きで並べていた頃は、ツール側の方が狭くて、
+    // ツールが「足りない」と言わないのにテストだけ赤くなる状態だった（落とし穴20）
+    const EmojiTool = require('../tools/gen-emoji-list.js');
+    EmojiTool.SOURCES
       .forEach((f) => {
         const p = path.join(root, f);
         if (fs.existsSync(p)) text += fs.readFileSync(p, 'utf8');
@@ -792,10 +795,9 @@ function pickCart(doc, id) {
     const used = EmojiSvg.collect(text);
     const listed = {};
     require('../public/js/emoji-list').forEach((n) => { listed[n] = true; });
-    // 差し替え対象にならない記号（← → ★ など）は、そもそも一覧に入れていない
-    // ← → ★ ✕ ✚ ✓ は絵文字ではなく記号なので、そもそも差し替え対象にしていない
-    // （✓は第32弾-D 第4部の安全の案内のチェック印）
-    const NOT_EMOJI = ['2605', '2192', '2190', '2715', '271a', '2713'];
+    // 「絵文字にしない記号」もツールが正本（← → ★ ✕ ✚ ✓ と、すごろくの駒 ♥ ♣）。
+    // 形で見分けるための記号なので、絵になると読めなくなる
+    const NOT_EMOJI = EmojiTool.NOT_EMOJI;
     const missing = Object.keys(used)
       .filter((ch) => !listed[used[ch]] && NOT_EMOJI.indexOf(used[ch]) === -1)
       .map((ch) => ch + '(' + used[ch] + ')');

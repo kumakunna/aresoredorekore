@@ -328,17 +328,23 @@ async function run() {
     },
     {
       game: 'auction', label: 'オークション',
-      start: { game: 'auction', mode: 'sealed', rounds: 3, bidSec: 120 },
-      ready: (d) => d.you && d.you.teaser,
+      start: { game: 'auction', mode: 'sealed', rounds: 1, previewSec: 90 },
+      ready: (d) => d.you && d.you.phase === 'preview',
       warm: async (d) => {
-        await d.call('wolf:act', { targetId: 'buy:appraise' });
-        await waitUntil(() => d.you.inventory.some((x) => x.id === 'appraise'), 'アイテムが増える');
+        // アイテムを選んで、鑑定眼で1品を見る。
+        // **見立ては本人にしか届かないもの**なので、復帰で消えると
+        // 「使ったのに何も残っていない」になる
+        await d.call('wolf:act', { pick: 'appraise' });
+        await waitUntil(() => d.you.power === 'appraise', 'アイテムが決まる');
+        const lineup = d.room.state.data.lineup;
+        await d.call('wolf:act', { use: true, targetNo: lineup[0].no });
+        await waitUntil(() => Object.keys(d.you.appraised).length === 1, '見立てが届く');
       },
       check: (before, after) => {
         assertEqual(after.chips, before.chips, 'チップが元に戻っている');
-        assertEqual(after.teaser, before.teaser, '同じ品物のまま');
-        assertEqual(JSON.stringify(after.inventory), JSON.stringify(before.inventory),
-          '買ったアイテムも残っている');
+        assertEqual(after.power, before.power, 'えらんだアイテムも残っている');
+        assertEqual(JSON.stringify(after.appraised), JSON.stringify(before.appraised),
+          '鑑定眼で見た品の見立ても残っている');
       }
     }
   ];
@@ -347,8 +353,11 @@ async function run() {
     await r.test(c.label + '：通信が切れて戻っても、同じところに復帰する', async () => {
       const srv = await startTestServer();
       try {
-        const rm = await makeRoom(srv, 2);
-        await rm.host.call('wolf:start', c.start);
+        // 3人。オークションの下限が3人なので、ここを2人にすると
+        // 「始まらないまま待ち続ける」形で赤くなる
+        const rm = await makeRoom(srv, 3);
+        const started = await rm.host.call('wolf:start', c.start);
+        assertEqual(started.ok, true, c.label + '：始められる（' + (started.message || '') + '）');
         await waitUntil(() => c.ready(rm.guests[0]), '始まる');
         await c.warm(rm.guests[0], srv, rm.code);
         const before = JSON.parse(JSON.stringify(rm.guests[0].you));

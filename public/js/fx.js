@@ -118,7 +118,8 @@
     var n = mk('fx-flash fx-flash-' + k);
     if (!n) return Promise.resolve(true);
     h.appendChild(n);
-    if (k === 'bad') { play('bad'); buzzIt(60); }
+    // 原則C：責める時は静かに。外れの振動はいちばん軽い型にする
+    if (k === 'bad') { play('bad'); vibe('tick'); }
     else { play('good'); }
     return hold(FLASH_MS[k]).then(function (skipped) {
       if (n.parentNode) n.parentNode.removeChild(n);
@@ -145,7 +146,7 @@
       (opt.sub ? '<div class="fx-banner-sub">' + esc(opt.sub) + '</div>' : '') +
       '<div class="fx-banner-skip">タップでとばす</div>';
     h.appendChild(n);
-    if (kind === 'gold' || kind === 'good') { play('big'); buzzIt([30, 40, 60]); }
+    if (kind === 'gold' || kind === 'good') { play('big'); vibe('ok'); }
     else if (kind === 'gray') { play('bad'); }
     // 出てすぐ消えないよう、入りの分だけは必ず見せる
     return hold(opt.ms == null ? 800 : opt.ms).then(function (skipped) {
@@ -427,7 +428,7 @@
     function show(num) {
       box.innerHTML = '<div class="fx-cd-num">' + num + '</div>';
       play('tick');
-      buzzIt(40 + (total - num) * 40);
+      vibe(num <= 1 ? 'ok' : 'tick');   // 最後の1つだけ決定の重さにする
     }
     // 最初の数字はその場で出す（合図が届いた瞬間から数え始めて見える）
     show(total);
@@ -446,17 +447,42 @@
     });
   }
 
-  // ---------- 第32弾-D 第3部：場面に合わせた振動 ----------
-  // 名前で呼べる振動パターン。ゲーム側が配列を直書きすると場面ごとにばらばらになる。
-  // ON/OFFは cfg.vibrate（呼び出し側が設定を見て握りつぶす）に任せる
+  // ---------- 振動（第39弾で4つの型に絞った） ----------
+  /**
+   * **振動の型はこの4つだけ。**（docs/デザインの正本.md 5）
+   *
+   * それまでは rise / win / miss / sold / count1-3 の7つあり、
+   * 名前が「その場面での気持ち」で付いていた。そのせいで
+   * **人狼の襲撃と処刑に `win`（勝ち）が鳴っていた**——
+   * いちばん重い瞬間に、勝ちの名前の振動が当たっていた（落とし穴2）。
+   *
+   * そこで名前を**手の感じ**で付け直した。気持ちは画面が伝えるもので、
+   * 手は「短いか長いか・1回か2回か」しか伝えられない。
+   * iOS Safari では鳴らないので、**振動だけで伝わる情報を作らない**という
+   * 決めごととも、この割り切りは噛み合っている。
+   */
   var VIBES = {
-    rise:   [40, 90, 45, 75, 50, 60, 55, 45, 60, 30, 70],  // 鼓動が速くなっていく感覚
-    win:    [120],                  // 短く・強く・1回（手応え）
-    miss:   [40],                   // 短く・弱く・1回だけ（原則C）
-    sold:   [160],                  // 木槌のように「ドン」と1回
-    count3: [50], count2: [80], count1: [120]  // カウントダウンの最後3秒
+    tick: [12],            // ごく短く1回。切り替え・刻み
+    ok:   [30],            // 短く1回。決定
+    warn: [25, 60, 25],    // 短く2回。注意（取り返しがつかない確認）
+    boom: [200]            // 長く1回。重い一撃。揺れ(fx-shake-big 0.2秒)と同じ長さ
   };
-  function vibe(name) { buzzIt(VIBES[name] || 60); }
+  /**
+   * 名前で振動を鳴らす。**知らない名前は鳴らさない**（型を4つに保つため）。
+   *
+   * 第39弾で見つけた食い違い：ここは演出の速さ設定を通っていなかったので、
+   * 「スキップ」にしても振動だけ元の長さで鳴っていた。
+   * 画面は止まっているのに手だけ震える形で、
+   * 原則「すべての演出はスキップできる」に反していた。
+   */
+  function vibe(name) {
+    var p = VIBES[name];
+    if (!p) return false;
+    if (cfg.ms(10) <= 0) return false;   // スキップ中は手も鳴らさない
+    buzzIt(p);
+    return true;
+  }
+  vibe.NAMES = Object.keys(VIBES);
 
   function esc(s) {
     return String(s == null ? '' : s)

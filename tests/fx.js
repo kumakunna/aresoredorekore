@@ -12,7 +12,8 @@
 const { JSDOM } = require('jsdom');
 const { createRunner, assert, assertEqual } = require('./harness');
 
-function freshFx() {
+// opt で init の中身を差し替えられる（速さ設定を「スキップ」にした時の検査に使う）
+function freshFx(opt) {
   // require のキャッシュを外して、毎回まっさらな FxKit を作る
   delete require.cache[require.resolve('../public/js/fx')];
   const Fx = require('../public/js/fx');
@@ -22,7 +23,7 @@ function freshFx() {
   Fx.init({
     doc,
     root: doc.getElementById('app'),
-    ms: (n) => n,
+    ms: (opt && opt.ms) || ((n) => n),
     vibrate: (p) => log.vibes.push(p),
     sound: {
       good: () => log.sounds.push('good'),
@@ -128,11 +129,15 @@ function freshFx() {
       doc: dom.window.document, root: dom.window.document.getElementById('app'),
       ms: (n) => { seen.push(n); return 0; }
     });
+    // 待つ長さは「いちばん長い問い合わせ」で見る。
+    // 先頭で見ていた頃は、flash が待つ前に別の用で速さ設定を1回聞くだけで
+    // （第39弾で振動がスキップに従うようにした時に、実際にそうなった）
+    // 「0.15秒待っているか」ではなく「1回目に何を聞いたか」を見る検査になっていた
     await Fx.flash('bad');
-    const bad = seen[0];
+    const bad = Math.max.apply(null, seen);
     seen.length = 0;
     await Fx.flash('good');
-    const good = seen[0];
+    const good = Math.max.apply(null, seen);
     assertEqual(bad, 150, '責める時は0.15秒');
     assert(good > bad, '褒める時の方が長い');
   });
@@ -349,14 +354,38 @@ function freshFx() {
     assert(!app.querySelector('.fx-countdown'), '飛ばしたら残らない');
   });
 
-  await r.test('場面に合わせた振動：名前で呼べて、パターンで震える', async () => {
+  await r.test('振動の型は4つだけで、手の感じで名前が付いている（第39弾）', async () => {
+    // それまでは rise / win / miss / sold / count1-3 の7つあり、
+    // 名前が「その場面の気持ち」で付いていた。そのせいで
+    // **人狼の襲撃と処刑に 'win'（勝ち）が鳴っていた**（落とし穴2）。
+    // 気持ちは画面が伝えるもので、手は「短いか長いか・1回か2回か」しか伝えられない
     const { Fx, log } = freshFx();
-    Fx.vibe('rise');
-    assert(Array.isArray(log.vibes[0]) && log.vibes[0].length > 4, '鼓動が速くなるパターン');
-    Fx.vibe('sold');
-    assert(log.vibes.length === 2, '木槌の1回');
-    Fx.vibe('しらないなまえ');
-    assert(log.vibes.length === 3, '知らない名前でも落ちずに短く震える');
+    assertEqual(Fx.vibe.NAMES.join(','), 'tick,ok,warn,boom', '型は4つだけ');
+
+    assertEqual(Fx.vibe('tick'), true, 'tick は鳴る');
+    assertEqual(log.vibes[0].join(','), '12', 'tick はごく短く1回');
+    Fx.vibe('ok');    assertEqual(log.vibes[1].join(','), '30', 'ok は短く1回');
+    Fx.vibe('warn');  assertEqual(log.vibes[2].join(','), '25,60,25', 'warn は短く2回');
+    Fx.vibe('boom');  assertEqual(log.vibes[3].join(','), '200', 'boom は長く1回');
+
+    // **知らない名前は鳴らさない。**鳴らしてしまうと、
+    // 型を増やしたつもりが無いのに、勝手な振動が増えていく
+    assertEqual(Fx.vibe('しらないなまえ'), false, '知らない名前では鳴らない');
+    assertEqual(log.vibes.length, 4, '鳴らなかったぶんは記録にも増えない');
+  });
+
+  await r.test('振動も「スキップ」に従う（第39弾で見つけた食い違い）', async () => {
+    // ここは演出の速さ設定を通っていなかったので、
+    // 「スキップ」にしても振動だけ元の長さで鳴っていた。
+    // 画面は止まっているのに手だけ震える形で、
+    // 原則「すべての演出はスキップできる」に反していた
+    const { Fx, log } = freshFx();
+    Fx.vibe('boom');
+    assertEqual(log.vibes.length, 1, 'ふつうの速さでは鳴る');  // 型(b)：条件が作れている
+
+    const skipped = freshFx({ ms: function(){ return 0; } });
+    assertEqual(skipped.Fx.vibe('boom'), false, 'スキップ中は鳴らない');
+    assertEqual(skipped.log.vibes.length, 0, '手も震えない');
   });
 
   r.finish();

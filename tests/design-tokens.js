@@ -117,6 +117,54 @@ const PAIRS = [
 (async function main() {
   const r = createRunner('design-tokens：デザインの正本（色・書体・寸法）');
 
+  await r.test('コントラスト比の計算が、答えの分かっている組で正しい値を返す', async () => {
+    // **自作の計算式を、自分の実装だけで正しいと判断しない**（落とし穴19）。
+    // 66組に当てる前に、答えが決まっている組で計算そのものを検算する。
+    // これをやらないと、式が間違っていても「全部緑」か「全部赤」になるだけで、
+    // どちらも「正しく測れている」ようにしか見えない。
+    const hex = (h) => toRgb(h);
+
+    // ① 定義から必ずこうなる組（式を追わなくても答えが決まる）
+    assertEqual(contrast(hex('#000000'), hex('#FFFFFF')), 21,
+      '黒と白は 21:1（(1.0+0.05)/(0+0.05) の定義そのもの）');
+    assertEqual(contrast(hex('#FFFFFF'), hex('#FFFFFF')), 1,
+      '同じ色どうしは 1:1');
+    assertEqual(contrast(hex('#000000'), hex('#000000')), 1,
+      '黒どうしも 1:1');
+
+    // ② 向きを入れ替えても同じ（比なので対称）
+    assertEqual(contrast(hex('#123456'), hex('#EEDDCC')),
+      contrast(hex('#EEDDCC'), hex('#123456')),
+      '地と文字を入れ替えても同じ値');
+
+    // ③ 世に出ている値と突き合わせる（WCAG の解説で繰り返し引かれている組）
+    const known = [
+      ['#767676', '#FFFFFF', 4.54, 'WCAGで「白地に置ける最も薄い灰」として知られる値'],
+      ['#808080', '#FFFFFF', 3.95, '中間の灰と白'],
+      ['#FF0000', '#FFFFFF', 4.00, '赤と白'],
+      ['#0000FF', '#FFFFFF', 8.59, '青と白']
+    ];
+    known.forEach(([fg, bg, want, why]) => {
+      const got = contrast(hex(fg), hex(bg));
+      assert(Math.abs(got - want) <= 0.02,
+        fg + ' と ' + bg + ' は ' + want + ':1（' + why + '）。実際: ' + got);
+    });
+
+    // ④ 暗いほど白地とのコントラストが上がる（単調性）
+    const grays = ['#FFFFFF', '#CCCCCC', '#999999', '#666666', '#333333', '#000000'];
+    let prev = 0;
+    grays.forEach((g) => {
+      const c = contrast(hex(g), hex('#FFFFFF'));
+      assert(c >= prev, g + ' は、ひとつ明るい灰より白地とのコントラストが高い');
+      prev = c;
+    });
+
+    // ⑤ 透けている色を下の地と混ぜる計算（--line などが rgba のため）
+    // 黒を50%で白に重ねたら、ちょうど中間の灰になる
+    const half = toRgb('rgba(0,0,0,0.5)', hex('#FFFFFF'));
+    assertEqual(half.join(','), '128,128,128', '黒50%を白に重ねると中間の灰');
+  });
+
   await r.test('6つの配色が、どれも同じトークンを持っている', async () => {
     // テーマが上書きし忘れたトークンは、共通の値のまま残る。
     // それ自体は正しい（継承）が、**地の色だけ上書きして文字色を上書きし忘れる**と

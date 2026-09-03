@@ -6904,7 +6904,7 @@
   var cdVibePrev = null;
   function countdownVibe(sec){
     if(typeof FxKit === 'undefined') return;
-    if(sec != null && sec >= 1 && sec <= 3 && sec !== cdVibePrev) FxKit.vibe('count' + sec);
+    if(sec != null && sec >= 1 && sec <= 3 && sec !== cdVibePrev) FxKit.vibe(sec === 1 ? 'ok' : 'tick');
     cdVibePrev = sec;
   }
   /**
@@ -10158,7 +10158,7 @@
     var d = el('rtSugoDice');
     d.classList.remove('holding');
     d.classList.add('rolling');
-    try{ FxKit.vibe('rise'); }catch(e){}
+    try{ FxKit.vibe('tick'); }catch(e){}
     await FxKit.hold(Math.round(380 + 240 * (1 - g.power)));
     d.classList.remove('rolling');
     var res = await rt.act(null, { act: 'roll' });
@@ -10659,7 +10659,7 @@
     // 朝：誰かが欠けていたら、名前が1人ずつ現れる（手渡し版と同じ）。
     // 襲撃は強め・短くの振動（第32弾-D 第6部）
     if(v.phase === 'day' && v.morning && (v.morning.deaths || []).length){
-      FxKit.vibe('win');
+      FxKit.vibe('boom');
       var rows = el('rtPublicBox').querySelectorAll('.day-death');
       if(rows.length) FxKit.stagger(rows, 300);
       return;
@@ -10669,7 +10669,7 @@
            : (v.phase === 'roundResult' && v.roundResult) ? v.roundResult : null;
     if(tr){
       if(tr.executed){
-        FxKit.vibe('win');   // 処刑は強め・短く（第32弾-D 第6部）
+        FxKit.vibe('boom');   // 処刑は強め・短く（第32弾-D 第6部）
         FxKit.banner({ kind:'gray', icon:'⚖️', text: tr.executed.name + ' が処刑',
           sub: tr.executed.role ? tr.executed.role + ' でした'
              : (tr.wasWolf === true ? 'ウルフ🐺でした！' : tr.wasWolf === false ? 'シープ🐑でした…' : ''),
@@ -11839,7 +11839,7 @@
       if((document.querySelector('.screen.active') || {}).id !== 'scr-rt-au-reveal') return;
       el('auRvQuality').textContent = q.icon + ' ' + q.label;
       if(typeof FxKit !== 'undefined'){
-        if(lr.quality === 'fine'){ FxKit.flash('gold'); FxKit.vibe('win'); }
+        if(lr.quality === 'fine'){ FxKit.flash('gold'); FxKit.vibe('ok'); }
         else if(lr.quality === 'fake'){ FxKit.flash('gray'); }   // 責める時は静かに
       }
       el('auRvText').textContent = lr.reveal || '';
@@ -11941,7 +11941,7 @@
     var was = auPrevPhase;
     auPrevPhase = v.phase;
     if(was === null) return;
-    if(v.phase === 'guess'){ soldSound(); if(typeof FxKit !== 'undefined') FxKit.vibe('sold'); }
+    if(v.phase === 'guess'){ soldSound(); if(typeof FxKit !== 'undefined') FxKit.vibe('ok'); }
     if(v.phase === 'ended' && typeof FxKit !== 'undefined'){
       FxKit.confetti(['#f0c44a', '#d9a53a', '#fff3c4']);
     }
@@ -14110,7 +14110,7 @@
       // 第34弾 2-2：受け取った「ありがとう」は、カセットを問わない称号にもつながる
       recordTitleStats('social', { thanksGot: 1 });
       if(typeof FxKit === 'undefined') return;
-      FxKit.vibe('win');
+      FxKit.vibe('ok');
       FxKit.banner({ kind:'gold', icon:'🎁',
         text: '「' + (p.label || '') + '」',
         sub: (p.from || '?') + ' さんから贈られました！', ms: 1600 });
@@ -14891,7 +14891,7 @@
     var d = el('sugoDice');
     d.classList.remove('holding');
     d.classList.add('rolling');
-    try{ FxKit.vibe('rise'); }catch(e){}
+    try{ FxKit.vibe('tick'); }catch(e){}
     // 勢いは転がる速さにだけ使う。出目には影響しない
     await FxKit.hold(Math.round(380 + 240 * (1 - g.power)));
     d.classList.remove('rolling');

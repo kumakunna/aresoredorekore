@@ -258,6 +258,37 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  await r.test('2ラウンド目の棚は、まだ何も売れていない状態から始まる', async () => {
+    // 品番号は毎ラウンド 1〜6 に戻る。売れたかどうかを**ゲーム通算の履歴**から
+    // 引いていたので、2ラウンド目に入った瞬間、6品ぜんぶが「売却」に見えていた。
+    // 実サーバーの通しで、開場の棚が最初から全部「売却」なのを見て気づいた。
+    // 見立ての持ち越しと同じ型（ラウンド境界で消えるべきものが消えていない）
+    const srv = await startTestServer();
+    try {
+      const rm = await startAuction(srv, 3, { mode: 'sealed', rounds: 2 });
+      await waitUntil(() => viewOf(rm.host) && viewOf(rm.host).phase === 'preview', '開場する');
+      const w = stateOf(srv, rm.code);
+      const round1 = w.round;
+      // 1ラウンド目を、全部さばいて終わらせる
+      for (const d of rm.all) await d.call('wolf:act', { pick: 'appraise' });
+      for (let i = 0; i < 60 && w.round === round1; i++) {
+        if (w.phase === 'ended') break;
+        if (w.phase === 'bid') await rm.host.call('wolf:vote', { amount: 1 });
+        rush(srv, rm.code);
+        await sleep(400);
+      }
+      assertEqual(w.round, round1 + 1, '2ラウンド目に入っている');  // 型(b)
+      assert(w.history.length > 0, '1ラウンド目の履歴は残っている');  // 型(b)
+
+      const v = viewOf(rm.host);
+      const sold = v.lineup.filter((it) => it.sold === 'sold');
+      assertEqual(sold.length, 0,
+        '2ラウンド目の開場では、まだ1つも売れていない（実際に売却扱い: ' +
+        sold.map((x) => x.no).join(',') + '）');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   await r.test('鑑定眼の見立ては、ラウンドをまたいで残らない', async () => {
     // 品番号は毎ラウンド 1〜6 に戻る。見立て（appraised）を持ち越すと、
     // **2ラウンド目の3番に、1ラウンド目の3番の品質が出る**。

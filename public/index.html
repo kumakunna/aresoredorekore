@@ -1317,6 +1317,8 @@
   .mk-market .amk b{font-family:'DotGothic16',monospace;font-size:16px;color:var(--stamp-deep);}
   /* 相場が育った系統は、縁で分かるようにする（色だけに頼らず数字も出ている） */
   .mk-market .amk.hot{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;}
+  /* 色だけに頼らないための1文字。大画面の HEATING UP と同じ意味 */
+  .mk-market .amk-hot{font-style:normal;font-size:10px;color:var(--gold);margin-left:1px;}
 
   /* 棚。**6品が最初から全部並ぶ**——見比べて悩めることが、この遊びの芯 */
   /* 棚は画面の縦を使い切る。6品を「並べた」だけでなく「見比べられる大きさ」にする */
@@ -1359,7 +1361,13 @@
     background:var(--paper-deep);border-radius:8px;padding:6px 10px;
   }
   .mk-hints .ah.new{border-left:3px solid var(--gold);}
-  .mk-highest{text-align:center;font-size:14px;margin-bottom:8px;min-height:22px;}
+  /* 競り・値踏みは、押すものを親指の届く下側に寄せる（片手で遊べるように）。
+     画面（.screen）はもともと縦の並びなので、ここに auto を1つ置けば
+     上の空きを全部吸って、以下が下に寄る */
+  .mk-highest{text-align:center;font-size:14px;margin:auto 0 8px;min-height:22px;}
+  /* 残りの品は最下段。上の auto と取り合わないように 0 にしておく */
+  #scr-rt-au-bid .mk-rest{margin-top:0;}
+  #scr-rt-au-guess .mk-guess{margin-top:auto;}
   .mk-highest b{font-family:'DotGothic16',monospace;font-size:30px;color:var(--stamp-deep);}
   .mk-bidpad{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:8px;}
   /* 片手で届く大きさ（指示38 2-5） */
@@ -1702,6 +1710,38 @@
   .bomb-taken-note{font-size:11px;color:var(--ink-soft);margin:-8px 0 12px;text-align:center;line-height:1.6;}
   /* 大画面のリーダーボード（横棒グラフ）。離れた席からも読めるサイズにする */
   .big-board{width:100%;max-width:760px;margin:18px auto 0;display:flex;flex-direction:column;gap:12px;}
+  /* 第38弾：相場オークションの大画面。**相場表と品ぞろえが主役**。
+     卓を囲んだ全員が、離れたところから読める大きさにする */
+  .big-mk{width:100%;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px;}
+  .big-mk .bmk-market{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;}
+  .big-mk .bmk-k{
+    display:flex;align-items:center;gap:10px;
+    background:var(--card);border:2px solid var(--line);border-radius:999px;padding:8px 26px;
+  }
+  .big-mk .bmk-k .bk-i{font-size:clamp(24px,2.6vw,40px);line-height:1;}
+  .big-mk .bmk-k .bk-l{font-size:clamp(14px,1.4vw,22px);}
+  .big-mk .bmk-k .bk-v{font-family:'DotGothic16',monospace;font-size:clamp(26px,3vw,46px);color:var(--stamp-deep);}
+  /* 相場が育った系統。色だけに頼らず「HEATING UP」の文字も出す */
+  .big-mk .bmk-k.hot{border-color:var(--gold);}
+  .big-mk .bmk-k .bk-hot{font-size:clamp(11px,1vw,15px);color:var(--gold);font-weight:700;letter-spacing:.06em;}
+  .big-mk .bmk-line{
+    display:grid;grid-template-columns:repeat(6,1fr);gap:12px;
+  }
+  .big-mk .bmk-c{
+    background:var(--card);border:2px solid var(--line);border-radius:14px;
+    padding:14px 8px;text-align:center;position:relative;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:120px;
+  }
+  .big-mk .bmk-c .bc-no{position:absolute;top:5px;left:9px;font-size:13px;opacity:.6;font-family:'DotGothic16',monospace;}
+  .big-mk .bmk-c .bc-i{font-size:clamp(26px,2.8vw,44px);line-height:1;}
+  .big-mk .bmk-c .bc-l{font-size:clamp(12px,1.15vw,18px);line-height:1.5;}
+  .big-mk .bmk-c.now{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold) inset;}
+  /* 売れた品は薄く、かつ SOLD の文字で（色だけに頼らない） */
+  .big-mk .bmk-c.sold{opacity:.45;}
+  .big-mk .bmk-c .bc-sold{
+    font-family:'DotGothic16',monospace;font-size:clamp(11px,1vw,15px);letter-spacing:.1em;
+  }
+  @media (max-width: 900px){ .big-mk .bmk-line{grid-template-columns:repeat(3,1fr);} }
   .bb-row{display:flex;flex-direction:column;gap:4px;}
   .bb-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:20px;}
   .bb-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -3988,6 +4028,10 @@
       <!-- すごろく：大画面には盤そのものを出す。みんなが囲む卓になる。
            「どこにいる？」では誰の駒も置かれない（実位置が公開ビューに無いため） -->
       <div class="sugo-board big-sugo" id="bigSugoBoard" style="display:none;"></div>
+      <!-- 第38弾：相場オークション。相場表と品ぞろえを、卓の全員が読める大きさで。
+           **品質にあたるものは一切入れない**（大画面はみんなが見るので、
+           ここに入れた瞬間に伏せている意味が消える） -->
+      <div class="big-mk" id="bigAuMarket" style="display:none;"></div>
       <div class="big-list" id="bigList"></div>
       <!-- 第37弾：ゲームが決まってから始まるまで、みんなで同じルールを見る -->
       <div class="big-rules" id="bigRules" style="display:none;"></div>
@@ -11528,8 +11572,11 @@
     if(!v || !v.market || !AUI) return '';
     return AUI.KINDS.map(function(k){
       var hot = (v.hotKinds || []).indexOf(k.id) !== -1;
+      // 育っている系統は、縁の色**と**「熱」の1文字で出す。
+      // 色が見分けづらい人にも、明るい場所で見づらい時にも伝わるように
       return '<span class="amk' + (hot ? ' hot' : '') + '" title="' + escapeHtml(k.label) + '">' +
-        k.icon + '<b>' + v.market[k.id] + '</b></span>';
+        k.icon + '<b>' + v.market[k.id] + '</b>' +
+        (hot ? '<i class="amk-hot">熱</i>' : '') + '</span>';
     }).join('');
   }
   function auPaintTop(prefix, v, you){
@@ -11890,11 +11937,18 @@
   }
 
   // 大画面。**相場表と品物一覧が主役。品質は絶対に映さない**
+  // 大画面。**相場表と品ぞろえが主役。品質は絶対に映さない。**
+  // 卓を囲んだ全員が離れたところから見るものなので、
+  // 「いま何が起きているか」より「盤面がどうなっているか」を大きく出す
   function renderRtBigAuction(v){
     el('bigBoard').style.display = 'none';
     el('bigPhase').textContent = (v.mode === 'open' ? AU.TEXT.mode.open : AU.TEXT.mode.sealed) +
       (v.phase === 'ended' ? '' : ('　' + (AU.TEXT.phase[v.phase] || v.phase)));
+
     var main = '', sub = '';
+    // 下見の間は、**1品を大写しにしない**。6品ならんでいること自体が見せ場で、
+    // ここで1品だけ大きくすると、みんなの目がその1品に寄ってしまう
+    var previewing = (v.phase === 'preview');
     if(v.phase === 'ended'){
       var res = v.result || {};
       main = (res.ranking && res.ranking[0]) ? res.ranking[0].name : '結果';
@@ -11903,9 +11957,12 @@
       var lr = v.lastResult;
       main = lr.passed ? AU.TEXT.passed : (auQuality(lr.quality).label + '！');
       sub = lr.passed ? '' : (lr.winner + ' が ' + lr.paid + '枚で落札　' + (lr.points >= 0 ? '+' : '') + lr.points + '点');
+    } else if(previewing){
+      main = '開場';
+      sub = v.mixLine;
     } else if(v.item){
       main = auKindIcon(v.item.kind) + ' ' + v.item.look;
-      sub = (v.phase === 'bid' && v.mode === 'open' && v.highest)
+      sub = (v.mode === 'open' && v.highest)
         ? ('🔨 ' + v.highest.name + '　' + v.highest.amount + '枚')
         : ((v.item.hints || []).slice(1).join('／'));
     } else {
@@ -11914,15 +11971,38 @@
     }
     el('bigMain').textContent = main;
     el('bigSub').innerHTML = escapeHtml(sub);
-    // 相場表と品物一覧を、大画面の主役として出す
-    el('bigList').innerHTML =
-      '<span class="bl-item">' + AUI.KINDS.map(function(k){
-        var hot = (v.hotKinds || []).indexOf(k.id) !== -1;
-        return k.icon + (v.market ? v.market[k.id] : 1) + (hot ? ' ' + AU.TEXT.hot : '');
-      }).join('　') + '</span>' +
-      (v.players || []).map(function(p){
-        return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.chips + '枚</span>';
-      }).join('');
+
+    // 相場表と品ぞろえ。決着したあとは順位が主役なので出さない
+    var box = el('bigAuMarket');
+    box.style.display = (v.phase === 'ended') ? 'none' : '';
+    if(v.phase !== 'ended'){
+      var bidding = (v.phase === 'bid' || v.phase === 'confirm' ||
+                     v.phase === 'guess' || v.phase === 'reveal');
+      box.innerHTML =
+        '<div class="bmk-market">' + AUI.KINDS.map(function(k){
+          var hot = (v.hotKinds || []).indexOf(k.id) !== -1;
+          return '<span class="bmk-k' + (hot ? ' hot' : '') + '">' +
+            '<span class="bk-i">' + k.icon + '</span>' +
+            '<span class="bk-l">' + escapeHtml(k.label) + '</span>' +
+            '<span class="bk-v">' + ((v.market || {})[k.id] || 1) + '</span>' +
+            (hot ? '<span class="bk-hot">' + AU.TEXT.hot + '</span>' : '') +
+          '</span>';
+        }).join('') + '</div>' +
+        '<div class="bmk-line">' + (v.lineup || []).map(function(it){
+          var isSold = (it.sold === 'sold');
+          var now = bidding && v.order && v.order[v.idx] === it.no;
+          return '<div class="bmk-c' + (isSold ? ' sold' : '') + (now ? ' now' : '') + '">' +
+            '<span class="bc-no">' + it.no + '</span>' +
+            '<span class="bc-i">' + auKindIcon(it.kind) + '</span>' +
+            '<span class="bc-l">' + escapeHtml(it.look) + '</span>' +
+            (isSold ? '<span class="bc-sold">' + AU.TEXT.sold + '</span>' : '') +
+          '</div>';
+        }).join('') + '</div>';
+    }
+    // 手持ちのチップ。**品質にあたるものは1つも出さない**
+    el('bigList').innerHTML = (v.players || []).map(function(p){
+      return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.chips + '枚</span>';
+    }).join('');
   }
 
   // ===== 第32弾-A-2-4：みんなの状況 =====
@@ -12190,13 +12270,19 @@
     rtBigFx(v, rtRoomGameId());
     // 第5部-4：残り時間つきのゲームなら、最後の5秒を巨大な数字で数える
     rtBig.clock = (v.remainingMs != null) ? { ms: v.remainingMs, at: Date.now() } : null;
+    // 第38弾：**ゲームごとの大きな部品は、ここで一度ぜんぶ隠す。**
+    // そのあと各ゲームの描画が、自分の使うものだけを出し直す。
+    // 「出す側」と「隠す側」を別々の場所に書くと、部品を足した時に
+    // 隠す側だけ書き忘れて、前のゲームの部品が居座る（第35弾Cの型1）。
+    // ここを通れば、足した部品は黙って消える側に倒れる
+    ['bigBoard', 'bigSugoBoard', 'bigAuMarket'].forEach(function(id){
+      el(id).style.display = 'none';
+    });
     if(rtRoomGameId() === 'bomb') return renderRtBigBomb(v);
     if(rtRoomGameId() === 'defuse') return renderRtBigDefuse(v);
     if(RT_QUIZ_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigQuiz(v);
     if(rtRoomGameId() === 'auction') return renderRtBigAuction(v);
     if(SUGO_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigSugoroku(v);
-    el('bigSugoBoard').style.display = 'none';  // 盤はすごろくだけが使う
-    el('bigBoard').style.display = 'none'; // 横棒グラフは爆弾解除だけが使う
     if(rtIsWordwolf()) return renderRtBigWordwolf(v);
 
     var main = '', sub = '';

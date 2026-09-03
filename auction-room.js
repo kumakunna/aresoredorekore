@@ -199,7 +199,7 @@ function passItem(room) {
     passed: true, again: again,
     note: again ? AuctionLogic.TEXT.passedAgain : AuctionLogic.TEXT.passedGone
   };
-  w.history.push({ no: item.no, kind: item.kind, passed: true });
+  w.history.push({ round: w.round, no: item.no, kind: item.kind, passed: true });
   // 流れた品に正体は出さない（誰の手にも渡っていないので、まだ伏せたまま）
   afterItem(room);
 }
@@ -263,6 +263,7 @@ function beginReveal(room) {
     guesses: guessRows
   });
   w.history.push({
+    round: w.round,
     no: item.no, kind: item.kind, quality: item.quality,
     winner: lr.winner, points: points, guesses: guessRows, passed: false
   });
@@ -405,6 +406,10 @@ function safeResult(lr, revealed) {
 function soldStateOf(w, no) {
   for (let i = 0; i < w.history.length; i++) {
     const h = w.history[i];
+    // **いまのラウンドの分だけ見る。**履歴はゲーム通算で貯まるが、
+    // 品番号は毎ラウンド1〜6に戻るので、通算で照らすと
+    // 2ラウンド目の開場が「6品ぜんぶ売却」になる
+    if (h.round !== w.round) continue;
     if (h.no === no && !h.passed) return 'sold';
   }
   return (w.order.indexOf(no) > w.idx) ? 'waiting'

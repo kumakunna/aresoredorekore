@@ -334,11 +334,17 @@ function auStage(cfg) {
   return st;
 }
 
-// 進行役が作った状態を、そのまま部屋の知らせの形にする
-function auRoom(st, phase) {
+// 進行役が作った状態を、そのまま部屋の知らせの形にする。
+// withBig を true にすると、大画面の端末（m5）も名簿に入れる——
+// 入れ忘れると、その端末は「部屋にいない人」になって大画面から追い出される
+function auRoom(st, phase, withBig) {
+  const members = AU_MEMBERS.map((m) => Object.assign({}, m));
+  if (withBig) {
+    members.push({ id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false });
+  }
   return roomSnapshot({
-    playerCount: AU_MEMBERS.length, memberCount: AU_MEMBERS.length,
-    members: AU_MEMBERS.map((m) => Object.assign({}, m)),
+    playerCount: AU_MEMBERS.length, memberCount: members.length,
+    members: members,
     state: { phase: phase, game: 'auction', data: AuctionRoom.publicView(st.room) }
   });
 }
@@ -3289,21 +3295,16 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const st = auStage({ mode: 'open' });
     st.toBid();
     st.w.highest = { id: 'm1', amount: 5 };
-    const room = auRoom(st, 'bid');
-    room.members = room.members.concat([
-      { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
-    ]);
-    room.memberCount = room.members.length;
-    push(fake, room);
+    push(fake, auRoom(st, 'bid', true));
     await sleep(win, 200);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
     const item = st.w.items.find((x) => x.no === st.w.order[st.w.idx]);
     assert(el(doc, 'bigMain').textContent.indexOf(item.look) !== -1, '品物の見た目が大きく出る');
     assert(/あき/.test(el(doc, 'bigSub').textContent), 'いまの最高額が出る');
-    // 相場が主役として出ている
-    const list = el(doc, 'bigList').textContent;
+    // 相場が主役として出ている（手持ちチップの列ではなく、専用の相場表に）
+    const mk = el(doc, 'bigAuMarket').textContent;
     Items.KINDS.forEach((k) => {
-      assert(list.indexOf(k.icon) !== -1, k.label + ' の相場が大画面に出る');
+      assert(mk.indexOf(k.label) !== -1, k.label + ' の相場が大画面に出る');
     });
     // **品質はどこにも出ない**（大画面はみんなが見る）
     const big = el(doc, 'scr-rt-big').textContent;
@@ -3311,6 +3312,117 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       assert(big.indexOf(it.reveal) === -1, '正体の文が出ていない');
     });
     assertNoErrors(errors, '大画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('色や音だけに頼っていない（品質・育った系統・売却・落札）', async () => {
+    // 明るい屋外、色が見分けづらい人、音を切っている人。
+    // **意味を運んでいるものは、必ず文字か記号でも出ていること**
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const st = auStage({ mode: 'sealed' });
+    // 相場を育てて「熱い系統」を作る（型b：その状況を本当に作ってから見る）
+    const kind = Items.KINDS[0].id;
+    for (let i = 0; i < A.RULES.MARKET_HOT; i++) A.bumpMarket(st.w.market, kind);
+    assert(A.isHot(st.w.market, kind), '検体として、熱い系統ができている');  // 型(b)
+    st.toReveal('m1', { m2: 'fine' });
+    push(fake, auRoom(st, 'reveal'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-reveal', 4000);
+
+    // 育った系統：**縁の色を消しても、育っていない系統と見分けがつくこと**。
+    // 「印がついているか」ではなく「色抜きで読み分けられるか」を見る——
+    // 印の有無で書くと、絵文字の文字数などで自明に通ってしまう（型a）
+    const hotChip = doc.querySelector('#auRvMarket .amk.hot');
+    const coldChip = doc.querySelector('#auRvMarket .amk:not(.hot)');
+    assert(hotChip && coldChip, '育った系統と、そうでない系統が両方ならんでいる');  // 型(b)
+    // 絵文字・数字・空白を落とすと、**色以外で足されている印だけ**が残る。
+    // ここが残るかどうかが「色を見なくても分かるか」そのもの
+    const mark = (e) => e.textContent
+      .replace(/[\s\d]/g, '')
+      .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '');
+    assert(mark(hotChip) !== mark(coldChip),
+      '色を見なくても、育った系統だけに印がある（育った:「' + mark(hotChip) +
+      '」／ふつう:「' + mark(coldChip) + '」）');
+    assert(mark(hotChip).length > 0, '育った系統の印が、色以外にもある');
+
+    // 品質：色だけでなく、必ず文字が出る
+    await waitFor(win, () => el(doc, 'auRvQuality').textContent !== '', 3000, '品質が出る');
+    const q = Items.qualityById(st.w.lastResult.quality);
+    assert(el(doc, 'auRvQuality').textContent.indexOf(q.label) !== -1,
+      '品質が文字で出る（色に頼らない）');
+
+    // 落札の結果も、音ではなく文字で分かる
+    await waitFor(win, () => el(doc, 'auRvNote').textContent !== '', 3000,
+      '相場の動きが文字で出る');
+    assert(/相場/.test(el(doc, 'auRvNote').textContent),
+      '相場の動きが文字で読める（実際: ' + el(doc, 'auRvNote').textContent + '）');
+
+    // 売れた品は、薄さだけでなく「売却」の文字でも分かる
+    st.w.history.push({ no: st.w.items[0].no, kind: st.w.items[0].kind,
+      quality: st.w.items[0].quality, winner: 'あき', points: 3, guesses: [], passed: false });
+    // 行き先は「部屋の知らせの段階」ではなく**進行状態の段階**から引くので、
+    // 進行状態の側も下見に戻す（ここを揃えないと開場の画面に移らない）
+    st.w.phase = 'preview';
+    push(fake, auRoom(st, 'preview'));
+    pushYou(fake, st.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-au-open', 4000);
+    const sold = doc.querySelector('#auOpenShelf [data-no="' + st.w.items[0].no + '"] .ac-q');
+    assertEqual(sold.textContent, '売却', '売れた品は文字でも分かる');
+    assertNoErrors(errors, '色と音の確認で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面：下見の間は1品を大写しにせず、6品の品ぞろえを出す', async () => {
+    // 6品ならんでいること自体がこのリメイクの見せ場。
+    // 大画面で1品だけ大きくすると、卓を囲んだみんなの目がその1品に寄る
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const st = auStage({ mode: 'sealed' });
+    push(fake, auRoom(st, 'preview', true));
+    await sleep(win, 200);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
+    assertEqual(el(doc, 'bigMain').textContent, '開場', '1品を大写しにしない');
+    assertEqual(doc.querySelectorAll('#bigAuMarket .bmk-c').length, A.RULES.ITEMS_PER_ROUND,
+      '6品ぜんぶが大画面にならぶ');
+    assertEqual(doc.querySelectorAll('#bigAuMarket .bmk-k').length, Items.KINDS.length,
+      '相場表が系統ぶん出る');
+    // 下見の間は「いまの品」の枠を付けない（手元の棚と同じ約束）
+    assertEqual(doc.querySelectorAll('#bigAuMarket .bmk-c.now').length, 0,
+      '下見では、どの品にも枠が付かない');
+    // **品質にあたるものは1つも出ていない**
+    const big = el(doc, 'scr-rt-big').textContent;
+    // 出ている品の正体だけでなく、**その品がとりうる全部の正体**を探す。
+    // 進行役が渡す品は品質を1つに決めたあとの形なので、
+    // ほかの品質の文は正本（AuctionItems.ITEMS）から引く
+    st.w.items.forEach((it) => {
+      assert(big.indexOf(it.reveal) === -1, '正体の文が出ていない');
+      const src = Items.ITEMS.find((x) => x.look === it.look);
+      assert(src, it.look + ' が品物プールにある');
+      Items.QUALITIES.forEach((q) => {
+        assert(big.indexOf(src.q[q.id].reveal) === -1,
+          it.look + '：' + q.label + ' の正体も出ていない');
+      });
+    });
+
+    // 競りに入ったら、いまの品に枠が付く（そこで初めて目を寄せる）
+    st.toBid();
+    push(fake, auRoom(st, 'bid', true));
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');  // 型(b)
+    assertEqual(doc.querySelectorAll('#bigAuMarket .bmk-c.now').length, 1,
+      '競りに入ると、いまの品に枠が付く');
+
+    // 別のゲームに切り替わったら、相場表は残らない（型1の対策）
+    push(fake, roomSnapshot({
+      members: roomSnapshot().members.map((m) => m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m),
+      playerCount: 4,
+      state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) }
+    }));
+    await sleep(win, 150);
+    assertEqual(el(doc, 'bigAuMarket').style.display, 'none',
+      '別のゲームでは相場表が消える');
+    assertNoErrors(errors, '大画面の下見で未捕捉の例外');
     win.close();
   });
   await r.test('オークション：2つの遊び方とも、設定まで歩けて開始を送る', async () => {

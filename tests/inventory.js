@@ -211,6 +211,26 @@ const ABNORMAL_SCENARIOS = [
   { id: 'd14', kind: 'op', name: 'memberIdの露出チェックリスト（URL・ログ・localStorage・QR・コンソール）' },
 ];
 
+// ---- ゲームごとの異常系（第38弾：相場オークション） ----
+// 上の d01〜d14 はアプリ全体の話。ここはそのゲームでしか起きない形を並べる。
+// **test にテストの名前を書いておく。**名前が消えたら
+// tests/room-paths.js の照合が赤くなるので、「一覧に載っているのに
+// 誰も見ていない」が起きない（落とし穴4・20）
+const GAME_ABNORMAL = [
+  { game: 'auction', id: 'a01', name: '入札の途中で1人が切れても、進行が止まらない',
+    file: 'realtime-auction', test: '切断：入札の途中で1人が切れても、進行は止まらない' },
+  { game: 'auction', id: 'a02', name: '人数の下限（3人）と上限（8人）を、サーバーが門番する',
+    file: 'realtime-auction', test: '人数：3人未満では始められない。8人を超えても始められない' },
+  { game: 'auction', id: 'a03', name: '全員が降りた（誰も値をつけない）品の扱い',
+    file: 'realtime-auction', test: '誰も入札しない時は、すぐには流さず最終確認をはさむ' },
+  { game: 'auction', id: 'a04', name: '流れた品が、もう一度だけ出直す',
+    file: 'realtime-auction', test: '流れた品は、次の品のあとにもう一度だけ出る' },
+  { game: 'auction', id: 'a05', name: '持っていない額を出そうとした時（端末の数字を信じない）',
+    file: 'realtime-auction', test: '持っていない額は、サーバーが断る（端末の数字を信じない）' },
+  { game: 'auction', id: 'a06', name: 'ラウンドをまたいだ時の持ち越し（見立て・売却）',
+    file: 'realtime-auction', test: '鑑定眼の見立ては、ラウンドをまたいで残らない' },
+];
+
 module.exports = {
   RT_GAME_IDS,
   CASSETTE_GAME_IDS,
@@ -227,5 +247,6 @@ module.exports = {
   OVERLAY_IDS,
   NOT_A_CLOCK_IDS,
   CORNER_SLOTS,
-  ABNORMAL_SCENARIOS
+  ABNORMAL_SCENARIOS,
+  GAME_ABNORMAL
 };

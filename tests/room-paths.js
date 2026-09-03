@@ -10,7 +10,7 @@ const { createRunner, assert, assertEqual } = require('./harness');
 const { startTestServer, device, waitUntil, makeRoom, sleep } = require('./room-edge');
 const {
   RT_GAME_IDS, CASSETTE_GAME_IDS, HANDOFF_ONLY_GAME_IDS,
-  RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS, ROOM_ONLY_MODES
+  RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS, ROOM_ONLY_MODES, GAME_ABNORMAL
 } = require('./inventory');
 
 async function run() {
@@ -537,6 +537,25 @@ async function run() {
     }
     assertEqual(Object.keys(COVERAGE).length, inv.ROOM_ENTRY_PATHS.length,
       '対応表に余り（正本から消えた経路）が無い');
+  });
+
+  await r.test('ゲームごとの異常系が、一覧と台帳とテストの3つで揃っている（正本ループ）', async () => {
+    // 「テストはあるが一覧が無い」も「一覧はあるがテストが無い」も、どちらも困る。
+    // 一覧に書いたテスト名が実在することと、台帳に行があることを両方向で見る（落とし穴20）
+    const fs = require('fs');
+    const path = require('path');
+    assert(GAME_ABNORMAL.length > 0, 'ゲームごとの異常系の一覧が空でない');
+    const doc = fs.readFileSync(path.join(__dirname, '..', 'docs', '監査_異常系シナリオ.md'), 'utf8');
+    const cache = {};
+    for (const s of GAME_ABNORMAL) {
+      const p = path.join(__dirname, s.file + '.js');
+      cache[s.file] = cache[s.file] || (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null);
+      assert(cache[s.file], s.id + '：' + s.file + '.js がある');
+      assert(cache[s.file].indexOf(s.test) !== -1,
+        s.id + '：一覧に書いたテストが実在する（' + s.file + '.js の「' + s.test + '」）');
+      assert(doc.indexOf('`' + s.id + '`') !== -1,
+        s.id + '：監査台帳に行がある（docs/監査_異常系シナリオ.md）');
+    }
   });
 
   await r.test('異常系シナリオの正本と監査台帳が一致している（第35弾D・正本ループ）', async () => {

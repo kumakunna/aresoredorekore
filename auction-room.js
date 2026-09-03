@@ -131,6 +131,9 @@ function nextRound(room) {
     w.spent[id] = 0;
     w.power[id] = null;      // アイテムは毎ラウンド選び直す
     w.powerUsed[id] = false;
+    // 見立ても一緒に捨てる。品番号は毎ラウンド1〜6に戻るので、
+    // 残すと「2ラウンド目の3番」に「1ラウンド目の3番」の品質が出る
+    w.appraised[id] = {};
   });
 
   w.items = AuctionLogic.buildRound(w.usedLooks, w.rnd);

@@ -11,6 +11,7 @@
 const { createRunner, assert, assertEqual } = require('./harness');
 const { startTestServer, device, waitUntil, makeRoom, sleep } = require('./room-edge');
 const A = require('../public/js/auction-logic');
+const AuctionRoom = require('../auction-room');
 const Items = require('../public/js/auction-items');
 
 const R = A.RULES;
@@ -253,6 +254,43 @@ async function run() {
       assertEqual(v.market[item.kind], beforeMarket + 1, 'その系統の相場が1つ上がる');
       const other = v.players.find((p) => p.id === rm.guests[1].memberId).chips;
       assertEqual(other, otherBefore, '落札できなかった人は、何も失わない');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('鑑定眼の見立ては、ラウンドをまたいで残らない', async () => {
+    // 品番号は毎ラウンド 1〜6 に戻る。見立て（appraised）を持ち越すと、
+    // **2ラウンド目の3番に、1ラウンド目の3番の品質が出る**。
+    // 「何も出ない」より悪い——確かなものとして間違いが出る（落とし穴の型2）
+    const srv = await startTestServer();
+    try {
+      const rm = await startAuction(srv, 3, { mode: 'sealed', rounds: 2 });
+      await waitUntil(() => viewOf(rm.host) && viewOf(rm.host).phase === 'preview', '開場する');
+      const w = stateOf(srv, rm.code);
+      const me = w.playerIds[0];
+      // 1ラウンド目、鑑定眼で3番を見る
+      for (const d of rm.all) await d.call('wolf:act', { pick: 'appraise' });
+      await waitUntil(() => viewOf(rm.host).phase === 'bid', '競りに入る');
+      const seen = w.items[2];
+      const res = await rm.host.call('wolf:act', { use: true, targetNo: seen.no });
+      assertEqual(res.ok, true, '鑑定できる');
+      assertEqual(w.appraised[me][seen.no], seen.quality,
+        '1ラウンド目は、見た品の品質を持っている');  // 型(b)：条件が作れている
+
+      // 2ラウンド目に進める（残りの品を全部さばく）
+      const round1 = w.round;
+      for (let i = 0; i < 40 && w.round === round1; i++) {
+        if (w.phase === 'ended') break;
+        rush(srv, rm.code);
+        await sleep(700);
+      }
+      assertEqual(w.round, round1 + 1, '2ラウンド目に入っている');  // 型(b)
+
+      assertEqual(Object.keys(w.appraised[me]).length, 0,
+        '前のラウンドの見立てが残っていない（品番号は1〜6に戻るので、残ると別の品の品質が出る）');
+      const you = AuctionRoom.privateFor({ members: srv.store.get(rm.code).members,
+        auction: w, state: srv.store.get(rm.code).state }, me);
+      assertEqual(Object.keys(you.appraised).length, 0, '端末にも渡っていない');
       rm.all.forEach((d) => d.close());
     } finally { await srv.close(); }
   });

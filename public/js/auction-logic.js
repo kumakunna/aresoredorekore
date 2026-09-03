@@ -1,23 +1,24 @@
-// auction-logic.js — オークションバトルのルール層（第31弾 第3部）
+// auction-logic.js — 相場オークションのルール層（第38弾で全面的に作り直し）
 //
-// 設計の芯は bomb-logic.js / defuse-logic.js / quiz-logic.js とまったく同じ:
-//   DOM も socket.io も知らない。Node.js から require できる純粋な計算だけを置く。
+// ここが**唯一の正本**。サーバーの進行役（auction-room.js）も、画面（index.html）も、
+// 数字と文言はここからしか読まない。片方に数字を書き写すと、必ずどちらかが古びる。
 //
-// ---- なぜ作り直したのか ----
-// 前のオークションは、実質「AIの説明を聞いて誰が正解か当てる」に
-// チップの皮を被せただけで、値をつけて競り合う駆け引きが無かった。
-// しかも「入札しても落札できなければ入札額がそのまま消える」ため、
-// 当てる自信が無い人ほど賭けられない＝ただの罰ゲームになっていた。
+// ---- この遊びの芯 ----
+// 品物は「系統（公開）」と「品質（非公開）」でできている。
+// **同じ系統が落札されるたび、その系統の相場が上がる。**
+// 得点は「品質値 × その系統の最終相場」なので、
+//   ・みんなが群がった系統は、上物なら大きく伸びる
+//   ・誰も見向きもしなかった系統は、上物でも小さい
+// つまり **安く買い集めて、自分で相場を育てる**という逆転の道がある。
+// これが「値段は運ではなく、みんなの行動で決まる」ということ。
 //
-// 作り直しの芯は2つ:
-//   1. **払うのは落札した人だけ。** 落札できなかった人は何も失わない。
-//      これで「いくらまでなら出せるか」を素直に考えられるようになる。
-//   2. **品物の一言だけでは価値が分からない。** 同じ一言が複数の価値階層に出る
-//      （auction-items.js 参照）。だから読み合いとアイテムに意味が生まれる。
-//
-// 強制最低入札額（順位が上の人ほど多く賭けさせる足枷）は廃止した。
-// 落札できなければ損をしない新ルールと噛み合わない
-// （最低額を強制しても、落札しなければ何も起きないので足枷にならない）。
+// ---- 得点の決めごと（2026-09-02 本人の決定） ----
+// 得点 = Σ（品質値 × その系統の最終相場） + floor(残チップ / CHIPS_PER_POINT)
+// 残チップを少しだけ点にしたのは、**最終ラウンドにもブレーキを効かせるため**。
+// 「使いすぎた人は次のラウンドが減る」だけだと、最後のラウンドには効き目が無く、
+// 毎回「持ち金を全部吐き出す競り」になって、最後だけ別のゲームになってしまう。
+// 3枚で1点は、相場（最大4前後）に対して十分小さいので、
+// 貯め込むだけでは勝てない——買わない人が勝つ形にはならない。
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -28,190 +29,327 @@
 }(typeof self !== 'undefined' ? self : this, function (Items) {
   'use strict';
 
-  // 遊び方
-  var MODE = {
-    OPEN: 'open',     // せり上げ式：みんなの前で値が吊り上がっていく
-    SEALED: 'sealed'  // 秘密入札：それぞれこっそり金額を決めて、一斉に開ける
+  // =====================================================================
+  // 数字は全部ここ。**他のファイルに書き写さない**
+  // =====================================================================
+  var RULES = {
+    // ---- 人数 ----
+    MIN_PLAYERS: 3,
+    MAX_PLAYERS: 8,
+
+    // ---- チップ（買うための資源） ----
+    START_CHIPS: 20,
+    INCOME: 6,          // 各ラウンド開始時の基本収入
+    INCOME_TIRED: 3,    // 前ラウンドで使いすぎた人（罰ではなく、物理法則として息切れする）
+    TIRED_SPENT: 10,    // 「使いすぎ」の境目（これ以上使うと、次のラウンドの収入が減る）
+
+    // ---- 得点 ----
+    // 残チップは3枚で1点。**最終ラウンドにもブレーキを残すための最小限の重み**
+    CHIPS_PER_POINT: 3,
+
+    // ---- 相場 ----
+    MARKET_START: 1,    // 開場時、どの系統も1
+    MARKET_STEP: 1,     // その系統が1つ落札されるたびに+1
+    MARKET_HOT: 3,      // これ以上になったら大画面に HEATING UP
+
+    // ---- 品物とラウンド ----
+    ITEMS_PER_ROUND: 6, // 内訳（上物2・並物3・偽物1）と揃える
+    ROUNDS_DEFAULT: 2,
+    ROUNDS_MIN: 1,
+    ROUNDS_MAX: 3,
+
+    // ---- 時間（秒） ----
+    PREVIEW_SEC_DEFAULT: 60,  // 下見（口で腹の探り合いをする時間）
+    PREVIEW_SEC_MIN: 30,
+    PREVIEW_SEC_MAX: 90,
+    OPEN_EXTEND_SEC: 8,       // せり上げ：値がついたら、締め切りをここまで延ばす
+    SEALED_BID_SEC: 45,       // 秘密入札：考える時間
+    GUESS_SEC: 6,             // 値踏み予想
+    REVEAL_SEC: 7,            // 開示（順に見せるので、少し長め）
+    HINT_STEP_SEC: 12,        // 競り開始から、この間隔で段階ヒントが1つずつ開く
+    HINT_STEPS: 2,            // 追加で開くヒントの数（見た目＋2＝計3つ）
+
+    // ---- ごほうび ----
+    // 最初に入札した人へ。情報がいちばん少ない時に飛び込む理由をつくる。
+    // 値踏み予想(+1)より大きく、品物1つの得点（最低1点・育った相場なら9点）には遠く及ばない額。
+    // 6品すべてで1番乗りしても+12枚＝基本収入2ラウンドぶんで、
+    // 「ボーナス狙いだけでは勝てないが、飛び込む理由にはなる」ところに置いた
+    FIRST_BID_BONUS: 2,
+    GUESS_REWARD: 1,          // 値踏み的中。**予想だけで勝てる額にはしない**
+
+    // ---- アイテム ----
+    ITEMS_PICK: 1             // ラウンド開始時に、3種から1つだけ選ぶ
   };
 
-  var START_CHIPS = 20;   // 既存のオークションと同じ（記録の目盛りを変えない）
-  var MIN_ROUNDS = 3;
-  var MAX_ROUNDS = 12;
-  var DEFAULT_ROUNDS = 6;
-
-  // せり上げ式で、最後の入札から何秒で締めるか。
-  // 誰かが値を上げるたびに、ここまで戻す（競り市の「他にいませんか？」）
-  var OPEN_EXTEND_SEC = 8;
-  // 秘密入札の考える時間
-  var SEALED_BID_SEC = 30;
-  // 結果を見せる時間
-  var REVEAL_SEC = 8;
-
-  // ---- アイテム（4種。すべて使い切り）----
-  // cost はチップ。買えるのは入札の前だけ。
-  var ITEMS = [
-    {
-      id: 'halfticket', name: '半額チケット', icon: '🎟', cost: 4,
-      when: 'beforeBid',
-      lead: '落札できたら、支払いが半額になる（端数は切り上げ）'
-    },
-    {
-      id: 'doubleup', name: 'ダブルアップ', icon: '✖️', cost: 4,
-      when: 'beforeBid',
-      // 大ハズレを引いたら損も2倍。だから「当たりを引ける」と読めた時だけ強い
-      lead: '落札した品物の価値が2倍になる（ハズレの損も2倍）'
-    },
-    {
-      id: 'appraise', name: '鑑定眼', icon: '🔍', cost: 3,
-      when: 'beforeBid',
-      lead: '品物のヒントが1つもらえる'
-    },
-    {
-      id: 'retract', name: '撤回権', icon: '↩️', cost: 3,
-      when: 'beforeDeadline', sealedOnly: true,
-      lead: '締め切り前なら、出した入札額を出し直せる（秘密入札だけ）'
-    }
+  // 使えるアイテム。ラウンド開始時に1つだけ選ぶ（選ぶこと自体が戦略）
+  var POWERS = [
+    { id: 'appraise', label: '鑑定眼', icon: '🔍',
+      lead: '好きな1品の品質を、自分だけが知る',
+      // 使ったことは全員に伝えるが、**どの品を見たかは伝えない**（指示38 2-2）
+      secretTarget: true },
+    { id: 'halfticket', label: '半額チケット', icon: '🪙',
+      lead: '落札できたら、支払いが半分になる（端数は切り上げ）',
+      secretTarget: false },
+    { id: 'market', label: '相場操作', icon: '📣',
+      lead: '好きな系統の相場を、落札せずに+1する',
+      secretTarget: false }
   ];
-  function itemById(id) {
-    return ITEMS.find(function (x) { return x.id === id; }) || null;
-  }
-  // その遊び方で使えるアイテムだけ。
-  // 一覧を手で書き分けると、片方に足し忘れる（落とし穴4）ので、印から導く
-  function itemsFor(mode) {
-    return ITEMS.filter(function (x) {
-      return !x.sealedOnly || mode === MODE.SEALED;
-    });
+
+  // 文言はここに集める（画面に直書きしない）
+  var TEXT = {
+    phase: { preview: '下見', bid: '競り', guess: '値踏み', reveal: '開示', ended: '決着' },
+    mode: { open: 'せり上げ式', sealed: '秘密入札' },
+    passed: 'だれも値をつけませんでした',
+    passedAgain: 'この品は、次の品のあとにもう一度だけ出ます',
+    passedGone: 'この品は、誰の手にも渡りませんでした',
+    firstBid: '最初に値をつけた',
+    hot: 'HEATING UP',
+    sold: 'SOLD'
+  };
+
+  function powerById(id) {
+    for (var i = 0; i < POWERS.length; i++) if (POWERS[i].id === id) return POWERS[i];
+    return null;
   }
 
-  function clampInt(v, min, max, fallback) {
-    var n = parseInt(v, 10);
-    if (!isFinite(n)) n = fallback;
-    return Math.max(min, Math.min(max, n));
-  }
-
+  // ---------- 設定 ----------
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
   function normalizeConfig(cfg) {
     var c = cfg || {};
+    var mode = (c.mode === 'open') ? 'open' : 'sealed';
+    var rounds = parseInt(c.rounds, 10);
+    if (!(rounds > 0)) rounds = RULES.ROUNDS_DEFAULT;
+    var preview = parseInt(c.previewSec, 10);
+    if (!(preview > 0)) preview = RULES.PREVIEW_SEC_DEFAULT;
     return {
-      mode: (c.mode === MODE.SEALED) ? MODE.SEALED : MODE.OPEN,
-      rounds: clampInt(c.rounds, MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS),
-      startChips: clampInt(c.startChips, 5, 99, START_CHIPS),
-      bidSec: clampInt(c.bidSec, 10, 120, SEALED_BID_SEC),
-      extendSec: clampInt(c.extendSec, 3, 30, OPEN_EXTEND_SEC),
-      rescue: c.rescue !== false,   // 2ラウンドごとの救済。既定は入れる
-      preset: c.preset || null
+      mode: mode,
+      rounds: clamp(rounds, RULES.ROUNDS_MIN, RULES.ROUNDS_MAX),
+      previewSec: clamp(preview, RULES.PREVIEW_SEC_MIN, RULES.PREVIEW_SEC_MAX)
     };
   }
 
-  // ================= 入札 =================
+  // ---------- 相場 ----------
+  function newMarket() {
+    var m = {};
+    Items.KINDS.forEach(function (k) { m[k.id] = RULES.MARKET_START; });
+    return m;
+  }
+  function bumpMarket(market, kindId) {
+    if (!market || !(kindId in market)) return market;
+    market[kindId] += RULES.MARKET_STEP;
+    return market;
+  }
+  function isHot(market, kindId) {
+    return !!market && market[kindId] >= RULES.MARKET_HOT;
+  }
+
+  // ---------- 品物を並べる ----------
+  // 品質は「上物2・並物3・偽物1」を混ぜてから配る。
+  // **数は必ず内訳どおり**（開場時に数を公開しているので、ここがずれたら嘘になる）
+  function shuffle(a, rnd) {
+    var r = rnd || Math.random;
+    var out = a.slice();
+    for (var i = out.length - 1; i > 0; i--) {
+      var j = Math.floor(r() * (i + 1));
+      var t = out[i]; out[i] = out[j]; out[j] = t;
+    }
+    return out;
+  }
   /**
-   * その金額を出せるか。
-   * 「持っているチップまで」だけが決まり。順位による足枷は無い。
-   * せり上げ式では、いまの最高額より上でなければ意味がないので、そこも見る。
+   * 1ラウンドぶんの品物を作る。
+   * usedLooks に入っている見た目は避ける（同じ品が続けて出ると、覚えられて駆け引きが消える）。
+   * 足りなくなったら、全部から選び直す（遊びが止まるよりはよい）。
    */
-  function canBid(amount, opts) {
-    var n = parseInt(amount, 10);
-    if (!isFinite(n) || n < 0) return { ok: false, reason: 'notNumber' };
-    if (n > opts.chips) return { ok: false, reason: 'tooMuch' };
-    if (opts.mode === MODE.OPEN && n <= (opts.highest || 0)) {
-      return { ok: false, reason: 'notHigher' };
+  function buildRound(usedLooks, rnd) {
+    var used = usedLooks || {};
+    var n = RULES.ITEMS_PER_ROUND;
+    var fresh = Items.ITEMS.filter(function (x) { return !used[x.look]; });
+    var bank = fresh.length >= n ? fresh : Items.ITEMS;
+    var picked = shuffle(bank, rnd).slice(0, n);
+    var qualities = shuffle(Items.mixQualities(), rnd);
+    return picked.map(function (it, i) {
+      var q = qualities[i];
+      return {
+        no: i + 1,                 // 品番号（競りの順番でもある。開場から見えている）
+        kind: it.kind,             // 系統（公開）
+        look: it.look,             // 見た目＝共通ヒント（公開）
+        quality: q,                // 品質（**非公開**）
+        steps: it.q[q].steps,      // 段階ヒント（競りが進むと順に公開）
+        reveal: it.q[q].reveal     // 正体（開示の瞬間だけ）
+      };
+    });
+  }
+
+  // 開場時に出す内訳の宣言（数だけ・どれがどれかは言わない）
+  function mixLine() {
+    return Items.MIX.map(function (m) {
+      var q = Items.qualityById(m.quality);
+      return q.label + m.count;
+    }).join('・');
+  }
+
+  // ---------- ヒント ----------
+  /**
+   * その品について、いま全員に見えているヒント。
+   * **時間で決める**。入札の回数で決めると、放送の届く順で端末ごとにずれる
+   * （門10「全員に同時に届く」を守れなくなる）。
+   */
+  function hintsVisible(item, elapsedSec) {
+    if (!item) return [];
+    var out = [item.look];
+    var opened = Math.floor((elapsedSec || 0) / RULES.HINT_STEP_SEC);
+    var n = Math.max(0, Math.min(RULES.HINT_STEPS, opened));
+    for (var i = 0; i < n; i++) out.push(item.steps[i]);
+    return out;
+  }
+  function hintStepsOpened(elapsedSec) {
+    return Math.max(0, Math.min(RULES.HINT_STEPS,
+      Math.floor((elapsedSec || 0) / RULES.HINT_STEP_SEC)));
+  }
+
+  // ---------- 入札 ----------
+  /**
+   * その額で入札してよいか。
+   *   open   … いまの最高額より上（初回は1以上）
+   *   sealed … 0以上（0＝降りる）。持ちチップを超えない
+   * 「持っていない額は出せない」はサーバー側でも必ず通す（端末の数字を信じない）
+   */
+  function canBid(mode, amount, chips, highest) {
+    var n = Math.floor(Number(amount));
+    if (!isFinite(n) || n < 0) return { ok: false, reason: 'bad' };
+    if (n > chips) return { ok: false, reason: 'tooMuch' };
+    if (mode === 'open') {
+      var floorAmt = (highest && highest.amount > 0) ? highest.amount + 1 : 1;
+      if (n < floorAmt) return { ok: false, reason: 'notHigher' };
     }
     return { ok: true, amount: n };
   }
 
   /**
-   * 落札者を決める。
-   * いちばん高い人。同じ金額なら「先に出した人」（サーバーに届いた順）。
-   *
-   * 同額をランダムで決めると「なぜ負けたのか」を誰にも説明できない。
-   * 早い者勝ちなら、負けた人にも理由が言える。
-   *
-   * @param bids [{ id, amount, at }]  at はサーバーが受け取った時刻
-   * @returns {{winnerId, amount}|null} 誰も入札しなければ null（品物は流れる）
+   * 秘密入札の締め切り。いちばん高い人。**同額なら先に出した人**。
+   * ランダムにすると「なぜ負けたか」を誰にも説明できない（第31弾の決めごとを踏襲）。
+   * 0は「降りる」なので、落札者にはならない。
    */
-  function settleBids(bids) {
-    var live = (bids || []).filter(function (b) { return b && b.amount > 0; });
-    if (!live.length) return null;
-    var best = live[0];
-    live.forEach(function (b) {
-      if (b.amount > best.amount) best = b;
-      else if (b.amount === best.amount && b.at < best.at) best = b;
+  function settleSealed(bids) {
+    var best = null;
+    (bids || []).forEach(function (b) {
+      if (!b || !(b.amount > 0)) return;
+      if (!best || b.amount > best.amount || (b.amount === best.amount && b.at < best.at)) {
+        best = b;
+      }
     });
-    return { winnerId: best.id, amount: best.amount };
+    return best ? { winnerId: best.id, amount: best.amount } : null;
   }
 
+  // 半額チケット。端数は切り上げ（切り捨てだと、奇数の時だけ妙に得をする）
+  function payFor(amount, half) {
+    var n = Math.max(0, Math.floor(amount || 0));
+    return half ? Math.ceil(n / 2) : n;
+  }
+
+  // ---------- 収入 ----------
+  // 使いすぎた人は、次のラウンドで自動的に息切れする。
+  // トップを狙い撃ちにしないのは、**罰ではなく物理法則**にしておきたいから
+  function incomeFor(spentLastRound) {
+    return (spentLastRound >= RULES.TIRED_SPENT) ? RULES.INCOME_TIRED : RULES.INCOME;
+  }
+
+  // ---------- 得点 ----------
+  function itemPoints(item, market) {
+    if (!item) return 0;
+    var v = Items.valueOf(item.quality);
+    var m = (market && market[item.kind]) || RULES.MARKET_START;
+    return v * m;
+  }
+  function pointsFromChips(chips) {
+    return Math.floor(Math.max(0, chips || 0) / RULES.CHIPS_PER_POINT);
+  }
   /**
-   * 落札した人の収支。
-   * @param amount 入札額
-   * @param item   品物（auction-items.js の1つ）
-   * @param used   { halfticket:bool, doubleup:bool }
-   * @returns {{ paid, value, delta }}
+   * その人の得点。品物の価値＋残チップのぶん。
+   * 内訳を返すのは、結果画面で「なぜその点なのか」を出せるようにするため
+   * （数字だけ出されても、遊んだ人には理由が分からない）
    */
-  function settlePayment(amount, item, used) {
-    var u = used || {};
-    // 半額の端数は切り上げ。切り捨てにすると、奇数のときだけ妙に得をする
-    var paid = u.halfticket ? Math.ceil(amount / 2) : amount;
-    var value = u.doubleup ? item.value * 2 : item.value;
-    return { paid: paid, value: value, delta: value - paid };
+  function scoreOf(wonItems, market, chips) {
+    var items = (wonItems || []).map(function (it) {
+      return { item: it, points: itemPoints(it, market) };
+    });
+    var fromItems = items.reduce(function (n, x) { return n + x.points; }, 0);
+    var fromChips = pointsFromChips(chips);
+    return { items: items, fromItems: fromItems, fromChips: fromChips, total: fromItems + fromChips };
   }
 
-  // ================= 救済 =================
-  /**
-   * 2ラウンドごとに、その時点で最下位の人へ無料アイテムを1つ配る（既存の仕組みを維持）。
-   * 同じチップ数で並んでいたら、全員に配る（1人だけ選ぶ理由がない）。
-   * @returns {string[]} 配る相手。無ければ空
-   */
-  function rescueTargets(players, roundNum, every) {
-    var n = every || 2;
-    if (!roundNum || roundNum % n !== 0) return [];
-    var rows = (players || []).filter(function (p) { return !!p; });
-    if (rows.length < 2) return [];
-    var min = Math.min.apply(null, rows.map(function (p) { return p.chips; }));
-    var max = Math.max.apply(null, rows.map(function (p) { return p.chips; }));
-    if (min === max) return []; // 全員同じなら、最下位という状態が無い
-    return rows.filter(function (p) { return p.chips === min; })
-      .map(function (p) { return p.id; });
+  // ---------- 値踏み予想 ----------
+  function guessReward(guess, quality) {
+    return (guess && guess === quality) ? RULES.GUESS_REWARD : 0;
   }
 
-  // 救済で配るアイテム。その遊び方で使えるものから1つ
-  function rescueItemFor(mode, rnd) {
-    var list = itemsFor(mode);
-    var r = rnd || Math.random;
-    return list[Math.floor(r() * list.length)].id;
-  }
-
-  // ================= 表示のための計算 =================
-  // 順位。チップが多い順、同じなら名前順で毎回同じ並びにする（表示がちらつかない）
+  // ---------- 順位 ----------
+  // 1224方式。同じ点なら同じ順位（並びがちらつかない）
   function rank(rows) {
-    var sorted = (rows || []).slice().sort(function (a, b) {
-      if (a.chips !== b.chips) return b.chips - a.chips;
-      return String(a.name || '').localeCompare(String(b.name || ''));
-    });
-    var out = [], at = 0, shown = 0, prev = null;
-    sorted.forEach(function (row) {
-      shown++;
-      if (row.chips !== prev) { at = shown; prev = row.chips; }
-      out.push(Object.assign({}, row, { rank: at }));
+    var sorted = (rows || []).slice().sort(function (a, b) { return b.score - a.score; });
+    var out = [];
+    sorted.forEach(function (row, i) {
+      var same = i > 0 && row.score === sorted[i - 1].score;
+      out.push(Object.assign({}, row, { rank: same ? out[i - 1].rank : i + 1 }));
     });
     return out;
   }
 
-  // 鑑定眼で出すヒント。同じ人に同じヒントを2回出さない
-  function hintFor(item, alreadySeen) {
-    var seen = alreadySeen || [];
-    var fresh = (item.hints || []).filter(function (h) { return seen.indexOf(h) === -1; });
-    if (fresh.length) return fresh[0];
-    return null; // もう全部見た
+  /**
+   * 今日の名場面。実データから固定の型で組み立てる（AIは使わない）。
+   * 出せるものが無ければ null。**無理に何か言わない**
+   * （毎回それらしい一言が出ると、本当に光った回の一言が埋もれる）
+   */
+  function highlight(history) {
+    var h = (history || []).filter(function (x) { return x && !x.passed; });
+    if (!h.length) return null;
+    // ①「みんなが偽物だと読んだのに、信じて買って当てた」
+    var brave = h.filter(function (x) {
+      if (x.quality === 'fake') return false;
+      var g = x.guesses || [];
+      return g.length >= 2 && g.every(function (y) { return y.guess === 'fake'; });
+    }).sort(function (a, b) { return b.points - a.points; })[0];
+    if (brave) {
+      return brave.winner + ' さんは、みんなが偽物と読んだ' + brave.no + '番を信じて ' +
+        brave.points + '点を得た';
+    }
+    // ②「誰も買わなかった系統を、ひとりで育てた」
+    var byKind = {};
+    h.forEach(function (x) {
+      byKind[x.kind] = byKind[x.kind] || {};
+      byKind[x.kind][x.winner] = (byKind[x.kind][x.winner] || 0) + 1;
+    });
+    var solo = null;
+    Object.keys(byKind).forEach(function (k) {
+      var names = Object.keys(byKind[k]);
+      if (names.length === 1 && byKind[k][names[0]] >= 3) {
+        solo = { name: names[0], kind: k, n: byKind[k][names[0]] };
+      }
+    });
+    if (solo) {
+      var kd = Items.kindById(solo.kind);
+      return solo.name + ' さんは、' + (kd ? kd.label : solo.kind) + ' を ' + solo.n +
+        'つ集めて、相場をひとりで育てた';
+    }
+    // ③ いちばん大きく当てた品
+    var top = h.slice().sort(function (a, b) { return b.points - a.points; })[0];
+    if (top && top.points > 0) {
+      return top.winner + ' さんの ' + top.no + '番が、この日いちばんの ' + top.points + '点';
+    }
+    return null;
   }
 
   return {
-    MODE: MODE, ITEMS: ITEMS, START_CHIPS: START_CHIPS,
-    MIN_ROUNDS: MIN_ROUNDS, MAX_ROUNDS: MAX_ROUNDS, DEFAULT_ROUNDS: DEFAULT_ROUNDS,
-    OPEN_EXTEND_SEC: OPEN_EXTEND_SEC, SEALED_BID_SEC: SEALED_BID_SEC, REVEAL_SEC: REVEAL_SEC,
-    itemById: itemById, itemsFor: itemsFor,
+    RULES: RULES, POWERS: POWERS, TEXT: TEXT,
+    powerById: powerById,
     normalizeConfig: normalizeConfig,
-    canBid: canBid, settleBids: settleBids, settlePayment: settlePayment,
-    rescueTargets: rescueTargets, rescueItemFor: rescueItemFor,
-    rank: rank, hintFor: hintFor,
+    newMarket: newMarket, bumpMarket: bumpMarket, isHot: isHot,
+    buildRound: buildRound, mixLine: mixLine, shuffle: shuffle,
+    hintsVisible: hintsVisible, hintStepsOpened: hintStepsOpened,
+    canBid: canBid, settleSealed: settleSealed, payFor: payFor,
+    incomeFor: incomeFor,
+    itemPoints: itemPoints, pointsFromChips: pointsFromChips, scoreOf: scoreOf,
+    guessReward: guessReward, rank: rank, highlight: highlight,
     Items: Items
   };
 }));

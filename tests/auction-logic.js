@@ -1,206 +1,349 @@
-// tests/auction-logic.js — オークションバトルのルール（第31弾 第3部）
+// tests/auction-logic.js — 相場オークションのルール層（第38弾で作り直し）
 //
-// 作り直しの芯が守られているかを見る:
-//   ・払うのは落札した人だけ（落札できなかった人は何も失わない）
-//   ・順位に応じた足枷（強制最低入札）が無いこと
-//   ・誰も入札しなければ品物は流れること
-//   ・同じ金額なら、先に出した人が落札すること
-//   ・アイテムの効き方（半額・2倍・鑑定眼・撤回権）
-//   ・2ラウンドごとの救済が残っていること
+// 見張るのは、この遊びが成り立つための約束：
+//   ① 相場は「みんなが買った回数」で決まる（運ではない）
+//   ② 誰も買わなかった系統を育てる逆転の道が、数の上で本当に開いている
+//   ③ 落札できなかった人は何も失わない
+//   ④ 残チップは少しだけ点になる（最終ラウンドにもブレーキが残る）
+//   ⑤ 開場で宣言した内訳と、実際に並ぶ品質が一致する（嘘をつかない）
+//   ⑥ 段階ヒントが、全員に同じ順番・同じ中身で開く
+//
+// 落とし穴10の型を避けるため、**守りたい約束は具体の数字で書く**。
+// RULES の値をそのまま検査に持ち込むと、定数を変えた瞬間に検査も一緒に動いて素通りする。
 
-const { createRunner, assert, assertEqual } = require('./harness');
 const A = require('../public/js/auction-logic');
 const Items = require('../public/js/auction-items');
+const { createRunner, assert, assertEqual } = require('./harness');
 
-function jackpot() { return Items.itemsOf('jackpot')[0]; }
-function dud() { return Items.itemsOf('dud')[0]; }
+// 決まった順で引く乱数（同じ並びを何度でも作れる）
+function seeded(seed) {
+  let s = seed || 1;
+  return function () { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+}
 
-async function run() {
-  const r = createRunner('auction-logic：オークションのルール');
+(async function main() {
+  const r = createRunner('auction-logic：相場オークションのルール');
 
-  await r.test('設定は枠に収まる（おかしな値を送られても壊れない）', async () => {
-    const c = A.normalizeConfig({ mode: 'へんなもの', rounds: 999, startChips: -5, bidSec: 0 });
-    assertEqual(c.mode, A.MODE.OPEN, '知らない遊び方はせり上げ式にする');
-    assertEqual(c.rounds, A.MAX_ROUNDS, 'ラウンド数は上限まで');
-    assert(c.startChips >= 5, 'チップは最低でも5枚');
-    assert(c.bidSec >= 10, '考える時間は最低10秒');
-    assertEqual(A.normalizeConfig({ mode: 'sealed' }).mode, A.MODE.SEALED, '秘密入札も選べる');
-    assertEqual(A.normalizeConfig({}).rescue, true, '救済は既定で入る');
+  // ---------- 設定 ----------
+
+  await r.test('設定は範囲に収める。おかしな値でも遊べる形になる', async () => {
+    const c = A.normalizeConfig({ mode: 'open', rounds: 99, previewSec: 5 });
+    assertEqual(c.mode, 'open', 'せり上げ式');
+    assertEqual(c.rounds, 3, 'ラウンドは3が上限');
+    assertEqual(c.previewSec, 30, '下見は30秒が下限');
+    const d = A.normalizeConfig({});
+    assertEqual(d.mode, 'sealed', '既定は秘密入札');
+    assertEqual(d.rounds, 2, '既定は2ラウンド');
+    assertEqual(d.previewSec, 60, '既定の下見は60秒');
+    const e = A.normalizeConfig({ rounds: 'あ', previewSec: null });
+    assertEqual(e.rounds, 2, '数でなくても既定に落ちる');
+    assertEqual(e.previewSec, 60, '同上');
   });
 
-  await r.test('入札できるのは、持っているチップまで（順位の足枷は無い）', async () => {
-    // 前のルールにあった「順位が上の人ほど最低額が高い」は廃止した。
-    // 落札できなければ損をしないので、最低額を強制しても足枷にならない
-    assertEqual(A.canBid(0, { chips: 20, mode: A.MODE.SEALED }).ok, true, '0でも出せる（降りる）');
-    assertEqual(A.canBid(20, { chips: 20, mode: A.MODE.SEALED }).ok, true, '全部賭けられる');
-    const over = A.canBid(21, { chips: 20, mode: A.MODE.SEALED });
-    assertEqual(over.ok, false, '持っている以上は出せない');
-    assertEqual(over.reason, 'tooMuch', '理由が分かる');
-    assertEqual(A.canBid('あ', { chips: 20, mode: A.MODE.SEALED }).ok, false, '数字でないものは通らない');
-  });
+  // ---------- 品物を並べる ----------
 
-  await r.test('せり上げ式では、いまの最高額より上でないと出せない', async () => {
-    const low = A.canBid(5, { chips: 20, mode: A.MODE.OPEN, highest: 5 });
-    assertEqual(low.ok, false, '同額では上書きできない');
-    assertEqual(low.reason, 'notHigher', '理由が分かる');
-    assertEqual(A.canBid(6, { chips: 20, mode: A.MODE.OPEN, highest: 5 }).ok, true, '1つ上なら出せる');
-    // 秘密入札では、他の人の金額が見えないので、この決まりは効かない
-    assertEqual(A.canBid(5, { chips: 20, mode: A.MODE.SEALED, highest: 5 }).ok, true,
-      '秘密入札では最高額を見ない');
-  });
-
-  await r.test('いちばん高い人が落札する', async () => {
-    const got = A.settleBids([
-      { id: 'a', amount: 3, at: 100 },
-      { id: 'b', amount: 7, at: 200 },
-      { id: 'c', amount: 5, at: 150 }
-    ]);
-    assertEqual(got.winnerId, 'b', '高い人が落札');
-    assertEqual(got.amount, 7, '出した額がそのまま');
-  });
-
-  await r.test('同じ金額なら、先に出した人が落札する', async () => {
-    // ランダムで決めると「なぜ負けたか」を説明できない。早い者勝ちなら理由が言える
-    const got = A.settleBids([
-      { id: 'a', amount: 7, at: 300 },
-      { id: 'b', amount: 7, at: 100 },
-      { id: 'c', amount: 7, at: 200 }
-    ]);
-    assertEqual(got.winnerId, 'b', 'いちばん早く出した人');
-  });
-
-  await r.test('誰も入札しなければ、品物は流れる', async () => {
-    assertEqual(A.settleBids([]), null, '入札が無ければ落札者なし');
-    assertEqual(A.settleBids([{ id: 'a', amount: 0, at: 1 }]), null, '0は入札していない扱い');
-  });
-
-  await r.test('落札できなかった人は、何も失わない', async () => {
-    // ここがいちばん大事な変更点。負けた人の収支に触る計算がそもそも無い
-    const bids = [{ id: 'a', amount: 9, at: 1 }, { id: 'b', amount: 4, at: 2 }];
-    const won = A.settleBids(bids);
-    assertEqual(won.winnerId, 'a', 'aが落札');
-    // 支払いの計算は落札者の分しか無い（負けた人のぶんを計算する入口が無い）
-    const paid = A.settlePayment(won.amount, jackpot(), {});
-    assertEqual(paid.paid, 9, '落札者だけが払う');
-    assertEqual(typeof A.settlePayment, 'function', '負けた人ぶんの計算は存在しない');
-  });
-
-  await r.test('半額チケット：支払いが半分になる（端数は切り上げ）', async () => {
-    const item = jackpot();
-    assertEqual(A.settlePayment(10, item, { halfticket: true }).paid, 5, '10 → 5');
-    // 切り捨てにすると、奇数のときだけ妙に得をする
-    assertEqual(A.settlePayment(5, item, { halfticket: true }).paid, 3, '5 → 3（切り上げ）');
-    assertEqual(A.settlePayment(5, item, {}).paid, 5, '使わなければそのまま');
-  });
-
-  await r.test('ダブルアップ：当たりも2倍だが、ハズレの損も2倍', async () => {
-    const win = A.settlePayment(5, jackpot(), { doubleup: true });
-    assertEqual(win.value, jackpot().value * 2, '当たりは2倍');
-    const lose = A.settlePayment(5, dud(), { doubleup: true });
-    assertEqual(lose.value, dud().value * 2, '大ハズレの損も2倍');
-    assert(lose.delta < 0, '大ハズレで2倍にすると、しっかり損をする');
-  });
-
-  await r.test('収支は「品物の価値 − 払った額」', async () => {
-    const item = jackpot();
-    const got = A.settlePayment(6, item, {});
-    assertEqual(got.delta, item.value - 6, '差し引きが収支');
-    // 半額チケットは収支をそのぶん良くする
-    const half = A.settlePayment(6, item, { halfticket: true });
-    assertEqual(half.delta, item.value - 3, '半額なら払いが減る');
-  });
-
-  await r.test('鑑定眼：ヒントは1つずつ出て、同じものを2度出さない', async () => {
-    const item = jackpot();
-    const first = A.hintFor(item, []);
-    assert(first, '1つ目のヒントが出る');
-    const second = A.hintFor(item, [first]);
-    assert(second && second !== first, '2つ目は違うヒント');
-    assertEqual(A.hintFor(item, item.hints), null, '出しきったら、もう無い');
-  });
-
-  await r.test('撤回権は秘密入札だけで使える', async () => {
-    // せり上げ式は、値を上げること自体が出し直しなので、撤回権に意味が無い
-    const open = A.itemsFor(A.MODE.OPEN).map((x) => x.id);
-    const sealed = A.itemsFor(A.MODE.SEALED).map((x) => x.id);
-    assertEqual(open.indexOf('retract'), -1, 'せり上げ式には出ない');
-    assert(sealed.indexOf('retract') !== -1, '秘密入札には出る');
-    assertEqual(open.length, 3, 'せり上げ式は3種');
-    assertEqual(sealed.length, 4, '秘密入札は4種');
-  });
-
-  await r.test('アイテムは4種、すべて使い切りで、値段と説明がある', async () => {
-    assertEqual(A.ITEMS.length, 4, '4種');
-    const ids = A.ITEMS.map((x) => x.id).sort().join(',');
-    assertEqual(ids, 'appraise,doubleup,halfticket,retract', '中身は指示のとおり');
-    A.ITEMS.forEach((x) => {
-      assert(x.cost > 0, x.name + ' に値段がある');
-      assert(x.lead && x.lead.length > 5, x.name + ' に説明がある');
-      assert(x.when, x.name + ' に使えるタイミングがある');
-    });
-  });
-
-  await r.test('救済：2ラウンドごとに、最下位へ無料アイテムを配る', async () => {
-    const players = [
-      { id: 'a', chips: 20 }, { id: 'b', chips: 8 }, { id: 'c', chips: 14 }
-    ];
-    assertEqual(A.rescueTargets(players, 1).join(''), '', '1ラウンド目は配らない');
-    assertEqual(A.rescueTargets(players, 2).join(''), 'b', '2ラウンド目は最下位へ');
-    assertEqual(A.rescueTargets(players, 3).join(''), '', '3ラウンド目は配らない');
-    assertEqual(A.rescueTargets(players, 4).join(''), 'b', '4ラウンド目も最下位へ');
-  });
-
-  await r.test('救済：最下位が並んでいたら全員へ、全員同じなら誰にも配らない', async () => {
-    const tie = [{ id: 'a', chips: 20 }, { id: 'b', chips: 8 }, { id: 'c', chips: 8 }];
-    assertEqual(A.rescueTargets(tie, 2).sort().join(','), 'b,c', '並んでいたら全員');
-    const same = [{ id: 'a', chips: 20 }, { id: 'b', chips: 20 }];
-    assertEqual(A.rescueTargets(same, 2).join(''), '', '全員同じなら最下位は無い');
-  });
-
-  await r.test('救済で配るアイテムは、その遊び方で使えるものから出る', async () => {
-    for (let i = 0; i < 200; i++) {
-      const id = A.rescueItemFor(A.MODE.OPEN);
-      assert(id !== 'retract', 'せり上げ式で撤回権は配られない');
-      assert(A.itemById(id), '知らないアイテムは配られない');
+  await r.test('開場で宣言した内訳どおりの品質が並ぶ（数で嘘をつかない）', async () => {
+    // ここが崩れると、開場の「上物2・並物3・偽物1」が嘘になる。
+    // 遊ぶ人は消去法をその宣言に賭けているので、これは一番やってはいけない
+    for (let seed = 1; seed <= 30; seed++) {
+      const items = A.buildRound({}, seeded(seed));
+      assertEqual(items.length, 6, 'seed' + seed + '：6品ならぶ');
+      const q = items.map((x) => x.quality);
+      assertEqual(q.filter((x) => x === 'fine').length, 2, 'seed' + seed + '：上物2');
+      assertEqual(q.filter((x) => x === 'plain').length, 3, 'seed' + seed + '：並物3');
+      assertEqual(q.filter((x) => x === 'fake').length, 1, 'seed' + seed + '：偽物1');
     }
   });
 
-  await r.test('順位：チップが多い順。同じなら同じ順位で、並びがちらつかない', async () => {
+  await r.test('品番号は1から6。順番も開場から見えている', async () => {
+    const items = A.buildRound({}, seeded(7));
+    assertEqual(items.map((x) => x.no).join(','), '1,2,3,4,5,6', '1から順に振られる');
+  });
+
+  await r.test('同じ見た目の品が、1ラウンドに2つ並ばない', async () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const looks = A.buildRound({}, seeded(seed)).map((x) => x.look);
+      assertEqual(new Set(looks).size, 6, 'seed' + seed + '：見た目が全部ちがう');
+    }
+  });
+
+  await r.test('前のラウンドで出た品は、なるべく避ける', async () => {
+    const first = A.buildRound({}, seeded(3));
+    const used = {};
+    first.forEach((x) => { used[x.look] = true; });
+    const second = A.buildRound(used, seeded(4));
+    const again = second.filter((x) => used[x.look]);
+    assertEqual(again.length, 0, '2ラウンド目に同じ品が出ない');
+  });
+
+  await r.test('ヒントと正体が、その品の品質のものになっている（矛盾しない）', async () => {
+    // 門8「ヒントが品質と矛盾しない」。品質ごとに書き分けたデータを、
+    // 並べる時に取り違えていないかを見る
+    const items = A.buildRound({}, seeded(11));
+    items.forEach((it) => {
+      const src = Items.ITEMS.find((x) => x.look === it.look);
+      assert(src, it.look + ' が品物の一覧にある');
+      assertEqual(it.steps.join('｜'), src.q[it.quality].steps.join('｜'),
+        it.look + '：段階ヒントが、その品質のもの');
+      assertEqual(it.reveal, src.q[it.quality].reveal, it.look + '：正体が、その品質のもの');
+    });
+  });
+
+  // ---------- ヒントの開き方 ----------
+
+  await r.test('段階ヒントは、時間で順に開く（見た目→①→②で打ち止め）', async () => {
+    const it = A.buildRound({}, seeded(5))[0];
+    assertEqual(A.hintsVisible(it, 0).length, 1, '始めは見た目だけ');
+    assertEqual(A.hintsVisible(it, 0)[0], it.look, 'それは見た目の一言');
+    assertEqual(A.hintsVisible(it, 11).length, 1, '11秒ではまだ増えない');
+    assertEqual(A.hintsVisible(it, 12).length, 2, '12秒で1つ開く');
+    assertEqual(A.hintsVisible(it, 12)[1], it.steps[0], '開くのは1つ目のヒント');
+    assertEqual(A.hintsVisible(it, 24).length, 3, '24秒で2つ目も開く');
+    assertEqual(A.hintsVisible(it, 24)[2], it.steps[1], '順番どおり');
+    assertEqual(A.hintsVisible(it, 600).length, 3, 'それ以上は増えない（打ち止め）');
+    assertEqual(A.hintsVisible(null, 30).length, 0, '品が無ければ空');
+  });
+
+  await r.test('同じ経過時間なら、誰が見ても同じヒントになる', async () => {
+    // 「全員に同時に届く」の土台。時間だけで決まる＝人によって違いようがない
+    const it = A.buildRound({}, seeded(6))[0];
+    for (const t of [0, 5, 12, 20, 24, 99]) {
+      assertEqual(A.hintsVisible(it, t).join('｜'), A.hintsVisible(it, t).join('｜'),
+        t + '秒：何度呼んでも同じ');
+    }
+  });
+
+  // ---------- 相場 ----------
+
+  await r.test('相場は全系統1から始まり、落札のたびにその系統だけ上がる', async () => {
+    const m = A.newMarket();
+    Items.KINDS.forEach((k) => assertEqual(m[k.id], 1, k.label + ' は1から'));
+    A.bumpMarket(m, 'tsubo');
+    A.bumpMarket(m, 'tsubo');
+    assertEqual(m.tsubo, 3, 'つぼが2回落札されて3');
+    assertEqual(m.egaku, 1, '買われていない系統は動かない');
+    A.bumpMarket(m, 'しらない系統');
+    assertEqual(Object.keys(m).length, 3, '知らない系統では増えない');
+  });
+
+  await r.test('相場が3以上で「熱い」（大画面の合図の境目）', async () => {
+    const m = A.newMarket();
+    assertEqual(A.isHot(m, 'tsubo'), false, '1では熱くない');
+    A.bumpMarket(m, 'tsubo');
+    assertEqual(A.isHot(m, 'tsubo'), false, '2でもまだ');
+    A.bumpMarket(m, 'tsubo');
+    assertEqual(A.isHot(m, 'tsubo'), true, '3で熱くなる');
+  });
+
+  // ---------- 得点 ----------
+
+  await r.test('得点は「品質値 × その系統の最終相場」', async () => {
+    const m = { tsubo: 3, egaku: 1, kagayaki: 2 };
+    assertEqual(A.itemPoints({ kind: 'tsubo', quality: 'fine' }, m), 9, '上物×相場3で9点');
+    assertEqual(A.itemPoints({ kind: 'egaku', quality: 'fine' }, m), 3, '同じ上物でも、相場1なら3点');
+    assertEqual(A.itemPoints({ kind: 'kagayaki', quality: 'plain' }, m), 2, '並物×相場2で2点');
+    assertEqual(A.itemPoints({ kind: 'tsubo', quality: 'fake' }, m), -6, '偽物は相場が育つほど痛い');
+    assertEqual(A.itemPoints(null, m), 0, '品が無ければ0');
+  });
+
+  await r.test('逆転の道：誰も買わなかった系統を、ひとりで育てられる', async () => {
+    // この遊びの芯。**安く買い集めて自分で相場を作る**が、数の上で本当に成り立つか。
+    // みんなが群がった系統で上物を1つ買った人と、
+    // 見向きもされない系統を3つ買って自分で育てた人を比べる
+    const market = A.newMarket();
+    // つぼ：3人が群がって3つ落札 → 相場4
+    A.bumpMarket(market, 'tsubo'); A.bumpMarket(market, 'tsubo'); A.bumpMarket(market, 'tsubo');
+    // えがく：ひとりが3つ買い集めた → 相場4
+    A.bumpMarket(market, 'egaku'); A.bumpMarket(market, 'egaku'); A.bumpMarket(market, 'egaku');
+    assertEqual(market.tsubo, 4, 'つぼの相場は4');       // 型(b)：条件が本当に作れている
+    assertEqual(market.egaku, 4, 'えがくの相場も4');
+
+    const 群がった人 = A.scoreOf([{ kind: 'tsubo', quality: 'fine' }], market, 0);
+    const 育てた人 = A.scoreOf([
+      { kind: 'egaku', quality: 'plain' },
+      { kind: 'egaku', quality: 'plain' },
+      { kind: 'egaku', quality: 'fine' }
+    ], market, 0);
+    assertEqual(群がった人.total, 12, '上物1つ×相場4で12点');
+    assertEqual(育てた人.total, 20, '並物2つ＋上物1つ×相場4で20点');
+    assert(育てた人.total > 群がった人.total,
+      '安物を買い集めて相場を育てる道が、ちゃんと勝ちうる');
+  });
+
+  await r.test('残チップは3枚で1点。貯め込むだけでは勝てない', async () => {
+    assertEqual(A.pointsFromChips(0), 0, '0枚は0点');
+    assertEqual(A.pointsFromChips(2), 0, '2枚では点にならない');
+    assertEqual(A.pointsFromChips(3), 1, '3枚で1点');
+    assertEqual(A.pointsFromChips(20), 6, '20枚で6点');
+    assertEqual(A.pointsFromChips(-5), 0, 'マイナスでも0止まり');
+    // 何も買わずに全部残した人が、上物を1つ買った人に勝てないこと
+    const 貯めた人 = A.scoreOf([], A.newMarket(), 26);      // 初期20＋収入6
+    const 買った人 = A.scoreOf([{ kind: 'tsubo', quality: 'fine' }], { tsubo: 4 }, 0);
+    assertEqual(貯めた人.total, 8, '26枚を貯め込んで8点');
+    assertEqual(買った人.total, 12, '育った系統の上物1つで12点');
+    assert(買った人.total > 貯めた人.total, '買わない人が勝つ形にはなっていない');
+  });
+
+  await r.test('得点の内訳が出る（なぜその点なのかを、結果画面で言える）', async () => {
+    const s = A.scoreOf([{ kind: 'tsubo', quality: 'fine' }], { tsubo: 2 }, 7);
+    assertEqual(s.fromItems, 6, '品物ぶん6点');
+    assertEqual(s.fromChips, 2, '残7枚で2点');
+    assertEqual(s.total, 8, '合わせて8点');
+    assertEqual(s.items.length, 1, '品物ごとの内訳もある');
+    assertEqual(s.items[0].points, 6, 'その品が何点だったか分かる');
+  });
+
+  // ---------- 入札 ----------
+
+  await r.test('せり上げ式：いまの最高額より上でないと出せない', async () => {
+    assertEqual(A.canBid('open', 5, 20, null).ok, true, '誰も出していなければ出せる');
+    assertEqual(A.canBid('open', 0, 20, null).ok, false, '0では入札にならない');
+    assertEqual(A.canBid('open', 5, 20, { amount: 5 }).ok, false, '同額では上回れない');
+    assertEqual(A.canBid('open', 6, 20, { amount: 5 }).ok, true, '1つ上なら出せる');
+    assertEqual(A.canBid('open', 5, 20, { amount: 5 }).reason, 'notHigher', '理由が分かる');
+  });
+
+  await r.test('持っていない額は出せない（端末の数字を信じない）', async () => {
+    assertEqual(A.canBid('open', 21, 20, null).ok, false, '持ちチップを超えられない');
+    assertEqual(A.canBid('open', 21, 20, null).reason, 'tooMuch', '理由が分かる');
+    assertEqual(A.canBid('sealed', 21, 20, null).ok, false, '秘密入札でも同じ');
+    assertEqual(A.canBid('sealed', -1, 20, null).ok, false, 'マイナスは出せない');
+    assertEqual(A.canBid('sealed', 'あ', 20, null).ok, false, '数でないものは出せない');
+  });
+
+  await r.test('秘密入札：0は「降りる」。要らない品に値をつけさせない', async () => {
+    assertEqual(A.canBid('sealed', 0, 20, null).ok, true, '0で出せる');
+    assertEqual(A.settleSealed([{ id: 'a', amount: 0, at: 1 }]), null, '0だけなら落札者はいない');
+  });
+
+  await r.test('秘密入札：いちばん高い人。同額なら先に出した人', async () => {
+    // ランダムにすると「なぜ負けたか」を誰にも説明できない
+    const w = A.settleSealed([
+      { id: 'a', amount: 5, at: 200 },
+      { id: 'b', amount: 5, at: 100 },
+      { id: 'c', amount: 4, at: 50 }
+    ]);
+    assertEqual(w.winnerId, 'b', '同額なら先に出した b');
+    assertEqual(w.amount, 5, '額は5');
+    assertEqual(A.settleSealed([]), null, '誰も出さなければ落札者はいない');
+  });
+
+  await r.test('半額チケットの端数は切り上げ（奇数だけ得をしない）', async () => {
+    assertEqual(A.payFor(10, false), 10, 'ふつうは額そのまま');
+    assertEqual(A.payFor(10, true), 5, '10の半分は5');
+    assertEqual(A.payFor(7, true), 4, '7の半分は切り上げて4');
+    assertEqual(A.payFor(1, true), 1, '1は1のまま');
+    assertEqual(A.payFor(0, true), 0, '0は0');
+  });
+
+  await r.test('落札できなかった人は、何も失わない', async () => {
+    // 第31弾から引き継いだ、この遊びの土台。
+    // 負けた人の持ち物に触る計算が、そもそも存在しないことを見る
+    const w = A.settleSealed([
+      { id: 'a', amount: 9, at: 1 }, { id: 'b', amount: 8, at: 2 }
+    ]);
+    assertEqual(w.winnerId, 'a', 'aが落札');
+    // 負けたbについて、払う額を計算する関数がそもそも呼ばれる形になっていない
+    assertEqual(A.payFor(0, false), 0, '払わない人の支払いは0');
+    const s = A.scoreOf([], { tsubo: 3 }, 20);
+    assertEqual(s.fromItems, 0, '何も落札しなければ品物の点は0（マイナスにならない）');
+  });
+
+  // ---------- 収入 ----------
+
+  await r.test('使いすぎた人は、次のラウンドで自動的に息切れする', async () => {
+    assertEqual(A.incomeFor(0), 6, '使わなければ6枚');
+    assertEqual(A.incomeFor(9), 6, '9枚までは6枚');
+    assertEqual(A.incomeFor(10), 3, '10枚使ったら3枚');
+    assertEqual(A.incomeFor(30), 3, 'それ以上でも3枚（追い打ちはしない）');
+  });
+
+  // ---------- 値踏み予想 ----------
+
+  await r.test('値踏みは当たれば1枚。外しても何も失わない', async () => {
+    assertEqual(A.guessReward('fine', 'fine'), 1, '当たれば1枚');
+    assertEqual(A.guessReward('fake', 'fine'), 0, '外しても0（減らない）');
+    assertEqual(A.guessReward(null, 'fine'), 0, '予想しなくても0（罰なし）');
+  });
+
+  // ---------- 順位 ----------
+
+  await r.test('順位：点が多い順。同点なら同順位', async () => {
     const rows = A.rank([
-      { id: 'a', name: 'あき', chips: 12 },
-      { id: 'b', name: 'びび', chips: 20 },
-      { id: 'c', name: 'ちか', chips: 12 }
+      { id: 'a', score: 5 }, { id: 'b', score: 9 }, { id: 'c', score: 5 }, { id: 'd', score: 1 }
     ]);
-    assertEqual(rows[0].name, 'びび', '多い人が1位');
-    assertEqual(rows[0].rank, 1, '1位');
-    assertEqual(rows[1].rank, 2, '同点は同じ順位');
-    assertEqual(rows[2].rank, 2, '同点は同じ順位');
-    // 何度呼んでも同じ並び
-    const again = A.rank([
-      { id: 'c', name: 'ちか', chips: 12 },
-      { id: 'a', name: 'あき', chips: 12 },
-      { id: 'b', name: 'びび', chips: 20 }
-    ]);
-    assertEqual(again.map((x) => x.name).join(','), rows.map((x) => x.name).join(','),
-      '入れ替えて渡しても同じ並び');
+    assertEqual(rows.map((x) => x.id).join(','), 'b,a,c,d', '点の多い順');
+    assertEqual(rows.map((x) => x.rank).join(','), '1,2,2,4', '同点は同順位（1224方式）');
+    assertEqual(A.rank([]).length, 0, '空でも落ちない');
   });
 
-  await r.test('遊びとして成り立つ：何も分からず平均で入札すると、ほぼ損得なし', async () => {
-    // 全品物の平均価値くらいで入札すると収支が0に近い＝
-    // 「鑑定眼で平均より上を見抜けた時だけ得をする」形になっている
-    const all = Items.ITEMS;
-    const avg = all.reduce((s, x) => s + x.value, 0) / all.length;
-    const bid = Math.round(avg);
-    const total = all.reduce((s, x) => s + A.settlePayment(bid, x, {}).delta, 0);
-    assert(Math.abs(total / all.length) <= 1,
-      '平均で入札した時の収支は、1枚ぶん以内に収まる（実際: ' + (total / all.length).toFixed(2) + '）');
+  // ---------- 名場面 ----------
+
+  await r.test('名場面：出せるものが無い時は、無理に何か言わない', async () => {
+    assertEqual(A.highlight([]), null, '何も起きていなければ何も言わない');
+    assertEqual(A.highlight([{ passed: true }]), null, '流れた品だけでも言わない');
+    assertEqual(A.highlight(null), null, '渡されなくても落ちない');
   });
 
-  // finish() は失敗した時だけ process.exit(1) する。
-  // 成功時に何も返さないので、返り値で終了コードを決めてはいけない
-  // （緑なのに exit 1 になり、npm test の連鎖がそこで止まる）
+  await r.test('名場面：みんなが偽物と読んだ品を信じて買った人を拾う', async () => {
+    const line = A.highlight([
+      { no: 3, winner: 'あき', kind: 'tsubo', quality: 'fine', points: 9,
+        guesses: [{ guess: 'fake' }, { guess: 'fake' }] },
+      { no: 1, winner: 'びび', kind: 'egaku', quality: 'plain', points: 2, guesses: [] }
+    ]);
+    assert(/あき/.test(line) && /3番/.test(line) && /9点/.test(line),
+      '誰が・どの品で・何点かが入る（実際: ' + line + '）');
+  });
+
+  await r.test('名場面：ひとりで系統を育てた人も拾う', async () => {
+    const h = [1, 2, 3].map((n) => ({
+      no: n, winner: 'ちか', kind: 'egaku', quality: 'plain', points: 3, guesses: []
+    }));
+    const line = A.highlight(h);
+    assert(/ちか/.test(line) && /えがく/.test(line), 'ひとりで集めたことが出る（実際: ' + line + '）');
+  });
+
+  // ---------- アイテム ----------
+
+  await r.test('アイテムは3種。ラウンドごとに1つだけ選ぶ', async () => {
+    assertEqual(A.POWERS.length, 3, '3種');
+    assertEqual(A.RULES.ITEMS_PICK, 1, '選べるのは1つ');
+    ['appraise', 'halfticket', 'market'].forEach((id) => {
+      const p = A.powerById(id);
+      assert(p && p.label && p.icon && p.lead, id + ' に名前・アイコン・説明がある');
+    });
+    assertEqual(A.powerById('appraise').secretTarget, true,
+      '鑑定眼だけ、どの品を見たかを伏せる');
+    assertEqual(A.powerById('market').secretTarget, false,
+      '相場操作は、どの系統かまで公開する');
+  });
+
+  // ---------- 数字の置き場所 ----------
+
+  await r.test('遊びの数字が、ルール層に集まっている', async () => {
+    // 「定数は1か所に」。ここに無い数字を他のファイルが持ち始めたら、必ず食い違う
+    const need = ['START_CHIPS', 'INCOME', 'INCOME_TIRED', 'TIRED_SPENT', 'CHIPS_PER_POINT',
+      'MARKET_START', 'MARKET_STEP', 'MARKET_HOT', 'ITEMS_PER_ROUND',
+      'FIRST_BID_BONUS', 'GUESS_REWARD', 'HINT_STEP_SEC', 'HINT_STEPS',
+      'MIN_PLAYERS', 'MAX_PLAYERS'];
+    need.forEach((k) => {
+      assert(typeof A.RULES[k] === 'number', k + ' がルール層にある');
+    });
+    // 別紙が決めた数字。ここを黙って変えられないように、具体の数で固定する
+    assertEqual(A.RULES.START_CHIPS, 20, '初期チップ20');
+    assertEqual(A.RULES.INCOME, 6, '基本収入6');
+    assertEqual(A.RULES.INCOME_TIRED, 3, '使いすぎたら3');
+    assertEqual(A.RULES.TIRED_SPENT, 10, '境目は10枚');
+    assertEqual(A.RULES.ITEMS_PER_ROUND, 6, '1ラウンド6品');
+    assertEqual(A.RULES.GUESS_REWARD, 1, '値踏み的中は1枚');
+    assertEqual(A.RULES.MIN_PLAYERS, 3, '3人から');
+    assertEqual(A.RULES.MAX_PLAYERS, 8, '8人まで');
+    // 私が決めた数字（理由はルール層のコメントに書いてある）
+    assertEqual(A.RULES.CHIPS_PER_POINT, 3, '残チップ3枚で1点');
+    assertEqual(A.RULES.FIRST_BID_BONUS, 2, '最初の入札ボーナスは2枚');
+    assert(A.RULES.FIRST_BID_BONUS > A.RULES.GUESS_REWARD,
+      'ボーナスは値踏みの報酬より大きい');
+  });
+
   r.finish();
-}
-
-if (require.main === module) run();
-module.exports = { run };
+})();

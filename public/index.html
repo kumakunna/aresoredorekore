@@ -39,7 +39,19 @@
        （tests/design-tokens.js が6配色ぶん機械照合する） */
     --switch-knob:#FFFFFF;
     --switch-knob-edge:rgba(0,0,0,0.70);
+    /* 第39弾：文字サイズは**役割ごとに決める**（docs/デザインの正本.md 2-2）。
+       それまでは --font-scale という倍率が1か所（.app の font-size）でしか
+       使われておらず、font-size の宣言411個はどれも固定pxだったので、
+       設定を動かしても何ひとつ変わらなかった。
+       「倍率をかける」のではなく「役割の大きさを決める」形にする */
+    --fs-title:24px;
+    --fs-body:15px;
+    --fs-sub:12.5px;
+    --fs-btn:16px;
   }
+  /* 文字サイズ3段階。設定が .app に印を付け、役割ごとの大きさが入れ替わる */
+  .app.fs-small{ --fs-title:21px; --fs-body:13px;  --fs-sub:11px; --fs-btn:14px; }
+  .app.fs-large{ --fs-title:29px; --fs-body:18px;  --fs-sub:15px; --fs-btn:19px; }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -959,6 +971,136 @@
     100%{text-shadow:none;}}
   .got-label{font-size:26px;font-weight:800;margin-top:6px;}
   .got-why{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.7;}
+
+  /* ===================== 第39弾：共通UI部品（ui.js） =====================
+     **道具は世界の外にある。**（docs/デザインの正本.md 1-3）
+     ここは .app にどのテーマが当たっていても共通トークンで描く。
+     そのために --paper などを ui-layer で共通値に戻している——
+     テーマは .app に当たるので、子孫はそのままだと引き継いでしまう。
+
+     第39弾の着手前、設定パネルは背景だけテーマに追従して文字色が
+     固定の濃い墨のまま残り、暗いテーマで 1.11:1（読めない）になっていた。
+     **地と文字は必ず一緒に決める。** */
+  .ui-layer{
+    position:fixed;inset:0;z-index:120;display:flex;
+    /* 共通トークンに戻す（テーマ非適用領域） */
+    --paper:#EFE8D3; --paper-deep:#E4DBC0; --card:#FFFBF2;
+    --ink:#24272E; --ink-soft:#5B5A50;
+    --stamp:#B7242A; --stamp-deep:#8F1B20;
+    --line:rgba(36,39,46,0.14);
+    color:var(--ink);            /* ← 地とセットで必ず決める */
+    opacity:0;pointer-events:none;
+    transition:opacity .25s cubic-bezier(.32,.72,0,1);
+  }
+  .ui-layer.is-on{opacity:1;pointer-events:auto;}
+  .ui-dim{
+    position:fixed;inset:0;z-index:110;background:rgba(36,39,46,0.55);
+    opacity:0;transition:opacity .25s cubic-bezier(.32,.72,0,1);
+  }
+  .ui-dim.is-on{opacity:1;}
+
+  .ui-layer .ui-panel{
+    width:100%;max-width:460px;margin:0 auto;
+    display:flex;flex-direction:column;justify-content:center;
+    padding:22px;pointer-events:auto;
+  }
+  /* dialog は真ん中、sheet は下から、popup は真ん中で少し小さく */
+  .ui-dialog .ui-panel{align-self:center;}
+  .ui-sheet .ui-panel{align-self:flex-end;padding:0;}
+  .ui-popup .ui-panel{align-self:center;}
+
+  .ui-dialog-in, .ui-popup-in{
+    background:var(--card);border-radius:16px;padding:22px 20px 18px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.28);
+    transform:translateY(12px);transition:transform .25s cubic-bezier(.32,.72,0,1);
+  }
+  .ui-layer.is-on .ui-dialog-in,
+  .ui-layer.is-on .ui-popup-in{transform:none;}
+  /* 取り返しがつかないものは、赤の**縁だけ**（安全基準：赤は面で塗らない） */
+  .ui-dialog-in.is-danger{border:2px solid var(--stamp);}
+
+  .ui-sheet-in{
+    background:var(--card);border-radius:16px 16px 0 0;padding:20px 20px 26px;
+    box-shadow:0 -8px 32px rgba(0,0,0,0.24);max-height:78vh;
+    display:flex;flex-direction:column;
+    transform:translateY(24px);transition:transform .25s cubic-bezier(.32,.72,0,1);
+  }
+  .ui-layer.is-on .ui-sheet-in{transform:none;}
+
+  .ui-head{
+    font-family:'Shippori Mincho',serif;font-weight:800;
+    font-size:var(--fs-title);line-height:1.35;margin-bottom:10px;
+  }
+  .ui-body{
+    font-size:var(--fs-body);line-height:1.75;color:var(--ink);margin-bottom:16px;
+  }
+  .ui-scroll{
+    font-size:var(--fs-body);line-height:1.75;overflow-y:auto;flex:1;min-height:0;
+  }
+  .ui-input{
+    width:100%;padding:12px;border:1.5px solid var(--line);border-radius:8px;
+    font-size:var(--fs-body);font-family:inherit;background:#fff;color:var(--ink);
+    margin-bottom:16px;
+  }
+
+  .ui-acts{display:flex;flex-direction:column;gap:8px;}
+  .ui-btn{
+    width:100%;min-height:48px;border-radius:12px;border:none;cursor:pointer;
+    font-family:'Zen Maru Gothic',sans-serif;font-weight:700;
+    font-size:var(--fs-btn);
+    transition:transform .15s cubic-bezier(.32,.72,0,1), filter .15s ease;
+  }
+  /* 主ボタンは大きく、逃げ道は小さく（正本：迷った時に強い方へ倒れないように） */
+  .ui-btn-main{background:var(--ink);color:var(--paper);}
+  .ui-dialog-in.is-danger .ui-btn-main{background:var(--stamp-deep);color:#fff;}
+  .ui-btn-quiet{
+    background:transparent;color:var(--ink-soft);min-height:40px;
+    font-weight:400;font-size:var(--fs-sub);text-decoration:underline;
+  }
+  /* 押した瞬間の反応（2-2：すべての押せるものに共通） */
+  .ui-btn:active{transform:scale(.97);filter:brightness(1.1);}
+
+  .ui-popup-head{
+    display:flex;align-items:center;gap:10px;margin-bottom:12px;
+    padding-bottom:10px;border-bottom:1px solid var(--line);
+  }
+  .ui-popup-icon{font-size:26px;line-height:1;flex:none;}
+  .ui-popup-name{
+    font-family:'Shippori Mincho',serif;font-weight:800;
+    font-size:var(--fs-title);flex:1;
+  }
+  .ui-x{
+    width:34px;height:34px;border-radius:50%;background:var(--paper);
+    border:1px solid var(--line);font-size:15px;cursor:pointer;flex:none;color:var(--ink);
+  }
+  .ui-x:active{transform:scale(.94);}
+  .ui-popup-in{max-height:76vh;display:flex;flex-direction:column;}
+
+  /* toast：判断の要らない知らせ。下に短く出て消える */
+  .ui-toasts{
+    position:fixed;left:0;right:0;bottom:86px;z-index:130;
+    display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;
+  }
+  .ui-toast{
+    max-width:min(88vw,420px);
+    background:rgba(36,39,46,0.92);color:#FFFBF2;
+    border-radius:999px;padding:10px 20px;
+    font-size:var(--fs-sub);line-height:1.5;
+    opacity:0;transform:translateY(8px);
+    transition:opacity .25s cubic-bezier(.32,.72,0,1), transform .25s cubic-bezier(.32,.72,0,1);
+  }
+  .ui-toast.is-on{opacity:1;transform:none;}
+
+  /* chip：押せる小さな状態 */
+  .ui-chip{
+    display:inline-flex;align-items:center;gap:5px;
+    background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:6px 13px;font-size:var(--fs-sub);color:var(--ink);
+    font-family:inherit;cursor:pointer;
+    transition:transform .15s cubic-bezier(.32,.72,0,1), background .15s ease;
+  }
+  .ui-chip:active{transform:scale(.96);background:var(--paper-deep);}
+  .ui-chip-i{line-height:1;}
 
   /* 第32弾-B-1：演出の速さ。スキップにしたら、画面の動きを全部止める
      （待たされるのが苦手な人・急いでいる時のため。情報は必ず画面にも出す） */
@@ -4959,6 +5101,8 @@
 <script src="js/auction-items.js"></script>
 <script src="js/auction-logic.js"></script>
 <script src="js/fx.js"></script>
+<script src="js/ui-text.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/emoji.js"></script>
 <script src="js/emoji-list.js"></script>
 <script src="js/titles.js"></script>
@@ -6850,6 +6994,10 @@
     var app = el('app');
     if(!app) return;
     app.style.setProperty('--font-scale', (appPrefs.fontScale / 100).toFixed(2));
+    // 第39弾：文字サイズは役割ごとのトークンで決める（正本 2-2）。
+    // 倍率は1か所でしか効いていなかったので、3段階の印に置き換えた
+    app.classList.toggle('fs-small', appPrefs.fontScale <= 92);
+    app.classList.toggle('fs-large', appPrefs.fontScale >= 115);
     app.style.setProperty('--screen-bright', (appPrefs.brightness / 100).toFixed(2));
     // 演出の速さ。0 はスキップ（時間0で終わる）
     var fx = appPrefs.fxSpeed === 'fast' ? 0.5 : (appPrefs.fxSpeed === 'skip' ? 0 : 1);
@@ -19697,6 +19845,15 @@
         shake: function(){ return appPrefs.fxShake; }
       }
     });
+    // 第39弾：共通UI部品。FxKit を借りて、出現・消失をスキップ三層に乗せる
+    if(typeof UiKit !== 'undefined'){
+      UiKit.init({
+        doc: document,
+        root: el('app'),
+        fx: FxKit,
+        text: (typeof UiText !== 'undefined') ? UiText.WORDS : {}
+      });
+    }
   }
 
   function startEmojiSwap(){

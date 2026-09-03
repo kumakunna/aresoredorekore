@@ -300,7 +300,11 @@ function seeded(seed) {
       no: n, winner: 'ちか', kind: 'egaku', quality: 'plain', points: 3, guesses: []
     }));
     const line = A.highlight(h);
-    assert(/ちか/.test(line) && /えがく/.test(line), 'ひとりで集めたことが出る（実際: ' + line + '）');
+    // 系統の名前は正本（auction-items）から引く。ここに書き写すと、
+    // 名前を直した日に、実装ではなく検査のほうが赤くなる（落とし穴10-d）
+    const egaku = Items.kindById('egaku').label;
+    assert(/ちか/.test(line) && line.indexOf(egaku) !== -1,
+      'ひとりで集めたことが出る（実際: ' + line + '）');
   });
 
   // ---------- アイテム ----------
@@ -343,6 +347,40 @@ function seeded(seed) {
     assertEqual(A.RULES.FIRST_BID_BONUS, 2, '最初の入札ボーナスは2枚');
     assert(A.RULES.FIRST_BID_BONUS > A.RULES.GUESS_REWARD,
       'ボーナスは値踏みの報酬より大きい');
+  });
+
+  await r.test('せり上げ式の持ち時間は、段階ヒントが全部開くだけの長さがある', async () => {
+    // 実機で見つけた穴：せり上げ式の「最初の持ち時間」に名前がなく、
+    // 延長の値（8秒）を使い回していた。ヒントは12秒ごとに開く約束なので、
+    // **誰も入札しない品では、ヒントが1本も開かないまま流れていた**。
+    // 「ヒントが増えるほど値が上がる」という遊びの芯が動いていなかった。
+    //
+    // ここで見るのは数の大小ではなく、**振る舞い**：
+    // 最初の持ち時間を使い切った時点で、段階ヒントが何本開いているか。
+    // こう書くと、持ち時間を縮めても、ヒントの間隔を延ばしても赤くなる
+    const item = A.buildRound({})[0];
+    const atEnd = A.hintsVisible(item, A.RULES.OPEN_START_SEC);
+    assertEqual(atEnd.length, 1 + A.RULES.HINT_STEPS,
+      '持ち時間を使い切る頃には、見た目＋段階ヒスト2本が出そろっている'.replace('ヒスト', 'ント'));
+    // 開始の直後は、見た目だけ（先のヒントを最初から見せない）
+    assertEqual(A.hintsVisible(item, 0).length, 1, '始まった瞬間は見た目だけ');
+    // 延長は「最初の持ち時間」とは別の数（同じ数を使い回すと、上の穴が戻る）
+    assert(A.RULES.OPEN_START_SEC !== A.RULES.OPEN_EXTEND_SEC,
+      '最初の持ち時間と延長は、別の数として持っている');
+  });
+
+  await r.test('6品は、系統が均等に並ぶ（相場が動かない系統を作らない）', async () => {
+    // 無作為に6つ取っていた頃は「絵4・輝き2・壺0」のような回が普通に出た。
+    // 相場が主役の遊びで、一度も相場が動かない系統ができると、
+    // 「放っておかれた系統を安く買う」という芯の戦略がその回に存在しなくなる
+    for (let t = 0; t < 40; t++) {
+      const round = A.buildRound({});
+      const count = {};
+      round.forEach((it) => { count[it.kind] = (count[it.kind] || 0) + 1; });
+      Items.KINDS.forEach((k) => {
+        assertEqual(count[k.id], 2, k.label + ' が2品ある');
+      });
+    }
   });
 
   r.finish();

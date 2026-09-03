@@ -1304,6 +1304,147 @@
     background:var(--card);font-size:15px;cursor:pointer;line-height:1;
   }
   .rt-member .rm-op.danger{color:#c0392b;border-color:#e2b4ae;}
+  /* ===== 第38弾：相場オークション ===== */
+  /* 上の帯。チップと相場は、どの画面でも見えていないと判断ができない */
+  .mk-topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+  .mk-chips{font-family:'DotGothic16',monospace;font-size:24px;color:var(--gold);}
+  .mk-chips::after{content:'枚';font-size:12px;margin-left:2px;}
+  .mk-market{display:flex;gap:8px;flex:1;justify-content:center;}
+  .mk-market .amk{
+    display:flex;align-items:center;gap:3px;font-size:13px;
+    background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 9px;
+  }
+  .mk-market .amk b{font-family:'DotGothic16',monospace;font-size:16px;color:var(--stamp-deep);}
+  /* 相場が育った系統は、縁で分かるようにする（色だけに頼らず数字も出ている） */
+  .mk-market .amk.hot{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;}
+
+  /* 棚。**6品が最初から全部並ぶ**——見比べて悩めることが、この遊びの芯 */
+  /* 棚は画面の縦を使い切る。6品を「並べた」だけでなく「見比べられる大きさ」にする */
+  /* 開場だけ、本文を縦の並びにする（共通の .wiz-body には手を入れない） */
+  #scr-rt-au-open .wiz-body{display:flex;flex-direction:column;}
+  .mk-shelfwrap{display:flex;flex-direction:column;flex:1;min-height:0;gap:10px;}
+  .mk-shelf{
+    display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:8px;
+    flex:1;min-height:0;
+  }
+  .mk-card{
+    background:var(--card);border:1.5px solid var(--line);border-radius:12px;
+    padding:10px 8px;text-align:center;position:relative;min-height:104px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  }
+  .mk-card .ac-no{
+    position:absolute;top:4px;left:6px;font-size:10px;color:var(--ink-soft);
+    font-family:'DotGothic16',monospace;
+  }
+  .mk-card .ac-kind{font-size:22px;line-height:1;}
+  .mk-card .ac-look{font-size:11px;line-height:1.5;color:var(--ink);}
+  .mk-card .ac-q{
+    font-family:'DotGothic16',monospace;font-size:15px;color:var(--ink-soft);
+    border:1px dashed var(--line);border-radius:6px;padding:0 8px;
+  }
+  .mk-card.now{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset;}
+  .mk-card.sold{opacity:.5;}
+  .mk-card.sold .ac-q{border-style:solid;}
+  /* 鑑定眼で見た品。**この端末の持ち主にしか出ない** */
+  .mk-card.seen .ac-q{border-style:solid;border-color:var(--gold);color:var(--ink);font-size:11px;}
+
+  /* 競り：いまの品を中央に。下に残りが小さく並び続ける */
+  .mk-spot{text-align:center;margin:6px 0 10px;}
+  .mk-spot .as-kind{font-size:40px;line-height:1;}
+  .mk-spot .as-no{font-size:11px;color:var(--ink-soft);font-family:'DotGothic16',monospace;}
+  .mk-spot .as-look{font-family:'Shippori Mincho',serif;font-weight:800;font-size:22px;margin-top:2px;}
+  .mk-hints{display:flex;flex-direction:column;gap:5px;margin:0 auto 10px;max-width:340px;}
+  .mk-hints .ah{
+    font-size:12.5px;line-height:1.7;color:var(--ink-soft);text-align:left;
+    background:var(--paper-deep);border-radius:8px;padding:6px 10px;
+  }
+  .mk-hints .ah.new{border-left:3px solid var(--gold);}
+  .mk-highest{text-align:center;font-size:14px;margin-bottom:8px;min-height:22px;}
+  .mk-highest b{font-family:'DotGothic16',monospace;font-size:30px;color:var(--stamp-deep);}
+  .mk-bidpad{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:8px;}
+  /* 片手で届く大きさ（指示38 2-5） */
+  .mk-bidpad .abtn{
+    flex:1;min-width:88px;min-height:54px;border-radius:12px;
+    border:1.5px solid var(--line);background:var(--card);color:var(--ink);
+    font-size:17px;font-weight:700;cursor:pointer;
+  }
+  .mk-bidpad .abtn.main{background:var(--stamp);border-color:var(--stamp);color:#fff;}
+  /* いちばん使う道（+1・+3）を大きく、たまにしか使わない道は静かに */
+  .mk-bidpad .abtn .abn{font-family:'DotGothic16',monospace;font-size:28px;line-height:1;}
+  .mk-bidpad .abtn .abu{font-size:12px;margin-left:1px;}
+  .mk-bidpad .abtn .abs{display:block;font-size:11px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
+  .mk-bidpad .abtn.quiet{flex:0 0 84px;font-size:14px;font-weight:600;color:var(--ink-soft);}
+  .mk-bidpad .abtn:disabled{opacity:.35;cursor:default;}
+  .mk-rest{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:auto;padding:10px 0;}
+  .mk-rest .ar{
+    font-size:11px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;
+    background:var(--card);color:var(--ink-soft);
+  }
+  .mk-rest .ar.now{border-color:var(--gold);color:var(--ink);}
+  .mk-rest .ar.sold{opacity:.4;}
+
+  /* 値踏み：3択の大きなボタン */
+  .mk-guess{display:flex;gap:8px;justify-content:center;margin:10px 0;}
+  .mk-guess .agq{
+    flex:1;min-height:76px;border-radius:14px;border:1.5px solid var(--line);
+    background:var(--card);color:var(--ink);cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .mk-guess .agq .agi{font-size:24px;line-height:1;}
+  .mk-guess .agq .agl{font-size:14px;font-weight:700;}
+  .mk-guess .agq.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset;}
+
+  /* 開示：予想 → 品質 → 相場 → 得点 の順に出す */
+  .mk-guessrow{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;}
+  .mk-guessrow .agr{
+    font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:var(--card);
+  }
+  .mk-guessrow .agr.hit{border-color:var(--teal);color:var(--teal);font-weight:700;}
+  .mk-quality{text-align:center;font-size:30px;font-weight:800;margin:6px 0;min-height:40px;}
+  /* 上物は金、偽物は灰。**色だけに頼らず、必ず文字も出す**（指示38 2-5） */
+  .mk-quality.fine{color:var(--gold);}
+  .mk-quality.plain{color:var(--ink);}
+  .mk-quality.fake{color:var(--ink-soft);}
+  .mk-reveal{text-align:center;font-size:13px;line-height:1.9;color:var(--ink-soft);max-width:340px;margin:0 auto 10px;}
+  .mk-points{text-align:center;font-family:'DotGothic16',monospace;font-size:34px;min-height:44px;}
+
+  /* 結果 */
+  .mk-market-final{display:flex;gap:8px;justify-content:center;margin-bottom:14px;}
+  .mk-rank .arow{
+    display:flex;align-items:center;gap:8px;padding:9px 12px;margin-bottom:6px;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+  }
+  .mk-rank .arow .ark{font-family:'DotGothic16',monospace;font-size:18px;width:34px;}
+  .mk-rank .arow .arn{flex:1;font-weight:700;}
+  .mk-rank .arow .ars{font-family:'DotGothic16',monospace;font-size:20px;color:var(--stamp-deep);}
+  .mk-rank .arow .arb{font-size:11px;color:var(--ink-soft);}
+  .mk-highlight{
+    margin-top:14px;padding:10px 12px;border-radius:10px;
+    background:var(--paper-deep);color:var(--ink-soft);font-size:12.5px;line-height:1.9;
+  }
+  /* アイテム */
+  .mk-powers{display:flex;flex-direction:column;gap:10px;}
+  .mk-powers .apw{
+    display:flex;align-items:center;gap:12px;text-align:left;
+    background:var(--card);border:1.5px solid var(--line);border-radius:12px;
+    padding:14px 12px;cursor:pointer;color:inherit;font:inherit;
+  }
+  .mk-powers .apw .api{font-size:26px;line-height:1;}
+  .mk-powers .apw .apt{font-weight:700;font-size:15px;}
+  .mk-powers .apw .apl{font-size:12px;color:var(--ink-soft);line-height:1.6;}
+  .mk-powers .apw.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset;}
+  .mk-mypower{margin-top:12px;font-size:12.5px;color:var(--ink-soft);text-align:center;}
+  /* 内訳の宣言。この画面でいちばん判断に効く事実なので、注意書きの見た目にしない */
+  .mk-mix{display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;}
+  .mk-mix .mx{
+    display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;
+    background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 12px;
+  }
+  .mk-mix .mx b{font-family:'DotGothic16',monospace;font-size:18px;}
+  .mk-mix .mx.fine{border-color:var(--gold);color:var(--gold);}
+  .mk-mix .mx.fake{color:var(--ink-soft);}
+  .mk-mix .mxnote{font-size:11px;color:var(--ink-soft);flex-basis:100%;text-align:center;}
+
   /* 第37弾：準備OKを押した人。色だけに頼らないよう、✓の文字も出す */
   .rm-ready{color:var(--teal);font-weight:800;margin-left:6px;}
   .rt-member.notready .rm-name{opacity:.65;}
@@ -3670,20 +3811,109 @@
   </div>
 
   <!-- 1人1台：オークションバトル（第31弾）。2つの遊び方で1枚を共有する -->
-  <div class="screen" id="scr-rt-auction">
-    <div class="quiz-topbar">
-      <div class="quiz-score" id="auChips">20枚</div>
-      <div class="quiz-round" id="auRound"></div>
-      <div class="timer-chip" data-timer id="auTimer" style="display:none;">--:--</div>
+  <!-- 第38弾 ①開場：**6品が最初から棚のように並ぶ。** これがこのリメイクの芯。
+       前のオークションは「いま出ている1品」しか見えず、
+       オークションの本質である「見比べて悩む」が構造的にできなかった -->
+  <div class="screen" id="scr-rt-au-open">
+    <div class="mk-topbar">
+      <div class="mk-chips" id="auOpenChips">20</div>
+      <div class="mk-market" id="auOpenMarket"></div>
+      <div class="timer-chip" data-timer id="auOpenTimer" style="display:none;">--:--</div>
     </div>
-    <div class="rt-phase" id="auPhase">-</div>
+    <h2 class="scr-title">開場</h2>
     <div class="wiz-body">
-      <div class="rt-public" id="auNote"></div>
-      <div id="auBody"></div>
-      <div id="auResult"></div>
-      <button class="btn btn-main" id="auAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
-      <button class="btn btn-outline" id="auEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
-      <button class="btn btn-ghost" id="auLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
+      <div class="mk-shelfwrap">
+        <div class="mk-mix" id="auOpenMix"></div>
+        <div class="mk-shelf" id="auOpenShelf"></div>
+        <div>
+          <div class="mk-mypower" id="auOpenPower"></div>
+          <div class="mic-status" id="auOpenNote"></div>
+        </div>
+      </div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="auPowerBtn">🎒 アイテムをえらぶ</button>
+    </div>
+  </div>
+
+  <!-- 第38弾 ②アイテム：ラウンド開始時に3種から1つだけ選ぶ。選ぶこと自体が戦略 -->
+  <div class="screen" id="scr-rt-au-power">
+    <div class="mk-topbar">
+      <div class="mk-chips" id="auPwChips">20</div>
+      <div class="mk-market" id="auPwMarket"></div>
+      <div class="timer-chip" data-timer id="auPwTimer" style="display:none;">--:--</div>
+    </div>
+    <h2 class="scr-title">アイテムをえらぶ</h2>
+    <p class="scr-sub">このラウンドで使えるのは1つだけです</p>
+    <div class="wiz-body">
+      <div class="mk-powers" id="auPwList"></div>
+      <div class="mic-status" id="auPwNote"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-ghost" id="auPwBackBtn">← 品物を見にもどる</button>
+    </div>
+  </div>
+
+  <!-- 第38弾 ③競り：中央にいまの品。**下部に残りの品が小さく並び続ける**ので、
+       「これを見送れば次がある」が常に見えている -->
+  <div class="screen" id="scr-rt-au-bid">
+    <div class="mk-topbar">
+      <div class="mk-chips" id="auBidChips">20</div>
+      <div class="mk-market" id="auBidMarket"></div>
+      <div class="timer-chip" data-timer id="auBidTimer" style="display:none;">--:--</div>
+    </div>
+    <div class="mk-spot" id="auBidSpot"></div>
+    <div class="mk-hints" id="auBidHints"></div>
+    <div class="mk-highest" id="auBidHighest"></div>
+    <div class="mk-bidpad" id="auBidPad"></div>
+    <div class="mic-status" id="auBidNote"></div>
+    <div class="mk-rest" id="auBidRest"></div>
+  </div>
+
+  <!-- 第38弾 ④値踏み：落札しなかった人が、上物／並物／偽物を予想する。
+       落札できない人にも、毎回することがある -->
+  <div class="screen" id="scr-rt-au-guess">
+    <div class="mk-topbar">
+      <div class="mk-chips" id="auGsChips">20</div>
+      <div class="mk-market" id="auGsMarket"></div>
+      <div class="timer-chip" data-timer id="auGsTimer" style="display:none;">--:--</div>
+    </div>
+    <div class="mk-spot" id="auGsSpot"></div>
+    <div class="mk-hints" id="auGsHints"></div>
+    <p class="scr-sub" id="auGsLead">この品は、なんだと思う？</p>
+    <div class="mk-guess" id="auGsPad"></div>
+    <div class="mic-status" id="auGsNote"></div>
+  </div>
+
+  <!-- 第38弾 ⑤開示：順序が命（指示38 別紙2-4）。
+       予想が一斉にめくれる → 一拍 → 品質 → 相場が動く → 得点 -->
+  <div class="screen" id="scr-rt-au-reveal">
+    <div class="mk-topbar">
+      <div class="mk-chips" id="auRvChips">20</div>
+      <div class="mk-market" id="auRvMarket"></div>
+      <div class="timer-chip" data-timer id="auRvTimer" style="display:none;">--:--</div>
+    </div>
+    <div class="mk-spot" id="auRvSpot"></div>
+    <div class="mk-guessrow" id="auRvGuesses"></div>
+    <div class="mk-quality" id="auRvQuality"></div>
+    <div class="mk-reveal" id="auRvText"></div>
+    <div class="mk-points" id="auRvPoints"></div>
+    <div class="mic-status" id="auRvNote"></div>
+  </div>
+
+  <!-- 第38弾 ⑥結果：順位と、実データから組み立てた「今日の名場面」を1行。
+       ラウンド数は出さない（第36弾 36-4） -->
+  <div class="screen" id="scr-rt-au-result">
+    <h2 class="scr-title">結果発表</h2>
+    <div class="wiz-body">
+      <div class="mk-market-final" id="auRsMarket"></div>
+      <div class="mk-rank" id="auRsRank"></div>
+      <div class="mk-highlight" id="auRsHighlight"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="auAgainBtn" style="display:none;">つぎは？ ▶</button>
+      <button class="btn btn-outline" id="auEndBtn" style="display:none;margin-top:0;">🏁 部屋を閉じる</button>
+      <button class="btn btn-ghost" id="auLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -6827,7 +7057,7 @@
       var big = (scr === 'scr-rt-big');
       if((scr === 'scr-rt-play' || big) && (game === 'wolfrole' || game === 'wordwolf')
          && (v.phase === 'night' || v.phase === 'preVote')) return 'wolfNight';
-      if((scr === 'scr-rt-auction' || big) && game === 'auction' && v.phase === 'bid') return 'auctionBid';
+      if((scr === 'scr-rt-au-bid' || big) && game === 'auction' && v.phase === 'bid') return 'auctionBid';
       if((scr === 'scr-rt-bomb' || big) && game === 'bomb' && v.phase === 'prep') return 'waiting';
     }
     return null;
@@ -7178,10 +7408,13 @@
     'scr-auction-bid', 'scr-auction-handoff', 'scr-auction-question', 'scr-auction-result',
     'scr-wolf-pass', 'scr-wolf-gather', 'scr-wolf-result',
     'scr-wr-pass', 'scr-wr-day', 'scr-wr-gather', 'scr-wr-result', 'scr-nightfall',
-    'scr-rt-room', 'scr-rt-rules', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku', 'scr-rt-big'
+    // 第38弾：部屋の画面はここに書かない。RT_SCREENS から導く（下）
   ];
   function canGoBackOne(screenId){
     if(BACK_FREE_SCREENS.indexOf(screenId) !== -1) return false;
+    // 部屋の画面は、進行役が行き先を決める。戻る矢印は出さない。
+    // 一覧から導くので、画面を足した時に登録し忘れが起きない（落とし穴4）
+    if(RT_SCREENS.indexOf(screenId) !== -1) return false;
     return screenStack.length > 0;
   }
   function goBackOne(){
@@ -7310,7 +7543,9 @@
     // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
     if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
     if(prevScreen && prevScreen.id === 'scr-rt-quiz' && id !== 'scr-rt-quiz') qzLeaveScreen();
-    if(prevScreen && prevScreen.id === 'scr-rt-auction' && id !== 'scr-rt-auction') auLeaveScreen();
+    // 第38弾：オークションの6枚から「6枚の外」へ出た時だけ捨てる。
+    // 6枚のあいだを行き来しただけで時計を止めない（落とし穴7）
+    if(prevScreen && prevScreen.id.indexOf('scr-rt-au-') === 0 && id.indexOf('scr-rt-au-') !== 0) auLeaveScreen();
     // 部屋のすごろくを離れる時。連打のタイマーと「押したまま」を必ず捨てる
     if(prevScreen && prevScreen.id === 'scr-rt-sugoroku' && id !== 'scr-rt-sugoroku'){
       if(rtSugo.stop){ rtSugo.stop(); rtSugo.stop = null; }
@@ -10220,7 +10455,9 @@
   }
   // 状態が動いたら、いるべき画面へ移して描き直す。
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
-  var RT_SCREENS = ['scr-rt-room', 'scr-rt-rules', 'scr-rt-play', 'scr-rt-bomb', 'scr-rt-defuse', 'scr-rt-quiz', 'scr-rt-auction', 'scr-rt-sugoroku', 'scr-rt-big'];
+  // 第38弾：ここに書くのは、どのゲームにも属さない3枚だけ。
+  // ゲームの画面は RT_GAME_SCREEN_IDS から後で足す（下の宣言のすぐ後）
+  var RT_SCREENS = ['scr-rt-room', 'scr-rt-rules', 'scr-rt-big'];
   // 第30弾：クイズ王の4ゲーム。1枚の画面が中身を差し替えて受け持つ
   var RT_QUIZ_GAMES = ['quizrush', 'quizlist', 'quizreveal', 'buzzer'];
   // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
@@ -10231,8 +10468,12 @@
     // 第30弾：クイズ王。4つとも同じ1枚に送る
     quizrush: 'scr-rt-quiz', quizlist: 'scr-rt-quiz',
     quizreveal: 'scr-rt-quiz', buzzer: 'scr-rt-quiz',
-    // 第31弾：オークション（作り直し）
-    auction: 'scr-rt-auction',
+    // 第38弾：相場オークションは、やることごとに画面を分ける（1画面につき、やることは1つ）。
+    // どの画面へ行くかは段階から引く（auWantScreen）。ここに並べる理由は、
+    // 「部屋のゲーム画面である」ことを1か所で宣言するため——描き直しの分岐も、
+    // 戻る矢印の除外も、部屋画面の一覧も、すべてこの1行から導かれる（落とし穴4）
+    auction: ['scr-rt-au-open', 'scr-rt-au-power', 'scr-rt-au-bid',
+              'scr-rt-au-guess', 'scr-rt-au-reveal', 'scr-rt-au-result'],
     // 第36弾：すごろく。5ゲームとも1枚を共有する（中身を差し替える）
     sugotoll: 'scr-rt-sugoroku',
     sugograb: 'scr-rt-sugoroku',
@@ -10259,7 +10500,10 @@
     var room = rt && rt.state.room;
     var game = room && room.state && room.state.game;
     // まだ対応していないゲームの部屋に入った時は、待合に留めて置き去りにしない
-    return RT_GAME_SCREENS[game] || 'scr-rt-room';
+    var scr = RT_GAME_SCREENS[game];
+    // 第38弾：画面が複数あるゲームは、そのゲームの側に「いまどれか」を聞く
+    if(Array.isArray(scr)) return (game === 'auction') ? auWantScreen() : scr[0];
+    return scr || 'scr-rt-room';
   }
   function rtSync(){
     if(!rt || !rt.state.room) return;
@@ -10283,13 +10527,21 @@
     awardRoomTitles();
     // 第32弾-E 第5部：決着した時だけ🎁を出す（これも全ゲーム共通のここ1か所）
     refreshThanksBtn();
+    // 第38弾：段階の変わり目の音は、6枚それぞれではなくここ1か所で鳴らす。
+    // 画面ごとに書くと、その画面を見ていない人（大画面など）に鳴らない
+    if(rtRoomGameId() === 'auction') auPhaseFx(rtView());
     if(cur === 'scr-rt-room') renderRtRoom();
     if(cur === 'scr-rt-rules') renderRtRules();
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-bomb') renderRtBomb();
     else if(cur === 'scr-rt-defuse') renderRtDefuse();
     else if(cur === 'scr-rt-quiz') renderRtQuiz();
-    else if(cur === 'scr-rt-auction') renderRtAuction();
+    else if(cur === 'scr-rt-au-open') renderRtAuOpen();
+    else if(cur === 'scr-rt-au-power') renderRtAuPower();
+    else if(cur === 'scr-rt-au-bid') renderRtAuBid();
+    else if(cur === 'scr-rt-au-guess') renderRtAuGuess();
+    else if(cur === 'scr-rt-au-reveal') renderRtAuReveal();
+    else if(cur === 'scr-rt-au-result') renderRtAuResult();
     else if(cur === 'scr-rt-sugoroku') renderRtSugoroku();
     else if(cur === 'scr-rt-play') renderRtPlay();
   }
@@ -10310,9 +10562,13 @@
   }
   // 部屋のゲーム画面の一覧。**RT_GAME_SCREENS から導く**ので、
   // ゲームを足した時に片方だけ更新されることが起きない（落とし穴4）
+  // 第38弾：1ゲームが複数の画面を持てる形にした（concat は配列も文字列も平らにする）
   var RT_GAME_SCREEN_IDS = Object.keys(RT_GAME_SCREENS)
-    .map(function(g){ return RT_GAME_SCREENS[g]; })
+    .reduce(function(a, g){ return a.concat(RT_GAME_SCREENS[g]); }, [])
     .filter(function(id, i, a){ return a.indexOf(id) === i; });
+  // 部屋の画面ぜんぶ。ゲームの画面は上の一覧から導くので、
+  // 画面を足した時にここだけ古びることが起きない（落とし穴4）
+  RT_SCREENS = RT_SCREENS.concat(RT_GAME_SCREEN_IDS);
   // すごろくのゲームid。ここも同じ一覧から導く（落とし穴4）
   var SUGO_GAMES = Object.keys(RT_GAME_SCREENS)
     .filter(function(g){ return RT_GAME_SCREENS[g] === 'scr-rt-sugoroku'; });
@@ -11212,364 +11468,473 @@
     }).join('');
   }
 
-  // ===================== 第31弾：1人1台のオークションバトル =====================
-  // 2つの遊び方（せり上げ式・秘密入札）で1枚の画面を共有する。
-  // 品物の正体・価値は、落札が決まるまでサーバーが送ってこない（原則4.3）。
+  // ===================== 第38弾：1人1台の相場オークション =====================
+  // やることごとに画面を分けてある（1画面につき、やることは1つ）。
+  //   開場 → アイテム → 競り → 値踏み → 開示 → 結果
+  //
+  // **数字と文言はここに書かない。** 全部 AuctionLogic.RULES / TEXT から読む。
+  // 品質・正体は、開示の段階になるまでサーバーが送ってこない（門4）。
+  // ここでも「届いていないものを推測して描く」ことはしない。
+  var AU = (typeof AuctionLogic !== 'undefined') ? AuctionLogic : null;
+  var AUI = (typeof AuctionItems !== 'undefined') ? AuctionItems : null;
+
   var auClock = { ms:null, at:0, timer:null };
-  var auBidValue = 0;      // 手元で選んでいる金額（まだ送っていない）
-  var auPrevPhase = null;  // 段階が変わった瞬間だけ音を出すための目印
+  var auPrevPhase = null;   // 段階が変わった瞬間だけ音を出すための目印
   var auPrevHighest = null; // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす
+  var auPrevHints = 0;      // 段階ヒントが増えた瞬間だけ、新しい1本を光らせる
+  var auRevealDone = null;  // 開示を動かし終えた品（描き直しでやり直さないため）
+  var auBidValue = 0;       // 「額を指定」で手元に置いている金額（まだ送っていない）
 
   function auSetClock(ms){ auClock.ms = (ms == null) ? null : ms; auClock.at = Date.now(); }
-  function auRemainingSec(){
+  function auLeftSec(){
     if(auClock.ms == null) return null;
     return Math.max(0, Math.round((auClock.ms - (Date.now() - auClock.at)) / 1000));
   }
-  function auRenderTimer(){
-    var chip = el('auTimer');
-    var sec = auRemainingSec();
-    if(sec == null){ chip.style.display = 'none'; return; }
-    chip.style.display = 'inline-block';
-    chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
-    chip.classList.toggle('warn', sec <= 5 && sec > 0);
-    countdownVibe(sec);
+  // 時計は6枚ぶんあるが、出し分けはしない。**いま出ている画面のものだけを書き換える**
+  function auTimerEl(){
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    var map = { 'scr-rt-au-open':'auOpenTimer', 'scr-rt-au-power':'auPwTimer',
+      'scr-rt-au-bid':'auBidTimer', 'scr-rt-au-guess':'auGsTimer', 'scr-rt-au-reveal':'auRvTimer' };
+    return map[cur] ? el(map[cur]) : null;
   }
-  function auStartTicking(){
+  function auRenderTimer(){
+    var d = auTimerEl();
+    if(!d) return;
+    var s = auLeftSec();
+    if(s == null){ d.style.display = 'none'; return; }
+    d.style.display = 'inline-block';
+    d.textContent = pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+    d.classList.toggle('warn', s <= 10 && s > 0);
+    d.classList.toggle('done', s === 0);
+    countdownVibe(s);
+  }
+  function auStartClock(){
     if(auClock.timer) return;
     auClock.timer = setInterval(auRenderTimer, 250);
   }
+  // 画面を離れる時に、走っているものを必ず捨てる（落とし穴7・17）
   function auLeaveScreen(){
     clearInterval(auClock.timer); auClock.timer = null;
     auClock.ms = null;
-    auBidValue = 0;
     auPrevPhase = null;
     auPrevHighest = null;
-    auShownResult = null; // 第32弾-C-6：次に来た時に、開示の演出をやり直せるように
-  }
-  function auEndButtons(ended){
-    el('auLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
-    var host = ended && rt.isHost();
-    rtNextButton('auAgainBtn', ended, host);
-    el('auEndBtn').style.display = host ? 'inline-flex' : 'none';
-  }
-  var AU_PHASE_LABEL = { show:'品物をみる', bid:'入札', result:'結果', ended:'決着' };
-
-  function auBoardHtml(v){
-    return '<div class="quiz-board">' + (v.players || []).map(function(p){
-      var me = (p.id === rt.state.memberId);
-      return '<div class="qb-row' + (me ? ' me' : '') + (p.connected ? '' : ' off') + '">' +
-        '<span class="qb-name">' + escapeHtml(p.name) +
-        (p.items ? ' <span class="au-items">🎒' + p.items + '</span>' : '') + '</span>' +
-        '<span class="qb-score">' + p.chips + '</span></div>';
-    }).join('') + '</div>';
+    auPrevHints = 0;
+    auRevealDone = null;
+    auBidValue = 0;
   }
 
-  function renderRtAuction(){
+  // ---- 小さな部品（6枚で共有する。画面ごとに書かない） ----
+  function auKindIcon(kindId){
+    var k = AUI && AUI.kindById(kindId);
+    return k ? k.icon : '📦';
+  }
+  function auKindLabel(kindId){
+    var k = AUI && AUI.kindById(kindId);
+    return k ? k.label : String(kindId || '');
+  }
+  function auQuality(qid){
+    var q = AUI && AUI.qualityById(qid);
+    return q || { label:'？', icon:'❔', value:0 };
+  }
+  // 相場表。どの画面の上にも同じものを出す
+  function auMarketHtml(v){
+    if(!v || !v.market || !AUI) return '';
+    return AUI.KINDS.map(function(k){
+      var hot = (v.hotKinds || []).indexOf(k.id) !== -1;
+      return '<span class="amk' + (hot ? ' hot' : '') + '" title="' + escapeHtml(k.label) + '">' +
+        k.icon + '<b>' + v.market[k.id] + '</b></span>';
+    }).join('');
+  }
+  function auPaintTop(prefix, v, you){
+    var chips = el(prefix + 'Chips');
+    if(chips) chips.textContent = you ? you.chips : '-';
+    var mk = el(prefix + 'Market');
+    if(mk) mk.innerHTML = auMarketHtml(v);
+  }
+  // 棚。**品質は出さない。**「?」のまま並べる（売れた品は薄くする）。
+  // ただし鑑定眼で見た品だけは、**その端末の持ち主にだけ**正体を出す。
+  // 出さないと「アイテムを使ったのに何も起きない」になる（落とし穴21）
+  function auShelfHtml(v, you){
+    var seen = (you && you.appraised) || {};
+    return (v.lineup || []).map(function(it){
+      var q = seen[it.no] ? auQuality(seen[it.no]) : null;
+      // 「いまこれを競っている」の枠は、実際に競っている間だけ。
+      // 下見の段階から付けると、1番だけが特別な品に見える
+      var bidding = (v.phase === 'bid' || v.phase === 'confirm');
+      var cls = 'mk-card' + (it.sold === 'sold' ? ' sold' : '') +
+        (bidding && v.order && v.order[v.idx] === it.no ? ' now' : '') + (q ? ' seen' : '');
+      var mark = q ? (q.icon + q.label) : (it.sold === 'sold' ? '売却' : '?');
+      return '<div class="' + cls + '" data-no="' + it.no + '">' +
+        '<span class="ac-no">' + it.no + '</span>' +
+        '<span class="ac-kind">' + auKindIcon(it.kind) + '</span>' +
+        '<span class="ac-look">' + escapeHtml(it.look) + '</span>' +
+        '<span class="ac-q">' + mark + '</span>' +
+      '</div>';
+    }).join('');
+  }
+  // 競り画面の下に出す「残りの品」。これを見送れば次がある、が常に見える
+  function auRestHtml(v){
+    return (v.lineup || []).map(function(it){
+      var now = v.order && v.order[v.idx] === it.no;
+      var cls = 'ar' + (now ? ' now' : '') + (it.sold === 'sold' ? ' sold' : '');
+      return '<span class="' + cls + '">' + it.no + auKindIcon(it.kind) + '</span>';
+    }).join('');
+  }
+  function auSpotHtml(v){
+    var it = v.item;
+    if(!it) return '';
+    return '<div class="as-no">' + it.no + '番</div>' +
+      '<div class="as-kind">' + auKindIcon(it.kind) + '</div>' +
+      '<div class="as-look">' + escapeHtml(it.look) + '</div>';
+  }
+  function auHintsHtml(v){
+    // 1本目は「見た目」で、すぐ上に大きく出ている。ここでは2本目から並べる
+    var hints = ((v.item && v.item.hints) || []).slice(1);
+    return hints.map(function(h, i){
+      var isNew = (i === hints.length - 1 && hints.length > auPrevHints);
+      return '<div class="ah' + (isNew ? ' new' : '') + '">' + escapeHtml(h) + '</div>';
+    }).join('');
+  }
+
+  // ---- どの画面へ行くか（段階から引く） ----
+  var AU_PHASE_SCREEN = {
+    preview: 'scr-rt-au-open',
+    bid: 'scr-rt-au-bid',
+    confirm: 'scr-rt-au-bid',
+    guess: 'scr-rt-au-guess',
+    reveal: 'scr-rt-au-reveal',
+    ended: 'scr-rt-au-result'
+  };
+  function auWantScreen(){
+    var v = rtView();
+    if(!v || !v.phase) return 'scr-rt-au-open';
+    // 下見の間だけ、自分でアイテムの画面を開いていられる（引き戻さない）
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    if(v.phase === 'preview' && cur === 'scr-rt-au-power') return 'scr-rt-au-power';
+    return AU_PHASE_SCREEN[v.phase] || 'scr-rt-au-open';
+  }
+
+  // ---- ① 開場 ----
+  function renderRtAuOpen(){
     var v = rtView(), you = rt.state.secret;
     if(!v) return;
-    el('auPhase').textContent = (v.mode === 'open' ? 'せり上げ式' : '秘密入札') +
-      '・' + (AU_PHASE_LABEL[v.phase] || v.phase);
-    // 第36弾 36-4：決着した画面にラウンド数は出さない。
-    // 最後のラウンドを終えた時点で round は総数+1 になるので「第7/6ラウンド」に見えていた
-    el('auRound').textContent = (v.phase !== 'ended' && v.round)
-      ? ('第' + v.round + ' / ' + v.totalRounds + 'ラウンド') : '';
+    auPaintTop('auOpen', v, you);
+    auSetClock(v.remainingMs); auStartClock(); auRenderTimer();
+    // 内訳は正本（AuctionItems.MIX）から組み立てる。画面側に数字を書かない
+    el('auOpenMix').innerHTML = AUI.MIX.map(function(row){
+      var q = auQuality(row.quality);
+      return '<span class="mx ' + row.quality + '">' + q.icon +
+        '<span>' + escapeHtml(q.label) + '</span><b>' + row.count + '</b></span>';
+    }).join('') + '<span class="mxnote">この6品の内訳です。どれがどれかは伏せられています</span>';
+    el('auOpenShelf').innerHTML = auShelfHtml(v, you);
+    var pw = you && you.power ? AU.powerById(you.power) : null;
+    // 持っている時だけ出す。持っていないことは、下のボタンと一言で足りている
+    el('auOpenPower').style.display = pw ? '' : 'none';
+    el('auOpenPower').innerHTML = pw
+      ? ('いま持っているアイテム：' + pw.icon + ' <b>' + escapeHtml(pw.label) + '</b>')
+      : '';
+    el('auPowerBtn').textContent = pw ? '🎒 アイテムをえらび直す' : '🎒 アイテムをえらぶ';
+    var canAppraise = you && you.power === 'appraise' && !you.powerUsed;
+    el('auOpenNote').textContent = !pw
+      ? 'まずアイテムを1つえらんでください'
+      : (canAppraise
+        ? '調べたい品を1つ押してください（見えるのはあなただけ）'
+        : '品物を見比べて、口で探り合ってください');
+  }
 
-    if(!you){
-      auLeaveScreen();
-      el('auChips').textContent = '';
-      el('auTimer').style.display = 'none';
-      el('auNote').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>';
-      el('auBody').innerHTML = auBoardHtml(v);
-      el('auResult').innerHTML = (v.phase === 'ended') ? auResultHtml(v) : '';
-      auEndButtons(v.phase === 'ended');
-      return;
+  // ---- ② アイテム ----
+  function renderRtAuPower(){
+    var v = rtView(), you = rt.state.secret;
+    if(!v || !you) return;
+    auPaintTop('auPw', v, you);
+    auSetClock(v.remainingMs); auStartClock(); auRenderTimer();
+    el('auPwList').innerHTML = (you.powers || AU.POWERS).map(function(p){
+      return '<button class="apw' + (you.power === p.id ? ' on' : '') + '" data-power="' + p.id + '">' +
+        '<span class="api">' + p.icon + '</span>' +
+        '<span><span class="apt">' + escapeHtml(p.label) + '</span><br>' +
+        '<span class="apl">' + escapeHtml(p.lead) + '</span></span>' +
+      '</button>';
+    }).join('');
+    el('auPwNote').textContent = you.power
+      ? 'えらび直せます。競りが始まるまでなら、何度でも'
+      : 'ラウンドごとに1つだけ。ぜんぶは持てません';
+  }
+
+  // ---- ③ 競り ----
+  function renderRtAuBid(){
+    var v = rtView(), you = rt.state.secret;
+    if(!v || !you) return;
+    auPaintTop('auBid', v, you);
+    auSetClock(v.remainingMs); auStartClock(); auRenderTimer();
+    el('auBidSpot').innerHTML = auSpotHtml(v);
+    el('auBidHints').innerHTML = auHintsHtml(v);
+    auPrevHints = Math.max(0, ((v.item && v.item.hints) || []).length - 1);
+
+    var isOpen = (v.mode === 'open');
+    var high = v.highest;
+    if(isOpen){
+      el('auBidHighest').innerHTML = high
+        ? ('🔨 ' + escapeHtml(high.name) + '　<b>' + high.amount + '</b>枚')
+        : '<span class="mic-status">まだ値がついていません</span>';
+    } else {
+      el('auBidHighest').innerHTML = (you.myBid != null)
+        ? ('あなたの札：<b>' + you.myBid + '</b>枚')
+        : '<span class="mic-status">こっそり金額を決めて出してください</span>';
     }
 
-    el('auChips').textContent = you.chips + '枚';
-    // 落札が決まった瞬間に1回だけ鳴らす。結果を見ている間ずっと鳴らさない
-    if(v.phase === 'result' && auPrevPhase !== 'result'){
-      var lr = v.lastResult || {};
-      if(lr.passed) gavelSound(); else soldSound();
-      // 第32弾-D 第6部：落札の瞬間、木槌のように「ドン」と1回の振動
-      if(!lr.passed && typeof FxKit !== 'undefined') FxKit.vibe('sold');
+    // 入札の押しボタン。+1／+3／額を指定 の3つ（片手で届く位置に）
+    var floorAmt = isOpen ? ((high && high.amount > 0) ? high.amount + 1 : 1) : 0;
+    var chips = you.chips;
+    var html = '';
+    if(v.phase === 'confirm'){
+      html += '<button class="abtn main" data-aupass="1" style="flex-basis:100%;">見送る</button>';
     }
-    // 第32弾-D 4-2：全ラウンド終了＝このゲームの決着。金貨が舞うような紙吹雪
-    if(v.phase === 'ended' && auPrevPhase !== 'ended' && typeof FxKit !== 'undefined'){
-      FxKit.confetti(['#f0c44a', '#d9a53a', '#fff3c4']);
+    [1, 3].forEach(function(step){
+      var amt = isOpen ? (floorAmt + step - 1) : Math.max(0, (you.myBid || 0) + step);
+      // 大きいほうが「払う額」。小さいほうは「いまの値からいくつ上か」
+      html += '<button class="abtn" data-aubid="' + amt + '"' + (amt > chips ? ' disabled' : '') + '>' +
+        '<span class="abn">' + amt + '</span><span class="abu">枚</span>' +
+        '<span class="abs">+' + step + '</span></button>';
+    });
+    html += '<button class="abtn quiet" data-auask="1">額を<br>指定</button>';
+    el('auBidPad').innerHTML = html;
+
+    var note = '';
+    if(v.phase === 'confirm'){
+      note = AU.TEXT.passed + '。全員が「見送る」を押すと、この品は流れます';
+      if(v.waitingPass && v.waitingPass.length) {
+        note += '（' + v.waitingPass.map(escapeHtml).join('・') + ' さんを待っています）';
+      }
+    } else if(isOpen){
+      note = '誰かが値をつけるたびに、締め切りが延びます';
+    } else {
+      note = v.doneNames && v.doneNames.length
+        ? (v.doneNames.map(escapeHtml).join('・') + ' さんが出しました')
+        : '締め切りで一斉に開きます。0を出すと降りられます';
     }
+    if(v.firstBidder){
+      note += '／' + AU.TEXT.firstBid + 'のは ' + escapeHtml(v.firstBidder) + ' さん（+' +
+        AU.RULES.FIRST_BID_BONUS + '枚）';
+    }
+    el('auBidNote').innerHTML = note;
+    el('auBidRest').innerHTML = auRestHtml(v);
+
     // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす
-    if(v.phase === 'bid' && v.mode === 'open'){
-      var top = v.highest ? v.highest.amount : 0;
-      if(auPrevHighest != null && top > auPrevHighest) gavelSound();
-      auPrevHighest = top;
-    } else {
-      auPrevHighest = null;
+    if(isOpen && high && auPrevHighest !== high.amount){
+      if(auPrevHighest !== null) gavelSound();
+      auPrevHighest = high.amount;
     }
-    auPrevPhase = v.phase;
+    if(!high) auPrevHighest = null;
+  }
 
-    if(v.phase === 'ended'){
-      auLeaveScreen();
-      el('auTimer').style.display = 'none';
-      el('auNote').innerHTML = '';
-      el('auBody').innerHTML = '';
-      el('auResult').innerHTML = auResultHtml(v);
-      auEndButtons(true);
+  // ---- ④ 値踏み ----
+  function renderRtAuGuess(){
+    var v = rtView(), you = rt.state.secret;
+    if(!v || !you) return;
+    auPaintTop('auGs', v, you);
+    auSetClock(v.remainingMs); auStartClock(); auRenderTimer();
+    el('auGsSpot').innerHTML = auSpotHtml(v);
+    el('auGsHints').innerHTML = auHintsHtml(v);
+    var lr = v.lastResult || {};
+    var mine = (you.canGuess !== false);
+    el('auGsLead').textContent = mine
+      ? 'この品は、なんだと思う？（当たればチップが' + AU.RULES.GUESS_REWARD + '枚）'
+      : escapeHtml(lr.winner || '') + ' さんが落札しました';
+    el('auGsPad').innerHTML = mine ? (AUI.QUALITIES.map(function(q){
+      return '<button class="agq' + (you.myGuess === q.id ? ' on' : '') + '" data-auguess="' + q.id + '">' +
+        '<span class="agi">' + q.icon + '</span><span class="agl">' + escapeHtml(q.label) + '</span>' +
+      '</button>';
+    }).join('')) : '';
+    var done = (v.guessDoneNames || []).length;
+    el('auGsNote').textContent = mine
+      ? ('答えなくてもかまいません（外しても何も失いません）。いま ' + done + '人が出しました')
+      : '自分が落札した品なので、値踏みはしません';
+  }
+
+  // ---- ⑤ 開示 ----
+  // 順序が命（別紙2-4）：予想がめくれる → 一拍 → 品質 → 相場 → 得点
+  function renderRtAuReveal(){
+    var v = rtView(), you = rt.state.secret;
+    if(!v) return;
+    auPaintTop('auRv', v, you);
+    auSetClock(v.remainingMs); auStartClock(); auRenderTimer();
+    var lr = v.lastResult || {};
+    el('auRvSpot').innerHTML = auSpotHtml(v);
+
+    if(lr.passed){
+      el('auRvGuesses').innerHTML = '';
+      el('auRvQuality').className = 'mk-quality';
+      el('auRvQuality').textContent = AU.TEXT.passed;
+      el('auRvText').textContent = lr.note || '';
+      el('auRvPoints').textContent = '';
+      el('auRvNote').textContent = '';
       return;
     }
-
-    auSetClock(v.remainingMs);
-    auRenderTimer();
-    auStartTicking();
-    el('auResult').innerHTML = '';
-    auEndButtons(false);
-
-    if(v.phase === 'show') return auRenderShow(v, you);
-    if(v.phase === 'bid') return auRenderBid(v, you);
-    return auRenderResult(v, you);
-  }
-
-  // ---- 品物をみる（アイテムを買う・使う）----
-  function auRenderShow(v, you){
-    var note = [];
-    if(v.rescueNote){
-      note.push('🎁 ' + v.rescueNote.map(function(x){
-        return escapeHtml(x.name) + ' に ' + escapeHtml(x.item);
-      }).join('　'));
-    }
-    note.push(you.ready ? 'ほかの人を待っています' : '正体は伏せられています。いくらまで出せるか考えよう');
-    el('auNote').innerHTML = '<div class="ry-desc">' + note.join('<br>') + '</div>';
-
-    // 第32弾-C-6：暗い舞台にスポットライトが降り、
-    // 謎めいた一言が少し遅れて浮かび上がる。
-    // 品物が「出てきた」瞬間が無いと、ただの文章に見える
-    var html = '<div class="au-stage"><div class="au-spot"></div>' +
-      '<div class="au-teaser">' + escapeHtml(v.teaser || '') + '</div></div>';
-    if((you.hints || []).length){
-      html += '<div class="au-hints">' + you.hints.map(function(h){
-        return '<div class="au-hint">🔍 ' + escapeHtml(h) + '</div>';
-      }).join('') + '</div>';
-    }
-    // 持ち物（使う）
-    if((you.inventory || []).length){
-      html += '<div class="tp-label" style="margin-top:14px;">持っているもの</div><div class="au-shelf">' +
-        you.inventory.map(function(it){
-          var on = you.active && you.active[it.id];
-          return '<button class="hp-chip' + (on ? ' on' : '') + '" data-auuse="' + it.id + '"' +
-            (on ? ' disabled' : '') + '>' + it.icon + ' ' + escapeHtml(it.name) +
-            ' ×' + it.count + '</button>';
-        }).join('') + '</div>';
-    }
-    // お店（買う）
-    html += '<div class="tp-label" style="margin-top:14px;">買う</div><div class="au-shelf">' +
-      (you.shop || []).map(function(it){
-        return '<button class="hp-chip" data-aubuy="' + it.id + '"' +
-          (it.afford ? '' : ' disabled') + ' title="' + escapeHtml(it.lead) + '">' +
-          it.icon + ' ' + escapeHtml(it.name) + '（' + it.cost + '）</button>';
-      }).join('') + '</div>';
-    html += '<div class="mic-status" id="auShopNote" style="margin-top:8px;"></div>';
-    if(!you.ready){
-      html += '<button class="btn btn-main" data-auready="1" style="margin-top:14px;">値をつけにいく ▶</button>';
-    }
-    html += auBoardHtml(v);
-    el('auBody').innerHTML = html;
-  }
-
-  // ---- 入札 ----
-  function auRenderBid(v, you){
-    var open = (v.mode === 'open');
-    var note = [];
-    if(open){
-      note.push(v.highest
-        ? ('🔨 いまは ' + escapeHtml(v.highest.name) + ' さんの ' + v.highest.amount + '枚')
-        : 'まだ誰も値をつけていません');
-      note.push('誰かが値をつけるたびに、締め切りが延びます');
-      // 第32弾-C-6：同額で負けた時に「なぜ」が分からないと、後味が悪い。
-      // ルールをその場に書いておく（判定そのものはルール層のまま）
-      note.push('同じ金額なら、先に出した人が落札します');
-    } else {
-      note.push(you.myBid == null ? 'こっそり金額を決めて出そう' : ('出した金額：' + you.myBid + '枚'));
-      if((v.doneNames || []).length) note.push('出した人：' + escapeHtml(v.doneNames.join('、')));
-    }
-    el('auNote').innerHTML = '<div class="ry-desc">' + note.join('<br>') + '</div>';
-
-    var html = '<div class="au-teaser">' + escapeHtml(v.teaser || '') + '</div>';
-    if((you.hints || []).length){
-      html += '<div class="au-hints">' + you.hints.map(function(h){
-        return '<div class="au-hint">🔍 ' + escapeHtml(h) + '</div>';
-      }).join('') + '</div>';
-    }
-
-    var already = (!open && you.myBid != null);
-    if(already){
-      html += '<div class="au-mybid">出した金額　<b>' + you.myBid + '</b> 枚</div>';
-      if(you.canRetract){
-        html += '<button class="btn btn-outline" data-auretract="1">↩️ 撤回して出し直す</button>';
-      } else {
-        html += '<div class="mic-status">締め切りまで待ちましょう</div>';
+    // ① 全員の予想が一斉にめくれる
+    el('auRvGuesses').innerHTML = (lr.guesses || []).map(function(g){
+      var q = auQuality(g.guess);
+      return '<span class="agr' + (g.hit ? ' hit' : '') + '">' + escapeHtml(g.name) + '：' +
+        q.icon + escapeHtml(q.label) + (g.hit ? ' ✓' : '') + '</span>';
+    }).join('');
+    var q = auQuality(lr.quality);
+    // この品の開示は一度きり。描き直すたびにやり直すと、
+    // 見ている途中で品質も得点も消えて、また出てくることになる
+    // （部屋の知らせは開示の数秒のあいだにも何度も届く）
+    var key = String(lr.no) + ':' + (lr.quality || '');
+    if(auRevealDone === key) return;
+    auRevealDone = key;
+    // ② 一拍おいて ③ 品質。色だけに頼らず、必ず文字も出す
+    el('auRvQuality').className = 'mk-quality ' + (lr.quality || '');
+    el('auRvQuality').textContent = '';
+    el('auRvText').textContent = '';
+    el('auRvPoints').textContent = '';
+    var step = function(ms, fn){ setTimeout(fn, fxMs(ms)); };
+    step(500, function(){
+      if((document.querySelector('.screen.active') || {}).id !== 'scr-rt-au-reveal') return;
+      el('auRvQuality').textContent = q.icon + ' ' + q.label;
+      if(typeof FxKit !== 'undefined'){
+        if(lr.quality === 'fine'){ FxKit.flash('gold'); FxKit.vibe('win'); }
+        else if(lr.quality === 'fake'){ FxKit.flash('gray'); }   // 責める時は静かに
       }
-    } else {
-      // 出せる下限：せり上げ式は「いまの最高額＋1」、秘密入札は0（降りる）
-      var min = open ? ((v.highest ? v.highest.amount : 0) + 1) : 0;
-      var max = you.chips;
-      if(min > max){
-        html += '<div class="mic-status">チップが足りないので、これ以上は出せません</div>';
-      } else {
-        if(auBidValue < min || auBidValue > max) auBidValue = min;
-        html += '<div class="tp-label" style="margin-top:14px;">出す金額　<span id="auBidValue">' +
-          auBidValue + '</span>枚</div>' +
-          '<input type="range" id="auBidSlider" min="' + min + '" max="' + max +
-          '" step="1" value="' + auBidValue + '">' +
-          '<button class="btn btn-main" data-aubid="1" style="margin-top:10px;">' +
-          (open ? '🔨 この金額でせる' : '✉️ この金額で出す') + '</button>';
-        if(!open && min === 0){
-          html += '<div class="mic-status" style="margin-top:6px;">0枚で出すと「降りる」になります（何も失いません）</div>';
-        }
-      }
-    }
-    html += auBoardHtml(v);
-    el('auBody').innerHTML = html;
-  }
-
-  // ---- 結果 ----
-  function auRenderResult(v, you){
-    var res = v.lastResult || {};
-    el('auNote').innerHTML = '<div class="ry-desc">つぎのラウンドがすぐ始まります</div>';
-    // 第32弾-C-6：ここがこの遊びの最大の見せ場。
-    // 大当たりは金色に爆ぜ、大ハズレは画面が灰色に沈む。
-    // その落差が面白さの核なので、地味なフェードで済ませない。
-    // 同じラウンドの結果で何度も鳴らさないよう、1回だけ出す
-    if(auShownResult !== v.round){
-      auShownResult = v.round;
-      auRevealValue(res);
-    }
-    var html = '<div class="au-reveal">' +
-      '<div class="au-teaser">' + escapeHtml(res.teaser || '') + '</div>' +
-      '<div class="au-truth">' + escapeHtml(res.reveal || '') + '</div>' +
-      '<div class="au-value">' + auTierLabel(res.tier) + '　' +
-      (res.value >= 0 ? '+' : '') + res.value + '枚</div>';
-    if(res.passed){
-      html += '<p>だれも値をつけなかったので、品物は流れました</p>';
-    } else {
-      html += '<p class="au-sold">🔨 落札！</p>' +
-        '<p>' + escapeHtml(res.winner || '') + ' さんが ' + res.bid + '枚で落札' +
-        (res.halfticket ? '（半額チケットで ' + res.paid + '枚）' : '') +
-        (res.doubleup ? '（ダブルアップ）' : '') + '</p>' +
-        '<p class="au-delta' + (res.delta >= 0 ? ' plus' : ' minus') + '">差し引き ' +
-        (res.delta >= 0 ? '+' : '') + res.delta + '枚</p>' +
-        // 第32弾-C-6：払ったのは落札した人だけ。ほかの人は1枚も減らない
-        '<p class="mic-status">チップが動いたのは ' + escapeHtml(res.winner || '') +
-        ' さんだけです。ほかの人は1枚も減っていません</p>';
-    }
-    html += '</div>' + auBoardHtml(v);
-    el('auBody').innerHTML = html;
-  }
-  var auShownResult = null;
-  /**
-   * 第32弾-C-6：品物の正体が開く瞬間。
-   * 値が大きいほど派手に、大きく損した時ほど静かに沈める（原則C）。
-   * 損したことを大音量で囃し立てない。
-   */
-  function auRevealValue(res){
-    if(typeof FxKit === 'undefined' || !res || res.value == null) return;
-    var big = res.value >= 20;      // 大当たり
-    var bad = res.value <= 0;       // ハズレ
-    if(res.passed){
-      FxKit.banner({ kind:'plain', icon:'🌫', text:'流れました',
-        sub:'だれも値をつけませんでした', ms:700 });
-      return;
-    }
-    FxKit.flash(big ? 'gold' : (bad ? 'gray' : 'good'));
-    FxKit.banner({
-      kind: big ? 'gold' : (bad ? 'gray' : 'good'),
-      icon: big ? '💎' : (bad ? '🗑' : '🎁'),
-      text: res.reveal || '',
-      // 落札した人以外は1枚も損しない。これが分からないと、
-      // 自分に関係のない結果まで悪い知らせに見える
-      sub: auTierLabel(res.tier) + '　' + (res.value >= 0 ? '+' : '') + res.value + '枚' +
-           '　／　払ったのは ' + (res.winner || '') + ' さんだけです',
-      ms: 900
+      el('auRvText').textContent = lr.reveal || '';
+      // ④ 相場が動く
+      step(500, function(){
+        if((document.querySelector('.screen.active') || {}).id !== 'scr-rt-au-reveal') return;
+        el('auRvNote').textContent = auKindLabel(lr.kind) + 'の相場が ' +
+          lr.marketBefore + ' → ' + lr.marketAfter + ' になりました';
+        // ⑤ 得点
+        step(400, function(){
+          if((document.querySelector('.screen.active') || {}).id !== 'scr-rt-au-reveal') return;
+          var p = el('auRvPoints');
+          p.textContent = (lr.points >= 0 ? '+' : '') + lr.points + '点';
+          p.style.color = lr.points >= 0 ? 'var(--gold)' : 'var(--ink-soft)';
+        });
+      });
     });
   }
-  function auTierLabel(tier){
-    var t = AuctionItems.tierById(tier);
-    return t ? (t.icon + ' ' + t.label) : '';
-  }
 
-  function auResultHtml(v){
+  // ---- ⑥ 結果 ----
+  function renderRtAuResult(){
+    var v = rtView();
+    if(!v) return;
     var res = v.result || {};
-    var rows = (res.ranking || []).map(function(x){
-      return '<div class="qb-row' + (x.rank === 1 ? ' win' : '') + '">' +
-        '<span class="qb-name">' + x.rank + '位　' + escapeHtml(x.name) + '</span>' +
-        '<span class="qb-score">' + x.chips + '</span></div>';
+    el('auRsMarket').innerHTML = AUI.KINDS.map(function(k){
+      return '<span class="amk">' + k.icon + '<b>' + ((res.market || {})[k.id] || 1) + '</b></span>';
     }).join('');
-    var top = (res.ranking && res.ranking[0]) ? res.ranking[0].name : '';
-    return '<div class="quiz-result"><h3>🏆 ' + escapeHtml(top) + '</h3>' +
-      '<div class="quiz-board">' + rows + '</div></div>';
+    el('auRsRank').innerHTML = (res.ranking || []).map(function(row){
+      return '<div class="arow">' +
+        '<span class="ark">' + row.rank + '位</span>' +
+        '<span class="arn">' + escapeHtml(row.name) + '</span>' +
+        '<span class="ars">' + row.score + '</span>' +
+        '<span class="arb">点（品物' + row.fromItems + '＋残り' + row.fromChips + '）</span>' +
+      '</div>';
+    }).join('');
+    // 「今日の名場面」は、出せるものがある時だけ
+    el('auRsHighlight').style.display = res.highlight ? 'block' : 'none';
+    el('auRsHighlight').textContent = res.highlight || '';
+    var host = rt.isHost();
+    el('auAgainBtn').style.display = host ? '' : 'none';
+    el('auEndBtn').style.display = host ? '' : 'none';
   }
 
-  el('auBody').addEventListener('click', async function(e){
-    var buy = e.target.closest('[data-aubuy]');
-    if(buy && !buy.disabled){
-      var r1 = await rt.act('buy:' + buy.dataset.aubuy);
-      if(!r1.ok) showFlash('いまは買えません', 'hit-wrong');
-      return;
-    }
-    var use = e.target.closest('[data-auuse]');
-    if(use && !use.disabled){
-      var r2 = await rt.act('use:' + use.dataset.auuse);
-      if(!r2.ok) showFlash(r2.error === 'no_more_hints' ? 'これ以上のヒントはありません' : 'いまは使えません', 'hit-wrong');
-      return;
-    }
-    if(e.target.closest('[data-auready]')) return void (await rt.act('ready'));
-    if(e.target.closest('[data-auretract]')) return void (await rt.act('retract'));
-    if(e.target.closest('[data-aubid]')){
-      var res = await rt.vote(auBidValue);
-      if(!res.ok) showFlash('その金額では出せません', 'hit-wrong');
-      return;
-    }
+  // ---- 操作 ----
+  el('auPowerBtn').addEventListener('click', function(){ goTo('scr-rt-au-power'); });
+  el('auPwBackBtn').addEventListener('click', function(){ goTo('scr-rt-au-open'); });
+  el('auPwList').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-power]');
+    if(!b) return;
+    var res = await rt.act(null, { pick: b.dataset.power });
+    if(!res.ok) showFlash(res.message || 'えらべませんでした', 'hit-wrong');
   });
-  el('auBody').addEventListener('input', function(e){
-    if(e.target && e.target.id === 'auBidSlider'){
-      auBidValue = parseInt(e.target.value, 10);
-      var label = el('auBidValue');
-      if(label) label.textContent = auBidValue;
+  // 棚の品をタップ＝鑑定眼の対象に選ぶ（持っている時だけ）
+  el('auOpenShelf').addEventListener('click', async function(e){
+    var c = e.target.closest('[data-no]');
+    if(!c) return;
+    var you = rt.state.secret;
+    if(!you || you.power !== 'appraise' || you.powerUsed) return;
+    if(!confirm('この品を鑑定しますか？\n（見えるのはあなただけ。1ラウンドに1回だけです）')) return;
+    var res = await rt.act(null, { use: true, targetNo: parseInt(c.dataset.no, 10) });
+    if(!res.ok) showFlash(res.message || '使えませんでした', 'hit-wrong');
+  });
+  el('auBidPad').addEventListener('click', async function(e){
+    var pass = e.target.closest('[data-aupass]');
+    if(pass){
+      var pr = await rt.act(null, { pass: true });
+      if(!pr.ok) showFlash(pr.message || '送れませんでした', 'hit-wrong');
+      return;
     }
+    var ask = e.target.closest('[data-auask]');
+    var b = e.target.closest('[data-aubid]');
+    var you = rt.state.secret;
+    var amt = null;
+    if(ask){
+      var typed = prompt('いくらで出しますか？（持ち' + (you ? you.chips : 0) + '枚）',
+        String(auBidValue || 1));
+      if(typed === null) return;
+      amt = parseInt(typed, 10);
+      if(!(amt >= 0)) return;
+      auBidValue = amt;
+    } else if(b){
+      amt = parseInt(b.dataset.aubid, 10);
+    } else return;
+    var res = await rt.vote(null, { amount: amt });
+    if(!res.ok) showFlash(res.message || 'その額では出せません', 'hit-wrong');
+  });
+  el('auGsPad').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-auguess]');
+    if(!b) return;
+    var res = await rt.vote(null, { guess: b.dataset.auguess });
+    if(!res.ok) showFlash(res.message || '出せませんでした', 'hit-wrong');
   });
   el('auLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('auEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
-  // 大画面。品物の正体は、落札が決まるまで出さない
+  // 落札と決着の見せ場。**段階が変わった瞬間だけ**鳴らす（描き直すたびに鳴らさない）
+  function auPhaseFx(v){
+    if(!v || v.phase === auPrevPhase) return;
+    var was = auPrevPhase;
+    auPrevPhase = v.phase;
+    if(was === null) return;
+    if(v.phase === 'guess'){ soldSound(); if(typeof FxKit !== 'undefined') FxKit.vibe('sold'); }
+    if(v.phase === 'ended' && typeof FxKit !== 'undefined'){
+      FxKit.confetti(['#f0c44a', '#d9a53a', '#fff3c4']);
+    }
+  }
+
+  // 大画面。**相場表と品物一覧が主役。品質は絶対に映さない**
   function renderRtBigAuction(v){
     el('bigBoard').style.display = 'none';
-    // 第36弾 36-4：決着した画面にラウンド数は出さない（範囲外の数字になる）
-    el('bigPhase').textContent = (v.mode === 'open' ? 'せり上げ式' : '秘密入札') +
-      (v.phase === 'ended' ? '' : ('　第' + v.round + '/' + v.totalRounds + 'ラウンド'));
+    el('bigPhase').textContent = (v.mode === 'open' ? AU.TEXT.mode.open : AU.TEXT.mode.sealed) +
+      (v.phase === 'ended' ? '' : ('　' + (AU.TEXT.phase[v.phase] || v.phase)));
     var main = '', sub = '';
     if(v.phase === 'ended'){
       var res = v.result || {};
       main = (res.ranking && res.ranking[0]) ? res.ranking[0].name : '結果';
-      sub = (res.ranking || []).map(function(x){ return x.rank + '位 ' + x.name + '（' + x.chips + '）'; }).join('　');
-    } else if(v.phase === 'result'){
-      var lr = v.lastResult || {};
-      main = lr.reveal || '';
-      sub = lr.passed ? '（だれも値をつけませんでした）'
-        : (lr.winner + ' が ' + lr.bid + '枚で落札　差し引き ' +
-           (lr.delta >= 0 ? '+' : '') + lr.delta + '枚');
+      sub = (res.ranking || []).map(function(x){ return x.rank + '位 ' + x.name + '（' + x.score + '点）'; }).join('　');
+    } else if(v.phase === 'reveal' && v.lastResult){
+      var lr = v.lastResult;
+      main = lr.passed ? AU.TEXT.passed : (auQuality(lr.quality).label + '！');
+      sub = lr.passed ? '' : (lr.winner + ' が ' + lr.paid + '枚で落札　' + (lr.points >= 0 ? '+' : '') + lr.points + '点');
+    } else if(v.item){
+      main = auKindIcon(v.item.kind) + ' ' + v.item.look;
+      sub = (v.phase === 'bid' && v.mode === 'open' && v.highest)
+        ? ('🔨 ' + v.highest.name + '　' + v.highest.amount + '枚')
+        : ((v.item.hints || []).slice(1).join('／'));
     } else {
-      main = v.teaser || '';
-      if(v.phase === 'bid' && v.mode === 'open'){
-        sub = v.highest ? ('🔨 ' + v.highest.name + '　' + v.highest.amount + '枚') : 'まだ値がついていません';
-      } else if(v.phase === 'bid'){
-        sub = '出した人：' + ((v.doneNames || []).join('、') || 'まだ誰も');
-      } else {
-        sub = '正体は伏せられています';
-      }
+      main = '開場';
+      sub = v.mixLine;
     }
     el('bigMain').textContent = main;
     el('bigSub').innerHTML = escapeHtml(sub);
-    el('bigList').innerHTML = (v.players || []).map(function(p){
-      return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.chips + '</span>';
-    }).join('');
+    // 相場表と品物一覧を、大画面の主役として出す
+    el('bigList').innerHTML =
+      '<span class="bl-item">' + AUI.KINDS.map(function(k){
+        var hot = (v.hotKinds || []).indexOf(k.id) !== -1;
+        return k.icon + (v.market ? v.market[k.id] : 1) + (hot ? ' ' + AU.TEXT.hot : '');
+      }).join('　') + '</span>' +
+      (v.players || []).map(function(p){
+        return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.chips + '枚</span>';
+      }).join('');
   }
 
   // ===== 第32弾-A-2-4：みんなの状況 =====

@@ -166,7 +166,8 @@ function beginBid(room) {
   w.passed = {};
   w.guesses = {};
   w.bidStartAt = now();
-  const sec = (w.mode === 'open') ? R.OPEN_EXTEND_SEC : R.SEALED_BID_SEC;
+  // 開始の持ち時間。延長（OPEN_EXTEND_SEC）とは別の数
+  const sec = (w.mode === 'open') ? R.OPEN_START_SEC : R.SEALED_BID_SEC;
   setPhase(room, PHASE.BID, sec);
 }
 
@@ -174,7 +175,7 @@ function beginBid(room) {
 function beginConfirm(room) {
   const w = room.auction;
   w.passed = {};
-  setPhase(room, PHASE.CONFIRM, R.GUESS_SEC * 2);
+  setPhase(room, PHASE.CONFIRM, R.CONFIRM_SEC);
 }
 
 // この品を流す。流れた品は「次の品のあと」にもう一度だけ出す

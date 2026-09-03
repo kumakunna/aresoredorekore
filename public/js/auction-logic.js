@@ -62,8 +62,13 @@
     PREVIEW_SEC_DEFAULT: 60,  // 下見（口で腹の探り合いをする時間）
     PREVIEW_SEC_MIN: 30,
     PREVIEW_SEC_MAX: 90,
+    // せり上げ式は「最初の持ち時間」と「延長」が別の数。
+    // 最初の持ち時間は、段階ヒント（HINT_STEP_SEC × HINT_STEPS）が
+    // 開き切るだけの長さが要る。短いと、ヒントの仕組みごと動かない
+    OPEN_START_SEC: 30,       // せり上げ：最初に配る持ち時間
     OPEN_EXTEND_SEC: 8,       // せり上げ：値がついたら、締め切りをここまで延ばす
     SEALED_BID_SEC: 45,       // 秘密入札：考える時間
+    CONFIRM_SEC: 12,          // 誰も値をつけなかった時の、最後のひと押し
     GUESS_SEC: 6,             // 値踏み予想
     REVEAL_SEC: 7,            // 開示（順に見せるので、少し長め）
     HINT_STEP_SEC: 12,        // 競り開始から、この間隔で段階ヒントが1つずつ開く
@@ -97,7 +102,10 @@
 
   // 文言はここに集める（画面に直書きしない）
   var TEXT = {
-    phase: { preview: '下見', bid: '競り', guess: '値踏み', reveal: '開示', ended: '決着' },
+    phase: {
+      preview: '下見', bid: '競り', confirm: '最後のひと押し',
+      guess: '値踏み', reveal: '開示', ended: '決着'
+    },
     mode: { open: 'せり上げ式', sealed: '秘密入札' },
     passed: 'だれも値をつけませんでした',
     passedAgain: 'この品は、次の品のあとにもう一度だけ出ます',
@@ -163,9 +171,25 @@
   function buildRound(usedLooks, rnd) {
     var used = usedLooks || {};
     var n = RULES.ITEMS_PER_ROUND;
-    var fresh = Items.ITEMS.filter(function (x) { return !used[x.look]; });
-    var bank = fresh.length >= n ? fresh : Items.ITEMS;
-    var picked = shuffle(bank, rnd).slice(0, n);
+    // **系統ごとに同じ数を取る。**無作為に6つ取ると「壺0・絵4」のような回が出て、
+    // 相場が一度も動かない系統ができてしまう（相場が主役なのに）
+    var per = Math.floor(n / Items.KINDS.length);
+    var picked = [];
+    Items.KINDS.forEach(function (k) {
+      var ofKind = Items.ITEMS.filter(function (x) { return x.kind === k.id; });
+      var fresh = ofKind.filter(function (x) { return !used[x.look]; });
+      var bank = (fresh.length >= per) ? fresh : ofKind;
+      picked = picked.concat(shuffle(bank, rnd).slice(0, per));
+    });
+    // 端数（系統の数で割り切れない分）は、残り全部から埋める
+    if (picked.length < n) {
+      var rest = Items.ITEMS.filter(function (x) {
+        return picked.indexOf(x) === -1 && !used[x.look];
+      });
+      picked = picked.concat(shuffle(rest, rnd).slice(0, n - picked.length));
+    }
+    // 並ぶ順は混ぜる（系統ごとに固まって出ると、競りの順が読めてしまう）
+    picked = shuffle(picked, rnd);
     var qualities = shuffle(Items.mixQualities(), rnd);
     return picked.map(function (it, i) {
       var q = qualities[i];
@@ -328,7 +352,7 @@
     });
     if (solo) {
       var kd = Items.kindById(solo.kind);
-      return solo.name + ' さんは、' + (kd ? kd.label : solo.kind) + ' を ' + solo.n +
+      return solo.name + ' さんは、' + (kd ? kd.label : solo.kind) + 'を' + solo.n +
         'つ集めて、相場をひとりで育てた';
     }
     // ③ いちばん大きく当てた品

@@ -23,6 +23,19 @@ function viewOf(dev) {
 // 部屋の中身をサーバー側から直接見る（検体を作るためだけに使う）
 function stateOf(srv, code) { return roomOf(srv, code).auction; }
 
+/**
+ * 締め切りを「今」まで引く（早送り）。
+ * 進行役の見回りは0.5秒ごとなので、これで次の段階へ進む。
+ *
+ * **持ち時間の数そのものは検査に使わない**（落とし穴10-a の自己参照になる）。
+ * ここでやっているのは「締め切りが来た」という状況を作ることだけで、
+ * 「締め切りが本当に効くか」は下の専用の検査が実時間で見ている。
+ */
+function rush(srv, code) {
+  const w = stateOf(srv, code);
+  if (w && w.deadline) w.deadline = Date.now() - 1;
+}
+
 // 開場から始める。preview を飛ばして競りに入れる
 async function toBid(rm, srv) {
   await waitUntil(() => viewOf(rm.host) && viewOf(rm.host).phase === 'preview', '開場する');
@@ -125,6 +138,7 @@ async function run() {
       const rm = await startAuction(srv, 3, { mode: 'sealed' });
       await toBid(rm, srv);
       await rm.host.call('wolf:vote', { amount: 5 });
+      rush(srv, rm.code);
       await waitUntil(() => viewOf(rm.host).phase === 'guess', '値踏みに入る', 60000);
 
       await rm.guests[0].call('wolf:vote', { guess: 'fine' });
@@ -139,6 +153,7 @@ async function run() {
       assertEqual(seen.indexOf('"guess":"fine"'), -1, '他の人に中身が渡っていない');
 
       // 開示になったら、全員の予想が一斉に開く
+      rush(srv, rm.code);
       await waitUntil(() => viewOf(rm.guests[1]).phase === 'reveal', '開示になる', 20000);
       const rv = viewOf(rm.guests[1]).lastResult;
       assert(rv.guesses && rv.guesses.length >= 1, '開示では、みんなの予想が開く');
@@ -231,6 +246,7 @@ async function run() {
       const otherBefore = viewOf(rm.host).players.find((p) => p.id === rm.guests[1].memberId).chips;
 
       await rm.guests[0].call('wolf:vote', { amount: 6 });
+      rush(srv, rm.code);
       await waitUntil(() => viewOf(rm.host).phase === 'guess', '落札が決まる', 60000);
       const v = viewOf(rm.host);
       assertEqual(v.lastResult.winner, rm.guests[0].name, '出した人が落札');
@@ -241,12 +257,36 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  await r.test('締め切りは実時間で効く（誰も何もしなくても段階が進む）', async () => {
+    // 上の検査たちは rush で締め切りを手前に引いている。
+    // **その早送りが正しいと言えるのは、締め切りが本当に効く場合だけ**なので、
+    // ここ1件だけは早送りを使わず、実時間で待って確かめる。
+    // 使うのはいちばん短い段階（値踏み）。誰も予想を出さなくても開示へ進むはず
+    const srv = await startTestServer();
+    try {
+      const rm = await startAuction(srv, 3, { mode: 'sealed' });
+      await toBid(rm, srv);
+      await rm.guests[0].call('wolf:vote', { amount: 3 });
+      rush(srv, rm.code);
+      await waitUntil(() => viewOf(rm.host).phase === 'guess', '値踏みに入る', 20000);
+      // ここから先は誰も何もしない。**時計だけで**開示へ進むこと
+      const startedAt = Date.now();
+      await waitUntil(() => viewOf(rm.host).phase === 'reveal',
+        '誰も予想を出さなくても、締め切りで開示へ進む', (R.GUESS_SEC + 8) * 1000);
+      const waited = Date.now() - startedAt;
+      // 早すぎたら「締め切りで進んだ」とは言えない（何か別の理由で進んでいる）
+      assert(waited >= 2000, '締め切りを待って進んだ（実際:' + waited + 'ms）');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   await r.test('誰も入札しない時は、すぐには流さず最終確認をはさむ', async () => {
     const srv = await startTestServer();
     try {
       const rm = await startAuction(srv, 3, { mode: 'sealed' });
       await toBid(rm, srv);
       // 誰も出さないまま締め切りを迎える
+      rush(srv, rm.code);
       await waitUntil(() => viewOf(rm.host).phase === 'confirm', '最終確認になる', 60000);
       const v = viewOf(rm.host);
       assert(v.waitingPass && v.waitingPass.length === 3, 'まだ3人が押していない');  // 型(b)
@@ -268,6 +308,7 @@ async function run() {
     try {
       const rm = await startAuction(srv, 3, { mode: 'sealed' });
       await toBid(rm, srv);
+      rush(srv, rm.code);
       await waitUntil(() => viewOf(rm.host).phase === 'confirm', '最終確認になる', 60000);
       const res = await rm.guests[0].call('wolf:vote', { amount: 2 });
       assertEqual(res.ok, true, '最終確認からでも出せる');
@@ -286,6 +327,7 @@ async function run() {
       const orderBefore = w.order.slice();
       assertEqual(orderBefore.length, 6, '最初は6品');                       // 型(b)
 
+      rush(srv, rm.code);
       await waitUntil(() => viewOf(rm.host).phase === 'confirm', '最終確認', 60000);
       for (const d of rm.all) await d.call('wolf:act', { pass: true });
       await waitUntil(() => stateOf(srv, rm.code).order.length === 7, 'もう一度並ぶ');
@@ -327,6 +369,7 @@ async function run() {
       await rm.guests[0].call('wolf:act', { use: true });
       const before = viewOf(rm.host).players.find((p) => p.id === rm.guests[0].memberId).chips;
       await rm.guests[0].call('wolf:vote', { amount: 7 });
+      rush(srv, rm.code);
       await waitUntil(() => viewOf(rm.host).phase === 'guess', '落札が決まる', 60000);
       const v = viewOf(rm.host);
       assertEqual(v.lastResult.paid, 4, '7の半分は切り上げて4');
@@ -350,9 +393,12 @@ async function run() {
         if (v.phase === 'ended') break;
         if (v.phase === 'bid' || v.phase === 'confirm') {
           await rm.guests[0].call('wolf:vote', { amount: 1 });
+          rush(srv, rm.code);
           await waitUntil(() => ['guess', 'reveal', 'ended'].indexOf(viewOf(rm.host).phase) >= 0,
             i + '：落札が決まる', 60000);
         }
+        // 値踏み・開示も締め切りで進む。ここも早送りする
+        rush(srv, rm.code);
         await waitUntil(() => ['bid', 'confirm', 'ended'].indexOf(viewOf(rm.host).phase) >= 0,
           i + '：次の品へ', 40000);
       }

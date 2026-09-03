@@ -322,6 +322,15 @@ function auStage(cfg) {
     AuctionRoom.advance(room);   // guess → reveal
     return st;
   };
+  // **次の品**の開示まで進める。「前の品の値が残っていないか」を見るのに要る
+  st.nextReveal = (winnerId, guesses) => {
+    AuctionRoom.advance(room);   // reveal → 次の品の競りへ
+    w.bids[winnerId] = { amount: 2, at: Date.now() };
+    AuctionRoom.advance(room);   // bid → guess
+    Object.keys(guesses || {}).forEach((id) => { w.guesses[id] = guesses[id]; });
+    AuctionRoom.advance(room);   // guess → reveal
+    return st;
+  };
   return st;
 }
 
@@ -3232,6 +3241,23 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 120);
     assert(el(doc, 'auRvQuality').textContent !== '',
       '知らせがもう一度届いても、品質が消えて出直さない');
+
+    // **次の品の開示は、前の品の値を残したまま始まらない。**
+    // 順に出す演出なので、相場と得点は1秒ほど後に入る。
+    // 消し忘れると、その1秒のあいだ「新しい品の名前」の横に
+    // 「前の品の品質・得点・相場の動き」が出る（実機の通しで見つけた）。
+    // ここは**前の品を見たあと**で確かめないと、主張が自明に通ってしまう（型b）
+    const firstNote = el(doc, 'auRvNote').textContent;
+    assert(firstNote !== '', '1品目では相場の動きが出ている');  // 型(b)：条件が作れている
+    const firstNo = st.w.lastResult.no;
+    st.nextReveal('m1', { m2: 'plain' });
+    assert(st.w.lastResult.no !== firstNo, '2品目に進んでいる');  // 型(b)
+    push(fake, auRoom(st, 'reveal'));
+    await sleep(win, 60);
+    ['auRvQuality', 'auRvText', 'auRvPoints', 'auRvNote'].forEach((id) => {
+      assertEqual(el(doc, id).textContent, '',
+        id + '：2品目の開示は、前の品の値を残さず空から始まる');
+    });
     assertNoErrors(errors, '開示の画面で未捕捉の例外');
     win.close();
   });

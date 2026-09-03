@@ -467,7 +467,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     } catch (e) { /* 一言が出ないだけ。進行は止めない */ }
   }
 
-  // 第31弾：オークションバトル。最後に持っていたチップがそのまま成績
+  // 第38弾：相場オークション。成績は得点（品質値×最終相場の合計＋残チップぶん）
   function recordAuctionMatch(room) {
     if (!db || !room.ownerUserId || !room.auction) return;
     try {
@@ -475,16 +475,18 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const view = AuctionRoom.resultView(room);
       const names = w.playerIds.map((id) => w.names[id]);
       const deltas = {}, finalScores = {};
+      // 第38弾：成績は「最後のチップ」ではなく得点
+      //（品質値×最終相場の合計＋残チップぶん）。ルール層が計算したものをそのまま使う
       view.ranking.forEach((row) => {
-        deltas[row.name] = row.chips;
-        finalScores[row.name] = row.chips;
+        deltas[row.name] = row.score;
+        finalScores[row.name] = row.score;
       });
       const detail = Object.assign({}, view, {
         game: 'auction',
         style: 'realtime',
         variant: w.mode,            // 'open'（せり上げ式）| 'sealed'（秘密入札）
         preset: w.preset || null,
-        startChips: w.cfg.startChips
+        startChips: AuctionRoom.START_CHIPS
       });
       const rounds = [{
         mode: w.preset || 'auction',

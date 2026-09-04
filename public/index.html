@@ -988,6 +988,32 @@
   .got-label{font-size:26px;font-weight:800;margin-top:6px;}
   .got-why{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.7;}
 
+  /* 第39弾 門A10：**押せるものには、触れた瞬間の反応がある。**
+     押したのに何も変わらないと、遊ぶ人は「効いていないのかな」と
+     もう一度押す。二重送信の元にもなるし、なにより不安になる。
+
+     <button> は共通規則（button:active）で効いている。
+     ここに並べたのは**div や span で作られた押せるもの**——
+     タグが違うだけで、遊ぶ人にとっては同じ「押すもの」。
+     tests/press-feedback.js が、cursor:pointer とタグを突き合わせて見張る。
+     動きの長さは短（0.15秒）＝合図（正本4） */
+  .mode-card:active,
+  .handicap-picker .hp-chip:active,
+  .chooser .chip:active,
+  .tg-item:active,
+  .bomb-wire-btn:active,
+  .sugo-dice:active,
+  .door:active{
+    transform:scale(.97);
+    transition:transform .15s cubic-bezier(.32,.72,0,1);
+  }
+  /* 切り替えは沈まず、少し縮む（つまみが動くのが本体の合図なので、控えめに） */
+  .switch:active{transform:scale(.94);transition:transform .15s cubic-bezier(.32,.72,0,1);}
+  /* 時計は「押すと5秒だけ出る」。押したことが分かるよう、その場で濃くする */
+  .app[data-timer-view="peek"] [data-timer]:active{
+    filter:brightness(1.3);transition:filter .15s cubic-bezier(.32,.72,0,1);
+  }
+
   /* 第39弾 2-6③：浮いているものと、下部のボタンが重ならないようにする。
      #reactBar（左下）は部屋のゲーム画面すべてに出るので、
      .wiz-foot と約20px重なって、背景の無いボタンの文字が絵文字に潰れていた。

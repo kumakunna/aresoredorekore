@@ -116,7 +116,8 @@
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;
     border-radius:10px;padding:15px 18px;font-family:'Zen Maru Gothic', sans-serif;
-    font-weight:700;font-size:16px;cursor:pointer;transition:transform .12s ease, filter .12s ease;
+    font-weight:700;font-size:var(--fs-btn);cursor:pointer;
+    transition:transform .15s cubic-bezier(.32,.72,0,1), filter .15s ease;
   }
   .btn:active{transform:scale(0.97);}
   .btn-main{width:100%;background:var(--ink);color:var(--paper);}
@@ -124,12 +125,16 @@
   .btn-main:disabled{opacity:.4;}
   .btn-outline{background:transparent;border:1.5px solid var(--ink);color:var(--ink);}
   .btn-teal{background:var(--teal);color:#fff;}
-  .btn-ghost{background:transparent;color:var(--ink-soft);text-decoration:underline;font-weight:400;font-size:13px;padding:8px;}
+  .btn-ghost{background:transparent;color:var(--ink-soft);text-decoration:underline;font-weight:400;font-size:var(--fs-sub);padding:8px;}
 
-  h2.scr-title{
-    font-family:'Shippori Mincho', serif;font-weight:800;font-size:24px;margin:0 0 4px;
+  /* タグで縛らない。役割を表しているのはクラスの方で、
+     h2 以外で書いた時に黙って効かなくなるのを避ける（第39弾で踏んだ） */
+  .scr-title{
+    font-family:'Shippori Mincho', serif;font-weight:800;
+    font-size:var(--fs-title);line-height:1.35;margin:0 0 4px;
   }
-  p.scr-sub{margin:0 0 22px;font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+  /* 画面の説明文。**補足ではなく本文の役割**（読ませたい文なので） */
+  .scr-sub{margin:0 0 22px;font-size:var(--fs-body);color:var(--ink-soft);line-height:1.75;}
 
   input[type=text], input[type=password]{
     width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;
@@ -187,7 +192,7 @@
   .mode-score-preview .msp-name{font-weight:700;}
   .mode-score-preview .msp-score{font-family:'DotGothic16',monospace;color:var(--stamp-deep);}
   .timer-picker{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:4px;}
-  .tp-label{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;}
+  .tp-label{font-size:var(--fs-body);font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;}
   .tp-label span{font-family:'DotGothic16',monospace;color:var(--stamp-deep);font-size:16px;}
   #tpSlider{width:100%;accent-color:var(--stamp);}
   .handicap-picker{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;}
@@ -393,7 +398,7 @@
     box-shadow:0 0 0 1px var(--switch-knob-edge), 0 1px 3px rgba(0,0,0,0.3);
   }
   .switch.on::after{left:18.5px;}
-  .mic-status{font-size:10.5px;color:var(--ink-soft);margin-top:4px;}
+  .mic-status{font-size:var(--fs-sub);color:var(--ink-soft);line-height:1.7;margin-top:4px;}
   .live-transcript{
     margin-top:8px;min-height:20px;padding:8px 12px;background:#fff;border:1px dashed var(--line);
     border-radius:8px;font-size:13px;color:var(--ink);word-break:break-all;
@@ -657,15 +662,26 @@
   }
   .overlay.show{display:flex;}
   .overlay-panel{
-    width:100%;max-width:460px;background:var(--paper);margin-top:56px;border-radius:16px 16px 0 0;
+    width:100%;max-width:460px;margin-top:56px;border-radius:16px 16px 0 0;
     padding:20px 20px 30px;overflow-y:auto;animation:panelUp .25s ease;
+    /* 第39弾 2-6④：**設定は道具なので、世界に染めない。**
+       ここを共通トークンに戻さないと、暗いテーマで
+       地だけ暗くなって文字は墨のまま残り、1.11:1（読めない）になる。
+       **地と文字は必ずセットで決める**（正本 1-3・1-4） */
+    --paper:#EFE8D3; --paper-deep:#E4DBC0; --card:#FFFBF2;
+    --ink:#24272E; --ink-soft:#5B5A50;
+    --stamp:#B7242A; --stamp-deep:#8F1B20;
+    --line:rgba(36,39,46,0.14);
+    background:var(--paper);
+    color:var(--ink);
   }
   @keyframes panelUp{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
   .overlay-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
-  .overlay-head h3{font-family:'Shippori Mincho',serif;font-size:18px;margin:0;}
+  .overlay-head h3{font-family:'Shippori Mincho',serif;font-size:var(--fs-title);margin:0;}
   .close-x{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--line);font-size:15px;cursor:pointer;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px;}
-  .sec-title{font-family:'Shippori Mincho', serif;font-weight:800;font-size:14px;margin:0 0 10px;}
+  /* 節の見出しは、画面タイトルより一段小さい役割（本文と同じ大きさで太い） */
+  .sec-title{font-family:'Shippori Mincho', serif;font-weight:800;font-size:var(--fs-body);margin:0 0 10px;}
   .pack-form label{display:block;font-size:11px;color:var(--ink-soft);margin:10px 0 4px;}
   .ng-input-row{display:flex;gap:6px;}
   .pack-list-item{padding:10px 0;border-bottom:1px solid var(--line);}
@@ -860,7 +876,7 @@
   .set-row:active{background:rgba(0,0,0,.05);}
   .set-row .sr-icon{font-size:19px;flex:0 0 auto;}
   .set-row .sr-text{flex:1;}
-  .set-row .sr-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .set-row .sr-sub{font-size:var(--fs-sub);color:var(--ink-soft);margin-top:2px;}
   .set-row .sr-arrow{color:var(--ink-soft);font-size:15px;}
   /* 危険な操作は、見た目ではっきり分ける */
   .set-row.danger{border-color:var(--stamp);color:var(--stamp);}
@@ -971,6 +987,12 @@
     100%{text-shadow:none;}}
   .got-label{font-size:26px;font-weight:800;margin-top:6px;}
   .got-why{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.7;}
+
+  /* 第39弾 2-6③：浮いているものと、下部のボタンが重ならないようにする。
+     #reactBar（左下）は部屋のゲーム画面すべてに出るので、
+     .wiz-foot と約20px重なって、背景の無いボタンの文字が絵文字に潰れていた。
+     **浮くものが出ている画面では、下部のボタンがその高さぶん上がる。** */
+  .app.has-float-bottom .wiz-foot{padding-bottom:52px;}
 
   /* 第39弾 2-4：部品カタログ。目視と機械計測のための画面 */
   .cat-controls{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
@@ -1447,7 +1469,7 @@
   .preset-btn.on{background:var(--gold);color:#fff;border-color:var(--gold);}
   .timer-dmode{margin-top:18px;}
   .seg{display:flex;gap:0;margin-top:6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
-  .seg-btn{flex:1;background:var(--card);border:none;padding:11px 8px;font-size:14px;color:var(--ink-soft);cursor:pointer;}
+  .seg-btn{flex:1;background:var(--card);border:none;padding:11px 8px;font-size:var(--fs-sub);color:var(--ink-soft);cursor:pointer;}
   .seg-btn.on{background:var(--stamp);color:#fff;}
   .seg-btn + .seg-btn{border-left:1px solid var(--line);}
   /* 第21弾-4：遊び方の切り替え（手渡し／1人1台） */
@@ -7693,6 +7715,10 @@
     return screenStack.length > 0;
   }
   function goBackOne(){
+    // 第39弾 2-6②：**重なりが開いていたら、まずそれを閉じる。**
+    // 後ろの画面を動かしてはいけない——押しても閉じないので、
+    // 閉じ方を探しながら何度も押すことになっていた（正本8）
+    if(closeTopLayer()) return;
     var to = screenStack.pop();
     if(!to) return;
     goTo._back = true;
@@ -7700,6 +7726,37 @@
     goTo(to);
   }
   el('floatingBackBtn').addEventListener('click', goBackOne);
+
+  /**
+   * いちばん上の重なりを閉じる。閉じたら true。
+   *
+   * 重なりは2種類ある——共通部品（UiKit）と、設定のオーバーレイ。
+   * **どちらも「戻る」の対象**にしないと、押しても閉じないものが残る
+   */
+  function closeTopLayer(){
+    if(typeof UiKit !== 'undefined' && UiKit.anyOpen()) return UiKit.closeTop('back');
+    if(el('settingsOverlay').classList.contains('show')){
+      // 設定の中で1段深く入っていたら、まず1段だけ上がる（正本8）
+      if(setStack.length > 1){
+        setStack.pop();
+        goSetPage(setStack[setStack.length - 1] || 'root', false);
+      } else {
+        closeSettings();
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // ESC と、パネルの外側。**✕ を探さなくても閉じられる**
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape') return;
+    if(typeof UiKit !== 'undefined' && UiKit.anyOpen()) return;  // 部品側が自分で閉じる
+    if(el('settingsOverlay').classList.contains('show')){ e.preventDefault(); closeSettings(); }
+  });
+  el('settingsOverlay').addEventListener('click', function(e){
+    if(e.target === this) closeSettings();
+  });
   // ---- カセット別テーマ（第18弾-5 → 第20弾-7-1で範囲を広げた） ----
   // カセットを選んだ時点から、そのカセットに属する画面すべてに専用テーマを当てる。
   // 棚と扉だけは、どのカセットにも属していないので常にアプリ共通の見た目に戻す。
@@ -7817,6 +7874,7 @@
     // 第32弾-E 第4部・第5部：リアクションの帯と🎁は、部屋の画面でだけ
     updateReactBar();
     if(RT_SCREENS.indexOf(id) === -1) el('thanksBtn').style.display = 'none';
+    syncFloatBottom();
     // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
     if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
     if(prevScreen && prevScreen.id === 'scr-rt-quiz' && id !== 'scr-rt-quiz') qzLeaveScreen();
@@ -14237,6 +14295,25 @@
     var id = (document.querySelector('.screen.active') || {}).id;
     var on = appPrefs.reactions && rt && rt.state.room && RT_GAME_SCREEN_IDS.indexOf(id) >= 0;
     el('reactBar').style.display = on ? 'flex' : 'none';
+    syncFloatBottom();
+  }
+
+  /**
+   * 第39弾 2-6③：**下に浮いているものがあるか**を、ここ1か所で決める。
+   *
+   * #reactBar（左下）と #thanksBtn（右下）は、下部のボタンと同じ高さに来る。
+   * 実際に .wiz-foot と約20px重なって、背景の無いボタンの文字が
+   * 絵文字に潰れて読めなくなっていた（部屋の全ゲーム共通）。
+   *
+   * 「出す側」と「隠す側」を別々に書くと、浮くものを足した時に
+   * 片方だけ書き忘れる。**現在の状態から計算する関数を1つ**通す（第35弾Cの型1）
+   */
+  function syncFloatBottom(){
+    var shown = ['reactBar', 'thanksBtn'].some(function(id){
+      var n = el(id);
+      return n && n.style.display !== 'none' && n.style.display !== '';
+    });
+    el('app').classList.toggle('has-float-bottom', shown);
   }
   /**
    * 届いたリアクションを、ふっと浮かべて消す。
@@ -14277,6 +14354,7 @@
     if(!ended) thanksSent = false;
     var on = ended && !thanksSent && rt && rt.state.room && !rtIsBigScreen();
     el('thanksBtn').style.display = on ? 'flex' : 'none';
+    syncFloatBottom();
   }
   el('thanksBtn').addEventListener('click', function(){
     thanksKind = null;

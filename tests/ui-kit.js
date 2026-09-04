@@ -190,5 +190,71 @@ function click(doc, sel) {
     assert(/color:var\(--ink\)/.test(body), '文字色も一緒に決めている');
   });
 
+  await r.test('2-6①：文字サイズの3段階が、役割ごとに実際の値を持っている', async () => {
+    // 着手前は --font-scale が1か所でしか使われておらず、
+    // font-size の宣言411個はどれも固定pxで、設定を動かしても何も変わらなかった。
+    // **役割ごとのトークンが、3段階ぶん定義されているか**を見る
+    const fsx = require('fs');
+    const pathx = require('path');
+    const html = fsx.readFileSync(pathx.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const roles = ['--fs-title', '--fs-body', '--fs-sub', '--fs-btn'];
+    const steps = [
+      { 名: '標準', re: /:root\{([\s\S]*?)\n  \}/ },
+      { 名: '小', re: /\.app\.fs-small\{([^}]*)\}/ },
+      { 名: '大', re: /\.app\.fs-large\{([^}]*)\}/ }
+    ];
+    const 値 = {};
+    steps.forEach((s) => {
+      const m = html.match(s.re);
+      assert(m, s.名 + ' の指定がある');
+      値[s.名] = {};
+      roles.forEach((r2) => {
+        const v = m[1].match(new RegExp(r2 + ':\s*([0-9.]+)px'));
+        assert(v, s.名 + ' に ' + r2 + ' がある');
+        値[s.名][r2] = parseFloat(v[1]);
+      });
+    });
+    // **3段階が本当に違う値になっている**（同じ値を3つ並べても「効かない」ままになる）
+    roles.forEach((r2) => {
+      assert(値.小[r2] < 値.標準[r2], r2 + '：小 < 標準（' + 値.小[r2] + ' < ' + 値.標準[r2] + '）');
+      assert(値.標準[r2] < 値.大[r2], r2 + '：標準 < 大（' + 値.標準[r2] + ' < ' + 値.大[r2] + '）');
+    });
+    // 共有クラスがトークンを使っている（固定pxのままだと設定が効かない）
+    const 繋ぐ = [
+      ['.scr-title{', '--fs-title'], ['.scr-sub{', '--fs-body'],
+      ['.mic-status{', '--fs-sub'], ['.btn{', '--fs-btn']
+    ];
+    繋ぐ.forEach(([sel, tok]) => {
+      const i = html.indexOf(sel);
+      assert(i > 0, sel + ' がある');
+      const body = html.slice(i, i + 300);
+      assert(body.indexOf('var(' + tok + ')') >= 0, sel + ' が ' + tok + ' を使っている');
+    });
+    // **タグで縛らない。**h2/p 以外で書いた時に黙って効かなくなる（第39弾で踏んだ）
+    assert(html.indexOf('h2.scr-title{') === -1, '見出しの指定がタグで縛られていない');
+    assert(html.indexOf('p.scr-sub{') === -1, '本文の指定がタグで縛られていない');
+  });
+
+  await r.test('2-6③④：浮くものの余白と、道具がテーマに染まらないこと', async () => {
+    const fsx = require('fs');
+    const pathx = require('path');
+    const html = fsx.readFileSync(pathx.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // ③ 下に浮くものがある時、下部のボタンが上がる
+    assert(/\.app\.has-float-bottom \.wiz-foot\{[^}]*padding-bottom/.test(html),
+      '浮くものが出ている時、下部のボタンが上がる');
+    // **出す側と隠す側を別々に書かない**（第35弾Cの型1）
+    assert(/function syncFloatBottom\(\)/.test(html),
+      '下に浮くものがあるかを、1か所で数えている');
+
+    // ④ 設定パネルが共通トークンに戻していて、**地と文字をセットで**決めている
+    const m = html.match(/\.overlay-panel\{([\s\S]*?)\n  \}/);
+    assert(m, '.overlay-panel の指定がある');
+    ['--paper', '--card', '--ink', '--ink-soft', '--line'].forEach((t) => {
+      assert(m[1].indexOf(t + ':') >= 0, '設定パネルが ' + t + ' を共通の値に戻している');
+    });
+    assert(/color:var\(--ink\)/.test(m[1]),
+      '**文字色も一緒に決めている**（地だけ直すと 1.11:1 の事故が戻る）');
+  });
+
   r.finish();
 })();

@@ -5,7 +5,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click,
-  setupPlayers, chooseNext, createRunner, assert, assertEqual, assertNoErrors } = H;
+  setupPlayers, chooseNext, createRunner, assert, assertEqual, assertNoErrors, autoDialog } = H;
 
 // 指定モードを、タイマーOFF（手動でラウンドを終えられる）で開始する
 async function startPlay(win, doc, modeId, names) {
@@ -389,7 +389,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
 
   await r.test('つぎは？：結果を見る画面と、次を決める画面を分ける', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await playToScore(win, doc);
     // 結果の画面の出口は1つだけ（原則A）
     assertEqual(doc.querySelectorAll('#scr-score .score-actions button').length, 1,
@@ -412,7 +412,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     // 押した人以外はまだ心の準備ができていない。
     // 省きたいのは「設定の選び直し」であって、始まる合図ではない。
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await playToScore(win, doc);
     await chooseNext(win, doc, 'again');
     await waitScreen(win, doc, 'scr-ready', 4000);
@@ -430,7 +430,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     // あれそれどれこれのカセットに入っているゲームは1つだけ。
     // 押しても何も起きない選択肢は置かない
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await playToScore(win, doc);
     click(doc, 'toNextBtn');
     await waitScreen(win, doc, 'scr-next', 3000);
@@ -443,7 +443,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
 
   await r.test('つぎは？：別のカセットへ選ぶと、記録が残って棚に戻る', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await playToScore(win, doc);
     await chooseNext(win, doc, 'shelf');
     await waitScreen(win, doc, 'scr-shelf', 6000);
@@ -460,7 +460,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
   await r.test('つぎは？：サバイバルは、決着するまで抜け道を出さない', async () => {
     // 途中でモードを変えられると、勝ち抜き戦が成立しない（第20弾の決まり）
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await startPlay(win, doc, 'normal');
     // サバイバルのオプションは設定ウィザードにあるので、直接この状態を作れない。
     // ここでは「決まりが選択肢の表に書いてある」ことを確かめる

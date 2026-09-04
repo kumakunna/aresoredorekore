@@ -560,8 +560,50 @@ function assertNoErrors(errors, label) {
   }
 }
 
+/**
+ * 共通ダイアログ（UiKit）に、出るたび自動で答える（第39弾）。
+ *
+ * それまでは `win.confirm = () => true` でブラウザ標準を握りつぶしていた。
+ * 標準ダイアログを全廃したので、**本物の部品が出て、それを押す**形にする。
+ * 流れを確かめる検査は、ダイアログの中身までは見ない——
+ * 部品そのものの約束は tests/ui-kit.js が、
+ * どの場面がどの種類で出るかは tests/ui-text.js が見ている。
+ *
+ * @param answer  true＝主ボタン（既定）／false＝逃げ道
+ * @returns 止める関数
+ */
+function autoDialog(win, doc, answer) {
+  const which = (answer === false) ? 'cancel' : 'ok';
+  const press = () => {
+    const b = doc.querySelector('.ui-layer .ui-panel [data-ui="' + which + '"]')
+           || doc.querySelector('.ui-layer .ui-panel [data-ui="ok"]');
+    if (b) b.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  };
+  // **見張りは間隔ではなく、増えた時だけ動かす。**
+  // 10msごとに回す形にしたら、窓を閉じても止まらない見張りが
+  // 検査のぶんだけ積み上がって、smoke が落ちた（segmentation fault）
+  const mo = new win.MutationObserver(press);
+  mo.observe(doc.getElementById('app') || doc.body, { childList: true, subtree: true });
+  press();   // すでに出ているものにも答える
+  return () => mo.disconnect();
+}
+
+/** いま出ているダイアログ（無ければ null） */
+function openDialog(doc) {
+  const p = doc.querySelector('.ui-layer .ui-panel');
+  if (!p) return null;
+  return {
+    種類: p.querySelector('.ui-dialog-in.is-danger') ? 'danger'
+        : p.querySelector('[data-ui="cancel"]') ? 'confirm' : 'info',
+    見出し: (p.querySelector('.ui-head') || {}).textContent || '',
+    本文: (p.querySelector('.ui-body') || {}).textContent || '',
+    node: p
+  };
+}
+
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
+  autoDialog, openDialog,
   setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
   chooseNext, wolfPick,
   createRunner, assert, assertEqual, assertNoErrors

@@ -6,7 +6,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm,
-  pickGame, runWizardToPlay, createRunner, assert, assertEqual, assertNoErrors } = H;
+  pickGame, runWizardToPlay, createRunner, assert, assertEqual, assertNoErrors, autoDialog } = H;
 // 第35弾：経路の正本。ゲーム一覧・退室経路はここから回す（手書きの列挙をしない）
 const INV = require('./inventory');
 
@@ -1311,7 +1311,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
       alive: true, done: true, choices: [] });
     await waitScreen(win, doc, 'scr-rt-play', 4000);
-    win.confirm = () => true;
+    autoDialog(win, doc);
     click(doc, 'endGameBtn');
     await waitScreen(win, doc, 'scr-rt-room', 3000);
     const reset = fake.emits.filter(e => e.name === 'room:setState').pop();
@@ -1328,7 +1328,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
       alive: true, done: true, choices: [] });
     await waitScreen(win, doc, 'scr-rt-play', 4000);
-    win.confirm = () => true;
+    autoDialog(win, doc);
     click(doc, 'endGameBtn');
     await waitFor(win, () => fake.emits.some(e => e.name === 'room:leave'), 3000, '部屋から抜ける');
     await waitScreen(win, doc, 'scr-shelf', 3000);
@@ -1386,7 +1386,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('待機画面から、進行役が直接メンバーを操作できる（第32弾-E 第3部）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });   // ホスト（m1）
-    win.confirm = () => true;
+    autoDialog(win, doc);
     // 各メンバーの行に、進行役だけの操作が付く
     const kick = doc.querySelector('#rtMemberList [data-rmkick="m2"]');
     const toBig = doc.querySelector('#rtMemberList [data-rmrole="m2"]');

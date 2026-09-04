@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext } = H;
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -178,7 +178,7 @@ async function startModeWithTimerOff(win, doc, id) {
   // ---- 第17弾：役職あり人狼が手渡し方式で1試合通ること ----
   await r.test('役職あり人狼：役職確認→夜→朝→投票→集計が通り、決着する', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     // 棚 → 人狼カセット → プレイヤー4人
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
@@ -265,7 +265,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 使っていたので気づきにくい。同じ対応表の二重定義・落とし穴1の型）
     const NAMES = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
@@ -464,7 +464,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('再発防止：全員が同じ人に投票したら、その人が必ず処刑される', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     await startWolfRole(win, doc, 'wolf-casual', players);
 
@@ -667,7 +667,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('履歴：役職あり人狼の記録に game:wolfrole と役職構成が残る', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     const posts = captureRounds(win);
 
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
@@ -1196,7 +1196,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('再発防止：集計の途中で画面を離れても、あとから勝手に飛ばされない', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     win.alert = () => {};
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     await startWordwolfWithWolves(win, doc, players, 1);
@@ -1377,7 +1377,7 @@ async function startModeWithTimerOff(win, doc, id) {
   // ---- 第21弾 第3部：記録画面に detail を出す ----
   await r.test('記録：人狼の記録に、勝った陣営・ターン数・役職構成が出る', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     win.alert = () => {};
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     await startWolfRole(win, doc, 'wolf-normal', players);
@@ -2280,7 +2280,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 別々に書かれている。片方だけ直して片方が取り残される事故が実際に起きているので、
     // 「設定を開いて閉じたら戻る」を人狼側でも固定しておく。
     // （あれそれどれこれ側は「再発防止：設定を開いて閉じたら〜」で固定済み）
-    win.confirm = () => true;
+    autoDialog(win, doc);
     win.alert = () => {};
     click(doc, 'floatingGearBtn');
     await sleep(win, 80);
@@ -2397,7 +2397,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 実際の原因は「設定を開くと止めるのに、閉じても戻していなかった」で、
     // 人数変更は無関係だった。全ゲーム共通の経路なので、あれそれどれこれで固定する。
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     win.alert = () => {};
     await setupPlayers(win, doc, ['あき', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -2469,9 +2469,8 @@ async function startModeWithTimerOff(win, doc, id) {
     const { win, doc, errors } = await launch();
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     await startWolfRole(win, doc, 'wolf-casual', players);
-    let alerted = '';
-    win.confirm = () => true;
-    win.alert = (m) => { alerted = m; };
+    // 第39弾：標準の alert は全廃した。**出た本物のダイアログを読む。**
+    // ここでは自動で閉じない（中身を確かめたいので）
 
     click(doc, 'floatingGearBtn');
     await sleep(win, 80);
@@ -2483,7 +2482,13 @@ async function startModeWithTimerOff(win, doc, id) {
     click(doc, 'applyPlayersBtn');
     await sleep(win, 80);
 
-    assert(/途中は/.test(alerted), '理由が出る（' + alerted.split('\n')[0] + '）');
+    const dlg = H.openDialog(doc);
+    assert(dlg, 'ダイアログが出る');
+    assertEqual(dlg.種類, 'info', '判断は無いので info');
+    assert(/人を変えられません/.test(dlg.見出し), '何ができないかが見出しに出る（' + dlg.見出し + '）');
+    assert(/ズレて|終えてから/.test(dlg.本文), 'なぜできないかが本文に出る');
+    click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
+    await sleep(win, 320);
     assertEqual(doc.querySelectorAll('#setNameRows input').length, players.length,
       '下書きも元に戻る（増やしかけが残らない）');
 
@@ -2698,7 +2703,7 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(app.classList.contains('theme-wolf'), '人狼では夜になっている');
 
     // jsdomのconfirm/alertは未実装なので、OKを押した扱いにする
-    win.confirm = () => true;
+    autoDialog(win, doc);
     win.alert = () => {};
     click(doc, 'floatingGearBtn');
     await sleep(win, 80);
@@ -2740,7 +2745,7 @@ async function startModeWithTimerOff(win, doc, id) {
   // ---- 再発防止：サバイバルの脱落フラグが他モードに持ち越されないこと ----
   await r.test('再発防止：サバイバルで脱落しても、次のモードに脱落状態が残らない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
-    win.confirm = () => true;
+    autoDialog(win, doc);
     // タイマーONだと3分待つことになるので、ウィザードでタイマーを切って手動終了できるようにする
     await startModeWithTimerOff(win, doc, 'survival');
     await waitScreen(win, doc, 'scr-play', 6000);
@@ -3025,7 +3030,7 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(contexts > beforePlay, '盤面に入ったら心拍が鳴りはじめる');
 
     // 画面を離れたら止まる（別のゲームを遊んでいる間も鳴り続けないこと）
-    win.confirm = () => true;
+    autoDialog(win, doc);
     const stamp = contexts;
     el(doc, 'floatingGearBtn').click();
     await sleep(win, 1400);
@@ -3228,12 +3233,16 @@ async function startModeWithTimerOff(win, doc, id) {
     assertEqual(gameRows[gameRows.length - 1].id, 'endGameBtn', 'ゲーム終了は一番下');
     assert(el(doc, 'endGameBtn').classList.contains('danger'), '見た目でも分かれている');
 
-    // 確認なしでは進まない
-    let asked = 0;
-    win.confirm = () => { asked++; return false; };
+    // 確認なしでは進まない。
+    // 第39弾：標準の confirm は全廃したので、**本物のダイアログが出るか**を見る
     click(doc, 'endGameBtn');
-    await sleep(win, 100);
-    assertEqual(asked, 1, '確認を挟む');
+    await sleep(win, 120);
+    const dlg = H.openDialog(doc);
+    assert(dlg, '確認を挟む（ダイアログが出る）');
+    assert(/終了しますか/.test(dlg.見出し), '何をするのか見出しに出る（' + dlg.見出し + '）');
+    // 断ったら何も起きない
+    click(doc, doc.querySelector('.ui-panel [data-ui="cancel"]'));
+    await sleep(win, 320);
     assert(el(doc, 'settingsOverlay').classList.contains('show'), '断ったら何も起きない');
     assertNoErrors(errors, '危険な操作の表示で未捕捉の例外');
     win.close();
@@ -3567,7 +3576,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // というあれそれの文言（micStatus）が出たままになっていた（落とし穴2・3）。
     // 話し合い分岐は12個の要素を個別に隠していたが、micStatus だけ漏れていた
     const { win, doc, errors } = await launch(LAUNCH);
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await startMode(win, doc, 'ai');
     await waitScreen(win, doc, 'scr-play', 6000);
     assertEqual(el(doc, 'micStatus').style.display, 'block', '前提：AIモードでは音声判定の表示が出る');

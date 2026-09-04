@@ -17,8 +17,7 @@ const path = require('path');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame,
-  runWizardToPlay
-} = require('./harness');
+  runWizardToPlay, autoDialog } = require('./harness');
 const INV = require('./inventory');
 
 const INDEX_HTML = fs.readFileSync(
@@ -128,7 +127,7 @@ function px(body, prop) {
   for (const g of TIMER_GAMES) {
     await r.test('36-3：' + g.label + 'を途中で終わらせると、走っていた時計が全部止まる', async () => {
       const { win, doc, errors } = await launch(g.hidden ? { showHiddenModes: true } : undefined);
-      win.confirm = () => true;
+      autoDialog(win, doc);
 
       // 「このゲームが動かしている時計」を、外から見える側で数える
       const live = new Map();

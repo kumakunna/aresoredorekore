@@ -5406,9 +5406,13 @@
     // 部屋の方に流れて、状態が混ざる（実機で起きた）。
     if(flow === 'handoff' && rt && rt.state.room){
       var isHost = rt.isHost();
-      if(!confirm(isHost
-        ? 'いま部屋を開いています。\n部屋を閉じてから、1台のスマホで遊びますか？\n（部屋にいる全員が終わります）'
-        : 'いま部屋に参加しています。\n部屋を抜けてから、1台のスマホで遊びますか？')) return;
+      // 進行役が抜けると全員が終わるので、進行役の時だけ danger にする
+      var goHandoff = isHost
+        ? await UiKit.danger('部屋を閉じて、1台のスマホで遊びますか？',
+            'いま部屋を開いています。部屋にいる全員が終わります', { ok: '閉じて進む' })
+        : await UiKit.confirm('部屋を抜けて、1台のスマホで遊びますか？',
+            'いま部屋に参加しています', { ok: '抜けて進む' });
+      if(!goHandoff) return;
       if(isHost){
         var closed = await rt.closeRoom();
         if(!closed.ok){ showFlash(closed.message || '部屋を閉じられませんでした', 'hit'); return; }
@@ -9439,11 +9443,12 @@
     rtRulesSeen[key] = true;   // 押した＝読んだ。2周目からは待合で押すだけ
     goTo('scr-rt-room');
   });
-  el('rtRulesCancelBtn').addEventListener('click', function(){
+  el('rtRulesCancelBtn').addEventListener('click', async function(){
     var key = rtRulesKey();
     if(rt.isHost()){
       // 進行役：ゲーム未確定に戻す（全員がえらび直しの画面へ）
-      if(!confirm('ゲームをえらび直しますか？\n（みんなの画面も、えらび直しに戻ります）')) return;
+      if(!await UiKit.confirm('ゲームをえらび直しますか？',
+        'みんなの画面も、えらび直しに戻ります', { ok: 'えらび直す' })) return;
       rt.pickGame(null, { reset: true });
       setPlayFlow('room');
       goTo('scr-shelf');
@@ -9628,7 +9633,8 @@
     var h = e.target.closest('[data-rmhost]');
     if(h){
       var hid = h.dataset.rmhost;
-      if(!confirm('進行役を ' + nameOf(hid) + ' さんに譲りますか？')) return;
+      if(!await UiKit.confirm('進行役をゆずりますか？',
+        nameOf(hid) + ' さんが進行役になります', { ok: 'ゆずる' })) return;
       var r1 = await rt.transferHost(hid);
       if(!r1.ok) showFlash(r1.message || '譲れませんでした', 'hit-wrong');
       return;
@@ -9637,9 +9643,11 @@
     if(ro){
       var rid = ro.dataset.rmrole;
       var to = ro.dataset.to;
-      if(!confirm(nameOf(rid) + ' さんを' +
-        (to === 'bigscreen' ? '大画面にしますか？（遊ぶ人数に数えません）'
-                            : 'プレイヤーにもどしますか？'))) return;
+      if(!await UiKit.confirm(
+        to === 'bigscreen' ? '大画面にしますか？' : 'プレイヤーにもどしますか？',
+        nameOf(rid) + ' さんを' +
+          (to === 'bigscreen' ? '大画面にします（遊ぶ人数に数えません）' : 'プレイヤーにもどします'),
+        { ok: to === 'bigscreen' ? '大画面にする' : 'もどす' })) return;
       var r2 = await rt.setRole(to, rid);
       if(!r2.ok) showFlash(r2.message || '切り替えられませんでした', 'hit-wrong');
       return;
@@ -9647,7 +9655,8 @@
     var k = e.target.closest('[data-rmkick]');
     if(k){
       var kid = k.dataset.rmkick;
-      if(!confirm(nameOf(kid) + ' さんを部屋から出しますか？')) return;
+      if(!await UiKit.danger(nameOf(kid) + ' さんを部屋から出しますか？',
+        'その人のゲームは、そこで終わります', { ok: '出す' })) return;
       var r3 = await rt.kick(kid);
       if(!r3.ok) showFlash(r3.message || '出せませんでした', 'hit-wrong');
       return;
@@ -9692,7 +9701,8 @@
   });
   // 第24弾-3-5：ホストの終了を、部屋にいる全員に反映する
   el('rtEndBtn').addEventListener('click', async function(){
-    if(!confirm('部屋を閉じますか？（部屋にいる全員が終わります）')) return;
+    if(!await UiKit.danger('部屋を閉じますか？',
+      '部屋にいる全員が終わります', { ok: '閉じる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -12046,7 +12056,8 @@
     if(!c) return;
     var you = rt.state.secret;
     if(!you || you.power !== 'appraise' || you.powerUsed) return;
-    if(!confirm('この品を鑑定しますか？\n（見えるのはあなただけ。1ラウンドに1回だけです）')) return;
+    if(!await UiKit.confirm('この品を鑑定しますか？',
+      '見えるのはあなただけです。1ラウンドに1回だけ使えます', { ok: '鑑定する' })) return;
     var res = await rt.act(null, { use: true, targetNo: parseInt(c.dataset.no, 10) });
     if(!res.ok) showFlash(res.message || '使えませんでした', 'hit-wrong');
   });
@@ -12062,8 +12073,11 @@
     var you = rt.state.secret;
     var amt = null;
     if(ask){
-      var typed = prompt('いくらで出しますか？（持ち' + (you ? you.chips : 0) + '枚）',
-        String(auBidValue || 1));
+      var typed = await UiKit.ask('いくらで出しますか？', {
+        body: '持っているのは ' + (you ? you.chips : 0) + '枚です',
+        value: auBidValue || 1, numeric: true, min: 0,
+        ok: '出す'
+      });
       if(typed === null) return;
       amt = parseInt(typed, 10);
       if(!(amt >= 0)) return;
@@ -12952,7 +12966,8 @@
   });
   el('rtBombLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('rtBombEndBtn').addEventListener('click', async function(){
-    if(!confirm('部屋を閉じますか？（部屋にいる全員が終わります）')) return;
+    if(!await UiKit.danger('部屋を閉じますか？',
+      '部屋にいる全員が終わります', { ok: '閉じる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -13491,7 +13506,8 @@
 
   el('dfLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('dfEndBtn').addEventListener('click', async function(){
-    if(!confirm('部屋を閉じますか？（部屋にいる全員が終わります）')) return;
+    if(!await UiKit.danger('部屋を閉じますか？',
+      '部屋にいる全員が終わります', { ok: '閉じる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -14033,7 +14049,8 @@
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
       goBack('scr-shelf');
       setTimeout(function(){
-        alert('部屋がなくなっていました。\nサーバーが再起動したか、しばらく誰もいない状態が続いたためです。\nもう一度、部屋を作り直してください。');
+        UiKit.info('部屋がなくなっていました',
+          'サーバーが再起動したか、しばらく誰もいない状態が続いたためです。\nもう一度、部屋を作り直してください。');
       }, 400);
     });
     // 第24弾-3-5：ホストが終了したら、この端末も部屋から抜けて棚に戻る
@@ -14042,7 +14059,8 @@
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
       goBack('scr-shelf');
       setTimeout(function(){
-        alert('進行役' + (p && p.by ? '（' + p.by + 'さん）' : '') + 'がゲームを終了しました。');
+        UiKit.info('ゲームが終了しました',
+          '進行役' + (p && p.by ? '（' + p.by + ' さん）' : '') + 'が終了しました');
       }, 400);
     });
     // 第32弾-B-1：部屋から出された。黙って画面が固まらないよう、理由を出して棚へ返す
@@ -14050,7 +14068,8 @@
       el('settingsOverlay').classList.remove('show');
       goBack('scr-shelf');
       setTimeout(function(){
-        alert('進行役' + (p && p.by ? '（' + p.by + 'さん）' : '') + 'が、あなたを部屋から出しました。');
+        UiKit.info('部屋から出ました',
+          '進行役' + (p && p.by ? '（' + p.by + ' さん）' : '') + 'が、あなたを部屋から出しました');
       }, 400);
     });
   }
@@ -14181,7 +14200,8 @@
     this.value = '';
     if(!f) return;
     // アップロード前の同意（必須）。「箱に入れる＝サーバーに送る」を必ず確認する
-    if(!confirm('みんなの写真をアルバムにまとめますか？\n（サーバーに一時的に送られます。まとめて渡したら消します）')) return;
+    if(!await UiKit.confirm('みんなの写真をまとめますか？',
+      'サーバーに一時的に送られます。まとめて渡したら消します', { ok: 'まとめる' })) return;
     var photo;
     try{ photo = await albumShrink(f); }
     catch(e){ showFlash('写真を読み込めませんでした', 'hit-wrong'); return; }
@@ -14211,7 +14231,7 @@
     });
   }
   el('albumRemoveBtn').addEventListener('click', async function(){
-    if(!confirm('自分の写真を箱から出しますか？')) return;
+    if(!await UiKit.confirm('自分の写真を箱から出しますか？', '', { ok: '出す' })) return;
     var res = await rt.albumRemove();
     if(res.ok){ albumMine = false; renderAlbumBox(); }
   });
@@ -14241,7 +14261,8 @@
     el('albumDoneBtn').style.display = 'inline-flex';
   });
   el('albumDoneBtn').addEventListener('click', async function(){
-    if(!confirm('アルバムは保存できましたか？\n「OK」を押すと、サーバーからすべての写真を消します。')) return;
+    if(!await UiKit.danger('アルバムは保存できましたか？',
+      'サーバーから、すべての写真を消します', { ok: '消す' })) return;
     var res = await rt.albumDone();
     if(!res.ok) showFlash(res.message || '消せませんでした', 'hit-wrong');
   });
@@ -18866,9 +18887,13 @@
     goTo('scr-shelf');
   }
   // 第12弾-7：毎回プレイヤーを入力させると煩わしいので、終わる時に一度だけ聞く
-  function askPlayerChange(){
+  async function askPlayerChange(){
     if(!state.players.length) return;
-    state.needPlayerSetup = confirm('つぎはプレイヤーを変更しますか？\n\nOK＝つぎに始める時に入力しなおす\nキャンセル＝このメンバーのまま続ける');
+    // 以前は「OK＝入力しなおす／キャンセル＝このまま」と、
+    // **ボタンの意味を本文で説明していた**。ボタン自身に意味を持たせる
+    state.needPlayerSetup = !!await UiKit.confirm('つぎは、メンバーを入力しなおしますか？',
+      'このまま続けることもできます',
+      { ok: '入力しなおす', cancel: 'このまま続ける' });
   }
 
   // ===================== settings overlay =====================
@@ -18958,7 +18983,7 @@
       when:loggedIn, sub:'集めたものから選びます' },
     { icon:'💾', label:'記録', page:'records', when:loggedIn, sub:'保存の設定と、記録を見る' }
   ];
-  function runSetAction(act){
+  async function runSetAction(act){
     if(act === 'pickGame'){
       el('settingsOverlay').classList.remove('show');
       el('rtPickGameBtn').click();
@@ -18970,7 +18995,8 @@
       return;
     }
     if(act === 'leaveRoom'){
-      if(!confirm('部屋を出ますか？')) return;
+      if(!await UiKit.confirm('部屋を出ますか？',
+        'ゲームはほかの人たちで続きます', { ok: '出る' })) return;
       el('settingsOverlay').classList.remove('show');
       rtLeaveRoom();
       return;
@@ -19174,7 +19200,8 @@
   el('setRoomBody').addEventListener('click', async function(e){
     var h = e.target.closest('[data-sethost]');
     if(h){
-      if(!confirm('進行役をこの人に譲りますか？')) return;
+      if(!await UiKit.confirm('進行役をゆずりますか？',
+        'この人が進行役になります', { ok: 'ゆずる' })) return;
       var r1 = await rt.transferHost(h.dataset.sethost);
       if(!r1.ok) showFlash(r1.message || '譲れませんでした', 'hit-wrong');
       renderSetRoom();
@@ -19182,7 +19209,8 @@
     }
     var k = e.target.closest('[data-setkick]');
     if(k){
-      if(!confirm('この人を部屋から出しますか？')) return;
+      if(!await UiKit.danger('この人を部屋から出しますか？',
+        'その人のゲームは、そこで終わります', { ok: '出す' })) return;
       var r2 = await rt.kick(k.dataset.setkick);
       if(!r2.ok) showFlash(r2.message || '出せませんでした', 'hit-wrong');
       renderSetRoom();
@@ -19197,8 +19225,9 @@
       if(renderRoomQr('setQr', room.code)) el('setQr').dataset.code = room.code;
     }
   }
-  el('setCloseRoomBtn').addEventListener('click', function(){
-    if(!confirm('部屋を解散しますか？（部屋にいる全員が終わります）')) return;
+  el('setCloseRoomBtn').addEventListener('click', async function(){
+    if(!await UiKit.danger('部屋を解散しますか？',
+      '部屋にいる全員が終わります', { ok: '解散する' })) return;
     el('settingsOverlay').classList.remove('show');
     el('rtEndBtn').click();
   });
@@ -19322,26 +19351,29 @@
     // 部屋のゲームは動き続ける、というちぐはぐが起きていた。
     if(rt && rt.state.room){
       if(rt.isHost()){
-        if(!confirm('いまのゲームを終了しますか？\n（部屋のみんなが待合にもどります。部屋はそのまま残ります）')) return;
+        if(!await UiKit.confirm('いまのゲームを終了しますか？',
+          '部屋のみんなが待合にもどります。部屋はそのまま残ります', { ok: '終了する' })) return;
         btn.disabled = true;
         var gameId = (rt.state.room.state && rt.state.room.state.game) || null;
         var res2 = await rt.pickGame(gameId, { reset: true });
         btn.disabled = false;
-        if(!res2.ok){ alert(res2.message || '終了できませんでした'); return; }
+        if(!res2.ok){ UiKit.info('終了できませんでした', res2.message || ''); return; }
         el('settingsOverlay').classList.remove('show');
         goTo('scr-rt-room');
       } else {
-        if(!confirm('この部屋から抜けますか？\n（ゲームはほかの人たちで続きます）')) return;
+        if(!await UiKit.confirm('この部屋から抜けますか？',
+          'ゲームはほかの人たちで続きます', { ok: '抜ける' })) return;
         el('settingsOverlay').classList.remove('show');
         rtLeaveRoom();
       }
       return;
     }
-    if(!confirm('いまのゲームを終了して、この時点のスコアを記録しますか？')) return;
+    if(!await UiKit.confirm('いまのゲームを終了しますか？',
+      'この時点のスコアを記録します', { ok: '終了して記録する' })) return;
     btn.disabled = true;
     var res = await saveRecordsNow(false);
     btn.disabled = false;
-    if(!res.ok && res.msg) alert(res.msg);
+    if(!res.ok && res.msg) UiKit.info('できませんでした', res.msg);
     // 第36弾 36-3：止めるのは play.interval だけではない（爆弾の時計・心拍・
     // 早押しの時計・人狼の話し合い…）。1か所に集めた後片付けを通す
     stopAllPlayTimers();
@@ -19399,21 +19431,22 @@
     if(wr && wr.game && !wr.finished) return true;
     return !!(play.wolfOrder && play.wolfOrder.length && play.wolfPhase);
   }
-  el('applyPlayersBtn').addEventListener('click', function(){
+  el('applyPlayersBtn').addEventListener('click', async function(){
     // 減らす場合は、消えるプレイヤーのスコアが失われることを確認
     var keptIds = settingsDraft.map(function(d){ return d.id; }).filter(Boolean);
     var removed = state.players.filter(function(p){ return keptIds.indexOf(p.id) === -1; });
     var added = settingsDraft.filter(function(d){ return !d.id; });
     if((removed.length || added.length) && wolfRoundInProgress()){
-      alert('遊んでいる途中は、人を増やしたり減らしたりできません。\n\n' +
-            'いま配っているお題や役職がズレてしまうためです。\n' +
-            'このラウンドを終えてから変更してください。（名前の変更はできます）');
+      UiKit.info('いまは人を変えられません',
+        'いま配っているお題や役職がズレてしまうためです。\n' +
+        'このラウンドを終えてから変更してください。（名前の変更はできます）');
       initSettingsPlayers(); // 触った下書きを元に戻す
       return;
     }
     if(removed.length){
       var names = removed.map(function(p){ return p.name + '（' + p.score + '点）'; }).join('、');
-      if(!confirm(names + ' を削除します。この記録は失われますがよろしいですか？')) return;
+      if(!await UiKit.danger('この人たちを削除しますか？',
+        names + '\nこの記録は元にもどせません', { ok: '削除する' })) return;
     }
     state.players = settingsDraft.map(function(d, i){
       var existing = d.id ? state.players.find(function(p){ return p.id === d.id; }) : null;
@@ -19425,7 +19458,7 @@
     playerDraft = state.players.map(function(p){ return { name:p.name, handicap:!!p.handicap }; });
     playerDraftCount = playerDraft.length;
     initSettingsPlayers();
-    alert('プレイヤーを更新しました。');
+    UiKit.toast('プレイヤーを更新しました');
   });
 
   // ---------- 5・6：記録の保存設定と手動保存 ----------
@@ -19701,14 +19734,14 @@
       }});
       state.topics.push(topic);
       renderPack();
-    }catch(e){ alert(e.message || 'お題の追加に失敗しました'); }
+    }catch(e){ UiKit.info('お題を追加できませんでした', e.message || ''); }
   }
   async function removePack(id){
     try{
       await api('/api/topics/'+id, { method:'DELETE' });
       state.topics = state.topics.filter(function(t){ return t.id !== id; });
       renderPack();
-    }catch(e){ alert(e.message || '削除に失敗しました'); }
+    }catch(e){ UiKit.info('削除できませんでした', e.message || ''); }
   }
   function renderPack(){
     var list = el('packList'), empty = el('packEmptyNote');
@@ -19746,7 +19779,8 @@
     }).join('');
   }
   el('resetAllBtn').addEventListener('click', async function(){
-    if(!confirm('プレイヤー・スコア・統計をすべて削除して最初からはじめますか？')) return;
+    if(!await UiKit.danger('すべて削除して最初からはじめますか？',
+      'プレイヤー・スコア・統計が、元にもどせなくなります', { ok: 'すべて削除する' })) return;
     if(state.matchId){
       var finalScores = {};
       state.players.forEach(function(p){ finalScores[p.name] = p.score; });
@@ -19763,7 +19797,8 @@
   });
   el('logoutBtn').addEventListener('click', async function(){
     // A：スマホを回して遊ぶので、誤タップで抜けないよう確認を挟む
-    if(!confirm('ログアウトしますか？（進行中のゲームは記録されません）')) return;
+    if(!await UiKit.confirm('ログアウトしますか？',
+      '進行中のゲームは記録されません', { ok: 'ログアウト' })) return;
     try{ await api('/api/auth/logout', { method:'POST' }); }catch(e){}
     setUser(null);
     // ログアウトした時も同じ。古いセッションのまま繋がったままにしない

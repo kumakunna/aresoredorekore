@@ -8,7 +8,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, pickGame,
-  holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext } = H;
+  holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
 
 // 本番のカセット構成のまま到達できるモード（棚に出ているもの）
 const ARESORE_MODES = ['normal', 'seal', 'outstrict', 'oneword', 'ai', 'survival'];
@@ -301,7 +301,7 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
     ]) {
       const { win, doc, errors } = await launch();
       let alerted = '';
-      win.confirm = () => true;
+      autoDialog(win, doc);
       win.alert = (m) => { alerted = m; };
       await toModeScreen(win, doc, c.cassette, c.game, names(5));
       await startMode(win, doc, c.mode, {});

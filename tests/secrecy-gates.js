@@ -13,7 +13,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, pickGame,
-  createRunner, assert, assertEqual, assertNoErrors } = H;
+  createRunner, assert, assertEqual, assertNoErrors, autoDialog } = H;
 
 const NAMES = ['あき', 'びび', 'ちか', 'でん'];
 
@@ -146,7 +146,7 @@ async function run() {
   await r.test('あれそれの出題者交代：渡し画面にお題が見えない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     win.alert = () => {};
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await toModeScreen(win, doc, 'aresoredorekore', 'aresoredorekore', NAMES.slice(0, 2));
     await startMode(win, doc, 'normal');
     await toScreenAfterCountdown(win, doc, 'scr-play');

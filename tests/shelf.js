@@ -5,7 +5,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  setupPlayers, pickGame, createRunner, assert, assertEqual, assertNoErrors, chooseNext } = H;
+  setupPlayers, pickGame, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
 
 function cart(doc, id) { return doc.querySelector('.cart[data-cart="' + id + '"]'); }
 function cartIds(rail) { return Array.from(rail.querySelectorAll('.cart')).map(c => c.dataset.cart); }
@@ -421,7 +421,7 @@ function pickCart(doc, id) {
 
   await r.test('ゲームを終えると棚に戻り、扉は再表示されない', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await setupPlayers(win, doc);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, 'modeAutoBtn');
@@ -848,7 +848,7 @@ function pickCart(doc, id) {
 
   await r.test('手に入った瞬間に、何をなぜ手に入れたかが大きく出る', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     // このテストが見るのは演出の仕組み。実行する日が季節イベント中だと
     // 季節のパーツも同時に手に入って装備が変わるので、季節は切っておく
     win.TitleLogic.seasonFor = () => null;
@@ -992,7 +992,7 @@ function pickCart(doc, id) {
   await r.test('手に入った演出は、スキップも「今後出さない」もできる', async () => {
     // 演出をスキップにしていると、大きな演出は出さず一言だけにする
     const t = await launch();
-    t.win.confirm = () => true;
+    autoDialog(t.win, t.doc);
     click(t.doc, 'shelfGearBtn');
     await sleep(t.win, 100);
     t.doc.querySelector('#setRootMenu [data-setpage="app"]').click();
@@ -1035,7 +1035,7 @@ function pickCart(doc, id) {
     // 手渡しでは「プレイヤー名＝ユーザー名」の人を本人とみなす。
     // ここでは本人がいない編成でも、遊んだ回数だけは数えることを確かめる
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await setupPlayers(win, doc);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, 'modeAutoBtn');
@@ -1081,7 +1081,7 @@ function pickCart(doc, id) {
     // ヒントが何個出ていたかは、正解が出たその瞬間にしか分からない
     // （次のお題に進むと作り直される）。そこで数えられていることを確かめる
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     // 自分（test）を含む2人で、一言ヒントの遊び方を始める
     await setupPlayers(win, doc, ['test', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
@@ -1123,7 +1123,7 @@ function pickCart(doc, id) {
 
   await r.test('一言ヒント：もう一言もらってから当てたら、数えない', async () => {
     const { win, doc, errors } = await launch();
-    win.confirm = () => true;
+    autoDialog(win, doc);
     await setupPlayers(win, doc, ['test', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, doc.querySelector('.mode-card[data-id="oneword"]'));

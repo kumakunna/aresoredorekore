@@ -972,6 +972,18 @@
   .got-label{font-size:26px;font-weight:800;margin-top:6px;}
   .got-why{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.7;}
 
+  /* 第39弾 2-4：部品カタログ。目視と機械計測のための画面 */
+  .cat-controls{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  .cat-sec{margin-bottom:18px;}
+  .cat-label{font-size:var(--fs-sub);color:var(--ink-soft);margin-bottom:6px;}
+  .cat-box{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px;display:flex;flex-direction:column;gap:10px;
+  }
+  #catLayers{flex-direction:row;flex-wrap:wrap;}
+  #catLayers .btn{width:auto;flex:0 0 auto;}
+  #catChip{flex-direction:row;flex-wrap:wrap;}
+
   /* ===================== 第39弾：共通UI部品（ui.js） =====================
      **道具は世界の外にある。**（docs/デザインの正本.md 1-3）
      ここは .app にどのテーマが当たっていても共通トークンで描く。
@@ -4097,6 +4109,66 @@
       <button class="btn btn-main" id="auAgainBtn" style="display:none;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="auEndBtn" style="display:none;margin-top:0;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="auLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
+    </div>
+  </div>
+
+  <!-- 第39弾 2-4：部品カタログ（目視と機械計測の場）。
+       `?catalog=1` でだけ出る。本番の導線からは行けない。
+       **全部品 × 6テーマ × 3サイズを1画面で切り替えて並べる。**
+       はみ出し・重なり・途切れの機械計測は、この画面を総当たりで回す（門B4）。 -->
+  <div class="screen" id="scr-catalog">
+    <h2 class="scr-title">部品カタログ</h2>
+    <p class="scr-sub">全部品 × テーマ × 文字サイズ。崩れを見るための場所です</p>
+    <div class="cat-controls">
+      <div class="seg" id="catThemeSeg"></div>
+      <div class="seg" id="catSizeSeg">
+        <button class="seg-btn" data-catsize="small">小</button>
+        <button class="seg-btn on" data-catsize="">標準</button>
+        <button class="seg-btn" data-catsize="large">大</button>
+      </div>
+    </div>
+    <div class="wiz-body">
+      <div class="cat-sec">
+        <div class="cat-label">文字（見出し・本文・補足・ボタン）</div>
+        <div class="cat-box" id="catType">
+          <div class="scr-title">見出しの大きさ</div>
+          <div class="scr-sub">本文はこのくらいの大きさで出ます。375pxの幅で、だいたい21文字で折り返します</div>
+          <div class="mic-status">補足はこの大きさ。読めるが、主役ではない</div>
+          <button class="btn btn-main">ボタンの文字</button>
+        </div>
+      </div>
+      <div class="cat-sec">
+        <div class="cat-label">押すもの（押した瞬間に反応する）</div>
+        <div class="cat-box" id="catPress">
+          <button class="btn btn-main">主ボタン</button>
+          <button class="btn btn-outline">囲みボタン</button>
+          <button class="btn btn-ghost">小さい逃げ道</button>
+          <button class="btn btn-main" disabled>押せない（理由は隣に出す）</button>
+        </div>
+      </div>
+      <div class="cat-sec">
+        <div class="cat-label">切り替え（色が見分けられなくても位置で分かる）</div>
+        <div class="cat-box" id="catSwitch">
+          <div class="toggle-row-mini"><div>OFF</div><div class="switch"></div></div>
+          <div class="toggle-row-mini"><div>ON</div><div class="switch on"></div></div>
+        </div>
+      </div>
+      <div class="cat-sec">
+        <div class="cat-label">チップ</div>
+        <div class="cat-box" id="catChip"></div>
+      </div>
+      <div class="cat-sec">
+        <div class="cat-label">重なり（テーマを当てない。開いて確かめる）</div>
+        <div class="cat-box" id="catLayers">
+          <button class="btn btn-outline" data-cat="confirm">confirm</button>
+          <button class="btn btn-outline" data-cat="danger">danger</button>
+          <button class="btn btn-outline" data-cat="info">info</button>
+          <button class="btn btn-outline" data-cat="ask">ask</button>
+          <button class="btn btn-outline" data-cat="sheet">sheet</button>
+          <button class="btn btn-outline" data-cat="popup">popup</button>
+          <button class="btn btn-outline" data-cat="toast">toast</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -7635,7 +7707,9 @@
   // あれそれどれこれ側にテーマが漏れる経路が無い）。
   // scr-rt-lobby は「どのゲームの部屋に入るか分からない」入り口なので、
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby'];
+  // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
+  // 画面遷移による自動適用の対象から外す
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -11667,6 +11741,77 @@
       return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.score + tier + '</span>';
     }).join('');
   }
+
+  // ---------- 第39弾 2-4：部品カタログ ----------
+  // `?catalog=1` でだけ入れる隠し画面。本番の導線には出さない。
+  // **崩れを機械で測るための土俵**でもあるので、
+  // テーマと文字サイズを外から切り替えられるようにしておく（window.catalogSet）。
+  var CAT_THEMES = [{ id: '', label: '共通' }].concat(
+    Object.keys(THEME_CLASSES).map(function(k){ return { id: k, label: k }; })
+  );
+
+  function catalogInit(){
+    var seg = el('catThemeSeg');
+    if(!seg) return;
+    seg.innerHTML = CAT_THEMES.map(function(t, i){
+      return '<button class="seg-btn' + (i === 0 ? ' on' : '') +
+        '" data-cattheme="' + t.id + '">' + escapeHtml(t.label) + '</button>';
+    }).join('');
+    el('catChip').innerHTML =
+      (typeof UiKit !== 'undefined' ? UiKit.chipHtml({ icon:'👥', text:'3人' }) : '') +
+      (typeof UiKit !== 'undefined' ? UiKit.chipHtml({ icon:'⏱', text:'のこり 02:30' }) : '');
+  }
+
+  /** テーマと文字サイズを当てる。機械計測もここを呼ぶ */
+  function catalogSet(theme, size){
+    var app = el('app');
+    Object.keys(THEME_CLASSES).forEach(function(k){
+      app.classList.toggle(THEME_CLASSES[k], k === theme);
+    });
+    app.classList.toggle('fs-small', size === 'small');
+    app.classList.toggle('fs-large', size === 'large');
+    var ts = el('catThemeSeg'), ss = el('catSizeSeg');
+    if(ts) ts.querySelectorAll('[data-cattheme]').forEach(function(b){
+      b.classList.toggle('on', b.dataset.cattheme === (theme || ''));
+    });
+    if(ss) ss.querySelectorAll('[data-catsize]').forEach(function(b){
+      b.classList.toggle('on', b.dataset.catsize === (size || ''));
+    });
+  }
+  window.catalogSet = catalogSet;
+  window.CAT_THEMES = CAT_THEMES;
+
+  el('catThemeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-cattheme]');
+    if(!b) return;
+    catalogSet(b.dataset.cattheme, currentCatSize());
+  });
+  el('catSizeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-catsize]');
+    if(!b) return;
+    catalogSet(currentCatTheme(), b.dataset.catsize);
+  });
+  function currentCatTheme(){
+    var on = el('catThemeSeg').querySelector('.on');
+    return on ? on.dataset.cattheme : '';
+  }
+  function currentCatSize(){
+    var on = el('catSizeSeg').querySelector('.on');
+    return on ? on.dataset.catsize : '';
+  }
+
+  el('catLayers').addEventListener('click', function(e){
+    var b = e.target.closest('[data-cat]');
+    if(!b || typeof UiKit === 'undefined') return;
+    var k = b.dataset.cat;
+    if(k === 'confirm') UiKit.confirm('確認の見出し', '本文はここに2〜3行。何が起きるかを書く', { ok: 'すすむ' });
+    else if(k === 'danger') UiKit.danger('取り返しがつかない確認', 'これをすると、元にもどせません', { ok: 'それでもやる' });
+    else if(k === 'info') UiKit.info('知らせるだけ', '判断は要りません。読んだら閉じてください');
+    else if(k === 'ask') UiKit.ask('いくつにしますか？', { body: '数を入れてください', value: 3, numeric: true, ok: '決める' });
+    else if(k === 'sheet') UiKit.sheet({ title: '下からせり上がる', body: '説明がここに入る。'.repeat(20), ok: 'とじる' });
+    else if(k === 'popup') UiKit.popup({ icon: '🔍', title: '長い説明', body: 'アイコンと名前は上に残り、本文だけが流れる。'.repeat(20) });
+    else if(k === 'toast') UiKit.toast('保存しました');
+  });
 
   // ===================== 第38弾：1人1台の相場オークション =====================
   // やることごとに画面を分けてある（1画面につき、やることは1つ）。
@@ -20008,6 +20153,13 @@
     applySeason();   // 第32弾-F：期間中なら、季節の装飾を重ねる（期間外は何も起きない）
     // 第32弾-D 第1部：BGMの見回り。鳴らす場面かどうかを1か所で判断し続ける
     setInterval(bgmSync, 500);
+    // 第39弾 2-4：部品カタログ。`?catalog=1` でだけ入る。
+    // **本番の導線には出さない**ので、扉も安全の案内も通らずここで止める
+    if(/[?&]catalog=1/.test(location.search || '')){
+      catalogInit();
+      goTo('scr-catalog');
+      return;
+    }
     // 初回だけ安全の案内が先。「はじめる」を押したら扉が開く
     if(!maybeShowSafetyGate()){
       setTimeout(openDoorAndEnter, 240); // タップ不要で自動的に開く

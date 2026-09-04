@@ -1340,15 +1340,22 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 以前は部屋に紐づいたまま手渡しへ進めてしまい、状態が混ざっていた
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });   // ホスト・待合にいる
-    let asked = null;
-    win.confirm = (m) => { asked = m; return true; };
     click(doc, 'rtPickGameBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     click(doc, 'shelfFlowBtn');
     await waitScreen(win, doc, 'scr-howto', 3000);
     doc.querySelector('#scr-howto [data-howto="handoff"]').click();
+
+    // 第39弾：標準の confirm は全廃した。**自動で押さず、中身を読んでから押す。**
+    // 進行役が抜けると全員が終わるので、ここは取り返しがつかない側で出るはず
+    await waitFor(win, () => H.openDialog(doc), 3000, '確認が出る');
+    const dlg = H.openDialog(doc);
+    assertEqual(dlg.種類, 'danger', '全員が終わるので、取り返しがつかない側で出る');
+    assert(/部屋を閉じて/.test(dlg.見出し), '何が起きるか見出しに出る（' + dlg.見出し + '）');
+    assert(/全員が終わ/.test(dlg.本文), '本文に「全員が終わる」と書いてある');
+    click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
+
     await waitFor(win, () => fake.emits.some(e => e.name === 'room:close'), 3000, '部屋を閉じにいく');
-    assert(/部屋を閉じて/.test(asked || ''), '確認の文言が出る（実際: ' + asked + '）');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     assertNoErrors(errors, '手渡しへの切り替えで未捕捉の例外');
     win.close();
@@ -3725,8 +3732,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const fake = await toRoom(win, doc);
     assertEqual(activeScreen(doc), 'scr-rt-room', 'まず部屋にいる');
 
-    let msg = null;
-    win.alert = (m) => { msg = m; };
+    // 第39弾：標準の alert は全廃した。出た本物のダイアログを読む
     fake.replies = {
       'room:join': () => ({ ok: false, error: 'room_not_found', message: 'その部屋コードは見つかりません' })
     };
@@ -3736,8 +3742,11 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
     await waitFor(win, () => activeScreen(doc) === 'scr-shelf', 3000,
       '棚にもどる（現在: ' + activeScreen(doc) + '）');
-    await waitFor(win, () => !!msg, 2000, '理由が出る');
-    assert(/部屋がなくなって/.test(msg), '何が起きたかが伝わる（実際: ' + msg + '）');
+    await waitFor(win, () => H.openDialog(doc), 2000, '理由が出る');
+    const dlg = H.openDialog(doc);
+    assertEqual(dlg.種類, 'info', '判断は無いので info');
+    assert(/部屋がなくなって/.test(dlg.見出し), '何が起きたかが伝わる（' + dlg.見出し + '）');
+    assert(/再起動|誰もいない/.test(dlg.本文), 'なぜそうなったかも伝わる');
     assertNoErrors(errors, '部屋が消えていた時に未捕捉の例外');
     win.close();
   });

@@ -300,9 +300,7 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
       { cassette: 'aresoredorekore', game: 'aresoredorekore', mode: 'normal', screen: 'scr-play', blocked: false }
     ]) {
       const { win, doc, errors } = await launch();
-      let alerted = '';
-      autoDialog(win, doc);
-      win.alert = (m) => { alerted = m; };
+      // 第39弾：標準の alert は全廃した。出た本物のダイアログを読む（自動で閉じない）
       await toModeScreen(win, doc, c.cassette, c.game, names(5));
       await startMode(win, doc, c.mode, {});
       await waitScreen(win, doc, c.screen, 9000);
@@ -318,10 +316,15 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
       click(doc, 'applyPlayersBtn');
       await sleep(win, 120);
 
+      const dlg = H.openDialog(doc);
       if (c.blocked) {
-        assert(/途中は/.test(alerted), c.mode + '：理由を出して断る');
+        assert(dlg, c.mode + '：理由を出して断る（ダイアログが出る）');
+        assertEqual(dlg.種類, 'info', c.mode + '：判断は無いので info');
+        assert(/人を変えられません/.test(dlg.見出し), c.mode + '：何ができないか出る');
+        click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
+        await sleep(win, 320);
       } else {
-        assert(!/途中は/.test(alerted), c.mode + '：あれそれどれこれは今までどおり変えられる');
+        assert(!dlg, c.mode + '：あれそれどれこれは今までどおり変えられる');
       }
       click(doc, 'closeSettingsBtn');
       await sleep(win, 100);

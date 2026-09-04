@@ -256,5 +256,50 @@ function click(doc, sel) {
       '**文字色も一緒に決めている**（地だけ直すと 1.11:1 の事故が戻る）');
   });
 
+  await r.test('カタログが、全部品・全テーマ・全サイズを取りこぼしていない（正本ループ）', async () => {
+    // **崩れのピクセル計測は、ヘッドレスブラウザが無いので手で回すしかない。**
+    // 手で回す検査は、時間が経つと誰も回さなくなる——だから
+    // 「回した時に、そもそも全部を見ているか」だけは機械で守る。
+    //
+    // 実際に腐るのはピクセルではなく**網羅**の方：
+    // 部品やテーマを足したのにカタログに出ていないと、
+    // 18通り回したつもりで、新しいものを1度も見ていないことになる（落とし穴20）
+    const fsx = require('fs');
+    const pathx = require('path');
+    const html = fsx.readFileSync(pathx.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const Ui = require('../public/js/ui');
+
+    // ① 部品：UiKit が名乗ったものが、全部カタログに出ている
+    const 出ている = new Set(
+      Array.from(html.matchAll(/data-cat="([a-z]+)"/g)).map((m) => m[1])
+    );
+    // チップだけは押して出すものではないので、置き場所があるかで見る
+    if (html.indexOf('id="catChip"') >= 0) 出ている.add('chip');
+    const 抜け = Ui.SHOWCASE.filter((k) => !出ている.has(k));
+    assertEqual(抜け.join('・'), '', 'カタログに出ていない部品');
+
+    // ② テーマ：カタログの一覧は THEME_CLASSES から導いている（手書きではない）
+    assert(/CAT_THEMES\s*=\s*\[\{[^\]]*\}\]\.concat\(\s*Object\.keys\(THEME_CLASSES\)/.test(html),
+      'テーマの一覧は THEME_CLASSES から導いている（足したら自動で並ぶ）');
+
+    // ③ サイズ：CSSで定義した段階が、全部カタログで選べる。
+    // **段階の名前を決め打ちで探さない。**small/large と書いていた頃は、
+    // 新しい段階を足しても「見ていない」ことに気づけなかった（この検査自身の穴）
+    const css段階 = Array.from(html.matchAll(/\.app\.fs-([a-z]+)\{/g)).map((m) => m[1])
+      .filter((s, i, a) => a.indexOf(s) === i);
+    assert(css段階.length >= 2, 'CSSに文字サイズの段階がある（実際:' + css段階.join('・') + '）');
+    const cat段階 = Array.from(html.matchAll(/data-catsize="([a-z]*)"/g)).map((m) => m[1]);
+    css段階.forEach((s) => {
+      assert(cat段階.indexOf(s) >= 0, '文字サイズ「' + s + '」がカタログで選べる');
+    });
+    assert(cat段階.indexOf('') >= 0, '標準もカタログで選べる');
+    assertEqual(cat段階.length, css段階.length + 1,
+      'カタログのサイズの数と、CSSの段階の数が合っている');
+
+    // ④ 外から回せる入口がある（手で計測する時にここを呼ぶ）
+    assert(/window\.catalogSet\s*=/.test(html),
+      'catalogSet が外から呼べる（計測はこれで18通りを回す）');
+  });
+
   r.finish();
 })();

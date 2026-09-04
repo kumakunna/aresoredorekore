@@ -996,6 +996,12 @@
 
   /* 第39弾 2-4：部品カタログ。目視と機械計測のための画面 */
   .cat-controls{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  /* テーマは6つあり、文字サイズを「大」にすると名前が入りきらない。
+     **切って隠すのではなく、横に送れるようにする**——
+     カタログの計測道具が、切れているものは崩れとして数えるので、
+     「見えないだけ」の状態を残さない */
+  #catThemeSeg{overflow-x:auto;}
+  #catThemeSeg .seg-btn{flex:0 0 auto;white-space:nowrap;}
   .cat-sec{margin-bottom:18px;}
   .cat-label{font-size:var(--fs-sub);color:var(--ink-soft);margin-bottom:6px;}
   .cat-box{

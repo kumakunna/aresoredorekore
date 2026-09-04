@@ -352,6 +352,13 @@
     closeTop: closeTop,
     anyOpen: anyOpen,
     KINDS: DIALOG_KINDS,
+    /**
+     * **カタログに並べるべき部品の名前。**
+     * 部品を足したら、ここにも足す——
+     * そうしないと tests/ui-kit.js が「カタログに出ていない」と赤くする。
+     * 「作ったが、誰も見ていない部品」を作らないための一覧（落とし穴20）
+     */
+    SHOWCASE: ['confirm', 'danger', 'info', 'ask', 'sheet', 'popup', 'toast', 'chip'],
     _stack: stack
   };
   return api;

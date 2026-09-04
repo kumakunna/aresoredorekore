@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;800&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&family=Yuji+Syuku&display=swap" rel="stylesheet">
 <style>
   :root{
+    --screen-bright:1;   /* 画面の明るさ補正。#app と #uiLayerRoot が同じ値を読む */
     --paper:#EFE8D3;
     --paper-deep:#E4DBC0;
     --card:#FFFBF2;
@@ -74,7 +75,7 @@
          --screen-bright 画面の明るさ補正（暗いテーマを屋外で遊ぶ時のため）
          --fx-scale      演出の速さ（1=ふつう / 0.5=速い / 0=スキップ） */
     --font-scale:1;
-    --screen-bright:1;
+    /* --screen-bright は :root に置く。#app の外の層も同じ値を読むため */
     --fx-scale:1;
     font-size:calc(15px * var(--font-scale));
     filter:brightness(var(--screen-bright));
@@ -1047,8 +1048,14 @@
      第39弾の着手前、設定パネルは背景だけテーマに追従して文字色が
      固定の濃い墨のまま残り、暗いテーマで 1.11:1（読めない）になっていた。
      **地と文字は必ず一緒に決める。** */
+  /* 第39弾：層の置き場。#app の外にあり、これ自身が画面に固定される。
+     明るさ補正はここでも掛ける（暗くしている人には、ダイアログも同じ明るさで出る） */
+  #uiLayerRoot{
+    position:fixed;inset:0;z-index:120;pointer-events:none;
+    filter:brightness(var(--screen-bright,1));
+  }
   .ui-layer{
-    position:fixed;inset:0;z-index:120;display:flex;
+    position:absolute;inset:0;z-index:120;display:flex;
     /* 共通トークンに戻す（テーマ非適用領域） */
     --paper:#EFE8D3; --paper-deep:#E4DBC0; --card:#FFFBF2;
     --ink:#24272E; --ink-soft:#5B5A50;
@@ -1060,7 +1067,7 @@
   }
   .ui-layer.is-on{opacity:1;pointer-events:auto;}
   .ui-dim{
-    position:fixed;inset:0;z-index:110;background:rgba(36,39,46,0.55);
+    position:absolute;inset:0;z-index:110;background:rgba(36,39,46,0.55);
     opacity:0;transition:opacity .25s cubic-bezier(.32,.72,0,1);
   }
   .ui-dim.is-on{opacity:1;}
@@ -3179,7 +3186,7 @@
     <button class="btn btn-ghost" id="loginToggleBtn">はじめて使う方はこちら</button>
     <!-- 第22弾-1：呼ばれて参加するだけの人は、ログインも棚も要らない -->
     <div class="join-divider"><span>または</span></div>
-    <button class="btn btn-outline" id="loginJoinRoomBtn">🚪 部屋に参加する（ログイン不要）</button>
+    <button class="btn btn-outline" id="loginJoinRoomBtn">🚪 部屋に入る（ログイン不要）</button>
     <!-- 第26弾-2：棚が先に来るようになったので、ログインしないで戻る道を残す -->
     <button class="btn btn-ghost" id="loginBackBtn">← 棚にもどる</button>
   </div>
@@ -5210,6 +5217,14 @@
 
 </div>
 
+<!-- 第39弾：ダイアログ・シート・トーストの置き場。**#app の外に出す。**
+     #app は明るさ補正のため filter を持っていて、filter の付いた要素は
+     その中の position:fixed の「基準」になってしまう。
+     中に置いていた頃は、長い画面（設定・記録・カタログ）でダイアログを開くと
+     画面ではなくページの座標に置かれ、実測で 812px の画面に対して
+     y=1015〜1388 ——**画面の外**に出て、何も出ていないように見えていた。 -->
+<div id="uiLayerRoot"></div>
+
 <!-- 役職あり人狼の「ルール」層。DOMに触れない純粋なロジックなので、単体テストもできる -->
 <!-- socket.io は本番のサーバーが自動で配る。読み込めなくても
      手渡し方式は動き続ける（rt-client が available:false を返すだけ） -->
@@ -7128,7 +7143,9 @@
     // 倍率は1か所でしか効いていなかったので、3段階の印に置き換えた
     app.classList.toggle('fs-small', appPrefs.fontScale <= 92);
     app.classList.toggle('fs-large', appPrefs.fontScale >= 115);
-    app.style.setProperty('--screen-bright', (appPrefs.brightness / 100).toFixed(2));
+    // 明るさは :root に置く。#app と、その外にある層の置き場（#uiLayerRoot）の
+    // 両方が同じ値を読むため。#app 側だけに置くと、ダイアログだけ明るいままになる
+    document.documentElement.style.setProperty('--screen-bright', (appPrefs.brightness / 100).toFixed(2));
     // 演出の速さ。0 はスキップ（時間0で終わる）
     var fx = appPrefs.fxSpeed === 'fast' ? 0.5 : (appPrefs.fxSpeed === 'skip' ? 0 : 1);
     app.style.setProperty('--fx-scale', String(fx));
@@ -8003,7 +8020,7 @@
     el('loginTitle').textContent = authMode === 'login' ? 'ログイン' : '新規登録';
     el('loginSub').textContent = authMode === 'login' ? 'ホストのアカウントでログインしてください' : '登録コード（合言葉）が必要です';
     el('loginSubmitBtn').textContent = authMode === 'login' ? 'ログイン' : '登録する';
-    el('loginToggleBtn').textContent = authMode === 'login' ? 'はじめて使う方はこちら' : 'ログインに戻る';
+    el('loginToggleBtn').textContent = authMode === 'login' ? 'はじめて使う方はこちら' : 'ログインにもどる';
     el('loginError').textContent = '';
   });
   async function submitAuth(){
@@ -9376,7 +9393,7 @@
     el('rtJoinBtn').disabled = !(rt && rt.available());
     if(rt && rt.available()) rt.connect();
     el('rtCreateCard').style.display = rtLobbyJoinOnly ? 'none' : '';
-    el('rtLobbyTitle').textContent = rtLobbyJoinOnly ? '部屋に参加する' : '部屋';
+    el('rtLobbyTitle').textContent = rtLobbyJoinOnly ? '部屋に入る' : '部屋';
     el('rtLobbySub').textContent = rtLobbyJoinOnly
       ? '部屋コードと名前だけで入れます'
       : 'みんなのスマホをつないで遊びます';
@@ -9866,7 +9883,7 @@
   // 第24弾-3-5：ホストの終了を、部屋にいる全員に反映する
   el('rtEndBtn').addEventListener('click', async function(){
     if(!await UiKit.danger('部屋を閉じますか？',
-      '部屋にいる全員が終わります', { ok: '閉じる' })) return;
+      '部屋にいる全員が終わります', { ok: 'とじる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -13202,7 +13219,7 @@
   el('rtBombLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('rtBombEndBtn').addEventListener('click', async function(){
     if(!await UiKit.danger('部屋を閉じますか？',
-      '部屋にいる全員が終わります', { ok: '閉じる' })) return;
+      '部屋にいる全員が終わります', { ok: 'とじる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -13519,10 +13536,10 @@
       (b.physical ? '<div class="mic-status" style="margin-top:6px;">🏃 体を動かします。まわりを確かめてください</div>' : '') +
     '</div>' +
     '<button class="btn btn-main" id="dfBriefNext" style="margin-top:12px;">' +
-      (at + 1 < total ? 'つぎへ ▶' : (review ? '閉じる' : '準備OK')) + '</button>' +
+      (at + 1 < total ? 'つぎへ ▶' : (review ? 'とじる' : '準備OK')) + '</button>' +
     (at + 1 < total || !review
       ? '<button class="btn btn-ghost" id="dfBriefSkip" style="margin-top:6px;">' +
-        (review ? '閉じる' : 'スキップ（全部読まずに始める）') + '</button>'
+        (review ? 'とじる' : 'スキップ（全部読まずに始める）') + '</button>'
       : '');
   }
 
@@ -13742,7 +13759,7 @@
   el('dfLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('dfEndBtn').addEventListener('click', async function(){
     if(!await UiKit.danger('部屋を閉じますか？',
-      '部屋にいる全員が終わります', { ok: '閉じる' })) return;
+      '部屋にいる全員が終わります', { ok: 'とじる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -20139,7 +20156,9 @@
     if(typeof UiKit !== 'undefined'){
       UiKit.init({
         doc: document,
-        root: el('app'),
+        // **#app ではなく、その外の置き場。**#app は明るさ補正の filter を持っていて、
+        // その中では position:fixed が画面ではなくページを基準にしてしまう
+        root: el('uiLayerRoot'),
         fx: FxKit,
         text: (typeof UiText !== 'undefined') ? UiText.WORDS : {}
       });

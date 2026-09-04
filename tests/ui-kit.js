@@ -301,5 +301,66 @@ function click(doc, sel) {
       'catalogSet が外から呼べる（計測はこれで18通りを回す）');
   });
 
+  await r.test('重なりの置き場が、filter の付いた箱の中に無い（第39弾・実測で見つけた）', async () => {
+    // **`position:fixed` は「画面に固定」ではない。**
+    // 先祖に filter / transform / backdrop-filter が付いていると、
+    // そこが基準になり、画面ではなく**ページ**の座標に置かれる。
+    //
+    // #app は明るさ補正のため `filter:brightness(...)` を常に持っていた。
+    // そのため長い画面（設定・記録・カタログ）でダイアログを開くと、
+    // 実測で 812px の画面に対して y=1015〜1388——**画面の外**に出て、
+    // 遊ぶ人には「押したのに何も出ない」としか見えなかった。
+    // socket も状態も正しいので、通信を見るテストでは絶対に捕まらない（落とし穴12）。
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');  // 動きの定義は基準を作らない
+
+    const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''));
+    const d = dom.window.document;
+    const root = d.getElementById('uiLayerRoot');
+    assert(root, '重なりの置き場（#uiLayerRoot）がある');
+    assert(!root.closest('#app'), '置き場は #app の外にある');
+
+    // **基準を作る指定を、全部集めてから照らす。**
+    // 「#app だけ見る」にすると、あとで body に filter が足された日に素通りする
+    const 基準を作る = [];
+    Array.from(css.matchAll(/([^{}]+)\{([^}]*)\}/g)).forEach((m) => {
+      const sel = m[1].trim();
+      const body = m[2];
+      if (!sel || sel.startsWith('@')) return;
+      if (/:hover|:active|:focus/.test(sel)) return;   // 押した瞬間だけの指定は、開いている間の基準にならない
+      if (!/(^|;|\s)(filter|transform|backdrop-filter|perspective)\s*:/.test(body)) return;
+      if (/(^|;|\s)(filter|transform)\s*:\s*none\s*(;|$)/.test(body)) return;
+      sel.split(',').forEach((s) => 基準を作る.push(s.trim()));
+    });
+    assert(基準を作る.length > 5,
+      '基準を作りうる指定を集められている（実際:' + 基準を作る.length + '件）');  // 型(b)
+
+    // **読めない指定は、黙って見逃さない。**
+    // ここを try/catch で false にしていたせいで、
+    // わざと body に filter を足しても素通りした（切り出しに <style> タグが
+    // 混ざって、最初の1件が '<style>\n  body' になっていた）
+    const 読めない = [];
+    const 悪い先祖 = [];
+    for (let p = root.parentElement; p; p = p.parentElement) {
+      基準を作る.forEach((sel) => {
+        let hit = false;
+        try { hit = p.matches(sel); } catch (e) { 読めない.push(sel); return; }
+        if (hit) 悪い先祖.push((p.id ? '#' + p.id : p.tagName) + ' ← ' + sel);
+      });
+    }
+    assertEqual(Array.from(new Set(読めない)).join('・'), '',
+      '読めない選択子（切り出しがずれている合図）');
+    assertEqual(Array.from(new Set(悪い先祖)).join('・'), '',
+      '置き場の先祖に、fixed の基準を作る指定が付いている');
+
+    // 出す側も、その置き場を使っているか（両方向・落とし穴20）
+    assert(/root:\s*el\('uiLayerRoot'\)/.test(html),
+      'UiKit が、その置き場を使うように渡されている');
+  });
+
   r.finish();
 })();

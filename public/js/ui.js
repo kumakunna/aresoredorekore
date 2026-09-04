@@ -33,7 +33,10 @@
   function host() {
     var d = doc();
     if (!d) return null;
-    return cfg.root || d.getElementById('app') || d.body;
+    // **#app の中には置かない。** #app は明るさ補正のため filter を持っていて、
+    // filter の付いた要素は、その中の position:fixed の基準になってしまう。
+    // 長い画面で開くと、画面ではなくページの座標に置かれて画面外に出ていた。
+    return cfg.root || d.getElementById('uiLayerRoot') || d.getElementById('app') || d.body;
   }
   function hold(ms) {
     if (cfg.fx && cfg.fx.hold) return cfg.fx.hold(ms);

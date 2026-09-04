@@ -12,6 +12,29 @@ const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'),
 const UiText = require('../public/js/ui-text');
 
 /**
+ * 見た目の指定とコメントを落とす。コメントの中の語を「画面に出ている」と誤って数えないため。
+ * **落とすが、行はずらさない。**改行の数を保って空にする——
+ * 詰めてしまうと、報告した行番号が実ファイルとずれて、
+ * 直しに行った先がまったく別の場所になる（実際に8件ぶん見当外れの行を指した）
+ */
+function strip(src) {
+  const blank = (s) => s.replace(/[^\n]/g, '');
+  return src
+    .replace(/<style[\s\S]*?<\/style>/g, blank)
+    .replace(/<!--[\s\S]*?-->/g, blank)
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    // **`\s` は改行も食う。**`^\s*//` と書くと、空行をまたいで
+    // 次の行のコメントに届き、あいだの改行ごと消える（251行ぶんずれた）
+    .replace(/^[^\S\n]*\/\/.*$/gm, '');
+}
+
+/** ボタンの札が書かれている場所。**画面を組んでいるのは index.html だけではない** */
+const SOURCES_FOR_LABEL = ['public/index.html', 'public/js/ui.js'].map((f) => ({
+  file: f,
+  text: fs.readFileSync(path.join(__dirname, '..', f), 'utf8')
+}));
+
+/**
  * 置換の台帳（docs/監査_標準ダイアログ置換.md の一覧と同じもの）。
  * **場面を表す語**と、そこで出るべき種類の対。
  * 行番号ではなく文言で照らすので、コードが上下に動いても腐らない。
@@ -146,6 +169,60 @@ function kindOf(mark) {
       assert(values.indexOf(b.正本) >= 0,
         '「' + b.見つけたら + '」の直し先「' + b.正本 + '」が共通の語にある');
     });
+  });
+
+  await r.test('画面に出るボタンの札が、言い換えの見張りに引っかからない（門A7）', async () => {
+    // **台帳を書いただけでは、誰も見張っていない。**
+    // BANNED は「見つけたら直す」と言っているのに、
+    // これまで一度も画面を掃いていなかった。掃いたら6件出た。
+    //
+    // 掃く先は**ボタンの札**に絞る。地の文まで巻き込むと、
+    // 「『参加する』を選びました」のような**札を引用しているだけの文**や、
+    // 意味の違う場面まで一律に書き換えることになる（落とし穴9）。
+    const 例外 = [{
+      場所: 'dfConsentYes',
+      札: '参加する',
+      理由: '部屋に入る話ではなく、体を使う遊びに加わるかの同意。' +
+            'ここを「入る」にすると、断る側の「参加しない」と対にならない'
+    }];
+
+    const 見つけた = [];
+    SOURCES_FOR_LABEL.forEach((src) => {
+      strip(src.text).split('\n').forEach((line, i) => {
+        const 場所 = src.file + ':' + (i + 1);
+        const 札 = [];
+        let m;
+        const re1 = /<button[^>]*>([^<]*)</g;          // ①タグに直接書かれた札
+        while ((m = re1.exec(line))) 札.push(m[1].trim());
+        const re2 = /'([^'\\\n]{1,14})'/g;             // ②三項で選ばれる札は、こちらでしか拾えない
+        while ((m = re2.exec(line))) 札.push(m[1].trim());
+
+        札.forEach((t) => {
+          UiText.BANNED.forEach((b) => {
+            const 当たり = t.endsWith(b.見つけたら) ||
+              (/<button/.test(line) && t.indexOf(b.見つけたら) >= 0);
+            if (!当たり) return;
+            if (例外.some((e) => t.indexOf(e.札) >= 0 && line.indexOf(e.場所) >= 0)) return;
+            見つけた.push(場所 + '「' + t + '」→ 正本は「' + b.正本 + '」');
+          });
+        });
+      });
+    });
+
+    assertEqual(Array.from(new Set(見つけた)).join('\n       '), '',
+      '正本の語に直っていないボタンの札');
+  });
+
+  await r.test('掃き方そのものが効いている（型a・型b）', async () => {
+    // **上の検査が0件で緑なのは、本当に無いからか、掃けていないからか。**
+    // 掃いた数を先に数え、わざと違反を混ぜて捕まることを見る
+    const 札の数 = SOURCES_FOR_LABEL.reduce(
+      (n, src) => n + (strip(src.text).match(/<button[^>]*>[^<]*</g) || []).length, 0);
+    assert(札の数 > 100, 'ボタンの札を集められている（実際:' + 札の数 + '件）');
+
+    const 引っかかる = (s) => UiText.BANNED.some((b) => s.indexOf(b.見つけたら) >= 0);
+    assert(引っかかる('閉じる'), 'わざと混ぜた「閉じる」を見張りが捕まえる');
+    assert(!引っかかる('とじる'), '直した「とじる」は捕まらない');
   });
 
   r.finish();

@@ -16,7 +16,7 @@ const { createRunner, assert, assertEqual } = require('./harness');
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 // **コメントを先に落とす。**コメントの中の { } で規則の切り出しがずれると、
 // 選択子と中身の対応が狂って、あるはずの :active を見落とす
-const CSS = HTML.slice(HTML.indexOf('<style>'), HTML.indexOf('</style>'))
+const CSS = HTML.slice(HTML.indexOf('<style>') + 7, HTML.indexOf('</style>'))
   .replace(/\/\*[\s\S]*?\*\//g, '');
 
 // **画面を組み立てているのは index.html だけではない。**

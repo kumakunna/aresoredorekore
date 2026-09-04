@@ -329,6 +329,16 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
 
       click(doc, 'floatingGearBtn');
       await sleep(win, 100);
+      // **人の編集ページを、人と同じように通る。**
+      // ここを飛ばすと settingsDraft が空のまま＝「全員を消す」下書きになり、
+      // 押した瞬間に削除の確認が出る。人狼側は先に断られるので気づけなかった
+      // （落とし穴10-b：検査したい状況がそもそも組み立てられていない）
+      const 人ページ = doc.querySelector('[data-setpage="players"]');
+      assert(人ページ, c.mode + '：人の編集ページへの入口がある');
+      人ページ.dispatchEvent(new win.Event('click', { bubbles: true }));
+      await sleep(win, 80);
+      assert(doc.querySelectorAll('#setNameRows input').length > 0,
+        c.mode + '：いまの名簿が下書きに読み込まれている');
       click(doc, 'setPlayerPlusBtn');
       await sleep(win, 40);
       const rows = doc.querySelectorAll('#setNameRows input');
@@ -349,7 +359,7 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
         click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
         await sleep(win, 320);
       } else {
-        assert(!dlg, c.mode + '：あれそれどれこれは今までどおり変えられる');
+        assert(!dlg, c.mode + '：あれそれどれこれは今までどおり変えられる' + (dlg ? '（出たのは「' + dlg.見出し + '／' + dlg.種類 + '」）' : ''));
       }
       click(doc, 'closeSettingsBtn');
       await sleep(win, 100);

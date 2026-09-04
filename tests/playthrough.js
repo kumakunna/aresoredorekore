@@ -66,12 +66,33 @@ async function startMode(win, doc, modeId, opts) {
 // 確認ダイアログの返事を、文面ごとに決める。
 // 一律 true/false にすると「終了しますか？」まで打ち消してしまい、
 // テストが本体の不具合ではなく自分の設定で落ちる。
+/**
+ * 出てきたダイアログに、**中身を見て**答える（第39弾）。
+ *
+ * それまでは win.confirm を差し替えて、文言で答えを分けていた。
+ * 標準ダイアログを全廃したので、**本物の部品が出て、それを押す**形にする。
+ * 答えを分ける必要があるので、まとめて OK を押す autoDialog は使えない——
+ * 「メンバーを入力しなおすか」だけは断って、同じ人たちで続けたい
+ */
 function answerDialogs(win) {
-  win.alert = () => {};
-  win.confirm = (msg) => {
-    if (/プレイヤーを変更/.test(msg)) return false; // このメンバーのまま続ける
-    return true;                                    // 終了・記録などは進める
+  const doc = win.document;
+  const press = () => {
+    const panel = doc.querySelector('.ui-layer .ui-panel');
+    if (!panel) return;
+    const head = (panel.querySelector('.ui-head') || {}).textContent || '';
+    // 「入力しなおしますか？」→ 断って、このメンバーのまま続ける
+    const which = /入力しなおし/.test(head) ? 'cancel' : 'ok';
+    const b = panel.querySelector('[data-ui="' + which + '"]')
+          || panel.querySelector('[data-ui="ok"]');
+    if (b) b.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
   };
+  if (win.__dialogWatcher) win.__dialogWatcher.disconnect();
+  // 間隔で回すと、窓を閉じても止まらない見張りが積み上がる（smoke がそれで落ちた）
+  const mo = new win.MutationObserver(press);
+  mo.observe(doc.getElementById('app') || doc.body, { childList: true, subtree: true });
+  win.__dialogWatcher = mo;
+  press();
+  return () => mo.disconnect();
 }
 
 // 遊び終わって（あるいは途中で）棚に戻る
@@ -313,6 +334,10 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
       const rows = doc.querySelectorAll('#setNameRows input');
       rows[rows.length - 1].value = 'あとから';
       rows[rows.length - 1].dispatchEvent(new win.Event('input', { bubbles: true }));
+      // 押す前に何も開いていないことを確かめる。
+      // ここを見ないと、設定の途中で出た別のダイアログを
+      // 「断られた」と読み違える（型b：条件が本当に作れているか）
+      assert(!H.openDialog(doc), c.mode + '：押す前は何も開いていない');
       click(doc, 'applyPlayersBtn');
       await sleep(win, 120);
 

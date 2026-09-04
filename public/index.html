@@ -589,7 +589,7 @@
   .fx-stagger>*{opacity:0;}
   .fx-stagger>*.fx-in{
     opacity:1;
-    animation:fxRowIn calc(0.26s * var(--fx-scale)) cubic-bezier(.2,1.4,.4,1);
+    animation:fxRowIn calc(0.26s * var(--fx-scale)) cubic-bezier(.2,1.5,.4,1);
   }
   @keyframes fxRowIn{from{opacity:0;transform:translateY(14px) scale(.96);}to{opacity:1;transform:none;}}
 
@@ -602,7 +602,7 @@
     box-shadow:0 2px 10px rgba(0,0,0,0.3);
   }
   .fx-fly-go{
-    transition:transform calc(0.26s * var(--fx-scale)) cubic-bezier(.4,0,.3,1),
+    transition:transform calc(0.26s * var(--fx-scale)) cubic-bezier(.32,.72,0,1),
                opacity calc(0.26s * var(--fx-scale)) ease-in;
     transform:translate(var(--fx-dx), var(--fx-dy)) scale(.7);
     opacity:.15;
@@ -764,7 +764,7 @@
     font-family:'Arial Black','Zen Maru Gothic',sans-serif;font-weight:900;
     font-size:min(14vw,120px);letter-spacing:.05em;color:#fff;
     text-shadow:0 4px 34px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.4);
-    animation:fxCalloutIn calc(0.3s * var(--fx-scale)) cubic-bezier(.15,1.4,.3,1);
+    animation:fxCalloutIn calc(0.3s * var(--fx-scale)) cubic-bezier(.2,1.5,.4,1);
   }
   .fx-callout-danger{color:#ff5c4a;}
   .fx-callout-gold{color:#f0c44a;}
@@ -791,7 +791,7 @@
   .door{
     width:78%;height:74%;
     transform-origin:left center;transform:rotateY(0deg);
-    transition:transform .38s cubic-bezier(.42,.06,.24,1), opacity .3s ease .1s;
+    transition:transform .38s cubic-bezier(.32,.72,0,1), opacity .3s ease .1s;
     background:
       linear-gradient(90deg, rgba(0,0,0,.22) 0 3%, transparent 12%),
       linear-gradient(180deg, var(--wood-light), var(--wood) 55%, var(--wood-dark));
@@ -1270,7 +1270,7 @@
     flex:none;width:124px;scroll-snap-align:center;
     /* 第32弾-C-1：0.25秒で切り替わる。--fx-scale を掛けてあるので
        「演出の速さ」を速いにした人は半分、スキップの人は一瞬で終わる */
-    transition:transform calc(0.25s * var(--fx-scale)) cubic-bezier(.2,.7,.3,1),
+    transition:transform calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1),
                filter calc(0.25s * var(--fx-scale)) ease;
     transform:scale(.74) translateY(6px);
     filter:brightness(.9) saturate(.85);
@@ -1293,7 +1293,7 @@
   .cart.cart-warp{
     transform:scale(1.6) translateY(-16px) !important;
     filter:none !important;position:relative;z-index:6;
-    transition:transform calc(0.34s * var(--fx-scale)) cubic-bezier(.34,0,.2,1) !important;
+    transition:transform calc(0.34s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) !important;
   }
   .cassette-warp{position:fixed;inset:0;z-index:84;pointer-events:none;overflow:hidden;}
   .cassette-warp::after{
@@ -1301,7 +1301,7 @@
     left:var(--warp-x,50%);top:var(--warp-y,50%);
     width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;
     background:var(--warp-color);transform:scale(0);
-    animation:warpOpen calc(0.4s * var(--fx-scale)) cubic-bezier(.42,0,.22,1) forwards;
+    animation:warpOpen calc(0.4s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
   }
   /* 20px×160 = 3200px。手元のスマホからPCの横幅まで覆いきる大きさ */
   @keyframes warpOpen{from{transform:scale(0);}to{transform:scale(160);}}
@@ -1787,7 +1787,7 @@
     font-family:'Arial Black','Zen Maru Gothic',sans-serif;font-weight:900;
     font-size:min(46vw,420px);color:rgba(255,255,255,.92);
     text-shadow:0 6px 50px rgba(0,0,0,.55), 0 0 12px rgba(0,0,0,.3);
-    animation:bigCdPulse 0.9s cubic-bezier(.1,.8,.2,1) forwards;
+    animation:bigCdPulse 0.9s cubic-bezier(.32,.72,0,1) forwards;
   }
   @keyframes bigCdPulse{0%{transform:scale(.6);opacity:0;}18%{transform:scale(1.08);opacity:1;}
     60%{transform:scale(1);opacity:.95;}100%{transform:scale(1.25);opacity:0;}}
@@ -1801,7 +1801,7 @@
     font-family:'Arial Black','Zen Maru Gothic',sans-serif;font-weight:900;
     font-size:min(40vw,280px);color:#fff;
     text-shadow:0 6px 44px rgba(0,0,0,.5);
-    animation:bigCdPulse 0.95s cubic-bezier(.1,.8,.2,1);
+    animation:bigCdPulse 0.95s cubic-bezier(.32,.72,0,1);
   }
   /* 第24弾-3-1：大画面をPCやTVに映している間だけ、スマホ幅の制限を外す。
      ふだんは 460px の帯に収めているが、その幅のままだと横長の画面で
@@ -1899,7 +1899,7 @@
     position:fixed;inset:0;pointer-events:none;z-index:85;
     background:radial-gradient(circle at 50% 55%, rgba(255,214,120,.95) 0%,
       rgba(240,90,50,.92) 26%, rgba(160,26,18,.86) 52%, rgba(40,8,6,.75) 78%);
-    opacity:0;animation:bombBoom calc(0.7s * var(--fx-scale)) cubic-bezier(.15,.7,.3,1) forwards;
+    opacity:0;animation:bombBoom calc(0.7s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
   }
   @keyframes bombBoom{
     0%{opacity:0;transform:scale(.25);}

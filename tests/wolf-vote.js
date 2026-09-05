@@ -708,7 +708,7 @@ function votesFrom(list) {
     await r.test(count + '人：票の割れ方を変えても、画面の結論が集計と一致する', async () => {
       for (const pat of PATTERNS) {
         const players = ALL_NAMES.slice(0, count);
-        const { win, doc, errors } = await launch();
+        const { win, doc, errors } = await launch({ fxSkip: true });  // 遊びの数字は縮めず、設定を「スキップ」にして始める
         await startWordwolf(win, doc, 'wordwolf', players, 1);
         const { wolves, sheep } = await revealTopics(win, doc);
         const w = wolves[0];
@@ -771,7 +771,7 @@ function votesFrom(list) {
     for (const wolfCount of [2, 3]) {
       for (const kind of ['unanimous', 'tie']) {
         const players = ALL_NAMES.slice(0, 8);
-        const { win, doc, errors } = await launch();
+        const { win, doc, errors } = await launch({ fxSkip: true });  // 遊びの数字は縮めず、設定を「スキップ」にして始める
         await startWordwolf(win, doc, 'wordwolf', players, wolfCount);
         const { wolves, sheep } = await revealTopics(win, doc);
         assertEqual(wolves.length, wolfCount, 'ウルフが' + wolfCount + '人いる');
@@ -1651,6 +1651,10 @@ function votesFrom(list) {
   });
 
   await r.test('集計は、票が集まりきってから処刑を発表する', async () => {
+    // **この検査は、わざと「ふつうの速さ」のまま回す（`fxSkip` を付けない）。**
+    // 重い検査は設定を「スキップ」にして早送りしたが、全部をそうすると
+    // 「ふつうに遊んでいる人が、本当に演出の終わりまで待たされるか」を
+    // 誰も見なくなる（落とし穴24）。実時間で待つ検査を、ここに1件だけ残す
     const { win, doc, errors } = await launch();
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     await startWolfRole(win, doc, 'wolf-casual', players);

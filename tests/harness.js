@@ -194,6 +194,21 @@ async function launch(opts) {
     }
     if (!opts.fx) html = html.replace(src, 'var FX_MS = { warp:0, celebrate:0, flip:0 };');
   }
+  // **演出の速さを「スキップ」にして始める。**
+  // これはテスト専用の細工ではなく、**遊ぶ人が設定で選べるのと同じ状態**——
+  // 保存された設定を先に置いておくだけで、本番のコードは何も変えていない。
+  // 遊びの数字（カウントダウンの長さ・持ち時間）は一切縮めない（落とし穴24）。
+  //
+  // これを使わない検査を必ず1つ残すこと。**全部を早送りにすると、
+  // 「ふつうの速さで本当に待つのか」を誰も見なくなる。**
+  //   → tests/wolf-vote.js「集計は、票が集まりきってから処刑を発表する」
+  if (opts.fxSkip) {
+    const seed = '<script>try{localStorage.setItem("acac-app-prefs",' +
+      'JSON.stringify({fxSpeed:"skip"}));}catch(e){}</script>';
+    const marker = '<body>';
+    if (html.indexOf(marker) < 0) throw new Error('<body> が見つかりません');
+    html = html.replace(marker, marker + seed);
+  }
   // 複数ゲームを持つカセットは本番にまだ無いので、テスト時だけ差し込む。
   // 本番のカセット構成は変えずに「ゲーム選択画面を通る経路」を確認するため。
   if (opts.testCassettes && opts.testCassettes.length) {
@@ -523,19 +538,32 @@ async function holdPress(win, doc, id) {
 // ---------- テストランナー ----------
 function createRunner(title) {
   const results = [];
+  // 遅い検査を探すための計測。**ふだんの出力は変えない**（環境変数を付けた時だけ）。
+  //   ACAC_TIME=1 node tests/〇〇.js
+  // 速さを直す時、まず「どこが遅いか」を測る。勘で縮めると、
+  // 遊びの数字の方を歪めたくなる（落とし穴24）
+  const 計測 = !!process.env.ACAC_TIME;
   return {
     async test(name, fn) {
+      const t0 = Date.now();
       try {
         await fn();
-        results.push({ name, ok: true });
+        results.push({ name, ok: true, ms: Date.now() - t0 });
       } catch (e) {
-        results.push({ name, ok: false, err: e && e.message ? e.message : String(e) });
+        results.push({ name, ok: false, err: e && e.message ? e.message : String(e), ms: Date.now() - t0 });
       }
     },
     finish() {
       const failed = results.filter(r => !r.ok);
       console.log('\n■ ' + title);
-      results.forEach(r => console.log('  ' + (r.ok ? '✅' : '❌') + ' ' + r.name + (r.ok ? '' : '\n       → ' + r.err)));
+      results.forEach(r => console.log('  ' + (r.ok ? '✅' : '❌') + ' ' + r.name +
+        (計測 ? '  [' + r.ms + 'ms]' : '') + (r.ok ? '' : '\n       → ' + r.err)));
+      if (計測) {
+        const 合計 = results.reduce((s, r) => s + r.ms, 0);
+        console.log('  ── 合計 ' + (合計 / 1000).toFixed(1) + '秒。遅い順:');
+        results.slice().sort((a, b) => b.ms - a.ms).slice(0, 5)
+          .forEach((r) => console.log('     ' + (r.ms + 'ms').padStart(8) + '  ' + r.name));
+      }
       console.log('  ' + (results.length - failed.length) + '/' + results.length + ' 件成功');
       if (failed.length) {
         console.log('\n' + title + ' は ' + failed.length + ' 件失敗しました。');

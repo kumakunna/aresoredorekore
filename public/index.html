@@ -15562,6 +15562,9 @@
   function resetHoldRing(){ readyHold.reset(); }
 
   // ===================== 6. countdown =====================
+  // 3-2-1のカウントダウン。**ここも演出なので、速さ設定に従う**（大切なこと7）。
+  // 第39弾まで生の setTimeout で、スキップ三層のどれにも乗っていなかった——
+  // 「スキップ」を選んだ人にも 2.5秒じっと待たせていた
   function enterCountdown(){
     var seq = ['3','2','1','スタート！'];
     var i = 0;
@@ -15573,7 +15576,7 @@
       if(i < 3) beep(700 + i*120, 150);
       i++;
       if(i < seq.length){
-        setTimeout(tick, 650);
+        setTimeout(tick, fxMs(650));
       } else {
         setTimeout(function(){
           beep(1046, 220);
@@ -15610,7 +15613,7 @@
           } else {
             goTo('scr-play');
           }
-        }, 550);
+        }, fxMs(550));
       }
     }
     tick();

@@ -3248,6 +3248,41 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
+  await r.test('カウントダウンも演出の速さに従う（大切なこと7）', async () => {
+    // **3-2-1のカウントダウンは、スキップ三層のどれにも乗っていなかった。**
+    // 生の `setTimeout(tick, 650)` で書かれていて、
+    // 「演出の速さ＝スキップ」を選んだ人にも 2.5秒じっと待たせていた。
+    // 検査を速くしようとして測っていて見つけた（実測 2550ms → 95ms）。
+    //
+    // **数字そのものを見る。**「fxMs を通っている」だけだと、
+    // 通した先が 0 を返さない実装に変わった日に素通りする
+    const fsx = require('fs');
+    const pathx = require('path');
+    const html = fsx.readFileSync(pathx.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const m = html.match(/function enterCountdown\(\)\{[\s\S]*?\n  \}/);
+    assert(m, 'カウントダウンの実装がある');
+    // **待ちの数字だけを見る。**最初 `setTimeout\([^,]+,\s*\d+\)` と書いたら、
+    // `[^,]*` が改行をまたいで中身の `beep(1046, 220)` を拾った——
+    // 音の長さを「生の待ち」と読み違えていた。
+    // 待ちの引数は「関数を閉じた直後の数字」か「名前, 数字」の形だけ
+    const 生の待ち = []
+      .concat(m[0].match(/\}\s*,\s*\d+\s*\)/g) || [])
+      .concat(m[0].match(/setTimeout\(\s*[A-Za-z_$][\w$]*\s*,\s*\d+\s*\)/g) || []);
+    assertEqual(生の待ち.join('・'), '',
+      '速さ設定を通さない生の待ちが残っている');
+    assert((m[0].match(/fxMs\(/g) || []).length >= 2,
+      'カウントダウンの待ちが fxMs を通っている');
+
+    // 実際に速くなることまで見る（型b：通っているだけでは足りない）
+    const 普通 = await launch();
+    const 早い = await launch({ fxSkip: true });
+    assertEqual(普通.doc.documentElement.classList.contains('fx-skip'), false,
+      'ふつうの起動では、止める印は付かない');
+    assertEqual(早い.doc.documentElement.classList.contains('fx-skip'), true,
+      'スキップの設定で始めると、止める印が付く');
+    普通.win.close(); 早い.win.close();
+  });
+
   await r.test('設定：音量・文字サイズ・演出の速さが、その場で効く', async () => {
     const { win, doc, errors } = await launch();
     click(doc, 'shelfGearBtn');

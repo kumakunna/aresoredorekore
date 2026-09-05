@@ -3268,11 +3268,34 @@ async function startModeWithTimerOff(win, doc, id) {
     bright.value = '130';
     bright.dispatchEvent(new win.Event('input'));
     await sleep(win, 60);
-    assertEqual(el(doc, 'app').style.getPropertyValue('--screen-bright'), '1.30', '明るさが効く');
+    // 明るさ・スキップ・文字サイズの3段階は **html に付く**。
+    // 重なり（#uiLayerRoot）は #app の兄弟なので、#app に付けると届かない——
+    // ダイアログだけ暗くならない・止まらない・大きくならない、が起きる（第39弾）
+    const html = doc.documentElement;
+    assertEqual(html.style.getPropertyValue('--screen-bright'), '1.30', '明るさが効く');
+    assertEqual(el(doc, 'app').style.getPropertyValue('--screen-bright'), '',
+      '明るさを #app に二重に持たない（持つと :root の値を隠す）');
     // 演出の速さ（スキップにすると、動きを止める印が付く）
     doc.querySelector('#setFxSeg [data-fx="skip"]').click();
     await sleep(win, 60);
-    assert(el(doc, 'app').classList.contains('fx-skip'), 'スキップが効く');
+    assert(html.classList.contains('fx-skip'), 'スキップが効く');
+    // **重なりにも届いているか。**#app の中だけで止まっていないことを、
+    // 置き場そのものを祖先にたどって確かめる
+    const 置き場 = doc.getElementById('uiLayerRoot');
+    assert(置き場, '重なりの置き場がある');
+    assert(!置き場.closest('#app'), '置き場は #app の外にある');
+    assert(html.contains(置き場), 'スキップの印を持つ html の中に、置き場が入っている');
+
+    // 文字サイズの3段階も html に付く
+    font.value = '130';
+    font.dispatchEvent(new win.Event('input'));
+    await sleep(win, 60);
+    assert(html.classList.contains('fs-large'), '大きい文字の印が html に付く');
+    assert(!el(doc, 'app').classList.contains('fs-large'),
+      '#app には付けない（付けると、どちらが本物か分からなくなる）');
+    font.value = '125';
+    font.dispatchEvent(new win.Event('input'));
+    await sleep(win, 60);
 
     // 開き直しても覚えている
     click(doc, 'closeSettingsBtn');

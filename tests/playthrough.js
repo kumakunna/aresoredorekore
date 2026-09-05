@@ -335,10 +335,18 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
       // ここを飛ばすと settingsDraft が空のまま＝「全員を消す」下書きになり、
       // 押した瞬間に削除の確認が出る。人狼側は先に断られるので気づけなかった
       // （落とし穴10-b：検査したい状況がそもそも組み立てられていない）
-      const 人ページ = doc.querySelector('[data-setpage="players"]');
-      assert(人ページ, c.mode + '：人の編集ページへの入口がある');
-      人ページ.dispatchEvent(new win.Event('click', { bubbles: true }));
-      await sleep(win, 80);
+      // 入口は根の1段下（設定 → いま遊んでいるゲーム → プレイヤー）。
+      // 根だけ見て「入口が無い」と決めつけない
+      const 開く = async (page) => {
+        const b = doc.querySelector('[data-setpage="' + page + '"]');
+        if (!b) return false;
+        b.dispatchEvent(new win.Event('click', { bubbles: true }));
+        await sleep(win, 80);
+        return true;
+      };
+      if (!doc.querySelector('[data-setpage="players"]')) await 開く('game');
+      const 通れた = await 開く('players');
+      assert(通れた, c.mode + '：人の編集ページへの入口がある（設定→ゲーム→プレイヤー）');
       assert(doc.querySelectorAll('#setNameRows input').length > 0,
         c.mode + '：いまの名簿が下書きに読み込まれている');
       click(doc, 'setPlayerPlusBtn');

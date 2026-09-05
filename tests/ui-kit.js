@@ -364,6 +364,34 @@ function click(doc, sel) {
       'UiKit が、その置き場を使うように渡されている');
   });
 
+  await r.test('部品の持ち時間が、演出の速さ3択すべてに従う（門A4）', async () => {
+    // **3択のうち1つが何もしないのは、嘘を表示しているのと同じ**（落とし穴21）。
+    // 門A4の表（部品×速さ設定）を実際に埋めたら、
+    // 「ふつう」も「速い」も 0.25s のまま——**効いていたのはスキップだけ**だった。
+    // 部品の持ち時間が固定値で、`--fx-scale` を掛けていなかった。
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const ui = css.slice(css.indexOf('.ui-layer{'), css.indexOf('.ui-chip'));
+
+    // 出入りの持ち時間を全部拾う。**先に数える**（拾えていないのに緑、を防ぐ）
+    const 出入り = (ui.match(/transition:[^;]*(opacity|transform)[^;]*;/g) || [])
+      .filter((t) => !/\.15s/.test(t));   // .15s は押した瞬間の合図（演出ではない）
+    assert(出入り.length >= 4, '出入りの持ち時間を拾えている（実際:' + 出入り.length + '件）');
+
+    const 従っていない = 出入り.filter((t) => !/var\(--fx-scale/.test(t));
+    assertEqual(従っていない.join('\n       '), '',
+      '速さ設定に従っていない持ち時間（固定値のまま）');
+
+    // 掛ける先が読める場所にあるか。#app に置くと、その外の重なりからは読めない
+    assert(/--fx-scale:1;/.test(css.slice(0, css.indexOf('.app{'))),
+      '--fx-scale は :root にある（重なりも読める）');
+    assert(/rootEl\.style\.setProperty\('--fx-scale'/.test(html),
+      '速さ設定は :root に書き込む');
+  });
+
   await r.test('置き場を外に出した副作用：設定が重なりにも届いている', async () => {
     // **箱を外に出すと、その箱に付いていた設定から外れる。**
     // 置き場を #app の外へ移した直後、`.app.fs-*` と `.app.fx-skip` は

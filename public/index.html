@@ -19,6 +19,7 @@
     --fs-sub:12.5px;
     --fs-btn:16px;
     --screen-bright:1;   /* 画面の明るさ補正。#app と #uiLayerRoot が同じ値を読む */
+    --fx-scale:1;        /* 演出の速さ。同上——重なりの出入りもこれに従う */
     --paper:#EFE8D3;
     --paper-deep:#E4DBC0;
     --card:#FFFBF2;
@@ -78,8 +79,7 @@
          --screen-bright 画面の明るさ補正（暗いテーマを屋外で遊ぶ時のため）
          --fx-scale      演出の速さ（1=ふつう / 0.5=速い / 0=スキップ） */
     --font-scale:1;
-    /* --screen-bright は :root に置く。#app の外の層も同じ値を読むため */
-    --fx-scale:1;
+    /* --screen-bright と --fx-scale は :root に置く。#app の外の層も同じ値を読むため */
     font-size:calc(15px * var(--font-scale));
     filter:brightness(var(--screen-bright));
     /* 第27弾-2：スマホの 100vh は、ブラウザのアドレスバー・下部バーの裏まで含む。
@@ -1066,12 +1066,12 @@
     --line:rgba(36,39,46,0.14);
     color:var(--ink);            /* ← 地とセットで必ず決める */
     opacity:0;pointer-events:none;
-    transition:opacity .25s cubic-bezier(.32,.72,0,1);
+    transition:opacity calc(.25s * var(--fx-scale,1)) cubic-bezier(.32,.72,0,1);
   }
   .ui-layer.is-on{opacity:1;pointer-events:auto;}
   .ui-dim{
     position:absolute;inset:0;z-index:110;background:rgba(36,39,46,0.55);
-    opacity:0;transition:opacity .25s cubic-bezier(.32,.72,0,1);
+    opacity:0;transition:opacity calc(.25s * var(--fx-scale,1)) cubic-bezier(.32,.72,0,1);
   }
   .ui-dim.is-on{opacity:1;}
 
@@ -1088,7 +1088,7 @@
   .ui-dialog-in, .ui-popup-in{
     background:var(--card);border-radius:16px;padding:22px 20px 18px;
     box-shadow:0 12px 40px rgba(0,0,0,0.28);
-    transform:translateY(12px);transition:transform .25s cubic-bezier(.32,.72,0,1);
+    transform:translateY(12px);transition:transform calc(.25s * var(--fx-scale,1)) cubic-bezier(.32,.72,0,1);
   }
   .ui-layer.is-on .ui-dialog-in,
   .ui-layer.is-on .ui-popup-in{transform:none;}
@@ -1099,7 +1099,7 @@
     background:var(--card);border-radius:16px 16px 0 0;padding:20px 20px 26px;
     box-shadow:0 -8px 32px rgba(0,0,0,0.24);max-height:78vh;
     display:flex;flex-direction:column;
-    transform:translateY(24px);transition:transform .25s cubic-bezier(.32,.72,0,1);
+    transform:translateY(24px);transition:transform calc(.25s * var(--fx-scale,1)) cubic-bezier(.32,.72,0,1);
   }
   .ui-layer.is-on .ui-sheet-in{transform:none;}
 
@@ -1163,7 +1163,7 @@
     border-radius:999px;padding:10px 20px;
     font-size:var(--fs-sub);line-height:1.5;
     opacity:0;transform:translateY(8px);
-    transition:opacity .25s cubic-bezier(.32,.72,0,1), transform .25s cubic-bezier(.32,.72,0,1);
+    transition:opacity calc(.25s * var(--fx-scale,1)) cubic-bezier(.32,.72,0,1), transform calc(.25s * var(--fx-scale,1)) cubic-bezier(.32,.72,0,1);
   }
   .ui-toast.is-on{opacity:1;transform:none;}
 
@@ -7155,7 +7155,9 @@
     document.documentElement.style.setProperty('--screen-bright', (appPrefs.brightness / 100).toFixed(2));
     // 演出の速さ。0 はスキップ（時間0で終わる）
     var fx = appPrefs.fxSpeed === 'fast' ? 0.5 : (appPrefs.fxSpeed === 'skip' ? 0 : 1);
-    app.style.setProperty('--fx-scale', String(fx));
+    // 明るさと同じく :root に置く。重なり（#uiLayerRoot）は #app の外にいて、
+    // #app に置いた値は読めない——「速い」がダイアログにだけ効かなくなる
+    rootEl.style.setProperty('--fx-scale', String(fx));
     rootEl.classList.toggle('fx-skip', appPrefs.fxSpeed === 'skip');  // 重なりの出入りも止める
     // 第32弾-D 第4部：光の点滅・画面の揺れを切っている人には出さない。
     // CSSのクラス1つで全部の該当演出が止まる形にする（出す側に条件を書かせない）

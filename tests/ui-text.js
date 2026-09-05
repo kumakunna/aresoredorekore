@@ -35,6 +35,18 @@ const SOURCES_FOR_LABEL = ['public/index.html', 'public/js/ui.js'].map((f) => ({
 }));
 
 /**
+ * 文言を掃く対象（第40弾）。画面に文字を出しうるファイル全部。
+ * **ui-text.js だけは外す**——そこは台帳そのもので、
+ * 「直す前の言い方」が直し方の説明として載っている。
+ * 外さないと、自分の一覧を違反として数えてしまう（第39弾で踏んだ形）
+ */
+const SOURCES = ['public/index.html'].concat(
+  fs.readdirSync(path.join(__dirname, '..', 'public', 'js'))
+    .filter((f) => f.endsWith('.js') && f !== 'ui-text.js')
+    .map((f) => 'public/js/' + f)
+).map((f) => ({ file: f, text: fs.readFileSync(path.join(__dirname, '..', f), 'utf8') }));
+
+/**
  * 置換の台帳（docs/監査_標準ダイアログ置換.md の一覧と同じもの）。
  * **場面を表す語**と、そこで出るべき種類の対。
  * 行番号ではなく文言で照らすので、コードが上下に動いても腐らない。
@@ -223,6 +235,94 @@ function kindOf(mark) {
     const 引っかかる = (s) => UiText.BANNED.some((b) => s.indexOf(b.見つけたら) >= 0);
     assert(引っかかる('閉じる'), 'わざと混ぜた「閉じる」を見張りが捕まえる');
     assert(!引っかかる('とじる'), '直した「とじる」は捕まらない');
+  });
+
+  await r.test('うまくいかない知らせが「失敗」と言わない（第40弾 C4）', async () => {
+    // **遊んでいる人は何も失敗していない。**
+    // 「保存に失敗しました」は、人のしくじりに聞こえる（原則C）。
+    // 起きた事実だけを言う形（「保存できませんでした」）に寄せた。
+    //
+    // 掃く先から ui-text.js は外す——**そこは台帳そのもの**で、
+    // 直す前の言い方が「直し方の説明」として載っている（第39弾で踏んだ形）
+    const 責める語 = ['に失敗しました', 'エラーが発生', '再試行'];
+    const 見つけた = [];
+    SOURCES.forEach((src) => {
+      strip(src.text).split('\n').forEach((line, i) => {
+        let m;
+        const re = /'([^'\\\n]{2,140})'/g;
+        while ((m = re.exec(line))) {
+          責める語.forEach((w) => {
+            if (m[1].indexOf(w) >= 0) 見つけた.push(src.file + ':' + (i + 1) + '「' + m[1] + '」');
+          });
+        }
+      });
+    });
+    assertEqual(見つけた.join('\n       '), '', '責める言い方が残っている');
+
+    // 言い換え先が実在するか（両方向・落とし穴20）
+    ['保存できない', '読み込めない', 'うまくいかない', 'あとでためせる'].forEach((k) => {
+      assert(typeof UiText.MSG[k] === 'string' && UiText.MSG[k].length > 0,
+        'MSG.' + k + ' が用意されている');
+      assert(UiText.MSG[k].indexOf('失敗') < 0, 'MSG.' + k + ' 自身が「失敗」と言っていない');
+    });
+  });
+
+  await r.test('画面に全角数字が出ない（第40弾 C5・回帰防止）', async () => {
+    // 着手時点で0件。**0件のまま保つ**ことをここで固定する。
+    // 数えた対象の件数を先に出す——0件が「無い」のか「見ていない」のかを分けるため
+    let 数えた = 0;
+    const 見つけた = [];
+    SOURCES.forEach((src) => {
+      strip(src.text).split('\n').forEach((line, i) => {
+        let m;
+        const re = /'([^'\\\n]{2,140})'/g;
+        while ((m = re.exec(line))) {
+          if (!/[ぁ-んァ-ヶ一-龠]/.test(m[1])) continue;
+          数えた++;
+          if (/[０-９]/.test(m[1])) 見つけた.push(src.file + ':' + (i + 1) + '「' + m[1] + '」');
+        }
+      });
+    });
+    assert(数えた > 1500, '画面に出うる文言を数えられている（実際:' + 数えた + '件）');  // 型(b)
+    assertEqual(見つけた.join('\n       '), '', '全角数字が混ざっている');
+  });
+
+  await r.test('専門用語が画面に出ていない（第40弾 C3）', async () => {
+    // JARGON の「用語」が、台帳の外で使われていないこと。
+    // 除外印（プレイヤー）が付いたものは対象にしない
+    const 対象 = UiText.JARGON.filter((j) => !j.除外);
+    assert(対象.length >= 4, '言い換える語がある（実際:' + 対象.length + '件）');  // 型(b)
+    const 見つけた = [];
+    SOURCES.forEach((src) => {
+      strip(src.text).split('\n').forEach((line, i) => {
+        let m;
+        const re = /'([^'\\\n]{2,140})'/g;
+        while ((m = re.exec(line))) {
+          対象.forEach((j) => {
+            if (m[1].indexOf(j.用語) >= 0) {
+              見つけた.push(src.file + ':' + (i + 1) + '「' + m[1].slice(0, 40) +
+                '」→ ' + j.言い換え);
+            }
+          });
+        }
+      });
+    });
+    assertEqual(見つけた.join('\n       '), '', '専門用語が画面に残っている');
+  });
+
+  await r.test('そのまま残す外来語は、理由つきで台帳にある（第40弾 C7）', async () => {
+    // **「判断しなかった」と「残すと決めた」を区別する。**
+    // 理由の無い居残りは、ただの見落とし
+    assert(UiText.KEPT.length >= 4, '残す語が挙がっている（実際:' + UiText.KEPT.length + '件）');
+    UiText.KEPT.forEach((k) => {
+      assert(k.語 && k.語.length > 0, '語がある');
+      assert(k.理由 && k.理由.length >= 10, '「' + k.語 + '」に理由が書いてある');
+    });
+    // JARGON と食い違っていないか（同じ語が「言い換える」と「残す」の両方に無いこと）
+    const 残す = UiText.KEPT.map((k) => k.語);
+    const 矛盾 = UiText.JARGON.filter((j) => !j.除外 && 残す.indexOf(j.用語) >= 0);
+    assertEqual(矛盾.map((j) => j.用語).join('・'), '',
+      '同じ語が「言い換える」と「残す」の両方に載っている');
   });
 
   r.finish();

@@ -3173,7 +3173,7 @@
   <!-- 2: login -->
   <div class="screen" id="scr-login">
     <h2 class="scr-title" id="loginTitle">ログイン</h2>
-    <p class="scr-sub" id="loginSub">ホストのアカウントでログインしてください</p>
+    <p class="scr-sub" id="loginSub">進行役のアカウントでログインしてください</p>
 
     <div id="loginFields">
       <input type="text" id="loginUsername" placeholder="ユーザー名" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -6902,7 +6902,7 @@
     var data = null;
     try{ data = await res.json(); }catch(e){}
     if(!res.ok){
-      var err = new Error((data && data.error) || ('エラー ('+res.status+')'));
+      var err = new Error((data && data.error) || ((typeof UiText!=="undefined"?UiText.MSG:{}).通信できない ? (typeof UiText!=="undefined"?UiText.MSG:{}).通信できない(res.status) : 'うまくいきませんでした（'+res.status+'）'));
       err.status = res.status;
       throw err;
     }
@@ -6997,7 +6997,7 @@
       if(!keepPlaying){ state.matchId = null; state.matchRoundsLogged = 0; }
       return { ok:true, msg:'保存しました' };
     }catch(e){
-      return { ok:false, msg: e.message || '保存に失敗しました' };
+      return { ok:false, msg: e.message || (typeof UiText!=="undefined"?UiText.MSG:{}).保存できない };
     }
   }
 
@@ -7022,8 +7022,8 @@
   function aiFallbackMessage(){
     if((play.aiFailStreak || 0) < AI_FAIL_LIMIT) return '';
     return canSwitchToHumanDescribe()
-      ? 'AIの調子が悪いようです。設定に戻って「人が説明」モードに切り替えられます。'
-      : 'AIの調子が悪いようです。しばらく時間をおいて再試行してください。';
+      ? (typeof UiText!=="undefined"?UiText.MSG:{}).AIの調子 + '。設定から「人が説明」に切り替えられます'
+      : (typeof UiText!=="undefined"?UiText.MSG:{}).AIの調子 + '。' + (typeof UiText!=="undefined"?UiText.MSG:{}).あとでためせる;
   }
   function aiFallbackNoteHtml(){
     var msg = aiFallbackMessage();
@@ -7994,7 +7994,7 @@
   // 断った時の戻り先を棚に決め打ちすると、まだ遊び方を選んでいないのに
   // 棚に出てしまう。頼んだ画面に返す
   var loginCameFrom = 'scr-shelf';
-  var LOGIN_SUB_DEFAULT = 'ホストのアカウントでログインしてください';
+  var LOGIN_SUB_DEFAULT = '進行役のアカウントでログインしてください';
   /**
    * ログインが要る用事の前に呼ぶ。
    *
@@ -8027,7 +8027,7 @@
     el('loginFields').style.display = authMode === 'login' ? 'block' : 'none';
     el('registerFields').style.display = authMode === 'register' ? 'block' : 'none';
     el('loginTitle').textContent = authMode === 'login' ? 'ログイン' : '新規登録';
-    el('loginSub').textContent = authMode === 'login' ? 'ホストのアカウントでログインしてください' : '登録コード（合言葉）が必要です';
+    el('loginSub').textContent = authMode === 'login' ? LOGIN_SUB_DEFAULT : '登録コード（合言葉）が必要です';
     el('loginSubmitBtn').textContent = authMode === 'login' ? 'ログイン' : '登録する';
     el('loginToggleBtn').textContent = authMode === 'login' ? 'はじめて使う方はこちら' : 'ログインにもどる';
     el('loginError').textContent = '';
@@ -8058,7 +8058,7 @@
       el('loginSub').textContent = LOGIN_SUB_DEFAULT;
       goTo(back);
     } catch(e){
-      el('loginError').textContent = e.message || 'エラーが発生しました';
+      el('loginError').textContent = e.message || (typeof UiText!=="undefined"?UiText.MSG:{}).うまくいかない;
       var card = el('scr-login');
       card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
     } finally {
@@ -9429,7 +9429,7 @@
     }
     note.className = 'mic-status';
     if(!info.game){
-      note.textContent = '🕒 ホストがゲームを選ぶのを待っています（いま' + info.playerCount + '人）';
+      note.textContent = '🕒 進行役がゲームを選ぶのを待っています（いま' + info.playerCount + '人）';
       return;
     }
     note.textContent = '🎮「' + gameTitleOf(info.game) + '」で遊ぼうとしています（いま' +
@@ -17809,7 +17809,7 @@
       })
       .catch(function(e){
         if(play.quizCurrent !== thisQuestion) return;
-        el('quizDescription').innerHTML = escapeHtml('AIの説明を取得できませんでした：' + (e.message || 'サーバーにGEMINI_API_KEYが設定されているか確認してください')) +
+        el('quizDescription').innerHTML = escapeHtml((typeof UiText!=="undefined"?UiText.MSG:{}).AIが用意できない) +
           aiFallbackNoteHtml(); // 第14弾
       });
   }
@@ -18435,7 +18435,7 @@
       }
     }catch(e){
       if(play.currentTopic !== topic) return; // 別のお題に進んでいたら無視
-      el('topicName').textContent = 'AIの取得に失敗しました';
+      el('topicName').textContent = (typeof UiText!=="undefined"?UiText.MSG:{}).AIが用意できない;
       // #3：失敗しても詰まないよう「もう一度取得」ボタンを出す
       el('aiDescriptionBox').innerHTML = escapeHtml(e.message || 'しばらく待ってからもう一度お試しください') +
         '<br><button class="btn btn-outline" id="aiRetryBtn" style="margin-top:8px;">🔄 もう一度取得</button>' +
@@ -19813,7 +19813,7 @@
       recordsCache = matches.filter(function(m){ return m.ended_at; });
     }catch(e){
       recordsCache = [];
-      el('recordsEmptyNote').textContent = '記録を読み込めませんでした。';
+      el('recordsEmptyNote').textContent = '記録を読み込めませんでした';
       renderRecordsGameChips();
       return;
     }
@@ -19906,7 +19906,7 @@
     });
     list = list.slice(0, 30);
     el('recordsEmptyNote').style.display = list.length ? 'none' : 'block';
-    el('recordsEmptyNote').textContent = 'まだ記録がありません。';
+    el('recordsEmptyNote').textContent = 'まだ記録がありません';
     el('recordsList').innerHTML = list.map(function(m){
       var d = new Date(m.ended_at || m.started_at);
       var dateStr = (d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
@@ -20007,7 +20007,7 @@
           '平均得点：<span class="num">'+res.avg_score+'</span>'+
         '</div>';
     }catch(e){
-      el('statsLookupResult').textContent = e.message || '取得に失敗しました';
+      el('statsLookupResult').textContent = e.message || (typeof UiText!=="undefined"?UiText.MSG:{}).読み込めない;
     }
   });
   el('closeSettingsBtn').addEventListener('click', closeSettings);

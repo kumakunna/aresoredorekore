@@ -47,6 +47,51 @@ const SOURCES = ['public/index.html'].concat(
 ).map((f) => ({ file: f, text: fs.readFileSync(path.join(__dirname, '..', f), 'utf8') }));
 
 /**
+ * 画面に出る文言を、**2つの層から**集める（第40弾）。
+ *
+ * ① JSの文字列（`'…'`）  ② HTMLに直接書かれた地の文
+ *
+ * **②を見ていなかった。** 「全角数字0件」の検査が緑だったのは、
+ * 実際に無かったからではなく**マークアップを一度も見ていなかったから**。
+ * 実機で画面を読んで初めて「🥊 スマホを２人の間へ」が見つかった
+ * （落とし穴10-b・12）。494件がまるごと検査の外にあった。
+ */
+function 画面の文言() {
+  const out = [];
+  const 日本語 = /[ぁ-んァ-ヶ一-龠]/;
+  const blank = (x) => x.replace(/[^\n]/g, '');
+  SOURCES.forEach((src) => {
+    // ① JSの文字列
+    strip(src.text).split('\n').forEach((line, i) => {
+      let m;
+      const re = /'([^'\\\n]{2,140})'/g;
+      while ((m = re.exec(line))) {
+        if (日本語.test(m[1])) out.push({ 場所: src.file + ':' + (i + 1), t: m[1], 層: 'JS' });
+      }
+    });
+    // ② HTMLに直接書かれた地の文（タグの外）
+    if (!/\.html$/.test(src.file)) return;
+    src.text
+      .replace(/<style[\s\S]*?<\/style>/g, blank)
+      .replace(/<script[\s\S]*?<\/script>/g, blank)
+      .replace(/<!--[\s\S]*?-->/g, blank)
+      // **`<br>` は文を切らない。**外さずに拾うと、1つの文の後半だけが
+      // 「短い案内」に見える（「…揺れを<br>使った演出が含まれます。」の後半）
+      .replace(/<br\s*\/?>/g, '')
+      .split('\n').forEach((line, i) => {
+        line.replace(/>([^<>]+)</g, (m, t) => {
+          const x = t.trim();
+          if (x.length >= 2 && 日本語.test(x)) {
+            out.push({ 場所: src.file + ':' + (i + 1), t: x, 層: 'HTML' });
+          }
+          return m;
+        });
+      });
+  });
+  return out;
+}
+
+/**
  * 置換の台帳（docs/監査_標準ダイアログ置換.md の一覧と同じもの）。
  * **場面を表す語**と、そこで出るべき種類の対。
  * 行番号ではなく文言で照らすので、コードが上下に動いても腐らない。
@@ -268,23 +313,34 @@ function kindOf(mark) {
   });
 
   await r.test('画面に全角数字が出ない（第40弾 C5・回帰防止）', async () => {
-    // 着手時点で0件。**0件のまま保つ**ことをここで固定する。
-    // 数えた対象の件数を先に出す——0件が「無い」のか「見ていない」のかを分けるため
-    let 数えた = 0;
-    const 見つけた = [];
-    SOURCES.forEach((src) => {
-      strip(src.text).split('\n').forEach((line, i) => {
-        let m;
-        const re = /'([^'\\\n]{2,140})'/g;
-        while ((m = re.exec(line))) {
-          if (!/[ぁ-んァ-ヶ一-龠]/.test(m[1])) continue;
-          数えた++;
-          if (/[０-９]/.test(m[1])) 見つけた.push(src.file + ':' + (i + 1) + '「' + m[1] + '」');
-        }
-      });
-    });
-    assert(数えた > 1500, '画面に出うる文言を数えられている（実際:' + 数えた + '件）');  // 型(b)
+    // **この検査は一度、緑なのに見落としていた。**
+    // JSの文字列しか見ておらず、HTMLに直接書かれた
+    // 「🥊 スマホを２人の間へ」を素通りしていた。
+    // 実機で画面を読んで初めて分かった（落とし穴10-b・12）。
+    //
+    // 数えた件数を**層ごとに**主張する——
+    // 0件が「無い」のか「その層を見ていない」のかを分ける
+    const 全部 = 画面の文言();
+    const JS件数 = 全部.filter((x) => x.層 === 'JS').length;
+    const HTML件数 = 全部.filter((x) => x.層 === 'HTML').length;
+    assert(JS件数 > 1500, 'JSの文言を数えられている（実際:' + JS件数 + '件）');
+    assert(HTML件数 > 300, '**HTMLの地の文も**数えられている（実際:' + HTML件数 + '件）');
+
+    const 見つけた = 全部.filter((x) => /[０-９]/.test(x.t))
+      .map((x) => x.層 + ' ' + x.場所 + '「' + x.t.slice(0, 40) + '」');
     assertEqual(見つけた.join('\n       '), '', '全角数字が混ざっている');
+  });
+
+  await r.test('単独で出る短い知らせに句点を付けない（第40弾 C6）', async () => {
+    // 正本10：短い案内には句点を付けない。2文以上のまとまりには付ける。
+    // **文の途中で連結されるものは対象にしない**——
+    // 「『参加する』を選びました。」＋続きの文、のような形は句点が正しい。
+    // そこで**HTMLに単独で置かれた短い知らせ**だけを見る（連結が起きない層）
+    const 短い知らせ = 画面の文言().filter((x) =>
+      x.層 === 'HTML' && x.t.length <= 16 && /。$/.test(x.t) &&
+      (x.t.match(/。/g) || []).length === 1);
+    assertEqual(短い知らせ.map((x) => x.場所 + '「' + x.t + '」').join('\n       '), '',
+      '単独の短い知らせに句点が付いている');
   });
 
   await r.test('専門用語が画面に出ていない（第40弾 C3）', async () => {
@@ -323,6 +379,37 @@ function kindOf(mark) {
     const 矛盾 = UiText.JARGON.filter((j) => !j.除外 && 残す.indexOf(j.用語) >= 0);
     assertEqual(矛盾.map((j) => j.用語).join('・'), '',
       '同じ語が「言い換える」と「残す」の両方に載っている');
+  });
+
+  await r.test('直した文言は ui-text.js 経由で出る（第40弾 C8）', async () => {
+    // **同じ意味の知らせを、画面ごとに書かない。**
+    // 直書きに戻ると、次に言い方を変える時に片方だけ直る（落とし穴1）。
+    //
+    // 最初は各所に `(typeof UiText!=="undefined"?UiText.MSG:{})` と書いていて、
+    // 同じ長い式が10回並び、しかも予備の文言として**同じ文が二重に**書いてあった。
+    // 受け口を1つにして `MSG.〇〇` で呼ぶ形に寄せた
+    assert(/var MSG = \(typeof UiText !== ['"]undefined['"]\) \? UiText\.MSG : \{\};/.test(HTML),
+      'MSG の受け口が1か所にある');
+
+    // MSG に入れた文言が、画面に直書きで残っていないこと
+    const 直書き = [];
+    Object.keys(UiText.MSG).forEach((k) => {
+      const v = UiText.MSG[k];
+      if (typeof v !== 'string') return;
+      SOURCES.forEach((src) => {
+        strip(src.text).split('\n').forEach((line, i) => {
+          if (line.indexOf("'" + v + "'") >= 0) {
+            直書き.push(src.file + ':' + (i + 1) + '「' + v + '」');
+          }
+        });
+      });
+    });
+    assertEqual(直書き.join('\n       '), '', 'MSG にある文言が画面に直書きされている');
+
+    // 実際に使われているか（両方向・落とし穴20）。
+    // 台帳に足しただけで誰も呼んでいない、を防ぐ
+    const 使われず = Object.keys(UiText.MSG).filter((k) => HTML.indexOf('MSG.' + k) < 0);
+    assertEqual(使われず.join('・'), '', 'MSG に書いたのに、どこからも呼ばれていない言い方');
   });
 
   r.finish();

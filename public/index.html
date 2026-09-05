@@ -4679,7 +4679,7 @@
     <div class="wolf-handoff">
       <div class="wolf-handoff-sub" id="tourneyVsRound">1回戦</div>
       <div class="wolf-handoff-name" id="tourneyVsPair">A VS B</div>
-      <div class="wolf-handoff-sub">🥊 スマホを２人の間へ。準備ができたらタップ</div>
+      <div class="wolf-handoff-sub">🥊 スマホを2人の間へ。準備ができたらタップ</div>
       <button class="btn btn-main" id="tourneyVsStartBtn">この対戦をはじめる</button>
     </div>
   </div>
@@ -4935,7 +4935,7 @@
         <div class="card">
           <div class="sec-title">追加したお題（<span id="packCount">0</span>）</div>
           <div id="packList"></div>
-          <div class="empty-note" id="packEmptyNote">まだ追加したお題はありません。</div>
+          <div class="empty-note" id="packEmptyNote">まだ追加したお題はありません</div>
         </div>
         </div><!-- /topicPoolSettings -->
       </div>
@@ -5135,7 +5135,7 @@
       <div class="card">
         <div class="sec-title">対戦記録</div>
         <div id="recordsList"></div>
-        <div class="empty-note" id="recordsEmptyNote">まだ記録がありません。</div>
+        <div class="empty-note" id="recordsEmptyNote">まだ記録がありません</div>
       </div>
 
       <div class="card">
@@ -5144,7 +5144,7 @@
           <thead><tr><th>お題</th><th class="num">正解</th><th class="num">不正解</th><th class="num">反則</th></tr></thead>
           <tbody id="statsTableBody"></tbody>
         </table>
-        <div class="empty-note" id="statsEmptyNote">まだ記録がありません。</div>
+        <div class="empty-note" id="statsEmptyNote">まだ記録がありません</div>
       </div>
 
       <div class="card">
@@ -5256,6 +5256,10 @@
 <script>
 (function(){
   "use strict";
+
+  // うまくいかなかった時の言い方は ui-text.js に集める（第40弾 2-6）。
+  // **画面ごとに書かない。**同じ意味の知らせが場所ごとに違う言い方になる
+  var MSG = (typeof UiText !== "undefined") ? UiText.MSG : {};
 
   // お題データは /api/topics から取得する（デフォルト110件+ホストの追加分）
 
@@ -6902,7 +6906,7 @@
     var data = null;
     try{ data = await res.json(); }catch(e){}
     if(!res.ok){
-      var err = new Error((data && data.error) || ((typeof UiText!=="undefined"?UiText.MSG:{}).通信できない ? (typeof UiText!=="undefined"?UiText.MSG:{}).通信できない(res.status) : 'うまくいきませんでした（'+res.status+'）'));
+      var err = new Error((data && data.error) || MSG.通信できない(res.status));
       err.status = res.status;
       throw err;
     }
@@ -6997,7 +7001,7 @@
       if(!keepPlaying){ state.matchId = null; state.matchRoundsLogged = 0; }
       return { ok:true, msg:'保存しました' };
     }catch(e){
-      return { ok:false, msg: e.message || (typeof UiText!=="undefined"?UiText.MSG:{}).保存できない };
+      return { ok:false, msg: e.message || MSG.保存できない };
     }
   }
 
@@ -7022,8 +7026,8 @@
   function aiFallbackMessage(){
     if((play.aiFailStreak || 0) < AI_FAIL_LIMIT) return '';
     return canSwitchToHumanDescribe()
-      ? (typeof UiText!=="undefined"?UiText.MSG:{}).AIの調子 + '。設定から「人が説明」に切り替えられます'
-      : (typeof UiText!=="undefined"?UiText.MSG:{}).AIの調子 + '。' + (typeof UiText!=="undefined"?UiText.MSG:{}).あとでためせる;
+      ? MSG.AIの調子 + '。設定から「人が説明」に切り替えられます'
+      : MSG.AIの調子 + '。' + MSG.あとでためせる;
   }
   function aiFallbackNoteHtml(){
     var msg = aiFallbackMessage();
@@ -8058,7 +8062,7 @@
       el('loginSub').textContent = LOGIN_SUB_DEFAULT;
       goTo(back);
     } catch(e){
-      el('loginError').textContent = e.message || (typeof UiText!=="undefined"?UiText.MSG:{}).うまくいかない;
+      el('loginError').textContent = e.message || MSG.うまくいかない;
       var card = el('scr-login');
       card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
     } finally {
@@ -17809,7 +17813,7 @@
       })
       .catch(function(e){
         if(play.quizCurrent !== thisQuestion) return;
-        el('quizDescription').innerHTML = escapeHtml((typeof UiText!=="undefined"?UiText.MSG:{}).AIが用意できない) +
+        el('quizDescription').innerHTML = escapeHtml(MSG.AIが用意できない) +
           aiFallbackNoteHtml(); // 第14弾
       });
   }
@@ -18435,7 +18439,7 @@
       }
     }catch(e){
       if(play.currentTopic !== topic) return; // 別のお題に進んでいたら無視
-      el('topicName').textContent = (typeof UiText!=="undefined"?UiText.MSG:{}).AIが用意できない;
+      el('topicName').textContent = MSG.AIが用意できない;
       // #3：失敗しても詰まないよう「もう一度取得」ボタンを出す
       el('aiDescriptionBox').innerHTML = escapeHtml(e.message || 'しばらく待ってからもう一度お試しください') +
         '<br><button class="btn btn-outline" id="aiRetryBtn" style="margin-top:8px;">🔄 もう一度取得</button>' +
@@ -20007,7 +20011,7 @@
           '平均得点：<span class="num">'+res.avg_score+'</span>'+
         '</div>';
     }catch(e){
-      el('statsLookupResult').textContent = e.message || (typeof UiText!=="undefined"?UiText.MSG:{}).読み込めない;
+      el('statsLookupResult').textContent = e.message || MSG.読み込めない;
     }
   });
   el('closeSettingsBtn').addEventListener('click', closeSettings);

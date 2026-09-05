@@ -89,7 +89,9 @@ function answerDialogs(win) {
   if (win.__dialogWatcher) win.__dialogWatcher.disconnect();
   // 間隔で回すと、窓を閉じても止まらない見張りが積み上がる（smoke がそれで落ちた）
   const mo = new win.MutationObserver(press);
-  mo.observe(doc.getElementById('app') || doc.body, { childList: true, subtree: true });
+  // **見る先は body。**重なりは #app の外（#uiLayerRoot）にあるので、
+  // #app を見張っていると、ダイアログが増えても一度も動かない（第39弾）
+  mo.observe(doc.body, { childList: true, subtree: true });
   win.__dialogWatcher = mo;
   press();
   return () => mo.disconnect();

@@ -200,8 +200,8 @@ function click(doc, sel) {
     const roles = ['--fs-title', '--fs-body', '--fs-sub', '--fs-btn'];
     const steps = [
       { 名: '標準', re: /:root\{([\s\S]*?)\n  \}/ },
-      { 名: '小', re: /\.app\.fs-small\{([^}]*)\}/ },
-      { 名: '大', re: /\.app\.fs-large\{([^}]*)\}/ }
+      { 名: '小', re: /:root\.fs-small\{([^}]*)\}/ },
+      { 名: '大', re: /:root\.fs-large\{([^}]*)\}/ }
     ];
     const 値 = {};
     steps.forEach((s) => {
@@ -285,7 +285,9 @@ function click(doc, sel) {
     // ③ サイズ：CSSで定義した段階が、全部カタログで選べる。
     // **段階の名前を決め打ちで探さない。**small/large と書いていた頃は、
     // 新しい段階を足しても「見ていない」ことに気づけなかった（この検査自身の穴）
-    const css段階 = Array.from(html.matchAll(/\.app\.fs-([a-z]+)\{/g)).map((m) => m[1])
+    // 印の付き先は :root（html）。#app に付けると、その兄弟の重なりに届かない
+    const css段階 = Array.from(html.matchAll(/[.:][a-z-]*\.?fs-([a-z]+)\{/g)).map((m) => m[1])
+      .filter((s) => s !== 'title' && s !== 'body' && s !== 'sub' && s !== 'btn')
       .filter((s, i, a) => a.indexOf(s) === i);
     assert(css段階.length >= 2, 'CSSに文字サイズの段階がある（実際:' + css段階.join('・') + '）');
     const cat段階 = Array.from(html.matchAll(/data-catsize="([a-z]*)"/g)).map((m) => m[1]);
@@ -360,6 +362,52 @@ function click(doc, sel) {
     // 出す側も、その置き場を使っているか（両方向・落とし穴20）
     assert(/root:\s*el\('uiLayerRoot'\)/.test(html),
       'UiKit が、その置き場を使うように渡されている');
+  });
+
+  await r.test('置き場を外に出した副作用：設定が重なりにも届いている', async () => {
+    // **箱を外に出すと、その箱に付いていた設定から外れる。**
+    // 置き場を #app の外へ移した直後、`.app.fs-*` と `.app.fx-skip` は
+    // #app の子孫にしか効かないので、**ダイアログだけ**
+    //   ・文字サイズ設定が効かない（報告されていた不具合①の再発）
+    //   ・出入りの動きが止まらない（大切なこと7「すべての演出はスキップできる」に反する）
+    // という状態になっていた。移す時は、**移した先に何が届かなくなるか**を数える。
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // 重なりに**必ず届かないといけない**設定と、それが使う印
+    const 届くべき設定 = [
+      { 何: '文字サイズ（小）', 印: 'fs-small', 使う: '--fs-title' },
+      { 何: '文字サイズ（大）', 印: 'fs-large', 使う: '--fs-title' },
+      { 何: '演出のスキップ', 印: 'fx-skip', 使う: null }
+    ];
+    const 届かない = [];
+    届くべき設定.forEach((x) => {
+      // その印を使う指定を集めて、**#app に縛られていないこと**を見る
+      const 使用 = Array.from(css.matchAll(new RegExp('([^{}]*\\.' + x.印 + '[^{}]*)\\{', 'g')))
+        .map((m) => m[1].trim());
+      assert(使用.length > 0, x.何 + ' の指定がある（実際:' + 使用.length + '件）');  // 型(b)
+      使用.forEach((sel) => {
+        if (/\.app\b/.test(sel)) 届かない.push(x.何 + '：' + sel + ' は #app の中だけ');
+      });
+      // 印を付けている側も html でなければ意味がない
+      const 付ける = new RegExp("classList\\.toggle\\('" + x.印 + "'");
+      const m = html.match(new RegExp("(\\w+)\\.classList\\.toggle\\('" + x.印 + "'"));
+      assert(m, x.何 + ' の印を付けている場所がある');
+      if (!/root|documentElement/i.test(m[1])) {
+        届かない.push(x.何 + '：印を ' + m[1] + ' に付けている（html でないと重なりに届かない）');
+      }
+      assert(付ける.test(html), x.何 + ' の印付けがある');
+    });
+    assertEqual(届かない.join('\n       '), '', '重なりに届いていない設定');
+
+    // 部品が本当にそのトークンを使っているか（使っていなければ、届いても意味がない）
+    const uiCss = css.slice(css.indexOf('.ui-layer{'));
+    ['--fs-title', '--fs-body', '--fs-btn', '--fs-sub'].forEach((t) => {
+      assert(uiCss.indexOf('var(' + t + ')') >= 0, '部品が ' + t + ' を使っている');
+    });
   });
 
   r.finish();

@@ -18,7 +18,7 @@ const WordwolfRoom = require('../wordwolf-room.js');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame, holdPress,
-  chooseNext
+  chooseNext, autoDialog
 } = require('./harness');
 
 // 「誰が誰に入れたか」の形に組み立てる。['A','A','B'] → 3人がそれぞれ A,A,B に入れた
@@ -583,12 +583,26 @@ function votesFrom(list) {
       await sleep(win, 200);
     }
     await waitScreen(win, doc, 'scr-score', 6000);
-    // 「記録して終わりますか？」→はい、「つぎはプレイヤーを変更しますか？」→いいえ
-    let asked = 0;
-    win.confirm = (msg) => { asked++; return /記録して終わり/.test(msg); };
+    // 棚に戻る時、「つぎは、メンバーを入力しなおしますか？」を断って同じ人たちで続ける。
+    //
+    // **ここは win.confirm を差し替えて `asked >= 1` を見ていた。**
+    // 第39弾で標準ダイアログを全廃したので、差し替えても誰も呼ばない。
+    // 直す時に「記録して終わりますか？」が出ることを見る形にしたが、
+    // **その見出しはアプリのどこにも無かった**——元の検査は
+    // 「何かの confirm が1回でも出た」しか見ておらず、
+    // 実際に出ていたのは入力しなおしの方だった（落とし穴10-b）。
+    // 出た見出しを控えて、**その場面で本当に出るもの**を名前で確かめる
+    const 出た見出し = [];
+    const 止める = autoDialog(win, doc, (dlg) => {
+      出た見出し.push(dlg.見出し);
+      return !/入力しなおし/.test(dlg.見出し);   // 入力しなおしだけ断る
+    });
     await chooseNext(win, doc, 'shelf');
-    await sleep(win, 200);
-    assert(asked >= 1, '終了の確認が出る');
+    await sleep(win, 300);
+    止める();
+    assert(出た見出し.some((h) => /入力しなおし/.test(h)),
+      'メンバーを入力しなおすか聞かれる（出たのは：' +
+      (出た見出し.join('／') || '何も出なかった') + '）');
     await waitScreen(win, doc, 'scr-shelf', 8000);
 
     // 同じ人たちで、1ターン版を始め直す

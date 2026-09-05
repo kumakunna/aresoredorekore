@@ -573,17 +573,30 @@ function assertNoErrors(errors, label) {
  * @returns 止める関数
  */
 function autoDialog(win, doc, answer) {
-  const which = (answer === false) ? 'cancel' : 'ok';
+  // 閉じる動きのあいだ、パネルはまだDOMに残っている。
+  // 見張りはその間も動くので、**同じパネルに二度答えない**ようにする
+  // （答えを数えていると、1回の問いが3回に見えた）
+  const 答えた = new WeakSet();
   const press = () => {
-    const b = doc.querySelector('.ui-layer .ui-panel [data-ui="' + which + '"]')
-           || doc.querySelector('.ui-layer .ui-panel [data-ui="ok"]');
+    const dlg = openDialog(doc);
+    if (!dlg || 答えた.has(dlg.node)) return;
+    答えた.add(dlg.node);
+    // 答えは、真偽値でも「見出しを見て決める関数」でもよい。
+    // 一律 OK にすると「終了しますか？」まで通してしまう場面がある
+    const yes = (typeof answer === 'function') ? answer(dlg) : (answer !== false);
+    const which = yes ? 'ok' : 'cancel';
+    const b = dlg.node.querySelector('[data-ui="' + which + '"]')
+           || dlg.node.querySelector('[data-ui="ok"]');
     if (b) b.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
   };
   // **見張りは間隔ではなく、増えた時だけ動かす。**
   // 10msごとに回す形にしたら、窓を閉じても止まらない見張りが
   // 検査のぶんだけ積み上がって、smoke が落ちた（segmentation fault）
+  //
+  // **見る先は body。** 重なりは #app の外（#uiLayerRoot）に移したので、
+  // #app を見張っていると、ダイアログが増えても一度も動かない（第39弾）
   const mo = new win.MutationObserver(press);
-  mo.observe(doc.getElementById('app') || doc.body, { childList: true, subtree: true });
+  mo.observe(doc.body, { childList: true, subtree: true });
   press();   // すでに出ているものにも答える
   return () => mo.disconnect();
 }

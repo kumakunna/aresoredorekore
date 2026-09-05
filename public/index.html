@@ -11,6 +11,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;800&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&family=Yuji+Syuku&display=swap" rel="stylesheet">
 <style>
   :root{
+    /* 役割ごとの文字サイズ。**#app ではなく :root に置く。**
+       重なり（#uiLayerRoot）は #app の兄弟なので、#app に置くと届かない
+       ——ダイアログだけ文字サイズ設定が効かなくなる */
+    --fs-title:24px;
+    --fs-body:15px;
+    --fs-sub:12.5px;
+    --fs-btn:16px;
     --screen-bright:1;   /* 画面の明るさ補正。#app と #uiLayerRoot が同じ値を読む */
     --paper:#EFE8D3;
     --paper-deep:#E4DBC0;
@@ -45,14 +52,10 @@
        使われておらず、font-size の宣言411個はどれも固定pxだったので、
        設定を動かしても何ひとつ変わらなかった。
        「倍率をかける」のではなく「役割の大きさを決める」形にする */
-    --fs-title:24px;
-    --fs-body:15px;
-    --fs-sub:12.5px;
-    --fs-btn:16px;
   }
-  /* 文字サイズ3段階。設定が .app に印を付け、役割ごとの大きさが入れ替わる */
-  .app.fs-small{ --fs-title:21px; --fs-body:13px;  --fs-sub:11px; --fs-btn:14px; }
-  .app.fs-large{ --fs-title:29px; --fs-body:18px;  --fs-sub:15px; --fs-btn:19px; }
+  /* 文字サイズ3段階。印は html に付ける（#app と #uiLayerRoot の両方に届くように） */
+  :root.fs-small{ --fs-title:21px; --fs-body:13px;  --fs-sub:11px; --fs-btn:14px; }
+  :root.fs-large{ --fs-title:29px; --fs-body:18px;  --fs-sub:15px; --fs-btn:19px; }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -575,7 +578,7 @@
     font-size:11.5px;opacity:.65;letter-spacing:.08em;
   }
   /* スキップにしている人には「タップでとばす」を出さない（もう出ていない） */
-  .app.fx-skip .fx-banner-skip{display:none;}
+  :root.fx-skip .fx-banner-skip{display:none;}
 
   /* --- カードをめくる --- */
   .fx-flip-a{animation:fxFlipA calc(0.15s * var(--fx-scale)) ease-in forwards;backface-visibility:hidden;}
@@ -1177,9 +1180,10 @@
 
   /* 第32弾-B-1：演出の速さ。スキップにしたら、画面の動きを全部止める
      （待たされるのが苦手な人・急いでいる時のため。情報は必ず画面にも出す） */
-  .app.fx-skip *,
-  .app.fx-skip *::before,
-  .app.fx-skip *::after{
+  /* 印は html。#app の中だけにすると、重なりの出入りが止まらない */
+  :root.fx-skip *,
+  :root.fx-skip *::before,
+  :root.fx-skip *::after{
     animation-duration:0.001s !important;
     animation-delay:0s !important;
     transition-duration:0.001s !important;
@@ -7141,15 +7145,18 @@
     app.style.setProperty('--font-scale', (appPrefs.fontScale / 100).toFixed(2));
     // 第39弾：文字サイズは役割ごとのトークンで決める（正本 2-2）。
     // 倍率は1か所でしか効いていなかったので、3段階の印に置き換えた
-    app.classList.toggle('fs-small', appPrefs.fontScale <= 92);
-    app.classList.toggle('fs-large', appPrefs.fontScale >= 115);
+    // **印は html に付ける。**#app に付けると、その兄弟である重なり
+    // （#uiLayerRoot）に届かず、ダイアログだけ文字サイズが変わらない
+    var rootEl = document.documentElement;
+    rootEl.classList.toggle('fs-small', appPrefs.fontScale <= 92);
+    rootEl.classList.toggle('fs-large', appPrefs.fontScale >= 115);
     // 明るさは :root に置く。#app と、その外にある層の置き場（#uiLayerRoot）の
     // 両方が同じ値を読むため。#app 側だけに置くと、ダイアログだけ明るいままになる
     document.documentElement.style.setProperty('--screen-bright', (appPrefs.brightness / 100).toFixed(2));
     // 演出の速さ。0 はスキップ（時間0で終わる）
     var fx = appPrefs.fxSpeed === 'fast' ? 0.5 : (appPrefs.fxSpeed === 'skip' ? 0 : 1);
     app.style.setProperty('--fx-scale', String(fx));
-    app.classList.toggle('fx-skip', appPrefs.fxSpeed === 'skip');
+    rootEl.classList.toggle('fx-skip', appPrefs.fxSpeed === 'skip');  // 重なりの出入りも止める
     // 第32弾-D 第4部：光の点滅・画面の揺れを切っている人には出さない。
     // CSSのクラス1つで全部の該当演出が止まる形にする（出す側に条件を書かせない）
     app.classList.toggle('no-flash', !appPrefs.fxFlash);
@@ -11875,8 +11882,10 @@
     Object.keys(THEME_CLASSES).forEach(function(k){
       app.classList.toggle(THEME_CLASSES[k], k === theme);
     });
-    app.classList.toggle('fs-small', size === 'small');
-    app.classList.toggle('fs-large', size === 'large');
+    // **印は html。**本番の設定（applyAppPrefs）と同じ場所に付けないと、
+    // カタログで18通り回しても、重なりの文字サイズだけ一度も変わらない
+    document.documentElement.classList.toggle('fs-small', size === 'small');
+    document.documentElement.classList.toggle('fs-large', size === 'large');
     var ts = el('catThemeSeg'), ss = el('catSizeSeg');
     if(ts) ts.querySelectorAll('[data-cattheme]').forEach(function(b){
       b.classList.toggle('on', b.dataset.cattheme === (theme || ''));

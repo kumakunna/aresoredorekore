@@ -114,7 +114,7 @@
     mode: { open: 'せり上げ式', sealed: '秘密入札' },
     passed: 'だれも値をつけませんでした',
     passedAgain: 'この品は、次の品のあとにもう一度だけ出ます',
-    passedGone: 'この品は、誰の手にも渡りませんでした',
+    passedGone: 'この品は、誰の手にもわたりませんでした',
     firstBid: '最初に値をつけた',
     hot: 'HEATING UP',
     sold: 'SOLD'

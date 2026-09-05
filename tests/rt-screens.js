@@ -740,7 +740,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, roomSnapshot({ hostMemberId: 'm2', state: { phase: 'lobby', game: null, data: {} } }));
     await sleep(win, 80);
     assertEqual(el(doc, 'rtPickGameBtn').style.display, 'none', '選ぶのは進行役だけ');
-    assert(/進行役がゲームを選んでいます/.test(el(doc, 'rtRoomNote').textContent), '待つ側の案内が出る');
+    assert(/進行役がゲームをえらんでいます/.test(el(doc, 'rtRoomNote').textContent), '待つ側の案内が出る');
     assertNoErrors(errors, 'ゲーム未選択の待合で未捕捉の例外');
     win.close();
   });
@@ -1555,7 +1555,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });   // ホスト
     const line = el(doc, 'albumStatusLine').textContent;
-    assert(/AIには一切渡しません/.test(line), 'AIに渡さないことが書いてある');
+    assert(/AIには一切わたしません/.test(line), 'AIに渡さないことが書いてある');
     assert(/サーバーから消します/.test(line), '消すことが書いてある');
     assertEqual(el(doc, 'albumGetBtn').style.display, 'none', '箱が空なら受け取りは出ない');
     // 2枚入った知らせが来ると、進行役に受け取りボタンが出る

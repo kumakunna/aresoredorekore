@@ -3253,7 +3253,7 @@
   <div class="screen" id="scr-title-name">
     <div class="prof-head small">
       <div class="prof-title" id="tnPreview">はじめの一歩</div>
-      <div class="mic-status">上のプレビューは、選ぶたびに変わります</div>
+      <div class="mic-status">上のプレビューは、えらぶたびに変わります</div>
     </div>
     <div class="wiz-body" id="tnSlots"></div>
     <div class="wiz-foot" style="flex-direction:column;">
@@ -3333,7 +3333,7 @@
       <button class="btn btn-ghost" id="gotSkipBtn">あとで（このまま進む）</button>
       <div class="toggle-row-mini" style="margin-top:14px;">
         <div>この演出を今後は出さない
-          <div class="mic-status">設定の「見た目と演出」からいつでも戻せます</div>
+          <div class="mic-status">設定の「見た目と演出」からいつでももどせます</div>
         </div>
         <div class="switch" id="gotMuteToggle"></div>
       </div>
@@ -3742,7 +3742,7 @@
   <!-- 4f: 設定ウィザード・難易度（④） -->
   <div class="screen" id="scr-set-difficulty">
     <div class="wiz-head"><span class="wiz-step" id="wizStepDifficulty"></span><h2 class="scr-title">お題の難易度</h2></div>
-    <p class="wiz-lead">出したい難易度を選ぼう（複数OK）。デフォルトは全部。こだわらなければそのまま「つぎへ」。</p>
+    <p class="wiz-lead">出したい難易度をえらぼう（複数OK）。デフォルトは全部。こだわらなければそのまま「つぎへ」。</p>
     <div class="wiz-body">
       <div class="handicap-picker" id="difficultyChips"></div>
       <div class="timer-enable-row" style="margin-top:14px;">
@@ -3810,13 +3810,13 @@
         </div>
         <div class="toggle-row-mini">
           <div>亡くなった人の役職をその場で公開する
-            <div class="mic-status" id="wrRevealNote">公開すると霊媒師は選べなくなります</div>
+            <div class="mic-status" id="wrRevealNote">公開すると霊媒師はえらべなくなります</div>
           </div>
           <div class="switch" id="wrRevealToggle"></div>
         </div>
         <div class="toggle-row-mini" id="wrAttackRow" style="display:none;">
           <div>人狼の襲撃先を多数決で決める
-            <div class="mic-status">OFFなら各自が別々に襲えます（同じ人を選んだら1人だけ死にます）</div>
+            <div class="mic-status">OFFなら各自が別々に襲えます（同じ人をえらんだら1人だけ死にます）</div>
           </div>
           <div class="switch" id="wrAttackToggle"></div>
         </div>
@@ -4366,7 +4366,7 @@
   <!-- 4g: あそびかたの設定（第10弾：出題方法・封印ワード・脱落を1画面で） -->
   <div class="screen" id="scr-set-playstyle">
     <div class="wiz-head"><span class="wiz-step" id="wizStepPlaystyle"></span><h2 class="scr-title">あそびかた</h2></div>
-    <p class="wiz-lead">選んだモードの設定です。そのままでもOK、ここで自由に組み合わせられます。</p>
+    <p class="wiz-lead">えらんだモードの設定です。そのままでもOK、ここで自由に組み合わせられます。</p>
     <div class="wiz-body">
       <div class="opt-block">
         <div class="tp-label">🎤 出題方法</div>
@@ -4461,7 +4461,7 @@
     <div id="wolfHandoffScreen" class="wolf-handoff">
       <div class="wolf-handoff-label">つぎは</div>
       <div class="wolf-handoff-name" id="wolfHandoffName">-</div>
-      <div class="wolf-handoff-sub">この人にスマホを渡してください</div>
+      <div class="wolf-handoff-sub">この人にスマホをわたしてください</div>
       <button class="btn btn-main" id="wolfRevealBtn">タップして見る</button>
     </div>
     <div id="wolfContentScreen" class="wolf-content" style="display:none;">
@@ -4514,7 +4514,7 @@
     <div id="wrHandoff" class="wolf-handoff">
       <div class="wolf-handoff-label">つぎは</div>
       <div class="wolf-handoff-name" id="wrHandoffName">-</div>
-      <div class="wolf-handoff-sub" id="wrHandoffSub">この人にスマホを渡してください</div>
+      <div class="wolf-handoff-sub" id="wrHandoffSub">この人にスマホをわたしてください</div>
       <!-- 第32弾-C-3：誰の次に誰か。名前と順番だけで、役職には触れない -->
       <div class="wolf-order" id="wrHandoffOrder" style="display:none;"></div>
       <button class="btn btn-main" id="wrRevealBtn">タップして見る</button>
@@ -6444,7 +6444,7 @@
     { id:'bomb',            title:'クイズ解除',         icon:'💣', sub:'AIの説明を聞いて3択・コードを解除する', usesTopicPool:true },
     // 第27弾-3：カセット「爆弾解除」の2つ目。センサーを使うので人数上限は設けない
     { id:'defuse',          title:'実物解除',           icon:'🧰', sub:'しかけを解除する・マニュアル役と口で伝え合う', maxPlayers:0 },
-    { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度を選んで挑戦・高難度ほど高得点', usesTopicPool:true },
+    { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度をえらんで挑戦・高難度ほど高得点', usesTopicPool:true },
     // 第30弾：カセット「クイズ王」の4ゲーム。出題は問題バンク（quiz-bank.js）から。
     // ゲーム中にAIは呼ばないので usesTopicPool は付けない（お題プールも使わない）
     { id:'quizrush',        title:'クイズラッシュ',     icon:'⚡', sub:'難易度を選んで解き続ける・時間いっぱい', maxPlayers:0 },
@@ -8225,7 +8225,7 @@
     if(!goingRealtime()){ note.style.display = 'none'; return; }
     note.style.display = 'block';
     note.textContent = '👥 部屋「' + (rt.state.room ? rt.state.room.code : '') +
-      '」のために選んでいます。決まったら待合にもどって「はじめる」を押してください。';
+      '」のためにえらんでいます。決まったら待合にもどって「はじめる」を押してください。';
   }
 
   // その遊び方に必要な最低人数。プリセットに書いてあればそれ、
@@ -8508,7 +8508,7 @@
     el('qkChangeToggle').classList.toggle('on', c.canChangeTier);
     el('qkChangeNote').textContent = c.canChangeTier
       ? '苦戦したら、途中でやさしい難易度に逃げられます'
-      : '最初に選んだ難易度で、最後まで通します';
+      : '最初にえらんだ難易度で、最後まで通します';
     Array.prototype.forEach.call(el('qkRoundsSeg').children, function(b){
       b.classList.toggle('on', parseInt(b.dataset.rounds, 10) === c.roundsToWin);
     });
@@ -8629,7 +8629,7 @@
     el('auRoundsValue').textContent = c.rounds;
     el('auRoundsSlider').value = c.rounds;
     el('auRoundsNote').textContent = '1ラウンドで' + R.ITEMS_PER_ROUND +
-      '品を競ります。ラウンドが変わると、相場は1に戻ります';
+      '品を競ります。ラウンドが変わると、相場は1にもどります';
     el('auPreviewSlider').min = R.PREVIEW_SEC_MIN;
     el('auPreviewSlider').max = R.PREVIEW_SEC_MAX;
     el('auPreviewValue').textContent = c.previewSec;
@@ -8712,7 +8712,7 @@
     var nsec = cfg.nightTimeLimit || 0;
     el('wrNightValue').textContent = nsec ? (nsec + '秒') : 'なし';
     el('wrNightNote').textContent = nsec
-      ? '1人ずつの持ち時間です。時間切れになると、その人は何もしなかった扱いで次の人に渡ります。'
+      ? '1人ずつの持ち時間です。時間切れになると、その人は何もしなかった扱いで次の人にわたります。'
       : '時間制限なし。じっくり考えたい時はこのままで。';
     el('wrTurnNote').textContent = cfg.turnLimit === 1
       ? '1ターンだけ。夜はなく、話し合って1回投票します（専用の役職に切り替わります）'
@@ -9433,7 +9433,7 @@
     }
     note.className = 'mic-status';
     if(!info.game){
-      note.textContent = '🕒 進行役がゲームを選ぶのを待っています（いま' + info.playerCount + '人）';
+      note.textContent = '🕒 進行役がゲームをえらぶのを待っています（いま' + info.playerCount + '人）';
       return;
     }
     note.textContent = '🎮「' + gameTitleOf(info.game) + '」で遊ぼうとしています（いま' +
@@ -9642,7 +9642,7 @@
     if(rt.isHost()){
       // 進行役：ゲーム未確定に戻す（全員がえらび直しの画面へ）
       if(!await UiKit.confirm('ゲームをえらび直しますか？',
-        'みんなの画面も、えらび直しに戻ります', { ok: 'えらび直す' })) return;
+        'みんなの画面も、えらび直しにもどります', { ok: 'えらび直す' })) return;
       rt.pickGame(null, { reset: true });
       setPlayFlow('room');
       goTo('scr-shelf');
@@ -9739,7 +9739,7 @@
     var me = rt.me();
     // 第32弾-A-2：大画面は表示モード。人数から外れることを、押す前に伝える
     el('rtToBigNote').textContent =
-      'TVやPCの画面に。大画面にしている間は、遊ぶ人数に数えません（いつでも戻せます）';
+      'TVやPCの画面に。大画面にしている間は、遊ぶ人数に数えません（いつでももどせます）';
     // 第26弾-3：部屋はカセットに紐づかないので、何を遊ぶかは待合で決まる
     var host = rt.isHost();
     // 何を遊ぶかは部屋が持っている（端末ごとの selectedGameId ではなく、
@@ -9767,14 +9767,14 @@
   // 待合に出す一言。「いま何を待てばいいか」だけを書く
   function rtRoomNoteText(host, picked, supported, enough, need, count){
     if(!picked){
-      return host ? 'まず「ゲームをえらぶ」から、遊ぶカセットを選んでください'
-                  : '進行役がゲームを選んでいます';
+      return host ? 'まず「ゲームをえらぶ」から、遊ぶカセットをえらんでください'
+                  : '進行役がゲームをえらんでいます';
     }
     // 第26弾-3-5：まだ1人1台に対応していないカセットでも、待合には入れる
     if(!supported){
       return '「' + gameTitleOf(picked) + '」は、まだ1人1台に対応していません。' +
-             (host ? '別のゲームを選ぶか、1台をまわす手渡し方式で遊んでください。'
-                   : '進行役が別のゲームを選ぶのを待ってください。');
+             (host ? '別のゲームをえらぶか、1台をまわす手渡し方式で遊んでください。'
+                   : '進行役が別のゲームをえらぶのを待ってください。');
     }
     // 何を遊ぶのかは、待っている人にも見えるようにしておく
     var name = '「' + gameTitleOf(picked) + '」';
@@ -9885,7 +9885,7 @@
     if(!b) return;
     b.style.display = ended ? 'inline-flex' : 'none';
     b.disabled = !host;
-    b.textContent = host ? 'つぎは？ ▶' : '進行役が つぎを選んでいます…';
+    b.textContent = host ? 'つぎは？ ▶' : '進行役が つぎをえらんでいます…';
     if(typeof FxKit !== 'undefined') FxKit.alive(b, ended && !host);
   }
   // 5つのボタンは、どれも同じ「つぎは？」画面へ行く
@@ -11082,8 +11082,8 @@
       rtNextButton('rtAgainBtn', true, rt.isHost());
       el('rtEndBtn').style.display = rt.isHost() ? 'inline-flex' : 'none';
       el('rtWaitNote').textContent = rt.isHost()
-        ? 'べつのあそびを選んでも、この部屋とみんなはそのまま残ります'
-        : '進行役がつぎを選ぶまで、結果を見ていられます';
+        ? 'べつのあそびをえらんでも、この部屋とみんなはそのまま残ります'
+        : '進行役がつぎをえらぶまで、結果を見ていられます';
       return;
     }
 
@@ -13396,7 +13396,7 @@
     if(you.done){
       el('dfNote').innerHTML = '';
       box.innerHTML = '<div class="ry-desc">' +
-        (you.consent ? '「参加する」を選びました。' : '「参加しない」を選びました。マニュアル役として一緒に遊べます。') +
+        (you.consent ? '「参加する」をえらびました。' : '「参加しない」をえらびました。マニュアル役として一緒に遊べます。') +
         '<br>ほかの人を待っています…</div>';
       return;
     }
@@ -13458,7 +13458,7 @@
           ? 'もう決まっています（集中解除は1人だけ）'
           : '対応表を見て、解除役に口で伝える人') + '</span></button>' +
       (ask.physicalDeclined
-        ? '<div class="mic-status" style="margin-top:10px;">体を動かすのは「参加しない」を選んでいます。マニュアル役がおすすめです。</div>'
+        ? '<div class="mic-status" style="margin-top:10px;">体を動かすのは「参加しない」をえらんでいます。マニュアル役がおすすめです。</div>'
         : '') +
       '<div class="tp-label" style="margin-top:16px;">いまの顔ぶれ</div>' +
       '<div class="mic-status">' + ((v.players || []).map(function(p){
@@ -13981,7 +13981,7 @@
         '<button class="btn btn-main" id="dfRhythmDone" style="margin-top:10px;">これで送る</button>' +
         '<button class="btn btn-ghost" id="dfRhythmReset" style="margin-top:4px;">やり直す</button>' +
         '<div class="mic-status" style="text-align:center;margin-top:6px;">' +
-        '光っている拍のときに叩くと、その拍を選んだことになります</div>';
+        '光っている拍のときに叩くと、その拍をえらんだことになります</div>';
     },
     start: function(open){
       dfLocal.beat = 0;
@@ -14026,7 +14026,7 @@
           return '<button class="pk-btn" data-dfpose="' + p.id + '">' + escapeHtml(p.label) + '</button>';
         }).join('') + '</div>' +
         '<div class="mic-status" style="margin-top:8px;">' +
-        '姿勢の見分けがうまくいかない時は、ポーズを取ってからボタンで選んでください。' +
+        '姿勢の見分けがうまくいかない時は、ポーズを取ってからボタンでえらんでください。' +
         'カメラの映像は端末の外に出しませんし、保存もしません。</div>';
     },
     start: async function(){
@@ -14035,9 +14035,9 @@
         dfLocal.stream = stream;
         var v = el('dfCam');
         if(v){ v.srcObject = stream; }
-        el('dfPoseNote').textContent = 'ポーズを取って、ボタンで選んでください';
+        el('dfPoseNote').textContent = 'ポーズを取って、ボタンでえらんでください';
       }catch(e){
-        el('dfPoseNote').textContent = 'カメラを使えませんでした。ポーズを取ってからボタンで選んでください';
+        el('dfPoseNote').textContent = 'カメラを使えませんでした。ポーズを取ってからボタンでえらんでください';
       }
     },
     stop: function(){
@@ -14091,7 +14091,7 @@
               return '<button class="btn btn-outline" data-dfask="' + escapeHtml(q) + '" ' +
                 'style="margin-top:6px;font-size:13px;">' + escapeHtml(q) + '</button>';
             }).join('')
-          : '<div class="mic-status" style="margin-top:10px;">もう質問できません。答えを選んでください</div>') +
+          : '<div class="mic-status" style="margin-top:10px;">もう質問できません。答えをえらんでください</div>') +
         '<div class="tp-label" style="margin-top:14px;">正体はどれ？</div>' +
         '<div class="picker-grid">' + (open.hint.choices || []).map(function(c){
           return '<button class="pk-btn" data-dfguess="' + escapeHtml(c) + '">' + escapeHtml(c) + '</button>';
@@ -14287,7 +14287,7 @@
         if(was === undefined) return;         // 今きたばかりの人は「復帰」ではない
         if(m.id === (rt.state.memberId)) return; // 自分のことは自分が知っている
         if(was && !m.connected) FxKit.notice(m.name + 'さんが席を外しました');
-        if(!was && m.connected) FxKit.notice(m.name + 'さんが戻りました', 'back');
+        if(!was && m.connected) FxKit.notice(m.name + 'さんがもどりました', 'back');
       });
     }
     rtSeenConnected = now;
@@ -14472,7 +14472,7 @@
     var room = rt && rt.state.room;
     if(!room) return;
     var line = 'みんなの写真を1冊にまとめて、進行役が持ち帰れます。' +
-      '写真は渡し終えたらサーバーから消します（AIには一切渡しません）。';
+      '写真はわたし終えたらサーバーから消します（AIには一切わたしません）。';
     if(albumState.count){
       line += '<br>📦 いま箱の中に <b>' + albumState.count + '枚</b>（' +
         (albumState.names || []).map(escapeHtml).join('・') + '）';
@@ -14488,7 +14488,7 @@
     if(!f) return;
     // アップロード前の同意（必須）。「箱に入れる＝サーバーに送る」を必ず確認する
     if(!await UiKit.confirm('みんなの写真をまとめますか？',
-      'サーバーに一時的に送られます。まとめて渡したら消します', { ok: 'まとめる' })) return;
+      'サーバーに一時的に送られます。まとめてわたしたら消します', { ok: 'まとめる' })) return;
     var photo;
     try{ photo = await albumShrink(f); }
     catch(e){ showFlash('写真を読み込めませんでした', 'hit-wrong'); return; }
@@ -14523,7 +14523,7 @@
     if(res.ok){ albumMine = false; renderAlbumBox(); }
   });
   el('albumGetBtn').addEventListener('click', function(){
-    el('albumOvStatus').textContent = '箱の中の ' + albumState.count + '枚を、1冊にまとめて渡します';
+    el('albumOvStatus').textContent = '箱の中の ' + albumState.count + '枚を、1冊にまとめてわたします';
     el('albumDoneBtn').style.display = 'none';
     el('albumDownloadBtn').disabled = false;
     el('albumOverlay').classList.add('show');
@@ -15883,7 +15883,7 @@
       nextBtn.style.display = 'none'; // 選ぶ操作がそのまま「つぎへ」になる
     } else {
       box.innerHTML = '<div class="mic-status" style="line-height:1.8;">' +
-        'あなたに特にすることはありません。<br>そのまま次の人にスマホを渡してください。</div>';
+        'あなたに特にすることはありません。<br>そのまま次の人にスマホをわたしてください。</div>';
       grid.style.display = 'none'; grid.innerHTML = '';
       nextBtn.style.display = 'inline-flex';
     }
@@ -16438,7 +16438,7 @@
     // 第35弾C（レビュー決定）：渡す瞬間は、前の人の役職をDOMからも消す
     el('wrContentBody').innerHTML = '';
     el('wrHandoffName').textContent = opts.name || '-';
-    el('wrHandoffSub').textContent = opts.sub || 'この人にスマホを渡してください';
+    el('wrHandoffSub').textContent = opts.sub || 'この人にスマホをわたしてください';
     el('wrRevealBtn').textContent = opts.buttonLabel || 'タップして見る';
     el('wrHandoffOrder').innerHTML = opts.order || '';
     el('wrHandoffOrder').style.display = opts.order ? 'flex' : 'none';
@@ -16637,9 +16637,9 @@
     wr.sub = null; // 第20弾-2：夜の2画面目（確認）はここでリセットする
     stopWrNightTimer(); // 手渡し中は計らない。中身を見てから始める
     renderWrTurnBanner();
-    var sub = wr.step === 'vote' ? 'この人にスマホを渡してください（投票）'
-            : wr.step === 'night' ? 'この人にスマホを渡してください（夜の行動）'
-            : 'この人にスマホを渡してください';
+    var sub = wr.step === 'vote' ? 'この人にスマホをわたしてください（投票）'
+            : wr.step === 'night' ? 'この人にスマホをわたしてください（夜の行動）'
+            : 'この人にスマホをわたしてください';
     uiHandoff({ name: p.name, sub: sub, order: wrOrderHtml() });
   }
 
@@ -19083,7 +19083,7 @@
     { id:'again', icon:'🔁', label:'もう一度', sub:'さっきと同じ設定でそのまま', main:true,
       // サバイバルは決着したら、そのまま次のラウンドには進めない
       when:function(){ return play.nextSurvival !== 'champion'; } },
-    { id:'mode',  icon:'🎛', label:'モードを変える', sub:'同じゲームの中で選び直す',
+    { id:'mode',  icon:'🎛', label:'モードを変える', sub:'同じゲームの中でえらび直す',
       when:function(){
         // サバイバルの途中で抜けられてしまうと、勝負が成立しない（第20弾の決まり）
         if(play.nextSurvival === 'ongoing') return false;
@@ -19117,7 +19117,7 @@
     // 他の人には「何も起きていない」ではなく「待っている」と分かる形で出す（原則D）
     var wait = el('nextWaitNote');
     wait.style.display = host ? 'none' : 'block';
-    wait.textContent = '進行役が、つぎのあそびを選んでいます…';
+    wait.textContent = '進行役が、つぎのあそびをえらんでいます…';
     if(typeof FxKit !== 'undefined') FxKit.alive(wait, !host);
     el('nextSub').textContent = host ? 'えらんでね' : 'すこし待ってね';
     // 直前の結果発表の余韻を少しだけ残す。
@@ -19247,7 +19247,7 @@
     { icon:'⚙', label:'アプリ全体', page:'app',
       sub:'音・読み上げ・見た目・記録' },
     { icon:'⚠️', label:'危険な操作', page:'danger', danger:true,
-      sub:'押すと戻せないもの' }
+      sub:'押すともどせないもの' }
   ];
   var SET_GAME_ITEMS = [
     { icon:'📖', label:'ルールをもう一度見る', page:'rules' },
@@ -19260,7 +19260,7 @@
       when:function(){ return !!gameById(currentGameId()).usesTopicPool; } },
     { icon:'🔄', label:'別のゲームに変える', act:'pickGame',
       when:function(){ return inRoomNow() && rt.isHost(); },
-      sub:'部屋はそのまま。ゲームだけ選び直します' }
+      sub:'部屋はそのまま。ゲームだけえらび直します' }
   ];
   var SET_APP_ITEMS = [
     { icon:'🔊', label:'音量', page:'sound', sub:'効果音と読み上げを別々に' },
@@ -19270,7 +19270,7 @@
     { icon:'🛡', label:'安全に関する設定', page:'safety',
       sub:'光の点滅・画面の揺れ・振動・演出の速さ' },
     { icon:'🏷', label:'アイコン・二つ名', act:'titles',
-      when:loggedIn, sub:'集めたものから選びます' },
+      when:loggedIn, sub:'集めたものからえらびます' },
     { icon:'💾', label:'記録', page:'records', when:loggedIn, sub:'保存の設定と、記録を見る' }
   ];
   async function runSetAction(act){

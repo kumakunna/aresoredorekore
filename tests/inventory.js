@@ -30,14 +30,14 @@ const CASSETTE_GAME_IDS = Array.from(new Set(
 // ready:true のものだけ。棚に出ていて実際に遊べるカセットは、
 // 称号（TitleLogic）にも項目があるはず——という照合に使う（tests/titles.js）
 const READY_CASSETTE_IDS = Array.from(INDEX_HTML.matchAll(
-  /\{\s*id:\s*'([a-z0-9-]+)',\s*genre:\s*\[[^\]]*\],\s*ready:\s*true/g
+  /\{\s*id:\s*'([a-z0-9-]+)',\s*genre:\s*(?:'[a-z-]+'|\[[^\]]*\])\s*,(?:\s*alsoGenre:\s*\[[^\]]*\]\s*,)?\s*ready:\s*true/g
 )).map((m) => m[1]);
 
 // 完成カセットの題名（棚に出ている見出しの文字）。
 // 構想ドキュメントとの照合に使う。<br> は棚での改行なので落とす
 const READY_CASSETTE_TITLES = {};
 Array.from(INDEX_HTML.matchAll(
-  /\{\s*id:\s*'([a-z0-9-]+)',\s*genre:\s*\[[^\]]*\],\s*ready:\s*true,[\s\S]{0,160}?title:\s*'([^']*)'/g
+  /\{\s*id:\s*'([a-z0-9-]+)',\s*genre:\s*(?:'[a-z-]+'|\[[^\]]*\])\s*,(?:\s*alsoGenre:\s*\[[^\]]*\]\s*,)?\s*ready:\s*true,[\s\S]{0,160}?title:\s*'([^']*)'/g
 )).forEach((m) => { READY_CASSETTE_TITLES[m[1]] = m[2].replace(/<br>/g, ''); });
 
 // 手渡し（1台を回す）専用のゲーム。ここは「意識して書く例外の一覧」：

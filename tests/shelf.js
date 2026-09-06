@@ -46,14 +46,72 @@ function pickCart(doc, id) {
     doc.querySelectorAll('#shelfList .rail').forEach((rail) => {
       assert(rail.querySelectorAll('.cart').length > 0, 'どの段にもカセットが並んでいる');
     });
-    // 爆弾解除は、クイズ解除（頭）と実物解除（体）の両方が入っているので2段に並ぶ
-    assertEqual(doc.querySelectorAll('.cart[data-cart="bakudan"]').length, 2,
-      '性格の違うゲームが入ったカセットは、両方の段から見つかる');
+    // **各カセットは棚に1回だけ出る**（第41弾 2-2）。
+    // 第32弾は「性格の違うゲームが入ったカセットは両方の段に並べる」
+    // としていた——段のある棚では、それが正しかった。
+    // 1列にすると同じものが2回出てしまうので、表示は1回にした。
+    //
+    // **だが第32弾の判断（どちらかに押し込むと嘘になる）は捨てていない。**
+    // もう一方の顔は alsoGenre に移り、長押し／i の popup で見せる。
+    // ここでは「1回だけ出る」と「情報が消えていない」の**両方**を見る
+    const 数える = (id) => doc.querySelectorAll('.cart[data-cart="' + id + '"]').length;
+    ['bakudan', 'jinro'].forEach((id) => {
+      assertEqual(数える(id), 1, id + '：棚に1回だけ出る');
+      const info = win.cassetteGenreInfo(id);
+      assertEqual(info.genre.length, 1, id + '：棚に出す分類は1つ');
+      assert(info.also.length > 0, id + '：もう一方の顔が alsoGenre に残っている');
+      info.labels.forEach((l, i) => {
+        assert(l, id + '：alsoGenre「' + info.also[i] + '」が分類の一覧に実在する');
+      });
+    });
     assert(cart(doc, 'aresoredorekore'), 'あれそれどれこれのカセットがある');
     // ロゴ画像を貼っていること
     const logo = doc.querySelector('.cart[data-cart="aresoredorekore"] .cart-logo');
     assert(logo && /logo-aresoredorekore\.png$/.test(logo.getAttribute('src')), 'カセットにロゴ画像が貼られている');
     assertNoErrors(errors, '棚の描画で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('正本の抽出が、実際のカセットの数と合っている（第41弾）', async () => {
+    // **抽出の正規表現は、書式を変えた日に黙って壊れる。**
+    // 第41弾で genre:['x'] を genre:'x' に変えたら、
+    // tests/inventory.js の抽出が**0件**になった。
+    // 消費側（titles.js）に「いま何件」の主張があったので気づけたが、
+    // それは >= 6 なので、**7枚目を足して6枚しか取れなくても通る**。
+    // 数そのものを突き合わせる（落とし穴20：照合には向きがある）。
+    const INV = require('./inventory');
+    const fsx = require('fs');
+    const pathx = require('path');
+    const html = fsx.readFileSync(pathx.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 本体 = html.slice(html.indexOf('var CASSETTES = ['), html.indexOf('function cassetteById'));
+    const 実際 = (本体.match(/ready:s*true/g) || []).length;
+    assert(実際 > 0, 'CASSETTES に完成カセットがある（実際:' + 実際 + '件）');
+    assertEqual(INV.READY_CASSETTE_IDS.length, 実際,
+      '正本の抽出（' + INV.READY_CASSETTE_IDS.join(',') + '）が、実際の ready:true の数と合っている');
+  });
+
+  await r.test('alsoGenre の綴りが、分類の一覧に実在する（第41弾）', async () => {
+    // **棚に出ない値ほど、検査が無いと事故に気づけない。**
+    // genre は棚に出るので、綴りを間違えればカセットが消えて分かる。
+    // alsoGenre は popup の奥にしか出ないので、間違えても
+    // 「その行が出ない」だけで、誰も気づけないまま残る（落とし穴6の型）。
+    const { win, doc } = await launch();
+    const ids = Array.from(doc.querySelectorAll('.cart[data-cart]'))
+      .map((e) => e.dataset.cart);
+    assert(ids.length > 5, 'カセットを数えられている（実際:' + ids.length + '件）');
+
+    const 悪い = [];
+    let 見た = 0;
+    Array.from(new Set(ids)).forEach((id) => {
+      const info = win.cassetteGenreInfo(id);
+      if (!info) return;
+      info.also.forEach((g, i) => {
+        見た++;
+        if (!info.labels[i]) 悪い.push(id + '：alsoGenre「' + g + '」が分類の一覧に無い');
+      });
+    });
+    assert(見た > 0, 'alsoGenre を持つカセットがある（実際:' + 見た + '件）');  // 型(b)
+    assertEqual(悪い.join('・'), '', '綴りが分類の一覧と合っていない');
     win.close();
   });
 

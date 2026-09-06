@@ -573,6 +573,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 第32弾-C：棚の下部バーにも近道を戻した。本筋を置き換えたのではなく、
     // 棚を見ている最中に思い立った時のための近道（別のテストで確かめている）
     const b = await launch(Object.assign({}, LAUNCH, { playFlow: false }));
+    // 第41弾：扉の次に入口が入った。部屋への本筋はこの先にある
+    click(b.doc, b.doc.querySelector('#scr-entry [data-entry="choose"]'));
     await waitScreen(b.win, b.doc, 'scr-howto', 4000);
     click(b.doc, b.doc.querySelector('#scr-howto [data-howto="room"]'));
     await waitScreen(b.win, b.doc, 'scr-rt-lobby', 3000);
@@ -3971,7 +3973,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('あそびかたをえらぶ画面が、部屋への本筋のまま', async () => {
     // 近道を足しても、主導線を置き換えていないこと
     const { win, doc, errors } = await launch({ fakeSocket: true, playFlow: false });
-    assertEqual(activeScreen(doc), 'scr-howto', '扉のつぎは、あそびかたをえらぶ画面');
+    // 第41弾：扉の次は入口。あそびかたの選択はその先に残っている
+    assertEqual(activeScreen(doc), 'scr-entry', '扉のつぎは入口');
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-howto', 3000);
     assert(doc.querySelector('#scr-howto [data-howto="room"]'), 'ここから部屋に入れる');
     click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
     await waitScreen(win, doc, 'scr-rt-lobby', 3000);

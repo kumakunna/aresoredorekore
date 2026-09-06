@@ -3088,6 +3088,33 @@
        以前は棚と「部屋」が対等に並んでいて、部屋の方が上位の概念なのに
        同じ高さに見えていた。そのねじれが「部屋を立て忘れる」「1人1台の
        ゲームを手渡しで選んで詰む」の根っこだった -->
+  <!-- 1.4: 入口（第41弾 2-1）。**役割の名前ではなく、やることの名前で分ける。**
+       「ホスト／ゲスト」は、初めて来た人にはどちらが自分か分からない。
+       集める人は「ゲームをえらぶ」、呼ばれた人は「部屋に入る」。 -->
+  <div class="screen" id="scr-entry">
+    <div class="shelf-head">
+      <div class="logo">あつまれ<span class="c">、</span>あれこれ</div>
+      <div class="mic-status" style="text-align:center;margin-top:6px;">みんなで集まって遊ぶ、パーティゲームの棚です</div>
+    </div>
+    <div class="wiz-body">
+      <button class="howto-card" data-entry="choose">
+        <div class="howto-icon">🎴</div>
+        <div class="howto-text">
+          <div class="howto-title">ゲームをえらぶ</div>
+          <div class="howto-sub">棚から遊ぶものをえらびます</div>
+        </div>
+      </button>
+      <button class="howto-card" data-entry="join">
+        <div class="howto-icon">🚪</div>
+        <div class="howto-text">
+          <div class="howto-title">部屋に入る</div>
+          <div class="howto-sub">部屋コードをもらった人はこちら</div>
+        </div>
+      </button>
+      <div class="mic-status" id="entryNote" style="margin-top:16px;text-align:center;"></div>
+    </div>
+  </div>
+
   <div class="screen" id="scr-howto">
     <div class="shelf-head">
       <div class="logo">あつまれ<span class="c">、</span>あれこれ</div>
@@ -5655,6 +5682,31 @@
     return list;
   }
   // ---- あそびかたをえらぶ画面 ----
+  // ===== 第41弾 2-1：入口 =====
+  // **役割ではなく、やることで分ける。**
+  // 「ホスト／ゲスト」は、初めて来た人にはどちらが自分か分からない。
+  function enterEntry(){
+    // ログインしているかどうかは、押す前に見えていた方がいい
+    el('entryNote').textContent = state.username
+      ? (state.username + ' さんでログインしています') : '';
+  }
+  el('scr-entry').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-entry]');
+    if(!b) return;
+    if(b.dataset.entry === 'join'){
+      // 呼ばれた人。コードと名前だけで入れる（ログインは要らない）
+      openJoinScreen('scr-entry');
+      return;
+    }
+    // 集める人。
+    // **④（遊び方の確認）ができるまでは、いまの流れをそのまま通す。**
+    // playFlow は棚の鍵（cassetteLockReason）を握っているので、
+    // 決める場所を先に消すと、部屋のカセットが全部ロックされる。
+    // 入口はいま「前に足しただけ」で、あそびかたの選択はこの先に残っている。
+    // 2-4 ができた時点で、ここを goTo('scr-shelf') に変えて scr-howto を外す。
+    goTo('scr-howto');
+  });
+
   function enterHowto(){
     el('howtoNote').textContent = state.username
       ? (state.username + ' さんでログインしています')
@@ -7876,7 +7928,7 @@
   //   部屋の画面   … サーバーと状態を合わせているので、勝手に戻るとずれる。
   //                  「部屋を出る」が正しい出口
   var BACK_FREE_SCREENS = [
-    'scr-door', 'scr-howto', 'scr-shelf', 'scr-countdown',
+    'scr-door', 'scr-entry', 'scr-howto', 'scr-shelf', 'scr-countdown',
     'scr-topic-pass', 'scr-play', 'scr-reveal', 'scr-score',
     'scr-bomb-prep', 'scr-bomb-play', 'scr-bomb-end',
     'scr-quiz-turn', 'scr-tourney-match', 'scr-tourney-vs', 'scr-tourney-champion',
@@ -7944,7 +7996,7 @@
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
   // 画面遷移による自動適用の対象から外す
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -8016,7 +8068,7 @@
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-door','scr-howto','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-title-icon','scr-title-name','scr-title-slot','scr-collection','scr-rename'];
+    var noGear = ['scr-door','scr-entry','scr-howto','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-title-icon','scr-title-name','scr-title-slot','scr-collection','scr-rename'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
     // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
     el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';
@@ -8069,6 +8121,7 @@
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-titles') enterTitles();
+    if(id === 'scr-entry') enterEntry();
     if(id === 'scr-howto') enterHowto();
     if(id === 'scr-title-icon') enterTitleIcon();
     if(id === 'scr-title-name') enterTitleName();
@@ -8136,8 +8189,9 @@
     var cur = (document.querySelector('.screen.active') || {}).id;
     loginCameFrom = (cur && cur !== 'scr-login') ? cur : (backTo || 'scr-shelf');
     el('loginSub').textContent = why || LOGIN_SUB_DEFAULT;
-    el('loginBackBtn').textContent = (loginCameFrom === 'scr-howto')
-      ? '← あそびかたにもどる' : '← 棚にもどる';
+    el('loginBackBtn').textContent =
+      (loginCameFrom === 'scr-entry') ? '← さいしょにもどる'
+      : (loginCameFrom === 'scr-howto') ? '← あそびかたにもどる' : '← 棚にもどる';
     goTo('scr-login');
     return false;
   }
@@ -20251,7 +20305,7 @@
       try{
         if(await checkAuth()) await fetchTopics();
       }catch(e){}
-      return 'scr-howto';
+      return 'scr-entry';
     })();
     el('doorScene').classList.add('opened');
     var next = await nextPromise;

@@ -280,6 +280,15 @@ async function run() {
       assertEqual(w.round, round1 + 1, '2ラウンド目に入っている');  // 型(b)
       assert(w.history.length > 0, '1ラウンド目の履歴は残っている');  // 型(b)
 
+      // **サーバーの状態と、手元に届いた知らせは別物。**
+      // w.round はサーバーの値で、viewOf() は"最後に届いた"公開ビュー。
+      // サーバーが2ラウンド目に進んでも、配信が届くまで手元は1ラウンド目のまま——
+      // その一瞬に読むと「6品ぜんぶ売却」（1ラウンド目の正しい姿）が出る。
+      // 通し運転の負荷で2回踏んだ（落とし穴18：知らせの順番は保証されない）。
+      // **手元の知らせが2ラウンド目になるまで待ってから読む。**
+      await waitUntil(() => viewOf(rm.host) && viewOf(rm.host).round === round1 + 1,
+        '2ラウンド目の知らせが手元に届く');
+
       const v = viewOf(rm.host);
       const sold = v.lineup.filter((it) => it.sold === 'sold');
       assertEqual(sold.length, 0,

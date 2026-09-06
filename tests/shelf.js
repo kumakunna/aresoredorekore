@@ -644,15 +644,20 @@ function pickCart(doc, id) {
 
   // ---- 第26弾 第2部：ログインしていなくても棚まで来られる ----
 
-  await r.test('扉のあとは「あそびかたをえらぶ」に着く', async () => {
-    // 第32弾-A：ここで何台で遊ぶかが決まるので、このあとの棚には
-    // その遊び方でちゃんと遊べるものだけが並ぶ
+  await r.test('扉のあとは入口に着き、やることの名前で分かれている（第41弾）', async () => {
+    // **役割（ホスト／ゲスト）ではなく、やることの名前で分ける。**
+    // 初めて来た人には、自分がホストなのかゲストなのか分からない。
+    // 集める人は「ゲームをえらぶ」、呼ばれた人は「部屋に入る」。
     const { win, doc, errors } = await launch({ loggedOut: true, playFlow: false });
-    assertEqual(activeScreen(doc), 'scr-howto', '扉の次はあそびかた');
-    const cards = doc.querySelectorAll('#scr-howto [data-howto]');
-    assertEqual(cards.length, 3, '3つの入口がある');
-    const ids = Array.from(cards).map(c => c.dataset.howto).join(',');
-    assertEqual(ids, 'handoff,room,browse', '1台・みんなのスマホ・見るだけ');
+    assertEqual(activeScreen(doc), 'scr-entry', '扉の次は入口');
+    const cards = doc.querySelectorAll('#scr-entry [data-entry]');
+    assertEqual(cards.length, 2, '入口は二択');
+    const ids = Array.from(cards).map(c => c.dataset.entry).join(',');
+    assertEqual(ids, 'choose,join', 'ゲームをえらぶ・部屋に入る');
+    // **役割の名前を出さない**（この検査の本体）
+    const text = el(doc, 'scr-entry').textContent;
+    assert(!/ホスト|ゲスト/.test(text),
+      '役割の名前が出ていない（実際: ' + text.replace(/\s+/g, ' ').trim().slice(0, 60) + '）');
     assertNoErrors(errors, '未ログインの起動で未捕捉の例外');
     win.close();
   });
@@ -714,6 +719,9 @@ function pickCart(doc, id) {
   await r.test('ログインしていない人が「1台であそぶ」を選ぶと、ログインに案内される', async () => {
     // 第32弾-A：手渡しは遊んだ記録を残すので、あそびかたを選んだ時点でログインを頼む
     const { win, doc, errors } = await launch({ loggedOut: true, playFlow: false });
+    // 第41弾：扉の次に入口が入ったので、そこを通ってから遊び方を選ぶ
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-howto', 3000);
     click(doc, doc.querySelector('#scr-howto [data-howto="handoff"]'));
     await sleep(win, 80);
     assertEqual(activeScreen(doc), 'scr-login', '手渡しで遊ぶにはログインが要る');
@@ -1333,12 +1341,17 @@ function pickCart(doc, id) {
   await r.test('はじめて触る人にも、これが何のアプリか分かる（第8部-4）', async () => {
     // 友達の家で初めて触る人が、いきなり棚を見せられても分からない
     const { win, doc, errors } = await launch({ playFlow: false });
-    assertEqual(activeScreen(doc), 'scr-howto', '扉のつぎの画面');
-    const text = el(doc, 'scr-howto').textContent;
+    assertEqual(activeScreen(doc), 'scr-entry', '扉のつぎの画面');
+    const text = el(doc, 'scr-entry').textContent;
     assert(/パーティゲーム/.test(text), '何のアプリか書いてある');
-    const browse = doc.querySelector('#scr-howto [data-howto="browse"]');
-    assert(/はじめての人/.test(browse.textContent),
-      'はじめての人の行き先が分かる（実際: ' + browse.textContent.trim() + '）');
+    // 「はじめての人の行き先」は、入口の二択そのものが担う。
+    // どちらを押せばいいかが、押す前に読んで分かること
+    const choose = doc.querySelector('#scr-entry [data-entry="choose"]');
+    const join = doc.querySelector('#scr-entry [data-entry="join"]');
+    assert(/えらび|えらぶ/.test(choose.textContent),
+      '集める人の行き先が分かる（実際: ' + choose.textContent.replace(/\s+/g, ' ').trim() + '）');
+    assert(/コード/.test(join.textContent),
+      '呼ばれた人の行き先が分かる（実際: ' + join.textContent.replace(/\s+/g, ' ').trim() + '）');
     assertNoErrors(errors, 'あそびかたの画面で未捕捉の例外');
     win.close();
   });

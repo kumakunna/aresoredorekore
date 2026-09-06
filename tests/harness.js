@@ -298,6 +298,16 @@ async function launch(opts) {
   // 第32弾-A：扉の次に「あそびかたをえらぶ」が入った。
   // ほとんどのテストは、その先（棚・部屋）を見たいので、ここで1回だけ通す。
   // この画面そのものを見たいテストは playFlow:false を渡して止められる
+  // 第41弾：扉の次に入口（scr-entry）が入った。
+  // ほとんどのテストはその先を見たいので、ここで1回だけ通す。
+  // 入口そのものを見たいテストは playFlow:false で止められる（今までと同じ約束）
+  if (opts.playFlow !== false && activeScreen(doc) === 'scr-entry') {
+    const b = doc.querySelector('#scr-entry [data-entry="choose"]');
+    if (b) {
+      b.click();
+      await waitFor(win, () => activeScreen(doc) !== 'scr-entry', 4000, '入口を通る');
+    }
+  }
   if (opts.playFlow !== false && activeScreen(doc) === 'scr-howto') {
     const flow = opts.playFlow || 'handoff';
     const btn = doc.querySelector('#scr-howto [data-howto="' + flow + '"]');

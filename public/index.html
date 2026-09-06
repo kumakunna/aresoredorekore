@@ -5490,6 +5490,94 @@
   function modesForGame(gameId){
     return MODES.filter(function(m){ return !m.hidden && gameIdForMode(m.id) === gameId; });
   }
+  // ===== 第41弾：カセットの人数と時間は、実データから導く =====
+  // **手書きの meta に数字を書かない。**
+  // 着手前に測ったら、棚の表示と実際の受け入れ人数が食い違っていた：
+  //   オークション「2人〜」← 実際は minPlayers:3（2人で選ぶと始められない）
+  //   すごろく「3〜8人」  ← sugohide/sugohand は maxPlayers:6
+  // 指示41で全タイルに人数と時間を出すので、手書きのままだと嘘が6倍に広がる。
+  // 導出にすれば、minPlayers を変えた日に棚が自動で追いつく（落とし穴4の型）。
+
+  /** そのカセットで遊べるモードを全部（ゲーム→モードの順にたどる） */
+  function cassetteModes(c){
+    return cassetteGames(c).reduce(function(acc, g){
+      return acc.concat(modesForGame(g));
+    }, []);
+  }
+  /** 何人から遊べるか。モードのうち**いちばん少ない**人数で始められる */
+  function cassetteMinPlayers(c){
+    var ms = cassetteModes(c);
+    if(!ms.length) return null;
+    return ms.reduce(function(lo, m){
+      var v = modeMinPlayers(m);
+      return lo === null ? v : Math.min(lo, v);
+    }, null);
+  }
+  /**
+   * 何人まで遊べるか。0 は上限なし。**いちばん広いゲームに合わせる。**
+   *
+   * 最初は「いちばん厳しいゲームに合わせる」と書いたが、それは
+   * **遊べるものを遊べないと言う嘘**だった——すごろくは5つのうち3つが8人まで
+   * 遊べるのに、6人までと出て、8人の時に沈んで見えていた。
+   * 棚の数字は「このカセットが受け入れられる幅」。
+   * 個別のゲームの制限は、popup のゲーム一覧で行ごとに出す（2-7）。
+   * 「沈める・消さない・はじめるだけ押せず理由が出る」（2-3）と対になる二段構え。
+   */
+  function cassetteMaxPlayers(c){
+    var gs = cassetteGames(c).map(gameById).filter(Boolean);
+    if(!gs.length) return null;
+    // 省略時は8人、0は上限なし（GAMES のコメントに書いてある決まり）
+    var caps = gs.map(function(g){
+      return (g.maxPlayers === undefined) ? 8 : g.maxPlayers;
+    });
+    // 1つでも「上限なし」があれば、カセット全体も上限なし
+    if(caps.indexOf(0) !== -1) return 0;
+    return Math.max.apply(null, caps);
+  }
+  /** そのゲーム1つの人数の幅。popup の一覧に行ごとに出す（2-7） */
+  function gamePlayerRange(gameId){
+    var g = gameById(gameId);
+    if(!g) return null;
+    var ms = modesForGame(gameId);
+    if(!ms.length) return null;
+    var lo = ms.reduce(function(a, m){
+      var v = modeMinPlayers(m);
+      return a === null ? v : Math.min(a, v);
+    }, null);
+    var hi = (g.maxPlayers === undefined) ? 8 : g.maxPlayers;
+    if(hi === 0) return lo + "人〜";
+    return lo === hi ? (lo + "人") : (lo + "〜" + hi + "人");
+  }
+  /** だいたい何分か。モードごとの見積りのうち、いちばん短いもの */
+  function cassetteMinutes(c, n){
+    var ms = cassetteModes(c);
+    if(!ms.length) return null;
+    var nin = n || cassetteMinPlayers(c) || 3;
+    var fun = ms.map(function(m){
+      var e = estimatePlayMinutes(m.id, nin);
+      return e && e.min;
+    }).filter(function(v){ return typeof v === "number" && v > 0; });
+    return fun.length ? Math.min.apply(null, fun) : null;
+  }
+  /** 棚のタイルに出す「3〜8人 / 15分〜」。**meta の手書きは使わない** */
+  function cassetteMetaText(c){
+    var lo = cassetteMinPlayers(c), hi = cassetteMaxPlayers(c), min = cassetteMinutes(c);
+    if(lo === null) return null;
+    var hito = (hi === 0 || hi === null) ? (lo + "人〜")
+      : (lo === hi ? (lo + "人") : (lo + "〜" + hi + "人"));
+    return min ? (hito + " / " + min + "分〜") : hito;
+  }
+
+  // 棚の数字を外から確かめられるようにしておく（window.catalogSet と同じ作法）。
+  // **画面に出る数字は、検査からも同じ関数で読めること。**
+  window.gameRange = function(gameId){ return gamePlayerRange(gameId); };
+  window.shelfMeta = function(id){
+    var c = cassetteById(id);
+    if(!c) return null;
+    return { text: cassetteMetaText(c), min: cassetteMinPlayers(c),
+             max: cassetteMaxPlayers(c), minutes: cassetteMinutes(c) };
+  };
+
   function cassetteSupportsRoom(c){
     return cassetteGames(c).some(gameSupportsRoom);
   }
@@ -15457,10 +15545,19 @@
    * @returns {{min:number, perRound:boolean}} perRound=true は
    *   「終わりが決まっていない遊び（1ラウンドあたり）」という意味
    */
-  function estimatePlayMinutes(){
-    var m = modeById(state.selectedModeId) || {};
+  /**
+   * 遊びの目安時間。**モードと人数は外から渡せる**（第41弾）。
+   *
+   * もとは state.selectedModeId を直に読んでいたので、
+   * **モードを選んだ後にしか使えなかった**。棚はモードを選ぶ前の画面なので、
+   * 棚の時間表示だけ手書きの文字列になり、実際と食い違っていた。
+   * 引数で受け取る形にして、棚からも同じ式を使う（数字を2か所に書かない）。
+   * 引数なしの呼び出しは今までどおり。
+   */
+  function estimatePlayMinutes(modeIdOverride, nOverride){
+    var m = modeById(modeIdOverride || state.selectedModeId) || {};
     var room = rt && rt.state.room;
-    var n = Math.max(2, room ? room.playerCount : state.players.length);
+    var n = Math.max(2, nOverride || (room ? room.playerCount : state.players.length));
     var sec = state.timerEnabled ? (state.customTimer || m.timer || 180) : (m.timer || 180);
     var round = function(v){ return Math.max(1, Math.round(v / 60)); };
 

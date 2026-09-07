@@ -448,6 +448,31 @@ function fakeRects(win, doc, rail) {
   return carts;
 }
 
+/**
+ * CSSを（選択子, 中身）の一覧に切り出す。**検査が3つとも同じ形で読んでいたので1本にした。**
+ *
+ * もとは press-feedback / shelf-scroll / ui-kit が同じ正規表現を各自に持っていて、
+ * その3つとも中身の群が `[^}]*` だった。これは「{」を許してしまうので
+ *
+ *     @media (hover:hover){ .a{…} .b{…} }
+ *
+ * を「選択子＝@media (hover:hover)／中身＝ .a{… 」として1件に飲み込み、
+ * そのあと「@で始まる選択子は捨てる」で丸ごと消えていた。
+ * **どの @media でも1件目の規則が、検査から見えていなかった。**
+ *
+ * 実際に .rail の違反を @media の1件目へ移す変異で確かめた：
+ * 直す前＝緑（見落とし）／直したあと＝赤。2件目に置くと直す前でも赤なので、
+ * 「1件目だけが消える」という形だった（第41弾で発見）。
+ *
+ * 3か所を同じように直すと、次に誰かが片方だけ直す日が来る（落とし穴1）ので、
+ * 写さずにここへ集めた（落とし穴27の教訓）。
+ */
+function cssRules(css) {
+  return Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/g))
+    .map((m) => ({ sel: m[1].trim(), body: m[2] }))
+    .filter((r) => r.sel && !r.sel.startsWith('@'));
+}
+
 // プレイヤーを登録してモード選択まで進む（多くのテストの前準備）
 async function setupPlayers(win, doc, names) {
   names = names || ['あき', 'びび'];
@@ -677,6 +702,7 @@ function openDialog(doc) {
 
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
+  cssRules,
   autoDialog, openDialog,
   setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
   passPlayWay,

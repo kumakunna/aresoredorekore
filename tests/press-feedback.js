@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { createRunner, assert, assertEqual } = require('./harness');
+const { createRunner, assert, assertEqual, cssRules } = require('./harness');
 
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 // **コメントを先に落とす。**コメントの中の { } で規則の切り出しがずれると、
@@ -29,12 +29,8 @@ const SOURCES = [HTML]
   }))
   .join('\n');
 
-/** CSSの規則を（選択子, 中身）で拾う */
-function rules() {
-  return Array.from(CSS.matchAll(/([^{}]+)\{([^}]*)\}/g))
-    .map((m) => ({ sel: m[1].trim(), body: m[2] }))
-    .filter((r) => r.sel && !r.sel.startsWith('@'));
-}
+/** CSSの規則を（選択子, 中身）で拾う。切り出しは harness に1本だけ置いてある */
+function rules() { return cssRules(CSS); }
 
 /** そのクラス／idが、実際にどのタグに付いているか（JSが組む分も含めて探す） */
 function tagsOf(name, kind) {
@@ -133,6 +129,42 @@ function tagsOf(name, kind) {
       '押せない時は沈まない（:not(:disabled) が付いている）');
     assert(/button:disabled\{[^}]*opacity/.test(CSS),
       '押せないものは、見た目で分かる');
+  });
+
+  await r.test('CSSの切り出しが、@media の中の1件目も拾う（第41弾・見落としの再発防止）', async () => {
+    // **検査そのものの穴を、検査で塞ぐ。**
+    //
+    // 3つの検査（ここ・shelf-scroll・ui-kit）が同じ正規表現を各自に持っていて、
+    // 中身の群が `[^}]*` だった。これは「{」を許すので
+    //   @media X{ .a{…} .b{…} }
+    // を「選択子＝@media X／中身＝ .a{… 」の1件に飲み込み、
+    // そのあと「@で始まる選択子は捨てる」で **.a が丸ごと消えていた**。
+    //
+    // 実物で確かめた：.rail の違反を @media の1件目へ移す変異は、
+    // 直す前の検査では**緑**、直したあとは**赤**。2件目に置けば直す前でも赤。
+    // つまり「1件目だけが見えない」という形（落とし穴10-e の親戚）。
+    //
+    // ここは実データを見ない。**切り出しそのものに、既知の答えを持つ検体を通す**
+    // （落とし穴10-d：実データに名指しで依存しない）
+    const 検体 = [
+      '.そと{color:red;}',
+      '@media (hover:hover){',
+      '  .なかの1件目{color:green;}',
+      '  .なかの2件目{color:blue;}',
+      '}',
+      '.あと{color:black;}'
+    ].join('\n');
+    const 出た = cssRules(検体).map((x) => x.sel);
+    assertEqual(出た.join('・'), '.そと・.なかの1件目・.なかの2件目・.あと',
+      '@media の内も外も、順番どおり全部拾える');
+
+    // 中身も取り違えていないこと（選択子だけ合っていても意味がない）
+    const 先頭 = cssRules(検体).find((x) => x.sel === '.なかの1件目');
+    assertEqual((先頭 || {}).body, 'color:green;', '@media の1件目の中身が読める');
+
+    // **逆向き**：@ で始まる包みは規則として数えない（落とし穴20）
+    assertEqual(cssRules(検体).filter((x) => x.sel.startsWith('@')).length, 0,
+      '@media 自体は規則として数えない');
   });
 
   r.finish();

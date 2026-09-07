@@ -5,7 +5,7 @@
 // ここは**部品として守る約束**だけを見る。
 
 const { JSDOM } = require('jsdom');
-const { createRunner, assert, assertEqual } = require('./harness');
+const { createRunner, assert, assertEqual, cssRules } = require('./harness');
 
 function fresh() {
   delete require.cache[require.resolve('../public/js/ui')];
@@ -329,10 +329,9 @@ function click(doc, sel) {
     // **基準を作る指定を、全部集めてから照らす。**
     // 「#app だけ見る」にすると、あとで body に filter が足された日に素通りする
     const 基準を作る = [];
-    Array.from(css.matchAll(/([^{}]+)\{([^}]*)\}/g)).forEach((m) => {
-      const sel = m[1].trim();
-      const body = m[2];
-      if (!sel || sel.startsWith('@')) return;
+    cssRules(css).forEach((r) => {
+      const sel = r.sel;
+      const body = r.body;
       if (/:hover|:active|:focus/.test(sel)) return;   // 押した瞬間だけの指定は、開いている間の基準にならない
       if (!/(^|;|\s)(filter|transform|backdrop-filter|perspective)\s*:/.test(body)) return;
       if (/(^|;|\s)(filter|transform)\s*:\s*none\s*(;|$)/.test(body)) return;

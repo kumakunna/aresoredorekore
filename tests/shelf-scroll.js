@@ -20,18 +20,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const { createRunner, assert, assertEqual } = require('./harness');
+const { createRunner, assert, assertEqual, cssRules } = require('./harness');
 
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 const CSS = HTML.slice(HTML.indexOf('<style>') + 7, HTML.indexOf('</style>'))
   .replace(/\/\*[\s\S]*?\*\//g, '');
 
-/** CSSの規則を（選択子, 中身）で拾う */
-function rules() {
-  return Array.from(CSS.matchAll(/([^{}]+)\{([^}]*)\}/g))
-    .map((m) => ({ sel: m[1].trim(), body: m[2] }))
-    .filter((r) => r.sel && !r.sel.startsWith('@'));
-}
+/** CSSの規則を（選択子, 中身）で拾う。切り出しは harness に1本だけ置いてある */
+function rules() { return cssRules(CSS); }
 
 (async function main() {
   const r = createRunner('shelf-scroll：棚の横スクロール（第41弾 2-9）');

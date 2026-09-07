@@ -5620,6 +5620,10 @@
   // 棚の数字を外から確かめられるようにしておく（window.catalogSet と同じ作法）。
   // **画面に出る数字は、検査からも同じ関数で読めること。**
   window.gameRange = function(gameId){ return gamePlayerRange(gameId); };
+  window.shelfProbe = function(){ return { playFlow: state.playFlow, room: !!(rt && rt.state.room),
+    locks: ["aresoredorekore","quizou","jinro"].map(function(id){ return id+":"+(cassetteLockReason(cassetteById(id))||"開"); }) }; };
+  window.cassetteWays = function(id){ var c=cassetteById(id); if(!c) return null;
+    return { room: cassetteSupportsRoom(c), handoff: cassetteSupportsHandoff(c) }; };
   window.cassetteGenreInfo = function(id){
     var c = cassetteById(id);
     if(!c) return null;
@@ -5642,6 +5646,49 @@
       return modesForGame(g).some(function(m){ return !m.roomOnly; });
     });
   }
+  // ===== 第41弾 2-4：遊び方の確認 =====
+  //
+  // **「1台か部屋か」は、入口ではなくカセットをえらんだ後に決まる。**
+  // 入口で先に決めると、決めた後で気が変わった時の逃げ道が要る——
+  // それが scr-howto だった。カセットごとに遊べる形は決まっているので、
+  // えらんでから聞けば、聞く回数そのものが減る。
+  //
+  // 判断のもとは**サーバー由来の部屋の実在**（rt.state.room）と、
+  // カセットが何で遊べるか（cassetteSupportsRoom / cassetteSupportsHandoff）の2つだけ。
+  // state.playFlow は見ない——入口で決めた値と部屋の実在がずれると、
+  // 「部屋が無いのにクイズ王が遊べる」ような行き止まりができる（実測で確認）。
+  //
+  // 6通り。**確認を出すのは3通りだけ**で、残りは素通りさせる。
+  // 素通りするところに確認を挟むと、1画面1つの原則に反して1タップ増える。
+  //
+  //            | 部屋あり            | 部屋なし
+  //   1台専用  | B 部屋を閉じるか聞く | A 素通り
+  //   部屋専用 | D 素通り            | C 部屋をつくるか聞く
+  //   両方対応 | F 素通り            | E 1台かみんなのスマホか聞く
+  function playWayPlan(c){
+    var room = !!(rt && rt.state.room);
+    var canRoom = cassetteSupportsRoom(c);
+    var canHandoff = cassetteSupportsHandoff(c);
+    if(canRoom && canHandoff){
+      // 両方できる。部屋があるなら部屋で（F）、無いならどちらか聞く（E）
+      return room ? { kind:'through', way:'room' } : { kind:'choose' };
+    }
+    if(canRoom){
+      // 部屋でしか遊べない。部屋があるならそのまま（D）、無いなら作るか聞く（C）
+      return room ? { kind:'through', way:'room' } : { kind:'makeRoom' };
+    }
+    // 1台でしか遊べない。部屋があるなら閉じるか聞く（B）、無いならそのまま（A）
+    return room
+      ? { kind:'leaveRoom', isHost: !!(rt && rt.isHost()) }
+      : { kind:'through', way:'handoff' };
+  }
+  // 検査から6通りを確かめられるようにしておく（window.catalogSet と同じ作法）
+  window.roomProbe = function(){ return { room: !!(rt && rt.state.room), host: !!(rt && rt.isHost()) }; };
+  window.playWayFor = function(id){
+    var c = cassetteById(id);
+    return c ? playWayPlan(c) : null;
+  };
+
   // いまのあそびかたで、そのカセットが遊べるか。'browse' はどれも見るだけなので常に開ける
   function cassettePlayable(c){
     if(!c || !c.ready) return false;

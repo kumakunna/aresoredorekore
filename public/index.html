@@ -6080,6 +6080,14 @@
   });
   document.addEventListener('keydown', function(e){
     if(!el('scr-shelf').classList.contains('active')) return;
+    // **重なりが開いている間は、後ろの棚を動かさない**（第41弾で見つけた）。
+    //
+    // ④で長押しに説明の popup を載せた時、この見張りを足し忘れていた。
+    // それまで棚には重なりが1つも無かったので、問題が存在しなかった。
+    // 実測した壊れ方：説明を開いたまま→で中央が動き、Enter で
+    // **説明を開いたままカセットの中（scr-setup）へ入っていた**。
+    // ESC は部品側（ui.js）が自分で拾うので、ここは黙って引き下がるだけでよい。
+    if(typeof UiKit !== 'undefined' && UiKit.anyOpen()) return;
     if(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
     var rails = Array.prototype.slice.call(document.querySelectorAll('#shelfList .rail'));
     if(!rails.length) return;

@@ -437,5 +437,49 @@ function click(doc, sel) {
     });
   });
 
+  await r.test('画面ぜんたいのキー操作は、重なりが開いている間は引き下がる（第41弾）', async () => {
+    // **重なりの後ろで、画面が動いてはいけない。**
+    //
+    // ④で棚の長押しに説明の popup を載せた時、棚のキー操作にこの見張りを
+    // 足し忘れていた。実測した壊れ方：説明を開いたまま→で中央が動き、
+    // Enter で**説明を開いたままカセットの中へ入っていた**。
+    //
+    // 直したのは1か所だが、**次に誰かが `document` のキー操作を足す日**に
+    // 同じことが起きる。だから1か所を直すのではなく、
+    // **`document` に付くキー操作を全部数えて、全部に見張りがあるか**を見る
+    // （型1：共通化の境界面での取りこぼし。手書きの一覧は作らない）
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+
+    const 印 = "document.addEventListener('keydown'";
+    const 見つけた = [];
+    let at = html.indexOf(印);
+    while (at >= 0) {
+      // その場から中括弧を数えて、handlerの中身だけを切り出す
+      const 開き = html.indexOf('{', html.indexOf('function', at));
+      let depth = 0, i = 開き, 終わり = -1;
+      for (; i < html.length; i++) {
+        if (html[i] === '{') depth++;
+        else if (html[i] === '}') { depth--; if (depth === 0) { 終わり = i; break; } }
+      }
+      assert(終わり > 開き, 'キー操作の中身を切り出せた（' + at + '文字目）');
+      見つけた.push({
+        行: html.slice(0, at).split('\n').length,
+        中身: html.slice(開き, 終わり)
+      });
+      at = html.indexOf(印, 終わり);
+    }
+    // **数を先に主張する。**0件なら「全部に見張りがある」は自明に成立してしまう（型b）
+    assert(見つけた.length >= 2,
+      'document に付くキー操作を数えられている（実際:' + 見つけた.length + '件）');
+
+    const 抜け = 見つけた
+      .filter((h) => h.中身.indexOf('UiKit.anyOpen()') === -1)
+      .map((h) => h.行 + '行目');
+    assertEqual(抜け.join('・'), '',
+      '重なりが開いていても引き下がらないキー操作');
+  });
+
   r.finish();
 })();

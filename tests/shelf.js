@@ -274,6 +274,50 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  await r.test('説明を開いている間、キーで棚が動かない（第41弾で見つけた事故）', async () => {
+    // **④で入れた事故。**長押しに説明を載せるまで、棚には重なりが1つも
+    // 無かったので、この問題は存在していなかった。載せた瞬間に生まれた。
+    //
+    // 実測した壊れ方：説明を開いたまま→で中央が動き、
+    // **Enter で説明を開いたままカセットの中（scr-setup）へ入っていた**。
+    // 遊ぶ人には「説明を読んでいたら勝手にゲームが始まった」に見える。
+    //
+    // ui-kit 側に「document のキー操作は全部 anyOpen を見ているか」の掃引を
+    // 置いたが、それは**書いてあるか**しか見ない。ここで**効いているか**を見る
+    const { win, doc, errors } = await launch();
+    const rail = doc.querySelector('#shelfList .rail[data-rail="word"]');
+    const carts = fakeRects(win, doc, rail);
+    assert(carts.length > 1, '動かせるだけカセットがある（実際:' + carts.length + '枚）');  // 型(b)
+
+    carts[0].dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', clientX: 100, clientY: 10 }));
+    await sleep(win, 520);
+    assert(doc.querySelector('#uiLayerRoot .ui-popup-in'), '説明が開いている');  // 型(b)
+    const 中央 = () => (rail.querySelector('.cart.center') || {}).dataset;
+    const 前 = 中央() && 中央().cart;
+    assert(前, '中央のカセットがある');
+
+    doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await sleep(win, 80);
+    assertEqual(中央() && 中央().cart, 前, '説明の後ろで中央が動かない');
+
+    doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await sleep(win, 600);
+    assertEqual(activeScreen(doc), 'scr-shelf', '説明の後ろでカセットに入らない');
+
+    // **逆向きも見る**（落とし穴20）。説明を閉じたら、キーはまた効く。
+    // これが無いと「キーを全部殺す」でもこの検査は通ってしまう
+    const x = doc.querySelector('#uiLayerRoot [data-ui="close"]');
+    assert(x, 'とじる道がある');
+    x.click();
+    await sleep(win, 400);
+    doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await sleep(win, 80);
+    assert(中央() && 中央().cart !== 前, '説明を閉じたら、キーはまた効く');
+
+    assertNoErrors(errors, '説明を開いたままのキー操作で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第16弾：人狼ゲームカセットが棚に出ている ----
   await r.test('人狼ゲームカセットが棚に出ていて、近日公開ではない', async () => {
     const { win, doc, errors } = await launch();

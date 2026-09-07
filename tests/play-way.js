@@ -15,7 +15,24 @@
 // 逆に E を素通りにすると、両方対応のカセットが黙って1台に落ちる。
 
 const { createRunner, assert, assertEqual, launch, sleep, waitFor,
-  waitScreen, el, click, activeScreen } = require('./harness');
+  waitScreen, el, click, activeScreen, fakeRects } = require('./harness');
+
+/**
+ * 棚のカセットを開く。
+ * **1回目のタップは中央へ寄せるだけ**（中央でないと開かない仕様）。
+ * jsdom は座標を持たないので、中央の判定ができるよう矩形を偽装する
+ */
+async function openCassette(win, doc, id) {
+  const cart = doc.querySelector('.cart[data-cart="' + id + '"]');
+  if (!cart) throw new Error('棚に無い: ' + id);
+  fakeRects(win, doc, cart.closest('.rail'));
+  if (!cart.classList.contains('center')) {
+    cart.click();
+    await sleep(win, 150);
+  }
+  cart.click();
+  await sleep(win, 800);
+}
 
 /** 疑似socketに返させる部屋の姿 */
 function roomSnapshot(over) {
@@ -133,5 +150,72 @@ async function withRoom(win, doc) {
     win.close();
   });
 
+  await r.test('聞く3通りは、確認の画面が出る（門D9）', async () => {
+    // C：部屋専用 × 部屋なし → 「部屋をつくる」
+    let x = await launch({ fakeSocket: true });
+    await openCassette(x.win, x.doc, 'quizou');
+    assertEqual(activeScreen(x.doc), 'scr-play-way', 'C：確認の画面が出る');
+    assertEqual(
+      Array.from(x.doc.querySelectorAll('#wayChoices [data-way]')).map((b) => b.dataset.way).join(','),
+      'room', 'C：出る道は「部屋をつくる」だけ');
+    assert(/つくる/.test(x.doc.getElementById('wayChoices').textContent),
+      'C：ボタンの札が「部屋をつくる」');
+    x.win.close();
+
+    // E：両方対応 × 部屋なし → 二択。**どちらも肯定の選択肢**
+    x = await launch({ fakeSocket: true });
+    await openCassette(x.win, x.doc, 'jinro');
+    assertEqual(activeScreen(x.doc), 'scr-play-way', 'E：確認の画面が出る');
+    assertEqual(
+      Array.from(x.doc.querySelectorAll('#wayChoices [data-way]')).map((b) => b.dataset.way).join(','),
+      'handoff,room', 'E：1台とみんなのスマホの二択');
+    // やめる道があること（行き止まりにしない）
+    assert(el(x.doc, 'wayCancelBtn').textContent.length > 0, 'E：やめる道がある');
+    x.win.close();
+  });
+
+  await r.test('素通りの3通りは、確認を挟まない（門D9）', async () => {
+    // A：1台専用 × 部屋なし。**ここに確認を挟むと1タップ増える**
+    const x = await launch({ fakeSocket: true });
+    await openCassette(x.win, x.doc, 'aresoredorekore');
+    assert(activeScreen(x.doc) !== 'scr-play-way',
+      'A：確認を挟まず先へ進む（実際: ' + activeScreen(x.doc) + '）');
+    x.win.close();
+  });
+
+  await r.test('近日公開のカセットは、確認より手前で止まる', async () => {
+    // 遊び方の鍵は外したが、**まだ中身が無いものは止める**
+    const x = await launch({ fakeSocket: true });
+    const soon = x.doc.querySelector('.cart.soon[data-cart]');
+    assert(soon, '近日公開のカセットが棚にある');  // 型(b)
+    await openCassette(x.win, x.doc, soon.dataset.cart);
+    assertEqual(activeScreen(x.doc), 'scr-shelf', '棚に留まる');
+    x.win.close();
+  });
+
+  await r.test('棚のタイルの鍵は、遊び方に左右されない（第41弾）', async () => {
+    // **タイルが「みんなのスマホが必要です」と言うのに押すと開く、という嘘を作らない。**
+    // タップが playFlow を見なくなったのに、タイルの鍵だけ playFlow で描いていた時期があった。
+    // 遊び方の違いは、押した後の確認（playWayPlan）が引き受ける。
+    // 棚で止めるのは「まだ中身が無い」ものだけ
+    const { win, doc } = await launch({ fakeSocket: true });
+    const 前 = win.shelfProbe().locks;
+    assert(前.length >= 3, 'カセットの鍵を数えられている（実際:' + 前.length + '件）');  // 型(b)
+
+    // 棚の 👥 を押して、入口で決まる値をわざとずらす
+    doc.getElementById('shelfRoomBtn').click();
+    await sleep(win, 200);
+    assertEqual(win.shelfProbe().room, false, '部屋はできていない');  // 型(b)
+
+    assertEqual(win.shelfProbe().locks.join('|'), 前.join('|'),
+      '遊び方の値がずれても、棚の鍵は変わらない');
+
+    // 中身が無いものは止まる（鍵を全部外したわけではない）
+    const soon = doc.querySelector('.cart.soon[data-cart]');
+    assert(soon, '近日公開のカセットがある');
+    assert(soon.classList.contains('locked') || /近日/.test(soon.textContent),
+      '中身が無いものは、それと分かる');
+    win.close();
+  });
   r.finish();
 })();

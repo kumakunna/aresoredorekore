@@ -12,7 +12,7 @@
 // （docs/監査_画面一覧.md参照）。
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, pickGame,
+const { launch, activeScreen, sleep, passPlayWay, waitScreen, el, click, fillPlayerForm, pickGame,
   createRunner, assert, assertEqual, assertNoErrors, autoDialog } = H;
 
 const NAMES = ['あき', 'びび', 'ちか', 'でん'];
@@ -35,6 +35,10 @@ async function toModeScreen(win, doc, cassette, gameId, players) {
   cart.click();
   if (activeScreen(doc) === 'scr-shelf') cart.click();
   await sleep(win, 100);
+  // 第41弾：カセットをえらぶと遊び方の確認が挟まる。
+  // sleep では通り抜け処理が走らない（waitFor の中でしか動かない）ので明示的に通す
+  passPlayWay(doc);
+  await sleep(win, 80);
   if (activeScreen(doc) === 'scr-game') {
     pickGame(doc, gameId);
     await sleep(win, 80);

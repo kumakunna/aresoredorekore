@@ -244,30 +244,33 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('長押しドラッグで並び替えでき、localStorageに保存される', async () => {
+  await r.test('長押しは、並び替えではなく説明を開く（第41弾 2-2・2-7）', async () => {
+    // **並び替えは廃止した。**2-2 が「固定順・遊ぶたびに並びを変えない」と
+    // 決めたため（体の記憶を壊さない）。空いた長押しに、2-7 の説明を載せる。
+    //
+    // 着手前は「長押しの取り合いになる」と見ていたが、
+    // 並び替えが無くなることで衝突は起きなかった。
     const { win, doc, errors } = await launch();
     const rail = doc.querySelector('#shelfList .rail[data-rail="word"]');
     const carts = fakeRects(win, doc, rail);
     const before = cartIds(rail);
-    const a = carts[0], b = carts[1];
-    const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    const a = carts[0];
+    const ra = a.getBoundingClientRect();
 
     a.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', clientX: ra.left + 60, clientY: 10 }));
     await sleep(win, 520); // 長押し成立（450ms）を待つ
-    assert(rail.classList.contains('reordering'), '並び替えモードに入る');
-    assert(doc.getElementById('shelfReorderNote'), '操作の案内が出る');
 
-    el(doc, 'shelfList').dispatchEvent(new win.PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse', clientX: rb.left + 60, clientY: 10 }));
-    await sleep(win, 60);
-    el(doc, 'shelfList').dispatchEvent(new win.PointerEvent('pointerup', { bubbles: true, pointerType: 'mouse' }));
-    await sleep(win, 100);
+    // 説明が開く
+    const panel = doc.querySelector('#uiLayerRoot .ui-popup-in');
+    assert(panel, '長押しで説明が開く');
+    assert(/1台|みんなのスマホ/.test(panel.textContent), '何台のスマホが要るかが分かる');
 
-    const after = cartIds(rail);
-    assertEqual(after[0], before[1], '順番が入れ替わる');
-    assert(!rail.classList.contains('reordering'), '並び替えモードを抜ける');
-    const saved = JSON.parse(win.localStorage.getItem('acac-shelf-order') || '{}');
-    assertEqual((saved.word || [])[0], before[1], '並び順がlocalStorageに保存される');
-    assertNoErrors(errors, '並び替えで未捕捉の例外');
+    // **並び替えは起きない**（順番が変わらない・案内も出ない）
+    assert(!rail.classList.contains('reordering'), '並び替えモードに入らない');
+    assert(!doc.getElementById('shelfReorderNote'), '並び替えの案内は出ない');
+    assertEqual(cartIds(rail).join(','), before.join(','), '順番が変わらない');
+
+    assertNoErrors(errors, '長押しで未捕捉の例外');
     win.close();
   });
 
@@ -672,18 +675,32 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('「棚を見る」では、タップしても遊び始めずに説明が出る', async () => {
+  await r.test('説明は、遊び始めずに読める（第41弾 2-7）', async () => {
+    // もとは入口の「棚を見る」から専用画面へ行く形だった。
+    // ④で遊び方を入口で決めなくなり、その入口ごと無くなったので、
+    // **説明を読む手段が消えないよう** popup に移した。
+    // ログインしていなくても説明は読める（棚を見るだけならログインは要らない）
     const { win, doc, errors } = await launch({ loggedOut: true, playFlow: 'browse' });
-    pickCart(doc, 'jinro');
-    await waitScreen(win, doc, 'scr-cassette', 3000);
-    const text = el(doc, 'scr-cassette').textContent;
+    const cart = doc.querySelector('.cart[data-cart="jinro"]');
+    assert(cart, '人狼のカセットが棚にある');
+    cart.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', clientX: 100, clientY: 10 }));
+    await sleep(win, 600);
+    const panel = doc.querySelector('#uiLayerRoot .ui-popup-in');
+    assert(panel, '説明が開く');
+    const text = panel.textContent;
     assert(/1台でもあそべる|1台では遊べません/.test(text), '1台で遊べるかが分かる');
     assert(/みんなのスマホ/.test(text), 'みんなのスマホで遊べるかも分かる');
     assert(/人狼|ワードウルフ/.test(text), '中に入っているゲームが分かる');
-    // 「このゲームであそぶ」を押すと、あそびかたを選ぶ画面に戻る
-    click(doc, 'ctPlayBtn');
-    await waitScreen(win, doc, 'scr-howto', 3000);
-    assertNoErrors(errors, 'カセットの説明で未捕捉の例外');
+
+    // **読んだだけでは遊び始めない**（この検査の本体）
+    assertEqual(activeScreen(doc), 'scr-shelf', '説明を読んでも棚から動かない');
+
+    // とじる道がある
+    const x = doc.querySelector('#uiLayerRoot [data-ui="close"]');
+    assert(x, 'とじる道がある');
+    x.click();
+    await sleep(win, 400);
+    assertNoErrors(errors, '説明で未捕捉の例外');
     win.close();
   });
 

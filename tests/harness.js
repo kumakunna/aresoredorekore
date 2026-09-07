@@ -335,11 +335,16 @@ function sleep(win, ms) {
 //   keepMeeting=true   … 作戦会議を素通りさせない
 // （その画面自体を調べたい時だけ立てる。関門ごとに分けているのは、
 //   「夜になりました」を調べたい時でも作戦会議は通過させたいため）
-async function waitFor(win, cond, timeout, label, keepNightfall, keepMeeting) {
+async function waitFor(win, cond, timeout, label, keepNightfall, keepMeeting, keepPlayWay) {
   const limit = timeout || 4000;
   const start = Date.now();
   const doc = win.document;
   while (Date.now() - start < limit) {
+    // **通り抜ける画面は、条件を見る前に片づける。**
+    // 「棚以外になったら抜ける」のような条件だと、
+    // 遊び方の確認に着いた瞬間に条件が満たされ、そこで待機が終わってしまう
+    // ——確認画面に居座ったまま次へ進んだことになる（第41弾で踏んだ）
+    if (!keepPlayWay) passPlayWay(doc);
     let ok = false;
     try { ok = cond(); } catch (e) { ok = false; }
     if (ok) return true;
@@ -353,6 +358,24 @@ async function waitFor(win, cond, timeout, label, keepNightfall, keepMeeting) {
 // 第20弾-4-1で「夜になりました（全員伏せてください）」が挟まるようになった。
 // 押すまで進まない関門なので、他の画面を待っている間は自動で通過させる。
 // この画面そのものの中身は、専用のテストで確認している。
+// 第41弾：カセットをえらぶと「遊び方の確認」が挟まるようになった。
+// 6通りのうち3通りでだけ出る（両方対応×部屋なし／部屋専用×部屋なし／1台専用×部屋あり）。
+//
+// ほとんどのテストはその先を見たいので、待機のたびに1回だけ通す。
+// **既定は「1台のスマホで」**——今までの launch({playFlow:'handoff'}) と同じ道を保つため。
+// 確認の画面そのものを見たいテストは、waitFor を使わずに activeScreen で見る
+// （tests/play-way.js がそうしている）
+function passPlayWay(doc) {
+  if (activeScreen(doc) !== 'scr-play-way') return false;
+  const choices = doc.querySelectorAll('#wayChoices [data-way]');
+  if (!choices.length) return false;
+  // 1台があればそれを選ぶ。無ければ出ている道（部屋をつくる／部屋を閉じて進む）
+  let btn = null;
+  choices.forEach((b) => { if (!btn && b.dataset.way === 'handoff') btn = b; });
+  (btn || choices[0]).click();
+  return true;
+}
+
 function passNightfall(doc) {
   if (activeScreen(doc) !== 'scr-nightfall') return false;
   const btn = doc.getElementById('nfNextBtn');
@@ -656,6 +679,7 @@ module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
   autoDialog, openDialog,
   setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
+  passPlayWay,
   chooseNext, wolfPick,
   createRunner, assert, assertEqual, assertNoErrors
 };

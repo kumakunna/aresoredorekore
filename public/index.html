@@ -3115,6 +3115,23 @@
     </div>
   </div>
 
+  <!-- 1.5: 遊び方の確認（第41弾 2-4）。
+       カセットをえらんだ後に、1台でまわすか・みんなのスマホをつなぐかを決める。
+       **6通りのうち聞くのは3通りだけ**で、残りは素通りさせる（playWayPlan）。
+       画面にしたのは、二択（E）がどちらも肯定の選択肢で、
+       共通部品の4種（confirm/danger/info/ask）に当てはまらないため。
+       5種類目を足すと正本4とカタログに波及するので、画面で受ける。 -->
+  <div class="screen" id="scr-play-way">
+    <div class="wiz-head">
+      <div class="wiz-title" id="wayTitle"></div>
+      <div class="mic-status" id="wayBody" style="margin-top:8px;"></div>
+    </div>
+    <div class="wiz-body" id="wayChoices"></div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost" id="wayCancelBtn"></button>
+    </div>
+  </div>
+
   <div class="screen" id="scr-howto">
     <div class="shelf-head">
       <div class="logo">あつまれ<span class="c">、</span>あれこれ</div>
@@ -5689,18 +5706,16 @@
     return c ? playWayPlan(c) : null;
   };
 
-  // いまのあそびかたで、そのカセットが遊べるか。'browse' はどれも見るだけなので常に開ける
-  function cassettePlayable(c){
-    if(!c || !c.ready) return false;
-    if(state.playFlow === 'room') return cassetteSupportsRoom(c);
-    if(state.playFlow === 'handoff') return cassetteSupportsHandoff(c);
-    return true;
-  }
+  // （cassettePlayable は第41弾で消した。呼び出し元が1つも無く、
+  //   playFlow の依存が実際より多く見えていた）
   // 遊べない時の理由。カードにも、押した時の案内にも同じ文を使う
   function cassetteLockReason(c){
     if(!c || !c.ready) return '🔧 近日公開予定';
-    if(state.playFlow === 'room' && !cassetteSupportsRoom(c)) return '📱 1台のスマホであそぶゲームです';
-    if(state.playFlow === 'handoff' && !cassetteSupportsHandoff(c)) return '👥 みんなのスマホが必要です';
+    // **遊び方による鍵は掛けない**（第41弾）。
+    // 「1台か部屋か」はカセットをえらんだ後の確認で決まるので、
+    // 棚の時点では決まっていない。決まっていない値で鍵を描くと、
+    // タイルは「みんなのスマホが必要です」と言うのに押すと開く、という嘘になる。
+    // 遊び方の違いは、押した後の確認（playWayPlan）が引き受ける
     return null;
   }
   function setPlayFlow(flow){
@@ -5729,6 +5744,87 @@
     return list;
   }
   // ---- あそびかたをえらぶ画面 ----
+  // ===== 第41弾 2-4：遊び方の確認 =====
+  // どのカセットについて聞いているかを覚えておく（画面をまたぐので state ではなく近くに置く）
+  var wayForCassetteId = null;
+  var wayPlan = null;
+
+  function enterPlayWay(){
+    var T = (typeof UiText !== 'undefined') ? UiText.WAY : null;
+    var W = (typeof UiText !== 'undefined') ? UiText.WORDS : {};
+    if(!T || !wayPlan){ goTo('scr-shelf'); return; }
+    el('wayCancelBtn').textContent = W.stop || 'やめる';
+
+    if(wayPlan.kind === 'choose'){
+      el('wayTitle').textContent = T.choose.見出し;
+      el('wayBody').textContent = '';
+      el('wayChoices').innerHTML =
+        '<button class="howto-card" data-way="handoff">' +
+          '<div class="howto-icon">📱</div><div class="howto-text">' +
+          '<div class="howto-title">' + escapeHtml(T.choose['1台']) + '</div>' +
+          '<div class="howto-sub">' + escapeHtml(T.choose['1台の説明']) + '</div></div></button>' +
+        '<button class="howto-card" data-way="room">' +
+          '<div class="howto-icon">👥</div><div class="howto-text">' +
+          '<div class="howto-title">' + escapeHtml(T.choose.部屋) + '</div>' +
+          '<div class="howto-sub">' + escapeHtml(T.choose.部屋の説明) + '</div></div></button>';
+      return;
+    }
+    if(wayPlan.kind === 'makeRoom'){
+      el('wayTitle').textContent = T.makeRoom.見出し;
+      el('wayBody').textContent = T.makeRoom.本文;
+      el('wayChoices').innerHTML =
+        '<button class="btn btn-main" data-way="room">' + escapeHtml(T.makeRoom.進む) + '</button>';
+      return;
+    }
+    // leaveRoom（B）。**部屋を閉じてから進む**——本人の裁定でこの形に確定。
+    // 当初案（部屋を残す）は第33弾B-3で塞いだ穴を開け直すものだった
+    el('wayTitle').textContent = T.leaveRoom.見出し;
+    el('wayBody').textContent = wayPlan.isHost
+      ? T.leaveRoom.進行役の本文 : T.leaveRoom.参加者の本文;
+    el('wayChoices').innerHTML =
+      '<button class="btn btn-main" data-way="leave">' +
+      escapeHtml(wayPlan.isHost ? T.leaveRoom.進行役の進む : T.leaveRoom.参加者の進む) +
+      '</button>';
+  }
+
+  /** 遊び方が決まったので、そのカセットを始める */
+  async function goPlayWay(way){
+    var id = wayForCassetteId;
+    if(!id) { goTo('scr-shelf'); return; }
+    if(way === 'leave'){
+      // 部屋を閉じて（進行役）／抜けて（参加者）から手渡しへ。
+      // 第33弾B-3：部屋に紐づいたまま手渡しへ進むと状態が混ざる
+      if(wayPlan && wayPlan.isHost){
+        var closed = await rt.closeRoom();
+        if(!closed.ok){ showFlash(closed.message || '部屋を閉じられませんでした', 'hit'); return; }
+      } else {
+        await rt.leave();
+      }
+      way = 'handoff';
+    }
+    if(way === 'room'){
+      setPlayFlow('room');
+      // 部屋がまだ無いなら、ここで作りに行く（独立した「部屋をつくる」画面は持たない）
+      if(!(rt && rt.state.room)){
+        state.wantCassetteId = id;
+        openRoomLobby('scr-shelf');
+        return;
+      }
+      startCassette(id);
+      return;
+    }
+    setPlayFlow('handoff');
+    // 手渡しは遊んだ記録を残すので、ここでログインを頼む
+    if(!loggedIn() && !(await requireLogin('遊んだ記録を残すので、ログインしてください', 'scr-shelf'))) return;
+    startCassette(id);
+  }
+
+  el('scr-play-way').addEventListener('click', function(e){
+    var b = e.target.closest('[data-way]');
+    if(b){ goPlayWay(b.dataset.way); return; }
+    if(e.target.closest('#wayCancelBtn')) goTo('scr-shelf');
+  });
+
   // ===== 第41弾 2-1：入口 =====
   // **役割ではなく、やることで分ける。**
   // 「ホスト／ゲスト」は、初めて来た人にはどちらが自分か分からない。
@@ -5840,6 +5936,76 @@
       '</div>';
     }).join('');
   }
+  /**
+   * カセットの説明を popup で出す（第41弾 2-7）。
+   *
+   * もとは専用画面（scr-cassette）で、入口の「棚を見る」からしか行けなかった。
+   * ④で遊び方を入口で決めなくなったので、その入口ごと無くなり画面が孤立した。
+   * **説明を読む手段が消えるのは機能の後退**なので、popup に移す。
+   *
+   * 中身は画面のときと同じ（何台のスマホが要るか・入っているゲームと遊び方）に、
+   * 2つ足した：
+   *   ・**ゲームごとの人数**——カセット全体の幅は「広い方」で出しているので、
+   *     個別の制限（どこにいる？は6人まで）はここで初めて分かる（本人の裁定）
+   *   ・**alsoGenre**——棚には出さない、もう一方の顔。
+   *     「爆弾解除は頭でもあり体でもある」は探す人にとって本当のことなので、
+   *     消すのではなく一段奥に置く（本人の裁定）
+   */
+  function cassettePopupHtml(c){
+    var room = cassetteSupportsRoom(c), hand = cassetteSupportsHandoff(c);
+    var out = '<div class="mic-status" style="margin-bottom:10px;">' +
+      (hand ? '📱 1台でもあそべる' : '📱 1台では遊べません') + '　' +
+      (room ? '👥 みんなのスマホでもあそべる' : '👥 みんなのスマホには未対応') +
+      '</div>';
+    // 1台で遊べないカセットは、**要ることをはっきり言う**
+    // （元の説明画面にあった一言。押してから気づくより、開いた時に分かる方がいい）
+    if(!hand) out += '<div class="mic-status" style="margin-bottom:10px;">みんなのスマホが必要</div>';
+    var meta = cassetteMetaText(c);
+    if(meta) out += '<div class="mic-status" style="margin-bottom:10px;">' + escapeHtml(meta) + '</div>';
+
+    // もう一方の顔（棚には出していない分類）
+    var also = cassetteAlsoGenres(c).map(genreLabel).filter(Boolean);
+    if(also.length){
+      out += '<div class="mic-status" style="margin-bottom:12px;">' +
+        'こんな遊びでもあります：' + escapeHtml(also.join('・')) + '</div>';
+    }
+
+    out += cassetteGames(c).map(function(gid){
+      var g = gameById(gid);
+      if(!g) return '';
+      var modes = modesForGame(gid);
+      var bullets = (modes[0] && modes[0].bullets) ? modes[0].bullets.slice(0, 3) : [];
+      var range = gamePlayerRange(gid);
+      return '<div class="ct-game"><h4>' + g.icon + ' ' + escapeHtml(g.title) +
+        (range ? ' <span class="mic-status">' + escapeHtml(range) + '</span>' : '') + '</h4>' +
+        '<div class="mic-status">' + escapeHtml(g.sub || '') + '</div>' +
+        (bullets.length ? '<ul>' + bullets.map(function(b){
+          return '<li>' + escapeHtml(b) + '</li>';
+        }).join('') + '</ul>' : '') +
+        // 実際に遊ぶ形の名前（せり上げ式・秘密入札…）。
+        // ゲーム名だけだと、中に何通りあるのか分からない
+        '<div class="mic-status">あそびかた：' + modes.map(function(m){
+          return escapeHtml(m.title) + (m.roomOnly ? '（みんなのスマホ）' : '');
+        }).join('・') + '</div>' +
+      '</div>';
+    }).join('');
+    return out;
+  }
+  function openCassettePopup(id){
+    var c = cassetteById(id);
+    if(!c || typeof UiKit === 'undefined') return;
+    UiKit.popup({
+      icon: c.logo ? '🎴' : c.icon,
+      title: (c.title || '').replace(/<br>/g, ''),
+      html: cassettePopupHtml(c)
+    });
+  }
+  // 検査から中身を確かめられるようにしておく
+  window.cassettePopupText = function(id){
+    var c = cassetteById(id);
+    return c ? cassettePopupHtml(c) : null;
+  };
+
   el('ctBackBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
   // 「このゲームであそぶ」→ あそびかたを選ぶ画面へ戻す（ここでは始めない）
   el('ctPlayBtn').addEventListener('click', function(){
@@ -6434,29 +6600,28 @@
     }
     var c = cassetteById(cart.dataset.cart);
     if(!c){ return; }
-    // 近日公開・その遊び方では遊べない、を先に見る。
-    // 入れないカセットの世界に「入った」演出を出さないため
-    var lock = cassetteLockReason(c);
-    if(lock && state.playFlow !== 'browse'){
-      showFlash(lock === '🔧 近日公開予定' ? '🔧 このゲームは近日公開予定です' : lock, 'hit');
+    // 近日公開だけは、押す前に止める。
+    // **遊び方による鍵はもう掛けない**（第41弾）——
+    // 「1台か部屋か」は入口ではなく、ここから先の確認で決まるので、
+    // 棚の時点では決まっていない。決まっていない値で鍵を掛けると、
+    // 「部屋が無いのにクイズ王が遊べる」ような行き止まりができる（実測で確認）
+    if(!c.ready){
+      showFlash('🔧 このゲームは近日公開予定です', 'hit');
       return;
     }
-    // 第32弾-A：部屋のために選んでいる時は、そのまま部屋のゲームとして選ぶ。
-    // 手渡しの時は、今まで通りログインが要る（遊んだ記録を残すため）
-    // ログイン済みの人は、ここで await を通らない（画面遷移が遅れない）。
-    // 未ログインに見える時だけ、サーバーに聞き直しにいく
-    if(state.playFlow !== 'browse' && state.playFlow !== 'room'
-      && !loggedIn() && !(await requireLogin('遊んだ記録を残すので、ログインしてください'))) return;
     // 第32弾-C-1：ここから、そのカセットの世界に入る
     cassetteWarp(cart, c, function(){
-      // 第32弾-A：「棚を見る」で来た人は、タップしても遊び始めない。
-      // 中身の説明を読んでから、あそびかたを選び直す流れにする
-      if(state.playFlow === 'browse'){
-        state.detailCassetteId = c.id;
-        goTo('scr-cassette');
+      // **6通りのうち、聞くのは3通りだけ。**残りは素通りさせる（2-4）
+      var plan = playWayPlan(c);
+      if(plan.kind === 'through'){
+        wayForCassetteId = c.id;
+        wayPlan = plan;
+        goPlayWay(plan.way);
         return;
       }
-      startCassette(c.id);
+      wayForCassetteId = c.id;
+      wayPlan = plan;
+      goTo('scr-play-way');
     });
   });
   /**
@@ -6594,17 +6759,16 @@
     shelfDrag.startX = e.clientX;
     cancelShelfDragTimer();
     shelfDrag.timer = setTimeout(function(){
-      shelfDrag.active = true;
-      shelfDrag.cart = cart;
-      shelfDrag.rail = cart.closest('.rail');
-      shelfDrag.rail.classList.add('reordering');
-      cart.classList.add('dragging');
+      // **長押しは、並び替えではなく説明を開く**（第41弾 2-2・2-7）。
+      //
+      // 並び替えはここに居たが、2-2 が「固定順・遊ぶたびに並びを変えない」と
+      // 決めたので廃止した（体の記憶を壊さないため）。空いた長押しに、
+      // 2-7 の説明の popup を載せる——取り合いにはならなかった。
+      //
+      // 押した指が動いていたら開かない（スワイプの途中で出さない）
+      if(shelfDrag.moved) return;
       doVibrate(30);
-      var note = document.createElement('div');
-      note.className = 'shelf-reorder-note';
-      note.id = 'shelfReorderNote';
-      note.textContent = '↔ ドラッグで並び替え・はなすと確定';
-      document.body.appendChild(note);
+      openCassettePopup(cart.dataset.cart);
     }, 450);
   });
   el('shelfList').addEventListener('pointermove', function(e){
@@ -7975,7 +8139,7 @@
   //   部屋の画面   … サーバーと状態を合わせているので、勝手に戻るとずれる。
   //                  「部屋を出る」が正しい出口
   var BACK_FREE_SCREENS = [
-    'scr-door', 'scr-entry', 'scr-howto', 'scr-shelf', 'scr-countdown',
+    'scr-door', 'scr-entry', 'scr-play-way', 'scr-howto', 'scr-shelf', 'scr-countdown',
     'scr-topic-pass', 'scr-play', 'scr-reveal', 'scr-score',
     'scr-bomb-prep', 'scr-bomb-play', 'scr-bomb-end',
     'scr-quiz-turn', 'scr-tourney-match', 'scr-tourney-vs', 'scr-tourney-champion',
@@ -8043,7 +8207,7 @@
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
   // 画面遷移による自動適用の対象から外す
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -8115,7 +8279,7 @@
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-door','scr-entry','scr-howto','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-title-icon','scr-title-name','scr-title-slot','scr-collection','scr-rename'];
+    var noGear = ['scr-door','scr-entry','scr-play-way','scr-howto','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-title-icon','scr-title-name','scr-title-slot','scr-collection','scr-rename'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
     // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
     el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';
@@ -8168,6 +8332,7 @@
     if(id === 'scr-wr-pass') enterWrPass();
     if(id === 'scr-wr-day') enterWrDay();
     if(id === 'scr-titles') enterTitles();
+    if(id === 'scr-play-way') enterPlayWay();
     if(id === 'scr-entry') enterEntry();
     if(id === 'scr-howto') enterHowto();
     if(id === 'scr-title-icon') enterTitleIcon();

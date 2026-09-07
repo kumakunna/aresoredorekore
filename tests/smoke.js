@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, passPlayWay, fakeRects, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -3159,15 +3159,24 @@ async function startModeWithTimerOff(win, doc, id) {
     for (const id of ['quizou', 'auction']) {
       const cart = doc.querySelector('.cart[data-cart="' + id + '"]');
       assert(cart, id + ' のカセットは棚に並んでいる（隠さない）');
-      assert(cart.classList.contains('locked'), id + '：遊べないことが見て分かる');
-      assert(/みんなのスマホ/.test(cart.textContent), id + '：理由が読める');
+      // **第41弾：遊び方による鍵は、タイルから確認画面へ移した。**
+      // 棚の時点では「1台か部屋か」がまだ決まっていないので、
+      // そこで施錠すると「決まっていない値で鍵を描く」ことになる。
+      // 隠さないこと（2-3）は変わらず、理由と次の行動は押した後に出る
+      assert(!cart.classList.contains('locked'), id + '：遊び方では施錠しない');
     }
-    // 押しても始まらず、理由が出るだけ（行き止まりにしない）
+    // **押した後に、次の行動が出る。**
+    // 第41弾より前は、押しても「みんなのスマホが必要です」と光るだけで
+    // 棚に留まり、部屋を立てる導線が無かった——理由は読めるが行き止まり。
+    // いまは確認画面に進み、そこから部屋をつくれる
     const cart = doc.querySelector('.cart[data-cart="quizou"]');
+    fakeRects(win, doc, cart.closest('.rail'));
+    if (!cart.classList.contains('center')) { cart.click(); await sleep(win, 150); }
     cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await sleep(win, 120);
-    assertEqual(activeScreen(doc), 'scr-shelf', '押しても棚から出ない');
+    await sleep(win, 800);
+    assertEqual(activeScreen(doc), 'scr-play-way', '押すと遊び方の確認に進む');
+    assert(doc.querySelector('#wayChoices [data-way="room"]'),
+      '部屋をつくる道が出る（行き止まりにしない）');
     assertNoErrors(errors, '手渡しの棚で未捕捉の例外');
     win.close();
   });
@@ -3464,6 +3473,10 @@ async function startModeWithTimerOff(win, doc, id) {
       cart.click();
       if (activeScreen(doc) === 'scr-shelf') cart.click();
       await sleep(win, 100);
+      // 第41弾：カセットをえらぶと遊び方の確認が挟まる。
+      // sleep では通り抜け処理が走らないので、ここで明示的に通す
+      passPlayWay(doc);
+      await sleep(win, 80);
       // ゲームが2つ以上入っているカセットは、どれで遊ぶかを選ぶ画面を挟む
       if (activeScreen(doc) === 'scr-game') { pickGame(doc, c.game); await sleep(win, 80); }
       if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
@@ -3493,8 +3506,12 @@ async function startModeWithTimerOff(win, doc, id) {
   });
 
   await r.test('カセットの説明で、何台のスマホが要るかと中身が読める', async () => {
-    // 第32弾-A：「棚を見る」から開く説明画面。ここでは遊び始めない
-    const { win, doc, errors } = await launch({ playFlow: 'browse' });
+    // **第41弾：説明は専用画面から popup に移った。**
+    // もとは入口の「棚を見る」からしか開けず、④でその入口が無くなって
+    // 画面が孤立した。説明を読む手段が消えるのは機能の後退なので、
+    // 2-7 のとおり長押し／i の popup に移し、画面は使わなくなった。
+    // 中身は増えている（ゲームごとの人数・もう一方の分類）
+    const { win, doc, errors } = await launch();
     const CASES = [
       { cart: 'auction',  need: true,  words: ['せり上げ式', '秘密入札'] },
       { cart: 'quizou',   need: true,  words: ['クイズラッシュ', 'つぎつぎクイズ', 'とくとくクイズ', '早押し'] },
@@ -3503,17 +3520,21 @@ async function startModeWithTimerOff(win, doc, id) {
     for (const c of CASES) {
       const cart = doc.querySelector('.cart[data-cart="' + c.cart + '"]');
       assert(cart, c.cart + ' のカセットが棚にある');
-      cart.click();
-      if (activeScreen(doc) === 'scr-shelf') cart.click();
-      await waitScreen(win, doc, 'scr-cassette', 3000);
-      const text = el(doc, 'scr-cassette').textContent;
+      // 長押しで開く（第41弾 2-7）
+      cart.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, clientX: 100 }));
+      await sleep(win, 600);
+      const panel = doc.querySelector('#uiLayerRoot .ui-popup-in');
+      assert(panel, c.cart + '：長押しで説明が開く');
+      const text = panel.textContent;
       if (c.need) assert(/みんなのスマホが必要/.test(text), c.cart + '：みんなのスマホが要ると分かる');
       else assert(/1台でもあそべる/.test(text), c.cart + '：1台でも遊べると分かる');
       c.words.forEach((w) => {
         assert(text.indexOf(w) !== -1, c.cart + '：中身に「' + w + '」が出る');
       });
-      click(doc, 'ctBackBtn');
-      await waitScreen(win, doc, 'scr-shelf', 3000);
+      const x = doc.querySelector('#uiLayerRoot [data-ui="close"]');
+      assert(x, c.cart + '：とじる道がある');
+      x.click();
+      await sleep(win, 400);
     }
     assertNoErrors(errors, 'カセットの説明で未捕捉の例外');
     win.close();

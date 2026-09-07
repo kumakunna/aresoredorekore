@@ -1266,19 +1266,48 @@
     .cart.center:hover{transform:scale(1.03) translateY(-9px);}
     .cart:hover .cart-body{box-shadow:0 12px 22px rgba(0,0,0,.34), inset 0 -3px 0 rgba(0,0,0,.12);}
   }
-  /* カセットの並び（中央が大きいカルーセル） */
+  /* カセットの並び（中央が大きいカルーセル）
+   *
+   * **第41弾 2-9：ブラウザのスクロールをやめ、自前の帯を動かす形にした。**
+   *
+   * それまでは .rail 自体が overflow-x:auto の帯で、
+   * `scroll-snap-type:x mandatory` と `scroll-behavior:smooth` を持っていた。
+   * 実測（Chrome・375px）：**送れる余地396pxに対して、1pxも動かない。**
+   * 矢印を3回押すと `_centerEl` だけが3つ進み、棚はそのまま——
+   * 遊ぶ人には「押しても何も起きないのに、選択だけ画面の外へ行く」と見える。
+   *
+   * 直し方として「snap を外す」も選べたが、そうすると 2-2 が要る
+   * 「1本ずつ吸い付く」を自分で書き直すことになる。どうせ自前で持つなら、
+   * **スクロール位置という測らないと分からない状態を持たない方がよい**——
+   * いま何枚目かは JS の数（`rail._index`）1つで決まり、
+   * 画面はそれを写しているだけになる。座標を測る必要が無いので、
+   * jsdom でも本物と同じ経路が動く（偽の矩形に頼らなくなる）。
+   */
   .rail{
+    /* **横だけ切って、縦は切らない。**
+       中央のカセットは translateY(-10px) で浮くので、
+       縦も切ると頭が10px削られる（実測：窓の上端773に対してカセットの上端763）。
+       これは今回の作り直し以前からそうだった——`overflow-x:auto` を書くと
+       `overflow-y` は visible のままではいられず auto になる、というCSSの決まりで、
+       同じだけ切れていた。棚を作り直すついでに直す。
+       `clip` は、もう一方の軸に visible を残せる唯一の指定 */
+    overflow-x:clip;
+    overflow-y:visible;
+    /* 縦のページ送りはブラウザに残し、横だけこちらで受ける */
+    touch-action:pan-y;
+  }
+  .rail-track{
     display:flex;align-items:flex-end;gap:8px;
     padding:0 calc(50% - 62px);
-    overflow-x:auto;scroll-snap-type:x mandatory;
-    scrollbar-width:none;-ms-overflow-style:none;
-    /* 第32弾-C-1：矢印やタップで中央を移す時、飛ばずに滑って移る */
-    scroll-behavior:smooth;
+    /* 第32弾-C-1：矢印やタップで中央を移す時、飛ばずに滑って移る。
+       --fx-scale を掛けてあるので「速い」は半分、「スキップ」は一瞬 */
+    transition:transform calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1);
+    will-change:transform;
   }
-  .rail::-webkit-scrollbar{display:none;}
-  .rail.reordering{scroll-snap-type:none;touch-action:none;scroll-behavior:auto;}
+  /* 指で送っている最中は、指に貼り付いて動く（滑らかさは離してから） */
+  .rail-track.rail-grab{transition:none;}
   .cart{
-    flex:none;width:124px;scroll-snap-align:center;
+    flex:none;width:124px;
     /* 第32弾-C-1：0.25秒で切り替わる。--fx-scale を掛けてあるので
        「演出の速さ」を速いにした人は半分、スキップの人は一瞬で終わる */
     transition:transform calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1),
@@ -1297,7 +1326,6 @@
   .cart:not(.center) .cart-body{box-shadow:0 4px 9px rgba(0,0,0,.20), inset 0 -3px 0 rgba(0,0,0,.12);}
   .cart:active:not(:disabled){transform:scale(.97) translateY(-4px);}
   .cart.center:active:not(:disabled){transform:scale(.97) translateY(-4px);}
-  .cart.dragging{transform:scale(1.04) translateY(-10px);filter:none;opacity:.92;z-index:5;transition:none;}
   /* 第32弾-C-1：カセットをタップした瞬間。
      カセットが手前にせり出し、そのカセットのテーマ色が押した所から広がる。
      「今、このカセットの世界に入った」ことを、体で分かる形にする。 */
@@ -1435,11 +1463,6 @@
   .tg-emoji{font-size:24px;line-height:1;}
   .tg-label{font-size:12.5px;font-weight:700;}
   .tg-hint{font-size:10px;color:var(--ink-soft);line-height:1.5;}
-  .shelf-reorder-note{
-    position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:70;
-    background:var(--ink);color:var(--paper);font-size:11px;padding:7px 14px;border-radius:99px;
-    box-shadow:0 4px 12px rgba(0,0,0,.3);
-  }
   /* 第10弾：あそびかた設定・オプションタグ */
   .opt-block{margin-bottom:20px;}
   .opt-block .seg-btn{font-size:13px;padding:10px 4px;}
@@ -3192,7 +3215,7 @@
       <button class="shelf-flow" id="shelfFlowBtn">📱 1台であそぶ　▾</button>
     </div>
     <div id="shelfList"></div>
-    <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ</div>
+    <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ<br>ながおしで、そのカセットの説明が読める</div>
     <!-- 第26弾-2：下部バー。ログインしていなくても同じ形で出る。
          左半分（アイコン・二つ名・名前）をタップすると称号を選び直せる -->
     <div class="shelf-bar">
@@ -5722,26 +5745,22 @@
     state.playFlow = flow;
     try{ localStorage.setItem('acac-play-flow', flow); }catch(e){}
   }
-  // 並び順は段ごとに localStorage で保存する
-  function loadShelfOrder(){
-    try{ return JSON.parse(localStorage.getItem('acac-shelf-order') || '{}') || {}; }
-    catch(e){ return {}; }
-  }
-  function saveShelfOrder(order){
-    try{ localStorage.setItem('acac-shelf-order', JSON.stringify(order)); }catch(e){}
-  }
+  /**
+   * **並びは固定（棚の設計順）**（第41弾 2-2）。
+   *
+   * 以前は段ごとの並び順を localStorage（`acac-shelf-order`）に保存して
+   * いた。並び替えのドラッグと対になった仕組みで、④でその操作を廃止した
+   * 時に**書く側だけが到達不能になり、読む側が残っていた**。
+   *
+   * 残したままだと、以前に並び替えたことのある端末だけ設計順と違う棚が出て、
+   * しかも直す手段がもう無い。2-2 が「遊ぶたびに並びを変えない（体の記憶を
+   * 壊さない）」と決めた理由からしても、端末ごとに違う並びは筋が通らない。
+   * **読む側も消して、保存されていた値も片づける。**
+   */
+  try{ localStorage.removeItem('acac-shelf-order'); }catch(e){}
   function cassettesForGenre(genreId){
-    var list = (genreId === 'all') ? CASSETTES.slice()
+    return (genreId === 'all') ? CASSETTES.slice()
       : CASSETTES.filter(function(c){ return cassetteGenres(c).indexOf(genreId) !== -1; });
-    var saved = (loadShelfOrder() || {})[genreId];
-    if(saved && saved.length){
-      var byId = {}; list.forEach(function(c){ byId[c.id] = c; });
-      var ordered = [];
-      saved.forEach(function(id){ if(byId[id]){ ordered.push(byId[id]); delete byId[id]; } });
-      list.forEach(function(c){ if(byId[c.id]) ordered.push(c); }); // 保存後に増えたカセットは末尾へ
-      list = ordered;
-    }
-    return list;
   }
   // ---- あそびかたをえらぶ画面 ----
   // ===== 第41弾 2-4：遊び方の確認 =====
@@ -6037,20 +6056,15 @@
       return '<div class="shelf">' +
         '<div class="shelf-inner">' +
           '<button class="rail-arrow left" data-arrow="-1" aria-label="ひとつ前のカセット">‹</button>' +
-          '<div class="rail" data-rail="' + g.id + '">' + carts + '</div>' +
+          // .rail は窓（はみ出しを切る）。中の .rail-track が動く帯（第41弾 2-9）
+          '<div class="rail" data-rail="' + g.id + '"><div class="rail-track">' + carts + '</div></div>' +
           '<button class="rail-arrow right" data-arrow="1" aria-label="つぎのカセット">›</button>' +
         '</div>' +
         '<div class="board"><span class="sticker">' + escapeHtml(g.label) + '</span></div>' +
       '</div>';
     }).join('');
     document.querySelectorAll('#shelfList .rail').forEach(function(rail){
-      updateRailCenter(rail);
-      var t = null;
-      rail.addEventListener('scroll', function(){
-        updateRailCenter(rail);
-        clearTimeout(t);
-        t = setTimeout(function(){ updateRailCenter(rail); }, 40);
-      });
+      setRailIndex(rail, 0);
       // どの段を操作しているかを覚えておく（キーボード操作の対象になる）
       rail.addEventListener('pointerenter', function(){ shelfActiveRail = rail; });
     });
@@ -6061,15 +6075,8 @@
   function railCarts(rail){ return Array.prototype.slice.call(rail.querySelectorAll('.cart')); }
   function moveRail(rail, dir){
     if(!rail) return;
-    var carts = railCarts(rail);
-    if(!carts.length) return;
-    var cur = carts.indexOf(rail._centerEl || carts[0]);
-    var next = Math.min(carts.length - 1, Math.max(0, cur + dir));
-    if(next === cur) return;
     shelfActiveRail = rail;
-    // 押した瞬間に反応させる（スクロールイベントを待たない）
-    setRailCenter(rail, carts[next]);
-    carts[next].scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+    setRailIndex(rail, (rail._index || 0) + dir);
   }
   el('shelfList').addEventListener('click', function(e){
     var arrow = e.target.closest('.rail-arrow');
@@ -6099,40 +6106,101 @@
       var i = rails.indexOf(shelfActiveRail);
       var n = Math.min(rails.length - 1, Math.max(0, i + (e.key === 'ArrowDown' ? 1 : -1)));
       shelfActiveRail = rails[n];
+      // 段の移動は縦のページ送り。ここは棚全体のスクロールなので、
+      // 横の帯（第41弾で自前にした方）とは別物
       shelfActiveRail.closest('.shelf').scrollIntoView({ behavior:'smooth', block:'nearest' });
-      updateRailCenter(shelfActiveRail);
+      setRailIndex(shelfActiveRail, shelfActiveRail._index || 0);
     } else if(e.key === 'Enter' || e.key === ' '){
       var c = shelfActiveRail._centerEl;
       if(c){ e.preventDefault(); c.click(); }
     }
   });
-  // 中央のカセットだけを大きくする（情報も中央にだけ出す）
-  function updateRailCenter(rail){
-    var rect = rail.getBoundingClientRect();
-    var cx = rect.left + rect.width / 2;
-    var best = null, bestD = Infinity;
-    Array.prototype.forEach.call(rail.querySelectorAll('.cart'), function(c){
-      var r = c.getBoundingClientRect();
-      var d = Math.abs((r.left + r.width / 2) - cx);
-      if(d < bestD){ bestD = d; best = c; }
-    });
-    // 変化がないときは触らない。毎回 class を付け外しすると拡大アニメが再開し続けて
-    // 中央のカセットが大きくならず、高さ変化でスクロールも揺れてしまう
-    setRailCenter(rail, best);
-  }
-  function setRailCenter(rail, best){
-    if(rail._centerEl === best) return;
-    if(rail._centerEl) rail._centerEl.classList.remove('center');
-    if(best) best.classList.add('center');
-    rail._centerEl = best;
+  /**
+   * **いま何枚目かは、数ひとつ（`rail._index`）で決まる**（第41弾 2-9）。
+   *
+   * ここが作り直しの芯。以前は「スクロール位置を測って、いちばん中央に
+   * 近いカセットを中央とみなす」形だった。測った値が権威だったので、
+   * スクロールが動かなくなった時に**印だけが進んで棚が動かない**という
+   * ちぐはぐが起きた（実測で3つぶんずれた）。
+   *
+   * いまは逆向き：数が権威で、見た目（帯の位置・center の印・矢印の可否）は
+   * すべてその数から描き直す。ずれようがない。
+   *
+   * ついでに、座標を測らなくなったので jsdom でも本物と同じ経路が動く。
+   */
+  function setRailIndex(rail, i){
+    if(!rail) return;
+    var carts = railCarts(rail);
+    if(!carts.length) return;
+    i = Math.min(carts.length - 1, Math.max(0, i));
+    rail._index = i;
+
+    // 中央の印。変わっていない時に触らないのは、拡大の動きが再開し続けて
+    // 中央のカセットがいつまでも大きくならないため（第32弾からの決まり）
+    var best = carts[i];
+    if(rail._centerEl !== best){
+      if(rail._centerEl) rail._centerEl.classList.remove('center');
+      best.classList.add('center');
+      rail._centerEl = best;
+    }
     // 端まで来たら矢印を無効化して、押せないことが見て分かるようにする
     var inner = rail.parentNode;
-    var carts = railCarts(rail);
-    var i = carts.indexOf(best);
     var l = inner.querySelector('.rail-arrow.left'), r = inner.querySelector('.rail-arrow.right');
     if(l) l.disabled = (i <= 0);
     if(r) r.disabled = (i >= carts.length - 1);
+
+    applyRailX(rail, 0, false);
   }
+  /**
+   * 数を、帯の位置に写す。
+   *
+   * 送り幅は**実物から測る**（CSSの 124px + 8px を JS に書き写さない）。
+   * 書き写すと、片方だけ直す日が来る（落とし穴1）。
+   * jsdom はレイアウトしないので測ると0になるが、**それで正しい**——
+   * 中央がどれかは数が持っているので、帯の位置は画面の話でしかない。
+   */
+  function railStep(rail){
+    var carts = railCarts(rail);
+    if(carts.length < 2) return 0;
+    return carts[1].offsetLeft - carts[0].offsetLeft;
+  }
+  function applyRailX(rail, dragPx, 掴み中){
+    var track = rail.querySelector('.rail-track');
+    if(!track) return;
+    // 指に貼り付いている間だけ滑りを止める。離したら戻す
+    track.classList.toggle('rail-grab', !!掴み中);
+    track.style.transform = 'translateX(' + (-(rail._index || 0) * railStep(rail) + (dragPx || 0)) + 'px)';
+  }
+  // 画面の幅が変わると、中央に寄せる余白（calc(50% - 62px)）が変わる。
+  // 数は変わらないので、位置だけ測り直せばよい
+  window.addEventListener('resize', function(){
+    document.querySelectorAll('#shelfList .rail').forEach(function(rail){ applyRailX(rail, 0, false); });
+  });
+  /**
+   * **Tabで焦点が当たったカセットまで、棚を送る。**
+   *
+   * カセットは button なので Tab で順に辿れる。以前はブラウザが
+   * 「焦点が当たったものを見えるところまでスクロールする」をやってくれていたが、
+   * 横を clip にした今、ブラウザには寄せる手立てが無い——
+   * **見えていないカセットに焦点だけが乗る**状態になる。
+   *
+   * ただし**指やマウスで押した時の焦点では動かさない**。
+   * 押すと button には焦点が当たるので、そこで中央を移すと
+   * 「中央でない1枚目のタップ＝中央へ寄せる／2枚目＝あそぶ」の2段が壊れ、
+   * 1回のタップでいきなりゲームに入ってしまう（棚の操作の要）。
+   * 直前に押していたかどうかで見分ける。
+   */
+  var 押した時刻 = 0;
+  el('shelfList').addEventListener('pointerdown', function(){ 押した時刻 = Date.now(); }, true);
+  el('shelfList').addEventListener('focusin', function(e){
+    if(Date.now() - 押した時刻 < 700) return;   // 押したことによる焦点は追わない
+    var cart = e.target && e.target.closest ? e.target.closest('.cart') : null;
+    if(!cart) return;
+    var rail = cart.closest('.rail');
+    if(!rail) return;
+    shelfActiveRail = rail;
+    setRailIndex(rail, railCarts(rail).indexOf(cart));
+  });
   // ---------- 第26弾-2：棚の下部バー ----------
   // ログインしていない人にも、同じ形のバーを出す。
   // 仮の名前はアプリを開いた時に1回だけ選ぶ。画面を移るたびに選び直すと、
@@ -6589,21 +6657,22 @@
       : 'あそぶゲームをえらんでね';
     renderShelf();
     renderShelfBar();
-    // レイアウト確定後に中央を計算し直す
+    // 送り幅は実物を測って決めるので、幅が確定してから位置を入れ直す。
+    // **中央がどれかは数が持っている**ので、ここで計算し直すものは無い
     setTimeout(function(){
-      document.querySelectorAll('#shelfList .rail').forEach(updateRailCenter);
+      document.querySelectorAll('#shelfList .rail').forEach(function(rail){ applyRailX(rail, 0, false); });
     }, 30);
   }
   // カセットのタップ：中央なら選択、そうでなければ中央へ寄せる
   el('shelfList').addEventListener('click', async function(e){
-    if(shelfDrag.moved) return; // 並び替え直後のクリックは無視
+    if(shelfSwipe.moved) return; // 指で送った直後のクリックは、選択にしない
     var cart = e.target.closest('.cart');
     if(!cart) return;
     var rail = cart.closest('.rail');
     if(!cart.classList.contains('center')){
       shelfActiveRail = rail;
-      setRailCenter(rail, cart); // 押した瞬間に中央が切り替わる（スクロールを待たない）
-      cart.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+      // 押した瞬間に中央が切り替わる（帯が滑り終わるのを待たない）
+      setRailIndex(rail, railCarts(rail).indexOf(cart));
       return;
     }
     var c = cassetteById(cart.dataset.cart);
@@ -6743,70 +6812,71 @@
   el('gameNextBtn').addEventListener('click', function(){
     selectGame(state.selectedGameId);
   });
-  // ---- 長押しドラッグでカセットを並び替える ----
-  var shelfDrag = { active:false, moved:false, cart:null, rail:null, timer:null, startX:0 };
-  function cancelShelfDragTimer(){ clearTimeout(shelfDrag.timer); shelfDrag.timer = null; }
-  function endShelfReorder(){
-    if(shelfDrag.rail){
-      shelfDrag.rail.classList.remove('reordering');
-      // 並び順を保存
-      var ids = Array.prototype.map.call(shelfDrag.rail.querySelectorAll('.cart'), function(c){ return c.dataset.cart; });
-      var order = loadShelfOrder();
-      order[shelfDrag.rail.dataset.rail] = ids;
-      saveShelfOrder(order);
-    }
-    if(shelfDrag.cart) shelfDrag.cart.classList.remove('dragging');
-    var note = el('shelfReorderNote');
-    if(note) note.remove();
-    shelfDrag.active = false; shelfDrag.cart = null; shelfDrag.rail = null;
-  }
+  /* ---- 指で棚を送る／長押しで説明を開く（第41弾 2-9） ----
+   *
+   * ここには並び替えのドラッグが居た。2-2 が「固定順・遊ぶたびに並びを
+   * 変えない」と決めたので④で廃止し、空いた長押しに 2-7 の説明を載せた。
+   * その時 `shelfDrag.active` を true にする経路も一緒に消えたので、
+   * **後始末（endShelfReorder）・並べ替えの本体・並び順の保存が
+   * まるごと到達不能なまま残っていた**（今回たどって確認した）。
+   *
+   * 2-9 で横送りを自前にしたので、その残骸を消して、
+   * 同じ場所に「指で送る」を置く。役割は3つだけ：
+   *   ・450ms 動かずに押していたら、説明を開く
+   *   ・8px 以上動いたら送る操作にする（説明は開かない）
+   *   ・離したら、いちばん近い1枚に吸い付く
+   */
+  var shelfSwipe = { rail:null, moved:false, startX:0, dx:0, timer:null, id:null };
+  function cancelLongPress(){ clearTimeout(shelfSwipe.timer); shelfSwipe.timer = null; }
   el('shelfList').addEventListener('pointerdown', function(e){
     var cart = e.target.closest('.cart');
     if(!cart) return;
-    shelfDrag.moved = false;
-    shelfDrag.startX = e.clientX;
-    cancelShelfDragTimer();
-    shelfDrag.timer = setTimeout(function(){
-      // **長押しは、並び替えではなく説明を開く**（第41弾 2-2・2-7）。
-      //
-      // 並び替えはここに居たが、2-2 が「固定順・遊ぶたびに並びを変えない」と
-      // 決めたので廃止した（体の記憶を壊さないため）。空いた長押しに、
-      // 2-7 の説明の popup を載せる——取り合いにはならなかった。
-      //
-      // 押した指が動いていたら開かない（スワイプの途中で出さない）
-      if(shelfDrag.moved) return;
+    var rail = cart.closest('.rail');
+    shelfSwipe.rail = rail;
+    shelfSwipe.moved = false;
+    shelfSwipe.startX = e.clientX;
+    shelfSwipe.dx = 0;
+    shelfSwipe.id = e.pointerId;
+    shelfActiveRail = rail;
+    // 指が帯の外（上下）へ少しはみ出しても送り続けられるようにする。
+    // 掴んでいないと、そこで pointermove が届かなくなって途中で固まる
+    try{ if(cart.setPointerCapture) cart.setPointerCapture(e.pointerId); }catch(err){}
+    cancelLongPress();
+    shelfSwipe.timer = setTimeout(function(){
+      // 押した指が動いていたら開かない（送っている途中で出さない）
+      if(shelfSwipe.moved) return;
       doVibrate(30);
       openCassettePopup(cart.dataset.cart);
     }, 450);
   });
   el('shelfList').addEventListener('pointermove', function(e){
-    if(!shelfDrag.active){
-      // 長押し前に大きく動いたらスワイプ扱い（並び替えに入らない）
-      if(shelfDrag.timer && Math.abs(e.clientX - shelfDrag.startX) > 8) cancelShelfDragTimer();
-      return;
+    var rail = shelfSwipe.rail;
+    if(!rail || e.pointerId !== shelfSwipe.id) return;
+    var dx = e.clientX - shelfSwipe.startX;
+    if(!shelfSwipe.moved){
+      if(Math.abs(dx) <= 8) return;       // まだ「押している」の範囲
+      shelfSwipe.moved = true;
+      cancelLongPress();                   // 送る操作に入ったので、説明は開かない
     }
-    e.preventDefault();
-    shelfDrag.moved = true;
-    var carts = Array.prototype.slice.call(shelfDrag.rail.querySelectorAll('.cart'));
-    var target = null;
-    carts.forEach(function(c){
-      if(c === shelfDrag.cart) return;
-      var r = c.getBoundingClientRect();
-      if(e.clientX >= r.left && e.clientX <= r.right) target = c;
-    });
-    if(target){
-      var cur = carts.indexOf(shelfDrag.cart), tgt = carts.indexOf(target);
-      if(cur < tgt) target.after(shelfDrag.cart); else target.before(shelfDrag.cart);
-      updateRailCenter(shelfDrag.rail);
-    }
+    shelfSwipe.dx = dx;
+    // 指に貼り付いて動く（滑らかにするのは離してから）
+    applyRailX(rail, dx, true);
   });
   ['pointerup','pointercancel','pointerleave'].forEach(function(ev){
-    el('shelfList').addEventListener(ev, function(){
-      cancelShelfDragTimer();
-      if(shelfDrag.active){
-        endShelfReorder();
-        setTimeout(function(){ shelfDrag.moved = false; }, 50);
+    el('shelfList').addEventListener(ev, function(e){
+      cancelLongPress();
+      var rail = shelfSwipe.rail;
+      if(!rail){ return; }
+      if(shelfSwipe.moved){
+        // **いちばん近い1枚に吸い付く。**送り幅の半分を越えたら次へ渡す
+        var step = railStep(rail) || 1;
+        var 送り = Math.round(-shelfSwipe.dx / step);
+        setRailIndex(rail, (rail._index || 0) + 送り);
+        doVibrate(10);
+        // 送り終わりのクリックを、カセットの選択として拾わない
+        setTimeout(function(){ shelfSwipe.moved = false; }, 50);
       }
+      shelfSwipe.rail = null; shelfSwipe.id = null; shelfSwipe.dx = 0;
     });
   });
 

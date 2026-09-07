@@ -1,6 +1,7 @@
 // tests/shelf.js — 棚と扉まわり
 //
-// 扉が開いて棚が出る／カセットを選ぶ／並び替え／どこからでも棚に戻れる、を確認する。
+// 扉が開いて棚が出る／カセットを選ぶ／横に送る／どこからでも棚に戻れる、を確認する。
+// （並び替えは第41弾 2-2「固定順」で廃止。長押しは説明を開く役に変わった）
 // 「棚に戻る」導線は、プレイヤー設定で行き止まりになった実績があるので必ず通す。
 
 const H = require('./harness');
@@ -1329,8 +1330,25 @@ function pickCart(doc, id) {
       '0.25秒で横に移る');
     // 「演出の速さ」を掛けてあること。掛け忘れると、速い・スキップにしても棚だけ遅いまま
     assert(/var\(--fx-scale\)/.test(rule), '速さの設定が効く');
-    // 段の中も、飛ばずに滑って移る
-    assert(/\.rail\{[\s\S]*?scroll-behavior:smooth/.test(css), '中央を移す時、滑って移る');
+
+    // **段の中も、飛ばずに滑って移る。**
+    //
+    // この1行はもともと `.rail{…scroll-behavior:smooth` を見ていた。
+    // 2-9 で横送りをブラウザのスクロールから自前の帯に変えたので、
+    // その指定は消えた——が、**「滑って移る」という約束は消えていない**。
+    // 見る先を、いま滑らせている側（.rail-track の transform）へ移す。
+    //
+    // （見張る対象の場所が変わっただけで、規則を緩めてはいない。
+    //   前の書き方 `/\.rail\{[\s\S]*?smooth/` は `[\s\S]*?` が
+    //   ファイル全体に届くので、そもそも .rail に結び付いていなかった。
+    //   ここでは規則の中身を切り出してから見る）
+    const 帯 = css.slice(css.indexOf('\n  .rail-track{'), css.indexOf('\n  .rail-track.rail-grab{'));
+    assert(帯, '.rail-track の指定を読めている');   // 型(b)
+    assert(/transition:transform calc\(0\.25s \* var\(--fx-scale\)\)/.test(帯),
+      '中央を移す時、滑って移る（速さの設定にも従う）');
+    // 指で送っている最中だけは、滑らせず指に貼り付く
+    const 掴み = css.slice(css.indexOf('\n  .rail-track.rail-grab{'), css.indexOf('\n  .cart{'));
+    assert(/transition:none/.test(掴み), '指で送っている間は、指に貼り付いて動く');
   });
 
   await r.test('棚：カセットをタップすると、テーマ色が広がってから中に入る', async () => {

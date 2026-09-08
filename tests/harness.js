@@ -489,12 +489,13 @@ function cssRules(css) {
  * 実際、第41弾で「遊び方の確認」を挟んだ時に何度もそれを踏んだ。
  * **寄せ先をここに1つ置く。** 新しく書くものは、まずこれを呼ぶ。
  */
-async function openCassette(win, doc, id) {
-  const cart = doc.querySelector('.cart[data-cart="' + id + '"]');
+async function openCassette(win, doc, id, el) {
+  // 畳んだ「ほか◯つ準備中」の札には data-cart が無いので、要素そのものも受ける
+  const cart = el || doc.querySelector('.cart[data-cart="' + id + '"]');
   if (!cart) throw new Error('棚に無い: ' + id);
   if (!cart.classList.contains('center')) {
     cart.click();
-    await sleep(win, 150);
+    await sleep(win, 400);   // 輪の座り直し（fxMs(250)+30）を待つ
   }
   cart.click();
   await sleep(win, 800);

@@ -33,20 +33,17 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('棚の構成：段・シール・カセットが並び、どの段も空にならない', async () => {
+  await r.test('棚の構成：1列にカセットが並び、各カセットは1回だけ出る', async () => {
+    // **段は無くなった**（第41弾 2-2）。
+    // 分類ごとに段を作ると、1つのカセットが2つの段に出るか、
+    // どちらかに押し込んで嘘になるかのどちらかになる。
+    // 分類は中央の帯に小さく出す（そちらは帯の検査で見る）
     const { win, doc, errors } = await launch();
-    const stickers = Array.from(doc.querySelectorAll('#shelfList .sticker')).map(s => s.textContent);
-    assertEqual(stickers[0], 'ことばであそぶ', '1段目のジャンル名');
-    assert(!stickers.includes('ぜんぶ'), '「ぜんぶ」の段は出していない');
-    // 第32弾-A-3-8：段の構成を実態に合わせ直した
-    ['ことばであそぶ', '正体をさぐる', 'あたまをつかう', 'かけひき', 'からだをうごかす']
-      .forEach((label) => {
-        assert(stickers.includes(label), '「' + label + '」の段がある');
-      });
-    // 空の段を出さない（何も無い棚は壊れて見える）
-    doc.querySelectorAll('#shelfList .rail').forEach((rail) => {
-      assert(rail.querySelectorAll('.cart').length > 0, 'どの段にもカセットが並んでいる');
-    });
+    assertEqual(doc.querySelectorAll('#shelfList .rail').length, 1, '棚は1列');
+    assertEqual(doc.querySelectorAll('#shelfList .sticker').length, 0, '段のシールはもう無い');
+    assertEqual(doc.querySelectorAll('#shelfList .board').length, 0, '段の板ももう無い');
+    const rail = doc.querySelector('#shelfList .rail');
+    assert(rail.querySelectorAll('.cart').length > 0, 'カセットが並んでいる');
     // **各カセットは棚に1回だけ出る**（第41弾 2-2）。
     // 第32弾は「性格の違うゲームが入ったカセットは両方の段に並べる」
     // としていた——段のある棚では、それが正しかった。
@@ -117,14 +114,19 @@ function pickCart(doc, id) {
   });
 
   await r.test('近日公開のカセットを押しても棚に留まる（壊れない）', async () => {
+    // **準備中は1枚に畳んだ**（第41弾 2-2）。個別には出さない
     const { win, doc, errors } = await launch();
     const soon = doc.querySelector('.cart.soon');
-    assert(soon, '近日公開のカセットがある');
-    assert(soon.querySelector('.soon-tag'), '「近日公開予定」タグが付いている');
-    soon.click(); soon.click();
-    await sleep(win, 150);
+    assert(soon, '準備中の札がある');
+    assert(soon.dataset.more, '畳んだ札（何枚ぶんかを持っている）');
+    assert(/準備中/.test(soon.textContent), '何の札かが読める：' + soon.textContent.replace(/\s+/g, ''));
+    await openCassette(win, doc, null, soon);
     assertEqual(activeScreen(doc), 'scr-shelf', '押しても棚のまま');
-    assertNoErrors(errors, '近日公開カセットで未捕捉の例外');
+    // 長押しでも行き止まりにしない（説明を開く先が無い札なので、理由を出す）
+    soon.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', clientX: 100, clientY: 10 }));
+    await sleep(win, 560);
+    assertEqual(activeScreen(doc), 'scr-shelf', '長押ししても棚のまま');
+    assertNoErrors(errors, '畳んだ札で未捕捉の例外');
     win.close();
   });
 
@@ -210,36 +212,38 @@ function pickCart(doc, id) {
   // ---- PC操作（指示13） ----
   await r.test('矢印ボタンで中央のカセットが移動し、端では無効になる', async () => {
     const { win, doc, errors } = await launch();
-    const rail = doc.querySelector('#shelfList .rail[data-rail="word"]');
-    fakeRects(win, doc, rail); // jsdomは座標を持たないので矩形を偽装する
+    const rail = doc.querySelector('#shelfList .rail');
     const inner = rail.parentNode;
     const left = inner.querySelector('.rail-arrow.left');
     const right = inner.querySelector('.rail-arrow.right');
     assert(left && right, '両端に矢印がある');
-    assert(left.disabled, '先頭では左矢印が無効');
+    // **輪になったので、矢印が無効になる端が無い**（第41弾 2-2）
+    assert(!left.disabled && !right.disabled, '最初から両方押せる');
 
     const ids = cartIds(rail);
     right.click();
-    await sleep(win, 60);
+    await sleep(win, 350);
     assertEqual(rail.querySelector('.cart.center').dataset.cart, ids[1], '右矢印で次のカセットが中央になる');
-    assert(!left.disabled, '移動後は左矢印が有効');
     left.click();
-    await sleep(win, 60);
+    await sleep(win, 350);
     assertEqual(rail.querySelector('.cart.center').dataset.cart, ids[0], '左矢印で戻る');
+    // 先頭から左で、最後尾へ回り込む
+    left.click();
+    await sleep(win, 350);
+    assertEqual(rail.querySelector('.cart.center').dataset.cart, ids[ids.length - 1], '先頭から左で最後尾へ回る');
     assertNoErrors(errors, '矢印操作で未捕捉の例外');
     win.close();
   });
 
   await r.test('キーボードの左右でカセットを移動できる', async () => {
     const { win, doc, errors } = await launch();
-    const rail = doc.querySelector('#shelfList .rail[data-rail="word"]');
-    fakeRects(win, doc, rail);
+    const rail = doc.querySelector('#shelfList .rail');
     const ids = cartIds(rail);
     doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    await sleep(win, 60);
+    await sleep(win, 350);
     assertEqual(rail.querySelector('.cart.center').dataset.cart, ids[1], '→で次へ');
     doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-    await sleep(win, 60);
+    await sleep(win, 350);
     assertEqual(rail.querySelector('.cart.center').dataset.cart, ids[0], '←で戻る');
     assertNoErrors(errors, 'キーボード操作で未捕捉の例外');
     win.close();
@@ -252,13 +256,12 @@ function pickCart(doc, id) {
     // 着手前は「長押しの取り合いになる」と見ていたが、
     // 並び替えが無くなることで衝突は起きなかった。
     const { win, doc, errors } = await launch();
-    const rail = doc.querySelector('#shelfList .rail[data-rail="word"]');
-    const carts = fakeRects(win, doc, rail);
+    const rail = doc.querySelector('#shelfList .rail');
+    const carts = Array.from(rail.querySelectorAll('.cart'));
     const before = cartIds(rail);
     const a = carts[0];
-    const ra = a.getBoundingClientRect();
 
-    a.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', clientX: ra.left + 60, clientY: 10 }));
+    a.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', clientX: 100, clientY: 10 }));
     await sleep(win, 520); // 長押し成立（450ms）を待つ
 
     // 説明が開く
@@ -286,8 +289,8 @@ function pickCart(doc, id) {
     // ui-kit 側に「document のキー操作は全部 anyOpen を見ているか」の掃引を
     // 置いたが、それは**書いてあるか**しか見ない。ここで**効いているか**を見る
     const { win, doc, errors } = await launch();
-    const rail = doc.querySelector('#shelfList .rail[data-rail="word"]');
-    const carts = fakeRects(win, doc, rail);
+    const rail = doc.querySelector('#shelfList .rail');
+    const carts = Array.from(rail.querySelectorAll('.cart'));
     assert(carts.length > 1, '動かせるだけカセットがある（実際:' + carts.length + '枚）');  // 型(b)
 
     carts[0].dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', clientX: 100, clientY: 10 }));

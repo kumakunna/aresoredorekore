@@ -186,9 +186,11 @@ async function withRoom(win, doc) {
   await r.test('近日公開のカセットは、確認より手前で止まる', async () => {
     // 遊び方の鍵は外したが、**まだ中身が無いものは止める**
     const x = await launch({ fakeSocket: true });
-    const soon = x.doc.querySelector('.cart.soon[data-cart]');
-    assert(soon, '近日公開のカセットが棚にある');  // 型(b)
-    await openCassette(x.win, x.doc, soon.dataset.cart);
+    // **準備中は1枚に畳まれている**（第41弾 2-2）。
+    // 畳んだ札は data-cart を持たない——1枚が特定のidを名乗る嘘にしないため
+    const soon = x.doc.querySelector('.cart.soon[data-more]');
+    assert(soon, '準備中の札が棚にある');  // 型(b)
+    await openCassette(x.win, x.doc, null, soon);
     assertEqual(activeScreen(x.doc), 'scr-shelf', '棚に留まる');
     x.win.close();
   });
@@ -216,10 +218,9 @@ async function withRoom(win, doc) {
       '部屋ができても、棚の鍵は変わらない');
 
     // 中身が無いものは止まる（鍵を全部外したわけではない）
-    const soon = doc.querySelector('.cart.soon[data-cart]');
-    assert(soon, '近日公開のカセットがある');
-    assert(soon.classList.contains('locked') || /近日/.test(soon.textContent),
-      '中身が無いものは、それと分かる');
+    const soon = doc.querySelector('.cart.soon[data-more]');
+    assert(soon, '準備中の札がある');
+    assert(/準備中/.test(soon.textContent), '中身が無いものは、それと分かる');
     win.close();
   });
   r.finish();

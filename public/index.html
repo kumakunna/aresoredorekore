@@ -1242,7 +1242,8 @@
   .rail-arrow:hover{opacity:1;}
   .rail-arrow.left{left:4px;}
   .rail-arrow.right{right:4px;}
-  .rail-arrow:disabled{opacity:.2;cursor:default;}
+  /* 第41弾 2-2：棚は輪になったので、矢印が無効になる端がもう無い。
+     押せない見た目（:disabled）は残していない——押せば必ず動く */
   /* PC対応：ホバーで軽く浮かせる（タッチ環境には出さない） */
   @media (hover:hover) and (pointer:fine){
     .cart:hover:not(.center){transform:scale(.79) translateY(2px);filter:brightness(.97) saturate(.95);}
@@ -1380,19 +1381,22 @@
     background:var(--ink);color:var(--paper);font-size:8px;letter-spacing:.06em;
     padding:2px 7px;border-radius:99px;white-space:nowrap;
   }
-  .board{
-    height:15px;margin-top:9px;position:relative;
-    background:linear-gradient(180deg,var(--wood-light),var(--wood) 42%,var(--wood-dark));
-    box-shadow:0 5px 12px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.2);
-    border-radius:2px;
+  .rail-dots{
+    display:flex;justify-content:center;gap:7px;padding:12px 0 2px;
   }
-  .sticker{
-    position:absolute;left:16px;top:-9px;
-    background:var(--card);border:1px solid rgba(0,0,0,.14);
-    padding:3px 10px;border-radius:3px;font-size:10px;font-weight:700;
-    box-shadow:0 2px 5px rgba(0,0,0,.24);transform:rotate(-1.4deg);color:var(--ink);
+  .rail-dot{
+    position:relative;width:7px;height:7px;padding:0;border:none;border-radius:50%;
+    background:rgba(36,39,46,.22);cursor:pointer;
+    transition:transform calc(0.15s * var(--fx-scale)) ease,
+               background calc(0.15s * var(--fx-scale)) ease;
   }
-  .sticker::after{content:'';position:absolute;inset:2px;border:1px dashed rgba(36,39,46,.18);border-radius:2px;}
+  /* 見た目は7pxでも、指は44px四方で受ける（小さい点は押せない） */
+  .rail-dot::after{content:'';position:absolute;inset:-18px;}
+  .rail-dot.on{background:var(--stamp);transform:scale(1.5);}
+  /* 畳んだ「ほか◯つ準備中」の札。近日公開の見た目はそのまま使う */
+  .cart-more .cart-label .title{font-size:11.5px;line-height:1.35;}
+  /* 段の板（.board）と分類のシール（.sticker）は、棚が1列になって
+     出す所が無くなった（第41弾 2-2）。分類は中央の帯が出す */
   .shelf-hint{text-align:center;font-size:10.5px;color:var(--ink-soft);padding:6px 20px 0;line-height:1.7;}
   /* 第26弾-2：棚の下部バー。ログインしていてもいなくても、いつも同じ場所に出る。
      第27弾-2：スクロールしても隠れないよう、画面の下に貼り付ける。
@@ -5738,10 +5742,8 @@
    * **読む側も消して、保存されていた値も片づける。**
    */
   try{ localStorage.removeItem('acac-shelf-order'); }catch(e){}
-  function cassettesForGenre(genreId){
-    return (genreId === 'all') ? CASSETTES.slice()
-      : CASSETTES.filter(function(c){ return cassetteGenres(c).indexOf(genreId) !== -1; });
-  }
+  // 段ごとの絞り込みは、棚が1列になって呼ぶ側が消えた（第41弾 2-2）。
+  // SHELF_GENRES と genreLabel は、中央の帯が分類名を出すのに使うので残す
   // ---- あそびかたをえらぶ画面 ----
   // ===== 第41弾 2-4：遊び方の確認 =====
   // どのカセットについて聞いているかを覚えておく（画面をまたぐので state ではなく近くに置く）
@@ -5997,58 +5999,175 @@
     goTo('scr-shelf');
   });
 
-  function cartHtml(c){
-    var soon = !c.ready;
-    var lock = c.ready ? cassetteLockReason(c) : null;
+  /**
+   * 棚に並べるもの（第41弾 2-2）。
+   *
+   * **段は無くなり、1列になった。**分類ごとに段を作ると、
+   * 1つのカセットが2つの段に出るか、どちらかに押し込んで嘘になるかの
+   * どちらかになる（②で genre を1つに寄せた時に整理した）。
+   * 分類は中央の帯に小さく出す。
+   *
+   * **準備中は最後尾に1枚だけ畳む。**7枚の「？」が並ぶ棚は、
+   * 遊べるものを探しに来た人の邪魔でしかない。
+   * それでも0枚にはしない——「まだ増える」ことは伝えたい。
+   */
+  function shelfItems(){
+    var out = [], soon = 0;
+    CASSETTES.forEach(function(c){
+      if(c.ready) out.push({ kind:'cart', id:c.id, c:c });
+      else soon++;
+    });
+    if(soon) out.push({ kind:'more', n:soon });
+    return out;
+  }
+  function tileHtml(it){
+    if(it.kind === 'more'){
+      // **畳んだ札には data-cart を付けない。**
+      // 付けると「7枚を代表する1枚が、特定のidを名乗る」嘘になるし、
+      // カセットを探す側の querySelector が畳んだ札を拾ってしまう
+      return '<button class="cart soon cart-more" data-more="' + it.n + '">' +
+        '<div class="cart-body">' +
+          '<div class="cart-label"><div class="icon">🔧</div>' +
+          '<div class="title">ほか' + it.n + 'つ<br>準備中</div></div>' +
+        '</div>' +
+        '<div class="cart-meta">おたのしみに</div>' +
+      '</button>';
+    }
+    var c = it.c;
     // ロゴ画像があるカセットは、絵文字＋文字ではなくロゴを1枚貼る（ソフトのパッケージらしくなる）
     var face = c.logo
       ? '<img class="cart-logo" src="' + c.logo + '" alt="' + escapeHtml((c.title || '').replace(/<br>/g, '')) + '">'
       : '<div class="icon">' + c.icon + '</div>' + (c.title ? '<div class="title">' + c.title + '</div>' : '');
-    return '<button class="cart' + (soon ? ' soon' : '') + (lock ? ' locked' : '') +
-      '" data-cart="' + c.id + '">' +
+    return '<button class="cart" data-cart="' + c.id + '">' +
       '<div class="cart-body">' +
         '<div class="cart-label' + (c.logo ? ' has-logo' : '') + '">' + face + '</div>' +
-        (soon ? '<div class="soon-tag">近日公開予定</div>' : '') +
-        // 第32弾-A：いまのあそびかたでは遊べないカセットは、押す前に理由が読める
-        (lock ? '<div class="cart-lock">' + escapeHtml(lock) + '</div>' : '') +
       '</div>' +
-      '<div class="cart-meta">' + (c.meta || 'おたのしみに') + '</div>' +
+      // 2-2：**すべてのタイルに人数と時間を出す**（選ばれていないタイルにも）。
+      // 手書きの meta ではなく①の導出を使う——手書きだと、
+      // minPlayers を変えた日に棚だけ古い数字を出し続ける
+      '<div class="cart-meta">' + escapeHtml(cassetteMetaText(c) || 'おたのしみに') + '</div>' +
     '</button>';
   }
   function renderShelf(){
-    el('shelfList').innerHTML = SHELF_GENRES.map(function(g){
-      var carts = cassettesForGenre(g.id).map(cartHtml).join('');
-      return '<div class="shelf">' +
-        '<div class="shelf-inner">' +
-          '<button class="rail-arrow left" data-arrow="-1" aria-label="ひとつ前のカセット">‹</button>' +
-          // .rail は窓（はみ出しを切る）。中の .rail-track が動く帯（第41弾 2-9）
-          '<div class="rail" data-rail="' + g.id + '"><div class="rail-track">' + carts + '</div></div>' +
-          '<button class="rail-arrow right" data-arrow="1" aria-label="つぎのカセット">›</button>' +
-        '</div>' +
-        '<div class="board"><span class="sticker">' + escapeHtml(g.label) + '</span></div>' +
-      '</div>';
-    }).join('');
-    document.querySelectorAll('#shelfList .rail').forEach(function(rail){
-      setRailIndex(rail, 0);
-      // どの段を操作しているかを覚えておく（キーボード操作の対象になる）
-      rail.addEventListener('pointerenter', function(){ shelfActiveRail = rail; });
-    });
-    shelfActiveRail = document.querySelector('#shelfList .rail');
+    var items = shelfItems();
+    el('shelfList').innerHTML = '<div class="shelf">' +
+      '<div class="shelf-inner">' +
+        '<button class="rail-arrow left" data-arrow="-1" aria-label="ひとつ前のカセット">‹</button>' +
+        // .rail は窓（はみ出しを切る）。中の .rail-track が動く帯（第41弾 2-9）
+        '<div class="rail" data-rail="all"><div class="rail-track">' +
+          items.map(tileHtml).join('') +
+        '</div></div>' +
+        '<button class="rail-arrow right" data-arrow="1" aria-label="つぎのカセット">›</button>' +
+      '</div>' +
+      // 2-2：**位置の目印は必須。**輪にすると「あと何枚あるか」「いま何枚目か」が
+      // 端の手応えから分からなくなるので、代わりに出す
+      '<div class="rail-dots" id="shelfDots"></div>' +
+    '</div>';
+    var rail = shelfRail();
+    if(rail){ rail._index = 0; rail._slide = 0; railSeats(rail); railMark(rail); applyRailX(rail, 0, false); }
+    shelfActiveRail = rail;
   }
+  function shelfRail(){ return document.querySelector('#shelfList .rail'); }
   // ---- PC操作：矢印ボタンとキーボードでカセットを動かす ----
   var shelfActiveRail = null;
   function railCarts(rail){ return Array.prototype.slice.call(rail.querySelectorAll('.cart')); }
   function moveRail(rail, dir){
     if(!rail) return;
     shelfActiveRail = rail;
-    setRailIndex(rail, (rail._index || 0) + dir);
+    railBy(rail, dir);
+  }
+  /** 輪の余り（負の数でも正しく回る） */
+  function ringMod(i, n){ return ((i % n) + n) % n; }
+  /**
+   * **席を配り直す。**中央のカセットが、いつも真ん中の席に座る。
+   *
+   * 輪にする方法はいくつかあるが、**カセット1枚につきDOMも1枚**に保った。
+   * 継ぎ目のために写しを作ると 「.cart[data-cart=jinro]」 が2枚以上になり、
+   * 「棚に1回だけ出る」も、検査の67箇所の querySelector も、
+   * 写しを拾うかどうかで意味が変わってしまう。
+   * 動かすのは **flex の席順（order）だけ**で、DOMの並びは一生変わらない。
+   */
+  function railSeats(rail){
+    var carts = railCarts(rail), n = carts.length;
+    if(!n) return;
+    var home = Math.floor(n / 2);
+    var idx = rail._index || 0;
+    carts.forEach(function(c, i){ c.style.order = ringMod(i - idx + home, n); });
+  }
+  /** 中央の印・位置の目印。**見た目はぜんぶ _index から描き直す**（ずれようがない） */
+  function railMark(rail){
+    var carts = railCarts(rail), n = carts.length;
+    if(!n) return;
+    var best = carts[ringMod(rail._index || 0, n)];
+    if(rail._centerEl !== best){
+      if(rail._centerEl) rail._centerEl.classList.remove('center');
+      best.classList.add('center');
+      rail._centerEl = best;
+    }
+    var dots = el('shelfDots');
+    if(dots){
+      if(dots.children.length !== n){
+        dots.innerHTML = carts.map(function(c, i){
+          return '<button class="rail-dot" data-dot="' + i + '" aria-label="' + (i + 1) + '枚目"></button>';
+        }).join('');
+      }
+      Array.prototype.forEach.call(dots.children, function(d, i){
+        d.classList.toggle('on', i === ringMod(rail._index || 0, n));
+      });
+      dots.setAttribute('aria-label', (ringMod(rail._index || 0, n) + 1) + ' / ' + n + '枚目');
+    }
+  }
+  /**
+   * 送りの終わり。**席を貼り替えて、帯を原点へ戻す。**
+   *
+   * 貼り替えた瞬間の絵は、貼り替える前と同じ——
+   * 「1枚ぶん滑った状態」と「席が1つずれて原点にいる状態」は同じ見た目なので、
+   * 継ぎ目で飛ばない。滑りを一度切ってから戻すのは、
+   * 戻る動きが見えてしまうため
+   */
+  function railSettle(rail){
+    if(rail._settleTimer){ clearTimeout(rail._settleTimer); rail._settleTimer = null; }
+    if(!rail._slide) return;
+    rail._slide = 0;
+    railSeats(rail);
+    applyRailX(rail, 0, true);   // 掴んでいる時と同じ＝滑らせない
+    void rail.offsetWidth;       // ここで一度確定させないと、戻りが動いて見える
+    applyRailX(rail, 0, false);
+  }
+  /** ◯枚ぶん送る。**輪なので端が無い**（最後の次は最初） */
+  function railBy(rail, delta){
+    var carts = railCarts(rail), n = carts.length;
+    if(!rail || n < 2 || !delta) return;
+    railSettle(rail);              // 前の送りが残っていたら、先に片づける
+    rail._index = ringMod((rail._index || 0) + delta, n);
+    railMark(rail);                // 押した瞬間に、印と目印が動く（滑り終わりを待たない）
+    // 3枚以上を一度に飛ぶと、輪の反対側が見えてしまう。そこは滑らせずに飛ぶ
+    if(Math.abs(delta) > 2){ rail._slide = 0; railSeats(rail); applyRailX(rail, 0, false); return; }
+    rail._slide = -delta * railStep(rail);
+    applyRailX(rail, 0, false);
+    rail._settleTimer = setTimeout(function(){ railSettle(rail); }, fxMs(250) + 30);
+  }
+  /** そのカセットを中央へ。**輪なので、近い方の向きに回る** */
+  function railTo(rail, i){
+    var carts = railCarts(rail), n = carts.length;
+    if(!rail || !n) return;
+    var d = ringMod(i - (rail._index || 0), n);
+    railBy(rail, d > n / 2 ? d - n : d);
   }
   el('shelfList').addEventListener('click', function(e){
     var arrow = e.target.closest('.rail-arrow');
-    if(!arrow) return;
-    e.stopPropagation();
-    var rail = arrow.parentNode.querySelector('.rail');
-    moveRail(rail, parseInt(arrow.dataset.arrow, 10));
+    if(arrow){
+      e.stopPropagation();
+      moveRail(arrow.parentNode.querySelector('.rail'), parseInt(arrow.dataset.arrow, 10));
+      return;
+    }
+    // 位置の目印そのものを押して飛べる（片手で端まで送るのは遠い）
+    var dot = e.target.closest('.rail-dot');
+    if(dot){
+      e.stopPropagation();
+      var rail = shelfRail();
+      if(rail){ shelfActiveRail = rail; railTo(rail, parseInt(dot.dataset.dot, 10)); }
+    }
   });
   document.addEventListener('keydown', function(e){
     if(!el('scr-shelf').classList.contains('active')) return;
@@ -6061,21 +6180,13 @@
     // ESC は部品側（ui.js）が自分で拾うので、ここは黙って引き下がるだけでよい。
     if(typeof UiKit !== 'undefined' && UiKit.anyOpen()) return;
     if(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
-    var rails = Array.prototype.slice.call(document.querySelectorAll('#shelfList .rail'));
-    if(!rails.length) return;
-    if(!shelfActiveRail || rails.indexOf(shelfActiveRail) === -1) shelfActiveRail = rails[0];
+    // **上下で段を移る操作は無くなった**（第41弾 2-2：棚は1列）。
+    // 段が1つしか無いのに上下を拾うと、何も起きないキーができる
+    shelfActiveRail = shelfRail();
+    if(!shelfActiveRail) return;
     if(e.key === 'ArrowLeft'){ e.preventDefault(); moveRail(shelfActiveRail, -1); }
     else if(e.key === 'ArrowRight'){ e.preventDefault(); moveRail(shelfActiveRail, 1); }
-    else if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
-      e.preventDefault();
-      var i = rails.indexOf(shelfActiveRail);
-      var n = Math.min(rails.length - 1, Math.max(0, i + (e.key === 'ArrowDown' ? 1 : -1)));
-      shelfActiveRail = rails[n];
-      // 段の移動は縦のページ送り。ここは棚全体のスクロールなので、
-      // 横の帯（第41弾で自前にした方）とは別物
-      shelfActiveRail.closest('.shelf').scrollIntoView({ behavior:'smooth', block:'nearest' });
-      setRailIndex(shelfActiveRail, shelfActiveRail._index || 0);
-    } else if(e.key === 'Enter' || e.key === ' '){
+    else if(e.key === 'Enter' || e.key === ' '){
       var c = shelfActiveRail._centerEl;
       if(c){ e.preventDefault(); c.click(); }
     }
@@ -6093,29 +6204,6 @@
    *
    * ついでに、座標を測らなくなったので jsdom でも本物と同じ経路が動く。
    */
-  function setRailIndex(rail, i){
-    if(!rail) return;
-    var carts = railCarts(rail);
-    if(!carts.length) return;
-    i = Math.min(carts.length - 1, Math.max(0, i));
-    rail._index = i;
-
-    // 中央の印。変わっていない時に触らないのは、拡大の動きが再開し続けて
-    // 中央のカセットがいつまでも大きくならないため（第32弾からの決まり）
-    var best = carts[i];
-    if(rail._centerEl !== best){
-      if(rail._centerEl) rail._centerEl.classList.remove('center');
-      best.classList.add('center');
-      rail._centerEl = best;
-    }
-    // 端まで来たら矢印を無効化して、押せないことが見て分かるようにする
-    var inner = rail.parentNode;
-    var l = inner.querySelector('.rail-arrow.left'), r = inner.querySelector('.rail-arrow.right');
-    if(l) l.disabled = (i <= 0);
-    if(r) r.disabled = (i >= carts.length - 1);
-
-    applyRailX(rail, 0, false);
-  }
   /**
    * 数を、帯の位置に写す。
    *
@@ -6127,14 +6215,28 @@
   function railStep(rail){
     var carts = railCarts(rail);
     if(carts.length < 2) return 0;
-    return carts[1].offsetLeft - carts[0].offsetLeft;
+    // **席の差で割る。**輪にしてから、並びの順（DOM）と見えている順（order）は
+    // もう一致しない。DOMで隣どうしの2枚が、画面では3つ離れた席に座っていることがある。
+    // 「席が1つ違うと何px違うか」を出したいので、席の差で割る
+    var a = carts[0], b = carts[1];
+    var d = (Number(b.style.order) || 0) - (Number(a.style.order) || 0);
+    if(!d) return 0;
+    return (b.offsetLeft - a.offsetLeft) / d;
   }
   function applyRailX(rail, dragPx, 掴み中){
     var track = rail.querySelector('.rail-track');
     if(!track) return;
     // 指に貼り付いている間だけ滑りを止める。離したら戻す
     track.classList.toggle('rail-grab', !!掴み中);
-    track.style.transform = 'translateX(' + (-(rail._index || 0) * railStep(rail) + (dragPx || 0)) + 'px)';
+    // **休んでいる時は、まんなかの席が窓の中央に来る位置。**
+    //
+    // 帯の左右の余白（calc(50% - 62px)）は「0番目の席が中央に来る」形なので、
+    // まんなかの席（home）を中央に置くには home 枚ぶん左へずらしておく。
+    // ここを 0 のままにすると、実測で 458px ずれた（中央の札が窓の外に出る）。
+    // 動くのはそこからの差——「送っている最中（_slide）」と「指で掴んでいる間」だけ
+    var home = Math.floor(railCarts(rail).length / 2);
+    var base = -home * railStep(rail);
+    track.style.transform = 'translateX(' + (base + (rail._slide || 0) + (dragPx || 0)) + 'px)';
   }
   // 画面の幅が変わると、中央に寄せる余白（calc(50% - 62px)）が変わる。
   // 数は変わらないので、位置だけ測り直せばよい
@@ -6164,7 +6266,7 @@
     var rail = cart.closest('.rail');
     if(!rail) return;
     shelfActiveRail = rail;
-    setRailIndex(rail, railCarts(rail).indexOf(cart));
+    railTo(rail, railCarts(rail).indexOf(cart));
   });
   // ---------- 第26弾-2：棚の下部バー ----------
   // ログインしていない人にも、同じ形のバーを出す。
@@ -6604,7 +6706,12 @@
     if(!cart.classList.contains('center')){
       shelfActiveRail = rail;
       // 押した瞬間に中央が切り替わる（帯が滑り終わるのを待たない）
-      setRailIndex(rail, railCarts(rail).indexOf(cart));
+      railTo(rail, railCarts(rail).indexOf(cart));
+      return;
+    }
+    // 畳んだ「ほか◯つ準備中」の札。中身が無いので、押しても入らない
+    if(cart.dataset.more){
+      showFlash('🔧 ほか' + cart.dataset.more + 'つ、じゅんび中です', 'hit');
       return;
     }
     var c = cassetteById(cart.dataset.cart);
@@ -6778,6 +6885,13 @@
       // 押した指が動いていたら開かない（送っている途中で出さない）
       if(shelfSwipe.moved) return;
       doVibrate(30);
+      // 畳んだ「ほか◯つ準備中」の札には data-cart が無い。
+      // そのまま渡すと undefined で**黙って何も起きない**——
+      // 長押しの効かない札が1枚だけある状態は、壊れて見える
+      if(cart.dataset.more){
+        showFlash('🔧 ほか' + cart.dataset.more + 'つ、じゅんび中です', 'hit');
+        return;
+      }
       openCassettePopup(cart.dataset.cart);
     }, 450);
   });
@@ -6790,9 +6904,14 @@
       shelfSwipe.moved = true;
       cancelLongPress();                   // 送る操作に入ったので、説明は開かない
     }
-    shelfSwipe.dx = dx;
+    // **1枚ぶんより先へは行かせない。**
+    // 輪は「中央の左右に何枚か」で成り立っているので、指で一気に振ると
+    // 席の端の先（何も無い所）が見えてしまう。
+    // 1回のスワイプで1枚、は 2-2 の「1本ずつ吸い付く」とも合っている
+    var 限度 = (railStep(rail) || 132) * 1.15;
+    shelfSwipe.dx = Math.max(-限度, Math.min(限度, dx));
     // 指に貼り付いて動く（滑らかにするのは離してから）
-    applyRailX(rail, dx, true);
+    applyRailX(rail, shelfSwipe.dx, true);
   });
   ['pointerup','pointercancel','pointerleave'].forEach(function(ev){
     el('shelfList').addEventListener(ev, function(e){
@@ -6803,7 +6922,7 @@
         // **いちばん近い1枚に吸い付く。**送り幅の半分を越えたら次へ渡す
         var step = railStep(rail) || 1;
         var 送り = Math.round(-shelfSwipe.dx / step);
-        setRailIndex(rail, (rail._index || 0) + 送り);
+        if(送り) railBy(rail, 送り); else applyRailX(rail, 0, false);
         doVibrate(10);
         // 送り終わりのクリックを、カセットの選択として拾わない
         setTimeout(function(){ shelfSwipe.moved = false; }, 50);

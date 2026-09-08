@@ -4422,6 +4422,86 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     b2.win.close();
   });
 
+  await r.test('棚で部屋を見失わない。持っている時だけ帰り道が出る（第41弾の穴）', async () => {
+    // **2-1・2-8 で棚から「部屋」ボタンを外したのは正しい**——
+    // あれは部屋を**作る**入口で、入口で分かれた今は要らない。
+    // だが**持っている部屋への帰り道**まで一緒に消えていた。
+    //
+    // ① 待合 →「ゲームをえらぶ」→ 棚 で、何も選ばずにいると戻れない
+    // ② 開き直して2秒でつながらず棚へ通したあと、回復しても道が無い
+    //    （rtSync は棚にいる時は何もしない）
+    const { win, doc, errors } = await launch(LAUNCH);
+
+    // **持っていない時は出さない**（ふだんの棚を静かなままにする。型b の裏返し）
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    assertEqual(win.roomProbe().room, false, 'まだ部屋を持っていない');
+    assert(!win.shelfRoomNoteShown(), '部屋が無い時は、帰り道の1行を出さない');
+
+    // ① 部屋を持って棚に出ると、帰り道が出る
+    await toRoom(win, doc, { pick: false });
+    click(doc, 'rtPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assertEqual(win.roomProbe().room, true, '部屋は持ったまま');   // 型(b)
+    assert(win.shelfRoomNoteShown(), '棚に帰り道の1行が出る');
+    const 札 = el(doc, 'shelfRoomNote').textContent;
+    assert(/部屋/.test(札), '何の道か分かる（実際: ' + 札.replace(/s+/g, ' ') + '）');
+
+    // 押すと 2-1-2 の確認へ（**確認の画面は1つのまま**。二重に作らない）
+    click(doc, 'shelfRoomNote');
+    await waitScreen(win, doc, 'scr-room-open', 3000);
+    click(doc, 'roomOpenBackBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 3000);
+    assertNoErrors(errors, '棚の帰り道で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('2秒であきらめた後につながっても、帰り道が出る（第41弾の穴）', async () => {
+    // **これが本題。**2-12「棚で通信が切れる → 棚は動く」を守るために
+    // 2秒であきらめて棚へ通す。そのあと回復した時、
+    // 部屋に居るのにそこへ行く道がどこにも無い、という形になっていた。
+    // 学校のWi-Fiなら2秒を超えることは普通にある
+    const 記憶 = JSON.stringify({ code: 'ABC234', memberId: 'm1', name: 'あき', role: 'player' });
+
+    // つながらない環境で開き直す＝棚へ通される（2-12）
+    const { win, doc, errors } = await launch({ atEntry: true, storage: { 'acac-room': 記憶 } });
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-shelf', 5000);
+    assert(!win.shelfRoomNoteShown(), 'つながっていないうちは、まだ何も言わない');
+
+    assertEqual(activeScreen(doc), 'scr-shelf', '棚にいる（2-12：棚はローカルなので動く）');
+    assertEqual(win.roomProbe().room, false, 'まだ部屋の中身は持っていない');
+    win.close();
+  });
+
+  await r.test('回復して部屋に戻れた瞬間、棚に帰り道が出る（第41弾の穴の本題）', async () => {
+    // 2秒であきらめて棚へ通したあと、**つながって部屋に復帰した**場面。
+    // rtSync は棚にいる時は何もしないので、ここで出さないと
+    // **部屋に居るのに、そこへ行く道がどこにも無い**まま残る
+    const 記憶 = JSON.stringify({ code: 'ABC234', memberId: 'm1', name: 'あき', role: 'player' });
+    const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, {
+      atEntry: true, storage: { 'acac-room': 記憶 }
+    }));
+    const fake = win.__rtFake;
+    // 最初は「部屋が見つからない」と答える＝棚へ通される
+    fake.replies = { 'room:peek': () => ({ ok: false, error: 'timeout' }) };
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-shelf', 5000);
+    assert(!win.shelfRoomNoteShown(), 'この時点では帰り道を出していない');  // 型(b)
+
+    // **回復する。**つなぎ直すと、通信層が同じメンバーとして入り直す
+    // （state.code / memberId は端末の記憶から戻っている）
+    fake.replies['room:join'] = () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() });
+    fake.fire('connect');
+    await waitFor(win, () => win.shelfRoomNoteShown(), 3000, '棚に帰り道が出る');
+
+    assertEqual(win.roomProbe().room, true, '部屋に復帰できている');
+    assert(win.shelfRoomNoteShown(), '**回復したら、棚に帰り道が出る**');
+    click(doc, 'shelfRoomNote');
+    await waitScreen(win, doc, 'scr-room-open', 3000);
+    assertNoErrors(errors, '回復後の帰り道で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('全ゲーム：開始の合図が届くと3-2-1が画面に出る（正本ループ）', async () => {
     // どのゲームの部屋でも、同じ合図で同じ3-2-1が出ること。
     // ゲーム一覧は正本（GAME_DRIVERS由来）から回すので、新ゲームも自動で対象になる

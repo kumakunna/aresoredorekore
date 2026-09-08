@@ -1459,6 +1459,16 @@
   }
   .heads-btn.on{background:var(--ink);color:var(--paper);border-color:var(--ink);}
   .heads-btn:active{transform:scale(.97);}
+  /* 棚で部屋を見失わないための1行（第41弾の穴を塞ぐ）。
+     持っている時だけ出るので、ふだんの棚は静かなまま */
+  .shelf-room-note{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    width:calc(100% - 28px);margin:10px 14px 0;min-height:44px;
+    background:var(--card);border:1.5px solid var(--teal);border-radius:12px;
+    padding:8px 14px;font-size:12.5px;color:var(--ink);
+    cursor:pointer;font-family:inherit;
+  }
+  .shelf-room-note:active{transform:scale(.99);}
   /* 第41弾 2-3：人数チップ。押すといつでも変えられる */
   .shelf-chip{
     margin-top:8px;background:var(--card);border:1px solid var(--line);
@@ -3263,6 +3273,10 @@
            人数に合わないカセットは消さずに沈める（選べるし、説明も読める） -->
       <button class="shelf-chip" id="shelfChip"></button>
     </div>
+    <!-- 部屋を持ったまま棚に来た人が、待合へ戻れなくならないための1行。
+         **持っている時だけ出る**（2-1・2-8 で外した「部屋」ボタンとは別物——
+         あれは部屋を作る入口、これは持っている部屋への帰り道） -->
+    <button class="shelf-room-note" id="shelfRoomNote" style="display:none;"></button>
     <div id="shelfList"></div>
     <!-- 第41弾 2-2：中央の帯。ここだけが、選んだカセットの世界の色になる -->
     <div class="sw-band" id="shelfBand"></div>
@@ -5779,6 +5793,10 @@
     return { host: !!(rt && rt.isHost()), room: !!(rt && rt.state.room),
              ゲストになる道: el('rtToGuestBtn') ? el('rtToGuestBtn').style.display !== 'none' : false };
   };
+  window.shelfRoomNoteShown = function(){
+    var n = el('shelfRoomNote');
+    return !!(n && n.style.display !== 'none');
+  };
   window.headsProbe = function(){ return { heads: headCount(), 見当: shelfHeads }; };
   window.roomProbe = function(){ return { room: !!(rt && rt.state.room), host: !!(rt && rt.isHost()),
     code: (rt && rt.state.code) || null, memberId: (rt && rt.state.memberId) || null }; };
@@ -6245,6 +6263,32 @@
     chip.textContent = n ? ('👥 ' + n + '人　▾') : '👥 なんにん？';
   }
   el('shelfChip').addEventListener('click', function(){ askHeads(); });
+  /**
+   * **棚で部屋を見失わない**（第41弾の穴。本人の指摘で見つかった）。
+   *
+   * 2-1・2-8 で棚から「部屋」ボタンを外した。それは正しい——
+   * あれは部屋を**作る**入口で、入口で分かれた今は要らない。
+   * だが**持っている部屋への帰り道**まで一緒に消えていた：
+   *
+   *   ・待合 →「ゲームをえらぶ」→ 棚 で、何も選ばずにいると戻れない
+   *   ・開き直した時、2秒でつながらなければ棚へ通す（2-12「棚は動く」）。
+   *     そのあと回復しても rtSync は棚では何もしないので、
+   *     **部屋に居るのに、そこへ行く道がどこにも無い**状態になる
+   *
+   * どちらも「持っている時だけ1行出す」で塞がる。
+   * 押すと 2-1-2 の「いま開いている部屋」へ——**確認の画面は1つのまま**。
+   */
+  function renderShelfRoomNote(){
+    var note = el('shelfRoomNote');
+    if(!note) return;
+    var ある = !!(rt && rt.state.room);
+    note.style.display = ある ? '' : 'none';
+    if(!ある) return;
+    var T = (typeof UiText !== 'undefined') ? UiText.ENTRY.部屋あり : null;
+    note.textContent = (T ? T.見出し : 'いま開いている部屋があります') +
+      '　' + ((typeof UiText !== 'undefined') ? UiText.WORDS.back : 'もどる') + ' ›';
+  }
+  el('shelfRoomNote').addEventListener('click', function(){ goTo('scr-room-open'); });
   /** 人数をたずねる（sheet）。**軽く聞く。答えなくても閉じられる** */
   function askHeads(){
     if(typeof UiKit === 'undefined') return;
@@ -7015,6 +7059,7 @@
     renderShelf();
     renderShelfBar();
     renderShelfChip();
+    renderShelfRoomNote();
     // 送り幅は実物を測って決めるので、幅が確定してから位置を入れ直す。
     // **中央がどれかは数が持っている**ので、ここで計算し直すものは無い
     setTimeout(function(){
@@ -15176,7 +15221,15 @@
     rt.on('room', function(){ rtNoticeConnections(); rtSync(); });
     rt.on('memberGone', rtNoticeMemberGone); // 第35弾B：退室・kickの知らせ（理由つき）
     rt.on('you', function(){ rtSync(); });
-    rt.on('rejoined', function(){ rtSync(); });
+    rt.on('rejoined', function(){
+      rtSync();
+      // **2秒であきらめて棚へ通した後、つながった場合。**
+      // rtSync は棚にいる時は何もしないので、ここで帰り道を出す
+      if((document.querySelector('.screen.active') || {}).id === 'scr-shelf'){
+        renderShelfRoomNote();
+        renderShelfChip();   // 人数も実数に置き換わる（2-3）
+      }
+    });
     // 第27弾-1：つなぎ直したら部屋が無くなっていた時。
     // サーバーが再起動したか、誰も繋がっていない時間が続いて片付けられたか。
     // 以前はここで何も起きず、画面が前のまま固まっていた（押しても無反応）。

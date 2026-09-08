@@ -907,7 +907,13 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 第35弾A：「部屋」ボタンの在室判定用。memberId を添えて覗くと、
       // 部屋があるかどうかに加えて「自分がまだ名簿にいるか」も返す。
       // 在室判定は端末の記憶ではなく、必ずこの返事で決める（サーバーが権威）
-      if (payload && payload.memberId) res.you = room.members.has(payload.memberId);
+      if (payload && payload.memberId) {
+        res.you = room.members.has(payload.memberId);
+        // 第41弾 2-1-2：**進行役かどうかもサーバーが答える。**
+        // 開き直した直後の端末は名簿（room）を持っていないので、
+        // 手元では判断できない。判断できないことを聞かせない
+        res.host = room.hostMemberId === payload.memberId;
+      }
       cb(res);
     });
 

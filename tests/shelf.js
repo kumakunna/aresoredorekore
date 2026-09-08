@@ -1758,5 +1758,53 @@ function pickCart(doc, id) {
     b.win.close();
   });
 
+  await r.test('帯の「はじめる」も、タイルと同じ確認を通る（2-4・実サーバーで見つけた）', async () => {
+    // **遊び始める入口が2つあって、片方だけ確認を飛ばしていた。**
+    // タイルのタップは playWayPlan を通り、帯の「はじめる」は
+    // startCassette を直に呼んでいた——人狼（両方対応・部屋なし）で、
+    // タイルからは「どうやって遊ぶ？」が出るのに帯からは出ずに
+    // ゲーム選択へ行っていた（落とし穴1そのもの。実サーバーで見つけた）
+    const 道 = async (どこから) => {
+      const { win, doc } = await launch();
+      const rail = doc.querySelector('#shelfList .rail');
+      const 右 = rail.parentNode.querySelector('.rail-arrow.right');
+      for (let i = 0; i < 9 && (rail.querySelector('.cart.center') || {}).dataset.cart !== 'jinro'; i++) {
+        右.click(); await sleep(win, 350);
+      }
+      assertEqual((rail.querySelector('.cart.center') || {}).dataset.cart, 'jinro', '人狼を中央にできた');
+      if (どこから === '帯') click(doc, 'swStartBtn');
+      else rail.querySelector('.cart.center').click();
+      await sleep(win, 900);
+      const 着いた先 = activeScreen(doc);
+      win.close();
+      return 着いた先;
+    };
+    const タイル = await 道('タイル');
+    const 帯 = await 道('帯');
+    assertEqual(タイル, 'scr-play-way', 'タイルからは確認が出る');
+    assertEqual(帯, タイル, '帯からも同じところに着く（入口で振る舞いを変えない）');
+  });
+
+  await r.test('人数を変えても、いま見ているカセットを失わない（実サーバーで見つけた）', async () => {
+    // 人数チップを変えると棚を描き直すが、そのたびに先頭へ戻っていた。
+    // 遊ぶ人には「人数を直したら、見ていたカセットがどこかへ行った」に見える
+    const { win, doc, errors } = await launch();
+    const rail = doc.querySelector('#shelfList .rail');
+    const 右 = rail.parentNode.querySelector('.rail-arrow.right');
+    右.click(); await sleep(win, 350);
+    右.click(); await sleep(win, 350);
+    const 前 = (rail.querySelector('.cart.center') || {}).dataset.cart;
+    assert(前 && 前 !== 'aresoredorekore', '先頭ではないカセットを中央にできた（実際:' + 前 + '）');  // 型(b)
+
+    click(doc, 'shelfChip');
+    await sleep(win, 200);
+    doc.querySelector('[data-heads="8"]').click();
+    await sleep(win, 300);
+    const 後 = (doc.querySelector('#shelfList .rail .cart.center') || {}).dataset.cart;
+    assertEqual(後, 前, '人数を変えても、見ていたカセットが中央のまま');
+    assertNoErrors(errors, '人数を変えた時に未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

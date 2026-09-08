@@ -118,11 +118,13 @@
       // 第32弾-B-1：部屋から出された。理由を伝えて、画面が固まらないようにする
       socket.on('room:kicked', function (p) {
         state.code = null; state.memberId = null; state.room = null; state.secret = null;
+        部屋を覚える();   // 出されたら忘れる
         emitLocal('kicked', p || {});
         emitLocal('status', state);
       });
       socket.on('room:closed', function (p) {
         state.code = null; state.memberId = null; state.room = null; state.secret = null;
+        部屋を覚える();   // 閉じられたら忘れる
         emitLocal('closed', p || {});
         emitLocal('status', state);
       });
@@ -154,12 +156,48 @@
       });
     }
 
+    /**
+   * **どの部屋を持っていたかだけを、端末に覚えておく**（第41弾 2-12）。
+   *
+   * 2-12 は「部屋を持ったままアプリを閉じて開き直す →「いま開いている部屋」に来る
+   *（サーバーが正）」と決めている。**開き直すと state は空になる**ので、
+   * 覚えておかないと「どの部屋のことを聞けばいいか」すら分からない。
+   *
+   * 覚えるのは**部屋コードと memberId だけ**で、部屋があるかどうかは覚えない——
+   * 判断はサーバーに聞く（落とし穴14-b：古い記憶のまま消えた部屋へ飛ばさない）。
+   * 端末が持つのは「何を聞くか」、答えるのはサーバー、という分け方。
+   *
+   * どちらも秘密ではない：部屋コードは画面とQRに出ているし、
+   * memberId は部屋の全員に配られる部屋内共有ID（第35弾Aで確認した事実）。
+   */
+    var 記憶の鍵 = 'acac-room';
+    function 部屋を覚える() {
+      try {
+        if (state.code && state.memberId) {
+          localStorage.setItem(記憶の鍵, JSON.stringify({
+            code: state.code, memberId: state.memberId, name: state.name, role: state.role
+          }));
+        } else localStorage.removeItem(記憶の鍵);
+      } catch (e) {}
+    }
+    function 部屋を思い出す() {
+      try {
+        var v = JSON.parse(localStorage.getItem(記憶の鍵) || 'null');
+        if (v && v.code && v.memberId) {
+          state.code = v.code; state.memberId = v.memberId;
+          state.name = v.name || null; state.role = v.role || 'player';
+        }
+      } catch (e) {}
+    }
+    部屋を思い出す();
+
     async function createRoom(name, role) {
       connect();
       var res = await call('room:create', { name: name, role: role });
       if (res.ok) {
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
+        部屋を覚える();
       } else state.error = res.message || res.error;
       emitLocal('status', state);
       return res;
@@ -170,6 +208,7 @@
       if (res.ok) {
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
+        部屋を覚える();
       } else state.error = res.message || res.error;
       emitLocal('status', state);
       return res;
@@ -185,6 +224,7 @@
     // lost と違って画面側が自分の文脈で使うので、ここでは何も報せない
     function dropRoom() {
       state.code = null; state.memberId = null; state.room = null; state.secret = null;
+      部屋を覚える();   // サーバーに「もう無い」と言われたら忘れる
       emitLocal('status', state);
     }
     function setRole(role, memberId) {
@@ -203,6 +243,7 @@
       // サーバー側の socket が部屋の印を失っていて、空の頼みだと無視されるため
       var code = state.code, memberId = state.memberId;
       state.code = null; state.memberId = null; state.room = null; state.secret = null;
+      部屋を覚える();   // 自分から出たら忘れる（開き直しても戻らない）
       return call('room:leave', { code: code, memberId: memberId });
     }
     // 第24弾-3-5：ホストだけが呼べる。部屋にいる全員を終わらせる

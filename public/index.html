@@ -1370,6 +1370,15 @@
   /* 分類は、名前の横に小さく（2-2：段にはしない） */
   .sw-genre{font-size:10.5px;padding:2px 9px;border-radius:999px;
     border:1px solid var(--warp-soft);color:var(--warp-soft);}
+  /* 2-7：説明への入口。名前のとなりに小さく1つ。
+     指で押す的は44pxを確保する（見た目は小さくてよい） */
+  .sw-info{
+    position:relative;background:none;border:none;padding:2px 4px;margin:0;
+    font:inherit;font-size:10.5px;color:var(--warp-soft);cursor:pointer;
+    text-decoration:underline;text-underline-offset:2px;
+  }
+  .sw-info::after{content:'';position:absolute;inset:-14px -10px;}
+  .sw-info:active{opacity:.7;}
   .sw-facts{font-size:11.5px;color:var(--warp-soft);margin-top:7px;line-height:1.7;}
   .sw-desc{font-size:13px;line-height:1.7;margin-top:8px;}
   .sw-btns{display:flex;gap:8px;justify-content:center;margin-top:13px;}
@@ -5771,7 +5780,8 @@
              ゲストになる道: el('rtToGuestBtn') ? el('rtToGuestBtn').style.display !== 'none' : false };
   };
   window.headsProbe = function(){ return { heads: headCount(), 見当: shelfHeads }; };
-  window.roomProbe = function(){ return { room: !!(rt && rt.state.room), host: !!(rt && rt.isHost()) }; };
+  window.roomProbe = function(){ return { room: !!(rt && rt.state.room), host: !!(rt && rt.isHost()),
+    code: (rt && rt.state.code) || null, memberId: (rt && rt.state.memberId) || null }; };
   // 検査から画面を置きにいくための窓。
   // 入口（scr-entry）へはアプリの中から戻る道が無い——ふつうは
   // 「アプリを閉じて開き直す」でそこに来る（2-12）。
@@ -5947,8 +5957,23 @@
   async function hasOpenRoom(){
     if(!(rt && rt.state.code && rt.state.memberId)) return false;
     try{
+      // **つながるまで待ってから聞く。**
+      // 開き直した直後はまだ socket が無い。connect() を呼んだ直後に聞くと、
+      // 通信層は「まだつながっていません」と即答してしまい、
+      // **部屋があるのに「無い」と判断して棚へ通していた**（実サーバーで15msの即答を測って発覚）。
+      // つながらない時は待ち続けない——2秒あきらめて棚へ通す
+      //（棚はローカルなので、通信が死んでいても遊べる。2-12の「棚は動く」）
+      rt.connect();
+      var 待った = 0;
+      while(!rt.state.connected && 待った < 2000){
+        await new Promise(function(r){ setTimeout(r, 50); });
+        待った += 50;
+      }
+      if(!rt.state.connected) return false;
       var res = await rt.peekRoom(rt.state.code, rt.state.memberId);
-      if(res && res.ok && res.you){ return !!rt.isHost(); }
+      // **進行役かどうかも、サーバーの答えを使う。**
+      // 開き直した端末は名簿を持っていないので rt.isHost() は必ず false になる
+      if(res && res.ok && res.you) return !!res.host;
       if(res && (res.error === 'room_not_found' || (res.ok && !res.you))) rt.dropRoom();
     }catch(e){}
     return false;
@@ -6136,6 +6161,12 @@
     '</button>';
   }
   function renderShelf(){
+    // 描き直しの前に、いま中央にいたものを覚えておく（下で戻す）
+    var 描き直す前の中央 = (function(){
+      var r = shelfRail();
+      var c = r && r.querySelector('.cart.center');
+      return c ? c.dataset.cart : null;
+    })();
     var items = shelfItems();
     el('shelfList').innerHTML = '<div class="shelf">' +
       '<div class="shelf-inner">' +
@@ -6152,9 +6183,13 @@
     '</div>';
     var rail = shelfRail();
     if(rail){
-      // 2-2：**前回あそんだカセットが選ばれた状態で始まる**（無ければ先頭）
-      var 前 = loadLastCassette();
-      var i = items.findIndex(function(it){ return it.kind === 'cart' && it.id === 前; });
+      // **いま見ている場所を失わない。**
+      // 人数チップを変えると棚を描き直すが、そのたびに先頭へ戻ると
+      // 「人数を直したら、見ていたカセットがどこかへ行った」になる（実サーバーで発覚）。
+      // 描き直す前に中央にいたものがあれば、そこへ戻す。
+      // 無ければ 2-2：前回あそんだカセット、それも無ければ先頭
+      var 戻る先 = 描き直す前の中央 || loadLastCassette();
+      var i = items.findIndex(function(it){ return it.kind === 'cart' && it.id === 戻る先; });
       rail._index = i >= 0 ? i : 0;
       rail._slide = 0; railSeats(rail); railMark(rail); applyRailX(rail, 0, false);
     }
@@ -6311,6 +6346,11 @@
           : (c.icon || '')) + '</div>' +
         '<div class="sw-name">' + escapeHtml((c.title || '').replace(/<br>/g, '')) + '</div>' +
         (分類 ? '<div class="sw-genre">' + escapeHtml(分類) + '</div>' : '') +
+        // 2-7：**説明への入口はここに1つだけ。**
+        // タイルの隅には置かない——7枚の小さな札で、人数と時間と場所を取り合う。
+        // popup は「いま選んでいるカセット」の説明なので、帯に1つあれば足りる
+        '<button class="sw-info" id="swInfoBtn" aria-label="' + escapeHtml(T.くわしく) + '">' +
+          escapeHtml(T.くわしく) + ' ⓘ</button>' +
       '</div>' +
       '<div class="sw-facts">' + escapeHtml(cassetteMetaText(c) || '') + '<br>' + waysText(c) + '</div>' +
       (c.blurb ? '<div class="sw-desc">' + escapeHtml(c.blurb) + '</div>' : '') +
@@ -6330,6 +6370,11 @@
       if(go.dataset.swGo === 'login') await requireLogin(null, 'scr-shelf');
       return;
     }
+    if(e.target.closest('#swInfoBtn')){
+      var cur0 = shelfCurrent();
+      if(cur0 && cur0.kind === 'cart' && cur0.c) openCassettePopup(cur0.c.id);
+      return;
+    }
     if(e.target.closest('#swTitlesBtn')){
       if(browsingOnly()){ showFlash(UiText.SHELF.未ログインの記録, 'hit'); return; }
       goTo('scr-titles');
@@ -6337,7 +6382,8 @@
     }
     if(e.target.closest('#swStartBtn')){
       var cur = shelfCurrent();
-      if(cur && cur.kind === 'cart' && cur.c) startCassette(cur.c.id);
+      // タイルのタップと同じ道を通る（確認を飛ばさない）
+      if(cur && cur.kind === 'cart' && cur.c) enterCassette(cur.c);
     }
   });
   // ---- PC操作：矢印ボタンとキーボードでカセットを動かす ----
@@ -7004,20 +7050,27 @@
       return;
     }
     // 第32弾-C-1：ここから、そのカセットの世界に入る
-    cassetteWarp(cart, c, function(){
-      // **6通りのうち、聞くのは3通りだけ。**残りは素通りさせる（2-4）
-      var plan = playWayPlan(c);
-      if(plan.kind === 'through'){
-        wayForCassetteId = c.id;
-        wayPlan = plan;
-        goPlayWay(plan.way);
-        return;
-      }
-      wayForCassetteId = c.id;
-      wayPlan = plan;
-      goTo('scr-play-way');
-    });
+    cassetteWarp(cart, c, function(){ enterCassette(c); });
   });
+  /**
+   * **遊び始める道は、ここ1本だけ**（第41弾）。
+   *
+   * タイルのタップと、中央の帯の「はじめる」が別々に書かれていて、
+   * 帯の方は `startCassette` を直に呼んでいた——**2-4 の確認が丸ごと飛んでいた。**
+   * 人狼（両方対応・部屋なし）で、タイルからは「どうやって遊ぶ？」が出るのに
+   * 帯からは出ずにゲーム選択へ行っていた（実サーバーで発覚。落とし穴1そのもの）。
+   *
+   * 遊び始める入口が増えるたびに、ここを呼ぶ。
+   */
+  function enterCassette(c){
+    if(!c) return;
+    // **6通りのうち、聞くのは3通りだけ。**残りは素通りさせる（2-4）
+    var plan = playWayPlan(c);
+    wayForCassetteId = c.id;
+    wayPlan = plan;
+    if(plan.kind === 'through'){ goPlayWay(plan.way); return; }
+    goTo('scr-play-way');
+  }
   /**
    * 第32弾-C-1：カセットをタップした瞬間の演出。
    * カセットが手前にせり出し、押した所からテーマ色が画面全体に広がる。

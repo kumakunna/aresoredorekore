@@ -3999,7 +3999,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 部屋を持ったまま、入口へ戻ってやり直す
     click(doc, 'rtPickGameBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
-    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 5, you: true });
+    // host は第41弾 2-1-2 でサーバーが返すようになった。
+    // 開き直した端末は名簿を持たないので、進行役かどうかも**サーバーが答える**
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 5, you: true, host: true });
     win.goToScreen('scr-entry');
     await waitScreen(win, doc, 'scr-entry', 2000);
     click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
@@ -4244,7 +4246,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 80);
     assertEqual(activeScreen(doc), 'scr-shelf', '棚で選んでいる人を引っぱらない（今まで通り）');
 
-    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: 'wolfrole', phase: 'roleReveal', playerCount: 5, you: true });
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: 'wolfrole', phase: 'roleReveal', playerCount: 5, you: true, host: true });
     win.goToScreen('scr-entry');
     await waitScreen(win, doc, 'scr-entry', 2000);
     click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
@@ -4350,6 +4352,74 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(/部屋に入る/.test(el(doc, 'rtLobbyTitle').textContent), '着いたのは「部屋に入る」');
     assertNoErrors(errors, '閉じられた側で未捕捉の例外');
     win.close();
+  });
+
+  await r.test('部屋を持ったまま**開き直す**と「いま開いている部屋」に来る（2-12・門D8）', async () => {
+    // **前の検査は、開き直していなかった。**同じセッションのまま入口へ戻って
+    // 確認画面が出ることだけを見ていたので、緑でも 2-12 を確かめていなかった——
+    // 実サーバーで開き直したら、そのまま棚に行ってしまった（端末が部屋を忘れていた）。
+    //
+    // 端末が持つのは「どの部屋のことを聞くか」だけ。
+    // **あるかどうかはサーバーに聞く**（落とし穴14-b）
+    const a = await launch(LAUNCH);
+    const fake = await toRoom(a.win, a.doc, { pick: false });
+    const 記憶 = a.win.localStorage.getItem('acac-room');
+    assert(記憶, '部屋を持つと、端末が覚える（実際: ' + 記憶 + '）');
+    const 覚えた = JSON.parse(記憶);
+    assertEqual(覚えた.code, 'ABC234', 'どの部屋かを覚えている');
+    assert(覚えた.memberId, '自分が誰かも覚えている');
+    a.win.close();
+
+    // **開き直す**（別の窓＝アプリを立ち上げ直したのと同じ）
+    const b = await launch(Object.assign({}, LAUNCH, {
+      atEntry: true, storage: { 'acac-room': 記憶 }
+    }));
+    const f2 = b.win.__rtFake;
+    f2.replies = { 'room:peek': () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 3, you: true, host: true }) };
+    click(b.doc, b.doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(b.win, b.doc, 'scr-room-open', 4000);
+    const peek = f2.emits.filter((e) => e.name === 'room:peek').pop();
+    assert(peek && peek.payload.code === 'ABC234',
+      '開き直したあとも、サーバーにその部屋を聞いている');
+    assert(/ABC234/.test(el(b.doc, 'scr-room-open').textContent), 'どの部屋かが出ている');
+    b.win.close();
+
+    // **逆向き**（落とし穴20）：サーバーが「もう無い」と言えば、確認は出さずに棚へ
+    const c = await launch(Object.assign({}, LAUNCH, {
+      atEntry: true, storage: { 'acac-room': 記憶 }
+    }));
+    c.win.__rtFake.replies = { 'room:peek': () => ({ ok: false, error: 'room_not_found' }) };
+    click(c.doc, c.doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(c.win, c.doc, 'scr-shelf', 4000);
+    assert(activeScreen(c.doc) !== 'scr-room-open', '消えた部屋の確認は出さない');
+    assert(!c.win.localStorage.getItem('acac-room'), '端末の記憶も捨てる');
+    c.win.close();
+  });
+
+  await r.test('つながる前に聞かない。つながらなければ棚へ通す（2-12・実サーバーで見つけた）', async () => {
+    // **開き直した直後は、まだ socket が無い。**
+    // connect() を呼んだ直後に聞くと、通信層は「まだつながっていません」と即答し、
+    // **部屋があるのに「無い」と判断して棚へ通していた**
+    //（実サーバーで15msの即答を測って気づいた。8秒のタイムアウトより手前で返っていた）。
+    //
+    // 逆に、つながらない時に待ち続けるのも違う——
+    // 2-12「棚で通信が切れる → 棚は動く（棚はローカル）」。2秒であきらめる
+    const 記憶 = JSON.stringify({ code: 'ABC234', memberId: 'm1', name: 'あき', role: 'player' });
+
+    // ① つながらない環境（疑似socketを与えない）＝棚へ通す。**止まらない**
+    const a2 = await launch({ atEntry: true, storage: { 'acac-room': 記憶 } });
+    click(a2.doc, a2.doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(a2.win, a2.doc, 'scr-shelf', 5000);
+    assertEqual(activeScreen(a2.doc), 'scr-shelf', 'つながらなくても棚には着く（行き止まりにしない）');
+    a2.win.close();
+
+    // ② つながる環境＝ちゃんと確認が出る（①が「いつも棚」で通らないことを示す）
+    const b2 = await launch(Object.assign({}, LAUNCH, { atEntry: true, storage: { 'acac-room': 記憶 } }));
+    b2.win.__rtFake.replies = { 'room:peek': () => ({ ok: true, code: 'ABC234', you: true, host: true, playerCount: 2, phase: 'lobby', game: null }) };
+    click(b2.doc, b2.doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(b2.win, b2.doc, 'scr-room-open', 5000);
+    assertEqual(activeScreen(b2.doc), 'scr-room-open', 'つながれば確認が出る');
+    b2.win.close();
   });
 
   await r.test('全ゲーム：開始の合図が届くと3-2-1が画面に出る（正本ループ）', async () => {

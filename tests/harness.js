@@ -209,6 +209,22 @@ async function launch(opts) {
     if (html.indexOf(marker) < 0) throw new Error('<body> が見つかりません');
     html = html.replace(marker, marker + seed);
   }
+  /**
+   * **アプリを立ち上げ直した状態**を作る（opts.storage）。
+   *
+   * jsdom は毎回まっさらな localStorage で始まるので、
+   * 「前に遊んだ端末で、もう一度開いた」を素直には作れない。
+   * 保存された値を先に置いておくだけで、本番のコードは何も変えていない
+   *（fxSkip と同じ形）。2-11・2-12 の「再起動で」を確かめるのに要る。
+   */
+  if (opts.storage) {
+    const seed = '<script>try{' + Object.keys(opts.storage).map((k) =>
+      'localStorage.setItem(' + JSON.stringify(k) + ',' + JSON.stringify(String(opts.storage[k])) + ');'
+    ).join('') + '}catch(e){}</script>';
+    const marker = '<body>';
+    if (html.indexOf(marker) < 0) throw new Error('<body> が見つかりません');
+    html = html.replace(marker, marker + seed);
+  }
   // 複数ゲームを持つカセットは本番にまだ無いので、テスト時だけ差し込む。
   // 本番のカセット構成は変えずに「ゲーム選択画面を通る経路」を確認するため。
   if (opts.testCassettes && opts.testCassettes.length) {

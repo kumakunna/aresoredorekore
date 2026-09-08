@@ -1727,5 +1727,36 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  await r.test('開き直すと、前回あそんだカセットが選ばれている（2-2・門D13）', async () => {
+    // 続けて遊ぶ時に毎回同じ距離を送り直すのは、
+    // 「いつもの場所」がある棚の意味を薄くする
+    const a = await launch();
+    // 最初は先頭（まだ何も遊んでいない）
+    assertEqual((a.doc.querySelector('.cart.center') || {}).dataset.cart, 'aresoredorekore',
+      '何も遊んでいなければ先頭');
+    assertEqual(a.doc.querySelectorAll('.cart-last').length, 0, 'まだ「前回」の札は無い');
+
+    // 人狼をあそぶ
+    await openCassette(a.win, a.doc, 'jinro');
+    await waitFor(a.win, () => activeScreen(a.doc) !== 'scr-shelf', 4000, 'カセットの中に入る');
+    assertEqual(a.win.lastCassette(), 'jinro', 'あそんだカセットを覚えている');
+    const 保存 = a.win.localStorage.getItem('acac-last-cassette');
+    a.win.close();
+
+    // **開き直す**（別の窓＝アプリを立ち上げ直したのと同じ）
+    const b = await launch({ storage: { 'acac-last-cassette': 保存 } });
+    assertEqual((b.doc.querySelector('.cart.center') || {}).dataset.cart, 'jinro',
+      '開き直すと、前回あそんだカセットが中央にいる');
+    // **札が出る。**選ばれている理由が見えないと、並びが変わったように見える
+    const 札 = b.doc.querySelectorAll('.cart-last');
+    assertEqual(札.length, 1, '「前回」の札はちょうど1枚');
+    assertEqual(札[0].closest('.cart').dataset.cart, 'jinro', '札は前回あそんだカセットに付く');
+    assert(/前回/.test(札[0].textContent), '札に「前回」と書いてある');
+    // 帯も、そのカセットの世界になっている
+    assertEqual(el(b.doc, 'shelfBand').getAttribute('data-theme'), 'wolf',
+      '帯も前回のカセットの世界から始まる');
+    b.win.close();
+  });
+
   r.finish();
 })();

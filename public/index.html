@@ -1430,6 +1430,12 @@
   /* 見た目は7pxでも、指は44px四方で受ける（小さい点は押せない） */
   .rail-dot::after{content:'';position:absolute;inset:-18px;}
   .rail-dot.on{background:var(--stamp);transform:scale(1.5);}
+  /* 2-2：前回あそんだカセットの札。小さく、邪魔をしない */
+  .cart-last{
+    position:absolute;left:50%;top:6px;transform:translateX(-50%);
+    background:var(--ink);color:var(--paper);font-size:9px;border-radius:999px;
+    padding:1px 7px;white-space:nowrap;letter-spacing:.04em;
+  }
   /* 畳んだ「ほか◯つ準備中」の札。近日公開の見た目はそのまま使う */
   .cart-more .cart-label .title{font-size:11.5px;line-height:1.35;}
   /* 段の板（.board）と分類のシール（.sticker）は、棚が1列になって
@@ -5759,6 +5765,7 @@
       : { kind:'through', way:'handoff' };
   }
   // 検査から6通りを確かめられるようにしておく（window.catalogSet と同じ作法）
+  window.lastCassette = function(){ return loadLastCassette(); };
   window.roleProbe = function(){
     return { host: !!(rt && rt.isHost()), room: !!(rt && rt.state.room),
              ゲストになる道: el('rtToGuestBtn') ? el('rtToGuestBtn').style.display !== 'none' : false };
@@ -6115,9 +6122,12 @@
       : '<div class="icon">' + c.icon + '</div>' + (c.title ? '<div class="title">' + c.title + '</div>' : '');
     // 2-3：**人数に合わないカセットは沈めるだけ。**消さない
     var 沈 = headsBlockReason(c) ? ' dim' : '';
+    var 前回 = (c.id === loadLastCassette());
     return '<button class="cart' + 沈 + '" data-cart="' + c.id + '">' +
       '<div class="cart-body">' +
         '<div class="cart-label' + (c.logo ? ' has-logo' : '') + '">' + face + '</div>' +
+        // 2-2：選ばれている理由が見える札。**小さく、邪魔をしない**
+        (前回 ? '<div class="cart-last">前回</div>' : '') +
       '</div>' +
       // 2-2：**すべてのタイルに人数と時間を出す**（選ばれていないタイルにも）。
       // 手書きの meta ではなく①の導出を使う——手書きだと、
@@ -6141,10 +6151,33 @@
       '<div class="rail-dots" id="shelfDots"></div>' +
     '</div>';
     var rail = shelfRail();
-    if(rail){ rail._index = 0; rail._slide = 0; railSeats(rail); railMark(rail); applyRailX(rail, 0, false); }
+    if(rail){
+      // 2-2：**前回あそんだカセットが選ばれた状態で始まる**（無ければ先頭）
+      var 前 = loadLastCassette();
+      var i = items.findIndex(function(it){ return it.kind === 'cart' && it.id === 前; });
+      rail._index = i >= 0 ? i : 0;
+      rail._slide = 0; railSeats(rail); railMark(rail); applyRailX(rail, 0, false);
+    }
     shelfActiveRail = rail;
   }
   function shelfRail(){ return document.querySelector('#shelfList .rail'); }
+
+  /**
+   * **前回あそんだカセット**（第41弾 2-2）。
+   *
+   * 棚を開いた時、そこが選ばれた状態で始まる。
+   * 続けて遊ぶ時に毎回同じ距離を送り直すのは、
+   * 「いつもの場所」がある棚の意味を薄くする。
+   *
+   * 札（「前回」）も出す——**選ばれている理由が見えないと、
+   * 棚の並びが変わったように見える**（2-2 の固定順と誤解される）。
+   */
+  function loadLastCassette(){
+    try{ return localStorage.getItem('acac-last-cassette') || null; }catch(e){ return null; }
+  }
+  function saveLastCassette(id){
+    try{ if(id) localStorage.setItem('acac-last-cassette', id); }catch(e){}
+  }
 
   /**
    * **何人で遊ぶか**（第41弾 2-3）。
@@ -7043,6 +7076,7 @@
     var c = cassetteById(id);
     if(!c || !c.ready) return;
     state.selectedCassetteId = id;
+    saveLastCassette(id);
     var games = cassetteGames(c);
     if(games.length > 1){
       goTo('scr-game'); // どのゲームで遊ぶか選んでもらう

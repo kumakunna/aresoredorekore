@@ -1577,12 +1577,12 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('帯の世界の色は、止まった時にだけ変わる（2-2）', async () => {
+  await r.test('世界の色は、止まった時にだけ変わる（2-2・第43弾は場ぜんぶ）', async () => {
     // **送っている最中に色が動くと、目が落ち着かない。**
     // 時計で「止まったか」を測るのではなく、
     // **指で送っている間は中央の番号が動かない**という作りで守っている
     const { win, doc, errors } = await launch();
-    const band = doc.getElementById('shelfBand');
+    const stage = doc.getElementById('shelfStage');
     const rail = doc.querySelector('#shelfList .rail');
     const carts = Array.from(rail.querySelectorAll('.cart'));
     carts.forEach((c, i) => Object.defineProperty(c, 'offsetLeft', {
@@ -1590,7 +1590,7 @@ function pickCart(doc, id) {
     }));
     win.dispatchEvent(new win.Event('resize'));
 
-    const 世界 = () => band.getAttribute('data-theme');
+    const 世界 = () => stage.getAttribute('data-theme');
     const 前 = 世界();
     const 指 = (type, x) => carts[0].dispatchEvent(new win.PointerEvent(type, {
       bubbles: true, pointerType: 'touch', pointerId: 5, clientX: x, clientY: 10
@@ -1602,9 +1602,29 @@ function pickCart(doc, id) {
     await sleep(win, 350);
     assert(世界() !== 前, '止まったら、次のカセットの世界に変わる（' + 前 + ' → ' + 世界() + '）');
 
-    // 上の帯と下部バーはクリームのまま（染めるのは中央だけ）
     assert(!el(doc, 'app').className.split(' ').some((c) => /^theme-/.test(c)),
       '棚そのものは、どのカセットの色にも染まらない');
+
+    // ── 第43弾：**染まる範囲が、上の帯と下部バーの「あいだ」であること** ──
+    // 色を広げる時にいちばん壊れやすいのは範囲で、
+    // 広げすぎ（下部バーまで染まる）も、狭すぎ（カセットが場の外）も
+    // 見た目にしか出ない（落とし穴3・26 の型）。**両側から数えて確かめる。**
+    const 中 = ['shelfList', 'shelfBand', 'shelfRoomNote'];
+    const 外 = ['.shelf-head', '.shelf-bar'];
+    const 入っている = 中.filter((id) => stage.contains(doc.getElementById(id)));
+    assertEqual(入っている.length, 中.length,
+      '棚・帯・部屋への帰り道は、ぜんぶ染まる場の中（実際:' + 入っている.join('・') + '）');
+    assert(stage.querySelector('.shelf-hint'), 'スワイプの案内も場の中');
+    const はみ出し = 外.filter((sel) => {
+      const e2 = doc.querySelector('#scr-shelf ' + sel);
+      return e2 && stage.contains(e2);
+    });
+    assertEqual(はみ出し.join('・'), '', '上の帯と下部バーは、場の外（クリーム固定）');
+
+    // **印は1か所だけ。**帯にも同じ印を付けると、片方だけ直す日が来る（落とし穴1）
+    assertEqual(doc.getElementById('shelfBand').getAttribute('data-theme'), null,
+      '世界の印は場にだけ付く（帯には付けない）');
+
     assertNoErrors(errors, '世界の切り替えで未捕捉の例外');
     win.close();
   });
@@ -1812,9 +1832,9 @@ function pickCart(doc, id) {
     assertEqual(札.length, 1, '「前回」の札はちょうど1枚');
     assertEqual(札[0].closest('.cart').dataset.cart, 'jinro', '札は前回あそんだカセットに付く');
     assert(/前回/.test(札[0].textContent), '札に「前回」と書いてある');
-    // 帯も、そのカセットの世界になっている
-    assertEqual(el(b.doc, 'shelfBand').getAttribute('data-theme'), 'wolf',
-      '帯も前回のカセットの世界から始まる');
+    // 場も、そのカセットの世界になっている
+    assertEqual(el(b.doc, 'shelfStage').getAttribute('data-theme'), 'wolf',
+      '場も前回のカセットの世界から始まる');
     b.win.close();
   });
 

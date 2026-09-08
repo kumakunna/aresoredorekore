@@ -32,12 +32,20 @@ const SOURCES = [HTML]
 /** CSSの規則を（選択子, 中身）で拾う。切り出しは harness に1本だけ置いてある */
 function rules() { return cssRules(CSS); }
 
-/** そのクラス／idが、実際にどのタグに付いているか（JSが組む分も含めて探す） */
+/**
+ * そのクラス／idが、実際にどのタグに付いているか（JSが組む分も含めて探す）。
+ *
+ * **クラス名の切れ目は空白であって、\b ではない**（第43弾で踏んだ）。
+ * \b は `-` の手前でも切れ目になるので、`class="tn-slot-name"` の
+ * span が `.tn-slot` の一味として数えられ、
+ * 「button ばかりではない＝共通規則に乗っていない」という**嘘の赤**が出た。
+ * 嘘の赤は、放っておくと「この検査はいつも赤い」で読まれなくなる
+ */
 function tagsOf(name, kind) {
   const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const attr = (kind === 'id')
     ? 'id=["\']' + esc + '["\']'
-    : 'class=["\'][^"\']*\\b' + esc + '\\b';
+    : 'class=["\'](?:[^"\']*\\s)?' + esc + '(?=[\\s"\'])';
   const re = new RegExp('<([a-z]+)[^>]*' + attr, 'g');
   const out = new Set();
   let m;
@@ -165,6 +173,30 @@ function tagsOf(name, kind) {
     // **逆向き**：@ で始まる包みは規則として数えない（落とし穴20）
     assertEqual(cssRules(検体).filter((x) => x.sel.startsWith('@')).length, 0,
       '@media 自体は規則として数えない');
+  });
+
+  await r.test('クラス名の照合が、-で続く別の名前を拾わない（第43弾・嘘の赤の再発防止）', async () => {
+    // **検査そのものの穴を、検査で塞ぐ**（@media の1件目と同じ型）。
+    // 実データではなく、答えの分かっている検体で切り出しを試す（落とし穴10-d）
+    const 前 = SOURCES.length;
+    const 検体 = [
+      '<button class="tn-slot" data-x="1">',
+      '<span class="tn-slot-name">なまえ</span>',
+      '<div class="ao tn-slot ki">まん中に置いた場合</div>'
+    ].join('\n');
+    // SOURCES は const なので、同じ照合を検体に対して手で組み立てて確かめる
+    const 当てる = (name) => {
+      const attr = 'class=["\'](?:[^"\']*\\s)?' + name + '(?=[\\s"\'])';
+      const re = new RegExp('<([a-z]+)[^>]*' + attr, 'g');
+      const out = new Set();
+      let m;
+      while ((m = re.exec(検体))) out.add(m[1]);
+      return Array.from(out).sort().join('/');
+    };
+    assertEqual(当てる('tn-slot'), 'button/div',
+      '.tn-slot は button と div。**span（tn-slot-name）は拾わない**');
+    assertEqual(当てる('tn-slot-name'), 'span', '.tn-slot-name は span だけ');
+    assertEqual(前, SOURCES.length, '検体を混ぜても、本物の検体は汚していない');  // 型(b)
   });
 
   r.finish();

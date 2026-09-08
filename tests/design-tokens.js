@@ -222,10 +222,10 @@ const PAIRS = [
     assertEqual(bad.join('\n       '), '', '読めない組み合わせ');
   });
 
-  await r.test('棚の中央の帯も、6つの世界すべてで読める（第41弾 2-2）', async () => {
+  await r.test('棚の染まる場も、6つの世界すべてで読める（第41弾 2-2・第43弾）', async () => {
     // **この対は、上の検査の外にいた。**
     // 上は `.app.theme-◯◯` のブロックしか読まないが、
-    // 棚の帯は `--warp-color`（世界の地）と `--warp-ink`（その上の文字）という
+    // 棚の場は `--warp-color`（世界の地）と `--warp-ink`（その上の文字）という
     // **別の表**を使う。scr-shelf は THEME_FREE_SCREENS なので `.app` は染めない
     //（染めると設定も下部バーも全部その色になる）。
     // 表を分けた以上、コントラストの検査も届かせないと、
@@ -236,9 +236,13 @@ const PAIRS = [
     const CSS = require('fs').readFileSync(
       require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
     const 世界 = {};
-    // 選択子は「幕, 帯」のカンマ並びなので、選択子の中に .sw-band を含む規則を拾う
+    // 選択子は「幕, 場」のカンマ並びなので、選択子の中に .shelf-stage を含む規則を拾う。
+    // 第43弾で染まる先が中央の一段（.sw-band）から
+    // 上の帯と下部バーのあいだ全部（.shelf-stage）に変わった。
+    // **帯はこの表を読まなくなった**——場の中にいて色を受け継ぐので、
+    // ここに残すと「表は1つ」が崩れる
     cssRules(CSS).forEach((r2) => {
-      if (r2.sel.indexOf('.sw-band') === -1) return;
+      if (r2.sel.indexOf('.shelf-stage') === -1) return;
       const m = /\[data-theme="([a-z]+)"\]/.exec(r2.sel);
       const 名 = m ? m[1] : '共通';
       const 取る = (v) => {
@@ -261,7 +265,7 @@ const PAIRS = [
         if (!色) { bad.push(名 + '：' + 何 + 'の色が無い'); return; }
         const 比 = contrast(toRgb(色), toRgb(w.地));
         表.push(名 + '/' + 何 + '=' + 比);
-        if (比 < 最低) bad.push(名 + '：帯の地に' + 何 + '（' + 比 + ' < ' + 最低 + '）');
+        if (比 < 最低) bad.push(名 + '：場の地に' + 何 + '（' + 比 + ' < ' + 最低 + '）');
       });
     });
     assertEqual(表.length, 名前.length * 2, '全部の世界で、本文と補足の両方を見た');

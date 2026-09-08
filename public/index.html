@@ -131,6 +131,35 @@
   .btn-teal{background:var(--teal);color:#fff;}
   .btn-ghost{background:transparent;color:var(--ink-soft);text-decoration:underline;font-weight:400;font-size:var(--fs-sub);padding:8px;}
 
+  /* 入口の二択（第41弾 2-1）と、遊び方の確認（2-4）の二択。
+     **共通部品の上に組む。**書体・大きさ・押した反応・押せない見た目は
+     .btn が持っているので、ここは「札の並べ方」だけを足す。
+
+     第41弾⑥で scr-howto を廃した時、画面といっしょに .howto-card の見た目まで
+     消えたのに、**この2画面はクラスを使い続けていた。**
+     CSSの無いクラスは、どこからもエラーにならない（落とし穴23の親戚）——
+     全テスト緑のまま、ブラウザ既定の灰色のボタンとして実機に出ていた。
+     .howto-icon に大きさが無くなったせいで絵文字は本文と同じ13pxになり、
+     Twemoji の 1em 画像が「小さな単色の四角」に見えていた（本人の指摘）。 */
+  /* 2つの札は**同じ高さ**にする。説明文が1行と2行に割れても崩れないよう、
+     並べ方（grid の 1fr）で揃える。min-height だけだと、折り返した側が伸びる */
+  .howto-list{display:grid;grid-auto-rows:1fr;gap:10px;}
+  .btn.howto-card{
+    width:100%;justify-content:flex-start;text-align:left;gap:14px;
+    min-height:84px;padding:16px;border-radius:12px;
+    /* クリームより一段濃い地＋押せることを示す中太の縁（正本3「線・中1.5px＝囲み」）。
+       地を主ボタン色（--ink）で塗ると絵文字が暗い面に沈むので、こちらを採る */
+    background:var(--paper-deep);border:1.5px solid var(--ink);color:var(--ink);
+  }
+  .btn.howto-card:active{filter:brightness(.95);}
+  /* 絵文字は**単体で大きく**。背景に色の面を敷かない（本人の指摘） */
+  .howto-icon{font-size:34px;line-height:1;flex:0 0 auto;}
+  .howto-text{flex:1;min-width:0;}
+  .howto-title{display:block;font-size:var(--fs-btn);font-weight:800;line-height:1.35;}
+  .howto-sub{display:block;font-size:var(--fs-sub);font-weight:400;
+    color:var(--ink-soft);margin-top:4px;line-height:1.5;}
+  .howto-go{flex:0 0 auto;font-weight:400;font-size:18px;color:var(--ink-soft);}
+
   /* タグで縛らない。役割を表しているのはクラスの方で、
      h2 以外で書いた時に黙って効かなくなるのを避ける（第39弾で踏んだ） */
   .scr-title{
@@ -387,11 +416,6 @@
   .result-correct{background:var(--teal);color:#fff;}
   .result-wrong{background:#fff;border:1px solid var(--line);color:var(--ink-soft);}
   .result-foul{background:#fff;border:1px solid var(--stamp);color:var(--stamp-deep);}
-  .chooser{margin-top:10px;display:none;flex-wrap:wrap;gap:6px;background:var(--paper-deep);padding:10px;border-radius:8px;}
-  .chooser.show{display:flex;}
-  .chooser .chip{border:1px solid var(--ink);background:#fff;border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:'Zen Maru Gothic';font-weight:700;}
-  .chooser .chip.handicap::after{content:' ★';color:var(--gold);}
-  .chooser .skip{border:none;background:none;text-decoration:underline;color:var(--ink-soft);font-size:12px;padding:7px 4px;}
   .voice-row{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:12px;}
   .switch{width:40px;height:24px;border-radius:999px;background:var(--switch-off);position:relative;cursor:pointer;flex:none;transition:background .2s;}
   .switch.on{background:var(--switch-on);}
@@ -927,40 +951,12 @@
   .prof-head.small .prof-icon{font-size:40px;}
   .prof-title{font-size:22px;font-weight:800;margin-top:4px;}
   .prof-name{font-size:13px;color:var(--ink-soft);margin-top:2px;}
-  /* カセットごとの区切り */
-  .tg-cas{margin-bottom:18px;}
-  .tg-cas-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-  .tg-cas-head h3{font-size:14px;margin:0;}
-  .tg-cas-bar{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:6px;}
-  .tg-cas-fill{height:100%;background:var(--teal);border-radius:999px;}
-  .tg-cas-count{font-size:11.5px;color:var(--ink-soft);}
-  /* あと1つで揃うものは目立たせる（次に遊ぶ理由になる） */
-  .tg-cas.near .tg-cas-head h3::after{content:' ✨ あと1つ';font-size:11px;color:var(--gold);}
-  .tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;}
-  .ti-item{
-    background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:10px 6px;text-align:center;cursor:pointer;font-family:inherit;color:var(--ink);
-  }
-  .ti-item.on{outline:2px solid var(--stamp);}
-  /* 未獲得は影のシルエット。押すと条件が読める */
-  .ti-item.locked .ti-emoji{filter:brightness(0) opacity(.3);}
-  .ti-item.locked .ti-label{color:var(--ink-soft);}
-  .ti-emoji{font-size:26px;line-height:1.2;}
-  .ti-label{display:block;font-size:10.5px;margin-top:4px;line-height:1.4;}
-  .ti-hint{display:block;font-size:9.5px;color:var(--ink-soft);margin-top:3px;line-height:1.4;}
-  /* 二つ名のスロット一覧 */
-  .tn-slot{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
-    background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:14px;margin-bottom:8px;cursor:pointer;font-family:inherit;color:var(--ink);}
-  .tn-slot .tn-label{flex:1;font-size:13px;color:var(--ink-soft);}
-  .tn-slot .tn-value{font-size:16px;font-weight:700;}
-  .ts-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
-    background:var(--card);border:1px solid var(--line);border-radius:10px;
-    padding:12px 14px;margin-bottom:6px;cursor:pointer;font-family:inherit;color:var(--ink);}
-  .ts-row.on{outline:2px solid var(--stamp);}
-  .ts-row.locked{color:var(--ink-soft);}
-  .ts-row .ts-hint{font-size:11px;color:var(--ink-soft);}
-  .ts-sep{font-size:11.5px;color:var(--ink-soft);margin:14px 0 6px;}
+  /* 第42弾で消した4画面（アイコン・二つ名・スロット・集めたもの）の指定は、
+     第43弾で外した。**名前が新しいシートとぶつかっていた**——
+     .tn-slot / .ts-row / .ts-hint は sheet 側でも使っていて、
+     消えた画面のための cursor や余白が、半分だけ効き続けていた（落とし穴23）。
+     tests/dead-style.js が「規則の無いクラス」と「使われない規則」を
+     両側から見張る（落とし穴20：照合には向きがある） */
   /* 手に入った瞬間 */
   .got-panel{text-align:center;}
   .got-lead{font-size:14px;color:var(--ink-soft);}
@@ -997,8 +993,6 @@
      動きの長さは短（0.15秒）＝合図（正本4） */
   .mode-card:active,
   .handicap-picker .hp-chip:active,
-  .chooser .chip:active,
-  .tg-item:active,
   .bomb-wire-btn:active,
   .sugo-dice:active,
   .door:active{
@@ -1335,34 +1329,35 @@
   /* 広がる色は、そのカセットのテーマの地の色。
      テーマごとに1行。新しいテーマを作った時は、ここにも1行足す */
   /* カセットの世界の色。**表はここ1つだけ。**
-     タップした時に広がる幕（.cassette-warp）と、棚の中央の帯（.sw-band）が
+     タップした時に広がる幕（.cassette-warp）と、棚の染まる場（.shelf-stage）が
      同じ表を読む。2つに分けると、片方だけ直す日が来る（落とし穴1）。
+     **帯（.sw-band）はこの表を読まない。**場の中にいるので、
+     --warp-ink / --warp-soft をそのまま受け継ぐ——
+     ここで帯にも同じ行を書くと、場の色を変えた日に帯だけ古い色で残る
      文字の色（--warp-ink / --warp-soft）も同じ行で決める——
      地の色だけ移して文字色を忘れると、暗い帯に暗い字が乗る */
-  .cassette-warp, .sw-band{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#5B5A50;}
-  .cassette-warp[data-theme="wolf"], .sw-band[data-theme="wolf"]{--warp-color:#161A29;--warp-ink:#EDEBF5;--warp-soft:#9BA2C2;}
-  .cassette-warp[data-theme="bomb"], .sw-band[data-theme="bomb"]{--warp-color:#15171B;--warp-ink:#E8EAED;--warp-soft:#9AA3AF;}
-  .cassette-warp[data-theme="quiz"], .sw-band[data-theme="quiz"]{--warp-color:#10182E;--warp-ink:#F2F5FA;--warp-soft:#A9B6CE;}
-  .cassette-warp[data-theme="auction"], .sw-band[data-theme="auction"]{--warp-color:#1A1012;--warp-ink:#F5EDE6;--warp-soft:#C6B0A8;}
-  .cassette-warp[data-theme="sugoroku"], .sw-band[data-theme="sugoroku"]{--warp-color:#F2E9D5;--warp-ink:#1F1B17;--warp-soft:#5A5148;}
+  .cassette-warp, .shelf-stage{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#5B5A50;}
+  .cassette-warp[data-theme="wolf"], .shelf-stage[data-theme="wolf"]{--warp-color:#161A29;--warp-ink:#EDEBF5;--warp-soft:#9BA2C2;}
+  .cassette-warp[data-theme="bomb"], .shelf-stage[data-theme="bomb"]{--warp-color:#15171B;--warp-ink:#E8EAED;--warp-soft:#9AA3AF;}
+  .cassette-warp[data-theme="quiz"], .shelf-stage[data-theme="quiz"]{--warp-color:#10182E;--warp-ink:#F2F5FA;--warp-soft:#A9B6CE;}
+  .cassette-warp[data-theme="auction"], .shelf-stage[data-theme="auction"]{--warp-color:#1A1012;--warp-ink:#F5EDE6;--warp-soft:#C6B0A8;}
+  .cassette-warp[data-theme="sugoroku"], .shelf-stage[data-theme="sugoroku"]{--warp-color:#F2E9D5;--warp-ink:#1F1B17;--warp-soft:#5A5148;}
 
-  /* ---- 棚の中央の帯（第41弾 2-2「世界を借りる」）----
+  /* ---- 棚の染まる場（第41弾 2-2「世界を借りる」／第43弾で画面いっぱいに）----
      **染まるのはここだけ。**上の帯（タイトル）と下部バーはクリームのまま。
-     scr-shelf は THEME_FREE_SCREENS のままなので、.app には手を付けない */
-  .sw-band{
-    position:relative;margin:10px 14px 0;border-radius:14px;padding:20px 16px 18px;
-    background:var(--warp-color);color:var(--warp-ink);text-align:center;
+     scr-shelf は THEME_FREE_SCREENS のままなので、.app には手を付けない
+     （.app を染めると、設定も記録も大画面も全部その色になる） */
+  .shelf-stage{
+    flex:1;display:flex;flex-direction:column;padding-bottom:6px;
+    background:var(--warp-color);color:var(--warp-ink);
     /* 2-2：**止まった瞬間に0.3秒でとけ替わる。**
        送っている最中は _index が変わらないので、ここは自然に呼ばれない */
     transition:background-color calc(0.3s * var(--fx-scale)) ease,
                color calc(0.3s * var(--fx-scale)) ease;
   }
-  /* 上下の境目はグラデーションで棚の地色へ溶かす（硬い線にしない） */
-  .sw-band::before, .sw-band::after{
-    content:'';position:absolute;left:0;right:0;height:18px;pointer-events:none;
-  }
-  .sw-band::before{top:0;background:linear-gradient(180deg,var(--paper),transparent);border-radius:14px 14px 0 0;}
-  .sw-band::after{bottom:0;background:linear-gradient(0deg,var(--paper),transparent);border-radius:0 0 14px 14px;}
+  /* 帯はもう「色の板」ではない。場の上に載る文字の塊なので、地も角丸も持たない。
+     溶かすためのグラデーション（両端をクリームへ）も、溶かす先が無くなったので消した */
+  .sw-band{position:relative;padding:14px 18px 4px;text-align:center;}
   .sw-head{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;position:relative;}
   .sw-icon{font-size:24px;line-height:1;}
   .sw-icon img{height:26px;vertical-align:middle;}
@@ -1383,6 +1378,14 @@
   .sw-desc{font-size:13px;line-height:1.7;margin-top:8px;}
   .sw-btns{display:flex;gap:8px;justify-content:center;margin-top:13px;}
   .sw-btns .btn{margin:0;width:auto;padding:11px 18px;font-size:13.5px;min-height:44px;}
+  /* **世界の中のボタンは、世界の色で塗る。**
+     .btn-main は --ink（ページの地の文字色）で塗るので、
+     人狼・爆弾・クイズのような暗い世界では**地に沈んで見えなくなる**
+     （実ブラウザで見つけた。「はじめる」がほとんど読めなかった）。
+     --warp-ink と --warp-color を入れ替えて使えば、
+     明るさの差は design-tokens が見張っている 4.5:1 がそのまま効く */
+  .sw-band .btn-main{background:var(--warp-ink);color:var(--warp-color);}
+  .sw-band .btn-outline{border-color:var(--warp-ink);color:var(--warp-ink);}
   /* 2-5：押せない理由。**グレーで終わらせない**ので、下に次の行動を置く */
   .sw-why{font-size:11.5px;color:var(--warp-soft);margin-top:9px;line-height:1.7;}
   .sw-why .btn{margin-top:7px;}
@@ -1430,15 +1433,19 @@
   .rail-dots{
     display:flex;justify-content:center;gap:7px;padding:12px 0 2px;
   }
+  /* **点も世界の色から取る。**もとは黒22%と赤（--stamp）だったが、
+     場が暗い世界に染まると黒い点は消え、赤も地に沈む。
+     currentColor は場から降りてくる --warp-ink なので、
+     6つの世界すべてで読める（design-tokens の対比検査がその表を見張っている） */
   .rail-dot{
     position:relative;width:7px;height:7px;padding:0;border:none;border-radius:50%;
-    background:rgba(36,39,46,.22);cursor:pointer;
+    background:currentColor;opacity:.28;cursor:pointer;
     transition:transform calc(0.15s * var(--fx-scale)) ease,
-               background calc(0.15s * var(--fx-scale)) ease;
+               opacity calc(0.15s * var(--fx-scale)) ease;
   }
   /* 見た目は7pxでも、指は44px四方で受ける（小さい点は押せない） */
   .rail-dot::after{content:'';position:absolute;inset:-18px;}
-  .rail-dot.on{background:var(--stamp);transform:scale(1.5);}
+  .rail-dot.on{opacity:1;transform:scale(1.5);}
   /* 2-2：前回あそんだカセットの札。小さく、邪魔をしない */
   .cart-last{
     position:absolute;left:50%;top:6px;transform:translateX(-50%);
@@ -1449,7 +1456,9 @@
   .cart-more .cart-label .title{font-size:11.5px;line-height:1.35;}
   /* 段の板（.board）と分類のシール（.sticker）は、棚が1列になって
      出す所が無くなった（第41弾 2-2）。分類は中央の帯が出す */
-  .shelf-hint{text-align:center;font-size:10.5px;color:var(--ink-soft);padding:6px 20px 0;line-height:1.7;}
+  /* 場の上に載るので、地の色ではなく**世界の補足色**を使う。
+     --ink-soft のままだと、暗い世界（人狼・爆弾・クイズ）で読めなくなる */
+  .shelf-hint{text-align:center;font-size:10.5px;color:var(--warp-soft);padding:6px 20px 0;line-height:1.7;}
   /* 人数を選ぶ sheet の中身。指で押しやすい大きさで並べる */
   .heads-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
   .heads-btn{
@@ -1485,7 +1494,6 @@
   .prof-part .pp-emoji{font-size:24px;line-height:1.2;display:block;}
   .prof-part .pp-label{font-size:9.5px;color:var(--ink-soft);margin-top:4px;
     display:block;line-height:1.4;}
-  .prof-empty{font-size:12px;color:var(--ink-soft);line-height:1.8;padding:4px 2px;}
   /* 2-4：カセットごとの1行 */
   .prof-cas{
     display:flex;align-items:center;gap:10px;width:100%;min-height:48px;
@@ -1569,28 +1577,6 @@
   .shelf-bar-btns{display:flex;gap:6px;flex:none;}
   .shelf-bar-btns .btn{margin:0;padding:9px 12px;font-size:12.5px;width:auto;
     min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;}
-  /* 第26弾-4：称号を選ぶ画面 */
-  .title-preview{
-    display:flex;align-items:center;gap:12px;
-    padding:12px 14px;margin-bottom:16px;
-    background:var(--paper-2,rgba(0,0,0,.03));border:1px solid var(--line);border-radius:14px;
-  }
-  .title-preview .shelf-title{font-size:12.5px;}
-  .title-preview .shelf-name{font-size:16px;}
-  .tg-head{display:flex;align-items:baseline;gap:8px;margin:18px 0 8px;}
-  .tg-head h3{font-size:13px;font-weight:800;margin:0;}
-  .tg-head .tg-count{font-size:11px;color:var(--ink-soft);}
-  .tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}
-  .tg-item{
-    display:flex;flex-direction:column;align-items:center;gap:4px;
-    padding:10px 6px;border:1px solid var(--line);border-radius:12px;
-    background:var(--paper);cursor:pointer;font:inherit;color:inherit;text-align:center;
-  }
-  .tg-item.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);}
-  .tg-item.locked{opacity:.45;cursor:default;}
-  .tg-emoji{font-size:24px;line-height:1;}
-  .tg-label{font-size:12.5px;font-weight:700;}
-  .tg-hint{font-size:10px;color:var(--ink-soft);line-height:1.5;}
   /* 第10弾：あそびかた設定・オプションタグ */
   .opt-block{margin-bottom:20px;}
   .opt-block .seg-btn{font-size:13px;padding:10px 4px;}
@@ -1625,11 +1611,6 @@
   .record-game{font-size:11px;color:#fff;background:var(--stamp);border-radius:999px;padding:2px 10px;flex:none;}
   .record-date{font-size:11px;color:var(--ink-soft);}
   .record-scores b{color:var(--stamp-deep);}
-  .match-history-item{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
-  .match-history-item:last-child{border-bottom:none;}
-  .match-history-date{font-size:11px;color:var(--ink-soft);}
-  .match-history-scores{margin-top:3px;}
-  .match-history-scores b{color:var(--stamp-deep);}
   .stats-lookup-card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:13px;}
   .stats-lookup-card .num{font-family:'DotGothic16',monospace;color:var(--stamp-deep);}
   .describer-section{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
@@ -1887,7 +1868,12 @@
      隅は指が届く場所なので、押せない飾りを置くと押しに行かれてしまう。
      季節が来ていることは、棚の帯（#seasonBadge）と背景の色だけで伝える */
   /* 棚：季節の空気をうっすら重ねる（読みやすさを損なわない濃さに留める） */
-  .app.season-release #scr-shelf{
+  /* 記念の季節の金色の霞。**染まる場にも同じ霞をかける**——
+     第43弾で棚の中身を .shelf-stage（不透明）で覆ったので、
+     画面の側だけに書いておくと、霞が上の帯にしか出なくなる（落とし穴27：
+     箱を外に出したら、その箱に付いていた設定から外れる） */
+  .app.season-release #scr-shelf,
+  .app.season-release .shelf-stage{
     background-image:linear-gradient(180deg, rgba(230,180,90,.16), rgba(230,180,90,0) 40%);
   }
   /* 扉：ようこその一言に、記念のひとつ */
@@ -2407,7 +2393,6 @@
     font-size:16px;font-weight:700;color:var(--ink);cursor:pointer;
   }
   .sugo-step.on{border-color:var(--stamp);background:var(--paper-deep);}
-  .sugo-rank-list{display:flex;flex-direction:column;gap:4px;max-width:340px;width:100%;}
 
   /* ===================================================================
      第18弾 第5部：人狼カセット専用の「夜」テーマ
@@ -3248,20 +3233,25 @@
       <div class="mic-status" style="text-align:center;margin-top:6px;">みんなで集まって遊ぶ、パーティゲームの棚です</div>
     </div>
     <div class="wiz-body">
-      <button class="howto-card" data-entry="choose">
-        <div class="howto-icon">🎴</div>
-        <div class="howto-text">
-          <div class="howto-title">ゲームをえらぶ</div>
-          <div class="howto-sub">棚から遊ぶものをえらびます</div>
-        </div>
-      </button>
-      <button class="howto-card" data-entry="join">
-        <div class="howto-icon">🚪</div>
-        <div class="howto-text">
-          <div class="howto-title">部屋に入る</div>
-          <div class="howto-sub">部屋コードをもらった人はこちら</div>
-        </div>
-      </button>
+      <!-- button の中は phrasing content なので div は置けない（span で組む） -->
+      <div class="howto-list">
+        <button class="btn howto-card" data-entry="choose">
+          <span class="howto-icon">🎴</span>
+          <span class="howto-text">
+            <span class="howto-title">ゲームをえらぶ</span>
+            <span class="howto-sub">棚から遊ぶものをえらびます</span>
+          </span>
+          <span class="howto-go">›</span>
+        </button>
+        <button class="btn howto-card" data-entry="join">
+          <span class="howto-icon">🚪</span>
+          <span class="howto-text">
+            <span class="howto-title">部屋に入る</span>
+            <span class="howto-sub">部屋コードをもらった人はこちら</span>
+          </span>
+          <span class="howto-go">›</span>
+        </button>
+      </div>
       <div class="mic-status" id="entryNote" style="margin-top:16px;text-align:center;"></div>
     </div>
   </div>
@@ -3273,10 +3263,11 @@
        共通部品の4種（confirm/danger/info/ask）に当てはまらないため。
        5種類目を足すと正本4とカタログに波及するので、画面で受ける。 -->
   <div class="screen" id="scr-play-way">
-    <div class="wiz-head">
-      <div class="wiz-title" id="wayTitle"></div>
-      <div class="mic-status" id="wayBody" style="margin-top:8px;"></div>
-    </div>
+    <!-- 見出しは共通部品（.scr-title）。第41弾④では .wiz-title と名乗っていたが、
+         そんな規則はどこにも無く、本文と同じ大きさで出ていた。
+         .wiz-head は横並びなので、本文はその外に置く -->
+    <div class="wiz-head"><h2 class="scr-title" id="wayTitle"></h2></div>
+    <div class="mic-status" id="wayBody" style="margin-bottom:8px;"></div>
     <div class="wiz-body" id="wayChoices"></div>
     <div class="wiz-foot">
       <button class="btn btn-ghost" id="wayCancelBtn"></button>
@@ -3292,10 +3283,8 @@
        入口で「1台か部屋か」を先に決めさせると、その値と部屋の実在がずれて
        行き止まりができる。決めるのはカセットを選んだ後（2-4）。 -->
   <div class="screen" id="scr-room-open">
-    <div class="wiz-head">
-      <div class="wiz-title" id="roomOpenTitle"></div>
-      <div class="mic-status" id="roomOpenInfo" style="margin-top:10px;"></div>
-    </div>
+    <div class="wiz-head"><h2 class="scr-title" id="roomOpenTitle"></h2></div>
+    <div class="mic-status" id="roomOpenInfo" style="margin-bottom:10px;"></div>
     <div class="wiz-body">
       <button class="btn btn-main" id="roomOpenBackBtn"></button>
       <button class="btn btn-ghost" id="roomOpenCloseBtn"></button>
@@ -3331,11 +3320,18 @@
     <!-- 部屋を持ったまま棚に来た人が、待合へ戻れなくならないための1行。
          **持っている時だけ出る**（2-1・2-8 で外した「部屋」ボタンとは別物——
          あれは部屋を作る入口、これは持っている部屋への帰り道） -->
-    <button class="shelf-room-note" id="shelfRoomNote" style="display:none;"></button>
-    <div id="shelfList"></div>
-    <!-- 第41弾 2-2：中央の帯。ここだけが、選んだカセットの世界の色になる -->
-    <div class="sw-band" id="shelfBand"></div>
-    <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ<br>ながおしで、そのカセットの説明が読める</div>
+    <!-- 第43弾：**染まる場所は、上の帯と下部バーのあいだ全部。**
+         第41弾 2-2 では中央の一段だけを染めていたが、
+         クリーム・世界の色・クリームの3段になり、世界がカセットの後ろではなく
+         「棚に貼った1枚の紙」に見えていた（本人の指摘）。
+         上の帯（タイトル・人数チップ）と下部バー（アカウント・⚙）はクリーム固定。
+         **その2つは、どのカセットを見ていても意味が変わらない場所**だから -->
+    <div class="shelf-stage" id="shelfStage">
+      <button class="shelf-room-note" id="shelfRoomNote" style="display:none;"></button>
+      <div id="shelfList"></div>
+      <div class="sw-band" id="shelfBand"></div>
+      <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ<br>ながおしで、そのカセットの説明が読める</div>
+    </div>
     <!-- 第26弾-2：下部バー。ログインしていなくても同じ形で出る。
          左半分（アイコン・二つ名・名前）をタップすると称号を選び直せる -->
     <div class="shelf-bar">
@@ -3560,7 +3556,7 @@
           <div class="tp-label">時間の見せ方</div>
           <!-- 第36弾 36-2：ここも設定画面も、同じ appPrefs.timerView を書き換えるだけの窓口。
                data-timerview を持つボタンは、どこに増やしても自動で同じ動きになる -->
-          <div class="seg js-timerview">
+          <div class="seg">
             <button class="seg-btn" data-timerview="always">常に表示</button>
             <button class="seg-btn" data-timerview="peek">見たい時</button>
             <button class="seg-btn" data-timerview="hidden">表示しない</button>
@@ -4442,7 +4438,7 @@
       <!-- いま出す番のものだけがここに入る（じゅんびOK・ミニゲーム・分け合い・申告） -->
       <div class="sugo-rt-input" id="rtSugoInput"></div>
     </div>
-    <div class="rt-foot" style="text-align:center;padding:0 12px 14px;">
+    <div style="text-align:center;padding:0 12px 14px;">
       <button class="btn btn-ghost" id="rtSugoLeaveBtn" style="display:none;">← 部屋を出る</button>
     </div>
   </div>
@@ -5149,7 +5145,7 @@
         <!-- 第36弾 36-2：時間の見せ方。全カセット共通の1か所 -->
         <div class="card">
           <div class="tp-label">時間の見せ方</div>
-          <div class="seg js-timerview">
+          <div class="seg">
             <button class="seg-btn" data-timerview="always">常に表示</button>
             <button class="seg-btn" data-timerview="peek">見たい時</button>
             <button class="seg-btn" data-timerview="hidden">表示しない</button>
@@ -5865,6 +5861,15 @@
   var wayForCassetteId = null;
   var wayPlan = null;
 
+  /** 大きな二択の札1枚。入口の markup と同じ形（.btn の上に .howto-card） */
+  function wayCardHtml(way, 絵, 題, 説){
+    return '<button class="btn howto-card" data-way="' + way + '">' +
+      '<span class="howto-icon">' + 絵 + '</span>' +
+      '<span class="howto-text">' +
+        '<span class="howto-title">' + escapeHtml(題) + '</span>' +
+        '<span class="howto-sub">' + escapeHtml(説) + '</span>' +
+      '</span><span class="howto-go">›</span></button>';
+  }
   function enterPlayWay(){
     var T = (typeof UiText !== 'undefined') ? UiText.WAY : null;
     var W = (typeof UiText !== 'undefined') ? UiText.WORDS : {};
@@ -5874,15 +5879,11 @@
     if(wayPlan.kind === 'choose'){
       el('wayTitle').textContent = T.choose.見出し;
       el('wayBody').textContent = '';
-      el('wayChoices').innerHTML =
-        '<button class="howto-card" data-way="handoff">' +
-          '<div class="howto-icon">📱</div><div class="howto-text">' +
-          '<div class="howto-title">' + escapeHtml(T.choose['1台']) + '</div>' +
-          '<div class="howto-sub">' + escapeHtml(T.choose['1台の説明']) + '</div></div></button>' +
-        '<button class="howto-card" data-way="room">' +
-          '<div class="howto-icon">👥</div><div class="howto-text">' +
-          '<div class="howto-title">' + escapeHtml(T.choose.部屋) + '</div>' +
-          '<div class="howto-sub">' + escapeHtml(T.choose.部屋の説明) + '</div></div></button>';
+      // **入口と同じ札**（落とし穴1：片方だけ直すと、二択の見た目が2種類になる）
+      el('wayChoices').innerHTML = '<div class="howto-list">' +
+        wayCardHtml('handoff', '📱', T.choose['1台'], T.choose['1台の説明']) +
+        wayCardHtml('room', '👥', T.choose.部屋, T.choose.部屋の説明) +
+        '</div>';
       return;
     }
     if(wayPlan.kind === 'makeRoom'){
@@ -6368,24 +6369,36 @@
     return (room && hand) ? T.両方 : (room ? T.部屋のみ : T['1台のみ']);
   }
   /** 中央の帯を描く（2-2「世界を借りる」） */
+  /**
+   * 世界の色を場に着せる（第43弾）。
+   *
+   * **印を付ける先は1つ、通る道も1つ。**帯の描き直しには
+   * 「まだ何も選んでいない」「じゅんび中の札」「カセット」の3つの枝があり、
+   * 枝ごとに書くと、いつか1つだけ古い色のまま残る（落とし穴1）。
+   * だから枝に入る前に、ここで必ず1回だけ着せ替える
+   */
+  function dressShelfStage(theme){
+    var stage = el('shelfStage');
+    if(stage) stage.setAttribute('data-theme', theme || '');
+  }
   function renderShelfBand(){
     var band = el('shelfBand');
     if(!band) return;
     var T = (typeof UiText !== 'undefined') ? UiText.SHELF : null;
     var cur = shelfCurrent();
-    if(!cur || !T){ band.innerHTML = ''; return; }
+    if(!cur || !T){ dressShelfStage(''); band.innerHTML = ''; return; }
 
     if(cur.kind === 'more'){
-      band.setAttribute('data-theme', '');
+      dressShelfStage('');
       band.innerHTML = '<div class="sw-head"><div class="sw-icon">🔧</div>' +
         '<div class="sw-name">ほか' + cur.n + 'つ、じゅんび中</div></div>' +
         '<div class="sw-desc">できあがったら、ここに並びます</div>';
       return;
     }
     var c = cur.c;
-    if(!c){ band.innerHTML = ''; return; }
+    if(!c){ dressShelfStage(''); band.innerHTML = ''; return; }
     // **世界の色は、止まった時にだけ変わる**（送っている最中は _index が動かない）
-    band.setAttribute('data-theme', c.theme || '');
+    dressShelfStage(c.theme);
     var 分類 = genreLabel(cassetteGenres(c)[0]);
     var 止 = startBlockReason(c);
     band.innerHTML =

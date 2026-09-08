@@ -1334,12 +1334,49 @@
   }
   /* 広がる色は、そのカセットのテーマの地の色。
      テーマごとに1行。新しいテーマを作った時は、ここにも1行足す */
-  .cassette-warp{--warp-color:#EFE8D3;}
-  .cassette-warp[data-theme="wolf"]{--warp-color:#161A29;}
-  .cassette-warp[data-theme="bomb"]{--warp-color:#15171B;}
-  .cassette-warp[data-theme="quiz"]{--warp-color:#10182E;}
-  .cassette-warp[data-theme="auction"]{--warp-color:#1A1012;}
-  .cassette-warp[data-theme="sugoroku"]{--warp-color:#F2E9D5;}
+  /* カセットの世界の色。**表はここ1つだけ。**
+     タップした時に広がる幕（.cassette-warp）と、棚の中央の帯（.sw-band）が
+     同じ表を読む。2つに分けると、片方だけ直す日が来る（落とし穴1）。
+     文字の色（--warp-ink / --warp-soft）も同じ行で決める——
+     地の色だけ移して文字色を忘れると、暗い帯に暗い字が乗る */
+  .cassette-warp, .sw-band{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#5B5A50;}
+  .cassette-warp[data-theme="wolf"], .sw-band[data-theme="wolf"]{--warp-color:#161A29;--warp-ink:#EDEBF5;--warp-soft:#9BA2C2;}
+  .cassette-warp[data-theme="bomb"], .sw-band[data-theme="bomb"]{--warp-color:#15171B;--warp-ink:#E8EAED;--warp-soft:#9AA3AF;}
+  .cassette-warp[data-theme="quiz"], .sw-band[data-theme="quiz"]{--warp-color:#10182E;--warp-ink:#F2F5FA;--warp-soft:#A9B6CE;}
+  .cassette-warp[data-theme="auction"], .sw-band[data-theme="auction"]{--warp-color:#1A1012;--warp-ink:#F5EDE6;--warp-soft:#C6B0A8;}
+  .cassette-warp[data-theme="sugoroku"], .sw-band[data-theme="sugoroku"]{--warp-color:#F2E9D5;--warp-ink:#1F1B17;--warp-soft:#5A5148;}
+
+  /* ---- 棚の中央の帯（第41弾 2-2「世界を借りる」）----
+     **染まるのはここだけ。**上の帯（タイトル）と下部バーはクリームのまま。
+     scr-shelf は THEME_FREE_SCREENS のままなので、.app には手を付けない */
+  .sw-band{
+    position:relative;margin:10px 14px 0;border-radius:14px;padding:20px 16px 18px;
+    background:var(--warp-color);color:var(--warp-ink);text-align:center;
+    /* 2-2：**止まった瞬間に0.3秒でとけ替わる。**
+       送っている最中は _index が変わらないので、ここは自然に呼ばれない */
+    transition:background-color calc(0.3s * var(--fx-scale)) ease,
+               color calc(0.3s * var(--fx-scale)) ease;
+  }
+  /* 上下の境目はグラデーションで棚の地色へ溶かす（硬い線にしない） */
+  .sw-band::before, .sw-band::after{
+    content:'';position:absolute;left:0;right:0;height:18px;pointer-events:none;
+  }
+  .sw-band::before{top:0;background:linear-gradient(180deg,var(--paper),transparent);border-radius:14px 14px 0 0;}
+  .sw-band::after{bottom:0;background:linear-gradient(0deg,var(--paper),transparent);border-radius:0 0 14px 14px;}
+  .sw-head{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;position:relative;}
+  .sw-icon{font-size:24px;line-height:1;}
+  .sw-icon img{height:26px;vertical-align:middle;}
+  .sw-name{font-family:'Zen Maru Gothic',sans-serif;font-weight:900;font-size:18px;}
+  /* 分類は、名前の横に小さく（2-2：段にはしない） */
+  .sw-genre{font-size:10.5px;padding:2px 9px;border-radius:999px;
+    border:1px solid var(--warp-soft);color:var(--warp-soft);}
+  .sw-facts{font-size:11.5px;color:var(--warp-soft);margin-top:7px;line-height:1.7;}
+  .sw-desc{font-size:13px;line-height:1.7;margin-top:8px;}
+  .sw-btns{display:flex;gap:8px;justify-content:center;margin-top:13px;}
+  .sw-btns .btn{margin:0;width:auto;padding:11px 18px;font-size:13.5px;min-height:44px;}
+  /* 2-5：押せない理由。**グレーで終わらせない**ので、下に次の行動を置く */
+  .sw-why{font-size:11.5px;color:var(--warp-soft);margin-top:9px;line-height:1.7;}
+  .sw-why .btn{margin-top:7px;}
   .cart-body{
     width:100%;aspect-ratio:1/1.1;border-radius:7px 7px 4px 4px;
     background:linear-gradient(180deg,#F3EBD9,#DCD0B6);
@@ -3185,6 +3222,8 @@
       <div class="mic-status" id="seasonBadge" style="display:none;text-align:center;margin-top:4px;"></div>
     </div>
     <div id="shelfList"></div>
+    <!-- 第41弾 2-2：中央の帯。ここだけが、選んだカセットの世界の色になる -->
+    <div class="sw-band" id="shelfBand"></div>
     <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ<br>ながおしで、そのカセットの説明が読める</div>
     <!-- 第26弾-2：下部バー。ログインしていなくても同じ形で出る。
          左半分（アイコン・二つ名・名前）をタップすると称号を選び直せる -->
@@ -5485,14 +5524,14 @@
     // games：このカセットに入っているゲーム。2つ以上ならゲーム選択画面を挟む
     { id:'aresoredorekore', genre:'word', ready:true,  logo:'img/logo-aresoredorekore.png', title:'あれそれどれこれ',
       games:['aresoredorekore'],
-      meta:'2〜8人 / 10分〜<br>ことばで説明して当てる' },
+      blurb:'ことばで説明して当てる' },
     // 話して探る遊びなので、ことばの段にも正体の段にも並べる
     { id:'jinro',           genre:'hide', alsoGenre:['word'], ready:true,  icon:'🐺', title:'人狼<br>ゲーム',
       games:['wordwolf', 'wolfrole'],
       // 第20弾-7-1：このカセットを選んだ時点から専用テーマにする
       theme:'wolf',
       // 第18弾で人数上限を撤廃した（手渡しの回数が人数に比例して増えないため）
-      meta:'3人〜人数無制限 / 15分〜<br>正体を隠して探り合う' },
+      blurb:'正体を隠して探り合う' },
     // 第27弾：爆弾解除。いま中身があるのは「クイズ解除」だけなので、
     // 遊べるものに合わせて「ことばであそぶ」の段に置く。
     // 実物解除（傾け・振る・ポーズ）が入ったら「からだをうごかす」へ移すことになる
@@ -5501,26 +5540,26 @@
       games:['bomb', 'defuse'],
       // 第28弾-2：このカセットを選んだ時点から、制御盤の見た目にする
       theme:'bomb',
-      meta:'2人〜 / 10分〜<br>爆発を止める・伝え合って解く' },
+      blurb:'爆発を止める・伝え合って解く' },
     // 第30弾：クイズ王。4つとも1人1台・部屋が必須（全員が別々の画面を同時に見る遊びなので、
     // 1台を回す手渡しでは成立しない）
     { id:'quizou',          genre:'brain', ready:true,  icon:'👑', title:'クイズ<br>王',
       games:['quizrush', 'quizlist', 'quizreveal', 'buzzer'],
       theme:'quiz',
-      meta:'2人〜 / 10分〜<br>1人1台で解いて競う' },
+      blurb:'1人1台で解いて競う' },
     // 第31弾：オークションバトル（作り直し）。1人1台・部屋が必須。
     // 「かけひき」の段にちょうど合うので、空いていた枠に入れる
     { id:'auction',         genre:'deal', ready:true,  icon:'💰', title:'オーク<br>ション',
       games:['auction'],
       theme:'auction',
-      meta:'2人〜 / 15分〜<br>値をつけて競り合う' },
+      blurb:'値をつけて競り合う' },
     // 第36弾：すごろく。中身があるのは「つうこうりょう」だけ（原則2：1つずつ完璧に）。
     // 通行料の読み合いが芯なので「かけひき」の段に置く。
     // 「どこにいる？」が入ったら「正体をさぐる」の段にも並べることになる
     { id:'sugoroku',        genre:'deal', ready:true,  icon:'🎲', title:'すご<br>ろく',
       games:['sugograb', 'sugopair', 'sugohide', 'sugotoll', 'sugohand'],
       theme:'sugoroku',
-      meta:'3〜8人 / 20分〜<br>先頭ほど、進むのが高くつく' },
+      blurb:'先頭ほど、進むのが高くつく' },
     { id:'word-soon-1',     genre:'word',  ready:false, icon:'？' },
     { id:'hide-soon-1',     genre:'hide',  ready:false, icon:'？' },
     { id:'brain-soon-1',    genre:'brain', ready:false, icon:'？' },
@@ -5906,7 +5945,7 @@
       '<span class="ct-badge ' + (room ? 'ok' : '') + '">' +
         (room ? '👥 みんなのスマホでもあそべる' : '👥 みんなのスマホには未対応') + '</span>' +
       (hand ? '' : '<span class="ct-badge need">みんなのスマホが必要</span>');
-    el('ctMeta').innerHTML = c.meta || '';
+    el('ctMeta').innerHTML = escapeHtml(cassetteMetaText(c) || '') + (c.blurb ? '<br>' + escapeHtml(c.blurb) : '');
     // 中に入っているゲームと、その遊び方を並べる
     el('ctGames').innerHTML = cassetteGames(c).map(function(gid){
       var g = gameById(gid);
@@ -6068,6 +6107,94 @@
     shelfActiveRail = rail;
   }
   function shelfRail(){ return document.querySelector('#shelfList .rail'); }
+
+  /**
+   * いま中央にあるもの（カセット、または畳んだ札）。
+   * **見た目はぜんぶ _index から描き直す**ので、ここが唯一の入口
+   */
+  function shelfCurrent(){
+    var rail = shelfRail();
+    if(!rail) return null;
+    var c = rail.querySelector('.cart.center');
+    if(!c) return null;
+    if(c.dataset.more) return { kind:'more', n:Number(c.dataset.more) };
+    return { kind:'cart', c: cassetteById(c.dataset.cart) };
+  }
+  /**
+   * **2-5：押せない「はじめる」には、理由と次の行動を出す。**
+   * グレーにして終わりにしない。原因ごとに文面を用意する
+   */
+  function startBlockReason(c){
+    var T = (typeof UiText !== 'undefined') ? UiText.SHELF.理由 : null;
+    if(!T) return null;
+    if(!c || !c.ready) return { なぜ: T.準備中 };
+    if(browsingOnly()) return { なぜ: T.未ログイン, 行動: T.未ログインの行動, どこへ: 'login' };
+    return null;
+  }
+  /** 何台のスマホが要るか（カセットの実データから出す。手書きの表を持たない） */
+  function waysText(c){
+    var T = (typeof UiText !== 'undefined') ? UiText.SHELF : null;
+    if(!T) return '';
+    var room = cassetteSupportsRoom(c), hand = cassetteSupportsHandoff(c);
+    return (room && hand) ? T.両方 : (room ? T.部屋のみ : T['1台のみ']);
+  }
+  /** 中央の帯を描く（2-2「世界を借りる」） */
+  function renderShelfBand(){
+    var band = el('shelfBand');
+    if(!band) return;
+    var T = (typeof UiText !== 'undefined') ? UiText.SHELF : null;
+    var cur = shelfCurrent();
+    if(!cur || !T){ band.innerHTML = ''; return; }
+
+    if(cur.kind === 'more'){
+      band.setAttribute('data-theme', '');
+      band.innerHTML = '<div class="sw-head"><div class="sw-icon">🔧</div>' +
+        '<div class="sw-name">ほか' + cur.n + 'つ、じゅんび中</div></div>' +
+        '<div class="sw-desc">できあがったら、ここに並びます</div>';
+      return;
+    }
+    var c = cur.c;
+    if(!c){ band.innerHTML = ''; return; }
+    // **世界の色は、止まった時にだけ変わる**（送っている最中は _index が動かない）
+    band.setAttribute('data-theme', c.theme || '');
+    var 分類 = genreLabel(cassetteGenres(c)[0]);
+    var 止 = startBlockReason(c);
+    band.innerHTML =
+      '<div class="sw-head">' +
+        '<div class="sw-icon">' + (c.logo
+          ? '<img src="' + c.logo + '" alt="' + escapeHtml((c.title || '').replace(/<br>/g, '')) + '">'
+          : (c.icon || '')) + '</div>' +
+        '<div class="sw-name">' + escapeHtml((c.title || '').replace(/<br>/g, '')) + '</div>' +
+        (分類 ? '<div class="sw-genre">' + escapeHtml(分類) + '</div>' : '') +
+      '</div>' +
+      '<div class="sw-facts">' + escapeHtml(cassetteMetaText(c) || '') + '<br>' + waysText(c) + '</div>' +
+      (c.blurb ? '<div class="sw-desc">' + escapeHtml(c.blurb) + '</div>' : '') +
+      '<div class="sw-btns">' +
+        '<button class="btn btn-main" id="swStartBtn"' + (止 ? ' disabled' : '') + '>' +
+          escapeHtml(T.はじめる) + '</button>' +
+        '<button class="btn btn-outline" id="swTitlesBtn">🏆 ' + escapeHtml(T.達成状況) + '</button>' +
+      '</div>' +
+      (止 ? '<div class="sw-why">' + escapeHtml(止.なぜ) +
+        (止.行動 ? '<br><button class="btn btn-outline" data-sw-go="' + 止.どこへ + '">' +
+          escapeHtml(止.行動) + '</button>' : '') + '</div>' : '');
+  }
+  // 帯のボタン
+  el('shelfBand').addEventListener('click', async function(e){
+    var go = e.target.closest('[data-sw-go]');
+    if(go){
+      if(go.dataset.swGo === 'login') await requireLogin(null, 'scr-shelf');
+      return;
+    }
+    if(e.target.closest('#swTitlesBtn')){
+      if(browsingOnly()){ showFlash(UiText.SHELF.未ログインの記録, 'hit'); return; }
+      goTo('scr-titles');
+      return;
+    }
+    if(e.target.closest('#swStartBtn')){
+      var cur = shelfCurrent();
+      if(cur && cur.kind === 'cart' && cur.c) startCassette(cur.c.id);
+    }
+  });
   // ---- PC操作：矢印ボタンとキーボードでカセットを動かす ----
   var shelfActiveRail = null;
   function railCarts(rail){ return Array.prototype.slice.call(rail.querySelectorAll('.cart')); }
@@ -6103,6 +6230,10 @@
       if(rail._centerEl) rail._centerEl.classList.remove('center');
       best.classList.add('center');
       rail._centerEl = best;
+      // **中央が変わった時だけ、帯を描き直す。**
+      // 指で送っている最中は _index が動かないので、ここは呼ばれない
+      //（2-2「スクロール中は変えない」は、時計ではなく作りで守っている）
+      renderShelfBand();
     }
     var dots = el('shelfDots');
     if(dots){

@@ -1478,5 +1478,114 @@ function pickCart(doc, id) {
     assertEqual(bad.join('、'), '', '画面に出る文字に専門用語が残っていない');
   });
 
+  // ---- 第41弾 2-2：中央の帯（世界を借りる）----
+
+  await r.test('中央の帯が、選んでいるカセットの中身を出す（2-2）', async () => {
+    // 段が無くなって、分類の行き場が消えた。**帯が引き受ける。**
+    // ここに出るものは 2-2 が並べている：
+    // アイコン・名前・分類・人数と時間・遊び方・説明・はじめる・達成状況
+    const { win, doc, errors } = await launch();
+    const band = doc.getElementById('shelfBand');
+    assert(band, '中央の帯がある');
+
+    const 見る = () => band.textContent.replace(/\s+/g, ' ');
+    // **1枚ずつ回して、全部の完成カセットで確かめる**（列挙ではなく正本のループ）
+    const INV = require('./inventory');
+    const rail = doc.querySelector('#shelfList .rail');
+    const ids = Array.from(rail.querySelectorAll('.cart')).map((c) => c.dataset.cart);
+    const 見た = [];
+    for (let i = 0; i < ids.length; i++) {
+      if (!ids[i]) continue;                     // 畳んだ札は別の検査で見る
+      const 右 = rail.parentNode.querySelector('.rail-arrow.right');
+      while ((rail.querySelector('.cart.center') || {}).dataset.cart !== ids[i]) {
+        右.click(); await sleep(win, 350);
+      }
+      const t = 見る();
+      const info = win.cassetteGenreInfo(ids[i]);
+      const 分類 = win.shelfMeta(ids[i]);
+      assert(分類.text && t.indexOf(分類.text) >= 0,
+        ids[i] + '：人数と時間が出ている（' + 分類.text + '）');
+      assert(/1台|みんなのスマホ/.test(t), ids[i] + '：何台のスマホが要るかが出ている');
+      assert(/はじめる/.test(t), ids[i] + '：はじめるが出ている');
+      assert(/達成状況/.test(t), ids[i] + '：達成状況が出ている');
+      見た.push(ids[i]);
+    }
+    // **数を先に主張する**（0枚なら上の for は自明に通ってしまう。型b）
+    assertEqual(見た.slice().sort().join(','), INV.READY_CASSETTE_IDS.slice().sort().join(','),
+      '完成しているカセットを全部見た');
+    assertNoErrors(errors, '中央の帯で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('帯の世界の色は、止まった時にだけ変わる（2-2）', async () => {
+    // **送っている最中に色が動くと、目が落ち着かない。**
+    // 時計で「止まったか」を測るのではなく、
+    // **指で送っている間は中央の番号が動かない**という作りで守っている
+    const { win, doc, errors } = await launch();
+    const band = doc.getElementById('shelfBand');
+    const rail = doc.querySelector('#shelfList .rail');
+    const carts = Array.from(rail.querySelectorAll('.cart'));
+    carts.forEach((c, i) => Object.defineProperty(c, 'offsetLeft', {
+      get: () => (Number(c.style.order) || 0) * 132, configurable: true
+    }));
+    win.dispatchEvent(new win.Event('resize'));
+
+    const 世界 = () => band.getAttribute('data-theme');
+    const 前 = 世界();
+    const 指 = (type, x) => carts[0].dispatchEvent(new win.PointerEvent(type, {
+      bubbles: true, pointerType: 'touch', pointerId: 5, clientX: x, clientY: 10
+    }));
+    指('pointerdown', 300);
+    指('pointermove', 220);      // 送っている最中
+    assertEqual(世界(), 前, '送っている最中は、世界の色が変わらない');
+    指('pointerup', 220);        // 止まった
+    await sleep(win, 350);
+    assert(世界() !== 前, '止まったら、次のカセットの世界に変わる（' + 前 + ' → ' + 世界() + '）');
+
+    // 上の帯と下部バーはクリームのまま（染めるのは中央だけ）
+    assert(!el(doc, 'app').className.split(' ').some((c) => /^theme-/.test(c)),
+      '棚そのものは、どのカセットの色にも染まらない');
+    assertNoErrors(errors, '世界の切り替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('押せない「はじめる」には、理由と次の行動が出る（2-5）', async () => {
+    // **グレーで終わらせない。**
+    // 押せないボタンだけを見せると、遊ぶ人には「壊れている」としか見えない
+    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
+    const band = doc.getElementById('shelfBand');
+    const 始 = doc.getElementById('swStartBtn');
+    assert(始, 'はじめるボタンがある');
+    assert(始.disabled, '見るだけの棚では押せない');
+    const t = band.textContent.replace(/\s+/g, ' ');
+    assert(/ログインすると始められます/.test(t), '理由が出ている（' + t.slice(0, 60) + '）');
+    // 次の行動（ログインへ行く道）がある
+    const 行動 = band.querySelector('[data-sw-go="login"]');
+    assert(行動, '次にすべき行動のボタンがある');
+    行動.click();
+    await waitScreen(win, doc, 'scr-login', 3000);
+
+    // **逆向きも見る**（落とし穴20）。ログインしていれば押せる
+    const x = await launch();
+    assert(!el(x.doc, 'swStartBtn').disabled, 'ログインしていれば押せる');
+    assert(!/ログインすると始められます/.test(el(x.doc, 'shelfBand').textContent),
+      '押せる時に理由は出さない');
+    x.win.close();
+
+    assertNoErrors(errors, '押せない理由で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('帯の「はじめる」から、カセットに入れる（2-2）', async () => {
+    const { win, doc, errors } = await launch();
+    assertEqual((doc.querySelector('.cart.center') || {}).dataset.cart, 'aresoredorekore',
+      '最初は1枚目が中央');
+    click(doc, 'swStartBtn');
+    await waitFor(win, () => activeScreen(doc) !== 'scr-shelf', 4000, 'カセットの中に入る');
+    assert(activeScreen(doc) !== 'scr-shelf', '帯からも遊び始められる（実際: ' + activeScreen(doc) + '）');
+    assertNoErrors(errors, '帯のはじめるで未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

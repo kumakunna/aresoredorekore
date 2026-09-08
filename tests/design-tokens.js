@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { createRunner, assert, assertEqual } = require('./harness');
+const { createRunner, assert, assertEqual, cssRules } = require('./harness');
 
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 
@@ -220,6 +220,52 @@ const PAIRS = [
     assert(table.length === Object.keys(THEMES).length * PAIRS.length,
       '6配色 × ' + PAIRS.length + '組 を全部見た（実際:' + table.length + '）');
     assertEqual(bad.join('\n       '), '', '読めない組み合わせ');
+  });
+
+  await r.test('棚の中央の帯も、6つの世界すべてで読める（第41弾 2-2）', async () => {
+    // **この対は、上の検査の外にいた。**
+    // 上は `.app.theme-◯◯` のブロックしか読まないが、
+    // 棚の帯は `--warp-color`（世界の地）と `--warp-ink`（その上の文字）という
+    // **別の表**を使う。scr-shelf は THEME_FREE_SCREENS なので `.app` は染めない
+    //（染めると設定も下部バーも全部その色になる）。
+    // 表を分けた以上、コントラストの検査も届かせないと、
+    // 「暗い帯に暗い字」を誰も見ていない状態になる。
+    //
+    // 表そのものは**幕（.cassette-warp）と共有している1つだけ**なので、
+    // ここで通れば、タップした時に広がる幕の色も同時に確かめたことになる。
+    const CSS = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 世界 = {};
+    // 選択子は「幕, 帯」のカンマ並びなので、選択子の中に .sw-band を含む規則を拾う
+    cssRules(CSS).forEach((r2) => {
+      if (r2.sel.indexOf('.sw-band') === -1) return;
+      const m = /\[data-theme="([a-z]+)"\]/.exec(r2.sel);
+      const 名 = m ? m[1] : '共通';
+      const 取る = (v) => {
+        const g = new RegExp('--warp-' + v + '\\s*:\\s*(#[0-9A-Fa-f]{3,8})').exec(r2.body);
+        return g ? g[1] : null;
+      };
+      const 地 = 取る('color'), 字 = 取る('ink'), 補 = 取る('soft');
+      if (地 && 字) 世界[名] = { 地, 字, 補 };
+    });
+
+    // **数を先に主張する。**0件なら「全部読める」は自明に成立する（型b）
+    const 名前 = Object.keys(世界);
+    assertEqual(名前.length, Object.keys(THEMES).length,
+      '世界の数が、配色の数と合っている（実際:' + 名前.join('・') + '）');
+
+    const bad = [], 表 = [];
+    名前.forEach((名) => {
+      const w = 世界[名];
+      [['本文', w.字, 4.5], ['補足', w.補, 4.5]].forEach(([何, 色, 最低]) => {
+        if (!色) { bad.push(名 + '：' + 何 + 'の色が無い'); return; }
+        const 比 = contrast(toRgb(色), toRgb(w.地));
+        表.push(名 + '/' + 何 + '=' + 比);
+        if (比 < 最低) bad.push(名 + '：帯の地に' + 何 + '（' + 比 + ' < ' + 最低 + '）');
+      });
+    });
+    assertEqual(表.length, 名前.length * 2, '全部の世界で、本文と補足の両方を見た');
+    assertEqual(bad.join('\n       '), '', '帯の上で読めない組み合わせ');
   });
 
   r.finish();

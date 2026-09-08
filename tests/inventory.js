@@ -53,17 +53,20 @@ const RT_START_EVENT = 'wolf:start';
 
 // ---- 部屋に入る経路 ----
 // via: ui＝画面のボタン / url＝URLパラメータ / socket＝通信層の自動処理
+// 第41弾 2-1：入口を「ゲームをえらぶ／部屋に入る」の二択にして、
+// 「あそびかたをえらぶ」画面と、棚の下部バーの近道（👥）を廃止した。
+// **部屋をつくる道は、カセットを選んだ後の確認（2-4）1本になった。**
 const ROOM_ENTRY_PATHS = [
-  { id: 'howto-create', via: 'ui', event: 'room:create',
-    label: '「あそびかたをえらぶ」→みんなのスマホ→部屋を立てる（rtCreateBtn）' },
-  { id: 'howto-join', via: 'ui', event: 'room:join',
-    label: '「あそびかたをえらぶ」→みんなのスマホ→部屋に入る（rtJoinBtn・コード入力）' },
+  { id: 'playway-create', via: 'ui', event: 'room:create',
+    label: '棚→部屋でしか遊べないカセット→遊び方の確認「部屋をつくる」→rtCreateBtn' },
+  { id: 'entry-join', via: 'ui', event: 'room:join',
+    label: '入口「部屋に入る」→参加専用ロビー→コード入力（rtJoinBtn）' },
   { id: 'qr-url', via: 'url', event: 'room:join',
     label: 'QRコード（?room=コード付きURL）→参加専用ロビー→部屋に入る' },
   { id: 'login-join', via: 'ui', event: 'room:join',
     label: 'ログイン画面「部屋に参加する（ログイン不要）」→参加専用ロビー' },
-  { id: 'shelf-room-btn', via: 'ui', event: '(在室なら遷移のみ / 未在室なら create・join へ)',
-    label: '棚の下部バー「部屋」ボタン（shelfRoomBtn・第33弾で復活した近道）' },
+  { id: 'entry-room-open', via: 'ui', event: '(遷移のみ。サーバーに room:peek で確かめてから)',
+    label: '入口「ゲームをえらぶ」→部屋を持っていれば「いま開いている部屋」（2-1-2）' },
   { id: 'auto-rejoin', via: 'socket', event: 'room:join（memberId付き）',
     label: '切断→socket.io自動再接続→rt-client が同じメンバーとして入り直す' },
   { id: 'manual-rejoin', via: 'socket', event: 'room:join（memberId付き）',

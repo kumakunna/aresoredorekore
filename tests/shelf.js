@@ -5,7 +5,7 @@
 // 「棚に戻る」導線は、プレイヤー設定で行き止まりになった実績があるので必ず通す。
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects, openCassette,
   setupPlayers, pickGame, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
 
 function cart(doc, id) { return doc.querySelector('.cart[data-cart="' + id + '"]'); }
@@ -669,14 +669,14 @@ function pickCart(doc, id) {
     assert(me && /min-height:44px/.test(me[0]), '名前のところの的も44px以上ある');
 
     const { win, doc, errors } = await launch();
-    // 第32弾-A：部屋への入口の本筋は「あそびかたをえらぶ」画面。
-    // 第32弾-C：棚を見ている最中に思い立った時のため、下部バーにも近道を戻した
-    assert(doc.getElementById('shelfRoomBtn'), '下部バーから部屋へ行ける');
-    // 代わりに、棚の見出しからあそびかたを選び直せる
-    click(doc, 'shelfFlowBtn');
-    await waitScreen(win, doc, 'scr-howto', 3000);
-    click(doc, doc.querySelector('#scr-howto [data-howto="handoff"]'));
-    await waitScreen(win, doc, 'scr-shelf', 3000);
+    // **下部バーに「部屋」ボタンは無い**（第41弾 2-1・2-8）。
+    // 部屋に入るのは入口から、部屋をつくるのは遊び方の確認から。
+    // 棚から部屋を開く近道があると、入口で分けた意味が薄れる
+    assert(!doc.getElementById('shelfRoomBtn'), '下部バーに「部屋」ボタンは無い');
+    // **あそびかたを選び直すボタンも無い**（2-1：ドロップダウンは廃止）。
+    // 1台か部屋かは、カセットを選んだ後の確認で決まるので、
+    // 棚の時点では「いまの遊び方」というものが存在しない
+    assert(!doc.getElementById('shelfFlowBtn'), '棚の見出しに、あそびかたのドロップダウンは無い');
     // 「称号」（ログイン済みなら押せる）
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
@@ -696,7 +696,7 @@ function pickCart(doc, id) {
     // **役割（ホスト／ゲスト）ではなく、やることの名前で分ける。**
     // 初めて来た人には、自分がホストなのかゲストなのか分からない。
     // 集める人は「ゲームをえらぶ」、呼ばれた人は「部屋に入る」。
-    const { win, doc, errors } = await launch({ loggedOut: true, playFlow: false });
+    const { win, doc, errors } = await launch({ loggedOut: true, atEntry: true });
     assertEqual(activeScreen(doc), 'scr-entry', '扉の次は入口');
     const cards = doc.querySelectorAll('#scr-entry [data-entry]');
     assertEqual(cards.length, 2, '入口は二択');
@@ -711,11 +711,11 @@ function pickCart(doc, id) {
   });
 
   await r.test('ログインしていなくても「棚を見る」なら棚に着く', async () => {
-    const { win, doc, errors } = await launch({ loggedOut: true, playFlow: 'browse' });
+    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
     assertEqual(activeScreen(doc), 'scr-shelf', 'ログイン画面で止めない');
     assert(doc.querySelector('.shelf-bar'), '下部バーが出ている');
     assert(doc.getElementById('shelfGearBtn'), '「設定」ボタンがある');
-    assert(doc.getElementById('shelfFlowBtn'), 'あそびかたを選び直すボタンがある');
+    assert(!doc.getElementById('shelfRoomBtn'), '「部屋」ボタンは無い（入口で分かれている）');
     assertNoErrors(errors, '未ログインの起動で未捕捉の例外');
     win.close();
   });
@@ -725,7 +725,7 @@ function pickCart(doc, id) {
     // ④で遊び方を入口で決めなくなり、その入口ごと無くなったので、
     // **説明を読む手段が消えないよう** popup に移した。
     // ログインしていなくても説明は読める（棚を見るだけならログインは要らない）
-    const { win, doc, errors } = await launch({ loggedOut: true, playFlow: 'browse' });
+    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
     const cart = doc.querySelector('.cart[data-cart="jinro"]');
     assert(cart, '人狼のカセットが棚にある');
     cart.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', clientX: 100, clientY: 10 }));
@@ -752,16 +752,21 @@ function pickCart(doc, id) {
   await r.test('未ログインの名前と二つ名は、候補から選ばれて開いている間は変わらない', async () => {
     const NAMES = ['準備中！', 'まだログインしてない', 'まだ待ってね', 'ログインしないと！'];
     const TITLES = ['まだ準備してるよ！', 'ログインしないとまだできない', 'みらいのげんせき', 'まだがんばっているとちゅう！'];
-    const { win, doc, errors } = await launch({ loggedOut: true, playFlow: 'browse' });
+    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
     const name0 = el(doc, 'shelfName').textContent;
     const title0 = el(doc, 'shelfTitle').textContent;
     assert(NAMES.includes(name0), '名前が候補の中から選ばれている：' + name0);
     assert(TITLES.includes(title0), '二つ名が候補の中から選ばれている：' + title0);
 
-    // 画面を往復しても選び直さない（自分の名前がチラつくと壊れて見える）
-    click(doc, 'shelfFlowBtn');
-    await waitScreen(win, doc, 'scr-howto', 3000);
-    click(doc, doc.querySelector('#scr-howto [data-howto="browse"]'));
+    // 画面を往復しても選び直さない（自分の名前がチラつくと壊れて見える）。
+    // 往復の道は、あそびかたの選び直しから「カセット→遊び方の確認→やめる」に変えた
+    // （第41弾 2-1 で、あそびかたを選ぶ画面そのものが無くなったため）
+    // **1台専用のカセットでは往復できない。**確認を挟まず素通りするので、
+    // 未ログインだとそのままログイン画面へ行ってしまう（実際に踏んだ）。
+    // 両方対応のカセットなら「どうやって遊ぶ？」が出るので、そこから戻れる
+    await openCassette(win, doc, 'jinro');
+    assertEqual(activeScreen(doc), 'scr-play-way', '遊び方の確認が出ている');
+    click(doc, 'wayCancelBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     assertEqual(el(doc, 'shelfName').textContent, name0, '名前は開いている間ずっと同じ');
     assertEqual(el(doc, 'shelfTitle').textContent, title0, '二つ名も同じ');
@@ -771,32 +776,48 @@ function pickCart(doc, id) {
     // 開き直した時は選び直してよい（同じ端末で必ず同じにはしない）
     const seen = new Set();
     for (let i = 0; i < 12; i++) {
-      const t = await launch({ loggedOut: true, playFlow: 'browse' });
+      const t = await launch({ loggedOut: true, browse: true });
       seen.add(el(t.doc, 'shelfName').textContent);
       t.win.close();
     }
     assert(seen.size > 1, '開き直すと選び直される（12回で' + seen.size + '種類）');
   });
 
-  await r.test('ログインしていない人が「1台であそぶ」を選ぶと、ログインに案内される', async () => {
-    // 第32弾-A：手渡しは遊んだ記録を残すので、あそびかたを選んだ時点でログインを頼む
-    const { win, doc, errors } = await launch({ loggedOut: true, playFlow: false });
-    // 第41弾：扉の次に入口が入ったので、そこを通ってから遊び方を選ぶ
+  await r.test('未ログインで「ゲームをえらぶ」を押すと、ログインに案内される（第41弾 2-1）', async () => {
+    // 遊んだ記録を残すのでログインが要る。**それを聞く場所が入口に移った**——
+    // 以前は「あそびかたをえらぶ」で1台を選んだ時に聞いていたが、
+    // その画面ごと無くなった（2-1）。
+    const { win, doc, errors } = await launch({ loggedOut: true, atEntry: true });
     click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-howto', 3000);
-    click(doc, doc.querySelector('#scr-howto [data-howto="handoff"]'));
-    await sleep(win, 80);
-    assertEqual(activeScreen(doc), 'scr-login', '手渡しで遊ぶにはログインが要る');
-    // 断らずに戻れる（行き止まりにしない）
+    await waitScreen(win, doc, 'scr-login', 3000);
+
+    // **行き止まりにしない道が2つある**（これがこの検査の本体）
     click(doc, 'loginBackBtn');
-    await waitScreen(win, doc, 'scr-howto', 3000);
+    await waitScreen(win, doc, 'scr-entry', 3000);
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-login', 3000);
+    const browse = doc.getElementById('loginBrowseBtn');
+    assert(browse, 'ログインせずに棚を見る道がある');
+    assert(/ログインせず/.test(browse.textContent), 'それが何をする道か、札で分かる：' + browse.textContent);
+    click(doc, browse);
+    await waitScreen(win, doc, 'scr-shelf', 3000);
     assertNoErrors(errors, 'ログイン案内で未捕捉の例外');
     win.close();
   });
 
   await r.test('ログインすると、頼まれた用事の続きに戻る', async () => {
-    const { win, doc, errors } = await launch({ loggedOut: true, fakeSocket: true, playFlow: false });
-    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+    // 用事へ行く道が変わった（第41弾 2-1・2-4）。
+    // 以前は「あそびかたをえらぶ→みんなのスマホ」で部屋の画面へ行けた。
+    // いまは**部屋専用のカセットを選ぶと、確認が「部屋をつくる」を出す**。
+    const { win, doc, errors } = await launch({ loggedOut: true, fakeSocket: true, atEntry: true });
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-login', 3000);
+    click(doc, 'loginBrowseBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await openCassette(win, doc, 'quizou');   // 部屋でしか遊べないカセット
+    // waitFor は「遊び方の確認」を自動で通り抜けるので、この画面は待てない
+    assertEqual(activeScreen(doc), 'scr-play-way', '部屋をつくる確認が出ている');
+    click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
     await waitScreen(win, doc, 'scr-rt-lobby', 3000);
     click(doc, 'rtCreateBtn'); // 立てるにはログインが要る
     await waitScreen(win, doc, 'scr-login', 3000);
@@ -1419,7 +1440,7 @@ function pickCart(doc, id) {
 
   await r.test('はじめて触る人にも、これが何のアプリか分かる（第8部-4）', async () => {
     // 友達の家で初めて触る人が、いきなり棚を見せられても分からない
-    const { win, doc, errors } = await launch({ playFlow: false });
+    const { win, doc, errors } = await launch({ atEntry: true });
     assertEqual(activeScreen(doc), 'scr-entry', '扉のつぎの画面');
     const text = el(doc, 'scr-entry').textContent;
     assert(/パーティゲーム/.test(text), '何のアプリか書いてある');

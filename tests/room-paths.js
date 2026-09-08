@@ -524,11 +524,11 @@ async function run() {
     // 正本に新しい経路が増えたのに担当が決まっていない時に赤くする（落とし穴4の恒久対策）
     const inv = require('./inventory');
     const COVERAGE = {
-      'howto-create': 'rt-screens「参加する時に役割を選ばせない」ほか作成系＋abnormal d12（20人・復帰）',
-      'howto-join': 'room-edge join系＋abnormal d09（存在しないコード）',
+      'playway-create': 'rt-screens 作成系（toRoomLobby がこの道を通る）＋play-way C/E＋abnormal d12（20人・復帰）',
+      'entry-join': 'room-edge join系＋abnormal d09（存在しないコード）',
       'qr-url': 'rt-screens「部屋コードを入れると何を遊ぶのかが出る」＋smoke QR系＋D-4実機（リロード3局面）',
       'login-join': 'rt-screens「呼ばれて入るだけの人には部屋をつくるを出さない」',
-      'shelf-room-btn': 'rt-screens 部屋ボタン4態（在室・ゲーム中・未在室・消滅）',
+      'entry-room-open': 'rt-screens 入口の部屋確認4態（在室・部屋なし・ゲーム中・消滅）',
       'auto-rejoin': 'room-edge「通信が切れて戻っても同じところに復帰」＋abnormal d01',
       'manual-rejoin': 'abnormal d08（同memberId復帰・同名別人の両面）',
     };

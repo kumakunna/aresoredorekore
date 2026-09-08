@@ -855,12 +855,6 @@
   .shelf-head .logo{font-family:'Zen Maru Gothic',sans-serif;font-weight:900;font-size:22px;letter-spacing:.02em;}
   .shelf-head .logo .c{color:var(--stamp);}
   .shelf-head .sub{font-size:11px;color:var(--ink-soft);margin-top:3px;}
-  /* 第32弾-A：棚から、あそびかたを選び直すボタン */
-  .shelf-flow{
-    margin-top:8px;background:var(--card);border:1px solid var(--line);
-    border-radius:999px;padding:5px 14px;font-size:11.5px;color:var(--ink);
-    cursor:pointer;font-family:inherit;
-  }
 
   /* ---- 第32弾-B-1：設定（項目を選ぶ→専用画面が開く） ---- */
   .overlay-head{position:relative;}
@@ -1215,17 +1209,6 @@
   .big-tools{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:24px;}
   .big-tools .btn{width:auto;min-width:180px;margin:0;}
 
-  /* ---- 第32弾-A：あそびかたをえらぶ ---- */
-  .howto-card{
-    display:flex;align-items:center;gap:14px;width:100%;text-align:left;
-    background:var(--card);border:1px solid var(--line);border-radius:16px;
-    padding:18px 16px;margin-bottom:12px;cursor:pointer;
-    font-family:inherit;color:var(--ink);box-shadow:var(--shadow);
-  }
-  .howto-card:active{transform:scale(.99);}
-  .howto-icon{font-size:32px;line-height:1;flex:0 0 auto;}
-  .howto-title{font-size:16px;font-weight:800;}
-  .howto-sub{font-size:12px;color:var(--ink-soft);margin-top:3px;}
   /* ---- 第32弾-A：カセットの詳しい説明 ---- */
   .ct-badges{display:flex;flex-wrap:wrap;gap:6px;}
   .ct-badge{
@@ -3155,37 +3138,22 @@
     </div>
   </div>
 
-  <div class="screen" id="scr-howto">
-    <div class="shelf-head">
-      <div class="logo">あつまれ<span class="c">、</span>あれこれ</div>
-      <div class="sub">きょうは、どうやってあそぶ？</div>
-      <!-- 第32弾-C 第8部-4：友達の家で初めて触る人が、いきなり棚を見ても分からない。
-           このアプリが何なのかを、選ぶ前に一言だけ置く -->
-      <div class="mic-status" style="text-align:center;margin-top:6px;">みんなで集まって遊ぶ、パーティゲームの棚です</div>
+  <!-- 1.5b: いま開いている部屋（第41弾 2-1-2）。
+       部屋を持ったまま「ゲームをえらぶ」に来た人に、棚の前で一度だけ確かめる。
+       **部屋があるかどうかはサーバーに聞いてから出す**（落とし穴14-b：
+       端末の古い記憶のまま、もう消えた部屋の待合へ飛ばさない）。
+
+       ここにあった scr-howto（あそびかたをえらぶ）は第41弾 2-1 で廃止した。
+       入口で「1台か部屋か」を先に決めさせると、その値と部屋の実在がずれて
+       行き止まりができる。決めるのはカセットを選んだ後（2-4）。 -->
+  <div class="screen" id="scr-room-open">
+    <div class="wiz-head">
+      <div class="wiz-title" id="roomOpenTitle"></div>
+      <div class="mic-status" id="roomOpenInfo" style="margin-top:10px;"></div>
     </div>
     <div class="wiz-body">
-      <button class="howto-card" data-howto="handoff">
-        <div class="howto-icon">📱</div>
-        <div class="howto-text">
-          <div class="howto-title">1台のスマホでみんなであそぶ</div>
-          <div class="howto-sub">スマホを回してあそびます</div>
-        </div>
-      </button>
-      <button class="howto-card" data-howto="room">
-        <div class="howto-icon">👥</div>
-        <div class="howto-text">
-          <div class="howto-title">みんなのスマホであそぶ</div>
-          <div class="howto-sub">それぞれの端末であそびます</div>
-        </div>
-      </button>
-      <button class="howto-card" data-howto="browse">
-        <div class="howto-icon">👀</div>
-        <div class="howto-text">
-          <div class="howto-title">棚を見る</div>
-          <div class="howto-sub">はじめての人はここから。どんなゲームがあるか見られます</div>
-        </div>
-      </button>
-      <div class="mic-status" id="howtoNote" style="margin-top:16px;text-align:center;"></div>
+      <button class="btn btn-main" id="roomOpenBackBtn"></button>
+      <button class="btn btn-ghost" id="roomOpenCloseBtn"></button>
     </div>
   </div>
 
@@ -3211,8 +3179,6 @@
       <div class="sub" id="shelfSub">あそぶゲームをえらんでね</div>
       <!-- 第32弾-F：期間中だけの控えめな一言。「あと〇日」のような焦らせる表示は出さない -->
       <div class="mic-status" id="seasonBadge" style="display:none;text-align:center;margin-top:4px;"></div>
-      <!-- 第32弾-A：最初に選ばされたあそびかたを、ここでいつでも変えられる -->
-      <button class="shelf-flow" id="shelfFlowBtn">📱 1台であそぶ　▾</button>
     </div>
     <div id="shelfList"></div>
     <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ<br>ながおしで、そのカセットの説明が読める</div>
@@ -3226,12 +3192,10 @@
           <div class="shelf-name" id="shelfName">-</div>
         </div>
       </button>
-      <!-- 第32弾-A：部屋への入口の本筋は「あそびかたをえらぶ」画面。
-           第32弾-C：ただし棚を見ている最中に部屋を開きたくなることがあるので、
-           近道としてここにも置く。本筋を置き換えるものではないので、
-           見た目は控えめ（⚙と同じ大きさの記号ひとつ）にしてある -->
+      <!-- 第41弾 2-1・2-8：「部屋」ボタンは無い。
+           部屋に入るのは入口から、部屋をつくるのは遊び方の確認から。
+           棚から部屋を開く近道があると、入口で分けた意味が薄れる -->
       <div class="shelf-bar-btns">
-        <button class="btn btn-ghost" id="shelfRoomBtn" aria-label="部屋をひらく">👥</button>
         <button class="btn btn-ghost" id="shelfGearBtn">⚙</button>
       </div>
     </div>
@@ -3258,6 +3222,9 @@
     <!-- 第22弾-1：呼ばれて参加するだけの人は、ログインも棚も要らない -->
     <div class="join-divider"><span>または</span></div>
     <button class="btn btn-outline" id="loginJoinRoomBtn">🚪 部屋に入る（ログイン不要）</button>
+    <!-- 第41弾 2-1：見るだけの棚への道。**ログインしない選択も、行き止まりにしない。**
+         初めて来た人が、何があるか見てから決められるようにする -->
+    <button class="btn btn-ghost" id="loginBrowseBtn"></button>
     <!-- 第26弾-2：棚が先に来るようになったので、ログインしないで戻る道を残す -->
     <button class="btn btn-ghost" id="loginBackBtn">← 棚にもどる</button>
   </div>
@@ -5565,11 +5532,6 @@
   // 以前は棚と「部屋」が対等に並んでいて、実際には部屋の方が上位の概念なのに
   // 同じ高さに見えていた。そのねじれが「部屋を立て忘れる」
   // 「1人1台のゲームを手渡しで選んで、途中で進めなくなる」の根っこだった。
-  var PLAY_FLOWS = {
-    handoff: { icon:'📱', label:'1台であそぶ', sub:'スマホを回してあそびます' },
-    room:    { icon:'👥', label:'みんなのスマホ', sub:'それぞれの端末であそびます' },
-    browse:  { icon:'👀', label:'見るだけ', sub:'どんなゲームがあるか見ています' }
-  };
   // そのゲームが部屋（1人1台）で遊べるか。
   // 判定のもとは RT_GAME_SCREENS ひとつ。ここに別の一覧を手で書くと、
   // ゲームを足した時に片方だけ更新して食い違う（落とし穴4）
@@ -5660,7 +5622,7 @@
   // 棚の数字を外から確かめられるようにしておく（window.catalogSet と同じ作法）。
   // **画面に出る数字は、検査からも同じ関数で読めること。**
   window.gameRange = function(gameId){ return gamePlayerRange(gameId); };
-  window.shelfProbe = function(){ return { playFlow: state.playFlow, room: !!(rt && rt.state.room),
+  window.shelfProbe = function(){ return { browsing: browsingOnly(), room: !!(rt && rt.state.room),
     locks: ["aresoredorekore","quizou","jinro"].map(function(id){ return id+":"+(cassetteLockReason(cassetteById(id))||"開"); }) }; };
   window.cassetteWays = function(id){ var c=cassetteById(id); if(!c) return null;
     return { room: cassetteSupportsRoom(c), handoff: cassetteSupportsHandoff(c) }; };
@@ -5724,6 +5686,12 @@
   }
   // 検査から6通りを確かめられるようにしておく（window.catalogSet と同じ作法）
   window.roomProbe = function(){ return { room: !!(rt && rt.state.room), host: !!(rt && rt.isHost()) }; };
+  // 検査から画面を置きにいくための窓。
+  // 入口（scr-entry）へはアプリの中から戻る道が無い——ふつうは
+  // 「アプリを閉じて開き直す」でそこに来る（2-12）。
+  // jsdom では開き直すと疑似socketの状態も消えてしまうので、置き場所だけ借りる。
+  // **確かめている振る舞い（サーバーに聞いてから確認を出す）は本物のまま**
+  window.goToScreen = function(id){ goTo(id); };
   window.playWayFor = function(id){
     var c = cassetteById(id);
     return c ? playWayPlan(c) : null;
@@ -5741,10 +5709,22 @@
     // 遊び方の違いは、押した後の確認（playWayPlan）が引き受ける
     return null;
   }
-  function setPlayFlow(flow){
-    state.playFlow = flow;
-    try{ localStorage.setItem('acac-play-flow', flow); }catch(e){}
-  }
+  /**
+   * **「見るだけ」は、覚えておく値ではなくなった**（第41弾 2-1）。
+   *
+   * 以前は入口で「1台／みんなのスマホ／見るだけ」を選ばせ、
+   * その値（state.playFlow）を端末に覚えていた。
+   * だが選んだ値と部屋の実在はずれる——ずれた時に行き止まりができる
+   * （④で実際に2つ見つけた）。
+   *
+   * いまは：**1台か部屋かはカセットを選んだ後に決まり**（2-4）、
+   * **見るだけかどうかはログインしているかどうかそのもの**（2-1）。
+   * どちらも「いまの事実」から出るので、ずれようがない。
+   * 覚えていた値も片づける。
+   */
+  try{ localStorage.removeItem('acac-play-flow'); }catch(e){}
+  /** 見るだけの棚か（ログインしていない＝はじめるが押せない。2-5で理由を出す） */
+  function browsingOnly(){ return !loggedIn(); }
   /**
    * **並びは固定（棚の設計順）**（第41弾 2-2）。
    *
@@ -5822,17 +5802,17 @@
       way = 'handoff';
     }
     if(way === 'room'){
-      setPlayFlow('room');
-      // 部屋がまだ無いなら、ここで作りに行く（独立した「部屋をつくる」画面は持たない）
+      // 部屋がまだ無いなら、ここで作りに行く（独立した「部屋をつくる」画面は持たない）。
+      // 作ったあとは待合に着く（2-4）。**選んだカセットはここで手放す**——
+      // 待合で人が集まるまでの間に気が変わることがあるし、
+      // 誰にも読まれない持ち越しを残すと、あとで「効いていない値」になる
       if(!(rt && rt.state.room)){
-        state.wantCassetteId = id;
         openRoomLobby('scr-shelf');
         return;
       }
       startCassette(id);
       return;
     }
-    setPlayFlow('handoff');
     // 手渡しは遊んだ記録を残すので、ここでログインを頼む
     if(!loggedIn() && !(await requireLogin('遊んだ記録を残すので、ログインしてください', 'scr-shelf'))) return;
     startCassette(id);
@@ -5860,70 +5840,56 @@
       openJoinScreen('scr-entry');
       return;
     }
-    // 集める人。
-    // **④（遊び方の確認）ができるまでは、いまの流れをそのまま通す。**
-    // playFlow は棚の鍵（cassetteLockReason）を握っているので、
-    // 決める場所を先に消すと、部屋のカセットが全部ロックされる。
-    // 入口はいま「前に足しただけ」で、あそびかたの選択はこの先に残っている。
-    // 2-4 ができた時点で、ここを goTo('scr-shelf') に変えて scr-howto を外す。
-    goTo('scr-howto');
+    // 集める人。**あそびかたはもう聞かない**（第41弾 2-1）。
+    goChoose();
   });
-
-  function enterHowto(){
-    el('howtoNote').textContent = state.username
-      ? (state.username + ' さんでログインしています')
-      : '「棚を見る」はログインなしで見られます';
-  }
-  el('scr-howto').addEventListener('click', function(e){
-    var b = e.target.closest('[data-howto]');
-    if(!b) return;
-    pickPlayFlow(b.dataset.howto);
-  });
-  async function pickPlayFlow(flow){
-    // 第33弾 B-3：部屋を持ったまま「1台のスマホで遊ぶ」へ入らない。
-    // 部屋に紐づいたまま手渡しへ進むと、「もう一度」や「ゲームを終了」が
-    // 部屋の方に流れて、状態が混ざる（実機で起きた）。
-    if(flow === 'handoff' && rt && rt.state.room){
-      var isHost = rt.isHost();
-      // 進行役が抜けると全員が終わるので、進行役の時だけ danger にする
-      var goHandoff = isHost
-        ? await UiKit.danger('部屋を閉じて、1台のスマホで遊びますか？',
-            'いま部屋を開いています。部屋にいる全員が終わります', { ok: '閉じて進む' })
-        : await UiKit.confirm('部屋を抜けて、1台のスマホで遊びますか？',
-            'いま部屋に参加しています', { ok: '抜けて進む' });
-      if(!goHandoff) return;
-      if(isHost){
-        var closed = await rt.closeRoom();
-        if(!closed.ok){ showFlash(closed.message || '部屋を閉じられませんでした', 'hit'); return; }
-      } else {
-        await rt.leave();
-      }
-    }
-    setPlayFlow(flow);
-    if(flow === 'room'){
-      // 部屋への入口はここに一本化した。棚の下部バーからは無くなっている
-      openRoomLobby('scr-howto');
-      return;
-    }
-    if(flow === 'handoff'){
-      // 手渡しは遊んだ記録を残すので、今まで通りログインが要る
-      if(!loggedIn() && !(await requireLogin('遊んだ記録を残すので、ログインしてください', 'scr-howto'))) return;
-    }
-    // 「棚を見る」で説明を読んで「このゲームであそぶ」を押していたら、
-    // 棚を通さずにそのカセットへ連れていく（同じものを2回選ばせない）
-    var want = state.wantCassetteId;
-    state.wantCassetteId = null;
-    if(want && flow !== 'browse'){
-      var c = cassetteById(want);
-      var lock = cassetteLockReason(c);
-      if(!lock){ startCassette(want); return; }
-      goTo('scr-shelf');
-      showFlash(lock, 'hit');
-      return;
-    }
+  /**
+   * 「ゲームをえらぶ」の道すじ（第41弾 2-1）。
+   *
+   *   ログインしていない → ログイン（下に「ログインせずに棚を見る」）
+   *   部屋を持っている   → いま開いている部屋の確認
+   *   それ以外           → 棚
+   *
+   * **部屋があるかどうかは、端末の記憶ではなくサーバーに聞く**（落とし穴14-b）。
+   * 古い記憶のまま、もう消えた部屋の確認を出すと、
+   * 「もどる」を押した先に部屋が無い、という新しい行き止まりを作る。
+   */
+  async function goChoose(){
+    if(!(await requireLogin(null, 'scr-shelf'))) return;  // ログイン画面が出る
+    if(await hasOpenRoom()){ goTo('scr-room-open'); return; }
     goTo('scr-shelf');
   }
-  el('shelfFlowBtn').addEventListener('click', function(){ goTo('scr-howto'); });
+  /** いま自分がホストの部屋が本当に開いているか。答えはサーバーが持っている */
+  async function hasOpenRoom(){
+    if(!(rt && rt.state.code && rt.state.memberId)) return false;
+    try{
+      var res = await rt.peekRoom(rt.state.code, rt.state.memberId);
+      if(res && res.ok && res.you){ return !!rt.isHost(); }
+      if(res && (res.error === 'room_not_found' || (res.ok && !res.you))) rt.dropRoom();
+    }catch(e){}
+    return false;
+  }
+  // ---- いま開いている部屋（2-1-2）----
+  function enterRoomOpen(){
+    var T = (typeof UiText !== 'undefined') ? UiText.ENTRY.部屋あり : null;
+    if(!T){ goTo('scr-shelf'); return; }
+    el('roomOpenTitle').textContent = T.見出し;
+    var n = (rt && rt.state.room && rt.state.room.members)
+      ? rt.state.room.members.filter(function(m){ return !m.gone; }).length : 0;
+    el('roomOpenInfo').textContent =
+      'コード：' + ((rt && rt.state.code) || '------') + '　参加者：' + n + '人';
+    el('roomOpenBackBtn').textContent = T.もどる;
+    el('roomOpenCloseBtn').textContent = T.閉じる;
+  }
+  el('roomOpenBackBtn').addEventListener('click', function(){ goTo(rtWantScreen()); });
+  el('roomOpenCloseBtn').addEventListener('click', async function(){
+    var T = UiText.ENTRY.部屋あり;
+    if(!(await UiKit.danger(T.閉じる確認の見出し, T.閉じる確認の本文, { ok: T.閉じる確認の進む }))) return;
+    var closed = await rt.closeRoom();
+    if(!closed.ok){ showFlash(closed.message || '部屋を閉じられませんでした', 'hit'); return; }
+    goTo('scr-shelf');
+  });
+
 
   // ---- カセットの詳しい説明（「棚を見る」から開く。ここでは始まらない）----
   function enterCassetteDetail(){
@@ -6026,10 +5992,9 @@
   };
 
   el('ctBackBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
-  // 「このゲームであそぶ」→ あそびかたを選ぶ画面へ戻す（ここでは始めない）
+  // 「このゲームであそぶ」→ 棚に戻す（遊び方は、選んだ後の確認で決まる）
   el('ctPlayBtn').addEventListener('click', function(){
-    state.wantCassetteId = state.detailCassetteId;
-    goTo('scr-howto');
+    goTo('scr-shelf');
   });
 
   function cartHtml(c){
@@ -6376,37 +6341,6 @@
   }
   el('shelfGearBtn').addEventListener('click', function(){ openSettings(); });
   el('shelfMeBtn').addEventListener('click', function(){ goTo('scr-titles'); });
-  /**
-   * 第32弾-C：棚から部屋へ入る近道。
-   *
-   * 部屋への入口の本筋は「あそびかたをえらぶ」画面のままで、そちらは変えていない。
-   * ここは「棚を見ていて、やっぱりみんなのスマホで遊びたくなった」時の近道。
-   *
-   * あそびかたも一緒に切り替える。切り替えずに部屋だけ開くと、
-   * 棚は手渡し用に絞られたままなのに部屋の中にいる、というねじれが起きる
-   *（32-Aで直したのは、まさにそのねじれ）。
-   * 戻り先は棚にしてあるので、部屋をやめたら元の場所に返る。
-   */
-  el('shelfRoomBtn').addEventListener('click', async function(){
-    setPlayFlow('room');
-    // 第35弾A：すでに部屋に入っているなら、その部屋の画面へ直接飛ぶ。
-    // 在室判定は端末の記憶だけで決めず、押した時点でサーバーに確かめる
-    // （記憶が古いまま消えた部屋に飛ぶと、新しい不整合バグを生む。サーバーが権威）
-    if(rt && rt.state.code && rt.state.memberId){
-      var res = await rt.peekRoom(rt.state.code, rt.state.memberId);
-      if(res && res.ok && res.you){
-        goTo(rtWantScreen());
-        return;
-      }
-      if(res && (res.error === 'room_not_found' || (res.ok && !res.you))){
-        // サーバー側ではもう部屋に居ない。端末の印を落としてから選択画面へ
-        rt.dropRoom();
-      }
-      // 返事が来ない（通信中断など）時も、今まで通り選択画面に出す。
-      // 消えたかどうか分からない部屋の画面へ入れてしまう方が危ない
-    }
-    openRoomLobby('scr-shelf');
-  });
 
   // ---- 称号を選ぶ画面 ----
   // 持っていないパーツも並べて、どうすれば手に入るかを見せる（集める楽しみのため）
@@ -6650,9 +6584,7 @@
     // 第32弾-A：いまのあそびかたを、棚の見出しにも出す。
     // どの遊び方で並んでいる棚なのかが分からないと、
     // 「あるはずのゲームが無い」に見える
-    var f = PLAY_FLOWS[state.playFlow] || PLAY_FLOWS.handoff;
-    el('shelfFlowBtn').textContent = f.icon + ' ' + f.label + '　▾';
-    el('shelfSub').textContent = (state.playFlow === 'browse')
+    el('shelfSub').textContent = browsingOnly()
       ? 'タップすると、そのゲームの説明が読めます'
       : 'あそぶゲームをえらんでね';
     renderShelf();
@@ -7082,9 +7014,7 @@
     wwRoles: {},                                  // 第18弾：ワードウルフに入れる役職の人数
     selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット
     // 第32弾-A：あそびかた（'handoff' / 'room' / 'browse'）。扉の次に選ぶ
-    playFlow: 'handoff',
     detailCassetteId: null,  // 「棚を見る」で説明を開いているカセット
-    wantCassetteId: null,    // 説明から「このゲームであそぶ」を押した時の行き先
     selectedGameId: DEFAULT_GAME_ID,       // 第15弾：カセットの中で選んだゲーム（モード一覧の絞り込みに使う）
     autoSaveRecords: true, // 5：対戦記録をサーバーへ自動保存するか（localStorageに永続化）
     matchRoundsLogged: 0,  // このマッチでサーバーに送ったラウンド数（記録のゲーム判別用）
@@ -7333,12 +7263,6 @@
         state.seenRules = parsed.seenRules || {};
         if(typeof parsed.autoSaveRecords === 'boolean') state.autoSaveRecords = parsed.autoSaveRecords;
       }
-    }catch(e){}
-    // 第32弾-A：前に選んだあそびかたを覚えておく（棚の見出しの表示に使う）。
-    // 扉の次では毎回えらび直してもらうので、これは「初期値」でしかない
-    try{
-      var f = localStorage.getItem('acac-play-flow');
-      if(f && PLAY_FLOWS[f]) state.playFlow = f;
     }catch(e){}
   }
   function saveLocalPrefs(){
@@ -8217,7 +8141,7 @@
   //   部屋の画面   … サーバーと状態を合わせているので、勝手に戻るとずれる。
   //                  「部屋を出る」が正しい出口
   var BACK_FREE_SCREENS = [
-    'scr-door', 'scr-entry', 'scr-play-way', 'scr-howto', 'scr-shelf', 'scr-countdown',
+    'scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-shelf', 'scr-countdown',
     'scr-topic-pass', 'scr-play', 'scr-reveal', 'scr-score',
     'scr-bomb-prep', 'scr-bomb-play', 'scr-bomb-end',
     'scr-quiz-turn', 'scr-tourney-match', 'scr-tourney-vs', 'scr-tourney-champion',
@@ -8285,7 +8209,7 @@
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
   // 画面遷移による自動適用の対象から外す
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-howto', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -8357,7 +8281,7 @@
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-door','scr-entry','scr-play-way','scr-howto','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-title-icon','scr-title-name','scr-title-slot','scr-collection','scr-rename'];
+    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-title-icon','scr-title-name','scr-title-slot','scr-collection','scr-rename'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
     // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
     el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';
@@ -8412,7 +8336,7 @@
     if(id === 'scr-titles') enterTitles();
     if(id === 'scr-play-way') enterPlayWay();
     if(id === 'scr-entry') enterEntry();
-    if(id === 'scr-howto') enterHowto();
+    if(id === 'scr-room-open') enterRoomOpen();
     if(id === 'scr-title-icon') enterTitleIcon();
     if(id === 'scr-title-name') enterTitleName();
     if(id === 'scr-title-slot') enterTitleSlot();
@@ -8480,8 +8404,10 @@
     loginCameFrom = (cur && cur !== 'scr-login') ? cur : (backTo || 'scr-shelf');
     el('loginSub').textContent = why || LOGIN_SUB_DEFAULT;
     el('loginBackBtn').textContent =
-      (loginCameFrom === 'scr-entry') ? '← さいしょにもどる'
-      : (loginCameFrom === 'scr-howto') ? '← あそびかたにもどる' : '← 棚にもどる';
+      (loginCameFrom === 'scr-entry') ? '← さいしょにもどる' : '← 棚にもどる';
+    // 2-1：ログインしない道も、行き止まりにしない
+    el('loginBrowseBtn').textContent =
+      (typeof UiText !== 'undefined') ? UiText.ENTRY.見るだけ : 'ログインせずに棚を見る';
     goTo('scr-login');
     return false;
   }
@@ -8530,6 +8456,13 @@
     }
   }
   el('loginSubmitBtn').addEventListener('click', submitAuth);
+  // 2-1：見るだけの棚へ。**はじめるは押せないが、何があるかは見られる**
+  el('loginBrowseBtn').addEventListener('click', function(){
+    loginReturnTo = 'scr-shelf';
+    loginCameFrom = 'scr-shelf';
+    el('loginSub').textContent = LOGIN_SUB_DEFAULT;
+    goTo('scr-shelf');
+  });
   el('loginBackBtn').addEventListener('click', function(){
     var back = loginCameFrom || 'scr-shelf';
     loginReturnTo = 'scr-shelf';
@@ -9931,6 +9864,8 @@
         : (res.message || '部屋を作れませんでした');
       return;
     }
+    // 2-4：**押すとコードとQRが出た待合へ。**
+    // ここでカセットへ直行させると、人が入ってくる前にゲームが始まってしまう
     goTo(rtWantScreen());
   });
   el('rtJoinBtn').addEventListener('click', async function(){
@@ -10104,7 +10039,6 @@
       if(!await UiKit.confirm('ゲームをえらび直しますか？',
         'みんなの画面も、えらび直しにもどります', { ok: 'えらび直す' })) return;
       rt.pickGame(null, { reset: true });
-      setPlayFlow('room');
       goTo('scr-shelf');
       return;
     }
@@ -10254,10 +10188,9 @@
     var g = gameById(gameId);
     return g ? g.title : String(gameId || '');
   }
-  // 第32弾-A：部屋から棚へ出る時は、必ず「みんなのスマホ」の棚にする。
-  // QRで直接入った人など、あそびかたを選ぶ画面を通っていない場合があるため
+  // 第41弾 2-1：棚はもう遊び方で絞られていないので、そのまま出せばよい。
+  // 部屋にいることは、カセットを選んだ後の確認（playWayPlan）が見る
   el('rtPickGameBtn').addEventListener('click', function(){
-    setPlayFlow('room');
     goTo('scr-shelf');
   });
   // 第32弾-A-2：大画面にする／プレイヤーに戻る。どちらもいつでも押せる。

@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, passPlayWay, fakeRects, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, passPlayWay, fakeRects, openCassette, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -1357,10 +1357,16 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('部屋の入り口は「あそびかたをえらぶ」から入れて、つながらない時は理由が出る', async () => {
-    // 第32弾-A：部屋への導線はここ1本になった（棚の下部バーからは無くなった）
-    const { win, doc, errors } = await launch({ playFlow: false });
-    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+  await r.test('部屋の入り口は、つながらない時に理由が出る', async () => {
+    // **道が変わった（第41弾 2-1・2-4）。**
+    // 「あそびかたをえらぶ」も棚の下部バーの近道も廃止し、
+    // 部屋は「部屋でしか遊べないカセットを選ぶ」から生まれる1本になった
+    const { win, doc, errors } = await launch({ atEntry: true });
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    await openCassette(win, doc, 'quizou');
+    assertEqual(activeScreen(doc), 'scr-play-way', '部屋をつくる確認が出る');
+    click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
     await waitScreen(win, doc, 'scr-rt-lobby', 3000);
     assert(doc.getElementById('rtCreateBtn'), '部屋をつくる導線がある');
     assert(doc.getElementById('rtJoinCode'), '部屋コードで入る導線がある');
@@ -1369,7 +1375,7 @@ async function startModeWithTimerOff(win, doc, id) {
       'つながらない時は理由が出る（' + el(doc, 'rtLobbyStatus').textContent.slice(0, 20) + '）');
     assert(el(doc, 'rtCreateBtn').disabled, 'つながらないうちは押せない');
     click(doc, 'rtLobbyBackBtn');
-    await waitScreen(win, doc, 'scr-howto', 3000);
+    await waitScreen(win, doc, 'scr-shelf', 3000);
     assertNoErrors(errors, '部屋の入り口で未捕捉の例外');
     win.close();
   });
@@ -3155,7 +3161,7 @@ async function startModeWithTimerOff(win, doc, id) {
   // （クイズ王・オークションのテーマが最後まで続くことは、
   //   部屋がある状態で歩く rt-screens.js の方で見ている）
   await r.test('手渡しの棚では、部屋が必須のカセットは押す前に理由が読める', async () => {
-    const { win, doc, errors } = await launch({ playFlow: 'handoff' });
+    const { win, doc, errors } = await launch({});
     for (const id of ['quizou', 'auction']) {
       const cart = doc.querySelector('.cart[data-cart="' + id + '"]');
       assert(cart, id + ' のカセットは棚に並んでいる（隠さない）');
@@ -3181,14 +3187,19 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('みんなのスマホの棚では、1台専用のカセットに理由が出る', async () => {
-    // あれそれどれこれは部屋に未対応。逆向きも同じように分かる形にする
-    const { win, doc, errors } = await launch({ playFlow: false });
-    // 棚だけ見たいので、部屋を立てずに棚のあそびかただけ切り替える
-    click(doc, doc.querySelector('#scr-howto [data-howto="browse"]'));
-    await waitScreen(win, doc, 'scr-shelf', 3000);
-    assert(!doc.querySelector('.cart[data-cart="quizou"]').classList.contains('locked'),
-      '見るだけの時は、どれも開ける');
+  await r.test('棚のカセットは、遊び方で施錠されない（第41弾 2-1）', async () => {
+    // **もとは「みんなのスマホの棚では1台専用に理由が出る」だった。**
+    // 入口で遊び方を先に決めていた頃は、棚がその遊び方で絞られていたので
+    // 意味のある検査だった。第41弾でその値そのものを無くしたので、
+    // いまは**どの棚でも施錠されない**ことを見る（理由は押した後の確認が出す）
+    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
+    assertEqual(activeScreen(doc), 'scr-shelf', '見るだけの棚に着いている');
+    const 施錠 = Array.from(doc.querySelectorAll('.cart[data-cart]'))
+      .filter((c) => c.classList.contains('locked'))
+      .map((c) => c.dataset.cart);
+    assert(doc.querySelectorAll('.cart[data-cart]').length > 3,
+      'カセットを数えられている（実際:' + doc.querySelectorAll('.cart[data-cart]').length + '枚）');  // 型(b)
+    assertEqual(施錠.join('・'), '', '遊び方でカセットを施錠しない');
     assertNoErrors(errors, '見るだけの棚で未捕捉の例外');
     win.close();
   });

@@ -15,24 +15,7 @@
 // 逆に E を素通りにすると、両方対応のカセットが黙って1台に落ちる。
 
 const { createRunner, assert, assertEqual, launch, sleep, waitFor,
-  waitScreen, el, click, activeScreen, fakeRects } = require('./harness');
-
-/**
- * 棚のカセットを開く。
- * **1回目のタップは中央へ寄せるだけ**（中央でないと開かない仕様）。
- * jsdom は座標を持たないので、中央の判定ができるよう矩形を偽装する
- */
-async function openCassette(win, doc, id) {
-  const cart = doc.querySelector('.cart[data-cart="' + id + '"]');
-  if (!cart) throw new Error('棚に無い: ' + id);
-  fakeRects(win, doc, cart.closest('.rail'));
-  if (!cart.classList.contains('center')) {
-    cart.click();
-    await sleep(win, 150);
-  }
-  cart.click();
-  await sleep(win, 800);
-}
+  waitScreen, el, click, activeScreen, openCassette } = require('./harness');
 
 /** 疑似socketに返させる部屋の姿 */
 function roomSnapshot(over) {
@@ -44,11 +27,19 @@ function roomSnapshot(over) {
   }, over || {});
 }
 
-/** 部屋を持った状態にする（進行役として） */
+/**
+ * 部屋を持った状態にする（進行役として）。
+ *
+ * 道が変わった（第41弾 2-1・2-4）。以前は「あそびかたをえらぶ→みんなのスマホ」で
+ * 部屋の画面へ行けた。その画面は廃止したので、
+ * **部屋でしか遊べないカセットを選ぶ**→確認が「部屋をつくる」を出す、で行く。
+ */
 async function withRoom(win, doc) {
-  click(doc, 'shelfFlowBtn');
-  await waitScreen(win, doc, 'scr-howto', 3000);
-  click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+  await openCassette(win, doc, 'quizou');
+  // **ここで waitScreen は使えない。**waitFor は「遊び方の確認」を
+  // 自動で通り抜けるので、その画面を待つと永遠に来ない（自分で通してしまう）
+  assertEqual(activeScreen(doc), 'scr-play-way', '部屋をつくる確認が出ている');
+  click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
   await waitScreen(win, doc, 'scr-rt-lobby', 3000);
   const fake = win.__rtFake;
   await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
@@ -128,25 +119,34 @@ async function withRoom(win, doc) {
     win.close();
   });
 
-  await r.test('判断のもとは、入口で決めた値ではなく部屋の実在', async () => {
-    // **入口で決めた値と部屋の実在がずれると、行き止まりができる。**
-    // 実測：棚の 👥 を押して部屋を作らずに戻ると playFlow='room'・部屋なしになり、
-    // クイズ王（部屋専用）の鍵が外れて「部屋が無いのに遊べる」ように見えた。
-    // 押すと全モードが施錠された画面に着いて詰む。
+  await r.test('判断のもとは部屋の実在だけ。ずれる値がもう存在しない（第41弾 2-1）', async () => {
+    // **もとのバグ：**棚の 👥 を押して部屋を作らずに戻ると
+    // playFlow='room'・部屋なしになり、クイズ王（部屋専用）の鍵が外れて
+    // 「部屋が無いのに遊べる」ように見えた。押すと詰んだ。
+    //
+    // ④で判断を部屋の実在1つに寄せ、⑥で **playFlow という値そのものを消した**。
+    // だから「ずれた状態を作って確かめる」検査は、もう組み立てられない。
+    // 代わりに**ずれようがないこと**を2つの向きから見る（落とし穴20）。
     const { win, doc } = await launch({ fakeSocket: true });
 
-    // その状態を作る
-    click(doc, 'shelfRoomBtn');
-    await sleep(win, 200);
-    const ずれ = win.shelfProbe();
-    assertEqual(ずれ.room, false, '部屋はできていない');           // 型(b)
+    // 向き①：ずれる値が、もう外から見えない
+    const probe = win.shelfProbe();
+    assert(!('playFlow' in probe),
+      '入口で決めた遊び方という値が、もう無い（実際のキー: ' + Object.keys(probe).join(',') + '）');
+    assertEqual(probe.room, false, '部屋が無い状態から始めている');  // 型(b)
 
-    // **playFlow がどうなっていようと、判断は変わらない**
+    // 向き②：部屋が無い時と有る時で、答えが実際に変わる
     assertEqual(win.playWayFor('quizou').kind, 'makeRoom',
-      '部屋が無いなら、入口の値に関わらず「部屋をつくる」を聞く');
+      '部屋が無いなら「部屋をつくる」を聞く');
     assertEqual(JSON.stringify(win.playWayFor('aresoredorekore')),
       JSON.stringify({ kind: 'through', way: 'handoff' }),
       '部屋が無いなら、1台専用は素通りできる');
+
+    await withRoom(win, doc);
+    assertEqual(win.roomProbe().room, true, '部屋を作れている');     // 型(b)
+    assertEqual(JSON.stringify(win.playWayFor('quizou')),
+      JSON.stringify({ kind: 'through', way: 'room' }),
+      '部屋が有れば、同じカセットが素通りになる');
     win.close();
   });
 
@@ -201,14 +201,19 @@ async function withRoom(win, doc) {
     const { win, doc } = await launch({ fakeSocket: true });
     const 前 = win.shelfProbe().locks;
     assert(前.length >= 3, 'カセットの鍵を数えられている（実際:' + 前.length + '件）');  // 型(b)
+    assertEqual(win.shelfProbe().room, false, '部屋が無い状態から始めている');  // 型(b)
 
-    // 棚の 👥 を押して、入口で決まる値をわざとずらす
-    doc.getElementById('shelfRoomBtn').click();
-    await sleep(win, 200);
-    assertEqual(win.shelfProbe().room, false, '部屋はできていない');  // 型(b)
+    // **部屋を作っても、棚の鍵は1つも変わらない。**
+    // 以前は棚の 👥 で入口の値をずらして確かめていたが、その値も 👥 も
+    // 第41弾で無くなった。代わりに、鍵に影響しそうな一番大きい変化
+    //（部屋ができる）を実際に起こして、それでも変わらないことを見る
+    await withRoom(win, doc);
+    assertEqual(win.roomProbe().room, true, '部屋を作れている');     // 型(b)
+    click(doc, 'rtPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
 
     assertEqual(win.shelfProbe().locks.join('|'), 前.join('|'),
-      '遊び方の値がずれても、棚の鍵は変わらない');
+      '部屋ができても、棚の鍵は変わらない');
 
     // 中身が無いものは止まる（鍵を全部外したわけではない）
     const soon = doc.querySelector('.cart.soon[data-cart]');

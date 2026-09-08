@@ -295,25 +295,29 @@ async function launch(opts) {
   // 扉が自動で開くまで待つ（起動時は必ず扉を通る）
   await waitFor(win, () => activeScreen(doc) !== 'scr-door', 5000, '扉が開く');
 
-  // 第32弾-A：扉の次に「あそびかたをえらぶ」が入った。
-  // ほとんどのテストは、その先（棚・部屋）を見たいので、ここで1回だけ通す。
-  // この画面そのものを見たいテストは playFlow:false を渡して止められる
-  // 第41弾：扉の次に入口（scr-entry）が入った。
-  // ほとんどのテストはその先を見たいので、ここで1回だけ通す。
-  // 入口そのものを見たいテストは playFlow:false で止められる（今までと同じ約束）
-  if (opts.playFlow !== false && activeScreen(doc) === 'scr-entry') {
+  // 第41弾：扉の次は入口（scr-entry）。
+  // ほとんどの検査はその先を見たいので、ここで1回だけ通す。
+  // 入口そのものを見たい検査は atEntry:true で止められる。
+  //
+  // **「あそびかたをえらぶ」（scr-howto）は 2-1 で廃止した。**
+  // 入口で「1台か部屋か」を先に決めさせると、その値と部屋の実在がずれて
+  // 行き止まりができる。決めるのはカセットを選んだ後（2-4）。
+  // 以前ここにあった playFlow の受け渡しも、一緒に無くなっている。
+  if (!opts.atEntry && activeScreen(doc) === 'scr-entry') {
     const b = doc.querySelector('#scr-entry [data-entry="choose"]');
     if (b) {
       b.click();
       await waitFor(win, () => activeScreen(doc) !== 'scr-entry', 4000, '入口を通る');
     }
   }
-  if (opts.playFlow !== false && activeScreen(doc) === 'scr-howto') {
-    const flow = opts.playFlow || 'handoff';
-    const btn = doc.querySelector('#scr-howto [data-howto="' + flow + '"]');
-    if (btn) {
-      btn.click();
-      await waitFor(win, () => activeScreen(doc) !== 'scr-howto', 4000, 'あそびかたを選ぶ');
+  // ログインしていなければ、入口の先はログイン画面。
+  // **見るだけの棚**を見たい検査は browse:true で、そこから棚へ抜ける
+  // （2-1：「ログインせずに棚を見る」。見るだけ＝未ログイン そのもの）
+  if (!opts.atEntry && opts.browse && activeScreen(doc) === 'scr-login') {
+    const b = doc.getElementById('loginBrowseBtn');
+    if (b) {
+      b.click();
+      await waitFor(win, () => activeScreen(doc) !== 'scr-login', 4000, '見るだけの棚へ');
     }
   }
 
@@ -362,7 +366,7 @@ async function waitFor(win, cond, timeout, label, keepNightfall, keepMeeting, ke
 // 6通りのうち3通りでだけ出る（両方対応×部屋なし／部屋専用×部屋なし／1台専用×部屋あり）。
 //
 // ほとんどのテストはその先を見たいので、待機のたびに1回だけ通す。
-// **既定は「1台のスマホで」**——今までの launch({playFlow:'handoff'}) と同じ道を保つため。
+// **既定は「1台のスマホで」**——ほとんどの検査が見たいのは、その先の画面だから。
 // 確認の画面そのものを見たいテストは、waitFor を使わずに activeScreen で見る
 // （tests/play-way.js がそうしている）
 function passPlayWay(doc) {
@@ -471,6 +475,29 @@ function cssRules(css) {
   return Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/g))
     .map((m) => ({ sel: m[1].trim(), body: m[2] }))
     .filter((r) => r.sel && !r.sel.startsWith('@'));
+}
+
+/**
+ * 棚のカセットを開く。
+ *
+ * **1回目のタップは中央へ寄せるだけ**（中央でないと開かない仕様）。
+ * 2回目で、そのカセットの世界に入る。
+ *
+ * この4行は、書いた時点で tests/ の53箇所に複製されていた
+ * （docs/切り出した宿題.md の2番）。棚とカセットの間に画面が1つ挟まるたびに、
+ * その53箇所のうち「どこが落ちるか」が後続の書き方次第で変わる——
+ * 実際、第41弾で「遊び方の確認」を挟んだ時に何度もそれを踏んだ。
+ * **寄せ先をここに1つ置く。** 新しく書くものは、まずこれを呼ぶ。
+ */
+async function openCassette(win, doc, id) {
+  const cart = doc.querySelector('.cart[data-cart="' + id + '"]');
+  if (!cart) throw new Error('棚に無い: ' + id);
+  if (!cart.classList.contains('center')) {
+    cart.click();
+    await sleep(win, 150);
+  }
+  cart.click();
+  await sleep(win, 800);
 }
 
 // プレイヤーを登録してモード選択まで進む（多くのテストの前準備）
@@ -702,7 +729,7 @@ function openDialog(doc) {
 
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  cssRules,
+  cssRules, openCassette,
   autoDialog, openDialog,
   setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
   passPlayWay,

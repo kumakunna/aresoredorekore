@@ -5,7 +5,7 @@
 // jsdom には socket.io が無いので、ハーネスの疑似socketでイベントを流し込む。
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm,
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, openCassette,
   pickGame, runWizardToPlay, createRunner, assert, assertEqual, assertNoErrors, autoDialog } = H;
 // 第35弾：経路の正本。ゲーム一覧・退室経路はここから回す（手書きの列挙をしない）
 const INV = require('./inventory');
@@ -62,16 +62,19 @@ function wolfView(over) {
   }, over || {});
 }
 
-// 第26弾-3：棚の「部屋」→ 立てる／参加する → 待合。
-// 何を遊ぶかは部屋に入ってから選ぶ（部屋はカセットに紐づかない箱）
-// 第32弾-A：部屋への入口は「あそびかたをえらぶ」に一本化した。
-// 棚にいる時は、棚の見出しのボタンからそこへ戻ってから「みんなのスマホ」を選ぶ
+// 第26弾-3：部屋 → 立てる／参加する → 待合。
+// 何を遊ぶかは部屋に入ってから選ぶ（部屋はカセットに紐づかない箱）。
+//
+// **道が変わった（第41弾 2-1・2-4）。**
+// 「あそびかたをえらぶ」も、棚の下部バーの 👥 も廃止した。
+// いまは**部屋でしか遊べないカセットを選ぶ**と、確認が「部屋をつくる」を出す。
+// 部屋はそこで生まれる（独立した「部屋をつくる」画面は持たない）。
 async function toRoomLobby(win, doc) {
-  if (activeScreen(doc) === 'scr-shelf') {
-    click(doc, 'shelfFlowBtn');
-    await waitScreen(win, doc, 'scr-howto', 3000);
-  }
-  click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
+  if (activeScreen(doc) !== 'scr-shelf') await waitScreen(win, doc, 'scr-shelf', 4000);
+  await openCassette(win, doc, 'quizou');
+  // waitFor は「遊び方の確認」を自動で通り抜けるので、この画面は待てない
+  assertEqual(activeScreen(doc), 'scr-play-way', '部屋をつくる確認が出る');
+  click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
   await waitScreen(win, doc, 'scr-rt-lobby', 3000);
 }
 
@@ -569,22 +572,20 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
   // ---- 第22弾 第1部／第26弾 第2部：ゲームに紐づかない参加の入り口 ----
   await r.test('「みんなのスマホであそぶ」から、立てるにも参加するにも進める', async () => {
-    // 第32弾-A：部屋への導線の本筋はここ。
-    // 第32弾-C：棚の下部バーにも近道を戻した。本筋を置き換えたのではなく、
-    // 棚を見ている最中に思い立った時のための近道（別のテストで確かめている）
-    const b = await launch(Object.assign({}, LAUNCH, { playFlow: false }));
-    // 第41弾：扉の次に入口が入った。部屋への本筋はこの先にある
+    // **部屋への道は1本になった（第41弾 2-1・2-4）。**
+    // 入口 →（ログイン）→ 棚 → 部屋でしか遊べないカセット → 「部屋をつくる」。
+    // 棚の下部バーの近道も、あそびかたの選択も廃止した
+    const b = await launch(Object.assign({}, LAUNCH, { atEntry: true }));
     click(b.doc, b.doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(b.win, b.doc, 'scr-howto', 4000);
-    click(b.doc, b.doc.querySelector('#scr-howto [data-howto="room"]'));
-    await waitScreen(b.win, b.doc, 'scr-rt-lobby', 3000);
+    await waitScreen(b.win, b.doc, 'scr-shelf', 4000);
+    await toRoomLobby(b.win, b.doc);
     assert(b.doc.getElementById('rtJoinCode'), '部屋コードを入れられる');
     assert(b.doc.getElementById('rtJoinName'), '名前を入れられる');
     assertEqual(el(b.doc, 'rtCreateCard').style.display, '', 'ここからは「立てる」も出る');
     // どのカセットにも属さない画面なので、前のテーマを引きずらない
     assert(!el(b.doc, 'app').classList.contains('theme-wolf'), '前のカセットのテーマが乗らない');
     click(b.doc, 'rtLobbyBackBtn');
-    await waitScreen(b.win, b.doc, 'scr-howto', 3000);
+    await waitScreen(b.win, b.doc, 'scr-shelf', 3000);
     assertNoErrors(b.errors, '部屋の入口で未捕捉の例外');
     b.win.close();
   });
@@ -1344,21 +1345,40 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const fake = await toRoom(win, doc, { pick: false });   // ホスト・待合にいる
     click(doc, 'rtPickGameBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
-    click(doc, 'shelfFlowBtn');
-    await waitScreen(win, doc, 'scr-howto', 3000);
-    doc.querySelector('#scr-howto [data-howto="handoff"]').click();
+    // 1台でしか遊べないカセットを、部屋を持ったまま選ぶ（case B）
+    await openCassette(win, doc, 'aresoredorekore');
 
-    // 第39弾：標準の confirm は全廃した。**自動で押さず、中身を読んでから押す。**
-    // 進行役が抜けると全員が終わるので、ここは取り返しがつかない側で出るはず
-    await waitFor(win, () => H.openDialog(doc), 3000, '確認が出る');
-    const dlg = H.openDialog(doc);
-    assertEqual(dlg.種類, 'danger', '全員が終わるので、取り返しがつかない側で出る');
-    assert(/部屋を閉じて/.test(dlg.見出し), '何が起きるか見出しに出る（' + dlg.見出し + '）');
-    assert(/全員が終わ/.test(dlg.本文), '本文に「全員が終わる」と書いてある');
-    click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
+    // **第41弾：ここは danger のダイアログから、確認の画面に変わった。**
+    // 6通りのうち3通りは画面で聞く（二択がどちらも肯定なので、
+    // confirm/danger/info/ask の4種に当てはまらない）。
+    // **安全策そのものは変わっていない**——部屋を閉じてから進む
+    assertEqual(activeScreen(doc), 'scr-play-way', '確認の画面が出る');
+    const 文面 = el(doc, 'scr-play-way').textContent;
+    assert(/閉じ/.test(文面), '部屋を閉じることが書いてある（実際: ' + 文面.replace(/\s+/g, ' ').trim().slice(0, 70) + '）');
+    assert(el(doc, 'wayCancelBtn').textContent.length > 0, 'やめる道がある');
+    assert(/全員/.test(文面), '「部屋にいる全員が終わる」ことが書いてある');
+    // 進む道の札にも、何が起きるかが書いてある（押す前に読める）
+    const 進む = doc.querySelector('#wayChoices [data-way]');
+    assert(進む && /閉じ/.test(進む.textContent),
+      '進むボタンの札にも書いてある（実際: ' + (進む ? 進む.textContent : 'なし') + '）');
+    click(doc, 進む);
 
+    // **順番が大事：閉じてから進む。**
+    // 部屋に紐づいたまま手渡しへ進むと「もう一度」「ゲームを終了」が
+    // 部屋側へ流れて状態が混ざる（第33弾B-3で実機で起きた）
     await waitFor(win, () => fake.emits.some(e => e.name === 'room:close'), 3000, '部屋を閉じにいく');
-    await waitScreen(win, doc, 'scr-shelf', 3000);
+    // 札が「部屋を閉じて はじめる」なので、閉じたあとはそのまま遊びに入る
+    //（以前は棚に戻していた。第41弾で1タップ減った）
+    await waitFor(win, () => activeScreen(doc) !== 'scr-play-way', 3000, 'カセットの中へ進む');
+    assert(['scr-setup', 'scr-mode', 'scr-game'].indexOf(activeScreen(doc)) >= 0,
+      '閉じたあと、そのまま遊びに入る（実際: ' + activeScreen(doc) + '）');
+    // **本物のサーバーは、閉じたことを部屋の全員に放送する**
+    //（realtime.js:1144 → 'room:closed'）。閉じた本人にも届く。
+    // 疑似socketは放送しないので、ここで本物と同じ形にしてから確かめる
+    //（落とし穴25：手で書いた検体は、実装から静かに離れていく）
+    fake.fire('room:closed', { by: 'あき' });
+    await sleep(win, 80);
+    assertEqual(win.roomProbe().room, false, '閉じた知らせが届けば、部屋は残らない');
     assertNoErrors(errors, '手渡しへの切り替えで未捕捉の例外');
     win.close();
   });
@@ -3934,10 +3954,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // ちょうどその瞬間にアプリを開くと /api/auth/me だけが落ちる。
     // セッションのクッキーは生きているのに、この端末は
     // 「ログインしていない」と思い込んだまま、そのあとずっと直らなかった。
-    const { win, doc, errors } = await launch({ fakeSocket: true, authFlaky: true, playFlow: false });
-    // 起動時の確認は落ちているので、この時点では未ログインに見えている
-    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    const { win, doc, errors } = await launch({ fakeSocket: true, authFlaky: true, atEntry: true });
+    // 起動時の確認は落ちているので、この時点では未ログインに見えている。
+    // **入口を押した時に聞き直す**ので、ログイン画面に飛ばされずに棚へ着く
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    await toRoomLobby(win, doc);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
     fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }) };
@@ -3953,42 +3975,67 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('棚の下部バーから、部屋への近道が開ける', async () => {
-    // 入口の本筋は「あそびかたをえらぶ」のままで、こちらは近道
-    const { win, doc, errors } = await launch({ fakeSocket: true });
+  await r.test('部屋を持ったまま「ゲームをえらぶ」に来ると、棚の前で確かめる（第41弾 2-1-2）', async () => {
+    // **もとは棚の下部バーの 👥（近道）が持っていた役目。**
+    // その近道は 2-1 で廃止したので、同じ役目を入口に移した。
+    // 大事なのは置き場所ではなく「在室判定を端末の記憶で決めない」こと
+    //（落とし穴14-b。古い記憶のまま消えた部屋へ飛ぶと、新しい不整合を生む）
+    const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, { atEntry: true }));
+    const fake = win.__rtFake;
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
     await waitScreen(win, doc, 'scr-shelf', 4000);
-    const btn = el(doc, 'shelfRoomBtn');
-    assert(btn, '下部バーに部屋のボタンがある');
-    btn.click();
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
-    // あそびかたも一緒に切り替わる（棚が手渡し用に絞られたまま部屋にいる、を防ぐ）
-    click(doc, 'rtLobbyBackBtn');
+    await toRoomLobby(win, doc);
+    // つなぎに行くのは部屋の画面に入った時。ここまで来てから待つ
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }) };
+    el(doc, 'rtCreateName').value = 'あき';
+    click(doc, 'rtCreateBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+
+    // 部屋を持ったまま、入口へ戻ってやり直す
+    click(doc, 'rtPickGameBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
-    assert(/みんなのスマホ/.test(el(doc, 'shelfFlowBtn').textContent),
-      'あそびかたが部屋に切り替わっている（実際: ' + el(doc, 'shelfFlowBtn').textContent + '）');
-    assertNoErrors(errors, '部屋への近道で未捕捉の例外');
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 5, you: true });
+    win.goToScreen('scr-entry');
+    await waitScreen(win, doc, 'scr-entry', 2000);
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-room-open', 3000);
+
+    const peek = fake.emits.filter(e => e.name === 'room:peek').pop();
+    assert(peek && peek.payload.code === 'ABC234' && peek.payload.memberId === 'm1',
+      '在室判定は端末の記憶ではなく、サーバーに聞いて決める');
+    const 文面 = el(doc, 'scr-room-open').textContent;
+    assert(/ABC234/.test(文面), 'どの部屋かが分かる（コードが出ている）');
+    assert(/人/.test(文面), '何人いるかが分かる');
+
+    // 「この部屋にもどる」で待合へ帰れる
+    click(doc, 'roomOpenBackBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 3000);
+    assertNoErrors(errors, '部屋の確認で未捕捉の例外');
     win.close();
   });
 
-  await r.test('あそびかたをえらぶ画面が、部屋への本筋のまま', async () => {
-    // 近道を足しても、主導線を置き換えていないこと
-    const { win, doc, errors } = await launch({ fakeSocket: true, playFlow: false });
-    // 第41弾：扉の次は入口。あそびかたの選択はその先に残っている
-    assertEqual(activeScreen(doc), 'scr-entry', '扉のつぎは入口');
+  await r.test('部屋を持っていなければ、棚の前で何も聞かない（第41弾 2-1-2）', async () => {
+    // **逆向きも見る**（落とし穴20）。部屋が無い人に確認を出すと、
+    // 毎回1タップ増えるだけの邪魔になる
+    const { win, doc, errors } = await launch({ fakeSocket: true, atEntry: true });
     click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-howto', 3000);
-    assert(doc.querySelector('#scr-howto [data-howto="room"]'), 'ここから部屋に入れる');
-    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
-    assertNoErrors(errors, 'あそびかたからの部屋入りで未捕捉の例外');
+    await waitScreen(win, doc, 'scr-shelf', 4000);
+    const peeks = (win.__rtFake ? win.__rtFake.emits : []).filter(e => e.name === 'room:peek');
+    assertEqual(peeks.length, 0, '部屋を持っていなければ、サーバーに聞くまでもない');
+    assertNoErrors(errors, '部屋なしの入口で未捕捉の例外');
     win.close();
   });
 
   await r.test('本当にログインしていない時は、いままで通りログイン画面へ', async () => {
     // 聞き直した結果ほんとうに未ログインなら、今までどおり案内する
-    const { win, doc, errors } = await launch({ fakeSocket: true, loggedOut: true, playFlow: false });
-    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    const { win, doc, errors } = await launch({ fakeSocket: true, loggedOut: true, atEntry: true });
+    // 未ログインなので、入口を押すとまずログイン画面。**見るだけの棚から進む**
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-login', 3000);
+    click(doc, 'loginBrowseBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await toRoomLobby(win, doc);
     el(doc, 'rtCreateName').value = 'あき';
     click(doc, 'rtCreateBtn');
     await waitScreen(win, doc, 'scr-login', 3000);
@@ -4109,9 +4156,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // socket.io のセッションは「つないだ時」のもので固定される。
     // ログイン前につないだままだと、サーバーからは
     // いつまでも未ログインに見えて、部屋を立てられない。
-    const { win, doc, errors } = await launch({ fakeSocket: true, loggedOut: true, playFlow: false });
-    click(doc, doc.querySelector('#scr-howto [data-howto="room"]'));
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    const { win, doc, errors } = await launch({ fakeSocket: true, loggedOut: true, atEntry: true });
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-login', 3000);
+    click(doc, 'loginBrowseBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await toRoomLobby(win, doc);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
     const firstSocket = fake.socket;
@@ -4178,24 +4228,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('「部屋」ボタン：部屋に入っている時は、その部屋の画面に直接飛ぶ', async () => {
-    // 第33弾で復活させた近道は、在室でも常に「立てる／入る」の選択画面を出していた。
-    // そこから2つ目の部屋を立てられてしまい、状態が割れる
-    const { win, doc, errors } = await launch(LAUNCH);
-    const fake = await toRoom(win, doc, { pick: false }); // ホスト・待機中
-    click(doc, 'rtPickGameBtn'); // 「ゲームをえらぶ」で棚に出た（部屋には入ったまま）
-    await waitScreen(win, doc, 'scr-shelf', 3000);
-    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 5, you: true });
-    click(doc, 'shelfRoomBtn');
-    await waitScreen(win, doc, 'scr-rt-room', 2000);
-    const peek = fake.emits.filter(e => e.name === 'room:peek').pop();
-    assert(peek && peek.payload.code === 'ABC234' && peek.payload.memberId === 'm1',
-      '在室判定は端末の記憶ではなく、サーバーに聞いて決める');
-    assertNoErrors(errors, '部屋ボタン（在室）で未捕捉の例外');
-    win.close();
-  });
-
-  await r.test('「部屋」ボタン：ゲームが始まっていたら、そのゲームの画面に飛ぶ', async () => {
+  await r.test('部屋の確認から戻ると、始まっているゲームの画面に着く（第41弾 2-1-2）', async () => {
+    // **もとは棚の 👥（近道）が持っていた役目。**その近道は 2-1 で廃止した。
+    // 大事なのは「棚を見ている間に部屋が進んでいても、正しい画面に帰れる」こと
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
     click(doc, 'rtPickGameBtn');
@@ -4204,34 +4239,32 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, roomSnapshot({ state: { phase: 'roleReveal', game: 'wolfrole', data: wolfView() } }));
     await sleep(win, 80);
     assertEqual(activeScreen(doc), 'scr-shelf', '棚で選んでいる人を引っぱらない（今まで通り）');
+
     fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: 'wolfrole', phase: 'roleReveal', playerCount: 5, you: true });
-    click(doc, 'shelfRoomBtn');
+    win.goToScreen('scr-entry');
+    await waitScreen(win, doc, 'scr-entry', 2000);
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-room-open', 3000);
+    click(doc, 'roomOpenBackBtn');
     await waitScreen(win, doc, 'scr-rt-play', 2000);
-    assertNoErrors(errors, '部屋ボタン（ゲーム中）で未捕捉の例外');
+    assertNoErrors(errors, '部屋の確認（ゲーム中）で未捕捉の例外');
     win.close();
   });
 
-  await r.test('「部屋」ボタン：部屋に入っていなければ、今まで通り選択画面', async () => {
-    const { win, doc, errors } = await launch(LAUNCH);
-    await waitScreen(win, doc, 'scr-shelf', 4000);
-    click(doc, 'shelfRoomBtn');
-    await waitScreen(win, doc, 'scr-rt-lobby', 2000);
-    const peeks = (win.__rtFake ? win.__rtFake.emits : []).filter(e => e.name === 'room:peek');
-    assertEqual(peeks.length, 0, '入っていない時はサーバーに聞くまでもない');
-    assertNoErrors(errors, '部屋ボタン（未在室）で未捕捉の例外');
-    win.close();
-  });
-
-  await r.test('「部屋」ボタン：サーバー側で部屋が消えていたら、選択画面に出て印を捨てる', async () => {
-    // 記憶が古いまま消えた部屋に飛ぶと、退室バグと同種の不整合を新しく生む。
-    // サーバーに「無い」と言われたら、端末の印を捨ててから選択画面に出す
+  await r.test('サーバー側で部屋が消えていたら、確認を出さずに印を捨てる（第41弾 2-1-2）', async () => {
+    // 記憶が古いまま消えた部屋に飛ぶと、退室バグと同種の不整合を新しく生む
+    //（落とし穴14-b）。サーバーに「無い」と言われたら、印を捨てて棚へ通す
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
     click(doc, 'rtPickGameBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     fake.replies['room:peek'] = () => ({ ok: false, error: 'room_not_found' });
-    click(doc, 'shelfRoomBtn');
-    await waitScreen(win, doc, 'scr-rt-lobby', 2000);
+    win.goToScreen('scr-entry');
+    await waitScreen(win, doc, 'scr-entry', 2000);
+    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assert(activeScreen(doc) !== 'scr-room-open', '消えた部屋の確認は出さない');
+
     // 印を捨てた＝つなぎ直しても、もう入り直しに行かない
     const joinsBefore = fake.emits.filter(e => e.name === 'room:join').length;
     fake.fire('disconnect');
@@ -4239,7 +4272,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 120);
     const joinsAfter = fake.emits.filter(e => e.name === 'room:join').length;
     assertEqual(joinsAfter, joinsBefore, '消えた部屋へ入り直しに行かない');
-    assertNoErrors(errors, '部屋ボタン（部屋消滅）で未捕捉の例外');
+    assertNoErrors(errors, '部屋の確認（部屋消滅）で未捕捉の例外');
     win.close();
   });
 

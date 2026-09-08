@@ -1469,6 +1469,61 @@
     cursor:pointer;font-family:inherit;
   }
   .shelf-room-note:active{transform:scale(.99);}
+  /* 第42弾 2-1：いまの自分の下の2つのボタン */
+  .prof-acts{display:flex;gap:8px;justify-content:center;margin-top:12px;}
+  .prof-acts .btn{margin:0;width:auto;padding:10px 16px;font-size:13px;min-height:44px;}
+  .prof-sec{display:flex;align-items:baseline;justify-content:space-between;
+    margin:18px 0 10px;font-size:13px;font-weight:800;}
+  .prof-count{font-size:12px;font-weight:400;color:var(--ink-soft);
+    font-family:'DotGothic16',monospace;}
+  /* あつめたもの。**持っているものだけ**が並ぶので、空の枠は置かない */
+  .prof-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+  .prof-part{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 4px;text-align:center;
+  }
+  .prof-part .pp-emoji{font-size:24px;line-height:1.2;display:block;}
+  .prof-part .pp-label{font-size:9.5px;color:var(--ink-soft);margin-top:4px;
+    display:block;line-height:1.4;}
+  .prof-empty{font-size:12px;color:var(--ink-soft);line-height:1.8;padding:4px 2px;}
+  /* 2-4：カセットごとの1行 */
+  .prof-cas{
+    display:flex;align-items:center;gap:10px;width:100%;min-height:48px;
+    background:none;border:none;border-bottom:1px solid var(--line);
+    padding:10px 2px;font:inherit;color:inherit;cursor:pointer;text-align:left;
+  }
+  .prof-cas:active{background:rgba(0,0,0,.04);}
+  .prof-cas-name{flex:1;min-width:0;font-size:13.5px;}
+  .prof-cas-rest{font-size:12px;color:var(--ink-soft);}
+  .prof-cas-arrow{color:var(--ink-soft);}
+  /* 2-3：二つ名の sheet。**3列を一度に並べない**ので、いまの組み合わせを上に1行 */
+  .tn-now{font-size:17px;font-weight:800;text-align:center;margin-bottom:14px;
+    font-family:'Zen Maru Gothic',sans-serif;}
+  .tn-slot{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 13px;margin-bottom:9px;font:inherit;color:inherit;cursor:pointer;text-align:left;}
+  .tn-slot-name{flex:0 0 auto;font-size:11px;color:var(--ink-soft);width:6.5em;}
+  .tn-slot-val{flex:1;min-width:0;font-size:14px;}
+  /* 2-2：アイコンの sheet。**持っているものだけ** */
+  .ti-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+  .ti-pick{background:var(--card);border:1.5px solid var(--line);border-radius:12px;
+    padding:12px 4px;text-align:center;cursor:pointer;font:inherit;color:inherit;min-height:64px;}
+  /* 選んでいるものは**枠＋✓**で示す（色だけに頼らない・正本2） */
+  .ti-pick.on{border-color:var(--teal);border-width:2px;}
+  .ti-pick .tp-emoji{font-size:26px;line-height:1.2;display:block;}
+  .ti-pick .tp-label{font-size:9.5px;color:var(--ink-soft);margin-top:4px;display:block;line-height:1.4;}
+  .ti-pick.on .tp-label::after{content:' ✓';color:var(--teal);font-weight:800;}
+  /* 第42弾 2-4：達成状況シートの中身 */
+  .ts-count{font-size:12px;color:var(--ink-soft);margin-bottom:10px;}
+  .ts-row{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--line);}
+  .ts-row:last-child{border-bottom:none;}
+  .ts-emoji{font-size:22px;line-height:1;flex:0 0 auto;width:26px;text-align:center;}
+  .ts-text{flex:1;min-width:0;}
+  .ts-label{display:block;font-size:13px;}
+  /* **まだのものも、灰色にはしない。**どうすれば手に入るかを読ませる場所なので、
+     読めなくしては意味がない（色に頼らない・正本2） */
+  .ts-hint{display:block;font-size:11px;color:var(--ink-soft);margin-top:3px;line-height:1.6;}
+  .ts-mark{flex:0 0 auto;width:20px;text-align:center;color:var(--teal);font-weight:800;}
   /* 第41弾 2-3：人数チップ。押すといつでも変えられる */
   .shelf-chip{
     margin-top:8px;background:var(--card);border:1px solid var(--line);
@@ -3333,86 +3388,36 @@
        パーツが増えるほど1画面では選びにくくなるので、
        「今の姿を見せる → 変えたいものを選ぶ → 専用の一覧へ」の形にした。
        この形なら、パーツが100個に増えても選びやすさが変わらない。 -->
+  <!-- 第42弾 2-1：いまの自分 と、あつめたもの だけ。
+       **未取得を灰色や「？？？」で並べない**（6節の禁止）。
+       未取得は、カセットごとの1行に畳んで 2-4 のシートへ送る -->
   <div class="screen" id="scr-titles">
     <div class="prof-head">
       <div class="prof-icon" id="titlePreviewIcon">🙂</div>
       <div class="prof-title" id="titlePreviewTitle">はじめの一歩</div>
       <div class="prof-name" id="titlePreviewName">-</div>
     </div>
+    <!-- 2-5：未ログインでも「いまの自分」は見られる。**責めない一言だけ添える** -->
+    <div class="mic-status" id="titleGuestNote" style="display:none;margin-top:6px;"></div>
+    <div class="prof-acts">
+      <button class="btn btn-outline" id="profIconBtn"></button>
+      <button class="btn btn-outline" id="profNameBtn"></button>
+    </div>
     <!-- 手渡しは1台をみんなで回すので、アプリからは誰が持ち主か分からない。
          名前を合わせてもらえば、その人の活躍として数えられる -->
     <div class="mic-status" id="titleHandoffNote" style="line-height:1.7;"></div>
     <div class="wiz-body">
-      <button class="set-row" data-profgo="icon">
-        <span class="sr-icon">🖼</span>
-        <span class="sr-text">アイコンを変える<span class="sr-sub" id="profIconSub"></span></span>
-        <span class="sr-arrow">›</span>
-      </button>
-      <button class="set-row" data-profgo="name2">
-        <span class="sr-icon">🏷</span>
-        <span class="sr-text">二つ名を変える<span class="sr-sub" id="profName2Sub"></span></span>
-        <span class="sr-arrow">›</span>
-      </button>
-      <button class="set-row" data-profgo="rename">
+      <div class="prof-sec"><span id="profOwnedLead"></span><span class="prof-count" id="profOwnedCount"></span></div>
+      <div class="prof-grid" id="profOwned"></div>
+      <div id="profCassettes"></div>
+      <button class="set-row" data-profgo="rename" style="margin-top:14px;">
         <span class="sr-icon">📛</span>
         <span class="sr-text">名前を変える<span class="sr-sub" id="profRenameSub"></span></span>
-        <span class="sr-arrow">›</span>
-      </button>
-      <button class="set-row" data-profgo="collection" style="margin-top:14px;">
-        <span class="sr-icon">📊</span>
-        <span class="sr-text">集めたもの<span class="sr-sub" id="profCollectSub"></span></span>
         <span class="sr-arrow">›</span>
       </button>
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
       <button class="btn btn-ghost" id="titlesBackBtn" style="margin-top:0;">← もどる</button>
-    </div>
-  </div>
-
-  <!-- アイコンをえらぶ。カセットごとに区切って、未獲得は影で出す -->
-  <div class="screen" id="scr-title-icon">
-    <div class="prof-head small">
-      <div class="prof-icon" id="tiPreviewIcon">🙂</div>
-      <div class="prof-title" id="tiPreviewTitle">はじめの一歩</div>
-    </div>
-    <div class="wiz-body" id="tiGroups"></div>
-    <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-main" id="tiDoneBtn">これにする ▶</button>
-      <button class="btn btn-ghost" id="tiBackBtn" style="margin-top:0;">← もどる</button>
-    </div>
-  </div>
-
-  <!-- 二つ名。3つのスロットを選ぶ入口 -->
-  <div class="screen" id="scr-title-name">
-    <div class="prof-head small">
-      <div class="prof-title" id="tnPreview">はじめの一歩</div>
-      <div class="mic-status">上のプレビューは、えらぶたびに変わります</div>
-    </div>
-    <div class="wiz-body" id="tnSlots"></div>
-    <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-main" id="tnDoneBtn">これにする ▶</button>
-      <button class="btn btn-ghost" id="tnBackBtn" style="margin-top:0;">← もどる</button>
-    </div>
-  </div>
-
-  <!-- スロット1つぶんの一覧。獲得済みが上、未獲得は下にグレーで -->
-  <div class="screen" id="scr-title-slot">
-    <div class="prof-head small">
-      <div class="prof-title" id="tsPreview">はじめの一歩</div>
-      <div class="mic-status" id="tsLead"></div>
-    </div>
-    <div class="wiz-body" id="tsList"></div>
-    <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-ghost" id="tsBackBtn" style="margin-top:0;">← もどる</button>
-    </div>
-  </div>
-
-  <!-- 集めたもの。カセットごとの獲得率と、あと1つで揃うもの -->
-  <div class="screen" id="scr-collection">
-    <div class="wiz-head"><h2 class="scr-title">集めたもの</h2></div>
-    <div class="wiz-body" id="collectBody"></div>
-    <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-ghost" id="collectBackBtn" style="margin-top:0;">← もどる</button>
     </div>
   </div>
 
@@ -6420,8 +6425,14 @@
       return;
     }
     if(e.target.closest('#swTitlesBtn')){
-      if(browsingOnly()){ showFlash(UiText.SHELF.未ログインの記録, 'hit'); return; }
-      goTo('scr-titles');
+      // 第42弾（案A）：**そのカセットの達成状況シートを開く。**
+      // 第41弾では既存の称号画面へ飛ばしていた（41の0節「行き先は既存の画面のまま」）。
+      // 42-2-4 が「カセット単位のシート」を前提にしているので、
+      // シートを新設して**ここと42の「あと◯つ ›」の両方から同じ関数を開く**（門E7）
+      var cur1 = shelfCurrent();
+      if(!cur1 || cur1.kind !== 'cart' || !cur1.c) return;
+      if(browsingOnly()) showFlash(UiText.SHELF.未ログインの記録, 'hit');
+      openTitleSheet(cur1.c.id === 'aresoredorekore' ? 'aresore' : cur1.c.id);
       return;
     }
     if(e.target.closest('#swStartBtn')){
@@ -6664,15 +6675,45 @@
     };
     renderShelfBar();
   }
+  /**
+   * **未ログインでも、選んだ姿は端末に残す**（第42弾 2-2・2-5・2-7）。
+   *
+   * これまでは `if(!loggedIn()) return;` で、未ログインだと何も保存していなかった。
+   * 指示42は「未ログイン時は端末（既存の経路）」と書いていたが、
+   * **その経路は無かった**（着手前の棚卸しで判明）。ここで新設する。
+   *
+   * 端末に置くのは**選んだ姿だけ**。持ち物（unlocked）と数字（stats）は
+   * アカウントのもので、未ログインでは増えない——
+   * 増えないものを端末に書くと、ログインした時にどちらが正しいか決められなくなる。
+   */
+  var GUEST_LOOK_KEY = 'acac-look';
+  function loadGuestLook(){
+    try{ return JSON.parse(localStorage.getItem(GUEST_LOOK_KEY) || 'null'); }catch(e){ return null; }
+  }
+  function saveGuestLook(){
+    try{ localStorage.setItem(GUEST_LOOK_KEY, JSON.stringify(myTitles.equipped)); }catch(e){}
+  }
   async function loadTitles(){
-    if(!loggedIn()){ applyTitles(null); return; }
+    if(!loggedIn()){
+      applyTitles(null);
+      // 端末に残っていた姿を戻す（持っていないものは normalizeEquipped が落とす）
+      var look = loadGuestLook();
+      if(look){
+        myTitles.equipped = TitleLogic.normalizeEquipped(look, myTitles.unlocked);
+        renderShelfBar();
+      }
+      return;
+    }
     try{ applyTitles(await api('/api/titles')); }
     catch(e){ applyTitles(null); } // 取れなくても遊べる（初期の名乗りになるだけ）
   }
   async function saveTitles(){
-    if(!loggedIn()) return;
+    if(!loggedIn()){ saveGuestLook(); return; }
     try{ applyTitles(await api('/api/titles', { method:'PUT', body: myTitles })); }
-    catch(e){}
+    catch(e){
+      // 2-8：保存できなくても、画面上の選択は保つ（消さない）
+      if(typeof UiKit !== 'undefined') UiKit.info(UiText.MSG.保存できない, UiText.MSG.あとでためせる);
+    }
   }
   /**
    * 遊び終わりに呼ぶ。カセットのカウンタを足して、新しく手に入ったものを返す。
@@ -6804,8 +6845,10 @@
     el('shelfName').textContent = inn ? state.username : guestIdentity.name;
     // ログインしていない人は、まだ選べる称号を持っていない
     // ログインしていない人は、まだ選べる称号を持っていない
-    el('shelfMeBtn').disabled = !inn;
-    el('shelfMeBtn').style.opacity = inn ? '' : '.75';
+    // 第42弾 2-5：**未ログインでも開ける。**「いまの自分」は端末に残っているし、
+    // 何が集められるかを見てからログインを決めてよい（責めない）
+    el('shelfMeBtn').disabled = false;
+    el('shelfMeBtn').style.opacity = inn ? '' : '.85';
   }
   el('shelfGearBtn').addEventListener('click', function(){ openSettings(); });
   el('shelfMeBtn').addEventListener('click', function(){ goTo('scr-titles'); });
@@ -6843,188 +6886,221 @@
     return out;
   }
 
+  /**
+   * **そのカセットの達成状況（第42弾 2-4）。**
+   *
+   * 開く所は2つ、実装は1つ：
+   *   ・棚の中央の帯の 🏆（第41弾 2-2）
+   *   ・称号の画面の「あと◯つ ›」（第42弾 2-1）
+   *
+   * **同じ内容を2つ作ると、片方が古びる**（落とし穴1）。
+   * 門E7が「同じ関数を開いているか」を機械で照らす。
+   *
+   * ここでは**まだ持っていないものも出す**。2-1 の画面（持っているものだけ）とは
+   * 役目が違う——こちらは「あと3つ」の中身を見に来る場所なので、
+   * 隠すと集める手がかりが消える。ただし「？？？」で伏せず、
+   * **何を・どうすれば手に入るか**をそのまま書く（禁止しているのは
+   * 「灰色の飾りを並べること」であって、手がかりを出すことではない）。
+   */
+  function titleSheetData(cassetteId){
+    var have = haveMap();
+    var 行 = [];
+    TitleLogic.PART_KEYS.forEach(function(part){
+      TitleLogic.partsOf(part).forEach(function(p){
+        if((p.cassette || null) !== (cassetteId || null)) return;
+        行.push({ part: part, id: p.id, emoji: p.emoji || '', label: p.label,
+                  hint: p.hint || '', もっている: !!have[p.id] });
+      });
+    });
+    return { cassette: cassetteId, label: titleCassetteLabel(cassetteId), 行: 行,
+             取得: 行.filter(function(x){ return x.もっている; }).length, 全部: 行.length };
+  }
+  function openTitleSheet(cassetteId){
+    if(typeof UiKit === 'undefined') return;
+    var T = UiText.TITLES;
+    var d = titleSheetData(cassetteId);
+    if(!d.全部) return;
+    var html = '<div class="ts-count">' + d.取得 + ' / ' + d.全部 + ' ' + escapeHtml(T.もっている) + '</div>' +
+      d.行.map(function(x){
+        return '<div class="ts-row' + (x.もっている ? ' got' : '') + '">' +
+          '<span class="ts-emoji">' + (x.emoji || '　') + '</span>' +
+          '<span class="ts-text">' +
+            '<span class="ts-label">' + escapeHtml(x.label) + '</span>' +
+            (x.もっている ? '' : '<span class="ts-hint">' + escapeHtml(x.hint) + '</span>') +
+          '</span>' +
+          '<span class="ts-mark">' + (x.もっている ? '✓' : '') + '</span>' +
+        '</div>';
+      }).join('');
+    UiKit.sheet({ title: d.label, html: html, ok: UiText.WORDS.close });
+  }
+  // 検査から、開く所が2つでも実装が1つであることを確かめられるようにする
+  window.titleSheetProbe = function(id){ return titleSheetData(id); };
+  // 持ち物と、いま選んでいる姿。**画面の形に依らずに確かめられるようにする**——
+  // 「手に入ったか」は持ち物の話で、どう描くかとは別（画面を作り直すたびに
+  // 検査を書き直さずに済む）
+  window.titleProbe = function(){
+    return { unlocked: myTitles.unlocked.slice(), equipped: Object.assign({}, myTitles.equipped) };
+  };
+  window.TitleLogic = TitleLogic;
+  window.openTitleSheetRef = function(){ return openTitleSheet; };
+
   function enterTitles(){
     titleDraft = Object.assign({}, myTitles.equipped);
     renderTitleScreen();
   }
+  /**
+   * **2-1：いまの自分と、あつめたものだけ。**
+   *
+   * 未取得は1つも描かない（門E4）。灰色や「？？？」で並べると、
+   * 集めた喜びより「まだ持っていないもの」の方が目立つ画面になる。
+   * 未取得は**カセットごとの1行**に畳んで、2-4 のシートへ送る。
+   */
   function renderTitleScreen(){
+    var T = UiText.TITLES;
     var have = haveMap();
     el('titlePreviewIcon').textContent = TitleLogic.iconEmoji(titleDraft);
     el('titlePreviewTitle').textContent = TitleLogic.titleText(titleDraft);
     el('titlePreviewName').textContent = state.username || '-';
+    el('profIconBtn').textContent = T.アイコンをかえる;
+    el('profNameBtn').textContent = T.二つ名をかえる;
+    el('profRenameSub').textContent = state.username || '（ログインすると使えます）';
+
+    // 2-5：未ログインでも見られる。**責めない一言だけ**
+    var guest = el('titleGuestNote');
+    guest.style.display = loggedIn() ? 'none' : '';
+    guest.textContent = loggedIn() ? '' : T.未ログイン;
     el('titleHandoffNote').textContent = state.username
       ? '📱 1台をまわして遊ぶ時は、プレイヤー名を「' + state.username +
         '」にしておくと、あなたの活躍として数えます（1人1台なら自動です）'
       : '';
-    var icons = TitleLogic.partsOf('icon');
-    el('profIconSub').textContent = icons.filter(function(p){ return have[p.id]; }).length +
-      ' / ' + icons.length + ' 個もっています';
-    el('profName2Sub').textContent = TitleLogic.titleText(titleDraft);
-    el('profRenameSub').textContent = state.username || '（ログインすると使えます）';
-    var all = 0, owned = 0;
+
+    // **分母は CATALOG から導く**（門E5：手書きしない）
+    var 全部 = 0, もっている = [];
     TitleLogic.PART_KEYS.forEach(function(part){
       TitleLogic.partsOf(part).forEach(function(p){
-        all++; if(have[p.id]) owned++;
+        全部++;
+        if(have[p.id]) もっている.push(p);
       });
     });
-    el('profCollectSub').textContent = owned + ' / ' + all + ' 個';
+    el('profOwnedLead').textContent = T.あつめたもの;
+    el('profOwnedCount').textContent = もっている.length + ' / ' + 全部;
+
+    // 取ったものは、**新しいものを先頭に**（獲得日時が無いものは後ろ）
+    var got = myTitles.gotAt || {};
+    もっている.sort(function(a, b){ return String(got[b.id] || '') .localeCompare(String(got[a.id] || '')); });
+    el('profOwned').innerHTML = もっている.length
+      ? もっている.map(function(p){
+          return '<div class="prof-part"><span class="pp-emoji">' + (p.emoji || '🏷') + '</span>' +
+            '<span class="pp-label">' + escapeHtml(p.label) + '</span></div>';
+        }).join('')
+      : '';
+    el('profOwned').style.display = もっている.length ? '' : 'none';
+
+    // 2-4：カセットごとの1行。**残りの数だけを出す**（何が足りないかはシートで）
+    el('profCassettes').innerHTML = titleCassettes().map(function(cas){
+      var d = titleSheetData(cas);
+      if(!d.全部) return '';
+      var 残り = d.全部 - d.取得;
+      return '<button class="prof-cas" data-tsheet="' + escapeHtml(String(cas || '')) + '">' +
+        '<span class="prof-cas-name">' + escapeHtml(d.label) + '</span>' +
+        '<span class="prof-cas-rest">' + escapeHtml(残り ? T.あと(残り) : T.ぜんぶ集めた) + '</span>' +
+        '<span class="prof-cas-arrow">›</span>' +
+      '</button>';
+    }).join('');
   }
+
+  /**
+   * 2-2：アイコンをかえる。**持っているものだけ**が並ぶ。
+   * 「いつもの顔」は最初から持っているので、空にはならない
+   */
+  function openIconSheet(){
+    if(typeof UiKit === 'undefined') return;
+    var T = UiText.TITLES;
+    var have = haveMap();
+    var 持ち物 = TitleLogic.partsOf('icon').filter(function(p){ return have[p.id]; });
+    UiKit.sheet({ ok: UiText.WORDS.close, title: T.アイコンの見出し, html:
+      '<div class="ti-grid">' + 持ち物.map(function(p){
+        return '<button class="ti-pick' + (titleDraft.icon === p.id ? ' on' : '') +
+          '" data-pickicon="' + p.id + '">' +
+          '<span class="tp-emoji">' + p.emoji + '</span>' +
+          '<span class="tp-label">' + escapeHtml(p.label) + '</span></button>';
+      }).join('') + '</div>' });
+  }
+  /**
+   * 2-3：二つ名をかえる。**3列を一度に並べない。**
+   * 上に今の組み合わせを1行、その下にスロットを1つずつ。
+   * 押すと、そのスロットに入れられる持ち物だけが出る
+   */
+  function openNameSheet(){
+    if(typeof UiKit === 'undefined') return;
+    var T = UiText.TITLES;
+    UiKit.sheet({ ok: UiText.WORDS.close, title: T.二つ名の見出し, html:
+      '<div class="tn-now" id="tnNow">' + escapeHtml(TitleLogic.titleText(titleDraft)) + '</div>' +
+      ['first', 'joiner', 'last'].map(function(part){
+        var p = TitleLogic.partById(part, titleDraft[part]);
+        return '<button class="tn-slot" data-pickslot="' + part + '">' +
+          '<span class="tn-slot-name">' + escapeHtml(T.スロット[part]) + '</span>' +
+          '<span class="tn-slot-val">' + escapeHtml(p ? p.label : '—') + '</span>' +
+          '<span class="prof-cas-arrow">›</span>' +
+        '</button>';
+      }).join('') });
+  }
+  /** そのスロットに入れられる持ち物だけ（2-3：1つずつ切り替える） */
+  function openSlotSheet(part){
+    var T = UiText.TITLES;
+    var have = haveMap();
+    var 持ち物 = TitleLogic.partsOf(part).filter(function(p){ return have[p.id]; });
+    UiKit.sheet({ ok: UiText.WORDS.close, title: T.スロット[part], html:
+      '<div class="ti-grid" style="grid-template-columns:repeat(2,1fr);">' + 持ち物.map(function(p){
+        return '<button class="ti-pick' + (titleDraft[part] === p.id ? ' on' : '') +
+          '" data-pickpart="' + part + '" data-pickid="' + p.id + '">' +
+          '<span class="tp-label" style="font-size:12.5px;color:var(--ink);">' +
+          escapeHtml(p.label) + '</span></button>';
+      }).join('') + '</div>' });
+  }
+  /** えらんだものを、その場で「いまの自分」に反映して保存する（2-2・2-11） */
+  function pickTitlePart(part, id){
+    titleDraft[part] = id;
+    myTitles.equipped = Object.assign({}, titleDraft);
+    FxKit.vibe('tick');
+    renderTitleScreen();
+    renderShelfBar();
+    saveTitles();
+    UiKit.closeTop('pick');
+    // **開いたままの二つ名シートも書き換える**（2-3「選ぶと上の1行が変わる」）。
+    // 後ろの画面だけ描き直すと、いま見ているシートの上の行が古いまま残る——
+    // 選んだのに変わっていないように見える
+    var now = el('tnNow');
+    if(now) now.textContent = TitleLogic.titleText(titleDraft);
+    var slot = document.querySelector('#uiLayerRoot [data-pickslot="' + part + '"] .tn-slot-val');
+    if(slot){
+      var p = TitleLogic.partById(part, id);
+      slot.textContent = p ? p.label : '—';
+    }
+  }
+
   el('scr-titles').addEventListener('click', async function(e){
+    if(e.target.closest('#profIconBtn')){ openIconSheet(); return; }
+    if(e.target.closest('#profNameBtn')){ openNameSheet(); return; }
+    var cas = e.target.closest('[data-tsheet]');
+    if(cas){ openTitleSheet(cas.dataset.tsheet || null); return; }
     var b = e.target.closest('[data-profgo]');
     if(!b) return;
-    var to = b.dataset.profgo;
-    if(to === 'icon') goTo('scr-title-icon');
-    if(to === 'name2') goTo('scr-title-name');
-    if(to === 'rename'){
+    if(b.dataset.profgo === 'rename'){
       if(!loggedIn() && !(await requireLogin('名前を変えるには、ログインしてください', 'scr-titles'))) return;
       goTo('scr-rename');
     }
-    if(to === 'collection') goTo('scr-collection');
+  });
+  // sheet の中は #uiLayerRoot に出るので、そちらで受ける
+  el('uiLayerRoot').addEventListener('click', function(e){
+    var ic = e.target.closest('[data-pickicon]');
+    if(ic){ pickTitlePart('icon', ic.dataset.pickicon); return; }
+    var sl = e.target.closest('[data-pickslot]');
+    if(sl){ openSlotSheet(sl.dataset.pickslot); return; }
+    var pp = e.target.closest('[data-pickpart]');
+    if(pp){ pickTitlePart(pp.dataset.pickpart, pp.dataset.pickid); return; }
   });
   el('titlesBackBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
-
-  // ---- アイコンをえらぶ ----
-  function enterTitleIcon(){ renderTitleIcon(); }
-  function renderTitleIcon(){
-    var have = haveMap();
-    el('tiPreviewIcon').textContent = TitleLogic.iconEmoji(titleDraft);
-    el('tiPreviewTitle').textContent = TitleLogic.titleText(titleDraft);
-    var list = TitleLogic.partsOf('icon');
-    el('tiGroups').innerHTML = titleCassettes().map(function(cas){
-      var group = list.filter(function(p){ return (p.cassette || null) === cas; });
-      if(!group.length) return '';
-      var got = group.filter(function(p){ return have[p.id]; }).length;
-      return '<div class="tg-cas' + (group.length - got === 1 ? ' near' : '') + '">' +
-        '<div class="tg-cas-head"><h3>' + escapeHtml(titleCassetteLabel(cas)) + '</h3>' +
-        '<span class="tg-cas-count">' + got + ' / ' + group.length + '</span></div>' +
-        '<div class="tg-grid">' + group.map(function(p){
-          var owned = !!have[p.id];
-          return '<button class="ti-item' + (owned ? '' : ' locked') +
-            (titleDraft.icon === p.id ? ' on' : '') + '" data-ticon="' + p.id + '">' +
-            '<span class="ti-emoji">' + p.emoji + '</span>' +
-            '<span class="ti-label">' + escapeHtml(owned ? p.label : '？？？') + '</span>' +
-            (owned ? '' : '<span class="ti-hint">' + escapeHtml(p.hint) + '</span>') +
-          '</button>';
-        }).join('') + '</div></div>';
-    }).join('');
-  }
-  el('tiGroups').addEventListener('click', function(e){
-    var b = e.target.closest('[data-ticon]');
-    if(!b) return;
-    var p = TitleLogic.partById('icon', b.dataset.ticon);
-    if(!p) return;
-    if(!haveMap()[p.id]){
-      // 未獲得は選べないが、どうすれば手に入るかはその場で読める
-      showFlash('🔒 ' + p.hint, 'hit');
-      return;
-    }
-    titleDraft.icon = p.id;
-    renderTitleIcon(); // 選んだ瞬間、上のプレビューが変わる
-  });
-  el('tiBackBtn').addEventListener('click', function(){ goBack('scr-titles'); });
-  el('tiDoneBtn').addEventListener('click', saveTitleDraft);
-
-  // ---- 二つ名（3つのスロット）----
-  var TITLE_SLOT_LABEL = { first: '① はじめの言葉', joiner: '② 接続詞', last: '③ 終わりの言葉' };
-  function enterTitleName(){ renderTitleName(); }
-  function renderTitleName(){
-    el('tnPreview').textContent = TitleLogic.titleText(titleDraft);
-    el('tnSlots').innerHTML = TitleLogic.PARTS.map(function(part){
-      var p = TitleLogic.partById(part, titleDraft[part]);
-      return '<button class="tn-slot" data-tnslot="' + part + '">' +
-        '<span class="tn-label">' + TITLE_SLOT_LABEL[part] + '</span>' +
-        '<span class="tn-value">' + escapeHtml(p ? p.label : '-') + '</span>' +
-        '<span class="sr-arrow">›</span></button>';
-    }).join('');
-  }
-  el('tnSlots').addEventListener('click', function(e){
-    var b = e.target.closest('[data-tnslot]');
-    if(!b) return;
-    titleSlotEditing = b.dataset.tnslot;
-    goTo('scr-title-slot');
-  });
-  el('tnBackBtn').addEventListener('click', function(){ goBack('scr-titles'); });
-  el('tnDoneBtn').addEventListener('click', saveTitleDraft);
-
-  // ---- スロット1つぶんの一覧（獲得済みが上、未獲得は下）----
-  var titleSlotEditing = 'first';
-  function enterTitleSlot(){ renderTitleSlot(); }
-  function renderTitleSlot(){
-    var have = haveMap();
-    var part = titleSlotEditing;
-    el('tsPreview').textContent = TitleLogic.titleText(titleDraft);
-    el('tsLead').textContent = TITLE_SLOT_LABEL[part] + ' をえらぶ';
-    var list = TitleLogic.partsOf(part);
-    var owned = list.filter(function(p){ return have[p.id]; });
-    var locked = list.filter(function(p){ return !have[p.id]; });
-    function rowHtml(p, got){
-      return '<button class="ts-row' + (got ? '' : ' locked') +
-        (titleDraft[part] === p.id ? ' on' : '') + '" data-tsid="' + p.id + '">' +
-        '<span style="flex:1;">' + escapeHtml(got ? p.label : '？？？') +
-        (got ? '' : '<div class="ts-hint">' + escapeHtml(p.hint) + '</div>') + '</span>' +
-        '<span class="mic-status">' + escapeHtml(got ? titleCassetteLabel(p.cassette) : '🔒') + '</span>' +
-      '</button>';
-    }
-    el('tsList').innerHTML =
-      owned.map(function(p){ return rowHtml(p, true); }).join('') +
-      (locked.length ? '<div class="ts-sep">まだ手に入っていないもの（' + locked.length + '）</div>' : '') +
-      locked.map(function(p){ return rowHtml(p, false); }).join('');
-  }
-  el('tsList').addEventListener('click', function(e){
-    var b = e.target.closest('[data-tsid]');
-    if(!b) return;
-    var p = TitleLogic.partById(titleSlotEditing, b.dataset.tsid);
-    if(!p) return;
-    if(!haveMap()[p.id]){ showFlash('🔒 ' + p.hint, 'hit'); return; }
-    titleDraft[titleSlotEditing] = p.id;
-    // 選んだら前の画面に戻り、プレビューが変わる
-    goBack('scr-title-name');
-  });
-  el('tsBackBtn').addEventListener('click', function(){ goBack('scr-title-name'); });
-
-  async function saveTitleDraft(){
-    myTitles.equipped = TitleLogic.normalizeEquipped(titleDraft, myTitles.unlocked);
-    renderShelfBar();
-    await saveTitles();
-    goBack('scr-titles');
-    renderTitleScreen();
-  }
-
-  // ---- 集めたもの ----
-  // ここが「もう1回あそぼう」の動機になる。未獲得が見えることで、
-  // 「これを取るために次はこのモードをやろう」という遊ぶ理由が生まれる。
-  // ただし原則3のとおり、焦らせるための仕組みにはしない
-  //（毎日来ないと損、のような作りは絶対に入れない）。
-  function enterCollection(){
-    var have = haveMap();
-    var got = myTitles.gotAt || {};
-    el('collectBody').innerHTML = titleCassettes().map(function(cas){
-      var group = [];
-      TitleLogic.PART_KEYS.forEach(function(part){
-        TitleLogic.partsOf(part).forEach(function(p){
-          if((p.cassette || null) === cas) group.push(p);
-        });
-      });
-      if(!group.length) return '';
-      var owned = group.filter(function(p){ return have[p.id]; });
-      var pct = Math.round(owned.length / group.length * 100);
-      var left = group.length - owned.length;
-      return '<div class="tg-cas' + (left === 1 ? ' near' : '') + '">' +
-        '<div class="tg-cas-head"><h3>' + escapeHtml(titleCassetteLabel(cas)) + '</h3>' +
-        '<span class="tg-cas-count">' + owned.length + ' / ' + group.length + '</span></div>' +
-        '<div class="tg-cas-bar"><div class="tg-cas-fill" style="width:' + pct + '%;"></div></div>' +
-        '<div class="quiz-said" style="margin-top:8px;">' + group.map(function(p){
-          var mine = !!have[p.id];
-          var when = got[p.id];
-          return '<span class="bl-item' + (mine ? '' : ' dead') + '" title="' +
-            escapeHtml(mine ? (when ? when + ' に手に入れた' : '') : p.hint) + '">' +
-            (p.emoji ? p.emoji + ' ' : '') + escapeHtml(mine ? p.label : '？？？') +
-            (mine && when ? '<span class="mic-status">' + escapeHtml(when) + '</span>' : '') +
-          '</span>';
-        }).join('') + '</div></div>';
-    }).join('');
-  }
-  el('collectBackBtn').addEventListener('click', function(){ goBack('scr-titles'); });
 
   // ---- 名前を変える ----
   function enterRename(){
@@ -8705,7 +8781,7 @@
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
   // 画面遷移による自動適用の対象から外す
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-title-icon', 'scr-title-name', 'scr-title-slot', 'scr-collection', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -8777,7 +8853,7 @@
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-title-icon','scr-title-name','scr-title-slot','scr-collection','scr-rename'];
+    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename'];
     el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
     // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
     el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';
@@ -8833,10 +8909,6 @@
     if(id === 'scr-play-way') enterPlayWay();
     if(id === 'scr-entry') enterEntry();
     if(id === 'scr-room-open') enterRoomOpen();
-    if(id === 'scr-title-icon') enterTitleIcon();
-    if(id === 'scr-title-name') enterTitleName();
-    if(id === 'scr-title-slot') enterTitleSlot();
-    if(id === 'scr-collection') enterCollection();
     if(id === 'scr-rename') enterRename();
     if(id === 'scr-cassette') enterCassetteDetail();
     if(id === 'scr-rt-lobby') enterRtLobby();

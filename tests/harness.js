@@ -31,9 +31,19 @@ function makeApi(opts, titlePuts) {
   }, m));
   let nextId = matches.length + 1;
   // 第26弾-4：称号の預かり先（アカウントごとの持ち物）
+  /**
+   * 称号の持ち物。**opts.seedTitles で足せる。**
+   *
+   * 何も足さないと、持っているのは最初から使える4つだけ。
+   * 「持ち物が2つ以上ある時の振る舞い」（アイコンをえらび直す・
+   * 二つ名のスロットを切り替える）が、そもそも試せない——
+   * 選択肢が1つしかないと、選び直しは自明に成立してしまう（型b）。
+   */
+  const seededUnlocked = TitleLogic.unlockedIds(null)
+    .concat(opts.seedTitles || []);
   let titleStore = {
     stats: TitleLogic.emptyStats(),
-    unlocked: TitleLogic.unlockedIds(null),
+    unlocked: Array.from(new Set(seededUnlocked)),
     equipped: TitleLogic.normalizeEquipped(null, [])
   };
 

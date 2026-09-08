@@ -843,19 +843,34 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-titles', 3000);
     assertEqual(el(doc, 'titlePreviewTitle').textContent, 'はじめの一歩', '初期の名乗り');
     assertEqual(el(doc, 'titlePreviewName').textContent, 'test', 'ユーザー名が出る');
-    // 第32弾-B-2：ここはプロフィール。変えたいものを選ぶと専用画面が開く
-    assert(doc.querySelector('[data-profgo="icon"]'), 'アイコンを変える入口がある');
-    assert(doc.querySelector('[data-profgo="name2"]'), '二つ名を変える入口がある');
-    assert(doc.querySelector('[data-profgo="collection"]'), '集めたものへの入口がある');
-    // 持っていないパーツは影で出し、どうすれば手に入るかだけ見せる
-    doc.querySelector('[data-profgo="icon"]').click();
-    await waitScreen(win, doc, 'scr-title-icon', 3000);
-    const locked = doc.querySelectorAll('#tiGroups .ti-item.locked');
-    assert(locked.length > 0, 'まだ持っていないパーツも並んでいる（' + locked.length + '個）');
-    assert(/？？？/.test(locked[0].textContent), '中身は伏せる');
-    assert(locked[0].querySelector('.ti-hint'), '手に入れ方は見せる');
-    click(doc, 'tiBackBtn');
-    await waitScreen(win, doc, 'scr-titles', 3000);
+
+    // **第42弾 2-1：あつめたものだけが並ぶ。**
+    // 未取得を灰色や「？？？」で並べると、集めた喜びより
+    // 「まだ持っていないもの」の方が目立つ画面になる（6節の禁止）
+    assert(el(doc, 'profIconBtn'), 'アイコンをかえる');
+    assert(el(doc, 'profNameBtn'), '二つ名をかえる');
+    assert(!/顔をかえる/.test(el(doc, 'scr-titles').textContent), '「顔をかえる」とは言わない（6節）');
+
+    // **門E4：未取得が1つも描かれていない。**
+    const 並んだ = Array.from(doc.querySelectorAll('#profOwned .prof-part'));
+    const have = win.titleSheetProbe(null);   // 「最初から使えるもの」で持ち物の形を見る
+    assert(have && have.全部 > 0, '目録を読めている');   // 型(b)
+    assert(並んだ.length > 0, '持っているものが並んでいる（実際:' + 並んだ.length + '個）');
+    const 全部の文字 = doc.querySelector('#profOwned').textContent;
+    assert(!/？？？/.test(全部の文字), '「？？？」が1つも無い');
+    assertEqual(doc.querySelectorAll('#profOwned .locked, #profOwned .dead').length, 0,
+      '灰色にした未取得も1つも無い');
+
+    // **門E5：分母は CATALOG から導く**（手書きしない）
+    const INV2 = require('./inventory');
+    const 数 = el(doc, 'profOwnedCount').textContent;
+    const m = /(\d+)\s*\/\s*(\d+)/.exec(数);
+    assert(m, '「持っている数 / 全部の数」が出る（実際: ' + 数 + '）');
+    const 目録の全数 = win.TitleLogic
+      ? win.TitleLogic.PART_KEYS.reduce((n, k) => n + win.TitleLogic.partsOf(k).length, 0)
+      : null;
+    assertEqual(Number(m[2]), 目録の全数, '分母が目録の実際のパーツ数と一致する');
+    assertEqual(Number(m[1]), 並んだ.length, '分子が、実際に並んでいる数と一致する');
     // 手渡しで自分の活躍として数えてもらう方法を案内する
     assert(/test/.test(el(doc, 'titleHandoffNote').textContent), '名前を合わせる案内が出る');
     click(doc, 'titlesBackBtn');
@@ -958,43 +973,70 @@ function pickCart(doc, id) {
 
   // ---- 第32弾-B 第2部：称号の画面 ----
 
-  await r.test('二つ名は、スロットごとの一覧から選ぶ（獲得済みが上）', async () => {
+  await r.test('二つ名は、スロットを1つずつ切り替える（第42弾 2-3・門E9）', async () => {
+    // **3列を一度に並べない。**
+    // 3つ同時に出すと、どれを触っているのかが分からなくなる。
+    // 1つ押す → そのスロットの持ち物だけ → 選ぶと上の1行が変わる
     const { win, doc, errors } = await launch();
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    doc.querySelector('[data-profgo="name2"]').click();
-    await waitScreen(win, doc, 'scr-title-name', 3000);
-    assertEqual(doc.querySelectorAll('#tnSlots .tn-slot').length, 3, '3つのスロットが並ぶ');
-    assertEqual(el(doc, 'tnPreview').textContent, 'はじめの一歩', 'プレビューが常に上にある');
+    click(doc, 'profNameBtn');
+    await sleep(win, 300);
 
-    doc.querySelector('[data-tnslot="first"]').click();
-    await waitScreen(win, doc, 'scr-title-slot', 3000);
-    const rows = Array.from(doc.querySelectorAll('#tsList .ts-row'));
-    assert(rows.length > 1, 'そのスロットの候補が並ぶ');
-    // 獲得済みが上、未獲得は下
-    const firstLocked = rows.findIndex(x => x.classList.contains('locked'));
-    const lastOwned = rows.map(x => x.classList.contains('locked')).lastIndexOf(false);
-    assert(lastOwned < firstLocked, '獲得済みが上、未獲得が下');
-    assert(/？？？/.test(rows[firstLocked].textContent), '未獲得は中身を伏せる');
-    assert(rows[firstLocked].querySelector('.ts-hint'), '未獲得は条件が読める');
-    assertNoErrors(errors, '二つ名の画面で未捕捉の例外');
+    const slots = Array.from(doc.querySelectorAll('#uiLayerRoot [data-pickslot]'));
+    assertEqual(slots.length, 3, '3つのスロットが「入口として」並ぶ');
+    // **門E9：この時点で候補は1つも出ていない**（3列同時になっていない）
+    assertEqual(doc.querySelectorAll('#uiLayerRoot [data-pickpart]').length, 0,
+      '押す前は、候補を1つも並べない（3列同時にしない）');
+    assert(doc.getElementById('tnNow'), 'いまの組み合わせが上に1行ある');
+
+    // 1つ押すと、そのスロットの**持っているものだけ**が出る
+    slots[0].click();
+    await sleep(win, 300);
+    const picks = Array.from(doc.querySelectorAll('#uiLayerRoot [data-pickpart]'));
+    assert(picks.length > 0, '押したスロットの候補が出る（実際:' + picks.length + '個）');
+    picks.forEach((p) => {
+      assert(!/？？？/.test(p.textContent), '未取得を「？？？」で並べない：' + p.textContent);
+    });
+    // 出ているものは全部、実際に持っているもの
+    const 持ち物 = new Set(win.titleProbe().unlocked);
+    picks.forEach((p) => {
+      assert(持ち物.has(p.dataset.pickid), p.dataset.pickid + ' は持っているものだけ');
+    });
+    assertNoErrors(errors, '二つ名の sheet で未捕捉の例外');
     win.close();
   });
 
-  await r.test('集めたものに、カセットごとの獲得率が出る', async () => {
+  await r.test('カセットごとの「あと◯つ ›」から、達成状況のシートが開く（2-4・門E7）', async () => {
+    // **41の🏆と、42の「あと◯つ ›」は同じ実装を開く。**
+    // 同じ内容を2つ作ると片方が古びる（落とし穴1）
     const { win, doc, errors } = await launch();
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    doc.querySelector('[data-profgo="collection"]').click();
-    await waitScreen(win, doc, 'scr-collection', 3000);
-    const bars = doc.querySelectorAll('#collectBody .tg-cas-bar');
-    assert(bars.length >= 5, 'カセットごとにバーが出る（' + bars.length + '本）');
-    const text = el(doc, 'collectBody').textContent;
+    const rows = Array.from(doc.querySelectorAll('#profCassettes [data-tsheet]'));
+    assert(rows.length >= 5, 'カセットごとに1行ある（実際:' + rows.length + '行）');
     ['人狼', 'あれそれどれこれ', '爆弾', 'クイズ', 'オーク'].forEach((w) => {
-      assert(text.indexOf(w) !== -1, '「' + w + '」の区切りがある');
+      assert(el(doc, 'profCassettes').textContent.indexOf(w) !== -1, '「' + w + '」の行がある');
     });
-    assert(/\d+ \/ \d+/.test(text), '「持っている数 / 全部の数」が出る');
-    assertNoErrors(errors, '集めたもので未捕捉の例外');
+    // **残りの数だけを出す**（何が足りないかは、押した先のシートで）
+    assert(/あと\d+つ|すべて集めました/.test(el(doc, 'profCassettes').textContent),
+      '残りの数、または「すべて集めました」が出る');
+    assert(!/？？？/.test(el(doc, 'profCassettes').textContent), 'この画面に「？？？」は無い');
+
+    const 対象 = rows.find((x) => x.dataset.tsheet === 'jinro') || rows[1];
+    対象.click();
+    await sleep(win, 400);
+    const sheet = doc.querySelector('#uiLayerRoot .ui-sheet-in');
+    assert(sheet, 'シートが開く');
+    const 中身 = sheet.textContent;
+    assert(/\d+ \/ \d+/.test(中身), '進み具合が出る（' + 中身.slice(0, 40) + '）');
+    // シートは**手がかりを出す場所**。まだのものも、伏せずに条件を書く
+    const まだ = sheet.querySelectorAll('.ts-row:not(.got)');
+    if (まだ.length) {
+      assert(まだ[0].querySelector('.ts-hint'), 'まだのものは、どうすれば手に入るかが読める');
+      assert(!/？？？/.test(まだ[0].textContent), '「？？？」で伏せない');
+    }
+    assertNoErrors(errors, '達成状況のシートで未捕捉の例外');
     win.close();
   });
 
@@ -1176,10 +1218,37 @@ function pickCart(doc, id) {
     t.win.close();
   });
 
-  await r.test('ログインしていない人は、称号を選べない', async () => {
-    const { win, doc, errors } = await launch({ loggedOut: true });
-    assert(el(doc, 'shelfMeBtn').disabled, '押せない（まだ持ち物が無い）');
-    assertNoErrors(errors, '未ログインのバーで未捕捉の例外');
+  await r.test('ログインしていなくても、いまの自分は見られる（第42弾 2-5・門E8）', async () => {
+    // **責めない。**できないことではなく、できることを言う。
+    // 何が集められるかを見てから、ログインを決めてよい
+    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
+    assert(!el(doc, 'shelfMeBtn').disabled, '未ログインでも押せる');
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    assert(el(doc, 'titlePreviewIcon').textContent, 'いまの自分が出る');
+    const note = el(doc, 'titleGuestNote');
+    assertEqual(note.style.display, '', '一言が出ている');
+    assert(/ログインすると記録が残ります/.test(note.textContent),
+      '責めない言い方（実際: ' + note.textContent + '）');
+
+    // **選んだ姿が端末に残る**（門E8）
+    click(doc, 'profIconBtn');
+    await sleep(win, 300);
+    const picks = Array.from(doc.querySelectorAll('#uiLayerRoot [data-pickicon]'));
+    assert(picks.length > 0, '未ログインでも、持っているアイコンは選べる');
+    picks[0].click();
+    await sleep(win, 300);
+    const 残った = win.localStorage.getItem('acac-look');
+    assert(残った, '選んだ姿が端末に残る（実際: ' + 残った + '）');
+    assertEqual(JSON.parse(残った).icon, picks[0].dataset.pickicon, '選んだアイコンが残っている');
+
+    // **開き直しても残っている**
+    const b = await launch({ loggedOut: true, browse: true, storage: { 'acac-look': 残った } });
+    assertEqual(b.win.titleProbe().equipped.icon, picks[0].dataset.pickicon,
+      '開き直しても、選んだ姿のまま');
+    b.win.close();
+
+    assertNoErrors(errors, '未ログインの称号画面で未捕捉の例外');
     win.close();
   });
 
@@ -1210,16 +1279,17 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-shelf', 3000);
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    doc.querySelector('[data-profgo="icon"]').click();
-    await waitScreen(win, doc, 'scr-title-icon', 3000);
-    const balloon = doc.querySelector('#tiGroups [data-ticon="icon-are-1"]');
-    assert(balloon && !balloon.classList.contains('locked'), '🎈 はじめの参加証が手に入っている');
-    // 選んだ瞬間、上のプレビューが変わる
+    // 持ち物に入ったかは、**シートと同じ中身**で見る（画面の形に依らない）
+    assert(win.titleProbe().unlocked.indexOf('icon-are-1') >= 0,
+      '🎈 はじめの参加証が手に入っている');
+    // 選んだ瞬間、上の「いまの自分」が変わる（2-11）
+    click(doc, 'profIconBtn');
+    await waitFor(win, () => !!doc.querySelector('#uiLayerRoot .ui-sheet-in'), 3000, 'アイコンのシートが開く');
+    const balloon = doc.querySelector('#uiLayerRoot [data-pickicon="icon-are-1"]');
+    assert(balloon, '持っているので、アイコンの候補に出ている');
     balloon.click();
-    await sleep(win, 60);
-    assertEqual(el(doc, 'tiPreviewIcon').textContent, '🎈', 'プレビューがすぐ変わる');
-    click(doc, 'tiDoneBtn');
-    await waitScreen(win, doc, 'scr-titles', 3000);
+    await sleep(win, 300);
+    assertEqual(el(doc, 'titlePreviewIcon').textContent, '🎈', 'いまの自分がすぐ変わる');
     click(doc, 'titlesBackBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     assertEqual(el(doc, 'shelfAvatar').textContent, '🎈', 'バーのアイコンが変わる');
@@ -1262,12 +1332,7 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-shelf', 3000);
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    doc.querySelector('[data-profgo="name2"]').click();
-    await waitScreen(win, doc, 'scr-title-name', 3000);
-    doc.querySelector('[data-tnslot="first"]').click();
-    await waitScreen(win, doc, 'scr-title-slot', 3000);
-    const kiki = doc.querySelector('#tsList [data-tsid="first-kikijozu"]');
-    assert(kiki && !kiki.classList.contains('locked'),
+    assert(win.titleProbe().unlocked.indexOf('first-kikijozu') >= 0,
       'ヒント1つで当てたので「聞き上手」が手に入る');
     assertNoErrors(errors, '一言ヒントの称号で未捕捉の例外');
     win.close();
@@ -1302,12 +1367,7 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-shelf', 3000);
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    doc.querySelector('[data-profgo="name2"]').click();
-    await waitScreen(win, doc, 'scr-title-name', 3000);
-    doc.querySelector('[data-tnslot="first"]').click();
-    await waitScreen(win, doc, 'scr-title-slot', 3000);
-    const kiki = doc.querySelector('#tsList [data-tsid="first-kikijozu"]');
-    assert(kiki && kiki.classList.contains('locked'),
+    assertEqual(win.titleProbe().unlocked.indexOf('first-kikijozu'), -1,
       'ヒントを増やしてもらったら「一発」ではない');
     assertNoErrors(errors, 'ヒント追加の称号で未捕捉の例外');
     win.close();
@@ -1803,6 +1863,61 @@ function pickCart(doc, id) {
     const 後 = (doc.querySelector('#shelfList .rail .cart.center') || {}).dataset.cart;
     assertEqual(後, 前, '人数を変えても、見ていたカセットが中央のまま');
     assertNoErrors(errors, '人数を変えた時に未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('シートには、いつも「とじる」がある（第42弾 2-10・実ブラウザで見つけた）', async () => {
+    // **開いたら閉じられること。**
+    // sheet は ok を渡さないと閉じるボタンが1つも出ない。
+    // 外側を押しても閉じるが、それは知っている人の近道でしかない（落とし穴20の型）。
+    // 実ブラウザで、シートが3枚積み上がって閉じられなくなった
+    const { win, doc, errors } = await launch();
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    const 開く = ['[data-tsheet]', '#profIconBtn', '#profNameBtn'];
+    for (const sel of 開く) {
+      doc.querySelector(sel).click();
+      await sleep(win, 300);
+      const とじる = doc.querySelector('#uiLayerRoot [data-ui="ok"]');
+      assert(とじる, sel + ' のシートに「とじる」がある');
+      assertEqual(とじる.textContent.trim(), 'とじる', '札は正本の語（' + とじる.textContent + '）');
+      とじる.click();
+      await sleep(win, 400);
+      assertEqual(doc.querySelectorAll('#uiLayerRoot .ui-sheet-in').length, 0,
+        sel + '：押したら閉じる（積み上がらない）');
+    }
+    assertNoErrors(errors, 'シートの開け閉めで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('二つ名をえらぶと、開いたままのシートの1行もその場で変わる（2-3）', async () => {
+    // 後ろの画面だけ描き直すと、**いま見ているシートの上の行が古いまま残る**——
+    // 選んだのに変わっていないように見える（実ブラウザで見つけた）
+    // **持ち物が1つしか無いと、選び直しは自明に成立してしまう**（型b）。
+    // 「はじめの言葉」を2つ持っている状態を作ってから試す
+    const { win, doc, errors } = await launch({ seedTitles: ['first-natsu'] });
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    click(doc, 'profNameBtn');
+    await waitFor(win, () => !!doc.querySelector('#uiLayerRoot .ui-sheet-in'), 3000, '二つ名のシートが開く');
+    doc.querySelector('[data-pickslot="first"]').click();
+    await waitFor(win, () => doc.querySelectorAll('#uiLayerRoot [data-pickpart]').length > 0, 3000, 'スロットの候補が出る');
+
+    const いま = win.titleProbe().equipped.first;
+    const 候補 = Array.from(doc.querySelectorAll('[data-pickpart]'));
+    const 別 = 候補.find((p) => p.dataset.pickid !== いま);
+    assert(別, 'いまと違う持ち物がある（実際:' + 候補.length + '個）');   // 型(b)
+    const 前 = doc.getElementById('tnNow').textContent;
+    別.click();
+    await sleep(win, 400);
+
+    const 後 = doc.getElementById('tnNow').textContent;
+    assert(後 !== 前, 'シートの上の1行が、その場で変わる（' + 前 + ' → ' + 後 + '）');
+    assertEqual(doc.querySelector('[data-pickslot="first"] .tn-slot-val').textContent,
+      win.TitleLogic.partById('first', 別.dataset.pickid).label, 'スロットの値も変わる');
+    assertEqual(el(doc, 'titlePreviewTitle').textContent, 後, '後ろの「いまの自分」とも一致する');
+    assertEqual(el(doc, 'shelfTitle').textContent, 後, '棚のバーにも届いている');
+    assertNoErrors(errors, '二つ名の切り替えで未捕捉の例外');
     win.close();
   });
 

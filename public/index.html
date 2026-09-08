@@ -1435,6 +1435,27 @@
   /* 段の板（.board）と分類のシール（.sticker）は、棚が1列になって
      出す所が無くなった（第41弾 2-2）。分類は中央の帯が出す */
   .shelf-hint{text-align:center;font-size:10.5px;color:var(--ink-soft);padding:6px 20px 0;line-height:1.7;}
+  /* 人数を選ぶ sheet の中身。指で押しやすい大きさで並べる */
+  .heads-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+  .heads-btn{
+    min-height:48px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);font-size:17px;font-weight:800;
+    cursor:pointer;font-family:inherit;
+  }
+  .heads-btn.on{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .heads-btn:active{transform:scale(.97);}
+  /* 第41弾 2-3：人数チップ。押すといつでも変えられる */
+  .shelf-chip{
+    margin-top:8px;background:var(--card);border:1px solid var(--line);
+    border-radius:999px;padding:6px 15px;font-size:11.5px;color:var(--ink);
+    cursor:pointer;font-family:inherit;min-height:34px;
+  }
+  .shelf-chip:active{transform:scale(.98);}
+  /* 2-3：**人数に合わないカセットは消さない。沈める。**
+     消すと「あるはずのゲームが無い」になる。薄くするだけなので、
+     選べるし、世界も説明も見える——押せないのは「はじめる」だけ（2-5）。
+     色に頼らないよう、帯には理由の文字も出す（正本2） */
+  .cart.dim{opacity:.42;}
   /* 第26弾-2：棚の下部バー。ログインしていてもいなくても、いつも同じ場所に出る。
      第27弾-2：スクロールしても隠れないよう、画面の下に貼り付ける。
        ・sticky を使う（fixed ではなく）。レイアウト上の居場所は今までどおり
@@ -1445,10 +1466,13 @@
   .shelf-bar{
     position:sticky;bottom:0;z-index:5;
     display:flex;align-items:center;gap:10px;
-    padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
-    margin:auto 14px 0;
-    background:var(--card);border:1px solid var(--line);border-radius:14px;
-    box-shadow:0 -4px 14px rgba(0,0,0,.10);
+    padding:10px 14px;
+    /* 第41弾 2-8：**画面の端から浮かせる。**
+       端にぴったり付いていると、iPhone のホームバーと重なって押しにくい。
+       下の余白は safe-area のぶんも足して確保する（正本7-1） */
+    margin:auto 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 6px 18px rgba(0,0,0,.16);
   }
   /* 第27弾-2：指で押す的を大きくする。11〜12pxの文字にぴったりの高さだと、
      少しずれただけで外れる（実機で「押しにくい」と分かった） */
@@ -3220,6 +3244,9 @@
       <div class="sub" id="shelfSub">あそぶゲームをえらんでね</div>
       <!-- 第32弾-F：期間中だけの控えめな一言。「あと〇日」のような焦らせる表示は出さない -->
       <div class="mic-status" id="seasonBadge" style="display:none;text-align:center;margin-top:4px;"></div>
+      <!-- 第41弾 2-3：何人で遊ぶか。**答えなくても棚は動く。**
+           人数に合わないカセットは消さずに沈める（選べるし、説明も読める） -->
+      <button class="shelf-chip" id="shelfChip"></button>
     </div>
     <div id="shelfList"></div>
     <!-- 第41弾 2-2：中央の帯。ここだけが、選んだカセットの世界の色になる -->
@@ -5728,6 +5755,7 @@
       : { kind:'through', way:'handoff' };
   }
   // 検査から6通りを確かめられるようにしておく（window.catalogSet と同じ作法）
+  window.headsProbe = function(){ return { heads: headCount(), 見当: shelfHeads }; };
   window.roomProbe = function(){ return { room: !!(rt && rt.state.room), host: !!(rt && rt.isHost()) }; };
   // 検査から画面を置きにいくための窓。
   // 入口（scr-entry）へはアプリの中から戻る道が無い——ふつうは
@@ -6077,7 +6105,9 @@
     var face = c.logo
       ? '<img class="cart-logo" src="' + c.logo + '" alt="' + escapeHtml((c.title || '').replace(/<br>/g, '')) + '">'
       : '<div class="icon">' + c.icon + '</div>' + (c.title ? '<div class="title">' + c.title + '</div>' : '');
-    return '<button class="cart" data-cart="' + c.id + '">' +
+    // 2-3：**人数に合わないカセットは沈めるだけ。**消さない
+    var 沈 = headsBlockReason(c) ? ' dim' : '';
+    return '<button class="cart' + 沈 + '" data-cart="' + c.id + '">' +
       '<div class="cart-body">' +
         '<div class="cart-label' + (c.logo ? ' has-logo' : '') + '">' + face + '</div>' +
       '</div>' +
@@ -6109,6 +6139,80 @@
   function shelfRail(){ return document.querySelector('#shelfList .rail'); }
 
   /**
+   * **何人で遊ぶか**（第41弾 2-3）。
+   *
+   * 手で入れるのは「見当」でしかない。**部屋ができたら実数に置き換わる**——
+   * 実際にそこにいる人数の方が、見当より必ず正しいから。
+   * 置き換えは一方向：部屋を閉じても見当には戻さない
+   *（人数が勝手に変わる理由を、遊ぶ人に説明できないため）。
+   */
+  var shelfHeads = null;   // null＝まだ答えていない（答えなくても棚は動く）
+  function loadHeads(){
+    try{ var v = parseInt(localStorage.getItem('acac-heads'), 10); return v > 0 ? v : null; }
+    catch(e){ return null; }
+  }
+  function saveHeads(n){
+    try{ if(n) localStorage.setItem('acac-heads', String(n)); }catch(e){}
+  }
+  /** いま何人か。**部屋があれば、そこにいる実数が勝つ** */
+  function headCount(){
+    if(rt && rt.state.room && rt.state.room.members){
+      var n = rt.state.room.members.filter(function(m){ return !m.gone; }).length;
+      if(n > 0) return n;
+    }
+    return shelfHeads;
+  }
+  function renderShelfChip(){
+    var chip = el('shelfChip');
+    if(!chip) return;
+    var n = headCount();
+    chip.textContent = n ? ('👥 ' + n + '人　▾') : '👥 なんにん？';
+  }
+  el('shelfChip').addEventListener('click', function(){ askHeads(); });
+  /** 人数をたずねる（sheet）。**軽く聞く。答えなくても閉じられる** */
+  function askHeads(){
+    if(typeof UiKit === 'undefined') return;
+    var いま = headCount();
+    var html = '<div class="heads-grid">' +
+      [2,3,4,5,6,7,8,9,10,12,16,20].map(function(n){
+        return '<button class="heads-btn' + (n === いま ? ' on' : '') + '" data-heads="' + n + '">' + n + '</button>';
+      }).join('') + '</div>' +
+      '<div class="mic-status" style="margin-top:12px;">あとからいつでも変えられます</div>';
+    UiKit.sheet({ title: '何人で遊びますか？', html: html }).then(function(){});
+    var panel = document.querySelector('#uiLayerRoot .ui-sheet-in');
+    if(!panel) return;
+    panel.addEventListener('click', function(e){
+      var b = e.target.closest('[data-heads]');
+      if(!b) return;
+      shelfHeads = parseInt(b.dataset.heads, 10);
+      saveHeads(shelfHeads);
+      renderShelfChip();
+      renderShelf();          // 沈み具合が変わる
+      renderShelfBand();
+      // 選んだら閉じる。部品が持っている閉じ方を使う
+      //（自分で ✕ や暗幕を探して押すと、部品の作りが変わった日に静かに閉じなくなる）
+      UiKit.closeTop('pick');
+    });
+  }
+  /**
+   * **2-5：人数が足りない時の理由。**
+   * 「あと1人足りません（いま2人・3人から）」のように、
+   * いま何人で・何人からなのかまで出す（「足りません」だけでは動けない）
+   */
+  function headsBlockReason(c){
+    var n = headCount();
+    if(!n) return null;                    // 答えていない人は止めない（2-3）
+    var lo = cassetteMinPlayers(c), hi = cassetteMaxPlayers(c);
+    if(lo && n < lo){
+      return { なぜ: 'あと' + (lo - n) + '人 足りません（いま' + n + '人・' + lo + '人から）' };
+    }
+    if(hi && n > hi){
+      return { なぜ: 'いま' + n + '人ですが、このカセットは' + hi + '人までです' };
+    }
+    return null;
+  }
+
+  /**
    * いま中央にあるもの（カセット、または畳んだ札）。
    * **見た目はぜんぶ _index から描き直す**ので、ここが唯一の入口
    */
@@ -6129,7 +6233,7 @@
     if(!T) return null;
     if(!c || !c.ready) return { なぜ: T.準備中 };
     if(browsingOnly()) return { なぜ: T.未ログイン, 行動: T.未ログインの行動, どこへ: 'login' };
-    return null;
+    return headsBlockReason(c);
   }
   /** 何台のスマホが要るか（カセットの実データから出す。手書きの表を持たない） */
   function waysText(c){
@@ -6820,8 +6924,10 @@
     el('shelfSub').textContent = browsingOnly()
       ? 'タップすると、そのゲームの説明が読めます'
       : 'あそぶゲームをえらんでね';
+    shelfHeads = shelfHeads || loadHeads();
     renderShelf();
     renderShelfBar();
+    renderShelfChip();
     // 送り幅は実物を測って決めるので、幅が確定してから位置を入れ直す。
     // **中央がどれかは数が持っている**ので、ここで計算し直すものは無い
     setTimeout(function(){

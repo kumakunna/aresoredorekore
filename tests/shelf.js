@@ -1587,5 +1587,145 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ---- 第41弾 2-3：人数チップ ----
+
+  async function 人数をえらぶ(win, doc, n) {
+    click(doc, 'shelfChip');
+    await sleep(win, 200);
+    const b = doc.querySelector('[data-heads="' + n + '"]');
+    if (!b) throw new Error(n + '人が選べない');
+    b.click();
+    await sleep(win, 250);
+  }
+
+  await r.test('人数チップ：答えなくても棚は動く。答えると合わないカセットが沈む（2-3）', async () => {
+    // **消さずに沈める。**消すと「あるはずのゲームが無い」になる。
+    // 沈めるだけなら、選べるし世界も説明も見える——押せないのは「はじめる」だけ
+    const { win, doc, errors } = await launch();
+    const chip = el(doc, 'shelfChip');
+    assert(chip, '人数チップがある');
+    assert(/なんにん/.test(chip.textContent), '答える前は聞いている：' + chip.textContent);
+    assertEqual(win.headsProbe().heads, null, '答える前は人数を持っていない');
+
+    // **答えなくても棚は動く**（2-3の要）
+    assertEqual(doc.querySelectorAll('.cart.dim').length, 0, '答える前は、どれも沈んでいない');
+    assert(!el(doc, 'swStartBtn').disabled, '答える前でも「はじめる」は押せる');
+
+    await 人数をえらぶ(win, doc, 2);
+    assertEqual(win.headsProbe().heads, 2, '答えた人数が入る');
+    assert(/2人/.test(el(doc, 'shelfChip').textContent), 'チップに出る：' + el(doc, 'shelfChip').textContent);
+
+    // 3人からのカセットが沈む（**消えてはいない**）
+    const 沈 = Array.from(doc.querySelectorAll('.cart.dim')).map((c) => c.dataset.cart);
+    assert(沈.length > 0, '合わないカセットが沈んでいる（実際:' + 沈.join('・') + '）');  // 型(b)
+    沈.forEach((id) => {
+      assert(doc.querySelector('.cart[data-cart="' + id + '"]'), id + '：沈んでも棚から消えない');
+      assert(win.shelfMeta(id).min > 2, id + '：沈んだのは人数が足りないから（' + win.shelfMeta(id).min + '人から）');
+    });
+    // **逆向き**（落とし穴20）：2人で遊べるカセットは沈んでいない
+    const 沈まず = Array.from(doc.querySelectorAll('.cart[data-cart]'))
+      .filter((c) => !c.classList.contains('dim')).map((c) => c.dataset.cart);
+    assert(沈まず.length > 0, '沈んでいないカセットもある（実際:' + 沈まず.join('・') + '）');
+    沈まず.forEach((id) => {
+      const m = win.shelfMeta(id);
+      assert(!m.min || m.min <= 2, id + '：沈んでいないのは2人で遊べるから（' + m.min + '人から）');
+    });
+    assertNoErrors(errors, '人数チップで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('人数が足りない時、帯に理由と「いま何人・何人から」が出る（2-5）', async () => {
+    // 「足りません」だけでは、遊ぶ人は動けない。
+    // **いま何人で、何人からなのか**まで出す
+    const { win, doc, errors } = await launch();
+    await 人数をえらぶ(win, doc, 2);
+
+    // 沈んでいるカセットを中央へ持ってくる
+    const rail = doc.querySelector('#shelfList .rail');
+    const 沈 = doc.querySelector('.cart.dim[data-cart]');
+    assert(沈, '沈んでいるカセットがある');  // 型(b)
+    const id = 沈.dataset.cart;
+    // **ここで棚を開き直さないこと。**renderShelf がDOMを作り直すので、
+    // いま掴んでいる rail も矢印も、画面から外れた古い要素になる（実際に踏んだ）
+    const carts = Array.from(rail.querySelectorAll('.cart'));
+    const 右 = rail.parentNode.querySelector('.rail-arrow.right');
+    let 回 = 0;
+    while ((rail.querySelector('.cart.center') || {}).dataset.cart !== id && 回 < carts.length + 1) {
+      右.click(); await sleep(win, 350); 回++;
+    }
+    assertEqual((rail.querySelector('.cart.center') || {}).dataset.cart, id, '沈んだカセットを中央にできた');
+
+    const band = el(doc, 'shelfBand');
+    const t = band.textContent.replace(/\s+/g, ' ');
+    assert(el(doc, 'swStartBtn').disabled, '人数が足りないと「はじめる」は押せない');
+    assert(/足りません/.test(t), '理由が出ている（' + t.slice(0, 80) + '）');
+    assert(/いま2人/.test(t), '**いま何人か**が出ている');
+    assert(new RegExp(win.shelfMeta(id).min + '人から').test(t), '**何人からか**も出ている');
+
+    // 沈んでいても、説明と世界は見える（2-3：消さない）
+    assert(/正体|爆発|値を|先頭|説明|解いて/.test(t) || t.length > 30, '説明も読める');
+
+    // **人数を増やせば、そのまま遊べるようになる**（行き止まりにしない）
+    await 人数をえらぶ(win, doc, 8);
+    await sleep(win, 200);
+    assert(!el(doc, 'swStartBtn').disabled, '人数を増やすと押せるようになる');
+    assertNoErrors(errors, '人数不足の理由で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('部屋ができたら、人数チップは実数に置き換わる（2-3・2-11）', async () => {
+    // 手で入れた見当より、**実際にそこにいる人数の方が必ず正しい**
+    const { win, doc, errors } = await launch({ fakeSocket: true });
+    await 人数をえらぶ(win, doc, 4);
+    assertEqual(win.headsProbe().heads, 4, '見当は4人');
+
+    // 部屋を作る（部屋でしか遊べないカセット → 確認 → 部屋をつくる）
+    await openCassette(win, doc, 'quizou');
+    assertEqual(activeScreen(doc), 'scr-play-way', '部屋をつくる確認が出る');
+    click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1',
+      room: { code: 'ABC234', hostMemberId: 'm1',
+        members: [{ id: 'm1', name: 'あき', role: 'player', connected: true },
+                  { id: 'm2', name: 'びび', role: 'player', connected: true },
+                  { id: 'm3', name: 'ちか', role: 'player', connected: true },
+                  { id: 'm4', name: 'でで', role: 'player', connected: true },
+                  { id: 'm5', name: 'えみ', role: 'player', connected: true },
+                  { id: 'm6', name: 'ふみ', role: 'player', connected: true }],
+        state: { phase: 'lobby', game: null, data: {} } } }) };
+    el(doc, 'rtCreateName').value = 'あき';
+    click(doc, 'rtCreateBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+
+    assertEqual(win.headsProbe().heads, 6, '部屋があれば、実数（6人）が勝つ');
+    assertEqual(win.headsProbe().見当, 4, '手で入れた見当そのものは消していない');
+
+    // 棚に出ると、チップも実数になっている
+    click(doc, 'rtPickGameBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    assert(/6人/.test(el(doc, 'shelfChip').textContent),
+      'チップが実数に置き換わる（実際: ' + el(doc, 'shelfChip').textContent + '）');
+    assertNoErrors(errors, '部屋の人数で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('下部バーは、画面の端から浮いている（2-8）', async () => {
+    // 端にぴったり付いていると、iPhone のホームバーと重なって押しにくい（正本7-1）
+    const html = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const rule = html.slice(html.indexOf('\n  .shelf-bar{'), html.indexOf('\n  .shelf-me{'));
+    assert(rule, '.shelf-bar の指定を読めている');  // 型(b)
+    assert(/margin:auto 14px calc\(/.test(rule), '下にも余白がある（端に付けない）');
+    assert(/safe-area-inset-bottom/.test(rule), 'ホームバーのぶんも足してある');
+    // 部屋のボタンはもう無い（2-1・2-8）
+    const { win, doc } = await launch();
+    assert(!doc.getElementById('shelfRoomBtn'), '下部バーに「部屋」ボタンは無い');
+    assert(doc.getElementById('shelfGearBtn'), '⚙ はある');
+    assert(doc.getElementById('shelfMeBtn'), '左は名前とアイコン');
+    win.close();
+  });
+
   r.finish();
 })();

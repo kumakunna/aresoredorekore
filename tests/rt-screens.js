@@ -1016,8 +1016,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.alert = () => {};
     assertEqual(activeScreen(doc), 'scr-rt-room', '部屋にいる');
     fake.fire('room:closed', { by: 'あき' });
-    await sleep(win, 200);
-    assertEqual(activeScreen(doc), 'scr-shelf', '棚に戻る（置き去りにしない）');
+    await sleep(win, 300);
+    // **着地点が変わった（第41弾 2-15）。**棚ではなく「部屋に入る」。
+    // 部屋が閉じた直後にしたいのは、たいてい「別の部屋に入る」か「やめる」——
+    // 棚はその両方から遠い。**置き去りにしない**という意図は変わっていない
+    assertEqual(activeScreen(doc), 'scr-rt-lobby', '「部屋に入る」に着く（置き去りにしない）');
+    assert(/部屋に入る/.test(el(doc, 'rtLobbyTitle').textContent), '見出しも「部屋に入る」');
     assertNoErrors(errors, '部屋が畳まれた時に未捕捉の例外');
     win.close();
   });
@@ -4273,6 +4277,78 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const joinsAfter = fake.emits.filter(e => e.name === 'room:join').length;
     assertEqual(joinsAfter, joinsBefore, '消えた部屋へ入り直しに行かない');
     assertNoErrors(errors, '部屋の確認（部屋消滅）で未捕捉の例外');
+    win.close();
+  });
+
+  // ---- 第41弾 2-15：役割の切り替え（ホスト→ゲスト）----
+
+  await r.test('「自分がゲストになる」は、進行役にだけ出る（2-15）', async () => {
+    // ゲスト→ホストは既存の「進行役をゆずる」で足りる。
+    // 足りないのは**ホスト→ゲスト**——進行役をやめて、別の人の部屋に入りたくなる場面
+    const a = await launch(LAUNCH);
+    await toRoom(a.win, a.doc, { pick: false });          // 自分がホスト
+    assertEqual(a.win.roleProbe().host, true, 'ホストとして部屋にいる');   // 型(b)
+    assert(a.win.roleProbe().ゲストになる道, 'ホストには出る');
+    assert(/ゲスト/.test(el(a.doc, 'rtToGuestBtn').textContent),
+      '札で何をするか分かる：' + el(a.doc, 'rtToGuestBtn').textContent);
+    a.win.close();
+
+    // **逆向き**（落とし穴20）：参加者には出さない
+    const b = await launch(LAUNCH);
+    await toRoom(b.win, b.doc, { join: true, memberId: 'm2' });
+    assertEqual(b.win.roleProbe().host, false, '参加者として部屋にいる');  // 型(b)
+    assert(!b.win.roleProbe().ゲストになる道, '参加者には出さない');
+    b.win.close();
+  });
+
+  await r.test('ゲストになると、部屋を閉じてから「部屋に入る」に着く（2-15・門D21）', async () => {
+    // **部屋を残したまま自分だけゲストになる中間状態は作らない。**
+    // 進行役のいない部屋は、誰も進められない部屋になる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+
+    click(doc, 'rtToGuestBtn');
+    // **自動で押さず、中身を読んでから押す**（第39弾からの決まり）
+    await waitFor(win, () => H.openDialog(doc), 3000, '確認が出る');
+    const dlg = H.openDialog(doc);
+    assertEqual(dlg.種類, 'danger', '部屋ごと閉じるので、取り返しがつかない側で出る');
+    assert(/ゲスト/.test(dlg.見出し), '見出しで何をするか分かる（' + dlg.見出し + '）');
+    assert(/閉じ/.test(dlg.本文) && /全員/.test(dlg.本文),
+      '本文に「部屋が閉じる・全員が退出する」が書いてある（' + dlg.本文 + '）');
+
+    // やめる道があること（取り返しがつかないので、逃げ道は要る）
+    assert(doc.querySelector('.ui-panel [data-ui="cancel"], .ui-panel [data-ui="no"]'),
+      'やめる道がある');
+
+    click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
+    await waitFor(win, () => fake.emits.some((e) => e.name === 'room:close'), 3000, '部屋を閉じにいく');
+    // 本物のサーバーは、閉じたことを部屋の全員に放送する（realtime.js）
+    fake.fire('room:closed', { by: 'あき' });
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+
+    // **元ホストも「部屋に入る」に着地する**（棚ではない）
+    assertEqual(el(doc, 'rtCreateCard').style.display, 'none',
+      '着いたのは「部屋に入る」（部屋をつくる側は出ていない）');
+    assert(/部屋に入る/.test(el(doc, 'rtLobbyTitle').textContent),
+      '見出しが「部屋に入る」（実際: ' + el(doc, 'rtLobbyTitle').textContent + '）');
+    assertEqual(win.roleProbe().room, false, '部屋は残っていない');
+    assertNoErrors(errors, 'ゲストになる操作で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('閉じられた側にも知らせが出て、同じ場所に着く（2-15）', async () => {
+    // **黙って消えない。**残された人には、誰が閉じたのかを伝える
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });  // 参加者
+    fake.fire('room:closed', { by: 'あき' });
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    await waitFor(win, () => H.openDialog(doc), 3000, '知らせが出る');
+    const dlg = H.openDialog(doc);
+    assertEqual(dlg.種類, 'info', '判断は無いので info');
+    assert(/閉じ/.test(dlg.見出し), '何が起きたかが伝わる（' + dlg.見出し + '）');
+    assert(/あき/.test(dlg.本文), '誰が閉じたかも伝わる（' + dlg.本文 + '）');
+    assert(/部屋に入る/.test(el(doc, 'rtLobbyTitle').textContent), '着いたのは「部屋に入る」');
+    assertNoErrors(errors, '閉じられた側で未捕捉の例外');
     win.close();
   });
 

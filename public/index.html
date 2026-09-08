@@ -4059,6 +4059,10 @@
       <button class="btn btn-ghost" id="rtRoomRulesBtn" style="display:none;margin-top:0;">📖 ルールを見る</button>
       <button class="btn btn-outline" id="rtPickGameBtn" style="display:none;">🎮 ゲームをえらぶ</button>
       <button class="btn btn-main" id="rtStartBtn">はじめる ▶</button>
+      <!-- 第41弾 2-15：進行役をやめて、別の人が立てた部屋に入りたくなる場面。
+           **設定には置かない**——部屋にいる時にしか意味が無い操作なので、
+           部屋の画面に置く（設定に埋めると、要る時に見つからない） -->
+      <button class="btn btn-ghost" id="rtToGuestBtn" style="display:none;margin-top:0;"></button>
       <button class="btn btn-ghost" id="rtLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
     </div>
   </div>
@@ -5755,6 +5759,10 @@
       : { kind:'through', way:'handoff' };
   }
   // 検査から6通りを確かめられるようにしておく（window.catalogSet と同じ作法）
+  window.roleProbe = function(){
+    return { host: !!(rt && rt.isHost()), room: !!(rt && rt.state.room),
+             ゲストになる道: el('rtToGuestBtn') ? el('rtToGuestBtn').style.display !== 'none' : false };
+  };
   window.headsProbe = function(){ return { heads: headCount(), 見当: shelfHeads }; };
   window.roomProbe = function(){ return { room: !!(rt && rt.state.room), host: !!(rt && rt.isHost()) }; };
   // 検査から画面を置きにいくための窓。
@@ -10500,6 +10508,10 @@
     var need = modeMinPlayers(modeById(state.selectedModeId));
     var enough = room.playerCount >= need;
     el('rtPickGameBtn').style.display = host ? '' : 'none';
+    // 2-15：進行役の時だけ。ゲスト→ホストは既存の「進行役をゆずる」で足りる
+    var toGuest = el('rtToGuestBtn');
+    toGuest.style.display = host ? '' : 'none';
+    if(typeof UiText !== 'undefined') toGuest.textContent = UiText.ROLE.ゲストになる;
     el('rtPickGameBtn').textContent = picked ? '🎮 ゲームをえらびなおす' : '🎮 ゲームをえらぶ';
     el('rtStartBtn').style.display = host ? '' : 'none';
     // 第37弾：全員が「準備OK」を押すまでは始められない。
@@ -10614,6 +10626,27 @@
     rt.leave();
     goBack('scr-shelf'); // 第26弾-2：部屋の入り口は棚に移った
   }
+  /**
+   * **自分がゲストになる**（第41弾 2-15）。
+   *
+   * 部屋を残したまま自分だけゲストになる中間状態は作らない。
+   * **進行役のいない部屋は、誰も進められない部屋になる**——
+   * 始めることも、ゲームを選び直すことも、閉じることもできず、
+   * 中の人は全員そこで詰む。だから、閉じてから全員が入口に戻る。
+   *
+   * 閉じたことは、残された人にも 「room:closed」 で届く（黙って消えない）。
+   */
+  el('rtToGuestBtn').addEventListener('click', async function(){
+    var T = UiText.ROLE;
+    if(!await UiKit.danger(T.見出し, T.本文, { ok: T.進む })) return;
+    this.disabled = true;
+    var res = await rt.closeRoom();
+    this.disabled = false;
+    if(!res.ok){ el('rtRoomNote').textContent = res.message || '閉じられませんでした'; return; }
+    // **元ホストも「部屋に入る」へ着地する。**
+    // 棚へ返すと、いま自分が何をしたかったのか（別の部屋に入る）から遠ざかる
+    openJoinScreen('scr-entry');
+  });
   el('rtLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('bigLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('rtPlayLeaveBtn').addEventListener('click', rtLeaveRoom);
@@ -15073,10 +15106,14 @@
     rt.on('closed', function(p){
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
-      goBack('scr-shelf');
+      // **2-15：全員が「部屋に入る」に着地する。**
+      // 棚へ返していたが、部屋が閉じた直後にしたいのは
+      // たいてい「別の部屋に入る」か「やめる」——棚はその両方から遠い。
+      // 元ホスト（自分で閉じた人）も、閉じられた人も、同じ場所に着く
+      openJoinScreen('scr-entry');
       setTimeout(function(){
-        UiKit.info('ゲームが終了しました',
-          '進行役' + (p && p.by ? '（' + p.by + ' さん）' : '') + 'が終了しました');
+        UiKit.info((typeof UiText !== 'undefined') ? UiText.ROLE.知らせ : '部屋が閉じました',
+          '進行役' + (p && p.by ? '（' + p.by + ' さん）' : '') + 'が閉じました');
       }, 400);
     });
     // 第32弾-B-1：部屋から出された。黙って画面が固まらないよう、理由を出して棚へ返す

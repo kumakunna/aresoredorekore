@@ -112,7 +112,11 @@ const SITES = [
   { 何: '鑑定眼を使う', 探す: 'この品を鑑定しますか？', 種類: 'confirm' },
   { 何: '入札の額を入れる', 探す: 'いくらで出しますか？', 種類: 'ask' },
   { 何: '部屋がもう無い', 探す: '部屋がなくなっていました', 種類: 'info' },
-  { 何: 'ゲームが終了した', 探す: 'ゲームが終了しました', 種類: 'info' },
+  // 第41弾 2-15：文面が変わった。部屋が閉じた時、遊ぶ人に伝えるべきは
+  // 「ゲームが終わった」ではなく「**誰が**部屋を閉じたか」（文言は ui-text.js の ROLE）
+  { 何: '部屋が閉じられた', 探す: 'ホストが部屋を閉じました', 種類: 'info' },
+  // 第41弾 2-15：進行役をやめる。部屋ごと閉じるので、取り返しがつかない側
+  { 何: '自分がゲストになる', 探す: '自分がゲストになりますか？', 種類: 'danger' },
   { 何: '部屋から出された', 探す: '部屋から出ました', 種類: 'info' },
   { 何: 'アルバムにまとめる', 探す: 'みんなの写真をまとめますか？', 種類: 'confirm' },
   { 何: '写真を箱から出す', 探す: '自分の写真を箱から出しますか？', 種類: 'confirm' },
@@ -139,6 +143,59 @@ const SITES = [
  * 「info のはずが danger」と誤って報告した。呼び出しの範囲は
  * 「その呼び出しから、次の呼び出しまで」で区切るのが正しい
  */
+/**
+ * **UiText への参照を、実際の文言に開く。**
+ *
+ * 2-14 が「文言はぜんぶ ui-text.js に置く」と決めたので、
+ * ダイアログの見出しも `UiText.ROLE.見出し` のような参照になっていく。
+ * 台帳は index.html の中の**文字列**を探しているので、
+ * このままだと**文言を正しい場所へ移すほど、台帳から見えなくなる**——
+ * 「置換したはずのダイアログが1件も見つからない」のに緑、という形になる。
+ *
+ * 実際、第41弾 2-15 のダイアログを ui-text.js から引いた瞬間にそうなった。
+ * ここで参照を開いておけば、移した先でも同じように見張れる。
+ */
+const UiTextMod = require('../public/js/ui-text');
+
+/** UiText の中を「ROLE.見出し」「ENTRY.部屋あり.見出し」のように辿る */
+function たどる(path) {
+  return String(path).split('.').reduce((acc, k) => (acc && acc[k]), UiTextMod);
+}
+
+/**
+ * 画面の中で `var T = UiText.ROLE;` のように別名を付けている所を、位置つきで集める。
+ * ある呼び出しの手前でいちばん近い別名が、その呼び出しの T になる。
+ *
+ * **これが無いと、文言を正しい場所へ移すほど台帳が見えなくなる。**
+ * 実際、第41弾 2-15 のダイアログは `UiKit.danger(T.見出し, …)` と書いてあり、
+ * 台帳から見ると「その文言はどこにも無い」ことになっていた。
+ */
+const 別名 = (() => {
+  const out = [];
+  const re = /var\s+([A-Za-z_$][\w$]*)\s*=[^;\n]*UiText\.([A-Za-z぀-ヿ一-鿿.]+)/g;
+  let m;
+  while ((m = re.exec(HTML))) out.push({ at: m.index, 名: m[1], path: m[2].replace(/\.$/, '') });
+  return out;
+})();
+
+/** UiText への参照を、実際の文言に開く */
+function 文言をひらく(src, at) {
+  // ① そのまま書いてある UiText.A.B
+  src = src.replace(/UiText\.([A-Za-z]+(?:\.[^\s,()[\]{}]+)+)/g, (whole, path) => {
+    const v = たどる(path);
+    return (typeof v === 'string') ? v : whole;
+  });
+  // ② 別名ごしの T.見出し（手前でいちばん近い別名を使う）
+  const 近い = 別名.filter((a) => a.at < at).pop();
+  if (近い) {
+    src = src.replace(new RegExp('\\b' + 近い.名 + '\\.([^\\s,()\\[\\]{}]+)', 'g'), (whole, 鍵) => {
+      const v = たどる(近い.path + '.' + 鍵);
+      return (typeof v === 'string') ? v : whole;
+    });
+  }
+  return src;
+}
+
 const CALLS = (function () {
   const out = [];
   const re = /UiKit\.(confirm|danger|info|ask|toast|sheet|popup)\(/g;
@@ -156,7 +213,7 @@ const CALLS = (function () {
       else if (c === ')') depth--;
       i++;
     }
-    out.push({ kind: m[1], head: HTML.slice(re.lastIndex, i - 1) });
+    out.push({ kind: m[1], head: 文言をひらく(HTML.slice(re.lastIndex, i - 1), m.index) });
   }
   return out;
 })();
@@ -198,7 +255,7 @@ function kindOf(mark) {
     // 第41弾 2-4 で2件がダイアログから画面へ移ったので 30 → 28。
     // **数を下げる時は、なぜ減ったかを必ず書く**——
     // 黙って下げると「取りこぼしても気づかない」の言い訳に使える下限になる
-    assert(SITES.length >= 28, '台帳の件数（実際:' + SITES.length + '）');
+    assert(SITES.length >= 29, '台帳の件数（実際:' + SITES.length + '）');
   });
 
   await r.test('取り返しがつかない場面が、ちゃんと danger になっている', async () => {
@@ -207,9 +264,15 @@ function kindOf(mark) {
     const dangers = SITES.filter((s) => s.種類 === 'danger');
     assert(dangers.length >= 7, '取り返しがつかない場面が数えられている（実際:' + dangers.length + '）');
     dangers.forEach((s) => {
-      const i = HTML.indexOf(s.探す);
-      const around = HTML.slice(i, i + 300);
-      assert(/全員が終わ|元にもどせ|そこで終わ|すべての写真を消/.test(around),
+      // **生の HTML ではなく、開いた呼び出しの中身を見る。**
+      // 文言が ui-text.js に移ると、生の HTML には1文字も出てこない——
+      // `HTML.indexOf` は -1 を返し、`slice(-1, 299)` はファイルの末尾を切り出す。
+      // その中に「全員が終わ」が無いので赤くなるが、**理由がまったく違う**
+      //（本文が足りないのではなく、探し方が届いていない）
+      const 呼び出し = CALLS.filter((c) => c.head.indexOf(s.探す) >= 0);
+      assert(呼び出し.length > 0, s.何 + '：その呼び出しを見つけられている');
+      const around = 呼び出し.map((c) => c.head).join(' ');
+      assert(/全員が終わ|全員が退出|元にもどせ|そこで終わ|すべての写真を消/.test(around),
         s.何 + '：何が起きるかが本文に書いてある');
     });
   });

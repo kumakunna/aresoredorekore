@@ -346,17 +346,35 @@ async function walkSettings(win, doc, onPage) {
   await r.test('門F7：一時ミュートは保存されない（立ち上げ直すと元にもどる）', async () => {
     const a = await launch();
     await openDuringPlay(a.win, a.doc);
+    // **先に、既定とは違う音量を保存させる。**
+    // 保存していない端末で測ると、既定にもどっただけを
+    // 「元にもどった」と読んでしまう（型(b)）
+    a.doc.querySelector('#settingsOverlay [data-setpage="app"]').click();
+    await sleep(a.win, 80);
+    await setVolumes(a.win, a.doc, 55, 77, 33);
+    click(a.doc, 'setBackBtn');
+    await sleep(a.win, 80);
+    assertEqual(a.win.prefsProbe().se, 55, '前提：55で保存した');
+
     click(a.doc, 'setMuteRow');
     await sleep(a.win, 100);
     assertEqual(a.win.prefsProbe().se, 0, '前提：消えている');
-    const 保存 = { 'acac-app-prefs': a.win.localStorage.getItem('acac-app-prefs') };
+    // **その端末に残っているものを、1つ残らず持ち越す。**
+    // 「acac-app-prefs だけ」を運ぶと、**別のキーに印を書く実装**を素通りさせる
+    //（変異でそう作ったら緑のままだった）
+    const 保存 = {};
+    for (let i = 0; i < a.win.localStorage.length; i++) {
+      const k = a.win.localStorage.key(i);
+      保存[k] = a.win.localStorage.getItem(k);
+    }
+    assert(保存['acac-app-prefs'], '前提：端末に設定が残っている（' + Object.keys(保存).join(',') + '）');
     a.win.close();
 
-    // 同じ端末で開き直す（保存されていたものだけを持ち越す）
+    // 同じ端末で開き直す（残っていたものを全部持ち越す）
     const b = await launch({ storage: 保存 });
     await sleep(b.win, 80);
-    assert(b.win.prefsProbe().se > 0,
-      '立ち上げ直すと音はもどっている（ミュートは一時的・2-7）');
+    assertEqual(b.win.prefsProbe().se, 55,
+      '立ち上げ直すと、**保存した音量**にもどっている（ミュートは一時的・2-7）');
     assertEqual(b.win.prefsProbe().muted, false, 'ミュートの印も残っていない');
     b.win.close();
   });

@@ -3719,6 +3719,60 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+
+  await r.test('第43弾：設定の「部屋を解散する」は、確認を1回だけ出して本当に閉じる', async () => {
+    // **実サーバーでタブを2つ開いて見つけた。**
+    // それまでこの行は rtEndBtn.click() に委ねていて、あちらも自分で確認を出すので、
+    // 「部屋を解散しますか？（解散する）」→「部屋を閉じますか？（とじる）」と
+    // **2枚続けて出ていた**。1枚目に答えただけでは部屋は閉じない。
+    // 検体がダイアログに自動で答えていたので、jsdom では気づけなかった
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);   // 自分が進行役
+    // サーバーは受け付ける（受け付けない時に知らせが出るのは別の話）
+    fake.replies['room:close'] = () => ({ ok: true });
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    doc.querySelector('#setRootMenu [data-setpage="danger"]').click();
+    await sleep(win, 80);
+    click(doc, 'setCloseRoomBtn');
+    await sleep(win, 150);
+
+    const 一枚目 = H.openDialog(doc);
+    assert(一枚目, '確認が出る');
+    assert(/解散しますか/.test(一枚目.見出し), '何をするのか見出しに出る（' + 一枚目.見出し + '）');
+    click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
+    // **閉じ切るのを待ってから見る。**
+    // 押した直後は1枚目がまだ画面に残っていて、
+    // それを「2枚目が出た」と読み違える（動いている最中の値・落とし穴28）
+    await waitFor(win, () => !H.openDialog(doc), 2000, '答えたら確認が閉じる');
+    await sleep(win, 300);
+
+    // **そのあと、2枚目が出てこない。**
+    const 二枚目 = H.openDialog(doc);
+    assert(!二枚目, '確認は1回だけ（2枚目が出ない）：' + JSON.stringify(二枚目));
+    assert(!el(doc, 'settingsOverlay').classList.contains('show'), '設定は閉じる');
+    await waitFor(win, () => fake.emits.some(e => e.name === 'room:close'), 2000,
+      '1回答えただけで、本当に部屋を閉じにいく');
+    assertNoErrors(errors, '部屋の解散で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('第43弾：解散の確認を断ったら、部屋は閉じないし設定も開いたまま', async () => {
+    const { win, doc } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+    doc.querySelector('#setRootMenu [data-setpage="danger"]').click();
+    await sleep(win, 80);
+    click(doc, 'setCloseRoomBtn');
+    await sleep(win, 150);
+    click(doc, doc.querySelector('.ui-panel [data-ui="cancel"]'));
+    await sleep(win, 250);
+    assertEqual(fake.emits.filter(e => e.name === 'room:close').length, 0, '部屋は閉じない');
+    assert(el(doc, 'settingsOverlay').classList.contains('show'), '設定は開いたまま');
+    win.close();
+  });
+
   // ---- 第32弾-A 第4部：称号が1人1台でも数えられるか ----
 
   // 称号は /api/titles に預ける形なので、預けにきた中身を見て確かめる（ハーネスが記録している）

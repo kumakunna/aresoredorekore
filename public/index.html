@@ -20943,11 +20943,24 @@
       if(renderRoomQr('setQr', room.code)) el('setQr').dataset.code = room.code;
     }
   }
+  /**
+   * 設定の「部屋を解散する」（第43弾）。
+   *
+   * **ボタンを押しに行くのをやめた。**それまで `rtEndBtn.click()` に委ねていたが、
+   * あちらは自分でも確認を出すので、**確認が2枚続けて出ていた**——
+   * 「部屋を解散しますか？（解散する）」→「部屋を閉じますか？（とじる）」。
+   * 同じことを2つの言葉で2回聞く形で、しかも1枚目で止まると何も起きない。
+   * **実サーバーでタブを2つ開いて、はじめて見えた**（jsdomの検体は
+   * ダイアログに自動で答えていたので、2枚目に気づけなかった）。
+   *
+   * 動きの正本は `rt.closeRoom()` の側。ここはそれを直接呼ぶ
+   */
   async function actCloseRoom(){
     if(!await UiKit.danger('部屋を解散しますか？',
       '部屋にいる全員が終わります', { ok: '解散する' })) return;
     el('settingsOverlay').classList.remove('show');
-    el('rtEndBtn').click();
+    var res = await rt.closeRoom();
+    if(!res.ok) UiKit.info('解散できませんでした', res.message || '');
   }
 
   // ---- アプリ全体の設定 ----

@@ -158,5 +158,13 @@
     "from": "    refreshBodyConsent();   // 第43弾 2-4：開いたままの同意画面にも、その場で効かせる",
     "to": "    void 0;",
     "expect": "切った瞬間に「参加する」が消える"
+  },
+  {
+    "name": "2-8 設定の解散を、また rtEndBtn に委ねる（確認が2枚になる）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    el('settingsOverlay').classList.remove('show');\n    var res = await rt.closeRoom();\n    if(!res.ok) UiKit.info('解散できませんでした', res.message || '');",
+    "to": "    el('settingsOverlay').classList.remove('show');\n    el('rtEndBtn').click();",
+    "expect": "確認は1回だけ"
   }
 ]

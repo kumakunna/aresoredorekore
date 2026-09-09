@@ -31,12 +31,30 @@ const CSS = HTML.slice(HTML.indexOf('<style>') + 7, HTML.indexOf('</style>'))
 const JS = fs.readdirSync(path.join(R, 'public', 'js'))
   .filter((f) => f.endsWith('.js'))
   .map((f) => fs.readFileSync(path.join(R, 'public', 'js', f), 'utf8')).join('\n');
+// **検査が掴むための印も「役目」のうち。**
+// 見た目を持たないクラスには2種類ある——JSが選択子として使うものと、
+// **検査だけが選択子として使うもの**（`js-` の前置きが付いているのはたいていこれ）。
+// tests/ を見ないと、後者を「誰も使っていない」と読んで消してしまう。
+//
+// 実際に消した：第43弾で `.js-timerview` を「規則も役目も無い」と判断して外したら、
+// `tests/fixes36.js` が `doc.querySelectorAll('.js-timerview')` で
+// 「設定とウィザードの両方に窓口がある」を数えていた。
+// **45スイート目でようやく赤になり、通し運転を1回まるごと使った。**
+// **この見張り自身は数に入れない。**
+// ここには説明のためにクラス名がいくつも書いてある。
+// それを「使っている」と読むと、**自分の説明文が自分の目を塞ぐ**——
+// 実際、変異の自己赤チェックが「捕まえられない」に転んだ（落とし穴10-a・自己参照）。
+// 見張りの説明は、そのクラスの利用者ではない
+const 自分 = path.basename(__filename);
+const TESTS = fs.readdirSync(path.join(R, 'tests'))
+  .filter((f) => f.endsWith('.js') && f !== 自分)
+  .map((f) => fs.readFileSync(path.join(R, 'tests', f), 'utf8')).join('\n');
 // **注釈は落とさない。**最初は「説明文の中の .howto-card を『使われている』と
 // 読んでしまう」ので落とそうとしたが、`/* … */` を HTML ごと掃くと
 // 文字列や正規表現の中の `/*` が偽の注釈の口になり、**本文を40クラスぶん飲み込んだ**
 // （帰りの検査に嘘の赤が40件出て気づいた）。
 // 代わりに、名指しの照合の側で**行をまたがせない**ようにした（下）
-const SRC = HTML.replace(/<style>[\s\S]*?<\/style>/, '') + '\n' + JS;
+const SRC = HTML.replace(/<style>[\s\S]*?<\/style>/, '') + '\n' + JS + '\n' + TESTS;
 
 /** CSSで規則を持っているクラス名 */
 function 規則のあるクラス(css) {
@@ -66,7 +84,7 @@ function markupのクラス(html) {
 }
 
 /**
- * そのクラスを、JSが選択子として名指ししているか（見た目を持たない印）。
+ * そのクラスを、**JSか検査が**選択子として名指ししているか（見た目を持たない印）。
  * **行をまたがせない**——またぐと、遠くの引用符から始まって
  * 注釈の中の名前まで拾ってしまう
  */
@@ -116,11 +134,19 @@ function JSが名指ししている(名, src) {
 
   await r.test('この検査が、実際に赤くなることを確かめる（落とし穴10）', async () => {
     // **緑は「違反が無い」か「見えていない」かの区別が付かない。**
-    // わざと両方向の違反を混ぜて、それぞれが自分の理由で赤くなることを見る
+    // わざと両方向の違反を混ぜて、それぞれが自分の理由で赤くなることを見る。
+    //
+    // **検体の名前は、その場で組み立てる**（落とし穴10-a・自己参照）。
+    // 検体の名前をこのファイルに**続けて**書くと、
+    // 掃引が tests/ も読むようになった日に**自分の検体を拾って**、
+    // 「誰も着ていない服」が見つからなくなる——実際にそうなった。
+    // 同じ罠を、直前に room-paths の幽霊の見張りでも踏んでいる
+    const 印 = 'kore-wa-' + 'dare-mo-shiranai';
+    const 服 = 'dare-mo-' + 'kinai-fuku';
 
     // ── 行き：規則の無いクラスを markup に足す ──
     const 汚1 = HTML.replace('<div class="wiz-body">',
-      '<div class="wiz-body kore-wa-dare-mo-shiranai">');
+      '<div class="wiz-body ' + 印 + '">');
     assert(汚1 !== HTML, '検体を汚せた（行き）');
     const 裸 = [];
     markupのクラス(汚1).forEach((行, c) => {
@@ -128,19 +154,18 @@ function JSが名指ししている(名, src) {
       if (JSが名指ししている(c, SRC)) return;
       裸.push(c);
     });
-    assertEqual(裸.join('・'), 'kore-wa-dare-mo-shiranai',
-      '規則の無いクラスを足すと、行きが赤くなる');
+    assertEqual(裸.join('・'), 印, '規則の無いクラスを足すと、行きが赤くなる');
 
     // ── 帰り：誰も着ない規則をCSSに足す ──
-    const 汚2 = CSS + '\n  .dare-mo-kinai-fuku{color:red;}\n';
+    assertEqual(SRC.indexOf(服), -1, 'その服は、どこにも書かれていない');   // 型(a)対策
+    const 汚2 = CSS + '\n  .' + 服 + '{color:red;}\n';
     const 着ない = [...規則のあるクラス(汚2)].filter((c) => {
       if (SRC.indexOf(c) >= 0) return false;
       const i = c.lastIndexOf('-');
       if (i > 0 && SRC.indexOf(c.slice(0, i + 1)) >= 0) return false;
       return true;
     });
-    assertEqual(着ない.join('・'), 'dare-mo-kinai-fuku',
-      '誰も着ない規則を足すと、帰りが赤くなる');
+    assertEqual(着ない.join('・'), 服, '誰も着ない規則を足すと、帰りが赤くなる');
 
     // ── 実際に起きた事故そのものを、もう一度起こしてみる ──
     // .howto-card の規則を丸ごと消すと、入口の札が裸になる

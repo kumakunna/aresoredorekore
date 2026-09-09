@@ -1941,5 +1941,111 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  // ═══ 第42弾 門E8：未ログインの経路 ═══════════════════════════
+  // 指示42 2-2 は「未ログイン時は端末（既存の経路）」と書いていたが、
+  // **その経路は無かった**（着手前の棚卸しで判明）。42で新設した分をここで見張る。
+
+  await r.test('未ログインでも「いまの自分」を開ける（2-5・門E8）', async () => {
+    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
+    assert(!el(doc, 'shelfMeBtn').disabled, '下部バーの自分は、未ログインでも押せる');
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+
+    const note = el(doc, 'titleGuestNote');
+    assertEqual(note.style.display, '', '未ログインの一言が出ている');
+    assert(note.textContent.length > 0, '一言に中身がある（実際:「' + note.textContent + '」）');
+    // **責めない。**「できません」ではなく「〜すると残ります」の向き（第40弾のトーン）
+    assert(!/できません|してください/.test(note.textContent),
+      '責める言い方になっていない（実際:「' + note.textContent + '」）');
+    // 2-5：いまの自分は見える
+    assert(el(doc, 'titlePreviewIcon').textContent.length > 0, 'アイコンは出ている');
+    assert(el(doc, 'titlePreviewTitle').textContent.length > 0, '二つ名も出ている');
+    assertNoErrors(errors, '未ログインの称号画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('未ログインでは、姿を変える選択肢が各スロット1つしかない（門E8の実態）', async () => {
+    // **これは仕様の確認であって、不具合の指摘ではない。**
+    // 未ログインで持てるのは無印のパーツだけで、無印は各スロットにちょうど1つ。
+    // つまり「未ログインで選んだ姿を端末に残す」経路は生きているが、
+    // **今のところ残る値は初期状態しかありえない。**
+    // 増やすには CATALOG に無印のパーツを足すことになり、指示42の6節が禁じている。
+    // ここを数えておかないと、あとで「端末保存が効いていない」と誤診する
+    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
+    click(doc, 'shelfMeBtn');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+
+    // アイコンのシート
+    click(doc, 'profIconBtn');
+    await waitFor(win, () => doc.querySelectorAll('#uiLayerRoot [data-pickicon]').length > 0,
+      3000, 'アイコンのシートが開く');
+    const アイコン数 = doc.querySelectorAll('[data-pickicon]').length;
+    assertEqual(アイコン数, 1, '未ログインで持っているアイコンは1つ');
+    win.UiKit.closeTop('とじる');
+    await sleep(win, 250);
+
+    // 二つ名の3スロット
+    click(doc, 'profNameBtn');
+    await waitFor(win, () => !!doc.querySelector('[data-pickslot="first"]'), 3000, '二つ名のシートが開く');
+    const 数えた = [];
+    for (const part of ['first', 'joiner', 'last']) {
+      doc.querySelector('[data-pickslot="' + part + '"]').click();
+      await waitFor(win, () => doc.querySelectorAll('#uiLayerRoot [data-pickpart]').length > 0,
+        3000, part + ' の候補が出る');
+      数えた.push(part + '=' + doc.querySelectorAll('[data-pickpart]').length);
+      const 候補 = Array.from(doc.querySelectorAll('[data-pickpart]'));
+      assertEqual(候補.length, 1, part + ' の候補は1つ');
+      // 押す経路そのものは生きている（同じものを選び直しても保存は走る）
+      候補[0].click();
+      await sleep(win, 250);
+      click(doc, 'profNameBtn');
+      await waitFor(win, () => !!doc.querySelector('[data-pickslot="first"]'), 3000, 'シートに戻る');
+    }
+    assertEqual(数えた.length, 3, '3スロットぜんぶ数えた（実際:' + 数えた.join('・') + '）');  // 型(b)
+
+    // **保存の経路は生きている。**値が初期状態と同じでも、端末に書かれること自体は別の話
+    const 端末 = win.guestLookProbe();
+    assert(端末, '未ログインでも、選んだ姿が端末に書かれている');
+    assertEqual(端末.first, win.titleProbe().equipped.first, '書かれた値は、いまの姿と一致する');
+
+    // 開き直しても同じ姿（読み戻しの経路も生きている）
+    const 保存 = win.localStorage.getItem('acac-look');
+    const 前の姿 = JSON.stringify(win.titleProbe().equipped);
+    win.close();
+    const b = await launch({ loggedOut: true, browse: true, storage: { 'acac-look': 保存 } });
+    assertEqual(JSON.stringify(b.win.titleProbe().equipped), 前の姿,
+      '開き直しても、端末に残した姿から始まる');
+    assertNoErrors(errors, '未ログインの保存で未捕捉の例外');
+    b.win.close();
+  });
+
+  await r.test('ログインした瞬間、端末に残っていた姿は捨てる（門E8・本人の裁定）', async () => {
+    // **引き継がない。**未ログインで選んだのが、いまログインした人だとは限らない——
+    // 1台をみんなで回すアプリなので、友達の端末で棚を眺めてから
+    // 自分のアカウントに入る順番は普通に起きる（本人の裁定 2026-09-09）。
+    // 引き継ぐと、自分の記録に他人の選択が乗る。
+    const 端末の姿 = { icon: 'icon-wolf-1', first: 'first-natsu', joiner: 'joiner-no', last: 'last-ippo' };
+    const { win, errors } = await launch({
+      storage: { 'acac-look': JSON.stringify(端末の姿) },
+      seedTitles: ['icon-wolf-1', 'first-natsu']   // アカウント側もそのパーツは持っている
+    });
+
+    // **前提を先に確かめる**（型b）。端末の姿とアカウントの姿が同じなら、
+    // 「捨てた」も「引き継いだ」も見分けが付かない
+    const いま = win.titleProbe().equipped;
+    const 違う = Object.keys(端末の姿).filter((k) => 端末の姿[k] !== いま[k]);
+    assert(違う.length > 0, '端末の姿と、いまの姿が違う（違う所:' + 違う.join('・') + '）');
+    // 持っていないから落ちた、ではないことも示す（落ちたなら「捨てた」の証明にならない）
+    assert(win.titleProbe().unlocked.indexOf('icon-wolf-1') >= 0,
+      'アカウントは icon-wolf-1 を持っている（＝落ちたのではなく、捨てられた）');
+
+    assertEqual(いま.icon, 'icon-default', 'アイコンはアカウント側（初期状態）');
+    assertEqual(いま.first, 'first-hajime', '二つ名もアカウント側（初期状態）');
+    assertEqual(win.guestLookProbe(), null, '端末に残っていた姿は消えている');
+    assertEqual(win.localStorage.getItem('acac-look'), null, 'localStorage からも消えている');
+    assertNoErrors(errors, 'ログイン時の姿の取り直しで未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

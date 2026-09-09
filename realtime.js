@@ -216,6 +216,35 @@ function normalizeRole(role) {
 }
 
 /**
+ * **名簿に出す「その人の姿」**（第42弾 2-6・門E6）。
+ *
+ * 運ぶのは**選んでいるアイコンと二つ名の文字だけ**。
+ * 持ち物の一覧（unlocked）も達成数（stats）も**絶対に載せない**——
+ * 指示42の6節「他プレイヤーの達成状況を出す（序列を見せる）」の禁止そのもので、
+ * ここに1つ足した日から、全員の画面に序列が出る。
+ *
+ * サーバーは titles.js の CATALOG を知らない（知る必要も無い）ので、
+ * 中身の正しさは見ない。**長さだけ切る**——
+ * 名簿は全員に配られるので、細工した長い文字列で名簿を壊せないようにする。
+ */
+const LOOK_ICON_MAX = 8;   // 絵文字は合成すると長い（肌の色・ZWJ）ので少し余裕を持つ
+const LOOK_TITLE_MAX = 40;
+function normalizeLook(v) {
+  if (!v || typeof v !== 'object') return null;
+  const icon = String(v.icon || '').slice(0, LOOK_ICON_MAX);
+  const title = String(v.title || '').slice(0, LOOK_TITLE_MAX);
+  return (icon || title) ? { icon, title } : null;
+}
+/**
+ * 姿を入れる。**入り直しでも作り直しでも、通る道はここ1本**（落とし穴17）。
+ * 姿を添えずに来た頼み（古い版のクライアント）では、前の姿を消さない
+ */
+function applyLook(member, v) {
+  if (v === undefined) return;
+  member.look = normalizeLook(v);
+}
+
+/**
  * 部屋の置き場。テストから直接触れるように、Mapごと外に出しておく。
  */
 class RoomStore {
@@ -310,6 +339,10 @@ function publicSnapshot(room) {
         role: m.role,
         connected: m.connected,
         isHost: m.id === room.hostMemberId,
+        // 第42弾 2-6・門E6：**選んでいる姿だけ**を全員に配る。
+        // 持ち物と達成数はここに入れない（6節の禁止・序列を見せない）
+        icon: (m.look && m.look.icon) || '',
+        title: (m.look && m.look.title) || '',
         // 第37弾：この人が、いま選ばれているゲームのルールを読んで「準備OK」を押したか。
         // 秘密ではない（指示37 2-2）。名前の横に✓を出すために全員へ配る
         ready: !!(room.state.game && m.readyGame === room.state.game)
@@ -879,6 +912,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         readyGame: null,  // 第37弾：ルールを読んで「準備OK」を押したゲームid
         userId: sess.userId  // 作った本人だけはアカウントが紐づく
       };
+      applyLook(member, payload && payload.look);
       room.members.set(member.id, member);
       attachMember(room, member);
       room.hostMemberId = member.id; // 作った端末が最初のホスト（オーナーとは別概念）
@@ -963,6 +997,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         };
         room.members.set(member.id, member);
       }
+      // 第42弾 門E6：**入り直しでも作り直しでも、姿はここ1か所で入れる**（落とし穴17）
+      applyLook(member, payload && payload.look);
       attachMember(room, member);
       ensureHost(room, 'join'); // ホスト不在の部屋に入ったら、その人がホストになる
       refreshPairNote(room);    // 第32弾-E 第1部：顔ぶれが変わったら一言を作り直す
@@ -1018,6 +1054,27 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       }
       target.role = normalizeRole(payload && payload.role);
       if (typeof cb === 'function') cb({ ok: true, role: target.role, room: publicSnapshot(room) });
+      broadcast(room);
+    });
+
+    /**
+     * 部屋にいる間に姿を変える（第42弾 門E6）。
+     *
+     * **これが無いと「変更が反映される」が成り立たない。**
+     * 進行役はゲームを選びに棚へ戻るし、待合で待っている間に
+     * アイコンを変える人はふつうにいる。入る時に一度送るだけでは、
+     * 変えたのに名簿だけ古い、という形になる（落とし穴1の型）。
+     *
+     * 変えられるのは**自分の姿だけ**。他人の姿を書き換える口は作らない
+     *（room:setRole は進行役が他人にも効くが、あれは部屋の運営。
+     *   姿は本人のものなので、進行役でも触らせない）
+     */
+    socket.on('room:setLook', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      applyLook(me, (payload && payload.look) || null);
+      if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
       broadcast(room);
     });
 

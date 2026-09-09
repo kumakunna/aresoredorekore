@@ -41,6 +41,15 @@ const READY = !!opt('ready', false);
 const BIG = !!opt('big', false);
 const HOLD = (parseInt(opt('hold', 600), 10) || 600) * 1000;
 const NAMES = ['びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん', 'はな', 'いと', 'うみ', 'えだ'];
+// 第42弾 門E6：名簿に出る「その人の姿」。**bot ごとに違う顔にする**——
+// 全員同じだと『届いている』のか『1人分が5回出ている』のか見分けが付かない
+const LOOKS = [
+  { icon: '🌙', title: 'なつまつりの一歩' },
+  { icon: '🐺', title: 'しゅんそくの遠吠え' },
+  { icon: '🎈', title: 'はくしきの案内人' },
+  { icon: '💣', title: 'こだわりの導火線' },
+  { icon: '🎊', title: 'なつまつりの主役' }
+];
 
 // **部屋を立てるのはログインが要る**（サーバーが弾く）ので、bot はやらない。
 // ブラウザ側（/dev-login 済み）で立てて、出たコードをここへ渡す
@@ -60,7 +69,7 @@ function つなぐ(name, i) {
     bots.push(bot);
 
     sock.on('connect', () => {
-      sock.emit('room:join', { code: 部屋コード, name, role: 'player' }, (res) => {
+      sock.emit('room:join', { code: 部屋コード, name, role: 'player', look: LOOKS[i % LOOKS.length] }, (res) => {
         if (!res || !res.ok) {
           console.log('[' + name + '] 入れませんでした：' + ((res && res.message) || '返事なし'));
           resolve(bot);

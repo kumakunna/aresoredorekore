@@ -1656,6 +1656,14 @@
   .rt-code{font-family:'DotGothic16',monospace;font-size:44px;letter-spacing:.16em;margin:4px 0 6px;}
   .rt-member{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px dashed var(--line);font-size:14px;}
   .rt-member:last-child{border-bottom:none;}
+  /* 第42弾 2-6：名簿に出す「その人の姿」。
+     アイコンは名前の左、二つ名は名前の下に小さく。
+     **持ち物も達成数も出さない**（6節の禁止・序列を見せない） */
+  .rm-icon{font-size:20px;line-height:1;flex:0 0 auto;}
+  .rm-who{flex:1;min-width:0;}
+  .rm-who .rm-name{display:block;}
+  .rm-title{display:block;font-size:10.5px;color:var(--ink-soft);line-height:1.4;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .rt-member .rm-name{flex:1;}
   .rt-member .rm-tag{font-size:11px;color:var(--ink-soft);background:var(--paper-deep);border-radius:999px;padding:2px 9px;}
   .rt-member.off{opacity:.45;}
@@ -1923,6 +1931,10 @@
   }
   .big-list .bl-card .blc-face{font-size:30px;line-height:1;}
   .big-list .bl-card .blc-name{font-size:14px;}
+  /* 大画面の盤にも二つ名。離れた席から読むので、名前より一段小さいだけにする */
+  .big-list .bl-card .blc-title{display:block;font-size:10px;opacity:.75;line-height:1.3;
+    max-width:9em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .big-list .bl-item .bl-title{font-size:.62em;opacity:.72;margin-left:.4em;}
   .big-list .bl-card.out{opacity:.55;}
   .big-list .bl-card.out .blc-x{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -6676,6 +6688,49 @@
     unlocked: TitleLogic.unlockedIds(null), // 最初は初期パーツだけ
     equipped: TitleLogic.normalizeEquipped(null, [])
   };
+  /**
+   * **名簿に出す「その人の姿」**（第42弾 2-6・門E6）。
+   *
+   * 名簿は待合・ルール・設定・みんなの状況・大画面…と**6か所以上ある。**
+   * 別々に書くと、必ず片方だけ古くなる（落とし穴1）。ここ1つに寄せる。
+   *
+   * 姿は「選んでいるアイコンと二つ名」だけ。
+   * 持ち物と達成数はサーバーがそもそも配っていない（門E10）ので、
+   * ここに書きようが無い——**書ける物を絞ることで、漏れないようにしている**
+   */
+  function lookOf(id){
+    var room = (typeof rt !== 'undefined' && rt && rt.state) ? rt.state.room : null;
+    var list = (room && room.members) || [];
+    for(var i = 0; i < list.length; i++){
+      if(list[i].id === id) return { icon: list[i].icon || '', title: list[i].title || '' };
+    }
+    return { icon: '', title: '' };
+  }
+  /** 盤面（v.players）には姿が入っていないので、名簿から引いて絵文字だけ添える */
+  function faceOf(id){
+    var ic = lookOf(id).icon;
+    return ic ? escapeHtml(ic) + ' ' : '';
+  }
+  /**
+   * 名簿の1人分。**添え**（進行役・あなた等の札）は呼ぶ側が決める。
+   * 設定の名簿も待合の名簿も、同じこの形を使う
+   */
+  function memberFaceHtml(m, 添え){
+    var icon = (m && m.icon) || '', title = (m && m.title) || '';
+    return (icon ? '<span class="rm-icon">' + escapeHtml(icon) + '</span>' : '') +
+      '<span class="rm-who">' +
+        '<span class="rm-name">' + escapeHtml((m && m.name) || '') + '</span>' +
+        (title ? '<span class="rm-title">' + escapeHtml(title) + '</span>' : '') +
+        ((添え && 添え.length) ? '<span class="mic-status">' + escapeHtml(添え.join('・')) + '</span>' : '') +
+      '</span>';
+  }
+  /** 部屋に送る自分の姿。**この形以外を送らない**（持ち物を混ぜる余地を作らない） */
+  function myLook(){ return { icon: myIcon(), title: myTitleText() }; }
+  /** 姿を変えたら、部屋にも伝える（部屋にいなければ次に入る時に送られる） */
+  function pushMyLook(){
+    if(typeof rt === 'undefined' || !rt || !rt.setLook) return;
+    try{ rt.setLook(myLook()); }catch(e){}
+  }
   function myIcon(){ return TitleLogic.iconEmoji(myTitles.equipped); }
   function myTitleText(){ return TitleLogic.titleText(myTitles.equipped); }
   function applyTitles(data){
@@ -6706,6 +6761,9 @@
   function saveGuestLook(){
     try{ localStorage.setItem(GUEST_LOOK_KEY, JSON.stringify(myTitles.equipped)); }catch(e){}
   }
+  function clearGuestLook(){
+    try{ localStorage.removeItem(GUEST_LOOK_KEY); }catch(e){}
+  }
   async function loadTitles(){
     if(!loggedIn()){
       applyTitles(null);
@@ -6717,6 +6775,17 @@
       }
       return;
     }
+    // **ログインした瞬間、端末の選択は捨てる**（門E8・本人の裁定）。
+    //
+    // 引き継ぎたくなるが、引き継いではいけない——
+    // **未ログインで選んだのが、いまログインした人だとは限らない。**
+    // 1台をみんなで回すアプリなので、友達の端末で棚を眺めてから
+    // 自分のアカウントに入る、という順番はごく普通に起きる。
+    // そこで前の人の姿を引き継ぐと、自分の記録に他人の選択が乗る。
+    //
+    // 消してから読むので、このあとログアウトしても前の人の姿は戻らない
+    //（初期状態に戻る＝「アカウント側、無ければ初期状態」）
+    clearGuestLook();
     try{ applyTitles(await api('/api/titles')); }
     catch(e){ applyTitles(null); } // 取れなくても遊べる（初期の名乗りになるだけ）
   }
@@ -6819,6 +6888,16 @@
         '<div class="got-label">' + escapeHtml(f.def.label) + '</div>' +
         '<div class="got-why">' + escapeHtml(f.def.hint) + '</div></div>';
     }).join('');
+    // **大画面には出さない**（第42弾の監査で見つけた）。
+    // titleGotOverlay は .screen の外にいるので、どの画面の上にも出る。
+    // 遊んでいた端末が途中で大画面にされると（room:setRole は進行役が他人にも効き、
+    // ゲーム開始後の制限も無い）、**その端末の持ち主の「新しく手に入れた！」が
+    // みんなの見ているTVに出る。**出るのは本人のものなので他人の達成状況が
+    // 漏れるわけではないが、大切なこと1（実際にその場に座っている状況を想像する）
+    // に照らすと出してはいけない。
+    // **記録（gotAt の保存）はここより上で済ませてある**——
+    // 見せないことと、数えないことは別（大画面にされた人の記録まで消さない）
+    if(typeof rtIsBigScreen === "function" && rtIsBigScreen()) return;
     el('gotMuteToggle').classList.toggle('on', !appPrefs.titleFanfare);
     el('titleGotOverlay').classList.add('show');
     fanfareSound();
@@ -6948,6 +7027,8 @@
   }
   // 検査から、開く所が2つでも実装が1つであることを確かめられるようにする
   window.titleSheetProbe = function(id){ return titleSheetData(id); };
+  // 門E8：端末に残っている姿（無ければ null）。検査が localStorage を直接読まずに済むように
+  window.guestLookProbe = function(){ return loadGuestLook(); };
   // 持ち物と、いま選んでいる姿。**画面の形に依らずに確かめられるようにする**——
   // 「手に入ったか」は持ち物の話で、どう描くかとは別（画面を作り直すたびに
   // 検査を書き直さずに済む）
@@ -7079,6 +7160,9 @@
     renderTitleScreen();
     renderShelfBar();
     saveTitles();
+    // 第42弾 門E6：**部屋にいる間に変えても、名簿にすぐ届く。**
+    // 入る時に一度送るだけだと、待合でアイコンを変えた人だけ名簿が古いままになる
+    pushMyLook();
     UiKit.closeTop('pick');
     // **開いたままの二つ名シートも書き換える**（2-3「選ぶと上の1行が変わる」）。
     // 後ろの画面だけ描き直すと、いま見ているシートの上の行が古いまま残る——
@@ -10437,7 +10521,7 @@
     var name = el('rtCreateName').value.trim();
     if(!name){ el('rtLobbyStatus').textContent = '名前を入れてください'; return; }
     this.disabled = true;
-    var res = await rt.createRoom(name, 'player');
+    var res = await rt.createRoom(name, 'player', myLook());
     this.disabled = false;
     if(!res.ok){
       el('rtLobbyStatus').textContent = (res.error === 'auth_required')
@@ -10454,7 +10538,7 @@
     var name = el('rtJoinName').value.trim();
     if(!code || !name){ el('rtLobbyStatus').textContent = '部屋コードと名前を入れてください'; return; }
     this.disabled = true;
-    var res = await rt.joinRoom(code, name, 'player');
+    var res = await rt.joinRoom(code, name, 'player', myLook());
     this.disabled = false;
     if(!res.ok){
       el('rtLobbyStatus').textContent = res.message || '部屋に入れませんでした';
@@ -10561,7 +10645,7 @@
     return ((room && room.members) || []).filter(function(m){ return m.role !== 'bigscreen'; })
       .map(function(m){
         return '<div class="rt-member' + (m.ready ? '' : ' notready') + (m.connected ? '' : ' off') + '">' +
-          '<span class="rm-name">' + escapeHtml(m.name) + '</span>' +
+          memberFaceHtml(m) +
           // 色だけに頼らない。押した人には✓の文字を出す（指示37 2-5）
           (m.ready ? '<span class="rm-ready">✓ 準備OK</span>' : '') +
           (m.connected ? '' : '<span class="rm-tag">切断中</span>') +
@@ -10699,7 +10783,7 @@
         '</span>';
       }
       return '<div class="rt-member'+(m.connected?'':' off')+'">'+
-        '<span class="rm-name">'+escapeHtml(m.name)+'</span>'+
+        memberFaceHtml(m)+
         // 第37弾：ルールを読んで「準備OK」を押した人。秘密ではないので全員に見せる
         (m.ready ? '<span class="rm-ready">✓</span>' : '')+
         tags.map(function(t){ return '<span class="rm-tag">'+t+'</span>'; }).join('')+
@@ -11611,7 +11695,7 @@
     var goal = v.cells;
     el('bigList').innerHTML = rtSugoBigRows(v, goal).map(function(x){
       return '<span class="bl-item">' + (x.mark ? '<b class="sugo-piece">' + x.mark + '</b> ' : '') +
-        escapeHtml(x.name) + ' ' + escapeHtml(x.right) + '</span>';
+        (x.id ? faceOf(x.id) : '') + escapeHtml(x.name) + ' ' + escapeHtml(x.right) + '</span>';
     }).join('');
   }
   function rtSugoBigRows(v, goal){
@@ -11624,24 +11708,24 @@
     if(v.hidden){
       return (v.players || []).map(function(p){
         var area = p.saidArea ? (SugorokuHide.areaById(p.saidArea) || {}).name : null;
-        return { mark: '', name: p.name, right: area ? ('「' + area + '」') : 'まだ申告なし' };
+        return { id: p.id, mark: '', name: p.name, right: area ? ('「' + area + '」') : 'まだ申告なし' };
       });
     }
     if(v.sharedPiece){
       return (v.players || []).map(function(p){
-        return { mark: '', name: p.name, right: (v.coinsUsed ? ('🪙' + p.coins) : '') };
+        return { id: p.id, mark: '', name: p.name, right: (v.coinsUsed ? ('🪙' + p.coins) : '') };
       });
     }
     if(v.hand){
       // 大画面にも**枚数だけ**。数字は誰にも見せない
       return (v.players || []).map(function(p, i){
-        return { mark: SugorokuLogic.pieceFor(i).shape, name: p.name,
+        return { id: p.id, mark: SugorokuLogic.pieceFor(i).shape, name: p.name,
           right: (p.goalOrder != null ? 'あがり' : ('あと' + (goal - p.pos))) +
             '　🪙' + p.coins + '　札' + p.cards };
       });
     }
     return (v.players || []).map(function(p, i){
-      return { mark: SugorokuLogic.pieceFor(i).shape, name: p.name,
+      return { id: p.id, mark: SugorokuLogic.pieceFor(i).shape, name: p.name,
         right: (p.goalOrder != null ? 'あがり' : ('あと' + (goal - p.pos))) +
           (v.coinsUsed ? ('　🪙' + p.coins) : '') };
     });
@@ -12857,7 +12941,7 @@
       var row = rushBoard && rushBoard.find(function(x){ return x.id === p.id; });
       var tier = (row && row.tier) ? ('<span class="bl-tier">' +
         escapeHtml(QuizLogic.TIER_LABEL[row.tier] || row.tier) + '</span>') : '';
-      return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.score + tier + '</span>';
+      return '<span class="bl-item">' + faceOf(p.id) + escapeHtml(p.name) + ' ' + p.score + tier + '</span>';
     }).join('');
   }
 
@@ -13440,7 +13524,7 @@
     }
     // 手持ちのチップ。**品質にあたるものは1つも出さない**
     el('bigList').innerHTML = (v.players || []).map(function(p){
-      return '<span class="bl-item">' + escapeHtml(p.name) + ' ' + p.chips + '枚</span>';
+      return '<span class="bl-item">' + faceOf(p.id) + escapeHtml(p.name) + ' ' + p.chips + '枚</span>';
     }).join('');
   }
 
@@ -13475,7 +13559,7 @@
       var vals = rtStatusValsHtml(p);
       return '<div class="rt-status-row' + (p.id === rt.state.memberId ? ' me' : '') +
         (p.connected === false ? ' off' : '') + '">' +
-        '<span>' + escapeHtml(p.name) + (p.connected === false ? '（切断中）' : '') + '</span>' +
+        '<span>' + faceOf(p.id) + escapeHtml(p.name) + (p.connected === false ? '（切断中）' : '') + '</span>' +
         '<span class="rt-status-vals">' + vals + '</span></div>';
     }).join('');
   }
@@ -13697,7 +13781,10 @@
       rtBig.clock = null;
       el('bigList').innerHTML = (room.members || [])
         .filter(function(m){ return m.role === 'player'; })
-        .map(function(m){ return '<span class="bl-item">' + escapeHtml(m.name) + '</span>'; }).join('');
+        .map(function(m){
+          return '<span class="bl-item">' + (m.icon ? escapeHtml(m.icon) + ' ' : '') + escapeHtml(m.name) +
+            (m.title ? '<span class="bl-title">' + escapeHtml(m.title) + '</span>' : '') + '</span>';
+        }).join('');
       return;
     }
     // ターンを数えるのは人狼系だけ。爆弾解除にはターンが無いので空にする
@@ -13771,9 +13858,13 @@
     // 第32弾-D 5-3：大画面では文字の一覧ではなく、顔が並んだ盤面のように。
     // 脱落した人には大きくバツがつく（ボードゲームの駒が倒れる感覚）
     el('bigList').innerHTML = (v.players || []).map(function(p){
+      // 第42弾 門E6：**生きている人の顔は、その人が選んだアイコン。**
+      // 脱落したら 💀（状態は姿より優先する——盤面で真っ先に読むのは生死だから）
+      var look = lookOf(p.id);
       return '<span class="bl-card' + (p.alive ? '' : ' out') + '">' +
-        '<span class="blc-face">' + (p.alive ? '🙂' : '💀') + '</span>' +
-        '<span class="blc-name">' + escapeHtml(p.name) + '</span>' +
+        '<span class="blc-face">' + (p.alive ? escapeHtml(look.icon || '🙂') : '💀') + '</span>' +
+        '<span class="blc-name">' + escapeHtml(p.name) +
+          (look.title ? '<span class="blc-title">' + escapeHtml(look.title) + '</span>' : '') + '</span>' +
         (p.alive ? '' : '<span class="blc-x">✕</span>') + '</span>';
     }).join('');
     if([ 'roleReveal', 'night', 'preVote', 'vote' ].indexOf(v.phase) >= 0 && (v.waiting || []).length){
@@ -13822,7 +13913,8 @@
     el('bigSub').innerHTML = sub;
     // 処刑された人は薄く。お題も役職も、決着するまで出さない
     el('bigList').innerHTML = (v.players || []).map(function(p){
-      return '<span class="bl-item' + (p.out ? ' dead' : '') + '">' + escapeHtml(p.name) + '</span>';
+      return '<span class="bl-item' + (p.out ? ' dead' : '') + '">' +
+        faceOf(p.id) + escapeHtml(p.name) + '</span>';
     }).join('');
     if(['reveal', 'preVote', 'vote'].indexOf(v.phase) >= 0 && (v.waiting || []).length){
       el('bigSub').innerHTML = sub + '<br><span style="opacity:.7;">まだの人：' +
@@ -14286,7 +14378,7 @@
       var meta = p.solved + ' / ' + p.total + '　' +
         '❤️'.repeat(Math.max(0, p.lives)) + '🖤'.repeat(Math.max(0, p.livesMax - p.lives));
       return '<div class="' + cls + '">' +
-        '<div class="bb-head"><span class="bb-name">' + escapeHtml(p.name) +
+        '<div class="bb-head"><span class="bb-name">' + faceOf(p.id) + escapeHtml(p.name) +
           (p.connected ? '' : '（切断中）') + '</span>' +
           '<span class="bb-meta">' + meta + '</span></div>' +
         '<div class="bb-bar"><div class="bb-fill" style="width:' + p.pct + '%;"></div></div>' +
@@ -20486,8 +20578,7 @@
       if(m.id === rt.state.memberId) tags.push('あなた');
       return '<div class="set-member' + (m.connected ? '' : ' off') + '">' +
         '<span class="sm-dot"></span>' +
-        '<span class="sm-name">' + escapeHtml(m.name) +
-          (tags.length ? '<span class="mic-status">' + tags.join('・') + '</span>' : '') + '</span>' +
+        memberFaceHtml(m, tags) +
         (host && m.id !== rt.state.memberId
           ? '<button class="sm-btn" data-sethost="' + m.id + '">進行役にする</button>' +
             '<button class="sm-btn danger" data-setkick="' + m.id + '">出す</button>'

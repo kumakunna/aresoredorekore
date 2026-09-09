@@ -4914,5 +4914,158 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ═══ 第42弾 門E6／E10：姿は見せる。集めたものは見せない ═══════
+  //
+  // この2つは**同じ表の裏と表**（指示42 2-6）：
+  //   選んでいるアイコン・二つ名 …… 他プレイヤー ○ ／ 大画面 ○ ／ 公開スナップショット ○
+  //   持っているパーツ・達成数   …… 他プレイヤー ✕ ／ 大画面 ✕ ／ 公開スナップショット ✕
+  // 片方だけ検査すると、境界がどちらかに寄った日に気づけない。**1組で見る。**
+
+  const 姿つき = (m, i) => Object.assign({}, m, {
+    icon: ['🌙', '🐺', '🎈', '💣', '🎊'][i % 5],
+    title: m.name + 'の二つ名'
+  });
+
+  await r.test('選んでいる姿は、頼みに乗って名簿と大画面に出る（2-6・門E6）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+
+    // ① **送っている**（乗っていなければ、名簿に出しようがない）
+    const 作った = fake.emits.filter((e) => e.name === 'room:create');
+    assertEqual(作った.length, 1, '部屋をつくる頼みが1回だけ飛んでいる');   // 型(b)
+    const look = 作った[0].payload.look;
+    assert(look, '頼みに姿が乗っている');
+    assert(look.icon && look.title, '姿にアイコンと二つ名がある（実際:' + JSON.stringify(look) + '）');
+    // **乗せてよいのは2つだけ。**ここが増えた日に赤くする（門E10の逆向き・落とし穴20）
+    assertEqual(Object.keys(look).sort().join(','), 'icon,title',
+      '姿に乗っているのは icon と title だけ');
+
+    // ② **名簿に出る**
+    push(fake, roomSnapshot({ members: roomSnapshot().members.map(姿つき) }));
+    await sleep(win, 300);
+    const 名簿 = el(doc, 'app').textContent;
+    assert(名簿.indexOf('あきの二つ名') >= 0, '待合の名簿に、その人の二つ名が出る');
+    assert(doc.querySelectorAll('#scr-rt-room .rm-icon').length >= 5,
+      'アイコンも人数ぶん出る（実際:' + doc.querySelectorAll('#scr-rt-room .rm-icon').length + '）');
+
+    // ③ **部屋にいる間に変えても届く**（入る時に一度送るだけでは足りない）
+    const 前 = fake.emits.filter((e) => e.name === 'room:setLook').length;
+    win.goToScreen('scr-titles');
+    await waitScreen(win, doc, 'scr-titles', 3000);
+    click(doc, 'profIconBtn');
+    await waitFor(win, () => doc.querySelectorAll('#uiLayerRoot [data-pickicon]').length > 0,
+      3000, 'アイコンのシートが開く');
+    doc.querySelector('[data-pickicon]').click();
+    await sleep(win, 400);
+    const 後 = fake.emits.filter((e) => e.name === 'room:setLook');
+    assert(後.length > 前, 'アイコンを選ぶと、部屋にも姿が送られる（' + 前 + ' → ' + 後.length + '）');
+    assertEqual(Object.keys(後[後.length - 1].payload.look).sort().join(','), 'icon,title',
+      'あとから送る姿にも、余計なものが乗っていない');
+    assertNoErrors(errors, '姿の受け渡しで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面の盤も、その人が選んだアイコンで並ぶ（2-6・門E6）', async () => {
+    const b = await launch(LAUNCH);
+    const fake = await toRoom(b.win, b.doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    push(fake, roomSnapshot({
+      members: roomSnapshot().members.map(姿つき)
+        .map((m) => (m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m)),
+      playerCount: 4,
+      state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) }
+    }));
+    await waitScreen(b.win, b.doc, 'scr-rt-big', 4000);
+    const 顔 = Array.from(b.doc.querySelectorAll('#bigList .blc-face')).map((e) => e.textContent);
+    assertEqual(顔.length, 5, '5人ぶんの顔が並ぶ');                       // 型(b)
+    assertEqual(顔.join(''), '🌙🐺🎈💣🎊', '顔は、その人が選んだアイコン');
+    assert(el(b.doc, 'scr-rt-big').textContent.indexOf('あきの二つ名') >= 0,
+      '大画面にも二つ名が出る');
+
+    // **脱落したら 💀。**状態は姿より優先する（盤面で真っ先に読むのは生死）
+    push(fake, roomSnapshot({
+      members: roomSnapshot().members.map(姿つき)
+        .map((m) => (m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m)),
+      state: { phase: 'night', game: 'wolfrole', data: wolfView({
+        phase: 'night',
+        players: wolfView().players.map((p, i) => Object.assign({}, p, { alive: i !== 1 }))
+      }) }
+    }));
+    await sleep(b.win, 300);
+    const 顔2 = Array.from(b.doc.querySelectorAll('#bigList .blc-face')).map((e) => e.textContent);
+    assertEqual(顔2[1], '💀', '脱落した人は、アイコンではなく💀');
+    assertEqual(顔2[0], '🌙', '生きている人はアイコンのまま');
+    assertNoErrors(b.errors, '大画面の姿で未捕捉の例外');
+    b.win.close();
+  });
+
+  // 指示42 6節「他プレイヤーの達成状況を出す」は禁止。**序列を見せない**ため。
+  //
+  // **サーバーが送っていないから出ない、では証明にならない。**
+  // 送っていないことは今日の実装の話で、明日 publicSnapshot に1行足した人が
+  // 気づかずに漏らす（落とし穴4の型）。
+  // だから**わざと集めたものを混ぜた部屋を流し込んで、それでも画面に出ないこと**を見る。
+  await r.test('他の人の集めたものは、部屋のどこにも出ない（第42弾 門E10）', async () => {
+    const TL = require('../public/js/titles.js');
+    // 実在のパーツ名を使う（作り話の文字列だと、実装が本物を出していても気づけない）
+    const 札 = TL.partsOf('icon').slice(0, 3).map((p) => p.label);
+    assert(札.length === 3 && 札.every((s) => s && s.length > 1),
+      'パーツの札を実データから取れた（実際:' + 札.join('・') + '）');   // 型(b)
+    const 毒の値 = 札.concat(['12 / 102', 'あと17個']);
+
+    // **姿（出してよい）と、集めたもの（出してはいけない）を同じ検体に混ぜる。**
+    // こうしないと「全部出さない」実装でも緑になり、境界を確かめたことにならない
+    const 毒 = (m, i) => Object.assign({}, 姿つき(m, i), {
+      unlocked: ['icon-wolf-1', 'first-natsu'],
+      ownedLabels: 札,
+      achieved: 12, achievedTotal: 102, achievedText: '12 / 102',
+      rest: 'あと17個',
+      equipped: { icon: 'icon-wolf-1', first: 'first-natsu' },
+      stats: { jinro: { plays: 99, wins: 42 } }
+    });
+    const 毒の部屋 = (over) => {
+      const base = roomSnapshot(over);
+      base.members = base.members.map(毒);
+      return base;
+    };
+
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    push(fake, 毒の部屋({ state: { phase: 'lobby', game: 'wolfrole', data: {} } }));
+    await sleep(win, 300);
+
+    // **検出器そのものを先に試す**（落とし穴10-e：読めていないのに緑、を避ける）。
+    // 姿は出る決まりなので、それが拾えなければ掃引の側が壊れている
+    const 見える = () => el(doc, 'app').textContent;
+    assert(見える().indexOf('あきの二つ名') >= 0,
+      '掃引が、出てよいもの（姿）を拾えている（自己赤チェック）');
+
+    const 出た = 毒の値.filter((v) => 見える().indexOf(v) >= 0);
+    assertEqual(出た.join('・'), '', '待合に、他の人の集めたものが出ていない');
+
+    // ゲームが始まってからも見る（画面が変わると描画関数も変わる）
+    push(fake, 毒の部屋({ state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) } }));
+    await sleep(win, 300);
+    const 出た2 = 毒の値.filter((v) => 見える().indexOf(v) >= 0);
+    assertEqual(出た2.join('・'), '', '遊んでいる最中も、他の人の集めたものが出ていない');
+    assertNoErrors(errors, '毒入りの部屋で未捕捉の例外');
+    win.close();
+
+    // 大画面でも同じ（離れた席のみんなに見える画面なので、いちばん漏らしてはいけない）
+    const b = await launch(LAUNCH);
+    const fake2 = await toRoom(b.win, b.doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    push(fake2, 毒の部屋({
+      members: 毒の部屋().members.map((m) => (m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m)),
+      playerCount: 4,
+      state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) }
+    }));
+    await waitScreen(b.win, b.doc, 'scr-rt-big', 4000);
+    const 大 = () => el(b.doc, 'app').textContent;
+    assert(大().indexOf('あきの二つ名') >= 0, '大画面でも、掃引が出てよいものを拾えている');
+    const 出た3 = 毒の値.filter((v) => 大().indexOf(v) >= 0);
+    assertEqual(出た3.join('・'), '', '大画面に、誰の集めたものも出ていない');
+    assertNoErrors(b.errors, '毒入りの大画面で未捕捉の例外');
+    b.win.close();
+  });
+
   r.finish();
 })();

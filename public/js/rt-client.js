@@ -22,6 +22,9 @@
       memberId: null,    // 自分のメンバーID
       name: null,        // 入り直す時に使う
       role: 'player',
+      // 第42弾 門E6：名簿に出す自分の姿（アイコン・二つ名）。
+      // **持ち物や達成数は入れない**——ここに入れた日から、全員の名簿に序列が出る
+      look: null,
       room: null,        // 公開スナップショット（全員に配られるもの）
       secret: null,      // 自分だけに届いた情報（役職など）
       rejoining: false,
@@ -62,7 +65,10 @@
         if (state.code && state.memberId && !state.rejoining) {
           state.rejoining = true;
           call('room:join', {
-            code: state.code, name: state.name, role: state.role, memberId: state.memberId
+            code: state.code, name: state.name, role: state.role, memberId: state.memberId,
+            // 第42弾 門E6：つなぎ直しでも姿を添える。
+            // ここを忘れると、画面を消して戻った人だけ名簿から顔が消える（落とし穴1）
+            look: state.look || null
           }).then(function (res) {
             state.rejoining = false;
             if (res && res.ok) {
@@ -175,7 +181,8 @@
       try {
         if (state.code && state.memberId) {
           localStorage.setItem(記憶の鍵, JSON.stringify({
-            code: state.code, memberId: state.memberId, name: state.name, role: state.role
+            code: state.code, memberId: state.memberId, name: state.name, role: state.role,
+            look: state.look || null
           }));
         } else localStorage.removeItem(記憶の鍵);
       } catch (e) {}
@@ -186,14 +193,16 @@
         if (v && v.code && v.memberId) {
           state.code = v.code; state.memberId = v.memberId;
           state.name = v.name || null; state.role = v.role || 'player';
+          state.look = v.look || null;
         }
       } catch (e) {}
     }
     部屋を思い出す();
 
-    async function createRoom(name, role) {
+    async function createRoom(name, role, look) {
       connect();
-      var res = await call('room:create', { name: name, role: role });
+      if (look !== undefined) state.look = look || null;
+      var res = await call('room:create', { name: name, role: role, look: state.look || null });
       if (res.ok) {
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
@@ -202,9 +211,11 @@
       emitLocal('status', state);
       return res;
     }
-    async function joinRoom(code, name, role) {
+    async function joinRoom(code, name, role, look) {
       connect();
-      var res = await call('room:join', { code: code, name: name, role: role, memberId: state.memberId });
+      if (look !== undefined) state.look = look || null;
+      var res = await call('room:join', { code: code, name: name, role: role, memberId: state.memberId,
+        look: state.look || null });
       if (res.ok) {
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
@@ -213,6 +224,21 @@
       emitLocal('status', state);
       return res;
     }
+    /**
+     * 姿を変える（第42弾 門E6）。
+     *
+     * **部屋の中でも外でも、姿を覚えるのはここ1か所。**
+     * 部屋にいなければ state に持っておくだけで、次に入る時にそのまま送られる——
+     * 「入る前に変えた人」と「入ってから変えた人」で経路が割れないようにする
+     *（落とし穴1：並走する経路の片方だけ直す事故を、経路を1本にして防ぐ）
+     */
+    function setLook(look) {
+      state.look = look || null;
+      部屋を覚える();
+      if (!state.code || !state.memberId) return Promise.resolve({ ok: true, offline: true });
+      return call('room:setLook', { look: state.look });
+    }
+
     // 第32弾-A-3-2：入る前に、その部屋を軽く覗く。
     // 返ってくるのは「あるかどうか・何のゲームか・何人いるか」だけ（名簿は来ない）。
     // 第35弾A：memberId を添えると「自分がまだ名簿にいるか（you）」も返る。
@@ -321,7 +347,8 @@
 
     return {
       state: state, on: on, available: available, connect: connect, reconnect: reconnect,
-      createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, peekRoom: peekRoom, dropRoom: dropRoom,
+      createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, setLook: setLook,
+      peekRoom: peekRoom, dropRoom: dropRoom,
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       setReady: setReady,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,

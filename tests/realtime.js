@@ -560,5 +560,94 @@ async function waitUntil(fn, label, timeoutMs) {
     } finally { await srv.close(); }
   });
 
+  // ---- 第42弾 2-6・門E6／E10：名簿に出す「その人の姿」 ----
+
+  await r.test('選んでいる姿は部屋の全員に配られ、あとから変えても届く（門E6）', async () => {
+    const srv = await startTestServer();
+    try {
+      const cookie = await login(srv.url, 1);
+      const owner = await connect(srv.url, cookie);
+      const room = await send(owner, 'room:create', {
+        name: 'ホスト', look: { icon: '🌙', title: 'なつまつりの一歩' }
+      });
+      const 主 = room.room.members.find((m) => m.id === room.memberId);
+      assertEqual(主.icon, '🌙', '作った人の姿が、公開スナップショットに乗る');
+      assertEqual(主.title, 'なつまつりの一歩', '二つ名も乗る');
+
+      const guest = await connect(srv.url);
+      const joined = await send(guest, 'room:join', {
+        code: room.code, name: 'びび', look: { icon: '🐺', title: 'しゅんそくの遠吠え' }
+      });
+      const 客 = joined.room.members.find((m) => m.id === joined.memberId);
+      assertEqual(客.icon, '🐺', '入った人の姿も乗る');
+
+      // **姿を持たない人（古い版の端末・bot）でも壊れない**
+      const 素 = await connect(srv.url);
+      const 素join = await send(素, 'room:join', { code: room.code, name: 'ちか' });
+      const 素m = 素join.room.members.find((m) => m.id === 素join.memberId);
+      assertEqual(素m.icon, '', '姿を添えなければ空（undefined ではなく空文字）');
+      assertEqual(素m.title, '', '二つ名も空');
+
+      // **部屋にいる間に変えられる**（入る時に一度送るだけでは足りない）
+      const 変えた = await send(guest, 'room:setLook', { look: { icon: '🎈', title: 'はくしきの案内人' } });
+      assertEqual(変えた.ok, true, '姿を変えられる');
+      const 客2 = 変えた.room.members.find((m) => m.id === joined.memberId);
+      assertEqual(客2.icon, '🎈', '変えた姿が、その場のスナップショットに出る');
+      // 他の人の姿は動いていない（自分のだけ変わる）
+      const 主2 = 変えた.room.members.find((m) => m.id === room.memberId);
+      assertEqual(主2.icon, '🌙', '他の人の姿は変わらない');
+
+      owner.close(); guest.close(); 素.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('部屋が配るメンバーの項目は、決めた8つだけ（門E10・増えたら赤）', async () => {
+    // **これは秘密の門。**publicSnapshot は部屋の全員に配られるので、
+    // ここに1つ足すと、その日から全員の画面に出うる。
+    // 「持ち物」「達成数」を弾くのに**禁止語の一覧（デナイリスト）を持つと腐る**
+    //（新しい名前を思いつくたびに足し忘れる・落とし穴4）。
+    // だから**許す名前を数え上げる**——増えた時に必ず赤くなる向きにしておく。
+    const srv = await startTestServer();
+    try {
+      const cookie = await login(srv.url, 1);
+      const owner = await connect(srv.url, cookie);
+      // **わざとコレクションを添えて頼む。**
+      // 送られてこないから漏れない、ではなく、送られてきても配らないことを見る
+      const room = await send(owner, 'room:create', {
+        name: 'ホスト',
+        look: { icon: '🌙', title: 'なつまつりの一歩',
+                unlocked: ['icon-wolf-1'], stats: { jinro: { plays: 99 } }, achieved: 12 },
+        unlocked: ['icon-wolf-1'], stats: { jinro: { plays: 99 } }, equipped: { icon: 'icon-wolf-1' }
+      });
+      const m = room.room.members[0];
+      assertEqual(Object.keys(m).sort().join(','),
+        'connected,icon,id,isHost,name,ready,role,title',
+        '配るのは決めた項目だけ');
+      const 文字 = JSON.stringify(room.room);
+      ['unlocked', 'stats', 'equipped', 'achieved', 'ownedLabels'].forEach((k) => {
+        assert(文字.indexOf(k) === -1, k + ' は部屋のどこにも乗らない');
+      });
+      assert(文字.indexOf('99') === -1, '達成の数字も乗らない');
+
+      owner.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('姿の文字は長さを切る（名簿を壊せないように）', async () => {
+    const srv = await startTestServer();
+    try {
+      const cookie = await login(srv.url, 1);
+      const owner = await connect(srv.url, cookie);
+      const 長い = 'あ'.repeat(500);
+      const room = await send(owner, 'room:create', { name: 'ホスト', look: { icon: 長い, title: 長い } });
+      const m = room.room.members[0];
+      assert(m.icon.length <= 8, 'アイコンは8文字まで（実際:' + m.icon.length + '）');
+      assert(m.title.length <= 40, '二つ名は40文字まで（実際:' + m.title.length + '）');
+      // 型(b)：切る前が本当に長かったことを示す（短い入力では自明に通る）
+      assertEqual(長い.length, 500, '入力は500文字だった');
+      owner.close();
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 })();

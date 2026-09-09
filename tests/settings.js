@@ -696,11 +696,14 @@ async function walkSettings(win, doc, onPage) {
     // **演出の部品そのものも、この門を読む。**
     // それまで効いていたのはCSSの1行だけで、fx.js に渡していた門は
     // 読む行が1つも無かった（揺れは同じ形の門を持っていた・落とし穴1）
+    // **出ている最中に数える。**終わるまで待ってから数えると、
+    // 光は自分で片付いたあとなので、門が効いていなくても同じ数に見える
+    //（変異が「別の理由で」赤くなって分かった・落とし穴10-b）
     const 前 = doc.querySelectorAll('.fx-flash').length;
-    const 待った = await win.FxKit.flash('good');
+    const 途中 = win.FxKit.flash('good');
     assertEqual(doc.querySelectorAll('.fx-flash').length, 前,
       '切っている間は、光そのものを作らない');
-    assertEqual(待った, true, '切っていても、呼んだ側は止まらずに進む');
+    assertEqual(await 途中, true, '切っていても、呼んだ側は止まらずに進む');
     click(doc, 'setFlashToggle');
     await sleep(win, 40);
     assert(!el(doc, 'app').classList.contains('no-flash'), 'もどせる');
@@ -726,13 +729,25 @@ async function walkSettings(win, doc, onPage) {
     click(doc, 'setVibrateToggle');   // OFF へ
     await sleep(win, 40);
     assertEqual(震え.length, 0, '切った時は震わせない');
+    // **鳴らしにくる場所から呼んで確かめる。**
+    // 「切り替えても震えなかった」だけでは、そもそも誰も鳴らしに来ていない
+    // 可能性が残る（型(b)）。演出の部品は設定を通って震えるので、そこから呼ぶ
+    win.FxKit.vibe('ok');
+    await sleep(win, 40);
+    assertEqual(震え.length, 0, '切っている間は、演出から呼ばれても震えない');
+
     click(doc, 'setVibrateToggle');   // ON へ
     await sleep(win, 40);
     assertEqual(震え.length, 1, 'ONにすると1回だけ震える（効いていることが分かる）');
-    // 切ったあとは、鳴らしにくる場所があっても震えない
-    click(doc, 'setVibrateToggle');
+    win.FxKit.vibe('ok');
     await sleep(win, 40);
-    assertEqual(震え.length, 1, '切ったら、それ以上は震えない');
+    assertEqual(震え.length, 2, '入れれば、演出からも震える（前提：呼ぶ道がある）');
+
+    click(doc, 'setVibrateToggle');   // また OFF へ
+    await sleep(win, 40);
+    win.FxKit.vibe('ok');
+    await sleep(win, 40);
+    assertEqual(震え.length, 2, '切り直せば、また震えない');
     win.close();
   });
 
@@ -742,15 +757,40 @@ async function walkSettings(win, doc, onPage) {
     const t = await launch();
     const { win, doc } = t;
     await toPrefPage(win, doc, 'display');
-    // 端末の保存領域がいっぱい・プライベートモードなどで起きる形
-    win.localStorage.setItem = function () { throw new Error('QuotaExceeded'); };
-    slide(win, doc, 'setBright', 120);
-    await sleep(win, 120);
-    // 画面の値はそのまま（この回は効いている）
-    assertEqual(rootStyle(win, '--screen-bright'), '1.20', 'いまの画面には効いている');
-    const 知らせ = doc.body.textContent;
-    assert(/次に開くと元にもどります/.test(知らせ),
-      '保存できなかったことを伝える（' + 知らせ.slice(-80) + '）');
+    const 知らせたち = () => Array.from(doc.querySelectorAll('.fx-notice')).map((n) => n.textContent);
+
+    // 型(b)：**壊す前に、保存が本当にできていること**を1つ確かめる
+    slide(win, doc, 'setBright', 110);
+    await sleep(win, 80);
+    assertEqual(JSON.parse(win.localStorage.getItem('acac-app-prefs')).brightness, 110,
+      '前提：ふだんは保存できている');
+    assertEqual(知らせたち().length, 0, '前提：うまくいった時は何も言わない');
+
+    // 端末の保存領域がいっぱい・プライベートモードなどで起きる形。
+    // **Storage の prototype を差し替える。**
+    // jsdom の localStorage は代入を「その名前の項目を保存する」と解釈するので、
+    // `win.localStorage.setItem = ...` では**壊れていなかった**
+    //（壊せていないのに緑になっていた・変異で分かった）
+    const 元の = win.Storage.prototype.setItem;
+    win.Storage.prototype.setItem = function () { throw new Error('QuotaExceeded'); };
+    try {
+      slide(win, doc, 'setBright', 120);
+      await sleep(win, 120);
+      // 型(b)：本当に保存できていないこと
+      assertEqual(JSON.parse(win.localStorage.getItem('acac-app-prefs')).brightness, 110,
+        '前提：保存は本当に失敗している（古い値のまま）');
+      // 画面の値はそのまま（この回は効いている）
+      assertEqual(rootStyle(win, '--screen-bright'), '1.20', 'いまの画面には効いている');
+      const ns = 知らせたち();
+      assertEqual(ns.length, 1, '一言だす（' + ns.join('／') + '）');
+      assert(/次に開くと元にもどります/.test(ns[0]), '何が起きるかまで書く（' + ns[0] + '）');
+      // 同じ操作のたびに出さない（うるさくしない）
+      slide(win, doc, 'setBright', 130);
+      await sleep(win, 120);
+      assertEqual(知らせたち().length, 1, '続けて失敗しても、言うのは1回だけ');
+    } finally {
+      win.Storage.prototype.setItem = 元の;
+    }
     win.close();
   });
 

@@ -60,7 +60,7 @@
     "file": "public/index.html",
     "suite": "tests/settings.js",
     "from": "  var tempMute = false;",
-    "to": "  var tempMute = (function(){ try{ return localStorage.getItem('acac-mute') === '1'; }catch(e){ return false; } })();",
+    "to": "  var tempMute = true;",
     "expect": "立ち上げ直すと音はもどっている"
   },
   {
@@ -149,7 +149,7 @@
     "suite": "tests/rt-screens.js",
     "from": "    { icon:'⏹', label:'みんなを待合にもどす', act:'endGame', danger:true, id:'quickEndGameBtn',\n      when:ctxIs('roomHost'),",
     "to": "    { icon:'⏹', label:'みんなを待合にもどす', act:'endGame', danger:true, id:'quickEndGameBtn',\n      when:ctxIs('roomHost', 'roomGuest'),",
-    "expect": "参加者にはゲーム終了を出さない"
+    "expect": "先頭は3つ"
   },
   {
     "name": "2-4 体を動かす演出を切っても、同意画面を描き直さない",

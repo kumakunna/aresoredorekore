@@ -21075,7 +21075,9 @@
   function closeSettingsIfOpen(){
     var ov = el('settingsOverlay');
     if(ov) ov.classList.remove('show');
-    setStack = ['root'];
+    // 来た道（setStack）はここで消さない。**開く時に必ず組み直す**——
+    // 開く入口は openSettings の1か所だけなので、ここにも書くと同じことが2か所になる。
+    // しかも 'root' 固定にすると、棚（'app' から始まる）とは食い違う（2-7・落とし穴1）
   }
   function openSettings(from){
     setOpenedFrom = from || 'shelf';

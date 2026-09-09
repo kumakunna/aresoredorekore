@@ -1443,19 +1443,27 @@ function votesFrom(list) {
     assertEqual(activeScreen(doc), 'scr-shelf', '棚まで戻れる');
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
-    // 第32弾-B-2：称号は「プロフィール → 二つ名 → スロットの一覧」で選ぶ形になった
-    doc.querySelector('[data-profgo="name2"]').click();
-    await waitScreen(win, doc, 'scr-title-name', 3000);
-    doc.querySelector('[data-tnslot="first"]').click();
-    await waitScreen(win, doc, 'scr-title-slot', 3000);
-    const daitan = doc.querySelector('#tsList [data-tsid="first-daitan"]');
-    assert(daitan, '「大胆」が目録にある');
+    // 第42弾：目録の画面（scr-title-name / scr-title-slot）は無くなり、
+    // 二つ名は sheet で選ぶ形になった。**未取得は1つも並ばない**ので、
+    // 「灰色で載っているか」ではなく「持っているか」を見る（2-1・6節）
+    const 持ち物 = win.titleProbe().unlocked;
     if (players[0] === w) {
       // test がウルフだった回は、逆転に貢献しようがない
-      assert(daitan.classList.contains('locked'), 'ウルフ側だったので手に入らない');
+      assert(持ち物.indexOf('first-daitan') === -1,
+        'ウルフ側だったので手に入らない（実際:' + 持ち物.join('・') + '）');
     } else {
-      assert(!daitan.classList.contains('locked'),
-        '決選投票でウルフを指して勝ったので手に入る');
+      assert(持ち物.indexOf('first-daitan') >= 0,
+        '決選投票でウルフを指して勝ったので手に入る（実際:' + 持ち物.join('・') + '）');
+      // **持ち物と画面が食い違わないこと**まで見る。
+      // 手に入っても、シートに並ばなければ遊ぶ人には手に入っていないのと同じ（落とし穴12）
+      click(doc, 'profNameBtn');
+      await waitFor(win, () => !!doc.querySelector('[data-pickslot="first"]'), 3000, '二つ名のシートが開く');
+      doc.querySelector('[data-pickslot="first"]').click();
+      await waitFor(win, () => doc.querySelectorAll('#uiLayerRoot [data-pickpart]').length > 0,
+        3000, 'はじめの言葉の候補が出る');
+      const ids = Array.from(doc.querySelectorAll('[data-pickpart]')).map((e) => e.dataset.pickid);
+      assert(ids.indexOf('first-daitan') >= 0,
+        '「大胆」がシートに並ぶ（実際:' + ids.join('・') + '）');
     }
     assertNoErrors(errors, '決選投票の称号で未捕捉の例外');
     win.close();

@@ -62,5 +62,13 @@
     "from": "    var res = await rt.createRoom(name, 'player', myLook());",
     "to": "    var res = await rt.createRoom(name, 'player');",
     "expect": "頼みに姿が乗っている"
+  },
+  {
+    "name": "G1 画面の名前を変えて、検査を幽霊にする",
+    "file": "public/index.html",
+    "suite": "tests/room-paths.js",
+    "from": "<div class=\"screen\" id=\"scr-titles\">",
+    "to": "<div class=\"screen\" id=\"scr-titles-KAETA\">",
+    "expect": "検査が指している、実在しない画面"
   }
 ]

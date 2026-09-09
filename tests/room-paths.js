@@ -424,6 +424,56 @@ async function run() {
     }
   });
 
+  await r.test('検査が名指しする画面idも、実在する画面だけを指している（第42弾で踏んだ）', async () => {
+    // **画面を消すと、その画面を歩いていた検査が幽霊を指したまま残る。**
+    //
+    // 第42弾で4画面（scr-title-icon / scr-title-name / scr-title-slot / scr-collection）を
+    // sheet に置き換えた時、index.html と監査台帳は直したのに、
+    // **tests/wolf-vote.js が消えた画面を歩き続けていた**。
+    // 気づいたのは、それから2区切りあとのクリーンな全テストで
+    // 「Cannot read properties of null (reading 'click')」が出た時——
+    // 40分の通し運転を1回まるごと使って、やっと分かった。
+    // この検査なら1秒で分かる（同じ型：落とし穴4「手書きの一覧に登録し忘れる」の裏返し）。
+    const inv = require('./inventory');
+    const fs = require('fs');
+    const path = require('path');
+    const 拾う = (src) => {
+      const out = [];
+      const re = /['"`](scr-[a-z0-9-]+)['"`]/g;
+      let m;
+      while ((m = re.exec(src))) out.push(m[1]);
+      return out;
+    };
+
+    const 名指し = new Map();
+    const dir = path.join(__dirname);
+    fs.readdirSync(dir).filter((f) => f.endsWith('.js')).forEach((f) => {
+      拾う(fs.readFileSync(path.join(dir, f), 'utf8')).forEach((id) => {
+        if (!名指し.has(id)) 名指し.set(id, new Set());
+        名指し.get(id).add(f);
+      });
+    });
+
+    // **数を先に主張する**（型b）。0件なら「全部実在する」は自明に成立する
+    assert(名指し.size > 30,
+      '検査が画面を名指ししている（実際:' + 名指し.size + '種類）');
+    assert(inv.SCREEN_IDS.length > 30, '画面の正本が空でない');
+
+    const 幽霊 = [...名指し.keys()]
+      .filter((id) => inv.SCREEN_IDS.indexOf(id) === -1)
+      .map((id) => id + '（' + [...名指し.get(id)].join('・') + '）')
+      .sort();
+    assertEqual(幽霊.join('\n       '), '', '検査が指している、実在しない画面');
+
+    // **見張りそのものが効いているか**（落とし穴10-e：読めていないのに緑、を避ける）。
+    // 幽霊の名前は**その場で組み立てる**——このファイルに 'scr-◯◯' と書くと、
+    // 上の掃引が自分の検体を拾ってしまい、いつも赤くなる（落とし穴10-a：自己参照）
+    const 幽霊の名 = 'scr-' + 'maboroshi-gamen';
+    const 汚 = 拾う('await waitScreen(win, doc, "' + 幽霊の名 + '", 3000);');
+    assertEqual(汚.join('・'), 幽霊の名, '幽霊を混ぜれば、ちゃんと拾える');
+    assertEqual(inv.SCREEN_IDS.indexOf(幽霊の名), -1, 'その幽霊は正本に無い');
+  });
+
   await r.test('部屋のゲーム画面が、ちゃんと描画に繋がっている（第36弾）', async () => {
     // **器（HTML）だけ足して、描画の呼び出しを忘れる**という抜け方を防ぐ。
     // すごろく3ゲームで実際に起きた：サーバー側は正しく動き、部屋の自動テストも

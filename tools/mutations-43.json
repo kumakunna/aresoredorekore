@@ -165,6 +165,6 @@
     "suite": "tests/rt-screens.js",
     "from": "    el('settingsOverlay').classList.remove('show');\n    var res = await rt.closeRoom();\n    if(!res.ok) UiKit.info('解散できませんでした', res.message || '');",
     "to": "    el('settingsOverlay').classList.remove('show');\n    el('rtEndBtn').click();",
-    "expect": "確認は1回だけ"
+    "expect": "答えたら確認が閉じる"
   }
 ]

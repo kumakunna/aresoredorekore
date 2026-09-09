@@ -61,7 +61,7 @@
     "suite": "tests/settings.js",
     "from": "  var tempMute = false;\n  function volSe(){ return tempMute ? 0 : appPrefs.seVolume; }",
     "to": "  var tempMute = (function(){ try{ return localStorage.getItem('acac-mute') === '1'; }catch(e){ return false; } })();\n  function volSe(){ try{ localStorage.setItem('acac-mute', tempMute ? '1' : '0'); }catch(e){}\n    return tempMute ? 0 : appPrefs.seVolume; }",
-    "expect": "立ち上げ直すと音はもどっている"
+    "expect": "保存した音量"
   },
   {
     "name": "F5-1 作り置きの出口に、あとから音量を届けない",

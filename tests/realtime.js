@@ -616,8 +616,8 @@ async function waitUntil(fn, label, timeoutMs) {
       const room = await send(owner, 'room:create', {
         name: 'ホスト',
         look: { icon: '🌙', title: 'なつまつりの一歩',
-                unlocked: ['icon-wolf-1'], stats: { jinro: { plays: 99 } }, achieved: 12 },
-        unlocked: ['icon-wolf-1'], stats: { jinro: { plays: 99 } }, equipped: { icon: 'icon-wolf-1' }
+                unlocked: ['icon-wolf-1'], stats: { jinro: { plays: 'モレテハイケナイ数字' } }, achieved: 12 },
+        unlocked: ['icon-wolf-1'], stats: { jinro: { plays: 'モレテハイケナイ数字' } }, equipped: { icon: 'icon-wolf-1' }
       });
       const m = room.room.members[0];
       assertEqual(Object.keys(m).sort().join(','),
@@ -627,7 +627,11 @@ async function waitUntil(fn, label, timeoutMs) {
       ['unlocked', 'stats', 'equipped', 'achieved', 'ownedLabels'].forEach((k) => {
         assert(文字.indexOf(k) === -1, k + ' は部屋のどこにも乗らない');
       });
-      assert(文字.indexOf('99') === -1, '達成の数字も乗らない');
+      // **目印は、偶然ぶつからない文字にする**（落とし穴10-d）。
+      // はじめ 99 という数字で見ていたら、部屋コードの文字集合に 9 があり
+      // memberId も16進なので、**たまたま '99' が並んだ回だけ赤くなった**。
+      // 検体は、実データと衝突しようのないものを選ぶ
+      assert(文字.indexOf('モレテハイケナイ数字') === -1, '達成の数字も乗らない');
 
       owner.close();
     } finally { await srv.close(); }

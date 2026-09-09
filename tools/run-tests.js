@@ -58,8 +58,12 @@ function opt(name, def) {
 const 計測 = !!opt('time', false);
 const 一覧だけ = !!opt('list', false);
 const 絞り = opt('only', null);
-// 既定は3。**実測で決めた**（第44弾）：いちばん重い並走組でもピーク約0.6GB、
-// 3本でも2GB弱。この機械の空きは17GB あるので、余裕を持って足りる。
+// 既定は3。**実測で決めた**（第44弾）。
+//
+// 並走できる36本の合計は1386秒だが、そのうち rt-screens 単体が510秒ある。
+// **1本で510秒かかるものがある以上、4本以上に増やしても全体は510秒より速くならない。**
+// メモリは最悪の3本（shelf 2.5GB＋smoke 1.0GB＋rt-screens 1.0GB）で4.5GB、
+// この機械の空き16GBに対して余裕がある。
 // 迷ったら --jobs 1 に落とせば、昔と同じ「1本ずつ」に戻る
 const 並走上限 = Math.max(1, parseInt(opt('jobs', 3), 10) || 3);
 
@@ -116,13 +120,27 @@ function 走らせる(f) {
 }
 
 // ---- 上限つきで流す ----
+//
+// **報告を出さずに落ちたものは、1回だけ単独で回し直す。**
+// スイートが1件も報告しないのは「検査が赤」ではなく「測れていない」で、
+// 原因は並走そのもの（メモリ・ネイティブの落ち）のことがある。
+// ただし**黙って回し直さない**——回し直したことは必ず出す。
+// 黙って隠すと、たまに落ちる本物の不具合が「たまたま緑」で通ってしまう
 async function 流す(list, 本数) {
   const 結果 = [];
   let i = 0;
   const 走る = async () => {
     while (i < list.length) {
       const f = list[i++];
-      const r = await 走らせる(f);
+      let r = await 走らせる(f);
+      if (!r.報告) {
+        console.log('… ' + f + ' が報告を出さずに終わった（' + (r.signal || r.code) +
+          '）。**単独で1回だけ回し直す**');
+        const r2 = await 走らせる(f);
+        r2.回し直した = true;
+        r2.前回 = (r.signal || r.code);
+        r = r2;
+      }
       結果.push(r);
       印字(r);
     }
@@ -133,6 +151,7 @@ async function 流す(list, 本数) {
 
 function 印字(r) {
   const s = r.報告;
+  if (r.回し直した) console.log('  ↑ ' + r.file + ' は1回目が報告なし（' + r.前回 + '）で、回し直した結果');
   const 印 = (r.code === 0 && s && s.pass === s.total) ? '✅' : '❌';
   const 数 = s ? (s.pass + '/' + s.total) : '（報告なし）';
   const 秒 = (r.ms / 1000).toFixed(1) + '秒';
@@ -160,7 +179,11 @@ function 印字(r) {
   const 合計件数 = 報告あり.reduce((s, r) => s + r.報告.total, 0);
   const 赤 = [];
   結果.forEach((r) => {
-    if (!r.報告) { 赤.push([r.file, '（報告が無い。落ちたか、途中で殺された）', r.out.trim().split('\n').slice(-6).join('\n      ')]); return; }
+    if (!r.報告) {
+      赤.push([r.file, '（報告が無い。落ちたか、途中で殺された。終了コード ' + (r.signal || r.code) + '）',
+        r.out.trim() ? r.out.trim().split('\n').slice(-8).join('\n         ') : '（出力も残っていない）']);
+      return;
+    }
     r.報告.failed.forEach((x) => 赤.push([r.file, x.name, x.err]));
   });
 
@@ -171,6 +194,12 @@ function 印字(r) {
   console.log('  終了コード  ' + (終了コード異常.length ? '異常 ' + 終了コード異常.length + '本：' +
     終了コード異常.map((r) => r.file + '(' + (r.signal || r.code) + ')').join('・') : 'すべて0'));
   console.log('  かかった時間 ' + ((Date.now() - t0) / 1000).toFixed(1) + '秒');
+  const 回し直し = 結果.filter((r) => r.回し直した);
+  if (回し直し.length) {
+    console.log('  **回し直し  ' + 回し直し.length + '本**：' +
+      回し直し.map((r) => r.file + '（1回目 ' + r.前回 + '）').join('・') +
+      '  ← たまに落ちている。並走の本数かメモリを疑うこと');
+  }
 
   if (計測) {
     console.log('');

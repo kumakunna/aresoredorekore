@@ -916,6 +916,12 @@
      min-height だけだと折り返した側だけが伸びる。並べ方（grid の 1fr）で揃える
      ——入口の二択（.howto-list）と同じ形（落とし穴31） */
   .set-menu{display:grid;grid-auto-rows:1fr;gap:8px;margin-bottom:8px;}
+  /* 入口だけは束が2つある（いまほしいもの／いつもの項目）。
+     **高さが揃うのは束の中まで**——説明の長さが違うので、束をまたぐと差が出る。
+     境目が行の間と同じ8pxだと、その差が「揃っていない」に見えるので、
+     境目だけ広げて「2つの束」と読めるようにする（第43弾・実測 375×667 で
+     85%：88 / 71.5、100%：92.5 / 73.8、130%：100 / 77.5px） */
+  #setQuickMenu > .set-menu{margin-bottom:18px;}
   .set-row{
     display:flex;align-items:center;gap:12px;width:100%;text-align:left;
     background:var(--card);border:1px solid var(--line);border-radius:12px;

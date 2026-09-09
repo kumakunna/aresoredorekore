@@ -1,0 +1,162 @@
+[
+  {
+    "name": "F9-1 行を1つだけ、また固定のmarkupに戻す",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "        <!-- 第43弾 門F9：この2行も SET_DANGER_ITEMS から描く -->\n        <div id=\"setDangerMenu\"></div>",
+    "to": "        <button class=\"set-row danger\" id=\"resetAllBtn2\"><span class=\"sr-icon\">🗑</span><span class=\"sr-text\">全部リセット</span></button>\n        <div id=\"setDangerMenu\"></div>",
+    "expect": "HTMLに直接書かれた行は0件"
+  },
+  {
+    "name": "F9-2 行を setMenuHtml の包みに入れない",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "    return '<div class=\"set-menu\">' +\n      items.filter(function(x){ return !x.when || x.when(); }).map(setRowHtml).join('') +\n      '</div>';",
+    "to": "    return items.filter(function(x){ return !x.when || x.when(); }).map(setRowHtml).join('');",
+    "expect": "setMenuHtml を通っていない"
+  },
+  {
+    "name": "2-1 説明を、また同じ行に流す",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "    display:block;font-size:var(--fs-sub);color:var(--ink-soft);",
+    "to": "    font-size:var(--fs-sub);color:var(--ink-soft);",
+    "expect": "説明はブロック"
+  },
+  {
+    "name": "2-1 行の高さを揃えるのをやめる",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "  .set-menu{display:grid;grid-auto-rows:1fr;gap:8px;margin-bottom:8px;}",
+    "to": "  .set-menu{display:block;gap:8px;margin-bottom:8px;}",
+    "expect": "行の並びは grid"
+  },
+  {
+    "name": "2-2 棚でも入口を出す（飛ばさない）",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "    var 先 = (setContext() === 'shelf') ? 'app' : 'root';",
+    "to": "    var 先 = 'root';",
+    "expect": "入口を飛ばして中身が出る"
+  },
+  {
+    "name": "2-2 棚から危険な操作へ行く道を消す",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "    { icon:'⚠️', label:'危険な操作', page:'danger', danger:true,\n      when:ctxIs('shelf'), sub:'押すともどせないもの' }",
+    "to": "    { icon:'⚠️', label:'危険な操作', page:'danger', danger:true,\n      when:function(){ return false; }, sub:'押すともどせないもの' }",
+    "expect": "棚からでも「危険な操作」に行ける"
+  },
+  {
+    "name": "F7 音を消しても、保存値の方を書き換えてしまう",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "  function setTempMute(on){\n    tempMute = !!on;",
+    "to": "  function setTempMute(on){\n    tempMute = !!on;\n    if(tempMute){ appPrefs.seVolume = 0; saveAppPrefs(); }",
+    "expect": "保存値の効果音は無事"
+  },
+  {
+    "name": "F7 一時ミュートを保存してしまう（再起動で残る）",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "  var tempMute = false;",
+    "to": "  var tempMute = (function(){ try{ return localStorage.getItem('acac-mute') === '1'; }catch(e){ return false; } })();",
+    "expect": "立ち上げ直すと音はもどっている"
+  },
+  {
+    "name": "F5-1 作り置きの出口に、あとから音量を届けない",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "    sfxOuts.forEach(function(g){ try{ if(g && g.gain) g.gain.value = v; }catch(e){} });",
+    "to": "    void v;",
+    "expect": "作り置きの出口も、その場で追随する"
+  },
+  {
+    "name": "F5-2 読み上げの速さを、設定から読まない",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "      u.rate = Math.max(0.5, Math.min(1.5, appPrefs.speechRate / 100));",
+    "to": "      u.rate = 1;",
+    "expect": "速さが効く"
+  },
+  {
+    "name": "F5-3 BGMが、あとから変えた音量を読まない",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "    if(bgm.gain) bgm.gain.gain.value = bgmGainValue(); // 音量設定は即座に効かせる",
+    "to": "    // 音量設定は即座に効かせる（をやめる）",
+    "expect": "上げるとその場で大きくなる"
+  },
+  {
+    "name": "F5-5 文字サイズの段を、また2つだけにする",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "    rootEl.classList.add('fs-' + 段);",
+    "to": "    rootEl.classList.toggle('fs-small', appPrefs.fontScale <= 92);",
+    "expect": "% の印が付く"
+  },
+  {
+    "name": "F5-8 光の点滅の門を、演出の部品から外す",
+    "file": "public/js/fx.js",
+    "suite": "tests/settings.js",
+    "from": "    if (cfg.can.flash && !cfg.can.flash()) return Promise.resolve(true);",
+    "to": "",
+    "expect": "切っている間は、光そのものを作らない"
+  },
+  {
+    "name": "F5-9 切っていても震わせる",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "  function doVibrate(pattern){\n    if(!appPrefs.vibrate) return;",
+    "to": "  function doVibrate(pattern){",
+    "expect": "切った時は震わせない"
+  },
+  {
+    "name": "2-8 保存に失敗しても、黙って捨てる",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "      try{ FxKit.notice(UiText.SET.保存できない); }catch(e2){}",
+    "to": "      void 0;",
+    "expect": "保存できなかったことを伝える"
+  },
+  {
+    "name": "2-8 端末に無い声でも、何も言わない",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "      : (選んだ声が無い ? UiText.SET.声が無い : '');",
+    "to": "      : '';",
+    "expect": "行に一言そえる"
+  },
+  {
+    "name": "2-8 部屋が解散されても、設定を開いたままにする",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    rt.on('closed', function(p){\n      var cur = (document.querySelector('.screen.active') || {}).id;\n      if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない\n      closeSettingsIfOpen();   // 第43弾 2-8",
+    "to": "    rt.on('closed', function(p){\n      var cur = (document.querySelector('.screen.active') || {}).id;\n      if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない",
+    "expect": "設定が閉じる"
+  },
+  {
+    "name": "2-2 大画面にも、ルールの見返しを出す",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    { icon:'📖', label:'ルールをもう一度見る', page:'rules',\n      when:ctxIs('handoff', 'roomHost', 'roomGuest') },",
+    "to": "    { icon:'📖', label:'ルールをもう一度見る', page:'rules' },",
+    "expect": "大画面は2つ"
+  },
+  {
+    "name": "2-2 参加者にも、みんなを止める道を出す",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    { icon:'⏹', label:'みんなを待合にもどす', act:'endGame', danger:true, id:'quickEndGameBtn',\n      when:ctxIs('roomHost'),",
+    "to": "    { icon:'⏹', label:'みんなを待合にもどす', act:'endGame', danger:true, id:'quickEndGameBtn',\n      when:ctxIs('roomHost', 'roomGuest'),",
+    "expect": "参加者にはゲーム終了を出さない"
+  },
+  {
+    "name": "2-4 体を動かす演出を切っても、同意画面を描き直さない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    refreshBodyConsent();   // 第43弾 2-4：開いたままの同意画面にも、その場で効かせる",
+    "to": "    void 0;",
+    "expect": "切った瞬間に「参加する」が消える"
+  }
+]

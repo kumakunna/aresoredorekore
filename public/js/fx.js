@@ -114,6 +114,12 @@
   function flash(kind) {
     var h = host();
     if (!h) return Promise.resolve(true);
+    // **設定の「光の点滅」を、ここでも見る**（第43弾）。
+    // それまで cfg.can.flash を渡していたのに、**読む行が1つも無かった**——
+    // 効いていたのはCSSの1行（.app.no-flash .fx-flash{display:none}）だけで、
+    // 音と振動（下の play/vibe）は切っても鳴っていた。
+    // 揺れ（shake）は同じ形の門を持っている。片方だけ持っている状態だった（落とし穴1）
+    if (cfg.can.flash && !cfg.can.flash()) return Promise.resolve(true);
     var k = FLASH_MS[kind] ? kind : 'good';
     var n = mk('fx-flash fx-flash-' + k);
     if (!n) return Promise.resolve(true);

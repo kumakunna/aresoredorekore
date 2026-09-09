@@ -54,9 +54,25 @@
        設定を動かしても何ひとつ変わらなかった。
        「倍率をかける」のではなく「役割の大きさを決める」形にする */
   }
-  /* 文字サイズ3段階。印は html に付ける（#app と #uiLayerRoot の両方に届くように） */
+  /* 文字サイズ。印は html に付ける（#app と #uiLayerRoot の両方に届くように）。
+     **スライダーの段と、トークンの段を同じ数にする**（第43弾）。
+     それまで印は「92%以下＝小」「115%以上＝大」の2つしか無く、
+     10段のうち**95・100・105・110 の4つは1pxも変わらなかった**——
+     動かしたのに何も起きない、は落とし穴21そのもの。
+     正本 §2-3 が「倍率ではなく px を決める」と決めているので calc は使わず、
+     85%〜130% を5%刻みで、役割ごとに px を書く（小＝85% / 大＝130%）。
+     隣り合う段が同じ値にならないことは tests/ui-kit.js が数える */
   :root.fs-small{ --fs-title:21px; --fs-body:13px;  --fs-sub:11px; --fs-btn:14px; }
   :root.fs-large{ --fs-title:29px; --fs-body:18px;  --fs-sub:15px; --fs-btn:19px; }
+  :root.fs-85{ --fs-title:21px; --fs-body:13px; --fs-sub:11px; --fs-btn:14px; }
+  :root.fs-90{ --fs-title:22px; --fs-body:13.75px; --fs-sub:11.5px; --fs-btn:14.75px; }
+  :root.fs-95{ --fs-title:23px; --fs-body:14.25px; --fs-sub:12px; --fs-btn:15.25px; }
+  :root.fs-105{ --fs-title:24.75px; --fs-body:15.5px; --fs-sub:13px; --fs-btn:16.5px; }
+  :root.fs-110{ --fs-title:25.75px; --fs-body:16px; --fs-sub:13.25px; --fs-btn:17px; }
+  :root.fs-115{ --fs-title:26.5px; --fs-body:16.5px; --fs-sub:13.75px; --fs-btn:17.5px; }
+  :root.fs-120{ --fs-title:27.25px; --fs-body:17px; --fs-sub:14.25px; --fs-btn:18px; }
+  :root.fs-125{ --fs-title:28.25px; --fs-body:17.5px; --fs-sub:14.5px; --fs-btn:18.5px; }
+  :root.fs-130{ --fs-title:29px; --fs-body:18px; --fs-sub:15px; --fs-btn:19px; }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -771,6 +787,13 @@
   .app.no-flash .bomb-boom{display:none;}
   .app.no-flash.bomb-danger::before{animation:none;opacity:.8;}
   .app.no-shake.fx-shake,.app.no-shake.fx-shake-big{animation:none;}
+  /* 第43弾：**共通部品を通らない揺れも止める。**
+     .fx-* だけを止めていたので、以前から画面に直接付けている .shake と、
+     爆弾の残機の揺れ（bombShake）は、設定を切っても揺れ続けていた。
+     「揺れをオフにした人が、それでも揺れる画面に出会う」は
+     安全の設定として成り立っていない（正本6・大切なこと7） */
+  .app.no-shake .shake{animation:none;}
+  .app.no-shake .bomb-lives.shake,.app.no-shake .bomb-lives.broke{animation:none;}
   /* 第32弾-D 4-1：画面の揺れ。0.2秒以内・1回だけ・繰り返さない */
   .fx-shake{animation:fxShake 0.18s linear;}
   .fx-shake-big{animation:fxShakeBig 0.2s linear;}
@@ -3479,6 +3502,8 @@
       <button class="btn btn-ghost" id="gotSkipBtn">あとで（このまま進む）</button>
       <div class="toggle-row-mini" style="margin-top:14px;">
         <div>この演出を今後は出さない
+          <!-- 第43弾：この案内は、それまで嘘だった（その行が無かった）。
+               「見た目と演出」に setFanfareToggle を作ったので、いまは本当のこと -->
           <div class="mic-status">設定の「見た目と演出」からいつでももどせます</div>
         </div>
         <div class="switch" id="gotMuteToggle"></div>
@@ -5171,6 +5196,19 @@
               <div class="mic-status">部屋で遊んでいる時、絵文字の反応を送れる・見えるようにします</div>
             </div>
             <div class="switch on" id="setReactionsToggle"></div>
+          </div>
+        </div>
+        <!-- 第43弾：**称号の演出は、ここからしか戻せない。**
+             それまで窓口は獲得の重なりの中（gotMuteToggle）だけで、
+             一度OFFにすると重なりが二度と出ないので**二度とONに戻せなかった**。
+             しかもその重なりは「設定の『見た目と演出』からいつでももどせます」と
+             案内していて、**その行が存在しなかった**（原則5・7） -->
+        <div class="card">
+          <div class="toggle-row-mini">
+            <div>称号を手に入れた時、大きく出す
+              <div class="mic-status">切ると、集めたことは一言だけお知らせします（記録は残ります）</div>
+            </div>
+            <div class="switch on" id="setFanfareToggle"></div>
           </div>
         </div>
       </div>
@@ -6942,7 +6980,7 @@
     el('shelfMeBtn').disabled = false;
     el('shelfMeBtn').style.opacity = inn ? '' : '.85';
   }
-  el('shelfGearBtn').addEventListener('click', function(){ openSettings(); });
+  el('shelfGearBtn').addEventListener('click', function(){ openSettings('shelf'); });
   el('shelfMeBtn').addEventListener('click', function(){ goTo('scr-titles'); });
 
   // ---- 称号を選ぶ画面 ----
@@ -7494,7 +7532,11 @@
     // usesTopicPool：共通のお題プール（getPool）からお題を引くゲーム。
     //   第18弾-5：設定画面の「お題を追加」は、このゲームを遊んでいる時だけ出す。
     //   ワードウルフは WOLF_PAIRS、人狼はお題そのものを使わないので対象外。
-    { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる', maxPlayers:8, usesTopicPool:true },
+    // playOptions：遊んでいる途中で変えられる、そのゲーム固有の設定
+    //（⚡ハードモード・🎙音声で判定）を持つ。
+    // **持っているゲームがデータで名乗る。**除外の並びで書くと、
+    // 新しいカセットが増えるたびに足し忘れて素通りする（第43弾で11モードが該当した）
+    { id:'aresoredorekore', title:'あれそれどれこれ', icon:'🎴', sub:'ことばで説明して当てる', maxPlayers:8, usesTopicPool:true, playOptions:true },
     { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う', maxPlayers:0 },
     { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要', maxPlayers:0 }, // 0＝上限なし
     // 第27弾：カセット「爆弾解除」の中の1つ目のゲーム。
@@ -8201,9 +8243,15 @@
     // 倍率は1か所でしか効いていなかったので、3段階の印に置き換えた
     // **印は html に付ける。**#app に付けると、その兄弟である重なり
     // （#uiLayerRoot）に届かず、ダイアログだけ文字サイズが変わらない
+    // 第43弾：**印は段そのもの。**「92%以下なら小」の形だと、
+    // 10段のうち4段が1pxも動かない（動かしたのに何も起きない・落とし穴21）
     var rootEl = document.documentElement;
-    rootEl.classList.toggle('fs-small', appPrefs.fontScale <= 92);
-    rootEl.classList.toggle('fs-large', appPrefs.fontScale >= 115);
+    var 段 = Math.max(85, Math.min(130, Math.round(appPrefs.fontScale / 5) * 5));
+    rootEl.className = rootEl.className.replace(/\bfs-(?:small|large|\d+)\b/g, '').trim();
+    rootEl.classList.add('fs-' + 段);
+    // 小・大の印は、正本と検査が名前で見ているので残す（両端に付ける）
+    rootEl.classList.toggle('fs-small', 段 === 85);
+    rootEl.classList.toggle('fs-large', 段 === 130);
     // 明るさは :root に置く。#app と、その外にある層の置き場（#uiLayerRoot）の
     // 両方が同じ値を読むため。#app 側だけに置くと、ダイアログだけ明るいままになる
     document.documentElement.style.setProperty('--screen-bright', (appPrefs.brightness / 100).toFixed(2));
@@ -8215,6 +8263,7 @@
     rootEl.classList.toggle('fx-skip', appPrefs.fxSpeed === 'skip');  // 重なりの出入りも止める
     // 第32弾-D 第4部：光の点滅・画面の揺れを切っている人には出さない。
     // CSSのクラス1つで全部の該当演出が止まる形にする（出す側に条件を書かせない）
+    refreshSfxGain();   // 第43弾：作り置きの出口にも、いまの音量を届ける
     app.classList.toggle('no-flash', !appPrefs.fxFlash);
     app.classList.toggle('no-shake', !appPrefs.fxShake);
     // 第36弾 36-2：時間の見せ方。ここ1か所で、全カセットの時計（data-timer）に効く。
@@ -8303,6 +8352,14 @@
    * 効果音の出口。音を鳴らす所は必ずここへ繋ぐ（ctx.destination には直接繋がない）。
    * 音量はここ1か所で効くので、鳴らす場所が増えても設定し忘れが起きない。
    */
+  // 第43弾：出口は ctx ごとにキャッシュされるので、**あとから音量を変えた時に
+  // 作り置きの方も直しに行く**。爆弾の心拍だけは自前の AudioContext を使い回すため、
+  // 直しに行かないと「解除中に音量を変えても心拍だけ元のまま」になっていた
+  var sfxOuts = [];
+  function refreshSfxGain(){
+    var v = Math.max(0, Math.min(1, appPrefs.seVolume / 100));
+    sfxOuts.forEach(function(g){ try{ if(g && g.gain) g.gain.value = v; }catch(e){} });
+  }
   function sfxOut(ctx){
     if(!ctx) return null;
     if(ctx.__out) return ctx.__out;
@@ -8314,6 +8371,7 @@
       // 結果として音量つまみが1つも効いていなかった（スピーカー直結だった）。
       g.connect(ctx.destination);
       ctx.__out = g;
+      sfxOuts.push(g);
       return g;
     }catch(e){ return ctx.destination; }
   }
@@ -10404,7 +10462,9 @@
     applyModeDefaults();
     finishWizard();
   });
-  el('gearBtn').addEventListener('click', openSettings);
+  // 第43弾：**押した場所を必ず渡す。**渡さないと click の event が入り、
+  // 文脈が「たまたま棚」になる（意図ではなく偶然で決まる形にしない）
+  el('gearBtn').addEventListener('click', function(){ openSettings('shelf'); });
 
   /**
    * 第37弾：このゲームのルールを、この端末の人がもう読んだか。
@@ -20316,6 +20376,38 @@
     records: '記録', danger: '危険な操作'
   };
   function inRoomNow(){ return !!(rt && rt.state.room); }
+  /**
+   * **いま遊んでいるゲームの正本**（第43弾）。
+   *
+   * 部屋にいる時は**部屋が正**。端末の `state.selectedModeId` は
+   * その端末が最後に自分で選んだもので、**部屋のゲームとは何の関係も無い**——
+   * ゲストは一度も選んでいないので、既定の「あれそれどれこれ（通常プレイ）」が出る。
+   *
+   * `rtPickedMode()` のコメントが戒めているのと同じ事故
+   *（「人狼の部屋にあれそれどれこれのルールが出る」・大切なこと9）を、
+   * **設定だけが踏んでいた**。入口を1つにして、設定の中の全員がここを通る。
+   *
+   * 部屋にいてまだゲームが決まっていなければ `gameId` は null。
+   * そこで端末の選択に落ちると、また嘘をつく——**知らないことは知らないと出す**
+   */
+  function nowPlaying(){
+    if(inRoomNow()) return { gameId: rtPickedGame(), mode: rtPickedMode(), 部屋: true };
+    return { gameId: currentGameId(), mode: modeById(state.selectedModeId) || null, 部屋: false };
+  }
+  /**
+   * **⚙を押した場所**（第43弾 2-2）。5つの文脈を1か所で決める。
+   *
+   * 棚と手渡し中の区別は「どの⚙を押したか」で付ける——
+   * 浮いている⚙は棚では出ない（`noGear` に `scr-shelf` が入っている）ので、
+   * **画面idの一覧を新しく手書きしなくても分かれる**（落とし穴4を増やさない）。
+   * 押した瞬間にタイマーを止めるので、`play.running` では判定できない
+   */
+  var setOpenedFrom = 'shelf';
+  function setContext(){
+    if(typeof rtIsBigScreen === 'function' && rtIsBigScreen()) return 'bigscreen';
+    if(inRoomNow()) return rt.isHost() ? 'roomHost' : 'roomGuest';
+    return (setOpenedFrom === 'play') ? 'handoff' : 'shelf';
+  }
   function setRowHtml(item){
     return '<button class="set-row' + (item.danger ? ' danger' : '') + '"' +
       (item.page ? ' data-setpage="' + item.page + '"' : '') +
@@ -20369,7 +20461,7 @@
     { icon:'👥', label:'プレイヤー', page:'players',
       when:function(){ return !inRoomNow(); }, sub:'名前・人数・ハンデ' },
     { icon:'➕', label:'お題を追加', page:'topics',
-      when:function(){ return !!gameById(currentGameId()).usesTopicPool; } },
+      when:function(){ var np = nowPlaying(); return !!(np.gameId && gameById(np.gameId).usesTopicPool); } },
     { icon:'🔄', label:'別のゲームに変える', act:'pickGame',
       when:function(){ return inRoomNow() && rt.isHost(); },
       sub:'部屋はそのまま。ゲームだけえらび直します' }
@@ -20412,14 +20504,38 @@
    * 「壊れない」の判断はここ1か所に集める。
    * ゲームごとの設定画面をそのまま出すと、途中で変えると壊れるものまで出てしまう。
    */
+  /**
+   * そのモードは「遊んでいる途中で変えられる設定」を持つゲームのものか（第43弾）。
+   * モードは `game` を持たないことがある（あれそれどれこれの3モード）ので、
+   * **必ず gameIdForMode を通す**——ここを m.game で書くと、
+   * 名乗っていないモードが落ちる
+   */
+  function playOptionsOn(m){
+    if(!m || !m.id) return false;
+    var g = gameById(gameIdForMode(m.id));
+    return !!(g && g.playOptions);
+  }
   function liveGameSettings(){
-    var m = modeById(state.selectedModeId) || {};
+    // 第43弾：部屋にいる時は部屋のモード。端末の選択で出し分けると、
+    // 部屋のゲームに関係のない項目が並ぶ
+    var m = nowPlaying().mode || {};
     var out = [];
     // 第32弾-C-2 原則A：あれそれどれこれの遊んでいる画面には、
     // 「ハードモード」と「音声で判定」のスイッチが据え置かれていた。
     // 説明している最中に見るものではないので、⚙の中へ移した。
     // 画面に残っているのは、タイマー・お題・判定だけになる。
-    if(!m.wolf && !m.wolfRole && !m.bomb && !m.defuse && !m.quiz && !m.buzzer && !m.auction){
+    // 第43弾：**「あれそれどれこれ の遊び方か」を、モード自身に聞く。**
+    //
+    // それまでは「〜でないなら出す」という**除外の並び**で書いてあり、
+    // 新しいカセットがフラグを名乗るたびに、ここへ足し忘れると素通りした。
+    // 実際 quizKing 4件・auctionNew 2件・sugoroku 5件の**11モード**が素通りして、
+    // そのゲームでは何も起きない「⚡ハードモード」「🎙音声で判定」が出ていた
+    //（説明文も「不正解で自動的に次のお題へ進みます」——すごろくにお題は無い）。
+    //
+    // **効き先から決める**：state.hardMode は btnWrong、state.voiceDetect は音声判定で、
+    // どちらも**あれそれどれこれの手渡しの器（play）でしか動かない**。
+    // だから条件は「そのモードが、あれそれどれこれのものか」の1つ（落とし穴4・21）
+    if(playOptionsOn(m)){
       out.push({ id:'hardMode', type:'toggle', label:'⚡ ハードモード',
         get:function(){ return !!state.hardMode; },
         set:function(v){ state.hardMode = !!v; },
@@ -20474,9 +20590,15 @@
   function renderSetPage(page){
     if(page === 'root'){ el('setRootMenu').innerHTML = setMenuHtml(SET_ROOT_ITEMS); return; }
     if(page === 'game'){
-      var g = gameById(currentGameId());
-      el('currentGameLabel').textContent = g.icon + ' ' + g.title +
-        '（' + (modeById(state.selectedModeId) || {}).title + '）';
+      // 第43弾：**部屋にいる時は部屋のゲームを出す**（それまで端末の履歴を出していた）
+      var np = nowPlaying();
+      if(!np.gameId){
+        el('currentGameLabel').textContent = 'まだゲームを選んでいません';
+      } else {
+        var g = gameById(np.gameId);
+        el('currentGameLabel').textContent = g.icon + ' ' + g.title +
+          (np.mode ? '（' + np.mode.title + '）' : '');
+      }
       el('setGameMenu').innerHTML = setMenuHtml(SET_GAME_ITEMS);
       // 第33弾 B-4：部屋の時は動きが違う（記録ではなく、待合にもどす／部屋を抜ける）。
       // 書いてあることと実際に起きることを一致させる
@@ -20508,8 +20630,11 @@
   // ルールの見返し。モードが持っている bullets をそのまま出す
   // （実物解除で作ったモジュール説明の見返しと同じ考え方）
   function renderSetRules(){
-    var m = modeById(state.selectedModeId) || {};
-    var g = gameById(currentGameId());
+    // 第43弾：ここも部屋が正。**題名が「いま遊んでいるゲーム」なので、
+    // 部屋のゲームを見ないと、行の名前そのものが嘘になる**
+    var np43 = nowPlaying();
+    var m = np43.mode || {};
+    var g = gameById(np43.gameId || currentGameId());
     el('setRulesBody').innerHTML = '<div class="card">' +
       '<div class="sec-title">' + g.icon + ' ' + escapeHtml(m.title || g.title) + '</div>' +
       '<div class="mic-status" style="margin-bottom:10px;">' + escapeHtml(m.sub || g.sub || '') + '</div>' +
@@ -20654,6 +20779,7 @@
     el('setFxNote').textContent = appPrefs.fxSpeed === 'skip'
       ? '画面の動きを止めます。伝えることは必ず文字でも出します'
       : (appPrefs.fxSpeed === 'fast' ? '演出を半分の時間で終わらせます' : '演出をそのままの速さで出します');
+    el('setFanfareToggle').classList.toggle('on', !!appPrefs.titleFanfare);
     el('setBright').value = appPrefs.brightness;
     el('setBrightValue').textContent = appPrefs.brightness;
     el('setFont').value = appPrefs.fontScale;
@@ -20732,7 +20858,12 @@
     el('manualSaveResult').textContent = '';
   }
 
-  function openSettings(){
+  el('setFanfareToggle').addEventListener('click', function(){
+    appPrefs.titleFanfare = !appPrefs.titleFanfare;
+    applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
+  });
+  function openSettings(from){
+    setOpenedFrom = from || 'shelf';
     // 第26弾-2：棚から開いた時は、まだログインしていないことがある。
     // 記録に関わる操作は、ログインしてからでないと意味がないので隠す
     var inn = loggedIn();
@@ -21086,7 +21217,7 @@
       stopWrDayTimer(); el('wrDayPauseBtn').textContent = '▶';
       pausedForSettings = true;
     }
-    openSettings();
+    openSettings('play');
   });
   // 設定を閉じる唯一の入口。どの経路で閉じても、止めた時間が戻るようにする
   function closeSettings(){

@@ -8230,8 +8230,21 @@
     }catch(e){}
   }
   function saveAppPrefs(){
-    try{ localStorage.setItem(APP_PREFS_KEY, JSON.stringify(appPrefs)); }catch(e){}
+    try{
+      localStorage.setItem(APP_PREFS_KEY, JSON.stringify(appPrefs));
+      prefsSaveWarned = false;
+    }catch(e){
+      // 第43弾 2-8：**黙って捨てない。**
+      // 端末の保存領域がいっぱい・プライベートモードなどで失敗することがある。
+      // 画面の値はそのまま（この回は効いている）で、次に開いた時だけ戻る——
+      // それを知らせずにいると「設定したのに戻っている」としか見えない。
+      // 同じ操作のたびに出すとうるさいので、一度出したら成功するまで黙る
+      if(prefsSaveWarned) return;
+      prefsSaveWarned = true;
+      try{ FxKit.notice(UiText.SET.保存できない); }catch(e2){}
+    }
   }
+  var prefsSaveWarned = false;
   /**
    * 見た目に関わる設定を、CSS変数として1か所から当てる。
    * 画面ごとに style をいじると、新しい画面を作った時に当て忘れる。
@@ -8381,7 +8394,9 @@
   // 検査が「保存値」ではなく**いま実際に使っている音量**を見られるようにする。
   // 一時ミュートは保存値を1つも書き換えないので、localStorage を読んでも分からない
   window.prefsProbe = function(){
-    return { se: volSe(), speech: volSpeech(), bgm: volBgm(), muted: tempMute };
+    // keys は門F5の照合に使う。**検査が15個を手で持たない**ため（落とし穴4）
+    return { se: volSe(), speech: volSpeech(), bgm: volBgm(), muted: tempMute,
+      keys: Object.keys(appPrefs) };
   };
   var sfxOuts = [];
   function refreshSfxGain(){
@@ -14566,7 +14581,17 @@
   // ---- 体を動かすことへの同意 ----
   // 何をするのか・何に気をつけるのかを具体的に出す。
   // 「参加しない」を選んでも、マニュアル役として一緒に遊べることを必ず書く
+  // 第43弾 2-4：設定を切り替えた時に描き直せるよう、最後に描いた相手を覚えておく。
+  // それまでは描いた時に一度だけ appPrefs.fxBody を読んでいて、
+  // **同意画面を開いたまま設定を切り替えても、下の画面は前のままだった**（落とし穴21）
+  var dfConsentYou = null;
+  function refreshBodyConsent(){
+    var box = el('dfConsentBox');
+    if(!box || box.style.display === 'none' || !dfConsentYou) return;
+    dfRenderConsent(dfConsentYou);
+  }
   function dfRenderConsent(you){
+    dfConsentYou = you;
     // 新しいゲームは必ずここ（か役割えらび）を通る。前のゲームの読みかけの説明を持ち越さない
     dfBrief = { pages: [], at: 0, review: false };
     var box = el('dfConsentBox');
@@ -15501,6 +15526,7 @@
     rt.on('lost', function(){
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
+      closeSettingsIfOpen();   // 第43弾 2-8
       goBack('scr-shelf');
       setTimeout(function(){
         UiKit.info('部屋がなくなっていました',
@@ -15511,6 +15537,7 @@
     rt.on('closed', function(p){
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
+      closeSettingsIfOpen();   // 第43弾 2-8
       // **2-15：全員が「部屋に入る」に着地する。**
       // 棚へ返していたが、部屋が閉じた直後にしたいのは
       // たいてい「別の部屋に入る」か「やめる」——棚はその両方から遠い。
@@ -15523,7 +15550,7 @@
     });
     // 第32弾-B-1：部屋から出された。黙って画面が固まらないよう、理由を出して棚へ返す
     rt.on('kicked', function(p){
-      el('settingsOverlay').classList.remove('show');
+      closeSettingsIfOpen();
       goBack('scr-shelf');
       setTimeout(function(){
         UiKit.info('部屋から出ました',
@@ -20886,8 +20913,14 @@
       return '<option value="' + escapeHtml(v.name) + '"' +
         (v.name === appPrefs.speechVoice ? ' selected' : '') + '>' + escapeHtml(v.name) + '</option>';
     }).join('');
-    el('setVoiceNote').textContent = voices.length
-      ? '' : 'この端末では、日本語の声が見つかりませんでした（読み上げは端末の既定の声になります）';
+    // 第43弾 2-8：**選んだ声が、いまの端末に無いことがある**
+    //（別の端末で選んだ設定が同期された・OSの更新で声が消えた）。
+    // 読み上げそのものは既定の声に落ちて動くので、止めずに、行に一言だけ添える
+    var 選んだ声が無い = !!appPrefs.speechVoice &&
+      !voices.some(function(v){ return v.name === appPrefs.speechVoice; });
+    el('setVoiceNote').textContent = !voices.length
+      ? 'この端末では、日本語の声が見つかりませんでした（読み上げは端末の既定の声になります）'
+      : (選んだ声が無い ? UiText.SET.声が無い : '');
     Array.prototype.forEach.call(el('setFxSeg').children, function(b){
       b.classList.toggle('on', b.dataset.fx === appPrefs.fxSpeed);
     });
@@ -20955,6 +20988,7 @@
   el('setBodyToggle').addEventListener('click', function(){
     appPrefs.fxBody = !appPrefs.fxBody;
     saveAppPrefs(); renderSetPrefs();
+    refreshBodyConsent();   // 第43弾 2-4：開いたままの同意画面にも、その場で効かせる
   });
   // 第32弾-E 第4部：リアクションのON/OFF。切り替えた瞬間から帯にも効く
   el('setReactionsToggle').addEventListener('click', function(){
@@ -20979,6 +21013,20 @@
     appPrefs.titleFanfare = !appPrefs.titleFanfare;
     applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
   });
+  /**
+   * **部屋が足元から消えた時、開いている設定を閉じる**（第43弾 2-8）。
+   *
+   * 部屋が無くなる経路は3つある（解散・つなぎ直したら無かった・出された）。
+   * 出された時だけが閉じていて、あとの2つは開いたままだった——
+   * 設定の中身は部屋のメンバーや部屋コードなので、
+   * **もう無い部屋の情報が、知らせの下に残り続ける**。
+   * 経路ごとに書くとまた片方だけになるので、1か所に集める（落とし穴17）
+   */
+  function closeSettingsIfOpen(){
+    var ov = el('settingsOverlay');
+    if(ov) ov.classList.remove('show');
+    setStack = ['root'];
+  }
   function openSettings(from){
     setOpenedFrom = from || 'shelf';
     // 第26弾-2：棚から開いた時は、まだログインしていないことがある。

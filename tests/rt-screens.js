@@ -3584,6 +3584,141 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     進行.win.close();
   });
 
+
+  // ---- 第43弾 2-2：⚙の先頭は、押した場所で変わる ----
+
+  // 先頭に出ている行の（題名, 動き）
+  function pageOf(doc) {
+    const p = Array.from(doc.querySelectorAll('#settingsOverlay .set-page'))
+      .find((x) => x.style.display === 'block');
+    return p ? p.dataset.page : null;
+  }
+  function quickRows(doc) {
+    return Array.from(doc.querySelectorAll('#setQuickMenu .set-row')).map((b) => [
+      b.querySelector('.sr-text').childNodes[0].textContent.trim(),
+      b.dataset.setact || ('→' + b.dataset.setpage)
+    ]);
+  }
+
+  await r.test('設定：部屋の進行役の先頭は「音を消す・ルール・みんなを待合にもどす」', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);   // 自分が進行役（m1）
+    push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote' }) } }));
+    pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    const rows = quickRows(doc);
+    assertEqual(rows.length, 3, '先頭は3つ（' + rows.map((x) => x[0]).join('／') + '）');
+    assertEqual(rows[0][1], 'muteAll', '1つ目は音を消す');
+    assertEqual(rows[1][1], '→rules', '2つ目はルール');
+    assertEqual(rows[2][0], 'みんなを待合にもどす', '3つ目は待合にもどす');
+    assertEqual(rows[2][1], 'endGame', '**動きは既存のゲーム終了と同じ**（経路を増やしていない）');
+    assertNoErrors(errors, '進行役の設定で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：部屋の参加者の先頭は「音を消す・ルール・部屋を出る」', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote' }) } }));
+    pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+      alive: true, done: true, choices: [] });
+    await waitScreen(win, doc, 'scr-rt-play', 4000);
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    const rows = quickRows(doc);
+    assertEqual(rows.length, 3, '先頭は3つ（' + rows.map((x) => x[0]).join('／') + '）');
+    assertEqual(rows[2][0], '部屋を出る', '参加者に出すのは「終了」ではなく「出る」');
+    assertEqual(rows[2][1], 'leaveRoom', '待合と同じ動きを指す');
+    // 参加者に、みんなを止める道は出さない（進行役だけのもの）
+    assert(!rows.some((x) => x[1] === 'endGame'), '参加者にはゲーム終了を出さない');
+    assertNoErrors(errors, '参加者の設定で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('設定：大画面の先頭は「音を消す・プレイヤーにもどる」の2つ', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    push(fake, roomSnapshot({
+      members: roomSnapshot().members.map(m => m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m),
+      playerCount: 4,
+      state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) }
+    }));
+    await waitScreen(win, doc, 'scr-rt-big', 4000);
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    const rows = quickRows(doc);
+    assertEqual(rows.length, 2, '大画面は2つ（' + rows.map((x) => x[0]).join('／') + '）');
+    assertEqual(rows[0][1], 'muteAll', '1つ目は音を消す');
+    assertEqual(rows[1][1], 'toPlayer', '2つ目はプレイヤーにもどる');
+    // **大画面は、みんなに見せている画面。**そこにルールの見返しは要らない
+    assert(!rows.some((x) => x[1] === '→rules'), '大画面にルールの見返しは出さない');
+    assertNoErrors(errors, '大画面の設定で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('第43弾 2-4：体を動かす演出を切ると、開いている同意画面がその場で変わる', async () => {
+    // それまで同意画面は**描いた時に一度だけ**設定を読んでいた。
+    // 「⚠️ 体を動かすしかけが入ります」を見てから設定で切っても、
+    // 下の画面には「参加する」が出たままだった（落とし穴21）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    const ask = {
+      moves: ['端末を振る'], camera: false,
+      notes: ['まわりに人や物がないか確かめてください'],
+      declineNote: '「参加しない」を選んでも、マニュアル役として一緒に遊べます'
+    };
+    push(fake, defuseRoom({
+      state: { phase: 'consent', game: 'defuse', data: defuseView({ phase: 'consent', board: undefined }) }
+    }));
+    pushYou(fake, defuseYou({ phase: 'consent', role: null, board: undefined, consent: null, consentAsk: ask }));
+    await waitScreen(win, doc, 'scr-rt-defuse', 4000);
+    assert(doc.getElementById('dfConsentYes'), '前提：既定では「参加する」が出ている');
+
+    // 同意画面を開いたまま、設定で切る
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    doc.querySelector('#settingsOverlay [data-setpage="app"]').click();
+    await sleep(win, 80);
+    doc.querySelector('#settingsOverlay [data-setpage="safety"]').click();
+    await sleep(win, 80);
+    click(doc, 'setBodyToggle');
+    await sleep(win, 80);
+    click(doc, 'closeSettingsBtn');
+    await sleep(win, 80);
+    assert(!doc.getElementById('dfConsentYes'), '切った瞬間に「参加する」が消える');
+    assert(/体を動かす演出を切っています/.test(el(doc, 'dfConsentBox').textContent),
+      'なぜマニュアル役なのかが読める');
+    assert(doc.getElementById('dfConsentNo'), 'マニュアル役で遊ぶ道は残る');
+    assertNoErrors(errors, '同意画面の切り替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('第43弾 2-8：設定を開いたまま部屋が解散されたら、設定を閉じてから知らせる', async () => {
+    // 設定の中身は部屋のメンバーや部屋コード。閉じずに知らせだけ出すと、
+    // **もう無い部屋の情報が、知らせの下に残り続ける**
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    doc.querySelector('#setRootMenu [data-setpage="room"]').click();
+    await sleep(win, 80);
+    assert(el(doc, 'settingsOverlay').classList.contains('show'), '前提：設定が開いている');
+    assertEqual(pageOf(doc), 'room', '前提：部屋のページを見ている');
+
+    fake.fire('room:closed', { by: 'あき' });
+    await waitFor(win, () => !el(doc, 'settingsOverlay').classList.contains('show'),
+      2000, '設定が閉じる');
+    await sleep(win, 600);
+    const dlg = H.openDialog(doc);
+    assert(dlg, '知らせが出る');
+    assert(/閉じ/.test(dlg.見出し + dlg.本文), '部屋が閉じたことが読める（' + dlg.見出し + '）');
+    assertNoErrors(errors, '解散の知らせで未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第32弾-A 第4部：称号が1人1台でも数えられるか ----
 
   // 称号は /api/titles に預ける形なので、預けにきた中身を見て確かめる（ハーネスが記録している）

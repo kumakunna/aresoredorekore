@@ -911,17 +911,31 @@
     font-size:20px;line-height:1;cursor:pointer;padding:4px 8px;
   }
   .overlay-head h3{flex:1;text-align:center;}
-  /* 一覧の行。押すと専用画面が開く */
+  /* 一覧の行。押すと専用画面が開く。
+     **並んだ行は同じ高さにする**（第43弾 2-1）。説明が1行と2行に割れた時、
+     min-height だけだと折り返した側だけが伸びる。並べ方（grid の 1fr）で揃える
+     ——入口の二択（.howto-list）と同じ形（落とし穴31） */
+  .set-menu{display:grid;grid-auto-rows:1fr;gap:8px;margin-bottom:8px;}
   .set-row{
     display:flex;align-items:center;gap:12px;width:100%;text-align:left;
     background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:14px 14px;margin-bottom:8px;cursor:pointer;
+    padding:14px 14px;cursor:pointer;
     font-family:inherit;color:var(--ink);font-size:15px;min-height:52px;
+    transition:transform .15s cubic-bezier(.32,.72,0,1), filter .15s ease;
   }
-  .set-row:active{background:rgba(0,0,0,.05);}
+  /* 押した反応は、共通部品（.btn:active）と同じ縮み方にそろえる。
+     ここだけ背景を暗くする形だったので、他のボタンと押し心地が違って見えた */
+  .set-row:active{transform:scale(0.98);filter:brightness(.96);}
+  .set-row:disabled{opacity:.4;}
   .set-row .sr-icon{font-size:19px;flex:0 0 auto;}
   .set-row .sr-text{flex:1;}
-  .set-row .sr-sub{font-size:var(--fs-sub);color:var(--ink-soft);margin-top:2px;}
+  /* **題名と説明は、別の行にする。**
+     span のままだと margin-top が効かず、同じ行に続けて出ていた——
+     「ゲームを終了するこの時点のスコアを記録して…」と読めていた（指示43の前提表） */
+  .set-row .sr-sub{
+    display:block;font-size:var(--fs-sub);color:var(--ink-soft);
+    margin-top:3px;line-height:1.5;
+  }
   .set-row .sr-arrow{color:var(--ink-soft);font-size:15px;}
   /* 危険な操作は、見た目ではっきり分ける */
   .set-row.danger{border-color:var(--stamp);color:var(--stamp);}
@@ -5047,21 +5061,18 @@
 
       <!-- ===== 入口 ===== -->
       <div class="set-page" data-page="root">
+        <!-- 第43弾 2-2：いまほしいものが先に来る（文脈で中身が変わる） -->
+        <div id="setQuickMenu"></div>
         <div id="setRootMenu"></div>
       </div>
 
       <!-- ===== A. いま遊んでいるゲーム ===== -->
       <div class="set-page" data-page="game" style="display:none;">
-        <div class="mic-status" id="currentGameLabel" style="margin-bottom:12px;"></div>
+        <div class="mic-status" id="currentGameLabel"></div>
+        <!-- 第43弾：決まっていない時に「次にどうすれば決まるか」を出す枠 -->
+        <div class="mic-status" id="currentGameSub" style="margin-bottom:12px;opacity:.8;"></div>
+        <!-- 第43弾 門F9：ゲーム終了もふくめて、行は SET_GAME_ITEMS から描く -->
         <div id="setGameMenu"></div>
-        <!-- 第32弾-B-1：ゲーム終了は、以前は設定の一番上にあって
-             プレイ中に誤って押しやすかった。ここへ下げ、色でも他と分ける -->
-        <button class="set-row danger" id="endGameBtn">
-          <span class="sr-icon">🏁</span>
-          <span class="sr-text">ゲームを終了する
-            <span class="sr-sub">この時点のスコアを記録して、棚にもどります（確認します）</span>
-          </span>
-        </button>
       </div>
 
       <div class="set-page" data-page="rules" style="display:none;">
@@ -5205,8 +5216,8 @@
              案内していて、**その行が存在しなかった**（原則5・7） -->
         <div class="card">
           <div class="toggle-row-mini">
-            <div>称号を手に入れた時、大きく出す
-              <div class="mic-status">切ると、集めたことは一言だけお知らせします（記録は残ります）</div>
+            <div><span id="setFanfareLabel"></span>
+              <div class="mic-status" id="setFanfareSub"></div>
             </div>
             <div class="switch on" id="setFanfareToggle"></div>
           </div>
@@ -5281,18 +5292,8 @@
         <div class="danger-note">
           ここから先は、押すと戻せません。かならず確認が出ます。
         </div>
-        <button class="set-row danger" id="resetAllBtn">
-          <span class="sr-icon">🗑</span>
-          <span class="sr-text">全部リセットして最初から
-            <span class="sr-sub">プレイヤー・スコア・統計を、すべて削除します</span>
-          </span>
-        </button>
-        <button class="set-row danger" id="setCloseRoomBtn" style="display:none;">
-          <span class="sr-icon">🏠</span>
-          <span class="sr-text">部屋を解散する
-            <span class="sr-sub">部屋にいる全員が終わります（進行役だけ）</span>
-          </span>
-        </button>
+        <!-- 第43弾 門F9：この2行も SET_DANGER_ITEMS から描く -->
+        <div id="setDangerMenu"></div>
       </div>
 
       <!-- ログイン導線は、どのページからでも押せるように下に置く -->
@@ -8355,9 +8356,36 @@
   // 第43弾：出口は ctx ごとにキャッシュされるので、**あとから音量を変えた時に
   // 作り置きの方も直しに行く**。爆弾の心拍だけは自前の AudioContext を使い回すため、
   // 直しに行かないと「解除中に音量を変えても心拍だけ元のまま」になっていた
+  /**
+   * **一時ミュート**（第43弾 2-2）。
+   *
+   * これは「設定」ではない——指示43の6節が新しい設定を増やすことを禁じているし、
+   * そもそも性質が違う。保存もしないので、**再起動すると自然に解ける**（2-7）。
+   *
+   * 3つの音量（効果音・読み上げ・BGM）を、**保存値を1つも書き換えずに**0にする。
+   * そのために「いま実際に使う音量」を読む窓口を3つ作り、
+   * 音を鳴らす側は全部そこを通す——出す側に if を書かせない形
+   *（残骸が出ない良い型1）。設定画面のスライダーだけは保存値そのものを出す
+   */
+  var tempMute = false;
+  function volSe(){ return tempMute ? 0 : appPrefs.seVolume; }
+  function volSpeech(){ return tempMute ? 0 : appPrefs.speechVolume; }
+  function volBgm(){ return tempMute ? 0 : appPrefs.bgmVolume; }
+  function setTempMute(on){
+    tempMute = !!on;
+    refreshSfxGain();
+    if(typeof bgmSync === 'function') bgmSync();
+    // すでに喋り始めている読み上げは、gain を持たないので止めるしかない
+    if(tempMute){ try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){} }
+  }
+  // 検査が「保存値」ではなく**いま実際に使っている音量**を見られるようにする。
+  // 一時ミュートは保存値を1つも書き換えないので、localStorage を読んでも分からない
+  window.prefsProbe = function(){
+    return { se: volSe(), speech: volSpeech(), bgm: volBgm(), muted: tempMute };
+  };
   var sfxOuts = [];
   function refreshSfxGain(){
-    var v = Math.max(0, Math.min(1, appPrefs.seVolume / 100));
+    var v = Math.max(0, Math.min(1, volSe() / 100));
     sfxOuts.forEach(function(g){ try{ if(g && g.gain) g.gain.value = v; }catch(e){} });
   }
   function sfxOut(ctx){
@@ -8365,7 +8393,7 @@
     if(ctx.__out) return ctx.__out;
     try{
       var g = ctx.createGain();
-      g.gain.value = Math.max(0, Math.min(1, appPrefs.seVolume / 100));
+      g.gain.value = Math.max(0, Math.min(1, volSe() / 100));
       // 第32弾-C：ここは ctx.destination。以前はここで出口自身を呼んでいて、
       // ctx.__out がまだ空なので自分を呼び続け、例外で catch に落ちていた。
       // 結果として音量つまみが1つも効いていなかった（スピーカー直結だった）。
@@ -8445,7 +8473,7 @@
   // 個々の画面に start/stop を書かせると、離れた時の止め忘れが必ず起きる（落とし穴7）。
   var bgm = { ctx: null, gain: null, timer: null, kind: null, step: 0 };
   function bgmGainValue(){
-    return Math.max(0, Math.min(100, appPrefs.bgmVolume || 0)) / 100 * 0.12;
+    return Math.max(0, Math.min(100, volBgm() || 0)) / 100 * 0.12;
   }
   // 1音だけ鳴らす小さな部品。すべてのBGMはこれの組み合わせで作る
   function bgmNote(freq, dur, type, vol){
@@ -8486,7 +8514,7 @@
     if(bgm.kind === kind) return;
     bgmStop();
     var def = BGM_KINDS[kind];
-    if(!def || !(appPrefs.bgmVolume > 0)) return;
+    if(!def || !(volBgm() > 0)) return;
     try{
       bgm.ctx = new (window.AudioContext || window.webkitAudioContext)();
       bgm.gain = bgm.ctx.createGain();
@@ -8530,7 +8558,7 @@
     return null;
   }
   function bgmSync(){
-    var want = (appPrefs.bgmVolume > 0) ? bgmDesired() : null;
+    var want = (volBgm() > 0) ? bgmDesired() : null;
     if(want) bgmStart(want);
     else bgmStop();
     if(bgm.gain) bgm.gain.gain.value = bgmGainValue(); // 音量設定は即座に効かせる
@@ -12893,7 +12921,7 @@
    * 音量を0にしている人と、読み上げに対応していないブラウザは「聞こえない」。
    */
   function canHearSpeech(){
-    if(appPrefs.speechVolume <= 0) return false;
+    if(volSpeech() <= 0) return false;
     try{ return !!window.speechSynthesis; }catch(e){ return false; }
   }
   /**
@@ -19638,11 +19666,11 @@
   function speakJapanese(text){
     try{
       window.speechSynthesis.cancel();
-      if(appPrefs.speechVolume <= 0) return; // 消音なら鳴らさない
+      if(volSpeech() <= 0) return; // 消音なら鳴らさない
       var u = new SpeechSynthesisUtterance(text);
       u.lang = 'ja-JP';
       u.rate = Math.max(0.5, Math.min(1.5, appPrefs.speechRate / 100));
-      u.volume = Math.max(0, Math.min(1, appPrefs.speechVolume / 100));
+      u.volume = Math.max(0, Math.min(1, volSpeech() / 100));
       if(appPrefs.speechVoice){
         var v = speechVoices().find(function(x){ return x.name === appPrefs.speechVoice; });
         if(v) u.voice = v;
@@ -20370,7 +20398,8 @@
   var SET_TITLES = {
     root: '設定', game: 'いま遊んでいるゲーム', rules: 'ルールをもう一度見る',
     gamecfg: 'このゲームの設定', players: 'プレイヤー', topics: 'お題を追加',
-    room: '部屋', roomcode: '部屋コード', app: 'アプリ全体',
+    // 第43弾 2-5：「アプリ全体」は場所の名前として分かりにくい（何ができる所か読めない）
+    room: '部屋', roomcode: '部屋コード', app: 'アプリの設定',
     sound: '音量', speech: '読み上げ', display: '見た目と演出',
     safety: '安全に関する設定',
     records: '記録', danger: '危険な操作'
@@ -20409,18 +20438,28 @@
     return (setOpenedFrom === 'play') ? 'handoff' : 'shelf';
   }
   function setRowHtml(item){
+    // 題名・説明・絵文字は、文脈で変わることがある
+    //（未ログインの案内、ミュートの入と切）。
+    // 呼ぶ側に if を書かせず、行のデータが自分で決める
+    var 読む = function(v){ return typeof v === 'function' ? v() : v; };
+    var sub = 読む(item.sub);
     return '<button class="set-row' + (item.danger ? ' danger' : '') + '"' +
+      (item.id ? ' id="' + item.id + '"' : '') +
       (item.page ? ' data-setpage="' + item.page + '"' : '') +
       (item.act ? ' data-setact="' + item.act + '"' : '') + '>' +
-      '<span class="sr-icon">' + item.icon + '</span>' +
-      '<span class="sr-text">' + escapeHtml(item.label) +
-        (item.sub ? '<span class="sr-sub">' + escapeHtml(item.sub) + '</span>' : '') +
+      '<span class="sr-icon">' + 読む(item.icon) + '</span>' +
+      '<span class="sr-text">' + escapeHtml(読む(item.label)) +
+        (sub ? '<span class="sr-sub">' + escapeHtml(sub) + '</span>' : '') +
       '</span>' +
       (item.page ? '<span class="sr-arrow">›</span>' : '') +
       '</button>';
   }
   function setMenuHtml(items){
-    return items.filter(function(x){ return !x.when || x.when(); }).map(setRowHtml).join('');
+    // 高さを揃えるのは並べ方（.set-menu の grid）の仕事なので、
+    // **行を出す道が1本しかない**この形なら、包み忘れも起きない
+    return '<div class="set-menu">' +
+      items.filter(function(x){ return !x.when || x.when(); }).map(setRowHtml).join('') +
+      '</div>';
   }
   function goSetPage(page, push){
     if(push !== false && setStack[setStack.length - 1] !== page) setStack.push(page);
@@ -20439,16 +20478,46 @@
     var p = e.target.closest('[data-setpage]');
     if(p){ goSetPage(p.dataset.setpage); return; }
     var a = e.target.closest('[data-setact]');
-    if(a){ runSetAction(a.dataset.setact); return; }
+    if(a){ runSetAction(a.dataset.setact, a); return; }
   });
 
   // ---- 入口の一覧 ----
+  /**
+   * **⚙を押した人が、いまほしいものを上に3つ**（第43弾 2-2）。
+   *
+   * 動きは既存のものを指すだけで、新しい経路は作らない（指示43 2-2）——
+   * ⏹ は「ゲームを終了する」と同じ `endGame`、🚪 は待合と同じ `leaveRoom`。
+   * 出し分けは `setContext()` 1か所で決めるので、
+   * 「この画面では出す」の一覧を手で持たない（落とし穴4）
+   */
+  function ctxIs(){
+    var want = Array.prototype.slice.call(arguments);
+    return function(){ return want.indexOf(setContext()) >= 0; };
+  }
+  var SET_QUICK_ITEMS = [
+    { icon:function(){ return tempMute ? '🔊' : '🔇'; },
+      label:function(){ return tempMute ? UiText.SET.音をもどす : UiText.SET.音を消す; },
+      sub:function(){ return tempMute ? UiText.SET.音をもどすの補足 : UiText.SET.音を消すの補足; },
+      act:'muteAll', id:'setMuteRow' },
+    { icon:'📖', label:'ルールをもう一度見る', page:'rules',
+      when:ctxIs('handoff', 'roomHost', 'roomGuest') },
+    { icon:'⏹', label:'ゲームを終了する', act:'endGame', danger:true, id:'quickEndGameBtn',
+      when:ctxIs('handoff'),
+      sub:'この時点のスコアを記録して、棚にもどります（確認します）' },
+    { icon:'⏹', label:'みんなを待合にもどす', act:'endGame', danger:true, id:'quickEndGameBtn',
+      when:ctxIs('roomHost'),
+      sub:'部屋はそのまま残ります（確認します）' },
+    { icon:'🚪', label:'部屋を出る', act:'leaveRoom', danger:true,
+      when:ctxIs('roomGuest'), sub:'ゲームはほかの人たちで続きます' },
+    { icon:'🙋', label:'プレイヤーにもどる', act:'toPlayer',
+      when:ctxIs('bigscreen'), sub:'遊ぶ人数に数えられるようになります' }
+  ];
   var SET_ROOT_ITEMS = [
     { icon:'🎮', label:'いま遊んでいるゲーム', page:'game',
       sub:'ルールの見返し・このゲームの設定' },
     { icon:'🚪', label:'部屋', page:'room', when:inRoomNow,
       sub:'メンバー・つながり具合・部屋コード' },
-    { icon:'⚙', label:'アプリ全体', page:'app',
+    { icon:'⚙', label:'アプリの設定', page:'app',
       sub:'音・読み上げ・見た目・記録' },
     { icon:'⚠️', label:'危険な操作', page:'danger', danger:true,
       sub:'押すともどせないもの' }
@@ -20464,7 +20533,27 @@
       when:function(){ var np = nowPlaying(); return !!(np.gameId && gameById(np.gameId).usesTopicPool); } },
     { icon:'🔄', label:'別のゲームに変える', act:'pickGame',
       when:function(){ return inRoomNow() && rt.isHost(); },
-      sub:'部屋はそのまま。ゲームだけえらび直します' }
+      sub:'部屋はそのまま。ゲームだけえらび直します' },
+    // 第32弾-B-1：ゲーム終了は、以前は設定の一番上にあって
+    // プレイ中に誤って押しやすかった。**一番下**に置き、色でも他と分ける。
+    // 第43弾 門F9：それまでここだけ固定の markup で、説明文だけを
+    // renderSetPage が後から書き換えていた（同じことを2か所でやる形・落とし穴1）。
+    // 第33弾 B-4 の「部屋では動きが違う」は、行のデータが自分で答える
+    { icon:'🏁', label:'ゲームを終了する', act:'endGame', danger:true, id:'endGameBtn',
+      sub:function(){
+        if(!inRoomNow()) return 'この時点のスコアを記録して、棚にもどります（確認します）';
+        return rt.isHost() ? '部屋のみんなが待合にもどります。部屋は残ります（確認します）'
+                           : '自分だけ部屋から抜けます。ゲームはほかの人で続きます（確認します）';
+      } }
+  ];
+  // 第43弾 門F9：危険な操作の2行も、データから。
+  // 「進行役だけに出す」は style を後から書き換える形をやめ、when で決める
+  var SET_DANGER_ITEMS = [
+    { icon:'🗑', label:'全部リセットして最初から', act:'resetAll', danger:true, id:'resetAllBtn',
+      sub:'プレイヤー・スコア・統計を、すべて削除します' },
+    { icon:'🏠', label:'部屋を解散する', act:'closeRoom', danger:true, id:'setCloseRoomBtn',
+      when:function(){ return inRoomNow() && rt.isHost(); },
+      sub:'部屋にいる全員が終わります（進行役だけ）' }
   ];
   var SET_APP_ITEMS = [
     { icon:'🔊', label:'音量', page:'sound', sub:'効果音と読み上げを別々に' },
@@ -20473,11 +20562,29 @@
     // 第32弾-D 第4部：体に触る演出（光・揺れ・振動・体を動かす）は1か所にまとめる
     { icon:'🛡', label:'安全に関する設定', page:'safety',
       sub:'光の点滅・画面の揺れ・振動・演出の速さ' },
+    // 第43弾 2-3：**when:loggedIn を外した。**
+    // 指示42で「いまの自分」は未ログインでも開けるようにしたのに、
+    // 設定の行だけが閉じたままだった（入口が2つあって、片方だけ直っていた・落とし穴1）
     { icon:'🏷', label:'アイコン・二つ名', act:'titles',
-      when:loggedIn, sub:'集めたものからえらびます' },
-    { icon:'💾', label:'記録', page:'records', when:loggedIn, sub:'保存の設定と、記録を見る' }
+      sub:function(){ return loggedIn() ? '集めたものからえらびます' : 'ログインすると記録が残ります'; } },
+    { icon:'💾', label:'記録', page:'records', when:loggedIn, sub:'保存の設定と、記録を見る' },
+    // 棚では入口（root）を飛ばしてこのページが直接開く（2-2）ので、
+    // **危険な操作へ行く道が、ここにしか無くなる。**
+    // ほかの文脈では入口の一番下から行けるので、二重には出さない
+    { icon:'⚠️', label:'危険な操作', page:'danger', danger:true,
+      when:ctxIs('shelf'), sub:'押すともどせないもの' }
   ];
-  async function runSetAction(act){
+  async function runSetAction(act, btn){
+    // 第43弾 門F9：**行はデータからしか描かない**ので、
+    // 「この id のボタンに聞き手を付ける」形をやめ、動きの名前で呼び分ける
+    if(act === 'muteAll'){
+      setTempMute(!tempMute);
+      renderSetPage('root');   // 見た目で状態が分かる（音なしへの配慮・2-9）
+      return;
+    }
+    if(act === 'endGame'){ await actEndGame(btn); return; }
+    if(act === 'closeRoom'){ await actCloseRoom(); return; }
+    if(act === 'resetAll'){ await actResetAll(); return; }
     if(act === 'pickGame'){
       el('settingsOverlay').classList.remove('show');
       el('rtPickGameBtn').click();
@@ -20588,27 +20695,26 @@
 
   // ---- ページごとの中身を描く ----
   function renderSetPage(page){
-    if(page === 'root'){ el('setRootMenu').innerHTML = setMenuHtml(SET_ROOT_ITEMS); return; }
+    if(page === 'root'){
+      el('setQuickMenu').innerHTML = setMenuHtml(SET_QUICK_ITEMS);
+      el('setRootMenu').innerHTML = setMenuHtml(SET_ROOT_ITEMS);
+      return;
+    }
     if(page === 'game'){
       // 第43弾：**部屋にいる時は部屋のゲームを出す**（それまで端末の履歴を出していた）
       var np = nowPlaying();
       if(!np.gameId){
-        el('currentGameLabel').textContent = 'まだゲームを選んでいません';
+        // **できないことではなく、できることを言う**（第40弾のトーン）。
+        // 「選んでいません」で止めると読んだ人の手が止まるので、次の行き先も出す
+        el('currentGameLabel').textContent = UiText.SET.ゲーム未決;
+        el('currentGameSub').textContent = UiText.SET.ゲーム未決の補足;
       } else {
         var g = gameById(np.gameId);
         el('currentGameLabel').textContent = g.icon + ' ' + g.title +
           (np.mode ? '（' + np.mode.title + '）' : '');
+        el('currentGameSub').textContent = '';
       }
       el('setGameMenu').innerHTML = setMenuHtml(SET_GAME_ITEMS);
-      // 第33弾 B-4：部屋の時は動きが違う（記録ではなく、待合にもどす／部屋を抜ける）。
-      // 書いてあることと実際に起きることを一致させる
-      var endSub = el('endGameBtn').querySelector('.sr-sub');
-      if(endSub){
-        endSub.textContent = !inRoomNow()
-          ? 'この時点のスコアを記録して、棚にもどります（確認します）'
-          : (rt.isHost() ? '部屋のみんなが待合にもどります。部屋は残ります（確認します）'
-                         : '自分だけ部屋から抜けます。ゲームはほかの人で続きます（確認します）');
-      }
       return;
     }
     if(page === 'rules'){ renderSetRules(); return; }
@@ -20620,11 +20726,7 @@
     if(page === 'app'){ el('setAppMenu').innerHTML = setMenuHtml(SET_APP_ITEMS); return; }
     if(page === 'sound' || page === 'speech' || page === 'display' || page === 'safety'){ renderSetPrefs(); return; }
     if(page === 'records'){ renderSetRecords(); return; }
-    if(page === 'danger'){
-      var host = inRoomNow() && rt.isHost();
-      el('setCloseRoomBtn').style.display = host ? '' : 'none';
-      return;
-    }
+    if(page === 'danger'){ el('setDangerMenu').innerHTML = setMenuHtml(SET_DANGER_ITEMS); return; }
   }
 
   // ルールの見返し。モードが持っている bullets をそのまま出す
@@ -20695,6 +20797,9 @@
     var html = '<div class="mic-status" style="margin-bottom:10px;">' +
       'いまつながっているのは ' + connected + ' / ' + members.length + ' 人です。' +
       '<br>丸が灰色の人は、通信が切れています（電波・画面ロックなど）。' +
+      // 第43弾 2-5：同じことが2か所でできると、どちらが本物か迷う。
+      // 主は待合（人を出す・進行役をゆずるは、あちらが広くて押しやすい）
+      '<br>' + escapeHtml(UiText.SET.部屋は補助) +
       '</div>';
     html += members.map(function(m){
       var tags = [];
@@ -20711,8 +20816,19 @@
       '</div>';
     }).join('');
     // 自分の表示モード（32-Aで役割から表示モードにしたものを、ここからも切り替えられる）
+    html += setMenuHtml(setRoomItems());
+    el('setRoomBody').innerHTML = html;
+  }
+  /**
+   * 部屋のページの行（第43弾）。
+   * それまで renderSetRoom の中に**名前の無い配列**で埋まっていて、
+   * `SET_*_ITEMS` を grep しても出てこなかった（棚卸しで見つけた4つ目）。
+   * 自分の表示モードで文言が変わるので、配列ではなく作る関数にする
+   */
+  function setRoomItems(){
+    var me = rt && rt.me();
     var big = !!(me && me.role === 'bigscreen');
-    html += setMenuHtml([
+    return [
       { icon: big ? '🙋' : '📺',
         label: big ? 'プレイヤーにもどる' : 'この画面を大画面にする',
         act: big ? 'toPlayer' : 'toBig',
@@ -20720,8 +20836,7 @@
       { icon:'🔑', label:'部屋コード・QRを出す', page:'roomcode',
         sub:'あとから来た人に見せる時に' },
       { icon:'🚪', label:'部屋を出る', act:'leaveRoom', danger:true }
-    ]);
-    el('setRoomBody').innerHTML = html;
+    ];
   }
   el('setRoomBody').addEventListener('click', async function(e){
     var h = e.target.closest('[data-sethost]');
@@ -20751,12 +20866,12 @@
       if(renderRoomQr('setQr', room.code)) el('setQr').dataset.code = room.code;
     }
   }
-  el('setCloseRoomBtn').addEventListener('click', async function(){
+  async function actCloseRoom(){
     if(!await UiKit.danger('部屋を解散しますか？',
       '部屋にいる全員が終わります', { ok: '解散する' })) return;
     el('settingsOverlay').classList.remove('show');
     el('rtEndBtn').click();
-  });
+  }
 
   // ---- アプリ全体の設定 ----
   function renderSetPrefs(){
@@ -20779,6 +20894,8 @@
     el('setFxNote').textContent = appPrefs.fxSpeed === 'skip'
       ? '画面の動きを止めます。伝えることは必ず文字でも出します'
       : (appPrefs.fxSpeed === 'fast' ? '演出を半分の時間で終わらせます' : '演出をそのままの速さで出します');
+    el('setFanfareLabel').textContent = UiText.SET.称号の演出;
+    el('setFanfareSub').textContent = UiText.SET.称号の演出の補足;
     el('setFanfareToggle').classList.toggle('on', !!appPrefs.titleFanfare);
     el('setBright').value = appPrefs.brightness;
     el('setBrightValue').textContent = appPrefs.brightness;
@@ -20870,14 +20987,19 @@
     el('loggedInAs').textContent = inn ? ('ログイン中：'+state.username) : 'ログインしていません';
     el('logoutBtn').style.display = inn ? '' : 'none';
     el('settingsLoginBtn').style.display = inn ? 'none' : '';
-    setStack = ['root'];
-    goSetPage('root', false);
+    // 第43弾 2-2：**棚では入口を飛ばす。**
+    // 棚には「いま遊んでいるゲーム」も「いま要るもの」も無いので、
+    // 一段だけの入口を見せるのは、押させるだけの階段になる
+    var 先 = (setContext() === 'shelf') ? 'app' : 'root';
+    setStack = [先];
+    goSetPage(先, false);
     el('settingsOverlay').classList.add('show');
   }
 
   // ---------- 1：ゲーム終了（ゲーム共通） ----------
-  el('endGameBtn').addEventListener('click', async function(){
-    var btn = this;
+  // 第43弾：行はデータから描かれるので、id ではなく動きの名前で呼ばれる。
+  // 押された行そのものは、まとめ役（runSetAction）から渡ってくる
+  async function actEndGame(btn){
     // 第33弾 B-4：部屋で遊んでいる時は、手渡しの記録処理を通さない。
     // 以前はここが手渡し専用のままで、「プレイヤーがいません」と言いながら
     // 部屋のゲームは動き続ける、というちぐはぐが起きていた。
@@ -20912,7 +21034,7 @@
     el('settingsOverlay').classList.remove('show');
     askPlayerChange();  // 第12弾-7
     goTo('scr-shelf');  // 第12弾：棚に戻って次のゲームを選ぶ
-  });
+  }
 
   // ---------- 2：プレイヤー編集（ゲーム共通） ----------
   var settingsDraft = [];
@@ -21310,7 +21432,7 @@
       return '<tr><td>'+escapeHtml(r.name)+'</td><td class="num">'+r.s.correct+'</td><td class="num">'+r.s.wrong+'</td><td class="num">'+r.s.foul+'</td></tr>';
     }).join('');
   }
-  el('resetAllBtn').addEventListener('click', async function(){
+  async function actResetAll(){
     if(!await UiKit.danger('すべて削除して最初からはじめますか？',
       'プレイヤー・スコア・統計が、元にもどせなくなります', { ok: 'すべて削除する' })) return;
     if(state.matchId){
@@ -21322,7 +21444,7 @@
     playerDraft = []; saveLocalPrefs();
     el('settingsOverlay').classList.remove('show');
     goTo('scr-shelf'); // 第13弾：扉は起動時だけ。リセット後は棚に戻る
-  });
+  }
   el('settingsLoginBtn').addEventListener('click', function(){
     el('settingsOverlay').classList.remove('show');
     requireLogin();

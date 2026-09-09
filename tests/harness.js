@@ -489,6 +489,44 @@ function click(doc, idOrEl) {
 // jsdom はレイアウトしないので、座標が要る処理のために矩形を偽装する。
 // あわせて scrollIntoView でスクロール位置も動かす。これをしないと、
 // アプリが後から中央を再計算した時に「スクロールしていない」と判定して元に戻ってしまう。
+/**
+ * 設定 →「いま遊んでいるゲーム」→「ゲームを終了する」（第43弾）。
+ *
+ * それまで検体は `click(doc, 'endGameBtn')` と直に押していたが、
+ * これは**設定を開いていない状態でも押せてしまう**——実機では起きない道だった。
+ * 第43弾で行がデータから描かれるようになり、開くまで行そのものが存在しない。
+ * 人が通る順に押す（落とし穴12：画面の不在は、状態を見る検査では捕まらない）
+ */
+async function endGameFromSettings(win, doc) {
+  const ov = el(doc, 'settingsOverlay');
+  if (!ov.classList.contains('show')) {
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 80);
+  }
+  const toGame = doc.querySelector('#setRootMenu [data-setpage="game"]');
+  if (toGame) { toGame.click(); await sleep(win, 80); }
+  const row = el(doc, 'endGameBtn');
+  if (!row) throw new Error('「ゲームを終了する」の行が、設定のゲームのページに出ていない');
+  row.click();
+  return row;
+}
+
+/**
+ * 設定を開いて「アプリの設定」まで行く（第43弾 2-2）。
+ * **棚では入口（root）を飛ばして、このページが直接開く。**
+ * どちらの道でも同じ所に着くよう、入口が出ている時だけそこを押す
+ */
+async function openAppSettings(win, doc, gearId) {
+  click(doc, gearId || 'shelfGearBtn');
+  await sleep(win, 100);
+  const page = doc.querySelector('.set-page[data-page="app"]');
+  if (page.style.display !== 'block') {
+    doc.querySelector('#setRootMenu [data-setpage="app"]').click();
+    await sleep(win, 80);
+  }
+  return page;
+}
+
 function fakeRects(win, doc, rail) {
   const carts = Array.from(rail.querySelectorAll('.cart'));
   const W = 124, GAP = 8, PAD = 167, RAIL_W = 458;
@@ -807,6 +845,7 @@ module.exports = {
   cssRules, openCassette,
   autoDialog, openDialog,
   setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
+  endGameFromSettings, openAppSettings,
   passPlayWay,
   chooseNext, wolfPick,
   createRunner, assert, assertEqual, assertNoErrors

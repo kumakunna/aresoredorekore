@@ -100,9 +100,7 @@ function answerDialogs(win) {
 // 遊び終わって（あるいは途中で）棚に戻る
 async function backToShelf(win, doc) {
   answerDialogs(win);
-  click(doc, 'floatingGearBtn');
-  await sleep(win, 100);
-  click(doc, 'endGameBtn');
+  await H.endGameFromSettings(win, doc);
   await waitScreen(win, doc, 'scr-shelf', 8000);
 }
 

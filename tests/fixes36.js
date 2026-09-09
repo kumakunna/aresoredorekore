@@ -17,7 +17,7 @@ const path = require('path');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame,
-  runWizardToPlay, autoDialog } = require('./harness');
+  runWizardToPlay, autoDialog, endGameFromSettings } = require('./harness');
 const INV = require('./inventory');
 
 const INDEX_HTML = fs.readFileSync(
@@ -144,11 +144,7 @@ function px(body, prop) {
       assert(started.length > 0, 'ゲーム中は、このゲームの時計が走っている（' + g.clock + '）');
 
       // 設定 →「ゲームを終了する」（実機で報告された経路そのもの）
-      click(doc, 'floatingGearBtn');
-      await sleep(win, 60);
-      click(doc, doc.querySelector('#setRootMenu [data-setpage="game"]'));
-      await sleep(win, 60);
-      click(doc, 'endGameBtn');
+      await endGameFromSettings(win, doc);
       await waitScreen(win, doc, 'scr-shelf', 8000);
 
       const leftOver = started.filter((id) => live.has(id));

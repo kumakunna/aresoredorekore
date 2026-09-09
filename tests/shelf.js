@@ -540,9 +540,7 @@ function pickCart(doc, id) {
     el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
     await waitScreen(win, doc, 'scr-play', 8000);
 
-    click(doc, 'floatingGearBtn');
-    await sleep(win, 60);
-    click(doc, 'endGameBtn');
+    await H.endGameFromSettings(win, doc);
     await waitScreen(win, doc, 'scr-shelf', 5000);
     assertEqual(win.getComputedStyle(el(doc, 'scr-door')).display, 'none', '終了後に扉は出ない');
     assertNoErrors(errors, 'ゲーム終了で未捕捉の例外');
@@ -1106,10 +1104,7 @@ function pickCart(doc, id) {
 
   await r.test('安全に関する設定に、光・揺れ・振動・速さ・体を動かす演出が並ぶ', async () => {
     const t = await launch();
-    click(t.doc, 'shelfGearBtn');
-    await sleep(t.win, 100);
-    t.doc.querySelector('#setRootMenu [data-setpage="app"]').click();
-    await sleep(t.win, 60);
+    await H.openAppSettings(t.win, t.doc);
     const row = t.doc.querySelector('#setAppMenu [data-setpage="safety"]');
     assert(row, '「安全に関する設定」の入口がある');
     row.click();
@@ -1195,10 +1190,7 @@ function pickCart(doc, id) {
     // 演出をスキップにしていると、大きな演出は出さず一言だけにする
     const t = await launch();
     autoDialog(t.win, t.doc);
-    click(t.doc, 'shelfGearBtn');
-    await sleep(t.win, 100);
-    t.doc.querySelector('#setRootMenu [data-setpage="app"]').click();
-    await sleep(t.win, 60);
+    await H.openAppSettings(t.win, t.doc);
     // 第32弾-D 第4部：演出の速さは「安全に関する設定」へ移った
     t.doc.querySelector('#setAppMenu [data-setpage="safety"]').click();
     await sleep(t.win, 60);

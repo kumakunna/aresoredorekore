@@ -1213,9 +1213,7 @@ async function startModeWithTimerOff(win, doc, id) {
     click(doc, 'wolfTallyBtn');
     await sleep(win, 100); // カウントダウンの途中
     // 途中でゲームを終える
-    click(doc, 'floatingGearBtn');
-    await sleep(win, 100);
-    click(doc, 'endGameBtn');
+    await H.endGameFromSettings(win, doc);
     await waitScreen(win, doc, 'scr-shelf', 6000);
     // カウントダウンが生き残っていると、ここで結果画面へ飛ばされてしまう
     await sleep(win, 2500);
@@ -2711,9 +2709,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // jsdomのconfirm/alertは未実装なので、OKを押した扱いにする
     autoDialog(win, doc);
     win.alert = () => {};
-    click(doc, 'floatingGearBtn');
-    await sleep(win, 80);
-    click(doc, 'endGameBtn');
+    await H.endGameFromSettings(win, doc);
     await waitScreen(win, doc, 'scr-shelf', 5000);
     assert(!app.classList.contains('theme-wolf'), 'ゲームを終えたら夜が外れる');
 
@@ -3207,15 +3203,18 @@ async function startModeWithTimerOff(win, doc, id) {
   // ---- 第32弾-B 第1部：設定の再設計 ----
 
   await r.test('設定：項目を選ぶと専用画面が開き、もどれる', async () => {
-    const { win, doc, errors } = await launch();
-    click(doc, 'shelfGearBtn');
+    // 第43弾 2-2：棚では入口を飛ばすので、入口そのものを見るなら遊んでいる最中に開く
+    const { win, doc, errors } = await launch(LAUNCH);
+    await startMode(win, doc, 'normal');
+    await waitScreen(win, doc, 'scr-play', 6000);
+    click(doc, 'floatingGearBtn');
     await sleep(win, 100);
     assertEqual(el(doc, 'setTitle').textContent, '設定', '入口の見出し');
     assertEqual(el(doc, 'setBackBtn').style.display, 'none', '入口では戻る矢印を出さない');
 
     doc.querySelector('#setRootMenu [data-setpage="app"]').click();
     await sleep(win, 60);
-    assertEqual(el(doc, 'setTitle').textContent, 'アプリ全体', '専用画面が開く');
+    assertEqual(el(doc, 'setTitle').textContent, 'アプリの設定', '専用画面が開く');
     assert(el(doc, 'setBackBtn').style.display !== 'none', '戻る矢印が出る');
     doc.querySelector('#setAppMenu [data-setpage="sound"]').click();
     await sleep(win, 60);
@@ -3223,7 +3222,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
     click(doc, 'setBackBtn');
     await sleep(win, 60);
-    assertEqual(el(doc, 'setTitle').textContent, 'アプリ全体', '1つ前にもどる');
+    assertEqual(el(doc, 'setTitle').textContent, 'アプリの設定', '1つ前にもどる');
     click(doc, 'setBackBtn');
     await sleep(win, 60);
     assertEqual(el(doc, 'setTitle').textContent, '設定', '入口までもどる');
@@ -3238,8 +3237,10 @@ async function startModeWithTimerOff(win, doc, id) {
     // 色でも見分けられる
     assert(/\.set-row\.danger\{[^}]*var\(--stamp\)/.test(html), '危険な操作は色を分ける');
 
-    const { win, doc, errors } = await launch();
-    click(doc, 'shelfGearBtn');
+    const { win, doc, errors } = await launch(LAUNCH);
+    await startMode(win, doc, 'normal');
+    await waitScreen(win, doc, 'scr-play', 6000);
+    click(doc, 'floatingGearBtn');
     await sleep(win, 100);
     const rows = Array.from(doc.querySelectorAll('#setRootMenu .set-row'));
     const danger = rows[rows.length - 1];
@@ -3305,10 +3306,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('設定：音量・文字サイズ・演出の速さが、その場で効く', async () => {
     const { win, doc, errors } = await launch();
-    click(doc, 'shelfGearBtn');
-    await sleep(win, 100);
-    doc.querySelector('#setRootMenu [data-setpage="app"]').click();
-    await sleep(win, 60);
+    await H.openAppSettings(win, doc);
     doc.querySelector('#setAppMenu [data-setpage="display"]').click();
     await sleep(win, 60);
 
@@ -3402,10 +3400,7 @@ async function startModeWithTimerOff(win, doc, id) {
       ctx.createGain = function () { const g = origCreateGain(); gains.push(g); return g; };
       return ctx;
     };
-    click(doc, 'shelfGearBtn');
-    await sleep(win, 100);
-    doc.querySelector('#setRootMenu [data-setpage="app"]').click();
-    await sleep(win, 60);
+    await H.openAppSettings(win, doc);
     doc.querySelector('#setAppMenu [data-setpage="sound"]').click();
     await sleep(win, 60);
 
@@ -3674,10 +3669,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 設定からゲームを終了して、ワードウルフへ
     click(doc, 'floatingGearBtn');
     await sleep(win, 60);
-    const gameRow = doc.querySelector('#settingsOverlay [data-setpage="game"]');
-    gameRow.click();
-    await sleep(win, 60);
-    click(doc, 'endGameBtn');
+    await H.endGameFromSettings(win, doc);
     await waitScreen(win, doc, 'scr-shelf', 4000);
 
     await startMode(win, doc, 'wordwolf');

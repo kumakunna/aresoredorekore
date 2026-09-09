@@ -1319,7 +1319,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       alive: true, done: true, choices: [] });
     await waitScreen(win, doc, 'scr-rt-play', 4000);
     autoDialog(win, doc);
-    click(doc, 'endGameBtn');
+    await H.endGameFromSettings(win, doc);
     await waitScreen(win, doc, 'scr-rt-room', 3000);
     const reset = fake.emits.filter(e => e.name === 'room:setState').pop();
     assert(reset && reset.payload.reset === true && reset.payload.game === 'wolfrole',
@@ -1336,7 +1336,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       alive: true, done: true, choices: [] });
     await waitScreen(win, doc, 'scr-rt-play', 4000);
     autoDialog(win, doc);
-    click(doc, 'endGameBtn');
+    await H.endGameFromSettings(win, doc);
     await waitFor(win, () => fake.emits.some(e => e.name === 'room:leave'), 3000, '部屋から抜ける');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     assertNoErrors(errors, 'ゲーム終了（非ホスト）で未捕捉の例外');
@@ -3562,14 +3562,26 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   });
 
   await r.test('設定：部屋を解散するのは、進行役だけに出る', async () => {
-    const { win, doc } = await launch(LAUNCH);
-    await toRoom(win, doc, { join: true, memberId: 'm2' });
-    click(doc, 'floatingGearBtn');
-    await sleep(win, 80);
-    doc.querySelector('#setRootMenu [data-setpage="danger"]').click();
-    await sleep(win, 80);
-    assertEqual(el(doc, 'setCloseRoomBtn').style.display, 'none', '参加者には出さない');
-    win.close();
+    // 第43弾：行はデータから描かれるので、**出さない＝行が存在しない**。
+    // 出す側も見ないと「誰にも出ない」で緑になる（落とし穴20：照合には向きがある）
+    async function 危険なページ(opts) {
+      const { win, doc } = await launch(LAUNCH);
+      await toRoom(win, doc, opts);
+      click(doc, 'floatingGearBtn');
+      await sleep(win, 80);
+      doc.querySelector('#setRootMenu [data-setpage="danger"]').click();
+      await sleep(win, 80);
+      return { win, doc };
+    }
+    // 無いことを見たいので、el（見つからないと投げる）ではなく素の getElementById
+    const 参加 = await 危険なページ({ join: true, memberId: 'm2' });
+    assert(!参加.doc.getElementById('setCloseRoomBtn'), '参加者には出さない');
+    assert(参加.doc.getElementById('resetAllBtn'), '全部リセットは、参加者にも出る（隠しすぎていない）');
+    参加.win.close();
+
+    const 進行 = await 危険なページ();
+    assert(進行.doc.getElementById('setCloseRoomBtn'), '進行役には出る');
+    進行.win.close();
   });
 
   // ---- 第32弾-A 第4部：称号が1人1台でも数えられるか ----

@@ -1,0 +1,66 @@
+[
+  {
+    "name": "S1 ログインで端末の選択を捨てない",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "    clearGuestLook();\n    try{ applyTitles(await api('/api/titles')); }",
+    "to": "    try{ applyTitles(await api('/api/titles')); }",
+    "expect": "端末に残っていた姿は消えている"
+  },
+  {
+    "name": "S2 未ログインでも、持っていないアイコンまで並べる",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "    var 持ち物 = TitleLogic.partsOf('icon').filter(function(p){ return have[p.id]; });",
+    "to": "    var 持ち物 = TitleLogic.partsOf('icon');",
+    "expect": "未ログインで持っているアイコンは1つ"
+  },
+  {
+    "name": "S3 未ログインでは、下部バーの自分を押せなくする",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "    el('shelfMeBtn').disabled = false;",
+    "to": "    el('shelfMeBtn').disabled = !inn;",
+    "expect": "下部バーの自分は、未ログインでも押せる"
+  },
+  {
+    "name": "R1 公開スナップショットに持ち物を1つ足す",
+    "file": "realtime.js",
+    "suite": "tests/realtime.js",
+    "from": "        icon: (m.look && m.look.icon) || '',",
+    "to": "        icon: (m.look && m.look.icon) || '',\n        unlocked: ['icon-wolf-1'],",
+    "expect": "配るのは決めた項目だけ"
+  },
+  {
+    "name": "R2 姿の文字の長さを切らない",
+    "file": "realtime.js",
+    "suite": "tests/realtime.js",
+    "from": "  const icon = String(v.icon || '').slice(0, LOOK_ICON_MAX);\n  const title = String(v.title || '').slice(0, LOOK_TITLE_MAX);",
+    "to": "  const icon = String(v.icon || '');\n  const title = String(v.title || '');",
+    "expect": "アイコンは8文字まで"
+  },
+  {
+    "name": "R3 部屋の中で姿を変えても、届かなくする",
+    "file": "realtime.js",
+    "suite": "tests/realtime.js",
+    "from": "      applyLook(me, (payload && payload.look) || null);\n      if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });",
+    "to": "      if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });",
+    "expect": "変えた姿が、その場のスナップショットに出る"
+  },
+  {
+    "name": "X1 名簿が、その人の集めたものを描く",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "      return '<div class=\"rt-member'+(m.connected?'':' off')+'\">'+\n        memberFaceHtml(m)+",
+    "to": "      return '<div class=\"rt-member'+(m.connected?'':' off')+'\">'+\n        memberFaceHtml(m)+\n        '<span class=\"rm-tag\">'+escapeHtml((m.ownedLabels||[]).join('・'))+'</span>'+",
+    "expect": "待合に、他の人の集めたものが出ていない"
+  },
+  {
+    "name": "X2 部屋をつくる時に、姿を送らない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    var res = await rt.createRoom(name, 'player', myLook());",
+    "to": "    var res = await rt.createRoom(name, 'player');",
+    "expect": "頼みに姿が乗っている"
+  }
+]

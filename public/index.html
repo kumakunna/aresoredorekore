@@ -433,6 +433,43 @@
   .result-wrong{background:#fff;border:1px solid var(--line);color:var(--ink-soft);}
   .result-foul{background:#fff;border:1px solid var(--stamp);color:var(--stamp-deep);}
   .voice-row{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:12px;}
+  /* つまみ（音量・速さ・明るさ・文字サイズ…アプリ全体で20本ある）。
+     **第43弾 2-5：ここに共通の見た目が1つも無かった。**
+     トグルは .switch という部品を持っているのに、
+     つまみだけはブラウザ既定のまま出ていた（落とし穴30：規則の無いものは
+     既定の見た目で黙って出る）。しかもテーマの手当ては爆弾解除の1つだけで、
+     カセットを移ると色も太さもばらついていた（落とし穴1）。
+     色の決め方はトグルとそろえる——ONの色はカセットが --switch-on を上書きする */
+  /* **箱はつまみの大きさにして、線の方を規則で描く。**
+     箱を線の太さ（6px）にすると、はみ出した24pxのつまみが切れうる */
+  input[type="range"]{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:24px;background:transparent;
+    outline:none;cursor:pointer;margin:6px 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track{
+    height:6px;border-radius:999px;background:var(--line);
+  }
+  input[type="range"]::-moz-range-track{
+    height:6px;border-radius:999px;background:var(--line);
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:24px;height:24px;border-radius:50%;margin-top:-9px;
+    background:var(--switch-on);border:2px solid var(--switch-knob);
+    box-shadow:0 0 0 1px var(--switch-knob-edge), 0 1px 3px rgba(0,0,0,0.3);
+    transition:transform .15s cubic-bezier(.32,.72,0,1);
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:24px;height:24px;border-radius:50%;border:2px solid var(--switch-knob);
+    background:var(--switch-on);
+    box-shadow:0 0 0 1px var(--switch-knob-edge), 0 1px 3px rgba(0,0,0,0.3);
+    transition:transform .15s cubic-bezier(.32,.72,0,1);
+  }
+  /* 触れた瞬間の反応（正本 §4・門A10）。つまみは指の下に隠れるので、少し大きくする */
+  input[type="range"]:active::-webkit-slider-thumb{transform:scale(1.15);}
+  input[type="range"]:active::-moz-range-thumb{transform:scale(1.15);}
+  input[type="range"]:disabled{opacity:.4;cursor:default;}
   .switch{width:40px;height:24px;border-radius:999px;background:var(--switch-off);position:relative;cursor:pointer;flex:none;transition:background .2s;}
   .switch.on{background:var(--switch-on);}
   .switch::after{
@@ -2945,7 +2982,8 @@
   .app.theme-bomb .bomb-tier-row{background:var(--card);border-color:var(--line);color:var(--ink);}
   .app.theme-bomb .bomblife-display{color:var(--ink);}
   /* スライダー。トラックが白いままだと背景と喧嘩する */
-  .app.theme-bomb input[type="range"]{background:var(--paper-deep);}
+  /* 第43弾：ここだけ手当てしていた背景は、共通の見た目（--line）に寄せた。
+     1つのテーマだけ直っている状態は、必ずどこかで食い違う（落とし穴1） */
   /* ⚙・戻る矢印。白丸のままだと暗い画面で浮く */
   .app.theme-bomb .floating-gear{background:rgba(232,234,237,.14);color:var(--ink);}
   .app.theme-bomb .floating-back{color:var(--ink);}
@@ -3461,11 +3499,14 @@
       <div class="prof-sec"><span id="profOwnedLead"></span><span class="prof-count" id="profOwnedCount"></span></div>
       <div class="prof-grid" id="profOwned"></div>
       <div id="profCassettes"></div>
-      <button class="set-row" data-profgo="rename" style="margin-top:14px;">
-        <span class="sr-icon">📛</span>
-        <span class="sr-text">名前を変える<span class="sr-sub" id="profRenameSub"></span></span>
-        <span class="sr-arrow">›</span>
-      </button>
+      <!-- 第43弾 2-1：行の並べ方は .set-menu が持つ（設定の中と外で同じ形にする） -->
+      <div class="set-menu" style="margin-top:14px;">
+        <button class="set-row" data-profgo="rename">
+          <span class="sr-icon">📛</span>
+          <span class="sr-text">名前を変える<span class="sr-sub" id="profRenameSub"></span></span>
+          <span class="sr-arrow">›</span>
+        </button>
+      </div>
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
       <button class="btn btn-ghost" id="titlesBackBtn" style="margin-top:0;">← もどる</button>
@@ -15646,10 +15687,12 @@
   }
   el('thanksBtn').addEventListener('click', function(){
     thanksKind = null;
-    el('thanksKinds').innerHTML = THANKS_UI.map(function(k){
+    // 第43弾 2-1：行の間隔と高さの揃えは **.set-menu（並べ方）が持つ**。
+    // 行の側に margin を戻すと、設定の中と外で並べ方が2つになる（落とし穴1）
+    el('thanksKinds').innerHTML = '<div class="set-menu">' + THANKS_UI.map(function(k){
       return '<button class="set-row" data-thkind="' + k.id + '"><span class="sr-icon">' + k.icon +
         '</span><span class="sr-text">' + k.label + '</span><span class="sr-arrow">›</span></button>';
-    }).join('');
+    }).join('') + '</div>';
     el('thanksWho').style.display = 'none';
     el('thanksOverlay').classList.add('show');
   });
@@ -15661,12 +15704,13 @@
       var room = rt.state.room, me = rt.state.memberId;
       el('thanksWho').innerHTML =
         '<div class="mic-status" style="margin:10px 0 6px;">だれに贈りますか？</div>' +
+        '<div class="set-menu">' +
         (room.members || [])
           .filter(function(m){ return m.id !== me && m.role === 'player'; })
           .map(function(m){
             return '<button class="set-row" data-thwho="' + m.id + '">' +
               '<span class="sr-text">' + escapeHtml(m.name) + '</span></button>';
-          }).join('');
+          }).join('') + '</div>';
       el('thanksWho').style.display = 'block';
       return;
     }

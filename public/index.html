@@ -21241,8 +21241,11 @@
     })();
     el('doorScene').classList.add('opened');
     var next = await nextPromise;
-    // 開き切る前に次の画面へ移る（テンポ優先）
-    setTimeout(function(){ goTo(next); }, 260);
+    // 開き切る前に次の画面へ移る（テンポ優先）。
+    // **fxMs を通す。**ここは扉が開く演出の一部で、
+    // 「演出の速さ」を「スキップ」にした人まで0.26秒待たされていた
+    //（大切なこと7「すべての演出はスキップできる」に反する・第44弾で見つけた）
+    setTimeout(function(){ goTo(next); }, fxMs(260));
   }
   el('doorPanel').addEventListener('click', openDoorAndEnter); // 保険：待てない時
   el('doorScene').addEventListener('click', openDoorAndEnter);
@@ -21393,7 +21396,7 @@
     el('sgStartBtn').addEventListener('click', function(){
       try{ localStorage.setItem(SAFETY_SEEN_KEY, '1'); }catch(e){}
       gate.style.display = 'none';
-      setTimeout(openDoorAndEnter, 240);
+      setTimeout(openDoorAndEnter, fxMs(240));
     });
     syncGate();
     gate.style.display = 'flex';
@@ -21420,7 +21423,7 @@
     }
     // 初回だけ安全の案内が先。「はじめる」を押したら扉が開く
     if(!maybeShowSafetyGate()){
-      setTimeout(openDoorAndEnter, 240); // タップ不要で自動的に開く
+      setTimeout(openDoorAndEnter, fxMs(240)); // タップ不要で自動的に開く
     }
   });
 })();

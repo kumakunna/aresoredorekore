@@ -1041,6 +1041,10 @@ function pickCart(doc, id) {
   });
 
   await r.test('手に入った瞬間に、何をなぜ手に入れたかが大きく出る', async () => {
+    // この検査が見るのは**大きく出る演出そのもの**。
+    // 「演出の速さ＝スキップ」の人には、代わりに一言だけ出る仕様で
+    //（showTitleGot の中で showFlash に分かれる）、
+    // **スキップ側の道は次の検査（スキップも「今後出さない」もできる）が見ている。**
     const { win, doc, errors } = await launch();
     autoDialog(win, doc);
     // このテストが見るのは演出の仕組み。実行する日が季節イベント中だと
@@ -1061,7 +1065,11 @@ function pickCart(doc, id) {
     if (who.length) { who[0].click(); await sleep(win, 120); }
     click(doc, 'endRoundBtn');
     await waitScreen(win, doc, 'scr-score', 8000);
-    await sleep(win, 200);
+    // **固定の200msで待たない。**演出の速さの設定で、出るまでの時間は変わる
+    //（第44弾で launch の既定を「スキップ」にしたら、この200msでは足りなかった）。
+    // 待ち方を「時間」ではなく「出たか」に変えれば、どちらの速さでも成り立つ
+    await waitFor(win, () => el(doc, 'titleGotOverlay').classList.contains('show'),
+      5000, '手に入った演出が出る');
 
     assert(el(doc, 'titleGotOverlay').classList.contains('show'), '手に入った演出が出る');
     const got = el(doc, 'gotList').textContent;

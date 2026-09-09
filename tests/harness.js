@@ -125,7 +125,10 @@ function makeApi(opts, titlePuts) {
 }
 
 // ---------- アプリの起動 ----------
+const 起動 = { 回: 0, ms: 0 };
 async function launch(opts) {
+  const 起動t0 = Date.now();
+  起動.回++;
   opts = opts || {};
   let html = fs.readFileSync(HTML, 'utf8');
   // jsdom は <script src> を読み込まないので、public/js/*.js は中身を埋め込んでから起動する。
@@ -234,6 +237,28 @@ async function launch(opts) {
     const marker = '<body>';
     if (html.indexOf(marker) < 0) throw new Error('<body> が見つかりません');
     html = html.replace(marker, marker + seed);
+  }
+  /**
+   * **扉の待ちを外す**（第44弾）。HOLD_MS・FX_MS と同じ考え方。
+   *
+   * 測ったら launch() 1回に約0.8秒かかっていて、**そのうち0.5秒が扉**だった
+   *（安全の案内→扉 0.24秒 ＋ 扉→次の画面 0.26秒）。
+   * 全スイートで600回以上 launch するので、ここだけで5分近く待っていた。
+   *
+   * **「演出の速さ」を丸ごとスキップにするのは広すぎた**——一度そうしたら、
+   * 演出そのものを見ている検査が8件赤くなった（縁の光・爆発の閃光・処刑の発表…）。
+   * それらは「スキップだと出ないのが正しい」ので、赤は実装の話ではない。
+   * **必要だったのは扉の0.5秒だけ**なので、そこだけを外す。
+   * 演出そのものを見る検査（opts.fx）では、扉も本物のまま動かす
+   */
+  if (!opts.fx) {
+    const 扉 = [['setTimeout(openDoorAndEnter, fxMs(240))', 'setTimeout(openDoorAndEnter, 0)', 2],
+                ['setTimeout(function(){ goTo(next); }, fxMs(260))', 'setTimeout(function(){ goTo(next); }, 0)', 1]];
+    扉.forEach(([from, to, 件]) => {
+      const n = html.split(from).length - 1;
+      if (n !== 件) throw new Error('扉の待ちが見つかりません（' + from + ' が ' + n + '件。実装が変わった可能性があります）');
+      html = html.split(from).join(to);
+    });
   }
   // 複数ゲームを持つカセットは本番にまだ無いので、テスト時だけ差し込む。
   // 本番のカセット構成は変えずに「ゲーム選択画面を通る経路」を確認するため。
@@ -347,6 +372,7 @@ async function launch(opts) {
     }
   }
 
+  起動.ms += Date.now() - 起動t0;
   return { dom, win, doc, errors };
 }
 
@@ -670,13 +696,35 @@ function createRunner(title) {
       console.log('\n■ ' + title);
       results.forEach(r => console.log('  ' + (r.ok ? '✅' : '❌') + ' ' + r.name +
         (計測 ? '  [' + r.ms + 'ms]' : '') + (r.ok ? '' : '\n       → ' + r.err)));
+      const 合計 = results.reduce((s, r) => s + r.ms, 0);
+      // **ピークのメモリも一緒に測る。**並走の本数を決めるのに要る——
+      // 「何本まで同時に回せるか」は勘ではなく、実測したピークと空きメモリで決める
+      const ピークKB = (typeof process.resourceUsage === 'function')
+        ? process.resourceUsage().maxRSS : null;
       if (計測) {
-        const 合計 = results.reduce((s, r) => s + r.ms, 0);
-        console.log('  ── 合計 ' + (合計 / 1000).toFixed(1) + '秒。遅い順:');
+        console.log('  ── 合計 ' + (合計 / 1000).toFixed(1) + '秒' +
+          (ピークKB ? ' ／ ピーク ' + (ピークKB / 1024).toFixed(0) + 'MB' : '') + '。遅い順:');
         results.slice().sort((a, b) => b.ms - a.ms).slice(0, 5)
           .forEach((r) => console.log('     ' + (r.ms + 'ms').padStart(8) + '  ' + r.name));
       }
       console.log('  ' + (results.length - failed.length) + '/' + results.length + ' 件成功');
+      // **機械が読む1行**（ACAC_JSON=1 の時だけ）。
+      // 人の目で読む出力は変えない。
+      // ランナーはこの行だけを見て合否を決める——日本語の本文を正規表現で
+      // 拾う形にすると、文言を直した日に判定が壊れる（落とし穴5の型）
+      if (process.env.ACAC_JSON) {
+        console.log('##ACAC## ' + JSON.stringify({
+          title: title,
+          pass: results.length - failed.length,
+          total: results.length,
+          ms: 合計,
+          peakKb: ピークKB,
+          launches: 起動.回, launchMs: 起動.ms,
+          slow: results.slice().sort((a, b) => b.ms - a.ms).slice(0, 5)
+            .map((r) => ({ name: r.name, ms: r.ms })),
+          failed: failed.map((r) => ({ name: r.name, err: r.err }))
+        }));
+      }
       if (failed.length) {
         console.log('\n' + title + ' は ' + failed.length + ' 件失敗しました。');
         process.exit(1);

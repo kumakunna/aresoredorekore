@@ -3087,9 +3087,32 @@ async function startModeWithTimerOff(win, doc, id) {
       'input\\[type="range"\\]', '.picker-grid .pk-btn',
       '.floating-gear', '.floating-back'
     ];
+    // **テーマの届き方は2つある**（第43弾）。
+    //   ① テーマ側で名指しして上書きする（これまでの形）
+    //   ② 部品が色をトークンだけで書き、テーマがそのトークンを差し替える
+    // 危ないのは「**部品の中に色を直に書く**」形だけ——この検査の見出しどおり、
+    // そこを見る。①だけを要求すると、②で正しく作った部品まで赤くなる
+    //（つまみを共通の見た目にした時に実際そうなった）
+    const 規則 = H.cssRules(html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, ''));
     mustCover.forEach((sel) => {
       const re = new RegExp('\\.app\\.theme-bomb[^{]*' + sel);
-      assert(re.test(html), sel + ' に爆弾解除テーマの指定がある');
+      if (re.test(html)) return;
+      const 素 = sel.replace(/\\/g, '');
+      const 該当 = 規則.filter((r) => r.sel.split(',').some((one) => {
+        const t = one.trim();
+        return t === 素 || t.endsWith(' ' + 素) || t.startsWith(素 + ':') || t.startsWith(素 + '::');
+      }));
+      assert(該当.length > 0, sel + ' の規則が見あたらない（テーマ側にも素にも無い）');
+      const 直書き = [];
+      該当.forEach((r) => {
+        (r.body.match(/(?:^|;)\s*(?:background|background-color|color|border-color)\s*:\s*[^;]+/g) || [])
+          .map((d) => d.replace(/^[;\s]+/, ''))
+          .filter((d) => !/var\(--/.test(d) && !/transparent|inherit|currentColor|none/i.test(d))
+          .forEach((d) => 直書き.push(d));
+      });
+      assertEqual(直書き.join(' / '), '',
+        sel + ' が色を直に書いている（テーマが届かない）');
     });
     // ウィザードの画面がテーマ対象外になっていないこと
     assert(!/THEME_FREE_SCREENS\s*=\s*\[[^\]]*scr-set-/.test(html),

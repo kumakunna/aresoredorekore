@@ -214,5 +214,149 @@
     "from": "  if (e.solved[targetId]) return { ok: false, error: 'already_solved' };",
     "to": "  if (e.solved[targetId] || e.choices[targetId]) return { ok: false, error: 'already_solved' };",
     "expect": "外したコードを、もう一度開けられる"
+  },
+  {
+    "name": "45-4a 既定でONにする（外した人の名前が毎回みんなの画面に出る）",
+    "file": "public/js/bomb-logic.js",
+    "suite": "tests/fixes45.js",
+    "from": "      showMisses: c.showMisses === true",
+    "to": "      showMisses: c.showMisses !== false",
+    "expect": "既定では、外した人の名前が誰にも配られない"
+  },
+  {
+    "name": "45-4b 選んだ答えまで配る（次に挑む人の3択が2択になる）",
+    "file": "bomb-room.js",
+    "suite": "tests/fixes45.js",
+    "from": "        by: x.by,\n        name: w.names[x.by] || '',",
+    "to": "        by: x.by,\n        answer: x.answer,\n        name: w.names[x.by] || '',",
+    "expect": "外した人が選んだ答えは、誰にも配られない"
+  },
+  {
+    "name": "45-4c 競争版にも出す（盤面が人それぞれなのに番号を出す）",
+    "file": "bomb-room.js",
+    "suite": "tests/fixes45.js",
+    "from": "    view.missLog = w.showMisses",
+    "to": "    view.missLog = true",
+    "expect": "競争版では、外した人の記録を配らない"
+  },
+  {
+    "name": "45-4d 設定を手渡しにも出す（誰が押したか分からないのに）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(m.bomb && !m.bombRace && 部屋){",
+    "to": "    if(m.bomb && !m.bombRace){",
+    "expect": "手渡し（部屋にいない）では出ない"
+  },
+  {
+    "name": "45-4e 設定を競争版にも出す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(m.bomb && !m.bombRace && 部屋){",
+    "to": "    if(m.bomb && 部屋){",
+    "expect": "競争版では出ない"
+  },
+  {
+    "name": "45-5a 名簿にいるかではなく、進行役かで決める（第41弾 D8 の形に戻す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(!st.ある) return;\n    var T = (typeof UiText !== 'undefined') ? UiText.ENTRY.部屋あり : null;",
+    "to": "    if(!st.ある || !st.進行役) return;\n    var T = (typeof UiText !== 'undefined') ? UiText.ENTRY.部屋あり : null;",
+    "expect": "帰り道が出る"
+  },
+  {
+    "name": "45-5b 参加者にも「部屋を閉じる」を出す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    el('roomOpenCloseBtn').style.display = roomOpenIsHost ? '' : 'none';",
+    "to": "    el('roomOpenCloseBtn').style.display = '';",
+    "expect": "参加者に「部屋を閉じる」は出さない"
+  },
+  {
+    "name": "45-5c 端末の記憶だけで帰り道を出す（消えた部屋へ飛ばす）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    var st = await roomMembership();\n    if(!st.ある) return;",
+    "to": "    var st = { ある:true, 進行役:false };\n    if(!st.ある) return;",
+    "expect": "kick された端末に帰り道を出さない"
+  },
+  {
+    "name": "45-5d 押した時に確かめ直さない（出したあとに kick された人が行き止まりになる）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    var st = await roomMembership();\n    this.disabled = false;\n    if(!st.ある){",
+    "to": "    var st = { ある:true };\n    this.disabled = false;\n    if(!st.ある){",
+    "expect": "入口に残る（行き止まりにしない）"
+  },
+  {
+    "name": "45-6a 競争版で、他人の答えまで配る",
+    "file": "bomb-room.js",
+    "suite": "tests/fixes45.js",
+    "from": "      tries: (coop ? w.log : w.log.filter((t) => t.by === memberId))",
+    "to": "      tries: w.log",
+    "expect": "並ぶのは自分の1回だけ"
+  },
+  {
+    "name": "45-6b 協力版で、誰が答えたかを落とす",
+    "file": "bomb-room.js",
+    "suite": "tests/fixes45.js",
+    "from": "          name: coop ? (w.names[t.by] || '') : null,",
+    "to": "          name: null,",
+    "expect": "だれが答えたかが出る"
+  },
+  {
+    "name": "45-6c 答え合わせを、点数の順に並べ替える",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    var list = (codes || []).map(function(c, i){",
+    "to": "    var list = (codes || []).slice().sort(function(a,b){ return (b.tries||[]).length - (a.tries||[]).length; }).map(function(c, i){",
+    "expect": "コードの順のまま並ぶ"
+  },
+  {
+    "name": "45-6d 合っていたかを、形ではなく色だけで出す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "        return '<span class=\"bv-try\">' + (t.correct ? '✓' : '✕') + ' ' +",
+    "to": "        return '<span class=\"bv-try\" style=\"color:' + (t.correct ? 'green' : 'red') + '\">' + ' ' +",
+    "expect": "✓ / ✕ の形で出す"
+  },
+  {
+    "name": "45-6e 記録が1つも無くても「だれも答えなかった」と言う",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    var 記録がある = (codes || []).some(function(c){ return (c.tries || []).length > 0; });",
+    "to": "    var 記録がある = true;",
+    "expect": "記録が1つも届いていない時は、「だれも答えなかった」と言わない"
+  },
+  {
+    "name": "45-6f 手渡しなのに、名前の欄を空で出す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "          (t.name ? escapeHtml(t.name) + '：' : '') + escapeHtml(t.answer) +",
+    "to": "          escapeHtml(t.name || '') + '：' + escapeHtml(t.answer) +",
+    "expect": "名前のところが空欄で残らない"
+  },
+  {
+    "name": "45-7a 背の低い画面で、押す的まで縮める",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    .shelf-hint{padding-top:2px;line-height:1.45;}",
+    "to": "    .shelf-hint{padding-top:2px;line-height:1.45;}\n    .shelf-bar-btns .btn{min-height:32px;}",
+    "expect": "押す的を44pxより小さくしていない"
+  },
+  {
+    "name": "45-7b 背の低い画面で、文字も小さくする",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    .shelf-hint{padding-top:2px;line-height:1.45;}",
+    "to": "    .shelf-hint{padding-top:2px;line-height:1.45;font-size:9px;}",
+    "expect": "文字の大きさは変えない"
+  },
+  {
+    "name": "45-7c 境目を 812 にする（812でも詰まってしまう）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "  @media (max-height: 720px){",
+    "to": "  @media (max-height: 900px){",
+    "expect": "境目は 667 を含み 812 を含まない"
   }
 ]

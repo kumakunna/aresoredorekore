@@ -397,12 +397,33 @@
      両方向で照合するので、新しい時計に付け忘れると赤くなる（落とし穴20）。
      出す側（各ゲーム）に表示の条件を書かせない。書かせると新しいゲームで必ず漏れる（落とし穴1） */
   .app[data-timer-view="hidden"] [data-timer]{display:none !important;}
-  .app[data-timer-view="peek"] [data-timer]{cursor:pointer;}
-  .app[data-timer-view="peek"] [data-timer]:not(.peek-on){color:transparent;position:relative;}
-  .app[data-timer-view="peek"] [data-timer]:not(.peek-on)::after{
-    content:'--:--';position:absolute;inset:0;
+  /* 仮面の言葉（6文字 × 0.6em ＝ 3.6em）が、時計の幅に必ず収まるようにする。
+     時計の幅は「00:00」の実測で決まるので、
+     いちばん小さい時計（`.bomb-topbar` の15px）では**余りが6pxしかなかった**——
+     書体が差し替わった日に静かにはみ出す。`min-width` で先に場所を取っておく。
+     **仮面が外れている時にも掛ける**（数字が出た瞬間に幅が跳ねない） */
+  .app[data-timer-view="peek"] [data-timer]{cursor:pointer;min-width:4.2em;text-align:center;}
+  /* 第45弾 45-1：仮面の中身を「--:--」から**押せると分かる言葉**に変えた。
+     テストプレイで、ホストも参加者も最後まで `--:--` のままだった——
+     押せば出ることが、どこにも書いていなかった（落とし穴20：
+     代替があっても、その場で知れなければ無いのと同じ）。
+     縁を破線にするのも同じ理由（押せる場所だと形でも分かる・色に頼らない）。
+
+     **`.warn` / `.done` は仮面から外す。**残り10秒からは、押さなくても数字が出る。
+     これは第45弾で意図した動きにしたもので、それまでは事故だった——
+     `.app.theme-bomb .timer-chip.warn`（下の方にある）と
+     ここの `:not(.peek-on)` は詳細度がどちらも 0,4,0 で並び、
+     **後ろにある爆弾テーマだけが勝って、仮面の上に赤い数字が透けていた**
+     （落とし穴23：CSSの衝突はどこからもエラーにならない）。
+     `:not(.warn):not(.done)` を書くと 0,6,0 になり、
+     どのテーマでも同じように「残りわずかは出す」になる */
+  .app[data-timer-view="peek"] [data-timer]:not(.peek-on):not(.warn):not(.done){
+    color:transparent;position:relative;border-style:dashed;
+  }
+  .app[data-timer-view="peek"] [data-timer]:not(.peek-on):not(.warn):not(.done)::after{
+    content:'タップで見る';position:absolute;inset:0;
     display:flex;align-items:center;justify-content:center;
-    color:var(--ink-soft);letter-spacing:.04em;
+    color:var(--ink-soft);letter-spacing:0;white-space:nowrap;font-size:.6em;
   }
   /* 第32弾-C-2：説明中はタイマーが画面の主役。
      いままで右上の小さな数字だったので、残り時間が視界に入らなかった。
@@ -8370,8 +8391,22 @@
     reactions: true,   // 第32弾-E 第4部：リアクション（送る・見える）
     // 第36弾 36-2：残り時間の見せ方。全カセット共通で、ここ1か所だけが持つ。
     // 'always'＝常に表示 / 'peek'＝見たい時だけ（時計を押すと5秒） / 'hidden'＝表示しない
+    // **制限時間のあるゲームで、既定が「隠す」は成立しない**（第45弾 45-1）
     timerView: 'always'
   };
+  /**
+   * 第45弾 45-1：**その値を、人が自分で選んだのか。**
+   *
+   * ここまでの保存の形式には「既定か、本人が選んだか」の区別が無かった。
+   * 区別が無いと、あとから既定を直したくなった時に
+   * 「選んだ人を尊重する」と「選んでいない人を移す」を分けられない——
+   * 実際に第45弾で分けられなくて困った。以後は、選んだ瞬間に印を付ける。
+   *
+   * **appPrefs には混ぜない。**混ぜると門F5（設定と窓口の両方向照合）が
+   * 「窓口の無い設定」として赤くなる——実際に赤くしてから分けた。
+   * 印は設定ではない。保存先だけ同じ（`_chosen`）で、器を分ける
+   */
+  var prefsChosen = { timerView: false };
   function loadAppPrefs(){
     try{
       var raw = localStorage.getItem(APP_PREFS_KEY);
@@ -8380,11 +8415,41 @@
       Object.keys(appPrefs).forEach(function(k){
         if(typeof p[k] === typeof appPrefs[k]) appPrefs[k] = p[k];
       });
+      var 印 = p._chosen || {};
+      Object.keys(prefsChosen).forEach(function(k){
+        if(typeof 印[k] === 'boolean') prefsChosen[k] = 印[k];
+      });
+      migrateTimerView(p);
     }catch(e){}
   }
+  /**
+   * 第45弾 45-1：**選んだ覚えのない「見たい時」を、1度だけ「常に表示」へもどす。**
+   *
+   * テストプレイで、ホストも参加者も最後まで `--:--` のままだった。
+   * 誰も選んだ覚えがなく、既定も（調べたところ導入時からずっと）「常に表示」。
+   * どうしてそうなったかは端末が残っていないので分からないが、
+   * **分からないまま「制限時間が見えない」を放置する方が悪い。**
+   *
+   * 尊重と両立させるために、こうした：
+   *   ・印（prefsChosen.timerView）が付いている端末＝自分で選んだ人 … そのまま
+   *   ・印が無くて `peek` の端末＝印より前に付いた値 … 「常に表示」へもどして、**一言言う**
+   *   ・印が無くて `always` / `hidden` … 何もしない（隠す方を自分で選ぶ人はいる）
+   * 移したことを黙っていると、本当に選んでいた人が理由を知れない。
+   * 1度きりなので、もう一度「見たい時」を選べばそれが尊重される
+   */
+  function migrateTimerView(保存された){
+    if(prefsChosen.timerView) return;             // もう印が付いている
+    prefsChosen.timerView = true;                 // ここから先は選択として扱う
+    if(保存された.timerView !== 'peek') { saveAppPrefs(); return; }
+    appPrefs.timerView = 'always';
+    saveAppPrefs();
+    timerViewMoved = true;                        // 起動の演出が済んでから言う
+  }
+  var timerViewMoved = false;
   function saveAppPrefs(){
     try{
-      localStorage.setItem(APP_PREFS_KEY, JSON.stringify(appPrefs));
+      localStorage.setItem(APP_PREFS_KEY,
+        JSON.stringify(Object.assign({}, appPrefs, { _chosen: prefsChosen })));
       prefsSaveWarned = false;
     }catch(e){
       // 第43弾 2-8：**黙って捨てない。**
@@ -8468,6 +8533,7 @@
     var b = e.target && e.target.closest && e.target.closest('[data-timerview]');
     if(!b) return;
     appPrefs.timerView = b.dataset.timerview;
+    prefsChosen.timerView = true;      // 第45弾 45-1：ここだけが「本人が選んだ」の入口
     applyAppPrefs(); saveAppPrefs(); syncTimerViewSegs();
   });
   /**
@@ -8480,6 +8546,56 @@
     if(typeof FxKit === 'undefined') return;
     if(sec != null && sec >= 1 && sec <= 3 && sec !== cdVibePrev) FxKit.vibe(sec === 1 ? 'ok' : 'tick');
     cdVibePrev = sec;
+  }
+  /**
+   * 第45弾 45-1：**時計の1目盛りは、ここ1本を通る。**
+   *
+   * 「残りわずかの印」を付ける処理は、直前まで**8か所に手書きで散っていた**
+   * （`classList.toggle('warn', sec <= 10 && sec > 0)` の写し）。
+   * 写しが散っていると、新しいゲームで付け忘れるし、
+   * 「見たい時」の仮面が外れる瞬間に何かを足したくても、8か所に書くことになる
+   *（落とし穴1・落とし穴4）。
+   *
+   * 出す側が渡すのは「あと何秒か」だけ。危険域の境目だけは
+   * ゲームごとに違う（早押しは3秒・人狼の夜は5秒）ので `warnAt` で受ける。
+   *
+   * @param chip  時計の要素（`data-timer` が付いているもの）
+   * @param sec   残り秒。null なら印を全部落とす
+   * @param opts  { warnAt:境目の秒（既定10） / hurry:脈打たせるか / vibe:振動させるか }
+   */
+  function timerChipTick(chip, sec, opts){
+    if(!chip) return;
+    var o = opts || {};
+    var 境目 = (o.warnAt == null) ? 10 : o.warnAt;
+    var のこりわずか = (sec != null && sec > 0 && sec <= 境目);
+    // 0ちょうどだけを見ると、行き過ぎた時計（負の値）が印を失う。
+    // 人狼の夜は「0以下なら done」と書いてあったので、その意味をそのまま持ってくる
+    var おわり = (sec != null && sec <= 0);
+    chip.classList.toggle('warn', のこりわずか);
+    chip.classList.toggle('done', おわり);
+    // **出す側と隠す側を別々に書かない**（正本「両方向出し分けの共通関数」）。
+    // `if(o.hurry)` で囲うと、頼まなかった回に前の脈打ちが残る
+    chip.classList.toggle('hurry', !!o.hurry && のこりわずか);
+    if(o.vibe) countdownVibe(sec);
+    noticeTimerUnmasked(chip, のこりわずか || おわり);
+  }
+  /**
+   * 第45弾 45-1：「見たい時」の仮面が自分から外れた時に、**なぜ今出たかを言う。**
+   *
+   * 黙って数字が出ると、遊ぶ人には「押してもいないのに出た」としか見えない
+   *（テストプレイでは「残り数秒で突然赤い 00:06 が出た」と報告された）。
+   * 出るのは1回だけ——毎目盛り出すとうるさいので、その時計が
+   * 仮面にもどるまで黙る。時計ごとに覚えるので、画面を移っても混ざらない
+   */
+  function noticeTimerUnmasked(chip, 出ている){
+    if(appPrefs.timerView !== 'peek' || chip.classList.contains('peek-on')){
+      delete chip.dataset.unmasked;
+      return;
+    }
+    if(!出ている){ delete chip.dataset.unmasked; return; }
+    if(chip.dataset.unmasked === '1') return;
+    chip.dataset.unmasked = '1';
+    try{ FxKit.notice(UiText.TIMER.仮面を外した); }catch(e){}
   }
   /**
    * 第36弾 36-3：1台で遊ぶゲームを終える時、走っているものを全部捨てる。
@@ -8549,8 +8665,23 @@
   window.prefsProbe = function(){
     // keys は門F5の照合に使う。**検査が15個を手で持たない**ため（落とし穴4）
     return { se: volSe(), speech: volSpeech(), bgm: volBgm(), muted: tempMute,
-      keys: Object.keys(appPrefs) };
+      keys: Object.keys(appPrefs), timerView: appPrefs.timerView, chosen: prefsChosen };
   };
+  /**
+   * 第45弾 45-1：時計の1目盛りを、外から1回だけ回す。
+   * どの時計も同じ関数（timerChipTick）を通るようになったので、
+   * **1つ回せば全部の時計の約束を確かめたことになる。**
+   * 検査に「あと何秒で赤くなるか」を持たせないため、印は返り値で答える
+   */
+  window.timerProbe = function(id, sec, opts){
+    var chip = el(id);
+    if(!chip) return null;
+    timerChipTick(chip, sec, opts);
+    return { cls: chip.className, unmasked: chip.dataset.unmasked || null,
+      timerView: appPrefs.timerView };
+  };
+  /** 第45弾 45-1：ウィザードが覚えている制限時間（秒）。ホイールの取り違えを見張る */
+  window.customTimerProbe = function(){ return state.customTimer; };
   var sfxOuts = [];
   function refreshSfxGain(){
     var v = Math.max(0, Math.min(1, volSe() / 100));
@@ -9181,6 +9312,12 @@
     app.classList.toggle('phase-day', tone === 'day');
   }
   function goTo(id){
+    // 第45弾 45-1：起動時に「見たい時」をもどしたことを、最初の画面移りで1度だけ言う。
+    // 起動の瞬間に出すと、まだ扉の演出の裏なので誰も読めない
+    if(timerViewMoved && id !== 'scr-door'){
+      timerViewMoved = false;
+      try{ FxKit.notice(UiText.TIMER.もどした); }catch(e){}
+    }
     // #1（第5弾）：プレイ画面から完全に抜ける瞬間に、読み上げ・音声認識を必ず止める
     var prevScreen = document.querySelector('.screen.active');
     if(prevScreen && prevScreen.id === 'scr-play' && id !== 'scr-play'){
@@ -10340,6 +10477,20 @@
     setTimeout(function(){ buildWheel._busy = false; }, 60);
   }
   function updateTimerFromWheels(){
+    // 第45弾 45-1：**見えていないピッカーに、設定を書かせない。**
+    //
+    // 分・秒の列は `overflow-y` のスクロールで値を決めている。
+    // ブラウザは要素が `display:none` になった瞬間に scrollTop を 0 にするので、
+    // 画面を離れたあと `scroll` イベントが1回鳴り、
+    // **誰も触っていないのに「0分0秒」として読み直されていた。**
+    // 秒の列は 0分の時だけ最小値が1秒（0:00 にはできない）なので、
+    // 落ち着く先は必ず **0:01**——`state.customTimer = 1` が残る。
+    // しかも `state.customTimer || 180` の形で使われているため、
+    // 1 は「未設定」に落ちずにそのままサーバーへ渡る。
+    // その結果、**再戦（「もう一度」）は開始した瞬間に時間切れ**になっていた
+    // （実サーバーで `00:01` → 即爆発を2回観測）。
+    var 見えている = document.querySelector('.screen.active');
+    if(!見えている || 見えている.id !== 'scr-set-timer') return;
     // 判断3：時の列は廃止。分・秒のみ（最大59:59）
     syncSecWheelRange();
     var m = getWheelValue(el('wheelM')), s = getWheelValue(el('wheelS'));
@@ -12816,8 +12967,7 @@
     if(sec == null){ chip.style.display = 'none'; return; }
     chip.style.display = 'inline-block';
     chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
-    chip.classList.toggle('warn', sec <= 10 && sec > 0);
-    countdownVibe(sec);
+    timerChipTick(chip, sec, { vibe:true });
   }
   function qzStartTicking(){
     if(qzClock.timer) return;
@@ -13428,9 +13578,7 @@
     if(s == null){ d.style.display = 'none'; return; }
     d.style.display = 'inline-block';
     d.textContent = pad(Math.floor(s / 60)) + ':' + pad(s % 60);
-    d.classList.toggle('warn', s <= 10 && s > 0);
-    d.classList.toggle('done', s === 0);
-    countdownVibe(s);
+    timerChipTick(d, s, { vibe:true });
   }
   function auStartClock(){
     if(auClock.timer) return;
@@ -14440,9 +14588,7 @@
     if(sec == null){ chip.style.display = 'none'; return; }
     chip.style.display = 'inline-block';
     chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
-    chip.classList.toggle('warn', sec <= 10 && sec > 0);
-    chip.classList.toggle('done', sec === 0);
-    countdownVibe(sec);
+    timerChipTick(chip, sec, { vibe:true });
   }
   function rtBombStartTicking(){
     if(rtBombClock.timer) return;
@@ -14782,7 +14928,7 @@
     if(sec == null){ chip.style.display = 'none'; return; }
     chip.style.display = 'inline-block';
     chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
-    chip.classList.toggle('warn', sec <= 10 && sec > 0);
+    timerChipTick(chip, sec);
   }
   // 画面から離れる時に必ず呼ぶ。センサー・カメラ・時計・心拍を残さない
   function dfLeaveScreen(){
@@ -18504,9 +18650,7 @@
     var d = el('wrNightTimer');
     var m = Math.floor(wr.nightRemaining / 60), s = wr.nightRemaining % 60;
     d.textContent = pad(m) + ':' + pad(s);
-    d.classList.remove('warn', 'done');
-    if(wr.nightRemaining <= 0) d.classList.add('done');
-    else if(wr.nightRemaining <= 5) d.classList.add('warn');
+    timerChipTick(d, wr.nightRemaining, { warnAt:5 });
   }
   function startWrNightTimer(){
     stopWrNightTimer();
@@ -19064,8 +19208,7 @@
     var r = Math.max(0, play.bombRemaining || 0);
     var d = el('bombTimer');
     d.textContent = pad(Math.floor(r / 60)) + ':' + pad(r % 60);
-    d.classList.toggle('warn', r <= 10 && r > 0);
-    d.classList.toggle('done', r === 0);
+    timerChipTick(d, r);
   }
   function bombTick(){
     play.bombRemaining--;
@@ -19489,7 +19632,7 @@
   function renderTourneyTimer(){
     var t = el('tourneyTimer');
     t.textContent = '00:' + pad(play.tourneyRemaining);
-    t.classList.toggle('warn', play.tourneyRemaining <= 3);
+    timerChipTick(t, play.tourneyRemaining, { warnAt:3 });
   }
   function tourneyScorePoint(who){
     if(play.tourneyBusy) return;
@@ -20043,9 +20186,7 @@
     var d = el('playTimer');
     var m = Math.floor(play.remaining/60), s = play.remaining%60;
     d.textContent = pad(m)+':'+pad(s);
-    d.classList.remove('warn','done','hurry');
-    if(play.remaining === 0) d.classList.add('done');
-    else if(play.remaining <= 10) d.classList.add('warn','hurry');
+    timerChipTick(d, play.remaining, { hurry:true });
   }
   /**
    * 第32弾-C-2：残り10秒の秒読み。

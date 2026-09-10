@@ -141,7 +141,7 @@
     "suite": "tests/fixes45.js",
     "from": "    var 褒める = !!(opt && opt.praise);\n    if (!褒める && !舞台.走っている) return 走らせる(fn);",
     "to": "    var 褒める = !!(opt && opt.praise);\n    if (!舞台.走っている) return 走らせる(fn);",
-    "expect": "帯が出ている間、褒める側はまだ動いていない"
+    "expect": "褒める側は、頼んだその場では動かない"
   },
   {
     "name": "45-2b 舞台を通さず、いきなり出す",
@@ -149,7 +149,7 @@
     "suite": "tests/fixes45.js",
     "from": "  function banner(opt) {\n    return stage(function () { return bannerNow(opt); }, opt);\n  }",
     "to": "  function banner(opt) {\n    return bannerNow(opt);\n  }",
-    "expect": "帯が出ている間、褒める側はまだ動いていない"
+    "expect": "結果が先、褒めるが後"
   },
   {
     "name": "45-2c 空いていても一拍おく（演出が遅れて見える）",

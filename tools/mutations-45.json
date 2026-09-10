@@ -1,0 +1,138 @@
+[
+  {
+    "name": "45-1a 既定を『見たい時』に戻す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    timerView: 'always'\n  };",
+    "to": "    timerView: 'peek'\n  };",
+    "expect": "まっさらな端末は「常に表示」で始まる"
+  },
+  {
+    "name": "45-1b 仮面の言葉を、押せない `--:--` に戻す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    content:'タップで見る';position:absolute;inset:0;",
+    "to": "    content:'--:--';position:absolute;inset:0;",
+    "expect": "仮面は「タップで見る」と言う"
+  },
+  {
+    "name": "45-1c 破線の縁をやめる（押せることが形で分からなくなる）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    color:transparent;position:relative;border-style:dashed;",
+    "to": "    color:transparent;position:relative;",
+    "expect": "縁が破線で、押せる場所だと形でも分かる"
+  },
+  {
+    "name": "45-1d 仮面から .warn / .done を外すのをやめる（第45弾の事故そのもの）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "  .app[data-timer-view=\"peek\"] [data-timer]:not(.peek-on):not(.warn):not(.done){\n    color:transparent;position:relative;border-style:dashed;\n  }\n  .app[data-timer-view=\"peek\"] [data-timer]:not(.peek-on):not(.warn):not(.done)::after{",
+    "to": "  .app[data-timer-view=\"peek\"] [data-timer]:not(.peek-on){\n    color:transparent;position:relative;border-style:dashed;\n  }\n  .app[data-timer-view=\"peek\"] [data-timer]:not(.peek-on)::after{",
+    "expect": "仮面は .warn / .done を外している"
+  },
+  {
+    "name": "45-1e 仮面の言葉が入る幅を取らない",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "  .app[data-timer-view=\"peek\"] [data-timer]{cursor:pointer;min-width:4.2em;text-align:center;}",
+    "to": "  .app[data-timer-view=\"peek\"] [data-timer]{cursor:pointer;text-align:center;}",
+    "expect": "仮面の言葉が必ず収まる幅を取ってある"
+  },
+  {
+    "name": "45-1f 境目を10秒に決め打ちする（ゲームごとの違いを潰す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    var 境目 = (o.warnAt == null) ? 10 : o.warnAt;",
+    "to": "    var 境目 = 10;",
+    "expect": "境目を3秒にすると、4秒はまだふつう"
+  },
+  {
+    "name": "45-1g 行き過ぎた時計（負の値）で印が消える",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    var おわり = (sec != null && sec <= 0);",
+    "to": "    var おわり = (sec === 0);",
+    "expect": "行き過ぎた時計（負の値）も「おわり」のまま"
+  },
+  {
+    "name": "45-1h 脈打ちを、頼まなかった回にも残す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    chip.classList.toggle('hurry', !!o.hurry && のこりわずか);",
+    "to": "    if(o.hurry) chip.classList.toggle('hurry', のこりわずか);",
+    "expect": "頼まなければ脈打たない"
+  },
+  {
+    "name": "45-1i 仮面が外れた理由を言わない",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    noticeTimerUnmasked(chip, のこりわずか || おわり);",
+    "to": "    if(false) noticeTimerUnmasked(chip, のこりわずか || おわり);",
+    "expect": "仮面が外れた瞬間に、1つだけ言う"
+  },
+  {
+    "name": "45-1j 毎目盛り言う（うるさくする）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(chip.dataset.unmasked === '1') return;",
+    "to": "    if(false) return;",
+    "expect": "毎目盛り言わない"
+  },
+  {
+    "name": "45-1k 「常に表示」の人にも、仮面の話をする",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(appPrefs.timerView !== 'peek' || chip.classList.contains('peek-on')){",
+    "to": "    if(false){",
+    "expect": "「常に表示」の人には言わない"
+  },
+  {
+    "name": "45-1l 印より前の peek を、そのまま残す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(保存された.timerView !== 'peek') { saveAppPrefs(); return; }\n    appPrefs.timerView = 'always';",
+    "to": "    if(保存された.timerView !== 'peek') { saveAppPrefs(); return; }\n    saveAppPrefs(); return;",
+    "expect": "印の無い peek は「常に表示」へもどる"
+  },
+  {
+    "name": "45-1m 自分で選んだ人の peek まで動かす",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(prefsChosen.timerView) return;             // もう印が付いている",
+    "to": "    if(false) return;                             // もう印が付いている",
+    "expect": "自分で「見たい時」を選んだ端末は、そのまま"
+  },
+  {
+    "name": "45-1n 「表示しない」まで動かす",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(保存された.timerView !== 'peek') { saveAppPrefs(); return; }",
+    "to": "    if(保存された.timerView === 'always') { saveAppPrefs(); return; }",
+    "expect": "「表示しない」は、印が無くても動かさない"
+  },
+  {
+    "name": "45-1o もどしたことを黙る",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    timerViewMoved = true;                        // 起動の演出が済んでから言う",
+    "to": "    timerViewMoved = false;                       // 起動の演出が済んでから言う",
+    "expect": "もどしたことを知らせる一言"
+  },
+  {
+    "name": "45-1p 見えていないホイールにも書かせる（再戦が 0:01 になる形）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(!見えている || 見えている.id !== 'scr-set-timer') return;",
+    "to": "    if(false) return;",
+    "expect": "見えていない所からのスクロールでは、制限時間が変わらない"
+  },
+  {
+    "name": "45-1q 窓口の片方だけ追いかける（設定とウィザードが食い違う）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    document.querySelectorAll('[data-timerview]').forEach(function(b){",
+    "to": "    document.querySelectorAll('#settingsOverlay [data-timerview]').forEach(function(b){",
+    "expect": "を押すと2か所とも光る"
+  }
+]

@@ -8857,6 +8857,15 @@
   };
   /** 第45弾 45-6：手渡しの答え合わせが、部屋と同じ形に組めているか */
   window.bombHandoffReviewProbe = function(){ return bombHandoffReviewCodes(); };
+  /**
+   * 第45弾 45-4：**サーバーが何を配ってきたか**を、そのまま外へ。
+   * 「設定を入れたのに何も出ない」時に、
+   * 端末で握り潰しているのか・そもそも届いていないのかを分けるために要る
+   */
+  window.bombMissProbe = function(){
+    var v = rtView();
+    return { missLog: (v && v.missLog) || null, seen: rtBombMissSeen, me: rt && rt.state.memberId };
+  };
   window.modeProbe = function(id){
     var m = modeById(id);
     if(!m || m.id !== id) return null;

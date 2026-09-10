@@ -13,7 +13,8 @@ const fs = require('fs');
 const path = require('path');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
-  launch, activeScreen, sleep, waitFor, el, click } = require('./harness');
+  launch, activeScreen, sleep, waitFor, waitScreen, el, click,
+  fillPlayerForm, pickGame } = require('./harness');
 
 const INDEX_HTML = fs.readFileSync(
   path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
@@ -678,6 +679,82 @@ const RULES = rulesOf(CSS);
     assert(セレクタ.length >= 6, '実際に何行か削っている（いま ' + セレクタ.length + '行）'); // 型(b)
     const 棚の外 = セレクタ.filter((x) => !/shelf|rail-dots|sw-facts|sw-desc|sw-btns/.test(x));
     assertEqual(棚の外.join(' / '), '', '棚の外の画面を巻き込んでいない');
+  });
+
+  await r.test('45-6：手渡しでも、最後まで遊んで答え合わせが見られる', async () => {
+    // **部屋だけ直して手渡しを忘れる**のが、このプロジェクトでいちばん多い事故（落とし穴1）。
+    // 通しで遊んで、実際に開くところまで見る
+    const { win, doc, errors } = await launch();
+    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+    cart.click();
+    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await waitScreen(win, doc, 'scr-game', 3000);
+    pickGame(doc, 'bomb');
+    await sleep(win, 60);
+    await fillPlayerForm(win, doc, ['あき', 'びび']);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, 'modeNextBtn');
+    await waitScreen(win, doc, 'scr-set-bomb', 3000);
+    for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
+      for (let i = 0; i < 30; i++) {
+        if (el(doc, 'bombCount-' + tier).textContent === '0') break;
+        doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();
+      }
+    }
+    doc.querySelector('#bombTierRows .bomb-plus[data-tier="easy"]').click();
+    await sleep(win, 40);
+    assertEqual(el(doc, 'bombCount-easy').textContent, '1', 'かんたんを1本にした');   // 型(b)
+    for (let i = 0; i < 8; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 30);
+    }
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-bomb-play', 12000);
+
+    // 1本を、まず外して、それから当てる（外した記録も残ることを見る）
+    const 開く = async () => {
+      const btn = doc.querySelector('#bombWireList .bomb-wire-btn:not(.solved)');
+      btn.click();
+      await waitFor(win, () => doc.querySelectorAll('#bombWireChoices .pk-btn').length === 3,
+        4000, '3択が出る');
+      const desc = el(doc, 'bombWireDescription').textContent;
+      const bank = win.QuizBank.QUESTIONS.easy.find((q) => q.q === desc);
+      assert(bank, '問題文が問題バンクから来ている');
+      return { 正解: bank.choices[bank.correct],
+        choices: Array.from(doc.querySelectorAll('#bombWireChoices .pk-btn')) };
+    };
+    const 一回目 = await 開く();
+    const はずれ = 一回目.choices.find((c) => c.textContent !== 一回目.正解);
+    はずれ.click();
+    await sleep(win, 400);
+    const 二回目 = await 開く();
+    二回目.choices.find((c) => c.textContent === 二回目.正解).click();
+    await waitScreen(win, doc, 'scr-bomb-end', 6000);
+
+    // 入口が出て、押すと開く
+    const btn = el(doc, 'bombReviewBtn');
+    assertEqual(btn.style.display, 'inline-flex', '手渡しの結果にも「答え合わせを見る」が出る');
+    click(doc, btn);
+    await waitFor(win, () => doc.querySelector('.ui-layer .bv-code'), 4000, '答え合わせが開く');
+    const codes = Array.from(doc.querySelectorAll('.ui-layer .bv-code'));
+    assertEqual(codes.length, 1, '遊んだコードの数だけ並ぶ');
+    const tries = Array.from(codes[0].querySelectorAll('.bv-try')).map((x) => x.textContent.trim());
+    assertEqual(tries.length, 2, '外した分も当てた分も残る');
+    assert(/^✕/.test(tries[0]) && /^✓/.test(tries[1]), '答えた順に、✕ のあと ✓');
+    assert(!/：/.test(tries[0]),
+      '1台を回す遊び方なので、誰が押したかは書かない（' + tries[0] + '）');
+    assertEqual(doc.querySelectorAll('.ui-layer .bv-marks').length, 0,
+      '名前が無いので、褒める印は出さない');
+    assert(/正解/.test(codes[0].querySelector('.bv-ans').textContent), '正解が出る');
+    assertNoErrors(errors);
+    win.close();
   });
 
   r.finish();

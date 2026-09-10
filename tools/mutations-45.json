@@ -358,5 +358,21 @@
     "from": "  @media (max-height: 720px){",
     "to": "  @media (max-height: 900px){",
     "expect": "境目は 667 を含み 812 を含まない"
+  },
+  {
+    "name": "45-6g 手渡しの結果に、答え合わせの入口を出さない",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    el('bombReviewBtn').style.display = review.length ? 'inline-flex' : 'none';",
+    "to": "    el('bombReviewBtn').style.display = 'none';",
+    "expect": "手渡しの結果にも「答え合わせを見る」が出る"
+  },
+  {
+    "name": "45-6h 手渡しで、当てた分しか記録しない",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    (play.bombLog = play.bombLog || []).push(\n      { uid: w.uid, name: null, answer: btn.dataset.choice, correct: correct });",
+    "to": "    if(correct) (play.bombLog = play.bombLog || []).push(\n      { uid: w.uid, name: null, answer: btn.dataset.choice, correct: correct });",
+    "expect": "外した分も当てた分も残る"
   }
 ]

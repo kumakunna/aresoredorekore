@@ -530,7 +530,7 @@
   /* 集計：票が集まりきってから出す結論 */
   .wr-verdict{margin-bottom:8px;}
 
-  /* ---------- 第32弾-C-3：人狼の「いつでも見えていてほしいもの」 ---------- */
+  /* ---------- 第32弾-C-3：人狼の「いつでも見えていてほしいもの」 ----------
      それまで議論の材料が画面に何も無く、誰が生きているか・誰がどう欠けたか・
      自分が何を知っていたかを、全部おぼえておく必要があった。
      控えめな見た目にして、主役（選ぶこと）の邪魔をしない。 */
@@ -1494,11 +1494,14 @@
   .cart-label .title{font-family:'Shippori Mincho',serif;font-weight:800;font-size:12px;line-height:1.25;}
   .cart.center .cart-label .icon{font-size:30px;}
   .cart.center .cart-label .title{font-size:13.5px;}
-  /* 中央のカセットにだけ出す情報（狭い画面で全部に出すと読めなくなるため） */
+  /* 中央のカセットにだけ出す情報（狭い画面で全部に出すと読めなくなるため）。
+     **場の上に載るので、色は世界から取る**（正本 1-6）。
+     --ink-soft のままだと人狼の地（#161A29）で 2.49:1 しか無く、
+     選んだカセットの「何人で・何分で遊べるか」——いちばん知りたい行が読めなかった */
   .cart-meta{
     height:0;opacity:0;overflow:hidden;
     transition:height .22s ease, opacity .18s ease;
-    font-size:9.5px;color:var(--ink-soft);margin-top:4px;line-height:1.5;
+    font-size:9.5px;color:var(--warp-soft);margin-top:4px;line-height:1.5;
   }
   .cart.center .cart-meta{height:26px;opacity:1;}
   /* 近日公開（無効に見えるが、壊れて見えないように） */
@@ -1515,17 +1518,32 @@
   }
   /* **点も世界の色から取る。**もとは黒22%と赤（--stamp）だったが、
      場が暗い世界に染まると黒い点は消え、赤も地に沈む。
-     currentColor は場から降りてくる --warp-ink なので、
-     6つの世界すべてで読める（design-tokens の対比検査がその表を見張っている） */
+     第43弾でここを `currentColor` に変え、CSSのコメントには
+     「場から降りてくる --warp-ink になる」と書いた。**なっていなかった。**
+     `.rail-dot` は `<button>` で、**フォーム部品の `color` は継承されない**——
+     ブラウザ既定の `buttontext`（黒）が勝つ。実測すると人狼の地の上で
+     `rgb(0,0,0)` の 1.21:1 で、点は一度も見えていなかった（落とし穴30）。
+     カスタムプロパティ（`--warp-ink`）は button も貫いて継承されるので、
+     **currentColor をやめて世界の色を名指しする。**
+     ここを直すと同時に、`color` を継承させて中に文字を置いた日にも効くようにする */
+  /* **○と●で分ける。薄さで分けない**（指示44 44-2・44-8）。
+     着手前は「どちらも塗りつぶした円で、選んでいない方は opacity .28」だった。
+     薄い点は**どの世界でも 3:1 に届かない**——濃くすれば全部が選択中に見えるので、
+     不透明度をいじって解決する問題ではなかった。
+     いま：選んでいない＝**輪郭だけの○**（--warp-soft）、
+           選んでいる＝**塗った●**（--warp-ink）。
+     どちらも不透明なので、design-tokens の対の表がそのまま効く。
+     形が違うので、**色が見えない人にも「いま何枚目か」が伝わる**（44-8） */
   .rail-dot{
-    position:relative;width:7px;height:7px;padding:0;border:none;border-radius:50%;
-    background:currentColor;opacity:.28;cursor:pointer;
+    position:relative;width:8px;height:8px;padding:0;border-radius:50%;
+    color:inherit;background:transparent;border:1.5px solid var(--warp-soft);
+    cursor:pointer;
     transition:transform calc(0.15s * var(--fx-scale)) ease,
-               opacity calc(0.15s * var(--fx-scale)) ease;
+               background-color calc(0.15s * var(--fx-scale)) ease;
   }
-  /* 見た目は7pxでも、指は44px四方で受ける（小さい点は押せない） */
+  /* 見た目は8pxでも、指は44px四方で受ける（小さい点は押せない） */
   .rail-dot::after{content:'';position:absolute;inset:-18px;}
-  .rail-dot.on{opacity:1;transform:scale(1.5);}
+  .rail-dot.on{background:var(--warp-ink);border-color:var(--warp-ink);transform:scale(1.35);}
   /* 2-2：前回あそんだカセットの札。小さく、邪魔をしない */
   .cart-last{
     position:absolute;left:50%;top:6px;transform:translateX(-50%);

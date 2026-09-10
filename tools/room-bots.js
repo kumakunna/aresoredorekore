@@ -17,8 +17,17 @@
 //   --n      入れる人数（既定 2）
 //   --ready  ゲームが決まったら「準備OK」を自動で押す
 //   --big    最後の1人を大画面にする
+//   --leave  終わる時に「部屋を出る」を送る（既定は切断だけ）。
+//            切断は名簿に残るので playerCount は減らない。**減る側を見たい時はこれ**
 //   --url    サーバー（既定 http://localhost:3001）
 //   --hold   何秒つないだままにするか（既定 600）
+//
+// **同じ名前で入り直すと、切れている同名の枠を引き継ぐ**（realtime.js の第24弾-3）。
+// bot を2回走らせると、2回目は1回目の枠に入るので人数が増えない。
+// 増やしたい時は名前がぶつからないように --n を大きくするか、
+// 先の bot を --leave で片付けてから走らせる。
+// 人数を確かめる時は、画面の数字だけでなく **room:peek の playerCount** と
+// 突き合わせる（落とし穴28：測る側が壊れていないかを1つ測る）。
 //
 // bot は「入って、名簿に載って、準備OKを押す」だけ。
 // **ゲームの中身は操作しない**——進行そのものを bot に任せると、
@@ -39,6 +48,7 @@ const CODE = opt('code', null);
 const N = parseInt(opt('n', 2), 10) || 2;
 const READY = !!opt('ready', false);
 const BIG = !!opt('big', false);
+const LEAVE = !!opt('leave', false);
 const HOLD = (parseInt(opt('hold', 600), 10) || 600) * 1000;
 const NAMES = ['びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん', 'はな', 'いと', 'うみ', 'えだ'];
 // 第42弾 門E6：名簿に出る「その人の姿」。**bot ごとに違う顔にする**——
@@ -108,6 +118,32 @@ function つなぐ(name, i) {
   });
 }
 
+/**
+ * 終わり方は2つあり、**サーバーでの扱いが違う**（指示44 G5 で要った）。
+ *
+ *   ・切断（既定）… socket を閉じるだけ。名簿には `connected:false` で残るので
+ *                    `playerCount` は減らない（電波が切れた人も席にはいる）
+ *   ・退室（--leave）… `room:leave` を送る。`members.delete` で名簿から消え、
+ *                    `playerCount` が減る
+ *
+ * 「人数が変わった時に画面が追随するか」を見るには**後者が要る**。
+ * 切断だけで試すと、減らないのが正しいのに「追随していない」と読んでしまう。
+ */
+function 終わる() {
+  if (!LEAVE) { bots.forEach((b) => b.sock.close()); process.exit(0); return; }
+  let 残り = bots.length;
+  if (!残り) process.exit(0);
+  bots.forEach((b) => {
+    b.sock.emit('room:leave', { code: 部屋コード, memberId: b.memberId }, () => {
+      console.log('[' + b.name + '] 部屋を出ました');
+      b.sock.close();
+      if (--残り === 0) process.exit(0);
+    });
+  });
+  // 返事が来ない時でも、いつかは終わる
+  setTimeout(() => process.exit(0), 3000);
+}
+
 (async function main() {
   console.log('つなぎ先: ' + URL + ' / 部屋: ' + 部屋コード + ' / 人数: ' + N);
   for (let i = 0; i < N; i++) {
@@ -116,5 +152,5 @@ function つなぐ(name, i) {
   }
   console.log('--- ' + bots.filter((b) => b.memberId).length + '人つながりました。'
     + (HOLD / 1000) + '秒つないだままにします（Ctrl+C で終了）---');
-  setTimeout(() => { bots.forEach((b) => b.sock.close()); process.exit(0); }, HOLD);
+  setTimeout(() => { 終わる(); }, HOLD);
 })();

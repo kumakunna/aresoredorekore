@@ -14,6 +14,20 @@ const path = require('path');
 const { createRunner, assert, assertEqual, cssRules } = require('./harness');
 
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+// **CSSだけを切り出す。**HTML全体を規則として読むと、JSの `{}` が
+// 「選択子」に化けて混ざる（落とし穴10-e の親戚）。
+// 混ざったまま querySelectorAll に渡すと投げるので、
+// 握り潰す実装なら静かに素通りし、握り潰さない実装なら中身の分からない赤になる
+const CSS_ONLY = (function () {
+  const m = /<style>([\s\S]*?)<\/style>/.exec(HTML);
+  if (!m) throw new Error('index.html の <style> が見つからない');
+  // **コメントは先に落とす。**`cssRules` は `{` `}` で切るので、
+  // 中括弧を含むコメントはコメントの途中で切られ、
+  // 「`*/` で始まる選択子」という直しようのない破片になる。
+  // 破片を選択子として扱うと querySelectorAll が投げ、
+  // 握り潰す実装なら静かに素通りする（落とし穴10-e）
+  return m[1].replace(/\/\*[\s\S]*?\*\//g, '');
+})();
 
 // ---------- 色の読み取り ----------
 function parseBlock(selector) {
@@ -72,6 +86,27 @@ function contrast(fg, bg) {
 
 // ---------- 6つの配色 ----------
 const ROOT = parseBlock(':root');
+
+/**
+ * 棚の染まる場（`.shelf-stage`）の色。`.app.theme-◯◯` とは**別の表**。
+ * 2つの検査（対の総当たりと、44-2 の「誰がその色を使っているか」）が
+ * 同じものを見るので、**表は1つだけ持つ**（落とし穴1）。
+ */
+const 世界 = (function () {
+  const out = {};
+  cssRules(HTML).forEach((r) => {
+    if (r.sel.indexOf('.shelf-stage') === -1) return;
+    const m = /\[data-theme="([a-z]+)"\]/.exec(r.sel);
+    const 名 = m ? m[1] : '共通';
+    const 取る = (v) => {
+      const g = new RegExp('--warp-' + v + '\s*:\s*(#[0-9A-Fa-f]{3,8})').exec(r.body);
+      return g ? g[1] : null;
+    };
+    const 地 = 取る('color'), 字 = 取る('ink'), 補 = 取る('soft');
+    if (地 && 字) out[名] = { 地, 字, 補 };
+  });
+  return out;
+})();
 const THEMES = {
   共通: {},
   wolf: parseBlock('.app.theme-wolf'),
@@ -233,25 +268,8 @@ const PAIRS = [
     //
     // 表そのものは**幕（.cassette-warp）と共有している1つだけ**なので、
     // ここで通れば、タップした時に広がる幕の色も同時に確かめたことになる。
-    const CSS = require('fs').readFileSync(
-      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
-    const 世界 = {};
-    // 選択子は「幕, 場」のカンマ並びなので、選択子の中に .shelf-stage を含む規則を拾う。
-    // 第43弾で染まる先が中央の一段（.sw-band）から
-    // 上の帯と下部バーのあいだ全部（.shelf-stage）に変わった。
-    // **帯はこの表を読まなくなった**——場の中にいて色を受け継ぐので、
-    // ここに残すと「表は1つ」が崩れる
-    cssRules(CSS).forEach((r2) => {
-      if (r2.sel.indexOf('.shelf-stage') === -1) return;
-      const m = /\[data-theme="([a-z]+)"\]/.exec(r2.sel);
-      const 名 = m ? m[1] : '共通';
-      const 取る = (v) => {
-        const g = new RegExp('--warp-' + v + '\\s*:\\s*(#[0-9A-Fa-f]{3,8})').exec(r2.body);
-        return g ? g[1] : null;
-      };
-      const 地 = 取る('color'), 字 = 取る('ink'), 補 = 取る('soft');
-      if (地 && 字) 世界[名] = { 地, 字, 補 };
-    });
+    // 表は module の頭で1つだけ作っている（この検査と、下の 44-2 の検査が
+    // 同じものを見る。2つ持つと、色を変えた日に片方だけ古くなる・落とし穴1）。
 
     // **数を先に主張する。**0件なら「全部読める」は自明に成立する（型b）
     const 名前 = Object.keys(世界);
@@ -270,6 +288,152 @@ const PAIRS = [
     });
     assertEqual(表.length, 名前.length * 2, '全部の世界で、本文と補足の両方を見た');
     assertEqual(bad.join('\n       '), '', '帯の上で読めない組み合わせ');
+  });
+
+  await r.test('世界を借りる領域に載るものは、6つの世界すべてで読める（正本1-6・指示44 44-2）', async () => {
+    // **上の検査は「トークンの対」を見る。ここは「その対を、誰が実際に使っているか」を見る。**
+    //
+    // 指示44の着手前、`.cart-meta`（選んだカセットの「3〜8人 / 13分〜」）は
+    // `--ink-soft` を直に使っていた。トークンの対の表は全部緑のまま——
+    // **表に載っていない色を使っている要素は、誰も見ていなかった**（落とし穴20：
+    // A⊆B は書いてあったが B⊆A が無い）。人狼の地で 2.49:1、いちばん知りたい行が読めない。
+    // 位置の点も、`currentColor` と書いてあったのに `<button>` は `color` を
+    // 継承しないので**ブラウザ既定の黒**で、1.21:1 だった（落とし穴30）。
+    //
+    // ここでは、場の上に載る要素それぞれについて
+    // **6つの世界ぶんの地と突き合わせて比を出す**。
+    // 地は「自分か、場との間の先祖が塗っているもの」——半透明なら世界の色に重ねて解く。
+    const { launch, activeScreen } = require('./harness');
+    const { win, doc } = await launch();
+    assertEqual(activeScreen(doc), 'scr-shelf', '棚に着いている');
+
+    const stage = doc.getElementById('shelfStage');
+    assert(stage, '染まる場がある');
+
+    // **規則の側から回す。**要素ごとに3800本の規則を当てると jsdom では終わらない
+    //（実測：2分で戻ってこなかった）。規則1本につき querySelectorAll 1回なら軽い。
+    // 後ろの規則が勝つので、順に上書きすれば「最後に効く宣言」が残る
+    const 色 = new Map(), 地 = new Map(), 透 = new Map();
+    function 拾う(body, prop) {
+      // 空白は文字集合で書く。\s と書くと、この行を機械で書き換えた日に
+      // エスケープが1段落ちて「s が0個以上」になり、**改行をまたいだ宣言を
+      // 静かに見落とす**（実際に踏んだ：background だけ拾えず、地が無いことにされた）
+      const 空 = "[ \t\r\n]*";
+      const m = new RegExp("(?:^|;)" + 空 + prop + 空 + ":" + 空 + "([^;]+)").exec(body);
+      return m ? m[1].trim() : null;
+    }
+    let 当たった = 0, 読めない = [];
+    cssRules(CSS_ONLY).forEach((r2) => {
+      r2.sel.split(',').forEach((s) => {
+        // **選択子には直前のコメントが入っている**（cssRules の作り）。
+        // 外さずに querySelectorAll へ渡すと投げる——そこを catch で握り潰すと、
+        // 地を決めている規則を丸ごと見落として「地が無い」と読む（落とし穴10-e）。
+        s = s.trim();
+        if (!s) return;
+        if (/:/.test(s)) return;             // 擬似クラスは jsdom で当たらない（意図して外す）
+        // @keyframes の区切り（0% / from / to）は選択子ではない。
+        // **「読めなかった」に混ぜない**——混ぜると本物の読み落としが埋もれる
+        if (/^(from|to|[\d.]+%)$/.test(s)) return;
+        let 対象;
+        try { 対象 = stage.querySelectorAll(s); }
+        catch (e) { 読めない.push(s); return; }   // 握り潰さず、数えて赤くする
+        if (!対象.length) return;
+        当たった++;
+        const c = 拾う(r2.body, 'color');
+        const b = 拾う(r2.body, 'background') || 拾う(r2.body, 'background-color');
+        const o = 拾う(r2.body, 'opacity');
+        対象.forEach((el) => {
+          if (c) 色.set(el, c);
+          if (b) 地.set(el, b);
+          if (o) 透.set(el, parseFloat(o));
+        });
+      });
+    });
+    assertEqual(読めない.join('・'), '', '読めなかった選択子（読めないまま先へ進まない）');
+    assert(当たった > 20, '場の中の要素に当たる規則を実際に読めている（実際:' + 当たった + '本）');
+
+    // var(--x) と #hex と rgba() を、その世界の値に解く
+    function 解く(v, 世, 下) {
+      if (!v) return null;
+      v = v.trim();
+      const m = /^var\(\s*(--[a-z-]+)\s*\)$/.exec(v);
+      if (m) {
+        const 名 = m[1];
+        if (名 === '--warp-color') return toRgb(世.地);
+        if (名 === '--warp-ink') return toRgb(世.字);
+        if (名 === '--warp-soft') return toRgb(世.補);
+        return ROOT[名] ? toRgb(ROOT[名], 下) : null;   // 共通トークン（棚は .app を染めない）
+      }
+      return toRgb(v, 下);
+    }
+    // その要素の地を、世界の色まで遡って解く（半透明は下に重ねる）。
+    // **自分の地を含めるかは、前景が何かで変わる。**
+    //   文字 … 自分の地の上に載るので含める
+    //   印（点）… 自分の地そのものが前景なので、含めると必ず 1:1 になる
+    function 地の色(el, 世, 自分も) {
+      const 積 = [];
+      let n = 自分も ? el : el.parentElement;
+      while (n && n !== stage) { if (地.has(n)) 積.push(地.get(n)); n = n.parentElement; }
+      let 下 = toRgb(世.地);
+      for (let i = 積.length - 1; i >= 0; i--) {
+        const c = 解く(積[i], 世, 下);
+        if (c) 下 = c;                       // toRgb が rgba を 下 と合成して返す
+      }
+      return 下;
+    }
+
+    // **見えていないものは測らない。**
+    // `.cart-meta` は中央以外 `opacity:0`（畳んである）。それを混ぜると
+    // 前景と地が完全に一致して 1:1 になり、**直しようのない赤**が6テーマぶん出る
+    function 見えている(el) {
+      let n = el;
+      while (n && n !== stage) {
+        if (透.has(n) && 透.get(n) === 0) return false;
+        n = n.parentElement;
+      }
+      return true;
+    }
+
+    const 悪い = [], 表 = [];
+    const 対象 = [];
+    stage.querySelectorAll('*').forEach((el) => {
+      if (!色.has(el) && !el.classList.contains('rail-dot')) return;
+      if (!見えている(el)) return;
+      対象.push(el);
+    });
+    // **0件なら自明に成立する**ので、先に数を主張する（落とし穴10-b）
+    assert(対象.length >= 5, '場の上の要素を実際に拾えている（実際:' + 対象.length + '件）');
+
+    Object.keys(世界).forEach((名) => {
+      const 世 = 世界[名];
+      対象.forEach((el) => {
+        const 点 = el.classList.contains('rail-dot');
+        // 点は「塗り」か「輪郭」が信号。塗っていない○は border の色を見る
+        const 前景 = 点
+          ? (el.classList.contains('on') ? 地.get(el) : 'var(--warp-soft)')
+          : 色.get(el);
+        if (!前景) return;
+        // 継承・currentColor は場から降りてくる（＝--warp-ink）
+        const v = /inherit|currentColor/i.test(前景) ? 'var(--warp-ink)' : 前景;
+        const fg = 解く(v, 世, toRgb(世.地));
+        if (!fg) return;
+        const bg = 地の色(el, 世, !点);
+        // 自分の opacity で薄まっているなら、そのぶん地に沈む
+        const a = 透.has(el) ? 透.get(el) : 1;
+        const 実 = a >= 1 ? fg : fg.map((x, i) => Math.round(x * a + bg[i] * (1 - a)));
+        const 必要 = 点 ? 3.0 : 4.5;
+        const 比 = contrast(実, bg);
+        表.push(名 + '/' + (el.className || el.tagName) + '=' + 比);
+        if (比 < 必要) {
+          悪い.push(名 + '：' + (el.className || el.tagName) +
+            '（' + 比 + ' < ' + 必要 + '・色=' + 前景 + '）');
+        }
+      });
+    });
+    assert(表.length >= Object.keys(世界).length * 5,
+      '6つの世界すべてで測っている（実際:' + 表.length + '組）');
+    assertEqual(悪い.join('\n       '), '', '世界の上で読めない文字・印');
+    win.close();
   });
 
   r.finish();

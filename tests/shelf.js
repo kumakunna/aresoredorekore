@@ -1685,7 +1685,9 @@ function pickCart(doc, id) {
     const chip = el(doc, 'shelfChip');
     assert(chip, '人数チップがある');
     assert(/なんにん/.test(chip.textContent), '答える前は聞いている：' + chip.textContent);
-    assertEqual(win.headsProbe().heads, null, '答える前は人数を持っていない');
+    // 指示44 44-1：人数の正本は `currentPlayerCount()` 1つになった。
+    // 「まだ答えていない」は 0 で表す（`if(!n)` の側は null と同じに扱われる）
+    assertEqual(win.headsProbe().heads, 0, '答える前は人数を持っていない');
 
     // **答えなくても棚は動く**（2-3の要）
     assertEqual(doc.querySelectorAll('.cart.dim').length, 0, '答える前は、どれも沈んでいない');
@@ -1766,8 +1768,13 @@ function pickCart(doc, id) {
     await waitScreen(win, doc, 'scr-rt-lobby', 3000);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    // **検体は publicSnapshot と同じ形にする**（落とし穴25）。
+    // ここには `playerCount` が無かった。サーバーは create/join/update の
+    // どれでも必ず載せて配るので、手書きの検体だけが実装から離れていた形。
+    // 指示44 で人数の正本を `room.playerCount` に寄せた時、
+    // **画面ではなくこの検体が先に赤くなった**——それが正しい壊れ方
     fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1',
-      room: { code: 'ABC234', hostMemberId: 'm1',
+      room: { code: 'ABC234', hostMemberId: 'm1', playerCount: 6, memberCount: 6,
         members: [{ id: 'm1', name: 'あき', role: 'player', connected: true },
                   { id: 'm2', name: 'びび', role: 'player', connected: true },
                   { id: 'm3', name: 'ちか', role: 'player', connected: true },

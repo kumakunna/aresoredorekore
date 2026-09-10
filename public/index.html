@@ -5896,7 +5896,7 @@
     var n = el('shelfRoomNote');
     return !!(n && n.style.display !== 'none');
   };
-  window.headsProbe = function(){ return { heads: headCount(), 見当: shelfHeads }; };
+  window.headsProbe = function(){ return { heads: currentPlayerCount(), 見当: shelfHeads }; };
   window.roomProbe = function(){ return { room: !!(rt && rt.state.room), host: !!(rt && rt.isHost()),
     code: (rt && rt.state.code) || null, memberId: (rt && rt.state.memberId) || null }; };
   // 検査から画面を置きにいくための窓。
@@ -6105,8 +6105,11 @@
     var T = (typeof UiText !== 'undefined') ? UiText.ENTRY.部屋あり : null;
     if(!T){ goTo('scr-shelf'); return; }
     el('roomOpenTitle').textContent = T.見出し;
-    var n = (rt && rt.state.room && rt.state.room.members)
-      ? rt.state.room.members.filter(function(m){ return !m.gone; }).length : 0;
+    // **人数は1か所から取る**（指示44 44-1）。ここには
+    // `members.filter(!m.gone)` のコピーがあったが、`gone` は publicSnapshot が
+    // 配る項目に無い（すごろくのゲームデータだけが持つ言葉・落とし穴9）ので
+    // フィルタは素通りで、大画面にした端末まで「参加者」に数えていた
+    var n = (rt && rt.state.room) ? currentPlayerCount() : 0;
     el('roomOpenInfo').textContent =
       'コード：' + ((rt && rt.state.code) || '------') + '　参加者：' + n + '人';
     el('roomOpenBackBtn').textContent = T.もどる;
@@ -6352,18 +6355,51 @@
   function saveHeads(n){
     try{ if(n) localStorage.setItem('acac-heads', String(n)); }catch(e){}
   }
-  /** いま何人か。**部屋があれば、そこにいる実数が勝つ** */
-  function headCount(){
-    if(rt && rt.state.room && rt.state.room.members){
-      var n = rt.state.room.members.filter(function(m){ return !m.gone; }).length;
-      if(n > 0) return n;
-    }
-    return shelfHeads;
+  /**
+   * **いま何人で遊ぶのか。アプリ全体で、ここだけが答える**（指示44 44-1）。
+   *
+   * 指示44の着手前、同じ「人数」という言葉で**3つの違う数**が動いていた：
+   *
+   *   ・棚のチップ … `members` を数える（大画面も切断中も入る）
+   *   ・モード画面 … `state.players.length`（登録した名簿だけ）
+   *   ・待合       … `room.playerCount`（サーバー。大画面を除く）
+   *
+   * 棚で「4人」にして人狼を選ぶと、モード画面は全モードが
+   * 「3人以上で遊べます（いま2人）」で押せなかった。**チップの値は生きていて、
+   * 誰も読んでいなかった**——壊れていたのは棚でもモード画面でもなく、その間の配線。
+   * だから直し方は「モード画面にチップを読む分岐を足す」ではない
+   *（足すと判定が2つ並走する・落とし穴1）。**既にある3つを1つに寄せる。**
+   *
+   * **一番確かな数を優先する：**
+   *
+   *   1. 部屋がある → `room.playerCount`（サーバーが数えた数）
+   *   2. 手渡しで登録済み → `state.players.length`（実際に名前を入れた人）
+   *   3. どちらも無い → 棚のチップ（見当）
+   *   4. どれも無い → 0（＝まだ答えていない。**止めない**・第41弾 2-3）
+   *
+   * `room.playerCount` は `role === 'player'` だけを数えるので大画面は入らないが、
+   * **切断中の人は入る**（`realtime.js` の `playerMembers`。退室・kick では
+   * `members.delete` で名簿から消えるので、そちらはちゃんと減る）。
+   * それでよい——電波が切れた人も、その場の椅子には座っている。
+   * `readyTally` が `connected` で数えるのは「準備OKを押せる端末があるか」という
+   * **別の問い**だからで、それを「何人いるか」に持ち込むと、
+   * トンネルに入った1人で人数が点滅する。
+   */
+  function currentPlayerCount(){
+    var room = rt && rt.state.room;
+    // **サーバーが配る数をそのまま使う。**ここで members を数え直すと、
+    // 大画面をどう扱うかの決まりがクライアントにもう1つできる（落とし穴1）。
+    // 着手前はまさにそれで、しかも `!m.gone` で絞っていた——
+    // `gone` は publicSnapshot が配る8項目に無く（すごろくのゲームデータだけが持つ言葉）、
+    // フィルタは素通りしていたので、TVにした端末まで数えていた（落とし穴9）
+    if(room && typeof room.playerCount === 'number' && room.playerCount > 0) return room.playerCount;
+    if(state.players.length) return state.players.length;
+    return shelfHeads || 0;
   }
   function renderShelfChip(){
     var chip = el('shelfChip');
     if(!chip) return;
-    var n = headCount();
+    var n = currentPlayerCount();
     chip.textContent = n ? ('👥 ' + n + '人　▾') : '👥 なんにん？';
   }
   el('shelfChip').addEventListener('click', function(){ askHeads(); });
@@ -6396,7 +6432,7 @@
   /** 人数をたずねる（sheet）。**軽く聞く。答えなくても閉じられる** */
   function askHeads(){
     if(typeof UiKit === 'undefined') return;
-    var いま = headCount();
+    var いま = currentPlayerCount();
     var html = '<div class="heads-grid">' +
       [2,3,4,5,6,7,8,9,10,12,16,20].map(function(n){
         return '<button class="heads-btn' + (n === いま ? ' on' : '') + '" data-heads="' + n + '">' + n + '</button>';
@@ -6424,7 +6460,7 @@
    * いま何人で・何人からなのかまで出す（「足りません」だけでは動けない）
    */
   function headsBlockReason(c){
-    var n = headCount();
+    var n = currentPlayerCount();
     if(!n) return null;                    // 答えていない人は止めない（2-3）
     var lo = cassetteMinPlayers(c), hi = cassetteMaxPlayers(c);
     if(lo && n < lo){
@@ -9287,25 +9323,47 @@
   el('regCode').addEventListener('keydown', function(e){ if(e.key === 'Enter') submitAuth(); });
 
   // ===================== 3. setup =====================
+  /**
+   * **棚のチップが、初期人数として入ってくる場所**（指示44 44-1）。
+   *
+   * ここが切れていた配線そのもの。着手前は `playerDraftCount = 2` と手書きで、
+   * 棚で「4人」と答えていても登録画面は必ず2人から始まり、
+   * その2人が `state.players` に流れ、モード画面が「いま2人」と読み上げていた。
+   *
+   * **増減は今までどおり**（44-7 の境界）。ここで入るのは初期値だけで、
+   * 増やしても減らしてもチップは書き換えない——チップは「次に棚へ来た時の見当」で、
+   * この登録はそのゲーム中の名簿。別のものなので、片方がもう片方を上書きしない。
+   *
+   * 人数の下限・上限は `setPlayerCount` が1か所で持っている。
+   * ここで自分で clamp すると、上限の決まりが2か所になる（落とし穴1）
+   */
   function enterSetup(){
-    if(state.players.length >= 2){
+    if(state.players.length >= MIN_PLAYERS){
+      // すでに名簿がある人は、そのまま出す（clamp しない——
+      // 上限より多い名簿を黙って削ると、入れた名前が消える）
       playerDraftCount = state.players.length;
       playerDraft = state.players.map(function(p){ return {name:p.name, handicap:!!p.handicap}; });
-    } else if(playerDraft.length === 0){
-      playerDraft = [{name:'',handicap:false},{name:'',handicap:false}];
-      playerDraftCount = 2;
+      renderNameRows();
+      return;
+    }
+    if(playerDraft.length === 0){
+      setPlayerCount(currentPlayerCount());   // 棚のチップ（答えていなければ下限に落ちる）
+      return;
     }
     renderNameRows();
   }
   // いま選んでいるゲームの人数上限。0や未指定は「上限なし」扱い（人狼など）
   var PLAYER_HARD_CAP = 30; // 画面が破綻しない現実的な上限
+  // **遊びが成り立つ下限。**「いま何人か」の判定ではなく、名簿の床。
+  // 名前が付いていると、人数の判定に紛れ込んだ手書きの 2 と見分けられる（指示44 G7）
+  var MIN_PLAYERS = 2;
   function maxPlayersForGame(){
     var g = gameById(state.selectedGameId || DEFAULT_GAME_ID);
     if(g.maxPlayers === 0) return PLAYER_HARD_CAP; // 上限なし
     return g.maxPlayers || 8;
   }
   function setPlayerCount(n){
-    playerDraftCount = Math.max(2, Math.min(maxPlayersForGame(), n));
+    playerDraftCount = Math.max(MIN_PLAYERS, Math.min(maxPlayersForGame(), n));
     while(playerDraft.length < playerDraftCount) playerDraft.push({name:'',handicap:false});
     while(playerDraft.length > playerDraftCount) playerDraft.pop();
     renderNameRows();
@@ -9430,8 +9488,15 @@
     var note = el('modeRoomNote');
     if(!goingRealtime()){ note.style.display = 'none'; return; }
     note.style.display = 'block';
+    // **部屋でも「いま何人か」を出す**（指示44 44-1）。
+    // 着手前、この画面は部屋では人数を一度も出していなかった——
+    // `modeLockReason` が `!goingRealtime()` で人数の行ごと素通りしていたので、
+    // 進行役には「4人いる」と分かる場所がどこにも無かった。
+    // カードを押せなくするのではなく**ここに1行**なのは、指示37の
+    // 「人が集まる前に進行役が決めておける」を壊さないため
     note.textContent = '👥 部屋「' + (rt.state.room ? rt.state.room.code : '') +
-      '」のためにえらんでいます。決まったら待合にもどって「はじめる」を押してください。';
+      '」（いま' + currentPlayerCount() + '人）のためにえらんでいます。' +
+      '決まったら待合にもどって「はじめる」を押してください。';
   }
 
   // その遊び方に必要な最低人数。プリセットに書いてあればそれ、
@@ -9443,7 +9508,7 @@
     return 2;
   }
   function canPlayMode(m){
-    return !m || state.players.length >= modeMinPlayers(m);
+    return !m || currentPlayerCount() >= modeMinPlayers(m);
   }
   // 第27弾：その遊び方が「いま選べない理由」。選べるなら null。
   // 理由は1箇所で作って、カードの表示・押した時の案内・開始の手前の確認で共用する
@@ -9454,9 +9519,13 @@
     if(m.roomOnly && !goingRealtime()){
       return '📱 1人1台の遊び方です。棚の「部屋」から部屋を立ててください';
     }
-    // 部屋のために選んでいる時は、人数は部屋が持っているので手渡しの名簿は見ない
+    // **人数で止めるのは手渡しの時だけ**（指示44 44-1）。
+    // 部屋では、人が集まりきる前に進行役がゲームを決められるのが指示37の形なので、
+    // ここで押せなくすると「みんなが来るまで何も選べない」になる。
+    // 足りないことは待合が見張っている（`enough`）。
+    // **ただし「いま何人か」は部屋でも出す**——出す場所は modeRoomNote 側
     if(!goingRealtime() && !canPlayMode(m)){
-      return '👥 ' + modeMinPlayers(m) + '人以上で遊べます（いま' + state.players.length + '人）';
+      return '👥 ' + modeMinPlayers(m) + '人以上で遊べます（いま' + currentPlayerCount() + '人）';
     }
     return null;
   }
@@ -10515,7 +10584,7 @@
   function guardMinPlayers(){
     var m = modeById(state.selectedModeId);
     if(canPlayMode(m)) return true;
-    showFlash(m.title + 'は' + modeMinPlayers(m) + '人以上必要です（いま' + state.players.length + '人）', 'hit-wrong');
+    showFlash(m.title + 'は' + modeMinPlayers(m) + '人以上必要です（いま' + currentPlayerCount() + '人）', 'hit-wrong');
     return false;
   }
   // 第26弾-3：遊び方は入り口で決まっている。
@@ -12132,11 +12201,34 @@
     if(Array.isArray(scr)) return (game === 'auction') ? auWantScreen() : scr[0];
     return scr || 'scr-rt-room';
   }
+  /**
+   * **人数を出している画面は、部屋の画面の外にもある**（指示44 44-7 の異常系）。
+   *
+   * 棚のチップとモード画面は `RT_SCREENS` に入っていないので、
+   * rtSync の「部屋の画面にいる時だけ動かす」より**手前**で描き直さないと、
+   * 途中参加・退室で人数が変わっても「いま◯人」が古いまま残る。
+   * ここでするのは描き直しだけで、**画面は動かさない**
+   *（人数が変わっただけで行き先が変わるのは、遊ぶ人に説明できない）。
+   */
+  function rtSyncHeadcountViews(){
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    if(cur === 'scr-shelf'){
+      renderShelfChip(); renderShelf(); renderShelfBand();
+      return;
+    }
+    if(cur !== 'scr-mode') return;
+    // 進行役は modeRoomNote の1行に、それ以外の人はカードの理由に人数が出る
+    //（`modeLockReason` が人数を出すのは `!goingRealtime()` の側なので、
+    //  同じ画面でも出ている場所が違う）
+    if(goingRealtime()) renderModeRoomNote();
+    else enterMode();
+  }
   function rtSync(){
     if(!rt || !rt.state.room) return;
     // 第37弾：全員そろった瞬間に、進行役の端末が始める。
     // 画面がどこにあっても見る（待合にいるとは限らない）
     rtMaybeAutoStart();
+    rtSyncHeadcountViews();
     var cur = (document.querySelector('.screen.active') || {}).id;
     // ロビーで入力中の人を引っぱらない。すでに部屋の画面にいる時だけ動かす
     if(RT_SCREENS.indexOf(cur) === -1) return;

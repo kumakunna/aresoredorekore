@@ -404,12 +404,17 @@ function resultView(room, memberId) {
       question: x.question || x.description || '',
       // 誰が何と答えたか。**協力版は全員ぶん、競争版は自分のぶんだけ。**
       // 盤面が1つなら公開、人それぞれなら本人だけ——境目はそこ1つ
-      tries: (coop ? w.log : w.log.filter((t) => t.by === memberId))
-        .filter((t) => t.uid === x.uid)
-        .map((t) => ({
-          name: coop ? (w.names[t.by] || '') : null,
-          answer: t.answer,
-          correct: t.correct
+      tries: w.log
+        .map((t, i) => ({ t: t, i: i }))
+        .filter((e) => e.t.uid === x.uid && (coop || e.t.by === memberId))
+        .map((e) => ({
+          name: coop ? (w.names[e.t.by] || '') : null,
+          answer: e.t.answer,
+          correct: e.t.correct,
+          // **何番目の答えか**（コードをまたいだ順番）。
+          // コードごとに束ねると、束の外の前後関係が消える——
+          // 「最後に決めた人」を出すのに要る（無いと、盤の並び順を時間だと読んでしまう）
+          at: e.i
         }))
     }))
   };

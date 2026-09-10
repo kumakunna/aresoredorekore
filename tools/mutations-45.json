@@ -374,5 +374,21 @@
     "from": "    (play.bombLog = play.bombLog || []).push(\n      { uid: w.uid, name: null, answer: btn.dataset.choice, correct: correct });",
     "to": "    if(correct) (play.bombLog = play.bombLog || []).push(\n      { uid: w.uid, name: null, answer: btn.dataset.choice, correct: correct });",
     "expect": "外した分も当てた分も残る"
+  },
+  {
+    "name": "45-6i 「最後に決めた」を、コードの並び順で決める",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "        var 順番 = (typeof t.at === 'number') ? t.at : 0;",
+    "to": "        var 順番 = 0;",
+    "expect": "最後に決めたのは「いちばん後に答えた人」"
+  },
+  {
+    "name": "45-2e 結果を、待っている「褒める」の後ろに並べる",
+    "file": "public/js/fx.js",
+    "suite": "tests/fixes45.js",
+    "from": "      if (!褒める) { while (i > 0 && 舞台.待ち[i - 1].褒める) i--; }",
+    "to": "      if (false) { while (i > 0 && 舞台.待ち[i - 1].褒める) i--; }",
+    "expect": "結果が2つ続いても、褒めるのはそのあと"
   }
 ]

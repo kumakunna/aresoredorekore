@@ -180,7 +180,14 @@
     var 褒める = !!(opt && opt.praise);
     if (!褒める && !舞台.走っている) return 走らせる(fn);
     return new Promise(function (resolve) {
-      舞台.待ち.push({ fn: fn, resolve: resolve });
+      var 札 = { fn: fn, resolve: resolve, 褒める: 褒める };
+      // **結果は、待っている「褒める」を追い越す。**
+      // 追い越さないと、決着の帯が2つ続く場面（爆発 → 順位）で
+      // 2つ目が称号の後ろに回り、「褒めてから、まだ結果が続く」形になる。
+      // 順序の決めごとは1つだけ——**褒めるのは、結果が全部済んでから**
+      var i = 舞台.待ち.length;
+      if (!褒める) { while (i > 0 && 舞台.待ち[i - 1].褒める) i--; }
+      舞台.待ち.splice(i, 0, 札);
       if (!舞台.走っている) setTimeout(次へ, 0);
     });
   }

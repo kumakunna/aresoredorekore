@@ -247,6 +247,20 @@ const RULES = rulesOf(CSS);
     await Promise.all([褒める, 結果]);
     assertEqual(順.join(','), '結果,褒める', '結果が先、褒めるが後');
     assertEqual(doc.querySelectorAll('.fx-banner').length, 0, '帯は出しっぱなしにならない');
+
+    // **結果が2つ続く場面**（爆発 → 順位）でも、褒めるのは最後。
+    // 待ち行列の後ろに素直に足すと、2つ目の結果が称号の後ろへ回り、
+    // 「褒めてから、まだ結果が続く」形になる（型(b)：その状況を実際に作る）
+    順.length = 0;
+    const 褒2 = Fx.stage(() => { 順.push('褒める'); }, { praise: true });
+    const 結果A = Fx.banner({ text: '爆発', kind: 'gray', ms: 120 })
+      .then(() => { 順.push('結果A'); });
+    const 結果B = Fx.banner({ text: '順位', kind: 'good', ms: 120 })
+      .then(() => { 順.push('結果B'); });
+    assertEqual(win.FxKit.stageState().待ち, 2, '2つが順番待ちに並んでいる');   // 型(b)
+    await Promise.all([褒2, 結果A, 結果B]);
+    assertEqual(順.join(','), '結果A,結果B,褒める',
+      '結果が2つ続いても、褒めるのはそのあと');
     assertNoErrors(errors);
     win.close();
   });
@@ -548,6 +562,19 @@ const RULES = rulesOf(CSS);
     const marks = box.querySelector('.bv-marks');
     assert(marks && /びび/.test(marks.textContent), 'よく当てた人に、静かに印が付く');
     assert(!/style=/.test(html), '点数で色を変えるような直書きが無い');
+    // **「最後に決めた」は時間の話。**コードの並び順で決めると、
+    // 盤の並び（毎回ばらばら）を時間だと読み違える。
+    // 後ろのコードを先に当てた検体で確かめる（型(b)：その状況を実際に作る）
+    const 逆順 = doc.createElement('div');
+    逆順.innerHTML = win.bombReviewProbe([
+      { tier: 'easy', question: 'と1', name: 'こたえ1', solved: true,
+        tries: [{ name: 'あき', answer: 'こたえ1', correct: true, at: 3 }] },
+      { tier: 'easy', question: 'と2', name: 'こたえ2', solved: true,
+        tries: [{ name: 'びび', answer: 'こたえ2', correct: true, at: 1 }] }
+    ]);
+    const 印 = 逆順.querySelector('.bv-marks').textContent;
+    assert(/最後に決めた：あき/.test(印),
+      '後ろのコードを先に当てても、最後に決めたのは「いちばん後に答えた人」（' + 印 + '）');
     // 手渡しには名前が無い（1台を回すので、誰が押したか分からない）
     const 手渡し = win.bombReviewProbe([
       { tier: 'easy', question: 'と1', name: 'こたえ1', solved: true,

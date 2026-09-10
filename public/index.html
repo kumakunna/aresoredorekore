@@ -19393,12 +19393,18 @@
    * 出す順はコードの順そのまま。褒める印は形（🎯🔑）で付ける——色に頼らない
    */
   function bombReviewMarks(codes){
-    var 当てた = {}, 順に = [], 最後 = null;
+    var 当てた = {}, 順に = [], 最後 = null, 最後の順番 = -1;
     (codes || []).forEach(function(c){
       (c.tries || []).forEach(function(t){
         if(!t.name) return;
         if(当てた[t.name] === undefined){ 当てた[t.name] = 0; 順に.push(t.name); }
-        if(t.correct){ 当てた[t.name]++; 最後 = t.name; }
+        if(!t.correct) return;
+        当てた[t.name]++;
+        // **「最後に決めた」は、時間の話。**コードの並び順で決めると、
+        // 盤の並びを時間だと読み違える（並びは毎回ばらばら）。
+        // だから答えには「何番目の答えか」（at）が付いている
+        var 順番 = (typeof t.at === 'number') ? t.at : 0;
+        if(順番 >= 最後の順番){ 最後の順番 = 順番; 最後 = t.name; }
       });
     });
     if(!順に.length) return null;
@@ -19664,8 +19670,9 @@
     var correct = BombLogic.isCorrect(w, btn.dataset.choice);
     // 第45弾 45-6：正解でも外れでも、同じ1か所で記録する
     //（分岐ごとに書くと、片方だけ数え忘れる）
-    (play.bombLog = play.bombLog || []).push(
-      { uid: w.uid, name: null, answer: btn.dataset.choice, correct: correct });
+    play.bombLog = play.bombLog || [];
+    play.bombLog.push({ uid: w.uid, name: null, answer: btn.dataset.choice,
+      correct: correct, at: play.bombLog.length });
     el('bombWireOverlay').classList.remove('show');
     play.currentBombWire = null;
     if(correct){
@@ -19746,7 +19753,7 @@
         name: w.name,
         solved: !!w.solved,
         tries: log.filter(function(t){ return t.uid === w.uid; })
-          .map(function(t){ return { name: null, answer: t.answer, correct: t.correct }; })
+          .map(function(t){ return { name: null, answer: t.answer, correct: t.correct, at: t.at }; })
       };
     });
   }

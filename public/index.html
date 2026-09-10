@@ -7111,9 +7111,17 @@
     // **記録（gotAt の保存）はここより上で済ませてある**——
     // 見せないことと、数えないことは別（大画面にされた人の記録まで消さない）
     if(typeof rtIsBigScreen === "function" && rtIsBigScreen()) return;
-    el('gotMuteToggle').classList.toggle('on', !appPrefs.titleFanfare);
-    el('titleGotOverlay').classList.add('show');
-    fanfareSound();
+    // 第45弾 45-2：**褒めるのは、静まってから。**
+    // 決着の演出（爆発・解除成功の帯）と称号の重なりは、
+    // どちらも rtRenderCurrent の同じ1回のパスから出るので、同時に画面へ乗っていた
+    //（テストプレイで「爆発」の文字の上に「新しく手に入れた！」が半透明で重なった）。
+    // `praise:true` は「1拍おいて、舞台が空くのを待つ」という意味しか持たない——
+    // **「爆発の後に称号」とは書かない**（演出を足すたびに順序を足すことになる・落とし穴4）
+    FxKit.stage(function(){
+      el('gotMuteToggle').classList.toggle('on', !appPrefs.titleFanfare);
+      el('titleGotOverlay').classList.add('show');
+      fanfareSound();
+    }, { praise:true });
   }
   function saveTitleGotAt(){
     try{ localStorage.setItem('acac-title-gotat', JSON.stringify(myTitles.gotAt || {})); }catch(e){}
@@ -8621,6 +8629,7 @@
     stopWrNightTimer();
     stopTallyCountdown();
     closeAllTimerPeeks();
+    try{ FxKit.stageClear(); }catch(e){}   // 第45弾 45-2：前の試合の順番待ちを持ち越さない
     if(sugoInputStop){ sugoInputStop(); sugoInputStop = null; }
     stopVoice();
     try{ window.speechSynthesis.cancel(); }catch(e){}

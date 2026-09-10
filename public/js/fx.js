@@ -139,7 +139,60 @@
    * kind に 'bad' は無い。責める側でこれを使えないようにしてある。
    *   opt: { text, sub, icon, kind:'good'|'gold'|'gray'|'plain', ms }
    */
+  // ---------- 第45弾 45-2：画面いっぱいの演出を、順番に出す ----------
+  /**
+   * **同時に起きたことは、順番に見せる。**
+   *
+   * テストプレイで「爆発」の帯の上に「新しく手に入れた！解除班の証」が半透明で重なり、
+   * どちらも読めなかった。どちらも `rtRenderCurrent` の同じ1回のパスから出る。
+   *
+   * ここで大事なのは、**個別に「爆発の後に称号」と書かないこと**（落とし穴4）。
+   * 書くと、演出を1つ足すたびに順序も1つ足すことになる。
+   * 代わりに、演出の**性質**を2つに分ける：
+   *
+   *   ・結果（既定）… 決着・爆発・勝敗。舞台が空いていれば、その場で出る
+   *   ・褒める（`praise:true`）… 称号・お祝い。**必ず1拍おいてから**舞台の空きを待つ
+   *
+   * 「褒めるのは静まってから」（大切なこと7）が、順序そのものになっている。
+   * 同じ間（tick）に両方が起きても、褒める側が1拍おくので結果が先に舞台へ上がる。
+   *
+   * **舞台が空いている時は、その場で（同期で）出す。**
+   * 遅らせると「出した直後に数える」検査が捕まえられなくなるし、
+   * 演出が一拍遅れて見える（落とし穴10-g の裏返し）。
+   */
+  var 舞台 = { 走っている: false, 待ち: [] };
+  function 走らせる(fn) {
+    舞台.走っている = true;
+    var p;
+    try { p = fn(); } catch (e) { p = null; }
+    return Promise.resolve(p).catch(function () { return true; }).then(function (v) {
+      舞台.走っている = false;
+      if (舞台.待ち.length) setTimeout(次へ, 0);
+      return v;
+    });
+  }
+  function 次へ() {
+    if (舞台.走っている || !舞台.待ち.length) return;
+    var x = 舞台.待ち.shift();
+    走らせる(x.fn).then(x.resolve, x.resolve);
+  }
+  function stage(fn, opt) {
+    var 褒める = !!(opt && opt.praise);
+    if (!褒める && !舞台.走っている) return 走らせる(fn);
+    return new Promise(function (resolve) {
+      舞台.待ち.push({ fn: fn, resolve: resolve });
+      if (!舞台.走っている) setTimeout(次へ, 0);
+    });
+  }
+  /** 舞台を空にする。ゲームを捨てる時に呼ぶ（前の試合の演出を持ち越さない） */
+  function stageClear() { 舞台.待ち.length = 0; 舞台.走っている = false; }
+  /** いま舞台に何が乗っているか（検査用） */
+  function stageState() { return { 走っている: 舞台.走っている, 待ち: 舞台.待ち.length }; }
+
   function banner(opt) {
+    return stage(function () { return bannerNow(opt); }, opt);
+  }
+  function bannerNow(opt) {
     opt = opt || {};
     var h = host();
     if (!h) return Promise.resolve(true);
@@ -385,6 +438,9 @@
    *   opt: { kind:'danger'|'gold'|なし, ms }
    */
   function callout(text, opt) {
+    return stage(function () { return calloutNow(text, opt); }, opt);
+  }
+  function calloutNow(text, opt) {
     opt = opt || {};
     var h = host();
     if (!h) return Promise.resolve(true);
@@ -502,6 +558,7 @@
     stagger: stagger, fly: fly, alive: alive, notice: notice,
     shake: shake, confetti: confetti, callout: callout, vibe: vibe,
     countdown: countdown,
+    stage: stage, stageClear: stageClear, stageState: stageState,
     _cfg: cfg
   };
   return api;

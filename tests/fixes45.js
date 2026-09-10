@@ -225,5 +225,70 @@ const RULES = rulesOf(CSS);
     win.close();
   });
 
+  // ===================== 45-2 =====================
+
+  await r.test('45-2：画面いっぱいの演出は、同時に起きても重ならない', async () => {
+    const { win, doc, errors } = await launch();
+    const Fx = win.FxKit;
+    const 順 = [];
+    // **実装で起きる順そのままに頼む。**部屋では awardRoomTitles（褒める）が
+    // renderRtBomb（結果の帯）より先に走るので、頼む順は「褒める→結果」になる。
+    // それでも結果が先に出るのが、45-2 で入れた決めごと
+    const 褒める = Fx.stage(() => { 順.push('褒める'); }, { praise: true });
+    const 結果 = Fx.banner({ text: '爆発', kind: 'gray', ms: 200 })
+      .then(() => { 順.push('結果'); });
+    // **出ている最中に数える**（落とし穴10-g：片付いたあとに数えると、門が効かなくても同じ数）
+    assertEqual(doc.querySelectorAll('.fx-banner').length, 1, '帯がいま出ている');  // 型(b)
+    assertEqual(順.join(','), '', '帯が出ている間、褒める側はまだ動いていない');
+    await Promise.all([褒める, 結果]);
+    assertEqual(順.join(','), '結果,褒める', '結果が先、褒めるが後');
+    assertEqual(doc.querySelectorAll('.fx-banner').length, 0, '帯は出しっぱなしにならない');
+    assertNoErrors(errors);
+    win.close();
+  });
+
+  await r.test('45-2：舞台が空いていれば、その場で出る（一拍おかない）', async () => {
+    // 順番待ちを入れた代償に「いつも一拍遅れる」ようになっては本末転倒。
+    // 空いている時は同期で出ること自体を見る（型(b)：この状況を先に作る）
+    const { win, doc, errors } = await launch();
+    assertEqual(win.FxKit.stageState().走っている, false, '舞台は空いている');
+    win.FxKit.banner({ text: 'やった', ms: 100 });
+    assertEqual(doc.querySelectorAll('.fx-banner').length, 1,
+      '空いている時は、頼んだその場で出る');
+    await sleep(win, 400);
+    assertNoErrors(errors);
+    win.close();
+  });
+
+  await r.test('45-2：スキップにしていると、順番待ちごと瞬時に流れる', async () => {
+    const { win, doc, errors } = await launch({ fxSkip: true });
+    const 順 = [];
+    const 褒める = win.FxKit.stage(() => { 順.push('褒める'); }, { praise: true });
+    const 結果 = win.FxKit.banner({ text: '爆発', kind: 'gray', ms: 900 })
+      .then(() => { 順.push('結果'); });
+    const t0 = Date.now();
+    await Promise.all([褒める, 結果]);
+    const かかった = Date.now() - t0;
+    assertEqual(順.join(','), '結果,褒める', 'スキップでも順番は変わらない');
+    assert(かかった < 400, '900ms の帯を待たずに流れる（かかった: ' + かかった + 'ms）');
+    assertNoErrors(errors);
+    win.close();
+  });
+
+  await r.test('45-2：順序は「褒めるかどうか」だけで決まる（個別の順序を書かない）', async () => {
+    // 「爆発の後に称号」と個別に書くと、演出を1つ足すたびに順序も1つ足すことになる
+    //（落とし穴4）。称号の側が `praise:true` を名乗るだけで済んでいることを見る
+    assert(/FxKit\.stage\(function\(\)\{[\s\S]{0,400}?titleGotOverlay/.test(INDEX_HTML),
+      '称号の重なりは、舞台に乗せてから出す');
+    assert(/titleGotOverlay[\s\S]{0,200}?praise\s*:\s*true/.test(INDEX_HTML),
+      '称号は「褒める」を名乗る');
+    const 個別の順序 = INDEX_HTML.split('\n')
+      .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+      .filter((line) => /bombBoomFx[\s\S]*showTitleGot|showTitleGot[\s\S]*bombBoomFx/.test(line));
+    assertEqual(個別の順序.length, 0, '「爆発の後に称号」を名指しで書いた行が無い');
+    // 前の試合の順番待ちを持ち越さない
+    assert(/stageClear\(\)/.test(INDEX_HTML), 'ゲームを捨てる時に舞台も空にする');
+  });
+
   r.finish();
 })();

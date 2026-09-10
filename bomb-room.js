@@ -125,6 +125,8 @@ function startGame(room, config, ctx) {
     lives: cfg.lives,
     timerSec: cfg.timerSec,
     preset: cfg.preset,
+    // 第45弾 45-4：協力版で「だれが外したか」を出すか（進行役の設定・既定OFF）
+    showMisses: cfg.showMisses,
 
     playerIds: ids,
     names: {},
@@ -138,6 +140,9 @@ function startGame(room, config, ctx) {
     entries: {},
     open: {},                // memberId -> いま開けている uid
     solvedBy: {},            // uid -> 解いた人（通常版の「誰が切ったか」の表示用）
+    // 第45弾：**答えた記録。**45-4（だれが外したか）と 45-6（答え合わせ）の両方が
+    // ここ1つを読む。別々に持つと、片方だけ数え方が古くなる（落とし穴1）
+    log: [],                 // { uid, by, answer, correct }
 
     phase: PHASE.PREP,
     startedAt: null,
@@ -316,6 +321,21 @@ function publicView(room) {
     // 通常版は全員が同じ盤面を見るので、盤面そのものは公開情報。
     // ただし入れるのは「難易度・解除済みか・誰が挑戦中か」だけ
     view.board = team.order.map((uid) => boardCell(room, w, uid));
+    // 第45弾 45-4：**進行役がONにした時だけ**、外した人を並べる（既定はOFF）。
+    // 出すのは名前と「何ばんめのコードか」だけ——**選んだ答えは出さない**。
+    // 協力版の盤面はみんなで共有しているので、
+    // 「あの人はこれを選んで外した」が残ると、次に挑む人の答えが1つ減る。
+    // 並び順は協力版なら全員同じ（成績が1つ＝並びも1つ）なので、番号がそのまま通じる
+    view.missLog = w.showMisses
+      ? w.log.filter((x) => !x.correct).map((x) => ({
+        // by（memberId）は部屋の全員に配られる部屋内共有ID（第35弾Aで確認した事実）。
+        // 端末が「これは自分の分だ」と見分けるために要る——
+        // 外した本人には「💔 ちがう！」がもう出ているので、二重に言わない
+        by: x.by,
+        name: w.names[x.by] || '',
+        no: team.order.indexOf(x.uid) + 1
+      }))
+      : null;
   }
   if (w.phase === PHASE.ENDED) view.result = resultView(room);
   return view;
@@ -357,9 +377,18 @@ function workingTierOf(room, memberId) {
 }
 
 // 決着したこの瞬間だけ、答え合わせのために中身を開ける（試合中は絶対に出さない）
-function resultView(room) {
+/**
+ * 決着の中身。
+ *
+ * 第45弾 45-6：**答え合わせをここで作る。**
+ * `memberId` を渡すと、その人に見せてよい範囲で「誰が何と答えたか」が付く。
+ * 渡さない呼び方（公開ビュー・大画面）では、競争版の答えは**1つも付かない**——
+ * 競争版は同じコードに全員が別々に挑むので、他人の答えは秘密のままにする。
+ */
+function resultView(room, memberId) {
   const w = room.bomb;
   if (w.result && w.result.aborted) return w.result;
+  const coop = w.mode === BombLogic.MODE.COOP;
   const out = {
     mode: w.mode,
     total: w.wires.length,
@@ -370,7 +399,18 @@ function resultView(room) {
     codes: w.wires.map((x) => ({
       tier: x.tier,
       name: x.name,
-      solved: w.mode === BombLogic.MODE.COOP ? !!w.entries[TEAM_KEY].solved[x.uid] : null
+      solved: coop ? !!w.entries[TEAM_KEY].solved[x.uid] : null,
+      // 終わったあとなので、問題文も出してよい（答え合わせに要る）
+      question: x.question || x.description || '',
+      // 誰が何と答えたか。**協力版は全員ぶん、競争版は自分のぶんだけ。**
+      // 盤面が1つなら公開、人それぞれなら本人だけ——境目はそこ1つ
+      tries: (coop ? w.log : w.log.filter((t) => t.by === memberId))
+        .filter((t) => t.uid === x.uid)
+        .map((t) => ({
+          name: coop ? (w.names[t.by] || '') : null,
+          answer: t.answer,
+          correct: t.correct
+        }))
     }))
   };
   if (w.mode === BombLogic.MODE.COOP) {
@@ -446,7 +486,7 @@ function privateFor(room, memberId) {
       };
     }
   }
-  if (w.phase === PHASE.ENDED) out.result = resultView(room);
+  if (w.phase === PHASE.ENDED) out.result = resultView(room, memberId);
   return out;
 }
 
@@ -504,6 +544,7 @@ function submitVote(room, memberId, targetId) {
   delete w.open[memberId];
   const now = Date.now();
   const correct = BombLogic.isCorrect(wire, answer);
+  w.log.push({ uid: uid, by: memberId, answer: answer, correct: correct });
   if (correct) {
     e.solved[uid] = true;
     e.solvedCount++;

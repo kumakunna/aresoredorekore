@@ -2206,6 +2206,33 @@
   .bomb-wire-btn.solved{background:var(--teal);border-color:var(--teal);color:#fff;opacity:.7;cursor:default;}
   /* ===== 時限爆弾の演出（③） ===== */
   .bomb-topbar .timer-chip{font-size:15px;padding:2px 10px;}
+  /* ===== 第45弾 45-6：答え合わせ（手渡し・部屋 共通） =====
+     **並べ替えない・点数で色を変えない。**コードの順そのままに並べ、
+     合っていたかは ✓ / ✕ の形で出す（色だけに頼らない）。
+     専用の前置き（bv-）を付ける——既存の名前を借りると、
+     後ろにある古い定義が勝つ事故が起きる（落とし穴23） */
+  .bv-marks{
+    background:var(--paper-deep);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;margin-bottom:12px;font-size:var(--fs-sub);color:var(--ink);
+  }
+  .bv-list{display:grid;gap:10px;}
+  .bv-code{
+    background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+  }
+  .bv-head{display:flex;align-items:baseline;gap:8px;}
+  .bv-no{
+    flex:none;font-family:'DotGothic16',monospace;font-size:var(--fs-sub);
+    color:var(--ink-soft);min-width:1.6em;
+  }
+  .bv-q{font-size:var(--fs-body);color:var(--ink);line-height:1.45;}
+  .bv-ans{margin-top:6px;font-size:var(--fs-sub);color:var(--ink-soft);}
+  .bv-ans b{color:var(--teal);}
+  .bv-tries{margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;}
+  .bv-try{
+    font-size:var(--fs-sub);color:var(--ink-soft);
+    background:var(--paper-deep);border-radius:999px;padding:2px 10px;
+  }
+  .bv-none{font-size:var(--fs-sub);color:var(--ink-soft);}
   /* 第28弾-1：暗室・爆弾本体・蓋オープンの見た目は、演出ごと無くした */
   .bomb-inside{animation:bombInsideIn .4s ease;}
   @keyframes bombInsideIn{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
@@ -4343,6 +4370,8 @@
       </div>
       <div id="rtBombBoard"></div>
       <div id="rtBombResult"></div>
+      <!-- 第45弾 45-6：決着の演出を邪魔しない場所（結果の下・片手で届く） -->
+      <button class="btn btn-outline" id="rtBombReviewBtn" style="display:none;margin-top:14px;">🔍 答え合わせを見る ›</button>
       <button class="btn btn-main" id="rtBombAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="rtBombEndBtn" style="display:none;margin-top:10px;">🏁 部屋を閉じる</button>
       <button class="btn btn-ghost" id="rtBombLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
@@ -4962,6 +4991,8 @@
     <div class="wolf-handoff">
       <div class="wolf-handoff-name" id="bombEndTitle">💥 爆発！</div>
       <div class="wolf-handoff-sub" id="bombEndSub"></div>
+      <!-- 第45弾 45-6：手渡しにも同じものを置く（片方だけ濃い状態にしない・落とし穴1） -->
+      <button class="btn btn-outline" id="bombReviewBtn" style="display:none;">🔍 答え合わせを見る ›</button>
       <button class="btn btn-main" id="bombEndNextBtn">つぎへ</button>
     </div>
   </div>
@@ -7894,6 +7925,10 @@
     bombLocked: { easy: false, normal: false, hard: false, nanisore: false, muri: false },
     bombLives: 3,
     bombEndWhen: 'first', // 第27弾・競争版の終わり方：'first'（最初の1人で終了）| 'all'（全員が終わるまで）
+    // 第45弾 45-4：協力版で「だれが外したか」を出すか。**既定は出さない。**
+    // 遊んだ人からは「誰が外したか分からない」と報告されたが、
+    // 既定で名前を出すと「外した人の名前が毎回みんなの画面に出る」場になる（大切なこと5）
+    bombShowMisses: false,
     // 第27弾-3：実物解除の設定
     dfCfg: { moduleCount:5, strikes:3, manual:true, allowPhysical:true },
     // 第30弾：クイズ王の設定。4ゲームぶんを1つに持つ（画面も1枚で共有している）。
@@ -8707,6 +8742,21 @@
    * **「表示している約束は本当か」を、ルール文にも当てる**ため（指示39 A8）。
    * tests/mode-rules.js が、1行ずつ実装と突き合わせる
    */
+  /**
+   * 第45弾 45-6：答え合わせの描き方を、外から1回だけ回す。
+   * **手渡しも部屋も同じ部品が描く**ので、1回回せば両方を確かめたことになる
+   */
+  window.bombReviewProbe = function(codes){ return bombReviewHtml(codes); };
+  /**
+   * 第45弾 45-4：「このゲームの設定」を、モードと在室の組み合わせで回す。
+   * 出す条件を手で書くと、新しいカセットで必ずどれかが漏れる（落とし穴21）
+   */
+  window.liveSettingsProbe = function(o){
+    var m = modeById((o && o.mode) || '');
+    return liveGameSettings(m, !!(o && o.room));
+  };
+  /** 第45弾 45-6：手渡しの答え合わせが、部屋と同じ形に組めているか */
+  window.bombHandoffReviewProbe = function(){ return bombHandoffReviewCodes(); };
   window.modeProbe = function(id){
     var m = modeById(id);
     if(!m || m.id !== id) return null;
@@ -11609,6 +11659,8 @@
       endWhen: race ? state.bombEndWhen : null,
       counts: Object.assign({}, state.bombCounts),
       lives: state.bombLives,
+      // 第45弾 45-4：進行役の設定が、その試合の全員に効く（既定OFF）
+      showMisses: !!state.bombShowMisses,
       timerSec: state.timerEnabled ? (state.customTimer || 180) : 0,
       topics: getPool().map(function(t){
         return { name:t.name, tier:t.tier, ng_words:t.ng_words || [], aliases:t.aliases || [] };
@@ -14632,6 +14684,7 @@
   function rtBombLeaveScreen(){
     rtBombStopTicking();
     stopBombHeart();
+    rtBombMissSeen = 0;          // 第45弾 45-4：前の試合の分を持ち越さない
     el('rtBombOverlay').classList.remove('show');
     rtBombPrev = null;
   }
@@ -14751,6 +14804,7 @@
     rtBombLive = true;
     // 前回との差から、正解・ミスを見つけて音と演出を出す
     rtBombFeedback(you);
+    rtBombMissNotes(v);          // 第45弾 45-4：だれが外したか（ONの時だけ）
     rtBombSetClock(you.remainingMs);
     rtBombRenderTimer();
     rtBombStartTicking();
@@ -14833,6 +14887,48 @@
     var host = ended && rt.isHost();
     rtNextButton('rtBombAgainBtn', ended, host);
     el('rtBombEndBtn').style.display = host ? 'inline-flex' : 'none';
+    // 第45弾 45-6：答え合わせは、中身がある時だけ出す（押せない札を置かない）
+    el('rtBombReviewBtn').style.display =
+      (ended && rtBombReviewCodes().length) ? 'inline-flex' : 'none';
+  }
+  /**
+   * 第45弾 45-6：この端末に配られた答え合わせ。
+   * **自分だけに届いた結果（secret）を先に見る。**
+   * 競争版で「誰が何と答えたか」が入っているのはこちらだけで、
+   * 公開ビューには入っていない（他人の未公開の答えは配らない）
+   */
+  function rtBombReviewCodes(){
+    var you = rt && rt.state.secret;
+    var v = rtView();
+    var r = (you && you.result) || (v && v.result) || null;
+    return (r && !r.aborted && r.codes) ? r.codes : [];
+  }
+  el('rtBombReviewBtn').addEventListener('click', function(){
+    openBombReview(rtBombReviewCodes());
+  });
+
+  /**
+   * 第45弾 45-4：**だれが外したかを、静かに知らせる。**
+   *
+   * 出るのは進行役がONにした試合だけ（既定OFF）。
+   * サーバーが並べた `missLog` の**増えた分だけ**を読むので、
+   * 描き直しのたびに同じことを言わない（落とし穴7の型）。
+   *
+   * **自分の分は言わない。**外した本人には
+   * 「💔 ちがう！ライフが割れた」がすでに出ていて、
+   * そこに名前入りの一言を重ねると、責めている形になる（原則C）
+   */
+  var rtBombMissSeen = 0;
+  function rtBombMissNotes(v){
+    var log = v && v.missLog;
+    if(!log){ rtBombMissSeen = 0; return; }
+    if(log.length < rtBombMissSeen) rtBombMissSeen = 0;   // 新しい試合が始まった
+    var me = rt && rt.state.memberId;
+    for(var i = rtBombMissSeen; i < log.length; i++){
+      if(log[i].by === me) continue;
+      try{ FxKit.notice(UiText.BOMB.外した(log[i].name, log[i].no)); }catch(e){}
+    }
+    rtBombMissSeen = log.length;
   }
 
   // サーバーの成績が動いた分だけ、音と演出を出す
@@ -19163,10 +19259,84 @@
     play.bombLives = state.bombLives;
     play.bombLivesMax = state.bombLives;
     play.bombMisses = 0; // 第27弾：心拍を速くしていく目安
+    // 第45弾 45-6：答え合わせのための記録。**1台を回す遊び方なので、誰が押したかは分からない**
+    // ——名前は入れない（分からないものを、それらしく埋めない）
+    play.bombLog = [];
     play.currentBombWire = null;
   }
 
   var BOMB_TIER_CLASS = { easy:'t-easy', normal:'t-normal', hard:'t-hard', nanisore:'t-nanisore', muri:'t-muri' };
+
+  /**
+   * ===== 第45弾 45-6：答え合わせ =====
+   *
+   * **手渡しと部屋で、同じ1つの部品が描く。**
+   * 遊び方ごとに書くと、片方だけ直して古いまま残る（落とし穴1）。
+   * 受け取る形も1つに決めてある：
+   *
+   *   codes = [{ tier, question, name（正解）, solved, tries:[{ name（答えた人・無ければnull）, answer, correct }] }]
+   *
+   * ・協力版（部屋） … tries は全員ぶん（盤面を共有しているので公開情報）
+   * ・競争版（部屋） … tries は自分のぶんだけ（サーバーが本人にしか配らない）
+   * ・手渡し         … tries に人の名前は入らない（1台を回すので、誰が押したか分からない）
+   *
+   * **並べ替えない・点数で色を変えない**（45-6の禁止）。
+   * 出す順はコードの順そのまま。褒める印は形（🎯🔑）で付ける——色に頼らない
+   */
+  function bombReviewMarks(codes){
+    var 当てた = {}, 順に = [], 最後 = null;
+    (codes || []).forEach(function(c){
+      (c.tries || []).forEach(function(t){
+        if(!t.name) return;
+        if(当てた[t.name] === undefined){ 当てた[t.name] = 0; 順に.push(t.name); }
+        if(t.correct){ 当てた[t.name]++; 最後 = t.name; }
+      });
+    });
+    if(!順に.length) return null;
+    var 最多 = 0;
+    順に.forEach(function(n){ if(当てた[n] > 最多) 最多 = 当てた[n]; });
+    // 誰も1問も当てていない時に「よく当てた」を出すと、ただの皮肉になる
+    var よく当てた = (最多 > 0) ? 順に.filter(function(n){ return 当てた[n] === 最多; }) : [];
+    return { よく当てた: よく当てた, 最後に決めた: 最後 };
+  }
+  function bombReviewHtml(codes){
+    var T = UiText.BOMB;
+    // **「だれも答えませんでした」と言ってよいのは、答えの記録が届いている時だけ。**
+    // 競争版を横から見ている端末には、そもそも誰の答えも配られない——
+    // そこで「だれも答えなかった」と書くと、事実でないことを言うことになる。
+    // 1件でも記録があるなら、空のコードは本当に誰も挑まなかったコード
+    var 記録がある = (codes || []).some(function(c){ return (c.tries || []).length > 0; });
+    var list = (codes || []).map(function(c, i){
+      var tries = (c.tries || []).map(function(t){
+        // ✓ / ✕ は形。色だけで正誤を出さない（45-6の配慮）
+        return '<span class="bv-try">' + (t.correct ? '✓' : '✕') + ' ' +
+          (t.name ? escapeHtml(t.name) + '：' : '') + escapeHtml(t.answer) + '</span>';
+      }).join('');
+      return '<div class="bv-code">' +
+        '<div class="bv-head"><span class="bv-no">' + (i + 1) + '</span>' +
+          '<span class="bv-q">' + escapeHtml(c.question || '') + '</span></div>' +
+        '<div class="bv-ans">' + escapeHtml(T.正解の札) + '：<b>' + escapeHtml(c.name || '') + '</b></div>' +
+        (記録がある
+          ? '<div class="bv-tries">' + (tries || '<span class="bv-none">' +
+              escapeHtml(T.誰も答えなかった) + '</span>') + '</div>'
+          : '') +
+      '</div>';
+    }).join('');
+    var m = bombReviewMarks(codes);
+    var 印 = '';
+    if(m){
+      var 行 = [];
+      if(m.よく当てた.length) 行.push(T.よく当てた + '：' + m.よく当てた.map(escapeHtml).join('・'));
+      if(m.最後に決めた) 行.push(T.最後に決めた + '：' + escapeHtml(m.最後に決めた));
+      if(行.length) 印 = '<div class="bv-marks">' + 行.join('<br>') + '</div>';
+    }
+    return 印 + '<div class="bv-list">' + (list || '') + '</div>';
+  }
+  function openBombReview(codes){
+    if(typeof UiKit === 'undefined') return;
+    UiKit.sheet({ title: UiText.BOMB.答え合わせの見出し,
+      html: bombReviewHtml(codes), ok: UiText.WORDS.close });
+  }
 
   // ---- 第28弾-1：コードの盤面。協力版（1台）と競争版（部屋）で同じ部品を使う ----
   // 中身のデータだけが違う（人数の扱い・順位の有無）。
@@ -19383,6 +19553,10 @@
     var w = play.currentBombWire;
     if(!w) return;
     var correct = BombLogic.isCorrect(w, btn.dataset.choice);
+    // 第45弾 45-6：正解でも外れでも、同じ1か所で記録する
+    //（分岐ごとに書くと、片方だけ数え忘れる）
+    (play.bombLog = play.bombLog || []).push(
+      { uid: w.uid, name: null, answer: btn.dataset.choice, correct: correct });
     el('bombWireOverlay').classList.remove('show');
     play.currentBombWire = null;
     if(correct){
@@ -19417,6 +19591,9 @@
       : (success ? '💚 解除成功！' : '💥 爆発してしまった…');
     el('bombEndSub').textContent = reason ? reason
       : (success ? '全員に+1点！' : '残念、次はがんばろう');
+    // 第45弾 45-6：答え合わせ。部屋と同じ形に組み直してから渡す
+    var review = bombHandoffReviewCodes();
+    el('bombReviewBtn').style.display = review.length ? 'inline-flex' : 'none';
     var scoreDeltas = {};
     if(success){
       state.players.forEach(function(p){
@@ -19445,6 +19622,27 @@
   }
   el('bombEndNextBtn').addEventListener('click', function(){
     goTo('scr-score');
+  });
+  /**
+   * 第45弾 45-6：手渡しの答え合わせを、部屋とまったく同じ形に組む。
+   * **形を1つに決めておくと、描く部品は1つで済む**（落とし穴1）
+   */
+  function bombHandoffReviewCodes(){
+    var wires = play.bombWires || [];
+    var log = play.bombLog || [];
+    return wires.map(function(w){
+      return {
+        tier: w.tier,
+        question: w.question || w.description || '',
+        name: w.name,
+        solved: !!w.solved,
+        tries: log.filter(function(t){ return t.uid === w.uid; })
+          .map(function(t){ return { name: null, answer: t.answer, correct: t.correct }; })
+      };
+    });
+  }
+  el('bombReviewBtn').addEventListener('click', function(){
+    openBombReview(bombHandoffReviewCodes());
   });
 
   // ===================== quiz king =====================
@@ -21109,10 +21307,19 @@
     var g = gameById(gameIdForMode(m.id));
     return !!(g && g.playOptions);
   }
-  function liveGameSettings(){
+  /**
+   * いま遊んでいるゲームの、途中で変えられる設定。
+   *
+   * 第45弾：**引数で外から回せるようにした。**
+   * 「どのモードなら出るか」は落とし穴21（設定は出るのに何も起きない）の
+   * 温床なので、全モードを機械で回して確かめたい。
+   * 既定は今までどおり「いま遊んでいるもの」なので、呼ぶ側は何も変わらない
+   */
+  function liveGameSettings(モード, 部屋にいる){
     // 第43弾：部屋にいる時は部屋のモード。端末の選択で出し分けると、
     // 部屋のゲームに関係のない項目が並ぶ
-    var m = nowPlaying().mode || {};
+    var m = モード || nowPlaying().mode || {};
+    var 部屋 = (部屋にいる === undefined) ? !!(rt && rt.state.room) : !!部屋にいる;
     var out = [];
     // 第32弾-C-2 原則A：あれそれどれこれの遊んでいる画面には、
     // 「ハードモード」と「音声で判定」のスイッチが据え置かれていた。
@@ -21150,6 +21357,17 @@
         get:function(){ return state.bombLives; },
         set:function(v){ state.bombLives = v; },
         note:'次のゲームから効きます（いま遊んでいる分は変わりません）' });
+    }
+    // 第45弾 45-4：**だれが外したかを出す。既定はOFF。**
+    // 出るのは協力版（部屋）だけ——競争版は盤面が人それぞれで、
+    // 手渡しは1台を回すので「誰が押したか」がそもそも分からない。
+    // だから条件は「協力版で、いま部屋にいるか」の1つ（落とし穴21：
+    // 効き目の居場所が無い所に設定を出さない）
+    if(m.bomb && !m.bombRace && 部屋){
+      out.push({ id:'bombShowMisses', type:'toggle', label:'👀 だれが外したかを出す',
+        get:function(){ return !!state.bombShowMisses; },
+        set:function(v){ state.bombShowMisses = !!v; },
+        note:'外れた時に「◯◯さんが ◯ばんめのコードを外しました」と静かに出ます（次のゲームから効きます）' });
     }
     if(m.defuse){
       out.push({ id:'dfStrikes', label:'ミスの上限', min:1, max:5, step:1,

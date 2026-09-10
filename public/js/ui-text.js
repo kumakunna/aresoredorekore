@@ -268,7 +268,27 @@
     もどした: '残り時間を「常に表示」にもどしました（設定 → 見た目と演出 で変えられます）'
   };
 
+  /**
+   * 第45弾 45-4・45-6：クイズ解除の言葉。
+   *
+   * **責める言い方を1つも置かない**（原則C）。
+   * 「外しました」は事実だけ——「！」も付けないし、赤くもしない。
+   * 答え合わせは終わったあとに開くので、そこでは名前を出してよい
+   */
+  var BOMB = {
+    // 協力版で「だれが外したか」をONにした時の一言（既定はOFF）
+    外した: function (name, no) {
+      return name + ' さんが ' + no + 'ばんめのコードを外しました';
+    },
+    答え合わせ: '答え合わせを見る',
+    答え合わせの見出し: '答え合わせ',
+    正解の札: '正解',
+    誰も答えなかった: 'だれも答えませんでした',
+    よく当てた: '🎯 よく当てた',
+    最後に決めた: '🔑 最後に決めた'
+  };
+
   return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET,
-           TITLES: TITLES, TIMER: TIMER,
+           TITLES: TITLES, TIMER: TIMER, BOMB: BOMB,
            WAY: WAY, ENTRY: ENTRY, ROLE: ROLE };
 }));

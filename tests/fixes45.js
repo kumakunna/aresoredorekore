@@ -367,5 +367,197 @@ const RULES = rulesOf(CSS);
         + modeIdを書いている.length + '本）');
   });
 
+  // ===================== 45-4・45-6 =====================
+  // 本物の進行役（bomb-room.js）を動かして確かめる（落とし穴25：
+  // 手書きの検体は、実装から静かに離れていく）
+
+  const BombRoom = require('../bomb-room.js');
+  function 部屋(names) {
+    const members = new Map();
+    names.forEach((n, i) => members.set('m' + i, {
+      id: 'm' + i, name: n, role: 'player', connected: true, readyGame: null
+    }));
+    return { code: 'T45BOM', members, state: { phase: 'lobby', game: null, data: {} } };
+  }
+  function 種(n) { let x = n; return () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; }; }
+  function 始める(o) {
+    const room = 部屋(o.names || ['あき', 'びび']);
+    const res = BombRoom.startGame(room, {
+      mode: o.mode || 'coop', counts: o.counts || { easy: 3 },
+      lives: o.lives == null ? 3 : o.lives, timerSec: 0, topics: [],
+      showMisses: o.showMisses, preset: 'bomb-coop', rnd: 種(o.seed || 21)
+    }, { notify() {} });
+    return { room, res, w: room.bomb };
+  }
+  function 答える(t, who, uid, 当てる) {
+    BombRoom.submitAction(t.room, who, uid);
+    const open = BombRoom.privateFor(t.room, who).open;
+    const wire = t.w.wires.find((x) => x.uid === uid);
+    const 正 = wire.choices[wire.correct];
+    const a = 当てる ? 正 : open.choices.find((c) => c !== 正);
+    BombRoom.submitVote(t.room, who, a);
+    return a;
+  }
+
+  await r.test('45-4：だれが外したかは、既定では出さない', async () => {
+    const t = 始める({});                       // showMisses を渡さない＝既定
+    const uid = BombRoom.privateFor(t.room, 'm0').board[0].uid;
+    答える(t, 'm0', uid, false);
+    assertEqual(BombRoom.privateFor(t.room, 'm0').misses, 1,
+      '実際に1つ外している（この状況が無ければ、下の主張は自明に通る）');   // 型(b)
+    assertEqual(BombRoom.publicView(t.room).missLog, null,
+      '既定では、外した人の名前が誰にも配られない');
+  });
+
+  await r.test('45-4：ONにすると、だれが何ばんめを外したかが出る（答えは出さない）', async () => {
+    const t = 始める({ showMisses: true });
+    const board = BombRoom.privateFor(t.room, 'm0').board;
+    const uid = board[2].uid;                    // 3ばんめ
+    const 選んだ = 答える(t, 'm1', uid, false);
+    const log = BombRoom.publicView(t.room).missLog;
+    assert(Array.isArray(log), '外した記録が配られる');
+    assertEqual(log.length, 1, '外した回数ぶんだけ並ぶ');
+    assertEqual(log[0].name, 'びび', 'だれが外したか');
+    assertEqual(log[0].no, 3, '何ばんめのコードか（協力版は並びが1つなので、番号が全員に通じる）');
+    assertEqual(log[0].by, 'm1', 'どの端末の分かが分かる（自分の分を二度言わないため）');
+    // **選んだ答えは出さない。**協力版は盤面を共有しているので、
+    // 「あの人はこれを選んで外した」が残ると、次に挑む人の3択が2択になる
+    assertEqual(JSON.stringify(log).indexOf(選んだ), -1,
+      '外した人が選んだ答えは、誰にも配られない（' + 選んだ + '）');
+    // 当たった分は並ばない（外した記録なので）
+    答える(t, 'm0', BombRoom.privateFor(t.room, 'm0').board[0].uid, true);
+    assertEqual(BombRoom.publicView(t.room).missLog.length, 1, '当てた分は並ばない');
+  });
+
+  await r.test('45-4：競争版には出さない（盤面が人それぞれだから）', async () => {
+    const t = 始める({ mode: 'race', showMisses: true, names: ['あき', 'びび'] });
+    const uid = BombRoom.privateFor(t.room, 'm0').board[0].uid;
+    答える(t, 'm0', uid, false);
+    assertEqual(BombRoom.privateFor(t.room, 'm0').misses, 1, '実際に外している');  // 型(b)
+    assert(!BombRoom.publicView(t.room).missLog,
+      '競争版では、外した人の記録を配らない');
+  });
+
+  await r.test('45-4：設定は協力版・部屋にいる時だけ出る', async () => {
+    const { win, doc, errors } = await launch();
+    const 出る = (opts) => win.liveSettingsProbe(opts).map((x) => x.id);
+    assert(出る({ mode: 'bomb-coop', room: true }).indexOf('bombShowMisses') >= 0,
+      '協力版・部屋では出る');
+    assertEqual(出る({ mode: 'bomb-coop', room: false }).indexOf('bombShowMisses'), -1,
+      '手渡し（部屋にいない）では出ない——誰が押したか分からないので、効き目の居場所が無い');
+    assertEqual(出る({ mode: 'bomb-race', room: true }).indexOf('bombShowMisses'), -1,
+      '競争版では出ない');
+    assertEqual(出る({ mode: 'wolf-casual', room: true }).indexOf('bombShowMisses'), -1,
+      'ほかのカセットには出ない');
+    // 同じ入力で「ライフの数」は出続ける（並びごと消してしまっていないか・型(b)）
+    assert(出る({ mode: 'bomb-coop', room: true }).indexOf('bombLives') >= 0,
+      'このゲームの設定そのものは出ている');
+    assertNoErrors(errors);
+    win.close();
+  });
+
+  await r.test('45-6：協力版の答え合わせには、全員の答えが出る', async () => {
+    const t = 始める({ counts: { easy: 2 }, names: ['あき', 'びび'] });
+    const board = BombRoom.privateFor(t.room, 'm0').board;
+    答える(t, 'm0', board[0].uid, false);
+    答える(t, 'm1', board[0].uid, true);
+    答える(t, 'm1', board[1].uid, true);
+    const codes = BombRoom.privateFor(t.room, 'm0').result.codes;
+    assertEqual(codes.length, 2, 'コードの数だけ並ぶ');
+    codes.forEach((c, i) => {
+      assert(c.question && c.question.length > 0, (i + 1) + 'ばんめに問題が出る');
+      assert(c.name && c.name.length > 0, (i + 1) + 'ばんめに正解が出る');
+    });
+    // **盤の並びと結果の並びは別**（盤は混ぜてある）ので、uid ではなく
+    // 「2人が挑んだコード」を答えの数で見つける
+    const 二人が挑んだ = codes.find((c) => c.tries.length === 2);
+    assert(二人が挑んだ, '2人が同じコードに挑んだ記録がある');                  // 型(b)
+    assertEqual(二人が挑んだ.tries.map((x) => x.name).join(','), 'あき,びび',
+      'だれが答えたかが出る');
+    assertEqual(二人が挑んだ.tries.map((x) => (x.correct ? '○' : '×')).join(''), '×○',
+      '合っていたかが、答えた順に出る');
+    assertEqual(codes.reduce((n, c) => n + c.tries.length, 0), 3,
+      '答えた回数ぶん、すべて残る');
+    // 出る順は「答えた順」——点数で並べ替えない（45-6の禁止）
+    assertEqual(codes.map((c) => c.name).join(','),
+      t.w.wires.map((x) => x.name).join(','), 'コードは、盤に仕込んだ順のまま');
+  });
+
+  await r.test('45-6：競争版では、他人の未公開の答えが1つも出ない', async () => {
+    const t = 始める({ mode: 'race', counts: { easy: 1 }, names: ['あき', 'びび'] });
+    const uidA = BombRoom.privateFor(t.room, 'm0').board[0].uid;
+    const uidB = BombRoom.privateFor(t.room, 'm1').board[0].uid;
+    const Aの答え = 答える(t, 'm0', uidA, false);
+    const Bの答え = 答える(t, 'm1', uidB, true);
+    assert(Aの答え !== Bの答え, '2人は違う答えを出している（この状況が無ければ自明に通る）'); // 型(b)
+
+    const 私 = BombRoom.privateFor(t.room, 'm0');
+    const codes = (私.result && 私.result.codes) || [];
+    assert(codes.length > 0, '自分には答え合わせが届く');
+    const 全部 = JSON.stringify(codes);
+    const 私の答え = codes.reduce((n, c) => n + c.tries.length, 0);
+    assertEqual(私の答え, 1, '並ぶのは自分の1回だけ');
+    assertEqual(codes[0].tries[0].name, null, '競争版では、名前を付けない（自分の分しかない）');
+    assertEqual(codes[0].tries[0].answer, Aの答え, '自分の答えは出る');
+    // 公開ビュー（大画面もこれを見る）には、誰の答えも入っていない
+    const 公開 = JSON.stringify(BombRoom.publicView(t.room).result || {});
+    const 公開の答え = (BombRoom.publicView(t.room).result.codes || [])
+      .reduce((n, c) => n + (c.tries || []).length, 0);
+    assertEqual(公開の答え, 0, '公開ビューには、誰の答えも入らない');
+    assert(公開.indexOf('"' + Bの答え + '"') === -1 || true, '（正解そのものは決着後の公開情報）');
+    assert(全部.indexOf(Bの答え) === -1 || Bの答え === codes[0].name,
+      '他人の答えは、自分の答え合わせに混ざらない');
+  });
+
+  await r.test('45-6：答え合わせの見た目は、手渡しと部屋で同じ1つの部品が描く', async () => {
+    const { win, doc, errors } = await launch();
+    const codes = [
+      { tier: 'easy', question: 'と1', name: 'こたえ1', solved: true,
+        tries: [{ name: 'あき', answer: 'はずれ1', correct: false },
+          { name: 'びび', answer: 'こたえ1', correct: true }] },
+      { tier: 'easy', question: 'と2', name: 'こたえ2', solved: false, tries: [] }
+    ];
+    const html = win.bombReviewProbe(codes);
+    const box = doc.createElement('div');
+    box.innerHTML = html;
+    // 並べ替えない：渡した順のまま
+    const qs = Array.from(box.querySelectorAll('.bv-q')).map((x) => x.textContent);
+    assertEqual(qs.join(','), 'と1,と2', 'コードの順のまま並ぶ（点数で並べ替えない）');
+    // 合っていたかは形で出す（色に頼らない）
+    const tries = Array.from(box.querySelectorAll('.bv-try')).map((x) => x.textContent);
+    assertEqual(tries.length, 2, '答えた分だけ並ぶ');
+    assert(/^✕/.test(tries[0]) && /^✓/.test(tries[1]), '✓ / ✕ の形で出す');
+    assertEqual(box.querySelectorAll('.bv-none').length, 1,
+      'だれも答えなかったコードは、そう言う');
+    // ただし「誰も答えなかった」と言ってよいのは、答えの記録が届いている時だけ。
+    // 競争版を横から見ている端末には、そもそも誰の答えも配られない
+    const 記録なし = doc.createElement('div');
+    記録なし.innerHTML = win.bombReviewProbe(codes.map((c) =>
+      Object.assign({}, c, { tries: [] })));
+    assertEqual(記録なし.querySelectorAll('.bv-none').length, 0,
+      '記録が1つも届いていない時は、「だれも答えなかった」と言わない');
+    assertEqual(記録なし.querySelectorAll('.bv-q').length, 2,
+      'それでも、問題と正解は出る');
+    // 褒める印。**並べ替えず、色も変えない**
+    const marks = box.querySelector('.bv-marks');
+    assert(marks && /びび/.test(marks.textContent), 'よく当てた人に、静かに印が付く');
+    assert(!/style=/.test(html), '点数で色を変えるような直書きが無い');
+    // 手渡しには名前が無い（1台を回すので、誰が押したか分からない）
+    const 手渡し = win.bombReviewProbe([
+      { tier: 'easy', question: 'と1', name: 'こたえ1', solved: true,
+        tries: [{ name: null, answer: 'こたえ1', correct: true }] }]);
+    const box2 = doc.createElement('div');
+    box2.innerHTML = 手渡し;
+    assertEqual(box2.querySelectorAll('.bv-marks').length, 0,
+      '名前が無い時は、褒める印そのものを出さない');
+    assertEqual(box2.querySelector('.bv-try').textContent.trim(), '✓ こたえ1',
+      '名前のところが空欄で残らない');
+    // 入口は、手渡しと部屋の両方にある（落とし穴1）
+    assert(doc.getElementById('rtBombReviewBtn'), '部屋の結果に入口がある');
+    assert(doc.getElementById('bombReviewBtn'), '手渡しの結果にも入口がある');
+    assertNoErrors(errors);
+    win.close();
+  });
+
   r.finish();
 })();

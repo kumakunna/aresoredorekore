@@ -85,7 +85,11 @@
       timerSec: clampInt(c.timerSec, 0, 59 * 60 + 59, 180),
       counts: counts,
       total: total,
-      preset: c.preset || null
+      preset: c.preset || null,
+      // 第45弾 45-4：協力版で「だれが外したか」を出すか。**既定は出さない。**
+      // 出すこと自体は責める行為ではないが、既定にすると
+      // 「外した人の名前が毎回みんなの画面に出る」場になる（大切なこと5）
+      showMisses: c.showMisses === true
     };
   }
 

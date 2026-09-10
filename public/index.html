@@ -19452,6 +19452,16 @@
     UiKit.sheet({ title: UiText.BOMB.答え合わせの見出し,
       html: bombReviewHtml(codes), ok: UiText.WORDS.close });
   }
+  /**
+   * 入口の札は1か所から入れる。
+   * 手渡しと部屋でHTMLに別々に書くと、片方だけ言い換えた日に食い違う（落とし穴1）
+   */
+  function labelBombReviewBtns(){
+    ['rtBombReviewBtn', 'bombReviewBtn'].forEach(function(id){
+      var b = el(id);
+      if(b) b.textContent = '🔍 ' + UiText.BOMB.答え合わせ + ' ›';
+    });
+  }
 
   // ---- 第28弾-1：コードの盤面。協力版（1台）と競争版（部屋）で同じ部品を使う ----
   // 中身のデータだけが違う（人数の扱い・順位の有無）。
@@ -22518,6 +22528,7 @@
     // 第32弾-B-1：音量・文字サイズなどは、起動した瞬間から効いていてほしい
     loadAppPrefs();
     applyAppPrefs();
+    labelBombReviewBtns();   // 第45弾 45-6：答え合わせの入口の札を、1か所から入れる
     loadTitleGotAt();
     startFx();
     startEmojiSwap();

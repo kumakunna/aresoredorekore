@@ -585,9 +585,11 @@ const RULES = rulesOf(CSS);
       '名前が無い時は、褒める印そのものを出さない');
     assertEqual(box2.querySelector('.bv-try').textContent.trim(), '✓ こたえ1',
       '名前のところが空欄で残らない');
-    // 入口は、手渡しと部屋の両方にある（落とし穴1）
-    assert(doc.getElementById('rtBombReviewBtn'), '部屋の結果に入口がある');
-    assert(doc.getElementById('bombReviewBtn'), '手渡しの結果にも入口がある');
+    // 入口は、手渡しと部屋の両方にある（落とし穴1）。**札も同じ言葉**
+    const 部屋の札 = el(doc, 'rtBombReviewBtn').textContent;
+    const 手渡しの札 = el(doc, 'bombReviewBtn').textContent;
+    assert(/答え合わせ/.test(部屋の札), '部屋の結果に入口がある（' + 部屋の札 + '）');
+    assertEqual(手渡しの札, 部屋の札, '手渡しと部屋で、入口の札が同じ言葉');
     assertNoErrors(errors);
     win.close();
   });

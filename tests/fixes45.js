@@ -511,22 +511,27 @@ const RULES = rulesOf(CSS);
 
   await r.test('45-6：答え合わせの見た目は、手渡しと部屋で同じ1つの部品が描く', async () => {
     const { win, doc, errors } = await launch();
+    // **答えの数が少ないコードを先に置く。**
+    // 多い方を先に置くと、点数で並べ替える実装でも順番が変わらず、
+    // 「並べ替えていない」を確かめたつもりで何も確かめていないことになる（落とし穴10-b）
     const codes = [
-      { tier: 'easy', question: 'と1', name: 'こたえ1', solved: true,
-        tries: [{ name: 'あき', answer: 'はずれ1', correct: false },
-          { name: 'びび', answer: 'こたえ1', correct: true }] },
-      { tier: 'easy', question: 'と2', name: 'こたえ2', solved: false, tries: [] }
+      { tier: 'easy', question: 'と1', name: 'こたえ1', solved: false, tries: [] },
+      { tier: 'easy', question: 'と2', name: 'こたえ2', solved: true,
+        tries: [{ name: 'あき', answer: 'はずれ2', correct: false },
+          { name: 'びび', answer: 'こたえ2', correct: true }] }
     ];
     const html = win.bombReviewProbe(codes);
     const box = doc.createElement('div');
     box.innerHTML = html;
     // 並べ替えない：渡した順のまま
     const qs = Array.from(box.querySelectorAll('.bv-q')).map((x) => x.textContent);
-    assertEqual(qs.join(','), 'と1,と2', 'コードの順のまま並ぶ（点数で並べ替えない）');
+    assertEqual(qs.join(','), 'と1,と2',
+      'コードの順のまま並ぶ（答えの多い「と2」が先に来ない＝点数で並べ替えていない）');
     // 合っていたかは形で出す（色に頼らない）
     const tries = Array.from(box.querySelectorAll('.bv-try')).map((x) => x.textContent);
     assertEqual(tries.length, 2, '答えた分だけ並ぶ');
     assert(/^✕/.test(tries[0]) && /^✓/.test(tries[1]), '✓ / ✕ の形で出す');
+    assert(/あき/.test(tries[0]) && /びび/.test(tries[1]), 'だれの答えかも出る');
     assertEqual(box.querySelectorAll('.bv-none').length, 1,
       'だれも答えなかったコードは、そう言う');
     // ただし「誰も答えなかった」と言ってよいのは、答えの記録が届いている時だけ。

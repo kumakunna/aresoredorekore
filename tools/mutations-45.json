@@ -235,8 +235,8 @@
     "name": "45-4c 競争版にも出す（盤面が人それぞれなのに番号を出す）",
     "file": "bomb-room.js",
     "suite": "tests/fixes45.js",
-    "from": "    view.missLog = w.showMisses",
-    "to": "    view.missLog = true",
+    "from": "      : null;\n  }\n  if (w.phase === PHASE.ENDED) view.result = resultView(room);",
+    "to": "      : null;\n  }\n  if (w.showMisses && !view.missLog) {\n    view.missLog = w.log.filter((x) => !x.correct)\n      .map((x) => ({ by: x.by, name: w.names[x.by] || '', no: 1 }));\n  }\n  if (w.phase === PHASE.ENDED) view.result = resultView(room);",
     "expect": "競争版では、外した人の記録を配らない"
   },
   {
@@ -285,7 +285,7 @@
     "suite": "tests/fixes45.js",
     "from": "    var st = await roomMembership();\n    this.disabled = false;\n    if(!st.ある){",
     "to": "    var st = { ある:true };\n    this.disabled = false;\n    if(!st.ある){",
-    "expect": "入口に残る（行き止まりにしない）"
+    "expect": "理由を1つ言う"
   },
   {
     "name": "45-6a 競争版で、他人の答えまで配る",

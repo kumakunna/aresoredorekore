@@ -290,5 +290,79 @@ const RULES = rulesOf(CSS);
     assert(/stageClear\(\)/.test(INDEX_HTML), 'ゲームを捨てる時に舞台も空にする');
   });
 
+  // ===================== 45-3 =====================
+
+  await r.test('45-3：同じゲームで作り直す時は、モードを引き継ぐ', async () => {
+    // **再戦（「もう一度」）でルール文が消えていた。**
+    // サーバーの clearGameState が state.data を空にするので modeId が落ち、
+    // ルール画面がモードではなくゲームを出して
+    // 「このゲームの説明は、まだ用意できていません」に化けていた（実サーバーで再現）。
+    const RTClient = require('../public/js/rt-client.js');
+    function 作る(部屋) {
+      const emits = [];
+      const sock = {
+        on() { return sock; },
+        emit(name, payload, cb) {
+          emits.push({ name, payload });
+          if (cb) cb({ ok: true, code: 'AAA111', memberId: 'm1', room: 部屋 });
+          return sock;
+        },
+        close() {}, disconnect() {}
+      };
+      const rt = RTClient.create({ io: () => sock });
+      return { rt, emits };
+    }
+    const 部屋 = { code: 'AAA111', state: { phase: 'lobby', game: 'bomb', data: { modeId: 'bomb-coop' } },
+      members: [], ready: { count: 0, total: 1 } };
+    const t = 作る(部屋);
+    await t.rt.joinRoom('AAA111', 'あき');
+    const 直後 = t.emits.length;
+
+    // ① 同じゲームで作り直す（「もう一度」）→ モードが付いてくる
+    await t.rt.pickGame('bomb', { reset: true });
+    const もう一度 = t.emits[t.emits.length - 1];
+    assertEqual(もう一度.name, 'room:setState', '作り直しは room:setState で送る');   // 型(b)
+    assert(もう一度.payload.data && もう一度.payload.data.modeId === 'bomb-coop',
+      'モードidが付いてくる（' + JSON.stringify(もう一度.payload.data) + '）');
+    assert(t.emits.length > 直後, '実際に1つ送られている');                        // 型(b)
+
+    // ② 別のゲームへ移る時は引き継がない（別ゲームのモードidを持ち越さない・大切なこと9）
+    await t.rt.pickGame('wolfrole', { reset: true });
+    const 別ゲーム = t.emits[t.emits.length - 1];
+    assert(!(別ゲーム.payload.data && 別ゲーム.payload.data.modeId),
+      '別のゲームには、前のモードidを持ち越さない');
+
+    // ③ ゲームを外す（えらび直し）時も引き継がない（型(c)）
+    await t.rt.pickGame(null, { reset: true });
+    const 外す = t.emits[t.emits.length - 1];
+    assert(!(外す.payload.data && 外す.payload.data.modeId),
+      'ゲームを外した時は、モードidも残さない');
+
+    // ④ 呼ぶ側が自分でモードidを渡した時は、そちらが勝つ
+    const u = 作る(部屋);
+    await u.rt.joinRoom('AAA111', 'あき');
+    await u.rt.pickGame('bomb', { reset: true, data: { modeId: 'bomb-race' } });
+    assertEqual(u.emits[u.emits.length - 1].payload.data.modeId, 'bomb-race',
+      '呼ぶ側が決めたモードidが勝つ');
+  });
+
+  await r.test('45-3：引き継ぎは呼ぶ側ではなく1か所にある', async () => {
+    // 経路は5つある（もう一度／ゲーム終了／モードえらび直し／ゲームえらび直し／最初の1回）。
+    // 呼ぶ側に書くと、必ずどれかで書き忘れる（落とし穴1・4）
+    const RT = fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'js', 'rt-client.js'), 'utf8');
+    assert(/function pickGame\(gameId, opts\)[\s\S]{0,900}?modeId/.test(RT),
+      'モードidの引き継ぎは pickGame の中にある');
+    const 呼び出し = INDEX_HTML.split('\n')
+      .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+      .filter((line) => /rt\.pickGame\(/.test(line));
+    assert(呼び出し.length >= 4,
+      '呼ぶ側の経路が実際に複数ある（いま ' + 呼び出し.length + '本）');           // 型(b)
+    const modeIdを書いている = 呼び出し.filter((line) => /modeId/.test(line));
+    assertEqual(modeIdを書いている.length, 1,
+      'モードidを名指しで渡すのは、最初にゲームを決める1本だけ（いま '
+        + modeIdを書いている.length + '本）');
+  });
+
   r.finish();
 })();

@@ -276,8 +276,29 @@
     function closeRoom() { return call('room:close', {}); }
     // 第26弾-3：部屋は残したまま、これから遊ぶゲームを選び直す。
     // ゲームが変わった時と reset を付けた時は、サーバー側で前の進行が捨てられる
+    /**
+     * ゲームを決め直す（`reset:true` で前の進行を捨てる）。
+     *
+     * 第45弾 45-3：**同じゲームのまま作り直す時は、モードを引き継ぐ。**
+     * サーバーの `clearGameState` は `state.data` を空にするので、
+     * 「もう一度」で作り直すと `modeId` が落ちていた。
+     * その結果、再戦のルール画面が**モードではなくゲーム**を出し、
+     * 「クイズ解除（協力版）」の6行が「このゲームの説明は、まだ用意できていません」
+     * に化けていた（実サーバーで再現）。
+     *
+     * 引き継ぎは**呼ぶ側ではなくここに置く**。呼ぶ側に書くと、
+     * 経路が5つあるので必ずどれかで書き忘れる（落とし穴1・4）。
+     * ゲームを変える時（gameId が違う・null）は引き継がない——
+     * 別のゲームのモードidを持ち越すのがいちばん危ない形（大切なこと9）
+     */
     function pickGame(gameId, opts) {
-      return call('room:setState', Object.assign({ phase: 'lobby', game: gameId || null }, opts || {}));
+      var o = opts || {};
+      var st = (state.room && state.room.state) || {};
+      var いまのモード = (st.data && st.data.modeId) || null;
+      if (gameId && gameId === st.game && いまのモード && !(o.data && o.data.modeId)) {
+        o = Object.assign({}, o, { data: Object.assign({ modeId: いまのモード }, o.data || {}) });
+      }
+      return call('room:setState', Object.assign({ phase: 'lobby', game: gameId || null }, o));
     }
     // 第37弾：ルールを読んだうえでの「準備OK」。取り消しは ready:false。
     // いまのゲームidを添えるのは、部屋の知らせと自分の操作がすれ違った時に

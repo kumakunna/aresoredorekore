@@ -134,5 +134,85 @@
     "from": "    document.querySelectorAll('[data-timerview]').forEach(function(b){",
     "to": "    document.querySelectorAll('#settingsOverlay [data-timerview]').forEach(function(b){",
     "expect": "を押すと2か所とも光る"
+  },
+  {
+    "name": "45-2a 褒める側も、その場で出す（順番待ちをやめる）",
+    "file": "public/js/fx.js",
+    "suite": "tests/fixes45.js",
+    "from": "    var 褒める = !!(opt && opt.praise);\n    if (!褒める && !舞台.走っている) return 走らせる(fn);",
+    "to": "    var 褒める = !!(opt && opt.praise);\n    if (!舞台.走っている) return 走らせる(fn);",
+    "expect": "帯が出ている間、褒める側はまだ動いていない"
+  },
+  {
+    "name": "45-2b 舞台を通さず、いきなり出す",
+    "file": "public/js/fx.js",
+    "suite": "tests/fixes45.js",
+    "from": "  function banner(opt) {\n    return stage(function () { return bannerNow(opt); }, opt);\n  }",
+    "to": "  function banner(opt) {\n    return bannerNow(opt);\n  }",
+    "expect": "帯が出ている間、褒める側はまだ動いていない"
+  },
+  {
+    "name": "45-2c 空いていても一拍おく（演出が遅れて見える）",
+    "file": "public/js/fx.js",
+    "suite": "tests/fixes45.js",
+    "from": "    if (!褒める && !舞台.走っている) return 走らせる(fn);",
+    "to": "    if (false) return 走らせる(fn);",
+    "expect": "空いている時は、頼んだその場で出る"
+  },
+  {
+    "name": "45-2d 称号を舞台に乗せない（第45弾の事故そのもの）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    }, { praise:true });",
+    "to": "    }, {});",
+    "expect": "称号は「褒める」を名乗る"
+  },
+  {
+    "name": "45-3a モードidを引き継がない（再戦でルール文が消える形）",
+    "file": "public/js/rt-client.js",
+    "suite": "tests/fixes45.js",
+    "from": "      if (gameId && gameId === st.game && いまのモード && !(o.data && o.data.modeId)) {",
+    "to": "      if (false) {",
+    "expect": "モードidが付いてくる"
+  },
+  {
+    "name": "45-3b 別のゲームにもモードidを持ち越す",
+    "file": "public/js/rt-client.js",
+    "suite": "tests/fixes45.js",
+    "from": "      if (gameId && gameId === st.game && いまのモード && !(o.data && o.data.modeId)) {",
+    "to": "      if (いまのモード) {",
+    "expect": "別のゲームには、前のモードidを持ち越さない"
+  },
+  {
+    "name": "45-3c ルール文に「AI」を戻す（言葉が実装から取り残された形）",
+    "file": "public/index.html",
+    "suite": "tests/mode-rules.js",
+    "from": "\"コードをタップすると、問題と3つの答えが出る\"",
+    "to": "\"コードをタップするとAIの説明文が出る\"",
+    "expect": "ルール文の全部の行に、本当かを見る検査がある"
+  },
+  {
+    "name": "45-3d モードの一言に「AI」を戻す",
+    "file": "public/index.html",
+    "suite": "tests/mode-rules.js",
+    "from": "sub:\"問題を読んで3択・ライフ制の協力プレイ\"",
+    "to": "sub:\"AIの説明を聞いて3択・ライフ制の協力プレイ\"",
+    "expect": "の説明に「AI」が出てこない"
+  },
+  {
+    "name": "45-3e 3択を2つしか配らない（ルール文が嘘になる）",
+    "file": "public/js/bomb-logic.js",
+    "suite": "tests/mode-rules.js",
+    "from": "  function isBankWire(wire) {",
+    "to": "  function isBankWire(wire) {\n    if (wire && wire.choices) wire.choices = wire.choices.slice(0, 2);",
+    "expect": "答えは3つ"
+  },
+  {
+    "name": "45-3f 外したコードを二度と開けなくする（『何度でも』が嘘になる）",
+    "file": "bomb-room.js",
+    "suite": "tests/mode-rules.js",
+    "from": "  if (e.solved[targetId]) return { ok: false, error: 'already_solved' };",
+    "to": "  if (e.solved[targetId] || e.choices[targetId]) return { ok: false, error: 'already_solved' };",
+    "expect": "外したコードを、もう一度開けられる"
   }
 ]

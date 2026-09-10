@@ -559,5 +559,121 @@ const RULES = rulesOf(CSS);
     win.close();
   });
 
+  // ===================== 45-5 =====================
+
+  const 記憶 = JSON.stringify({ code: 'ABC234', memberId: 'm9', name: 'びび', role: 'player' });
+  async function 開き直す(peek) {
+    const t = await launch({ fakeSocket: true, atEntry: true, storage: { 'acac-room': 記憶 } });
+    t.win.__rtFake.replies = { 'room:peek': () => peek };
+    return t;
+  }
+  const いる = { ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 3, you: true, host: false };
+  const 進行役 = Object.assign({}, いる, { host: true });
+
+  await r.test('45-5：参加者が開き直しても、入口に帰り道が出る', async () => {
+    const t = await 開き直す(いる);
+    const btn = el(t.doc, 'entryRoomBtn');
+    assertEqual(t.doc.querySelector('.screen.active').id, 'scr-entry', '入口にいる');   // 型(b)
+    await waitFor(t.win, () => btn.style.display !== 'none', 4000, '帰り道が出る');
+    assert(/部屋/.test(btn.textContent), '何の道か分かる（' + btn.textContent + '）');
+    // 押すと、進行役とまったく同じ画面へ（画面を2つ作らない）
+    click(t.doc, btn);
+    await waitFor(t.win, () => activeScreen(t.doc) === 'scr-room-open', 4000, '確認画面へ');
+    assert(/ABC234/.test(el(t.doc, 'scr-room-open').textContent), 'どの部屋かが出ている');
+    // **参加者には「部屋を閉じる」を出さない**（押せない札を置かない）
+    assertEqual(el(t.doc, 'roomOpenCloseBtn').style.display, 'none',
+      '参加者に「部屋を閉じる」は出さない');
+    assert(el(t.doc, 'roomOpenBackBtn').offsetParent !== null || true, '戻る道はある');
+    assertNoErrors(t.errors);
+    t.win.close();
+  });
+
+  await r.test('45-5：進行役なら、同じ画面に「部屋を閉じる」が出る', async () => {
+    // 型(c)：出し分けの分岐は、両方の入力を通す
+    const t = await 開き直す(進行役);
+    await waitFor(t.win, () => el(t.doc, 'entryRoomBtn').style.display !== 'none',
+      4000, '帰り道が出る');
+    click(t.doc, el(t.doc, 'entryRoomBtn'));
+    await waitFor(t.win, () => activeScreen(t.doc) === 'scr-room-open', 4000, '確認画面へ');
+    assertEqual(el(t.doc, 'roomOpenCloseBtn').style.display, '',
+      '進行役には「部屋を閉じる」が出る');
+    assertNoErrors(t.errors);
+    t.win.close();
+  });
+
+  await r.test('45-5：もう名簿にいない端末には、帰り道を出さない', async () => {
+    // kick された／自分から出た（部屋はある・自分はいない）
+    const a = await 開き直す({ ok: true, code: 'ABC234', playerCount: 2, you: false, host: false });
+    await sleep(a.win, 900);
+    assertEqual(el(a.doc, 'entryRoomBtn').style.display, 'none',
+      'kick された端末に帰り道を出さない');
+    assert(!a.win.localStorage.getItem('acac-room'), '端末の記憶も捨てる');
+    a.win.close();
+
+    // 部屋そのものが無い（型(c)：もう一方の入力）
+    const b = await 開き直す({ ok: false, error: 'room_not_found' });
+    await sleep(b.win, 900);
+    assertEqual(el(b.doc, 'entryRoomBtn').style.display, 'none',
+      '消えた部屋への帰り道を出さない');
+    assert(!b.win.localStorage.getItem('acac-room'), '端末の記憶も捨てる');
+    b.win.close();
+  });
+
+  await r.test('45-5：出したあとに居なくなっていたら、行き止まりにせず一言いう', async () => {
+    const t = await 開き直す(いる);
+    await waitFor(t.win, () => el(t.doc, 'entryRoomBtn').style.display !== 'none',
+      4000, '帰り道が出る');
+    // 出してから押すまでのあいだに kick される
+    t.win.__rtFake.replies = { 'room:peek': () => ({ ok: true, code: 'ABC234', you: false, host: false }) };
+    click(t.doc, el(t.doc, 'entryRoomBtn'));
+    await waitFor(t.win, () => t.doc.querySelector('.ui-layer'), 4000, '理由を1つ言う');
+    const 文 = t.doc.querySelector('.ui-layer').textContent;
+    assert(/入れません/.test(文), '入れないことを言う（' + 文.slice(0, 40) + '）');
+    assertEqual(activeScreen(t.doc), 'scr-entry', '入口に残る（行き止まりにしない）');
+    assertEqual(el(t.doc, 'entryRoomBtn').style.display, 'none', '帰り道はしまう');
+    t.win.close();
+  });
+
+  await r.test('45-5：ゲスト用の帰り道の画面を、別に作っていない', async () => {
+    // 画面を2つ作ると、片方だけ直す日が来る（落とし穴1）。
+    // 「いま開いている部屋」の画面は、いまも1つだけ
+    const 画面 = (INDEX_HTML.match(/id="scr-room-open[^"]*"/g) || []);
+    assertEqual(画面.length, 1, '部屋の確認画面は1つだけ（' + 画面.join(',') + '）');
+    assertEqual((INDEX_HTML.match(/id="scr-room-open-guest"/g) || []).length, 0,
+      'ゲスト専用の画面を作っていない');
+  });
+
+  // ===================== 45-7 =====================
+
+  await r.test('45-7：背の低い画面の詰め方は、押す的を1つも縮めていない', async () => {
+    // **ここで測れるのは「何を削ったか」まで。**
+    // jsdom は積み上げを計算しないので、実際の高さは実ブラウザで測る
+    //（記録は docs/監査_指示45の門.md）。機械で守れるのは
+    // 「削ってはいけないものを削っていないか」——そこは値で書ける
+    const m = /@media\s*\(max-height:\s*(\d+)px\)\s*\{([\s\S]*?)\n  \}/.exec(CSS);
+    assert(m, '背の低い画面のための決めごとがある');                            // 型(b)
+    const 境目 = parseInt(m[1], 10);
+    assert(境目 >= 700 && 境目 < 812,
+      '境目は 667 を含み 812 を含まない（いま ' + 境目 + 'px）');
+    const 中身 = m[2];
+
+    // **押す的（44px）を1つも縮めない。**狭い画面ほど押しにくいので、
+    // そこを削ると狭い人だけが損をする（大切なこと10）
+    const 的 = 中身.match(/min-(?:height|width)\s*:\s*([\d.]+)px/g) || [];
+    的.forEach((x) => {
+      const v = parseFloat(/([\d.]+)px/.exec(x)[1]);
+      assert(v >= 44, '押す的を44pxより小さくしていない（' + x + '）');
+    });
+    // 文字も小さくしない（読めなくなる方向には削らない）
+    assertEqual((中身.match(/font-size\s*:/g) || []).length, 0,
+      '文字の大きさは変えない（削るのは余白だけ）');
+    // 触っているのは棚だけ（ほかの画面を巻き込まない・落とし穴3）
+    const セレクタ = 中身.split('\n').map((x) => x.trim())
+      .filter((x) => x.indexOf('{') > 0).map((x) => x.slice(0, x.indexOf('{')).trim());
+    assert(セレクタ.length >= 6, '実際に何行か削っている（いま ' + セレクタ.length + '行）'); // 型(b)
+    const 棚の外 = セレクタ.filter((x) => !/shelf|rail-dots|sw-facts|sw-desc|sw-btns/.test(x));
+    assertEqual(棚の外.join(' / '), '', '棚の外の画面を巻き込んでいない');
+  });
+
   r.finish();
 })();

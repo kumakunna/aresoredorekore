@@ -1745,6 +1745,39 @@
   .shelf-bar-btns{display:flex;gap:6px;flex:none;}
   .shelf-bar-btns .btn{margin:0;padding:9px 12px;font-size:12.5px;width:auto;
     min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;}
+
+  /* ===== 第45弾 45-7：背の低い画面では、棚を1画面に収める =====
+     **375×812 では1pxもはみ出していない。**指示44の「59px」は
+     `documentElement.scrollHeight(871) − clientHeight(812)` で、
+     871 はブラウザ枠の実寸・812 は偽装した画面幅——**別のものを引き算していた**
+     （落とし穴28）。ページは1pxもスクロールしない。
+
+     本物のはみ出しは **375×667**（iPhone SE の高さ）で、実測したのはこの積み上げ：
+
+       画面の余白 18 ／ 見出し 99 ／ 場の上余白 32 ／
+       （部屋の1行 54）／ カセット 214 ／ 帯 177 ／ 一言 60 ／ 下部バー 70
+       = 680（部屋の1行が無い時）／ 734（有る時）→ 667 に対して 13px／67px 超過
+
+     文字サイズを3段階どこにしても値が変わらないので、原因は文字ではなく
+     **決め打ちの余白の積み上げ**。だから削るのも余白だけにする。
+     **押す的（44px）は1つも縮めない**——狭い画面ほど押しにくくなるので、
+     そこを削ると狭い人だけが損をする（大切なこと10）。
+     境目を 720px にしたのは、812 が余裕で外れて 667 が入るため */
+  @media (max-height: 720px){
+    #scr-shelf{padding-top:10px;}
+    .shelf-head{padding-bottom:2px;}
+    .shelf-stage{padding-top:22px;}
+    .shelf-stage::before{height:22px;}
+    .shelf-room-note{margin-top:6px;}
+    .shelf{margin-bottom:12px;}
+    .rail-dots{padding:6px 0 2px;}
+    .sw-facts{margin-top:4px;line-height:1.55;}
+    .sw-desc{margin-top:5px;line-height:1.55;}
+    .sw-btns{margin-top:8px;}
+    .shelf-hint{padding-top:2px;line-height:1.45;}
+    .shelf-bar{padding-top:8px;padding-bottom:8px;
+      margin-bottom:calc(6px + env(safe-area-inset-bottom, 0px));}
+  }
   /* 第10弾：あそびかた設定・オプションタグ */
   .opt-block{margin-bottom:20px;}
   .opt-block .seg-btn{font-size:13px;padding:10px 4px;}
@@ -3457,6 +3490,12 @@
           <span class="howto-go">›</span>
         </button>
       </div>
+      <!-- 第45弾 45-5：**開き直した参加者の帰り道。**
+           進行役だけは「ゲームをえらぶ」から確認画面に着けたが、
+           参加者は棚（ログイン済み）かログイン画面（ゲスト）へ流されていた。
+           押した先はホストと同じ画面（scr-room-open）——画面を2つ作らない。
+           **サーバーが「まだ名簿にいる」と答えるまで出さない**（落とし穴14-b） -->
+      <button class="btn btn-outline" id="entryRoomBtn" style="display:none;margin-top:16px;"></button>
       <div class="mic-status" id="entryNote" style="margin-top:16px;text-align:center;"></div>
     </div>
   </div>
@@ -6180,7 +6219,75 @@
     // ログインしているかどうかは、押す前に見えていた方がいい
     el('entryNote').textContent = state.username
       ? (state.username + ' さんでログインしています') : '';
+    refreshEntryRoomBtn();
   }
+  /**
+   * 第45弾 45-5：入口に「さっきの部屋にもどる」を出すか決める。
+   *
+   * **端末の記憶だけでは出さない。**部屋がもう無い・kickされた端末に
+   * 帰り道を見せると、押した先で行き止まりになる（落とし穴14-b）。
+   * だから聞くのはサーバーで、答え（`you`＝まだ名簿にいるか）で決める。
+   *
+   * 遅い時の扱いは、棚の1行（第41弾）とそろえてある——
+   * **待たせない。**つながらなければ出さないだけで、入口はすぐ使える。
+   * つながったあとに出るので、1拍おいて増えることはある
+   */
+  async function refreshEntryRoomBtn(){
+    var btn = el('entryRoomBtn');
+    if(!btn) return;
+    btn.style.display = 'none';
+    var st = await roomMembership();
+    if(!st.ある) return;
+    var T = (typeof UiText !== 'undefined') ? UiText.ENTRY.部屋あり : null;
+    btn.textContent = (T ? T.さっきの部屋 : 'さっきの部屋にもどる') + ' ›';
+    btn.style.display = 'block';
+  }
+  /**
+   * 第45弾 45-5：**この端末は、まだその部屋の名簿にいるか。**
+   *
+   * 第41弾 D8 の `hasOpenRoom()` は `res.host` を返していたので、
+   * 進行役以外は必ず「部屋なんて無い」と答えていた。
+   * 名簿にいるか（`you`）と、進行役か（`host`）は別の問いなので、分けて返す
+   */
+  // **サーバーが最後に答えた「進行役か」**。確認画面の出し分けはこれ1つを見る
+  var roomOpenIsHost = false;
+  async function roomMembership(){
+    roomOpenIsHost = false;
+    if(!(rt && rt.state.code && rt.state.memberId)) return { ある:false, 進行役:false };
+    try{
+      // **つながるまで待ってから聞く。**開き直した直後はまだ socket が無く、
+      // 通信層は「まだつながっていません」と即答する（第41弾に実測の記録がある）。
+      // つながらない時は待ち続けない——2秒あきらめる
+      rt.connect();
+      var 待った = 0;
+      while(!rt.state.connected && 待った < 2000){
+        await new Promise(function(r){ setTimeout(r, 50); });
+        待った += 50;
+      }
+      if(!rt.state.connected) return { ある:false, 進行役:false };
+      var res = await rt.peekRoom(rt.state.code, rt.state.memberId);
+      if(res && res.ok && res.you){
+        roomOpenIsHost = !!res.host;
+        return { ある:true, 進行役:roomOpenIsHost };
+      }
+      if(res && (res.error === 'room_not_found' || (res.ok && !res.you))) rt.dropRoom();
+    }catch(e){}
+    return { ある:false, 進行役:false };
+  }
+  el('entryRoomBtn').addEventListener('click', async function(){
+    // 押した瞬間にもう1度たしかめる。**出したあとに kick されることがある**——
+    // その時は黙って行き止まりにせず、理由を1つ言って入口に残す
+    this.disabled = true;
+    var st = await roomMembership();
+    this.disabled = false;
+    if(!st.ある){
+      el('entryRoomBtn').style.display = 'none';
+      var T = UiText.ENTRY.部屋あり;
+      UiKit.info(T.もう無い, T.もう無いの本文);
+      return;
+    }
+    goTo('scr-room-open');
+  });
   el('scr-entry').addEventListener('click', async function(e){
     var b = e.target.closest('[data-entry]');
     if(!b) return;
@@ -6208,30 +6315,18 @@
     if(await hasOpenRoom()){ goTo('scr-room-open'); return; }
     goTo('scr-shelf');
   }
-  /** いま自分がホストの部屋が本当に開いているか。答えはサーバーが持っている */
+  /**
+   * いま自分がホストの部屋が本当に開いているか。答えはサーバーが持っている。
+   *
+   * 第45弾 45-5：中身は roomMembership に移した。
+   * **「名簿にいるか」と「進行役か」は別の問い**で、
+   * 1つの答えにまとめていたせいで参加者の帰り道が塞がっていた
+   * （開き直した端末は名簿を持っていないので rt.isHost() は必ず false——
+   *  だから進行役かどうかも、サーバーの答えを使う）
+   */
   async function hasOpenRoom(){
-    if(!(rt && rt.state.code && rt.state.memberId)) return false;
-    try{
-      // **つながるまで待ってから聞く。**
-      // 開き直した直後はまだ socket が無い。connect() を呼んだ直後に聞くと、
-      // 通信層は「まだつながっていません」と即答してしまい、
-      // **部屋があるのに「無い」と判断して棚へ通していた**（実サーバーで15msの即答を測って発覚）。
-      // つながらない時は待ち続けない——2秒あきらめて棚へ通す
-      //（棚はローカルなので、通信が死んでいても遊べる。2-12の「棚は動く」）
-      rt.connect();
-      var 待った = 0;
-      while(!rt.state.connected && 待った < 2000){
-        await new Promise(function(r){ setTimeout(r, 50); });
-        待った += 50;
-      }
-      if(!rt.state.connected) return false;
-      var res = await rt.peekRoom(rt.state.code, rt.state.memberId);
-      // **進行役かどうかも、サーバーの答えを使う。**
-      // 開き直した端末は名簿を持っていないので rt.isHost() は必ず false になる
-      if(res && res.ok && res.you) return !!res.host;
-      if(res && (res.error === 'room_not_found' || (res.ok && !res.you))) rt.dropRoom();
-    }catch(e){}
-    return false;
+    var st = await roomMembership();
+    return st.ある && st.進行役;
   }
   // ---- いま開いている部屋（2-1-2）----
   function enterRoomOpen(){
@@ -6247,6 +6342,11 @@
       'コード：' + ((rt && rt.state.code) || '------') + '　参加者：' + n + '人';
     el('roomOpenBackBtn').textContent = T.もどる;
     el('roomOpenCloseBtn').textContent = T.閉じる;
+    // 第45弾 45-5：**画面は1つ。出し分けるのは「部屋を閉じる」だけ。**
+    // 参加者に部屋を閉じさせない（サーバーも弾くが、押せる札を置かない）。
+    // 開き直した端末は名簿を持っていないので rt.isHost() は当てにならない——
+    // ここへ来る前に聞いた、サーバーの答えを使う
+    el('roomOpenCloseBtn').style.display = roomOpenIsHost ? '' : 'none';
   }
   el('roomOpenBackBtn').addEventListener('click', function(){ goTo(rtWantScreen()); });
   el('roomOpenCloseBtn').addEventListener('click', async function(){

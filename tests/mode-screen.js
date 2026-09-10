@@ -13,7 +13,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { launch, activeScreen, sleep, waitScreen, el, click,
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click,
   createRunner, assert, assertEqual, assertNoErrors, openCassette } = require('./harness');
 
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
@@ -113,6 +113,74 @@ async function 長押し(win, card) {
       '3人から遊べるモードは押せる（4人いるので）');
 
     assertNoErrors(errors, 'モード画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('44-1：部屋にいる人は、進行役でなくても部屋の実人数を見る（門G4の3面目）', async () => {
+    // **ここは実機2台でしか撮れないと思っていた面。**
+    // 同じブラウザの2つ目のタブは `localStorage` を共有して1人目の身分を
+    // 引き継ぐので、手元では2人目の別人になれない。bot は画面を持たない。
+    //
+    // だが**画面の側で違うのは1つだけ**——`currentPlayerCount()` が
+    // 部屋の枝を通るかどうか。それは疑似socketで作れる。
+    //
+    // 進行役でない人は `goingRealtime()` が false なので、
+    // 人数はカードの理由に出る（進行役は modeRoomNote の1行に出る）。
+    // **同じ画面でも、出ている場所が違う。**
+    const { win, doc, errors } = await launch({ fakeSocket: true });
+
+    // 部屋に入る（**進行役は別の人**：hostMemberId が自分と違う）
+    await openCassette(win, doc, 'quizou');   // 部屋専用 → 「部屋をつくる」の確認
+    click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
+    await waitScreen(win, doc, 'scr-rt-lobby', 4000);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 4000, '疑似socketがつながる');
+    const 部屋 = {
+      code: 'ABC234', hostMemberId: 'm1',
+      // **サーバーと同じ形にする**（落とし穴25）。playerCount は publicSnapshot が必ず載せる
+      playerCount: 5, memberCount: 5,
+      members: [
+        { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
+        { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false },
+        { id: 'm3', name: 'ちか', role: 'player', connected: true, isHost: false },
+        { id: 'm4', name: 'でん', role: 'player', connected: true, isHost: false },
+        { id: 'm9', name: 'わたし', role: 'player', connected: true, isHost: false }
+      ],
+      state: { phase: 'lobby', game: null, data: {} }
+    };
+    fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm9', room: 部屋 }) };
+    el(doc, 'rtJoinCode').value = 'ABC234';
+    el(doc, 'rtJoinName').value = 'わたし';
+    click(doc, 'rtJoinBtn');
+    await waitScreen(win, doc, 'scr-rt-room', 5000);
+
+    // **その状況が本当に起きているかを、先に確かめる**（落とし穴10-b）。
+    // 自分が進行役のままだと、これは「部屋ホストの面」をもう一度見ているだけになる
+    assertEqual(win.roomProbe().host, false, '自分は進行役ではない（ゲスト）');
+    assertEqual(win.headsProbe().heads, 5, '人数は部屋の実人数（サーバーの playerCount）');
+
+    // ゲストが棚から人狼へ。部屋を持っているので確認は素通り（第41弾 2-4・F）
+    win.goToScreen('scr-shelf');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await openCassette(win, doc, 'jinro');
+    await waitScreen(win, doc, 'scr-game', 3000);
+    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    await sleep(win, 50);
+    Array.from(doc.querySelectorAll('#scr-game button'))
+      .find((b) => /つぎへ/.test(b.textContent)).click();
+    await waitScreen(win, doc, 'scr-setup', 3000);
+    // 登録画面の初期人数も、部屋の実人数から入る
+    assertEqual(el(doc, 'playerCountLabel').textContent, '5', '登録画面も5人で始まる');
+    click(doc, 'setupNextBtn');
+    await waitScreen(win, doc, 'scr-mode', 6000);
+
+    const 理由 = Array.from(doc.querySelectorAll('#modeCards .mode-card'))
+      .map((c) => c.dataset.locked).filter(Boolean);
+    assert(理由.length > 0, '人数が足りないモードが実際にある（実際:' + 理由.length + '件）');
+    assertEqual(理由.filter((x) => /いま5人/.test(x)).length, 理由.length,
+      'ゲストの画面でも「いま5人」（実際:' + 理由.join(' / ') + '）');
+
+    assertNoErrors(errors, 'ゲストのモード画面で未捕捉の例外');
     win.close();
   });
 

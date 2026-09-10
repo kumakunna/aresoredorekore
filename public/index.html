@@ -786,15 +786,23 @@
     background:rgba(255,255,255,.85);border:1px solid var(--line);font-size:14px;cursor:pointer;opacity:.55;
   }
   .floating-gear:active{opacity:1;}
-  /* 第28弾-4：どの画面からも一個前に戻れる矢印。
-     ⚙と左右で対になる位置に置く。枠線だけの正方形にしてあるのは、
-     画面の中にある「もどる」ボタン（横長・行き先が決まっている）と
-     見た目でも役割でも混ざらないようにするため。
-     こちらは「来た道を1つ戻る」だけを引き受ける。 */
-  /* 第32弾-A-3-4：正方形の枠線が文字に被って違和感があったので、枠を消して矢印だけにした。
-     的の大きさ（32px）はそのまま残す */
-  /* 正本7「左上＝1つ前に戻る」。指示44 44-5 で**丸の中の矢印**にした。
-     着手前は地も縁も無い矢印1文字（opacity .55）で、「押せるもの」に見えていなかった。
+  /* 正本7「左上＝1つ前に戻る」。どの画面からも来た道を1つ戻る（第28弾-4）。
+     画面の中にある「もどる」ボタン（横長・行き先が決まっている）とは別物で、
+     こちらは「1つ戻る」だけを引き受ける。
+     ⚙と左右で対になる位置に置く。
+
+     **形は3回変わっている。理由ごと残す：**
+       ・第28弾-4  … 枠線だけの正方形（役割の違いを形で出したかった）
+       ・第32弾-A-3-4 … **正方形の枠線が矢印に被って違和感があった**ので枠を消し、
+                       矢印1文字だけにした（的の32pxは残した）
+       ・指示44 44-5 … **丸の中の矢印**にした。
+                       枠を消した後は地も縁も無い `opacity:.55` の1文字で、
+                       今度は「押せるもの」に見えなくなっていた——
+                       確認画面で「やめるが小さくて見つけにくい」と言われたのは、
+                       その画面に戻るが出ていなかったからだが、
+                       出ている画面でも同じくらい薄かった。
+                       **丸なら、32弾が嫌った「角が矢印に被る」は起きない。**
+
      地と縁は `--card` / `--line` なので、暗い世界でもそのまま読める
      （テーマが `.app` に付く画面では、その世界の card/line になる） */
   .floating-back{
@@ -3045,7 +3053,6 @@
      1つのテーマだけ直っている状態は、必ずどこかで食い違う（落とし穴1） */
   /* ⚙・戻る矢印。白丸のままだと暗い画面で浮く */
   .app.theme-bomb .floating-gear{background:rgba(232,234,237,.14);color:var(--ink);}
-  .app.theme-bomb .floating-back{color:var(--ink);}
   /* 3択のオーバーレイ・説明文 */
   .app.theme-bomb .ai-description{background:var(--paper-deep);color:var(--ink);border-color:var(--line);}
   .app.theme-bomb .overlay-head h3{color:var(--ink);}
@@ -3160,7 +3167,6 @@
   .app.theme-quiz .quiz-answer input{background:var(--paper-deep);color:var(--ink);border-color:var(--line);}
   .app.theme-quiz .quiz-answer input::placeholder{color:var(--ink-soft);}
   .app.theme-quiz .floating-gear{background:rgba(242,245,250,.14);color:var(--ink);}
-  .app.theme-quiz .floating-back{color:var(--ink);}
   .app.theme-quiz .rules-ol li{color:var(--ink);}
   .app.theme-quiz .vote-counts .vc-item{background:var(--card);border-color:var(--line);color:var(--ink);}
   @media (prefers-reduced-motion: reduce){
@@ -3250,7 +3256,6 @@
   .app.theme-auction .ry-desc{color:var(--ink-soft);}
   .app.theme-auction .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
   .app.theme-auction .floating-gear{background:rgba(245,237,230,.14);color:var(--ink);}
-  .app.theme-auction .floating-back{color:var(--ink);}
   .app.theme-auction .rules-ol li{color:var(--ink);}
   .app.theme-auction .qb-row.win{background:var(--gold);color:#2A2013;}
   @media (prefers-reduced-motion: reduce){

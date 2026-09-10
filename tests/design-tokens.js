@@ -382,6 +382,23 @@ const PAIRS = [
       return 下;
     }
 
+    // **`inherit` は「世界の色」とは限らない。**
+    // `.shelf-me`（下部バーの中の名前）は `color:inherit` で、
+    // 場の --warp-ink を受け継ぐように見えるが、間にいる `.shelf-bar` が
+    // 自分で `--ink` を宣言しているので、実際に降りてくるのは共通の墨。
+    // ここを「inherit＝--warp-ink」と決め打つと、**直っているものを赤にする**
+    //（44-4 でバーを場の中へ移した瞬間に、実際にそう出た）。
+    // 宣言を持っているいちばん近い先祖まで遡って解く
+    function 効く色(el) {
+      let n = el;
+      while (n && n !== stage) {
+        const c = 色.get(n);
+        if (c && !/inherit|currentColor/i.test(c)) return c;
+        n = n.parentElement;
+      }
+      return 'var(--warp-ink)';   // どこにも宣言が無ければ、場が配っている色
+    }
+
     // **見えていないものは測らない。**
     // `.cart-meta` は中央以外 `opacity:0`（畳んである）。それを混ぜると
     // 前景と地が完全に一致して 1:1 になり、**直しようのない赤**が6テーマぶん出る
@@ -411,11 +428,9 @@ const PAIRS = [
         // 点は「塗り」か「輪郭」が信号。塗っていない○は border の色を見る
         const 前景 = 点
           ? (el.classList.contains('on') ? 地.get(el) : 'var(--warp-soft)')
-          : 色.get(el);
+          : 効く色(el);
         if (!前景) return;
-        // 継承・currentColor は場から降りてくる（＝--warp-ink）
-        const v = /inherit|currentColor/i.test(前景) ? 'var(--warp-ink)' : 前景;
-        const fg = 解く(v, 世, toRgb(世.地));
+        const fg = 解く(前景, 世, toRgb(世.地));
         if (!fg) return;
         const bg = 地の色(el, 世, !点);
         // 自分の opacity で薄まっているなら、そのぶん地に沈む

@@ -618,23 +618,46 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('戻る矢印：枠線を出さず、矢印だけを画面の隅に置く', async () => {
-    // 第32弾-A-3-4：正方形の枠線が文字に被って違和感があったので枠を消した。
-    // 押せる大きさ（32px）は残す
+  await r.test('戻る矢印：丸の中の矢印を、画面の左上に置く（正本7・指示44 44-5）', async () => {
+    // **この検査は3回書き換わっている。**中身より、書き換えた理由が大事：
+    //   ・第28弾-4      枠線だけの正方形
+    //   ・第32弾-A-3-4  **角が矢印に被る**ので枠を消し、矢印1文字にした
+    //   ・指示44 44-5   地も縁も無い1文字は「押せるもの」に見えなかったので、
+    //                   **丸**の中の矢印にした。丸なら 32弾が嫌った被りは起きない
+    //
+    // 32弾の検査は「塗りつぶさない・枠線を出さない」と**形の否定**で書いてあった。
+    // 否定で書くと、別の形で同じ目的を果たす日にも赤くなる。
+    // ここでは**満たしたいこと**（隅にある・押せる大きさ・丸い・地がある）で書く
     const fs = require('fs');
     const path = require('path');
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
     const rule = html.match(/\.floating-back\{[^}]*\}/);
     assert(rule, '.floating-back の決まりごとがある');
-    assert(/background:transparent/.test(rule[0]), '塗りつぶさない');
-    assert(/border:none/.test(rule[0]), '枠線を出さない');
-    assert(/width:32px;height:32px/.test(rule[0]), '押せる大きさは残す');
-    assert(/position:absolute;top:6px;left:8px/.test(rule[0]), '画面の隅に置く');
-    // テーマ側でも枠線を足し直していないこと（片方だけ直す事故を防ぐ）
+    assert(/border-radius:50%/.test(rule[0]), '丸である（角が矢印に被らない）');
+    assert(/background:var\(--card\)/.test(rule[0]), '地がある（押せるものに見える）');
+    assert(/color:var\(--ink\)/.test(rule[0]), '矢印は墨（地との対はトークンの表が見張る）');
+    const 大きさ = /width:(\d+)px;height:(\d+)px/.exec(rule[0]);
+    assert(大きさ, '大きさが書いてある');
+    assert(Number(大きさ[1]) >= 32 && Number(大きさ[1]) === Number(大きさ[2]),
+      '押せる大きさ（32px以上）の正円（実際:' + 大きさ[1] + 'x' + 大きさ[2] + '）');
+    assert(/position:absolute;top:6px;left:8px/.test(rule[0]), '画面の左上に置く');
+
+    // **テーマ側で色を足し直していないこと**（片方だけ直す事故を防ぐ）。
+    // 地も縁もトークンから取るので、テーマ側に書く必要が無い
     const themed = html.match(/\.app\.theme-[a-z]+ \.floating-back\{[^}]*\}/g) || [];
     themed.forEach((t) => {
-      assertEqual(/border(-color)?:/.test(t), false, 'テーマ側でも枠線を足していない：' + t);
+      assertEqual(/background:|border(-color)?:|color:/.test(t), false,
+        'テーマ側で色を足していない：' + t);
     });
+
+    // 出る画面／出ない画面は canGoBackOne が1か所で決める。
+    // **確認の画面では出る**（44-5）——ここが指示44で変わったところ
+    const { win, doc } = await launch();
+    assertEqual(el(doc, 'floatingBackBtn').style.display, 'none', '棚は起点なので出ない');
+    await openCassette(win, doc, 'jinro');
+    assertEqual(activeScreen(doc), 'scr-play-way', '遊び方の確認に入る');
+    assert(el(doc, 'floatingBackBtn').style.display !== 'none', '確認の画面では出る（44-5）');
+    win.close();
   });
 
   // ---- 第27弾-2：下部バーを画面の下に固定する ----

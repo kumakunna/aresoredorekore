@@ -1610,16 +1610,32 @@ function pickCart(doc, id) {
     // 広げすぎ（下部バーまで染まる）も、狭すぎ（カセットが場の外）も
     // 見た目にしか出ない（落とし穴3・26 の型）。**両側から数えて確かめる。**
     const 中 = ['shelfList', 'shelfBand', 'shelfRoomNote'];
-    const 外 = ['.shelf-head', '.shelf-bar'];
     const 入っている = 中.filter((id) => stage.contains(doc.getElementById(id)));
     assertEqual(入っている.length, 中.length,
       '棚・帯・部屋への帰り道は、ぜんぶ染まる場の中（実際:' + 入っている.join('・') + '）');
     assert(stage.querySelector('.shelf-hint'), 'スワイプの案内も場の中');
-    const はみ出し = 外.filter((sel) => {
-      const e2 = doc.querySelector('#scr-shelf ' + sel);
-      return e2 && stage.contains(e2);
-    });
-    assertEqual(はみ出し.join('・'), '', '上の帯と下部バーは、場の外（クリーム固定）');
+
+    // **上の帯は場の外**。ここは変わらない（染めると「何のアプリにいるか」が消える）
+    assert(!stage.contains(doc.querySelector('#scr-shelf .shelf-head')),
+      '上の帯は場の外（クリーム固定）');
+
+    // **下部バーは場の「中」にいるが、染まらない**（指示44 44-4）。
+    // 44-4 で世界の色を画面の一番下まで伸ばすため、バーを場の中へ移した。
+    // 第43弾はここを「場の外にいること」で守っていたが、
+    // それは**置き場所**であって守りたいこと（染まらないこと）ではなかった。
+    // 置き場所で書くと、置き場所を変えた日にこの検査は
+    // 「直したいこと」ではなく「直した結果」を止めにくる。
+    // **見るのは色そのもの**：地はクリーム、文字は共通の墨を自分で持っている
+    const bar = doc.querySelector('#scr-shelf .shelf-bar');
+    assert(bar && stage.contains(bar), '下部バーは場の中（44-4：世界の色が下まで届くため）');
+    const html2 = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const barRule = html2.slice(html2.indexOf('\n  .shelf-bar{'), html2.indexOf('\n  .shelf-me{'));
+    assert(barRule, '.shelf-bar の指定を読めている');   // 型(b)
+    assert(/background:var\(--card\)/.test(barRule), 'バーの地はクリーム固定');
+    assert(/color:var\(--ink\)/.test(barRule),
+      'バーは墨を自分で持つ（場の --warp-ink を受け継がせない・落とし穴27）');
+    assertEqual(bar.getAttribute('data-theme'), null, 'バーに世界の印は付かない');
 
     // **印は1か所だけ。**帯にも同じ印を付けると、片方だけ直す日が来る（落とし穴1）
     assertEqual(doc.getElementById('shelfBand').getAttribute('data-theme'), null,
@@ -1811,6 +1827,46 @@ function pickCart(doc, id) {
     assert(!doc.getElementById('shelfRoomBtn'), '下部バーに「部屋」ボタンは無い');
     assert(doc.getElementById('shelfGearBtn'), '⚙ はある');
     assert(doc.getElementById('shelfMeBtn'), '左は名前とアイコン');
+    win.close();
+  });
+
+  await r.test('世界の色は一番下まで届き、帯とはグラデーションで繋がる（指示44 44-3・44-4）', async () => {
+    // **jsdom はレイアウトしないので、位置は測れない。**
+    // ここで見るのは「そうなる作りか」——実際の位置は実ブラウザで測った
+    //（場の下端 732px → 812px＝画面の下端。6テーマぶん確認済み）。
+    const html = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const { win, doc } = await launch();
+
+    // 44-4：**バーは場の中にいる。**外に出た瞬間、場はバーの手前で終わり、
+    // 世界の色もそこで切れる（着手前がその形だった）
+    const stage = doc.getElementById('shelfStage');
+    assert(stage, '染まる場がある');
+    assert(stage.querySelector('.shelf-bar'), '下部バーは場の中にある（44-4）');
+    assertEqual(doc.querySelectorAll('#scr-shelf > .shelf-bar').length, 0,
+      '場の外にバーがもう1つ残っていない');
+
+    // 44-4：バーは染まらない。**場の中に入れた以上、色は自分で持つ**（落とし穴27）
+    const barRule = html.slice(html.indexOf('\n  .shelf-bar{'), html.indexOf('\n  .shelf-me{'));
+    assert(barRule, '.shelf-bar の指定を読めている');   // 型(b)
+    assert(/background:var\(--card\)/.test(barRule), 'バーの地はクリームのまま');
+    assert(/color:var\(--ink\)/.test(barRule),
+      'バーは墨を自分で持つ（持たないと場の --warp-ink を受け継いで、暗い世界で消える）');
+
+    // 44-3：境目のグラデーション。**帯の文字の下には入らない**——
+    // 幕は場の中にあり、場は帯より下から始まるので構造として重なりようがない
+    const preRule = html.slice(html.indexOf('\n  .shelf-stage::before{'),
+                               html.indexOf('\n  .shelf-stage::before{') + 400);
+    assert(/linear-gradient/.test(preRule), '境目はグラデーション（線ではない）');
+    const h = /height:(\d+)px/.exec(preRule);
+    assert(h, '幕の高さが書いてある');
+    const 高さ = Number(h[1]);
+    assert(高さ >= 24 && 高さ <= 40, '幕の高さは24〜40px（実際:' + 高さ + 'px）');
+    // 幕のぶんだけ中身を下げていないと、カセットの頭がクリームで曇る
+    const stageRule = html.slice(html.indexOf('\n  .shelf-stage{'), html.indexOf('\n  .shelf-stage::before{'));
+    const p = /padding:(\d+)px/.exec(stageRule);
+    assert(p && Number(p[1]) === 高さ,
+      '場の上の余白が幕と同じ高さ（実際:' + (p ? p[1] : 'なし') + ' / 幕:' + 高さ + '）');
     win.close();
   });
 

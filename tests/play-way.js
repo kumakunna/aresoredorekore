@@ -223,5 +223,42 @@ async function withRoom(win, doc) {
     assert(/準備中/.test(soon.textContent), '中身が無いものは、それと分かる');
     win.close();
   });
+
+  await r.test('確認の画面には、左上に戻るがある。押すと棚へ（指示44 44-5）', async () => {
+    // 「やめる」の文字リンクは小さくて見つけにくかった（本人の実機フィードバック）。
+    // 正本7「左上＝1つ前に戻る」に従って、**既存の浮いている戻る**を出す。
+    // **「やめる」は消さない**（44-6の禁止事項）——左上は片手だと遠いので、
+    // 下の文字リンクが片手の逃げ道として残る（44-8）
+    const 両方 = [
+      { id: 'quizou', 何: 'C：部屋をつくる' },
+      { id: 'jinro', 何: 'E：どうやって遊ぶ？' }
+    ];
+    for (const t of 両方) {
+      const x = await launch({ fakeSocket: true });
+      await openCassette(x.win, x.doc, t.id);
+      assertEqual(activeScreen(x.doc), 'scr-play-way', t.何 + '：確認の画面が出る');
+
+      const back = el(x.doc, 'floatingBackBtn');
+      assert(back.style.display !== 'none', t.何 + '：左上の戻るが出ている');
+      assertEqual(back.textContent, '←', t.何 + '：中身は矢印');
+      assert(el(x.doc, 'wayCancelBtn').textContent.length > 0,
+        t.何 + '：「やめる」も残っている（置き換えではない）');
+
+      // **押すと棚へ。**戻り先を確かめないと、出ているだけで役に立たない
+      click(x.doc, 'floatingBackBtn');
+      await waitScreen(x.win, x.doc, 'scr-shelf', 3000);
+      assertEqual(activeScreen(x.doc), 'scr-shelf', t.何 + '：押すと棚へもどる');
+      x.win.close();
+    }
+
+    // 丸の中の矢印であること（正本7・44-5）。**見た目はCSSにしか無い**
+    const html = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const rule = html.slice(html.indexOf('\n  .floating-back{'), html.indexOf('\n  .floating-back:active'));
+    assert(rule, '.floating-back の指定を読めている');   // 型(b)
+    assert(/border-radius:50%/.test(rule), '丸である');
+    assert(/background:var\(--card\)/.test(rule), '地がある（矢印1文字ではない）');
+  });
+
   r.finish();
 })();

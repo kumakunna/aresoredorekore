@@ -258,6 +258,11 @@
   .mode-card{
     display:flex;align-items:center;gap:14px;background:var(--card);border:1.5px solid var(--line);
     border-radius:10px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .15s, background .15s;
+    /* 44-6：長押しで説明を出すので、**文字がなぞられない**ようにする。
+       これが無いと、押しっぱなしにした瞬間に文字が青く選択され、
+       iOS では「コピー」の吹き出しまで出て、説明の popup がその下に隠れる。
+       -webkit-touch-callout は iOS の長押しメニューを止める（Safari だけが見る） */
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
   }
   /* 第32弾-A-3-3：ここは以前 background:#fff を直書きしていた。
      暗いテーマ（人狼・爆弾解除・クイズ王・オークション）では文字色が
@@ -788,13 +793,18 @@
      こちらは「来た道を1つ戻る」だけを引き受ける。 */
   /* 第32弾-A-3-4：正方形の枠線が文字に被って違和感があったので、枠を消して矢印だけにした。
      的の大きさ（32px）はそのまま残す */
+  /* 正本7「左上＝1つ前に戻る」。指示44 44-5 で**丸の中の矢印**にした。
+     着手前は地も縁も無い矢印1文字（opacity .55）で、「押せるもの」に見えていなかった。
+     地と縁は `--card` / `--line` なので、暗い世界でもそのまま読める
+     （テーマが `.app` に付く画面では、その世界の card/line になる） */
   .floating-back{
-    position:absolute;top:6px;left:8px;z-index:60;width:32px;height:32px;border-radius:4px;
-    background:transparent;border:none;color:var(--ink);
-    font-size:20px;line-height:1;cursor:pointer;opacity:.55;
+    position:absolute;top:6px;left:8px;z-index:60;width:36px;height:36px;border-radius:50%;
+    background:var(--card);border:1px solid var(--line);color:var(--ink);
+    font-size:19px;line-height:1;cursor:pointer;opacity:.92;
     display:flex;align-items:center;justify-content:center;padding:0;
+    box-shadow:0 1px 4px rgba(0,0,0,.12);
   }
-  .floating-back:active{opacity:1;}
+  .floating-back:active{opacity:1;transform:scale(.94);}
   /* A：⚙の分だけ右側を空けて、トップバーのボタンと重ならないようにする。
      第28弾-4：戻る矢印のぶん、左側も同じだけ空ける */
   .play-topbar, .bomb-topbar{padding-right:42px;padding-left:42px;}
@@ -931,7 +941,10 @@
   /* 第27弾-2：下部バーが貼り付く先なので、下の余白は持たせない。
      余白があると、いちばん下までスクロールした瞬間にバーがその分だけ跳ねる */
   #scr-shelf{padding:18px 0 0;}
-  .shelf-head{text-align:center;padding:0 18px;margin-bottom:14px;}
+  /* 44-3：下の余白は持たせない。境目のグラデーション（.shelf-stage::before）が
+     そのぶんを引き受ける。ここに余白を残すと、クリームの帯・すきま・
+     グラデーション、と段が1つ増えて「溶けている」ように見えない */
+  .shelf-head{text-align:center;padding:0 18px 6px;margin-bottom:0;}
   /* 第32弾-A-3-7：明朝体をやめた。人狼の「夜」「決着」には合うが、
      アプリ全体の顔である棚のタイトルには硬すぎる。
      友達が集まって笑う場を作るアプリなので、丸い書体に寄せる。
@@ -1303,7 +1316,9 @@
     padding:2px 8px;white-space:nowrap;
   }
   .shelf{margin:0 0 26px;position:relative;}
-  .shelf-inner{background:linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.02) 26%, transparent 46%);padding:14px 0 0;position:relative;}
+  /* 44-3：上の余白は境目のグラデーションが持つようになったので、ここでは持たない
+     （両方が持つと、カセットが 32+14px ぶん下がって棚が窮屈になる） */
+  .shelf-inner{background:linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.02) 26%, transparent 46%);padding:0;position:relative;}
   /* PC対応：横スワイプできないマウス環境のための矢印。タッチでも邪魔にならないよう控えめに */
   .rail-arrow{
     position:absolute;top:50%;transform:translateY(-50%);z-index:3;
@@ -1428,12 +1443,32 @@
      scr-shelf は THEME_FREE_SCREENS のままなので、.app には手を付けない
      （.app を染めると、設定も記録も大画面も全部その色になる） */
   .shelf-stage{
-    flex:1;display:flex;flex-direction:column;padding-bottom:6px;
+    /* 44-4：**下部バーの後ろまで、画面の一番下まで世界の色を伸ばす。**
+       着手前はバーの手前で切れていて、世界が「バーの上に敷いた紙」に見えていた。
+       バーは場の**中**に入った（下の .shelf-bar 参照）ので、
+       ここが余った高さを全部取れば、そのまま画面の下端まで届く */
+    flex:1;display:flex;flex-direction:column;
+    position:relative;
+    /* 44-3：上の帯との境目を、線ではなくグラデーションで繋ぐ。
+       その 32px は ::before が使うので、中身はそのぶん下から始める */
+    padding:32px 0 0;
     background:var(--warp-color);color:var(--warp-ink);
     /* 2-2：**止まった瞬間に0.3秒でとけ替わる。**
        送っている最中は _index が変わらないので、ここは自然に呼ばれない */
     transition:background-color calc(0.3s * var(--fx-scale)) ease,
                color calc(0.3s * var(--fx-scale)) ease;
+  }
+  /* 44-3：クリームから世界へ溶ける 32px。
+     **クリーム→透明**にするので、世界の色が何であっても正しく溶ける
+     ——世界ごとにグラデーションを6本書くと、色を足した日に1本忘れる（落とし穴1）。
+     下の背景色は transition で溶けるが、この幕は色を持たないので追従が要らない。
+     **帯の文字の下には入らない。**幕は場（.shelf-stage）の中にあり、
+     場は帯より下から始まるので、構造として重なりようがない（44-3の要件）。
+     場の中身も 32px の padding で幕の下から始まるので、カセットの頭も曇らない */
+  .shelf-stage::before{
+    content:'';position:absolute;left:0;right:0;top:0;height:32px;
+    background:linear-gradient(180deg, var(--paper), transparent);
+    pointer-events:none;
   }
   /* 帯はもう「色の板」ではない。場の上に載る文字の塊なので、地も角丸も持たない。
      溶かすためのグラデーション（両端をクリームへ）も、溶かす先が無くなったので消した */
@@ -1659,6 +1694,12 @@
     margin:auto 14px calc(10px + env(safe-area-inset-bottom, 0px));
     background:var(--card);border:1px solid var(--line);border-radius:16px;
     box-shadow:0 6px 18px rgba(0,0,0,.16);
+    /* **場の中へ移したので、文字色を自分で持つ**（指示44 44-4・落とし穴27）。
+       場は `color:var(--warp-ink)` を配っている。バーは道具であって
+       世界の一部ではない（正本1-3）ので、外にいた時と同じ墨を名指しする。
+       ここを書き忘れると、暗い世界でクリームの札に**クリームの文字**が乗る
+       ——CSSは何も言わないので、実機で見るまで分からない */
+    color:var(--ink);
   }
   /* 第27弾-2：指で押す的を大きくする。11〜12pxの文字にぴったりの高さだと、
      少しずれただけで外れる（実機で「押しにくい」と分かった） */
@@ -3442,9 +3483,14 @@
       <div id="shelfList"></div>
       <div class="sw-band" id="shelfBand"></div>
       <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ<br>ながおしで、そのカセットの説明が読める</div>
-    </div>
     <!-- 第26弾-2：下部バー。ログインしていなくても同じ形で出る。
-         左半分（アイコン・二つ名・名前）をタップすると称号を選び直せる -->
+         左半分（アイコン・二つ名・名前）をタップすると称号を選び直せる。
+
+         指示44 44-4：**バーは場の「中」に入った。**
+         外にあった時は、場がバーの手前で終わるので世界の色もそこで切れていた。
+         中に入れると、場が余った高さを全部取って画面の下端まで届き、
+         バーはその上にクリームのまま浮く（第41弾 2-8 のとおり）。
+         **染まるのは場、浮くのはバー**——意味は変えていない -->
     <div class="shelf-bar">
       <button class="shelf-me" id="shelfMeBtn">
         <div class="shelf-avatar" id="shelfAvatar">🙂</div>
@@ -3459,6 +3505,7 @@
       <div class="shelf-bar-btns">
         <button class="btn btn-ghost" id="shelfGearBtn">⚙</button>
       </div>
+    </div>
     </div>
   </div>
 
@@ -9012,7 +9059,12 @@
   //   部屋の画面   … サーバーと状態を合わせているので、勝手に戻るとずれる。
   //                  「部屋を出る」が正しい出口
   var BACK_FREE_SCREENS = [
-    'scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-shelf', 'scr-countdown',
+    // 指示44 44-5：**scr-play-way はここから外した。**
+    // 「どうやって遊ぶ？」「部屋をつくります」の確認は棚から来る一歩なので、
+    // 戻り先がはっきりある。着手前は「やめる」の文字リンクだけが出口で、
+    // 小さくて見つけにくかった（本人の実機フィードバック）。
+    // 「やめる」は消さない（44-6の禁止事項・片手の逃げ道／44-8）——**戻るを足す**
+    'scr-door', 'scr-entry', 'scr-room-open', 'scr-shelf', 'scr-countdown',
     'scr-topic-pass', 'scr-play', 'scr-reveal', 'scr-score',
     'scr-bomb-prep', 'scr-bomb-play', 'scr-bomb-end',
     'scr-quiz-turn', 'scr-tourney-match', 'scr-tourney-vs', 'scr-tourney-champion',
@@ -10552,7 +10604,65 @@
     state.describerScores = !state.describerScores;
     this.classList.toggle('on', state.describerScores);
   });
+  /**
+   * **44-6：モードを長押しすると、そのモードの説明が出る。**
+   *
+   * 棚のカセットの長押し（第41弾 2-9）と同じ約束にそろえる——
+   * 450ms 動かずに押していたら開く、8px 動いたら開かない、開いたら軽く震える。
+   * **押せないモードでも効く**のがここの肝で、
+   * 「人数が足りなくて押せない」時ほど「これは何なのか」を知りたい。
+   * だから本文の頭に、押せない理由も出す。
+   *
+   * ホストの「ルールを見る」（指示37）はそのまま残す。
+   * **長押しは近道、ボタンは入口**——ボタンだけだと、
+   * 進行役でない人はモードの中身を一生見られない。
+   */
+  var modePress = { timer:null, x:0, y:0, id:null, 開いた:false };
+  function cancelModePress(){ clearTimeout(modePress.timer); modePress.timer = null; }
+  function openModePopup(id){
+    var m = modeById(id);
+    if(!m || typeof UiKit === 'undefined') return;
+    var なぜ = modeLockReason(m);
+    UiKit.popup({
+      icon: m.icon,
+      title: m.title,
+      // 押せない理由を**先**に出す。ルールを読んでから「でも遊べない」と分かるのは順が逆
+      html: (なぜ ? '<div class="mic-status" style="margin-bottom:10px;">' + escapeHtml(なぜ) + '</div>' : '') +
+            modeRulesHtml(m)
+    });
+  }
+  // 検査から中身を確かめられるようにしておく（棚の cassettePopupText と同じ作法）
+  window.modePopupText = function(id){
+    var m = modeById(id);
+    if(!m) return null;
+    var なぜ = modeLockReason(m);
+    return (なぜ ? なぜ : '') + modeRulesHtml(m);
+  };
+  el('modeCards').addEventListener('pointerdown', function(e){
+    // 「ルールを見る」は別の役。その上での長押しは拾わない
+    if(e.target.closest('[data-peek]')) return;
+    var card = e.target.closest('.mode-card');
+    if(!card) return;
+    modePress.開いた = false;
+    modePress.x = e.clientX; modePress.y = e.clientY; modePress.id = e.pointerId;
+    cancelModePress();
+    modePress.timer = setTimeout(function(){
+      modePress.開いた = true;      // 離した後の click を、選択として拾わせない
+      doVibrate(30);
+      openModePopup(card.dataset.id);
+    }, 450);
+  });
+  el('modeCards').addEventListener('pointermove', function(e){
+    if(!modePress.timer || e.pointerId !== modePress.id) return;
+    if(Math.abs(e.clientX - modePress.x) > 8 || Math.abs(e.clientY - modePress.y) > 8) cancelModePress();
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(function(ev){
+    el('modeCards').addEventListener(ev, function(){ cancelModePress(); });
+  });
   el('modeCards').addEventListener('click', function(e){
+    // 長押しで説明を開いた直後の click は、モードの選択として扱わない。
+    // **印を消すのはここ**——pointerup で消すと、click より先に走るので効かない
+    if(modePress.開いた){ modePress.開いた = false; return; }
     // 第37弾：「ルールを見る」は、選ぶこととは別。押しても他の人には何も起きないし、
     // 「見た」ことをどこにも記録しない（相談の前に知らせる意味が無い・指示37 2-2）
     var peek = e.target.closest('[data-peek]');
@@ -10891,11 +11001,10 @@
   }
   // ルールの中身。読んだことがあるゲームは、たたんで出す（開けば読める）
   function rtRulesBodyHtml(){
-    var m = rtPickedMode();
-    var bullets = (m && m.bullets) || [];
-    var list = bullets.length
-      ? '<ol class="rules-ol">' + bullets.map(function(b){ return '<li>' + escapeHtml(b) + '</li>'; }).join('') + '</ol>'
-      : '<div class="mic-status">このゲームの説明は、まだ用意できていません</div>';
+    // 組み立ては modeRulesHtml が1か所で持つ（指示44 44-6）。
+    // ここが持つのは「無い時の言い方」だけ
+    var list = modeRulesHtml(rtPickedMode(),
+      '<div class="mic-status">このゲームの説明は、まだ用意できていません</div>');
     if(!rtRulesSeen[rtRulesKey()]) return list;
     return '<details><summary style="cursor:pointer;font-size:13px;">📖 ルールをもう一度読む</summary>' + list + '</details>';
   }
@@ -15971,19 +16080,34 @@
   // state.selectedModeId には触らない（見ただけで選ばれてしまうと事故になる）。
   // 画面を離れたら必ず null に戻す（境界＝この画面）
   var rtPeekModeId = null;
+  /**
+   * **そのモードのルールの箇条書き。作る所はここ1つだけ。**
+   *
+   * 指示44 44-6 で長押しの popup を足す時に数えたら、
+   * 同じ `m.bullets` を `<ol class="rules-ol">` に組み立てる所が
+   * **すでに3か所**あった（部屋のルール画面・モードのルール画面・設定の見返し）。
+   * popup を足せば4か所目になる——**足す前に1つに寄せる**（落とし穴1・型1）。
+   *
+   * 「まだ用意できていない時に何と言うか」は場所ごとに違ってよいので、
+   * `無い時` で受ける。**組み立て方だけを共有し、言葉は持ち込まない**
+   *（借りたものは世界観ごと運ばれる・大切なこと9）。
+   */
+  function modeRulesHtml(m, 無い時){
+    var bullets = (m && m.bullets) || [];
+    if(bullets.length){
+      return '<ol class="rules-ol">' +
+        bullets.map(function(b){ return '<li>' + escapeHtml(b) + '</li>'; }).join('') +
+        '</ol>';
+    }
+    if(無い時 !== undefined) return 無い時;
+    return '<div class="mic-status">' + escapeHtml((m && m.sub) || '') + '</div>';
+  }
   function renderModeRules(){
     var m = modeById(rtPeekModeId || state.selectedModeId);
     el('rulesTitle').textContent = m.title + ' のルール';
     // 第37弾：下見のときは「はじめる」ではない。押した先が変わるので、文字も変える
     el('rulesStartBtn').textContent = rtPeekModeId ? '← 一覧にもどる' : 'はじめる';
-    var body = el('rulesBody');
-    if(m.bullets && m.bullets.length){
-      body.innerHTML = '<ol class="rules-ol">' +
-        m.bullets.map(function(b){ return '<li>' + escapeHtml(b) + '</li>'; }).join('') +
-        '</ol>';
-    } else {
-      body.textContent = m.sub; // bullets を書き忘れた時の保険
-    }
+    el('rulesBody').innerHTML = modeRulesHtml(m);
   }
   el('rulesStartBtn').addEventListener('click', function(){
     // 第37弾：進行役の下見から来た時は、選んだことにせず一覧へ戻すだけ
@@ -20927,9 +21051,9 @@
     el('setRulesBody').innerHTML = '<div class="card">' +
       '<div class="sec-title">' + g.icon + ' ' + escapeHtml(m.title || g.title) + '</div>' +
       '<div class="mic-status" style="margin-bottom:10px;">' + escapeHtml(m.sub || g.sub || '') + '</div>' +
-      '<ol class="rules-ol">' + ((m.bullets || []).map(function(b){
-        return '<li>' + escapeHtml(b) + '</li>';
-      }).join('') || '<li>このゲームの説明は、まだ用意できていません</li>') + '</ol></div>';
+      // 組み立ては modeRulesHtml が1か所で持つ（指示44 44-6）
+      modeRulesHtml(m, '<ol class="rules-ol"><li>このゲームの説明は、まだ用意できていません</li></ol>') +
+      '</div>';
   }
 
   function renderSetGameCfg(){

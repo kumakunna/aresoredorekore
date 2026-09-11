@@ -437,7 +437,7 @@
     "suite": "tests/fixes45.js",
     "from": "  el('shelfRoomNote').addEventListener('click', function(){ goRoomOpen(this); });",
     "to": "  el('shelfRoomNote').addEventListener('click', function(){ goTo('scr-room-open'); });",
-    "expect": "サーバーに聞かずに確認画面へ行く所が無い"
+    "expect": "何もたしかめずに確認画面へ行く所が無い"
   },
   {
     "name": "監査e 部屋の参加者にも「このゲームの設定」を出す",
@@ -446,5 +446,21 @@
     "from": "        if(inRoomNow() && !(rt && rt.isHost())) return false;",
     "to": "        if(false) return false;",
     "expect": "部屋にいる参加者には出さない門がある"
+  },
+  {
+    "name": "監査d2 名簿が無い端末にも、たしかめずに行かせる",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(btn) btn.disabled = true;\n    var st = await roomMembership();\n    if(btn) btn.disabled = false;",
+    "to": "    if(btn) btn.disabled = true;\n    var st = { ある:true };\n    if(btn) btn.disabled = false;",
+    "expect": "名簿が無い時は、サーバーに聞いてから行く"
+  },
+  {
+    "name": "監査d3 名簿がある時も、2秒待たせる",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(rt && rt.state.room){\n      roomOpenIsHost = rt.isHost();",
+    "to": "    if(false){\n      roomOpenIsHost = rt.isHost();",
+    "expect": "名簿がある時は、待たせずに行く"
   }
 ]

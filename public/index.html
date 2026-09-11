@@ -6292,6 +6292,19 @@
    * その時は黙って行き止まりにせず、理由を1つ言ってその場に残す
    */
   async function goRoomOpen(btn){
+    // **手元に生きた名簿がある時は、待たせない**（落とし穴14-a）。
+    // 棚の1行が出ているのは「いま部屋を持っている」時だけで、
+    // その時は名簿も届いている——`rt.isHost()` はそこから出るので、
+    // わざわざもう一度サーバーへ聞く必要がない。
+    // 聞きに行くと、通信が詰まった時に最大2秒ボタンが無反応に見えるし、
+    // 返事の形が想定と違った時に**部屋に居るのに行けない**という新しい穴ができる
+    //（実際、通し運転で rt-screens の2件がここに落ちた）。
+    // サーバーに聞くのは、名簿を持っていない時（開き直した直後）だけでよい
+    if(rt && rt.state.room){
+      roomOpenIsHost = rt.isHost();
+      goTo('scr-room-open');
+      return true;
+    }
     if(btn) btn.disabled = true;
     var st = await roomMembership();
     if(btn) btn.disabled = false;

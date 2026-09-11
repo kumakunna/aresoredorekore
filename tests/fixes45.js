@@ -940,13 +940,27 @@ const RULES = rulesOf(CSS);
       let 上 = i;
       while (上 > 0 && !/^\s{0,4}(async function|function|el\(|\w+\.addEventListener)/.test(行[上])) 上--;
       const 中身 = 行.slice(上, i + 1).join('\n');
-      if (!/roomMembership\(\)|hasOpenRoom\(\)/.test(中身)) 素通り.push(i + 1);
+      // **たしかめ方は2つあってよい**（落とし穴14）：
+      //   ・手元に生きた名簿がある（rt.state.room）… 待たせずにその場で行く
+      //   ・名簿が無い（開き直した直後）      … サーバーに聞いてから行く
+      // どちらも無いまま飛ぶのが、消えた部屋へ飛ばす形
+      if (!/roomMembership\(\)|hasOpenRoom\(\)|rt\.state\.room/.test(中身)) 素通り.push(i + 1);
     });
     assert(行.some((x) => /goTo\('scr-room-open'\)/.test(x)),
       '確認画面へ行く所が見つかっている');                                          // 型(b)
     assertEqual(素通り.join(','), '',
-      'サーバーに聞かずに確認画面へ行く所が無い（' + 素通り.join(',') + '行目）');
+      '何もたしかめずに確認画面へ行く所が無い（' + 素通り.join(',') + '行目）');
     assert(/function goRoomOpen/.test(INDEX_HTML), 'たしかめてから行く道が1本ある');
+    // その1本は、2つのたしかめ方を**両方**持っている（片方だけだと、
+    // 名簿が無い端末が素通りするか、名簿がある端末が2秒待たされる）
+    const 道 = (() => {
+      const i = 行.findIndex((x) => /async function goRoomOpen/.test(x));
+      let 下 = i;
+      while (下 < 行.length - 1 && !/^\s{0,2}\}/.test(行[下])) 下++;
+      return 行.slice(i, 下 + 1).join('\n');
+    })();
+    assert(/rt\.state\.room/.test(道), '名簿がある時は、待たせずに行く');
+    assert(/roomMembership\(\)/.test(道), '名簿が無い時は、サーバーに聞いてから行く');
     // 棚の1行も、入口の1行も、同じ道を通る（落とし穴1：入口ごとに書かない）
     const 通る = 行.filter((line) => /goRoomOpen\(/.test(line) && /addEventListener/.test(line));
     assertEqual(通る.length, 2, '棚の1行と入口の1行が、どちらもその道を通る');

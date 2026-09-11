@@ -209,6 +209,9 @@
    */
   function buildChoices(wire, topics, rnd) {
     if (isBankWire(wire)) return wire.choices.slice();
+    // 第46弾：部屋版は問題バンクのコードしか作らないので、ここから先は通らない。
+    // お題を渡さずに呼べるようにしておく（渡されなければ空として扱う）
+    topics = topics || [];
     var sameTier = topicsByTier(topics, wire.tier)
       .map(function (t) { return t.name; })
       .filter(function (nm) { return nm !== wire.name; });

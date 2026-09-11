@@ -794,12 +794,7 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px;}
   /* 節の見出しは、画面タイトルより一段小さい役割（本文と同じ大きさで太い） */
   .sec-title{font-family:'Shippori Mincho', serif;font-weight:800;font-size:var(--fs-body);margin:0 0 10px;}
-  .pack-form label{display:block;font-size:11px;color:var(--ink-soft);margin:10px 0 4px;}
   .ng-input-row{display:flex;gap:6px;}
-  .pack-list-item{padding:10px 0;border-bottom:1px solid var(--line);}
-  .pack-list-item .name{font-weight:700;font-size:13.5px;}
-  .pack-list-item .ngs{font-size:10.5px;color:var(--ink-soft);margin-top:2px;}
-  .del-link{font-size:10.5px;color:var(--stamp-deep);background:none;border:none;text-decoration:underline;cursor:pointer;margin-top:3px;padding:0;}
   table.stats-table{width:100%;border-collapse:collapse;font-size:12px;}
   table.stats-table th,table.stats-table td{padding:7px 3px;text-align:left;border-bottom:1px solid var(--line);}
   table.stats-table th{font-size:10px;color:var(--ink-soft);}
@@ -1808,8 +1803,6 @@
     animation:aiWaitPulse 1.2s ease-in-out infinite;
   }
   @keyframes aiWaitPulse{0%,100%{opacity:.45;}50%{opacity:1;}}
-  /* 3：お題追加の注意書き（控えめ） */
-  .pack-note{font-size:11px;color:var(--ink-soft);opacity:.85;line-height:1.6;margin-bottom:10px;}
   /* 4：記録画面 */
   .record-item{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
   .record-item:last-child{border-bottom:none;}
@@ -5311,33 +5304,6 @@
         </div>
       </div>
 
-      <!-- お題を追加（共通お題プールを使うゲームの時だけ入口が出る） -->
-      <div class="set-page" data-page="topics" style="display:none;">
-        <div id="topicPoolSettings">
-        <div class="card">
-          <div class="sec-title">お題を追加</div>
-          <div class="pack-note">AIが説明を作るので、みんなが知っている一般的なもの（物・場所・食べ物など）にしてください。内輪ネタや実在しない言葉だと、AIがうまく説明できません。</div>
-          <div class="pack-form">
-            <label>お題の名前</label>
-            <input type="text" id="packNameInput" placeholder="例：加湿器">
-            <label>よみ（ひらがな・音声認識用・任意）</label>
-            <input type="text" id="packYomiInput" placeholder="例：かしつき">
-            <label>禁止ワード（封印ワードモード用・任意）</label>
-            <div class="ng-input-row">
-              <input type="text" id="packNg1" placeholder="ワード1">
-              <input type="text" id="packNg2" placeholder="ワード2">
-              <input type="text" id="packNg3" placeholder="ワード3">
-            </div>
-            <button class="btn btn-main" id="addPackBtn" style="margin-top:12px;">パックに追加</button>
-          </div>
-        </div>
-        <div class="card">
-          <div class="sec-title">追加したお題（<span id="packCount">0</span>）</div>
-          <div id="packList"></div>
-          <div class="empty-note" id="packEmptyNote">まだ追加したお題はありません</div>
-        </div>
-        </div><!-- /topicPoolSettings -->
-      </div>
 
       <!-- ===== B. 部屋 ===== -->
       <div class="set-page" data-page="room" style="display:none;">
@@ -5663,7 +5629,7 @@
   // **画面ごとに書かない。**同じ意味の知らせが場所ごとに違う言い方になる
   var MSG = (typeof UiText !== "undefined") ? UiText.MSG : {};
 
-  // お題データは /api/topics から取得する（デフォルト110件+ホストの追加分）
+  // お題は QUIZ_BANK（このファイルの中の50件）だけ。第46弾でサーバー取得をやめた
 
   var MODES = [
     {id:"normal", icon:"🙂", title:"通常プレイ", sub:"3分ラウンド・封印ワードなし", timer:180, advanced:false, strict:false, oneWord:false,
@@ -8035,7 +8001,6 @@
   function optionTags(){ return tagsForOpts(optSnapshot()); }
 
   var state = {
-    topics: [],
     players: [],
     topicStats: {},
     topicHistory: [],
@@ -8181,24 +8146,8 @@
     ]
   };
 
-  // ===== お題名→難易度の対応表（④統合用） =====
-  // ユーザーの記憶ベースの約109件。実サーバー110件と多少ズレる可能性あり。
-  // ここに無い名前が来たら 'normal'（中間）にフォールバックする。
-  var TOPIC_DIFFICULTY = {
-    "傘":"easy","靴":"easy","財布":"easy","鍵":"easy","歯ブラシ":"easy","コップ":"easy","はさみ":"easy","消しゴム":"easy","鉛筆":"easy","定規":"easy",
-    "ボールペン":"normal","ティッシュ":"easy","トイレットペーパー":"normal","お皿":"easy","スプーン":"easy","フォーク":"easy","お箸":"easy","机":"easy","椅子":"easy","時計":"easy",
-    "靴下":"easy","リュック":"normal","ハンガー":"easy","石けん":"easy","ドライヤー":"normal","掃除機":"normal","冷蔵庫":"normal","洗濯機":"normal","テレビ":"easy","布団":"easy",
-    "マイク":"normal","ヘッドホン":"normal","フライパン":"normal","カレンダー":"normal","眼鏡":"easy","スマートフォン":"normal","マスク":"easy","黒板":"normal","教科書":"normal","ノート":"easy",
-    "ランドセル":"normal","上履き":"normal","チョーク":"normal","付箋":"normal","ホッチキス":"normal","セロハンテープ":"normal","のり":"easy","コンパス":"normal","絵の具":"normal","習字道具":"hard",
-    "地球儀":"normal","辞書":"normal","りんご":"easy","バナナ":"easy","みかん":"easy","いちご":"easy","パン":"easy","おにぎり":"easy","カレー":"easy","ラーメン":"easy",
-    "ハンバーガー":"normal","ピザ":"easy","プリン":"normal","アイスクリーム":"normal","ケーキ":"easy","チョコレート":"easy","ポップコーン":"normal","犬":"easy","猫":"easy","うさぎ":"easy",
-    "パンダ":"normal","キリン":"normal","ゾウ":"easy","ライオン":"easy","ペンギン":"normal","カンガルー":"normal","サル":"easy","フクロウ":"normal","ハリネズミ":"hard","カメ":"normal",
-    "ワニ":"normal","イルカ":"normal","自転車":"easy","電車":"easy","自動車":"easy","バス":"easy","新幹線":"normal","飛行機":"normal","ヘリコプター":"hard","船":"easy",
-    "救急車":"normal","パトカー":"normal","学校":"easy","公園":"easy","病院":"easy","コンビニ":"normal","スーパー":"normal","図書館":"normal","動物園":"normal","水族館":"normal",
-    "映画館":"normal","遊園地":"normal","信号機":"easy","自動販売機":"normal","エレベーター":"normal","エスカレーター":"normal","電卓":"normal","リモコン":"easy","目覚まし時計":"normal"
-  };
   var ALL_TIERS = ['easy','normal','hard','nanisore','muri'];
-  // QUIZ_BANK（難易度確定）＋サーバー110件（対応表でタグ付け）を名前で重複排除した統合プール
+  // お題プールは QUIZ_BANK（50件）から作る。第46弾でサーバー側のお題を混ぜるのをやめた
   // ===== 別名（第11弾）=====
   // 方針：判定は寛容に、表示は正式名称で。
   //   display … お題の表示名を正式名称に差し替える（元の名前は自動で別名になる）
@@ -8253,9 +8202,6 @@
     }
     Object.keys(QUIZ_BANK).forEach(function(tier){
       QUIZ_BANK[tier].forEach(function(t){ add(decorateTopic(t, tier)); });
-    });
-    (state.topics || []).forEach(function(t){
-      add(decorateTopic(t, TOPIC_DIFFICULTY[t.name] || 'normal'));
     });
     // 「独立したお題として存在する語」は、ほかのお題の別名にしない。
     // （例：遊園地とテーマパークが両方お題だと、答えが食い違って混乱するため）
@@ -8315,7 +8261,6 @@
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
     });
   }
-  function allTopics(){ return state.topics; }
   // 第28弾-1：名前を変える前のIDで来ても、いまのモードを返す（記録から引く時に効く）
   function modeById(id){
     var want = resolveModeId(id);
@@ -8383,11 +8328,6 @@
       setUser(null);
       return false;
     }
-  }
-  async function fetchTopics(){
-    try{ state.topics = await api('/api/topics'); }
-    catch(e){ state.topics = []; }
-    state.pool = null; // お題が変わったら統合プールを作り直す
   }
   // ---------- 対戦記録（ゲーム共通） ----------
   // 記録はどのゲームのものかを rounds[].mode から判別する（GAMESレジストリ経由）。
@@ -9727,7 +9667,6 @@
       // サーバーからはずっと未ログインに見えたままで、部屋を立てると弾かれていた。
       // 画面はログイン済みなのに判定だけが古い、の正体はこれ。
       if(rt && rt.available()) rt.reconnect();
-      await fetchTopics();
       // 第26弾-2：ログインを頼んだ用事の続きへ返す（既定は棚）
       var back = loginReturnTo; loginReturnTo = 'scr-shelf';
       el('loginSub').textContent = LOGIN_SUB_DEFAULT;
@@ -11792,7 +11731,7 @@
     };
   }
   // 第27弾：1人1台のクイズ解除。
-  // お題プールはこの端末が持っている（デフォルト110件＋ホストが足したもの）ので、
+  // お題プールはこの端末が持っている（QUIZ_BANK の50件）ので、
   // 進行役の端末から一度だけ渡す。どのコードにどのお題を割り当てるか・説明文を作るのは
   // サーバー側なので、進行役の端末にも答えは残らない（原則4.3）。
   function rtBombConfig(m){
@@ -11806,9 +11745,9 @@
       // 第45弾 45-4：進行役の設定が、その試合の全員に効く（既定OFF）
       showMisses: !!state.bombShowMisses,
       timerSec: state.timerEnabled ? (state.customTimer || 180) : 0,
-      topics: getPool().map(function(t){
-        return { name:t.name, tier:t.tier, ng_words:t.ng_words || [], aliases:t.aliases || [] };
-      }),
+      // 第46弾：以前はここでお題プールを丸ごと送っていた。
+      // 問題バンクに移った第32弾-A-3-6 以降、受け手（bomb-room.js）は一度も使っていない
+      // （3択は問題バンクが自分で持っている）ので、送るのをやめた
       preset: state.selectedModeId
     };
   }
@@ -21278,7 +21217,7 @@
   var setStack = [];        // どのページを通ってきたか（戻るボタン用）
   var SET_TITLES = {
     root: '設定', game: 'いま遊んでいるゲーム', rules: 'ルールをもう一度見る',
-    gamecfg: 'このゲームの設定', players: 'プレイヤー', topics: 'お題を追加',
+    gamecfg: 'このゲームの設定', players: 'プレイヤー',
     // 第43弾 2-5：「アプリ全体」は場所の名前として分かりにくい（何ができる所か読めない）
     room: '部屋', roomcode: '部屋コード', app: 'アプリの設定',
     sound: '音量', speech: '読み上げ', display: '見た目と演出',
@@ -21419,8 +21358,6 @@
       sub:'遊んでいる途中でも変えられるもの' },
     { icon:'👥', label:'プレイヤー', page:'players',
       when:function(){ return !inRoomNow(); }, sub:'名前・人数・ハンデ' },
-    { icon:'➕', label:'お題を追加', page:'topics',
-      when:function(){ var np = nowPlaying(); return !!(np.gameId && gameById(np.gameId).usesTopicPool); } },
     { icon:'🔄', label:'別のゲームに変える', act:'pickGame',
       when:function(){ return inRoomNow() && rt.isHost(); },
       sub:'部屋はそのまま。ゲームだけえらび直します' },
@@ -21630,7 +21567,6 @@
     if(page === 'rules'){ renderSetRules(); return; }
     if(page === 'gamecfg'){ renderSetGameCfg(); return; }
     if(page === 'players'){ initSettingsPlayers(); return; }
-    if(page === 'topics'){ renderPack(); return; }
     if(page === 'room'){ renderSetRoom(); return; }
     if(page === 'roomcode'){ renderSetRoomCode(); return; }
     if(page === 'app'){ el('setAppMenu').innerHTML = setMenuHtml(SET_APP_ITEMS); return; }
@@ -22325,46 +22261,6 @@
     }
   });
   el('closeSettingsBtn').addEventListener('click', closeSettings);
-  async function addPack(name, yomi, ngs){
-    name = (name||'').trim();
-    if(!name) return;
-    try{
-      var topic = await api('/api/topics', { method:'POST', body:{
-        name: name, yomi: (yomi||'').trim(), ng_words: ngs.filter(Boolean)
-      }});
-      state.topics.push(topic);
-      renderPack();
-    }catch(e){ UiKit.info('お題を追加できませんでした', e.message || ''); }
-  }
-  async function removePack(id){
-    try{
-      await api('/api/topics/'+id, { method:'DELETE' });
-      state.topics = state.topics.filter(function(t){ return t.id !== id; });
-      renderPack();
-    }catch(e){ UiKit.info('削除できませんでした', e.message || ''); }
-  }
-  function renderPack(){
-    var list = el('packList'), empty = el('packEmptyNote');
-    var customs = state.topics.filter(function(t){ return !t.is_default; });
-    el('packCount').textContent = customs.length;
-    empty.style.display = customs.length ? 'none' : 'block';
-    list.innerHTML = customs.map(function(t){
-      return '<div class="pack-list-item">'+
-        '<div class="name">'+escapeHtml(t.name)+(t.yomi ? '　<span class="ngs">（'+escapeHtml(t.yomi)+'）</span>' : '')+'</div>'+
-        (t.ng_words && t.ng_words.length ? '<div class="ngs">禁止：'+t.ng_words.map(escapeHtml).join('、')+'</div>' : '')+
-        '<button class="del-link" data-id="'+t.id+'">削除</button>'+
-      '</div>';
-    }).join('');
-  }
-  el('addPackBtn').addEventListener('click', async function(){
-    await addPack(el('packNameInput').value, el('packYomiInput').value, [el('packNg1').value, el('packNg2').value, el('packNg3').value]);
-    el('packNameInput').value=''; el('packYomiInput').value=''; el('packNg1').value=''; el('packNg2').value=''; el('packNg3').value='';
-  });
-  el('packList').addEventListener('click', function(e){
-    var btn = e.target.closest('button[data-id]');
-    if(!btn) return;
-    removePack(parseInt(btn.dataset.id,10));
-  });
   function renderStats(){
     var names = Object.keys(state.topicStats);
     var rows = names.map(function(n){
@@ -22434,7 +22330,7 @@
       }
       // 第26弾-2：棚まではログイン不要。ログインは、記録が要る用事の時にだけ頼む
       try{
-        if(await checkAuth()) await fetchTopics();
+        await checkAuth();
       }catch(e){}
       return 'scr-entry';
     })();

@@ -15,6 +15,8 @@ db.exec(`
     password_hash TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   );
+  -- 第46弾：この表は使っていない。お題は public/index.html の QUIZ_BANK（50件）だけ。
+  -- 全環境で0件のまま一度も使われなかったが、消すのは取り返しがつかないので空のまま置く。
   CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER REFERENCES users(id),

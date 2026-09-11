@@ -105,53 +105,11 @@ app.get('/api/auth/me', (req, res) => {
   res.json(user);
 });
 
-// -------------------- お題API（①） --------------------
-
-app.get('/api/topics', requireAuth, (req, res) => {
-  const rows = db.prepare(
-    'SELECT * FROM topics WHERE user_id IS NULL OR user_id = ? ORDER BY id'
-  ).all(req.session.userId);
-  res.json(rows.map(rowToTopic));
-});
-
-app.post('/api/topics', requireAuth, (req, res) => {
-  const { name, yomi, ng_words, category } = req.body || {};
-  if (!name || !name.trim()) return res.status(400).json({ error: 'お題の名前が必要です' });
-  const info = db.prepare(
-    'INSERT INTO topics (user_id, name, yomi, ng_words, category) VALUES (?, ?, ?, ?, ?)'
-  ).run(req.session.userId, name.trim(), yomi || '', JSON.stringify(ng_words || []), category || null);
-  const row = db.prepare('SELECT * FROM topics WHERE id = ?').get(info.lastInsertRowid);
-  res.status(201).json(rowToTopic(row));
-});
-
-app.put('/api/topics/:id', requireAuth, (req, res) => {
-  const row = db.prepare('SELECT * FROM topics WHERE id = ?').get(req.params.id);
-  if (!row) return res.status(404).json({ error: '見つかりません' });
-  if (row.user_id !== req.session.userId) return res.status(403).json({ error: '編集できません（デフォルトお題、または他ユーザーのお題です）' });
-  const { name, yomi, ng_words, category } = req.body || {};
-  db.prepare('UPDATE topics SET name=?, yomi=?, ng_words=?, category=? WHERE id=?')
-    .run(name ?? row.name, yomi ?? row.yomi, JSON.stringify(ng_words ?? JSON.parse(row.ng_words || '[]')), category ?? row.category, row.id);
-  res.json(rowToTopic(db.prepare('SELECT * FROM topics WHERE id = ?').get(row.id)));
-});
-
-app.delete('/api/topics/:id', requireAuth, (req, res) => {
-  const row = db.prepare('SELECT * FROM topics WHERE id = ?').get(req.params.id);
-  if (!row) return res.status(404).json({ error: '見つかりません' });
-  if (row.user_id !== req.session.userId) return res.status(403).json({ error: '削除できません（デフォルトお題、または他ユーザーのお題です）' });
-  db.prepare('DELETE FROM topics WHERE id = ?').run(row.id);
-  res.json({ ok: true });
-});
-
-function rowToTopic(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    yomi: row.yomi,
-    ng_words: JSON.parse(row.ng_words || '[]'),
-    category: row.category,
-    is_default: row.user_id === null
-  };
-}
+// -------------------- お題API：第46弾で撤去した --------------------
+// お題は public/index.html の QUIZ_BANK（50件）だけになった。
+// topics テーブルは開発・本番のどちらも0件のまま一度も使われていないので、
+// GET/POST/PUT/DELETE /api/topics と rowToTopic をまとめて消した。
+// 表そのものは db.js に残してある（消すのは取り返しがつかないので、空のまま置く）。
 
 // -------------------- AI読み上げ機能 --------------------
 // GEMINI_API_KEY が .env に設定されている場合のみ動作する

@@ -20,9 +20,6 @@ const HOLD_MS_TEST = 60;
 // 本物のサーバーを立てずに /api/* を返す。失敗させたい時は opts で切り替える。
 function makeApi(opts, titlePuts) {
   opts = opts || {};
-  const topics = ['傘', '習字道具', '自動販売機', 'ヘリコプター', '目覚まし時計',
-    '冷蔵庫', 'ペンギン', '遊園地', '信号機', 'ズッキーニ', 'パトカー', 'スマートフォン']
-    .map((name, i) => ({ id: i + 1, name, yomi: '', ng_words: ['ヒント1', 'ヒント2'], is_default: true }));
   // opts.seedMatches：あらかじめ入っている対戦記録。
   // 「昔のIDで残っている記録が、いまも正しく表示されるか」を確かめるために使う
   const matches = (opts.seedMatches || []).map((m, i) => Object.assign({
@@ -70,8 +67,6 @@ function makeApi(opts, titlePuts) {
     }
     if (p === '/api/auth/login' || p === '/api/auth/register') return json(200, { id: 1, username: 'test' });
     if (p === '/api/auth/logout') return json(200, { ok: true });
-    if (p === '/api/topics' && (init.method || 'GET') === 'GET') return json(200, topics);
-    if (p === '/api/topics') { const t = { id: 900 + topics.length, name: body.name, yomi: body.yomi || '', ng_words: body.ng_words || [], is_default: false }; topics.push(t); return json(201, t); }
     if (p === '/api/ai-describe') {
       if (opts.failAI) return json(502, { error: 'AI呼び出しに失敗しました（テスト）' });
       if (body.hint) return json(200, { description: 'ヒント' + ((body.avoid || []).length + 1) });

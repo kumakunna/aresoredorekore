@@ -2509,17 +2509,17 @@ async function startModeWithTimerOff(win, doc, id) {
   });
 
   // ---- 第18弾 第5部：設定画面の分離とターン表示 ----
-  await r.test('設定：人狼カセットでは「お題を追加」を出さない', async () => {
+  // 第46弾：「お題を追加」は撤去した。お題は QUIZ_BANK の50件だけで、
+  // 足す窓口はどのゲームにも無い。**出ないことを両方の向きで見る**（落とし穴20・30）
+  await r.test('設定：お題プールを使わないゲームに「お題を追加」の入口は無い', async () => {
     const { win, doc, errors } = await launch();
     await startWolfRole(win, doc, 'wolf-casual', ['あき', 'びび', 'ちか', 'でん', 'えみ']);
     click(doc, 'floatingGearBtn');
     await sleep(win, 80);
     assert(el(doc, 'settingsOverlay').classList.contains('show'), '設定が開く');
-    // 第32弾-B-1：設定は「項目を選ぶ→専用画面が開く」形になった。
-    // お題を追加は「いま遊んでいるゲーム」の中に入り、使うゲームの時だけ入口が出る
     doc.querySelector('#setRootMenu [data-setpage="game"]').click();
     await sleep(win, 60);
-    assert(!doc.querySelector('#setGameMenu [data-setpage="topics"]'), '人狼ではお題の入口を出さない');
+    assert(!doc.querySelector('#setGameMenu [data-setpage="topics"]'), '人狼にお題の入口は無い');
     // 共通の項目は残っていること（隠しすぎていないか）
     assert(doc.querySelector('#setGameMenu [data-setpage="rules"]'), 'ルールの見返しは出る');
     assert(el(doc, 'endGameBtn'), 'ゲーム終了は残る');
@@ -2529,7 +2529,7 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('設定：あれそれどれこれでは「お題を追加」が出る', async () => {
+  await r.test('設定：お題プールを使うゲームでも、入口も画面も残っていない（第46弾）', async () => {
     const { win, doc, errors } = await launch();
     const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
     cart.click();
@@ -2544,12 +2544,15 @@ async function startModeWithTimerOff(win, doc, id) {
     await sleep(win, 80);
     doc.querySelector('#setRootMenu [data-setpage="game"]').click();
     await sleep(win, 60);
-    const topicRow = doc.querySelector('#setGameMenu [data-setpage="topics"]');
-    assert(topicRow, 'あれそれどれこれではお題の入口が出る');
-    topicRow.click();
-    await sleep(win, 60);
-    assertEqual(doc.querySelector('.set-page[data-page="topics"]').style.display, 'block', 'お題の画面が開く');
-    assert(el(doc, 'packNameInput'), 'お題を足す入力欄がある');
+    // 行き：入口が無い
+    assert(!doc.querySelector('#setGameMenu [data-setpage="topics"]'), 'あれそれどれこれにもお題の入口は無い');
+    // 帰り：画面そのものも入力欄も残っていない（落とし穴30：名前だけ残ると黙って既定の見た目で出る）
+    assert(!doc.querySelector('.set-page[data-page="topics"]'), 'お題の画面そのものが無い');
+    // el() は「無い」時に投げるので、不在の検査には getElementById を直接使う
+    assert(!doc.getElementById('packNameInput'), 'お題を足す入力欄が無い');
+    assert(!doc.getElementById('addPackBtn'), '「パックに追加」のボタンが無い');
+    // 消しすぎていないこと
+    assert(doc.querySelector('#setGameMenu [data-setpage="rules"]'), 'ルールの見返しは残る');
     assertNoErrors(errors, 'あれそれどれこれの設定画面で未捕捉の例外');
     win.close();
   });

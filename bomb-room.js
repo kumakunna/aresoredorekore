@@ -97,7 +97,7 @@ function makeEntry(w, order) {
 // ---- 開始 ----
 /**
  * @param {object} room 部屋
- * @param {object} config 端末から届いた設定（mode / counts / lives / timerSec / endWhen / topics）
+ * @param {object} config 端末から届いた設定（mode / counts / lives / timerSec / endWhen）
  * @param {object} ctx   realtime.js が渡す入り口 { describe, notify }
  *   describe … AIに説明文を作らせる（ai-describe.js）。テストからは差し替えられる
  *   notify   … 状態が動いたことを部屋の全員に伝える
@@ -116,8 +116,6 @@ function startGame(room, config, ctx) {
   if (!wires.length) {
     return { ok: false, error: 'no_wires', message: 'コードが1本もありません。設定を見直してください' };
   }
-  const topics = [];
-
   const ids = members.map((m) => m.id);
   const w = {
     mode: cfg.mode,
@@ -130,7 +128,6 @@ function startGame(room, config, ctx) {
 
     playerIds: ids,
     names: {},
-    topics: topics,          // 3択のダミーを作るために持っておく（配らない）
     wires: wires,            // name / description は秘密。publicView に出さない
 
     ready: 0,                // 説明文ができた本数
@@ -521,7 +518,7 @@ function submitAction(room, memberId, targetId) {
   w.open[memberId] = targetId;
   if (!e.choices[targetId]) {
     const wire = w.wires.find((x) => x.uid === targetId);
-    e.choices[targetId] = BombLogic.buildChoices(wire, w.topics);
+    e.choices[targetId] = BombLogic.buildChoices(wire);
   }
   return { ok: true, allDone: false };
 }

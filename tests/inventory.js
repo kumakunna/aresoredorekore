@@ -132,12 +132,10 @@ const COUNTDOWN_PATHS = [
 // rtXxxConfig（index.html）が送る形の最小版。実サーバーで全ゲーム開始できることを確認済み。
 // 新しいゲームを GAME_DRIVERS に足したのにここへ書き忘れると、
 // tests/room-paths.js の「追加漏れ検出」テストが赤くなる（落とし穴4の恒久対策）
-const START_TOPICS = ['傘', '冷蔵庫', 'ペンギン', '信号機', 'パトカー', '目覚まし時計', '自動販売機', 'ヘリコプター']
-  .map((name) => ({ name, tier: 'easy', ng_words: [], aliases: [] }));
 const RT_START_MIN_CONFIG = {
   wolfrole: { game: 'wolfrole', roles: ['wolf', 'seer'], turnLimit: 5, meetingSec: 0 },
   wordwolf: { game: 'wordwolf', wolfCount: 1, wolfAware: false, roles: {}, multiTurn: false, meetingSec: 0, discussSec: 0 },
-  bomb: { game: 'bomb', mode: 'coop', counts: { easy: 2, normal: 1, hard: 0 }, lives: 3, timerSec: 120, topics: START_TOPICS },
+  bomb: { game: 'bomb', mode: 'coop', counts: { easy: 2, normal: 1, hard: 0 }, lives: 3, timerSec: 120 },
   defuse: { game: 'defuse', mode: 'normal', manual: true, strikes: 3, timerSec: 0 },
   quizrush: { game: 'quizrush', timerSec: 60 },
   quizlist: { game: 'quizlist', timerSec: 60 },

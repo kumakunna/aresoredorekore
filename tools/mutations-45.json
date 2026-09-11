@@ -456,11 +456,11 @@
     "expect": "名簿が無い時は、サーバーに聞いてから行く"
   },
   {
-    "name": "監査d3 名簿がある時も、2秒待たせる",
+    "name": "監査d3 名簿があるのに、何もたしかめずに行く道を作る",
     "file": "public/index.html",
     "suite": "tests/fixes45.js",
     "from": "    if(rt && rt.state.room){\n      roomOpenIsHost = rt.isHost();",
     "to": "    if(false){\n      roomOpenIsHost = rt.isHost();",
-    "expect": "名簿がある時は、待たせずに行く"
+    "expect": "何もたしかめずに確認画面へ行く所が無い"
   }
 ]

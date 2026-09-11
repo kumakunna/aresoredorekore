@@ -1,0 +1,26 @@
+[
+  {
+    "name": "46-1a 設定に「お題を追加」の行を戻す",
+    "file": "public/index.html",
+    "suite": "tests/smoke.js",
+    "from": "    { icon:'🔄', label:'別のゲームに変える', act:'pickGame',",
+    "to": "    { icon:'➕', label:'お題を追加', page:'topics', when:function(){ return true; } },\n    { icon:'🔄', label:'別のゲームに変える', act:'pickGame',",
+    "expect": "あれそれどれこれにもお題の入口は無い"
+  },
+  {
+    "name": "46-1b お題を足す入力欄を戻す",
+    "file": "public/index.html",
+    "suite": "tests/smoke.js",
+    "from": "          <button class=\"btn btn-teal\" id=\"applyPlayersBtn\" style=\"margin-top:10px;\">変更を適用</button>",
+    "to": "          <button class=\"btn btn-teal\" id=\"applyPlayersBtn\" style=\"margin-top:10px;\">変更を適用</button>\n          <input type=\"text\" id=\"packNameInput\">",
+    "expect": "お題を足す入力欄が無い"
+  },
+  {
+    "name": "46-1c お題の画面（set-page）そのものを戻す",
+    "file": "public/index.html",
+    "suite": "tests/smoke.js",
+    "from": "      <!-- ===== B. 部屋 ===== -->",
+    "to": "      <div class=\"set-page\" data-page=\"topics\" style=\"display:none;\"></div>\n      <!-- ===== B. 部屋 ===== -->",
+    "expect": "お題の画面そのものが無い"
+  }
+]

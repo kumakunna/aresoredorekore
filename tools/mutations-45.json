@@ -283,23 +283,23 @@
     "name": "45-5d 押した時に確かめ直さない（出したあとに kick された人が行き止まりになる）",
     "file": "public/index.html",
     "suite": "tests/fixes45.js",
-    "from": "    var st = await roomMembership();\n    this.disabled = false;\n    if(!st.ある){",
-    "to": "    var st = { ある:true };\n    this.disabled = false;\n    if(!st.ある){",
+    "from": "    var st = await roomMembership();\n    if(btn) btn.disabled = false;\n    if(!st.ある){",
+    "to": "    var st = { ある:true };\n    if(btn) btn.disabled = false;\n    if(!st.ある){",
     "expect": "理由を1つ言う"
   },
   {
     "name": "45-6a 競争版で、他人の答えまで配る",
     "file": "bomb-room.js",
     "suite": "tests/fixes45.js",
-    "from": "      tries: (coop ? w.log : w.log.filter((t) => t.by === memberId))",
-    "to": "      tries: w.log",
+    "from": "        .filter((e) => e.t.uid === x.uid && (coop || e.t.by === memberId))",
+    "to": "        .filter((e) => e.t.uid === x.uid)",
     "expect": "並ぶのは自分の1回だけ"
   },
   {
     "name": "45-6b 協力版で、誰が答えたかを落とす",
     "file": "bomb-room.js",
     "suite": "tests/fixes45.js",
-    "from": "          name: coop ? (w.names[t.by] || '') : null,",
+    "from": "          name: coop ? (w.names[e.t.by] || '') : null,",
     "to": "          name: null,",
     "expect": "だれが答えたかが出る"
   },
@@ -323,9 +323,9 @@
     "name": "45-6e 記録が1つも無くても「だれも答えなかった」と言う",
     "file": "public/index.html",
     "suite": "tests/fixes45.js",
-    "from": "    var 記録がある = (codes || []).some(function(c){ return (c.tries || []).length > 0; });",
-    "to": "    var 記録がある = true;",
-    "expect": "記録が1つも届いていない時は、「だれも答えなかった」と言わない"
+    "from": "    var 空も言える = !!みんなの答え;",
+    "to": "    var 空も言える = true;",
+    "expect": "自分の分しか届かない時は、「だれも答えなかった」と言わない"
   },
   {
     "name": "45-6f 手渡しなのに、名前の欄を空で出す",
@@ -371,8 +371,8 @@
     "name": "45-6h 手渡しで、当てた分しか記録しない",
     "file": "public/index.html",
     "suite": "tests/fixes45.js",
-    "from": "    (play.bombLog = play.bombLog || []).push(\n      { uid: w.uid, name: null, answer: btn.dataset.choice, correct: correct });",
-    "to": "    if(correct) (play.bombLog = play.bombLog || []).push(\n      { uid: w.uid, name: null, answer: btn.dataset.choice, correct: correct });",
+    "from": "    play.bombLog.push({ uid: w.uid, name: null, answer: btn.dataset.choice,\n      correct: correct, at: play.bombLog.length });",
+    "to": "    if(correct) play.bombLog.push({ uid: w.uid, name: null, answer: btn.dataset.choice,\n      correct: correct, at: play.bombLog.length });",
     "expect": "外した分も当てた分も残る"
   },
   {
@@ -395,8 +395,8 @@
     "name": "監査a 人狼の話し合いの時計だけ、共通の1本から外す",
     "file": "public/index.html",
     "suite": "tests/fixes45.js",
-    "from": "    timerChipTick(d, wr.remaining);",
-    "to": "    if(false) timerChipTick(d, wr.remaining);",
+    "from": "    timerChipTick(d, wr.remaining);\n  }",
+    "to": "  }",
     "expect": "時計は1つ残らず timerChipTick を通る"
   },
   {
@@ -404,7 +404,7 @@
     "file": "public/index.html",
     "suite": "tests/fixes45.js",
     "from": "  .play-timer.warn{color:var(--gold);}",
-    "to": "  .play-timer.warnX{color:var(--gold);}",
+    "to": "  .play-timerX.warn{color:var(--gold);}",
     "expect": "にも、のこりわずかの色がある"
   },
   {

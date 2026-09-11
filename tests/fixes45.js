@@ -859,10 +859,14 @@ const RULES = rulesOf(CSS);
     const 器の種類 = Array.from(new Set(器));
     assert(器の種類.length >= 2, '時計の器が2種類以上ある（いま ' + 器の種類.join(',') + '）'); // 型(b)
     器の種類.forEach((c) => {
-      assert(CSS.indexOf('.' + c + '.warn') >= 0,
+      // **名前の切れ目まで見る。**`.play-timer.warn` は `.play-timer.warnX` の
+      // 部分文字列なので、`indexOf` だけだと綴りを1文字変えた変異が素通りする
+      // （実際に素通りしてから直した・落とし穴10）
+      const 規則がある = (印) => RULES.some((x) =>
+        new RegExp('\\.' + c.replace(/[-]/g, '\\-') + '\\.' + 印 + '(?![\\w-])').test(x.sel));
+      assert(規則がある('warn'),
         '「' + c + '」にも、のこりわずかの色がある（無いと印が付いても何も起きない）');
-      assert(CSS.indexOf('.' + c + '.done') >= 0,
-        '「' + c + '」にも、おわりの色がある');
+      assert(規則がある('done'), '「' + c + '」にも、おわりの色がある');
     });
   });
 

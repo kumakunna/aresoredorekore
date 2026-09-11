@@ -22,5 +22,61 @@
     "from": "      <!-- ===== B. 部屋 ===== -->",
     "to": "      <div class=\"set-page\" data-page=\"topics\" style=\"display:none;\"></div>\n      <!-- ===== B. 部屋 ===== -->",
     "expect": "お題の画面そのものが無い"
+  },
+  {
+    "name": "46-2a お題を1枚減らす（物理カードと枚数が合わなくなる）",
+    "file": "public/index.html",
+    "suite": "tests/topic-pool.js",
+    "from": "      {name:\"帽子\",yomi:\"ぼうし\",ng_words:[\"かぶる\",\"頭\",\"キャップ\"]},\n      {name:\"鏡\"",
+    "to": "      {name:\"鏡\"",
+    "expect": "easy の枚数"
+  },
+  {
+    "name": "46-2b 同じお題を2枚入れる（先勝ちで黙って消える形）",
+    "file": "public/index.html",
+    "suite": "tests/topic-pool.js",
+    "from": "      {name:\"帽子\",yomi:\"ぼうし\",ng_words:[\"かぶる\",\"頭\",\"キャップ\"]},",
+    "to": "      {name:\"傘\",yomi:\"かさ\",ng_words:[\"雨\",\"濡れる\",\"さす\"]},",
+    "expect": "重複したお題"
+  },
+  {
+    "name": "46-2c 靴下の封印語を「布」に戻す（財布で誤爆する形）",
+    "file": "public/index.html",
+    "suite": "tests/topic-pool.js",
+    "from": "      {name:\"靴下\",yomi:\"くつした\",ng_words:[\"履く\",\"足\",\"ソックス\"]},",
+    "to": "      {name:\"靴下\",yomi:\"くつした\",ng_words:[\"履く\",\"足\",\"布\"]},",
+    "expect": "誤って反則になる組"
+  },
+  {
+    "name": "46-2d 運動靴を「靴」に戻す（靴下と言うと正解が出る形）",
+    "file": "public/index.html",
+    "suite": "tests/topic-pool.js",
+    "from": "      {name:\"運動靴\",yomi:\"うんどうぐつ\",ng_words:[\"スニーカー\",\"履く\",\"足\"]},",
+    "to": "      {name:\"靴\",yomi:\"くつ\",ng_words:[\"スニーカー\",\"履く\",\"足\"]},",
+    "expect": "誤って正解になる組"
+  },
+  {
+    "name": "46-2e 別名の表に、もう居ないお題の行を戻す",
+    "file": "public/index.html",
+    "suite": "tests/topic-pool.js",
+    "from": "    'テレビ':         { aliases:['テレビジョン'] }\n  };",
+    "to": "    'テレビ':         { aliases:['テレビジョン'] },\n    'パトカー':       { display:'パトロールカー', aliases:['パトカー'] }\n  };",
+    "expect": "もう居ないお題の別名"
+  },
+  {
+    "name": "46-2f よみを落とす（音声判定が効かなくなる）",
+    "file": "public/index.html",
+    "suite": "tests/topic-pool.js",
+    "from": "      {name:\"五徳\",yomi:\"ごとく\",ng_words:[\"コンロ\",\"鍋\",\"ガス\"]}",
+    "to": "      {name:\"五徳\",yomi:\"\",ng_words:[\"コンロ\",\"鍋\",\"ガス\"]}",
+    "expect": "よみ・封印語が揃っていないお題"
+  },
+  {
+    "name": "46-2g 別名どうしをぶつける（同じ言い方が2つのお題の正解になる）",
+    "file": "public/index.html",
+    "suite": "tests/topic-pool.js",
+    "from": "    '運動靴':         { aliases:['スニーカー'] },",
+    "to": "    '運動靴':         { aliases:['スニーカー'] },\n    '帽子':           { aliases:['スニーカー'] },",
+    "expect": "2つのお題の正解になる言い方"
   }
 ]

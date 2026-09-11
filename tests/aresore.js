@@ -3,9 +3,34 @@
 // お題の選択 → 人間/AIの説明 → 正解・不正解・パスの判定 → スコア反映 まで。
 // 判定まわりは何度も仕様が変わっている場所なので、決まった挙動を固定しておく。
 
+const fs = require('fs');
+const path = require('path');
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click,
   setupPlayers, chooseNext, createRunner, assert, assertEqual, assertNoErrors, autoDialog } = H;
+
+/**
+ * 「表示名 → その略称」の対応を、**実装の TOPIC_ALIASES から作る**（第46弾）。
+ *
+ * ここは元は手書きの対応表で、パトカー・遊園地・スマートフォンを名指ししていた。
+ * 指示46でお題を50件に整理したら、3件とも居なくなった——
+ * **検体が実データを名指ししていると、データが変わった日に赤くなる**（落とし穴10-d）。
+ * どのお題で試すかは実装から取り、**別名の仕組みが効くか**だけをこの検査で見る。
+ */
+function 別名表() {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const 頭 = 'var TOPIC_ALIASES = ';
+  const i = src.indexOf(頭);
+  const j = src.indexOf('\n  };', i);
+  const 表 = new Function('return (' + src.slice(i + 頭.length, j + 4) + ')')();
+  const out = {};
+  Object.keys(表).forEach((k) => {
+    const 表示 = 表[k].display || k;
+    const 略 = (表[k].aliases || []).filter((a) => a !== 表示)[0];
+    if (略) out[表示] = 略;
+  });
+  return out;
+}
 
 // 指定モードを、タイマーOFF（手動でラウンドを終えられる）で開始する
 async function startPlay(win, doc, modeId, names) {
@@ -169,7 +194,8 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     // 別名を持つお題が出るまで送る。
     // 同一マッチ内はお題が重複しない（pickUnused）ので、プールを一周すれば必ず当たる。
     // パスは演出待ちが入るため、待ち時間のない「正解者を選ばずに次へ」で素早く送る。
-    const aliasOf = { 'パトロールカー': 'パトカー', 'スマートフォン': 'スマホ', '自動販売機': '自販機', '遊園地': 'テーマパーク' };
+    const aliasOf = 別名表();
+    assert(Object.keys(aliasOf).length > 0, '別名を持つお題が1つ以上ある');
     let target = null;
     for (let i = 0; i < 250 && !target; i++) {
       const t = topicText(doc);

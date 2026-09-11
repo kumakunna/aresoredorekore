@@ -335,6 +335,11 @@
   /* 第20弾-4-2：朝の話し合いタイマーは大きく。一時停止ボタンと横に並べる */
   .day-timer-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0 6px;}
   .day-timer-row .play-timer{font-size:46px;}
+  /* 第45弾：印を付けても、規則が無ければ何も起きない（落とし穴30）。
+     .timer-chip の warn / done は .timer-chip にしか掛かっていないので、
+     話し合いの大きな時計にも同じ意味の色を持たせる */
+  .play-timer.warn{color:var(--gold);}
+  .play-timer.done{color:var(--stamp);}
   /* 朝の見出しと、欠けた人のお知らせ */
   #wrDayTurn.turn-banner{font-size:15px;}
   #wrDayTurn.turn-banner b{font-family:'Shippori Mincho',serif;font-size:30px;display:block;margin-bottom:2px;}
@@ -6274,20 +6279,33 @@
     }catch(e){}
     return { ある:false, 進行役:false };
   }
-  el('entryRoomBtn').addEventListener('click', async function(){
-    // 押した瞬間にもう1度たしかめる。**出したあとに kick されることがある**——
-    // その時は黙って行き止まりにせず、理由を1つ言って入口に残す
-    this.disabled = true;
+  /**
+   * 「いま開いている部屋」の確認画面へ行く、**ただ1つの道**（第45弾・監査で見つけた）。
+   *
+   * 45-5 で「部屋を閉じる」を進行役だけに出すようにした時、
+   * その判断（roomOpenIsHost）を書くのは roomMembership() の中だけにした。
+   * ところが確認画面への入口は**3つ**あり、棚の1行（shelfRoomNote）だけが
+   * そこを通らずに goTo していた——**進行役なのに「部屋を閉じる」が出ない**。
+   * 入口ごとに書くと必ずどれかが漏れる（落とし穴1・17）ので、道を1本にする。
+   *
+   * ついでに、押した瞬間にもう1度たしかめる。**出したあとに kick されることがある**——
+   * その時は黙って行き止まりにせず、理由を1つ言ってその場に残す
+   */
+  async function goRoomOpen(btn){
+    if(btn) btn.disabled = true;
     var st = await roomMembership();
-    this.disabled = false;
+    if(btn) btn.disabled = false;
     if(!st.ある){
       el('entryRoomBtn').style.display = 'none';
+      renderShelfRoomNote();
       var T = UiText.ENTRY.部屋あり;
       UiKit.info(T.もう無い, T.もう無いの本文);
-      return;
+      return false;
     }
     goTo('scr-room-open');
-  });
+    return true;
+  }
+  el('entryRoomBtn').addEventListener('click', function(){ goRoomOpen(this); });
   el('scr-entry').addEventListener('click', async function(e){
     var b = e.target.closest('[data-entry]');
     if(!b) return;
@@ -6661,7 +6679,7 @@
     note.textContent = (T ? T.見出し : 'いま開いている部屋があります') +
       '　' + ((typeof UiText !== 'undefined') ? UiText.WORDS.back : 'もどる') + ' ›';
   }
-  el('shelfRoomNote').addEventListener('click', function(){ goTo('scr-room-open'); });
+  el('shelfRoomNote').addEventListener('click', function(){ goRoomOpen(this); });
   /** 人数をたずねる（sheet）。**軽く聞く。答えなくても閉じられる** */
   function askHeads(){
     if(typeof UiKit === 'undefined') return;
@@ -8846,7 +8864,9 @@
    * 第45弾 45-6：答え合わせの描き方を、外から1回だけ回す。
    * **手渡しも部屋も同じ部品が描く**ので、1回回せば両方を確かめたことになる
    */
-  window.bombReviewProbe = function(codes){ return bombReviewHtml(codes); };
+  window.bombReviewProbe = function(codes, みんなの答え){
+    return bombReviewHtml(codes, みんなの答え);
+  };
   /**
    * 第45弾 45-4：「このゲームの設定」を、モードと在室の組み合わせで回す。
    * 出す条件を手で書くと、新しいカセットで必ずどれかが漏れる（落とし穴21）
@@ -8862,6 +8882,8 @@
    * 「設定を入れたのに何も出ない」時に、
    * 端末で握り潰しているのか・そもそも届いていないのかを分けるために要る
    */
+  /** 第45弾（監査）：missLog が届いた時の読み上げを、外から1回だけ回す */
+  window.bombMissNotesProbe = function(v){ rtBombMissNotes(v); };
   window.bombMissProbe = function(){
     var v = rtView();
     return { missLog: (v && v.missLog) || null, seen: rtBombMissSeen, me: rt && rt.state.memberId };
@@ -14793,7 +14815,7 @@
   function rtBombLeaveScreen(){
     rtBombStopTicking();
     stopBombHeart();
-    rtBombMissSeen = 0;          // 第45弾 45-4：前の試合の分を持ち越さない
+    rtBombMissSeen = null;       // 第45弾 45-4：前の試合の分を持ち越さない（次に入った時が初回）
     el('rtBombOverlay').classList.remove('show');
     rtBombPrev = null;
   }
@@ -15006,14 +15028,21 @@
    * 競争版で「誰が何と答えたか」が入っているのはこちらだけで、
    * 公開ビューには入っていない（他人の未公開の答えは配らない）
    */
-  function rtBombReviewCodes(){
+  function rtBombReviewResult(){
     var you = rt && rt.state.secret;
     var v = rtView();
     var r = (you && you.result) || (v && v.result) || null;
-    return (r && !r.aborted && r.codes) ? r.codes : [];
+    return (r && !r.aborted && r.codes) ? r : null;
+  }
+  function rtBombReviewCodes(){
+    var r = rtBombReviewResult();
+    return r ? r.codes : [];
   }
   el('rtBombReviewBtn').addEventListener('click', function(){
-    openBombReview(rtBombReviewCodes());
+    // **全員ぶんが届くのは協力版だけ。**遊び方はサーバーの結果が名乗っている
+    // （端末の選択ではなく、その試合が何だったか）
+    var r = rtBombReviewResult();
+    openBombReview((r && r.codes) || [], !!(r && r.mode === 'coop'));
   });
 
   /**
@@ -15027,10 +15056,16 @@
    * 「💔 ちがう！ライフが割れた」がすでに出ていて、
    * そこに名前入りの一言を重ねると、責めている形になる（原則C）
    */
-  var rtBombMissSeen = 0;
+  // **null は「まだ一度も見ていない」。0 とは違う。**
+  // 0 から始めると、開き直した端末が最初の描画で
+  // 「その試合でこれまでに起きたミス」を全部いっぺんに読み上げる——
+  // どれも数分前の出来事で、いま起きたことではない。
+  // すぐ隣の rtBombFeedback / rtPlayFx が同じ理由で持っている守りが、ここだけ無かった
+  var rtBombMissSeen = null;
   function rtBombMissNotes(v){
     var log = v && v.missLog;
-    if(!log){ rtBombMissSeen = 0; return; }
+    if(!log){ rtBombMissSeen = null; return; }
+    if(rtBombMissSeen === null){ rtBombMissSeen = log.length; return; }  // 初回は数えるだけ
     if(log.length < rtBombMissSeen) rtBombMissSeen = 0;   // 新しい試合が始まった
     var me = rt && rt.state.memberId;
     for(var i = rtBombMissSeen; i < log.length; i++){
@@ -19057,7 +19092,15 @@
   });
   function renderWrDayTimer(){
     var m = Math.floor(wr.remaining / 60), s = wr.remaining % 60;
-    el('wrDayTimer').textContent = pad(m) + ':' + pad(s);
+    var d = el('wrDayTimer');
+    d.textContent = pad(m) + ':' + pad(s);
+    // 第45弾（監査で見つけた）：**13個ある時計のうち、ここだけが漏れていた。**
+    // 45-1 は「残り10秒からは、押さなくても数字が出る」を全カセット共通の約束にしたのに、
+    // 人狼・ワードウルフの話し合いの時計だけ .warn / .done が一度も付かず、
+    // 「見たい時」にしている人には最後まで「タップで見る」のままだった。
+    // 夜の時計（wrNightTimer）は集約済みで、**同じゲームの中で昼と夜の振る舞いが割れていた**
+    //（落とし穴1・20：A⊆B は見ていたが、B⊆A を見ていなかった）
+    timerChipTick(d, wr.remaining);
   }
   function stopWrDayTimer(){ if(wr && wr.timer){ clearInterval(wr.timer); wr.timer = null; } }
 
@@ -19414,13 +19457,24 @@
     var よく当てた = (最多 > 0) ? 順に.filter(function(n){ return 当てた[n] === 最多; }) : [];
     return { よく当てた: よく当てた, 最後に決めた: 最後 };
   }
-  function bombReviewHtml(codes){
+  function bombReviewHtml(codes, みんなの答え){
     var T = UiText.BOMB;
-    // **「だれも答えませんでした」と言ってよいのは、答えの記録が届いている時だけ。**
-    // 競争版を横から見ている端末には、そもそも誰の答えも配られない——
-    // そこで「だれも答えなかった」と書くと、事実でないことを言うことになる。
-    // 1件でも記録があるなら、空のコードは本当に誰も挑まなかったコード
-    var 記録がある = (codes || []).some(function(c){ return (c.tries || []).length > 0; });
+    // **「だれも答えませんでした」と言ってよいのは、全員ぶんの答えが届いている時だけ。**
+    //
+    // はじめは「1件でも記録があれば、空のコードは本当に誰も挑まなかったコード」と
+    // 書いていたが、**それは盤が1つの時にしか成り立たない**。
+    // 競争版は全員が同じコードに別々に挑むので、自分に届くのは自分の答えだけ——
+    // びびが2ばんめを答えていても、あきの手元では tries が空で来る。
+    // そこに「だれも答えませんでした」と書くと、**嘘になる**（大切なこと9の型：
+    // 協力版の理屈が、そのまま競争版へ運ばれていた）。
+    //
+    // **既定は「言わない」**。呼ぶ側が「全員ぶんある」と名乗った時だけ言う——
+    // 新しい呼び方を足した人が書き忘れても、安全な側（黙る）に倒れる。
+    //
+    // **黙るのは「だれも答えませんでした」の一言だけ。**
+    // 届いている答えは、どの遊び方でも必ず出す——ここを一緒に隠すと、
+    // 競争版の人が自分の答えすら見られなくなる（最初そう書いて、検査に捕まえられた）
+    var 空も言える = !!みんなの答え;
     var list = (codes || []).map(function(c, i){
       var tries = (c.tries || []).map(function(t){
         // ✓ / ✕ は形。色だけで正誤を出さない（45-6の配慮）
@@ -19431,10 +19485,12 @@
         '<div class="bv-head"><span class="bv-no">' + (i + 1) + '</span>' +
           '<span class="bv-q">' + escapeHtml(c.question || '') + '</span></div>' +
         '<div class="bv-ans">' + escapeHtml(T.正解の札) + '：<b>' + escapeHtml(c.name || '') + '</b></div>' +
-        (記録がある
-          ? '<div class="bv-tries">' + (tries || '<span class="bv-none">' +
-              escapeHtml(T.誰も答えなかった) + '</span>') + '</div>'
-          : '') +
+        (tries
+          ? '<div class="bv-tries">' + tries + '</div>'
+          : (空も言える
+            ? '<div class="bv-tries"><span class="bv-none">' +
+                escapeHtml(T.誰も答えなかった) + '</span></div>'
+            : '')) +
       '</div>';
     }).join('');
     var m = bombReviewMarks(codes);
@@ -19447,10 +19503,10 @@
     }
     return 印 + '<div class="bv-list">' + (list || '') + '</div>';
   }
-  function openBombReview(codes){
+  function openBombReview(codes, みんなの答え){
     if(typeof UiKit === 'undefined') return;
     UiKit.sheet({ title: UiText.BOMB.答え合わせの見出し,
-      html: bombReviewHtml(codes), ok: UiText.WORDS.close });
+      html: bombReviewHtml(codes, みんなの答え), ok: UiText.WORDS.close });
   }
   /**
    * 入口の札は1か所から入れる。
@@ -19768,7 +19824,8 @@
     });
   }
   el('bombReviewBtn').addEventListener('click', function(){
-    openBombReview(bombHandoffReviewCodes());
+    // 1台を回す遊び方は、その1台に全員の答えが残っている
+    openBombReview(bombHandoffReviewCodes(), true);
   });
 
   // ===================== quiz king =====================
@@ -21336,7 +21393,16 @@
   var SET_GAME_ITEMS = [
     { icon:'📖', label:'ルールをもう一度見る', page:'rules' },
     { icon:'🎛', label:'このゲームの設定', page:'gamecfg',
-      when:function(){ return liveGameSettings().length > 0; },
+      // 第45弾（監査で見つけた）：**部屋では、ここは進行役だけ。**
+      // 中身（ライフの数・ミスの上限・持ち時間・ラウンド数・だれが外したか）は
+      // どれも「次の試合の設定」で、送るのは進行役の端末だけ。
+      // 参加者が開いて切り替えても、その値はどの試合にも渡らない——
+      // 遊ぶ人には「決めたのに効いていない」としか見えない（落とし穴21）。
+      // すぐ下の「別のゲームに変える」は同じ理由で最初から塞いである
+      when:function(){
+        if(inRoomNow() && !(rt && rt.isHost())) return false;
+        return liveGameSettings().length > 0;
+      },
       sub:'遊んでいる途中でも変えられるもの' },
     { icon:'👥', label:'プレイヤー', page:'players',
       when:function(){ return !inRoomNow(); }, sub:'名前・人数・ハンデ' },

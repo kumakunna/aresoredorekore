@@ -535,7 +535,7 @@ const RULES = rulesOf(CSS);
         tries: [{ name: 'あき', answer: 'はずれ2', correct: false },
           { name: 'びび', answer: 'こたえ2', correct: true }] }
     ];
-    const html = win.bombReviewProbe(codes);
+    const html = win.bombReviewProbe(codes, true);
     const box = doc.createElement('div');
     box.innerHTML = html;
     // 並べ替えない：渡した順のまま
@@ -553,9 +553,9 @@ const RULES = rulesOf(CSS);
     // 競争版を横から見ている端末には、そもそも誰の答えも配られない
     const 記録なし = doc.createElement('div');
     記録なし.innerHTML = win.bombReviewProbe(codes.map((c) =>
-      Object.assign({}, c, { tries: [] })));
+      Object.assign({}, c, { tries: [] })), false);
     assertEqual(記録なし.querySelectorAll('.bv-none').length, 0,
-      '記録が1つも届いていない時は、「だれも答えなかった」と言わない');
+      '全員ぶんが届かない遊び方では、「だれも答えなかった」と言わない');
     assertEqual(記録なし.querySelectorAll('.bv-q').length, 2,
       'それでも、問題と正解は出る');
     // 褒める印。**並べ替えず、色も変えない**
@@ -578,7 +578,7 @@ const RULES = rulesOf(CSS);
     // 手渡しには名前が無い（1台を回すので、誰が押したか分からない）
     const 手渡し = win.bombReviewProbe([
       { tier: 'easy', question: 'と1', name: 'こたえ1', solved: true,
-        tries: [{ name: null, answer: 'こたえ1', correct: true }] }]);
+        tries: [{ name: null, answer: 'こたえ1', correct: true }] }], true);
     const box2 = doc.createElement('div');
     box2.innerHTML = 手渡し;
     assertEqual(box2.querySelectorAll('.bv-marks').length, 0,
@@ -674,7 +674,12 @@ const RULES = rulesOf(CSS);
     // 「いま開いている部屋」の画面は、いまも1つだけ
     const 画面 = (INDEX_HTML.match(/id="scr-room-open[^"]*"/g) || []);
     assertEqual(画面.length, 1, '部屋の確認画面は1つだけ（' + 画面.join(',') + '）');
-    assertEqual((INDEX_HTML.match(/id="scr-room-open-guest"/g) || []).length, 0,
+    // **幽霊の名前は、その場で組み立てる**（落とし穴32）。
+    // ここに 'scr-〇〇-guest' と直接書くと、room-paths の
+    // 「検査が名指しする画面idも、実在する画面だけを指している」が
+    // 自分の説明文を拾って毎回赤くなる——実際に赤くしてから直した
+    const 幽霊 = 'scr-room-open' + '-' + 'guest';
+    assertEqual((INDEX_HTML.match(new RegExp('id="' + 幽霊 + '"', 'g')) || []).length, 0,
       'ゲスト専用の画面を作っていない');
   });
 
@@ -784,6 +789,179 @@ const RULES = rulesOf(CSS);
     assert(/正解/.test(codes[0].querySelector('.bv-ans').textContent), '正解が出る');
     assertNoErrors(errors);
     win.close();
+  });
+
+  // ===================== 監査で見つけた5件（第45弾の仕上げ） =====================
+  // 7つの視点で差分を見直し、3方向の反証を通り抜けたもの。
+  // **どれも指示45で自分が入れたコードの問題**なので、ここに見張りを置く
+
+  await r.test('45-1：data-timer の付いた時計は、1つ残らず同じ1本を通る（帰り向き）', async () => {
+    // **これが抜けていた。**「timerChipTick の呼び出しが9本以上ある」（行き）は見ていたが、
+    // 「data-timer の全部が、その1本を通っているか」（帰り）を誰も見ていなかった——
+    // 13個のうち wrDayTimer（人狼・ワードウルフの話し合い）だけが漏れ、
+    // 「見たい時」にしている人には最後まで「タップで見る」のままだった（落とし穴20）。
+    const ids = Array.from(INDEX_HTML.matchAll(/<[a-z]+[^>]*\bdata-timer\b[^>]*>/g))
+      .map((m) => (/\bid="([^"]+)"/.exec(m[0]) || [null, null])[1])
+      .filter(Boolean);
+    assert(ids.length >= 13, '時計が13個以上見つかっている（いま ' + ids.length + '個）');  // 型(b)
+
+    // その時計の id を名指ししている関数を全部取り出し、
+    // **そのどれか1つでも timerChipTick を通っているか**を見る。
+    // 1つも通っていなければ、その時計は共通の1本から外れている
+    const 行 = INDEX_HTML.split('\n');
+    // timerChipTick を呼んでいる関数の中身を、先に全部集めておく
+    function 刻む関数() {
+      const out = [];
+      行.forEach((x, i) => {
+        if (!/timerChipTick\(/.test(x)) return;
+        let 上 = i;
+        while (上 > 0 && !/^\s{0,4}(async function|function)\s/.test(行[上])) 上--;
+        let 下 = i;
+        while (下 < 行.length - 1 && !/^\s{0,4}\}/.test(行[下])) 下++;
+        out.push(行.slice(上, 下 + 1).join('\n'));
+      });
+      return out;
+    }
+    const 漏れ = [];
+    ids.forEach((id) => {
+      const 名指し = [];
+      行.forEach((x, i) => {
+        if (/^\s*(\/\/|\*|\/\*)/.test(x)) return;      // 説明文は数えない（落とし穴30）
+        if (x.indexOf("'" + id + "'") >= 0) 名指し.push(i);
+      });
+      if (!名指し.length) { 漏れ.push(id + '（JSから一度も触られていない）'); return; }
+      // その id を触っている関数の名前と中身を取り出す
+      const 関数 = 名指し.map((i) => {
+        let 上 = i;
+        while (上 > 0 && !/^\s{0,4}(async function|function)\s/.test(行[上])) 上--;
+        let 下 = i;
+        while (下 < 行.length - 1 && !/^\s{0,4}\}/.test(行[下])) 下++;
+        const 名 = (/function\s+(\w+)/.exec(行[上]) || [null, ''])[1];
+        return { 名: 名, 中身: 行.slice(上, 下 + 1).join('\n') };
+      });
+      // ① その場で通っている
+      if (関数.some((f) => /timerChipTick\(/.test(f.中身))) return;
+      // ② 一段はさんで通っている（オークションは auTimerEl() が画面ごとの時計を返し、
+      //    それを受け取った auRenderTimer が通す）。**渡し役も「通っている」と数える**
+      const 渡し役 = 関数.map((f) => f.名).filter(Boolean);
+      const 通す側 = 刻む関数();
+      if (渡し役.some((n) => 通す側.some((t) => new RegExp(n + '\\s*\\(').test(t)))) return;
+      漏れ.push(id);
+    });
+    assertEqual(漏れ.join(','), '',
+      '時計は1つ残らず timerChipTick を通る（通っていない: ' + 漏れ.join(',') + '）');
+
+    // 印を付けても、規則が無ければ何も起きない（落とし穴30）。
+    // .timer-chip 以外の見た目を持つ時計にも、危険域の色があるか
+    const 器 = Array.from(INDEX_HTML.matchAll(/<[a-z]+[^>]*\bdata-timer\b[^>]*>/g))
+      .map((m) => (/\bclass="([^"]+)"/.exec(m[0]) || [null, ''])[1].split(/\s+/)[0])
+      .filter(Boolean);
+    const 器の種類 = Array.from(new Set(器));
+    assert(器の種類.length >= 2, '時計の器が2種類以上ある（いま ' + 器の種類.join(',') + '）'); // 型(b)
+    器の種類.forEach((c) => {
+      assert(CSS.indexOf('.' + c + '.warn') >= 0,
+        '「' + c + '」にも、のこりわずかの色がある（無いと印が付いても何も起きない）');
+      assert(CSS.indexOf('.' + c + '.done') >= 0,
+        '「' + c + '」にも、おわりの色がある');
+    });
+  });
+
+  await r.test('45-4：開き直しても、過去のミスをまとめて読み上げない', async () => {
+    const { win, doc, errors } = await launch();
+    const notices = () => doc.querySelectorAll('#fxNotices .fx-notice').length;
+    const 途中から = { missLog: [
+      { by: 'm1', name: 'あき', no: 2 }, { by: 'm1', name: 'あき', no: 5 },
+      { by: 'm2', name: 'びび', no: 3 } ] };
+    // **開き直した端末は、いきなり「3件たまった状態」で入ってくる。**
+    // ここで全部読み上げると、数分前の出来事がいま起きたことのように流れる
+    win.bombMissNotesProbe(途中から);
+    assertEqual(notices(), 0, '入った時にたまっていた分は、読み上げない');
+    // そのあと本当に増えた分だけを言う（型(b)：増える状況を実際に作る）
+    win.bombMissNotesProbe({ missLog: 途中から.missLog.concat([{ by: 'm2', name: 'びび', no: 7 }]) });
+    assertEqual(notices(), 1, 'そのあと増えた分だけを言う');
+    assert(/びび/.test(doc.querySelector('#fxNotices .fx-notice').textContent), '増えた人の名前が出る');
+    // 新しい試合（記録が巻き戻る）でも、たまっていた分を蒸し返さない
+    win.bombMissNotesProbe({ missLog: [] });
+    win.bombMissNotesProbe({ missLog: [{ by: 'm1', name: 'あき', no: 1 }] });
+    assertEqual(notices(), 2, '新しい試合で増えた分は言う');
+    assertNoErrors(errors);
+    win.close();
+  });
+
+  await r.test('45-6：競争版では「だれも答えませんでした」と言わない', async () => {
+    // 競争版は全員が同じコードに別々に挑むので、自分に届くのは自分の答えだけ。
+    // びびが答えていても、あきの手元では tries が空で来る——
+    // そこに「だれも答えなかった」と書くと嘘になる（大切なこと9：協力版の理屈が運ばれていた）
+    const { win, doc, errors } = await launch();
+    const codes = [
+      { tier: 'easy', question: 'と1', name: 'こたえ1', solved: true,
+        tries: [{ name: null, answer: 'こたえ1', correct: true, at: 0 }] },
+      { tier: 'easy', question: 'と2', name: 'こたえ2', solved: true, tries: [] }
+    ];
+    const 競争版 = doc.createElement('div');
+    競争版.innerHTML = win.bombReviewProbe(codes, false);
+    assertEqual(競争版.querySelectorAll('.bv-q').length, 2, '問題は2本とも出る');     // 型(b)
+    assertEqual(競争版.querySelectorAll('.bv-none').length, 0,
+      '自分の分しか届かない時は、「だれも答えなかった」と言わない');
+    // **黙るのは一言だけ。**届いている答えは、どの遊び方でも必ず出す——
+    // 一緒に隠すと、競争版の人が自分の答えすら見られなくなる（最初そう書いて捕まった）
+    const 自分の答え = Array.from(競争版.querySelectorAll('.bv-try')).map((x) => x.textContent.trim());
+    assertEqual(自分の答え.length, 1, '自分の答えは、ちゃんと出る');
+    assert(/こたえ1/.test(自分の答え[0]), '中身も出る（' + 自分の答え[0] + '）');
+    // 協力版（全員ぶんが届く）では、今までどおり言う（型(c)：両方の入力を通す）
+    const 協力版 = doc.createElement('div');
+    協力版.innerHTML = win.bombReviewProbe(codes, true);
+    assertEqual(協力版.querySelectorAll('.bv-none').length, 1,
+      '全員ぶんが届く時は、だれも挑まなかったコードをそう言う');
+    // **既定は「言わない」**——新しい呼び方を足した人が書き忘れても、安全な側に倒れる
+    const 名乗らない = doc.createElement('div');
+    名乗らない.innerHTML = win.bombReviewProbe(codes);
+    assertEqual(名乗らない.querySelectorAll('.bv-none').length, 0,
+      '名乗らなければ言わない（書き忘れは安全な側に倒れる）');
+    assertNoErrors(errors);
+    win.close();
+  });
+
+  await r.test('45-5：部屋の確認画面へ行く道は1本だけ', async () => {
+    // 「部屋を閉じる」を進行役だけに出すようにした時、その判断を書くのは
+    // roomMembership() の中だけにした。ところが入口は3つあり、
+    // 棚の1行だけがそこを通らずに goTo していた——**進行役なのに札が出ない**
+    // **見たいのは「1か所か」ではなく「サーバーに聞いてから行くか」。**
+    // 確認画面へ行く所を全部拾って、その関数の中でサーバーに聞いているかを見る
+    const 行 = INDEX_HTML.split('\n');
+    const 素通り = [];
+    行.forEach((line, i) => {
+      if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
+      if (!/goTo\('scr-room-open'\)/.test(line)) return;
+      let 上 = i;
+      while (上 > 0 && !/^\s{0,4}(async function|function|el\(|\w+\.addEventListener)/.test(行[上])) 上--;
+      const 中身 = 行.slice(上, i + 1).join('\n');
+      if (!/roomMembership\(\)|hasOpenRoom\(\)/.test(中身)) 素通り.push(i + 1);
+    });
+    assert(行.some((x) => /goTo\('scr-room-open'\)/.test(x)),
+      '確認画面へ行く所が見つかっている');                                          // 型(b)
+    assertEqual(素通り.join(','), '',
+      'サーバーに聞かずに確認画面へ行く所が無い（' + 素通り.join(',') + '行目）');
+    assert(/function goRoomOpen/.test(INDEX_HTML), 'たしかめてから行く道が1本ある');
+    // 棚の1行も、入口の1行も、同じ道を通る（落とし穴1：入口ごとに書かない）
+    const 通る = 行.filter((line) => /goRoomOpen\(/.test(line) && /addEventListener/.test(line));
+    assertEqual(通る.length, 2, '棚の1行と入口の1行が、どちらもその道を通る');
+  });
+
+  await r.test('45-4：部屋では、このゲームの設定は進行役にだけ出る', async () => {
+    // 中身はどれも「次の試合の設定」で、送るのは進行役の端末だけ。
+    // 参加者が切り替えても、その値はどの試合にも渡らない（落とし穴21）
+    const 行 = INDEX_HTML.split('\n');
+    const i = 行.findIndex((x) => /label:'このゲームの設定'/.test(x));
+    assert(i > 0, '「このゲームの設定」の行がある');                                  // 型(b)
+    const 塊 = 行.slice(i, i + 14).join('\n');
+    assert(/inRoomNow\(\)/.test(塊) && /isHost\(\)/.test(塊),
+      '部屋にいる参加者には出さない門がある');
+    // すぐ下の「別のゲームに変える」が同じ門を持っていること（並走・落とし穴1）
+    const j = 行.findIndex((x) => /label:'別のゲームに変える'/.test(x));
+    assert(j > 0, '「別のゲームに変える」の行がある');                                // 型(b)
+    assert(/isHost\(\)/.test(行.slice(j, j + 6).join('\n')),
+      '同じ性質の行が、同じ門を持っている');
   });
 
   r.finish();

@@ -390,5 +390,61 @@
     "from": "      if (!褒める) { while (i > 0 && 舞台.待ち[i - 1].褒める) i--; }",
     "to": "      if (false) { while (i > 0 && 舞台.待ち[i - 1].褒める) i--; }",
     "expect": "結果が2つ続いても、褒めるのはそのあと"
+  },
+  {
+    "name": "監査a 人狼の話し合いの時計だけ、共通の1本から外す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    timerChipTick(d, wr.remaining);",
+    "to": "    if(false) timerChipTick(d, wr.remaining);",
+    "expect": "時計は1つ残らず timerChipTick を通る"
+  },
+  {
+    "name": "監査a2 話し合いの時計に、のこりわずかの色を持たせない",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "  .play-timer.warn{color:var(--gold);}",
+    "to": "  .play-timer.warnX{color:var(--gold);}",
+    "expect": "にも、のこりわずかの色がある"
+  },
+  {
+    "name": "監査b 開き直した端末に、たまっていた分を全部読み上げさせる",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    if(rtBombMissSeen === null){ rtBombMissSeen = log.length; return; }  // 初回は数えるだけ",
+    "to": "    if(rtBombMissSeen === null){ rtBombMissSeen = 0; }  // 初回は数えるだけ",
+    "expect": "入った時にたまっていた分は、読み上げない"
+  },
+  {
+    "name": "監査c 競争版でも「だれも答えませんでした」と言う",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "    var 空も言える = !!みんなの答え;",
+    "to": "    var 空も言える = true;",
+    "expect": "自分の分しか届かない時は、「だれも答えなかった」と言わない"
+  },
+  {
+    "name": "監査c2 答えごと隠す（競争版の人が自分の答えも見られなくなる）",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "        (tries\n          ? '<div class=\"bv-tries\">' + tries + '</div>'",
+    "to": "        (tries && 空も言える\n          ? '<div class=\"bv-tries\">' + tries + '</div>'",
+    "expect": "自分の答えは、ちゃんと出る"
+  },
+  {
+    "name": "監査d 棚の1行から、たしかめずに確認画面へ飛ぶ",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "  el('shelfRoomNote').addEventListener('click', function(){ goRoomOpen(this); });",
+    "to": "  el('shelfRoomNote').addEventListener('click', function(){ goTo('scr-room-open'); });",
+    "expect": "サーバーに聞かずに確認画面へ行く所が無い"
+  },
+  {
+    "name": "監査e 部屋の参加者にも「このゲームの設定」を出す",
+    "file": "public/index.html",
+    "suite": "tests/fixes45.js",
+    "from": "        if(inRoomNow() && !(rt && rt.isHost())) return false;",
+    "to": "        if(false) return false;",
+    "expect": "部屋にいる参加者には出さない門がある"
   }
 ]

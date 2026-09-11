@@ -1067,7 +1067,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('クイズ解除：はじめる時に、お題プールと設定をサーバーへ渡す', async () => {
+  // 第46弾：この検査は「お題プールと設定を渡す」を見ていた。
+  // だが受け手（bomb-room.js）は、第32弾-A-3-6 で問題バンクに移ってから
+  // 渡されたお題を `const topics = []` で捨てていた——**3年ぶん、誰も使わない荷物を
+  // 毎試合送っていた**。送るのをやめたので、検査も「送らないこと」を見る側に変える。
+  // 落とし穴33（表示している約束は実装より長生きする）の、検査版。
+  await r.test('クイズ解除：はじめる時に設定だけを渡す（お題プールは送らない）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
     await pickGameForRoom(win, doc, 'bomb', 'bomb-coop');
@@ -1079,9 +1084,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(start, '開始を送っている');
     assertEqual(start.payload.game, 'bomb', 'ゲームは爆弾解除');
     assertEqual(start.payload.mode, 'coop', '通常版として始める');
-    assert(start.payload.topics.length > 0, 'お題プールを渡している');
-    assert(start.payload.topics.every(t => t.name && t.tier), 'お題には名前と難易度がある');
+    assertEqual(start.payload.topics, undefined, 'お題プールは送らない');
+    // **消しすぎていないこと。**設定は今までどおり全部届いている
     assert(start.payload.lives >= 1, 'ライフの設定を渡している');
+    assert(start.payload.counts && typeof start.payload.counts === 'object', 'コードの本数を渡している');
+    assert(typeof start.payload.timerSec === 'number', '制限時間を渡している');
+    assertEqual(typeof start.payload.showMisses, 'boolean', 'だれが外したかの設定を渡している');
     assertNoErrors(errors, '開始で未捕捉の例外');
     win.close();
   });

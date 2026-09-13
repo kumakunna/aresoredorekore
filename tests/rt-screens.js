@@ -5416,5 +5416,112 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('47-2：大画面は、手渡しの本編に入れない（入口を1つ手前で塞ぐ）', async () => {
+    // **参加者の大画面が、大画面のまま手渡しの本編に入れてしまう穴**（着手前に見つけた）。
+    // 機構は `goingRealtime()`（room && isHost）が1つの真偽値で2つの問いに
+    // 答えていること——参加者の大画面は偽になって、黙って手渡しの道へ落ちる。
+    // 塞ぐのはその1つ手前、遊び方の分岐の根（playWayPlan）1か所（落とし穴4）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面になっている');
+
+    // 分岐の根が「大画面」を返す（どのカセットでも）
+    ['bakudan', 'jinro', 'quizou'].forEach((id) => {
+      const plan = win.playWayFor(id);
+      assert(plan && plan.kind === 'bigscreen',
+        id + ' でも手渡しの道に入らない（実際:' + JSON.stringify(plan) + '）');
+    });
+
+    // 画面でも確かめる：棚からカセットを開くと、遊び方ではなく案内が出る
+    win.goToScreen('scr-shelf');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await openCassette(win, doc, 'bakudan');
+    assertEqual(activeScreen(doc), 'scr-play-way', '遊び方の画面に来る');
+    assert(/大画面です/.test(el(doc, 'wayTitle').textContent),
+      'この端末は大画面だと分かる（' + el(doc, 'wayTitle').textContent + '）');
+    // **断るだけで終わらせない。**次にできることが主ボタンになっている
+    const 主 = doc.querySelector('#wayChoices [data-way="toPlayer"]');
+    assert(主 && /プレイヤーにもどる/.test(主.textContent),
+      '次にできること（プレイヤーにもどる）が出ている');
+    assert(!doc.querySelector('#wayChoices [data-way="handoff"]'), '手渡しは選べない');
+
+    fake.replies['room:setRole'] = () => ({ ok: true, role: 'player', room: roomSnapshot() });
+    主.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await waitFor(win, () => fake.emits.some((e) => e.name === 'room:setRole'
+      && e.payload && e.payload.role === 'player'), 3000, 'プレイヤーにもどる');
+    assertNoErrors(errors, '大画面の入口で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-2：大画面は、どの画面にいても出口がある（0件・機械照合）', async () => {
+    // 47-2 の「大画面で到達できる全画面に出口がある」。
+    // **到達しうる画面を手で並べない**（並べると、画面を足した日に漏れる・落とし穴4）。
+    // index.html の画面idを全部回す。
+    //
+    // ただし7枚は、手渡しの進行状態（play / wr / sugo）が無いと入る途中で落ちる。
+    // 大画面はそもそも手渡しの本編に入れないので到達しないが、
+    // **「落ちたから飛ばす」で済ませない**（落とし穴10-e）——
+    // プレイヤーでも同じように落ちるかを突き合わせて、
+    // **大画面でだけ落ちる画面が無いこと**を確かめる。
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 画面 = Array.from(new Set(
+      Array.from(html.matchAll(/class="screen[^"]*"\s+id="(scr-[a-z0-9-]+)"/g)).map((m) => m[1])
+    ));
+    assert(画面.length > 40, '画面を拾えている（実際:' + 画面.length + '枚）');   // 型(b)
+
+    async function 歩く(big) {
+      const t = await launch(LAUNCH);
+      const fake = await toRoom(t.win, t.doc, big ? { role: 'bigscreen', pick: false } : { pick: false });
+      // **役割を配り続ける。** 入口（scr-entry）を通ると端末側の部屋の記憶が
+      // 消えることがあり、そこから先が「大画面ではない」状態で歩いてしまう
+      //（本物の部屋は知らせを配り続けるので、これがむしろ本物に近い）
+      // 入口（scr-entry）はサーバーに「まだ名簿にいるか」を聞く（roomMembership）。
+      // **答えないと `rt.dropRoom()` が走って、そこから先は部屋の無い端末になる**——
+      // 本物のサーバーは答えるので、検体も答える（落とし穴25）
+      fake.replies['room:peek'] = () => ({ ok: true, you: true, host: false });
+      const 部屋 = () => {
+        const base = roomSnapshot();
+        base.hostMemberId = 'm2';
+        base.members = base.members.map((m) => Object.assign({}, m, {
+          isHost: m.id === 'm2',
+          role: (big && m.id === 'm1') ? 'bigscreen' : m.role
+        }));
+        return base;
+      };
+      const 投げた = [], 出口なし = [];
+      for (const id of 画面) {
+        push(fake, 部屋());
+        try { t.win.goToScreen(id); await sleep(t.win, 8); }
+        catch (e) { 投げた.push(id); continue; }
+        const g = t.doc.getElementById('floatingGearBtn');
+        const ある = (g && g.style.display !== 'none')
+          || !!t.doc.querySelector('#' + id + ' [data-way="toPlayer"]')
+          || !!t.doc.querySelector('#' + id + ' #bigToPlayerBtn');
+        if (!ある) 出口なし.push(id);
+      }
+      t.win.close();
+      return { 投げた, 出口なし };
+    }
+
+    const 大 = await 歩く(true);
+    assertEqual(大.出口なし.join('・'), '', '大画面で、出口が1つも無い画面');
+
+    const 人 = await 歩く(false);
+    const 大画面だけ落ちる = 大.投げた.filter((id) => 人.投げた.indexOf(id) < 0);
+    assertEqual(大画面だけ落ちる.join('・'), '',
+      '大画面でだけ入れない画面（入れないものは、プレイヤーでも入れないはず）');
+    assert(大.投げた.length < 12,
+      '入れない画面が増えすぎていない（実際:' + 大.投げた.length + '枚 ' + 大.投げた.join('・') + '）');
+
+    // 逆から（落とし穴20）：**プレイヤーでは、いままで通り⚙が消える画面がある。**
+    // 「常に出す」を全員に広げてしまうと、この検査は緑のまま規則がすり替わる
+    assert(人.出口なし.length > 10,
+      'プレイヤーでは⚙が消える画面がある（実際:' + 人.出口なし.length + '枚）');
+    assert(人.出口なし.indexOf('scr-countdown') >= 0,
+      '3-2-1の最中は、プレイヤーには⚙を出さない');
+  });
+
   r.finish();
 })();

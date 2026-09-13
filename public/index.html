@@ -6021,6 +6021,13 @@
   //   部屋専用 | D 素通り            | C 部屋をつくるか聞く
   //   両方対応 | F 素通り            | E 1台かみんなのスマホか聞く
   function playWayPlan(c){
+    // **大画面は、遊ぶ側の操作をしない**（指示47-2の禁止事項）。
+    // ここで止めるのが正しい場所——この1つ先（ウィザード）には `goingRealtime()`
+    // という門があるが、あれは `room && isHost()` の**1つの真偽値で2つの問い**
+    //（部屋の道か／自分が進行役か）に答えている。参加者の大画面は
+    // 「部屋にいるが進行役ではない」ので偽になり、**黙って手渡しの道へ落ちていた。**
+    // 分岐の根はこの関数1つなので、ここに置けば入口がいくつ増えても漏れない（落とし穴4）
+    if(rtIsBigScreen()) return { kind:'bigscreen' };
     var room = !!(rt && rt.state.room);
     var canRoom = cassetteSupportsRoom(c);
     var canHandoff = cassetteSupportsHandoff(c);
@@ -6135,6 +6142,14 @@
         '</div>';
       return;
     }
+    if(wayPlan.kind === 'bigscreen'){
+      el('wayTitle').textContent = T.bigscreen.見出し;
+      el('wayBody').textContent = T.bigscreen.本文;
+      el('wayChoices').innerHTML =
+        '<button class="btn btn-main" data-way="toPlayer">' +
+        escapeHtml(T.bigscreen.進む) + '</button>';
+      return;
+    }
     if(wayPlan.kind === 'makeRoom'){
       el('wayTitle').textContent = T.makeRoom.見出し;
       el('wayBody').textContent = T.makeRoom.本文;
@@ -6157,6 +6172,11 @@
   async function goPlayWay(way){
     var id = wayForCassetteId;
     if(!id) { goTo('scr-shelf'); return; }
+    if(way === 'toPlayer'){
+      // 大画面をやめて、遊ぶ側にもどる。もどった先で、もう一度えらび直してもらう
+      await rtSetDisplayMode(false);
+      return;
+    }
     if(way === 'leave'){
       // 部屋を閉じて（進行役）／抜けて（参加者）から手渡しへ。
       // 第33弾B-3：部屋に紐づいたまま手渡しへ進むと状態が混ざる
@@ -9544,7 +9564,15 @@
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
     var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename'];
-    el('floatingGearBtn').style.display = (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0) ? 'block' : 'none';
+    // **大画面には、どの画面でも⚙を出す**（指示47-2）。
+    // 47-2 は「大画面で到達できる全画面に、🙋 プレイヤーにもどる か⚙への出口がある」と
+    // 決めている。設定を開けば必ず先頭に🙋が並ぶ（setContext が bigscreen を最優先で見る）ので、
+    // **⚙が出ていれば出口がある。**
+    // 到達しうる画面を手で並べて例外にすると、画面を足した日に漏れる（落とし穴4）——
+    // 一覧を持たず、「大画面なら常に出す」という1つの規則にする
+    el('floatingGearBtn').style.display =
+      (rtIsBigScreen() || (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0))
+        ? 'block' : 'none';
     // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
     el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';
     // 第32弾-A-2-4：部屋で遊んでいる画面では、みんなの状況をいつでも開ける。

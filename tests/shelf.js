@@ -1116,7 +1116,9 @@ function pickCart(doc, id) {
     click(doc, 'sgShakeBtn');
     await sleep(win, 30);
     assert(!el(doc, 'sgShakeBtn').classList.contains('on'), '画面の揺れをその場でオフにできる');
-    assert(el(doc, 'app').classList.contains('no-shake'), '切った瞬間から効いている');
+    // 印は :root（第47弾）。画面いっぱいの演出は #app の外にいるので、
+    // #app に付けた印では届かない
+    assert(doc.documentElement.classList.contains('no-shake'), '切った瞬間から効いている');
     click(doc, 'sgStartBtn');
     await waitFor(win, () => activeScreen(doc) !== 'scr-door', 4000, '扉が開く');
     assertEqual(el(doc, 'safetyGate').style.display, 'none', '案内は閉じた');
@@ -1137,7 +1139,7 @@ function pickCart(doc, id) {
     // 光の点滅を切ると、その瞬間から画面に印がつく（CSSがまとめて止める）
     click(t.doc, 'setFlashToggle');
     await sleep(t.win, 30);
-    assert(el(t.doc, 'app').classList.contains('no-flash'), '光の点滅オフが効いている');
+    assert(t.doc.documentElement.classList.contains('no-flash'), '光の点滅オフが効いている');
     assertEqual(t.win.FxKit._cfg.can.flash(), false, '演出部品からも見える');
     assertNoErrors(t.errors, '安全に関する設定で未捕捉の例外');
     t.win.close();

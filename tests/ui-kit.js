@@ -5,7 +5,7 @@
 // ここは**部品として守る約束**だけを見る。
 
 const { JSDOM } = require('jsdom');
-const { createRunner, assert, assertEqual, cssRules } = require('./harness');
+const { createRunner, assert, assertEqual, cssRules, launch } = require('./harness');
 
 function fresh() {
   delete require.cache[require.resolve('../public/js/ui')];
@@ -361,6 +361,88 @@ function click(doc, sel) {
     // 出す側も、その置き場を使っているか（両方向・落とし穴20）
     assert(/root:\s*el\('uiLayerRoot'\)/.test(html),
       'UiKit が、その置き場を使うように渡されている');
+    // **第47弾：演出（FxKit）も同じ置き場を使う。**
+    // 第39弾はここで UiKit だけを外へ出し、FxKit を丸ごと置き去りにしていた
+    assert(/layer:\s*el\('uiLayerRoot'\)/.test(html),
+      'FxKit も、その置き場を使うように渡されている');
+  });
+
+  await r.test('画面いっぱいの演出も、置き場の外に出ている（第47弾・落とし穴26の残り）', async () => {
+    // 第39弾で外へ出したのは UiKit だけだった。**FxKit は #app の中に残っていた。**
+    // #app は `filter:brightness(...)` を持つので fixed の基準になり（落とし穴26）、
+    // さらに `max-width:460px` なので、**TVでは画面いっぱいの演出が中央の柱**になる。
+    //
+    // ここは**本物の init を通す**（落とし穴25）。
+    // このファイルの fresh() は自分で root を渡し直すので、本番の渡し方を一度も見ない
+    const { win, doc } = await launch();
+    const layer = doc.getElementById('uiLayerRoot');
+    const app = doc.getElementById('app');
+    assert(layer && app, '置き場とアプリ本体がある');
+
+    // ① 箱は2つ。混ざっていない
+    assert(win.FxKit._cfg.layer === layer, '重ねる層は #uiLayerRoot');
+    assert(win.FxKit._cfg.root === app,
+      '揺らす相手は #app のまま（層を揺らしても、盤面は1pxも動かない）');
+
+    // ② 実際に出して、置き場を数える。**出ている最中に**（落とし穴10-g）。
+    //    片付いたあとに数えると、層に入っていなくても同じ「0」に見える
+    const 出す = [
+      { cls: 'fx-flash', go: () => win.FxKit.flash('good') },
+      { cls: 'fx-banner', go: () => win.FxKit.banner({ text: 'たしかめ', ms: 300 }) },
+      { cls: 'fx-callout', go: () => win.FxKit.callout('CHECK', { ms: 300 }) },
+      { cls: 'fx-confetti', go: () => win.FxKit.confetti() },
+      { cls: 'fx-countdown', go: () => win.FxKit.countdown(1) },
+      { cls: 'fx-notices', go: () => win.FxKit.notice('たしかめ') },
+      { cls: 'bomb-boom', go: () => win.FxKit.boom() },
+      { cls: 'fx-fly', go: () => win.FxKit.fly(app, app, '●') }
+    ];
+    const 外れ = [];
+    出す.forEach((x) => {
+      // 帯とコールアウトは舞台（順番待ち）を通る。前のものが走っている間は
+      // 待ち行列に入って**その場では出ない**——舞台を空けてから出す。
+      // これを書かずに並べたら、callout が「そもそも出ない」で赤くなった（型(b)）
+      win.FxKit.skipNow();
+      win.FxKit.stageClear();
+      x.go();
+      const n = doc.querySelector('.' + x.cls);
+      if (!n) { 外れ.push(x.cls + '（そもそも出ない）'); return; }
+      if (!layer.contains(n)) {
+        const p = n.parentElement;
+        外れ.push(x.cls + ' → ' + (p ? (p.id ? '#' + p.id : p.className) : 'なし'));
+      }
+    });
+    assertEqual(外れ.join('・'), '', '画面いっぱいの演出が、置き場の外にある');
+
+    // ③ 逆から（落とし穴20）：**新しく足した画面いっぱいの演出が、この検査に載っているか。**
+    //    載せ忘れると、次の演出だけ黙って柱の中に戻る
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const 画面いっぱい = cssRules(css)
+      .filter((x) => /position\s*:\s*fixed/.test(x.body))
+      .reduce((acc, x) => acc.concat(x.sel.split(',')), [])
+      .map((t) => t.trim())
+      .filter((t) => /^\.(fx-[a-z-]+|bomb-boom)$/.test(t))
+      .map((t) => t.slice(1))
+      .filter((t, i, a) => a.indexOf(t) === i);
+    assert(画面いっぱい.length >= 6,
+      '画面いっぱいの演出を拾えている（実際:' + 画面いっぱい.length + '件）');  // 型(b)
+    const 見ていない = 画面いっぱい.filter((c) => !出す.some((x) => x.cls === c));
+    assertEqual(見ていない.join('・'), '',
+      'この検査に載っていない画面いっぱいの演出（足したら、ここにも足す）');
+
+    // ④ 安全の門が、移した先にも効いている。
+    //    印を #app に付けたままだと、ここが素通りする（落とし穴27）
+    win.FxKit._cfg.can.flash = () => false;
+    const 前 = doc.querySelectorAll('.bomb-boom').length;
+    win.FxKit.boom();
+    assertEqual(doc.querySelectorAll('.bomb-boom').length, 前,
+      '光の点滅を切っていると、爆発の閃光そのものを作らない');
+    assert(/:root\.no-flash\s+\.bomb-boom/.test(css),
+      'CSS側の二重の守りも、:root から書かれている');
+    win.close();
   });
 
   await r.test('部品の持ち時間が、演出の速さ3択すべてに従う（門A4）', async () => {

@@ -23,7 +23,8 @@
 
   var cfg = {
     doc: null,
-    root: null,                       // 演出を差し込む親（.app）
+    root: null,                       // **揺らす箱**（#app）。shake だけがここを使う
+    layer: null,                      // **重ねる層**（#uiLayerRoot）。画面いっぱいの演出はここ
     ms: function (n) { return n; },   // 演出の速さ設定を通す関数
     sound: {},                        // { good, bad, tick, big, cheer } 無くてよい
     vibrate: function () {},
@@ -69,9 +70,28 @@
   }
 
   // ---------- 土台 ----------
+  //
+  // **置き場は2つある。混ぜてはいけない**（第47弾）。
+  //
+  //   host()  … アプリ本体の箱（#app）。**揺らす相手**。
+  //             画面そのものを揺らすので、ここでなければ意味がない
+  //   layer() … 画面いっぱいに重ねるものの置き場（#uiLayerRoot）。
+  //             閃光・帯・コールアウト・紙吹雪・巨大カウントダウン・通知・飛ぶ印
+  //
+  // **なぜ分けたか。** #app は `filter:brightness(...)` と `max-width:460px` を持つ。
+  //   ・filter があると `position:fixed` の基準が #app になる（落とし穴26）
+  //   ・max-width があると、TVやPCで**画面いっぱいの演出が中央460pxの柱**になる
+  // 第39弾で UiKit だけを外へ出し、FxKit は取り残されていた。
+  //
+  // layer が渡されていない時は host に落ちるので、**古い呼び方でも動く**。
   function doc() { return cfg.doc || (typeof document !== 'undefined' ? document : null); }
   function host() {
     return cfg.root || (doc() ? doc().getElementById('app') || doc().body : null);
+  }
+  function layer() {
+    if (cfg.layer) return cfg.layer;
+    var d = doc();
+    return (d && d.getElementById('uiLayerRoot')) || host();
   }
   function mk(cls, html) {
     var d = doc();
@@ -91,6 +111,7 @@
     opt = opt || {};
     if (opt.doc) cfg.doc = opt.doc;
     if (opt.root) cfg.root = opt.root;
+    if (opt.layer) cfg.layer = opt.layer;
     if (typeof opt.ms === 'function') cfg.ms = opt.ms;
     if (opt.sound) cfg.sound = opt.sound;
     if (typeof opt.vibrate === 'function') cfg.vibrate = opt.vibrate;
@@ -112,7 +133,7 @@
    */
   var FLASH_MS = { good: 420, bad: 150, gold: 700, gray: 500 };
   function flash(kind) {
-    var h = host();
+    var h = layer();
     if (!h) return Promise.resolve(true);
     // **設定の「光の点滅」を、ここでも見る**（第43弾）。
     // それまで cfg.can.flash を渡していたのに、**読む行が1つも無かった**——
@@ -128,6 +149,30 @@
     if (k === 'bad') { play('bad'); vibe('tick'); }
     else { play('good'); }
     return hold(FLASH_MS[k]).then(function (skipped) {
+      if (n.parentNode) n.parentNode.removeChild(n);
+      return skipped;
+    });
+  }
+
+  /**
+   * 爆発の閃光（第47弾でここへ集めた）。
+   *
+   * **それまで同じ11行が2か所に手書きされていた**——手渡し／部屋の `bombBoomFx` と、
+   * 大画面の `rtBigFx`。まさに落とし穴1の形で、片方だけ直す日が来る。
+   * 置き場を #app から層へ移す時に、2か所とも直す必要が出て気づいた。
+   *
+   * `flash()` と同じ門を通す（設定で「光の点滅」を切っている人には出さない）。
+   * CSS 側の `:root.no-flash .bomb-boom{display:none}` は二重の守り——
+   * どちらか片方だけにすると、呼ぶ道が増えた日に漏れる（落とし穴10-h）。
+   */
+  function boom() {
+    var h = layer();
+    if (!h) return Promise.resolve(true);
+    if (cfg.can.flash && !cfg.can.flash()) return Promise.resolve(true);
+    var n = mk('bomb-boom');
+    if (!n) return Promise.resolve(true);
+    h.appendChild(n);
+    return hold(700).then(function (skipped) {
       if (n.parentNode) n.parentNode.removeChild(n);
       return skipped;
     });
@@ -201,7 +246,7 @@
   }
   function bannerNow(opt) {
     opt = opt || {};
-    var h = host();
+    var h = layer();
     if (!h) return Promise.resolve(true);
     var kind = opt.kind || 'good';
     var n = mk('fx-banner fx-banner-' + kind);
@@ -319,7 +364,7 @@
    * 人狼とワードウルフの両方が使う。片方だけ直す事故を防ぐため共通にしてある。
    */
   function fly(fromEl, toEl, label) {
-    var h = host();
+    var h = layer();
     var d = doc();
     if (!h || !d || !fromEl || !toEl || !fromEl.getBoundingClientRect) return hold(100);
     var a = fromEl.getBoundingClientRect();
@@ -361,7 +406,7 @@
    */
   var noticeTimer = null;
   function notice(text, kind) {
-    var h = host();
+    var h = layer();
     if (!h) return;
     var d = doc();
     var box = d.getElementById('fxNotices');
@@ -413,7 +458,7 @@
    * その場にいる人数分の歓声があるような感覚を足す。
    */
   function confetti(colors) {
-    var h = host();
+    var h = layer();
     var d = doc();
     if (!h || !d) return Promise.resolve(true);
     var box = mk('fx-confetti');
@@ -449,7 +494,7 @@
   }
   function calloutNow(text, opt) {
     opt = opt || {};
-    var h = host();
+    var h = layer();
     if (!h) return Promise.resolve(true);
     var n = mk('fx-callout' + (opt.kind ? ' fx-callout-' + opt.kind : ''), esc(text));
     if (!n) return Promise.resolve(true);
@@ -486,7 +531,7 @@
     });
   }
   function countdown(n, opts) {
-    var h = host();
+    var h = layer();
     if (!h) return Promise.resolve(true);
     var skippable = !!(opts && opts.skippable);
     var wait = skippable ? function () { return hold(1000); } : function () { return beat(1000); };
@@ -561,7 +606,7 @@
 
   var api = {
     init: init, hold: hold, skipNow: skipNow, busy: busy,
-    flash: flash, banner: banner, flip: flip, countUp: countUp,
+    flash: flash, boom: boom, banner: banner, flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,
     shake: shake, confetti: confetti, callout: callout, vibe: vibe,
     countdown: countdown,

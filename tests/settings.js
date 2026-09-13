@@ -710,7 +710,11 @@ async function walkSettings(win, doc, onPage) {
     await toPrefPage(win, doc, 'safety');
     click(doc, 'setFlashToggle');
     await sleep(win, 40);
-    assert(el(doc, 'app').classList.contains('no-flash'), '光の点滅を切ると印が付く');
+    // **印は :root にある**（第47弾）。画面いっぱいの演出を #app の外へ移したので、
+    // #app に付けた印では届かない——切ったはずの光が、そこだけ出る（落とし穴27）
+    assert(doc.documentElement.classList.contains('no-flash'), '光の点滅を切ると印が付く');
+    assert(!el(doc, 'app').classList.contains('no-flash'),
+      '印は1か所だけ（#app にも付けると、片方だけ直す日が来る・落とし穴1）');
     // **演出の部品そのものも、この門を読む。**
     // それまで効いていたのはCSSの1行だけで、fx.js に渡していた門は
     // 読む行が1つも無かった（揺れは同じ形の門を持っていた・落とし穴1）
@@ -724,11 +728,11 @@ async function walkSettings(win, doc, onPage) {
     assertEqual(await 途中, true, '切っていても、呼んだ側は止まらずに進む');
     click(doc, 'setFlashToggle');
     await sleep(win, 40);
-    assert(!el(doc, 'app').classList.contains('no-flash'), 'もどせる');
+    assert(!doc.documentElement.classList.contains('no-flash'), 'もどせる');
 
     click(doc, 'setShakeToggle');
     await sleep(win, 40);
-    assert(el(doc, 'app').classList.contains('no-shake'), '揺れを切ると印が付く');
+    assert(doc.documentElement.classList.contains('no-shake'), '揺れを切ると印が付く');
     // **共通部品を通らない揺れも止まる**（画面に直接付ける .shake・爆弾の残機）
     const 止める = cssRules(HTML).filter((x) => /\.no-shake/.test(x.sel))
       .map((x) => x.sel).join(' ');

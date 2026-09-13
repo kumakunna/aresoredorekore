@@ -858,18 +858,26 @@
   .sg-toggle.on .sg-check{color:#0d0f13;background:#fff;border-color:#fff;}
   .sg-toggle.on{border-color:#fff;}
   /* 第32弾-D 第4部：光の点滅・画面の揺れを切っている人の画面。
-     出す側に条件を書かせず、クラス1つで該当する演出がまとめて止まる */
-  .app.no-flash .fx-flash{display:none;}
-  .app.no-flash .bomb-boom{display:none;}
-  .app.no-flash.bomb-danger::before{animation:none;opacity:.8;}
-  .app.no-shake.fx-shake,.app.no-shake.fx-shake-big{animation:none;}
+     出す側に条件を書かせず、クラス1つで該当する演出がまとめて止まる。
+
+     **印は :root に置く**（第47弾）。第39弾までは .app に付けていたが、
+     画面いっぱいの演出を #app の外（#uiLayerRoot）へ移した瞬間、
+     `.app.no-flash .fx-flash` が**当たらなくなる**——
+     点滅を切った人に光が出る、いちばん起こしてはいけない後退（落とし穴27・正本§6）。
+     直し方は「移した先にも写す」ではない。写すと同じ門が2か所になり、
+     片方だけ直す日が来る（落とし穴1）。**両方の親（:root）に1つだけ置く。**
+     先例は `:root.fx-skip`（689行）と `:root.fs-*`（65行〜）。 */
+  :root.no-flash .fx-flash{display:none;}
+  :root.no-flash .bomb-boom{display:none;}
+  :root.no-flash .app.bomb-danger::before{animation:none;opacity:.8;}
+  :root.no-shake .fx-shake,:root.no-shake .fx-shake-big{animation:none;}
   /* 第43弾：**共通部品を通らない揺れも止める。**
      .fx-* だけを止めていたので、以前から画面に直接付けている .shake と、
      爆弾の残機の揺れ（bombShake）は、設定を切っても揺れ続けていた。
      「揺れをオフにした人が、それでも揺れる画面に出会う」は
      安全の設定として成り立っていない（正本6・大切なこと7） */
-  .app.no-shake .shake{animation:none;}
-  .app.no-shake .bomb-lives.shake,.app.no-shake .bomb-lives.broke{animation:none;}
+  :root.no-shake .shake{animation:none;}
+  :root.no-shake .bomb-lives.shake,:root.no-shake .bomb-lives.broke{animation:none;}
   /* 第32弾-D 4-1：画面の揺れ。0.2秒以内・1回だけ・繰り返さない */
   .fx-shake{animation:fxShake 0.18s linear;}
   .fx-shake-big{animation:fxShakeBig 0.2s linear;}
@@ -8636,8 +8644,10 @@
     // 第32弾-D 第4部：光の点滅・画面の揺れを切っている人には出さない。
     // CSSのクラス1つで全部の該当演出が止まる形にする（出す側に条件を書かせない）
     refreshSfxGain();   // 第43弾：作り置きの出口にも、いまの音量を届ける
-    app.classList.toggle('no-flash', !appPrefs.fxFlash);
-    app.classList.toggle('no-shake', !appPrefs.fxShake);
+    // 印は :root に付ける（第47弾）。画面いっぱいの演出は #app の外にいるので、
+    // #app に付けた印は届かない——切ったはずの光が、そこだけ出る（落とし穴27）
+    rootEl.classList.toggle('no-flash', !appPrefs.fxFlash);
+    rootEl.classList.toggle('no-shake', !appPrefs.fxShake);
     // 第36弾 36-2：時間の見せ方。ここ1か所で、全カセットの時計（data-timer）に効く。
     // 「見たい時だけ」以外に切り替えたら、開きっぱなしの時計は閉じておく
     app.dataset.timerView = appPrefs.timerView;
@@ -14389,10 +14399,7 @@
           FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);  // 火花のようなオレンジ
         } else {
           FxKit.shake('big');
-          var boom = document.createElement('div');
-          boom.className = 'bomb-boom';
-          el('app').appendChild(boom);
-          setTimeout(function(){ if(boom.parentNode) boom.parentNode.removeChild(boom); }, fxMs(700));
+          FxKit.boom();
         }
       }
       return;
@@ -19611,10 +19618,7 @@
     // スマホの画面の揺れは、1試合に一度きりのこの瞬間だけに限定する（安全基準）
     doVibrate([220, 90, 220]);
     FxKit.shake('big');
-    var boom = document.createElement('div');
-    boom.className = 'bomb-boom';
-    el('app').appendChild(boom);
-    setTimeout(function(){ if(boom.parentNode) boom.parentNode.removeChild(boom); }, fxMs(700));
+    FxKit.boom();
     return FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
       sub:'つぎは、もう少しだけ慎重に', ms:900 });
   }
@@ -22378,7 +22382,14 @@
     if(typeof FxKit === 'undefined') return;
     FxKit.init({
       doc: document,
+      // **箱は2つ渡す**（第47弾）。
+      //   root  … 揺らす相手（#app）。画面そのものを揺らすので、ここでなければ意味がない
+      //   layer … 画面いっぱいに重ねるものの置き場（#uiLayerRoot）
+      // #app は明るさ補正の filter を持つので position:fixed の基準になり（落とし穴26）、
+      // さらに max-width:460px なので、TVでは**画面いっぱいの演出が中央の柱**になっていた。
+      // 第39弾で外へ出したのは UiKit だけで、FxKit は取り残されていた
       root: el('app'),
+      layer: el('uiLayerRoot'),
       ms: fxMs,          // 「演出の速さ」設定を通す
       vibrate: doVibrate, // 「振動」設定を通す
       sound: {
@@ -22409,13 +22420,19 @@
 
   function startEmojiSwap(){
     if(typeof EmojiSvg === 'undefined') return;
-    var app = el('app');
-    if(!app) return;
+    // **掃く先は body**（第47弾）。#app だけを見ていたので、
+    // #app の外に出した層（#uiLayerRoot）の絵文字が差し替わっていなかった——
+    // 第39弾でダイアログを外へ出した時から、そこだけ生の絵文字のまま出ていた。
+    // 演出の帯（💥 爆発／💚 解除成功）も外へ出したので、ここで揃える。
+    // 直し方は「#app と #uiLayerRoot の2つを見る」ではない——
+    // 2つ書くと、3つ目の層を足した日に片方だけ直す（落とし穴1）。**共通の親を1つ見る。**
+    var swapRoot = document.body;
+    if(!swapRoot) return;
     function sweep(todo){
       // innerHTML で一気に差し替えると、入れ子のノードがまとめて積まれる。
       // それを1つずつ歩くと、同じ部分木を何度も歩き直して二乗に膨らむ。
       // 数が多い時は、まとめて1回だけ全体を見るほうが速い
-      if(!todo || !todo.length || todo.length > 12) todo = [app];
+      if(!todo || !todo.length || todo.length > 12) todo = [swapRoot];
       todo.forEach(function(node){
         try{ EmojiSvg.parse(node, document); }catch(e){}
       });
@@ -22449,7 +22466,7 @@
         //（次のコールバックで無駄にもう一周しない・無限に呼ばれない）
         mo.takeRecords();
       });
-      mo.observe(app, { childList:true, subtree:true, characterData:true });
+      mo.observe(swapRoot, { childList:true, subtree:true, characterData:true });
     }catch(e){}
   }
 

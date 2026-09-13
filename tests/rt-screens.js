@@ -1267,6 +1267,62 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('クイズ解除：決着の演出は「遷移」ではなく「事実」で出る（第47弾 47-1）', async () => {
+    // **この3つは、第47弾まで全部おかしかった**（tools/fx-probe.js で再現できる）。
+    // どれも「前と比べて変わったら出す」と書いていたことが原因で、
+    // 通信を見るテストでは捕まらなかった（落とし穴12）。
+    const 結果 = { mode: 'coop', success: false, cause: 'lives', solved: 2, total: 4,
+      lives: 0, livesMax: 3, misses: 3, elapsedSec: 120, codes: [] };
+    const 決着 = () => bombView({ phase: 'ended', result: 結果 });
+    const 部屋 = () => bombRoom({ state: { phase: 'ended', game: 'bomb', data: 決着() } });
+    const 秘密 = () => bombYou({ phase: 'ended', lives: 0, misses: 3, failed: true, result: 結果 });
+
+    // ① 解除中を一度も見ずに、決着だけが届く（再接続・途中から見る）
+    {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      push(fake, 部屋());
+      pushYou(fake, 秘密());
+      await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+      await sleep(win, 100);
+      assertEqual(doc.querySelectorAll('.bomb-boom').length, 1,
+        '解除中を見ていなくても、決着の爆発は出る');
+      assertNoErrors(errors, '決着だけ届いた時に未捕捉の例外');
+      win.close();
+    }
+    // ② 自分の秘密が先・部屋の知らせが後（落とし穴18の順）。**2回出さない**
+    {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      push(fake, bombRoom());
+      pushYou(fake, bombYou());
+      await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+      pushYou(fake, 秘密());       // 秘密が先
+      push(fake, 部屋());          // 部屋の知らせが後
+      await sleep(win, 100);
+      assertEqual(doc.querySelectorAll('.bomb-boom').length, 1, '順番が逆でも1回だけ');
+      assertNoErrors(errors, '順番が逆の時に未捕捉の例外');
+      win.close();
+    }
+    // ③ 観戦の端末（この試合の秘密が配られていない）には出さない。
+    //    第33弾A-2 の狙いを、記憶ではなく事実で守っていることを確かめる
+    {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      // 試合の途中で入ってきた人。**名簿には載るが、盤面（privateFor）は配られない**
+      //（bomb-room.js:444 が playerIds で弾く）。そこが観戦との境目なので、
+      // ここでは秘密を1回も配らない
+      push(fake, 部屋());
+      await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+      assert(/観戦/.test(el(doc, 'rtBombNote').textContent), '観戦の画面になっている');
+      await sleep(win, 100);
+      assertEqual(doc.querySelectorAll('.bomb-boom').length, 0,
+        'あとから覗いた端末には、いきなり爆発を見せない');
+      assertNoErrors(errors, '観戦で未捕捉の例外');
+      win.close();
+    }
+  });
+
   await r.test('クイズ解除：競争版で自分のライフが尽きた瞬間、自分の端末で爆発が出る（第33弾 A-2）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });

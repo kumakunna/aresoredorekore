@@ -11859,6 +11859,21 @@
     var v = rtView();
     if(!v || !v.board) return;
     var you = rt.state.secret;
+    // 演出（第47弾 47-1）。**部屋版には1つも無かった**——
+    // 手渡し版は突然のできごとで光り（17310行）、あがりを祝うのに、
+    // 部屋版は盤が書き換わるだけだった（落とし穴1）
+    rtOnceValue('sugo:event', v.event && v.event.id, function(){
+      try{ FxKit.flash('good'); }catch(e){}
+    });
+    rtOnce('sugo:ended', v.phase === 'ended', function(){
+      if(typeof FxKit === 'undefined') return;
+      FxKit.confetti(['#b5462f', '#c9a227', '#f4efe3']);   // 朱印・金・和紙
+      // **言い回しはルール層が持っている**（SugorokuLogic）。
+      // ここで文を作ると、手渡し版と食い違う（大切なこと9・落とし穴2）
+      var 言葉 = rtSugoEndWords(v);
+      FxKit.banner({ kind:'gold', icon:'🎌',
+        text: 言葉.note, sub: 言葉.hint, ms:1000 });
+    });
     rtSugoBoard(v, you);
     rtSugoStatus(v, you);
     rtSugoTop(v);
@@ -12653,7 +12668,20 @@
     return true;
   }
   /** 部屋から出た・別のゲームに移った時に、札を全部捨てる */
-  function rtOnceReset(){ rtOnceMarks = {}; }
+  function rtOnceReset(){ rtOnceMarks = {}; rtOnceVals = {}; }
+  /**
+   * **次々と別のものに入れ替わる**ものに使う（すごろくの突然のできごと）。
+   * 「入／切」ではなく「いま何が起きているか」を見て、変わったら一度だけ出す。
+   * 初めて見た時も出す（`rtOnce` と同じで、遷移ではなく事実を見ている）。
+   */
+  var rtOnceVals = {};
+  function rtOnceValue(name, 値, 出す){
+    if(!値){ delete rtOnceVals[name]; return false; }
+    if(rtOnceVals[name] === 値) return false;
+    rtOnceVals[name] = 値;
+    try{ 出す(); }catch(e){}
+    return true;
+  }
   // 状態が動いたら、いるべき画面へ移して描き直す。
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
   // 第38弾：ここに書くのは、どのゲームにも属さない3枚だけ。
@@ -14468,6 +14496,27 @@
       });
       return;
     }
+    if(game === 'defuse'){
+      // **第47弾で足した。** ここには枝そのものが無く、
+      // 実物解除の大画面は最初から最後まで無音・無演出だった（落とし穴1）。
+      // 同じカセットのクイズ解除と同じ形にそろえる
+      var 解 = v.result;
+      rtOnce('big:defuse:ended', v.phase === 'ended' && !!解, function(){
+        if(解.success){
+          FxKit.callout('DEFUSED', { kind:'gold' });
+          FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
+        } else {
+          FxKit.shake('big');
+          FxKit.boom();
+        }
+      });
+      // のこりミス1。数えなくても、もう後がないと全員に伝わる
+      rtOnce('big:defuse:critical',
+        v.phase === 'play' && v.strikesLeft === 1, function(){
+        FxKit.callout('CRITICAL', { kind:'danger' });
+      });
+      return;
+    }
     if(SUGO_GAMES.indexOf(game) !== -1){
       // 決着だけ祝う。手番のたびに光ると、盤を見ているのを邪魔する
       if(changed && v.phase === 'ended'){
@@ -15299,6 +15348,14 @@
     if(v.phase === 'consent'){ dfLeaveScreen(); dfRenderConsent(you); return; }
     if(v.phase === 'roles'){ dfLeaveScreen(); dfRenderRoles(v, you); return; }
     if(v.phase === 'brief'){ dfLeaveScreen(); dfRenderBrief(v, you); return; }
+    // 決着の演出（第47弾 47-1）。**それまで実物解除には1つも無かった**——
+    // 同じカセットのクイズ解除にはあるのに、こちらは結果の文字が出るだけだった（落とし穴1）。
+    // 帯は共通の部品を使い、**言葉だけ実物解除のものにする**（大切なこと9）。
+    // 観戦の端末はここまで来ない（すぐ上で you が無ければ帰る）
+    rtOnce('defuse:ended', v.phase === 'ended' && !!v.result, function(){
+      if(v.result.success) bombClearFx('しかけを全部止めました');
+      else bombBoomFx('つぎは、もう少しだけ慎重に');
+    });
     if(v.phase === 'ended'){
       dfLeaveScreen();
       el('dfNote').innerHTML = '';
@@ -19680,19 +19737,19 @@
    * 行われたので「爆発のアニメーションが無い」ように見えた（落とし穴1）。
    */
   // 第32弾-C-4 原則C：褒める時は全力で。画面全体が緑に染まる
-  function bombClearFx(){
+  function bombClearFx(sub){
     if(typeof FxKit === 'undefined') return Promise.resolve();
     FxKit.flash('good');
     // 第32弾-D 4-2：全解除はこのゲーム一番の勝利。火花のようなオレンジで舞う
     FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
     return FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',
-      sub:'全部のコードを止めました', ms:900 });
+      sub: sub || '全部のコードを止めました', ms:900 });
   }
   // 第32弾-C：爆発は赤ではっきり出す。
   // ただし「責める」のではなく「爆弾が爆発した」ことを出す演出にする。
   // 誰かの失敗を囃し立てるのではないので、赤は0.5秒で引き、
   // 明滅・振動の繰り返しはさせない（酔わないように・目に悪くならないように）
-  function bombBoomFx(){
+  function bombBoomFx(sub){
     if(typeof FxKit === 'undefined') return Promise.resolve();
     // 第32弾-D：爆発は「ミスで弱く・爆発で強く長く」の強い側。
     // スマホの画面の揺れは、1試合に一度きりのこの瞬間だけに限定する（安全基準）
@@ -19700,7 +19757,7 @@
     FxKit.shake('big');
     FxKit.boom();
     return FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
-      sub:'つぎは、もう少しだけ慎重に', ms:900 });
+      sub: sub || 'つぎは、もう少しだけ慎重に', ms:900 });
   }
   function defuseComplete(){
     var gen = playGen;   // 第36弾 36-3

@@ -9582,6 +9582,38 @@
     app.classList.toggle('phase-night', tone === 'night');
     app.classList.toggle('phase-day', tone === 'day');
   }
+  /**
+   * **段階から、朝／夜を決める対応表**（第47弾 47-5）。
+   *
+   * それまで `setWolfPhaseTone` を呼ぶのは**手渡し版の5か所だけ**で、
+   * 部屋のホスト・ゲスト・大画面からは一度も呼ばれていなかった——
+   * **同じ人狼を遊んでいるのに、1台でまわす時だけ夜が来る**という状態だった
+   * （大切なこと9・落とし穴1）。
+   *
+   * 手渡しは画面ごとに呼ぶ形で足りていたが、部屋は「段階」で動く。
+   * **段階の名前から決める表をここ1つに置いて、部屋の全端末がここを通る。**
+   * 画面ごとに書くと、画面を足した日に片方だけ夜にならない（落とし穴4）。
+   *
+   * `ended` は入れない——決着は陣営色で染まるので、朝夜の色を残さない。
+   * ワードウルフの `reveal`（お題を配る）も夜側：一人ずつ自分の端末を見る場面で、
+   * 人狼の `roleReveal` と同じ意味を持つ（落とし穴22：言葉が同じ意味かを確かめた）。
+   */
+  var WOLF_PHASE_TONE = {
+    roleReveal: 'night', reveal: 'night', night: 'night', preVote: 'night',
+    meeting: 'day', discuss: 'day', day: 'day',
+    vote: 'day', turnResult: 'day', roundResult: 'day'
+  };
+  /** 部屋の段階に合わせて、いまの端末の朝／夜を決める（ホスト・ゲスト・大画面すべて） */
+  function rtSyncWolfTone(){
+    // **いま実際に人狼の世界が当たっているか**を、当てた本人（#app のクラス）に聞く。
+    // `currentThemeName()` をもう一度読むと、テーマ非適用の画面（待合など）で
+    // 「テーマは外したのに夜だけ残る」がすぐ起きる（落とし穴3）。
+    // 直前に applyGameTheme が決めた結果を読めば、判断が2か所に増えない
+    if(!el('app').classList.contains('theme-wolf')) return;
+    var v = rtView();
+    var tone = (v && v.phase) ? WOLF_PHASE_TONE[v.phase] : null;
+    setWolfPhaseTone(tone || null);
+  }
   function goTo(id){
     // 第45弾 45-1：起動時に「見たい時」をもどしたことを、最初の画面移りで1度だけ言う。
     // 起動の瞬間に出すと、まだ扉の演出の裏なので誰も読めない
@@ -12936,6 +12968,9 @@
     // 第24弾-3：部屋のゲームが分かった時点でテーマを当て直す。
     // 部屋コードで参加した人は棚を通らないので、画面遷移だけでは決まらない
     applyGameTheme(cur);
+    // 第47弾 47-5：朝／夜の配色を、**部屋の全端末で**そろえる。
+    // ここは部屋の画面すべてが通る1か所なので、ホストもゲストも大画面も同じ色になる
+    rtSyncWolfTone();
     // 第32弾-B-2：称号を数えるのは、部屋の画面すべてが通るここ1か所。
     // 画面ごとに書くと、ゲームを足した時に数え忘れる
     awardRoomTitles();

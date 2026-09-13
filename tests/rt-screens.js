@@ -5706,5 +5706,78 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       '2段組みは「横に広い時」の中にある（スマホでは縦のまま）');
   });
 
+  // ---- 第47弾 47-5：朝／夜の配色を、部屋の全端末でそろえる ----
+
+  await r.test('47-5：夜と朝の配色が、進行役・ゲスト・大画面のどれでも切り替わる', async () => {
+    // **同じ人狼を遊んでいるのに、1台でまわす時だけ夜が来る**状態だった。
+    // `setWolfPhaseTone` の呼び出しは手渡し版の5か所だけで、
+    // 部屋のホスト・ゲスト・大画面からは一度も呼ばれていなかった（大切なこと9・落とし穴1）
+    const 段階 = [
+      { phase: 'roleReveal', tone: 'phase-night', 逆: 'phase-day' },
+      { phase: 'night', tone: 'phase-night', 逆: 'phase-day' },
+      { phase: 'day', tone: 'phase-day', 逆: 'phase-night' },
+      { phase: 'vote', tone: 'phase-day', 逆: 'phase-night' }
+    ];
+
+    async function 端末(opts, 大画面) {
+      const t = await launch(LAUNCH);
+      const fake = await toRoom(t.win, t.doc, opts);
+      const 部屋 = (phase) => {
+        const base = 大画面 ? bigRoom() : roomSnapshot();
+        base.state = { phase: phase, game: 'wolfrole', data: wolfView({ phase: phase }) };
+        return base;
+      };
+      const 出た = [];
+      for (const g of 段階) {
+        // 朝夜は**公開の段階**だけで決まる（秘密は要らない）。
+        // 要るようにすると、落とし穴18の順で色だけ遅れて追いつく形になる
+        push(fake, 部屋(g.phase));
+        await sleep(t.win, 120);
+        const cls = el(t.doc, 'app').classList;
+        出た.push({
+          phase: g.phase,
+          夜: cls.contains('phase-night'), 朝: cls.contains('phase-day'),
+          正: cls.contains(g.tone) && !cls.contains(g.逆)
+        });
+      }
+      t.win.close();
+      return 出た;
+    }
+
+    const ホスト = await 端末({ pick: false }, false);
+    const ゲスト = await 端末({ join: true, memberId: 'm2', pick: false }, false);
+    const 大 = await 端末({ role: 'bigscreen', pick: false }, true);
+
+    [['進行役', ホスト], ['ゲスト', ゲスト], ['大画面', 大]].forEach(([なまえ, 結果]) => {
+      const だめ = 結果.filter((x) => !x.正)
+        .map((x) => x.phase + '(夜:' + x.夜 + ' 朝:' + x.朝 + ')');
+      assertEqual(だめ.join('・'), '', なまえ + 'で、朝夜が切り替わらない段階');
+    });
+    // **3つの端末が同じ答えを出している**（片方だけ直す事故を防ぐ・落とし穴1）
+    assertEqual(JSON.stringify(ホスト.map((x) => x.夜)), JSON.stringify(大.map((x) => x.夜)),
+      '進行役と大画面で、夜の来かたが同じ');
+    assertEqual(JSON.stringify(ゲスト.map((x) => x.夜)), JSON.stringify(大.map((x) => x.夜)),
+      'ゲストと大画面で、夜の来かたが同じ');
+  });
+
+  await r.test('47-5：人狼でない部屋・テーマを当てない画面には、朝夜を残さない', async () => {
+    // 落とし穴3：テーマの適用範囲は、遊んでいる画面だけに限らない。
+    // **テーマを外したのに夜だけ残る**が、いちばん起きやすい形
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });
+    push(fake, roomSnapshot({ state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) } }));
+    await sleep(win, 150);
+    assert(el(doc, 'app').classList.contains('phase-night'), 'まず夜になっている');
+
+    // 別のカセットの部屋に変わったら、夜は消える
+    push(fake, roomSnapshot({ state: { phase: 'play', game: 'bomb', data: bombView() } }));
+    await sleep(win, 150);
+    assert(!el(doc, 'app').classList.contains('phase-night')
+        && !el(doc, 'app').classList.contains('phase-day'),
+      '人狼でなくなったら、朝夜は残らない');
+    assertNoErrors(errors, '朝夜の切り替えで未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

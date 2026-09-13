@@ -160,6 +160,10 @@
   /* 2つの札は**同じ高さ**にする。説明文が1行と2行に割れても崩れないよう、
      並べ方（grid の 1fr）で揃える。min-height だけだと、折り返した側が伸びる */
   .howto-list{display:grid;grid-auto-rows:1fr;gap:10px;}
+  /* 第47弾 47-3：横に広い画面（TV・PC）では、「大画面として入る」を先頭に出す。
+     **JSで並べ替えない**——窓の大きさが変わった時に古い並びのまま残る。
+     order だけなら、その場で追随する（読み上げの順も一緒に動く） */
+  @media (min-width:1024px){ .howto-list .entry-big{ order:-1; } }
   .btn.howto-card{
     width:100%;justify-content:flex-start;text-align:left;gap:14px;
     min-height:84px;padding:16px;border-radius:12px;
@@ -3495,6 +3499,18 @@
           </span>
           <span class="howto-go">›</span>
         </button>
+        <!-- 第47弾 47-3：TVやPCを、最初から大画面としてつなぐ。
+             **自動では大画面にしない。**画面が広いというだけで役割を決めると、
+             ノートPCで1人で遊びたい人が、いきなり見世物の画面に入れられる。
+             広い画面では先頭に出すだけ（CSSの order）で、選ぶのは人に残す -->
+        <button class="btn howto-card entry-big" data-entry="big">
+          <span class="howto-icon">📺</span>
+          <span class="howto-text">
+            <span class="howto-title" id="entryBigTitle">大画面として部屋に入る</span>
+            <span class="howto-sub" id="entryBigSub">TVやPCをつないで、みんなで見ます</span>
+          </span>
+          <span class="howto-go">›</span>
+        </button>
       </div>
       <!-- 第45弾 45-5：**開き直した参加者の帰り道。**
            進行役だけは「ゲームをえらぶ」から確認画面に着けたが、
@@ -6318,7 +6334,13 @@
     if(!b) return;
     if(b.dataset.entry === 'join'){
       // 呼ばれた人。コードと名前だけで入れる（ログインは要らない）
-      openJoinScreen('scr-entry');
+      openJoinScreen('scr-entry', false);
+      return;
+    }
+    if(b.dataset.entry === 'big'){
+      // 第47弾 47-3：TVやPCを大画面としてつなぐ。**ログインは要らない**
+      //（部屋に入る道と同じ。役割だけが違う）
+      openJoinScreen('scr-entry', true);
       return;
     }
     // 集める人。**あそびかたはもう聞かない**（第41弾 2-1）。
@@ -11169,6 +11191,7 @@
   // 書いてあり、片方だけ直す事故が起きる形になっていた。
   // 呼ばれて入るだけの人（QR・ログイン画面から）には「部屋をつくる」が要らないので隠す。
   var rtLobbyJoinOnly = false;
+  var rtJoinAsBig = false;   // 第47弾 47-3：入口で「大画面として入る」を選んだか
   function openRoomLobby(from){
     rtLobbyBackTo = from || 'scr-shelf';
     rtLobbyJoinOnly = false;
@@ -11176,7 +11199,16 @@
     rtForgetRulesSeen();  // 第37弾：別の部屋では、また最初から読む
     goTo('scr-rt-lobby');
   }
-  function openJoinScreen(from){
+  /**
+   * 部屋に入る画面を開く。
+   * @param {string} from もどる先
+   * @param {boolean} asBig 大画面として入るか（第47弾 47-3）
+   *
+   * **引数で渡す。**どこかに置いた印にすると、置き忘れた道から来た人まで
+   * 大画面になる（落とし穴4）。ここを通る全員が、必ずどちらかを言う
+   */
+  function openJoinScreen(from, asBig){
+    rtJoinAsBig = !!asBig;
     rtLobbyBackTo = from || 'scr-shelf';
     rtLobbyJoinOnly = true;
     resetAlbumUi();
@@ -11190,10 +11222,16 @@
     el('rtJoinBtn').disabled = !(rt && rt.available());
     if(rt && rt.available()) rt.connect();
     el('rtCreateCard').style.display = rtLobbyJoinOnly ? 'none' : '';
-    el('rtLobbyTitle').textContent = rtLobbyJoinOnly ? '部屋に入る' : '部屋';
-    el('rtLobbySub').textContent = rtLobbyJoinOnly
-      ? '部屋コードと名前だけで入れます'
-      : 'みんなのスマホをつないで遊びます';
+    var ET = (typeof UiText !== 'undefined') ? UiText.ENTRY : null;
+    el('rtLobbyTitle').textContent = rtJoinAsBig ? ((ET && ET.大画面) || '大画面として部屋に入る')
+      : (rtLobbyJoinOnly ? '部屋に入る' : '部屋');
+    el('rtLobbySub').textContent = rtJoinAsBig
+      ? ((ET && ET.大画面の説明) || '')
+      : (rtLobbyJoinOnly ? '部屋コードと名前だけで入れます' : 'みんなのスマホをつないで遊びます');
+    // 大画面に名前を考えさせない。**変えたい人は変えられる**（TVが2台ある部屋もある）
+    if(rtJoinAsBig && !el('rtJoinName').value.trim()){
+      el('rtJoinName').value = (ET && ET.大画面の名前) || '大画面';
+    }
     // ログイン名が分かっていれば、作る側の名前に入れておく
     if(state.username && !el('rtCreateName').value) el('rtCreateName').value = state.username;
     renderRtJoinPeek(null);
@@ -11264,7 +11302,9 @@
     var name = el('rtJoinName').value.trim();
     if(!code || !name){ el('rtLobbyStatus').textContent = '部屋コードと名前を入れてください'; return; }
     this.disabled = true;
-    var res = await rt.joinRoom(code, name, 'player', myLook());
+    // 第47弾 47-3：入口で「大画面として入る」を選んだ時だけ、役割を変えて入る。
+    // **同じ入り方（コード＋名前）に役割を1つ足しただけ**——別の道は作らない
+    var res = await rt.joinRoom(code, name, rtJoinAsBig ? 'bigscreen' : 'player', myLook());
     this.disabled = false;
     if(!res.ok){
       el('rtLobbyStatus').textContent = res.message || '部屋に入れませんでした';
@@ -11480,6 +11520,17 @@
   function renderRtRoom(){
     var room = rt && rt.state.room;
     if(!room) return;
+    // 第47弾 47-3：大画面がつながったことを、待合の進行役に知らせる。
+    // **事実で見る**（47-1と同じ形）——「増えた瞬間」を見ると、
+    // 待合を開き直しただけで取りこぼす／二重に出る。
+    // 静かな通知（原則E：音も振動も鳴らさない）
+    if(rt.isHost()){
+      (room.members || []).forEach(function(m){
+        rtOnce('room:bigJoined:' + m.id, m.role === 'bigscreen' && m.connected, function(){
+          try{ FxKit.notice(UiText.ENTRY.大画面がつながった); }catch(e){}
+        });
+      });
+    }
     el('rtRoomCode').textContent = room.code;
     // 描けた時だけ「この部屋コードは済み」と覚える。
     // 先に覚えてしまうと、一度失敗したQRが二度と描き直されない。
@@ -11625,7 +11676,8 @@
     });
     if(!選ばれた) return false;
     var r = await rt.transferHost(選ばれた);
-    if(!r.ok){ showFlash(r.message || '渡せませんでした', 'hit-wrong'); return false; }
+    // 言い回しは正本から取る（動詞はかな・第40弾 40-C）
+    if(!r.ok){ showFlash(r.message || UiText.MSG.うまくいかない, 'hit-wrong'); return false; }
     return true;
   }
   var rtHandOverPick = null;

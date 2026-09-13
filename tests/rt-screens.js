@@ -5523,5 +5523,107 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       '3-2-1の最中は、プレイヤーには⚙を出さない');
   });
 
+  // ---- 第47弾 47-3：PCから最初から大画面で入る ----
+
+  await r.test('47-3：入口の3つ目から、大画面として部屋に入れる（ログイン不要）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    win.goToScreen('scr-entry');
+    await waitScreen(win, doc, 'scr-entry', 3000);
+
+    const 札 = doc.querySelector('#scr-entry [data-entry="big"]');
+    assert(札, '入口に3つ目の札がある');
+    assert(/大画面/.test(札.textContent), '大画面として入る札だと分かる');
+    // **自動では大画面にしない**（選択式）。3つとも並んでいる
+    assertEqual(doc.querySelectorAll('#scr-entry [data-entry]').length, 3, '入口は3つ');
+
+    札.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    assert(/大画面/.test(el(doc, 'rtLobbyTitle').textContent),
+      '大画面として入る画面だと分かる（' + el(doc, 'rtLobbyTitle').textContent + '）');
+    assertEqual(el(doc, 'rtCreateCard').style.display, 'none', '部屋をつくる側は出ない');
+    assert(el(doc, 'rtJoinName').value.trim(), '名前は入れておく（大画面に名前を考えさせない）');
+
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
+    fake.replies = {};
+    fake.replies['room:join'] = () => ({ ok: true, code: 'ABC234', memberId: 'm9',
+      room: roomSnapshot({
+        memberCount: 6,
+        members: roomSnapshot().members.concat(
+          [{ id: 'm9', name: '大画面', role: 'bigscreen', connected: true, isHost: false, ready: true }])
+      }) });
+    el(doc, 'rtJoinCode').value = 'ABC234';
+    click(doc, 'rtJoinBtn');
+    await waitFor(win, () => fake.emits.some((e) => e.name === 'room:join'), 3000, '入る');
+    const 送った = fake.emits.filter((e) => e.name === 'room:join').pop();
+    assertEqual(送った.payload.role, 'bigscreen', '**大画面として**入る');
+    await waitScreen(win, doc, 'scr-rt-big', 4000);
+    assertNoErrors(errors, '大画面として入る時に未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-3：「部屋に入る」を押した人は、大画面にならない（印が残らない）', async () => {
+    // **置き忘れると、次に来た人まで大画面になる。**引数で渡している証拠
+    const { win, doc, errors } = await launch(LAUNCH);
+    win.goToScreen('scr-entry');
+    await waitScreen(win, doc, 'scr-entry', 3000);
+    doc.querySelector('#scr-entry [data-entry="big"]')
+      .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    // もどって、ふつうに「部屋に入る」を押す
+    win.goToScreen('scr-entry');
+    await waitScreen(win, doc, 'scr-entry', 3000);
+    doc.querySelector('#scr-entry [data-entry="join"]')
+      .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    assert(!/大画面/.test(el(doc, 'rtLobbyTitle').textContent),
+      '大画面の画面になっていない（' + el(doc, 'rtLobbyTitle').textContent + '）');
+
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 3000, 'つながる');
+    fake.replies = {};
+    fake.replies['room:join'] = () => ({ ok: true, code: 'ABC234', memberId: 'm2', room: roomSnapshot() });
+    el(doc, 'rtJoinCode').value = 'ABC234';
+    el(doc, 'rtJoinName').value = 'びび';
+    click(doc, 'rtJoinBtn');
+    await waitFor(win, () => fake.emits.some((e) => e.name === 'room:join'), 3000, '入る');
+    assertEqual(fake.emits.filter((e) => e.name === 'room:join').pop().payload.role, 'player',
+      'プレイヤーとして入る');
+    // **遷移が終わるまで待ってから閉じる。**
+    // 入るボタンは返事を待ってから画面を動かすので、先に閉じると
+    // 閉じた窓の上で goTo が走って落ちる（テストの後片付けの話）
+    await waitFor(win, () => activeScreen(doc) !== 'scr-rt-lobby', 4000, '部屋の画面へ');
+    assertNoErrors(errors, '部屋に入るで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-3：大画面がつながったら、待合の進行役に知らせが出る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { pick: false });   // 自分（m1）が進行役
+    push(fake, roomSnapshot());
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    assertEqual(doc.querySelectorAll('.fx-notice').length, 0, 'まだ知らせは出ていない');
+
+    push(fake, roomSnapshot({
+      memberCount: 6,
+      members: roomSnapshot().members.concat(
+        [{ id: 'm9', name: '大画面', role: 'bigscreen', connected: true, isHost: false, ready: true }])
+    }));
+    await waitFor(win, () => doc.querySelectorAll('.fx-notice').length > 0, 3000, '知らせ');
+    const 文 = doc.querySelector('.fx-notice').textContent;
+    assert(/大画面がつながりました/.test(文), '何がつながったか分かる（' + 文 + '）');
+
+    // **同じ知らせを2回出さない**（描き直しのたびに出ない）
+    push(fake, roomSnapshot({
+      memberCount: 6,
+      members: roomSnapshot().members.concat(
+        [{ id: 'm9', name: '大画面', role: 'bigscreen', connected: true, isHost: false, ready: true }])
+    }));
+    await sleep(win, 120);
+    assertEqual(doc.querySelectorAll('.fx-notice').length, 1, '知らせは1回だけ');
+    assertNoErrors(errors, '大画面の知らせで未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

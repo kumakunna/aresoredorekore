@@ -723,9 +723,19 @@ function pickCart(doc, id) {
     const { win, doc, errors } = await launch({ loggedOut: true, atEntry: true });
     assertEqual(activeScreen(doc), 'scr-entry', '扉の次は入口');
     const cards = doc.querySelectorAll('#scr-entry [data-entry]');
-    assertEqual(cards.length, 2, '入口は二択');
+    // 第47弾 47-3：3つ目「大画面として部屋に入る」が増えた。
+    // **やることの名前で分ける**という決めごとは変わっていない
+    assertEqual(cards.length, 3, '入口は三択');
     const ids = Array.from(cards).map(c => c.dataset.entry).join(',');
-    assertEqual(ids, 'choose,join', 'ゲームをえらぶ・部屋に入る');
+    assertEqual(ids, 'choose,join,big', 'ゲームをえらぶ・部屋に入る・大画面として入る');
+    // **広い画面では大画面が先頭に来る。**並べ替えはCSSの order で、
+    // マークアップの順は変えない（読み上げの順も一緒に動く）
+    const fs2 = require('fs');
+    const path2 = require('path');
+    const html2 = fs2.readFileSync(path2.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html2.slice(html2.indexOf('<style>'), html2.indexOf('</style>'));
+    assert(/@media\s*\(min-width:1024px\)\{[^}]*\.entry-big\{\s*order:-1/.test(css.replace(/\s+/g, ' ').replace(/ \{/g, '{')),
+      '広い画面では大画面の札が先頭に出る（CSSの order）');
     // **役割の名前を出さない**（この検査の本体）
     const text = el(doc, 'scr-entry').textContent;
     assert(!/ホスト|ゲスト/.test(text),

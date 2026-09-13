@@ -103,9 +103,23 @@ async function toRoom(win, doc, opts) {
   // 第32弾-A-2：大画面は参加時の役割ではなく、部屋の画面から切り替える表示モードになった。
   // サーバーは切り替えた結果の部屋を返してくるので、疑似socketにも同じものを返させる
   if (role === 'bigscreen') {
+    // **第47弾 47-2：大画面は進行役にならない。**
+    // 進行役のまま📺を押すと「先にだれかへ渡す」流れに入るので、
+    // 検体も本物と同じ形にする——**大画面になる端末は、進行役ではない。**
+    // （進行役のまま大画面になれる検体を置くと、本物が送らない形になる・落とし穴25）
+    const 他が進行役 = (over) => {
+      const base = roomSnapshot(over);
+      base.hostMemberId = (memberId === 'm2') ? 'm3' : 'm2';
+      base.members = base.members.map((m) => Object.assign({}, m, {
+        isHost: m.id === base.hostMemberId
+      }));
+      return base;
+    };
+    push(fake, 他が進行役());
+    await sleep(win, 60);
     fake.replies['room:setRole'] = () => ({
       ok: true, role: 'bigscreen',
-      room: roomSnapshot({
+      room: 他が進行役({
         // 自分の枠を大画面に書き換える（増やすと、同じidが2つ並んで先頭が拾われる）
         members: roomSnapshot().members.map((m) => (
           m.id === memberId ? Object.assign({}, m, { role: 'bigscreen' }) : m
@@ -667,27 +681,27 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('ホストが大画面にしても、管理操作を続けられる', async () => {
-    // 実機で「ホストが大画面を選ぶと、ゲーム選択も部屋の管理も何もできない」状態だった
+  await r.test('47-2：大画面は行き止まりにならず、進行役の操作も持たない', async () => {
+    // **この検査は第47弾で向きが変わった。**
+    // それまでは「ホストが大画面にしても管理操作を続けられる」を守っていた
+    //（実機で「ホストが大画面を選ぶと何もできない」行き止まりだったため）。
+    // 47-2 で **大画面は進行役になれない** と決めたので、行き止まりは
+    // 「渡してから切り替える」ことで消える。守るものは2つに分かれた：
+    //   ・大画面には必ず出口（🙋 プレイヤーにもどる）がある
+    //   ・大画面は次のゲームを選ばない（進行役＝プレイヤー端末が選ぶのを待つ）
     const { win, doc, errors } = await launch(LAUNCH);
-    const fake = await toRoom(win, doc, { pick: false }); // 自分がホスト（m1）
-    fake.replies['room:setRole'] = () => ({
-      ok: true, role: 'bigscreen',
-      room: roomSnapshot({
-        members: roomSnapshot().members.map((m) => (
-          m.id === 'm1' ? Object.assign({}, m, { role: 'bigscreen' }) : m
-        ))
-      })
-    });
-    click(doc, 'rtToBigBtn');
-    await waitScreen(win, doc, 'scr-rt-big', 3000);
-    assert(el(doc, 'bigPickGameBtn').style.display !== 'none', 'ゲームをえらべる');
-    assert(el(doc, 'bigEndBtn').style.display !== 'none', '部屋を閉じられる');
-    assert(el(doc, 'bigToPlayerBtn'), 'プレイヤーにも戻れる');
-    // 「ゲームをえらぶ」は待合と同じ動き（棚へ出る）
-    click(doc, 'bigPickGameBtn');
-    await waitScreen(win, doc, 'scr-shelf', 3000);
-    assertNoErrors(errors, 'ホストの大画面で未捕捉の例外');
+    await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面になっている');
+
+    assertEqual(el(doc, 'bigPickGameBtn').style.display, 'none',
+      '大画面から次のゲームは選ばない');
+    assertEqual(el(doc, 'bigStartBtn').style.display, 'none', '大画面から始めない');
+    assertEqual(el(doc, 'bigEndBtn').style.display, 'none', '大画面から部屋を閉じない');
+
+    // **出口はある。**押せば戻れる（行き止まりにしない）
+    const 出口 = el(doc, 'bigToPlayerBtn');
+    assert(出口 && 出口.getClientRects, 'プレイヤーにもどる出口がある');
+    assertNoErrors(errors, '大画面で未捕捉の例外');
     win.close();
   });
 
@@ -5339,6 +5353,67 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(出た3.join('・'), '', '大画面に、誰の集めたものも出ていない');
     assertNoErrors(b.errors, '毒入りの大画面で未捕捉の例外');
     b.win.close();
+  });
+
+  // ---- 第47弾 47-2：大画面にする前に、進行役を渡す ----
+
+  await r.test('47-2：進行役が📺を押すと、渡す相手をえらんでから大画面になる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);   // 自分（m1）が進行役
+    push(fake, roomSnapshot());
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    fake.replies['room:transferHost'] = () => ({ ok: true, room: roomSnapshot() });
+    fake.replies['room:setRole'] = () => ({ ok: true, role: 'bigscreen', room: roomSnapshot() });
+
+    click(doc, 'rtToBigBtn');
+    await sleep(win, 120);
+    const 案内 = H.openDialog(doc);
+    assert(案内 && /進行役をだれかに渡します/.test(案内.見出し),
+      '渡すことを先に伝える（' + (案内 && 案内.見出し) + '）');
+    // **まだ切り替わっていない。** 伝える前に切り替えたら、伝えた意味が無い
+    assert(!fake.emits.some((e) => e.name === 'room:setRole'), 'この時点では切り替えていない');
+    click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
+    await waitFor(win, () => doc.querySelector('[data-handover]'), 3000, '相手をえらぶシート');
+
+    // 自分は並ばない（自分に渡しても意味がない）
+    const 並び = Array.prototype.map.call(doc.querySelectorAll('[data-handover]'),
+      (b) => b.dataset.handover);
+    assert(並び.indexOf('m1') < 0, '自分は選べない');
+    assert(並び.length >= 1, '渡せる相手が並んでいる');
+
+    doc.querySelector('[data-handover]').dispatchEvent(
+      new win.MouseEvent('click', { bubbles: true }));
+    await waitFor(win, () => fake.emits.some((e) => e.name === 'room:setRole'), 3000, '切り替え');
+    const 順 = fake.emits.filter((e) => e.name === 'room:transferHost' || e.name === 'room:setRole')
+      .map((e) => e.name);
+    assertEqual(順.join(' → '), 'room:transferHost → room:setRole',
+      '**渡してから**切り替える（逆だと、大画面のまま進行役になる瞬間ができる）');
+    assertNoErrors(errors, '大画面への切り替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-2：ほかにプレイヤーがいなければ、大画面にするのを断る', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc);
+    // 自分ひとりの部屋
+    push(fake, roomSnapshot({
+      playerCount: 1, memberCount: 1,
+      ready: { count: 1, total: 1, waitingNames: [], all: true },
+      members: [{ id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true, ready: true }]
+    }));
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+
+    click(doc, 'rtToBigBtn');
+    await sleep(win, 150);
+    const 断り = H.openDialog(doc);
+    assert(断り && /ほかに1人以上のプレイヤーが必要/.test(断り.見出し),
+      'できない理由が出る（' + (断り && 断り.見出し) + '）');
+    // **責めない・次にできることを出す**（原則C）
+    assert(/もう一度どうぞ/.test(断り.本文 || ''),
+      '次にできることが書いてある（' + (断り && 断り.本文) + '）');
+    assert(!fake.emits.some((e) => e.name === 'room:setRole'), '切り替えていない');
+    assertNoErrors(errors, '断る時に未捕捉の例外');
+    win.close();
   });
 
   r.finish();

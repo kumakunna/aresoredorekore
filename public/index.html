@@ -7558,6 +7558,14 @@
   });
   // sheet の中は #uiLayerRoot に出るので、そちらで受ける
   el('uiLayerRoot').addEventListener('click', function(e){
+    // 指示47-2：進行役を渡す相手をえらぶ
+    var ho = e.target.closest('[data-handover]');
+    if(ho){
+      var f = rtHandOverPick; rtHandOverPick = null;
+      UiKit.closeTop();
+      if(f) f(ho.dataset.handover);
+      return;
+    }
     var ic = e.target.closest('[data-pickicon]');
     if(ic){ pickTitlePart('icon', ic.dataset.pickicon); return; }
     var sl = e.target.closest('[data-pickslot]');
@@ -11553,8 +11561,50 @@
   });
   // 第32弾-A-2：大画面にする／プレイヤーに戻る。どちらもいつでも押せる。
   // 以前は参加する時に一度だけ選ぶ「役割」だったので、選ぶと戻れなくなっていた
+  /**
+   * **大画面にする前に、進行役をだれかに渡す**（指示47-2）。
+   *
+   * 大画面から操作できる経路を作らない、が禁止事項。
+   * 進行役のまま大画面にすると、その端末が部屋を進める側のままになってしまう。
+   *
+   * 断る時は責めない（原則C）。**できないことだけでなく、次にできること**を出す。
+   * 実際に渡すのはサーバー（`room:transferHost`）で、そちらも大画面を弾く（落とし穴14）。
+   *
+   * @returns {boolean} 大画面にしてよいか（渡せた／渡す必要がなかった）
+   */
+  async function rtHandOverBeforeBig(){
+    var room = rt && rt.state.room;
+    if(!room || !rt.isHost()) return true;   // 進行役でなければ、渡すものが無い
+    var T = UiText.ROLE;
+    var meId = rt.state.memberId;
+    var 渡せる相手 = (room.members || []).filter(function(m){
+      return m.id !== meId && m.connected && m.role !== 'bigscreen';
+    });
+    if(!渡せる相手.length){
+      await UiKit.info(T.ひとりで無理, T.ひとりで無理の次);
+      return false;
+    }
+    if(!await UiKit.danger(T.大画面へ見出し, T.大画面へ本文, { ok: T.大画面へ進む })) return false;
+    var 選ばれた = await new Promise(function(resolve){
+      rtHandOverPick = resolve;
+      UiKit.sheet({
+        title: T.渡す相手,
+        html: '<div class="picker-grid">' + 渡せる相手.map(function(m){
+          return '<button class="pk-btn" data-handover="' + escapeHtml(m.id) + '">' +
+            (m.icon ? escapeHtml(m.icon) + ' ' : '') + escapeHtml(m.name) + '</button>';
+        }).join('') + '</div>'
+      }).then(function(){ if(rtHandOverPick){ rtHandOverPick(null); rtHandOverPick = null; } });
+    });
+    if(!選ばれた) return false;
+    var r = await rt.transferHost(選ばれた);
+    if(!r.ok){ showFlash(r.message || '渡せませんでした', 'hit-wrong'); return false; }
+    return true;
+  }
+  var rtHandOverPick = null;
+
   async function rtSetDisplayMode(big){
     if(!rt || !rt.me()) return;
+    if(big && !await rtHandOverBeforeBig()) return;
     var res = await rt.setRole(big ? 'bigscreen' : 'player');
     if(res && res.ok === false){
       showFlash(res.message || '切り替えられませんでした', 'hit-wrong');

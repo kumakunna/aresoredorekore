@@ -1270,7 +1270,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('クイズ解除：競争版で自分のライフが尽きた瞬間、自分の端末で爆発が出る（第33弾 A-2）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, bombRoom());
+    // **公開ビューにも mode を入れる。** bomb-room.js:275 は publicView に mode を入れるので、
+    // 秘密にだけ入れた検体は、本物のサーバーが送らない形（落とし穴25）
+    const race = bombRoom({ state: { phase: 'play', game: 'bomb', data: bombView({ mode: 'race' }) } });
+    push(fake, race);
     pushYou(fake, bombYou({ mode: 'race', lives: 1 }));
     await waitScreen(win, doc, 'scr-rt-bomb', 4000);
     // 最後のライフを失った（ゲーム自体はまだ続いている）
@@ -1577,9 +1580,15 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     pushYou(fake, endedWolfYou());
     await waitScreen(win, doc, 'scr-rt-play', 4000);
     fake.fire('room:thanked', { from: 'あき', kind: 'help', label: '今日、いちばん助かった' });
-    await sleep(win, 100);
-    const banner = doc.querySelector('.fx-banner');
-    assert(banner && /助かった/.test(banner.textContent) && /あき/.test(banner.textContent),
+    // **「◯ms待って、最初の帯を見る」では嘘になる**（落とし穴24）。
+    // 決着の帯が先に舞台へ上がるので、感謝は1拍おいて後から出る（45-2の順序）。
+    // 待ち方を「時間」ではなく「出たか」に変える
+    await waitFor(win, () => Array.prototype.some.call(
+      doc.querySelectorAll('.fx-banner'), (b) => /助かった/.test(b.textContent)),
+      4000, '感謝の帯');
+    const banner = Array.prototype.filter.call(doc.querySelectorAll('.fx-banner'),
+      (b) => /助かった/.test(b.textContent))[0];
+    assert(banner && /あき/.test(banner.textContent),
       '何に選ばれ、誰からかが分かる');
     assertNoErrors(errors, '感謝の受け取りで未捕捉の例外');
     win.close();

@@ -9559,7 +9559,6 @@
     if(prevScreen && prevScreen.id === 'scr-rt-bomb' && id !== 'scr-rt-bomb') rtBombLeaveScreen();
     // 第33弾 B-2：人狼の部屋画面を離れたら、演出の引き金もリセットする。
     // 残しておくと、あとで戻った瞬間に古い変わり目の演出が出てしまう
-    if(prevScreen && prevScreen.id === 'scr-rt-play' && id !== 'scr-rt-play') rtWolfSeen = null;
     // 第32弾-D：大画面を離れた時も同じ（入場・コールアウトの引き金を残さない）
     if(prevScreen && prevScreen.id === 'scr-rt-big' && id !== 'scr-rt-big') rtBigResetFx();
     // 第36弾：サイコロを押したまま画面が変わると、次の画面で誤発火する
@@ -12622,6 +12621,39 @@
     var me = rt && rt.me();
     return !!(me && me.role === 'bigscreen');
   }
+
+  /**
+   * **一度きりの演出を、遷移ではなく「事実」で出す**（第47弾 47-1）。
+   *
+   * それまでは「前回の値と今回の値を比べて、変わっていたら出す」と書いていた。
+   * その形は、実測で**3通りに壊れる**（`tools/fx-probe.js` で再現できる）：
+   *
+   *   ・**初回の描画でもう成立している**と、永久に出ない。
+   *     競争版で最後の生き残りが脱落すると、サーバーは同じ tick で決着にするので、
+   *     その端末は「解除中」を一度も描かないまま決着に入る（爆発 0件）
+   *   ・**秘密が先・部屋の知らせが後**で届くと、二重に出る（落とし穴18。爆発 2件）
+   *   ・「見ていたか」の記憶が false のままだと、決着で黙る（再接続・途中参加）
+   *
+   * 代わりに、こう書く——**その事実が成り立っていて、まだ出していないなら出す。**
+   *
+   *   rtOnce('bomb:ended', v.phase === 'ended', function(){ bombBoomFx(); });
+   *
+   * 札は「事実が崩れたら捨てる」ので、**再戦のリセットを別に書かなくてよい**
+   * （再戦は必ず決着でない段階を通るため）。
+   * 遷移を1つも見ないので、同じ知らせが2回届いても2回は出ない。
+   *
+   * **名前は「ゲームid:何の演出か」でつける。** ゲームをまたいで衝突しないように。
+   */
+  var rtOnceMarks = {};
+  function rtOnce(name, いま成り立っているか, 出す){
+    if(!いま成り立っているか){ delete rtOnceMarks[name]; return false; }
+    if(rtOnceMarks[name]) return false;
+    rtOnceMarks[name] = true;
+    try{ 出す(); }catch(e){}
+    return true;
+  }
+  /** 部屋から出た・別のゲームに移った時に、札を全部捨てる */
+  function rtOnceReset(){ rtOnceMarks = {}; }
   // 状態が動いたら、いるべき画面へ移して描き直す。
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
   // 第38弾：ここに書くのは、どのゲームにも属さない3枚だけ。
@@ -12779,45 +12811,51 @@
    * サーバーから届く「段階の変わり目」を引き金にする。
    * 開いた直後（途中参加・入り直し）は、目の前で起きたことではないので出さない。
    */
-  var rtWolfSeen = null;   // 直前に見た { phase, turn, runoff }
+  /**
+   * 部屋版の演出。**段階の「変わり目」ではなく「いまどの段階か」で出す**（第47弾 47-1）。
+   *
+   * それまでは直前の { phase, turn, runoff } と比べていた。その形は2つ重なって壊れていて、
+   * **役職・お題が配られた瞬間の陣営色の縁は、部屋版では一度も出ていなかった**：
+   *   ・画面に入った最初の描画は `if(!prev) return` で必ず黙る
+   *   ・秘密（you）は公開ビューより後に届く（落とし穴18）ので、
+   *     届いた時にはもう phase が変わっておらず「変わっていないから帰る」に当たる
+   *
+   * 事実で見ると、どちらも消える——**その段階にいて、まだ出していないなら出す。**
+   * ターンごとに出るものは、札の名前にターンを混ぜる。
+   */
   function rtPlayFx(v, you){
     if(typeof FxKit === 'undefined') return;
-    var prev = rtWolfSeen;
-    // 決選投票は phase が vote のまま runoff だけが立つので、変わり目として数える
-    rtWolfSeen = { phase: v.phase, turn: v.turn || 0, runoff: !!v.runoff };
-    if(!prev) return;
-    if(prev.phase === v.phase && prev.turn === rtWolfSeen.turn
-       && prev.runoff === rtWolfSeen.runoff) return;
+    // 観戦の端末（この試合の秘密が配られていない）には出さない。
+    // 爆弾解除と同じ規則にそろえる（大切なこと9・落とし穴1）——
+    // **「見ていたか」の記憶ではなく、「この試合の一員か」という事実で分ける**
+    if(!you) return;
     var ww = rtIsWordwolf();
+    var t = v.turn || 0;
 
-    // 役職・お題が配られた瞬間：自分の陣営の色で縁を照らす（手渡し版と同じ）。
+    // 役職・お題が配られた：自分の陣営の色で縁を照らす（手渡し版と同じ）。
     // ワードウルフはお題が主役なので、ウルフだった時だけ気づかせる
-    if(v.phase === 'roleReveal' && !ww && you && you.roleId && typeof WolfLogic !== 'undefined'){
-      flashRoleEdge(WolfLogic.roleById(you.roleId).team);
-      return;
-    }
-    if(v.phase === 'reveal' && ww && you && you.youAreWolf){
-      flashRoleEdge('wolf');
-      return;
-    }
-    // 決選投票に入った瞬間
-    if(v.phase === 'vote' && v.runoff){
+    rtOnce('wolf:role',
+      !ww && v.phase === 'roleReveal' && !!(you && you.roleId) && typeof WolfLogic !== 'undefined',
+      function(){ flashRoleEdge(WolfLogic.roleById(you.roleId).team); });
+    rtOnce('ww:role', ww && v.phase === 'reveal' && !!(you && you.youAreWolf),
+      function(){ flashRoleEdge('wolf'); });
+    // 決選投票
+    rtOnce('wolf:runoff:' + t, v.phase === 'vote' && !!v.runoff, function(){
       FxKit.banner({ kind:'plain', icon:'⚖️', text:'同数でした',
         sub:'並んだ人だけで、もう一度投票します', ms:900 });
-      return;
-    }
+    });
     // 朝：誰かが欠けていたら、名前が1人ずつ現れる（手渡し版と同じ）。
     // 襲撃は強め・短くの振動（第32弾-D 第6部）
-    if(v.phase === 'day' && v.morning && (v.morning.deaths || []).length){
+    rtOnce('wolf:morning:' + t,
+      v.phase === 'day' && !!v.morning && (v.morning.deaths || []).length > 0, function(){
       FxKit.vibe('boom');
       var rows = el('rtPublicBox').querySelectorAll('.day-death');
       if(rows.length) FxKit.stagger(rows, 300);
-      return;
-    }
+    });
     // 投票の結果：処刑は静かに・重く（原則C）。無かった回は穏やかに
     var tr = (v.phase === 'turnResult' && v.turnResult) ? v.turnResult
            : (v.phase === 'roundResult' && v.roundResult) ? v.roundResult : null;
-    if(tr){
+    rtOnce('wolf:turnResult:' + t, !!tr, function(){
       if(tr.executed){
         FxKit.vibe('boom');   // 処刑は強め・短く（第32弾-D 第6部）
         FxKit.banner({ kind:'gray', icon:'⚖️', text: tr.executed.name + ' が処刑',
@@ -12830,11 +12868,10 @@
       }
       var counts = el('rtPublicBox').querySelectorAll('.vote-counts .vc-item');
       if(counts.length) FxKit.stagger(counts, 120);
-      return;
-    }
+    });
     // 決着：勝った陣営の色で染める（手渡し版と同じ）。
     // ゲーム全体の決着なので、紙吹雪も陣営の色で舞う（第32弾-D 4-2）
-    if(v.phase === 'ended' && v.result){
+    rtOnce('wolf:ended', v.phase === 'ended' && !!v.result, function(){
       var w2 = v.result.winner;
       var team = (w2 === 'wolf') ? 'wolf' : (w2 === 'village' || w2 === 'sheep') ? 'village' : 'third';
       flashRoleEdge(team);
@@ -12848,7 +12885,7 @@
         text: ww ? (w2 === 'sheep' ? 'シープ側の勝ち' : w2 === 'wolf' ? 'ウルフの逃げ切り' : '合計得点で決着')
                  : rtWinnerLabel(w2).replace(/^[^ ]+ /, ''),
         sub: '全員の正体を開きます', ms:1000 });
-    }
+    });
   }
   function renderRtPlay(){
     var v = rtView(), you = rt.state.secret;
@@ -13262,13 +13299,18 @@
     if(qzPrevScore != null && you.score > qzPrevScore) fanfareSound();
     qzPrevScore = you.score;
 
+    // 決着の音は1回だけ。結果を見ている間ずっと鳴り続けないように。
+    // **リセットの持ち方をそろえた**（第47弾 47-1）——
+    // すぐ上の qzPrevScore は qzLeaveScreen が消すのに、qzPrevPhase は消さない、
+    // という食い違いがあった。どちらが正しいかは、その変数を見ないと分からない。
+    // 「決着にいて、まだ出していないなら出す」に寄せると、覚えておく変数が要らない。
+    // **分岐の外に置く**（分岐の中だと、その分岐を通らない経路で札が捨てられない）
+    rtOnce('quiz:ended', v.phase === 'ended', function(){
+      timeUpSound();
+      // 第32弾-D 4-2：ゲーム全体の決着なので、金・青の紙吹雪（第6部）
+      if(typeof FxKit !== 'undefined') FxKit.confetti(['#f0c44a', '#5a8fd6', '#fff8e1']);
+    });
     if(v.phase === 'ended'){
-      // 決着の音は1回だけ。結果を見ている間ずっと鳴り続けないように
-      if(qzPrevPhase !== 'ended'){
-        timeUpSound();
-        // 第32弾-D 4-2：ゲーム全体の決着なので、金・青の紙吹雪（第6部）
-        if(typeof FxKit !== 'undefined') FxKit.confetti(['#f0c44a', '#5a8fd6', '#fff8e1']);
-      }
       qzPrevPhase = v.phase;
       qzLeaveScreen();
       el('qzRound').textContent = '';
@@ -13744,7 +13786,11 @@
 
   var auClock = { ms:null, at:0, timer:null };
   var auPrevPhase = null;   // 段階が変わった瞬間だけ音を出すための目印
-  var auPrevHighest = null; // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす
+  // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす。
+  // **「まだ見ていない」と「まだ値がついていない」を分けて持つ**（第47弾 47-1）。
+  // どちらも null で表していたので、品が変わるたびに「見ていない」に戻り、
+  // **品ごとに最初の1本だけ木槌が鳴らなかった**（いちばん盛り上がる1本目が無音）
+  var auPrevHighest = { みた:false, 額:null };
   var auPrevHints = 0;      // 段階ヒントが増えた瞬間だけ、新しい1本を光らせる
   var auRevealDone = null;  // 開示を動かし終えた品（描き直しでやり直さないため）
   var auBidValue = 0;       // 「額を指定」で手元に置いている金額（まだ送っていない）
@@ -13779,7 +13825,7 @@
     clearInterval(auClock.timer); auClock.timer = null;
     auClock.ms = null;
     auPrevPhase = null;
-    auPrevHighest = null;
+    auPrevHighest = { みた:false, 額:null };
     auPrevHints = 0;
     auRevealDone = null;
     auBidValue = 0;
@@ -13984,12 +14030,14 @@
     el('auBidNote').innerHTML = note;
     el('auBidRest').innerHTML = auRestHtml(v);
 
-    // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす
-    if(isOpen && high && auPrevHighest !== high.amount){
-      if(auPrevHighest !== null) gavelSound();
-      auPrevHighest = high.amount;
+    // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす。
+    // 途中から見はじめた端末には鳴らさない（すでに済んだ入札の音を出さない）が、
+    // 「値がまだ無い」は**見たうえでの事実**なので、次の1本目からちゃんと鳴る
+    if(isOpen && high && auPrevHighest.額 !== high.amount){
+      if(auPrevHighest.みた) gavelSound();
+      auPrevHighest = { みた:true, 額: high.amount };
     }
-    if(!high) auPrevHighest = null;
+    if(!high) auPrevHighest = { みた:true, 額:null };
   }
 
   // ---- ④ 値踏み ----
@@ -14388,20 +14436,36 @@
     }
     if(game === 'bomb'){
       // 残りミス1：数えなくても「もう後がない」ことが全員に伝わる
+      // 残りミス1。**「減った瞬間」ではなく「1である」という事実**で出す（第47弾 47-1）。
+      // 減り方を見ていると、大画面をあとから繋いだ時に一度も出ない
       var lives = v.team ? v.team.lives : null;
-      if(lives != null && rtBig.bombLives != null && lives < rtBig.bombLives && lives === 1){
+      rtOnce('big:bomb:critical', lives === 1, function(){
         FxKit.callout('CRITICAL', { kind:'danger' });
-      }
-      if(lives != null) rtBig.bombLives = lives;
-      if(changed && v.phase === 'ended' && v.result && !v.result.aborted && v.result.mode === 'coop'){
-        if(v.result.success){
-          FxKit.callout('DEFUSED', { kind:'gold' });
-          FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);  // 火花のようなオレンジ
-        } else {
+      });
+      var 結 = v.result;
+      rtOnce('big:bomb:ended', v.phase === 'ended' && !!結 && !結.aborted, function(){
+        if(結.mode === 'coop'){
+          if(結.success){
+            FxKit.callout('DEFUSED', { kind:'gold' });
+            FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);  // 火花のようなオレンジ
+          } else {
+            FxKit.shake('big');
+            FxKit.boom();
+          }
+          return;
+        }
+        // 競争版（第47弾で足した）。それまで大画面は、競争版の決着を素通りしていた——
+        // `mode === 'coop'` の門が、もう一方のモードの入口をふさいでいた（大切なこと9）。
+        // **全員が脱落したら、それは部屋にとっての爆発。** 誰かが解けていれば勝ちの側
+        var 順位 = 結.ranking || [];
+        if(順位.length && 順位.every(function(x){ return x.failed; })){
           FxKit.shake('big');
           FxKit.boom();
+        } else if(順位.length){
+          FxKit.callout('DEFUSED', { kind:'gold' });
+          FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
         }
-      }
+      });
       return;
     }
     if(SUGO_GAMES.indexOf(game) !== -1){
@@ -14438,12 +14502,18 @@
         }
         rtBig.auction = a;
       }
-      if(changed && v.phase === 'result' && v.lastResult && !v.lastResult.passed){
-        FxKit.callout('SOLD', { kind:'gold' });
-      }
-      if(changed && v.phase === 'ended'){
+      // **落札の SOLD。** それまで `v.phase === 'result'` を待っていたが、
+      // オークションに `result` という段階は存在しない
+      //（preview / bid / confirm / guess / reveal / ended。auction-room.js 35-43）。
+      // **一度も出ていなかった**——型1「存在しないキーのまま古びた対応表」。
+      // 落札が決まるのは値踏みへ移った時なので、そこを事実で見る。
+      // 品ごとに1回なので、札の名前に品の番号（idx）を混ぜる（第47弾 47-1）
+      rtOnce('big:au:sold:' + (v.idx == null ? '?' : v.idx),
+        v.phase === 'guess' && !!v.lastResult && !v.lastResult.passed,
+        function(){ FxKit.callout('SOLD', { kind:'gold' }); });
+      rtOnce('big:au:ended', v.phase === 'ended', function(){
         FxKit.confetti(['#f0c44a', '#d9a53a', '#fff3c4']);  // 金貨が舞う
-      }
+      });
       return;
     }
   }
@@ -14753,10 +14823,10 @@
   // 正解／不正解は、サーバーが返す成績（解けた数・ミス数）の変化から読み取る。
   // 通信の返事に載せてもらうと「サーバーの状態」と「画面が鳴らした音」が
   // ずれる余地ができるので、必ず状態の変化だけを見る。
-  var rtBombPrev = null;   // 直前に見た自分の成績。音と演出の引き金にする
-  // 第33弾 A-2：解除中の画面を見ていた人にだけ、決着の瞬間の演出を出す。
-  // あとから部屋をのぞいた端末（観戦・入り直し）には、いきなり爆発を見せない
-  var rtBombLive = false;
+  var rtBombPrev = null;   // 直前に見た自分の成績。**回数を数えるもの（正解・ミス）だけ**の引き金
+  // 第33弾 A-2 の「あとから覗いた端末に、いきなり爆発を見せない」は
+  // 記憶（rtBombLive）ではなく**事実**で守るようにした（第47弾 47-1）——
+  // 観戦の端末には盤面（privateFor）が配られないので、そこで自然に分かれる
   var rtBombClock = { ms:null, at:0, timer:null };
 
   function rtBombSetClock(ms){
@@ -14864,6 +14934,25 @@
       '🖤'.repeat(Math.max(0, you.livesMax - you.lives));
     el('rtBombProgress').textContent = you.solvedCount + ' / ' + you.total + ' 解除';
 
+    // ---- 決着の演出は「事実」で出す（第47弾 47-1）----
+    // **ここは分岐の前に置く。** 段階ごとに書くと、その段階を一度も通らない経路で黙る——
+    // 競争版で最後の生き残りが脱落すると、サーバーは同じ tick で決着にするので、
+    // その端末は「解除中」を一度も描かないまま「決着」へ入っていた（爆発 0件・実測）。
+    //
+    // 観戦の端末はここまで来ない（すぐ上で早期 return している）ので、
+    // 第33弾A-2 の狙い——**あとから覗いた端末に、いきなり爆発を見せない**——は守られる。
+    // 変わったのは「見ていたか」の測り方だけ：
+    // 記憶（rtBombLive）から**事実（自分に盤面が配られているか）**にした。
+    // 記憶は再接続で消えるが、事実は消えない。
+    var 競争 = (v.mode === 'race');
+    // 競争版の自分の爆弾は、部屋の決着を待たずに爆発する（他の人はまだ解いている）
+    rtOnce('bomb:selfBoom', 競争 && !!you.failed, bombBoomFx);
+    rtOnce('bomb:selfClear', 競争 && you.total > 0 && you.solvedCount >= you.total, bombClearFx);
+    // 協力版はチームで1つ。決着そのものが演出の合図
+    rtOnce('bomb:teamEnd',
+      !競争 && v.phase === 'ended' && !!v.result && !v.result.aborted,
+      function(){ if(v.result.success) bombClearFx(); else bombBoomFx(); });
+
     // ---- 待機中：説明文を用意している。中身はここに1文字も出ない ----
     if(v.phase === 'prep'){
       rtBombLeaveScreen();
@@ -14892,22 +14981,13 @@
       el('rtBombTimer').style.display = 'none'; // 止まった時計を残さない
       el('rtBombResult').innerHTML = rtBombResultHtml(v);
       rtBombEndButtons(true);
-      // 第33弾 A-2：決着の瞬間の演出。手渡し版と同じものを出す（落とし穴1）。
-      // 解除中の画面を見ていた端末にだけ・1回だけ
-      if(rtBombLive){
-        rtBombLive = false;
-        var r = v.result;
-        if(r && !r.aborted && r.mode === 'coop'){
-          if(r.success) bombClearFx();
-          else bombBoomFx();
-        }
-      }
+      // 決着の演出は、この分岐ではなく上の rtOnce が出す（第47弾 47-1）。
+      // ここに書いていた頃は、この分岐を通らない経路（競争版の最後の脱落者）で黙っていた
       return;
     }
 
     // ---- 解除中 ----
-    rtBombLive = true;
-    // 前回との差から、正解・ミスを見つけて音と演出を出す
+    // 前回との差から、正解・ミスを見つけて音を出す（回数を数えるものは、差で見るのが正しい）
     rtBombFeedback(you);
     rtBombMissNotes(v);          // 第45弾 45-4：だれが外したか（ONの時だけ）
     rtBombSetClock(you.remainingMs);
@@ -15062,9 +15142,9 @@
         ? '💔 ちがう！ライフ−1・残り時間−10秒'
         : '💔 ちがう！ライフが割れた', 'hit-wrong');
     }
-    // 第33弾 A-2：競争版で自分のライフが尽きた瞬間。
-    // ゲーム自体は続いていても、自分の爆弾はここで爆発している
-    if(now.failed && !rtBombPrev.failed) bombBoomFx();
+    // 脱落の爆発はここには無い（第47弾 47-1 で rtOnce へ移した）。
+    // ここで「前は false・いまは true」を見ていたが、初回の描画でもう true だと
+    // 永久に出ず、知らせが2回届くと2回出た。**回数を数えるもの（正解・ミス）だけを差で見る**
     rtBombPrev = now;
   }
 

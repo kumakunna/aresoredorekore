@@ -178,6 +178,30 @@
     });
   }
 
+  /**
+   * 夜が明ける（第47弾 47-6）。**大画面のための、ゆっくりした一度きりの明るさ**。
+   *
+   * 藍色の夜から、朝焼けの色が下から差してきて、引いていく。
+   * 正本§4 の「長（0.75秒）＝見せ場」に合わせた尺。
+   *
+   * **点滅ではない。**明るさが一方向にゆっくり動いて戻るだけで、
+   * 正本§6 の「全画面の明滅は1回だけ」を満たす。
+   * それでも「光の点滅をつかう」を切っている人には出さない——
+   * 夜が明けたことは配色そのものが伝えるので、これが無くても分からなくならない。
+   */
+  function dawn() {
+    var h = layer();
+    if (!h) return Promise.resolve(true);
+    if (cfg.can.flash && !cfg.can.flash()) return Promise.resolve(true);
+    var n = mk('fx-dawn');
+    if (!n) return Promise.resolve(true);
+    h.appendChild(n);
+    return hold(750).then(function (skipped) {
+      if (n.parentNode) n.parentNode.removeChild(n);
+      return skipped;
+    });
+  }
+
   // ---------- 原則C：褒める時は全力で ----------
   /**
    * 画面いっぱいの演出。正解・勝利・成功の瞬間だけに使う。
@@ -606,7 +630,7 @@
 
   var api = {
     init: init, hold: hold, skipNow: skipNow, busy: busy,
-    flash: flash, boom: boom, banner: banner, flip: flip, countUp: countUp,
+    flash: flash, boom: boom, dawn: dawn, banner: banner, flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,
     shake: shake, confetti: confetti, callout: callout, vibe: vibe,
     countdown: countdown,

@@ -905,6 +905,23 @@
     text-shadow:0 4px 34px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.4);
     animation:fxCalloutIn calc(0.3s * var(--fx-scale)) cubic-bezier(.2,1.5,.4,1);
   }
+  /* 第47弾 47-6：夜が明ける。藍の夜から、朝焼けが下から差してきて引いていく。
+     **点滅ではない**——明るさが一方向にゆっくり動いて戻るだけ（正本§6）。
+     置き場は層（#uiLayerRoot）なので、止める門も :root から書く（落とし穴27） */
+  .fx-dawn{
+    position:fixed;inset:0;pointer-events:none;z-index:84;opacity:0;
+    background:linear-gradient(to top,
+      rgba(255,170,90,.62) 0%, rgba(255,120,110,.40) 26%,
+      rgba(120,110,180,.18) 58%, rgba(20,24,44,0) 100%);
+    animation:fxDawn calc(0.75s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
+  }
+  @keyframes fxDawn{0%{opacity:0;}38%{opacity:1;}100%{opacity:0;}}
+  :root.no-flash .fx-dawn{display:none;}
+  /* 第47弾 47-6：大画面では 3-2-1 も画面いっぱいに。
+     **印は :root に置く**——3-2-1 は層（#uiLayerRoot）に出るので、
+     `.app` に付けた印では届かない（落とし穴27）。
+     ゲーム中の巨大カウントダウン（.big-cd = min(46vw,420px)）と大きさをそろえる */
+  :root.big-screen .fx-countdown .fx-cd-num{font-size:min(46vw,420px);}
   .fx-callout-danger{color:#ff5c4a;}
   .fx-callout-gold{color:#f0c44a;}
   .fx-callout.fx-out{animation:fxCalloutOut calc(0.15s * var(--fx-scale)) ease-in forwards;}
@@ -2769,6 +2786,12 @@
   /* --- 夜はさらに沈め、朝は明るく振り切る（第20弾-4-3） ---
      暗いまま少し明るくするだけでは「夜が明けた」感じが出なかったので、
      朝は文字色まで反転させて、夜との差をはっきりつける。 */
+  /* 第47弾 47-6：夜と朝の切り替わりを、ぱっと変えずにゆっくり渡す。
+     CSS変数は遷移できないので、地の色そのものに遷移をかける。
+     **速さの設定に従う**（正本§4：スキップなら一瞬で切り替わる） */
+  .app.theme-wolf{
+    transition:background calc(0.75s * var(--fx-scale)) cubic-bezier(.32,.72,0,1);
+  }
   .app.theme-wolf.phase-night{--paper:#0F1322;--paper-deep:#0A0D17;--card:#1A2036;}
   .app.theme-wolf.phase-day{
     --paper:#F3EEDF;
@@ -9567,6 +9590,13 @@
   };
   function applyGameTheme(screenId){
     var app = el('app');
+    // 第47弾 47-6：**大画面かどうかの印は :root に置く。**
+    // 画面いっぱいの演出は #app の外（層）に出るので、`.app` に付けた印は届かない
+    //（落とし穴27）。ここに置くのは、**画面が変わった時（goTo）と
+    // 部屋の知らせが届いた時（rtRenderCurrent）の両方が通る唯一の関数**だから——
+    // 2か所に書くと、片方だけ直す日が来る（落とし穴1）
+    document.documentElement.classList.toggle('big-screen',
+      typeof rtIsBigScreen === 'function' && rtIsBigScreen());
     var name = currentThemeName();
     var free = THEME_FREE_SCREENS.indexOf(screenId) !== -1;
     var on = free ? null : name;
@@ -14635,6 +14665,18 @@
   }
   // 段階の変わり目から、コールアウト・揺れ・紙吹雪を出す。
   // あとから見始めた端末（入り直し）には出さない（rtPlayFx と同じ考え）
+  /**
+   * 大画面の爆発（第47弾 47-6）。**赤い閃光 → 暗転 → 「爆発」**。
+   *
+   * 閃光（`.bomb-boom`）は中心が明るく外周が暗い光なので、引いた後がそのまま暗転になる。
+   * その上に、既存のコールアウトと同じ流儀で1語を出す。
+   * **英語にしない**——DEFUSED / CRITICAL は英語だが、`.fx-callout` の書体は
+   * 日本語も持っている（'Zen Maru Gothic'）。ここは遊ぶ人に一番伝わる語を選ぶ。
+   */
+  function bigBoomCallout(){
+    FxKit.shake('big');
+    FxKit.boom().then(function(){ FxKit.callout('爆発', { kind:'danger', ms:900 }); });
+  }
   function rtBigFx(v, game){
     if(typeof FxKit === 'undefined' || !v) return;
     var prev = rtBig.seen;
@@ -14653,6 +14695,12 @@
         FxKit.callout('TIEBREAKER', { kind:'danger' });
         return;
       }
+      // 第47弾 47-6：**夜が明ける。** `day` は夜のあとにしか来ない段階なので、
+      // 「夜→朝」という遷移を見なくても、`day` にいるという事実だけで言える（47-1）。
+      // ターンごとに1回（札の名前にターンを混ぜる）
+      rtOnce('big:wolf:dawn:' + (v.turn || 0), v.phase === 'day', function(){
+        FxKit.dawn();
+      });
       var tr = (v.phase === 'turnResult' && v.turnResult) ||
                (v.phase === 'roundResult' && v.roundResult) || null;
       if(changed && tr && tr.executed){
@@ -14677,6 +14725,11 @@
       rtOnce('big:bomb:critical', lives === 1, function(){
         FxKit.callout('CRITICAL', { kind:'danger' });
       });
+      // 第47弾 47-6：**縁が赤く脈打つ。** 手渡し版が持っている `bomb-danger` を
+      // そのまま借りる（新しく作らない）。1.1秒に1回＝毎秒0.9回なので、
+      // 安全基準（点滅は1秒に3回まで）の内側。切っている人には
+      // `:root.no-flash .app.bomb-danger::before` が止める
+      el('app').classList.toggle('bomb-danger', lives === 1 && v.phase !== 'ended');
       var 結 = v.result;
       rtOnce('big:bomb:ended', v.phase === 'ended' && !!結 && !結.aborted, function(){
         if(結.mode === 'coop'){
@@ -14684,8 +14737,7 @@
             FxKit.callout('DEFUSED', { kind:'gold' });
             FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);  // 火花のようなオレンジ
           } else {
-            FxKit.shake('big');
-            FxKit.boom();
+            bigBoomCallout();
           }
           return;
         }
@@ -14694,8 +14746,7 @@
         // **全員が脱落したら、それは部屋にとっての爆発。** 誰かが解けていれば勝ちの側
         var 順位 = 結.ranking || [];
         if(順位.length && 順位.every(function(x){ return x.failed; })){
-          FxKit.shake('big');
-          FxKit.boom();
+          bigBoomCallout();
         } else if(順位.length){
           FxKit.callout('DEFUSED', { kind:'gold' });
           FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);

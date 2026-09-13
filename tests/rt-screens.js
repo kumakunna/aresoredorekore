@@ -5779,5 +5779,119 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ---- 第47弾 47-6a：大画面だけの見せ場 ----
+
+  await r.test('47-6：大画面の爆発は、閃光のあとに「爆発」が出る（スマホには出さない）', async () => {
+    // **連なる演出は、あとから来る。**閃光が引いてからコールアウトが出るので、
+    // 直後だけを見ていると「出ていない」と読み違える（早すぎても嘘になる）
+    async function 見る(大画面) {
+      const t = await launch(LAUNCH);
+      const fake = await toRoom(t.win, t.doc, 大画面
+        ? { role: 'bigscreen', pick: false } : { join: true, memberId: 'm2', pick: false });
+      const 決着 = { mode: 'coop', success: false, cause: 'lives', solved: 0, total: 4,
+        lives: 0, livesMax: 3, misses: 3, elapsedSec: 30, codes: [] };
+      const view = bombView({ phase: 'ended', result: 決着 });
+      // **大画面は「見始めた直後は静かに」**（第32弾-D）。
+      // いきなり決着だけを渡すと黙るのが正しいので、先に解除中を1枚見せる。
+      // 自分の端末の側は、逆に「この試合のプレイヤーなら出す」（47-1）——
+      // **意図して違う**。TVは見ていなかった試合を祝わないが、
+      // 遊んでいた人は通信が切れて戻っても自分の結末を受け取れる
+      if(大画面){
+        push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: bombView() } }));
+        await sleep(t.win, 100);
+      }
+      const room = 大画面
+        ? bigRoom({ state: { phase: 'ended', game: 'bomb', data: view } })
+        : bombRoom({ state: { phase: 'ended', game: 'bomb', data: view } });
+      push(fake, room);
+      if(!大画面) pushYou(fake, bombYou({ phase: 'ended', lives: 0, misses: 3, result: 決着 }));
+      await sleep(t.win, 120);
+      const 閃光 = t.doc.querySelectorAll('.bomb-boom').length;
+      // 閃光が引くのを待ってから、コールアウトを見る
+      await waitFor(t.win, () => t.doc.querySelectorAll('.bomb-boom').length === 0, 3000, '閃光が引く')
+        .catch(() => {});
+      await sleep(t.win, 250);
+      const 語 = (t.doc.querySelector('.fx-callout') || { textContent: '' }).textContent.trim();
+      t.win.close();
+      return { 閃光, 語 };
+    }
+    const 大 = await 見る(true);
+    assertEqual(大.閃光, 1, '大画面に閃光が出る');
+    assertEqual(大.語, '爆発', '閃光のあとに「爆発」が出る');
+    const 手元 = await 見る(false);
+    assertEqual(手元.閃光, 1, '自分の端末にも閃光は出る');
+    assertEqual(手元.語, '', 'コールアウトは大画面だけ（スマホは自分の操作に集中させる）');
+  });
+
+  await r.test('47-6：大画面は、のこりミス1で縁が脈打ち、決着で止まる', async () => {
+    // **新しく作らない。**手渡し版が持っている bomb-danger をそのまま借りる。
+    // 1.1秒に1回＝毎秒0.9回なので、安全基準（1秒に3回まで）の内側
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    const 余裕 = bombView({ team: { solved: 0, total: 4, pct: 0, lives: 3, livesMax: 3, misses: 0 } });
+    push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: 余裕 } }));
+    await sleep(win, 120);
+    assert(!el(doc, 'app').classList.contains('bomb-danger'), 'まだ縁は光らない');
+
+    const あと1 = bombView({ team: { solved: 0, total: 4, pct: 0, lives: 1, livesMax: 3, misses: 2 } });
+    push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: あと1 } }));
+    await sleep(win, 120);
+    assert(el(doc, 'app').classList.contains('bomb-danger'), 'のこり1で縁が脈打つ');
+
+    const 決着 = bombView({ phase: 'ended', team: { solved: 0, total: 4, pct: 0, lives: 0, livesMax: 3, misses: 3 },
+      result: { mode: 'coop', success: false, cause: 'lives', solved: 0, total: 4, misses: 3, codes: [] } });
+    push(fake, bigRoom({ state: { phase: 'ended', game: 'bomb', data: 決着 } }));
+    await sleep(win, 150);
+    assert(!el(doc, 'app').classList.contains('bomb-danger'), '決着したら止まる（鳴りっぱなしにしない）');
+    assertNoErrors(errors, '縁の脈動で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-6：大画面では、夜が明ける（ターンごとに1回だけ）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    const 部屋 = (phase, turn) => bigRoom({
+      state: { phase: phase, game: 'wolfrole', data: wolfView({ phase: phase, turn: turn }) } });
+
+    push(fake, 部屋('night', 1));
+    await sleep(win, 120);
+    assertEqual(doc.querySelectorAll('.fx-dawn').length, 0, '夜のあいだは明けない');
+
+    push(fake, 部屋('day', 1));
+    await sleep(win, 120);
+    assertEqual(doc.querySelectorAll('.fx-dawn').length, 1, '朝が来ると明ける');
+    // **同じ朝で2回明けない**（描き直しのたびに出ない）
+    push(fake, 部屋('day', 1));
+    await sleep(win, 120);
+    assertEqual(doc.querySelectorAll('.fx-dawn').length, 1, '同じ朝では1回だけ');
+    assertNoErrors(errors, '夜明けで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-6：大画面の印が :root に付き、3-2-1が大きくなる', async () => {
+    // **印は :root。** 3-2-1 は層（#uiLayerRoot）に出るので、
+    // `.app` に付けた印では届かない（落とし穴27）
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    assert(doc.documentElement.classList.contains('big-screen'), '大画面の印が :root に付く');
+
+    const p2 = await launch(LAUNCH);
+    await toRoom(p2.win, p2.doc, { pick: false });
+    assert(!p2.doc.documentElement.classList.contains('big-screen'),
+      'プレイヤーには付かない');
+    p2.win.close();
+
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>')).replace(/\s+/g, ' ');
+    assert(/:root\.big-screen \.fx-countdown \.fx-cd-num\{font-size:min\(46vw/.test(css),
+      '大画面では 3-2-1 が画面いっぱいになる（ゲーム中の巨大カウントダウンと同じ大きさ）');
+    assert(/:root\.no-flash \.fx-dawn\{display:none/.test(css),
+      '光の点滅を切っている人には、夜明けも出さない');
+    assertNoErrors(errors, '大画面の印で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

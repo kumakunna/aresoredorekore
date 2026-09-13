@@ -394,6 +394,7 @@ function click(doc, sel) {
       { cls: 'fx-countdown', go: () => win.FxKit.countdown(1) },
       { cls: 'fx-notices', go: () => win.FxKit.notice('たしかめ') },
       { cls: 'bomb-boom', go: () => win.FxKit.boom() },
+      { cls: 'fx-dawn', go: () => win.FxKit.dawn() },
       { cls: 'fx-fly', go: () => win.FxKit.fly(app, app, '●') }
     ];
     const 外れ = [];

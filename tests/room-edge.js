@@ -421,6 +421,83 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  // ---- 第47弾 47-2：大画面は進行役にならない ----
+  //
+  // 大画面から操作できる経路を作らない、が 47-2 の禁止事項。
+  // **端末の側で止めるだけでは足りない**（状態の権威はサーバー・落とし穴14）。
+
+  await r.test('47-2：自動移譲は大画面を選ばない（プレイヤーがいれば、その人へ）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);   // ホスト＋2人
+      // **先に入ったほう（guests[0]）を大画面にする。**
+      // あとから入ったほうを大画面にすると、順番（joinedAt）で自然に選ばれないので、
+      // 規則が効いていなくても緑になる（落とし穴10-b：条件が作れていない）
+      const toBig = await rm.host.call('room:setRole',
+        { role: 'bigscreen', memberId: rm.guests[0].memberId });
+      assertEqual(toBig.ok, true, '大画面にできる');
+      await waitUntil(() => roomOf(srv, rm.code).members.get(rm.guests[0].memberId).role === 'bigscreen',
+        '大画面になった');
+      // 条件が本当に作れているかを1つ確かめる：大画面のほうが先に入っている
+      const 部屋 = roomOf(srv, rm.code);
+      assert(部屋.members.get(rm.guests[0].memberId).joinedAt
+             <= 部屋.members.get(rm.guests[1].memberId).joinedAt,
+        '大画面のほうが先に入っている（順番だけでは選ばれない条件）');
+
+      rm.host.close();   // 進行役がいなくなる
+      await waitUntil(() => roomOf(srv, rm.code).hostMemberId !== rm.host.memberId,
+        '進行役が移る', 6000);
+      assertEqual(roomOf(srv, rm.code).hostMemberId, rm.guests[1].memberId,
+        '大画面ではなく、プレイヤーが進行役になる');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('47-2：プレイヤーが1人もいなければ、進行役は不在になる（大画面は選ばない）', async () => {
+    // **不在にしてよい**（本人の裁定 2026-09-13）。遊ぶ人が0人の状態なので実害が無く、
+    // 例外を1つ作るより、禁止事項を例外なく守るほうが漏れない。
+    // 次に誰かが入れば ensureHost(room,'join') が選び直す
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 2);   // ホスト＋1人
+      await rm.host.call('room:setRole', { role: 'bigscreen', memberId: rm.guests[0].memberId });
+      await waitUntil(() => roomOf(srv, rm.code).members.get(rm.guests[0].memberId).role === 'bigscreen',
+        '大画面になった');
+      rm.host.close();
+      await waitUntil(() => roomOf(srv, rm.code).hostMemberId !== rm.host.memberId,
+        '進行役が動く', 6000);
+      assertEqual(roomOf(srv, rm.code).hostMemberId, null,
+        '大画面しか残っていないので、進行役は不在');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('47-2：進行役を大画面に譲れない・進行役は自分を大画面にできない', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);   // ホスト＋2人
+      await rm.host.call('room:setRole', { role: 'bigscreen', memberId: rm.guests[1].memberId });
+      await waitUntil(() => roomOf(srv, rm.code).members.get(rm.guests[1].memberId).role === 'bigscreen',
+        '大画面になった');
+
+      const ng = await rm.host.call('room:transferHost', { memberId: rm.guests[1].memberId });
+      assertEqual(ng.ok, false, '大画面には譲れない');
+      assertEqual(roomOf(srv, rm.code).hostMemberId, rm.host.memberId, '進行役は変わっていない');
+
+      const ng2 = await rm.host.call('room:setRole', { role: 'bigscreen' });
+      assertEqual(ng2.ok, false, '進行役は、自分を大画面にできない');
+      assertEqual(roomOf(srv, rm.code).members.get(rm.host.memberId).role, 'player',
+        '役割も変わっていない');
+
+      // **先に譲れば、大画面になれる**（断りっぱなしにしない）
+      const ok = await rm.host.call('room:transferHost', { memberId: rm.guests[0].memberId });
+      assertEqual(ok.ok, true, 'プレイヤーには譲れる');
+      const ok2 = await rm.host.call('room:setRole', { role: 'bigscreen' });
+      assertEqual(ok2.ok, true, '譲ったあとなら大画面になれる');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 }
 

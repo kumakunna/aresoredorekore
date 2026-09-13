@@ -308,9 +308,22 @@ function connectedMembers(room) {
  * 役割で優先順位を付けないのは、大画面ホストしか残っていない場面でも
  * 部屋が止まらないようにするため。
  */
+/**
+ * 次の進行役を選ぶ。
+ *
+ * **大画面は候補に入れない**（指示47-2）。大画面から操作できる経路を作らない、が禁止事項で、
+ * 端末の側で止めるだけでは足りない——状態の権威はサーバー（落とし穴14）。
+ *
+ * プレイヤーが1人も接続していなければ `null`＝**進行役は不在**にする。
+ * 「その時だけ大画面を選ぶ」という例外は作らない——例外を1つ置くと、
+ * そこから漏れる（落とし穴4）。遊ぶ人が0人の状態なので実害は無く、
+ * 次に誰かが入れば `ensureHost(room, 'join')` が選び直す（本人の裁定 2026-09-13）。
+ * ※大画面だけの部屋を時間で畳む安全弁は `docs/切り出した宿題.md` の8番。
+ */
 function pickNextHost(room, excludeMemberId) {
   const candidates = connectedMembers(room)
     .filter((m) => m.id !== excludeMemberId)
+    .filter((m) => m.role !== ROLE_BIGSCREEN)
     .sort((a, b) => a.joinedAt - b.joinedAt);
   return candidates.length ? candidates[0].id : null;
 }
@@ -1052,7 +1065,14 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         target = room.members.get(targetId);
         if (!target) return fail(cb, 'member_not_found', 'その人は部屋にいません');
       }
-      target.role = normalizeRole(payload && payload.role);
+      const 次の役割 = normalizeRole(payload && payload.role);
+      // 指示47-2：**進行役のまま大画面にはなれない。** 先に誰かへ譲る。
+      // 端末は譲ってから頼んでくるが、ここでも止める（状態の権威はサーバー・落とし穴14）
+      if (次の役割 === ROLE_BIGSCREEN && room.hostMemberId === target.id) {
+        return fail(cb, 'host_cannot_be_bigscreen',
+          '大画面にする前に、進行役をだれかに渡してください');
+      }
+      target.role = 次の役割;
       if (typeof cb === 'function') cb({ ok: true, role: target.role, room: publicSnapshot(room) });
       broadcast(room);
     });
@@ -1088,6 +1108,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const target = targetId ? room.members.get(targetId) : null;
       if (!target) return fail(cb, 'member_not_found', 'その人は部屋にいません');
       if (!target.connected) return fail(cb, 'member_offline', 'その人はいま接続していません');
+      // 指示47-2：大画面は進行役にならない。手で譲る道からも入れない
+      if (target.role === ROLE_BIGSCREEN) {
+        return fail(cb, 'is_bigscreen', '大画面には進行役を譲れません');
+      }
 
       const prev = room.hostMemberId;
       room.hostMemberId = target.id;

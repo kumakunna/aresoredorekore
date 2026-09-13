@@ -398,6 +398,21 @@ function lastAct(fake) {
 
 // サーバーからの配信を流し込む
 function push(fake, room) { fake.fire('room:update', room); }
+/**
+ * 第47弾：**大画面のまま押し直すための検体。**
+ * `roomSnapshot()` の既定は m1 がプレイヤーなので、そのまま push すると
+ * 大画面の役割が落ちて、以後の描画が別の端末のものになる（落とし穴25）。
+ * 進行役も他の人に置く（47-2：大画面は進行役にならない）。
+ */
+function bigRoom(over) {
+  const base = roomSnapshot(over);
+  base.hostMemberId = 'm2';
+  base.members = base.members.map((m) => Object.assign({}, m, {
+    isHost: m.id === 'm2',
+    role: m.id === 'm1' ? 'bigscreen' : m.role
+  }));
+  return base;
+}
 function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
 (async function main() {
@@ -5623,6 +5638,72 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(doc.querySelectorAll('.fx-notice').length, 1, '知らせは1回だけ');
     assertNoErrors(errors, '大画面の知らせで未捕捉の例外');
     win.close();
+  });
+
+  // ---- 第47弾 47-4：大画面の待合を、横幅を使う配置にする ----
+
+  await r.test('47-4：待合の大画面には big-lobby が付き、始まったら外れる', async () => {
+    // **横に並べるのは待合だけ。** 始まったら盤が主役なので、積み方は変えない。
+    // 幅そのものは実ブラウザで測った（1280×800 で 412px のはみ出しが 0 になった）。
+    // ここで見張るのは「切り替えの印が、正しい時だけ付く」こと
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面になっている');
+    assert(el(doc, 'scr-rt-big').classList.contains('big-lobby'), '待合では横並びの印が付く');
+
+    push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: bombView() } }));
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま（役割が落ちていない）');
+    assert(!el(doc, 'scr-rt-big').classList.contains('big-lobby'),
+      '始まったら外れる（盤が主役）');
+    assertNoErrors(errors, '大画面の待合で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-4：ゲームが決まっていない間、大画面は静かな待機表示にとどまる', async () => {
+    // **選んでいる最中の画面は鏡にしない**（本人の裁定 2026-09-14）。
+    // 決まっていない途中経過をTVに映しても見世物にならないし、
+    // 選択中の状態を配ると、47-2 で塞いだ漏れ口を別の形で開けることになる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    push(fake, bigRoom({ state: { phase: 'lobby', game: null, data: {} } }));
+    await sleep(win, 150);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま（役割が落ちていない）');
+    const rules = el(doc, 'bigRules');
+    assertEqual(rules.style.display, '', '待機の表示は出ている');
+    assert(/まだゲームが決まっていません/.test(rules.textContent),
+      '決まっていないことが分かる（' + rules.textContent.slice(0, 40) + '）');
+    // **選択中の中身は映さない。**カセット名・モード名が漏れていないこと
+    assert(!/クイズ解除|人狼|オークション/.test(rules.textContent),
+      '選んでいる最中のものは映さない（' + rules.textContent.slice(0, 40) + '）');
+    assertNoErrors(errors, '待機表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-4：横幅を使う配置の規則が、CSSに残っている（機械照合）', async () => {
+    // 実ブラウザの実測（1280×800）で確かめたのは次の3つ。
+    // ここは**その規則が消えていないか**を見る番人（実測はコミットの記録に残す）：
+    //   ・待合：はみ出し 412px → 0（左に部屋コードとQR・右にルール）
+    //   ・設定の重なり：幅 460 → 1000／高さ 1155 → 744（行が2列）
+    //   ・結果発表：もともと横幅を使えていた（はみ出し0）ので触っていない
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>')).replace(/\s+/g, ' ');
+    assert(/#scr-rt-big\.big-lobby \.big-wrap\{[^}]*display:grid/.test(css),
+      '待合の大画面が2段組みになる規則がある');
+    assert(/#scr-rt-big\.big-lobby \.big-code\{[^}]*grid-column:1/.test(css),
+      '左に部屋コードのかたまり');
+    assert(/#scr-rt-big\.big-lobby \.big-rules\{[^}]*grid-column:2/.test(css),
+      '右にルール');
+    assert(/\.app:has\(#scr-rt-big\.active\) \.overlay-panel\{[^}]*max-width:1000px/.test(css),
+      '大画面では重なりも横幅を使う');
+    assert(/\.app:has\(#scr-rt-big\.active\) \.set-menu\{[^}]*grid-template-columns:1fr 1fr/.test(css),
+      '設定の行が2列になる');
+    // **スマホには効かせない**（1024px以上の中に入っていること）
+    const 広い画面の塊 = css.slice(css.indexOf('@media (min-width:1024px){ #scr-rt-big.big-lobby'));
+    assert(広い画面の塊.indexOf('big-lobby .big-wrap') >= 0 && 広い画面の塊.indexOf('big-lobby .big-wrap') < 600,
+      '2段組みは「横に広い時」の中にある（スマホでは縦のまま）');
   });
 
   r.finish();

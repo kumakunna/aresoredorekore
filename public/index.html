@@ -2193,6 +2193,33 @@
     .big-list{font-size:clamp(16px,1.5vw,30px);gap:12px 18px;}
     .big-wrap .qr-box svg{width:min(34vw,520px);height:min(34vw,520px);}
   }
+  /* 第47弾 47-4：**待合の大画面を、横幅を使う配置にする。**
+     それまで縦に積んでいたので、1280×800 で実測すると中身が 1212px になり、
+     **412px はみ出して、ルールと「準備できた人」がTVの画面外**にいた
+     （本当にスクロールすることも確かめた・落とし穴45）。
+     幅は 1265 のうち 900 しか使っていなかった——**余っているのは横で、足りないのは縦**。
+
+     効かせるのは待合（`big-lobby`）だけ。ゲームが始まったら盤が主役なので、
+     そのままの積み方でよい。 */
+  @media (min-width:1024px){
+    #scr-rt-big.big-lobby .big-wrap{
+      display:grid;grid-template-columns:1fr 1fr;column-gap:56px;align-items:start;
+    }
+    #scr-rt-big.big-lobby .big-code{grid-column:1;grid-row:1;}
+    #scr-rt-big.big-lobby .big-rules{grid-column:2;grid-row:1;margin-top:0;max-width:none;}
+    #scr-rt-big.big-lobby .big-list{grid-column:1 / -1;grid-row:2;}
+    #scr-rt-big.big-lobby .big-tools{grid-column:1 / -1;grid-row:3;}
+    /* 2段組みでは、QRは高さの主犯なので少し小さくする（読み取れる大きさは保つ） */
+    #scr-rt-big.big-lobby .qr-box svg{width:min(22vw,340px);height:min(22vw,340px);}
+
+    /* 第47弾 47-4：**大画面では、重なりも横幅を使う。**
+       実測（1280×800）で、設定は幅460pxの柱・高さ1155px——
+       TVの真ん中に細長い柱が立ち、下は画面の外にいた。
+       行を2列に並べると、同じ中身が画面に収まる。
+       **テーマを当てない決まり（正本1-3）はそのまま**——ここで触るのは並べ方だけ */
+    .app:has(#scr-rt-big.active) .overlay-panel{max-width:1000px;border-radius:16px;}
+    .app:has(#scr-rt-big.active) .set-menu{grid-template-columns:1fr 1fr;}
+  }
   .ai-description{
     margin-top:10px;font-size:14px;color:var(--ink);line-height:1.6;background:#fff;
     border:1px dashed var(--line);border-radius:8px;padding:10px 12px;text-align:left;
@@ -4724,13 +4751,18 @@
 
   <div class="screen" id="scr-rt-big">
     <div class="big-wrap">
-      <div class="big-turn" id="bigTurn"></div>
-      <div class="big-phase" id="bigPhase">部屋コード</div>
-      <div class="big-main" id="bigMain">------</div>
-      <div class="big-sub" id="bigSub"></div>
-      <div class="qr-box" id="bigQrBox" style="display:none;">
-        <div id="bigQr"></div>
-        <div class="qr-note">カメラで読むと、そのまま入れます</div>
+      <!-- 第47弾 47-4：待合では、この かたまり を左に置いてルールを右に並べる。
+           横に並べるには「掴める単位」が要るので、囲みを1つ足した。
+           囲むだけなので、縦に積む時（スマホ幅・ゲーム中）の見え方は変わらない -->
+      <div class="big-code" id="bigCodeCol">
+        <div class="big-turn" id="bigTurn"></div>
+        <div class="big-phase" id="bigPhase">部屋コード</div>
+        <div class="big-main" id="bigMain">------</div>
+        <div class="big-sub" id="bigSub"></div>
+        <div class="qr-box" id="bigQrBox" style="display:none;">
+          <div id="bigQr"></div>
+          <div class="qr-note">カメラで読むと、そのまま入れます</div>
+        </div>
       </div>
       <!-- すごろく：大画面には盤そのものを出す。みんなが囲む卓になる。
            「どこにいる？」では誰の駒も置かれない（実位置が公開ビューに無いため） -->
@@ -14517,6 +14549,16 @@
         escapeHtml((bg.icon ? bg.icon + ' ' : '') + ((bm && bm.title) || bg.title || bigPicked)) + '</div>' +
         '<div class="big-rules-count">準備できた人 ' + bt.count + ' / ' + bt.total + '</div>' +
         rtRulesBodyHtml();
+    } else if(!started){
+      // 第47弾 47-4：**選んでいる最中の画面は鏡にしない**（本人の裁定 2026-09-14）。
+      // 決まっていない途中経過をTVに映しても見世物にならないし、
+      // 選択中の状態を部屋に配ると、47-2 で塞いだ漏れ口を別の形で開けることになる。
+      // 静かな待機表示にとどめる。**言い回しは設定と同じものを使う**（落とし穴2）
+      var ST = (typeof UiText !== 'undefined') ? UiText.SET : null;
+      el('bigRules').style.display = '';
+      el('bigRules').innerHTML =
+        '<div class="big-rules-title">' + escapeHtml((ST && ST.ゲーム未決) || 'まだゲームが決まっていません') + '</div>' +
+        '<div class="big-rules-count">' + escapeHtml((ST && ST.ゲーム未決の補足) || '') + '</div>';
     } else {
       el('bigRules').style.display = 'none';
       el('bigRules').innerHTML = '';
@@ -14720,6 +14762,9 @@
     var v = rtView();
     var room = rt && rt.state.room;
     if(!room) return;
+    // 第47弾 47-4：待合のあいだだけ、横幅を使う2段組みにする（CSSは big-lobby）。
+    // ゲームが始まったら盤が主役なので、積み方は変えない
+    el('scr-rt-big').classList.toggle('big-lobby', !(v && v.phase && v.phase !== 'lobby'));
     renderBigTools();
     if(!v || !v.phase || v.phase === 'lobby'){
       el('bigTurn').textContent = '';

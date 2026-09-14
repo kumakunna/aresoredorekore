@@ -116,9 +116,17 @@ async function run() {
     await 夜まで進む(win, doc);
     const 誰の番か = el(doc, 'wrHandoffName').textContent.trim();
     click(doc, 'wrRevealBtn');
-    await sleep(win, 60);
+    /**
+     * **先に少し減らしてから止める。**
+     * 満タンのまま止めると、「閉じた時に満タンへ戻す」形（＝止めた人が得をする）と
+     * 見分けがつかない——60秒で止めて60秒に戻されても、値が同じなので気づけない
+     * （変異が素通りした。落とし穴10-b の親戚）。
+     */
+    await sleep(win, 2400);
     const 前 = 秒(el(doc, 'wrNightTimer').textContent);
     assert(前 !== null, '夜の時計が読める');
+    assert(前 < 60, '止める前に、満タン（60秒）から減っている（いま ' + 前 + '秒）。'
+      + 'ここが60のままだと、満タンに戻す形と見分けがつかない');
 
     click(doc, 'floatingGearBtn');
     await sleep(win, 120);
@@ -140,7 +148,8 @@ async function run() {
     const 閉じた直後 = 秒(el(doc, 'wrNightTimer').textContent);
     assert(閉じた直後 !== null && 閉じた直後 <= 開いている間,
       '閉じた瞬間に時間が増えていない（止めた時 ' + 開いている間 +
-      '秒 → 閉じた直後 ' + 閉じた直後 + '秒）');
+      '秒 → 閉じた直後 ' + 閉じた直後 + '秒）。増えていたら、'
+      + '止めた人が得をする形（満タンに戻している）');
     assertEqual(el(doc, 'wrHandoffName').textContent.trim(), 誰の番か,
       '設定を閉じても、同じ人の番のまま');
     assert(el(doc, 'wrNightTimerRow').style.display !== 'none',

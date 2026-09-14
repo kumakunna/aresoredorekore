@@ -76,7 +76,29 @@ function driverStateOf(room) {
 function clearGameState(room) {
   for (const id of Object.keys(GAME_DRIVERS)) delete room[GAME_DRIVERS[id].key];
   room.state.phase = 'lobby';
-  room.state.data = {};
+  /**
+   * 第48弾 48-1：**「いま何のモードか」は進行状態ではない。捨てない。**
+   *
+   * ここが `data = {}` だったせいで、再戦（「もう一度」）と強制終了
+   * （「みんなを待合にもどす」）を通ると `modeId` が消えていた。
+   * 端末が「このゲームのルールを読んだか」を数える鍵は
+   * `rtRulesKey()` ＝ `modeId ?? gameId` なので、**同じモードを遊んでいるのに
+   * 鍵が `bomb-coop` と `bomb` の2つに割れ**、どちらが使われるかは
+   * 「どの道でそのゲームに来たか」で決まっていた（遊ぶ人には見えない）。
+   * その結果、ルール画面が出る回と出ない回ができた——これが指示48の
+   * 「ランダムに出ない」の本命だった。
+   *
+   * `modeId` を残しても古びない：ゲームが変われば `rtPickedMode()` が
+   * 「そのゲームのモードか」を確かめて弾くし、モードを選び直す道
+   * （`backToRoomWithGame`）は必ず新しい `modeId` を上書きで載せてくる。
+   *
+   * **`rulesEpoch` も残す**（48-1「ルールをもう一度みんなに見せる」の札）。
+   * これを捨てると、見せ直しを頼んだ直後に再戦した回だけ札が戻ってしまう。
+   */
+  const 持ち越す = {};
+  if (room.state.data && room.state.data.modeId) 持ち越す.modeId = room.state.data.modeId;
+  if (room.state.data && room.state.data.rulesEpoch) 持ち越す.rulesEpoch = room.state.data.rulesEpoch;
+  room.state.data = 持ち越す;
   clearReady(room);   // 第37弾：前のゲームのルールに対する「準備OK」は、ここで無効になる
 }
 

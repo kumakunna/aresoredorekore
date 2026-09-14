@@ -7,7 +7,7 @@
 //   ・今回追加した画面が、既存の画面遷移や他のモードを壊していないか
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitScreen, el, click, fillPlayerForm, pickGame,
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame,
   holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
 
 // 本番のカセット構成のまま到達できるモード（棚に出ているもの）
@@ -26,7 +26,22 @@ async function toModeScreen(win, doc, cassette, gameId, players) {
   assert(cart, cassette + ' のカセットが棚にある');
   cart.click();
   if (activeScreen(doc) === 'scr-shelf') cart.click();
-  await sleep(win, 100);
+  /**
+   * 第48弾：**「100ms待つ」で書いた待ちは、途中で画面が増えた日に嘘をつく**（落とし穴24）。
+   *
+   * 第41弾でカセットを押したあとに「遊び方の確認」（scr-play-way）が挟まるようになり、
+   * 開く演出とあわせて 100ms ではまだ棚／カセットの画面にいる。
+   * その結果 `scr-game` の分岐を素通りしてゲームを選ばず、
+   * **11件中10件が「scr-mode に来ない」で落ちていた。**
+   * `npm test` から除外されている道具（tools/run-tests.js:71）なので、
+   * 第41弾からずっと赤いまま誰も気づかなかった（落とし穴32の、道具の版）。
+   *
+   * 時間ではなく**「着いたか」で待つ**。waitFor が「遊び方の確認」を自動で通すので、
+   * その先の画面（ゲーム選択／人数入力／モード選択）のどれかで止まる。
+   */
+  await waitFor(win, () =>
+    ['scr-game', 'scr-setup', 'scr-mode'].indexOf(activeScreen(doc)) >= 0,
+    8000, 'カセットを開いた先の画面（現在: ' + activeScreen(doc) + '）');
   if (activeScreen(doc) === 'scr-game') {
     pickGame(doc, gameId);
     await sleep(win, 80);

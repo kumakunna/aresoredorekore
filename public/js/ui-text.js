@@ -220,6 +220,18 @@
   };
 
   /**
+   * 第48弾 48-1：ルールの出し直し。
+   *
+   * 「読んだ記憶」は**その日の遊びに閉じる**ようにしたが、
+   * それでも足りない場面がある——**ルール文そのものを直した日**と、
+   * **あとから来た人がいる時**。進行役が全員へ出し直せる道を1つ置く。
+   * （45-3 でルール文を直した時、既読の人が新しい文を一度も見ないまま遊んだ）
+   */
+  var RULES = {
+    みんなに見せた: 'ルールを、みんなにもう一度出しました'
+  };
+
+  /**
    * 棚の中央の帯（第41弾 2-2「世界を借りる」）と、
    * 押せない「はじめる」の理由（2-5）。
    *
@@ -332,5 +344,5 @@
 
   return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET,
            TITLES: TITLES, TIMER: TIMER, BOMB: BOMB,
-           WAY: WAY, ENTRY: ENTRY, ROLE: ROLE };
+           WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES };
 }));

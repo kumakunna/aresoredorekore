@@ -225,6 +225,42 @@ async function run() {
     }
   });
 
+  /**
+   * 第48弾 48-1：**いまの門は、端末の `rtStartBtn.disabled` だけ**（落とし穴14の未解決）。
+   *
+   * すぐ上の検査は題に「全員そろうまでは始める門が開かない」と書いてあるが、
+   * **そろってから始まることしか試していない**（落とし穴10-c：分岐の片側だけ）。
+   * 実測すると、誰も押していなくても `wolf:start` は ok を返す。
+   * 止めているのは端末のボタンの見た目だけなので、
+   * 入り直した端末・作り直した端末には効かない。
+   *
+   * **サーバーに門を足すのは、指示48の範囲外**（48-1が求めているのは
+   * 「端末に迂回する経路が無いこと」の機械照合）。しかも `wolf:start` を
+   * 直に呼ぶ検査が 118 か所あり、門を足すと全部が先に準備OKを押す形に
+   * 書き換わる——別の作業として切り出した（docs/切り出した宿題.md）。
+   *
+   * ここでは、いま何が起きるかを**事実として**残しておく。
+   * 下の検査は「切れた人を待たない」ことだけを見る（これは今も正しい）。
+   */
+  await r.test('切れている人は門番の数に入らない（寝落ちした1人で始められなくならない）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);
+      await rm.host.call('room:setState', { phase: 'lobby', game: 'quizrush', reset: true });
+      await waitUntil(() => tallyOf(rm.host).total === 3, '3人ぶん数える');
+      await rm.host.call('room:ready', {});
+      await rm.guests[0].call('room:ready', {});
+      // 3人目が切れる。**待つのはつながっている人だけ**（readyTally と同じ考え）
+      rm.guests[1].close();
+      await waitUntil(() => tallyOf(rm.host) && tallyOf(rm.host).total === 2,
+        '切れた人は数から外れる');
+      assertEqual(tallyOf(rm.host).all, true, '残り2人はそろっている');
+      const res = await rm.host.call('wolf:start', RT_START_MIN_CONFIG.quizrush);
+      assertEqual(res.ok, true, '寝落ちした1人がいても始められる（' + (res.error || '') + '）');
+      rm.host.close(); rm.guests[0].close();
+    } finally { await srv.close(); }
+  });
+
   await r.test('進行役が切れて交代しても、待っている相手の一覧は正しいまま', async () => {
     // ホストが切れると進行役が移る。移った先の画面に「まだの人」が出るための材料は、
     // 誰がホストかに関係なく同じ公開情報なので、交代で狂わないことを見る

@@ -4447,6 +4447,9 @@
            ルール画面をはさまずにここで押すだけでよい -->
       <button class="btn btn-main" id="rtRoomReadyBtn" style="display:none;">✓ 準備OK</button>
       <button class="btn btn-ghost" id="rtRoomRulesBtn" style="display:none;margin-top:0;">📖 ルールを見る</button>
+      <!-- 第48弾 48-1：ルール文を直した時・あとから来た人がいる時に、進行役が全員へ出し直す。
+           既読を全員ぶん無効にして、準備OKも外す（読み直してから押し直す） -->
+      <button class="btn btn-ghost" id="rtRoomShowRulesBtn" style="display:none;margin-top:0;">📣 ルールをもう一度みんなに見せる</button>
       <button class="btn btn-outline" id="rtPickGameBtn" style="display:none;">🎮 ゲームをえらぶ</button>
       <button class="btn btn-main" id="rtStartBtn">はじめる ▶</button>
       <!-- 第41弾 2-15：進行役をやめて、別の人が立てた部屋に入りたくなる場面。
@@ -8437,7 +8440,12 @@
         state.topicStats = parsed.topicStats || {};
         state.topicHistory = parsed.topicHistory || [];
         state.selectedModeId = parsed.selectedModeId || "normal";
-        state.seenRules = parsed.seenRules || {};
+        // 第48弾 48-1：**既読は読み込まない。**
+        // 端末に焼き付けると、別の日・別の相手でも二度と説明が出ない。
+        // 45-3 でルール文を書き換えた時、既読の人が新しい文を一度も見ないまま
+        // 遊んでいたのはこれ。部屋側（rtRulesSeen）と同じく、
+        // **その遊びのあいだだけ覚える**にそろえた（大切なこと9・落とし穴1）。
+        // 古い保存値がある端末でも、ここで読まなければ次から出る
         if(typeof parsed.autoSaveRecords === 'boolean') state.autoSaveRecords = parsed.autoSaveRecords;
       }
     }catch(e){}
@@ -8448,7 +8456,7 @@
         topicStats: state.topicStats,
         topicHistory: state.topicHistory,
         selectedModeId: state.selectedModeId,
-        seenRules: state.seenRules,
+        // 第48弾 48-1：seenRules は保存しない（上の理由）
         autoSaveRecords: state.autoSaveRecords
       }));
     }catch(e){}
@@ -11290,7 +11298,16 @@
    * docs/監査_状態と境界.md に境界を書いてある
    */
   var rtRulesSeen = {};
-  function rtForgetRulesSeen(){ rtRulesSeen = {}; }
+  /**
+   * 第48弾 48-1：**「あとで押す」は「読んだ」ではない。**
+   *
+   * それまでは「キャンセル（あとで押す）」を押した人に既読の印を立てていた。
+   * 立てないとルール画面へ引き戻され続けるから——という理由だったが、
+   * **一度後回しにしただけで、その部屋ではもう説明が出なくなる**。
+   * 引き戻さないための一時の印を、既読とは別に持つ。
+   */
+  var rtRulesSnoozed = {};
+  function rtForgetRulesSeen(){ rtRulesSeen = {}; rtRulesSnoozed = {}; }
   /**
    * 「読んだ」を数える単位。
    * 指示37は「ゲームごと」と書いてあるが、**ルール文はモードが持っている**。
@@ -11303,7 +11320,23 @@
    */
   function rtRulesKey(){
     var m = rtPickedMode();
-    return m ? m.id : rtPickedGame();
+    var base = m ? m.id : rtPickedGame();
+    if(!base) return null;
+    /**
+     * 第48弾 48-1：**「もう一度みんなに見せる」の札を鍵に混ぜる。**
+     *
+     * 既読は端末が持っているので、サーバーから「忘れて」と言う道が無い。
+     * 札（`rulesEpoch`）を1つ進めれば鍵が変わり、**全員の端末が同時に未読になる**——
+     * 新しいイベントを1つも増やさずに済む。
+     * 45-3 でルール文を直した時、既読の人が新しい文を一度も見ないまま
+     * 遊んでいたのは、この道が無かったから。
+     *
+     * ここが読む `rtView()` は、待合のあいだは部屋の `state.data` そのもの。
+     * 遊んでいる最中は進行役の公開ビューに入れ替わって札が見えなくなるが、
+     * この鍵を使うのは待合の4か所だけなので届かない
+     */
+    var v = rtView() || {};
+    return v.rulesEpoch ? (base + '#' + v.rulesEpoch) : base;
   }
 
   // ===================== 第21弾-5：1人1台の部屋 =====================
@@ -11475,7 +11508,22 @@
     }
   }
 
-  function enterRtRoom(){ renderRtRoom(); }
+  function enterRtRoom(){
+    /**
+     * 第48弾 48-1：**戻ってきた時に、いるべき画面を計算し直す。**
+     *
+     * `rtSync` は「いま部屋の画面にいる時だけ」動かす（RT_SCREENS の早期return）。
+     * だから待合から⚙→アイコン・二つ名（`scr-titles`）などに出ている間に
+     * ホストがゲームを選ぶと、その人はルール画面へ引っぱられない。
+     * 戻ってきても、ここが描き直すだけだったので**引っぱり直す機会が無く**、
+     * ルールを読まないまま「準備OK」を押せてしまった。
+     *
+     * 遊ぶ人には「自分の二つ名を見ていたらルールが出なかった」としか見えない
+     * ——指示48が言う「ランダムに出ない」の2つ目の正体。
+     */
+    if(rtNeedsRules()){ goTo('scr-rt-rules'); return; }
+    renderRtRoom();
+  }
   // ===================== 第37弾：ルールを読んで「準備OK」 =====================
   // ホストがゲームを選ぶ → 全員の画面にルールが出る → 全員が押すまで始まらない。
   //
@@ -11523,7 +11571,9 @@
     if(rtIsBigScreen()) return false;
     if(!rtWaitingToStart()) return false;
     if(rtIAmReady()) return false;
-    return !rtRulesSeen[rtRulesKey()];
+    var key = rtRulesKey();
+    if(!key) return false;
+    return !rtRulesSeen[key] && !rtRulesSnoozed[key];
   }
   // 待つ相手（自分を除く）。名前ではなく名簿から引くので、同じ名前の人がいてもずれない
   function rtWaitingMembers(){
@@ -11600,14 +11650,40 @@
       return;
     }
     // 進行役でない人：ゲームは止めない。自分だけ「まだ準備できていません」のまま待合へ。
-    // ルールは読んだ扱いにして、この画面へ引き戻されないようにする
-    //（読み直したい時は、待合の「📖 ルールを見る」か、設定→ルールをもう一度見る）
-    if(key) rtRulesSeen[key] = true;
+    // **読んだ扱いにはしない**（第48弾 48-1）。引き戻されないための一時の印だけ立てる——
+    // 読み直したい時は、待合の「📖 ルールを見る」か、設定→ルールをもう一度見る
+    if(key) rtRulesSnoozed[key] = true;
     goTo('scr-rt-room');
   });
   // 待合からルールを読み直す。32-Bの「ルールをもう一度見る」とは別の入口だが、
   // 出しているものは同じ（MODES.bullets）。文言も画面もここで作り直さない
   el('rtRoomRulesBtn').addEventListener('click', function(){ goTo('scr-rt-rules'); });
+  /**
+   * 第48弾 48-1：**進行役が、全員へルールを出し直す。**
+   *
+   * ルール文を直した日・あとから来た人がいる時に要る。
+   * 既読は端末が持っているので、サーバーから「忘れて」と言う道が無い——
+   * 部屋に載せた札（`rulesEpoch`）を1つ進めると鍵が変わり、
+   * 全員の端末が同時に未読になる（`rtRulesKey`）。
+   *
+   * **準備OKも外す。** 読み直してから押し直してもらうため（指示48 §秘密情報・境界）。
+   * `reset:true` が `clearReady` を通る。まだ始まっていない段階なので、
+   * ここで捨てる進行状態は無い（`clearGameState` は modeId と札を持ち越す）。
+   */
+  el('rtRoomShowRulesBtn').addEventListener('click', async function(){
+    var room = rt && rt.state.room;
+    var gameId = rtPickedGame();
+    if(!room || !gameId) return;
+    if(!await UiKit.confirm('ルールをもう一度、みんなに見せますか？',
+      'みんなの画面にルールが出ます。押し終わっていた「準備OK」も外れます',
+      { ok: '見せる' })) return;
+    this.disabled = true;
+    var 今の札 = (rtView() && rtView().rulesEpoch) || 0;
+    var res = await rt.pickGame(gameId, { reset: true, data: { rulesEpoch: 今の札 + 1 } });
+    this.disabled = false;
+    if(!res.ok){ showFlash(res.message || '出し直せませんでした', 'hit-wrong'); return; }
+    try{ FxKit.notice(UiText.RULES.みんなに見せた); }catch(e){}
+  });
   el('rtRoomReadyBtn').addEventListener('click', async function(){
     this.disabled = true;
     var res = await rt.setReady(true);
@@ -11727,6 +11803,8 @@
     var needMine = !!picked && supported && !rtIAmReady() && !rtIsBigScreen();
     el('rtRoomReadyBtn').style.display = needMine ? '' : 'none';
     el('rtRoomRulesBtn').style.display = (picked && supported) ? '' : 'none';
+    // 第48弾 48-1：出し直しは進行役だけ。ゲームが決まっていない時は出さない
+    el('rtRoomShowRulesBtn').style.display = (host && picked && supported) ? '' : 'none';
     el('rtRoomReadyBtn').disabled = false;
     el('rtRoomNote').textContent = rtRoomNoteText(host, picked, supported, enough, need, room.playerCount);
   }

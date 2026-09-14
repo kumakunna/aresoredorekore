@@ -11986,7 +11986,7 @@
    * 画面を足した人が結び忘れても、既定で繋がる側に倒れる。
    * 逆向き（画面に足したのに正本に無い）は tests/room-paths.js が見張る。
    */
-  document.querySelectorAll('[id$="LeaveBtn"]').forEach(function(b){
+  document.querySelectorAll('[id$="LeaveBtn"]:not(#rtSugoLeaveBtn)').forEach(function(b){
     b.addEventListener('click', rtLeaveRoom);
   });
   // 第26弾-3：遊び終わったら、部屋を残したまま次のゲームを選びに行く。

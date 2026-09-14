@@ -64,9 +64,13 @@ app.post('/api/auth/register', (req, res) => {
   if (exists) return res.status(409).json({ error: 'そのユーザー名は既に使われています' });
 
   const hash = bcrypt.hashSync(password, 10);
-  const info = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run(username, hash);
+  // 第48弾 48-8：**登録の時は、見せる名前＝ログインID**から始める。
+  // そのあと「名前を変える」で見せる名前だけを変えられる
+  const info = db.prepare(
+    'INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)'
+  ).run(username, hash, username);
   req.session.userId = info.lastInsertRowid;
-  res.json({ id: info.lastInsertRowid, username });
+  res.json({ id: info.lastInsertRowid, username, displayName: username });
 });
 
 app.post('/api/auth/login', (req, res) => {
@@ -76,7 +80,8 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'ユーザー名またはパスワードが違います' });
   }
   req.session.userId = user.id;
-  res.json({ id: user.id, username: user.username });
+  res.json({ id: user.id, username: user.username,
+             displayName: user.display_name || user.username });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -87,22 +92,36 @@ app.post('/api/auth/logout', (req, res) => {
 // 名前は棚のバーにも、部屋の名簿にも、記録にも出るので、あとから直せないと困る。
 // 記録は user_id で紐づいているので、名前を変えても過去の記録は残る。
 app.put('/api/auth/name', requireAuth, (req, res) => {
-  const name = String((req.body && req.body.username) || '').trim();
+  const b = req.body || {};
+  // 第48弾 48-8：新しい端末は displayName を送る。username は古い呼び方
+  const name = String(b.displayName || b.username || '').trim();
   if (!name || name.length > 20) {
     return res.status(400).json({ error: '名前は1〜20文字で入れてください' });
   }
-  const taken = db.prepare('SELECT id FROM users WHERE username = ? AND id <> ?')
-    .get(name, req.session.userId);
-  if (taken) return res.status(409).json({ error: 'その名前は既に使われています' });
-  db.prepare('UPDATE users SET username = ? WHERE id = ?').run(name, req.session.userId);
-  res.json({ id: req.session.userId, username: name });
+  /**
+   * **ログインIDは書き換えない。**
+   *
+   * ここは以前 `UPDATE users SET username` だった。
+   * 遊ぶ人からは「見せる名前を変えただけ」にしか見えないのに、
+   * **次から前の名前ではログインできなくなっていた**（指示48 48-8）。
+   *
+   * **重なりは許す。** 見せる名前が同じ人がいても困らない
+   * （部屋のメンバーも記録も id で結んである）。
+   * 一意でなければならないのはログインIDの方で、そちらは触らない
+   */
+  db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, req.session.userId);
+  const me = db.prepare('SELECT id, username, display_name FROM users WHERE id = ?')
+    .get(req.session.userId);
+  res.json({ id: me.id, username: me.username, displayName: me.display_name });
 });
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: '未ログイン' });
-  const user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.session.userId);
+  const user = db.prepare('SELECT id, username, display_name FROM users WHERE id = ?')
+    .get(req.session.userId);
   if (!user) return res.status(401).json({ error: '未ログイン' });
-  res.json(user);
+  res.json({ id: user.id, username: user.username,
+             displayName: user.display_name || user.username });
 });
 
 // -------------------- お題API：第46弾で撤去した --------------------

@@ -426,6 +426,109 @@ async function run() {
     assertEqual(上.id, ids[0], '同じ正解なら、早く答えた人が上になる');
   });
 
+  // ===================== 48-8 表示名とログインIDを分ける =====================
+  //
+  // それまで `username` の1本だけで、名前を変えると**ログインIDごと変わって**いた。
+  // 遊ぶ人からは「見せる名前を変えただけ」にしか見えないのに、
+  // 次から前の名前ではログインできなくなる。
+  //
+  // 本物のサーバーを立てて、**遊ぶ人の操作の順で**確かめる：
+  //   登録する → 名前を変える → **前のログインIDでログインし直せる**
+
+  await r.test('48-8：名前を変えても、ログインIDは変わらない', async () => {
+    const PORT = 3457;
+    const base = 'http://127.0.0.1:' + PORT;
+    // 子プロセスで本物の server.js を立てる（PORT だけ差し替える）
+    const cp = require('child_process');
+    const srv = cp.spawn(process.execPath, ['server.js'], {
+      cwd: require('path').join(__dirname, '..'),
+      // 合言葉の環境変数は REGISTER_CODE（複数形ではない）
+      env: Object.assign({}, process.env, { PORT: String(PORT), REGISTER_CODE: 'テスト48' }),
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    const 待つ = (ms) => new Promise((r2) => setTimeout(r2, ms));
+    // **具体の文字で書く**（実装から読んで入れると自己参照・落とし穴10-a）。
+    // 片付けからも見えるよう、try の外で決める
+    const ログインID = 'kuma48test' + PORT;
+    try {
+      // 立ち上がるまで待つ（**時間ではなく、返事が来たかで待つ**・落とし穴24）
+      let 生きた = false;
+      for (let i = 0; i < 60 && !生きた; i++) {
+        try { await fetch(base + '/api/auth/me'); 生きた = true; } catch (e) { await 待つ(250); }
+      }
+      assert(生きた, 'テスト用のサーバーが立ち上がる');
+
+      const クッキー = [];
+      async function 呼ぶ(path2, opts) {
+        const o = Object.assign({ headers: {} }, opts || {});
+        o.headers['content-type'] = 'application/json';
+        if (クッキー.length) o.headers.Cookie = クッキー.join('; ');
+        if (o.body && typeof o.body !== 'string') o.body = JSON.stringify(o.body);
+        const res = await fetch(base + path2, o);
+        const sc = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
+        (sc || []).forEach((c) => クッキー.push(c.split(';')[0]));
+        let j = null; try { j = await res.json(); } catch (e) {}
+        return { status: res.status, body: j };
+      }
+
+      const 登録 = await 呼ぶ('/api/auth/register', { method: 'POST',
+        body: { username: ログインID, password: 'pass1234', code: 'テスト48' } });
+      assertEqual(登録.status, 200, '登録できる（' + JSON.stringify(登録.body) + '）');
+      assertEqual(登録.body.username, ログインID, '登録直後のログインIDは、入れたもの');
+      assertEqual(登録.body.displayName, ログインID, '登録直後は、見せる名前＝ログインID');
+
+      // 名前を変える
+      const 変更 = await 呼ぶ('/api/auth/name', { method: 'PUT',
+        body: { displayName: 'くまさん' } });
+      assertEqual(変更.status, 200, '名前を変えられる');
+      assertEqual(変更.body.displayName, 'くまさん', '見せる名前が変わった');
+      assertEqual(変更.body.username, ログインID, '**ログインIDは変わっていない**');
+
+      const 自分 = await 呼ぶ('/api/auth/me', {});
+      assertEqual(自分.body.displayName, 'くまさん', '見せる名前が返る');
+      assertEqual(自分.body.username, ログインID, 'ログインIDも返る');
+
+      // **ここが本番。**いったん出て、前のログインIDで入り直せるか
+      await 呼ぶ('/api/auth/logout', { method: 'POST' });
+      クッキー.length = 0;
+      const 入り直し = await 呼ぶ('/api/auth/login', { method: 'POST',
+        body: { username: ログインID, password: 'pass1234' } });
+      assertEqual(入り直し.status, 200,
+        '名前を変えたあとも、**前のログインIDで入り直せる**（' + JSON.stringify(入り直し.body) + '）');
+      assertEqual(入り直し.body.displayName, 'くまさん', '入り直しても、見せる名前は変えたまま');
+
+      // 型(c)：もう一方の入力——**変えた名前ではログインできない**
+      クッキー.length = 0;
+      const 表示名で = await 呼ぶ('/api/auth/login', { method: 'POST',
+        body: { username: 'くまさん', password: 'pass1234' } });
+      assertEqual(表示名で.status, 401, '見せる名前はログインIDではない（入れない）');
+
+      // 表示名の重なりは許す（指示48 §秘密情報・境界）
+      クッキー.length = 0;
+      const 二人目 = await 呼ぶ('/api/auth/register', { method: 'POST',
+        body: { username: ログインID + 'b', password: 'pass1234', code: 'テスト48' } });
+      assertEqual(二人目.status, 200, '2人目を登録できる');
+      const 同じ名前 = await 呼ぶ('/api/auth/name', { method: 'PUT',
+        body: { displayName: 'くまさん' } });
+      assertEqual(同じ名前.status, 200, '**見せる名前は重ねてよい**（ログインIDは一意のまま）');
+    } finally {
+      srv.kill();
+      await 待つ(300);
+      /**
+       * **検体を片付ける。**
+       * 本物のサーバーは本物のDBに書くので、残すと2回目の登録が
+       * 「そのユーザー名は既に使われています」で落ちる——
+       * **その時々のデータに依存する検査**になってしまう（落とし穴10-d）。
+       * 名前は毎回同じ（乱数にすると、消し忘れが静かに溜まる）
+       */
+      try {
+        const db = require('../db.js');
+        db.prepare('DELETE FROM users WHERE username IN (?, ?)')
+          .run(ログインID, ログインID + 'b');
+      } catch (e) { /* DBを開けない環境でも、検査そのものは終わっている */ }
+    }
+  });
+
   r.finish();
 }
 

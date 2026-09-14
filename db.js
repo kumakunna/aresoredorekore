@@ -62,6 +62,36 @@ db.exec(`
   );
 `);
 
+/**
+ * 第48弾 48-8：**ログインする名前と、みんなに見せる名前を分ける。**
+ *
+ * それまで `username` の1本だけで、名前を変えると**ログインIDごと変わって**いた
+ * （`/api/auth/name` が `UPDATE users SET username`）。
+ * 遊ぶ人からは「表示される名前を変えただけ」にしか見えないのに、
+ * 次から前の名前ではログインできなくなる。
+ *
+ * `username` は**ログインID**（一意・変えない）、`display_name` は**見せる名前**
+ * （重ねてよい・いつでも変えられる）。
+ *
+ * ── 移行 ──────────────────────────────────
+ * このアプリで表を変えるのは初めてなので、作法をここに置く：
+ *   1. `PRAGMA table_info` で、いまの列を見る
+ *   2. 無い時だけ `ALTER TABLE ... ADD COLUMN`
+ *   3. 既存の行を埋める（ここでは表示名＝ログインID）
+ * `CREATE TABLE IF NOT EXISTS` は**すでにある表には何もしない**ので、
+ * 上の定義に1行足すだけでは、動いているDBには永久に増えない。
+ */
+function 列がある(表, 列) {
+  return db.prepare('PRAGMA table_info(' + 表 + ')').all().some((c) => c.name === 列);
+}
+if (!列がある('users', 'display_name')) {
+  db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
+  // 既存の人は「表示名＝いまの名前」から始める（見た目は1文字も変わらない）
+  db.exec('UPDATE users SET display_name = username WHERE display_name IS NULL');
+}
+// 途中で足した行にも効くよう、起動のたびに空を埋める（入れ忘れの保険）
+db.exec("UPDATE users SET display_name = username WHERE display_name IS NULL OR display_name = ''");
+
 // 第32弾-E 第1部：1ゲーム遊ぶごとに、その場の全部の2人組へ+1する。
 // 5人なら10組。新しい人が加わっても、既存の組の記録は減らない。
 const pairUpsert = db.prepare(

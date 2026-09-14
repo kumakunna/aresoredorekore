@@ -426,6 +426,92 @@ async function run() {
     assertEqual(上.id, ids[0], '同じ正解なら、早く答えた人が上になる');
   });
 
+  // ===================== 48-3 コードの絵柄と印 =====================
+  //
+  // 本人の裁定：**語は「コード」のまま、絵柄を変える**。
+  // 🔌 は差し込み口（プラグ）で、CSSのコメントでも開発の側が「端子」と呼んでいた。
+  // あわせて、盤の状態を4つ→5つにする（「だれかが外した」が無かった）。
+
+  await r.test('48-3：盤のマスが5つの状態を、色以外でも見分けられる', async () => {
+    const { win, doc } = await launch({ fakeSocket: true });
+    try {
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      // 盤の組み立ては手渡しも部屋も同じ関数を通る。**そこを直に呼ぶ**
+      assert(typeof win.bombCellProbe === 'function', '盤の検査の窓口がある');
+      const 盤 = win.bombCellProbe([
+        { uid: 'a', tier: 'easy', solved: false },
+        { uid: 'b', tier: 'easy', solved: false, extraClass: 'mine', face: '🔎' },
+        { uid: 'c', tier: 'easy', solved: false, extraClass: 'taken', face: 'び' },
+        { uid: 'd', tier: 'easy', solved: false, extraClass: 'missed' },
+        { uid: 'e', tier: 'easy', solved: true, face: '✅' }
+      ]);
+      const box = doc.createElement('div');
+      box.innerHTML = 盤;
+      const マス = Array.from(box.querySelectorAll('.bomb-wire-btn'));
+      assertEqual(マス.length, 5, '5つのマスが出る');
+
+      // **顔が5つとも違う**（色を見分けられなくても分かる）
+      const 顔 = マス.map((b) => {
+        const c = b.cloneNode(true);
+        Array.from(c.querySelectorAll('.bw-no, .bw-tip')).forEach((x) => x.remove());
+        return (c.textContent || '').trim();
+      });
+      assertEqual(顔[0], '➰', 'まだ挑んでいない＝➰（🔌 ではない）');
+      assertEqual(顔[1], '🔎', '自分がいま開けている＝🔎');
+      assertEqual(顔[2], 'び', 'ほかの人が挑戦中＝その人の頭1文字');
+      assertEqual(顔[4], '✅', '解除済み＝✅');
+
+      // **「外した」は、顔ではなく印で分かる**（顔は ➰ のまま）
+      assertEqual(顔[3], '➰', '外したコードも、顔は ➰ のまま');
+      assert(マス[3].classList.contains('missed'), '外したコードに印のクラスが付く');
+      assert(!マス[0].classList.contains('missed'), '挑んでいないコードには付かない');
+
+      // 番号が盤に出ている（知らせが「3ばんめ」と言えるように）
+      const 番号 = マス.map((b) => (b.querySelector('.bw-no') || {}).textContent);
+      assertEqual(番号.join(','), '1,2,3,4,5', 'マスに通し番号が出る');
+    } finally { win.close(); }
+  });
+
+  await r.test('48-3：自分が開けているコードの縁が、爆弾テーマの下でも効く', async () => {
+    const { win, doc } = await launch({});
+    try {
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      // **実測する。** `.mine` は box-shadow で書かれていて、
+      // 爆弾テーマの規則に特異度で負け、遊んでいる間は1つも効いていなかった
+      const app = doc.getElementById('app');
+      app.classList.add('theme-bomb');
+      const 作る = (cls) => {
+        const b = doc.createElement('button');
+        b.className = 'bomb-wire-btn t-easy ' + cls;
+        doc.body.appendChild(b);
+        return b;
+      };
+      const 素 = 作る('');
+      const 自分 = 作る('mine');
+      const a = win.getComputedStyle(素), b = win.getComputedStyle(自分);
+      /**
+       * 型(b)：**読める道があるか**を、主張の前に確かめる。
+       * jsdom は outline の短縮形を長い形（outlineStyle など）に展開しないので、
+       * `outlineStyle` を見ると素も mine も 'none' で、
+       * **差が出ないまま「効いていない」と読み違える**（落とし穴28：道具が嘘をつく）。
+       * 短縮形そのものを読む
+       */
+      assert(/solid/.test(b.outline),
+        '爆弾テーマの下でも、自分のマスに縁が出る（いま outline="' + b.outline + '"）');
+      assert(!/solid/.test(a.outline || ''),
+        'ふつうのマスには縁が出ない（いま outline="' + a.outline + '"）');
+      /**
+       * **なぜ box-shadow をやめたか**も、ここで押さえる。
+       * テーマの規則が難易度ごとに box-shadow を書き直すので、
+       * `.mine` の box-shadow は特異度で負けて素と同じになる——
+       * つまり box-shadow では差を作れない
+       */
+      assertEqual(b.boxShadow, a.boxShadow,
+        '爆弾テーマの下では box-shadow に差が出ない（だから outline を使っている）');
+      素.remove(); 自分.remove();
+    } finally { win.close(); }
+  });
+
   // ===================== 48-7 お題が尽きた時 =====================
   //
   // データの側（50件そろっているか・和集合）は tests/topic-pool.js。

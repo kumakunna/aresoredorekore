@@ -2343,6 +2343,29 @@
   .bomb-wire-grid{display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;margin-bottom:16px;}
   .bomb-wire-btn{
     aspect-ratio:1;border-radius:8px;border:1.5px solid var(--ink);background:#fff;font-size:18px;cursor:pointer;
+    /* 第48弾 48-3：番号と印をマスの中に置くための基準。
+       テーマ有りの規則（.app.theme-bomb）だけが relative を持っていたので、
+       テーマが当たっていない画面では別の先祖が基準になっていた（落とし穴26の型） */
+    position:relative;
+  }
+  /* 第48弾 48-3：盤のマスの番号。知らせと答え合わせが「3ばんめのコード」と
+     言うのに、盤に番号が1つも無かった——数えようがない。
+     押すものではないので、指を取らない（pointer-events:none） */
+  .bw-no{
+    position:absolute;left:4px;top:3px;font-size:9px;line-height:1;
+    color:var(--ink-soft);pointer-events:none;font-family:'DotGothic16',monospace;
+  }
+  /* だれかが外したコード。**色ではなく印**で示す（安全基準）。
+     テーマ有りは overflow:hidden なので、はみ出さない位置に置く */
+  .bomb-wire-btn.missed::after{
+    content:'✕';position:absolute;right:3px;bottom:2px;
+    font-size:10px;line-height:1;color:var(--danger,#e2584a);pointer-events:none;
+  }
+  /* 初回だけの「ここをタップ」。1つのマスにだけ添える */
+  .bw-tip{
+    position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);
+    font-size:8.5px;line-height:1;white-space:nowrap;
+    color:var(--ink-soft);pointer-events:none;
   }
   .bomb-wire-btn.solved{background:var(--teal);border-color:var(--teal);color:#fff;opacity:.7;cursor:default;}
   /* ===== 時限爆弾の演出（③） ===== */
@@ -2421,7 +2444,13 @@
   .bomb-prep-fill{height:100%;width:0;background:var(--teal);transition:width .3s ease;}
   /* 誰かが挑戦中のコード。ふさがっていることが分かればよいので、名前は下に小さく出す */
   .bomb-wire-btn.taken{opacity:.55;cursor:not-allowed;}
-  .bomb-wire-btn.mine{box-shadow:inset 0 0 0 3px var(--stamp);}
+  /* 第48弾 48-3：自分がいま開けているコード。
+     **box-shadow をやめた。** 爆弾テーマの規則（.app.theme-bomb .bomb-wire-btn と
+     難易度ごとの再指定）が同じ box-shadow を後から上書きするので、
+     特異度で負けて**遊んでいる間は1つも効いていなかった**（実測）。
+     outline はテーマ側が一度も書いていないので勝てる——
+     アプリ内の先例も outline（.rt-status-row.me / .qb-row.me / .qv-side.me） */
+  .bomb-wire-btn.mine{outline:3px solid var(--stamp);outline-offset:-3px;}
   .bomb-taken-note{font-size:11px;color:var(--ink-soft);margin:-8px 0 12px;text-align:center;line-height:1.6;}
   /* 大画面のリーダーボード（横棒グラフ）。離れた席からも読めるサイズにする */
   .big-board{width:100%;max-width:760px;margin:18px auto 0;display:flex;flex-direction:column;gap:12px;}
@@ -5157,11 +5186,17 @@
     </div>
   </div>
 
-  <!-- 第28弾-1：協力版でも、遊び始める前に説明文を全部そろえる。
-       競争版（部屋）が待合で出しているものと同じ形にしてある -->
+  <!-- 第28弾-1：協力版でも、遊び始める前に問題を全部そろえる。
+       競争版（部屋）が待合で出しているものと同じ形にしてある。
+       **第48弾 48-3：この画面は、いまどこからも遷移しない。**
+       第32弾-A-3-6 で問題バンクに切り替わって待つ必要がなくなったため。
+       名指ししているのは BACK_FREE_SCREENS の1行だけ。
+       消すと画面一覧の台帳も一緒に直す必要があるので、
+       いまは残して**嘘の文言だけ直した**（AI はもう呼んでいない・落とし穴33）。
+       消す作業は docs/切り出した宿題.md に置いた -->
   <div class="screen" id="scr-bomb-prep">
     <h2 class="scr-title">じゅんび中</h2>
-    <p class="scr-sub">🤖 AIが説明文を用意しています</p>
+    <p class="scr-sub">コードをならべています</p>
     <div class="wiz-body">
       <div class="bomb-prep-bar"><div class="bomb-prep-fill" id="bombPrepFill"></div></div>
       <div class="mic-status" id="bombPrepNote" style="text-align:center;"></div>
@@ -9033,7 +9068,17 @@
    * 画面が変わるたびに引き直している——2か所で外すと、
    * 片方だけ直す日が来る（落とし穴1）。
    */
-  var GAME_LOOK_CLASSES = ['bomb-danger', 'edge-village', 'edge-wolf', 'edge-third'];
+  /**
+   * **ここに入れるのは「自分では消えないもの」だけ。**
+   *
+   * 第48弾で最初 `edge-*`（陣営の色で画面が光る）も並べたが、あれは
+   * `flashRoleEdge` が 700ms 後に自分で外す**一瞬の演出**で、
+   * 中央の掃除に入れると `applyGameTheme` が走った瞬間に消える——
+   * **部屋の人狼で、決着の陣営色が一度も見えなくなった**（rt-screens が捕まえた）。
+   *
+   * 消えない状態（`bomb-danger` のように、条件が続く間ずっと付いているもの）だけを置く
+   */
+  var GAME_LOOK_CLASSES = ['bomb-danger'];
   function clearGameLook(){
     var app = el('app');
     if(!app) return;
@@ -15849,7 +15894,14 @@
     if(c.solved) cell.face = '✅';
     else if(c.uid === mine){ cell.extraClass = 'mine'; cell.face = '🔎'; }
     else if(c.by){ cell.extraClass = 'taken'; cell.face = escapeHtml(String(c.by).slice(0, 1)); }
-    else cell.face = '🔌';
+    else cell.face = '➰';
+    // 第48弾 48-3：**「だれかが外した」は5つ目の状態。**
+    // それまで盤は4つしか持っておらず、外したコードが未挑戦と同じ顔だった。
+    // 重ねて付く（挑戦中のコードが、前に外されていることもある）ので、
+    // ほかの印を消さずに足す
+    if(!c.solved && c.missed){
+      cell.extraClass = (cell.extraClass ? cell.extraClass + ' ' : '') + 'missed';
+    }
     return cell;
   }
   function rtBombBoardHtml(you){
@@ -15934,8 +15986,20 @@
       el('rtBombPrepFill').style.width = (p.total ? Math.round(done / p.total * 100) : 0) + '%';
       el('rtBombPrepNote').textContent = done + ' / ' + p.total + '本' +
         (p.dropped ? '（' + p.dropped + '本は用意できませんでした）' : '');
-      el('rtBombNote').innerHTML = '🤖 AIが説明文を用意しています。' +
-        (race ? '<br>できあがるまで、誰にも中身は見えません。' : '<br>もう少しお待ちください。');
+      /**
+       * 第48弾 48-3：**AI を名乗るのをやめた。**
+       *
+       * 第32弾-A-3-6 で問題バンクに切り替わり、**クイズ解除は遊んでいる間に
+       * AI を1度も呼んでいない**（`tests/mode-rules.js` が見張っている）。
+       * 45-3 でルール文の嘘は直したが、**画面のこの1行は残っていた**
+       * ——動くものは直されるが、言葉は誰も見ないので残る（落とし穴33）。
+       *
+       * なお `bomb-room.js` の注記どおり、この段階は `startGame` が
+       * 通り過ぎるので遊ぶ人には見えない。見えないからこそ、
+       * 嘘を残しておく理由がない
+       */
+      el('rtBombNote').innerHTML = 'コードをならべています。' +
+        (race ? '<br>ならぶまで、誰にも中身は見えません。' : '<br>もう少しお待ちください。');
       el('rtBombBoard').innerHTML = '';
       el('rtBombResult').innerHTML = '';
       el('rtBombTimer').style.display = 'none';
@@ -16123,6 +16187,7 @@
   el('rtBombBoard').addEventListener('click', async function(e){
     // 第28弾-1：マスは協力版と共通の部品なので、目印も共通（data-id）
     var b = e.target.closest('.bomb-wire-btn');
+    if(b) markBombTapSeen();   // 第48弾 48-3：一度押したら、案内はもう出さない
     if(!b || b.classList.contains('solved') || b.classList.contains('taken')) return;
     var res = await rt.act(b.dataset.id);
     // 通常版で、同じコードを同時に開こうとした時だけ起きる
@@ -16153,7 +16218,8 @@
     var main = '', sub = '';
     if(v.phase === 'prep'){
       main = '準備中';
-      sub = 'AIが説明文を用意しています（' + (v.prep.ready + v.prep.dropped) + ' / ' + v.prep.total + '本）';
+      // 第48弾 48-3：AI はもう呼んでいない（落とし穴33）
+      sub = 'コードをならべています（' + (v.prep.ready + v.prep.dropped) + ' / ' + v.prep.total + '本）';
     } else if(v.phase === 'ended'){
       var r = v.result || {};
       if(r.aborted){ main = '始められませんでした'; sub = escapeHtml(r.message || ''); }
@@ -20572,15 +20638,66 @@
   // 中身のデータだけが違う（人数の扱い・順位の有無）。
   // 見た目を2箇所に書くと、片方だけ直して古いまま残る事故になる。
   //   cell = { uid, tier, solved, face（マスに出す文字）, extraClass }
+  /**
+   * コード1本ぶんのマス。**手渡しも部屋も、必ずここを通る。**
+   *
+   * 第48弾 48-3：絵柄を 🔌 から ➰ に変えた。
+   * 🔌 は差し込み口（プラグ）で、CSSのコメントでも開発の側が「端子」と呼んでいた
+   * ——**画面に出ている語は「コード」**なので、絵柄の方を語に合わせる
+   * （本人の裁定 2026-09-14）。
+   *
+   * 状態は5つ。**色だけに頼らない**（安全基準）ので、どれも顔か印で分かる：
+   *   まだ挑んでいない   ➰
+   *   自分がいま開けている 🔎 ＋ 縁が太い（.mine）
+   *   ほかの人が挑戦中     名前の頭1文字 ＋ 薄く点滅（.taken）
+   *   だれかが外した       ➰ ＋ 右上に ✕（.missed）
+   *   解除済み             ✅ ＋ 地が変わる（.solved）
+   */
   function bombCellHtml(cell){
     var cls = 'bomb-wire-btn ' + (BOMB_TIER_CLASS[cell.tier] || '') +
       (cell.solved ? ' solved' : '') + (cell.extraClass ? ' ' + cell.extraClass : '');
     return '<button class="' + cls + '" data-id="' + escapeHtml(cell.uid) + '">' +
-      (cell.face || (cell.solved ? '✅' : '🔌')) + '</button>';
+      (cell.no ? '<span class="bw-no">' + cell.no + '</span>' : '') +
+      (cell.face || (cell.solved ? '✅' : '➰')) +
+      (cell.tip ? '<span class="bw-tip">ここをタップ</span>' : '') +
+      '</button>';
   }
-  // 並び順は渡された順のまま出す（混ぜるのは配る側の仕事）
+  /**
+   * 並び順は渡された順のまま出す（混ぜるのは配る側の仕事）。
+   *
+   * 第48弾 48-3：**番号はここで振る。** 知らせと答え合わせは
+   * 「3ばんめのコード」と言うのに、盤には番号が1つも出ていなかった——
+   * 数えようがない。呼ぶ側（手渡し・部屋）で別々に振ると、片方だけ付く（落とし穴1）。
+   *
+   * **初回だけ「ここをタップ」を、まだ挑んでいない先頭のマスに添える。**
+   * その端末で一度でも押したら、もう出さない
+   */
   function bombGridHtml(cells){
-    return '<div class="bomb-wire-grid">' + cells.map(bombCellHtml).join('') + '</div>';
+    var 案内を出す = !bombTapSeen();
+    var 添えた = false;
+    return '<div class="bomb-wire-grid">' + cells.map(function(c, i){
+      var cell = Object.assign({}, c, { no: i + 1 });
+      if(案内を出す && !添えた && !cell.solved && !cell.extraClass){
+        cell.tip = true; 添えた = true;
+      }
+      return bombCellHtml(cell);
+    }).join('') + '</div>';
+  }
+  /**
+   * 第48弾 48-3：「もうコードの押し方は分かっている」の印。
+   *
+   * **`appPrefs` には入れない。** あれは設定で、これは設定ではない——
+   * 混ぜると門F5（設定と窓口の両方向照合）が「窓口の無い設定」として赤くする
+   * （落とし穴34）。実物解除の `acac-defuse-seen` と同じ形で、別のキーに持つ
+   */
+  /** 検査が**本物の盤の組み立て**を見る窓口（第48弾 48-3）。画面は触らない */
+  window.bombCellProbe = function(cells){ return bombGridHtml(cells || []); };
+  var BOMB_TAP_KEY = 'acac-bomb-tap-seen';
+  function bombTapSeen(){
+    try{ return localStorage.getItem(BOMB_TAP_KEY) === '1'; }catch(e){ return false; }
+  }
+  function markBombTapSeen(){
+    try{ localStorage.setItem(BOMB_TAP_KEY, '1'); }catch(e){}
   }
 
   // 第32弾-A-3-6：問題は最初から揃っているので、用意する画面を通らずに盤面へ入る
@@ -20613,7 +20730,14 @@
   function renderBombList(){
     if(!play.bombWires || play.bombWires.length === 0){ defuseComplete(); return; }
     el('bombWireList').innerHTML = bombGridHtml(play.bombWires.map(function(w){
-      return { uid: w.uid, tier: w.tier, solved: w.solved };
+      // 第48弾 48-3：**外したコードにも印を付ける**（部屋と同じ5つ目の状態）。
+      // 手渡しは play.bombLog が正解・不正解とも1か所で積んでいるので、
+      // 新しい入れ物は要らない（落とし穴1：部屋にだけ入れて満足しない）
+      var 外した = (play.bombLog || []).some(function(t){
+        return t.uid === w.uid && !t.correct;
+      });
+      return { uid: w.uid, tier: w.tier, solved: w.solved,
+               extraClass: (!w.solved && 外した) ? 'missed' : '' };
     }));
     var solvedCount = play.bombWires.filter(function(w){ return w.solved; }).length;
     el('bombProgress').textContent = solvedCount + ' / ' + play.bombWires.length + ' 解除';
@@ -20730,6 +20854,7 @@
   }
   el('bombWireList').addEventListener('click', function(e){
     var btn = e.target.closest('.bomb-wire-btn');
+    if(btn) markBombTapSeen();   // 第48弾 48-3：手渡しも同じ（落とし穴1）
     if(!btn || btn.classList.contains('solved')) return;
     openBombWire(btn.dataset.id);
   });

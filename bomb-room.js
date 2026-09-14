@@ -472,6 +472,20 @@ function privateFor(room, memberId) {
       cell.by = (holder && holder !== memberId) ? w.names[holder] : null;
       cell.solvedBy = w.solvedBy[uid] ? w.names[w.solvedBy[uid]] : null;
     }
+    /**
+     * 第48弾 48-3：**このコードは、前にだれかが外したか。**
+     *
+     * 盤の状態はそれまで4つ（未挑戦・自分が開けている・他の人が挑戦中・解除済み）で、
+     * 「外した」がどこにも無かった。同じコードにもう一度挑む時、
+     * 一度外したことが画面に残らないと、何度でも同じ答えを選びに行ける。
+     *
+     * **境目は 45-6 と同じ**——盤が1つ（協力版）なら全員に、
+     * 人それぞれ（競争版）なら本人の分だけ。
+     * **答えそのものは混ぜない**（w.log は誰が何を選んだかも持っているが、
+     * ここへ出すのは「外れがあったか」の真偽だけ・45-4 の決めごと）
+     */
+    cell.missed = w.log.some((x) => x.uid === uid && !x.correct
+      && (w.mode === BombLogic.MODE.COOP || x.by === memberId));
     return cell;
   });
 

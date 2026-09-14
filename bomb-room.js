@@ -136,6 +136,13 @@ function startGame(room, config, ctx) {
 
     entries: {},
     open: {},                // memberId -> いま開けている uid
+    /**
+     * 第48弾 48-4：**脱落した人が「見るだけ」開いたコード。**
+     * `open` とは別に持つ——`open` は「いま挑戦している」という意味で、
+     * `holderOf`（協力版の取り合い）と待ち人数の数え方が見ている。
+     * 見るだけの人をそこへ入れると、生きている人の挑戦を横取りしてしまう
+     */
+    peek: {},                // memberId -> 見るだけ開いている uid
     solvedBy: {},            // uid -> 解いた人（通常版の「誰が切ったか」の表示用）
     // 第45弾：**答えた記録。**45-4（だれが外したか）と 45-6（答え合わせ）の両方が
     // ここ1つを読む。別々に持つと、片方だけ数え方が古くなる（落とし穴1）
@@ -502,6 +509,26 @@ function privateFor(room, memberId) {
       };
     }
   }
+  /**
+   * 第48弾 48-4：脱落した人が見るだけ開いた1本。
+   *
+   * **渡すのは、そのコードの問題文と正解だけ。**
+   * `w.log`（誰が何を答えたか）は読まない——競争版でそこを読むと、
+   * **他人の未回答が漏れる**（指示48 §秘密情報・境界）。
+   * 答え合わせ（45-6）は決着してから `resultView` が境目を決める。
+   * ここはその手前なので、別の道にしてある
+   */
+  const peekUid = w.peek[memberId];
+  if (peekUid && w.phase === PHASE.PLAY && !entryActive(e)) {
+    const pw = w.wires.find((x) => x.uid === peekUid);
+    if (pw) {
+      out.peek = {
+        uid: peekUid, tier: pw.tier,
+        question: pw.question || pw.description || null,
+        answer: pw.name
+      };
+    }
+  }
   if (w.phase === PHASE.ENDED) out.result = resultView(room, memberId);
   return out;
 }
@@ -518,7 +545,25 @@ function submitAction(room, memberId, targetId) {
   if (w.phase !== PHASE.PLAY) return { ok: false, error: 'wrong_phase' };
   const e = entryOf(w, memberId);
   if (!e || w.playerIds.indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
-  if (!entryActive(e)) return { ok: false, error: 'already_done' };
+  /**
+   * 第48弾 48-4：**先に脱落した人は、見るだけできる。**
+   *
+   * それまでは、ライフが尽きた人が端子を押しても `already_done` で弾かれ、
+   * **画面には何も起きなかった**（エラーも出ない）。決着まで、ただ座って待つだけ。
+   *
+   * 見るだけなので `w.open` には入れない——あれは「いま挑戦している」という意味で、
+   * 協力版の取り合い（`holderOf`）と待ち人数の数え方が見ている。
+   * 別の入れ物（`w.peek`）に置く。
+   *
+   * **渡すのは、その1本の正解だけ。** 他人が何を答えたかは渡さない
+   * （`privateFor` の下の方を見よ・指示48 §秘密情報・境界）
+   */
+  if (!entryActive(e)) {
+    if (!targetId) { delete w.peek[memberId]; return { ok: true, allDone: false }; }
+    if (e.order.indexOf(targetId) === -1) return { ok: false, error: 'unknown_code' };
+    w.peek[memberId] = targetId;
+    return { ok: true, allDone: false, peek: true };
+  }
 
   if (!targetId) { delete w.open[memberId]; return { ok: true, allDone: false }; }
   if (e.order.indexOf(targetId) === -1) return { ok: false, error: 'unknown_code' };

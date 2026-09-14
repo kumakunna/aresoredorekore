@@ -1211,7 +1211,16 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 人狼・ワードウルフ・爆弾解除は受け取っても使わない（無視するだけ）。
       const res = dr.submitAction(room, me.id, (payload && payload.targetId) || null, payload);
       if (!res.ok) return fail(cb, res.error, '今はその操作ができません');
-      if (typeof cb === 'function') cb({ ok: true });
+      /**
+       * 第48弾 48-4：**「挑戦した」のか「見ただけ」なのかを、返事に残す。**
+       *
+       * クイズ解除で先に脱落した人が端子を押すと、進行役は
+       * `{ ok:true, peek:true }` を返す（挑戦ではなく、その1本の答えを見るだけ）。
+       * ここで `{ ok:true }` に潰すと、端末には
+       * 「押せた」としか伝わらず、**できていないのに ok を返す**のに近い形になる
+       * （落とし穴14の親戚）。中身そのものは privateFor で届く
+       */
+      if (typeof cb === 'function') cb({ ok: true, peek: !!res.peek });
       if (res.allDone) dr.advance(room);
       pushWolfState(room);
     });

@@ -2486,6 +2486,14 @@
     font-family:'DotGothic16',monospace;font-size:clamp(11px,1vw,15px);letter-spacing:.1em;
   }
   @media (max-width: 900px){ .big-mk .bmk-line{grid-template-columns:repeat(3,1fr);} }
+  /* 第48弾 48-4：スマホの中の横棒。**大画面の寸法をそのまま使わない**——
+     `.bb-*` は先祖の絞りが無いグローバルなクラスなので、
+     ここで直接上書きすると大画面まで小さくなる（落とし穴23）。
+     包む親（.bomb-gauges）で絞る */
+  .bomb-gauges{display:flex;flex-direction:column;gap:7px;margin:8px 0 2px;text-align:left;}
+  .bomb-gauges .bb-row{gap:2px;}
+  .bomb-gauges .bb-head{font-size:12px;}
+  .bomb-gauges .bb-bar{height:10px;border-width:1px;}
   .bb-row{display:flex;flex-direction:column;gap:4px;}
   .bb-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:20px;}
   .bb-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -15866,6 +15874,13 @@
     stopBombHeart();
     rtBombMissSeen = null;       // 第45弾 45-4：前の試合の分を持ち越さない（次に入った時が初回）
     el('rtBombOverlay').classList.remove('show');
+    // 第48弾 48-4：覗きの重なりも、ここ1か所で閉じる。
+    // 決着の分岐に直接書くと、観戦・準備中の経路で残る（落とし穴1）
+    try{
+      if(typeof UiKit !== 'undefined'){
+        while(UiKit.anyOpen()) UiKit.closeTop('leave');
+      }
+    }catch(e){}
     rtBombPrev = null;
   }
 
@@ -16032,6 +16047,18 @@
     startBombHeart(you.misses);
 
     el('rtBombNote').innerHTML = rtBombNoteHtml(v, you);
+    /**
+     * 第48弾 48-4：脱落した人が開いた1本を出す。
+     *
+     * **新しい重なりを作らない。** 45-6 の答え合わせ（`openBombReview`）に
+     * 1件だけ渡せば、問題文と「正解：◯◯」の札がそのまま使える。
+     * `UiKit.sheet` は `#uiLayerRoot`（`#app` の外）に出るので、
+     * 盤が長くなっても画面の外へ行かない（落とし穴26）
+     */
+    rtOnce('bomb:peek:' + (you.peek ? you.peek.uid : ''), !!you.peek, function(){
+      openBombReview([{ tier: you.peek.tier, name: you.peek.answer,
+        question: you.peek.question, solved: false, tries: [] }], false);
+    });
     el('rtBombBoard').innerHTML = rtBombBoardHtml(you);
     rtBombMarkWorking();
     el('rtBombResult').innerHTML = '';
@@ -16052,6 +16079,29 @@
   }
 
   // 解除中に全員へ見せてよい一言。相手の答えや進捗の中身は出さない
+  /**
+   * 第48弾 48-4：**みんなの残りを、横棒で見せる1行。**
+   *
+   * それまでは大画面だけが横棒で、スマホは「びび あと3」の文字だった。
+   * 先に脱落した人は、決着まで何もすることが無いので、
+   * **せめて他の人の追い上げが見える**ようにする（指示48 48-4）。
+   *
+   * 大画面とスマホで別々に組み立てると、片方だけ直す日が来る（落とし穴1）。
+   * 材料は `publicView().players` にすでに全部あるので、
+   * **サーバーに足すものは無い＝秘密も増えない**
+   */
+  function bombGaugeRowHtml(p){
+    var cls = 'bb-row' + (p.failed ? ' is-failed' : '') + (p.finished ? ' is-done' : '') +
+      (p.connected ? '' : ' is-off');
+    var meta = p.solved + ' / ' + p.total + '　' +
+      '❤️'.repeat(Math.max(0, p.lives)) + '🖤'.repeat(Math.max(0, p.livesMax - p.lives));
+    return '<div class="' + cls + '">' +
+      '<div class="bb-head"><span class="bb-name">' + faceOf(p.id) + escapeHtml(p.name) +
+        (p.connected ? '' : '（切断中）') + '</span>' +
+        '<span class="bb-meta">' + meta + '</span></div>' +
+      '<div class="bb-bar"><div class="bb-fill" style="width:' + p.pct + '%;"></div></div>' +
+    '</div>';
+  }
   function rtBombNoteHtml(v, you){
     var lines = [];
     if(you.failed) lines.push('💥 ライフが尽きました。記録なし・最下位あつかいです');
@@ -16059,12 +16109,16 @@
     else if(you.finished) lines.push('🎉 全部解けました！ほかの人を待っています');
     if(v.mode === 'race'){
       lines.push('🏁 みんなが同じコードに挑戦中です（並び順は各自ちがいます）');
+      /**
+       * 第48弾 48-4：**文字の「あと3」を、横棒に差し替えた。**
+       * 大画面と同じ1行を使う（`bombGaugeRowHtml`）。
+       * 自分の行も出す——自分がどこにいるかが分からないと、追い上げも見えない
+       */
+      // **自分の行は入れない**（第30弾からの決めごと）。
+      // 自分の進み具合は、盤とライフの表示がすぐ上にある
       var others = (v.players || []).filter(function(p){ return p.id !== rt.state.memberId; });
       if(others.length){
-        lines.push('<div class="vote-counts">' + others.map(function(p){
-          return '<span class="vc-item">' + escapeHtml(p.name) + ' <b>あと' +
-            Math.max(0, p.total - p.solved) + '</b></span>';
-        }).join('') + '</div>');
+        lines.push('<div class="bomb-gauges">' + others.map(bombGaugeRowHtml).join('') + '</div>');
       }
     } else if(v.team){
       lines.push('🤝 みんなで1つの爆弾です。ライフと残り時間は全員で共有します');
@@ -16190,6 +16244,15 @@
     if(b) markBombTapSeen();   // 第48弾 48-3：一度押したら、案内はもう出さない
     if(!b || b.classList.contains('solved') || b.classList.contains('taken')) return;
     var res = await rt.act(b.dataset.id);
+    /**
+     * 第48弾 48-4：**先に脱落した人は、押すと答えが見える。**
+     *
+     * それまでは押しても `already_done` で弾かれ、**画面に何も起きなかった**
+     * （エラーも出ない）。決着まで、ただ座って待つだけだった。
+     * サーバーが `peek:true` を返したら、その1本の答えを開く。
+     * **見えるのは、その1本の正解だけ**——他の人が何を答えたかは届かない
+     */
+    if(res && res.ok && res.peek) return;   // 中身は privateFor で届く（描画は renderRtBomb）
     // 通常版で、同じコードを同時に開こうとした時だけ起きる
     if(res && !res.ok && res.error === 'taken') showFlash('そのコードは他の人が挑戦中です', 'hit');
   });
@@ -16253,18 +16316,7 @@
     // 名前だけの一覧は使わず、横棒グラフに差し替える
     el('bigList').innerHTML = '';
     el('bigBoard').style.display = 'flex';
-    el('bigBoard').innerHTML = (v.players || []).map(function(p){
-      var cls = 'bb-row' + (p.failed ? ' is-failed' : '') + (p.finished ? ' is-done' : '') +
-        (p.connected ? '' : ' is-off');
-      var meta = p.solved + ' / ' + p.total + '　' +
-        '❤️'.repeat(Math.max(0, p.lives)) + '🖤'.repeat(Math.max(0, p.livesMax - p.lives));
-      return '<div class="' + cls + '">' +
-        '<div class="bb-head"><span class="bb-name">' + faceOf(p.id) + escapeHtml(p.name) +
-          (p.connected ? '' : '（切断中）') + '</span>' +
-          '<span class="bb-meta">' + meta + '</span></div>' +
-        '<div class="bb-bar"><div class="bb-fill" style="width:' + p.pct + '%;"></div></div>' +
-      '</div>';
-    }).join('');
+    el('bigBoard').innerHTML = (v.players || []).map(bombGaugeRowHtml).join('');
   }
 
   // ===================== 第27弾-3：1人1台の実物解除 =====================

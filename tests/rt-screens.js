@@ -1225,9 +1225,21 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     pushYou(fake, bombYou({ mode: 'race' }));
     await waitScreen(win, doc, 'scr-rt-bomb', 4000);
     assertEqual(el(doc, 'rtBombPhase').textContent, '競争版・解除中', '競争版だと分かる');
+    /**
+     * 第48弾 48-4：**文字の「あと1」を、横棒に差し替えた。**
+     * 先に脱落した人は決着まで何もすることが無いので、
+     * せめて他の人の追い上げが見えるようにした（大画面と同じ1行を使う）。
+     * **自分の行を入れないのは今までどおり**（第30弾からの決めごと）
+     */
     const note = el(doc, 'rtBombNote').textContent;
-    assert(/あき/.test(note) && /あと1/.test(note), '他の人の残り本数が出る');
+    assert(/あき/.test(note), '他の人の名前が出る');
     assert(!/びび/.test(note), '自分の分は一覧に入れない');
+    const 棒 = doc.querySelectorAll('#rtBombNote .bomb-gauges .bb-row');
+    assertEqual(棒.length, 1, '他の人のぶんだけ、横棒が出る');
+    const 進み = 棒[0].querySelector('.bb-fill');
+    assertEqual(進み.style.width, '75%', '進み具合が棒の長さになる');
+    assert(/3 \/ 4/.test(棒[0].querySelector('.bb-meta').textContent),
+      '解けた本数も数字で出る（棒だけに頼らない）');
     // 協力版と同じ部品で描く（見た目の部品は共通、中身のデータだけが違う）
     assertEqual(doc.querySelectorAll('#rtBombBoard .sec-title').length, 0, '難易度で区切らない');
     assertEqual(doc.querySelectorAll('#rtBombBoard .bomb-wire-grid').length, 1,

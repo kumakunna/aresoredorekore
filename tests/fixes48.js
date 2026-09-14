@@ -558,14 +558,16 @@ async function run() {
   // 本物の進行役を動かして、3面すべてを見る（tools/probe-leftover-class.js と同じ形）。
 
   const Bomb = require('../bomb-room.js');
-  function 爆弾の部屋(big) {
+  function 爆弾の部屋(big, cfg) {
+    const o = cfg || {};
     const members = new Map();
     const ids = big ? ['m2', 'm3'] : ['m1', 'm2'];
     ids.forEach((id, i) => members.set(id, {
       id, name: ['びび', 'ちか'][i], role: 'player', connected: true, socketId: 's' + id }));
     if (big) members.set('m1', { id: 'm1', name: 'テレビ', role: 'bigscreen', connected: true });
     const room = { code: 'ABC234', members, state: { phase: 'lobby', game: null, data: {} } };
-    const res = Bomb.startGame(room, { mode: 'coop', counts: { easy: 6 }, lives: 3, timerSec: 0 }, {});
+    const res = Bomb.startGame(room, Object.assign(
+      { mode: 'coop', counts: { easy: 6 }, lives: 3, timerSec: 0 }, o), {});
     assertEqual(res.ok, true, '爆弾の進行役を始められる');
     room.state.game = 'bomb';
     room.state.phase = 'playing';
@@ -662,6 +664,162 @@ async function run() {
       } finally { win.close(); }
     });
   }
+
+  // ===================== 48-4 先に脱落した人 =====================
+  //
+  // それまで、ライフが尽きた人は端子を押しても `already_done` で弾かれ、
+  // **画面に何も起きなかった**（エラーも出ない）。決着まで、ただ座って待つだけ。
+
+  await r.test('48-4：先に脱落した人が、端子をタップすると答えが見える', async () => {
+    const { win, doc, errors } = await launch({ fakeSocket: true });
+    try {
+      const { openCassette } = require('./harness');
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      await openCassette(win, doc, 'bakudan');
+      const way = doc.querySelector('#wayChoices [data-way="room"]');
+      if (way) way.click();
+      await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+      const fake = win.__rtFake;
+      await waitFor(win, () => fake.connected, 5000, '疑似socket');
+
+      // 競争版・ライフ1（すぐ脱落できる）
+      const { room, ids } = 爆弾の部屋(false, { mode: 'race', lives: 1, counts: { easy: 4 } });
+      const 名簿 = () => Array.from(room.members.values()).map((m) => ({
+        id: m.id, name: m.name, role: m.role, connected: true,
+        isHost: m.id === ids[0], ready: true }));
+      const snap = () => ({
+        code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: ids[0],
+        playerCount: ids.length, memberCount: 名簿().length,
+        ready: { count: ids.length, total: ids.length, waitingNames: [], all: true },
+        members: 名簿(),
+        state: { phase: room.state.phase, game: room.state.game,
+                 data: room.bomb ? Bomb.publicView(room) : room.state.data } });
+      fake.replies = {
+        'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: snap() }),
+        // 端末の「押した」を、本物の進行役へそのまま渡す
+        'wolf:act': (p) => {
+          const res = Bomb.submitAction(room, 'm1', (p && p.targetId) || null);
+          setTimeout(() => { fake.fire('room:update', snap());
+            const mine = Bomb.privateFor(room, 'm1'); if (mine) fake.fire('wolf:you', mine); }, 0);
+          return res;
+        }
+      };
+      el(doc, 'rtJoinCode').value = 'ABC234';
+      el(doc, 'rtJoinName').value = 'あき';
+      click(doc, 'rtJoinBtn');
+      const 部屋の前置き = 'scr-' + 'rt-';
+      await waitFor(win, () => String(activeScreen(doc)).indexOf(部屋の前置き) === 0, 8000, '部屋へ');
+
+      const push = async () => {
+        fake.fire('room:update', snap());
+        if (room.bomb) { const mine = Bomb.privateFor(room, 'm1'); if (mine) fake.fire('wolf:you', mine); }
+        await sleep(win, 120);
+      };
+      await push();
+      assertEqual(activeScreen(doc), 'scr-rt-bomb', '爆弾の画面に着いている');
+
+      // 型(b)：**脱落が本当に起きているか**を、主張の前に確かめる
+      assert(外す(room, 'm1'), 'わざと1回外せた');
+      assertEqual(room.bomb.entries.m1.failed, true, 'ライフが尽きて脱落した');
+      await push();
+
+      // 他の人の追い上げが、横棒で見える
+      const 棒 = doc.querySelectorAll('#rtBombNote .bomb-gauges .bb-row');
+      assertEqual(棒.length, 1, '他の人のぶんの横棒が出る（自分の分は入れない）');
+
+      // まだ解いていない端子を押す → 答えが出る
+      const まだ = room.bomb.entries.m1.order.find((u) => !room.bomb.entries.m1.solved[u]);
+      const 答え = room.bomb.wires.find((x) => x.uid === まだ).name;
+      const マス = doc.querySelector('#rtBombBoard .bomb-wire-btn[data-id="' + まだ + '"]');
+      assert(マス, '押せる端子がある');
+      マス.click();
+      await sleep(win, 250);
+      const シート = doc.querySelector('#uiLayerRoot .ui-sheet-in, #uiLayerRoot');
+      const 出た文字 = (シート ? シート.textContent : '') || '';
+      assert(出た文字.indexOf(答え) !== -1,
+        'その端子の正解が出る（さがす「' + 答え + '」／いま「' + 出た文字.slice(0, 60) + '」）');
+
+      // **他の人の答えは出ない**（指示48 §秘密情報・境界）
+      const 相手の盤 = room.bomb.entries.m2;
+      const 相手の答え = room.bomb.wires
+        .filter((x) => 相手の盤.order.indexOf(x.uid) !== -1 && x.uid !== まだ)
+        .map((x) => x.name);
+      相手の答え.forEach((n) => {
+        assert(出た文字.indexOf(n) === -1, 'ほかの端子の答え「' + n + '」は出ない');
+      });
+      assertNoErrors(errors, '48-4 で未捕捉の例外');
+    } finally { win.close(); }
+  });
+
+  await r.test('48-4：決着したら、脱落した人も結果発表に着地する（覗きを開いたままでも）', async () => {
+    const { win, doc, errors } = await launch({ fakeSocket: true });
+    try {
+      const { openCassette } = require('./harness');
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      await openCassette(win, doc, 'bakudan');
+      const way = doc.querySelector('#wayChoices [data-way="room"]');
+      if (way) way.click();
+      await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+      const fake = win.__rtFake;
+      await waitFor(win, () => fake.connected, 5000, '疑似socket');
+
+      const { room, ids } = 爆弾の部屋(false, { mode: 'race', lives: 1, counts: { easy: 3 } });
+      const 名簿 = () => Array.from(room.members.values()).map((m) => ({
+        id: m.id, name: m.name, role: m.role, connected: true,
+        isHost: m.id === ids[0], ready: true }));
+      const snap = () => ({
+        code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: ids[0],
+        playerCount: ids.length, memberCount: 名簿().length,
+        ready: { count: ids.length, total: ids.length, waitingNames: [], all: true },
+        members: 名簿(),
+        state: { phase: room.state.phase, game: room.state.game,
+                 data: room.bomb ? Bomb.publicView(room) : room.state.data } });
+      fake.replies = {
+        'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: snap() }),
+        'wolf:act': (p) => {
+          const res = Bomb.submitAction(room, 'm1', (p && p.targetId) || null);
+          setTimeout(() => { fake.fire('room:update', snap());
+            const mine = Bomb.privateFor(room, 'm1'); if (mine) fake.fire('wolf:you', mine); }, 0);
+          return res;
+        }
+      };
+      el(doc, 'rtJoinCode').value = 'ABC234';
+      el(doc, 'rtJoinName').value = 'あき';
+      click(doc, 'rtJoinBtn');
+      const 部屋の前置き = 'scr-' + 'rt-';
+      await waitFor(win, () => String(activeScreen(doc)).indexOf(部屋の前置き) === 0, 8000, '部屋へ');
+      const push = async () => {
+        fake.fire('room:update', snap());
+        if (room.bomb) { const mine = Bomb.privateFor(room, 'm1'); if (mine) fake.fire('wolf:you', mine); }
+        await sleep(win, 120);
+      };
+      await push();
+
+      // 脱落して、覗きを開く
+      assert(外す(room, 'm1'), 'わざと外せた');
+      await push();
+      const まだ = room.bomb.entries.m1.order.find((u) => !room.bomb.entries.m1.solved[u]);
+      doc.querySelector('#rtBombBoard .bomb-wire-btn[data-id="' + まだ + '"]').click();
+      await sleep(win, 250);
+      // 型(b)：**覗きが本当に開いているか**を、主張の前に確かめる。
+      // 開いていなければ「決着で閉じる」は何も試していない
+      assert(win.UiKit.anyOpen(), '覗きの重なりが開いている');
+
+      // 相手も脱落させて決着させる
+      while (!room.bomb.entries.m2.failed && 外す(room, 'm2')) { /* ライフが尽きるまで */ }
+      Bomb.advance(room);
+      await push();
+      await sleep(win, 200);
+
+      assertEqual(room.bomb.phase, 'ended', '進行役の側は決着している');
+      assert(!win.UiKit.anyOpen(),
+        '決着したら、覗きの重なりは閉じる（開いたままだと結果が見えない）');
+      assertEqual(activeScreen(doc), 'scr-rt-bomb', '画面はそのまま（結果はこの画面に出る）');
+      assert((el(doc, 'rtBombResult').textContent || '').trim(),
+        '結果発表が出る（いま「' + (el(doc, 'rtBombResult').textContent || '').slice(0, 40) + '」）');
+      assertNoErrors(errors, '48-4（着地）で未捕捉の例外');
+    } finally { win.close(); }
+  });
 
   // ===================== 48-8 表示名とログインIDを分ける =====================
   //

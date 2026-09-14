@@ -306,10 +306,33 @@ async function missOne(srv, d) {
       await solveOne(srv, rm.host);
       await waitUntil(() => rm.host.you.solvedCount === 1, '1本解ける');
 
+      /**
+       * 第48弾：**この検査は、ずっと空振りしていた。**
+       *
+       * 目印（TOPIC_MARK / DESC_MARK）は `startConfig` が渡す `topics` に入るが、
+       * **bomb-room.js は `config.topics` を一度も読まない**——
+       * 第32弾-A-3-6 で問題バンク（QuizBank）に切り替わったため。
+       * だから実データに目印は一度も現れず、
+       * **公開ビューに wire を丸ごと入れても緑のまま**だった（落とし穴10-d・10-a）。
+       *
+       * 針は、いま動いている部屋の**本物の問題**から取る。
+       */
+      const w = srv.store.get(rm.code).bomb;
+      const 本物の名前 = w.wires.map((x) => x.name).filter(Boolean);
+      const 本物の問題 = w.wires.map((x) => x.question).filter(Boolean);
+      // 型(b)：**針が本当にあるか**を、主張の前に確かめる。
+      // 0本なら「混ざっていない」は自明に成立する
+      assert(本物の名前.length >= 2, '調べる答えが2つ以上ある（いま ' + 本物の名前.length + '）');
+      assert(本物の問題.length >= 2, '調べる問題文が2つ以上ある（いま ' + 本物の問題.length + '）');
+
       // 決着までに届いた公開情報を全部まとめて調べる
       const publicText = JSON.stringify(rm.all.concat([rm.big]).map((d) => d.roomLog));
-      assert(publicText.indexOf(TOPIC_MARK) === -1, 'お題の名前が公開情報に無い');
-      assert(publicText.indexOf(DESC_MARK) === -1, '説明文が公開情報に無い');
+      本物の名前.forEach((n) => {
+        assert(publicText.indexOf(n) === -1, '答え「' + n + '」が公開情報に無い');
+      });
+      本物の問題.forEach((q) => {
+        assert(publicText.indexOf(q) === -1, '問題文が公開情報に無い（' + q.slice(0, 12) + '…）');
+      });
 
       // 大画面には、自分だけに届く情報がひとつも来ない
       assertEqual(rm.big.you, null, '大画面に秘密は届かない');
@@ -430,8 +453,30 @@ async function missOne(srv, d) {
       // ホストは1本目で外して即失敗、相手は全部解く
       await missOne(srv, rm.host);
       await waitUntil(() => rm.host.you.failed === true, 'ライフ切れになる');
-      const closed = await rm.host.call('wolf:act', { targetId: rm.host.you.board[0].uid });
-      assertEqual(closed.ok, false, '失敗した人はもう挑めない');
+      /**
+       * 第48弾 48-4：**もう「答えられない」が、「見る」ことはできるようになった。**
+       *
+       * それまでは押しても `already_done` で弾かれ、画面に何も起きなかった
+       * （エラーも出ない）——決着まで、ただ座って待つだけだった。
+       * いまは押すと、その1本の正解だけが本人に届く。
+       */
+      const 見た = await rm.host.call('wolf:act', { targetId: rm.host.you.board[0].uid });
+      assertEqual(見た.ok, true, '失敗した人も、見るだけなら開ける');
+      assertEqual(見た.peek, true, 'それは「挑戦」ではなく「見るだけ」');
+      // **答えることは、今までどおりできない**
+      const 答えた = await rm.host.call('wolf:vote', { targetId: 'なんでも' });
+      assertEqual(答えた.ok, false, '失敗した人は答えられない');
+      await waitUntil(() => rm.host.you.peek, '見た1本が本人に届く');
+      // **届くのは、その1本だけ。** ほかの端子の答えは入っていない
+      const 見た答え = rm.host.you.peek.answer;
+      assert(見た答え, '正解が届く');
+      const 全部の答え = srv.store.get(rm.code).bomb.wires.map((x) => x.name);
+      const ほかの答え = 全部の答え.filter((n) => n !== 見た答え);
+      assert(ほかの答え.length >= 1, 'ほかの端子が2本以上ある（無ければ、下は何も試していない）');
+      const 秘密の文字 = JSON.stringify(rm.host.you);
+      ほかの答え.forEach((n) => {
+        assert(秘密の文字.indexOf(n) === -1, 'ほかの端子の答え「' + n + '」は届かない');
+      });
 
       for (let i = 0; i < 3; i++) { await solveOne(srv, rm.guests[0]); await sleep(30); }
       await waitUntil(() => rm.all.every((d) => d.you.phase === 'ended'), '決着する');

@@ -13350,7 +13350,9 @@
       if(v.last && v.last.draw) return wait(v.last.gaveUp ? S.あいこでおわり : S.あいこ);
       return wait(NL.共通.見るだけ);
     }
-    if(v.phase === 'ended') return wait(NL.共通.見るだけ);
+    // 決着では「← 部屋を出る」が出る（rtSugoLeaveBtn）ので、
+    // 「押すものはありません」とは言えない
+    if(v.phase === 'ended') return wait(NL.共通.決着を見る);
     return wait('');
   }
 

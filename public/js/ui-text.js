@@ -227,6 +227,17 @@
    * **あとから来た人がいる時**。進行役が全員へ出し直せる道を1つ置く。
    * （45-3 でルール文を直した時、既読の人が新しい文を一度も見ないまま遊んだ）
    */
+  /**
+   * 第48弾 48-7：お題のプール。
+   *
+   * 第46弾で50件に固定したので、難易度で絞ると1層5件まで小さくなる。
+   * 尽きた時に黙って繰り返すと、遊ぶ人には「さっきと同じお題が出た」としか
+   * 見えない——**一周したことは、出題者に言う**（原則E：静かに）。
+   */
+  var TOPIC = {
+    一周した: 'お題を一周しました。ここからは、もう一度めぐります'
+  };
+
   var RULES = {
     みんなに見せた: 'ルールを、みんなにもう一度出しました'
   };
@@ -487,5 +498,5 @@
 
   return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET,
            TITLES: TITLES, TIMER: TIMER, BOMB: BOMB,
-           WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW };
+           WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC };
 }));

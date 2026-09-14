@@ -240,5 +240,68 @@ function 誤って反則になる組(pool) {
       '踏切の封印「電車」は、電車がお題として別にあっても事故ではない');
   });
 
+  // ===================== 第48弾 48-7：尽きても、黙って繰り返さない =====================
+
+  await r.test('48-7：全部の層の和集合が、ちょうど50件（抜けるお題が1つも無い）', async () => {
+    // **「出てこないお題」の正体を、和集合で押さえる。**
+    // どれかの層に属していないお題があると、どの設定でも永久に出ない。
+    // 枚数（50）は指示46で決めた正本で、実装の定数から導かない（落とし穴10-a）
+    const bank = 切り出す('QUIZ_BANK');
+    const プール = 平らにする(bank, 切り出す('TOPIC_ALIASES'));
+    const 全部 = new Set();
+    Object.keys(枠).forEach((tier) => {
+      プール.filter((t) => t.tier === tier).forEach((t) => 全部.add(t.name));
+    });
+    assertEqual(全部.size, 総数, '層で分けても、和集合は50件のまま');
+    // 逆向き：層の値が、決めた5つ以外になっていないか（落とし穴20）
+    const よその層 = プール.filter((t) => !Object.prototype.hasOwnProperty.call(枠, t.tier));
+    assertEqual(よその層.map((t) => t.name + '(' + t.tier + ')').join('・'), '',
+      '決めた5つ以外の層に属するお題が無い');
+  });
+
+  await r.test('48-7：50回引けば50件ぜんぶ出る（同じ周では重ならない）', async () => {
+    /**
+     * 実装（pickUnused）と同じ引き方を、ここで**もう一度書く**のではなく、
+     * **同じ性質**を試す：「使った印を持ち、尽きたら印を捨てて次の周に入る」なら、
+     * 50回で50件ぜんぶ出る。
+     * 実装は IIFE の中なので直接は呼べない——ここで見るのは
+     * 「50件がぜんぶ引ける形になっているか」（データの側の性質）。
+     * 引き方そのものは tests/aresore.js が画面から確かめている
+     */
+    const プール = 平らにする(切り出す('QUIZ_BANK'), 切り出す('TOPIC_ALIASES'));
+    const 名前 = プール.map((t) => t.name);
+    assertEqual(名前.length, 総数, '引ける札が50枚ある');
+    const used = {};
+    const 出た = new Set();
+    let 一周 = 0;
+    for (let i = 0; i < 総数; i++) {
+      let fresh = 名前.filter((n) => !used[n]);
+      if (!fresh.length) { 一周++; Object.keys(used).forEach((k) => delete used[k]); fresh = 名前.slice(); }
+      // **決まった順で引く**（乱数だと、たまに落ちる検査になる・落とし穴10-d）
+      const pick = fresh[i % fresh.length];
+      used[pick] = true;
+      出た.add(pick);
+    }
+    assertEqual(出た.size, 総数, '50回で50件ぜんぶ出る（いま ' + 出た.size + '件）');
+    assertEqual(一周, 0, '50回のあいだは一周しない（51回目から繰り返す）');
+  });
+
+  await r.test('48-7：いちばん小さい層でも、尽きたら一周して続けられる', async () => {
+    // 型(c)：**絞った時**の入力も試す。5件しかない層で51回引いても止まらない
+    const プール = 平らにする(切り出す('QUIZ_BANK'), 切り出す('TOPIC_ALIASES'));
+    const 小さい層 = Object.keys(枠).reduce((a, b) => (枠[a] <= 枠[b] ? a : b));
+    const 名前 = プール.filter((t) => t.tier === 小さい層).map((t) => t.name);
+    assertEqual(名前.length, 枠[小さい層], 小さい層 + ' は ' + 枠[小さい層] + '件');
+    assert(名前.length <= 5, 'いちばん小さい層は5件以下（絞ると尽きやすい）');
+    const used = {};
+    let 一周 = 0;
+    for (let i = 0; i < 名前.length * 3; i++) {
+      let fresh = 名前.filter((n) => !used[n]);
+      if (!fresh.length) { 一周++; Object.keys(used).forEach((k) => delete used[k]); fresh = 名前.slice(); }
+      used[fresh[i % fresh.length]] = true;
+    }
+    assertEqual(一周, 2, '3周ぶん引くと、2回「一周しました」が起きる');
+  });
+
   r.finish();
 })();

@@ -2159,6 +2159,9 @@
   .now-line .nl-mark{flex:none;}
   /* 大画面は離れて見るので大きく。二人称は使わない（文の側で分けている） */
   #scr-rt-big .now-line{font-size:22px;margin:0 24px 14px;padding:12px 18px;}
+  /* 第48弾 48-7：絞った層の残り。**そえる数字**なので、帯にはしない */
+  .topic-left{text-align:center;font-size:12px;color:var(--ink-soft);margin:2px 0 6px;}
+  .topic-left:empty{display:none;}
   .rt-phase{text-align:center;font-family:'Shippori Mincho',serif;font-weight:800;font-size:26px;margin:6px 0 12px;}
   .rt-public{text-align:center;font-size:13px;color:var(--ink-soft);line-height:1.8;margin-bottom:14px;}
   .rt-you{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;}
@@ -5312,6 +5315,8 @@
       </div>
     </div>
     <div class="describer-banner" id="describerBanner" style="display:none;"></div>
+    <!-- 第48弾 48-7：絞った層の残り。**出題者だけが見る場所**に、そえる数字として置く -->
+    <div class="topic-left" id="topicLeft"></div>
     <div class="topic-card">
       <!-- 判断2：人間出題モードで、お題は出題者だけが見る注意書き（控えめ・常時） -->
       <div class="describer-only-note" id="describerOnlyNote" style="display:none;">📱 このスマホは出題者だけが見てください</div>
@@ -8418,13 +8423,72 @@
     return sel.length ? sel : ALL_TIERS.slice();
   }
   // 同一マッチ内の重複防止つき抽選。出尽くしたら復活する。
+  /**
+   * 同一マッチ内の重複を避けて1つ引く。
+   *
+   * 第48弾 48-7：**尽きたら、黙って繰り返さない。**
+   *
+   * それまでは `fresh.length ? fresh : list` で、尽きた瞬間に何も言わず
+   * 全体から引き直していた。しかも `usedTopics` を消さないので、
+   * **2周目からは毎回「全体から無作為」**になり、同じお題が続けて出ることもあった。
+   * 第46弾で50件に絞り、難易度で絞ると1層5件まで小さくなるので、起きやすい。
+   *
+   * いまは、尽きたら**一周したことを立てて、印を捨てて次の周に入る**。
+   * 出題者には `nextTopic` が一言だす（ここは引くだけで、画面を触らない）。
+   */
   function pickUnused(list){
     if(!list || !list.length) return null;
     var fresh = list.filter(function(t){ return !play.usedTopics[t.name]; });
-    var arr = fresh.length ? fresh : list;
+    var 一周した = fresh.length === 0;
+    var arr = 一周した ? list : fresh;
     var pick = arr[Math.floor(Math.random() * arr.length)];
-    if(pick) play.usedTopics[pick.name] = true;
+    if(!pick) return null;
+    if(一周した) play.usedTopics = {};   // 次の周も、その周の中では重ならない
+    play.usedTopics[pick.name] = true;
+    play.poolWrapped = 一周した;
+    // 引いたあとの残り（この周であと何回引けるか）
+    play.poolLeft = 一周した ? (list.length - 1) : (fresh.length - 1);
     return pick;
+  }
+  /**
+   * 検査が**本物の pickUnused** を回せる窓口（第48弾 48-7）。
+   *
+   * 引き方を検査の側に書き写すと、写しと実装が別々に動いていく（落とし穴25）。
+   * ここは呼ぶだけで、画面も記録も触らない。
+   * `window.prefsProbe` と同じ形（検査のための小さな窓）
+   */
+  window.topicProbe = function(tiers, 回数){
+    var 前 = play.usedTopics;
+    play.usedTopics = {};
+    var list = tiers ? poolForTiers(tiers) : getPool();
+    var 出た = {}, 一周 = 0, 名前 = [];
+    for(var i = 0; i < (回数 || list.length); i++){
+      var t = pickUnused(list);
+      if(!t) break;
+      if(play.poolWrapped) 一周++;
+      出た[t.name] = true;
+      名前.push(t.name);
+    }
+    play.usedTopics = 前;
+    return { 引ける: list.length, 出た数: Object.keys(出た).length, 一周: 一周, 名前: 名前 };
+  };
+
+  /**
+   * 第48弾 48-7：**絞った層の残りを、出題者に小さく出す。**
+   *
+   * 「ぜんぶまぜる」の時は出さない——絞っていない人には、残数は意味がなく、
+   * 数字が増えるだけになる（大切なこと7「1画面につき、やることは1つだけ」）。
+   */
+  function topicLeftText(){
+    if(state.topicMix) return '';
+    var tiers = effectiveTiers();
+    if(tiers.length === ALL_TIERS.length) return '';
+    return tiers.map(function(t){
+      var 残り = poolByTier(t).filter(function(x){ return !play.usedTopics[x.name]; }).length;
+      var ラベル = (BOMB_TIERS.find(function(b){ return b.id === t; }) || {}).label || t;
+      // 絵文字を落として、短くする（帯ではなく、そえる数字なので）
+      return ラベル.replace(/^\S+\s*/, '') + ' あと' + 残り;
+    }).join('・');
   }
   // ===== ワードウルフ用・関連ペア（⑤）。シープ🐑とウルフ🐺に近いお題を渡すと盛り上がる =====
   // 第24弾：お題のペアもルールの一部なので、共通層（wordwolf-logic.js）に移した。
@@ -21412,6 +21476,15 @@
     }
     var pick = pickUnused(topics); // ④：同一マッチ内の重複を避ける
     play.currentTopic = pick;
+    /**
+     * 第48弾 48-7：**一周したことを、出題者に伝える。**
+     * 黙って繰り返すと「さっきと同じお題だ」と思われて、遊びが止まる。
+     * 静かな知らせにする（原則E：慌てさせない）
+     */
+    if(play.poolWrapped){
+      try{ FxKit.notice(UiText.TOPIC.一周した); }catch(e){}
+    }
+    el('topicLeft').textContent = topicLeftText();
     voiceFlaggedWords = {};
     el('correctPickerOverlay').classList.remove('show');
     el('revealAnswerBox').style.display = 'none'; // ②：新しいお題では答えを隠した状態に戻す

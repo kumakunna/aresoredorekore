@@ -426,6 +426,41 @@ async function run() {
     assertEqual(上.id, ids[0], '同じ正解なら、早く答えた人が上になる');
   });
 
+  // ===================== 48-7 お題が尽きた時 =====================
+  //
+  // データの側（50件そろっているか・和集合）は tests/topic-pool.js。
+  // ここで見るのは**本物の pickUnused の振る舞い**——
+  // 引き方を検査に書き写すと、写しと実装が別々に動いていく（落とし穴25）。
+
+  await r.test('48-7：本物の引き方で、50回引けば50件ぜんぶ出る', async () => {
+    const { win, doc } = await launch({});
+    try {
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      assert(typeof win.topicProbe === 'function', '検査の窓口がある');
+      // **具体の数字で書く**（実装の定数を読んで使うと自己参照・落とし穴10-a）
+      const r50 = win.topicProbe(null, 50);
+      assertEqual(r50.引ける, 50, '引ける札が50枚');
+      assertEqual(r50.出た数, 50, '50回で50件ぜんぶ出る（いま ' + r50.出た数 + '件）');
+      assertEqual(r50.一周, 0, '50回のあいだは一周しない');
+
+      // 型(c)：もう一方の入力——**尽きたあと**も試す
+      const r51 = win.topicProbe(null, 51);
+      assertEqual(r51.一周, 1, '51回目で一周する（いま ' + r51.一周 + '回）');
+
+      // 絞った層（5件しかない）でも止まらない
+      const 小 = win.topicProbe(['muri'], 12);
+      assertEqual(小.引ける, 5, 'むりなんだがは5件');
+      assertEqual(小.出た数, 5, '5件ぜんぶ出る');
+      assertEqual(小.一周, 2, '12回引くと2回まわる（5→10→12）');
+
+      // **同じ周の中では重ならない**（尽きた瞬間に印を捨てる形になっているか）
+      const 最初の5 = 小.名前.slice(0, 5);
+      assertEqual(new Set(最初の5).size, 5, '1周目の5回は、ぜんぶ違うお題');
+      const 次の5 = 小.名前.slice(5, 10);
+      assertEqual(new Set(次の5).size, 5, '2周目の5回も、ぜんぶ違うお題');
+    } finally { win.close(); }
+  });
+
   // ===================== 48-6 終わったあとに、ゲーム中の見た目が残らない ==========
   //
   // `bomb-danger`（ライフ1の赤い脈打つ縁）は、**3面とも壊れ方が違った**：

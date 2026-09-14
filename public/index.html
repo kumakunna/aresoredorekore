@@ -2141,6 +2141,24 @@
   .qr-box .qr-note{font-size:11px;color:var(--ink-soft);}
   .big-wrap .qr-box svg{width:min(42vw,420px);height:min(42vw,420px);}
   /* 第21弾-7：自分の端末の画面 */
+  /* 第48弾 48-2：**いま、この人がすること**を1行だけ。
+     どの画面にも同じ場所・同じ見た目で出す（毎回さがさなくてよいように）。
+     出し分けは renderNowLine 1か所が決めるので、画面ごとに条件を書かせない
+     （残骸が出ない良い型1：出す側と隠す側を別々の場所に書かない）。
+     専用の前置き `now-` / `nl-` を付ける——既存の名前を使い回すと、
+     あとから書いたCSSが先客に負ける（落とし穴23） */
+  .now-line{
+    display:flex;align-items:center;gap:8px;justify-content:center;
+    margin:0 12px 10px;padding:9px 14px;border-radius:12px;
+    background:var(--card);border:1px solid var(--line);
+    font-size:var(--fs-body);line-height:1.55;color:var(--ink);text-align:center;
+  }
+  /* 自分が動く番。**色だけに頼らない**（安全基準）ので、
+     縁の太さと「▶」の印も一緒に出す */
+  .now-line.is-mine{border-color:var(--teal);border-width:2px;font-weight:700;}
+  .now-line .nl-mark{flex:none;}
+  /* 大画面は離れて見るので大きく。二人称は使わない（文の側で分けている） */
+  #scr-rt-big .now-line{font-size:22px;margin:0 24px 14px;padding:12px 18px;}
   .rt-phase{text-align:center;font-family:'Shippori Mincho',serif;font-weight:800;font-size:26px;margin:6px 0 12px;}
   .rt-public{text-align:center;font-size:13px;color:var(--ink-soft);line-height:1.8;margin-bottom:14px;}
   .rt-you{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;}
@@ -4483,6 +4501,7 @@
 
   <!-- 1人1台：自分の端末。自分の情報と、いま自分がやることだけを出す -->
   <div class="screen" id="scr-rt-play">
+    <div class="now-line" hidden></div>
     <div class="turn-banner" id="rtTurnBanner"></div>
     <div class="rt-phase" id="rtPhase">-</div>
     <div class="wiz-body">
@@ -4502,6 +4521,7 @@
 
   <!-- 1人1台：クイズ解除。自分の盤面だけを出す（他の人の盤面・答えは届かない） -->
   <div class="screen" id="scr-rt-bomb">
+    <div class="now-line" hidden></div>
     <div class="bomb-topbar">
       <div class="bomb-lives" id="rtBombLives">❤️❤️❤️</div>
       <div class="bomb-progress" id="rtBombProgress">0 / 0 解除</div>
@@ -4527,6 +4547,7 @@
 
   <!-- 1人1台：実物解除。役割によって出るものが変わる（第27弾-3） -->
   <div class="screen" id="scr-rt-defuse">
+    <div class="now-line" hidden></div>
     <div class="bomb-topbar">
       <div class="bomb-lives" id="dfStrikes">❤️❤️❤️</div>
       <div class="bomb-progress" id="dfProgress">0 / 0 解除</div>
@@ -4557,6 +4578,7 @@
   <!-- 1人1台：クイズ王（第30弾）。4ゲームで1枚を共有し、中身だけ差し替える。
        画面を4枚に分けると、直す時に片方だけ直す形になる（落とし穴1） -->
   <div class="screen" id="scr-rt-quiz">
+    <div class="now-line" hidden></div>
     <div class="quiz-topbar">
       <div class="quiz-score" id="qzScore">0点</div>
       <div class="quiz-round" id="qzRound"></div>
@@ -4578,6 +4600,7 @@
        前のオークションは「いま出ている1品」しか見えず、
        オークションの本質である「見比べて悩む」が構造的にできなかった -->
   <div class="screen" id="scr-rt-au-open">
+    <div class="now-line" hidden></div>
     <div class="mk-topbar">
       <div class="mk-chips" id="auOpenChips">20</div>
       <div class="mk-market" id="auOpenMarket"></div>
@@ -4601,6 +4624,7 @@
 
   <!-- 第38弾 ②アイテム：ラウンド開始時に3種から1つだけ選ぶ。選ぶこと自体が戦略 -->
   <div class="screen" id="scr-rt-au-power">
+    <div class="now-line" hidden></div>
     <div class="mk-topbar">
       <div class="mk-chips" id="auPwChips">20</div>
       <div class="mk-market" id="auPwMarket"></div>
@@ -4620,6 +4644,7 @@
   <!-- 第38弾 ③競り：中央にいまの品。**下部に残りの品が小さく並び続ける**ので、
        「これを見送れば次がある」が常に見えている -->
   <div class="screen" id="scr-rt-au-bid">
+    <div class="now-line" hidden></div>
     <div class="mk-topbar">
       <div class="mk-chips" id="auBidChips">20</div>
       <div class="mk-market" id="auBidMarket"></div>
@@ -4636,6 +4661,7 @@
   <!-- 第38弾 ④値踏み：落札しなかった人が、上物／並物／偽物を予想する。
        落札できない人にも、毎回することがある -->
   <div class="screen" id="scr-rt-au-guess">
+    <div class="now-line" hidden></div>
     <div class="mk-topbar">
       <div class="mk-chips" id="auGsChips">20</div>
       <div class="mk-market" id="auGsMarket"></div>
@@ -4651,6 +4677,7 @@
   <!-- 第38弾 ⑤開示：順序が命（指示38 別紙2-4）。
        予想が一斉にめくれる → 一拍 → 品質 → 相場が動く → 得点 -->
   <div class="screen" id="scr-rt-au-reveal">
+    <div class="now-line" hidden></div>
     <div class="mk-topbar">
       <div class="mk-chips" id="auRvChips">20</div>
       <div class="mk-market" id="auRvMarket"></div>
@@ -4667,6 +4694,7 @@
   <!-- 第38弾 ⑥結果：順位と、実データから組み立てた「今日の名場面」を1行。
        ラウンド数は出さない（第36弾 36-4） -->
   <div class="screen" id="scr-rt-au-result">
+    <div class="now-line" hidden></div>
     <h2 class="scr-title">結果発表</h2>
     <div class="wiz-body">
       <div class="mk-market-final" id="auRsMarket"></div>
@@ -4790,6 +4818,7 @@
   </div>
 
   <div class="screen" id="scr-rt-sugoroku">
+    <div class="now-line" hidden></div>
     <div class="sugo-top">
       <div class="sugo-lap" id="rtSugoLap"></div>
       <div class="sugo-turn" id="rtSugoTurn"></div>
@@ -4809,6 +4838,7 @@
   </div>
 
   <div class="screen" id="scr-rt-big">
+    <div class="now-line" hidden></div>
     <div class="big-wrap">
       <!-- 第47弾 47-4：待合では、この かたまり を左に置いてルールを右に並べる。
            横に並べるには「掴める単位」が要るので、囲みを1つ足した。
@@ -11652,7 +11682,7 @@
     // 進行役でない人：ゲームは止めない。自分だけ「まだ準備できていません」のまま待合へ。
     // **読んだ扱いにはしない**（第48弾 48-1）。引き戻されないための一時の印だけ立てる——
     // 読み直したい時は、待合の「📖 ルールを見る」か、設定→ルールをもう一度見る
-    if(key) rtRulesSeen[key] = true;
+    if(key) rtRulesSnoozed[key] = true;
     goTo('scr-rt-room');
   });
   // 待合からルールを読み直す。32-Bの「ルールをもう一度見る」とは別の入口だが、
@@ -11986,7 +12016,7 @@
    * 画面を足した人が結び忘れても、既定で繋がる側に倒れる。
    * 逆向き（画面に足したのに正本に無い）は tests/room-paths.js が見張る。
    */
-  document.querySelectorAll('[id$="LeaveBtn"]:not(#rtSugoLeaveBtn)').forEach(function(b){
+  document.querySelectorAll('[id$="LeaveBtn"]').forEach(function(b){
     b.addEventListener('click', rtLeaveRoom);
   });
   // 第26弾-3：遊び終わったら、部屋を残したまま次のゲームを選びに行く。
@@ -13118,6 +13148,301 @@
     if(cur !== want){ goTo(want); return; }
     rtRenderCurrent();
   }
+  /**
+   * ===================== 第48弾 48-2：いま、この人がすること =====================
+   *
+   * どの画面にも、**その人がいま何をするか**を1行だけ出す。
+   * 手番でない人には「待つ」と**誰の番か**を出す（指示48 48-2）。
+   *
+   * ── 作りの決めごと ────────────────────────────
+   * ・**出し分けは、ここ1か所が決める。**画面ごとの描画関数に
+   *   「この場面では出す」を書かせない（残骸が出ない良い型1）
+   * ・ゲームごとの関数は `(v, you, ctx)` を受けて `{text, mine}` を返すだけ。
+   *   `text` が空なら帯は出ない（出す場面が無い段階もある）
+   * ・**大画面には二人称を使わない。** 卓の全員が同じ1枚を見ているので、
+   *   「あなた」と書くと全員が自分のことだと読む（ctx.isBig で文を分ける）
+   * ・**秘密に触れない。** 自分の位置・手札・役割・入札額は帯に出さない
+   *   （大切なこと1。大画面に映ると、その場の全員に漏れる）
+   * ・名前は名簿から引く（同じ名前の人がいてもずれない）
+   */
+  var NL = (typeof UiText !== 'undefined') ? UiText.NOW : null;
+
+  function nlCtx(){
+    var room = rt && rt.state.room;
+    var 名簿 = {};
+    ((room && room.members) || []).forEach(function(m){ 名簿[m.id] = m.name; });
+    return {
+      meId: rt && rt.state.memberId,
+      isBig: rtIsBigScreen(),
+      isHost: !!(rt && rt.isHost()),
+      name: function(id){ return 名簿[id] || ''; }
+    };
+  }
+  // 「◯◯さんを待っています」。2人までは名前を出し、それ以上は数で言う
+  function nlWaiting(names){
+    var a = (names || []).filter(Boolean);
+    if(!a.length) return NL.共通.みんなを待つ;
+    if(a.length === 1) return NL.共通.だれかを待つ(a[0]);
+    if(a.length === 2) return NL.共通.だれかを待つ(a[0] + '・' + a[1]);
+    return a.length + '人を待っています';
+  }
+  var mine = function(text){ return { text: text, mine: true }; };
+  var wait = function(text){ return { text: text, mine: false }; };
+
+  /**
+   * ゲームごとの1行。**ここに無いゲームは帯を出さない**——
+   * 指示48の対象はオークション・すごろく・クイズ王の3カセット。
+   * 他のカセットも同じ部品を使えるよう、足すのは1行だけで済む形にしてある
+   */
+  var NOW_LINE = {};
+  /**
+   * ゲームid → その1行を作る関数。
+   * **呼ばれた時に引く**（表を先に組み立てない）——`SUGO_GAMES` などの一覧は
+   * このあとで作られるので、先に組み立てると `undefined` を触って起動ごと落ちる。
+   * 一覧そのものは `RT_GAME_SCREENS` から導いたものを使うので、
+   * ゲームを足した時に手で足す一覧は増えない（落とし穴4）
+   */
+  function nowLineFor(gameId){
+    if(!gameId || !NL) return null;
+    if(NOW_LINE[gameId]) return NOW_LINE[gameId];
+    if(typeof SUGO_GAMES !== 'undefined' && SUGO_GAMES.indexOf(gameId) !== -1) return nlSugo;
+    if(typeof RT_QUIZ_GAMES !== 'undefined' && RT_QUIZ_GAMES.indexOf(gameId) !== -1) return nlQuiz;
+    return null;
+  }
+
+  // ---- 相場オークション ----
+  NOW_LINE.auction = function(v, you, ctx){
+    var A = NL.auction, B = A.大画面;
+    if(ctx.isBig){
+      if(v.phase === 'preview') return wait(B.下見);
+      if(v.phase === 'bid'){
+        return wait((v.mode === 'open' && !v.highest) ? B.競りのはじめ : B.競り);
+      }
+      if(v.phase === 'confirm') return wait(B.最後のひと押し);
+      if(v.phase === 'guess')   return wait(B.値踏み);
+      if(v.phase === 'reveal')  return wait(B.開示);
+      if(v.phase === 'ended')   return wait(B.決着);
+      return wait('');
+    }
+    // 始まってから入った人には秘密が配られない。**できないことを大きく書かない**
+    if(!you) return wait(NL.共通.観戦);
+    if(v.phase === 'preview'){
+      if(!you.power) return mine(A.アイテムをえらぶ);
+      if(you.power === 'appraise' && !you.powerUsed) return mine(A.鑑定する);
+      var まだの人 = (v.players || []).filter(function(p){ return p.connected && !p.power; })
+        .map(function(p){ return p.name; });
+      return まだの人.length ? wait(nlWaiting(まだの人)) : wait(A.見くらべる);
+    }
+    if(v.phase === 'bid'){
+      if(v.mode === 'open'){
+        var 下限 = (v.highest ? v.highest.amount : 0) + 1;
+        if((you.chips || 0) < 下限) return wait(A.チップが足りない);
+        return mine(v.highest ? A.上乗せする : A.はじめの値をつける);
+      }
+      if(you.myBid == null) return mine(A.こっそり出す);
+      return wait(A.出しおわった);
+    }
+    if(v.phase === 'confirm'){
+      if(!you.passed) return mine(A.見送るか決める);
+      return wait(nlWaiting(v.waitingPass));
+    }
+    if(v.phase === 'guess'){
+      var 落札者 = v.lastResult && v.lastResult.winnerId;
+      if(落札者 && 落札者 === ctx.meId) return wait(A.値踏みしない);
+      if(!you.myGuess) return mine(A.値踏みする);
+      return wait(A.値踏みを出した);
+    }
+    if(v.phase === 'reveal'){
+      if(v.lastResult && v.lastResult.passed) return wait(A.品が流れた);
+      return wait(NL.共通.見るだけ);
+    }
+    if(v.phase === 'ended'){
+      return ctx.isHost ? mine(NL.共通.つぎをえらぶ) : wait(NL.共通.進行役がえらぶ);
+    }
+    return wait('');
+  };
+
+  // ---- すごろく（5ゲーム）----
+  function nlSugo(v, you, ctx){
+    var S = NL.sugoroku, B = S.大画面;
+    var 手番 = v.turn || null;
+    var 自分の番 = !!(手番 && 手番.id === ctx.meId);
+    if(ctx.isBig){
+      if(v.phase === 'ready')  return wait(B.じゅんび);
+      if(v.phase === 'turn')   return wait(手番 ? B.振る(手番.name) : '');
+      if(v.phase === 'roll')   return wait(B.組で振る);
+      if(v.phase === 'split')  return wait(B.分け合う);
+      if(v.phase === 'mini')   return wait(S.ミニゲームの説明);
+      if(v.phase === 'play')   return wait(S.ミニゲームの説明);
+      if(v.phase === 'grab')   return wait(手番 ? B.振る(手番.name) : '');
+      if(v.phase === 'offer')  return wait(B.売り買い);
+      if(v.phase === 'buy')    return wait(手番 ? B.買う(手番.name) : '');
+      if(v.phase === 'say'){
+        var 申告者 = v.sayer || null;
+        return wait(申告者 ? B.申告(申告者.name) : '');
+      }
+      if(v.phase === 'judge'){
+        // **黙ったまま締め切られた回がある。**「申告をたしかめる」と書くと、
+        // 出ていないものを指すことになる（見直しで出た）
+        var 黙った = !!(v.said && v.said.silent);
+        return wait(黙った ? B.だまっていた((v.said && v.said.name) || '') : B.たしかめる);
+      }
+      if(v.phase === 'result') return wait(B.すすむ);
+      if(v.phase === 'ended')  return wait(B.決着);
+      return wait('');
+    }
+    if(v.phase === 'ready'){
+      var 押した = !!(v.waiting && v.waiting.indexOf(ctx.name(ctx.meId)) === -1);
+      return 押した ? wait(NL.共通.じゅんびを待つ) : mine(NL.共通.じゅんびOK);
+    }
+    if(v.phase === 'turn'){
+      if(!自分の番) return wait(手番 ? NL.共通.だれかの番(手番.name) : NL.共通.みんなを待つ);
+      // 出せる札があるかは**ルール層が判定したもの**を使う（画面で数え直さない）
+      if(v.hand) return mine(((you && you.playable) || []).length ? S.札を出す : S.出せる札がない);
+      return mine(S.サイコロを振る);
+    }
+    if(v.phase === 'roll'){
+      var 振った = !!(v.waiting && v.waiting.indexOf(ctx.name(ctx.meId)) === -1);
+      return 振った ? wait(NL.共通.みんなを待つ) : mine(S.組で振る);
+    }
+    if(v.phase === 'split'){
+      // **「2人で」と書かない。**奇数人数では3人組ができる（見直しで実測）
+      return mine(S.分け合う);
+    }
+    if(v.phase === 'mini') return wait(S.ミニゲームの説明);
+    if(v.phase === 'play'){
+      var 出した = !!(v.waiting && v.waiting.indexOf(ctx.name(ctx.meId)) === -1);
+      if(出した) return wait(NL.共通.みんなを待つ);
+      var k = (v.mini && v.mini.id) || '';
+      if(k === 'tap')     return mine(S.れんだ);
+      if(k === 'janken')  return mine(S.じゃんけん);
+      if(k === 'fingers') return mine(S.ゆびのかずあて);
+      if(k === 'quiz')    return mine(S.はやおしクイズ);
+      return mine(S.ミニゲームの説明);
+    }
+    if(v.phase === 'grab'){
+      if(自分の番) return mine(S.サイコロを振る);
+      return wait(手番 ? NL.共通.だれかの番(手番.name) : NL.共通.みんなを待つ);
+    }
+    if(v.phase === 'offer'){
+      if(自分の番) return wait(NL.共通.みんなを待つ);
+      var 出しおわり = !!(v.waiting && v.waiting.indexOf(ctx.name(ctx.meId)) === -1);
+      if(出しおわり) return wait(NL.共通.みんなを待つ);
+      return mine(rtSugo.offerCard == null ? S.売る札をえらぶ : S.値をつける);
+    }
+    if(v.phase === 'buy'){
+      if(!自分の番) return wait(手番 ? NL.共通.だれかの番(手番.name) : NL.共通.みんなを待つ);
+      var 売り札 = (v.offers || []).length;
+      return mine(売り札 ? S.買うか決める : S.売り札がない);
+    }
+    if(v.phase === 'say'){
+      var 申告 = v.sayer || null;
+      if(申告 && 申告.id === ctx.meId){
+        return mine(rtSugo.sayArea ? S.手がかりをえらぶ : S.申告する);
+      }
+      return wait(申告 ? S.申告を聞く(申告.name) : NL.共通.みんなを待つ);
+    }
+    if(v.phase === 'judge') return wait(NL.共通.見るだけ);
+    if(v.phase === 'event') return wait(S.できごと);
+    if(v.phase === 'result'){
+      // **あいこ上限で誰も動かない回がある**（見直しで出た）。
+      // 「誰が何マス動いたか」と書くと、その回だけ嘘になる
+      if(v.last && v.last.draw) return wait(v.last.gaveUp ? S.あいこでおわり : S.あいこ);
+      return wait(NL.共通.見るだけ);
+    }
+    if(v.phase === 'ended') return wait(NL.共通.見るだけ);
+    return wait('');
+  }
+
+  // ---- クイズ王（4ゲーム）----
+  function nlQuiz(v, you, ctx){
+    var Q = NL.quiz, B = Q.大画面;
+    if(ctx.isBig){
+      if(v.phase === 'ended') return wait(B.決着);
+      if(v.variant === 'quizrush')   return wait(B.いっせいに);
+      if(v.variant === 'quizlist')   return wait(v.list && v.list.turnName ? B.手番(v.list.turnName) : '');
+      if(v.variant === 'quizreveal'){
+        var rv = v.reveal || {};
+        return wait(rv.buzzedName ? B.おされた(rv.buzzedName) : B.ひらいていく);
+      }
+      if(v.variant === 'buzzer'){
+        var b = v.buzzer || {};
+        if(v.phase === 'break') return wait(B.つぎの対戦);
+        var 組 = b.pair || [];
+        return wait(組.length === 2 ? B.対戦(組[0].name, 組[1].name) : '');
+      }
+      return wait('');
+    }
+    if(!you) return wait(NL.共通.観戦);
+    if(v.phase === 'ended'){
+      return ctx.isHost ? mine(NL.共通.つぎをえらぶ) : wait(NL.共通.進行役がえらぶ);
+    }
+    if(v.phase === 'break') return wait(Q.つぎのラウンド);
+    if(you.rush){
+      var r = you.rush;
+      if(r.coolMs > 0) return wait(Q.おてつきの待ち(Math.ceil(r.coolMs / 1000)));
+      if(qzUi && qzUi.pickingTier) return mine(Q.難易度をえらび直す);
+      if(!r.question) return mine(Q.難易度をえらぶ);
+      return mine(Q.こたえをえらぶ);
+    }
+    if(you.list){
+      var l = you.list;
+      if(l.alive === false) return wait(Q.脱落した);
+      if(l.yourTurn) return mine(Q.じぶんの番);
+      var 手番名 = (v.list && v.list.turnName) || '';
+      return wait(手番名 ? Q.ほかの人の番(手番名) : NL.共通.みんなを待つ);
+    }
+    if(you.reveal){
+      var rv2 = you.reveal, pub = v.reveal || {};
+      if(rv2.yours) return mine(Q.おした人);
+      if(rv2.locked){
+        var 最後の問題 = pub.index != null && pub.total != null && (pub.index + 1) >= pub.total;
+        return wait(最後の問題 ? Q.結果を待つ : Q.この問題は終わり);
+      }
+      if(pub.buzzedName) return wait(Q.だれかの答えを待つ(pub.buzzedName));
+      var 全部見えた = pub.shown != null && pub.length != null && pub.shown >= pub.length;
+      return mine(全部見えた ? Q.もう全部見えた : Q.はやく押すほど高い);
+    }
+    if(you.buzzer){
+      var bz = you.buzzer, bp = v.buzzer || {};
+      if(!bz.inMatch){
+        var 組2 = bp.pair || [];
+        return wait(組2.length === 2 ? Q.対戦を見る(組2[0].name, 組2[1].name) : NL.共通.みんなを待つ);
+      }
+      if(bp.buzzedId === ctx.meId) return mine(Q.おした人);
+      if(bz.locked) return wait(Q.もうおせない);
+      if(bp.buzzedName) return wait(Q.だれかの答えを待つ(bp.buzzedName));
+      return mine(Q.はやおし);
+    }
+    return wait('');
+  }
+
+  /**
+   * 帯を描く。**どの画面から来ても、ここ1か所を通る。**
+   * 文字は textContent で入れる（名前に < が入っても、そのまま文字として出る）
+   */
+  function renderNowLine(){
+    var slot = document.querySelector('.screen.active .now-line');
+    if(!slot) return;
+    var fn = nowLineFor(rtRoomGameId());
+    var out = null;
+    if(fn){
+      try{ out = fn(rtView() || {}, (rt && rt.state.secret) || null, nlCtx()); }catch(e){ out = null; }
+    }
+    if(!out || !out.text){ slot.hidden = true; slot.textContent = ''; return; }
+    slot.hidden = false;
+    slot.classList.toggle('is-mine', !!out.mine);
+    slot.innerHTML = '';
+    if(out.mine){
+      var mk = document.createElement('span');
+      mk.className = 'nl-mark'; mk.textContent = '▶';
+      slot.appendChild(mk);
+    }
+    var t = document.createElement('span');
+    t.className = 'nl-text'; t.textContent = out.text;
+    slot.appendChild(t);
+  }
+
   function rtRenderCurrent(){
     var cur = (document.querySelector('.screen.active') || {}).id;
     // 第24弾-3：部屋のゲームが分かった時点でテーマを当て直す。
@@ -13134,6 +13459,9 @@
     // 第38弾：段階の変わり目の音は、6枚それぞれではなくここ1か所で鳴らす。
     // 画面ごとに書くと、その画面を見ていない人（大画面など）に鳴らない
     if(rtRoomGameId() === 'auction') auPhaseFx(rtView());
+    // 第48弾 48-2：**帯はここ1か所で描く。**部屋の画面すべてがここを通るので、
+    // 画面ごとの描画関数に「この場面では出す」を書かせない
+    renderNowLine();
     if(cur === 'scr-rt-room') renderRtRoom();
     if(cur === 'scr-rt-rules') renderRtRules();
     else if(cur === 'scr-rt-big') renderRtBig();

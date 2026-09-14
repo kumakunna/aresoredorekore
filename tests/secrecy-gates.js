@@ -185,6 +185,50 @@ async function run() {
     win.close();
   });
 
+  await r.test('47-7：あれそれのお題・封印語は、部屋の知らせに1文字も載らない（逆向きの見張り）', async () => {
+    // **これは「いま壊れていないこと」ではなく、「将来壊れた日に赤くなること」のための見張り。**
+    //
+    // 指示47-7 は「あれそれを大画面に対応させる」だったが、**着手前に止めた**——
+    // あれそれは手渡し専用（RT_GAME_SCREENS にも GAME_DRIVERS にも無い）で、
+    // 部屋にいる人が始めようとすると `playWayPlan` が「部屋を閉じて はじめる」を返す。
+    // つまり「1台の手渡し＋大画面」という前提の形に、いまは到達できない。
+    // 先に要るのは `docs/切り出した宿題.md` の1番（手渡しと部屋の並走を安全にする）で、
+    // 本人の裁定（2026-09-07）は「順番を逆にしない」。
+    //
+    // **その日が来た時に、お題が大画面へ漏れたら赤くする。**
+    // 照合には向きがある（落とし穴20）——「いま漏れていない」を見るだけでは、
+    // 部屋対応にした日に静かに漏れる。
+    const fs = require('fs');
+    const path = require('path');
+    const ROOT = path.join(__dirname, '..');
+    const html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+
+    // ① いまは「部屋のゲーム」ではない。**この前提が崩れた日に、下の②が意味を持つ**
+    const rtMap = html.slice(html.indexOf('var RT_GAME_SCREENS'), html.indexOf('var RT_GAME_SCREENS') + 900);
+    const 部屋対応 = /aresoredorekore\s*:/.test(rtMap);
+    const drivers = fs.readFileSync(path.join(ROOT, 'realtime.js'), 'utf8');
+    const 進行役あり = /aresoredorekore\s*:\s*\{/.test(drivers.slice(drivers.indexOf('GAME_DRIVERS'),
+      drivers.indexOf('GAME_DRIVERS') + 1400));
+    assertEqual(部屋対応, 進行役あり,
+      '部屋の画面と進行役は、そろって在るかそろって無いか（片方だけだと、行き先の無い部屋ができる）');
+
+    // ② **お題と封印語を部屋へ配る経路が、1つも無い。**
+    //    サーバー側（部屋の知らせを作る所）に、お題の語が現れないことを見る
+    const 部屋を作る側 = ['realtime.js', 'wolf-room.js', 'wordwolf-room.js', 'bomb-room.js',
+      'defuse-room.js', 'quiz-room.js', 'auction-room.js', 'sugoroku-room.js']
+      .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join(' ');
+    const 漏れ語 = ['topicPool', 'aresoreTopic', 'sealedWord', '封印語'];
+    const 見つかった = 漏れ語.filter((w) => 部屋を作る側.indexOf(w) >= 0);
+    assertEqual(見つかった.join('・'), '',
+      'あれそれのお題・封印語を、部屋の知らせを作る側が触っていない');
+
+    // ③ 自己赤チェック：この検査が本当に効くか（落とし穴10）。
+    //    わざと混ぜた文字列を、同じ探し方で拾えることを確かめる
+    const 偽物 = '部屋の知らせ topicPool を配る';
+    assert(漏れ語.some((w) => 偽物.indexOf(w) >= 0),
+      '探し方そのものは効いている（混ぜれば見つかる）');
+  });
+
   r.finish();
 }
 

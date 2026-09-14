@@ -1474,6 +1474,12 @@ function startPlay(room) {
     }
   }
   setPhase(room, PHASE.PLAY);
+  // 第48弾：**押した速さの起点。** ここを入れ忘れていたので readEntry の
+  // `Date.now() - (w.playStartedAt || Date.now())` が常に 0 になり、
+  // 「はやおしクイズは正解者が全員同点／れんだは満タン組が全員同点」で
+  // 同着崩し（sugoroku-mini.js の rankMini）が死んでいた。
+  // 手渡し版は自前で測っていたので、部屋版だけが壊れていた（落とし穴1）
+  w.playStartedAt = Date.now();
   w.deadline = Date.now() + ((w.mini && w.mini.sec) || 12) * 1000;
 }
 

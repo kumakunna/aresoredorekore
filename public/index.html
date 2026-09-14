@@ -19410,6 +19410,19 @@
     d.textContent = pad(m) + ':' + pad(s);
     timerChipTick(d, wr.nightRemaining, { warnAt:5 });
   }
+  /**
+   * 第48弾：**止める間だけのための入口を分ける。**
+   *
+   * `stopWrNightTimer` は「夜が終わった」ためのもので、時計の行ごと画面から消す。
+   * 設定を開く間はそれでは困る（閉じた時に時計が消えたままになる）ので、
+   * **刻むのを止めるだけ**の入口と、**残り時間を持ったまま刻み直す**入口を用意する。
+   * 朝の時計（`stopWrDayTimer` / `tickWrDayTimer`）と同じ形にそろえた。
+   */
+  function pauseWrNightTimer(){
+    if(!(wr && wr.nightTimer)) return false;
+    clearInterval(wr.nightTimer); wr.nightTimer = null;
+    return true;
+  }
   function startWrNightTimer(){
     stopWrNightTimer();
     var sec = nightLimitSec();
@@ -19417,6 +19430,10 @@
     wr.nightRemaining = sec;
     el('wrNightTimerRow').style.display = 'flex';
     renderWrNightTimer();
+    tickWrNightTimer();
+  }
+  function tickWrNightTimer(){
+    if(!wr || wr.nightTimer) return;
     wr.nightTimer = setInterval(function(){
       wr.nightRemaining--;
       renderWrNightTimer();
@@ -22754,6 +22771,12 @@
       stopWrDayTimer(); el('wrDayPauseBtn').textContent = '▶';
       pausedForSettings = true;
     }
+    // 第48弾：**夜の持ち時間も止める。**
+    // ここに書き忘れていたので、夜の手渡し中に⚙を押すと、
+    // 重なりの裏で持ち時間が切れて `advanceWrQueue()` が走り、
+    // **自分の番を失ったまま次の人にスマホが渡っていた**（落とし穴1）。
+    // 朝だけ直して夜を忘れる、はこの並走の典型
+    if(pauseWrNightTimer()) pausedForSettings = true;
     openSettings('play');
   });
   // 設定を閉じる唯一の入口。どの経路で閉じても、止めた時間が戻るようにする
@@ -22766,6 +22789,12 @@
     }
     if(el('scr-wr-day').classList.contains('active') && wr && !wr.timer && state.timerEnabled){
       tickWrDayTimer(); el('wrDayPauseBtn').textContent = '⏸';
+    }
+    // 第48弾：夜は**残り時間を持ったまま**続きから。
+    // `startWrNightTimer` を呼ぶと満タンに戻ってしまう（＝止めた人が得をする）
+    if(el('scr-wr-pass').classList.contains('active') && wr && !wr.nightTimer
+       && wr.nightRemaining > 0){
+      tickWrNightTimer();
     }
   }
   el('recordsBtn').addEventListener('click', openRecords);

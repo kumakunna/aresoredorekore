@@ -393,8 +393,14 @@
     if (!h || !d || !fromEl || !toEl || !fromEl.getBoundingClientRect) return hold(100);
     var a = fromEl.getBoundingClientRect();
     var b = toEl.getBoundingClientRect();
-    var n = mk('fx-fly', label == null ? '●' : String(label));
+    // **ラベルは文字として入れる（第47弾 47-6b）。**
+    // `mk` の第2引数は innerHTML なので、ここに人の名前を渡すと
+    // 名前に書いたHTMLがそのまま動く。サーバーは名前を trim() しかしていない。
+    // 呼ぶ道が1つも無いうちに見つけたので実害は出ていないが、
+    // **これから呼ぶ**ので、先に塞ぐ（大切なこと10：誰もが守られる状態にする）
+    var n = mk('fx-fly');
     if (!n) return hold(100);
+    n.textContent = (label == null) ? '●' : String(label);
     n.style.left = (a.left + a.width / 2) + 'px';
     n.style.top = (a.top + a.height / 2) + 'px';
     n.style.setProperty('--fx-dx', ((b.left + b.width / 2) - (a.left + a.width / 2)) + 'px');

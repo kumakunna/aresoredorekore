@@ -169,7 +169,10 @@ function publicView(room) {
 function namedCounts(game, counts) {
   return Object.keys(counts || {}).map((id) => {
     const p = WolfLogic.findPlayer(game, id);
-    return { name: p ? p.name : '?', n: counts[id] };
+    // 第47弾 47-6b：**id も添える。** 大画面が「その人の札」へ票を飛ばすのに要る。
+    // **秘密は増えない**——名前はもう公開しているので、id はそれを指し直すだけ。
+    // 名前で札を当てると、同じ名前の人が2人いる部屋で取り違える（部屋は同名を弾かない）
+    return { id: id, name: p ? p.name : '?', n: counts[id] };
   }).sort((a, b) => b.n - a.n);
 }
 

@@ -5893,5 +5893,72 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // ---- 第47弾 47-6b：飛ぶ・欠ける ----
+
+  await r.test('47-6b：この回に欠けた人の札だけが、静かに欠ける', async () => {
+    // **覚えておくのではなく、毎描画 v から計算し直す**（第35弾Cの型2）。
+    // `rtBigFx` は描画より前に走るので、そこで札を掴むと数ms後に捨てられる
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    const 盤 = (turn, players) => bigRoom({
+      state: { phase: 'day', game: 'wolfrole', data: wolfView({ phase: 'day', turn: turn, players: players }) } });
+
+    push(fake, 盤(2, [
+      { id: 'm2', name: 'びび', alive: true, role: null, deadCause: null, deadTurn: null },
+      { id: 'm3', name: 'ちか', alive: false, role: null, deadCause: 'attacked', deadTurn: 2 },
+      { id: 'm4', name: 'でん', alive: false, role: null, deadCause: 'executed', deadTurn: 1 }
+    ]));
+    await sleep(win, 150);
+    const 札 = (id) => doc.querySelector('#bigList [data-pid="' + id + '"]');
+    assert(札('m3') && 札('m3').classList.contains('just-out'),
+      'この回に欠けた人は、静かに欠ける');
+    assert(札('m4') && !札('m4').classList.contains('just-out'),
+      '前の回に欠けた人は、もう欠けない（毎回やり直さない）');
+    assert(札('m2') && !札('m2').classList.contains('out'), '生きている人はそのまま');
+    // **札が誰のものか分かる。**名前で当てると同名の別人と取り違える
+    assertEqual(doc.querySelectorAll('#bigList [data-pid]').length, 3, '全員の札に印がある');
+    assertNoErrors(errors, '欠ける演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-6b：票は「何票入ったか」だけが飛ぶ（誰からかは映さない）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    const players = [
+      { id: 'm2', name: 'びび', alive: true, role: null, deadCause: null, deadTurn: null },
+      { id: 'm3', name: 'ちか', alive: true, role: null, deadCause: null, deadTurn: null }
+    ];
+    push(fake, bigRoom({ state: { phase: 'turnResult', game: 'wolfrole',
+      data: wolfView({ phase: 'turnResult', turn: 1, players: players,
+        turnResult: { executed: { name: 'ちか', role: null }, noVotes: false,
+          counts: [{ id: 'm3', name: 'ちか', n: 3 }, { id: 'm2', name: 'びび', n: 1 }], runoff: null } }) } }));
+    await waitFor(win, () => doc.querySelectorAll('.fx-fly').length >= 4, 4000, '票が飛ぶ');
+    assertEqual(doc.querySelectorAll('.fx-fly').length, 4, '票数のぶんだけ飛ぶ（3＋1）');
+    // **飛ぶ元は盤そのもの。**「誰から」を映さないことが、この検査の本体
+    const 印 = Array.prototype.map.call(doc.querySelectorAll('.fx-fly'), (n) => n.textContent);
+    assertEqual(Array.from(new Set(印)).join(''), '✓', '印はどれも同じ（誰からかを表さない）');
+    assert(!/びび|ちか/.test(Array.prototype.map.call(doc.querySelectorAll('.fx-fly'),
+      (n) => n.textContent).join('')), '飛ぶ印に名前を載せない');
+    assertNoErrors(errors, '票の演出で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('47-6b：落札した品が、落札者の札へ飛ぶ（idで引く）', async () => {
+    // **本物の進行役を動かして検体を作る**（落とし穴25）。
+    // 手で書いた lastResult だと、winnerId を足したこと自体が検査できない
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const st = auStage({ mode: 'sealed' }).toGuess('m2');
+    const view = st.view();
+    assertEqual(view.lastResult.winnerId, 'm2',
+      '公開ビューに落札者の id が載っている（名前だけでは同名の別人と取り違える）');
+    push(fake, auRoom(st, 'guess', true));
+    await waitFor(win, () => doc.querySelectorAll('.fx-fly').length > 0, 4000, '品が飛ぶ');
+    assertEqual(doc.querySelectorAll('.fx-fly').length, 1, '1つだけ飛ぶ');
+    assert(doc.querySelector('#bigList [data-pid="m2"]'), '落札者の札を id で名指しできる');
+    assertNoErrors(errors, '落札の演出で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

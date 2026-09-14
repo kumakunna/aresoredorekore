@@ -388,5 +388,20 @@ function freshFx(opt) {
     assertEqual(skipped.log.vibes.length, 0, '手も震えない');
   });
 
+  await r.test('飛ぶ印のラベルは、文字として入る（HTMLとして動かない）', async () => {
+    // **第47弾 47-6b で見つけた穴。** `mk` の第2引数は innerHTML なので、
+    // `fly(from, to, 名前)` と書くと、名前に入れたHTMLがそのまま動いていた。
+    // サーバーは名前を trim() しかしていない（realtime.js の room:join）。
+    // 見つけた時点で本番からの呼び出しは0件（実害は出ていない）だったが、
+    // **47-6b でまさにこの経路を使う**ので、使う前に塞いだ
+    const { Fx, doc, app } = freshFx();
+    Fx.fly(app, app, '<img src=x onerror="window.__やられた=1">びび');
+    const n = doc.querySelector('.fx-fly');
+    assert(n, '印は出る');
+    assertEqual(n.querySelectorAll('img').length, 0, 'タグが要素として作られない');
+    assert(/^<img/.test(n.textContent), '打った文字は、文字のまま読める（黙って消さない）');
+    assert(/びび/.test(n.textContent), '名前も残る');
+  });
+
   r.finish();
 })();

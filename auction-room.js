@@ -391,6 +391,10 @@ function safeResult(lr, revealed) {
     no: lr.no, kind: lr.kind, look: lr.look,
     passed: !!lr.passed, again: !!lr.again, note: lr.note || null,
     winner: lr.winner || null, bid: lr.bid || 0, paid: lr.paid || 0, half: !!lr.half,
+    // 第47弾 47-6b：**落札者の id も出す。** 大画面が「その人の札」へ品物を飛ばすのに要る。
+    // **秘密は増えない**——落札者の名前はもう出している（winner）ので、
+    // id はそれを指し直すだけ。名前で当てると同名の別人と取り違える
+    winnerId: lr.winnerId || null,
     marketBefore: lr.marketBefore, marketAfter: lr.marketAfter
   };
   if (revealed && lr.revealed) {

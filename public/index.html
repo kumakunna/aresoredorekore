@@ -710,12 +710,28 @@
   @keyframes fxRowIn{from{opacity:0;transform:translateY(14px) scale(.96);}to{opacity:1;transform:none;}}
 
   /* --- 票が飛ぶ --- */
+  /* 飛ぶ印。**第47弾 47-6b で色を作り直した。**
+     置き場を層（#uiLayerRoot）へ移したので `--stamp-deep` はテーマを1つも見ず、
+     `:root` の朱（#8F1B20）のまま出る。暗い4テーマで実測 **1.97〜2.06:1**——
+     部品の下限3.0（正本§1-4）を割っていた。
+     かといって金にすると、今度は明るいテーマ（すごろく・人狼の朝）で 2.11 になる。
+     **1色ではどちらも満たせない。**
+     正本1-5 が切り替えのつまみで採った手と同じで、**縁を足して形を保つ**：
+       暗い地 … 金の面が持つ（6.83〜7.17）
+       明るい地 … 黒い縁が持つ
+       面の上の文字 … 墨で 5.80 */
   .fx-fly{
     position:fixed;z-index:87;pointer-events:none;
     width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;
-    background:var(--stamp-deep);color:#fff;
-    font-size:12px;font-weight:800;line-height:22px;text-align:center;
+    background:var(--gold);color:var(--ink);
+    border:2px solid var(--switch-knob-edge);box-sizing:border-box;
+    font-size:12px;font-weight:800;line-height:18px;text-align:center;
     box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+  /* 大画面では離れた席から見るので、点ではなく玉にする */
+  :root.big-screen .fx-fly{
+    width:40px;height:40px;margin:-20px 0 0 -20px;
+    font-size:20px;line-height:36px;border-width:3px;
   }
   .fx-fly-go{
     transition:transform calc(0.26s * var(--fx-scale)) cubic-bezier(.32,.72,0,1),
@@ -2168,6 +2184,19 @@
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:56px;font-weight:900;color:rgba(226,88,74,.85);pointer-events:none;
   }
+  /* 第47弾 47-6b：**この回に欠けた人は、静かに欠ける。**
+     責める時は静かに（原則C）——跳ねさせない・光らせない・音も鳴らさない。
+     札の明るさがゆっくり落ち、バツが**ふわっと**現れるだけ。
+     0.75秒＝正本§4の「長（見せ場）」。速さの設定に従う */
+  .big-list .bl-card.just-out{
+    animation:blcGone calc(0.75s * var(--fx-scale)) cubic-bezier(.32,.72,0,1);
+  }
+  .big-list .bl-card.just-out .blc-x{
+    animation:blcXin calc(0.75s * var(--fx-scale)) cubic-bezier(.32,.72,0,1);
+  }
+  @keyframes blcGone{0%{opacity:1;}100%{opacity:.55;}}
+  @keyframes blcXin{0%{opacity:0;transform:scale(1.5);}55%{opacity:0;transform:scale(1.5);}
+    100%{opacity:1;transform:scale(1);}}
   /* 第32弾-D 5-4：大画面の巨大カウントダウン。数字がズームしながら脈打つ */
   .big-cd{
     position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
@@ -14539,8 +14568,14 @@
     }
     // 手持ちのチップ。**品質にあたるものは1つも出さない**
     el('bigList').innerHTML = (v.players || []).map(function(p){
-      return '<span class="bl-item">' + faceOf(p.id) + escapeHtml(p.name) + ' ' + p.chips + '枚</span>';
+      // 第47弾 47-6b：**誰の札かの印。** 落札した品を飛ばす先を名指しするのに要る。
+      // 名前で当てると、同じ名前の人が2人いる部屋で取り違える（部屋は同名を弾かない）
+      return '<span class="bl-item" data-pid="' + escapeHtml(p.id) + '">' +
+        faceOf(p.id) + escapeHtml(p.name) + ' ' + p.chips + '枚</span>';
     }).join('');
+    // 第47弾 47-6b：落札した品が、落札者の札へ飛ぶ。**描画のあとに置く**——
+    // `rtBigFx` は描画より前に走るので、そこで掴んだ札は数ms後に捨てられる
+    bigAuSoldFly(v);
   }
 
   // ===== 第32弾-A-2-4：みんなの状況 =====
@@ -14776,6 +14811,12 @@
       return;
     }
     if(SUGO_GAMES.indexOf(game) !== -1){
+      // 第47弾 47-6b：**突然のできごとを、画面いっぱいの札で。**
+      // 次々と別のものに入れ替わるので `rtOnceValue`（47-1）。
+      // ここは DOM を掴まないので、描画より前でも困らない
+      rtOnceValue('big:sugo:event', v.event && v.event.id, function(){
+        FxKit.callout((v.event.icon || '') + ' ' + (v.event.title || ''), { ms: 1200 });
+      });
       // 決着だけ祝う。手番のたびに光ると、盤を見ているのを邪魔する
       if(changed && v.phase === 'ended'){
         FxKit.confetti(['#b5462f', '#c9a227', '#f4efe3']);   // 朱印・金・和紙
@@ -14946,11 +14987,16 @@
     // 生死は公開情報。役職は決着するまで出さない。
     // 第32弾-D 5-3：大画面では文字の一覧ではなく、顔が並んだ盤面のように。
     // 脱落した人には大きくバツがつく（ボードゲームの駒が倒れる感覚）
+    // 第47弾 47-6b：**この回に欠けた人**に印を付ける。
+    // 「欠けた瞬間」を覚えておくのではなく、**毎描画 v から計算し直す**
+    //（第35弾Cの型2）。無関係な知らせで描き直されても、同じ状態が同じように出る
     el('bigList').innerHTML = (v.players || []).map(function(p){
       // 第42弾 門E6：**生きている人の顔は、その人が選んだアイコン。**
       // 脱落したら 💀（状態は姿より優先する——盤面で真っ先に読むのは生死だから）
       var look = lookOf(p.id);
-      return '<span class="bl-card' + (p.alive ? '' : ' out') + '">' +
+      var いま欠けた = !p.alive && p.deadTurn === v.turn;
+      return '<span class="bl-card' + (p.alive ? '' : ' out') +
+        (いま欠けた ? ' just-out' : '') + '" data-pid="' + escapeHtml(p.id) + '">' +
         '<span class="blc-face">' + (p.alive ? escapeHtml(look.icon || '🙂') : '💀') + '</span>' +
         '<span class="blc-name">' + escapeHtml(p.name) +
           (look.title ? '<span class="blc-title">' + escapeHtml(look.title) + '</span>' : '') + '</span>' +
@@ -14960,6 +15006,55 @@
       el('bigSub').innerHTML = sub + '<br><span style="opacity:.7;">まだの人：' +
         escapeHtml(v.waiting.join('、')) + '</span>';
     }
+    // 第47弾 47-6b：票が集まる。**ここは描画のあと**——
+    // `rtBigFx` は描画より前に走るので、そこで掴んだ札は数ms後に innerHTML ごと捨てられる
+    bigWolfVotesFx(v);
+  }
+
+  /**
+   * 大画面：票が集まる（第47弾 47-6b）。
+   *
+   * **誰から飛んだかは映さない。** 誰が誰に入れたかは、決着より前の公開ビューに
+   * 存在しない（`turnResult.counts` は「何票入れられたか」の集計だけ）。
+   * 見せるために配りものを増やすのは、この指示でずっと守ってきた
+   * 「漏れ口を増やさない」に反するし、**誰を疑っているか分からないこと自体が
+   * 人狼という遊びの前提**（本人の裁定 2026-09-14）。
+   * だから盤の上から、入れられた人の札へ、票数のぶんだけ飛ばす。
+   */
+  /**
+   * 大画面：落札した品が、落札者の札へ飛ぶ（第47弾 47-6b）。
+   *
+   * 飛ばす元は「いま競っている品の札」（`.bmk-c.now`）、先は落札者の札。
+   * **id で引く。** publicView に `winnerId` を足したのはこのため——
+   * 名前はもう公開しているので秘密は増えないが、同名の別人とは取り違えない。
+   */
+  function bigAuSoldFly(v){
+    if(typeof FxKit === 'undefined') return;
+    var lr = v.lastResult;
+    var 決まった = v.phase === 'guess' && !!lr && !lr.passed && !!lr.winnerId;
+    rtOnce('big:au:fly:' + (v.idx == null ? '?' : v.idx), 決まった, function(){
+      var 品 = el('bigAuMarket').querySelector('.bmk-c.now');
+      var 札 = el('bigList').querySelector('[data-pid="' +
+        (window.CSS && CSS.escape ? CSS.escape(lr.winnerId) : lr.winnerId) + '"]');
+      if(品 && 札) FxKit.fly(品, 札, '📦');
+    });
+  }
+  function bigWolfVotesFx(v){
+    if(typeof FxKit === 'undefined') return;
+    var tr = (v.phase === 'turnResult' && v.turnResult) || null;
+    var counts = tr && tr.counts;
+    if(!counts || !counts.length) return;
+    rtOnce('big:wolf:votes:' + (v.turn || 0), true, function(){
+      var box = el('bigList');
+      counts.forEach(function(row){
+        var card = box.querySelector('[data-pid="' + (window.CSS && CSS.escape ? CSS.escape(row.id) : row.id) + '"]');
+        if(!card) return;
+        for(var i = 0; i < row.n; i++){
+          // 1票ずつ、少しずらして飛ばす（同時だと1本に見える）
+          (function(k){ setTimeout(function(){ FxKit.fly(box, card, '✓'); }, k * 90); })(i);
+        }
+      });
+    });
   }
 
   // 第24弾：1人1台ワードウルフの大画面。

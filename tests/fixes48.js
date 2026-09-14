@@ -1054,6 +1054,38 @@ async function run() {
     }
   });
 
+  await r.test('48-8：名前を変える画面が、ログインIDは変わらないと伝える', async () => {
+    const { win, doc, errors } = await launch({});
+    try {
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      // ログイン済みの状態を作る（サーバーは立てず、setUser の入口を直に通す）
+      assert(typeof win.authProbe === 'function', 'ログイン状態を作る窓口がある');
+      win.authProbe({ id: 1, username: 'kuma2026', displayName: 'くまさん' });
+      await sleep(win, 60);
+
+      // 棚のバーに出るのは**見せる名前**
+      assertEqual((el(doc, 'shelfName').textContent || '').trim(), 'くまさん',
+        '棚のバーに出るのは見せる名前');
+
+      win.goToProbe('scr-rename');
+      await sleep(win, 120);
+      assertEqual(el(doc, 'renameInput').value, 'くまさん', '入力欄には、いまの見せる名前');
+      const 注記 = el(doc, 'renameNote').textContent || '';
+      assert(/ログインに使う名前/.test(注記) && /変わりません/.test(注記),
+        'ログインIDは変わらないと書いてある（いま「' + 注記 + '」）');
+      assert(注記.indexOf('kuma2026') !== -1,
+        'ログインIDそのものを見せる（いま「' + 注記 + '」）');
+
+      // **画面の説明が、嘘をついていない**（落とし穴33）。
+      // 部屋の名簿は、その場で打つ別の名前
+      const 説明 = (doc.querySelector('#scr-rename .wiz-lead').textContent || '');
+      assert(説明.indexOf('棚のバー') !== -1, '棚のバーに出ることは書いてある');
+      assert(!/部屋の名簿/.test(説明),
+        '「部屋の名簿に出る」とは書かない（部屋の名前は、その場で打つ別のもの）');
+      assertNoErrors(errors, '48-8（画面）で未捕捉の例外');
+    } finally { win.close(); }
+  });
+
   r.finish();
 }
 

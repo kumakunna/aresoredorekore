@@ -3853,7 +3853,11 @@
   <!-- 名前を変える -->
   <div class="screen" id="scr-rename">
     <div class="wiz-head"><h2 class="scr-title">名前を変える</h2></div>
-    <p class="wiz-lead">棚のバー・部屋の名簿・記録に出る名前です。変えても、いままでの記録は残ります。</p>
+    <!-- 第48弾 48-8：**「部屋の名簿・記録に出る」は半分しか本当ではなかった**（落とし穴33）。
+         部屋に入る時の名前は、その場で打つ別のもの（ここの名前が初期値に入るだけ）。
+         記録に残るのも、その時に打ったプレイヤー名。
+         ここの名前が必ず出るのは、棚のバーと称号の画面 -->
+    <p class="wiz-lead">棚のバーと、称号の画面に出る名前です。部屋に入る時は、この名前が最初に入ります（その場で変えられます）。変えても、いままでの記録は残ります。</p>
     <div class="wiz-body">
       <input type="text" id="renameInput" maxlength="20" placeholder="あたらしい名前">
       <div class="mic-status" id="renameNote" style="margin-top:8px;"></div>
@@ -6432,8 +6436,8 @@
   // 「ホスト／ゲスト」は、初めて来た人にはどちらが自分か分からない。
   function enterEntry(){
     // ログインしているかどうかは、押す前に見えていた方がいい
-    el('entryNote').textContent = state.username
-      ? (state.username + ' さんでログインしています') : '';
+    el('entryNote').textContent = state.displayName
+      ? (state.displayName + ' さんでログインしています') : '';
     refreshEntryRoomBtn();
   }
   /**
@@ -7280,7 +7284,7 @@
   var GUEST_TITLES = ['まだ準備してるよ！', 'ログインしないとまだできない', 'みらいのげんせき', 'まだがんばっているとちゅう！'];
   function pickOne(list){ return list[Math.floor(Math.random() * list.length)]; }
   var guestIdentity = { name: pickOne(GUEST_NAMES), title: pickOne(GUEST_TITLES), icon: '🙂' };
-  function loggedIn(){ return !!state.username; }
+  function loggedIn(){ return !!state.displayName; }
 
   // ---------- 第26弾-4：称号（アイコン・二つ名） ----------
   // 目録と獲得条件は titles.js が持つ（サーバーも同じものを使う）。
@@ -7444,8 +7448,8 @@
    */
   function myPlayerId(players){
     if(rt && rt.state.room && rt.state.memberId) return rt.state.memberId;
-    if(!state.username) return null;
-    var me = (players || []).find(function(p){ return p.name === state.username; });
+    if(!state.displayName) return null;
+    var me = (players || []).find(function(p){ return p.name === state.displayName; });
     return me ? me.id : null;
   }
   // どの種類のパーツかを探す（icon / first / joiner / last）
@@ -7544,7 +7548,7 @@
     var inn = loggedIn();
     el('shelfAvatar').textContent = inn ? myIcon() : guestIdentity.icon;
     el('shelfTitle').textContent = inn ? myTitleText() : guestIdentity.title;
-    el('shelfName').textContent = inn ? state.username : guestIdentity.name;
+    el('shelfName').textContent = inn ? state.displayName : guestIdentity.name;
     // ログインしていない人は、まだ選べる称号を持っていない
     // ログインしていない人は、まだ選べる称号を持っていない
     // 第42弾 2-5：**未ログインでも開ける。**「いまの自分」は端末に残っているし、
@@ -7664,17 +7668,17 @@
     var have = haveMap();
     el('titlePreviewIcon').textContent = TitleLogic.iconEmoji(titleDraft);
     el('titlePreviewTitle').textContent = TitleLogic.titleText(titleDraft);
-    el('titlePreviewName').textContent = state.username || '-';
+    el('titlePreviewName').textContent = state.displayName || '-';
     el('profIconBtn').textContent = T.アイコンをかえる;
     el('profNameBtn').textContent = T.二つ名をかえる;
-    el('profRenameSub').textContent = state.username || '（ログインすると使えます）';
+    el('profRenameSub').textContent = state.displayName || '（ログインすると使えます）';
 
     // 2-5：未ログインでも見られる。**責めない一言だけ**
     var guest = el('titleGuestNote');
     guest.style.display = loggedIn() ? 'none' : '';
     guest.textContent = loggedIn() ? '' : T.未ログイン;
-    el('titleHandoffNote').textContent = state.username
-      ? '📱 1台をまわして遊ぶ時は、プレイヤー名を「' + state.username +
+    el('titleHandoffNote').textContent = state.displayName
+      ? '📱 1台をまわして遊ぶ時は、プレイヤー名を「' + state.displayName +
         '」にしておくと、あなたの活躍として数えます（1人1台なら自動です）'
       : '';
 
@@ -7819,8 +7823,13 @@
 
   // ---- 名前を変える ----
   function enterRename(){
-    el('renameInput').value = state.username || '';
-    el('renameNote').textContent = '棚のバー・部屋の名簿・記録に出ます';
+    el('renameInput').value = state.displayName || '';
+    // 第48弾 48-8：**ログインIDは変わらないことを、その場で言う。**
+    // 「棚のバー・部屋の名簿・記録に出ます」だけだと、
+    // ログインに使う名前も変わるのか分からない（変わらないのが答え）
+    el('renameNote').textContent = state.loginId
+      ? ('ログインに使う名前（' + state.loginId + '）は変わりません')
+      : 'ログインに使う名前は変わりません';
   }
   el('renameBackBtn').addEventListener('click', function(){ goBack('scr-titles'); });
   el('renameBtn').addEventListener('click', async function(){
@@ -7828,9 +7837,9 @@
     if(!name){ el('renameNote').textContent = '名前を入れてください'; return; }
     this.disabled = true;
     try{
-      var res = await api('/api/auth/name', { method:'PUT', body:{ username: name } });
-      setUser(res.username);
-      el('renameNote').textContent = '「' + res.username + '」にしました';
+      var res = await api('/api/auth/name', { method:'PUT', body:{ displayName: name } });
+      setUser(res);
+      el('renameNote').textContent = '「' + (res.displayName || name) + '」にしました';
       goBack('scr-titles');
       renderTitleScreen();
     }catch(e){
@@ -8265,7 +8274,20 @@
     selectedModeId: "normal",
     voiceDetect:false,
     matchId: null,
-    username: null,
+    /**
+     * 第48弾 48-8：**見せる名前と、ログインIDを分ける。**
+     *
+     * それまでは `username` の1本だけで、名前を変えると
+     * `UPDATE users SET username` でログインIDごと変わっていた——
+     * 遊ぶ人からは「見せる名前を変えただけ」にしか見えないのに、
+     * **次から前の名前ではログインできなくなっていた。**
+     *
+     * 名前を `username` のまま残すと、次にここを読む人が
+     * また「ログインする名前」と読む（落とし穴2：借りた言葉がそのまま漏れる）。
+     * **画面に出るのは displayName、ログインに使うのは loginId。**
+     */
+    displayName: null,
+    loginId: null,
     customTimer: null,
     timerEnabled: true,
     hardMode: false,
@@ -8648,18 +8670,35 @@
   }
   // 第26弾-2：名乗りは棚の下部バーにいつも出ているので、
   // ログイン状態が動いたら必ずここを通して、バーの表示も一緒に更新する
-  function setUser(name){
-    var changed = (state.username || null) !== (name || null);
-    state.username = name || null;
+  /**
+   * @param {object|null} me サーバーが返したアカウント（null＝ログアウト）
+   *
+   * 第48弾 48-8：**見せる名前とログインIDを両方受け取る。**
+   * 古いサーバー（displayName を返さない）でも動くよう、
+   * 無ければログインIDを見せる名前に使う——第48弾の移行と同じ既定
+   */
+  function setUser(me){
+    var 見せる = me ? (me.displayName || me.username || null) : null;
+    var ログインID = me ? (me.username || null) : null;
+    var changed = (state.displayName || null) !== (見せる || null);
+    state.displayName = 見せる;
+    state.loginId = ログインID;
     // 第26弾-4：称号はアカウントに付くので、人が変わったら取り直す。
     // ログアウトした時に前の人の名乗りが残らないよう、必ずここを通す
     if(changed) loadTitles();
     renderShelfBar();
   }
+  /**
+   * 検査が、サーバーを立てずにログイン状態を作る窓口（第48弾 48-8）。
+   * `window.prefsProbe` と同じ形。**本物の setUser を通す**ので、
+   * 見せる名前とログインIDの分け方が、そのまま試される
+   */
+  window.authProbe = function(me){ setUser(me || null); };
+  window.goToProbe = function(id){ goTo(id); };
   async function checkAuth(){
     try{
       var me = await api('/api/auth/me');
-      setUser(me.username);
+      setUser(me);
       return true;
     }catch(e){
       setUser(null);
@@ -10164,7 +10203,7 @@
   /**
    * ログインが要る用事の前に呼ぶ。
    *
-   * 第32弾-C（実機の不具合）：ここは state.username だけを見ていた。
+   * 第32弾-C（実機の不具合）：ここは state の名乗りだけを見ていた。
    * その値が入るのは、起動した時に1回だけ走る checkAuth() の結果だけ。
    * 本番のサーバーは2分ごとに git pull → pm2 restart で入れ替わるので、
    * ちょうどその瞬間にアプリを開いた人は /api/auth/me だけが落ちる。
@@ -10215,7 +10254,7 @@
           username: el('regUsername').value.trim(), password: el('regPassword').value, code: el('regCode').value.trim()
         }});
       }
-      setUser(res.username);
+      setUser(res);
       // 第32弾-C（実機の不具合）：サーバーは「つないだ時」のセッションを見る。
       // ログイン前につないだソケットは、あとでログインしても
       // サーバーからはずっと未ログインに見えたままで、部屋を立てると弾かれていた。
@@ -11730,7 +11769,7 @@
       el('rtJoinName').value = (ET && ET.大画面の名前) || '大画面';
     }
     // ログイン名が分かっていれば、作る側の名前に入れておく
-    if(state.username && !el('rtCreateName').value) el('rtCreateName').value = state.username;
+    if(state.displayName && !el('rtCreateName').value) el('rtCreateName').value = state.displayName;
     renderRtJoinPeek(null);
     if(el('rtJoinCode').value.trim().length === 6) peekJoinRoom();
   }
@@ -23311,7 +23350,7 @@
     // 第26弾-2：棚から開いた時は、まだログインしていないことがある。
     // 記録に関わる操作は、ログインしてからでないと意味がないので隠す
     var inn = loggedIn();
-    el('loggedInAs').textContent = inn ? ('ログイン中：'+state.username) : 'ログインしていません';
+    el('loggedInAs').textContent = inn ? ('ログイン中：'+state.displayName) : 'ログインしていません';
     el('logoutBtn').style.display = inn ? '' : 'none';
     el('settingsLoginBtn').style.display = inn ? 'none' : '';
     // 第43弾 2-2：**棚では入口を飛ばす。**

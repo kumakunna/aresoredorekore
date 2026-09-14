@@ -5960,5 +5960,39 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('47-6：開示は大画面で一番大きく、上物は金・それ以外は灰（色だけに頼らない）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const st = auStage({ mode: 'sealed' }).toReveal('m2', {});
+    const 品質 = st.view().lastResult.quality;
+    push(fake, auRoom(st, 'reveal', true));
+    await sleep(win, 150);
+    const 主 = el(doc, 'bigMain');
+    // **一番大きい枠に出ている**（bigMain は画面で最大の文字）
+    assert(主.textContent.trim().length > 0, '開示の語が一番大きい枠に出る（' + 主.textContent + '）');
+    if(品質 === 'fine'){
+      assert(主.classList.contains('is-fine'), '上物は金');
+      assert(!主.classList.contains('is-dull'), '金と灰が同時に付かない');
+    } else {
+      assert(主.classList.contains('is-dull'), '上物でなければ灰');
+      assert(!主.classList.contains('is-fine'), '金と灰が同時に付かない');
+    }
+    // **色だけに頼らない**（第8部-2）。語も一緒に出ている
+    assert(/上物|並物|偽物/.test(主.textContent), '品質の名前も出ている（色が読めなくても分かる）');
+
+    // 開示が終わったら、色は残らない（前の品の色を持ち越さない）。
+    // **本物の進行役を進める。** 外側の段階名だけ書き換えても、
+    // 中身（publicView）は本物が返すので `reveal` のまま——
+    // 本物が送らない形で検査すると、実装ではなく検体を試すことになる（落とし穴25）
+    AuctionRoom.advance(st.room);
+    push(fake, auRoom(st, 'bid', true));
+    await sleep(win, 150);
+    assert(st.view().phase !== 'reveal', '本当に開示から出ている（条件が作れている）');
+    assert(!主.classList.contains('is-fine') && !主.classList.contains('is-dull'),
+      '開示の外では色を外す');
+    assertNoErrors(errors, '開示の演出で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

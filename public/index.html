@@ -2160,6 +2160,10 @@
   /* 部屋コードは「読んで入力する文字」なので、桁が揃って紛れない書体のままにする
      （夜・投票・決着といった演出の見出しだけを筆文字にする） */
   .big-main.is-code{font-family:'DotGothic16',monospace;letter-spacing:.14em;}
+  /* 第47弾 47-6：オークションの開示。上物は金、それ以外は灰。
+     **色だけに頼らない**——「上物！」「並物！」という語も同じ場所に出る（第8部-2） */
+  .big-main.is-fine{color:var(--gold);}
+  .big-main.is-dull{color:var(--ink-soft);}
   .big-sub{font-size:clamp(16px,2.6vw,28px);line-height:1.7;margin-bottom:12px;}
   .big-list{
     display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
@@ -14538,6 +14542,13 @@
     }
     el('bigMain').textContent = main;
     el('bigSub').innerHTML = escapeHtml(sub);
+    // 第47弾 47-6：**開示は大画面で一番大きく（金／灰）。**
+    // 文字はもともと bigMain＝画面で一番大きい枠に出ている。足りなかったのは色。
+    // 上物だけ金、それ以外は灰——**色だけに頼らない**（「上物！」という語も一緒に出る・第8部-2）。
+    // 開示の段階以外では必ず外す（前の品の色が残らない）
+    var 開示中 = (v.phase === 'reveal' && v.lastResult && !v.lastResult.passed);
+    el('bigMain').classList.toggle('is-fine', !!(開示中 && v.lastResult.quality === 'fine'));
+    el('bigMain').classList.toggle('is-dull', !!(開示中 && v.lastResult.quality !== 'fine'));
 
     // 相場表と品ぞろえ。決着したあとは順位が主役なので出さない
     var box = el('bigAuMarket');

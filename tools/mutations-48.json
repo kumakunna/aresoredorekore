@@ -5,7 +5,7 @@
     "suite": "tests/room-ready.js",
     "from": "  const 持ち越す = {};\n  if (room.state.data && room.state.data.modeId) 持ち越す.modeId = room.state.data.modeId;",
     "to": "  const 持ち越す = {};\n  if (false && room.state.data && room.state.data.modeId) 持ち越す.modeId = room.state.data.modeId;",
-    "expect": "modeId"
+    "expect": "選んでいるモードは消えない"
   },
   {
     "name": "48-1② 待合にもどった時に、いるべき画面を計算し直さない",
@@ -29,7 +29,7 @@
     "suite": "tests/fixes48.js",
     "from": "    if(key) rtRulesSnoozed[key] = true;",
     "to": "    if(key) rtRulesSeen[key] = true;",
-    "expect": "出し直されたら"
+    "expect": "たたまれずに出る"
   },
   {
     "name": "48-1 出し直しの札を、鍵に混ぜない",
@@ -77,7 +77,7 @@
     "suite": "tests/fixes48.js",
     "from": "       && wr.nightRemaining > 0){\n      tickWrNightTimer();\n    }",
     "to": "       && wr.nightRemaining > 0){\n      startWrNightTimer();\n    }",
-    "expect": "続きから減り始める"
+    "expect": "時間が増えていない"
   },
   {
     "name": "部屋のミニゲームで、押した速さの起点をまた入れ忘れる",
@@ -85,7 +85,7 @@
     "suite": "tests/fixes48.js",
     "from": "  w.playStartedAt = Date.now();",
     "to": "  w.playStartedAt = 0;",
-    "expect": "playStartedAt"
+    "expect": "ミニゲームが始まった時刻"
   },
   {
     "name": "playthrough：カセットを開いた先を、また時間で待つ",

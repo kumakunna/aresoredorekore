@@ -109,6 +109,58 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  /**
+   * 第48弾 48-1①：**「いま何のモードか」は、境界をまたいでも消えない。**
+   *
+   * 端末が「このゲームのルールを読んだか」を数える鍵は `modeId ?? gameId`。
+   * `clearGameState` が `state.data` を空にしていたせいで、再戦と強制終了を
+   * 通ると modeId が消え、**同じモードなのに鍵が2つに割れて**いた。
+   * どちらが使われるかは「どの道で来たか」で決まり、遊ぶ人には見えない。
+   *
+   * 具体のモードidで書く（実装から読んで入れると自己参照・落とし穴10-a）。
+   */
+  await r.test('境界：再戦・強制終了をまたいでも、選んでいるモードは消えない', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);
+      const モード = () => (rm.guests[0].room
+        && rm.guests[0].room.state && rm.guests[0].room.state.data || {}).modeId;
+
+      // 棚→モード→ウィザードの道だけが modeId を載せる（backToRoomWithGame）
+      await rm.host.call('room:setState',
+        { phase: 'lobby', game: 'bomb', reset: true, data: { modeId: 'bomb-coop' } });
+      await waitUntil(() => モード() === 'bomb-coop', '選んだモードが全員に届く');
+
+      // 「もう一度」（再戦）＝ data を付けずに同じゲームを reset で置き直す
+      await rm.host.call('room:setState', { phase: 'lobby', game: 'bomb', reset: true });
+      await sleep(200);
+      assertEqual(モード(), 'bomb-coop', '再戦しても、選んでいるモードは消えない');
+
+      // 「みんなを待合にもどす」（強制終了）も同じ形
+      await rm.host.call('room:setState', { phase: 'lobby', game: 'bomb', reset: true });
+      await sleep(200);
+      assertEqual(モード(), 'bomb-coop', '強制終了しても、選んでいるモードは消えない');
+
+      // 型(c)：もう一方の入力——**別のモードを選び直したら、ちゃんと変わる**
+      await rm.host.call('room:setState',
+        { phase: 'lobby', game: 'bomb', reset: true, data: { modeId: 'bomb-race' } });
+      await waitUntil(() => モード() === 'bomb-race', 'えらび直せば変わる');
+
+      // 「ルールをもう一度みんなに見せる」の札も、同じ理由で持ち越す
+      await rm.host.call('room:setState',
+        { phase: 'lobby', game: 'bomb', reset: true, data: { rulesEpoch: 3 } });
+      await sleep(200);
+      const d = (rm.guests[0].room.state || {}).data || {};
+      assertEqual(d.rulesEpoch, 3, '出し直しの札が届く');
+      assertEqual(d.modeId, 'bomb-race', '札を進めても、モードは消えない');
+      await rm.host.call('room:setState', { phase: 'lobby', game: 'bomb', reset: true });
+      await sleep(200);
+      assertEqual((rm.guests[0].room.state.data || {}).rulesEpoch, 3,
+        '札も再戦で戻らない（戻ると、見せ直した直後の再戦だけ既読に逆戻りする）');
+      rm.all.forEach((d2) => d2.close());
+    } finally { await srv.close(); }
+  });
+
   await r.test('境界：始まったら、準備OKは役目を終える', async () => {
     const srv = await startTestServer();
     try {

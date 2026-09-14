@@ -18,7 +18,7 @@
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click,
-  fillPlayerForm, pickGame } = require('./harness');
+  fillPlayerForm, setupPlayers, pickGame } = require('./harness');
 
 const Sugo = require('../sugoroku-room.js');
 const Mini = require('../public/js/sugoroku-mini.js');
@@ -131,6 +131,16 @@ async function run() {
 
     click(doc, 'closeSettingsBtn');
     await sleep(win, 60);
+    /**
+     * **満タンに戻っていないことまで見る。**
+     * 「閉じたあと < 前」だけだと、`startWrNightTimer()` で60秒に戻してから
+     * 刻み直す形（＝止めた人が得をする）も通ってしまう（変異が素通りした）。
+     * 閉じた直後の値が、止めていた間の値より**増えていない**ことを見る。
+     */
+    const 閉じた直後 = 秒(el(doc, 'wrNightTimer').textContent);
+    assert(閉じた直後 !== null && 閉じた直後 <= 開いている間,
+      '閉じた瞬間に時間が増えていない（止めた時 ' + 開いている間 +
+      '秒 → 閉じた直後 ' + 閉じた直後 + '秒）');
     assertEqual(el(doc, 'wrHandoffName').textContent.trim(), 誰の番か,
       '設定を閉じても、同じ人の番のまま');
     assert(el(doc, 'wrNightTimerRow').style.display !== 'none',
@@ -239,6 +249,23 @@ async function run() {
     assertEqual(activeScreen(doc), 'scr-rt-room',
       'あとで押すを選んだ人は、同じ札のあいだは引き戻されない');
 
+    /**
+     * **ここが「あとで押す」と「読んだ」を分ける所。**
+     * 引き戻されないことだけを見ると、既読の印を立てても同じに見えてしまう
+     * （変異が素通りした）。ルールの出し方で区別する——
+     * 読んだことがある人には `<details>` にたたんで出す（第37弾）ので、
+     * **あとで押した人にはたたまれずに出る**のが正しい。
+     */
+    click(doc, 'rtRoomRulesBtn');
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    const 本文 = el(doc, 'rtRulesBody').innerHTML;
+    assert(本文.indexOf('<details') === -1,
+      'あとで押した人には、ルールがたたまれずに出る（まだ読んでいないので）');
+    assertEqual(el(doc, 'rtRulesTitle').textContent, 'ルール',
+      '見出しも「ルール」のまま（「準備はいい？」は読んだ人への言い方）');
+    click(doc, 'rtRulesCancelBtn');
+    await waitFor(win, () => activeScreen(doc) === 'scr-rt-room', 4000, '待合へ');
+
     // 進行役が「ルールをもう一度みんなに見せる」＝札が進む
     fake.fire('room:update', 選ばれた({ data: { rulesEpoch: 1 } }));
     await sleep(win, 300);
@@ -262,6 +289,16 @@ async function run() {
     await sleep(win, 250);
     assertEqual(activeScreen(doc), 'scr-rt-room', '2周目は待合で押すだけ');
 
+    // 対照：**読んだ人**には、ルールがたたまれて出る（上の「あとで押す」と逆）
+    click(doc, 'rtRoomRulesBtn');
+    await waitScreen(win, doc, 'scr-rt-rules', 4000);
+    assert(el(doc, 'rtRulesBody').innerHTML.indexOf('<details') !== -1,
+      '読んだ人には、ルールがたたまれて出る');
+    assertEqual(el(doc, 'rtRulesTitle').textContent, '準備はいい？',
+      '読んだ人への見出しになる');
+    click(doc, 'rtRulesCancelBtn');
+    await waitFor(win, () => activeScreen(doc) === 'scr-rt-room', 4000, '待合へ');
+
     // 出し直されたら、**準備OKも外れて**もう一度読む
     fake.fire('room:update', 選ばれた({ data: { rulesEpoch: 1 } }));
     await sleep(win, 300);
@@ -271,19 +308,45 @@ async function run() {
   });
 
   await r.test('48-1③：手渡しの「読んだ記憶」は、端末に焼き付けない', async () => {
-    const { win, doc } = await launch({});
+    const { win, doc, errors } = await launch({});
     await waitScreen(win, doc, 'scr-shelf', 8000);
-    // **具体の鍵で見る**（実装の定数を読んで使うと自己参照・落とし穴10-a）
-    win.localStorage.setItem('aresoredorekore-prefs',
-      JSON.stringify({ seenRules: { 'bomb-coop': true, normal: true }, selectedModeId: 'normal' }));
-    win.close();
 
-    const b = await launch({});
-    await waitScreen(b.win, b.doc, 'scr-shelf', 8000);
-    const 保存された = b.win.localStorage.getItem('aresoredorekore-prefs') || '';
+    /**
+     * 型(b)：**保存が実際に起きる所まで進めてから見る。**
+     * 起動しただけでは保存が走らず、`getItem` が null のまま
+     * 「seenRules が無い」が自明に成立していた（変異が素通りした）。
+     * ルール画面の「はじめる」が `state.seenRules[...] = true` を立てて
+     * `saveLocalPrefs()` を呼ぶので、そこまで通す。
+     */
+    await setupPlayers(win, doc, ['あき', 'びび', 'ちか']);
+    await waitScreen(win, doc, 'scr-mode', 4000);
+    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, 'modeNextBtn');
+    await waitFor(win, () =>
+      ['scr-mode-rules', 'scr-ready'].indexOf(activeScreen(doc)) >= 0
+      || doc.querySelector('#' + activeScreen(doc) + ' [data-wiz-next]'),
+      6000, 'ウィザードに入る');
+    for (let i = 0; i < 10; i++) {
+      const cur = activeScreen(doc);
+      if (cur === 'scr-mode-rules' || cur === 'scr-ready') break;
+      const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+      if (!next) break;
+      next.click();
+      await sleep(win, 40);
+    }
+    assertEqual(activeScreen(doc), 'scr-mode-rules',
+      'はじめて遊ぶモードなので、ルールの画面を通る（ここに来ないと保存も起きない）');
+    click(doc, 'rulesStartBtn');     // ここで seenRules を立てて保存する
+    await sleep(win, 150);
+
+    const 保存された = win.localStorage.getItem('aresoredorekore-prefs') || '';
+    assert(保存された, '保存そのものは起きている（起きていないなら、この検査は何も試していない）');
+    assert(保存された.indexOf('selectedModeId') !== -1,
+      '保存の中身が読めている（いま: ' + 保存された.slice(0, 120) + '）');
     assert(保存された.indexOf('seenRules') === -1,
-      '保存したものの中に seenRules が残らない（いま: ' + 保存された.slice(0, 120) + '）');
-    b.win.close();
+      '保存したものの中に seenRules が残らない（いま: ' + 保存された.slice(0, 160) + '）');
+    assertNoErrors(errors, '48-1③で未捕捉の例外');
+    win.close();
   });
 
   // ===================== ③ 部屋のミニゲームの「押した速さ」 =====================

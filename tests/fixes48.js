@@ -471,6 +471,41 @@ async function run() {
       // 番号が盤に出ている（知らせが「3ばんめ」と言えるように）
       const 番号 = マス.map((b) => (b.querySelector('.bw-no') || {}).textContent);
       assertEqual(番号.join(','), '1,2,3,4,5', 'マスに通し番号が出る');
+
+      /**
+       * **サーバーが言ったことを、マスの見た目に写せているか。**
+       *
+       * 上の検査は「すでに顔が決まったもの」を並べるだけなので、
+       * サーバーの盤（`{uid, solved, by, missed}`）→ 見た目の対応を
+       * **一度も試していなかった**——変異が2件素通りして分かった（落とし穴10-c）。
+       * ここは本物の `rtBombCell` を通す
+       */
+      assert(typeof win.rtBombCellProbe === 'function', '対応を見る窓口がある');
+      const 未挑戦 = win.rtBombCellProbe({ uid: 'x', tier: 'easy', solved: false }, null);
+      assertEqual(未挑戦.face, '➰', 'まだ挑んでいないマスの顔は ➰');
+      assert(!未挑戦.extraClass, '印は付かない');
+
+      const 外された = win.rtBombCellProbe(
+        { uid: 'x', tier: 'easy', solved: false, missed: true }, null);
+      assertEqual(外された.face, '➰', '外されたマスも、顔は ➰ のまま');
+      assert(/missed/.test(外された.extraClass || ''),
+        'サーバーが missed と言ったら、印のクラスが付く（いま「' +
+        (外された.extraClass || '') + '）');
+
+      // 型(c)：重なる時も、ほかの印を消さない
+      const 自分が開けて外した = win.rtBombCellProbe(
+        { uid: 'x', tier: 'easy', solved: false, missed: true }, 'x');
+      assertEqual(自分が開けて外した.face, '🔎', 'いま開けているなら顔は 🔎');
+      assert(/mine/.test(自分が開けて外した.extraClass || '')
+        && /missed/.test(自分が開けて外した.extraClass || ''),
+        '「いま開けている」と「外された」が重なっても、両方の印が残る（いま「' +
+        (自分が開けて外した.extraClass || '') + '）');
+
+      // 解けたマスには、外した印を付けない（もう関係がない）
+      const 解けた = win.rtBombCellProbe(
+        { uid: 'x', tier: 'easy', solved: true, missed: true }, null);
+      assertEqual(解けた.face, '✅', '解けたマスの顔は ✅');
+      assert(!/missed/.test(解けた.extraClass || ''), '解けたマスに外した印は付けない');
     } finally { win.close(); }
   });
 
@@ -1048,8 +1083,18 @@ async function run() {
        */
       try {
         const db = require('../db.js');
-        db.prepare('DELETE FROM users WHERE username IN (?, ?)')
-          .run(ログインID, ログインID + 'b');
+        /**
+         * **見せる名前でも消す。**
+         * ログインIDだけで消していたら、変異（「名前を変えるとログインIDも変える」）を
+         * 回した回に**ログインIDごと書き換わった行が残り**、
+         * 次の回の「見せる名前ではログインできない」が
+         * 200 を返して落ちた（落とし穴10-d：その時々のデータに依存する形）。
+         * 検体が名乗りうる名前を全部たどって消す
+         */
+        const 検体 = [ログインID, ログインID + 'b', 'くまさん'];
+        const 穴 = 検体.map(() => '?').join(',');
+        db.prepare('DELETE FROM users WHERE username IN (' + 穴 + ') OR display_name IN (' + 穴 + ')')
+          .run(...検体, ...検体);
       } catch (e) { /* DBを開けない環境でも、検査そのものは終わっている */ }
     }
   });

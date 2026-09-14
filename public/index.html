@@ -13839,7 +13839,21 @@
    * ここから現在の画面を見れば、同じ1つの分岐を通せる。
    */
   function rtRender(){
-    if(rtIsBigScreen()){ renderRtBig(); return; }
+    /**
+     * 第48弾：**大画面も、同じ1本を通す。**
+     *
+     * ここは以前 `if(rtIsBigScreen()){ renderRtBig(); return; }` と分けていた。
+     * `rtRenderCurrent` には `scr-rt-big` の枝がちゃんとあるのに、
+     * その手前で帰っていたので、**大画面だけが「まとめてやること」を通らなかった**
+     * ——テーマの当て直し・朝夜の色・称号の数え・🎁・
+     * そして第48弾で足した「いま何をする」の帯とポーズの幕。
+     *
+     * 症状は「画面に入った直後の1回だけ出ない（次の配信で出る）」。
+     * すぐ上のコメントが第36弾に書いた**まったく同じ抜け方**で、
+     * 分けた枝が1つ残っていた（落とし穴4）。
+     * 見つけたのは変異——大画面の帯に二人称を混ぜても赤くならず、
+     * 数えてみたら `ready` の帯がそもそも空だった
+     */
     rtRenderCurrent();
   }
   // 部屋のゲーム画面の一覧。**RT_GAME_SCREENS から導く**ので、
@@ -20915,6 +20929,14 @@
    */
   /** 検査が**本物の盤の組み立て**を見る窓口（第48弾 48-3）。画面は触らない */
   window.bombCellProbe = function(cells){ return bombGridHtml(cells || []); };
+  /**
+   * 検査が**サーバーの盤 → マスの見た目**の対応を見る窓口（第48弾 48-3）。
+   *
+   * `bombCellProbe` だけだと、**すでに顔が決まったもの**を並べるだけなので、
+   * 「サーバーが missed と言った時に印を付けるか」「未挑戦の顔が何か」を
+   * 一度も試していなかった——変異が2件素通りして分かった
+   */
+  window.rtBombCellProbe = function(c, mine){ return rtBombCell(c, mine); };
   var BOMB_TAP_KEY = 'acac-bomb-tap-seen';
   function bombTapSeen(){
     try{ return localStorage.getItem(BOMB_TAP_KEY) === '1'; }catch(e){ return false; }

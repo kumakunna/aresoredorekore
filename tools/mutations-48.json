@@ -189,7 +189,7 @@
     "suite": "tests/fixes48.js",
     "from": "    if (isPaused(room)) setPaused(room, false);",
     "to": "    if (false) setPaused(room, false);",
-    "expect": "止まったままにしない"
+    "expect": "止まったままにならない"
   },
   {
     "name": "48-5 参加者にもポーズを出す",
@@ -197,7 +197,7 @@
     "suite": "tests/rt-screens.js",
     "from": "      when:ctxIs('handoff', 'roomHost'),\n      sub:function(){ return inRoomNow()",
     "to": "      when:ctxIs('handoff', 'roomHost', 'roomGuest'),\n      sub:function(){ return inRoomNow()",
-    "expect": "参加者にはポーズを出さない"
+    "expect": "部屋の参加者の先頭"
   },
   {
     "name": "48-7 尽きても印を捨てない（黙って繰り返す形）",
@@ -205,7 +205,7 @@
     "suite": "tests/fixes48.js",
     "from": "    if(一周した) play.usedTopics = {};   // 次の周も、その周の中では重ならない",
     "to": "    if(false) play.usedTopics = {};",
-    "expect": "ぜんぶ違うお題"
+    "expect": "50回引けば50件ぜんぶ出る"
   },
   {
     "name": "48-8 名前を変えるとログインIDも変える",
@@ -221,7 +221,7 @@
     "suite": "tests/fixes48.js",
     "from": "    el('renameNote').textContent = state.loginId\n      ? ('ログインに使う名前（' + state.loginId + '）は変わりません')",
     "to": "    el('renameNote').textContent = state.loginId\n      ? ('棚のバーに出ます')",
-    "expect": "ログインに使う名前"
+    "expect": "ログインIDは変わらないと伝える"
   },
   {
     "name": "秘匿：公開ビューに答えを混ぜる",

@@ -265,9 +265,23 @@ async function run() {
       const got = await 帯をあつめる(t.game, t.cart, t.n, true);
       try {
         assert(got.通った.length >= 1, t.game + '（大画面）：段階を通れている');
+        if (process.env.ACAC_NL) {
+          got.通った.forEach((ph) => console.log('      [大]' + t.game + '/' + ph +
+            '  ' + got.集めた[ph].text));
+        }
         got.通った.forEach((ph) => {
           const 帯 = got.集めた[ph];
           assert(!帯.置き場なし, t.game + ' の ' + ph + '（大画面）：帯の置き場が無い');
+          /**
+           * **空でないことを見る。**
+           * これが無かったので、「大画面に二人称を混ぜる」変異が素通りした
+           * ——文を調べる前に、その文がそもそも出ていなかった（落とし穴10-b）。
+           * 数えてみたら、すごろくの `ready`・オークションの `preview`・
+           * クイズ王の `play` が、どれも空だった
+           */
+          assert(帯.text,
+            t.game + ' の ' + ph + '（大画面）：帯が空。' +
+            '大画面が rtRenderCurrent を通っていない可能性がある');
           二人称.forEach((語) => {
             assert((帯.text || '').indexOf(語) === -1,
               t.game + ' の ' + ph + '（大画面）：帯に「' + 語 + '」が入っている（' +

@@ -94,5 +94,141 @@
     "from": "  await waitFor(win, () =>\n    ['scr-game', 'scr-setup', 'scr-mode'].indexOf(activeScreen(doc)) >= 0,\n    8000, 'カセットを開いた先の画面（現在: ' + activeScreen(doc) + '）');",
     "to": "  await sleep(win, 100);",
     "expect": "scr-mode"
+  },
+  {
+    "name": "48-2 帯を描かない（1か所の呼び出しを外す）",
+    "file": "public/index.html",
+    "suite": "tests/now-line.js",
+    "from": "    renderNowLine();\n    if(cur === 'scr-rt-room') renderRtRoom();",
+    "to": "    if(cur === 'scr-rt-room') renderRtRoom();",
+    "expect": "帯が空"
+  },
+  {
+    "name": "48-2 大画面にも二人称を出す",
+    "file": "public/js/ui-text.js",
+    "suite": "tests/now-line.js",
+    "from": "        じゅんび: 'みんながじゅんびOKをおすのを待っています',",
+    "to": "        じゅんび: 'あなたのじゅんびOKを待っています',",
+    "expect": "あなた"
+  },
+  {
+    "name": "48-3 マスの顔を 🔌 にもどす（部屋）",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    else cell.face = '➰';",
+    "to": "    else cell.face = '🔌';",
+    "expect": "➰"
+  },
+  {
+    "name": "48-3 「だれかが外した」の印を付けない",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    if(!c.solved && c.missed){",
+    "to": "    if(false && c.missed){",
+    "expect": "印のクラスが付く"
+  },
+  {
+    "name": "48-3 盤の番号を出さない",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "      var cell = Object.assign({}, c, { no: i + 1 });",
+    "to": "      var cell = Object.assign({}, c);",
+    "expect": "通し番号"
+  },
+  {
+    "name": "48-3 .mine を box-shadow にもどす（テーマに負ける形）",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "  .bomb-wire-btn.mine{outline:3px solid var(--stamp);outline-offset:-3px;}",
+    "to": "  .bomb-wire-btn.mine{box-shadow:inset 0 0 0 3px var(--stamp);}",
+    "expect": "縁が出る"
+  },
+  {
+    "name": "48-4 脱落者の「見るだけ」をやめる",
+    "file": "bomb-room.js",
+    "suite": "tests/realtime-bomb.js",
+    "from": "  if (!entryActive(e)) {\n    if (!targetId) { delete w.peek[memberId]; return { ok: true, allDone: false }; }",
+    "to": "  if (!entryActive(e)) {\n    if (true) return { ok: false, error: 'already_done' };\n    if (!targetId) { delete w.peek[memberId]; return { ok: true, allDone: false }; }",
+    "expect": "見るだけなら開ける"
+  },
+  {
+    "name": "48-4 覗きに、ほかの端子の答えまで載せる",
+    "file": "bomb-room.js",
+    "suite": "tests/realtime-bomb.js",
+    "from": "        answer: pw.name\n      };",
+    "to": "        answer: pw.name, 全部: w.wires.map((x) => x.name)\n      };",
+    "expect": "届かない"
+  },
+  {
+    "name": "48-4 決着で覗きの幕を閉じない",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "        while(UiKit.anyOpen()) UiKit.closeTop('leave');",
+    "to": "        if(false) UiKit.closeTop('leave');",
+    "expect": "覗きの重なりは閉じる"
+  },
+  {
+    "name": "48-5 止まっている間も操作を通す",
+    "file": "realtime.js",
+    "suite": "tests/fixes48.js",
+    "from": "      if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');\n      // 第27弾-3",
+    "to": "      // 第27弾-3",
+    "expect": "操作できない"
+  },
+  {
+    "name": "48-5 締め切りをずらさない（止めた分だけ消える）",
+    "file": "realtime.js",
+    "suite": "tests/fixes48.js",
+    "from": "  if (w && delta > 0) shiftTimes(w, delta, 0);",
+    "to": "  if (false) shiftTimes(w, delta, 0);",
+    "expect": "後ろへずれる"
+  },
+  {
+    "name": "48-5 いなくなっても止まったままにする",
+    "file": "realtime.js",
+    "suite": "tests/fixes48.js",
+    "from": "    if (isPaused(room)) setPaused(room, false);",
+    "to": "    if (false) setPaused(room, false);",
+    "expect": "止まったままにしない"
+  },
+  {
+    "name": "48-5 参加者にもポーズを出す",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "      when:ctxIs('handoff', 'roomHost'),\n      sub:function(){ return inRoomNow()",
+    "to": "      when:ctxIs('handoff', 'roomHost', 'roomGuest'),\n      sub:function(){ return inRoomNow()",
+    "expect": "参加者にはポーズを出さない"
+  },
+  {
+    "name": "48-7 尽きても印を捨てない（黙って繰り返す形）",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    if(一周した) play.usedTopics = {};   // 次の周も、その周の中では重ならない",
+    "to": "    if(false) play.usedTopics = {};",
+    "expect": "ぜんぶ違うお題"
+  },
+  {
+    "name": "48-8 名前を変えるとログインIDも変える",
+    "file": "server.js",
+    "suite": "tests/fixes48.js",
+    "from": "  db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, req.session.userId);",
+    "to": "  db.prepare('UPDATE users SET display_name = ?, username = ? WHERE id = ?').run(name, name, req.session.userId);",
+    "expect": "ログインIDは変わっていない"
+  },
+  {
+    "name": "48-8 名前を変える画面が、ログインIDの話をしない",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    el('renameNote').textContent = state.loginId\n      ? ('ログインに使う名前（' + state.loginId + '）は変わりません')",
+    "to": "    el('renameNote').textContent = state.loginId\n      ? ('棚のバーに出ます')",
+    "expect": "ログインに使う名前"
+  },
+  {
+    "name": "秘匿：公開ビューに答えを混ぜる",
+    "file": "bomb-room.js",
+    "suite": "tests/realtime-bomb.js",
+    "from": "    by: holder ? w.names[holder] : null\n  };",
+    "to": "    by: holder ? w.names[holder] : null, LEAK: wire ? wire.name : null\n  };",
+    "expect": "公開情報に無い"
   }
 ]

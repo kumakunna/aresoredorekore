@@ -89,6 +89,12 @@ const ROOM_EXIT_PATHS = [
     label: 'クイズ王画面（決着後）「← 部屋を出る」' },
   { id: 'auction-leave', kind: 'leave', btn: 'auLeaveBtn', event: 'room:leave',
     label: 'オークション画面（決着後）「← 部屋を出る」' },
+  // 第48弾：**第36弾ですごろくを足した時、ここに1行足し忘れていた。**
+  // ボタンは HTML にあって決着すると表示もされるのに、click ハンドラが無く、
+  // 正本にも載っていないので「全部つながっているか」の検査も通らなかった——
+  // 5ゲームとも決着後に画面から部屋を出られない状態が残っていた（落とし穴4・20）
+  { id: 'sugoroku-leave', kind: 'leave', btn: 'rtSugoLeaveBtn', event: 'room:leave',
+    label: 'すごろく画面（決着後）「← 部屋を出る」' },
   { id: 'big-leave', kind: 'leave', btn: 'bigLeaveBtn', event: 'room:leave',
     label: '大画面「← 部屋を出る」' },
   { id: 'settings-leave', kind: 'leave', btn: null, event: 'room:leave',

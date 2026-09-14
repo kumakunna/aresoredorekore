@@ -31,6 +31,43 @@ async function run() {
     });
   });
 
+  /**
+   * 第48弾：**照合には向きがある**（落とし穴20）。
+   *
+   * 「正本に載っている退室ボタンが、全部つながっているか」は
+   * tests/rt-screens.js が見ていた。**逆は誰も見ていなかった**——
+   * 画面に `*LeaveBtn` を足しても、正本に1行足さない限り
+   * そのループは一生そのボタンを通らない。
+   *
+   * 第36弾ですごろくを足した時に実際にこれが起きた：
+   * `rtSugoLeaveBtn` は HTML にあって、決着すると表示もされるのに、
+   * **click ハンドラが1つも無く、正本にも載っていなかった**ので、
+   * 5ゲームとも決着後に画面から部屋を出られなかった。
+   *
+   * ボタンの一覧は index.html から導く（正本から導くと自己参照になる・落とし穴10-a）。
+   */
+  await r.test('画面にある「← 部屋を出る」ボタンが、全部 ROOM_EXIT_PATHS に載っている', async () => {
+    const html = fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 画面のボタン = Array.from(new Set(
+      Array.from(html.matchAll(/id="([A-Za-z]*[Ll]eaveBtn)"/g)).map((m) => m[1])
+    ));
+    assert(画面のボタン.length >= 8,
+      '退室ボタンが index.html から拾えている（いま' + 画面のボタン.length + '件）');
+    const 正本のボタン = ROOM_EXIT_PATHS.map((p) => p.btn).filter(Boolean);
+    画面のボタン.forEach((id) => {
+      assert(正本のボタン.indexOf(id) !== -1,
+        id + ' が tests/inventory.js の ROOM_EXIT_PATHS にありません。' +
+        '退室ボタンを画面に足したら、正本にも1行足してください' +
+        '（載せないと「全部つながっているか」の検査がそのボタンを通りません）');
+    });
+    // 逆向き：画面から消したのに正本に残っている（幽霊。落とし穴5・32）
+    正本のボタン.forEach((id) => {
+      assert(画面のボタン.indexOf(id) !== -1 || id === 'endGameBtn' || id === 'rtEndBtn',
+        id + ' は ROOM_EXIT_PATHS にあるのに、index.html のどこにもありません');
+    });
+  });
+
   // ---- 開始の3-2-1：全ゲームで、全員に room:countdown が届く ----
 
   await r.test('全ゲーム：はじめた瞬間に、全員へ開始の合図（room:countdown）が届く', async () => {

@@ -11894,9 +11894,23 @@
     // 棚へ返すと、いま自分が何をしたかったのか（別の部屋に入る）から遠ざかる
     openJoinScreen('scr-entry');
   });
-  el('rtLeaveBtn').addEventListener('click', rtLeaveRoom);
-  el('bigLeaveBtn').addEventListener('click', rtLeaveRoom);
-  el('rtPlayLeaveBtn').addEventListener('click', rtLeaveRoom);
+  /**
+   * 第48弾：**「← 部屋を出る」は、画面ごとに結ばない。**
+   *
+   * それまでは7画面ぶんを手で1行ずつ結んでいた。
+   * 第36弾ですごろくの画面を足した時、**そこだけ結び忘れた**——
+   * ボタンは HTML にあって決着すると表示もされるのに、押しても何も起きず、
+   * 5ゲームとも決着後に画面から部屋を出られなかった（落とし穴1・4）。
+   * 全テストは緑のまま。正本（tests/inventory.js の ROOM_EXIT_PATHS）にも
+   * 載っていなかったので、「全部つながっているか」の検査もそのボタンを通らなかった。
+   *
+   * **名前で拾う。** `〜LeaveBtn` という id の押しものは、全部ここから同じ処理へ繋がる。
+   * 画面を足した人が結び忘れても、既定で繋がる側に倒れる。
+   * 逆向き（画面に足したのに正本に無い）は tests/room-paths.js が見張る。
+   */
+  document.querySelectorAll('[id$="LeaveBtn"]').forEach(function(b){
+    b.addEventListener('click', rtLeaveRoom);
+  });
   // 第26弾-3：遊び終わったら、部屋を残したまま次のゲームを選びに行く。
   // ここで前のゲームの進行状態はサーバー側が捨てる（端末に残さない）
   /**
@@ -13945,7 +13959,6 @@
     var res = await rt.vote(text);
     if(res && !res.ok) showFlash('いまは答えられません', 'hit-wrong');
   }
-  el('qzLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('qzEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
   // 大画面。公開情報だけを大きく出す（正解の位置も、まだ見えていない文字も来ない）
@@ -14492,7 +14505,6 @@
     var res = await rt.vote(null, { guess: b.dataset.auguess });
     if(!res.ok) showFlash(res.message || '出せませんでした', 'hit-wrong');
   });
-  el('auLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('auEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
   // 落札と決着の見せ場。**段階が変わった瞬間だけ**鳴らす（描き直すたびに鳴らさない）
@@ -15582,7 +15594,6 @@
     el('rtBombOverlay').classList.remove('show');
     await rt.act(null);
   });
-  el('rtBombLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('rtBombEndBtn').addEventListener('click', async function(){
     if(!await UiKit.danger('部屋を閉じますか？',
       '部屋にいる全員が終わります', { ok: 'とじる' })) return;
@@ -16140,7 +16151,6 @@
     return lines.join('<br>');
   }
 
-  el('dfLeaveBtn').addEventListener('click', rtLeaveRoom);
   el('dfEndBtn').addEventListener('click', async function(){
     if(!await UiKit.danger('部屋を閉じますか？',
       '部屋にいる全員が終わります', { ok: 'とじる' })) return;

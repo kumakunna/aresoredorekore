@@ -8951,6 +8951,29 @@
     if(sugoInputStop){ sugoInputStop(); sugoInputStop = null; }
     stopVoice();
     try{ window.speechSynthesis.cancel(); }catch(e){}
+    clearGameLook();   // 第48弾 48-6：**見た目の後片付けも、ここを通す**
+  }
+  /**
+   * 第48弾 48-6：**「終わったら外すべき見た目」を1か所に集める。**
+   *
+   * `stopAllPlayTimers` が止めていたのは**時計と音と演出の順番待ちだけ**で、
+   * 見た目のクラスは1つも外していなかった。そのせいで `bomb-danger`
+   * （ライフ1の赤い脈打つ縁）が、強制終了したあとの**棚**に残っていた
+   * ——実測で確かめた（`tools/probe-leftover-class.js`）。
+   *
+   * ここに集める理由：終わる経路は複数ある（強制終了・退室・解散・ゲーム変更）。
+   * 経路ごとに外しに行くと、必ずどれかで書き忘れる（落とし穴17）。
+   *
+   * **テーマ（`theme-*`）と朝夜（`phase-*`）はここで触らない。**
+   * あれは `applyGameTheme` が「当てるもの以外は必ず外す」形で
+   * 画面が変わるたびに引き直している——2か所で外すと、
+   * 片方だけ直す日が来る（落とし穴1）。
+   */
+  var GAME_LOOK_CLASSES = ['bomb-danger', 'edge-village', 'edge-wolf', 'edge-third'];
+  function clearGameLook(){
+    var app = el('app');
+    if(!app) return;
+    GAME_LOOK_CLASSES.forEach(function(c){ app.classList.remove(c); });
   }
   // 演出の待ち時間。setTimeout の代わりにこれを通すと、速さの設定が効く
   function fxMs(ms){
@@ -9676,6 +9699,43 @@
       app.classList.toggle(THEME_CLASSES[k], k === on);
     });
     if(on !== 'wolf') app.classList.remove('phase-night', 'phase-day');
+    /**
+     * 第48弾 48-6：**遊んでいる画面の見た目は、その画面にいる間だけ。**
+     *
+     * `bomb-danger`（ライフ1の赤い脈打つ縁）は、終わる経路のどれでも
+     * 外れていなかった——手渡しは `stopAllPlayTimers` が見た目を触らず、
+     * 大画面は `renderRtBig` が待合で早期returnして `rtBigFx` に届かず、
+     * 部屋のスマホは待合へ戻っても誰も外さない。
+     * 強制終了したあとの**棚**やテレビが、赤く脈打ち続けていた（実測）。
+     *
+     * **経路ごとに外しに行かない**（落とし穴17）。
+     * ここは `goTo`（画面が変わった時）と `rtRenderCurrent`（部屋の知らせが
+     * 届いた時）の**両方が必ず通る唯一の関数**なので、ここで決める。
+     * テーマを「当てるもの以外は必ず外す」で引き直しているのと同じ形
+     */
+    if(!ゲーム中の見た目を保つか(screenId)) clearGameLook();
+  }
+  /**
+   * ゲーム中の見た目を付けうる画面。**ここ以外に着いたら外す。**
+   * 増やす時は、その画面の描画が `GAME_LOOK_CLASSES` を付けているか確かめる
+   * （付けないのに並べると、外れなくなる側に倒れる）
+   */
+  var GAME_LOOK_SCREENS = ['scr-bomb-play', 'scr-rt-bomb', 'scr-rt-big'];
+  /**
+   * **画面だけでは決められない。**
+   *
+   * 手渡しと部屋のスマホは、終わると別の画面へ移るので画面で分かる。
+   * でも**大画面は動かない**——ゲームが終わっても `scr-rt-big` のまま待合を映す。
+   * 画面だけで決めると、テレビの赤い縁が永久に外れない（実測で確かめた）。
+   *
+   * そこで「その画面にいる」かつ「本当に遊んでいる」の両方を見る。
+   * 遊んでいるかは、部屋なら知らせの段階、手渡しなら解除中かで分かる
+   */
+  function ゲーム中の見た目を保つか(screenId){
+    if(GAME_LOOK_SCREENS.indexOf(screenId) === -1) return false;
+    if(screenId === 'scr-bomb-play') return true;   // 手渡しは、この画面にいる間だけ
+    var v = (typeof rtView === 'function' && rtView()) || null;
+    return !!(v && v.phase && v.phase !== 'lobby');
   }
   // 夜／朝で暗さを変える。人狼(wolfrole)だけが持つ概念なので、それ以外では素の夜色に戻す
   function setWolfPhaseTone(tone){
@@ -15769,6 +15829,18 @@
     el('rtBombLives').textContent = '❤️'.repeat(Math.max(0, you.lives)) +
       '🖤'.repeat(Math.max(0, you.livesMax - you.lives));
     el('rtBombProgress').textContent = you.solvedCount + ' / ' + you.total + ' 解除';
+    /**
+     * 第48弾 48-6：**残りライフ1の赤い縁を、部屋のスマホにも出す。**
+     *
+     * 47-6 が入れたのは `rtBigFx`（大画面）だけで、**部屋の端末には
+     * そもそも付いていなかった**（手渡しにはある・落とし穴1）。
+     * 指示48の前提表は「部屋・大画面にも付くようになった」と書いていたが、
+     * 現物は大画面だけだった。
+     *
+     * 手渡し版と同じクラスをそのまま借りる（新しく作らない）。
+     * 外すのは `clearGameLook()` 1か所（48-6の集約）と、決着のここ
+     */
+    el('app').classList.toggle('bomb-danger', you.lives === 1 && v.phase !== 'ended');
 
     // ---- 決着の演出は「事実」で出す（第47弾 47-1）----
     // **ここは分岐の前に置く。** 段階ごとに書くと、その段階を一度も通らない経路で黙る——

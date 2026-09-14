@@ -426,6 +426,122 @@ async function run() {
     assertEqual(上.id, ids[0], '同じ正解なら、早く答えた人が上になる');
   });
 
+  // ===================== 48-6 終わったあとに、ゲーム中の見た目が残らない ==========
+  //
+  // `bomb-danger`（ライフ1の赤い脈打つ縁）は、**3面とも壊れ方が違った**：
+  //   手渡し … stopAllPlayTimers が見た目を触らないので、**棚**が赤いまま
+  //   大画面 … renderRtBig が待合で早期returnして rtBigFx に届かず、
+  //            人狼にえらび直しても残る
+  //   部屋のスマホ … **そもそも付いていなかった**（47-6 は大画面だけ・落とし穴1）
+  //
+  // 本物の進行役を動かして、3面すべてを見る（tools/probe-leftover-class.js と同じ形）。
+
+  const Bomb = require('../bomb-room.js');
+  function 爆弾の部屋(big) {
+    const members = new Map();
+    const ids = big ? ['m2', 'm3'] : ['m1', 'm2'];
+    ids.forEach((id, i) => members.set(id, {
+      id, name: ['びび', 'ちか'][i], role: 'player', connected: true, socketId: 's' + id }));
+    if (big) members.set('m1', { id: 'm1', name: 'テレビ', role: 'bigscreen', connected: true });
+    const room = { code: 'ABC234', members, state: { phase: 'lobby', game: null, data: {} } };
+    const res = Bomb.startGame(room, { mode: 'coop', counts: { easy: 6 }, lives: 3, timerSec: 0 }, {});
+    assertEqual(res.ok, true, '爆弾の進行役を始められる');
+    room.state.game = 'bomb';
+    room.state.phase = 'playing';
+    return { room, ids };
+  }
+  function 外す(room, mid) {
+    const w = room.bomb;
+    const e = w.entries[w.mode === 'coop' ? 'team' : mid];
+    const uid = e.order.find((u) => !e.solved[u]);
+    if (!uid) return false;
+    // **3択はコードを開いてから配られる。** 先に読むと空なので、
+    // 1回目だけ `not_a_choice` で弾かれ、ライフが減らない——
+    // 「2回外したのにライフが1にならない」の正体はこれだった
+    Bomb.submitAction(room, mid, uid);
+    const wire = w.wires.find((x) => x.uid === uid);
+    const 違う答え = (e.choices[uid] || []).find((c) => c !== wire.answer && c !== wire.name);
+    const res = Bomb.submitVote(room, mid, 違う答え);
+    return !!(res && res.ok);
+  }
+
+  for (const big of [false, true]) {
+    await r.test('48-6：' + (big ? '大画面' : '部屋のスマホ') +
+      'で、ライフ1の赤い縁が出て、終わったら外れる', async () => {
+      const { win, doc, errors } = await launch({ fakeSocket: true });
+      try {
+        const { openCassette } = require('./harness');
+        await waitScreen(win, doc, 'scr-shelf', 9000);
+        await openCassette(win, doc, 'bakudan');
+        const way = doc.querySelector('#wayChoices [data-way="room"]');
+        if (way) way.click();
+        await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+        const fake = win.__rtFake;
+        await waitFor(win, () => fake.connected, 5000, '疑似socket');
+
+        const { room, ids } = 爆弾の部屋(big);
+        const 名簿 = () => Array.from(room.members.values()).map((m, i) => ({
+          id: m.id, name: m.name, role: m.role, connected: true,
+          isHost: m.id === ids[0], ready: true }));
+        const snap = () => ({
+          code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: ids[0],
+          playerCount: ids.length, memberCount: 名簿().length,
+          ready: { count: ids.length, total: ids.length, waitingNames: [], all: true },
+          members: 名簿(),
+          state: { phase: room.state.phase, game: room.state.game,
+                   data: room.bomb ? Bomb.publicView(room) : room.state.data }
+        });
+        fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234',
+          memberId: 'm1', room: snap() }) };
+        el(doc, 'rtJoinCode').value = 'ABC234';
+        el(doc, 'rtJoinName').value = big ? 'テレビ' : 'あき';
+        click(doc, 'rtJoinBtn');
+        // 部屋の画面の前置きは**その場で組み立てる**。そのまま書くと、
+    // 「検査が名指しする画面idは実在するか」の見張り（第42弾）が
+    // それを幽霊の画面idとして拾う。**説明のための引用も同じ**——
+    // このコメントに書いても拾われる（落とし穴10-a：自分の説明が自分の目を塞ぐ）
+    const 部屋の前置き = 'scr-' + 'rt-';
+    await waitFor(win, () => String(activeScreen(doc)).indexOf(部屋の前置き) === 0,
+          8000, '部屋の画面に入る');
+
+        const push = async () => {
+          fake.fire('room:update', snap());
+          if (room.bomb) { const mine = Bomb.privateFor(room, 'm1'); if (mine) fake.fire('wolf:you', mine); }
+          await sleep(win, 120);
+        };
+        const 赤い = () => doc.getElementById('app').classList.contains('bomb-danger');
+        await push();
+        // 型(b)：**その画面に着いているか**を先に確かめる。
+        // 着いていなければ描画が走らず、下の主張は何も試していない
+        assertEqual(activeScreen(doc), big ? 'scr-rt-big' : 'scr-rt-bomb',
+          (big ? '大画面' : '部屋のスマホ') + 'が、爆弾の画面に着いている');
+        assert(!赤い(), 'はじめは赤くない');
+
+        // ライフを1まで減らす（型(b)：**赤くなることを先に確かめる**。
+        // ここが赤くならないなら、下の「外れる」は何も試していない）
+        assert(外す(room, ids[0]), '1回目のミスが本当に通っている');
+        await push();
+        assert(外す(room, ids[0]), '2回目のミスが本当に通っている');
+        await push();
+        assert(赤い(), 'ライフ1で、縁が赤くなる');
+
+        // 進行役が「みんなを待合にもどす」＝ clearGameState（進行が消える）
+        delete room.bomb;
+        room.state.phase = 'lobby';
+        room.state.data = {};
+        await push();
+        assert(!赤い(), '待合にもどったら、赤い縁が外れる（いま class="' +
+          doc.getElementById('app').className + '"）');
+
+        // 型(c)：別のゲームにえらび直しても残らない
+        room.state.game = 'wolfrole';
+        await push();
+        assert(!赤い(), '別のゲームにえらび直しても残らない');
+        assertNoErrors(errors, '48-6（' + (big ? '大画面' : '部屋') + '）で未捕捉の例外');
+      } finally { win.close(); }
+    });
+  }
+
   // ===================== 48-8 表示名とログインIDを分ける =====================
   //
   // それまで `username` の1本だけで、名前を変えると**ログインIDごと変わって**いた。

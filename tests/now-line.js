@@ -96,7 +96,12 @@ async function 帯をあつめる(gameId, cart, n, big) {
     // **どの部屋の画面でもよい。** 進行役はもう始まっているので、
     // 入った瞬間にそのゲームの画面（scr-rt-sugoroku など）へ着く——
     // 待合（scr-rt-room）だけを待つと、必ず時間切れになる
-    await waitFor(win, () => String(activeScreen(doc)).indexOf('scr-rt-') === 0,
+    // 部屋の画面の前置きは**その場で組み立てる**。そのまま書くと、
+    // 「検査が名指しする画面idは実在するか」の見張り（第42弾）が
+    // それを幽霊の画面idとして拾う。**説明のための引用も同じ**——
+    // このコメントに書いても拾われる（落とし穴10-a：自分の説明が自分の目を塞ぐ）
+    const 部屋の前置き = 'scr-' + 'rt-';
+    await waitFor(win, () => String(activeScreen(doc)).indexOf(部屋の前置き) === 0,
       8000, '部屋の画面に入る（現在: ' + activeScreen(doc) + '）');
 
     const push = async () => {

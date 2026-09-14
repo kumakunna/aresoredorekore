@@ -21,6 +21,8 @@ const {
   fillPlayerForm, setupPlayers, pickGame } = require('./harness');
 
 const Sugo = require('../sugoroku-room.js');
+const INV = require('./inventory');
+const { startTestServer, makeRoom, waitUntil, sleep: 待つms } = require('./room-edge');
 const Mini = require('../public/js/sugoroku-mini.js');
 
 // 「01:23」を秒に直す。読めなかったら null（黙って0にしない・落とし穴10-e）
@@ -818,6 +820,134 @@ async function run() {
       assert((el(doc, 'rtBombResult').textContent || '').trim(),
         '結果発表が出る（いま「' + (el(doc, 'rtBombResult').textContent || '').slice(0, 40) + '」）');
       assertNoErrors(errors, '48-4（着地）で未捕捉の例外');
+    } finally { win.close(); }
+  });
+
+  // ===================== 48-5 ポーズ =====================
+  //
+  // 本人の裁定（2026-09-14）：ポーズは**「席を外すための安全弁」**。
+  // 「考える時間を買う道具」ではないので、止めた瞬間に見えている秘密を全部隠す。
+  // **隠すから、止めて考える得が無くなる**——下調べで挙がった
+  // 「ポーズで得をする場面」は、隠すことでふさがる。
+
+  await r.test('48-5：部屋で進行役が止めると、みんなの画面が幕でおおわれる', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);
+      await rm.host.call('room:setState', { phase: 'lobby', game: 'quizrush', reset: true });
+      for (const d of rm.all) await d.call('room:ready', {});
+      await rm.host.call('wolf:start', INV.RT_START_MIN_CONFIG.quizrush);
+      await waitUntil(() => rm.all.every((d) => d.you && d.you.phase === 'play'), '始まる');
+
+      const 部屋 = srv.store.get(rm.code);
+      const 締め切り前 = 部屋.quiz.deadline;
+      // 型(b)：**止める意味のある締め切りが、本当にあるか**
+      assert(締め切り前 && 締め切り前 > Date.now(), '締め切りが先にある');
+
+      // 参加者は止められない（自分の番で止める抜け道を開かない）
+      const 参加者が = await rm.guests[0].call('room:pause', { on: true });
+      assertEqual(参加者が.ok, false, '参加者は止められない');
+      assertEqual(参加者が.error, 'not_host', '理由が「進行役だけ」');
+
+      const 止めた = await rm.host.call('room:pause', { on: true });
+      assertEqual(止めた.ok, true, '進行役は止められる');
+      await waitUntil(() => rm.guests[0].room && rm.guests[0].room.paused,
+        '止まったことが全員に届く');
+      assertEqual(rm.guests[0].room.paused.by, 'あき', 'だれが止めたかが分かる');
+
+      // **止まっている間は、操作を受け付けない。できていないのに ok を返さない**
+      const 操作 = await rm.guests[0].call('wolf:act', { targetId: 'easy' });
+      assertEqual(操作.ok, false, '止まっている間は操作できない');
+      assertEqual(操作.error, 'paused', '理由が「ポーズ中」');
+
+      // **ハーネスの sleep は (win, ms)**。サーバーだけの検査では
+      // room-edge の方（ミリ秒だけ）を使う——同じ名前で意味が違う
+      await 待つms(1200);
+      const もどした = await rm.host.call('room:pause', { on: false });
+      assertEqual(もどした.ok, true, 'もどせる');
+      await waitUntil(() => rm.guests[0].room && !rm.guests[0].room.paused, 'もどったことが届く');
+
+      // **止めていた分だけ、締め切りが後ろへずれる**（止めた人も、待った人も損しない）
+      const ずれ = 部屋.quiz.deadline - 締め切り前;
+      assert(ずれ >= 1000 && ずれ <= 4000,
+        '締め切りが、止めていた長さぶん後ろへずれる（いま ' + ずれ + 'ms）');
+      // もどしたら、また操作できる
+      const また = await rm.guests[0].call('wolf:act', { targetId: 'easy' });
+      assertEqual(また.ok, true, 'もどしたら操作できる');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('48-5：止めた人が居なくなっても、止まったままにならない', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 3);
+      await rm.host.call('room:setState', { phase: 'lobby', game: 'quizrush', reset: true });
+      for (const d of rm.all) await d.call('room:ready', {});
+      await rm.host.call('wolf:start', INV.RT_START_MIN_CONFIG.quizrush);
+      await waitUntil(() => rm.all.every((d) => d.you && d.you.phase === 'play'), '始まる');
+      await rm.host.call('room:pause', { on: true });
+      await waitUntil(() => rm.guests[0].room.paused, '止まる');
+
+      // 止めた進行役が落ちる
+      rm.host.close();
+      await waitUntil(() => rm.guests[0].room && !rm.guests[0].room.paused, 4000);
+      assertEqual(!!rm.guests[0].room.paused, false,
+        '止めた人が居なくなったら、止まったままにしない（誰も戻せない部屋を作らない）');
+      rm.guests.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('48-5：手渡しで止めると、見えていたものが幕で隠れる', async () => {
+    const { win, doc, errors } = await launch({});
+    try {
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      await setupPlayers(win, doc, ['あき', 'びび', 'ちか']);
+      await waitScreen(win, doc, 'scr-mode', 4000);
+      click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+      click(doc, 'modeNextBtn');
+      for (let i = 0; i < 10; i++) {
+        const cur = activeScreen(doc);
+        if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+        const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+        if (!next) break;
+        next.click(); await sleep(win, 40);
+      }
+      if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+      await waitScreen(win, doc, 'scr-ready', 4000);
+      el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+      await waitScreen(win, doc, 'scr-play', 12000);
+
+      // 型(b)：**隠すものが本当に出ているか**を、主張の前に確かめる
+      const お題 = (el(doc, 'topicName').textContent || '').trim();
+      assert(お題 && お題 !== '-', 'お題が画面に出ている（いま「' + お題 + '」）');
+      const 幕 = el(doc, 'pauseVeil');
+      assertEqual(幕.hidden, true, '止める前は幕が出ていない');
+
+      // ⚙ → ポーズ
+      click(doc, 'floatingGearBtn');
+      await sleep(win, 150);
+      const 行 = doc.querySelector('#settingsOverlay [data-setact="pause"]');
+      assert(行, '設定に「ポーズ」の行がある');
+      行.click();
+      await sleep(win, 200);
+
+      assertEqual(幕.hidden, false, '幕が出る');
+      assert(doc.documentElement.classList.contains('paused'),
+        '止まっている印が :root に付く（幕は #app の外にいるので・落とし穴27）');
+      assertEqual(el(doc, 'settingsOverlay').classList.contains('show'), false, '設定は閉じる');
+      // **幕は画面をおおう**（下のお題は、幕より後ろ）
+      assert(/ポーズ/.test(el(doc, 'pauseTitle').textContent), '止まっていることが分かる');
+
+      // もどすと、また遊べる
+      click(doc, 'pauseResumeBtn');
+      await sleep(win, 200);
+      assertEqual(幕.hidden, true, 'もどすと幕が消える');
+      assert(!doc.documentElement.classList.contains('paused'), '印も外れる');
+      assertEqual(activeScreen(doc), 'scr-play', 'もどっても同じ画面のまま');
+      assertEqual((el(doc, 'topicName').textContent || '').trim(), お題,
+        'もどすと、同じお題のまま続けられる');
+      assertNoErrors(errors, '48-5（手渡し）で未捕捉の例外');
     } finally { win.close(); }
   });
 

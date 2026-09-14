@@ -258,16 +258,25 @@ async function walkSettings(win, doc, onPage) {
     await openDuringPlay(win, doc);
     assertEqual(el(doc, 'setTitle').textContent, '設定', '遊んでいる時は入口が出る');
     const quick = Array.from(doc.querySelectorAll('#setQuickMenu .set-row'));
-    assertEqual(quick.length, 3, '先頭は3つ（' + quick.map(labelOf).join('／') + '）');
+    // 第48弾 48-5：**「⏸ ポーズ」が加わって4つになった。**
+    // 席を外すための安全弁なので、探させない場所（音のすぐ次）に置く
+    assertEqual(quick.length, 4, '先頭は4つ（' + quick.map(labelOf).join('／') + '）');
     assertEqual(labelOf(quick[0]), 'すべての音を消す', '1つ目は音');
-    assertEqual(labelOf(quick[1]), 'ルールをもう一度見る', '2つ目はルール');
-    assertEqual(labelOf(quick[2]), 'ゲームを終了する', '3つ目は終了');
-    // 先頭の3つは、その下の項目より前にいる（親指の届く所・2-9）
+    assertEqual(labelOf(quick[1]), 'ポーズ', '2つ目はポーズ（いちばん急ぎ）');
+    assertEqual(labelOf(quick[2]), 'ルールをもう一度見る', '3つ目はルール');
+    assertEqual(labelOf(quick[3]), 'ゲームを終了する', '4つ目は終了');
+    // 先頭の4つは、その下の項目より前にいる（親指の届く所・2-9）
     const all = shownRows(doc);
-    assertEqual(all.length, 3 + 3, '入口は 先頭3つ ＋ 4項目のうち「部屋」を除く3つ');
+    assertEqual(all.length, 4 + 3, '入口は 先頭4つ ＋ 4項目のうち「部屋」を除く3つ');
     assertEqual(all[0].dataset.setact, 'muteAll', '一番上は音を消す');
-    // 新しい経路を作っていない：⏹ は「ゲームを終了する」と同じ動きを指す
-    assertEqual(all[2].dataset.setact, 'endGame', '⏹ は既存のゲーム終了と同じ動き');
+    // 新しい経路を作っていない：⏹ は「ゲームを終了する」と同じ動きを指す。
+    // **並びの番号ではなく、動きの名前でさがす**——先頭に行が増えた日に
+    // 番号だけずれて赤くなる（第48弾でポーズが加わって実際にずれた）
+    const 終了 = all.filter((b) => b.dataset.setact === 'endGame');
+    assertEqual(終了.length, 1, '「ゲームを終了する」は1つだけ');
+    // ポーズも、新しい経路ではなく1つの行として並んでいる
+    assertEqual(all.filter((b) => b.dataset.setact === 'pause').length, 1,
+      '「ポーズ」も1つだけ');
     // 棚では「アプリの設定」に出ていた危険な操作が、ここでは入口の側にいる（二重に出さない）
     assertEqual(all.filter((b) => b.dataset.setpage === 'danger').length, 1, '危険な操作は1つだけ');
     assertNoErrors(errors, '遊んでいる時に設定を開いて未捕捉の例外');

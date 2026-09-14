@@ -234,6 +234,25 @@
    * 尽きた時に黙って繰り返すと、遊ぶ人には「さっきと同じお題が出た」としか
    * 見えない——**一周したことは、出題者に言う**（原則E：静かに）。
    */
+  /**
+   * 第48弾 48-5：ポーズ。
+   *
+   * 本人の裁定（2026-09-14）で、これは**「席を外すための安全弁」**。
+   * 「考える時間を買う道具」ではない——だから止めた瞬間に
+   * **見えている秘密を全部隠す**。隠すから、止めて考える得が無くなる
+   * （役職もお題も手札も問題文も見えないので、考えようがない）。
+   */
+  var PAUSE = {
+    label: 'ポーズ',
+    手渡しの補足: 'トイレ・宅配などで、いったん止めます',
+    部屋の補足: 'みんなの画面が止まります（進行役だけが止められます）',
+    見出し: '⏸ ポーズ中',
+    本文: '見えていたものは、いったん隠しています',
+    だれが: function (name) { return name + ' さんが止めました'; },
+    もどす: '▶ つづける',
+    もどせない: 'もどせるのは、止めた人か進行役です'
+  };
+
   var TOPIC = {
     一周した: 'お題を一周しました。ここからは、もう一度めぐります'
   };
@@ -498,5 +517,5 @@
 
   return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET,
            TITLES: TITLES, TIMER: TIMER, BOMB: BOMB,
-           WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC };
+           WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC, PAUSE: PAUSE };
 }));

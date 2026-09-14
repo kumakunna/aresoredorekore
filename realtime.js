@@ -103,6 +103,61 @@ function clearGameState(room) {
 }
 
 /**
+ * 第48弾 48-5：**ポーズ。**
+ *
+ * 本人の裁定（2026-09-14）で、ポーズは**「席を外すための安全弁」**と決まった。
+ * 「考える時間を買う道具」ではないので、止めた瞬間に**見えている秘密を全部隠す**
+ * （隠すのは端末側。ここが持つのは「止まっている」という事実と、時間の帳尻）。
+ *
+ * ── 時間の帳尻をどう合わせるか ──────────────────
+ * 止めている間、締め切りの見回りは止める。だが締め切りそのものは
+ * **絶対時刻**（`Date.now() + 秒`）で持っているので、そのままだと
+ * 止めていた時間ぶん、再開した瞬間に過ぎ去ってしまう。
+ *
+ * **ゲームごとに「ずらす値の一覧」を手で持たない**（落とし穴4）。
+ * 7つの進行役に散らばっていて、新しいゲームを足した日に必ず漏れる。
+ * 代わりに、進行役の状態を歩いて**「絶対時刻らしい数」だけ**をずらす：
+ *   ・名前が deadline / 〜At / 〜Until で終わる
+ *   ・値が 1e12 より大きい（＝ミリ秒のエポック。`atMs: 40` のような
+ *     相対の長さは、この門で自然に外れる）
+ */
+const 時刻らしい名前 = /(deadline|at|until)$/i;
+function shiftTimes(obj, delta, depth) {
+  if (!obj || typeof obj !== 'object') return;
+  if ((depth || 0) > 6) return;
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (typeof v === 'number') {
+      // エポックの大きさを持つものだけ。相対の長さ（ミリ秒・秒）は触らない
+      if (v > 1e12 && 時刻らしい名前.test(k)) obj[k] = v + delta;
+    } else if (v && typeof v === 'object') {
+      shiftTimes(v, delta, (depth || 0) + 1);
+    }
+  }
+}
+/** いま止まっているか */
+function isPaused(room) { return !!(room && room.pausedAt); }
+/**
+ * 止める／もどす。**もどす時に、止めていた長さぶん締め切りを後ろへずらす。**
+ * @returns {boolean} 実際に状態が変わったか
+ */
+function setPaused(room, on, memberId) {
+  if (on) {
+    if (room.pausedAt) return false;
+    room.pausedAt = Date.now();
+    room.pausedBy = memberId || null;
+    return true;
+  }
+  if (!room.pausedAt) return false;
+  const delta = Date.now() - room.pausedAt;
+  room.pausedAt = null;
+  room.pausedBy = null;
+  const w = driverStateOf(room);
+  if (w && delta > 0) shiftTimes(w, delta, 0);
+  return true;
+}
+
+/**
  * 第37弾：全員の「準備OK」を落とす。
  * 落とす場所を1か所に集めてある（ゲーム変更・再戦・開始の3経路が同じ関数を通る）。
  * 経路ごとに書くと、必ずどれかで消し忘れて「押していないのに押したことになる」
@@ -384,6 +439,15 @@ function publicSnapshot(room) {
       })),
     // 第37弾：準備OKの集まり。数えるのは「つながっているプレイヤー」だけ
     ready: readyTally(room),
+    /**
+     * 第48弾 48-5：止まっているか。**members の中には入れない**——
+     * `tests/realtime.js`「部屋が配るメンバーの項目は、決めた8つだけ」が
+     * 完全一致で見ているので、1つ足すと赤くなる（そして、そこは
+     * 「集めたものを並べない」を守るための門なので、緩めてはいけない）
+     */
+    paused: room.pausedAt
+      ? { at: room.pausedAt, by: (room.members.get(room.pausedBy) || {}).name || null }
+      : null,
     state: {
       phase: room.state.phase,
       game: room.state.game,
@@ -814,6 +878,12 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
    *  時間制限の無い段階では無期限に止まる。実機報告のバグ）。
    */
   function settleAfterMemberGone(room) {
+    /**
+     * 第48弾 48-5：**止めた人が居なくなったら、止まったままにしない。**
+     * ここは「誰かが居なくなる」4経路（切断・退室・kick・ホスト不在）が
+     * 必ず通る1か所（落とし穴17の恒久対策）。経路ごとに書かない
+     */
+    if (isPaused(room)) setPaused(room, false);
     const dr = driverOf(room);
     if (dr && dr.isAllDone(room)) {
       dr.advance(room);
@@ -892,6 +962,11 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   timers.push(setInterval(() => {
     const now = Date.now();
     eachRoom('時間切れの見回り', (room) => {
+      // 第48弾 48-5：止まっている間は、締め切りを見ない。
+      // **ここが唯一の締め切りの門**なので、1行で全ゲームが止まる。
+      // ハートビートと切断の見回りは止めない——止めると、
+      // 止めている間に寝落ちした人を誰も切断扱いにできなくなる
+      if (isPaused(room)) return;
       const dr = driverOf(room);
       const w = driverStateOf(room);
       if (!dr || !w || !w.deadline || now < w.deadline) return;
@@ -1073,6 +1148,32 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       broadcast(room);
     });
 
+    /**
+     * 第48弾 48-5：**ポーズ。** 席を外すための安全弁（本人の裁定 2026-09-14）。
+     *
+     * 押せるのは**進行役だけ**（部屋では）。参加者にも押せると、
+     * 自分の番で止める抜け道がそのまま開く。
+     * 大画面は `rtIsBigScreen` の端末なので、そもそも⚙にこの行が出ない。
+     *
+     * **もどせるのは、止めた本人か進行役。**（止めた人が寝落ちしても、
+     * 進行役が戻せる。誰も戻せない部屋を作らない）
+     */
+    socket.on('room:pause', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (!driverOf(room)) return fail(cb, 'not_playing', 'まだ始まっていません');
+      const on = !(payload && payload.on === false);
+      if (on) {
+        if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが止められます');
+      } else if (room.hostMemberId !== me.id && room.pausedBy !== me.id) {
+        return fail(cb, 'not_yours', '止めた人か、進行役だけがもどせます');
+      }
+      const 変わった = setPaused(room, on, me.id);
+      if (typeof cb === 'function') cb({ ok: true, paused: isPaused(room) });
+      if (変わった) broadcast(room);
+    });
+
     // ---- 第2部-3：役割の変更（自動判定はあくまで初期値。最後は本人が選ぶ） ----
     socket.on('room:setRole', (payload, cb) => {
       const room = currentRoom();
@@ -1206,6 +1307,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const me = currentMember();
       const dr = room && driverOf(room);
       if (!room || !me || !dr) return fail(cb, 'not_in_room', '部屋に入っていません');
+      // 第48弾 48-5：止まっている間は受け付けない。
+      // **できていないのに ok を返さない**（落とし穴14）
+      if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
       // 第27弾-3：4つめの引数は payload まるごと。
       // 実物解除は「傾き何度」「何回振った」のように、targetId 1つでは足りない操作がある。
       // 人狼・ワードウルフ・爆弾解除は受け取っても使わない（無視するだけ）。
@@ -1230,6 +1334,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const me = currentMember();
       const dr = room && driverOf(room);
       if (!room || !me || !dr) return fail(cb, 'not_in_room', '部屋に入っていません');
+      // 第48弾 48-5：止まっている間は受け付けない。
+      // **できていないのに ok を返さない**（落とし穴14）
+      if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
       const res = dr.submitVote(room, me.id, (payload && payload.targetId) || null, payload);
       if (!res.ok) return fail(cb, res.error, '今は投票できません');
       // 第27弾-3：実物解除は「いま当たったか外れたか」をその場で返す
@@ -1246,6 +1353,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const dr = room && driverOf(room);
       if (!room || !me || !dr) return fail(cb, 'not_in_room', '部屋に入っていません');
       if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが進められます');
+      // 第48弾 48-5：止まっている間は進めない（落とし穴14）
+      if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
       dr.advance(room);
       if (typeof cb === 'function') cb({ ok: true });
       pushWolfState(room);

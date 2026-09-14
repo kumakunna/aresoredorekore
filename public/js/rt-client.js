@@ -334,6 +334,12 @@
       return call('wolf:vote', Object.assign({ targetId: targetId }, extra || {}));
     }
     function nextPhase() { return call('wolf:next', {}); }
+    /**
+     * 第48弾 48-5：ポーズ。席を外すための安全弁。
+     * 止められるのは進行役だけ（サーバーが門番する）。
+     * もどせるのは、止めた本人か進行役
+     */
+    function pause(on) { return call('room:pause', { on: on !== false }); }
 
     // 自分がホスト（進行を担当している端末）か
     function isHost() {
@@ -372,7 +378,7 @@
       peekRoom: peekRoom, dropRoom: dropRoom,
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       setReady: setReady,
-      startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase,
+      startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase, pause: pause,
       react: react, thanks: thanks,
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,

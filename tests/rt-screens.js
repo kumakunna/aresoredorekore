@@ -3724,11 +3724,16 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     click(doc, 'floatingGearBtn');
     await sleep(win, 100);
     const rows = quickRows(doc);
-    assertEqual(rows.length, 3, '先頭は3つ（' + rows.map((x) => x[0]).join('／') + '）');
+    // 第48弾 48-5：**進行役には「⏸ ポーズ」が加わって4つ**（音のすぐ次）。
+    // 参加者と大画面には出さない——下の2つの検査が、そこを見ている
+    assertEqual(rows.length, 4, '先頭は4つ（' + rows.map((x) => x[0]).join('／') + '）');
     assertEqual(rows[0][1], 'muteAll', '1つ目は音を消す');
-    assertEqual(rows[1][1], '→rules', '2つ目はルール');
-    assertEqual(rows[2][0], 'みんなを待合にもどす', '3つ目は待合にもどす');
-    assertEqual(rows[2][1], 'endGame', '**動きは既存のゲーム終了と同じ**（経路を増やしていない）');
+    assertEqual(rows[1][1], 'pause', '2つ目はポーズ（いちばん急ぎ）');
+    assertEqual(rows[2][1], '→rules', '3つ目はルール');
+    // **並びの番号ではなく、動きの名前でさがす**（行が増えた日に番号だけずれる）
+    const もどす = rows.filter((x) => x[1] === 'endGame');
+    assertEqual(もどす.length, 1, '「みんなを待合にもどす」は1つだけ');
+    assertEqual(もどす[0][0], 'みんなを待合にもどす', '進行役には「もどす」と出る');
     assertNoErrors(errors, '進行役の設定で未捕捉の例外');
     win.close();
   });
@@ -3748,6 +3753,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(rows[2][1], 'leaveRoom', '待合と同じ動きを指す');
     // 参加者に、みんなを止める道は出さない（進行役だけのもの）
     assert(!rows.some((x) => x[1] === 'endGame'), '参加者にはゲーム終了を出さない');
+    // 第48弾 48-5：**ポーズも進行役だけ。**
+    // 参加者にも押せると、自分の番で止める抜け道がそのまま開く
+    assert(!rows.some((x) => x[1] === 'pause'), '参加者にはポーズを出さない');
     assertNoErrors(errors, '参加者の設定で未捕捉の例外');
     win.close();
   });
@@ -3767,6 +3775,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(rows.length, 2, '大画面は2つ（' + rows.map((x) => x[0]).join('／') + '）');
     assertEqual(rows[0][1], 'muteAll', '1つ目は音を消す');
     assertEqual(rows[1][1], 'toPlayer', '2つ目はプレイヤーにもどる');
+    // 第48弾 48-5：**大画面にポーズは出さない**（47-2：大画面から操作する道を作らない）。
+    // 一覧に並べていないからではなく、setContext が最優先で 'bigscreen' を返すので
+    // 構造的に出ない——除外の一覧を持たなくてよい（落とし穴4）
+    assert(!rows.some((x) => x[1] === 'pause'), '大画面にはポーズを出さない');
     // **大画面は、みんなに見せている画面。**そこにルールの見返しは要らない
     assert(!rows.some((x) => x[1] === '→rules'), '大画面にルールの見返しは出さない');
     assertNoErrors(errors, '大画面の設定で未捕捉の例外');

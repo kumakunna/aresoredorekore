@@ -1212,6 +1212,23 @@
     position:fixed;inset:0;z-index:120;pointer-events:none;
     filter:brightness(var(--screen-bright,1));
   }
+  /* 第48弾 48-5：ポーズの幕。**止めた瞬間に、見えているものを全部おおう。**
+     本人の裁定で、ポーズは「席を外すための安全弁」——
+     隠すから、止めて考える得が無くなる（役職もお題も手札も見えない）。
+     置き場が #uiLayerRoot なので pointer-events を自分で立て直す */
+  .pause-veil{
+    position:absolute;inset:0;z-index:130;pointer-events:auto;
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    background:var(--paper);
+  }
+  .pause-card{
+    text-align:center;max-width:320px;display:flex;flex-direction:column;gap:6px;
+  }
+  .pause-title{font-family:'Shippori Mincho',serif;font-weight:800;font-size:28px;}
+  .pause-who{font-size:14px;color:var(--ink-soft);}
+  .pause-body{font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:10px;}
+  /* 止まっている間は、裏で動く演出を止める（幕の裏で光っても意味がない） */
+  :root.paused .fx-alive{animation:none;}
   .ui-layer{
     position:absolute;inset:0;z-index:120;display:flex;
     /* 共通トークンに戻す（テーマ非適用領域） */
@@ -5788,7 +5805,21 @@
      中に置いていた頃は、長い画面（設定・記録・カタログ）でダイアログを開くと
      画面ではなくページの座標に置かれ、実測で 812px の画面に対して
      y=1015〜1388 ——**画面の外**に出て、何も出ていないように見えていた。 -->
-<div id="uiLayerRoot"></div>
+<div id="uiLayerRoot">
+  <!-- 第48弾 48-5：ポーズの幕。**#app の外**に置く——
+       `.overlay` は position:fixed なのに #app の中にいて、
+       #app が filter を持つので長い画面では画面の外へ飛ぶ（落とし穴26）。
+       ここ（#uiLayerRoot）は UiKit の重なりと同じ置き場で、その穴を踏まない -->
+  <div class="pause-veil" id="pauseVeil" hidden>
+    <div class="pause-card">
+      <div class="pause-title" id="pauseTitle">⏸ ポーズ中</div>
+      <div class="pause-who" id="pauseWho"></div>
+      <div class="pause-body" id="pauseBody"></div>
+      <button class="btn btn-main" id="pauseResumeBtn">▶ つづける</button>
+      <div class="mic-status" id="pauseNote" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
 
 <!-- 役職あり人狼の「ルール」層。DOMに触れない純粋なロジックなので、単体テストもできる -->
 <!-- socket.io は本番のサーバーが自動で配る。読み込めなくても
@@ -9092,6 +9123,105 @@
     if(!app) return;
     GAME_LOOK_CLASSES.forEach(function(c){ app.classList.remove(c); });
   }
+  /**
+   * ===================== 第48弾 48-5：ポーズ =====================
+   *
+   * 本人の裁定（2026-09-14）で、ポーズは**「席を外すための安全弁」**。
+   * トイレ・宅配・子どもが呼んだ——そういう時に、遊びを壊さずに止める道。
+   *
+   * **「考える時間を買う道具」ではない。** だから止めた瞬間に、
+   * 見えているものを幕で全部おおう。隠すから、止めて考える得が無くなる
+   * ——役職もお題も手札も問題文も見えないので、考えようがない。
+   * 下調べで挙がった「ポーズで得をする場面」（とくとくクイズ・秘密入札・
+   * どこにいる？の申告など）は、**隠すことで全部ふさがる**。
+   *
+   * `stopAllPlayTimers` は流用しない。あれは**捨てる**関数で、
+   * `playGen++` で遅れて動く処理まで無効にし、見た目まで片付ける。
+   * ポーズは**残り時間を持ったまま刻むのを止めるだけ**（第48弾で作った
+   * `pauseWrNightTimer` / `tickWrNightTimer` と同じ分け方）。
+   */
+  var paused = { on: false, by: null, 手渡し: false };
+  function pauseLocalTimers(){
+    // 手渡し
+    if(play.interval){ clearInterval(play.interval); play.interval = null; play.running = false; }
+    if(play.bombInterval){ clearInterval(play.bombInterval); play.bombInterval = null; }
+    if(play.tourneyInterval){ clearInterval(play.tourneyInterval); play.tourneyInterval = null; }
+    stopBombHeart();
+    stopWrDayTimer();
+    pauseWrNightTimer();
+    stopTallyCountdown();
+    if(sugoInputStop){ sugoInputStop(); sugoInputStop = null; }
+    // 部屋（端末側で減らしている時計）。**部屋の締め切りはサーバーが止める**
+    try{ if(qzClock.timer){ clearInterval(qzClock.timer); qzClock.timer = null; } }catch(e){}
+    try{ if(auClock.timer){ clearInterval(auClock.timer); auClock.timer = null; } }catch(e){}
+    try{ rtBombStopTicking(); }catch(e){}
+    // 読み上げ・音声認識も止める（席を外すので、喋り続けさせない）
+    stopVoice();
+    try{ window.speechSynthesis.cancel(); }catch(e){}
+  }
+  /** 幕を出す／しまう。印は :root（幕は #app の外にいるので・落とし穴27） */
+  function renderPauseVeil(){
+    var veil = el('pauseVeil');
+    if(!veil) return;
+    document.documentElement.classList.toggle('paused', !!paused.on);
+    veil.hidden = !paused.on;
+    if(!paused.on) return;
+    var T = UiText.PAUSE;
+    el('pauseTitle').textContent = T.見出し;
+    el('pauseWho').textContent = paused.by ? T.だれが(paused.by) : '';
+    el('pauseBody').textContent = T.本文;
+    el('pauseResumeBtn').textContent = T.もどす;
+    // **もどせる人にだけ、押せるボタンを出す**（押せないボタンを置かない）
+    var もどせる = paused.手渡し || !rt || !rt.state.room
+      || rt.isHost() || paused.byMe;
+    el('pauseResumeBtn').style.display = もどせる ? '' : 'none';
+    el('pauseNote').textContent = もどせる ? '' : T.もどせない;
+  }
+  /** 手渡しのポーズ。サーバーがいないので、端末の中だけで止める */
+  function setHandoffPaused(on){
+    paused.on = !!on;
+    paused.手渡し = !!on;
+    paused.by = null;
+    paused.byMe = true;
+    if(on) pauseLocalTimers();
+    renderPauseVeil();
+    // もどす時は、その画面が自分で時計を張り直す（画面ごとの再開処理を通す）
+    if(!on){
+      if(el('scr-play').classList.contains('active') && state.timerEnabled && play.remaining > 0){
+        startPlayTimer(); el('pauseBtn').textContent = '⏸';
+      }
+      if(el('scr-wr-day').classList.contains('active') && wr && !wr.timer && state.timerEnabled){
+        tickWrDayTimer(); el('wrDayPauseBtn').textContent = '⏸';
+      }
+      if(el('scr-wr-pass').classList.contains('active') && wr && !wr.nightTimer
+         && wr.nightRemaining > 0){ tickWrNightTimer(); }
+      if(el('scr-bomb-play').classList.contains('active') && play.bombPhase === 'open'){
+        if(state.timerEnabled){ clearInterval(play.bombInterval);
+          play.bombInterval = setInterval(bombTick, 1000); }
+        startBombHeart(play.bombMisses);
+      }
+    }
+  }
+  /** 部屋のポーズ。**止まっているかはサーバーが持つ**（端末は映すだけ） */
+  function syncRoomPaused(){
+    var room = rt && rt.state.room;
+    var p = room && room.paused;
+    var 前 = paused.on;
+    paused.on = !!p;
+    paused.手渡し = false;
+    paused.by = p ? p.by : null;
+    paused.byMe = !!(p && rt.me() && p.by === rt.me().name);
+    if(paused.on && !前) pauseLocalTimers();
+    renderPauseVeil();
+  }
+  el('pauseResumeBtn').addEventListener('click', async function(){
+    if(paused.手渡し){ setHandoffPaused(false); return; }
+    this.disabled = true;
+    var res = await rt.pause(false);
+    this.disabled = false;
+    if(!res.ok) el('pauseNote').textContent = res.message || 'もどせませんでした';
+  });
+
   // 演出の待ち時間。setTimeout の代わりにこれを通すと、速さの設定が効く
   function fxMs(ms){
     if(appPrefs.fxSpeed === 'skip') return 0;
@@ -13638,6 +13768,8 @@
     // 第38弾：段階の変わり目の音は、6枚それぞれではなくここ1か所で鳴らす。
     // 画面ごとに書くと、その画面を見ていない人（大画面など）に鳴らない
     if(rtRoomGameId() === 'auction') auPhaseFx(rtView());
+    // 第48弾 48-5：止まっているかは**サーバーが持つ**。端末は映すだけ
+    syncRoomPaused();
     // 第48弾 48-2：**帯はここ1か所で描く。**部屋の画面すべてがここを通るので、
     // 画面ごとの描画関数に「この場面では出す」を書かせない
     renderNowLine();
@@ -22583,7 +22715,9 @@
 
   // ---- 入口の一覧 ----
   /**
-   * **⚙を押した人が、いまほしいものを上に3つ**（第43弾 2-2）。
+   * **⚙を押した人が、いまほしいものを上に**（第43弾 2-2）。
+   * 第43弾では3つだったが、第48弾 48-5 で「⏸ ポーズ」が加わって**4つ**になった
+   * （席を外すための安全弁は、探させてはいけない操作なので先頭に置く）。
    *
    * 動きは既存のものを指すだけで、新しい経路は作らない（指示43 2-2）——
    * ⏹ は「ゲームを終了する」と同じ `endGame`、🚪 は待合と同じ `leaveRoom`。
@@ -22599,6 +22733,25 @@
       label:function(){ return tempMute ? UiText.SET.音をもどす : UiText.SET.音を消す; },
       sub:function(){ return tempMute ? UiText.SET.音をもどすの補足 : UiText.SET.音を消すの補足; },
       act:'muteAll', id:'setMuteRow' },
+    /**
+     * 第48弾 48-5：**ポーズ。** 指示48 が「先頭に足す」と決めたので、
+     * **第43弾の「上に3つ」は4つになった**（増やしたのはこの1つだけ）。
+     *
+     * 置き場所は音の次。**いちばん急ぎの操作**だから——
+     * トイレ・宅配・子どもが呼んだ、という時に探させない（2-9：親指の届く所）。
+     *
+     * `when` の1行で3つの条件が同時に満たされる——
+     * 大画面は `setContext()` が最優先で 'bigscreen' を返すので、
+     * ここに並べない限り**構造的に出ない**（除外の一覧を持たなくてよい・落とし穴4）。
+     * 部屋では 'roomHost' / 'roomGuest' に割れるので、進行役だけに出る。
+     * 手渡しは、遊んでいる画面の⚙から開いた時だけ 'handoff' になる。
+     *
+     * `danger:true` は付けない——取り返しがつく操作なので、
+     * 赤にすると「危険な操作」と同じ顔になる
+     */
+    { icon:'⏸', label:function(){ return UiText.PAUSE.label; }, act:'pause', id:'quickPauseBtn',
+      when:ctxIs('handoff', 'roomHost'),
+      sub:function(){ return inRoomNow() ? UiText.PAUSE.部屋の補足 : UiText.PAUSE.手渡しの補足; } },
     { icon:'📖', label:'ルールをもう一度見る', page:'rules',
       when:ctxIs('handoff', 'roomHost', 'roomGuest') },
     { icon:'⏹', label:'ゲームを終了する', act:'endGame', danger:true, id:'quickEndGameBtn',
@@ -22707,6 +22860,18 @@
         'ゲームはほかの人たちで続きます', { ok: '出る' })) return;
       el('settingsOverlay').classList.remove('show');
       rtLeaveRoom();
+      return;
+    }
+    if(act === 'pause'){
+      /**
+       * 第48弾 48-5：**closeSettings を通す。**
+       * `settingsOverlay.classList.remove('show')` を直に書くと、
+       * ⚙が止めた `pausedForSettings` が戻らず、
+       * ポーズを解いても手渡しの時計が二度と動かない
+       */
+      closeSettings();
+      if(rt && rt.state.room){ rt.pause(true); return; }
+      setHandoffPaused(true);
       return;
     }
     if(act === 'toBig'){ rtSetDisplayMode(true); el('settingsOverlay').classList.remove('show'); return; }

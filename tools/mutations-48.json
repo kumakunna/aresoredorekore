@@ -1,0 +1,98 @@
+[
+  {
+    "name": "48-1① 鍵を経路で割る（clearGameState が modeId を捨てる形にもどす）",
+    "file": "realtime.js",
+    "suite": "tests/room-ready.js",
+    "from": "  const 持ち越す = {};\n  if (room.state.data && room.state.data.modeId) 持ち越す.modeId = room.state.data.modeId;",
+    "to": "  const 持ち越す = {};\n  if (false && room.state.data && room.state.data.modeId) 持ち越す.modeId = room.state.data.modeId;",
+    "expect": "modeId"
+  },
+  {
+    "name": "48-1② 待合にもどった時に、いるべき画面を計算し直さない",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    if(rtNeedsRules()){ goTo('scr-rt-rules'); return; }\n    renderRtRoom();",
+    "to": "    renderRtRoom();",
+    "expect": "戻ってきたら、ルールが出る"
+  },
+  {
+    "name": "48-1③ 手渡しの既読を、また端末に焼き付ける",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "        // 第48弾 48-1：seenRules は保存しない（上の理由）\n        autoSaveRecords: state.autoSaveRecords",
+    "to": "        seenRules: state.seenRules,\n        autoSaveRecords: state.autoSaveRecords",
+    "expect": "seenRules が残らない"
+  },
+  {
+    "name": "48-1④ 「あとで押す」を、また既読の印にする",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    if(key) rtRulesSnoozed[key] = true;",
+    "to": "    if(key) rtRulesSeen[key] = true;",
+    "expect": "出し直されたら"
+  },
+  {
+    "name": "48-1 出し直しの札を、鍵に混ぜない",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    return v.rulesEpoch ? (base + '#' + v.rulesEpoch) : base;",
+    "to": "    return base;",
+    "expect": "出し直されたら"
+  },
+  {
+    "name": "すごろくの退室ボタンを、また結び忘れる",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "  document.querySelectorAll('[id$=\"LeaveBtn\"]').forEach(function(b){",
+    "to": "  document.querySelectorAll('[id$=\"LeaveBtn\"]:not(#rtSugoLeaveBtn)').forEach(function(b){",
+    "expect": "退室を頼む"
+  },
+  {
+    "name": "退室ボタンの正本から、すごろくの行を消す（逆向きの照合が効くか）",
+    "file": "tests/inventory.js",
+    "suite": "tests/room-paths.js",
+    "from": "  { id: 'sugoroku-leave', kind: 'leave', btn: 'rtSugoLeaveBtn', event: 'room:leave',",
+    "to": "  { id: 'sugoroku-leave-DISABLED', kind: 'leave', btn: null, event: 'room:leave',",
+    "expect": "ROOM_EXIT_PATHS にありません"
+  },
+  {
+    "name": "設定を開いた時に、夜の持ち時間を止めない",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    if(pauseWrNightTimer()) pausedForSettings = true;",
+    "to": "    if(false && pauseWrNightTimer()) pausedForSettings = true;",
+    "expect": "1秒も減らない"
+  },
+  {
+    "name": "設定を閉じた時に、夜の持ち時間を再開しない",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    if(el('scr-wr-pass').classList.contains('active') && wr && !wr.nightTimer\n       && wr.nightRemaining > 0){\n      tickWrNightTimer();\n    }",
+    "to": "    if(false){ tickWrNightTimer(); }",
+    "expect": "続きから減り始める"
+  },
+  {
+    "name": "設定を閉じた時に、夜の持ち時間を満タンに戻す（止めた人が得をする形）",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "       && wr.nightRemaining > 0){\n      tickWrNightTimer();\n    }",
+    "to": "       && wr.nightRemaining > 0){\n      startWrNightTimer();\n    }",
+    "expect": "続きから減り始める"
+  },
+  {
+    "name": "部屋のミニゲームで、押した速さの起点をまた入れ忘れる",
+    "file": "sugoroku-room.js",
+    "suite": "tests/fixes48.js",
+    "from": "  w.playStartedAt = Date.now();",
+    "to": "  w.playStartedAt = 0;",
+    "expect": "playStartedAt"
+  },
+  {
+    "name": "playthrough：カセットを開いた先を、また時間で待つ",
+    "file": "tests/playthrough.js",
+    "suite": "tests/playthrough.js",
+    "from": "  await waitFor(win, () =>\n    ['scr-game', 'scr-setup', 'scr-mode'].indexOf(activeScreen(doc)) >= 0,\n    8000, 'カセットを開いた先の画面（現在: ' + activeScreen(doc) + '）');",
+    "to": "  await sleep(win, 100);",
+    "expect": "scr-mode"
+  }
+]

@@ -607,7 +607,7 @@ async function ゲームを終了(win, doc) {
       }
       assertEqual(w.phase, d.PHASE.ENDED, gameId + '：決着まで回せた');  // 型(b)
       await push(); await sleep(win, 220);
-      return { win, doc, errors, snap, result: d.publicView(room).result };
+      return { win, doc, errors, snap, fake, result: d.publicView(room).result };
     }
 
     for (const t of すごろく) {
@@ -694,6 +694,34 @@ async function ゲームを終了(win, doc) {
         assert(文.indexOf('さんの番') === -1, '大画面に「さんの番」が残っていない');
       } finally { g.win.close(); }
       function doc手(x){ return x.doc.querySelector('.screen.active'); }
+    });
+
+    await r.test('52-3：1位が同着なら、勝者を全員出す', async () => {
+      /**
+       * **この検査が無いと、勝者の欄は素通りする。**
+       * 変異「1位を1人しか出さない」（`slice(0,1)`）を入れても、
+       * 進行役を普通に回して出た5ゲームには**1位同着が一度も現れない**ので、
+       * `勝ち.forEach` が1人ぶんしか回らず、主張が自明に成立していた（落とし穴10-b）。
+       *
+       * 同着はサーバーが `tied:true` で表す実在の形（`rankPlayers`）。
+       * **その形の知らせを流して、描き方を見る**——`tests/rt-screens.js` と同じやり方
+       */
+      const g = await 決着まで('sugotoll', 3);
+      try {
+        const 知らせ = g.snap();
+        const res = 知らせ.state.data.result;
+        // 1位を2人にする（同着）
+        res.players[0].rank = 1; res.players[0].tied = true;
+        res.players[1].rank = 1; res.players[1].tied = true;
+        g.fake.fire('room:update', 知らせ);
+        await sleep(g.win, 200);
+
+        const 同着 = res.players.filter((p) => p.rank === 1);
+        assertEqual(同着.length, 2, '1位が2人の状況を作れている');   // 型(b)
+        const 名 = g.doc.getElementById('rtSugoRsWin').textContent;
+        同着.forEach((p) => assert(名.indexOf(p.name) >= 0,
+          '同着の「' + p.name + '」も勝者として出る（いまの文：' + 名.replace(/\s+/g, ' ') + '）'));
+      } finally { g.win.close(); }
     });
 
     await r.test('52-3：「どこにいる？」は、決着ではじめて本当の場所を出す', async () => {

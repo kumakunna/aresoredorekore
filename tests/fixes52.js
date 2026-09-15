@@ -30,6 +30,10 @@
 const { createRunner, assert, assertEqual,
   launch, activeScreen, sleep, waitScreen, waitFor, el, click, openCassette, autoDialog } = require('./harness');
 const UiText = require('../public/js/ui-text');
+const { cssRules } = require('./harness');
+const fs = require('fs');
+const path = require('path');
+const { JSDOM } = require('jsdom');
 
 /** 棚のチップで人数を選ぶ（本物のシートを開いて押す） */
 async function 人数をえらぶ(win, doc, n) {
@@ -281,6 +285,109 @@ async function ゲームを終了(win, doc) {
       assertEqual(active(), 'scr-login',
         '2回目はログイン画面に行ける（開き直す以外に道が無い、を作らない）');
     } finally { win.close(); }
+  });
+
+  // ===================== 52-7 画面に貼り付くはずのものが、画面の外へ飛ぶ =====================
+  //
+  // 実機報告は「アルバムが受け取れない」だったが、**アルバムは壊れていなかった**
+  //（サーバー側は 撮る→受け取る→保存→消える まで全部通る）。
+  // 壊れていたのは**置き場**で、`#app` が `filter:brightness(...)` を持つため
+  // `position:fixed` の基準が画面ではなく `#app`（＝ページ全体）になっていた（落とし穴26）。
+  //
+  // 実ブラウザで、同じページ・同じスクロール位置（1200px）で A/B した：
+  //
+  //   直す前（#app に filter あり）… パネル top = **-1144**（画面の外）
+  //   直した後（filter 無し）      … パネル top = 86（画面の中）
+  //
+  // **12個を `#uiLayerRoot` へ移す案は採らなかった。**
+  // 動かす前に数えたら、`.app ◯◯` の形で重なりの中身に届いている規則が**64本**あった
+  //（テーマ5種の card・btn・switch・seg-btn・overlay-panel・close-x…）。
+  // 移すと64本を書き直すことになり、**CSSは何も言わない**ので、
+  // 壊れても全テストは緑のまま本番に出る（落とし穴23・27・30）。
+  // 代わりに**基準を作るのをやめた**——明るさ補正は、本人が既定から動かした時だけ
+  // `#app > *` に掛ける。`.overlay` は自分自身に filter を持つことになるが、
+  // **自分の filter は自分の基準にはならない**ので、画面に正しく貼り付く。
+  //
+  // ## この検査は、既存の見張りの「逆向き」を埋める（落とし穴20）
+  //
+  // `tests/ui-kit.js` の「重なりの置き場が、filter の付いた箱の中に無い」は
+  // **`#uiLayerRoot` の先祖だけ**を見ていた。
+  // markup に書かれた12個の `.overlay` は `#app` の中にいるので、
+  // その見張りの目には最初から入っていなかった。
+  // ここでは **`position:fixed` を持つ要素を全部** markup から拾って、
+  // それぞれの先祖を照らす。一覧は持たない（落とし穴4）。
+
+  await r.test('52-7：画面に貼り付くものの先祖に、基準を作る指定が無い', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');  // 動きの定義は基準を作らない
+    const 規則 = cssRules(css);
+
+    // ① 画面に貼り付くもの（position:fixed）の選択子を集める
+    const 貼り付く = [];
+    規則.forEach((x) => {
+      if (!/(^|;|\s)position\s*:\s*fixed/.test(x.body)) return;
+      x.sel.split(',').forEach((s) => {
+        const t = s.trim();
+        if (!t || t.indexOf('::') >= 0) return;   // 疑似要素は、その親が基準なので別の話
+        貼り付く.push(t);
+      });
+    });
+    // 型(b)：集められていないまま「違反0件」で緑にしない
+    assert(貼り付く.length > 10, '貼り付くものを集められている（実際:' + 貼り付く.length + '件）');
+
+    // ② 基準を作りうる指定を集める。
+    //    **`#app` を名指ししない**——あとで誰かが body に足した日にも赤くなるように
+    const 基準を作る = [];
+    規則.forEach((x) => {
+      if (/:hover|:active|:focus/.test(x.sel)) return;
+      if (!/(^|;|\s)(filter|transform|backdrop-filter|perspective)\s*:/.test(x.body)) return;
+      if (/(^|;|\s)(filter|transform)\s*:\s*none\s*(;|$)/.test(x.body)) return;
+      x.sel.split(',').forEach((s) => 基準を作る.push(s.trim()));
+    });
+    assert(基準を作る.length > 5, '基準を作る指定を集められている（実際:' + 基準を作る.length + '件）');
+
+    const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''));
+    const d = dom.window.document;
+    const 読めない = [];
+    const 悪い = [];
+    貼り付く.forEach((sel) => {
+      let 要素 = [];
+      try { 要素 = Array.from(d.querySelectorAll(sel)); } catch (e) { 読めない.push(sel); return; }
+      要素.forEach((n) => {
+        // **先祖だけを見る。**自分自身の filter は、自分の基準にはならない
+        for (let p = n.parentElement; p; p = p.parentElement) {
+          基準を作る.forEach((bs) => {
+            let hit = false;
+            try { hit = p.matches(bs); } catch (e) { 読めない.push(bs); return; }
+            if (hit) {
+              悪い.push((n.id ? '#' + n.id : sel) + ' の先祖 '
+                + (p.id ? '#' + p.id : p.tagName) + ' ← ' + bs);
+            }
+          });
+        }
+      });
+    });
+    assertEqual(Array.from(new Set(読めない)).join('・'), '',
+      '読めない選択子（切り出しがずれている合図・落とし穴10-e）');
+    assertEqual(Array.from(new Set(悪い)).join(' ／ '), '',
+      '画面に貼り付くものの先祖に、fixed の基準を作る指定が付いている');
+  });
+
+  await r.test('52-7：明るさは既定では掛けない（掛けると基準が生まれる）', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    // `#app` そのものに filter を置き直した日に、必ず赤くなる
+    const appに = cssRules(css).filter((x) =>
+      /^(#app|\.app)$/.test(x.sel.trim()) && /(^|;|\s)filter\s*:/.test(x.body));
+    assertEqual(appに.length, 0,
+      '#app 自身には filter を置かない（置くと fixed の基準になる・落とし穴26）');
+    assert(/:root\[data-bright\]\s*#app\s*>\s*\*\s*\{[^}]*filter\s*:\s*brightness/.test(css),
+      '明るさは `:root[data-bright] #app > *` に掛ける（印が付いた時だけ）');
+    assert(/removeAttribute\('data-bright'\)/.test(html),
+      '既定（100%）にもどしたら、印を外す');
   });
 
   r.finish();

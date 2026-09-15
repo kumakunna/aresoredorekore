@@ -92,6 +92,14 @@
    * 上書きする規則が現れたら赤くなる）。
    */
   [hidden]{display:none !important;}
+  /**
+   * 第52弾 52-7：明るさ補正は、**本人が既定から動かした時だけ**掛ける。
+   * 印は `:root[data-bright]`（`appPrefs.brightness` が100以外の時にJSが付ける）。
+   * 掛ける先が `#app` ではなく `#app > *` なのは、
+   * **`#app` を `position:fixed` の基準にしないため**（落とし穴26・上の長い説明）。
+   * 既定では規則が1本も効かないので、96個に filter が付くこともない
+   */
+  :root[data-bright] #app > *{ filter:brightness(var(--screen-bright)); }
   body{
     margin:0;
     background:
@@ -115,7 +123,30 @@
     --font-scale:1;
     /* --screen-bright と --fx-scale は :root に置く。#app の外の層も同じ値を読むため */
     font-size:calc(15px * var(--font-scale));
-    filter:brightness(var(--screen-bright));
+    /**
+     * 第52弾 52-7：**ここに filter を置かない。**
+     *
+     * `filter` が none 以外だと、その要素が `position:fixed` の基準になる
+     *（落とし穴26）。`#app` はページ全体の高さを持つので、
+     * 長い画面でスクロールしてから重なりを開くと、**画面の外に描かれる**
+     * ——実測でアルバムの保存ボタンが viewport y=-368。
+     * 遊ぶ人には「押したのに何も出ない」としか見えない。
+     *
+     * 第39弾は UiKit の重なりを `#uiLayerRoot` へ逃がしてこれを避けたが、
+     * **markup に書かれた12個の `.overlay` は一度も移されていなかった**。
+     *
+     * 移す案は採らない——数えたら、`.app ◯◯` の形で重なりの中身に
+     * 届いている規則が**64本**あった（テーマ5種の card・btn・switch・
+     * seg-btn・overlay-panel・close-x…）。移すと64本を書き直すことになり、
+     * **CSSは何も言わない**ので壊れても全テストが緑のまま出る（落とし穴23・27・30）。
+     *
+     * 代わりに**基準を作るのをやめる**。明るさ補正は、
+     * 本人が既定から動かした時だけ `#app > *` に掛ける（下）。
+     * こうすると `.overlay` は自分自身に filter を持つことになるが、
+     * **自分の filter は自分の基準にはならない**ので、画面に正しく貼り付く。
+     * 既定（100%）では filter が1つも無いので、描画の負担も増えない
+     */
+
     /* 第27弾-2：スマホの 100vh は、ブラウザのアドレスバー・下部バーの裏まで含む。
        そのままだと画面のいちばん下が「見えているのに押せない」帯になる。
        dvh（実際に見えている高さ）に対応している端末ではそちらを使う。
@@ -9073,6 +9104,15 @@
     // 明るさは :root に置く。#app と、その外にある層の置き場（#uiLayerRoot）の
     // 両方が同じ値を読むため。#app 側だけに置くと、ダイアログだけ明るいままになる
     document.documentElement.style.setProperty('--screen-bright', (appPrefs.brightness / 100).toFixed(2));
+    /**
+     * 第52弾 52-7：**既定（100%）の時は、filter を1つも掛けない。**
+     * `filter` が none 以外だと `position:fixed` の基準になり、
+     * 長い画面で重なりが画面の外へ飛ぶ（落とし穴26）。
+     * 印が付いている間だけ `#app > *` に掛かる——
+     * `#app` 自身には掛からないので、基準は生まれない
+     */
+    if(appPrefs.brightness === 100) rootEl.removeAttribute('data-bright');
+    else rootEl.setAttribute('data-bright', String(appPrefs.brightness));
     // 演出の速さ。0 はスキップ（時間0で終わる）
     var fx = appPrefs.fxSpeed === 'fast' ? 0.5 : (appPrefs.fxSpeed === 'skip' ? 0 : 1);
     // 明るさと同じく :root に置く。重なり（#uiLayerRoot）は #app の外にいて、

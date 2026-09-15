@@ -530,7 +530,22 @@ function applyEvent(room, ev) {
 // ゲームごとのルール。共通の芯からは、ここを呼ぶだけ。
 // 新しいすごろくを足す時は、この表に1つ足す（共通の芯には手を入れない）。
 // =====================================================================
-const GRAB_MINI_SHOW_MS = 2200;   // 何のミニゲームかを見せる間
+/**
+ * 第52弾 52-4：MINI は「見せる間」から**全員が準備OKを押す門**になった。
+ * これは締め切りではなく**安全弁**——つながったまま押さない1人がいても、
+ * 部屋が永久に止まらないようにするためのもの（落とし穴17・22）。
+ * 組で振るのを待つ期限（PAIR_ROLL_SEC）と同じ長さにそろえる
+ */
+const GRAB_MINI_READY_SEC = 45;
+/**
+ * 第52弾 52-4：**そろってから、3つ数えて始める。**
+ * 数えている間は誰も入力できない——ここを端末まかせにすると、
+ * 描画の速い端末だけ先に押せて、「押した速さ」の順位が機械の速さで決まる。
+ * だから**サーバーが「いつ始まるか」を配る**（`startAt`）。
+ * `FxKit.countdown` は演出の速さ設定を通らないので、
+ * スキップにしている人も同じ3秒を待つ（public/js/fx.js:557 beat）
+ */
+const GRAB_COUNT_IN_MS = 3000;
 const JANKEN_MAX_RETRY = 2;       // あいこが続いた時の上限（無限に繰り返さない）
 
 const PAIR_ROLL_SEC = 45;    // 組の誰かが振るまでの期限
@@ -1003,11 +1018,12 @@ const GAME_RULES = {
   // 芯の pointTurnToPlayable（並び順で次を探す）は使わない。
   // 代わりに、ミニゲームの順位から「動かす順番」を作る。
   sugograb: {
-    waitingPhases: [PHASE.READY, PHASE.PLAY, PHASE.GRAB],
+    waitingPhases: [PHASE.READY, PHASE.MINI, PHASE.PLAY, PHASE.GRAB],
     // 誰を待つか。**繋がっているかの絞り込みは芯がやる**ので、ここでは書かない
     waitingIds(room) {
       const w = room.sugoroku;
-      if (w.phase === PHASE.READY || w.phase === PHASE.PLAY) return w.playerIds.slice();
+      if (w.phase === PHASE.READY || w.phase === PHASE.MINI
+          || w.phase === PHASE.PLAY) return w.playerIds.slice();
       if (w.phase === PHASE.GRAB) return w.turnId ? [w.turnId] : [];
       return [];
     },
@@ -1054,14 +1070,45 @@ const GAME_RULES = {
         }
         // 誰が出し終えたかは見せる（何を出したかは見せない）
         out.answered = w.playerIds.filter((id) => w.entries[id] != null).map((id) => w.names[id]);
+        /**
+         * 第52弾 52-4：**いつ始まるかを、サーバーが配る。**
+         * 端末が自分で3つ数えて始めると、描画の速い機械だけ先に押せて、
+         * 「押した速さ」の順位が機械の速さで決まる（れんだ・はやおしクイズ）。
+         * 全員が同じ `startAt` を見て、そこまでは入力を受け付けない
+         */
+        if (w.phase === PHASE.PLAY) out.startAt = w.playStartedAt;
       }
       return out;
     },
     submitAction(room, memberId, act, payload) {
       const w = room.sugoroku;
+      /**
+       * 第52弾 52-4：**何が始まるか読んでから始める。**
+       * 芯の READY 分岐と同じ形にそろえる——「参加者か」ではなく
+       * 「いま待っている人か」で見る（切れている人を待ち続けない）
+       */
+      if (w.phase === PHASE.MINI) {
+        if (expectedMembers(room).indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
+        // 前の段階の出し物が遅れて届いた時に、黙って「読んだ」にしない（落とし穴14）
+        if (act !== 'ready') return { ok: false, error: 'bad_action' };
+        w.done[memberId] = true;
+        return { ok: true, allDone: isAllDone(room) };
+      }
       if (w.phase === PHASE.PLAY) {
         if (w.playerIds.indexOf(memberId) === -1) return { ok: false, error: 'not_expected' };
         if (w.entries[memberId] != null) return { ok: false, error: 'taken' };
+        /**
+         * 第52弾 52-4：**数えている間は受け取らない。**
+         *
+         * `readEntry` の `atMs` は `Math.max(0, ...)` で下を切るので、
+         * 始まる前に出した人は **atMs:0 ＝ いちばん速い**という値になる。
+         * 端末側だけで止めると、押せてしまう端末が1つあるだけで順位が壊れる
+         *（`.fx-countdown` は `pointer-events:none` なので、裏のボタンは実際に押せる）。
+         * **止めるのはサーバー**（落とし穴14：状態の権威はサーバー）
+         */
+        if (w.playStartedAt && Date.now() < w.playStartedAt) {
+          return { ok: false, error: 'not_started' };
+        }
         const entry = readEntry(w, payload);
         if (!entry) return { ok: false, error: 'bad_action' };
         w.entries[memberId] = entry;
@@ -1458,7 +1505,7 @@ function startMini(room) {
   w.retry = 0;
   w.quiz = null;
   setPhase(room, PHASE.MINI);
-  w.deadline = Date.now() + GRAB_MINI_SHOW_MS;
+  w.deadline = Date.now() + GRAB_MINI_READY_SEC * 1000;
 }
 
 function startPlay(room) {
@@ -1479,8 +1526,14 @@ function startPlay(room) {
   // 「はやおしクイズは正解者が全員同点／れんだは満タン組が全員同点」で
   // 同着崩し（sugoroku-mini.js の rankMini）が死んでいた。
   // 手渡し版は自前で測っていたので、部屋版だけが壊れていた（落とし穴1）
-  w.playStartedAt = Date.now();
-  w.deadline = Date.now() + ((w.mini && w.mini.sec) || 12) * 1000;
+  /**
+   * 第52弾 52-4：**3つ数えるぶんを、持ち時間から食わない。**
+   * れんだは `sec:6` しかないので、数え終わってから測り始めないと
+   * 持ち時間が半分になる。`startAt` を配って、端末は
+   * そこから入力を受け付ける（数えている間は押せない）
+   */
+  w.playStartedAt = Date.now() + GRAB_COUNT_IN_MS;
+  w.deadline = w.playStartedAt + ((w.mini && w.mini.sec) || 12) * 1000;
 }
 
 /**

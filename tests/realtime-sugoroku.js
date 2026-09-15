@@ -311,7 +311,12 @@ function playerOf(view, id) {
       await waitUntil(() => host.view().phase === 'mini', 'ミニゲームの題へ');
       const v = host.view();
       assert(v.mini && v.mini.title && v.mini.lead, '何が始まるかが全員に見えている');
-      await waitUntil(() => host.view().phase === 'play', '本体へ（題は自動で進む）', 8000);
+      // 第52弾 52-4：**題は自動では進まなくなった。**全員が準備OKを押すまで待つ
+      //（押さない1人で止まらないよう、45秒の安全弁だけ残してある）
+      assertEqual((host.view().waiting || []).length, all.length,
+        'まだ全員を待っている（勝手に始まらない）');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      await waitUntil(() => host.view().phase === 'play', '本体へ（全員が押したら）', 8000);
     } finally { await srv.close(); }
   });
 
@@ -322,6 +327,9 @@ function playerOf(view, id) {
       await host.call('wolf:start', { game: 'sugograb', events: false });
       await waitUntil(() => host.view().phase === 'ready', '確認へ');
       for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      // 第52弾 52-4：確認 → 題（ここで全員がもう一度押す）→ 本体
+      await waitUntil(() => host.view().phase === 'mini', 'ミニゲームの題へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
       await waitUntil(() => host.view().phase === 'play', '本体へ', 8000);
       // ミニゲームは毎回ランダムに選ばれ、締め切りも6〜20秒と幅がある。
       // **実時間で待つと、負荷の高い時に落ちるテストになる**（実際に落ちた）ので、
@@ -330,6 +338,10 @@ function playerOf(view, id) {
       const w = srv.store.get(host.code).sugoroku;
       w.mini = { id: 'fingers', kind: 'mind', title: 'ゆびの かずあて', lead: '', sec: 14, simulInput: true };
       w.entries = {};
+      // 第52弾 52-4：3つ数えている間は、サーバーが入力を受け取らない（not_started）。
+      // **実時間を3秒待たずに、「数え終わった」という事実だけ先に作る**
+      // （締め切りをずらすのと同じやり方・落とし穴24）
+      w.playStartedAt = Date.now() - 1;
       await all[0].call('wolf:act', { fingers: 3 });   // 1人だけ出して、あとは放置
       w.deadline = Date.now() - 1;                     // 締め切りが過ぎた状態にする
       await waitUntil(() => host.view().phase !== 'play', '締め切って先へ進む', 10000);
@@ -348,11 +360,18 @@ function playerOf(view, id) {
       await host.call('wolf:start', { game: 'sugograb', events: false });
       await waitUntil(() => host.view().phase === 'ready', '確認へ');
       for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      // 第52弾 52-4：確認 → 題（ここで全員がもう一度押す）→ 本体
+      await waitUntil(() => host.view().phase === 'mini', 'ミニゲームの題へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
       await waitUntil(() => host.view().phase === 'play', '本体へ', 8000);
       // ゆびのかずあてに寄せて、勝者を1人に決める
       const w = srv.store.get(host.code).sugoroku;
       w.mini = { id: 'fingers', kind: 'mind', title: 'ゆびの かずあて', lead: '', sec: 14, simulInput: true };
       w.entries = {};
+      // 第52弾 52-4：3つ数えている間は、サーバーが入力を受け取らない（not_started）。
+      // **実時間を3秒待たずに、「数え終わった」という事実だけ先に作る**
+      // （締め切りをずらすのと同じやり方・落とし穴24）
+      w.playStartedAt = Date.now() - 1;
       await all[0].call('wolf:act', { fingers: 5 });
       await all[1].call('wolf:act', { fingers: 1 });
       await all[2].call('wolf:act', { fingers: 1 });
@@ -379,10 +398,17 @@ function playerOf(view, id) {
       await host.call('wolf:start', { game: 'sugograb', events: false });
       await waitUntil(() => host.view().phase === 'ready', '確認へ');
       for (const d of all) await d.call('wolf:act', { act: 'ready' });
+      // 第52弾 52-4：確認 → 題（ここで全員がもう一度押す）→ 本体
+      await waitUntil(() => host.view().phase === 'mini', 'ミニゲームの題へ');
+      for (const d of all) await d.call('wolf:act', { act: 'ready' });
       await waitUntil(() => host.view().phase === 'play', '本体へ', 8000);
       const w = srv.store.get(host.code).sugoroku;
       w.mini = { id: 'fingers', kind: 'mind', title: 'ゆびの かずあて', lead: '', sec: 14, simulInput: true };
       w.entries = {};
+      // 第52弾 52-4：3つ数えている間は、サーバーが入力を受け取らない（not_started）。
+      // **実時間を3秒待たずに、「数え終わった」という事実だけ先に作る**
+      // （締め切りをずらすのと同じやり方・落とし穴24）
+      w.playStartedAt = Date.now() - 1;
       // ホスト以外を勝たせる（ホストが落ちると見張り役ごと消える）
       const winner = all.find((d) => d !== host);
       for (const d of all) await d.call('wolf:act', { fingers: d === winner ? 5 : 1 });

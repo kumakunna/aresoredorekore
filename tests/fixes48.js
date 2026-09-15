@@ -401,6 +401,14 @@ async function run() {
     const w = room.sugoroku;
     assertEqual(w.phase, Sugo.PHASE.PLAY, 'ミニゲームの入力を受け付ける段階にいる');
     assert(w.playStartedAt, 'ミニゲームが始まった時刻がサーバーに残っている');
+    /**
+     * 第52弾 52-4：**3つ数えている間は、サーバーが入力を受け取らない**（not_started）。
+     * この検査が見たいのは「押した速さが記録されるか」なので、
+     * 実時間を3秒待たずに「数え終わった」という事実だけ先に作る
+     *（締め切りをずらすのと同じやり方・落とし穴24）。
+     * ここを足さないと、2人とも弾かれて `entries` が空になる
+     */
+    w.playStartedAt = Date.now() - 1;
 
     // 1人目がすぐ答え、2人目は少し置いてから答える
     const ids = Array.from(room.members.keys());

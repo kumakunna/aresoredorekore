@@ -110,5 +110,29 @@
     "from": "      if(案内を出す && !添えた && !cell.solved && !cell.extraClass){",
     "to": "      if(案内を出す && !添えた && !cell.solved){",
     "expect": "案内が付くのは「まだ挑んでいないマス」だけ"
+  },
+  {
+    "name": "52-6A 爆発の閃光を待たずに文字を出す（重なる状態に戻す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    return FxKit.boom().then(function(){\n      return FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',\n        sub: sub || 'つぎは、もう少しだけ慎重に', ms:900 });\n    });",
+    "to": "    FxKit.boom();\n    return FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',\n      sub: sub || 'つぎは、もう少しだけ慎重に', ms:900 });",
+    "expect": "光っている最中に文字が重なっている瞬間が無い"
+  },
+  {
+    "name": "52-6B 解除成功の閃光を待たずに文字を出す",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    return FxKit.flash('good').then(function(){\n      return FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',\n        sub: sub || '全部のコードを止めました', ms:900 });\n    });",
+    "to": "    FxKit.flash('good');\n    return FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',\n      sub: sub || '全部のコードを止めました', ms:900 });",
+    "expect": "光っている最中に文字が重なっている瞬間が無い"
+  },
+  {
+    "name": "52-6C 演出の速さ設定を通さない（スキップの人も待たされる）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "      ms: fxMs,          // 「演出の速さ」設定を通す",
+    "to": "      ms: function(m){ return m; },",
+    "expect": "スキップなら、演出を待たずに結果まで進む"
   }
 ]

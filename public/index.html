@@ -21085,6 +21085,14 @@
    * 一度も試していなかった——変異が2件素通りして分かった
    */
   window.rtBombCellProbe = function(c, mine){ return rtBombCell(c, mine); };
+  /**
+   * 検査が**演出と結果の順番**を見る窓口（第52弾 52-6）。
+   * `window.bombCellProbe` と同じ形で、**本物の関数をそのまま呼ぶ**（落とし穴25）。
+   * 手で FxKit を並べ直した検体を作ると、実装が変わっても検査は気づかない
+   */
+  window.bombFxProbe = function(kind){
+    return kind === 'clear' ? bombClearFx() : bombBoomFx();
+  };
   var BOMB_TAP_KEY = 'acac-bomb-tap-seen';
   function bombTapSeen(){
     try{ return localStorage.getItem(BOMB_TAP_KEY) === '1'; }catch(e){ return false; }
@@ -21194,11 +21202,19 @@
   // 第32弾-C-4 原則C：褒める時は全力で。画面全体が緑に染まる
   function bombClearFx(sub){
     if(typeof FxKit === 'undefined') return Promise.resolve();
-    FxKit.flash('good');
-    // 第32弾-D 4-2：全解除はこのゲーム一番の勝利。火花のようなオレンジで舞う
+    // 第32弾-D 4-2：全解除はこのゲーム一番の勝利。火花のようなオレンジで舞う。
+    // 紙吹雪は**閃光と一緒に始めて、降り続ける**（待たない）
     FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
-    return FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',
-      sub: sub || '全部のコードを止めました', ms:900 });
+    /**
+     * 第52弾 52-6：**演出が終わってから、結果の文字を出す。**
+     * `flash` を待たずにバナーを出していたので、
+     * 光っている最中に「解除成功！」が重なって出ていた。
+     * スキップ設定では `hold` が 0ms で返るので、そのまま即座に文字が出る
+     */
+    return FxKit.flash('good').then(function(){
+      return FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',
+        sub: sub || '全部のコードを止めました', ms:900 });
+    });
   }
   // 第32弾-C：爆発は赤ではっきり出す。
   // ただし「責める」のではなく「爆弾が爆発した」ことを出す演出にする。
@@ -21210,9 +21226,23 @@
     // スマホの画面の揺れは、1試合に一度きりのこの瞬間だけに限定する（安全基準）
     doVibrate([220, 90, 220]);
     FxKit.shake('big');
-    FxKit.boom();
-    return FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
-      sub: sub || 'つぎは、もう少しだけ慎重に', ms:900 });
+    /**
+     * 第52弾 52-6：**閃光が終わってから、結果の文字を出す**（本人の実機フィードバック）。
+     *
+     * ここは `FxKit.boom()` を待たずにバナーを出していたので、
+     * **光っている最中に「爆発」の文字が重なって**出ていた。
+     * 大画面（`bigBoomCallout`・第47弾 47-6）は最初から
+     * `boom().then(callout)` と正しい順で書いてあったのに、
+     * **共通部品のこちらだけが古いまま**だった（落とし穴1）。
+     *
+     * 新しい仕組みは作らない——`FxKit.boom()` はもともと `hold(700)` を返すので、
+     * `.then` でつなぐだけでよい。スキップ設定では `hold` が 0ms で返るので、
+     * その人には**すぐ結果が出る**（大切なこと7「すべての演出はスキップできる」）
+     */
+    return FxKit.boom().then(function(){
+      return FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
+        sub: sub || 'つぎは、もう少しだけ慎重に', ms:900 });
+    });
   }
   function defuseComplete(){
     var gen = playGen;   // 第36弾 36-3

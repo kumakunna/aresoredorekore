@@ -6895,7 +6895,20 @@
     // `gone` は publicSnapshot が配る8項目に無く（すごろくのゲームデータだけが持つ言葉）、
     // フィルタは素通りしていたので、TVにした端末まで数えていた（落とし穴9）
     if(room && typeof room.playerCount === 'number' && room.playerCount > 0) return room.playerCount;
-    if(state.players.length) return state.players.length;
+    /**
+     * 第52弾 52-1：**名簿が権威なのは「そのゲームのあいだ」だけ。**
+     *
+     * ここは以前 `if(state.players.length)` だった。名簿にはいつ終わるという
+     * 区切りが無く、空に戻るのは設定＞すべて削除だけだったので、
+     * **一度でも手渡しで登録した端末では、棚のチップが二度と効かなかった**
+     * ——押せて・保存されて（`acac-heads`）・誰にも読まれない。
+     * 指示44の着手前とまったく同じ形が、別の入口で復活していた（本人の実機報告）。
+     *
+     * 区切りは**棚に戻った時**（本人の裁定 2026-09-15）。
+     * 名前も得点も消さない——手放すのは「いま何人いるか」の権威だけで、
+     * 「このまま続ける」と答えた人の名簿はそのまま残る。
+     */
+    if(state.playersLive && state.players.length) return state.players.length;
     return shelfHeads || 0;
   }
   function renderShelfChip(){
@@ -7873,6 +7886,13 @@
     el('shelfSub').textContent = browsingOnly()
       ? 'タップすると、そのゲームの説明が読めます'
       : 'あそぶゲームをえらんでね';
+    /**
+     * 第52弾 52-1：**棚に着いた＝そのゲームは終わった。**名簿は人数の権威をここで手放す。
+     * 経路ごとに書かない——決着・とりやめ・強制終了・カセット替え・戻るの
+     * どれで来ても、棚は必ずここを通る（落とし穴17）。
+     * 名簿そのものは残すので、「このまま続ける」と答えた人の名前と得点は消えない
+     */
+    state.playersLive = false;
     shelfHeads = shelfHeads || loadHeads();
     renderShelf();
     renderShelfBar();
@@ -8010,8 +8030,20 @@
     }
     // 第26弾-3：部屋のために選んでいる時は、誰が遊ぶかを部屋が持っている
     if(goingRealtime()){ goTo('scr-mode'); return; }
-    // 第12弾-7：プレイヤー設定は初回のみ。以降は「変更する」と答えた時だけ聞く
-    if(state.players.length === 0 || state.needPlayerSetup){
+    /**
+     * 第12弾-7：プレイヤー設定は初回のみ。以降は「変更する」と答えた時だけ聞く。
+     *
+     * 第52弾 52-1：**そこに「棚のチップで選び直した時」を足す。**
+     * 足さないと、棚は「6人」と出しているのに名簿の2人で始まり、
+     * **遊ぶ人はどこでも気づけない**（気づく画面を1つも通らない）。
+     *
+     * 印を立てて覚えるのではなく、**使う場所で組み立てる**——
+     * 覚える形にすると「いつ消すか」がもう1つ増えて、
+     * 52-1そのもの（区切りの無い状態）をもう1つ作ることになる（落とし穴4）
+     */
+    var チップと食い違う = !state.playersLive && state.players.length
+      && shelfHeads && shelfHeads !== state.players.length;
+    if(state.players.length === 0 || state.needPlayerSetup || チップと食い違う){
       state.needPlayerSetup = false;
       goTo('scr-setup');
     } else {
@@ -8342,6 +8374,13 @@
     sgkCfg: { events:true, losersMove:true, pairStyle:'even' },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
+    /**
+     * 第52弾 52-1：**その名簿が、いま「何人いるか」の権威か。**
+     * 登録・設定での編集で立ち、**棚に戻った時に降りる**（`enterShelf` の1か所）。
+     * 名簿そのものは消さない——降りるのは権威だけ。
+     * 保存しない：アプリを開き直したら、棚のチップから始まるのが正しい
+     */
+    playersLive: false,
     winCounts: {},                                // 第18弾：案B併記用の勝利数（プレイヤーIDごと）
     wrCfg: null,                                  // 第17弾：役職あり人狼の設定
     wmCfg: { turnLimit:3, changeTopic:true },     // 第17弾：ワードウルフ（2〜ターン）の設定
@@ -10324,6 +10363,17 @@
    * ここで自分で clamp すると、上限の決まりが2か所になる（落とし穴1）
    */
   function enterSetup(){
+    /**
+     * 第52弾 52-1：**棚のチップで選び直した人は、その数から始める。**
+     * 名簿は残っているので、名前は入るぶんだけ持ち越す（入れ直させない）。
+     * 増減の上限・下限は `setPlayerCount` が1か所で持っているので、ここでは clamp しない
+     */
+    if(!state.playersLive && state.players.length && shelfHeads
+       && shelfHeads !== state.players.length){
+      playerDraft = state.players.map(function(p){ return {name:p.name, handicap:!!p.handicap}; });
+      setPlayerCount(shelfHeads);
+      return;
+    }
     if(state.players.length >= MIN_PLAYERS){
       // すでに名簿がある人は、そのまま出す（clamp しない——
       // 上限より多い名簿を黙って削ると、入れた名前が消える）
@@ -10394,6 +10444,7 @@
     state.players = playerDraft.map(function(p, i){
       return { id: uid(), name: (p.name || '').trim() || ('プレイヤー'+(i+1)), score:0, handicap: !!p.handicap, eliminated:false };
     });
+    state.playersLive = true;   // 第52弾 52-1：ここから、この名簿が人数の権威
     el('setupNextBtn').disabled = true;
     await startMatch(state.players.map(function(p){ return p.name; }));
     el('setupNextBtn').disabled = false;
@@ -23514,6 +23565,7 @@
       if(existing){ existing.name = name; existing.handicap = !!d.handicap; return existing; } // スコア維持
       return { id: uid(), name: name, score: 0, handicap: !!d.handicap, eliminated: false };
     });
+    state.playersLive = true;   // 第52弾 52-1：名簿を作る道は2本ある（登録・設定）。両方で立てる
     // セットアップ画面の下書きも同期しておく（次に開いた時にズレないように）
     playerDraft = state.players.map(function(p){ return { name:p.name, handicap:!!p.handicap }; });
     playerDraftCount = playerDraft.length;

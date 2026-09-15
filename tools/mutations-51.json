@@ -1,0 +1,50 @@
+[
+  {
+    "name": "51-A 打ち消しそのものを外す（第48弾で起動不能になった状態へ戻す）",
+    "file": "public/index.html",
+    "suite": "tests/hidden-attr.js",
+    "from": "  [hidden]{display:none !important;}\n  body{",
+    "to": "  body{",
+    "expect": "hidden を必ず効かせる規則が、CSSに1本ある"
+  },
+  {
+    "name": "51-B 打ち消しから !important を落とす（UA既定と同じ強さに戻す＝負ける）",
+    "file": "public/index.html",
+    "suite": "tests/hidden-attr.js",
+    "from": "  [hidden]{display:none !important;}",
+    "to": "  [hidden]{display:none;}",
+    "expect": "hidden を必ず効かせる規則が、CSSに1本ある"
+  },
+  {
+    "name": "51-C 幕の display を !important で当てて、打ち消しに勝たせる",
+    "file": "public/index.html",
+    "suite": "tests/hidden-attr.js",
+    "from": "    display:flex;align-items:center;justify-content:center;padding:24px;\n    background:var(--paper);",
+    "to": "    display:flex !important;align-items:center;justify-content:center;padding:24px;\n    background:var(--paper);",
+    "expect": "display を !important で当てる規則が無い"
+  },
+  {
+    "name": "51-D 帯の display を !important で当てる（48-2 の側から破る）",
+    "file": "public/index.html",
+    "suite": "tests/hidden-attr.js",
+    "from": "  .now-line{\n    display:flex;align-items:center;gap:8px;justify-content:center;",
+    "to": "  .now-line{\n    display:flex !important;align-items:center;gap:8px;justify-content:center;",
+    "expect": "display を !important で当てる規則が無い"
+  },
+  {
+    "name": "51-E 幕を hidden ではなく素の div にする（正本の読み取りが効いているか）",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "  <div class=\"pause-veil\" id=\"pauseVeil\" hidden>",
+    "to": "  <div class=\"pause-veil\" id=\"pauseVeil\">",
+    "expect": "止める前は幕が出ていない"
+  },
+  {
+    "name": "51-F 幕を下ろす1行を殺す（もどしても幕が残る）",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    veil.hidden = !paused.on;",
+    "to": "    veil.hidden = false;",
+    "expect": "もどすと幕が消える"
+  }
+]

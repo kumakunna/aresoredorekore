@@ -74,6 +74,24 @@
   :root.fs-125{ --fs-title:28.25px; --fs-body:17.5px; --fs-sub:14.5px; --fs-btn:18.5px; }
   :root.fs-130{ --fs-title:29px; --fs-body:18px; --fs-sub:15px; --fs-btn:19px; }
   *{box-sizing:border-box;}
+  /**
+   * 第51弾：**`hidden` 属性を、必ず効かせる。**
+   *
+   * `hidden` を隠しているのは**ブラウザ既定**の `[hidden]{display:none}` で、
+   * `!important` が付いていない。だから `.pause-veil{display:flex}` のような
+   * **作者が書いた1行**が、詳細度の勝負にすらならずに勝ってしまう
+   *（作者オリジンは常にUAオリジンより強い）。
+   *
+   * 第48弾でこれを踏んだ——`hidden` が付いた13個が**13個とも効いておらず**、
+   * ポーズの幕は扉が開く前から全面に出て、**誰もアプリを起動できなかった**。
+   * `el.hidden` は属性なのでCSSに関係なく true を返し、検査は全部緑のままだった。
+   *
+   * ここに1本置けば、**あとから足した要素にも既定で効く**
+   *（残骸が出ない良い型4：出す側に条件を書かせず、1か所で効かせる）。
+   * 逆向きの見張りは tests/hidden-attr.js（`display` を `!important` で
+   * 上書きする規則が現れたら赤くなる）。
+   */
+  [hidden]{display:none !important;}
   body{
     margin:0;
     background:

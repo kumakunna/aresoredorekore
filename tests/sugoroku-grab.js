@@ -38,7 +38,19 @@ function toPlay(room) {
   const w = room.sugoroku;
   w.playerIds.forEach((id) => R.submitAction(room, id, null, { act: 'ready' }));
   R.advance(room);            // READY → MINI
+  /**
+   * 第52弾 52-4：**MINI は全員が押すまで進まない**（それまでは2.2秒で自動だった）。
+   * ここも本物の道を通す——`advance` だけで飛ばすと、
+   * 門が効いていなくても同じ所に着いてしまう（落とし穴10-c）
+   */
+  w.playerIds.forEach((id) => R.submitAction(room, id, null, { act: 'ready' }));
   R.advance(room);            // MINI → PLAY
+  /**
+   * 3つ数えている間は、サーバーが入力を受け取らない（`not_started`）。
+   * **実時間を3秒待たずに、「数え終わった」という事実だけ先に作る**
+   * （締め切りをずらすのと同じやり方・落とし穴24）
+   */
+  w.playStartedAt = Date.now() - 1;
   return w;
 }
 // ミニゲームを「連打」に固定する。回数で1位・2位・3位がはっきり分かれるので、

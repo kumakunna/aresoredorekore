@@ -254,5 +254,13 @@
     "from": "    if(rtIsBigScreen()) return 'scr-rt-big';",
     "to": "",
     "expect": "大画面として入っている"
+  },
+  {
+    "name": "52-1H チップが無い時に名簿まで捨てる（いま0人でモードが押せなくなる）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    if(shelfHeads) return shelfHeads;\n    if(state.players.length) return state.players.length;\n    return 0;",
+    "to": "    return shelfHeads || 0;",
+    "expect": "チップが無いなら名簿の人数が残る"
   }
 ]

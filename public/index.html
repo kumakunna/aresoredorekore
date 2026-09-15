@@ -6996,7 +6996,19 @@
      * 「このまま続ける」と答えた人の名簿はそのまま残る。
      */
     if(state.playersLive && state.players.length) return state.players.length;
-    return shelfHeads || 0;
+    /**
+     * チップは「次に棚へ来た時の見当」（指示44）。**答えてあれば、それが勝つ。**
+     *
+     * ただし **答えていない人（`shelfHeads` が null）から名簿まで取り上げない。**
+     * そこまで落とすと、ゲームを終えて同じ顔ぶれでもう1つ遊ぶ時に
+     * 「いま0人」になり、**どのモードも押せなくなる**——
+     * 権威を手放すのと、人数を忘れるのは別のこと。
+     * （クリーンな1回で smoke が3件赤くなって分かった。
+     *   チップに一度も答えずに2つ目を遊ぶ道は、ふだん通る道）
+     */
+    if(shelfHeads) return shelfHeads;
+    if(state.players.length) return state.players.length;
+    return 0;
   }
   function renderShelfChip(){
     var chip = el('shelfChip');

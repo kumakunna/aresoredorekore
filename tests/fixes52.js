@@ -206,6 +206,52 @@ async function ゲームを終了(win, doc) {
     }
   });
 
+  await r.test('52-1：チップに一度も答えていない人から、名簿まで取り上げない', async () => {
+    /**
+     * **クリーンな1回が見つけた、私の設計の穴。**
+     *
+     * 「棚に戻ったら名簿は人数の権威を手放す」を素直に書いたら、
+     * チップに一度も答えていない端末（`shelfHeads` が null）では
+     * `currentPlayerCount()` が **0** に落ちた。
+     * その結果、ゲームを終えて同じ顔ぶれでもう1つ遊ぼうとすると
+     * **どのモードも「いま0人」で押せない**——`smoke` が3件赤くなって分かった。
+     *
+     * 権威を手放すことと、人数を忘れることは別。
+     * チップは「答えてあれば勝つ」だけで、無い時の代わりにはならない。
+     */
+    const { win, doc } = await launch({ fakeSocket: true });
+    const stop = autoDialog(win, doc, (dlg) => {
+      if (/入力しなおしますか/.test(dlg.見出し)) return false;   // このまま続ける
+      return true;
+    });
+    try {
+      // **チップを一度も押さない**（ここが型(b)：その状況を本当に作る）
+      assertEqual(win.headsProbe().見当, null, 'チップにまだ答えていない');
+      await 手渡しで登録(win, doc, ['あき', 'びび', 'ちか']);
+      assertEqual(win.headsProbe().heads, 3, 'ゲーム中は名簿が権威');
+
+      await ゲームを終了(win, doc);
+      assertEqual(win.headsProbe().heads, 3,
+        '棚に戻っても、チップが無いなら名簿の人数が残る（0人にしない）');
+
+      // 同じ顔ぶれで、もう1つ遊びに行ける
+      await openCassette(win, doc, 'jinro');
+      if (activeScreen(doc) === 'scr-play-way') {
+        click(doc, doc.querySelector('#wayChoices [data-way="handoff"]'));
+        await waitScreen(win, doc, 'scr-game', 3000);
+      }
+      doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+      await sleep(win, 50);
+      Array.from(doc.querySelectorAll('#scr-game button'))
+        .find((b) => /つぎへ/.test(b.textContent)).click();
+      await 着くまで待つ(win, doc, 'scr-mode', 4000);
+      const 押せない = Array.from(doc.querySelectorAll('#modeCards .mode-card'))
+        .filter((c) => c.dataset.locked);
+      assert(押せない.length < doc.querySelectorAll('#modeCards .mode-card').length,
+        '3人で遊べるモードが押せる（「いま0人」で全部止まらない）');
+    } finally { stop(); win.close(); }
+  });
+
   await r.test('52-1：チップと名簿が同じ数なら、登録画面は出ない（第12弾-7を壊さない）', async () => {
     const { win, doc } = await launch({ fakeSocket: true });
     const stop = autoDialog(win, doc, (dlg) => {

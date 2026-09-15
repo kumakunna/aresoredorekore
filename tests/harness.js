@@ -44,6 +44,20 @@ function makeApi(opts, titlePuts) {
     equipped: TitleLogic.normalizeEquipped(null, [])
   };
 
+  /**
+   * 第52弾 52-2：**ログインしたら、ログイン済みとして答える。**
+   *
+   * ここは `opts.loggedOut` を立ち上げ時の旗のまま使っていたので、
+   * 画面からログインして `/api/auth/login` が 200 を返したあとも、
+   * `/api/auth/me` と `/api/titles` は 401 を返し続けていた——
+   * **ログインは成功するのにセッションが無い**という、本番には無いサーバーを真似ていた。
+   *
+   * 52-2 で「401を受けたら端末側もログイン済みを降ろす」を入れたら、
+   * その嘘のサーバーのせいで `tests/shelf.js` が赤くなって気づいた。
+   * 旗を可変にして、本物のサーバーと同じ振る舞いにする
+   */
+  let ログイン中 = !opts.loggedOut;
+
   return async function fakeFetch(url, init) {
     init = init || {};
     const p = String(url).split('?')[0];
@@ -63,10 +77,13 @@ function makeApi(opts, titlePuts) {
         fakeFetch.__authTried = true;
         return json(503, { error: 'サーバーが再起動中です（テスト）' });
       }
-      return opts.loggedOut ? json(401, { error: '未ログイン' }) : json(200, { id: 1, username: 'test' });
+      return !ログイン中 ? json(401, { error: '未ログイン' }) : json(200, { id: 1, username: 'test' });
     }
-    if (p === '/api/auth/login' || p === '/api/auth/register') return json(200, { id: 1, username: 'test' });
-    if (p === '/api/auth/logout') return json(200, { ok: true });
+    if (p === '/api/auth/login' || p === '/api/auth/register') {
+      ログイン中 = true;                       // 第52弾 52-2：ここから先はセッションがある
+      return json(200, { id: 1, username: 'test' });
+    }
+    if (p === '/api/auth/logout') { ログイン中 = false; return json(200, { ok: true }); }
     if (p === '/api/ai-describe') {
       if (opts.failAI) return json(502, { error: 'AI呼び出しに失敗しました（テスト）' });
       if (body.hint) return json(200, { description: 'ヒント' + ((body.avoid || []).length + 1) });
@@ -95,7 +112,7 @@ function makeApi(opts, titlePuts) {
     if (p === '/api/matches/stats') return json(200, { name: 'test', play_count: 1, win_count: 1, win_rate: 100, total_score: 5, avg_score: 5 });
     // 第26弾-4：称号。本番のサーバーと同じく「持ち物は減らさない」ように預かる
     if (p === '/api/titles') {
-      if (opts.loggedOut) return json(401, { error: '未ログイン' });
+      if (!ログイン中) return json(401, { error: '未ログイン' });
       // 第32弾-A 第4部：称号を「いつ・何回」預けにきたかを、テストから見られるようにする。
       // 二重に数えていないか／2回目がちゃんと数えられているかは、ここでしか分からない
       if ((init.method || 'GET') === 'PUT') titlePuts.push(body);

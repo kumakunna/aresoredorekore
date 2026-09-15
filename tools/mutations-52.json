@@ -174,5 +174,85 @@
     "from": "    .filter(function(g){ return [].concat(RT_GAME_SCREENS[g]).indexOf('scr-rt-sugoroku') !== -1; });",
     "to": "    .filter(function(g){ return RT_GAME_SCREENS[g] === 'scr-rt-sugoroku'; });",
     "expect": "決着したら結果発表へ（盤に留まらない）"
+  },
+  {
+    "name": "52-4A MINI の門を外す（2.2秒で勝手に始まる状態へ戻す）",
+    "file": "sugoroku-room.js",
+    "suite": "tests/fixes52.js",
+    "from": "    waitingPhases: [PHASE.READY, PHASE.MINI, PHASE.PLAY, PHASE.GRAB],",
+    "to": "    waitingPhases: [PHASE.READY, PHASE.PLAY, PHASE.GRAB],",
+    "expect": "あと何人かが数で出る"
+  },
+  {
+    "name": "52-4B 数えている間もサーバーが受け取る（フライングが勝つ状態）",
+    "file": "sugoroku-room.js",
+    "suite": "tests/fixes52.js",
+    "from": "        if (w.playStartedAt && Date.now() < w.playStartedAt) {\n          return { ok: false, error: 'not_started' };\n        }",
+    "to": "",
+    "expect": "数えている間は、サーバーが受け取らない"
+  },
+  {
+    "name": "52-4C 3つ数えるぶんを持ち時間から食う（れんだが半分になる）",
+    "file": "sugoroku-room.js",
+    "suite": "tests/fixes52.js",
+    "from": "  w.playStartedAt = Date.now() + GRAB_COUNT_IN_MS;",
+    "to": "  w.playStartedAt = Date.now();",
+    "expect": "まだ数えている最中"
+  },
+  {
+    "name": "52-4D ミニゲーム中も盤を出したままにする",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    el('rtSugoBoard').hidden = ミニ中;",
+    "to": "    el('rtSugoBoard').hidden = false;",
+    "expect": "ミニゲームの間、盤は出ていない"
+  },
+  {
+    "name": "52-4E 上帯に「◯◯さんの番」を出し続ける（実機報告の状態）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "      : (!手番のない段階 && v.turn ? (v.turn.name + ' さんの番') : '');",
+    "to": "      : (v.turn ? (v.turn.name + ' さんの番') : '');",
+    "expect": "ミニゲーム中に「◯◯ さんの番」が残っていない"
+  },
+  {
+    "name": "52-4F 大画面でも手番を先に当てる（題が一度も大きく出ない）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "      else if(v.mini && 手番のない段階) main = v.mini.title;\n      else if(v.turn) main = v.turn.name + ' さんの番';",
+    "to": "      else if(v.turn) main = v.turn.name + ' さんの番';",
+    "expect": "大画面には、何のミニゲームかが大きく出る"
+  },
+  {
+    "name": "52-4G ルール説明のポップアップを開かない",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "        function(){ sugoMiniRulesPopup(v.mini); });",
+    "to": "        function(){});",
+    "expect": "ルール説明のポップアップが開いている"
+  },
+  {
+    "name": "52-4H 操作方法を出さない（ポップアップが3つだけになる）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    var key = mini && SUGO_MINI_HOWTO[mini.id];\n    return (key && UiText.NOW.sugoroku[key]) || '';",
+    "to": "    return '';",
+    "expect": "操作方法が出ている"
+  },
+  {
+    "name": "52-4I 数えている間も入力を出す（押せてしまう）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "      if(v.startAt && Date.now() < v.startAt){",
+    "to": "      if(false && v.startAt && Date.now() < v.startAt){",
+    "expect": "数えている間は、押せるものが1つも無い"
+  },
+  {
+    "name": "52-4J 大画面にも準備OKを出す（見世物の画面に押しものを置く）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    if(!rtIsBigScreen()){\n      rtOnceValue('sugo:miniRules',",
+    "to": "    if(true){\n      rtOnceValue('sugo:miniRules',",
+    "expect": "大画面にルール説明のポップアップは開かない"
   }
 ]

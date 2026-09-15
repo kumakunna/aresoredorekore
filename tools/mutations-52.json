@@ -189,7 +189,7 @@
     "suite": "tests/fixes52.js",
     "from": "        if (w.playStartedAt && Date.now() < w.playStartedAt) {\n          return { ok: false, error: 'not_started' };\n        }",
     "to": "",
-    "expect": "理由が分かる"
+    "expect": "数えている間は、サーバーが受け取らない"
   },
   {
     "name": "52-4C 3つ数えるぶんを持ち時間から食う（れんだが半分になる）",

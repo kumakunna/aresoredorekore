@@ -5,7 +5,7 @@
     "suite": "tests/fixes52.js",
     "from": "    if(state.playersLive && state.players.length) return state.players.length;",
     "to": "    if(state.players.length) return state.players.length;",
-    "expect": "チップを6にしたら、人数も6になる"
+    "expect": "棚に戻ったら、名簿は人数の権威を手放す"
   },
   {
     "name": "52-1B 棚に戻っても権威を手放さない",

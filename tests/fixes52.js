@@ -70,6 +70,23 @@ async function 手渡しで登録(win, doc, 名前) {
   await waitScreen(win, doc, 'scr-mode', 4000);
 }
 
+/**
+ * **着かなくても投げない待ち。**
+ * `waitScreen` は着かないと自分の言葉で投げるので、
+ * そのあとの `assertEqual` まで届かない——
+ * **変異を回した時に「狙った理由で赤くなった」と読めなくなる**
+ * （実際、52-1D と 52-1G が「赤だが別の理由」に転んだ）。
+ * 待つだけ待って、判定はこちらの言葉でする
+ */
+async function 着くまで待つ(win, doc, id, ms) {
+  const 終わり = Date.now() + (ms || 4000);
+  while (Date.now() < 終わり) {
+    if (activeScreen(doc) === id) return true;
+    await sleep(win, 50);
+  }
+  return false;
+}
+
 /** 設定＞いま遊んでいるゲーム＞ゲームを終了する で棚へ戻る */
 async function ゲームを終了(win, doc) {
   const ov = el(doc, 'settingsOverlay');
@@ -168,7 +185,7 @@ async function ゲームを終了(win, doc) {
         await sleep(win, 50);
         Array.from(doc.querySelectorAll('#scr-game button'))
           .find((b) => /つぎへ/.test(b.textContent)).click();
-        await waitScreen(win, doc, 'scr-setup', 4000);
+        await 着くまで待つ(win, doc, 'scr-setup', 4000);
 
         assertEqual(activeScreen(doc), 'scr-setup',
           '「' + ラベル + '」を選んでいても、チップと食い違うなら登録画面を通る');
@@ -203,7 +220,7 @@ async function ゲームを終了(win, doc) {
       await sleep(win, 50);
       Array.from(doc.querySelectorAll('#scr-game button'))
         .find((b) => /つぎへ/.test(b.textContent)).click();
-      await waitScreen(win, doc, 'scr-mode', 4000);
+      await 着くまで待つ(win, doc, 'scr-mode', 4000);
       assertEqual(activeScreen(doc), 'scr-mode',
         '同じ顔ぶれで続ける人は、いままで通り登録画面を飛ばす');
     } finally { stop(); win.close(); }

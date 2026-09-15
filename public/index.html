@@ -2785,6 +2785,15 @@
   .sugo-hint{margin-top:4px;font-size:11px;color:var(--ink-soft);min-height:1.3em;}
   .sugo-note{margin-top:4px;font-size:13px;font-weight:700;min-height:1.3em;}
 
+  /* 第52弾 52-4：ミニゲームの説明（ポップアップの中身）。
+     遊び方と勝ち方は、それまで同時に出る瞬間が一度も無かった（段階で入れ替わっていた） */
+  .sugo-mini-pop{ line-height:1.8; }
+  .smp-lead{ font-size:var(--fs-body);font-weight:700;color:var(--ink); }
+  .smp-note{ font-size:var(--fs-sub);color:var(--ink-soft);margin-top:6px; }
+  .smp-how{
+    margin-top:10px;padding:8px 10px;border-radius:10px;
+    background:var(--paper-deep);font-size:var(--fs-sub);color:var(--ink);
+  }
   /* ミニゲームの題。何が始まったか分からないまま始まるのが、いちばん混乱する */
   .sugo-mini-wrap{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -4911,7 +4920,10 @@
       <div class="sugo-mini-title" id="sugoMiniTitle"></div>
       <div class="sugo-mini-lead" id="sugoMiniLead"></div>
       <div class="sugo-mini-note" id="sugoMiniNote"></div>
-      <button class="btn btn-main" id="sugoMiniGoBtn" style="margin-top:14px;">はじめる ▶</button>
+      <!-- 第52弾 52-4：**操作方法**も出す（部屋のポップアップと同じ4つめ）。
+           1台を回すので「準備OK」は回し読みの1つだけ——それがこのボタン -->
+      <div class="smp-how" id="sugoMiniHow" hidden></div>
+      <button class="btn btn-main" id="sugoMiniGoBtn" style="margin-top:14px;">わかった ▶</button>
     </div>
   </div>
 
@@ -12772,6 +12784,27 @@
     rtOnceValue('sugo:event', v.event && v.event.id, function(){
       try{ FxKit.flash('good'); }catch(e){}
     });
+    /**
+     * 第52弾 52-4：**新しいミニゲームが始まったら、説明を1回だけ開く。**
+     * 大画面は見世物なので開かない（押す人がいない）。
+     * `rtOnceValue` なので、描き直しのたびに開き直すことはない（47-1）
+     */
+    if(!rtIsBigScreen()){
+      rtOnceValue('sugo:miniRules', v.phase === 'mini' && v.mini && (v.mini.id + '@' + (v.lap || 0) + '-' + (v.piece || 0)),
+        function(){ sugoMiniRulesPopup(v.mini); });
+    }
+    /**
+     * **3つ数える。**サーバーが配る `startAt` を見て、全員が同じ瞬間に数え終わる。
+     * `FxKit.countdown` は演出の速さ設定を通らない（fx.js:557 beat）ので、
+     * スキップにしている人も同じ3秒——**フライングが起きない**
+     */
+    rtOnceValue('sugo:countIn', v.phase === 'play' && v.startAt && (v.mini.id + '@' + v.startAt),
+      function(){
+        var のこり = v.startAt - Date.now();
+        if(のこり <= 0 || typeof FxKit === 'undefined') return;
+        try{ UiKit.closeTop('pick'); }catch(e){}
+        FxKit.countdown(Math.max(1, Math.round(のこり / 1000)));
+      });
     rtOnce('sugo:ended', v.phase === 'ended', function(){
       if(typeof FxKit === 'undefined') return;
       FxKit.confetti(['#b5462f', '#c9a227', '#f4efe3']);   // 朱印・金・和紙
@@ -12785,6 +12818,16 @@
     rtSugoStatus(v, you);
     rtSugoTop(v);
     rtSugoAct(v, you);
+    /**
+     * 第52弾 52-4：**ミニゲームの間は、盤を出さない。**
+     * 指示52 52-4 の (1)(4)：「盤面は消える」「ミニゲームだけの画面」。
+     * 画面を分けずに隠すのは、盤とミニゲームが**同じ1回の描き直しで入れ替わる**ため
+     *（別画面にすると、段階が変わるたびに goTo が挟まって、
+     *   入力中の指が別の画面へ飛ぶ瞬間ができる）
+     */
+    var ミニ中 = (v.phase === 'mini' || v.phase === 'play') && !!v.mini;
+    el('rtSugoBoard').hidden = ミニ中;
+    el('rtSugoMe').hidden = ミニ中;
     el('rtSugoLeaveBtn').style.display = (v.phase === 'ended') ? '' : 'none';
   }
 
@@ -12871,8 +12914,17 @@
     else if(v.sharedPiece) left = 'こまは あと' + (v.cells - v.piece);
     else if(v.mini) left = v.mini.title;
     el('rtSugoLap').textContent = left;
+    /**
+     * 第52弾 52-4：**誰の番でもない段階では、誰の番とも言わない。**
+     *
+     * `w.turnId` はミニゲームの間も前の値のまま残るので（`startMini` は触らない）、
+     * MINI/PLAY のあいだ「◯◯ さんの番」が出続けていた——
+     * 画面が実態と違うことを言い続ける形（52-2 と同じ型・落とし穴33）。
+     * **段階から導く**：みんなで同時にやる段階に、手番は無い
+     */
+    var 手番のない段階 = (v.phase === 'mini' || v.phase === 'play');
     var who = v.sayer ? (v.sayer.name + ' さんが申告します')
-      : (v.turn ? (v.turn.name + ' さんの番') : '');
+      : (!手番のない段階 && v.turn ? (v.turn.name + ' さんの番') : '');
     el('rtSugoTurn').innerHTML = who ? '<span>' + escapeHtml(who) + '</span>' : '';
   }
 
@@ -12996,6 +13048,33 @@
   }
 
   /**
+   * 第52弾 52-4：**何のミニゲームが始まるか**を、始まる前に読ませる。
+   *
+   * 出すのは4つ——名前・遊び方（`lead`）・勝ち方（`note`）・**操作方法**。
+   * `lead` と `note` は、それまで**同時に出る瞬間が一度も無かった**
+   *（MINI で `lead`、PLAY で `note` に入れ替わっていた）ので、ここで並べる。
+   * 操作方法は `MINIS` に無いので、帯の文（`UiText.NOW.sugoroku`）を正本として借りる
+   *——`nlSugo` がミニゲームidごとに引いているのと同じ表（落とし穴1を作らない）
+   */
+  var SUGO_MINI_HOWTO = { tap:'れんだ', janken:'じゃんけん', fingers:'ゆびのかずあて', quiz:'はやおしクイズ' };
+  function sugoMiniHowto(mini){
+    var key = mini && SUGO_MINI_HOWTO[mini.id];
+    return (key && UiText.NOW.sugoroku[key]) || '';
+  }
+  function sugoMiniRulesPopup(mini){
+    if(!mini || typeof UiKit === 'undefined') return;
+    var 操作 = sugoMiniHowto(mini);
+    UiKit.popup({
+      title: mini.title, icon: '🎮',
+      html: '<div class="sugo-mini-pop">' +
+        '<div class="smp-lead">' + escapeHtml(mini.lead || '') + '</div>' +
+        (mini.note ? '<div class="smp-note">' + escapeHtml(mini.note) + '</div>' : '') +
+        (操作 ? '<div class="smp-how">▶ ' + escapeHtml(操作) + '</div>' : '') +
+      '</div>'
+    });
+  }
+
+  /**
    * ===================== 第52弾 52-3：すごろくの結果発表 =====================
    *
    * それまで、決着しても盤の画面に留まったままだった——
@@ -13103,7 +13182,40 @@
       host.innerHTML = '<button class="btn btn-main" data-rtsugo="ready">じゅんびOK</button>';
       return;
     }
+    /**
+     * 第52弾 52-4：**何が始まるか読んでから始める。**
+     * 全員が押すまで、誰も操作できない（指示37の門を流用）。
+     * 押した人には、あと何人かを出す——**待たされているのか固まっているのか
+     * 分からない**のがいちばん困る（第32弾-C-7 と同じ考え）
+     */
+    if(v.phase === 'mini' && v.mini){
+      // **人数は進行役の見せているものから数える**（部屋の名簿ではなく）。
+      // 部屋の名簿には大画面も混ざるので、そちらで割ると分母がずれる
+      var 待ち = v.waiting || [];
+      var 全 = (v.players || []).length || 待ち.length;
+      var 済み = Math.max(0, 全 - 待ち.length);
+      if(待ち.indexOf(((rt.me() || {}).name) || '') === -1){
+        host.innerHTML = '<div class="sugo-hand-sub">' +
+          escapeHtml(UiText.NOW.共通.みんなを待つ) + '　' + 済み + '/' + 全 + '</div>' +
+          '<button class="btn btn-ghost" data-rtsugo="minirules">📖 もう一度よむ</button>';
+        return;
+      }
+      host.innerHTML = '<button class="btn btn-main" data-rtsugo="ready">じゅんびOK</button>' +
+        '<button class="btn btn-ghost" data-rtsugo="minirules">📖 もう一度よむ</button>';
+      return;
+    }
     if(v.phase === 'play' && v.mini){
+      /**
+       * 第52弾 52-4：**3つ数えている間は、まだ出させない。**
+       * サーバーも `not_started` で弾くが（そちらが権威）、
+       * 押せるボタンを出しておいて弾くのは「押したのに何も起きない」になる。
+       * 出す側でも止める——ただし**判定はサーバーの `startAt`** を見る
+       *（端末が自分で数えると、機械の速さで順位が決まる）
+       */
+      if(v.startAt && Date.now() < v.startAt){
+        host.innerHTML = '<div class="sugo-hand-sub">' + escapeHtml(UiText.NOW.sugoroku.はじまる) + '</div>';
+        return;
+      }
       if(v.mini.id === 'quiz' && !v.question){
         host.innerHTML = '<div class="sugo-hand-sub">もんだいを待っています</div>';
         return;
@@ -13303,6 +13415,8 @@
     var v = rtView();
     if(!v) return;
     if(b.dataset.rtsugo === 'ready'){ rtSugoSend({ act: 'ready' }, rtSugoKey(v)); return; }
+    // 第52弾 52-4：説明をもう一度読む（押しても「読んだ」にはならない）
+    if(b.dataset.rtsugo === 'minirules'){ sugoMiniRulesPopup(v.mini); return; }
     // 分け合いは、合うまで何度でも入れ直せる。だから「一度きり」の印は立てない
     if(b.dataset.rtsplit != null){
       rtSugoSend({ act: 'split', steps: parseInt(b.dataset.rtsplit, 10) }, null);
@@ -13364,11 +13478,29 @@
     var main = w ? w.note : '';
     var sub = w ? w.hint : '';
     if(!main){
+      /**
+       * 第52弾 52-4：**誰の番でもない段階では、誰の番とも言わない。**
+       * `v.turn` はミニゲームの間も前の値のまま残るので、
+       * ここが先に当たると、大画面に「◯◯ さんの番」が出続けていた
+       * （端末の上帯とまったく同じ穴・落とし穴1）。
+       * ミニゲームの間は、何をやっているかを大きく出すのが正しい
+       */
+      var 手番のない段階 = (v.phase === 'mini' || v.phase === 'play');
       if(v.sayer) main = v.sayer.name + ' さんが申告します';
+      else if(v.mini && 手番のない段階) main = v.mini.title;
       else if(v.turn) main = v.turn.name + ' さんの番';
       else if(v.mini) main = v.mini.title;
     }
-    if(!sub && (v.waiting || []).length) sub = v.waiting.join('・') + ' さんを待っています';
+    /**
+     * 第52弾 52-4：**大画面には準備OKを出さないが、待っていることは出す。**
+     * 離れた席から「誰を待っているのか」が分からないと、全員が止まって見える。
+     * 数も添える——名前だけだと、あと何人かが一目で分からない
+     */
+    if(!sub && (v.waiting || []).length){
+      var 全 = (v.players || []).length || v.waiting.length;
+      sub = v.waiting.join('・') + ' さんを待っています（'
+        + Math.max(0, 全 - v.waiting.length) + '/' + 全 + '）';
+    }
     el('bigMain').textContent = main;
     el('bigSub').innerHTML = escapeHtml(sub);
 
@@ -18312,6 +18444,10 @@
     el('sugoMiniKind').textContent = { reflex:'はんのう', luck:'うん', brain:'ちしき', mind:'かけひき' }[sugo.mini.kind] || '';
     el('sugoMiniTitle').textContent = sugo.mini.title;
     el('sugoMiniLead').textContent = sugo.mini.lead;
+    // 第52弾 52-4：操作方法は、部屋のポップアップと**同じ正本**から引く（落とし穴1）
+    var 操作 = sugoMiniHowto(sugo.mini);
+    el('sugoMiniHow').textContent = 操作 ? ('▶ ' + 操作) : '';
+    el('sugoMiniHow').hidden = !操作;
     el('sugoMiniNote').textContent = sugo.mini.note || '';
     goTo('scr-sugo-mini');
   }

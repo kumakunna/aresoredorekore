@@ -741,5 +741,178 @@ async function ゲームを終了(win, doc) {
     });
   }
 
+  // ===================== 52-4 ミニゲームの開始様式 =====================
+  //
+  // 指示52 52-4：画面が切り替わる → ルール説明のポップアップ →
+  // **全員が「準備OK」を押すまで誰も操作できない** → 3-2-1 → 専用画面。
+  //
+  // サーバー側の門は指示37の流用（新しい通信は0本）。
+  // ここは**端末側**——盤が消えるか、押せるものが出るか、
+  // 数えている間に押せてしまわないか。
+  //
+  // 本人の裁定（2026-09-15）：**(a) 毎回きちんと挟む**。
+  // 「今回は要る／要らない」の基準が見えないと、かえって混乱するため。
+
+  {
+    const { RT_START_MIN_CONFIG } = require('./inventory');
+    const { GAME_DRIVERS } = require('../realtime');
+    const NAMES = ['あき', 'びび', 'ちか'];
+
+    /** 本物の sugograb を MINI まで進めて、本物の画面に流す */
+    async function ミニまで(big) {
+      const entry = GAME_DRIVERS['sugograb'];
+      const d = entry.driver;
+      const { win, doc, errors } = await launch({ fakeSocket: true });
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      await openCassette(win, doc, 'sugoroku');
+      const way = doc.querySelector('#wayChoices [data-way="room"]');
+      if (way) way.click();
+      await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+      const fake = win.__rtFake;
+      await waitFor(win, () => fake.connected, 5000, '疑似socket');
+
+      const members = new Map();
+      for (let i = 0; i < 3; i++) {
+        const id = 'm' + (i + 1);
+        members.set(id, { id, name: NAMES[i], role: 'player', connected: true, socketId: 's' + id });
+      }
+      if (big) members.set('tv', { id: 'tv', name: 'テレビ', role: 'bigscreen', connected: true });
+      const room = { code: 'ABC234', members, state: { phase: 'lobby', game: null, data: {} } };
+      assertEqual(d.startGame(room, RT_START_MIN_CONFIG.sugograb, { notify() {} }).ok, true, '始められる');
+      room.state.game = 'sugograb'; room.state.phase = 'playing';
+      const w = room[entry.key];
+      const 自分 = big ? 'tv' : 'm1';
+
+      const snap = () => ({
+        code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'm1',
+        playerCount: 3, memberCount: members.size,
+        ready: { count: 3, total: 3, waitingNames: [], all: true },
+        members: Array.from(room.members.values()).map((m) => ({
+          id: m.id, name: m.name, role: m.role, connected: true,
+          isHost: m.id === 'm1', ready: true })),
+        state: { phase: room.state.phase, game: 'sugograb', data: d.publicView(room) },
+      });
+      fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 自分, room: snap() }) };
+      el(doc, 'rtJoinCode').value = 'ABC234';
+      el(doc, 'rtJoinName').value = big ? 'テレビ' : NAMES[0];
+      click(doc, 'rtJoinBtn');
+      const 前置き = 'scr-' + 'rt-';
+      await waitFor(win, () => String(activeScreen(doc)).indexOf(前置き) === 0, 8000, '部屋の画面へ');
+
+      const push = async () => {
+        fake.fire('room:update', snap());
+        if (d.privateFor) { const mine = d.privateFor(room, 自分); if (mine) fake.fire('wolf:you', mine); }
+        await sleep(win, 90);
+      };
+      await push();
+      // READY を全員で抜けて MINI へ（**本物の門を通す**）
+      ['m1', 'm2', 'm3'].forEach((id) => d.submitAction(room, id, null, { act: 'ready' }));
+      d.advance(room);
+      await push();
+      assertEqual(w.phase, 'mini', 'ミニゲームの段階に来ている');   // 型(b)
+      return { win, doc, errors, room, w, d, push, snap, fake };
+    }
+
+    await r.test('52-4：ミニゲームの間は盤が消え、準備OKを押すまで操作できない', async () => {
+      const g = await ミニまで(false);
+      try {
+        // (1) 画面が切り替わる＝盤が消える
+        assertEqual(g.doc.getElementById('rtSugoBoard').hidden, true,
+          'ミニゲームの間、盤は出ていない（指示52 52-4 の(1)）');
+
+        // **誰の番でもない段階で「さんの番」を出さない**（52-2 と同じ型）
+        assertEqual((g.doc.getElementById('rtSugoTurn').textContent || '').trim(), '',
+          'ミニゲーム中に「◯◯ さんの番」が残っていない');
+
+        // (3) 準備OKが出ていて、ミニゲームの入力は出ていない
+        const 入力 = g.doc.getElementById('rtSugoInput');
+        assert(入力.querySelector('[data-rtsugo="ready"]'), '「じゅんびOK」が出ている');
+        assertEqual(入力.querySelectorAll('[data-sugopick]').length, 0,
+          '押すまでミニゲームの入力は出ない');
+
+        // (2) ルール説明のポップアップが、1回だけ開いている
+        const 幕 = g.doc.querySelector('#uiLayerRoot .ui-popup-in');
+        assert(幕, 'ルール説明のポップアップが開いている');
+        const 文 = 幕.textContent;
+        assert(文.indexOf(g.w.mini.title) >= 0, 'ミニゲームの名前が出ている');
+        assert(文.indexOf(g.w.mini.lead) >= 0, '遊び方（lead）が出ている');
+        if (g.w.mini.note) assert(文.indexOf(g.w.mini.note) >= 0,
+          '勝ち方（note）も同時に出ている（それまで同時に出る瞬間が無かった）');
+        assert(/おす|えらぶ/.test(文), '操作方法が出ている（いまの文：' + 文.replace(/\s+/g, ' ').slice(0, 90) + '）');
+      } finally { g.win.close(); }
+    });
+
+    await r.test('52-4：押した人には、あと何人かが出る', async () => {
+      const g = await ミニまで(false);
+      try {
+        // 自分（m1）が押す＝本物の道（rtSugoSend → fake → submitAction）を通したいが、
+        // 疑似socketは返事だけなので、**進行役に直接届けてから**知らせを流す
+        g.d.submitAction(g.room, 'm1', null, { act: 'ready' });
+        await g.push();
+        const 文 = g.doc.getElementById('rtSugoInput').textContent;
+        assert(文.indexOf('待') >= 0, '待っていることが出る（いま：' + 文 + '）');
+        assert(/1\/3|2\/3/.test(文), 'あと何人かが数で出る（いま：' + 文 + '）');
+        assert(!g.doc.querySelector('#rtSugoInput [data-rtsugo="ready"]'),
+          '押したあとは「じゅんびOK」が消える');
+      } finally { g.win.close(); }
+    });
+
+    await r.test('52-4：3つ数えている間は、まだ出せない（フライングを作らない）', async () => {
+      const g = await ミニまで(false);
+      try {
+        ['m1', 'm2', 'm3'].forEach((id) => g.d.submitAction(g.room, id, null, { act: 'ready' }));
+        g.d.advance(g.room);
+        await g.push();
+        assertEqual(g.w.phase, 'play', '全員そろったら本体へ');
+        assert(g.w.playStartedAt > Date.now(), 'まだ数えている最中');   // 型(b)
+
+        const 入力 = g.doc.getElementById('rtSugoInput');
+        assertEqual(入力.querySelectorAll('button').length, 0,
+          '数えている間は、押せるものが1つも無い');
+        assert((入力.textContent || '').indexOf('始まります') >= 0,
+          'もうすぐ始まる、と出ている（いま：' + 入力.textContent + '）');
+
+        // **サーバーも弾く**（押せる端末が1つでもあると順位が壊れるので、権威はサーバー）
+        const 早出し = g.d.submitAction(g.room, 'm1', null, { count: 30 });
+        assertEqual(早出し.ok, false, '数えている間は、サーバーが受け取らない');
+        assertEqual(早出し.error, 'not_started', '理由が分かる');
+
+        // 数え終わったら出せる
+        g.w.playStartedAt = Date.now() - 1;
+        await g.push();
+        assert(g.doc.getElementById('rtSugoInput').querySelectorAll('button').length > 0,
+          '数え終わったら、ミニゲームの入力が出る');
+      } finally { g.win.close(); }
+    });
+
+    await r.test('52-4：大画面には準備OKを出さない（見世物の画面）', async () => {
+      const g = await ミニまで(true);
+      try {
+        assertEqual(activeScreen(g.doc), 'scr-rt-big', '大画面として入っている');  // 型(b)
+        assert(!g.doc.querySelector('#scr-rt-big [data-rtsugo="ready"]'),
+          '大画面に「じゅんびOK」は出ない');
+        assert(!g.doc.querySelector('#uiLayerRoot .ui-popup-in'),
+          '大画面にルール説明のポップアップは開かない（押す人がいない）');
+
+        // **出さないのは押しもの。待っていることは出す**——
+        // 離れた席から「誰を待っているのか」が分からないと、全員が止まって見える
+        const main = g.doc.getElementById('bigMain').textContent;
+        const sub = g.doc.getElementById('bigSub').textContent;
+        assertEqual(main, g.w.mini.title,
+          '大画面には、何のミニゲームかが大きく出る（「◯◯ さんの番」ではなく）');
+        assert(main.indexOf('さんの番') === -1,
+          '大画面に「さんの番」が残っていない（端末の上帯と同じ穴）');
+        assert(sub.indexOf('待っています') >= 0, '誰を待っているかが出る（いま：' + sub + '）');
+        assert(/0\/3|1\/3|2\/3/.test(sub), 'あと何人かが数でも出る（いま：' + sub + '）');
+
+        // 1人押したら、待ちが減る
+        g.d.submitAction(g.room, 'm1', null, { act: 'ready' });
+        await g.push();
+        const sub2 = g.doc.getElementById('bigSub').textContent;
+        assert(/1\/3/.test(sub2), '押した人数が大画面にも反映される（いま：' + sub2 + '）');
+      } finally { g.win.close(); }
+    });
+  }
+
   r.finish();
 })();

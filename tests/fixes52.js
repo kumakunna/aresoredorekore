@@ -756,6 +756,7 @@ async function ゲームを終了(win, doc) {
   {
     const { RT_START_MIN_CONFIG } = require('./inventory');
     const { GAME_DRIVERS } = require('../realtime');
+    const SugorokuMini = require('../public/js/sugoroku-mini');
     const NAMES = ['あき', 'びび', 'ちか'];
 
     /** 本物の sugograb を MINI まで進めて、本物の画面に流す */
@@ -872,8 +873,18 @@ async function ゲームを終了(win, doc) {
         assert((入力.textContent || '').indexOf('始まります') >= 0,
           'もうすぐ始まる、と出ている（いま：' + 入力.textContent + '）');
 
-        // **サーバーも弾く**（押せる端末が1つでもあると順位が壊れるので、権威はサーバー）
-        const 早出し = g.d.submitAction(g.room, 'm1', null, { count: 30 });
+        /**
+         * **サーバーも弾く**（押せる端末が1つでもあると順位が壊れるので、権威はサーバー）。
+         *
+         * 検体は**そのミニゲームに合った形**にする。最初は `{count:30}`（れんだの形）を
+         * 固定で送っていたが、ミニゲームは毎回ちがうので `readEntry` が
+         * **`bad_action` で先に弾いていた**——門が効いていなくても同じ「ok:false」に見える
+         *（落とし穴10-b：条件が作れていない）。変異 52-4B が素通りして分かった
+         */
+        const 中身 = { tap:{count:30}, janken:{hand:SugorokuMini.HANDS[0]},
+                       fingers:{fingers:3}, quiz:{choice:0} }[g.w.mini.id];
+        assert(中身, 'そのミニゲームに合った出し方が作れている（' + g.w.mini.id + '）');
+        const 早出し = g.d.submitAction(g.room, 'm1', null, 中身);
         assertEqual(早出し.ok, false, '数えている間は、サーバーが受け取らない');
         assertEqual(早出し.error, 'not_started', '理由が分かる');
 
@@ -882,6 +893,33 @@ async function ゲームを終了(win, doc) {
         await g.push();
         assert(g.doc.getElementById('rtSugoInput').querySelectorAll('button').length > 0,
           '数え終わったら、ミニゲームの入力が出る');
+      } finally { g.win.close(); }
+    });
+
+    await r.test('52-4：全員がそろうまで、進んでよいと言わない（門そのもの）', async () => {
+      /**
+       * **ここが (3) の芯。**`realtime.js:1328` は `submitAction` の返す
+       * `allDone` を見て `advance` を呼ぶ——つまり **`allDone` が門**。
+       *
+       * それまでの検査は画面の文字しか見ておらず、`waitingPhases` から
+       * MINI を外す変異（52-4A）が**素通りした**。画面の「◯/◯」は
+       * `waitingIds` だけで出るので、門が外れても見た目は変わらない。
+       */
+      const g = await ミニまで(false);
+      try {
+        const r1 = g.d.submitAction(g.room, 'm1', null, { act: 'ready' });
+        assertEqual(r1.allDone, false, '1人では、まだ進んでよいと言わない');
+        const r2 = g.d.submitAction(g.room, 'm2', null, { act: 'ready' });
+        assertEqual(r2.allDone, false, '2人でも、まだ');
+        const r3 = g.d.submitAction(g.room, 'm3', null, { act: 'ready' });
+        assertEqual(r3.allDone, true, '全員そろって、はじめて進んでよいと言う');
+
+        // **押していないのに進まない**ことも、段階で確かめる
+        const g2 = await ミニまで(false);
+        try {
+          g2.d.submitAction(g2.room, 'm1', null, { act: 'ready' });
+          assertEqual(g2.w.phase, 'mini', '1人押しただけでは、まだミニゲームの題のまま');
+        } finally { g2.win.close(); }
       } finally { g.win.close(); }
     });
 

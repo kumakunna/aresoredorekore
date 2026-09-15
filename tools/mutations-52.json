@@ -181,7 +181,7 @@
     "suite": "tests/fixes52.js",
     "from": "    waitingPhases: [PHASE.READY, PHASE.MINI, PHASE.PLAY, PHASE.GRAB],",
     "to": "    waitingPhases: [PHASE.READY, PHASE.PLAY, PHASE.GRAB],",
-    "expect": "あと何人かが数で出る"
+    "expect": "全員そろって、はじめて進んでよいと言う"
   },
   {
     "name": "52-4B 数えている間もサーバーが受け取る（フライングが勝つ状態）",
@@ -189,7 +189,7 @@
     "suite": "tests/fixes52.js",
     "from": "        if (w.playStartedAt && Date.now() < w.playStartedAt) {\n          return { ok: false, error: 'not_started' };\n        }",
     "to": "",
-    "expect": "数えている間は、サーバーが受け取らない"
+    "expect": "理由が分かる"
   },
   {
     "name": "52-4C 3つ数えるぶんを持ち時間から食う（れんだが半分になる）",
@@ -248,11 +248,11 @@
     "expect": "数えている間は、押せるものが1つも無い"
   },
   {
-    "name": "52-4J 大画面にも準備OKを出す（見世物の画面に押しものを置く）",
+    "name": "52-4J 大画面を、端末と同じ画面へ送る（見世物に押しものが出る）",
     "file": "public/index.html",
     "suite": "tests/fixes52.js",
-    "from": "    if(!rtIsBigScreen()){\n      rtOnceValue('sugo:miniRules',",
-    "to": "    if(true){\n      rtOnceValue('sugo:miniRules',",
-    "expect": "大画面にルール説明のポップアップは開かない"
+    "from": "    if(rtIsBigScreen()) return 'scr-rt-big';",
+    "to": "",
+    "expect": "大画面として入っている"
   }
 ]

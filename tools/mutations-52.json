@@ -1,0 +1,58 @@
+[
+  {
+    "name": "52-1A 名簿の権威を、また区切りなしにする（実機報告の状態へ戻す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    if(state.playersLive && state.players.length) return state.players.length;",
+    "to": "    if(state.players.length) return state.players.length;",
+    "expect": "チップを6にしたら、人数も6になる"
+  },
+  {
+    "name": "52-1B 棚に戻っても権威を手放さない",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    state.playersLive = false;\n    shelfHeads = shelfHeads || loadHeads();",
+    "to": "    shelfHeads = shelfHeads || loadHeads();",
+    "expect": "棚に戻ったら、名簿は人数の権威を手放す"
+  },
+  {
+    "name": "52-1C 登録のあと権威を立てない（ゲーム中もチップが勝ってしまう）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    state.playersLive = true;   // 第52弾 52-1：ここから、この名簿が人数の権威",
+    "to": "    state.playersLive = false;",
+    "expect": "ゲーム中は、名簿が人数の権威"
+  },
+  {
+    "name": "52-1D チップと食い違っても登録画面を通さない（気づけない上書きに戻す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    if(state.players.length === 0 || state.needPlayerSetup || チップと食い違う){",
+    "to": "    if(state.players.length === 0 || state.needPlayerSetup){",
+    "expect": "チップと食い違うなら登録画面を通る"
+  },
+  {
+    "name": "52-1E 登録画面で、チップの数ではなく前の名簿の数から始める",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "      playerDraft = state.players.map(function(p){ return {name:p.name, handicap:!!p.handicap}; });\n      setPlayerCount(shelfHeads);\n      return;",
+    "to": "      return;",
+    "expect": "登録画面はチップの6人から始まる"
+  },
+  {
+    "name": "52-1F 持ち越す名前を捨てる（入れ直させる形に戻す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "      playerDraft = state.players.map(function(p){ return {name:p.name, handicap:!!p.handicap}; });\n      setPlayerCount(shelfHeads);",
+    "to": "      playerDraft = [];\n      setPlayerCount(shelfHeads);",
+    "expect": "前に入れた名前は持ち越す"
+  },
+  {
+    "name": "52-1G 同じ数でも登録画面を出す（第12弾-7 を壊す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "      && shelfHeads && shelfHeads !== state.players.length;",
+    "to": "      && shelfHeads;",
+    "expect": "同じ顔ぶれで続ける人は、いままで通り登録画面を飛ばす"
+  }
+]

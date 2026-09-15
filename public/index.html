@@ -2098,6 +2098,18 @@
 
   /* 結果 */
   .mk-market-final{display:flex;gap:8px;justify-content:center;margin-bottom:14px;}
+  /* 第52弾 52-3：すごろくの結果発表・勝者。
+     大きさは `.wolf-handoff-name`（44px）ほど強くしない——
+     すごろくは「あがり」で静かに終わる遊びなので、
+     オークションの結果（`.scr-title`）とのあいだを取る。
+     **褒める時は全力で**（原則）だが、紙吹雪と金の帯が already 鳴っているので、
+     ここで二度追い打ちをかけない */
+  .sugo-rs-win{ text-align:center; margin:2px 12px 12px; }
+  .sugo-rs-name{
+    font-family:'Shippori Mincho',serif;font-weight:800;font-size:30px;line-height:1.25;
+    color:var(--stamp-deep);word-break:break-word;
+  }
+  .sugo-rs-sub{ font-size:13px;color:var(--ink-soft);line-height:1.7;margin-top:4px; }
   .mk-rank .arow{
     display:flex;align-items:center;gap:8px;padding:9px 12px;margin-bottom:6px;
     background:var(--card);border:1px solid var(--line);border-radius:10px;
@@ -4955,6 +4967,27 @@
     </div>
     <div style="text-align:center;padding:0 12px 14px;">
       <button class="btn btn-ghost" id="rtSugoLeaveBtn" style="display:none;">← 部屋を出る</button>
+    </div>
+  </div>
+
+  <!-- 第52弾 52-3：すごろくの結果発表（本人の実機フィードバック）。
+       それまで、決着しても盤の画面に留まったまま「← 部屋を出る」が1つあるだけで、
+       **順位表が無く、上帯は「◯◯さんの番」を出し続けていた**。
+       形は `scr-rt-au-result`（第38弾・いちばん整った結果画面）に合わせる——
+       帯 → 見出し → 勝者 → 全員の順位 → 出口3段。
+       出口は `rtNextButton()` が1か所で面倒を見る形に乗せる（落とし穴1を作らない） -->
+  <div class="screen" id="scr-rt-sugo-result">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title">結果発表</h2>
+    <div class="wiz-body">
+      <div class="sugo-rs-win" id="rtSugoRsWin"></div>
+      <div class="mk-rank" id="rtSugoRsRank"></div>
+      <div class="mk-highlight" id="rtSugoRsNote"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="rtSugoAgainBtn" style="display:none;">つぎは？ ▶</button>
+      <button class="btn btn-outline" id="rtSugoEndBtn" style="display:none;margin-top:0;">🏁 部屋を閉じる</button>
+      <button class="btn btn-ghost" id="rtSugoResultLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -12534,7 +12567,8 @@
     if(typeof FxKit !== 'undefined') FxKit.alive(b, ended && !host);
   }
   // 5つのボタンは、どれも同じ「つぎは？」画面へ行く
-  ['rtAgainBtn','rtBombAgainBtn','dfAgainBtn','qzAgainBtn','auAgainBtn'].forEach(function(id){
+  ['rtAgainBtn','rtBombAgainBtn','dfAgainBtn','qzAgainBtn','auAgainBtn',
+   'rtSugoAgainBtn'].forEach(function(id){
     var b = el(id);
     if(b) b.addEventListener('click', function(){ if(!this.disabled) goTo('scr-next'); });
   });
@@ -12961,6 +12995,74 @@
     return SugorokuLogic.goalEndWords(top.join('・'));
   }
 
+  /**
+   * ===================== 第52弾 52-3：すごろくの結果発表 =====================
+   *
+   * それまで、決着しても盤の画面に留まったままだった——
+   * 順位表が無く、上帯は「◯◯さんの番」を出し続け、出口は「← 部屋を出る」1つだけ。
+   * **サーバーは決着の瞬間から `view.result` を配っていた**のに
+   *（`sugoroku-room.js:157`）、端末はそれを「1位の名前」にしか使っていなかった。
+   *
+   * 形は `scr-rt-au-result`（第38弾）に合わせる。出口は `rtNextButton()` に乗せる。
+   */
+  function sugoWantScreen(){
+    var v = rtView();
+    return (v && v.phase === 'ended') ? 'scr-rt-sugo-result' : 'scr-rt-sugoroku';
+  }
+  /**
+   * 順位の1行。**語彙はオークションの結果画面（`.mk-rank .arow`）を借りる**——
+   * 同じ「順位・名前・数字・内訳」なので、新しい見た目を増やさない（落とし穴23を作らない）
+   */
+  function sugoRankRow(p, res){
+    var 位 = p.tied ? (p.rank + '位ならび') : (p.rank + '位');
+    var 数 = p.goaled ? 'あがり' : (p.pos + '/' + res.cells);
+    var 内訳 = [];
+    // **コインを使わないゲームでは coins が null**（出す側に if を書かせない）
+    if(res.coinsUsed && p.coins != null) 内訳.push('🪙' + p.coins);
+    if(!p.goaled) 内訳.push('のこり' + Math.max(0, res.cells - p.pos) + 'マス');
+    return '<div class="arow">' +
+      '<span class="ark">' + escapeHtml(位) + '</span>' +
+      '<span class="arn">' + escapeHtml(p.name) + '</span>' +
+      '<span class="ars">' + escapeHtml(数) + '</span>' +
+      '<span class="arb">' + escapeHtml(内訳.join('　')) + '</span>' +
+    '</div>';
+  }
+  function renderRtSugoResult(){
+    var v = rtView();
+    var res = v && v.result;
+    if(!res || !res.players){
+      // 決着の知らせより先にこの画面へ来ることはある（落とし穴18）。
+      // **その時は何も言わない。**古い値で埋めると、嘘が出る
+      el('rtSugoRsWin').innerHTML = '';
+      el('rtSugoRsRank').innerHTML = '';
+      el('rtSugoRsNote').textContent = '';
+      el('rtSugoRsNote').style.display = 'none';
+      return;
+    }
+    var 勝ち = res.players.filter(function(p){ return p.rank === 1; });
+    // **1位は同着になりうる**（`tied`）。1人前提で組むと、同着の日に片方しか出ない
+    var 言葉 = rtSugoEndWords(v);
+    el('rtSugoRsWin').innerHTML =
+      '<div class="sugo-rs-name">' + escapeHtml(勝ち.map(function(p){ return p.name; }).join('・')) + '</div>' +
+      '<div class="sugo-rs-sub">' + escapeHtml(言葉.note || '') + '</div>';
+    el('rtSugoRsRank').innerHTML = res.players.map(function(p){
+      return sugoRankRow(p, res);
+    }).join('');
+    /**
+     * 「どこにいる？」は**決着してはじめて実位置を明かす**ゲーム
+     *（`sugoroku-room.js:820` がそう宣言している）。
+     * 盤の画面は申告しか描けないので、**明かす場所はここしかない**
+     */
+    var 補足 = 言葉.hint || '';
+    if(v.hidden) 補足 = (補足 ? 補足 + '　' : '') + 'かくしていた場所は、上のとおりです';
+    el('rtSugoRsNote').textContent = 補足;
+    el('rtSugoRsNote').style.display = 補足 ? 'block' : 'none';
+
+    var host = rt.isHost();
+    rtNextButton('rtSugoAgainBtn', true, host);
+    el('rtSugoEndBtn').style.display = host ? 'inline-flex' : 'none';
+  }
+
   // 自分がどの組か。組の一覧に人のidは入っていないので、自分の枠から辿る
   function rtSugoMyGroup(v, me){
     var p = (v.players || []).filter(function(x){ return x.id === me; })[0];
@@ -13278,6 +13380,26 @@
     }).join('');
   }
   function rtSugoBigRows(v, goal){
+    /**
+     * 第52弾 52-3：**決着したら、確定した順位を出す。**
+     *
+     * それまで大画面は、決着しても進行中と同じ行（「あと◯マス」「まだ申告なし」）を
+     * 出し続けていた——`v.result` を一度も読んでいなかった。
+     * 離れた席から見ている人には、**誰が勝ったのか一覧から分からない**。
+     * 端末の結果発表（`renderRtSugoResult`）と同じものを、大画面にも出す。
+     *
+     * ここは行の作り方が5通りに分かれる場所なので、
+     * **決着だけは分岐の手前で答える**——ゲームごとに書くと5か所に散る（落とし穴1）
+     */
+    if(v.phase === 'ended' && v.result && v.result.players){
+      var res = v.result;
+      return res.players.map(function(p){
+        var 右 = p.goaled ? 'あがり' : (p.pos + '/' + res.cells);
+        if(res.coinsUsed && p.coins != null) 右 += '　🪙' + p.coins;
+        return { id: res.pairs ? null : p.id, mark: (p.rank + '位') + (p.tied ? 'ならび' : ''),
+          name: p.name, right: 右 };
+      });
+    }
     if(v.pairs){
       return (v.groups || []).map(function(g, i){
         return { mark: SugorokuLogic.pieceFor(i).shape, name: g.names.join('・'),
@@ -13576,12 +13698,14 @@
     // 戻る矢印の除外も、部屋画面の一覧も、すべてこの1行から導かれる（落とし穴4）
     auction: ['scr-rt-au-open', 'scr-rt-au-power', 'scr-rt-au-bid',
               'scr-rt-au-guess', 'scr-rt-au-reveal', 'scr-rt-au-result'],
-    // 第36弾：すごろく。5ゲームとも1枚を共有する（中身を差し替える）
-    sugotoll: 'scr-rt-sugoroku',
-    sugograb: 'scr-rt-sugoroku',
-    sugopair: 'scr-rt-sugoroku',
-    sugohide: 'scr-rt-sugoroku',
-    sugohand: 'scr-rt-sugoroku'
+    // 第36弾：すごろく。5ゲームとも1枚を共有する（中身を差し替える）。
+    // 第52弾 52-3：**決着だけは別の画面**（結果発表）。
+    // 盤の画面に留まると順位表の置き場が無く、上帯も「◯◯さんの番」を出し続ける
+    sugotoll: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
+    sugograb: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
+    sugopair: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
+    sugohide: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
+    sugohand: ['scr-rt-sugoroku', 'scr-rt-sugo-result']
   };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
@@ -13604,7 +13728,12 @@
     // まだ対応していないゲームの部屋に入った時は、待合に留めて置き去りにしない
     var scr = RT_GAME_SCREENS[game];
     // 第38弾：画面が複数あるゲームは、そのゲームの側に「いまどれか」を聞く
-    if(Array.isArray(scr)) return (game === 'auction') ? auWantScreen() : scr[0];
+    if(Array.isArray(scr)){
+      if(game === 'auction') return auWantScreen();
+      // 第52弾 52-3：すごろくは決着だけ結果発表へ
+      if(SUGO_GAMES.indexOf(game) !== -1) return sugoWantScreen();
+      return scr[0];
+    }
     return scr || 'scr-rt-room';
   }
   /**
@@ -13973,6 +14102,7 @@
     else if(cur === 'scr-rt-au-reveal') renderRtAuReveal();
     else if(cur === 'scr-rt-au-result') renderRtAuResult();
     else if(cur === 'scr-rt-sugoroku') renderRtSugoroku();
+    else if(cur === 'scr-rt-sugo-result') renderRtSugoResult();
     else if(cur === 'scr-rt-play') renderRtPlay();
   }
   /**
@@ -14014,8 +14144,10 @@
   // 画面を足した時にここだけ古びることが起きない（落とし穴4）
   RT_SCREENS = RT_SCREENS.concat(RT_GAME_SCREEN_IDS);
   // すごろくのゲームid。ここも同じ一覧から導く（落とし穴4）
+  // 第52弾 52-3：すごろくが2画面になったので、**配列にも効く形**で引く。
+  // ここが `=== 'scr-rt-sugoroku'` のままだと、5ゲームとも一覧から静かに落ちる
   var SUGO_GAMES = Object.keys(RT_GAME_SCREENS)
-    .filter(function(g){ return RT_GAME_SCREENS[g] === 'scr-rt-sugoroku'; });
+    .filter(function(g){ return [].concat(RT_GAME_SCREENS[g]).indexOf('scr-rt-sugoroku') !== -1; });
   // いま部屋で遊んでいるゲームのid（何も選ばれていなければ null）
   function rtRoomGameId(){
     var room = rt && rt.state.room;
@@ -15424,6 +15556,8 @@
     if(!res.ok) showFlash(res.message || '出せませんでした', 'hit-wrong');
   });
   el('auEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
+  // 第52弾 52-3：すごろくの結果発表も同じ芯へ渡す（確認の言葉を2つにしない）
+  el('rtSugoEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
   // 落札と決着の見せ場。**段階が変わった瞬間だけ**鳴らす（描き直すたびに鳴らさない）
   function auPhaseFx(v){

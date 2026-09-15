@@ -28,7 +28,8 @@
 // `state.players` へ手で代入しない。棚→遊び方→ゲーム→登録→終了→棚、と人が歩く順に歩く。
 
 const { createRunner, assert, assertEqual,
-  launch, activeScreen, sleep, waitScreen, waitFor, el, click, openCassette, autoDialog } = require('./harness');
+  launch, activeScreen, sleep, waitScreen, waitFor, el, click, openCassette, autoDialog,
+  assertNoErrors } = require('./harness');
 const UiText = require('../public/js/ui-text');
 const { cssRules } = require('./harness');
 const fs = require('fs');
@@ -518,6 +519,199 @@ async function ゲームを終了(win, doc) {
         'スキップなら、演出を待たずに結果まで進む（いま ' + かかった + 'ms）');
     } finally { win.close(); }
   });
+
+  // ===================== 52-3 すごろくの結果発表 =====================
+  //
+  // 実機フィードバック：「すごろくは決着後『← 部屋を出る』だけで、**結果発表画面が無い**」。
+  //
+  // 調べたら、**サーバーは決着の瞬間から `view.result` を配っていた**
+  //（`sugoroku-room.js:157`）。順位・同着・位置・コイン・あがりが全部入っている。
+  // 端末はそれを `rtSugoEndWords`（1位の名前）にしか使っておらず、
+  // 決着画面には**進行中とまったく同じもの**が出ていた——
+  // 上帯は「◯◯さんの番」を出し続け、順位表は5ゲームとも存在しない。
+  //
+  // だから 52-3 は「新しく計算する」話ではなく、**すでに届いているものを出す**話。
+  //
+  // 形は `scr-rt-au-result`（第38弾・いちばん整った結果画面）に合わせた：
+  //   帯 → 見出し「結果発表」→ 勝者 → 全員の順位 → 出口3段
+  //
+  // **本物の進行役を動かして、本物の publicView を本物の画面へ流す**（落とし穴25）。
+  // 進め方は tests/now-line.js と同じ形。
+
+  {
+    const { RT_START_MIN_CONFIG } = require('./inventory');
+    const { GAME_DRIVERS } = require('../realtime');
+    const NAMES = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
+    const すごろく = [
+      { game: 'sugotoll', n: 3 }, { game: 'sugograb', n: 3 },
+      { game: 'sugopair', n: 4 }, { game: 'sugohide', n: 3 },
+      { game: 'sugohand', n: 3 },
+    ];
+
+    /** 本物の進行役を決着まで回して、本物の画面に流す */
+    async function 決着まで(gameId, n, big) {
+      const entry = GAME_DRIVERS[gameId];
+      const d = entry.driver;
+      const { win, doc, errors } = await launch({ fakeSocket: true });
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      await openCassette(win, doc, 'sugoroku');
+      const way = doc.querySelector('#wayChoices [data-way="room"]');
+      if (way) way.click();
+      await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+      const fake = win.__rtFake;
+      await waitFor(win, () => fake.connected, 5000, '疑似socket');
+
+      const members = new Map();
+      for (let i = 0; i < n; i++) {
+        const id = 'm' + (i + 1);
+        members.set(id, { id, name: NAMES[i], role: 'player', connected: true, socketId: 's' + id });
+      }
+      if (big) members.set('tv', { id: 'tv', name: 'テレビ', role: 'bigscreen', connected: true });
+      const room = { code: 'ABC234', members, state: { phase: 'lobby', game: null, data: {} } };
+      const res = d.startGame(room, RT_START_MIN_CONFIG[gameId], { notify() {} });
+      assertEqual(res.ok, true, gameId + '：進行役を始められる');
+      room.state.game = gameId; room.state.phase = 'playing';
+
+      const snap = () => ({
+        code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'm1',
+        playerCount: n, memberCount: n,
+        ready: { count: n, total: n, waitingNames: [], all: true },
+        members: Array.from(room.members.values()).map((m) => ({
+          id: m.id, name: m.name, role: m.role, connected: true,
+          isHost: m.id === 'm1', ready: true })),
+        state: { phase: room.state.phase, game: gameId, data: d.publicView(room) },
+      });
+      const 自分 = big ? 'tv' : 'm1';
+      fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 自分, room: snap() }) };
+      el(doc, 'rtJoinCode').value = 'ABC234';
+      el(doc, 'rtJoinName').value = big ? 'テレビ' : NAMES[0];
+      click(doc, 'rtJoinBtn');
+      const 前置き = 'scr-' + 'rt-';   // 幽霊の画面idとして拾われないよう組み立てる
+      await waitFor(win, () => String(activeScreen(doc)).indexOf(前置き) === 0, 8000, '部屋の画面へ');
+
+      const push = async () => {
+        fake.fire('room:update', snap());
+        if (d.privateFor) { const mine = d.privateFor(room, 自分); if (mine) fake.fire('wolf:you', mine); }
+        await sleep(win, 60);
+      };
+      const w = room[entry.key];
+      const ids = Array.from(room.members.keys());
+      await push();
+      for (let step = 0; step < 300 && w.phase !== d.PHASE.ENDED; step++) {
+        const 前 = w.phase;
+        ids.forEach((id) => { try { d.submitAction(room, id, null, {}); } catch (e) {} });
+        if (w.deadline && w.deadline > Date.now()) w.deadline = Date.now() - 1;
+        try { if (d.advance) d.advance(room); } catch (e) {}
+        await push();
+        if (w.phase === 前 && step > 60) break;
+      }
+      assertEqual(w.phase, d.PHASE.ENDED, gameId + '：決着まで回せた');  // 型(b)
+      await push(); await sleep(win, 220);
+      return { win, doc, errors, snap, result: d.publicView(room).result };
+    }
+
+    for (const t of すごろく) {
+      await r.test('52-3：' + t.game + ' は決着すると、結果発表の画面に着く', async () => {
+        const g = await 決着まで(t.game, t.n);
+        try {
+          assertEqual(activeScreen(g.doc), 'scr-rt-sugo-result',
+            t.game + '：決着したら結果発表へ（盤に留まらない）');
+
+          // 勝者（同着なら全員）
+          const 勝ち = g.result.players.filter((p) => p.rank === 1);
+          assert(勝ち.length > 0, t.game + '：1位が居る');   // 型(b)
+          const 名 = g.doc.getElementById('rtSugoRsWin').textContent;
+          勝ち.forEach((p) => assert(名.indexOf(p.name) >= 0,
+            t.game + '：1位の「' + p.name + '」が大きく出ている（同着なら全員）'));
+
+          // 全員の順位
+          const 行 = g.doc.querySelectorAll('#rtSugoRsRank .arow');
+          assertEqual(行.length, g.result.players.length,
+            t.game + '：全員ぶんの順位が並ぶ');
+          const 一覧 = g.doc.getElementById('rtSugoRsRank').textContent;
+          g.result.players.forEach((p) => assert(一覧.indexOf(p.name) >= 0,
+            t.game + '：「' + p.name + '」が順位表に居る'));
+
+          // 出口（他のカセットと同じ3段）
+          const 出 = (id) => {
+            const b = g.doc.getElementById(id);
+            return b && b.style.display !== 'none';
+          };
+          assert(出('rtSugoAgainBtn'), t.game + '：「つぎは？」がある（他のカセットと同じ）');
+          assert(出('rtSugoResultLeaveBtn'), t.game + '：「← 部屋を出る」がある');
+          assert(出('rtSugoEndBtn'), t.game + '：進行役には「部屋を閉じる」がある');
+
+          // **進行中の言葉が残っていない**（実機報告：上帯が「◯◯さんの番」のままだった）
+          const 画面 = g.doc.querySelector('.screen.active').textContent;
+          assert(画面.indexOf('さんの番') === -1,
+            t.game + '：決着の画面に「さんの番」が残っていない（いまの文：'
+              + 画面.replace(/\s+/g, ' ').slice(0, 80) + '）');
+          assertNoErrors(g.errors, t.game + ' の結果発表で未捕捉の例外');
+        } finally { g.win.close(); }
+      });
+    }
+
+    await r.test('52-3：決着のあとに開き直しても、結果発表に戻る（rtOnce の型）', async () => {
+      // 52-3 の境界：「結果画面で開き直し → 結果に復帰」。
+      // 端末は何も覚えていない——**どの画面に行くかは、サーバーの段階から導く**
+      //（`sugoWantScreen`）。だから開き直しても同じ所に着く。
+      // ここは「決着した部屋に、まっさらな端末が入り直す」を作って確かめる
+      const 元 = await 決着まで('sugotoll', 3);
+      const 決着の知らせ = 元.snap();
+      元.win.close();
+
+      const { win, doc } = await launch({ fakeSocket: true });
+      try {
+        await waitScreen(win, doc, 'scr-shelf', 9000);
+        await openCassette(win, doc, 'sugoroku');
+        const way = doc.querySelector('#wayChoices [data-way="room"]');
+        if (way) way.click();
+        await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+        const fake = win.__rtFake;
+        await waitFor(win, () => fake.connected, 5000, '疑似socket');
+        fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: 決着の知らせ }) };
+        el(doc, 'rtJoinCode').value = 'ABC234';
+        el(doc, 'rtJoinName').value = 'あき';
+        click(doc, 'rtJoinBtn');
+        await waitFor(win, () => activeScreen(doc) === 'scr-rt-sugo-result', 8000,
+          '入り直しで結果発表へ（現在: ' + activeScreen(doc) + '）');
+        assert(doc.getElementById('rtSugoRsWin').textContent.trim(),
+          '入り直した端末にも、勝者が出ている');
+        assert(doc.querySelectorAll('#rtSugoRsRank .arow').length > 0,
+          '入り直した端末にも、順位が出ている');
+      } finally { win.close(); }
+    });
+
+    await r.test('52-3：大画面も、決着したら確定した順位を出す', async () => {
+      // 離れた席から見ている人に「誰が勝ったか」が一覧から分からないのは、
+      // 大画面の役目を果たしていない。端末と同じものを出す
+      const g = await 決着まで('sugotoll', 3, true);
+      try {
+        const 文 = doc手(g).textContent;
+        g.result.players.forEach((p) => assert(文.indexOf(p.name) >= 0,
+          '大画面に「' + p.name + '」が出ている'));
+        assert(/1位/.test(文), '大画面に順位が出ている（進行中の「あと◯マス」のままにしない）');
+        assert(文.indexOf('さんの番') === -1, '大画面に「さんの番」が残っていない');
+      } finally { g.win.close(); }
+      function doc手(x){ return x.doc.querySelector('.screen.active'); }
+    });
+
+    await r.test('52-3：「どこにいる？」は、決着ではじめて本当の場所を出す', async () => {
+      // `sugoroku-room.js:820` は「決着してはじめて、実位置を明かす」と宣言している。
+      // 盤の画面は申告しか描けないので、**明かす場所は結果発表しかない**。
+      // 明かさないと、宣言だけが残って実装が伴わない（落とし穴33）
+      const g = await 決着まで('sugohide', 3);
+      try {
+        const 一覧 = g.doc.getElementById('rtSugoRsRank').textContent;
+        assert(g.result.players.some((p) => p.pos > 0),
+          '実位置がサーバーから届いている');   // 型(b)
+        assert(一覧.indexOf('まだ申告なし') === -1,
+          '決着後に「まだ申告なし」が残っていない（明かすと宣言した以上、明かす）');
+        const あがり = g.result.players.filter((p) => p.goaled);
+        if (あがり.length) assert(一覧.indexOf('あがり') >= 0, 'あがった人が分かる');
+      } finally { g.win.close(); }
+    });
+  }
 
   r.finish();
 })();

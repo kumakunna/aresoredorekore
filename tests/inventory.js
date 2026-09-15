@@ -95,6 +95,11 @@ const ROOM_EXIT_PATHS = [
   // 5ゲームとも決着後に画面から部屋を出られない状態が残っていた（落とし穴4・20）
   { id: 'sugoroku-leave', kind: 'leave', btn: 'rtSugoLeaveBtn', event: 'room:leave',
     label: 'すごろく画面（決着後）「← 部屋を出る」' },
+  // 第52弾 52-3：結果発表の画面を足したので、出口もそちらへ移った。
+  // 盤の側（上）は残す——決着の知らせが届く前にこの画面にいる瞬間があり、
+  // そこでも出られる方が安全（落とし穴18）
+  { id: 'sugoroku-result-leave', kind: 'leave', btn: 'rtSugoResultLeaveBtn', event: 'room:leave',
+    label: 'すごろく結果発表「← 部屋を出る」' },
   { id: 'big-leave', kind: 'leave', btn: 'bigLeaveBtn', event: 'room:leave',
     label: '大画面「← 部屋を出る」' },
   { id: 'settings-leave', kind: 'leave', btn: null, event: 'room:leave',

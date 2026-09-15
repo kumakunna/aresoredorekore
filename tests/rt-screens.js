@@ -2739,7 +2739,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 決着は「部屋の知らせ」と「自分の情報」に分かれて届く。
     // 自分の情報も決着のものになってはじめて数える（第34弾で踏んだ順番の罠）
     pushYou(fake, { game: 'sugotoll', phase: 'ended', pos: 40, left: 0 });
-    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    await waitScreen(win, doc, 'scr-rt-sugo-result', 4000);
+    // 第52弾 52-3：決着したら結果発表へ移る。**見ているのは称号が数えられるか**なので、
+    // 着く画面が変わっても主張は変わらない（画面idを固定しているだけの行）
     await waitFor(win, () => sent.length >= 1, 3000, '称号が数えられる');
     const sg = sent[sent.length - 1].stats.sugoroku;
     assertEqual(sg.plays, 1, 'すごろくを遊んだ回数が増える（' + JSON.stringify(sg) + '）');
@@ -2781,7 +2783,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       }
     }));
     pushYou(fake, { game: 'sugohide', phase: 'ended', pos: 30, left: 0 });
-    await waitScreen(win, doc, 'scr-rt-sugoroku', 4000);
+    await waitScreen(win, doc, 'scr-rt-sugo-result', 4000);
+    // 第52弾 52-3：決着したら結果発表へ移る。**見ているのは称号が数えられるか**なので、
+    // 着く画面が変わっても主張は変わらない（画面idを固定しているだけの行）
     await waitFor(win, () => sent.length >= 1, 3000, '称号が数えられる');
     const sg = sent[sent.length - 1].stats.sugoroku;
     assertEqual(sg.goals, 1, 'あがったことが数えられる（' + JSON.stringify(sg) + '）');

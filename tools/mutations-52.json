@@ -134,5 +134,45 @@
     "from": "      ms: fxMs,          // 「演出の速さ」設定を通す",
     "to": "      ms: function(m){ return m; },",
     "expect": "スキップなら、演出を待たずに結果まで進む"
+  },
+  {
+    "name": "52-3A 決着しても盤の画面に留まる（結果発表へ行かない）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    return (v && v.phase === 'ended') ? 'scr-rt-sugo-result' : 'scr-rt-sugoroku';",
+    "to": "    return 'scr-rt-sugoroku';",
+    "expect": "決着したら結果発表へ（盤に留まらない）"
+  },
+  {
+    "name": "52-3B 1位を1人しか出さない（同着の日に片方が消える）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    var 勝ち = res.players.filter(function(p){ return p.rank === 1; });",
+    "to": "    var 勝ち = res.players.slice(0, 1);",
+    "expect": "が大きく出ている（同着なら全員）"
+  },
+  {
+    "name": "52-3C 順位表を1位だけにする（全員ぶん出さない）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    el('rtSugoRsRank').innerHTML = res.players.map(function(p){\n      return sugoRankRow(p, res);\n    }).join('');",
+    "to": "    el('rtSugoRsRank').innerHTML = sugoRankRow(res.players[0], res);",
+    "expect": "全員ぶんの順位が並ぶ"
+  },
+  {
+    "name": "52-3D 大画面が決着でも進行中の行を出す（実位置を明かさない）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    if(v.phase === 'ended' && v.result && v.result.players){",
+    "to": "    if(false && v.phase === 'ended' && v.result && v.result.players){",
+    "expect": "大画面に順位が出ている"
+  },
+  {
+    "name": "52-3E すごろくのゲームidを配列から引けなくする（5ゲームが一覧から落ちる）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    .filter(function(g){ return [].concat(RT_GAME_SCREENS[g]).indexOf('scr-rt-sugoroku') !== -1; });",
+    "to": "    .filter(function(g){ return RT_GAME_SCREENS[g] === 'scr-rt-sugoroku'; });",
+    "expect": "決着したら結果発表へ（盤に留まらない）"
   }
 ]

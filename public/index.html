@@ -2417,19 +2417,30 @@
   /* 第48弾 48-3：盤のマスの番号。知らせと答え合わせが「3ばんめのコード」と
      言うのに、盤に番号が1つも無かった——数えようがない。
      押すものではないので、指を取らない（pointer-events:none） */
+  /* 第52弾 52-5：番号は**右下**（本人の実機フィードバック）。
+     左上だと、指で押さえる手に隠れる位置から読むことになる。
+     **✕ と場所を入れ替えた**——✕ が右下に居たので、番号だけ動かすと重なる。
+     ✕ は「だれかが外した」という一番強い知らせなので、
+     先に目が行く左上へ。3つの印（番号・✕・ここをタップ）が
+     三方向に分かれて、どの文字サイズでも重ならない（下の検査で実測） */
   .bw-no{
-    position:absolute;left:4px;top:3px;font-size:9px;line-height:1;
+    position:absolute;right:4px;bottom:3px;font-size:9px;line-height:1;
     color:var(--ink-soft);pointer-events:none;font-family:'DotGothic16',monospace;
   }
   /* だれかが外したコード。**色ではなく印**で示す（安全基準）。
      テーマ有りは overflow:hidden なので、はみ出さない位置に置く */
   .bomb-wire-btn.missed::after{
-    content:'✕';position:absolute;right:3px;bottom:2px;
+    content:'✕';position:absolute;left:3px;top:2px;
     font-size:10px;line-height:1;color:var(--danger,#e2584a);pointer-events:none;
   }
   /* 初回だけの「ここをタップ」。1つのマスにだけ添える */
+  /* 第52弾 52-5：番号が右下に来たので、**案内は上へ逃がす**。
+     下のままだと実測で 4×4px かぶった（3つの文字サイズすべてで）。
+     この案内が付くのは「まだ挑んでいないマス」だけ（`bombGridHtml`）なので、
+     左上の ✕（＝だれかが外した印）とは**同じマスに同時に出ない**。
+     だから上を使っても、ぶつかる相手がいない */
   .bw-tip{
-    position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);
+    position:absolute;left:50%;top:2px;transform:translateX(-50%);
     font-size:8.5px;line-height:1;white-space:nowrap;
     color:var(--ink-soft);pointer-events:none;
   }
@@ -21024,7 +21035,7 @@
    *   まだ挑んでいない   ➰
    *   自分がいま開けている 🔎 ＋ 縁が太い（.mine）
    *   ほかの人が挑戦中     名前の頭1文字 ＋ 薄く点滅（.taken）
-   *   だれかが外した       ➰ ＋ 右上に ✕（.missed）
+   *   だれかが外した       ➰ ＋ **左上**に ✕（.missed）
    *   解除済み             ✅ ＋ 地が変わる（.solved）
    */
   function bombCellHtml(cell){

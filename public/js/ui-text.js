@@ -253,6 +253,17 @@
     もどせない: 'もどせるのは、止めた人か進行役です'
   };
 
+  /**
+   * 第52弾 52-2：**ログインが切れていた時の言い方。**
+   * サーバーの `要ログイン` がそのまま画面に出ていた（本人の実機報告）——
+   * あれは機械どうしの符丁で、遊ぶ人に向けた言葉ではない。
+   * **責めない・次の一手を書く**（指示40のトーン）
+   */
+  var AUTH = {
+    切れた: 'ログインが切れていました。もう一度ログインすると、つづきから使えます',
+    未ログイン: 'ログインすると、名前を保存できます'
+  };
+
   var TOPIC = {
     一周した: 'お題を一周しました。ここからは、もう一度めぐります'
   };
@@ -517,5 +528,6 @@
 
   return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET,
            TITLES: TITLES, TIMER: TIMER, BOMB: BOMB,
-           WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC, PAUSE: PAUSE };
+           WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC, PAUSE: PAUSE,
+           AUTH: AUTH };
 }));

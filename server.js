@@ -8,6 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const db = require('./db');
 const { parseRegisterCodes, matchesRegisterCode } = require('./register-code');
+const { SqliteSessionStore } = require('./session-store');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,8 +32,20 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 // 第19弾：socket.io にも同じセッションを通すため、ミドルウェアを変数に取り出しておく。
 // これで socket.request.session.userId と req.session.userId が同じものになる。
+/**
+ * 第52弾 52-2：**ログインの記憶を、プロセスの外に置く。**
+ *
+ * `store` を渡さないと既定の MemoryStore になり、**再起動で全部消える**。
+ * `tools/deploy.sh` は更新のたび `pm2 restart` するので、
+ * push するたびに全員のセッションが消えていた——cookie の署名は
+ * `SESSION_SECRET` で有効なままなので、**ブラウザは cookie を送り続け、
+ * サーバーだけが「知らない」と答える**。
+ * 遊ぶ人には「ログインしているのに『要ログイン』と出る」としか見えない
+ *（本人の実機報告。名前変更の画面で出た）
+ */
 const sessionMiddleware = session({
   secret: SESSION_SECRET,
+  store: new SqliteSessionStore({ db }),
   resave: false,
   saveUninitialized: false,
   proxy: true,

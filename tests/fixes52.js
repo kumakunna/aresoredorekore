@@ -28,7 +28,8 @@
 // `state.players` へ手で代入しない。棚→遊び方→ゲーム→登録→終了→棚、と人が歩く順に歩く。
 
 const { createRunner, assert, assertEqual,
-  launch, activeScreen, sleep, waitScreen, el, click, openCassette, autoDialog } = require('./harness');
+  launch, activeScreen, sleep, waitScreen, waitFor, el, click, openCassette, autoDialog } = require('./harness');
+const UiText = require('../public/js/ui-text');
 
 /** 棚のチップで人数を選ぶ（本物のシートを開いて押す） */
 async function 人数をえらぶ(win, doc, n) {
@@ -224,6 +225,62 @@ async function ゲームを終了(win, doc) {
       assertEqual(activeScreen(doc), 'scr-mode',
         '同じ顔ぶれで続ける人は、いままで通り登録画面を飛ばす');
     } finally { stop(); win.close(); }
+  });
+
+  // ===================== 52-2 ログインが切れた時 =====================
+  //
+  // サーバー側（セッションを SQLite に置く）は tests/session-store.js。
+  // ここは**端末側**——401を受けた時に、端末が「ログイン済み」のまま固まらないか。
+
+  await r.test('52-2：401を受けたら、端末も「ログイン済み」を降ろして、ログインし直せる', async () => {
+    const { win, doc } = await launch({});
+    const el2 = (id) => doc.getElementById(id);
+    const active = () => (doc.querySelector('.screen.active') || {}).id;
+    try {
+      await waitFor(win, () => el2('shelfName') && el2('shelfName').textContent, 8000, '起動');
+      // **型(b)：ログイン済みの状況が、本当に作れているか。**
+      // ここが未ログインのままだと、下の検査は全部自明に通る
+      win.authProbe({ id: 1, username: 'kuma-id', displayName: 'くまくん' });
+      await sleep(win, 60);
+      assertEqual(el2('shelfName').textContent, 'くまくん', 'まずログイン済みにできている');
+
+      // ＝ pm2 restart のあと。以後すべて401
+      win.fetch = async function (url) {
+        const p = String(url).split('?')[0];
+        return { ok: false, status: 401,
+          json: async () => ({ error: p === '/api/auth/me' ? '未ログイン' : '要ログイン' }) };
+      };
+
+      win.goToProbe('scr-titles');
+      await sleep(win, 60);
+      doc.querySelector('#scr-titles [data-profgo="rename"]').click();
+      await waitFor(win, () => active() === 'scr-rename' || active() === 'scr-login', 4000, '名前変更へ');
+      assertEqual(active(), 'scr-rename', '端末はまだログイン済みのつもりなので、名前変更に入る');
+
+      el2('renameInput').value = 'あたらしい名前';
+      el2('renameNote').textContent = '';   // 入場時の注記を消してから押す（10-b）
+      el2('renameBtn').click();
+      await waitFor(win, () => (el2('renameNote').textContent || '').length > 0, 4000, '返事');
+
+      // **サーバーの符丁をそのまま出さない**（指示40のトーン）
+      assertEqual(el2('renameNote').textContent, UiText.AUTH.切れた,
+        '「要ログイン」ではなく、次の一手が書いてある');
+      assert(!/要ログイン/.test(el2('renameNote').textContent),
+        'サーバーの符丁が、そのまま画面に出ていない');
+
+      // **ここが本題**：端末の「ログイン済み」が降りたか
+      await sleep(win, 100);
+      assert(el2('shelfName').textContent !== 'くまくん',
+        '401のあと、端末は自分をログイン済みだと思っていない');
+
+      // 降りたので、もう一度押せばログインを頼める（＝詰まない）
+      win.goToProbe('scr-titles');
+      await sleep(win, 60);
+      doc.querySelector('#scr-titles [data-profgo="rename"]').click();
+      await waitFor(win, () => active() === 'scr-login' || active() === 'scr-rename', 4000, '2回目');
+      assertEqual(active(), 'scr-login',
+        '2回目はログイン画面に行ける（開き直す以外に道が無い、を作らない）');
+    } finally { win.close(); }
   });
 
   r.finish();

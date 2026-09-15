@@ -7874,7 +7874,15 @@
       goBack('scr-titles');
       renderTitleScreen();
     }catch(e){
-      el('renameNote').textContent = e.message || '変えられませんでした';
+      /**
+       * 第52弾 52-2：サーバーの `要ログイン` を、そのまま出さない。
+       * あれは機械どうしの符丁で、遊ぶ人には何をすればいいか分からない。
+       * `api()` が401で `setUser(null)` を済ませているので、
+       * ここは**次の一手**だけを書く（指示40のトーン）
+       */
+      el('renameNote').textContent = (e.status === 401)
+        ? UiText.AUTH.切れた
+        : (e.message || '名前を変えられませんでした');
     }
     this.disabled = false;
   });
@@ -8719,6 +8727,26 @@
     var data = null;
     try{ data = await res.json(); }catch(e){}
     if(!res.ok){
+      /**
+       * 第52弾 52-2：**401を受けたら、端末側の「ログイン済み」も降ろす。**
+       *
+       * ここには401の共通処理が1つも無かった。入口の門は
+       * `loggedIn()`＝`!!state.displayName`（端末の記憶だけ）なので、
+       * サーバーがセッションを失っても**端末はログイン済みのつもりのまま固まる**
+       * ——設定は「ログイン中：〇〇」と出して「ログインする」ボタンを隠すので、
+       * **アプリを開き直す以外に回復する道が無かった**（本人の実機報告）。
+       *
+       * 落とし穴14「状態の権威はサーバー」を、**逆向きにも効かせる**。
+       * 第32弾-C は「未ログインに見える時はサーバーに聞き直す」を入れたが、
+       * その裏返し（端末はログイン済みのつもり／サーバーは知らない）を
+       * 誰も見ていなかった（落とし穴20：照合には向きがある）。
+       *
+       * `/api/auth/me` だけは通す——あれは「いま誰か」を聞く窓口で、
+       * 401はその正しい答え。ここで降ろすと `setUser` が二重に走る
+       */
+      if(res.status === 401 && path.indexOf('/api/auth/me') === -1 && loggedIn()){
+        setUser(null);
+      }
       var err = new Error((data && data.error) || MSG.通信できない(res.status));
       err.status = res.status;
       throw err;

@@ -149,7 +149,7 @@
     "suite": "tests/fixes52.js",
     "from": "    var 勝ち = res.players.filter(function(p){ return p.rank === 1; });",
     "to": "    var 勝ち = res.players.slice(0, 1);",
-    "expect": "が大きく出ている（同着なら全員）"
+    "expect": "も勝者として出る"
   },
   {
     "name": "52-3C 順位表を1位だけにする（全員ぶん出さない）",

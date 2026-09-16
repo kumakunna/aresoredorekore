@@ -237,5 +237,54 @@ const 端末 = (rm, id) => rm.all.find((d) => d.memberId === id);
     } finally { await srv.close(); }
   });
 
+  await r.test('Q10：話し合いの時計は、全端末と大画面で同じものを見る（締め切りはサーバー）', async () => {
+    const srv = await startTestServer();
+    try {
+      // 5人で作り、1人を大画面にする（**進行役は大画面になれない**ので、ホスト以外を選ぶ）
+      const rm = await makeRoom(srv, 5);
+      const 画面役 = rm.guests[rm.guests.length - 1];
+      const 役 = await 画面役.call('room:setRole', { role: 'bigscreen' });
+      assertEqual(役.ok, true, '大画面になれる');
+
+      const res = await rm.host.call('wolf:start', { game: 'falsetrue', talkSec: 30 });
+      assertEqual(res.ok, true, '4人＋大画面で始まる');
+      await waitUntil(() => viewOf(rm.host) && viewOf(rm.host).phase === 'pick', 'pick に入る');
+      assertEqual(viewOf(rm.host).cases.length, 4, '大画面は人数に数えない（ケースは4枚）');
+
+      // 話し合いまで、時計で進める
+      for (let i = 0; i < 6; i++) {
+        const v = viewOf(rm.host);
+        if (v.phase === 'talk') break;
+        const 前 = v.phase;
+        rush(srv, rm.code);
+        await waitUntil(() => viewOf(rm.host).phase !== 前, 前 + ' から進む');
+      }
+      assertEqual(viewOf(rm.host).phase, 'talk', '話し合いに入った');
+      await waitUntil(() => rm.all.every((d) => viewOf(d) && viewOf(d).phase === 'talk'),
+        '全端末と大画面に、話し合いが届く');
+
+      // **締め切りはサーバーが1つだけ持つ。**端末はそれを映すだけ
+      const w = stateOf(srv, rm.code);
+      assert(w.deadline, 'サーバーが締め切りを持っている');
+      const 残り = rm.all.map((d) => viewOf(d).remainingMs);
+      const 幅 = Math.max.apply(null, 残り) - Math.min.apply(null, 残り);
+      assert(幅 <= 1500, '全端末の残り時間がそろっている（ばらつき ' + 幅 + 'ms）');
+      // 大画面にも同じものが届く
+      assertEqual(typeof viewOf(画面役).remainingMs, 'number', '大画面にも残り時間が届く');
+      // **大画面はプレイヤーではないので、秘密は1つも受け取らない**
+      assertEqual(youOf(画面役), null, '大画面には秘密が届かない');
+      // どの端末の公開ビューにも中身が入っていない
+      rm.all.forEach((d) => {
+        assert(JSON.stringify(viewOf(d)).indexOf('myContent') === -1,
+          d.name + ' の公開スナップショットに中身が無い');
+      });
+      // 締め切りを追い越せば、全端末がそろって次の段階へ行く
+      rush(srv, rm.code);
+      await waitUntil(() => rm.all.every((d) => viewOf(d) && viewOf(d).phase === 'decide'),
+        '締め切りで、全端末がそろって決める段階へ');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 })();

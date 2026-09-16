@@ -20,6 +20,7 @@ const DefuseRoom = require('./defuse-room.js');
 const QuizRoom = require('./quiz-room.js');
 const AuctionRoom = require('./auction-room.js');
 const SugorokuRoom = require('./sugoroku-room.js');
+const FalseTrueRoom = require('./falsetrue-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -50,7 +51,10 @@ const GAME_DRIVERS = {
   sugograb: { driver: SugorokuRoom, key: 'sugoroku' },
   sugopair: { driver: SugorokuRoom, key: 'sugoroku' },
   sugohide: { driver: SugorokuRoom, key: 'sugoroku' },
-  sugohand: { driver: SugorokuRoom, key: 'sugoroku' }
+  sugohand: { driver: SugorokuRoom, key: 'sugoroku' },
+  // 指示53：カセット「False or True」。部屋（1人1台）専用。
+  // 中身は1ビットしかないので、秘密の扱いがこのゲームの芯（falsetrue-room.js の冒頭）
+  falsetrue: { driver: FalseTrueRoom, key: 'falsetrue' },
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -541,6 +545,33 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.quiz) return recordQuizMatch(room);
     if (room.auction) return recordAuctionMatch(room);
     if (room.sugoroku) return recordSugorokuMatch(room);
+    if (room.falsetrue) return recordFalseTrueMatch(room);
+  }
+
+  /**
+   * 指示53：False or True。**1人だけの勝者にしない**（設計メモ）ので、
+   * 順位ではなく「生存したか」だけを残す。生存＝1点・脱落＝0点。
+   * 途中で抜けた人は、生存でも脱落でもないので記録に入れない
+   */
+  function recordFalseTrueMatch(room) {
+    if (!db || !room.ownerUserId || !room.falsetrue) return;
+    try {
+      const view = FalseTrueRoom.resultView(room);
+      const 居た = view.players.filter((p) => !p.gone);
+      const names = 居た.map((p) => p.name);
+      const finalScores = {};
+      居た.forEach((p) => { finalScores[p.name] = p.fate === 'alive' ? 1 : 0; });
+      const rounds = [{
+        mode: 'falsetrue',
+        game: 'falsetrue',
+        style: 'realtime',
+        endReason: view.endReason,
+        survivors: view.survivors,
+        ranking: 居た.map((p) => ({ name: p.name, fate: p.fate })),
+        deltas: finalScores
+      }];
+      saveMatchRecord(room, names, rounds, finalScores);
+    } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
   }
 
   // 第36弾：すごろく。あがった順と、進んだ距離・残りコインがそのまま成績

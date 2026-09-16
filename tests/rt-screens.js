@@ -1469,12 +1469,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // **安全策そのものは変わっていない**——部屋を閉じてから進む
     assertEqual(activeScreen(doc), 'scr-play-way', '確認の画面が出る');
     const 文面 = el(doc, 'scr-play-way').textContent;
-    assert(/閉じ/.test(文面), '部屋を閉じることが書いてある（実際: ' + 文面.replace(/\s+/g, ' ').trim().slice(0, 70) + '）');
+    assert(/とじ/.test(文面), '部屋をとじることが書いてある（実際: ' + 文面.replace(/\s+/g, ' ').trim().slice(0, 70) + '）');
     assert(el(doc, 'wayCancelBtn').textContent.length > 0, 'やめる道がある');
     assert(/全員/.test(文面), '「部屋にいる全員が終わる」ことが書いてある');
     // 進む道の札にも、何が起きるかが書いてある（押す前に読める）
     const 進む = doc.querySelector('#wayChoices [data-way]');
-    assert(進む && /閉じ/.test(進む.textContent),
+    assert(進む && /とじ/.test(進む.textContent),
       '進むボタンの札にも書いてある（実際: ' + (進む ? 進む.textContent : 'なし') + '）');
     click(doc, 進む);
 
@@ -1710,7 +1710,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 50);
     assert(el(doc, 'albumOverlay').classList.contains('show'), '受け渡しの画面が開く');
     const warn = doc.querySelector('#albumOverlay .album-warn').textContent;
-    assert(/サーバーから消されます！/.test(warn), '赤字の明示①（指示の必須事項）');
+    assert(/サーバーから消します/.test(warn), '赤字の明示①（指示の必須事項）');
     assert(/今この一度しか/.test(warn), '赤字の明示②');
     // サーバーから消えた知らせは、はっきり伝わる
     fake.fire('album:update', { count: 0, names: [], cleared: true });
@@ -3850,7 +3850,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 600);
     const dlg = H.openDialog(doc);
     assert(dlg, '知らせが出る');
-    assert(/閉じ/.test(dlg.見出し + dlg.本文), '部屋が閉じたことが読める（' + dlg.見出し + '）');
+    assert(/とじ/.test(dlg.見出し + dlg.本文), '部屋がとじたことが読める（' + dlg.見出し + '）');
     assertNoErrors(errors, '解散の知らせで未捕捉の例外');
     win.close();
   });
@@ -4621,14 +4621,14 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
   // ---- 第41弾 2-15：役割の切り替え（ホスト→ゲスト）----
 
-  await r.test('「自分がゲストになる」は、進行役にだけ出る（2-15）', async () => {
+  await r.test('「自分が参加者になる」は、進行役にだけ出る（2-15）', async () => {
     // ゲスト→ホストは既存の「進行役をゆずる」で足りる。
     // 足りないのは**ホスト→ゲスト**——進行役をやめて、別の人の部屋に入りたくなる場面
     const a = await launch(LAUNCH);
     await toRoom(a.win, a.doc, { pick: false });          // 自分がホスト
     assertEqual(a.win.roleProbe().host, true, 'ホストとして部屋にいる');   // 型(b)
     assert(a.win.roleProbe().ゲストになる道, 'ホストには出る');
-    assert(/ゲスト/.test(el(a.doc, 'rtToGuestBtn').textContent),
+    assert(/参加者/.test(el(a.doc, 'rtToGuestBtn').textContent),
       '札で何をするか分かる：' + el(a.doc, 'rtToGuestBtn').textContent);
     a.win.close();
 
@@ -4640,7 +4640,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     b.win.close();
   });
 
-  await r.test('ゲストになると、部屋を閉じてから「部屋に入る」に着く（2-15・門D21）', async () => {
+  await r.test('参加者になると、部屋をとじてから「部屋に入る」に着く（2-15・門D21）', async () => {
     // **部屋を残したまま自分だけゲストになる中間状態は作らない。**
     // 進行役のいない部屋は、誰も進められない部屋になる
     const { win, doc, errors } = await launch(LAUNCH);
@@ -4651,8 +4651,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await waitFor(win, () => H.openDialog(doc), 3000, '確認が出る');
     const dlg = H.openDialog(doc);
     assertEqual(dlg.種類, 'danger', '部屋ごと閉じるので、取り返しがつかない側で出る');
-    assert(/ゲスト/.test(dlg.見出し), '見出しで何をするか分かる（' + dlg.見出し + '）');
-    assert(/閉じ/.test(dlg.本文) && /全員/.test(dlg.本文),
+    assert(/参加者/.test(dlg.見出し), '見出しで何をするか分かる（' + dlg.見出し + '）');
+    assert(/とじ/.test(dlg.本文) && /全員/.test(dlg.本文),
       '本文に「部屋が閉じる・全員が退出する」が書いてある（' + dlg.本文 + '）');
 
     // やめる道があること（取り返しがつかないので、逃げ道は要る）
@@ -4684,7 +4684,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await waitFor(win, () => H.openDialog(doc), 3000, '知らせが出る');
     const dlg = H.openDialog(doc);
     assertEqual(dlg.種類, 'info', '判断は無いので info');
-    assert(/閉じ/.test(dlg.見出し), '何が起きたかが伝わる（' + dlg.見出し + '）');
+    assert(/とじ/.test(dlg.見出し), '何が起きたかが伝わる（' + dlg.見出し + '）');
     assert(/あき/.test(dlg.本文), '誰が閉じたかも伝わる（' + dlg.本文 + '）');
     assert(/部屋に入る/.test(el(doc, 'rtLobbyTitle').textContent), '着いたのは「部屋に入る」');
     assertNoErrors(errors, '閉じられた側で未捕捉の例外');

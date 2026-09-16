@@ -1483,7 +1483,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         return fail(cb, 'bad_photo', '写真の形式が読めません');
       }
       if (photo.length > 1.6 * 1024 * 1024) {
-        return fail(cb, 'too_large', '写真が大きすぎます（端末側で縮小してから送ってください）');
+        return fail(cb, 'too_large', '写真が大きすぎて、送れませんでした');
       }
       room.album = room.album || { photos: new Map(), updatedAt: Date.now() };
       room.album.photos.set(me.id, { name: me.name, photo, at: Date.now() });

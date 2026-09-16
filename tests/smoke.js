@@ -3155,10 +3155,12 @@ async function startModeWithTimerOff(win, doc, id) {
     const cart = doc.querySelector('.cart[data-cart="bakudan"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    assert(app.classList.contains('theme-bomb'), 'ゲーム選択からもう制御盤になる');
-    pickGame(doc, 'bomb');
-    await sleep(win, 60);
+    // **中身が1つになったので、ゲーム選択は挟まらない**（指示49 49-7）。
+    // その次に来る「遊び方の確認」は THEME_FREE_SCREENS なので、
+    // ここは素のまま——**それが正しい**（道具は世界の外にある・正本1-3）
+    await passGameSelect(win, doc, 'bomb');
+    passPlayWay(doc);
+    await sleep(win, 80);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     assert(app.classList.contains('theme-bomb'), 'モード選択でも続く');
@@ -3595,13 +3597,19 @@ async function startModeWithTimerOff(win, doc, id) {
     // 一覧で付け外ししていないと「爆弾解除の黒いまま人狼を遊ぶ」ことになる
     const { win, doc, errors } = await launch();
     const app = el(doc, 'app');
+    // **爆弾解除は中身が1つなのでゲーム選択を挟まない**（指示49 49-7）。
+    // テーマが付くのは「遊び方の確認」の先（あそこは道具の画面なので素のまま）
     const bomb = doc.querySelector('.cart[data-cart="bakudan"]');
     bomb.click();
     if (activeScreen(doc) === 'scr-shelf') bomb.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
+    await passGameSelect(win, doc, 'bomb');
+    passPlayWay(doc);
+    await sleep(win, 80);
+    await fillPlayerForm(win, doc, PLAYERS);
+    await waitScreen(win, doc, 'scr-mode', 3000);
     assert(app.classList.contains('theme-bomb'), 'まず爆弾解除のテーマ');
 
-    click(doc, doc.querySelector('#scr-game [data-go-shelf]'));
+    click(doc, 'backToShelfBtn');
     await waitScreen(win, doc, 'scr-shelf', 3000);
     assert(!app.classList.contains('theme-bomb'), '棚では外れる');
 

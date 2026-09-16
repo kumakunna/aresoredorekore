@@ -32,29 +32,34 @@ function seeded(seed) {
       { 人: 5, ケース: 5, true: 1, false: 4 },
       { 人: 6, ケース: 6, true: 2, false: 4 },   // 設計メモの表。本文の「端数は false 側」だと 1:5 になる
       { 人: 7, ケース: 7, true: 2, false: 5 },   // 表に無い。本人の裁定（2026-09-16）で 2
-      { 人: 8, ケース: 8, true: 2, false: 6 }
+      { 人: 8, ケース: 8, true: 2, false: 6 },
+      // ---- 指示54：上限が12人になった分 ----
+      { 人: 9, ケース: 9, true: 2, false: 7 },    // 9/4=2.25 → 2
+      { 人: 10, ケース: 10, true: 3, false: 7 },  // 10/4=2.5 → **3**（round は半分を上へ）
+      { 人: 11, ケース: 11, true: 3, false: 8 },  // 11/4=2.75 → 3
+      { 人: 12, ケース: 12, true: 3, false: 9 }   // 12/4=3.0 → 3。**ちょうど 1:3 ＝ 25%**
     ];
     表.forEach((行) => {
       assertEqual(L.caseCount(行.人), 行.ケース, 行.人 + '人のケースは ' + 行.ケース + ' 枚');
       assertEqual(L.trueCount(行.人), 行.true, 行.人 + '人の true は ' + 行.true + ' 枚');
       assertEqual(L.falseCount(行.人), 行.false, 行.人 + '人の false は ' + 行.false + ' 枚');
     });
-    assertEqual(表.length, 5, '4〜8人を全部見た（実際:' + 表.length + '）');   // 型(b)：数を先に主張する
+    assertEqual(表.length, 9, '4〜12人を全部見た（実際:' + 表.length + '）');   // 型(b)：数を先に主張する
   });
 
   await r.test('true は必ず1つ以上。false のほうが必ず多い', async () => {
     const 見た = [];
-    for (let n = 4; n <= 8; n++) {
+    for (let n = 4; n <= 12; n++) {
       assert(L.trueCount(n) >= 1, n + '人：true が1つ以上ある');
       assert(L.falseCount(n) > L.trueCount(n),
         n + '人：false のほうが多い（' + L.trueCount(n) + ' : ' + L.falseCount(n) + '）');
       見た.push(n);
     }
-    assertEqual(見た.length, 5, '5通りの人数を見た');
+    assertEqual(見た.length, 9, '9通りの人数を見た（4〜12人）');
   });
 
   await r.test('中身の並びは、数が合っていて、種が違えば並びも変わる', async () => {
-    for (let n = 4; n <= 8; n++) {
+    for (let n = 4; n <= 12; n++) {
       const a = L.makeContents(n, seeded(1));
       assertEqual(a.length, L.caseCount(n), n + '人：枚数が合っている');
       assertEqual(a.filter(Boolean).length, L.trueCount(n), n + '人：true の数が合っている');
@@ -153,6 +158,31 @@ function seeded(seed) {
     });
     assertEqual(L.normalizeConfig().talkSec, 60, '設定そのものが無くても既定になる');
     assertEqual(L.RULES.TALK_CHOICES.join(','), '30,60,90', '選べるのは3つだけ');
+  });
+
+  await r.test('人数の下限と上限が、具体の数字で決まっている（指示54で 8 → 12）', async () => {
+    // **ルール層に人数の主張が1つも無かった**（指示54の棚卸しで見つけた）。
+    // auction は tests/auction-logic.js で値そのものを固定しているのに、こちらは
+    // 13人の検体しか無く、**誰かが 8 に戻しても気づける所が1つ**しかなかった
+    assertEqual(L.RULES.MIN_PLAYERS, 4, '4人から遊べる');
+    assertEqual(L.RULES.MAX_PLAYERS, 12, '12人まで遊べる');
+
+    /**
+     * **サーバーと端末で、上限の写しが食い違っていないか。**
+     *
+     * サーバーは `RULES.MAX_PLAYERS` を見て断り、
+     * 端末は `GAMES` の `maxPlayers` を見てボタンを止める。
+     * **別々に手で書いた同じ数**なので、片方だけ直すと
+     * 「押せるのに始まらない」か「押せないのに始まる」になる（落とし穴1）。
+     * どちらが古いかは、値を見るだけでは分からない——だから両方を突き合わせる
+     */
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 行 = /\{ id:'falsetrue',[^}]*?maxPlayers:(\d+)[^}]*\}/.exec(html);
+    assert(行, 'GAMES に falsetrue の行があり、maxPlayers を書いている');
+    assertEqual(parseInt(行[1], 10), L.RULES.MAX_PLAYERS,
+      '端末の GAMES.maxPlayers と、サーバーの RULES.MAX_PLAYERS が同じ数');
   });
 
   await r.test('締め切りの安全弁は、全部の段階に値がある（押さなくても止まらない）', async () => {

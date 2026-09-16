@@ -2067,6 +2067,15 @@
     gap:12px;
     margin-top:14px;
   }
+  /* 指示54：**9枚以上は4列にする。**
+     使える幅は 375 −（.screen の左右 padding 22×2）＝ 331px。
+     84px の下限だと4列（84×4＋12×3 ＝ 372）が入らないので3列になり、
+     12枚で4段＝581.8px——8枚3段（433.3px）から +148.5px 伸びて画面から出る。
+     **4列にすると12枚でも3段＝319px** で、いまの8枚より114px短くなる。
+     下限を下げる（minmax(70px,…)）形だと**8枚のときも4列になる**ので、
+     8枚以下の見た目を変えない約束（指示54 §6）を守るために修飾クラスで分ける。
+     カードは 73.8×98.3px で、指の最小44pxを大きく超える */
+  .ft-cases.is-many{ grid-template-columns:repeat(4, 1fr); }
   .ft-case{
     /* .btn を土台に敷いた上で、並べ方だけを足す（落とし穴31） */
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -6549,7 +6558,7 @@
     // 落札できなかった人は何も失わない（それでも毎回することがある＝値踏み）。
     // 人数の下限は auction-logic.js の MIN_PLAYERS が正本。
     // ここの数字と食い違わないことは tests/shelf.js が機械照合する
-    // 指示53：False or True。部屋（1人1台）専用・4〜8人。
+    // 指示53：False or True。部屋（1人1台）専用・4〜12人（上限は指示54で8→12）。
     // ルール文は設計メモの流れをそのまま「遊ぶ人の言葉」にしたもの
     {id:"falsetrue", icon:"💼", title:"False or True", sub:"中身を知っているのは持っている人だけ", advanced:false, strict:false, oneWord:false, falseTrue:true, roomOnly:true, game:'falsetrue', minPlayers:4,
       bullets:["ケースが人数ぶんならぶ。中身は TRUE か FALSE で、FALSE のほうが多い","えらばれた人がケースを1つえらび、中身を自分だけが見る","そのあと、別の人と対面して話し合う","話し合いが終わったら、相手が「奪う」か「奪わない」かを決める","奪って TRUE なら相手が生存、FALSE なら相手が脱落","奪わずに TRUE なら持っていた人が生存、FALSE なら脱落","生存か脱落が決まった人は、そこで上がり。残った人だけで続ける","最後まで決まらなかった人は自動で生存。生存した人は全員が勝ち"]},
@@ -6765,13 +6774,22 @@
    * 個別のゲームの制限は、popup のゲーム一覧で行ごとに出す（2-7）。
    * 「沈める・消さない・はじめるだけ押せず理由が出る」（2-3）と対になる二段構え。
    */
+  /**
+   * そのゲーム1つの人数の上限。**0 は「上限なし」**、省略時は8人
+   * （GAMES のコメントに書いてある決まり）。
+   *
+   * 指示54：この既定の解きほぐしが2か所に写してあったので1か所にまとめた。
+   * 写しが残っていると、既定を変えた日に片方だけ古びる（落とし穴1）
+   */
+  function gameMaxPlayers(gameId){
+    var g = (typeof gameId === 'string') ? gameById(gameId) : gameId;
+    if(!g) return 0;
+    return (g.maxPlayers === undefined) ? 8 : g.maxPlayers;
+  }
   function cassetteMaxPlayers(c){
     var gs = cassetteGames(c).map(gameById).filter(Boolean);
     if(!gs.length) return null;
-    // 省略時は8人、0は上限なし（GAMES のコメントに書いてある決まり）
-    var caps = gs.map(function(g){
-      return (g.maxPlayers === undefined) ? 8 : g.maxPlayers;
-    });
+    var caps = gs.map(gameMaxPlayers);
     // 1つでも「上限なし」があれば、カセット全体も上限なし
     if(caps.indexOf(0) !== -1) return 0;
     return Math.max.apply(null, caps);
@@ -6786,7 +6804,7 @@
       var v = modeMinPlayers(m);
       return a === null ? v : Math.min(a, v);
     }, null);
-    var hi = (g.maxPlayers === undefined) ? 8 : g.maxPlayers;
+    var hi = gameMaxPlayers(g);
     if(hi === 0) return lo + "人〜";
     return lo === hi ? (lo + "人") : (lo + "〜" + hi + "人");
   }
@@ -8832,8 +8850,11 @@
     { id:'sugograb',        title:'こまはひとつ',       icon:'🀄', sub:'ミニゲームで勝った人だけが、たった1つの駒を動かせる', maxPlayers:8 },
     { id:'sugotoll',        title:'つうこうりょう',     icon:'🎲', sub:'先頭ほど通行料が高い・払えないと進めない', maxPlayers:8 },
     { id:'sugohand',        title:'てふだ',             icon:'🎴', sub:'サイコロを振らない・手札を交渉して進む', maxPlayers:6 },
-    // 指示53：False or True。部屋（1人1台）専用。ケースの数＝人数なので上限は8人
-    { id:'falsetrue',       title:'False or True',      icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:8 }
+    // 指示53：False or True。部屋（1人1台）専用。ケースの数＝人数。
+    // 指示54で上限は12人。**falsetrue-logic.js の RULES.MAX_PLAYERS と一対**——
+    // サーバーはあちら、端末はこちらしか読まないので、食い違うと押せるのに始まらない
+    // （食い違いは tests/falsetrue-logic.js が両方向で照合している）
+    { id:'falsetrue',       title:'False or True',      icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:12 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -11334,9 +11355,17 @@
   /**
    * 指示53：False or True の設定（話し合いの長さ）。
    *
-   * **なぜ60秒が既定か**は、着手前に測って決めた（tools/fot-preflight.js time）。
+   * **なぜ60秒が既定か**は、指示53の着手前に測って決めた（tools/fot-preflight.js time）。
    * 8人・90秒だと全体15.1分、**一度も出番が来ないまま12.9分見ているだけの人**が出る。
-   * ここでその見込みを出すのは、選ぶ人がその場で判断できるようにするため
+   *
+   * 指示54で上限が12人になり、**その線は既定の60秒でも超える**
+   * （10人で13.2分、12人で16.5分）。ラウンド数は「人数−1」で、
+   * 1ラウンドに関わるのは2人だけなので、長さを変えても比率は動かない。
+   *
+   * **だから既定を人数で勝手に変えない**（落とし穴34：印の無い既定の切り替えは、
+   * 本人が選んだ値を黙って上書きする）。代わりに**実際の分数をここに出して、
+   * 進行役に選ばせる**（本人の裁定と条件・2026-09-17）——
+   * 「いちばん長く待つ人」のような言い方で察してもらうのではなく、数字で見せる
    */
   function renderFalsetrueStep(){
     var L = window.FalseTrueLogic;
@@ -11352,10 +11381,10 @@
      */
     var room = rt && rt.state.room;
     var 人 = Math.max(L.RULES.MIN_PLAYERS, (room ? room.playerCount : state.players.length) || L.RULES.MIN_PLAYERS);
-    var 分 = estimatePlayMinutes(state.selectedModeId, 人).min;
+    var 見込み = estimatePlayMinutes(state.selectedModeId, 人);
     el('ftCfgNote').textContent =
-      人 + '人だと、ぜんぶで およそ ' + 分 + '分。' +
-      (秒 >= 90 ? '長めなので、人数が多い時は出番を待つ時間も長くなります。' : '');
+      人 + '人・' + 秒 + '秒だと、ぜんぶで およそ ' + 見込み.min + '分。' +
+      'いちばん出番が遅い人は、最大で ' + 見込み.待ち分 + '分 見ているだけになります。';
   }
   el('ftTalkSeg').addEventListener('click', function(e){
     var b = e.target.closest('[data-fttalk]');
@@ -12737,6 +12766,29 @@
     return !!(me && me.ready);
   }
   // まだ始まっていなくて、ゲームだけ決まっている状態か
+  /**
+   * 指示54：**人数が上限を超えていないか。**超えていれば理由、よければ null。
+   *
+   * **なぜ足したか**：上限を見ていたのは棚だけ（`headsBlockReason`）で、
+   * 部屋の待合には下限の判定しか無かった。カセットを選んだあとに人が増えると、
+   * **「はじめる」が押せてサーバーの `too_many_players` で断られる**——
+   * 正本 §7 の「押せるのに始まらないボタンを作らない」に反する。
+   * 上限が8→12になると、20人まで入れる部屋に対して届きやすくなる。
+   *
+   * **自動の始まり（`rtMaybeAutoStart`）にも同じ門が要る。**
+   * ボタンだけ止めても、最後の1人が準備OKを押した瞬間に自動で始まって失敗する。
+   * **経路ごとに書かない**（落とし穴17）ので、ここ1本を3か所が読む。
+   *
+   * 下限の側は触らない（この指示の範囲外。既存の挙動のまま）
+   */
+  function rtTooManyReason(){
+    var room = rt && rt.state.room;
+    var picked = room && room.state && room.state.game;
+    if(!room || !picked) return null;
+    var cap = gameMaxPlayers(picked);
+    if(!cap || room.playerCount <= cap) return null;
+    return 'いま' + room.playerCount + '人ですが、このゲームは' + cap + '人までです';
+  }
   function rtWaitingToStart(){
     if(!rt || !rt.state.room) return false;
     var v = rtView();
@@ -12881,7 +12933,8 @@
   function rtMaybeAutoStart(){
     if(!rt || !rt.state.room){ rtReadySeenGame = null; rtReadyWasAll = false; return; }
     var game = rtPickedGame();
-    var all = rtWaitingToStart() && rtReadyTally().all;
+    // 指示54：上限を超えている間は、自動でも始めない（ボタンと同じ門を通る）
+    var all = rtWaitingToStart() && rtReadyTally().all && !rtTooManyReason();
     if(rtReadySeenGame !== game){
       // このゲームを初めて見た瞬間。すでに全員そろっていても、ここでは始めない。
       // 入り直し・画面の開き直しで勝手に始まると、
@@ -12976,7 +13029,8 @@
     // ふだんは、最後の1人が押した瞬間に自動で始まるので、このボタンは押されない。
     // 押せる形で残しているのは、自動の始まりを取りこぼした時の逃げ道
     var allReady = rtReadyTally().all;
-    el('rtStartBtn').disabled = !(host && enough && picked && supported && allReady);
+    var 多すぎ = rtTooManyReason();
+    el('rtStartBtn').disabled = !(host && enough && !多すぎ && picked && supported && allReady);
     // 自分がまだ押していないなら、ここから押せる（ルールを読んだことがある2周目の道）
     var needMine = !!picked && supported && !rtIAmReady() && !rtIsBigScreen();
     el('rtRoomReadyBtn').style.display = needMine ? '' : 'none';
@@ -12984,7 +13038,9 @@
     // 第48弾 48-1：出し直しは進行役だけ。ゲームが決まっていない時は出さない
     el('rtRoomShowRulesBtn').style.display = (host && picked && supported) ? '' : 'none';
     el('rtRoomReadyBtn').disabled = false;
-    el('rtRoomNote').textContent = rtRoomNoteText(host, picked, supported, enough, need, room.playerCount);
+    el('rtRoomNote').textContent = 多すぎ
+      ? (多すぎ + (host ? '。' + gameMaxPlayers(picked) + '人まで減ると始められます' : ''))
+      : rtRoomNoteText(host, picked, supported, enough, need, room.playerCount);
   }
   // 待合に出す一言。「いま何を待てばいいか」だけを書く
   function rtRoomNoteText(host, picked, supported, enough, need, count){
@@ -16145,6 +16201,13 @@
     el('ftPickLead').textContent = 自分の番
       ? '1つえらぶと、中身をあなただけが見られます。'
       : (v.holderName || '') + 'さんが、ケースをえらんでいます。';
+    /**
+     * 指示54：**列数は「開始時の総数」で決める。残り枚数で決めない。**
+     * 残りで決めると、12人の試合で残り8枚になった瞬間に3列へ戻り、
+     * **カードが急に大きくなる**——遊んでいる最中に見た目が変わるのは、
+     * 「1画面につき、やることは1つ」の裏返しで、余計な注意を奪う
+     */
+    el('ftPickCases').classList.toggle('is-many', (v.caseTotal || 0) > 8);
     // **押せる物を置くのは、選ぶ人の画面だけ。**
     // 押せない札を並べると、押しに行かれる
     el('ftPickCases').innerHTML = (v.cases || []).map(function(no){
@@ -16973,7 +17036,7 @@
     el('bigPickGameBtn').textContent = picked ? '🎮 ゲームをえらびなおす' : '🎮 ゲームをえらぶ';
     el('bigStartBtn').style.display = (host && !started) ? '' : 'none';
     // 第37弾：大画面の「はじめる」も、全員そろってから
-    el('bigStartBtn').disabled = !(host && enough && picked && supported && rtReadyTally().all);
+    el('bigStartBtn').disabled = !(host && enough && !rtTooManyReason() && picked && supported && rtReadyTally().all);
     el('bigEndBtn').style.display = host ? '' : 'none';
   }
   // 管理の中身は待合のボタンと同じものを呼ぶ（2つ書くと、片方だけ直す事故になる）
@@ -20277,10 +20340,19 @@
       var sgk = SugorokuLogic.gameById(m.game) || {};
       return { min: sgk.estMin || 20, perRound: false };
     }
-    // 指示53：False or True。**ラウンド数は必ず「人数−1」**（着手前に回して分かった）。
-    // 1ラウンド ≒ 39秒（えらぶ10＋みる8＋対面3＋決める10＋結果8）＋ 話し合い
+    /**
+     * 指示53：False or True。**ラウンド数は必ず「人数−1」**（着手前に回して分かった）。
+     * 1ラウンド ≒ 39秒（えらぶ10＋みる8＋対面3＋決める10＋結果8）＋ 話し合い。
+     *
+     * 指示54：**いちばん出番が遅い人の待ち時間も、ここから出す。**
+     * 1ラウンドに関わるのは2人だけなので、最後のラウンドで初めて出番が来る人は
+     * 「人数−2」ラウンドぶん見ているだけになる。
+     * **同じ式を設定画面にもう一度書かない**（落とし穴1）ので、ここで返す
+     */
     if(m.falseTrue){
-      return { min: round((n - 1) * (39 + state.ftCfg.talkSec)), perRound: false };
+      var ひとラウンド = 39 + state.ftCfg.talkSec;
+      return { min: round((n - 1) * ひとラウンド), perRound: false,
+               待ち分: Math.round((n - 2) * ひとラウンド / 6) / 10 };
     }
     if(m.auctionNew){
       // 見積りの式はルール層に1つだけ置いてある（持ち時間を変えたら自動で追いつく）

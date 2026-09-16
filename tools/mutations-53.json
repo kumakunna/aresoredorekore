@@ -1,0 +1,162 @@
+[
+  {
+    "name": "53-Q4A 中身の並びを、そのまま公開スナップショットに載せる",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "    opened: openedView(w),          // ← 開いた分だけ",
+    "to": "    opened: openedView(w),\n    contents: w.contents.slice(),",
+    "expect": "中身の並びが違うだけの2局で、開示までの publicView が1バイトも違わない"
+  },
+  {
+    "name": "53-Q4B 持っている1枚の中身だけを載せる（1ビットだけ漏らす）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "    heldNo: w.heldNo,",
+    "to": "    heldNo: w.heldNo,\n    heldContent: w.heldNo != null ? w.contents[w.heldNo - 1] : null,",
+    "expect": "中身の並びが違うだけの2局で、開示までの publicView が1バイトも違わない"
+  },
+  {
+    "name": "53-Q4C 並びを符号化して紛れ込ませる（針では絶対に見つからない形）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "    caseTotal: w.caseTotal,",
+    "to": "    caseTotal: w.caseTotal + w.contents.map(function(c){ return c ? 1 : 0; }).join(''),",
+    "expect": "中身の並びが違うだけの2局で、開示までの publicView が1バイトも違わない"
+  },
+  {
+    "name": "53-Q4D 開示しても中身を出さない（逆向き＝隠しっぱなし）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "  const out = {};\n  Object.keys(w.opened).forEach((no) => { out[no] = w.opened[no]; });\n  return out;",
+    "to": "  return {};",
+    "expect": "開示では「開いた1枚のぶんだけ」違う"
+  },
+  {
+    "name": "53-Q4E 中身を、持ち主でない人にも返す",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "  const 見てよい = 持ち主 && w.heldNo != null &&",
+    "to": "  const 見てよい = w.heldNo != null &&",
+    "expect": "中身を見てよいのは持ち主だけ"
+  },
+  {
+    "name": "53-Q4F 奪う／奪わないの選択を、決める前から全員に見せる",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "    myChoice: 相手 ? w.choice : null,",
+    "to": "    myChoice: w.choice,",
+    "expect": "奪う／奪わないは、決めた本人にしか見えない"
+  },
+  {
+    "name": "53-①A 中身の数を、設計メモの本文の読み方（端数は false 側）に戻す",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    return Math.max(1, Math.round(n / 4));",
+    "to": "    return Math.max(1, Math.floor(n / 4));",
+    "expect": "ケースの数と中身の比が、設計メモの表どおり"
+  },
+  {
+    "name": "53-Q6A 結果表を歪める（奪う×false で相手が生存）",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    { taken: true, content: false, 決まる: 'opp', fate: 'out', 次の選ぶ人: 'holder' },",
+    "to": "    { taken: true, content: false, 決まる: 'opp', fate: 'alive', 次の選ぶ人: 'holder' },",
+    "expect": "生存 ⟺ 中身が true"
+  },
+  {
+    "name": "53-Q6B 奪わなかった時に、次に選ぶ人を入れ替えない",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    { taken: false, content: true, 決まる: 'holder', fate: 'alive', 次の選ぶ人: 'opp' },",
+    "to": "    { taken: false, content: true, 決まる: 'holder', fate: 'alive', 次の選ぶ人: 'holder' },",
+    "expect": "結果表の4通りが、設計メモ 7 の表と1行ずつ一致する"
+  },
+  {
+    "name": "53-④A 話し合いを、片方が押しただけで切り上げる（本人の裁定④に反する）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "    const そろった = 二人.every((id) => w.talkDone[id] || !isLive(room, id));",
+    "to": "    const そろった = 二人.some((id) => w.talkDone[id]);",
+    "expect": "話し合いは、対面の2人がそろって押した時だけ切り上がる"
+  },
+  {
+    "name": "53-2-8A 中身を見た人が抜けても、そのケースを捨てない（選択欄に戻る）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "      if (w.heldNo != null) { w.discarded.push(w.heldNo); w.heldNo = null; }",
+    "to": "      if (w.heldNo != null) { w.remaining.push(w.heldNo); w.heldNo = null; }",
+    "expect": "中身を見た人が抜けたら、そのケースは選択欄に戻らず消える"
+  },
+  {
+    "name": "53-2-8B 対面の相手が抜けた時、持ち主のケースまで捨てる",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "    if (id === w.oppId) {\n      // 対面相手が抜けた → その対面は流れる。持っている人はケースを持ったまま\n      w.oppId = null;",
+    "to": "    if (id === w.oppId) {\n      if (w.heldNo != null) { w.discarded.push(w.heldNo); w.heldNo = null; }\n      w.oppId = null;",
+    "expect": "対面の相手が抜けたら対面は流れ、持ち主はケースを持ったまま"
+  },
+  {
+    "name": "53-2-8C 部屋から消えた人を、段階に関係なく見るのをやめる（face を取りこぼす）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "  if (roundMembers(room).some((id) => !isPresent(room, id))) return true;",
+    "to": "  if (false) return true;",
+    "expect": "対面の相手が抜けたら対面は流れ"
+  },
+  {
+    "name": "53-端末を信じないA 番号を parseInt で受ける（1.5 が 1 として通る）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "    const no = (typeof raw === 'number') ? raw\n      : (/^[0-9]+$/.test(String(raw)) ? Number(raw) : NaN);\n    if (!Number.isInteger(no) || !takeCase(room, no)) return { ok: false, error: 'unknown_case' };",
+    "to": "    const no = parseInt(raw, 10);\n    if (!takeCase(room, no)) return { ok: false, error: 'unknown_case' };",
+    "expect": "端末が出す番号や、他人になりすました操作は断る"
+  },
+  {
+    "name": "53-端末を信じないB 二度目の選択を通す（1枚目が静かに消える）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "    if (w.heldNo != null) return { ok: false, error: 'already_picked' };",
+    "to": "    if (false) return { ok: false, error: 'already_picked' };",
+    "expect": "端末が出す番号や、他人になりすました操作は断る"
+  },
+  {
+    "name": "53-Q7A ケースが尽きた終了条件を外す（保険を外す）",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    if (remainingCases <= 0) return 'cases';",
+    "to": "    if (false) return 'cases';",
+    "expect": "終了条件は2つだけ"
+  },
+  {
+    "name": "53-相手の選び方A 未対面優先をやめる",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    return fresh.length ? fresh : pool;",
+    "to": "    return pool;",
+    "expect": "まだ対面していない人が優先される"
+  },
+  {
+    "name": "53-A1A 話し合いの長さを、3択の外も受け取る",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    if (RULES.TALK_CHOICES.indexOf(talk) === -1) talk = RULES.TALK_SEC;",
+    "to": "    if (isNaN(talk)) talk = RULES.TALK_SEC;",
+    "expect": "話し合いの長さは3択"
+  },
+  {
+    "name": "53-決めなかった人A 締め切りの既定を「奪う」にする",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    decide: 'keep'      // 奪わない",
+    "to": "    decide: 'take'",
+    "expect": "決めなかった人は「奪わない」"
+  },
+  {
+    "name": "53-世界の色A False or True の地を、爆弾の黒に寄せる（門 ΔE2000 を割る）",
+    "file": "public/index.html",
+    "suite": "tests/design-tokens.js",
+    "from": ".cassette-warp[data-theme=\"falsetrue\"], .shelf-stage[data-theme=\"falsetrue\"]{--warp-color:#122A1B;",
+    "to": ".cassette-warp[data-theme=\"falsetrue\"], .shelf-stage[data-theme=\"falsetrue\"]{--warp-color:#191B1D;",
+    "expect": "見分けがつかないほど近い世界の色がある"
+  }
+]

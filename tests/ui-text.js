@@ -12,84 +12,17 @@ const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'),
 const UiText = require('../public/js/ui-text');
 
 /**
- * 見た目の指定とコメントを落とす。コメントの中の語を「画面に出ている」と誤って数えないため。
- * **落とすが、行はずらさない。**改行の数を保って空にする——
- * 詰めてしまうと、報告した行番号が実ファイルとずれて、
- * 直しに行った先がまったく別の場所になる（実際に8件ぶん見当外れの行を指した）
- */
-function strip(src) {
-  const blank = (s) => s.replace(/[^\n]/g, '');
-  return src
-    .replace(/<style[\s\S]*?<\/style>/g, blank)
-    .replace(/<!--[\s\S]*?-->/g, blank)
-    .replace(/\/\*[\s\S]*?\*\//g, blank)
-    // **`\s` は改行も食う。**`^\s*//` と書くと、空行をまたいで
-    // 次の行のコメントに届き、あいだの改行ごと消える（251行ぶんずれた）
-    .replace(/^[^\S\n]*\/\/.*$/gm, '');
-}
-
-/** ボタンの札が書かれている場所。**画面を組んでいるのは index.html だけではない** */
-const SOURCES_FOR_LABEL = ['public/index.html', 'public/js/ui.js'].map((f) => ({
-  file: f,
-  text: fs.readFileSync(path.join(__dirname, '..', f), 'utf8')
-}));
-
-/**
- * 文言を掃く対象（第40弾）。画面に文字を出しうるファイル全部。
- * **ui-text.js だけは外す**——そこは台帳そのもので、
- * 「直す前の言い方」が直し方の説明として載っている。
- * 外さないと、自分の一覧を違反として数えてしまう（第39弾で踏んだ形）
- */
-const SOURCES = ['public/index.html'].concat(
-  fs.readdirSync(path.join(__dirname, '..', 'public', 'js'))
-    .filter((f) => f.endsWith('.js') && f !== 'ui-text.js')
-    .map((f) => 'public/js/' + f)
-).map((f) => ({ file: f, text: fs.readFileSync(path.join(__dirname, '..', f), 'utf8') }));
-
-/**
- * 画面に出る文言を、**2つの層から**集める（第40弾）。
+ * 文言の掃き出しは **tools/ui-text-scan.js が唯一の実装**（指示49 49-5）。
  *
- * ① JSの文字列（`'…'`）  ② HTMLに直接書かれた地の文
+ * もとはこのファイルの中に直接書いてあったが、
+ * 「全数を書き出して人が読む」道具（tools/dump-ui-text.js）が同じものを要るので外に出した。
+ * **写さずに、両方がここを呼ぶ**——写すと、片方だけ直す日が来る（落とし穴1）。
  *
- * **②を見ていなかった。** 「全角数字0件」の検査が緑だったのは、
- * 実際に無かったからではなく**マークアップを一度も見ていなかったから**。
- * 実機で画面を読んで初めて「🥊 スマホを２人の間へ」が見つかった
- * （落とし穴10-b・12）。494件がまるごと検査の外にあった。
+ * 層の一覧（LAYERS）もそこにある。**「0件」と「その層を見ていない」を分けるため**、
+ * 下の検査は層ごとに件数を主張する。
  */
-function 画面の文言() {
-  const out = [];
-  const 日本語 = /[ぁ-んァ-ヶ一-龠]/;
-  const blank = (x) => x.replace(/[^\n]/g, '');
-  SOURCES.forEach((src) => {
-    // ① JSの文字列
-    strip(src.text).split('\n').forEach((line, i) => {
-      let m;
-      const re = /'([^'\\\n]{2,140})'/g;
-      while ((m = re.exec(line))) {
-        if (日本語.test(m[1])) out.push({ 場所: src.file + ':' + (i + 1), t: m[1], 層: 'JS' });
-      }
-    });
-    // ② HTMLに直接書かれた地の文（タグの外）
-    if (!/\.html$/.test(src.file)) return;
-    src.text
-      .replace(/<style[\s\S]*?<\/style>/g, blank)
-      .replace(/<script[\s\S]*?<\/script>/g, blank)
-      .replace(/<!--[\s\S]*?-->/g, blank)
-      // **`<br>` は文を切らない。**外さずに拾うと、1つの文の後半だけが
-      // 「短い案内」に見える（「…揺れを<br>使った演出が含まれます。」の後半）
-      .replace(/<br\s*\/?>/g, '')
-      .split('\n').forEach((line, i) => {
-        line.replace(/>([^<>]+)</g, (m, t) => {
-          const x = t.trim();
-          if (x.length >= 2 && 日本語.test(x)) {
-            out.push({ 場所: src.file + ':' + (i + 1), t: x, 層: 'HTML' });
-          }
-          return m;
-        });
-      });
-  });
-  return out;
-}
+const scan = require('../tools/ui-text-scan');
+const { strip, SOURCES, SOURCES_FOR_LABEL, 画面の文言, 校正の対象, LAYERS } = scan;
 
 /**
  * 置換の台帳（docs/監査_標準ダイアログ置換.md の一覧と同じもの）。
@@ -114,7 +47,7 @@ const SITES = [
   { 何: '部屋がもう無い', 探す: '部屋がなくなっていました', 種類: 'info' },
   // 第41弾 2-15：文面が変わった。部屋が閉じた時、遊ぶ人に伝えるべきは
   // 「ゲームが終わった」ではなく「**誰が**部屋を閉じたか」（文言は ui-text.js の ROLE）
-  { 何: '部屋が閉じられた', 探す: 'ホストが部屋を閉じました', 種類: 'info' },
+  { 何: '部屋が閉じられた', 探す: '進行役が部屋を閉じました', 種類: 'info' },
   // 第41弾 2-15：進行役をやめる。部屋ごと閉じるので、取り返しがつかない側
   { 何: '自分がゲストになる', 探す: '自分がゲストになりますか？', 種類: 'danger' },
   { 何: '部屋から出された', 探す: '部屋から出ました', 種類: 'info' },
@@ -380,6 +313,54 @@ function kindOf(mark) {
     });
   });
 
+  await r.test('掃いている層が、宣言した層と一致する（指示49 49-5・落とし穴20）', async () => {
+    // **第40弾は「全角数字0件」で緑だったが、HTMLの地の文を一度も見ていなかった。**
+    // 指示49 の着手前に掃き直したら、同じ形の漏れが**さらに3つ**出た：
+    //   ・二重引用符のJS文字列（`"人〜"` や QUIZ_BANK）
+    //   ・HTMLの属性（placeholder・aria-label・title）
+    //   ・CSSの `content:'…'`（`content:'枚'` は1文字なので、長さ2以上で切ると消える）
+    //   ・サーバーが返す文言（`el('loginError').textContent = e.message` でそのまま画面に出る）
+    // どれも「0件」ではなく「**見ていなかった**」。
+    //
+    // だから層は名前で宣言し、**両方向で照らす**——
+    // 宣言した層が全部掃けているか／掃けた層が全部宣言されているか。
+    // 片方だけだと、新しい層を足して宣言し忘れた日に静かに素通りする
+    const 全部 = 画面の文言();
+    const 宣言 = LAYERS.map((l) => l.id);
+    const 掃けた = Array.from(new Set(全部.map((x) => x.層)));
+
+    宣言.forEach((id) => {
+      const n = 全部.filter((x) => x.層 === id).length;
+      assert(n > 0, '宣言した層「' + id + '」が1件も掃けていない（見ていない層になっている）');
+    });
+    assertEqual(掃けた.filter((id) => 宣言.indexOf(id) < 0).join('・'), '',
+      '宣言していない層を掃いている（LAYERS に足し忘れ）');
+
+    // **場所が本物か。**file:line を開いて、その辺に本当にその文字があるか見る。
+    // 行番号がずれていると、直しに行った先がまったく別の場所になる（第39弾で8件やった）
+    const cache = {};
+    const ずれ = [];
+    全部.forEach((x) => {
+      const at = x.場所.lastIndexOf(':');
+      const file = x.場所.slice(0, at);
+      const line = Number(x.場所.slice(at + 1));
+      if (!cache[file]) {
+        const p2 = path.join(__dirname, '..', file);
+        cache[file] = fs.existsSync(p2) ? fs.readFileSync(p2, 'utf8').split('\n') : null;
+      }
+      const lines = cache[file];
+      if (!lines) { ずれ.push(x.場所 + '（ファイルが無い）'); return; }
+      // 地の文は改行をまたぐので、数行の窓で見る
+      const 窓 = lines.slice(Math.max(0, line - 1), line + 3).join('\n');
+      const 頭 = x.t.replace(/\s+/g, ' ').trim().slice(0, 4);
+      if (頭 && 窓.replace(/\s+/g, ' ').indexOf(頭) < 0) {
+        ずれ.push(x.層 + ' ' + x.場所 + '「' + x.t.slice(0, 24) + '」');
+      }
+    });
+    assertEqual(ずれ.slice(0, 8).join('\n       '), '',
+      '記録した場所に、その文字が見つからない（行番号がずれている）');
+  });
+
   await r.test('画面に全角数字が出ない（第40弾 C5・回帰防止）', async () => {
     // **この検査は一度、緑なのに見落としていた。**
     // JSの文字列しか見ておらず、HTMLに直接書かれた
@@ -387,12 +368,15 @@ function kindOf(mark) {
     // 実機で画面を読んで初めて分かった（落とし穴10-b・12）。
     //
     // 数えた件数を**層ごとに**主張する——
-    // 0件が「無い」のか「その層を見ていない」のかを分ける
+    // 0件が「無い」のか「その層を見ていない」のかを分ける。
+    // **層は tools/ui-text-scan.js の LAYERS に宣言してある。**
+    // 下限は「その層を本当に掃けているか」を見るためのもので、
+    // 実装側の定数から導かない（自己参照だと、緩めた日に検査も一緒に緩む・落とし穴10-a）
     const 全部 = 画面の文言();
-    const JS件数 = 全部.filter((x) => x.層 === 'JS').length;
-    const HTML件数 = 全部.filter((x) => x.層 === 'HTML').length;
-    assert(JS件数 > 1500, 'JSの文言を数えられている（実際:' + JS件数 + '件）');
-    assert(HTML件数 > 300, '**HTMLの地の文も**数えられている（実際:' + HTML件数 + '件）');
+    const 数 = (id) => 全部.filter((x) => x.層 === id).length;
+    [['JS', 2500], ['HTML', 400], ['属性', 10], ['CSS', 1], ['SRV', 50]].forEach(([id, 下限]) => {
+      assert(数(id) > 下限 - 1, id + ' の層を掃けている（実際:' + 数(id) + '件／下限' + 下限 + '）');
+    });
 
     const 見つけた = 全部.filter((x) => /[０-９]/.test(x.t))
       .map((x) => x.層 + ' ' + x.場所 + '「' + x.t.slice(0, 40) + '」');

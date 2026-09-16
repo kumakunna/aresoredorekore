@@ -5788,7 +5788,7 @@
       <!-- ===== D. 危険な操作 ===== -->
       <div class="set-page" data-page="danger" style="display:none;">
         <div class="danger-note">
-          ここから先は、押すと戻せません。かならず確認が出ます。
+          ここから先は、押すともどせません。かならず確認が出ます。
         </div>
         <!-- 第43弾 門F9：この2行も SET_DANGER_ITEMS から描く -->
         <div id="setDangerMenu"></div>
@@ -7934,7 +7934,7 @@
   });
   // sheet の中は #uiLayerRoot に出るので、そちらで受ける
   el('uiLayerRoot').addEventListener('click', function(e){
-    // 指示47-2：進行役を渡す相手をえらぶ
+    // 指示47-2：進行役をゆずる相手をえらぶ
     var ho = e.target.closest('[data-handover]');
     if(ho){
       var f = rtHandOverPick; rtHandOverPick = null;

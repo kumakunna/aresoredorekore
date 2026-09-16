@@ -1193,7 +1193,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 端末は譲ってから頼んでくるが、ここでも止める（状態の権威はサーバー・落とし穴14）
       if (次の役割 === ROLE_BIGSCREEN && room.hostMemberId === target.id) {
         return fail(cb, 'host_cannot_be_bigscreen',
-          '大画面にする前に、進行役をだれかに渡してください');
+          '大画面にする前に、進行役をだれかにゆずってください');
       }
       target.role = 次の役割;
       if (typeof cb === 'function') cb({ ok: true, role: target.role, room: publicSnapshot(room) });

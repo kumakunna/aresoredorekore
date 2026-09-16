@@ -5411,7 +5411,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     click(doc, 'rtToBigBtn');
     await sleep(win, 120);
     const 案内 = H.openDialog(doc);
-    assert(案内 && /進行役をだれかに渡します/.test(案内.見出し),
+    assert(案内 && /進行役をだれかにゆずります/.test(案内.見出し),
       '渡すことを先に伝える（' + (案内 && 案内.見出し) + '）');
     // **まだ切り替わっていない。** 伝える前に切り替えたら、伝えた意味が無い
     assert(!fake.emits.some((e) => e.name === 'room:setRole'), 'この時点では切り替えていない');

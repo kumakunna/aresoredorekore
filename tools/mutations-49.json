@@ -102,5 +102,21 @@
     "from": "    selectedCassetteId: null, // 第15弾：棚で選んだカセット",
     "to": "    selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット",
     "expect": "部屋のゲームからテーマが決まる"
+  },
+  {
+    "name": "49-5E quizking のルール文に、古い「AIの説明文」を戻す（45-3 と同じ形）",
+    "file": "public/index.html",
+    "suite": "tests/mode-rules.js",
+    "from": "\"問題を読んで3択で答える\"",
+    "to": "\"AIの説明文を読んで3択で答える\"",
+    "expect": "ルール文のAIの名乗りと、実装が食い違っている"
+  },
+  {
+    "name": "49-5F 部屋が要るかの判断を、モードidの手書き一覧にする（新しいモードが漏れる形）",
+    "file": "public/index.html",
+    "suite": "tests/mode-rules.js",
+    "from": "    if(m.roomOnly && !goingRealtime()){",
+    "to": "    if((m.id==='defuse'||m.id==='quizrush') && !goingRealtime()){",
+    "expect": "モードidを手で並べている"
   }
 ]

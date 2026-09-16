@@ -192,6 +192,34 @@ const ROOM_ONLY_MODES = Array.from(
   INDEX_HTML.matchAll(/\{id:"([a-z0-9-]+)"[^}]*?roomOnly:true[^}]*?game:\s*'([a-z]+)'[^}]*?minPlayers:(\d+)/g)
 ).map((m) => ({ id: m[1], game: m[2], minPlayers: parseInt(m[3], 10) }));
 
+/**
+ * **全モードの「名乗り」と「旗」**（指示49 49-5・L8）。
+ *
+ * ルール文が実装と食い違う事故（第45弾 45-3）は、
+ * いままで **bomb-coop 1モードぶん**しか見張っていなかった。
+ * 全36モードに per-line の検査を手で書くのは独立した1指示ぶんの分量なので、
+ * まず**機械で照らせる約束**を全モードに広げる——
+ * 「AIと名乗るならAIを使っているか」「部屋が要るならそう書いてあるか」。
+ *
+ * **これは per-line 検査の代わりではない。**捕まえるのは
+ * 45-3 が見つけた事故の**型**（名乗りと実装のねじれ）であって、
+ * 1行ずつの意味ではない。そこは bomb-coop だけのまま（門の台帳にそう書いた）。
+ */
+const ALL_MODES = (function () {
+  const 本体 = INDEX_HTML.slice(INDEX_HTML.indexOf('var MODES = ['),
+    INDEX_HTML.indexOf('function modeById'));
+  return 本体.split(/\n\s*\{id:"/).slice(1).map((b) => {
+    const id = (b.match(/^([a-z0-9-]+)"/) || [])[1];
+    const g = (k) => (b.match(new RegExp(k + ':\\s*"([^"]*)"')) || [])[1] || '';
+    const 旗 = (k) => new RegExp('\\b' + k + '\\s*:\\s*true').test(b);
+    const bullets = ((b.match(/bullets:\s*\[([^\]]*)\]/) || [])[1] || '')
+      .split('","').map((x) => x.replace(/^"|"$/g, '')).filter(Boolean);
+    return { id, title: g('title'), sub: g('sub'), bullets,
+      ai: 旗('ai') || 旗('aiHint'), roomOnly: 旗('roomOnly'), hidden: 旗('hidden'),
+      全文: g('title') + '／' + g('sub') + '／' + bullets.join('／') };
+  }).filter((m) => m.id);
+})();
+
 const SCREEN_IDS = Array.from(new Set(
   Array.from(INDEX_HTML.matchAll(/class="screen[^"]*"\s+id="(scr-[a-z0-9-]+)"/g)).map((m) => m[1])
 ));
@@ -275,6 +303,7 @@ module.exports = {
   ROOM_EXIT_PATHS,
   COUNTDOWN_PATHS,
   ROOM_ONLY_MODES,
+  ALL_MODES,
   SCREEN_IDS,
   OVERLAY_IDS,
   NOT_A_CLOCK_IDS,

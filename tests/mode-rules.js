@@ -24,6 +24,9 @@
 
 const {
   createRunner, assert, assertEqual, launch } = require('./harness');
+const fs = require('fs');
+const path = require('path');
+const { ALL_MODES } = require('./inventory');
 const BombRoom = require('../bomb-room.js');
 const BombLogic = require('../public/js/bomb-logic.js');
 
@@ -207,6 +210,104 @@ function はずれ(w, uid, choices) {
       const 全文 = m.title + '／' + m.sub + '／' + m.bullets.join('／');
       assert(!/AI/.test(全文), m.id + ' の説明に「AI」が出てこない（' + 全文 + '）');
     });
+  });
+
+  // ================================================================
+  // ここから下は**全36モード**（指示49 49-5・門L8）。
+  //
+  // 上の bomb-coop の検査は、1行ずつ本物の進行役を動かして確かめる**濃い**形。
+  // それを36モードに広げると独立した1指示ぶんの分量になるので、
+  // まず**機械で照らせる約束**だけを全モードに広げた。
+  //
+  // **捕まえるのは 45-3 が見つけた事故の「型」**——
+  // 名乗っていることと実装がねじれている状態。1行ずつの意味は見ていない。
+  // ================================================================
+
+  await r.test('49-5：AIと名乗るモードは、本当にAIを使う（全モード・両方向）', async () => {
+    // **45-3 そのもの。**クイズ解除のルール文は、問題バンクに切り替えたあとも
+    // 「AIの説明文」と言い続けていた。同じ形が**まだ1件残っていた**——
+    // `quizking`（退いたモード）の「AIの説明文を読んで3択で答える」。
+    // 退いていて画面に出ないので誰も気づかなかったが、
+    // **戻した日にそのまま嘘になる**ので直した。
+    assert(ALL_MODES.length >= 30, '全モードを数えられている（実際:' + ALL_MODES.length + '件）'); // 型(b)
+
+    const 名乗る = ALL_MODES.filter((m) => /AI/.test(m.全文));
+    const 旗あり = ALL_MODES.filter((m) => m.ai);
+    // **0件だと「食い違いなし」が自明に成立する**（型b）。両側に実体があることを先に言う
+    assert(名乗る.length > 0, 'AIと名乗るモードがある（実際:' + 名乗る.length + '件）');
+    assert(旗あり.length > 0, 'AIを使うモードがある（実際:' + 旗あり.length + '件）');
+
+    const bad = [];
+    // 行き：名乗るなら、使っていること
+    名乗る.forEach((m) => {
+      if (!m.ai) bad.push(m.id + '：ルール文でAIと名乗っているのに、AIを使わない（' + m.全文.slice(0, 60) + '）');
+    });
+    // 帰り：使うなら、名乗っていること（黙ってAIに送っていないか・落とし穴20）
+    旗あり.forEach((m) => {
+      if (!/AI/.test(m.全文)) bad.push(m.id + '：AIを使うのに、ルール文のどこにも書いていない');
+    });
+    assertEqual(bad.join(String.fromCharCode(10) + '       '), '',
+      'ルール文のAIの名乗りと、実装が食い違っている');
+  });
+
+  await r.test('49-5：部屋が要ることは、選ぶ前に必ず伝わる（全モード・1か所で）', async () => {
+    // **最初、この検査を間違えて書いた。**
+    // 「roomOnly のモードは、ルール文に『部屋』と書いてあること」にしたら、
+    // 11件中8件が赤くなった——**アプリが正しくて、検査が間違っていた。**
+    // 部屋が要ることは**ルール文ではなく、選ぶ瞬間**に伝えている：
+    // 押せないモードの札に `modeLockReason()` の一言が出る。
+    // そちらのほうが良い（読み飛ばしても、押した瞬間に必ず目に入る）。
+    //
+    // 逆向きの検査（「部屋と書いてあるなら roomOnly」）も採らない——
+    // `bomb-coop` の「**部屋を立てて遊ぶと**、全員が同じ盤面を…」は
+    // 条件付きの言い方で、手渡しでも遊べるのが正しい。誤検知になる。
+    //
+    // だからここで見るのは「**その一言が、1か所で全モードに効いているか**」。
+    // モードごとの手書き一覧になっていれば、新しいモードを足した日に漏れる（落とし穴4）
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // **正規表現で関数を切り出さない。**中括弧が入れ子になっていると
+    // どこで止めるかを書き間違えやすく、切り出せなかった時に
+    // 「関数が無い」という**見当違いの赤**になる（実際に一度そうなった）。
+    // 開き位置から、次の関数宣言までを素直に取る
+    const at = html.indexOf('function modeLockReason(m){');
+    assert(at >= 0, 'modeLockReason がある');
+    const 次 = html.indexOf('\n  function ', at + 10);
+    const 枝 = [null, html.slice(at, 次 > 0 ? 次 : at + 1200)];
+    assert(枝[1].length > 200, 'modeLockReason の中身を読めている（' + 枝[1].length + '文字）');
+
+    // ① 判断は `m.roomOnly` 1つ。モードidを並べた手書きの一覧ではない
+    assert(/m\.roomOnly/.test(枝[1]),
+      '部屋が要るかの判断が、モードの宣言（roomOnly）から来ている');
+    const id並べ = (枝[1].match(/'[a-z]+-[a-z]+'/g) || []);
+    assertEqual(id並べ.join('・'), '',
+      'モードidを手で並べている（新しいモードを足した日に漏れる）');
+
+    // ② 出る一言が、部屋のことを言っている
+    const 一言 = /roomOnly[\s\S]{0,120}?return\s*'([^']+)'/.exec(枝[1]);
+    assert(一言, '部屋が要る時に出す一言がある');
+    assert(/部屋/.test(一言[1]) && /1人1台|みんなのスマホ/.test(一言[1]),
+      '一言が「部屋が要る」と分かる形（実際:' + (一言 ? 一言[1] : '') + '）');
+
+    // ③ **その一言を出す先が、実在すること**（型b）。
+    //    文言だけ用意して、札に出していなければ意味がない
+    assert(/data-locked="'\+escapeHtml\(lock\)/.test(html.replace(/\s/g, '')) ||
+           /data-locked/.test(html),
+      '押せない理由が、モードの札に載っている');
+
+    // ④ 部屋が要るモードが実在する（0件なら、この検査は何も守っていない）
+    const 部屋が要る = ALL_MODES.filter((m) => m.roomOnly);
+    assert(部屋が要る.length >= 5,
+      '部屋が要るモードがある（実際:' + 部屋が要る.length + '件）');           // 型(b)
+  });
+
+  await r.test('49-5：全モードにルール文がある（空の器を作らない）', async () => {
+    // ルール文が空のモードは、セットアップ画面（大切なこと6）が
+    // **中身の無い紙**になる。増やした時に書き忘れたら、ここで赤くなる
+    const 空 = ALL_MODES.filter((m) => !m.bullets.length).map((m) => m.id);
+    assertEqual(空.join('・'), '', 'ルール文の無いモードがある');
+    const 短い = ALL_MODES.filter((m) => m.bullets.length < 3)
+      .map((m) => m.id + '（' + m.bullets.length + '行）');
+    assertEqual(短い.join('・'), '', 'ルール文が3行に満たないモードがある');
   });
 
   r.finish();

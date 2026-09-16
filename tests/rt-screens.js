@@ -6316,12 +6316,19 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
      */
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm1' });
+    /**
+     * **自分（m1・進行役）は押し終えた形にする。**
+     * 自分がまだ押していないと、アプリは正しくルールの画面へ引っぱるので
+     * 待合の判定を見られない（最初に書いた時それで赤くなった）。
+     * 「そろった瞬間」は**いちばん最後の人**が押して作る
+     */
     const 部屋 = (n, all) => roomSnapshot({
       hostMemberId: 'm1', playerCount: n, memberCount: n,
-      ready: { count: all ? n : n - 1, total: n, waitingNames: all ? [] : ['人0'], all: !!all },
+      ready: { count: all ? n : n - 1, total: n,
+               waitingNames: all ? [] : ['人' + (n - 1)], all: !!all },
       members: Array.from({ length: n }, (_, i) => ({
         id: 'm' + (i + 1), name: '人' + i, role: 'player',
-        connected: true, isHost: i === 0, ready: all ? true : i > 0
+        connected: true, isHost: i === 0, ready: all ? true : i !== n - 1
       })),
       state: { phase: 'lobby', game: 'falsetrue', data: {} }
     });

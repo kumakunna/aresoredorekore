@@ -4446,7 +4446,7 @@
   <!-- 4f: 設定ウィザード・難易度（④） -->
   <div class="screen" id="scr-set-difficulty">
     <div class="wiz-head"><span class="wiz-step" id="wizStepDifficulty"></span><h2 class="scr-title">お題の難易度</h2></div>
-    <p class="wiz-lead">出したい難易度をえらぼう（複数OK）。デフォルトは全部。こだわらなければそのまま「つぎへ」。</p>
+    <p class="wiz-lead">出したい難易度をえらぼう（複数OK）。はじめは全部えらばれています。こだわらなければそのまま「つぎへ」。</p>
     <div class="wiz-body">
       <div class="handicap-picker" id="difficultyChips"></div>
       <div class="timer-enable-row" style="margin-top:14px;">
@@ -4463,7 +4463,7 @@
   <!-- 4h: 役職あり人狼の設定（第17弾改訂：役職ごとのステッパー＋細かい設定） -->
   <div class="screen" id="scr-set-wolfrole">
     <div class="wiz-head"><span class="wiz-step" id="wizStepWolfRole"></span><h2 class="scr-title">役職の配分</h2></div>
-    <p class="wiz-lead">プリセットの内容が入っています。そのままでもOK、増やしたり減らしたりもできます。</p>
+    <p class="wiz-lead">おすすめの配分が入っています。そのままでもOK、増やしたり減らしたりもできます。</p>
     <div class="wiz-body">
       <div class="bomb-section">
         <div class="tp-label">ターン数（何日目まで続けるか）</div>
@@ -10203,12 +10203,29 @@
     }) || null;
   }
   function currentThemeName(){
-    var c = cassetteById(state.selectedCassetteId);
-    if(c && c.theme) return c.theme;
+    /**
+     * **部屋にいる時は、部屋のゲームが決める。**（落とし穴14：状態の権威はサーバー）
+     *
+     * もとは「棚で選んだカセット」を先に見ていた。
+     * `state.selectedCassetteId` の**既定値は 'aresoredorekore'** なので、
+     * 棚を一度も通っていない人（部屋コードで直接入った人）でも
+     * 「あれそれを選んでいる」ことになっている——
+     * それでも動いていたのは、**あれそれだけテーマを持っていなかった**から。
+     * 指示49 49-4 でテーマを持たせた瞬間に、
+     * 部屋コードで人狼の部屋に入った人が杏色のままになった（tests/rt-screens が捕まえた）。
+     *
+     * **偶然で成り立っていた順番だった。**直し方は「あれそれのテーマを外す」ではなく、
+     * 順番を意味のある形にすること——
+     * 部屋にいるなら部屋のゲーム、いないなら棚で選んだカセット。
+     * これで、棚で人狼を選んだあと別の部屋にコードで入った時に
+     * 人狼の夜が残る、という前からあった穴も同時に塞がる
+     */
     var room = (typeof rt !== 'undefined' && rt && rt.state) ? rt.state.room : null;
     var game = room && room.state && room.state.game;
     var rc = cassetteOfGame(game);
-    return (rc && rc.theme) || null;
+    if(rc && rc.theme) return rc.theme;
+    var c = cassetteById(state.selectedCassetteId);
+    return (c && c.theme) || null;
   }
   // 第28弾-2：テーマは1種類（人狼）だけを見ていたが、爆弾解除にも作った。
   // カセットが増えるたびに if を足していくと必ず消し忘れるので、一覧で持つ。
@@ -12554,7 +12571,7 @@
       if(!await UiKit.confirm('進行役をゆずりますか？',
         nameOf(hid) + ' さんが進行役になります', { ok: 'ゆずる' })) return;
       var r1 = await rt.transferHost(hid);
-      if(!r1.ok) showFlash(r1.message || '譲れませんでした', 'hit-wrong');
+      if(!r1.ok) showFlash(r1.message || 'ゆずれませんでした', 'hit-wrong');
       return;
     }
     var ro = e.target.closest('[data-rmrole]');
@@ -22157,8 +22174,8 @@
       .catch(function(e){
         if(play.auctionTopic !== topic) return;
         // #3：失敗しても詰まないよう「もう一度取得」ボタン
-        el('auctionDescription').innerHTML = escapeHtml('AIの説明を取得できませんでした。もう一度お試しください。') +
-          '<br><button class="btn btn-outline" id="auctionRetryBtn" style="margin-top:8px;">🔄 もう一度取得</button>' +
+        el('auctionDescription').innerHTML = escapeHtml(MSG.AIが用意できない + '。' + MSG.あとでためせる) +
+          '<br><button class="btn btn-outline" id="auctionRetryBtn" style="margin-top:8px;">🔄 もう一度ためす</button>' +
           aiFallbackNoteHtml(); // 第14弾
         el('auctionReplayBtn').style.display = 'none';
         var rb = el('auctionRetryBtn');
@@ -22453,8 +22470,8 @@
       if(play.currentTopic !== topic) return; // 別のお題に進んでいたら無視
       el('topicName').textContent = MSG.AIが用意できない;
       // #3：失敗しても詰まないよう「もう一度取得」ボタンを出す
-      el('aiDescriptionBox').innerHTML = escapeHtml(e.message || 'しばらく待ってからもう一度お試しください') +
-        '<br><button class="btn btn-outline" id="aiRetryBtn" style="margin-top:8px;">🔄 もう一度取得</button>' +
+      el('aiDescriptionBox').innerHTML = escapeHtml(e.message || MSG.あとでためせる) +
+        '<br><button class="btn btn-outline" id="aiRetryBtn" style="margin-top:8px;">🔄 もう一度ためす</button>' +
         aiFallbackNoteHtml(); // 第14弾：連続で失敗した時だけ、代わりの遊び方を案内する
       el('aiDescriptionBox').style.display = 'block';
       el('moreHintBtn').style.display = 'none';
@@ -22795,7 +22812,7 @@
       candidates.forEach(checkVoiceForResult);
     };
     recognizer.onerror = function(e){
-      renderMicStatus(e.error === 'not-allowed' ? 'マイクが許可されていません' : ('エラー：'+e.error));
+      renderMicStatus(e.error === 'not-allowed' ? 'マイクが許可されていません' : (MSG.うまくいかない + '（' + e.error + '）'));
     };
     recognizer.onend = function(){ if(state.voiceDetect){ try{ recognizer.start(); }catch(e){} } };
     try{
@@ -23387,7 +23404,7 @@
   // 第43弾 門F9：危険な操作の2行も、データから。
   // 「進行役だけに出す」は style を後から書き換える形をやめ、when で決める
   var SET_DANGER_ITEMS = [
-    { icon:'🗑', label:'全部リセットして最初から', act:'resetAll', danger:true, id:'resetAllBtn',
+    { icon:'🗑', label:'全部消して最初から', act:'resetAll', danger:true, id:'resetAllBtn',
       sub:'プレイヤー・スコア・統計を、すべて削除します' },
     { icon:'🏠', label:'部屋を解散する', act:'closeRoom', danger:true, id:'setCloseRoomBtn',
       when:function(){ return inRoomNow() && rt.isHost(); },
@@ -23713,7 +23730,7 @@
       if(!await UiKit.confirm('進行役をゆずりますか？',
         'この人が進行役になります', { ok: 'ゆずる' })) return;
       var r1 = await rt.transferHost(h.dataset.sethost);
-      if(!r1.ok) showFlash(r1.message || '譲れませんでした', 'hit-wrong');
+      if(!r1.ok) showFlash(r1.message || 'ゆずれませんでした', 'hit-wrong');
       renderSetRoom();
       return;
     }

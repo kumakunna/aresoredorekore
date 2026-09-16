@@ -1226,14 +1226,14 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = currentRoom();
       const me = currentMember();
       if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
-      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが譲れます');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけがゆずれます');
       const targetId = payload && payload.memberId;
       const target = targetId ? room.members.get(targetId) : null;
       if (!target) return fail(cb, 'member_not_found', 'その人は部屋にいません');
       if (!target.connected) return fail(cb, 'member_offline', 'その人はいま接続していません');
       // 指示47-2：大画面は進行役にならない。手で譲る道からも入れない
       if (target.role === ROLE_BIGSCREEN) {
-        return fail(cb, 'is_bigscreen', '大画面には進行役を譲れません');
+        return fail(cb, 'is_bigscreen', '大画面には進行役をゆずれません');
       }
 
       const prev = room.hostMemberId;
@@ -1256,7 +1256,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = currentRoom();
       const me = currentMember();
       if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
-      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが操作できます');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが操作できます');
       const p = payload || {};
       // 第26弾-3：ゲームが変わった時と、明示的にやり直す時は前の進行を捨てる。
       // 同じゲームをもう一度遊ぶ時は game が変わらないので reset を見る
@@ -1281,7 +1281,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = currentRoom();
       const me = currentMember();
       if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
-      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが始められます');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが始められます');
       if (driverOf(room)) return fail(cb, 'already_started', 'もう始まっています');
 
       const gameId = (payload && payload.game) || 'wolfrole';
@@ -1314,7 +1314,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 実物解除は「傾き何度」「何回振った」のように、targetId 1つでは足りない操作がある。
       // 人狼・ワードウルフ・爆弾解除は受け取っても使わない（無視するだけ）。
       const res = dr.submitAction(room, me.id, (payload && payload.targetId) || null, payload);
-      if (!res.ok) return fail(cb, res.error, '今はその操作ができません');
+      if (!res.ok) return fail(cb, res.error, 'いまはその操作ができません');
       /**
        * 第48弾 48-4：**「挑戦した」のか「見ただけ」なのかを、返事に残す。**
        *
@@ -1338,7 +1338,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // **できていないのに ok を返さない**（落とし穴14）
       if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
       const res = dr.submitVote(room, me.id, (payload && payload.targetId) || null, payload);
-      if (!res.ok) return fail(cb, res.error, '今は投票できません');
+      if (!res.ok) return fail(cb, res.error, 'いまは投票できません');
       // 第27弾-3：実物解除は「いま当たったか外れたか」をその場で返す
       // （画面が音と演出をすぐ出せるように）。他のゲームは ok だけ見ている
       if (typeof cb === 'function') cb({ ok: true, solved: !!res.solved, miss: !!res.miss, note: res.note || null });
@@ -1352,7 +1352,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const me = currentMember();
       const dr = room && driverOf(room);
       if (!room || !me || !dr) return fail(cb, 'not_in_room', '部屋に入っていません');
-      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが進められます');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが進められます');
       // 第48弾 48-5：止まっている間は進めない（落とし穴14）
       if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
       dr.advance(room);
@@ -1367,7 +1367,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = currentRoom();
       const me = currentMember();
       if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
-      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', 'ホストだけが終了できます');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが終了できます');
       io.to('room:' + room.code).emit('room:closed', { by: me.name });
       store.delete(room.code);
       if (typeof cb === 'function') cb({ ok: true });

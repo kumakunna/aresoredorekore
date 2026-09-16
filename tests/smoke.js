@@ -3524,11 +3524,34 @@ async function startModeWithTimerOff(win, doc, id) {
     }
   });
 
+  /**
+   * テーマの地の色を読んで、「濃い◯◯か」を**性質で**見る（指示49・落とし穴10-d）。
+   *
+   * もとは `--paper:#10182E` と**値を名指し**していた。
+   * 指示49 49-3 で色を入れ替えた日に、実装は正しいのに赤くなった——
+   * **変わるデータではなく、変わらない性質の側を試す。**
+   * ここで守りたいのは「追加専用のスコープに、濃い地が宣言してある」ことと、
+   * その**色みの向き**（紺なら青が強い／えんじなら赤が強い）。
+   */
+  const 地の色 = (html, theme) => {
+    const m = new RegExp('\.app\.theme-' + theme + '\{([^{}]*)\}').exec(html);
+    if (!m) return null;
+    const g = /--paper:\s*#([0-9A-Fa-f]{6})/.exec(m[1]);
+    if (!g) return null;
+    const n = parseInt(g[1], 16);
+    return { hex: '#' + g[1].toUpperCase(), r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  };
+  const 濃いか = (c) => c && (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) < 70;
+
   await r.test('テーマ：スタジオと競り市が、追加専用のスコープで書かれている（オークション）', async () => {
     const fs = require('fs');
     const path = require('path');
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-    assert(/\.app\.theme-auction\{[\s\S]*?--paper:#1A1012/.test(html), '背景が濃いえんじになっている');
+    const 競り市 = 地の色(html, 'auction');
+    assert(競り市, '.app.theme-auction に地の色が宣言してある');
+    assert(濃いか(競り市), '背景が濃い（実際:' + 競り市.hex + '）');
+    assert(競り市.r > 競り市.b && 競り市.r > 競り市.g,
+      '背景がえんじ（赤が強い）になっている（実際:' + 競り市.hex + '）');
     assert(/\.app\.theme-auction\{[\s\S]*?--gold:#D4A537/.test(html), '金色が入っている');
     assert(/\.app\.theme-auction\{[\s\S]*?radial-gradient\(ellipse[^;]*rgba\(212,165,55/.test(html),
       '品物に光が当たっている');
@@ -3625,7 +3648,11 @@ async function startModeWithTimerOff(win, doc, id) {
     const path = require('path');
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
     // 濃い紺の背景・金色・上から降りるスポットライト
-    assert(/\.app\.theme-quiz\{[\s\S]*?--paper:#10182E/.test(html), '背景が濃い紺になっている');
+    const 舞台 = 地の色(html, 'quiz');
+    assert(舞台, '.app.theme-quiz に地の色が宣言してある');
+    assert(濃いか(舞台), '背景が濃い（実際:' + 舞台.hex + '）');
+    assert(舞台.b > 舞台.r && 舞台.b > 舞台.g,
+      '背景が紺（青が強い）になっている（実際:' + 舞台.hex + '）');
     assert(/\.app\.theme-quiz\{[\s\S]*?--gold:#F0B429/.test(html), '金色が入っている');
     assert(/\.app\.theme-quiz\{[\s\S]*?radial-gradient\(ellipse[^;]*rgba\(240,180,41/.test(html),
       'スポットライトが当たっている');

@@ -290,17 +290,16 @@ function kindOf(mark) {
     //
     // 掃く先から ui-text.js は外す——**そこは台帳そのもの**で、
     // 直す前の言い方が「直し方の説明」として載っている（第39弾で踏んだ形）
-    const 責める語 = ['に失敗しました', 'エラーが発生', '再試行'];
+    // **層をまたいで掃く**（指示49 49-5）。
+    // もとは SOURCES（index.html と public/js/*.js）の**単引用だけ**を見ていた。
+    // サーバーが返す文言も、ui-text.js の中の生きている文言も、その外にいた。
+    // 「お試しください」を足したのは、命令形の突き放しが
+    // `もう一度お試しください` の形で2か所に残っていたから（正本10の表）
+    const 責める語 = ['に失敗しました', 'エラーが発生', '再試行', 'お試しください'];
     const 見つけた = [];
-    SOURCES.forEach((src) => {
-      strip(src.text).split('\n').forEach((line, i) => {
-        let m;
-        const re = /'([^'\\\n]{2,140})'/g;
-        while ((m = re.exec(line))) {
-          責める語.forEach((w) => {
-            if (m[1].indexOf(w) >= 0) 見つけた.push(src.file + ':' + (i + 1) + '「' + m[1] + '」');
-          });
-        }
+    校正の対象().forEach((x) => {
+      責める語.forEach((w) => {
+        if (x.t.indexOf(w) >= 0) 見つけた.push(x.層 + ' ' + x.場所 + '「' + x.t.slice(0, 50) + '」');
       });
     });
     assertEqual(見つけた.join('\n       '), '', '責める言い方が残っている');
@@ -400,18 +399,14 @@ function kindOf(mark) {
     // 除外印（プレイヤー）が付いたものは対象にしない
     const 対象 = UiText.JARGON.filter((j) => !j.除外);
     assert(対象.length >= 4, '言い換える語がある（実際:' + 対象.length + '件）');  // 型(b)
+    // **層をまたいで掃く**（指示49 49-5）。
+    // サーバーの `ホストだけが操作できます` 系6件は、この向きで初めて見つかった——
+    // 単引用の JS しか見ていなかったので、realtime.js は丸ごと外にいた
     const 見つけた = [];
-    SOURCES.forEach((src) => {
-      strip(src.text).split('\n').forEach((line, i) => {
-        let m;
-        const re = /'([^'\\\n]{2,140})'/g;
-        while ((m = re.exec(line))) {
-          対象.forEach((j) => {
-            if (m[1].indexOf(j.用語) >= 0) {
-              見つけた.push(src.file + ':' + (i + 1) + '「' + m[1].slice(0, 40) +
-                '」→ ' + j.言い換え);
-            }
-          });
+    校正の対象().forEach((x) => {
+      対象.forEach((j) => {
+        if (x.t.indexOf(j.用語) >= 0) {
+          見つけた.push(x.層 + ' ' + x.場所 + '「' + x.t.slice(0, 40) + '」→ ' + j.言い換え);
         }
       });
     });

@@ -16168,10 +16168,10 @@
     ftSetClock(v.remainingMs); ftStartClock();
     var me = ftMeId();
     el('ftFaceBox').innerHTML =
-      '<div class="ft-who">' + esc(v.holderName || '') + '</div>' +
+      '<div class="ft-who">' + escapeHtml(v.holderName || '') + '</div>' +
       '<div class="ft-role">ケースを持っている</div>' +
       '<div class="ft-vs">VS</div>' +
-      '<div class="ft-who">' + esc(v.oppName || '') + '</div>' +
+      '<div class="ft-who">' + escapeHtml(v.oppName || '') + '</div>' +
       '<div class="ft-role">奪うかを決める</div>';
     rtOnce('falsetrue:face:' + v.round, v.phase === 'face', function(){
       if(v.holderId === me || v.oppId === me) FxKit.vibe('tick');
@@ -16242,7 +16242,7 @@
       if(last.fate === 'alive') FxKit.callout(last.decidedName + ' 生存', { kind:'gold' });
     });
     el('ftOpenVerdict').innerHTML =
-      esc(last.decidedName) + ' さんは <b>' +
+      escapeHtml(last.decidedName) + ' さんは <b>' +
       (last.fate === 'alive' ? '生存' : '脱落') + '</b>' +
       '<span class="ft-sub">' + (last.taken ? '奪った' : '奪わなかった') +
       '／ケース ' + last.no + ' は ' + (last.content ? 'TRUE' : 'FALSE') + ' でした</span>';
@@ -16254,17 +16254,17 @@
     ftLeaveScreen();
     var 生存 = (v.survivors || []).map(function(p){ return p.name; });
     el('ftRsWin').innerHTML = 生存.length
-      ? '最後まで生きのこった人<div class="ft-names">' + esc(生存.join('・')) + '</div>'
+      ? '最後まで生きのこった人<div class="ft-names">' + escapeHtml(生存.join('・')) + '</div>'
       : '生きのこった人は いませんでした';
     el('ftRsLook').innerHTML = (v.history || []).map(function(h){
       return '<div class="ft-row">' +
         '<span class="ft-rno">' + h.round + '回目</span>' +
-        '<span>' + esc(h.holderName) + ' × ' + esc(h.oppName) + '</span>' +
+        '<span>' + escapeHtml(h.holderName) + ' × ' + escapeHtml(h.oppName) + '</span>' +
         '<span class="ft-res" data-v="' + (h.content ? 'true' : 'false') + '">' +
-        esc(h.decidedName) + ' ' + (h.fate === 'alive' ? '生存' : '脱落') + '</span>' +
+        escapeHtml(h.decidedName) + ' ' + (h.fate === 'alive' ? '生存' : '脱落') + '</span>' +
         '</div>';
     }).join('');
-    var ホスト = rtIsHost();
+    var ホスト = !!(rt && rt.isHost());
     el('rtFtAgainBtn').style.display = ホスト ? '' : 'none';
     el('rtFtEndBtn').style.display = ホスト ? '' : 'none';
   }

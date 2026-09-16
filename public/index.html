@@ -1943,7 +1943,40 @@
   .wiz-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
   .wiz-step{font-family:'DotGothic16',monospace;font-size:12px;color:var(--gold);letter-spacing:1px;flex:none;}
   .wiz-lead{font-size:13px;color:var(--ink-soft);margin:2px 0 14px;line-height:1.5;}
-  .wiz-body{flex:1;overflow-y:auto;}
+  /* ===== 指示49 49-2：主ボタンが、初期表示から外れないようにする =====
+     **この作りは最初から正しかったのに、効いていなかった。**
+     `.wiz-body` は `flex:1; overflow-y:auto`＝「余った高さのぶんだけ出して、
+     あふれたら自分の中で巻く」つもりで書いてある。
+     `.wiz-foot` も `margin-top:auto` で下に貼り付くつもりだった。
+
+     効かなかった理由は `.screen` が **`min-height` しか持っていなかった**こと。
+     下限しか無いので、中身が増えれば画面はいくらでも伸びる——
+     伸びれば `flex:1` は「余った高さ」を計算できず、`overflow-y:auto` は一度も働かない。
+     結果、**本文が伸びきって、その下にある「つぎへ ▶」が折り返しの外へ押し出される。**
+
+     実測（375×667）：
+       scr-mode         head 85 ＋ body 546 ＋ foot 177 ＋ 余白 56 ＝ 864（+197）
+       scr-set-wolfrole 頭 97  ＋ body 645 ＋ foot 67  ＋ 余白 56 ＝ 865（+198）
+       文字サイズ「大」だと scr-set-wolfrole は +296
+
+     **余白を削っても 200px は出てこない。**中身そのものが画面より高いので、
+     正しいのは「詰める」ではなく「本文だけを巻いて、足は見えたままにする」。
+     上限を与えるだけで、もともと書いてあった作りがそのまま働く。
+
+     `min-height:0` が要るのは、flex の子の既定の最小高さが `auto`＝
+     「中身の高さ」で、これが `overflow` に勝ってしまうため（縦並びの定番の穴）。 */
+  .screen:has(> .wiz-body){max-height:100vh;max-height:100dvh;}
+  .wiz-body{
+    flex:1;overflow-y:auto;min-height:0;
+    /* **巻けることが、見て分かるようにする**（49-2）。
+       中身が続いている端にだけ影が出る（`local` と `scroll` の組み合わせ）。
+       いちばん上／いちばん下まで巻くと、その側の影は自然に消える */
+    background:
+      linear-gradient(var(--paper) 30%, rgba(0,0,0,0)) top / 100% 12px no-repeat local,
+      linear-gradient(rgba(0,0,0,0), var(--paper) 70%) bottom / 100% 12px no-repeat local,
+      radial-gradient(farthest-side at 50% 0, rgba(0,0,0,.13), rgba(0,0,0,0)) top / 100% 7px no-repeat scroll,
+      radial-gradient(farthest-side at 50% 100%, rgba(0,0,0,.13), rgba(0,0,0,0)) bottom / 100% 7px no-repeat scroll;
+  }
   .wiz-foot{margin-top:auto;display:flex;gap:10px;padding-top:14px;}
   .wiz-foot .btn{margin-top:0;}
   .wiz-foot .btn-main{flex:1;}
@@ -8587,7 +8620,13 @@
     wrCfg: null,                                  // 第17弾：役職あり人狼の設定
     wmCfg: { turnLimit:3, changeTopic:true },     // 第17弾：ワードウルフ（2〜ターン）の設定
     wwRoles: {},                                  // 第18弾：ワードウルフに入れる役職の人数
-    selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット
+    // **既定は「まだ何も選んでいない」**（指示49 49-4）。
+    // ここに実在のカセットidを置くと、棚を一度も通っていない人まで
+    // 「それを選んでいる」ことになる。あれそれにテーマが無かった間は
+    // 誰も気づかなかったが、テーマを持たせた瞬間に
+    // 部屋コードで入った人の世界が上書きされた。
+    // 読む側は全部 `cassetteById(...)` の結果を見てから使っているので、null で困らない
+    selectedCassetteId: null, // 第15弾：棚で選んだカセット
     // 第32弾-A：あそびかた（'handoff' / 'room' / 'browse'）。扉の次に選ぶ
     detailCassetteId: null,  // 「棚を見る」で説明を開いているカセット
     selectedGameId: DEFAULT_GAME_ID,       // 第15弾：カセットの中で選んだゲーム（モード一覧の絞り込みに使う）
@@ -10243,28 +10282,28 @@
   }
   function currentThemeName(){
     /**
-     * **部屋にいる時は、部屋のゲームが決める。**（落とし穴14：状態の権威はサーバー）
+     * 順番は「棚で選んだカセット」→「いま入っている部屋のゲーム」。
+     * **この順番が正しい**——進行役が次のゲームを選んでいる最中は、
+     * 部屋の `game` はまだ前のゲームのままなので、
+     * 部屋を先に見ると**選んだばかりのカセットの世界に変わらない**。
      *
-     * もとは「棚で選んだカセット」を先に見ていた。
-     * `state.selectedCassetteId` の**既定値は 'aresoredorekore'** なので、
-     * 棚を一度も通っていない人（部屋コードで直接入った人）でも
-     * 「あれそれを選んでいる」ことになっている——
+     * 問題は順番ではなく、**「選んでいない」を表せていなかった**こと（指示49 49-4）。
+     * `state.selectedCassetteId` の既定値が `'aresoredorekore'` だったので、
+     * 棚を一度も通っていない人（部屋コードで直接入った人）まで
+     * 「あれそれを選んでいる」ことになっていた——
      * それでも動いていたのは、**あれそれだけテーマを持っていなかった**から。
-     * 指示49 49-4 でテーマを持たせた瞬間に、
-     * 部屋コードで人狼の部屋に入った人が杏色のままになった（tests/rt-screens が捕まえた）。
+     * テーマを持たせた瞬間、部屋コードで人狼の部屋に入った人が杏色のままになった。
      *
-     * **偶然で成り立っていた順番だった。**直し方は「あれそれのテーマを外す」ではなく、
-     * 順番を意味のある形にすること——
-     * 部屋にいるなら部屋のゲーム、いないなら棚で選んだカセット。
-     * これで、棚で人狼を選んだあと別の部屋にコードで入った時に
-     * 人狼の夜が残る、という前からあった穴も同時に塞がる
+     * 直したのは**既定値の方**（`null`＝まだ何も選んでいない）。
+     * 順番を入れ替える直し方も試したが、
+     * 「進行役が次のゲームを選んでいる最中」が壊れた（tests/rt-screens が2件で捕まえた）
      */
+    var c = cassetteById(state.selectedCassetteId);
+    if(c && c.theme) return c.theme;
     var room = (typeof rt !== 'undefined' && rt && rt.state) ? rt.state.room : null;
     var game = room && room.state && room.state.game;
     var rc = cassetteOfGame(game);
-    if(rc && rc.theme) return rc.theme;
-    var c = cassetteById(state.selectedCassetteId);
-    return (c && c.theme) || null;
+    return (rc && rc.theme) || null;
   }
   // 第28弾-2：テーマは1種類（人狼）だけを見ていたが、爆弾解除にも作った。
   // カセットが増えるたびに if を足していくと必ず消し忘れるので、一覧で持つ。

@@ -707,6 +707,27 @@ async function chooseNext(win, doc, id) {
 
 // ゲーム選択画面でゲームを選んで確定する。
 // 第20弾-3-1でタップ即決定をやめ、「選ぶ→つぎへ」の2手になった。
+/**
+ * ゲーム選択画面を**通ったら選ぶ／無ければ素通りする**（指示49 49-7）。
+ *
+ * カセットの `games` が1つだと、この画面は挟まれない（CASSETTES の約束）。
+ * それを知らずに `waitScreen(win, doc, 'scr-game')` と決め打ちしていたので、
+ * **爆弾解除の中身が1つになった日に11件が同時にタイムアウトした**
+ * （落とし穴32：触った所から届きうるスイートを選び損ねる）。
+ *
+ * 「何ゲーム入っているか」は歩く側の関心ではない。ここで吸収する——
+ * 次にどれかのカセットが1つになっても、テストは1件も落ちない。
+ */
+async function passGameSelect(win, doc, gameId, timeout) {
+  // 棚から離れるのを待つ（カセットを開いた直後はまだ scr-shelf のことがある）
+  await waitFor(win, () => activeScreen(doc) !== 'scr-shelf',
+    timeout || 3000, 'カセットを開く（現在: ' + activeScreen(doc) + '）');
+  if (activeScreen(doc) !== 'scr-game') return false;   // 1つなら挟まれない
+  pickGame(doc, gameId);
+  await sleep(win, 60);
+  return true;
+}
+
 function pickGame(doc, gameId) {
   const card = doc.querySelector('#gameCards .mode-card[data-game="' + gameId + '"]');
   if (!card) throw new Error('ゲームカードが見つかりません: ' + gameId);
@@ -854,7 +875,7 @@ function openDialog(doc) {
 
 module.exports = {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
-  cssRules, openCassette,
+  cssRules, openCassette, passGameSelect,
   autoDialog, openDialog,
   setupPlayers, fillPlayerForm, runWizardToPlay, pickGame, holdPress, passNightfall, passWrMeeting,
   endGameFromSettings, openAppSettings,

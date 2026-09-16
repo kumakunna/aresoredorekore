@@ -7,7 +7,7 @@
 //   - タイマーを 00:00 に設定できてしまう
 
 const H = require('./harness');
-const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, passPlayWay, fakeRects, openCassette, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
+const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, setupPlayers, pickGame, holdPress, passNightfall, passPlayWay, fakeRects, openCassette, passGameSelect, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
 
 // 各モードの「所属ゲーム」と「開始後に到達すべき画面」。独立ゲームは専用画面へ進む
 const MODES = [
@@ -2828,9 +2828,8 @@ async function startModeWithTimerOff(win, doc, id) {
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
     // 第27弾-3で実物解除が入り、ゲームが2つになったので選択画面を通る
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'bomb');
-    await sleep(win, 60);
+    // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
+    await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
@@ -2915,9 +2914,8 @@ async function startModeWithTimerOff(win, doc, id) {
     const cart = doc.querySelector('.cart[data-cart="bakudan"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'bomb');
-    await sleep(win, 60);
+    // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
+    await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
@@ -3052,9 +3050,8 @@ async function startModeWithTimerOff(win, doc, id) {
     const cart = doc.querySelector('.cart[data-cart="bakudan"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'bomb');
-    await sleep(win, 60);
+    // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
+    await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
@@ -3128,9 +3125,8 @@ async function startModeWithTimerOff(win, doc, id) {
     const cart = doc.querySelector('.cart[data-cart="bakudan"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'bomb');
-    await sleep(win, 60);
+    // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
+    await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
@@ -3695,9 +3691,8 @@ async function startModeWithTimerOff(win, doc, id) {
     const cart = doc.querySelector('.cart[data-cart="bakudan"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'bomb');
-    await sleep(win, 60);
+    // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
+    await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     const card = doc.querySelector('.mode-card[data-id="bomb-coop"]');

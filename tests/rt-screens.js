@@ -138,7 +138,10 @@ async function toRoom(win, doc, opts) {
 // 第27弾：ゲームがどのカセットに入っているか。
 // 1つしか入っていないカセットはゲーム選択画面を飛ばすので、歩き方が変わる
 const CASSETTE_OF = {
-  wolfrole: 'jinro', wordwolf: 'jinro', bomb: 'bakudan', defuse: 'bakudan',
+  // **defuse はここに無い**——指示49 49-7 で棚から下ろしたので、
+  // 棚を歩いて選ぶ道が存在しない。残しておくと、次に誰かが歩こうとして
+  // 「カードが null」で転ぶ（実際にそうなった）
+  wolfrole: 'jinro', wordwolf: 'jinro', bomb: 'bakudan',
   quizrush: 'quizou', quizlist: 'quizou', quizreveal: 'quizou', buzzer: 'quizou',
   auction: 'auction'
 };
@@ -2218,7 +2221,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('実物解除：決着したら結果と、次に進むボタンが出る', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });   // 自分がホスト（m1）
-    await pickGameForRoom(win, doc, 'defuse', 'defuse');
+    // **実物解除は棚から選べない**（指示49 49-7 でいったん下ろした。コードは残っている）。
+    // ここで見たいのは「決着したら結果が出るか」で、**棚の歩き方ではない**——
+    // 下の push が部屋の状態を直に作るので、棚を歩く必要はもともと無かった
+    // （この loop の他のゲームも、同じように push だけで確かめている）
     const result = {
       success: true, cause: 'defused', solved: 3, total: 3,
       strikesLeft: 2, strikesMax: 3, elapsedSec: 140,

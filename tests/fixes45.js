@@ -14,7 +14,7 @@ const path = require('path');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click,
-  fillPlayerForm, pickGame } = require('./harness');
+  fillPlayerForm, pickGame, passGameSelect } = require('./harness');
 
 const INDEX_HTML = fs.readFileSync(
   path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
@@ -722,9 +722,8 @@ const RULES = rulesOf(CSS);
     const cart = doc.querySelector('.cart[data-cart="bakudan"]');
     cart.click();
     if (activeScreen(doc) === 'scr-shelf') cart.click();
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'bomb');
-    await sleep(win, 60);
+    // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
+    await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, ['あき', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));

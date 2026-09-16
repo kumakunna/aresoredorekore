@@ -22,7 +22,7 @@ function rng(seed) {
 }
 
 // ---- 中身の数：2つの読み ----
-//   表（4→1 / 5→1 / 6→2 / 8→2）を4行すべて再現するのは round だけ
+//   設計メモの表を再現するのは round だけ（6人・7人・10人・11人で floor と割れる）
 const TRUE_COUNT = {
   表: (n) => Math.max(1, Math.round(n / 4)),
   本文: (n) => Math.max(1, Math.floor(n / 4))
@@ -133,11 +133,13 @@ function play(n, seed, opt) {
 // ================= ① 中身の数 =================
 function 比べる() {
   console.log('=== ① 中身の数：設計メモの「表」と「本文」が食い違う ===');
-  console.log('  設計メモの表：4人→1:3 / 5人→1:4 / 6人→2:4 / 8人→2:6');
-  console.log('  設計メモの本文：「比は 1:3。端数は false 側へ」');
+  console.log('  設計メモの表（当時）：4人→1:3 / 5人→1:4 / 6人→2:4 / 8人→2:6');
+  console.log('  設計メモの本文（当時）：「比は 1:3。端数は false 側へ」');
+  console.log('  ※ 2026-09-16 の裁定で「表を正」に決まり、本文は round の式に書き換えた。');
+  console.log('     指示54で上限が12人になったので、9〜12人もここで出す。');
   console.log('');
   console.log('  人数  表 round(n/4)   本文 floor(n/4)   生存者の期待値（表 → 本文）');
-  for (const n of [4, 5, 6, 7, 8]) {
+  for (const n of [4, 5, 6, 7, 8, 9, 10, 11, 12]) {
     const a = TRUE_COUNT.表(n), b = TRUE_COUNT.本文(n);
     // N-1ラウンドで N枚中 N-1枚が引かれる。引かれた中の true の期待値 ＋ 最後の1人（自動生存）
     const 生存 = (nt) => nt * (n - 1) / n + 1;
@@ -149,11 +151,14 @@ function 比べる() {
       (同じ ? '  ［同じ］' : ` → ${生存(b).toFixed(2)}人(${率(b)}%)  ★食い違う`)
     );
   }
-  const 表を再現 = [[4, 1], [5, 1], [6, 2], [8, 2]].every(([n, t]) => TRUE_COUNT.表(n) === t);
-  const 本文で再現 = [[4, 1], [5, 1], [6, 2], [8, 2]].every(([n, t]) => TRUE_COUNT.本文(n) === t);
+  // 設計メモの表そのもの（**いまは9行**。指示54で 9〜12人を足した）を再現できるか
+  const メモの表 = [[4, 1], [5, 1], [6, 2], [7, 2], [8, 2], [9, 2], [10, 3], [11, 3], [12, 3]];
+  const 表を再現 = メモの表.every(([n, t]) => TRUE_COUNT.表(n) === t);
+  const 本文で再現 = メモの表.every(([n, t]) => TRUE_COUNT.本文(n) === t);
   console.log('');
-  console.log(`  表の4行を再現できるか： round=${表を再現 ? 'できる' : 'できない'} / floor=${本文で再現 ? 'できる' : 'できない'}`);
-  console.log('  → 表を正とするなら Math.round(n/4)。7人は表に無いので要判断（1 か 2）');
+  console.log(`  設計メモの表（${メモの表.length}行）を再現できるか： round=${表を再現 ? 'できる' : 'できない'} / floor=${本文で再現 ? 'できる' : 'できない'}`);
+  console.log('  → 裁定は Math.round(n/4)（2026-09-16）。設計メモの本文にも式で書いてある。');
+  console.log('     **10人・11人でも floor と割れる**ので、本文を直しておかないと同じ食い違いが再発した。');
 }
 
 // ================= ② 終了条件 =================
@@ -165,7 +170,7 @@ function 終わり方() {
   console.log('');
   for (const rate of [0, 0.05, 0.15, 0.30]) {
     console.log(`  --- 各段階での退室率 ${(rate * 100).toFixed(0)}% ---`);
-    for (const n of [4, 6, 8]) {
+    for (const n of [4, 6, 8, 12]) {
       const ends = {};
       for (let s = 1; s <= 30000; s++) {
         const r = play(n, s, { leaveRate: rate });
@@ -199,7 +204,7 @@ function 表を読む() {
 // ================= 二度対面・2案の食い違い =================
 function 相手の選び方() {
   console.log('=== 対面の相手：同じ2人が二度対面するか／2案は違う結果を出すか ===');
-  for (const n of [4, 5, 6, 7, 8]) {
+  for (const n of [4, 5, 6, 7, 8, 9, 10, 11, 12]) {
     let 二度 = 0, 割れ = 0, 最大登場 = 0;
     const rs = [];
     for (let s = 1; s <= 20000; s++) {
@@ -222,7 +227,7 @@ function 時間() {
   console.log(`=== 所要時間（1ラウンド ≒ ${素}秒 ＋ 話し合い） ===`);
   for (const T of [30, 60, 90]) {
     console.log(`  --- 話し合い ${T}秒 ---`);
-    for (const n of [4, 5, 6, 8]) {
+    for (const n of [4, 6, 8, 10, 12]) {
       const waits = [];
       for (let s = 1; s <= 20000; s++) {
         const r = play(n, s);

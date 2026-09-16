@@ -158,5 +158,21 @@
     "from": ".cassette-warp[data-theme=\"falsetrue\"], .shelf-stage[data-theme=\"falsetrue\"]{--warp-color:#122A1B;",
     "to": ".cassette-warp[data-theme=\"falsetrue\"], .shelf-stage[data-theme=\"falsetrue\"]{--warp-color:#191B1D;",
     "expect": "見分けがつかないほど近い世界の色がある"
+  },
+  {
+    "name": "53-画面A 実在しない esc() に戻す（実機で出たそのもの）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "      escapeHtml(last.decidedName) + ' さんは <b>' +",
+    "to": "      esc(last.decidedName) + ' さんは <b>' +",
+    "expect": "7枚すべてが、本物の検体で例外なく描ける"
+  },
+  {
+    "name": "53-画面B 持ち主でない人にも「ひらく」を出す（覗ける形に戻す）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "      el('ftPeekOpenBtn').style.display = 'none';\n      el('ftPeekSeenBtn').style.display = 'none';\n      return;",
+    "to": "      el('ftPeekSeenBtn').style.display = 'none';\n      return;",
+    "expect": "中身が出るのは、持ち主の「中身をみる」だけ"
   }
 ]

@@ -386,13 +386,24 @@ const 端末 = (rm, id) => rm.all.find((d) => d.memberId === id);
       const w = stateOf(srv, rm.code);
       const 持ち主 = w.pickerId, 相手 = w.oppId, 持っている = w.heldNo;
       assert(相手, '対面の相手がいる');
+      /**
+       * **締め切りを遠くへ押しやってから抜ける。**
+       *
+       * `face` の締め切りは3秒しかないので、そのまま抜けさせると
+       * **退室で片付いたのか、3秒後の見回りが拾ったのか区別がつかない**。
+       * 実際、`isAllDone` の「部屋から消えた人は段階に関係なく見る」を
+       * 丸ごと外す変異が、この検査を素通りした（落とし穴10-b）。
+       * 見回りが手を出せない状況を作って、**退室そのもので片付くこと**を見る
+       */
+      w.deadline = Date.now() + 600000;
+      assert(w.deadline - Date.now() > 60000, '見回りが手を出せない状況を作れている');  // 型(b)
       const 出る = 端末(rm, 相手);
       assertEqual((await 出る.call('room:leave', { code: rm.code, memberId: 相手 })).ok, true, '退室できる');
       // **対面をやり直す。**持ち主とケースはそのまま
       await waitUntil(() => {
         const x = stateOf(srv, rm.code);
         return x.oppId && x.oppId !== 相手;
-      }, '別の相手と対面し直す');
+      }, '退室だけで、別の相手と対面し直す（見回りは止めてある）');
       const x = stateOf(srv, rm.code);
       assertEqual(x.pickerId, 持ち主, '持ち主はそのまま');
       assertEqual(x.heldNo, 持っている, 'ケースを持ったまま');

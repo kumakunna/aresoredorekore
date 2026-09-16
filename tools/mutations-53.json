@@ -174,5 +174,13 @@
     "from": "      el('ftPeekOpenBtn').style.display = 'none';\n      el('ftPeekSeenBtn').style.display = 'none';\n      return;",
     "to": "      el('ftPeekSeenBtn').style.display = 'none';\n      return;",
     "expect": "中身が出るのは、持ち主の「中身をみる」だけ"
+  },
+  {
+    "name": "53-2-8D 同じ後退を、実サーバーの側でも見る（面の締め切りに助けられない形）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/realtime-falsetrue.js",
+    "from": "  if (roundMembers(room).some((id) => !isPresent(room, id))) return true;",
+    "to": "  if (false) return true;",
+    "expect": "対面の相手が本当に退室すると対面が流れ"
   }
 ]

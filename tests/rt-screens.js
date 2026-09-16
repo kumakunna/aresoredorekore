@@ -9,6 +9,7 @@ const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerF
   pickGame, runWizardToPlay, createRunner, assert, assertEqual, assertNoErrors, autoDialog } = H;
 // 第35弾：経路の正本。ゲーム一覧・退室経路はここから回す（手書きの列挙をしない）
 const INV = require('./inventory');
+const FalseTrueRoom = require('../falsetrue-room.js');
 
 const LAUNCH = { fakeSocket: true };
 
@@ -370,6 +371,70 @@ function auRoom(st, phase, withBig) {
     state: { phase: phase, game: 'auction', data: AuctionRoom.publicView(st.room) }
   });
 }
+// ---- 指示53：False or True の検体（本物の進行役を動かす・落とし穴25） ----
+const FT_MEMBERS = [
+  { id: 'm1', name: 'あき', role: 'player', connected: true, isHost: true },
+  { id: 'm2', name: 'びび', role: 'player', connected: true, isHost: false },
+  { id: 'm3', name: 'ちか', role: 'player', connected: true, isHost: false },
+  { id: 'm4', name: 'でん', role: 'player', connected: true, isHost: false }
+];
+// 段階 → 画面。**RT_GAME_SCREENS と同じ7枚**（片方だけ増えたら、下の数の主張で赤くなる）
+const FT_PHASES = [
+  { phase: 'pick', screen: 'scr-rt-ft-pick' },
+  { phase: 'peek', screen: 'scr-rt-ft-peek' },
+  { phase: 'face', screen: 'scr-rt-ft-face' },
+  { phase: 'talk', screen: 'scr-rt-ft-talk' },
+  { phase: 'decide', screen: 'scr-rt-ft-decide' },
+  { phase: 'open', screen: 'scr-rt-ft-open' },
+  { phase: 'ended', screen: 'scr-rt-ft-result' }
+];
+function ftSeeded(seed) {
+  let x = seed || 7;
+  return () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; };
+}
+/**
+ * 本物の進行役を1つ立てて、好きな段階まで進める。
+ *   st.w    … サーバー側の状態（検体を作るために直接いじる）
+ *   st.you  … その人に届く privateFor
+ *   st.to   … その段階まで、**本物の操作で**進める
+ */
+function ftStage(cfg) {
+  const members = new Map();
+  FT_MEMBERS.forEach((m) => members.set(m.id, Object.assign({}, m)));
+  const room = { members: members, state: { phase: 'lobby', game: null, data: {} } };
+  const res = FalseTrueRoom.startGame(room,
+    Object.assign({ game: 'falsetrue', talkSec: 30, _rand: ftSeeded(7) }, cfg || {}), {});
+  if (!res.ok) throw new Error('偽の部屋を作れませんでした: ' + (res.error || ''));
+  const w = room.falsetrue;
+  const st = {
+    room: room, w: w,
+    you: (id) => FalseTrueRoom.privateFor(room, id),
+    view: () => FalseTrueRoom.publicView(room)
+  };
+  // **締め切りを追い越して進める**（実時間を待たない・落とし穴24）。
+  // 進めるのは本物の advance なので、判定も段階の順序も本物のまま
+  st.to = (phase) => {
+    for (let i = 0; i < 60; i++) {
+      if (w.phase === phase) return st;
+      if (w.phase === 'ended') break;
+      w.deadline = Date.now() - 1;
+      FalseTrueRoom.advance(room);
+    }
+    if (w.phase !== phase) throw new Error('段階 ' + phase + ' に届かなかった（いま: ' + w.phase + '）');
+    return st;
+  };
+  return st;
+}
+function ftRoom(st, phase, withBig) {
+  const members = FT_MEMBERS.map((m) => Object.assign({}, m));
+  if (withBig) members.push({ id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false });
+  return roomSnapshot({
+    playerCount: FT_MEMBERS.length, memberCount: members.length,
+    members: members,
+    state: { phase: phase, game: 'falsetrue', data: FalseTrueRoom.publicView(st.room) }
+  });
+}
+
 // すごろくの偽の部屋。**画面が本当に描かれるか**を見るために使う。
 // 通信と状態だけを見るテストでは、画面の不在を捕まえられない（第36弾で実際に起きた）
 function sugoBoard(n) {
@@ -6033,6 +6098,112 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(!主.classList.contains('is-fine') && !主.classList.contains('is-dull'),
       '開示の外では色を外す');
     assertNoErrors(errors, '開示の演出で未捕捉の例外');
+    win.close();
+  });
+
+  // ================= 指示53：False or True の7枚 =================
+  //
+  // **なぜ7枚すべてを実際に描かせるか。**
+  // 指示53の実装で `esc()` を7か所書いた。実在するのは `escapeHtml()` で、
+  // `esc` はどこにも無い——それでも**全テストが緑のまま**だった。
+  // 部屋の描画関数は、本物のサーバーでその段階に入った時にしか走らないからで、
+  // 実際に出たのは4人そろえて「ケースが開く」に入った瞬間だった。
+  // 同じ形がもう1つ、まだ一度も走っていない結果発表の中に潜んでいた（`rtIsHost`）。
+  //
+  // **だから、7枚ぜんぶを本物の進行役の検体で描かせて、例外が出ないことを見る。**
+  // 検体は手で書かない（落とし穴25）——`ftStage()` が falsetrue-room.js を
+  // 実際に動かし、publicView / privateFor をそのまま画面へ流す。
+
+  await r.test('False or True：7枚すべてが、本物の検体で例外なく描ける', async () => {
+    const 通った = [];
+    for (const 段 of FT_PHASES) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      const st = ftStage();
+      st.to(段.phase);
+      push(fake, ftRoom(st, 段.phase));
+      pushYou(fake, st.you('m2'));
+      await waitScreen(win, doc, 段.screen, 4000);
+      // **器だけでなく、中身が描かれているか**まで見る（落とし穴12）
+      const scr = doc.getElementById(段.screen);
+      const 文字 = scr.innerText.replace(/\s+/g, ' ').trim();
+      assert(文字.length > 0, 段.screen + ' に文字が出ている');
+      assert((scr.querySelector('.now-line') || {}).textContent,
+        段.screen + ' に「いま何をする」の帯が出ている');
+      assertNoErrors(errors, 段.screen + ' の描画で未捕捉の例外');
+      通った.push(段.screen);
+      win.close();
+    }
+    // **数を先に主張する**（型b）。1枚しか描けていなければ「全部描けた」は自明に成立する
+    assertEqual(通った.length, 7, '7枚すべてを描いた（実際:' + 通った.join('・') + '）');
+  });
+
+  await r.test('False or True：中身が出るのは、持ち主の「中身をみる」だけ', async () => {
+    const st = ftStage();
+    st.to('peek');
+    const 持ち主 = st.w.pickerId;
+    const 他 = st.w.playerIds.filter((id) => id !== 持ち主);
+
+    // ① 持ち主の画面：ひらくと中身が出る
+    const A = await launch(LAUNCH);
+    const fakeA = await toRoom(A.win, A.doc, { join: true, memberId: 持ち主 });
+    push(fakeA, ftRoom(st, 'peek'));
+    pushYou(fakeA, st.you(持ち主));
+    await waitScreen(A.win, A.doc, 'scr-rt-ft-peek', 4000);
+    A.doc.getElementById('ftPeekOpenBtn').click();
+    await sleep(A.win, 80);
+    const 中身 = A.doc.getElementById('ftPeekContent');
+    assert(!中身.hidden, '持ち主が「ひらく」を押すと、中身の札が出る');
+    assert(/TRUE|FALSE/.test(中身.textContent), '中身が字でも出ている（色だけに頼らない）');
+    assertNoErrors(A.errors, '中身をみる画面で未捕捉の例外');
+    A.win.close();
+
+    // ② 他の人の画面：どこにも出ない。**押せるボタンも無い**
+    let 見た = 0;
+    for (const id of 他) {
+      const B = await launch(LAUNCH);
+      const fakeB = await toRoom(B.win, B.doc, { join: true, memberId: id });
+      push(fakeB, ftRoom(st, 'peek'));
+      pushYou(fakeB, st.you(id));
+      await waitScreen(B.win, B.doc, 'scr-rt-ft-peek', 4000);
+      const 文字 = B.doc.getElementById('scr-rt-ft-peek').innerText;
+      assert(!/TRUE|FALSE/.test(文字), id + ' の画面に中身が出ていない（実際: ' + 文字.slice(0, 60) + '）');
+      assertEqual(B.doc.getElementById('ftPeekOpenBtn').style.display, 'none',
+        id + ' の画面には「ひらく」が無い');
+      assertEqual(B.doc.getElementById('ftPeekContent').hidden, true, id + ' の中身の札は隠れたまま');
+      見た++;
+      B.win.close();
+    }
+    assertEqual(見た, 3, '持ち主でない3人ぶんを見た');
+
+    // ③ 部屋の知らせ（全員に配られるもの）に、中身が1つも入っていない。
+    //    **値そのものを針にしない**（true/false は JSON のどこにでも出る）。
+    //    中身の並びだけを入れ替えた2局で、公開スナップショットが同じことを見る
+    const C = ftStage(); C.to('peek');
+    C.w.contents = st.w.contents.map((x) => !x);
+    const a = JSON.stringify(FalseTrueRoom.publicView(st.room), (k, v) => (k === 'remainingMs' ? 0 : v));
+    const b = JSON.stringify(FalseTrueRoom.publicView(C.room), (k, v) => (k === 'remainingMs' ? 0 : v));
+    assertEqual(a, b, '中身を入れ替えても、部屋の知らせは1バイトも変わらない');
+  });
+
+  await r.test('False or True：奪う／奪わないの2つは、同じ重さで出る（結果をほのめかさない）', async () => {
+    const st = ftStage();
+    st.to('decide');
+    const 相手 = st.w.oppId;
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 相手 });
+    push(fake, ftRoom(st, 'decide'));
+    pushYou(fake, st.you(相手));
+    await waitScreen(win, doc, 'scr-rt-ft-decide', 4000);
+    const take = doc.getElementById('ftTakeBtn'), keep = doc.getElementById('ftKeepBtn');
+    assertEqual(doc.getElementById('ftDecideChoose').hidden, false, '決める人には2択が出る');
+    const cs = (e) => {
+      const s = win.getComputedStyle(e);
+      return [s.backgroundColor, s.borderColor, s.fontSize, s.fontWeight].join('|');
+    };
+    assertEqual(cs(take), cs(keep),
+      '2つは地・縁・字の大きさ・太さがすべて同じ（色で「奪う＝良い」とほのめかさない）');
+    assertNoErrors(errors, '奪うか決める画面で未捕捉の例外');
     win.close();
   });
 

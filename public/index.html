@@ -4657,6 +4657,28 @@
   <!-- 4e: 設定ウィザード・ワードウルフ -->
   <!-- 4d8: 設定ウィザード・すごろく（第36弾）。
        1画面につき、やることは1つだけ。決めるのは「突然のできごと」の有無だけにしてある -->
+  <!-- 指示53：False or True の設定。**決めることは1つだけ**（話し合いの長さ）。
+       ケースの数も中身の比も人数から決まるので、ここで聞くことは他に無い -->
+  <div class="screen" id="scr-set-falsetrue">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepFalsetrue"></span><h2 class="scr-title">False or True の設定</h2></div>
+    <p class="wiz-lead">こだわらなければ、そのまま「つぎへ」でOK。</p>
+    <div class="wiz-body">
+      <div class="timer-dmode">
+        <div class="tp-label">話し合いの長さ</div>
+        <div class="seg" id="ftTalkSeg">
+          <button class="seg-btn" data-fttalk="30">30秒</button>
+          <button class="seg-btn" data-fttalk="60">60秒</button>
+          <button class="seg-btn" data-fttalk="90">90秒</button>
+        </div>
+        <div class="mic-status" id="ftCfgNote" style="margin-top:8px;"></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
   <div class="screen" id="scr-set-sugoroku">
     <div class="wiz-head"><span class="wiz-step" id="wizStepSugoroku"></span><h2 class="scr-title">すごろくの設定</h2></div>
     <p class="wiz-lead" id="sugoWizLead"></p>
@@ -11252,6 +11274,7 @@
     auctioncfg:{ screen:'scr-set-auction',    badge:'wizStepAuction',    render:renderAuctionStep },
     // 第36弾：すごろく。5ゲームで1枚を共有する形にしておく（ゲームごとに作らない）
     sugorokucfg:{ screen:'scr-set-sugoroku',  badge:'wizStepSugoroku',   render:renderSugorokuStep },
+    falsetruecfg:{ screen:'scr-set-falsetrue', badge:'wizStepFalsetrue',  render:renderFalsetrueStep },
     wolfrole:  { screen:'scr-set-wolfrole',   badge:'wizStepWolfRole',   render:renderWolfRoleStep },
     lovers:    { screen:'scr-set-lovers',     badge:'wizStepLovers',     render:renderLoversStep },
     wolfmulti: { screen:'scr-set-wolfmulti',  badge:'wizStepWolfMulti',  render:renderWolfMultiStep },
@@ -11274,6 +11297,9 @@
     // 第31弾：オークション（作り直し）は設定1枚だけ。
     // 制限時間は「1回の入札の考える時間」なので、共通のタイマー画面とは別物
     if(m.auctionNew) return ['auctioncfg'];
+    // 指示53：False or True。決めることは「話し合いの長さ」だけ。
+    // ケースの数も中身の比も人数から決まる（falsetrue-logic.js）
+    if(m.falseTrue) return ['falsetruecfg'];
     // 第36弾：すごろく。決めることは「突然のできごとを起こすか」だけ。
     // 盤の長さも人数も遊びが決めているので、ここで聞くことは他に無い
     if(m.sugoroku) return ['sugorokucfg'];
@@ -11300,6 +11326,33 @@
     return steps;
   }
   // 第36弾：すごろくの設定。決めるのは「突然のできごと」の有無だけ
+  /**
+   * 指示53：False or True の設定（話し合いの長さ）。
+   *
+   * **なぜ60秒が既定か**は、着手前に測って決めた（tools/fot-preflight.js time）。
+   * 8人・90秒だと全体15.1分、**一度も出番が来ないまま12.9分見ているだけの人**が出る。
+   * ここでその見込みを出すのは、選ぶ人がその場で判断できるようにするため
+   */
+  function renderFalsetrueStep(){
+    var L = window.FalseTrueLogic;
+    var 秒 = state.ftCfg.talkSec;
+    Array.prototype.forEach.call(el('ftTalkSeg').querySelectorAll('[data-fttalk]'), function(b){
+      b.classList.toggle('on', parseInt(b.dataset.fttalk, 10) === 秒);
+    });
+    // 1ラウンド ≒ 39秒 ＋ 話し合い。ラウンド数は必ず「人数−1」
+    var 人 = Math.max(L.RULES.MIN_PLAYERS, state.players.length || L.RULES.MIN_PLAYERS);
+    var 分 = Math.round((人 - 1) * (39 + 秒) / 60);
+    el('ftCfgNote').textContent =
+      人 + '人だと、ぜんぶで およそ ' + 分 + '分。' +
+      (秒 >= 90 ? '長めなので、人数が多い時は出番を待つ時間も長くなります。' : '');
+  }
+  el('ftTalkSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-fttalk]');
+    if(!b) return;
+    state.ftCfg.talkSec = parseInt(b.dataset.fttalk, 10);
+    renderFalsetrueStep();
+  });
+
   function renderSugorokuStep(){
     // 「1位以外も少し動く」は、駒が1つのゲームだけの決めごと
     var m = modeById(state.selectedModeId) || {};
@@ -14230,6 +14283,32 @@
         if(res.misses && res.lives === 1) add.comebacks = 1;
       }
       return { cassette: 'bakudan', add: add };
+    }
+    if(game === 'falsetrue'){
+      /**
+       * 指示53：False or True の称号。
+       *
+       * **勝ち負けと関係ないものを数える**（大切なこと5）。
+       * 生きのこったかどうかは中身の運で決まる（生存 ⟺ 中身が true）ので、
+       * それだけを数えると「運が良かった証」しか集まらない。
+       * **その人が実際にやったこと**——嘘が通った・相手の嘘を見抜いた——を数える。
+       *
+       * 数えるもとは決着の `history`（全ラウンドの記録）。
+       * 決着してから配られるので、途中の秘密には触っていない
+       */
+      var f = { plays: 1 };
+      var me = meId;
+      var 私 = (v.players || []).find(function(p){ return p.id === me; });
+      if(私 && 私.fate === 'alive') f.wins = 1;
+      (v.history || []).forEach(function(h){
+        // 自分が持っていて、false を相手に奪わせた＝はったりが通った
+        if(h.holderId === me && h.content === false && h.taken) f.bluffs = 1;
+        // 自分が決める側で、false を奪わなかった＝相手の嘘を見抜いた
+        if(h.oppId === me && h.content === false && !h.taken) f.reads = 1;
+        // 自分が決める側で、true を奪った＝信じて当てた
+        if(h.oppId === me && h.content === true && h.taken) f.trusts = 1;
+      });
+      return { cassette: 'falsetrue', add: f };
     }
     if(game === 'defuse'){
       var d = { plays: 1, defusePlays: 1 };
@@ -20172,6 +20251,11 @@
     if(m.sugoroku){
       var sgk = SugorokuLogic.gameById(m.game) || {};
       return { min: sgk.estMin || 20, perRound: false };
+    }
+    // 指示53：False or True。**ラウンド数は必ず「人数−1」**（着手前に回して分かった）。
+    // 1ラウンド ≒ 39秒（えらぶ10＋みる8＋対面3＋決める10＋結果8）＋ 話し合い
+    if(m.falseTrue){
+      return { min: round((n - 1) * (39 + state.ftCfg.talkSec)), perRound: false };
     }
     if(m.auctionNew){
       // 見積りの式はルール層に1つだけ置いてある（持ち時間を変えたら自動で追いつく）

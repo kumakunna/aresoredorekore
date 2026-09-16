@@ -143,7 +143,9 @@ const CASSETTE_OF = {
   // 「カードが null」で転ぶ（実際にそうなった）
   wolfrole: 'jinro', wordwolf: 'jinro', bomb: 'bakudan',
   quizrush: 'quizou', quizlist: 'quizou', quizreveal: 'quizou', buzzer: 'quizou',
-  auction: 'auction'
+  auction: 'auction',
+  // 指示53：False or True（カセットidとゲームidが同じ）
+  falsetrue: 'falsetrue'
 };
 
 // 待合から棚へ出て、カセット→（ゲーム）→モードを歩いて待合にもどる（ホストの流れ）

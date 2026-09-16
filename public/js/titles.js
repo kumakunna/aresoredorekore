@@ -99,6 +99,17 @@
       pairWins: 0,          // ふたりでひとつで、組が1位になった
       hideWins: 0           // どこにいる？で1位になった
     },
+    // ---- 指示53：False or True ----
+    // **勝ち負けと関係ないものを中心に数える**（大切なこと5）。
+    // 生きのこりは中身の運で決まる（生存 ⟺ 中身が true）ので、
+    // それだけだと「運が良かった証」しか集まらない
+    falsetrue: {
+      plays: 0,             // False or True を遊んだ回数
+      wins: 0,              // 生きのこった回数
+      bluffs: 0,            // 自分の FALSE を、相手に奪わせた（はったりが通った）
+      reads: 0,             // 相手の FALSE を、奪わずに見抜いた
+      trusts: 0             // 相手の TRUE を信じて奪い、当てた
+    },
     auction: {
       plays: 0,             // オークションを遊んだ回数
       wins: 0,              // 1位になった回数
@@ -271,6 +282,23 @@
       { id: 'icon-quiz-muri', cassette: 'quizou', emoji: '🧠', label: '難問撃破の証',
         hint: '「むりなんだが」の問題を正解する',
         need: function (s) { return s('quizou', 'muriHits') >= 1; } },
+
+      // ---- 指示53：False or True ----
+      { id: 'icon-ft-1', cassette: 'falsetrue', emoji: '💼', label: '立会人の証',
+        hint: 'False or True を1回あそぶ',
+        need: function (s) { return s('falsetrue', 'plays') >= 1; } },
+      { id: 'icon-ft-10', cassette: 'falsetrue', emoji: '🔑', label: '常連の証',
+        hint: 'False or True を通算10回あそぶ',
+        need: function (s) { return s('falsetrue', 'plays') >= 10; } },
+      { id: 'icon-ft-bluff', cassette: 'falsetrue', emoji: '🎭', label: 'はったりの証',
+        hint: '自分の FALSE を、相手に奪わせる',
+        need: function (s) { return s('falsetrue', 'bluffs') >= 1; } },
+      { id: 'icon-ft-read', cassette: 'falsetrue', emoji: '🧠', label: '見抜きの証',
+        hint: '相手の FALSE を、奪わずに見抜く',
+        need: function (s) { return s('falsetrue', 'reads') >= 1; } },
+      { id: 'icon-ft-trust', cassette: 'falsetrue', emoji: '🤝', label: '信じた証',
+        hint: '相手の TRUE を信じて奪い、当てる',
+        need: function (s) { return s('falsetrue', 'trusts') >= 1; } },
 
       // ---- 第32弾-B-2：オークション ----
       { id: 'icon-auc-1', cassette: 'auction', emoji: '💰', label: '競り人の証',

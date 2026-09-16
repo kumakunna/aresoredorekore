@@ -1,0 +1,106 @@
+[
+  {
+    "name": "49-3A 世界の色を、あれそれだけ共通に戻す（着手前の ΔE=0.0 の状態）",
+    "file": "public/index.html",
+    "suite": "tests/design-tokens.js",
+    "from": ".cassette-warp[data-theme=\"aresore\"], .shelf-stage[data-theme=\"aresore\"]{--warp-color:#FBD9BC;",
+    "to": ".cassette-warp[data-theme=\"aresore\"], .shelf-stage[data-theme=\"aresore\"]{--warp-color:#EFE8D3;",
+    "expect": "見分けがつかないほど近い世界の色がある"
+  },
+  {
+    "name": "49-3B 人狼とクイズを、着手前の近さ（ΔE=3.4）に戻す",
+    "file": "public/index.html",
+    "suite": "tests/design-tokens.js",
+    "from": ".cassette-warp[data-theme=\"quiz\"], .shelf-stage[data-theme=\"quiz\"]{--warp-color:#04365F;",
+    "to": ".cassette-warp[data-theme=\"quiz\"], .shelf-stage[data-theme=\"quiz\"]{--warp-color:#10182E;",
+    "expect": "見分けがつかないほど近い世界の色がある"
+  },
+  {
+    "name": "49-3C 世界の表と配色の表を、オークションの薄墨だけずらす（着手前に実在したずれ）",
+    "file": "public/index.html",
+    "suite": "tests/design-tokens.js",
+    "from": "--warp-color:#3B1220;--warp-ink:#FAEFE9;--warp-soft:#E2BEB4;",
+    "to": "--warp-color:#3B1220;--warp-ink:#FAEFE9;--warp-soft:#BFA9A2;",
+    "expect": "世界の色と配色の地が食い違っている"
+  },
+  {
+    "name": "49-1A 薄墨を着手前の値に戻す（共通が 5.67:1 に落ちる）",
+    "file": "public/index.html",
+    "suite": "tests/design-tokens.js",
+    "from": ".cassette-warp, .shelf-stage{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#46453D;}",
+    "to": ".cassette-warp, .shelf-stage{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#5B5A50;}",
+    "expect": "世界の色と配色の地が食い違っている"
+  },
+  {
+    "name": "49-4A 正本の表だけ古い値にする（docs が実装から離れる）",
+    "file": "docs/デザインの正本.md",
+    "suite": "tests/design-tokens.js",
+    "from": "| 🐺 人狼 `theme-wolf` | `#261A55` |",
+    "to": "| 🐺 人狼 `theme-wolf` | `#161A29` |",
+    "expect": "正本と実装が食い違っている"
+  },
+  {
+    "name": "49-5A サーバーの文言に「ホスト」を戻す（SRV層を掃けているか）",
+    "file": "realtime.js",
+    "suite": "tests/ui-text.js",
+    "from": "'進行役だけが始められます'",
+    "to": "'ホストだけが始められます'",
+    "expect": "専門用語が画面に残っている"
+  },
+  {
+    "name": "49-5B ui-text.js の生きている文言に、漢字の動詞を戻す（文言表の層）",
+    "file": "public/js/ui-text.js",
+    "from": "渡す相手: 'だれにゆずりますか？'",
+    "to": "渡す相手: 'だれに渡しますか？'",
+    "suite": "tests/ui-text.js",
+    "expect": "動詞が漢字のまま残っている"
+  },
+  {
+    "name": "49-5C CSSの content を掃く層を落とす（層の宣言と食い違わせる）",
+    "file": "tools/ui-text-scan.js",
+    "suite": "tests/ui-text.js",
+    "from": "  { id: 'CSS', 説明: 'CSSの content で画面に出る文字' },",
+    "to": "",
+    "expect": "宣言していない層を掃いている"
+  },
+  {
+    "name": "49-5D 改行をまたぐ地の文を、行ごとの掃き方に戻す（30件が見えなくなる）",
+    "file": "public/index.html",
+    "suite": "tests/ui-text.js",
+    "from": "          ここから先は、押すともどせません。かならず確認が出ます。",
+    "to": "          ここから先は、押すと戻せません。かならず確認が出ます。",
+    "expect": "動詞が漢字のまま残っている"
+  },
+  {
+    "name": "49-6A タイルの名前に、手で入れた改行を戻す",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "title:'クイズ王',",
+    "to": "title:'クイズ<br>王',",
+    "expect": "タイルの名前に手で入れた改行が残っている"
+  },
+  {
+    "name": "49-7A 下ろしたゲームを、宣言だけ残して棚に戻す（宣言と実態がねじれる）",
+    "file": "public/index.html",
+    "suite": "tests/room-paths.js",
+    "from": "      games:['bomb'],",
+    "to": "      games:['bomb', 'defuse'],",
+    "expect": "下ろしたと宣言されているのに、カセットの games: に残っています"
+  },
+  {
+    "name": "49-7B 下ろした理由を空にする（黙って消えた状態になる）",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "                なぜ:'一部の端末で傾きが読めないため、いったん下ろしています' }],",
+    "to": "                なぜ:'' }],",
+    "expect": "遊ぶ人へ出す理由が書いてある"
+  },
+  {
+    "name": "49-4B カセットの既定値を、実在するidに戻す（部屋コードで入った人の世界が上書きされる）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    selectedCassetteId: null, // 第15弾：棚で選んだカセット",
+    "to": "    selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット",
+    "expect": "部屋のゲームからテーマが決まる"
+  }
+]

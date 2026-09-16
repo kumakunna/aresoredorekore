@@ -17,6 +17,11 @@
 //                                           # 秘密が先・部屋の知らせが後（落とし穴18の順）
 //   node tools/fx-probe.js bomb coop --late # 解除中を一度も見ずに決着だけ届く
 //
+//   node tools/fx-probe.js falsetrue true    # 中身が TRUE の回（緑の光＋「生存」）
+//   node tools/fx-probe.js falsetrue false   # 中身が FALSE の回（赤の光。**脱落は静かに**）
+//   node tools/fx-probe.js falsetrue true --big    # 同じ場面を大画面の端末で
+//   node tools/fx-probe.js falsetrue true --skip   # スキップ（演出を出さず結果だけ）
+//
 // 出るのは「場面ごとの演出の数」。**0 は「出なかった」**という意味で、
 // 実装が壊れた時にここが 1 → 0 に動く。
 //
@@ -31,6 +36,7 @@ const ROOT = path.join(__dirname, '..');
 const H = require(path.join(ROOT, 'tests', 'harness'));
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, openCassette } = H;
 const Bomb = require(path.join(ROOT, 'bomb-room.js'));
+const FalseTrue = require(path.join(ROOT, 'falsetrue-room.js'));
 
 const argv = process.argv.slice(2);
 const game = argv[0] || 'bomb';
@@ -39,9 +45,10 @@ const opt = (name) => argv.indexOf('--' + name) !== -1;
 const BIG = opt('big');
 const REVERSED = opt('reversed');
 const LATE = opt('late');
+const SKIP = opt('skip');
 
-if (game !== 'bomb') {
-  console.error('いまは bomb だけ。ほかのゲームを足す時は、その *-room.js を同じ形で呼ぶ');
+if (game !== 'bomb' && game !== 'falsetrue') {
+  console.error('いまは bomb と falsetrue。ほかのゲームを足す時は、その *-room.js を同じ形で呼ぶ');
   process.exit(2);
 }
 
@@ -73,7 +80,136 @@ function missOnce(room, mid) {
 const MY_ROLE = BIG ? 'bigscreen' : 'player';
 const MY_ID = 'm1';
 
-(async function main() {
+// ================= 指示53：False or True =================
+//
+// 見たいのは3つ：
+//   ① 中身が開く瞬間に、**画面いっぱいの光**が出る（TRUE は緑・FALSE は赤）
+//   ② **生存だけコールアウト。脱落は静かに**（原則C：責める時は静かに）
+//   ③ **スキップにすると、演出は出ずに結果だけが出る**（大切なこと7）
+//
+// 光は自分で片付くので、出ている最中に数える（落とし穴10-g）。
+function ftMakeRoom(want) {
+  const members = new Map();
+  ['m1', 'm2', 'm3', 'm4'].forEach((id, i) =>
+    members.set(id, {
+      id, name: ['あき', 'びび', 'ちか', 'でん'][i],
+      role: 'player', connected: true, socketId: 's' + id
+    }));
+  const room = { code: 'ABC234', members, state: { phase: 'lobby', game: null, data: {} } };
+  let x = 7;
+  const rand = () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; };
+  const r = FalseTrue.startGame(room, { game: 'falsetrue', talkSec: 30, _rand: rand }, {});
+  if (!r.ok) throw new Error(JSON.stringify(r));
+  // **中身を決め打ちにする**（検体を作るためだけに触る）。
+  // TRUE の回と FALSE の回で、出る演出が違うことを見たい
+  room.falsetrue.contents = room.falsetrue.contents.map(() => want === 'true');
+  return room;
+}
+/** 段階を、本物の advance で進める（締め切りを追い越すだけ） */
+function ftTo(room, phase, take) {
+  for (let i = 0; i < 40; i++) {
+    const w = room.falsetrue;
+    if (w.phase === phase) return;
+    if (w.phase === 'decide' && take !== undefined) w.choice = take ? 'take' : 'keep';
+    w.deadline = Date.now() - 1;
+    FalseTrue.advance(room);
+  }
+  throw new Error('段階 ' + phase + ' に届かない（いま ' + room.falsetrue.phase + '）');
+}
+
+async function mainFalsetrue() {
+  const want = (mode === 'false') ? 'false' : 'true';   // 既定は TRUE（生存が出る回）
+  // **スキップは本番と同じ道で入れる**（localStorage → appPrefs → fxMs と .fx-skip の三層）。
+  // window に手で書くと、アプリが実際に通る道とは別のものを試すことになる（落とし穴25）
+  const { win, doc, errors } = await launch({ fakeSocket: true, fxSkip: SKIP });
+  await waitScreen(win, doc, 'scr-shelf', 8000);
+  await openCassette(win, doc, 'falsetrue');
+  click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
+  await waitScreen(win, doc, 'scr-rt-lobby', 4000);
+  const fake = win.__rtFake;
+  await waitFor(win, () => fake.connected, 4000, 'socket');
+
+  const room = ftMakeRoom(want);
+  const MY_ID = BIG ? 'tv' : 'm1';
+  if (BIG) room.members.set('tv', { id: 'tv', name: 'TV', role: 'bigscreen', connected: true, socketId: 'stv' });
+
+  const memberRows = () => {
+    const rows = [];
+    if (BIG) rows.push({ id: 'tv', name: 'TV', role: 'bigscreen', connected: true, isHost: false, ready: true });
+    ['m1', 'm2', 'm3', 'm4'].forEach((id, i) => rows.push({
+      id, name: ['あき', 'びび', 'ちか', 'でん'][i],
+      role: 'player', connected: true, isHost: i === 0, ready: true
+    }));
+    return rows;
+  };
+  const snap = () => ({
+    code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'm1',
+    playerCount: 4, memberCount: memberRows().length,
+    ready: { count: 4, total: 4, waitingNames: [], all: true },
+    members: memberRows(),
+    state: { phase: room.state.phase, game: 'falsetrue', data: FalseTrue.publicView(room) }
+  });
+  fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: MY_ID, room: snap() }) };
+  el(doc, 'rtCreateName').value = BIG ? 'TV' : 'あき';
+  click(doc, 'rtCreateBtn');
+  await sleep(win, 300);
+
+  const push = () => {
+    const mine = FalseTrue.privateFor(room, MY_ID);
+    if (REVERSED) { if (mine) fake.fire('wolf:you', mine); fake.fire('room:update', snap()); }
+    else { fake.fire('room:update', snap()); if (mine) fake.fire('wolf:you', mine); }
+  };
+
+  const rows = [];
+  const count = (tag) => rows.push({
+    tag,
+    画面: activeScreen(doc),
+    光: doc.querySelectorAll('.fx-flash').length,
+    光の色: (doc.querySelector('.fx-flash') || { className: '' }).className.replace('fx-flash', '').trim() || '-',
+    コールアウト: (doc.querySelector('.fx-callout') || { textContent: '' }).textContent.trim() || '-',
+    紙吹雪: doc.querySelectorAll('.fx-confetti').length,
+    中身の札: (() => {
+      const b = doc.querySelector('.screen.active .ft-content');
+      return b && !b.hidden ? (b.getAttribute('data-v') + ':' + b.textContent.replace(/\s+/g, ' ').trim()) : '-';
+    })(),
+    結果の札: (doc.querySelector('#ftOpenVerdict') || { textContent: '' }).textContent.replace(/\s+/g, ' ').trim() || '-'
+  });
+
+  // 話し合いまでは静かなはず（ここで光ったら、それ自体がおかしい）
+  if (!LATE) {
+    ftTo(room, 'talk');
+    push();
+    await sleep(win, 120);
+    count('話し合い中');
+  }
+  // 決める → 開く。**奪わない**ので、持ち主の運命が中身で決まる
+  ftTo(room, 'open', false);
+  push();
+  await sleep(win, 80);
+  count('開いた直後');
+  await sleep(win, 200);
+  count('少しあと');
+  // 連なって遅れて出るもの（コールアウトは光が引いてから）
+  await sleep(win, 1000);
+  count('もっとあと');
+
+  // 決着まで
+  ftTo(room, 'ended');
+  push();
+  await sleep(win, 200);
+  count('決着');
+
+  const label = ['falsetrue', '中身=' + want, BIG ? '大画面' : 'プレイヤー',
+    REVERSED ? '順が逆' : null, LATE ? '決着だけ' : null, SKIP ? 'スキップ' : null]
+    .filter(Boolean).join(' / ');
+  console.log('== ' + label + ' ==');
+  console.log('   サーバーの段階:', room.falsetrue.phase);
+  rows.forEach((r) => console.log('   ', JSON.stringify(r)));
+  console.log('   画面のエラー:', errors.length ? errors.slice(0, 2) : 'なし');
+  win.close();
+}
+
+async function mainBomb() {
   const { win, doc, errors } = await launch({ fakeSocket: true });
   await waitScreen(win, doc, 'scr-shelf', 8000);
   await openCassette(win, doc, 'bakudan');
@@ -162,4 +298,7 @@ const MY_ID = 'm1';
   rows.forEach((r) => console.log('   ', JSON.stringify(r)));
   console.log('   画面のエラー:', errors.length ? errors.slice(0, 2) : 'なし');
   win.close();
-})().catch((e) => { console.error(e); process.exit(1); });
+}
+
+(game === 'falsetrue' ? mainFalsetrue() : mainBomb())
+  .catch((e) => { console.error(e); process.exit(1); });

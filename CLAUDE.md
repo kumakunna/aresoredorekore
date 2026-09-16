@@ -560,6 +560,8 @@
   bot と違って本物のブラウザなので**切断しない**（bot は数十秒で `connected:false` になり、
   「進行役をゆずる」が効かなくなる）。進行役を渡してから開き直す検証は、この形でしかできない
 - **「その瞬間、演出が本当に出たか」は `node tools/fx-probe.js bomb coop`**（第47弾）。
+  **指示53で False or True にも広げた**——`falsetrue true` / `falsetrue false` /
+  `--skip`（演出を出さず結果だけ）。ゲームを足す時は、その `*-room.js` を同じ形で呼ぶ。
   jsdom の上で**本物の進行役（`*-room.js`）を動かし、本物の publicView / privateFor を
   本物の画面へ流して**、出ている最中に `.bomb-boom` などを数える（落とし穴25・10-g）。
   `--big`（大画面の端末として見る）・`--reversed`（秘密が先・部屋の知らせが後＝落とし穴18の順）・

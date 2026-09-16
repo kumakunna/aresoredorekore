@@ -100,7 +100,21 @@ function 走らせる(f) {
     const t0 = Date.now();
     const env = Object.assign({}, process.env, { ACAC_JSON: '1' });
     if (計測) env.ACAC_TIME = '1';
-    const ch = cp.spawn(process.execPath, [path.join('tests', f)], { cwd: R, env });
+    /**
+     * **ヒープの上限を明示する**（指示54で足した）。
+     *
+     * `rt-screens` は実測で **3508MB** 使う。64bit の Node の既定は約4GBなので、
+     * **余裕が500MBしか無い**。指示54で検査を3件足したらそこを越え、
+     * **SIGSEGV（終了コード139）で1行も出さずに落ちた**——2回とも再現した。
+     * `--max-old-space-size=8192` で回すと 212/212 通る。
+     *
+     * 上限は「予約」ではないので、3本並走でも実際に使う分しか取らない。
+     * **黙って上げるのではなく、なぜ上げたかをここに書く**——
+     * たまに落ちる検査は、実装を疑わせるぶん無いより悪い（落とし穴10-d）。
+     * いつか本当に漏れている所を直すなら、この数字が手がかりになる
+     */
+    const ch = cp.spawn(process.execPath,
+      ['--max-old-space-size=6144', path.join('tests', f)], { cwd: R, env });
     let out = '';
     ch.stdout.on('data', (d) => { out += d; });
     ch.stderr.on('data', (d) => { out += d; });

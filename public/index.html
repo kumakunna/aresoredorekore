@@ -11339,9 +11339,15 @@
     Array.prototype.forEach.call(el('ftTalkSeg').querySelectorAll('[data-fttalk]'), function(b){
       b.classList.toggle('on', parseInt(b.dataset.fttalk, 10) === 秒);
     });
-    // 1ラウンド ≒ 39秒 ＋ 話し合い。ラウンド数は必ず「人数−1」
-    var 人 = Math.max(L.RULES.MIN_PLAYERS, state.players.length || L.RULES.MIN_PLAYERS);
-    var 分 = Math.round((人 - 1) * (39 + 秒) / 60);
+    /**
+     * **人数は部屋から読む。**`state.players` は手渡しの名簿で、
+     * 部屋で遊んでいる時は誰も更新しない——8人の部屋で「4人だと…」と出ていた
+     * （指示53の実測で発見）。読み方は `estimatePlayMinutes` と同じにそろえる。
+     * **分の計算も、そちらに1本化する**——同じ式を2か所に書くと片方が古びる（落とし穴1）
+     */
+    var room = rt && rt.state.room;
+    var 人 = Math.max(L.RULES.MIN_PLAYERS, (room ? room.playerCount : state.players.length) || L.RULES.MIN_PLAYERS);
+    var 分 = estimatePlayMinutes(state.selectedModeId, 人).min;
     el('ftCfgNote').textContent =
       人 + '人だと、ぜんぶで およそ ' + 分 + '分。' +
       (秒 >= 90 ? '長めなので、人数が多い時は出番を待つ時間も長くなります。' : '');

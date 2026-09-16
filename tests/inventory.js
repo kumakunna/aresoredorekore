@@ -294,6 +294,19 @@ const GAME_ABNORMAL = [
     file: 'realtime-auction', test: '持っていない額は、サーバーが断る（端末の数字を信じない）' },
   { game: 'auction', id: 'a06', name: 'ラウンドをまたいだ時の持ち越し（見立て・売却）',
     file: 'realtime-auction', test: '鑑定眼の見立ては、ラウンドをまたいで残らない' },
+  // ---- 指示53：False or True。「誰かがいなくなる」3経路（2-8）を1つずつ ----
+  { game: 'falsetrue', id: 'a01', name: '選ぶ人が抜けたら、次の人へ進む（ケースは減らない）',
+    file: 'falsetrue-room', test: 'Q8-a：選ぶ人が抜けたら、次の人へ進む（ケースは減らない）' },
+  { game: 'falsetrue', id: 'a02', name: '中身を見た人が抜けたら、そのケースは消える',
+    file: 'falsetrue-room', test: 'Q8-b：中身を見た人が抜けたら、そのケースは選択欄に戻らず消える（2-8）' },
+  { game: 'falsetrue', id: 'a03', name: '対面の相手が抜けたら対面が流れ、持ち主はケースを持ったまま',
+    file: 'falsetrue-room', test: 'Q8-c：対面の相手が抜けたら対面は流れ、持ち主はケースを持ったまま(2-8)' },
+  { game: 'falsetrue', id: 'a04', name: '人数の下限（4人）と上限（8人）を、サーバーが門番する',
+    file: 'falsetrue-room', test: '人数の門番：4人未満は始まらず、8人を超えても始まらない' },
+  { game: 'falsetrue', id: 'a05', name: '端末が出す番号を信じない（なりすまし・存在しない番号）',
+    file: 'falsetrue-room', test: '端末が出す番号や、他人になりすました操作は断る' },
+  { game: 'falsetrue', id: 'a06', name: '全員が一度に切れても部屋が壊れない（戻れば同じ段階から）',
+    file: 'falsetrue-room', test: '全員が一度に切れても部屋は壊れない。戻ってきたら同じ段階から続けられる（Q9）' },
 ];
 
 module.exports = {

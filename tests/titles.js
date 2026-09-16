@@ -104,6 +104,12 @@ const CASES = [
   // ---- 第32弾-B-2：オークション ----
   ['icon-auc-1', 'auction', {}, { plays: 1 }],
   ['icon-auc-10', 'auction', { plays: 9 }, { plays: 10 }],
+  // ---- 指示53：False or True ----
+  ['icon-ft-1', 'falsetrue', {}, { plays: 1 }],
+  ['icon-ft-10', 'falsetrue', { plays: 9 }, { plays: 10 }],
+  ['icon-ft-bluff', 'falsetrue', {}, { bluffs: 1 }],
+  ['icon-ft-read', 'falsetrue', {}, { reads: 1 }],
+  ['icon-ft-trust', 'falsetrue', {}, { trusts: 1 }],
   ['icon-auc-jackpot', 'auction', {}, { jackpots: 1 }],
   ['icon-auc-quiet', 'auction', {}, { quietWins: 1 }],
   ['first-mekiki', 'auction', { appraises: 1 }, { appraises: 1, jackpots: 1 }],

@@ -72,7 +72,7 @@ function step(room, opt) {
     if (r.allDone) F.advance(room);
     return;
   }
-  if (w.phase === P.FACE || w.phase === P.REVEAL) { rush(room); return; }
+  if (w.phase === P.FACE || w.phase === P.OPEN) { rush(room); return; }
   if (w.phase === P.TALK) {
     // 切れている人は待たないので、**1人押しただけで切り上がることがある**。
     // 段階が変わったらそこで止める（押せなくなった人を無理に押させない）
@@ -164,7 +164,7 @@ function playOut(room, take) {
     for (let i = 0; i < 4; i++) {
       const 段階 = w_(A.room).phase;
       assertEqual(w_(B.room).phase, 段階, '2局が同じ段階にいる');
-      if (段階 === P.REVEAL || 段階 === P.ENDED) break;
+      if (段階 === P.OPEN || 段階 === P.ENDED) break;
       // 時刻だけは実時間で動くので、比べる前に落とす（中身とは関係がない）
       const a = JSON.stringify(pv(A.room), (k, v) => (k === 'remainingMs' ? 0 : v));
       const b = JSON.stringify(pv(B.room), (k, v) => (k === 'remainingMs' ? 0 : v));
@@ -183,7 +183,7 @@ function playOut(room, take) {
     w_(A.room).contents = [true, false, false, false];
     w_(B.room).contents = [false, false, false, true];
     // 1番のケースを選ぶ → A は true、B は false
-    while (w_(A.room).phase !== P.REVEAL) {
+    while (w_(A.room).phase !== P.OPEN) {
       step(A.room, { pick: 1, take: false }); step(B.room, { pick: 1, take: false });
     }
     const a = pv(A.room), b = pv(B.room);
@@ -512,7 +512,7 @@ function playOut(room, take) {
       while (w.phase !== P.ENDED) {
         // **reveal は除く**——そこでは pickerId/oppId が「いま決着した対面の2人」を
         // 指していて、その片方は決まったばかり。見せるための値なので、それが正しい
-        if (w.phase !== P.REVEAL) {
+        if (w.phase !== P.OPEN) {
           if (w.pickerId) {
             assertEqual(w.fate[w.pickerId], undefined, '選ぶ人は、まだ決まっていない人');
             確かめた++;

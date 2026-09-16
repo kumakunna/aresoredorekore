@@ -1590,6 +1590,11 @@
   .cassette-warp[data-theme="bomb"], .shelf-stage[data-theme="bomb"]{--warp-color:#17181B;--warp-ink:#E8EAED;--warp-soft:#A7AFBA;}
   .cassette-warp[data-theme="quiz"], .shelf-stage[data-theme="quiz"]{--warp-color:#04365F;--warp-ink:#F0F8FD;--warp-soft:#AFCCE6;}
   .cassette-warp[data-theme="auction"], .shelf-stage[data-theme="auction"]{--warp-color:#3B1220;--warp-ink:#FAEFE9;--warp-soft:#E2BEB4;}
+  /* 指示53：False or True。緑を帯びた黒（本人の裁定③・案B「非常灯の黒」）。
+     純黒は爆弾（#17181B）に、赤い黒はオーク（#3B1220）に塞がれていて使えない——
+     緑は C*≈9 という、ほとんど気づかない色味で門（ΔE2000 ≥ 10.8）を満たす唯一に近い方向。
+     測り直すなら node tools/fot-color.js（space で色相一周の空きが出る） */
+  .cassette-warp[data-theme="falsetrue"], .shelf-stage[data-theme="falsetrue"]{--warp-color:#122A1B;--warp-ink:#EAF4EC;--warp-soft:#AFC9B7;}
   .cassette-warp[data-theme="sugoroku"], .shelf-stage[data-theme="sugoroku"]{--warp-color:#D9ECCC;--warp-ink:#1D2415;--warp-soft:#46453D;}
 
   /* ---- 棚の染まる場（第41弾 2-2「世界を借りる」／第43弾で画面いっぱいに）----
@@ -3743,6 +3748,88 @@
   /* 決め所の朱印。既存の .btn-main はそのまま、色だけ和のトーンに寄せる */
   .app.theme-sugoroku .btn-main{
     background:linear-gradient(180deg, var(--stamp) 0%, var(--stamp-deep) 100%);
+  }
+  /* -------------------------------------------------------------------
+     指示53：False or True カセット専用の「赤光と緑光と黒」テーマ
+
+     ここから下もすべて追加専用。既存のルールは1行も書き換えていない。
+     `.app.theme-falsetrue` が付いている間だけ効き、外れれば完全に元の見た目に戻る。
+
+     考えたこと：
+       暗い部屋に置かれたアタッシュケース。明かりは、ケースの表示灯だけ。
+         地   … 緑を帯びた黒（#122A1B）。**純黒ではない**
+         光   … TRUE は緑、FALSE は赤。どちらも「灯る」ように出す
+         面   … 角はほとんど落とさない（金属の箱）
+
+     **なぜ緑を帯びた黒なのか**（node tools/fot-color.js space で測り直せる）：
+     世界の色は、どの2つも ΔE2000 ≥ 10.8 離れていないといけない（正本 1-2b）。
+     ところが**純黒は爆弾（#17181B）が占めていて**、無彩色のままだと
+     L* 25（#3C3C3C）まで明るくしないと届かない——それはもう黒ではない。
+     **赤い黒もオーク（#3B1220）に塞がれていて**、必要な彩度が緑の4倍になる。
+     L*=14 で色相を一周して測ると、緑だけが C*≈9 という
+     「言われないと気づかない色味」で門を越える。世界観（TRUE＝緑の光）とも向きが同じ。
+
+     赤は**縁と、ひとつの主ボタンだけ**（正本 §6）。面で塗らない——
+     脱落を赤い面で囲むと「叱られている」画面になる（原則C：責める時は静かに）。
+     ------------------------------------------------------------------- */
+  .app.theme-falsetrue{
+    /* ONは、点いている緑（爆弾の止まっている緑 #3FBFA5 とは ΔE2000 で 14.6 離れている） */
+    --switch-on:#33A85E;
+    --paper:#122A1B;
+    --paper-deep:#0B1C12;
+    --card:#1C3826;
+    --ink:#EAF4EC;
+    --ink-soft:#AFC9B7;
+    /* 緑の地の上では、朱はくすむ。FALSE の赤は灯りの赤で出す */
+    --stamp:#F58C80;
+    --stamp-deep:#F7A79D;
+    --teal:#54D97E;
+    --gold:#D9C46A;
+    --line:rgba(234,244,236,0.16);
+    --shadow:0 10px 26px rgba(0,0,0,0.65);
+    /* ケースの表示灯が、天井を薄く照らしている */
+    background:
+      radial-gradient(ellipse 55% 30% at 50% 0%, rgba(84,217,126,0.10), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  body:has(.app.theme-falsetrue){
+    background:
+      radial-gradient(circle at 50% 0%, #0C1D13, transparent 60%),
+      #050B07;
+  }
+  .app.theme-falsetrue .scr-title,
+  .app.theme-falsetrue .sec-title,
+  .app.theme-falsetrue .tp-label,
+  .app.theme-falsetrue .rt-phase,
+  .app.theme-falsetrue .wiz-step,
+  .app.theme-falsetrue .big-phase,
+  .app.theme-falsetrue .big-main:not(.is-code){
+    color:var(--ink);
+  }
+  .app.theme-falsetrue .card,
+  .app.theme-falsetrue .overlay-panel,
+  .app.theme-falsetrue .rt-public,
+  .app.theme-falsetrue .rt-you,
+  .app.theme-falsetrue .qb-row{
+    background:var(--card);
+    border-color:var(--line);
+    color:var(--ink);
+  }
+  .app.theme-falsetrue .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-falsetrue .floating-gear{background:rgba(234,244,236,.14);color:var(--ink);}
+  .app.theme-falsetrue .rules-ol li{color:var(--ink);}
+  .app.theme-falsetrue .ry-desc{color:var(--ink-soft);}
+  /* 生きている印は、表示灯のゆっくりした明滅（1秒3回の上限よりはるかに遅い・正本 §6） */
+  .app.theme-falsetrue .fx-alive{animation:fxAliveLamp 3.2s ease-in-out infinite;}
+  @keyframes fxAliveLamp{
+    0%,100%{opacity:1;}
+    50%{opacity:.55;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .app.theme-falsetrue{transition:none;}
+    .app.theme-falsetrue .fx-alive{animation:none;}
   }
 </style>
 </head>
@@ -6033,6 +6120,7 @@
 <script src="js/quiz-logic.js"></script>
 <script src="js/auction-items.js"></script>
 <script src="js/auction-logic.js"></script>
+<script src="js/falsetrue-logic.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/ui-text.js"></script>
 <script src="js/ui.js"></script>
@@ -6161,6 +6249,10 @@
     // 落札できなかった人は何も失わない（それでも毎回することがある＝値踏み）。
     // 人数の下限は auction-logic.js の MIN_PLAYERS が正本。
     // ここの数字と食い違わないことは tests/shelf.js が機械照合する
+    // 指示53：False or True。部屋（1人1台）専用・4〜8人。
+    // ルール文は設計メモの流れをそのまま「遊ぶ人の言葉」にしたもの
+    {id:"falsetrue", icon:"💼", title:"False or True", sub:"中身を知っているのは持っている人だけ", advanced:false, strict:false, oneWord:false, falseTrue:true, roomOnly:true, game:'falsetrue', minPlayers:4,
+      bullets:["ケースが人数ぶんならぶ。中身は TRUE か FALSE で、FALSE のほうが多い","えらばれた人がケースを1つえらび、中身を自分だけが見る","そのあと、別の人と対面して話し合う","話し合いが終わったら、相手が「奪う」か「奪わない」かを決める","奪って TRUE なら相手が生存、FALSE なら相手が脱落","奪わずに TRUE なら持っていた人が生存、FALSE なら脱落","生存か脱落が決まった人は、そこで上がり。残った人だけで続ける","最後まで決まらなかった人は自動で生存。生存した人は全員が勝ち"]},
     {id:"auction-open", icon:"🔨", title:"せり上げ式", sub:"みんなの前で値が吊り上がっていく", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionOpen:true, roomOnly:true, game:'auction', minPlayers:3,
       bullets:["6つの品が、はじめから全部ならぶ（見比べてえらべる）","品質（上物・並物・偽物）は伏せられている。内訳の数だけ先に分かる","競りが進むと、みんなに同じヒントが順に開いていく","誰かが値をつけるたびに、締め切りが延びる","同じ系統が売れるたび、その系統の相場が上がる","得点は「品質 × 売れた時の相場」。人気の系統ほど高くつく","落札できなかった人は品質を言い当てるとチップがもらえる","最初に値をつけた人にはチップのごほうびがある"]},
     {id:"auction-sealed", icon:"✉️", title:"秘密入札", sub:"こっそり金額を決めて、一斉に開ける", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionSealed:true, roomOnly:true, game:'auction', minPlayers:3,
@@ -6309,8 +6401,15 @@
       games:['sugograb', 'sugopair', 'sugohide', 'sugotoll', 'sugohand'],
       theme:'sugoroku',
       blurb:'先頭ほど、進むのが高くつく' },
+    // 指示53：False or True。中身が true か false かを、奪うか奪わないかで選ぶ。
+    // 分類は「正体をさぐる」（人狼と同じ）——嘘をつく人を見抜く遊びなので。
+    // 「かけひき」の顔も持っているので alsoGenre に入れてある。
+    // 空いていた hide の枠（hide-soon-1）を、そのまま差し替えた
+    { id:'falsetrue',       genre:'hide', alsoGenre:['deal'], ready:true,  icon:'💼', title:'False or True',
+      games:['falsetrue'],
+      theme:'falsetrue',
+      blurb:'奪うか、奪わないか' },
     { id:'word-soon-1',     genre:'word',  ready:false, icon:'？' },
-    { id:'hide-soon-1',     genre:'hide',  ready:false, icon:'？' },
     { id:'brain-soon-1',    genre:'brain', ready:false, icon:'？' },
     { id:'deal-soon-2',     genre:'deal',  ready:false, icon:'？' },
     { id:'deal-soon-3',     genre:'deal',  ready:false, icon:'？' },
@@ -8432,7 +8531,9 @@
     { id:'sugopair',        title:'ふたりでひとつ',   icon:'🤝', sub:'2人で1つの駒・出た目を相談して分け合う', maxPlayers:8 },
     { id:'sugograb',        title:'こまはひとつ',       icon:'🀄', sub:'ミニゲームで勝った人だけが、たった1つの駒を動かせる', maxPlayers:8 },
     { id:'sugotoll',        title:'つうこうりょう',     icon:'🎲', sub:'先頭ほど通行料が高い・払えないと進めない', maxPlayers:8 },
-    { id:'sugohand',        title:'てふだ',             icon:'🎴', sub:'サイコロを振らない・手札を交渉して進む', maxPlayers:6 }
+    { id:'sugohand',        title:'てふだ',             icon:'🎴', sub:'サイコロを振らない・手札を交渉して進む', maxPlayers:6 },
+    // 指示53：False or True。部屋（1人1台）専用。ケースの数＝人数なので上限は8人
+    { id:'falsetrue',       title:'False or True',      icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:8 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -8607,6 +8708,10 @@
              previewSec:AuctionLogic.RULES.PREVIEW_SEC_DEFAULT },
     // 第36弾：すごろく。突然のできごとを起こすかどうか（起こすを既定に）
     sgkCfg: { events:true, losersMove:true, pairStyle:'even' },
+    // 指示53：False or True。話し合いの長さだけ（既定60秒）。
+    // **appPrefs には混ぜない**——混ぜると門F5（設定と窓口の両方向照合）が
+    // 「窓口の無い設定」として赤くなる（落とし穴34）。auCfg と同じ「試合の決めごと」の棚
+    ftCfg: { talkSec:FalseTrueLogic.RULES.TALK_SEC },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
     /**
@@ -10311,7 +10416,7 @@
   var THEME_CLASSES = {
     aresore: 'theme-aresore',
     wolf: 'theme-wolf', bomb: 'theme-bomb', quiz: 'theme-quiz', auction: 'theme-auction',
-    sugoroku: 'theme-sugoroku'
+    sugoroku: 'theme-sugoroku', falsetrue: 'theme-falsetrue'
   };
   function applyGameTheme(screenId){
     var app = el('app');
@@ -12760,6 +12865,8 @@
   // 部屋で遊ぶゲームごとの「始める時に送る設定」。
   // 何を送るかはここ1箇所にまとめる（ゲームが増えても押した先が枝分かれしないように）
   var RT_START_CONFIG = {
+    // 指示53：False or True。端末から送るのは「話し合いの長さ」だけ（それ以外は人数から決まる）
+    falsetrue: rtFalsetrueConfig,
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
     bomb: rtBombConfig,
@@ -12916,6 +13023,12 @@
       previewSec: c.previewSec,
       preset: state.selectedModeId
     };
+  }
+
+  // 指示53：False or True。ケースの数も中身の比も**人数から決まる**（falsetrue-logic.js）ので、
+  // 端末が決めるのは話し合いの長さだけ。サーバーは3択の外を受け取らない
+  function rtFalsetrueConfig(){
+    return { game: 'falsetrue', talkSec: state.ftCfg.talkSec };
   }
 
   // 第36弾：すごろく。盤・人数・目安時間は sugoroku-logic.js が持っているので、
@@ -13737,7 +13850,11 @@
     // ワードウルフ側の段階（第24弾）
     reveal: 'お題の確認', discuss: '話し合い', roundResult: '結果',
     // 爆弾解除側の段階（第27弾）
-    prep: '準備中', play: '解除中'
+    prep: '準備中', play: '解除中',
+    // 指示53：False or True。**`reveal` を使わない**——この表はゲームをまたいだ1枚で、
+    // `reveal` はワードウルフの「お題の確認」に取られている（落とし穴2）
+    pick: 'ケースをえらぶ', peek: '中身をみる', face: '対面', talk: '話し合い',
+    decide: '奪うか決める', open: 'ケースが開く'
   };
   // いま部屋で遊んでいるのがワードウルフか
   // ---- 第26弾-4：1人1台の称号 ----
@@ -13984,6 +14101,9 @@
   // 第27弾：爆弾解除は盤面の形がまったく違うので、専用の画面を1行足した。
   var RT_GAME_SCREENS = {
     wolfrole: 'scr-rt-play', wordwolf: 'scr-rt-play',
+    // 指示53：False or True。進行の1枚と、決着の1枚（52-3 のすごろくと同じ理由——
+    // 盤に留まると生存者一覧の置き場が無く、上帯が「◯◯さんの番」を出し続ける）
+    falsetrue: ['scr-rt-ft', 'scr-rt-ft-result'],
     bomb: 'scr-rt-bomb', defuse: 'scr-rt-defuse',
     // 第30弾：クイズ王。4つとも同じ1枚に送る
     quizrush: 'scr-rt-quiz', quizlist: 'scr-rt-quiz',

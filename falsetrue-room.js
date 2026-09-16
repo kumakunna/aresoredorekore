@@ -17,7 +17,7 @@
 //   誰が見たか・見終わったか      |  ○  |    ○    | ○ |   ○   | ○
 //   対面ペア・残り時間            |  ○  |    ○    | ○ |   ○   | ○
 //   奪う/奪わない（決める前）     |  ✕  |    ○    | ✕ |   ✕   | ✕
-//   結果（reveal 後の中身）       |  ○  |    ○    | ○ |   ○   | ○
+//   結果（開いたあとの中身）     |  ○  |    ○    | ○ |   ○   | ○
 //
 // **「書かないことによる保証」にしない。** publicView は白名簿で組み立て、
 // `w.contents` を読む場所は openedView() ただ1つ（開いた番号しか通さない）。
@@ -28,7 +28,11 @@
 //   face   … 対面相手の発表（誰も待っていない・時計で進む）
 //   talk   … 話し合い（両者が「話し終わった」を押したら早く切り上げる・本人の裁定④）
 //   decide … 相手が「奪う／奪わない」を決める
-//   reveal … 結果（誰も待っていない・時計で進む）
+//   open   … ケースが開く＝結果（誰も待っていない・時計で進む）
+//            **`reveal` と名付けない**——`RT_PHASE_LABEL`（index.html）は
+//            ゲームをまたいだ1枚の表で、`reveal` はワードウルフの
+//            「お題の確認」に取られている。同じ鍵を使うと、上帯と大画面に
+//            別のゲームの言葉が出る（落とし穴2：借りた言葉が世界観ごと漏れる）
 //   ended  … 決着
 //
 // ======================= 進み方の芯（落とし穴1の予防） =======================
@@ -48,7 +52,7 @@ const PHASE = {
   FACE: 'face',
   TALK: 'talk',
   DECIDE: 'decide',
-  REVEAL: 'reveal',
+  OPEN: 'open',
   ENDED: 'ended'
 };
 
@@ -201,7 +205,7 @@ function nextPhase(room) {
     case PHASE.FACE: return beginTalk(room);
     case PHASE.TALK: return beginDecide(room);
     case PHASE.DECIDE: return settleRound(room);
-    case PHASE.REVEAL: return beginRound(room);
+    case PHASE.OPEN: return beginRound(room);
     default: return false;
   }
 }
@@ -262,7 +266,7 @@ function settleRound(room) {
 
   // 次に選ぶ人。奪う＝持ち主が続投／奪わない＝相手が選ぶ側になる
   w.pickerId = o.次の選ぶ人 === 'holder' ? w.pickerId : w.oppId;
-  setPhase(room, PHASE.REVEAL, R.REVEAL_SEC);
+  setPhase(room, PHASE.OPEN, R.REVEAL_SEC);
   return true;
 }
 
@@ -412,7 +416,7 @@ function openedView(w) {
 function publicView(room) {
   const w = room.falsetrue;
   if (!w) return { phase: PHASE.LOBBY };
-  const 見せる決着 = w.phase === PHASE.REVEAL || w.phase === PHASE.ENDED;
+  const 見せる決着 = w.phase === PHASE.OPEN || w.phase === PHASE.ENDED;
   return {
     phase: w.phase,
     round: w.round,
@@ -465,7 +469,7 @@ function privateFor(room, memberId) {
   const 相手 = memberId === w.oppId;
   // 中身を見てよいのは**持ち主だけ**。しかも peek に入ってから
   const 見てよい = 持ち主 && w.heldNo != null &&
-    [PHASE.PEEK, PHASE.FACE, PHASE.TALK, PHASE.DECIDE, PHASE.REVEAL].indexOf(w.phase) !== -1;
+    [PHASE.PEEK, PHASE.FACE, PHASE.TALK, PHASE.DECIDE, PHASE.OPEN].indexOf(w.phase) !== -1;
   return {
     phase: w.phase,
     round: w.round,

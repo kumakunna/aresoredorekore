@@ -1571,12 +1571,22 @@
      ここで帯にも同じ行を書くと、場の色を変えた日に帯だけ古い色で残る
      文字の色（--warp-ink / --warp-soft）も同じ行で決める——
      地の色だけ移して文字色を忘れると、暗い帯に暗い字が乗る */
-  .cassette-warp, .shelf-stage{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#5B5A50;}
-  .cassette-warp[data-theme="wolf"], .shelf-stage[data-theme="wolf"]{--warp-color:#161A29;--warp-ink:#EDEBF5;--warp-soft:#9BA2C2;}
-  .cassette-warp[data-theme="bomb"], .shelf-stage[data-theme="bomb"]{--warp-color:#15171B;--warp-ink:#E8EAED;--warp-soft:#9AA3AF;}
-  .cassette-warp[data-theme="quiz"], .shelf-stage[data-theme="quiz"]{--warp-color:#10182E;--warp-ink:#F2F5FA;--warp-soft:#A9B6CE;}
-  .cassette-warp[data-theme="auction"], .shelf-stage[data-theme="auction"]{--warp-color:#1A1012;--warp-ink:#F5EDE6;--warp-soft:#C6B0A8;}
-  .cassette-warp[data-theme="sugoroku"], .shelf-stage[data-theme="sugoroku"]{--warp-color:#F2E9D5;--warp-ink:#1F1B17;--warp-soft:#5A5148;}
+  /* 指示49 49-3・49-4：**どの2つも見分けられる値にした（ΔE2000 ≥ 10）。**
+     着手前に総当たりで測ったら、共通×あれそれ＝0.0（同じ値）、
+     共通×すごろく＝1.2、人狼×クイズ＝3.4しか離れていなかった。
+     「すごろくの背景が同じ色」の正体は、クイズ王ではなく**棚の共通色**。
+     閾値を10にしたのは、世界の色は並べて比べるのではなく
+     **横に送った0.3秒で溶け替わる＝記憶で比べる**から。並置の弁別閾（ΔE≈1）では足りない。
+     数字は `node tools/color-diff.js` でいつでも出る。
+     49-1：薄墨は**7:1（AAA）**に届かせた。共通5.67・人狼6.87・すごろく6.43しか無く、
+     人数・時間（11.5px）・下の案内（10.5px）・タイルの人数（9.5px）が読みにくかった */
+  .cassette-warp, .shelf-stage{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#46453D;}
+  .cassette-warp[data-theme="aresore"], .shelf-stage[data-theme="aresore"]{--warp-color:#FBD9BC;--warp-ink:#3A2716;--warp-soft:#46453D;}
+  .cassette-warp[data-theme="wolf"], .shelf-stage[data-theme="wolf"]{--warp-color:#261A55;--warp-ink:#EEEAFA;--warp-soft:#B7BBE2;}
+  .cassette-warp[data-theme="bomb"], .shelf-stage[data-theme="bomb"]{--warp-color:#17181B;--warp-ink:#E8EAED;--warp-soft:#A7AFBA;}
+  .cassette-warp[data-theme="quiz"], .shelf-stage[data-theme="quiz"]{--warp-color:#04365F;--warp-ink:#F0F8FD;--warp-soft:#AFCCE6;}
+  .cassette-warp[data-theme="auction"], .shelf-stage[data-theme="auction"]{--warp-color:#3B1220;--warp-ink:#FAEFE9;--warp-soft:#E2BEB4;}
+  .cassette-warp[data-theme="sugoroku"], .shelf-stage[data-theme="sugoroku"]{--warp-color:#D9ECCC;--warp-ink:#1D2415;--warp-soft:#46453D;}
 
   /* ---- 棚の染まる場（第41弾 2-2「世界を借りる」／第43弾で画面いっぱいに）----
      **染まるのはここだけ。**上の帯（タイトル）と下部バーはクリームのまま。
@@ -2916,12 +2926,12 @@
   .app.theme-wolf{
     /* 第36弾 36-5：ONは月あかりの藍（背景に差している rgba(88,108,190) と同じ系統） */
     --switch-on:#7C8AE0;
-    --paper:#161A29;
-    --paper-deep:#0F1320;
-    --card:#212840;
-    --ink:#EDEBF5;
-    --ink-soft:#9BA2C2;
-    --line:rgba(237,235,245,0.16);
+    --paper:#261A55;
+    --paper-deep:#1D134D;
+    --card:#372966;
+    --ink:#EEEAFA;
+    --ink-soft:#B7BBE2;
+    --line:rgba(238,234,250,0.16);
     --shadow:0 10px 30px rgba(0,0,0,0.55);
     /* 第20弾-7-1：テーマが設定画面にも及ぶようになったので、
        暗い背景では沈んで読めなくなる赤系を明るい側へ寄せる
@@ -3206,11 +3216,11 @@
   .app.theme-bomb{
     /* 第36弾 36-5：ONは「止まっている＝安全」の緑（この盤の --teal と同じ） */
     --switch-on:#3FBFA5;
-    --paper:#15171B;
+    --paper:#17181B;
     --paper-deep:#0D0F12;
-    --card:#232830;
+    --card:#28292C;
     --ink:#E8EAED;
-    --ink-soft:#9AA3AF;
+    --ink-soft:#A7AFBA;
     --line:rgba(232,234,237,0.16);
     --shadow:0 10px 26px rgba(0,0,0,0.6);
     /* 暗い背景では赤が沈むので、警告色は明るい側へ寄せる */
@@ -3420,11 +3430,11 @@
   .app.theme-quiz{
     /* 第36弾 36-5：ONは舞台に降りるスポットライトの金 */
     --switch-on:#F0B429;
-    --paper:#10182E;
-    --paper-deep:#0A1020;
-    --card:#1C2743;
-    --ink:#F2F5FA;
-    --ink-soft:#A9B6CE;
+    --paper:#04365F;
+    --paper-deep:#022541;
+    --card:#204671;
+    --ink:#F0F8FD;
+    --ink-soft:#AFCCE6;
     --line:rgba(242,245,250,0.18);
     --shadow:0 10px 26px rgba(0,0,0,0.55);
     /* 暗い紺の上では、赤より金の方が「当たり」に見える */
@@ -3520,16 +3530,18 @@
   .app.theme-auction{
     /* 第36弾 36-5：ONは落札の金 */
     --switch-on:#D4A537;
-    --paper:#1A1012;
-    --paper-deep:#120A0C;
-    --card:#2A1A1D;
-    --ink:#F5EDE6;
-    --ink-soft:#BFA9A2;
+    --paper:#3B1220;
+    --paper-deep:#280B16;
+    --card:#491E2C;
+    --ink:#FAEFE9;
+    --ink-soft:#E2BEB4;
     --line:rgba(245,237,230,0.16);
     --shadow:0 10px 26px rgba(0,0,0,0.65);
-    /* えんじの上では、赤は沈む。落札と勝ちは金で示す */
-    --stamp:#C0392B;
-    --stamp-deep:#E05A4A;
+    /* えんじの上では、赤は沈む。落札と勝ちは金で示す。
+       指示49 49-3で地を #1A1012 → #3B1220（えんじの色相を残した明るさ）にしたら、
+       この2つが 2.99:1 / 3.81:1 まで落ちた——**地を動かしたら、載る色も測り直す**（正本1-4） */
+    --stamp:#E8776B;
+    --stamp-deep:#F5A392;
     --teal:#7FB08A;
     --gold:#D4A537;
     background:
@@ -3611,14 +3623,52 @@
      フォントは既に読み込んである Shippori Mincho を見出しに使う。
      読み込むフォントは増やさない（人狼・爆弾解除・クイズ王と同じ考え方）。
      ------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------
+     指示49 49-4：あれそれどれこれの世界（日なたの杏）。
+     **このカセットだけ、世界を持っていなかった。**
+     持たない＝棚の共通クリームなので、横に送っても色が1ミリも動かず、
+     「棚と同じ色」に見えていた（実測 ΔE2000 = 0.0。まったく同じ値）。
+
+     世界の色（--warp-color）だけ足して遊ぶ画面をクリームのままにはできない——
+     **幕（.cassette-warp）が広がる色は「そのカセットの地の色」**という約束があるので、
+     広がった先が別の色だと、幕が嘘をつくことになる。だから地の表もここに作る。
+
+     暖色だが、明るさは共通クリームとほとんど同じ（L* 88.8 と 92.0）。
+     **暗くして「別の世界」にするのではなく、同じ明るさのまま色みで分ける**——
+     ことばで説明して当てる遊びなので、暗い部屋の世界観は合わない。
+     ------------------------------------------------------------------- */
+  .app.theme-aresore{
+    /* ONは、杏の地に載る焼き杏の橙（共通の琥珀より一段濃く） */
+    --switch-on:#B26A1E;
+    --paper:#FBD9BC;
+    --paper-deep:#F2C9A4;
+    --card:#FFF6EC;
+    --ink:#3A2716;
+    --ink-soft:#46453D;
+    --stamp:#A8281F;
+    --stamp-deep:#8A1F18;
+    --line:rgba(58,39,22,0.16);
+    --shadow:0 8px 22px rgba(90,55,20,0.16);
+    background:
+      radial-gradient(ellipse 85% 55% at 50% -12%, rgba(255,255,255,0.55), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  body:has(.app.theme-aresore){
+    background:
+      radial-gradient(circle at 50% 0%, #FFEAD6, transparent 60%),
+      #EFCBA8;
+  }
+
   .app.theme-sugoroku{
     /* 第36弾 36-5：ONは双六の朱 */
     --switch-on:#C0392B;
-    --paper:#F2E9D5;
-    --paper-deep:#E6D9BC;
-    --card:#FDF8EE;
-    --ink:#1F1B17;
-    --ink-soft:#5A5148;
+    --paper:#D9ECCC;
+    --paper-deep:#C9DEB9;
+    --card:#F4FBEE;
+    --ink:#1D2415;
+    --ink-soft:#46453D;
     --stamp:#C0392B;
     --stamp-deep:#9B2C22;
     --line:rgba(31,27,23,0.16);
@@ -6159,6 +6209,12 @@
     // games：このカセットに入っているゲーム。2つ以上ならゲーム選択画面を挟む
     { id:'aresoredorekore', genre:'word', ready:true,  logo:'img/logo-aresoredorekore.png', title:'あれそれどれこれ',
       games:['aresoredorekore'],
+      // 指示49 49-4：**このカセットだけ、世界の色を持っていなかった。**
+      // 持たないと既定＝棚の共通クリームなので、横に送っても色が1ミリも動かない
+      //（実測 ΔE2000 = 0.0。同じ値だった）。
+      // 幕（.cassette-warp）が広がる色＝そのカセットの地の色、という約束もあるので、
+      // 世界の色だけ足して遊ぶ画面をクリームのままにはできない——.app.theme-aresore も作った
+      theme:'aresore',
       blurb:'ことばで説明して当てる' },
     // 話して探る遊びなので、ことばの段にも正体の段にも並べる
     { id:'jinro',           genre:'hide', alsoGenre:['word'], ready:true,  icon:'🐺', title:'人狼<br>ゲーム',
@@ -10158,6 +10214,7 @@
   // カセットが増えるたびに if を足していくと必ず消し忘れるので、一覧で持つ。
   // 新しいテーマを作る時は、ここに1行と、CSSに .theme-◯◯ のかたまりを足す。
   var THEME_CLASSES = {
+    aresore: 'theme-aresore',
     wolf: 'theme-wolf', bomb: 'theme-bomb', quiz: 'theme-quiz', auction: 'theme-auction',
     sugoroku: 'theme-sugoroku'
   };

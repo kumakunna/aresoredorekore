@@ -114,14 +114,21 @@ const 世界 = (function () {
   });
   return out;
 })();
-const THEMES = {
-  共通: {},
-  wolf: parseBlock('.app.theme-wolf'),
-  bomb: parseBlock('.app.theme-bomb'),
-  quiz: parseBlock('.app.theme-quiz'),
-  auction: parseBlock('.app.theme-auction'),
-  sugoroku: parseBlock('.app.theme-sugoroku')
-};
+/**
+ * 配色の一覧は**CSSから導く**（指示49 49-4・落とし穴4）。
+ * 手で並べていた頃は、テーマを1つ足すたびにここへ1行足す約束だった——
+ * 足し忘れると、**その配色だけ誰も読めるかどうかを見ていない**状態になる。
+ * `.app.theme-◯◯{` の形で地（--paper）を宣言しているブロックを正本にする。
+ */
+// **コメントを落とした CSS を見る。**生の HTML を `{` `}` で切ると、
+// 規則の手前にあるコメントまで選択子の一部として付いてくる（実際、6つのうち3つしか拾えなかった）
+const THEME_NAMES = Array.from(new Set(
+  Array.from(CSS_ONLY.matchAll(/\.app\.theme-([a-z]+)\s*\{([^{}]*)\}/g))
+    .filter((m) => /--paper\s*:/.test(m[2]))
+    .map((m) => m[1])
+));
+const THEMES = { 共通: {} };
+THEME_NAMES.forEach((n) => { THEMES[n] = parseBlock('.app.theme-' + n); });
 
 function paletteOf(name) {
   return Object.assign({}, ROOT, THEMES[name] || {});
@@ -295,6 +302,114 @@ const PAIRS = [
     });
     assertEqual(表.length, 名前.length * 2, '全部の世界で、本文と補足の両方を見た');
     assertEqual(bad.join('\n       '), '', '帯の上で読めない組み合わせ');
+  });
+
+  await r.test('正本 1-2 の表と、実装の配色が一致する（指示49・docs が腐らないように）', async () => {
+    // **このファイルは「正本を機械照合する」と名乗っているのに、
+    //   正本そのものは一度も読んでいなかった。**読んでいたのは index.html だけ。
+    // だから色を変えると docs だけが静かに古くなる（落とし穴33「表示している約束は、
+    // 実装より長生きする」の docs 版）。
+    //
+    // 正本 1-2 の表は `| 🐺 人狼 \`theme-wolf\` | #地 | #カード | #墨 | #薄墨 | #ON … |` の形。
+    // **行から読むのは「クラス名と4色」だけ**——絵文字や説明は変わってよい
+    const md = fs.readFileSync(path.join(__dirname, '..', 'docs', 'デザインの正本.md'), 'utf8');
+    const 行 = Array.from(md.matchAll(
+      /^\|[^|]*`theme-([a-z]+)`[^|]*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|/gm
+    )).map((m) => ({ 名: m[1], 地: m[2], カード: m[3], 墨: m[4], 薄墨: m[5] }));
+
+    // **0行でも「食い違いなし」は成立してしまう**（型b）。先に数を主張する
+    assertEqual(行.length, THEME_NAMES.length,
+      '正本 1-2 の行数が、実装の配色の数と合っている（正本:' +
+      行.map((x) => x.名).join('・') + ' / 実装:' + THEME_NAMES.join('・') + '）');
+
+    const 対 = { 地: '--paper', カード: '--card', 墨: '--ink', 薄墨: '--ink-soft' };
+    const bad = [];
+    行.forEach((x) => {
+      const t = THEMES[x.名];
+      if (!t) { bad.push(x.名 + '：正本にあるのに、実装に .app.theme-' + x.名 + ' が無い'); return; }
+      Object.keys(対).forEach((k) => {
+        const 実 = String(t[対[k]] || '').toUpperCase();
+        if (x[k].toUpperCase() !== 実) bad.push(x.名 + '：' + k + ' が 正本=' + x[k] + ' / 実装=' + 実);
+      });
+    });
+    // 逆向き（落とし穴20）：実装にあるのに正本に行が無い
+    THEME_NAMES.forEach((n) => {
+      if (!行.some((x) => x.名 === n)) bad.push(n + '：実装にあるのに、正本 1-2 に行が無い');
+    });
+    assertEqual(bad.join('\n       '), '', '正本と実装が食い違っている');
+  });
+
+  await r.test('7つの世界の色が、どの2つも見分けられる（指示49 49-3・49-4）', async () => {
+    // **「色が被る」を、印象ではなく数字で止める。**
+    // 着手前に総当たりで測ったら、こうだった：
+    //   共通 × あれそれ … ΔE2000 = 0.0（**まったく同じ値**）
+    //   共通 × すごろく … 1.2（並べて気づかない）
+    //   人狼 × クイズ   … 3.4
+    //
+    // 閾値を 10 にした理由（勘ではなく、測ったものから決めた）：
+    // 世界の色は**並べて比べない**。棚を横に送ると 0.3秒で溶け替わるので、
+    // 見る人は**記憶で比べる**。並置の弁別閾（ΔE≈1）では足りない。
+    // 現物で唯一「明らかに別」と言えた組が クイズ×オク の 12.5 だったので、
+    // **いま一番良い組に見劣りしない線**としてここに引いた。
+    //
+    // 計算は tools/color-diff.js（Sharma らの検証データ9件で、道具の側を先に確かめてある）
+    const { hex2lab, deltaE2000 } = require('../tools/color-diff');
+    const 名前 = Object.keys(世界);
+    // **数を先に主張する**（型b）。1色しか読めていなければ「全部離れている」は自明に成立する
+    assertEqual(名前.length, 7, '世界が7つある（実際:' + 名前.join('・') + '）');
+
+    const 閾値 = 10;
+    const 組 = [], bad = [];
+    for (let i = 0; i < 名前.length; i++) {
+      for (let j = i + 1; j < 名前.length; j++) {
+        const a = 名前[i], b = 名前[j];
+        const de = deltaE2000(hex2lab(世界[a].地), hex2lab(世界[b].地));
+        組.push(a + '×' + b + '=' + de.toFixed(1));
+        if (de < 閾値) bad.push(a + ' × ' + b + '：ΔE2000 ' + de.toFixed(1) + ' < ' + 閾値);
+      }
+    }
+    assertEqual(組.length, 21, '21組すべてを見た（実際:' + 組.length + '組）');
+    assertEqual(bad.join('\n       '), '', '見分けがつかないほど近い世界の色がある');
+  });
+
+  await r.test('世界の色と、そのカセットの地の色が同じ（指示49 49-3・落とし穴1）', async () => {
+    // **同じ色を2つの表に書いている。**
+    //   ・世界の表   `.cassette-warp[data-theme=X], .shelf-stage[data-theme=X]` の --warp-*
+    //   ・配色の表   `.app.theme-X` の --paper / --ink / --ink-soft
+    // 幕（.cassette-warp）が広がる色は「そのカセットの地の色」という約束なので、
+    // **この2つがずれると、幕が広がった先が別の色になる**——幕が嘘をつく。
+    //
+    // 実際、指示49の着手前に測ったら**オークションだけ薄墨がずれていた**
+    // （世界 #C6B0A8 / 配色 #BFA9A2）。どちらが正しいか誰も知らないまま動いていた。
+    // 片方だけ直す日が来るのを、ここで止める（落とし穴1）。
+    //
+    // 共通（data-theme 無しの既定行）は `:root` と比べる。
+    // ただし**薄墨だけは別**——49-1 で世界の側を 7:1 に上げたが、
+    // `--ink-soft` はアプリ全体の補足の色なので、そこは動かしていない
+    const 対 = { 地: '--paper', 字: '--ink', 補: '--ink-soft' };
+    const bad = [];
+    let 見た = 0;
+    Object.keys(世界).forEach((名) => {
+      const w = 世界[名];
+      const t = (名 === '共通') ? ROOT : THEMES[名];
+      assert(t, '配色の表に「' + 名 + '」がある（世界の表にだけある＝幕の行き先が無い）');
+      Object.keys(対).forEach((k) => {
+        if (名 === '共通' && k === '補') return;   // 上のコメントのとおり、ここだけ意図して別
+        見た++;
+        const a = String(w[k] || '').toUpperCase();
+        const b = String(t[対[k]] || '').toUpperCase();
+        if (a !== b) bad.push(名 + '：' + k + ' が 世界=' + a + ' / 配色=' + b);
+      });
+    });
+    // **0件が「一致した」なのか「1つも比べていない」なのかを分ける**（型b）
+    assert(見た >= 18, '世界と配色を突き合わせられている（実際:' + 見た + '組）');
+    assertEqual(bad.join('\n       '), '', '世界の色と配色の地が食い違っている');
+
+    // 逆向き（落とし穴20）：配色はあるのに、世界の表に行が無い。
+    // その場合、棚で横に送っても色が変わらない——指示49で あれそれ が実際にそうだった
+    const 世界に無い = Object.keys(THEMES).filter((n) => n !== '共通' && !世界[n]);
+    assertEqual(世界に無い.join('・'), '',
+      '配色はあるのに世界の表に行が無い（棚で送っても色が変わらない）');
   });
 
   await r.test('世界を借りる領域に載るものは、6つの世界すべてで読める（正本1-6・指示44 44-2）', async () => {

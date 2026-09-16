@@ -1,0 +1,18 @@
+[
+  {
+    "name": "49-4B カセットの既定値を、実在するidに戻す（部屋コードで入った人の世界が上書きされる）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    selectedCassetteId: null, // 第15弾：棚で選んだカセット",
+    "to": "    selectedCassetteId: 'aresoredorekore', // 第15弾：棚で選んだカセット",
+    "expect": "部屋のゲームからテーマが決まる"
+  },
+  {
+    "name": "49-5F 部屋が要るかの判断を、モードidの手書き一覧にする（新しいモードが漏れる形）",
+    "file": "public/index.html",
+    "suite": "tests/mode-rules.js",
+    "from": "    if(m.roomOnly && !goingRealtime()){",
+    "to": "    if((m.id==='defuse'||m.id==='quizrush') && !goingRealtime()){",
+    "expect": "部屋が要るかの判断が、モードの宣言（roomOnly）から来ている"
+  }
+]

@@ -108,13 +108,20 @@ function playOut(room, take) {
 
   // ================= 始める =================
 
-  await r.test('人数の門番：4人未満は始まらず、8人を超えても始まらない', async () => {
+  await r.test('人数の門番：4人未満は始まらず、12人を超えても始まらない', async () => {
+    const 名前を = (n) => Array.from({ length: n }, (_, i) => '人' + i);
+    // ---- 下限 ----
     assertEqual(start(['あ', 'い', 'う']).res.error, 'too_few_players', '3人では始まらない');
     // サーバー側の言い回しは tests/room-edge.js が「〇人以上」で照合している
     assert(/人以上/.test(start(['あ', 'い', 'う']).res.message), '「〇人以上必要です」と返す');
-    const 九 = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
-    assertEqual(start(九).res.error, 'too_many_players', '9人では始まらない');
-    assertEqual(start(['あ', 'い', 'う', 'え']).res.ok, true, '4人なら始まる');
+    assertEqual(start(名前を(4)).res.ok, true, '**下限ちょうど**（4人）なら始まる');
+    // ---- 上限（指示54で 8 → 12） ----
+    // **上限ちょうどを一度も見ていなかった**（落とし穴8：片方向にしか効いていない）
+    assertEqual(start(名前を(12)).res.ok, true, '**上限ちょうど**（12人）なら始まる');
+    assertEqual(start(名前を(13)).res.error, 'too_many_players', '13人では始まらない');
+    // 上限側のメッセージも、端末に届く形で返っているか（下限しか見ていなかった）
+    assert(/人までです/.test(start(名前を(13)).res.message), '「〇人までです」と返す');
+    assert(/12/.test(start(名前を(13)).res.message), 'その〇に 12 が入っている');
   });
 
   await r.test('始まると pick から。ケースの数と内訳が人数どおり（大画面は数えない）', async () => {
@@ -123,7 +130,12 @@ function playOut(room, take) {
       { 人: 5, ケース: 5, true: 1 },
       { 人: 6, ケース: 6, true: 2 },
       { 人: 7, ケース: 7, true: 2 },
-      { 人: 8, ケース: 8, true: 2 }
+      { 人: 8, ケース: 8, true: 2 },
+      // ---- 指示54：上限が12人になった分 ----
+      { 人: 9, ケース: 9, true: 2 },
+      { 人: 10, ケース: 10, true: 3 },
+      { 人: 11, ケース: 11, true: 3 },
+      { 人: 12, ケース: 12, true: 3 }
     ];
     表.forEach((行) => {
       const names = Array.from({ length: 行.人 }, (_, i) => '人' + i);
@@ -137,7 +149,7 @@ function playOut(room, take) {
         行.人 + '人：中身の正本にも true が ' + 行.true + ' 枚ある');
       assertEqual(w_(room).contents.length, 行.ケース, 行.人 + '人：中身の正本の枚数も合っている');
     });
-    assertEqual(表.length, 5, '4〜8人を全部見た');
+    assertEqual(表.length, 9, '4〜12人を全部見た');
   });
 
   await r.test('大画面（role が player でない人）はプレイヤーに数えない', async () => {
@@ -287,7 +299,9 @@ function playOut(room, take) {
 
   await r.test('Q7：ふつうに遊ぶと必ず「1人残り」で終わり、ラウンド数は人数−1', async () => {
     const 見た = [];
-    [4, 5, 6, 7, 8].forEach((n) => {
+    // 指示54：**上限ちょうど（12人）を必ず含める。**全数だと11ラウンド×12種で時間を食うので、
+    // 下限・上限とその間を代表で回す（落とし穴8：端を一度も見ない形にしない）
+    [4, 5, 6, 7, 8, 10, 12].forEach((n) => {
       const names = Array.from({ length: n }, (_, i) => '人' + i);
       for (let s = 1; s <= 12; s++) {
         const { room } = start(names, { seed: s });
@@ -300,7 +314,7 @@ function playOut(room, take) {
       }
       見た.push(n);
     });
-    assertEqual(見た.length, 5, '4〜8人を全部通した');
+    assertEqual(見た.length, 7, '4〜12人を代表で通した（上限ちょうどを含む）');
   });
 
   await r.test('Q7：ケースが尽きた時も終わる（自然な進行では起きないので、状態を組み立てて通す）', async () => {
@@ -322,7 +336,7 @@ function playOut(room, take) {
   await r.test('②の不変量：通しのあいだ「残りケース ≧ 未確定の人数」が一度も崩れない', async () => {
     // ②の理由そのものを見張る。崩れる日が来たら、ケース尽きが現実の経路になる
     let 測った = 0;
-    [4, 6, 8].forEach((n) => {
+    [4, 6, 8, 12].forEach((n) => {
       const names = Array.from({ length: n }, (_, i) => '人' + i);
       for (let s = 1; s <= 8; s++) {
         const { room } = start(names, { seed: s });
@@ -528,7 +542,7 @@ function playOut(room, take) {
   await r.test('同じ2人が二度対面しない（着手前に机上で分かっていたことを、本物の進行役で固定する）', async () => {
     let 組の数 = 0;
     for (let s = 1; s <= 30; s++) {
-      [4, 6, 8].forEach((n) => {
+      [4, 6, 8, 12].forEach((n) => {
         const names = Array.from({ length: n }, (_, i) => '人' + i);
         const { room } = start(names, { seed: s * 7 + n });
         playOut(room, () => (s + n) % 2 === 0);

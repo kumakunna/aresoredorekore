@@ -46,6 +46,25 @@ Array.from(INDEX_HTML.matchAll(
 // （部屋対応を忘れたのか、手渡し専用のつもりなのかを、コミットで宣言させる形）
 const HANDOFF_ONLY_GAME_IDS = ['aresoredorekore'];
 
+/**
+ * **いったん棚から下ろしたゲーム**（指示49 49-7）。
+ *
+ * 進行役（GAME_DRIVERS）もコードも残っているが、カセットの `games:` には入れていない。
+ * 「作り忘れ」と「意識して下ろした」を**区別するための宣言**——
+ * ここに出てこない限り、tests/room-paths.js の照合（進行役 ⊆ カセット）が赤くなる。
+ *
+ * **手で書かない。**正本は `CASSETTES` の `paused:` で、
+ * 画面（カセットの説明）も同じものを読んでいる。
+ * 2か所に書くと、戻した日に片方だけ直す（落とし穴1・4）
+ */
+const PAUSED_GAME_IDS = (function () {
+  const 本体 = INDEX_HTML.slice(INDEX_HTML.indexOf('var CASSETTES = ['),
+    INDEX_HTML.indexOf('function cassetteById'));
+  return Array.from(本体.matchAll(
+    /\{\s*id:\s*'([a-z0-9-]+)',\s*title:\s*'([^']*)',\s*[\s\S]{0,40}?なぜ:\s*'([^']*)'/g
+  )).map((m) => ({ id: m[1], title: m[2], なぜ: m[3] }));
+})();
+
 // 部屋のゲーム開始イベント。全ゲームがこの1本を通る
 // （rtStartBtn → rt.startWolf → サーバー wolf:start → room:countdown 放送）。
 // 新しいゲームで別の開始イベントを作ってはいけない（カウントダウン等の共通処理が漏れる）
@@ -249,6 +268,7 @@ module.exports = {
   READY_CASSETTE_IDS,
   READY_CASSETTE_TITLES,
   HANDOFF_ONLY_GAME_IDS,
+  PAUSED_GAME_IDS,
   RT_START_EVENT,
   RT_START_MIN_CONFIG,
   ROOM_ENTRY_PATHS,

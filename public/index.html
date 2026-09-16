@@ -1444,6 +1444,10 @@
   }
   .ct-badge.ok{background:var(--teal);color:#fff;border-color:var(--teal);}
   .ct-badge.need{background:var(--stamp);color:#fff;border-color:var(--stamp);}
+  /* 指示49 49-7：いったん下ろしたゲーム。**消さずに、下ろしたと分かる形で出す。**
+     遊べるものと同じ濃さで並べると紛らわしいので、少し引いた見た目にする */
+  .ct-game.ct-paused{opacity:.72;}
+  .ct-game.ct-paused h4{font-weight:700;}
   .ct-game{background:var(--card);border:1px solid var(--line);border-radius:12px;
     padding:12px 14px;margin-top:10px;}
   .ct-game h4{font-size:14.5px;margin:0 0 6px;}
@@ -6207,6 +6211,15 @@
   // 名前を出すのは「中身が決まっているカセット」だけ。未定のものは icon:'？' のまま伏せる
   var CASSETTES = [
     // games：このカセットに入っているゲーム。2つ以上ならゲーム選択画面を挟む
+    //
+    // title に **`<br>` を書かない**（指示49 49-6）。
+    // もとは `'クイズ<br>王'` のように手で改行を入れていて、
+    // 棚のタイルが5枚とも2行で出ていた（「クイズ／王」のような割れ方になる）。
+    // 実測すると札の使える幅は96pxで、いちばん長い「オークション」でも72px——
+    // **全部1行に収まる。**割れていたのは幅でも文字サイズでもなく、
+    // **データに書いた改行**だった。
+    // 帯（.sw-name）と検査は前から `.replace(/<br>/g,'')` で落としていたので、
+    // 改行が効いていたのはタイルだけ。見張りは tests/shelf.js
     { id:'aresoredorekore', genre:'word', ready:true,  logo:'img/logo-aresoredorekore.png', title:'あれそれどれこれ',
       games:['aresoredorekore'],
       // 指示49 49-4：**このカセットだけ、世界の色を持っていなかった。**
@@ -6217,37 +6230,49 @@
       theme:'aresore',
       blurb:'ことばで説明して当てる' },
     // 話して探る遊びなので、ことばの段にも正体の段にも並べる
-    { id:'jinro',           genre:'hide', alsoGenre:['word'], ready:true,  icon:'🐺', title:'人狼<br>ゲーム',
+    { id:'jinro',           genre:'hide', alsoGenre:['word'], ready:true,  icon:'🐺', title:'人狼ゲーム',
       games:['wordwolf', 'wolfrole'],
       // 第20弾-7-1：このカセットを選んだ時点から専用テーマにする
       theme:'wolf',
       // 第18弾で人数上限を撤廃した（手渡しの回数が人数に比例して増えないため）
       blurb:'正体を隠して探り合う' },
-    // 第27弾：爆弾解除。いま中身があるのは「クイズ解除」だけなので、
-    // 遊べるものに合わせて「ことばであそぶ」の段に置く。
-    // 実物解除（傾け・振る・ポーズ）が入ったら「からだをうごかす」へ移すことになる
-    // クイズ解除は頭、実物解除は体。どちらか一方に押し込むと嘘になるので両方に並べる
-    { id:'bakudan',         genre:'brain', alsoGenre:['move'], ready:true,  icon:'💣', title:'爆弾<br>解除',
-      games:['bomb', 'defuse'],
+    // 第27弾：爆弾解除。
+    //
+    // **指示49 49-7：実物解除を棚から下ろした。**
+    // 傾きセンサーが Galaxy・Xiaomi・iOS で固定されてしまい、
+    // 「はじめる」の前の水平合わせから先に進めない端末がある
+    //（docs/切り出した宿題.md の16。**コードは消していない**）。
+    //
+    // 下ろしたので `alsoGenre:['move']` も外した——
+    // 体を動かすのは実物解除の側で、残ったクイズ解除は頭を使う遊び。
+    // 並べたままにすると「からだをうごかす」の段が嘘になる。
+    // 戻す時は、games と alsoGenre の**両方**を戻すこと（宿題16に書いてある）
+    { id:'bakudan',         genre:'brain', ready:true,  icon:'💣', title:'爆弾解除',
+      games:['bomb'],
+      // **下ろしたことを、遊ぶ人にも伝える。**黙って消すと「前はあったのに」になる。
+      // ここが正本——画面（カセットの説明）も tests/inventory.js の
+      // PAUSED_GAME_IDS も、この1か所を読む（2つ持つと片方だけ直す日が来る・落とし穴1）
+      paused:[{ id:'defuse', title:'実物解除',
+                なぜ:'一部の端末で傾きが読めないため、いったん下ろしています' }],
       // 第28弾-2：このカセットを選んだ時点から、制御盤の見た目にする
       theme:'bomb',
-      blurb:'爆発を止める・伝え合って解く' },
+      blurb:'問題を解いて、爆発を止める' },
     // 第30弾：クイズ王。4つとも1人1台・部屋が必須（全員が別々の画面を同時に見る遊びなので、
     // 1台を回す手渡しでは成立しない）
-    { id:'quizou',          genre:'brain', ready:true,  icon:'👑', title:'クイズ<br>王',
+    { id:'quizou',          genre:'brain', ready:true,  icon:'👑', title:'クイズ王',
       games:['quizrush', 'quizlist', 'quizreveal', 'buzzer'],
       theme:'quiz',
       blurb:'1人1台で解いて競う' },
     // 第31弾：オークションバトル（作り直し）。1人1台・部屋が必須。
     // 「かけひき」の段にちょうど合うので、空いていた枠に入れる
-    { id:'auction',         genre:'deal', ready:true,  icon:'💰', title:'オーク<br>ション',
+    { id:'auction',         genre:'deal', ready:true,  icon:'💰', title:'オークション',
       games:['auction'],
       theme:'auction',
       blurb:'値をつけて競り合う' },
     // 第36弾：すごろく。中身があるのは「つうこうりょう」だけ（原則2：1つずつ完璧に）。
     // 通行料の読み合いが芯なので「かけひき」の段に置く。
     // 「どこにいる？」が入ったら「正体をさぐる」の段にも並べることになる
-    { id:'sugoroku',        genre:'deal', ready:true,  icon:'🎲', title:'すご<br>ろく',
+    { id:'sugoroku',        genre:'deal', ready:true,  icon:'🎲', title:'すごろく',
       games:['sugograb', 'sugopair', 'sugohide', 'sugotoll', 'sugohand'],
       theme:'sugoroku',
       blurb:'先頭ほど、進むのが高くつく' },
@@ -6365,6 +6390,12 @@
     if(!c) return null;
     return { genre: cassetteGenres(c), also: cassetteAlsoGenres(c),
              labels: cassetteAlsoGenres(c).map(genreLabel) };
+  };
+  // 指示49 49-7：いったん下ろしたゲームの宣言。**正本は CASSETTES の paused:**。
+  // 検査も画面も同じものを読む（一覧を2つ持つと、戻した日に片方だけ直る・落とし穴1）
+  window.cassettePaused = function(id){
+    var c = cassetteById(id);
+    return c ? (c.paused || []) : [];
   };
   window.shelfMeta = function(id){
     var c = cassetteById(id);
@@ -6834,6 +6865,14 @@
         'こんな遊びでもあります：' + escapeHtml(also.join('・')) + '</div>';
     }
 
+    // **いったん下ろしたゲームは、下ろしたと書く**（指示49 49-7）。
+    // 黙って消すと、前に遊んだ人には「無くなった」としか見えない
+    (c.paused || []).forEach(function(p){
+      out += '<div class="ct-game ct-paused"><h4>🔧 ' + escapeHtml(p.title) +
+        ' <span class="mic-status">じゅんび中</span></h4>' +
+        '<div class="mic-status">' + escapeHtml(p.なぜ) + '</div></div>';
+    });
+
     out += cassetteGames(c).map(function(gid){
       var g = gameById(gid);
       if(!g) return '';
@@ -6905,7 +6944,7 @@
       return '<button class="cart soon cart-more" data-more="' + it.n + '">' +
         '<div class="cart-body">' +
           '<div class="cart-label"><div class="icon">🔧</div>' +
-          '<div class="title">ほか' + it.n + 'つ<br>準備中</div></div>' +
+          '<div class="title">ほか' + it.n + 'つ準備中</div></div>' +
         '</div>' +
         '<div class="cart-meta">おたのしみに</div>' +
       '</button>';

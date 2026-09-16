@@ -9,7 +9,7 @@ const path = require('path');
 const { createRunner, assert, assertEqual } = require('./harness');
 const { startTestServer, device, waitUntil, makeRoom, sleep } = require('./room-edge');
 const {
-  RT_GAME_IDS, CASSETTE_GAME_IDS, HANDOFF_ONLY_GAME_IDS,
+  RT_GAME_IDS, CASSETTE_GAME_IDS, HANDOFF_ONLY_GAME_IDS, PAUSED_GAME_IDS,
   RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS, ROOM_ONLY_MODES, GAME_ABNORMAL
 } = require('./inventory');
 
@@ -360,10 +360,32 @@ async function run() {
     // この向きの照合が無かったので、てふだは GAME_DRIVERS に登録して ready:true にしても
     // ゲーム選択の画面に出てこなかった（棚の games: は手書きの別一覧・落とし穴4）。
     // 遊べない進行役は、作った人以外には存在しないのと同じ
+    // **いったん下ろしたゲームは、宣言してあれば通す**（指示49 49-7）。
+    // 「作り忘れ」と「意識して下ろした」を区別する——宣言しない限り、ここは赤くなる
+    const 下ろした = PAUSED_GAME_IDS.map((p) => p.id);
     RT_GAME_IDS.forEach((id) => {
+      if (下ろした.indexOf(id) !== -1) return;
       assert(CASSETTE_GAME_IDS.indexOf(id) !== -1,
         id + ' は GAME_DRIVERS にあるのに、どのカセットの games: にも入っていません。' +
-        '棚から選べないので、誰も遊べません');
+        '棚から選べないので、誰も遊べません。' +
+        'わざと下ろしたなら tests/inventory.js の PAUSED_GAME_IDS に理由つきで書くこと');
+    });
+    // **逆向き**（落とし穴20）：下ろしたと宣言したのに、棚に残っている。
+    // 戻した日に宣言を消し忘れると、「下ろしたことになっている遊べるゲーム」ができる
+    assert(PAUSED_GAME_IDS.length >= 1, '下ろしたゲームの宣言を数えられている');  // 型(b)
+    PAUSED_GAME_IDS.forEach((p) => {
+      assert(CASSETTE_GAME_IDS.indexOf(p.id) === -1,
+        p.id + ' は下ろしたと宣言されているのに、カセットの games: に残っています');
+      assert(RT_GAME_IDS.indexOf(p.id) !== -1,
+        p.id + ' は下ろしたと宣言されているのに、進行役ごと消えています（宣言の方が古い）');
+      assert(p.なぜ && p.なぜ.length >= 10, p.id + ' に、遊ぶ人へ出す理由が書いてある');
+      assert(p.title && p.title.length >= 2, p.id + ' の名前が書いてある');
+      // **再開の入口が、宿題の台帳にあること。**
+      // 「あとでやる」を口約束にしない（docs/切り出した宿題.md の趣旨）
+      const 宿題 = fs.readFileSync(
+        path.join(__dirname, '..', 'docs', '切り出した宿題.md'), 'utf8');
+      assert(宿題.indexOf(p.title) >= 0,
+        p.title + ' を下ろしたのに、docs/切り出した宿題.md に再開の入口がありません');
     });
     // 逆向き：手渡し専用と宣言したゲームが、カセットから消えたのに残っている（落とし穴5）
     HANDOFF_ONLY_GAME_IDS.forEach((id) => {

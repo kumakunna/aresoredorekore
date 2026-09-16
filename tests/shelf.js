@@ -33,6 +33,33 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  await r.test('棚のタイルの名前に、手で入れた改行が無い（指示49 49-6）', async () => {
+    // **「クイズ王」が2行に割れていた。**原因は幅でも文字サイズでもなく、
+    // `title:'クイズ<br>王'` と**データに改行が書いてあった**こと（5枚とも）。
+    // 実測すると札の使える幅は96pxで、いちばん長い「オークション」でも72px——全部1行に入る。
+    //
+    // jsdom にレイアウトは無いので、ここで見るのは**改行が書かれていないこと**。
+    // 「本当に1行で出るか」は実ブラウザで測る（tools/measure-screens.js の回し方）。
+    // 帯（.sw-name）と検査は前から `<br>` を落としていたので、
+    // **この改行が効いていたのはタイルだけ**だった——だから誰も気づかなかった
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 本体 = html.slice(html.indexOf('var CASSETTES = ['), html.indexOf('function cassetteById'));
+    const 名前 = Array.from(本体.matchAll(/title:\s*'([^']*)'/g)).map((m) => m[1]);
+    // **0件でも「改行なし」は成立する**（型b）。先に数を主張する
+    assert(名前.length >= 5, 'カセットの名前を数えられている（実際:' + 名前.length + '件）');
+    const 割れ = 名前.filter((t) => /<br\s*\/?>/.test(t));
+    assertEqual(割れ.join('・'), '', 'タイルの名前に手で入れた改行が残っている');
+
+    // 「ほか◯つ準備中」の札も同じ（カセットではないが、同じ列に並ぶ）
+    assert(!/つ<br\s*\/?>準備中/.test(html), '「準備中」の札にも改行が残っている');
+
+    // **見張りそのものが効くか**——わざと改行を混ぜて捕まることを見る（落とし穴10）
+    assert(/<br\s*\/?>/.test('クイズ<br>王'), 'わざと混ぜた改行を、見張りが捕まえる');
+    assert(!/<br\s*\/?>/.test('クイズ王'), '直した名前は捕まらない');
+  });
+
   await r.test('棚の構成：1列にカセットが並び、各カセットは1回だけ出る', async () => {
     // **段は無くなった**（第41弾 2-2）。
     // 分類ごとに段を作ると、1つのカセットが2つの段に出るか、
@@ -52,12 +79,30 @@ function pickCart(doc, id) {
     // **だが第32弾の判断（どちらかに押し込むと嘘になる）は捨てていない。**
     // もう一方の顔は alsoGenre に移り、長押し／i の popup で見せる。
     // ここでは「1回だけ出る」と「情報が消えていない」の**両方**を見る
+    //
+    // **どのカセットが2つの顔を持つかは、名指ししない**（落とし穴10-d）。
+    // もとは `['bakudan','jinro']` と書いてあり、
+    // 指示49 49-7 で爆弾解除から実物解除（体を動かす側）を下ろした日に、
+    // **実装は正しいのに**赤くなった。顔が1つになったのが正しい姿だったのに。
+    // 見るのは「2つ目の顔を持つカセットは、それが分類の一覧に実在すること」。
+    // 一覧はデータから導く
     const 数える = (id) => doc.querySelectorAll('.cart[data-cart="' + id + '"]').length;
-    ['bakudan', 'jinro'].forEach((id) => {
+    const 棚のid = Array.from(new Set(
+      Array.from(doc.querySelectorAll('.cart[data-cart]')).map((e) => e.dataset.cart)));
+    棚のid.forEach((id) => {
       assertEqual(数える(id), 1, id + '：棚に1回だけ出る');
       const info = win.cassetteGenreInfo(id);
+      if (!info) return;
       assertEqual(info.genre.length, 1, id + '：棚に出す分類は1つ');
-      assert(info.also.length > 0, id + '：もう一方の顔が alsoGenre に残っている');
+    });
+    // **2つ目の顔を持つカセットが、少なくとも1つある**（型b）。
+    // 0件だと「綴りが合っている」が自明に成立してしまう
+    const 二つの顔 = 棚のid.map((id) => win.cassetteGenreInfo(id))
+      .filter((info) => info && info.also.length > 0);
+    assert(二つの顔.length > 0,
+      '2つ目の顔を持つカセットがある（実際:' + 二つの顔.length + '件）');
+    二つの顔.forEach((info) => {
+      const id = '（2つ目の顔を持つカセット）';
       info.labels.forEach((l, i) => {
         assert(l, id + '：alsoGenre「' + info.also[i] + '」が分類の一覧に実在する');
       });
@@ -345,39 +390,45 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('爆弾解除カセット：2つのゲームから選べ、選んだ方のモードだけが出る', async () => {
-    // 第27弾-3で実物解除が入り、ゲームが2つになったので選択画面を通る
+  await r.test('爆弾解除カセット：ゲームが1つなので、選択画面を挟まない（指示49 49-7）', async () => {
+    // **第27弾-3で実物解除が入り2つになったので選択画面を通っていた。**
+    // 指示49 49-7 で実物解除を下ろし、中身はクイズ解除だけになった——
+    // `games` が1つのカセットは選択画面を挟まない（CASSETTES の約束）ので、
+    // 遊び方の確認へまっすぐ進む
     const { win, doc, errors } = await launch();
     pickCart(doc, 'bakudan');
-    await waitScreen(win, doc, 'scr-game', 3000);
-    const games = Array.from(doc.querySelectorAll('#gameCards .mode-card')).map(c2 => c2.dataset.game);
-    assertEqual(games.join(','), 'bomb,defuse', 'クイズ解除と実物解除が並ぶ');
-
-    pickGame(doc, 'bomb');
-    await sleep(win, 60);
-    await H.fillPlayerForm(win, doc, ['あき', 'びび']);
-    await waitScreen(win, doc, 'scr-mode', 3000);
-    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c2 => c2.dataset.id);
-    assertEqual(ids.join(','), 'bomb-coop,bomb-race', 'クイズ解除のモードだけが並ぶ');
+    await sleep(win, 400);
+    // **「scr-game を通らない」ことが主張の中心**なので、着いた先を直に見る
+    assertEqual(activeScreen(doc), 'scr-play-way', 'ゲーム選択を挟まず、遊び方の確認へ進む');
     assertNoErrors(errors, '爆弾解除カセットで未捕捉の例外');
     win.close();
   });
 
-  await r.test('実物解除は手渡しでは選べず、部屋が要ると理由が出る', async () => {
-    // 解除役とマニュアル役が別々の画面を同時に見るのが肝なので、1台では成立しない
+  await r.test('下ろしたゲームは、説明から黙って消えない（指示49 49-7）', async () => {
+    // **「無かったことにしない」**（49-7）。
+    // 前に遊んだ人には、黙って消えると「壊れた／消された」としか見えない。
+    // 正本は CASSETTES の `paused:` で、tests/inventory.js もそこを読む（落とし穴1）
     const { win, doc, errors } = await launch();
-    pickCart(doc, 'bakudan');
-    await waitScreen(win, doc, 'scr-game', 3000);
-    pickGame(doc, 'defuse');
-    await sleep(win, 60);
-    await H.fillPlayerForm(win, doc, ['あき', 'びび']);
-    await waitScreen(win, doc, 'scr-mode', 3000);
-    const cards = Array.from(doc.querySelectorAll('#modeCards .mode-card'));
-    assertEqual(cards.map(c2 => c2.dataset.id).join(','), 'defuse,defuse-focus',
-      '実物解除のモードだけが並ぶ');
-    assert(cards.every(c2 => c2.classList.contains('locked')), 'どちらも手渡しでは選べない');
-    assert(/部屋/.test(cards[0].dataset.locked), '部屋が要ると分かる');
-    assertNoErrors(errors, '実物解除のモード一覧で未捕捉の例外');
+    const 説明 = win.cassettePopupText('bakudan');
+    assert(説明, '爆弾解除の説明が読める');
+    // 下ろしたゲームの一覧はデータから導く（名指ししない・落とし穴10-d）
+    const 下ろした = win.cassettePaused('bakudan');
+    assert(下ろした && 下ろした.length > 0,
+      '下ろしたゲームが宣言されている（実際:' + JSON.stringify(下ろした) + '）');  // 型(b)
+    下ろした.forEach((p) => {
+      assert(p.title && p.title.length >= 2, '下ろしたゲームに名前がある');
+      // **空文字を先に弾く。**`indexOf('')` は必ず 0 を返すので、
+      // 理由が空のまま「説明に出ている」が通ってしまう（自己赤チェックで見つけた穴）
+      assert(p.なぜ && p.なぜ.length >= 10,
+        p.title + ' に、遊ぶ人へ出す理由が書いてある（実際:「' + p.なぜ + '」）');
+      assert(説明.indexOf(p.title) >= 0, p.title + ' が説明に出ている（黙って消えていない）');
+      assert(説明.indexOf(p.なぜ) >= 0, p.title + ' の「なぜ下ろしたか」が出ている');
+      assert(/じゅんび中/.test(説明), 'じゅんび中だと分かる');
+    });
+    // **棚から本当に消えているか**——選べるゲームの側に残っていないこと（両方向）
+    const 遊べる = Array.from(doc.querySelectorAll('#gameCards .mode-card')).map((c) => c.dataset.game);
+    assert(遊べる.indexOf('defuse') === -1, '選べるゲームの側には出ていない');
+    assertNoErrors(errors, '下ろしたゲームの説明で未捕捉の例外');
     win.close();
   });
 

@@ -2038,6 +2038,163 @@
   .rt-member .rm-op.danger{color:#c0392b;border-color:#e2b4ae;}
   /* ===== 第38弾：相場オークション ===== */
   /* 上の帯。チップと相場は、どの画面でも見えていないと判断ができない */
+  /* ===================================================================
+     指示53：False or True の部品（前置きは ft-）。
+     前置きを付けるのは落とし穴23——`.ft-` に先客がいないことを grep で確かめてある。
+
+     **「1画面につき、やることは1つ」を、寸法でも守る。**
+     どの画面も「主役を1つ大きく、それ以外は小さく」。
+     並べたくなるもの（ケースの列・時計・2択・結果の札）は、
+     画面ごとに1つだけが大きい。
+     =================================================================== */
+  /* ---- 大画面のケースの列（指示53 2-9）。離れた席から読める大きさで ---- */
+  .big-ft{
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+    gap:14px; margin-top:18px;
+  }
+  .big-ft .bft-case{
+    min-width:60px; padding:14px 10px;
+    background:var(--card); border:2px solid var(--line); border-radius:10px;
+    font-size:calc(var(--fs-title) * 1.2); font-weight:800; color:var(--ink);
+    text-align:center;
+  }
+  .big-ft .bft-case.is-held{ border-color:var(--switch-on); }
+  .big-ft .bft-note{ width:100%; text-align:center; color:var(--ink-soft); font-size:var(--fs-sub); }
+  /* ---- ケースの列（①えらぶ）。**全部おなじ見た目。番号だけ** ---- */
+  .ft-cases{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(84px, 1fr));
+    gap:12px;
+    margin-top:14px;
+  }
+  .ft-case{
+    /* .btn を土台に敷いた上で、並べ方だけを足す（落とし穴31） */
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px;
+    aspect-ratio:3 / 4;
+    background:var(--card);
+    border:2px solid var(--line);
+    border-radius:10px;
+    color:var(--ink);
+    font-size:var(--fs-body);
+    font-weight:700;
+  }
+  .ft-case .ft-no{font-size:var(--fs-title); line-height:1;}
+  .ft-case .ft-mark{font-size:var(--fs-sub); opacity:.75;}
+  .ft-case[disabled]{opacity:.5;}
+  .ft-case.is-mine{border-color:var(--switch-on);}
+  .ft-tally{
+    margin-top:14px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:var(--fs-sub);
+  }
+  /* ---- 1枚だけ大きく（②みる） ---- */
+  .ft-onecase{
+    margin:10px auto 0;
+    width:min(190px, 58vw);
+    aspect-ratio:3 / 4;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--card);
+    border:2px solid var(--line);
+    border-radius:12px;
+    font-size:calc(var(--fs-title) * 1.5);
+    font-weight:700;
+    color:var(--ink);
+  }
+  /* ---- 中身（TRUE / FALSE）。**色だけに頼らず、必ず字も出す**（指示53 2-11） ---- */
+  .ft-content{
+    margin:16px auto 0;
+    padding:16px 10px;
+    width:min(260px, 82vw);
+    border-radius:12px;
+    text-align:center;
+    font-weight:800;
+    letter-spacing:.06em;
+    font-size:var(--fs-title);
+    border:3px solid var(--line);
+    background:var(--card);
+    color:var(--ink);
+  }
+  .ft-content[data-v="true"]{ border-color:#54D97E; color:#54D97E; }
+  .ft-content[data-v="false"]{ border-color:#F58C80; color:#F58C80; }
+  .ft-content .ft-sub{
+    display:block; margin-top:6px;
+    font-size:var(--fs-sub); font-weight:600; letter-spacing:0;
+    color:var(--ink-soft);
+  }
+  .ft-content.ft-big{ font-size:calc(var(--fs-title) * 1.5); width:min(320px, 88vw); }
+  /* ---- 対面（③）。名前を2つ出すだけ ---- */
+  .ft-facebody{ display:flex; align-items:center; justify-content:center; }
+  .ft-face{ text-align:center; width:100%; }
+  .ft-face .ft-who{
+    font-size:calc(var(--fs-title) * 1.5); font-weight:800; color:var(--ink); line-height:1.2;
+  }
+  .ft-face .ft-vs{
+    margin:10px 0; font-size:var(--fs-title); font-weight:800; color:var(--switch-on);
+  }
+  .ft-face .ft-role{ margin-top:4px; font-size:var(--fs-sub); color:var(--ink-soft); }
+  /* ---- 話し合い（④）。時計が主役 ---- */
+  .ft-talkbody{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ft-bigclock{
+    font-size:calc(var(--fs-title) * 1.5);
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink);
+    line-height:1;
+  }
+  /* **印を付けても、規則が無ければ何も起きない**（落とし穴30）。
+     `timerChipTick` が付ける warn / done の色は、器ごとに要る
+     （`.timer-chip` と同じ役割・`tests/fixes45.js` が両方向で見張っている） */
+  .ft-bigclock.warn{ color:var(--gold); }
+  .ft-bigclock.done{ color:var(--stamp); }
+  .ft-ready{ margin-top:12px; font-size:var(--fs-sub); color:var(--ink-soft); min-height:1.2em; }
+  /* ---- 奪うか決める（⑤）。**2つは同じ重さ。色で結果をほのめかさない** ----
+     緑／赤に塗り分けると「奪う＝良い」のように読めてしまい、
+     中身を知らない人に嘘のヒントを出すことになる。
+     正本 §6 の「赤は縁のみ」にも、これで自然に収まる */
+  .ft-choose{
+    display:flex; flex-direction:column; gap:14px;
+    margin-top:22px;
+  }
+  .ft-take, .ft-keep{
+    padding:22px 16px;
+    font-size:var(--fs-title);
+    font-weight:800;
+    background:var(--card);
+    color:var(--ink);
+    border:2px solid var(--ink-soft);
+    border-radius:12px;
+  }
+  /* 長押しで見せる札。**押して離すまでの間だけ**中身が出る。
+     ④の話し合いでだけ使う——相手が目の前にいるので、置きっぱなしにできない。
+     破線の縁で「これは押しっぱなし」と形でも伝える（色だけに頼らない） */
+  .ft-hold{ border-style:dashed; }
+  .ft-waitbox{ margin-top:24px; text-align:center; color:var(--ink-soft); font-size:var(--fs-body); }
+  /* ---- ケースが開く（⑥） ---- */
+  .ft-openbody{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ft-verdict{
+    margin-top:20px; text-align:center;
+    font-size:var(--fs-title); font-weight:800; color:var(--ink);
+  }
+  .ft-verdict .ft-sub{ display:block; margin-top:6px; font-size:var(--fs-sub); font-weight:600; color:var(--ink-soft); }
+  /* ---- 結果発表（⑦） ---- */
+  .ft-win{ text-align:center; font-size:var(--fs-body); color:var(--ink); }
+  .ft-win .ft-names{ margin-top:8px; font-size:var(--fs-title); font-weight:800; }
+  .ft-look{ margin-top:18px; }
+  .ft-look .ft-row{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 10px;
+    border-bottom:1px solid var(--line);
+    font-size:var(--fs-sub);
+    color:var(--ink);
+  }
+  .ft-look .ft-row:last-child{ border-bottom:none; }
+  .ft-look .ft-rno{ color:var(--ink-soft); min-width:2.4em; }
+  .ft-look .ft-res{ margin-left:auto; font-weight:700; }
+  .ft-look .ft-res[data-v="true"]{ color:#54D97E; }
+  .ft-look .ft-res[data-v="false"]{ color:#F58C80; }
+
   .mk-topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
   .mk-chips{font-family:'DotGothic16',monospace;font-size:24px;color:var(--gold);}
   .mk-chips::after{content:'枚';font-size:12px;margin-left:2px;}
@@ -3749,158 +3906,6 @@
   .app.theme-sugoroku .btn-main{
     background:linear-gradient(180deg, var(--stamp) 0%, var(--stamp-deep) 100%);
   }
-  /* ===================================================================
-     指示53：False or True の部品（前置きは ft-）。
-     前置きを付けるのは落とし穴23——`.ft-` に先客がいないことを grep で確かめてある。
-
-     **「1画面につき、やることは1つ」を、寸法でも守る。**
-     どの画面も「主役を1つ大きく、それ以外は小さく」。
-     並べたくなるもの（ケースの列・時計・2択・結果の札）は、
-     画面ごとに1つだけが大きい。
-     =================================================================== */
-  /* ---- 大画面のケースの列（指示53 2-9）。離れた席から読める大きさで ---- */
-  .big-ft{
-    display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
-    gap:14px; margin-top:18px;
-  }
-  .big-ft .bft-case{
-    min-width:60px; padding:14px 10px;
-    background:var(--card); border:2px solid var(--line); border-radius:10px;
-    font-size:calc(var(--fs-title) * 1.2); font-weight:800; color:var(--ink);
-    text-align:center;
-  }
-  .big-ft .bft-case.is-held{ border-color:var(--switch-on); }
-  .big-ft .bft-note{ width:100%; text-align:center; color:var(--ink-soft); font-size:var(--fs-sub); }
-  /* ---- ケースの列（①えらぶ）。**全部おなじ見た目。番号だけ** ---- */
-  .ft-cases{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(84px, 1fr));
-    gap:12px;
-    margin-top:14px;
-  }
-  .ft-case{
-    /* .btn を土台に敷いた上で、並べ方だけを足す（落とし穴31） */
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:4px;
-    aspect-ratio:3 / 4;
-    background:var(--card);
-    border:2px solid var(--line);
-    border-radius:10px;
-    color:var(--ink);
-    font-size:var(--fs-body);
-    font-weight:700;
-  }
-  .ft-case .ft-no{font-size:var(--fs-title); line-height:1;}
-  .ft-case .ft-mark{font-size:var(--fs-sub); opacity:.75;}
-  .ft-case[disabled]{opacity:.5;}
-  .ft-case.is-mine{border-color:var(--switch-on);}
-  .ft-tally{
-    margin-top:14px;
-    text-align:center;
-    color:var(--ink-soft);
-    font-size:var(--fs-sub);
-  }
-  /* ---- 1枚だけ大きく（②みる） ---- */
-  .ft-onecase{
-    margin:10px auto 0;
-    width:min(190px, 58vw);
-    aspect-ratio:3 / 4;
-    display:flex; align-items:center; justify-content:center;
-    background:var(--card);
-    border:2px solid var(--line);
-    border-radius:12px;
-    font-size:calc(var(--fs-title) * 1.5);
-    font-weight:700;
-    color:var(--ink);
-  }
-  /* ---- 中身（TRUE / FALSE）。**色だけに頼らず、必ず字も出す**（指示53 2-11） ---- */
-  .ft-content{
-    margin:16px auto 0;
-    padding:16px 10px;
-    width:min(260px, 82vw);
-    border-radius:12px;
-    text-align:center;
-    font-weight:800;
-    letter-spacing:.06em;
-    font-size:var(--fs-title);
-    border:3px solid var(--line);
-    background:var(--card);
-    color:var(--ink);
-  }
-  .ft-content[data-v="true"]{ border-color:#54D97E; color:#54D97E; }
-  .ft-content[data-v="false"]{ border-color:#F58C80; color:#F58C80; }
-  .ft-content .ft-sub{
-    display:block; margin-top:6px;
-    font-size:var(--fs-sub); font-weight:600; letter-spacing:0;
-    color:var(--ink-soft);
-  }
-  .ft-content.ft-big{ font-size:calc(var(--fs-title) * 1.5); width:min(320px, 88vw); }
-  /* ---- 対面（③）。名前を2つ出すだけ ---- */
-  .ft-facebody{ display:flex; align-items:center; justify-content:center; }
-  .ft-face{ text-align:center; width:100%; }
-  .ft-face .ft-who{
-    font-size:calc(var(--fs-title) * 1.5); font-weight:800; color:var(--ink); line-height:1.2;
-  }
-  .ft-face .ft-vs{
-    margin:10px 0; font-size:var(--fs-title); font-weight:800; color:var(--switch-on);
-  }
-  .ft-face .ft-role{ margin-top:4px; font-size:var(--fs-sub); color:var(--ink-soft); }
-  /* ---- 話し合い（④）。時計が主役 ---- */
-  .ft-talkbody{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  .ft-bigclock{
-    font-size:calc(var(--fs-title) * 1.5);
-    font-weight:800;
-    font-variant-numeric:tabular-nums;
-    color:var(--ink);
-    line-height:1;
-  }
-  .ft-ready{ margin-top:12px; font-size:var(--fs-sub); color:var(--ink-soft); min-height:1.2em; }
-  /* ---- 奪うか決める（⑤）。**2つは同じ重さ。色で結果をほのめかさない** ----
-     緑／赤に塗り分けると「奪う＝良い」のように読めてしまい、
-     中身を知らない人に嘘のヒントを出すことになる。
-     正本 §6 の「赤は縁のみ」にも、これで自然に収まる */
-  .ft-choose{
-    display:flex; flex-direction:column; gap:14px;
-    margin-top:22px;
-  }
-  .ft-take, .ft-keep{
-    padding:22px 16px;
-    font-size:var(--fs-title);
-    font-weight:800;
-    background:var(--card);
-    color:var(--ink);
-    border:2px solid var(--ink-soft);
-    border-radius:12px;
-  }
-  /* 長押しで見せる札。**押して離すまでの間だけ**中身が出る。
-     ④の話し合いでだけ使う——相手が目の前にいるので、置きっぱなしにできない。
-     破線の縁で「これは押しっぱなし」と形でも伝える（色だけに頼らない） */
-  .ft-hold{ border-style:dashed; }
-  .ft-waitbox{ margin-top:24px; text-align:center; color:var(--ink-soft); font-size:var(--fs-body); }
-  /* ---- ケースが開く（⑥） ---- */
-  .ft-openbody{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  .ft-verdict{
-    margin-top:20px; text-align:center;
-    font-size:var(--fs-title); font-weight:800; color:var(--ink);
-  }
-  .ft-verdict .ft-sub{ display:block; margin-top:6px; font-size:var(--fs-sub); font-weight:600; color:var(--ink-soft); }
-  /* ---- 結果発表（⑦） ---- */
-  .ft-win{ text-align:center; font-size:var(--fs-body); color:var(--ink); }
-  .ft-win .ft-names{ margin-top:8px; font-size:var(--fs-title); font-weight:800; }
-  .ft-look{ margin-top:18px; }
-  .ft-look .ft-row{
-    display:flex; align-items:center; gap:8px;
-    padding:8px 10px;
-    border-bottom:1px solid var(--line);
-    font-size:var(--fs-sub);
-    color:var(--ink);
-  }
-  .ft-look .ft-row:last-child{ border-bottom:none; }
-  .ft-look .ft-rno{ color:var(--ink-soft); min-width:2.4em; }
-  .ft-look .ft-res{ margin-left:auto; font-weight:700; }
-  .ft-look .ft-res[data-v="true"]{ color:#54D97E; }
-  .ft-look .ft-res[data-v="false"]{ color:#F58C80; }
-
   /* -------------------------------------------------------------------
      指示53：False or True カセット専用の「赤光と緑光と黒」テーマ
 
@@ -16086,8 +16091,22 @@
     if(ftClock.ms == null) return null;
     return Math.max(0, Math.round((ftClock.ms - (Date.now() - ftClock.at)) / 1000));
   }
+  /**
+   * いまの画面の時計。**画面ごとの id を名前で書く**（オークションの `auTimerEl` と同じ形）。
+   *
+   * `.screen.active [data-timer]` で拾う方が短いが、それだと
+   * `tests/fixes45.js`「data-timer の付いた時計は、1つ残らず同じ1本を通る（帰り向き）」の
+   * 見張りが**どの時計を触っているか読み取れない**——通っているのに「通っていない」と出る。
+   * 見張りが読める形で書くのも、実装の仕事のうち
+   */
+  function ftTimerEl(){
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    var map = { 'scr-rt-ft-pick':'ftPickTimer', 'scr-rt-ft-peek':'ftPeekTimer',
+      'scr-rt-ft-talk':'ftTalkTimer', 'scr-rt-ft-decide':'ftDecideTimer' };
+    return map[cur] ? el(map[cur]) : null;
+  }
   function ftRenderTimer(){
-    var d = document.querySelector('.screen.active [data-timer]');
+    var d = ftTimerEl();
     if(!d) return;
     var sec = ftLeftSec();
     if(sec == null){ d.style.display = 'none'; return; }

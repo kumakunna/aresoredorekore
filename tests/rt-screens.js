@@ -6126,7 +6126,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       await waitScreen(win, doc, 段.screen, 4000);
       // **器だけでなく、中身が描かれているか**まで見る（落とし穴12）
       const scr = doc.getElementById(段.screen);
-      const 文字 = scr.innerText.replace(/\s+/g, ' ').trim();
+      const 文字 = scr.textContent.replace(/\s+/g, ' ').trim();
       assert(文字.length > 0, 段.screen + ' に文字が出ている');
       assert((scr.querySelector('.now-line') || {}).textContent,
         段.screen + ' に「いま何をする」の帯が出ている');
@@ -6166,7 +6166,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       push(fakeB, ftRoom(st, 'peek'));
       pushYou(fakeB, st.you(id));
       await waitScreen(B.win, B.doc, 'scr-rt-ft-peek', 4000);
-      const 文字 = B.doc.getElementById('scr-rt-ft-peek').innerText;
+      const 文字 = B.doc.getElementById('scr-rt-ft-peek').textContent;
       assert(!/TRUE|FALSE/.test(文字), id + ' の画面に中身が出ていない（実際: ' + 文字.slice(0, 60) + '）');
       assertEqual(B.doc.getElementById('ftPeekOpenBtn').style.display, 'none',
         id + ' の画面には「ひらく」が無い');

@@ -8,11 +8,11 @@
     "expect": "見分けがつかないほど近い世界の色がある"
   },
   {
-    "name": "49-3B 人狼とクイズを、着手前の近さ（ΔE=3.4）に戻す",
+    "name": "49-3B 人狼とクイズを、見分けられない近さにする（ΔE=0.8）",
     "file": "public/index.html",
     "suite": "tests/design-tokens.js",
     "from": ".cassette-warp[data-theme=\"quiz\"], .shelf-stage[data-theme=\"quiz\"]{--warp-color:#04365F;",
-    "to": ".cassette-warp[data-theme=\"quiz\"], .shelf-stage[data-theme=\"quiz\"]{--warp-color:#10182E;",
+    "to": ".cassette-warp[data-theme=\"quiz\"], .shelf-stage[data-theme=\"quiz\"]{--warp-color:#2A1C58;",
     "expect": "見分けがつかないほど近い世界の色がある"
   },
   {

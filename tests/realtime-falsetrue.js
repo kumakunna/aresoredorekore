@@ -286,5 +286,32 @@ const 端末 = (rm, id) => rm.all.find((d) => d.memberId === id);
     } finally { await srv.close(); }
   });
 
+  await r.test('Q14：「読んだか」の鍵が、どの経路でも同じ（modeId が消えても割れない）', async () => {
+    // 第48弾：端末の鍵は `rtRulesKey()` ＝ `modeId ?? gameId`。
+    // **modeId が消える経路があるので、2つが違う id だと記憶が割れる**
+    //（ルールをもう一度見せたのに、読んだことになっている／その逆）。
+    // このカセットはモードidもゲームidも 'falsetrue' なので割れない——
+    // **それを言葉ではなく検査で固定する**（あとで名前を変えた日に赤くなるように）
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 4);
+      const 鍵 = () => {
+        const st = roomOf(srv, rm.code).state;
+        return (st.data && st.data.modeId) || st.game || null;
+      };
+      // 棚から選んだ状態（modeId が載る）
+      await rm.host.call('room:setState', { game: 'falsetrue', data: { modeId: 'falsetrue' } });
+      assertEqual(鍵(), 'falsetrue', 'えらんだ直後の鍵');
+      // ゲーム中（modeId が消える経路）
+      const res = await rm.host.call('wolf:start', { game: 'falsetrue', talkSec: 30 });
+      assertEqual(res.ok, true, '始まる');
+      assertEqual(鍵(), 'falsetrue', '**ゲーム中も同じ鍵**（modeId が消えても gameId に落ちるだけ）');
+      // 再戦のあと
+      await rm.host.call('room:setState', { reset: true, phase: 'lobby' });
+      assertEqual(鍵(), 'falsetrue', '再戦のあとも同じ鍵');
+      rm.all.forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 })();

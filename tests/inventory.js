@@ -119,6 +119,10 @@ const ROOM_EXIT_PATHS = [
   // そこでも出られる方が安全（落とし穴18）
   { id: 'sugoroku-result-leave', kind: 'leave', btn: 'rtSugoResultLeaveBtn', event: 'room:leave',
     label: 'すごろく結果発表「← 部屋を出る」' },
+  // 指示53：False or True。出口は結果発表の1枚だけ——
+  // 進行中の6枚には「部屋を出る」を置いていない（1画面につき、やることは1つ）
+  { id: 'falsetrue-result-leave', kind: 'leave', btn: 'rtFtResultLeaveBtn', event: 'room:leave',
+    label: 'False or True 結果発表「← 部屋を出る」' },
   { id: 'big-leave', kind: 'leave', btn: 'bigLeaveBtn', event: 'room:leave',
     label: '大画面「← 部屋を出る」' },
   { id: 'settings-leave', kind: 'leave', btn: null, event: 'room:leave',
@@ -177,7 +181,9 @@ const RT_START_MIN_CONFIG = {
   sugograb: { game: 'sugograb', events: false },
   sugopair: { game: 'sugopair', events: false },
   sugohide: { game: 'sugohide', events: false },
-  sugohand: { game: 'sugohand', events: false }
+  sugohand: { game: 'sugohand', events: false },
+  // 指示53：False or True。ケースの数も中身の比も人数から決まるので、送るのは話し合いの長さだけ
+  falsetrue: { game: 'falsetrue', talkSec: 30 }
 };
 
 // ---- 画面とオーバーレイの一覧（第35弾C：体験品質監査の正本） ----

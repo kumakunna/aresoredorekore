@@ -3749,6 +3749,158 @@
   .app.theme-sugoroku .btn-main{
     background:linear-gradient(180deg, var(--stamp) 0%, var(--stamp-deep) 100%);
   }
+  /* ===================================================================
+     指示53：False or True の部品（前置きは ft-）。
+     前置きを付けるのは落とし穴23——`.ft-` に先客がいないことを grep で確かめてある。
+
+     **「1画面につき、やることは1つ」を、寸法でも守る。**
+     どの画面も「主役を1つ大きく、それ以外は小さく」。
+     並べたくなるもの（ケースの列・時計・2択・結果の札）は、
+     画面ごとに1つだけが大きい。
+     =================================================================== */
+  /* ---- 大画面のケースの列（指示53 2-9）。離れた席から読める大きさで ---- */
+  .big-ft{
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+    gap:14px; margin-top:18px;
+  }
+  .big-ft .bft-case{
+    min-width:60px; padding:14px 10px;
+    background:var(--card); border:2px solid var(--line); border-radius:10px;
+    font-size:calc(var(--fs-title) * 1.2); font-weight:800; color:var(--ink);
+    text-align:center;
+  }
+  .big-ft .bft-case.is-held{ border-color:var(--switch-on); }
+  .big-ft .bft-note{ width:100%; text-align:center; color:var(--ink-soft); font-size:var(--fs-sub); }
+  /* ---- ケースの列（①えらぶ）。**全部おなじ見た目。番号だけ** ---- */
+  .ft-cases{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(84px, 1fr));
+    gap:12px;
+    margin-top:14px;
+  }
+  .ft-case{
+    /* .btn を土台に敷いた上で、並べ方だけを足す（落とし穴31） */
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px;
+    aspect-ratio:3 / 4;
+    background:var(--card);
+    border:2px solid var(--line);
+    border-radius:10px;
+    color:var(--ink);
+    font-size:var(--fs-body);
+    font-weight:700;
+  }
+  .ft-case .ft-no{font-size:var(--fs-title); line-height:1;}
+  .ft-case .ft-mark{font-size:var(--fs-sub); opacity:.75;}
+  .ft-case[disabled]{opacity:.5;}
+  .ft-case.is-mine{border-color:var(--switch-on);}
+  .ft-tally{
+    margin-top:14px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:var(--fs-sub);
+  }
+  /* ---- 1枚だけ大きく（②みる） ---- */
+  .ft-onecase{
+    margin:10px auto 0;
+    width:min(190px, 58vw);
+    aspect-ratio:3 / 4;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--card);
+    border:2px solid var(--line);
+    border-radius:12px;
+    font-size:calc(var(--fs-title) * 1.5);
+    font-weight:700;
+    color:var(--ink);
+  }
+  /* ---- 中身（TRUE / FALSE）。**色だけに頼らず、必ず字も出す**（指示53 2-11） ---- */
+  .ft-content{
+    margin:16px auto 0;
+    padding:16px 10px;
+    width:min(260px, 82vw);
+    border-radius:12px;
+    text-align:center;
+    font-weight:800;
+    letter-spacing:.06em;
+    font-size:var(--fs-title);
+    border:3px solid var(--line);
+    background:var(--card);
+    color:var(--ink);
+  }
+  .ft-content[data-v="true"]{ border-color:#54D97E; color:#54D97E; }
+  .ft-content[data-v="false"]{ border-color:#F58C80; color:#F58C80; }
+  .ft-content .ft-sub{
+    display:block; margin-top:6px;
+    font-size:var(--fs-sub); font-weight:600; letter-spacing:0;
+    color:var(--ink-soft);
+  }
+  .ft-content.ft-big{ font-size:calc(var(--fs-title) * 1.5); width:min(320px, 88vw); }
+  /* ---- 対面（③）。名前を2つ出すだけ ---- */
+  .ft-facebody{ display:flex; align-items:center; justify-content:center; }
+  .ft-face{ text-align:center; width:100%; }
+  .ft-face .ft-who{
+    font-size:calc(var(--fs-title) * 1.5); font-weight:800; color:var(--ink); line-height:1.2;
+  }
+  .ft-face .ft-vs{
+    margin:10px 0; font-size:var(--fs-title); font-weight:800; color:var(--switch-on);
+  }
+  .ft-face .ft-role{ margin-top:4px; font-size:var(--fs-sub); color:var(--ink-soft); }
+  /* ---- 話し合い（④）。時計が主役 ---- */
+  .ft-talkbody{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ft-bigclock{
+    font-size:calc(var(--fs-title) * 1.5);
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink);
+    line-height:1;
+  }
+  .ft-ready{ margin-top:12px; font-size:var(--fs-sub); color:var(--ink-soft); min-height:1.2em; }
+  /* ---- 奪うか決める（⑤）。**2つは同じ重さ。色で結果をほのめかさない** ----
+     緑／赤に塗り分けると「奪う＝良い」のように読めてしまい、
+     中身を知らない人に嘘のヒントを出すことになる。
+     正本 §6 の「赤は縁のみ」にも、これで自然に収まる */
+  .ft-choose{
+    display:flex; flex-direction:column; gap:14px;
+    margin-top:22px;
+  }
+  .ft-take, .ft-keep{
+    padding:22px 16px;
+    font-size:var(--fs-title);
+    font-weight:800;
+    background:var(--card);
+    color:var(--ink);
+    border:2px solid var(--ink-soft);
+    border-radius:12px;
+  }
+  /* 長押しで見せる札。**押して離すまでの間だけ**中身が出る。
+     ④の話し合いでだけ使う——相手が目の前にいるので、置きっぱなしにできない。
+     破線の縁で「これは押しっぱなし」と形でも伝える（色だけに頼らない） */
+  .ft-hold{ border-style:dashed; }
+  .ft-waitbox{ margin-top:24px; text-align:center; color:var(--ink-soft); font-size:var(--fs-body); }
+  /* ---- ケースが開く（⑥） ---- */
+  .ft-openbody{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ft-verdict{
+    margin-top:20px; text-align:center;
+    font-size:var(--fs-title); font-weight:800; color:var(--ink);
+  }
+  .ft-verdict .ft-sub{ display:block; margin-top:6px; font-size:var(--fs-sub); font-weight:600; color:var(--ink-soft); }
+  /* ---- 結果発表（⑦） ---- */
+  .ft-win{ text-align:center; font-size:var(--fs-body); color:var(--ink); }
+  .ft-win .ft-names{ margin-top:8px; font-size:var(--fs-title); font-weight:800; }
+  .ft-look{ margin-top:18px; }
+  .ft-look .ft-row{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 10px;
+    border-bottom:1px solid var(--line);
+    font-size:var(--fs-sub);
+    color:var(--ink);
+  }
+  .ft-look .ft-row:last-child{ border-bottom:none; }
+  .ft-look .ft-rno{ color:var(--ink-soft); min-width:2.4em; }
+  .ft-look .ft-res{ margin-left:auto; font-weight:700; }
+  .ft-look .ft-res[data-v="true"]{ color:#54D97E; }
+  .ft-look .ft-res[data-v="false"]{ color:#F58C80; }
+
   /* -------------------------------------------------------------------
      指示53：False or True カセット専用の「赤光と緑光と黒」テーマ
 
@@ -5177,6 +5329,124 @@
     </div>
   </div>
 
+  <!-- ===================================================================
+       指示53：False or True（部屋・1人1台）。**段階の数だけ画面を分ける。**
+
+       本人の忠告（2026-09-16）：これまでの全カセットで「1画面に全部入れて
+       プレイヤーの負担が大きい」という修正が毎回出ている。すごろくでは
+       上に盤・下にミニゲームが同時に出て、どっちを見ればいいか分からなくなった。
+
+       このゲームは並べたくなるものが5つある（ケースの列・対面の2人・時計・
+       奪う/奪わないの2択・結果の札）。1枚に載せると同じ画面になる。
+       **だから1枚には1つのことだけを置き、その1つが何なのかを帯（.now-line）で言う。**
+
+       秘密の扱い：**中身が出てよいのは peek の「本人の画面」と open のあと だけ。**
+       他の画面は、サーバーが中身を配ってこないので、書こうとしても書けない
+       （publicView に入っていない）。
+       ==================================================================== -->
+
+  <!-- ① ケースをえらぶ：やることは「1つえらぶ」だけ。
+       他の人の画面には**押せる物を置かない**——押せない札が並ぶと押しに行かれる -->
+  <div class="screen" id="scr-rt-ft-pick">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title" id="ftPickTitle">ケースをえらぶ</h2>
+    <div class="wiz-body">
+      <p class="scr-sub" id="ftPickLead"></p>
+      <div class="ft-cases" id="ftPickCases"></div>
+      <div class="ft-tally" id="ftPickTally"></div>
+    </div>
+    <div class="wiz-foot">
+      <div class="timer-chip" data-timer id="ftPickTimer" style="display:none;">--:--</div>
+    </div>
+  </div>
+
+  <!-- ② 中身をみる：本人だけ。**長押しで開く**——
+       置いたまま開きっぱなしにすると、隣から覗ける（大切なこと1：その場に座って想像する）。
+       他の人の画面には、中身につながるものを1つも出さない -->
+  <div class="screen" id="scr-rt-ft-peek">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title" id="ftPeekTitle">中身をみる</h2>
+    <div class="wiz-body">
+      <div class="ft-onecase" id="ftPeekCase"></div>
+      <div class="ft-content" id="ftPeekContent" hidden></div>
+      <p class="scr-sub" id="ftPeekLead"></p>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-main" id="ftPeekOpenBtn" style="display:none;">ひらく</button>
+      <button class="btn btn-main" id="ftPeekSeenBtn" style="display:none;">みた ▶</button>
+      <div class="timer-chip" data-timer id="ftPeekTimer" style="display:none;">--:--</div>
+    </div>
+  </div>
+
+  <!-- ③ 対面：見世物の1枚。名前を2つ出すだけで、押すものは無い。
+       ここに時計や札を足すと、次のラウンドの主役が霞む -->
+  <div class="screen" id="scr-rt-ft-face">
+    <div class="now-line" hidden></div>
+    <div class="wiz-body ft-facebody">
+      <div class="ft-face" id="ftFaceBox"></div>
+    </div>
+  </div>
+
+  <!-- ④ 話し合い：時計が主役。**奪う/奪わないの2択はここに置かない**（次の画面の仕事）。
+       持ち主は「もう一度みる」で確かめられるが、これも長押し -->
+  <div class="screen" id="scr-rt-ft-talk">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title" id="ftTalkTitle">話し合い</h2>
+    <div class="wiz-body ft-talkbody">
+      <div class="ft-bigclock" data-timer id="ftTalkTimer">--:--</div>
+      <p class="scr-sub" id="ftTalkLead"></p>
+      <div class="ft-content" id="ftTalkContent" hidden></div>
+      <div class="ft-ready" id="ftTalkReady"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-outline ft-hold" id="ftTalkHoldBtn" style="display:none;">長押しで、もう一度みる</button>
+      <button class="btn btn-main" id="ftTalkDoneBtn" style="display:none;">話し終わった</button>
+    </div>
+  </div>
+
+  <!-- ⑤ 奪うか決める：2つのボタンだけ。親指の届く所に大きく（指示53 2-11）。
+       ここに時計を大きく出さない——急かすと、考える遊びが消える -->
+  <div class="screen" id="scr-rt-ft-decide">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title" id="ftDecideTitle">どうする？</h2>
+    <div class="wiz-body">
+      <p class="scr-sub" id="ftDecideLead"></p>
+      <div class="ft-choose" id="ftDecideChoose" hidden>
+        <button class="btn ft-take" id="ftTakeBtn">奪う</button>
+        <button class="btn ft-keep" id="ftKeepBtn">奪わない</button>
+      </div>
+      <div class="ft-waitbox" id="ftDecideWait"></div>
+    </div>
+    <div class="wiz-foot">
+      <div class="timer-chip" data-timer id="ftDecideTimer" style="display:none;">--:--</div>
+    </div>
+  </div>
+
+  <!-- ⑥ ケースが開く：演出 → 結果の順（52-6）。スキップで即結果。
+       ここも押すものは無い -->
+  <div class="screen" id="scr-rt-ft-open">
+    <div class="now-line" hidden></div>
+    <div class="wiz-body ft-openbody">
+      <div class="ft-content ft-big" id="ftOpenContent"></div>
+      <div class="ft-verdict" id="ftOpenVerdict"></div>
+    </div>
+  </div>
+
+  <!-- ⑦ 結果発表（52-3 のすごろくと同じ形）。**1人だけを勝者にしない** -->
+  <div class="screen" id="scr-rt-ft-result">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title">結果発表</h2>
+    <div class="wiz-body">
+      <div class="ft-win" id="ftRsWin"></div>
+      <div class="ft-look" id="ftRsLook"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="rtFtAgainBtn" style="display:none;">つぎは？ ▶</button>
+      <button class="btn btn-outline" id="rtFtEndBtn" style="display:none;margin-top:0;">🏁 部屋をとじる</button>
+      <button class="btn btn-ghost" id="rtFtResultLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
+    </div>
+  </div>
+
   <div class="screen" id="scr-rt-big">
     <div class="now-line" hidden></div>
     <div class="big-wrap">
@@ -5196,6 +5466,9 @@
       <!-- すごろく：大画面には盤そのものを出す。みんなが囲む卓になる。
            「どこにいる？」では誰の駒も置かれない（実位置が公開ビューに無いため） -->
       <div class="sugo-board big-sugo" id="bigSugoBoard" style="display:none;"></div>
+      <!-- 指示53：False or True。ケースの列を卓の全員に見せる。
+           **番号だけ。中身にあたるものは1つも入れない** -->
+      <div class="big-ft" id="bigFtCases" style="display:none;"></div>
       <!-- 第38弾：相場オークション。相場表と品ぞろえを、卓の全員が読める大きさで。
            **品質にあたるものは一切入れない**（大画面はみんなが見るので、
            ここに入れた瞬間に伏せている意味が消える） -->
@@ -10596,6 +10869,9 @@
     // 第38弾：オークションの6枚から「6枚の外」へ出た時だけ捨てる。
     // 6枚のあいだを行き来しただけで時計を止めない（落とし穴7）
     if(prevScreen && prevScreen.id.indexOf('scr-rt-au-') === 0 && id.indexOf('scr-rt-au-') !== 0) auLeaveScreen();
+    // 指示53：False or True の7枚から「7枚の外」へ出た時だけ捨てる。
+    // 7枚のあいだを行き来しただけで時計を止めない（落とし穴7・オークションと同じ形）
+    if(prevScreen && prevScreen.id.indexOf('scr-rt-ft-') === 0 && id.indexOf('scr-rt-ft-') !== 0) ftLeaveScreen();
     // 部屋のすごろくを離れる時。連打のタイマーと「押したまま」を必ず捨てる
     if(prevScreen && prevScreen.id === 'scr-rt-sugoroku' && id !== 'scr-rt-sugoroku'){
       if(rtSugo.stop){ rtSugo.stop(); rtSugo.stop = null; }
@@ -12849,7 +13125,7 @@
   }
   // 5つのボタンは、どれも同じ「つぎは？」画面へ行く
   ['rtAgainBtn','rtBombAgainBtn','dfAgainBtn','qzAgainBtn','auAgainBtn',
-   'rtSugoAgainBtn'].forEach(function(id){
+   'rtSugoAgainBtn','rtFtAgainBtn'].forEach(function(id){
     var b = el(id);
     if(b) b.addEventListener('click', function(){ if(!this.disabled) goTo('scr-next'); });
   });
@@ -13743,6 +14019,70 @@
     offer: '売り札', buy: '買います',
     say: '申告', judge: '見せ合い', result: '結果', event: 'できごと', ended: '決着'
   };
+  /**
+   * 大画面（指示53 2-9）。**見世物に徹する。**
+   *
+   * 出すのは「ケースの一覧（全部おなじ見た目・番号だけ）」「対面の2人」「時計」。
+   * **中身は絶対に映さない**——大画面は卓の全員が見るので、
+   * 1ビット漏れた瞬間にそのラウンドが終わる。
+   * そもそもサーバーが `publicView` に中身を入れていないので、書こうにも書けない
+   * （開いたあとの `v.last` だけが例外で、それは全員に見せてよいもの）。
+   */
+  function renderRtBigFalsetrue(v){
+    el('bigBoard').style.display = 'none';
+    el('bigPhase').textContent = 'False or True　' + (RT_PHASE_LABEL[v.phase] || '');
+
+    // ケースの列は、決着までずっと出しておく（卓の真ん中に置いた箱そのもの）
+    var 列 = el('bigFtCases');
+    if(v.phase === 'ended'){
+      列.style.display = 'none';
+    } else {
+      列.style.display = 'flex';
+      列.innerHTML = (v.cases || []).map(function(no){
+        return '<span class="bft-case' + (no === v.heldNo ? ' is-held' : '') + '">' + no + '</span>';
+      }).join('') +
+      '<span class="bft-note">のこり ' + (v.cases || []).length + ' 枚</span>';
+    }
+
+    var main = '', sub = '';
+    if(v.phase === 'pick'){
+      main = v.holderName || '';
+      sub = 'ケースをえらんでいます';
+    } else if(v.phase === 'peek'){
+      main = v.holderName || '';
+      sub = '中身をみています（見えているのは本人だけ）';
+    } else if(v.phase === 'face'){
+      main = (v.holderName || '') + '　VS　' + (v.oppName || '');
+      sub = (v.holderName || '') + 'さんが持っている　／　' + (v.oppName || '') + 'さんが決める';
+    } else if(v.phase === 'talk'){
+      main = (v.holderName || '') + '　×　' + (v.oppName || '');
+      sub = '話し合い';
+    } else if(v.phase === 'decide'){
+      main = v.oppName || '';
+      sub = '奪うかどうかを決めています';
+    } else if(v.phase === 'open'){
+      var last = v.last || {};
+      main = last.content ? 'TRUE' : 'FALSE';
+      sub = (last.decidedName || '') + ' さんは ' +
+            (last.fate === 'alive' ? '生存' : '脱落') + '　／　' +
+            (last.taken ? '奪った' : '奪わなかった');
+      // 47-6：決着の瞬間だけ、画面いっぱいの光。**光るのは中身であって、人の失敗ではない**
+      rtOnce('falsetrue:bigopen:' + last.round, v.phase === 'open', function(){
+        FxKit.flash(last.content ? 'good' : 'bad');
+        if(last.fate === 'alive') FxKit.callout((last.decidedName || '') + ' 生存', { kind:'gold' });
+      });
+    } else if(v.phase === 'ended'){
+      var 生存 = (v.survivors || []).map(function(p){ return p.name; });
+      main = 生存.length ? 生存.join('　') : '生きのこりなし';
+      sub = 生存.length ? 'この人たちが 生きのこりました' : '';
+      rtOnce('falsetrue:bigend', v.phase === 'ended', function(){
+        FxKit.confetti(['#54D97E', '#33A85E', '#EAF4EC']);
+      });
+    }
+    el('bigMain').textContent = main;
+    el('bigSub').textContent = sub;
+  }
+
   function renderRtBigSugoroku(v){
     el('bigBoard').style.display = 'none';
     el('bigTurn').textContent = '';
@@ -14101,9 +14441,22 @@
   // 第27弾：爆弾解除は盤面の形がまったく違うので、専用の画面を1行足した。
   var RT_GAME_SCREENS = {
     wolfrole: 'scr-rt-play', wordwolf: 'scr-rt-play',
-    // 指示53：False or True。進行の1枚と、決着の1枚（52-3 のすごろくと同じ理由——
-    // 盤に留まると生存者一覧の置き場が無く、上帯が「◯◯さんの番」を出し続ける）
-    falsetrue: ['scr-rt-ft', 'scr-rt-ft-result'],
+    /**
+     * 指示53：False or True。**段階ごとに画面を分ける**（オークションと同じ形）。
+     *
+     * **本人の忠告（2026-09-16）**：これまでの全カセットで、
+     * 1画面に全部を入れてプレイヤーの負担が大きくなる修正が毎回出ている。
+     * すごろくでは**上に盤、下にミニゲーム**が同時に出て、
+     * 「どっちを見ればいいのか・何をすればいいのか分からない」状態になった。
+     *
+     * このゲームは特に危ない——ケースの列・対面の2人・時計・奪う/奪わないの2択・
+     * 結果の札と、**並べたくなるものが5つある**。1枚に載せると、
+     * まさにすごろくと同じ画面になる。
+     * **だから段階の数だけ画面を作り、1枚には1つのことしか置かない。**
+     * どこへ行くかは段階から引く（ftWantScreen）
+     */
+    falsetrue: ['scr-rt-ft-pick', 'scr-rt-ft-peek', 'scr-rt-ft-face', 'scr-rt-ft-talk',
+                'scr-rt-ft-decide', 'scr-rt-ft-open', 'scr-rt-ft-result'],
     bomb: 'scr-rt-bomb', defuse: 'scr-rt-defuse',
     // 第30弾：クイズ王。4つとも同じ1枚に送る
     quizrush: 'scr-rt-quiz', quizlist: 'scr-rt-quiz',
@@ -14146,6 +14499,8 @@
     // 第38弾：画面が複数あるゲームは、そのゲームの側に「いまどれか」を聞く
     if(Array.isArray(scr)){
       if(game === 'auction') return auWantScreen();
+      // 指示53：False or True。段階の数だけ画面がある
+      if(game === 'falsetrue') return ftWantScreen();
       // 第52弾 52-3：すごろくは決着だけ結果発表へ
       if(SUGO_GAMES.indexOf(game) !== -1) return sugoWantScreen();
       return scr[0];
@@ -14250,6 +14605,50 @@
   }
 
   // ---- 相場オークション ----
+  /**
+   * 指示53：False or True の帯。
+   *
+   * **7枚それぞれに「いま何をする」を1行で言う。**
+   * 画面を分けた分、どの画面でも「自分はいま何をする人なのか」が
+   * ひと目で分かる必要がある（1画面1つの裏返し）。
+   */
+  NOW_LINE.falsetrue = function(v, you, ctx){
+    var F = NL.falsetrue, B = F.大画面;
+    if(ctx.isBig){
+      if(v.phase === 'pick')   return wait(B.えらぶ);
+      if(v.phase === 'peek')   return wait(B.みる);
+      if(v.phase === 'face')   return wait(B.対面);
+      if(v.phase === 'talk')   return wait(B.話し合い);
+      if(v.phase === 'decide') return wait(B.決める);
+      if(v.phase === 'open')   return wait(B.ひらく);
+      if(v.phase === 'ended')  return wait(B.決着);
+      return wait('');
+    }
+    // 始まってから入った人には秘密が配られない。**できないことを大きく書かない**
+    if(!you) return wait(NL.共通.観戦);
+    var 持ち主 = v.holderId === ctx.meId, 相手 = v.oppId === ctx.meId;
+    if(v.phase === 'pick'){
+      return 持ち主 ? mine(F.ケースをえらぶ) : wait(F.えらぶのを待つ(v.holderName || ''));
+    }
+    if(v.phase === 'peek'){
+      return 持ち主 ? mine(F.中身をみる) : wait(F.みるのを待つ(v.holderName || ''));
+    }
+    if(v.phase === 'face') return wait(F.対面);
+    if(v.phase === 'talk'){
+      if(持ち主) return mine(F.話す);
+      if(相手)   return mine(F.きく);
+      return wait(F.ふたりの話をきく);
+    }
+    if(v.phase === 'decide'){
+      return 相手 ? mine(F.奪うか決める) : wait(F.決めるのを待つ(v.oppName || ''));
+    }
+    if(v.phase === 'open') return wait(NL.共通.見るだけ);
+    if(v.phase === 'ended'){
+      return ctx.isHost ? mine(NL.共通.つぎをえらぶ) : wait(NL.共通.進行役がえらぶ);
+    }
+    return wait('');
+  };
+
   NOW_LINE.auction = function(v, you, ctx){
     var A = NL.auction, B = A.大画面;
     if(ctx.isBig){
@@ -14517,6 +14916,13 @@
     else if(cur === 'scr-rt-au-guess') renderRtAuGuess();
     else if(cur === 'scr-rt-au-reveal') renderRtAuReveal();
     else if(cur === 'scr-rt-au-result') renderRtAuResult();
+    else if(cur === 'scr-rt-ft-pick') renderRtFtPick();
+    else if(cur === 'scr-rt-ft-peek') renderRtFtPeek();
+    else if(cur === 'scr-rt-ft-face') renderRtFtFace();
+    else if(cur === 'scr-rt-ft-talk') renderRtFtTalk();
+    else if(cur === 'scr-rt-ft-decide') renderRtFtDecide();
+    else if(cur === 'scr-rt-ft-open') renderRtFtOpen();
+    else if(cur === 'scr-rt-ft-result') renderRtFtResult();
     else if(cur === 'scr-rt-sugoroku') renderRtSugoroku();
     else if(cur === 'scr-rt-sugo-result') renderRtSugoResult();
     else if(cur === 'scr-rt-play') renderRtPlay();
@@ -15551,6 +15957,239 @@
   var AU = (typeof AuctionLogic !== 'undefined') ? AuctionLogic : null;
   var AUI = (typeof AuctionItems !== 'undefined') ? AuctionItems : null;
 
+  // ===================================================================
+  // 指示53：False or True（部屋・1人1台）の画面。
+  //
+  // **7枚に分けてある。1枚には1つのことしか置かない**（本人の忠告 2026-09-16）。
+  // これまでの全カセットで「1画面に全部入れて負担が大きい」という修正が毎回出ていて、
+  // すごろくでは上に盤・下にミニゲームが同時に出て、
+  // 「どっちを見ればいいのか・何をすればいいのか分からない」状態になった。
+  // このゲームは並べたくなるものが5つある（ケースの列・対面の2人・時計・
+  // 奪う/奪わないの2択・結果の札）ので、1枚に載せると必ず同じ画面になる。
+  //
+  // どこへ行くかは段階から引く（ftWantScreen）。描き直しは毎回 innerHTML を
+  // 組み立て直すので、前回の表示が構造的に残らない（残骸が出ない良い型2）。
+  //
+  // **中身（TRUE/FALSE）を書けるのは2か所だけ**：
+  //   ・②みる の「本人の画面」……`you.myContent`（privateFor）
+  //   ・⑥ひらく と ⑦結果 ……`v.last` / `v.history`（開いたあとなので公開されている）
+  // それ以外の画面は、サーバーが中身を配ってこないので**書こうにも書けない**
+  // ===================================================================
+  var ftClock = { ms:null, at:0, timer:null };
+  var ftPeekOpen = false;   // ②で中身を開いたか（この画面にいる間だけ持つ）
+  var ftHoldOn = false;     // ④で長押し中か
+
+  var FT_PHASE_SCREEN = {
+    pick:'scr-rt-ft-pick', peek:'scr-rt-ft-peek', face:'scr-rt-ft-face',
+    talk:'scr-rt-ft-talk', decide:'scr-rt-ft-decide', open:'scr-rt-ft-open',
+    ended:'scr-rt-ft-result'
+  };
+  function ftWantScreen(){
+    var v = rtView();
+    if(!v || !v.phase) return 'scr-rt-ft-pick';
+    return FT_PHASE_SCREEN[v.phase] || 'scr-rt-ft-pick';
+  }
+  // 画面を離れる時に、走っているものを必ず捨てる（落とし穴7・17／良い型3）
+  function ftLeaveScreen(){
+    clearInterval(ftClock.timer); ftClock.timer = null;
+    ftClock.ms = null;
+    ftPeekOpen = false;
+    ftHoldOn = false;
+  }
+  function ftSetClock(ms){ ftClock.ms = ms; ftClock.at = Date.now(); }
+  function ftLeftSec(){
+    if(ftClock.ms == null) return null;
+    return Math.max(0, Math.round((ftClock.ms - (Date.now() - ftClock.at)) / 1000));
+  }
+  function ftRenderTimer(){
+    var d = document.querySelector('.screen.active [data-timer]');
+    if(!d) return;
+    var sec = ftLeftSec();
+    if(sec == null){ d.style.display = 'none'; return; }
+    d.style.display = d.classList.contains('ft-bigclock') ? '' : 'inline-block';
+    d.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
+    timerChipTick(d, sec, { vibe:true });
+  }
+  function ftStartClock(){
+    if(ftClock.timer) return;
+    ftClock.timer = setInterval(ftRenderTimer, 250);
+  }
+  // ---- 小さな部品（7枚で共有する。画面ごとに書かない） ----
+  function ftMeId(){ return rt.state.memberId; }
+  function ftYou(){ return rt.state.secret || null; }
+  function ftNameOf(v, id){
+    var p = (v.players || []).find(function(x){ return x.id === id; });
+    return p ? p.name : '';
+  }
+  /** 中身の札。**色だけに頼らず、必ず字も出す**（指示53 2-11・正本 §1） */
+  function ftPaintContent(box, val){
+    if(!box) return;
+    if(val == null){ box.hidden = true; box.innerHTML = ''; return; }
+    var T = window.FalseTrueLogic.TEXT;
+    box.hidden = false;
+    box.setAttribute('data-v', val ? 'true' : 'false');
+    box.innerHTML = '<span>' + (val ? T.TRUE : T.FALSE) + '</span>' +
+                    '<span class="ft-sub">' + (val ? 'あたり' : 'はずれ') + '</span>';
+  }
+
+  // ---- ① ケースをえらぶ ----
+  function renderRtFtPick(){
+    var v = rtView(); if(!v) return;
+    ftSetClock(v.remainingMs); ftStartClock(); ftRenderTimer();
+    var 自分の番 = v.holderId === ftMeId();
+    el('ftPickTitle').textContent = 自分の番 ? 'ケースをえらぶ' : 'まっています';
+    el('ftPickLead').textContent = 自分の番
+      ? '1つえらぶと、中身をあなただけが見られます。'
+      : (v.holderName || '') + 'さんが、ケースをえらんでいます。';
+    // **押せる物を置くのは、選ぶ人の画面だけ。**
+    // 押せない札を並べると、押しに行かれる
+    el('ftPickCases').innerHTML = (v.cases || []).map(function(no){
+      return '<button class="ft-case" data-no="' + no + '"' +
+             (自分の番 ? '' : ' disabled') + '>' +
+             '<span class="ft-no">' + no + '</span>' +
+             '<span class="ft-mark">ケース</span></button>';
+    }).join('');
+    var 開いた = Object.keys(v.opened || {}).length;
+    el('ftPickTally').textContent =
+      'のこり ' + (v.cases || []).length + ' 枚 ／ ぜんぶで TRUE ' +
+      v.trueTotal + ' ・ FALSE ' + v.falseTotal +
+      (開いた ? '（' + 開いた + ' 枚は もう開いた）' : '');
+  }
+
+  // ---- ② 中身をみる ----
+  function renderRtFtPeek(){
+    var v = rtView(), you = ftYou(); if(!v) return;
+    ftSetClock(v.remainingMs); ftStartClock(); ftRenderTimer();
+    var 本人 = v.holderId === ftMeId();
+    // **落とし穴18**：部屋の知らせが先に届き、手元の秘密がまだ前の段階のことがある。
+    // そのあいだは開かせない（古い秘密で画面を組み立てない）
+    var そろった = !!(you && you.phase === v.phase);
+    el('ftPeekTitle').textContent = 本人 ? '中身をみる' : 'まっています';
+    el('ftPeekCase').textContent = v.heldNo != null ? String(v.heldNo) : '';
+    el('ftPeekCase').hidden = !本人;
+    if(!本人){
+      ftPaintContent(el('ftPeekContent'), null);
+      el('ftPeekLead').textContent = (v.holderName || '') + 'さんが、中身をみています。';
+      el('ftPeekOpenBtn').style.display = 'none';
+      el('ftPeekSeenBtn').style.display = 'none';
+      return;
+    }
+    el('ftPeekLead').textContent = ftPeekOpen
+      ? 'あなただけが知っています。ここから先は、話し方しだい。'
+      : 'まわりから見えていないか、一度たしかめてから。';
+    ftPaintContent(el('ftPeekContent'), (ftPeekOpen && そろった) ? you.myContent : null);
+    el('ftPeekOpenBtn').style.display = ftPeekOpen ? 'none' : '';
+    el('ftPeekOpenBtn').disabled = !そろった;
+    el('ftPeekSeenBtn').style.display = ftPeekOpen ? '' : 'none';
+  }
+
+  // ---- ③ 対面（見世物の1枚。押すものは無い） ----
+  function renderRtFtFace(){
+    var v = rtView(); if(!v) return;
+    ftSetClock(v.remainingMs); ftStartClock();
+    var me = ftMeId();
+    el('ftFaceBox').innerHTML =
+      '<div class="ft-who">' + esc(v.holderName || '') + '</div>' +
+      '<div class="ft-role">ケースを持っている</div>' +
+      '<div class="ft-vs">VS</div>' +
+      '<div class="ft-who">' + esc(v.oppName || '') + '</div>' +
+      '<div class="ft-role">奪うかを決める</div>';
+    rtOnce('falsetrue:face:' + v.round, v.phase === 'face', function(){
+      if(v.holderId === me || v.oppId === me) FxKit.vibe('tick');
+    });
+  }
+
+  // ---- ④ 話し合い（時計が主役。2択はここに置かない） ----
+  function renderRtFtTalk(){
+    var v = rtView(), you = ftYou(); if(!v) return;
+    ftSetClock(v.remainingMs); ftStartClock(); ftRenderTimer();
+    var me = ftMeId(), 本人 = v.holderId === me, 相手 = v.oppId === me;
+    var そろった = !!(you && you.phase === v.phase);
+    el('ftTalkLead').textContent = 本人
+      ? '中身を知っているのは、あなただけ。'
+      : (相手 ? (v.holderName || '') + 'さんが持っているケースを、奪うか決めてください。'
+              : (v.holderName || '') + 'さんと' + (v.oppName || '') + 'さんの話を聞きましょう。');
+    // **長押しの間だけ**中身を出す。置きっぱなしにすると、目の前の相手から見える
+    el('ftTalkHoldBtn').style.display = 本人 ? '' : 'none';
+    ftPaintContent(el('ftTalkContent'), (本人 && ftHoldOn && そろった) ? you.myContent : null);
+    // 「話し終わった」は対面の2人だけ。**片方だけでは切り上がらない**（本人の裁定④）
+    var もう押した = !!(you && you.talkDone);
+    el('ftTalkDoneBtn').style.display = (本人 || 相手) ? '' : 'none';
+    el('ftTalkDoneBtn').disabled = もう押した;
+    el('ftTalkDoneBtn').textContent = もう押した ? 'まっています…' : '話し終わった';
+    var 済み = (v.talkReady || []).map(function(id){ return ftNameOf(v, id); }).filter(Boolean);
+    el('ftTalkReady').textContent = 済み.length
+      ? '話し終わった：' + 済み.join('・') + '（2人そろうと、早めにすすみます）'
+      : '';
+  }
+
+  // ---- ⑤ 奪うか決める（2つのボタンだけ） ----
+  function renderRtFtDecide(){
+    var v = rtView(), you = ftYou(); if(!v) return;
+    ftSetClock(v.remainingMs); ftStartClock(); ftRenderTimer();
+    var 相手 = v.oppId === ftMeId();
+    var 決めた = !!(you && you.myChoice);
+    el('ftDecideTitle').textContent = 相手 ? 'どうする？' : 'まっています';
+    el('ftDecideLead').textContent = 相手
+      ? (v.holderName || '') + 'さんのケースを、奪いますか。' : '';
+    // **決めたあとは押せない。**押し直せると、何をえらんだかが揺れる
+    el('ftDecideChoose').hidden = !(相手 && !決めた);
+    el('ftDecideWait').textContent = 相手
+      ? (決めた ? 'えらびました。みんなで結果をまちましょう。' : '')
+      : (v.oppName || '') + 'さんが、決めています。';
+  }
+
+  // ---- ⑥ ケースがひらく（演出 → 結果の順・52-6。スキップで即結果） ----
+  function renderRtFtOpen(){
+    var v = rtView(); if(!v) return;
+    ftSetClock(v.remainingMs); ftStartClock();
+    var last = v.last;
+    if(!last){
+      ftPaintContent(el('ftOpenContent'), null);
+      el('ftOpenVerdict').textContent = '';
+      return;
+    }
+    ftPaintContent(el('ftOpenContent'), last.content);
+    /**
+     * **光るのは「中身」であって「その人の失敗」ではない。**
+     * TRUE は緑、FALSE は赤（指示53 2-5・2-9）。
+     * 誰が脱落したかは、このあとの札が静かに言う（原則C：責める時は静かに）——
+     * だから脱落の側にはコールアウトを出さない。
+     * 振動は**自分の運命が決まった人だけ**。他人の結果で、見ている人の手は鳴らさない
+     */
+    rtOnce('falsetrue:open:' + last.round, v.phase === 'open', function(){
+      FxKit.flash(last.content ? 'good' : 'bad');
+      if(last.decidedId === ftMeId()) FxKit.vibe(last.fate === 'alive' ? 'ok' : 'warn');
+      if(last.fate === 'alive') FxKit.callout(last.decidedName + ' 生存', { kind:'gold' });
+    });
+    el('ftOpenVerdict').innerHTML =
+      esc(last.decidedName) + ' さんは <b>' +
+      (last.fate === 'alive' ? '生存' : '脱落') + '</b>' +
+      '<span class="ft-sub">' + (last.taken ? '奪った' : '奪わなかった') +
+      '／ケース ' + last.no + ' は ' + (last.content ? 'TRUE' : 'FALSE') + ' でした</span>';
+  }
+
+  // ---- ⑦ 結果発表（52-3 と同じ形。**1人だけを勝者にしない**） ----
+  function renderRtFtResult(){
+    var v = rtView(); if(!v) return;
+    ftLeaveScreen();
+    var 生存 = (v.survivors || []).map(function(p){ return p.name; });
+    el('ftRsWin').innerHTML = 生存.length
+      ? '最後まで生きのこった人<div class="ft-names">' + esc(生存.join('・')) + '</div>'
+      : '生きのこった人は いませんでした';
+    el('ftRsLook').innerHTML = (v.history || []).map(function(h){
+      return '<div class="ft-row">' +
+        '<span class="ft-rno">' + h.round + '回目</span>' +
+        '<span>' + esc(h.holderName) + ' × ' + esc(h.oppName) + '</span>' +
+        '<span class="ft-res" data-v="' + (h.content ? 'true' : 'false') + '">' +
+        esc(h.decidedName) + ' ' + (h.fate === 'alive' ? '生存' : '脱落') + '</span>' +
+        '</div>';
+    }).join('');
+    var ホスト = rtIsHost();
+    el('rtFtAgainBtn').style.display = ホスト ? '' : 'none';
+    el('rtFtEndBtn').style.display = ホスト ? '' : 'none';
+  }
+
   var auClock = { ms:null, at:0, timer:null };
   var auPrevPhase = null;   // 段階が変わった瞬間だけ音を出すための目印
   // せり上げ式で、値が動いた瞬間だけ木槌を鳴らす。
@@ -15974,6 +16613,78 @@
   el('auEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
   // 第52弾 52-3：すごろくの結果発表も同じ芯へ渡す（確認の言葉を2つにしない）
   el('rtSugoEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
+  // ---- 指示53：False or True の押しもの ----
+  //
+  // **送る先は1つ（ftSend）にまとめる。**押しものごとに rt.act を書くと、
+  // 断られた時の言い方と描き直しが場所ごとにばらつく（落とし穴1）。
+  //
+  // 「← 部屋を出る」（rtFtResultLeaveBtn）は、名前で拾う仕組みに自動で乗るので
+  // ここには書かない（`[id$="LeaveBtn"]` の一括結線）。
+  async function ftSend(payload, note){
+    if(!rt) return null;
+    var res = await rt.act(null, payload);
+    if(res && res.ok === false && res.error !== 'taken'){
+      // **できていないのに黙らない**（落とし穴14）。ただし静かに
+      if(note && el(note)) el(note).textContent = 'いまは受け取れませんでした';
+    }
+    rtRenderCurrent();
+    return res;
+  }
+
+  // ① ケースをえらぶ。**押せるのは選ぶ人だけ**（サーバーも同じ門番を持っている）
+  el('ftPickCases').addEventListener('click', function(e){
+    var b = e.target.closest('.ft-case');
+    if(!b || b.disabled) return;
+    FxKit.vibe('tick');
+    ftSend({ pick: parseInt(b.dataset.no, 10) }, 'ftPickLead');
+  });
+
+  // ② 中身をみる。**開くのは手元だけ**——サーバーへは何も送らない。
+  // 中身はもう privateFor で届いているので、ここは「見せるかどうか」だけの話
+  el('ftPeekOpenBtn').addEventListener('click', function(){
+    ftPeekOpen = true;
+    FxKit.vibe('tick');
+    renderRtFtPeek();
+  });
+  el('ftPeekSeenBtn').addEventListener('click', function(){
+    ftPeekOpen = false;           // 次のラウンドに持ち越さない
+    ftSend({ seen: true }, 'ftPeekLead');
+  });
+
+  // ④ 話し合い。
+  //   ・「もう一度みる」は**押している間だけ**出す。
+  //     目の前に相手がいるので、置きっぱなしにできない（大切なこと1）。
+  //     rAF を使わないので、ブラウザ枠が裏に回っていても動く（落とし穴28）
+  //   ・「話し終わった」は**両者そろって初めて**切り上がる（本人の裁定④）
+  (function(){
+    var b = el('ftTalkHoldBtn');
+    function on(e){ e.preventDefault(); ftHoldOn = true; renderRtFtTalk(); }
+    function off(){ if(!ftHoldOn) return; ftHoldOn = false; renderRtFtTalk(); }
+    b.addEventListener('pointerdown', on);
+    b.addEventListener('pointerup', off);
+    b.addEventListener('pointerleave', off);
+    b.addEventListener('pointercancel', off);
+  }());
+  el('ftTalkDoneBtn').addEventListener('click', function(){
+    if(this.disabled) return;
+    FxKit.vibe('tick');
+    ftSend({ talkDone: true }, 'ftTalkLead');
+  });
+
+  // ⑤ 奪うか決める。2つは**同じ重さ**——色でも大きさでも、結果をほのめかさない
+  el('ftTakeBtn').addEventListener('click', function(){
+    FxKit.vibe('ok');
+    ftSend({ take: true }, 'ftDecideLead');
+  });
+  el('ftKeepBtn').addEventListener('click', function(){
+    FxKit.vibe('ok');
+    ftSend({ keep: true }, 'ftDecideLead');
+  });
+
+  // ⑦ 結果発表。「つぎは？」と「部屋をとじる」は、他のカセットと同じ所へ繋ぐ
+  el('rtFtEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
+
+
 
   // 落札と決着の見せ場。**段階が変わった瞬間だけ**鳴らす（描き直すたびに鳴らさない）
   function auPhaseFx(v){
@@ -16422,7 +17133,7 @@
     // 「出す側」と「隠す側」を別々の場所に書くと、部品を足した時に
     // 隠す側だけ書き忘れて、前のゲームの部品が居座る（第35弾Cの型1）。
     // ここを通れば、足した部品は黙って消える側に倒れる
-    ['bigBoard', 'bigSugoBoard', 'bigAuMarket'].forEach(function(id){
+    ['bigBoard', 'bigSugoBoard', 'bigAuMarket', 'bigFtCases'].forEach(function(id){
       el(id).style.display = 'none';
     });
     if(rtRoomGameId() === 'bomb') return renderRtBigBomb(v);
@@ -16430,6 +17141,7 @@
     if(RT_QUIZ_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigQuiz(v);
     if(rtRoomGameId() === 'auction') return renderRtBigAuction(v);
     if(SUGO_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigSugoroku(v);
+    if(rtRoomGameId() === 'falsetrue') return renderRtBigFalsetrue(v);
     if(rtIsWordwolf()) return renderRtBigWordwolf(v);
 
     var main = '', sub = '';

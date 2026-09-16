@@ -33,7 +33,9 @@ const 対象 = [
   { game: 'quizrush', cart: 'quizou',   n: 3 },
   { game: 'quizlist', cart: 'quizou',   n: 3 },
   { game: 'quizreveal', cart: 'quizou', n: 3 },
-  { game: 'buzzer',   cart: 'quizou',   n: 4 }
+  { game: 'buzzer',   cart: 'quizou',   n: 4 },
+  // 指示53：False or True。7枚すべてに帯が要る（段階ごとに画面を分けたので）
+  { game: 'falsetrue', cart: 'falsetrue', n: 4 }
 ];
 const NAMES = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう'];
 
@@ -199,6 +201,25 @@ function すすめる(d, room, gameId, w) {
       const 正解 = q && q.correct != null ? q.correct : 0;
       try { d.submitVote(room, 押した, null, { targetId: 正解 }); } catch (e) {}
     }
+  } else if (gameId === 'falsetrue') {
+    /**
+     * False or True は、**段階ごとに押す人と押すものが違う**。
+     * 既定の枝（全員に空の submitAction）では一歩も進まないので、
+     * ここで本物の操作を送る（落とし穴10-c：分岐があるなら、その入力を作りに行く）。
+     * 判定も進行も本物の進行役のまま
+     */
+    if (v.phase === 'pick' && v.holderId) {
+      try { d.submitAction(room, v.holderId, null, { pick: (v.cases || [])[0] }); } catch (e) {}
+    } else if (v.phase === 'peek' && v.holderId) {
+      try { d.submitAction(room, v.holderId, null, { seen: true }); } catch (e) {}
+    } else if (v.phase === 'talk') {
+      [v.holderId, v.oppId].filter(Boolean).forEach((id) => {
+        try { d.submitAction(room, id, null, { talkDone: true }); } catch (e) {}
+      });
+    } else if (v.phase === 'decide' && v.oppId) {
+      try { d.submitAction(room, v.oppId, null, { keep: true }); } catch (e) {}
+    }
+    // face と open は誰も待っていない。下の締め切り追い越しにまかせる
   } else {
     ids.forEach((id) => { try { d.submitAction(room, id, null, {}); } catch (e) {} });
   }

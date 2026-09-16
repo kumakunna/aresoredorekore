@@ -124,6 +124,24 @@ async function run() {
       await rm.guests[0].call('wolf:vote', { amount: 7 });
       await waitUntil(() => rm.guests[0].you && rm.guests[0].you.myBid === 7, '本人には届く');
 
+      /**
+       * **別の端末の状態を、待たずに読まない**（落とし穴18）。
+       *
+       * 上で待ったのは**出した本人に届く秘密**（`wolf:you`）で、
+       * ここで読むのは**ホストに届く部屋の知らせ**（`room:update`）。
+       * 別々のメッセージで順番の保証が無いので、
+       * 本人に届いていてもホストの手元はまだ前の姿のことがある。
+       *
+       * 指示54のクリーンな1回で、実際にここが1度だけ赤くなった
+       * （単独で回すと20/20 通る＝たまに落ちる形）。
+       * `docs/監査_状態と境界.md` に同じ suite の同じ型が記録してあり、
+       * 直し方も「手元の知らせがそうなるまで待ってから読む」と書いてある
+       */
+      await waitUntil(() => {
+        const x = viewOf(rm.host);
+        return x && x.doneNames && x.doneNames.length === 1;
+      }, 'ホストの手元にも「出した人が1人」が届く');
+
       const v = viewOf(rm.host);
       assert(v.doneNames && v.doneNames.length === 1, '出したことは全員に見える');
       const seen = JSON.stringify({ room: rm.host.room, you: rm.host.you });

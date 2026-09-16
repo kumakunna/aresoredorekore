@@ -29,7 +29,7 @@
     "suite": "tests/design-tokens.js",
     "from": ".cassette-warp, .shelf-stage{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#46453D;}",
     "to": ".cassette-warp, .shelf-stage{--warp-color:#EFE8D3;--warp-ink:#24272E;--warp-soft:#5B5A50;}",
-    "expect": "世界の色と配色の地が食い違っている"
+    "expect": "小さい字の薄墨が、AAA に届いていない"
   },
   {
     "name": "49-4A 正本の表だけ古い値にする（docs が実装から離れる）",

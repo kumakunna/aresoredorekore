@@ -398,9 +398,16 @@ function ftSeeded(seed) {
  *   st.you  … その人に届く privateFor
  *   st.to   … その段階まで、**本物の操作で**進める
  */
+/** 指示54：人数を変えられるようにした。既定は4人（FT_MEMBERS） */
+function ftMembers(n) {
+  if (!n || n === FT_MEMBERS.length) return FT_MEMBERS.map((m) => Object.assign({}, m));
+  return Array.from({ length: n }, (_, i) => ({
+    id: 'm' + (i + 1), name: '人' + i, role: 'player', connected: true, isHost: i === 0
+  }));
+}
 function ftStage(cfg) {
   const members = new Map();
-  FT_MEMBERS.forEach((m) => members.set(m.id, Object.assign({}, m)));
+  ftMembers(cfg && cfg._members).forEach((m) => members.set(m.id, Object.assign({}, m)));
   const room = { members: members, state: { phase: 'lobby', game: null, data: {} } };
   const res = FalseTrueRoom.startGame(room,
     Object.assign({ game: 'falsetrue', talkSec: 30, _rand: ftSeeded(7) }, cfg || {}), {});
@@ -426,10 +433,10 @@ function ftStage(cfg) {
   return st;
 }
 function ftRoom(st, phase, withBig) {
-  const members = FT_MEMBERS.map((m) => Object.assign({}, m));
+  const members = ftMembers(st.w.playerIds.length);
   if (withBig) members.push({ id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false });
   return roomSnapshot({
-    playerCount: FT_MEMBERS.length, memberCount: members.length,
+    playerCount: st.w.playerIds.length, memberCount: members.length,
     members: members,
     state: { phase: phase, game: 'falsetrue', data: FalseTrueRoom.publicView(st.room) }
   });
@@ -6204,6 +6211,137 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(cs(take), cs(keep),
       '2つは地・縁・字の大きさ・太さがすべて同じ（色で「奪う＝良い」とほのめかさない）');
     assertNoErrors(errors, '奪うか決める画面で未捕捉の例外');
+    win.close();
+  });
+
+  // ================= 指示54：人数の上限が12人になった分 =================
+
+  await r.test('False or True：9枚以上は4列で出て、残り枚数が減っても列は戻らない', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+
+    // ---- ① 8枚（8人）は今のまま。3列の側 ----
+    const 八 = ftStage({ _members: 8 });
+    push(fake, ftRoom(八, 'pick'));
+    pushYou(fake, 八.you('m2'));
+    await waitScreen(win, doc, 'scr-rt-ft-pick', 4000);
+    assertEqual(doc.getElementById('ftPickCases').classList.contains('is-many'), false,
+      '8枚のときは4列にしない（8人以下の見た目は変えない・指示54 §6）');
+
+    // ---- ② 12枚（12人）は4列 ----
+    const 十二 = ftStage({ _members: 12 });
+    push(fake, ftRoom(十二, 'pick'));
+    pushYou(fake, 十二.you('m2'));
+    await sleep(win, 80);
+    assertEqual(doc.getElementById('ftPickCases').querySelectorAll('.ft-case').length, 12,
+      '12枚ならぶ');
+    assertEqual(doc.getElementById('ftPickCases').classList.contains('is-many'), true,
+      '12枚のときは4列にする');
+
+    /**
+     * ---- ③ **残り枚数が減っても列は戻らない** ----
+     *
+     * ここが本題。列数を「残り枚数」で決めると、12人の試合で残り8枚になった瞬間に
+     * 3列へ戻り、**遊んでいる最中にカードが急に大きくなる**。
+     * 判定は「開始時の総数」（`caseTotal`）なので、減っても変わらないはず
+     */
+    const 減った = ftRoom(十二, 'pick');
+    減った.state.data.cases = 減った.state.data.cases.slice(0, 5);   // 残り5枚まで減らす
+    push(fake, 減った);
+    pushYou(fake, 十二.you('m2'));
+    await sleep(win, 80);
+    assertEqual(doc.getElementById('ftPickCases').querySelectorAll('.ft-case').length, 5,
+      '残りは5枚になっている');   // 型(b)：その状況が本当に作れているか
+    assertEqual(減った.state.data.caseTotal, 12, '開始時の総数は12のまま');
+    assertEqual(doc.getElementById('ftPickCases').classList.contains('is-many'), true,
+      '**残り5枚になっても4列のまま**（列が戻ってカードが急に大きくならない）');
+
+    // ---- ④ 印を付けても、規則が無ければ何も起きない（落とし穴30） ----
+    const css = [...doc.querySelectorAll('style')].map((s) => s.textContent).join('\n');
+    const 規則 = /\.ft-cases\.is-many\s*\{([^}]*)\}/.exec(css);
+    assert(規則, '`.ft-cases.is-many` の規則が実在する');
+    assert(/grid-template-columns\s*:\s*repeat\(\s*4\s*,/.test(規則[1]),
+      '4列を指定している（実際: ' + 規則[1].trim() + '）');
+    assertNoErrors(errors, '12枚のえらぶ画面で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('False or True：上限を超えた部屋では「はじめる」が押せず、理由が出る（指示54）', async () => {
+    /**
+     * **上限を見ていたのは棚だけだった。**部屋の待合には下限の判定しか無く、
+     * カセットを選んだあとに人が増えると「はじめる」が押せて
+     * サーバーの `too_many_players` で断られる——
+     * 正本 §7「押せるのに始まらないボタンを作らない」に反する。
+     */
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm1' });
+    const 部屋 = (n) => roomSnapshot({
+      hostMemberId: 'm1', playerCount: n, memberCount: n,
+      ready: { count: n, total: n, waitingNames: [], all: true },
+      members: Array.from({ length: n }, (_, i) => ({
+        id: 'm' + (i + 1), name: '人' + i, role: 'player',
+        connected: true, isHost: i === 0, ready: true
+      })),
+      state: { phase: 'lobby', game: 'falsetrue', data: {} }
+    });
+
+    // ---- 上限ちょうど（12人）なら押せる ----
+    push(fake, 部屋(12));
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    assertEqual(el(doc, 'rtStartBtn').disabled, false, '**12人ちょうどなら始められる**');
+
+    // ---- 1人超えたら押せない。理由も出る ----
+    push(fake, 部屋(13));
+    await sleep(win, 80);
+    assertEqual(el(doc, 'rtStartBtn').disabled, true, '13人では始められない');
+    const 一言 = el(doc, 'rtRoomNote').textContent;
+    assert(/13/.test(一言) && /12/.test(一言),
+      'いまの人数と上限の両方が出ている（実際: ' + 一言 + '）');
+    assert(/人までです/.test(一言), '「〇人までです」と出る');
+
+    // ---- 減れば、また押せる ----
+    push(fake, 部屋(12));
+    await sleep(win, 80);
+    assertEqual(el(doc, 'rtStartBtn').disabled, false, '12人に減れば、また始められる');
+    assertNoErrors(errors, '上限を超えた待合で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('False or True：上限を超えていたら、自動でも始まらない（指示54）', async () => {
+    /**
+     * **ボタンだけ止めても足りない。**ふだんは最後の1人が準備OKを押した瞬間に
+     * 自動で始まる（`rtMaybeAutoStart`）ので、そちらに門が無いと
+     * 押していないのに始まって、サーバーに断られる。
+     * **同じ1本（`rtTooManyReason`）を両方が読む**ことを、送られた電文で確かめる
+     */
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm1' });
+    const 部屋 = (n, all) => roomSnapshot({
+      hostMemberId: 'm1', playerCount: n, memberCount: n,
+      ready: { count: all ? n : n - 1, total: n, waitingNames: all ? [] : ['人0'], all: !!all },
+      members: Array.from({ length: n }, (_, i) => ({
+        id: 'm' + (i + 1), name: '人' + i, role: 'player',
+        connected: true, isHost: i === 0, ready: all ? true : i > 0
+      })),
+      state: { phase: 'lobby', game: 'falsetrue', data: {} }
+    });
+    const 始めた = () => fake.emits.filter((e) => e.name === 'wolf:start').length;
+
+    // 13人・まだ全員そろっていない → そこから「そろった瞬間」を作る
+    push(fake, 部屋(13, false));
+    await waitScreen(win, doc, 'scr-rt-room', 4000);
+    const 前 = 始めた();
+    push(fake, 部屋(13, true));            // 最後の1人が押した瞬間
+    await sleep(win, 200);
+    assertEqual(始めた(), 前, '**13人では、そろっても自動で始まらない**');
+
+    // 12人に減って、そろった瞬間なら始まる（門が効きすぎていないことも見る・型(b)）
+    push(fake, 部屋(12, false));
+    await sleep(win, 80);
+    push(fake, 部屋(12, true));
+    await sleep(win, 200);
+    assert(始めた() > 前, '12人でそろえば、自動で始まる（門が効きすぎていない）');
+    assertNoErrors(errors, '自動の始まりで未捕捉の例外');
     win.close();
   });
 

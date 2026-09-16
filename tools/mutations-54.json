@@ -1,0 +1,74 @@
+[
+  {
+    "name": "54-上限A サーバーの上限を 8 に戻す（端末だけ12のまま＝押せるのに始まらない）",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    MAX_PLAYERS: 12,",
+    "to": "    MAX_PLAYERS: 8,",
+    "expect": "人数の下限と上限が、具体の数字で決まっている"
+  },
+  {
+    "name": "54-上限B 端末の写しだけ 8 に戻す（サーバーは12のまま＝押せないのに始まる）",
+    "file": "public/index.html",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:12 }",
+    "to": "sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:8 }",
+    "expect": "端末の GAMES.maxPlayers と、サーバーの RULES.MAX_PLAYERS が同じ数"
+  },
+  {
+    "name": "54-門番A 上限の門そのものを外す（13人でも始まってしまう）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "  if (members.length > R.MAX_PLAYERS) {",
+    "to": "  if (false) {",
+    "expect": "人数の門番：4人未満は始まらず、12人を超えても始まらない"
+  },
+  {
+    "name": "54-門番B 上限ちょうども断る（境界を1つずらす・落とし穴8）",
+    "file": "falsetrue-room.js",
+    "suite": "tests/falsetrue-room.js",
+    "from": "  if (members.length > R.MAX_PLAYERS) {",
+    "to": "  if (members.length >= R.MAX_PLAYERS) {",
+    "expect": "人数の門番：4人未満は始まらず、12人を超えても始まらない"
+  },
+  {
+    "name": "54-比A 10人の中身を floor（2枚）にする（round の半分を下へ）",
+    "file": "public/js/falsetrue-logic.js",
+    "suite": "tests/falsetrue-logic.js",
+    "from": "    return Math.max(1, Math.round(n / 4));",
+    "to": "    return Math.max(1, Math.floor(n / 4));",
+    "expect": "ケースの数と中身の比が、設計メモの表どおり"
+  },
+  {
+    "name": "54-配置A 9枚以上の4列化を外す（12枚が4段になってはみ出す）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "  .ft-cases.is-many{ grid-template-columns:repeat(4, 1fr); }",
+    "to": "  .ft-cases.is-many{ }",
+    "expect": "4列を指定している"
+  },
+  {
+    "name": "54-配置B 列数を残り枚数で決める（試合中に列が戻ってカードが急に大きくなる）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    el('ftPickCases').classList.toggle('is-many', (v.caseTotal || 0) > 8);",
+    "to": "    el('ftPickCases').classList.toggle('is-many', (v.cases || []).length > 8);",
+    "expect": "残り5枚になっても4列のまま"
+  },
+  {
+    "name": "54-待合A 上限の門を、自動の始まりだけ素通りさせる",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    var all = rtWaitingToStart() && rtReadyTally().all && !rtTooManyReason();",
+    "to": "    var all = rtWaitingToStart() && rtReadyTally().all;",
+    "expect": "13人では、そろっても自動で始まらない"
+  },
+  {
+    "name": "54-待合B 上限の門を、待合のボタンだけ素通りさせる",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    el('rtStartBtn').disabled = !(host && enough && !多すぎ && picked && supported && allReady);",
+    "to": "    el('rtStartBtn').disabled = !(host && enough && picked && supported && allReady);",
+    "expect": "13人では始められない"
+  }
+]

@@ -313,5 +313,93 @@ const 端末 = (rm, id) => rm.all.find((d) => d.memberId === id);
     } finally { await srv.close(); }
   });
 
+  // ================= Q8：途中退室の3経路を、本物の socket で =================
+  //
+  // **単体（tests/falsetrue-room.js）では `isAllDone` → `advance` を直に呼んでいる。**
+  // 実サーバーでは `room:leave` → `settleAfterMemberGone` → `isAllDone` → `advance` という
+  // 芯の1本道を通る必要がある。**「進行役は正しいのに、芯から呼ばれない」**は
+  // 締め切りの見回りで一度踏んでいるので、退室でも同じ形を疑う。
+
+  /** その段階まで、時計で進める */
+  async function まで(srv, rm, phase) {
+    for (let i = 0; i < 10; i++) {
+      const v = viewOf(rm.host);
+      if (v.phase === phase) return v;
+      const 前 = v.phase;
+      rush(srv, rm.code);
+      await waitUntil(() => viewOf(rm.host).phase !== 前, 前 + ' から進む');
+    }
+    throw new Error(phase + ' に届かない');
+  }
+
+  await r.test('Q8-a：選ぶ人が本当に退室すると、次の人へ進む（ケースは減らない）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await 始める(srv, 5);
+      const w = stateOf(srv, rm.code);
+      const 抜ける = 端末(rm, w.pickerId);
+      const 枚数 = viewOf(rm.host).cases.length;
+      // ホストが抜けると進行役の移譲まで絡むので、ホストでない人が選ぶ回まで進める
+      if (抜ける === rm.host) { rush(srv, rm.code); await waitUntil(() => true, '-'); }
+      const 出る = 端末(rm, stateOf(srv, rm.code).pickerId);
+      const id = 出る.memberId;
+      const res = await 出る.call('room:leave', { code: rm.code, memberId: id });
+      assertEqual(res.ok, true, '退室できる');
+      // **芯が片付けて、また pick になる**（詰まらない）
+      await waitUntil(() => {
+        const v = viewOf(rm.host);
+        return v && v.phase === 'pick' && v.holderId && v.holderId !== id;
+      }, '別の人が選ぶ側になる');
+      assertEqual(viewOf(rm.host).cases.length, 枚数, 'まだ選んでいないので、ケースは減らない');
+      const p = viewOf(rm.host).players.find((x) => x.id === id);
+      assertEqual(p.gone, true, '抜けたことが全員に伝わる');
+      assertEqual(p.fate, null, '抜けた人は、生存でも脱落でもない');
+      rm.all.filter((d) => d.memberId !== id).forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('Q8-b：中身を見た人が本当に退室すると、そのケースは消える（2-8）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await 始める(srv, 5);
+      const 持ち主id = stateOf(srv, rm.code).pickerId;
+      const d = 端末(rm, 持ち主id);
+      await waitUntil(() => viewOf(d) && viewOf(d).cases, '持ち主に届く');
+      const 番号 = viewOf(d).cases[1];
+      assertEqual((await d.call('wolf:act', { pick: 番号 })).ok, true, 'ケースをえらぶ');
+      await waitUntil(() => viewOf(rm.host).phase === 'peek', 'peek に入る');
+      // ここで退室する（中身を知っている人が消える）
+      assertEqual((await d.call('room:leave', { code: rm.code, memberId: 持ち主id })).ok, true, '退室できる');
+      await waitUntil(() => viewOf(rm.host).phase === 'pick', '次の人の pick へ進む');
+      const v = viewOf(rm.host);
+      assertEqual(v.cases.indexOf(番号), -1, 'そのケースは選択欄に戻ってこない');
+      assertEqual(v.discarded.indexOf(番号) >= 0, true, '消えたケースとして数えられている');
+      rm.all.filter((x) => x.memberId !== 持ち主id).forEach((x) => x.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('Q8-c：対面の相手が本当に退室すると対面が流れ、持ち主はケースを持ったまま（2-8）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await 始める(srv, 5);
+      await まで(srv, rm, 'face');
+      const w = stateOf(srv, rm.code);
+      const 持ち主 = w.pickerId, 相手 = w.oppId, 持っている = w.heldNo;
+      assert(相手, '対面の相手がいる');
+      const 出る = 端末(rm, 相手);
+      assertEqual((await 出る.call('room:leave', { code: rm.code, memberId: 相手 })).ok, true, '退室できる');
+      // **対面をやり直す。**持ち主とケースはそのまま
+      await waitUntil(() => {
+        const x = stateOf(srv, rm.code);
+        return x.oppId && x.oppId !== 相手;
+      }, '別の相手と対面し直す');
+      const x = stateOf(srv, rm.code);
+      assertEqual(x.pickerId, 持ち主, '持ち主はそのまま');
+      assertEqual(x.heldNo, 持っている, 'ケースを持ったまま');
+      assertEqual(x.discarded.length, 0, 'このケースは消えない');
+      rm.all.filter((d) => d.memberId !== 相手).forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   r.finish();
 })();

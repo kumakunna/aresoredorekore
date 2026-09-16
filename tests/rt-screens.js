@@ -1711,7 +1711,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(el(doc, 'albumOverlay').classList.contains('show'), '受け渡しの画面が開く');
     const warn = doc.querySelector('#albumOverlay .album-warn').textContent;
     assert(/サーバーから消します/.test(warn), '赤字の明示①（指示の必須事項）');
-    assert(/今この一度しか/.test(warn), '赤字の明示②');
+    // **言い回しではなく、言っている中身で見る**（落とし穴10-d）。
+    // 指示49④で「今この一度しかアルバムは保存できません！」を
+    // 「そのため、保存できるのはこの一度だけです。」に直した時、
+    // 文字を名指ししていたこの行だけが赤くなった——**実装は正しいのに**。
+    // 守りたいのは「一度しか保存できないと書いてある」ことなので、そちらを見る
+    assert(/一度/.test(warn) && /保存/.test(warn),
+      '赤字の明示②：一度しか保存できないと書いてある（実際: ' + warn.replace(/\s+/g, ' ').trim().slice(0, 60) + '）');
     // サーバーから消えた知らせは、はっきり伝わる
     fake.fire('album:update', { count: 0, names: [], cleared: true });
     await sleep(win, 80);

@@ -280,6 +280,20 @@ function publicView(room) {
   const view = {
     phase: w.phase,
     mode: w.mode,
+    /**
+     * 指示55・正本 §11-2：**レイアウトの分岐は「モードの性質」で持つ。**
+     *
+     * 画面側に `mode === 'coop'` の文字列比較を散らさない。散らすと、モードを足した日に
+     * 片方だけ直す（第47弾で、まさにこの門が競争版の決着演出をふさいでいた）。
+     *
+     * **正はここ（サーバー）。**端末が `MODES` を引くには `state.data.modeId` が要るが、
+     * `realtime.js` の publicSnapshot が**ゲーム中は state.data を publicView に丸ごと
+     * 差し替える**ので、modeId は遊んでいる最中の端末に一度も届かない（指示55の実測）。
+     * `MODES.coopLayout` は棚・設定の側の宣言として持ち、両方向で照合する（落とし穴20）。
+     *
+     * **不在で表さない**（落とし穴36）——競争版にも false を明示で入れる
+     */
+    coop: w.mode === BombLogic.MODE.COOP,
     endWhen: w.endWhen,
     total: w.wires.length,
     livesMax: w.lives,

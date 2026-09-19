@@ -671,7 +671,7 @@ async function ゲームを終了(win, doc) {
             t.game + '：1位の「' + p.name + '」が大きく出ている（同着なら全員）'));
 
           // 全員の順位
-          const 行 = g.doc.querySelectorAll('#rtSugoRsRank .arow');
+          const 行 = g.doc.querySelectorAll('#rtSugoRsRank .rk-row');
           assertEqual(行.length, g.result.players.length,
             t.game + '：全員ぶんの順位が並ぶ');
           const 一覧 = g.doc.getElementById('rtSugoRsRank').textContent;
@@ -723,7 +723,7 @@ async function ゲームを終了(win, doc) {
           '入り直しで結果発表へ（現在: ' + activeScreen(doc) + '）');
         assert(doc.getElementById('rtSugoRsWin').textContent.trim(),
           '入り直した端末にも、勝者が出ている');
-        assert(doc.querySelectorAll('#rtSugoRsRank .arow').length > 0,
+        assert(doc.querySelectorAll('#rtSugoRsRank .rk-row').length > 0,
           '入り直した端末にも、順位が出ている');
       } finally { win.close(); }
     });

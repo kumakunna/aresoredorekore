@@ -467,6 +467,10 @@ function listPublic(room) {
   const l = w.list;
   return {
     style: l.style,
+    // 指示55・正本 §11-2：協力/対戦の分岐は、性質を1つの真偽値で名乗る。
+    // 画面側に `style === 'coop'` の文字列比較を散らさない（いま4か所に散っている）。
+    // **不在で表さない**（落とし穴36）——脱落形式にも false を明示で入れる
+    coop: l.style === QuizLogic.LIST_STYLE.COOP,
     topic: l.topic.topic,
     tier: l.topic.tier,
     targetCount: w.cfg.targetCount,

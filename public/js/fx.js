@@ -466,6 +466,32 @@
    * 「画面の揺れをつかう」を切っている人には出さない。
    *   strength: 'big' なら少し大きく（爆発など）。省略でふつう
    */
+  /**
+   * **画面の縁を、全周ひとまわり光らせる**（指示55・正本 §11-5）。
+   *
+   * 大画面だからできる知らせ。面は塗らない——正本 §6 は「赤は縁のみ」。
+   * 1回きりで、`fxMs` の刻みに乗るのでスキップも「速い」も効く。
+   *
+   * `kind` は 'danger'（赤・ライフが減った）／'village'／'wolf'／'third'（陣営の色）。
+   * **置き場は層（#uiLayerRoot）**——`#app` は明るさ補正の `filter` を持っているので、
+   * そこに `position:fixed` を置くと画面ではなくページの座標になる（落とし穴26）。
+   *
+   * それまで人狼の陣営色だけが index.html に個別実装されていた（`flashRoleEdge`）。
+   * **演出は fx.js に足す**のが決まり（CLAUDE.md §4）なので、ここへ寄せた
+   */
+  function edge(kind) {
+    var L = layer();
+    if (!L) return Promise.resolve(true);
+    if (cfg.can.flash && !cfg.can.flash()) return Promise.resolve(true);
+    var n = mk('fx-edge fx-edge-' + (kind || 'danger'));
+    if (!n) return Promise.resolve(true);
+    L.appendChild(n);
+    return hold(300).then(function (skipped) {
+      if (n.parentNode) n.parentNode.removeChild(n);
+      return skipped;
+    });
+  }
+
   function shake(strength) {
     var h = host();
     if (!h) return Promise.resolve(true);
@@ -638,7 +664,7 @@
     init: init, hold: hold, skipNow: skipNow, busy: busy,
     flash: flash, boom: boom, dawn: dawn, banner: banner, flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,
-    shake: shake, confetti: confetti, callout: callout, vibe: vibe,
+    shake: shake, edge: edge, confetti: confetti, callout: callout, vibe: vibe,
     countdown: countdown,
     stage: stage, stageClear: stageClear, stageState: stageState,
     _cfg: cfg

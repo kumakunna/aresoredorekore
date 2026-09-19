@@ -46,6 +46,8 @@ const BIG = opt('big');
 const REVERSED = opt('reversed');
 const LATE = opt('late');
 const SKIP = opt('skip');
+// 指示55：**大画面の中身も見る。**演出の数だけだと「画面が空でも0は0」で見分けられない
+const DUMP = opt('dump');
 
 if (game !== 'bomb' && game !== 'falsetrue') {
   console.error('いまは bomb と falsetrue。ほかのゲームを足す時は、その *-room.js を同じ形で呼ぶ');
@@ -261,6 +263,20 @@ async function mainBomb() {
   }
 
   const rows = [];
+  // 指示55 --dump：いま大画面に何が出ているかを、そのまま読む
+  const 大画面の中身 = () => {
+    const 主役 = doc.querySelector('#bigMain');
+    const 帯 = doc.querySelector('#bigStatus');
+    const t = (sel) => (doc.querySelector(sel) || { textContent: '' }).textContent.replace(/\s+/g, ' ').trim();
+    return {
+      帯: (帯 && !帯.hidden) ? (t('#bigLives') + ' ' + t('#bigClock')).trim() : '(出ていない)',
+      主役: 主役 ? t('#bigMain').slice(0, 90) : '-',
+      添え: t('#bigSub').slice(0, 70),
+      横棒: doc.querySelectorAll('#bigBoard .bb-row').length,
+      担当の行: doc.querySelectorAll('.bomb-coop .bcb-row').length,
+      縁: doc.querySelectorAll('.fx-edge').length
+    };
+  };
   const count = (tag) => rows.push({
     tag,
     画面: activeScreen(doc),
@@ -268,7 +284,8 @@ async function mainBomb() {
     帯: doc.querySelectorAll('.fx-banner').length,
     コールアウト: (doc.querySelector('.fx-callout') || { textContent: '' }).textContent.trim() || '-',
     紙吹雪: doc.querySelectorAll('.fx-confetti').length,
-    揺れ: doc.querySelectorAll('.fx-shake-big,.fx-shake').length
+    揺れ: doc.querySelectorAll('.fx-shake-big,.fx-shake').length,
+    ...(DUMP ? 大画面の中身() : {})
   });
 
   if (!LATE) { await sleep(win, 80); count('はじめ'); }

@@ -80,5 +80,61 @@ const { createRunner, assert, assertEqual } = require('./harness');
       'とくとくクイズ以外で時計が消えている：' + tickを返す.join('・'));
   });
 
+  // ---- §11-2：協力と対戦で画面を分ける ----
+
+  await r.test('§11-2：MODES の宣言と、進行役が名乗る性質が一致する（両方向）', async () => {
+    // 画面が読むのは**サーバーの `v.coop`**（modeId はゲーム中に届かないため）。
+    // `MODES.coopLayout` は棚・設定の側の宣言なので、**ずれたら赤くする**（落とし穴20）。
+    // 片方だけ直すと「協力版なのに対戦版の画面が出る」が、エラーも出さずに起きる
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 宣言 = {};
+    // 正規表現は使わない——エスケープで静かに潰れると、
+    // 「読めていないのに0件で緑」になる（落とし穴10-e）。行を切って読む
+    html.split('{id:"').slice(1).forEach((chunk) => {
+      const 行 = chunk.split(String.fromCharCode(10))[0].split(String.fromCharCode(13))[0];
+      const id = chunk.slice(0, chunk.indexOf('"'));
+      const m = 行.indexOf('coopLayout:');
+      if (m === -1) return;
+      宣言[id] = 行.slice(m + 'coopLayout:'.length).trim().startsWith('true');
+    });
+    assert(Object.keys(宣言).length >= 2,
+      'MODES から coopLayout を読み出せていない（index.html の書式が変わった？）');
+
+    const Bomb = require('../bomb-room.js');
+    const BombLogic = require('../public/js/bomb-logic.js');
+    const 実際 = {};
+    [['bomb-coop', BombLogic.MODE.COOP], ['bomb-race', BombLogic.MODE.RACE]].forEach(([modeId, mode]) => {
+      const room = {
+        code: 'TEST01', state: { phase: 'playing', game: 'bomb', data: {} },
+        members: new Map([
+          ['m1', { id: 'm1', name: 'あき', role: 'player', connected: true }],
+          ['m2', { id: 'm2', name: 'びび', role: 'player', connected: true }]
+        ])
+      };
+      const res = Bomb.startGame(room, {
+        mode: mode, counts: { easy: 2 }, lives: 3, timerSec: 0,
+        topics: Array.from({ length: 6 }, (_, i) => ({ name: 'お題' + i, desc: 'せつめい' + i }))
+      }, {});
+      assert(res.ok, modeId + ' が始められない：' + JSON.stringify(res));
+      実際[modeId] = Bomb.publicView(room).coop;
+    });
+
+    // 行き：宣言した通りに名乗っているか
+    Object.keys(宣言).forEach((modeId) => {
+      assert(実際[modeId] !== undefined, modeId + '：進行役が coop を名乗っていない');
+      assertEqual(実際[modeId], 宣言[modeId],
+        modeId + '：MODES の宣言（' + 宣言[modeId] + '）と、進行役の名乗り（' + 実際[modeId] + '）が食い違う');
+    });
+    // 帰り：名乗っているのに宣言が無いモードが無いか
+    Object.keys(実際).forEach((modeId) => {
+      assert(宣言[modeId] !== undefined, modeId + '：MODES に coopLayout の宣言が無い');
+    });
+    // **不在で表さない**（落とし穴36）：false も明示で書いてあること
+    assertEqual(宣言['bomb-race'], false, '競争版にも false を明示で書く');
+    console.log('    照合したモード：' + Object.keys(宣言).join('・'));
+  });
+
   r.finish();
 })();

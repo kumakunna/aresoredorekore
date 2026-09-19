@@ -2343,14 +2343,51 @@
     color:var(--stamp-deep);word-break:break-word;
   }
   .sugo-rs-sub{ font-size:13px;color:var(--ink-soft);line-height:1.7;margin-top:4px; }
-  .mk-rank .arow{
-    display:flex;align-items:center;gap:8px;padding:9px 12px;margin-bottom:6px;
+  /* ===== 指示55・正本 §11-7：順位表は、アプリ全体で1つの部品 =====
+     棚卸しで**8か所**にばらけていた（4つのゲームが、それぞれスマホ用と大画面用を
+     別々に持っていた）。うち4つは表ですらなく、文字列を join して `.big-sub` に
+     1本で流していたので、折り返すと順位が読めなかった。
+
+     前置きが `rk-` なのは、`.rank` を手渡しのスコア画面が既に取っているから（落とし穴23）。
+     **テーマ側に書き足さない**——`:root` のトークンだけで組む。
+     書き足す形にすると、世界を1つ増やした日に足し忘れる場所が1つできる（落とし穴27）。 */
+  /* 大画面の順位表の置き場。中身は共通部品（.rk-list） */
+  .big-rank{width:100%;}
+  .rk-list{display:flex;flex-direction:column;gap:6px;margin-top:12px;}
+  .rk-row{
+    display:flex;align-items:center;gap:8px;padding:9px 12px;
     background:var(--card);border:1px solid var(--line);border-radius:10px;
+    transition:transform .4s cubic-bezier(.32,.72,0,1);
   }
-  .mk-rank .arow .ark{font-family:'DotGothic16',monospace;font-size:18px;width:34px;}
-  .mk-rank .arow .arn{flex:1;font-weight:700;}
-  .mk-rank .arow .ars{font-family:'DotGothic16',monospace;font-size:20px;color:var(--stamp-deep);}
-  .mk-rank .arow .arb{font-size:11px;color:var(--ink-soft);}
+  /* 1位は大きい（§11-7）。**同着なら全員に付く** */
+  .rk-row.is-top{
+    border-color:var(--gold);background:var(--gold);color:#2A2013;font-weight:800;
+  }
+  .rk-row.is-me{outline:2px solid var(--stamp);}
+  /* 記録なし・脱落。**責める時は静かに**（原則C）——薄くするだけ */
+  .rk-row.is-out{opacity:.5;}
+  .rk-place{font-family:'DotGothic16',monospace;font-size:18px;min-width:52px;flex:none;}
+  .rk-face{font-size:20px;line-height:1;flex:none;}
+  .rk-name{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rk-main{font-family:'DotGothic16',monospace;font-size:20px;color:var(--stamp-deep);flex:none;}
+  .rk-row.is-top .rk-main{color:inherit;}
+  .rk-note{font-size:11px;color:var(--ink-soft);flex:none;}
+  .rk-row.is-top .rk-note{color:#5A4A20;}
+
+  /* 大画面（§11-5 の下限に乗せる）。スマホ側の寸法は動かさない */
+  @media (min-width:900px){
+    #scr-rt-big.active .rk-list{gap:clamp(8px,1vw,16px);max-width:min(1100px,92vw);margin:12px auto 0;}
+    #scr-rt-big.active .rk-row{padding:clamp(10px,1.2vw,20px) clamp(16px,2vw,32px);gap:clamp(12px,1.6vw,28px);}
+    #scr-rt-big.active .rk-place{font-size:clamp(48px,3.4vw,68px);min-width:clamp(110px,9vw,180px);}
+    #scr-rt-big.active .rk-face{font-size:clamp(40px,3.4vw,64px);}
+    #scr-rt-big.active .rk-name{font-size:clamp(32px,3vw,56px);}
+    #scr-rt-big.active .rk-main{font-size:clamp(48px,3.6vw,72px);}
+    #scr-rt-big.active .rk-note{font-size:clamp(28px,2vw,36px);}
+    /* 1位は大きい——大画面では、大きさでも差をつける */
+    #scr-rt-big.active .rk-row.is-top .rk-name{font-size:clamp(40px,3.8vw,72px);}
+    #scr-rt-big.active .rk-row.is-top .rk-main{font-size:clamp(56px,4.4vw,88px);}
+  }
+
   .mk-highlight{
     margin-top:14px;padding:10px 12px;border-radius:10px;
     background:var(--paper-deep);color:var(--ink-soft);font-size:12.5px;line-height:1.9;
@@ -5316,7 +5353,7 @@
     <h2 class="scr-title">結果発表</h2>
     <div class="wiz-body">
       <div class="mk-market-final" id="auRsMarket"></div>
-      <div class="mk-rank" id="auRsRank"></div>
+      <div id="auRsRank"></div>
       <div class="mk-highlight" id="auRsHighlight"></div>
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
@@ -5469,7 +5506,7 @@
     <h2 class="scr-title">結果発表</h2>
     <div class="wiz-body">
       <div class="sugo-rs-win" id="rtSugoRsWin"></div>
-      <div class="mk-rank" id="rtSugoRsRank"></div>
+      <div id="rtSugoRsRank"></div>
       <div class="mk-highlight" id="rtSugoRsNote"></div>
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
@@ -5631,6 +5668,9 @@
            **品質にあたるものは一切入れない**（大画面はみんなが見るので、
            ここに入れた瞬間に伏せている意味が消える） -->
       <div class="big-mk" id="bigAuMarket" style="display:none;"></div>
+      <!-- 指示55・正本 §11-7：順位表は共通の1部品（rankingHtml）。
+           それまで大画面の4つは表ですらなく、文字列を join して bigSub に1行で流していた -->
+      <div class="big-rank" id="bigRank"></div>
       <div class="big-list" id="bigList"></div>
       <!-- 第37弾：ゲームが決まってから始まるまで、みんなで同じルールを見る -->
       <div class="big-rules" id="bigRules" style="display:none;"></div>
@@ -13894,22 +13934,23 @@
     return (v && v.phase === 'ended') ? 'scr-rt-sugo-result' : 'scr-rt-sugoroku';
   }
   /**
-   * 順位の1行。**語彙はオークションの結果画面（`.mk-rank .arow`）を借りる**——
-   * 同じ「順位・名前・数字・内訳」なので、新しい見た目を増やさない（落とし穴23を作らない）
+   * すごろくの順位を、**共通の順位表**（正本 §11-7）に渡す形に直す。
+   * 同着（`tied`）は部品が1周数えて出すので、ここでは渡さない（落とし穴1）
    */
-  function sugoRankRow(p, res){
-    var 位 = p.tied ? (p.rank + '位ならび') : (p.rank + '位');
-    var 数 = p.goaled ? 'あがり' : (p.pos + '/' + res.cells);
-    var 内訳 = [];
-    // **コインを使わないゲームでは coins が null**（出す側に if を書かせない）
-    if(res.coinsUsed && p.coins != null) 内訳.push('🪙' + p.coins);
-    if(!p.goaled) 内訳.push('のこり' + Math.max(0, res.cells - p.pos) + 'マス');
-    return '<div class="arow">' +
-      '<span class="ark">' + escapeHtml(位) + '</span>' +
-      '<span class="arn">' + escapeHtml(p.name) + '</span>' +
-      '<span class="ars">' + escapeHtml(数) + '</span>' +
-      '<span class="arb">' + escapeHtml(内訳.join('　')) + '</span>' +
-    '</div>';
+  function sugoRankRows(res){
+    return (res.players || []).map(function(p){
+      var 内訳 = [];
+      // **コインを使わないゲームでは coins が null**（出す側に if を書かせない）
+      if(res.coinsUsed && p.coins != null) 内訳.push('🪙' + p.coins);
+      if(!p.goaled) 内訳.push('のこり' + Math.max(0, res.cells - p.pos) + 'マス');
+      return {
+        id: res.pairs ? null : p.id,
+        rank: p.rank,
+        name: p.name,
+        main: p.goaled ? 'あがり' : (p.pos + '/' + res.cells),
+        note: 内訳.length ? 内訳.join('　') : null
+      };
+    });
   }
   function renderRtSugoResult(){
     var v = rtView();
@@ -13929,9 +13970,10 @@
     el('rtSugoRsWin').innerHTML =
       '<div class="sugo-rs-name">' + escapeHtml(勝ち.map(function(p){ return p.name; }).join('・')) + '</div>' +
       '<div class="sugo-rs-sub">' + escapeHtml(言葉.note || '') + '</div>';
-    el('rtSugoRsRank').innerHTML = res.players.map(function(p){
-      return sugoRankRow(p, res);
-    }).join('');
+    // 指示55 §11-7：**順位表は共通の1部品**
+    el('rtSugoRsRank').innerHTML = rankingHtml(sugoRankRows(res), {
+      showFace: !res.pairs, meId: rt && rt.state && rt.state.memberId
+    });
     /**
      * 「どこにいる？」は**決着してはじめて実位置を明かす**ゲーム
      *（`sugoroku-room.js:820` がそう宣言している）。
@@ -14375,10 +14417,17 @@
 
     // 一覧。**位置を持っていないゲームでは、位置の代わりに申告した区画を出す**
     var goal = v.cells;
-    el('bigList').innerHTML = rtSugoBigRows(v, goal).map(function(x){
-      return '<span class="bl-item">' + (x.mark ? '<b class="sugo-piece">' + x.mark + '</b> ' : '') +
-        (x.id ? faceOf(x.id) : '') + escapeHtml(x.name) + ' ' + escapeHtml(x.right) + '</span>';
-    }).join('');
+    var 行 = rtSugoBigRows(v, goal);
+    if(行 === null){
+      // 決着。**端末とまったく同じ部品**に渡す（正本 §11-7）
+      el('bigList').innerHTML = '';
+      el('bigRank').innerHTML = rankingHtml(sugoRankRows(v.result), { showFace: !v.result.pairs });
+    } else {
+      el('bigList').innerHTML = 行.map(function(x){
+        return '<span class="bl-item">' + (x.mark ? '<b class="sugo-piece">' + x.mark + '</b> ' : '') +
+          (x.id ? faceOf(x.id) : '') + escapeHtml(x.name) + ' ' + escapeHtml(x.right) + '</span>';
+      }).join('');
+    }
   }
   function rtSugoBigRows(v, goal){
     /**
@@ -14392,15 +14441,9 @@
      * ここは行の作り方が5通りに分かれる場所なので、
      * **決着だけは分岐の手前で答える**——ゲームごとに書くと5か所に散る（落とし穴1）
      */
-    if(v.phase === 'ended' && v.result && v.result.players){
-      var res = v.result;
-      return res.players.map(function(p){
-        var 右 = p.goaled ? 'あがり' : (p.pos + '/' + res.cells);
-        if(res.coinsUsed && p.coins != null) 右 += '　🪙' + p.coins;
-        return { id: res.pairs ? null : p.id, mark: (p.rank + '位') + (p.tied ? 'ならび' : ''),
-          name: p.name, right: 右 };
-      });
-    }
+    // 指示55 §11-7：**決着の順位表は、端末とまったく同じ部品**（rankingHtml）。
+    // それまでは大画面だけ `.bl-item` の行で、順位の印が 13px 固定だった
+    if(v.phase === 'ended' && v.result && v.result.players) return null;
     if(v.pairs){
       return (v.groups || []).map(function(g, i){
         return { mark: SugorokuLogic.pieceFor(i).shape, name: g.names.join('・'),
@@ -16059,11 +16102,11 @@
   }
   function qzResultHtml(v){
     var res = v.result || {};
-    var rows = (res.ranking || []).map(function(x){
-      return '<div class="qb-row' + (x.rank === 1 ? ' win' : '') + '">' +
-        '<span class="qb-name">' + x.rank + '位　' + escapeHtml(x.name) + '</span>' +
-        '<span class="qb-score">' + x.score + '</span></div>';
-    }).join('');
+    // 指示55 §11-7：**順位表は共通の1部品**。
+    // `.qb-row` は途中経過・ラウンド間・早押しの合間でも着ているので**規則は残す**（落とし穴30）
+    var rows = rankingHtml((res.ranking || []).map(function(x){
+      return { id: x.id, rank: x.rank, name: x.name, main: x.score + '点' };
+    }), { showFace: true, meId: rt && rt.state && rt.state.memberId });
     var head = '';
     if(res.variant === 'buzzer'){
       head = '<h3>🏆 ' + escapeHtml(res.champion || '') + ' の優勝</h3>' +
@@ -16078,7 +16121,7 @@
     } else {
       head = '<h3>' + ((res.ranking && res.ranking[0]) ? ('🏆 ' + escapeHtml(res.ranking[0].name)) : '結果') + '</h3>';
     }
-    return '<div class="quiz-result">' + head + '<div class="quiz-board">' + rows + '</div></div>';
+    return '<div class="quiz-result">' + head + rows + '</div>';
   }
 
   // 押されたものを送る。何が起きたかはサーバーが決め、次の状態で返ってくる
@@ -16119,7 +16162,11 @@
     if(v.phase === 'ended'){
       var res = v.result || {};
       main = (res.ranking && res.ranking[0]) ? res.ranking[0].name : '結果';
-      sub = (res.ranking || []).map(function(x){ return x.rank + '位 ' + x.name + '（' + x.score + '）'; }).join('　');
+      // 指示55 §11-7：**文字列を1行に join するのをやめる**
+      sub = '';
+      el('bigRank').innerHTML = rankingHtml((res.ranking || []).map(function(x){
+        return { id: x.id, rank: x.rank, name: x.name, main: x.score + '点' };
+      }), { showFace: true });
     } else if(v.variant === 'quizreveal' && v.reveal){
       main = v.reveal.text || '';
       sub = (v.reveal.index + 1) + ' / ' + v.reveal.total + '問' +
@@ -16840,14 +16887,14 @@
     el('auRsMarket').innerHTML = AUI.KINDS.map(function(k){
       return '<span class="amk">' + k.icon + '<b>' + ((res.market || {})[k.id] || 1) + '</b></span>';
     }).join('');
-    el('auRsRank').innerHTML = (res.ranking || []).map(function(row){
-      return '<div class="arow">' +
-        '<span class="ark">' + row.rank + '位</span>' +
-        '<span class="arn">' + escapeHtml(row.name) + '</span>' +
-        '<span class="ars">' + row.score + '</span>' +
-        '<span class="arb">点（品物' + row.fromItems + '＋残り' + row.fromChips + '）</span>' +
-      '</div>';
-    }).join('');
+    // 指示55 §11-7：**順位表は共通の1部品**
+    el('auRsRank').innerHTML = rankingHtml((res.ranking || []).map(function(row){
+      return {
+        id: row.id, rank: row.rank, name: row.name,
+        main: row.score + '点',
+        note: '品物' + row.fromItems + '＋残り' + row.fromChips
+      };
+    }), { showFace: true, meId: rt && rt.state && rt.state.memberId });
     // 「今日の名場面」は、出せるものがある時だけ
     el('auRsHighlight').style.display = res.highlight ? 'block' : 'none';
     el('auRsHighlight').textContent = res.highlight || '';
@@ -17013,7 +17060,11 @@
     if(v.phase === 'ended'){
       var res = v.result || {};
       main = (res.ranking && res.ranking[0]) ? res.ranking[0].name : '結果';
-      sub = (res.ranking || []).map(function(x){ return x.rank + '位 ' + x.name + '（' + x.score + '点）'; }).join('　');
+      // 指示55 §11-7：**文字列を1行に join するのをやめる**（折り返すと順位が読めない）
+      sub = '';
+      el('bigRank').innerHTML = rankingHtml((res.ranking || []).map(function(x){
+        return { id: x.id, rank: x.rank, name: x.name, main: x.score + '点' };
+      }), { showFace: true });
     } else if(v.phase === 'reveal' && v.lastResult){
       var lr = v.lastResult;
       main = lr.passed ? AU.TEXT.passed : (auQuality(lr.quality).label + '！');
@@ -17407,6 +17458,52 @@
   setInterval(bigCountdownTick, 200);
 
   /**
+   * 順位表（正本 §11-7）。**アプリ全体でこの1つを使う。**
+   *
+   * 棚卸しで**8か所**にばらけていた——4つのゲーム（すごろく・オークション・
+   * クイズ王・クイズ解除の競争版）が、それぞれスマホ用と大画面用を別々に持っていた。
+   * 列の数も同着の言い方も1位の強調もばらばらで、
+   * 大画面の4つは表ですらなく**文字列を join して1行**にしていた（折り返すと読めない）。
+   *
+   * ---- 部品は「点の意味」を知らない ----
+   * 単位（点／マス／本／枚）はゲーム側が済ませてから渡す。
+   * ここに対応表を持つと、ゲームを足すたびに書き足すことになる（落とし穴4。
+   * `RT_STATUS_LABELS` が既にその形で腐りかけている）。
+   *
+   * ---- 同着は、ここで数えて出す ----
+   * `tied` を各ゲームの rank 関数に足して回らない（落とし穴1。作り先が4つ増える）。
+   * **同じ rank が2つ以上あれば並び**、と1周数えれば、4つとも同じ答えになる。
+   *
+   * @param {Array} rows [{ id, rank, name, main, note, out }]
+   *   rank … number | null（**null は「記録なし」**。クイズ解除の競争版でライフ0の人）
+   *   main … 主たる数字の**表示用文字列**（'12点' / 'あがり' / '3本'）
+   *   note … 内訳。null なら**欄ごと出さない**（空の欄を残すと理由が分からない）
+   *   out  … 記録なし・脱落
+   * @param {object} opts { showFace, meId }
+   */
+  function rankingHtml(rows, opts){
+    var o = opts || {};
+    var list = rows || [];
+    // 同着を数える（同じ rank が2つ以上あれば「ならび」）
+    var 数 = {};
+    list.forEach(function(r){ if(r.rank != null) 数[r.rank] = (数[r.rank] || 0) + 1; });
+    return '<div class="rk-list">' + list.map(function(r){
+      var 並び = (r.rank != null && 数[r.rank] > 1);
+      var cls = 'rk-row' +
+        (r.rank === 1 ? ' is-top' : '') +
+        (r.out ? ' is-out' : '') +
+        (o.meId && r.id === o.meId ? ' is-me' : '');
+      return '<div class="' + cls + '">' +
+        '<span class="rk-place">' + (r.rank == null ? '－' : (r.rank + '位' + (並び ? 'ならび' : ''))) + '</span>' +
+        (o.showFace && r.id ? '<span class="rk-face">' + faceOf(r.id) + '</span>' : '') +
+        '<span class="rk-name">' + escapeHtml(r.name || '') + '</span>' +
+        '<span class="rk-main">' + escapeHtml(r.main == null ? '' : String(r.main)) + '</span>' +
+        (r.note ? '<span class="rk-note">' + escapeHtml(r.note) + '</span>' : '') +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  /**
    * 指示55・正本 §11-1：**共通のものは1つ大きく。**
    *
    * 大画面の上に、**人を変えても同じ値**だけを出す。
@@ -17497,16 +17594,38 @@
     // 「出す側」と「隠す側」を別々の場所に書くと、部品を足した時に
     // 隠す側だけ書き忘れて、前のゲームの部品が居座る（第35弾Cの型1）。
     // ここを通れば、足した部品は黙って消える側に倒れる
+    el('bigRank').innerHTML = '';   // 指示55：順位表も毎描画で消す側に乗せる
     ['bigBoard', 'bigSugoBoard', 'bigAuMarket', 'bigFtCases'].forEach(function(id){
       el(id).style.display = 'none';
     });
-    if(rtRoomGameId() === 'bomb') return renderRtBigBomb(v);
-    if(rtRoomGameId() === 'defuse') return renderRtBigDefuse(v);
-    if(RT_QUIZ_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigQuiz(v);
-    if(rtRoomGameId() === 'auction') return renderRtBigAuction(v);
-    if(SUGO_GAMES.indexOf(rtRoomGameId()) !== -1) return renderRtBigSugoroku(v);
-    if(rtRoomGameId() === 'falsetrue') return renderRtBigFalsetrue(v);
-    if(rtIsWordwolf()) return renderRtBigWordwolf(v);
+    /**
+     * 指示55・正本 §11-3：**一番大きい枠に、すぐ上の文字を言い直させない。**
+     *
+     * 棚卸しで、9モード全部が (2)「一番見せるべきものが一番大きいか」で否だった。
+     * 原因の1つがこれ——115.2px の  に、25.6px の  と
+     * **同じ語**が入っていた（競争版の「解除中／解除中」、クイズラッシュの
+     * 「クイズラッシュ／クイズラッシュ」、ワードウルフは8段階中5段階）。
+     * **画面でいちばん高価な場所が、情報量ゼロで使われていた。**
+     *
+     * **モードごとに直さない**（落とし穴4）。ゲームの描画が終わったあとに
+     * 1か所で見て、同じ語なら空にする。空いた大きさは、盤や名簿が受け取る。
+     * ゲームを足した日にも自動で効く。見張りは tests/big-screen.js
+     */
+    var 言い直しを消す = function(){
+      var m = el("bigMain"), p2 = el("bigPhase");
+      if(!m || !p2) return;
+      var a = (m.textContent || "").trim(), b = (p2.textContent || "").trim();
+      if(a && b && a === b) m.textContent = "";
+    };
+    var 描いてから = function(f){ f(); 言い直しを消す(); };
+
+    if(rtRoomGameId() === 'bomb') return 描いてから(function(){ renderRtBigBomb(v); });
+    if(rtRoomGameId() === 'defuse') return 描いてから(function(){ renderRtBigDefuse(v); });
+    if(RT_QUIZ_GAMES.indexOf(rtRoomGameId()) !== -1) return 描いてから(function(){ renderRtBigQuiz(v); });
+    if(rtRoomGameId() === 'auction') return 描いてから(function(){ renderRtBigAuction(v); });
+    if(SUGO_GAMES.indexOf(rtRoomGameId()) !== -1) return 描いてから(function(){ renderRtBigSugoroku(v); });
+    if(rtRoomGameId() === 'falsetrue') return 描いてから(function(){ renderRtBigFalsetrue(v); });
+    if(rtIsWordwolf()) return 描いてから(function(){ renderRtBigWordwolf(v); });
 
     var main = '', sub = '';
     if(v.phase === 'roleReveal'){ main = '役職を配りました'; sub = '自分のスマホで確認してください'; }
@@ -17549,6 +17668,7 @@
       }).join('　');
     }
     el('bigMain').textContent = main;
+    言い直しを消す();   // 人狼（素通り本体）も同じ門を通す
     el('bigSub').innerHTML = sub;
 
     // 生死は公開情報。役職は決着するまで出さない。
@@ -18099,11 +18219,19 @@
       if(!r.success && r.cause === 'time') lines.push('⏱ 時間切れでした');
     } else {
       lines.push('<b>🏁 決着！</b>');
-      lines.push('<div class="vote-counts">' + (r.ranking || []).map(function(row){
-        var head = row.failed ? '💥' : (row.rank + '位');
-        return '<span class="vc-item">' + head + ' ' + escapeHtml(row.name) +
-          ' <b>' + row.solved + '</b></span>';
-      }).join('') + '</div>');
+      // 指示55 §11-7：**順位表は共通の1部品**。
+      // それまで `.vote-counts`（人狼の投票集計から借りた名前）を着ていた——
+      // 見た目は同じで意味が違う形は、借りたものが世界観ごと運ばれた跡（大切なこと9）
+      lines.push(rankingHtml((r.ranking || []).map(function(row){
+        return {
+          id: row.id,
+          // **rank は null になりうる**（ライフ0＝記録なし・bomb-logic.js:267）
+          rank: row.failed ? null : row.rank,
+          name: row.name,
+          main: row.solved + '本',
+          out: !!row.failed
+        };
+      }), { showFace: true, meId: rt && rt.state && rt.state.memberId }));
     }
     // 決着したこの瞬間だけ、答え合わせのために中身を開ける
     if((r.codes || []).length){
@@ -18252,10 +18380,14 @@
         var top = (r.ranking || [])[0];
         // main は textContent に入れるので escape しない（二重にすると記号がそのまま見える）
         main = top ? (top.name + ' の勝ち') : '決着';
-        sub = (r.ranking || []).map(function(row){
-          return (row.failed ? '－' : row.rank + '位') + ' ' +
-            escapeHtml(row.name) + ' ' + row.solved + '本';
-        }).join('　');
+        // 指示55 §11-7：**文字列を1行に join するのをやめる**
+        sub = '';
+        el('bigRank').innerHTML = rankingHtml((r.ranking || []).map(function(row){
+          return {
+            id: row.id, rank: row.failed ? null : row.rank, name: row.name,
+            main: row.solved + '本', out: !!row.failed
+          };
+        }), { showFace: true });
       }
     } else if(v.coop){
       /**

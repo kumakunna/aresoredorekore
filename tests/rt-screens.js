@@ -175,10 +175,13 @@ async function pickGameForRoom(win, doc, gameId, modeId) {
 // ここでは「届いたものを画面がどう出すか」だけを見る
 function bombView(over) {
   return Object.assign({
-    phase: 'play', mode: 'coop', endWhen: 'first',
+    phase: 'play', mode: 'coop', coop: true, endWhen: 'first',
     total: 4, livesMax: 3, timerSec: 180,
     prep: { ready: 4, dropped: 0, total: 4 },
     team: { solved: 1, total: 4, pct: 25, lives: 2, livesMax: 3, misses: 1 },
+    // 指示55：協力版は「全員に同じ値」を shared として名乗る（bomb-room.js の publicView）。
+    // **検体を本物に揃える**——ずれると、画面が本物の形を一度も試されない（落とし穴25）
+    shared: { lives: 2, livesMax: 3 },
     board: [
       { uid: 'w0', tier: 'easy', solved: true, solvedBy: 'あき', by: null },
       { uid: 'w1', tier: 'easy', solved: false, solvedBy: null, by: 'びび' },
@@ -1595,8 +1598,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, endedWolfRoom());
     pushYou(fake, endedWolfYou());
     await sleep(win, 150);
-    assert(doc.getElementById('app').classList.contains('edge-village'),
-      '勝った陣営の色で画面が照らされる');
+    // 指示55：**縁の光は共通部品（FxKit.edge）に移した**（CLAUDE.md §4：演出は fx.js に足す）。
+    // それまで index.html に個別実装（flashRoleEdge が #app にクラスを付ける形）があり、
+    // 置き場も #app だった——#app は明るさ補正の filter を持つので、
+    // そこに position:fixed を置くと画面ではなくページの座標になる（落とし穴26）。
+    // いまは層（#uiLayerRoot）に .fx-edge-village が出る。**出ている最中に数える**（落とし穴10-g）
+    assert(doc.querySelector('.fx-edge-village'),
+      '勝った陣営の色で、画面の縁が照らされる');
     assertNoErrors(errors, '部屋の人狼の演出で未捕捉の例外');
     win.close();
   });
@@ -1856,7 +1864,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('大画面：クイズ解除は横棒グラフで進捗とライフだけを出す', async () => {
+  await r.test('大画面：協力版は、共通のものを1つだけ大きく出す（正本§11-1）', async () => {
+    /**
+     * 指示55：**ここは前まで逆のことを主張していた。**
+     * 「両方の棒に 1 / 4 と ❤️❤️🖤 が出る」＝**同じ値が人数ぶん並ぶ形を、正解として固定していた。**
+     * 協力版は entryOf がチームの entry を返すので players[] は全員同じ値になり、
+     * 検体（bombView）も2人とも同じ値だったので、そのまま通っていた。
+     */
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
     const members = bombRoom().members.concat([
@@ -1865,18 +1879,59 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, bombRoom({ members, memberCount: 3 }));
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
-    assertEqual(el(doc, 'bigBoard').style.display, 'flex', '横棒グラフが出る');
-    const rows = doc.querySelectorAll('#bigBoard .bb-row');
-    assertEqual(rows.length, 2, 'プレイヤーぶんの棒が並ぶ');
-    assert(/あき/.test(rows[0].textContent), '名前が出る');
-    assert(/1 \/ 4/.test(rows[0].textContent), '解けた本数が出る');
-    assert(/❤️❤️🖤/.test(rows[0].textContent), 'ライフが出る');
-    assertEqual(rows[0].querySelector('.bb-fill').style.width, '25%', '棒の長さが進捗を表す');
+
+    // 共通のものは、いちばん上の帯に1つだけ
+    assertEqual(el(doc, 'bigStatus').hidden, false, '共通のものの帯が出る');
+    assertEqual(el(doc, 'bigLives').textContent, '❤️❤️🖤', '共有ライフは帯に1つだけ');
+
+    // 人数ぶんの同じ横棒は、出さない
+    assertEqual(el(doc, 'bigBoard').style.display, 'none', '協力版では横棒を出さない');
+    assertEqual(doc.querySelectorAll('#bigBoard .bb-row').length, 0, '同じ値の棒が人数ぶん並ばない');
+
+    // 進み具合は共通なのでゲージ1本
+    assertEqual(doc.querySelectorAll('.bomb-coop .bcb-gauge').length, 1, '進み具合はゲージ1本');
+    assertEqual(doc.querySelector('.bomb-coop .bcb-fill').style.width, '25%', 'ゲージが進み具合を表す');
+    assert(/1 \/ 4 解除/.test(doc.querySelector('.bomb-coop .bcb-count').textContent), '本数が出る');
+
+    // 個人のものは、人ごとに1行（誰がどの端子を担当しているか）
+    const 担当 = doc.querySelectorAll('.bomb-coop .bcb-row');
+    assertEqual(担当.length, 2, 'プレイヤーぶんの担当の行が出る');
+    const びび = [...担当].find((x) => /びび/.test(x.textContent));
+    assert(びび && /2ばん/.test(びび.textContent), 'びびが2ばんを担当していると分かる');
+    const あき = [...担当].find((x) => /あき/.test(x.textContent));
+    assert(あき && /待ち/.test(あき.textContent), '担当していない人は「待ち」');
+
     // 大画面に秘密は出さない
     const big = el(doc, 'scr-rt-big').textContent;
     assert(!/せつめい/.test(big), '説明文は出ない');
-    assertEqual(el(doc, 'bigList').innerHTML, '', '名前だけの一覧は使わない（棒に差し替える）');
     assertNoErrors(errors, '大画面のリーダーボードで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('大画面：競争版は、人ごとに横棒を並べる（正本§11-1の逆向き）', async () => {
+    // **もう一方の枝も必ず試す**（落とし穴10-c）。
+    // こちらは人ごとに違う値なので、並べるのが正しい
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
+    const members = bombRoom().members.concat([
+      { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
+    ]);
+    const v = bombView({ mode: 'race', coop: false, team: undefined, board: undefined });
+    v.players[1].solved = 3; v.players[1].pct = 75; v.players[1].lives = 1;
+    push(fake, bombRoom({
+      members, memberCount: 3,
+      state: { phase: 'play', game: 'bomb', data: v }
+    }));
+    await sleep(win, 150);
+    assertEqual(el(doc, 'bigBoard').style.display, 'flex', '競争版では横棒を出す');
+    const rows = doc.querySelectorAll('#bigBoard .bb-row');
+    assertEqual(rows.length, 2, 'プレイヤーぶんの棒が並ぶ');
+    // **中身が人ごとに違うこと**まで見る（同じ値が並ぶ形に戻ったら赤くなる）
+    assertEqual(rows[0].querySelector('.bb-fill').style.width, '25%', '1人目の進み具合');
+    assertEqual(rows[1].querySelector('.bb-fill').style.width, '75%', '2人目の進み具合（違う値）');
+    assertEqual(doc.querySelectorAll('.bomb-coop .bcb-row').length, 0, '競争版に担当の行は出さない');
+    assertEqual(el(doc, 'bigStatus').hidden, true, '競争版に共有ライフは無い');
+    assertNoErrors(errors, '競争版の大画面で未捕捉の例外');
     win.close();
   });
 
@@ -1887,7 +1942,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const members = bombRoom().members.concat([
       { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
     ]);
-    push(fake, bombRoom({ members, memberCount: 3 }));
+    // 指示55：**横棒が出るのは競争版だけ**になった（協力版は共通の値なので1つにまとめる）。
+    // 前提が作れているかを、まず1つ確かめる（落とし穴10-b）
+    push(fake, bombRoom({
+      members, memberCount: 3,
+      state: { phase: 'play', game: 'bomb', data: bombView({ mode: 'race', coop: false, team: undefined, board: undefined, shared: undefined }) }
+    }));
     await sleep(win, 120);
     assertEqual(el(doc, 'bigBoard').style.display, 'flex', 'まずは出ている');
     // m5（この端末）が大画面のまま、部屋のゲームだけが人狼に切り替わった状態
@@ -3514,7 +3574,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, auRoom(st, 'ended'));
     pushYou(fake, st.you('m2'));
     await waitScreen(win, doc, 'scr-rt-au-result', 4000);
-    const rows = doc.querySelectorAll('#auRsRank .arow');
+    const rows = doc.querySelectorAll('#auRsRank .rk-row');
     assertEqual(rows.length, st.w.playerIds.length, '全員ぶんの順位が出る');
     assert(/品物/.test(el(doc, 'auRsRank').textContent) &&
            /残り/.test(el(doc, 'auRsRank').textContent),

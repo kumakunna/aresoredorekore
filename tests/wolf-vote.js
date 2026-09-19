@@ -1651,13 +1651,15 @@ function votesFrom(list) {
     // **出ている最中に数える**（落とし穴10-g）
     const lit = ['fx-edge-village', 'fx-edge-wolf', 'fx-edge-third']
       .some((c) => doc.querySelector('.' + c));
-    assert(lit, '陣営の色で縁が照らされる（' + app.className + '）');
+    assert(lit, '陣営の色で縁が照らされる（層に .fx-edge-* が出る）');
     // 色だけに頼らない。役職名と説明は文字でも必ず出る（第8部-2）
     const body = el(doc, 'wrContentBody').textContent;
     assert(/あなたの役職/.test(body), '役職名が文字でも出る');
     // 一瞬で消える（出しっぱなしにしない）
-    await waitFor(win, () => !['edge-village', 'edge-wolf', 'edge-third']
-      .some(c => app.classList.contains(c)), 3000, '縁の光が消える');
+    // 一瞬で消える（出しっぱなしにしない）。**片付いたあとに数えない**ので、
+    // ここは「消えるまで待つ」側で見る（落とし穴10-g の裏）
+    await waitFor(win, () => !['fx-edge-village', 'fx-edge-wolf', 'fx-edge-third']
+      .some((x) => doc.querySelector('.' + x)), 3000, '縁の光が消える');
     assertNoErrors(errors, '役職の照明で未捕捉の例外');
     win.close();
   });

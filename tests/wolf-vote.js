@@ -1645,8 +1645,12 @@ function votesFrom(list) {
     await waitScreen(win, doc, 'scr-wr-pass', 8000);
     click(doc, 'wrRevealBtn');
     await sleep(win, 60);
-    const app = el(doc, 'app');
-    const lit = ['edge-village', 'edge-wolf', 'edge-third'].some(c => app.classList.contains(c));
+    // 指示55：**縁の光は共通部品（FxKit.edge）に移した**（CLAUDE.md §4：演出は fx.js に足す）。
+    // 置き場も #app から層（#uiLayerRoot）へ——#app は明るさ補正の filter を持つので、
+    // そこに position:fixed を置くと画面ではなくページの座標になる（落とし穴26）。
+    // **出ている最中に数える**（落とし穴10-g）
+    const lit = ['fx-edge-village', 'fx-edge-wolf', 'fx-edge-third']
+      .some((c) => doc.querySelector('.' + c));
     assert(lit, '陣営の色で縁が照らされる（' + app.className + '）');
     // 色だけに頼らない。役職名と説明は文字でも必ず出る（第8部-2）
     const body = el(doc, 'wrContentBody').textContent;

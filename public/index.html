@@ -14424,7 +14424,10 @@
      * 毎描画の自己リセット（第35弾Cの良い型2）に乗せる
      */
     el('bigList').innerHTML = (v.players || []).map(function(p){
-      var 落ちた = (p.fate === 'out') || p.gone;
+      // **`gone` では絞らない。**`publicSnapshot` が配る部屋の名簿に gone は無く、
+      // 「部屋を出た」はゲームの見立てとは別の言葉（門G7・mode-screen が見張っている）。
+      // ここで要るのは「この回の運命」だけなので fate だけを読む
+      var 落ちた = (p.fate === 'out');
       return '<span class="bl-item' + (落ちた ? ' dead' : '') + '">' +
         faceOf(p.id) + escapeHtml(p.name) +
         (p.fate === 'alive' ? ' 生存' : (p.fate === 'out' ? ' 脱落' : '')) + '</span>';

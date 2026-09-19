@@ -2639,10 +2639,21 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, room);
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
-    const list = el(doc, 'bigList').textContent;
-    assert(/あき 5/.test(list), '得点が出る');
-    assert(/むりなんだが/.test(list), 'いま挑んでいる難易度が出る');
-    assert(/かんたん/.test(list), '人ごとに違う難易度が出る');
+    /**
+     * 指示55 §11-3：**クイズ王なのに、大画面のどこにも順位が無かった。**
+     * 一番大きい枠は「クイズラッシュ」という固定文（すぐ上の bigPhase と同じ語）で、
+     * 得点は名簿に**参加順のまま**並んでいた。共通の順位表（§11-7）を主役にした
+     */
+    const rank = el(doc, 'bigRank').textContent;
+    assert(/あき/.test(rank) && /5点/.test(rank), '得点が出る');
+    assert(/むりなんだが/.test(rank), 'いま挑んでいる難易度が出る');
+    assert(/かんたん/.test(rank), '人ごとに違う難易度が出る');
+    // **点順に並ぶ**（それまで参加順のままで、誰が勝っているか読めなかった）
+    const 行 = [...doc.querySelectorAll('#bigRank .rk-row')].map((x) => x.textContent);
+    assertEqual(行.length, 2, 'プレイヤーぶんの行が出る');
+    assert(/あき/.test(行[0]), '点の高い人が上に来る');
+    // 同じ数字を名簿にも並べない（§11-1）
+    assertEqual(el(doc, 'bigList').innerHTML, '', '順位表を出している時は、名簿に同じ数字を並べない');
     assertNoErrors(errors, '大画面で未捕捉の例外');
     win.close();
   });
@@ -3598,8 +3609,17 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 200);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
     const item = st.w.items.find((x) => x.no === st.w.order[st.w.idx]);
-    assert(el(doc, 'bigMain').textContent.indexOf(item.look) !== -1, '品物の見た目が大きく出る');
-    assert(/あき/.test(el(doc, 'bigSub').textContent), 'いまの最高額が出る');
+    /**
+     * 指示55 §11-3：**競りの最中に一目で分かればいいのは「いまいくらか」。**
+     * それまで一番大きい枠には1品の見た目が入り、最高額はその下で
+     * ヒントと場所を取り合っていた（値が付いた瞬間にヒントが消える形）。
+     * 実装自身のコメントが「相場表と品ぞろえが主役」と宣言しているのに、
+     * 一番大きいのが1品だった、という食い違いもここで解いた
+     */
+    assert(/🔨/.test(el(doc, 'bigMain').textContent), 'いまの最高額が一番大きく出る');
+    const sub = el(doc, 'bigSub').textContent;
+    assert(/あき/.test(sub), '誰が競り勝っているかが出る');
+    assert(sub.indexOf(item.look) !== -1, '品物の見た目は、その下に出る');
     // 相場が主役として出ている（手持ちチップの列ではなく、専用の相場表に）
     const mk = el(doc, 'bigAuMarket').textContent;
     Items.KINDS.forEach((k) => {

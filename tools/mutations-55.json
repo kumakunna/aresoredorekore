@@ -1,0 +1,106 @@
+[
+  {
+    "name": "55-A1 時計の種類を名乗らない進行役を作る（§11-4）",
+    "file": "wolf-room.js",
+    "suite": "tests/big-screen.js",
+    "from": "  playersOf, expectedMembers, clockKind\n};",
+    "to": "  playersOf, expectedMembers\n};",
+    "expect": "時計の種類を名乗っていない進行役がある：wolfrole"
+  },
+  {
+    "name": "55-A2 とくとくクイズの「次の1文字」まで数えてしまう（§11-4）",
+    "file": "quiz-room.js",
+    "suite": "tests/big-screen.js",
+    "from": "  return (w.reveal && w.reveal.buzzed) ? 'play' : 'tick';",
+    "to": "  return 'play';",
+    "expect": "押される前は数えない（期待 tick / 実際 play）"
+  },
+  {
+    "name": "55-A3 協力/対戦の宣言と、進行役の名乗りをずらす（§11-2）",
+    "file": "bomb-room.js",
+    "suite": "tests/big-screen.js",
+    "from": "    coop: w.mode === BombLogic.MODE.COOP,",
+    "to": "    coop: false,",
+    "expect": "bomb-coop：MODES の宣言（true）と、進行役の名乗り（false）が食い違う"
+  },
+  {
+    "name": "55-A4 MODES から coopLayout の宣言を消す（§11-2・不在で表さない）",
+    "file": "public/index.html",
+    "suite": "tests/big-screen.js",
+    "from": "bomb:true, coopLayout:true, game:'bomb',",
+    "to": "bomb:true, game:'bomb',",
+    "expect": "MODES から coopLayout を読み出せていない"
+  },
+  {
+    "name": "55-A5 すごろくの「手番のある段階」に、実在しない段階名を書く（§11-3）",
+    "file": "public/index.html",
+    "suite": "tests/big-screen.js",
+    "from": "var SUGO_TURN_PHASES = ['turn', 'grab', 'buy'];",
+    "to": "var SUGO_TURN_PHASES = ['turn', 'grab', 'kaimono'];",
+    "expect": "段階の表に無い名前を指している：kaimono"
+  },
+  {
+    "name": "55-A6 進行役が、大画面（プレイヤーでない端末）に秘密を配る（§11-6）",
+    "file": "wolf-room.js",
+    "suite": "tests/big-screen.js",
+    "from": "function privateFor(room, memberId) {",
+    "to": "function privateFor(room, memberId) {\n  return { role: 'wolf' };",
+    "expect": "大画面に何かを配っている進行役がある：wolfrole"
+  },
+  {
+    "name": "55-A7 大画面の描画が「あなた」を組み立てる（§11-6・48-2）",
+    "file": "public/index.html",
+    "suite": "tests/big-screen.js",
+    "from": "main = '夜'; sub = '全員、自分のスマホを見てください';",
+    "to": "main = '夜'; sub = 'あなたのスマホを見てください';",
+    "expect": "大画面の描画が「あなた」を組み立てている：renderRtBig"
+  },
+  {
+    "name": "55-B1 問題から根拠の欄を落とす（2-5）",
+    "file": "public/js/quiz-bank.js",
+    "suite": "tests/quiz-bank.js",
+    "from": "        source: '国土地理院 企画展「富士山」＝「富士山は日本一の高さを誇る」と明記 https://www.gsi.go.jp/MUSEUM/SOUGO/kohokocho010.html' }",
+    "to": "        source: '' }",
+    "expect": "根拠の無い問題がある：easy の 1問目"
+  },
+  {
+    "name": "55-B2 根拠を、たどれない形にする（URLが無い）",
+    "file": "public/js/quiz-bank.js",
+    "suite": "tests/quiz-bank.js",
+    "from": "        source: '国土地理院 企画展「富士山」＝「富士山は日本一の高さを誇る」と明記 https://www.gsi.go.jp/MUSEUM/SOUGO/kohokocho010.html' }",
+    "to": "        source: '国土地理院で確認した' }",
+    "expect": "URLの無い根拠がある：easy[0]"
+  },
+  {
+    "name": "55-C1 別名の正本を、実在しない答えにする（つぎつぎクイズ）",
+    "file": "public/js/quiz-bank.js",
+    "suite": "tests/quiz-bank.js",
+    "from": "'投手': 'ピッチャー'",
+    "to": "'投手': 'ピツチヤー'",
+    "expect": "別名「投手」の正本「ピツチヤー」が answers に無い"
+  },
+  {
+    "name": "55-C2 漢字の答えから、かなで打つ道を消す（つぎつぎクイズ）",
+    "file": "public/js/quiz-bank.js",
+    "suite": "tests/quiz-bank.js",
+    "from": "'すいそ': '水素'",
+    "to": "'スイソ水素': '水素'",
+    "expect": "かなで打てない答えがある：元素記号1文字の元素「水素」"
+  },
+  {
+    "name": "55-C3 重複の判定を、打った文字列に戻す（別名が2回得点する）",
+    "file": "public/js/quiz-bank.js",
+    "suite": "tests/quiz-bank.js",
+    "from": "      return canonicalOf(topic, s) || normalize(s);",
+    "to": "      return normalize(s);",
+    "expect": "「ピッチャー」のあとに別名「投手」が通ってしまう"
+  },
+  {
+    "name": "55-C4 normalize の全角のたたみを外す（無駄な別名の門が効くか）",
+    "file": "public/js/quiz-bank.js",
+    "suite": "tests/quiz-bank.js",
+    "from": "      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, function (c) {\n        return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);\n      })",
+    "to": "",
+    "expect": "全角で打つと弾かれる（接尾辞・かなの門のどれかが赤くなる）"
+  }
+]

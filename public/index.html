@@ -14424,13 +14424,18 @@
      * 毎描画の自己リセット（第35弾Cの良い型2）に乗せる
      */
     el('bigList').innerHTML = (v.players || []).map(function(p){
-      // **`gone` では絞らない。**`publicSnapshot` が配る部屋の名簿に gone は無く、
-      // 「部屋を出た」はゲームの見立てとは別の言葉（門G7・mode-screen が見張っている）。
-      // ここで要るのは「この回の運命」だけなので fate だけを読む
+      /**
+       * **`gone` では絞らない。**`publicSnapshot` が配る部屋の名簿に gone は無く、
+       * 「部屋を出た」はゲームの見立てとは別の言葉（門G7・mode-screen が見張っている。
+       * 第44弾に、まさに素通りするフィルタがあった）。
+       *
+       * 失う情報は `connected` で取り戻す——**こちらは部屋の言葉**で、
+       * 遊ぶ人に伝わるのも「いまここに居るか」の方
+       */
       var 落ちた = (p.fate === 'out');
+      var 印 = (p.fate === 'alive') ? ' 生存' : (落ちた ? ' 脱落' : (p.connected === false ? '（席を外しています）' : ''));
       return '<span class="bl-item' + (落ちた ? ' dead' : '') + '">' +
-        faceOf(p.id) + escapeHtml(p.name) +
-        (p.fate === 'alive' ? ' 生存' : (p.fate === 'out' ? ' 脱落' : '')) + '</span>';
+        faceOf(p.id) + escapeHtml(p.name) + 印 + '</span>';
     }).join('');
   }
 

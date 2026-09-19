@@ -3496,7 +3496,6 @@
   .quiz-order .bl-item.now{outline:2px solid var(--stamp);font-weight:700;}
   .quiz-order .bl-item.dead{opacity:.4;text-decoration:line-through;}
   /* 大画面で、いま挑んでいる難易度を名前の横に小さく出す */
-  .bl-tier{font-size:.62em;opacity:.85;margin-left:.5em;}
   .quiz-board{margin-top:16px;display:flex;flex-direction:column;gap:4px;}
   .qb-row{display:flex;justify-content:space-between;align-items:center;
     padding:7px 12px;border-radius:8px;background:var(--card);font-size:14px;}
@@ -16225,31 +16224,63 @@
       sub = (v.reveal.index + 1) + ' / ' + v.reveal.total + '問' +
         (v.reveal.buzzedName ? '　🖐 ' + v.reveal.buzzedName : '');
     } else if(v.variant === 'quizlist' && v.list){
-      main = v.list.topic || '';
-      sub = (v.list.style === 'coop')
-        ? (v.list.saidCount + ' / ' + v.list.targetCount + '個　いまは ' + (v.list.turnName || '') + ' さん')
-        : ('出た数 ' + v.list.saidCount + '　いまは ' + (v.list.turnName || '') + ' さん');
+      /**
+       * 正本 §11-2：**協力と対戦は、文字列比較ではなく性質で分ける。**
+       * `v.list.coop` はサーバー（quiz-room.js の listPublic）が名乗る真偽値。
+       *
+       * 正本 §11-3：一目で分かればいいのは「**いまだれの番か**」——
+       * お題は1回ぶんずっと同じなので、一番大きい枠を占め続ける値ではない
+       */
+      main = (v.list.turnName || '') + ' さんの番';
+      sub = '「' + (v.list.topic || '') + '」　' +
+        (v.list.coop
+          ? (v.list.saidCount + ' / ' + v.list.targetCount + '個')
+          : ('出た数 ' + v.list.saidCount));
     } else if(v.variant === 'buzzer' && v.buzzer){
       main = (v.buzzer.pair || []).map(function(p){ return p.name + '（' + p.wins + '）'; }).join('　VS　');
       // 読み上げにした時は、大画面にも文字を出さない（耳で勝負する遊びなので）
       sub = (v.buzzer.question && v.buzzer.delivery === 'text') ? v.buzzer.question.text : '';
       if(v.buzzer.buzzedName) sub += '　🖐 ' + v.buzzer.buzzedName;
     } else if(v.variant === 'quizrush' && v.rush){
-      main = (v.rush.roundsToWin > 0) ? ('第' + v.rush.round + 'ラウンド') : 'クイズラッシュ';
-      sub = '各自のスマホで挑戦中';
+      /**
+       * 正本 §11-3：**クイズ王なのに、大画面のどこにも順位が無かった。**
+       * 一番大きい枠には「クイズラッシュ」という固定文（＝すぐ上の bigPhase と同じ語・
+       * 情報量ゼロ）が入り、得点は名簿に並び順（参加順）のまま出ていた。
+       *
+       * 一目で分かればいいのは「**誰が何点で、誰が高い難易度に粘っているか**」なので、
+       * 共通の順位表（§11-7）を主役にする
+       */
+      main = '';
+      sub = (v.rush.roundsToWin > 0) ? ('第' + v.rush.round + 'ラウンド') : '';
+      el('bigRank').innerHTML = rankingHtml(
+        (v.players || []).slice()
+          .sort(function(a, b){ return (b.score || 0) - (a.score || 0); })
+          .map(function(p, i, arr){
+            var 同点 = arr.findIndex(function(x){ return (x.score || 0) === (p.score || 0); });
+            var row = (v.rush.board || []).find(function(x){ return x.id === p.id; });
+            return {
+              id: p.id, rank: 同点 + 1, name: p.name, main: (p.score || 0) + '点',
+              note: (row && row.tier) ? (QuizLogic.TIER_LABEL[row.tier] || row.tier) : null
+            };
+          }), { showFace: true });
     }
     el('bigMain').textContent = main;
     el('bigSub').innerHTML = escapeHtml(sub);
     // 得点は公開情報。問題の中身は入れない。
     // クイズラッシュだけは「いまどの難易度に挑んでいるか」も公開情報なので出す
     // （誰が高い難易度で粘っているかが、見ている人にも伝わるように）
-    var rushBoard = (v.variant === 'quizrush' && v.rush) ? v.rush.board : null;
-    el('bigList').innerHTML = (v.players || []).map(function(p){
-      var row = rushBoard && rushBoard.find(function(x){ return x.id === p.id; });
-      var tier = (row && row.tier) ? ('<span class="bl-tier">' +
-        escapeHtml(QuizLogic.TIER_LABEL[row.tier] || row.tier) + '</span>') : '';
-      return '<span class="bl-item">' + faceOf(p.id) + escapeHtml(p.name) + ' ' + p.score + tier + '</span>';
-    }).join('');
+    /**
+     * 得点は公開情報。問題の中身は入れない。
+     * **順位表を出している時は、名簿に同じ数字を並べない**（§11-1）——
+     * それまで決着では bigSub の1行と名簿に、同じ得点が二重に出ていた
+     */
+    if(el('bigRank').innerHTML){
+      el('bigList').innerHTML = '';
+    } else {
+      el('bigList').innerHTML = (v.players || []).map(function(p){
+        return '<span class="bl-item">' + faceOf(p.id) + escapeHtml(p.name) + ' ' + p.score + '</span>';
+      }).join('');
+    }
   }
 
   // ---------- 第39弾 2-4：部品カタログ ----------
@@ -17126,10 +17157,24 @@
       main = '開場';
       sub = v.mixLine;
     } else if(v.item){
-      main = auKindIcon(v.item.kind) + ' ' + v.item.look;
-      sub = (v.mode === 'open' && v.highest)
-        ? ('🔨 ' + v.highest.name + '　' + v.highest.amount + '枚')
-        : ((v.item.hints || []).slice(1).join('／'));
+      /**
+       * 正本 §11-3：**そのモードで一番見せるべきものを、一番大きく。**
+       *
+       * 競りの最中に一目で分かればいいのは「**いまいくらか**」。
+       * それまで一番大きい枠には1品の見た目が入り、最高額は
+       * その下（bigSub）にヒントと場所を取り合って出ていた——
+       * **値が付いた瞬間にヒントが消える**形で、しかも小さかった。
+       * 実装自身のコメントが「相場表と品ぞろえが主役」と宣言しているのに、
+       * 一番大きいのは1品だった、という食い違いもここで解く
+       */
+      if(v.mode === 'open' && v.highest){
+        main = '🔨 ' + v.highest.amount + '枚';
+        sub = v.highest.name + 'が競り勝っています　／　' +
+          auKindIcon(v.item.kind) + ' ' + v.item.look;
+      } else {
+        main = auKindIcon(v.item.kind) + ' ' + v.item.look;
+        sub = (v.item.hints || []).slice(1).join('／');
+      }
     } else {
       main = '開場';
       sub = v.mixLine;

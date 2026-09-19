@@ -159,5 +159,68 @@ const { createRunner, assert, assertEqual } = require('./harness');
     console.log("    手番のある段階：" + 名前.join("・"));
   });
 
+  // ---- §11-6：大画面に秘密を映さない ----
+
+  await r.test('§11-6：どの進行役も、大画面には秘密を1つも配らない', async () => {
+    /**
+     * 棚卸しで (3) は9モードとも「可」だったが、**守っているのは実装であって
+     * 見張りではなかった**。tests/secrecy-gates.js は手渡しの3画面しか見ておらず、
+     * 大画面については realtime-*.js に散らばった「privateFor が null」が
+     * 4つあるだけで、**8本の進行役を横断して確かめる門が無かった**。
+     *
+     * 画面の側で「秘密の語が出ていないか」を掃く形は採らない——
+     * 語を並べる一覧が要り、必ず腐る（落とし穴4）。
+     * **配られていなければ、画面がどう作られていても映りようがない。**
+     * だから元栓の側を見る。
+     */
+    const 配る = [];
+    進行役たち().forEach((x) => {
+      const dr = x.driver;
+      if (typeof dr.privateFor !== 'function') {
+        配る.push(x.games.join('／') + '：privateFor が無い');
+        return;
+      }
+      // 部屋に「その進行役の状態が無い」＝まだ始まっていない形で呼ぶ。
+      // **どの進行役も、知らない memberId には何も返さないのが正しい**
+      const 空の部屋 = { code: 'TEST01', state: { phase: 'lobby', game: null, data: {} }, members: new Map() };
+      let got;
+      try { got = dr.privateFor(空の部屋, 'tv'); } catch (e) { got = '（例外：' + e.message + '）'; }
+      if (got !== null && got !== undefined) {
+        配る.push(x.games.join('／') + '：' + JSON.stringify(got).slice(0, 60));
+      }
+    });
+    assertEqual(配る.length, 0,
+      '大画面（プレイヤーでない端末）に何かを配っている進行役がある：' + 配る.join('・'));
+  });
+
+  await r.test('§11-6：大画面は「あなた」を使わない（卓の全員が同じ1枚を見ている）', async () => {
+    // 48-2 の結論。大画面には「あなた」が居ない——見ているのは全員で、誰のことか決まらない。
+    // **markup と、大画面の描画が組む文字列の両方**を見る
+    const fs2 = require('fs');
+    const path2 = require('path');
+    const html = fs2.readFileSync(path2.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // 大画面の器（#scr-rt-big）の中の地の文
+    const i = html.indexOf('id="scr-rt-big"');
+    assert(i > 0, '大画面の器が見つからない（書式が変わった？）');
+    const j = html.indexOf('<div class="screen"', i + 10);
+    const 器 = html.slice(i, j > 0 ? j : i + 4000);
+    assertEqual(器.indexOf('あなた'), -1, '大画面の器に「あなた」がある');
+    // 描画関数の中（renderRtBig* が組む文字列）
+    const 描画 = [];
+    // **renderRtBig そのものを忘れない**——人狼はどの分岐にも入らず、
+    // この関数の素通り本体が大画面になる。最初これを落として、
+    // わざと「あなた」を混ぜた変異が素通りした（落とし穴10-f）
+    ['renderRtBig', 'renderRtBigFalsetrue', 'renderRtBigSugoroku', 'renderRtBigQuiz', 'renderRtBigAuction',
+      'renderRtBigWordwolf', 'renderRtBigBomb', 'renderRtBigDefuse'].forEach((fn) => {
+      const a = html.indexOf('function ' + fn + '(');
+      assert(a > 0, fn + ' が見つからない（名前が変わった？）');
+      // 次の function まで
+      const b = html.indexOf('\n  function ', a + 10);
+      const 本体 = html.slice(a, b > 0 ? b : a + 6000);
+      if (本体.indexOf('あなた') !== -1) 描画.push(fn);
+    });
+    assertEqual(描画.join('・'), '', '大画面の描画が「あなた」を組み立てている');
+  });
+
   r.finish();
 })();

@@ -13767,9 +13767,8 @@
      * 画面が実態と違うことを言い続ける形（52-2 と同じ型・落とし穴33）。
      * **段階から導く**：みんなで同時にやる段階に、手番は無い
      */
-    var 手番のない段階 = (v.phase === 'mini' || v.phase === 'play');
     var who = v.sayer ? (v.sayer.name + ' さんが申告します')
-      : (!手番のない段階 && v.turn ? (v.turn.name + ' さんの番') : '');
+      : (sugoHasTurn(v) ? (v.turn.name + ' さんの番') : '');
     el('rtSugoTurn').innerHTML = who ? '<span>' + escapeHtml(who) + '</span>' : '';
   }
 
@@ -14307,6 +14306,27 @@
    * 「どこにいる？」で駒が1つも出ないのは、実位置が公開ビューに無いから——
    * 隠す処理をここに書いているのではなく、**持っていないから出せない**のが正しい。
    */
+  /**
+   * **「◯◯さんの番」と言ってよい段階**（指示55）。
+   *
+   * それまで `v.phase === 'mini' || v.phase === 'play'` の2つだけを
+   * 「手番のない段階」として除いていたが、**`v.turn` は startGame で入ったきり
+   * 手番の無い段階でも残り続ける**（sugoroku-room.js）。その結果、
+   * 最大200pxの `bigMain` が**関係ない人の名前を出し続けていた**：
+   *   ・ready … 5ゲーム全部（実測：turn=あき、waiting=あき・びび・ちか）
+   *   ・ふたりでひとつの roll / split … turn は最初から最後まで m1 のまま
+   *   ・てふだの offer … 200pxが「あき さんの番」、22pxの帯が
+   *     「手番の人以外が、売る札を出しています」と**反対のことを言っていた**
+   *
+   * **除く側を数えるのをやめ、言ってよい側を並べる**（落とし穴4）。
+   * 段階を足した日は、ここに足すか足さないかを必ず決めることになる。
+   * 大画面と端末の**両方がこの1つを読む**（落とし穴1：同じ判断を2か所に書かない）。
+   * 見張りは tests/big-screen.js（SUGO_BIG_PHASE に無い段階名を書けない）
+   */
+  var SUGO_TURN_PHASES = ['turn', 'grab', 'buy'];
+  function sugoHasTurn(v){
+    return !!(v && v.turn) && SUGO_TURN_PHASES.indexOf(v.phase) !== -1;
+  }
   var SUGO_BIG_PHASE = {
     ready: 'じゅんび', turn: '手番', mini: 'ミニゲーム', play: '出しています',
     grab: '駒を動かす', roll: 'サイコロ', split: '分け合い',
@@ -14431,10 +14451,8 @@
        * （端末の上帯とまったく同じ穴・落とし穴1）。
        * ミニゲームの間は、何をやっているかを大きく出すのが正しい
        */
-      var 手番のない段階 = (v.phase === 'mini' || v.phase === 'play');
       if(v.sayer) main = v.sayer.name + ' さんが申告します';
-      else if(v.mini && 手番のない段階) main = v.mini.title;
-      else if(v.turn) main = v.turn.name + ' さんの番';
+      else if(sugoHasTurn(v)) main = v.turn.name + ' さんの番';
       else if(v.mini) main = v.mini.title;
     }
     /**

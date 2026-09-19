@@ -136,5 +136,28 @@ const { createRunner, assert, assertEqual } = require('./harness');
     console.log('    照合したモード：' + Object.keys(宣言).join('・'));
   });
 
+  // ---- §11-3：一番大きい枠に、知らない段階名を書かせない ----
+
+  await r.test('§11-3：すごろくの「手番のある段階」が、実在する段階だけを指している', async () => {
+    // **除く側を数えるのをやめ、言ってよい側を並べた**（落とし穴4）。
+    // ただし並べた名前が幽霊だと、静かに1つも当たらなくなる（落とし穴32の型）
+    const fs2 = require("fs");
+    const path2 = require("path");
+    const html = fs2.readFileSync(path2.join(__dirname, "..", "public", "index.html"), "utf8");
+    const 取る = (名) => {
+      const i = html.indexOf("var " + 名 + " = ");
+      assert(i > 0, 名 + " が index.html に無い");
+      const j = html.indexOf(名 === "SUGO_TURN_PHASES" ? "]" : "}", i);
+      return html.slice(i, j);
+    };
+    const 段階 = 取る("SUGO_BIG_PHASE");
+    const 手番 = 取る("SUGO_TURN_PHASES");
+    const 名前 = (手番.match(/'[a-z]+'/g) || []).map((x) => x.replace(/'/g, ""));
+    assert(名前.length >= 2, "手番のある段階を読み出せていない（書式が変わった？）");
+    const 幽霊 = 名前.filter((n) => 段階.indexOf(n + ":") === -1);
+    assertEqual(幽霊.length, 0, "段階の表に無い名前を指している：" + 幽霊.join("・"));
+    console.log("    手番のある段階：" + 名前.join("・"));
+  });
+
   r.finish();
 })();

@@ -744,7 +744,10 @@ function listAnswer(room, memberId, targetId) {
   l.lastNote = { name: w.names[memberId], text: text, verdict: verdict };
 
   if (verdict === 'correct') {
-    l.said.push(text);
+    // **打った文字列ではなく、当たった正本を積む**（指示55）。
+    // 生のまま積むと、別名で言い直された時に重複と分からない
+    // （「札幌市」のあとに「札幌」が通る）。画面に出る「出た答え」もこれで揃う
+    l.said.push(QuizLogic.listCanonical(l.topic, text) || text);
     if (listCheckEnd(room, false)) return { ok: true, correct: true, allDone: false };
     listNextTurn(room);
     return { ok: true, correct: true, allDone: false };

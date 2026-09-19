@@ -174,15 +174,52 @@
       .toLowerCase();
   }
 
+  /**
+   * 打った答えを、**一覧の正本**に引き当てる。当たらなければ null。
+   *
+   * ---- なぜ要るか（指示55の棚卸しで見つけた事故） ----
+   * `normalize` が吸収するのは カタカナ／小書き／記号・長音・空白 だけで、
+   * **漢字も接尾辞も触らない**。そのため「正しいのに弾かれる」が全11お題で起きていた：
+   *   ・野球のポジション … 正式名称9つ（投手・捕手…）が全部 wrong
+   *   ・日本の都道府県   … 「東京」「大阪」（接尾辞なし）が全部 wrong
+   *   ・楽器             … リコーダー・鍵盤ハーモニカ・カスタネット…が入っていない
+   *   ・緑の野菜         … 一覧が漢字なので「ほうれんそう」がかなで打てない
+   * **罰は減点ではなく退場**（`quiz-room.js` の脱落形式）。
+   * つまり「リコーダー」と正しく答えた子が、その一言でゲームから外れていた。
+   *
+   * ---- なぜ別名を answers に素で足さないか ----
+   * 足すと**同じ答えが2回得点する**（「札幌市」と「札幌」が別語として通る）。
+   * だから answers は「別々の答えは何か」の正本のまま据え置き、
+   * 別名は `alias`（別名→正本）に置く。
+   * `answers.length` が「本当の答えの数」を指し続けるので、目標数の計算も狂わない。
+   */
+  function canonicalOf(topic, answer) {
+    var got = normalize(answer);
+    if (!got) return null;
+    var list = (topic && topic.answers) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (normalize(list[i]) === got) return list[i];
+    }
+    var alias = (topic && topic.alias) || {};
+    var keys = Object.keys(alias);
+    for (var j = 0; j < keys.length; j++) {
+      if (normalize(keys[j]) === got) return alias[keys[j]];
+    }
+    return null;
+  }
+
   // つぎつぎクイズの答え合わせ。
+  // **重複は「打った文字列」ではなく「当たった正本」で見る**——
+  // ここを文字列のまま見ると、別名を足した瞬間に同じ答えが2回通る
   // @returns {'correct'|'duplicate'|'wrong'}
   function judgeListAnswer(topic, answer, alreadySaid) {
-    var got = normalize(answer);
-    if (!got) return 'wrong';
-    var said = (alreadySaid || []).map(normalize);
-    if (said.indexOf(got) !== -1) return 'duplicate';
-    var hit = (topic.answers || []).some(function (a) { return normalize(a) === got; });
-    return hit ? 'correct' : 'wrong';
+    var hit = canonicalOf(topic, answer);
+    if (!hit) return 'wrong';
+    var said = (alreadySaid || []).map(function (s) {
+      // 既に正本で積んであればそのまま当たる。古い記録（生の文字列）でも引き当てる
+      return canonicalOf(topic, s) || normalize(s);
+    });
+    return (said.indexOf(hit) !== -1) ? 'duplicate' : 'correct';
   }
 
   // ---- 取り出し ----
@@ -242,6 +279,6 @@
     questionsOf: questionsOf, countOf: countOf, allCounts: allCounts,
     listTopicsOf: listTopicsOf, pickQuestions: pickQuestions,
     shuffleChoices: shuffleChoices,
-    normalize: normalize, judgeListAnswer: judgeListAnswer
+    normalize: normalize, judgeListAnswer: judgeListAnswer, canonicalOf: canonicalOf
   };
 }));

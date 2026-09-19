@@ -164,6 +164,16 @@
   }
 
   /**
+   * 打った答えを、一覧の正本に引き当てる（別名も通す）。当たらなければ null。
+   * **出た答えは、打った文字列ではなくこれを積む**——
+   * 生の文字列を積むと、別名で言い直された時に重複と分からない
+   * （「札幌市」のあとに「札幌」が通ってしまう）。
+   */
+  function listCanonical(topic, answer) {
+    return QuizBank.canonicalOf(topic, answer);
+  }
+
+  /**
    * その回が終わったかどうか。
    *   協力形式 … 目標数に届けば成功。時間切れなら失敗
    *   脱落形式 … 残り1人になったら、その人の勝ち
@@ -310,7 +320,7 @@
     normalizeConfig: normalizeConfig,
     rushScoreFor: rushScoreFor, rushJudge: rushJudge,
     rushRoundWinners: rushRoundWinners, winTargetsFor: winTargetsFor,
-    nextTurnIndex: nextTurnIndex, listJudge: listJudge, listOutcome: listOutcome,
+    nextTurnIndex: nextTurnIndex, listJudge: listJudge, listCanonical: listCanonical, listOutcome: listOutcome,
     revealedCount: revealedCount, maskedText: maskedText, revealScore: revealScore,
     buildPairs: buildPairs, newBracket: newBracket,
     advanceBracket: advanceBracket, finishMatch: finishMatch,

@@ -401,7 +401,18 @@ function finish(room) {
 }
 
 // ================= 入口（芯から呼ばれる） =================
-function submitAction(room, memberId, payload) {
+/**
+ * **芯が呼ぶ形は4引数**（`realtime.js:1404`）：
+ *   `dr.submitAction(room, me.id, payload.targetId || null, payload)`
+ *
+ * 最初これを3引数（room, memberId, payload）で書いていた。
+ * 単体の検査は**こちらの間違った呼び方をそのまま写していた**ので緑のまま通り、
+ * **実サーバーに繋いで初めて分かった**（落とし穴12：通信を見ないテストは、
+ * 画面だけでなく「呼び方の食い違い」も捕まえられない）。
+ * ロシアンカードは `targetId` を使わない（押すのは盤のマスで、人ではない）が、
+ * **引数の形は芯に合わせる**——合わせないと payload が targetId の位置に入る。
+ */
+function submitAction(room, memberId, targetId, payload) {
   const w = room.rcard;
   if (!w) return { ok: false, error: 'no_game' };
   if (w.playerIds.indexOf(memberId) === -1) return { ok: false, error: 'not_player' };
@@ -416,7 +427,9 @@ function submitAction(room, memberId, payload) {
   }
   return { ok: false, error: 'bad_action' };
 }
-function submitVote(room, memberId, payload) { return submitAction(room, memberId, payload); }
+function submitVote(room, memberId, targetId, payload) {
+  return submitAction(room, memberId, targetId, payload);
+}
 
 /**
  * **居なくなった人を拾う**（落とし穴17）。

@@ -59,9 +59,18 @@ function rush(room) {
  * 実装は正しいのに赤くなり、赤を信じられなくする
  */
 function 送る(room, id, payload) {
-  const res = R.submitAction(room, id, payload);
+  const res = 直に(room, id, payload);
   if (res && res.allDone) R.advance(room);
   return res;
+}
+/**
+ * **芯と同じ4引数で呼ぶ**（realtime.js:1404）。
+ * ここを3引数で書いていたせいで、`submitAction` の引数の形が芯と食い違ったまま
+ * **単体の検査だけが緑**になっていた——実サーバーに繋いで初めて分かった（落とし穴12）。
+ * 検査が実装の呼ばれ方を写していないと、「検査だけの世界」ができる
+ */
+function 直に(room, id, payload) {
+  return R.submitAction(room, id, (payload && payload.targetId) || null, payload);
 }
 
 /** 全員が置く。置き場所を渡さなければ、盤の 1,2,3… に置く */
@@ -118,18 +127,18 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
   await r.test('置けるのは、決められた数・盤の中・重複なしだけ', async () => {
     const { room } = start(['あき', 'びび'], { cfg: { finalBombs: 3 } });
     const id = w_(room).matches[0].a;
-    assertEqual(R.submitAction(room, id, { place: [1, 2] }).error, 'bad_count', '数が足りない');
-    assertEqual(R.submitAction(room, id, { place: [1, 2, 3, 4] }).error, 'bad_count', '数が多い');
-    assertEqual(R.submitAction(room, id, { place: [1, 2, 99] }).error, 'bad_cell', '盤の外');
-    assertEqual(R.submitAction(room, id, { place: [1, 2, 2] }).error, 'duplicate', '重複');
-    assertEqual(R.submitAction(room, id, { place: [1, 2, 3] }).ok, true, '正しければ通る');
-    assertEqual(R.submitAction(room, id, { place: [4, 5, 6] }).error, 'already', '2度は置けない');
+    assertEqual(直に(room, id, { place: [1, 2] }).error, 'bad_count', '数が足りない');
+    assertEqual(直に(room, id, { place: [1, 2, 3, 4] }).error, 'bad_count', '数が多い');
+    assertEqual(直に(room, id, { place: [1, 2, 99] }).error, 'bad_cell', '盤の外');
+    assertEqual(直に(room, id, { place: [1, 2, 2] }).error, 'duplicate', '重複');
+    assertEqual(直に(room, id, { place: [1, 2, 3] }).ok, true, '正しければ通る');
+    assertEqual(直に(room, id, { place: [4, 5, 6] }).error, 'already', '2度は置けない');
   });
 
   await r.test('置いた爆弾は「相手の盤」に乗る（自分の盤ではない）', async () => {
     const { room } = start(['あき', 'びび'], { cfg: { finalBombs: 3 } });
     const m = w_(room).matches[0];
-    R.submitAction(room, m.a, { place: [1, 2, 3] });
+    直に(room, m.a, { place: [1, 2, 3] });
     assertEqual((w_(room).bombsOnBoard[m.b] || []).join(','), '1,2,3', 'b の盤に乗っている');
     assertEqual(w_(room).bombsOnBoard[m.a], undefined, 'a の盤にはまだ何も無い');
   });
@@ -154,8 +163,8 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
     assertEqual(w_(room).phase, 'turn', 'めくる段階');
     const 手番 = m.turn === 'a' ? m.a : m.b;
     const 待つ人 = 手番 === m.a ? m.b : m.a;
-    assertEqual(R.submitAction(room, 待つ人, { flip: 5 }).error, 'not_your_turn', '相手は押せない');
-    assertEqual(R.submitAction(room, 手番, { flip: 5 }).ok, true, '手番の人は押せる');
+    assertEqual(直に(room, 待つ人, { flip: 5 }).error, 'not_your_turn', '相手は押せない');
+    assertEqual(直に(room, 手番, { flip: 5 }).ok, true, '手番の人は押せる');
   });
 
   await r.test('爆弾をめくると体力が1減り、安全なら減らない', async () => {
@@ -170,7 +179,7 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
     // 型(b)：**その場所が本当に爆弾か**を先に確かめる
     assertEqual((w_(room).bombsOnBoard[手番] || []).indexOf(爆弾) !== -1, true, '狙った場所は爆弾');
     const 前 = w_(room).lives[手番];
-    assertEqual(R.submitAction(room, 手番, { flip: 爆弾 }).hit, true, '当たり');
+    assertEqual(直に(room, 手番, { flip: 爆弾 }).hit, true, '当たり');
     assertEqual(w_(room).lives[手番], 前 - 1, '体力が1減る');
     // 型(c)：**もう一方の入力**。安全な場所では減らない
     rush(room);                       // show
@@ -178,7 +187,7 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
     const 次 = w_(room).matches[0].turn === 'a' ? w_(room).matches[0].a : w_(room).matches[0].b;
     const 次の前 = w_(room).lives[次];
     assertEqual((w_(room).bombsOnBoard[次] || []).indexOf(安全), -1, '狙った場所は安全');
-    R.submitAction(room, 次, { flip: 安全 });
+    直に(room, 次, { flip: 安全 });
     assertEqual(w_(room).lives[次], 次の前, '体力は減らない');
   });
 
@@ -209,7 +218,7 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
     assertEqual(w_(room).phase, 'turn', '置き終わってめくる段階になった');
     const 手番 = m.turn === 'a' ? m.a : m.b;
     assertEqual((w_(room).bombsOnBoard[手番] || []).indexOf(1) !== -1, true, '1番は爆弾');
-    R.submitAction(room, 手番, { flip: 1 });
+    直に(room, 手番, { flip: 1 });
     assertEqual(w_(room).lives[手番], 0, '体力が0');
     rush(room);   // show → 決着
     rush(room);   // round → ended
@@ -294,7 +303,7 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
         [A, B].forEach((g) => {
           const m = g.room.rcard.matches[0];
           const 手番 = m.turn === 'a' ? m.a : m.b;
-          R.submitAction(g.room, 手番, { flip: 4 + i });   // **窓の中（4,5,6）だけ**
+          直に(g.room, 手番, { flip: 4 + i });   // **窓の中（4,5,6）だけ**
         });
       }
       R.advance(A.room); R.advance(B.room);
@@ -375,7 +384,7 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
     // **1番をめくる**：A では爆弾、B では安全
     [A, B].forEach((g) => {
       const m = g.room.rcard.matches[0];
-      R.submitAction(g.room, m.turn === 'a' ? m.a : m.b, { flip: 1 });
+      直に(g.room, m.turn === 'a' ? m.a : m.b, { flip: 1 });
     });
     const a = pv(A.room), b = pv(B.room);
     const 手番A = A.room.rcard.matches[0].turn === 'a' ? 'm0' : 'm1';
@@ -439,7 +448,7 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
     assertEqual(R.expectedMembers(room).length, 2, '2組なので、待つのは2人');
     // 見せる間は誰も待たない（落とし穴22：見せる段階を飛ばさせない）
     R.liveMatches(room).slice().forEach((m) => {
-      R.submitAction(room, m.turn === 'a' ? m.a : m.b, { flip: 5 });
+      直に(room, m.turn === 'a' ? m.a : m.b, { flip: 5 });
     });
     R.advance(room);
     assertEqual(w_(room).phase, 'show', '見せる段階');

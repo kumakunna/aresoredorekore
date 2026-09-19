@@ -5026,6 +5026,46 @@
     </div>
   </div>
 
+  <!-- 指示55-①：ロシアンカードの設定。**決めることは3つだけ**——
+       盤の形（3×3）も、順位の付け方も、遊びが決めている（rcard-logic.js）。
+       決勝の爆弾の数は「残り2人になったら増える」の芯なので、ここで聞く -->
+  <div class="screen" id="scr-set-rcard">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepRcard"></span><h2 class="scr-title">ロシアンカードの設定</h2></div>
+    <p class="wiz-lead">こだわらなければ、そのまま「つぎへ」でOK。</p>
+    <div class="wiz-body">
+      <div class="timer-dmode">
+        <div class="tp-label">体力</div>
+        <div class="seg" id="rcLivesSeg">
+          <button class="seg-btn" data-rclives="2">2</button>
+          <button class="seg-btn" data-rclives="3">3</button>
+          <button class="seg-btn" data-rclives="4">4</button>
+        </div>
+      </div>
+      <div class="timer-dmode" style="margin-top:14px;">
+        <div class="tp-label">しかける爆弾の数</div>
+        <div class="seg" id="rcBombsSeg">
+          <button class="seg-btn" data-rcbombs="2">2つ</button>
+          <button class="seg-btn" data-rcbombs="3">3つ</button>
+          <button class="seg-btn" data-rcbombs="4">4つ</button>
+        </div>
+        <div class="mic-status" id="rcFinalNote" style="margin-top:8px;"></div>
+      </div>
+      <div class="timer-dmode" style="margin-top:14px;">
+        <div class="tp-label">めくるまでの持ち時間</div>
+        <div class="seg" id="rcTurnSeg">
+          <button class="seg-btn" data-rcturn="10">10秒</button>
+          <button class="seg-btn" data-rcturn="15">15秒</button>
+          <button class="seg-btn" data-rcturn="30">30秒</button>
+        </div>
+        <div class="mic-status" id="rcCfgNote" style="margin-top:8px;"></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
   <div class="screen" id="scr-set-sugoroku">
     <div class="wiz-head"><span class="wiz-step" id="wizStepSugoroku"></span><h2 class="scr-title">すごろくの設定</h2></div>
     <p class="wiz-lead" id="sugoWizLead"></p>
@@ -11881,6 +11921,8 @@
     // 第36弾：すごろく。5ゲームで1枚を共有する形にしておく（ゲームごとに作らない）
     sugorokucfg:{ screen:'scr-set-sugoroku',  badge:'wizStepSugoroku',   render:renderSugorokuStep },
     falsetruecfg:{ screen:'scr-set-falsetrue', badge:'wizStepFalsetrue',  render:renderFalsetrueStep },
+    // 指示55-①：ロシアンカード。2つのモード（いっきうち・生きのこり戦）で1枚を共有する
+    rcardcfg:  { screen:'scr-set-rcard',      badge:'wizStepRcard',      render:renderRcardStep },
     wolfrole:  { screen:'scr-set-wolfrole',   badge:'wizStepWolfRole',   render:renderWolfRoleStep },
     lovers:    { screen:'scr-set-lovers',     badge:'wizStepLovers',     render:renderLoversStep },
     wolfmulti: { screen:'scr-set-wolfmulti',  badge:'wizStepWolfMulti',  render:renderWolfMultiStep },
@@ -11906,6 +11948,11 @@
     // 指示53：False or True。決めることは「話し合いの長さ」だけ。
     // ケースの数も中身の比も人数から決まる（falsetrue-logic.js）
     if(m.falseTrue) return ['falsetruecfg'];
+    // 指示55-①：ロシアンカード。決めるのは体力・爆弾の数・持ち時間の3つ。
+    // 盤の形（3×3）も順位の付け方も遊びが決めているので、ここで聞くことは他に無い。
+    // **共通のタイマー画面は挟まない**——持ち時間は「1手番の長さ」で、
+    // 全体の制限時間とは別物（オークションの入札と同じ理由）
+    if(m.rcard) return ['rcardcfg'];
     // 第36弾：すごろく。決めることは「突然のできごとを起こすか」だけ。
     // 盤の長さも人数も遊びが決めているので、ここで聞くことは他に無い
     if(m.sugoroku) return ['sugorokucfg'];
@@ -11947,6 +11994,46 @@
    * 進行役に選ばせる**（本人の裁定と条件・2026-09-17）——
    * 「いちばん長く待つ人」のような言い方で察してもらうのではなく、数字で見せる
    */
+  /**
+   * 指示55-①：ロシアンカードの設定。
+   *
+   * **値の正本はルール層**（rcard-logic.js）。ここは選ばせて state に入れるだけで、
+   * 既定値も幅もこちらには書かない（落とし穴1：同じ数字が2か所にあると片方が古びる）
+   */
+  function renderRcardStep(){
+    var c = state.rcCfg;
+    var 印 = function(box, attr, 値){
+      Array.prototype.forEach.call(el(box).querySelectorAll('[' + attr + ']'), function(b){
+        b.classList.toggle('on', parseInt(b.getAttribute(attr), 10) === 値);
+      });
+    };
+    印('rcLivesSeg', 'data-rclives', c.lives);
+    印('rcBombsSeg', 'data-rcbombs', c.bombs);
+    印('rcTurnSeg',  'data-rcturn',  c.turnSec);
+    // **決勝で増えることを、ここで言う。**遊びの芯なのに設定画面に出ていないと、
+    // 「急に5つになった」としか見えない（大切なこと6：ルールの伝え方は機能の一部）
+    el('rcFinalNote').textContent =
+      'のこり2人になったら ' + c.finalBombs + 'つに増えます。2人であそぶときは、最初から ' +
+      c.finalBombs + 'つです';
+    el('rcCfgNote').textContent =
+      '時間内にめくらないと、体力が1へります（考えこみすぎて止まらないように）';
+  }
+  el('rcLivesSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-rclives]'); if(!b) return;
+    state.rcCfg.lives = parseInt(b.dataset.rclives, 10);
+    renderRcardStep();
+  });
+  el('rcBombsSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-rcbombs]'); if(!b) return;
+    state.rcCfg.bombs = parseInt(b.dataset.rcbombs, 10);
+    renderRcardStep();
+  });
+  el('rcTurnSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-rcturn]'); if(!b) return;
+    state.rcCfg.turnSec = parseInt(b.dataset.rcturn, 10);
+    renderRcardStep();
+  });
+
   function renderFalsetrueStep(){
     var L = window.FalseTrueLogic;
     var 秒 = state.ftCfg.talkSec;
@@ -16141,6 +16228,35 @@
     el('rtRcEndBtn').style.display = host ? '' : 'none';
   }
 
+  /**
+   * 指示55-① 門T11：**爆弾が出た瞬間の知らせ。**
+   *
+   * **演出 → 結果の順**（正本 §4）。縁が1回光る——**面は塗らない**（正本 §6）。
+   * 色は世界が決める：地が赤いので、既定の赤い縁は色相が5°しか離れておらず
+   * 「地が少し明るくなった」にしか見えない。`--edge-danger` を金に上書きしてある。
+   *
+   * **事実で判定する**（rtOnce）。「めくった」という遷移ではなく
+   * 「いま当たりが起きている」という事実を見るので、同じ知らせが2回届いても2回出ない。
+   *
+   * **ここ1か所で出す**（オークションの auPhaseFx と同じ形）——
+   * 画面ごとに書くと、その画面を見ていない人（大画面など）に届かない
+   */
+  function rcPhaseFx(v){
+    if(!v) return;
+    var 鍵 = 'rcard:hit:' + v.round + ':' + ((v.last && v.last.byId) || '') +
+      ':' + ((v.last && v.last.no) || '');
+    rtOnce(鍵, !!(v.last && v.last.hit && v.phase === 'show'), function(){
+      FxKit.vibe('warn');
+      FxKit.edge('danger');
+      // 大画面は卓の全員が見ているので、**何が起きたかを言葉でも出す**（§11-5）。
+      // スマホ側は自分の盤に「ばくだん」の字が出るので、重ねて出さない
+      if(rtIsBigScreen()){
+        var 誰 = ((v.players || []).find(function(p){ return p.id === v.last.byId; }) || {}).name || '';
+        FxKit.callout('💣 ' + 誰);
+      }
+    });
+  }
+
   // ---- 押した時（3枚ぶんをここ1か所で受ける） ----
   el('rcPlaceBoard').addEventListener('click', function(e){
     var cell = e.target.closest('[data-rc-cell]');
@@ -16192,6 +16308,12 @@
     // 第38弾：段階の変わり目の音は、6枚それぞれではなくここ1か所で鳴らす。
     // 画面ごとに書くと、その画面を見ていない人（大画面など）に鳴らない
     if(rtRoomGameId() === 'auction') auPhaseFx(rtView());
+    // 指示55-①：ロシアンカードも同じ形で、**ここ1か所**から出す。
+    // 最初これを renderRtRcPlay（スマホの画面）の中に書いていたので、
+    // **大画面では一度も光らなかった**——fx-probe の --big で 0 のままだと分かった。
+    // すぐ上のコメントが「画面ごとに書くと、その画面を見ていない人（大画面など）に
+    // 鳴らない」と言っているのに、同じ穴を作っていた（落とし穴1）
+    if(rtRoomGameId() === 'rcard') rcPhaseFx(rtView());
     // 第48弾 48-5：止まっているかは**サーバーが持つ**。端末は映すだけ
     syncRoomPaused();
     // 第48弾 48-2：**帯はここ1か所で描く。**部屋の画面すべてがここを通るので、

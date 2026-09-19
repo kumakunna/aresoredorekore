@@ -22,6 +22,10 @@
 //   node tools/fx-probe.js falsetrue true --big    # 同じ場面を大画面の端末で
 //   node tools/fx-probe.js falsetrue true --skip   # スキップ（演出を出さず結果だけ）
 //
+//   node tools/fx-probe.js rcard hit     # 爆弾を踏んだ回（**縁が1回光る**）
+//   node tools/fx-probe.js rcard safe    # 安全だった回（**光らないのが正しい**）
+//   node tools/fx-probe.js rcard hit --skip   # スキップ（演出を出さず結果だけ）
+//
 // 出るのは「場面ごとの演出の数」。**0 は「出なかった」**という意味で、
 // 実装が壊れた時にここが 1 → 0 に動く。
 //
@@ -37,6 +41,7 @@ const H = require(path.join(ROOT, 'tests', 'harness'));
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, openCassette } = H;
 const Bomb = require(path.join(ROOT, 'bomb-room.js'));
 const FalseTrue = require(path.join(ROOT, 'falsetrue-room.js'));
+const Rcard = require(path.join(ROOT, 'rcard-room.js'));
 
 const argv = process.argv.slice(2);
 const game = argv[0] || 'bomb';
@@ -49,8 +54,8 @@ const SKIP = opt('skip');
 // 指示55：**大画面の中身も見る。**演出の数だけだと「画面が空でも0は0」で見分けられない
 const DUMP = opt('dump');
 
-if (game !== 'bomb' && game !== 'falsetrue') {
-  console.error('いまは bomb と falsetrue。ほかのゲームを足す時は、その *-room.js を同じ形で呼ぶ');
+if (['bomb', 'falsetrue', 'rcard'].indexOf(game) === -1) {
+  console.error('いまは bomb / falsetrue / rcard。ほかのゲームを足す時は、その *-room.js を同じ形で呼ぶ');
   process.exit(2);
 }
 
@@ -117,6 +122,116 @@ function ftTo(room, phase, take) {
     FalseTrue.advance(room);
   }
   throw new Error('段階 ' + phase + ' に届かない（いま ' + room.falsetrue.phase + '）');
+}
+
+/**
+ * ロシアンカード（指示55-① 門T11）。
+ *
+ * 見るのは**縁が1回だけ光るか**——爆弾が出た瞬間の知らせは
+ * 「縁のみ・1回」（正本 §6）。面は塗らない。
+ * **色は世界が決める**：地が赤いので、既定の赤い縁は色相が5°しか離れておらず
+ * 「地が少し明るくなった」にしか見えない。`--edge-danger` を金に上書きしてある。
+ *
+ * **出ている最中に数える**（落とし穴10-g）。`.fx-edge` は自分で片付くので、
+ * 片付いたあとに数えると「門が効いていなくても同じ数」に見える
+ */
+function rcMakeRoom() {
+  const members = new Map();
+  ['m1', 'm2'].forEach((id, i) => members.set(id, {
+    id, name: ['あき', 'びび'][i], role: 'player', connected: true, socketId: 's' + i
+  }));
+  const room = { code: 'ABC234', members, state: { phase: 'lobby', game: null, data: {} } };
+  let x = 7;
+  const rand = () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; };
+  Rcard.startGame(room, { game: 'rcard', lives: 3, finalBombs: 3, turnSec: 15, _rand: rand }, {});
+  // **検体を直に組む**（実装に試験用の入口は作らない）。
+  // m1 の盤の 1,2,3 が爆弾／4〜9 は安全
+  const w = room.rcard;
+  w.placed = { m1: true, m2: true };
+  w.bombsOnBoard = { m1: [1, 2, 3], m2: [1, 2, 3] };
+  Rcard.advance(room);                 // place → turn
+  return room;
+}
+
+async function mainRcard() {
+  const 当たる = (mode !== 'safe');
+  const { win, doc, errors } = await launch({ fakeSocket: true, fxSkip: SKIP });
+  await waitScreen(win, doc, 'scr-shelf', 8000);
+  await openCassette(win, doc, 'rcard');
+  // ロシアンカードは「1台か、みんなのスマホか」を聞かれる（2人なので二択）
+  const way = doc.querySelector('#wayChoices [data-way="room"]');
+  if (way) click(doc, way);
+  await waitScreen(win, doc, 'scr-rt-lobby', 4000);
+  const fake = win.__rtFake;
+  await waitFor(win, () => fake.connected, 4000, 'socket');
+
+  const room = rcMakeRoom();
+  const MY_ID = BIG ? 'tv' : 'm1';
+  if (BIG) room.members.set('tv', { id: 'tv', name: 'TV', role: 'bigscreen', connected: true, socketId: 'stv' });
+
+  const memberRows = () => {
+    const rows = [];
+    if (BIG) rows.push({ id: 'tv', name: 'TV', role: 'bigscreen', connected: true, isHost: false, ready: true });
+    ['m1', 'm2'].forEach((id, i) => rows.push({
+      id, name: ['あき', 'びび'][i], role: 'player', connected: true, isHost: i === 0, ready: true
+    }));
+    return rows;
+  };
+  const snap = () => ({
+    code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'm1',
+    playerCount: 2, memberCount: memberRows().length,
+    ready: { count: 2, total: 2, waitingNames: [], all: true },
+    members: memberRows(),
+    state: { phase: room.state.phase, game: 'rcard', data: Rcard.publicView(room) }
+  });
+  fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: MY_ID, room: snap() }) };
+  el(doc, 'rtCreateName').value = BIG ? 'TV' : 'あき';
+  click(doc, 'rtCreateBtn');
+  await sleep(win, 300);
+
+  const push = () => {
+    const mine = Rcard.privateFor(room, MY_ID);
+    if (REVERSED) { if (mine) fake.fire('wolf:you', mine); fake.fire('room:update', snap()); }
+    else { fake.fire('room:update', snap()); if (mine) fake.fire('wolf:you', mine); }
+  };
+
+  const rows = [];
+  const count = (tag) => rows.push({
+    tag,
+    画面: activeScreen(doc),
+    段階: room.rcard.phase,
+    縁: doc.querySelectorAll('.fx-edge').length,
+    縁の種類: (doc.querySelector('.fx-edge') || { className: '' }).className.replace('fx-edge', '').trim() || '-',
+    札の字: Array.from(doc.querySelectorAll('.screen.active .rc-word'))
+      .map((x) => x.textContent).join('/') || '-',
+    体力: JSON.stringify(room.rcard.lives)
+  });
+
+  push();
+  await waitFor(win, () => activeScreen(doc) === (BIG ? 'scr-rt-big' : 'scr-rt-rc-play'),
+    6000, 'めくる画面').catch(() => {});
+  count('めくる前');
+
+  // 手番の人が1枚めくる。**当たりの回は 1（爆弾）、安全の回は 5**
+  const m = room.rcard.matches[0];
+  const 手番 = m.turn === 'a' ? m.a : m.b;
+  Rcard.submitAction(room, 手番, null, { flip: 当たる ? 1 : 5 });
+  Rcard.advance(room);                 // turn → show（**ここで縁が光る**）
+  push();
+  await sleep(win, 80);                // **出ている最中に数える**（落とし穴10-g）
+  count('めくった直後');
+  await sleep(win, 400);
+  count('少しあと');
+
+  const label = ['rcard', 当たる ? 'hit' : 'safe', BIG ? '大画面' : 'プレイヤー',
+    REVERSED ? '順が逆' : null, SKIP ? 'スキップ' : null].filter(Boolean).join(' / ');
+  console.log('== ' + label + ' ==');
+  console.log('   サーバーの段階:', room.rcard.phase);
+  rows.forEach((r) => console.log('   ', JSON.stringify(r)));
+  console.log('   画面のエラー:', errors.length ? errors.slice(0, 2) : 'なし');
+  console.log('   読み方: 当たりの回は「めくった直後」に縁が1（種類は fx-edge-danger）。');
+  console.log('           安全の回は 0 が正しい。スキップでも 0。');
+  win.close();
 }
 
 async function mainFalsetrue() {
@@ -317,5 +432,5 @@ async function mainBomb() {
   win.close();
 }
 
-(game === 'falsetrue' ? mainFalsetrue() : mainBomb())
+(game === 'rcard' ? mainRcard() : (game === 'falsetrue' ? mainFalsetrue() : mainBomb()))
   .catch((e) => { console.error(e); process.exit(1); });

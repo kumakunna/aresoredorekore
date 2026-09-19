@@ -119,11 +119,19 @@ function テーマ無しのカセット() {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const 本体 = html.slice(html.indexOf('var CASSETTES = ['), html.indexOf('function cassetteById'));
   const out = [];
-  本体.split(/\{\s*id:/).slice(1).forEach((blk) => {
-    const id = (blk.match(/^\s*'([a-z0-9-]+)'/) || [])[1];
-    if (!id) return;
+  // **カセット1件の始まりは `{ id:'…', genre:` まで見て決める**（指示55-① の着手前に直した）。
+  // もとは `/\{\s*id:/` で割っていたので、`paused:[{ id:'defuse' … }]` の中の `{ id:` でも割れ、
+  // 爆弾解除のかたまりが paused の手前で切れて **`theme:'bomb'` が別のかたまりへ落ちていた**。
+  // その結果この道具は「bakudan はテーマ指定が無い＝共通色で出る」と嘘を言っていた
+  // （実際は theme:'bomb' を持っている。落とし穴28：測る道具が壊れていると測定が嘘をつく）
+  const 始まり = /\{\s*id:\s*'([a-z0-9-]+)',\s*genre:/g;
+  const 位置 = [];
+  let m;
+  while ((m = 始まり.exec(本体))) 位置.push({ id: m[1], at: m.index });
+  位置.forEach((x, i) => {
+    const blk = 本体.slice(x.at, i + 1 < 位置.length ? 位置[i + 1].at : 本体.length);
     if (!/ready:\s*true/.test(blk)) return;
-    if (!/theme:\s*'/.test(blk)) out.push(id);
+    if (!/theme:\s*'/.test(blk)) out.push(x.id);
   });
   return out;
 }

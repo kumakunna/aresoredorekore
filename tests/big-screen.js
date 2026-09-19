@@ -41,12 +41,47 @@ const { createRunner, assert, assertEqual } = require('./harness');
     console.log('    進行役：' + 進行役たち().length + '本（ゲーム ' + Object.keys(GAME_DRIVERS).length + '個）');
   });
 
-  await r.test('§11-4：時計の種類は play か tick の2つだけ', async () => {
+  await r.test('§11-4：時計の種類は play・turn・tick の3つだけ（指示55-①）', async () => {
+    // **正本は realtime.js の CLOCK_KINDS。**ここに一覧を手で並べない（落とし穴4）
+    const { CLOCK_KINDS } = require('../realtime.js');
+    assertEqual(CLOCK_KINDS.join(','), 'play,turn,tick', '種類は3つ');
     進行役たち().forEach((x) => {
       const got = x.driver.clockKind({});
-      assert(got === 'play' || got === 'tick',
+      assert(CLOCK_KINDS.indexOf(got) !== -1,
         x.games.join('／') + '：知らない種類「' + got + '」を返した');
     });
+  });
+
+  await r.test('§11-4：どの進行役も、既定では時計を消さない（逆向き・落とし穴20）', async () => {
+    // もとは「tick を返すのはとくとくクイズだけ」と書いていた。
+    // 指示55-① で すごろくも（結果を見せる間に）tick を返すようになったので、
+    // **守りたかった性質そのもの**に書き直した——
+    // 「そのゲームの時計が丸ごと消える」を止めたいのであって、
+    // 「tick を返す進行役は1本だけ」を守りたいわけではない（落とし穴10-d の親戚）。
+    //
+    // 空の部屋＝段階がまだ無い状態で tick を返すなら、
+    // それは段階によらず消しているということ
+    const 消す = 進行役たち()
+      .filter((x) => x.driver.clockKind({}) === 'tick')
+      .map((x) => x.games.join('／'));
+    assertEqual(消す.length, 0,
+      '段階によらず時計を消している進行役がある：' + 消す.join('・'));
+  });
+
+  await r.test('§11-4：すごろくの手番は turn、結果を見せる間は tick（指示55-①）', async () => {
+    // **具体の段階名で書く**（落とし穴10-a：実装の一覧を借りない）。
+    // 手番（turnSec）は押されているのが1人だけなので、420pxの数字で盤を覆わない。
+    // 結果・イベント・判定は 2800〜3200ms なので、数えると毎回「2」「1」が全面に出る
+    const sg = GAME_DRIVERS.sugotoll.driver;
+    assertEqual(sg.clockKind({ sugoroku: { phase: 'turn' } }), 'turn', '手番は turn');
+    assertEqual(sg.clockKind({ sugoroku: { phase: 'buy' } }), 'turn', '売り札を買うのも turn');
+    assertEqual(sg.clockKind({ sugoroku: { phase: 'result' } }), 'tick', '駒が動くのを見る間は tick');
+    assertEqual(sg.clockKind({ sugoroku: { phase: 'event' } }), 'tick', 'イベントを見る間は tick');
+    assertEqual(sg.clockKind({ sugoroku: { phase: 'judge' } }), 'tick', '申告の判定を見る間は tick');
+    // **もう一方の入力も必ず与える**（落とし穴10-c）
+    assertEqual(sg.clockKind({ sugoroku: { phase: 'roll' } }), 'play', '全組が同時に振る段階は play');
+    assertEqual(sg.clockKind({ sugoroku: { phase: 'split' } }), 'play', '分け合う段階は play');
+    assertEqual(sg.clockKind({}), 'play', '段階がまだ無ければ play');
   });
 
   await r.test('§11-4：とくとくクイズの「次の1文字」は、数えない', async () => {
@@ -69,15 +104,18 @@ const { createRunner, assert, assertEqual } = require('./harness');
     });
   });
 
-  await r.test('§11-4：とくとく以外のゲームは、無条件に数える', async () => {
-    // 逆向き（落とし穴20）。「tick を返すのはとくとくだけ」を確かめる——
-    // 別のゲームが黙って tick を返すと、そのゲームの時計が丸ごと消える
-    const tickを返す = 進行役たち()
-      .filter((x) => x.driver !== GAME_DRIVERS.quizreveal.driver)
-      .filter((x) => x.driver.clockKind({}) === 'tick')
-      .map((x) => x.games.join('／'));
-    assertEqual(tickを返す.length, 0,
-      'とくとくクイズ以外で時計が消えている：' + tickを返す.join('・'));
+  await r.test('§11-4：巨大カウントダウンを出すのは play だけ（端末が当てにいかない）', async () => {
+    // **種類は進行役が言う。**端末が「15秒より短ければ手番だろう」と
+    // 締め切りの中身を当てにいくと、意味を変えた日に遠くで壊れる（正本 §11-4）。
+    // だから画面側は `v.clock.kind` だけを見ていること、を実装の文字列で固定する
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 本体 = html.slice(html.indexOf('function bigCountdownTick'),
+      html.indexOf('setInterval(bigCountdownTick'));
+    assert(本体.length > 200, 'bigCountdownTick の本体を切り出せている（実際:' + 本体.length + '文字）');
+    assert(本体.indexOf("kind !== 'play'") !== -1,
+      '巨大カウントダウンが種類を見ていない（turn でも出てしまう）');
   });
 
   // ---- §11-2：協力と対戦で画面を分ける ----

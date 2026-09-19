@@ -1627,11 +1627,50 @@ function moveShared(room, id, steps, info) {
 
 /**
  * 大画面と端末に出す「共通の時計」の種類（指示55・正本 §11-4）。
- * 'play' … 人が待っている締め切り。数えてよい
- * 'tick' … 画面が変わるだけの時刻。数えない
- * **必ず名乗る**（不在で表さない・落とし穴36）。`tests/room-paths.js` が両方向で見張る
+ * 'play' … 卓のみんなが待っている締め切り。帯の時計と巨大カウントダウンを出す
+ * 'turn' … 手番の人だけの締め切り。帯の時計は出すが、巨大カウントダウンは出さない
+ * 'tick' … 誰も待っていない（画面が変わるだけ）。時計を出さない
+ * **必ず名乗る**（不在で表さない・落とし穴36）。`tests/big-screen.js` が両方向で見張る
+ *
+ * ---- 指示55-① で、無条件の 'play' から名乗り直した ----
+ * 3つ目（'turn'）ができたので、**このゲームの締め切りを1つずつ見た**（落とし穴20）。
+ * 見たら、2か所とも 'play' が間違っていた：
+ *
+ *   ・`PHASE.TURN` … `w.deadline = Date.now() + w.turnSec * 1000`（:410・:698）。
+ *     **押されているのは手番の1人だけ**。卓のみんなは見ているだけなので 'turn'。
+ *     'play' のままだと、手番の残り5秒から**420pxの数字が盤を覆う**
+ *   ・`RESULT`(2800ms) / `EVENT`(3200ms) / 「どこにいる？」の判定(3200ms) …
+ *     **駒が動くのを見る間**で、誰も操作を待たれていない。
+ *     どれも5秒未満なので、いまは**結果を見せるたびに「2」「1」が全面に出ていた**。
+ *     とくとくクイズの「次の1文字」と同じ形（正本 §11-4）なので 'tick'
+ *
+ * `BUY`（手番の人が売り札を買う）も手番の1人だけなので 'turn'。
+ * 残り（ROLL・SPLIT・MINI・PLAY・GRAB・OFFER・SAY・READY）は
+ * **全員（または全組）が同時に動く**ので 'play' のまま。
+ *
+ * **段階の名前は、その場で実在を確かめる**（下の `段階たち`）——
+ * 手書きの一覧に綴り間違いを書くと、undefined が混ざって静かに通る。
  */
-function clockKind() { return 'play'; }
+// **手書きの一覧なので、名前が実在することをその場で確かめる**（落とし穴4・36）。
+// 最初 `PHASE.HIDE_JUDGE` と書いていて——そんな段階は無い——
+// 配列に undefined が入ったまま静かに通っていた。実在する名前は `PHASE.JUDGE`
+function 段階たち(名前) {
+  return 名前.map(function (n) {
+    if (!PHASE[n]) throw new Error('sugoroku-room clockKind：段階 ' + n + ' は存在しない');
+    return PHASE[n];
+  });
+}
+// 手番の1人だけが押されている段階
+const 手番だけの段階 = 段階たち(['TURN', 'BUY']);
+// 誰も操作を待たれていない段階（見ている時間）
+const 誰も待っていない段階 = 段階たち(['RESULT', 'EVENT', 'JUDGE']);
+function clockKind(room) {
+  const w = room && room.sugoroku;
+  if (!w || !w.phase) return 'play';
+  if (誰も待っていない段階.indexOf(w.phase) !== -1) return 'tick';
+  if (手番だけの段階.indexOf(w.phase) !== -1) return 'turn';
+  return 'play';
+}
 
 module.exports = {
   PHASE, DEFAULT_TURN_SEC, RESULT_MS, EVENT_MS, EVENT_CHANCE,

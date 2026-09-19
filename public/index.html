@@ -17566,7 +17566,15 @@
   var bigCd = { last: null };
   function bigCountdownTick(){
     var scr = (document.querySelector('.screen.active') || {}).id;
-    if(scr !== 'scr-rt-big' || !rtBig.clock || rtBig.clock.ms == null){ bigCd.last = null; return; }
+    // 指示55-①：**巨大カウントダウンを出すのは `'play'` の時だけ。**
+    // `'turn'`（1手番の締め切り）は帯の時計には出すが、ここには出さない——
+    // 手番ごとに回る15秒だと、1手番の3分の1の時間、420pxの数字が
+    // 卓の真ん中（盤を置く場所）を覆い続ける（正本 §11-4）。
+    // **種類は進行役が言う**（realtime.js の 時計をそえる が view.clock.kind に入れる）。
+    // 端末が「15秒より短ければ手番だろう」と当てにいくと、
+    // 締め切りの意味を変えた日に遠くで壊れる
+    if(scr !== 'scr-rt-big' || !rtBig.clock || rtBig.clock.ms == null
+       || rtBig.clock.kind !== 'play'){ bigCd.last = null; return; }
     var msLeft = rtBig.clock.ms - (Date.now() - rtBig.clock.at);
     var sec = Math.ceil(msLeft / 1000);
     if(sec < 1 || sec > 5){ bigCd.last = null; return; }
@@ -17714,7 +17722,10 @@
    *   ・共有ライフ … 進行役が `v.shared` として名乗ったものだけ
    *                  （協力版クイズ解除・実物解除。競争版には無い）
    *   ・共通の時計 … `v.clock`（realtime.js が締め切りから導き、
-   *                  進行役が「数えてよい締め切りか」を言う・§11-4）
+   *                  進行役が「どの種類の締め切りか」を言う・§11-4）。
+   *                  **帯には `'play'` も `'turn'` も出す**——
+   *                  手番の人が「あと何秒か」を知る手は要る。
+   *                  分かれるのは巨大カウントダウン（`.big-cd`）の方だけ
    *
    * **ゲームごとの一覧をここに持たない**（落とし穴4）。
    * 名乗られたものを出すだけなので、ゲームを足した日にも勝手に付いてくる。
@@ -17792,7 +17803,8 @@
      * 伏せ字の問題文の上に1〜2秒ごとに出ていた（実測：6秒間に6回）。
      * `v.clock` は realtime.js が進行役の名乗り（clockKind）を見て作る
      */
-    rtBig.clock = (v.clock && v.clock.ms != null) ? { ms: v.clock.ms, at: Date.now() } : null;
+    rtBig.clock = (v.clock && v.clock.ms != null)
+      ? { ms: v.clock.ms, at: Date.now(), kind: v.clock.kind || 'play' } : null;
     // 第38弾：**ゲームごとの大きな部品は、ここで一度ぜんぶ隠す。**
     // そのあと各ゲームの描画が、自分の使うものだけを出し直す。
     // 「出す側」と「隠す側」を別々の場所に書くと、部品を足した時に

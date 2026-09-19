@@ -48,6 +48,13 @@
        `tests/design-tokens.js` が「地と色相で離れている」を全世界ぶん見張る */
     --edge-danger:rgba(226,88,74,0.9);
     --edge-danger-spread:14px;
+    /* 指示55-①：ロシアンカードの札。**世界ごとに上書きできるよう :root に置く**。
+       `currentColor` を使わないのは、<button> が color を継承しないから
+       （`.rail-dot` で踏んだ。人狼の地で 1.21:1 だった） */
+    --rc-back:var(--paper-deep);
+    --rc-face:var(--card);
+    --rc-hatch:var(--line);
+    --rc-ink:var(--ink);
     /* 第39弾：つまみと、その縁。
        白いつまみだけだと明るい帯（クイズの金など）に溶けるので、
        縁で境目を作る。縁の色は帯の上に重ねて評価する
@@ -2374,6 +2381,65 @@
      前置きが `rk-` なのは、`.rank` を手渡しのスコア画面が既に取っているから（落とし穴23）。
      **テーマ側に書き足さない**——`:root` のトークンだけで組む。
      書き足す形にすると、世界を1つ増やした日に足し忘れる場所が1つできる（落とし穴27）。 */
+  /* ================= ロシアンカード（指示55-①） =================
+     前置きは `rc-`。**先客がいないことを確かめてから決めた**——
+     `.rc-` は index.html・public/js・tests のどこにも1件も無かった（落とし穴23）。
+
+     色は**専用の4トークンを `:root` に置き、世界ごとに上書きする**。
+     `currentColor` は使わない——`<button>` は color を継承しないので
+     ブラウザ既定の黒に落ちる（`.rail-dot` で実際に踏んで、人狼の地で 1.21:1 だった）。
+     カスタムプロパティは button も貫いて継承される */
+  .rc-board{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+    width:min(340px, 100%);
+    margin:14px auto 0;
+  }
+  /* **`.btn` を土台に敷く**（落とし穴31）。書体・押した反応・押せない見た目・
+     文字サイズの追従が、そこから全部降りてくる。
+     False or True の `.ft-case` は「敷いた」とコメントに書いて敷いておらず、
+     札がブラウザ既定の書体で出ている——同じものを2つ作らない */
+  .rc-card{
+    position:relative;
+    aspect-ratio:3/4;
+    padding:0;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    gap:2px;
+    background:transparent;
+    border:0;
+    overflow:hidden;
+    border-radius:10px;
+  }
+  .rc-card .rc-face{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .rc-face .rc-bg{fill:var(--rc-back);}
+  .rc-face .rc-bg.is-face{fill:var(--rc-face);}
+  .rc-face .rc-hatch path{stroke:var(--rc-hatch);stroke-width:2;fill:none;}
+  .rc-face .rc-edge{stroke:var(--rc-ink);stroke-width:1.5;fill:none;}
+  /* 意味のある印は、地紋の上に重ねる（SVGの中には入れない） */
+  .rc-mark{position:relative;font-size:clamp(22px,7vw,30px);line-height:1;}
+  .rc-word{position:relative;font-size:var(--fs-small);font-weight:800;color:var(--rc-ink);}
+  .rc-no{position:relative;font-family:'DotGothic16',monospace;font-size:var(--fs-small);color:var(--rc-ink);}
+  /* 選んだ札（置く時）。**色ではなく縁で示す**——
+     outline はテーマ側が一度も書いていないので勝てる（先例4つ） */
+  .rc-card.is-picked{outline:3px solid var(--stamp);outline-offset:-3px;}
+  .rc-card:disabled{opacity:.55;}
+
+  /* 体力。**ハートの数＋数字**（数えなくても読める・指示55-① 2-10） */
+  .rc-lives{display:flex;align-items:center;gap:6px;font-weight:800;}
+  .rc-lives .rc-lives-num{font-family:'DotGothic16',monospace;font-size:var(--fs-body);color:var(--stamp);}
+
+  /* 対戦カード（いま誰と誰が戦っているか）。**卓の共通の見どころ**（§11-1・宿題23） */
+  .rc-vs{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    margin:10px auto 0;padding:10px 12px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+  }
+  .rc-vs .rc-vs-name{font-weight:800;}
+  .rc-vs .rc-vs-mid{font-family:'DotGothic16',monospace;color:var(--ink-soft);}
+  .rc-vs.is-me{outline:2px solid var(--stamp);}
+  .rc-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+
   /* 大画面の順位表の置き場。中身は共通部品（.rk-list） */
   .big-rank{width:100%;}
   .rk-list{display:flex;flex-direction:column;gap:6px;margin-top:12px;}
@@ -5750,6 +5816,56 @@
     </div>
   </div>
 
+  <!-- ================= ロシアンカード（指示55-①） =================
+       **1画面に1つのこと＋その説明**（すごろくの反省）。
+       「置く」と「めくる」を同じ画面に出さない——
+       置いている最中に自分の盤が見えると、何をする画面か分からなくなる -->
+
+  <!-- ① 置く：**相手の9枚**に爆弾を仕掛ける。自分の盤はここに出さない -->
+  <div class="screen" id="scr-rt-rc-place">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title" id="rcPlaceTitle">爆弾をしかける</h2>
+    <div class="wiz-body">
+      <p class="scr-sub" id="rcPlaceLead"></p>
+      <div class="rc-board" id="rcPlaceBoard"></div>
+      <p class="scr-sub" id="rcPlaceNote"></p>
+    </div>
+    <div class="wiz-foot">
+      <div class="timer-chip" data-timer id="rcPlaceTimer" style="display:none;">--:--</div>
+      <button class="btn btn-main" id="rcPlaceDoneBtn" disabled>しかける ▶</button>
+    </div>
+  </div>
+
+  <!-- ② めくる：**自分の9枚**。相手が仕掛けた爆弾が、どこにあるかは分からない -->
+  <div class="screen" id="scr-rt-rc-play">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title" id="rcPlayTitle">カードをめくる</h2>
+    <div class="wiz-body">
+      <div class="rc-vs" id="rcPlayVs"></div>
+      <p class="scr-sub" id="rcPlayLead"></p>
+      <div class="rc-board" id="rcPlayBoard"></div>
+      <div class="rc-list" id="rcPlayOthers"></div>
+    </div>
+    <div class="wiz-foot">
+      <div class="timer-chip" data-timer id="rcPlayTimer" style="display:none;">--:--</div>
+    </div>
+  </div>
+
+  <!-- ③ 結果：順位表は共通の1部品（正本 §11-7）。スマホは自分の行へ寄る（部品B） -->
+  <div class="screen" id="scr-rt-rc-result">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title">結果発表</h2>
+    <div class="wiz-body">
+      <div class="ft-win" id="rcRsWin"></div>
+      <div id="rcRsRank"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="rtRcAgainBtn" style="display:none;">つぎは？ ▶</button>
+      <button class="btn btn-outline" id="rtRcEndBtn" style="display:none;margin-top:0;">🏁 部屋をとじる</button>
+      <button class="btn btn-ghost" id="rtRcResultLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
+    </div>
+  </div>
+
   <div class="screen" id="scr-rt-big">
     <div class="now-line" hidden></div>
     <div class="big-wrap">
@@ -6711,6 +6827,10 @@
 <script src="js/auction-items.js"></script>
 <script src="js/auction-logic.js"></script>
 <script src="js/falsetrue-logic.js"></script>
+<script src="js/rcard-logic.js"></script>
+<!-- 指示55-①：ロシアンカードの絵柄。CS版の束（window.RcArtPack）があればそちら、
+     無ければ既定に落ちる。束の script タグは並べない（無いビルドで404が出る） -->
+<script src="js/rc-art.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/ui-text.js"></script>
 <script src="js/ui.js"></script>
@@ -6853,6 +6973,11 @@
     // ルール文は設計メモの流れをそのまま「遊ぶ人の言葉」にしたもの
     {id:"falsetrue", icon:"💼", title:"False or True", sub:"中身を知っているのは持っている人だけ", advanced:false, strict:false, oneWord:false, falseTrue:true, roomOnly:true, game:'falsetrue', minPlayers:4,
       bullets:["ケースが人数ぶんならぶ。中身は TRUE か FALSE で、FALSE のほうが多い","えらばれた人がケースを1つえらび、中身を自分だけが見る","そのあと、別の人と対面して話し合う","話し合いが終わったら、相手が「奪う」か「奪わない」かを決める","奪って TRUE なら相手が生存、FALSE なら相手が脱落","奪わずに TRUE なら持っていた人が生存、FALSE なら脱落","生存か脱落が決まった人は、そこで上がり。残った人だけで続ける","最後まで決まらなかった人は自動で生存。生存した人は全員が勝ち"]},
+    // 指示55-①：ロシアンカード。いまは部屋専用（手渡しはこのあと足す）。
+    // **属性の並びは roomOnly → game → minPlayers**——
+    // tests/inventory.js:200 の抽出がこの順でないと黙って拾わない（落とし穴4）
+    {id:"rcard", icon:"🃏", title:"ロシアンカード", sub:"あいての9まいに爆弾をしかけ、じぶんの9まいをめくる", advanced:false, strict:false, oneWord:false, rcard:true, roomOnly:true, game:'rcard', minPlayers:2,
+      bullets:["1人1台・部屋が必要です","たいせんするあいての9まいに、爆弾をひみつでしかける","しかけた場所は、このあと自分でも見られない","じぶんの9まいから1まいずつ、こうたいでめくる","爆弾だったら体力が1へる。0になったら負け","ときどき時間切れでも体力がへる（考えこみすぎないように）","3人いじょうは生きのこり戦。勝った人は体力をそのままつぎへ","のこり2人になったら、しかける爆弾がふえる"]},
     {id:"auction-open", icon:"🔨", title:"せり上げ式", sub:"みんなの前で値が吊り上がっていく", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionOpen:true, roomOnly:true, game:'auction', minPlayers:3,
       bullets:["6つの品が、はじめから全部ならぶ（見比べてえらべる）","品質（上物・並物・偽物）は伏せられている。内訳の数だけ先に分かる","競りが進むと、みんなに同じヒントが順に開いていく","誰かが値をつけるたびに、締め切りが延びる","同じ系統が売れるたび、その系統の相場が上がる","得点は「品質 × 売れた時の相場」。人気の系統ほど高くつく","落札できなかった人は品質を言い当てるとチップがもらえる","最初に値をつけた人にはチップのごほうびがある"]},
     {id:"auction-sealed", icon:"✉️", title:"秘密入札", sub:"こっそり金額を決めて、一斉に開ける", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionSealed:true, roomOnly:true, game:'auction', minPlayers:3,
@@ -7011,7 +7136,12 @@
       blurb:'奪うか、奪わないか' },
     { id:'word-soon-1',     genre:'word',  ready:false, icon:'？' },
     { id:'brain-soon-1',    genre:'brain', ready:false, icon:'？' },
-    { id:'deal-soon-2',     genre:'deal',  ready:false, icon:'？' },
+    // 指示55-①：ロシアンカード。爆弾をどこにしかけるか・どこをめくるかの読み合いなので
+    // 「かけひき」の段。空いていた deal の枠を、そのまま差し替えた
+    { id:'rcard',           genre:'deal',  ready:true,  icon:'🃏', title:'ロシアンカード',
+      games:['rcard'],
+      theme:'rcard',
+      blurb:'しかけ合って、めくり合う' },
     { id:'deal-soon-3',     genre:'deal',  ready:false, icon:'？' },
     { id:'move-soon-1',     genre:'move',  ready:false, icon:'？' },
     { id:'move-soon-2',     genre:'move',  ready:false, icon:'？' }
@@ -9145,7 +9275,8 @@
     // 指示54で上限は12人。**falsetrue-logic.js の RULES.MAX_PLAYERS と一対**——
     // サーバーはあちら、端末はこちらしか読まないので、食い違うと押せるのに始まらない
     // （食い違いは tests/falsetrue-logic.js が両方向で照合している）
-    { id:'falsetrue',       title:'False or True',      icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:12 }
+    { id:'falsetrue',       title:'False or True',      icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:12 },
+    { id:'rcard',           title:'ロシアンカード',      icon:'🃏', sub:'あいての9まいに爆弾をしかけ、じぶんの9まいをめくる', maxPlayers:8 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -9324,6 +9455,9 @@
     // **appPrefs には混ぜない**——混ぜると門F5（設定と窓口の両方向照合）が
     // 「窓口の無い設定」として赤くなる（落とし穴34）。auCfg と同じ「試合の決めごと」の棚
     ftCfg: { talkSec:FalseTrueLogic.RULES.TALK_SEC },
+    // 指示55-①：ロシアンカード。**既定はルール層が持つ**（値をここに書き写さない・落とし穴1）
+    rcCfg: { lives:RcardLogic.既定.体力, bombs:RcardLogic.既定.爆弾,
+             finalBombs:RcardLogic.既定.決勝の爆弾, turnSec:RcardLogic.既定.持ち時間 },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
     /**
@@ -13541,9 +13675,9 @@
     b.textContent = host ? 'つぎは？ ▶' : '進行役が つぎをえらんでいます…';
     if(typeof FxKit !== 'undefined') FxKit.alive(b, ended && !host);
   }
-  // 5つのボタンは、どれも同じ「つぎは？」画面へ行く
+  // 「つぎは？」のボタンは、どれも同じ画面へ行く（数はここに書かない・落とし穴33）
   ['rtAgainBtn','rtBombAgainBtn','dfAgainBtn','qzAgainBtn','auAgainBtn',
-   'rtSugoAgainBtn','rtFtAgainBtn'].forEach(function(id){
+   'rtSugoAgainBtn','rtFtAgainBtn','rtRcAgainBtn'].forEach(function(id){
     var b = el(id);
     if(b) b.addEventListener('click', function(){ if(!this.disabled) goTo('scr-next'); });
   });
@@ -13561,6 +13695,7 @@
   var RT_START_CONFIG = {
     // 指示53：False or True。端末から送るのは「話し合いの長さ」だけ（それ以外は人数から決まる）
     falsetrue: rtFalsetrueConfig,
+    rcard: rtRcardConfig,
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
     bomb: rtBombConfig,
@@ -13723,6 +13858,16 @@
   // 端末が決めるのは話し合いの長さだけ。サーバーは3択の外を受け取らない
   function rtFalsetrueConfig(){
     return { game: 'falsetrue', talkSec: state.ftCfg.talkSec };
+  }
+  // 指示55-①：ロシアンカード。端末から送るのは「この試合の決めごと」だけ
+  function rtRcardConfig(){
+    return {
+      game: 'rcard',
+      lives: state.rcCfg.lives,
+      bombs: state.rcCfg.bombs,
+      finalBombs: state.rcCfg.finalBombs,
+      turnSec: state.rcCfg.turnSec
+    };
   }
 
   // 第36弾：すごろく。盤・人数・目安時間は sugoroku-logic.js が持っているので、
@@ -14673,6 +14818,9 @@
     reveal: 'お題の確認', discuss: '話し合い', roundResult: '結果',
     // 爆弾解除側の段階（第27弾）
     prep: '準備中', play: '解除中',
+    // 指示55-①：ロシアンカード。**ここに足さないと、大画面に生の英語が出る**
+    // （実物解除の consent/roles/brief がいまもそうなっている）
+    place: '爆弾をしかける', turn: 'めくる', show: 'けっか', round: '生きのこり',
     // 指示53：False or True。**`reveal` を使わない**——この表はゲームをまたいだ1枚で、
     // `reveal` はワードウルフの「お題の確認」に取られている（落とし穴2）
     pick: 'ケースをえらぶ', peek: '中身をみる', face: '対面', talk: '話し合い',
@@ -14712,6 +14860,34 @@
         if(res.misses && res.lives === 1) add.comebacks = 1;
       }
       return { cassette: 'bakudan', add: add };
+    }
+    if(game === 'rcard'){
+      /**
+       * 指示55-①：ロシアンカードの称号。
+       *
+       * **勝ち負けと関係ないものも数える**（大切なこと5）。
+       * 爆弾の場所は運なので、勝ちだけを数えると「運が良かった証」しか集まらない。
+       * 「一度も踏まずに残った」「体力1から巻き返した」は、その人のめくり方の話。
+       *
+       * 数えるもとは決着の `ranking`（サーバーが配る）。途中の秘密には触っていない
+       */
+      var 私 = (res.ranking || []).find(function(x){ return x.id === meId; }) || {};
+      var rcAdd = { plays: 1 };
+      if(私.rank === 1){
+        rcAdd.wins = 1;
+        // 一度も踏まずに残った（体力が満タンのまま）
+        if(私.livesMax != null && 私.lives === 私.livesMax) rcAdd.noHit = 1;
+        // 体力1で最後まで残った＝土壇場から巻き返した
+        if(私.lives === 1 && 私.livesMax > 1) rcAdd.comebacks = 1;
+      }
+      // **加算で成り立つ数だけを渡す。**
+      // recordTitleStats は渡された値を足すので、「最高記録」の形は作れない——
+      // オークションの bestProfit が、宣言と条件だけあって誰も取れない称号になっている
+      if(私.rounds > 0){
+        rcAdd.rounds = 私.rounds;
+        if(私.rounds >= 3) rcAdd.streak3 = 1;
+      }
+      return { cassette: 'rcard', add: rcAdd };
     }
     if(game === 'falsetrue'){
       /**
@@ -14982,7 +15158,9 @@
     sugograb: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
     sugopair: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
     sugohide: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
-    sugohand: ['scr-rt-sugoroku', 'scr-rt-sugo-result']
+    sugohand: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
+    // 指示55-①：ロシアンカード。置く／めくる／結果の3枚
+    rcard: ['scr-rt-rc-place', 'scr-rt-rc-play', 'scr-rt-rc-result']
   };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
@@ -15009,6 +15187,8 @@
       if(game === 'auction') return auWantScreen();
       // 指示53：False or True。段階の数だけ画面がある
       if(game === 'falsetrue') return ftWantScreen();
+      // 指示55-①：ロシアンカード。置く／めくる／結果の3枚
+      if(game === 'rcard') return rcWantScreen();
       // 第52弾 52-3：すごろくは決着だけ結果発表へ
       if(SUGO_GAMES.indexOf(game) !== -1) return sugoWantScreen();
       return scr[0];
@@ -15154,6 +15334,36 @@
     if(v.phase === 'ended'){
       return ctx.isHost ? mine(NL.共通.つぎをえらぶ) : wait(NL.共通.進行役がえらぶ);
     }
+    return wait('');
+  };
+
+  /**
+   * 指示55-①：ロシアンカードの帯。
+   *
+   * **落とし穴18**：手元の秘密（privateFor）が部屋の知らせに追いつくまで、
+   * 古い秘密で1行を組まない。追いついていない時は「観戦」と同じ静かな行にする
+   */
+  NOW_LINE.rcard = function(v, you, ctx){
+    var R = NL.rcard, B = R.大画面;
+    if(ctx.isBig){
+      if(v.phase === 'place') return wait(B.しかける);
+      if(v.phase === 'turn')  return wait(B.めくる);
+      if(v.phase === 'show')  return wait(B.けっか);
+      if(v.phase === 'round') return wait(B.生きのこり);
+      if(v.phase === 'ended') return wait(B.決着);
+      return wait('');
+    }
+    // 始まってから入った人には秘密が配られない。**できないことを大きく書かない**
+    if(!you || you.phase !== v.phase) return wait(NL.共通.観戦);
+    if(you.isBye) return wait(R.不戦勝);
+    if(v.phase === 'place'){
+      return (v.placed || {})[ctx.meId] ? wait(R.しかけ終わり) : mine(R.しかける(v.bombsPerBoard || 0));
+    }
+    if(v.phase === 'turn'){
+      return you.isMyTurn ? mine(R.めくる) : wait(R.めくるのを待つ(you.opponentName || ''));
+    }
+    if(v.phase === 'show')  return wait(R.けっか);
+    if(v.phase === 'round') return wait(B.生きのこり);
     return wait('');
   };
 
@@ -15391,6 +15601,229 @@
     slot.appendChild(t);
   }
 
+  // ================= ロシアンカード（指示55-①） =================
+  //
+  // **1画面に1つのこと。**「置く」と「めくる」を同じ画面に出さない。
+  // 秘密（相手の盤に仕掛けた位置）はサーバーだけが持ち、
+  // 端末には rt.state.secret（privateFor）で**自分が置いた位置だけ**が届く。
+
+  var RC_PHASE_SCREEN = {
+    place: 'scr-rt-rc-place',
+    turn:  'scr-rt-rc-play',
+    show:  'scr-rt-rc-play',
+    round: 'scr-rt-rc-play',
+    ended: 'scr-rt-rc-result'
+  };
+  var rcClock = { ms: null, at: 0, timer: null };
+  var rcUi = { picked: [] };   // 置く時にえらんだ場所（端末だけの状態）
+
+  function rcWantScreen(){
+    var v = rtView();
+    if(!v || !v.phase) return 'scr-rt-rc-place';
+    return RC_PHASE_SCREEN[v.phase] || 'scr-rt-rc-play';
+  }
+  /** 画面を離れる時に、走っているものを必ず捨てる（落とし穴7・17／良い型3） */
+  function rcLeaveScreen(){
+    clearInterval(rcClock.timer); rcClock.timer = null;
+    rcClock.ms = null;
+    rcUi.picked = [];
+  }
+  function rcSetClock(ms){ rcClock.ms = ms; rcClock.at = Date.now(); }
+  function rcLeftSec(){
+    if(rcClock.ms == null) return null;
+    return Math.max(0, Math.round((rcClock.ms - (Date.now() - rcClock.at)) / 1000));
+  }
+  /** いまの画面の時計。**画面ごとの id を名前で書く**（ftTimerEl と同じ理由） */
+  function rcTimerEl(){
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    var map = { 'scr-rt-rc-place':'rcPlaceTimer', 'scr-rt-rc-play':'rcPlayTimer' };
+    return map[cur] ? el(map[cur]) : null;
+  }
+  function rcRenderTimer(){
+    var d = rcTimerEl();
+    if(!d) return;
+    var sec = rcLeftSec();
+    if(sec == null){ d.style.display = 'none'; return; }
+    d.style.display = 'inline-block';
+    d.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
+    timerChipTick(d, sec, { vibe:true });
+  }
+  function rcStartClock(){
+    if(rcClock.timer) return;
+    rcClock.timer = setInterval(rcRenderTimer, 250);
+  }
+
+  // ---- 小さな部品（3枚で共有する。画面ごとに書かない） ----
+  function rcMeId(){ return rt.state.memberId; }
+  function rcYou(){ return rt.state.secret || null; }
+  function rcPlayerOf(v, id){
+    return (v.players || []).find(function(x){ return x.id === id; }) || null;
+  }
+  /** 体力。**ハートの数＋数字**（数えなくても読める・指示55-① 2-10） */
+  function rcLivesHtml(now, max){
+    var n = Math.max(0, now || 0), m = Math.max(n, max || 0);
+    return '<span class="rc-lives">' +
+      '<span>' + '❤️'.repeat(n) + '🖤'.repeat(Math.max(0, m - n)) + '</span>' +
+      '<span class="rc-lives-num">' + n + '/' + m + '</span></span>';
+  }
+  /**
+   * 札1枚。**絵柄は rc-art.js、意味の印は HTML 側**（SVGの中に絵文字を入れない）。
+   * 種類は「裏・素・爆弾・セーフ」の4つで、**色を抜いても形で見分けられる**
+   */
+  function rcCardHtml(no, kind, opts){
+    var o = opts || {};
+    var art = (window.RcArt || { face: function(){ return ''; } }).face(kind);
+    var mark = '';
+    if(kind === 'bomb') mark = '<span class="rc-mark">💣</span><span class="rc-word">ばくだん</span>';
+    else if(kind === 'safe') mark = '<span class="rc-mark">✓</span><span class="rc-word">セーフ</span>';
+    else mark = '<span class="rc-no">' + no + '</span>';
+    return '<button class="btn rc-card' + (o.picked ? ' is-picked' : '') + '"' +
+      ' data-rc-cell="' + no + '"' + (o.disabled ? ' disabled' : '') +
+      ' aria-label="' + no + 'ばんめ' +
+      (kind === 'bomb' ? '・ばくだん' : (kind === 'safe' ? '・セーフ' : '')) + '">' +
+      art + mark + '</button>';
+  }
+  /** その盤の、その場所の見え方。**伏せたままの中身は、ここでは絶対に分からない** */
+  function rcKindOf(board, no){
+    var b = board || { flipped: [], hits: [] };
+    if((b.flipped || []).indexOf(no) === -1) return 'back';
+    return ((b.hits || []).indexOf(no) !== -1) ? 'bomb' : 'safe';
+  }
+
+  // ---- ① 置く（相手の9枚に仕掛ける） ----
+  function renderRtRcPlace(){
+    var v = rtView(); if(!v) return;
+    rcSetClock(v.remainingMs); rcStartClock(); rcRenderTimer();
+    var me = rcMeId(), you = rcYou();
+    // **落とし穴18：手元の秘密が部屋の知らせに追いつくまで、何もしない。**
+    // 古い秘密で画面を組むと、前の回の相手の名前が出る
+    if(!you || you.phase !== v.phase){ el('rcPlaceLead').textContent = ''; return; }
+    var aite = you.opponentName;
+    var done = !!(v.placed || {})[me];
+    var n = v.bombsPerBoard || 0;
+
+    el('rcPlaceTitle').textContent = done ? 'しかけました' : '爆弾をしかける';
+    el('rcPlaceLead').textContent = you.isBye
+      ? 'この回は不戦勝です。体力はそのまま、つぎの相手を待ちます'
+      : (done
+        ? (aite || 'あいて') + 'の9まいに、' + n + 'つしかけました'
+        : (aite || 'あいて') + 'の9まいから、' + n + 'つえらんでください');
+    var cells = [];
+    for(var i = 1; i <= 9; i++){
+      var picked = rcUi.picked.indexOf(i) !== -1;
+      cells.push(rcCardHtml(i, 'blank', { picked: picked, disabled: done || you.isBye }));
+    }
+    el('rcPlaceBoard').innerHTML = cells.join('');
+    el('rcPlaceBoard').style.display = you.isBye ? 'none' : '';
+    el('rcPlaceNote').textContent = (done || you.isBye)
+      ? 'ほかの人を待っています'
+      : 'しかけた場所は、このあと自分では見られません';
+    var btn = el('rcPlaceDoneBtn');
+    btn.style.display = (done || you.isBye) ? 'none' : '';
+    btn.disabled = rcUi.picked.length !== n;
+  }
+
+  // ---- ② めくる（自分の9枚） ----
+  function renderRtRcPlay(){
+    var v = rtView(); if(!v) return;
+    rcSetClock(v.remainingMs); rcStartClock(); rcRenderTimer();
+    var me = rcMeId(), you = rcYou();
+    if(!you || you.phase !== v.phase){ el('rcPlayLead').textContent = ''; return; }
+    var mine = rcPlayerOf(v, me);
+    var foe = you.opponentId ? rcPlayerOf(v, you.opponentId) : null;
+
+    // **対戦カード**（卓の共通の見どころ・§11-1）
+    el('rcPlayVs').innerHTML = foe
+      ? '<span class="rc-vs-name">' + escapeHtml((mine && mine.name) || '') + '</span>' +
+        rcLivesHtml(mine && mine.lives, v.livesMax) +
+        '<span class="rc-vs-mid">VS</span>' +
+        '<span class="rc-vs-name">' + escapeHtml(foe.name || '') + '</span>' +
+        rcLivesHtml(foe.lives, v.livesMax)
+      : '';
+    el('rcPlayVs').style.display = foe ? '' : 'none';
+
+    var myTurn = !!you.isMyTurn && v.phase === 'turn';
+    el('rcPlayTitle').textContent = you.isBye ? 'この回は不戦勝' :
+      (v.phase === 'show' ? 'けっか' : (myTurn ? 'カードをめくる' : 'あいての番'));
+    el('rcPlayLead').textContent = you.isBye
+      ? '体力はそのまま、つぎの相手を待ちます'
+      : (myTurn ? 'じぶんの9まいから1まい' : (foe ? (foe.name || '') + 'を待っています' : ''));
+
+    var cells = [];
+    for(var i = 1; i <= 9; i++){
+      var kind = rcKindOf((v.boards || {})[me], i);
+      cells.push(rcCardHtml(i, kind, { disabled: !myTurn || kind !== 'back' }));
+    }
+    el('rcPlayBoard').innerHTML = cells.join('');
+    el('rcPlayBoard').style.display = you.isBye ? 'none' : '';
+
+    // ほかの組の様子（**カードの中身は出さない。体力だけ**）
+    var others = (v.matches || []).filter(function(m){ return m.a !== me && m.b !== me; });
+    el('rcPlayOthers').innerHTML = others.map(function(m){
+      var A = rcPlayerOf(v, m.a), B = rcPlayerOf(v, m.b);
+      return '<div class="rc-vs">' +
+        '<span class="rc-vs-name">' + escapeHtml((A && A.name) || '') + '</span>' +
+        rcLivesHtml(A && A.lives, v.livesMax) +
+        '<span class="rc-vs-mid">VS</span>' +
+        '<span class="rc-vs-name">' + escapeHtml((B && B.name) || '') + '</span>' +
+        rcLivesHtml(B && B.lives, v.livesMax) + '</div>';
+    }).join('');
+  }
+
+  // ---- ③ 結果 ----
+  function renderRtRcResult(){
+    var v = rtView(); if(!v) return;
+    var res = v.result;
+    if(!res){ putRanking(el('rcRsRank'), ''); el('rcRsWin').textContent = ''; return; }
+    el('rcRsWin').textContent = res.winner ? '🏆 ' + res.winner : '';
+    // 指示55 §11-7：**順位表は共通の1部品**。スマホは自分の行へ寄る（部品B）
+    putRanking(el('rcRsRank'), rankingHtml((res.ranking || []).map(function(row){
+      return {
+        id: row.id, rank: row.rank, name: row.name,
+        main: '体力' + row.lives,
+        out: !!row.out
+      };
+    }), { showFace: true, meId: rt && rt.state && rt.state.memberId }));
+    var host = rt.isHost();
+    el('rtRcAgainBtn').style.display = host ? '' : 'none';
+    el('rtRcEndBtn').style.display = host ? '' : 'none';
+  }
+
+  // ---- 押した時（3枚ぶんをここ1か所で受ける） ----
+  el('rcPlaceBoard').addEventListener('click', function(e){
+    var cell = e.target.closest('[data-rc-cell]');
+    if(!cell || cell.disabled) return;
+    var no = parseInt(cell.dataset.rcCell, 10);
+    var v = rtView(); if(!v) return;
+    var n = v.bombsPerBoard || 0;
+    var at = rcUi.picked.indexOf(no);
+    if(at !== -1) rcUi.picked.splice(at, 1);
+    else if(rcUi.picked.length < n) rcUi.picked.push(no);
+    else return;   // **上限で静かに止める**（責める時は静かに）
+    FxKit.vibe('tick');
+    renderRtRcPlace();
+  });
+  el('rcPlaceDoneBtn').addEventListener('click', async function(){
+    var v = rtView(); if(!v) return;
+    if(rcUi.picked.length !== (v.bombsPerBoard || 0)) return;
+    this.disabled = true;
+    var 送る = rcUi.picked.slice();
+    // **押した瞬間に手元から消す。**置いた場所を自分で見返せないようにするのは
+    // 手渡し版だけの話ではない——同じ端末に残しておくと、次の描画で「えらんだ印」が戻る
+    rcUi.picked = [];
+    await rt.act(null, { place: 送る });
+  });
+  el('rcPlayBoard').addEventListener('click', async function(e){
+    var cell = e.target.closest('[data-rc-cell]');
+    if(!cell || cell.disabled) return;
+    var no = parseInt(cell.dataset.rcCell, 10);
+    cell.disabled = true;   // 連打で二重に送らない
+    await rt.act(null, { flip: no });
+  });
+  // 「つぎは？」は一覧の側（rtAgainBtn の並び）で結線する。
+  // 「← 部屋を出る」（rtRcResultLeaveBtn）は名前で拾う仕組みに自動で乗る
+  el('rtRcEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
+
   function rtRenderCurrent(){
     var cur = (document.querySelector('.screen.active') || {}).id;
     // 第24弾-3：部屋のゲームが分かった時点でテーマを当て直す。
@@ -15431,6 +15864,9 @@
     else if(cur === 'scr-rt-ft-decide') renderRtFtDecide();
     else if(cur === 'scr-rt-ft-open') renderRtFtOpen();
     else if(cur === 'scr-rt-ft-result') renderRtFtResult();
+    else if(cur === 'scr-rt-rc-place') renderRtRcPlace();
+    else if(cur === 'scr-rt-rc-play') renderRtRcPlay();
+    else if(cur === 'scr-rt-rc-result') renderRtRcResult();
     else if(cur === 'scr-rt-sugoroku') renderRtSugoroku();
     else if(cur === 'scr-rt-sugo-result') renderRtSugoResult();
     else if(cur === 'scr-rt-play') renderRtPlay();
@@ -17864,6 +18300,67 @@
   }
   setInterval(function(){ if(bigClockAt) bigClockTick(); }, 500);
 
+  /**
+   * 指示55-①：ロシアンカードの大画面（正本 §11）。
+   *
+   * **主役（§11-3）は場面で変わる。**
+   *   ・予選（3組以上いる回）… **あと何人のこっているか**（1つの数）
+   *   ・決勝（残り2人）      … **いま誰と誰が、体力いくつで戦っているか**（対戦カード）
+   *
+   * 決勝の主役は §11-1 の「共通／個人」の二分に収まらない**第3の形**——
+   * 「いま卓の注目が集まっている2人」という、人ごとに違う値を材料にした共通の見どころ。
+   * **これは宿題23が未決のまま抱えている論点で、ここが2件目になる。**
+   * 先に §11 を書き換えず、仮に置いて実機で見てから、宿題23と一緒に決める
+   * （例外の一覧は腐る・落とし穴4）。
+   *
+   * **カードの中身は映さない**（§11-6）。盤に出すのは「めくった結果」だけ
+   */
+  function renderRtBigRcard(v){
+    var 決勝 = (v.matches || []).filter(function(m){ return !m.done; }).length === 1
+      && (v.aliveCount || 0) <= 2;
+    el('bigPhase').textContent = RT_PHASE_LABEL[v.phase] || '';
+
+    if(v.phase === 'ended'){
+      var res = v.result || {};
+      el('bigMain').textContent = res.winner || '';
+      el('bigSub').textContent = res.winner ? 'さいごの1人' : '';
+      el('bigRank').innerHTML = rankingHtml((res.ranking || []).map(function(row){
+        return { id: row.id, rank: row.rank, name: row.name,
+                 main: '体力' + row.lives, out: !!row.out };
+      }), { showFace: true });   // **大画面には meId を渡さない**（§11-6：二人称を使わない）
+      el('bigList').innerHTML = '';
+      return;
+    }
+
+    if(決勝){
+      // 決勝：対戦カードが主役
+      var m = (v.matches || []).filter(function(x){ return !x.done; })[0] || {};
+      var A = (v.players || []).find(function(p){ return p.id === m.a; }) || {};
+      var B = (v.players || []).find(function(p){ return p.id === m.b; }) || {};
+      var 手番 = m.turnId === m.a ? A.name : (m.turnId === m.b ? B.name : '');
+      el('bigMain').textContent = (A.name || '') + '　VS　' + (B.name || '');
+      el('bigSub').textContent = 手番 ? 手番 + ' がめくります' : '';
+    } else {
+      // 予選：あと何人のこっているか
+      el('bigMain').textContent = String(v.aliveCount || 0) + '人';
+      el('bigSub').textContent = 'のこっています';
+    }
+
+    // 名簿の行（人ごとに違う値＝体力と、いま戦っている相手）
+    el('bigList').innerHTML = (v.players || []).map(function(p){
+      var 組 = (v.matches || []).find(function(x){ return !x.done && (x.a === p.id || x.b === p.id); });
+      var 相手 = 組 ? ((組.a === p.id ? 組.bName : 組.aName) || '') : '';
+      var 印 = p.out ? '💀' : ('❤️'.repeat(Math.max(0, p.lives)) +
+        '🖤'.repeat(Math.max(0, (v.livesMax || 0) - p.lives)));
+      return '<div class="bl-item' + (p.out ? ' is-out' : '') + '">' +
+        '<span class="bl-name">' + escapeHtml(p.name || '') + '</span>' +
+        '<span class="bl-v">' + 印 + '</span>' +
+        (相手 && !p.out ? '<span class="bl-sub">vs ' + escapeHtml(相手) + '</span>' : '') +
+        '</div>';
+    }).join('');
+    el('bigRank').innerHTML = '';
+  }
+
   function renderRtBig(){
     var v = rtView();
     var room = rt && rt.state.room;
@@ -17950,6 +18447,9 @@
     if(rtRoomGameId() === 'auction') return 描いてから(function(){ renderRtBigAuction(v); });
     if(SUGO_GAMES.indexOf(rtRoomGameId()) !== -1) return 描いてから(function(){ renderRtBigSugoroku(v); });
     if(rtRoomGameId() === 'falsetrue') return 描いてから(function(){ renderRtBigFalsetrue(v); });
+    // 指示55-①：ロシアンカード。**ここに1行足さないと人狼の本体に落ちる**——
+    // 落ちると v.players の alive を見て全員に💀 を付ける（False or True で実際に起きた）
+    if(rtRoomGameId() === 'rcard') return 描いてから(function(){ renderRtBigRcard(v); });
     if(rtIsWordwolf()) return 描いてから(function(){ renderRtBigWordwolf(v); });
 
     var main = '', sub = '';

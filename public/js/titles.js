@@ -110,6 +110,24 @@
       reads: 0,             // 相手の FALSE を、奪わずに見抜いた
       trusts: 0             // 相手の TRUE を信じて奪い、当てた
     },
+    // 指示55-①：ロシアンカード。
+    // **勝ち負けと関係ないものも数える**（大切なこと5）——
+    // 爆弾の場所は運なので、勝ちだけを数えると「運が良かった証」しか集まらない。
+    // 「一度も踏まずに勝ち抜いた」「体力1から勝った」は、その人のめくり方の話
+    rcard: {
+      plays: 0,             // ロシアンカードを遊んだ回数
+      wins: 0,              // 最後の1人になった回数
+      noHit: 0,             // 一度も爆弾を踏まずに最後まで残った
+      comebacks: 0,         // 体力1から巻き返して最後の1人になった
+      rounds: 0,            // 通算で勝ち抜いた回数
+      streak3: 0            // 1回の遊びで3回いじょう勝ち抜いた回数
+    },
+    // ※**最高記録の形（bestOO）にしなかった理由。**
+    //   `recordTitleStats`（public/index.html）は渡された値を**加算する**ので、
+    //   最高記録をそのまま渡すと積み上がってしまう。
+    //   オークションの `bestProfit` は宣言と条件だけあって**書き込む場所が1つも無く**、
+    //   誰も取れない称号になっている（指示55-① で見つけた・別件として切り出した）。
+    //   同じ形を2つ目に作らないため、ここは全部「加算で成り立つ数」にしてある
     auction: {
       plays: 0,             // オークションを遊んだ回数
       wins: 0,              // 1位になった回数
@@ -296,6 +314,25 @@
       { id: 'icon-ft-read', cassette: 'falsetrue', emoji: '🧠', label: '見抜きの証',
         hint: '相手の FALSE を、奪わずに見抜く',
         need: function (s) { return s('falsetrue', 'reads') >= 1; } },
+      // ---- 指示55-①：ロシアンカード ----
+      { id: 'icon-rc-1', cassette: 'rcard', emoji: '🃏', label: 'しかけ人の証',
+        hint: 'ロシアンカードを1回あそぶ',
+        need: function (s) { return s('rcard', 'plays') >= 1; } },
+      { id: 'icon-rc-10', cassette: 'rcard', emoji: '🎴', label: '常連の証',
+        hint: 'ロシアンカードを通算10回あそぶ',
+        need: function (s) { return s('rcard', 'plays') >= 10; } },
+      { id: 'icon-rc-nohit', cassette: 'rcard', emoji: '🪶', label: '無傷の証',
+        hint: '一度も爆弾を踏まずに、最後まで残る',
+        need: function (s) { return s('rcard', 'noHit') >= 1; } },
+      { id: 'icon-rc-comeback', cassette: 'rcard', emoji: '🔥', label: '土壇場の証',
+        hint: '体力1から巻き返して、最後の1人になる',
+        need: function (s) { return s('rcard', 'comebacks') >= 1; } },
+      { id: 'icon-rc-streak', cassette: 'rcard', emoji: '⚔️', label: '勝ち抜きの証',
+        hint: '1回の遊びで、3回つづけて勝ち抜く',
+        need: function (s) { return s('rcard', 'streak3') >= 1; } },
+      { id: 'icon-rc-rounds', cassette: 'rcard', emoji: '🏅', label: '歴戦の証',
+        hint: '通算で20回勝ち抜く',
+        need: function (s) { return s('rcard', 'rounds') >= 20; } },
       { id: 'icon-ft-trust', cassette: 'falsetrue', emoji: '🤝', label: '信じた証',
         hint: '相手の TRUE を信じて奪い、当てる',
         need: function (s) { return s('falsetrue', 'trusts') >= 1; } },

@@ -388,6 +388,10 @@ function finish(room) {
     ranking: rows.map((x) => ({
       id: x.id, rank: x.rank, name: x.name,
       lives: w.lives[x.id],
+      livesMax: w.cfg.lives,
+      // **勝ち抜いた回数**（称号がここを数える）。
+      // 負けた人は「負けた回の1つ手前まで」勝ち抜いている
+      rounds: x.敗退回 != null ? Math.max(0, x.敗退回 - 1) : w.round,
       out: x.敗退回 != null
     })),
     winner: (rows[0] && rows[0].rank === 1) ? rows[0].name : null,

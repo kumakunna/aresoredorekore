@@ -248,7 +248,8 @@ const { createRunner, assert, assertEqual } = require('./harness');
     // **renderRtBig そのものを忘れない**——人狼はどの分岐にも入らず、
     // この関数の素通り本体が大画面になる。最初これを落として、
     // わざと「あなた」を混ぜた変異が素通りした（落とし穴10-f）
-    ['renderRtBig', 'renderRtBigFalsetrue', 'renderRtBigSugoroku', 'renderRtBigQuiz', 'renderRtBigAuction',
+    ['renderRtBig', 'renderRtBigFalsetrue', 'renderRtBigRcard', 'renderRtBigSugoroku',
+      'renderRtBigQuiz', 'renderRtBigAuction',
       'renderRtBigWordwolf', 'renderRtBigBomb', 'renderRtBigDefuse'].forEach((fn) => {
       const a = html.indexOf('function ' + fn + '(');
       assert(a > 0, fn + ' が見つからない（名前が変わった？）');

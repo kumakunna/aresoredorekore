@@ -110,6 +110,13 @@ const CASES = [
   ['icon-ft-bluff', 'falsetrue', {}, { bluffs: 1 }],
   ['icon-ft-read', 'falsetrue', {}, { reads: 1 }],
   ['icon-ft-trust', 'falsetrue', {}, { trusts: 1 }],
+  // 指示55-①：ロシアンカード。**境界の手前と後ろを1つずつ**
+  ['icon-rc-1', 'rcard', {}, { plays: 1 }],
+  ['icon-rc-10', 'rcard', { plays: 9 }, { plays: 10 }],
+  ['icon-rc-nohit', 'rcard', {}, { noHit: 1 }],
+  ['icon-rc-comeback', 'rcard', {}, { comebacks: 1 }],
+  ['icon-rc-streak', 'rcard', {}, { streak3: 1 }],
+  ['icon-rc-rounds', 'rcard', { rounds: 19 }, { rounds: 20 }],
   ['icon-auc-jackpot', 'auction', {}, { jackpots: 1 }],
   ['icon-auc-quiet', 'auction', {}, { quietWins: 1 }],
   ['first-mekiki', 'auction', { appraises: 1 }, { appraises: 1, jackpots: 1 }],

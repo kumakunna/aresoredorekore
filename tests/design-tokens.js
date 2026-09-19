@@ -343,6 +343,61 @@ const PAIRS = [
     assertEqual(bad.join('\n       '), '', '正本と実装が食い違っている');
   });
 
+  await r.test('警告の縁は、その世界の地と色相で離れている（正本 §6・指示55-①）', async () => {
+    // **なぜ「ΔE2000」でも「コントラスト比」でもなく色相か**（着手前に3つとも測った）。
+    // 赤い地（#5A0F00）に既定の赤い縁（#E2584A）を当てた時の値は
+    //   ΔE2000 32.6 ／ コントラスト 3.81
+    // ——どちらも、いま通っている世界（あれそれ 32.8 ／ 共通 2.99）と同じくらいで、
+    // **「明るい地に赤」と「赤い地に赤」を区別できない**。
+    // 区別できるのは色相だけだった：
+    //   赤い地×赤い縁 = **5°** ／ 次に低いのは オク 32°・あれそれ 34°
+    // だから線は **20°**。両側に十分な余裕がある（落とし穴10-a：勘で引かない）。
+    //
+    // **彩度の低い地では、色相に意味が無い**（爆弾 #17181B は C*=2.3）。
+    // そこまで見張ると、意味のない数字で赤くなる検査になる
+    const { hex2lab } = require('../tools/color-diff');
+    const 彩度と色相 = (hex) => {
+      const [L, a, b] = hex2lab(hex);
+      let h = Math.atan2(b, a) * 180 / Math.PI;
+      if (h < 0) h += 360;
+      return { L, C: Math.sqrt(a * a + b * b), h };
+    };
+    const 色相差 = (x, y) => { const d = Math.abs(x - y) % 360; return d > 180 ? 360 - d : d; };
+    const rgbaを16進に = (v) => {
+      const m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(v || '');
+      if (m) return '#' + [1, 2, 3].map((i) => (+m[i]).toString(16).padStart(2, '0')).join('');
+      const h = /(#[0-9A-Fa-f]{6})/.exec(v || '');
+      return h ? h[1] : null;
+    };
+    const 縁を拾う = (body) => rgbaを16進に((/--edge-danger\s*:\s*([^;]+)/.exec(body || '') || [])[1]);
+
+    const 規則 = cssRules(CSS_ONLY);
+    const 既定 = 縁を拾う((規則.find((x) => /(^|,)\s*:root\s*$/.test(x.sel)) || {}).body);
+    assert(既定, ':root に --edge-danger の既定がある');
+    const 上書き = {};
+    規則.forEach((x) => {
+      const m = /body:has\(\.app\.theme-([a-z]+)\)/.exec(x.sel);
+      const c = 縁を拾う(x.body);
+      if (m && c) 上書き[m[1]] = c;
+    });
+
+    const 名前 = Object.keys(世界).filter((n) => n !== '共通');
+    // 型(b)：**そもそも世界を拾えているか**（0件なら「全部離れている」は自明に成立する）
+    assert(名前.length >= 8, '世界を8つ以上拾えている（実際:' + 名前.length + '件）');
+    const 悪い = [], 表 = [];
+    名前.forEach((名) => {
+      const 地 = 世界[名].地;
+      const 縁 = 上書き[名] || 既定;
+      const g = 彩度と色相(地), e = 彩度と色相(縁);
+      if (g.C < 10) { 表.push(名 + '=彩度' + g.C.toFixed(1) + '（色相に意味なし）'); return; }
+      const d = 色相差(g.h, e.h);
+      表.push(名 + '=' + d.toFixed(0) + '°');
+      if (d < 20) 悪い.push(名 + '：地 ' + 地 + ' と 警告の縁 ' + 縁 + ' の色相差が ' + d.toFixed(0) + '°（20°未満）');
+    });
+    assert(表.length >= 8, '8つ以上を実際に測った（' + 表.join(' / ') + '）');
+    assertEqual(悪い.join(' / '), '', '警告の縁が、その世界の地に溶けている');
+  });
+
   await r.test('テーマ名は英小文字だけ（指示55-①・これを破ると、検査が黙って緑になる）', async () => {
     // **なぜ検査にするか**（本人の裁定 2026-09-19）。
     // 世界の表を読む正規表現は、いま4か所とも `[a-z]+` 固定：
@@ -395,7 +450,7 @@ const PAIRS = [
     const { hex2lab, deltaE2000 } = require('../tools/color-diff');
     const 名前 = Object.keys(世界);
     // **数を先に主張する**（型b）。1色しか読めていなければ「全部離れている」は自明に成立する
-    assertEqual(名前.length, 8, '世界が8つある（実際:' + 名前.join('・') + '）');
+    assertEqual(名前.length, 9, '世界が9つある（実際:' + 名前.join('・') + '）');
 
     const 閾値 = 10;
     const 組 = [], bad = [];
@@ -407,7 +462,7 @@ const PAIRS = [
         if (de < 閾値) bad.push(a + ' × ' + b + '：ΔE2000 ' + de.toFixed(1) + ' < ' + 閾値);
       }
     }
-    assertEqual(組.length, 28, '28組すべてを見た（実際:' + 組.length + '組）');
+    assertEqual(組.length, 36, '36組すべてを見た（実際:' + 組.length + '組）');
     assertEqual(bad.join('\n       '), '', '見分けがつかないほど近い世界の色がある');
   });
 
@@ -423,7 +478,7 @@ const PAIRS = [
     // ——**どれも小さい字**で、4.5 では実際に読みにくかった（本人の指摘）。
     // 大きい字なら 4.5 で足りるが、ここは足りない。
     const 名前 = Object.keys(世界);
-    assertEqual(名前.length, 8, '世界が8つある（実際:' + 名前.join('・') + '）');  // 型(b)
+    assertEqual(名前.length, 9, '世界が9つある（実際:' + 名前.join('・') + '）');  // 型(b)
 
     const bad = [], 表 = [];
     名前.forEach((名) => {
@@ -433,7 +488,7 @@ const PAIRS = [
       表.push(名 + '=' + 比);
       if (比 < 7) bad.push(名 + '：薄墨が ' + 比 + ' : 1（7:1 に届いていない）');
     });
-    assertEqual(表.length, 8, '8つ全部で測った（実際:' + 表.join(' / ') + '）');
+    assertEqual(表.length, 9, '9つ全部で測った（実際:' + 表.join(' / ') + '）');
     assertEqual(bad.join(String.fromCharCode(10) + "       "), '', '小さい字の薄墨が、AAA に届いていない');
   });
 

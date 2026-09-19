@@ -42,6 +42,12 @@
        決めごとは docs/デザインの正本.md 2 に置いてある */
     --switch-off:#A9A49A;
     --switch-on:#C08A3C;
+    /* 指示55-①：**警告の縁の色**（正本 §6）。
+       既定は赤。地が赤系の世界は `body:has(.app.theme-◯◯)` から上書きする——
+       赤い地に赤い縁だと「縁が光った」ではなく「地が少し明るくなった」にしか見えない。
+       `tests/design-tokens.js` が「地と色相で離れている」を全世界ぶん見張る */
+    --edge-danger:rgba(226,88,74,0.9);
+    --edge-danger-spread:14px;
     /* 第39弾：つまみと、その縁。
        白いつまみだけだと明るい帯（クイズの金など）に溶けるので、
        縁で境目を作る。縁の色は帯の上に重ねて評価する
@@ -609,7 +615,18 @@
     position:fixed;inset:0;pointer-events:none;z-index:96;
     animation:fxEdge calc(0.3s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
   }
-  .fx-edge-danger{box-shadow:inset 0 0 70px 14px rgba(226,88,74,.9);}
+  /* 指示55-①：**警告の縁の色は、世界が上書きできる。**
+     正本 §6「地が赤系のテーマでは、警告の縁は金」——
+     「赤は縁のみ」の狙いは**赤い面で責めないこと**であって、
+     「縁は赤でなければならない」ではない。地が赤いと縁が地に溶けて見えず、
+     安全のための決まりが安全を減らす。
+     **置き場は `:root`**（`.fx-edge` は #uiLayerRoot に出るので、
+     `.app.theme-◯◯` に書いても届かない・落とし穴27）。
+     世界ごとの上書きは `body:has(.app.theme-◯◯)` から——
+     body は #app と #uiLayerRoot の両方の親なので、片方だけに届く形にならない */
+  .fx-edge-danger{
+    box-shadow:inset 0 0 70px var(--edge-danger-spread,14px) var(--edge-danger,rgba(226,88,74,.9));
+  }
   .fx-edge-village{box-shadow:inset 0 0 70px 14px rgba(63,191,165,.9);}
   .fx-edge-wolf{box-shadow:inset 0 0 70px 14px rgba(226,88,74,.9);}
   .fx-edge-third{box-shadow:inset 0 0 70px 14px rgba(240,196,74,.9);}
@@ -1611,6 +1628,12 @@
      測り直すなら node tools/fot-color.js（space で色相一周の空きが出る） */
   .cassette-warp[data-theme="falsetrue"], .shelf-stage[data-theme="falsetrue"]{--warp-color:#122A1B;--warp-ink:#EAF4EC;--warp-soft:#AFC9B7;}
   .cassette-warp[data-theme="sugoroku"], .shelf-stage[data-theme="sugoroku"]{--warp-color:#D9ECCC;--warp-ink:#1D2415;--warp-soft:#46453D;}
+  /* 指示55-①：ロシアンカード。**血の赤黒**（本人の裁定・案D）。
+     ΔE2000 の最小は 16.4（対オーク #3B1220）で、
+     **いま暗い世界どうしでいちばん近い組（人狼×クイズ 13.9）を上回る**——
+     門（10.8）を通るだけでは足りない、というのが選んだ物差し。
+     測り直すなら node tools/fot-color.js rcard */
+  .cassette-warp[data-theme="rcard"], .shelf-stage[data-theme="rcard"]{--warp-color:#5A0F00;--warp-ink:#FFF1EC;--warp-soft:#F0C9BC;}
 
   /* ---- 棚の染まる場（第41弾 2-2「世界を借りる」／第43弾で画面いっぱいに）----
      **染まるのはここだけ。**上の帯（タイトル）と下部バーはクリームのまま。
@@ -4157,6 +4180,89 @@
   @media (prefers-reduced-motion: reduce){
     .app.theme-falsetrue{transition:none;}
     .app.theme-falsetrue .fx-alive{animation:none;}
+  }
+
+  /* ------------------------------------------------------------------
+     指示55-①：ロシアンカード（`theme-rcard`）。**血の赤黒。**
+
+     **なぜ赤黒なのか**（node tools/fot-color.js rcard で測り直せる）。
+     4案（ラシャの緑・ビロードの紫・煤けた黒に金・血の赤黒）を門に当てたら、
+     **4案とも通った**。門（ΔE2000 ≥ 10.8）だけでは選べないので、
+     物差しをもう1つ置いた——
+     **「いま暗い世界どうしでいちばん近い組（人狼×クイズ 13.9）を上回るか」。**
+     下回る案は、門を通っていても**史上いちばん近い組を新しく作る**。
+     案D は 16.4（対オーク）でいちばん厚い。
+
+     **警告の縁は金**（正本 §6・本人の裁定 2026-09-19）。
+     地が赤いので、既定の赤い縁（#E2584A）は**色相が5°しか離れていない**——
+     「縁が光った」ではなく「地が少し明るくなった」にしか見えない。
+     金（#F2C97A）なら44°離れる。上の `--edge-danger` を body から上書きする。
+
+     ONの色は**灰みの薔薇**（#E79CA8）。暖色の金は既に4つ（共通・あれそれ・
+     クイズ・オク）で満席で、5つ目を足すと**共通の設定トグルとほぼ同色**になる
+     （#B8863B は共通ON #C08A3C と ΔE2000 1.9）。
+     ※ONの色どうしの近さには機械の門が無い（design-tokens が見ているのは地だけ）ので、
+       ここは人が見るしかない。`node tools/fot-color.js rcard` が近さを出す。
+
+     「朱」の枠（--stamp）には金を入れてある。赤い地の上で朱はくすんで読めない——
+     名前は構造のもので、色は世界が決める（正本 1-6）。
+     ------------------------------------------------------------------- */
+  .app.theme-rcard{
+    --switch-on:#E79CA8;
+    --paper:#5A0F00;
+    --paper-deep:#360900;
+    --card:#661A08;
+    --ink:#FFF1EC;
+    --ink-soft:#F0C9BC;
+    /* 大事な数字（体力・残り枚数）。赤い地の上では、朱ではなく金 */
+    --stamp:#F2D98C;
+    --stamp-deep:#F7E3A8;
+    --teal:#F2C97A;
+    --gold:#F2C97A;
+    --line:rgba(255,241,236,0.18);
+    --shadow:0 10px 26px rgba(0,0,0,0.70);
+    /* 卓の上の1灯が、手札のあたりだけを照らしている */
+    background:
+      radial-gradient(ellipse 60% 34% at 50% 0%, rgba(242,201,122,0.10), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  /* **重なり（#uiLayerRoot）にも届かせる。**body は両方の親（落とし穴27） */
+  body:has(.app.theme-rcard){
+    --edge-danger:rgba(242,201,122,0.95);
+    --edge-danger-spread:26px;   /* 金は赤より目に刺さらないので、太くする */
+    background:
+      radial-gradient(circle at 50% 0%, #3A0900, transparent 60%),
+      #1B0400;
+  }
+  .app.theme-rcard .scr-title,
+  .app.theme-rcard .sec-title,
+  .app.theme-rcard .tp-label,
+  .app.theme-rcard .rt-phase,
+  .app.theme-rcard .wiz-step,
+  .app.theme-rcard .big-phase,
+  .app.theme-rcard .big-main:not(.is-code){
+    color:var(--ink);
+  }
+  .app.theme-rcard .card,
+  .app.theme-rcard .overlay-panel,
+  .app.theme-rcard .rt-public,
+  .app.theme-rcard .rt-you,
+  .app.theme-rcard .qb-row{
+    background:var(--card);
+    border-color:var(--line);
+    color:var(--ink);
+  }
+  .app.theme-rcard .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-rcard .floating-gear{background:rgba(255,241,236,.14);color:var(--ink);}
+  .app.theme-rcard .rules-ol li{color:var(--ink);}
+  .app.theme-rcard .ry-desc{color:var(--ink-soft);}
+  /* 生きている印は、卓の1灯のゆらぎ（1秒3回の上限よりはるかに遅い・正本 §6） */
+  .app.theme-rcard .fx-alive{animation:fxAliveLamp 3.2s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){
+    .app.theme-rcard{transition:none;}
+    .app.theme-rcard .fx-alive{animation:none;}
   }
 </style>
 </head>
@@ -10922,7 +11028,10 @@
   var THEME_CLASSES = {
     aresore: 'theme-aresore',
     wolf: 'theme-wolf', bomb: 'theme-bomb', quiz: 'theme-quiz', auction: 'theme-auction',
-    sugoroku: 'theme-sugoroku', falsetrue: 'theme-falsetrue'
+    sugoroku: 'theme-sugoroku', falsetrue: 'theme-falsetrue',
+    // 指示55-①：ロシアンカード。**ここに足さないと、幕と棚だけ新しい色になり、
+    // 遊ぶ画面は染まらない**（CSSもJSもエラーを出さない・落とし穴3）
+    rcard: 'theme-rcard'
   };
   function applyGameTheme(screenId){
     var app = el('app');

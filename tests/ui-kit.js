@@ -395,6 +395,8 @@ function click(doc, sel) {
       { cls: 'fx-notices', go: () => win.FxKit.notice('たしかめ') },
       { cls: 'bomb-boom', go: () => win.FxKit.boom() },
       { cls: 'fx-dawn', go: () => win.FxKit.dawn() },
+      // 指示55：画面の縁を全周ひとまわり（正本 §11-5）。大画面だからできる知らせ
+      { cls: 'fx-edge', go: () => win.FxKit.edge('danger') },
       { cls: 'fx-fly', go: () => win.FxKit.fly(app, app, '●') }
     ];
     const 外れ = [];

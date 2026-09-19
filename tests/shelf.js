@@ -127,7 +127,13 @@ function pickCart(doc, id) {
     const pathx = require('path');
     const html = fsx.readFileSync(pathx.join(__dirname, '..', 'public', 'index.html'), 'utf8');
     const 本体 = html.slice(html.indexOf('var CASSETTES = ['), html.indexOf('function cassetteById'));
-    const 実際 = (本体.match(/ready:s*true/g) || []).length;
+    // **バックスラッシュが落ちていた**（指示55-① で直した）。
+    // `/ready:s*true/` は「`ready:` のあとに `s` が0個以上、そのあと `true`」なので、
+    // **`ready: true`（コロンの後に空白）を1件も数えない。**
+    // 正本側（tests/inventory.js:32）は正しく `ready:\s*true` なので、
+    // 空白を入れて書いた日に「抽出数と実数が合わない」で赤くなる——**実装は正しいのに。**
+    // 赤を信じられなくする検査は、無いより悪い（本人の裁定 2026-09-19）
+    const 実際 = (本体.match(/ready:\s*true/g) || []).length;
     assert(実際 > 0, 'CASSETTES に完成カセットがある（実際:' + 実際 + '件）');
     assertEqual(INV.READY_CASSETTE_IDS.length, 実際,
       '正本の抽出（' + INV.READY_CASSETTE_IDS.join(',') + '）が、実際の ready:true の数と合っている');

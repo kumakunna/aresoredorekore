@@ -93,6 +93,25 @@ async function withRoom(win, doc) {
     win.close();
   });
 
+  await r.test('指示55-①：1台で遊べない人数なら、二択を出さずに部屋へ倒す', async () => {
+    // **変異で素通りしたので足した検査**（55-1-H5）。
+    // ロシアンカードの「いっきうち」は2人専用なので、3人以上では
+    // 「1台か、みんなのスマホか」を聞く意味が無い——
+    // 聞いてから「その人数では遊べません」と言うのは、
+    // **押せるのに始まらないボタン**と同じ形（落とし穴14）
+    const { win } = await launch({ fakeSocket: true });
+    assertEqual(win.roomProbe().room, false, '部屋が無い状態を作れている');  // 型(b)
+    // 2人なら、両方できるので二択（E）
+    assertEqual(win.playWayFor('rcard', 2).kind, 'choose', '2人なら1台かみんなのスマホかを聞く');
+    // 3人以上は、1台が成り立たないので「部屋をつくる」へ（C）
+    assertEqual(win.playWayFor('rcard', 3).kind, 'makeRoom', '3人なら部屋をつくるか聞く');
+    assertEqual(win.playWayFor('rcard', 8).kind, 'makeRoom', '8人でも同じ');
+    // **ほかのカセットの答えは変わっていない**（上限を書いていないモードは Infinity）
+    assertEqual(win.playWayFor('jinro', 8).kind, 'choose', '人狼は8人でも二択のまま');
+    assertEqual(win.playWayFor('bakudan', 8).kind, 'choose', '爆弾解除も二択のまま');
+    win.close();
+  });
+
   await r.test('部屋がある時の3通り（B・D・F）', async () => {
     const { win, doc } = await launch({ fakeSocket: true });
     await withRoom(win, doc);

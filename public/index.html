@@ -7386,6 +7386,20 @@
     var c = cassetteById(id);
     return { heads: currentPlayerCount(), 収まる: handoffFitsHeads(c) };
   };
+  /**
+   * そのモードが、いま止まっているか（止まっているなら理由の文）。
+   * **検査が「上限で止まる」を直に試せる窓口**——
+   * 変異（55-1-H4）が素通りした時、上限が効いていることを試す道が1本も無かった。
+   * `人数` を渡すと、その人数で聞ける（棚のチップを動かさずに両側を試すため）
+   */
+  window.modeLockProbe = function(modeId, 人数){
+    var m = modeById(modeId);
+    if(!m) return null;
+    if(人数 == null) return modeLockReason(m);
+    var 元 = currentPlayerCount;
+    currentPlayerCount = function(){ return 人数; };
+    try { return modeLockReason(m); } finally { currentPlayerCount = 元; }
+  };
 
   function playWayPlan(c){
     // **大画面は、遊ぶ側の操作をしない**（指示47-2の禁止事項）。
@@ -7435,9 +7449,17 @@
   // jsdom では開き直すと疑似socketの状態も消えてしまうので、置き場所だけ借りる。
   // **確かめている振る舞い（サーバーに聞いてから確認を出す）は本物のまま**
   window.goToScreen = function(id){ goTo(id); };
-  window.playWayFor = function(id){
+  /**
+   * @param {string} id カセット
+   * @param {number} [人数] その人数で聞く（棚のチップを動かさずに両側を試すため・指示55-①）
+   */
+  window.playWayFor = function(id, 人数){
     var c = cassetteById(id);
-    return c ? playWayPlan(c) : null;
+    if(!c) return null;
+    if(人数 == null) return playWayPlan(c);
+    var 元 = currentPlayerCount;
+    currentPlayerCount = function(){ return 人数; };
+    try { return playWayPlan(c); } finally { currentPlayerCount = 元; }
   };
 
   // （cassettePlayable は第41弾で消した。呼び出し元が1つも無く、

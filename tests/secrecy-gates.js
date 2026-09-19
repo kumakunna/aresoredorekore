@@ -198,6 +198,18 @@ async function run() {
     assertEqual(doc.querySelectorAll('#rcPassBoard .is-picked').length, 0,
       '2人目が開いた盤に、1人目のえらんだ印が復活していない');
 
+    // **画面に入り直したら、開いたままにしない。**
+    // ここは変異（55-1-H2）が素通りして足した——
+    // 「進む時に閉じる」だけだと、**別の道からこの画面へ戻った時に開いたまま**になる。
+    // 守っているのは `goTo` の enter フック（無条件に revealed=false）なので、
+    // その道を実際に通して確かめる（落とし穴10-h：呼ぶ道があって初めて意味がある）
+    assertEqual(el(doc, 'rcPassBody').style.display, 'flex', 'いまは開いている');
+    win.goToScreen('scr-rc-pass');
+    await sleep(win, 60);
+    assertEqual(el(doc, 'rcPassBody').style.display, 'none',
+      '入り直したらゲートが閉じ直る（覗き返しの道ができていない）');
+    assertEqual(el(doc, 'rcPassBoard').innerHTML, '', '盤も DOM から消えている');
+
     assertNoErrors(errors, 'ロシアンカードの手渡しで未捕捉の例外');
     win.close();
   });

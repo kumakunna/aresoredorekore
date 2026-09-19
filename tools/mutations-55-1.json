@@ -118,5 +118,45 @@
     "from": "      else 候補ゼロ.push({ id: idOf(人), なぜ: 理由なし.候補ゼロ });",
     "to": "      else 候補ゼロ.push({ id: idOf(人), なぜ: 理由なし.余り });",
     "expect": "z は no-candidate"
+  },
+  {
+    "name": "55-1-H1 ゲートで盤を DOM から消さない（display で隠すだけにする）",
+    "file": "public/index.html",
+    "suite": "tests/secrecy-gates.js",
+    "from": "      el('rcPassBoard').innerHTML = '';\n      el('rcPassLead').textContent = '';",
+    "to": "      el('rcPassLead').textContent = '';",
+    "expect": "2人目のゲートでは盤が DOM からも空"
+  },
+  {
+    "name": "55-1-H2 画面に入る時に、ゲートを閉じ直さない（覗き返しの道ができる）",
+    "file": "public/index.html",
+    "suite": "tests/secrecy-gates.js",
+    "from": "    rcHand().revealed = false;\n    rcHand().picked = [];\n    renderRcPass();",
+    "to": "    rcHand().picked = [];\n    renderRcPass();",
+    "expect": "入り直したらゲートが閉じ直る"
+  },
+  {
+    "name": "55-1-H3 めくる画面のゲートで、前の人の盤を残す",
+    "file": "public/index.html",
+    "suite": "tests/secrecy-gates.js",
+    "from": "      el('rcTurnBoard').innerHTML = '';\n      el('rcTurnVs').innerHTML = '';",
+    "to": "      el('rcTurnVs').innerHTML = '';",
+    "expect": "前の人の盤が DOM からも消えている"
+  },
+  {
+    "name": "55-1-H4 モード単位の人数上限を見ない（上限が片方向にしか効かない・落とし穴8）",
+    "file": "public/index.html",
+    "suite": "tests/mode-screen.js",
+    "from": "    return n >= modeMinPlayers(m) && n <= modeMaxPlayers(m);",
+    "to": "    return n >= modeMinPlayers(m);",
+    "expect": "5人では「いっきうち」が止まっている"
+  },
+  {
+    "name": "55-1-H5 いまの人数で1台が成り立つかを見ない（3人でも「1台か部屋か」を聞いてしまう）",
+    "file": "public/index.html",
+    "suite": "tests/play-way.js",
+    "from": "    if(canHandoff && !handoffFitsHeads(c)) canHandoff = false;",
+    "to": "    if(false && canHandoff && !handoffFitsHeads(c)) canHandoff = false;",
+    "expect": "3人なら部屋をつくるか聞く"
   }
 ]

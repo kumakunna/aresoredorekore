@@ -116,6 +116,48 @@ async function 長押し(win, card) {
     win.close();
   });
 
+  await r.test('指示55-①：人数の上限でも止まる。理由は上限の言い方になる（落とし穴8）', async () => {
+    // **変異で素通りしたので足した検査**（55-1-H4）。
+    // `canPlayMode` から上限の側を外しても、`handoffFitsHeads` が別に上限を見ていたので、
+    // play-way は緑のままだった——**上限が効いていることを直に試す道が1本も無かった**。
+    //
+    // ロシアンカードの「いっきうち」は2人専用（maxPlayers:2）。
+    // 3人で棚から入ると、部屋へ倒れる前に**モードの側でも止まる**ことを見る
+    const { win, doc, errors } = await launch();
+    await 人数をえらぶ(win, doc, 3);
+    // 型(b)：**3人で、手渡しが成り立たない状況が本当に作れているか**を先に見る
+    const 収まり = win.handoffHeadsProbe('rcard');
+    assertEqual(収まり.heads, 3, '棚は3人を持っている');
+    assertEqual(収まり.収まる, false, '3人では1台の遊び方が成り立たない');
+    // **もう一方の入力も与える**（落とし穴10-c）。2人なら成り立つ
+    await 人数をえらぶ(win, doc, 2);
+    const 収まり2 = win.handoffHeadsProbe('rcard');
+    assertEqual(収まり2.heads, 2, '棚は2人を持っている');
+    assertEqual(収まり2.収まる, true, '2人なら1台の遊び方が成り立つ');
+    assertNoErrors(errors, '人数の上限で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('指示55-①：上限で止まったモードは、上限の言い方で止まる', async () => {
+    // 下限の文言をそのまま出すと「2人以上で遊べます（いま5人）」という
+    // 意味の通らない案内になる（落とし穴8の表示側）
+    const { win, doc, errors } = await launch();
+    await 人数をえらぶ(win, doc, 5);
+    const 理由5 = win.modeLockProbe('rcard-duel');
+    // 型(b)：**そもそも止まっているか**を先に見る（null なら以下は自明に成立する）
+    assert(理由5, '5人では「いっきうち」が止まっている（実際:' + 理由5 + '）');
+    assert(/人までの遊び方です/.test(理由5), '上限の言い方になっている（実際:' + 理由5 + '）');
+    assertEqual(/人以上で遊べます/.test(理由5), false, '下限の言い方は出ていない');
+    // **もう一方の入力**（落とし穴10-c）。2人なら止まらない
+    await 人数をえらぶ(win, doc, 2);
+    assertEqual(win.modeLockProbe('rcard-duel'), null, '2人なら止まらない');
+    // 下限で止まる側も、下限の言い方のまま（上限の枝が全部を飲み込んでいないこと）
+    const 理由1 = win.modeLockProbe('rcard-duel', 1);
+    assert(理由1 && /人以上で遊べます/.test(理由1), '下限は下限の言い方（実際:' + 理由1 + '）');
+    assertNoErrors(errors, '上限の理由で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('44-1：部屋にいる人は、進行役でなくても部屋の実人数を見る（門G4の3面目）', async () => {
     // **ここは実機2台でしか撮れないと思っていた面。**
     // 同じブラウザの2つ目のタブは `localStorage` を共有して1人目の身分を

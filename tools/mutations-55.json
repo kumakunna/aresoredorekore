@@ -93,7 +93,7 @@
     "suite": "tests/quiz-bank.js",
     "from": "      return canonicalOf(topic, s) || normalize(s);",
     "to": "      return normalize(s);",
-    "expect": "のあとに別名"
+    "expect": "別名で言い直しても、2回は得点しない"
   },
   {
     "name": "55-C4 normalize の全角のたたみを外す（無駄な別名の門が効くか）",

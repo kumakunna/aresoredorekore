@@ -235,6 +235,22 @@ const { createRunner, assert, assertEqual } = require('./harness');
     });
   });
 
+  await r.test('つぎつぎクイズ：全角で打っても通る', async () => {
+    // スマホでは「１塁」「Ｐ」と**全角で確定することがある**。
+    // normalize がたたまないと弾かれ、脱落形式ではその一言で退場になる。
+    // **別名で二重に持つ形にはしない**——持つと、片方を消した日に静かに弾き始める。
+    // ここは**具体の値で書く**（落とし穴10-a：実装側の表を借りると一緒に緩む）
+    const t = Q.listTopicsOf().find((x) => x.topic === '野球のポジション');
+    assert(t, '野球のポジションのお題がある');
+    assertEqual(Q.judgeListAnswer(t, '１塁', []), 'correct', '全角の数字で打っても通る');
+    assertEqual(Q.judgeListAnswer(t, '1塁', []), 'correct', '半角でも通る');
+    // **同じものとして扱われる**（別々に数えて2回得点しない）
+    assertEqual(Q.judgeListAnswer(t, '１塁', ['ファースト']), 'duplicate',
+      '全角で言い直しても重複と分かる');
+    // 英字も同じ（スコアブックの略記）
+    assertEqual(Q.normalize('Ｐ'), Q.normalize('P'), '全角の英字も半角と同じになる');
+  });
+
   await r.test('つぎつぎクイズ：無駄な別名を持たない', async () => {
     // normalize が既に吸収するもの（全角の数字・カタカナ・長音など）を別名に書くと、
     // **同じ鍵が2つできる**。持つと、片方を消した日に「なぜか弾かれる」が静かに始まる。

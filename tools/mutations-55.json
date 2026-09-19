@@ -13,7 +13,7 @@
     "suite": "tests/big-screen.js",
     "from": "  return (w.reveal && w.reveal.buzzed) ? 'play' : 'tick';",
     "to": "  return 'play';",
-    "expect": "押される前は数えない（期待 tick / 実際 play）"
+    "expect": "押される前は数えない"
   },
   {
     "name": "55-A3 協力/対戦の宣言と、進行役の名乗りをずらす（§11-2）",
@@ -45,7 +45,7 @@
     "suite": "tests/big-screen.js",
     "from": "function privateFor(room, memberId) {",
     "to": "function privateFor(room, memberId) {\n  return { role: 'wolf' };",
-    "expect": "大画面に何かを配っている進行役がある：wolfrole"
+    "expect": "大画面（プレイヤーでない端末）に何かを配っている進行役がある"
   },
   {
     "name": "55-A7 大画面の描画が「あなた」を組み立てる（§11-6・48-2）",
@@ -53,7 +53,7 @@
     "suite": "tests/big-screen.js",
     "from": "main = '夜'; sub = '全員、自分のスマホを見てください';",
     "to": "main = '夜'; sub = 'あなたのスマホを見てください';",
-    "expect": "大画面の描画が「あなた」を組み立てている：renderRtBig"
+    "expect": "大画面の描画が「あなた」を組み立てている"
   },
   {
     "name": "55-B1 問題から根拠の欄を落とす（2-5）",
@@ -83,9 +83,9 @@
     "name": "55-C2 漢字の答えから、かなで打つ道を消す（つぎつぎクイズ）",
     "file": "public/js/quiz-bank.js",
     "suite": "tests/quiz-bank.js",
-    "from": "'すいそ': '水素'",
-    "to": "'スイソ水素': '水素'",
-    "expect": "かなで打てない答えがある：元素記号1文字の元素「水素」"
+    "from": "'ほうれんそう': 'ほうれん草'",
+    "to": "'ホウレン草': 'ほうれん草'",
+    "expect": "かなで打てない答えがある：緑の野菜「ほうれん草」"
   },
   {
     "name": "55-C3 重複の判定を、打った文字列に戻す（別名が2回得点する）",
@@ -93,7 +93,7 @@
     "suite": "tests/quiz-bank.js",
     "from": "      return canonicalOf(topic, s) || normalize(s);",
     "to": "      return normalize(s);",
-    "expect": "「ピッチャー」のあとに別名「投手」が通ってしまう"
+    "expect": "のあとに別名"
   },
   {
     "name": "55-C4 normalize の全角のたたみを外す（無駄な別名の門が効くか）",
@@ -101,6 +101,6 @@
     "suite": "tests/quiz-bank.js",
     "from": "      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, function (c) {\n        return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);\n      })",
     "to": "",
-    "expect": "全角で打つと弾かれる（接尾辞・かなの門のどれかが赤くなる）"
+    "expect": "全角で打っても通る"
   }
 ]

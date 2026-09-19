@@ -21,6 +21,7 @@ const QuizRoom = require('./quiz-room.js');
 const AuctionRoom = require('./auction-room.js');
 const SugorokuRoom = require('./sugoroku-room.js');
 const FalseTrueRoom = require('./falsetrue-room.js');
+const RcardRoom = require('./rcard-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -55,6 +56,10 @@ const GAME_DRIVERS = {
   // 指示53：カセット「False or True」。部屋（1人1台）専用。
   // 中身は1ビットしかないので、秘密の扱いがこのゲームの芯（falsetrue-room.js の冒頭）
   falsetrue: { driver: FalseTrueRoom, key: 'falsetrue' },
+  // 指示55-①：カセット「ロシアンカード」。相手の盤に秘密で爆弾を仕掛ける遊びなので、
+  // 秘密の扱いがこのゲームの芯（rcard-room.js の冒頭）。
+  // 同時に複数組を回す形は、すごろく「ふたりでひとつ」と同じ
+  rcard: { driver: RcardRoom, key: 'rcard' },
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {

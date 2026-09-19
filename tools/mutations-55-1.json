@@ -1,0 +1,122 @@
+[
+  {
+    "name": "55-1-S1 爆弾の位置を publicView にそのまま載せる（秘匿の芯）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "    bombsPerBoard: w.bombsPerBoard,\n    livesMax: w.cfg.lives,",
+    "to": "    bombsPerBoard: w.bombsPerBoard,\n    bombsOnBoard: w.bombsOnBoard,\n    livesMax: w.cfg.lives,",
+    "expect": "爆弾の位置に関係なく同じ"
+  },
+  {
+    "name": "55-1-S2 符号化して紛れ込ませる（針では絶対に見つからない形・53-Q4C と同じ手）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "    bombsPerBoard: w.bombsPerBoard,\n    livesMax: w.cfg.lives,",
+    "to": "    bombsPerBoard: String(w.bombsPerBoard) + Object.values(w.bombsOnBoard).map(function(x){ return (x || []).join(''); }).join(''),\n    livesMax: w.cfg.lives,",
+    "expect": "爆弾の位置に関係なく同じ"
+  },
+  {
+    "name": "55-1-S3 めくる前の盤の中身を1マスぶんだけ漏らす（1ビット漏れ）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "    last: w.last ? { byId: w.last.byId, no: w.last.no, hit: w.last.hit, timeout: !!w.last.timeout } : null,",
+    "to": "    nextIsBomb: w.playerIds.map(function(id){ return (w.bombsOnBoard[id] || []).indexOf(1) !== -1; }),\n    last: w.last ? { byId: w.last.byId, no: w.last.no, hit: w.last.hit, timeout: !!w.last.timeout } : null,",
+    "expect": "爆弾の位置に関係なく同じ"
+  },
+  {
+    "name": "55-1-S4 置いた位置を、置いた本人以外にも返す（見てよい範囲の境目を外す）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "  const 見てよい = !!(相手 && w.placed[memberId] && w.phase !== PHASE.PLACE);",
+    "to": "  const 見てよい = true;",
+    "expect": "置く段階では返さない"
+  },
+  {
+    "name": "55-1-S5 大画面（プレイヤーでない端末）にも秘密を返す（§11-6）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "  if (!w || w.playerIds.indexOf(memberId) === -1) return null;\n  const m = matchOf(room, memberId);",
+    "to": "  if (!w) return null;\n  const m = matchOf(room, memberId);",
+    "expect": "名簿に無い相手には null"
+  },
+  {
+    "name": "55-1-S6 逆向き：当たってもその1枚を公開しない（隠しっぱなしにする）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "  if (res.hit) {\n    盤.hits.push(n);",
+    "to": "  if (res.hit) {\n    if (false) 盤.hits.push(n);",
+    "expect": "A では当たりとして出る"
+  },
+  {
+    "name": "55-1-S7 自分の盤の答えを、本人に返してしまう",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "    // **w.bombsOnBoard[memberId] は、どの分岐でも読まない**\n    out: w.敗退回[memberId] != null",
+    "to": "    myBoardBombs: (w.bombsOnBoard[memberId] || []).slice(),\n    out: w.敗退回[memberId] != null",
+    "expect": "自分の盤の答えは返らない"
+  },
+  {
+    "name": "55-1-T1 手番でない人にもめくらせる",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "  if (turnIdOf(m) !== memberId) return { ok: false, error: 'not_your_turn' };",
+    "to": "  if (false) return { ok: false, error: 'not_your_turn' };",
+    "expect": "相手は押せない"
+  },
+  {
+    "name": "55-1-T2 時間切れで体力を減らさない（膠着を止められなくする）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "    const id = turnIdOf(m);\n    w.lives[id] = Math.max(0, w.lives[id] - 1);",
+    "to": "    const id = turnIdOf(m);",
+    "expect": "体力が1減る"
+  },
+  {
+    "name": "55-1-T3 見せる段階を「全員済み」にして、飛ばせるようにする（落とし穴22）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "  if (w.phase === PHASE.SHOW || w.phase === PHASE.ROUND) return false;",
+    "to": "  if (false) return false;",
+    "expect": "それでも「全員済み」にはしない"
+  },
+  {
+    "name": "55-1-T4 抜けた人の試合を畳まない（落とし穴17・進行が止まる）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "    if (w.gone.indexOf(id) !== -1) return;\n    if (isPresent(room, id)) return;\n    w.gone.push(id);",
+    "to": "    if (w.gone.indexOf(id) !== -1) return;\n    if (isPresent(room, id)) return;\n    if (false) w.gone.push(id);",
+    "expect": "抜けた人として数えられた"
+  },
+  {
+    "name": "55-1-T5 めくる段階の時計を play にする（420pxの数字が盤を覆う・§11-4）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "  if (w.phase === PHASE.TURN) return 'turn';",
+    "to": "  if (w.phase === PHASE.TURN) return 'play';",
+    "expect": "めくる段階は turn"
+  },
+  {
+    "name": "55-1-T6 2人でも「ふだんの数」にする（2人で遊ぶ人が決勝の盤を一生見ない）",
+    "file": "public/js/rcard-logic.js",
+    "suite": "tests/rcard-logic.js",
+    "from": "    return (生存者数 <= 2) ? c.finalBombs : c.bombs;",
+    "to": "    return c.bombs;",
+    "expect": "2人なら最初から5つ"
+  },
+  {
+    "name": "55-1-V1 連続不戦勝を避ける門を外す（部品A）",
+    "file": "public/js/versus.js",
+    "suite": "tests/versus.js",
+    "from": "    if (o.連続不戦勝を避ける && o.直前の不戦勝) {",
+    "to": "    if (false && o.連続不戦勝を避ける && o.直前の不戦勝) {",
+    "expect": "同じ人が2回続けて不戦勝になっている"
+  },
+  {
+    "name": "55-1-V2 「相手がいない理由」を1種類に畳む（①の不戦勝と②のAIがぶつかる）",
+    "file": "public/js/versus.js",
+    "suite": "tests/versus.js",
+    "from": "      else 候補ゼロ.push({ id: idOf(人), なぜ: 理由なし.候補ゼロ });",
+    "to": "      else 候補ゼロ.push({ id: idOf(人), なぜ: 理由なし.余り });",
+    "expect": "z は no-candidate"
+  }
+]

@@ -37,6 +37,18 @@ async function 始める(srv, n, cfg) {
   return rm;
 }
 const 端末 = (rm, id) => rm.all.find((d) => d.memberId === id);
+/**
+ * **退室させる人を観測に使わない。**
+ *
+ * `pickerId` は `ids[Math.floor(rand() * ids.length)]`（falsetrue-room.js）で
+ * 5人から一様に選ばれるので、**1回あたり20%で進行役（rm.host）が当たる**。
+ * その回に `viewOf(rm.host)` を見ていると、**観測している端末そのものが部屋を出る**ので
+ * `room:update` が二度と届かず、待ちが必ず時間切れになる。
+ * 実測：10回中4回が落ちていた（Q8-a と Q8-b でそれぞれ約20%）。
+ *
+ * **たまに落ちる検査は、実装を疑わせるぶん、無いより悪い**（落とし穴10-d）。
+ */
+const 残る端末 = (rm, 出る) => rm.all.find((d) => d !== 出る && d.memberId !== 出る.memberId);
 
 (async function main() {
   const r = createRunner('realtime-falsetrue：False or True（本物のサーバー）');
@@ -336,22 +348,21 @@ const 端末 = (rm, id) => rm.all.find((d) => d.memberId === id);
     const srv = await startTestServer();
     try {
       const rm = await 始める(srv, 5);
-      const w = stateOf(srv, rm.code);
-      const 抜ける = 端末(rm, w.pickerId);
       const 枚数 = viewOf(rm.host).cases.length;
-      // ホストが抜けると進行役の移譲まで絡むので、ホストでない人が選ぶ回まで進める
-      if (抜ける === rm.host) { rush(srv, rm.code); await waitUntil(() => true, '-'); }
       const 出る = 端末(rm, stateOf(srv, rm.code).pickerId);
       const id = 出る.memberId;
+      // **進行役が選ぶ回でも、そのまま試す。**
+      // 見るのは残る端末なので、進行役の移譲が絡んでも観測は切れない
+      const 見る = 残る端末(rm, 出る);
       const res = await 出る.call('room:leave', { code: rm.code, memberId: id });
       assertEqual(res.ok, true, '退室できる');
       // **芯が片付けて、また pick になる**（詰まらない）
       await waitUntil(() => {
-        const v = viewOf(rm.host);
+        const v = viewOf(見る);
         return v && v.phase === 'pick' && v.holderId && v.holderId !== id;
       }, '別の人が選ぶ側になる');
-      assertEqual(viewOf(rm.host).cases.length, 枚数, 'まだ選んでいないので、ケースは減らない');
-      const p = viewOf(rm.host).players.find((x) => x.id === id);
+      assertEqual(viewOf(見る).cases.length, 枚数, 'まだ選んでいないので、ケースは減らない');
+      const p = viewOf(見る).players.find((x) => x.id === id);
       assertEqual(p.gone, true, '抜けたことが全員に伝わる');
       assertEqual(p.fate, null, '抜けた人は、生存でも脱落でもない');
       rm.all.filter((d) => d.memberId !== id).forEach((d) => d.close());
@@ -366,12 +377,14 @@ const 端末 = (rm, id) => rm.all.find((d) => d.memberId === id);
       const d = 端末(rm, 持ち主id);
       await waitUntil(() => viewOf(d) && viewOf(d).cases, '持ち主に届く');
       const 番号 = viewOf(d).cases[1];
+      // **見るのは、退室しない端末**（持ち主が進行役に当たる回があるため）
+      const 見る = 残る端末(rm, d);
       assertEqual((await d.call('wolf:act', { pick: 番号 })).ok, true, 'ケースをえらぶ');
-      await waitUntil(() => viewOf(rm.host).phase === 'peek', 'peek に入る');
+      await waitUntil(() => viewOf(見る).phase === 'peek', 'peek に入る');
       // ここで退室する（中身を知っている人が消える）
       assertEqual((await d.call('room:leave', { code: rm.code, memberId: 持ち主id })).ok, true, '退室できる');
-      await waitUntil(() => viewOf(rm.host).phase === 'pick', '次の人の pick へ進む');
-      const v = viewOf(rm.host);
+      await waitUntil(() => viewOf(見る).phase === 'pick', '次の人の pick へ進む');
+      const v = viewOf(見る);
       assertEqual(v.cases.indexOf(番号), -1, 'そのケースは選択欄に戻ってこない');
       assertEqual(v.discarded.indexOf(番号) >= 0, true, '消えたケースとして数えられている');
       rm.all.filter((x) => x.memberId !== 持ち主id).forEach((x) => x.close());

@@ -2354,10 +2354,21 @@
   /* 大画面の順位表の置き場。中身は共通部品（.rk-list） */
   .big-rank{width:100%;}
   .rk-list{display:flex;flex-direction:column;gap:6px;margin-top:12px;}
+  /* 指示55-①：順位表を巻き取る器。**寄り（FxKit.spotlight）はこの中で完結する。**
+     `position:fixed` を使わない——先祖に filter / transform があると
+     画面ではなくその箱の座標に置かれる（落とし穴26）。
+     高さは持たせない（長い順位表が切れてしまう）。**寄りの最中だけ JS が固定する** */
+  .rk-view{overflow:hidden;}
   .rk-row{
     display:flex;align-items:center;gap:8px;padding:9px 12px;
     background:var(--card);border:1px solid var(--line);border-radius:10px;
-    transition:transform .4s cubic-bezier(.32,.72,0,1);
+    /* 指示55-①：**固定値だった。**正本 §4 が「固定値で書くと3択のうち『速い』だけ
+       何も起きない」と名指しした形そのもので、スキップだけが
+       `:root.fx-skip *` の一括停止で効いていた。
+       そもそも rankingHtml が毎回 innerHTML で行を作り直すので、
+       **この遷移はアプリ全体で一度も発火していなかった**——
+       putRanking（FLIP）が入って、ここからやっと本物の動きになる */
+    transition:transform calc(.4s * var(--fx-scale, 1)) cubic-bezier(.32,.72,0,1);
   }
   /* 1位は大きい（§11-7）。**同着なら全員に付く** */
   .rk-row.is-top{
@@ -11116,6 +11127,10 @@
     // 第36弾 36-3：棚は「どのゲームも遊んでいない場所」。
     // ここへ来たら、走っている時計と遅れて動く処理をまとめて捨てる（落とし穴17）
     if(id === 'scr-shelf') stopAllPlayTimers();
+    // 指示55-①：**覚えている順位も、画面をまたいだら捨てる。**
+    // 持ち越すと、次の試合の1回目が「前の試合からの変化」として動く
+    //（監査_状態と境界の型2：境界をまたぐ状態のリセット判断）
+    rankZoomForget();
     if(id === 'scr-shelf') enterShelf();
     if(id === 'scr-game') enterGame();
     if(id === 'scr-setup') enterSetup();
@@ -13960,7 +13975,7 @@
       // 決着の知らせより先にこの画面へ来ることはある（落とし穴18）。
       // **その時は何も言わない。**古い値で埋めると、嘘が出る
       el('rtSugoRsWin').innerHTML = '';
-      el('rtSugoRsRank').innerHTML = '';
+      putRanking(el('rtSugoRsRank'), '');
       el('rtSugoRsNote').textContent = '';
       el('rtSugoRsNote').style.display = 'none';
       return;
@@ -13972,9 +13987,9 @@
       '<div class="sugo-rs-name">' + escapeHtml(勝ち.map(function(p){ return p.name; }).join('・')) + '</div>' +
       '<div class="sugo-rs-sub">' + escapeHtml(言葉.note || '') + '</div>';
     // 指示55 §11-7：**順位表は共通の1部品**
-    el('rtSugoRsRank').innerHTML = rankingHtml(sugoRankRows(res), {
+    putRanking(el('rtSugoRsRank'), rankingHtml(sugoRankRows(res), {
       showFace: !res.pairs, meId: rt && rt.state && rt.state.memberId
-    });
+    }));
     /**
      * 「どこにいる？」は**決着してはじめて実位置を明かす**ゲーム
      *（`sugoroku-room.js:820` がそう宣言している）。
@@ -15847,7 +15862,7 @@
       el('qzTimer').style.display = 'none';
       el('qzNote').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>';
       el('qzBody').innerHTML = qzBoardHtml(v);
-      el('qzResult').innerHTML = (v.phase === 'ended') ? qzResultHtml(v) : '';
+      putRanking(el('qzResult'), (v.phase === 'ended') ? qzResultHtml(v) : '');
       qzEndButtons(v.phase === 'ended');
       return;
     }
@@ -15875,7 +15890,7 @@
       el('qzTimer').style.display = 'none';
       el('qzNote').innerHTML = '';
       el('qzBody').innerHTML = '';
-      el('qzResult').innerHTML = qzResultHtml(v);
+      putRanking(el('qzResult'), qzResultHtml(v));
       qzEndButtons(true);
       return;
     }
@@ -15883,7 +15898,7 @@
     qzSetClock(v.remainingMs);
     qzRenderTimer();
     qzStartTicking();
-    el('qzResult').innerHTML = '';
+    putRanking(el('qzResult'), '');
     qzEndButtons(false);
 
     qzPrevPhase = v.phase;
@@ -16983,13 +16998,13 @@
       return '<span class="amk">' + k.icon + '<b>' + ((res.market || {})[k.id] || 1) + '</b></span>';
     }).join('');
     // 指示55 §11-7：**順位表は共通の1部品**
-    el('auRsRank').innerHTML = rankingHtml((res.ranking || []).map(function(row){
+    putRanking(el('auRsRank'), rankingHtml((res.ranking || []).map(function(row){
       return {
         id: row.id, rank: row.rank, name: row.name,
         main: row.score + '点',
         note: '品物' + row.fromItems + '＋残り' + row.fromChips
       };
-    }), { showFace: true, meId: rt && rt.state && rt.state.memberId });
+    }), { showFace: true, meId: rt && rt.state && rt.state.memberId }));
     // 「今日の名場面」は、出せるものがある時だけ
     el('auRsHighlight').style.display = res.highlight ? 'block' : 'none';
     el('auRsHighlight').textContent = res.highlight || '';
@@ -17596,21 +17611,101 @@
     // 同着を数える（同じ rank が2つ以上あれば「ならび」）
     var 数 = {};
     list.forEach(function(r){ if(r.rank != null) 数[r.rank] = (数[r.rank] || 0) + 1; });
-    return '<div class="rk-list">' + list.map(function(r){
+    // **器（.rk-view）と行の鍵（data-rk-id）は、ここで付ける**（指示55-①・部品B）。
+    // 呼ぶ側（9か所）にそれぞれ用意させると、片方だけ直す日が来る（落とし穴1）。
+    // 器は巻き取るだけ。高さは寄りの最中だけ JS が固定する——
+    // ふだんから高さを持たせると、順位表が長い時に切れてしまう
+    return '<div class="rk-view"><div class="rk-list">' + list.map(function(r){
       var 並び = (r.rank != null && 数[r.rank] > 1);
       var cls = 'rk-row' +
         (r.rank === 1 ? ' is-top' : '') +
         (r.out ? ' is-out' : '') +
         (o.meId && r.id === o.meId ? ' is-me' : '');
-      return '<div class="' + cls + '">' +
+      return '<div class="' + cls + '" data-rk-id="' + escapeHtml(String(r.id == null ? '' : r.id)) + '">' +
         '<span class="rk-place">' + (r.rank == null ? '－' : (r.rank + '位' + (並び ? 'ならび' : ''))) + '</span>' +
         (o.showFace && r.id ? '<span class="rk-face">' + faceOf(r.id) + '</span>' : '') +
         '<span class="rk-name">' + escapeHtml(r.name || '') + '</span>' +
         '<span class="rk-main">' + escapeHtml(r.main == null ? '' : String(r.main)) + '</span>' +
         (r.note ? '<span class="rk-note">' + escapeHtml(r.note) + '</span>' : '') +
       '</div>';
-    }).join('') + '</div>';
+    }).join('') + '</div></div>';
   }
+
+  /**
+   * **順位表を含む HTML を箱に入れる。**（指示55-①・共通部品B）
+   *
+   * `箱.innerHTML = html` の代わりにこれを通すと、
+   * **前の順位表が残っているあいだに位置を測って**から入れ替えるので、
+   * 行の入れ替わり（FLIP）と、自分の行への寄りが出せる。
+   *
+   * なぜ「呼ぶ側で演出する」形にしないか：順位表を出す9か所のうち
+   * **5か所は文字列を組み立てて最後に1回入れる形**（クイズ王・爆弾解除）で、
+   * 演出を呼ぶ側に書かせると必ず片方だけ直す日が来る（落とし穴1）。
+   * **入れる瞬間は全部ここを通る**ので、ここ1か所で足りる。
+   *
+   * 何も変わっていない時は動かさない——`rtRenderCurrent` は
+   * publicView が届くたび丸ごと描き直すので、素直に書くと**更新のたびに鳴り直す**。
+   */
+  var 前の順位 = {};   // 箱のid → 'memberId:順位' の並び。**画面を出るたび捨てる**（下の rankZoomForget）
+  function putRanking(箱, html){
+    if(!箱){ return Promise.resolve(false); }
+    var 鍵 = 箱.id || '';
+    var 旧 = 箱.querySelector('.rk-view');
+    var 旧並び = 前の順位[鍵] || null;
+    var 私 = rt && rt.state && rt.state.memberId;
+    var 入れる = function(){ 箱.innerHTML = html; };
+
+    // 新しい並びを、入れる前に読み取っておく（入れたあとの DOM から数える）
+    function 並びを読む(){
+      return Array.prototype.map.call(箱.querySelectorAll('.rk-row'), function(el){
+        return el.getAttribute('data-rk-id') + ':' + (el.querySelector('.rk-place') || {}).textContent;
+      }).join('|');
+    }
+
+    // **動かさない条件を先に並べる。**どれか1つでも当たれば、ただ入れて終わり。
+    // `html` に順位表が入っていない時（空にする時も含む）が先頭にあるのは、
+    // **空の表に向かって寄ってしまう**のを防ぐため——
+    // 実際、最初は「入れる所」だけを putRanking に寄せて、
+    // **空にする4か所を innerHTML の直書きのまま残していた**（落とし穴1）。
+    // tests/rank-zoom.js がそれを見つけたので、入口を1つにそろえた
+    if(String(html || '').indexOf('rk-row') === -1){
+      箱.innerHTML = html;
+      delete 前の順位[鍵];
+      return Promise.resolve(true);
+    }
+    if(!旧 || !私 || appPrefs.fxSpeed === 'skip'){
+      入れる();
+      前の順位[鍵] = 並びを読む();
+      return Promise.resolve(true);
+    }
+    var 器 = 旧;
+    var 高さ = 器.offsetHeight;
+    return (async function(){
+      // ① 変更前の順位表を、一瞬そのまま見せる
+      await FxKit.hold(250);
+      // ② 高さを固定する。拡大した中身がページを伸ばさないように
+      器.style.height = 高さ + 'px';
+      // ③ 入れ替え（FLIP）と、自分の行への寄りを**同時に**走らせる
+      await FxKit.flipMove(箱, '.rk-row', 'data-rk-id', 入れる, 400);
+      var 新器 = 箱.querySelector('.rk-view');
+      if(新器){
+        新器.style.height = 高さ + 'px';
+        var 私の行 = 箱.querySelector('.rk-row[data-rk-id="' + 私 + '"]');
+        if(私の行) await FxKit.spotlight(新器, 私の行, { 倍率: 1.25, ms: 400 });
+        // ④ 引く。全部読める状態に戻してから、高さの固定も外す
+        await FxKit.spotlight(新器, null, { 倍率: 1, ms: 400 });
+        新器.style.height = '';
+      }
+      前の順位[鍵] = 並びを読む();
+      return false;
+    })();
+  }
+  /**
+   * 画面を出る時に、覚えている順位を捨てる。
+   * **境界を決めておかないと、次の試合に前の順位が持ち越される**
+   *（監査_状態と境界の型2）。画面の出入りは goTo が1本道なので、そこから呼ぶ
+   */
+  function rankZoomForget(){ 前の順位 = {}; }
 
   /**
    * 指示55・正本 §11-1：**共通のものは1つ大きく。**
@@ -18140,7 +18235,7 @@
       el('rtBombProgress').textContent = '';
       el('rtBombTimer').style.display = 'none';
       el('rtBombNote').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>';
-      el('rtBombResult').innerHTML = (v.phase === 'ended') ? rtBombResultHtml(v) : '';
+      putRanking(el('rtBombResult'), (v.phase === 'ended') ? rtBombResultHtml(v) : '');
       rtBombEndButtons(v.phase === 'ended');
       return;
     }
@@ -18204,7 +18299,7 @@
       el('rtBombNote').innerHTML = 'コードをならべています。' +
         (race ? '<br>ならぶまで、誰にも中身は見えません。' : '<br>もう少しお待ちください。');
       el('rtBombBoard').innerHTML = '';
-      el('rtBombResult').innerHTML = '';
+      putRanking(el('rtBombResult'), '');
       el('rtBombTimer').style.display = 'none';
       rtBombEndButtons(false);
       return;
@@ -18218,7 +18313,7 @@
       el('rtBombNote').innerHTML = '';
       el('rtBombBoard').innerHTML = '';
       el('rtBombTimer').style.display = 'none'; // 止まった時計を残さない
-      el('rtBombResult').innerHTML = rtBombResultHtml(v);
+      putRanking(el('rtBombResult'), rtBombResultHtml(v));
       rtBombEndButtons(true);
       // 決着の演出は、この分岐ではなく上の rtOnce が出す（第47弾 47-1）。
       // ここに書いていた頃は、この分岐を通らない経路（競争版の最後の脱落者）で黙っていた
@@ -18249,7 +18344,7 @@
     });
     el('rtBombBoard').innerHTML = rtBombBoardHtml(you);
     rtBombMarkWorking();
-    el('rtBombResult').innerHTML = '';
+    putRanking(el('rtBombResult'), '');
     rtBombEndButtons(false);
 
     // 開けているコードだけ、説明文と3択を出す

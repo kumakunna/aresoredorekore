@@ -654,6 +654,147 @@
   }
   vibe.NAMES = Object.keys(VIBES);
 
+  // ---------- 並べ替えと、寄り（指示55-①・共通部品B の土台） ----------
+  //
+  // **ここに「順位表」という言葉は1つも無い。**
+  // 鍵にする属性も、巻き取る箱も、呼ぶ側が決める——
+  // fx.js がアプリの語彙（rk-row・meId）を知らずに済む形にしてある
+  //（CLAUDE.md 技術構成：新しい演出は fx.js に足す／ゲームごとに個別実装しない）。
+  //
+  // **`flip` とは別物。**あちらはトランプの裏返し（rotateY）で、位置を一度も測らない。
+  // 位置を測る手本は `fly`（getBoundingClientRect を2点読む）で、ここはその親戚。
+
+  /**
+   * **FLIP**：中身を入れ替える**前に**位置を測り、入れ替えた**後に**
+   * 「元いた場所」へ逆変換で置いてから離す。
+   * 本物の動きは CSS 側の `transition:transform` が作る。
+   *
+   * なぜ要るか：中身を `innerHTML` で作り直すと、要素そのものが新品になるので
+   * **transition は走る余地が無い**（同じ要素の値が変わる時にしか走らない）。
+   * 実際、順位表の `.rk-row` には 0.4秒の transition が書いてあるのに、
+   * アプリ全体で**一度も発火していなかった**（指示55-① の着手前に見つけた）。
+   *
+   * @param {Element} 箱 入れ替えが起きる親
+   * @param {string} 選択子 動かしたい要素（例 '.rk-row'）
+   * @param {string} 鍵 同じものだと見分けるための属性名（例 'data-rk-id'）
+   * @param {Function} 入れ替える 中身を差し替える処理（同期）
+   * @param {number} ms 動きの長さ。CSS 側の transition と同じ値を渡す
+   * @returns {Promise<boolean>} スキップされたか
+   */
+  function flipMove(箱, 選択子, 鍵, 入れ替える, ms) {
+    var 長さ = cfg.ms(ms == null ? 400 : ms);
+    if (!箱 || !箱.querySelectorAll || typeof 入れ替える !== 'function') {
+      if (typeof 入れ替える === 'function') 入れ替える();
+      return Promise.resolve(true);
+    }
+    // **スキップ（と「動きを減らす」）の時は、測らずに入れ替えるだけ。**
+    // 測ってから捨てると、jsdom のようにレイアウトの無い所で
+    // 「動いたつもり」の分岐だけが残る
+    if (!(長さ > 0) || 動きを減らす()) { 入れ替える(); return Promise.resolve(true); }
+
+    var 前 = {};
+    Array.prototype.forEach.call(箱.querySelectorAll(選択子), function (el) {
+      var k = el.getAttribute(鍵);
+      if (k) 前[k] = el.offsetTop;
+    });
+    入れ替える();
+    var 動かした = [];
+    Array.prototype.forEach.call(箱.querySelectorAll(選択子), function (el) {
+      var k = el.getAttribute(鍵);
+      if (!k || 前[k] == null) return;          // 新しく増えた行は動かさない
+      var dy = 前[k] - el.offsetTop;
+      if (!dy) return;                           // 動いていない行に transform を当てない
+      el.style.transition = 'none';
+      el.style.transform = 'translateY(' + dy + 'px)';
+      動かした.push(el);
+    });
+    if (!動かした.length) return Promise.resolve(false);
+    void 箱.offsetWidth;                         // ここで一度、逆変換を反映させる
+    動かした.forEach(function (el) {
+      el.style.transition = '';                  // CSS の transition に返す
+      el.style.transform = '';                   // → ここから本物の動きが始まる
+    });
+    return hold(長さ).then(function (skipped) {
+      // **途中で飛ばされた時は、走っている遷移ごと切って畳む。**
+      // そのまま片付けると、行が途中の位置から瞬間移動する
+      if (skipped) {
+        動かした.forEach(function (el) {
+          el.style.transition = 'none'; el.style.transform = '';
+        });
+        void 箱.offsetWidth;
+        動かした.forEach(function (el) { el.style.transition = ''; });
+      }
+      return skipped;
+    });
+  }
+
+  /**
+   * **寄り**：巻き取る箱の中で、中身ごと拡大して、対象を真ん中に寄せる。
+   * `倍率` を 1 にすれば元に戻る（＝引き）。
+   *
+   * `position:fixed` を使わない。**先祖に filter / transform があると
+   * 画面ではなくその箱の座標に置かれる**ので、巻き取る箱の中で完結させる
+   * （落とし穴26。#app の filter は第52弾 52-7 で条件付きになったが、
+   *  `#uiLayerRoot` は今も自分で filter を持っている）。
+   *
+   * @param {Element} 箱 巻き取る箱（`overflow:hidden` と高さを持つ）
+   * @param {Element} 対象 寄りたい要素（箱の子孫）
+   * @param {object} o `{ 倍率, ms }`
+   */
+  function spotlight(箱, 対象, o) {
+    var p = o || {};
+    var 中身 = 箱 && 箱.firstElementChild;
+    var 長さ = cfg.ms(p.ms == null ? 400 : p.ms);
+    if (!箱 || !中身) return Promise.resolve(true);
+    var 倍率 = p.倍率 == null ? 1 : p.倍率;
+    if (!(長さ > 0) || 動きを減らす()) {
+      // スキップ：動かさずに、最終形（＝引いた状態）にする
+      中身.style.transition = 'none';
+      中身.style.transform = '';
+      return Promise.resolve(true);
+    }
+    var dy = 0;
+    if (倍率 !== 1 && 対象) {
+      // **箱の真ん中と、対象の真ん中を合わせる。**
+      // offsetTop（レイアウトの値）で測る——getBoundingClientRect は
+      // 遷移が動いている最中だと途中の値を返す（落とし穴28）
+      var 箱の中心 = 箱.clientHeight / 2;
+      var 対象の中心 = 対象.offsetTop + 対象.offsetHeight / 2;
+      dy = (箱の中心 - 対象の中心 * 倍率);
+    }
+    中身.style.transition = 'transform ' + 長さ + 'ms cubic-bezier(.32,.72,0,1)';
+    中身.style.transformOrigin = '0 0';
+    中身.style.transform = 倍率 === 1
+      ? 'translateY(0) scale(1)'
+      : 'translateY(' + Math.round(dy) + 'px) scale(' + 倍率 + ')';
+    return hold(長さ).then(function (skipped) {
+      if (skipped) {
+        中身.style.transition = 'none';
+        中身.style.transform = 倍率 === 1 ? '' : 中身.style.transform;
+        void 箱.offsetWidth;
+        中身.style.transition = '';
+      } else if (倍率 === 1) {
+        中身.style.transition = '';
+        中身.style.transform = '';      // 引ききったら跡を残さない
+      }
+      return skipped;
+    });
+  }
+
+  /**
+   * **「動きを減らす」設定**（OS側）。
+   * スキップ設定（`.fx-skip` の一括停止）とは**別の門**——
+   * 眠っていた transition を起こす以上、こちらにも乗せないと
+   * その設定の人にだけ新しい動きが1つ増える。
+   */
+  function 動きを減らす() {
+    var d = doc();
+    var w = d && (d.defaultView || d.parentWindow);
+    if (!w || !w.matchMedia) return false;
+    try { return !!w.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+    catch (e) { return false; }
+  }
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -666,6 +807,7 @@
     stagger: stagger, fly: fly, alive: alive, notice: notice,
     shake: shake, edge: edge, confetti: confetti, callout: callout, vibe: vibe,
     countdown: countdown,
+    flipMove: flipMove, spotlight: spotlight,
     stage: stage, stageClear: stageClear, stageState: stageState,
     _cfg: cfg
   };

@@ -14,11 +14,11 @@
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./quiz-bank.js'));
+    module.exports = factory(require('./quiz-bank.js'), require('./versus.js'));
   } else {
-    root.QuizLogic = factory(root.QuizBank);
+    root.QuizLogic = factory(root.QuizBank, root.Versus);
   }
-}(typeof self !== 'undefined' ? self : this, function (QuizBank) {
+}(typeof self !== 'undefined' ? self : this, function (QuizBank, Versus) {
   'use strict';
 
   // 遊びの種類。realtime.js の GAME_DRIVERS に並ぶIDと同じ文字にしておく
@@ -49,15 +49,9 @@
     if (!isFinite(n)) n = fallback;
     return Math.max(min, Math.min(max, n));
   }
-  function shuffled(list, rnd) {
-    var r = rnd || Math.random;
-    var a = (list || []).slice();
-    for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(r() * (i + 1));
-      var t = a[i]; a[i] = a[j]; a[j] = t;
-    }
-    return a;
-  }
+  // **混ぜるのは versus.js の1本を借りる**（指示55-①）。
+  // 同じものがリポジトリに13か所あったので、まずここから減らす（落とし穴1）
+  var shuffled = Versus.shuffled;
 
   /**
    * 端末から届いた設定を、そのまま信じずに枠へ収める。
@@ -237,14 +231,12 @@
   // 組み方・進行は、手渡し版で使っていたものをそのまま持ってきた
   // （指示：既存のロジックをそのまま使う）。DOMに触れていなかったので、
   // ここへ移すだけで1人1台版と手渡し版が同じ組み方になる。
-  function buildPairs(ids) {
-    var pairs = [];
-    for (var i = 0; i < ids.length; i += 2) {
-      if (i + 1 < ids.length) pairs.push([ids[i], ids[i + 1]]);
-      else pairs.push([ids[i], null]); // 奇数なら不戦勝
-    }
-    return pairs;
-  }
+  // **versus.js へ移した**（指示55-①・判断①）。
+  // 切り方（隣どうしで2人ずつ・余りは相方 null）が2つに分かれるのを構造的に防ぐため、
+  // ここは借りて再エクスポートするだけにする。返り値の形は1バイトも変えていない
+  //（tests/quiz-logic.js が JSON 文字列で固定していて、
+  //  手渡し版の早押し public/index.html:23473 も同じ形を読む）
+  var buildPairs = Versus.buildPairs;
 
   /**
    * トーナメントの初期化。並びは混ぜる（毎回同じ組み合わせにしない）。

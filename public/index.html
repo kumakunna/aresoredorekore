@@ -6578,6 +6578,9 @@
 <!-- socket.io は本番のサーバーが自動で配る。読み込めなくても
      手渡し方式は動き続ける（rt-client が available:false を返すだけ） -->
 <script src="/socket.io/socket.io.js"></script>
+<!-- 指示55-①：1v1の組をつくる共通部品A。**quiz-logic より前に置く**——
+     quiz-logic が buildPairs と shuffled をここから借りている（UMD の依存） -->
+<script src="js/versus.js"></script>
 <script src="js/wolf-logic.js"></script>
 <script src="js/wordwolf-logic.js"></script>
 <script src="js/bomb-logic.js"></script>

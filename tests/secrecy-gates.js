@@ -7,7 +7,8 @@
 //   ・ゲートの可視テキストに、直後に開かれる秘密（お題・役職）が含まれないこと
 //   ・次の人のゲートに、前の人の秘密が残らないこと
 // 対象：ワードウルフの配り（scr-wolf-pass）・人狼の夜配り（scr-wr-pass）・
-//       あれそれの出題者交代（scr-topic-pass）。
+//       あれそれの出題者交代（scr-topic-pass）・
+//       ロシアンカードのしかけとめくり（scr-rc-pass / scr-rc-turn・指示55-①）。
 // オークションの手渡し（scr-auction-handoff）はhidden旧モード専用で到達不可のため対象外
 // （docs/監査_画面一覧.md参照）。
 
@@ -144,6 +145,106 @@ async function run() {
     // 第35弾C（レビュー決定）：非表示のまま残さず、DOMからも消す
     assertEqual(el(doc, 'wrContentBody').innerHTML, '', '2人目のゲートでは役職の中身がDOMから空');
     assertNoErrors(errors, '役職配りゲートで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ロシアンカードの手渡し：しかけた場所は、しかけた本人がもう一度見られない', async () => {
+    // **この指示でいちばん重い門の、手渡し側**（指示55-① 門T4）。
+    // 部屋版の差分法（publicView）は、ここには1行も効かない——
+    // 1台では秘密は端末の中にあり、守るのは画面の側だから（落とし穴1）。
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toModeScreen(win, doc, 'rcard', 'rcard', NAMES.slice(0, 2));
+    await startMode(win, doc, 'rcard-duel');
+    await toScreenAfterCountdown(win, doc, 'scr-rc-pass');
+
+    // 1人目のゲート：盤そのものが DOM に無い
+    assertEqual(el(doc, 'rcPassBody').style.display, 'none', '1人目のゲートで中身が閉じている');
+    assertEqual(el(doc, 'rcPassBoard').innerHTML, '', '盤が DOM からも空');
+
+    click(doc, 'rcPassRevealBtn');
+    await sleep(win, 60);
+    const 札 = doc.querySelectorAll('#rcPassBoard [data-rc-cell]');
+    // 型(b)：**その状況が本当に作れたか**を先に主張する（0枚なら以下は自明に成立する）
+    assertEqual(札.length, 9, '9まいの盤が開いた');
+
+    // 3つえらんで、しかける。
+    // **押すたびに盤は innerHTML で作り直される**ので、押したあとの見た目を
+    // 同じ変数で読んではいけない（古い要素はもう DOM にいない）。必ず引き直す
+    const えらんだ = [];
+    for (let i = 1; i <= 9 && えらんだ.length < 5; i++) {
+      const b = doc.querySelector('#rcPassBoard [data-rc-cell="' + i + '"]');
+      if (!b || b.disabled) continue;
+      b.click();
+      await sleep(win, 20);
+      const 引き直し = doc.querySelector('#rcPassBoard [data-rc-cell="' + i + '"]');
+      if (引き直し && 引き直し.className.indexOf('is-picked') !== -1) えらんだ.push(i);
+      if (!el(doc, 'rcPassDoneBtn').disabled) break;
+    }
+    assert(えらんだ.length >= 3, 'しかける場所をえらべた（' + えらんだ.join(',') + '）');
+    assertEqual(el(doc, 'rcPassDoneBtn').disabled, false, '数がそろって「しかける」が押せる');
+    click(doc, 'rcPassDoneBtn');
+    await sleep(win, 80);
+
+    // 2人目のゲート：**1人目がえらんだ印が、可視テキストにも DOM にも残っていない**
+    assertEqual(activeScreen(doc), 'scr-rc-pass', '2人目の手渡しに戻る');
+    assertEqual(el(doc, 'rcPassBody').style.display, 'none', '2人目のゲートで中身が閉じ直る');
+    assertEqual(el(doc, 'rcPassBoard').innerHTML, '', '2人目のゲートでは盤が DOM からも空');
+    assertEqual(doc.querySelectorAll('#rcPassBoard .is-picked').length, 0,
+      '1人目がえらんだ印が1つも残っていない');
+
+    // 2人目も開いて、**前の人のえらんだ印が復活していない**こと
+    click(doc, 'rcPassRevealBtn');
+    await sleep(win, 60);
+    assertEqual(doc.querySelectorAll('#rcPassBoard .is-picked').length, 0,
+      '2人目が開いた盤に、1人目のえらんだ印が復活していない');
+
+    assertNoErrors(errors, 'ロシアンカードの手渡しで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('ロシアンカードの手渡し：めくる画面のゲートに、盤が1枚も出ていない', async () => {
+    // 渡すのは置く時だけではない——**交互にめくる**ので、毎手番わたす。
+    // その瞬間にも、前の人の盤（どこをめくったか・当たったか）が見えてはいけない
+    const { win, doc, errors } = await launch(LAUNCH);
+    await toModeScreen(win, doc, 'rcard', 'rcard', NAMES.slice(0, 2));
+    await startMode(win, doc, 'rcard-duel');
+    await toScreenAfterCountdown(win, doc, 'scr-rc-pass');
+
+    // 2人ぶん、しかけ終わるまで進める
+    for (let 人 = 0; 人 < 2; 人++) {
+      click(doc, 'rcPassRevealBtn');
+      await sleep(win, 50);
+      for (let i = 1; i <= 9; i++) {
+        if (!el(doc, 'rcPassDoneBtn').disabled) break;
+        const b = doc.querySelector('#rcPassBoard [data-rc-cell="' + i + '"]');
+        if (b) { b.click(); await sleep(win, 15); }
+      }
+      click(doc, 'rcPassDoneBtn');
+      await sleep(win, 60);
+    }
+    await waitScreen(win, doc, 'scr-rc-turn', 4000);
+
+    // 1手番目のゲート：盤が DOM に無い
+    assertEqual(el(doc, 'rcTurnBody').style.display, 'none', 'めくる画面もゲートで閉じている');
+    assertEqual(el(doc, 'rcTurnBoard').innerHTML, '', '盤が DOM からも空');
+    click(doc, 'rcTurnRevealBtn');
+    await sleep(win, 60);
+    const 札 = doc.querySelectorAll('#rcTurnBoard [data-rc-cell]');
+    assertEqual(札.length, 9, '9まいの盤が開いた');
+    // 型(b)：**まだ1枚もめくっていない**ことを先に見る
+    assertEqual(doc.querySelectorAll('#rcTurnBoard .rc-word').length, 0,
+      'めくる前は、ばくだん／セーフの字が1つも出ていない');
+
+    // 1枚めくって、次の人へ渡す
+    札[0].click();
+    await sleep(win, 400);
+    assertEqual(el(doc, 'rcTurnNextBtn').style.display !== 'none', true, '「つぎの人へ」が出る');
+    click(doc, 'rcTurnNextBtn');
+    await sleep(win, 80);
+    assertEqual(el(doc, 'rcTurnBody').style.display, 'none', '渡す瞬間、中身が閉じ直る');
+    assertEqual(el(doc, 'rcTurnBoard').innerHTML, '', '前の人の盤が DOM からも消えている');
+
+    assertNoErrors(errors, 'ロシアンカードのめくりで未捕捉の例外');
     win.close();
   });
 

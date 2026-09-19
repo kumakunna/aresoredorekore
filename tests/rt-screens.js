@@ -1916,7 +1916,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const members = bombRoom().members.concat([
       { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
     ]);
-    const v = bombView({ mode: 'race', coop: false, team: undefined, board: undefined });
+    // **shared も消す**——協力版にしか無いものなので（消し忘れると、
+    // 競争版に共有ライフの帯が出たままになる。検査がこれを捕まえた）
+    const v = bombView({ mode: 'race', coop: false, team: undefined, board: undefined, shared: undefined });
     v.players[1].solved = 3; v.players[1].pct = 75; v.players[1].lives = 1;
     push(fake, bombRoom({
       members, memberCount: 3,

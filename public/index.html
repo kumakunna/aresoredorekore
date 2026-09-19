@@ -14332,10 +14332,21 @@
       列.style.display = 'none';
     } else {
       列.style.display = 'flex';
-      列.innerHTML = (v.cases || []).map(function(no){
+      /**
+       * 指示55：**いま動いているケースを、卓の全員に見せる。**
+       *
+       * `takeCase`（falsetrue-room.js）が heldNo を remaining から splice するので、
+       * `v.cases` に heldNo は**絶対に入らない**。つまり
+       * `no === v.heldNo` は成立しえず、`.bft-case.is-held` は一度も当たっていなかった
+       * （棚卸しの実測：heldNo が入っていた5段階で is-held の合計は0）。
+       * 持たれている札を**列に足して**出す
+       */
+      var 残り = (v.cases || []).slice();
+      var 並び = (v.heldNo != null) ? 残り.concat([v.heldNo]).sort(function(a, b){ return a - b; }) : 残り;
+      列.innerHTML = 並び.map(function(no){
         return '<span class="bft-case' + (no === v.heldNo ? ' is-held' : '') + '">' + no + '</span>';
       }).join('') +
-      '<span class="bft-note">のこり ' + (v.cases || []).length + ' 枚</span>';
+      '<span class="bft-note">のこり ' + 残り.length + ' 枚</span>';
     }
 
     var main = '', sub = '';
@@ -14366,15 +14377,39 @@
         if(last.fate === 'alive') FxKit.callout((last.decidedName || '') + ' 生存', { kind:'gold' });
       });
     } else if(v.phase === 'ended'){
+      /**
+       * 宿題17（指示55で取り込み）：**名前の列を、一枚看板に入れない。**
+       *
+       * それまで `bigMain.textContent = 生存.join('　')` としていた。
+       * `.big-main` は clamp(64px,9vw,200px) の**短い見出しの器**で、
+       * 1280×720 の実測では6文字の名前が4人で **縦に397px**（画面は705px）、
+       * 3文字でも6人から溢れていた。生存率はおよそ25〜34%なので、
+       * **3〜5人はふつうに起きる**——指示53の時点ですでに溢れていた。
+       *
+       * 正本 §11-1：**個人のものは人ごとに。**名前は名簿（bigList）へ。
+       * 正本 §11-3：一番大きい枠には「一目で分かればいい1つ」＝**何人のこったか**
+       */
       var 生存 = (v.survivors || []).map(function(p){ return p.name; });
-      main = 生存.length ? 生存.join('　') : '生きのこりなし';
-      sub = 生存.length ? 'この人たちが 生きのこりました' : '';
+      main = 生存.length ? (生存.length + '人 生きのこり') : '生きのこりなし';
+      sub = '';
       rtOnce('falsetrue:bigend', v.phase === 'ended', function(){
         FxKit.confetti(['#54D97E', '#33A85E', '#EAF4EC']);
       });
     }
     el('bigMain').textContent = main;
     el('bigSub').textContent = sub;
+    /**
+     * 指示55：**名簿を毎描画で書き直す。**
+     * それまで renderRtBigFalsetrue は bigList を一度も書かなかったので、
+     * **待合の名簿が決着まで残り**、脱落の印も付かなかった（棚卸しで実測）。
+     * 毎描画の自己リセット（第35弾Cの良い型2）に乗せる
+     */
+    el('bigList').innerHTML = (v.players || []).map(function(p){
+      var 落ちた = (p.fate === 'out') || p.gone;
+      return '<span class="bl-item' + (落ちた ? ' dead' : '') + '">' +
+        faceOf(p.id) + escapeHtml(p.name) +
+        (p.fate === 'alive' ? ' 生存' : (p.fate === 'out' ? ' 脱落' : '')) + '</span>';
+    }).join('');
   }
 
   function renderRtBigSugoroku(v){
@@ -18434,12 +18469,15 @@
    */
   function bombCoopBoardHtml(v){
     var t = v.team || { solved:0, total:0, pct:0 };
+    // **boardCell の by は memberId ではなく「名前」**（bomb-room.js:379 が
+    // w.names[holder] を入れている）。id で引くと一生当たらない——
+    // 検査がこれを捕まえた（落とし穴16：サーバーの形を、確かめずに前提にしない）
     var 担当 = {};
     (v.board || []).forEach(function(c, i){
       if(c && c.by && !c.solved) 担当[c.by] = (i + 1);
     });
     var 行 = (v.players || []).map(function(p){
-      var no = 担当[p.id];
+      var no = 担当[p.name];
       return '<div class="bcb-row' + (no ? ' is-on' : '') + '">' +
         '<span class="bcb-name">' + faceOf(p.id) + escapeHtml(p.name) + '</span>' +
         '<span class="bcb-at">' + (no ? ('→ ' + no + 'ばん 🔎') : '待ち') + '</span>' +

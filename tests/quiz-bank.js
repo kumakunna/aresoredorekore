@@ -154,5 +154,101 @@ const { createRunner, assert, assertEqual } = require('./harness');
     });
   });
 
+  // ---- つぎつぎクイズの別名（指示55） ----
+  //
+  // 棚卸しで、**11お題すべてで「正しいのに弾かれる」**が起きていた。
+  // normalize は漢字も接尾辞も触らないので、
+  //   ・野球のポジション … 正式名称9つ（投手・捕手…）が全部 wrong
+  //   ・都道府県         … 「東京」「大阪」（接尾辞なし）が全部 wrong
+  // そして罰は減点ではなく退場（quiz-room.js の脱落形式）。
+  //
+  // ここの見張りは**手書きの一覧を持たない**（落とし穴4）。
+  // 「漢字を含む答えには、かなで打つ道がある」のように
+  // **データから導ける決まり**で書くので、お題を足した日にも自動で効く。
+
+  const KANJI = /[一-鿿々]/;
+
+  await r.test('つぎつぎクイズ：別名の正本が、かならず実在する', async () => {
+    Q.listTopicsOf().forEach((t) => {
+      const alias = t.alias || {};
+      Object.keys(alias).forEach((k) => {
+        assert(t.answers.indexOf(alias[k]) !== -1,
+          t.topic + '：別名「' + k + '」の正本「' + alias[k] + '」が answers に無い');
+      });
+    });
+  });
+
+  await r.test('つぎつぎクイズ：別名が、別の答えとぶつからない', async () => {
+    // ぶつかると「同じ打ち方で2つの答えが当たる」か「別名が既存の答えを乗っ取る」。
+    // どちらも、遊ぶ人には理由の分からない誤判定になる
+    Q.listTopicsOf().forEach((t) => {
+      const owner = {};
+      t.answers.forEach((a) => {
+        const n = Q.normalize(a);
+        assert(owner[n] === undefined, t.topic + '：答えどうしが同じ読み「' + a + '」と「' + owner[n] + '」');
+        owner[n] = a;
+      });
+      Object.keys(t.alias || {}).forEach((k) => {
+        const n = Q.normalize(k);
+        const to = t.alias[k];
+        assert(owner[n] === undefined || owner[n] === to,
+          t.topic + '：別名「' + k + '」→「' + to + '」が、すでに「' + owner[n] + '」を指している');
+        owner[n] = to;
+      });
+    });
+  });
+
+  await r.test('つぎつぎクイズ：漢字の答えには、かなで打つ道がある', async () => {
+    // normalize は漢字を1文字も触らない。だから漢字だけの答えは、
+    // 読みで打った人を必ず弾く。**お題を足した日にも効くよう、データから導く**
+    const 抜け = [];
+    Q.listTopicsOf().forEach((t) => {
+      t.answers.forEach((a) => {
+        if (!KANJI.test(a)) return;
+        const 読み = Object.keys(t.alias || {})
+          .filter((k) => t.alias[k] === a && !KANJI.test(k));
+        if (!読み.length) 抜け.push(t.topic + '「' + a + '」');
+      });
+    });
+    assertEqual(抜け.length, 0, 'かなで打てない答えがある：' + 抜け.slice(0, 12).join('・'));
+  });
+
+  await r.test('つぎつぎクイズ：接尾辞をそろえた一覧は、接尾辞なしでも通る', async () => {
+    // 「都道府県」「県庁所在地」のように、**全件が同じ語で終わる**お題は、
+    // 遊ぶ人が接尾辞を省いて打つ。「東京」「札幌」で弾くのは理不尽。
+    // お題名を見ないで、**全件が終わる語が同じか**だけで判定する（落とし穴4）
+    const 接尾 = ['都', '道', '府', '県', '市', '区'];
+    Q.listTopicsOf().forEach((t) => {
+      const 全件が接尾辞つき = t.answers.every((a) => 接尾.some((s) => a.endsWith(s)));
+      if (!全件が接尾辞つき) return;
+      const 抜け = t.answers.filter((a) => {
+        const 素 = a.slice(0, -1);
+        // 1文字になってしまうもの（「北海道」→「北海」等）は、素の形が言葉にならない
+        if (素.length < 2) return false;
+        return Q.canonicalOf(t, 素) !== a;
+      });
+      assertEqual(抜け.length, 0,
+        t.topic + '：接尾辞なしで打つと弾かれる（' + 抜け.slice(0, 8).join('・') + '）');
+    });
+  });
+
+  await r.test('つぎつぎクイズ：別名で言い直しても、2回は得点しない', async () => {
+    // ここが器を先に直した理由。別名を answers に素で足すと、
+    // 「札幌市」のあとに「札幌」が通って同じ答えが2回入る
+    let 試した = 0;
+    Q.listTopicsOf().forEach((t) => {
+      Object.keys(t.alias || {}).forEach((k) => {
+        const 正本 = t.alias[k];
+        assertEqual(Q.judgeListAnswer(t, k, [正本]), 'duplicate',
+          t.topic + '：「' + 正本 + '」のあとに別名「' + k + '」が通ってしまう');
+        assertEqual(Q.judgeListAnswer(t, 正本, [k]), 'duplicate',
+          t.topic + '：別名「' + k + '」のあとに正本「' + 正本 + '」が通ってしまう');
+        試した++;
+      });
+    });
+    assert(試した > 0, '別名が1つも無い（検体が作れていない・型(b)）');
+    console.log('    別名の総数：' + 試した);
+  });
+
   r.finish();
 })();

@@ -1625,10 +1625,19 @@ function moveShared(room, id, steps, info) {
   return rec;
 }
 
+/**
+ * 大画面と端末に出す「共通の時計」の種類（指示55・正本 §11-4）。
+ * 'play' … 人が待っている締め切り。数えてよい
+ * 'tick' … 画面が変わるだけの時刻。数えない
+ * **必ず名乗る**（不在で表さない・落とし穴36）。`tests/room-paths.js` が両方向で見張る
+ */
+function clockKind() { return 'play'; }
+
 module.exports = {
   PHASE, DEFAULT_TURN_SEC, RESULT_MS, EVENT_MS, EVENT_CHANCE,
   startGame, publicView, privateFor,
   submitAction, submitVote, isAllDone, advance,
   playersOf, expectedMembers, resultView,
+  clockKind,
   useRandom   // テストから出目と盤を固定するための穴
 };

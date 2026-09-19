@@ -983,9 +983,27 @@ function isAllDone(room) {
   return connectedIds(room, w.playerIds).length === 0;
 }
 
+/**
+ * 大画面と端末に出す「共通の時計」の種類（指示55・正本 §11-4）。
+ *
+ * **とくとくクイズだけは、締め切りの意味が違う。**
+ * `revealRefreshDeadline`（上）が置くのは「**次の1文字が出る時刻**」で、
+ * 1文字あたり 870〜2222ms（revealSec 20秒 ÷ 問題文の長さ 9〜23字）。
+ * これを数えると `Math.ceil(msLeft/1000)` が常に 1 か 2 になり、
+ * **420px の巨大カウントダウンが伏せ字の問題文の上に1〜2秒ごとに出続ける**
+ * （指示55の実測：6秒間に6回）。一番見せるべきものを、意味のない数字が隠していた。
+ *
+ * ただし**押されたあと**は答える持ち時間（`answerEndsAt`）なので、人が待っている＝'play'。
+ */
+function clockKind(room) {
+  const w = room && room.quiz;
+  if (!w || w.variant !== V.REVEAL) return 'play';
+  return (w.reveal && w.reveal.buzzed) ? 'play' : 'tick';
+}
+
 module.exports = {
   PHASE, MIN_PLAYERS, MAX_ROUNDS, BREAK_MS, ANSWER_MS, RUSH_MISS_COOLDOWN_MS,
   startGame, publicView, privateFor,
   submitAction, submitVote, isAllDone, advance,
-  playersOf, expectedMembers, resultView
+  playersOf, expectedMembers, resultView, clockKind
 };

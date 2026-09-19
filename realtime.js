@@ -64,6 +64,38 @@ function driverOf(room) {
   }
   return null;
 }
+/**
+ * **共通の時計を、1か所で配る**（指示55・正本 §11-1）。
+ *
+ * 大画面には共通の時計の置き場が無く、巨大カウントダウンは残り1〜5秒しか
+ * 描かなかった。しかも `wolf` / `wordwolf` / `sugoroku` の3つは `remainingMs` を
+ * 一度も送っていなかった——締め切りだらけのゲームなのに、時計が構造的に死んでいた。
+ *
+ * **進行役ごとに `remainingMs` を足して回らない**（落とし穴4）。
+ * 締め切りの門はこのファイルに1つしかない（`w.deadline`・時間切れの見回り）ので、
+ * そこから導けば、ゲームを足した日にも自動で付いてくる。
+ *
+ * ---- ただし、締め切りには2種類ある ----
+ * | 種類 | 例 | 数えてよいか |
+ * |---|---|---|
+ * | 人が待っている（`play`） | 話し合いの残り・解除の持ち時間・入札の締切 | **数える** |
+ * | 画面が変わるだけ（`tick`） | とくとくクイズの「次の1文字が出る時刻」 | **数えない** |
+ *
+ * 区別しないと、**420px の数字が伏せ字の問題文の上に1〜2秒ごとに出続ける**
+ * （実測：6秒間に6回）。どちらかは**進行役が言う**（`clockKind(room)`）——
+ * 端末が締め切りの中身を当てにいくと、締め切りの意味を変えた日に遠くで壊れる。
+ * 全進行役が名乗っていることは `tests/room-paths.js` が両方向で見張る。
+ */
+function 時計をそえる(room, view) {
+  if (!view || typeof view !== 'object') return view;
+  const dr = driverOf(room);
+  const w = driverStateOf(room);
+  const kind = (dr && typeof dr.clockKind === 'function') ? dr.clockKind(room) : null;
+  view.clock = (w && w.deadline && kind === 'play')
+    ? { ms: Math.max(0, w.deadline - Date.now()) }
+    : null;
+  return view;
+}
 function driverStateOf(room) {
   for (const id of Object.keys(GAME_DRIVERS)) {
     const g = GAME_DRIVERS[id];
@@ -457,7 +489,7 @@ function publicSnapshot(room) {
       game: room.state.game,
       // ゲームが始まっていれば、公開してよい範囲だけを載せる。
       // 役職・お題・投票先などの秘密は publicView が一切通さない
-      data: driverOf(room) ? driverOf(room).publicView(room) : room.state.data
+      data: driverOf(room) ? 時計をそえる(room, driverOf(room).publicView(room)) : room.state.data
     }
   };
 }

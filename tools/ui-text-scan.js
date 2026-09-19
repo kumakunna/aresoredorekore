@@ -138,6 +138,15 @@ function お題データの範囲() {
 function 画面の文言() {
   const out = [];
   const 題 = お題データの範囲();
+  // `source:` が書かれている行を先に数えておく（上の対象外の判定で使う）
+  const source行 = new Set();
+  (function () {
+    const f = path.join(ROOT, 'public', 'js', 'quiz-bank.js');
+    if (!fs.existsSync(f)) return;
+    fs.readFileSync(f, 'utf8').split(String.fromCharCode(10)).forEach((l, i2) => {
+      if (l.trim().indexOf('source:') === 0) source行.add(i2 + 1);
+    });
+  }());
   const 押す = (file, line, t, 層, 印) => {
     if (!日本語.test(t)) return;
     const x = t.trim();
@@ -153,6 +162,21 @@ function 画面の文言() {
     // 「判断しなかった」と「対象外と決めた」を分ける（ui-text.js の KEPT と同じ形）
     if (!印 && file === 'public/index.html' && 題 && line >= 題.from && line <= 題.to) {
       e.対象外 = 'お題データ（QUIZ_BANK）';
+    }
+    /**
+     * 指示55：**問題の根拠欄（`source`）は、画面に一度も出ない。**
+     * 出典名とURLを並べた台帳の注記で、遊ぶ人は読まない。
+     * トーンの校正（動詞はかな・全角数字を使わない…）を当てると、
+     * 「ジャパンサーチ『桃太郎』…渡して…」のような**引用を書き換えることになる**——
+     * 引用を書き換えたら、それはもう根拠ではない。
+     *
+     * **数えるが、校正の対象にはしない**（お題データと同じ扱い。
+     * 「判断しなかった」と「対象外と決めた」を分ける）。
+     * 範囲は行ではなく**その行が source の値かどうか**で決める——
+     * 行の範囲で切ると、問題を足した日にずれる
+     */
+    if (!印 && /quiz-bank.js$/.test(file) && source行.has(line)) {
+      e.対象外 = '問題の根拠（source）';
     }
     out.push(e);
   };

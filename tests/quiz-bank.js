@@ -154,6 +154,43 @@ const { createRunner, assert, assertEqual } = require('./harness');
     });
   });
 
+  await r.test('指示55：どの問題にも根拠がある（無いものは足せない形にする）', async () => {
+    /**
+     * 指示55 2-5：**問題バンクに根拠の欄を持たせ、無い問題は赤にする。**
+     * 今後、記憶だけで問題を足せない形にするための門。
+     *
+     * 82問を2段構え（校正→反証）で読んだら、**異議69件のうち33件が「根拠が弱い」**で、
+     * 出典のURLを開き直すと**主張がそこに書かれていなかった**（301で販促ページ・403・
+     * SPAで条文が返らない・404）。**URLを貼っただけでは根拠にならない。**
+     * ここで見られるのは「欄が埋まっているか」までで、**中身が本当かは人が読む**——
+     * だからこそ、空欄を通してはいけない
+     */
+    const 空 = [];
+    Q.TIERS.forEach((tier) => {
+      Q.QUESTIONS[tier].forEach((q, i) => {
+        const s2 = q.source;
+        if (!s2 || typeof s2 !== "string" || s2.trim().length < 10) {
+          空.push(tier + " の " + (i + 1) + "問目「" + q.q + "」");
+        }
+      });
+    });
+    assertEqual(空.length, 0, "根拠の無い問題がある：" + 空.slice(0, 8).join("・"));
+    const 総数 = Q.TIERS.reduce((n, t) => n + Q.countOf(t), 0);
+    console.log("    根拠つきの問題：" + 総数 + " / " + 総数);
+  });
+
+  await r.test("指示55：根拠は、たどれる形で書いてある", async () => {
+    // URLも出典名も無い「〜で確認」だけの1行は、**次に読む人がたどれない**。
+    // 中身の真偽までは見られないが、**たどれるかどうか**は機械で見られる
+    const たどれない = [];
+    Q.TIERS.forEach((tier) => {
+      Q.QUESTIONS[tier].forEach((q, i) => {
+        if ((q.source || "").indexOf("http") === -1) たどれない.push(tier + "[" + i + "]" + q.q);
+      });
+    });
+    assertEqual(たどれない.length, 0, "URLの無い根拠がある：" + たどれない.slice(0, 6).join("・"));
+  });
+
   // ---- つぎつぎクイズの別名（指示55） ----
   //
   // 棚卸しで、**11お題すべてで「正しいのに弾かれる」**が起きていた。
@@ -196,6 +233,23 @@ const { createRunner, assert, assertEqual } = require('./harness');
         owner[n] = to;
       });
     });
+  });
+
+  await r.test('つぎつぎクイズ：無駄な別名を持たない', async () => {
+    // normalize が既に吸収するもの（全角の数字・カタカナ・長音など）を別名に書くと、
+    // **同じ鍵が2つできる**。持つと、片方を消した日に「なぜか弾かれる」が静かに始まる。
+    // 落とし穴4 の型——手で持つものは、持たないで済むなら持たない
+    const 無駄 = [];
+    Q.listTopicsOf().forEach((t) => {
+      const seen = {};
+      Object.keys(t.alias || {}).forEach((k) => {
+        const n = Q.normalize(k);
+        if (seen[n]) 無駄.push(t.topic + '：「' + k + '」と「' + seen[n] + '」');
+        seen[n] = k;
+        if (n === Q.normalize(t.alias[k])) 無駄.push(t.topic + '：「' + k + '」は正本と同じ読み');
+      });
+    });
+    assertEqual(無駄.length, 0, 'normalize が既に吸収する別名がある：' + 無駄.slice(0, 8).join('・'));
   });
 
   await r.test('つぎつぎクイズ：漢字の答えには、かなで打つ道がある', async () => {

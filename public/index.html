@@ -600,6 +600,21 @@
   .wo-sep{opacity:.3;}
   /* 第32弾-C-3：陣営の色で、画面の縁を一瞬だけ照らす。
      色だけに頼らせないため、役職名と説明は必ず文字でも出る（第8部-2） */
+  /* 指示55・正本 §11-5：**画面の縁を、全周ひとまわり。**
+     大画面だからできる知らせ。**面は塗らない**（正本§6：赤は縁のみ）。
+     置き場は層（#uiLayerRoot）——`#app` は filter を持つので、
+     そこに position:fixed を置くと画面ではなくページの座標になる（落とし穴26）。
+     止める門も :root から書く（落とし穴27） */
+  .fx-edge{
+    position:fixed;inset:0;pointer-events:none;z-index:96;
+    animation:fxEdge calc(0.3s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
+  }
+  .fx-edge-danger{box-shadow:inset 0 0 70px 14px rgba(226,88,74,.9);}
+  .fx-edge-village{box-shadow:inset 0 0 70px 14px rgba(63,191,165,.9);}
+  .fx-edge-wolf{box-shadow:inset 0 0 70px 14px rgba(226,88,74,.9);}
+  .fx-edge-third{box-shadow:inset 0 0 70px 14px rgba(240,196,74,.9);}
+  @keyframes fxEdge{0%{opacity:0;}22%{opacity:1;}100%{opacity:0;}}
+  :root.no-flash .fx-edge{display:none;}
   .app.edge-village, .app.edge-wolf, .app.edge-third{
     position:relative;
   }
@@ -2468,6 +2483,32 @@
   /* 第21弾-6：大画面（TV・PC）。離れて見えるよう、とにかく大きく */
   #scr-rt-big{align-items:center;justify-content:center;text-align:center;}
   .big-wrap{width:100%;}
+  /* 指示55 2-2：協力版クイズ解除の主役。
+     **共通の進み具合を1本のゲージで大きく**、少し離して「誰がどの端子を担当しているか」。
+     `.big-main` の中に入るので、外側の巨大な font-size を打ち消してから組む */
+  .bomb-coop{font-size:16px;line-height:1.3;width:100%;}
+  .bomb-coop .bcb-gauge{
+    height:clamp(36px,4.6vw,72px);border-radius:999px;border:2px solid var(--ink);
+    background:var(--card);overflow:hidden;margin:0 auto;max-width:min(1100px,90vw);
+  }
+  .bomb-coop .bcb-fill{height:100%;width:0;background:var(--teal);transition:width .3s ease;}
+  .bomb-coop .bcb-count{
+    font-family:'DotGothic16',monospace;font-size:clamp(48px,5vw,96px);
+    margin:6px 0 0;letter-spacing:.04em;
+  }
+  /* **少し離す**（指示55 2-2 の図）。共通のものと個人のものを、目で分ける */
+  .bomb-coop .bcb-who{
+    margin-top:clamp(24px,3.2vw,56px);display:flex;flex-direction:column;
+    gap:clamp(6px,.8vw,14px);align-items:center;
+  }
+  .bomb-coop .bcb-row{
+    display:flex;align-items:baseline;gap:clamp(12px,1.6vw,28px);
+    font-size:clamp(28px,2.6vw,52px);opacity:.55;
+  }
+  .bomb-coop .bcb-row.is-on{opacity:1;}
+  .bomb-coop .bcb-at{font-family:'DotGothic16',monospace;}
+  .app.theme-bomb .bomb-coop .bcb-gauge{border-radius:2px;border-color:var(--line);background:var(--paper-deep);}
+  .app.theme-bomb .bomb-coop .bcb-fill{background:var(--hazard);}
   /* 指示55・正本 §11-1／§11-5：共通のものの帯。
      **数字は48px以上**（1280×720・50型を4mから見て36分角）。
      ここは「画面のいちばん上」なので、演出（top:36%）に覆われない */
@@ -2487,6 +2528,14 @@
   .big-main{
     font-size:clamp(48px,11vw,132px);line-height:1.15;margin:10px 0;letter-spacing:.06em;
     font-family:'Shippori Mincho',serif;
+    /* 指示55：**折り返す道が無い文字列でも、画面の外に出さない。**
+       とくとくクイズの伏せ字は ◻（U+25FB）で、Unicode の行分割クラスが AL（英字あつかい）。
+       並べても**分割の機会が1つも生まれない**ので、1280×720 の実測で
+       scrollWidth 2351 対 clientWidth 1169＝**1182px 横へ出ていた**
+       （window.scrollTo で本当に1162px動くことも確かめた・落とし穴45）。
+       anywhere は「ほかに分割の機会が無い時だけ」効くので、
+       ふつうの日本語の折り返しは変わらない */
+    overflow-wrap:anywhere;
   }
   /* 部屋コードは「読んで入力する文字」なので、桁が揃って紛れない書体のままにする
      （夜・投票・決着といった演出の見出しだけを筆文字にする） */
@@ -6584,7 +6633,17 @@
     // 棚の「部屋」から入って選ぶ＝全員スマホ。だからカードは1枚で足りる。
     // 第28弾-1：「通常版」→「協力版」に改名。競争版と名前の形をそろえた。
     // idも bomb-coop に変えたが、旧IDの記録は LEGACY_MODE_IDS で拾い直すので壊れない
-    {id:"bomb-coop", icon:"💣", title:"クイズ解除（協力版）", sub:"問題を読んで3択・ライフ制の協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, game:'bomb',
+    /**
+     * 指示55・正本 §11-2：**協力と対戦で画面を分ける。**
+     * `coopLayout` は「このモードは協力の見せ方をする」という**棚・設定の側の宣言**。
+     * **大画面はこれを直接読まない**——端末が MODES を引くには state.data.modeId が要るが、
+     * realtime.js の publicSnapshot がゲーム中は state.data を publicView に丸ごと
+     * 差し替えるので、modeId は遊んでいる最中に一度も届かない（指示55の実測）。
+     * 画面が読むのはサーバーが名乗る `v.coop` の方で、
+     * この宣言とは tests/big-screen.js が**両方向で**照合する（落とし穴20）。
+     * **不在で表さない**（落とし穴36）——競争版にも false を明示で書く
+     */
+    {id:"bomb-coop", icon:"💣", title:"クイズ解除（協力版）", sub:"問題を読んで3択・ライフ制の協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, coopLayout:true, game:'bomb',
       // 第45弾 45-3：2行目は「コードをタップするとAIの説明文が出る」だった。
       // 遊んだ人は「タップした瞬間に3択が出た」と報告した。調べたら**2つ違っていた**：
       //
@@ -6598,7 +6657,7 @@
       // ここの各行が本当かは tests/fixes45.js が1行ずつ照合する
       bullets:["チームで協力して爆弾を解除する","コードをタップすると、問題と3つの答えが出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る（同じコードは何度でも再挑戦できる）","ライフが0で爆発・全解除で勝利","部屋を立てて遊ぶと、全員が同じ盤面を自分のスマホで見られる"]},
     // 競争版：1人1台・部屋が必須。観戦者は出ない（全員が同じコードに同時に挑む）
-    {id:"bomb-race", icon:"🏁", title:"クイズ解除（競争版）", sub:"同じコードに全員で同時挑戦・順位がつく", advanced:false, strict:false, oneWord:false, bomb:true, bombRace:true, roomOnly:true, game:'bomb', minPlayers:2,
+    {id:"bomb-race", icon:"🏁", title:"クイズ解除（競争版）", sub:"同じコードに全員で同時挑戦・順位がつく", advanced:false, strict:false, oneWord:false, bomb:true, bombRace:true, coopLayout:false, roomOnly:true, game:'bomb', minPlayers:2,
       bullets:["全員が同じコード一覧に同時に挑戦する","コードの並び順は各自ばらばら（隣を見ても場所が違う）","問題文は、試合が始まるまで誰にも見えない","外れるとライフが1つ減り、残り時間も10秒減る","ライフが0になると記録なし・最下位扱い","解けた本数が多い順、同数ならタイムが早い順で順位がつく"]},
     // ---- 第27弾-3：実物解除。解除役とマニュアル役が別々の画面を同時に見るのが肝なので、
     // 手渡し（1台を回す）では成立しない。どちらも部屋が必須 ----
@@ -17161,7 +17220,7 @@
     var changed = !prev || prev.game !== game
       || prev.phase !== v.phase || prev.turn !== rtBig.seen.turn || prev.runoff !== rtBig.seen.runoff;
     if(!prev || prev.game !== game){
-      rtBig.bombLives = (v.team ? v.team.lives : null);
+      rtBig.bombLives = null;   // 見始めた直後は静かに。次の描画で今の値を覚える
       rtBig.auction = null;
       return;   // 見始めた直後は静かに
     }
@@ -17198,7 +17257,27 @@
       // 残りミス1：数えなくても「もう後がない」ことが全員に伝わる
       // 残りミス1。**「減った瞬間」ではなく「1である」という事実**で出す（第47弾 47-1）。
       // 減り方を見ていると、大画面をあとから繋いだ時に一度も出ない
-      var lives = v.team ? v.team.lives : null;
+      /**
+       * 指示55 2-2：**ライフが減った瞬間、縁が全周ひとまわり赤くなる。**
+       * `rtBig.bombLives` は第47弾の残骸で、書かれるだけで読まれていなかった——
+       * ここで使う。**前の値を覚えている時だけ**光らせるので、
+       * あとから繋いだ大画面がいきなり光ることはない（47がこの形をやめた理由）。
+       *
+       * 競争版には共通のライフが無いので、**いちばん後がない人**を見る。
+       * それまで `v.team`（協力版にしか無い）を見ていたせいで、
+       * 競争版には CRITICAL も縁の赤も一度も出ていなかった（棚卸しの (4) 否）
+       */
+      var lives = v.coop
+        ? (v.team ? v.team.lives : null)
+        : (function(){
+            var 生きている = (v.players || []).filter(function(p){ return !p.failed && !p.timedOut; });
+            if(!生きている.length) return null;
+            return Math.min.apply(null, 生きている.map(function(p){ return p.lives; }));
+          })();
+      if(rtBig.bombLives != null && lives != null && lives < rtBig.bombLives && v.phase !== 'ended'){
+        FxKit.edge('danger');
+      }
+      rtBig.bombLives = lives;
       rtOnce('big:bomb:critical', lives === 1, function(){
         FxKit.callout('CRITICAL', { kind:'danger' });
       });
@@ -18178,25 +18257,67 @@
             escapeHtml(row.name) + ' ' + row.solved + '本';
         }).join('　');
       }
-    } else if(v.mode === 'coop'){
-      main = v.team.solved + ' / ' + v.team.total + '本';
-      sub = 'ライフ ' + '❤️'.repeat(v.team.lives) + '🖤'.repeat(Math.max(0, v.team.livesMax - v.team.lives));
-      var working = (v.players || []).filter(function(p){ return p.working; });
-      if(working.length){
-        sub += '<br>' + working.map(function(p){
-          return escapeHtml(p.name) + 'が挑戦中';
-        }).join(' ／ ');
-      }
+    } else if(v.coop){
+      /**
+       * 指示55 2-2・正本 §11-1：**共通のものは1つ大きく、個人のものは人ごとに。**
+       *
+       * それまでは、協力版でも人数ぶんの横棒を並べていた——ところが協力版は
+       * `entryOf`（bomb-room.js:50）がチームの entry を返すので、
+       * **どの行も同じ値**（実測：3人で一番ばらけた状況を作っても
+       * 3行とも「2 / 6 ❤️❤️🖤」）。同じ数字が画面に4回並んでいた。
+       *
+       * いまの形：
+       *   共通ライフ・共通の時計 … いちばん上の帯（`renderBigStatus`）
+       *   進み具合（共通）       … ここ。ゲージ1本と「14 / 30 解除」
+       *   誰がどの端子を担当か   … 少し離して、人ごとに1行
+       *
+       * 担当は `v.board` から取る。**サーバーはずっと送っていたのに、
+       * 画面が一度も読んでいなかった**（bomb-room.js:324・boardCell の by）
+       */
+      main = '';
+      sub = '';
     } else {
-      main = '解除中';
-      sub = '全員が同じコードに挑戦しています';
+      // 競争版は「誰がどこまで進んでいるか」が主役。横棒はそのまま（人ごとに違う値）
+      main = '';
+      sub = '全員が同じコードに挑戦しています（並び順は各自ちがいます）';
     }
-    el('bigMain').textContent = main;
     el('bigSub').innerHTML = sub;
-    // 名前だけの一覧は使わず、横棒グラフに差し替える
     el('bigList').innerHTML = '';
-    el('bigBoard').style.display = 'flex';
-    el('bigBoard').innerHTML = (v.players || []).map(bombGaugeRowHtml).join('');
+    if(v.phase === 'play' && v.coop){
+      el('bigMain').textContent = '';
+      el('bigMain').innerHTML = bombCoopBoardHtml(v);
+      el('bigBoard').style.display = 'none';
+    } else {
+      el('bigMain').textContent = main;
+      el('bigBoard').style.display = (v.phase === 'play') ? 'flex' : 'none';
+      el('bigBoard').innerHTML = (v.phase === 'play')
+        ? (v.players || []).map(bombGaugeRowHtml).join('') : '';
+    }
+  }
+
+  /**
+   * 協力版クイズ解除の、大画面の主役（指示55 2-2）。
+   * **共通の進み具合をゲージ1本で大きく**、少し離して**誰がどの端子を担当しているか**。
+   * 担当は `v.board`（サーバーが送っている `by` と `no`）から引く
+   */
+  function bombCoopBoardHtml(v){
+    var t = v.team || { solved:0, total:0, pct:0 };
+    var 担当 = {};
+    (v.board || []).forEach(function(c, i){
+      if(c && c.by && !c.solved) 担当[c.by] = (i + 1);
+    });
+    var 行 = (v.players || []).map(function(p){
+      var no = 担当[p.id];
+      return '<div class="bcb-row' + (no ? ' is-on' : '') + '">' +
+        '<span class="bcb-name">' + faceOf(p.id) + escapeHtml(p.name) + '</span>' +
+        '<span class="bcb-at">' + (no ? ('→ ' + no + 'ばん 🔎') : '待ち') + '</span>' +
+      '</div>';
+    }).join('');
+    return '<div class="bomb-coop">' +
+      '<div class="bcb-gauge"><div class="bcb-fill" style="width:' + (t.pct || 0) + '%;"></div></div>' +
+      '<div class="bcb-count">' + t.solved + ' / ' + t.total + ' 解除</div>' +
+      '<div class="bcb-who">' + 行 + '</div>' +
+    '</div>';
   }
 
   // ===================== 第27弾-3：1人1台の実物解除 =====================
@@ -21675,15 +21796,12 @@
    * 第32弾-C-3：陣営の色で画面の縁を一瞬だけ照らす。
    * 色だけに頼らせないため、役職名と説明は今までどおり文字で必ず出る（第8部-2）。
    */
+  // 指示55：**共通部品の上に組む**（CLAUDE.md §4・正本§10）。
+  // それまでここに縁の光が個別実装されていたので、FxKit.edge に寄せた
   function flashRoleEdge(team){
-    var app = el('app');
-    if(!app) return;
+    if(typeof FxKit === 'undefined') return;
     // ルール層の陣営は village / wolf / third の3つ。それ以外は third 扱いにする
-    var cls = 'edge-' + (team === 'wolf' ? 'wolf' : (team === 'village' ? 'village' : 'third'));
-    app.classList.remove('edge-village', 'edge-wolf', 'edge-third');
-    void app.offsetWidth;
-    app.classList.add(cls);
-    setTimeout(function(){ app.classList.remove(cls); }, fxMs(700));
+    FxKit.edge(team === 'wolf' ? 'wolf' : (team === 'village' ? 'village' : 'third'));
   }
   function wrActionOf(playerId){
     return (wr.pending || []).find(function(a){ return a.playerId === playerId; });

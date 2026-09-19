@@ -2573,6 +2573,57 @@
     .big-sub{font-size:clamp(20px,2.1vw,38px);}
     .big-list{font-size:clamp(16px,1.5vw,30px);gap:12px 18px;}
     .big-wrap .qr-box svg{width:min(34vw,520px);height:min(34vw,520px);}
+
+    /* ===== 指示55・正本 §11-5：TVで離れた席から読める最小サイズ =====
+       前提：1280×720／50型16:9（画の高さ623mm＝1px 0.865mm）／いちばん遠い席 4m。
+       ISO 9241-303:2011 の推奨 20分角 → 26.9px → 切り上げて 28px。
+
+       | 役割 | 最小 | 4m・50型での視角 |
+       |---|---|---|
+       | 主役（そのモードで一目で分かればいい1つ） | 96px | 71分 |
+       | 数字（得点・時計・残り・ライフ） | 48px | 36分 |
+       | 本文・名前・札 | 28px | 21分 |
+
+       **これ以下でよい文字は、大画面に出さない。**逃げ道（添えだから小さくてよい）は作らない
+       ——作った瞬間に、どれが添えかを手で決める一覧ができる（落とし穴4）。
+
+       着手前の実測では、21か所のうち**14か所が 28px に届かず、9か所は
+       国交省の視認下限（13.8分角）にすら届いていなかった**。
+       いちばん小さい `.blc-title` は 10px＝7.4分角で、視認下限のおよそ半分。
+
+       **スマホには持ち込まない。**`.bb-*` や `.sugo-piece` はスマホでも着ているので、
+       この枠（900px以上）の中で、しかも大画面の中に絞って上書きする（落とし穴23） */
+    #scr-rt-big.active .big-main{font-size:clamp(96px,9vw,200px);}
+    #scr-rt-big.active .big-sub{font-size:clamp(28px,2.4vw,44px);}
+    #scr-rt-big.active .big-phase{font-size:clamp(28px,2.2vw,44px);}
+    #scr-rt-big.active .big-turn{font-size:clamp(28px,2vw,40px);}
+    #scr-rt-big.active .big-list{font-size:clamp(28px,2.2vw,44px);}
+    #scr-rt-big.active .big-rules .rules-ol{font-size:clamp(28px,2.2vw,40px);}
+    #scr-rt-big.active .big-rules .big-rules-count{font-size:clamp(28px,2.2vw,40px);}
+    /* 名簿の札。**いちばん大きいのが「欠けた」印（✕ 56px）で、
+       「誰が」が 14px** という逆転が起きていた（人狼の盤） */
+    #scr-rt-big.active .big-list .bl-card .blc-name{font-size:clamp(32px,3vw,56px);}
+    #scr-rt-big.active .big-list .bl-card .blc-title{font-size:clamp(28px,2vw,36px);}
+    #scr-rt-big.active .big-list .bl-card .blc-face{font-size:clamp(48px,5vw,96px);}
+    #scr-rt-big.active .big-list .bl-item .bl-title{font-size:clamp(28px,2vw,36px);}
+    /* クイズ解除の横棒。固定20px/18pxでTVの大きさに追従していなかった */
+    #scr-rt-big.active .big-board{max-width:min(1200px,92vw);}
+    #scr-rt-big.active .bb-head{font-size:clamp(28px,2.6vw,52px);}
+    #scr-rt-big.active .bb-meta{font-size:clamp(48px,3.6vw,72px);}
+    #scr-rt-big.active .bb-bar{height:clamp(24px,2.2vw,40px);}
+    /* すごろくの順位・駒の印（13px固定だった） */
+    #scr-rt-big.active .big-list .sugo-piece{font-size:clamp(48px,3.4vw,68px);}
+    /* False or True のケース */
+    #scr-rt-big.active .big-ft .bft-case{font-size:clamp(48px,4.4vw,88px);}
+    #scr-rt-big.active .big-ft .bft-note{font-size:clamp(28px,2.2vw,40px);}
+    /* 相場オークション */
+    #scr-rt-big.active .big-mk .bmk-k .bk-l{font-size:clamp(28px,2.2vw,40px);}
+    #scr-rt-big.active .big-mk .bmk-k .bk-v{font-size:clamp(48px,3.4vw,68px);}
+    #scr-rt-big.active .big-mk .bmk-k .bk-hot{font-size:clamp(28px,1.8vw,32px);}
+    #scr-rt-big.active .big-mk .bmk-c .bc-l{font-size:clamp(28px,2vw,38px);}
+    #scr-rt-big.active .big-mk .bmk-c .bc-no{font-size:clamp(28px,2vw,38px);}
+    #scr-rt-big.active .big-mk .bmk-c .bc-sold{font-size:clamp(28px,2vw,36px);}
+    #scr-rt-big.active .big-mk .bmk-c{min-height:clamp(150px,14vw,220px);}
   }
   /* 第47弾 47-4：**待合の大画面を、横幅を使う配置にする。**
      それまで縦に積んでいたので、1280×800 で実測すると中身が 1212px になり、

@@ -602,6 +602,11 @@
   `tests/ui-text.js` と `tools/dump-ui-text.js` が**同じこれを呼ぶ**（写さない）。
   `node tools/dump-ui-text.js` が `docs/文言一覧.md` を作り、
   `node tools/triage-ui-text.js` が表記ゆれ・専門用語・誤字の候補を出す
+- **大画面の文字が正本§11-5 の下限を満たすかは `node tools/measure-big-screen.js`**（指示55）。
+  1280×720 の実ブラウザで27か所を測り、**未達を一覧で出す**。
+  下限は 主役96px／数字48px／本文28px（50型を4mから見て ISO 9241-303 の20分角）。
+  SELFTEST で測り方が効くことを先に見る。**道具そのものも試す**——
+  わざと1つ 20px にして、`.bb-head`・`.bb-name` の2件が拾われることを確かめてある
 - **全画面が画面に収まるかは `node tools/measure-screens.js`**（指示49 49-2）。
   回し方と、**測り方が効くことを見る自己検査**が入っている。
   `innerHeight` と `clientHeight` は食い違うので、**折り返しの権威は `clientHeight`**

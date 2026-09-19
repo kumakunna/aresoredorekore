@@ -2468,6 +2468,20 @@
   /* 第21弾-6：大画面（TV・PC）。離れて見えるよう、とにかく大きく */
   #scr-rt-big{align-items:center;justify-content:center;text-align:center;}
   .big-wrap{width:100%;}
+  /* 指示55・正本 §11-1／§11-5：共通のものの帯。
+     **数字は48px以上**（1280×720・50型を4mから見て36分角）。
+     ここは「画面のいちばん上」なので、演出（top:36%）に覆われない */
+  .big-status{
+    display:flex;align-items:center;justify-content:center;gap:clamp(24px,4vw,72px);
+    margin:0 0 10px;min-height:1px;flex-wrap:wrap;
+  }
+  .big-status .bs-lives{font-size:clamp(48px,6vw,120px);line-height:1.1;letter-spacing:.06em;}
+  .big-status .bs-clock{
+    font-family:'DotGothic16',monospace;font-size:clamp(48px,7vw,140px);line-height:1.1;
+    letter-spacing:.04em;font-variant-numeric:tabular-nums;
+  }
+  /* のこりが少ない時だけ、色を変える。**面は塗らない**（正本§6：赤は縁のみ） */
+  .big-status .bs-clock.is-soon{color:var(--hazard,#e2584a);}
   .big-turn{font-size:clamp(14px,2.4vw,22px);color:var(--ink-soft);letter-spacing:.16em;}
   .big-phase{font-size:clamp(18px,3vw,30px);color:var(--ink-soft);margin-top:6px;letter-spacing:.2em;}
   .big-main{
@@ -5486,6 +5500,14 @@
   <div class="screen" id="scr-rt-big">
     <div class="now-line" hidden></div>
     <div class="big-wrap">
+      <!-- 指示55・正本 §11-1：**共通のものは1つ大きく。**
+           全員に同じ値（協力版のライフ・共通の時計）は、画面のいちばん上に1つだけ。
+           ここに置くのは「人を変えても同じ値」だけ——人ごとに違う値は名簿の行へ。
+           §11-4：`.fx-callout` は top:36% に出るので、この帯（上から1/4まで）は覆われない -->
+      <div class="big-status" id="bigStatus" hidden>
+        <div class="bs-lives" id="bigLives"></div>
+        <div class="bs-clock" id="bigClock"></div>
+      </div>
       <!-- 第47弾 47-4：待合では、この かたまり を左に置いてルールを右に並べる。
            横に並べるには「掴める単位」が要るので、囲みを1つ足した。
            囲むだけなので、縦に積む時（スマホ幅・ゲーム中）の見え方は変わらない -->
@@ -17254,6 +17276,43 @@
   }
   setInterval(bigCountdownTick, 200);
 
+  /**
+   * 指示55・正本 §11-1：**共通のものは1つ大きく。**
+   *
+   * 大画面の上に、**人を変えても同じ値**だけを出す。
+   *   ・共有ライフ … 進行役が `v.shared` として名乗ったものだけ
+   *                  （協力版クイズ解除・実物解除。競争版には無い）
+   *   ・共通の時計 … `v.clock`（realtime.js が締め切りから導き、
+   *                  進行役が「数えてよい締め切りか」を言う・§11-4）
+   *
+   * **ゲームごとの一覧をここに持たない**（落とし穴4）。
+   * 名乗られたものを出すだけなので、ゲームを足した日にも勝手に付いてくる。
+   */
+  var bigClockAt = null;   // {ms, at}。秒の刻みは1つのタイマーで回す
+  function renderBigStatus(v){
+    var box = el('bigStatus');
+    if(!box) return;
+    var 共有 = v && v.shared;
+    var 時計 = v && v.clock;
+    box.hidden = !(共有 || 時計);
+    el('bigLives').textContent = 共有
+      ? '❤️'.repeat(Math.max(0, 共有.lives)) +
+        '🖤'.repeat(Math.max(0, (共有.livesMax || 0) - 共有.lives))
+      : '';
+    bigClockAt = 時計 ? { ms: 時計.ms, at: Date.now() } : null;
+    bigClockTick();
+  }
+  function bigClockTick(){
+    var box = el('bigClock');
+    if(!box) return;
+    if(!bigClockAt){ box.textContent = ''; box.classList.remove('is-soon'); return; }
+    var 残り = Math.max(0, Math.round((bigClockAt.ms - (Date.now() - bigClockAt.at)) / 1000));
+    box.textContent = pad(Math.floor(残り / 60)) + ':' + pad(残り % 60);
+    // 色だけ変える。**面は塗らない**（正本§6：赤は縁のみ）
+    box.classList.toggle('is-soon', 残り <= 10);
+  }
+  setInterval(function(){ if(bigClockAt) bigClockTick(); }, 500);
+
   function renderRtBig(){
     var v = rtView();
     var room = rt && rt.state.room;
@@ -17262,6 +17321,7 @@
     // ゲームが始まったら盤が主役なので、積み方は変えない
     el('scr-rt-big').classList.toggle('big-lobby', !(v && v.phase && v.phase !== 'lobby'));
     renderBigTools();
+    renderBigStatus(v);   // 指示55 §11-1：共通のものを、いちばん上に1つだけ
     if(!v || !v.phase || v.phase === 'lobby'){
       el('bigTurn').textContent = '';
       el('bigBoard').style.display = 'none';
@@ -17294,7 +17354,14 @@
     // 第32弾-D：段階の変わり目から、大画面だけの演出（コールアウトなど）を出す
     rtBigFx(v, rtRoomGameId());
     // 第5部-4：残り時間つきのゲームなら、最後の5秒を巨大な数字で数える
-    rtBig.clock = (v.remainingMs != null) ? { ms: v.remainingMs, at: Date.now() } : null;
+    /**
+     * 指示55 §11-4：**巨大カウントダウンは「数えてよい締め切り」だけに乗せる。**
+     * それまで v.remainingMs を無条件に読んでいたので、とくとくクイズの
+     * 「次の1文字が出る時刻」まで数えてしまい、420px の数字が
+     * 伏せ字の問題文の上に1〜2秒ごとに出ていた（実測：6秒間に6回）。
+     * `v.clock` は realtime.js が進行役の名乗り（clockKind）を見て作る
+     */
+    rtBig.clock = (v.clock && v.clock.ms != null) ? { ms: v.clock.ms, at: Date.now() } : null;
     // 第38弾：**ゲームごとの大きな部品は、ここで一度ぜんぶ隠す。**
     // そのあと各ゲームの描画が、自分の使うものだけを出し直す。
     // 「出す側」と「隠す側」を別々の場所に書くと、部品を足した時に

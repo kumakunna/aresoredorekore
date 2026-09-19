@@ -176,7 +176,13 @@ function publicView(room) {
         done: !!w.done[id]
       };
     }),
-    waiting: waitingNames(room)
+    waiting: waitingNames(room),
+    /**
+     * 指示55・正本 §11-1：**全員に同じ値は、大画面の上に1つだけ大きく出す。**
+     * 実物解除はみんなで1つのしかけなので、のこりミスは全員共通。
+     * 人ごとの行に並べると「なぜ全員のライフが同時に減るのか」しか伝わらない
+     */
+    shared: { lives: Math.max(0, w.strikesLeft), livesMax: w.strikesMax }
   };
   if (w.phase === PHASE.BRIEF || w.phase === PHASE.PLAY || w.phase === PHASE.ENDED) {
     view.board = DefuseLogic.publicProgress(w.modules, w.strikesLeft, w.strikesMax);

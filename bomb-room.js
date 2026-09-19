@@ -322,6 +322,13 @@ function publicView(room) {
       livesMax: w.lives,
       misses: team.misses
     };
+    /**
+     * 指示55・正本 §11-1：**全員に同じ値は、大画面の上に1つだけ大きく出す。**
+     * 協力版は entryOf がチームの entry を返すので、players[] のライフも進み具合も
+     * 全員まったく同じ値になる（棚卸しの実測：3人で一番ばらけた状況を作っても
+     * 3行とも「2 / 6 ❤️❤️🖤」）。**競争版には付けない**——あちらは人ごとに違う
+     */
+    view.shared = { lives: Math.max(0, team.lives), livesMax: w.lives };
     // 通常版は全員が同じ盤面を見るので、盤面そのものは公開情報。
     // ただし入れるのは「難易度・解除済みか・誰が挑戦中か」だけ
     view.board = team.order.map((uid) => boardCell(room, w, uid));

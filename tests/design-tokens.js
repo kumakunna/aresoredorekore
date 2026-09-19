@@ -343,6 +343,49 @@ const PAIRS = [
     assertEqual(bad.join('\n       '), '', '正本と実装が食い違っている');
   });
 
+  await r.test(':root で var() を使う時、テーマが上書きする色を入れない（指示55-①）', async () => {
+    // **`var()` は、それを宣言した要素の文脈で解決される。**
+    // `:root{--rc-back:var(--paper-deep)}` と書くと、`:root` の共通色が**焼き付く**——
+    // テーマ（`.app.theme-◯◯`）が `--paper-deep` を上書きしても、もう効かない。
+    //
+    // **実機で実際にそうなっていた**（指示55-① の実測）：
+    //   `#app` の `--paper-deep` は `#360900`（ロシアンカードの深地）なのに、
+    //   `--rc-back` は共通の `#E4DBC0` のまま。**札だけクリーム色**で出ていた。
+    // CSSは何も言わず、jsdom は `var()` を解決しないので、**検査も全部緑のまま**だった
+    //（落とし穴27 の親戚：「両方の親に置く」を `:root` と読み違えた。
+    //  テーマが当たるのは `.app` なので、テーマに追従させたい別名は `.app` に置く）。
+    const 規則 = cssRules(CSS_ONLY);
+
+    // ① テーマが上書きしているトークンを集める（正本ではなく**現物**から）
+    const テーマが上書き = new Set();
+    規則.forEach((x) => {
+      if (!/\.app\.theme-[a-z]+\s*$/.test(x.sel)) return;
+      (x.body.match(/--[a-z-]+\s*:/g) || []).forEach((m) => テーマが上書き.add(m.replace(/\s*:$/, '')));
+    });
+    // 型(b)：**そもそも拾えているか**（0件なら以下は自明に成立する）
+    assert(テーマが上書き.size >= 5,
+      'テーマが上書きするトークンを5つ以上拾えている（実際:' + テーマが上書き.size + '件）');
+
+    // ② `:root` の宣言のうち、値に var() を使っているものを見る
+    const rootたち = 規則.filter((x) => /(^|,)\s*:root\s*$/.test(x.sel));
+    assert(rootたち.length >= 1, ':root の規則がある');
+    const 悪い = [], 見た = [];
+    rootたち.forEach((x) => {
+      // 「--名前: 値;」を1つずつ
+      (x.body.match(/--[a-z-]+\s*:[^;]+/g) || []).forEach((decl) => {
+        const 名 = decl.slice(0, decl.indexOf(':')).trim();
+        const 値 = decl.slice(decl.indexOf(':') + 1);
+        (値.match(/var\(\s*(--[a-z-]+)/g) || []).forEach((v) => {
+          const 参照 = v.replace(/var\(\s*/, '');
+          見た.push(名 + '→' + 参照);
+          if (テーマが上書き.has(参照)) 悪い.push(名 + ' が :root で ' + 参照 + ' を参照している');
+        });
+      });
+    });
+    assertEqual(悪い.join(' / '), '',
+      ':root の別名が、テーマの上書きに追従できない（値が焼き付く）');
+  });
+
   await r.test('警告の縁は、その世界の地と色相で離れている（正本 §6・指示55-①）', async () => {
     // **なぜ「ΔE2000」でも「コントラスト比」でもなく色相か**（着手前に3つとも測った）。
     // 赤い地（#5A0F00）に既定の赤い縁（#E2584A）を当てた時の値は

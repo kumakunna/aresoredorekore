@@ -48,13 +48,7 @@
        `tests/design-tokens.js` が「地と色相で離れている」を全世界ぶん見張る */
     --edge-danger:rgba(226,88,74,0.9);
     --edge-danger-spread:14px;
-    /* 指示55-①：ロシアンカードの札。**世界ごとに上書きできるよう :root に置く**。
-       `currentColor` を使わないのは、<button> が color を継承しないから
-       （`.rail-dot` で踏んだ。人狼の地で 1.21:1 だった） */
-    --rc-back:var(--paper-deep);
-    --rc-face:var(--card);
-    --rc-hatch:var(--line);
-    --rc-ink:var(--ink);
+
     /* 第39弾：つまみと、その縁。
        白いつまみだけだと明るい帯（クイズの金など）に溶けるので、
        縁で境目を作る。縁の色は帯の上に重ねて評価する
@@ -134,6 +128,19 @@
          --screen-bright 画面の明るさ補正（暗いテーマを屋外で遊ぶ時のため）
          --fx-scale      演出の速さ（1=ふつう / 0.5=速い / 0=スキップ） */
     --font-scale:1;
+    /* 指示55-①：ロシアンカードの札の色。**`:root` ではなく `.app` に置く。**
+       `var()` は**それを宣言した要素の文脈で解決される**ので、
+       `:root{--rc-back:var(--paper-deep)}` と書くと `:root` の共通色が**焼き付く**——
+       テーマ（`.app.theme-◯◯`）が `--paper-deep` を上書きしても、もう効かない。
+       実測でそうなっていた：`#app` の `--paper-deep` は `#360900` なのに、
+       `--rc-back` は共通の `#E4DBC0` のままだった（落とし穴27の親戚。
+       「両方の親に置く」を `:root` と読み違えたが、**テーマが当たるのは `.app`**）。
+       `currentColor` を使わないのは、<button> が color を継承しないから
+       （`.rail-dot` で踏んだ。人狼の地で 1.21:1 だった） */
+    --rc-back:var(--paper-deep);
+    --rc-face:var(--card);
+    --rc-hatch:var(--line);
+    --rc-ink:var(--ink);
     /* --screen-bright と --fx-scale は :root に置く。#app の外の層も同じ値を読むため */
     font-size:calc(15px * var(--font-scale));
     /**
@@ -2439,6 +2446,21 @@
   .rc-vs .rc-vs-mid{font-family:'DotGothic16',monospace;color:var(--ink-soft);}
   .rc-vs.is-me{outline:2px solid var(--stamp);}
   .rc-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+  /* **背の低い画面では、余白と盤を詰める**（正本 §7-0e・指示55-① 門T13）。
+     実測（375×667・文字ふつう）：着手前は **105px はみ出し**、
+     主ボタン「しかけて、伏せる」の上端が 691px で**初期表示に入っていなかった**。
+     内訳は 盤432＋余白100＋注記53＋主ボタン53＋padding56。
+     **押す的（44px）は1つも縮めない**——ここで詰めるのは余白と盤の一辺だけで、
+     札は 375×667 でも 94×126（44pxの倍以上）ある */
+  @media (max-height:720px){
+    .rc-board{max-width:min(288px, 100%);gap:8px;margin-top:8px;}
+    #scr-rc-pass .wolf-you{margin-bottom:8px;}
+    #scr-rc-pass .scr-title, #scr-rc-turn .scr-title{margin-bottom:2px;}
+    #rcPassLead, #rcTurnLead{margin-bottom:10px;}
+    #rcPassNote{margin:6px 0 0;}
+    #rcPassDoneBtn, #rcTurnNextBtn{margin-top:10px !important;}
+    .rc-vs{margin-top:6px;padding:8px 10px;}
+  }
 
   /* 大画面の順位表の置き場。中身は共通部品（.rk-list） */
   .big-rank{width:100%;}
@@ -7456,14 +7478,18 @@
     // ロシアンカードの手渡しは2人専用なので、3人以上なら「1台か部屋か」を聞かずに
     // 部屋へ倒す——聞いてから「その人数では遊べません」と言うのは、
     // **押せるのに始まらないボタン**と同じ形（落とし穴14）
-    if(canHandoff && !handoffFitsHeads(c)) canHandoff = false;
+    var なぜ部屋か = 'カセット';
+    if(canHandoff && !handoffFitsHeads(c)){ canHandoff = false; なぜ部屋か = '人数'; }
     if(canRoom && canHandoff){
       // 両方できる。部屋があるなら部屋で（F）、無いならどちらか聞く（E）
       return room ? { kind:'through', way:'room' } : { kind:'choose' };
     }
     if(canRoom){
       // 部屋でしか遊べない。部屋があるならそのまま（D）、無いなら作るか聞く（C）
-      return room ? { kind:'through', way:'room' } : { kind:'makeRoom' };
+      // **なぜ部屋なのかを添える**（指示55-①）。
+      // 人数で倒れた時に「このカセットは、それぞれの端末で遊ぶ形です」と言うと**嘘になる**——
+      // ロシアンカードは2人なら1台でも遊べる（実機で見つけた）
+      return room ? { kind:'through', way:'room' } : { kind:'makeRoom', なぜ: なぜ部屋か };
     }
     // 1台でしか遊べない。部屋があるなら閉じるか聞く（B）、無いならそのまま（A）
     return room
@@ -7586,7 +7612,11 @@
     }
     if(wayPlan.kind === 'makeRoom'){
       el('wayTitle').textContent = T.makeRoom.見出し;
-      el('wayBody').textContent = T.makeRoom.本文;
+      // **なぜ部屋なのかで言い分ける**（指示55-①）。
+      // 人数で倒れたのに「このカセットは…」と言うと、2人なら1台で遊べる事実と食い違う
+      el('wayBody').textContent = (wayPlan.なぜ === '人数')
+        ? T.makeRoom.人数の本文(currentPlayerCount())
+        : T.makeRoom.本文;
       el('wayChoices').innerHTML =
         '<button class="btn btn-main" data-way="room">' + escapeHtml(T.makeRoom.進む) + '</button>';
       return;

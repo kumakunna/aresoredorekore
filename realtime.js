@@ -22,6 +22,7 @@ const AuctionRoom = require('./auction-room.js');
 const SugorokuRoom = require('./sugoroku-room.js');
 const FalseTrueRoom = require('./falsetrue-room.js');
 const RcardRoom = require('./rcard-room.js');
+const ShinkaRoom = require('./shinka-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -60,6 +61,10 @@ const GAME_DRIVERS = {
   // 秘密の扱いがこのゲームの芯（rcard-room.js の冒頭）。
   // 同時に複数組を回す形は、すごろく「ふたりでひとつ」と同じ
   rcard: { driver: RcardRoom, key: 'rcard' },
+  // 指示55-②：カセット「進化じゃんけん」。部屋（3人以上）専用。
+  // 同じ段の人どうしで一斉に1v1し、勝てば1つ上の段へ。組を作るのは部品A（versus.js）。
+  // 「出した手」と「AIの正体」の2つが秘密（shinka-room.js の冒頭）
+  shinka: { driver: ShinkaRoom, key: 'shinka' },
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -602,6 +607,42 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.auction) return recordAuctionMatch(room);
     if (room.sugoroku) return recordSugorokuMatch(room);
     if (room.falsetrue) return recordFalseTrueMatch(room);
+    if (room.shinka) return recordShinkaMatch(room);
+    // **`room.rcard` の行がここに無い。**指示55-② の着手前の掃引で見つけた——
+    // ロシアンカードの対戦は `saveMatchRecord` に一度も届いておらず、DBに1件も残っていない。
+    // 例外も警告も出ないので、誰も気づかなかった（落とし穴4：手書きの振り分けは腐る）。
+    // **②の範囲外なので、ここでは直さずに印だけ置く**——何を成績として残すかは
+    // ①の設計の話で、決めてから書くべきものだから
+  }
+
+  /**
+   * 指示55-②：進化じゃんけん。**到達した段がそのまま成績**。
+   * 段の番号（1始まり）を点として残す——段の配列は運営が増減できるので、
+   * 段数も一緒に残しておかないと、あとで見た時に「5段中の3」か「10段中の3」か分からない。
+   * 途中で抜けた人は記録に入れない（False or True と同じ扱い）。
+   * **CSポイントの換算はここでやらない**（56の仕事・指示書2-1）
+   */
+  function recordShinkaMatch(room) {
+    if (!db || !room.ownerUserId || !room.shinka) return;
+    try {
+      const view = ShinkaRoom.resultView(room);
+      const 居た = view.ranking.filter((p) => room.shinka.gone.indexOf(p.id) === -1);
+      const names = 居た.map((p) => p.name);
+      const finalScores = {};
+      居た.forEach((p) => { finalScores[p.name] = p.no; });
+      const rounds = [{
+        mode: 'shinka',
+        game: 'shinka',
+        style: 'realtime',
+        ladder: room.shinka.はしご.id,
+        段数: view.段数,
+        優勝: view.優勝,
+        rounds: view.rounds,
+        ranking: 居た.map((p) => ({ name: p.name, rank: p.rank, 段: p.no, 段名: p.段名 })),
+        deltas: finalScores
+      }];
+      saveMatchRecord(room, names, rounds, finalScores);
+    } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
   }
 
   /**

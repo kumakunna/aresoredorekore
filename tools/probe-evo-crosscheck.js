@@ -10,6 +10,8 @@
 // 検算3 最上段の人はAI送りになるか／検算4 `直前の不戦勝` に配列を渡すと黙って無視される
 // 検算5 「1つ上」の印は「1人ランク」を意味しない／検算6 候補の並び順で相手を指名できるか
 // 検算7 決着は「AIに勝って優勝」か「人に勝って優勝」か
+// 検算8 余りの吸収 trio で parity は消えるか、その代償は何か
+// 検算9 優勝の読み（2-1 到達／2-2 最終段で勝てば）で決着のAI率はどう変わるか
 //
 // **AIの勝率の向きに注意**：指示書2-2 は「AIは 75% で**負ける**手を出す」＝**人が 75% で勝つ**。
 // 最初これを逆に書いて、決着のAI率を 8〜57% と読み違えた。正しくは 62〜99%（検算7）。
@@ -272,6 +274,89 @@ for(const [段数,lbl] of [[5,'通常版5段'],[6,'通常版6段'],[10,'CS版10�
         (100*zen/R).toFixed(1).padStart(5)+'% | '+(AI/R).toFixed(2));
     }
   }
+}
+
+})();
+
+(function(){
+const V=require('C:/Users/kumak/game/anarogu/aresoredorekore/public/js/versus.js');
+function rng(s){let a=s>>>0;return()=>{a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);
+ t=(t+Math.imul(t^(t>>>7),61|t))^t;return ((t^(t>>>14))>>>0)/4294967296;};}
+const H2=[{理由:'同ランク',候補:(N,p)=>N.filter(x=>x.rank===p.rank)},
+          {理由:'1つ上',候補:(N,p)=>N.filter(x=>x.rank===p.rank+1)}];
+const H3=H2.concat([{理由:'1つ下',候補:(N,p)=>N.filter(x=>x.rank===p.rank-1)}]);
+
+// 【検算8】'trio' で parity は本当に0になるか。なるなら、その代償は？
+console.log('=== 検算8：余りの吸収 trio で parity は消えるか。段をまたぐか ===');
+for(const [dist,lbl] of [[[0,0,0],'3人・全員同じ段'],[[0,0,0,0,0],'5人・全員同じ段'],
+                          [[1,1,1,3,3,3],'6人・段1に3人＋段3に3人']]){
+  for(const 吸収 of ['bye','trio']){
+    let p=0,t=0,またいだ=0;
+    for(let s=1;s<=2000;s++){
+      const P=dist.map((r,i)=>({id:'p'+i,rank:r,直前:null}));
+      const M={};P.forEach(x=>M[x.id]=x);
+      const r=V.組をつくる(P,{rnd:rng(s),希望:H2,余りの吸収:吸収,連続不戦勝を避ける:true,直前の不戦勝:null});
+      p+=r.相手なし.filter(x=>x.なぜ==='parity').length;
+      r.組.forEach(g=>{ if(g.c){ t++;
+        const 段=[M[g.a].rank,M[g.b].rank,M[g.c].rank];
+        if(new Set(段).size>1) またいだ++; } });
+    }
+    console.log('  '+lbl.padEnd(22)+吸収.padEnd(6)+' parity計='+String(p).padStart(5)+
+                '  3人組='+String(t).padStart(5)+'  うち段をまたいだ='+String(またいだ).padStart(5));
+  }
+}
+
+// 【検算9】2-1（到達で優勝）と 2-2（最終段で勝てば優勝）で、決着のAI率はどう変わるか
+console.log('\n=== 検算9：優勝の読みを変えると、決着のAI率はどうなるか ===');
+console.log('   （あいこは「振り直さない＝その回は動かない」控えめな模型。実際の人の勝率はもっと高い）');
+function 一局(n,段数,seed,希望,読み){
+  const rnd=rng(seed),P=[];
+  for(let i=0;i<n;i++)P.push({id:'p'+i,rank:0,連敗:0,直前:null,猶予:true});
+  let by=null,決着=null;
+  for(let t=0;t<300;t++){
+    const r=V.組をつくる(P,{rnd,希望,避ける:(a,b)=>a.直前===b.id,余りの吸収:'bye',
+      連続不戦勝を避ける:true,直前の不戦勝:by});
+    const M={};P.forEach(x=>M[x.id]=x);
+    const bye=r.相手なし.filter(x=>x.なぜ==='parity');
+    const nc =r.相手なし.filter(x=>x.なぜ==='no-candidate');
+    by=bye.length?bye[0].id:null;
+    for(const x of nc){ const p=M[x.id],u=rnd();
+      if(p.rank===段数-1){ if(u<0.75){決着='AI';break;} continue; }   // 最終段での1勝
+      if(u<0.75){ p.rank=Math.min(段数-1,p.rank+1); p.連敗=0;
+        if(読み==='到達' && p.rank===段数-1){決着='AI';break;} } }
+    if(決着)break;
+    for(const g of r.組){
+      const a=M[g.a],b=M[g.b],勝=rnd()<0.5?a:b,負=(勝===a)?b:a;
+      a.直前=b.id;b.直前=a.id;
+      if(g.理由==='同ランク'){
+        if(勝.rank===段数-1){決着='人';break;}                        // 最終段での1勝
+        勝.rank=Math.min(段数-1,勝.rank+1);勝.連敗=0;
+        if(読み==='到達'&&勝.rank===段数-1){決着='人';break;}
+        負.連敗++;if(負.連敗>=2){負.rank=Math.max(0,負.rank-1);負.連敗=0;}
+      } else {
+        const 挑=(a.rank<b.rank)?a:b,受=(a.rank<b.rank)?b:a;
+        if(勝===挑){挑.rank=Math.min(段数-2,挑.rank+2);挑.連敗=0;}
+        else{if(受.猶予)受.猶予=false;else{受.連敗++;if(受.連敗>=2){受.rank=Math.max(0,受.rank-1);受.連敗=0;}}}
+      }
+    }
+    if(決着)break;
+  }
+  return 決着;
+}
+console.log('  段数 人数 | 読み        | 2段希望のAI率 | 3段希望のAI率');
+for(const 段数 of [5,6,10]) for(const n of [3,6,12]){
+  const 行=[];
+  for(const 読み of ['到達','最終段で勝つ']){
+    const 出=[];
+    for(const 希望 of [H2,H3]){
+      let ai=0,hu=0;
+      for(let s=1;s<=400;s++){const d=一局(n,段数,s,希望,読み);if(d==='AI')ai++;else if(d==='人')hu++;}
+      出.push((ai+hu)?(100*ai/(ai+hu)).toFixed(1)+'%':'決着せず');
+    }
+    行.push([読み,出]);
+  }
+  行.forEach(([読み,出])=>console.log('  '+String(段数).padStart(3)+'段'+String(n).padStart(3)+'人 | '+
+    読み.padEnd(11)+' | '+出[0].padStart(12)+' | '+出[1].padStart(12)));
 }
 
 })();

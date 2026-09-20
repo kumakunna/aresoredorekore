@@ -258,7 +258,11 @@
   }
 
   return {
-    MINIS: MINIS, KINDS: KINDS, HAND: HAND, HANDS: HANDS,
+    // **BEATS は指示55-② で足した。**進化じゃんけん（`shinka-logic.js`）が借りる。
+    // 3すくみの表を2つ持たないため（落とし穴1）——`quiz-logic.js` が
+    // `Versus.buildPairs` を借りて再エクスポートしているのと同じ形。
+    // **すごろくの挙動は1ミリも変わらない**（中で使っていた値を、外から読めるようにしただけ）。
+    MINIS: MINIS, KINDS: KINDS, HAND: HAND, HANDS: HANDS, BEATS: BEATS,
     TAP_CAP: TAP_CAP, FINGER_MAX: FINGER_MAX, LOSER_STEPS: LOSER_STEPS,
     miniById: miniById, miniIds: miniIds, minisOfKind: minisOfKind, pickMini: pickMini,
     rankMini: rankMini, rankByScore: rankByScore,

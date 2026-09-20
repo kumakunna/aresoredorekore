@@ -1,0 +1,106 @@
+[
+  {
+    "name": "57-A 幕を #app の中に置く（落とし穴26。明るさを動かした人だけ壊れる形）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "      TutorialKit.init({ doc: document, win: window, layer: el('uiLayerRoot') });",
+    "to": "      TutorialKit.init({ doc: document, win: window, layer: el('app') });",
+    "expect": "幕は #uiLayerRoot の中にいる"
+  },
+  {
+    "name": "57-B 文を幕の子にする（clip-path が子も切るので、穴の中で消える）",
+    "file": "public/js/tutorial.js",
+    "suite": "tests/tutorial.js",
+    "from": "    根.innerHTML =\n      '<div class=\"tut-veil\"></div>' +\n      '<div class=\"tut-ring\"></div>' +\n      '<div class=\"tut-say\">' +",
+    "to": "    根.innerHTML =\n      '<div class=\"tut-veil\">' +\n      '<div class=\"tut-ring\"></div>' +\n      '<div class=\"tut-say\">' +",
+    "expect": "幕は #uiLayerRoot の中にいる"
+  },
+  {
+    "name": "57-C 的が無い手を飛ばさない（門W9：詰まって進めなくなる）",
+    "file": "public/js/tutorial.js",
+    "suite": "tests/tutorial.js",
+    "from": "    if (!的をさがす(状態.doc, 状態.手.的)) { 状態.飛ばした++; return 手をおく(状態, i + 1); }",
+    "to": "    if (false) { 状態.飛ばした++; return 手をおく(状態, i + 1); }",
+    "expect": "的が画面に無い手は飛ばして"
+  },
+  {
+    "name": "57-D 台本の「1手に1つ」をゆるめる（門W13）",
+    "file": "public/js/tutorial.js",
+    "suite": "tests/tutorial.js",
+    "from": "      else if (手.的.indexOf(',') !== -1) 悪い.push(番 + '：的が複数（' + 手.的 + '）');",
+    "to": "      else if (false) 悪い.push(番 + '：的が複数（' + 手.的 + '）');",
+    "expect": "台本が「1手に1つ」でなければ"
+  },
+  {
+    "name": "57-E 断っても「見た」にしない（門W5：毎回聞かれ続ける）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "    if(!見る){ tutMarkSeen(gameId); return false; }",
+    "to": "    if(!見る){ return false; }",
+    "expect": "「いらない」を選ぶと出ない"
+  },
+  {
+    "name": "57-F 大画面でも組み立てる（門W12：個人の学習が見世物になる）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "    if(typeof rtIsBigScreen === 'function' && rtIsBigScreen()) return false;\n    if(!appPrefs.playGuide) return false;   // 設定で切っている",
+    "to": "    if(!appPrefs.playGuide) return false;   // 設定で切っている",
+    "expect": "大画面には、そもそも組み立てない"
+  },
+  {
+    "name": "57-G 止められた時も「見た」にする（門W10：途中で切れた人が二度と見られない）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "    if(結果.理由 === 'done' || 結果.理由 === 'closed') tutMarkSeen(gameId);",
+    "to": "    tutMarkSeen(gameId);",
+    "expect": "止められた時は「見た」ことにしない"
+  },
+  {
+    "name": "57-H 設定を切っていても聞く（門W5：切ったのに出てくる）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "    if(!appPrefs.playGuide) return false;   // 設定で切っている",
+    "to": "    if(false) return false;   // 設定で切っている",
+    "expect": "設定を切っている人には、聞きもしない"
+  },
+  {
+    "name": "57-I 48-3 の印を読み替えない（移行が切れ、見終えた端末にもう一度出る）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "      try{ if(localStorage.getItem(TUT_OLD_BOMB_KEY) === '1') m.bomb = true; }catch(e){}",
+    "to": "      try{ if(false) m.bomb = true; }catch(e){}",
+    "expect": "48-3 を見終えた端末は"
+  },
+  {
+    "name": "57-J 忘れる時に旧キーを残す（ONにしても、移行が毎回それを拾い直して出ない）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "    try{ localStorage.removeItem(TUT_OLD_BOMB_KEY); }catch(e){}",
+    "to": "    try{ }catch(e){}",
+    "expect": "設定を入れ直すと、また見られる"
+  },
+  {
+    "name": "57-K 光の輪を毎秒5回にする（正本§6：1秒に3回まで）",
+    "file": "public/index.html",
+    "suite": "tests/safety-rules.js",
+    "from": "    animation:tutRingGlow 1.8s ease-in-out infinite;",
+    "to": "    animation:tutRingGlow 0.2s ease-in-out infinite;",
+    "expect": "点滅は1秒に3回まで"
+  },
+  {
+    "name": "57-L 的を querySelector で引く（画面は全部DOMにいるので、遊んでいない側に当たる）",
+    "file": "public/js/tutorial.js",
+    "suite": "tests/tutorial.js",
+    "from": "    for (var i = 0; i < list.length; i++) {\n      var r = list[i].getBoundingClientRect();\n      if (r.width > 0 && r.height > 0) return list[i];\n    }\n    return null;",
+    "to": "    return list[0] || null;",
+    "expect": "的が画面に無い手は飛ばして"
+  },
+  {
+    "name": "57-M 幕の pointer-events を切る（門W6：暗幕が指を受けなくなる）",
+    "file": "public/index.html",
+    "suite": "tests/dead-style.js",
+    "from": "  .tut-veil{\n    position:absolute;inset:0;pointer-events:auto;",
+    "to": "  .tut-veil{\n    position:absolute;inset:0;pointer-events:none;",
+    "expect": "（実ブラウザでしか測れない。素通りが正しい）"
+  }
+]

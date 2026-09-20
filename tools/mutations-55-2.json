@@ -5,7 +5,7 @@
     "suite": "tests/shinka-room.js",
     "from": "    throwSec: w.cfg.throwSec,\n    drawMax: w.cfg.drawMax,",
     "to": "    throwSec: w.cfg.throwSec,\n    sealed: w.封じた手,\n    drawMax: w.cfg.drawMax,",
-    "expect": "9通りどの手でも publicView が同じ"
+    "expect": "9通りどの手でも1バイト違わない"
   },
   {
     "name": "55-2-S2 符号化して紛れ込ませる（針では絶対に見つからない形・53-Q4C と同じ手）",
@@ -13,7 +13,7 @@
     "suite": "tests/shinka-room.js",
     "from": "    throwSec: w.cfg.throwSec,\n    drawMax: w.cfg.drawMax,",
     "to": "    throwSec: w.cfg.throwSec + Object.keys(w.封じた手).length * 0,\n    drawMax: w.cfg.drawMax + ('gcp'.indexOf(Object.values(w.封じた手)[0] || 'g')) * 0.0001,",
-    "expect": "9通りどの手でも publicView が同じ"
+    "expect": "9通りどの手でも1バイト違わない"
   },
   {
     "name": "55-2-S3 開く前に手を出す（段階の境目を外す）",
@@ -21,7 +21,7 @@
     "suite": "tests/shinka-room.js",
     "from": "  const 開いてよい = (w.phase === PHASE.REVEAL || w.phase === PHASE.ENDED);",
     "to": "  const 開いてよい = true;",
-    "expect": "開く前は、どの組の手も null"
+    "expect": "開いた手に中身があっても、開く前なら出さない"
   },
   {
     "name": "55-2-S4 相手の手も本人に返す（privateFor の境目を外す）",
@@ -29,7 +29,7 @@
     "suite": "tests/shinka-room.js",
     "from": "    myHand: w.封じた手[memberId] || null,",
     "to": "    myHand: w.封じた手[memberId] || null,\n    foeHand: 相手 ? (w.封じた手[相手] || null) : null,",
-    "expect": "a の手元に b の手が無い"
+    "expect": "相手の手はどの段階でも返らない"
   },
   {
     "name": "55-2-S5 大画面（名簿に無いid）にも秘密を配る",
@@ -37,7 +37,7 @@
     "suite": "tests/shinka-room.js",
     "from": "  if (!w || w.playerIds.indexOf(memberId) === -1) return null;\n  const m = matchOf(room, memberId);",
     "to": "  if (!w) return null;\n  const m = matchOf(room, memberId);",
-    "expect": "大画面にも null"
+    "expect": "大画面（名簿に無いid）には秘密を1バイトも配らない"
   },
   {
     "name": "55-2-S6 AIの印（機械）を publicView に載せる",
@@ -53,7 +53,7 @@
     "suite": "tests/shinka-room.js",
     "from": "      done: m.done,\n      引き分け: m.引き分け,",
     "to": "      done: m.done,\n      種別: m.種別,\n      引き分け: m.引き分け,",
-    "expect": "組の種別が出ない"
+    "expect": "AIの印が publicView のどこにも無い"
   },
   {
     "name": "55-2-S8 勝者を id で公開する（AIが勝った回に、名簿に無いidが載る）",
@@ -61,7 +61,7 @@
     "suite": "tests/shinka-room.js",
     "from": "      winner: m.done ? (m.winner === m.a ? 'a' : (m.winner === m.b ? 'b' : null)) : null",
     "to": "      winner: m.done ? m.winner : null",
-    "expect": "勝者は id ではなく a/b で言う"
+    "expect": "勝者は a/b で言う"
   },
   {
     "name": "55-2-S9 AIのidを playerIds に入れる（reapGone が毎回 不戦敗にする）",

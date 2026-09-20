@@ -147,6 +147,16 @@ function toThrow(room) {
     assert(文字.indexOf('bHand":"p') === -1, '開く前に手が出ない（b）');
     assertEqual(pv(room).matches.every((m) => m.aHand === null && m.bHand === null), true,
       '開く前は、どの組の手も null');
+
+    // **守りは二重。**ふだんは `w.開いた手` が空なので手は出ないが、
+    // それだけだと「段階で隠す」側の門が**一度も試されない**
+    //（変異 55-2-S3 が実際に素通りした。落とし穴10-b：条件が作れていない）。
+    // わざと中身を入れて、**開く前なら段階の門が隠しきる**ことを直に見る
+    w_(room).開いた手[組.a] = 'c';
+    w_(room).開いた手[組.b] = 'p';
+    assertEqual(w_(room).phase, R.PHASE.THROW, 'まだ開く前');
+    assertEqual(pv(room).matches.every((m) => m.aHand === null && m.bHand === null), true,
+      '開いた手に中身があっても、開く前なら出さない');
   });
 
   await r.test('本人には自分の手だけ返る。**相手の手はどの段階でも返らない**（門U4）', async () => {
@@ -329,6 +339,18 @@ function toThrow(room) {
     const 動き = pv(room).moves.find((d) => d.id === 組.a);
     assert(!!動き, '段の動きが公開されている');
     assertEqual(動き.後, 1, '後の段');
+
+    // **勝者の欄は id ではなく 'a'/'b'。**
+    // id で言うと、AIが勝った回に**名簿に無いidが勝者として公開される**
+    //（2-2 は「AIは10%で勝つ」と決めているので、必ず起きる形）。
+    // ここは「勝者が本当に立っている回」で見る——勝者が null の回だけで見ると、
+    // id で公開する実装を素通りさせる（変異 55-2-S8 が実際にそうなった・落とし穴10-b）
+    const 決着した = pv(room).matches.filter((m) => m.done && m.winner != null);
+    assert(決着した.length > 0, '勝者が立っている組がある（条件が作れている）');
+    決着した.forEach((m) => {
+      assert(m.winner === 'a' || m.winner === 'b',
+        '勝者は a/b で言う（実際:' + m.winner + '）');
+    });
   });
 
   await r.test('**肩慣らしでは誰も動かない**（本人の裁定・論点②の新規則）', async () => {

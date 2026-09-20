@@ -7040,6 +7040,17 @@
             <div class="switch on" id="setFanfareToggle"></div>
           </div>
         </div>
+        <!-- 指示57：あそびかたの案内。**参加者も自分で切り替えられる場所に置く。**
+             「このゲームの設定」は部屋では進行役しか開けないので、
+             2-4「部屋では人ごとに別々」が成り立たない（着手前の判断③） -->
+        <div class="card">
+          <div class="toggle-row-mini">
+            <div><span id="setGuideLabel"></span>
+              <div class="mic-status" id="setGuideSub"></div>
+            </div>
+            <div class="switch on" id="setGuideToggle"></div>
+          </div>
+        </div>
       </div>
 
       <!-- ===== 第32弾-D 第4部：安全に関する設定 =====
@@ -8964,7 +8975,107 @@
       unlocked: unlocked,
       equipped: TitleLogic.normalizeEquipped(data && data.equipped, unlocked)
     };
+    // 指示57：**「まだ届いていない」と「届いて0だった」を分ける。**
+    // 分けないと、ログイン済みの常連に通信が遅い日だけチュートリアルが出る
+    myTitlesLoaded = true;
     renderShelfBar();
+  }
+
+  // ===================== 指示57：初プレイのチュートリアル =====================
+  //
+  // ## なぜ「アカウント単位だけ」にしなかったか（本人の裁定 2026-09-21・判断①）
+  //
+  // 指示書 2-4 は `stats.<カセット>.plays === 0` で判定すると書いているが、
+  // **着手前に開いたら、その数字には穴が4つあった**：
+  //
+  //   1. **手渡しは一度も増やさない。**`enterBombEnd` は `logRound` だけで
+  //      `recordTitleStats` を呼ばない。1台を回して遊ぶ人には毎回出てしまう
+  //   2. **未ログインでは保存されない。**`saveTitles` は姿だけ残して stats を捨てる
+  //   3. **`bakudan.plays` はクイズ解除と実物解除の合算。**実物解除は
+  //      `{plays:1, defusePlays:1}` を積むので、**引けばクイズ解除の回数が出る**。
+  //      いま実物解除は棚から下りているので無害だが、**戻した日に壊れる**（落とし穴36）
+  //   4. 部屋でも、決着に届かなかった人（退室・切断）は増えない
+  //
+  // だから端末の印は「冗長なもう1つの仕組み」ではなく、
+  // **数えられない人のための唯一の手がかり**。2つが別々に判定するのをやめて、
+  // **この1関数が両方を見る**——落とし穴1（同じことを2か所で決める）は消えたまま、穴も埋まる。
+  var myTitlesLoaded = false;
+  var TUT_SEEN_KEY = 'acac-tut-seen';
+  /**
+   * 48-3 の「ここをタップ」の印。**読むのはここ1か所だけ**（移行のため）。
+   * 指示57 で吸収したので、書く側はもう存在しない
+   */
+  var TUT_OLD_BOMB_KEY = 'acac-bomb-tap-seen';
+  /** 端末に残る「もう見た」。ゲームidごとに持つ */
+  function tutSeenMap(){
+    var m = {};
+    try{ m = JSON.parse(localStorage.getItem(TUT_SEEN_KEY) || '{}') || {}; }catch(e){ m = {}; }
+    // **移行は1度だけ、読む時に。**48-3 を見終えた端末に、同じことをもう一度見せない
+    //（本人の裁定：既に見た端末の人が、新しい仕組みで再び見ることはない）
+    if(!m.bomb){
+      try{ if(localStorage.getItem(TUT_OLD_BOMB_KEY) === '1') m.bomb = true; }catch(e){}
+    }
+    return m;
+  }
+  function tutMarkSeen(gameId){
+    var m = tutSeenMap();
+    m[gameId] = true;
+    try{ localStorage.setItem(TUT_SEEN_KEY, JSON.stringify(m)); }catch(e){}
+  }
+  /**
+   * そのゲームを遊んだ回数（アカウント側）。
+   * **カセットではなくゲームで数える**——`bakudan.plays` は
+   * クイズ解除と実物解除の合算なので、引き算で分ける（上の穴3）
+   */
+  function tutPlayCount(gameId){
+    var s = myTitles.stats || {};
+    if(gameId === 'bomb'){
+      var b = s.bakudan || {};
+      return Math.max(0, (b.plays || 0) - (b.defusePlays || 0));
+    }
+    return null;   // まだ台本を持たないゲームは、数え方を決めていない
+  }
+  /** このゲームを遊ぶのが初めてか（アカウント優先・端末フォールバック） */
+  function tutFirstTime(gameId){
+    if(tutSeenMap()[gameId]) return false;         // 端末で見た跡がある
+    if(loggedIn() && !myTitlesLoaded) return false; // **届くまで聞かない**（常連に出さない）
+    var n = tutPlayCount(gameId);
+    if(n === null) return false;
+    return n === 0;
+  }
+  /**
+   * 出すかどうかを決めて、出すなら聞いてから動かす。
+   * **ここ1か所が全部の門を通る**（良い型1：現在の状態から表示を計算する関数1つ）。
+   * 出す側に条件を書かせないので、カセットを足しても門が漏れない。
+   *
+   * **大画面では組み立てない**（門W12は元栓で守る。big-screen.js と同じ流儀）。
+   * 返り値は「動かしたか」
+   */
+  async function tutMaybeStart(gameId, 台本){
+    if(typeof TutorialKit === 'undefined' || typeof UiKit === 'undefined') return false;
+    if(typeof rtIsBigScreen === 'function' && rtIsBigScreen()) return false;
+    if(!appPrefs.playGuide) return false;   // 設定で切っている
+    if(!tutFirstTime(gameId)) return false; // 初めての人にだけ
+    // **1回だけ聞く。既定は「見る」だが、断れる**（2-4）
+    var 見る = await UiKit.confirm(UiText.TUTORIAL.はじめて, UiText.TUTORIAL.さそい,
+      { ok: UiText.TUTORIAL.見る, cancel: UiText.TUTORIAL.いらない });
+    if(!見る){ tutMarkSeen(gameId); return false; }  // 断ったら、もう聞かない
+    var 結果 = await TutorialKit.start(台本);
+    // 最後まで見ても、途中で閉じても「見た」。
+    // **止められた時（退室・通信断・決着）は立てない**（2-8）
+    if(結果.理由 === 'done' || 結果.理由 === 'closed') tutMarkSeen(gameId);
+    return true;
+  }
+  /**
+   * 「もう一度見たい」の受け口。**設定を OFF→ON にした時に、端末の印を捨てる。**
+   * 別に「もう一度見る」ボタンを作ると窓口が2つになる（落とし穴1）ので、
+   * 2-4 の「2回目以降の人も、ONにすればまた見られる」をトグル1つで成り立たせる
+   */
+  function tutForgetSeen(){
+    try{ localStorage.removeItem(TUT_SEEN_KEY); }catch(e){}
+    // 旧48-3の印も一緒に捨てる。残すと tutSeenMap が毎回それを拾い直して、
+    // ONにしても二度と出ない（移行の読み替えが、忘れる道を塞ぐ形）
+    try{ localStorage.removeItem(TUT_OLD_BOMB_KEY); }catch(e){}
   }
   /**
    * **未ログインでも、選んだ姿は端末に残す**（第42弾 2-2・2-5・2-7）。
@@ -10579,6 +10690,9 @@
     fontScale: 100,    // 文字サイズ（85〜130）
     vibrate: true,     // 振動
     titleFanfare: true, // 称号を手に入れた瞬間の演出
+    // 指示57：はじめて遊ぶゲームで、あそびかたを画面で案内する。
+    // **OFF→ON にした時は端末の「もう見た」を捨てる**ので、2回目以降の人も見られる
+    playGuide: true,
     // 第32弾-D 第4部：安全に関する設定。体に触る演出はまとめて切れるようにする
     fxFlash: true,     // 光の点滅（フラッシュ・明滅する縁）
     fxShake: true,     // 画面の揺れ
@@ -10602,7 +10716,7 @@
    * 「窓口の無い設定」として赤くなる——実際に赤くしてから分けた。
    * 印は設定ではない。保存先だけ同じ（`_chosen`）で、器を分ける
    */
-  var prefsChosen = { timerView: false };
+  var prefsChosen = { timerView: false, playGuide: false };
   function loadAppPrefs(){
     try{
       var raw = localStorage.getItem(APP_PREFS_KEY);
@@ -27334,6 +27448,9 @@
     el('setFanfareLabel').textContent = UiText.SET.称号の演出;
     el('setFanfareSub').textContent = UiText.SET.称号の演出の補足;
     el('setFanfareToggle').classList.toggle('on', !!appPrefs.titleFanfare);
+    el('setGuideLabel').textContent = UiText.TUTORIAL.設定の見出し;
+    el('setGuideSub').textContent = UiText.TUTORIAL.設定の説明;
+    el('setGuideToggle').classList.toggle('on', !!appPrefs.playGuide);
     el('setBright').value = appPrefs.brightness;
     el('setBrightValue').textContent = appPrefs.brightness;
     el('setFont').value = appPrefs.fontScale;
@@ -27415,6 +27532,23 @@
 
   el('setFanfareToggle').addEventListener('click', function(){
     appPrefs.titleFanfare = !appPrefs.titleFanfare;
+    applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
+  });
+  /**
+   * 指示57：あそびかたの案内。
+   *
+   * **OFF→ON は「もう一度見たい」という意思表示**として読む（2-4）。
+   * 別に「もう一度見る」ボタンを作ると窓口が2つになり、片方だけ直す日が来る
+   * （落とし穴1）。トグル1つで「出す／出さない」と「もう一度」を両立させる。
+   *
+   * `prefsChosen` に印を立てるのは、**あとから既定を変えたくなった日のため**——
+   * 値しか保存していないと「自分で選んだ人」と「既定のままの人」を
+   * 永久に分けられない（落とし穴34。第45弾 45-1 で実際に困った）
+   */
+  el('setGuideToggle').addEventListener('click', function(){
+    appPrefs.playGuide = !appPrefs.playGuide;
+    prefsChosen.playGuide = true;
+    if(appPrefs.playGuide) tutForgetSeen();
     applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
   });
   /**

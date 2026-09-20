@@ -398,7 +398,7 @@ async function walkSettings(win, doc, onPage) {
   // **効く先が変わったか**を見る（落とし穴21・落とし穴10-b）。
 
   /**
-   * 15個すべての窓口の表。**門F5の台帳そのもの。**
+   * 16個すべての窓口の表。**門F5の台帳そのもの。**
    * 一覧は手で書くが、appPrefs の側と**両方向で**照合するので腐らない（落とし穴20）。
    * どこで効くかを見ている検査も、行ごとに名前で残す
    */
@@ -413,6 +413,7 @@ async function walkSettings(win, doc, onPage) {
     timerView:    { page: 'display', 窓口: '[data-timerview]',   検査: 'F5-6／fixes36' },
     reactions:    { page: 'display', 窓口: 'setReactionsToggle',検査: 'rt-screens（送る側・受ける側の両方）' },
     titleFanfare: { page: 'display', 窓口: 'setFanfareToggle',   検査: 'F5-7（設定から両方向に動く）' },
+    playGuide:    { page: 'display', 窓口: 'setGuideToggle',     検査: '指示57 57-4（OFFなら出ない／OFF→ONで端末の印が消える）' },
     fxSpeed:      { page: 'safety',  窓口: '#setFxSeg [data-fx]',検査: 'F5-4' },
     fxFlash:      { page: 'safety',  窓口: 'setFlashToggle',     検査: 'F5-8（演出の部品も門を読む）' },
     fxShake:      { page: 'safety',  窓口: 'setShakeToggle',     検査: 'F5-8（共通部品を通らない揺れも止まる）' },
@@ -470,13 +471,13 @@ async function walkSettings(win, doc, onPage) {
     sl.dispatchEvent(new win.Event('input', { bubbles: true }));
   }
 
-  await r.test('門F5：15個の設定に、設定画面の窓口が1つずつある（両方向）', async () => {
+  await r.test('門F5：16個の設定に、設定画面の窓口が1つずつある（両方向）', async () => {
     // 「効かない設定」の前に「**触れない設定**」を潰す。
     // titleFanfare がまさにそれで、設定のどのページにも行が無いのに、
     // 獲得の重なりの中の一度きりの窓口で切ると二度と戻せなかった（落とし穴21）
     const { win, doc } = await launch();
     const keys = win.prefsProbe().keys;
-    assertEqual(keys.length, 15, '設定は15個（' + keys.length + '個）');
+    assertEqual(keys.length, 16, '設定は16個（' + keys.length + '個）');
     // 行き：実装の15個が、表に載っている
     keys.forEach((k) => assert(窓口表[k], k + ' が門F5の表に無い'));
     // 帰り：表に載っているものが、実装にある（消した設定が表に残らない）

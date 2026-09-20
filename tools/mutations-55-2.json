@@ -77,7 +77,7 @@
     "suite": "tests/shinka-logic.js",
     "from": "      { 理由: 種別.挑戦, 候補: function (名簿, 人) {\n        if (!ひとりか(名簿, 人)) return [];",
     "to": "      { 理由: 種別.挑戦, 候補: function (名簿, 人) {\n        if (false) return [];",
-    "expect": "同段に仲間がいる人に、挑戦の印は付かない"
+    "expect": "希望は3段"
   },
   {
     "name": "55-2-R2 第3希望「肩慣らし」を外す（門の文書1-2の回帰：組めるはずの1組が消える）",
@@ -101,7 +101,7 @@
     "suite": "tests/shinka-logic.js",
     "from": "        次[挑].段 = Math.min(最終段 - 1, 次[挑].段 + 2);",
     "to": "        次[挑].段 = Math.min(最終段, 次[挑].段 + 2);",
-    "expect": "最終段の1つ手前で止まる"
+    "expect": "チャンピオンにはならない"
   },
   {
     "name": "55-2-R5 挑戦者が、負けたら落ちる（「絶対に落ちない」を外す）",
@@ -125,7 +125,7 @@
     "suite": "tests/shinka-logic.js",
     "from": "    if (入.種別 === 種別.肩慣らし) {",
     "to": "    if (false) {",
-    "expect": "勝った方も動かない"
+    "expect": "肩慣らしは、どちらも動かない"
   },
   {
     "name": "55-2-R8 最下段でも落ちてしまう（下限の片方向チェック）",
@@ -189,7 +189,7 @@
     "suite": "tests/shinka-room.js",
     "from": "  // 3秒は全員に同じ拍で流れるのが正しい（指示書2-3）\n  return false;",
     "to": "  return expectedMembers(room).length === 0;",
-    "expect": "それでも「全員済み」にはしない"
+    "expect": "手を出す段階は、締め切りを待つ"
   },
   {
     "name": "55-2-P2 10分の期限を、段階の期限で上書きする（門の文書4-3）",
@@ -229,7 +229,7 @@
     "suite": "tests/shinka-room.js",
     "from": "      w.byeIds.push(x.id);",
     "to": "      w.byeIds.push(x.id); w.状態[x.id].段 = Math.min(w.はしご.段.length - 1, w.状態[x.id].段 + 1);",
-    "expect": "段が動かない"
+    "expect": "その回は何も動かない"
   },
   {
     "name": "55-2-P7 AIの手を、相手の手を見る前に引く（75/10/15 が作れなくなる）",
@@ -237,7 +237,7 @@
     "suite": "tests/shinka-room.js",
     "from": "    if (m.機械) w.封じた手[m.b] = L.aiHand(w.封じた手[m.a], rnd);",
     "to": "    if (m.機械) w.封じた手[m.b] = L.aiHand(null, rnd);",
-    "expect": "AI戦の勝敗が、相手の手に依存する"
+    "expect": "AIの手は、相手の手を見てから決まる"
   },
   {
     "name": "55-2-P8 挑戦者を、部品Aの理由から決める（段の大小で決めない）",
@@ -245,6 +245,6 @@
     "suite": "tests/shinka-room.js",
     "from": "    const 挑戦者 = (段A < 段B) ? g.a : g.b;     // **段から決める**（理由の文字列に頼らない）",
     "to": "    const 挑戦者 = g.a;",
-    "expect": "挑戦の向きが段と一致する"
+    "expect": "挑戦者は「段が低い方」"
   }
 ]

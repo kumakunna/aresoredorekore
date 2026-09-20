@@ -9137,7 +9137,13 @@
       初めて: tutFirstTime('bomb'),
       台本: tutScriptFor('bomb'),
       見たことにする: tutMarkSeen,
-      忘れる: tutForgetSeen
+      忘れる: tutForgetSeen,
+      // **聞く側と動かす側も、本物をそのまま渡す。**
+      // 検査が判定を書き写すと、実装が変わった日に検査だけ古いまま通る（落とし穴25）
+      聞く: tutAsk,
+      動かす: tutRun,
+      大画面: (typeof rtIsBigScreen === 'function') ? rtIsBigScreen() : false,
+      聞いた結果: function(g){ return !!tutWanted[g]; }
     };
   };
   /**
@@ -11193,7 +11199,8 @@
   window.prefsProbe = function(){
     // keys は門F5の照合に使う。**検査が15個を手で持たない**ため（落とし穴4）
     return { se: volSe(), speech: volSpeech(), bgm: volBgm(), muted: tempMute,
-      keys: Object.keys(appPrefs), timerView: appPrefs.timerView, chosen: prefsChosen };
+      keys: Object.keys(appPrefs), timerView: appPrefs.timerView,
+      playGuide: appPrefs.playGuide, chosen: prefsChosen };
   };
   /**
    * 第45弾 45-1：時計の1目盛りを、外から1回だけ回す。

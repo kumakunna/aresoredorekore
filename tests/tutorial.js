@@ -18,7 +18,8 @@
 // **検体は本物の組み立てを通す**（落とし穴25）。`window.bombCellProbe` は
 // 本物の `bombGridHtml` をそのまま呼ぶので、手で並べた偽の盤にはならない。
 
-const { createRunner, assert, assertEqual, launch, sleep } = require('./harness');
+const { createRunner, assert, assertEqual, launch, sleep, autoDialog,
+        waitScreen, waitFor, openCassette, activeScreen } = require('./harness');
 const TutorialKit = require('../public/js/tutorial');
 
 const OLD_KEY = 'acac-bomb-tap-seen';   // 48-3 の印（移行のためだけに読む）
@@ -180,6 +181,120 @@ async function run() {
       assertEqual(doc.querySelector('.tut-count').textContent, '1 / 2', '進み具合が出ていない');
       assertEqual(doc.querySelector('.tut-word').textContent, 'ひとつめ', '文が出ていない');
       K.stop('gone');
+    } finally { win.close(); }
+  });
+
+  // ---- 57-4：出すかどうかの門（W4・W5・W12） ----
+
+  await r.test('57-4：「いらない」を選ぶと出ない。二度と聞かれない（門W5）', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true });
+    try {
+      assertEqual(win.tutProbe().初めて, true, '前提：初めての人になっている');
+      const 止める = autoDialog(win, doc, false);   // ✕ ではなく「いらない」を押す
+      const 出す = await win.tutProbe().聞く('bomb');
+      止める();
+      assertEqual(出す, false, '断ったのに出そうとしている');
+      assertEqual(win.tutProbe().聞いた結果('bomb'), false, '断ったのに札が立っている');
+      // **断ったら、もう聞かない**（毎回聞かれるのが一番うるさい）
+      assertEqual(win.tutProbe().初めて, false, '次にまた聞かれてしまう');
+    } finally { win.close(); }
+  });
+
+  await r.test('57-4：「見る」を選ぶと札が立ち、盤が出た時に動く（門W4）', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true });
+    try {
+      const 止める = autoDialog(win, doc, true);
+      const 出す = await win.tutProbe().聞く('bomb');
+      止める();
+      assertEqual(出す, true, '「見る」なのに出さない');
+      assertEqual(win.tutProbe().聞いた結果('bomb'), true, '札が立っていない');
+      // **まだ「見た」ことにはしない。**見る前に印を立てると、
+      // 盤に着く前に切れた人が二度と見られない（2-8）
+      assertEqual(win.tutProbe().初めて, true, '見る前に「見た」ことにしている');
+    } finally { win.close(); }
+  });
+
+  await r.test('57-4：設定を切っている人には、聞きもしない（門W5）', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true });
+    try {
+      // 本物の窓口を押して切る（設定の値を直接いじらない・落とし穴25）
+      doc.getElementById('setGuideToggle').click();
+      await sleep(win, 60);
+      assertEqual(win.prefsProbe().playGuide, false, '前提：設定が切れていない');
+      let 聞かれた = 0;
+      const 止める = autoDialog(win, doc, () => { 聞かれた++; return true; });
+      const 出す = await win.tutProbe().聞く('bomb');
+      止める();
+      assertEqual(出す, false, '切っているのに出そうとしている');
+      assertEqual(聞かれた, 0, '切っているのに聞いている');
+    } finally { win.close(); }
+  });
+
+  /**
+   * 門W12。**役を手で差し替えない**——`rt` は窓に出ていないし、
+   * 出させるのも違う。**本物の入室を通して、本物の `rt.me()` に役を持たせる**
+   *（落とし穴25。fixes48 の 48-6 と同じ形）
+   */
+  async function 大画面で入室(win, doc) {
+    await waitScreen(win, doc, 'scr-shelf', 9000);
+    await openCassette(win, doc, 'bakudan');
+    const way = doc.querySelector('#wayChoices [data-way="room"]');
+    if (way) way.click();
+    await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 5000, '疑似socket');
+    const 名簿 = [{ id: 'tv', name: 'テレビ', role: 'bigscreen', connected: true, isHost: true, ready: true }];
+    const snap = { code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'tv',
+      playerCount: 0, memberCount: 1,
+      ready: { count: 1, total: 1, waitingNames: [], all: true },
+      members: 名簿, state: { phase: 'lobby', game: null, data: {} } };
+    fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'tv', room: snap }) };
+    doc.getElementById('rtJoinCode').value = 'ABC234';
+    doc.getElementById('rtJoinName').value = 'テレビ';
+    doc.getElementById('rtJoinBtn').click();
+    // 画面idを直接書くと、第42弾の「検査が名指しする画面idは実在するか」に
+    // 幽霊として拾われる。その場で組み立てる（落とし穴10-a）
+    const 前置き = 'scr-' + 'rt-';
+    await waitFor(win, () => String(activeScreen(doc)).indexOf(前置き) === 0, 8000, '部屋の画面に入る');
+  }
+
+  await r.test('57-4：大画面には、そもそも組み立てない（門W12）', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true, fakeSocket: true });
+    try {
+      await 大画面で入室(win, doc);
+      // 前提：本当に大画面の役になっているか（型(b)：条件が作れたことを1つ測る）
+      assertEqual(win.tutProbe().大画面, true, '大画面の役になっていない');
+      let 聞かれた = 0;
+      const 止める = autoDialog(win, doc, () => { 聞かれた++; return true; });
+      const 出す = await win.tutProbe().聞く('bomb');
+      止める();
+      assertEqual(出す, false, '大画面で出そうとしている');
+      assertEqual(聞かれた, 0, '大画面で聞いている');
+      // **元栓で守る**ので、画面には1つも生えない（big-screen.js と同じ流儀）
+      assertEqual(doc.querySelectorAll('.tut-veil, .tut-say, .tut-ring').length, 0,
+        '大画面に部品が出ている');
+    } finally { win.close(); }
+  });
+
+  await r.test('57-4：止められた時は「見た」ことにしない（門W10）', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true });
+    try {
+      const 的 = doc.createElement('div');
+      的.className = 'tut-ためしの的';
+      doc.getElementById('app').appendChild(的);
+      的.getBoundingClientRect = () => ({ left: 20, top: 30, width: 60, height: 60, right: 80, bottom: 90 });
+
+      const 返り = win.TutorialKit.start([{ 的: '.tut-ためしの的', 文: 'ここ', 待つ: 'tap' }]);
+      await sleep(win, 60);
+      assert(win.TutorialKit.いま(), '前提：出ている');
+
+      // 退室・通信断・決着はすべてこの形で止まる（2-8）
+      win.TutorialKit.stop('gone');
+      const 結果 = await 返り;
+      assertEqual(結果.理由, 'gone', '理由が違う');
+      assertEqual(doc.querySelector('.tut-root').hidden, true, '止めたのに幕が残っている');
+      // **次にまた聞く**——途中で切れた人が、二度と見られないことにならないように
+      assertEqual(win.tutProbe().初めて, true, '止められただけで「見た」になっている');
     } finally { win.close(); }
   });
 

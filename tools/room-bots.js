@@ -16,6 +16,12 @@
 //   --code   入る部屋のコード（ブラウザ側で /dev-login → 部屋をつくる で出たもの）
 //   --n      入れる人数（既定 2）
 //   --ready  ゲームが決まったら「準備OK」を自動で押す
+//   --play   **遊ぶ。**いまは進化じゃんけん（shinka）だけ——手を出す段階になったら
+//            グー／チョキ／パーをランダムに1つ出す。
+//            **これが無いと、bot は「準備OK」までで手を出さないので、**
+//            相手も出さず引き分けが続き、**優勝も10分の打ち切りも実サーバーで見られない**
+//            （指示55-② の門U9 がそこで止まっていた）。
+//            ゲームを足す時は、下の `手を出す` に1本 else if を書く
 //   --big    最後の1人を大画面にする
 //   --leave  終わる時に「部屋を出る」を送る（既定は切断だけ）。
 //            切断は名簿に残るので playerCount は減らない。**減る側を見たい時はこれ**
@@ -49,6 +55,7 @@ const N = parseInt(opt('n', 2), 10) || 2;
 const READY = !!opt('ready', false);
 const BIG = !!opt('big', false);
 const LEAVE = !!opt('leave', false);
+const PLAY = !!opt('play', false);
 const HOLD = (parseInt(opt('hold', 600), 10) || 600) * 1000;
 const NAMES = ['びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん', 'はな', 'いと', 'うみ', 'えだ'];
 // 第42弾 門E6：名簿に出る「その人の姿」。**bot ごとに違う顔にする**——
@@ -109,6 +116,28 @@ function つなぐ(name, i) {
         });
       }
       if (!game) bot.ready = false;   // えらび直したら、また押せるようにする
+    });
+    /**
+     * **遊ぶ**（--play）。いまは進化じゃんけんだけ。
+     *
+     * 芯が呼ぶ形に合わせて `wolf:act` へ送る（realtime.js:1404 の4引数と同じ道）。
+     * **同じ段階で二度送らない**——`w.封じた手` があると `already` で弾かれるが、
+     * 弾かれること自体は正しいので、こちらで数えて黙らせる。
+     */
+    sock.on('room:update', (p) => {
+      if (!PLAY) return;
+      const room = (p && p.room) || p;
+      const st = room && room.state;
+      if (!st || st.game !== 'shinka') return;
+      const v = st.data || {};
+      const 鍵 = v.phase + ':' + v.round + ':' + (v.matches || []).filter((m) => !m.done).length;
+      if (v.phase !== 'throw') { bot.出した = null; return; }
+      if (bot.出した === 鍵) return;
+      bot.出した = 鍵;
+      const 手 = ['g', 'c', 'p'][Math.floor(Math.random() * 3)];
+      sock.emit('wolf:act', { hand: 手 }, (res) => {
+        if (res && res.ok) console.log('[' + name + '] ' + 手 + ' を出した（' + v.round + '回戦）');
+      });
     });
     sock.on('room:closed', (p) => {
       console.log('[' + name + '] 部屋が閉じました' + (p && p.by ? '（' + p.by + ' さん）' : ''));

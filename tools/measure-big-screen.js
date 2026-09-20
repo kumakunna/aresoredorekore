@@ -45,12 +45,14 @@ window.__measureBig = function(){
    <div class="big-ft" style="display:flex"><span class="bft-case">3</span><span class="bft-note">のこり 4 枚</span></div>
    <div class="big-mk"><div class="bmk-market"><span class="bmk-k"><span class="bk-i">A</span><span class="bk-l">壺もの</span><span class="bk-v">9</span><span class="bk-hot">HOT</span></span></div>
      <div class="bmk-line"><div class="bmk-c"><span class="bc-no">1</span><span class="bc-i">I</span><span class="bc-l">しな</span><span class="bc-sold">SOLD</span></div></div></div>
-   <div class="big-rules"><div class="big-rules-title">T</div><div class="big-rules-count">3つ</div><ol class="rules-ol"><li>R</li></ol></div>\`;
+   <div class="big-rules"><div class="big-rules-title">T</div><div class="big-rules-count">3つ</div><ol class="rules-ol"><li>R</li></ol></div>
+   <div class="sh-stairs"><div class="sh-tier"><span class="sh-tier-face">🥚</span><span class="sh-tier-name">たまご</span><span class="sh-tier-who"><span class="sh-who">なまえ</span></span><span class="sh-tier-count">4</span></div></div>\`;
   scr.appendChild(h);
   // 50型16:9 → 画の高さ623mm ÷ 720px = 0.865mm/px。4m から見た視角（分角）
   const MMPX = 623/720, D = 4000;
   const 主役 = ['.big-main'];
-  const 数字 = ['.bb-meta','.bk-v','.bs-clock','.bs-lives','.bft-case','.sugo-piece'];
+  // 指示55-②：段の人数は「その段に何人いるか」の数字なので 48px の側
+  const 数字 = ['.bb-meta','.bk-v','.bs-clock','.bs-lives','.bft-case','.sugo-piece','.sh-tier-count'];
   const 見る = [
     ['.big-main','#bigMain'],['.big-sub','#bigSub'],['.big-phase','#bigPhase'],['.big-turn','#bigTurn'],
     ['.bs-lives','.bs-lives'],['.bs-clock','.bs-clock'],
@@ -60,7 +62,10 @@ window.__measureBig = function(){
     ['.bft-case','.bft-case'],['.bft-note','.bft-note'],
     ['.bk-l','.bk-l'],['.bk-v','.bk-v'],['.bk-hot','.bk-hot'],
     ['.bc-no','.bc-no'],['.bc-l','.bc-l'],['.bc-sold','.bc-sold'],
-    ['.rules-ol','.rules-ol'],['.big-rules-count','.big-rules-count']
+    ['.rules-ol','.rules-ol'],['.big-rules-count','.big-rules-count'],
+    // 指示55-②：進化じゃんけんの大画面（主役＝段の階段）
+    ['.sh-tier-face','.sh-tier-face'],['.sh-tier-name','.sh-tier-name'],
+    ['.sh-who','.sh-who'],['.sh-tier-count','.sh-tier-count']
   ];
   const rows = [], 未達 = [];
   見る.forEach(([name, sel]) => {

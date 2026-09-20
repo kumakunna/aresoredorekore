@@ -2528,13 +2528,35 @@
   .sh-arrow{color:var(--ink-soft);font-size:var(--fs-note);}
 
   /* 大画面の「段の階段」（§11-3 の主役）。下が最下段・上が最終形 */
-  .sh-stairs{display:flex;flex-direction:column-reverse;gap:6px;width:100%;}
+  /* **10段（CS版）でも 1280×720 に収まる高さにする。**
+     TVは巻けないので、はみ出した段は**存在しないのと同じ**——
+     しかも下が切れると、いちばん下の段＝全員の出発点が見えなくなる。
+     実測：ここを 6px/44px のままにすると 10段で 869px になり、画面の外に出た。
+     文字は §11-5 の下限（名前28px・人数48px）を1pxも下げていない——
+     縮めたのは**余白と絵の大きさだけ** */
+  /* **段が多い時は、2列に折り返す。**
+     CS版は10段あり、1列だと 1280×720 で 381px はみ出した——
+     しかも切れるのは**下の5段（アンランク〜ゴールド）＝全員が始まる場所**だった
+     （実測。TVは巻けないので、切れた段は存在しないのと同じ）。
+     `max-height` を与えると column-reverse の flex が**勝手に次の列へ送る**ので、
+     段の数で場合分けを書かずに済む（手書きの一覧を作らない・落とし穴4）。
+     左の列が下の段・右の列が上の段になり、「上へ伸びる」向きは保たれる。
+     **文字は §11-5 の下限（名前28px・人数48px）を1pxも下げていない。** */
+  .sh-stairs{
+    display:flex;flex-flow:column-reverse wrap;gap:3px;width:100%;
+    max-height:calc(100dvh - 320px);
+    align-content:flex-start;
+  }
   .sh-tier{
     display:flex;align-items:center;gap:12px;
-    padding:6px 12px;border-radius:12px;background:rgba(255,255,255,0.06);
+    padding:1px 12px;border-radius:10px;background:rgba(255,255,255,0.06);
+    box-sizing:border-box;
   }
-  .sh-tier-face{font-size:44px;line-height:1;min-width:52px;text-align:center;}
-  .sh-tier-face img{width:44px;height:44px;}
+  /* 1列に収まっている間は、行が横幅いっぱい。折り返したら半分ずつ */
+  .sh-stairs .sh-tier{width:100%;}
+  .sh-stairs.is-two .sh-tier{width:calc(50% - 6px);}
+  .sh-tier-face{font-size:34px;line-height:1;min-width:44px;text-align:center;}
+  .sh-tier-face img{width:34px;height:34px;}
   .sh-tier-name{font-size:28px;color:var(--ink-soft);min-width:190px;}
   .sh-tier-who{display:flex;flex-wrap:wrap;gap:6px;flex:1;}
   .sh-who{font-size:28px;padding:2px 10px;border-radius:999px;background:rgba(255,255,255,0.10);color:var(--ink);}
@@ -19471,22 +19493,33 @@
       return;
     }
 
-    // **一枚看板（.big-main）は短い見出しの器**（§11-3）。
-    // 階段そのものは名簿の器（#bigList）に置く——段の数だけ行が要るので、
-    // 一枚看板に入れると溢れる（宿題17）
-    var 最上 = 段.length ? 段[段.length - 1] : null;
-    var 到達 = (v.players || []).filter(function(p){ return p.rank === 段.length - 1; }).length;
-    el('bigMain').textContent = 最上 ? (最上.絵 + ' ' + 最上.名) : '';
-    el('bigSub').textContent = 最上
-      ? (到達 ? 到達 + '人が とうたつ' : 'ここを めざしています')
-      : '';
+    // **主役は階段なので、一枚看板（.big-main）は空ける。**
+    // 正本 §11-3 の「主役が決まっていないなら、大きい枠は空ける」の素直な読み方で、
+    // クイズ解除（競争版）が `bigMain` を空けて横棒を主役にしているのと同じ形。
+    //
+    // **最初はここに「🐉 りゅう／ここを めざしています」を出していた。**
+    // 実測（1280×720）で2つ分かって、やめた：
+    //   ① 一枚看板132px ＋ そえ52px で **184px** を食い、階段が画面の下に押し出される
+    //      （5段で173pxはみ出し。TVは巻けないので、**いちばん下の段＝全員の出発点が見えない**）
+    //   ② 階段のいちばん上の行が、すでに同じことを言っている——
+    //      「一番大きい枠に、すぐ上の文字を言い直させない」（指示55の門・穴A）にも当たる
+    el('bigMain').textContent = '';
+    el('bigSub').textContent = '';
 
     // ---- 主役：段の階段（下が最下段・上が最終形。CSS が column-reverse で積む）----
     var 動いた = {};
     (v.moves || []).forEach(function(d){ if(d.後 > d.前) 動いた[d.id] = true; });
     // **器そのものにクラスを足さない。**足すと、次に別のゲームを描いた時に残る
     // （落とし穴：残骸。良い型2「毎描画の自己リセット」に合わせて、中に箱を作る）
-    el('bigList').innerHTML = '<div class="sh-stairs">' + 段.map(function(t, i){
+    // **段が多い時は2列。**
+    //
+    // **この 5 と、CSS の `max-height:calc(100dvh - 320px)` は一対。**
+    // 1280×720 だと段の置き場は 400px、1段は 72px なので、**6段目から折り返す**。
+    // ここを 6 にすると「CSSは2列に折り返しているのに、行の幅は100%のまま」になり、
+    // **2列目が画面の右外へ出る**（実測で見つけた。CSSは何も言わない・落とし穴30）。
+    // 片方を変える時は、必ずもう片方も測り直すこと
+    var 二列 = 段.length > 5;
+    el('bigList').innerHTML = '<div class="sh-stairs' + (二列 ? ' is-two' : '') + '">' + 段.map(function(t, i){
       var 居る = (v.players || []).filter(function(p){ return p.rank === i && !p.ぬけた; });
       return '<div class="sh-tier">' +
         '<span class="sh-tier-face">' + escapeHtml(t.絵) + '</span>' +

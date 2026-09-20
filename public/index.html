@@ -15485,6 +15485,28 @@
       }
       return { cassette: 'rcard', add: rcAdd };
     }
+    if(game === 'shinka'){
+      /**
+       * 指示55-②：進化じゃんけんの称号。
+       *
+       * **勝ち負けと関係ないものも数える**（大切なこと5）。
+       * じゃんけんそのものは運なので、優勝だけを数えると「運が良かった証」しか集まらない。
+       * 「挑戦に勝った」「一度も落ちなかった」は、その人の進み方の話。
+       *
+       * 数えるもとは決着の `ranking`（サーバーが配る）。途中の秘密には触っていない
+       */
+      var 私h = (res.ranking || []).find(function(x){ return x.id === meId; }) || {};
+      var shAdd = { plays: 1 };
+      if(私h.rank === 1 && res.優勝) shAdd.wins = 1;
+      if(私h.top) shAdd.tops = 1;
+      // **加算で成り立つ数だけを渡す**（recordTitleStats は足すだけ・rcAdd と同じ理由）
+      if(私h.ups > 0) shAdd.ups = 私h.ups;
+      if(私h.challengeWins > 0) shAdd.challengeWins = 私h.challengeWins;
+      // 一度も落ちずに終えた。**1回でも進化した人だけ**——
+      // 最下段から1歩も動かなかった人が「ぶれない証」を取るのは、言葉が嘘になる
+      if(私h.fell === 0 && 私h.ups > 0) shAdd.noFall = 1;
+      return { cassette: 'shinka', add: shAdd };
+    }
     if(game === 'falsetrue'){
       /**
        * 指示53：False or True の称号。
@@ -19465,7 +19487,7 @@
     // **器そのものにクラスを足さない。**足すと、次に別のゲームを描いた時に残る
     // （落とし穴：残骸。良い型2「毎描画の自己リセット」に合わせて、中に箱を作る）
     el('bigList').innerHTML = '<div class="sh-stairs">' + 段.map(function(t, i){
-      var 居る = (v.players || []).filter(function(p){ return p.rank === i && !p.gone; });
+      var 居る = (v.players || []).filter(function(p){ return p.rank === i && !p.ぬけた; });
       return '<div class="sh-tier">' +
         '<span class="sh-tier-face">' + escapeHtml(t.絵) + '</span>' +
         '<span class="sh-tier-name">' + escapeHtml(t.名) + '</span>' +

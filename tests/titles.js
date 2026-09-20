@@ -117,6 +117,13 @@ const CASES = [
   ['icon-rc-comeback', 'rcard', {}, { comebacks: 1 }],
   ['icon-rc-streak', 'rcard', {}, { streak3: 1 }],
   ['icon-rc-rounds', 'rcard', { rounds: 19 }, { rounds: 20 }],
+  // ---- 指示55-②：進化じゃんけん ----
+  ['icon-sh-1', 'shinka', {}, { plays: 1 }],
+  ['icon-sh-10', 'shinka', { plays: 9 }, { plays: 10 }],
+  ['icon-sh-top', 'shinka', {}, { tops: 1 }],
+  ['icon-sh-challenge', 'shinka', {}, { challengeWins: 1 }],
+  ['icon-sh-nofall', 'shinka', {}, { noFall: 1 }],
+  ['icon-sh-ups', 'shinka', { ups: 19 }, { ups: 20 }],
   ['icon-auc-jackpot', 'auction', {}, { jackpots: 1 }],
   ['icon-auc-quiet', 'auction', {}, { quietWins: 1 }],
   ['first-mekiki', 'auction', { appraises: 1 }, { appraises: 1, jackpots: 1 }],

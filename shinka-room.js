@@ -153,6 +153,12 @@ function startGame(room, config, ctx) {
     byeIds: [],          // その回、相手がいなかった人（**配列**。①の byeId は単数だった）
     直前の不戦勝: null,
     ランク移動: [],      // この回で誰がどう動いたか（大画面の階段の材料・公開してよい）
+    // **称号のもと**（大切なこと5：勝ち負けと関係ないものも数える）。
+    // じゃんけんそのものは運なので、勝ちだけを数えると「運が良かった証」しか集まらない——
+    // 「挑戦に勝った」「一度も落ちなかった」は、その人の進み方の話。
+    // **加算で成り立つ数だけを持つ**（端末の recordTitleStats は足すだけなので、
+    // 最高記録の形は作れない・index.html の rcAdd のコメントに前例）
+    記録: {},            // id → { ups, challengeWins, fell }
     result: null,
     phase: PHASE.MATCH,
     deadline: null,
@@ -180,6 +186,7 @@ function 入れる(room, member) {
   w.playerIds.push(member.id);
   w.names[member.id] = member.name;
   w.状態[member.id] = L.newState();
+  w.記録[member.id] = { ups: 0, challengeWins: 0, fell: 0 };
   return true;
 }
 
@@ -344,6 +351,18 @@ function 動かす(room, m, 勝者) {
       m.champion = id;
     }
   });
+  // **称号のもとを数える。**段が動いた人だけ見ればよい
+  out.動き.forEach((d) => {
+    const r = w.記録[d.id];
+    if (!r) return;
+    if (d.後 > d.前) {
+      r.ups++;
+      // 「1つ上への挑戦に勝った」は、その人が挑戦者だった時だけ
+      if (m.種別 === L.種別.挑戦 && d.id === m.挑戦者) r.challengeWins++;
+    } else if (d.後 < d.前) {
+      r.fell++;
+    }
+  });
   w.状態 = out.状態;
   out.動き.forEach((d) => w.ランク移動.push(d));
 }
@@ -417,7 +436,12 @@ function finish(room, 優勝者) {
       段: x.段,
       段名: w.はしご.段[x.段].名,
       段絵: w.はしご.段[x.段].絵,
-      no: w.はしご.段[x.段].no
+      no: w.はしご.段[x.段].no,
+      // 称号のもと（端末が数える。**途中の秘密には触っていない**）
+      ups: (w.記録[x.id] || {}).ups || 0,
+      challengeWins: (w.記録[x.id] || {}).challengeWins || 0,
+      fell: (w.記録[x.id] || {}).fell || 0,
+      top: x.段 === w.はしご.段.length - 1
     })),
     winner: 優勝者 ? w.names[優勝者] : ((rows[0] && rows[0].rank === 1) ? rows[0].name : null),
     優勝: !!優勝者,
@@ -535,7 +559,10 @@ function publicView(room) {
       name: w.names[id],
       rank: w.状態[id].段,
       lose: w.状態[id].連敗,
-      gone: w.gone.indexOf(id) !== -1
+      // **`gone` という名前にしない。**すごろくのゲームデータだけが持つ言葉で、
+      // 端末側には `publicSnapshot が配らない gone で絞っている所は無い` という門がある
+      //（tests/mode-screen.js:244・門G7）。借りた言葉を新しい世界へ運ばない（落とし穴9）
+      ぬけた: w.gone.indexOf(id) !== -1
     })),
     // この回で誰がどう動いたか（大画面の階段のアニメの材料）
     moves: w.ランク移動.map((d) => ({ id: d.id, 前: d.前, 後: d.後, 何: d.何 })),

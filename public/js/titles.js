@@ -122,6 +122,17 @@
       rounds: 0,            // 通算で勝ち抜いた回数
       streak3: 0            // 1回の遊びで3回いじょう勝ち抜いた回数
     },
+    // 指示55-②：進化じゃんけん。**勝ち負けと関係ないものも数える**（大切なこと5）。
+    // じゃんけんそのものは運なので、優勝だけを数えると「運が良かった証」しか集まらない。
+    // 「挑戦に勝った」「一度も落ちなかった」は、その人の進み方の話
+    shinka: {
+      plays: 0,             // 進化じゃんけんを遊んだ回数
+      wins: 0,              // 優勝した回数
+      tops: 0,              // 最終形まで到達した回数（優勝しなくても到達はある）
+      ups: 0,               // 通算で進化した回数
+      challengeWins: 0,     // 1つ上への挑戦に勝った回数
+      noFall: 0             // 一度も落ちずに終えた回数
+    },
     // ※**最高記録の形（bestOO）にしなかった理由。**
     //   `recordTitleStats`（public/index.html）は渡された値を**加算する**ので、
     //   最高記録をそのまま渡すと積み上がってしまう。
@@ -333,6 +344,25 @@
       { id: 'icon-rc-rounds', cassette: 'rcard', emoji: '🏅', label: '歴戦の証',
         hint: '通算で20回勝ち抜く',
         need: function (s) { return s('rcard', 'rounds') >= 20; } },
+      // ---- 指示55-②：進化じゃんけん ----
+      { id: 'icon-sh-1', cassette: 'shinka', emoji: '🥚', label: 'たまごの証',
+        hint: '進化じゃんけんを1回あそぶ',
+        need: function (s) { return s('shinka', 'plays') >= 1; } },
+      { id: 'icon-sh-10', cassette: 'shinka', emoji: '🐤', label: '常連の証',
+        hint: '進化じゃんけんを通算10回あそぶ',
+        need: function (s) { return s('shinka', 'plays') >= 10; } },
+      { id: 'icon-sh-top', cassette: 'shinka', emoji: '🐉', label: '進化の証',
+        hint: 'いちばん上の段まで進化する',
+        need: function (s) { return s('shinka', 'tops') >= 1; } },
+      { id: 'icon-sh-challenge', cassette: 'shinka', emoji: '⚔️', label: '挑戦の証',
+        hint: '1つ上の段の人に、挑戦して勝つ',
+        need: function (s) { return s('shinka', 'challengeWins') >= 1; } },
+      { id: 'icon-sh-nofall', cassette: 'shinka', emoji: '⭐', label: 'ぶれない証',
+        hint: '一度も段を落とさずに、さいごまで遊ぶ',
+        need: function (s) { return s('shinka', 'noFall') >= 1; } },
+      { id: 'icon-sh-ups', cassette: 'shinka', emoji: '🦅', label: '歴戦の証',
+        hint: '通算で20回 進化する',
+        need: function (s) { return s('shinka', 'ups') >= 20; } },
       { id: 'icon-ft-trust', cassette: 'falsetrue', emoji: '🤝', label: '信じた証',
         hint: '相手の TRUE を信じて奪い、当てる',
         need: function (s) { return s('falsetrue', 'trusts') >= 1; } },

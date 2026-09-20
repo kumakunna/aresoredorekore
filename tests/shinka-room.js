@@ -507,11 +507,65 @@ function toThrow(room) {
     // 3人・全員同じ段なら、必ず1人あぶれる（門の文書1-1）
     assertEqual(v.byeIds.length, 1, '1人あぶれた（条件が作れている）');
     const 余 = v.byeIds[0];
-    const 前段 = w.状態[余].段, 前連敗 = w.状態[余].連敗;
+    // **基準は「始まった時の段」＝0。**
+    // ここを `w.状態[余].段` から取ると、**組を作る時に上げる実装**を素通りさせる——
+    // 組は start() の中で既に作られているので、読んだ時にはもう上がっている
+    //（変異 55-2-P6 が実際に素通りした。落とし穴10-b：条件が作れていない）
+    assertEqual(w.状態[余].段, 0, '組を作った時点で、もう上がっていない');
+    assertEqual(w.状態[余].連敗, 0, '連敗も0のまま');
     rush(room); throwAll(room); rush(room);
-    assertEqual(w.状態[余].段, 前段, '段が動かない（不戦勝で上げない・禁止）');
-    assertEqual(w.状態[余].連敗, 前連敗, '連敗も数えない');
+    assertEqual(w.状態[余].段, 0, '1回まわしても、段は0のまま（不戦勝で上げない・禁止）');
+    assertEqual(w.状態[余].連敗, 0, '連敗も数えない');
     assertEqual(you(room, 余).isBye, true, '本人には「今回はおやすみ」と伝わる');
+  });
+
+  await r.test('**AIの手は、相手の手を見てから決まる**（指示書2-2・変異55-2-P7 の穴）', async () => {
+    // 進行役を通した時の勝率を測る。**相手の手を見ずに引くと、3すくみの一様分布（33%）に落ちる**。
+    // ルール層の分布検査（tests/shinka-logic.js）だけでは、この呼び方の間違いを捕まえられない
+    let 勝 = 0, 負 = 0, 分 = 0;
+    for (let s = 1; s <= 120; s++) {
+      const { room } = start(['あき', 'びび', 'ちか'], { seed: s });
+      const w = w_(room);
+      w.状態.m2.段 = 4;                       // m2 を最上段に1人 → 必ずAI戦になる
+      w.phase = R.PHASE.REVEAL; w.endsAt = Date.now() + 600000;
+      R.liveMatches(room).forEach((m) => { m.done = true; });
+      R.advance(room);
+      const 機械 = w.matches.filter((m) => m.機械)[0];
+      if (!機械) continue;
+      rush(room);                             // match → throw
+      送る(room, 機械.a, { hand: 'g' });       // **いつもグー**
+      rush(room);                             // throw → 開く
+      if (機械.引き分け || !機械.done) 分++;
+      else if (機械.winner === 機械.a) 勝++;
+      else 負++;
+    }
+    const 全 = 勝 + 負 + 分;
+    assert(全 >= 100, '条件が作れている（AI戦が ' + 全 + ' 回できた）');
+    const 勝率 = 100 * 勝 / 全;
+    // 1回ぶんの分布は 75/10/15。**相手の手を見ないと 33% 前後まで落ちる**
+    assert(勝率 > 60, '人の勝ちが 60% を超える（実測 ' + 勝率.toFixed(1) + '%）');
+  });
+
+  await r.test('**挑戦者は「段が低い方」。部品Aの印では決めない**（変異55-2-P8 の穴）', async () => {
+    // 部品Aは `a` に「希望が当たった人」を入れるので、
+    // **肩慣らしの向きで組まれると a が上のランクになる**（門の文書1-5）。
+    // そのまま `挑戦者 = g.a` と書くと、特典が上下逆に付く
+    let 見た = 0, 逆 = 0;
+    for (let s = 1; s <= 200; s++) {
+      const { room } = start(['あき', 'びび', 'ちか'], { seed: s });
+      const w = w_(room);
+      w.状態.m0.段 = 5; w.状態.m1.段 = 6; w.状態.m2.段 = 0;   // m0 と m1 は、どちらも1人ランク
+      w.直前の相手 = {};
+      w.phase = R.PHASE.REVEAL; w.endsAt = Date.now() + 600000;
+      R.liveMatches(room).forEach((m) => { m.done = true; });
+      R.advance(room);
+      w.matches.filter((m) => m.種別 === L.種別.挑戦).forEach((m) => {
+        見た++;
+        if (w.状態[m.挑戦者].段 >= w.状態[m.受け].段) 逆++;
+      });
+    }
+    assert(見た > 0, '挑戦の組が作れている（' + 見た + '件）');
+    assertEqual(逆, 0, '挑戦者は必ず、段が低い方（' + 見た + '件すべて）');
   });
 
   await r.test('あぶれた人は、次の回でいちばん先に組ませる（連続でおやすみにしない）', async () => {

@@ -463,7 +463,9 @@ async function run() {
       // **顔が5つとも違う**（色を見分けられなくても分かる）
       const 顔 = マス.map((b) => {
         const c = b.cloneNode(true);
-        Array.from(c.querySelectorAll('.bw-no, .bw-tip')).forEach((x) => x.remove());
+        // 第57弾：`.bw-tip`（初回の「ここをタップ」）は無くなった。
+        // 消した名前を検査が指し続けると、幽霊を掃く形になる（落とし穴32）
+        Array.from(c.querySelectorAll('.bw-no')).forEach((x) => x.remove());
         return (c.textContent || '').trim();
       });
       assertEqual(顔[0], '➰', 'まだ挑んでいない＝➰（🔌 ではない）');

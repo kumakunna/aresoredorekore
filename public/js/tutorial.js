@@ -86,14 +86,26 @@
     return 根;
   }
 
-  /** 的を毎回セレクタから引き直す。画面に出ていない（大きさ0）ものは「無い」扱い */
+  /**
+   * 的を毎回セレクタから引き直す。
+   *
+   * **`querySelector` では足りない。**画面（`.screen`）は全部いつでもDOMにいて、
+   * 見えていないものが `display:none` になっているだけ——
+   * だから `.bomb-lives` は手渡し（`#bombLives`）と部屋（`#rtBombLives`）の
+   * **2つとも当たる**。先頭を取ると、遊んでいない側の画面を指すことがある。
+   *
+   * 当たったもの全部から、**大きさを持っている最初の1つ**を選ぶ。
+   * これで「画面に出ていない」と「そもそも無い」が同じ扱いになり、
+   * どちらも「その手を飛ばす」に落ちる（2-1）
+   */
   function 的をさがす(doc, sel) {
-    var el = null;
-    try { el = doc.querySelector(sel); } catch (e) { return null; }
-    if (!el) return null;
-    var r = el.getBoundingClientRect();
-    if (!(r.width > 0 && r.height > 0)) return null;
-    return el;
+    var list;
+    try { list = doc.querySelectorAll(sel); } catch (e) { return null; }
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i].getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) return list[i];
+    }
+    return null;
   }
 
   function 穴をあける(状態) {

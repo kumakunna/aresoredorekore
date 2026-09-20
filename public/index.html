@@ -3091,8 +3091,12 @@
      左上だと、指で押さえる手に隠れる位置から読むことになる。
      **✕ と場所を入れ替えた**——✕ が右下に居たので、番号だけ動かすと重なる。
      ✕ は「だれかが外した」という一番強い知らせなので、
-     先に目が行く左上へ。3つの印（番号・✕・ここをタップ）が
-     三方向に分かれて、どの文字サイズでも重ならない（下の検査で実測） */
+     先に目が行く左上へ。2つの印（番号・✕）が
+     別の角に分かれて、どの文字サイズでも重ならない（下の検査で実測）。
+
+     **第57弾：3つ目の印（「ここをタップ」）は無くなった。**
+     初プレイの案内はチュートリアル（tutorial.js）が引き受けたので、
+     同じことを決める場所が2つある状態（落とし穴1）を畳んだ */
   .bw-no{
     position:absolute;right:4px;bottom:3px;font-size:9px;line-height:1;
     color:var(--ink-soft);pointer-events:none;font-family:'DotGothic16',monospace;
@@ -3102,17 +3106,6 @@
   .bomb-wire-btn.missed::after{
     content:'✕';position:absolute;left:3px;top:2px;
     font-size:10px;line-height:1;color:var(--danger,#e2584a);pointer-events:none;
-  }
-  /* 初回だけの「ここをタップ」。1つのマスにだけ添える */
-  /* 第52弾 52-5：番号が右下に来たので、**案内は上へ逃がす**。
-     下のままだと実測で 4×4px かぶった（3つの文字サイズすべてで）。
-     この案内が付くのは「まだ挑んでいないマス」だけ（`bombGridHtml`）なので、
-     左上の ✕（＝だれかが外した印）とは**同じマスに同時に出ない**。
-     だから上を使っても、ぶつかる相手がいない */
-  .bw-tip{
-    position:absolute;left:50%;top:2px;transform:translateX(-50%);
-    font-size:8.5px;line-height:1;white-space:nowrap;
-    color:var(--ink-soft);pointer-events:none;
   }
   .bomb-wire-btn.solved{background:var(--teal);border-color:var(--teal);color:#fff;opacity:.7;cursor:default;}
   /* ===== 時限爆弾の演出（③） ===== */
@@ -9044,28 +9037,109 @@
     return n === 0;
   }
   /**
-   * 出すかどうかを決めて、出すなら聞いてから動かす。
+   * 「見る」と答えた人。**聞く場所と、出す場所が違う**ので札で渡す。
+   *
+   * 2-4 は「ゲーム開始の直前（ルールを見た後・準備OKの前）に1回だけ聞く」と決めている。
+   * その時点では**盤がまだ無い**（的が1つも無い）ので、そこでは動かせない。
+   * だから聞くのは準備OKの前、動かすのは盤が出た瞬間。
+   *
+   * **この順でないと、指示57 6節の禁止を踏む。**盤が出てから聞くと、
+   * 協力版ではチーム共通の時計が、競争版では自分の順位が、
+   * ダイアログを読んでいる間ずっと減る——「チュートリアルのためにゲームを止める」に当たる。
+   * 準備OKの前なら、時計はまだ走っていない
+   */
+  var tutWanted = {};
+
+  /**
+   * 出すかどうかを決めて、出すなら聞く。**準備OKの前に呼ぶ。**
    * **ここ1か所が全部の門を通る**（良い型1：現在の状態から表示を計算する関数1つ）。
    * 出す側に条件を書かせないので、カセットを足しても門が漏れない。
    *
-   * **大画面では組み立てない**（門W12は元栓で守る。big-screen.js と同じ流儀）。
-   * 返り値は「動かしたか」
+   * **大画面では聞かない**（門W12は元栓で守る。big-screen.js と同じ流儀）
    */
-  async function tutMaybeStart(gameId, 台本){
+  async function tutAsk(gameId){
+    if(!gameId) return false;
+    delete tutWanted[gameId];
     if(typeof TutorialKit === 'undefined' || typeof UiKit === 'undefined') return false;
     if(typeof rtIsBigScreen === 'function' && rtIsBigScreen()) return false;
     if(!appPrefs.playGuide) return false;   // 設定で切っている
     if(!tutFirstTime(gameId)) return false; // 初めての人にだけ
+    if(!tutScriptFor(gameId)) return false; // 台本を持たないゲームには聞かない
     // **1回だけ聞く。既定は「見る」だが、断れる**（2-4）
     var 見る = await UiKit.confirm(UiText.TUTORIAL.はじめて, UiText.TUTORIAL.さそい,
       { ok: UiText.TUTORIAL.見る, cancel: UiText.TUTORIAL.いらない });
-    if(!見る){ tutMarkSeen(gameId); return false; }  // 断ったら、もう聞かない
+    // **断ったら、もう聞かない**（門W5）
+    if(!見る){ tutMarkSeen(gameId); return false; }
+    tutWanted[gameId] = true;
+    return true;
+  }
+
+  /**
+   * 盤が出た瞬間に動かす。**聞いていない人には何もしない。**
+   * 何度呼ばれても、動くのは1回だけ（部屋の描き直しは毎回ここを通る）
+   */
+  async function tutRun(gameId){
+    if(!tutWanted[gameId]) return false;
+    delete tutWanted[gameId];
+    var 台本 = tutScriptFor(gameId);
+    if(!台本 || !台本.length) return false;
     var 結果 = await TutorialKit.start(台本);
     // 最後まで見ても、途中で閉じても「見た」。
     // **止められた時（退室・通信断・決着）は立てない**（2-8）
     if(結果.理由 === 'done' || 結果.理由 === 'closed') tutMarkSeen(gameId);
     return true;
   }
+
+  /**
+   * ゲームごとの台本。**一覧にして、データから導く**（落とし穴4）。
+   *
+   * ## 的の選び方（着手前に現物を開いて決めた）
+   *
+   * ・**クラスで書く。**手渡しと部屋は id が別（`bombLives` / `rtBombLives`）だが、
+   *   クラスは共通なので、1本の台本が3経路すべてに効く（落とし穴1）
+   * ・**`.bomb-choice` と `.bomb-life` は存在しない**（指示書の例は実在しない）。
+   *   実在は `.pk-btn` と `.bomb-lives`
+   * ・3択は `.overlay.show .pk-btn`——手渡し（`#bombWireOverlay`）と
+   *   部屋（`#rtBombOverlay`）の**開いている方**だけを指す。
+   *   id で書き分けると2本になり、片方だけ直す日が来る
+   */
+  function tutScriptFor(gameId){
+    if(gameId !== 'bomb') return null;
+    var T = UiText.TUTORIAL.bomb;
+    var 競争 = tutBombIsRace();
+    var 台本 = [
+      // 押せば**必ず**問題が出る＝学習直後に使う機会がある（C第4章③）
+      { 的:'.bomb-wire-btn:not(.solved)', 文:T.えらぶ,   待つ:'tap' },
+      { 的:'.overlay.show .pk-btn',       文:T.こたえる, 待つ:'tap' }
+    ];
+    if(競争){
+      // 人数が2人未満だと横棒が無い。**その時は飛ぶ**（門W9）
+      台本.push({ 的:'.bomb-gauges', 文:T.きょうそう, 待つ:'auto', 秒:2 });
+    }else{
+      // **現物のどこにも書かれていない情報**（手渡しの盤にライフの説明が1文字も無い）
+      台本.push({ 的:'.bomb-lives', 文:T.ライフ, 待つ:'auto', 秒:2 });
+      // ✕の付いたマスがある時だけ。無ければ飛ぶ（門W9）
+      台本.push({ 的:'.bomb-wire-btn.missed', 文:T.はずれ, 待つ:'auto', 秒:2 });
+    }
+    return 台本;
+  }
+  /** いま遊んでいるクイズ解除が競争版か（部屋だけに存在する・roomOnly） */
+  function tutBombIsRace(){
+    var v = (typeof rtView === 'function') ? rtView() : null;
+    return !!(v && v.mode === 'race');
+  }
+  /**
+   * 検査が**本物の判定**を見る窓口（`window.bombCellProbe` と同じ形）。画面は触らない。
+   * **本物の関数をそのまま呼ぶ**ので、実装が変わっても検査が取り残されない（落とし穴25）
+   */
+  window.tutProbe = function(){
+    return {
+      初めて: tutFirstTime('bomb'),
+      台本: tutScriptFor('bomb'),
+      見たことにする: tutMarkSeen,
+      忘れる: tutForgetSeen
+    };
+  };
   /**
    * 「もう一度見たい」の受け口。**設定を OFF→ON にした時に、端末の印を捨てる。**
    * 別に「もう一度見る」ボタンを作ると窓口が2つになる（落とし穴1）ので、
@@ -11968,6 +12042,20 @@
        && id !== prevScreen.id) stopTallyCountdown();
     // 第27弾：爆弾解除の画面を離れたら、心拍と残り時間の時計は必ず止める。
     // 残しておくと、別のゲームを遊んでいる間も心拍が鳴り続ける
+    /**
+     * 指示57：**画面を離れたら、チュートリアルは必ず閉じる。**
+     *
+     * 2-8 の異常系（途中で退室・部屋が閉じた・出された・通信が切れた）は
+     * 経路がばらばらだが、**どれも最後には画面が変わる**。
+     * 経路ごとに後始末を書くと、必ずどれか1つが漏れる（落とし穴17。
+     * 実際 `rtForgetRulesSeen` は rtLeaveRoom の1本にしか無い）。
+     * だから**画面の変わり目1か所**で受ける。
+     *
+     * 理由は 'gone'——**「見た」ことにしない。**次にまた聞く（2-5）
+     */
+    if(prevScreen && prevScreen.id !== id && typeof TutorialKit !== 'undefined'){
+      TutorialKit.stop('gone');
+    }
     if(prevScreen && prevScreen.id === 'scr-bomb-play' && id !== 'scr-bomb-play') stopBombHeart();
     if(prevScreen && prevScreen.id === 'scr-rt-bomb' && id !== 'scr-rt-bomb') rtBombLeaveScreen();
     // 第33弾 B-2：人狼の部屋画面を離れたら、演出の引き金もリセットする。
@@ -12038,7 +12126,7 @@
     // 指示55-①：ロシアンカードの手渡し。**入るたび無条件にゲートを閉じる**
     if(id === 'scr-rc-pass') enterRcPass();
     if(id === 'scr-rc-turn') enterRcTurn();
-    if(id === 'scr-bomb-play') enterBombPlay();
+    if(id === 'scr-bomb-play'){ enterBombPlay(); tutRun('bomb'); }
     if(id === 'scr-quiz-turn') enterQuizTurn();
     if(id === 'scr-tourney-match') enterTourneyMatch();
     if(id === 'scr-tourney-champion') enterTourneyChampion();
@@ -14074,6 +14162,9 @@
   el('rtRulesOkBtn').addEventListener('click', async function(){
     var key = rtRulesKey();
     if(!key) return;
+    // 指示57：**ここが「ルールを見た後・準備OKの前」**（2-4）。
+    // 聞くだけ。盤がまだ無いので、動かすのは盤が出てから（tutRun）
+    await tutAsk(rtRoomGameId());
     this.disabled = true;
     var res = await rt.setReady(true);
     this.disabled = false;
@@ -20201,6 +20292,14 @@
     el('rtBombPhase').textContent = (v.phase === 'prep') ? '準備中'
       : (v.phase === 'ended') ? '結果' : (race ? '競争版・解除中' : '解除中');
 
+    /**
+     * 指示57：**決着した／盤が配られていない時は、チュートリアルを閉じる。**
+     * ここは画面（scr-rt-bomb）が変わらないまま段階だけ進むので、
+     * 上の「画面の変わり目」では受けられない（落とし穴17・経路は複数ある）
+     */
+    if((v.phase === 'ended' || !you) && typeof TutorialKit !== 'undefined'){
+      TutorialKit.stop('gone');
+    }
     // 観戦（始まったあとに入ってきた端末）には盤面を配らない
     if(!you){
       rtBombLeaveScreen();
@@ -20322,6 +20421,10 @@
     rtBombMarkWorking();
     putRanking(el('rtBombResult'), '');
     rtBombEndButtons(false);
+    // 指示57：**盤が出た瞬間に、聞いておいた人だけ動かす。**
+    // ここは毎描画とおるが、tutRun は札を1回で捨てるので二重に動かない。
+    // 準備OKの前に聞いてあるので、ここで止まる人はいない（門W8）
+    tutRun('bomb');
 
     // 開けているコードだけ、説明文と3択を出す
     var ov = el('rtBombOverlay');
@@ -20508,7 +20611,6 @@
   el('rtBombBoard').addEventListener('click', async function(e){
     // 第28弾-1：マスは協力版と共通の部品なので、目印も共通（data-id）
     var b = e.target.closest('.bomb-wire-btn');
-    if(b) markBombTapSeen();   // 第48弾 48-3：一度押したら、案内はもう出さない
     if(!b || b.classList.contains('solved') || b.classList.contains('taken')) return;
     var res = await rt.act(b.dataset.id);
     /**
@@ -22941,6 +23043,10 @@
         (est.perRound ? '1ラウンド だいたい ' : 'だいたい ') + est.min + '分</div>' +
       (tags ? '<div class="opt-tag-row">'+tags+'</div>' : '');
     resetHoldRing();
+    // 指示57：手渡しの「準備OKの前」はここ（2-4）。
+    // 長押しでスタートする前に1回だけ聞く。**最初の1人だけ**——
+    // 1台を回すので、聞くのは端末に1回（tutFirstTime が端末の印も見る）
+    tutAsk(currentGameId());
   }
   el('readyBackBtn').addEventListener('click', function(){ goBack('scr-mode'); });
 
@@ -25046,7 +25152,6 @@
     return '<button class="' + cls + '" data-id="' + escapeHtml(cell.uid) + '">' +
       (cell.no ? '<span class="bw-no">' + cell.no + '</span>' : '') +
       (cell.face || (cell.solved ? '✅' : '➰')) +
-      (cell.tip ? '<span class="bw-tip">ここをタップ</span>' : '') +
       '</button>';
   }
   /**
@@ -25056,27 +25161,18 @@
    * 「3ばんめのコード」と言うのに、盤には番号が1つも出ていなかった——
    * 数えようがない。呼ぶ側（手渡し・部屋）で別々に振ると、片方だけ付く（落とし穴1）。
    *
-   * **初回だけ「ここをタップ」を、まだ挑んでいない先頭のマスに添える。**
-   * その端末で一度でも押したら、もう出さない
+   * **第57弾：「ここをタップ」はここから消えた。**
+   * 初プレイの案内はチュートリアル（tutorial.js）が引き受ける——
+   * 同じ「初めての人への案内」を2つの仕組みが別々に決めるのをやめた（落とし穴1）。
+   * 端末に残っていた印（`acac-bomb-tap-seen`）は捨てずに、
+   * チュートリアルの「もう見た」へ1度だけ読み替える（`tutSeenMap`）ので、
+   * **48-3 を見終えた端末に、同じことをもう一度見せない**
    */
   function bombGridHtml(cells){
-    var 案内を出す = !bombTapSeen();
-    var 添えた = false;
     return '<div class="bomb-wire-grid">' + cells.map(function(c, i){
-      var cell = Object.assign({}, c, { no: i + 1 });
-      if(案内を出す && !添えた && !cell.solved && !cell.extraClass){
-        cell.tip = true; 添えた = true;
-      }
-      return bombCellHtml(cell);
+      return bombCellHtml(Object.assign({}, c, { no: i + 1 }));
     }).join('') + '</div>';
   }
-  /**
-   * 第48弾 48-3：「もうコードの押し方は分かっている」の印。
-   *
-   * **`appPrefs` には入れない。** あれは設定で、これは設定ではない——
-   * 混ぜると門F5（設定と窓口の両方向照合）が「窓口の無い設定」として赤くする
-   * （落とし穴34）。実物解除の `acac-defuse-seen` と同じ形で、別のキーに持つ
-   */
   /** 検査が**本物の盤の組み立て**を見る窓口（第48弾 48-3）。画面は触らない */
   window.bombCellProbe = function(cells){ return bombGridHtml(cells || []); };
   /**
@@ -25095,14 +25191,6 @@
   window.bombFxProbe = function(kind){
     return kind === 'clear' ? bombClearFx() : bombBoomFx();
   };
-  var BOMB_TAP_KEY = 'acac-bomb-tap-seen';
-  function bombTapSeen(){
-    try{ return localStorage.getItem(BOMB_TAP_KEY) === '1'; }catch(e){ return false; }
-  }
-  function markBombTapSeen(){
-    try{ localStorage.setItem(BOMB_TAP_KEY, '1'); }catch(e){}
-  }
-
   // 第32弾-A-3-6：問題は最初から揃っているので、用意する画面を通らずに盤面へ入る
   function startBombPrep(){
     goTo('scr-bomb-play');
@@ -25279,7 +25367,6 @@
   }
   el('bombWireList').addEventListener('click', function(e){
     var btn = e.target.closest('.bomb-wire-btn');
-    if(btn) markBombTapSeen();   // 第48弾 48-3：手渡しも同じ（落とし穴1）
     if(!btn || btn.classList.contains('solved')) return;
     openBombWire(btn.dataset.id);
   });

@@ -96,22 +96,6 @@
     "expect": "✕ は左上"
   },
   {
-    "name": "52-5C 案内を下に戻す（番号と 4x4px かぶる状態）",
-    "file": "public/index.html",
-    "suite": "tests/fixes52.js",
-    "from": "    position:absolute;left:50%;top:2px;transform:translateX(-50%);\n    font-size:8.5px;line-height:1;white-space:nowrap;",
-    "to": "    position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);\n    font-size:8.5px;line-height:1;white-space:nowrap;",
-    "expect": "「ここをタップ」は上"
-  },
-  {
-    "name": "52-5D 案内を、✕ の付くマスにも出す（上を使える根拠を壊す）",
-    "file": "public/index.html",
-    "suite": "tests/fixes52.js",
-    "from": "      if(案内を出す && !添えた && !cell.solved && !cell.extraClass){",
-    "to": "      if(案内を出す && !添えた && !cell.solved){",
-    "expect": "案内が付くのは「まだ挑んでいないマス」だけ"
-  },
-  {
     "name": "52-6A 爆発の閃光を待たずに文字を出す（重なる状態に戻す）",
     "file": "public/index.html",
     "suite": "tests/fixes52.js",

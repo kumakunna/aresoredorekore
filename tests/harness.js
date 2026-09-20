@@ -296,6 +296,26 @@ async function launch(opts) {
   const win = dom.window;
   const doc = win.document;
 
+  /**
+   * 指示57：**チュートリアルは「初めての人」に出る。**
+   * 検査の jsdom は毎回まっさらな localStorage なので、**全スイートが必ず初回を引く**——
+   * クイズ解除を通る検査は、そこで問いかけのダイアログに当たって進めなくなる。
+   * 安全の案内（下で sgStartBtn を自動で押す）とまったく同じ形で、既定では通す。
+   *
+   * **markup に種を差し込む形は採らない。**
+   * 最初その形で書いて `<script src="/socket.io/...">` を目印にしたら、
+   * **上（199行）が room 用のにせ socket に置き換えたあとで**目印が消えていて、
+   * 27件が「目印が見つからない」で落ちた。目印は、自分より前の処理に食われる。
+   * ここ（窓ができた直後）なら、誰も書き換えない。
+   * チュートリアルの印は読み込み時に読まれない（`tutSeenMap` は呼ばれた時に読む）ので、
+   * この時点で置けば間に合う。
+   *
+   * **チュートリアルそのものを見たい検査は keepPlayGuide:true** で止められる
+   */
+  if (!opts.keepPlayGuide) {
+    try { win.localStorage.setItem('acac-tut-seen', JSON.stringify({ bomb: true })); } catch (e) {}
+  }
+
   // 未捕捉の例外を全部集める（read_console_messages では拾えないため必須）
   const errors = jsdomErrors;
   win.addEventListener('error', e => errors.push('error: ' + (e.message || e.error)));

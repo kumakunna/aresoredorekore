@@ -21,65 +21,72 @@
 const { createRunner, assert, assertEqual, launch, sleep } = require('./harness');
 const TutorialKit = require('../public/js/tutorial');
 
-const BOMB_TAP_KEY = 'acac-bomb-tap-seen';
+const OLD_KEY = 'acac-bomb-tap-seen';   // 48-3 の印（移行のためだけに読む）
+const SEEN_KEY = 'acac-tut-seen';      // 指示57 の「もう見た」
 
-/** 本物の盤を組み立てて、案内の札が何枚出たかを数える */
-function 案内の数(win, cells) {
-  const html = win.bombCellProbe(cells);
-  return (html.match(/class="bw-tip"/g) || []).length;
-}
-
-/** まだ挑んでいないマスだけの盤（案内が出る条件がそろっている） */
-function 手つかずの盤() {
-  return [
+/** 本物の盤を組み立てて、48-3 の札が残っていないかを見る */
+function 盤のHTML(win) {
+  return win.bombCellProbe([
     { uid: 'a1', tier: 'easy' }, { uid: 'a2', tier: 'easy' },
-    { uid: 'a3', tier: 'normal' }, { uid: 'a4', tier: 'normal' },
-  ];
+    { uid: 'a3', tier: 'normal' },
+  ]);
 }
 
 async function run() {
   const r = createRunner('指示57：初プレイのチュートリアル');
 
-  // ---- 57-0：48-3 の「ここをタップ」を、吸収する前に固定する ----
+  // ---- 57-0：48-3 の吸収（同じことを決める場所を2つにしない） ----
 
-  await r.test('57-0：はじめての端末では、案内がちょうど1枚だけ出る', async () => {
-    const { win } = await launch();
+  await r.test('57-0：盤から「ここをタップ」が消えている（案内は1つの仕組みが決める）', async () => {
+    const { win } = await launch({ keepPlayGuide: true });
     try {
-      const n = 案内の数(win, 手つかずの盤());
-      // **具体の数字で書く**（落とし穴10-a：実装側の定数を借りると、
-      // 定数を緩めた日に検査も一緒に緩む）。48-3 の約束は「先頭の1マスだけ」
-      assertEqual(n, 1, '手つかずの盤に案内が' + n + '枚');
+      const html = 盤のHTML(win);
+      // **本物の組み立てを通して数える**（落とし穴25）。
+      // 先に「盤が本当に組み立てられたか」を1つ測る（型(b)：自明に通らないように）
+      assert(/bomb-wire-btn/.test(html), '盤が組み立てられていない（この検査は何も見ていない）');
+      assertEqual((html.match(/bw-tip/g) || []).length, 0, '48-3 の札が残っている');
+      assert(html.indexOf('ここをタップ') === -1, '48-3 の文言が残っている');
     } finally { win.close(); }
   });
 
-  await r.test('57-0：一度押した端末では、案内が1枚も出ない', async () => {
-    const { win } = await launch();
+  await r.test('57-0：48-3 を見終えた端末は、チュートリアルでも「見た」扱いになる（移行）', async () => {
+    const { win } = await launch({ keepPlayGuide: true });
     try {
-      // 先に「壊れたこと」ではなく「条件が作れたこと」を1つ測る（落とし穴10-b）。
-      // 印を立てる前は出ている、を確かめてから印を立てる
-      assertEqual(案内の数(win, 手つかずの盤()), 1, '印を立てる前は1枚のはず');
+      // **移行の約束**（本人の裁定 2026-09-21）：
+      // 既に見た端末の人が、新しい仕組みで再び見ることはない
+      assertEqual(win.tutProbe().初めて, true, '何も無い端末で「初めて」にならない');
 
-      win.localStorage.setItem(BOMB_TAP_KEY, '1');
-      // 読み戻して、本当に保存されたかを1つ測る
-      //（落とし穴10-f：壊したつもりで、壊せていない）
-      assertEqual(win.localStorage.getItem(BOMB_TAP_KEY), '1', '印が保存されていない');
+      win.localStorage.setItem(OLD_KEY, '1');
+      // 印が本当に保存されたかを1つ測る（落とし穴10-f）
+      assertEqual(win.localStorage.getItem(OLD_KEY), '1', '旧キーが保存されていない');
 
-      const n = 案内の数(win, 手つかずの盤());
-      assertEqual(n, 0, '印を立てた端末に案内が' + n + '枚');
+      assertEqual(win.tutProbe().初めて, false, '48-3 の印が読み替えられていない');
     } finally { win.close(); }
   });
 
-  await r.test('57-0：解除ずみ・挑戦中のマスには、案内を添えない', async () => {
-    const { win } = await launch();
+  await r.test('57-0：チュートリアルを見終えた端末では、二度と初めてにならない', async () => {
+    const { win } = await launch({ keepPlayGuide: true });
     try {
-      // 分岐の**もう一方の入力**を1つ足す（落とし穴10-c）。
-      // 実装は `!cell.solved && !cell.extraClass` で弾いているので、
-      // 弾かれる側だけの盤を作って0枚になることを見る
-      const n = 案内の数(win, [
-        { uid: 'b1', tier: 'easy', solved: true },
-        { uid: 'b2', tier: 'easy', extraClass: 'taken' },
-      ]);
-      assertEqual(n, 0, '押せないマスに案内が' + n + '枚');
+      assertEqual(win.tutProbe().初めて, true, '前提：まだ見ていない');
+      win.tutProbe().見たことにする('bomb');
+      assertEqual(win.tutProbe().初めて, false, '「見た」が効いていない');
+      // 端末に残っているか（立ち上げ直しても残る形か）を1つ測る
+      assert(/"bomb"\s*:\s*true/.test(win.localStorage.getItem(SEEN_KEY) || ''),
+        '端末に印が残っていない（' + win.localStorage.getItem(SEEN_KEY) + '）');
+    } finally { win.close(); }
+  });
+
+  await r.test('57-0：設定を入れ直すと、また見られる（2回目以降の人のため）', async () => {
+    const { win } = await launch({ keepPlayGuide: true });
+    try {
+      win.localStorage.setItem(OLD_KEY, '1');
+      win.tutProbe().見たことにする('bomb');
+      assertEqual(win.tutProbe().初めて, false, '前提：見た状態が作れている');
+
+      win.tutProbe().忘れる();
+      // **旧キーも一緒に捨てる。**残すと移行の読み替えが毎回それを拾い直して、
+      // ONにしても二度と出ない（忘れる道を、移行が塞ぐ形になる）
+      assertEqual(win.tutProbe().初めて, true, 'ONにしても、また見られない');
     } finally { win.close(); }
   });
 

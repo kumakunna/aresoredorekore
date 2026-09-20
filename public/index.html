@@ -1324,6 +1324,69 @@
   .pause-body{font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:10px;}
   /* 止まっている間は、裏で動く演出を止める（幕の裏で光っても意味がない） */
   :root.paused .fx-alive{animation:none;}
+
+  /* ===== 指示57：初プレイのチュートリアル =====
+     **置き場はここ（#uiLayerRoot）。**`#app` の中に書くと、明るさを既定から
+     動かした人だけ `:root[data-bright] #app > *` の filter が `.screen` に乗り、
+     中の position:fixed が画面の外へ飛ぶ（落とし穴26・52-7 と同じ形）。
+
+     **重なりは 100。**`.ui-dim`(110)・`.ui-layer`(120)・`.pause-veil`(130) より下に置く——
+     チュートリアルの上にダイアログもポーズも出るのが正しい。
+
+     **幕・輪・文は兄弟。**`clip-path` は子も切るので、入れ子にすると
+     穴の中に出した文まで消える（着手前に実測・docs/監査_指示57の門.md 2-4）。
+
+     **地と文字は必ず対で決める**（正本1-3・1-4）。ここは層なのでテーマが届かない——
+     `.ui-layer`(下)・`.overlay-panel` と同じく「道具は世界の外」で共通トークンに戻す。
+     文字サイズは `--fs-*` を使う（印は html にあるので層にも届く）。
+     **`--font-scale` は使わない**——あれは `.app` の中でしか宣言されておらず、
+     層では静かに1に落ちる（落とし穴27） */
+  .tut-root{
+    position:absolute;inset:0;z-index:100;pointer-events:none;
+    --paper:#EFE8D3; --card:#FFFBF2;
+    --ink:#24272E; --ink-soft:#5B5A50;
+    color:var(--ink);            /* ← 地とセットで必ず決める */
+    /* 出入りは演出なので、スキップ設定（:root.fx-skip *）に自動で潰される */
+    transition:opacity calc(.25s * var(--fx-scale,1)) cubic-bezier(.32,.72,0,1);
+  }
+  /* 置き場が #uiLayerRoot（pointer-events:none）なので、自分で立て直す。
+     的の穴は clip-path で切り抜かれているので、そこだけ指が通る */
+  .tut-veil{
+    position:absolute;inset:0;pointer-events:auto;
+    background:rgba(13,15,19,0.62);
+  }
+  /* 光の輪。**色で示さない**（正本1-5）——明るさの差と形で伝える。
+     脈動は 1.8秒周期＝毎秒0.56回で、正本§6 の「1秒に3回まで」に収まる。
+     名前に glow を入れてあるのは、tests/safety-rules.js が
+     blink|flash|pulse|glow を含む無限アニメだけを数えているため（落とし穴10-a） */
+  .tut-ring{
+    position:absolute;pointer-events:none;
+    border:2px solid rgba(255,255,255,0.92);
+    box-shadow:0 0 0 3px rgba(255,255,255,0.22), 0 0 18px 4px rgba(255,255,255,0.35);
+    animation:tutRingGlow 1.8s ease-in-out infinite;
+  }
+  @keyframes tutRingGlow{
+    0%,100%{box-shadow:0 0 0 3px rgba(255,255,255,0.18), 0 0 14px 3px rgba(255,255,255,0.26);}
+    50%    {box-shadow:0 0 0 5px rgba(255,255,255,0.30), 0 0 22px 6px rgba(255,255,255,0.46);}
+  }
+  /* 光の点滅を切っている人には、**脈動なし・静止**（2-2・正本§6）。
+     この一覧は手書きなので、演出を足したらここにも足す（落とし穴4） */
+  :root.no-flash .tut-ring{animation:none;}
+  .tut-say{
+    position:absolute;left:16px;right:16px;pointer-events:auto;
+    background:var(--card);border-radius:14px;padding:14px 16px;
+    box-shadow:0 8px 28px rgba(0,0,0,0.38);
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .tut-word{font-size:var(--fs-body);line-height:1.6;font-weight:700;}
+  .tut-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  /* 残りが見えると、人は最後まで見る */
+  .tut-count{font-size:var(--fs-sub);color:var(--ink-soft);}
+  .tut-x{
+    border:none;background:rgba(36,39,46,0.08);color:var(--ink);
+    width:40px;height:40px;border-radius:50%;font-size:var(--fs-sub);
+    cursor:pointer;line-height:1;flex:none;
+  }
   .ui-layer{
     position:absolute;inset:0;z-index:120;display:flex;
     /* 共通トークンに戻す（テーマ非適用領域） */
@@ -7217,6 +7280,8 @@
 <script src="js/fx.js"></script>
 <script src="js/ui-text.js"></script>
 <script src="js/ui.js"></script>
+<!-- 指示57：初プレイのチュートリアル。置き場は UiKit と同じ #uiLayerRoot -->
+<script src="js/tutorial.js"></script>
 <script src="js/emoji.js"></script>
 <script src="js/emoji-list.js"></script>
 <script src="js/titles.js"></script>
@@ -27916,6 +27981,12 @@
         fx: FxKit,
         text: (typeof UiText !== 'undefined') ? UiText.WORDS : {}
       });
+    }
+    // 指示57：チュートリアルの幕。**UiKit とまったく同じ置き場**（#uiLayerRoot）。
+    // #app の中に置くと、明るさを既定から動かした人だけ filter に巻き込まれる
+    // （落とし穴26。着手前に実測した・docs/監査_指示57の門.md 2節）
+    if(typeof TutorialKit !== 'undefined'){
+      TutorialKit.init({ doc: document, win: window, layer: el('uiLayerRoot') });
     }
   }
 

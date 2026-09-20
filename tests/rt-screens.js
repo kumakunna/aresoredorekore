@@ -146,7 +146,9 @@ const CASSETTE_OF = {
   quizrush: 'quizou', quizlist: 'quizou', quizreveal: 'quizou', buzzer: 'quizou',
   auction: 'auction',
   // 指示53：False or True（カセットidとゲームidが同じ）
-  falsetrue: 'falsetrue'
+  falsetrue: 'falsetrue',
+  // 指示55-①②：ロシアンカード・進化じゃんけん（どちらもカセットidとゲームidが同じ）
+  rcard: 'rcard', shinka: 'shinka'
 };
 
 // 待合から棚へ出て、カセット→（ゲーム）→モードを歩いて待合にもどる（ホストの流れ）

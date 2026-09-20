@@ -493,7 +493,7 @@ const PAIRS = [
     const { hex2lab, deltaE2000 } = require('../tools/color-diff');
     const 名前 = Object.keys(世界);
     // **数を先に主張する**（型b）。1色しか読めていなければ「全部離れている」は自明に成立する
-    assertEqual(名前.length, 9, '世界が9つある（実際:' + 名前.join('・') + '）');
+    assertEqual(名前.length, 10, '世界が10ある（実際:' + 名前.join('・') + '）');
 
     const 閾値 = 10;
     const 組 = [], bad = [];
@@ -505,7 +505,7 @@ const PAIRS = [
         if (de < 閾値) bad.push(a + ' × ' + b + '：ΔE2000 ' + de.toFixed(1) + ' < ' + 閾値);
       }
     }
-    assertEqual(組.length, 36, '36組すべてを見た（実際:' + 組.length + '組）');
+    assertEqual(組.length, 45, '45組すべてを見た（実際:' + 組.length + '組）');
     assertEqual(bad.join('\n       '), '', '見分けがつかないほど近い世界の色がある');
   });
 
@@ -521,7 +521,7 @@ const PAIRS = [
     // ——**どれも小さい字**で、4.5 では実際に読みにくかった（本人の指摘）。
     // 大きい字なら 4.5 で足りるが、ここは足りない。
     const 名前 = Object.keys(世界);
-    assertEqual(名前.length, 9, '世界が9つある（実際:' + 名前.join('・') + '）');  // 型(b)
+    assertEqual(名前.length, 10, '世界が10ある（実際:' + 名前.join('・') + '）');  // 型(b)
 
     const bad = [], 表 = [];
     名前.forEach((名) => {
@@ -531,7 +531,7 @@ const PAIRS = [
       表.push(名 + '=' + 比);
       if (比 < 7) bad.push(名 + '：薄墨が ' + 比 + ' : 1（7:1 に届いていない）');
     });
-    assertEqual(表.length, 9, '9つ全部で測った（実際:' + 表.join(' / ') + '）');
+    assertEqual(表.length, 10, '10全部で測った（実際:' + 表.join(' / ') + '）');
     assertEqual(bad.join(String.fromCharCode(10) + "       "), '', '小さい字の薄墨が、AAA に届いていない');
   });
 

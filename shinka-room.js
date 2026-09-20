@@ -24,7 +24,7 @@
 // ---- 段階 ----
 //   match  … 組み合わせの発表（誰と誰か。**誰も待っていない**ので時計は tick）
 //   throw  … 手を出す（3秒。全員が同時に動くので play）
-//   reveal … 同時に開く → 勝敗 → ランクの動き（tick）
+//   hands  … 同時に開く → 勝敗 → ランクの動き（tick。値が reveal でない理由は下）
 //   ended  … 優勝 or 10分
 
 const path = require('path');
@@ -34,7 +34,11 @@ const Versus = require(path.join(__dirname, 'public', 'js', 'versus.js'));
 const PHASE = {
   MATCH: 'match',
   THROW: 'throw',
-  REVEAL: 'reveal',
+  // **値は 'reveal' ではなく 'hands'。**`RT_PHASE_LABEL`（index.html）は
+  // ゲームをまたいだ1枚の表で、**`reveal` はワードウルフの「お題の確認」に取られている**。
+  // そのまま使うと、進化じゃんけんの大画面に「お題の確認」と出る（落とし穴2：
+  // 借りた言葉が、その世界観のまま漏れる）。指示53 が `reveal` を避けたのと同じ理由
+  REVEAL: 'hands',
   ENDED: 'ended'
 };
 
@@ -94,7 +98,7 @@ function 段の人数(room, ids) {
  * **全体の期限（10分）と、段階の期限の、早い方を入れる**（門の文書4-3）。
  * 全体の期限を `advance()` の先頭に置く形にすると、
  * 段階の締め切りが切れるまで10分が発火しない——②は `match`（発表）や
- * `reveal`（発表）を挟むので、**最大で段階1つぶん遅れて終わる**。
+ * `hands`（発表）を挟むので、**最大で段階1つぶん遅れて終わる**。
  * ここで早い方を入れておけば、芯の500ms見回り（realtime.js:1063）が10分ちょうどで撃つ。
  */
 function setPhase(room, phase, ms) {

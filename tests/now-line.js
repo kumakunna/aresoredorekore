@@ -35,7 +35,9 @@ const 対象 = [
   { game: 'quizreveal', cart: 'quizou', n: 3 },
   { game: 'buzzer',   cart: 'quizou',   n: 4 },
   // 指示53：False or True。7枚すべてに帯が要る（段階ごとに画面を分けたので）
-  { game: 'falsetrue', cart: 'falsetrue', n: 4 }
+  { game: 'falsetrue', cart: 'falsetrue', n: 4 },
+  // 指示55-②：進化じゃんけん。3枚すべてに帯が要る（48-2）
+  { game: 'shinka', cart: 'shinka', n: 3 }
 ];
 const NAMES = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう'];
 

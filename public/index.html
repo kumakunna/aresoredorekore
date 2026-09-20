@@ -1649,6 +1649,15 @@
      測り直すなら node tools/fot-color.js rcard */
   .cassette-warp[data-theme="rcard"], .shelf-stage[data-theme="rcard"]{--warp-color:#5A0F00;--warp-ink:#FFF1EC;--warp-soft:#F0C9BC;}
 
+  /* 指示55-②：進化じゃんけん（theme-shinka）。**昼の空。**
+     じゃんけんは外遊びの遊びで、このカセットの主役は「上へ伸びる段の階段」。
+     **階段の上にあるのは空**だから、世界の色は空。
+     ΔE2000 の最小は 24.4（対 共通 #EFE8D3）で、9色のどれからもいちばん遠い。
+     **棚で初めての「明るい対戦カセット」**——いまの9色は紙3つ／暗6つで、
+     中明度（L* 62〜80）が丸ごと空いていた（L*77.9）。
+     測り直すなら node tools/fot-color.js '#9FC6DF' */
+  .cassette-warp[data-theme="shinka"], .shelf-stage[data-theme="shinka"]{--warp-color:#9FC6DF;--warp-ink:#0C202A;--warp-soft:#192C37;}
+
   /* ---- 棚の染まる場（第41弾 2-2「世界を借りる」／第43弾で画面いっぱいに）----
      **染まるのはここだけ。**上の帯（タイトル）と下部バーはクリームのまま。
      scr-shelf は THEME_FREE_SCREENS のままなので、.app には手を付けない
@@ -2460,6 +2469,79 @@
     #rcPassNote{margin:6px 0 0;}
     #rcPassDoneBtn, #rcTurnNextBtn{margin-top:10px !important;}
     .rc-vs{margin-top:6px;padding:8px 10px;}
+  }
+
+  /* ---- 指示55-②：進化じゃんけん ----
+     前置きは `sh-`。**先客がいないことを確かめてから決めた**——
+     `.sh-` は index.html・public/js・tests のどこにも1件も無かった（落とし穴23）。
+
+     2-7 の並び：**いまの自分の段が一番大きい。次に相手と、手を出すボタン。**
+     だから .sh-me の絵文字だけ突出させ、他は本文寄りに抑える */
+  .sh-me{
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    margin-top:6px;
+  }
+  .sh-me-face{font-size:76px;line-height:1.05;}
+  .sh-me-face img{width:76px;height:76px;vertical-align:-0.16em;}
+  .sh-me-name{font-size:var(--fs-lead);font-weight:700;color:var(--ink);}
+  /* 段の番号は「いま何段目か」。**色に頼らない**ので、数でも言う（2-10） */
+  .sh-me-no{font-size:var(--fs-note);color:var(--ink-soft);}
+  /* 進化した瞬間だけ、札が1段上がる（0.4秒・部品Bと同じ尺・正本 §11-7）。
+     **意味がある時だけ出す**（正本 §4） */
+  .sh-me.is-up .sh-me-face{animation:shStepUp .4s cubic-bezier(.32,.72,0,1);}
+  .sh-me.is-down .sh-me-face{animation:shStepDown .4s cubic-bezier(.32,.72,0,1);}
+  @keyframes shStepUp{from{transform:translateY(14px) scale(.86);opacity:.5;}to{transform:none;opacity:1;}}
+  @keyframes shStepDown{from{transform:translateY(-10px) scale(1.08);opacity:.6;}to{transform:none;opacity:1;}}
+
+  .sh-vs{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    margin-top:12px;padding:10px 12px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    font-size:var(--fs-body);color:var(--ink);
+  }
+  .sh-vs-name{font-weight:700;}
+  .sh-vs-mid{color:var(--ink-soft);font-size:var(--fs-note);}
+  /* 開いたあとの手。両方まとめて出す（同時に開く） */
+  .sh-vs-hand{font-size:34px;line-height:1;}
+  .sh-vs-hand img{width:34px;height:34px;vertical-align:-0.14em;}
+
+  /* 手のボタン。**片手で押せる**ように、親指の届く範囲に大きく並べる（2-10） */
+  .sh-hands{display:flex;gap:10px;margin-top:14px;}
+  .sh-hand{
+    flex:1;min-height:92px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .sh-hand .sh-hand-face{font-size:40px;line-height:1;}
+  .sh-hand .sh-hand-face img{width:40px;height:40px;}
+  .sh-hand .sh-hand-name{font-size:var(--fs-note);}
+  .sh-hand.on{outline:3px solid var(--stamp);outline-offset:-3px;}
+
+  /* 設定画面の、段のならび（どこまで進化するのかを始める前に見せる） */
+  .sh-ladder{
+    display:flex;flex-wrap:wrap;align-items:center;gap:4px;
+    margin-top:10px;
+  }
+  .sh-step{display:inline-flex;flex-direction:column;align-items:center;gap:1px;}
+  .sh-step-face{font-size:26px;line-height:1;}
+  .sh-step-face img{width:26px;height:26px;}
+  .sh-step-name{font-size:var(--fs-fine);color:var(--ink-soft);}
+  .sh-arrow{color:var(--ink-soft);font-size:var(--fs-note);}
+
+  /* 大画面の「段の階段」（§11-3 の主役）。下が最下段・上が最終形 */
+  .sh-stairs{display:flex;flex-direction:column-reverse;gap:6px;width:100%;}
+  .sh-tier{
+    display:flex;align-items:center;gap:12px;
+    padding:6px 12px;border-radius:12px;background:rgba(255,255,255,0.06);
+  }
+  .sh-tier-face{font-size:44px;line-height:1;min-width:52px;text-align:center;}
+  .sh-tier-face img{width:44px;height:44px;}
+  .sh-tier-name{font-size:28px;color:var(--ink-soft);min-width:190px;}
+  .sh-tier-who{display:flex;flex-wrap:wrap;gap:6px;flex:1;}
+  .sh-who{font-size:28px;padding:2px 10px;border-radius:999px;background:rgba(255,255,255,0.10);color:var(--ink);}
+  .sh-who.is-up{animation:shStepUp .4s cubic-bezier(.32,.72,0,1);}
+  .sh-tier-count{font-size:48px;font-weight:800;color:var(--ink);min-width:64px;text-align:right;}
+  @media (prefers-reduced-motion: reduce){
+    .sh-me.is-up .sh-me-face,.sh-me.is-down .sh-me-face,.sh-who.is-up{animation:none;}
   }
 
   /* 大画面の順位表の置き場。中身は共通部品（.rk-list） */
@@ -4352,6 +4434,72 @@
     .app.theme-rcard{transition:none;}
     .app.theme-rcard .fx-alive{animation:none;}
   }
+
+  /* ---- 指示55-②：進化じゃんけん（昼の空）----
+     **明るい地なので、朱・金・藍緑は既定のままでは読めない。**
+     実測（地 #9FC6DF）：既定の金 #C99A2E は 1.43:1、既定の藍緑 #2F6F63 は 3.25:1。
+     どちらも本文として読めない。**明るい世界では、意味を持つ色は暗い側へ寄せるしかない**
+     （正本 §1-2b「明るい3色が限界を決める」の、対戦カセット版）。
+     だから値を置き換える——置き換えないと、落とし穴30（名前はあるが中身が既定のまま
+     黙って出る）そのものになる。PAIRS に載っていない金・藍緑は誰も見張っていないので、
+     ここは人が測って決めた。 */
+  .app.theme-shinka{
+    --switch-on:#E06A3C;          /* 朝日の橙。帯×つまみの縁 4.33 */
+    --paper:#9FC6DF;
+    --paper-deep:#7AA6C0;
+    --card:#C0DEF2;
+    --ink:#0C202A;
+    --ink-soft:#192C37;
+    /* 大事な数字・警告。明るい空の上では、既定の朱（3.52）では足りない */
+    --stamp:#8F1B20;              /* 地 4.95 / カード 6.38 */
+    --stamp-deep:#7E2413;         /* 地 5.41 / カード 6.97 */
+    /* 褒める色。**明るい地では「金」は成立しない**（既定の金は 1.43:1）。
+       いちばん明るく通る暖色まで下げた深い琥珀にする */
+    --gold:#7A5A12;               /* 地 3.52（見出し 3.0）/ カード 4.54 */
+    --teal:#1E4F46;               /* 地 5.14 / カード 6.62 */
+    --line:rgba(12,32,42,0.18);
+    --shadow:0 10px 26px rgba(12,32,42,0.22);
+    /* 高いところほど明るい。階段を上るほど空が開ける */
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(255,255,255,0.45), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  /* **重なり（#uiLayerRoot）にも届かせる。**body は両方の親（落とし穴27） */
+  body:has(.app.theme-shinka){
+    background:
+      radial-gradient(circle at 50% 0%, #C7E2F3, transparent 60%),
+      #84B2CE;
+  }
+  .app.theme-shinka .scr-title,
+  .app.theme-shinka .sec-title,
+  .app.theme-shinka .tp-label,
+  .app.theme-shinka .rt-phase,
+  .app.theme-shinka .wiz-step,
+  .app.theme-shinka .big-phase,
+  .app.theme-shinka .big-main:not(.is-code){
+    color:var(--ink);
+  }
+  .app.theme-shinka .card,
+  .app.theme-shinka .overlay-panel,
+  .app.theme-shinka .rt-public,
+  .app.theme-shinka .rt-you,
+  .app.theme-shinka .qb-row{
+    background:var(--card);
+    border-color:var(--line);
+    color:var(--ink);
+  }
+  .app.theme-shinka .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-shinka .floating-gear{background:rgba(12,32,42,.10);color:var(--ink);}
+  .app.theme-shinka .rules-ol li{color:var(--ink);}
+  .app.theme-shinka .ry-desc{color:var(--ink-soft);}
+  /* 生きている印は、空のゆっくりした明滅（1秒3回の上限よりはるかに遅い・正本 §6） */
+  .app.theme-shinka .fx-alive{animation:fxAliveLamp 3.2s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){
+    .app.theme-shinka{transition:none;}
+    .app.theme-shinka .fx-alive{animation:none;}
+  }
 </style>
 </head>
 <body>
@@ -5080,6 +5228,46 @@
           <button class="seg-btn" data-rcturn="30">30秒</button>
         </div>
         <div class="mic-status" id="rcCfgNote" style="margin-top:8px;"></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn btn-ghost" data-wiz-back>← もどる</button>
+      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
+    </div>
+  </div>
+
+  <!-- 指示55-②：進化じゃんけんの設定。
+       **段の一覧はここに書かない**——ShinkaLogic.ladderOf() から描く。
+       書き写すと、段を増やした日に片方だけ古くなる（落とし穴4） -->
+  <div class="screen" id="scr-set-shinka">
+    <div class="wiz-head"><span class="wiz-step" id="wizStepShinka"></span><h2 class="scr-title">進化じゃんけんの設定</h2></div>
+    <p class="wiz-lead">おなじ段の人とじゃんけんして、勝てば1つ上へ進化します。</p>
+    <div class="wiz-body">
+      <div class="timer-dmode">
+        <div class="tp-label">すすむ段</div>
+        <div class="seg" id="shLadderSeg">
+          <button class="seg-btn" data-shladder="normal">ふつう</button>
+          <button class="seg-btn" data-shladder="cs">たくさん</button>
+        </div>
+        <div class="sh-ladder" id="shLadderPreview"></div>
+      </div>
+      <div class="timer-dmode" style="margin-top:14px;">
+        <div class="tp-label">手を出すまでの時間</div>
+        <div class="seg" id="shThrowSeg">
+          <button class="seg-btn" data-shthrow="3">3秒</button>
+          <button class="seg-btn" data-shthrow="5">5秒</button>
+          <button class="seg-btn" data-shthrow="8">8秒</button>
+        </div>
+        <div class="mic-status" id="shThrowNote" style="margin-top:8px;"></div>
+      </div>
+      <div class="timer-dmode" style="margin-top:14px;">
+        <div class="tp-label">おわりまでの時間</div>
+        <div class="seg" id="shLimitSeg">
+          <button class="seg-btn" data-shlimit="300">5分</button>
+          <button class="seg-btn" data-shlimit="600">10分</button>
+          <button class="seg-btn" data-shlimit="900">15分</button>
+        </div>
+        <div class="mic-status" id="shLimitNote" style="margin-top:8px;"></div>
       </div>
     </div>
     <div class="wiz-foot">
@@ -5983,6 +6171,56 @@
       <button class="btn btn-main" id="rtRcAgainBtn" style="display:none;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="rtRcEndBtn" style="display:none;margin-top:0;">🏁 部屋をとじる</button>
       <button class="btn btn-ghost" id="rtRcResultLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
+    </div>
+  </div>
+
+  <!-- ================= 進化じゃんけん（指示55-②） =================
+       **1画面に1つのこと＋その説明**。
+       2-7 の並び：**いまの自分の段が一番大きい。次に「相手」と「手を出すボタン」。**
+       **他の人の段は、この画面に出さない**（禁止：1画面に「相手」と「全員の段」を同時に出す）。
+       ほかの人の段は、決着の順位表（部品B）で見る -->
+
+  <!-- ① 組み合わせの発表：誰と当たるか。**自分の段が主役** -->
+  <div class="screen" id="scr-rt-sh-match">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title">たいせんあいて</h2>
+    <div class="wiz-body">
+      <div class="sh-me" id="shMatchMe"></div>
+      <div class="sh-vs" id="shMatchVs"></div>
+      <p class="scr-sub" id="shMatchNote"></p>
+    </div>
+    <div class="wiz-foot">
+      <div class="timer-chip" data-timer id="shMatchTimer" style="display:none;">--:--</div>
+    </div>
+  </div>
+
+  <!-- ② 手を出す／開く。**出すまで、相手の手は誰にも見えない** -->
+  <div class="screen" id="scr-rt-sh-play">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title" id="shPlayTitle">手を出す</h2>
+    <div class="wiz-body">
+      <div class="sh-me" id="shPlayMe"></div>
+      <div class="sh-vs" id="shPlayVs"></div>
+      <div class="sh-hands" id="shPlayHands"></div>
+      <p class="scr-sub" id="shPlayNote"></p>
+    </div>
+    <div class="wiz-foot">
+      <div class="timer-chip" data-timer id="shPlayTimer" style="display:none;">--:--</div>
+    </div>
+  </div>
+
+  <!-- ③ 結果：順位表は共通の1部品（正本 §11-7）。スマホは自分の行へ寄る（部品B） -->
+  <div class="screen" id="scr-rt-sh-result">
+    <div class="now-line" hidden></div>
+    <h2 class="scr-title">結果発表</h2>
+    <div class="wiz-body">
+      <div class="ft-win" id="shRsWin"></div>
+      <div id="shRsRank"></div>
+    </div>
+    <div class="wiz-foot" style="flex-direction:column;">
+      <button class="btn btn-main" id="rtShAgainBtn" style="display:none;">つぎは？ ▶</button>
+      <button class="btn btn-outline" id="rtShEndBtn" style="display:none;margin-top:0;">🏁 部屋をとじる</button>
+      <button class="btn btn-ghost" id="rtShResultLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -6951,6 +7189,9 @@
 <!-- 指示55-①：ロシアンカードの絵柄。CS版の束（window.RcArtPack）があればそちら、
      無ければ既定に落ちる。束の script タグは並べない（無いビルドで404が出る） -->
 <script src="js/rc-art.js"></script>
+<!-- 指示55-②：進化じゃんけんのルール層。**sugoroku-mini.js より後に置く**——
+     3すくみの表（BEATS）をあちらから借りている（UMD の依存。versus.js と quiz-logic.js の関係と同じ） -->
+<script src="js/shinka-logic.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/ui-text.js"></script>
 <script src="js/ui.js"></script>
@@ -7103,6 +7344,11 @@
     // 棚のタイルが「2人」になり、6人のグループにはカセットごと沈んで見える
     {id:"rcard-duel", icon:"⚔️", title:"いっきうち", sub:"2人で1試合。スマホをわたし合ってもあそべる", advanced:false, strict:false, oneWord:false, rcard:true, game:'rcard', minPlayers:2, maxPlayers:2,
       bullets:["2人であそびます","スマホをわたし合って、あいての9まいに爆弾をひみつでしかける","しかけたら伏せてわたす。しかけた場所は、このあと自分でも見られない","じぶんの9まいから1まいずつ、こうたいでめくる","爆弾だったら体力が1へる。0になったら負け","3人いじょうであそぶときは、部屋を立ててください"]},
+    // 指示55-②：進化じゃんけん。**部屋（3人以上）専用**——同時に複数組を回す遊びなので、
+    // 1台の手渡しは作らない（指示書0の対象外）。
+    // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js:200 の抽出がこの順）
+    {id:"shinka", icon:"🥚", title:"進化じゃんけん", sub:"おなじ段の人とじゃんけん・勝てば進化する", advanced:false, strict:false, oneWord:false, shinka:true, roomOnly:true, game:'shinka', minPlayers:3,
+      bullets:["1人1台・部屋が必要です","ぜんいん いちばん下の段から はじまります","おなじ段の人と、じどうで1たい1のじゃんけん","勝てば1つ上の段へ。まけても その段のまま","2回つづけてまけると、1つ下がります（いちばん下では下がりません）","おなじ段に じぶんしかいないときは、1つ上の人とたいせん","あいこは もういちど。3回つづいたら ひきわけ","さいしょに いちばん上まで進化した人が ゆうしょう"]},
     {id:"auction-open", icon:"🔨", title:"せり上げ式", sub:"みんなの前で値が吊り上がっていく", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionOpen:true, roomOnly:true, game:'auction', minPlayers:3,
       bullets:["6つの品が、はじめから全部ならぶ（見比べてえらべる）","品質（上物・並物・偽物）は伏せられている。内訳の数だけ先に分かる","競りが進むと、みんなに同じヒントが順に開いていく","誰かが値をつけるたびに、締め切りが延びる","同じ系統が売れるたび、その系統の相場が上がる","得点は「品質 × 売れた時の相場」。人気の系統ほど高くつく","落札できなかった人は品質を言い当てるとチップがもらえる","最初に値をつけた人にはチップのごほうびがある"]},
     {id:"auction-sealed", icon:"✉️", title:"秘密入札", sub:"こっそり金額を決めて、一斉に開ける", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionSealed:true, roomOnly:true, game:'auction', minPlayers:3,
@@ -7267,6 +7513,13 @@
       games:['rcard'],
       theme:'rcard',
       blurb:'しかけ合って、めくり合う' },
+    // 指示55-②：進化じゃんけん。**かけひき**ではなく**からだをうごかす**でもないので、
+    // いまある5つの段では 'deal'（かけひき）に置く。
+    // ③④が入る『はやさきそい』の段は SHELF_GENRES にまだ無い（設計メモ:238 の未決）
+    { id:'shinka',          genre:'deal',  ready:true,  icon:'🥚', title:'進化じゃんけん',
+      games:['shinka'],
+      theme:'shinka',
+      blurb:'おなじ段の人とじゃんけん。勝てば1つ上へ進化する' },
     { id:'deal-soon-3',     genre:'deal',  ready:false, icon:'？' },
     { id:'move-soon-1',     genre:'move',  ready:false, icon:'？' },
     { id:'move-soon-2',     genre:'move',  ready:false, icon:'？' }
@@ -9457,7 +9710,9 @@
     // サーバーはあちら、端末はこちらしか読まないので、食い違うと押せるのに始まらない
     // （食い違いは tests/falsetrue-logic.js が両方向で照合している）
     { id:'falsetrue',       title:'False or True',      icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:12 },
-    { id:'rcard',           title:'ロシアンカード',      icon:'🃏', sub:'あいての9まいに爆弾をしかけ、じぶんの9まいをめくる', maxPlayers:8 }
+    { id:'rcard',           title:'ロシアンカード',      icon:'🃏', sub:'あいての9まいに爆弾をしかけ、じぶんの9まいをめくる', maxPlayers:8 },
+    // 指示55-②：進化じゃんけん。部屋（3人以上）専用。段の配列は shinka-logic.js が正本
+    { id:'shinka',          title:'進化じゃんけん',      icon:'🥚', sub:'おなじ段の人とじゃんけん・勝てば1つ上の段へ進化する', maxPlayers:12 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -9639,6 +9894,9 @@
     // 指示55-①：ロシアンカード。**既定はルール層が持つ**（値をここに書き写さない・落とし穴1）
     rcCfg: { lives:RcardLogic.既定.体力, bombs:RcardLogic.既定.爆弾,
              finalBombs:RcardLogic.既定.決勝の爆弾, turnSec:RcardLogic.既定.持ち時間 },
+    // 指示55-②：進化じゃんけん。**既定はルール層が持つ**（値をここに書き写さない・落とし穴1）
+    shCfg: { ladder:ShinkaLogic.既定.はしご, throwSec:ShinkaLogic.既定.持ち時間,
+             drawMax:ShinkaLogic.既定.あいこ上限, limitSec:ShinkaLogic.既定.打ち切り },
     opts: { describe:'human', seal:'none', survival:false, showSeal:true }, // 第10弾：あそびかたオプション
     needPlayerSetup: false, // 第12弾：次にゲームを始める時にプレイヤー設定を出すか
     /**
@@ -11350,7 +11608,8 @@
     sugoroku: 'theme-sugoroku', falsetrue: 'theme-falsetrue',
     // 指示55-①：ロシアンカード。**ここに足さないと、幕と棚だけ新しい色になり、
     // 遊ぶ画面は染まらない**（CSSもJSもエラーを出さない・落とし穴3）
-    rcard: 'theme-rcard'
+    rcard: 'theme-rcard',
+    shinka: 'theme-shinka'
   };
   function applyGameTheme(screenId){
     var app = el('app');
@@ -11533,6 +11792,13 @@
     // 指示53：False or True の7枚から「7枚の外」へ出た時だけ捨てる。
     // 7枚のあいだを行き来しただけで時計を止めない（落とし穴7・オークションと同じ形）
     if(prevScreen && prevScreen.id.indexOf('scr-rt-ft-') === 0 && id.indexOf('scr-rt-ft-') !== 0) ftLeaveScreen();
+    // 指示55-①：ロシアンカードの3枚から「3枚の外」へ出た時だけ捨てる。
+    // **この行は指示55-② の実装中に見つけて足した**——`rcLeaveScreen` は
+    // 書かれていたのに、**どこからも呼ばれていなかった**（grep で定義の1件だけ）。
+    // 呼ばれないと時計の setInterval が走り続け、置いた場所（rcUi.picked）も残る
+    if(prevScreen && prevScreen.id.indexOf('scr-rt-rc-') === 0 && id.indexOf('scr-rt-rc-') !== 0) rcLeaveScreen();
+    // 指示55-②：進化じゃんけんの3枚から「3枚の外」へ出た時だけ捨てる
+    if(prevScreen && prevScreen.id.indexOf('scr-rt-sh-') === 0 && id.indexOf('scr-rt-sh-') !== 0) shLeaveScreen();
     // 部屋のすごろくを離れる時。連打のタイマーと「押したまま」を必ず捨てる
     if(prevScreen && prevScreen.id === 'scr-rt-sugoroku' && id !== 'scr-rt-sugoroku'){
       if(rtSugo.stop){ rtSugo.stop(); rtSugo.stop = null; }
@@ -11953,6 +12219,7 @@
     falsetruecfg:{ screen:'scr-set-falsetrue', badge:'wizStepFalsetrue',  render:renderFalsetrueStep },
     // 指示55-①：ロシアンカード。2つのモード（いっきうち・生きのこり戦）で1枚を共有する
     rcardcfg:  { screen:'scr-set-rcard',      badge:'wizStepRcard',      render:renderRcardStep },
+    shinkacfg: { screen:'scr-set-shinka',     badge:'wizStepShinka',     render:renderShinkaStep },
     wolfrole:  { screen:'scr-set-wolfrole',   badge:'wizStepWolfRole',   render:renderWolfRoleStep },
     lovers:    { screen:'scr-set-lovers',     badge:'wizStepLovers',     render:renderLoversStep },
     wolfmulti: { screen:'scr-set-wolfmulti',  badge:'wizStepWolfMulti',  render:renderWolfMultiStep },
@@ -11983,6 +12250,7 @@
     // **共通のタイマー画面は挟まない**——持ち時間は「1手番の長さ」で、
     // 全体の制限時間とは別物（オークションの入札と同じ理由）
     if(m.rcard) return ['rcardcfg'];
+    if(m.shinka) return ['shinkacfg'];
     // 第36弾：すごろく。決めることは「突然のできごとを起こすか」だけ。
     // 盤の長さも人数も遊びが決めているので、ここで聞くことは他に無い
     if(m.sugoroku) return ['sugorokucfg'];
@@ -12062,6 +12330,52 @@
     var b = e.target.closest('[data-rcturn]'); if(!b) return;
     state.rcCfg.turnSec = parseInt(b.dataset.rcturn, 10);
     renderRcardStep();
+  });
+
+  /**
+   * 指示55-②：進化じゃんけんの設定。
+   * **段の一覧は markup に書かず、ルール層から描く**（落とし穴4：手書きの一覧を2つ作らない）。
+   * 段を増やした日に、この画面は何もしなくても正しくなる。
+   */
+  function renderShinkaStep(){
+    var c = state.shCfg;
+    var 印 = function(box, attr, 値){
+      Array.prototype.forEach.call(el(box).querySelectorAll('[' + attr + ']'), function(b){
+        b.classList.toggle('on', b.getAttribute(attr) === String(値));
+      });
+    };
+    印('shLadderSeg', 'data-shladder', c.ladder);
+    印('shThrowSeg',  'data-shthrow',  c.throwSec);
+    印('shLimitSeg',  'data-shlimit',  c.limitSec);
+    // **どこまで進化するのかを、始める前に見せる**（大切なこと6：ルールの伝え方は機能の一部）
+    var はしご = ShinkaLogic.ladderOf(c.ladder);
+    // 絵文字は生の字のまま置く。**差し替えは全体の見張り（MutationObserver）がやる**——
+    // ここで EmojiSvg を直に呼ぶと、呼び忘れる場所が1つできる（落とし穴1）
+    el('shLadderPreview').innerHTML = はしご.段.map(function(step, i){
+      return '<span class="sh-step"><span class="sh-step-face">' + escapeHtml(step.絵) +
+        '</span><span class="sh-step-name">' + escapeHtml(step.名) + '</span></span>' +
+        (i < はしご.段.length - 1 ? '<span class="sh-arrow">→</span>' : '');
+    }).join('');
+    el('shThrowNote').textContent =
+      '時間内に出さないと、その回は負けになります。あいこは ' + c.drawMax + '回まで やり直します';
+    el('shLimitNote').textContent =
+      'さいしょに「' + はしご.段[はしご.段.length - 1].名 + '」まで進化した人がゆうしょう。' +
+      'だれも届かなければ、時間でおわって、そのときの段のじゅんばんになります';
+  }
+  el('shLadderSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-shladder]'); if(!b) return;
+    state.shCfg.ladder = b.dataset.shladder;
+    renderShinkaStep();
+  });
+  el('shThrowSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-shthrow]'); if(!b) return;
+    state.shCfg.throwSec = parseInt(b.dataset.shthrow, 10);
+    renderShinkaStep();
+  });
+  el('shLimitSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-shlimit]'); if(!b) return;
+    state.shCfg.limitSec = parseInt(b.dataset.shlimit, 10);
+    renderShinkaStep();
   });
 
   function renderFalsetrueStep(){
@@ -13961,6 +14275,7 @@
     // 指示53：False or True。端末から送るのは「話し合いの長さ」だけ（それ以外は人数から決まる）
     falsetrue: rtFalsetrueConfig,
     rcard: rtRcardConfig,
+    shinka: rtShinkaConfig,
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
     bomb: rtBombConfig,
@@ -14132,6 +14447,19 @@
       bombs: state.rcCfg.bombs,
       finalBombs: state.rcCfg.finalBombs,
       turnSec: state.rcCfg.turnSec
+    };
+  }
+
+  // 指示55-②：進化じゃんけん。**段の配列そのものは送らない**——
+  // 運営が増減できるデータなので、正本はサーバー側の shinka-logic.js に1つだけ置く。
+  // 端末から送るのは「どちらのはしごか」だけ（落とし穴1：一覧を2つ作らない）
+  function rtShinkaConfig(){
+    return {
+      game: 'shinka',
+      ladder: state.shCfg.ladder,
+      throwSec: state.shCfg.throwSec,
+      drawMax: state.shCfg.drawMax,
+      limitSec: state.shCfg.limitSec
     };
   }
 
@@ -15088,6 +15416,9 @@
     place: '爆弾をしかける', turn: 'めくる', show: 'けっか', round: '生きのこり',
     // 指示53：False or True。**`reveal` を使わない**——この表はゲームをまたいだ1枚で、
     // `reveal` はワードウルフの「お題の確認」に取られている（落とし穴2）
+    // 指示55-②：進化じゃんけん。**`reveal` は使わない**——
+    // この表はゲームをまたいだ1枚で、`reveal` はワードウルフの「お題の確認」に取られている
+    match: '組みあわせ', throw: '手を出す', hands: 'けっか',
     pick: 'ケースをえらぶ', peek: '中身をみる', face: '対面', talk: '話し合い',
     decide: '奪うか決める', open: 'ケースが開く'
   };
@@ -15425,7 +15756,9 @@
     sugohide: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
     sugohand: ['scr-rt-sugoroku', 'scr-rt-sugo-result'],
     // 指示55-①：ロシアンカード。置く／めくる／結果の3枚
-    rcard: ['scr-rt-rc-place', 'scr-rt-rc-play', 'scr-rt-rc-result']
+    rcard: ['scr-rt-rc-place', 'scr-rt-rc-play', 'scr-rt-rc-result'],
+    // 指示55-②：進化じゃんけん。発表／手を出す・開く／結果の3枚
+    shinka: ['scr-rt-sh-match', 'scr-rt-sh-play', 'scr-rt-sh-result']
   };
   function rtWantScreen(){
     if(rtIsBigScreen()) return 'scr-rt-big';
@@ -15454,6 +15787,8 @@
       if(game === 'falsetrue') return ftWantScreen();
       // 指示55-①：ロシアンカード。置く／めくる／結果の3枚
       if(game === 'rcard') return rcWantScreen();
+      // 指示55-②：進化じゃんけん。発表／手を出す・開く／結果の3枚
+      if(game === 'shinka') return shWantScreen();
       // 第52弾 52-3：すごろくは決着だけ結果発表へ
       if(SUGO_GAMES.indexOf(game) !== -1) return sugoWantScreen();
       return scr[0];
@@ -15608,6 +15943,27 @@
    * **落とし穴18**：手元の秘密（privateFor）が部屋の知らせに追いつくまで、
    * 古い秘密で1行を組まない。追いついていない時は「観戦」と同じ静かな行にする
    */
+  // 指示55-②：進化じゃんけん。**帯は全段階に出す**（48-2）
+  NOW_LINE.shinka = function(v, you, ctx){
+    var R = NL.shinka, B = R.大画面;
+    if(ctx.isBig){
+      if(v.phase === 'match')  return wait(B.あいて);
+      if(v.phase === 'throw')  return wait(B.出す);
+      if(v.phase === 'hands')  return wait(B.けっか);
+      if(v.phase === 'ended')  return wait(B.決着);
+      return wait('');
+    }
+    // 始まってから入った人には秘密が配られない。**できないことを大きく書かない**
+    if(!you || you.phase !== v.phase) return wait(NL.共通.観戦);
+    if(you.isBye) return wait(R.おやすみ);
+    if(v.phase === 'match')  return wait(R.あいて(you.opponentName || ''));
+    if(v.phase === 'throw'){
+      if(you.myHand) return wait(R.出した);
+      return mine(you.あいこ回数 ? R.あいこ : R.出す);
+    }
+    if(v.phase === 'hands')  return wait(R.けっか);
+    return wait('');
+  };
   NOW_LINE.rcard = function(v, you, ctx){
     var R = NL.rcard, B = R.大画面;
     if(ctx.isBig){
@@ -16322,6 +16678,200 @@
   // 「← 部屋を出る」（rtRcResultLeaveBtn）は名前で拾う仕組みに自動で乗る
   el('rtRcEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
+  // ================= 進化じゃんけん（指示55-②）=================
+  //
+  // **1画面に1つのこと。**2-7 の並びは「いまの自分の段が一番大きい → 相手 → 手のボタン」。
+  // **他の人の段は、この画面に出さない**（禁止事項）。順位表（部品B）で見る。
+
+  var SH_PHASE_SCREEN = {
+    match:  'scr-rt-sh-match',
+    throw:  'scr-rt-sh-play',
+    hands:  'scr-rt-sh-play',
+    ended:  'scr-rt-sh-result'
+  };
+  var shClock = { ms: null, at: 0, timer: null };
+  var shUi = { sent: null };   // 端末だけの状態
+
+  function shWantScreen(){
+    var v = rtView();
+    if(!v || !v.phase) return 'scr-rt-sh-match';
+    return SH_PHASE_SCREEN[v.phase] || 'scr-rt-sh-play';
+  }
+  /** 画面を離れる時に、走っているものを必ず捨てる（落とし穴7・17／良い型3） */
+  function shLeaveScreen(){
+    clearInterval(shClock.timer); shClock.timer = null;
+    shClock.ms = null;
+    shUi.sent = null;
+  }
+  function shSetClock(ms){ shClock.ms = ms; shClock.at = Date.now(); }
+  function shLeftSec(){
+    if(shClock.ms == null) return null;
+    return Math.max(0, Math.round((shClock.ms - (Date.now() - shClock.at)) / 1000));
+  }
+  /** いまの画面の時計。**画面ごとの id を名前で書く**（rcTimerEl と同じ理由） */
+  function shTimerEl(){
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    var map = { 'scr-rt-sh-match':'shMatchTimer', 'scr-rt-sh-play':'shPlayTimer' };
+    return map[cur] ? el(map[cur]) : null;
+  }
+  function shRenderTimer(){
+    var d = shTimerEl();
+    if(!d) return;
+    var sec = shLeftSec();
+    if(sec == null){ d.style.display = 'none'; return; }
+    d.style.display = 'inline-block';
+    d.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
+    timerChipTick(d, sec, { vibe:true });
+  }
+  function shStartClock(){
+    if(shClock.timer) return;
+    shClock.timer = setInterval(shRenderTimer, 250);
+  }
+
+  // ---- 小さな部品（3枚で共有する。画面ごとに書かない） ----
+  function shMeId(){ return rt.state.memberId; }
+  function shYou(){ return rt.state.secret || null; }
+  /** 自分が入っている組。**AI戦もふつうの組と同じ形で入っている**（見分けない） */
+  function shMyMatch(v, me){
+    return (v && v.matches || []).filter(function(m){ return m.a === me || m.b === me; })[0] || null;
+  }
+  /** 段の絵と名前。**正本は publicView の 段**（端末に一覧を書き写さない・落とし穴4） */
+  function shTierOf(v, no){
+    var 段 = (v && v.段) || [];
+    if(!段.length) return { no:1, 絵:'', 名:'' };
+    return 段[Math.max(0, Math.min(段.length - 1, no || 0))];
+  }
+  /** 手の絵。**3すくみの表は借り物**だが、絵は画面の話なのでここに置く */
+  var SH_HANDS = [['g','✊','グー'],['c','✌️','チョキ'],['p','✋','パー']];
+  function shHandFace(h){
+    var found = SH_HANDS.filter(function(x){ return x[0] === h; })[0];
+    return found ? found[1] : '';
+  }
+  /**
+   * 「いまの自分の段」の札。**この画面でいちばん大きいもの**（2-7）。
+   * 進化した瞬間だけ動かす——`v.moves` に自分が居る回だけ（正本 §4「意味を持つ時だけ」）。
+   */
+  function shMeHtml(v, me){
+    var you = shYou();
+    var no = you ? you.myRank : 0;
+    var t = shTierOf(v, no);
+    var 動 = (v.moves || []).filter(function(d){ return d.id === me; })[0];
+    var cls = 'sh-me' + (動 ? (動.後 > 動.前 ? ' is-up' : ' is-down') : '');
+    return '<div class="' + cls + '">' +
+      '<span class="sh-me-face">' + escapeHtml(t.絵) + '</span>' +
+      '<span class="sh-me-name">' + escapeHtml(t.名) + '</span>' +
+      '<span class="sh-me-no">' + t.no + ' / ' + ((v.段 || []).length || 1) + 'だんめ</span>' +
+      '</div>';
+  }
+  /** 相手の札。**AIかどうかは見分けない**（指示書2-8・publicView にも印が無い） */
+  function shVsHtml(v, me, 開く){
+    var you = shYou();
+    if(!you) return '';
+    if(you.isBye){
+      // **「不戦勝」と言わない**（②では勝っていない）。次は必ず当たる、と伝える
+      return '<div class="sh-vs"><span class="sh-vs-mid">こんかいは おやすみ。つぎは かならず たいせんします</span></div>';
+    }
+    if(!you.opponentName) return '';
+    var m = shMyMatch(v, me);
+    var 私の手 = m ? (m.a === me ? m.aHand : m.bHand) : null;
+    var 相手の手 = m ? (m.a === me ? m.bHand : m.aHand) : null;
+    var 顔 = function(h){
+      if(!開く || !h) return '';
+      return '<span class="sh-vs-hand">' + escapeHtml(shHandFace(h)) + '</span>';
+    };
+    return '<div class="sh-vs">' +
+      '<span class="sh-vs-name">じぶん</span>' + 顔(私の手) +
+      '<span class="sh-vs-mid">VS</span>' +
+      顔(相手の手) + '<span class="sh-vs-name">' + escapeHtml(you.opponentName) + '</span>' +
+      '</div>';
+  }
+
+  // ---- ① 組み合わせの発表 ----
+  function renderRtShMatch(){
+    var v = rtView(); if(!v) return;
+    shSetClock(v.remainingMs); shStartClock(); shRenderTimer();
+    var me = shMeId(), you = shYou();
+    // **秘密が部屋の段階に追いつくまで、この画面は何もしない**（落とし穴18）
+    if(!you || you.phase !== v.phase){ el('shMatchNote').textContent = ''; return; }
+    el('shMatchMe').innerHTML = shMeHtml(v, me);
+    el('shMatchVs').innerHTML = shVsHtml(v, me, false);
+    el('shMatchNote').textContent = you.isBye
+      ? 'ほかの人が たいせんしています。すこし まってください'
+      : 'おなじ段の人と たいせんします。まもなく はじまります';
+  }
+
+  // ---- ② 手を出す／開く ----
+  function renderRtShPlay(){
+    var v = rtView(); if(!v) return;
+    shSetClock(v.remainingMs); shStartClock(); shRenderTimer();
+    var me = shMeId(), you = shYou();
+    if(!you || you.phase !== v.phase){ el('shPlayNote').textContent = ''; return; }
+    var 開く = (v.phase === 'hands');
+    el('shPlayTitle').textContent = 開く ? 'けっか' : '手を出す';
+    el('shPlayMe').innerHTML = shMeHtml(v, me);
+    el('shPlayVs').innerHTML = shVsHtml(v, me, 開く);
+
+    // **手のボタンは、出す段階にだけ出す**（1画面1つのこと）
+    if(開く || you.isBye || you.done){
+      el('shPlayHands').innerHTML = '';
+    } else {
+      el('shPlayHands').innerHTML = SH_HANDS.map(function(h){
+        var on = (you.myHand === h[0]) ? ' on' : '';
+        return '<button class="btn btn-outline sh-hand' + on + '" data-sh-hand="' + h[0] + '"' +
+          (you.myHand ? ' disabled' : '') + '>' +
+          '<span class="sh-hand-face">' + escapeHtml(h[1]) + '</span>' +
+          '<span class="sh-hand-name">' + escapeHtml(h[2]) + '</span></button>';
+      }).join('');
+    }
+
+    var m = shMyMatch(v, me);
+    if(you.isBye){
+      el('shPlayNote').textContent = 'こんかいは おやすみです';
+    } else if(開く){
+      // **責める時は静かに**（原則C）。負けても、次があることだけを言う
+      var 私の側 = m ? (m.a === me ? 'a' : 'b') : null;
+      var 勝 = (m && m.winner) ? (m.winner === 私の側) : null;
+      el('shPlayNote').textContent = (m && m.引き分け) ? 'あいこが つづいたので、ひきわけです'
+        : (勝 === true ? 'かちました' : (勝 === false ? 'つぎは かてます' : 'あいこ。もういちど'));
+    } else {
+      el('shPlayNote').textContent = you.myHand
+        ? 'あいての手を まっています'
+        : (you.あいこ回数 ? 'あいこでした。もういちど 手を出してください' : '3つのうち、1つをえらんでください');
+    }
+  }
+
+  // ---- ③ 結果 ----
+  function renderRtShResult(){
+    var v = rtView(); if(!v) return;
+    var res = v.result;
+    if(!res){ putRanking(el('shRsRank'), ''); el('shRsWin').textContent = ''; return; }
+    el('shRsWin').textContent = res.winner ? '🏆 ' + res.winner : '';
+    // 指示55 §11-7：**順位表は共通の1部品**。スマホは自分の行へ寄る（部品B）
+    putRanking(el('shRsRank'), rankingHtml((res.ranking || []).map(function(row){
+      return {
+        id: row.id, rank: row.rank, name: row.name,
+        main: row.段絵 + ' ' + row.段名
+      };
+    }), { showFace: true, meId: rt && rt.state && rt.state.memberId }));
+    var host = rt.isHost();
+    el('rtShAgainBtn').style.display = host ? '' : 'none';
+    el('rtShEndBtn').style.display = host ? '' : 'none';
+  }
+
+  // ---- 押した時 ----
+  el('shPlayHands').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-sh-hand]');
+    if(!b || b.disabled) return;
+    var h = b.dataset.shHand;
+    // **押した瞬間に止める**（連打で二重に送らない）
+    Array.prototype.forEach.call(this.querySelectorAll('[data-sh-hand]'), function(x){ x.disabled = true; });
+    FxKit.vibe('tick');
+    await rt.act(null, { hand: h });
+  });
+  // 「つぎは？」は一覧の側（rtAgainBtn の並び）で結線する。
+  // 「← 部屋を出る」（rtShResultLeaveBtn）は名前で拾う仕組みに自動で乗る
+  el('rtShEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
+
   function rtRenderCurrent(){
     var cur = (document.querySelector('.screen.active') || {}).id;
     // 第24弾-3：部屋のゲームが分かった時点でテーマを当て直す。
@@ -16371,6 +16921,9 @@
     else if(cur === 'scr-rt-rc-place') renderRtRcPlace();
     else if(cur === 'scr-rt-rc-play') renderRtRcPlay();
     else if(cur === 'scr-rt-rc-result') renderRtRcResult();
+    else if(cur === 'scr-rt-sh-match') renderRtShMatch();
+    else if(cur === 'scr-rt-sh-play') renderRtShPlay();
+    else if(cur === 'scr-rt-sh-result') renderRtShResult();
     else if(cur === 'scr-rt-sugoroku') renderRtSugoroku();
     else if(cur === 'scr-rt-sugo-result') renderRtSugoResult();
     else if(cur === 'scr-rt-play') renderRtPlay();
@@ -18865,6 +19418,68 @@
     el('bigRank').innerHTML = '';
   }
 
+  /**
+   * 指示55-②：進化じゃんけんの大画面。
+   *
+   * **主役は「ランクの階段」**（§11-3・指示書2-6）——段ごとに、いま何人いるか。
+   * 誰がどの段にいるかが一目で分かる形にする。
+   *
+   * §11-1 の「共通／個人」の二分に収まらない**第3の形**（宿題23の4件目）：
+   * 材料は人ごとに違う値（各人の段）だが、見どころは**卓の全員が同じものを見る**。
+   * 55-① の決勝の対戦カードと同じ扱いで、**先に §11 を書き換えず、仮に置く**。
+   *
+   * **秘密は映さない**（§11-6）：出す前の手は `publicView` に無いので、
+   * ここで気をつけるのは「AIの印を出さない」こと——`v.matches` には
+   * 種別も機械の印も入っていないので、ふつうの組としてそのまま並べればよい。
+   * **「（ひとり）」のような専用の書き方は作らない**（本人の裁定 2026-09-20）。
+   */
+  function renderRtBigShinka(v){
+    el('bigPhase').textContent = RT_PHASE_LABEL[v.phase] || '';
+    var 段 = v.段 || [];
+
+    if(v.phase === 'ended'){
+      var res = v.result || {};
+      el('bigMain').textContent = res.winner || '';
+      el('bigSub').textContent = res.winner ? (res.優勝 ? 'さいごまで進化した' : 'いちばん上の段') : '';
+      el('bigRank').innerHTML = rankingHtml((res.ranking || []).map(function(row){
+        return { id: row.id, rank: row.rank, name: row.name,
+                 main: row.段絵 + ' ' + row.段名 };
+      }), { showFace: true });   // **大画面には meId を渡さない**（§11-6：二人称を使わない）
+      el('bigList').innerHTML = '';
+      return;
+    }
+
+    // **一枚看板（.big-main）は短い見出しの器**（§11-3）。
+    // 階段そのものは名簿の器（#bigList）に置く——段の数だけ行が要るので、
+    // 一枚看板に入れると溢れる（宿題17）
+    var 最上 = 段.length ? 段[段.length - 1] : null;
+    var 到達 = (v.players || []).filter(function(p){ return p.rank === 段.length - 1; }).length;
+    el('bigMain').textContent = 最上 ? (最上.絵 + ' ' + 最上.名) : '';
+    el('bigSub').textContent = 最上
+      ? (到達 ? 到達 + '人が とうたつ' : 'ここを めざしています')
+      : '';
+
+    // ---- 主役：段の階段（下が最下段・上が最終形。CSS が column-reverse で積む）----
+    var 動いた = {};
+    (v.moves || []).forEach(function(d){ if(d.後 > d.前) 動いた[d.id] = true; });
+    // **器そのものにクラスを足さない。**足すと、次に別のゲームを描いた時に残る
+    // （落とし穴：残骸。良い型2「毎描画の自己リセット」に合わせて、中に箱を作る）
+    el('bigList').innerHTML = '<div class="sh-stairs">' + 段.map(function(t, i){
+      var 居る = (v.players || []).filter(function(p){ return p.rank === i && !p.gone; });
+      return '<div class="sh-tier">' +
+        '<span class="sh-tier-face">' + escapeHtml(t.絵) + '</span>' +
+        '<span class="sh-tier-name">' + escapeHtml(t.名) + '</span>' +
+        '<span class="sh-tier-who">' + 居る.map(function(p){
+          return '<span class="sh-who' + (動いた[p.id] ? ' is-up' : '') + '">' +
+            escapeHtml(p.name || '') + '</span>';
+        }).join('') + '</span>' +
+        '<span class="sh-tier-count">' + 居る.length + '</span>' +
+        '</div>';
+    }).join('') + '</div>';
+
+    el('bigRank').innerHTML = '';
+  }
+
   function renderRtBig(){
     var v = rtView();
     var room = rt && rt.state.room;
@@ -18954,6 +19569,8 @@
     // 指示55-①：ロシアンカード。**ここに1行足さないと人狼の本体に落ちる**——
     // 落ちると v.players の alive を見て全員に💀 を付ける（False or True で実際に起きた）
     if(rtRoomGameId() === 'rcard') return 描いてから(function(){ renderRtBigRcard(v); });
+    // 指示55-②：進化じゃんけん。**主役は段の階段**（§11-3）
+    if(rtRoomGameId() === 'shinka') return 描いてから(function(){ renderRtBigShinka(v); });
     if(rtIsWordwolf()) return 描いてから(function(){ renderRtBigWordwolf(v); });
 
     var main = '', sub = '';

@@ -31,7 +31,12 @@ const SOURCES = [
   'public/js/defuse-logic.js',
   'public/js/auction-items.js',
   'public/js/auction-logic.js',
-  'public/js/quiz-logic.js'
+  'public/js/quiz-logic.js',
+  // 指示55-②：進化じゃんけんの「段」の絵文字は、ルール層がデータとして持っている
+  // （段の配列は運営が増減できるので、画面に直書きしない）。
+  // **ここに1行足さないと、SVGを置き忘れても誰も赤くしない**——
+  // tests/shelf.js:1044 の見張りは、この一覧を正本にしているから（落とし穴4）
+  'public/js/shinka-logic.js'
 ];
 // 絵文字にしないもの。UIの部品として文字で出ているのが正しく、Twemojiにも無い
 // （2713 ✓ は第32弾-D 第4部・安全の案内のチェック印）

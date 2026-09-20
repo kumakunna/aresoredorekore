@@ -126,6 +126,9 @@ const ROOM_EXIT_PATHS = [
   // 指示55-①：ロシアンカード。出口は結果発表の1枚だけ（進行中の2枚には置かない）
   { id: 'rcard-result-leave', kind: 'leave', btn: 'rtRcResultLeaveBtn', event: 'room:leave',
     label: 'ロシアンカード結果発表「← 部屋を出る」' },
+  // 指示55-②：進化じゃんけん。出口は結果発表の1枚だけ（進行中の2枚には置かない）
+  { id: 'shinka-result-leave', kind: 'leave', btn: 'rtShResultLeaveBtn', event: 'room:leave',
+    label: '進化じゃんけん結果発表「← 部屋を出る」' },
   { id: 'big-leave', kind: 'leave', btn: 'bigLeaveBtn', event: 'room:leave',
     label: '大画面「← 部屋を出る」' },
   { id: 'settings-leave', kind: 'leave', btn: null, event: 'room:leave',
@@ -188,7 +191,9 @@ const RT_START_MIN_CONFIG = {
   // 指示53：False or True。ケースの数も中身の比も人数から決まるので、送るのは話し合いの長さだけ
   falsetrue: { game: 'falsetrue', talkSec: 30 },
   // 指示55-①：ロシアンカード。盤の形（3×3）はルール層が持っているので、送るのは決めごとだけ
-  rcard: { game: 'rcard', lives: 3, bombs: 3, finalBombs: 5, turnSec: 15 }
+  rcard: { game: 'rcard', lives: 3, bombs: 3, finalBombs: 5, turnSec: 15 },
+  // 指示55-②：進化じゃんけん。段の配列はルール層が持っているので、送るのは「どちらのはしごか」と決めごとだけ
+  shinka: { game: 'shinka', ladder: 'normal', throwSec: 3, drawMax: 3, limitSec: 600 }
 };
 
 // ---- 画面とオーバーレイの一覧（第35弾C：体験品質監査の正本） ----

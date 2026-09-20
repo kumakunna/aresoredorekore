@@ -1,0 +1,250 @@
+[
+  {
+    "name": "55-2-S1 出した手を publicView にそのまま載せる（秘匿の芯）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "    throwSec: w.cfg.throwSec,\n    drawMax: w.cfg.drawMax,",
+    "to": "    throwSec: w.cfg.throwSec,\n    sealed: w.封じた手,\n    drawMax: w.cfg.drawMax,",
+    "expect": "9通りどの手でも publicView が同じ"
+  },
+  {
+    "name": "55-2-S2 符号化して紛れ込ませる（針では絶対に見つからない形・53-Q4C と同じ手）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "    throwSec: w.cfg.throwSec,\n    drawMax: w.cfg.drawMax,",
+    "to": "    throwSec: w.cfg.throwSec + Object.keys(w.封じた手).length * 0,\n    drawMax: w.cfg.drawMax + ('gcp'.indexOf(Object.values(w.封じた手)[0] || 'g')) * 0.0001,",
+    "expect": "9通りどの手でも publicView が同じ"
+  },
+  {
+    "name": "55-2-S3 開く前に手を出す（段階の境目を外す）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "  const 開いてよい = (w.phase === PHASE.REVEAL || w.phase === PHASE.ENDED);",
+    "to": "  const 開いてよい = true;",
+    "expect": "開く前は、どの組の手も null"
+  },
+  {
+    "name": "55-2-S4 相手の手も本人に返す（privateFor の境目を外す）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "    myHand: w.封じた手[memberId] || null,",
+    "to": "    myHand: w.封じた手[memberId] || null,\n    foeHand: 相手 ? (w.封じた手[相手] || null) : null,",
+    "expect": "a の手元に b の手が無い"
+  },
+  {
+    "name": "55-2-S5 大画面（名簿に無いid）にも秘密を配る",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "  if (!w || w.playerIds.indexOf(memberId) === -1) return null;\n  const m = matchOf(room, memberId);",
+    "to": "  if (!w) return null;\n  const m = matchOf(room, memberId);",
+    "expect": "大画面にも null"
+  },
+  {
+    "name": "55-2-S6 AIの印（機械）を publicView に載せる",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "      done: m.done,\n      引き分け: m.引き分け,",
+    "to": "      done: m.done,\n      機械: m.機械,\n      引き分け: m.引き分け,",
+    "expect": "「機械」の印が無い"
+  },
+  {
+    "name": "55-2-S7 組の種別を publicView に載せる（'機械' が出たらAIが分かる）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "      done: m.done,\n      引き分け: m.引き分け,",
+    "to": "      done: m.done,\n      種別: m.種別,\n      引き分け: m.引き分け,",
+    "expect": "組の種別が出ない"
+  },
+  {
+    "name": "55-2-S8 勝者を id で公開する（AIが勝った回に、名簿に無いidが載る）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "      winner: m.done ? (m.winner === m.a ? 'a' : (m.winner === m.b ? 'b' : null)) : null",
+    "to": "      winner: m.done ? m.winner : null",
+    "expect": "勝者は id ではなく a/b で言う"
+  },
+  {
+    "name": "55-2-S9 AIのidを playerIds に入れる（reapGone が毎回 不戦敗にする）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "      const aiId = newAiId(rnd);",
+    "to": "      const aiId = newAiId(rnd); w.playerIds.push(aiId);",
+    "expect": "AIの id は playerIds に無い"
+  },
+  {
+    "name": "55-2-R1 「挑戦」の特典を、同じ段に仲間がいる人にも配る（門の文書1-4の回帰）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "      { 理由: 種別.挑戦, 候補: function (名簿, 人) {\n        if (!ひとりか(名簿, 人)) return [];",
+    "to": "      { 理由: 種別.挑戦, 候補: function (名簿, 人) {\n        if (false) return [];",
+    "expect": "同段に仲間がいる人に、挑戦の印は付かない"
+  },
+  {
+    "name": "55-2-R2 第3希望「肩慣らし」を外す（門の文書1-2の回帰：組めるはずの1組が消える）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "      { 理由: 種別.肩慣らし, 候補: function (名簿, 人) {\n        if (!ひとりか(名簿, 人)) return [];\n        return 名簿.filter(function (x) { return 段(x) === 段(人) - 1; });\n      } }",
+    "to": "      { 理由: 種別.肩慣らし, 候補: function (名簿, 人) {\n        return [];\n      } }",
+    "expect": "1組できる"
+  },
+  {
+    "name": "55-2-R3 両方が1人ランクの時、盤面ではなく印で決める（論点⑧が順に依る形に戻す）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "    return (低い方の段の人数 === 1) ? 種別.挑戦 : 種別.肩慣らし;",
+    "to": "    return (理由 === 種別.挑戦) ? 種別.挑戦 : 種別.肩慣らし;",
+    "expect": "500種すべてで挑戦"
+  },
+  {
+    "name": "55-2-R4 挑戦に勝ったら、チャンピオンにもなれてしまう（1つ手前で止めない）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "        次[挑].段 = Math.min(最終段 - 1, 次[挑].段 + 2);",
+    "to": "        次[挑].段 = Math.min(最終段, 次[挑].段 + 2);",
+    "expect": "最終段の1つ手前で止まる"
+  },
+  {
+    "name": "55-2-R5 挑戦者が、負けたら落ちる（「絶対に落ちない」を外す）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "      } else {\n        // **相手は勝っても上がらない**（指示書2-2）\n        次[受].挑戦を受けた++;",
+    "to": "      } else {\n        // **相手は勝っても上がらない**（指示書2-2）\n        次[受].挑戦を受けた++;\n        負けを数える(挑);",
+    "expect": "落ちない"
+  },
+  {
+    "name": "55-2-R6 受けた側の「1回目は落ちない」を外す",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "        if (次[受].挑戦を受けた > 1) 負けを数える(受);",
+    "to": "        負けを数える(受);",
+    "expect": "1回目は連敗に数えない"
+  },
+  {
+    "name": "55-2-R7 肩慣らしで、勝った方が上がってしまう（新規則を外す）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "    if (入.種別 === 種別.肩慣らし) {",
+    "to": "    if (false) {",
+    "expect": "勝った方も動かない"
+  },
+  {
+    "name": "55-2-R8 最下段でも落ちてしまう（下限の片方向チェック）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "        次[id].段 = Math.max(0, 次[id].段 - 1);   // **最下段は落ちない**",
+    "to": "        次[id].段 = 次[id].段 - 1;",
+    "expect": "最下段は落ちない"
+  },
+  {
+    "name": "55-2-R9 上がっても連敗がリセットされない",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "      次[id].連敗 = 0;                       // **上がったら連敗はリセット**（指示書2-2）",
+    "to": "      次[id].連敗 = 次[id].連敗;",
+    "expect": "連敗が消えた"
+  },
+  {
+    "name": "55-2-R10 AIの分布を 50/50 にする（門U7）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "  var AI分布 = { 負け: 0.75, 勝ち: 0.10 };  // 残り 0.15 があいこ",
+    "to": "  var AI分布 = { 負け: 0.50, 勝ち: 0.50 };  // 残り 0 があいこ",
+    "expect": "人の勝ち≒75%"
+  },
+  {
+    "name": "55-2-R11 CS版の優勝を「到達」にする（はしごごとの読みを1つに潰す）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "      優勝: '席で勝つ',",
+    "to": "      優勝: '到達',",
+    "expect": "読みが席で勝つ"
+  },
+  {
+    "name": "55-2-R12 3すくみを自前で持つ（表が2つになる・落とし穴1）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "  var BEATS = Mini.BEATS;    // { g:'c', c:'p', p:'g' }  ＝ 鍵が、値に勝つ",
+    "to": "  var BEATS = { g: 'c', c: 'p', p: 'g' };",
+    "expect": "BEATS は借り物（同一オブジェクト）"
+  },
+  {
+    "name": "55-2-R13 出さなかったら「あいこ」にする（指示書2-3：出さなかったら負け）",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "    if (!a) return 'b';             // 出さなかったら負け\n    if (!b) return 'a';",
+    "to": "    if (!a) return 'draw';\n    if (!b) return 'draw';",
+    "expect": "出さなかったら負け"
+  },
+  {
+    "name": "55-2-R14 順位で、同じ段を同着にしない",
+    "file": "public/js/shinka-logic.js",
+    "suite": "tests/shinka-logic.js",
+    "from": "      if (x.段 !== 前) { 位 = 見た; 前 = x.段; }",
+    "to": "      { 位 = 見た; 前 = x.段; }",
+    "expect": "同じ段は同着"
+  },
+  {
+    "name": "55-2-P1 手を出す段階を、全員そろったら早送りする（進む速さがAIの指紋になる）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "  // 3秒は全員に同じ拍で流れるのが正しい（指示書2-3）\n  return false;",
+    "to": "  return expectedMembers(room).length === 0;",
+    "expect": "それでも「全員済み」にはしない"
+  },
+  {
+    "name": "55-2-P2 10分の期限を、段階の期限で上書きする（門の文書4-3）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "  w.deadline = (段階の期限 == null) ? w.endsAt : Math.min(段階の期限, w.endsAt);",
+    "to": "  w.deadline = 段階の期限;",
+    "expect": "段階の期限が全体の期限を追い越さない"
+  },
+  {
+    "name": "55-2-P3 あいこの上限を外す（永久にやり直す）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "      if (m.あいこ回数 >= w.cfg.drawMax) {",
+    "to": "      if (false) {",
+    "expect": "引き分けで決着"
+  },
+  {
+    "name": "55-2-P4 AI戦の最中に人が抜けたら、AIを勝者にする（指示書2-9）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "    if (m.機械) { m.done = true; m.winner = null; m.引き分け = true; return; }",
+    "to": "    if (m.機械) { m.done = true; m.winner = m.b; return; }",
+    "expect": "勝者を立てない"
+  },
+  {
+    "name": "55-2-P5 途中参加を入れない（空白の画面のまま最大10分・門の文書4-2）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "  playersOf(room).forEach((m) => { 入れる(room, m); });",
+    "to": "  ;",
+    "expect": "次の回から名簿に入った"
+  },
+  {
+    "name": "55-2-P6 あぶれた人のランクを上げる（禁止：不戦勝でランクを上げる）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "      w.byeIds.push(x.id);",
+    "to": "      w.byeIds.push(x.id); w.状態[x.id].段 = Math.min(w.はしご.段.length - 1, w.状態[x.id].段 + 1);",
+    "expect": "段が動かない"
+  },
+  {
+    "name": "55-2-P7 AIの手を、相手の手を見る前に引く（75/10/15 が作れなくなる）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "    if (m.機械) w.封じた手[m.b] = L.aiHand(w.封じた手[m.a], rnd);",
+    "to": "    if (m.機械) w.封じた手[m.b] = L.aiHand(null, rnd);",
+    "expect": "AI戦の勝敗が、相手の手に依存する"
+  },
+  {
+    "name": "55-2-P8 挑戦者を、部品Aの理由から決める（段の大小で決めない）",
+    "file": "shinka-room.js",
+    "suite": "tests/shinka-room.js",
+    "from": "    const 挑戦者 = (段A < 段B) ? g.a : g.b;     // **段から決める**（理由の文字列に頼らない）",
+    "to": "    const 挑戦者 = g.a;",
+    "expect": "挑戦の向きが段と一致する"
+  }
+]

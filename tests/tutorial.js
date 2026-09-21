@@ -377,17 +377,69 @@ async function run() {
       doc.getElementById('app').appendChild(的);
       的.getBoundingClientRect = () => ({ left: 20, top: 30, width: 60, height: 60, right: 80, bottom: 90 });
 
-      const 返り = win.TutorialKit.start([{ 的: '.tut-ためしの的', 文: 'ここ', 待つ: 'tap' }]);
-      await sleep(win, 60);
+      // **本物の道を通す。**
+      // 最初これを `TutorialKit.start` の直呼びで書いたら、
+      // 「止められた時も『見た』にする」という変異が**素通りした**——
+      // 印を立てているのは `tutRun` の中なので、直呼びではその行を一度も通らず、
+      // 最後の主張が**自明に成立していた**（落とし穴10-b：条件が作れていない）。
+      // 呼ぶ道（聞く → 動かす）から入って、初めて意味のある検査になる
+      const 止める = autoDialog(win, doc, true);
+      assertEqual(await win.tutProbe().聞く('bomb'), true, '前提：「見る」まで行けている');
+      止める();
+      const 返り = win.tutProbe().動かす('bomb');
+      await sleep(win, 80);
       assert(win.TutorialKit.いま(), '前提：出ている');
 
       // 退室・通信断・決着はすべてこの形で止まる（2-8）
       win.TutorialKit.stop('gone');
-      const 結果 = await 返り;
-      assertEqual(結果.理由, 'gone', '理由が違う');
+      await 返り;
       assertEqual(doc.querySelector('.tut-root').hidden, true, '止めたのに幕が残っている');
       // **次にまた聞く**——途中で切れた人が、二度と見られないことにならないように
       assertEqual(win.tutProbe().初めて, true, '止められただけで「見た」になっている');
+
+    } finally { win.close(); }
+  });
+
+  await r.test('57-4：本物の台本を最後まで通すと「見た」になる（門W4の対照）', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true });
+    try {
+      // **上の検査だけだと、「いつも印を立てない」実装でも通ってしまう。**
+      // 止めた時に立たないことと、最後まで見たら立つことは、対で見る
+      const 置く = (cls, top) => {
+        const d = doc.createElement('div');
+        d.className = cls;
+        doc.getElementById('app').appendChild(d);
+        d.getBoundingClientRect = () => ({ left: 20, top: top, width: 60, height: 60,
+          right: 80, bottom: top + 60 });
+        return d;
+      };
+      const マス = 置く('bomb-wire-btn', 60);   // 1手目の的
+      置く('bomb-lives', 300);                  // 3手目の的
+      // 4手目（.bomb-wire-btn.missed）は置かない＝猶予のあと飛ぶ（門W9も一緒に通る）
+
+      const 止める = autoDialog(win, doc, true);
+      assertEqual(await win.tutProbe().聞く('bomb'), true, '前提：「見る」まで行けている');
+      止める();
+      const 返り = win.tutProbe().動かす('bomb');
+
+      await sleep(win, 100);
+      assertEqual(win.TutorialKit.いま().手, 1, '1手目に着いていない');
+      マス.click();                              // 「コードをえらぶ」
+      // 2手目の的（3択）は、部屋では往復のあとに現れる。ここでも遅れて出す
+      await sleep(win, 120);
+      const 重なり = doc.createElement('div');
+      重なり.className = 'overlay show';
+      重なり.innerHTML = '<button class="pk-btn">こたえ</button>';
+      doc.getElementById('app').appendChild(重なり);
+      重なり.querySelector('.pk-btn').getBoundingClientRect =
+        () => ({ left: 20, top: 500, width: 200, height: 50, right: 220, bottom: 550 });
+      await sleep(win, 150);
+      assertEqual(win.TutorialKit.いま().手, 2, '遅れて出た3択に着いていない');
+      重なり.querySelector('.pk-btn').click();   // 「こたえをえらぶ」
+
+      const 結果 = await 返り;                   // 3手目(auto 2秒) → 4手目(無いので猶予) → done
+      assert(結果, '動かせていない');
+      assertEqual(win.tutProbe().初めて, false, '最後まで見たのに「見た」になっていない');
     } finally { win.close(); }
   });
 

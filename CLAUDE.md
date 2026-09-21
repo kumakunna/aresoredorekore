@@ -572,6 +572,11 @@
 - リアルタイム同期の土台は`realtime.js`。ゲームごとの進行役は`GAME_DRIVERS`に登録するだけで繋がる形（`wolf-room.js`, `bomb-room.js`など）
 - 演出の共通部品は`public/js/fx.js`（`hold`, `flash`, `banner`, `flip`, `countUp`, `stagger`, `fly`, `alive`, `notice`など）。**新しい演出は、ここに追加する形で作る。ゲームごとに個別実装しない**
 - 称号システムは`public/js/titles.js`（`STAT_SHAPE`にカウンタ、`CATALOG`にパーツを追加する形）
+- 初プレイのチュートリアルは`public/js/tutorial.js`（指示57）。
+  **カセットごとに「手順の台本」を渡すだけ**で、ゲーム側にロジックを書かない。
+  出すかどうかは `tutAsk`／`tutRun`（index.html）の1か所が全部の門を通る——
+  **出す側に条件を書かせない**（良い型1・4）。
+  穴は `clip-path`、置き場は `#uiLayerRoot`。**理由は `docs/監査_指示57の門.md` 2節に実測で残してある**
 - 絵文字はTwemoji（SVG）に統一済み。新しい絵文字を使う時は `node tools/gen-emoji-list.js --fetch` を実行する
 - `npm test`：全テストを1コマンドで実行（`tools/run-tests.js`）。
   **走らせるスイートは `tests/` から導く**（`createRunner` を持つファイル）ので、
@@ -586,6 +591,15 @@
 - **実サーバーでログインが要る検証は `/dev-login`。** `node tools/dev-server.js`
   （または launch.json の `aresore-dev`）で起動し、`http://localhost:3001/dev-login` を
   一度開けば検証用ユーザーのセッションが張れる。**パスワードは要らない・アカウント作成も要らない**
+  - **「初めての人」の検証に、この口は使えない**（指示57）。
+    検証用ユーザー（`kensho34`）には**遊んだ記録がたまっていく**——
+    実際 `bakudan.plays` は **9** だった。しかもサーバー側の stats は単調増加なので、
+    **0に戻す道が無い**（`/api/titles` に小さい値を送っても下がらない）。
+  - **初回の検証は、別オリジンのゲストで部屋に入る。**
+    `http://127.0.0.1:3001/` は `localhost` と `localStorage` が分かれるうえ、
+    **部屋はログイン不要**なので、そのままゲスト＝記録ゼロの人になれる。
+    進行役だけ `localhost`（`/dev-login` 済み）で立てる。
+    ※**手渡しはログインが要る**ので、この手ではゲストの手渡しを検証できない
 - **複数端末をつなぐ検証は `node tools/room-bots.js --code ABC123 --n 3 --ready`。**
   部屋は先にブラウザ側（`/dev-login` 済み）で立て、出たコードを渡す
 - **2台目のブラウザは、別オリジンで作る**（第45弾で見つけた）。

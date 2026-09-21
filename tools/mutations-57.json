@@ -126,5 +126,13 @@
     "from": "      { 的:'.overlay.show .picker-grid',  文:T.こたえる, 待つ:'tap' }",
     "to": "      { 的:'.overlay.show .pk-btn',  文:T.こたえる, 待つ:'tap' }",
     "expect": "本物の台本を最後まで通すと「見た」になる"
+  },
+  {
+    "name": "57-R 閉じるを 40px に縮める（正本§7-0e：押す的は44pxを割らない）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "    width:44px;height:44px;border-radius:50%;font-size:var(--fs-sub);",
+    "to": "    width:40px;height:40px;border-radius:50%;font-size:var(--fs-sub);",
+    "expect": "幕は指を受け、光の点滅を切ると輪が止まる"
   }
 ]

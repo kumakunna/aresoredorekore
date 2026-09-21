@@ -1382,9 +1382,13 @@
   .tut-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
   /* 残りが見えると、人は最後まで見る */
   .tut-count{font-size:var(--fs-sub);color:var(--ink-soft);}
+  /* **押す的は 44px を割らない**（正本§7-0e）。
+     最初 40px で書いていて、指示57 の仕上げに測って気づいた——
+     この下限はアプリ全体の門になっていないので、機械は何も言わない。
+     下の検査（57-5）が、この1つだけは数える */
   .tut-x{
     border:none;background:rgba(36,39,46,0.08);color:var(--ink);
-    width:40px;height:40px;border-radius:50%;font-size:var(--fs-sub);
+    width:44px;height:44px;border-radius:50%;font-size:var(--fs-sub);
     cursor:pointer;line-height:1;flex:none;
   }
   .ui-layer{

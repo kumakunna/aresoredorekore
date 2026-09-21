@@ -89,16 +89,25 @@ const SELFTEST = `
   const one = async () => (await window.__measure(['scr-entry'])).rows[0];
   const scr = document.getElementById('scr-entry');
   const before = await one();
-  const sp = document.createElement('div'); sp.style.cssText='height:900px;';
+  // **flex:none を必ず付ける。**画面（.screen）は縦並びの flex なので、
+  // これが無いと 900px の箱は勝手に縮む——実測で **485px** になり、
+  // 折り返し（812）を一度も越えないので、**壊したつもりで壊せていない**
+  // （落とし穴10-f。指示49 49-2 でまったく同じ形を踏んでいるのに、
+  //  この自己検査の側は直っていなかった。2026-09-21 に直した）
+  const sp = document.createElement('div'); sp.style.cssText='height:900px;flex:none;';
   const tx = document.createElement('p'); tx.textContent='これは折り返しの下にある文字';
   scr.appendChild(sp); scr.appendChild(tx);
   const after = await one();
+  // **壊れたことを1つ測る**（落とし穴10-f）。
+  // 箱が本当に 900px になったかを見てから、測定の結果を読む
+  const 実寸 = Math.round(sp.getBoundingClientRect().height);
   sp.remove(); tx.remove();
   const back = await one();
+  console.log('足した箱の実寸', 実寸, '（900 でなければ、縮んでいる＝壊せていない）');
   console.log('壊す前 ', before.over, before.scrolled, before.nbelow);
   console.log('壊した後', after.over, after.scrolled, after.nbelow, after.below);
   console.log('戻した後', back.over, back.scrolled, back.nbelow);
-  console.log('※ 3つとも 0 → 0以外 → 0 に動いていれば、測り方は効いています');
+  console.log('※ 実寸が900で、3つとも 0 → 0以外 → 0 に動いていれば、測り方は効いています');
 })();
 `;
 

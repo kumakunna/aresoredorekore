@@ -107,8 +107,22 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
     assertEqual(w_(room).phase, 'place', '置く段階');
     assertEqual(w_(room).matches.length, 1, '1組');
     assertEqual(w_(room).byeId, null, '不戦勝は出ない');
-    // **2人は最初から決勝**。爆弾は5つ（rcard-logic の判断）
-    assertEqual(w_(room).bombsPerBoard, 5, '2人なら爆弾5つ');
+    // **2人で始めた部屋は「最初から1対1」**なので、えらんだ数がそのまま使われる
+    // （2026-09-21・本人の指示。それまでは必ず決勝の5つだった）。
+    // 既定は3つ。進行役が渡した数が効くことは下の検査で見る
+    assertEqual(w_(room).bombsPerBoard, 3, '2人で始めたら、ふだんの数（既定3つ）');
+  });
+
+  await r.test('2人の部屋で、進行役がえらんだ爆弾の数がそのまま効く', async () => {
+    // **これが本人の報告そのもの**（いっきうちで数を指定しても5になる）。
+    // 部屋も手渡しも同じ `bombsForMatch` を通るので、両方で効く（落とし穴1）
+    [2, 4, 5].forEach((n) => {
+      const { room } = start(['あき', 'びび'], { cfg: { bombs: n } });
+      assertEqual(w_(room).bombsPerBoard, n, n + 'つをえらんだら ' + n + 'つ');
+    });
+    // **決勝の数は読まれない**（最初から1対1なので）
+    const { room } = start(['あき', 'びび'], { cfg: { bombs: 3, finalBombs: 8 } });
+    assertEqual(w_(room).bombsPerBoard, 3, '最初から1対1では決勝の数を見ない');
   });
 
   await r.test('5人で始まると、2組＋不戦勝1人。爆弾はふだんの3つ', async () => {
@@ -207,7 +221,9 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
   // ================= 決着と順位 =================
 
   await r.test('体力が0になった方が負け。最後の1人が1位（2人）', async () => {
-    const { room } = start(['あき', 'びび'], { cfg: { finalBombs: 8, lives: 1 } });
+    // **2人で始めた部屋は `bombs` を読む**（2026-09-21 以降）。
+    // 以前は `finalBombs` を渡していた——2人なら必ず決勝あつかいだったため
+    const { room } = start(['あき', 'びび'], { cfg: { bombs: 8, lives: 1 } });
     // **爆弾の上限は8**（9枚全部にすると、めくる意味が無くなるので rcard-logic が止める）。
     // 1〜8 に置いて 1 をめくれば、必ず当たる
     assertEqual(w_(room).bombsPerBoard, 8, 'この試合の爆弾は8つ');

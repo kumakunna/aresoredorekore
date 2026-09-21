@@ -51,19 +51,39 @@ function seeded(seed) {
 
   // ---------- ② 決勝の爆弾 ----------
 
-  await r.test('残り2人なら爆弾5つ。3人以上なら3つ', async () => {
-    assertEqual(L.bombsForMatch(2), 5, '残り2人は決勝');
-    assertEqual(L.bombsForMatch(3), 3, '3人ならふだんの数');
-    assertEqual(L.bombsForMatch(8), 3, '8人でもふだんの数');
+  await r.test('勝ち抜いて残り2人になったら決勝の5つ。3人以上ならふだんの3つ', async () => {
+    // **開始人数を渡すのが決め手。**5人で始めて2人まで来た＝本当の決勝
+    assertEqual(L.bombsForMatch(2, null, 5), 5, '5人で始めて残り2人は決勝');
+    assertEqual(L.bombsForMatch(3, null, 5), 3, '3人ならふだんの数');
+    assertEqual(L.bombsForMatch(8, null, 8), 3, '8人でもふだんの数');
   });
 
-  await r.test('2人で遊ぶ時（手渡し・2人の部屋）も、最初から決勝の数', async () => {
-    // **遊ぶ人から見て同じ場面。**ここを「生き残り戦の時だけ決勝」にすると、
-    // 2人で遊ぶ人は5つの盤を一生見ない
-    assertEqual(L.bombsForMatch(2), 5, '2人なら最初から5つ');
-    // 設定で変えたら、そちらに従う（型(c)：分岐の両側）
-    assertEqual(L.bombsForMatch(2, { finalBombs: 7 }), 7, '決勝の数は運営が変えられる');
-    assertEqual(L.bombsForMatch(5, { bombs: 2 }), 2, 'ふだんの数も運営が変えられる');
+  await r.test('最初から1対1（いっきうち・2人の部屋）は、えらんだ数をそのまま使う', async () => {
+    // ※**2026-09-21 に本人の指示で変えた。**
+    //   それまでは「2人なら最初から決勝（5つ）」で、
+    //   **いっきうちでは設定の「しかける爆弾の数」が何に変えても5つ**だった
+    //   ——設定は出るのに何も起きない（落とし穴21）。
+    //   以前の理由「2人で遊ぶ人は一生5つを見ない」は、
+    //   **設定で5つをえらべる**ようにして解いた。
+    assertEqual(L.bombsForMatch(2, null, 2), 3, '2人で始めたら、ふだんの数（既定3つ）');
+    assertEqual(L.bombsForMatch(2, { bombs: 2 }, 2), 2, 'えらんだ2つが効く');
+    assertEqual(L.bombsForMatch(2, { bombs: 4 }, 2), 4, 'えらんだ4つが効く');
+    // **5つもえらべる**（遊びの側で固定するのをやめた代わりの道）
+    assertEqual(L.bombsForMatch(2, { bombs: 5 }, 2), 5, 'えらんだ5つが効く');
+    // **決勝の数は、最初から1対1では読まない**（ここが以前との違い）
+    assertEqual(L.bombsForMatch(2, { bombs: 3, finalBombs: 8 }, 2), 3,
+      '最初から1対1では決勝の数を見ない');
+  });
+
+  await r.test('開始人数を渡さないと、決勝あつかいにしない（うっかり省略で5つが復活しない）', async () => {
+    // **安全な側に倒す。**渡されなければ「勝ち抜いて2人になった」とは分からないので、
+    // 決勝にはしない。ここが逆（省略したら決勝）だと、
+    // 呼び出しを1か所書き忘れた日に、直したはずの不具合が黙って戻る（落とし穴1）
+    assertEqual(L.bombsForMatch(2), 3, '省略＝最初から1対1あつかい');
+    assertEqual(L.bombsForMatch(2, { finalBombs: 7 }), 3, '省略時は決勝の数を読まない');
+    // 決勝の数そのものは、渡せばちゃんと効く（型(c)：分岐の両側）
+    assertEqual(L.bombsForMatch(2, { finalBombs: 7 }, 5), 7, '決勝の数は運営が変えられる');
+    assertEqual(L.bombsForMatch(5, { bombs: 2 }, 5), 2, 'ふだんの数も運営が変えられる');
   });
 
   // ---------- ③ 爆弾の置き方 ----------

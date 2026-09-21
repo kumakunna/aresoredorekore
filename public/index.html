@@ -5295,10 +5295,14 @@
       </div>
       <div class="timer-dmode" style="margin-top:14px;">
         <div class="tp-label">しかける爆弾の数</div>
+        <!-- **5つも選べる。**2026-09-21 に「いっきうちで数を指定しても5になる」を
+             直した時に足した——遊びの側で5つに固定するのをやめたので、
+             えらびたい人がえらべる道を残す（それまでは 2/3/4 だけだった） -->
         <div class="seg" id="rcBombsSeg">
           <button class="seg-btn" data-rcbombs="2">2つ</button>
           <button class="seg-btn" data-rcbombs="3">3つ</button>
           <button class="seg-btn" data-rcbombs="4">4つ</button>
+          <button class="seg-btn" data-rcbombs="5">5つ</button>
         </div>
         <div class="mic-status" id="rcFinalNote" style="margin-top:8px;"></div>
       </div>
@@ -7437,7 +7441,10 @@
     // 指示55-①：ロシアンカードの1対1（手渡しでも部屋でも）。
     // **maxPlayers:2 は「モード単位の上限」**——ゲーム単位（GAMES.maxPlayers）にすると
     // 棚のタイルが「2人」になり、6人のグループにはカセットごと沈んで見える
-    {id:"rcard-duel", icon:"⚔️", title:"いっきうち", sub:"2人で1試合。スマホをわたし合ってもあそべる", advanced:false, strict:false, oneWord:false, rcard:true, game:'rcard', minPlayers:2, maxPlayers:2,
+    // `rcardDuel:true` は、設定画面が「増えない」と言い分けるための印
+    // （2026-09-21）。**モードidを直書きしない**ため（落とし穴5）——
+    // 他のモードの `bombRace` / `defuseFocus` / `quizRush` と同じ形
+    {id:"rcard-duel", icon:"⚔️", title:"いっきうち", sub:"2人で1試合。スマホをわたし合ってもあそべる", advanced:false, strict:false, oneWord:false, rcard:true, rcardDuel:true, game:'rcard', minPlayers:2, maxPlayers:2,
       bullets:["2人であそびます","スマホをわたし合って、あいての9まいに爆弾をひみつでしかける","しかけたら伏せてわたす。しかけた場所は、このあと自分でも見られない","じぶんの9まいから1まいずつ、こうたいでめくる","爆弾だったら体力が1へる。0になったら負け","3人いじょうであそぶときは、部屋を立ててください"]},
     // 指示55-②：進化じゃんけん。**部屋（3人以上）専用**——同時に複数組を回す遊びなので、
     // 1台の手渡しは作らない（指示書0の対象外）。
@@ -12616,11 +12623,24 @@
     印('rcLivesSeg', 'data-rclives', c.lives);
     印('rcBombsSeg', 'data-rcbombs', c.bombs);
     印('rcTurnSeg',  'data-rcturn',  c.turnSec);
-    // **決勝で増えることを、ここで言う。**遊びの芯なのに設定画面に出ていないと、
-    // 「急に5つになった」としか見えない（大切なこと6：ルールの伝え方は機能の一部）
-    el('rcFinalNote').textContent =
-      'のこり2人になったら ' + c.finalBombs + 'つに増えます。2人であそぶときは、最初から ' +
-      c.finalBombs + 'つです';
+    /**
+     * **決勝で増えることを、ここで言う。**遊びの芯なのに設定画面に出ていないと、
+     * 「急に5つになった」としか見えない（大切なこと6：ルールの伝え方は機能の一部）。
+     *
+     * **ただし、いっきうちでは増えない**（2026-09-21・本人の指示）。
+     * 以前はどのモードでも「2人であそぶときは、最初から5つです」と出していて、
+     * それは本当だった——**選んだ数が無視されていたから**。
+     * 数が効くようになったので、**この行も嘘にならないように書き分ける**（落とし穴33）
+     */
+    var m = curMode() || {};
+    // **「最初から1対1か」で言い分ける。**いっきうちだけでなく、
+    // 2人しかいない部屋も増えようがない（決勝は勝ち抜いて2人になった時だけ）
+    var 最初から1対1 = !!m.rcardDuel || currentPlayerCount() <= 2;
+    el('rcFinalNote').textContent = 最初から1対1
+      ? ('この ' + c.bombs + 'つでたたかいます（2人なので、増えることはありません）')
+      : (c.finalBombs > c.bombs
+          ? ('のこり2人になったら ' + c.finalBombs + 'つに増えます')
+          : ('のこり2人になっても ' + c.bombs + 'つのままです'));
     el('rcCfgNote').textContent =
       '時間内にめくらないと、体力が1へります（考えこみすぎて止まらないように）';
   }
@@ -16568,7 +16588,10 @@
   function initRcardRound(){
     var ids = state.players.map(function(p){ return p.id; });
     var cfg = RcardLogic.normalizeConfig(state.rcCfg);
-    var 爆弾数 = RcardLogic.bombsForMatch(ids.length, cfg);
+    // **開始人数も渡す。**手渡しは「いっきうち」だけなので常に最初から1対1——
+    // つまり選んだ数がそのまま使われる（2026-09-21・本人の指示）。
+    // 部屋側（rcard-room.js）にも同じ形で渡してある（落とし穴1）
+    var 爆弾数 = RcardLogic.bombsForMatch(ids.length, cfg, ids.length);
     play.rcHand = {
       cfg: cfg,
       ids: ids,

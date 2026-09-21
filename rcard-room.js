@@ -161,7 +161,11 @@ function startRound(room) {
     連続不戦勝を避ける: true,
     直前の不戦勝: w.直前の不戦勝
   });
-  const 爆弾数 = L.bombsForMatch(生存.length, w.cfg);
+  // **開始人数（w.playerIds.length）も渡す。**
+  // 決勝の数を使うのは「生き残り戦で本当に残り2人まで来た時」だけで、
+  // 2人で始めた部屋は最初から1対1——選んだ数をそのまま使う（2026-09-21・本人の指示）。
+  // 手渡し側（index.html の initRcardRound）にも同じ形で渡してある（落とし穴1）
+  const 爆弾数 = L.bombsForMatch(生存.length, w.cfg, w.playerIds.length);
   res.組.forEach((g) => {
     w.matches.push({ a: g.a, b: g.b, turn: 'a', done: false, winner: null });
     // **盤は毎回まっさらにする**（前の試合のめくり跡が残らない・良い型3）

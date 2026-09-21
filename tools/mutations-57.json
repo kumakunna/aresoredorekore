@@ -118,5 +118,13 @@
     "from": "  .concat(fs.readdirSync(path.join(__dirname, '..', 'public', 'js'))\n    .filter((f) => f.endsWith('.js'))\n    .map((f) => fs.readFileSync(path.join(__dirname, '..', 'public', 'js', f), 'utf8')))",
     "to": "  .concat(['ui.js', 'fx.js'].map((f) => fs.readFileSync(path.join(__dirname, '..', 'public', 'js', f), 'utf8')))",
     "expect": "押せるのに、触れた瞬間の反応が無いもの"
+  },
+  {
+    "name": "57-Q 3択の1枚目だけを指す（文は「3つから」なのに1枚しか光らない）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "      { 的:'.overlay.show .picker-grid',  文:T.こたえる, 待つ:'tap' }",
+    "to": "      { 的:'.overlay.show .pk-btn',  文:T.こたえる, 待つ:'tap' }",
+    "expect": "本物の台本を最後まで通すと「見た」になる"
   }
 ]

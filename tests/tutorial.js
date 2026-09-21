@@ -405,6 +405,13 @@ async function run() {
     try {
       // **上の検査だけだと、「いつも印を立てない」実装でも通ってしまう。**
       // 止めた時に立たないことと、最後まで見たら立つことは、対で見る
+      //
+      // jsdom は版組みを持たないので `clientWidth/clientHeight` が 0 になり、
+      // 穴の大きさが NaN になる（最初これで輪を測れずに落ちた）。
+      // **ブラウザが持っていない能力の分だけ**こちらで与える
+      ['clientWidth', 'clientHeight'].forEach((k, i) => {
+        Object.defineProperty(doc.documentElement, k, { value: i ? 800 : 375, configurable: true });
+      });
       const 置く = (cls, top) => {
         const d = doc.createElement('div');
         d.className = cls;
@@ -429,13 +436,35 @@ async function run() {
       await sleep(win, 120);
       const 重なり = doc.createElement('div');
       重なり.className = 'overlay show';
-      重なり.innerHTML = '<button class="pk-btn">こたえ</button>';
+      重なり.innerHTML = '<div class="picker-grid">' +
+        '<button class="pk-btn">いち</button>' +
+        '<button class="pk-btn">に</button>' +
+        '<button class="pk-btn">さん</button></div>';
       doc.getElementById('app').appendChild(重なり);
-      重なり.querySelector('.pk-btn').getBoundingClientRect =
-        () => ({ left: 20, top: 500, width: 200, height: 50, right: 220, bottom: 550 });
+      const 入れ物 = 重なり.querySelector('.picker-grid');
+      const 札 = Array.from(重なり.querySelectorAll('.pk-btn'));
+      入れ物.getBoundingClientRect =
+        () => ({ left: 20, top: 400, width: 300, height: 180, right: 320, bottom: 580 });
+      札.forEach((b, i) => {
+        const t = 400 + i * 60;
+        b.getBoundingClientRect = () => ({ left: 20, top: t, width: 300, height: 50, right: 320, bottom: t + 50 });
+      });
       await sleep(win, 150);
       assertEqual(win.TutorialKit.いま().手, 2, '遅れて出た3択に着いていない');
-      重なり.querySelector('.pk-btn').click();   // 「こたえをえらぶ」
+
+      // **3枚とも明るく残っているか。**
+      // 的を `.pk-btn` にすると先頭の1枚しか穴が開かず、
+      // 「3つから、こたえをえらびます」と言いながら1枚だけ指すことになる——
+      // 実機で通した時、その1枚を押して外した（答えを指し示す形になっていた）
+      const 輪 = doc.querySelector('.tut-ring');
+      const 上 = parseFloat(輪.style.top), 高さ = parseFloat(輪.style.height);
+      札.forEach((b, i) => {
+        const r = b.getBoundingClientRect();
+        assert(上 <= r.top + 1 && 上 + 高さ >= r.bottom - 1,
+          (i + 1) + '枚目が暗いまま（輪 ' + 上 + '〜' + (上 + 高さ) + ' / 札 ' + r.top + '〜' + r.bottom + '）');
+      });
+
+      札[2].click();   // **3枚目**を押しても進む（先頭だけの的なら、ここで止まる）
 
       const 結果 = await 返り;                   // 3手目(auto 2秒) → 4手目(無いので猶予) → done
       assert(結果, '動かせていない');

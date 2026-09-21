@@ -18,8 +18,10 @@
 // **検体は本物の組み立てを通す**（落とし穴25）。`window.bombCellProbe` は
 // 本物の `bombGridHtml` をそのまま呼ぶので、手で並べた偽の盤にはならない。
 
-const { createRunner, assert, assertEqual, launch, sleep, autoDialog,
+const { createRunner, assert, assertEqual, launch, sleep, autoDialog, cssRules,
         waitScreen, waitFor, openCassette, activeScreen } = require('./harness');
+const fs = require('fs');
+const path = require('path');
 const TutorialKit = require('../public/js/tutorial');
 
 const OLD_KEY = 'acac-bomb-tap-seen';   // 48-3 の印（移行のためだけに読む）
@@ -131,6 +133,43 @@ async function run() {
     } finally { win.close(); }
   });
 
+  await r.test('57-2：的が少し遅れて現れても、その手を飛ばさない（実機で出た）', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true });
+    try {
+      const 出す = (cls) => {
+        const d = doc.createElement('div');
+        d.className = cls;
+        doc.getElementById('app').appendChild(d);
+        d.getBoundingClientRect = () => ({ left: 20, top: 30, width: 60, height: 60, right: 80, bottom: 90 });
+        return d;
+      };
+      出す('tut-いまある');   // 1手目の的は最初からある
+
+      const 返り = win.TutorialKit.start([
+        { 的: '.tut-いまある', 文: 'ひとつめ', 待つ: 'auto', 秒: 0.1 },
+        { 的: '.tut-あとで',   文: 'ふたつめ', 待つ: 'tap' },
+      ]);
+      // 1手目が終わるのを待ってから、**2手目の的を遅れて出す**。
+      // これが部屋の往復（rt.act の返事で3択が届く）の形
+      await sleep(win, 300);
+      // 条件が本当に作れているかを1つ測る（型(b)）——
+      // この時点で2手目の的が既にあると、検査が自明に通ってしまう
+      assertEqual(doc.querySelectorAll('.tut-あとで').length, 0, '前提：まだ的が無い');
+      assertEqual(win.TutorialKit.いま().手, 1, '前提：1手目のまま待っている');
+
+      出す('tut-あとで');
+      await sleep(win, 200);
+      const 状態 = win.TutorialKit.いま();
+      assert(状態, '待っているうちに終わってしまった');
+      assertEqual(状態.手, 2, '遅れて現れた的を飛ばしてしまった');
+      assertEqual(doc.querySelector('.tut-word').textContent, 'ふたつめ', '2手目の文が出ていない');
+
+      win.TutorialKit.stop('gone');
+      const 結果 = await 返り;
+      assertEqual(結果.飛ばした, 0, '1つも飛ばしていないはず');
+    } finally { win.close(); }
+  });
+
   // ---- 57-3：置き場（落とし穴26・27） ----
 
   await r.test('57-3：幕は #uiLayerRoot の中にいる（#app の中ではない）', async () => {
@@ -182,6 +221,60 @@ async function run() {
       assertEqual(doc.querySelector('.tut-word').textContent, 'ひとつめ', '文が出ていない');
       K.stop('gone');
     } finally { win.close(); }
+  });
+
+  await r.test('57-3：同じクラスが2画面にある時、出ている方を指す', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true });
+    try {
+      // **画面は全部いつでもDOMにいる。**`.bomb-lives` は手渡し（#bombLives）と
+      // 部屋（#rtBombLives）の2つとも当たるので、先頭を取ると
+      // 遊んでいない側の画面を指す。出ている方（大きさを持つ方）を選ぶ
+      const 作る = (id, 見えるか) => {
+        const d = doc.createElement('div');
+        d.className = 'tut-ふたつある'; d.id = id;
+        doc.getElementById('app').appendChild(d);
+        d.getBoundingClientRect = () => 見えるか
+          ? ({ left: 20, top: 300, width: 60, height: 60, right: 80, bottom: 360 })
+          : ({ left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 });
+        return d;
+      };
+      const 隠れている = 作る('tut-かくれ', false);   // 先に置く＝querySelector はこちらを返す
+      const 出ている = 作る('tut-でてる', true);
+      // 前提：先頭は隠れている方（型(b)：条件が本当に作れているか）
+      assertEqual(doc.querySelector('.tut-ふたつある').id, 'tut-かくれ', '前提：先頭が隠れている方');
+
+      win.TutorialKit.start([{ 的: '.tut-ふたつある', 文: 'ここ', 待つ: 'tap' }]);
+      await sleep(win, 120);
+      assert(win.TutorialKit.いま(), '出ている方があるのに飛ばした');
+
+      // 穴が「出ている方」の座標に開いているか（隠れている方なら 0,0 のはず）
+      const 輪 = doc.querySelector('.tut-ring');
+      assertEqual(輪.style.top, (300 - 8) + 'px', '隠れている方を指している（top=' + 輪.style.top + '）');
+      win.TutorialKit.stop('gone');
+    } finally { win.close(); }
+  });
+
+  // ---- 57-5：CSSでしか守れないもの（幕が指を受ける／光を切ると止まる） ----
+
+  await r.test('57-5：幕は指を受け、光の点滅を切ると輪が止まる', async () => {
+    // **jsdom では見え方を測れない**ので、CSSそのものを読む（hidden-attr と同じ形）。
+    // 実際の当たり判定と静止は、実ブラウザで測って門の文書に残してある
+    const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    // **コメントを先に落とす。**中の { } で規則の切り出しがずれると、
+    // 選択子と中身の対応が狂って、あるはずの指定を見落とす（press-feedback と同じ）
+    const CSS = HTML.slice(HTML.indexOf('<style>') + 7, HTML.indexOf('</style>'))
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const 規則 = (sel) => {
+      const r2 = cssRules(CSS).find((x) => x.sel.trim() === sel);
+      assert(r2, sel + ' の規則がある');   // 型(b)：読めていないまま緑にしない
+      return r2.body;
+    };
+    // 置き場（#uiLayerRoot）は pointer-events:none なので、幕が自分で立て直す
+    assert(/pointer-events\s*:\s*auto/.test(規則('.tut-veil')),
+      '幕が指を受けない（暗幕を押しても何も起きなくなる）');
+    // 光の点滅を切っている人には、**脈動なし・静止**（正本§6・2-2）
+    assert(/animation\s*:\s*none/.test(規則(':root.no-flash .tut-ring')),
+      '光の点滅を切っても、輪が脈動し続ける');
   });
 
   // ---- 57-4：出すかどうかの門（W4・W5・W12） ----

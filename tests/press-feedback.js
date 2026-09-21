@@ -22,11 +22,16 @@ const CSS = HTML.slice(HTML.indexOf('<style>') + 7, HTML.indexOf('</style>'))
 // **画面を組み立てているのは index.html だけではない。**
 // 共通部品は ui.js が文字列で組んでいるので、そちらも見ないと
 // 「HTMLに見あたらない」と誤って報告する
+//
+// **一覧を手で持たない**（落とし穴4）。ここは長いあいだ `['ui.js','fx.js']` と
+// 書いてあり、**指示57 で `tutorial.js` が閉じるボタンを組んだ日に赤くなった**——
+// `.tut-x` は `<button>`（＝共通規則で反応する）のに、読んでいないファイルなので
+// タグが分からず「見あたらない」と報告していた。
+// 一覧は必ず腐るので、`dead-style.js` と同じく**ディレクトリから導く**
 const SOURCES = [HTML]
-  .concat(['ui.js', 'fx.js'].map((f) => {
-    const p = path.join(__dirname, '..', 'public', 'js', f);
-    return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
-  }))
+  .concat(fs.readdirSync(path.join(__dirname, '..', 'public', 'js'))
+    .filter((f) => f.endsWith('.js'))
+    .map((f) => fs.readFileSync(path.join(__dirname, '..', 'public', 'js', f), 'utf8')))
   .join('\n');
 
 /** CSSの規則を（選択子, 中身）で拾う。切り出しは harness に1本だけ置いてある */

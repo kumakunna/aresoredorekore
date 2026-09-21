@@ -16,12 +16,20 @@
     "expect": "幕は #uiLayerRoot の中にいる"
   },
   {
-    "name": "57-C 的が無い手を飛ばさない（門W9：詰まって進めなくなる）",
+    "name": "57-N 猶予を0にする（遅れて現れる的を飛ばす——実機で出たそのもの）",
     "file": "public/js/tutorial.js",
     "suite": "tests/tutorial.js",
-    "from": "    if (!的をさがす(状態.doc, 状態.手.的)) { 状態.飛ばした++; return 手をおく(状態, i + 1); }",
-    "to": "    if (false) { 状態.飛ばした++; return 手をおく(状態, i + 1); }",
-    "expect": "的が画面に無い手は飛ばして"
+    "from": "  var 既定の猶予 = 2500;",
+    "to": "  var 既定の猶予 = 0;",
+    "expect": "的が少し遅れて現れても、その手を飛ばさない"
+  },
+  {
+    "name": "57-L 的を querySelector で引く（画面は全部DOMにいるので、遊んでいない側に当たる）",
+    "file": "public/js/tutorial.js",
+    "suite": "tests/tutorial.js",
+    "from": "    for (var i = 0; i < list.length; i++) {\n      var r = list[i].getBoundingClientRect();\n      if (r.width > 0 && r.height > 0) return list[i];\n    }\n    return null;",
+    "to": "    return list[0] || null;",
+    "expect": "同じクラスが2画面にある時、出ている方を指す"
   },
   {
     "name": "57-D 台本の「1手に1つ」をゆるめる（門W13）",
@@ -88,19 +96,27 @@
     "expect": "点滅は1秒に3回まで"
   },
   {
-    "name": "57-L 的を querySelector で引く（画面は全部DOMにいるので、遊んでいない側に当たる）",
-    "file": "public/js/tutorial.js",
-    "suite": "tests/tutorial.js",
-    "from": "    for (var i = 0; i < list.length; i++) {\n      var r = list[i].getBoundingClientRect();\n      if (r.width > 0 && r.height > 0) return list[i];\n    }\n    return null;",
-    "to": "    return list[0] || null;",
-    "expect": "的が画面に無い手は飛ばして"
-  },
-  {
-    "name": "57-M 幕の pointer-events を切る（門W6：暗幕が指を受けなくなる）",
+    "name": "57-M 幕の pointer-events を切る（暗幕を押しても何も起きなくなる）",
     "file": "public/index.html",
-    "suite": "tests/dead-style.js",
+    "suite": "tests/tutorial.js",
     "from": "  .tut-veil{\n    position:absolute;inset:0;pointer-events:auto;",
     "to": "  .tut-veil{\n    position:absolute;inset:0;pointer-events:none;",
-    "expect": "（実ブラウザでしか測れない。素通りが正しい）"
+    "expect": "幕は指を受け、光の点滅を切ると輪が止まる"
+  },
+  {
+    "name": "57-O 光の点滅を切っても輪を止めない（正本§6・2-2）",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "  :root.no-flash .tut-ring{animation:none;}",
+    "to": "  :root.no-flash .tut-ring{opacity:.9;}",
+    "expect": "幕は指を受け、光の点滅を切ると輪が止まる"
+  },
+  {
+    "name": "57-P 押せるものの一覧を、また手書きに戻す（落とし穴4：一覧は腐る）",
+    "file": "tests/press-feedback.js",
+    "suite": "tests/press-feedback.js",
+    "from": "  .concat(fs.readdirSync(path.join(__dirname, '..', 'public', 'js'))\n    .filter((f) => f.endsWith('.js'))\n    .map((f) => fs.readFileSync(path.join(__dirname, '..', 'public', 'js', f), 'utf8')))",
+    "to": "  .concat(['ui.js', 'fx.js'].map((f) => fs.readFileSync(path.join(__dirname, '..', 'public', 'js', f), 'utf8')))",
+    "expect": "押せるのに、触れた瞬間の反応が無いもの"
   }
 ]

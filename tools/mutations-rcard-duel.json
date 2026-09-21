@@ -1,0 +1,50 @@
+[
+  {
+    "name": "D1 決勝の判断を元に戻す（生存者2人ならいつでも決勝＝報告された不具合そのもの）",
+    "file": "public/js/rcard-logic.js",
+    "suite": "tests/rcard-logic.js",
+    "from": "    var 始め = (開始人数 == null) ? 生存者数 : 開始人数;\n    if (始め <= 2) return c.bombs;                 // 最初から1対1",
+    "to": "    var 始め = (開始人数 == null) ? 生存者数 : 開始人数;",
+    "expect": "最初から1対1（いっきうち・2人の部屋）は、えらんだ数をそのまま使う"
+  },
+  {
+    "name": "D2 手渡しの呼び出しから開始人数を落とす（**掃くまで誰も見ていなかった側**）",
+    "file": "public/index.html",
+    "suite": "tests/rcard-duel.js",
+    "from": "    var 爆弾数 = RcardLogic.bombsForMatch(ids.length, cfg, ids.length);",
+    "to": "    var 爆弾数 = RcardLogic.bombsForMatch(ids.length, cfg, 5);",
+    "expect": "手渡しのいっきうち"
+  },
+  {
+    "name": "D3 部屋の呼び出しから開始人数を落とす（落とし穴1：並走するもう片方）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "  const 爆弾数 = L.bombsForMatch(生存.length, w.cfg, w.playerIds.length);",
+    "to": "  const 爆弾数 = L.bombsForMatch(生存.length, w.cfg, 5);",
+    "expect": "2人の部屋で、進行役がえらんだ爆弾の数がそのまま効く"
+  },
+  {
+    "name": "D4 省略した時に決勝あつかいへ倒す（1か所書き忘れた日に、不具合が黙って戻る形）",
+    "file": "public/js/rcard-logic.js",
+    "suite": "tests/rcard-logic.js",
+    "from": "    var 始め = (開始人数 == null) ? 生存者数 : 開始人数;",
+    "to": "    var 始め = (開始人数 == null) ? 99 : 開始人数;",
+    "expect": "開始人数を渡さないと、決勝あつかいにしない"
+  },
+  {
+    "name": "D5 5つの札を消す（遊びの側の固定をやめた代わりの道をふさぐ）",
+    "file": "public/index.html",
+    "suite": "tests/rcard-duel.js",
+    "from": "          <button class=\"seg-btn\" data-rcbombs=\"5\">5つ</button>\n",
+    "to": "",
+    "expect": "5つをえらんだら、5つしかける"
+  },
+  {
+    "name": "D6 注記を古い文（最初から5つ）に戻す（落とし穴33：表示している約束）",
+    "file": "public/index.html",
+    "suite": "tests/rcard-duel.js",
+    "from": "      ? ('この ' + c.bombs + 'つでたたかいます（2人なので、増えることはありません）')",
+    "to": "      ? ('2人であそぶときは、最初から ' + c.finalBombs + 'つです')",
+    "expect": "設定画面の注記が、いっきうちでは「増えない」と言う"
+  }
+]

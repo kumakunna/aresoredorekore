@@ -729,7 +729,8 @@ const RULES = rulesOf(CSS);
     click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-bomb', 3000);
-    for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
+    // 指示58：描かれている行（許された層）だけを回す（なにそれ・むりは既定で行が無い）
+    for (const tier of Array.from(doc.querySelectorAll('#bombTierRows .bomb-minus')).map((b) => b.dataset.tier)) {
       for (let i = 0; i < 30; i++) {
         if (el(doc, 'bombCount-' + tier).textContent === '0') break;
         doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();

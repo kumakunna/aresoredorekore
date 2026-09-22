@@ -2494,6 +2494,40 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     }
   });
 
+  // 指示58：**進行役の「マニアックな問題」の設定は、開始の1か所（rtStartGameNow）で載せる。**
+  // ゲームごとの送り口に書くと、足し忘れた送り口だけ3層に倒れる。
+  // ⚡ おまかせで始める（既定の配分・既定の難易度）の道で見る
+  await r.test('指示58：開始を送る時、進行役の設定（tierMix）が載る。既定では なにそれ・むりの本数も0', async () => {
+    const CASES = [
+      { label: '既定（OFF）', prefs: null, want: '{}' },
+      { label: 'むり だけ ON', prefs: { tierExtra: true, tierNanisore: false, tierMuri: true },
+        want: '{"nanisore":false,"muri":true}' }
+    ];
+    for (const c of CASES) {
+      for (const g of [{ game: 'quizrush', mode: 'quizrush' }, { game: 'bomb', mode: 'bomb-coop' }]) {
+        const opt = c.prefs ? { storage: { 'acac-app-prefs': JSON.stringify(c.prefs) } } : {};
+        const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, opt));
+        const fake = await toRoom(win, doc, { pick: false });
+        await pickGameForRoom(win, doc, g.game, g.mode);
+        push(fake, g.game === 'bomb' ? bombRoom({ state: { phase: 'lobby', game: 'bomb', data: {} } }) : quizRoom(g.game, {}));
+        await sleep(win, 80);
+        click(doc, 'rtStartBtn');
+        await sleep(win, 120);
+        const start = fake.emits.filter((e) => e.name === 'wolf:start').pop();
+        assert(start, c.label + ' ' + g.game + '：開始を送っている（型(b)）');
+        assertEqual(JSON.stringify(start.payload.tierMix), c.want, c.label + ' ' + g.game + '：設定が載る');
+        if (g.game === 'bomb') {
+          const n = start.payload.counts;
+          assertEqual((n.nanisore || 0) + (c.prefs ? 0 : (n.muri || 0)), 0,
+            c.label + '：おまかせの配分に なにそれ の本数が無い');
+          assert(n.easy + n.normal + n.hard > 0, c.label + '：本数はある');
+        }
+        assertNoErrors(errors, c.label + ' ' + g.game + ' の開始で未捕捉の例外');
+        win.close();
+      }
+    }
+  });
+
   await r.test('クイズラッシュ：まず難易度をえらび、えらぶと問題が出る', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
@@ -3912,6 +3946,58 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // 指示58 2-3・X8：**遊んでいる最中に進行役が「マニアックな問題」を変えたら、サーバーへ送る。**
+  // サーバー側（次の問題から効く）は tests/tier-gate-room.js。ここは「本当に送るか」を見る
+  const 設定からマニアックへ = async (win, doc) => {
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    doc.querySelector('#settingsOverlay [data-setpage="app"]').click();
+    await sleep(win, 60);
+    doc.querySelector('#settingsOverlay [data-setpage="tiers"]').click();
+    await sleep(win, 60);
+  };
+  const ラッシュ中 = (fake) => {
+    push(fake, quizRoom('quizrush', quizView('quizrush', { rush: { round: 1, roundsToWin: 0, roundResult: null, board: [] } })));
+    pushYou(fake, quizYou('quizrush', {
+      rush: { tier: null, tiers: ['easy', 'normal', 'hard', 'muri'], canChangeTier: true, passesLeft: 3,
+              score: 0, answered: 0, hits: 0, last: null, question: null }
+    }));
+  };
+  const むりON = { storage: { 'acac-app-prefs': JSON.stringify({ tierExtra: true, tierNanisore: false, tierMuri: true }) } };
+
+  await r.test('指示58 X8：遊んでいる最中に進行役が設定を変えると、その場でサーバーへ送る', async () => {
+    const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, むりON));
+    const fake = await toRoom(win, doc);   // 自分が進行役（m1）
+    fake.replies['game:options'] = () => ({ ok: true, tierReset: null });
+    ラッシュ中(fake);
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    await 設定からマニアックへ(win, doc);
+    assert(el(doc, 'setTierToggle-tierMuri'), '前提：むり のトグルが出ている（型(b)）');
+    el(doc, 'setTierToggle-tierMuri').click();
+    await sleep(win, 60);
+    const sent = fake.emits.filter((e) => e.name === 'game:options');
+    assertEqual(sent.length, 1, '1回だけ送る');
+    assertEqual(JSON.stringify(sent[0].payload.tierMix), JSON.stringify({ nanisore: false, muri: false }),
+      'むり を外した設定を送る');
+    assertNoErrors(errors, '進行役の途中変更で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('指示58：部屋の参加者が設定を変えても送らない。部屋では進行役の設定で出ると一言そえる', async () => {
+    const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, むりON));
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    ラッシュ中(fake);
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    await 設定からマニアックへ(win, doc);
+    assert(/進行役の設定で問題が出ます/.test(el(doc, 'setTiersBody').textContent),
+      '部屋では進行役の設定が効くと一言そえる（落とし穴21）');
+    el(doc, 'setTierToggle-tierMuri').click();
+    await sleep(win, 60);
+    assertEqual(fake.emits.filter((e) => e.name === 'game:options').length, 0, '参加者は送らない');
+    assertNoErrors(errors, '参加者の設定で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('設定：部屋の参加者の先頭は「音を消す・ルール・部屋を出る」', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
@@ -4186,6 +4272,33 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
           result: { variant: 'quizrush', ranking: [{ id: 'm2', name: 'びび', score: 9, rank: 1 }] } })),
         you: () => quizYou('quizrush', { phase: 'ended', rush: { passesLeft: 3 } }),
         check: (st) => { assertEqual(st.plays, 1, '遊んだ回数'); assertEqual(st.wins, 1, '1位'); } },
+      // 指示58 2-4：**正解した問題の層で「むずかしい以上」「むりなんだが」を数える。**
+      // それまで足す所が1か所も無く、「難問撃破の証」は誰にも取れなかった。
+      // 検体は本物の進行役（quiz-room.js）を動かして作る（落とし穴25）
+      { label: 'クイズ王：むりなんだが を正解した（指示58）', game: 'quizrush', cassette: 'quizou',
+        make: () => {
+          const QuizRoom = require('../quiz-room');
+          const members = new Map([
+            ['m1', { id: 'm1', name: 'あき', role: 'player', connected: true }],
+            ['m2', { id: 'm2', name: 'びび', role: 'player', connected: true }]
+          ]);
+          const room = { code: 'ABC234', members, hostMemberId: 'm1', state: { phase: 'lobby', game: null, data: {} } };
+          QuizRoom.startGame(room, { game: 'quizrush', timerSec: 60, tierMix: { muri: true } }, {});
+          assertEqual(QuizRoom.submitAction(room, 'm2', 'muri', { targetId: 'muri' }).ok, true, 'むり を選べる（型(b)）');
+          const q = room.quiz.rush.seats.m2.q;
+          QuizRoom.submitVote(room, 'm2', q.correct, { targetId: q.correct });
+          room.quiz.deadline = Date.now() - 1;
+          QuizRoom.advance(room);   // 時間切れで締める
+          assertEqual(room.quiz.phase, 'ended', '検体として、決着している');
+          const you = QuizRoom.privateFor(room, 'm2');
+          assertEqual(you.hitsByTier.muri, 1, '本人の分だけ、むり の正解が1つ配られる');
+          assertEqual(JSON.stringify(QuizRoom.privateFor(room, 'm1').hitsByTier), '{}', 'ほかの人の分は配らない');
+          return { room: quizRoom('quizrush', QuizRoom.publicView(room)), you };
+        },
+        check: (st) => {
+          assertEqual(st.muriHits, 1, '「むりなんだが」の正解が1つ数えられる');
+          assertEqual(st.hardHits, 1, '「むずかしい以上」にも入る');
+        } },
       { label: 'オークション', game: 'auction', cassette: 'auction',
         // 部屋の決着と「自分の情報」は、**同じ1つの部屋から**取り出す。
         // 別々に作ると、自分の情報だけ決着前のままになり、
@@ -4358,8 +4471,27 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       rush: { tier: null, canChangeTier: true, passesLeft: 3, score: 0, answered: 0, hits: 0, last: null, question: null }
     }));
     await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    // 指示58：並ぶのは**サーバーが配った「この部屋で選べる層」**（rush.tiers）。
+    // 配られていない（古いサーバー）時は3つ——なにそれ・むりは出さない側に倒れる（X7）
+    assertEqual(doc.querySelectorAll('.tier-card').length, 3, '配られていなければ3つ');
+    assertEqual(doc.querySelectorAll('[data-qztier="nanisore"],[data-qztier="muri"]').length, 0,
+      'なにそれ・むりのボタンは0');
+    // 進行役が むり だけを足した部屋（X5：その層だけが加わる）
+    pushYou(fake, quizYou('quizrush', {
+      rush: { tier: null, tiers: ['easy', 'normal', 'hard', 'muri'], canChangeTier: true, passesLeft: 3,
+              score: 0, answered: 0, hits: 0, last: null, question: null }
+    }));
+    await sleep(win, 60);
+    assertEqual(Array.from(doc.querySelectorAll('.tier-card')).map((c) => c.dataset.qztier).join(','),
+      'easy,normal,hard,muri', '配られた4つだけが並ぶ');
+    // 両方足した部屋
+    pushYou(fake, quizYou('quizrush', {
+      rush: { tier: null, tiers: ['easy', 'normal', 'hard', 'nanisore', 'muri'], canChangeTier: true,
+              passesLeft: 3, score: 0, answered: 0, hits: 0, last: null, question: null }
+    }));
+    await sleep(win, 60);
     const cards = doc.querySelectorAll('.tier-card');
-    assertEqual(cards.length, 5, '5段階が並ぶ');
+    assertEqual(cards.length, 5, '両方足した部屋では5段階が並ぶ');
     cards.forEach((c) => {
       assert(c.querySelector('.tier-name'), '難易度の名前が出る');
       assert(c.querySelector('.tier-pt b'), '点数が大きく出る');

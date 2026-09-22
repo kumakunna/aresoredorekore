@@ -1,0 +1,226 @@
+[
+  {
+    "name": "58-A あれそれ：おまかせを5層に戻す（effectiveTiers が門を外す）",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    if(state.topicMix || !state.topicDifficulties) return ok;",
+    "to": "    if(state.topicMix || !state.topicDifficulties) return QuizBank.TIERS.slice();",
+    "expect": "あれそれ おまかせ：なにそれ・むりは0"
+  },
+  {
+    "name": "58-B 難易度のチップを5層で描く（押せない見た目でも並べない、が崩れる）",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    el('difficultyChips').innerHTML = tierRows().map(function(t){",
+    "to": "    el('difficultyChips').innerHTML = BOMB_TIERS.map(function(t){",
+    "expect": "難易度のチップは3つ"
+  },
+  {
+    "name": "58-C クイズ解除の行（目盛り）を5層で描く",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    el('bombTierRows').innerHTML = tierRows().map(function(t){",
+    "to": "    el('bombTierRows').innerHTML = BOMB_TIERS.map(function(t){",
+    "expect": "クイズ解除の行は3つ"
+  },
+  {
+    "name": "58-D 🎲 残りを自動で決める の振り分け先を5層にする",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    var rows = tierRows();\n    var lockedSum = 0;",
+    "to": "    var rows = BOMB_TIERS;\n    var lockedSum = 0;",
+    "expect": "回目：なにそれ・むりは0本"
+  },
+  {
+    "name": "58-E 手渡しオークション：ラウンドの層を5層から選ぶ",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    var tierIds = allowedTiers();",
+    "to": "    var tierIds = QuizBank.TIERS.slice();",
+    "expect": "手渡しオークション（ランダムに層を選ぶ）：なにそれ・むりは0"
+  },
+  {
+    "name": "58-F 手渡しクイズ解除：寄せずに、5層を渡して引く",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    var ok = allowedTiers();\n    fitBombCounts();\n    var wires = BombLogic.pickQuestionWires(QuizBank, state.bombCounts, null, play.usedQuestions, ok);",
+    "to": "    var wires = BombLogic.pickQuestionWires(QuizBank, state.bombCounts, null, play.usedQuestions, QuizBank.TIERS);",
+    "expect": "なにそれ・むりの本数が残っていても：なにそれ・むりは0"
+  },
+  {
+    "name": "58-G 最後の関所：渡し忘れた時に5層で引く",
+    "file": "public/js/bomb-logic.js",
+    "suite": "tests/tier-gate.js",
+    "from": "    var ok = Array.isArray(allowed) ? allowed : bank.allowedTiers(null);",
+    "to": "    var ok = Array.isArray(allowed) ? allowed : TIERS;",
+    "expect": "渡し忘れても、なにそれ・むりは0本"
+  },
+  {
+    "name": "58-H 門：true 以外（1・yes）でも足す",
+    "file": "public/js/quiz-bank.js",
+    "suite": "tests/tier-gate.js",
+    "from": "      return BASE_TIERS.indexOf(t) !== -1 || m[t] === true;",
+    "to": "      return BASE_TIERS.indexOf(t) !== -1 || !!m[t];",
+    "expect": "true 以外は足さない"
+  },
+  {
+    "name": "58-I サーバー：参加者が送った層を、許可と照らさずに受ける（X6 の本丸）",
+    "file": "quiz-room.js",
+    "suite": "tests/tier-gate-room.js",
+    "from": "  if (QuizLogic.tiersFor(V.RUSH, w.cfg.allowedTiers).indexOf(targetId) === -1) {\n    return { ok: false, error: 'tier_not_allowed' };\n  }",
+    "to": "",
+    "expect": "は ok にしない"
+  },
+  {
+    "name": "58-J サーバー：tierMix が無い時に5層を許す（古い端末が開く穴）",
+    "file": "public/js/quiz-logic.js",
+    "suite": "tests/tier-gate.js",
+    "from": "    var allowed = QuizBank.allowedTiers(c.tierMix);",
+    "to": "    var allowed = TIERS.slice();",
+    "expect": "tierMix を送らない（古い端末）→3層"
+  },
+  {
+    "name": "58-K つぎつぎ：おまかせを全お題から引く（以前の形）",
+    "file": "quiz-room.js",
+    "suite": "tests/tier-gate.js",
+    "from": "  return [].concat.apply([], tiers.map((t) => QuizBank.listTopicsOf(t)));",
+    "to": "  return QuizBank.listTopicsOf();",
+    "expect": "つぎつぎのおまかせ400回で"
+  },
+  {
+    "name": "58-L drawQuestion が fitTier を通らない（最後の関所が外れる）",
+    "file": "quiz-room.js",
+    "suite": "tests/tier-gate.js",
+    "from": "  const t = QuizLogic.fitTier(w.variant, tier, w.cfg.allowedTiers);",
+    "to": "  const t = tier;",
+    "expect": "drawQuestion の中で fitTier を通っている"
+  },
+  {
+    "name": "58-M とくとく：出す直前の照らし直しをやめる（途中で OFF にしても むり が続く）",
+    "file": "quiz-room.js",
+    "suite": "tests/tier-gate-room.js",
+    "from": "  if (next && QuizLogic.tiersFor(V.REVEAL, w.cfg.allowedTiers).indexOf(next.tier) === -1) {",
+    "to": "  if (false) {",
+    "expect": "次の問題からは むり が出ない"
+  },
+  {
+    "name": "58-N ラッシュ：途中で OFF にしても、挑んでいた層を空けない",
+    "file": "quiz-room.js",
+    "suite": "tests/tier-gate.js",
+    "from": "      if (s && s.tier && ok.indexOf(s.tier) === -1) s.tier = null;",
+    "to": "      void ok;",
+    "expect": "挑んでいた層は空く"
+  },
+  {
+    "name": "58-O 端末：消えた層を、あれそれの選択から刈らない",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "      state.topicDifficulties = 残り.length ? 残り : null;",
+    "to": "      void 残り;",
+    "expect": "あれそれ：おまかせ（null）へ"
+  },
+  {
+    "name": "58-P 設定：親を切り替えても子を OFF に戻さない（入れ直すと前の子が復活）",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    if(key === 'tierExtra'){",
+    "to": "    if(false){",
+    "expect": "入れ直しただけで むり は戻らない"
+  },
+  {
+    "name": "58-Q 設定：親 OFF でも子の値を読む",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    if(!appPrefs.tierExtra) return out;      // 親が OFF なら、子の値は読まない",
+    "to": "    // 親を見ない",
+    "expect": "親OFFなら、子がONのまま保存されていても3層"
+  },
+  {
+    "name": "58-R 設定：親 OFF でも子のトグルを描く",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    if(appPrefs.tierExtra){\n      Object.keys(TIER_PREF_KEY).forEach(function(t){",
+    "to": "    if(true){\n      Object.keys(TIER_PREF_KEY).forEach(function(t){",
+    "expect": "子のトグルは0個"
+  },
+  {
+    "name": "58-S 部屋：開始の時に進行役の設定を載せない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    cfg.tierMix = tierMix();",
+    "to": "",
+    "expect": "設定が載る"
+  },
+  {
+    "name": "58-T 部屋：遊んでいる最中の変更をサーバーへ送らない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    return Promise.resolve(rt.gameOptions({ tierMix: tierMix() })).catch(function(){ return null; });",
+    "to": "    return null;",
+    "expect": "1回だけ送る"
+  },
+  {
+    "name": "58-U ラッシュの画面：サーバーが配らない時に5層を並べる",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    var list = Array.isArray(tiers) ? tiers : QuizLogic.tiersFor('quizrush', QuizBank.allowedTiers(null));",
+    "to": "    var list = Array.isArray(tiers) ? tiers : QuizLogic.TIERS;",
+    "expect": "配られていなければ3つ"
+  },
+  {
+    "name": "58-V サーバー：ラッシュの端末に5層を配る",
+    "file": "quiz-room.js",
+    "suite": "tests/tier-gate.js",
+    "from": "      tiers: QuizLogic.tiersFor(V.RUSH, w.cfg.allowedTiers),",
+    "to": "      tiers: QuizLogic.TIERS,",
+    "expect": "配る層は3つ"
+  },
+  {
+    "name": "58-W 称号：ラッシュの正解を層ごとに数えない",
+    "file": "quiz-room.js",
+    "suite": "tests/tier-gate.js",
+    "from": " countHit(w, memberId, s.q.tier); }",
+    "to": " }",
+    "expect": "ラッシュ：なにそれ の正解が1"
+  },
+  {
+    "name": "58-X 称号：むりなんだが を「むずかしい以上」に入れない",
+    "file": "public/js/titles.js",
+    "suite": "tests/tier-gate.js",
+    "from": "    var 難 = n('hard') + n('nanisore') + n('muri');",
+    "to": "    var 難 = n('hard') + n('nanisore');",
+    "expect": "むずかしい以上＝hard＋nanisore＋muri"
+  },
+  {
+    "name": "58-Y 部屋のクイズ解除：本数を寄せずに引く（最後の関所で黙って落ちる）",
+    "file": "bomb-room.js",
+    "suite": "tests/tier-gate.js",
+    "from": "  const cfg = BombLogic.normalizeConfig(config, allowed);",
+    "to": "  const cfg = BombLogic.normalizeConfig(config);",
+    "expect": "合計11本"
+  },
+  {
+    "name": "58-Z クイズ王の難易度の選択肢を5層で並べる",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    QuizLogic.tiersFor(variant, allowedTiers()).forEach(function(t){",
+    "to": "    QuizLogic.TIERS.forEach(function(t){",
+    "expect": "なにそれ・むりのボタンは0"
+  },
+  {
+    "name": "58-AA 門を通らない入口を1つ足す（手渡し早押しが生のプールから引く）",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    var topics = poolForTiers(effectiveTiers()); // ④：選択難易度で絞った統合プール\n    if(!topics || topics.length === 0) return;\n    play.tourneyTopic",
+    "to": "    var topics = getPool(); // ④：選択難易度で絞った統合プール\n    if(!topics || topics.length === 0) return;\n    play.tourneyTopic",
+    "expect": "門を通らない入口"
+  },
+  {
+    "name": "58-AB 選んでいた層が消えても、何も知らせない",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "    知らせ.forEach(function(t){ try{ FxKit.notice(t); }catch(e){} });",
+    "to": "",
+    "expect": "「おまかせ」にもどしたと知らせる"
+  }
+]

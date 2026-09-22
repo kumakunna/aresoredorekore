@@ -2849,7 +2849,8 @@ async function startModeWithTimerOff(win, doc, id) {
       '難易度ごとのステッパーが出る');
     // いったん全部0にして、かんたんだけ2本にする。
     // 押すたびに一覧が作り直されるので、その都度引き直す
-    for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
+    // 指示58：描かれている行（許された層）だけを回す（なにそれ・むりは既定で行が無い）
+    for (const tier of Array.from(doc.querySelectorAll('#bombTierRows .bomb-minus')).map((b) => b.dataset.tier)) {
       for (let i = 0; i < 30; i++) {
         if (el(doc, 'bombCount-' + tier).textContent === '0') break;
         doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();
@@ -2921,7 +2922,8 @@ async function startModeWithTimerOff(win, doc, id) {
     click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-bomb', 3000);
-    for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
+    // 指示58：描かれている行（許された層）だけを回す（なにそれ・むりは既定で行が無い）
+    for (const tier of Array.from(doc.querySelectorAll('#bombTierRows .bomb-minus')).map((b) => b.dataset.tier)) {
       for (let i = 0; i < 30; i++) {
         if (el(doc, 'bombCount-' + tier).textContent === '0') break;
         doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();
@@ -3065,8 +3067,8 @@ async function startModeWithTimerOff(win, doc, id) {
       doc.querySelector('#bombTierRows .bomb-plus[data-tier="easy"]').click();
     }
     await sleep(win, 60);
-    const sum = ['easy', 'normal', 'hard', 'nanisore', 'muri']
-      .reduce((s, t) => s + parseInt(el(doc, 'bombCount-' + t).textContent, 10), 0);
+    const sum = Array.from(doc.querySelectorAll('#bombTierRows [id^="bombCount-"]'))
+      .reduce((s, x) => s + parseInt(x.textContent, 10), 0);
     assert(sum <= max, '合計が上限を超えない（合計' + sum + ' / 上限' + max + '）');
     assertEqual(parseInt(el(doc, 'bombMaxValue').textContent, 10), max, '上限そのものが動かない');
     assertNoErrors(errors, 'コード数の設定で未捕捉の例外');

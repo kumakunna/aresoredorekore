@@ -175,7 +175,8 @@ async function playWolfRoleToEnd(win, doc, guardLimit) {
 // 第27弾：クイズ解除のコード配分を、かんたんだけ n 本にする。
 // ステッパーを押すたびに一覧が作り直されるので、その都度引き直す
 function setBombCodes(doc, n) {
-  for (const tier of ['easy', 'normal', 'hard', 'nanisore', 'muri']) {
+  // 指示58：描かれている行（許された層）だけを回す（なにそれ・むりは既定で行が無い）
+  for (const tier of Array.from(doc.querySelectorAll('#bombTierRows .bomb-minus')).map((b) => b.dataset.tier)) {
     for (let i = 0; i < 30; i++) {
       if (el(doc, 'bombCount-' + tier).textContent === '0') break;
       doc.querySelector('#bombTierRows .bomb-minus[data-tier="' + tier + '"]').click();

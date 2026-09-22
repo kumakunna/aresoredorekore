@@ -90,6 +90,9 @@ function startGame(room, config, ctx) {
     playerIds: ids,
     names: {},
     scores: {},          // id -> 合計得点
+    // 指示58 2-4：正解した問題の層（id -> { easy:n, ... }）。**本人にだけ配る**（privateFor）——
+    // 称号の数え（むずかしい以上・むりなんだが）に使う個人の記録で、並べると序列になる（大切なこと5）
+    hitsByTier: {},
     used: {},            // 出した問題文（同じ問題を続けて出さないため）
     rnd: rnd,
 
@@ -115,10 +118,22 @@ function startGame(room, config, ctx) {
   return { ok: true };
 }
 
+// 指示58 2-4：正解した問題の層を、その人の分だけ数える（ラッシュ・とくとく・早押しの3か所から）
+function countHit(w, memberId, tier) {
+  const h = w.hitsByTier[memberId] || (w.hitsByTier[memberId] = {});
+  h[tier] = (h[tier] || 0) + 1;
+}
+
 // ---- 出題（共通）----
-// 同じ問題を続けて出さない。使い切ったら quiz-bank 側で復活する
+// 同じ問題を続けて出さない。使い切ったら quiz-bank 側で復活する。
+//
+// 指示58：**ここが最後の関所。**許された層（w.cfg.allowedTiers）の外の層を頼まれたら、
+// その遊びの「おまかせ」へ寄せて引く（QuizLogic.fitTier）。
+// とくとく・早押し・ラッシュのパスが全部ここを通るので、途中で設定が変わっても
+// 「次の問題から」がそのまま成り立つ
 function drawQuestion(w, tier) {
-  const picked = QuizBank.pickQuestions(tier, 1, w.used, w.rnd);
+  const t = QuizLogic.fitTier(w.variant, tier, w.cfg.allowedTiers);
+  const picked = QuizBank.pickQuestions(t, 1, w.used, w.rnd);
   if (!picked.length) return null;
   w.used[picked[0].q] = true;
   return QuizBank.shuffleChoices(picked[0], w.rnd);
@@ -190,8 +205,16 @@ function rushCloseRound(room) {
 
 // ================= ② つぎつぎクイズ =================
 // 順番に1つずつ、まだ出ていない答えを出す。判定は quiz-bank の一覧と突き合わせる。
+// 指示58：つぎつぎクイズで引いてよいお題。
+// 「おまかせ」は**許された層のお題だけ**から（それまでは全11お題＝ナニソレ込みだった）
+function listTopicsAllowed(w) {
+  const tiers = QuizLogic.tiersFor(V.LIST, w.cfg.allowedTiers);
+  if (w.cfg.tier) return tiers.indexOf(w.cfg.tier) !== -1 ? QuizBank.listTopicsOf(w.cfg.tier) : [];
+  return [].concat.apply([], tiers.map((t) => QuizBank.listTopicsOf(t)));
+}
+
 function startList(w, rnd) {
-  const topics = QuizBank.listTopicsOf(w.cfg.tier);
+  const topics = listTopicsAllowed(w);
   if (!topics.length) {
     return { ok: false, error: 'no_topics', message: 'その難易度のお題がありません' };
   }
@@ -328,6 +351,12 @@ function revealNextQuestion(room) {
   const rv = w.reveal;
   rv.index++;
   if (rv.index >= rv.total) { finish(room, { cause: 'allQuestions' }); return; }
+  // 指示58：問題は始める時にまとめて引いてある。途中で設定が変わって
+  // その層が許されなくなっていたら、**出す直前に**引き直す（まだ誰にも見えていない問題だけ）
+  const next = rv.questions[rv.index];
+  if (next && QuizLogic.tiersFor(V.REVEAL, w.cfg.allowedTiers).indexOf(next.tier) === -1) {
+    rv.questions[rv.index] = drawQuestion(w, w.cfg.tier) || next;
+  }
   rv.askedAt = Date.now();
   rv.shown = 0;
   rv.locked = {};
@@ -421,6 +450,9 @@ function publicView(room) {
     variant: w.variant,
     timerSec: w.cfg.timerSec,
     remainingMs: remainingMs(w),
+    // 指示58：この部屋で許された層（進行役の設定）。ルール文の「◯段階・◯〜◯点」を
+    // 参加者の端末でも同じに作るため。どの層を許したかは秘密ではない
+    allowedTiers: w.cfg.allowedTiers.slice(),
     players: w.playerIds.map((id) => {
       const m = room.members.get(id);
       return {
@@ -536,13 +568,18 @@ function privateFor(room, memberId) {
     phase: w.phase,
     variant: w.variant,
     score: w.scores[memberId] || 0,
-    remainingMs: remainingMs(w)
+    remainingMs: remainingMs(w),
+    // 指示58 2-4：自分が正解した問題の層（称号の数えに使う。ほかの人の分は配らない）
+    hitsByTier: Object.assign({}, w.hitsByTier[memberId] || {})
   };
 
   if (w.variant === V.RUSH) {
     const s = w.rush.seats[memberId];
     out.rush = {
       tier: s.tier,
+      // 指示58：この部屋でいま選べる難易度。**端末は自分の設定ではなくこれを並べる**
+      // （部屋では進行役の設定が全員に効く）
+      tiers: QuizLogic.tiersFor(V.RUSH, w.cfg.allowedTiers),
       canChangeTier: w.cfg.canChangeTier,
       passesLeft: s.passesLeft,
       score: s.score, answered: s.answered, hits: s.hits,
@@ -625,6 +662,9 @@ function rushAction(w, memberId, targetId) {
   if (targetId === 'pass') {
     if (!s.q) return { ok: false, error: 'nothing_open' };
     if (s.passesLeft <= 0) return { ok: false, error: 'no_pass_left' };
+    // 指示58：途中で設定が変わって、挑んでいた層が選べなくなった席（s.tier が null）。
+    // パスを1回使わせずに、難易度を選ぶ画面へもどす（同じ層では引き直せない）
+    if (!s.tier) { s.q = null; s.last = null; return { ok: true, allDone: false }; }
     s.passesLeft--;
     s.q = drawQuestion(w, s.tier);
     s.last = 'pass';
@@ -632,6 +672,11 @@ function rushAction(w, memberId, targetId) {
   }
   // 難易度を選ぶ（＝1問目を引く／難易度を変える）
   if (QuizLogic.TIERS.indexOf(targetId) === -1) return { ok: false, error: 'unknown_tier' };
+  // 指示58：**参加者が何を送っても、進行役が許していない層は出さない**（X6）。
+  // 黙って ok にしない——できていないのに ok を返すのが一番悪い（落とし穴14）
+  if (QuizLogic.tiersFor(V.RUSH, w.cfg.allowedTiers).indexOf(targetId) === -1) {
+    return { ok: false, error: 'tier_not_allowed' };
+  }
   // 第33弾 C-2：おてつきの待ち時間中は、次の問題を引けない
   if (Date.now() < (s.coolUntil || 0)) {
     return { ok: false, error: 'cooling', message: 'おてつき中です。少し待ってください' };
@@ -724,7 +769,7 @@ function rushAnswer(w, memberId, targetId) {
   // 第33弾 B-5：s.score はラウンドごとにリセットされる「そのラウンドの点」。
   // 結果画面のランキングが見る w.scores（全ラウンド合計）に足していなかったので、
   // 決着しても全員0点のままだった。両方に足す
-  if (judged.correct) { s.hits++; s.score += judged.gained; w.scores[memberId] = (w.scores[memberId] || 0) + judged.gained; }
+  if (judged.correct) { s.hits++; s.score += judged.gained; w.scores[memberId] = (w.scores[memberId] || 0) + judged.gained; countHit(w, memberId, s.q.tier); }
   // 第33弾 C-2：おてつきは、少しのあいだ次の問題を引けない。
   // 取った点は奪わない（責める時は静かに）。3択を当てずっぽうで
   // 押し続けても、待たされるぶん時間で損をする形にする
@@ -778,6 +823,7 @@ function revealAnswer(room, memberId, targetId) {
   if (correct) {
     const gained = QuizLogic.revealScore(q.tier, rv.buzzedAt - rv.askedAt, w.cfg.revealSec);
     w.scores[memberId] = (w.scores[memberId] || 0) + gained;
+    countHit(w, memberId, q.tier);
     rv.lastNote = { name: w.names[memberId], hit: true, gained: gained };
     revealNextQuestion(room);
     return { ok: true, correct: true, allDone: false };
@@ -802,6 +848,7 @@ function buzzerAnswer(room, memberId, targetId) {
   const correct = (picked === b.q.correct);
   b.lastNote = { name: w.names[memberId], hit: correct };
   if (correct) {
+    countHit(w, memberId, b.q.tier);
     b.wins[memberId] = (b.wins[memberId] || 0) + 1;
     if (b.wins[memberId] >= w.cfg.winsNeeded) {
       const loser = b.pair.find((id) => id !== memberId) || null;
@@ -988,6 +1035,40 @@ function isAllDone(room) {
 }
 
 /**
+ * 指示58 2-3：**試合の途中で、進行役が「マニアックな問題」の設定を変えた。**
+ *
+ * 次の問題から効く——いま画面に出ている問題は取り消さない。
+ *   ・ラッシュ：挑んでいた層が選べなくなった席は、難易度を選び直す（s.tier だけ空ける。
+ *     出ている s.q はそのまま。`canChangeTier:false` の固定もここで外れる）
+ *   ・とくとく・早押し：難易度を「おまかせ」（fitTier）へ戻す。次の1問から効く
+ *     （とくとくはまとめて引いた問題を、出す直前に照らし直す＝revealNextQuestion）
+ *   ・つぎつぎ：1試合に1お題なので、次の試合から
+ *
+ * 層の意味はこの中だけで扱う。realtime.js は運ぶだけ（落とし穴22）
+ */
+function updateOptions(room, payload) {
+  const w = room.quiz;
+  if (!w) return { ok: false, error: 'not_started' };
+  const p = payload || {};
+  if (!p.tierMix || typeof p.tierMix !== 'object') return { ok: false, error: 'bad_options' };
+  const allowed = QuizBank.allowedTiers(p.tierMix);
+  w.cfg.allowedTiers = allowed;
+  let tierReset = null;
+  if (w.variant !== V.RUSH) {
+    const fitted = QuizLogic.fitTier(w.variant, w.cfg.tier, allowed);
+    if (fitted !== w.cfg.tier) tierReset = { from: w.cfg.tier, to: fitted };
+    w.cfg.tier = fitted;
+  } else {
+    const ok = QuizLogic.tiersFor(V.RUSH, allowed);
+    w.playerIds.forEach((id) => {
+      const s = w.rush.seats[id];
+      if (s && s.tier && ok.indexOf(s.tier) === -1) s.tier = null;
+    });
+  }
+  return { ok: true, tierReset: tierReset };
+}
+
+/**
  * 大画面と端末に出す「共通の時計」の種類（指示55・正本 §11-4）。
  *
  * **とくとくクイズだけは、締め切りの意味が違う。**
@@ -1009,5 +1090,5 @@ module.exports = {
   PHASE, MIN_PLAYERS, MAX_ROUNDS, BREAK_MS, ANSWER_MS, RUSH_MISS_COOLDOWN_MS,
   startGame, publicView, privateFor,
   submitAction, submitVote, isAllDone, advance,
-  playersOf, expectedMembers, resultView, clockKind
+  playersOf, expectedMembers, resultView, clockKind, updateOptions
 };

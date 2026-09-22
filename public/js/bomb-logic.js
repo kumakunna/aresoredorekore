@@ -64,13 +64,16 @@
    * 部屋の進行はサーバーが持つので、ここで枠に収めておかないと
    * 「コード1000本」のような設定でサーバーが苦しむ。
    */
-  function normalizeConfig(cfg) {
+  function normalizeConfig(cfg, allowed) {
     var c = cfg || {};
     var mode = (c.mode === MODE.RACE) ? MODE.RACE : MODE.COOP;
     var counts = {};
     var total = 0;
+    // 指示58：許された層の外の本数は、許された一番上の層へ移してから数える。
+    // allowed を渡さない呼び手（ルール層の検査）には、今までどおり何もしない
+    var asked = Array.isArray(allowed) ? fitCounts(c.counts, allowed).counts : (c.counts || {});
     TIERS.forEach(function (t) {
-      var n = clampInt((c.counts || {})[t], 0, MAX_WIRES, 0);
+      var n = clampInt(asked[t], 0, MAX_WIRES, 0);
       // 合計が上限を超えたら、後ろの難易度から削る（前の難易度の希望を優先する）
       if (total + n > MAX_WIRES) n = MAX_WIRES - total;
       counts[t] = n;
@@ -85,12 +88,42 @@
       timerSec: clampInt(c.timerSec, 0, 59 * 60 + 59, 180),
       counts: counts,
       total: total,
+      allowedTiers: Array.isArray(allowed) ? allowed.slice() : null,
       preset: c.preset || null,
       // 第45弾 45-4：協力版で「だれが外したか」を出すか。**既定は出さない。**
       // 出すこと自体は責める行為ではないが、既定にすると
       // 「外した人の名前が毎回みんなの画面に出る」場になる（大切なこと5）
       showMisses: c.showMisses === true
     };
+  }
+
+  /**
+   * 指示58：**許された層の外にある本数を、許された一番上の層へ移す。**
+   *
+   * 「ナニソレ2本」を既定に持っていた配分から、なにそれ・むりを外す時、
+   * 本数を捨てると、遊ぶ人が決めた「コードの本数（＝試合の長さ）」が黙って縮む。
+   * だから合計は保ち、行き先は「許された中でいちばん難しい層」にする
+   * （外したのは難しい方なので、いちばん近い所へ寄せる）。
+   *
+   * 手渡し（index.html）と部屋（bomb-room.js）が**この1つを通る**（落とし穴1）。
+   * 層の一覧は QuizBank.allowedTiers() の結果を受け取る——ここでは決めない
+   *
+   * @returns {{counts:object, moved:number}} moved は移した本数（知らせるかの判断に使う）
+   */
+  function fitCounts(counts, allowed) {
+    if (!Array.isArray(allowed) || !allowed.length) {
+      throw new Error('fitCounts：許された層（QuizBank.allowedTiers の結果）が要ります');
+    }
+    var top = null;
+    TIERS.forEach(function (t) { if (allowed.indexOf(t) !== -1) top = t; });
+    var out = {};
+    var moved = 0;
+    TIERS.forEach(function (t) {
+      var n = Math.max(0, parseInt((counts || {})[t], 10) || 0);
+      if (allowed.indexOf(t) === -1) { out[t] = 0; moved += n; } else out[t] = n;
+    });
+    if (top) out[top] += moved;
+    return { counts: out, moved: moved };
   }
 
   /**
@@ -170,12 +203,17 @@
    *
    * @param bank quiz-bank.js（テストから差し替えられるように引数で受ける）
    * @param used 出した問題（同じ問題を続けて出さないため）
+   * @param allowed 指示58：許された層（bank.allowedTiers の結果）。
+   *   呼び手はその前に fitCounts で本数を寄せておく。ここは**最後の関所**で、
+   *   渡されなければ3層として扱う（渡し忘れても、なにそれ・むりは出ない側に倒れる）
    */
-  function pickQuestionWires(bank, counts, rnd, used) {
+  function pickQuestionWires(bank, counts, rnd, used, allowed) {
     var wires = [];
     var n = 0;
     var seen = used || {};
+    var ok = Array.isArray(allowed) ? allowed : bank.allowedTiers(null);
     TIERS.forEach(function (tier) {
+      if (ok.indexOf(tier) === -1) return;
       var want = (counts || {})[tier] || 0;
       if (want <= 0) return;
       var picked = bank.pickQuestions(tier, want, seen, rnd);
@@ -280,7 +318,7 @@
     CHOICE_COUNT: CHOICE_COUNT, MAX_WIRES: MAX_WIRES, MAX_LIVES: MAX_LIVES,
     MISS_TIME_PENALTY_SEC: MISS_TIME_PENALTY_SEC,
     HEART_BASE_MS: HEART_BASE_MS, HEART_MIN_MS: HEART_MIN_MS,
-    normalizeConfig: normalizeConfig, normalizeTopics: normalizeTopics,
+    normalizeConfig: normalizeConfig, normalizeTopics: normalizeTopics, fitCounts: fitCounts,
     pickWires: pickWires, pickQuestionWires: pickQuestionWires, isBankWire: isBankWire,
     shuffleWires: shuffleWires, buildChoices: buildChoices, isCorrect: isCorrect,
     heartIntervalMs: heartIntervalMs, rankPlayers: rankPlayers,

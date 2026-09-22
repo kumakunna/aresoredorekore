@@ -19,11 +19,7 @@
 //       ○ 富士山 / 北岳 / 奥穂高岳             ← どれも日本の高い山
 //
 // ---- 難易度の目安 ----
-//   easy     … 小学生でも知っている
-//   normal   … 大人ならだいたい知っている
-//   hard     … 知っている人は知っている
-//   nanisore … 知らない人の方が多い
-//   muri     … 詳しい人だけが分かる
+//   下の TIER_HINT（指示58で、設定画面の説明にも出すのでデータにした。ここには写さない）
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -32,6 +28,15 @@
   'use strict';
 
   var TIERS = ['easy', 'normal', 'hard', 'nanisore', 'muri'];
+  // 難易度の目安。問題を足す人が層を決める物差しで、
+  // 指示58からは設定画面（マニアックな問題）の説明にもそのまま出す
+  var TIER_HINT = {
+    easy: '小学生でも知っている',
+    normal: '大人ならだいたい知っている',
+    hard: '知っている人は知っている',
+    nanisore: '知らない人の方が多い',
+    muri: '詳しい人だけが分かる'
+  };
 
   // ================= 3択・4択の問題 =================
   //
@@ -711,6 +716,30 @@
     return LIST_TOPICS.filter(function (t) { return t.tier === tier; });
   }
 
+  // ================= 指示58：いま使ってよい層 =================
+  //
+  // **「ナニソレシラナイ」「むりなんだが」は、既定で出さない。**
+  // ホストが設定で1つずつ足した時だけ、その層が加わる（指示46追記 D-2 を上書き）。
+  //
+  // なにそれ・むりが出てくる入口は、棚卸しで71か所あった
+  // （docs/監査_指示58の門.md）。入口ごとに filter を書くと、片方だけ直る（落とし穴1）。
+  // だから**端末もサーバーも、この1つを通る**——このファイルは両方がもう読んでいる。
+  //
+  // mix は「足してよい層」。**`true` と書いてあるものだけ**足す（'yes' や 1 は足さない）。
+  // 無い・壊れている時は3層——古い端末・道具・悪意のある送り手は、出さない側に倒れる。
+  // 並びは TIERS の順（易しい順）。かんたん・ふつう・むずかしいは外せない。
+  //
+  // **取り出し（pickQuestions・listTopicsOf）の中には入れない。**
+  // 検査と道具が「引数なし＝全部」「muri を直に」で呼んでいて、中で絞ると黙って縮む。
+  // 門は「層を決める呼び手」に置く
+  var BASE_TIERS = ['easy', 'normal', 'hard'];
+  function allowedTiers(mix) {
+    var m = (mix && typeof mix === 'object') ? mix : {};
+    return TIERS.filter(function (t) {
+      return BASE_TIERS.indexOf(t) !== -1 || m[t] === true;
+    });
+  }
+
   // 同じ問題を続けて出さないための抽選。使い切ったら復活する（お題プールと同じ考え方）
   function pickQuestions(tier, n, used, rnd) {
     var r = rnd || Math.random;
@@ -746,6 +775,7 @@
     TIERS: TIERS, QUESTIONS: QUESTIONS, LIST_TOPICS: LIST_TOPICS,
     questionsOf: questionsOf, countOf: countOf, allCounts: allCounts,
     listTopicsOf: listTopicsOf, pickQuestions: pickQuestions,
+    BASE_TIERS: BASE_TIERS, allowedTiers: allowedTiers, TIER_HINT: TIER_HINT,
     shuffleChoices: shuffleChoices,
     normalize: normalize, judgeListAnswer: judgeListAnswer, canonicalOf: canonicalOf
   };

@@ -108,11 +108,15 @@ function startGame(room, config, ctx) {
     return { ok: false, error: 'too_few_players', message: MIN_PLAYERS + '人以上必要です' };
   }
   const c = ctx || {};
-  const cfg = BombLogic.normalizeConfig(config);
+  // 指示58：**サーバーで門を持つ。**進行役の端末が送った許可（tierMix）から層を決め、
+  // その外の本数は許された一番上の層へ寄せる。送られてこなければ3層（落とし穴14：
+  // 端末で隠しただけにしない）
+  const allowed = QuizBank.allowedTiers(config && config.tierMix);
+  const cfg = BombLogic.normalizeConfig(config, allowed);
   const rnd = (config && config.rnd) || null;
   // 第32弾-A-3-6：問題バンクから作る。AIは呼ばないので、
   // 「説明文ができるまで待つ」段階そのものが無くなった
-  const wires = BombLogic.pickQuestionWires(QuizBank, cfg.counts, rnd, {});
+  const wires = BombLogic.pickQuestionWires(QuizBank, cfg.counts, rnd, {}, allowed);
   if (!wires.length) {
     return { ok: false, error: 'no_wires', message: 'コードが1本もありません。設定を見直してください' };
   }

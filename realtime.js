@@ -1474,6 +1474,32 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       pushWolfState(room);
     });
 
+    /**
+     * 指示58 2-3：**試合の途中で、進行役がゲームの設定を変える。**
+     *
+     * それまで設定は `wolf:start` の payload でしか届かず（始まっていれば already_started）、
+     * 試合中に変えても「次のゲームから」にしかならなかった。
+     * 中身は進行役（updateOptions を持つものだけ）に素通しする——
+     * **ここに層の意味を入れない**（落とし穴22：共通の芯に入れる前に、全ゲームで同じ意味か）。
+     * 持っていない進行役には `not_supported` を返す（黙って ok にしない・落とし穴14）。
+     * 進行役だけが送れる：部屋では進行役の設定が全員に効く
+     */
+    socket.on('game:options', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      const dr = room && driverOf(room);
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが変えられます');
+      if (!dr) return fail(cb, 'not_started', 'まだ始まっていません');
+      if (typeof dr.updateOptions !== 'function') {
+        return fail(cb, 'not_supported', '次のゲームから効きます');
+      }
+      const res = dr.updateOptions(room, payload || {});
+      if (!res || !res.ok) return fail(cb, (res && res.error) || 'bad_options', '変えられませんでした');
+      if (typeof cb === 'function') cb(Object.assign({}, res, { ok: true }));
+      pushWolfState(room);
+    });
+
     // 作戦会議・話し合いを終える、結果を見終わる、はホストが進める
     socket.on('wolf:next', (payload, cb) => {
       const room = currentRoom();

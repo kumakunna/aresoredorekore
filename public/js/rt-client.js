@@ -335,6 +335,11 @@
     }
     function nextPhase() { return call('wolf:next', {}); }
     /**
+     * 指示58：試合の途中で、進行役がゲームの設定を変える（いまは「マニアックな問題」だけ）。
+     * 受け取れない進行役（クイズ解除など）は not_supported を返す＝次のゲームから効く
+     */
+    function gameOptions(opts) { return call('game:options', opts || {}); }
+    /**
      * 第48弾 48-5：ポーズ。席を外すための安全弁。
      * 止められるのは進行役だけ（サーバーが門番する）。
      * もどせるのは、止めた本人か進行役
@@ -379,6 +384,7 @@
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
       setReady: setReady,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase, pause: pause,
+      gameOptions: gameOptions,
       react: react, thanks: thanks,
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,

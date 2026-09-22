@@ -53,17 +53,49 @@
   // 同じものがリポジトリに13か所あったので、まずここから減らす（落とし穴1）
   var shuffled = Versus.shuffled;
 
+  // ================= 指示58：その遊びで、いま選べる難易度 =================
+  //
+  // 許された層（QuizBank.allowedTiers）のうち、**その遊びに問題（お題）がある層だけ**。
+  // つぎつぎクイズには「むりなんだが」のお題が1つも無い——それでも並べると、
+  // 選んだ瞬間に「その難易度のお題がありません」で始まらなかった（落とし穴21）。
+  // 並べるかどうかは**データから導く**（手で「つぎつぎは むり を外す」と書かない・落とし穴4）
+  function tiersFor(variant, allowed) {
+    var ok = Array.isArray(allowed) ? allowed : QuizBank.allowedTiers(null);
+    return ok.filter(function (t) {
+      if (TIERS.indexOf(t) === -1) return false;
+      if (variant === VARIANT.LIST) return QuizBank.listTopicsOf(t).length > 0;
+      return QuizBank.countOf(t) > 0;
+    });
+  }
+  // 1つに決める遊び（とくとく・早押し）の既定。「おまかせ」を持たないので、ここへ戻す
+  var DEFAULT_TIER = 'normal';
+  /**
+   * 選んでいた難易度が、いま選べなければ「おまかせ」へ戻す（指示58 2-3）。
+   * つぎつぎクイズは null（＝おまかせ）、ほかの2つは DEFAULT_TIER。
+   * **黙って空のプールにしない**——選べない層のまま始めると、1問も引けない
+   */
+  function fitTier(variant, tier, allowed) {
+    if (tier && tiersFor(variant, allowed).indexOf(tier) !== -1) return tier;
+    return (variant === VARIANT.LIST) ? null : DEFAULT_TIER;
+  }
+
   /**
    * 端末から届いた設定を、そのまま信じずに枠へ収める。
    * ここを通さないと「制限時間9999分」のような設定でサーバーが苦しむ。
+   *
+   * 指示58：**許された層もここで決める**（`allowedTiers`）。
+   * 進行役の端末が `tierMix` を送らなければ3層——古い端末も、出さない側に倒れる。
+   * 難易度（つぎつぎ・とくとく・早押し）は、許された層の中へ寄せる
    */
   function normalizeConfig(cfg) {
     var c = cfg || {};
     var variant = (VARIANTS.indexOf(c.variant) !== -1) ? c.variant : VARIANT.RUSH;
+    var allowed = QuizBank.allowedTiers(c.tierMix);
     var out = {
       variant: variant,
       timerSec: clampInt(c.timerSec, 10, 59 * 60 + 59, 180),
-      preset: c.preset || null
+      preset: c.preset || null,
+      allowedTiers: allowed
     };
     if (variant === VARIANT.RUSH) {
       out.passLimit = clampInt(c.passLimit, 0, 20, 3);
@@ -75,18 +107,18 @@
       out.style = (c.style === LIST_STYLE.SURVIVAL) ? LIST_STYLE.SURVIVAL : LIST_STYLE.COOP;
       out.targetCount = clampInt(c.targetCount, 3, 60, 10);   // 協力形式の目標数
       out.turnSec = clampInt(c.turnSec, 5, 120, 20);          // 1人の持ち時間
-      out.tier = (TIERS.indexOf(c.tier) !== -1) ? c.tier : null; // null＝おまかせ
+      out.tier = fitTier(variant, c.tier, allowed);           // null＝おまかせ
     }
     if (variant === VARIANT.REVEAL) {
       out.questionCount = clampInt(c.questionCount, 1, 30, 8);
       out.revealSec = clampInt(c.revealSec, 5, 60, 20);       // 全部見えるまでの秒数
-      out.tier = (TIERS.indexOf(c.tier) !== -1) ? c.tier : 'normal';
+      out.tier = fitTier(variant, c.tier, allowed);
     }
     if (variant === VARIANT.BUZZER) {
       out.winsNeeded = clampInt(c.winsNeeded, 1, 9, 3);       // 先に何問正解で勝ち
       out.delivery = (c.delivery === BUZZER_DELIVERY.TEXT)
         ? BUZZER_DELIVERY.TEXT : BUZZER_DELIVERY.SPEAK;
-      out.tier = (TIERS.indexOf(c.tier) !== -1) ? c.tier : 'normal';
+      out.tier = fitTier(variant, c.tier, allowed);
     }
     return out;
   }
@@ -310,6 +342,7 @@
     LIST_STYLE: LIST_STYLE, BUZZER_DELIVERY: BUZZER_DELIVERY,
     REVEAL_MIN_RATE: REVEAL_MIN_RATE,
     normalizeConfig: normalizeConfig,
+    tiersFor: tiersFor, fitTier: fitTier, DEFAULT_TIER: DEFAULT_TIER,
     rushScoreFor: rushScoreFor, rushJudge: rushJudge,
     rushRoundWinners: rushRoundWinners, winTargetsFor: winTargetsFor,
     nextTurnIndex: nextTurnIndex, listJudge: listJudge, listCanonical: listCanonical, listOutcome: listOutcome,

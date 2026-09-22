@@ -309,7 +309,8 @@
         hint: '早押しトーナメントで優勝する',
         need: function (s) { return s('quizou', 'buzzerWins') >= 1; } },
       { id: 'icon-quiz-muri', cassette: 'quizou', emoji: '🧠', label: '難問撃破の証',
-        hint: '「むりなんだが」の問題を正解する',
+        // 指示58 2-4：むりなんだが は既定で出ない。条件は変えずに、取り方を一言そえる
+        hint: '「むりなんだが」の問題を正解する（設定で「マニアックな問題」をまぜると、ねらえます）',
         need: function (s) { return s('quizou', 'muriHits') >= 1; } },
 
       // ---- 指示53：False or True ----
@@ -755,6 +756,26 @@
       return p ? p.label : '';
     }).join('');
   }
+  /**
+   * 指示58 2-4：**クイズで正解した問題の層**から、称号の数え（hardHits・muriHits）を作る。
+   *
+   * それまで hardHits・muriHits を足す所がリポジトリに1か所も無く、
+   * 「難問撃破の証」「博識」は**誰にも取れなかった**。
+   * 数えの意味（むずかしい以上＝hard・nanisore・muri）はこのファイルが持つので、ここで決める。
+   * 渡すのは本人の分だけ（サーバーの privateFor が配る）
+   *
+   * @param hits { easy:n, normal:n, hard:n, nanisore:n, muri:n } の一部
+   * @returns 足す値（0 のものは入れない）
+   */
+  function quizTierStats(hits) {
+    var h = hits || {};
+    var n = function (t) { return Math.max(0, parseInt(h[t], 10) || 0); };
+    var out = {};
+    var 難 = n('hard') + n('nanisore') + n('muri');
+    if (難) out.hardHits = 難;
+    if (n('muri')) out.muriHits = n('muri');
+    return out;
+  }
   function iconEmoji(equipped) {
     var p = partById('icon', (equipped || DEFAULTS).icon) || partById('icon', DEFAULTS.icon);
     return p ? p.emoji : '🙂';
@@ -778,6 +799,7 @@
     newlyUnlocked: newlyUnlocked,
     normalizeEquipped: normalizeEquipped,
     titleText: titleText,
-    iconEmoji: iconEmoji
+    iconEmoji: iconEmoji,
+    quizTierStats: quizTierStats
   };
 }));

@@ -2072,6 +2072,8 @@
   .stats-lookup-card .num{font-family:'DotGothic16',monospace;color:var(--stamp-deep);}
   .describer-section{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
   .toggle-row-mini{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;}
+  /* 指示58：マニアックな問題の子トグル。親の下にあることが、字下げで分かるように */
+  .set-tier-child{margin-left:20px;}
   /* ===== 設定ウィザード（①モード選択リニューアル） ===== */
   .wiz-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
   .wiz-step{font-family:'DotGothic16',monospace;font-size:12px;color:var(--gold);letter-spacing:1px;flex:none;}
@@ -7117,6 +7119,13 @@
         <button class="btn btn-outline" id="openRecordsBtn">📊 記録を見る</button>
       </div>
 
+      <!-- ===== 指示58：マニアックな問題（ナニソレシラナイ・むりなんだが） =====
+           中身は renderSetTiers が毎回組み立てる。**親が OFF の間、子のトグルは描かない**
+           （押せない見た目で並べない・hidden 属性でも隠さない：落とし穴35） -->
+      <div class="set-page" data-page="tiers" style="display:none;">
+        <div id="setTiersBody"></div>
+      </div>
+
       <!-- ===== D. 危険な操作 ===== -->
       <div class="set-page" data-page="danger" style="display:none;">
         <div class="danger-note">
@@ -7406,12 +7415,12 @@
     {id:"defuse-focus", icon:"🎯", title:"集中解除", sub:"マニュアル役1人・ほかは全員が解除役", advanced:false, strict:false, oneWord:false, defuse:true, defuseFocus:true, roomOnly:true, game:'defuse', minPlayers:2,
       bullets:["マニュアル役はたった1人","ほかは全員が解除役","1人に質問が集中する・さばききれるか","対応表は全部その1人が持つ","ミスの数は全員で共有・尽きると爆発"]},
     {id:"quizking", icon:"👑", title:"クイズ王決定戦", sub:"難易度をえらんで挑戦・高難易度ほど高得点", advanced:false, strict:false, oneWord:false, quiz:true, hidden:true, game:'quizking',
-      bullets:["自分の番に挑戦する難易度をえらぶ","難しいほど高得点（1〜8点）","問題を読んで3択で答える","正解で得点、外れても減点なし","気に入らないお題はパスできる"]},
+      bullets:["自分の番に挑戦する難易度をえらぶ","難しいほど高得点（点は難易度のボタンに出ます）","問題を読んで3択で答える","正解で得点、外れても減点なし","気に入らないお題はパスできる"]},
     // ---- 第30弾：カセット「クイズ王」。4つとも1人1台・部屋が必須 ----
     // 全員が同時に別々の画面を見る（自分の問題・自分の番・自分の押しボタン）ので、
     // 1台を回す手渡しでは成立しない。出題は問題バンクから（ゲーム中にAIは呼ばない）
     {id:"quizrush", icon:"⚡", title:"クイズラッシュ", sub:"難易度を選んで解き続ける・時間いっぱい", advanced:false, strict:false, oneWord:false, quizKing:true, quizRush:true, roomOnly:true, game:'quizrush', minPlayers:2, timer:180,
-      bullets:["5段階の難易度から、挑む難易度を自分でえらぶ","難しいほど高得点（1〜8点）","制限時間いっぱい、次々に答え続ける","答えたくない問題はパスできる（回数は設定できる）","難易度は途中で変えられる（変えられなくもできる）","ラウンド制にすると、勝ったラウンド数で優勝を決める"]},
+      bullets:["挑む難易度を、自分でえらぶ","難しいほど高得点（点は難易度のボタンに出ます）","制限時間いっぱい、次々に答え続ける","答えたくない問題はパスできる（回数は設定できる）","難易度は途中で変えられる（変えられなくもできる）","ラウンド制にすると、勝ったラウンド数で優勝を決める"]},
     {id:"quizlist", icon:"🔁", title:"つぎつぎクイズ", sub:"順番に1つずつ答える・既出はアウト", advanced:false, strict:false, oneWord:false, quizKing:true, quizList:true, roomOnly:true, game:'quizlist', minPlayers:2, timer:180,
       bullets:["お題が1つ出る（例：赤い食べ物）","順番に1人1個ずつ、まだ出ていない答えを言う","間違い・既出・時間切れはアウト","協力形式：みんなで目標の数まで出せたら成功","脱落形式：最後まで残った1人が勝ち","誰の番かは全員の画面にリアルタイムで出る"]},
     {id:"quizreveal", icon:"🔎", title:"とくとくクイズ", sub:"だんだん見えてくる・早いほど高得点", advanced:false, strict:false, oneWord:false, quizKing:true, quizReveal:true, roomOnly:true, game:'quizreveal', minPlayers:2, timer:180,
@@ -10159,7 +10168,10 @@
     wolfAware: false,
     seenRules: {},
     bombMax: 30,
-    bombCounts: { easy: 12, normal: 10, hard: 6, nanisore: 2, muri: 0 },
+    // 指示58：なにそれ・むりは既定で出さない。それまでの既定 {12,10,6,2,0} の
+    // 「ナニソレ2本」は、許された一番上の層（むずかしい）へ寄せた——合計30本（＝bombMax の既定）と
+    // 目安時間を変えないため。寄せ方は BombLogic.fitCounts と同じ規則
+    bombCounts: { easy: 12, normal: 10, hard: 8, nanisore: 0, muri: 0 },
     bombLocked: { easy: false, normal: false, hard: false, nanisore: false, muri: false },
     bombLives: 3,
     bombEndWhen: 'first', // 第27弾・競争版の終わり方：'first'（最初の1人で終了）| 'all'（全員が終わるまで）
@@ -10170,7 +10182,8 @@
     // 第27弾-3：実物解除の設定
     dfCfg: { moduleCount:5, strikes:3, manual:true, allowPhysical:true },
     // 第30弾：クイズ王の設定。4ゲームぶんを1つに持つ（画面も1枚で共有している）。
-    // tier の null は「おまかせ（全部の難易度から）」
+    // tier の null は「おまかせ」——つぎつぎは許された層のお題ぜんぶから、
+    // とくとく・早押しは「ふつう」（QuizLogic.fitTier。指示58）
     qkCfg: {
       passLimit:3, canChangeTier:true, roundsToWin:0,
       style:'coop', targetCount:10, turnSec:20,
@@ -10220,8 +10233,11 @@
     autoSaveRecords: true, // 5：対戦記録をサーバーへ自動保存するか（localStorageに永続化）
     matchRoundsLogged: 0,  // このマッチでサーバーに送ったラウンド数（記録のゲーム判別用）
     pool: null, // 統合お題プールのキャッシュ（お題取得後に構築）
-    topicDifficulties: ['easy','normal','hard','nanisore','muri'], // 通常系モードで出す難易度（デフォルト全部）
-    topicMix: false // 難易度を無視して全部から均等に出す「ごちゃまぜ」
+    // 通常系モードで出す難易度。**null ＝「まだ絞っていない」＝許された層ぜんぶ**（指示58）。
+    // それまでは5層を手で並べた配列が既定で、なにそれ・むりがいつも入っていた。
+    // 実在の層を既定に置くと「選んだ」と「まだ選んでいない」が同じ顔になる（落とし穴36）
+    topicDifficulties: null,
+    topicMix: false // 難易度を無視して、許された層の全部から均等に出す「ごちゃまぜ」
   };
   var BOMB_TIERS = [
     { id:'easy', label:'🟢 かんたん' },
@@ -10340,7 +10356,36 @@
     ]
   };
 
-  var ALL_TIERS = ['easy','normal','hard','nanisore','muri'];
+  // ===================== 指示58：いま使ってよい層 =====================
+  /**
+   * **なにそれ・むりが出てくる入口は、全部ここを通る。**
+   *
+   * 棚卸し（docs/監査_指示58の門.md）で入口は71か所あった。入口ごとに filter を書くと
+   * 片方だけ直る（落とし穴1）ので、門の本体は `QuizBank.allowedTiers` の1つだけ。
+   * ここはその「端末の窓」。**読むのはこの端末の設定**——
+   *   ・手渡し … その端末の設定が効く
+   *   ・部屋 … 設定を送るのは進行役の端末だけ（rtStartGameNow・game:options）。
+   *     参加者が層を目にするのはラッシュのボタンだけで、それはサーバーが配った
+   *     `rush.tiers` を並べる（ここは通らない）
+   * それまで「ぜんぶ」を意味していた ALL_TIERS は消した。残すと、OFF でも5層へ戻る道になる
+   */
+  // 足せる層と、それを持つ設定の名前。**足せる層＝5層から外せない3層を引いたもの**で、
+  // この表と食い違ったら tests/tier-gate.js が赤くなる（両方向の照合・落とし穴20）
+  var TIER_PREF_KEY = { nanisore:'tierNanisore', muri:'tierMuri' };
+  function tierMix(){
+    var out = {};
+    if(!appPrefs.tierExtra) return out;      // 親が OFF なら、子の値は読まない
+    Object.keys(TIER_PREF_KEY).forEach(function(t){ out[t] = appPrefs[TIER_PREF_KEY[t]] === true; });
+    return out;
+  }
+  function allowedTiers(){ return QuizBank.allowedTiers(tierMix()); }
+  // 選択肢として並べる行（id とラベル）。ラベルの辞書は BOMB_TIERS のまま5層を持つ
+  // （ONの時と、過去に出た問題の層名を映す時に要る）。**並べる時だけ**ここを通す
+  function tierRows(){
+    return allowedTiers().map(function(id){
+      return BOMB_TIERS.find(function(t){ return t.id === id; });
+    });
+  }
   // お題プールは QUIZ_BANK（50件）から作る。第46弾でサーバー側のお題を混ぜるのをやめた
   // ===== 別名（第11弾）=====
   // 方針：判定は寛容に、表示は正式名称で。
@@ -10398,10 +10443,18 @@
   }
   function poolByTier(tier){ return getPool().filter(function(t){ return t.tier === tier; }); }
   function poolForTiers(tiers){ return getPool().filter(function(t){ return tiers.indexOf(t.tier) >= 0; }); }
+  /**
+   * あれそれ（と hidden の手渡し早押し）で、いま出してよい層。
+   * ごちゃまぜ・まだ絞っていない → 許された層ぜんぶ。
+   * 絞っている → 絞った層のうち、いま許されているものだけ。
+   * **積が空なら許された層ぜんぶ**（おまかせへ戻す。黙って空のプールにしない・指示58 2-3）。
+   * 毎回ここを読み直すので、途中で設定を変えても「次のお題から」効く
+   */
   function effectiveTiers(){
-    if(state.topicMix) return ALL_TIERS.slice();
-    var sel = state.topicDifficulties || ALL_TIERS;
-    return sel.length ? sel : ALL_TIERS.slice();
+    var ok = allowedTiers();
+    if(state.topicMix || !state.topicDifficulties) return ok;
+    var sel = ok.filter(function(t){ return state.topicDifficulties.indexOf(t) >= 0; });
+    return sel.length ? sel : ok;
   }
   // 同一マッチ内の重複防止つき抽選。出尽くしたら復活する。
   /**
@@ -10453,6 +10506,79 @@
     play.usedTopics = 前;
     return { 引ける: list.length, 出た数: Object.keys(出た).length, 一周: 一周, 名前: 名前 };
   };
+  /**
+   * 指示58：検査が**本物の入口**を回せる窓（topicProbe と同じ形）。
+   *
+   * 入口の関数を検査の側に書き写すと、写しと実装が別々に動いていく（落とし穴25）。
+   * ここは本物を呼んで、出た層を返すだけ。X4（親OFFで1問も出ない）・X5（片方だけ加わる）の検体
+   */
+  window.tierProbe = {
+    allowed: function(){ return allowedTiers(); },
+    effective: function(){ return effectiveTiers(); },
+    mix: function(){ return tierMix(); },
+    changed: function(){ return onTiersChanged(); },
+    // 入口ごとに n 回引いて、出た層を並べる
+    draw: function(入口, n){
+      var 出た = [];
+      for(var i = 0; i < (n || 1); i++){
+        if(入口 === 'aresore'){ nextTopic(); 出た.push(play.currentTopic && play.currentTopic.tier); }
+        else if(入口 === 'buzzerHandoff'){
+          startTourneyTopic(); clearInterval(play.tourneyInterval);
+          出た.push(play.tourneyTopic && play.tourneyTopic.tier);
+        }
+        else if(入口 === 'auctionHandoff'){
+          startAuctionRound();
+          出た.push(play.auctionTier, play.auctionTopic && play.auctionTopic.tier);
+        }
+        else if(入口 === 'bombHandoff'){
+          initBombRound();
+          play.bombWires.forEach(function(w){ 出た.push(w.tier); });
+        }
+        else if(入口 === 'quizkingHandoff'){
+          // hidden の手渡しクイズ王：番の画面に並んだボタンを、本物のとおり1つずつ押す
+          play.quizTurnsDone = 0; play.quizTotalTurns = 999; play.quizTurnIndex = 0;
+          if(!play.quizOrder || !play.quizOrder.length) play.quizOrder = ['p1'];
+          if(!play.quizUsedNames) play.quizUsedNames = {};
+          enterQuizTurn();
+          document.querySelectorAll('#quizTierButtons button[data-tier]').forEach(function(b){
+            b.click();
+            出た.push(play.quizCurrent && play.quizCurrent.tier);
+          });
+        }
+        else if(入口 === 'decoys'){
+          // はずれの選択肢を借りる逃げ道（同じ層に足りない時）を、わざと通す
+          var w = { name:'？', tier:'（どの層でもない）' };
+          pickDecoys(w, 99).forEach(function(nm){
+            var t = getPool().find(function(x){ return x.name === nm; });
+            出た.push(t && t.tier);
+          });
+        }
+        else throw new Error('tierProbe.draw：知らない入口 ' + 入口);
+      }
+      return 出た;
+    },
+    // 48-7：いま出してよい層の中で、何件で一周するか（nextTopic と同じリスト）
+    ring: function(){ return poolForTiers(effectiveTiers()).length; },
+    // 検査が「選んでいた層が消えた」を組み立てるための、読み書きの窓（値を置くだけ）
+    peek: function(){
+      return { topicDifficulties: state.topicDifficulties && state.topicDifficulties.slice(),
+               topicMix: state.topicMix, bombCounts: Object.assign({}, state.bombCounts),
+               bombLocked: Object.assign({}, state.bombLocked), qkTier: state.qkCfg.tier,
+               prefs: { tierExtra: appPrefs.tierExtra, tierNanisore: appPrefs.tierNanisore, tierMuri: appPrefs.tierMuri } };
+    },
+    setup: function(o){
+      if('topicDifficulties' in o) state.topicDifficulties = o.topicDifficulties;
+      if('topicMix' in o) state.topicMix = !!o.topicMix;
+      if(o.bombCounts) state.bombCounts = Object.assign({}, o.bombCounts);
+      if(o.bombLocked) state.bombLocked = Object.assign({}, o.bombLocked);
+      if('qkTier' in o) state.qkCfg.tier = o.qkTier;
+    },
+    // 本物の描画関数で、そのモードの設定画面（難易度・クイズ解除の本数・クイズ王の難易度）を描く
+    render: function(modeId){
+      state.selectedModeId = modeId;
+      renderDifficultyStep(); renderBombSection(); renderQuizStep();
+    }
+  };
 
   /**
    * 第48弾 48-7：**絞った層の残りを、出題者に小さく出す。**
@@ -10463,7 +10589,7 @@
   function topicLeftText(){
     if(state.topicMix) return '';
     var tiers = effectiveTiers();
-    if(tiers.length === ALL_TIERS.length) return '';
+    if(tiers.length === allowedTiers().length) return '';
     return tiers.map(function(t){
       var 残り = poolByTier(t).filter(function(x){ return !play.usedTopics[x.name]; }).length;
       var ラベル = (BOMB_TIERS.find(function(b){ return b.id === t; }) || {}).label || t;
@@ -10801,7 +10927,14 @@
     // 第36弾 36-2：残り時間の見せ方。全カセット共通で、ここ1か所だけが持つ。
     // 'always'＝常に表示 / 'peek'＝見たい時だけ（時計を押すと5秒） / 'hidden'＝表示しない
     // **制限時間のあるゲームで、既定が「隠す」は成立しない**（第45弾 45-1）
-    timerView: 'always'
+    timerView: 'always',
+    // 指示58：**マニアックな問題（ナニソレシラナイ・むりなんだが）は、既定で出さない。**
+    // 親（tierExtra）が OFF の間、子の2つは画面に出さず、効き目も無い（tierMix）。
+    // 5ゲームが同じプールを分け合っているので、ゲームごとではなくここ1か所に持つ
+    // （ゲームごとに持つと「クイズ解除では出ないのにクイズ王では出る」が起きる・落とし穴1）
+    tierExtra: false,
+    tierNanisore: false,
+    tierMuri: false
   };
   /**
    * 第45弾 45-1：**その値を、人が自分で選んだのか。**
@@ -10815,7 +10948,8 @@
    * 「窓口の無い設定」として赤くなる——実際に赤くしてから分けた。
    * 印は設定ではない。保存先だけ同じ（`_chosen`）で、器を分ける
    */
-  var prefsChosen = { timerView: false, playGuide: false };
+  var prefsChosen = { timerView: false, playGuide: false,
+                     tierExtra: false, tierNanisore: false, tierMuri: false };
   function loadAppPrefs(){
     try{
       var raw = localStorage.getItem(APP_PREFS_KEY);
@@ -12897,14 +13031,18 @@
     { flag:'quizBuzzer', box:'quizCfgBuzzer', title:'早押しトーナメントの設定', tier:true,
       lead:'何問先取で勝ちか、問題をどう出すかを決めよう。' }
   ];
-  // 難易度の選択肢。おまかせを先頭に置く（迷う人がそのまま進める）
-  function quizTierOptions(){
+  // 難易度の選択肢。おまかせを先頭に置く（迷う人がそのまま進める）。
+  // 指示58：並べるのは**その遊びで、いま選べる層だけ**（QuizLogic.tiersFor）——
+  // 許されていない層も、つぎつぎクイズでお題の無い層（むり）も、選択肢そのものが無い
+  function quizTierOptions(variant){
     var out = [{ id:'', label:'おまかせ' }];
-    (QuizLogic.TIERS || []).forEach(function(t){
+    QuizLogic.tiersFor(variant, allowedTiers()).forEach(function(t){
       out.push({ id:t, label:QuizLogic.TIER_LABEL[t] || t });
     });
     return out;
   }
+  // いま選んでいる遊びの variant（部屋のゲームid と同じ文字）
+  function quizVariantOf(m){ return (m && m.game) || 'quizrush'; }
   function renderQuizStep(){
     var m = modeById(state.selectedModeId) || {};
     var c = state.qkCfg;
@@ -12964,10 +13102,11 @@
     el('quizCfgTier').style.display = sec.tier ? 'block' : 'none';
     if(sec.tier){
       // つぎつぎクイズは「おまかせ」も選べる。ほかは1つに決める
-      var opts = quizTierOptions().filter(function(o){
+      var opts = quizTierOptions(quizVariantOf(m)).filter(function(o){
         return m.quizList ? true : o.id !== '';
       });
-      var cur = c.tier || (m.quizList ? '' : 'normal');
+      // 指示58：選んでいた層が、いま選べなければ「おまかせ」へ（どのボタンも光らないまま送らない）
+      var cur = QuizLogic.fitTier(quizVariantOf(m), c.tier, allowedTiers()) || '';
       el('qkTierSeg').innerHTML = opts.map(function(o){
         return '<button class="seg-btn' + (o.id === cur ? ' on' : '') +
           '" data-tier="' + o.id + '">' + escapeHtml(o.label) + '</button>';
@@ -13022,6 +13161,9 @@
   });
   el('qkTierSeg').addEventListener('click', function(e){
     var b = e.target.closest('[data-tier]'); if(!b) return;
+    // 指示58：いま選べない層は受け取らない（描いていないが、念のため）
+    var m = modeById(state.selectedModeId) || {};
+    if(b.dataset.tier && QuizLogic.tiersFor(quizVariantOf(m), allowedTiers()).indexOf(b.dataset.tier) < 0) return;
     state.qkCfg.tier = b.dataset.tier || null;
     renderQuizStep();
   });
@@ -13302,8 +13444,10 @@
     refreshWizSteps(); // 脱落ONなら出題者ステップが消える
   });
   function renderDifficultyStep(){
-    el('difficultyChips').innerHTML = BOMB_TIERS.map(function(t){
-      var on = state.topicDifficulties.indexOf(t.id) >= 0;
+    // 指示58：**許されていない層のチップは描かない**（押せない見た目で並べない・禁止6-3）
+    var sel = effectiveTiers();
+    el('difficultyChips').innerHTML = tierRows().map(function(t){
+      var on = sel.indexOf(t.id) >= 0;
       return '<span class="hp-chip' + (on ? ' on' : '') + '" data-tier="' + t.id + '">' + t.label + (on ? ' ✅' : '') + '</span>';
     }).join('');
     el('topicMixToggle').classList.toggle('on', state.topicMix);
@@ -13314,9 +13458,14 @@
     var chip = e.target.closest('.hp-chip');
     if(!chip) return;
     var tier = chip.dataset.tier;
-    var idx = state.topicDifficulties.indexOf(tier);
-    if(idx >= 0){ if(state.topicDifficulties.length > 1) state.topicDifficulties.splice(idx, 1); }
-    else state.topicDifficulties.push(tier);
+    // 指示58：許されていない層は受け取らない（描いていないが、念のため）
+    if(allowedTiers().indexOf(tier) < 0) return;
+    // 「まだ絞っていない」（null）から押した時は、いま見えている選択から始める
+    var sel = effectiveTiers().slice();
+    var idx = sel.indexOf(tier);
+    if(idx >= 0){ if(sel.length > 1) sel.splice(idx, 1); }   // 最後の1つは外せない（許された層の中で数える）
+    else sel.push(tier);
+    state.topicDifficulties = sel;
     renderDifficultyStep();
   });
   el('topicMixToggle').addEventListener('click', function(){
@@ -13489,7 +13638,10 @@
     el('bombMaxValue').textContent = state.bombMax;
     if(parseInt(el('bombMaxSlider').max, 10) < state.bombMax) el('bombMaxSlider').max = state.bombMax;
     el('bombMaxSlider').value = state.bombMax;
-    el('bombTierRows').innerHTML = BOMB_TIERS.map(function(t){
+    // 指示58：許されていない層の行は描かない（目盛りそのものが無い＝動かしても届かない）。
+    // 隠れた層に本数が残っていると、見えない本数が合計に入るので、先に寄せる
+    fitBombCounts();
+    el('bombTierRows').innerHTML = tierRows().map(function(t){
       return '<div class="bomb-tier-row">'+
         '<span>'+t.label+'</span>'+
         '<div class="bomb-tier-controls">'+
@@ -13499,8 +13651,26 @@
         '</div>'+
       '</div>';
     }).join('');
-    var sum = BOMB_TIERS.reduce(function(s, t){ return s + state.bombCounts[t.id]; }, 0);
-    el('bombSumStatus').textContent = '合計 ' + sum + ' / ' + state.bombMax + '本';
+    el('bombSumStatus').textContent = '合計 ' + bombSum() + ' / ' + state.bombMax + '本';
+  }
+  // 指示58：本数の合計は、許された層の行だけで数える（隠れた層は fitBombCounts で0になっている）
+  function bombSum(){
+    return tierRows().reduce(function(s, t){ return s + (state.bombCounts[t.id] || 0); }, 0);
+  }
+  /**
+   * 指示58：許されていない層の本数を、許された一番上の層へ寄せる（合計は保つ）。
+   * 寄せ方は BombLogic.fitCounts の1つ——部屋のサーバーも同じものを通る（落とし穴1）。
+   * 寄せた層は「手で決めた」印も外す（そうしないと「残りを自動で決める」から外れたまま残る）
+   * @returns 寄せた本数（知らせるかの判断に使う）
+   */
+  function fitBombCounts(){
+    var ok = allowedTiers();
+    var fit = BombLogic.fitCounts(state.bombCounts, ok);
+    if(fit.moved){
+      Object.keys(state.bombLocked).forEach(function(id){ if(ok.indexOf(id) < 0) state.bombLocked[id] = false; });
+    }
+    state.bombCounts = fit.counts;
+    return fit.moved;
   }
   el('bombLifeMinus').addEventListener('click', function(){
     if(state.bombLives > 1){ state.bombLives--; renderBombLifeStep(); }
@@ -13510,11 +13680,12 @@
   });
   el('bombMaxSlider').addEventListener('input', function(){
     state.bombMax = parseInt(this.value, 10);
-    var sum = BOMB_TIERS.reduce(function(s, t){ return s + state.bombCounts[t.id]; }, 0);
+    var sum = bombSum();
     if(sum > state.bombMax){
       var over = sum - state.bombMax;
-      for(var i = BOMB_TIERS.length - 1; i >= 0 && over > 0; i--){
-        var id = BOMB_TIERS[i].id;
+      var rows = tierRows();
+      for(var i = rows.length - 1; i >= 0 && over > 0; i--){
+        var id = rows[i].id;
         var cut = Math.min(over, state.bombCounts[id]);
         state.bombCounts[id] -= cut;
         over -= cut;
@@ -13527,7 +13698,9 @@
     var plus = e.target.closest('.bomb-plus');
     if(!minus && !plus) return;
     var tier = (minus || plus).dataset.tier;
-    var sum = BOMB_TIERS.reduce(function(s, t){ return s + state.bombCounts[t.id]; }, 0);
+    // 指示58：許されていない層の押下は受け取らない（行は描いていないが、念のため）
+    if(allowedTiers().indexOf(tier) < 0) return;
+    var sum = bombSum();
     if(plus){
       // 第29弾-7：上限に達していたら、それ以上は増やせない。
       // 以前はここで上限そのものを引き上げていたので、押し続ければ
@@ -13546,10 +13719,13 @@
     renderBombSection();
   });
   el('bombAutoFillBtn').addEventListener('click', function(){
+    // 指示58：振り分け先は、許された層だけ（なにそれ・むりに勝手に本数を入れない）
+    fitBombCounts();
+    var rows = tierRows();
     var lockedSum = 0;
-    BOMB_TIERS.forEach(function(t){ if(state.bombLocked[t.id]) lockedSum += state.bombCounts[t.id]; });
+    rows.forEach(function(t){ if(state.bombLocked[t.id]) lockedSum += state.bombCounts[t.id]; });
     var remaining = Math.max(0, state.bombMax - lockedSum);
-    var unlocked = BOMB_TIERS.filter(function(t){ return !state.bombLocked[t.id]; });
+    var unlocked = rows.filter(function(t){ return !state.bombLocked[t.id]; });
     if(unlocked.length === 0){ renderBombSection(); return; }
     var cuts = [0];
     for(var i = 0; i < unlocked.length - 1; i++){ cuts.push(Math.floor(Math.random() * (remaining + 1))); }
@@ -14635,7 +14811,12 @@
     var room = rt.state.room;
     var gameId = (room && room.state && room.state.game) || (m && m.game) || 'wolfrole';
     var build = RT_START_CONFIG[gameId] || rtWolfroleConfig;
-    var res = await rt.startWolf(build(m));
+    var cfg = build(m);
+    // 指示58：**進行役の「マニアックな問題」の設定を、どのゲームにも1か所で載せる。**
+    // 使うのはクイズ解除とクイズ王の進行役だけで、ほかは読まない。
+    // ゲームごとの送り口に書くと、足し忘れた送り口だけ3層に倒れる（落とし穴1・4）
+    cfg.tierMix = tierMix();
+    var res = await rt.startWolf(cfg);
     if(!res.ok) el('rtRoomNote').textContent = res.message || 'はじめられませんでした';
     return res;
   }
@@ -14694,7 +14875,8 @@
       game: 'bomb',
       mode: race ? 'race' : 'coop',
       endWhen: race ? state.bombEndWhen : null,
-      counts: Object.assign({}, state.bombCounts),
+      // 指示58：許された層の外の本数は寄せてから送る（サーバーも同じ fitCounts で門を持つ）
+      counts: BombLogic.fitCounts(state.bombCounts, allowedTiers()).counts,
       lives: state.bombLives,
       // 第45弾 45-4：進行役の設定が、その試合の全員に効く（既定OFF）
       showMisses: !!state.bombShowMisses,
@@ -14745,8 +14927,9 @@
       // 早押し
       winsNeeded: c.winsNeeded,
       delivery: c.delivery,
-      // 難易度（おまかせは送らない＝サーバー側の既定にまかせる）
-      tier: c.tier || undefined,
+      // 難易度（おまかせは送らない＝サーバー側の既定にまかせる）。
+      // 指示58：いま選べない層のまま送らない。許された層（tierMix）は rtStartGameNow が1か所で載せる
+      tier: QuizLogic.fitTier((m && m.game) || 'quizrush', c.tier, allowedTiers()) || undefined,
       preset: state.selectedModeId
     };
   }
@@ -15879,6 +16062,10 @@
     if(RT_QUIZ_GAMES.indexOf(game) !== -1){
       var q = { plays: 1 };
       if(rank1()) q.wins = 1;
+      // 指示58 2-4：正解した問題の層（本人の分だけ・サーバーの privateFor が配る）から、
+      // 「むずかしい以上」「むりなんだが」の数えを足す。意味は titles.js が持つ
+      var 層の数え = TitleLogic.quizTierStats(you && you.hitsByTier);
+      Object.keys(層の数え).forEach(function(k){ q[k] = 層の数え[k]; });
       if(game === 'quizrush'){
         q.rushPlays = 1;
         if(rank1()) q.rushWins = 1;
@@ -17787,8 +17974,14 @@
    * 小さなチップが横に5つ並んでいたので、点数も難易度も読み取りづらかった。
    * 点数を大きく出すのは、これが選ぶ理由そのものだから。
    */
-  function qzTierButtonsHtml(current, disabled){
-    return '<div class="quiz-tiers">' + (QuizLogic.TIERS || []).map(function(t){
+  /*
+   * 指示58：並べるのは**サーバーが配った「この部屋でいま選べる層」**（rush.tiers）。
+   * 部屋では進行役の設定が全員に効くので、参加者の端末の設定では並べない。
+   * 配られていない（古いサーバー）時は3層——出さない側に倒れる
+   */
+  function qzTierButtonsHtml(tiers, current, disabled){
+    var list = Array.isArray(tiers) ? tiers : QuizLogic.tiersFor('quizrush', QuizBank.allowedTiers(null));
+    return '<div class="quiz-tiers">' + list.map(function(t){
       return '<button class="tier-card t-' + t + (t === current ? ' on' : '') +
         '" data-qztier="' + t + '"' + (disabled ? ' disabled' : '') + '>' +
         '<span class="tier-name">' + escapeHtml(QuizLogic.TIER_LABEL[t] || t) + '</span>' +
@@ -17921,7 +18114,7 @@
           ? 'つぎに挑む難易度をえらんでください'
           : '挑む難易度をえらんでください') + '</p>';
       }
-      html += qzTierButtonsHtml(mine.tier || null, cooling);
+      html += qzTierButtonsHtml(mine.tiers, mine.tier || null, cooling);
       if(qzUi.pickingTier && mine.question){
         html += '<button class="btn btn-ghost" data-qztierback="1" style="margin-top:12px;">← 問題にもどる</button>';
       }
@@ -23012,7 +23205,8 @@
 
     // クイズ解除：コード1本あたり、読んで選んで約25秒
     if(m.bomb){
-      var wires = BOMB_TIERS.reduce(function(s, t){ return s + (state.bombCounts[t.id] || 0); }, 0);
+      // 指示58：許された層の本数だけを数える（隠れた層の本数で目安が嘘にならないように）
+      var wires = bombSum();
       return { min: round(wires * 25 + 60), perRound: false };
     }
     // 実物解除：モジュール1つあたり、伝え合って約90秒
@@ -25052,7 +25246,11 @@
     // クイズ王の4ゲームは既に移してあったのに、元祖だけ残っていた。
     // バンクの問題は文と3択を最初から持っているので、待ち時間もAIの失敗も無くなる。
     // ルール層（bomb-logic）を通すので、1人1台版とまったく同じ作り方になる。
-    var wires = BombLogic.pickQuestionWires(QuizBank, state.bombCounts, null, play.usedQuestions);
+    // 指示58：部屋（bomb-room.js）と同じ門を通す——許された層の外の本数は寄せ、
+    // 引く時にも許された層を渡す（最後の関所）
+    var ok = allowedTiers();
+    fitBombCounts();
+    var wires = BombLogic.pickQuestionWires(QuizBank, state.bombCounts, null, play.usedQuestions, ok);
     // 難易度ごとに固まったまま並べると、盤面が緑→黄→橙→赤のグラデーションに見え、
     // どこが難しいか一目で分かってしまう。必ず混ぜる
     play.bombWires = BombLogic.shuffleWires(wires).map(function(w){
@@ -25414,7 +25612,8 @@
   });
   function pickDecoys(w, n){
     var sameTier = poolByTier(w.tier).filter(function(x){ return x.name !== w.name; }).map(function(x){ return x.name; });
-    var all = getPool().filter(function(x){ return x.name !== w.name; }).map(function(x){ return x.name; });
+    // 指示58：足りない時に借りる先も、許された層のお題だけ（なにそれ・むりの名前を選択肢に出さない）
+    var all = poolForTiers(allowedTiers()).filter(function(x){ return x.name !== w.name; }).map(function(x){ return x.name; });
     var source = (sameTier.length >= n ? sameTier : all).slice();
     for(var i = source.length - 1; i > 0; i--){
       var j = Math.floor(Math.random() * (i + 1));
@@ -25575,7 +25774,8 @@
     el('quizTurnName').textContent = p ? p.name : '-';
     el('quizPickArea').style.display = 'block';
     el('quizAnswerArea').style.display = 'none';
-    el('quizTierButtons').innerHTML = BOMB_TIERS.map(function(t){
+    // 指示58：許されていない層のボタンは描かない
+    el('quizTierButtons').innerHTML = tierRows().map(function(t){
       return '<button class="btn btn-outline" style="width:100%;margin-top:8px;" data-tier="'+t.id+'">'+t.label+'（'+QUIZ_POINTS[t.id]+'点）</button>';
     }).join('');
   }
@@ -25585,6 +25785,9 @@
     startQuizQuestion(btn.dataset.tier);
   });
   function startQuizQuestion(tier){
+    // 指示58：許されていない層は受け取らない。呼び手（ボタン）ではなくここに置く——
+    // 呼び手が増えても、全部がこの1行を通る
+    if(allowedTiers().indexOf(tier) < 0) return;
     var full = poolByTier(tier); // ④：統合プールから該当難易度
     var bank = full.filter(function(x){ return !play.quizUsedNames[x.name]; });
     if(bank.length === 0){ bank = full; }
@@ -25822,7 +26025,8 @@
     play.auctionTotalRounds = AUCTION_TOTAL_ROUNDS;
   }
   function startAuctionRound(){
-    var tierIds = BOMB_TIERS.map(function(t){ return t.id; });
+    // 指示58：ラウンドの層は、許された層の中から無作為に選ぶ
+    var tierIds = allowedTiers();
     var tier = tierIds[Math.floor(Math.random() * tierIds.length)];
     var topic = pickUnused(poolByTier(tier)) || { name:'？', ng_words:[] }; // ④：統合プール＋重複防止
     play.auctionTier = tier;
@@ -27003,7 +27207,7 @@
     // 第43弾 2-5：「アプリ全体」は場所の名前として分かりにくい（何ができる所か読めない）
     room: '部屋', roomcode: '部屋コード', app: 'アプリの設定',
     sound: '音量', speech: '読み上げ', display: '見た目と演出',
-    safety: '安全に関する設定',
+    safety: '安全に関する設定', tiers: UiText.TIERS.入口,
     records: '記録', danger: '危険な操作'
   };
   function inRoomNow(){ return !!(rt && rt.state.room); }
@@ -27192,6 +27396,10 @@
     // 第32弾-D 第4部：体に触る演出（光・揺れ・振動・体を動かす）は1か所にまとめる
     { icon:'🛡', label:'安全に関する設定', page:'safety',
       sub:'光の点滅・画面の揺れ・振動・演出の速さ' },
+    // 指示58：5ゲームで共通の1か所。棚で⚙を押すとこのページ（アプリの設定）が直接開くので、
+    // **ゲームを選ぶ前に**決められる。遊んでいる途中も ⚙ → アプリの設定 から届く
+    // 絵は🧠（「難問撃破の証」と同じ）。むりなんだが を正解すると取れる称号と、見た目でつながる
+    { icon:'🧠', label:UiText.TIERS.入口, page:'tiers', sub:UiText.TIERS.入口の補足 },
     // 第43弾 2-3：**when:loggedIn を外した。**
     // 指示42で「いまの自分」は未ログインでも開けるようにしたのに、
     // 設定の行だけが閉じたままだった（入口が2つあって、片方だけ直っていた・落とし穴1）
@@ -27386,6 +27594,7 @@
     if(page === 'roomcode'){ renderSetRoomCode(); return; }
     if(page === 'app'){ el('setAppMenu').innerHTML = setMenuHtml(SET_APP_ITEMS); return; }
     if(page === 'sound' || page === 'speech' || page === 'display' || page === 'safety'){ renderSetPrefs(); return; }
+    if(page === 'tiers'){ renderSetTiers(); return; }
     if(page === 'records'){ renderSetRecords(); return; }
     if(page === 'danger'){ el('setDangerMenu').innerHTML = setMenuHtml(SET_DANGER_ITEMS); return; }
   }
@@ -27680,6 +27889,92 @@
     if(appPrefs.playGuide) tutForgetSeen();
     applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
   });
+
+  // ===================== 指示58：マニアックな問題 =====================
+  /**
+   * 親1つ・子2つ。**親が OFF の間、子は描かない**（押せない見た目で並べない・禁止6-3）。
+   * 子の並びは「足せる層」（TIER_PREF_KEY）から、名前はラベルの辞書から、
+   * 説明は問題バンクの難易度の目安（QuizBank.TIER_HINT）から導く——ここに文字を写さない
+   */
+  function renderSetTiers(){
+    var 部屋の参加者 = inRoomNow() && !(rt && rt.isHost());
+    var html = '<div class="mic-status" style="margin-bottom:10px;">' + escapeHtml(UiText.TIERS.リード) +
+      (部屋の参加者 ? '<br>' + escapeHtml(UiText.TIERS.部屋では) : '') + '</div>';
+    html += tierToggleCard('tierExtra', UiText.TIERS.親, UiText.TIERS.親の補足, appPrefs.tierExtra, false);
+    if(appPrefs.tierExtra){
+      Object.keys(TIER_PREF_KEY).forEach(function(t){
+        var row = BOMB_TIERS.find(function(b){ return b.id === t; }) || { label:t };
+        html += tierToggleCard(TIER_PREF_KEY[t], row.label, QuizBank.TIER_HINT[t] || '',
+          appPrefs[TIER_PREF_KEY[t]], true);
+      });
+    }
+    html += '<div class="mic-status" style="margin-top:10px;">' + escapeHtml(UiText.TIERS.途中で) + '</div>';
+    el('setTiersBody').innerHTML = html;
+  }
+  function tierToggleCard(key, label, sub, on, 子){
+    return '<div class="card' + (子 ? ' set-tier-child' : '') + '"><div class="toggle-row-mini">' +
+      '<div>' + escapeHtml(label) + '<div class="mic-status">' + escapeHtml(sub) + '</div></div>' +
+      '<div class="switch' + (on ? ' on' : '') + '" data-tierpref="' + key + '" id="setTierToggle-' + key + '"></div>' +
+    '</div></div>';
+  }
+  el('setTiersBody').addEventListener('click', function(e){
+    var sw = e.target.closest('[data-tierpref]');
+    if(!sw) return;
+    var key = sw.dataset.tierpref;
+    appPrefs[key] = !appPrefs[key];
+    prefsChosen[key] = true;   // 落とし穴34：あとから既定を直したくなった日のため
+    // 親を切り替えたら、子は2つとも OFF から（指示58 2-1）。
+    // ON にしただけで一気に増えない／入れ直しただけで前の子が復活しない
+    if(key === 'tierExtra'){
+      Object.keys(TIER_PREF_KEY).forEach(function(t){ appPrefs[TIER_PREF_KEY[t]] = false; });
+    }
+    saveAppPrefs();
+    renderSetTiers();
+    onTiersChanged();
+  });
+  /**
+   * 指示58 2-3：**許された層が変わった時の後始末は、ここ1か所。**
+   * 入口ごとに書くと片方だけ直る（落とし穴1・17 の形）。
+   *   ・あれそれ：絞った選択から、許されなくなった層を外す。空になったら「おまかせ」（null）
+   *   ・クイズ解除：許されなくなった層の本数を、許された一番上の層へ寄せる（合計は保つ）
+   *   ・クイズ王：選んでいた難易度が許されなくなったら「おまかせ」
+   *   ・部屋で遊んでいる最中の進行役：サーバーへ送る（次の問題から効く）
+   * 知らせるのは、選んでいたものが消えた時だけ（何も失っていない時には言わない）
+   * @returns 出した知らせ（検査が数える）
+   */
+  function onTiersChanged(){
+    var after = allowedTiers();
+    var 知らせ = [];
+    if(state.topicDifficulties){
+      var 残り = state.topicDifficulties.filter(function(t){ return after.indexOf(t) >= 0; });
+      state.topicDifficulties = 残り.length ? 残り : null;
+      if(!残り.length) 知らせ.push(UiText.TIERS.おまかせに戻した);
+    }
+    var 寄せた = fitBombCounts();
+    if(寄せた){
+      var rows = tierRows();
+      var 上 = rows[rows.length - 1];
+      知らせ.push(UiText.TIERS.本数を寄せた(寄せた, 上.label.replace(/^\S+\s*/, '')));
+    }
+    if(state.qkCfg.tier && after.indexOf(state.qkCfg.tier) < 0){
+      state.qkCfg.tier = null;
+      if(知らせ.indexOf(UiText.TIERS.おまかせに戻した) < 0) 知らせ.push(UiText.TIERS.おまかせに戻した);
+    }
+    sendTierOptions();
+    知らせ.forEach(function(t){ try{ FxKit.notice(t); }catch(e){} });
+    return 知らせ;
+  }
+  /**
+   * 部屋で遊んでいる最中の進行役だけが送る（参加者の設定は部屋では効かない）。
+   * 受け取れないゲーム（クイズ解除など）は not_supported を返す＝次のゲームから効く。
+   * 待合（lobby）では送らない——次に始める時、rtStartGameNow が載せる
+   */
+  function sendTierOptions(){
+    var room = rt && rt.state.room;
+    if(!room || !rt.isHost()) return null;
+    if(!room.state || !room.state.phase || room.state.phase === 'lobby') return null;
+    return Promise.resolve(rt.gameOptions({ tierMix: tierMix() })).catch(function(){ return null; });
+  }
   /**
    * **部屋が足元から消えた時、開いている設定を閉じる**（第43弾 2-8）。
    *

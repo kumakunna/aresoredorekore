@@ -1237,7 +1237,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(cells[0].classList.contains('solved'), '解除済みが分かる');
     assert(cells[1].classList.contains('taken'), '他の人が挑戦中のコードは押せない見た目になる');
     // 誰が挑戦中かは名前で分かる（お題の中身は出さない）
-    assert(/びびが挑戦中/.test(el(doc, 'rtBombBoard').textContent), '誰が挑戦中かが分かる');
+    assert(/びび さんが挑戦中/.test(el(doc, 'rtBombBoard').textContent), '誰が挑戦中かが分かる');
     assert(!/せつめい/.test(el(doc, 'rtBombBoard').textContent), '説明文は盤面に出ない');
     // 第28弾-1：難易度で区切らず、届いた順にひとつのグリッドで並べる。
     // 区切ると盤面が緑→黄→橙→赤のグラデーションに見えてしまう
@@ -1610,6 +1610,37 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertNoErrors(errors, '部屋の人狼の演出で未捕捉の例外');
     win.close();
   });
+
+  // 指示60 A-2：人狼の決着は、**勝った陣営の人にだけ祝い**（夜が明けて空が昇る）。
+  // 負けた側には、同じ言葉を静かな帯で（原則C）。それまでは全員に同じ紙吹雪と帯だった
+  for (const [勝ち, 名] of [[true, '勝った陣営'], [false, '負けた陣営']]) {
+    await r.test('60 A-2：部屋の人狼の決着——' + 名 + 'の端末には' + (勝ち ? '祝い' : '静かな帯'), async () => {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      push(fake, roomSnapshot({ state: { phase: 'vote', game: 'wolfrole', data: wolfView({ phase: 'vote', turn: 1 }) } }));
+      pushYou(fake, { phase: 'vote', roleId: 'villager', roleName: '村人', roleDesc: '',
+        alive: true, done: true, choices: [] });
+      await waitScreen(win, doc, 'scr-rt-play', 4000);
+      const 出た = [];
+      const mo = new win.MutationObserver((recs) => recs.forEach((rec) =>
+        Array.from(rec.addedNodes).forEach((n) => {
+          if (!n.classList) return;
+          if (n.classList.contains('fx-cel')) 出た.push('祝い' + (n.classList.contains('fx-cel-rise') ? '(昇る)' : '') +
+            ':' + ((n.querySelector('.fx-cel-text') || {}).textContent || ''));
+          else if (n.classList.contains('fx-banner')) 出た.push('帯' + (n.classList.contains('fx-banner-plain') ? '(静か)' : '') +
+            ':' + ((n.querySelector('.fx-banner-text') || {}).textContent || ''));
+        })));
+      mo.observe(doc.body, { childList: true, subtree: true });
+      push(fake, endedWolfRoom());
+      pushYou(fake, endedWolfYou(勝ち ? { plays: 1, wins: 1, villageWins: 1 } : { plays: 1 }));
+      await waitFor(win, () => 出た.length > 0, 3000, '決着の演出');
+      mo.disconnect();
+      assertEqual(出た[0], 勝ち ? '祝い(昇る):村人陣営の勝ち' : '帯(静か):村人陣営の勝ち',
+        名 + 'の端末に出るもの（' + 出た.join(' / ') + '）');
+      assertNoErrors(errors);
+      win.close();
+    });
+  }
 
   await r.test('待機画面から、進行役が直接メンバーを操作できる（第32弾-E 第3部）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

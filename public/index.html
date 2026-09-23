@@ -5205,7 +5205,7 @@
   <!-- 4d: 設定ウィザード・時限爆弾のコード配分 -->
   <div class="screen" id="scr-set-bomb">
     <div class="wiz-head"><span class="wiz-step" id="wizStepBomb"></span><h2 class="scr-title">コードの配分</h2></div>
-    <p class="wiz-lead">難易度ごとに、爆弾に仕込むコード（お題）の本数を決めよう。</p>
+    <p class="wiz-lead">難易度ごとに、爆弾に仕込むコード（問題）の本数を決めよう。</p>
     <div class="wiz-body">
       <div class="bomb-section" id="bombSection">
         <div class="tp-label">コードの最大本数　<span id="bombMaxValue">30</span>本</div>
@@ -5232,7 +5232,7 @@
   <!-- 4d2: 設定ウィザード・時限爆弾のライフ数 -->
   <div class="screen" id="scr-set-bomblife">
     <div class="wiz-head"><span class="wiz-step" id="wizStepBombLife"></span><h2 class="scr-title">ライフの数</h2></div>
-    <p class="wiz-lead">不正解でライフが1つ減り、0になると爆発します。挑戦の余裕を決めよう。</p>
+    <p class="wiz-lead">不正解でライフが1つ減り、0になると爆発します。何回はずすと爆発するかを決めよう。</p>
     <div class="wiz-body">
       <div class="bomblife-display" id="bombLifeDisplay">❤️❤️❤️</div>
       <div class="bomblife-controls">
@@ -5757,7 +5757,7 @@
       </div>
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-ghost" id="rtLobbyBackBtn">← モードにもどる</button>
+      <button class="btn btn-ghost" id="rtLobbyBackBtn">← もどる</button>
     </div>
   </div>
 
@@ -7087,7 +7087,7 @@
       </div>
 
       <div class="set-page" data-page="gamecfg" style="display:none;">
-        <div class="mic-status" style="margin-bottom:10px;">遊んでいる途中で変えても、進行が壊れない項目だけを置いています。</div>
+        <div class="mic-status" style="margin-bottom:10px;">遊んでいる途中でも変えられるものだけを並べています</div>
         <div id="setGameCfgBody"></div>
       </div>
 
@@ -7184,7 +7184,7 @@
         <div class="card">
           <div class="toggle-row-mini">
             <div>リアクションを出す
-              <div class="mic-status">部屋で遊んでいる時、絵文字の反応を送れる・見えるようにします</div>
+              <div class="mic-status">部屋で遊んでいる時に、絵文字の反応を送ったり見たりできます</div>
             </div>
             <div class="switch on" id="setReactionsToggle"></div>
           </div>
@@ -7223,7 +7223,7 @@
         <div class="card">
           <div class="toggle-row-mini">
             <div>光の点滅をつかう
-              <div class="mic-status">正解・爆発などの、画面が光る演出です</div>
+              <div class="mic-status">正解・ミスなどの、画面が光る演出です</div>
             </div>
             <div class="switch on" id="setFlashToggle"></div>
           </div>
@@ -7231,7 +7231,7 @@
         <div class="card">
           <div class="toggle-row-mini">
             <div>画面の揺れをつかう
-              <div class="mic-status">爆発などの大きな瞬間に、画面が一瞬（0.2秒だけ）揺れます</div>
+              <div class="mic-status">ミスした時のライフや、大画面の処刑の瞬間などが、一瞬揺れます</div>
             </div>
             <div class="switch on" id="setShakeToggle"></div>
           </div>
@@ -7268,7 +7268,7 @@
           <div class="sec-title">💾 記録の保存</div>
           <div class="toggle-row-mini">
             <div>対戦記録を自動でサーバーに保存する
-              <div class="mic-status" id="autoSaveSub">ラウンドごと・終了時に自動送信します</div>
+              <div class="mic-status" id="autoSaveSub">ラウンドが終わるたびと、遊び終えた時に保存します</div>
             </div>
             <div class="switch on" id="autoSaveToggle"></div>
           </div>
@@ -12803,7 +12803,7 @@
     // 「人が集まる前に進行役が決めておける」を壊さないため
     note.textContent = '👥 部屋「' + (rt.state.room ? rt.state.room.code : '') +
       '」（いま' + currentPlayerCount() + '人）のためにえらんでいます。' +
-      '決まったら待合にもどって「はじめる」を押してください。';
+      '決まると待合にもどります。全員が「準備OK」を押すと始まります。';
   }
 
   // その遊び方に必要な最低人数。プリセットに書いてあればそれ、
@@ -13815,14 +13815,18 @@
     // 人狼（wolfRole）が条件から漏れ、「せいげん時間」のままだった。
     var isTalk = !!(m.wolf || m.wolfRole);
     el('timerStepTitle').textContent = isTalk ? '話し合いの時間' : 'せいげん時間';
+    // 指示60 B-3：クイズ解除は「ラウンド」ではない（1回の解除に1つの時計）
+    var isBomb = !!(m.bomb || gameIdForMode(m.id) === 'bomb');
     el('timerStepLead').textContent = isTalk
       ? '話し合いの時間を決めよう。時間になったら自動で投票へ進みます。'
-      : 'このラウンドの制限時間を決めよう。こだわらなければそのまま「つぎへ」でOK。';
+      : (isBomb ? '制限時間を決めよう。こだわらなければそのまま「つぎへ」でOK。'
+                : 'このラウンドの制限時間を決めよう。こだわらなければそのまま「つぎへ」でOK。');
     el('timerEnableToggle').classList.toggle('on', state.timerEnabled);
     el('timerConfigArea').style.display = state.timerEnabled ? 'block' : 'none';
     el('timerEnableSub').textContent = state.timerEnabled
       ? (isTalk ? '時間になったら投票へ進みます' : '制限時間ありでプレイ')
-      : (isTalk ? '時間をはからず、長押しで投票へ進みます' : 'ストップウォッチなし・手動で終了');
+      : (isTalk ? '時間をはからず、長押しで投票へ進みます'
+         : (isBomb ? '時間切れなし（全部解くか、ライフが0になるまで）' : 'ストップウォッチなし・手動で終了'));
     var t = state.customTimer || m.timer || 180;
     setWheelsToSeconds(t);
     positionWheelBand();
@@ -14381,7 +14385,7 @@
     peekTimer = setTimeout(peekJoinRoom, 250);
   });
   // 第26弾-2：部屋には棚の「部屋」ボタンからも入る。来た道に返す
-  var rtLobbyBackTo = 'scr-mode';
+  var rtLobbyBackTo = 'scr-shelf';
   el('rtLobbyBackBtn').addEventListener('click', function(){ goBack(rtLobbyBackTo); });
 
   el('rtCreateBtn').addEventListener('click', async function(){
@@ -14994,7 +14998,7 @@
   // 第24弾-3-5：ホストの終了を、部屋にいる全員に反映する
   el('rtEndBtn').addEventListener('click', async function(){
     if(!await UiKit.danger('部屋をとじますか？',
-      '部屋にいる全員が終わります', { ok: 'とじる' })) return;
+      '部屋にいる全員が退出します', { ok: 'とじる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -16710,6 +16714,11 @@
       if(v.phase === 'ended')  return wait(B.決着);
       return wait('');
     }
+    // 指示60：**決着の段階の行が無く、帯が空だった**（検査の進め方が決着まで届かず、見えていなかった）。
+    // False or True と同じ形。決着は全員に同じことなので、秘密の追いつきを待たない
+    if(v.phase === 'ended'){
+      return ctx.isHost ? mine(NL.共通.つぎをえらぶ) : wait(NL.共通.進行役がえらぶ);
+    }
     // 始まってから入った人には秘密が配られない。**できないことを大きく書かない**
     if(!you || you.phase !== v.phase) return wait(NL.共通.観戦);
     if(you.isBye) return wait(R.おやすみ);
@@ -17677,8 +17686,27 @@
       bg:['rgba(8,74,128,.97)', 'rgba(2,37,65,.97)'], ink:'#F0F8FD', glow:'rgba(240,180,41,.55)' },
     auction: { motion:'stamp', icon:'🔨', pieces:'coin',
       colors:['#F0C44A', '#D4A537', '#FFF3C4'],
-      bg:['rgba(90,28,48,.97)', 'rgba(40,11,22,.97)'], ink:'#FAEFE9', glow:'rgba(212,165,55,.55)' }
+      bg:['rgba(90,28,48,.97)', 'rgba(40,11,22,.97)'], ink:'#FAEFE9', glow:'rgba(212,165,55,.55)' },
+    /**
+     * 人狼：**夜が明けて、勝った側の空が昇る。**村（シープ）なら🌤の朝焼け、
+     * 人狼（ウルフ）なら🌙の夜、第三陣営（妖狐・合計得点）は🦊／🏆の金。
+     * 陣営ごとの絵は `陣営` に置き、呼ぶ側が `clearWolfLook(陣営)` で重ねる
+     */
+    jinro: { motion:'rise', icon:'🌤', pieces:'spark',
+      colors:['#FFE3A3', '#FFC36B', '#FFF7E0'],
+      bg:['rgba(255,196,140,.97)', 'rgba(60,52,110,.97)'], ink:'#1B1530', glow:'rgba(255,220,150,.75)',
+      陣営: {
+        wolf: { icon:'🌙', colors:['#E2584A', '#F0C44A', '#C9C3FF'],
+          bg:['rgba(40,36,90,.97)', 'rgba(8,8,24,.97)'], ink:'#F2EEFF', glow:'rgba(200,190,255,.5)' },
+        third: { icon:'🦊', colors:['#F0C44A', '#D9A53A', '#FFF8E1'],
+          bg:['rgba(120,80,10,.97)', 'rgba(30,20,4,.97)'], ink:'#FFF3C4', glow:'rgba(240,196,74,.55)' }
+      } }
   };
+  /** 人狼の陣営の絵を重ねる（村はそのまま・人狼と第三陣営は差し替え） */
+  function clearWolfLook(team, opt){
+    var 絵 = (CLEAR_LOOK.jinro.陣営 || {})[team] || {};
+    return Object.assign({}, 絵, opt || {});
+  }
   /**
    * クリア演出を出す（手渡し・部屋・大画面の全部がここを通る）。
    * `opt` は言葉（text/sub）と、その場で決まる絵（icons/seal）と、`behind`（祝いの後ろで結果へ）。
@@ -17720,8 +17748,9 @@
       var 至 = (上[0].段 != null) ? 上[0].段 : 絵.length - 1;
       return { ids: 上.map(function(x){ return x.id; }),
         icons: 絵.length ? 絵.slice(0, 至 + 1) : null,
-        大: { text: clearNames(上), sub: r.優勝 ? '最終形まで進化' : 'いちばん上の段' },
-        手: { text: r.優勝 ? '最終形！' : 'いちばん上！', sub: 上[0].段名 || '' } };
+        // 優勝でない（10分で切れた）時は、届いた段の名前で言う（「いちばん上」は優勝と紛れる）
+        大: { text: clearNames(上), sub: r.優勝 ? '最終形まで進化' : ((上[0].段名 || '') + 'まで進化') },
+        手: { text: r.優勝 ? '最終形！' : ((上[0].段名 || '') + 'まで進化！'), sub: r.優勝 ? (上[0].段名 || '') : '' } };
     },
     falsetrue: function(v){
       var 生 = v.survivors || [];
@@ -17729,16 +17758,18 @@
       if(!生.length) return null;
       return { ids: 生.map(function(x){ return x.id; }),
         大: { text: 生.length + '人 生きのこり', sub: clearNames(生) },
-        手: { text: '生きのこり！', sub: 'さいごまで残りました' } };
+        手: { text: '生きのこり！', sub: '生存した人は全員が勝ち' } };
     },
     sugoroku: function(v){
       var r = v.result || {};
       var 上 = (r.players || []).filter(function(x){ return x.rank === 1; });
       if(!上.length) return null;
       var あがり = 上.some(function(x){ return x.goaled; });
+      // あがりの言い回しは**ルール層**（SugorokuLogic.goalEndWords）を通す。画面に直書きすると片方だけ古びる（第36弾-19）
+      var あがりの語 = SugorokuLogic.goalEndWords('').note;
       var w = { seal: あがり ? '上がり' : '一番',
-        大: { text: clearNames(上), sub: あがり ? 'あがり' : 'いちばん前' },
-        手: { text: あがり ? 'あがり！' : 'いちばん！', sub: '' } };
+        大: { text: clearNames(上), sub: あがり ? あがりの語 : 'いちばん前' },
+        手: { text: あがり ? あがりの語 : 'いちばん！', sub: '' } };
       if(r.pairs){
         // 「ふたりでひとつ」の行は**組**のid（人ではない）。組の名簿の名前で自分を見分ける
         var 組 = (v.groups || []).filter(function(g){
@@ -17997,15 +18028,23 @@
       var team = (w2 === 'wolf') ? 'wolf' : (w2 === 'village' || w2 === 'sheep') ? 'village' : 'third';
       flashRoleEdge(team);
       FxKit.flash(team === 'village' ? 'good' : 'gold');
-      FxKit.confetti(team === 'wolf' ? ['#e2584a', '#a33a2f', '#f0c44a']
-                   : team === 'village' ? ['#3fbfa5', '#8fd6c5', '#f0c44a']
-                   : ['#f0c44a', '#d9a53a', '#fff8e1']);
-      FxKit.banner({
-        kind: team === 'village' ? 'good' : 'gold',
-        icon: team === 'wolf' ? '🐺' : (w2 === 'fox' ? '🦊' : (ww ? '🐑' : '🏘️')),
-        text: ww ? (w2 === 'sheep' ? 'シープ側の勝ち' : w2 === 'wolf' ? 'ウルフの逃げ切り' : '合計得点で決着')
-                 : rtWinnerLabel(w2).replace(/^[^ ]+ /, ''),
-        sub: '全員の正体を開きます', ms:1000 });
+    });
+    /**
+     * 指示60 A-2：**勝った陣営の人にだけ祝う**（それまでは全員に同じ色の紙吹雪と帯）。
+     * 勝ったかどうかは本人の秘密（achievements.wins）——部屋の知らせより後に届くので、
+     * 届いてから出す（落とし穴18）。負けた側には、同じ言葉を静かな帯で（原則C）
+     */
+    rtOnce('wolf:clear', v.phase === 'ended' && !!v.result && !!(you && you.achievements), function(){
+      var w2 = v.result.winner;
+      var team = (w2 === 'wolf') ? 'wolf' : (w2 === 'village' || w2 === 'sheep') ? 'village' : 'third';
+      var 言葉 = ww ? (w2 === 'sheep' ? 'シープ側の勝ち' : w2 === 'wolf' ? 'ウルフの逃げ切り' : '合計得点で決着')
+                    : rtWinnerLabel(w2).replace(/^[^ ]+ /, '');
+      var 絵 = team === 'wolf' ? (ww ? '🐺' : '🌙') : (w2 === 'fox' ? '🦊' : (team === 'third' ? '🏆' : (ww ? '🐑' : '🌤')));
+      if(you.achievements.wins){
+        clearFx('jinro', clearWolfLook(team, { icon: 絵, text: 言葉, sub: '全員の正体を開きます' }));
+      } else {
+        FxKit.banner({ kind:'plain', icon: 絵, text: 言葉, sub: '全員の正体を開きます', ms:1000 });
+      }
     });
   }
   function renderRtPlay(){
@@ -19992,9 +20031,12 @@
         var w2 = v.result.winner;
         var team = (w2 === 'wolf') ? 'wolf' : (w2 === 'village' || w2 === 'sheep') ? 'village' : 'third';
         flashRoleEdge(team);
-        FxKit.confetti(team === 'wolf' ? ['#e2584a', '#a33a2f', '#f0c44a']
-                     : team === 'village' ? ['#3fbfa5', '#8fd6c5', '#f0c44a']
-                     : ['#f0c44a', '#d9a53a', '#fff8e1']);
+        // 指示60 A-2：紙吹雪を、勝った陣営の空が昇る祝いに（大画面は陣営の名前が主役）
+        var 大ww = game === 'wordwolf';
+        clearFx('jinro', clearWolfLook(team, {
+          icon: team === 'wolf' ? (大ww ? '🐺' : '🌙') : (w2 === 'fox' ? '🦊' : (team === 'third' ? '🏆' : (大ww ? '🐑' : '🌤'))),
+          text: 大ww ? (w2 === 'sheep' ? 'シープ側の勝ち' : w2 === 'wolf' ? 'ウルフの逃げ切り' : '合計得点で決着')
+                    : rtWinnerLabel(w2).replace(/^[^ ]+ /, '') }));
       }
       return;
     }
@@ -20396,7 +20438,9 @@
     if(v.phase === 'ended'){
       var res = v.result || {};
       el('bigMain').textContent = res.winner || '';
-      el('bigSub').textContent = res.winner ? (res.優勝 ? 'さいごまで進化した' : 'いちばん上の段') : '';
+      // 指示60 B-3：祝い（CLEAR_WHO.shinka）と同じ言い方にそろえる
+      var 王段 = ((res.ranking || [])[0] || {}).段名 || '';
+      el('bigSub').textContent = res.winner ? (res.優勝 ? '最終形まで進化' : (王段 + 'まで進化')) : '';
       el('bigRank').innerHTML = rankingHtml((res.ranking || []).map(function(row){
         return { id: row.id, rank: row.rank, name: row.name,
                  main: row.段絵 + ' ' + row.段名 };
@@ -20921,7 +20965,7 @@
     var taken = board.filter(function(c){ return !c.solved && c.by; });
     if(taken.length){
       html += '<div class="bomb-taken-note">' + taken.map(function(c){
-        return escapeHtml(c.by) + 'が挑戦中（' + rtBombTierLabel(c.tier) + '）';
+        return escapeHtml(c.by) + ' さんが挑戦中（' + rtBombTierLabel(c.tier) + '）';
       }).join('<br>') + '</div>';
     }
     return html;
@@ -20994,7 +21038,7 @@
       return x.id === rt.state.memberId;
     })[0] || null;
     rtOnce('bomb:selfBoom', 競争 && (!!you.failed || !!(私の順位 && 私の順位.failed)),
-      function(){ bombBoomFx(); });
+      function(){ bombBoomFx(bombBoomCause('lives')); });
     /**
      * 指示60 A-2：競争版は**勝った人に向ける。**
      *   ・自分が全部解いた瞬間（まだ他の人が解いている）… 「解除成功！」
@@ -21008,12 +21052,12 @@
       function(){ bombClearFx(); });
     rtOnce('bomb:raceWin', 勝った, function(){
       bombClearSequence({ face:'🏆', text:'1位！',
-        sub: 私の順位.solved + '本解除' + (私の順位.finished ? '（全部止めました）' : '') });
+        sub: 私の順位.solved + '本' + (私の順位.finished ? 'すべて解除' : '解除') });
     });
     // 協力版はチームで1つ。決着そのものが演出の合図
     rtOnce('bomb:teamEnd',
       !競争 && v.phase === 'ended' && !!v.result && !v.result.aborted,
-      function(){ if(v.result.success) bombClearFx(); else bombBoomFx(); });
+      function(){ if(v.result.success) bombClearFx(); else bombBoomFx(bombBoomCause(v.result.cause)); });
 
     // ---- 待機中：説明文を用意している。中身はここに1文字も出ない ----
     if(v.phase === 'prep'){
@@ -21183,7 +21227,7 @@
     }
     // 決着したこの瞬間だけ、答え合わせのために中身を開ける
     if((r.codes || []).length){
-      lines.push('<div class="vote-log"><div class="vl-title">🔌 コードの正体</div>' +
+      lines.push('<div class="vote-log"><div class="vl-title">➰ コードの正解</div>' +
         '<div class="vl-turn">' + r.codes.map(function(c){
           return '<span class="vl-row">' + escapeHtml(c.name) + '</span>';
         }).join('') + '</div></div>');
@@ -21265,7 +21309,7 @@
       lives.classList.remove('shake'); void lives.offsetWidth; lives.classList.add('shake');
       showFlash(you.mode === 'race'
         ? '💔 ちがう！ライフ−1・残り時間−10秒'
-        : '💔 ちがう！ライフが割れた', 'hit-wrong');
+        : '💔 ライフが1つ割れた', 'hit-wrong');
     }
     // 脱落の爆発はここには無い（第47弾 47-1 で rtOnce へ移した）。
     // ここで「前は false・いまは true」を見ていたが、初回の描画でもう true だと
@@ -21302,7 +21346,7 @@
   });
   el('rtBombEndBtn').addEventListener('click', async function(){
     if(!await UiKit.danger('部屋をとじますか？',
-      '部屋にいる全員が終わります', { ok: 'とじる' })) return;
+      '部屋にいる全員が退出します', { ok: 'とじる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -21477,7 +21521,7 @@
     // 観戦の端末はここまで来ない（すぐ上で you が無ければ帰る）
     rtOnce('defuse:ended', v.phase === 'ended' && !!v.result, function(){
       if(v.result.success) bombClearFx('しかけを全部止めました');
-      else bombBoomFx('つぎは、もう少しだけ慎重に');
+      else bombBoomFx(bombBoomCause(v.result.cause));
     });
     if(v.phase === 'ended'){
       dfLeaveScreen();
@@ -21898,7 +21942,7 @@
 
   el('dfEndBtn').addEventListener('click', async function(){
     if(!await UiKit.danger('部屋をとじますか？',
-      '部屋にいる全員が終わります', { ok: 'とじる' })) return;
+      '部屋にいる全員が退出します', { ok: 'とじる' })) return;
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
@@ -22818,7 +22862,7 @@
         if(sugo.goalOrder[id] === 1) 名.push(sugo.names[id]);
       });
     }
-    if(名.length) clearFx('sugoroku', { text: 名.join('・'), sub: 'あがり！' });
+    if(名.length) clearFx('sugoroku', { text: 名.join('・'), sub: SugorokuLogic.goalEndWords('').note });
     awardSugorokuTitles();
   }
   function awardSugorokuTitles(){
@@ -24371,10 +24415,12 @@
 
     // 第32弾-D 4-2：決着（ゲーム全体の勝敗が出た）瞬間だけ、勝った側の色で紙吹雪。
     // 加点と同じ「1回だけ」の印を使う（描き直しのたびに舞わせない）
+    // 指示60 A-2：紙吹雪を、勝った側の空が昇る祝いに（ウルフ＝🐺の夜、シープ＝🐑の朝）
     if(!play.wwScored && typeof FxKit !== 'undefined'){
-      FxKit.confetti(wolfSideAlive().length
-        ? ['#e2584a', '#a33a2f', '#f0c44a']      // ウルフの逃げ切り
-        : ['#3fbfa5', '#8fd6c5', '#f0c44a']);    // シープ側の勝ち
+      var 逃げ切り = wolfSideAlive().length > 0;
+      clearFx('jinro', clearWolfLook(逃げ切り ? 'wolf' : 'village', {
+        icon: 逃げ切り ? '🐺' : '🐑',
+        text: 逃げ切り ? 'ウルフの逃げ切り' : 'シープ側の勝ち' }));
     }
 
     // 第24弾：配点の決め方は共通層（1人1台側と同じもの）。
@@ -25520,17 +25566,12 @@
     if(typeof FxKit !== 'undefined'){
       flashRoleEdge(r.winner === 'wolf' ? 'wolf' : (r.winner === 'village' ? 'village' : 'third'));
       FxKit.flash(r.winner === 'village' ? 'good' : 'gold');
-      // 第32弾-D 4-2：ゲーム全体の決着なので、陣営の色の紙吹雪が舞う
-      FxKit.confetti(r.winner === 'wolf' ? ['#e2584a', '#a33a2f', '#f0c44a']
-                   : r.winner === 'village' ? ['#3fbfa5', '#8fd6c5', '#f0c44a']
-                   : ['#f0c44a', '#d9a53a', '#fff8e1']);
-      FxKit.banner({
-        kind: r.winner === 'village' ? 'good' : 'gold',
+      // 指示60 A-2：紙吹雪と帯を、勝った陣営の空が昇る祝いに（1台をみんなで見ている）
+      var 手team = r.winner === 'wolf' ? 'wolf' : (r.winner === 'village' ? 'village' : 'third');
+      clearFx('jinro', clearWolfLook(手team, {
+        icon: r.winner === 'wolf' ? '🌙' : (r.winner === 'fox' ? '🦊' : '🌤'),
         text: winnerLabel.replace(/^[^ ]+ /, ''),
-        sub: '全員の役職と、誰が誰に入れたかを開きます',
-        icon: r.winner === 'wolf' ? '🐺' : (r.winner === 'fox' ? '🦊' : '🏘️'),
-        ms: 1000
-      });
+        sub: '全員の役職と、誰が誰に入れたかを開きます' }));
     }
     el('wrResultList').innerHTML = renderWrRoleList();
     el('wrResultNextBtn').textContent = 'スコアへ ▶';
@@ -25953,7 +25994,7 @@
   }
   function bombTick(){
     play.bombRemaining--;
-    if(play.bombRemaining <= 0){ play.bombRemaining = 0; renderBombTimer(); explode(); return; }
+    if(play.bombRemaining <= 0){ play.bombRemaining = 0; renderBombTimer(); explode('time'); return; }
     renderBombTimer();
   }
   function startBombTimer(){
@@ -25987,7 +26028,7 @@
    */
   // 第32弾-C-4 原則C：褒める時は全力で
   function bombClearFx(sub, 結果へ){
-    return bombClearSequence({ sub: (typeof sub === 'string' && sub) || '全部のコードを止めました',
+    return bombClearSequence({ sub: (typeof sub === 'string' && sub) || '全部のコードを切りました',
       結果へ: 結果へ });
   }
   /**
@@ -26057,12 +26098,22 @@
   // ただし「責める」のではなく「爆弾が爆発した」ことを出す演出にする。
   // 誰かの失敗を囃し立てるのではないので、赤は0.5秒で引き、
   // 明滅・振動の繰り返しはさせない（酔わないように・目に悪くならないように）
+  /**
+   * 指示60 B-3：爆発の添え書きは**起きたことだけ**（原則C：責める時は静かに）。
+   * それまでは全員の端末に「つぎは、もう少しだけ慎重に」が出ていた——
+   * 協力版ではミスしていない人にも、黒い幕の上で説教が届く形だった
+   */
+  function bombBoomCause(cause){
+    return cause === 'time' ? '時間切れでした'
+      : cause === 'lives' ? 'ライフがなくなりました'
+      : cause === 'strikes' ? 'ミスの上限に達しました' : null;
+  }
   function bombBoomFx(sub, 結果へ){
     if(typeof FxKit === 'undefined'){ if(typeof 結果へ === 'function') 結果へ(); return Promise.resolve(); }
     // 第32弾-D：爆発は「ミスで弱く・爆発で強く長く」の強い側。
     // 指示60：画面の揺れは黒い幕の後ろで見えなくなったので、ここでは振動だけ
     doVibrate([220, 90, 220]);
-    return bombBoomSequence({ sub: (typeof sub === 'string' && sub) || 'つぎは、もう少しだけ慎重に',
+    return bombBoomSequence({ sub: (typeof sub === 'string' && sub) || null,
       結果へ: 結果へ });
   }
   function defuseComplete(){
@@ -26082,7 +26133,7 @@
     }
     setTimeout(function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); }, 750);
   }
-  function explode(){
+  function explode(cause){
     var gen = playGen;   // 第36弾 36-3
     play.bombPhase = 'over';
     stopBombTimer();
@@ -26092,7 +26143,7 @@
     el('app').classList.remove('bomb-danger');
     if(typeof FxKit !== 'undefined'){
       // 指示60 A-1a①：**幕の後ろで**結果へ移る（幕を上げた時には、もう結果画面にいる）
-      bombBoomFx(null, function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); });
+      bombBoomFx(bombBoomCause(cause), function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); });
       return;
     }
     buzz();
@@ -26180,7 +26231,7 @@
       lives.classList.add('shake', 'broke');   // ライフが1つ砕ける
       showQuietNote('💔 ちがう！ライフが1つ割れた');
       renderBombLives();
-      if(play.bombLives <= 0) explode();
+      if(play.bombLives <= 0) explode('lives');
       else startBombHeart(play.bombMisses); // ミスするほど心拍が速くなる
     }
   });
@@ -27861,7 +27912,7 @@
     { icon:'🚪', label:'部屋', page:'room', when:inRoomNow,
       sub:'メンバー・つながり具合・部屋コード' },
     { icon:'⚙', label:'アプリの設定', page:'app',
-      sub:'音・読み上げ・見た目・記録' },
+      sub:'音・見た目・安全・記録' },
     { icon:'⚠️', label:'危険な操作', page:'danger', danger:true,
       sub:'押すともどせないもの' }
   ];
@@ -27903,15 +27954,15 @@
       sub:'プレイヤー・スコア・統計を、すべて削除します' },
     { icon:'🏠', label:'部屋を解散する', act:'closeRoom', danger:true, id:'setCloseRoomBtn',
       when:function(){ return inRoomNow() && rt.isHost(); },
-      sub:'部屋にいる全員が終わります（進行役だけ）' }
+      sub:'部屋にいる全員が退出します（進行役だけ）' }
   ];
   var SET_APP_ITEMS = [
-    { icon:'🔊', label:'音量', page:'sound', sub:'効果音と読み上げを別々に' },
+    { icon:'🔊', label:'音量', page:'sound', sub:'効果音・読み上げ・BGM' },
     { icon:'🗣', label:'読み上げ', page:'speech', sub:'速さと声' },
-    { icon:'🎨', label:'見た目と演出', page:'display', sub:'明るさ・文字サイズ' },
+    { icon:'🎨', label:'見た目と演出', page:'display', sub:'時間の見せ方・あそびかたの案内など' },
     // 第32弾-D 第4部：体に触る演出（光・揺れ・振動・体を動かす）は1か所にまとめる
     { icon:'🛡', label:'安全に関する設定', page:'safety',
-      sub:'光の点滅・画面の揺れ・振動・演出の速さ' },
+      sub:'光の点滅・画面の揺れ・振動・演出の速さ・体を動かす遊び' },
     // 指示58：5ゲームで共通の1か所。棚で⚙を押すとこのページ（アプリの設定）が直接開くので、
     // **ゲームを選ぶ前に**決められる。遊んでいる途中も ⚙ → アプリの設定 から届く
     // 絵は🧠（「難問撃破の証」と同じ）。むりなんだが を正解すると取れる称号と、見た目でつながる
@@ -28266,7 +28317,7 @@
    */
   async function actCloseRoom(){
     if(!await UiKit.danger('部屋を解散しますか？',
-      '部屋にいる全員が終わります', { ok: '解散する' })) return;
+      '部屋にいる全員が退出します', { ok: '解散する' })) return;
     el('settingsOverlay').classList.remove('show');
     var res = await rt.closeRoom();
     if(!res.ok) UiKit.info('解散できませんでした', res.message || '');
@@ -28379,8 +28430,8 @@
   function renderSetRecords(){
     el('autoSaveToggle').classList.toggle('on', state.autoSaveRecords);
     el('autoSaveSub').textContent = state.autoSaveRecords
-      ? 'ラウンドごと・終了時に自動送信します'
-      : '自動送信しません（下の保存ボタンだけが有効）';
+      ? 'ラウンドが終わるたびと、遊び終えた時に保存します'
+      : '自動では保存しません。下のボタンで、いつでも保存できます';
     el('manualSaveResult').textContent = '';
   }
 
@@ -28716,8 +28767,8 @@
     state.autoSaveRecords = !state.autoSaveRecords;
     this.classList.toggle('on', state.autoSaveRecords);
     el('autoSaveSub').textContent = state.autoSaveRecords
-      ? 'ラウンドごと・終了時に自動送信します'
-      : '自動送信しません（下の保存ボタンだけが有効）';
+      ? 'ラウンドが終わるたびと、遊び終えた時に保存します'
+      : '自動では保存しません。下のボタンで、いつでも保存できます';
     saveLocalPrefs();
   });
   el('manualSaveBtn').addEventListener('click', async function(){

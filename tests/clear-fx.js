@@ -156,8 +156,7 @@ function 祝う相手(t, v) {
        * 除外に書いた id も、棚に実在しなければ赤くする（腐った除外を残さない）
        */
       const 別の形 = {
-        bakudan: '爆発と対になる1本（bombClearSequence）を3面が呼ぶ（fixes52・fx-probe --clear）',
-        jinro: '陣営の勝ちを縁・帯・紙吹雪で出している。世界に合わせた作り直しは台帳へ（監査_指示60の門）'
+        bakudan: '爆発と対になる1本（bombClearSequence）を3面が呼ぶ（fixes52・fx-probe --clear）'
       };
       const 行 = Object.keys(p.look);
       const 足りない = 棚.filter((id) => 行.indexOf(id) === -1 && !別の形[id]);

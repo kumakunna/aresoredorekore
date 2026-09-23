@@ -411,7 +411,7 @@ function freshFx(opt) {
   await r.test('60 celebrate：主役・言葉・舞うものが出て、終わったら残らない', async () => {
     const { Fx, app, log } = freshFx();
     const p = Fx.celebrate({ motion: 'flip', icons: ['💣', '💚'], pieces: 'spark',
-      text: '解除成功！', sub: '全部のコードを止めました' });
+      text: '解除成功！', sub: '全部のコードを切りました' });
     const n = app.querySelector('.fx-cel');
     assert(n, '舞台が空いていれば、その場で出る');
     assert(n.classList.contains('fx-cel-flip'), '主役の出方が選べる');

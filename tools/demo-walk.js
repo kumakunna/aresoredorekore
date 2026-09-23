@@ -6,6 +6,7 @@
 //   node tools/demo-walk.js             # 流れを通して docs/審査会_デモ/ にスクショを置く
 //   node tools/demo-walk.js --out DIR   # スクショの置き場を変える
 //   node tools/demo-walk.js --skip      # 参加者の端末を「演出の速さ＝スキップ」にして通す
+//   node tools/demo-walk.js --noflash   # 参加者の端末を「光の点滅をつかう＝切」にして通す
 //
 // ── 通す流れ（スライドと同じ） ─────────────────────
 //   棚 → 爆弾解除 → みんなのスマホで → 部屋をつくる → ゲームをえらぶ → 協力版 → 設定 →
@@ -33,6 +34,7 @@ const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : 
 const BASE = arg('url', 'http://localhost:3001');
 const OUT = path.resolve(arg('out', path.join(__dirname, '..', 'docs', '審査会_デモ')));
 const SKIP = !!arg('skip', false);
+const NOFLASH = !!arg('noflash', false);
 const JSQR = fs.readFileSync(path.join(__dirname, '..', 'node_modules', 'jsqr', 'dist', 'jsQR.js'), 'utf8');
 
 const 記録 = [];
@@ -144,10 +146,11 @@ async function 扉を越える(dev) {
     console.log('   QRの中身：' + url);
 
     // ---- 参加者：QRのURLを開く（ログインしていない） ----
-    if (SKIP) {
-      // 遊ぶ人が設定で選べるのと同じ状態（演出の速さ＝スキップ）を先に置く
+    if (SKIP || NOFLASH) {
+      // 遊ぶ人が設定で選べるのと同じ状態（演出の速さ＝スキップ／光の点滅＝切）を先に置く
       await 参加者.go(BASE + '/');
-      await 参加者.ev("(function(){localStorage.setItem('acac-app-prefs', JSON.stringify({fxSpeed:'skip'})); return true;})()");
+      await 参加者.ev("(function(){localStorage.setItem('acac-app-prefs', JSON.stringify(" +
+        JSON.stringify(Object.assign({}, SKIP ? { fxSpeed: 'skip' } : {}, NOFLASH ? { fxFlash: false } : {})) + ")); return true;})()");
     }
     await 参加者.go(url);
     await 扉を越える(参加者);
@@ -253,6 +256,8 @@ async function 扉を越える(dev) {
       } else {
         await 参加者.until("!!document.querySelector('.fx-cel')", 6000, '祝い');
         await sleep(700);
+        const 光 = await 参加者.ev("(function(){var g=document.querySelector('.fx-cel-glow'); return {輪:g?getComputedStyle(g).display:'-', 札:!!document.querySelector('.fx-cel-card'), 火花:document.querySelectorAll('.fx-cel-p-spark').length, noflash:document.documentElement.classList.contains('no-flash')};})()");
+        console.log('   祝いの中身（参加者）：' + JSON.stringify(光));
         await 撮る(参加者, '解除：クリア演出');
         await 撮る(大画面, '解除：大画面のクリア演出');
       }

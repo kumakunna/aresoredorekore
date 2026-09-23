@@ -215,6 +215,19 @@
   .btn-outline{background:transparent;border:1.5px solid var(--ink);color:var(--ink);}
   .btn-teal{background:var(--teal);color:#fff;}
   .btn-ghost{background:transparent;color:var(--ink-soft);text-decoration:underline;font-weight:400;font-size:var(--fs-sub);padding:8px;}
+  /* 指示60 B-6：**押す的を44px以上に。見た目は変えず、押せる範囲だけを広げる。**
+     375×812 で測ると、帯状の小さなリンク（.btn-ghost 35px）・段の切り替え（.seg-btn 41px）・
+     スイッチ（24px）・＋−（28px）が44pxに届いていなかった（tools/measure-screens-run.js）。
+     大きさを変えると並びが崩れるので、中央に空の ::before を重ねて「押せる範囲」だけ広げる。
+     スイッチの ::after はつまみなので、::before を使う */
+  .btn-ghost, .seg-btn, .bomb-minus, .bomb-plus,
+  #bombTierEntryBtn, #qkTierEntryBtn, #diffTierEntryBtn{position:relative;}
+  /* 棚の矢印（.rail-arrow）はもともと位置づけされている（position:absolute）ので、そのまま重ねられる */
+  .btn-ghost::before, .seg-btn::before, .bomb-minus::before, .bomb-plus::before, .switch::before,
+  #bombTierEntryBtn::before, #qkTierEntryBtn::before, #diffTierEntryBtn::before, .rail-arrow::before{
+    content:'';position:absolute;left:50%;top:50%;
+    width:max(100%, 44px);height:max(100%, 44px);transform:translate(-50%,-50%);
+  }
 
   /* 入口の二択（第41弾 2-1）と、遊び方の確認（2-4）の二択。
      **共通部品の上に組む。**書体・大きさ・押した反応・押せない見た目は
@@ -548,8 +561,10 @@
      箱を線の太さ（6px）にすると、はみ出した24pxのつまみが切れうる */
   input[type="range"]{
     -webkit-appearance:none;appearance:none;
-    width:100%;height:24px;background:transparent;
-    outline:none;cursor:pointer;margin:6px 0;
+    width:100%;height:44px;background:transparent;
+    outline:none;cursor:pointer;margin:-4px 0;
+    /* 指示60 B-6：**押せる高さを44pxに。**占める高さ（24＋6×2＝36px）はそのままにするため、
+       箱を44pxにして上下の余白を −4px にした。線とつまみは箱の中央に描かれる */
   }
   input[type="range"]::-webkit-slider-runnable-track{
     height:6px;border-radius:999px;background:var(--line);

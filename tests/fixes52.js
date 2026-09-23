@@ -29,7 +29,7 @@
 
 const { createRunner, assert, assertEqual,
   launch, activeScreen, sleep, waitScreen, waitFor, el, click, openCassette, autoDialog,
-  assertNoErrors } = require('./harness');
+  assertNoErrors, passGameSelect, fillPlayerForm } = require('./harness');
 const UiText = require('../public/js/ui-text');
 const { cssRules } = require('./harness');
 const fs = require('fs');
@@ -493,7 +493,7 @@ async function ゲームを終了(win, doc) {
   //
   // `bombBoomFx` は `FxKit.boom()` を**待たずに**バナーを出していたので、
   // 光っている最中に文字が重なっていた。
-  // 大画面（`bigBoomCallout`・第47弾 47-6）は最初から `boom().then(callout)` と
+  // 大画面（いまの `bigBoom`・第47弾 47-6）は最初から「閃光のあとに文字」と
   // 正しい順で書いてあったのに、**共通部品のこちらだけが古いまま**だった（落とし穴1）。
   //
   // 新しい仕組みは作らない——`FxKit.boom()` はもともと `hold(700)` を返すので、
@@ -510,7 +510,9 @@ async function ゲームを終了(win, doc) {
   // **出ている最中に数える**（落とし穴10-g）。片付いたあとに数えると、
   // 順番が逆でも同じ「1」に見える。
 
-  for (const [種, 光, 語] of [['boom', 'fx-burst', '爆発'], ['clear', 'fx-flash', '解除成功']]) {
+  // 指示60 A-2：解除成功は「閃光のあとに帯」から、クリア演出（FxKit.celebrate）1枚に変わった。
+  // 言葉は祝いの中で、主役（💣→💚の札）が出たあとに出る——下の「60 A-2」が見る
+  for (const [種, 光, 語] of [['boom', 'fx-burst', '爆発']]) {
     await r.test('52-6：' + (種 === 'boom' ? '爆発' : '解除成功') + 'は、演出が終わってから結果の文字が出る', async () => {
       const { win, doc } = await launch({});
       try {
@@ -519,7 +521,7 @@ async function ゲームを終了(win, doc) {
         // `banner()` は**帯が消えてから**解決するので、
         // `await` してから数えると、順番が逆でも同じ「0」に見える
         //（最初そう書いて、3件とも赤くなって気づいた）
-        let 光った = -1, 文字が出た = -1, 同時にあった = 0, t = 0;
+        let 光った = -1, 文字が出た = -1, 同時にあった = 0, t = 0, 幕なし = 0, 幕あり = 0;
         const 見張り = setInterval(() => {
           t += 25;
           const 光の数 = doc.querySelectorAll('.' + 光).length;
@@ -527,6 +529,10 @@ async function ゲームを終了(win, doc) {
           if (光の数 > 0 && 光った < 0) 光った = t;
           if (帯の数 > 0 && 文字が出た < 0) 文字が出た = t;
           if (光の数 > 0 && 帯の数 > 0) 同時にあった++;
+          // 指示60 A-1a①：爆発は**黒い幕の上**で起きる（後ろの画面が透けない）
+          const 幕 = doc.querySelectorAll('.fx-blackout').length;
+          if ((光の数 > 0 || 帯の数 > 0) && 幕 === 0) 幕なし++;
+          if (幕 > 0) 幕あり++;
         }, 25);
 
         // **本物の関数を呼ぶ**（手で FxKit を並べ直さない・落とし穴25）
@@ -540,18 +546,153 @@ async function ゲームを終了(win, doc) {
           '文字は、演出より**あとに**出る（演出 ' + 光った + 'ms → 文字 ' + 文字が出た + 'ms）');
         assertEqual(同時にあった, 0,
           '光っている最中に文字が重なっている瞬間が無い（' + 同時にあった + '回）');
+        if (種 === 'boom') {
+          // 指示60 A-1a①（実機報告：💥の後ろに結果画面が透けていた）
+          assert(幕あり > 0, '前提：黒い幕が実際に下りた');   // 型(b)
+          assertEqual(幕なし, 0, '💥・「爆発しました」が出ている間、ずっと黒い幕がある（' + 幕なし + '回欠けた）');
+          assertEqual(doc.querySelectorAll('.fx-blackout').length, 0, '終わったら幕は上がっている');
+        }
       } finally { win.close(); }
     });
   }
 
-  await r.test('52-6：スキップにした人には、待たずに結果が出る（大切なこと7）', async () => {
-    // `fxSkip` は**遊ぶ人が設定で選べるのと同じ状態**を先に置くだけ（harness の説明どおり）。
-    // テスト専用の細工ではないので、本番の道をそのまま通る
+  // 指示60 A-1a①：**爆発だけは、スキップ設定でも「爆発しました」を2秒出す。押せばすぐ結果へ。**
+  // それまでは「スキップなら 400ms 未満で結果」だった（52-6）。本人の指示で変わった：
+  // 「2秒待つか押すか」はスキップ設定に関係なく常に有効。
+  // 解除成功（クリア）は今までどおり、スキップならすぐ結果（A-2 の決まり）
+  await r.test('60 A-1a①：スキップにした人にも「爆発しました」は2秒出る（💥は出ない）', async () => {
+    // `fxSkip` は**遊ぶ人が設定で選べるのと同じ状態**を先に置くだけ（harness の説明どおり）
+    const { win, doc } = await launch({ fxSkip: true });
+    try {
+      await sleep(win, 300);
+      let 爆発 = 0, 帯 = 0, 幕 = 0;
+      const 見張り = setInterval(() => {
+        爆発 += doc.querySelectorAll('.fx-burst').length;
+        帯 += doc.querySelectorAll('.fx-shutter').length;
+        幕 += doc.querySelectorAll('.fx-blackout').length;
+      }, 25);
+      const t0 = Date.now();
+      await win.bombFxProbe('boom');
+      const かかった = Date.now() - t0;
+      clearInterval(見張り);
+      // 具体の数字で書く（落とし穴10-a：実装側の 2000 を読みに行かない）
+      assert(かかった >= 1900, 'スキップでも2秒は「爆発しました」を見せる（いま ' + かかった + 'ms）');
+      assert(帯 > 0, '「爆発しました」の帯が出た');
+      assert(幕 > 0, '黒い幕が出た');
+      assertEqual(爆発, 0, 'スキップ設定では💥の動きは描かない');
+    } finally { win.close(); }
+  });
+
+  await r.test('60 A-1a①：「爆発しました」は、押せば2秒を待たずに結果へ（スキップ設定でも）', async () => {
     const { win, doc } = await launch({ fxSkip: true });
     try {
       await sleep(win, 300);
       const t0 = Date.now();
-      await win.bombFxProbe('boom');
+      const p = win.bombFxProbe('boom');
+      // 型(b)：押す前に、帯が本当に出ていることを確かめる
+      await waitFor(win, () => doc.querySelector('.fx-shutter'), 1000, '帯');
+      // **本物のタップ**（document の pointerdown → pointerup）。skipNow を直に呼ばない（落とし穴10-h）
+      const W = doc.defaultView;
+      doc.body.dispatchEvent(new W.Event('pointerdown', { bubbles: true }));
+      doc.body.dispatchEvent(new W.Event('pointerup', { bubbles: true }));
+      await p;
+      const かかった = Date.now() - t0;
+      assert(かかった < 1200, '押したら2秒を待たない（いま ' + かかった + 'ms）');
+      assertEqual(doc.querySelectorAll('.fx-blackout').length, 0, '結果へ進んだら幕は上がっている');
+    } finally { win.close(); }
+  });
+
+  await r.test('60 A-1a①：手渡しの爆発は、幕の後ろで結果へ移る（幕が上がった時にはもう結果画面）', async () => {
+    // 手渡しは部屋と違い、💥の後ろにあるのはまだ盤。**結果へ移るのは幕の後ろ**で、
+    // 幕を上げた瞬間に結果が見える——順が逆だと、幕が上がってから画面が横へ滑る
+    const { win, doc, errors } = await launch();
+    try {
+      const cart = doc.querySelector('.cart[data-cart="bakudan"]');
+      cart.click();
+      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await passGameSelect(win, doc, 'bomb');
+      await fillPlayerForm(win, doc, ['あき', 'びび']);
+      await waitScreen(win, doc, 'scr-mode', 3000);
+      click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+      click(doc, 'modeNextBtn');
+      await waitScreen(win, doc, 'scr-set-bomb', 3000);
+      for (let i = 0; i < 10; i++) {
+        const cur = activeScreen(doc);
+        if (cur === 'scr-ready' || cur === 'scr-mode-rules') break;
+        // ライフを1にする（1回外せば爆発）
+        const minus = doc.querySelector('#' + cur + ' #bombLifeMinus');
+        if (minus) { minus.click(); minus.click(); await sleep(win, 30); }
+        const next = doc.querySelector('#' + cur + ' [data-wiz-next]');
+        if (!next) break;
+        next.click();
+        await sleep(win, 30);
+      }
+      if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+      await waitScreen(win, doc, 'scr-ready', 3000);
+      el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+      await waitScreen(win, doc, 'scr-bomb-play', 12000);
+
+      // 幕が下りた時と、外れた時の画面を、見張りに拾わせる（時々覗くと取りこぼす・落とし穴28）
+      const 記録 = [];
+      const mo = new win.MutationObserver((recs) => {
+        recs.forEach((rec) => {
+          Array.from(rec.addedNodes).forEach((n) => {
+            if (n.classList && n.classList.contains('fx-blackout')) 記録.push('下りた:' + activeScreen(doc));
+          });
+          Array.from(rec.removedNodes).forEach((n) => {
+            if (n.classList && n.classList.contains('fx-blackout')) 記録.push('上がった:' + activeScreen(doc));
+          });
+        });
+      });
+      mo.observe(doc.body, { childList: true, subtree: true });
+
+      doc.querySelector('#bombWireList .bomb-wire-btn:not(.solved)').click();
+      await waitFor(win, () => doc.querySelectorAll('#bombWireChoices .pk-btn').length === 3, 4000, '3択');
+      const desc = el(doc, 'bombWireDescription').textContent;
+      const bank = win.QuizBank.QUESTIONS.easy.find((q) => q.q === desc)
+        || [].concat.apply([], Object.values(win.QuizBank.QUESTIONS)).find((q) => q.q === desc);
+      Array.from(doc.querySelectorAll('#bombWireChoices .pk-btn'))
+        .find((c) => c.textContent !== bank.choices[bank.correct]).click();
+      await waitFor(win, () => 記録.some((x) => /^上がった/.test(x)), 9000, '幕が上がる');
+      mo.disconnect();
+      assertEqual(記録.join(' / '), '下りた:scr-bomb-play / 上がった:scr-bomb-end',
+        '幕は盤の上で下り、結果画面に移ってから上がる');
+      assertNoErrors(errors);
+    } finally { win.close(); }
+  });
+
+  await r.test('60 A-2：解除成功は、制御盤の祝い（💣→💚の札・火花）1枚で出る。帯や閃光と重ならない', async () => {
+    const { win, doc } = await launch({});
+    try {
+      await sleep(win, 300);
+      let 祝い = 0, 重なり = 0, 札 = 0, 火花 = 0, 言葉 = '';
+      const 見張り = setInterval(() => {
+        const n = doc.querySelector('.fx-cel');
+        if (n) {
+          祝い++;
+          if (n.querySelector('.fx-cel-card .fx-cel-front')) 札++;
+          火花 = Math.max(火花, n.querySelectorAll('.fx-cel-p-spark').length);
+          言葉 = (n.querySelector('.fx-cel-text') || {}).textContent || 言葉;
+        }
+        if (n && doc.querySelectorAll('.fx-banner,.fx-flash').length) 重なり++;
+      }, 25);
+      await win.bombFxProbe('clear');
+      clearInterval(見張り);
+      assert(祝い > 0, '祝いが実際に出た（.fx-cel）');   // 型(b)
+      assert(札 > 0, '💣の札がめくれる（制御盤の世界）');
+      assert(火花 >= 12, '火花が中心から散る');
+      assertEqual(言葉, '解除成功！', '言葉は祝いの中に出る');
+      assertEqual(重なり, 0, '帯や閃光と重なる瞬間が無い');
+      assertEqual(doc.querySelectorAll('.fx-cel').length, 0, '終わったら残らない');
+    } finally { win.close(); }
+  });
+
+  await r.test('52-6：解除成功は、スキップにした人には待たずに結果が出る（大切なこと7）', async () => {
+    const { win } = await launch({ fxSkip: true });
+    try {
+      await sleep(win, 300);
+      const t0 = Date.now();
+      await win.bombFxProbe('clear');
       const かかった = Date.now() - t0;
       assert(かかった < 400,
         'スキップなら、演出を待たずに結果まで進む（いま ' + かかった + 'ms）');

@@ -163,8 +163,8 @@
     "name": "45-2d 称号を舞台に乗せない（第45弾の事故そのもの）",
     "file": "public/index.html",
     "suite": "tests/fixes45.js",
-    "from": "    }, { praise:true });",
-    "to": "    }, {});",
+    "from": "      fanfareSound();\n    }, { praise:true });",
+    "to": "      fanfareSound();\n    }, {});",
     "expect": "称号は「褒める」を名乗る"
   },
   {

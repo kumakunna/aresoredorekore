@@ -1172,6 +1172,42 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  await r.test('60 A-1a②：あれそれの称号は、スコア画面に着いてから出る（答えの発表では出ない）', async () => {
+    // 実機で「称号の獲得演出が、どの演出よりも先に出る」と報告された。
+    // あれそれは答えの発表（scr-reveal）で数え、2.2秒後にスコア画面へ移る——
+    // 数えたその場で見せていたので、**スコア画面より前**に出ていた
+    const { win, doc, errors } = await launch();
+    autoDialog(win, doc);
+    win.TitleLogic.seasonFor = () => null;
+    // 出た瞬間の画面を、見張りに拾わせる（時々覗くと取りこぼす・落とし穴28）
+    const 出た時の画面 = [];
+    const mo = new win.MutationObserver(() => {
+      if (el(doc, 'titleGotOverlay').classList.contains('show')) 出た時の画面.push(activeScreen(doc));
+    });
+    mo.observe(el(doc, 'titleGotOverlay'), { attributes: true, attributeFilter: ['class'] });
+    await setupPlayers(win, doc);
+    await waitScreen(win, doc, 'scr-mode', 3000);
+    click(doc, 'modeAutoBtn');
+    await sleep(win, 80);
+    if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
+    await waitScreen(win, doc, 'scr-ready', 3000);
+    el(doc, 'holdBtn').dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true }));
+    await waitScreen(win, doc, 'scr-play', 8000);
+    click(doc, 'btnCorrect');
+    await sleep(win, 80);
+    const who = doc.querySelectorAll('#pickerGrid button[data-id]');
+    if (who.length) { who[0].click(); await sleep(win, 120); }
+    click(doc, 'endRoundBtn');
+    // 型(b)：答えの発表を本当に通ったか（通っていなければ「そこで出なかった」は自明）
+    await waitScreen(win, doc, 'scr-reveal', 8000);
+    await waitScreen(win, doc, 'scr-score', 8000);
+    await waitFor(win, () => 出た時の画面.length > 0, 5000, '称号が出る');
+    mo.disconnect();
+    assertEqual(出た時の画面[0], 'scr-score', '称号は、スコア画面に着いてから出る');
+    assertNoErrors(errors, '獲得の演出で未捕捉の例外');
+    win.close();
+  });
+
   // ---- 第32弾-D 第4部：安全の案内と安全に関する設定 ----
 
   await r.test('初回は扉の前に安全の案内が出て、その場でオフにできる（第32弾-D 第4部）', async () => {

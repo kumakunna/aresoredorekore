@@ -1,0 +1,130 @@
+[
+  {
+    "name": "60-A1 コールアウトを1つ戻す（大画面の CRITICAL）",
+    "file": "public/index.html",
+    "suite": "tests/fx.js",
+    "from": "      // 残りミス1は、すぐ下の縁の脈動（bomb-danger）とハートの数が知らせる。\n",
+    "to": "      rtOnce('big:bomb:critical', lives === 1, function(){ FxKit.callout('CRITICAL', { kind:'danger' }); });\n",
+    "expect": "コールアウトの部品・呼び出し・CSSが残っている"
+  },
+  {
+    "name": "60-A2 コールアウトのCSSだけ戻す",
+    "file": "public/index.html",
+    "suite": "tests/fx.js",
+    "from": "  /* 第32弾-D 第2部のコールアウト（大画面の英単語）は、指示60 で仕組みごと消した */\n",
+    "to": "  .fx-callout{position:fixed;left:0;right:0;top:36%;z-index:97;}\n",
+    "expect": "コールアウトの部品・呼び出し・CSSが残っている"
+  },
+  {
+    "name": "60-B1 部屋のクリア演出の部品を呼ばない（rtClearFx が祝いを出さない）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "      clearFx(c.id, { text: 言葉.text, sub: 言葉.sub || null, icons: w.icons, seal: w.seal });",
+    "to": "      void 言葉;",
+    "expect": "大画面にクリア演出が1回出る"
+  },
+  {
+    "name": "60-B2 負けた人の端末にも祝いを出す（勝った人に向けない）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "    rtOnce('clear:' + g, !!w && (big || 自分へ), function(){",
+    "to": "    rtOnce('clear:' + g, !!w, function(){",
+    "expect": "勝っていない端末には出さない"
+  },
+  {
+    "name": "60-B3 世界の行を1つ消す（棚のカセットに行が無い）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "    falsetrue: { motion:'flip', icons:['💼', '✅'], pieces:'spark',",
+    "to": "    falsetrue_: { motion:'flip', icons:['💼', '✅'], pieces:'spark',",
+    "expect": "クリア演出の行が無いカセット"
+  },
+  {
+    "name": "60-B4 あれそれのスコア画面で祝わない",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "      clearFx('aresoredorekore', 祝う);",
+    "to": "      void 祝う;",
+    "expect": "スコア画面で祝う"
+  },
+  {
+    "name": "60-B5 いっきうち（手渡し）で、祝いより先に結果へ移る",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "      clearFx('rcard', { text: rcHandNameOf(w.winnerId), sub: 'さいごの1人',\n        behind: function(){ renderRcDone(); goTo('scr-rc-done'); } });",
+    "to": "      renderRcDone(); goTo('scr-rc-done');\n      clearFx('rcard', { text: rcHandNameOf(w.winnerId), sub: 'さいごの1人' });",
+    "expect": "祝いが消えた時にはもう結果画面"
+  },
+  {
+    "name": "60-C1 解除成功をクリア演出の部品で出さない（閃光に戻す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    return FxKit.celebrate({\n      motion:'flip', icons:['💣', opt.face || '💚'], pieces:'spark',",
+    "to": "    FxKit.flash('good');\n    return FxKit.celebrate({\n      motion:'flip', icons:['💣', opt.face || '💚'], pieces:'spark',",
+    "expect": "帯や閃光と重なる瞬間が無い"
+  },
+  {
+    "name": "60-D1 爆発で黒い幕を下ろさない（結果が透ける）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    var 上げる = FxKit.blackout();",
+    "to": "    var 上げる = function(){};",
+    "expect": "ずっと黒い幕がある"
+  },
+  {
+    "name": "60-D2 「2秒待つか押す」をスキップ設定で縮める（linger を hold に戻す）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "sub:opt.sub, linger:2000 });",
+    "to": "sub:opt.sub, ms:2000 });",
+    "expect": "スキップでも2秒は"
+  },
+  {
+    "name": "60-D3 手渡しで、幕を上げてから結果へ移る（順を逆にする）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    return FxKit.burst('💥').then(function(){\n      return FxKit.shutter({ kind:'gray', text:'爆発しました', sub:opt.sub, linger:2000 });\n    }).then(function(){ 結果へ(); }, function(){ 結果へ(); })\n      .then(上げる, 上げる);",
+    "to": "    return FxKit.burst('💥').then(function(){\n      return FxKit.shutter({ kind:'gray', text:'爆発しました', sub:opt.sub, linger:2000 });\n    }).then(上げる, 上げる)\n      .then(function(){ 結果へ(); }, function(){ 結果へ(); });",
+    "expect": "結果画面に移ってから上がる"
+  },
+  {
+    "name": "60-D4 黒い幕を、指が触れている間に上げる",
+    "file": "public/js/fx.js",
+    "suite": "tests/fx.js",
+    "from": "      if (!指.下りている) return resolve();",
+    "to": "      if (true) return resolve();",
+    "expect": "指が離れるまで、幕は残っている"
+  },
+  {
+    "name": "60-D5 linger を速さの設定で縮める",
+    "file": "public/js/fx.js",
+    "suite": "tests/fx.js",
+    "from": "  function linger(ms) {\n    return 待つ(ms == null ? 0 : ms);\n  }",
+    "to": "  function linger(ms) {\n    return 待つ(cfg.ms(ms == null ? 0 : ms));\n  }",
+    "expect": "linger は縮まない"
+  },
+  {
+    "name": "60-E1 褒める札が前座を待たない（第45弾の前の形）",
+    "file": "public/js/fx.js",
+    "suite": "tests/fx.js",
+    "from": "    if (舞台.待ち[0].褒める && 前座.札.length) return;",
+    "to": "    void 0;",
+    "expect": "前座の最中に、褒める札が出ない"
+  },
+  {
+    "name": "60-E2 称号を、結果画面を待たずに見せる（数えたその場で）",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "    var 出す = titleGotQueue.filter(function(x){ return !x.待つ || 結果; });",
+    "to": "    var 出す = titleGotQueue.slice();",
+    "expect": "称号は、スコア画面に着いてから出る"
+  },
+  {
+    "name": "60-E3 スコア画面が結果画面を名乗らない",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "<div class=\"screen\" id=\"scr-score\" data-result>",
+    "to": "<div class=\"screen\" id=\"scr-score\">",
+    "expect": "称号が出る"
+  }
+]

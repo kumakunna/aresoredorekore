@@ -389,7 +389,6 @@ function click(doc, sel) {
     const 出す = [
       { cls: 'fx-flash', go: () => win.FxKit.flash('good') },
       { cls: 'fx-banner', go: () => win.FxKit.banner({ text: 'たしかめ', ms: 300 }) },
-      { cls: 'fx-callout', go: () => win.FxKit.callout('CHECK', { ms: 300 }) },
       { cls: 'fx-confetti', go: () => win.FxKit.confetti() },
       { cls: 'fx-countdown', go: () => win.FxKit.countdown(1) },
       { cls: 'fx-notices', go: () => win.FxKit.notice('たしかめ') },
@@ -400,13 +399,17 @@ function click(doc, sel) {
       { cls: 'fx-fly', go: () => win.FxKit.fly(app, app, '●') },
       // 第59弾：爆発は「burst（大きさだけの絵文字）→ shutter（落ちてくる帯）」
       { cls: 'fx-burst', go: () => win.FxKit.burst('💥', 300) },
-      { cls: 'fx-shutter', go: () => win.FxKit.shutter({ text: 'たしかめ', ms: 300 }) }
+      { cls: 'fx-shutter', go: () => win.FxKit.shutter({ text: 'たしかめ', ms: 300 }) },
+      // 指示60 A-1a①：💥と同じ瞬間に下ろす黒い幕。確かめたら上げる（下りたままにしない）
+      { cls: 'fx-blackout', go: () => { const up = win.FxKit.blackout(); setTimeout(up, 0); } },
+      // 指示60 A-2：クリア演出
+      { cls: 'fx-cel', go: () => win.FxKit.celebrate({ icon: '🏆', text: 'たしかめ', ms: 300 }) }
     ];
     const 外れ = [];
     出す.forEach((x) => {
-      // 帯とコールアウトは舞台（順番待ち）を通る。前のものが走っている間は
+      // 帯・シャッター・クリア演出は舞台（順番待ち）を通る。前のものが走っている間は
       // 待ち行列に入って**その場では出ない**——舞台を空けてから出す。
-      // これを書かずに並べたら、callout が「そもそも出ない」で赤くなった（型(b)）
+      // これを書かずに並べたら、舞台を通るものが「そもそも出ない」で赤くなった（型(b)）
       win.FxKit.skipNow();
       win.FxKit.stageClear();
       x.go();

@@ -18,8 +18,13 @@
 //   node tools/fx-probe.js bomb coop --late # 解除中を一度も見ずに決着だけ届く
 //   node tools/fx-probe.js bomb coop --skip    # スキップ（演出を出さず結果だけ）
 //   node tools/fx-probe.js bomb coop --noflash # 光の点滅を切っている人（burst は出るのが正しい）
+//   node tools/fx-probe.js bomb coop --tap     # 指示60：帯が出たところで押す（2秒を待たずに結果へ）
+//   node tools/fx-probe.js bomb coop --clear   # 指示60 A-2：全部解いて解除成功（クリア演出）
+//   node tools/fx-probe.js bomb race --clear   # 競争版：自分が全部解いて1位
+//     bomb は**時系列**も出す（黒い幕・💥・帯・祝い・称号が、いつ出ていつ消えたか）と、
+//     「透け」＝結果が描かれていて💥か帯が出ているのに、黒い幕が無い瞬間の数（指示60 A-1a①）
 //
-//   node tools/fx-probe.js falsetrue true    # 中身が TRUE の回（緑の光＋「生存」）
+//   node tools/fx-probe.js falsetrue true    # 中身が TRUE の回（緑の光。「生存」は結果の札が言う）
 //   node tools/fx-probe.js falsetrue false   # 中身が FALSE の回（赤の光。**脱落は静かに**）
 //   node tools/fx-probe.js falsetrue true --big    # 同じ場面を大画面の端末で
 //   node tools/fx-probe.js falsetrue true --skip   # スキップ（演出を出さず結果だけ）
@@ -35,13 +40,14 @@
 //   演出は自分で片付くので、**片付いたあとに数えない**。
 //   各段階の直後（80ms）で数え、最後にもう一度だけ数える。
 //   最後の「少しあと」は、**連なって遅れて出るもの**を見るための1枚
-//  （例：閃光が引いてから出る「爆発」のコールアウト）。早すぎても嘘になる。
+//  （例：💥が引いてから落ちてくる「爆発しました」の帯）。早すぎても嘘になる。
 
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const H = require(path.join(ROOT, 'tests', 'harness'));
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, openCassette } = H;
 const Bomb = require(path.join(ROOT, 'bomb-room.js'));
+const BombLogic = require(path.join(ROOT, 'public', 'js', 'bomb-logic.js'));
 const FalseTrue = require(path.join(ROOT, 'falsetrue-room.js'));
 const Rcard = require(path.join(ROOT, 'rcard-room.js'));
 
@@ -55,6 +61,8 @@ const LATE = opt('late');
 const SKIP = opt('skip');
 // 第59弾：光の点滅を切っている人にも burst が出るかを、bomb で見る
 const NOFLASH = opt('noflash');
+// 指示60 A-2：ミスで爆発させる代わりに、全部解いて解除成功にする
+const CLEAR = opt('clear');
 // 指示55：**大画面の中身も見る。**演出の数だけだと「画面が空でも0は0」で見分けられない
 const DUMP = opt('dump');
 
@@ -78,6 +86,18 @@ function wrongAnswer(room, mid, uid) {
   const e = w.entries[w.mode === 'coop' ? 'team' : mid];
   return (e.choices[uid] || []).find((c) => c !== wire.answer && c !== wire.name);
 }
+// 指示60 A-2：**解除成功の側**も測る（--clear）。それまでこの道具は爆発の側しか作れなかった
+function solveOnce(room, mid) {
+  const w = room.bomb, e = w.entries[w.mode === 'coop' ? 'team' : mid];
+  const uid = e.order.find((u) => !e.solved[u]);
+  if (!uid) return false;
+  const wire = w.wires.find((x) => x.uid === uid);
+  Bomb.submitAction(room, mid, uid);
+  // 正解は本物の判定（BombLogic.isCorrect）で選ぶ。答えの形を道具に写さない（落とし穴25）
+  const ok = (e.choices[uid] || []).find((c) => BombLogic.isCorrect(wire, c));
+  Bomb.submitVote(room, mid, ok);
+  return true;
+}
 function missOnce(room, mid) {
   const w = room.bomb, e = w.entries[w.mode === 'coop' ? 'team' : mid];
   const uid = e.order.find((u) => !e.solved[u]);
@@ -95,7 +115,7 @@ const MY_ID = 'm1';
 //
 // 見たいのは3つ：
 //   ① 中身が開く瞬間に、**画面いっぱいの光**が出る（TRUE は緑・FALSE は赤）
-//   ② **生存だけコールアウト。脱落は静かに**（原則C：責める時は静かに）
+//   ② **脱落は静かに**（原則C：責める時は静かに。指示60 で「生存」のコールアウトは消した）
 //   ③ **スキップにすると、演出は出ずに結果だけが出る**（大切なこと7）
 //
 // 光は自分で片付くので、出ている最中に数える（落とし穴10-g）。
@@ -208,6 +228,10 @@ async function mainRcard() {
     縁の種類: (doc.querySelector('.fx-edge') || { className: '' }).className.replace('fx-edge', '').trim() || '-',
     札の字: Array.from(doc.querySelectorAll('.screen.active .rc-word'))
       .map((x) => x.textContent).join('/') || '-',
+    // 指示60 A-1：大画面の名簿で「誰が踏んだか」（コールアウトの代わり）
+    名簿の印: Array.from(doc.querySelectorAll('#bigList .bl-item'))
+      .filter((x) => /💣/.test(x.textContent))
+      .map((x) => x.textContent.replace(/\s+/g, ' ').trim()).join(' / ') || '-',
     体力: JSON.stringify(room.rcard.lives)
   });
 
@@ -287,7 +311,8 @@ async function mainFalsetrue() {
     画面: activeScreen(doc),
     光: doc.querySelectorAll('.fx-flash').length,
     光の色: (doc.querySelector('.fx-flash') || { className: '' }).className.replace('fx-flash', '').trim() || '-',
-    コールアウト: (doc.querySelector('.fx-callout') || { textContent: '' }).textContent.trim() || '-',
+    // 指示60：コールアウトの仕組みは消した。決着の祝い（クリア演出）を数える
+    祝い: (doc.querySelector('.fx-cel .fx-cel-text') || { textContent: '' }).textContent.trim() || '-',
     紙吹雪: doc.querySelectorAll('.fx-confetti').length,
     中身の札: (() => {
       const b = doc.querySelector('.screen.active .ft-content');
@@ -310,7 +335,7 @@ async function mainFalsetrue() {
   count('開いた直後');
   await sleep(win, 200);
   count('少しあと');
-  // 連なって遅れて出るもの（コールアウトは光が引いてから）
+  // 連なって遅れて出るもの（光が引いてから出るもの）
   await sleep(win, 1000);
   count('もっとあと');
 
@@ -392,7 +417,8 @@ async function mainBomb() {
     const 帯 = doc.querySelector('#bigStatus');
     const t = (sel) => (doc.querySelector(sel) || { textContent: '' }).textContent.replace(/\s+/g, ' ').trim();
     return {
-      帯: (帯 && !帯.hidden) ? (t('#bigLives') + ' ' + t('#bigClock')).trim() : '(出ていない)',
+      // 指示60：演出の数の「帯」と名前がぶつかって上書きしていた（--dump の時に帯の列が❤️になっていた）
+      上の帯: (帯 && !帯.hidden) ? (t('#bigLives') + ' ' + t('#bigClock')).trim() : '(出ていない)',
       主役: 主役 ? t('#bigMain').slice(0, 90) : '-',
       添え: t('#bigSub').slice(0, 70),
       横棒: doc.querySelectorAll('#bigBoard .bb-row').length,
@@ -407,15 +433,60 @@ async function mainBomb() {
     爆発: doc.querySelectorAll('.fx-burst').length,
     帯: doc.querySelectorAll('.fx-banner').length,
     帯の字: (doc.querySelector('.fx-banner .fx-banner-text') || { textContent: '' }).textContent.trim() || '-',
-    コールアウト: (doc.querySelector('.fx-callout') || { textContent: '' }).textContent.trim() || '-',
+    // 指示60：コールアウトの仕組みは消した。代わりに「黒い幕」と「クリア演出」を数える
+    黒: doc.querySelectorAll('.fx-blackout').length,
+    祝い: doc.querySelectorAll('.fx-cel').length,
     紙吹雪: doc.querySelectorAll('.fx-confetti').length,
-    揺れ: doc.querySelectorAll('.fx-shake-big,.fx-shake').length,
     ...(DUMP ? 大画面の中身() : {})
   });
 
   if (!LATE) { await sleep(win, 80); count('はじめ'); }
 
-  for (let i = 0; i < 3; i++) {
+  // 指示60 A-1a①：**時系列**。出た・消えたを見張りに拾わせる（時々覗くと取りこぼす・落とし穴28）。
+  // あわせて25msごとに「透け」を数える：結果が描かれていて、💥か帯が出ているのに、黒い幕が無い瞬間
+  const t0 = Date.now();
+  const 時系列 = [];
+  const 名前 = (n) => !n.classList ? null
+    : n.classList.contains('fx-blackout') ? '黒い幕'
+    : n.classList.contains('fx-burst') ? '💥'
+    : n.classList.contains('fx-shutter') ? '帯「' + ((n.querySelector('.fx-banner-text') || {}).textContent || '') + '」'
+    : n.classList.contains('fx-banner') ? '帯「' + ((n.querySelector('.fx-banner-text') || {}).textContent || '') + '」'
+    : n.classList.contains('fx-cel') ? '祝い「' + ((n.querySelector('.fx-cel-text') || {}).textContent || '') + '」'
+    : n.classList.contains('fx-confetti') ? '紙吹雪' : null;
+  const mo = new win.MutationObserver((recs) => recs.forEach((rec) => {
+    Array.from(rec.addedNodes).forEach((n) => { const k = 名前(n); if (k) 時系列.push([Date.now() - t0, '出た', k]); });
+    Array.from(rec.removedNodes).forEach((n) => { const k = 名前(n); if (k) 時系列.push([Date.now() - t0, '消えた', k]); });
+    if (rec.type === 'attributes' && rec.target.id === 'titleGotOverlay' && rec.target.classList.contains('show')) {
+      時系列.push([Date.now() - t0, '出た', '称号']);
+    }
+  }));
+  mo.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  const 結果がある = () => BIG
+    ? (room.bomb.phase === 'ended' && /爆発|解除|勝ち/.test((doc.querySelector('#bigMain') || { textContent: '' }).textContent))
+    : !!((doc.querySelector('#rtBombResult') || { textContent: '' }).textContent.trim());
+  let 透け = 0, 結果の最初 = -1;
+  const 見張り = setInterval(() => {
+    const 結果 = 結果がある();
+    if (結果 && 結果の最初 < 0) 結果の最初 = Date.now() - t0;
+    const 出ている = doc.querySelectorAll('.fx-burst,.fx-banner').length > 0;
+    // クリア演出（.fx-cel）は自分の地が不透明なので、黒い幕は要らない
+    if (結果 && 出ている && !doc.querySelector('.fx-blackout') && !doc.querySelector('.fx-cel')) 透け++;
+  }, 25);
+  if (opt('tap')) {
+    // 帯が出てから押す（本物の pointerdown → pointerup）
+    setTimeout(() => {
+      doc.body.dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+      doc.body.dispatchEvent(new win.Event('pointerup', { bubbles: true }));
+    }, 1300);
+  }
+
+  for (let i = 0; i < (CLEAR ? 4 : 3); i++) {
+    if (CLEAR) {
+      // 協力版はチームで4本。競争版は自分（先頭）だけが解き進める＝自分が1位
+      solveOnce(room, playerIds[0]);
+      if (!LATE) { push(); await sleep(win, 80); count('正解' + (i + 1)); }
+      continue;
+    }
     missOnce(room, playerIds[0]);
     if (mode === 'race') playerIds.slice(1).forEach((id) => missOnce(room, id));
     if (!LATE) { push(); await sleep(win, 80); count('ミス' + (i + 1)); }
@@ -428,16 +499,24 @@ async function mainBomb() {
   }
   await sleep(win, 120); count('あと');
   // **連なる演出は、あとから来る**（第47弾 47-6）。
-  // 大画面の「爆発」コールアウトは閃光（700ms）が引いてから出るので、
+  // 💥（800ms）が引いてから「爆発しました」が落ちてくるので、
   // 直後だけを見ていると「出ていない」と読み違える。
   // 片付いたあとに数えない（落とし穴10-g）のと同じくらい、**早すぎても嘘になる**
   await sleep(win, 1000); count('少しあと');
+  // 指示60 A-1a①：「2秒待つか押すか」のあと、幕が上がって結果が見えるところまで
+  await sleep(win, 2400); count('3.5秒あと');
 
-  const label = [game, mode, BIG ? '大画面' : 'プレイヤー', REVERSED ? '順が逆' : null, LATE ? '決着だけ' : null]
+  const label = [game, mode, CLEAR ? '解除成功' : '爆発', BIG ? '大画面' : 'プレイヤー', REVERSED ? '順が逆' : null, LATE ? '決着だけ' : null,
+    SKIP ? 'スキップ' : null, NOFLASH ? '光を弱く' : null]
     .filter(Boolean).join(' / ');
   console.log('== ' + label + ' ==');
   console.log('   サーバーの段階:', room.bomb.phase);
   rows.forEach((r) => console.log('   ', JSON.stringify(r)));
+  clearInterval(見張り); mo.disconnect();
+  console.log('   時系列（最初のミスからのms）:');
+  時系列.forEach((x) => console.log('     ' + String(x[0]).padStart(5) + 'ms  ' + x[1] + '  ' + x[2]));
+  console.log('   結果が描かれた:', 結果の最初 >= 0 ? 結果の最初 + 'ms' : '（描かれていない）');
+  console.log('   透け（結果があり、💥か帯が出ているのに黒い幕が無い瞬間。25msごと）:', 透け + '回');
   console.log('   画面のエラー:', errors.length ? errors.slice(0, 2) : 'なし');
   win.close();
 }

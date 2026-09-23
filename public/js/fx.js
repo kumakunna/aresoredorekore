@@ -38,6 +38,9 @@
   // 「今の演出だけ」ではなく全部にしているのは、2周目の人が
   // 連なった演出を1つずつ叩いて飛ばすはめになるのを避けるため。
   var waiters = [];
+  // 指がいま画面に触れているか（init が pointerdown/up で書く）。
+  // 待ち は「指が離れたら呼ぶ」関数の列
+  var 指 = { 下りている: false, 待ち: [] };
 
   function skipNow() {
     var list = waiters.slice();
@@ -52,7 +55,22 @@
    * 返り値は「スキップされたか」。演出を短縮したい側が見られるようにしてある。
    */
   function hold(ms) {
-    var t = cfg.ms(ms == null ? 0 : ms);
+    return 待つ(cfg.ms(ms == null ? 0 : ms));
+  }
+  /**
+   * **速さの設定では縮まない。タップでは必ず終わる**待ち（指示60 A-1a①）。
+   *
+   * 「爆発しました」のあと「2秒待つか、押すか」で結果へ進む——
+   * これは**スキップ設定の人にも**効かせる約束なので、`hold` は使えない
+   * （`hold` はスキップで 0 になり、一度も読めないまま結果へ飛ぶ）。
+   * `beat`（3-2-1）とも違う：あちらはタップでも縮まない合図。
+   * ここは原則B（すべての演出はスキップできる）の内側——**押せば終わる**。
+   * 中身は hold と同じ1本（`待つ`）を分け合う（写すと片方だけ直す日が来る・落とし穴1）
+   */
+  function linger(ms) {
+    return 待つ(ms == null ? 0 : ms);
+  }
+  function 待つ(t) {
     return new Promise(function (resolve) {
       if (!(t > 0)) return resolve(true);
       var done = false;
@@ -76,7 +94,7 @@
   //   host()  … アプリ本体の箱（#app）。**揺らす相手**。
   //             画面そのものを揺らすので、ここでなければ意味がない
   //   layer() … 画面いっぱいに重ねるものの置き場（#uiLayerRoot）。
-  //             閃光・帯・コールアウト・紙吹雪・巨大カウントダウン・通知・飛ぶ印
+  //             閃光・帯・黒い幕・クリア演出・紙吹雪・巨大カウントダウン・通知・飛ぶ印
   //
   // **なぜ分けたか。** #app は `filter:brightness(...)` と `max-width:460px` を持つ。
   //   ・filter があると `position:fixed` の基準が #app になる（落とし穴26）
@@ -120,7 +138,19 @@
     if (d && !init._bound) {
       // 画面のどこを触ってもスキップ。押した内容は殺さない
       //（ボタンを押しながら演出を飛ばす、が同時に起きてよい）
-      d.addEventListener('pointerdown', function () { if (busy()) skipNow(); }, true);
+      d.addEventListener('pointerdown', function () {
+        指.下りている = true;
+        if (busy()) skipNow();
+      }, true);
+      // 指が離れた瞬間を覚える（黒い幕を上げる時に、同じタップの click を
+      // 幕の後ろのボタンへ落とさないため。指示60 A-1a①）
+      var 離れた = function () {
+        指.下りている = false;
+        var q = 指.待ち.slice(); 指.待ち.length = 0;
+        q.forEach(function (f) { f(); });
+      };
+      d.addEventListener('pointerup', 離れた, true);
+      d.addEventListener('pointercancel', 離れた, true);
       init._bound = true;
     }
     return api;
@@ -148,10 +178,10 @@
     // 原則C：責める時は静かに。外れの振動はいちばん軽い型にする
     if (k === 'bad') { play('bad'); vibe('tick'); }
     else { play('good'); }
-    return hold(FLASH_MS[k]).then(function (skipped) {
+    return 前座に乗せる(hold(FLASH_MS[k]).then(function (skipped) {
       if (n.parentNode) n.parentNode.removeChild(n);
       return skipped;
-    });
+    }));
   }
 
   /**
@@ -172,10 +202,10 @@
     var n = mk('bomb-boom');
     if (!n) return Promise.resolve(true);
     h.appendChild(n);
-    return hold(700).then(function (skipped) {
+    return 前座に乗せる(hold(700).then(function (skipped) {
       if (n.parentNode) n.parentNode.removeChild(n);
       return skipped;
-    });
+    }));
   }
 
   /**
@@ -196,10 +226,10 @@
     var n = mk('fx-dawn');
     if (!n) return Promise.resolve(true);
     h.appendChild(n);
-    return hold(750).then(function (skipped) {
+    return 前座に乗せる(hold(750).then(function (skipped) {
       if (n.parentNode) n.parentNode.removeChild(n);
       return skipped;
-    });
+    }));
   }
 
   // ---------- 原則C：褒める時は全力で ----------
@@ -242,8 +272,33 @@
   }
   function 次へ() {
     if (舞台.走っている || !舞台.待ち.length) return;
+    // **褒めるのは、前座も済んでから**（指示60 A-1a②）。
+    // 前座＝舞台を通らない画面いっぱいの演出（💥・閃光・紙吹雪・縁・黒い幕）。
+    // それまで舞台は「走っているもの」と「待ち行列」しか見ていなかったので、
+    // 💥の最中は舞台が空いて見え、称号が1拍で割り込んでいた（実機で報告）。
+    // **「爆発の後に称号」とは書かない**——前座かどうかは演出の性質で決まる
+    if (舞台.待ち[0].褒める && 前座.札.length) return;
     var x = 舞台.待ち.shift();
     走らせる(x.fn).then(x.resolve, x.resolve);
+  }
+  // ---------- 前座（指示60 A-1a②） ----------
+  /**
+   * 舞台を通らずにその場で出る、画面いっぱいの演出を数える。
+   * 結果（帯・シャッター・クリア演出）は前座を待たない——
+   * 💥と「爆発しました」、閃光と「解除成功！」は、今までどおりの順で出る。
+   * 待つのは「褒める」だけ。前座がみんな降りたら、舞台をもう一度見る
+   */
+  var 前座 = { 札: [] };
+  function 前座に乗せる(p) {
+    var 札 = {};
+    前座.札.push(札);
+    function 降りる() {
+      var i = 前座.札.indexOf(札);
+      if (i >= 0) 前座.札.splice(i, 1);
+      if (!前座.札.length && 舞台.待ち.length) setTimeout(次へ, 0);
+    }
+    Promise.resolve(p).then(降りる, 降りる);
+    return p;
   }
   function stage(fn, opt) {
     var 褒める = !!(opt && opt.praise);
@@ -260,17 +315,97 @@
       if (!舞台.走っている) setTimeout(次へ, 0);
     });
   }
-  /** 舞台を空にする。ゲームを捨てる時に呼ぶ（前の試合の演出を持ち越さない） */
-  function stageClear() { 舞台.待ち.length = 0; 舞台.走っている = false; }
+  /**
+   * 舞台を空にする。ゲームを捨てる時に呼ぶ（前の試合の演出を持ち越さない）。
+   * 前座の札も捨て、黒い幕が下りていたら上げる（黒いまま棚に出ない）
+   */
+  function stageClear() {
+    舞台.待ち.length = 0; 舞台.走っている = false;
+    前座.札.length = 0;
+    if (幕.いま) 幕.いま.片付ける();
+  }
   /** いま舞台に何が乗っているか（検査用） */
-  function stageState() { return { 走っている: 舞台.走っている, 待ち: 舞台.待ち.length }; }
+  function stageState() {
+    return { 走っている: 舞台.走っている, 待ち: 舞台.待ち.length,
+      前座: 前座.札.length, 幕: !!幕.いま };
+  }
+
+  // ---------- 黒い幕（指示60 A-1a①） ----------
+  /**
+   * **💥と同じ瞬間に、画面を黒で覆う。**戻り値は「幕を上げる」関数。
+   *
+   * 実機で「爆発の💥の後ろに、もう結果画面が透けて見える」と報告された。
+   * 部屋と大画面では、結果が💥と**同じ回の描画**で描かれ、
+   * しかも💥の層（.fx-burst）に背景が無かったから。
+   *
+   *   ・**入りのアニメーションを持たない**——出た瞬間から不透明。
+   *     0.25秒かけて入ると、その間だけ結果が透ける（直したい症状そのもの）
+   *   ・**光を弱くする設定でも出す**——光の変化ではなく、隠すための幕。
+   *     止めると、その設定の人にだけ結果が透ける（落とし穴1の形）。burst と同じ判断
+   *   ・**後ろのボタンは押させない**（pointer-events:auto）。見えない「部屋を出る」を
+   *     押せてしまうのを防ぐ。タップは document のキャプチャが拾うので、スキップは効く
+   *   ・下りている間は**前座**に数える（称号が幕の上に割り込まない）
+   *   ・二重には下ろさない。下りていれば、同じ「上げる」を返す
+   *
+   * **上げる時**：指がまだ触れていたら離れるまで待ち、少しおいてから引く。
+   * 先に消すと、幕を上げたのと同じタップの click が、結果画面のボタン
+   * （「もう一度」「部屋を出る」）に落ちる（ゴーストクリック）
+   */
+  var 幕 = { いま: null };
+  function blackout() {
+    if (幕.いま) return 幕.いま.上げる;
+    var h = layer();
+    var n = h ? mk('fx-blackout') : null;
+    if (!n) return function () { return Promise.resolve(true); };
+    h.appendChild(n);
+    var 降りた;
+    var 下りている = new Promise(function (r) { 降りた = r; });
+    前座に乗せる(下りている);
+    var 上げ中 = null;
+    var me = {
+      片付ける: function () {
+        if (n.parentNode) n.parentNode.removeChild(n);
+        if (幕.いま === me) 幕.いま = null;
+        降りた(true);
+      },
+      上げる: function () {
+        if (上げ中) return 上げ中;
+        上げ中 = 指が離れるまで().then(function () {
+          n.classList.add('fx-out');
+          return hold(250);
+        }).then(function () { me.片付ける(); return true; });
+        return 上げ中;
+      }
+    };
+    幕.いま = me;
+    return me.上げる;
+  }
+  /**
+   * 指が離れて、同じタップの click が済むまで待つ。
+   * 触れていなければすぐ返る。**触れっぱなしでも 800ms で見切る**
+   * （pointerup が来ない環境で幕が永久に下りたままになるのを防ぐ）
+   */
+  function 指が離れるまで() {
+    return new Promise(function (resolve) {
+      var done = false;
+      function 済む() { if (done) return; done = true; setTimeout(resolve, 60); }
+      if (!指.下りている) return resolve();
+      指.待ち.push(済む);
+      setTimeout(済む, 800);
+    });
+  }
 
   /** banner と shutter が共有する中身（icon/text/sub/skip案内）の組み立て（第59弾） */
   function bannerInnerHtml(opt) {
+    // `linger` の帯は、スキップ設定の人にも2秒出る。**その人にも「押せば進む」を見せる**
+    //（ふつうの案内はスキップ設定では隠す：もう出ていないので）。印は is-always
+    var 案内 = opt.linger != null
+      ? '<div class="fx-banner-skip is-always">タップで結果へ</div>'
+      : '<div class="fx-banner-skip">タップでとばす</div>';
     return (opt.icon ? '<div class="fx-banner-icon">' + opt.icon + '</div>' : '') +
       '<div class="fx-banner-text">' + esc(opt.text || '') + '</div>' +
       (opt.sub ? '<div class="fx-banner-sub">' + esc(opt.sub) + '</div>' : '') +
-      '<div class="fx-banner-skip">タップでとばす</div>';
+      案内;
   }
   function banner(opt) {
     return stage(function () { return bannerNow(opt); }, opt);
@@ -308,10 +443,10 @@
     var n = mk('fx-burst', '<div class="fx-burst-icon">' + esc(icon || '💥') + '</div>');
     if (!n) return Promise.resolve(true);
     h.appendChild(n);
-    return hold(ms == null ? 800 : ms).then(function (skipped) {
+    return 前座に乗せる(hold(ms == null ? 800 : ms).then(function (skipped) {
       if (n.parentNode) n.parentNode.removeChild(n);
       return skipped;
-    });
+    }));
   }
 
   /**
@@ -333,7 +468,9 @@
     h.appendChild(n);
     if (kind === 'gold' || kind === 'good') { play('big'); vibe('ok'); }
     else if (kind === 'gray') { play('bad'); }
-    return hold(opt.ms == null ? 800 : opt.ms).then(function (skipped) {
+    // `linger` を渡されたら、速さの設定で縮めない（タップでは終わる）。指示60 A-1a①
+    var 待ち = opt.linger != null ? linger(opt.linger) : hold(opt.ms == null ? 800 : opt.ms);
+    return 待ち.then(function (skipped) {
       n.classList.add('fx-out');
       return hold(120).then(function () {
         if (n.parentNode) n.parentNode.removeChild(n);
@@ -535,10 +672,10 @@
     var n = mk('fx-edge fx-edge-' + (kind || 'danger'));
     if (!n) return Promise.resolve(true);
     L.appendChild(n);
-    return hold(300).then(function (skipped) {
+    return 前座に乗せる(hold(300).then(function (skipped) {
       if (n.parentNode) n.parentNode.removeChild(n);
       return skipped;
-    });
+    }));
   }
 
   function shake(strength) {
@@ -581,37 +718,162 @@
     }
     h.appendChild(box);
     play('cheer');
-    return hold(1800).then(function (skipped) {
+    return 前座に乗せる(hold(1800).then(function (skipped) {
       if (box.parentNode) box.parentNode.removeChild(box);
       return skipped;
-    });
+    }));
   }
 
-  // ---------- 第32弾-D 第2部：テキストコールアウト ----------
+  // ---------- 第32弾-D 第2部：テキストコールアウト（指示60 で削除） ----------
+  // 緊張が高まる瞬間の英単語（TIEBREAKER / DEFUSED など）を大画面に出す部品があった。
+  // 本人の決定で通常では使わないことになり、呼び出し13か所ごと消した
+  //（チャンピオンシップ用には作り直すので、今の仕組みは残さない）。
+  // 13か所それぞれを何で知らせ直したかは docs/監査_指示60の門.md の表。
+  // **ここに戻さない**——tests/fx.js「60 コールアウトの部品・文字列は0件」が赤くなる
+
+  // ---------- 指示60 A-2：クリア演出 ----------
   /**
-   * 緊張が高まる瞬間の、短い英単語（TIEBREAKER / DEFUSED など）。
-   * 大画面にだけ出す約束（スマホは自分の操作に集中させる）。
-   * 「大画面かどうか」はここでは分からないので、呼ぶ側が判断する。
-   *   opt: { kind:'danger'|'gold'|なし, ms }
+   * **そのゲームの「クリア」を、そのゲームの世界で祝う。**
+   * ゲームは「絵・色・言葉」を渡すだけ。動きの種類はここにしか無い
+   * （ゲームの中に演出を直書きしない・CLAUDE.md §4）。
+   *
+   * 紙吹雪（confetti）の色を変えるだけでは、どのカセットも同じ祝い方になる
+   * （指示60 §5 の禁止）。そこで**主役の出方**と**舞うもの**を、世界ごとに選べるようにした。
+   *
+   *   opt.motion … 主役の出方
+   *     'flip'   札がめくれて表が出る（icons:[裏, 表]）
+   *     'evolve' 絵が下から順に入れ替わり、最後の形で大きく止まる（icons:[…]）
+   *     'stamp'  上から押される。opt.seal を渡すと、絵の代わりに朱の印（字）を押す
+   *     'drop'   上から降りてきて、少し跳ねて止まる
+   *     'rise'   下から昇ってくる（日の出・月の出）
+   *     'pop'    その場で大きく弾ける（既定）
+   *   opt.icon / opt.icons … 主役の絵
+   *   opt.pieces … 舞うもの：'spark'（中心から散る火花）'card'（字の書いた札）
+   *                'coin'（金貨）'washi'（和紙の片）'tape'（紙テープ）。省略で無し
+   *   opt.words  … 'card' の札に書く字（順に使い回す）
+   *   opt.colors … 舞うものの色
+   *   opt.bg     … 地 [内, 外]（世界の色。不透明に近い値を渡す）
+   *   opt.ink    … 文字の色
+   *   opt.text / opt.sub … 言葉（大画面では二人称を使わないのは呼ぶ側の約束）
+   *   opt.ms     … 見せる長さ（既定 1700。速さの設定に従う）
+   *
+   * 守っていること：
+   *   ・**結果の前に出る**（舞台を通る。結果の帯と同じ性質＝称号はこの後）
+   *   ・**地は出た瞬間から不透明**——後ろで結果が描かれていても透けない（A-1a① と同じ理由）
+   *   ・**点滅しない**。光（主役の後ろの輪）は1回ふわっと出るだけで、
+   *     光を弱くする設定では出さない。**大きさと動き（主役・舞うもの）は、その設定でも出す**
+   *   ・スキップ設定なら何も描かずにすぐ返る（＝すぐ結果）。タップでも終わる
+   *   ・後ろのボタンは押させない。片付ける時は、指が離れるのを待つ（ゴーストクリック）
    */
-  function callout(text, opt) {
-    return stage(function () { return calloutNow(text, opt); }, opt);
+  var CEL_MOTIONS = ['flip', 'evolve', 'stamp', 'drop', 'rise', 'pop'];
+  var CEL_PIECES = { spark: 28, card: 16, coin: 20, washi: 26, tape: 24 };
+  function celebrate(opt) {
+    return stage(function () { return celebrateNow(opt); }, opt);
   }
-  function calloutNow(text, opt) {
+  function celebrateNow(opt) {
     opt = opt || {};
     var h = layer();
-    if (!h) return Promise.resolve(true);
-    var n = mk('fx-callout' + (opt.kind ? ' fx-callout-' + opt.kind : ''), esc(text));
-    if (!n) return Promise.resolve(true);
+    var 後ろで = function () {
+      if (typeof opt.behind === 'function') { try { opt.behind(); } catch (e) {} }
+      return Promise.resolve(true);
+    };
+    if (!h) return 後ろで();
+    // スキップ設定：一度も描かずに返す（結果がすぐ見える）
+    if (!(cfg.ms(1000) > 0)) return 後ろで();
+    var motion = CEL_MOTIONS.indexOf(opt.motion) >= 0 ? opt.motion : 'pop';
+    var n = mk('fx-cel fx-cel-' + motion);
+    if (!n) return 後ろで();
+    var bg = opt.bg || ['rgba(52,56,68,.97)', 'rgba(16,18,23,.97)'];
+    n.style.setProperty('--fx-cel-in', bg[0]);
+    n.style.setProperty('--fx-cel-out', bg[1] || bg[0]);
+    if (opt.ink) n.style.setProperty('--fx-cel-ink', opt.ink);
+    if (opt.glow) n.style.setProperty('--fx-cel-glow', opt.glow);
+    var icons = (opt.icons && opt.icons.length) ? opt.icons.slice() : [opt.icon || '🏆'];
+    var 主役;
+    if (motion === 'flip') {
+      主役 = '<div class="fx-cel-card">' +
+        '<div class="fx-cel-face fx-cel-back">' + esc(icons[0]) + '</div>' +
+        '<div class="fx-cel-face fx-cel-front">' + esc(icons[icons.length - 1]) + '</div></div>';
+    } else if (motion === 'stamp' && opt.seal) {
+      主役 = '<div class="fx-cel-seal">' + esc(opt.seal) + '</div>';
+    } else {
+      主役 = '<div class="fx-cel-icon">' + esc(icons[0]) + '</div>';
+    }
+    n.innerHTML = '<div class="fx-cel-glow"></div><div class="fx-cel-pieces"></div>' +
+      '<div class="fx-cel-hero">' + 主役 + '</div>' +
+      '<div class="fx-cel-text">' + esc(opt.text || '') + '</div>' +
+      (opt.sub ? '<div class="fx-cel-sub">' + esc(opt.sub) + '</div>' : '') +
+      '<div class="fx-banner-skip">タップでとばす</div>';
+    舞わせる(n.querySelector('.fx-cel-pieces'), opt);
     h.appendChild(n);
-    play(opt.kind === 'danger' ? 'bad' : 'big');
-    return hold(opt.ms == null ? 1100 : opt.ms).then(function (skipped) {
+    play('big'); vibe('ok');
+    if (opt.pieces) play('cheer');
+
+    var 長さ = opt.ms == null ? 1700 : opt.ms;
+    var p;
+    if (motion === 'evolve' && icons.length > 1) {
+      // 1段ずつ入れ替える。**途中で押されたら、最後の形へ飛ぶ**
+      //（1段ずつ叩かせない。stagger と同じ考え）
+      var 絵 = n.querySelector('.fx-cel-icon');
+      var i = 0;
+      var 次の段 = function () {
+        return hold(i === 0 ? 420 : 240).then(function (skipped) {
+          i++;
+          if (skipped) i = icons.length - 1;
+          絵.textContent = icons[i];
+          絵.classList.remove('fx-cel-step');
+          void 絵.offsetWidth;
+          絵.classList.add('fx-cel-step');
+          if (i >= icons.length - 1) {
+            n.classList.add('is-final');
+            return skipped;
+          }
+          play('tick');
+          return 次の段();
+        });
+      };
+      p = 次の段().then(function (skipped) { return skipped ? true : hold(長さ); });
+    } else {
+      p = hold(長さ);
+    }
+    return p.then(function (skipped) {
+      // **祝いの後ろで**先にすること（手渡しの画面遷移）。消える時には、もう結果画面にいる
+      if (typeof opt.behind === 'function') { try { opt.behind(); } catch (e) {} }
       n.classList.add('fx-out');
-      return hold(150).then(function () {
+      return hold(160).then(function () { return 指が離れるまで(); }).then(function () {
         if (n.parentNode) n.parentNode.removeChild(n);
         return skipped;
       });
     });
+  }
+  /** 舞うものを並べる。形と動きは CSS の .fx-cel-p-◯◯ が持つ */
+  function 舞わせる(box, opt) {
+    var kind = opt.pieces;
+    var 数 = CEL_PIECES[kind];
+    var d = doc();
+    if (!box || !数 || !d) return;
+    var 色 = (opt.colors && opt.colors.length) ? opt.colors : ['#f0c44a', '#fff3c4', '#e2584a'];
+    var 字 = (opt.words && opt.words.length) ? opt.words : null;
+    for (var i = 0; i < 数; i++) {
+      var p = d.createElement('i');
+      p.className = 'fx-cel-p fx-cel-p-' + kind;
+      p.style.setProperty('--c', 色[i % 色.length]);
+      p.style.animationDelay = (Math.random() * (kind === 'spark' ? 0.18 : 0.6)).toFixed(2) + 's';
+      if (kind === 'spark') {
+        // 中心から放射状に。角度をそろえて散らす（偏らない）
+        var a = (i / 数) * Math.PI * 2 + Math.random() * 0.3;
+        var r = 120 + Math.random() * 160;
+        p.style.setProperty('--dx', Math.round(Math.cos(a) * r) + 'px');
+        p.style.setProperty('--dy', Math.round(Math.sin(a) * r) + 'px');
+      } else {
+        p.style.left = (Math.random() * 100).toFixed(1) + '%';
+        p.style.setProperty('--dx', Math.round((Math.random() * 2 - 1) * 70) + 'px');
+        p.style.setProperty('--r', Math.round((Math.random() * 2 - 1) * 420) + 'deg');
+        p.style.animationDuration = (1.5 + Math.random() * 1.0).toFixed(2) + 's';
+      }
+      if (kind === 'card' && 字) p.textContent = 字[i % 字.length];
+      box.appendChild(p);
+    }
   }
 
   // ---------- 第34弾 2-1：みんなで見る 3-2-1 ----------
@@ -851,11 +1113,12 @@
   }
 
   var api = {
-    init: init, hold: hold, skipNow: skipNow, busy: busy,
+    init: init, hold: hold, linger: linger, skipNow: skipNow, busy: busy,
     flash: flash, boom: boom, dawn: dawn, banner: banner, burst: burst, shutter: shutter,
+    blackout: blackout, celebrate: celebrate,
     flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,
-    shake: shake, edge: edge, confetti: confetti, callout: callout, vibe: vibe,
+    shake: shake, edge: edge, confetti: confetti, vibe: vibe,
     countdown: countdown,
     flipMove: flipMove, spotlight: spotlight,
     stage: stage, stageClear: stageClear, stageState: stageState,

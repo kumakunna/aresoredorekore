@@ -310,15 +310,196 @@ function freshFx(opt) {
     assert(!app.querySelector('.fx-confetti'), '終わったら残らない');
   });
 
-  await r.test('コールアウト：短い英単語が出て、消える', async () => {
+  // ===================== 指示60 A-1a①：linger と黒い幕 =====================
+  await r.test('60 linger：速さを「スキップ」にしても縮まない。タップでは必ず終わる', async () => {
+    // 「爆発しました」のあと「2秒待つか押すか」。スキップ設定の人にも効かせる約束
+    const { Fx, doc } = freshFx({ ms: () => 0 });   // スキップ設定と同じ
+    // 型(b)：まず、この設定で hold が本当に縮むことを1つ見る（縮んでいなければ比べる意味がない）
+    const t0 = Date.now();
+    await Fx.hold(300);
+    assert(Date.now() - t0 < 100, '前提：スキップ設定では hold は縮む');
+    const t1 = Date.now();
+    await Fx.linger(300);
+    assert(Date.now() - t1 >= 280, 'linger は縮まない（実際:' + (Date.now() - t1) + 'ms）');
+    // タップ（本物の pointerdown を document へ）で終わる
+    const p = Fx.linger(60000);
+    assert(Fx.busy(), 'linger は待ちの列に入っている（タップで終わる）');
+    doc.getElementById('app').dispatchEvent(new doc.defaultView.Event('pointerdown', { bubbles: true }));
+    assertEqual(await p, true, 'タップで終わり、「スキップされた」と返る');
+  });
+
+  await r.test('60 黒い幕：出た瞬間からある・二重に下ろさない・上げると消える', async () => {
     const { Fx, app } = freshFx();
-    const p = Fx.callout('TIEBREAKER', { kind: 'danger' });
-    const n = app.querySelector('.fx-callout');
-    assert(n && /TIEBREAKER/.test(n.textContent), '言葉が出る');
-    assert(n.classList.contains('fx-callout-danger'), '場面に合わせた色になる');
+    const 上げる = Fx.blackout();
+    assertEqual(app.querySelectorAll('.fx-blackout').length, 1, '呼んだその場で（同期で）幕がある');
+    assertEqual(Fx.stageState().幕, true, '幕が下りていることが分かる');
+    assertEqual(Fx.stageState().前座, 1, '幕は前座に数える（称号が割り込まない）');
+    const 二度目 = Fx.blackout();
+    assertEqual(app.querySelectorAll('.fx-blackout').length, 1, '二重に下ろさない');
+    assert(二度目 === 上げる, '同じ「上げる」を返す');
+    await 上げる();
+    assertEqual(app.querySelectorAll('.fx-blackout').length, 0, '上げたら残らない');
+    assertEqual(Fx.stageState().前座, 0, '前座からも降りる');
+  });
+
+  await r.test('60 黒い幕：指が触れている間は上げない（同じタップの click を後ろへ落とさない）', async () => {
+    const { Fx, doc, app } = freshFx();
+    const W = doc.defaultView;
+    const 上げる = Fx.blackout();
+    app.dispatchEvent(new W.Event('pointerdown', { bubbles: true }));   // 指が下りた
+    let 上がった = false;
+    上げる().then(() => { 上がった = true; });
+    await new Promise((r) => setTimeout(r, 200));
+    assert(!上がった && app.querySelector('.fx-blackout'), '指が離れるまで、幕は残っている');
+    app.dispatchEvent(new W.Event('pointerup', { bubbles: true }));     // 指が離れた
+    await new Promise((r) => setTimeout(r, 500));
+    assert(上がった, '指が離れたら上がる');
+    assertEqual(app.querySelectorAll('.fx-blackout').length, 0, '上げたら残らない');
+  });
+
+  await r.test('60 黒い幕：stageClear（ゲームを捨てる）で黒いまま残らない', async () => {
+    const { Fx, app } = freshFx();
+    Fx.blackout();
+    Fx.stageClear();
+    assertEqual(app.querySelectorAll('.fx-blackout').length, 0, '棚へ戻る時に幕が残らない');
+    assertEqual(Fx.stageState().幕, false, '次の幕が下ろせる状態に戻る');
+  });
+
+  // ===================== 指示60 A-1a②：褒めるのは、前座も済んでから =====================
+  // 実機で「称号の獲得演出が、爆発やクリアより先に出る」と報告された。
+  // 💥・閃光・紙吹雪は舞台を通らないので、その最中は舞台が空いて見えていた
+  for (const [名, 前座] of [
+    ['💥（burst）', (Fx) => Fx.burst('💥', 300)],
+    ['閃光（flash）', (Fx) => Fx.flash('good')],
+    ['紙吹雪（confetti）', (Fx) => Fx.confetti()],
+    ['黒い幕（blackout）', (Fx) => { const up = Fx.blackout(); return Fx.hold(300).then(up); }]
+  ]) {
+    await r.test('60 褒める札は、' + 名 + 'が済むまで出ない', async () => {
+      const { Fx } = freshFx();
+      const 順 = [];
+      const 前 = 前座(Fx).then(() => 順.push('前座'));
+      // 型(b)：前座が本当に走っていることを先に確かめる
+      assert(Fx.stageState().前座 >= 1, '前提：前座が走っている');
+      const 褒め = Fx.stage(() => { 順.push('褒める'); }, { praise: true });
+      await new Promise((r) => setTimeout(r, 60));
+      assertEqual(順.indexOf('褒める'), -1, '前座の最中に、褒める札が出ない');
+      await 前; await 褒め;
+      assertEqual(順.join('→'), '前座→褒める', '前座が済んでから褒める');
+    });
+  }
+
+  await r.test('60 結果の帯は、前座を待たない（💥→帯・閃光→帯の順は今までどおり）', async () => {
+    const { Fx, app } = freshFx();
+    Fx.burst('💥', 60000);
+    Fx.shutter({ text: 'たしかめ', ms: 300 });
+    assertEqual(app.querySelectorAll('.fx-shutter').length, 1,
+      '前座（💥）が走っていても、結果の帯はその場で出る');
+    Fx.skipNow();
+  });
+
+  await r.test('60 前座が残っていても、褒める札より結果の帯が先（追い越し）', async () => {
+    const { Fx } = freshFx();
+    const 順 = [];
+    const 前 = Fx.burst('💥', 200).then(() => 順.push('💥'));
+    const 褒め = Fx.stage(() => { 順.push('称号'); }, { praise: true });
+    const 帯 = 前.then(() => Fx.shutter({ text: '爆発しました', ms: 100 }).then(() => 順.push('帯')));
+    await 褒め; await 帯;
+    assertEqual(順.join('→'), '💥→帯→称号', '💥 → 帯 → 称号の順（結果が全部済んでから褒める）');
+  });
+
+  // ===================== 指示60 A-2：クリア演出の部品 =====================
+  await r.test('60 celebrate：主役・言葉・舞うものが出て、終わったら残らない', async () => {
+    const { Fx, app, log } = freshFx();
+    const p = Fx.celebrate({ motion: 'flip', icons: ['💣', '💚'], pieces: 'spark',
+      text: '解除成功！', sub: '全部のコードを止めました' });
+    const n = app.querySelector('.fx-cel');
+    assert(n, '舞台が空いていれば、その場で出る');
+    assert(n.classList.contains('fx-cel-flip'), '主役の出方が選べる');
+    assert(n.querySelector('.fx-cel-card .fx-cel-front'), 'めくる札の表がある');
+    assert(/解除成功/.test(n.querySelector('.fx-cel-text').textContent), '言葉が出る');
+    assert(n.querySelectorAll('.fx-cel-p-spark').length >= 12, '火花が散る');
+    assert(log.sounds.indexOf('big') >= 0, '褒める音が鳴る');
     Fx.skipNow();
     await p;
-    assert(!app.querySelector('.fx-callout'), '出しっぱなしにならない');
+    assertEqual(app.querySelectorAll('.fx-cel').length, 0, '終わったら残らない');
+  });
+
+  await r.test('60 celebrate：スキップ設定なら何も描かずに返る（すぐ結果）', async () => {
+    const { Fx, app } = freshFx({ ms: () => 0 });
+    let 出た = 0;
+    const mo = new app.ownerDocument.defaultView.MutationObserver(() => {
+      出た += app.querySelectorAll('.fx-cel').length;
+    });
+    mo.observe(app, { childList: true, subtree: true });
+    await Fx.celebrate({ motion: 'pop', icon: '🏆', text: 'やった' });
+    await new Promise((r) => setTimeout(r, 0));
+    mo.disconnect();
+    assertEqual(出た, 0, 'スキップ設定では一度も描かれない');
+  });
+
+  await r.test('60 celebrate：evolve は途中で押すと、最後の形へ飛ぶ', async () => {
+    const { Fx, app } = freshFx();
+    const p = Fx.celebrate({ motion: 'evolve', icons: ['🥚', '🐤', '🐔', '🐉'], text: '進化！' });
+    const 絵 = app.querySelector('.fx-cel-icon');
+    assertEqual(絵.textContent, '🥚', '最初は下の段の絵');
+    Fx.skipNow();
+    await new Promise((r) => setTimeout(r, 0));
+    assertEqual(絵.textContent, '🐉', '押したら最後の形になる');
+    assert(app.querySelector('.fx-cel').classList.contains('is-final'), '最後の形の印が付く');
+    Fx.skipNow();
+    await p;
+  });
+
+  await r.test('60 celebrate は結果（舞台を通る）：走っている帯の後ろに並び、称号より先', async () => {
+    const { Fx } = freshFx();
+    const 順 = [];
+    const 褒め = Fx.stage(() => { 順.push('称号'); }, { praise: true });
+    const 祝 = Fx.celebrate({ icon: '🏆', text: '優勝', ms: 100 }).then(() => 順.push('祝い'));
+    await 祝; await 褒め;
+    assertEqual(順.join('→'), '祝い→称号', 'クリア演出が先、称号が後');
+  });
+
+  // ===================== 指示60 A-1：コールアウトは仕組みごと消した =====================
+  // 本人の決定：通常では要らない。チャンピオンシップ用には作り直すので、今の仕組みは残さない。
+  // 13か所それぞれを何で知らせ直したかは docs/監査_指示60の門.md の表。
+  // **戻すと赤くなる**ように、部品と呼び出しと見た目（CSS）の名前を全部掃く
+  await r.test('60 コールアウトの部品・呼び出し・CSSは0件（戻すと赤くなる）', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const ROOT = path.join(__dirname, '..');
+    const { Fx } = freshFx();
+    // 自分の検体を拾わないよう、名前はその場で組み立てる（落とし穴32）
+    const 名 = 'call' + 'out';
+    assertEqual(typeof Fx[名], 'undefined', '部品（FxKit.' + 名 + '）が書き出されていない');
+    const 型 = [
+      new RegExp('FxKit\\.' + 名 + '\\b', 'i'),        // 呼び出し
+      new RegExp(名 + 'Now', 'i'),                     // 部品の中身
+      new RegExp('fx-' + 名, 'i'),                     // 見た目（CSS）と、それを数える道具
+      new RegExp('\\b' + 名 + '\\s*:\\s*' + 名, 'i'),  // 書き出し（api）
+      new RegExp('boom' + 名, 'i')                     // 大画面の爆発の古い名前（大文字の C も拾う）
+    ];
+    const 読む = [];
+    const 足す = (dir, re) => fs.readdirSync(path.join(ROOT, dir))
+      .filter((f) => re.test(f)).forEach((f) => 読む.push(path.join(dir, f)));
+    読む.push('public/index.html');
+    足す('public/js', /\.js$/);
+    足す('tools', /\.js$/);
+    足す('tests', /\.js$/);
+    const 自分 = path.join('tests', 'fx.js');
+    const 見つけた = [];
+    let 読めた = 0, 目印 = 0;
+    読む.filter((f) => f !== 自分).forEach((f) => {
+      const txt = fs.readFileSync(path.join(ROOT, f), 'utf8');
+      読めた++;
+      if (/FxKit\.celebrate/.test(txt)) 目印++;
+      txt.split('\n').forEach((line, i) => {
+        if (型.some((re) => re.test(line))) 見つけた.push(f + ':' + (i + 1) + '  ' + line.trim().slice(0, 60));
+      });
+    });
+    // 型(b)：本当に読めているか。読めていなければ「0件」は自明に通る
+    assert(読めた >= 60, '掃くファイルを読めている（実際:' + 読めた + '）');
+    assert(目印 >= 1, '読んだ中に、いまの部品（FxKit.celebrate）が見つかる');
+    assertEqual(見つけた.join('\n       '), '', 'コールアウトの部品・呼び出し・CSSが残っている');
   });
 
   // 第36弾 36-1：ここは原則Bの唯一の例外。

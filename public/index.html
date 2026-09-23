@@ -827,6 +827,130 @@
   }
   /* 大画面は離れた席から読むので、落ちてくる結果の文字を大きく（正本§11-5） */
   :root.big-screen .fx-shutter .fx-banner-text{font-size:min(9vw,140px);}
+  /* 指示60 A-1a①：「2秒待つか、押すか」の帯は、スキップ設定の人にも2秒出る。
+     その人にも「押せば進む」を見せる（ふつうの案内は、スキップ設定では隠す） */
+  :root.fx-skip .fx-banner-skip.is-always{display:block;}
+
+  /* --- 指示60 A-1a①：黒い幕 ---
+     💥と同じ瞬間に下ろし、結果が後ろで描かれても透けないようにする。
+     **入りのアニメーションを持たない**（0.25秒かけて入ると、その間だけ結果が透ける）。
+     **光を弱くする設定でも止めない**（光の変化ではなく、隠すための幕。止めるとその人にだけ透ける）。
+     後ろのボタンは押させない（pointer-events:auto。スキップは document のキャプチャが拾う）。
+     色は直に書く：層は #app の外なので、テーマの変数は届かない（落とし穴27） */
+  .fx-blackout{position:fixed;inset:0;z-index:85;pointer-events:auto;background:#08090B;}
+  .fx-blackout.fx-out{animation:fxBlackoutOut calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
+  @keyframes fxBlackoutOut{to{opacity:0;}}
+
+  /* --- 指示60 A-2：クリア演出（FxKit.celebrate） ---
+     ゲームは絵・色・言葉を渡すだけ。動きの種類はここにしか無い。
+     **地は出た瞬間から不透明に近い**（後ろで結果が描かれても透けない）。
+     点滅はしない：光の輪（.fx-cel-glow）は1回ふわっと出るだけで、光を弱くする設定では出さない。
+     主役と舞うもの（大きさ・動き）は、その設定でも出す。
+     曲線は正本4の3つから（門A4）。長さは見せ場の 0.75秒・切り替えの 0.25秒 */
+  .fx-cel{
+    position:fixed;inset:0;z-index:89;pointer-events:auto;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px;
+    background:radial-gradient(circle at 50% 42%, var(--fx-cel-in), var(--fx-cel-out) 78%);
+    color:var(--fx-cel-ink, #fff);
+  }
+  .fx-cel.fx-out{animation:fxBannerOut calc(0.14s * var(--fx-scale)) ease-in forwards;}
+  .fx-cel-glow{
+    position:absolute;left:50%;top:40%;width:min(90vw,520px);height:min(90vw,520px);
+    margin:calc(min(90vw,520px) / -2) 0 0 calc(min(90vw,520px) / -2);border-radius:50%;
+    background:radial-gradient(circle, var(--fx-cel-glow, rgba(255,236,170,.55)) 0%, rgba(255,236,170,0) 68%);
+    opacity:0;pointer-events:none;
+    animation:fxCelGlow calc(0.75s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
+  }
+  @keyframes fxCelGlow{from{opacity:0;transform:scale(.4);}to{opacity:1;transform:scale(1);}}
+  :root.no-flash .fx-cel-glow{display:none;}
+  .fx-cel-pieces{position:absolute;inset:0;pointer-events:none;}
+  .fx-cel-hero{position:relative;line-height:1;margin-bottom:14px;}
+  .fx-cel-icon{font-size:min(38vw,180px);line-height:1;}
+  .fx-cel-text{
+    position:relative;font-family:'Shippori Mincho',serif;font-weight:800;
+    font-size:clamp(30px,11vw,52px);line-height:1.25;
+    text-shadow:0 3px 18px rgba(0,0,0,0.30);
+    opacity:0;animation:fxCelText calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
+    animation-delay:calc(0.45s * var(--fx-scale));
+  }
+  .fx-cel-sub{
+    position:relative;margin-top:12px;font-size:17px;font-weight:700;line-height:1.6;opacity:0;
+    animation:fxCelText calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
+    animation-delay:calc(0.6s * var(--fx-scale));
+  }
+  @keyframes fxCelText{from{opacity:0;transform:translateY(12px);}to{opacity:.96;transform:translateY(0);}}
+  /* 主役の出方 */
+  .fx-cel-pop .fx-cel-icon{animation:fxCelPop calc(0.75s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) both;}
+  @keyframes fxCelPop{from{transform:scale(.3);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .fx-cel-drop .fx-cel-icon{animation:fxCelDrop calc(0.75s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) both;}
+  @keyframes fxCelDrop{from{transform:translateY(-60vh);}to{transform:translateY(0);}}
+  .fx-cel-rise .fx-cel-icon{animation:fxCelRise calc(0.75s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) both;}
+  @keyframes fxCelRise{from{transform:translateY(38vh);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .fx-cel-stamp .fx-cel-icon,
+  .fx-cel-stamp .fx-cel-seal{animation:fxCelStamp calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) both;
+    animation-delay:calc(0.15s * var(--fx-scale));}
+  @keyframes fxCelStamp{
+    0%{transform:scale(2.6) rotate(-16deg);opacity:0;}
+    70%{transform:scale(.94) rotate(-6deg);opacity:1;}
+    100%{transform:scale(1) rotate(-6deg);opacity:1;}
+  }
+  /* 朱の印：**赤は縁と字だけ**（面で塗らない・正本§6）。地は和紙の白 */
+  .fx-cel-seal{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:min(46vw,210px);height:min(46vw,210px);border-radius:18%;
+    border:min(2.4vw,11px) solid #C0392B;color:#C0392B;background:rgba(250,246,236,.96);
+    font-family:'Shippori Mincho',serif;font-weight:800;font-size:min(15vw,72px);
+    writing-mode:vertical-rl;letter-spacing:.1em;
+  }
+  .fx-cel-card{
+    position:relative;width:min(40vw,190px);height:min(56vw,266px);
+    transform-style:preserve-3d;perspective:800px;
+    animation:fxCelFlip calc(0.75s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) both;
+    animation-delay:calc(0.2s * var(--fx-scale));
+  }
+  @keyframes fxCelFlip{from{transform:rotateY(0);}to{transform:rotateY(180deg);}}
+  .fx-cel-face{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    font-size:min(26vw,124px);background:rgba(255,255,255,.96);
+    border:3px solid var(--fx-cel-ink, #fff);
+  }
+  .fx-cel-front{transform:rotateY(180deg);}
+  .fx-cel-evolve .fx-cel-icon{animation:fxCelPop calc(0.25s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) both;}
+  .fx-cel-evolve .fx-cel-icon.fx-cel-step{animation:fxCelStep calc(0.25s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) both;}
+  @keyframes fxCelStep{from{transform:scale(.7);}to{transform:scale(1);}}
+  .fx-cel-evolve.is-final .fx-cel-icon{animation:fxCelFinal calc(0.75s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) both;}
+  @keyframes fxCelFinal{from{transform:scale(.7);}to{transform:scale(1.3);}}
+  /* 舞うもの（形と動きだけ。色は --c で渡す） */
+  .fx-cel-p{position:absolute;top:-40px;opacity:0;animation-fill-mode:forwards;animation-timing-function:linear;}
+  @keyframes fxCelFall{
+    0%{transform:translate(0,0) rotate(0);opacity:1;}
+    100%{transform:translate(var(--dx,0),110vh) rotate(var(--r,360deg));opacity:.9;}}
+  .fx-cel-p-card{width:46px;height:32px;border-radius:5px;background:var(--c);
+    color:rgba(58,39,22,.85);font:800 13px/32px 'Zen Maru Gothic',sans-serif;text-align:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.18);animation-name:fxCelFall;}
+  .fx-cel-p-coin{width:22px;height:22px;border-radius:50%;background:var(--c);
+    box-shadow:inset 0 0 0 3px rgba(120,80,10,.45);animation-name:fxCelCoin;}
+  @keyframes fxCelCoin{
+    0%{transform:translate(0,0) rotateY(0);opacity:1;}
+    100%{transform:translate(var(--dx,0),110vh) rotateY(900deg);opacity:.95;}}
+  .fx-cel-p-washi{width:14px;height:18px;border-radius:40% 12% 46% 20%;background:var(--c);
+    opacity:.95;animation-name:fxCelFall;}
+  .fx-cel-p-tape{width:5px;height:30px;border-radius:2px;background:var(--c);animation-name:fxCelFall;}
+  .fx-cel-p-spark{left:50%;top:40%;width:9px;height:9px;margin:-4px 0 0 -4px;border-radius:50%;
+    background:var(--c);box-shadow:0 0 8px var(--c);
+    animation:fxCelSpark calc(0.75s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
+  @keyframes fxCelSpark{
+    0%{transform:translate(0,0) scale(1.2);opacity:1;}
+    100%{transform:translate(var(--dx),var(--dy)) scale(.4);opacity:0;}}
+  /* 大画面は離れた席から読む（正本§11-5：主役96px・本文28px 以上） */
+  :root.big-screen .fx-cel-icon{font-size:min(30vw,320px);}
+  :root.big-screen .fx-cel-text{font-size:min(9vw,140px);}
+  :root.big-screen .fx-cel-sub{font-size:max(32px,3vw);}
+  :root.big-screen .fx-cel-seal{width:min(30vw,360px);height:min(30vw,360px);font-size:min(10vw,120px);border-width:min(1.6vw,18px);}
+  :root.big-screen .fx-cel-card{width:min(24vw,300px);height:min(34vw,420px);}
+  :root.big-screen .fx-cel-face{font-size:min(16vw,200px);}
 
   /* --- カードをめくる --- */
   .fx-flip-a{animation:fxFlipA calc(0.15s * var(--fx-scale)) ease-in forwards;backface-visibility:hidden;}
@@ -1049,14 +1173,7 @@
   @keyframes fxConfettiFall{
     0%{transform:translate(0,-14px) rotate(0);opacity:1;}
     100%{transform:translate(var(--fx-cx,0),105vh) rotate(var(--fx-cr,360deg));opacity:.9;}}
-  /* 第32弾-D 第2部：コールアウト（大画面だけ）。一瞬で読める短い英単語 */
-  .fx-callout{
-    position:fixed;left:0;right:0;top:36%;z-index:97;text-align:center;pointer-events:none;
-    font-family:'Arial Black','Zen Maru Gothic',sans-serif;font-weight:900;
-    font-size:min(14vw,120px);letter-spacing:.05em;color:#fff;
-    text-shadow:0 4px 34px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.4);
-    animation:fxCalloutIn calc(0.3s * var(--fx-scale)) cubic-bezier(.2,1.5,.4,1);
-  }
+  /* 第32弾-D 第2部のコールアウト（大画面の英単語）は、指示60 で仕組みごと消した */
   /* 第47弾 47-6：夜が明ける。藍の夜から、朝焼けが下から差してきて引いていく。
      **点滅ではない**——明るさが一方向にゆっくり動いて戻るだけ（正本§6）。
      置き場は層（#uiLayerRoot）なので、止める門も :root から書く（落とし穴27） */
@@ -1074,11 +1191,6 @@
      `.app` に付けた印では届かない（落とし穴27）。
      ゲーム中の巨大カウントダウン（.big-cd = min(46vw,420px)）と大きさをそろえる */
   :root.big-screen .fx-countdown .fx-cd-num{font-size:min(46vw,420px);}
-  .fx-callout-danger{color:#ff5c4a;}
-  .fx-callout-gold{color:#f0c44a;}
-  .fx-callout.fx-out{animation:fxCalloutOut calc(0.15s * var(--fx-scale)) ease-in forwards;}
-  @keyframes fxCalloutIn{from{transform:scale(2.4);opacity:0;}to{transform:scale(1);opacity:1;}}
-  @keyframes fxCalloutOut{to{transform:scale(.92);opacity:0;}}
   /* 第32弾-D 5-5：BGMに合わせて大画面の縁がかすかに脈打つ。
      視野に占める面積が大きいので、スマホより明暗差は控えめに（安全基準） */
   #scr-rt-big.bgm-beat::before{
@@ -6247,7 +6359,7 @@
   </div>
 
   <!-- ③ 決着 -->
-  <div class="screen" id="scr-rc-done">
+  <div class="screen" id="scr-rc-done" data-result>
     <div class="now-line" hidden></div>
     <h2 class="scr-title">けっか</h2>
     <div class="wiz-body">
@@ -6365,7 +6477,7 @@
       <!-- 指示55・正本 §11-1：**共通のものは1つ大きく。**
            全員に同じ値（協力版のライフ・共通の時計）は、画面のいちばん上に1つだけ。
            ここに置くのは「人を変えても同じ値」だけ——人ごとに違う値は名簿の行へ。
-           §11-4：`.fx-callout` は top:36% に出るので、この帯（上から1/4まで）は覆われない -->
+           §11-4：画面いっぱいの演出（帯・黒い幕・クリア演出）は一瞬だけ全体を覆い、消えればこの帯が戻る -->
       <div class="big-status" id="bigStatus" hidden>
         <div class="bs-lives" id="bigLives"></div>
         <div class="bs-clock" id="bigClock"></div>
@@ -6568,7 +6680,7 @@
   </div>
 
   <!-- wolf: result -->
-  <div class="screen" id="scr-wolf-result">
+  <div class="screen" id="scr-wolf-result" data-result>
     <h2 class="scr-title">けっか発表</h2>
     <div class="wolf-result-topic" id="wolfResultTopics"></div>
     <div class="reveal-list" id="wolfResultList"></div>
@@ -6652,7 +6764,7 @@
   </div>
 
   <!-- 結果（ターンごと／最終） -->
-  <div class="screen" id="scr-wr-result">
+  <div class="screen" id="scr-wr-result" data-result>
     <h2 class="scr-title" id="wrResultTitle">けっか</h2>
     <div class="wolf-result-topic" id="wrResultSummary"></div>
     <div class="reveal-list" id="wrResultList"></div>
@@ -6711,7 +6823,7 @@
   </div>
 
   <!-- bomb: end (explode / defused) -->
-  <div class="screen" id="scr-bomb-end">
+  <div class="screen" id="scr-bomb-end" data-result>
     <div class="wolf-handoff">
       <div class="wolf-handoff-name" id="bombEndTitle">💥 爆発！</div>
       <div class="wolf-handoff-sub" id="bombEndSub"></div>
@@ -6896,7 +7008,7 @@
   </div>
 
   <!-- 9: score -->
-  <div class="screen" id="scr-score">
+  <div class="screen" id="scr-score" data-result>
     <h2 class="scr-title">スコア</h2>
     <p class="scr-sub" id="scoreSub">みんなの結果</p>
     <div class="score-list" id="scoreList"></div>
@@ -9317,7 +9429,9 @@
     myTitles.unlocked = TitleLogic.mergeUnlocked(myTitles.unlocked, myTitles.stats);
     var got = TitleLogic.newlyUnlocked(before, myTitles.unlocked);
     saveTitles();
-    if(got.length) showTitleGot(got);
+    // 指示60 A-1a②：**ゲームの結果で手に入ったものは、結果画面に着いてから見せる。**
+    // 感謝の贈り物（social）はゲームの結果とは関係なく届くので、待たせない
+    if(got.length) showTitleGot(got, { 結果を待つ: cassette !== 'social' });
     return got;
   }
   /**
@@ -9351,21 +9465,73 @@
    * 演出が邪魔な人のために、スキップと「今後出さない」も置く。
    */
   var titleGotPending = [];
-  function showTitleGot(ids){
+  /**
+   * 指示60 A-1a②：**見せる前の称号の列。**数えた時点で積み、結果画面に着いたら見せる。
+   *
+   * 実機で「称号の獲得演出が、決着の演出（爆発・解除成功）より先に出る」と報告された。
+   * 原因は2つあった：
+   *   ① 💥・閃光・紙吹雪が舞台を通らず、その最中は舞台が空いて見えていた
+   *      → fx.js の「前座」（褒めるのは前座が済んでから）で直した
+   *   ② 手渡しのあれそれは、答えの発表（scr-reveal）で数え、2.2秒後にスコア画面へ移る。
+   *      数えたその場で見せていたので、**スコア画面より前**に出ていた
+   *      → ここで直す。**見せるのは「結果画面」に着いてから**
+   *
+   * **個別のゲームに「称号は最後」と書かない**（落とし穴4）。
+   * どれが結果画面かは画面の側が名乗る（`titleAtResult`）：
+   *   ・手渡し … マークアップの `data-result`（スコア・決着の画面）。
+   *              画面が変わらないゲーム（手渡しのすごろく）は、決着の瞬間に `is-result` を付ける
+   *   ・部屋   … その部屋のゲームの画面にいて、段階が `ended`（1か所で判定）
+   * 見せる入口は `titleGotFlush` 1つ。呼ぶのは「積んだ直後」「画面が変わった時（goTo）」
+   * 「部屋の描き直しの最後（rtRenderCurrent）」の3か所——どれも同じ関数を呼ぶだけ
+   */
+  var titleGotQueue = [];
+  function showTitleGot(ids, opt){
     if(!ids || !ids.length) return;
-    // 手に入れた日を覚えておく（コレクション画面で出す）
+    // 手に入れた日を覚えておく（コレクション画面で出す）。
+    // **記録は数えた時点で済ませる**——見せるのが後になっても、数えないことにはしない
     var today = new Date().toISOString().slice(0, 10);
     myTitles.gotAt = myTitles.gotAt || {};
     ids.forEach(function(id){ if(!myTitles.gotAt[id]) myTitles.gotAt[id] = today; });
     saveTitleGotAt();
-
+    var 待つ = !(opt && opt.結果を待つ === false);
+    ids.forEach(function(id){
+      if(!titleGotQueue.some(function(x){ return x.id === id; })) titleGotQueue.push({ id: id, 待つ: 待つ });
+    });
+    titleGotFlush();
+  }
+  /** いまの画面が「結果画面」か。**画面の側が名乗る**（上の説明） */
+  function titleAtResult(){
+    var s = document.querySelector('.screen.active');
+    if(!s) return false;
+    if(s.hasAttribute('data-result') || s.classList.contains('is-result')) return true;
+    var v = (typeof rtView === 'function') ? rtView() : null;
+    if(!v || v.phase !== 'ended') return false;
+    var g = rt && rt.state.room && rt.state.room.state && rt.state.room.state.game;
+    var 画面 = (typeof RT_GAME_SCREENS !== 'undefined' && g) ? RT_GAME_SCREENS[g] : null;
+    return !!画面 && [].concat(画面).indexOf(s.id) !== -1;
+  }
+  /** 積んである称号を、見せてよければ見せる（見せる入口はここ1つ） */
+  function titleGotFlush(){
+    if(!titleGotQueue.length) return;
+    // **大画面には出さない**（下の showTitleGotNow の説明）。記録は済んでいる
+    if(typeof rtIsBigScreen === 'function' && rtIsBigScreen()){ titleGotQueue = []; return; }
+    var 結果 = titleAtResult();
+    var 出す = titleGotQueue.filter(function(x){ return !x.待つ || 結果; });
+    if(!出す.length) return;
+    titleGotQueue = titleGotQueue.filter(function(x){ return 出す.indexOf(x) === -1; });
+    showTitleGotNow(出す.map(function(x){ return x.id; }));
+  }
+  function showTitleGotNow(ids){
     if(appPrefs.fxSpeed === 'skip' || !appPrefs.titleFanfare){
       // 演出を切っている人には、今までどおり一言だけ
       var names = ids.map(function(id){
         var f = findTitlePart(id);
         return f ? ((f.def.emoji ? f.def.emoji + ' ' : '') + f.def.label) : id;
       });
-      showFlash('🎉 ' + names.join('、') + ' を手に入れました！', 'hit');
+      // 一言も、決着の演出が済んでから（指示60 A-1a②：それまでは舞台を通らずに即座に出ていた）
+      FxKit.stage(function(){
+        showFlash('🎉 ' + names.join('、') + ' を手に入れました！', 'hit');
+      }, { praise:true });
       return;
     }
     titleGotPending = ids.slice();
@@ -12270,7 +12436,7 @@
     if(prevScreen && prevScreen.id === 'scr-rt-bomb' && id !== 'scr-rt-bomb') rtBombLeaveScreen();
     // 第33弾 B-2：人狼の部屋画面を離れたら、演出の引き金もリセットする。
     // 残しておくと、あとで戻った瞬間に古い変わり目の演出が出てしまう
-    // 第32弾-D：大画面を離れた時も同じ（入場・コールアウトの引き金を残さない）
+    // 第32弾-D：大画面を離れた時も同じ（入場・決着の演出の引き金を残さない）
     if(prevScreen && prevScreen.id === 'scr-rt-big' && id !== 'scr-rt-big') rtBigResetFx();
     // 第36弾：サイコロを押したまま画面が変わると、次の画面で誤発火する
     if(prevScreen && prevScreen.id === 'scr-sugo-play' && id !== 'scr-sugo-play') sugoDiceReset();
@@ -12347,6 +12513,8 @@
     if(id === 'scr-reveal') enterReveal();
     if(id === 'scr-score') enterScore();
     if(id === 'scr-next') enterNext();
+    // 指示60 A-1a②：結果画面に着いたら、積んである称号を見せる（入口は1つ）
+    titleGotFlush();
   }
 
   // ===================== 1. splash =====================
@@ -15084,15 +15252,9 @@
         try{ UiKit.closeTop('pick'); }catch(e){}
         FxKit.countdown(Math.max(1, Math.round(のこり / 1000)));
       });
-    rtOnce('sugo:ended', v.phase === 'ended', function(){
-      if(typeof FxKit === 'undefined') return;
-      FxKit.confetti(['#b5462f', '#c9a227', '#f4efe3']);   // 朱印・金・和紙
-      // **言い回しはルール層が持っている**（SugorokuLogic）。
-      // ここで文を作ると、手渡し版と食い違う（大切なこと9・落とし穴2）
-      var 言葉 = rtSugoEndWords(v);
-      FxKit.banner({ kind:'gold', icon:'🏁',
-        text: 言葉.note, sub: 言葉.hint, ms:1000 });
-    });
+    // 指示60 A-2：決着の祝いは rtClearFx（全端末の1か所）へ移した。
+    // ここにあった紙吹雪と🏁の帯は、**決着の時には一度も呼ばれていなかった**——
+    // 決着すると先に結果発表の画面へ移り（sugoWantScreen）、この描画は通らない（第52弾 52-3 の時から）
     rtSugoBoard(v, you);
     rtSugoStatus(v, you);
     rtSugoTop(v);
@@ -15828,7 +15990,8 @@
       // 47-6：決着の瞬間だけ、画面いっぱいの光。**光るのは中身であって、人の失敗ではない**
       rtOnce('falsetrue:bigopen:' + last.round, v.phase === 'open', function(){
         FxKit.flash(last.content ? 'good' : 'bad');
-        if(last.fate === 'alive') FxKit.callout((last.decidedName || '') + ' 生存', { kind:'gold' });
+        // 指示60 A-1：「◯◯ 生存」のコールアウトは消した。同じ瞬間に .big-sub
+        //（「◯◯ さんは 生存」）と名簿の行が同じことを言っている
       });
     } else if(v.phase === 'ended'){
       /**
@@ -15846,9 +16009,7 @@
       var 生存 = (v.survivors || []).map(function(p){ return p.name; });
       main = 生存.length ? (生存.length + '人 生きのこり') : '生きのこりなし';
       sub = '';
-      rtOnce('falsetrue:bigend', v.phase === 'ended', function(){
-        FxKit.confetti(['#54D97E', '#33A85E', '#EAF4EC']);
-      });
+      // 指示60 A-2：決着の祝いは rtClearFx へ（生きのこりが0人なら祝わない。それまでは0人でも紙吹雪だった）
     }
     el('bigMain').textContent = main;
     el('bigSub').textContent = sub;
@@ -17017,7 +17178,12 @@
   });
   el('rcTurnNextBtn').addEventListener('click', function(){
     var w = rcHand();
-    if(w.winnerId){ renderRcDone(); goTo('scr-rc-done'); return; }
+    if(w.winnerId){
+      // 指示60 A-2：🃏がめくれて🏆。**祝いの後ろで**結果へ移る（演出 → 結果の順）
+      clearFx('rcard', { text: rcHandNameOf(w.winnerId), sub: 'さいごの1人',
+        behind: function(){ renderRcDone(); goTo('scr-rc-done'); } });
+      return;
+    }
     w.index = (w.index + 1) % w.ids.length;
     w.last = null;
     w.revealed = false;
@@ -17233,12 +17399,9 @@
     rtOnce(鍵, !!(v.last && v.last.hit && v.phase === 'show'), function(){
       FxKit.vibe('warn');
       FxKit.edge('danger');
-      // 大画面は卓の全員が見ているので、**何が起きたかを言葉でも出す**（§11-5）。
-      // スマホ側は自分の盤に「ばくだん」の字が出るので、重ねて出さない
-      if(rtIsBigScreen()){
-        var 誰 = ((v.players || []).find(function(p){ return p.id === v.last.byId; }) || {}).name || '';
-        FxKit.callout('💣 ' + 誰);
-      }
+      // 大画面で「誰が」踏んだかは、名簿のその人の行に静かに出す（renderRtBigRcard）。
+      // 指示60 A-1：それまでのコールアウトは kind 無しで**ファンファーレが鳴っていた**
+      //（爆弾を踏んだ瞬間に祝う音。原則C：責める時は静かに）
     });
   }
 
@@ -17471,6 +17634,184 @@
   // 「← 部屋を出る」（rtShResultLeaveBtn）は名前で拾う仕組みに自動で乗る
   el('rtShEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
+  // ===================== 指示60 A-2：クリア演出 =====================
+  /**
+   * **世界ごとの「絵・色」。**動きの種類は FxKit.celebrate（fx.js）にしか無く、
+   * ここは表（データ）だけ。キーは棚のカセットid（CASSETTES）——
+   * tests/clear-fx.js が「棚に出ている全カセットに行がある」と
+   * 「行があるカセットは棚に実在する」の両方向で照らす（落とし穴20）。
+   *
+   * **紙吹雪の色を変えるだけにしない**（指示60 §5）。主役の出方（motion）と
+   * 舞うもの（pieces）を、その世界のものにする：
+   *   あれそれ … 杏色の札（あれ・それ・どれ・これ）が舞い、👑が押される
+   *   ロシアンカード … 🃏がめくれて🏆の面が出る
+   *   進化じゃんけん … その部屋の段の絵が、下から順に入れ替わって最終形で止まる
+   *   False or True … 💼が開いて✅
+   *   すごろく … 和紙の片が舞い、朱の印「上がり」が押される
+   *   クイズ王 … 👑がスタジオの上から降りてくる。紙テープ
+   *   オークション … 🔨の落札の印。金貨が降る
+   *   爆弾解除 … 💣が💚にめくれて火花（bombClearSequence。爆発と対なので、そちらに置く）
+   * 人狼は陣営の勝ちを別の形（縁・帯・紙吹雪）で出していて、この表には入れていない
+   *（台帳：docs/監査_指示60の門.md）
+   *
+   * 地（bg）は**不透明に近い値**にする——後ろで結果が描かれても透けない（A-1a① と同じ理由）
+   */
+  var CLEAR_LOOK = {
+    aresoredorekore: { motion:'stamp', icon:'👑', pieces:'card', words:['あれ', 'それ', 'どれ', 'これ'],
+      colors:['#FFE9D6', '#FBD9BC', '#F2C9A4', '#E9B98E'],
+      bg:['rgba(251,217,188,.97)', 'rgba(178,106,30,.97)'], ink:'#3A2716', glow:'rgba(255,244,228,.75)' },
+    rcard: { motion:'flip', icons:['🃏', '🏆'], pieces:'card', words:['A', 'K', 'Q', 'J'],
+      colors:['#FFF1EC', '#F2D98C', '#F0C9BC'],
+      bg:['rgba(122,26,6,.97)', 'rgba(54,9,0,.97)'], ink:'#FFF1EC', glow:'rgba(242,217,140,.6)' },
+    shinka: { motion:'evolve', icons:['🥚', '🐤', '🐔', '🐉'], pieces:'spark',
+      colors:['#E06A3C', '#FFD27A', '#FFF3C4'],
+      bg:['rgba(185,216,235,.97)', 'rgba(52,96,128,.97)'], ink:'#0C202A', glow:'rgba(255,210,122,.8)' },
+    falsetrue: { motion:'flip', icons:['💼', '✅'], pieces:'spark',
+      colors:['#54D97E', '#33A85E', '#EAF4EC'],
+      bg:['rgba(26,70,42,.97)', 'rgba(11,28,18,.97)'], ink:'#EAF4EC', glow:'rgba(84,217,126,.55)' },
+    sugoroku: { motion:'stamp', seal:'上がり', pieces:'washi',
+      colors:['#F4EFE3', '#E9DFC7', '#C9A227', '#D9ECCC'],
+      bg:['rgba(244,239,227,.97)', 'rgba(201,222,185,.97)'], ink:'#1D2415', glow:'rgba(201,162,39,.35)' },
+    quizou: { motion:'drop', icon:'👑', pieces:'tape',
+      colors:['#F0B429', '#5A8FD6', '#F0F8FD'],
+      bg:['rgba(8,74,128,.97)', 'rgba(2,37,65,.97)'], ink:'#F0F8FD', glow:'rgba(240,180,41,.55)' },
+    auction: { motion:'stamp', icon:'🔨', pieces:'coin',
+      colors:['#F0C44A', '#D4A537', '#FFF3C4'],
+      bg:['rgba(90,28,48,.97)', 'rgba(40,11,22,.97)'], ink:'#FAEFE9', glow:'rgba(212,165,55,.55)' }
+  };
+  /**
+   * クリア演出を出す（手渡し・部屋・大画面の全部がここを通る）。
+   * `opt` は言葉（text/sub）と、その場で決まる絵（icons/seal）と、`behind`（祝いの後ろで結果へ）。
+   * **undefined の値は世界の絵を上書きしない**
+   */
+  function clearFx(cassetteId, opt){
+    opt = opt || {};
+    var look = CLEAR_LOOK[cassetteId];
+    if(!look || typeof FxKit === 'undefined'){
+      if(typeof opt.behind === 'function') opt.behind();
+      return Promise.resolve();
+    }
+    var o = Object.assign({}, look);
+    Object.keys(opt).forEach(function(k){ if(opt[k] != null) o[k] = opt[k]; });
+    return FxKit.celebrate(o);
+  }
+  function clearNames(rows){ return rows.map(function(x){ return x.name || ''; }).join('・'); }
+  function clearRank1(rows){ return (rows || []).filter(function(x){ return x.rank === 1 && !x.out && !x.failed; }); }
+  /**
+   * **「クリアとは何か」と「誰に向けるか」**（部屋）。決着の知らせ（v）から読む。
+   * 返すのは { ids（祝う相手）, all（協力＝参加者全員）, 自分(me), 大:{text,sub}, 手:{text,sub}, icons, seal }。
+   * 祝う相手がいなければ null（生きのこりなし・協力の失敗など。責める時は静かに）。
+   * 大画面の言葉は**二人称を使わない**（§11-6）——名前が主役
+   */
+  var CLEAR_WHO = {
+    rcard: function(v){
+      var 上 = clearRank1((v.result || {}).ranking);
+      if(!上.length) return null;
+      return { ids: 上.map(function(x){ return x.id; }),
+        大: { text: clearNames(上), sub: 'さいごの1人' },
+        手: { text: 'さいごの1人！', sub: '体力 ' + (上[0].lives || 0) + ' のこし' } };
+    },
+    shinka: function(v){
+      var r = v.result || {};
+      var 上 = clearRank1(r.ranking);
+      if(!上.length) return null;
+      // 絵は**部屋の段（publicView の 段）**から。端末に一覧を写さない（落とし穴4）
+      var 絵 = (v.段 || []).map(function(t){ return t.絵; }).filter(Boolean);
+      var 至 = (上[0].段 != null) ? 上[0].段 : 絵.length - 1;
+      return { ids: 上.map(function(x){ return x.id; }),
+        icons: 絵.length ? 絵.slice(0, 至 + 1) : null,
+        大: { text: clearNames(上), sub: r.優勝 ? '最終形まで進化' : 'いちばん上の段' },
+        手: { text: r.優勝 ? '最終形！' : 'いちばん上！', sub: 上[0].段名 || '' } };
+    },
+    falsetrue: function(v){
+      var 生 = v.survivors || [];
+      // 生きのこりなし：祝う相手がいない（それまで大画面は、0人でも紙吹雪を舞わせていた）
+      if(!生.length) return null;
+      return { ids: 生.map(function(x){ return x.id; }),
+        大: { text: 生.length + '人 生きのこり', sub: clearNames(生) },
+        手: { text: '生きのこり！', sub: 'さいごまで残りました' } };
+    },
+    sugoroku: function(v){
+      var r = v.result || {};
+      var 上 = (r.players || []).filter(function(x){ return x.rank === 1; });
+      if(!上.length) return null;
+      var あがり = 上.some(function(x){ return x.goaled; });
+      var w = { seal: あがり ? '上がり' : '一番',
+        大: { text: clearNames(上), sub: あがり ? 'あがり' : 'いちばん前' },
+        手: { text: あがり ? 'あがり！' : 'いちばん！', sub: '' } };
+      if(r.pairs){
+        // 「ふたりでひとつ」の行は**組**のid（人ではない）。組の名簿の名前で自分を見分ける
+        var 組 = (v.groups || []).filter(function(g){
+          return 上.some(function(x){ return x.id === g.id; });
+        });
+        w.自分 = function(me){
+          var 名 = rtMemberName(me);
+          return !!名 && 組.some(function(g){ return (g.names || []).indexOf(名) !== -1; });
+        };
+      } else {
+        w.ids = 上.map(function(x){ return x.id; });
+      }
+      return w;
+    },
+    quizou: function(v){
+      var r = v.result || {};
+      var rows = r.ranking || [];
+      // つぎつぎクイズの協力：目標に届いたら**全員で**クリア。届かなければ祝わない
+      if(r.variant === 'quizlist' && r.style === 'coop'){
+        if(!r.success) return null;
+        return { all: true, ids: rows.map(function(x){ return x.id; }),
+          大: { text: '全員でクリア！', sub: (r.said || []).length + '個 そろいました' },
+          手: { text: '全員でクリア！', sub: (r.said || []).length + '個 そろいました' } };
+      }
+      // 勝者の名前が決まっているもの（脱落形式の最後の1人・早押しの優勝）は、それを正とする
+      var 名 = (r.variant === 'buzzer') ? r.champion : (r.variant === 'quizlist' ? r.winner : null);
+      var 上 = 名 ? rows.filter(function(x){ return x.name === 名; }).slice(0, 1) : clearRank1(rows);
+      if(!上.length) return null;
+      return { ids: 上.map(function(x){ return x.id; }),
+        大: { text: clearNames(上), sub: '優勝' },
+        手: { text: '優勝！', sub: (上[0].score != null && r.variant !== 'buzzer' && r.variant !== 'quizlist')
+          ? 上[0].score + '点' : '' } };
+    },
+    auction: function(v){
+      var 上 = clearRank1((v.result || {}).ranking);
+      if(!上.length) return null;
+      return { ids: 上.map(function(x){ return x.id; }),
+        大: { text: clearNames(上), sub: 'いちばんの目利き' },
+        手: { text: 'いちばんの目利き！', sub: (上[0].score || 0) + '点' } };
+    }
+  };
+  /** 検査の窓口：世界の見た目の表と、棚に出ているカセット（tests/clear-fx.js） */
+  window.clearLookProbe = function(){
+    return { look: CLEAR_LOOK,
+      棚: CASSETTES.filter(function(c){ return c.ready; }).map(function(c){ return c.id; }) };
+  };
+  function rtMemberName(id){
+    var m = ((rt && rt.state.room && rt.state.room.members) || []).find(function(x){ return x.id === id; });
+    return m ? m.name : '';
+  }
+  /**
+   * **部屋のクリア演出は、ここ1か所から出す**（rtRenderCurrent が全端末で呼ぶ）。
+   * 画面ごとに書くと、その画面を見ていない人（大画面）に届かない（rcPhaseFx と同じ理由・落とし穴1）。
+   *   ・大画面 … 祝う相手の名前を大きく
+   *   ・スマホ … **祝う相手の端末にだけ**（対戦は勝った人、協力は参加者全員）。
+   *              ほかの人の端末には出さない——結果画面が静かに順位を出す（原則C）
+   * 爆弾解除は爆発と対の1本（bombClearSequence）を自分の描画から呼ぶので、ここには来ない
+   */
+  function rtClearFx(v){
+    var g = rtRoomGameId();
+    var c = g ? cassetteOfGame(g) : null;
+    var who = c ? CLEAR_WHO[c.id] : null;
+    if(!who || !v) return;
+    var w = (v.phase === 'ended') ? who(v) : null;
+    var big = rtIsBigScreen();
+    var me = rt.state.memberId;
+    var 自分へ = !!w && !big && (w.自分 ? w.自分(me) : (w.ids || []).indexOf(me) !== -1);
+    rtOnce('clear:' + g, !!w && (big || 自分へ), function(){
+      var 言葉 = big ? w.大 : w.手;
+      clearFx(c.id, { text: 言葉.text, sub: 言葉.sub || null, icons: w.icons, seal: w.seal });
+    });
+  }
+
   function rtRenderCurrent(){
     var cur = (document.querySelector('.screen.active') || {}).id;
     // 第24弾-3：部屋のゲームが分かった時点でテーマを当て直す。
@@ -17526,6 +17867,12 @@
     else if(cur === 'scr-rt-sugoroku') renderRtSugoroku();
     else if(cur === 'scr-rt-sugo-result') renderRtSugoResult();
     else if(cur === 'scr-rt-play') renderRtPlay();
+    // 指示60 A-2：クリア演出（全端末・全ゲームがここ1か所を通る）。
+    // 結果の描画の**あと**に頼むので、祝いの地の後ろにはもう結果がある（消えたら見える）
+    rtClearFx(rtView());
+    // 指示60 A-1a②：**描き直しの最後に**見る。この回で頼まれた決着の演出（黒い幕・祝い）が
+    // もう舞台と前座に乗っているので、称号はその後ろに並ぶ
+    titleGotFlush();
   }
   /**
    * 第36弾：**描き分けは rtRenderCurrent ひとつに集約する。**
@@ -18087,8 +18434,8 @@
     // **分岐の外に置く**（分岐の中だと、その分岐を通らない経路で札が捨てられない）
     rtOnce('quiz:ended', v.phase === 'ended', function(){
       timeUpSound();
-      // 第32弾-D 4-2：ゲーム全体の決着なので、金・青の紙吹雪（第6部）
-      if(typeof FxKit !== 'undefined') FxKit.confetti(['#f0c44a', '#5a8fd6', '#fff8e1']);
+      // 指示60 A-2：紙吹雪（全員に同じ・協力の失敗にも降っていた）は、
+      // 勝った人に向けるクリア演出（rtClearFx）に置き換えた
     });
     if(v.phase === 'ended'){
       qzPrevPhase = v.phase;
@@ -18440,6 +18787,20 @@
   el('qzEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
   // 大画面。公開情報だけを大きく出す（正解の位置も、まだ見えていない文字も来ない）
+  /**
+   * クイズラッシュで「出した問題（5問以上）を全部当てた人」。
+   * 指示60 A-1：それまで PERFECT のコールアウトだけが知らせていて、誰なのかはどこにも出ていなかった
+   */
+  function qzPerfectIds(v){
+    return ((v && v.rush && v.rush.board) || []).filter(function(b){
+      return b.answered >= 5 && b.hits === b.answered;
+    }).map(function(b){ return b.id; });
+  }
+  function qzPerfectNames(v){
+    var ids = qzPerfectIds(v);
+    return ((v && v.rush && v.rush.board) || []).filter(function(b){ return ids.indexOf(b.id) !== -1; })
+      .map(function(b){ return b.name || ''; });
+  }
   function renderRtBigQuiz(v){
     el('bigBoard').style.display = 'none';
     el('bigPhase').textContent = QZ_TITLE[v.variant] || 'クイズ王';
@@ -18449,8 +18810,11 @@
       main = (res.ranking && res.ranking[0]) ? res.ranking[0].name : '結果';
       // 指示55 §11-7：**文字列を1行に join するのをやめる**
       sub = '';
+      // 指示60 A-1：全問正解の人は、順位表の行に添える（それまではコールアウトだけで、名前が無かった）
+      var 全問ids = qzPerfectIds(v);
       el('bigRank').innerHTML = rankingHtml((res.ranking || []).map(function(x){
-        return { id: x.id, rank: x.rank, name: x.name, main: x.score + '点' };
+        return { id: x.id, rank: x.rank, name: x.name, main: x.score + '点',
+                 note: 全問ids.indexOf(x.id) !== -1 ? '🎯 全問正解' : null };
       }), { showFace: true });
     } else if(v.variant === 'quizreveal' && v.reveal){
       main = v.reveal.text || '';
@@ -18823,7 +19187,8 @@
     rtOnce('falsetrue:open:' + last.round, v.phase === 'open', function(){
       FxKit.flash(last.content ? 'good' : 'bad');
       if(last.decidedId === ftMeId()) FxKit.vibe(last.fate === 'alive' ? 'ok' : 'warn');
-      if(last.fate === 'alive') FxKit.callout(last.decidedName + ' 生存', { kind:'gold' });
+      // 指示60 A-1：「◯◯ 生存」のコールアウトは消した（大画面だけの約束なのに、ここはスマホだった）。
+      // すぐ下の結果の札（ftOpenVerdict）が同じことを太字で言っている
     });
     el('ftOpenVerdict').innerHTML =
       escapeHtml(last.decidedName) + ' さんは <b>' +
@@ -19356,9 +19721,8 @@
     auPrevPhase = v.phase;
     if(was === null) return;
     if(v.phase === 'guess'){ soldSound(); if(typeof FxKit !== 'undefined') FxKit.vibe('ok'); }
-    if(v.phase === 'ended' && typeof FxKit !== 'undefined'){
-      FxKit.confetti(['#f0c44a', '#d9a53a', '#fff3c4']);
-    }
+    // 指示60 A-2：決着の紙吹雪は、勝った人に向けるクリア演出（rtClearFx）に置き換えた。
+    // ここは大画面も通るので、rtBigFx の紙吹雪と**二重に**降っていた
   }
 
   // 大画面。**相場表と品物一覧が主役。品質は絶対に映さない**
@@ -19559,12 +19923,13 @@
   el('bigEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
   // ===== 第32弾-D 第2部・第5部：大画面ならではの演出 =====
-  // 大画面は「その場にいる全員で見る見世物」。コールアウト・入場・巨大カウントダウンは
+  // 大画面は「その場にいる全員で見る見世物」。入場・巨大カウントダウン・決着の演出は
   // ここにだけ出す（スマホは自分の操作に集中させる、という分担）。
-  var rtBig = { seen: null, members: null, bombLives: null, auction: null, clock: null };
+  // 指示60：auction（競り合いの白熱を数える箱）は、HEATING UP のコールアウトと一緒に消した
+  var rtBig = { seen: null, members: null, bombLives: null, clock: null };
   function rtBigResetFx(){
     rtBig.seen = null; rtBig.members = null; rtBig.bombLives = null;
-    rtBig.auction = null; rtBig.clock = null;
+    rtBig.clock = null;
   }
   // 第5部-1：入場演出。「みんなが揃うのを待つ」時間を、盛り上がりに変える
   function rtBigEntrance(room){
@@ -19581,17 +19946,19 @@
     }
     rtBig.members = ids;
   }
-  // 段階の変わり目から、コールアウト・揺れ・紙吹雪を出す。
+  // 段階の変わり目から、帯・揺れ・決着の演出を出す。
   // あとから見始めた端末（入り直し）には出さない（rtPlayFx と同じ考え）
   /**
    * 大画面の爆発（第47弾 47-6・第59弾で中身を差し替え）。
    *
    * **手渡し・部屋（`bombBoomFx`）と同じ部品（`bombBoomSequence`）を、そのまま大きく呼ぶ**
    * だけ（大切なこと9・落とし穴1）。それまではここだけ「暗転 → 英単語」の別演出を持っていて、
-   * 3面で見た目がそろっていなかった。大画面には個人への一言（sub）は付けない
+   * 3面で見た目がそろっていなかった。大画面には個人への一言（sub）は付けない。
+   *
+   * 指示60：名前から「コールアウト」を外した（コールアウトの仕組みは消した）。
+   * 画面の揺れも外した——黒い幕の後ろで見えない（bombBoomSequence の注記）
    */
-  function bigBoomCallout(){
-    FxKit.shake('big');
+  function bigBoom(){
     bombBoomSequence({});
   }
   function rtBigFx(v, game){
@@ -19602,16 +19969,13 @@
       || prev.phase !== v.phase || prev.turn !== rtBig.seen.turn || prev.runoff !== rtBig.seen.runoff;
     if(!prev || prev.game !== game){
       rtBig.bombLives = null;   // 見始めた直後は静かに。次の描画で今の値を覚える
-      rtBig.auction = null;
       return;   // 見始めた直後は静かに
     }
 
     if(game === 'wolfrole' || game === 'wordwolf'){
-      // 決選投票に入った瞬間
-      if(changed && v.phase === 'vote' && v.runoff){
-        FxKit.callout('TIEBREAKER', { kind:'danger' });
-        return;
-      }
+      // 決選投票に入った瞬間は、いちばん大きい枠（.big-main）が空から「決選投票」に変わり、
+      // 候補の名前も添え書きに出る。指示60 A-1 で、同じことを重ねて言っていた
+      // コールアウト（TIEBREAKER）は消した
       // 第47弾 47-6：**夜が明ける。** `day` は夜のあとにしか来ない段階なので、
       // 「夜→朝」という遷移を見なくても、`day` にいるという事実だけで言える（47-1）。
       // ターンごとに1回（札の名前にターンを混ぜる）
@@ -19659,9 +20023,8 @@
         FxKit.edge('danger');
       }
       rtBig.bombLives = lives;
-      rtOnce('big:bomb:critical', lives === 1, function(){
-        FxKit.callout('CRITICAL', { kind:'danger' });
-      });
+      // 残りミス1は、すぐ下の縁の脈動（bomb-danger）とハートの数が知らせる。
+      // 指示60 A-1 で、同じことを重ねて言っていたコールアウト（CRITICAL）は消した
       // 第47弾 47-6：**縁が赤く脈打つ。** 手渡し版が持っている `bomb-danger` を
       // そのまま借りる（新しく作らない）。1.1秒に1回＝毎秒0.9回なので、
       // 安全基準（点滅は1秒に3回まで）の内側。切っている人には
@@ -19670,23 +20033,24 @@
       var 結 = v.result;
       rtOnce('big:bomb:ended', v.phase === 'ended' && !!結 && !結.aborted, function(){
         if(結.mode === 'coop'){
-          if(結.success){
-            FxKit.callout('DEFUSED', { kind:'gold' });
-            FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);  // 火花のようなオレンジ
-          } else {
-            bigBoomCallout();
-          }
+          // 指示60 A-2：解除成功は、爆発と対になる1本（bombClearSequence）を3面が呼ぶ
+          if(結.success) bombClearSequence({});
+          else bigBoom();
           return;
         }
         // 競争版（第47弾で足した）。それまで大画面は、競争版の決着を素通りしていた——
         // `mode === 'coop'` の門が、もう一方のモードの入口をふさいでいた（大切なこと9）。
-        // **全員が脱落したら、それは部屋にとっての爆発。** 誰かが解けていれば勝ちの側
+        // **全員が脱落したら、それは部屋にとっての爆発。**
+        // 指示60 A-2：そうでなければ**勝った人に向ける**（順位1で脱落していない人）。
+        // それまでは「全員が脱落ではない」だけで DEFUSED を出していて、
+        // 誰も解き切っていない時間切れの決着でも「解除」と言っていた
         var 順位 = 結.ranking || [];
+        var 勝者 = 順位.filter(function(x){ return x.rank === 1 && !x.failed; });
         if(順位.length && 順位.every(function(x){ return x.failed; })){
-          bigBoomCallout();
-        } else if(順位.length){
-          FxKit.callout('DEFUSED', { kind:'gold' });
-          FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
+          bigBoom();
+        } else if(勝者.length){
+          bombClearSequence({ face:'🏆',
+            text: 勝者.map(function(x){ return x.name; }).join('・') + ' の勝ち', sub:'1位' });
         }
       });
       return;
@@ -19697,21 +20061,22 @@
       // 同じカセットのクイズ解除と同じ形にそろえる
       var 解 = v.result;
       rtOnce('big:defuse:ended', v.phase === 'ended' && !!解, function(){
-        if(解.success){
-          FxKit.callout('DEFUSED', { kind:'gold' });
-          FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
-        } else {
-          // 第59弾：**同じ「爆発」なので、見た目も同じ部品にそろえる**（落とし穴1）。
-          // それまでは `FxKit.boom()` の赤い閃光だけで、文字が無かった
-          FxKit.shake('big');
-          bombBoomSequence({});
-        }
+        // 指示60 A-2：クイズ解除と同じ1本を呼び、言葉だけ実物解除のものにする（大切なこと9）
+        if(解.success) bombClearSequence({ text:'解除成功！' });
+        // 第59弾：**同じ「爆発」なので、見た目も同じ部品にそろえる**（落とし穴1）
+        else bigBoom();
       });
-      // のこりミス1。数えなくても、もう後がないと全員に伝わる
-      rtOnce('big:defuse:critical',
-        v.phase === 'play' && v.strikesLeft === 1, function(){
-        FxKit.callout('CRITICAL', { kind:'danger' });
-      });
+      /**
+       * 指示60 A-1：のこりミス1。**クイズ解除と同じ縁の脈動（bomb-danger）と、
+       * 減った瞬間の縁の光（edge）を借りる。**それまで実物解除の大画面は、
+       * この瞬間を CRITICAL のコールアウトだけで知らせていた（縁も脈動も無かった）。
+       * 借りずにコールアウトを消すと、大画面は静止したハートが変わるだけになる。
+       * bomb-danger の後片付けは GAME_LOOK_CLASSES（ゲームが変わる時）と、決着のここ
+       */
+      var のこり = (v.phase === 'play') ? v.strikesLeft : null;
+      if(rtBig.bombLives != null && のこり != null && のこり < rtBig.bombLives) FxKit.edge('danger');
+      rtBig.bombLives = のこり;
+      el('app').classList.toggle('bomb-danger', のこり === 1);
       return;
     }
     if(SUGO_GAMES.indexOf(game) !== -1){
@@ -19719,53 +20084,34 @@
       // 次々と別のものに入れ替わるので `rtOnceValue`（47-1）。
       // ここは DOM を掴まないので、描画より前でも困らない
       rtOnceValue('big:sugo:event', v.event && v.event.id, function(){
-        FxKit.callout((v.event.icon || '') + ' ' + (v.event.title || ''), { ms: 1200 });
+        // 指示60 A-1：コールアウトをやめ、落ちてくる帯（shutter）で知らせ直す。
+        // 見出し（.big-main）にも名前が3.2秒出ているが、**動くものと音はこれだけ**だった。
+        // 盤と上の帯にはできごとの印が無い——消すだけにすると、大画面は文字が差し替わるだけになる
+        FxKit.shutter({ kind:'plain', icon: v.event.icon || '', text: v.event.title || '',
+          sub: v.event.note || '', ms: 1200 });
       });
-      // 決着だけ祝う。手番のたびに光ると、盤を見ているのを邪魔する
-      if(changed && v.phase === 'ended'){
-        FxKit.confetti(['#b5462f', '#c9a227', '#f4efe3']);   // 朱印・金・和紙
-      }
+      // 決着の祝いは rtClearFx（全端末の1か所）。指示60 A-2 で紙吹雪から置き換えた
       return;
     }
     if(RT_QUIZ_GAMES.indexOf(game) !== -1){
-      // ラウンドの締めで、出した問題を全部当てた人がいたら PERFECT
-      var closing = changed && (v.phase === 'break' || v.phase === 'ended');
-      if(closing && v.rush && (v.rush.board || []).some(function(b){
-        return b.answered >= 5 && b.hits === b.answered;
-      })){
-        FxKit.callout('PERFECT', { kind:'gold' });
+      // ラウンドの締めで、出した問題を全部当てた人がいたら「全問正解」。
+      // 指示60 A-1：コールアウト（PERFECT）をやめ、落ちてくる帯で**誰なのかまで**言う
+      //（それまでは大画面のどこにも名前が出ていなかった）。
+      // 決着（ended）と重なる回は、優勝の祝いと舞台を取り合うので、順位表の添え書きに回す
+      //（renderRtBigQuiz の qzPerfectIds）
+      if(changed && v.phase === 'break'){
+        var 全問 = qzPerfectNames(v);
+        if(全問.length) FxKit.shutter({ kind:'gold', icon:'🎯', text:'全問正解', sub: 全問.join('・'), ms: 1100 });
       }
-      if(changed && v.phase === 'ended'){
-        FxKit.confetti(['#f0c44a', '#5a8fd6', '#fff8e1']);  // 金・青
-      }
+      // 決着の祝いは rtClearFx（全端末の1か所）。指示60 A-2 で紙吹雪から置き換えた
       return;
     }
     if(game === 'auction'){
-      // せり上げ式：値の付け替えが続いたら、競り合いが白熱している
-      if(v.phase === 'bid' && v.mode === 'open' && v.highest){
-        var a = rtBig.auction || { round: v.round, raises: 0, last: null, heated: false };
-        if(a.round !== v.round) a = { round: v.round, raises: 0, last: null, heated: false };
-        var key = v.highest.name + ':' + v.highest.amount;
-        if(a.last && a.last !== key) a.raises++;
-        a.last = key;
-        if(!a.heated && a.raises >= 4){
-          a.heated = true;
-          FxKit.callout('HEATING UP', { kind:'danger' });
-        }
-        rtBig.auction = a;
-      }
-      // **落札の SOLD。** それまで `v.phase === 'result'` を待っていたが、
-      // オークションに `result` という段階は存在しない
-      //（preview / bid / confirm / guess / reveal / ended。auction-room.js 35-43）。
-      // **一度も出ていなかった**——型1「存在しないキーのまま古びた対応表」。
-      // 落札が決まるのは値踏みへ移った時なので、そこを事実で見る。
-      // 品ごとに1回なので、札の名前に品の番号（idx）を混ぜる（第47弾 47-1）
-      rtOnce('big:au:sold:' + (v.idx == null ? '?' : v.idx),
-        v.phase === 'guess' && !!v.lastResult && !v.lastResult.passed,
-        function(){ FxKit.callout('SOLD', { kind:'gold' }); });
-      rtOnce('big:au:ended', v.phase === 'ended', function(){
-        FxKit.confetti(['#f0c44a', '#d9a53a', '#fff3c4']);  // 金貨が舞う
-      });
+      // 指示60 A-1：競り合いの白熱（HEATING UP）と落札（SOLD）のコールアウトは消した。
+      // 値が上がっていくこと自体が一番大きい枠に出ていて、相場の強い系統には
+      // 「HEATING UP」のバッジ（.bk-hot）が付いている。落札は📦が落札者の札へ飛ぶ動きと、
+      // 落札の音（auPhaseFx）が同じ瞬間に知らせている
+      // 決着の祝いは rtClearFx（全端末の1か所）。指示60 A-2 で紙吹雪から置き換えた
       return;
     }
   }
@@ -20015,10 +20361,14 @@
       var 相手 = 組 ? ((組.a === p.id ? 組.bName : 組.aName) || '') : '';
       var 印 = p.out ? '💀' : ('❤️'.repeat(Math.max(0, p.lives)) +
         '🖤'.repeat(Math.max(0, (v.livesMax || 0) - p.lives)));
+      // 指示60 A-1：**いま爆弾をめくった人**は、行に静かな印（コールアウトの代わり）。
+      // 光を弱くする設定では縁の光（edge）も出ないので、言葉を置かないと何も知らせない
+      var 踏んだ = v.phase === 'show' && v.last && v.last.hit && v.last.byId === p.id;
       return '<div class="bl-item' + (p.out ? ' is-out' : '') + '">' +
         '<span class="bl-name">' + escapeHtml(p.name || '') + '</span>' +
         '<span class="bl-v">' + 印 + '</span>' +
-        (相手 && !p.out ? '<span class="bl-sub">vs ' + escapeHtml(相手) + '</span>' : '') +
+        (踏んだ ? '<span class="bl-sub">💣 ばくだんをめくった</span>'
+          : (相手 && !p.out ? '<span class="bl-sub">vs ' + escapeHtml(相手) + '</span>' : '')) +
         '</div>';
     }).join('');
     el('bigRank').innerHTML = '';
@@ -20135,7 +20485,7 @@
     el('bigPhase').textContent = RT_PHASE_LABEL[v.phase] || v.phase;
     el('bigMain').classList.remove('is-code');
     el('bigQrBox').style.display = 'none'; // 始まったらQRは要らない
-    // 第32弾-D：段階の変わり目から、大画面だけの演出（コールアウトなど）を出す
+    // 第32弾-D：段階の変わり目から、大画面だけの演出（決着の祝い・爆発など）を出す
     rtBigFx(v, rtRoomGameId());
     // 第5部-4：残り時間つきのゲームなら、最後の5秒を巨大な数字で数える
     /**
@@ -20634,9 +20984,32 @@
     // 記憶（rtBombLive）から**事実（自分に盤面が配られているか）**にした。
     // 記憶は再接続で消えるが、事実は消えない。
     var 競争 = (v.mode === 'race');
-    // 競争版の自分の爆弾は、部屋の決着を待たずに爆発する（他の人はまだ解いている）
-    rtOnce('bomb:selfBoom', 競争 && !!you.failed, bombBoomFx);
-    rtOnce('bomb:selfClear', 競争 && you.total > 0 && you.solvedCount >= you.total, bombClearFx);
+    // 競争版の自分の爆弾は、部屋の決着を待たずに爆発する（他の人はまだ解いている）。
+    //
+    // 指示60 A-1a①：**順位表の事実でも見る。**最後に脱落した人は同じ tick で決着になり、
+    // 部屋の知らせ（決着・順位表つき）が先、自分の秘密（failed:true）が後に届く（落とし穴18）。
+    // 秘密だけを見ていると、先の知らせで結果が描かれ、次の知らせで💥が出る——
+    // その間だけ結果が素のまま見える。順位表に「自分は脱落」とあれば、同じ回で幕を下ろす
+    var 私の順位 = (競争 && v.result && v.result.ranking || []).filter(function(x){
+      return x.id === rt.state.memberId;
+    })[0] || null;
+    rtOnce('bomb:selfBoom', 競争 && (!!you.failed || !!(私の順位 && 私の順位.failed)),
+      function(){ bombBoomFx(); });
+    /**
+     * 指示60 A-2：競争版は**勝った人に向ける。**
+     *   ・自分が全部解いた瞬間（まだ他の人が解いている）… 「解除成功！」
+     *   ・決着して自分が1位（脱落していない）… 「1位！」
+     * それまでは「全部解いた」時だけで、時間切れや他の人の脱落で1位になった人には何も出なかった。
+     * 決着と同じ回に全部解いた人（先に解いた人で終わる設定）には、「1位！」の1回だけ出す
+     *（2つ続けて祝わない）。順位表は部屋の知らせにあるので、秘密の到着を待たない
+     */
+    var 勝った = 競争 && v.phase === 'ended' && !!私の順位 && 私の順位.rank === 1 && !私の順位.failed;
+    rtOnce('bomb:selfClear', 競争 && v.phase !== 'ended' && you.total > 0 && you.solvedCount >= you.total,
+      function(){ bombClearFx(); });
+    rtOnce('bomb:raceWin', 勝った, function(){
+      bombClearSequence({ face:'🏆', text:'1位！',
+        sub: 私の順位.solved + '本解除' + (私の順位.finished ? '（全部止めました）' : '') });
+    });
     // 協力版はチームで1つ。決着そのものが演出の合図
     rtOnce('bomb:teamEnd',
       !競争 && v.phase === 'ended' && !!v.result && !v.result.aborted,
@@ -22423,6 +22796,31 @@
    * 席のidは sugoStart が並び順から作る（h0, h1, ...）ので、
    * **名簿のidをそのまま使ってはいけない**。並び順で読み替える
    */
+  /**
+   * 指示60：手渡しのすごろくが決着した時の1か所（3つの終わり方が、ここを呼ぶ）。
+   *   ① 画面の側が「いまは結果」と名乗る（盤のまま結果を出すので、画面が変わらない）。
+   *      称号はこの印を見て出る（titleAtResult）。外すのは試合の境界（sugoStart）
+   *   ② クリア演出（朱の印「上がり」と和紙）。それまで手渡しには決着の演出が1つも無かった
+   *   ③ 称号を数える
+   */
+  function sugoHandEnded(){
+    if(!sugo || sugoTitlesDone) return;
+    el('scr-sugo-play').classList.add('is-result');
+    var 名 = [];
+    if(sugoIsGrab()){
+      if(sugo.winnerId) 名.push(sugo.names[sugo.winnerId]);
+    } else if(sugoIsPair()){
+      sugo.groups.filter(function(g){ return g.goalOrder === 1; }).forEach(function(g){
+        名.push(g.members.map(function(id){ return sugo.names[id]; }).join('・'));
+      });
+    } else {
+      Object.keys(sugo.goalOrder).forEach(function(id){
+        if(sugo.goalOrder[id] === 1) 名.push(sugo.names[id]);
+      });
+    }
+    if(名.length) clearFx('sugoroku', { text: 名.join('・'), sub: 'あがり！' });
+    awardSugorokuTitles();
+  }
   function awardSugorokuTitles(){
     if(sugoTitlesDone || !sugo) return;
     sugoTitlesDone = true;
@@ -22455,6 +22853,7 @@
   function sugoStart(gameId, players, opts){
     var o = opts || {};
     sugoTitlesDone = false;   // 境界は試合。前の試合の印を持ち越さない
+    el('scr-sugo-play').classList.remove('is-result');
     var spec = SugorokuLogic.gameById(gameId);
     var ids = players.map(function(p, i){ return 'h' + i; });
     sugo = {
@@ -22768,7 +23167,7 @@
     var end = SugorokuLogic.grabEndWords(sugo.names[sugo.winnerId]);
     sugoNote(end.note);
     sugoHint(end.hint);
-    awardSugorokuTitles();
+    sugoHandEnded();
     el('sugoDice').classList.add('done');
     sugoRender();
   }
@@ -23016,7 +23415,7 @@
       var first = SugorokuLogic.pairFirstWords(done[0].members.map(function(id){ return sugo.names[id]; }));
       sugoNote(first.note);
       sugoHint(first.hint);
-      awardSugorokuTitles();
+      sugoHandEnded();
       sugoRender();
       return;
     }
@@ -23212,7 +23611,7 @@
       var ge = SugorokuLogic.goalEndWords(sugo.names[sugo.turnId]);
       sugoNote(ge.note);
       sugoHint(ge.hint);
-      awardSugorokuTitles();
+      sugoHandEnded();
       sugoRenderStatus();
       return;
     }
@@ -25586,50 +25985,85 @@
    * 部屋（1人1台）版は結果の文字が出るだけだった。実機テストは部屋で
    * 行われたので「爆発のアニメーションが無い」ように見えた（落とし穴1）。
    */
-  // 第32弾-C-4 原則C：褒める時は全力で。画面全体が緑に染まる
-  function bombClearFx(sub){
-    if(typeof FxKit === 'undefined') return Promise.resolve();
-    // 第32弾-D 4-2：全解除はこのゲーム一番の勝利。火花のようなオレンジで舞う。
-    // 紙吹雪は**閃光と一緒に始めて、降り続ける**（待たない）
-    FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
-    /**
-     * 第52弾 52-6：**演出が終わってから、結果の文字を出す。**
-     * `flash` を待たずにバナーを出していたので、
-     * 光っている最中に「解除成功！」が重なって出ていた。
-     * スキップ設定では `hold` が 0ms で返るので、そのまま即座に文字が出る
-     */
-    return FxKit.flash('good').then(function(){
-      return FxKit.banner({ kind:'good', icon:'💚', text:'解除成功！',
-        sub: sub || '全部のコードを止めました', ms:900 });
+  // 第32弾-C-4 原則C：褒める時は全力で
+  function bombClearFx(sub, 結果へ){
+    return bombClearSequence({ sub: (typeof sub === 'string' && sub) || '全部のコードを止めました',
+      結果へ: 結果へ });
+  }
+  /**
+   * **指示60 A-2：解除成功（クリア）の演出。爆発（bombBoomSequence）と対になる1本。**
+   * 手渡し・部屋のスマホ・大画面の3面が、これを呼ぶ（それまでスマホは閃光＋紙吹雪＋帯、
+   * 大画面は DEFUSED のコールアウト＋紙吹雪で、3面がそろっていなかった・落とし穴1）。
+   *
+   * 世界は**制御盤**：💣の札がめくれて💚（止まった）になり、火花が中心から散る。
+   * 紙吹雪の色を変えるだけにしない（指示60 §5）。部品は FxKit.celebrate（fx.js）で、
+   * ここは「絵・色・言葉」を渡すだけ。
+   *
+   *   ・スキップ設定なら何も描かずにすぐ結果（A-2 の決まり。爆発の「2秒か押す」とは違う）
+   *   ・`opt.結果へ` は手渡しの画面遷移。**祝いの後ろで**結果へ移る（祝いが消えた時には結果画面）
+   *   ・`opt.face`（表の絵）と `opt.text` は呼ぶ側が決める（競争版の勝者は🏆と名前）
+   */
+  function bombClearSequence(opt){
+    opt = opt || {};
+    var 結果へ = (typeof opt.結果へ === 'function') ? opt.結果へ : function(){};
+    if(typeof FxKit === 'undefined'){ 結果へ(); return Promise.resolve(); }
+    return FxKit.celebrate({
+      motion:'flip', icons:['💣', opt.face || '💚'], pieces:'spark',
+      colors:['#f0a13a', '#f0c44a', '#3FBFA5', '#fff3c4'],
+      bg:['rgba(22,70,60,.97)', 'rgba(13,15,18,.97)'], ink:'#E8FFF8', glow:'rgba(63,191,165,.62)',
+      text: opt.text || '解除成功！', sub: opt.sub, behind: 結果へ
     });
   }
   /**
    * 爆発の演出そのもの（第59弾）。**💥が大きさだけで伝わり → 「爆発しました」が
    * シャッターのように落ちて止まる**、その順番をここ1本に集める。
    *
-   * `bombBoomFx`（手渡し・部屋）と `bigBoomCallout`（大画面）の**どちらもこれを呼ぶ**——
+   * `bombBoomFx`（手渡し・部屋）と `bigBoom`（大画面）の**どちらもこれを呼ぶ**——
    * 「burst→shutter」の順を2か所に手書きすると、片方だけ直す日が来る（落とし穴1）。
    * 大画面かどうかで文言を変える必要は無い（3面とも同じ言葉・同じ順番）。
    * `opt.sub` は呼ぶ側が決める（手渡し・部屋は個人への一言、大画面は付けない）
    */
+  /*
+   * **指示60 A-1a①：黒い幕の上で、💥 →「爆発しました」→ 2秒待つか押す → 結果へ。**
+   *
+   * 実機で「💥の後ろに、もう結果画面が透けて見える」と報告された。
+   * 部屋と大画面では結果が💥と同じ回の描画で描かれ、💥には背景が無かった。
+   * そこで💥と**同じ瞬間**に黒い幕（`FxKit.blackout`）を下ろし、
+   * 結果へ進んでから幕を上げる。
+   *
+   *   ・「2秒待つか押す」は**スキップ設定でも**効かせる（`linger`）。
+   *     スキップ設定では💥は描かれず、幕と帯だけが2秒出る
+   *   ・💥の最中のタップは、結果へ一気に飛ばさず「爆発しました」へ進める——
+   *     その一言だけは必ず読ませる（押すのは最大2回）
+   *   ・`opt.結果へ` は手渡しの画面遷移。**幕の後ろで**結果へ移り、それから幕を上げる。
+   *     部屋と大画面は結果がもう後ろに描いてあるので渡さない（上げれば見える）
+   *   ・何があっても幕は上げる（鎖が途中で切れても黒いまま残さない）
+   *
+   * 画面の揺れ（`FxKit.shake`）は、ここからは呼ばない。揺れるのは #app で、
+   * 黒い幕の後ろに隠れて**見えない**——書いてあるのに効かない形を残さない
+   * （振動と💥の大きさで伝わる。台帳：docs/監査_指示60の門.md）
+   */
   function bombBoomSequence(opt){
-    if(typeof FxKit === 'undefined') return Promise.resolve();
     opt = opt || {};
+    var 結果へ = (typeof opt.結果へ === 'function') ? opt.結果へ : function(){};
+    if(typeof FxKit === 'undefined'){ 結果へ(); return Promise.resolve(); }
+    var 上げる = FxKit.blackout();
     return FxKit.burst('💥').then(function(){
-      return FxKit.shutter({ kind:'gray', text:'爆発しました', sub:opt.sub, ms:900 });
-    });
+      return FxKit.shutter({ kind:'gray', text:'爆発しました', sub:opt.sub, linger:2000 });
+    }).then(function(){ 結果へ(); }, function(){ 結果へ(); })
+      .then(上げる, 上げる);
   }
   // 第32弾-C：爆発は赤ではっきり出す。
   // ただし「責める」のではなく「爆弾が爆発した」ことを出す演出にする。
   // 誰かの失敗を囃し立てるのではないので、赤は0.5秒で引き、
   // 明滅・振動の繰り返しはさせない（酔わないように・目に悪くならないように）
-  function bombBoomFx(sub){
-    if(typeof FxKit === 'undefined') return Promise.resolve();
+  function bombBoomFx(sub, 結果へ){
+    if(typeof FxKit === 'undefined'){ if(typeof 結果へ === 'function') 結果へ(); return Promise.resolve(); }
     // 第32弾-D：爆発は「ミスで弱く・爆発で強く長く」の強い側。
-    // スマホの画面の揺れは、1試合に一度きりのこの瞬間だけに限定する（安全基準）
+    // 指示60：画面の揺れは黒い幕の後ろで見えなくなったので、ここでは振動だけ
     doVibrate([220, 90, 220]);
-    FxKit.shake('big');
-    return bombBoomSequence({ sub: sub || 'つぎは、もう少しだけ慎重に' });
+    return bombBoomSequence({ sub: (typeof sub === 'string' && sub) || 'つぎは、もう少しだけ慎重に',
+      結果へ: 結果へ });
   }
   function defuseComplete(){
     var gen = playGen;   // 第36弾 36-3
@@ -25642,7 +26076,8 @@
     var inside = el('bombInside');
     inside.classList.remove('bomb-defused'); void inside.offsetWidth; inside.classList.add('bomb-defused');
     if(typeof FxKit !== 'undefined'){
-      bombClearFx().then(function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); });
+      // 指示60 A-2：**祝いの後ろで**結果へ移る（祝いが消えた時には、もう結果画面にいる）
+      bombClearFx(null, function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); });
       return;
     }
     setTimeout(function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); }, 750);
@@ -25656,7 +26091,8 @@
     play.currentBombWire = null;
     el('app').classList.remove('bomb-danger');
     if(typeof FxKit !== 'undefined'){
-      bombBoomFx().then(function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); });
+      // 指示60 A-1a①：**幕の後ろで**結果へ移る（幕を上げた時には、もう結果画面にいる）
+      bombBoomFx(null, function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); });
       return;
     }
     buzz();
@@ -27002,6 +27438,23 @@
 
     logRound(state.selectedModeId, scoreDeltas);
     awardAresoreTitles(scoreDeltas);
+    /**
+     * 指示60 A-2：**スコア画面に着いたら祝う相手**を、ここで決めておく（見せるのは enterScore）。
+     *   ・サバイバル … 優勝が決まった回だけ（その人の名前）
+     *   ・それ以外 … このラウンドでいちばん点を取った人（同点なら全員）。**0点の回は祝わない**
+     * スコア画面は何度でも開けるので、1回見せたら消す
+     */
+    var 残り = state.players.filter(function(p){ return !p.eliminated; });
+    var 最高 = Math.max.apply(null, rows.map(function(r){ return r.delta; }).concat([0]));
+    if(optSurvival()){
+      play.clearNext = (残り.length === 1) ? { text: 残り[0].name, sub: '優勝！' } : null;
+    } else if(最高 > 0){
+      play.clearNext = { text: rows.filter(function(r){ return r.delta === 最高; })
+        .map(function(r){ return r.p.name; }).join('・'),
+        sub: 'このラウンドの いちばん（+' + 最高 + '）' };
+    } else {
+      play.clearNext = null;
+    }
     setTimeout(function(){ goTo('scr-score'); }, 2200);
   }
   // ---- 第26弾-4：あれそれどれこれの称号を数える ----
@@ -27100,6 +27553,12 @@
     }
     // 第32弾-E 第1部・第2部：2人組の一言（隅に静かに）
     el('scorePairNote').innerHTML = pairNoteHtml(state.pairNote);
+    // 指示60 A-2：クリア演出（杏色の札）。祝う相手は enterReveal が決めてある
+    if(play.clearNext){
+      var 祝う = play.clearNext;
+      play.clearNext = null;
+      clearFx('aresoredorekore', 祝う);
+    }
     // 第32弾-C-2：順位は1位から順に出す。
     // いっぺんに出すと、どこが1位か目で探すことになる。
     // 1つずつ出れば、上から順に見るだけで順位が伝わる（演出はタップで飛ばせる）。

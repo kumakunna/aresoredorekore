@@ -17820,7 +17820,12 @@
       }
       // 勝者の名前が決まっているもの（脱落形式の最後の1人・早押しの優勝）は、それを正とする
       var 名 = (r.variant === 'buzzer') ? r.champion : (r.variant === 'quizlist' ? r.winner : null);
-      var 上 = 名 ? rows.filter(function(x){ return x.name === 名; }).slice(0, 1) : clearRank1(rows);
+      // 脱落形式で**2人以上が残ったまま時間切れ**（勝者なし）は祝わない。
+      // 順位表は全員0点・同率1位なので、読むと脱落した人まで「優勝！」になっていた
+      if(r.variant === 'quizlist' && !名) return null;
+      // 全員0点で終わった回も祝わない（あれそれの「0点の回は祝わない」と同じ）
+      var 上 = 名 ? rows.filter(function(x){ return x.name === 名; }).slice(0, 1)
+        : clearRank1(rows).filter(function(x){ return x.score !== 0; });
       if(!上.length) return null;
       return { ids: 上.map(function(x){ return x.id; }),
         大: { text: clearNames(上), sub: '優勝' },
@@ -20430,10 +20435,12 @@
       // 指示60 A-1：**いま爆弾をめくった人**は、行に静かな印（コールアウトの代わり）。
       // 光を弱くする設定では縁の光（edge）も出ないので、言葉を置かないと何も知らせない
       var 踏んだ = v.phase === 'show' && v.last && v.last.hit && v.last.byId === p.id;
+      // 時間切れも体力は減る（hit:true）が、**カードはめくっていない**（rcard-room.js の onTimeout）
+      var 時間切れ = 踏んだ && !!v.last.timeout;
       return '<div class="bl-item' + (p.out ? ' is-out' : '') + '">' +
         '<span class="bl-name">' + escapeHtml(p.name || '') + '</span>' +
         '<span class="bl-v">' + 印 + '</span>' +
-        (踏んだ ? '<span class="bl-sub">💣 ばくだんをめくった</span>'
+        (踏んだ ? '<span class="bl-sub">' + (時間切れ ? '⏱ 時間切れ' : '💣 ばくだんをめくった') + '</span>'
           : (相手 && !p.out ? '<span class="bl-sub">vs ' + escapeHtml(相手) + '</span>' : '')) +
         '</div>';
     }).join('');
@@ -21061,7 +21068,12 @@
     var 私の順位 = (競争 && v.result && v.result.ranking || []).filter(function(x){
       return x.id === rt.state.memberId;
     })[0] || null;
-    rtOnce('bomb:selfBoom', 競争 && (!!you.failed || !!(私の順位 && 私の順位.failed)),
+    // **秘密が部屋に追いつくまで、秘密の事実では何も出さない**（落とし穴18）。
+    // 「もう一度」の開始では、部屋の知らせ（新しい試合）が先、新しい秘密が後に届く。
+    // その間の1回だけ、手元の秘密は前の試合のまま（全部解いた・脱落した）なので、
+    // 見ずに読むと、始まった瞬間に前の試合の「解除成功！」や💥が出ていた（指示60 の見直しで見つけた）
+    var 秘密が追いついた = you.phase === v.phase;
+    rtOnce('bomb:selfBoom', 競争 && ((秘密が追いついた && !!you.failed) || !!(私の順位 && 私の順位.failed)),
       function(){ bombBoomFx(bombBoomCause('lives')); });
     /**
      * 指示60 A-2：競争版は**勝った人に向ける。**
@@ -21072,7 +21084,8 @@
      *（2つ続けて祝わない）。順位表は部屋の知らせにあるので、秘密の到着を待たない
      */
     var 勝った = 競争 && v.phase === 'ended' && !!私の順位 && 私の順位.rank === 1 && !私の順位.failed;
-    rtOnce('bomb:selfClear', 競争 && v.phase !== 'ended' && you.total > 0 && you.solvedCount >= you.total,
+    rtOnce('bomb:selfClear', 競争 && v.phase !== 'ended' && 秘密が追いついた &&
+      you.total > 0 && you.solvedCount >= you.total,
       function(){ bombClearFx(); });
     rtOnce('bomb:raceWin', 勝った, function(){
       bombClearSequence({ face:'🏆', text:'1位！',

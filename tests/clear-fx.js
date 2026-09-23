@@ -7,6 +7,9 @@
 //      スマホは**祝う相手の端末にだけ**出る（対戦は勝った人、協力は全員）。負けた人には出ない
 //   ③ スキップ設定では出ない（すぐ結果）。称号は祝いの**あと**
 //   ④ 手渡し（あれそれ・すごろく・ロシアンカードのいっきうち）
+//   ⑤ 指示60 の見直しで見つけた3件（出てはいけない所に出ない）：
+//      競争版の「もう一度」で前の試合の祝い／つぎつぎの時間切れ（勝者なし）で全員「優勝！」／
+//      ロシアンカードの時間切れを大画面が「ばくだんをめくった」と言う
 //
 // **本物の進行役を動かし、本物の publicView / privateFor を本物の画面へ流す**（落とし穴25）。
 // 進め方は tests/room-drive.js（tests/now-line.js と共有）。
@@ -19,6 +22,9 @@ const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, openCassett
 const { RT_START_MIN_CONFIG } = require('./inventory');
 const { GAME_DRIVERS } = require('../realtime');
 const { 部屋を作る, すすめる } = require('./room-drive');
+const Bomb = require('../bomb-room');
+const BombLogic = require('../public/js/bomb-logic');
+const Rcard = require('../rcard-room');
 
 // 部屋で遊ぶゲーム（爆弾解除は爆発と対の1本で別に見ている：fixes52・fx-probe）
 const 対象 = [
@@ -33,6 +39,8 @@ const 対象 = [
   { game: 'sugohand', cart: 'sugoroku', n: 3 },
   { game: 'quizrush', cart: 'quizou',   n: 3 },
   { game: 'quizlist', cart: 'quizou',   n: 3 },
+  // 既定は協力形式。脱落形式（最後の1人が勝ち）も通す（型(c)：分岐のもう一方）
+  { game: 'quizlist', cart: 'quizou',   n: 3, cfg: { style: 'survival' }, label: 'quizlist（脱落）' },
   { game: 'quizreveal', cart: 'quizou', n: 3 },
   { game: 'buzzer',   cart: 'quizou',   n: 4 }
 ];
@@ -57,7 +65,7 @@ async function 決着まで(t, 自分, launchOpt) {
 
     const room = 部屋を作る(t.n);
     if (自分 === 'tv') room.members.set('tv', { id: 'tv', name: 'テレビ', role: 'bigscreen', connected: true });
-    const res = d.startGame(room, RT_START_MIN_CONFIG[t.game], { notify() {} });
+    const res = d.startGame(room, Object.assign({}, RT_START_MIN_CONFIG[t.game], t.cfg || {}), { notify() {} });
     assertEqual(res.ok, true, t.game + '：進行役を始められる（' + JSON.stringify(res) + '）');
     room.state.game = t.game;
     room.state.phase = 'playing';
@@ -105,7 +113,13 @@ async function 決着まで(t, 自分, launchOpt) {
     const w = room[entry.key];
     for (let step = 0; step < 400 && w.phase !== d.PHASE.ENDED; step++) {
       const 前 = w.phase;
-      すすめる(d, room, t.game, w);
+      if (t.全体の時間切れ && w.list) {
+        // 1人ずつの持ち時間は進めず、**全体の時間だけ**を来させる（2人以上が残ったまま終わる）
+        w.list.overallEndsAt = Date.now() - 1;
+        try { d.advance(room); } catch (e) {}
+      } else {
+        すすめる(d, room, t.game, w);
+      }
       await push();
       if (w.phase === 前 && step > 80) break;
     }
@@ -134,8 +148,11 @@ function 祝う相手(t, v) {
   if (t.cart === 'quizou') {
     const rows = r.ranking || [];
     if (r.variant === 'quizlist' && r.style === 'coop') return r.success ? rows.map((x) => x.id) : [];
-    const 名 = r.variant === 'buzzer' ? r.champion : (r.variant === 'quizlist' ? r.winner : null);
-    if (名) return rows.filter((x) => x.name === 名).slice(0, 1).map((x) => x.id);
+    // 脱落形式は「最後の1人」だけが勝ち。**勝者なしの時間切れ（2人以上が残った）は誰も祝わない**
+    if (r.variant === 'quizlist') return r.winner ? rows.filter((x) => x.name === r.winner).slice(0, 1).map((x) => x.id) : [];
+    if (r.variant === 'buzzer' && r.champion) return rows.filter((x) => x.name === r.champion).slice(0, 1).map((x) => x.id);
+    // 点で決まるもの：1位でも**0点なら祝わない**
+    return rows.filter((x) => x.rank === 1 && x.score !== 0).map((x) => x.id);
   }
   return ((r.ranking) || []).filter((x) => x.rank === 1 && !x.out && !x.failed).map((x) => x.id);
 }
@@ -187,7 +204,7 @@ function 祝う相手(t, v) {
 
   // ===================== ②③ 部屋 =====================
   for (const t of 対象) {
-    await r.test('② ' + t.game + '：大画面には、祝う相手の名前でクリア演出が出る（1回だけ）', async () => {
+    await r.test('② ' + (t.label || t.game) + '：大画面には、祝う相手の名前でクリア演出が出る（1回だけ）', async () => {
       const g = await 決着まで(t, 'tv');
       try {
         const 相手 = 祝う相手(t, g.v);
@@ -204,7 +221,7 @@ function 祝う相手(t, v) {
       } finally { g.win.close(); }
     });
 
-    await r.test('② ' + t.game + '：スマホは祝う相手の端末にだけ出る。称号は祝いのあと', async () => {
+    await r.test('② ' + (t.label || t.game) + '：スマホは祝う相手の端末にだけ出る。称号は祝いのあと', async () => {
       const g = await 決着まで(t, 'm1');
       try {
         const 相手 = 祝う相手(t, g.v);
@@ -351,6 +368,171 @@ function 祝う相手(t, v) {
       assertNoErrors(errors);
     } finally { win.close(); }
   });
+
+  // ===================== ⑤ 指示60 の見直しで見つけたもの =====================
+  await r.test('⑤ つぎつぎ（脱落形式）が時間切れで終わると、誰にも「優勝！」を出さない（大画面・スマホ）', async () => {
+    // 既定は協力形式なので、②の quizlist は脱落形式を一度も通っていなかった（型(b)で分かった）
+    const t = Object.assign({}, 対象.find((x) => x.game === 'quizlist'), { cfg: { style: 'survival' }, 全体の時間切れ: true });
+    for (const 自分 of ['tv', 'm1']) {
+      const g = await 決着まで(t, 自分);
+      try {
+        const r0 = g.v.result || {};
+        // 型(b)：本当に「勝者なしの時間切れ・2人以上が残った」を作れているか
+        assert(r0.variant === 'quizlist' && r0.style !== 'coop', '前提：脱落形式（' + r0.style + '）');
+        assert(!r0.winner, '前提：勝者なし（' + r0.winner + '）');
+        assert((r0.ranking || []).filter((x) => x.rank === 1).length >= 2, '前提：同率1位が2人以上（全員0点）');
+        assertEqual(g.記録.filter((x) => x.何 === '祝い').length, 0,
+          自分 + '：勝った人がいないので祝わない（' + JSON.stringify(g.記録) + '）');
+        assertNoErrors(g.errors, 自分);
+      } finally { g.win.close(); }
+    }
+  });
+
+  await r.test('⑤ 競争版の「もう一度」：前の試合で全部解いた人に、始まった瞬間の「解除成功！」が出ない（落とし穴18）', async () => {
+    const { win, doc, errors } = await launch({ fakeSocket: true });
+    try {
+      win.TitleLogic.seasonFor = () => null;
+      await waitScreen(win, doc, 'scr-shelf', 9000);
+      await openCassette(win, doc, 'bakudan');
+      click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
+      await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+      const fake = win.__rtFake;
+      await waitFor(win, () => fake.connected, 5000, 'socket');
+
+      const members = new Map();
+      ['m1', 'm2'].forEach((id, i) => members.set(id, { id, name: ['あき', 'びび'][i], role: 'player', connected: true, socketId: 's' + id }));
+      const room = { code: 'ABC234', members, state: { phase: 'playing', game: 'bomb', data: {} } };
+      const 始める = () => {
+        const res = Bomb.startGame(room, { mode: 'race', counts: { easy: 4 }, lives: 3, timerSec: 0 }, {});
+        assertEqual(res.ok, true, '進行役を始められる（' + JSON.stringify(res) + '）');
+        room.state.phase = 'playing';
+      };
+      const 行 = () => ['m1', 'm2'].map((id, i) => ({ id, name: ['あき', 'びび'][i], role: 'player', connected: true, isHost: i === 0, ready: true }));
+      const snap = () => ({
+        code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'm1', playerCount: 2, memberCount: 2,
+        ready: { count: 2, total: 2, waitingNames: [], all: true }, members: 行(),
+        state: { phase: room.state.phase, game: 'bomb', data: room.bomb ? Bomb.publicView(room) : {} }
+      });
+      fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: snap() }) };
+      始める();
+      el(doc, 'rtCreateName').value = 'あき';
+      click(doc, 'rtCreateBtn');
+      await sleep(win, 300);
+      const 部屋 = () => fake.fire('room:update', snap());
+      const 秘密 = () => fake.fire('wolf:you', Bomb.privateFor(room, 'm1'));
+      部屋(); 秘密();
+      await waitScreen(win, doc, 'scr-rt-bomb', 6000);
+
+      // 試合1：あきが全部解く。びびは外し続けて脱落（決着させる）
+      for (let i = 0; i < 20; i++) {
+        const e = room.bomb.entries.m1;
+        const uid = e.order.find((u) => !e.solved[u]);
+        if (!uid || room.bomb.phase === 'ended') break;
+        const wire = room.bomb.wires.find((x) => x.uid === uid);
+        Bomb.submitAction(room, 'm1', uid);
+        Bomb.submitVote(room, 'm1', (e.choices[uid] || []).find((c) => BombLogic.isCorrect(wire, c)));
+        部屋(); 秘密();
+        await sleep(win, 30);
+      }
+      for (let i = 0; i < 10 && room.bomb.phase !== 'ended'; i++) {
+        const e = room.bomb.entries.m2;
+        const uid = e.order.find((u) => !e.solved[u]);
+        if (!uid) break;
+        const wire = room.bomb.wires.find((x) => x.uid === uid);
+        Bomb.submitAction(room, 'm2', uid);
+        Bomb.submitVote(room, 'm2', (e.choices[uid] || []).find((c) => !BombLogic.isCorrect(wire, c)));
+        部屋(); 秘密();
+        await sleep(win, 30);
+      }
+      assertEqual(room.bomb.phase, 'ended', '前提：試合1が決着した');   // 型(b)
+      const 前の秘密 = Bomb.privateFor(room, 'm1');
+      assert(前の秘密.total > 0 && 前の秘密.solvedCount >= 前の秘密.total, '前提：あきの手元の秘密は「全部解いた」のまま');
+      await sleep(win, 2600);   // 試合1の祝いが済むのを待つ
+
+      // 「もう一度」：いったん待合（秘密は送り直されない）→ 新しい試合。**部屋の知らせが先、秘密が後**
+      room.state.phase = 'lobby';
+      room.bomb = null;
+      fake.fire('room:update', snap());
+      await sleep(win, 200);
+      let 祝い = 0;
+      const mo = new win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => {
+        if (n.classList && (n.classList.contains('fx-cel') || n.classList.contains('fx-blackout'))) 祝い++;
+      })));
+      mo.observe(doc.body, { childList: true, subtree: true });
+      始める();
+      部屋();
+      await waitScreen(win, doc, 'scr-rt-bomb', 6000);   // 型(b)：古い秘密のまま、新しい試合の盤へ移った
+      await sleep(win, 300);
+      const 秘密より前 = 祝い;
+      秘密();
+      await sleep(win, 300);
+      mo.disconnect();
+      assertEqual(秘密より前, 0, '新しい秘密が届く前に、前の試合の祝い・幕が出ない');
+      assertEqual(祝い, 0, '新しい秘密が届いたあとも出ない');
+      assertNoErrors(errors);
+    } finally { win.close(); }
+  });
+
+  for (const 時間切れ of [true, false]) {
+    await r.test('⑤ ロシアンカードの大画面：' + (時間切れ ? '時間切れは「⏱ 時間切れ」（めくっていない）' : 'めくって爆弾なら「💣 ばくだんをめくった」'), async () => {
+      const { win, doc, errors } = await launch({ fakeSocket: true });
+      try {
+        await waitScreen(win, doc, 'scr-shelf', 9000);
+        await openCassette(win, doc, 'rcard');
+        const way = doc.querySelector('#wayChoices [data-way="room"]');
+        if (way) click(doc, way);
+        await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+        const fake = win.__rtFake;
+        await waitFor(win, () => fake.connected, 5000, 'socket');
+        const members = new Map();
+        ['m1', 'm2'].forEach((id, i) => members.set(id, { id, name: ['あき', 'びび'][i], role: 'player', connected: true, socketId: 's' + id }));
+        members.set('tv', { id: 'tv', name: 'TV', role: 'bigscreen', connected: true, socketId: 'stv' });
+        const room = { code: 'ABC234', members, state: { phase: 'playing', game: 'rcard', data: {} } };
+        let x = 7;
+        const rand = () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; };
+        Rcard.startGame(room, { game: 'rcard', lives: 3, finalBombs: 3, turnSec: 15, _rand: rand }, {});
+        const w = room.rcard;
+        w.placed = { m1: true, m2: true };
+        w.bombsOnBoard = { m1: [1, 2, 3], m2: [1, 2, 3] };
+        Rcard.advance(room);   // place → turn
+        const snap = () => ({
+          code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'm1', playerCount: 2, memberCount: 3,
+          ready: { count: 2, total: 2, waitingNames: [], all: true },
+          members: [{ id: 'tv', name: 'TV', role: 'bigscreen', connected: true, isHost: false, ready: true }]
+            .concat(['m1', 'm2'].map((id, i) => ({ id, name: ['あき', 'びび'][i], role: 'player', connected: true, isHost: i === 0, ready: true }))),
+          state: { phase: 'playing', game: 'rcard', data: Rcard.publicView(room) }
+        });
+        fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'tv', room: snap() }) };
+        el(doc, 'rtCreateName').value = 'TV';
+        click(doc, 'rtCreateBtn');
+        await sleep(win, 300);
+        fake.fire('room:update', snap());
+        await waitScreen(win, doc, 'scr-rt-big', 6000);
+        const m = w.matches[0];
+        const 手番 = m.turn === 'a' ? m.a : m.b;
+        if (!時間切れ) Rcard.submitAction(room, 手番, null, { flip: 1 });   // 1 は爆弾
+        Rcard.advance(room);   // turn → show（めくらなければ、時間切れで体力−1）
+        // 型(b)：本当にその場面になったか
+        assertEqual(w.phase, 'show', '前提：めくった結果を見せる段階');
+        assertEqual(!!(w.last && w.last.timeout), 時間切れ, '前提：' + (時間切れ ? '時間切れ' : 'めくった'));
+        assert(w.last.hit, '前提：体力が減る回');
+        fake.fire('room:update', snap());
+        await sleep(win, 120);
+        const 行 = Array.from(doc.querySelectorAll('#bigList .bl-item'));
+        const 名 = 手番 === 'm1' ? 'あき' : 'びび';
+        const その人 = 行.find((n) => (n.querySelector('.bl-name') || {}).textContent === 名);
+        assert(その人, '名簿にその人の行がある');
+        const 印 = (その人.querySelector('.bl-sub') || { textContent: '' }).textContent;
+        if (時間切れ) {
+          assertEqual(印, '⏱ 時間切れ', '時間切れの人の行');
+          assert(!行.some((n) => /ばくだんをめくった/.test(n.textContent)), 'めくっていない人を「めくった」と言わない');
+        } else {
+          assertEqual(印, '💣 ばくだんをめくった', 'めくった人の行');
+        }
+        assertNoErrors(errors);
+      } finally { win.close(); }
+    });
+  }
 
   r.finish();
 })();

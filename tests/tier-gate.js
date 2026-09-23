@@ -63,10 +63,12 @@ function startQuiz(game, cfg) {
 
   await r.test('A2 クイズ王：その遊びで選べる層は、許された層のうち問題（お題）がある層だけ', async () => {
     const 全部 = QuizBank.allowedTiers({ nanisore: true, muri: true });
-    // つぎつぎには「むり」のお題が無い——並べると、選んだ瞬間に始まらない（落とし穴21）
-    assertEqual(QuizBank.listTopicsOf('muri').length, 0, '前提：つぎつぎに むり のお題は0件（型(b)：条件が本当に起きているか）');
-    assert(QuizLogic.tiersFor('quizlist', 全部).indexOf('muri') < 0, 'つぎつぎに むり は並ばない');
-    assert(QuizLogic.tiersFor('quizlist', 全部).indexOf('nanisore') >= 0, 'つぎつぎに なにそれ は並ぶ（お題がある）');
+    // つぎつぎで**お題の無い層**は並べない——並べると、選んだ瞬間に始まらない（落とし穴21）。
+    // どの層が空かは、その日のデータから探す（層の名前で決め打ちしない・型(d)）
+    const 空の層 = 全部.filter((t) => QuizBank.listTopicsOf(t).length === 0);
+    const ある層 = 全部.filter((t) => QuizBank.listTopicsOf(t).length > 0);
+    assertEqual(QuizLogic.tiersFor('quizlist', 全部).join(','), ある層.join(','), 'つぎつぎに並ぶのは、お題がある層だけ');
+    if (空の層.length) console.log('    つぎつぎでお題が0件の層：' + 空の層.join(','));
     ['quizrush', 'quizreveal', 'buzzer'].forEach((v) => {
       assertEqual(QuizLogic.tiersFor(v, 全部).join(','), 'easy,normal,hard,nanisore,muri', v + '：両方ONなら5つ');
       assertEqual(QuizLogic.tiersFor(v, QuizBank.allowedTiers({})).join(','), 'easy,normal,hard', v + '：既定は3つ');
@@ -100,6 +102,15 @@ function startQuiz(game, cfg) {
     assertEqual(g.counts.muri, 0, 'むり は0');
     assertEqual(g.counts.nanisore, 7, 'なにそれ が許されていれば、そこが一番上（3＋4）');
     assertEqual(g.moved, 4, '寄せたのは むり の4本だけ');
+    // 行き先の問題が足りない時は、次にやさしい層へ回す（黙って本数を減らさない）
+    const cap = (t) => ({ easy: 100, normal: 100, hard: 3 })[t] || 0;
+    const h = BombLogic.fitCounts({ easy: 0, normal: 0, hard: 1, nanisore: 4, muri: 0 }, 三層, cap);
+    assertEqual(h.counts.hard, 3, 'むずかしい は問題の数（3）まで');
+    assertEqual(h.counts.normal, 2, 'あふれた2本は ふつう へ');
+    assertEqual(h.lost, 0, '減った本数は0');
+    const k = BombLogic.fitCounts({ nanisore: 9 }, 三層, () => 2);
+    assertEqual(k.counts.easy + k.counts.normal + k.counts.hard, 6, 'どの層も2問しか無ければ、6本まで');
+    assertEqual(k.lost, 3, '回しきれなかった3本は lost で返す（知らせるため）');
     let 投げた = false;
     try { BombLogic.fitCounts({ easy: 1 }); } catch (e) { 投げた = true; }
     assert(投げた, '許された層を渡さないと投げる（黙って5層で通さない）');
@@ -139,18 +150,27 @@ function startQuiz(game, cfg) {
     assertEqual(QuizRoom.publicView(room).allowedTiers.join(','), 'easy,normal,hard', '公開の許可も3つ');
   });
 
-  await r.test('B2 ラッシュ：許された層を何百問解いても、なにそれ・むりは1問も出ない（X4）', async () => {
+  await r.test('B2 ラッシュ：5層を順に頼み続けても、なにそれ・むりは毎回断られ、1問も出ない（X4）', async () => {
+    // 許された層だけを頼むと、門を外しても緑のまま（型(b)）。**5層を順に全部頼む**
     const { room, w } = startQuiz('quizrush', { timerSec: 600 });
     const 出た = [];
+    let 断った = 0;
     for (let i = 0; i < 300; i++) {
-      const t = ふだん[i % 3];
+      const t = ['easy', 'normal', 'hard', 'nanisore', 'muri'][i % 5];
       const a = QuizRoom.submitAction(room, 'm1', t, { targetId: t });
+      if (マニアック.indexOf(t) >= 0) {
+        assertEqual(a.ok, false, (i + 1) + '回目：' + t + ' は断る');
+        assertEqual(w.rush.seats.m1.q, null, (i + 1) + '回目：' + t + ' の問題は出ていない');
+        断った++;
+        continue;
+      }
       assertEqual(a.ok, true, t + ' は選べる');
       const q = w.rush.seats.m1.q;
       出た.push(q.tier);
       QuizRoom.submitVote(room, 'm1', q.correct, { targetId: q.correct });   // 正解してから次へ（おてつき待ちを避ける）
     }
-    assertEqual(出た.length, 300, '300問引けた（型(b)）');
+    assertEqual(断った, 120, 'なにそれ・むりを120回頼んだ（型(b)）');
+    assertEqual(出た.length, 180, '許された層は180問引けた');
     assertEqual(マニアックの数(出た), 0, 'なにそれ・むりは0問');
   });
 
@@ -165,6 +185,10 @@ function startQuiz(game, cfg) {
     // 端末が なにそれ を送ってきても
     const { room: lr } = startQuiz('quizlist', { tier: 'nanisore' });
     assert(lr.quiz.list.topic.tier !== 'nanisore', 'つぎつぎに なにそれ を送っても、おまかせ で始まる');
+    // 難易度を決めた時の分岐（listTopicsAllowed の cfg.tier の側・落とし穴10-c）
+    assertEqual(startQuiz('quizlist', { tier: 'hard' }).room.quiz.list.topic.tier, 'hard', 'むずかしい を決めれば むずかしい のお題');
+    assertEqual(startQuiz('quizlist', { tier: 'nanisore', tierMix: { nanisore: true } }).room.quiz.list.topic.tier,
+      'nanisore', '許されていれば、決めた なにそれ のお題');
     // とくとく：全問を始めにまとめて引く
     const { w: rw } = startQuiz('quizreveal', { tier: 'muri', questionCount: 30 });
     assertEqual(rw.reveal.questions.length, 30, '30問引けた');
@@ -208,13 +232,18 @@ function startQuiz(game, cfg) {
     QuizRoom.submitAction(room, 'm1', 'muri', { targetId: 'muri' });
     const 出ていた = w.rush.seats.m1.q;
     assertEqual(出ていた.tier, 'muri', '前提：むり の問題が出ている（型(b)）');
+    // 問題の出ていない席も1つ作っておく（m2 はまだ選んでいない）
     const u = QuizRoom.updateOptions(room, { tierMix: {} });
     assertEqual(u.ok, true, '変えられる');
+    // **今出ている問題は、画面から消さない**——端末は tier が空くと「えらぶ画面」へ切り替わるので、
+    // 問題が出ている間は tier も残す（答えた時に空ける）
     assertEqual(w.rush.seats.m1.q, 出ていた, '今出ている問題は取り消さない');
-    assertEqual(w.rush.seats.m1.tier, null, '挑んでいた層は空く（選び直し）');
+    assertEqual(w.rush.seats.m1.tier, 'muri', '問題が出ている間は、層の札もそのまま');
+    assertEqual(QuizRoom.privateFor(room, 'm1').rush.question.text, 出ていた.q, '本人の端末にも、同じ問題が届き続ける');
     assertEqual(QuizRoom.submitAction(room, 'm1', 'muri', { targetId: 'muri' }).error, 'tier_not_allowed', '次からは むり を断る');
-    // canChangeTier:false でも、ほかの層を選び直せる（固定がほどける）
+    // 答えたら空く。canChangeTier:false でも、ほかの層を選び直せる（固定がほどける）
     QuizRoom.submitVote(room, 'm1', 出ていた.correct, { targetId: 出ていた.correct });
+    assertEqual(w.rush.seats.m1.tier, null, '答えたら、挑んでいた層は空く（選び直し）');
     assertEqual(QuizRoom.submitAction(room, 'm1', 'hard', { targetId: 'hard' }).ok, true, '固定されていても選び直せる');
     // パス：層が空いた席のパスは、1回使わせずに選び直しへ
     const { room: r2, w: w2 } = startQuiz('quizrush', { timerSec: 600, passLimit: 3, tierMix: { muri: true } });
@@ -239,6 +268,23 @@ function startQuiz(game, cfg) {
       assert(rw.reveal.questions[rw.reveal.index].tier !== 'muri', (i + 1) + '問目は むり ではない');
     }
     assert(rw.reveal.index >= 2, '2問目より先まで進めた（型(b)：条件が作れているか）');
+
+    // とくとく：OFF → もう一度 ON。難易度は ふつう のままなので、先に引いた むり は出ない
+    const { room: r3, w: w3 } = startQuiz('quizreveal', { tier: 'muri', questionCount: 6, tierMix: { muri: true } });
+    QuizRoom.updateOptions(r3, { tierMix: {} });
+    const u3 = QuizRoom.updateOptions(r3, { tierMix: { muri: true } });
+    assertEqual(u3.ok, true, 'ON に戻せる');
+    assertEqual(w3.cfg.tier, 'normal', '難易度は ふつう のまま（進行役には「ふつうに戻した」と言ってある）');
+    const 後 = [];
+    for (let i = 1; i < 6; i++) {
+      w3.deadline = Date.now() - 1;
+      w3.reveal.shown = 9999; w3.reveal.askedAt = 0;
+      QuizRoom.advance(r3);
+      if (w3.phase !== 'play') break;
+      後.push(w3.reveal.questions[w3.reveal.index].tier);
+    }
+    assert(後.length >= 2, 'OFF→ON のあと2問以上進めた（型(b)）');
+    assertEqual(後.filter((t) => t === 'muri').length, 0, 'OFF→ON のあと、先に引いた むり は出ない：' + 後.join(','));
   });
 
   await r.test('B7 途中の変更は、進行役（updateOptions を持つもの）だけが受け取る', async () => {
@@ -246,6 +292,9 @@ function startQuiz(game, cfg) {
     assertEqual(typeof BombRoom.updateOptions, 'undefined', 'クイズ解除は受け取らない＝次のゲームから（盤のコードはもう出ている）');
     const { room } = startQuiz('quizrush', {});
     assertEqual(QuizRoom.updateOptions(room, {}).ok, false, '中身の無い頼みは ok にしない');
+    // つぎつぎは1試合に1お題で、もう出ている。変えても何も起きないのに ok を返さない（落とし穴14）
+    const { room: lr } = startQuiz('quizlist', {});
+    assertEqual(QuizRoom.updateOptions(lr, { tierMix: { muri: true } }).error, 'not_supported', 'つぎつぎは次のゲームから');
     // drawQuestion は本当に中で fitTier を通っているか（tools/tier-scan.js が「門」と数える根拠）
     const src = fs.readFileSync(path.join(ROOT, 'quiz-room.js'), 'utf8');
     const at = src.indexOf('function drawQuestion(');
@@ -426,14 +475,34 @@ function startQuiz(game, cfg) {
     assertEqual(n.length, 0, '何も失っていない時は、何も言わない');
     b.win.close();
     win.close();
+
+    // 一部だけ消えた時も黙らない／とくとく・早押しは「おまかせ」ではなく戻った先の名前で言う
+    const c = await launch({ storage: { 'acac-app-prefs': prefs } });
+    const Q = c.win.tierProbe;
+    Q.render('quizreveal');   // いま選んでいる遊びを とくとく にする（本物の描画関数）
+    Q.setup({ topicDifficulties: ['easy', 'muri'], qkTier: 'muri' });
+    el(c.doc, 'shelfGearBtn').click(); await sleep(c.win, 100);
+    c.doc.querySelector('#settingsOverlay [data-setpage="tiers"]').click(); await sleep(c.win, 60);
+    el(c.doc, 'setTierToggle-tierMuri').click(); await sleep(c.win, 60);   // むり だけ OFF
+    assertEqual(JSON.stringify(Q.peek().topicDifficulties), '["easy"]', '残りは選んだまま');
+    const 文2 = Array.from(c.doc.querySelectorAll('#fxNotices .fx-notice')).map((x) => x.textContent).join('｜');
+    assert(文2.indexOf('「むりなんだが」は、いまは出ません') >= 0, '一部だけ消えても一言だす：' + 文2);
+    assert(文2.indexOf('「ふつう」にもどしました') >= 0, 'とくとくは「ふつう」に戻ったと言う：' + 文2);
+    assert(文2.indexOf('「おまかせ」') < 0, 'とくとくに「おまかせ」とは言わない（持っていない）：' + 文2);
+    c.win.close();
   });
 
   await r.test('C7 48-7：一周の数え方は、使ってよい層の中で数える', async () => {
     const { win } = await launch();
     const P = win.tierProbe;
-    assertEqual(P.ring(), 18 + 14 + 8, '親OFF：40件で一周（なにそれ5・むり5を数えない）');
+    // 期待値は、生のプールを層ごとに数えて作る（件数を名指ししない・型(d)）
+    const 件数 = (t) => win.topicProbe([t]).引ける;
+    const 三層 = 件数('easy') + 件数('normal') + 件数('hard');
+    const 全部 = win.topicProbe(null).引ける;
+    assert(全部 > 三層, '前提：なにそれ・むりのお題がある（型(b)）');
+    assertEqual(P.ring(), 三層, '親OFF：3層の合計で一周（' + 三層 + '件）');
     const on = await launch({ storage: { 'acac-app-prefs': JSON.stringify({ tierExtra: true, tierNanisore: true, tierMuri: true }) } });
-    assertEqual(on.win.tierProbe.ring(), 50, '両方ON：50件');
+    assertEqual(on.win.tierProbe.ring(), 全部, '両方ON：全件（' + 全部 + '件）');
     on.win.close();
     win.close();
   });
@@ -443,47 +512,115 @@ function startQuiz(game, cfg) {
   /**
    * 門を通らない「語が出てくる関数」の宣言表。**理由のないものは置かない。**
    * 行き（掃き出した通らない関数が全部ここにある）と帰り（ここにあるものが実在して、
-   * しかも本当に門を通っていない）の両方で照合する（落とし穴20）
+   * しかも本当に門を通っていない）の両方で照合する（落とし穴20）。
+   * **種類ごとに、その理由が本当かを本文で確かめる**（書いただけの理由を信じない）：
+   *   映すだけ・点 … 引く語（poolByTier など）も、層のボタンを描く語（data-tier="）も無い
+   *   ふつう固定 … pickQuestions の第1引数が、全部 'normal'
+   *   受け手が門 … 呼ぶ先（受け手）が門を通っていて、本文がそれを呼んでいる
+   *   権威はサーバー … サーバーへ送るだけ（rt.act）
    */
   const 通らなくてよい = {
-    'public/index.html#（関数の外）#BOMB_TIERS': '層のラベルの辞書そのもの（5層のまま持つ。並べる時は tierRows を通す）',
-    'public/index.html#（関数の外）#QUIZ_BANK': 'お題のデータそのもの（消さない・2-4）',
-    'public/index.html#getPool': '生の50件を作ってキャッシュする。門を焼き込むと途中の変更が効かない。呼び手が通す',
-    'public/index.html#poolByTier': '下請け。層を名指す呼び手が門を通す',
-    'public/index.html#poolForTiers': '下請け。渡す層の一覧を呼び手が門に通す',
-    'public/index.html#window.topicProbe': '検査の窓（48-7 のデータ側・生のプールを数える）',
-    'public/index.html#draw': '検査の窓（tierProbe）。getPool はお題名から層を引くためだけ',
-    'public/index.html#peek': '検査の窓（tierProbe）。いまの値を読むだけ',
-    'public/index.html#setup': '検査の窓（tierProbe）。「選んでいた層が消えた」を組み立てるために値を置くだけ',
-    'public/index.html#qzBody:click': 'ラッシュの層をサーバーへ送るだけ。権威はサーバー（rushAction）で、並ぶボタンもサーバーが配る',
-    'public/index.html#quizTierButtons:click': '受け手の startQuizQuestion が門を持つ（呼び手が増えても通る）',
-    'public/index.html#rtBombTierLabel': '引いたあとの層名を映すだけ',
-    'public/index.html#openBombWire': '引いたあとの層名を映すだけ',
-    'public/index.html#enterAuctionBid': '引いたあとの層名を映すだけ',
-    'public/index.html#enterAuctionQuestion': '引いたあとの層名を映すだけ',
-    'public/index.html#renderSetTiers': '設定画面の子トグルの名札（ラベルの辞書を引くだけ）',
-    'public/index.html#sugoMiniBegin': 'すごろくのミニクイズ。ふつう（normal）固定',
-    'sugoroku-room.js#startPlay': 'すごろくのミニクイズ（部屋）。ふつう（normal）固定'
+    'public/index.html#（関数の外）#BOMB_TIERS': { 種類: 'データ', 理由: '層のラベルの辞書そのもの（5層のまま持つ。並べる時は tierRows を通す）' },
+    'public/index.html#（関数の外）#QUIZ_BANK': { 種類: 'データ', 理由: 'お題のデータそのもの（消さない・2-4）' },
+    'public/index.html#（関数の外）#QUIZ_POINTS': { 種類: 'データ', 理由: '点の表（変えない・2-2）' },
+    'public/index.html#（関数の外）#AUCTION_MULT': { 種類: 'データ', 理由: '倍率の表（変えない）' },
+    'public/index.html#getPool': { 種類: '下請け', 理由: '生の50件を作ってキャッシュする。門を焼き込むと途中の変更が効かない。呼び手が通す' },
+    'public/index.html#poolByTier': { 種類: '下請け', 理由: '層を名指す呼び手が門を通す' },
+    'public/index.html#poolForTiers': { 種類: '下請け', 理由: '渡す層の一覧を呼び手が門に通す' },
+    'public/index.html#window.topicProbe': { 種類: '検査の窓', 理由: '48-7 のデータ側（生のプールを数える）' },
+    'public/index.html#draw': { 種類: '検査の窓', 理由: 'tierProbe。getPool はお題名から層を引くためだけ' },
+    'public/index.html#peek': { 種類: '検査の窓', 理由: 'tierProbe。いまの値を読むだけ' },
+    'public/index.html#setup': { 種類: '検査の窓', 理由: 'tierProbe。「選んでいた層が消えた」を組み立てるために値を置くだけ' },
+    'public/index.html#qzBody:click': { 種類: '権威はサーバー', 理由: 'ラッシュの層をサーバーへ送るだけ。並ぶボタンもサーバーが配る（rush.tiers）' },
+    'public/index.html#quizTierButtons:click': { 種類: '受け手が門', 受け手: 'startQuizQuestion', 理由: '受け手が門を持つ（呼び手が増えても通る）' },
+    'public/index.html#qzRenderRush': { 種類: '映すだけ', 理由: 'いま挑んでいる層の名前と点を映す（ボタンは qzTierButtonsHtml が門を通して描く）' },
+    'public/index.html#renderRtBigQuiz': { 種類: '映すだけ', 理由: '大画面の順位表に層名を添えるだけ' },
+    'public/index.html#rtBombTierLabel': { 種類: '映すだけ', 理由: '引いたあとの層名' },
+    'public/index.html#openBombWire': { 種類: '映すだけ', 理由: '引いたあとの層名' },
+    'public/index.html#enterAuctionBid': { 種類: '映すだけ', 理由: '引いたあとの層名' },
+    'public/index.html#enterAuctionQuestion': { 種類: '映すだけ', 理由: '引いたあとの層名' },
+    'public/index.html#quizChoices:click': { 種類: '点', 理由: '答えたあとに点を数えるだけ' },
+    'public/index.html#resolveAuctionRound': { 種類: '点', 理由: '答えたあとに倍率を掛けるだけ' },
+    'public/index.html#sugoMiniBegin': { 種類: 'ふつう固定', 理由: 'すごろくのミニクイズ' },
+    'sugoroku-room.js#startPlay': { 種類: 'ふつう固定', 理由: 'すごろくのミニクイズ（部屋）' }
   };
+  // 一度も当たらなくてよい語（入口のファイルには出てこないが、出てきたら見たい語）。両方向で照らす
+  const 見張るだけ = ['QuizBank.TIERS', 'BombLogic.TIERS', 'QUESTIONS', 'LIST_TOPICS', 'questionsOf'];
   const 鍵 = (s) => s.file + '#' + s.name + (s.name === '（関数の外）' ? '#' + s.sources.join('+') : '');
+  const 引く語 = /\b(poolByTier|poolForTiers|getPool|pickQuestions|pickQuestionWires|listTopicsOf|questionsOf|drawQuestion)\b/;
+  // 正規表現の語を、scan の hits の名前（'poolByTier' 'QuizLogic.TIERS' 'data-tier='）に直す
+  const 語の名 = (re) => re.source.split('\\b').join('').split('\\(').join('').split('\\.').join('.').replace(/"$/, '');
 
-  await r.test('D1 X3：語が出てくる関数は全部、門を通るか、理由つきで宣言されている（両方向）', async () => {
+  await r.test('D1 X3：語が出てくる関数は全部、門を通るか、理由つきで宣言されている（両方向・理由も確かめる）', async () => {
     const r0 = TierScan.scan();
     assertEqual(r0.unread, 0, '読めなかった関数は0（落とし穴10-e）');
-    assertEqual(r0.files, TierScan.FILES.length, '全ファイルを読んだ');
+    assertEqual(r0.files, TierScan.FILES.length, '手書きの一覧のファイルを全部読んだ');
+    // 掃くファイルの一覧も、データから導いたものと両方向で照らす（手書きの一覧は腐る・落とし穴4）
+    const 導いた = TierScan.derivedFiles().slice().sort().join(',');
+    assertEqual(導いた, TierScan.FILES.slice().sort().join(','), '語が出てくるファイル（ルール層を除く）と FILES が一致');
+    // 語ごとに、掃き出しが本当に当たっているか（型(b)）
+    const 語 = TierScan.SOURCES.concat(TierScan.STRING_SOURCES).map(語の名);
+    語.forEach((w) => {
+      const n = r0.hits[w] || 0;
+      if (見張るだけ.indexOf(w) >= 0) assertEqual(n, 0, '見張るだけの語 ' + w + ' が当たった（入口に出てきた。表を見直す）');
+      else assert(n > 0, '語 ' + w + ' が一度も当たらない（掃き出しが効いていない）');
+    });
+    見張るだけ.forEach((w) => assert(語.indexOf(w) >= 0, '見張るだけの ' + w + ' が語の一覧に無い'));
+
     const 通らない = r0.sites.filter((s) => !s.gated);
     const 通る = r0.sites.filter((s) => s.gated);
-    // 型(b)：掃き出しが本当に効いているか——門を通る入口が、知っている名前で見つかる
-    ['effectiveTiers', 'nextTopic', 'initBombRound', 'startAuctionRound', 'rushAction', 'startGame', 'onTiersChanged']
+    // 型(b)：門を通る入口が、知っている名前で見つかる（描く入口も含む）
+    ['effectiveTiers', 'nextTopic', 'initBombRound', 'startAuctionRound', 'rushAction', 'startGame', 'onTiersChanged',
+      'renderDifficultyStep', 'renderBombSection', 'enterQuizTurn', 'qzTierButtonsHtml', 'renderQuizStep']
       .forEach((n) => assert(通る.some((s) => s.name === n), n + ' が「門を通る」として見つかる'));
+    // 同じ鍵が2か所にあると、表の1行で2つを通してしまう
+    const 数 = {};
+    r0.sites.forEach((s) => { 数[鍵(s)] = (数[鍵(s)] || 0) + 1; });
+    Object.keys(数).forEach((k) => assertEqual(数[k], 1, '同じ名前の入口が ' + 数[k] + ' か所ある：' + k));
     // 行き
     通らない.forEach((s) => assert(通らなくてよい[鍵(s)],
       '門を通らない入口：' + s.file + ':' + s.line + ' ' + s.name + ' [' + s.sources.join(' ') + ']'));
     // 帰り
     Object.keys(通らなくてよい).forEach((k) => assert(通らない.some((s) => 鍵(s) === k),
       '宣言表の ' + k + ' は、もう無いか、門を通るようになった（表から消す）'));
+    // 理由を確かめる
+    通らない.forEach((s) => {
+      const d = 通らなくてよい[鍵(s)];
+      const 名 = s.file + ':' + s.line + ' ' + s.name;
+      if (d.種類 === '映すだけ' || d.種類 === '点') {
+        assert(!引く語.test(s.body), 名 + '：「' + d.種類 + '」なのに、層を引いている');
+        assert(!/data-(qz)?tier="/.test(s.rawBody), 名 + '：「' + d.種類 + '」なのに、層のボタンを描いている');
+      }
+      if (d.種類 === 'ふつう固定') {
+        const 呼び = s.rawBody.match(/pickQuestions\(\s*[^,]*/g) || [];
+        assert(呼び.length > 0, 名 + '：pickQuestions を呼んでいる（型(b)）');
+        呼び.forEach((c) => assert(/pickQuestions\(\s*'normal'$/.test(c), 名 + '：ふつう固定でない呼び方 ' + c));
+      }
+      if (d.種類 === '受け手が門') {
+        assert(new RegExp('\\b' + d.受け手 + '\\(').test(s.body), 名 + '：受け手 ' + d.受け手 + ' を呼んでいる');
+        assert(通る.some((x) => x.name === d.受け手), 名 + '：受け手 ' + d.受け手 + ' が門を通っている');
+      }
+      if (d.種類 === '権威はサーバー') assert(/\brt\.act\(/.test(s.body), 名 + '：サーバーへ送っている（rt.act）');
+    });
     console.log('    X3：語が出てくる関数 ' + r0.sites.length + '（門を通る ' + 通る.length +
       '・理由つきで通らない ' + 通らない.length + '）');
+  });
+
+  await r.test('D1b X3：入口のファイルで、5層の一覧を丸ごと回さない（関数の中で門を外す形を字面で止める）', async () => {
+    // D1 は「関数のどこかに門の語があるか」で見るので、門のある関数の中で
+    // 5層の一覧を回す形（BOMB_TIERS.map ／ QuizBank.TIERS.slice）は素通りする。ここで止める
+    const raw = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+    const code = TierScan.stripCode(TierScan.scriptOnly(raw));
+    const 使い方 = (code.match(/\bBOMB_TIERS\b[^;\n]{0,12}/g) || []);
+    assert(使い方.length >= 5, 'BOMB_TIERS の使い方が拾えている（型(b)）：' + 使い方.length);
+    // 許す形：定義（=）・辞書として引く（.find）・見つからない時の名札の逃げ道（[0]）
+    使い方.forEach((u) => assert(/^BOMB_TIERS\s*(\.find\(|=|\[0\])/.test(u), 'BOMB_TIERS を辞書（.find）以外で使っている：' + u));
+    assert(!/\b(QuizLogic|QuizBank|BombLogic)\.TIERS\b/.test(code), 'index.html で 5層の一覧（*.TIERS）を使っていない');
+    // サーバー：ラッシュの「知らない層」の見分けだけ
+    const qr = TierScan.stripCode(fs.readFileSync(path.join(ROOT, 'quiz-room.js'), 'utf8'));
+    const 使う = qr.match(/\bQuizLogic\.TIERS\b[^;\n]{0,24}/g) || [];
+    assertEqual(使う.length, 1, 'quiz-room.js の QuizLogic.TIERS は1か所だけ');
+    assert(/^QuizLogic\.TIERS\.indexOf\(targetId\)/.test(使う[0]), '「知らない層」の見分けにだけ使う：' + 使う[0]);
   });
 
   await r.test('D2 X3：層の名前を書いてよいのは、データの表だけ（手書きの filter が0）', async () => {
@@ -503,7 +640,7 @@ function startQuiz(game, cfg) {
     assert(見た >= 8, '表の行を拾えている（型(b)）：' + 見た);
     assertEqual(外れ.length, 0, '表の外で層の名前を書いている：\n' + 外れ.join('\n'));
     // サーバーの進行役には、層の名前を書かない（ルール層から受け取る）
-    ['quiz-room.js', 'bomb-room.js', 'realtime.js'].forEach((f) => {
+    ['quiz-room.js', 'bomb-room.js', 'sugoroku-room.js', 'realtime.js'].forEach((f) => {
       const src = TierScan.stripCode(fs.readFileSync(path.join(ROOT, f), 'utf8'));
       assert(!/\bnanisore\b|\bmuri\b/.test(src), f + ' のコードに層の名前が無い');
     });
@@ -546,20 +683,20 @@ function startQuiz(game, cfg) {
       topicHistory: [{ name: '火吹き竹', tier: 'muri' }],
       autoSaveRecords: true }) };
     const { win, doc } = await launch({ storage: keys });
-    const 前 = {};
-    Object.keys(keys).forEach((k) => { 前[k] = win.localStorage.getItem(k); });
+    // 前提は**アプリが読み込んだメモリの値**で見る（自分が置いた文字を読み返すのではない・型(b)）
+    const 前 = win.tierProbe.peek();
+    assert(前.topicStats['火吹き竹'], '前提：むり のお題の成績を、アプリが読み込んでいる（型(b)）');
+    assertEqual(前.topicHistory.length, 1, '前提：履歴も読み込んでいる');
     el(doc, 'shelfGearBtn').click(); await sleep(win, 100);
     doc.querySelector('#settingsOverlay [data-setpage="tiers"]').click(); await sleep(win, 60);
     el(doc, 'setTierToggle-tierExtra').click(); await sleep(win, 30);
     el(doc, 'setTierToggle-tierMuri').click(); await sleep(win, 30);
     el(doc, 'setTierToggle-tierExtra').click(); await sleep(win, 30);
-    Object.keys(keys).forEach((k) => {
-      const 後 = JSON.parse(win.localStorage.getItem(k) || '{}');
-      const 元 = JSON.parse(前[k] || '{}');
-      assertEqual(JSON.stringify(後.topicStats), JSON.stringify(元.topicStats), 'お題の成績は変わらない');
-      assertEqual(JSON.stringify(後.topicHistory), JSON.stringify(元.topicHistory), 'お題の履歴は変わらない');
-    });
-    assert(JSON.parse(前['aresoredorekore-prefs']).topicStats['火吹き竹'], '前提：むり のお題の成績が読めている（型(b)）');
+    const 後 = win.tierProbe.peek();
+    assertEqual(JSON.stringify(後.topicStats), JSON.stringify(前.topicStats), 'お題の成績は変わらない（メモリ）');
+    assertEqual(JSON.stringify(後.topicHistory), JSON.stringify(前.topicHistory), 'お題の履歴は変わらない（メモリ）');
+    const 保存 = JSON.parse(win.localStorage.getItem('aresoredorekore-prefs') || '{}');
+    assert(保存.topicStats && 保存.topicStats['火吹き竹'], '保存にも残っている');
     win.close();
   });
 

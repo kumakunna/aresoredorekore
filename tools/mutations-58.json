@@ -99,17 +99,17 @@
     "name": "58-M とくとく：出す直前の照らし直しをやめる（途中で OFF にしても むり が続く）",
     "file": "quiz-room.js",
     "suite": "tests/tier-gate-room.js",
-    "from": "  if (next && QuizLogic.tiersFor(V.REVEAL, w.cfg.allowedTiers).indexOf(next.tier) === -1) {",
+    "from": "  if (next && next.tier !== w.cfg.tier) {",
     "to": "  if (false) {",
     "expect": "次の問題からは むり が出ない"
   },
   {
-    "name": "58-N ラッシュ：途中で OFF にしても、挑んでいた層を空けない",
+    "name": "58-N ラッシュ：答えたあとも、許されなくなった層を空けない（固定がほどけない）",
     "file": "quiz-room.js",
     "suite": "tests/tier-gate.js",
-    "from": "      if (s && s.tier && ok.indexOf(s.tier) === -1) s.tier = null;",
-    "to": "      void ok;",
-    "expect": "挑んでいた層は空く"
+    "from": "  releaseStaleTier(w, s);   // 指示58：出ていた問題が片付いたので、許されなくなった層を空ける",
+    "to": "",
+    "expect": "答えたら、挑んでいた層は空く"
   },
   {
     "name": "58-O 端末：消えた層を、あれそれの選択から刈らない",
@@ -195,7 +195,7 @@
     "name": "58-Y 部屋のクイズ解除：本数を寄せずに引く（最後の関所で黙って落ちる）",
     "file": "bomb-room.js",
     "suite": "tests/tier-gate.js",
-    "from": "  const cfg = BombLogic.normalizeConfig(config, allowed);",
+    "from": "  const cfg = BombLogic.normalizeConfig(config, allowed, QuizBank.countOf);",
     "to": "  const cfg = BombLogic.normalizeConfig(config);",
     "expect": "合計11本"
   },
@@ -222,5 +222,53 @@
     "from": "    知らせ.forEach(function(t){ try{ FxKit.notice(t); }catch(e){} });",
     "to": "",
     "expect": "「おまかせ」にもどしたと知らせる"
+  },
+  {
+    "name": "58-AC つぎつぎ：途中の変更に ok を返して何もしない（以前の形）",
+    "file": "quiz-room.js",
+    "suite": "tests/tier-gate.js",
+    "from": "  if (w.variant === V.LIST) return { ok: false, error: 'not_supported' };",
+    "to": "",
+    "expect": "つぎつぎは次のゲームから"
+  },
+  {
+    "name": "58-AD クイズ解除：寄せ先の問題の数を見ない（黙って本数が減る）",
+    "file": "public/js/bomb-logic.js",
+    "suite": "tests/tier-gate.js",
+    "from": "      var room = (typeof capOf === 'function') ? Math.max(0, capOf(t) - out[t]) : left;",
+    "to": "      var room = left;",
+    "expect": "むずかしい は問題の数（3）まで"
+  },
+  {
+    "name": "58-AE とくとく・早押しにも「おまかせ」と言う（持っていないのに）",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "      言う(戻り先 ? UiText.TIERS.戻した先(名(戻り先)) : UiText.TIERS.おまかせに戻した);",
+    "to": "      言う(UiText.TIERS.おまかせに戻した);",
+    "expect": "とくとくは「ふつう」に戻ったと言う"
+  },
+  {
+    "name": "58-AF あれそれ：一部だけ消えた時に黙る",
+    "file": "public/index.html",
+    "suite": "tests/tier-gate.js",
+    "from": "      else if(外れた.length) 言う(UiText.TIERS.いまは出ない(外れた.map(名)));",
+    "to": "",
+    "expect": "一部だけ消えても一言だす"
+  },
+  {
+    "name": "58-AG 部屋：いまこの部屋で出るものを設定の画面に出さない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "      (部屋のいま ? '<br><b id=\"setTiersRoomNow\">' + escapeHtml(UiText.TIERS.部屋のいま(部屋のいま)) + '</b>' : '') +",
+    "to": "      '' +",
+    "expect": "「いまこの部屋で出るもの」の行がある"
+  },
+  {
+    "name": "58-AH ラッシュ：途中で OFF にしたら、問題が出ている席の層もすぐ空ける（画面から問題が消える）",
+    "file": "quiz-room.js",
+    "suite": "tests/rt-screens.js",
+    "from": "      if (s && !s.q) releaseStaleTier(w, s);",
+    "to": "      if (s && s.tier && QuizLogic.tiersFor(V.RUSH, w.cfg.allowedTiers).indexOf(s.tier) === -1) s.tier = null;",
+    "expect": "問題文の要素が描かれている"
   }
 ]

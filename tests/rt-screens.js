@@ -2511,6 +2511,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
         await pickGameForRoom(win, doc, g.game, g.mode);
         push(fake, g.game === 'bomb' ? bombRoom({ state: { phase: 'lobby', game: 'bomb', data: {} } }) : quizRoom(g.game, {}));
         await sleep(win, 80);
+        // 状況を作る（型(b)）：なにそれ・むりに本数が残っている配分にしてから始める
+        if (g.game === 'bomb') win.tierProbe.setup({ bombCounts: { easy: 1, normal: 0, hard: 0, nanisore: 3, muri: 2 } });
         click(doc, 'rtStartBtn');
         await sleep(win, 120);
         const start = fake.emits.filter((e) => e.name === 'wolf:start').pop();
@@ -2518,9 +2520,11 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
         assertEqual(JSON.stringify(start.payload.tierMix), c.want, c.label + ' ' + g.game + '：設定が載る');
         if (g.game === 'bomb') {
           const n = start.payload.counts;
-          assertEqual((n.nanisore || 0) + (c.prefs ? 0 : (n.muri || 0)), 0,
-            c.label + '：おまかせの配分に なにそれ の本数が無い');
-          assert(n.easy + n.normal + n.hard > 0, c.label + '：本数はある');
+          const 合計 = n.easy + n.normal + n.hard + (n.nanisore || 0) + (n.muri || 0);
+          assertEqual(合計, 6, c.label + '：合計6本は保つ');
+          assertEqual(n.nanisore || 0, 0, c.label + '：なにそれ は許していないので0本');
+          if (c.prefs) assertEqual(n.muri, 5, c.label + '：なにそれ の3本は むり（許された一番上）へ');
+          else { assertEqual(n.muri || 0, 0, c.label + '：むり も0本'); assertEqual(n.hard, 5, c.label + '：5本は むずかしい へ'); }
         }
         assertNoErrors(errors, c.label + ' ' + g.game + ' の開始で未捕捉の例外');
         win.close();
@@ -3957,7 +3961,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 60);
   };
   const ラッシュ中 = (fake) => {
-    push(fake, quizRoom('quizrush', quizView('quizrush', { rush: { round: 1, roundsToWin: 0, roundResult: null, board: [] } })));
+    // サーバーは「この部屋でいま許されている層」を公開で配る（quiz-room.js の publicView）
+    push(fake, quizRoom('quizrush', quizView('quizrush', { allowedTiers: ['easy', 'normal', 'hard', 'muri'],
+      rush: { round: 1, roundsToWin: 0, roundResult: null, board: [] } })));
     pushYou(fake, quizYou('quizrush', {
       rush: { tier: null, tiers: ['easy', 'normal', 'hard', 'muri'], canChangeTier: true, passesLeft: 3,
               score: 0, answered: 0, hits: 0, last: null, question: null }
@@ -3983,6 +3989,37 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  // 指示58 2-3：**今出ている問題は取り消さない**——画面で見る。
+  // 秘密のデータ（question）が残っていても、画面が「えらぶ画面」に切り替われば問題は消える。
+  // 検体は本物の進行役で作る（途中で OFF にした直後の privateFor・落とし穴25）
+  await r.test('指示58：ラッシュの途中で進行役が むり を OFF にしても、いま出ている問題は画面に残る', async () => {
+    const QuizRoom = require('../quiz-room');
+    const members = new Map([
+      ['m1', { id: 'm1', name: 'あき', role: 'player', connected: true }],
+      ['m2', { id: 'm2', name: 'びび', role: 'player', connected: true }]
+    ]);
+    const room = { code: 'ABC234', members, hostMemberId: 'm1', state: { phase: 'lobby', game: null, data: {} } };
+    QuizRoom.startGame(room, { game: 'quizrush', timerSec: 300, canChangeTier: false, tierMix: { muri: true } }, {});
+    QuizRoom.submitAction(room, 'm2', 'muri', { targetId: 'muri' });
+    QuizRoom.updateOptions(room, { tierMix: {} });
+    const you = QuizRoom.privateFor(room, 'm2');
+    assert(you.rush.question, '前提：問題は出ている（型(b)）');
+    assertEqual(you.rush.tiers.join(','), 'easy,normal,hard', '前提：選べる層はもう3つ');
+
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, quizRoom('quizrush', QuizRoom.publicView(room)));
+    pushYou(fake, you);
+    await waitScreen(win, doc, 'scr-rt-quiz', 4000);
+    await sleep(win, 60);
+    const q = doc.querySelector('#qzBody .quiz-q');
+    assert(q, '問題文の要素が描かれている（えらぶ画面に切り替わっていない）');
+    assertEqual(q.textContent, you.rush.question.text, '同じ問題文が出ている');
+    assertEqual(doc.querySelectorAll('#qzBody [data-qztier]').length, 0, '難易度をえらぶボタンは出ていない');
+    assertNoErrors(errors, '途中で OFF にしたラッシュの画面で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('指示58：部屋の参加者が設定を変えても送らない。部屋では進行役の設定で出ると一言そえる', async () => {
     const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, むりON));
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
@@ -3991,6 +4028,11 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await 設定からマニアックへ(win, doc);
     assert(/進行役の設定で問題が出ます/.test(el(doc, 'setTiersBody').textContent),
       '部屋では進行役の設定が効くと一言そえる（落とし穴21）');
+    // 自分のトグルとは別に、**いまこの部屋で効いているもの**を出す（進行役が交代した後も食い違いが見える）
+    assert(el(doc, 'setTiersRoomNow'), '「いまこの部屋で出るもの」の行がある');
+    assert(/むりなんだが/.test(el(doc, 'setTiersRoomNow').textContent) &&
+      !/ナニソレシラナイ/.test(el(doc, 'setTiersRoomNow').textContent),
+      'サーバーが配った層（むり だけ足した部屋）が、そのまま出る：' + el(doc, 'setTiersRoomNow').textContent);
     el(doc, 'setTierToggle-tierMuri').click();
     await sleep(win, 60);
     assertEqual(fake.emits.filter((e) => e.name === 'game:options').length, 0, '参加者は送らない');

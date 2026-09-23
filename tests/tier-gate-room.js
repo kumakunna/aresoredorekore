@@ -37,20 +37,28 @@ const log = (s) => console.log('    [ログ] ' + s);
       log('参加者が game:options で両方ONを送った → ok:' + o.ok + ' error:' + o.error);
       assertEqual(o.error, 'not_host', '参加者は途中の設定を変えられない');
       assertEqual(quizOf(srv, rm.code).cfg.allowedTiers.join(','), 'easy,normal,hard', '部屋の許可は3つのまま');
-      // 許された層を何度も引いて、1問も出ないこと
+      // 5層を順に頼み続ける。なにそれ・むりは毎回断られ、許された層だけが引ける
+      // （許された層だけを頼むと、門を外しても緑のまま・型(b)）
       const 出た = [];
-      for (let i = 0; i < 60; i++) {
-        const t = ['easy', 'normal', 'hard'][i % 3];
+      let 断った = 0;
+      for (let i = 0; i < 75; i++) {
+        const t = ['easy', 'normal', 'hard', 'nanisore', 'muri'][i % 5];
         const a = await guest.call('wolf:act', { targetId: t });
-        if (!a.ok) break;
         const q = quizOf(srv, rm.code).rush.seats[guest.memberId].q;
-        if (!q) break;
+        if (マニアック.indexOf(t) >= 0) {
+          assertEqual(a.ok, false, (i + 1) + '回目：' + t + ' は断る');
+          assertEqual(q, null, (i + 1) + '回目：' + t + ' の問題は出ていない');
+          断った++;
+          continue;
+        }
+        assertEqual(a.ok, true, t + ' は選べる');
         出た.push(q.tier);
         await guest.call('wolf:vote', { targetId: q.correct });
       }
-      assert(出た.length >= 30, '30問以上引けた（型(b)）：' + 出た.length);
+      assertEqual(断った, 30, 'なにそれ・むりを30回頼んだ（型(b)）');
+      assertEqual(出た.length, 45, '許された層は45問引けた');
       assertEqual(出た.filter((t) => マニアック.indexOf(t) >= 0).length, 0, 'なにそれ・むりは0問');
-      log('許された層を ' + 出た.length + '問引いて、なにそれ・むり 0問');
+      log('5層を順に75回頼んで、なにそれ・むりは30回とも断り、許された層を ' + 出た.length + '問引いた');
       rm.all.forEach((d) => d.close());
     } finally { await srv.close(); }
   });

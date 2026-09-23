@@ -174,6 +174,11 @@ function 祝う相手(t, v) {
         assert(n, id + '：祝いが出る');
         assert(n.classList.contains('fx-cel-' + look.motion), id + '：主役の出方が「' + look.motion + '」で出る');
         assert(look.pieces, id + '：舞うものがある（紙吹雪の色を変えるだけにしない・§5）');
+        // 地は**不透明**（0.97 でも、実サーバーのスクショで後ろの結果の字が読めた・指示60 B-2）
+        const 地 = [].concat(look.bg || [], ...Object.values(look.陣営 || {}).map((x) => x.bg || []));
+        assert(地.length >= 2, id + '：地の色がある');
+        地.forEach((c) => assert(/^rgb\(/.test(c) || /,\s*1\)$/.test(c),
+          id + '：地が透けない（' + c + '）'));
         assert(n.querySelectorAll('.fx-cel-p-' + look.pieces).length > 0, id + '：舞うもの（' + look.pieces + '）が並ぶ');
         win.FxKit.skipNow();
       });

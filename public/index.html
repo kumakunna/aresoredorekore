@@ -4757,7 +4757,7 @@
        出会わない人にまで意味不明な同意を求めると、本当に大事な警告が埋もれる） -->
   <div id="safetyGate" style="display:none;">
     <div class="sg-body">
-      <p class="sg-lead">このアプリには、光の点滅や画面の揺れを<br>使った演出が含まれます。</p>
+      <p class="sg-lead">このアプリには、光の点滅や<br>画面の揺れを使った演出が含まれます。</p>
       <p class="sg-sub">気分が悪くなる方は、ここでオフにできます。<br>（あとから設定でも変えられます）</p>
       <button class="sg-toggle" id="sgFlashBtn"><span class="sg-check">✓</span> 光の点滅をつかう</button>
       <button class="sg-toggle" id="sgShakeBtn"><span class="sg-check">✓</span> 画面の揺れをつかう</button>
@@ -13731,6 +13731,14 @@
     state.wizIndex--; goTo._back = true; gotoWizardStep();
   }
   function finishWizard(){
+    /**
+     * 指示60 B-2：**部屋では、ここでルールを挟まない。**
+     * 待合に戻ると、進行役も含めた全員が部屋のルール画面（scr-rt-rules・「準備OK」）を通る。
+     * ここで先にモードのルール画面（「はじめる」）を出すと、進行役だけ**同じルールを2回続けて**
+     * 読まされ、しかも1回目の「はじめる」を押しても始まらない（デモの流れで実際に通して見つけた）。
+     * 手渡しは今までどおり、ここでルールを出す（部屋のルール画面が無いので）
+     */
+    if(goingRealtime()){ backToRoomWithGame(); return; }
     if(!state.seenRules[state.selectedModeId]){
       renderModeRules();
       goTo('scr-mode-rules');
@@ -17663,30 +17671,31 @@
    * 人狼は陣営の勝ちを別の形（縁・帯・紙吹雪）で出していて、この表には入れていない
    *（台帳：docs/監査_指示60の門.md）
    *
-   * 地（bg）は**不透明に近い値**にする——後ろで結果が描かれても透けない（A-1a① と同じ理由）
+   * 地（bg）は**完全に不透明**にする——後ろで結果が描かれても透けない（A-1a① と同じ理由）。
+   * 最初 0.97 にしたら、実サーバーのスクショで後ろの「結果」「3 / 3本を解除」が読めるほど透けていた
    */
   var CLEAR_LOOK = {
     aresoredorekore: { motion:'stamp', icon:'👑', pieces:'card', words:['あれ', 'それ', 'どれ', 'これ'],
       colors:['#FFE9D6', '#FBD9BC', '#F2C9A4', '#E9B98E'],
-      bg:['rgba(251,217,188,.97)', 'rgba(178,106,30,.97)'], ink:'#3A2716', glow:'rgba(255,244,228,.75)' },
+      bg:['rgba(251,217,188,1)', 'rgba(178,106,30,1)'], ink:'#3A2716', glow:'rgba(255,244,228,.75)' },
     rcard: { motion:'flip', icons:['🃏', '🏆'], pieces:'card', words:['A', 'K', 'Q', 'J'],
       colors:['#FFF1EC', '#F2D98C', '#F0C9BC'],
-      bg:['rgba(122,26,6,.97)', 'rgba(54,9,0,.97)'], ink:'#FFF1EC', glow:'rgba(242,217,140,.6)' },
+      bg:['rgba(122,26,6,1)', 'rgba(54,9,0,1)'], ink:'#FFF1EC', glow:'rgba(242,217,140,.6)' },
     shinka: { motion:'evolve', icons:['🥚', '🐤', '🐔', '🐉'], pieces:'spark',
       colors:['#E06A3C', '#FFD27A', '#FFF3C4'],
-      bg:['rgba(185,216,235,.97)', 'rgba(52,96,128,.97)'], ink:'#0C202A', glow:'rgba(255,210,122,.8)' },
+      bg:['rgba(185,216,235,1)', 'rgba(52,96,128,1)'], ink:'#0C202A', glow:'rgba(255,210,122,.8)' },
     falsetrue: { motion:'flip', icons:['💼', '✅'], pieces:'spark',
       colors:['#54D97E', '#33A85E', '#EAF4EC'],
-      bg:['rgba(26,70,42,.97)', 'rgba(11,28,18,.97)'], ink:'#EAF4EC', glow:'rgba(84,217,126,.55)' },
+      bg:['rgba(26,70,42,1)', 'rgba(11,28,18,1)'], ink:'#EAF4EC', glow:'rgba(84,217,126,.55)' },
     sugoroku: { motion:'stamp', seal:'上がり', pieces:'washi',
       colors:['#F4EFE3', '#E9DFC7', '#C9A227', '#D9ECCC'],
-      bg:['rgba(244,239,227,.97)', 'rgba(201,222,185,.97)'], ink:'#1D2415', glow:'rgba(201,162,39,.35)' },
+      bg:['rgba(244,239,227,1)', 'rgba(201,222,185,1)'], ink:'#1D2415', glow:'rgba(201,162,39,.35)' },
     quizou: { motion:'drop', icon:'👑', pieces:'tape',
       colors:['#F0B429', '#5A8FD6', '#F0F8FD'],
-      bg:['rgba(8,74,128,.97)', 'rgba(2,37,65,.97)'], ink:'#F0F8FD', glow:'rgba(240,180,41,.55)' },
+      bg:['rgba(8,74,128,1)', 'rgba(2,37,65,1)'], ink:'#F0F8FD', glow:'rgba(240,180,41,.55)' },
     auction: { motion:'stamp', icon:'🔨', pieces:'coin',
       colors:['#F0C44A', '#D4A537', '#FFF3C4'],
-      bg:['rgba(90,28,48,.97)', 'rgba(40,11,22,.97)'], ink:'#FAEFE9', glow:'rgba(212,165,55,.55)' },
+      bg:['rgba(90,28,48,1)', 'rgba(40,11,22,1)'], ink:'#FAEFE9', glow:'rgba(212,165,55,.55)' },
     /**
      * 人狼：**夜が明けて、勝った側の空が昇る。**村（シープ）なら🌤の朝焼け、
      * 人狼（ウルフ）なら🌙の夜、第三陣営（妖狐・合計得点）は🦊／🏆の金。
@@ -17694,12 +17703,12 @@
      */
     jinro: { motion:'rise', icon:'🌤', pieces:'spark',
       colors:['#FFE3A3', '#FFC36B', '#FFF7E0'],
-      bg:['rgba(255,196,140,.97)', 'rgba(60,52,110,.97)'], ink:'#1B1530', glow:'rgba(255,220,150,.75)',
+      bg:['rgba(255,196,140,1)', 'rgba(60,52,110,1)'], ink:'#1B1530', glow:'rgba(255,220,150,.75)',
       陣営: {
         wolf: { icon:'🌙', colors:['#E2584A', '#F0C44A', '#C9C3FF'],
-          bg:['rgba(40,36,90,.97)', 'rgba(8,8,24,.97)'], ink:'#F2EEFF', glow:'rgba(200,190,255,.5)' },
+          bg:['rgba(40,36,90,1)', 'rgba(8,8,24,1)'], ink:'#F2EEFF', glow:'rgba(200,190,255,.5)' },
         third: { icon:'🦊', colors:['#F0C44A', '#D9A53A', '#FFF8E1'],
-          bg:['rgba(120,80,10,.97)', 'rgba(30,20,4,.97)'], ink:'#FFF3C4', glow:'rgba(240,196,74,.55)' }
+          bg:['rgba(120,80,10,1)', 'rgba(30,20,4,1)'], ink:'#FFF3C4', glow:'rgba(240,196,74,.55)' }
       } }
   };
   /** 人狼の陣営の絵を重ねる（村はそのまま・人狼と第三陣営は差し替え） */
@@ -22743,6 +22752,15 @@
   if(rt){
     // 第34弾 2-1：ゲームが始まる前の合図。全員の画面で同じタイミングで3-2-1
     rt.on('countdown', function(p){
+      /**
+       * 指示60 B-4：**次の試合が始まる時は、開いたままの称号の幕を閉じる。**
+       * 部屋ではほかの人の準備OKで自動的に始まるので、押して閉じる前に次の試合が来る——
+       * 閉じないと、前の試合の「新しく手に入れた！」が盤と3択の後ろに残り続けた
+       *（デモの流れを実サーバーで通して見つけた）。手に入れた記録は残っている
+       *（あとから称号の画面で着けられる）ので、見せ場だけを畳む
+       */
+      el('titleGotOverlay').classList.remove('show');
+      titleGotPending = [];
       if(typeof FxKit !== 'undefined') FxKit.countdown(p && p.seconds);
     });
     rt.on('reacted', function(p){ showReaction(p); });
@@ -26051,7 +26069,7 @@
     return FxKit.celebrate({
       motion:'flip', icons:['💣', opt.face || '💚'], pieces:'spark',
       colors:['#f0a13a', '#f0c44a', '#3FBFA5', '#fff3c4'],
-      bg:['rgba(22,70,60,.97)', 'rgba(13,15,18,.97)'], ink:'#E8FFF8', glow:'rgba(63,191,165,.62)',
+      bg:['rgba(22,70,60,1)', 'rgba(13,15,18,1)'], ink:'#E8FFF8', glow:'rgba(63,191,165,.62)',
       text: opt.text || '解除成功！', sub: opt.sub, behind: 結果へ
     });
   }

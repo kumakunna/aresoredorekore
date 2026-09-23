@@ -882,9 +882,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       assert(/^scr-set-/.test(after), gameId + '：設定ウィザードを通る（' + after + '）');
 
       // つぎへを繰り返せば、必ず待合にもどる
+      // 指示60 B-2：**部屋では、モードのルール画面を挟まない**（進行役も待合側で
+      // 部屋のルール画面を通るので、挟むと同じルールを2回続けて読むことになる）
+      const 通った = [];
       let guard = 0;
       while (activeScreen(doc) !== 'scr-rt-room' && guard++ < 12) {
         const cur = activeScreen(doc);
+        通った.push(cur);
         const next = doc.querySelector('#' + cur + ' [data-wiz-next]')
           || (cur === 'scr-mode-rules' ? doc.getElementById('rulesStartBtn') : null);
         if (!next) break;
@@ -892,6 +896,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
         await sleep(win, 60);
       }
       assertEqual(activeScreen(doc), 'scr-rt-room', gameId + '：設定を終えると待合にもどる');
+      assertEqual(通った.indexOf('scr-mode-rules'), -1,
+        gameId + '：部屋ではモードのルール画面を挟まない（' + 通った.join('→') + '）');
       assertNoErrors(errors, gameId + ' の設定で未捕捉の例外');
       win.close();
     }
@@ -1641,6 +1647,21 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       win.close();
     });
   }
+
+  await r.test('60 B-4：次の試合の合図（3-2-1）が来たら、開いたままの称号の幕を閉じる', async () => {
+    // 部屋ではほかの人の準備OKで自動的に次の試合が始まる。押して閉じる前に始まると、
+    // 前の試合の「新しく手に入れた！」が盤と3択の後ろに残り続けた（実サーバーで通して見つけた）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    el(doc, 'titleGotOverlay').classList.add('show');   // 前の試合の称号が開いたまま
+    assert(el(doc, 'titleGotOverlay').classList.contains('show'), '前提：称号の幕が開いている');   // 型(b)
+    fake.fire('room:countdown', { seconds: 3 });
+    await sleep(win, 80);
+    assert(!el(doc, 'titleGotOverlay').classList.contains('show'), '次の試合の合図で閉じる');
+    assert(doc.querySelector('.fx-countdown'), '3-2-1 はそのまま出る');
+    assertNoErrors(errors);
+    win.close();
+  });
 
   await r.test('待機画面から、進行役が直接メンバーを操作できる（第32弾-E 第3部）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);

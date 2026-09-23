@@ -349,8 +349,13 @@ function freshFx(opt) {
     app.dispatchEvent(new W.Event('pointerdown', { bubbles: true }));   // 指が下りた
     let 上がった = false;
     上げる().then(() => { 上がった = true; });
-    await new Promise((r) => setTimeout(r, 200));
-    assert(!上がった && app.querySelector('.fx-blackout'), '指が離れるまで、幕は残っている');
+    // 500ms 待つ：消える動き（250ms）が済むより長く、触れっぱなしの見切り（800ms）より短い。
+    // 200ms で見ていた時は、指を待たずに上げ始めても**消える動きの途中で幕がまだ在った**ので、
+    // 門を外した変異（60-D4）が素通りした（落とし穴10-g：片付く前に数えていた、の逆）
+    await new Promise((r) => setTimeout(r, 500));
+    const 幕 = app.querySelector('.fx-blackout');
+    assert(!上がった && 幕, '指が離れるまで、幕は残っている');
+    assert(!幕.classList.contains('fx-out'), '指が離れるまで、上げ始めてもいない（消える動きに入っていない）');
     app.dispatchEvent(new W.Event('pointerup', { bubbles: true }));     // 指が離れた
     await new Promise((r) => setTimeout(r, 500));
     assert(上がった, '指が離れたら上がる');

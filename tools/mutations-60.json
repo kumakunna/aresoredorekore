@@ -69,7 +69,7 @@
     "suite": "tests/fixes52.js",
     "from": "    var 上げる = FxKit.blackout();",
     "to": "    var 上げる = function(){};",
-    "expect": "ずっと黒い幕がある"
+    "expect": "黒い幕が実際に下りた"
   },
   {
     "name": "60-D2 「2秒待つか押す」をスキップ設定で縮める（linger を hold に戻す）",
@@ -93,7 +93,7 @@
     "suite": "tests/fx.js",
     "from": "      if (!指.下りている) return resolve();",
     "to": "      if (true) return resolve();",
-    "expect": "指が離れるまで、幕は残っている"
+    "expect": "上げ始めてもいない"
   },
   {
     "name": "60-D5 linger を速さの設定で縮める",

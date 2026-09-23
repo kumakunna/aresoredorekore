@@ -126,5 +126,29 @@
     "from": "<div class=\"screen\" id=\"scr-score\" data-result>",
     "to": "<div class=\"screen\" id=\"scr-score\">",
     "expect": "称号が出る"
+  },
+  {
+    "name": "60-F1 競争版：秘密が追いついたかを見ない（前の試合の秘密で祝う）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "    var 秘密が追いついた = you.phase === v.phase;",
+    "to": "    var 秘密が追いついた = true;",
+    "expect": "新しい秘密が届く前に、前の試合の祝い・幕が出ない"
+  },
+  {
+    "name": "60-F2 つぎつぎ：勝者なしの時間切れでも祝う（順位表の同率1位に落ちる）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "      if(r.variant === 'quizlist' && !名) return null;",
+    "to": "",
+    "expect": "勝った人がいないので祝わない"
+  },
+  {
+    "name": "60-F3 ロシアンカードの大画面：時間切れも「ばくだんをめくった」と言う",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "      var 時間切れ = 踏んだ && !!v.last.timeout;",
+    "to": "      var 時間切れ = false;",
+    "expect": "時間切れの人の行"
   }
 ]

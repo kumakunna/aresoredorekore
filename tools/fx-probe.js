@@ -16,6 +16,8 @@
 //   node tools/fx-probe.js bomb coop --reversed
 //                                           # 秘密が先・部屋の知らせが後（落とし穴18の順）
 //   node tools/fx-probe.js bomb coop --late # 解除中を一度も見ずに決着だけ届く
+//   node tools/fx-probe.js bomb coop --skip    # スキップ（演出を出さず結果だけ）
+//   node tools/fx-probe.js bomb coop --noflash # 光の点滅を切っている人（burst は出るのが正しい）
 //
 //   node tools/fx-probe.js falsetrue true    # 中身が TRUE の回（緑の光＋「生存」）
 //   node tools/fx-probe.js falsetrue false   # 中身が FALSE の回（赤の光。**脱落は静かに**）
@@ -51,6 +53,8 @@ const BIG = opt('big');
 const REVERSED = opt('reversed');
 const LATE = opt('late');
 const SKIP = opt('skip');
+// 第59弾：光の点滅を切っている人にも burst が出るかを、bomb で見る
+const NOFLASH = opt('noflash');
 // 指示55：**大画面の中身も見る。**演出の数だけだと「画面が空でも0は0」で見分けられない
 const DUMP = opt('dump');
 
@@ -327,7 +331,11 @@ async function mainFalsetrue() {
 }
 
 async function mainBomb() {
-  const { win, doc, errors } = await launch({ fakeSocket: true });
+  const launchOpt = { fakeSocket: true, fxSkip: SKIP };
+  // 第59弾：opts.storage は fxSkip と同じ仕組み（保存された設定を先に置くだけ）。
+  // SKIP と同時には使わない（同じキー acac-app-prefs を取り合う）
+  if (NOFLASH) launchOpt.storage = { 'acac-app-prefs': JSON.stringify({ fxFlash: false }) };
+  const { win, doc, errors } = await launch(launchOpt);
   await waitScreen(win, doc, 'scr-shelf', 8000);
   await openCassette(win, doc, 'bakudan');
   click(doc, doc.querySelector('#wayChoices [data-way="room"]'));

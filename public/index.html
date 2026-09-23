@@ -787,6 +787,47 @@
   /* スキップにしている人には「タップでとばす」を出さない（もう出ていない） */
   :root.fx-skip .fx-banner-skip{display:none;}
 
+  /* --- 第59弾：大きな絵文字が、大きさだけで伝える（点滅ではない） ---
+     光ではなく拡大縮小だけなので、光の点滅を切っている人にも同じように出す
+     （FxKit.burst は cfg.can.flash を通さない） */
+  .fx-burst{
+    position:fixed;inset:0;z-index:89;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .fx-burst-icon{
+    font-size:min(42vw,230px);line-height:1;
+    /* 曲線は正本4の3つから（門A4）。大きさの変化そのものはキーフレームが持つので、
+       ここで跳ねの曲線まで重ねない（bomb-boom と同じ、切り替えの1本） */
+    animation:fxBurst calc(0.8s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;
+  }
+  @keyframes fxBurst{
+    0%{transform:scale(.3);opacity:0;}
+    22%{transform:scale(1.18);opacity:1;}
+    46%{transform:scale(.9);}
+    72%{transform:scale(1.08);}
+    100%{transform:scale(1);}
+  }
+
+  /* --- 第59弾：上から一気に落ちて、少し跳ねて止まる帯 ---
+     中身は .fx-banner と同じ（icon/text/sub/skip案内）。違うのは出方だけ。
+     2クラス・3クラスの組み合わせにしているのは、CSSの並び順に頼らないため
+     （落とし穴23：あとから書いた側が勝つとは限らず、勝敗は詳細度で決まる） */
+  .fx-banner.fx-shutter{
+    /* 曲線は正本4の3つから（門A4）。見せ場の跳ね（強め）を使う */
+    animation:fxShutterIn calc(0.5s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) forwards;
+  }
+  .fx-banner.fx-shutter.fx-out{
+    animation:fxBannerOut calc(0.14s * var(--fx-scale)) ease-in forwards;
+  }
+  @keyframes fxShutterIn{
+    0%{transform:translateY(-120%);}
+    60%{transform:translateY(3%);}
+    80%{transform:translateY(-1.5%);}
+    100%{transform:translateY(0);}
+  }
+  /* 大画面は離れた席から読むので、落ちてくる結果の文字を大きく（正本§11-5） */
+  :root.big-screen .fx-shutter .fx-banner-text{font-size:min(9vw,140px);}
+
   /* --- カードをめくる --- */
   .fx-flip-a{animation:fxFlipA calc(0.15s * var(--fx-scale)) ease-in forwards;backface-visibility:hidden;}
   .fx-flip-b{animation:fxFlipB calc(0.15s * var(--fx-scale)) ease-out forwards;backface-visibility:hidden;}
@@ -5060,6 +5101,8 @@
         <div id="bombTierRows"></div>
         <button class="btn btn-outline" id="bombAutoFillBtn" style="width:100%;margin-top:10px;">🎲 残りを自動で決める</button>
         <div class="mic-status" id="bombSumStatus" style="margin-top:8px;"></div>
+        <!-- 指示59：むり・なにそれの入口へ1タップ。値は appPrefs.tierExtra 等の1か所のまま -->
+        <button class="btn btn-outline" id="bombTierEntryBtn" style="width:100%;margin-top:10px;"></button>
       </div>
       <!-- 第28弾-1：「コードの見せ方」の設定は無くした。
            難易度別に整列させると盤面がグラデーションに見え、
@@ -5224,6 +5267,8 @@
         <div class="tp-label">難易度</div>
         <div class="seg" id="qkTierSeg"></div>
         <div class="mic-status" id="qkTierNote" style="margin-top:8px;"></div>
+        <!-- 指示59：むり・なにそれの入口へ1タップ -->
+        <button class="btn btn-outline" id="qkTierEntryBtn" style="width:100%;margin-top:10px;"></button>
       </div>
 
       <div class="mic-status" style="margin-top:18px;">
@@ -5436,6 +5481,8 @@
         <div>ごちゃまぜ<div class="mic-status">難易度を無視して全部から均等に出す</div></div>
         <div class="switch" id="topicMixToggle"></div>
       </div>
+      <!-- 指示59：むり・なにそれの入口へ1タップ -->
+      <button class="btn btn-outline" id="diffTierEntryBtn" style="width:100%;margin-top:14px;"></button>
     </div>
     <div class="wiz-foot">
       <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
@@ -13117,6 +13164,7 @@
       el('qkTierNote').textContent = cur
         ? 'この難易度の問題だけが出ます'
         : 'いろいろな難易度のお題から出ます';
+      renderTierEntryBtn('qkTierEntryBtn');
     }
   }
   el('qkPassSlider').addEventListener('input', function(){
@@ -13456,6 +13504,7 @@
     el('topicMixToggle').classList.toggle('on', state.topicMix);
     el('difficultyChips').style.opacity = state.topicMix ? '0.4' : '1';
     el('difficultyChips').style.pointerEvents = state.topicMix ? 'none' : 'auto';
+    renderTierEntryBtn('diffTierEntryBtn');
   }
   el('difficultyChips').addEventListener('click', function(e){
     var chip = e.target.closest('.hp-chip');
@@ -13655,6 +13704,7 @@
       '</div>';
     }).join('');
     el('bombSumStatus').textContent = '合計 ' + bombSum() + ' / ' + state.bombMax + '本';
+    renderTierEntryBtn('bombTierEntryBtn');
   }
   // 指示58：本数の合計は、許された層の行だけで数える（隠れた層は fitBombCounts で0になっている）
   function bombSum(){
@@ -19534,16 +19584,15 @@
   // 段階の変わり目から、コールアウト・揺れ・紙吹雪を出す。
   // あとから見始めた端末（入り直し）には出さない（rtPlayFx と同じ考え）
   /**
-   * 大画面の爆発（第47弾 47-6）。**赤い閃光 → 暗転 → 「爆発」**。
+   * 大画面の爆発（第47弾 47-6・第59弾で中身を差し替え）。
    *
-   * 閃光（`.bomb-boom`）は中心が明るく外周が暗い光なので、引いた後がそのまま暗転になる。
-   * その上に、既存のコールアウトと同じ流儀で1語を出す。
-   * **英語にしない**——DEFUSED / CRITICAL は英語だが、`.fx-callout` の書体は
-   * 日本語も持っている（'Zen Maru Gothic'）。ここは遊ぶ人に一番伝わる語を選ぶ。
+   * **手渡し・部屋（`bombBoomFx`）と同じ部品（`bombBoomSequence`）を、そのまま大きく呼ぶ**
+   * だけ（大切なこと9・落とし穴1）。それまではここだけ「暗転 → 英単語」の別演出を持っていて、
+   * 3面で見た目がそろっていなかった。大画面には個人への一言（sub）は付けない
    */
   function bigBoomCallout(){
     FxKit.shake('big');
-    FxKit.boom().then(function(){ FxKit.callout('爆発', { kind:'danger', ms:900 }); });
+    bombBoomSequence({});
   }
   function rtBigFx(v, game){
     if(typeof FxKit === 'undefined' || !v) return;
@@ -19652,8 +19701,10 @@
           FxKit.callout('DEFUSED', { kind:'gold' });
           FxKit.confetti(['#f0a13a', '#f0c44a', '#e2584a']);
         } else {
+          // 第59弾：**同じ「爆発」なので、見た目も同じ部品にそろえる**（落とし穴1）。
+          // それまでは `FxKit.boom()` の赤い閃光だけで、文字が無かった
           FxKit.shake('big');
-          FxKit.boom();
+          bombBoomSequence({});
         }
       });
       // のこりミス1。数えなくても、もう後がないと全員に伝わる
@@ -25552,6 +25603,22 @@
         sub: sub || '全部のコードを止めました', ms:900 });
     });
   }
+  /**
+   * 爆発の演出そのもの（第59弾）。**💥が大きさだけで伝わり → 「爆発しました」が
+   * シャッターのように落ちて止まる**、その順番をここ1本に集める。
+   *
+   * `bombBoomFx`（手渡し・部屋）と `bigBoomCallout`（大画面）の**どちらもこれを呼ぶ**——
+   * 「burst→shutter」の順を2か所に手書きすると、片方だけ直す日が来る（落とし穴1）。
+   * 大画面かどうかで文言を変える必要は無い（3面とも同じ言葉・同じ順番）。
+   * `opt.sub` は呼ぶ側が決める（手渡し・部屋は個人への一言、大画面は付けない）
+   */
+  function bombBoomSequence(opt){
+    if(typeof FxKit === 'undefined') return Promise.resolve();
+    opt = opt || {};
+    return FxKit.burst('💥').then(function(){
+      return FxKit.shutter({ kind:'gray', text:'爆発しました', sub:opt.sub, ms:900 });
+    });
+  }
   // 第32弾-C：爆発は赤ではっきり出す。
   // ただし「責める」のではなく「爆弾が爆発した」ことを出す演出にする。
   // 誰かの失敗を囃し立てるのではないので、赤は0.5秒で引き、
@@ -25562,23 +25629,7 @@
     // スマホの画面の揺れは、1試合に一度きりのこの瞬間だけに限定する（安全基準）
     doVibrate([220, 90, 220]);
     FxKit.shake('big');
-    /**
-     * 第52弾 52-6：**閃光が終わってから、結果の文字を出す**（本人の実機フィードバック）。
-     *
-     * ここは `FxKit.boom()` を待たずにバナーを出していたので、
-     * **光っている最中に「爆発」の文字が重なって**出ていた。
-     * 大画面（`bigBoomCallout`・第47弾 47-6）は最初から
-     * `boom().then(callout)` と正しい順で書いてあったのに、
-     * **共通部品のこちらだけが古いまま**だった（落とし穴1）。
-     *
-     * 新しい仕組みは作らない——`FxKit.boom()` はもともと `hold(700)` を返すので、
-     * `.then` でつなぐだけでよい。スキップ設定では `hold` が 0ms で返るので、
-     * その人には**すぐ結果が出る**（大切なこと7「すべての演出はスキップできる」）
-     */
-    return FxKit.boom().then(function(){
-      return FxKit.banner({ kind:'gray', icon:'💥', text:'爆発',
-        sub: sub || 'つぎは、もう少しだけ慎重に', ms:900 });
-    });
+    return bombBoomSequence({ sub: sub || 'つぎは、もう少しだけ慎重に' });
   }
   function defuseComplete(){
     var gen = playGen;   // 第36弾 36-3
@@ -28032,6 +28083,55 @@
     el('settingsOverlay').classList.add('show');
   }
 
+  // ===================== 指示59：難易度の画面から、むり・なにそれの入口へ =====================
+  /**
+   * クイズ解除（コードの配分）・つぎつぎ系（難易度）・あれそれ（お題の難易度）の
+   * 3つの画面が共有する、入口の行の文言（大切なこと6「大画面には出さない」ではなく、
+   * ここは指示58の設定そのものへの1タップの入口）。
+   * 値は appPrefs.tierExtra 等の1か所のまま——ここは文言を組み立てるだけ
+   */
+  function tierEntryText(){
+    if(!appPrefs.tierExtra) return UiText.TIERS.入口行;
+    var 絵 = Object.keys(TIER_PREF_KEY).filter(function(t){ return appPrefs[TIER_PREF_KEY[t]]; })
+      .map(function(t){
+        var row = BOMB_TIERS.find(function(b){ return b.id === t; });
+        return row ? (row.label.match(/^\S+/) || [''])[0] : '';
+      }).join('');
+    return 絵 ? UiText.TIERS.入口行ON(絵) : UiText.TIERS.入口行;
+  }
+  // 部屋ではホストの画面にだけ出す（ゲストは変えられない。58のまま）
+  function tierEntryHidden(){ return inRoomNow() && !(rt && rt.isHost()); }
+  function renderTierEntryBtn(id){
+    var b = el(id);
+    if(!b) return;
+    b.style.display = tierEntryHidden() ? 'none' : '';
+    b.textContent = tierEntryText();
+  }
+  /** 指示58の tiers ページを、その場（difficultyの奥）を経由せずに直接開く */
+  function openTiersQuick(){
+    // ここはまだ遊び始めていない（設定ウィザードの途中）。手渡し・部屋どちらも
+    // 「まだ遊んでいない」扱いでよい——floatingGearBtn の 'play' はゲーム中専用
+    setOpenedFrom = 'shelf';
+    var 先 = (setContext() === 'shelf') ? 'app' : 'root';
+    setStack = [先, 'tiers'];
+    goSetPage('tiers', false);
+    el('settingsOverlay').classList.add('show');
+  }
+  ['bombTierEntryBtn', 'qkTierEntryBtn', 'diffTierEntryBtn'].forEach(function(id){
+    var b = el(id);
+    if(b) b.addEventListener('click', openTiersQuick);
+  });
+  /**
+   * 設定を閉じた時、開いたままの難易度の画面をその場で描き直す。
+   * **経路（3つのボタンのどれで開いたか）は覚えない**——閉じた時に「いま出ている画面」を見て
+   * 決めるので、素通しの経路も無い（型2：境界をまたぐ状態は、開いた場所ではなく閉じた場所で決める）
+   */
+  function refreshTierScreens(){
+    if(el('scr-set-bomb').classList.contains('active')) renderBombSection();
+    if(el('scr-set-quiz').classList.contains('active')) renderQuizStep();
+    if(el('scr-set-difficulty').classList.contains('active')) renderDifficultyStep();
+  }
+
   // ---------- 1：ゲーム終了（ゲーム共通） ----------
   // 第43弾：行はデータから描かれるので、id ではなく動きの名前で呼ばれる。
   // 押された行そのものは、まとめ役（runSetAction）から渡ってくる
@@ -28387,6 +28487,8 @@
   // 設定を閉じる唯一の入口。どの経路で閉じても、止めた時間が戻るようにする
   function closeSettings(){
     el('settingsOverlay').classList.remove('show');
+    // 指示59：難易度の画面を出したまま tiers を開いていたら、その場で描き直す
+    refreshTierScreens();
     if(!pausedForSettings) return;
     pausedForSettings = false;
     if(el('scr-play').classList.contains('active') && !play.running && state.timerEnabled){

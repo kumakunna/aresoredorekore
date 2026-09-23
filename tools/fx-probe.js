@@ -7,7 +7,7 @@
 // 止まるので嘘をつく（落とし穴28）。
 // この道具は jsdom の上で **本物の進行役（*-room.js）を動かし、
 // 本物の publicView / privateFor を本物の画面へ流して**、
-// 出ている最中に `.bomb-boom` などを数える（落とし穴25・落とし穴10-g）。
+// 出ている最中に `.fx-burst` などを数える（落とし穴25・落とし穴10-g）。
 //
 // ── 使い方 ────────────────────────────────────────
 //   node tools/fx-probe.js bomb coop        # 協力版のライフ0
@@ -395,8 +395,10 @@ async function mainBomb() {
   const count = (tag) => rows.push({
     tag,
     画面: activeScreen(doc),
-    爆発: doc.querySelectorAll('.bomb-boom').length,
+    // 第59弾：爆発の閃光は `.bomb-boom` から `.fx-burst`（💥の拡大縮小）に差し替わった
+    爆発: doc.querySelectorAll('.fx-burst').length,
     帯: doc.querySelectorAll('.fx-banner').length,
+    帯の字: (doc.querySelector('.fx-banner .fx-banner-text') || { textContent: '' }).textContent.trim() || '-',
     コールアウト: (doc.querySelector('.fx-callout') || { textContent: '' }).textContent.trim() || '-',
     紙吹雪: doc.querySelectorAll('.fx-confetti').length,
     揺れ: doc.querySelectorAll('.fx-shake-big,.fx-shake').length,

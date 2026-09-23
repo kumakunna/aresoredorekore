@@ -1,0 +1,18 @@
+[
+  {
+    "name": "59-A 爆発の順番から shutter を落とす（部品を呼ばない）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    return FxKit.burst('💥').then(function(){\n      return FxKit.shutter({ kind:'gray', text:'爆発しました', sub:opt.sub, ms:900 });\n    });",
+    "to": "    return FxKit.burst('💥');",
+    "expect": "結果の文字が実際に出た"
+  },
+  {
+    "name": "59-B 爆発の順番を逆にする（shutter → burst）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "    return FxKit.burst('💥').then(function(){\n      return FxKit.shutter({ kind:'gray', text:'爆発しました', sub:opt.sub, ms:900 });\n    });",
+    "to": "    return FxKit.shutter({ kind:'gray', text:'爆発しました', sub:opt.sub, ms:900 }).then(function(){\n      return FxKit.burst('💥');\n    });",
+    "expect": "文字は、演出より"
+  }
+]

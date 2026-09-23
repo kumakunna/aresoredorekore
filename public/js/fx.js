@@ -265,6 +265,13 @@
   /** いま舞台に何が乗っているか（検査用） */
   function stageState() { return { 走っている: 舞台.走っている, 待ち: 舞台.待ち.length }; }
 
+  /** banner と shutter が共有する中身（icon/text/sub/skip案内）の組み立て（第59弾） */
+  function bannerInnerHtml(opt) {
+    return (opt.icon ? '<div class="fx-banner-icon">' + opt.icon + '</div>' : '') +
+      '<div class="fx-banner-text">' + esc(opt.text || '') + '</div>' +
+      (opt.sub ? '<div class="fx-banner-sub">' + esc(opt.sub) + '</div>' : '') +
+      '<div class="fx-banner-skip">タップでとばす</div>';
+  }
   function banner(opt) {
     return stage(function () { return bannerNow(opt); }, opt);
   }
@@ -275,15 +282,57 @@
     var kind = opt.kind || 'good';
     var n = mk('fx-banner fx-banner-' + kind);
     if (!n) return Promise.resolve(true);
-    n.innerHTML =
-      (opt.icon ? '<div class="fx-banner-icon">' + opt.icon + '</div>' : '') +
-      '<div class="fx-banner-text">' + esc(opt.text || '') + '</div>' +
-      (opt.sub ? '<div class="fx-banner-sub">' + esc(opt.sub) + '</div>' : '') +
-      '<div class="fx-banner-skip">タップでとばす</div>';
+    n.innerHTML = bannerInnerHtml(opt);
     h.appendChild(n);
     if (kind === 'gold' || kind === 'good') { play('big'); vibe('ok'); }
     else if (kind === 'gray') { play('bad'); }
     // 出てすぐ消えないよう、入りの分だけは必ず見せる
+    return hold(opt.ms == null ? 800 : opt.ms).then(function (skipped) {
+      n.classList.add('fx-out');
+      return hold(120).then(function () {
+        if (n.parentNode) n.parentNode.removeChild(n);
+        return skipped;
+      });
+    });
+  }
+
+  /**
+   * 大きな絵文字が、大きさだけで伝える（第59弾）。
+   * 「大きく→少し小さく→大きく」の拡大縮小だけで、点滅・明滅はしない。
+   * `flash`・`boom` と違って `cfg.can.flash` を通さない——
+   * 光ではなく大きさの変化なので、光の点滅を切っている人にも同じように出す（安全基準§6の対象外）
+   */
+  function burst(icon, ms) {
+    var h = layer();
+    if (!h) return Promise.resolve(true);
+    var n = mk('fx-burst', '<div class="fx-burst-icon">' + esc(icon || '💥') + '</div>');
+    if (!n) return Promise.resolve(true);
+    h.appendChild(n);
+    return hold(ms == null ? 800 : ms).then(function (skipped) {
+      if (n.parentNode) n.parentNode.removeChild(n);
+      return skipped;
+    });
+  }
+
+  /**
+   * 上から一気に落ちて、少し跳ねて止まる帯（第59弾）。
+   * 中身（icon/text/sub）は `banner` と同じ組み立てを使う——違うのは出方だけ
+   * （沸き出る vs 落ちてくる）。責める場面にも使うので、banner と違い kind:'bad' の縛りは無い
+   */
+  function shutter(opt) {
+    return stage(function () { return shutterNow(opt); }, opt);
+  }
+  function shutterNow(opt) {
+    opt = opt || {};
+    var h = layer();
+    if (!h) return Promise.resolve(true);
+    var kind = opt.kind || 'gray';
+    var n = mk('fx-banner fx-shutter fx-banner-' + kind);
+    if (!n) return Promise.resolve(true);
+    n.innerHTML = bannerInnerHtml(opt);
+    h.appendChild(n);
+    if (kind === 'gold' || kind === 'good') { play('big'); vibe('ok'); }
+    else if (kind === 'gray') { play('bad'); }
     return hold(opt.ms == null ? 800 : opt.ms).then(function (skipped) {
       n.classList.add('fx-out');
       return hold(120).then(function () {
@@ -803,7 +852,8 @@
 
   var api = {
     init: init, hold: hold, skipNow: skipNow, busy: busy,
-    flash: flash, boom: boom, dawn: dawn, banner: banner, flip: flip, countUp: countUp,
+    flash: flash, boom: boom, dawn: dawn, banner: banner, burst: burst, shutter: shutter,
+    flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,
     shake: shake, edge: edge, confetti: confetti, callout: callout, vibe: vibe,
     countdown: countdown,

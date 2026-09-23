@@ -550,7 +550,9 @@ function startQuiz(game, cfg) {
     'public/index.html#quizChoices:click': { 種類: '点', 理由: '答えたあとに点を数えるだけ' },
     'public/index.html#resolveAuctionRound': { 種類: '点', 理由: '答えたあとに倍率を掛けるだけ' },
     'public/index.html#sugoMiniBegin': { 種類: 'ふつう固定', 理由: 'すごろくのミニクイズ' },
-    'sugoroku-room.js#startPlay': { 種類: 'ふつう固定', 理由: 'すごろくのミニクイズ（部屋）' }
+    'sugoroku-room.js#startPlay': { 種類: 'ふつう固定', 理由: 'すごろくのミニクイズ（部屋）' },
+    'public/index.html#tierEntryText': { 種類: '映すだけ',
+      理由: '指示59：難易度の画面の入口の行。ONの子の絵文字だけを添える（層を選ぶのではなく、appPrefs で既に決まっている子を読むだけ）' }
   };
   // 一度も当たらなくてよい語（入口のファイルには出てこないが、出てきたら見たい語）。両方向で照らす
   const 見張るだけ = ['QuizBank.TIERS', 'BombLogic.TIERS', 'QUESTIONS', 'LIST_TOPICS', 'questionsOf'];

@@ -397,7 +397,10 @@ function click(doc, sel) {
       { cls: 'fx-dawn', go: () => win.FxKit.dawn() },
       // 指示55：画面の縁を全周ひとまわり（正本 §11-5）。大画面だからできる知らせ
       { cls: 'fx-edge', go: () => win.FxKit.edge('danger') },
-      { cls: 'fx-fly', go: () => win.FxKit.fly(app, app, '●') }
+      { cls: 'fx-fly', go: () => win.FxKit.fly(app, app, '●') },
+      // 第59弾：爆発は「burst（大きさだけの絵文字）→ shutter（落ちてくる帯）」
+      { cls: 'fx-burst', go: () => win.FxKit.burst('💥', 300) },
+      { cls: 'fx-shutter', go: () => win.FxKit.shutter({ text: 'たしかめ', ms: 300 }) }
     ];
     const 外れ = [];
     出す.forEach((x) => {
@@ -445,6 +448,14 @@ function click(doc, sel) {
       '光の点滅を切っていると、爆発の閃光そのものを作らない');
     assert(/:root\.no-flash\s+\.bomb-boom/.test(css),
       'CSS側の二重の守りも、:root から書かれている');
+    // ⑤ 第59弾：burst は光ではなく大きさの変化なので、逆に**この門を通らない**。
+    //    切っていても同じように出ることを確かめる（できなければ「拡大縮小だけ」の意味が無い）。
+    //    ②の出す.forEach がすでに1つ 'fx-burst' を出しているので、**差分**で見る
+    //    （まだ片付いていない前回分と紛れると、絶対値の比較は嘘をつく）
+    const burst前 = doc.querySelectorAll('.fx-burst').length;
+    win.FxKit.burst('💥', 300);
+    assertEqual(doc.querySelectorAll('.fx-burst').length, burst前 + 1,
+      '光の点滅を切っていても、burst（拡大縮小）は出る');
     win.close();
   });
 

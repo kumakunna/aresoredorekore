@@ -64,14 +64,14 @@
    * 部屋の進行はサーバーが持つので、ここで枠に収めておかないと
    * 「コード1000本」のような設定でサーバーが苦しむ。
    */
-  function normalizeConfig(cfg, allowed) {
+  function normalizeConfig(cfg, allowed, capOf) {
     var c = cfg || {};
     var mode = (c.mode === MODE.RACE) ? MODE.RACE : MODE.COOP;
     var counts = {};
     var total = 0;
     // 指示58：許された層の外の本数は、許された一番上の層へ移してから数える。
     // allowed を渡さない呼び手（ルール層の検査）には、今までどおり何もしない
-    var asked = Array.isArray(allowed) ? fitCounts(c.counts, allowed).counts : (c.counts || {});
+    var asked = Array.isArray(allowed) ? fitCounts(c.counts, allowed, capOf).counts : (c.counts || {});
     TIERS.forEach(function (t) {
       var n = clampInt(asked[t], 0, MAX_WIRES, 0);
       // 合計が上限を超えたら、後ろの難易度から削る（前の難易度の希望を優先する）
@@ -106,24 +106,34 @@
    * （外したのは難しい方なので、いちばん近い所へ寄せる）。
    *
    * 手渡し（index.html）と部屋（bomb-room.js）が**この1つを通る**（落とし穴1）。
-   * 層の一覧は QuizBank.allowedTiers() の結果を受け取る——ここでは決めない
+   * 層の一覧は QuizBank.allowedTiers() の結果を受け取る——ここでは決めない。
    *
-   * @returns {{counts:object, moved:number}} moved は移した本数（知らせるかの判断に使う）
+   * capOf（層→その層の問題数。QuizBank.countOf）を渡すと、行き先の問題が足りない時は
+   * **次にやさしい層へ回す**（問題の数より多く頼むと、引く時に黙って本数が減るため）。
+   * 回しきれなかった本数は lost で返す（知らせるため。黙って減らさない）
+   *
+   * @returns {{counts:object, moved:number, lost:number}}
    */
-  function fitCounts(counts, allowed) {
+  function fitCounts(counts, allowed, capOf) {
     if (!Array.isArray(allowed) || !allowed.length) {
       throw new Error('fitCounts：許された層（QuizBank.allowedTiers の結果）が要ります');
     }
-    var top = null;
-    TIERS.forEach(function (t) { if (allowed.indexOf(t) !== -1) top = t; });
     var out = {};
     var moved = 0;
     TIERS.forEach(function (t) {
       var n = Math.max(0, parseInt((counts || {})[t], 10) || 0);
       if (allowed.indexOf(t) === -1) { out[t] = 0; moved += n; } else out[t] = n;
     });
-    if (top) out[top] += moved;
-    return { counts: out, moved: moved };
+    // 行き先：許された層を、難しい方から
+    var left = moved;
+    TIERS.filter(function (t) { return allowed.indexOf(t) !== -1; }).reverse().forEach(function (t) {
+      if (!left) return;
+      var room = (typeof capOf === 'function') ? Math.max(0, capOf(t) - out[t]) : left;
+      var add = Math.min(room, left);
+      out[t] += add;
+      left -= add;
+    });
+    return { counts: out, moved: moved, lost: left };
   }
 
   /**

@@ -112,7 +112,7 @@ function startGame(room, config, ctx) {
   // その外の本数は許された一番上の層へ寄せる。送られてこなければ3層（落とし穴14：
   // 端末で隠しただけにしない）
   const allowed = QuizBank.allowedTiers(config && config.tierMix);
-  const cfg = BombLogic.normalizeConfig(config, allowed);
+  const cfg = BombLogic.normalizeConfig(config, allowed, QuizBank.countOf);
   const rnd = (config && config.rnd) || null;
   // 第32弾-A-3-6：問題バンクから作る。AIは呼ばないので、
   // 「説明文ができるまで待つ」段階そのものが無くなった
@@ -129,6 +129,8 @@ function startGame(room, config, ctx) {
     preset: cfg.preset,
     // 第45弾 45-4：協力版で「だれが外したか」を出すか（進行役の設定・既定OFF）
     showMisses: cfg.showMisses,
+    // 指示58：この試合で許された層（進行役の設定）。設定の画面に「いまこの部屋で出るもの」として出す
+    allowedTiers: allowed.slice(),
 
     playerIds: ids,
     names: {},
@@ -284,6 +286,7 @@ function publicView(room) {
   const view = {
     phase: w.phase,
     mode: w.mode,
+    allowedTiers: w.allowedTiers.slice(),   // 指示58：秘密ではない（どの層を許したか）
     /**
      * 指示55・正本 §11-2：**レイアウトの分岐は「モードの性質」で持つ。**
      *

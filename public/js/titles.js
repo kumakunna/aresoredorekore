@@ -310,7 +310,8 @@
         need: function (s) { return s('quizou', 'buzzerWins') >= 1; } },
       { id: 'icon-quiz-muri', cassette: 'quizou', emoji: '🧠', label: '難問撃破の証',
         // 指示58 2-4：むりなんだが は既定で出ない。条件は変えずに、取り方を一言そえる
-        hint: '「むりなんだが」の問題を正解する（設定で「マニアックな問題」をまぜると、ねらえます）',
+        // クイズ王カセットは部屋で遊ぶので、効くのは進行役の設定
+        hint: '「むりなんだが」の問題を正解する（進行役が設定で「マニアックな問題」をまぜると、ねらえます）',
         need: function (s) { return s('quizou', 'muriHits') >= 1; } },
 
       // ---- 指示53：False or True ----

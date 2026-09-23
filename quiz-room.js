@@ -353,8 +353,10 @@ function revealNextQuestion(room) {
   if (rv.index >= rv.total) { finish(room, { cause: 'allQuestions' }); return; }
   // 指示58：問題は始める時にまとめて引いてある。途中で設定が変わって
   // その層が許されなくなっていたら、**出す直前に**引き直す（まだ誰にも見えていない問題だけ）
+  // 照らすのは「許されているか」ではなく「いまの難易度と同じか」——OFF で ふつう に戻したあと
+  // ON に戻しても、難易度は ふつう のまま。許可だけ見ると、先に引いた むり がまた出てしまう
   const next = rv.questions[rv.index];
-  if (next && QuizLogic.tiersFor(V.REVEAL, w.cfg.allowedTiers).indexOf(next.tier) === -1) {
+  if (next && next.tier !== w.cfg.tier) {
     rv.questions[rv.index] = drawQuestion(w, w.cfg.tier) || next;
   }
   rv.askedAt = Date.now();
@@ -450,8 +452,9 @@ function publicView(room) {
     variant: w.variant,
     timerSec: w.cfg.timerSec,
     remainingMs: remainingMs(w),
-    // 指示58：この部屋で許された層（進行役の設定）。ルール文の「◯段階・◯〜◯点」を
-    // 参加者の端末でも同じに作るため。どの層を許したかは秘密ではない
+    // 指示58：この部屋でいま許されている層（進行役の設定）。設定の「マニアックな問題」の画面に
+    // 「いまこの部屋で出るもの」として出す（進行役が交代した後も、効いているものが見える）。
+    // どの層を許したかは秘密ではない
     allowedTiers: w.cfg.allowedTiers.slice(),
     players: w.playerIds.map((id) => {
       const m = room.members.get(id);
@@ -655,6 +658,16 @@ function submitActionInner(room, memberId, targetId) {
   return { ok: false, error: 'no_action' };
 }
 
+/**
+ * 指示58 2-3：挑んでいた層が、途中で許されなくなった席の後始末。
+ * **今出ている問題は取り消さない**——s.tier は問題が画面にある間は残し（層名・点の札もそのまま）、
+ * その問題が片付いた時（答えた・選び直した）に空ける。canChangeTier の固定も、ここでほどける。
+ * 問題が出ていない席は、進行役が変えた瞬間に空ける（updateOptions）
+ */
+function releaseStaleTier(w, s) {
+  if (s.tier && QuizLogic.tiersFor(V.RUSH, w.cfg.allowedTiers).indexOf(s.tier) === -1) s.tier = null;
+}
+
 function rushAction(w, memberId, targetId) {
   const s = w.rush.seats[memberId];
   if (!s) return { ok: false, error: 'not_expected' };
@@ -662,8 +675,9 @@ function rushAction(w, memberId, targetId) {
   if (targetId === 'pass') {
     if (!s.q) return { ok: false, error: 'nothing_open' };
     if (s.passesLeft <= 0) return { ok: false, error: 'no_pass_left' };
-    // 指示58：途中で設定が変わって、挑んでいた層が選べなくなった席（s.tier が null）。
-    // パスを1回使わせずに、難易度を選ぶ画面へもどす（同じ層では引き直せない）
+    // 指示58：途中で設定が変わって、挑んでいた層が選べなくなった席。
+    // 同じ層では引き直せないので、パスを1回使わせずに、難易度を選ぶ画面へもどす
+    releaseStaleTier(w, s);
     if (!s.tier) { s.q = null; s.last = null; return { ok: true, allDone: false }; }
     s.passesLeft--;
     s.q = drawQuestion(w, s.tier);
@@ -681,6 +695,7 @@ function rushAction(w, memberId, targetId) {
   if (Date.now() < (s.coolUntil || 0)) {
     return { ok: false, error: 'cooling', message: 'おてつき中です。少し待ってください' };
   }
+  releaseStaleTier(w, s);   // 指示58：許されなくなった層に固定されたままにしない
   if (s.tier && !w.cfg.canChangeTier && s.tier !== targetId) {
     return { ok: false, error: 'tier_locked' };
   }
@@ -780,6 +795,7 @@ function rushAnswer(w, memberId, targetId) {
   // 「じっくり低い点を重ねるか、一気に高い点を狙うか」を毎問選び直させる。
   // パスの時だけは、同じ難易度のまま次の問題が出る（rushAction 側）
   s.q = null;
+  releaseStaleTier(w, s);   // 指示58：出ていた問題が片付いたので、許されなくなった層を空ける
   return { ok: true, correct: judged.correct, allDone: false };
 }
 
@@ -1038,11 +1054,12 @@ function isAllDone(room) {
  * 指示58 2-3：**試合の途中で、進行役が「マニアックな問題」の設定を変えた。**
  *
  * 次の問題から効く——いま画面に出ている問題は取り消さない。
- *   ・ラッシュ：挑んでいた層が選べなくなった席は、難易度を選び直す（s.tier だけ空ける。
- *     出ている s.q はそのまま。`canChangeTier:false` の固定もここで外れる）
+ *   ・ラッシュ：挑んでいた層が選べなくなった席は、難易度を選び直す。
+ *     問題が出ている席は、その問題を答えるまで s.tier も残す（画面から問題を消さない）。
+ *     片付いた時に releaseStaleTier が空ける。`canChangeTier:false` の固定もそこでほどける
  *   ・とくとく・早押し：難易度を「おまかせ」（fitTier）へ戻す。次の1問から効く
- *     （とくとくはまとめて引いた問題を、出す直前に照らし直す＝revealNextQuestion）
- *   ・つぎつぎ：1試合に1お題なので、次の試合から
+ *     （とくとくはまとめて引いた問題を、出す直前に「いまの難易度か」で照らし直す＝revealNextQuestion）
+ *   ・つぎつぎ：1試合に1お題でもう出ているので、not_supported（次の試合から効く）
  *
  * 層の意味はこの中だけで扱う。realtime.js は運ぶだけ（落とし穴22）
  */
@@ -1051,6 +1068,8 @@ function updateOptions(room, payload) {
   if (!w) return { ok: false, error: 'not_started' };
   const p = payload || {};
   if (!p.tierMix || typeof p.tierMix !== 'object') return { ok: false, error: 'bad_options' };
+  // つぎつぎは1試合に1お題で、もう出ている。変えても何も起きないのに ok を返さない（落とし穴14）
+  if (w.variant === V.LIST) return { ok: false, error: 'not_supported' };
   const allowed = QuizBank.allowedTiers(p.tierMix);
   w.cfg.allowedTiers = allowed;
   let tierReset = null;
@@ -1059,10 +1078,10 @@ function updateOptions(room, payload) {
     if (fitted !== w.cfg.tier) tierReset = { from: w.cfg.tier, to: fitted };
     w.cfg.tier = fitted;
   } else {
-    const ok = QuizLogic.tiersFor(V.RUSH, allowed);
+    // 問題が出ている席は、その問題が片付くまで s.tier を残す（今出ている問題を画面から消さない）
     w.playerIds.forEach((id) => {
       const s = w.rush.seats[id];
-      if (s && s.tier && ok.indexOf(s.tier) === -1) s.tier = null;
+      if (s && !s.q) releaseStaleTier(w, s);
     });
   }
   return { ok: true, tierReset: tierReset };

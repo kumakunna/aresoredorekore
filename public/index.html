@@ -10564,6 +10564,9 @@
       return { topicDifficulties: state.topicDifficulties && state.topicDifficulties.slice(),
                topicMix: state.topicMix, bombCounts: Object.assign({}, state.bombCounts),
                bombLocked: Object.assign({}, state.bombLocked), qkTier: state.qkCfg.tier,
+               // 記録（X9）：アプリが読み込んだあとの、メモリの中の値
+               topicStats: JSON.parse(JSON.stringify(state.topicStats || {})),
+               topicHistory: JSON.parse(JSON.stringify(state.topicHistory || [])),
                prefs: { tierExtra: appPrefs.tierExtra, tierNanisore: appPrefs.tierNanisore, tierMuri: appPrefs.tierMuri } };
     },
     setup: function(o){
@@ -13660,17 +13663,20 @@
   /**
    * 指示58：許されていない層の本数を、許された一番上の層へ寄せる（合計は保つ）。
    * 寄せ方は BombLogic.fitCounts の1つ——部屋のサーバーも同じものを通る（落とし穴1）。
-   * 寄せた層は「手で決めた」印も外す（そうしないと「残りを自動で決める」から外れたまま残る）
-   * @returns 寄せた本数（知らせるかの判断に使う）
+   * 寄せた層は「手で決めた」印も外す（そうしないと「残りを自動で決める」から外れたまま残る）。
+   * 行き先の問題が足りない時は、次にやさしい層へ回す（QuizBank.countOf）
+   * @returns {moved, lost, to} 寄せた本数・回しきれずに減った本数・増えた層（知らせに使う）
    */
   function fitBombCounts(){
     var ok = allowedTiers();
-    var fit = BombLogic.fitCounts(state.bombCounts, ok);
+    var 前 = Object.assign({}, state.bombCounts);
+    var fit = BombLogic.fitCounts(state.bombCounts, ok, QuizBank.countOf);
     if(fit.moved){
       Object.keys(state.bombLocked).forEach(function(id){ if(ok.indexOf(id) < 0) state.bombLocked[id] = false; });
     }
     state.bombCounts = fit.counts;
-    return fit.moved;
+    fit.to = ok.filter(function(t){ return fit.counts[t] > (前[t] || 0); });
+    return fit;
   }
   el('bombLifeMinus').addEventListener('click', function(){
     if(state.bombLives > 1){ state.bombLives--; renderBombLifeStep(); }
@@ -14876,7 +14882,7 @@
       mode: race ? 'race' : 'coop',
       endWhen: race ? state.bombEndWhen : null,
       // 指示58：許された層の外の本数は寄せてから送る（サーバーも同じ fitCounts で門を持つ）
-      counts: BombLogic.fitCounts(state.bombCounts, allowedTiers()).counts,
+      counts: BombLogic.fitCounts(state.bombCounts, allowedTiers(), QuizBank.countOf).counts,
       lives: state.bombLives,
       // 第45弾 45-4：進行役の設定が、その試合の全員に効く（既定OFF）
       showMisses: !!state.bombShowMisses,
@@ -27898,8 +27904,17 @@
    */
   function renderSetTiers(){
     var 部屋の参加者 = inRoomNow() && !(rt && rt.isHost());
+    // 部屋で遊んでいる最中は、サーバーが配る「いま許されている層」を添える（進行役にも参加者にも）。
+    // 進行役が交代した後は、ここと自分のトグルが食い違うことがある——効いているものを隠さない（落とし穴21）
+    var v = inRoomNow() ? rtView() : null;
+    var 部屋のいま = (v && Array.isArray(v.allowedTiers)) ? v.allowedTiers.map(function(id){
+      var row = BOMB_TIERS.find(function(t){ return t.id === id; });
+      return row ? row.label.replace(/^\S+\s*/, '') : id;
+    }) : null;
     var html = '<div class="mic-status" style="margin-bottom:10px;">' + escapeHtml(UiText.TIERS.リード) +
-      (部屋の参加者 ? '<br>' + escapeHtml(UiText.TIERS.部屋では) : '') + '</div>';
+      (部屋の参加者 ? '<br>' + escapeHtml(UiText.TIERS.部屋では) : '') +
+      (部屋のいま ? '<br><b id="setTiersRoomNow">' + escapeHtml(UiText.TIERS.部屋のいま(部屋のいま)) + '</b>' : '') +
+      '</div>';
     html += tierToggleCard('tierExtra', UiText.TIERS.親, UiText.TIERS.親の補足, appPrefs.tierExtra, false);
     if(appPrefs.tierExtra){
       Object.keys(TIER_PREF_KEY).forEach(function(t){
@@ -27944,21 +27959,30 @@
    */
   function onTiersChanged(){
     var after = allowedTiers();
+    var 名 = function(id){
+      var row = BOMB_TIERS.find(function(t){ return t.id === id; });
+      return row ? row.label.replace(/^\S+\s*/, '') : id;   // 絵文字を落とす（文の中に入れるので）
+    };
     var 知らせ = [];
+    var 言う = function(t){ if(知らせ.indexOf(t) < 0) 知らせ.push(t); };
+    // あれそれ：全部消えたら「おまかせ」へ。一部だけ消えた時も黙らない（クイズ解除と同じく言う）
     if(state.topicDifficulties){
+      var 外れた = state.topicDifficulties.filter(function(t){ return after.indexOf(t) < 0; });
       var 残り = state.topicDifficulties.filter(function(t){ return after.indexOf(t) >= 0; });
       state.topicDifficulties = 残り.length ? 残り : null;
-      if(!残り.length) 知らせ.push(UiText.TIERS.おまかせに戻した);
+      if(!残り.length) 言う(UiText.TIERS.おまかせに戻した);
+      else if(外れた.length) 言う(UiText.TIERS.いまは出ない(外れた.map(名)));
     }
-    var 寄せた = fitBombCounts();
-    if(寄せた){
-      var rows = tierRows();
-      var 上 = rows[rows.length - 1];
-      知らせ.push(UiText.TIERS.本数を寄せた(寄せた, 上.label.replace(/^\S+\s*/, '')));
-    }
+    // クイズ解除：本数を寄せる（行き先が足りなければ、やさしい層へ回す）
+    var fit = fitBombCounts();
+    if(fit.moved - fit.lost > 0) 言う(UiText.TIERS.本数を寄せた(fit.moved - fit.lost, fit.to.map(名)));
+    if(fit.lost) 言う(UiText.TIERS.本数が減った(fit.lost));
+    // クイズ王：その遊びの戻り先の言い方で（つぎつぎは「おまかせ」、とくとく・早押しは「ふつう」）
     if(state.qkCfg.tier && after.indexOf(state.qkCfg.tier) < 0){
       state.qkCfg.tier = null;
-      if(知らせ.indexOf(UiText.TIERS.おまかせに戻した) < 0) 知らせ.push(UiText.TIERS.おまかせに戻した);
+      var m = modeById(state.selectedModeId) || {};
+      var 戻り先 = m.quizKing ? QuizLogic.fitTier(quizVariantOf(m), null, after) : null;
+      言う(戻り先 ? UiText.TIERS.戻した先(名(戻り先)) : UiText.TIERS.おまかせに戻した);
     }
     sendTierOptions();
     知らせ.forEach(function(t){ try{ FxKit.notice(t); }catch(e){} });

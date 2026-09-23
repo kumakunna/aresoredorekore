@@ -4029,7 +4029,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(/進行役の設定で問題が出ます/.test(el(doc, 'setTiersBody').textContent),
       '部屋では進行役の設定が効くと一言そえる（落とし穴21）');
     // 自分のトグルとは別に、**いまこの部屋で効いているもの**を出す（進行役が交代した後も食い違いが見える）
-    assert(el(doc, 'setTiersRoomNow'), '「いまこの部屋で出るもの」の行がある');
+    // el() は無いと投げるので、ここは getElementById で「無い」を自分の言葉で言う
+    assert(doc.getElementById('setTiersRoomNow'), '「いまこの部屋で出るもの」の行がある');
     assert(/むりなんだが/.test(el(doc, 'setTiersRoomNow').textContent) &&
       !/ナニソレシラナイ/.test(el(doc, 'setTiersRoomNow').textContent),
       'サーバーが配った層（むり だけ足した部屋）が、そのまま出る：' + el(doc, 'setTiersRoomNow').textContent);

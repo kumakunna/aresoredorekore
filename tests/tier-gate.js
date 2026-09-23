@@ -351,13 +351,21 @@ function startQuiz(game, cfg) {
     const { win, doc } = await launch();
     const P = win.tierProbe;
     P.render('bomb-coop');
+    let むずかしいの割合 = 0;
     for (let i = 0; i < 100; i++) {
       el(doc, 'bombAutoFillBtn').click();
       const c = P.peek().bombCounts;
       assertEqual(c.nanisore + c.muri, 0, (i + 1) + '回目：なにそれ・むりは0本');
+      むずかしいの割合 += c.hard / 30;
     }
     const c = P.peek().bombCounts;
     assertEqual(c.easy + c.normal + c.hard, 30, '合計は上限（30本）どおり');
+    // **振り分け先そのものが3層か**を、偏りで見る（変異 58-D で分かった）。
+    // 5層へ振ってから描き直しで寄せると、なにそれ・むりの分が むずかしい に積もり、
+    // 本数は0に見えるのに むずかしい が平均6割になる。3層へ振れば平均は3分の1
+    //（100回の平均のぶれは±0.03ほどなので、0.45 は両側から十分に離れている）
+    むずかしいの割合 /= 100;
+    assert(むずかしいの割合 < 0.45, '自動の振り分けで むずかしい に偏らない（平均 ' + むずかしいの割合.toFixed(2) + '）');
     win.close();
   });
 

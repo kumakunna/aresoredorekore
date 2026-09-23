@@ -29,7 +29,7 @@
     "suite": "tests/tier-gate.js",
     "from": "    var rows = tierRows();\n    var lockedSum = 0;",
     "to": "    var rows = BOMB_TIERS;\n    var lockedSum = 0;",
-    "expect": "回目：なにそれ・むりは0本"
+    "expect": "自動の振り分けで むずかしい に偏らない"
   },
   {
     "name": "58-E 手渡しオークション：ラウンドの層を5層から選ぶ",

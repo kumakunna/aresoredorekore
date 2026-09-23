@@ -136,12 +136,13 @@
     "expect": "新しい秘密が届く前に、前の試合の祝い・幕が出ない"
   },
   {
-    "name": "60-F2 つぎつぎ：勝者なしの時間切れでも祝う（順位表の同率1位に落ちる）",
+    "name": "60-F2 クイズ王：勝者なし・全員0点の門を両方外す（直す前の形に戻す）",
     "file": "public/index.html",
     "suite": "tests/clear-fx.js",
-    "from": "      if(r.variant === 'quizlist' && !名) return null;",
-    "to": "",
-    "expect": "勝った人がいないので祝わない"
+    "from": "      if(r.variant === 'quizlist' && !名) return null;\n      // 全員0点で終わった回も祝わない（あれそれの「0点の回は祝わない」と同じ）\n      var 上 = 名 ? rows.filter(function(x){ return x.name === 名; }).slice(0, 1)\n        : clearRank1(rows).filter(function(x){ return x.score !== 0; });",
+    "to": "      var 上 = 名 ? rows.filter(function(x){ return x.name === 名; }).slice(0, 1) : clearRank1(rows);",
+    "expect": "勝った人がいないので祝わない",
+    "note": "脱落形式の勝者なしは必ず全員0点（点は勝者の+1だけ）なので、門は2つが同じ場面を守っている。片方だけ外しても赤くならないのは正しい"
   },
   {
     "name": "60-F3 ロシアンカードの大画面：時間切れも「ばくだんをめくった」と言う",

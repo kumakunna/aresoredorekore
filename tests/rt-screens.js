@@ -4088,7 +4088,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('第43弾 2-4：体を動かす演出を切ると、開いている同意画面がその場で変わる', async () => {
+  await r.test('第43弾 2-4：体を動かす遊びを切ると、開いている同意画面がその場で変わる', async () => {
     // それまで同意画面は**描いた時に一度だけ**設定を読んでいた。
     // 「⚠️ 体を動かすしかけが入ります」を見てから設定で切っても、
     // 下の画面には「参加する」が出たままだった（落とし穴21）
@@ -4118,7 +4118,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     click(doc, 'closeSettingsBtn');
     await sleep(win, 80);
     assert(!doc.getElementById('dfConsentYes'), '切った瞬間に「参加する」が消える');
-    assert(/体を動かす演出を切っています/.test(el(doc, 'dfConsentBox').textContent),
+    assert(/「体を動かす遊びをする」を切っています/.test(el(doc, 'dfConsentBox').textContent),
       'なぜマニュアル役なのかが読める');
     assert(doc.getElementById('dfConsentNo'), 'マニュアル役で遊ぶ道は残る');
     assertNoErrors(errors, '同意画面の切り替えで未捕捉の例外');

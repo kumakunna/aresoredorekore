@@ -1194,7 +1194,7 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('安全に関する設定に、光・揺れ・振動・速さ・体を動かす演出が並ぶ', async () => {
+  await r.test('安全に関する設定に、光・揺れ・振動・速さ・体を動かす遊びが並ぶ', async () => {
     const t = await launch();
     await H.openAppSettings(t.win, t.doc);
     const row = t.doc.querySelector('#setAppMenu [data-setpage="safety"]');

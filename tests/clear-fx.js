@@ -9,7 +9,8 @@
 //   ④ 手渡し（あれそれ・すごろく・ロシアンカードのいっきうち）
 //   ⑤ 指示60 の見直しで見つけた3件（出てはいけない所に出ない）：
 //      競争版の「もう一度」で前の試合の祝い／つぎつぎの時間切れ（勝者なし）で全員「優勝！」／
-//      ロシアンカードの時間切れを大画面が「ばくだんをめくった」と言う
+//      ロシアンカードの時間切れを大画面が「ばくだんをめくった」と言う／
+//      競争版の0本の時間切れで全員「1位！」／「全員が終わるまで」で最後に解き切った人に何も出ない
 //
 // **本物の進行役を動かし、本物の publicView / privateFor を本物の画面へ流す**（落とし穴25）。
 // 進め方は tests/room-drive.js（tests/now-line.js と共有）。
@@ -533,6 +534,113 @@ function 祝う相手(t, v) {
       } finally { win.close(); }
     });
   }
+
+  // ---- 競争版の決着（③の問いの確かめで見つけた2件） ----
+  /**
+   * 競争版の部屋を本物の進行役で立て、自分（'tv' か 'm1'）の端末でつなぐ。
+   * 出た祝いは見張り（MutationObserver）に拾わせる（時々覗くと取りこぼす・落とし穴28）
+   */
+  async function 競争の部屋(自分, cfg) {
+    const { win, doc, errors } = await launch({ fakeSocket: true });
+    win.TitleLogic.seasonFor = () => null;
+    await waitScreen(win, doc, 'scr-shelf', 9000);
+    await openCassette(win, doc, 'bakudan');
+    click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
+    await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+    const fake = win.__rtFake;
+    await waitFor(win, () => fake.connected, 5000, 'socket');
+    const members = new Map();
+    ['m1', 'm2'].forEach((id, i) => members.set(id, { id, name: ['あき', 'びび'][i], role: 'player', connected: true, socketId: 's' + id }));
+    if (自分 === 'tv') members.set('tv', { id: 'tv', name: 'TV', role: 'bigscreen', connected: true, socketId: 'stv' });
+    const room = { code: 'ABC234', members, state: { phase: 'playing', game: 'bomb', data: {} } };
+    const res = Bomb.startGame(room, Object.assign({ mode: 'race', counts: { easy: 4 }, lives: 3, timerSec: 60 }, cfg || {}), {});
+    assertEqual(res.ok, true, '進行役を始められる（' + JSON.stringify(res) + '）');
+    room.state.phase = 'playing';
+    const 行 = () => (自分 === 'tv' ? [{ id: 'tv', name: 'TV', role: 'bigscreen', connected: true, isHost: false, ready: true }] : [])
+      .concat(['m1', 'm2'].map((id, i) => ({ id, name: ['あき', 'びび'][i], role: 'player', connected: true, isHost: i === 0, ready: true })));
+    const snap = () => ({
+      code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'm1', playerCount: 2, memberCount: 行().length,
+      ready: { count: 2, total: 2, waitingNames: [], all: true }, members: 行(),
+      state: { phase: room.state.phase, game: 'bomb', data: Bomb.publicView(room) }
+    });
+    fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 自分, room: snap() }) };
+    el(doc, 'rtCreateName').value = 自分 === 'tv' ? 'TV' : 'あき';
+    click(doc, 'rtCreateBtn');
+    await sleep(win, 300);
+    const push = async () => {
+      fake.fire('room:update', snap());
+      const mine = Bomb.privateFor(room, 自分);
+      if (mine) fake.fire('wolf:you', mine);
+      await sleep(win, 40);
+    };
+    await push();
+    await waitScreen(win, doc, 自分 === 'tv' ? 'scr-rt-big' : 'scr-rt-bomb', 6000);
+    const 祝い = [];
+    const mo = new win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => {
+      if (n.classList && n.classList.contains('fx-cel')) 祝い.push((n.querySelector('.fx-cel-text') || {}).textContent || '');
+    })));
+    mo.observe(doc.body, { childList: true, subtree: true });
+    const 解く = async (id, n) => {
+      for (let i = 0; i < n; i++) {
+        const e = room.bomb.entries[id];
+        const uid = e.order.find((u) => !e.solved[u]);
+        if (!uid || room.bomb.phase === 'ended') break;
+        const wire = room.bomb.wires.find((x) => x.uid === uid);
+        Bomb.submitAction(room, id, uid);
+        Bomb.submitVote(room, id, (e.choices[uid] || []).find((c) => BombLogic.isCorrect(wire, c)));
+        await push();
+      }
+    };
+    const 時間切れ = async () => {
+      Object.values(room.bomb.entries).forEach((e) => { if (e.deadline) e.deadline = Date.now() - 1; });
+      Bomb.advance(room);
+      await push();
+    };
+    return { win, doc, errors, room, push, 祝い, 解く, 時間切れ, 終わる: () => mo.disconnect() };
+  }
+
+  for (const 自分 of ['tv', 'm1']) {
+    await r.test('⑤ 競争版：誰も1本も解かないまま時間切れなら祝わない。1本でも解いた1位は祝う（' + (自分 === 'tv' ? '大画面' : 'スマホ') + '）', async () => {
+      // 0本のまま時間切れ
+      const a = await 競争の部屋(自分);
+      try {
+        await a.時間切れ();
+        const 順位 = (a.room.bomb.result || {}).ranking || Bomb.publicView(a.room).result.ranking || [];
+        // 型(b)：本当に「全員が同率1位・0本」を作れているか
+        assertEqual(a.room.bomb.phase, 'ended', '前提：時間切れで決着した');
+        assert(順位.length === 2 && 順位.every((x) => x.rank === 1 && x.solved === 0 && !x.failed),
+          '前提：2人とも0本・同率1位（' + JSON.stringify(順位) + '）');
+        await sleep(a.win, 2400);
+        assertEqual(a.祝い.length, 0, '0本の同率1位は祝わない（' + a.祝い.join('／') + '）');
+        assertNoErrors(a.errors);
+      } finally { a.終わる(); a.win.close(); }
+      // 型(c)：もう一方の入力——あきが1本解いてから時間切れ（あきが1位）
+      const b = await 競争の部屋(自分);
+      try {
+        await b.解く('m1', 1);
+        await b.時間切れ();
+        await sleep(b.win, 2400);
+        assertEqual(b.祝い.length, 1, '1本でも解いた1位は祝う（' + b.祝い.join('／') + '）');
+        assert(自分 === 'tv' ? /あき/.test(b.祝い[0]) : /1位/.test(b.祝い[0]), '祝いの言葉（' + b.祝い[0] + '）');
+        assertNoErrors(b.errors);
+      } finally { b.終わる(); b.win.close(); }
+    });
+  }
+
+  await r.test('⑤ 競争版「全員が終わるまで」：最後に全部解いて決着させた人にも「解除成功！」が出る（2位でも）', async () => {
+    const g = await 競争の部屋('m1', { endWhen: BombLogic.END_WHEN.ALL });
+    try {
+      await g.解く('m2', 4);   // びびが先に全部解く（まだ決着しない）
+      assert(g.room.bomb.phase !== 'ended', '前提：「全員が終わるまで」なので、まだ決着しない');
+      await g.解く('m1', 4);   // あきが最後の1本で決着させる
+      const 私 = (Bomb.publicView(g.room).result.ranking || []).find((x) => x.id === 'm1');
+      assertEqual(g.room.bomb.phase, 'ended', '前提：あきの最後の1本で決着した');
+      assert(私 && 私.rank === 2 && 私.finished, '前提：あきは全部解いて2位（' + JSON.stringify(私) + '）');
+      await sleep(g.win, 2400);
+      assertEqual(g.祝い.join('／'), '解除成功！', '最後に解き切った人にも「解除成功！」が1回出る');
+      assertNoErrors(g.errors);
+    } finally { g.終わる(); g.win.close(); }
+  });
 
   r.finish();
 })();

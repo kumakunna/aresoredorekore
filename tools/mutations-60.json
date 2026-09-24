@@ -151,5 +151,29 @@
     "from": "      var 時間切れ = 踏んだ && !!v.last.timeout;",
     "to": "      var 時間切れ = false;",
     "expect": "時間切れの人の行"
+  },
+  {
+    "name": "60-G1 大画面：0本の同率1位も「勝ち」で祝う",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "return x.rank === 1 && !x.failed && x.solved > 0; });",
+    "to": "return x.rank === 1 && !x.failed; });",
+    "expect": "0本の同率1位は祝わない"
+  },
+  {
+    "name": "60-G2 スマホ：0本の同率1位にも「1位！」",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "!私の順位.failed &&\n      私の順位.solved > 0;",
+    "to": "!私の順位.failed;",
+    "expect": "0本の同率1位は祝わない"
+  },
+  {
+    "name": "60-G3 「全員が終わるまで」で決着させた人に「解除成功！」を出さない（決着の回を丸ごと外す）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "from": "rtOnce('bomb:selfClear', 競争 && 秘密が追いついた && !勝った &&",
+    "to": "rtOnce('bomb:selfClear', 競争 && 秘密が追いついた && v.phase !== 'ended' &&",
+    "expect": "最後に解き切った人にも"
   }
 ]

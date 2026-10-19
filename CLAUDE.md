@@ -708,6 +708,14 @@
   ログインしていない参加者が入り、大画面もつなぎ、爆発の回と解除の回を通して
   `docs/審査会_デモ/` にスクショを置く。`--skip`（参加者をスキップ設定に）・`--noflash`（光を切る）。
   **出た演出の時系列**（黒い幕・💥・帯・祝い・称号の出入り）も出す
+- **QRから「終わったあと」まで、手順ごとに3台を同時に撮って測るのは `node tools/flow-walk.js <カセットid> --port 32xx --cdp 95xx --idle 60`**（指示62）。
+  進行役375×812（/dev-login）・参加者375×667（ゲスト・QRを jsqr で読んで入る）・大画面1280×720 と bot 2（`tools/room-bots.js --play`、
+  ゲームごとの遊び方は `tools/bot-play/<ゲームid>.js`）の4人で、台本は `tools/flow-walk/<カセットid>.js`（9本）。
+  手順ごとに押す回数・待ち時間・迷いの材料を `記録.json` に、`一覧.jpg`（`tools/flow-sheet.js`）を
+  `docs/監査_審査会の指摘_画像/<id>/`（gitignore）に置く。9本の表は `node tools/flow-report.js`。
+  **並べて走らせる時は --port と --cdp をずらす。測る時は1本ずつ**（落とし穴11）。検証用の Chrome は音を消してある（`--mute-audio`）
+- **すごろくのミニゲームを bot 無し・全員が人で通すのは `node tools/probe-63-sugoroku-humans.js`**（指示63 門G2）。
+  bot がいると bot の出した知らせで画面が描き直され、「知らせが来るまで入力が出ない」形が隠れる
 - **検査が本当に赤くなるかは `node tools/mutate.js tools/mutations-43.json`**（42・51の分もある）。
   変異の一覧をJSONで渡すと、1つずつ実装を壊して該当スイートを回し、
   **狙った理由で赤くなったか**まで見る。後始末は `git checkout` に任せるので、

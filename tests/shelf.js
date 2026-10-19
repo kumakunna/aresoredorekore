@@ -1128,15 +1128,17 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('手に入った瞬間に、何をなぜ手に入れたかが大きく出る', async () => {
-    // この検査が見るのは**大きく出る演出そのもの**。
-    // 「演出の速さ＝スキップ」の人には、代わりに一言だけ出る仕様で
-    //（showTitleGot の中で showFlash に分かれる）、
-    // **スキップ側の道は次の検査（スキップも「今後出さない」もできる）が見ている。**
+  /**
+   * 指示63 2-2：**称号の知らせは、結果の上にかぶせない。**
+   * 結果に着いて1.6秒たってから、画面の下に小さく出て、自分で閉じる。押しても閉じる。
+   * 着けるボタンは出さない（着替えは待合で）。手に入れたものには NEW の印が立つ。
+   * （それまでは全面の幕「新しく手に入れた！／すぐ着ける／あとで」が結果を覆い、押すまで閉じなかった）
+   */
+  await r.test('63 2-2：称号の知らせは、結果が読めてから画面の下に小さく出て、自分で閉じる', async () => {
     const { win, doc, errors } = await launch();
     autoDialog(win, doc);
-    // このテストが見るのは演出の仕組み。実行する日が季節イベント中だと
-    // 季節のパーツも同時に手に入って装備が変わるので、季節は切っておく
+    // このテストが見るのは知らせの仕組み。実行する日が季節イベント中だと
+    // 季節のパーツも同時に手に入るので、季節は切っておく
     win.TitleLogic.seasonFor = () => null;
     // あれそれどれこれを1回あそぶと「はじめの参加証」が手に入る
     await setupPlayers(win, doc);
@@ -1153,22 +1155,22 @@ function pickCart(doc, id) {
     if (who.length) { who[0].click(); await sleep(win, 120); }
     click(doc, 'endRoundBtn');
     await waitScreen(win, doc, 'scr-score', 8000);
-    // **固定の200msで待たない。**演出の速さの設定で、出るまでの時間は変わる
-    //（第44弾で launch の既定を「スキップ」にしたら、この200msでは足りなかった）。
-    // 待ち方を「時間」ではなく「出たか」に変えれば、どちらの速さでも成り立つ
-    await waitFor(win, () => el(doc, 'titleGotOverlay').classList.contains('show'),
-      5000, '手に入った演出が出る');
-
-    assert(el(doc, 'titleGotOverlay').classList.contains('show'), '手に入った演出が出る');
-    const got = el(doc, 'gotList').textContent;
-    assert(/はじめの参加証/.test(got), '何を手に入れたかが出る');
-    assert(/あそぶ/.test(got), 'なぜ手に入ったかも出る');
-    // その場で着けられる
-    click(doc, 'gotEquipBtn');
-    await sleep(win, 150);
-    assert(!el(doc, 'titleGotOverlay').classList.contains('show'), '閉じる');
-    assertEqual(el(doc, 'shelfAvatar').textContent, '🎈', 'すぐ着けられる');
-    assertNoErrors(errors, '獲得の演出で未捕捉の例外');
+    const toast = el(doc, 'titleGotOverlay');
+    // 結果が読める間はかぶせない（着いてすぐには出ない）
+    await sleep(win, 700);
+    assert(!toast.classList.contains('show'), '結果に着いてすぐには出ない（自分の順位を先に読める）');
+    await waitFor(win, () => toast.classList.contains('show'), 5000, '少しして、知らせが出る');
+    assert(toast.closest('#uiLayerRoot'), '置き場は #app の外（長い画面でも画面の下に出る・落とし穴26）');
+    assert(toast.classList.contains('title-toast'), '全面の幕ではなく、小さな知らせ');
+    assert(/はじめの参加証/.test(toast.textContent), '何を手に入れたかが出る（いま「' + toast.textContent.trim().slice(0, 60) + '」）');
+    assert(/称号を手に入れた/.test(toast.textContent), '称号を手に入れたと分かる');
+    assertEqual(toast.querySelectorAll('button').length, 0, '着けるボタンは出さない（着替えは待合で）');
+    assert(win.titleProbe().newIds.length >= 1, '手に入れたものに NEW の印が立つ');
+    // 押すと閉じる
+    toast.click();
+    await sleep(win, 60);
+    assert(!toast.classList.contains('show'), '押すと閉じる');
+    assertNoErrors(errors, '称号の知らせで未捕捉の例外');
     win.close();
   });
 
@@ -1274,12 +1276,13 @@ function pickCart(doc, id) {
   await r.test('季節イベント：期間中に集まって遊ぶと、その1回だけが数えられる（第32弾-F）', async () => {
     const t = await launch();
     // 期間の判定だけ差し替える（実行する日の日付に左右されないテストにする）
-    // 第36弾 36-7：いま登録されているのはリリース記念。
+    // 指示63：いま登録されているのは文化祭（リリース記念は開催を終えた）。
     // 数えるところは「季節のid＋Plays」で引いているので、季節を入れ替えても書き換えは要らない
-    t.win.TitleLogic.seasonFor = () => ({ id: 'release', label: 'リリース記念', icon: '🎊', theme: 'season-release' });
+    t.win.TitleLogic.seasonFor = () => ({ id: 'bunkasai', label: '文化祭', icon: '🏮', theme: 'season-bunkasai' });
     const stats = await playOneRound(t);
-    assertEqual(stats.season.releasePlays, 1, '集まって遊んだ1回が数えられる');
-    assertEqual(stats.season.releaseCrowd, 0, '2人では「5人以上」は数えない');
+    assertEqual(stats.season.bunkasaiPlays, 1, '集まって遊んだ1回が数えられる');
+    assertEqual(stats.season.bunkasaiCrowd, 0, '2人では「5人以上」は数えない');
+    assertEqual(stats.season.releasePlays, 0, '終わったリリース記念は、もう数えない');
     assertNoErrors(t.errors, '季節の数えで未捕捉の例外');
     t.win.close();
   });
@@ -1288,8 +1291,8 @@ function pickCart(doc, id) {
     const t = await launch();
     t.win.TitleLogic.seasonFor = () => null;   // 期間外
     const stats = await playOneRound(t);
-    assertEqual(stats.season.releasePlays, 0, '期間外は1つも増えない');
-    assertEqual(stats.season.releaseCrowd, 0, '同上');
+    assertEqual(stats.season.bunkasaiPlays, 0, '期間外は1つも増えない');
+    assertEqual(stats.season.bunkasaiCrowd, 0, '同上');
     assertNoErrors(t.errors, '期間外の扱いで未捕捉の例外');
     t.win.close();
   });
@@ -1314,10 +1317,11 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('手に入った演出は、スキップも「今後出さない」もできる', async () => {
-    // 演出をスキップにしていると、大きな演出は出さず一言だけにする
+  await r.test('63 2-2：演出をスキップにしていても、称号の知らせ（文字）は出て、自分で閉じる', async () => {
+    // スキップは「動きを止める」設定で、知らせ（読む情報）は消さない。出て、数秒で閉じる
     const t = await launch();
     autoDialog(t.win, t.doc);
+    t.win.TitleLogic.seasonFor = () => null;
     await H.openAppSettings(t.win, t.doc);
     // 第32弾-D 第4部：演出の速さは「安全に関する設定」へ移った
     t.doc.querySelector('#setAppMenu [data-setpage="safety"]').click();
@@ -1340,9 +1344,10 @@ function pickCart(doc, id) {
     if (who2.length) { who2[0].click(); await sleep(t.win, 120); }
     click(t.doc, 'endRoundBtn');
     await waitScreen(t.win, t.doc, 'scr-score', 8000);
-    await sleep(t.win, 200);
-    assert(!el(t.doc, 'titleGotOverlay').classList.contains('show'),
-      '演出をスキップにしていたら、大きな演出は出さない');
+    const toast = el(t.doc, 'titleGotOverlay');
+    await waitFor(t.win, () => toast.classList.contains('show'), 5000, 'スキップでも知らせは出る');
+    // 押さなくても閉じる（5秒）——型(b)：本当に出ていたものが、押さずに消える
+    await waitFor(t.win, () => !toast.classList.contains('show'), 8000, '押さなくても、数秒で閉じる');
     t.win.close();
   });
 
@@ -1366,12 +1371,13 @@ function pickCart(doc, id) {
     assert(picks.length > 0, '未ログインでも、持っているアイコンは選べる');
     picks[0].click();
     await sleep(win, 300);
-    const 残った = win.localStorage.getItem('acac-look');
+    // 指示63：置き場は「その日の称号」（acac-guest-titles。取った一覧・姿・NEW を日付つきで）
+    const 残った = win.localStorage.getItem('acac-guest-titles');
     assert(残った, '選んだ姿が端末に残る（実際: ' + 残った + '）');
-    assertEqual(JSON.parse(残った).icon, picks[0].dataset.pickicon, '選んだアイコンが残っている');
+    assertEqual(JSON.parse(残った).equipped.icon, picks[0].dataset.pickicon, '選んだアイコンが残っている');
 
     // **開き直しても残っている**
-    const b = await launch({ loggedOut: true, browse: true, storage: { 'acac-look': 残った } });
+    const b = await launch({ loggedOut: true, browse: true, storage: { 'acac-guest-titles': 残った } });
     assertEqual(b.win.titleProbe().equipped.icon, picks[0].dataset.pickicon,
       '開き直しても、選んだ姿のまま');
     b.win.close();
@@ -2200,10 +2206,10 @@ function pickCart(doc, id) {
     assertEqual(端末.first, win.titleProbe().equipped.first, '書かれた値は、いまの姿と一致する');
 
     // 開き直しても同じ姿（読み戻しの経路も生きている）
-    const 保存 = win.localStorage.getItem('acac-look');
+    const 保存 = win.localStorage.getItem('acac-guest-titles');
     const 前の姿 = JSON.stringify(win.titleProbe().equipped);
     win.close();
-    const b = await launch({ loggedOut: true, browse: true, storage: { 'acac-look': 保存 } });
+    const b = await launch({ loggedOut: true, browse: true, storage: { 'acac-guest-titles': 保存 } });
     assertEqual(JSON.stringify(b.win.titleProbe().equipped), 前の姿,
       '開き直しても、端末に残した姿から始まる');
     assertNoErrors(errors, '未ログインの保存で未捕捉の例外');
@@ -2216,8 +2222,10 @@ function pickCart(doc, id) {
     // 自分のアカウントに入る順番は普通に起きる（本人の裁定 2026-09-09）。
     // 引き継ぐと、自分の記録に他人の選択が乗る。
     const 端末の姿 = { icon: 'icon-wolf-1', first: 'first-natsu', joiner: 'joiner-no', last: 'last-ippo' };
+    // 指示63：端末の置き場は「その日の称号」。日付は今日（日本時間）——昨日の分なら、そもそも読まれない
+    const 今日 = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const { win, errors } = await launch({
-      storage: { 'acac-look': JSON.stringify(端末の姿) },
+      storage: { 'acac-guest-titles': JSON.stringify({ day: 今日, stats: {}, unlocked: ['icon-wolf-1', 'first-natsu'], equipped: 端末の姿, newIds: [] }) },
       seedTitles: ['icon-wolf-1', 'first-natsu']   // アカウント側もそのパーツは持っている
     });
 
@@ -2233,7 +2241,7 @@ function pickCart(doc, id) {
     assertEqual(いま.icon, 'icon-default', 'アイコンはアカウント側（初期状態）');
     assertEqual(いま.first, 'first-hajime', '二つ名もアカウント側（初期状態）');
     assertEqual(win.guestLookProbe(), null, '端末に残っていた姿は消えている');
-    assertEqual(win.localStorage.getItem('acac-look'), null, 'localStorage からも消えている');
+    assertEqual(win.localStorage.getItem('acac-guest-titles'), null, 'localStorage からも消えている');
     assertNoErrors(errors, 'ログイン時の姿の取り直しで未捕捉の例外');
     win.close();
   });

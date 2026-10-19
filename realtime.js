@@ -202,6 +202,53 @@ function shiftTimes(obj, delta, depth) {
 }
 /** いま止まっているか */
 function isPaused(room) { return !!(room && room.pausedAt); }
+
+/**
+ * 指示63 第4部：**3-2-1 が0になるまで、ゲームは始まっていない。**
+ *
+ * それまでは `room:countdown` を送るのと同時にゲームが始まっていて、
+ * 3-2-1 の最中に持ち時間が減り、盤も押せた（爆弾解除・クイズ王・オークション・
+ * False or True・ロシアンカード・進化じゃんけんの6つ。指示62）。
+ * 進化じゃんけんでは、初めての人の最初の1手がいちばん短くなっていた。
+ *
+ * **ゲームごとに書き分けない**（落とし穴1）。始める所はここ1か所なので、
+ *   ・進行役の状態の絶対時刻を、数える長さぶん後ろへずらす（ポーズと同じ shiftTimes）
+ *   ・数えている間は、操作（act／vote／next）を `not_started` で断る
+ * の2つをここで行えば、6つとも（これから足すゲームも）同じになる。
+ * 「合図の3秒は誰も動けない」はどのゲームでも同じ意味なので、芯に置いても
+ * 落とし穴22（段階の意味がゲームごとに違う）には当たらない
+ */
+const COUNTDOWN_SECONDS = 3;
+function inCountdown(room) { return !!(room && room.countdownUntil && Date.now() < room.countdownUntil); }
+
+/**
+ * 指示63 2-1：**出ていった人を、同じ人として戻す。**
+ *
+ * 「← 部屋を出る」は名簿から消す（members.delete）。それはそのままにして、
+ * 消す前に**部屋の控え（room.left）**に写しておく。同じ memberId で入り直したら、
+ * 控えから同じ id で作り直す——そうすれば観戦の表示・自分の行・2試合目が、
+ * ゲームごとの直しなしで全部そろう（どの画面も privateFor(memberId) で分かれるため）。
+ *
+ * **戻せるのは、待合と決着のあいだだけ**（くまくんの判断 2026-10-20）。
+ * 試合の途中で戻すと、ロシアンカード・進化じゃんけん・False or True は抜けた人の扱いのまま
+ * 秘密だけが届き、すごろくは手番に生き返る。途中は今までどおり、新しい人として見るだけで入る。
+ * **進行役には戻さない**（同じ判断）。戻った時に進行役がいれば、そのまま。
+ * kick（部屋から出された）は控えに写さない（出した人の判断を、入り直しで覆さない）
+ */
+const LEFT_KEEP_MAX = 60;
+function canReturnNow(room) {
+  const w = driverStateOf(room);
+  return !w || w.phase === 'ended' || (room.state && room.state.phase === 'ended');
+}
+function keepLeft(room, member) {
+  if (!room.left) room.left = new Map();
+  room.left.set(member.id, {
+    id: member.id, name: member.name, role: member.role, look: member.look || null,
+    joinedAt: member.joinedAt, userId: member.userId || null, at: Date.now()
+  });
+  // 増え続けない（いちばん古い控えから捨てる）
+  while (room.left.size > LEFT_KEEP_MAX) room.left.delete(room.left.keys().next().value);
+}
 /**
  * 止める／もどす。**もどす時に、止めていた長さぶん締め切りを後ろへずらす。**
  * @returns {boolean} 実際に状態が変わったか
@@ -541,6 +588,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   const describe = (opts.describe !== undefined) ? opts.describe : safeRequireAi();
   // 掃除の間隔と猶予はテストから短くできるようにする（本番は既定値のまま）
   const sweepIntervalMs = opts.sweepIntervalMs || SWEEP_INTERVAL_MS;
+  // 指示63 第4部：開始の 3-2-1 の長さ。**検査だけが 0 にできる**（実時間を待つ検査が
+  // 1本ごとに3秒延びるため。落とし穴24：遊びの数字は変えず、検査の側に早送りを持つ）。
+  // 実時間で数える検査は tests/realtime-countdown.js に1本残す
+  const countdownMs = opts.countdownMs != null ? opts.countdownMs : COUNTDOWN_SECONDS * 1000;
   const emptyRoomTtlMs = opts.emptyRoomTtlMs != null ? opts.emptyRoomTtlMs : EMPTY_ROOM_TTL_MS;
   // 第32弾-E 第6部：アルバムを自動で消すまでの時間（1時間）
   const albumTtlMs = opts.albumTtlMs != null ? opts.albumTtlMs : 60 * 60 * 1000;
@@ -1181,6 +1232,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 在室判定は端末の記憶ではなく、必ずこの返事で決める（サーバーが権威）
       if (payload && payload.memberId) {
         res.you = room.members.has(payload.memberId);
+        // 指示63 2-1：出ていった人として、いま同じ人で戻れるか（棚の「さっきの部屋にもどる」の判断）
+        res.canReturn = !res.you && !!(room.left && room.left.has(payload.memberId)) && canReturnNow(room);
         // 第41弾 2-1-2：**進行役かどうかもサーバーが答える。**
         // 開き直した直後の端末は名簿（room）を持っていないので、
         // 手元では判断できない。判断できないことを聞かせない
@@ -1199,11 +1252,14 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 同じ端末が入り直した時は、前のメンバーとして復帰する（再接続で別人が増えないように）
       const rejoinId = payload && payload.memberId;
       let member = rejoinId ? room.members.get(rejoinId) : null;
+      // 指示63 2-1：出ていった人が、同じ memberId で戻ってきた（待合と決着のあいだだけ）
+      const 戻り = (!member && rejoinId && room.left && room.left.has(rejoinId) && canReturnNow(room))
+        ? room.left.get(rejoinId) : null;
       // 第24弾-3：memberId を持っていない入り直し（ページを読み込み直した、
       // 一度出てからコードを入れ直した、など）でも、同じ名前の人が2人に増えないようにする。
       // 切れている同名の枠があれば、それをそのまま引き継ぐ。
       // つながったままの同名は「別人が同じ名前で入ってきた」なので、増やす方が正しい。
-      if (!member) {
+      if (!member && !戻り) {
         member = Array.from(room.members.values()).find(
           (m) => !m.connected && m.name === name
         ) || null;
@@ -1223,20 +1279,21 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           return fail(cb, 'room_full', '満員です（20人まで）');
         }
         member = {
-          id: newId('m'),
+          id: 戻り ? 戻り.id : newId('m'),
           name,
-          role: normalizeRole(payload && payload.role),
+          role: normalizeRole((payload && payload.role) || (戻り && 戻り.role)),
           socketId: null,
           connected: false,
-          joinedAt: Date.now(),
+          joinedAt: 戻り ? 戻り.joinedAt : Date.now(),
           lastSeen: Date.now(),
           readyGame: null,  // 第37弾：あとから入った人は、必ず「まだ押していない」から始まる
           userId: sessionOf(socket).userId || null
         };
         room.members.set(member.id, member);
+        if (戻り) room.left.delete(戻り.id);
       }
       // 第42弾 門E6：**入り直しでも作り直しでも、姿はここ1か所で入れる**（落とし穴17）
-      applyLook(member, payload && payload.look);
+      applyLook(member, (payload && payload.look) || (戻り && 戻り.look));
       attachMember(room, member);
       ensureHost(room, 'join'); // ホスト不在の部屋に入ったら、その人がホストになる
       refreshPairNote(room);    // 第32弾-E 第1部：顔ぶれが変わったら一言を作り直す
@@ -1417,13 +1474,21 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (!entry) return fail(cb, 'unknown_game', 'そのゲームには対応していません');
       const res = entry.driver.startGame(room, payload || {}, driverContext());
       if (!res.ok) return fail(cb, res.error, res.message);
+      // 指示63 第4部：数えている間は始まっていない。持ち時間は0になった瞬間から減る
+      if (countdownMs > 0) {
+        room.countdownUntil = Date.now() + countdownMs;
+        const ws = driverStateOf(room);
+        if (ws) shiftTimes(ws, countdownMs, 0);
+      } else {
+        room.countdownUntil = null;
+      }
       // 第37弾：始まったら「準備OK」は役目を終える。
       // 残すと、再戦（待合に戻ってもう一度）の時に押していない人が押したことになる
       clearReady(room);
       if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
       // 第34弾 2-1：始まる合図。全員の端末に同じ放送が届いた瞬間から
       // 3-2-1を数えるので、そろって見える（ゲームの状態はその下に描かれて待つ）
-      io.to('room:' + room.code).emit('room:countdown', { seconds: 3 });
+      io.to('room:' + room.code).emit('room:countdown', { seconds: COUNTDOWN_SECONDS });
       pushWolfState(room);
     });
 
@@ -1438,6 +1503,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 第48弾 48-5：止まっている間は受け付けない。
       // **できていないのに ok を返さない**（落とし穴14）
       if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
+      // 指示63 第4部：3-2-1 の最中は、まだ始まっていない
+      if (inCountdown(room)) return fail(cb, 'not_started', '3-2-1 のあとに始まります');
       // 第27弾-3：4つめの引数は payload まるごと。
       // 実物解除は「傾き何度」「何回振った」のように、targetId 1つでは足りない操作がある。
       // 人狼・ワードウルフ・爆弾解除は受け取っても使わない（無視するだけ）。
@@ -1465,6 +1532,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 第48弾 48-5：止まっている間は受け付けない。
       // **できていないのに ok を返さない**（落とし穴14）
       if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
+      // 指示63 第4部：3-2-1 の最中は、まだ始まっていない
+      if (inCountdown(room)) return fail(cb, 'not_started', '3-2-1 のあとに始まります');
       const res = dr.submitVote(room, me.id, (payload && payload.targetId) || null, payload);
       if (!res.ok) return fail(cb, res.error, 'いまは投票できません');
       // 第27弾-3：実物解除は「いま当たったか外れたか」をその場で返す
@@ -1509,6 +1578,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが進められます');
       // 第48弾 48-5：止まっている間は進めない（落とし穴14）
       if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
+      if (inCountdown(room)) return fail(cb, 'not_started', '3-2-1 のあとに始まります');
       dr.advance(room);
       if (typeof cb === 'function') cb({ ok: true });
       pushWolfState(room);
@@ -1570,6 +1640,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         if (r2 && m2) { room = r2; me = m2; }
       }
       if (room && me) {
+        keepLeft(room, me);   // 指示63 2-1：同じ人として戻れるように、消す前に控えへ写す
         room.members.delete(me.id);
         socket.leave('room:' + room.code);
         // 第35弾B：抜けたことを残った人に言葉で伝える（理由つき。kickと文言を分けるため）。

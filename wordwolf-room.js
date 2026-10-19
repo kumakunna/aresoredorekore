@@ -338,9 +338,17 @@ function advance(room) {
   const w = room.wordwolf;
   if (!w) return { changed: false };
 
+  /**
+   * 指示63 第5部：**ワードウルフに作戦会議は無い。お題を見たら、すぐ話し合い。**
+   *
+   * 作戦会議は人狼の段階（役職確認のあと、夜の前に話す）。ワードウルフには夜が無いので、
+   * 同じ3分の時計つきで「話し合いの前にもう1つ話す」段階になっていた。
+   * 時間切れで投票ではなく話し合い（また3分）へ進むので、押さずに待つと投票まで約6分かかった
+   *（指示62・落とし穴2：借りたものが世界観ごと運ばれた形）。手渡し版にも作戦会議は無い。
+   * PHASE.MEETING の名前は残す（古い部屋の状態や記録が読めなくならないように）が、もう入らない
+   */
   if (w.phase === PHASE.REVEAL) {
-    setPhase(room, PHASE.MEETING);
-    if (w.meetingSec) w.deadline = Date.now() + w.meetingSec * 1000;
+    startDiscuss(room);
     return { changed: true };
   }
   if (w.phase === PHASE.MEETING) {

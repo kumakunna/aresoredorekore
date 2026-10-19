@@ -155,6 +155,10 @@ const CASES = [
   ['icon-season-release', 'season', {}, { releasePlays: 1 }],
   ['icon-season-release-crowd', 'season', { releasePlays: 9 }, { releaseCrowd: 1 }],
   ['first-hajimari', 'season', { releasePlays: 2 }, { releasePlays: 3 }],
+  // ---- 指示63：文化祭（2026/11/13・14） ----
+  ['icon-season-bunkasai', 'season', {}, { bunkasaiPlays: 1 }],
+  ['icon-season-bunkasai-crowd', 'season', { bunkasaiPlays: 9 }, { bunkasaiCrowd: 1 }],
+  ['first-bunkasai', 'season', { bunkasaiPlays: 2 }, { bunkasaiPlays: 3 }],
   // ---- 第34弾 2-2：みんなからのおくりもの（カセットを問わない） ----
   ['icon-thanks-1', 'social', {}, { thanksGot: 1 }],
   ['icon-thanks-10', 'social', { thanksGot: 9 }, { thanksGot: 10 }],
@@ -252,6 +256,23 @@ const CASES = [
     assertEqual(T.iconEmoji(eq2), '🐺', 'アイコンの絵も出る');
   });
 
+  /**
+   * 指示63 第5部：**「の」を重ねない。**
+   * 季節の部品は自分で「の」を持つ（なつまつりの・はじまりの）。既定のつなぎ「の」と続くと
+   * 「なつまつりのの一歩」になっていた（指示62）。部品の一覧から「の」で終わるものを全部拾って回す
+   *（名指しで書くと、次の季節の部品で漏れる・落とし穴4）。型(c)：「の」で終わらない部品は今までどおり
+   */
+  await r.test('63：前の部品が「の」で終わる時は、つなぎの「の」を重ねない', async () => {
+    const firsts = T.CATALOG.first.filter((p) => /の$/.test(p.label));
+    assert(firsts.length >= 2, '「の」で終わる部品を目録から拾えている（いま' + firsts.length + '）');
+    firsts.forEach((p) => {
+      const txt = T.titleText({ first: p.id, joiner: 'joiner-no', last: T.DEFAULTS.last });
+      assert(txt.indexOf('のの') === -1, p.label + '＋の：「の」が重なっていない（いま「' + txt + '」）');
+      assert(txt.indexOf(p.label) === 0, p.label + '：前の部品はそのまま残る');
+    });
+    assertEqual(T.titleText(T.DEFAULTS), 'はじめの一歩', '「の」で終わらない部品は、つなぎの「の」が入る');
+  });
+
   await r.test('壊れた保存データでも落ちない', async () => {
     assertEqual(T.titleText(null), 'はじめの一歩', '装備が無くても初期の名乗りになる');
     assertEqual(T.iconEmoji(undefined), '🙂', 'アイコンも初期になる');
@@ -265,22 +286,46 @@ const CASES = [
 
   // ---- 第32弾-F：季節イベント ----
 
-  await r.test('季節イベント：期間の判定は月日で決まり、境界の外は完全に無効', async () => {
-    const d = (y, m, dd) => new Date(y, m - 1, dd, 12);
-    // 第36弾 36-7：いま登録されているのはリリース記念（9/24〜10/24）。
-    // 「その日が入っているか」を、始まる前・初日・最終日・翌日の4点で見る
-    assertEqual(T.seasonFor(d(2026, 9, 23)), null, '9/23はまだ始まっていない');
-    assertEqual((T.seasonFor(d(2026, 9, 24)) || {}).id, 'release', '9/24から リリース記念');
-    assertEqual((T.seasonFor(d(2026, 10, 24)) || {}).id, 'release', '10/24まで リリース記念');
-    assertEqual(T.seasonFor(d(2026, 10, 25)), null, '10/25にはもう終わっている');
-    // 指示を書いた日（9/2）は期間外。装飾も獲得条件も出ない
-    assertEqual(T.seasonFor(d(2026, 9, 2)), null, '9/2は期間外');
-    // 年が変わっても同じ期間で自動的に始まる
-    assertEqual((T.seasonFor(d(2031, 10, 1)) || {}).id, 'release', '来年以降の同じ期間も同じ');
-    // 第36弾 36-7：夏まつりは、もうどの日にも始まらない（登録から外した）
-    [[7, 1], [8, 10], [8, 31]].forEach(([m, dd]) => {
-      assertEqual(T.seasonFor(d(2026, m, dd)), null, m + '/' + dd + ' に夏まつりは始まらない');
+  /**
+   * 指示63 門G9：**文化祭は 2026/11/13・11/14 の2日だけ（日本時間）。**
+   * 前日・初日・最終日・翌日の4点と、日付の変わり目（日本時間の0時の前後）、
+   * 翌年の同じ日、終わったリリース記念の期間を見る。
+   * 時刻は **UTC で組み立てる**（端末の地域設定に左右されない判定かを、検査の側でも試す）
+   */
+  await r.test('季節イベント：文化祭は 2026/11/13・11/14 の2日だけ（日本時間）', async () => {
+    const jst = (y, m, dd, h, mi) => new Date(Date.UTC(y, m - 1, dd, (h || 12) - 9, mi || 0));
+    assertEqual(T.seasonFor(jst(2026, 11, 12)), null, '11/12 はまだ');
+    assertEqual((T.seasonFor(jst(2026, 11, 13)) || {}).id, 'bunkasai', '11/13 は文化祭');
+    assertEqual((T.seasonFor(jst(2026, 11, 14)) || {}).id, 'bunkasai', '11/14 も文化祭');
+    assertEqual(T.seasonFor(jst(2026, 11, 15)), null, '11/15 はもう終わり');
+    // 日本時間の0時の前後（端末が海外の時計でも、日本の日付で決まる）
+    assertEqual(T.seasonFor(jst(2026, 11, 12, 23, 59)), null, '11/12 23:59（日本時間）はまだ');
+    assertEqual((T.seasonFor(jst(2026, 11, 13, 0, 0)) || {}).id, 'bunkasai', '11/13 0:00（日本時間）から');
+    assertEqual((T.seasonFor(jst(2026, 11, 14, 23, 59)) || {}).id, 'bunkasai', '11/14 23:59 まで');
+    assertEqual(T.seasonFor(jst(2026, 11, 15, 0, 0)), null, '11/15 0:00 で終わる');
+    // その年だけ：翌年の同じ日には始まらない
+    assertEqual(T.seasonFor(jst(2027, 11, 13)), null, '2027年の11/13 には始まらない');
+    // リリース記念と夏まつりは、もうどの日にも始まらない
+    [[9, 24], [10, 1], [10, 24], [7, 1], [8, 31]].forEach(([m, dd]) => {
+      assertEqual(T.seasonFor(jst(2026, m, dd)), null, m + '/' + dd + ' には何も始まらない');
     });
+  });
+
+  await r.test('季節イベント：文化祭の称号は「期間中に集まって遊んだ数」で手に入り、リリース記念の称号は残る', async () => {
+    assert(has(stats('season', { bunkasaiPlays: 1 }), 'icon-season-bunkasai'), '1回集まれば文化祭の記念');
+    assert(!has(stats('season', { bunkasaiPlays: 2 }), 'first-bunkasai'), '2回では二つ名はまだ');
+    assert(has(stats('season', { bunkasaiPlays: 3 }), 'first-bunkasai'), '3回で「ぶんかさいの」');
+    assert(has(stats('season', { bunkasaiCrowd: 1 }), 'icon-season-bunkasai-crowd'), '5人以上で大にぎわいの証');
+    // **リリース記念で取った称号は消さない**（本人の指示）。目録に残っていて、持ち物から落ちない
+    const 目録 = [].concat(T.CATALOG.icon, T.CATALOG.first).map((p) => p.id);
+    ['icon-season-release', 'icon-season-release-crowd', 'first-hajimari'].forEach((id) => {
+      assert(目録.indexOf(id) !== -1, id + ' は目録に残っている');
+    });
+    const un = T.mergeUnlocked(['icon-season-release', 'first-hajimari'], T.emptyStats());
+    assert(un.indexOf('icon-season-release') >= 0 && un.indexOf('first-hajimari') >= 0,
+      '手に入れたリリース記念の称号は、成績が空でも持ち物に残る');
+    const eq = T.normalizeEquipped({ icon: 'icon-season-release', first: 'first-hajimari', joiner: 'joiner-no', last: T.DEFAULTS.last }, un);
+    assertEqual(eq.icon, 'icon-season-release', '着けていたリリース記念のアイコンは、そのまま着けていられる');
   });
 
   await r.test('季節イベント：夏の称号は「期間中に集まって遊んだ数」だけで手に入る', async () => {

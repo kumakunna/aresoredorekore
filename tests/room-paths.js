@@ -256,9 +256,10 @@ async function run() {
       const deviceOf = {};
       rm.all.forEach((d) => { deviceOf[d.memberId] = d; });
 
-      // ターン1：全員確認 → 話し合いへ → 投票へ
+      // ターン1：全員確認 → 話し合い → 投票へ
+      //（指示63 第5部：ワードウルフに作戦会議は無い。全員が確認すると、そのまま話し合いになる）
       for (const d of rm.all) await d.call('wolf:act', { targetId: null });
-      await rm.host.call('wolf:next', {});
+      await waitUntil(() => room().wordwolf.phase === 'discuss', '確認のあとは話し合い（作戦会議を通らない）');
       await rm.host.call('wolf:next', {});
       const wolf1 = room().wordwolf.wolfIds[0];
       const sheep1 = rm.all.filter((d) => d.memberId !== wolf1);

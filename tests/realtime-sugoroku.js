@@ -48,7 +48,8 @@ function startTestServer() {
   const httpServer = http.createServer(app);
   const store = new RoomStore();
   const db = fakeDb();
-  const io = attachRealtime(httpServer, sessionMiddleware, { store, db });
+  // 指示63 第4部：開始の3-2-1は検査では0にする（実時間の1本は tests/realtime-countdown.js）
+  const io = attachRealtime(httpServer, sessionMiddleware, { store, db, countdownMs: 0 });
   return new Promise((resolve) => {
     httpServer.listen(0, '127.0.0.1', () => {
       resolve({

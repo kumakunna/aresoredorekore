@@ -111,6 +111,19 @@ const 測る式 = `(function(){
     小さい的: btns.filter(function(b){ return b.画面内 && !b.dis && (b.w < 44 || b.h < 44); }).map(function(b){ return b.t + '(' + b.w + '×' + b.h + ')'; }),
     画面外のボタン: btns.filter(function(b){ return !b.画面内 && !b.dis; }).map(function(b){ return b.t; }),
     横はみ出し: document.documentElement.scrollWidth > W,
+    // 指示63 門G7：3-2-1 が出ている間、画面の真ん中を押すと数字の幕が受けるか（＝下の盤は押せない）。
+    // 時計（data-timer）が見えていないか。吹き出し（.tut-say）が出ていないか
+    数え中: (function(){
+      var cd = document.querySelector('.fx-countdown');
+      if(!cd) return null;
+      var top = document.elementFromPoint(W / 2, H / 2);
+      var 時計 = Array.prototype.filter.call(document.querySelectorAll('[data-timer]'), function(t){
+        var r = t.getBoundingClientRect(); return r.width > 0 && getComputedStyle(t).visibility !== 'hidden' && getComputedStyle(t).display !== 'none';
+      }).map(function(t){ return t.id + '=' + t.textContent.trim(); });
+      var tut = document.querySelector('.tut-say');
+      return { 数字: (cd.textContent || '').trim(), 幕が受ける: !!top && cd.contains(top),
+        見えている時計: 時計, 吹き出し: !!tut && tut.getBoundingClientRect().width > 0 && getComputedStyle(tut).opacity !== '0' };
+    })(),
     appの高さ: appH, 画面の高さ: H,
     字: 見えている字.slice(0, 600)
   };

@@ -86,6 +86,18 @@
     return true;
   }
   function anyOpen() { return stack.length > 0; }
+  /**
+   * 指示63 2-3：**中身が条件に合う重なりだけを、上から全部閉じる。**
+   * 待合の「アイコン・二つ名をかえる」のシート（と、その上に重ねた選ぶシート）を、
+   * ゲームが始まって待合を離れる時に閉じるために使う。ほかの重なり（確認など）は触らない
+   */
+  function closeWhere(pred) {
+    var n = 0;
+    stack.slice().reverse().forEach(function (e) {
+      try { if (e.node && pred(e.node)) { e.close(null); n++; } } catch (err) {}
+    });
+    return n;
+  }
 
   var keysBound = false;
   function bindKeys() {
@@ -353,6 +365,7 @@
     toast: toast,
     chipHtml: chipHtml,
     closeTop: closeTop,
+    closeWhere: closeWhere,
     anyOpen: anyOpen,
     KINDS: DIALOG_KINDS,
     /**

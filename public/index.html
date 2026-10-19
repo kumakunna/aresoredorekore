@@ -488,6 +488,12 @@
      両方向で照合するので、新しい時計に付け忘れると赤くなる（落とし穴20）。
      出す側（各ゲーム）に表示の条件を書かせない。書かせると新しいゲームで必ず漏れる（落とし穴1） */
   .app[data-timer-view="hidden"] [data-timer]{display:none !important;}
+  /* 指示63 第4部：**3-2-1 の間は、時計を見せない。**
+     持ち時間は0になった瞬間から減る（realtime.js が締め切りを3-2-1のぶん後ろへずらす）。
+     そのため数えている間の残りは「持ち時間＋数え残り」（3:02 など）になる。
+     ゲームごとの時計（7種類）を1つずつ直すと漏れるので、ここ1か所で隠す——
+     0 になった瞬間に、ちょうど持ち時間ぶん（3:00）で出てくる */
+  body:has(.fx-countdown) [data-timer]{visibility:hidden;}
   /* 仮面の言葉（6文字 × 0.6em ＝ 3.6em）が、時計の幅に必ず収まるようにする。
      時計の幅は「00:00」の実測で決まるので、
      いちばん小さい時計（`.bomb-topbar` の15px）では**余りが6pxしかなかった**——
@@ -1387,30 +1393,24 @@
      消えた画面のための cursor や余白が、半分だけ効き続けていた（落とし穴23）。
      tests/dead-style.js が「規則の無いクラス」と「使われない規則」を
      両側から見張る（落とし穴20：照合には向きがある） */
-  /* 手に入った瞬間 */
-  .got-panel{text-align:center;}
-  .got-lead{font-size:14px;color:var(--ink-soft);}
-  /* 第33弾 B-6：手に入れた瞬間の演出。
-     パネルが上がったあと、絵文字が弾んで出て、名前が続く。
-     複数同時に手に入れた時は、1つずつ順番に現れる */
-  .got-item{margin:16px 0;
-    animation:gotItemIn calc(0.4s * var(--fx-scale)) cubic-bezier(.2,1.5,.4,1) backwards;}
-  .got-item:nth-child(2){animation-delay:calc(0.16s * var(--fx-scale));}
-  .got-item:nth-child(3){animation-delay:calc(0.32s * var(--fx-scale));}
-  .got-item:nth-child(n+4){animation-delay:calc(0.48s * var(--fx-scale));}
-  @keyframes gotItemIn{from{transform:translateY(16px) scale(.6);opacity:0;}
-    to{transform:translateY(0) scale(1);opacity:1;}}
-  .got-emoji{font-size:64px;line-height:1.1;
-    animation:gotEmojiPop calc(0.7s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) backwards;
-    animation-delay:inherit;}
-  @keyframes gotEmojiPop{0%{transform:scale(0) rotate(-12deg);}
-    62%{transform:scale(1.22) rotate(3deg);}100%{transform:scale(1) rotate(0);}}
-  /* 「新しく手に入れた！」の見出しも、ひと呼吸置いて輝く */
-  .got-lead{animation:gotLeadGlow calc(1s * var(--fx-scale)) ease-out;}
-  @keyframes gotLeadGlow{0%{text-shadow:none;}40%{text-shadow:0 0 18px rgba(240,196,74,.9);}
-    100%{text-shadow:none;}}
-  .got-label{font-size:26px;font-weight:800;margin-top:6px;}
-  .got-why{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.7;}
+  /* 指示63 2-2：称号の知らせ。画面の下に小さく、数秒で自分で閉じる（押しても閉じる）。
+     結果の順位とボタンを隠さないよう、高さは2〜3行に抑え、下の反応の列より上に置く */
+  .title-toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom, 0px) + 64px);
+    transform:translate(-50%, 12px);z-index:88;
+    width:max-content;max-width:min(340px, 90vw);
+    background:rgba(36,39,46,0.92);color:#fff;border-radius:16px;
+    padding:9px 16px 10px;text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.22);
+    opacity:0;pointer-events:none;
+    transition:opacity calc(.24s * var(--fx-scale)) cubic-bezier(.32,.72,0,1),
+               transform calc(.24s * var(--fx-scale)) cubic-bezier(.32,.72,0,1);
+  }
+  .title-toast.show{opacity:1;transform:translate(-50%, 0);pointer-events:auto;cursor:pointer;}
+  .title-toast.show:active{transform:translate(-50%, 1px) scale(.98);}
+  .title-toast .tt-lead{font-size:14px;font-weight:800;}
+  .title-toast .tt-list{font-size:13px;margin-top:3px;line-height:1.5;}
+  .title-toast .tt-sub{font-size:11.5px;opacity:.75;margin-top:3px;}
 
   /* 第39弾 門A10：**押せるものには、触れた瞬間の反応がある。**
      押したのに何も変わらないと、遊ぶ人は「効いていないのかな」と
@@ -2314,6 +2314,44 @@
   .rt-code-box{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;}
   .rt-code-label{font-size:11px;color:var(--ink-soft);letter-spacing:.14em;}
   .rt-code{font-family:'DotGothic16',monospace;font-size:44px;letter-spacing:.16em;margin:4px 0 6px;}
+  /* 指示63 第3部：待合の並び。**参加者**：いま何を待っているか → 名簿 → 着替え → 友だちを呼ぶ（たたむ）。
+     **進行役**：友だちを呼ぶ（開いて、いちばん上）→ 名簿 → 着替え。
+     並べ方は1つの markup に order で決める（進行役用と参加者用の2枚を持たない・落とし穴1） */
+  .rt-room-now{
+    margin:0 0 10px;padding:10px 14px;border-radius:12px;
+    background:var(--card);border:1px solid var(--line);
+    font-size:15px;font-weight:700;line-height:1.55;text-align:center;
+  }
+  .rt-room-now:empty{display:none;}
+  .rt-room-body{display:flex;flex-direction:column;gap:12px;}
+  .rt-room-sec{margin:0;}
+  .rt-roster-sec{order:1;}
+  .rt-look-sec{order:2;}
+  .rt-invite-sec{order:3;}
+  .rt-host-sec{order:4;display:flex;flex-direction:column;gap:6px;}
+  .rt-host-sec:not(:has(button:not([style*="display:none"]):not([style*="display: none"]))){display:none;}
+  .rt-more-sec{order:5;}
+  #scr-rt-room.is-host .rt-invite-sec{order:0;}
+  .rt-invite{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0;}
+  .rt-invite > summary{
+    list-style:none;cursor:pointer;padding:12px 14px;min-height:44px;box-sizing:border-box;
+    font-size:14px;font-weight:700;
+  }
+  .rt-invite > summary::-webkit-details-marker{display:none;}
+  .rt-invite > summary:active{background:var(--paper-deep);}
+  .rt-invite > summary::after{content:'＋';float:right;opacity:.6;}
+  .rt-invite[open] > summary::after{content:'－';}
+  .rt-invite .qr-box{margin-top:0;}
+  .rt-invite .rt-code-box{border:none;background:transparent;margin:0;padding:6px 16px 14px;}
+  .rt-invite .rt-code{font-size:32px;}
+  .new-mark{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;
+    background:var(--stamp);color:#fff;font-size:11px;font-weight:800;vertical-align:middle;}
+  .new-mark[hidden]{display:none;}
+  .rt-start-wait{font-size:13px;color:var(--ink-soft);text-align:center;margin:0 0 -2px;}
+  .look-now{display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 14px;}
+  .look-now .look-icon{font-size:40px;line-height:1;}
+  .look-now .look-title{font-size:18px;font-weight:800;}
+  .look-acts{display:flex;flex-direction:column;gap:8px;}
   .rt-member{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px dashed var(--line);font-size:14px;}
   .rt-member:last-child{border-bottom:none;}
   /* 第42弾 2-6：名簿に出す「その人の姿」。
@@ -2935,12 +2973,12 @@
      第43弾で棚の中身を .shelf-stage（不透明）で覆ったので、
      画面の側だけに書いておくと、霞が上の帯にしか出なくなる（落とし穴27：
      箱を外に出したら、その箱に付いていた設定から外れる） */
-  .app.season-release #scr-shelf,
-  .app.season-release .shelf-stage{
+  .app.season-bunkasai #scr-shelf,
+  .app.season-bunkasai .shelf-stage{
     background-image:linear-gradient(180deg, rgba(230,180,90,.16), rgba(230,180,90,0) 40%);
   }
   /* 扉：ようこその一言に、記念のひとつ */
-  .app.season-release #scr-door .door-lead::after{content:' 🎊';}
+  .app.season-bunkasai #scr-door .door-lead::after{content:' 🏮';}
   /* 第22弾-1：ログイン画面の「または」区切りと、部屋コードのQR */
   .join-divider{display:flex;align-items:center;gap:10px;margin:18px 0 12px;color:var(--ink-soft);font-size:12px;}
   .join-divider::before, .join-divider::after{content:'';flex:1;height:1px;background:var(--line);}
@@ -2974,6 +3012,7 @@
   .topic-left{text-align:center;font-size:12px;color:var(--ink-soft);margin:2px 0 6px;}
   .topic-left:empty{display:none;}
   .rt-phase{text-align:center;font-family:'Shippori Mincho',serif;font-weight:800;font-size:26px;margin:6px 0 12px;}
+  .rt-play-clock{display:flex;justify-content:center;margin:-6px 0 10px;}
   .rt-public{text-align:center;font-size:13px;color:var(--ink-soft);line-height:1.8;margin-bottom:14px;}
   .rt-you{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;}
   .rt-you .ry-label{font-size:11px;letter-spacing:.14em;color:var(--ink-soft);}
@@ -3093,8 +3132,12 @@
   @keyframes bigCdPulse{0%{transform:scale(.6);opacity:0;}18%{transform:scale(1.08);opacity:1;}
     60%{transform:scale(1);opacity:.95;}100%{transform:scale(1.25);opacity:0;}}
   /* 第34弾 2-1：ゲームが始まる前の、みんなで見る3-2-1 */
+  /* 指示63 第4部：**数えている間は、下の盤を押せない。**
+     それまでは pointer-events:none で、3-2-1 の最中に盤も3択も押せた（指示62）。
+     サーバーも数えている間の操作を not_started で断る（realtime.js inCountdown）——
+     押せるのに何も起きない、を作らないために、見た目の側でも受け止める */
   .fx-countdown{
-    position:fixed;inset:0;z-index:94;pointer-events:none;
+    position:fixed;inset:0;z-index:94;pointer-events:auto;
     display:flex;align-items:center;justify-content:center;
     background:rgba(20,22,28,.28);
   }
@@ -4928,6 +4971,8 @@
          **その2つは、どのカセットを見ていても意味が変わらない場所**だから -->
     <div class="shelf-stage" id="shelfStage">
       <button class="shelf-room-note" id="shelfRoomNote" style="display:none;"></button>
+      <!-- 指示63 2-1：自分から出た部屋に、同じ人として戻る（その日のうち・部屋がある間だけ） -->
+      <button class="shelf-room-note" id="shelfReturnNote" style="display:none;"></button>
       <div id="shelfList"></div>
       <div class="sw-band" id="shelfBand"></div>
       <div class="shelf-hint">よこにスワイプでカセットをえらぶ<br>まんなかのカセットをタップであそぶ<br>ながおしで、そのカセットの説明が読める</div>
@@ -5069,23 +5114,6 @@
       <button class="btn btn-main" id="albumDownloadBtn">⬇️ アルバムを保存する</button>
       <button class="btn btn-teal" id="albumDoneBtn" style="display:none;margin-top:8px;">💾 保存しました（サーバーから消す）</button>
       <div class="mic-status" style="margin-top:10px;">保存がすんだら、かならず「保存しました」を押してください。押すまでは消しません（通信が切れても失われないように）。1時間さわられなければ自動で消えます。</div>
-    </div>
-  </div>
-
-  <div class="overlay" id="titleGotOverlay">
-    <div class="overlay-panel got-panel">
-      <div class="got-lead">新しく手に入れた！</div>
-      <div id="gotList"></div>
-      <button class="btn btn-main" id="gotEquipBtn" style="margin-top:16px;">すぐ着ける</button>
-      <button class="btn btn-ghost" id="gotSkipBtn">あとで（このまま進む）</button>
-      <div class="toggle-row-mini" style="margin-top:14px;">
-        <div>この演出を今後は出さない
-          <!-- 第43弾：この案内は、それまで嘘だった（その行が無かった）。
-               「見た目と演出」に setFanfareToggle を作ったので、いまは本当のこと -->
-          <div class="mic-status">設定の「見た目と演出」からいつでももどせます</div>
-        </div>
-        <div class="switch" id="gotMuteToggle"></div>
-      </div>
     </div>
   </div>
 
@@ -5779,50 +5807,68 @@
   <!-- 部屋の待合。参加者がそのまま名簿になる -->
   <div class="screen" id="scr-rt-room">
     <h2 class="scr-title">部屋</h2>
-    <div class="rt-code-box">
-      <div class="rt-code-label">部屋コード</div>
-      <div class="rt-code" id="rtRoomCode">------</div>
-      <div class="mic-status">このコードを、みんなに伝えてください</div>
-    </div>
-    <div class="wiz-body">
-      <div class="qr-box" id="rtQrBox">
-        <div id="rtQr"></div>
-        <div class="qr-note">カメラで読むと、そのまま入れます</div>
+    <!-- 指示63 第3部：**いちばん上に「いま何を待っているか」**（巻かずに見える所）。
+         それまでは QR・名簿・アルバムの下（y≈1034 の巻く箱の中）にあって、
+         375×667 の参加者には見えなかった（指示62・迷い(c) の大半） -->
+    <div class="rt-room-now" id="rtRoomNote" role="status"></div>
+    <div class="wiz-body rt-room-body">
+      <!-- 友だちを呼ぶ（QR・部屋コード）。参加者にはたたんでおく（押すと開く）。
+           進行役には開いて、いちばん上に置く（QR全体が巻かずに見える・門G8 の兄弟） -->
+      <div class="rt-room-sec rt-invite-sec">
+        <details class="rt-invite" id="rtInvite">
+          <summary>📣 友だちを呼ぶ（QR・部屋コード）</summary>
+          <div class="qr-box" id="rtQrBox">
+            <div id="rtQr"></div>
+            <div class="qr-note">カメラで読むと、そのまま入れます</div>
+          </div>
+          <div class="rt-code-box">
+            <div class="rt-code-label">部屋コード</div>
+            <div class="rt-code" id="rtRoomCode">------</div>
+          </div>
+        </details>
       </div>
-      <div class="tp-label" style="margin-top:14px;">参加している人<span id="rtRoomCount">0人</span></div>
-      <div id="rtMemberList"></div>
-      <!-- 第32弾-E 第1部：2人組の記録の、控えめな一言 -->
-      <div id="rtPairNote"></div>
-      <!-- 第32弾-E 第6部：アルバム。写真は端末で縮めてから箱（サーバー）へ、
-           ホストに渡し終えたら消す。AIには一切渡さない -->
-      <div class="card" id="rtAlbumBox" style="margin-top:14px;">
-        <div class="sec-title">📸 きょうのアルバム</div>
-        <div class="mic-status" id="albumStatusLine" style="margin-bottom:10px;"></div>
-        <input type="file" id="albumFile" accept="image/*" capture="environment" style="display:none;">
-        <button class="btn btn-outline" id="albumAddBtn">📷 写真をとって、箱に入れる</button>
-        <button class="btn btn-ghost" id="albumRemoveBtn" style="display:none;">自分の写真を箱から出す</button>
-        <button class="btn btn-main" id="albumGetBtn" style="display:none;">📖 アルバムをうけとる（進行役）</button>
+      <div class="rt-room-sec rt-roster-sec">
+        <div class="tp-label">参加している人<span id="rtRoomCount">0人</span></div>
+        <div id="rtMemberList"></div>
+        <!-- 第32弾-E 第1部：2人組の記録の、控えめな一言 -->
+        <div id="rtPairNote"></div>
       </div>
-      <div class="mic-status" id="rtRoomNote" style="margin-top:10px;"></div>
-      <!-- 第32弾-A-2：大画面は「表示モード」。いつでも切り替えられて、いつでも戻れる -->
-      <button class="btn btn-outline" id="rtToBigBtn" style="margin-top:14px;">📺 この画面を大画面にする</button>
-      <div class="mic-status" id="rtToBigNote" style="margin-top:6px;"></div>
+      <!-- 指示63 2-3：待つ間に、アイコン・二つ名を着替える（待合の上に重ねるシートで開く） -->
+      <div class="rt-room-sec rt-look-sec">
+        <button class="btn btn-outline" id="rtLookBtn">🏷 アイコン・二つ名をかえる<span class="new-mark" id="rtLookNew" hidden>NEW</span></button>
+      </div>
+      <!-- 進行役の、たまに使うもの（下の帯に積むと QR が切れていた・指示62） -->
+      <div class="rt-room-sec rt-host-sec">
+        <button class="btn btn-ghost" id="rtRoomShowRulesBtn" style="display:none;">📣 ルールをもう一度みんなに見せる</button>
+        <!-- 第41弾 2-15：進行役をやめて、別の人が立てた部屋に入りたくなる場面 -->
+        <button class="btn btn-ghost" id="rtToGuestBtn" style="display:none;"></button>
+      </div>
+      <div class="rt-room-sec rt-more-sec">
+        <!-- 第32弾-A-2：大画面は「表示モード」。いつでも切り替えられて、いつでも戻れる -->
+        <button class="btn btn-outline" id="rtToBigBtn">📺 この画面を大画面にする</button>
+        <div class="mic-status" id="rtToBigNote" style="margin-top:6px;"></div>
+        <!-- 第32弾-E 第6部：アルバム。写真は端末で縮めてから箱（サーバー）へ、
+             ホストに渡し終えたら消す。（指示63：遊ぶ人に関係の薄い説明は、待合のいちばん下へ） -->
+        <div class="card" id="rtAlbumBox" style="margin-top:14px;">
+          <div class="sec-title">📸 きょうのアルバム</div>
+          <div class="mic-status" id="albumStatusLine" style="margin-bottom:10px;"></div>
+          <input type="file" id="albumFile" accept="image/*" capture="environment" style="display:none;">
+          <button class="btn btn-outline" id="albumAddBtn">📷 写真をとって、箱に入れる</button>
+          <button class="btn btn-ghost" id="albumRemoveBtn" style="display:none;">自分の写真を箱から出す</button>
+          <button class="btn btn-main" id="albumGetBtn" style="display:none;">📖 アルバムをうけとる（進行役）</button>
+        </div>
+      </div>
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
-      <!-- 第26弾-3：部屋はカセットに紐づかない箱。何を遊ぶかは、この部屋にいるまま選び直せる -->
       <!-- 第37弾：ルールを読んで「準備OK」。読んだことがあるゲームでは、
            ルール画面をはさまずにここで押すだけでよい -->
       <button class="btn btn-main" id="rtRoomReadyBtn" style="display:none;">✓ 準備OK</button>
       <button class="btn btn-ghost" id="rtRoomRulesBtn" style="display:none;margin-top:0;">📖 ルールを見る</button>
-      <!-- 第48弾 48-1：ルール文を直した時・あとから来た人がいる時に、進行役が全員へ出し直す。
-           既読を全員ぶん無効にして、準備OKも外す（読み直してから押し直す） -->
-      <button class="btn btn-ghost" id="rtRoomShowRulesBtn" style="display:none;margin-top:0;">📣 ルールをもう一度みんなに見せる</button>
+      <!-- 第26弾-3：部屋はカセットに紐づかない箱。何を遊ぶかは、この部屋にいるまま選び直せる -->
       <button class="btn btn-outline" id="rtPickGameBtn" style="display:none;">🎮 ゲームをえらぶ</button>
+      <!-- 指示63 第3部：「はじめる」が押せない時は、その真上に「◯◯さんを待っています」（なぜ押せないか） -->
+      <div class="rt-start-wait" id="rtStartWait" hidden></div>
       <button class="btn btn-main" id="rtStartBtn">はじめる ▶</button>
-      <!-- 第41弾 2-15：進行役をやめて、別の人が立てた部屋に入りたくなる場面。
-           **設定には置かない**——部屋にいる時にしか意味が無い操作なので、
-           部屋の画面に置く（設定に埋めると、要る時に見つからない） -->
-      <button class="btn btn-ghost" id="rtToGuestBtn" style="display:none;margin-top:0;"></button>
       <button class="btn btn-ghost" id="rtLeaveBtn" style="margin-top:0;">← 部屋を出る</button>
     </div>
   </div>
@@ -5853,6 +5899,8 @@
     <div class="now-line" hidden></div>
     <div class="turn-banner" id="rtTurnBanner"></div>
     <div class="rt-phase" id="rtPhase">-</div>
+    <!-- 指示63 第5部：部屋の人狼・ワードウルフの手元の時計。設定「常に表示」が手元にも効く（data-timer） -->
+    <div class="rt-play-clock"><div class="timer-chip" data-timer id="rtPlayTimer" style="display:none;">--:--</div></div>
     <div class="wiz-body">
       <div id="rtPublicBox" class="rt-public"></div>
       <div id="rtYouBox" class="rt-you"></div>
@@ -7271,7 +7319,7 @@
         <div class="card">
           <div class="toggle-row-mini">
             <div>体を動かす遊びをする
-              <div class="mic-status">実物解除の「ポーズ指定」など、体を動かすしかけです。切ると、そのしかけは出てきません</div>
+              <div class="mic-status">ポーズの指定など、体を動かすしかけです。切ると、そのしかけは出てきません</div>
             </div>
             <div class="switch on" id="setBodyToggle"></div>
           </div>
@@ -7430,6 +7478,18 @@
      画面ではなくページの座標に置かれ、実測で 812px の画面に対して
      y=1015〜1388 ——**画面の外**に出て、何も出ていないように見えていた。 -->
 <div id="uiLayerRoot">
+  <!-- 指示63 2-2：**称号の知らせは、結果の上にかぶせない。**
+       それまでは全面の幕（新しく手に入れた！／すぐ着ける／あとで）が結果の上にかぶさり、
+       押すまで閉じなかった。文化祭の来場者は全員が初めてなので、60人全員が
+       自分の順位より先にこの幕を見ていた（指示62・TOP5）。
+       いまは**結果が読めてから（1.6秒後）、画面の下に小さく**出して、数秒で自分で閉じる。押しても閉じる。
+       着ける場所は待合の「🏷 アイコン・二つ名をかえる」（2-3）。id は前の幕のものを引き継ぐ
+       （次の試合の合図で閉じる処理などが、この名前を見ている）。#app の外に置く（落とし穴26） -->
+  <div class="title-toast" id="titleGotOverlay" role="status" aria-live="polite">
+    <div class="tt-lead" id="gotLead">🏅 称号を手に入れた！</div>
+    <div class="tt-list" id="gotList"></div>
+    <div class="tt-sub">待合の「🏷 アイコン・二つ名をかえる」で着けられます</div>
+  </div>
   <!-- 第48弾 48-5：ポーズの幕。**#app の外**に置く——
        `.overlay` は position:fixed なのに #app の中にいて、
        #app が filter を持つので長い画面では画面の外へ飛ぶ（落とし穴26）。
@@ -8306,7 +8366,7 @@
     if(btn) btn.disabled = false;
     if(!st.ある){
       el('entryRoomBtn').style.display = 'none';
-      renderShelfRoomNote();
+      renderShelfRoomNote(); renderShelfReturnNote();
       var T = UiText.ENTRY.部屋あり;
       UiKit.info(T.もう無い, T.もう無いの本文);
       return false;
@@ -8728,6 +8788,43 @@
       '　' + ((typeof UiText !== 'undefined') ? UiText.WORDS.back : 'もどる') + ' ›';
   }
   el('shelfRoomNote').addEventListener('click', function(){ goRoomOpen(this); });
+  /**
+   * 指示63 2-1：**出てしまった人の棚に「さっきの部屋にもどる（コード ◯◯）」を出す。**
+   * 部屋がもう無ければ出さない（手がかりも捨てる）。あるかどうかはサーバーに聞く（落とし穴14-b）。
+   * 押すと、前と同じ memberId・名前で入る——待合と決着のあいだなら、サーバーが同じ人として戻す
+   */
+  var shelfReturnAsk = 0;
+  function renderShelfReturnNote(){
+    var b = el('shelfReturnNote');
+    if(!b) return;
+    var last = (rt && !rt.state.room && rt.lastRoom) ? rt.lastRoom() : null;
+    if(!last){ b.style.display = 'none'; return; }
+    var 番 = ++shelfReturnAsk;
+    rt.peekRoom(last.code, last.memberId).then(function(res){
+      if(番 !== shelfReturnAsk) return;   // 古い問い合わせの答えは捨てる
+      if(!res || !res.ok){
+        b.style.display = 'none';
+        if(res && res.error === 'room_not_found') rt.forgetLastRoom();
+        return;
+      }
+      b.textContent = UiText.LEAVE.さっきの部屋(last.code);
+      b.style.display = '';
+    });
+  }
+  el('shelfReturnNote').addEventListener('click', async function(){
+    var last = rt && rt.lastRoom ? rt.lastRoom() : null;
+    if(!last) return;
+    this.disabled = true;
+    var res = await rt.joinRoom(last.code, last.name || '', last.role || 'player', myLook());
+    this.disabled = false;
+    if(!res.ok){
+      UiKit.info(UiText.LEAVE.もどれない, res.message || '');
+      rt.forgetLastRoom();
+      renderShelfReturnNote();
+      return;
+    }
+    goTo(rtWantScreen());
+  });
   /** 人数をたずねる（sheet）。**軽く聞く。答えなくても閉じられる** */
   function askHeads(){
     if(typeof UiKit === 'undefined') return;
@@ -9251,6 +9348,21 @@
    *
    * **大画面では聞かない**（門W12は元栓で守る。big-screen.js と同じ流儀）
    */
+  /**
+   * 指示63 第4部：開始の 3-2-1 が出ている間は待つ。数字の箱（.fx-countdown）が消えたら解ける。
+   * 数字は FxKit.countdown が setTimeout で進めるので、ここも setTimeout で見る
+   *（requestAnimationFrame は裏に回ったタブで止まる・落とし穴28）。
+   * 念のため上限を置く（数字が何かの理由で残っても、案内が永久に出ないことはない）
+   */
+  function whenCountdownDone(){
+    return new Promise(function(resolve){
+      var t0 = Date.now();
+      (function look(){
+        if(!document.querySelector('.fx-countdown') || Date.now() - t0 > 8000) return resolve();
+        setTimeout(look, 80);
+      })();
+    });
+  }
   async function tutAsk(gameId){
     if(!gameId) return false;
     delete tutWanted[gameId];
@@ -9277,6 +9389,10 @@
     delete tutWanted[gameId];
     var 台本 = tutScriptFor(gameId);
     if(!台本 || !台本.length) return false;
+    // 指示63 第4部：**3-2-1 が0になってから出す。**
+    // 盤は 3-2-1 の下で先に描かれるので、盤が出た瞬間に動かすと、数字の最中に
+    // 吹き出しが出ていた（指示62・1-3 で再現。大画面は「待て」、手元は「押せ」になる）
+    await whenCountdownDone();
     var 結果 = await TutorialKit.start(台本);
     // 最後まで見ても、途中で閉じても「見た」。
     // **止められた時（退室・通信断・決着）は立てない**（2-8）
@@ -9360,35 +9476,85 @@
     try{ localStorage.removeItem(TUT_OLD_BOMB_KEY); }catch(e){}
   }
   /**
-   * **未ログインでも、選んだ姿は端末に残す**（第42弾 2-2・2-5・2-7）。
+   * **未ログインの人の称号は、その日のうちは端末に残す**（指示63・くまくんの裁定 2026-10-20）。
    *
-   * これまでは `if(!loggedIn()) return;` で、未ログインだと何も保存していなかった。
-   * 指示42は「未ログイン時は端末（既存の経路）」と書いていたが、
-   * **その経路は無かった**（着手前の棚卸しで判明）。ここで新設する。
+   * 取った一覧（unlocked）・数字（stats）・着けた姿（equipped）・NEW の印を、
+   * **日本時間の日付つきで**端末（localStorage）に置く。**日付が変わったら消す。サーバーには送らない。**
+   * これは文化祭のための一時的な決まりではなく、**これからずっとの決まり**。
    *
-   * 端末に置くのは**選んだ姿だけ**。持ち物（unlocked）と数字（stats）は
-   * アカウントのもので、未ログインでは増えない——
-   * 増えないものを端末に書くと、ログインした時にどちらが正しいか決められなくなる。
+   * それまでの裁定（第42弾 2-2・2-5・2-7）は「端末に置くのは選んだ姿だけ。持ち物と数字は
+   * アカウントのもので、未ログインでは増えない——増えないものを端末に書くと、ログインした時に
+   * どちらが正しいか決められなくなる」だった。指示62 で、QRで来たゲストが遊んで取った称号が
+   * **ページを読み込み直しただけで全部消える**（取った9→4・着けた姿も既定）と分かり、変えた。
+   * 「ログインした時にどちらが正しいか」は門E8 のまま：**ログインした瞬間に端末の分は捨てる**
+   *（端末の分をアカウントへ移さない。未ログインで遊んだのが、いまログインした人とは限らない）。
+   * 貸し出し用の端末で前の人の称号が残る対策は、文化祭用の指示で扱う（この指示では作らない）。
    */
-  var GUEST_LOOK_KEY = 'acac-look';
-  function loadGuestLook(){
-    try{ return JSON.parse(localStorage.getItem(GUEST_LOOK_KEY) || 'null'); }catch(e){ return null; }
+  var GUEST_TITLES_KEY = 'acac-guest-titles';
+  var GUEST_LOOK_KEY = 'acac-look';   // 第42弾の「姿だけ」の置き場。読むだけ（移行のため）
+  var TITLE_NEW_KEY = 'acac-title-new';   // ログインしている人の NEW の印（端末ごと）
+  /** 日本時間の日付（YYYY-MM-DD）。端末の地域設定に左右されない */
+  function jstDay(now){
+    return new Date((now == null ? Date.now() : now) + 9 * 3600 * 1000).toISOString().slice(0, 10);
   }
-  function saveGuestLook(){
-    try{ localStorage.setItem(GUEST_LOOK_KEY, JSON.stringify(myTitles.equipped)); }catch(e){}
+  function loadGuestTitles(){
+    var g = null;
+    try{ g = JSON.parse(localStorage.getItem(GUEST_TITLES_KEY) || 'null'); }catch(e){ g = null; }
+    if(!g || g.day !== jstDay()){ clearGuestTitles(); return null; }
+    return g;
   }
-  function clearGuestLook(){
-    try{ localStorage.removeItem(GUEST_LOOK_KEY); }catch(e){}
+  function saveGuestTitles(){
+    try{
+      localStorage.setItem(GUEST_TITLES_KEY, JSON.stringify({
+        day: jstDay(), stats: myTitles.stats, unlocked: myTitles.unlocked,
+        equipped: myTitles.equipped, newIds: myTitles.newIds || []
+      }));
+      localStorage.removeItem(GUEST_LOOK_KEY);
+    }catch(e){}
+  }
+  function clearGuestTitles(){
+    try{ localStorage.removeItem(GUEST_TITLES_KEY); localStorage.removeItem(GUEST_LOOK_KEY); }catch(e){}
+  }
+  /** 端末に残っていたゲストの称号を、いまの持ち物にする（myTitlesLoaded には触らない） */
+  function useGuestTitles(){
+    var g = loadGuestTitles();
+    if(!g) return false;
+    var stats = TitleLogic.normalizeStats(g.stats);
+    var unlocked = TitleLogic.mergeUnlocked(g.unlocked || [], stats);
+    myTitles.stats = stats;
+    myTitles.unlocked = unlocked;
+    myTitles.equipped = TitleLogic.normalizeEquipped(g.equipped, unlocked);
+    myTitles.newIds = (g.newIds || []).filter(function(id){ return unlocked.indexOf(id) !== -1; });
+    return true;
+  }
+  /**
+   * 指示63 2-3：**新しく手に入れたものに NEW の印。**一度開いたら消える。
+   * ゲストはその日の称号と一緒に、ログインしている人は端末の別の場所に置く
+   */
+  function markTitlesNew(ids){
+    myTitles.newIds = (myTitles.newIds || []).slice();
+    (ids || []).forEach(function(id){ if(myTitles.newIds.indexOf(id) === -1) myTitles.newIds.push(id); });
+    saveTitleNew();
+  }
+  function clearTitleNew(){
+    if(!(myTitles.newIds || []).length) return;
+    myTitles.newIds = [];
+    saveTitleNew();
+  }
+  function saveTitleNew(){
+    if(!loggedIn()){ saveGuestTitles(); return; }
+    try{ localStorage.setItem(TITLE_NEW_KEY, JSON.stringify(myTitles.newIds || [])); }catch(e){}
+  }
+  function loadTitleNew(){
+    var ids = [];
+    try{ ids = JSON.parse(localStorage.getItem(TITLE_NEW_KEY) || '[]') || []; }catch(e){ ids = []; }
+    myTitles.newIds = ids.filter(function(id){ return (myTitles.unlocked || []).indexOf(id) !== -1; });
   }
   async function loadTitles(){
     if(!loggedIn()){
       applyTitles(null);
-      // 端末に残っていた姿を戻す（持っていないものは normalizeEquipped が落とす）
-      var look = loadGuestLook();
-      if(look){
-        myTitles.equipped = TitleLogic.normalizeEquipped(look, myTitles.unlocked);
-        renderShelfBar();
-      }
+      useGuestTitles();
+      renderShelfBar();
       return;
     }
     // **ログインした瞬間、端末の選択は捨てる**（門E8・本人の裁定）。
@@ -9401,12 +9567,13 @@
     //
     // 消してから読むので、このあとログアウトしても前の人の姿は戻らない
     //（初期状態に戻る＝「アカウント側、無ければ初期状態」）
-    clearGuestLook();
+    clearGuestTitles();
     try{ applyTitles(await api('/api/titles')); }
     catch(e){ applyTitles(null); } // 取れなくても遊べる（初期の名乗りになるだけ）
+    loadTitleNew();
   }
   async function saveTitles(){
-    if(!loggedIn()){ saveGuestLook(); return; }
+    if(!loggedIn()){ saveGuestTitles(); return; }
     try{ applyTitles(await api('/api/titles', { method:'PUT', body: myTitles })); }
     catch(e){
       // 2-8：保存できなくても、画面上の選択は保つ（消さない）
@@ -9536,50 +9703,43 @@
     titleGotQueue = titleGotQueue.filter(function(x){ return 出す.indexOf(x) === -1; });
     showTitleGotNow(出す.map(function(x){ return x.id; }));
   }
+  /**
+   * 指示63 2-2：**見せ方。**結果が読めてから、画面の下に小さく。数秒で自分で閉じる。
+   *   ・結果の画面に着いて**1.6秒たってから**（自分の順位が読める時間をとる）
+   *   ・決着の演出（爆発・解除成功の帯）が済むのを待つ（praise：舞台が空くのを待つ）
+   *   ・中身は「🏅 称号を手に入れた！（◯つ）」と、取った名前
+   *   ・**着けるボタンは出さない**（着替えは待合で：2-3）。手に入れたものには NEW の印を付ける
+   * スキップの人は動きが無いだけで、知らせ（文字）は同じように出る（読む情報なので消さない）
+   */
+  var titleToastTimer = null;
   function showTitleGotNow(ids){
-    if(appPrefs.fxSpeed === 'skip' || !appPrefs.titleFanfare){
-      // 演出を切っている人には、今までどおり一言だけ
-      var names = ids.map(function(id){
-        var f = findTitlePart(id);
-        return f ? ((f.def.emoji ? f.def.emoji + ' ' : '') + f.def.label) : id;
-      });
-      // 一言も、決着の演出が済んでから（指示60 A-1a②：それまでは舞台を通らずに即座に出ていた）
-      FxKit.stage(function(){
-        showFlash('🎉 ' + names.join('、') + ' を手に入れました！', 'hit');
-      }, { praise:true });
-      return;
-    }
-    titleGotPending = ids.slice();
-    el('gotList').innerHTML = ids.map(function(id){
-      var f = findTitlePart(id);
-      if(!f) return '';
-      return '<div class="got-item">' +
-        (f.def.emoji ? '<div class="got-emoji">' + f.def.emoji + '</div>' : '') +
-        '<div class="got-label">' + escapeHtml(f.def.label) + '</div>' +
-        '<div class="got-why">' + escapeHtml(f.def.hint) + '</div></div>';
-    }).join('');
-    // **大画面には出さない**（第42弾の監査で見つけた）。
-    // titleGotOverlay は .screen の外にいるので、どの画面の上にも出る。
-    // 遊んでいた端末が途中で大画面にされると（room:setRole は進行役が他人にも効き、
-    // ゲーム開始後の制限も無い）、**その端末の持ち主の「新しく手に入れた！」が
-    // みんなの見ているTVに出る。**出るのは本人のものなので他人の達成状況が
-    // 漏れるわけではないが、大切なこと1（実際にその場に座っている状況を想像する）
-    // に照らすと出してはいけない。
-    // **記録（gotAt の保存）はここより上で済ませてある**——
-    // 見せないことと、数えないことは別（大画面にされた人の記録まで消さない）
+    // **大画面には出さない**（第42弾の監査で見つけた）。遊んでいた端末が途中で大画面に
+    // されると、その端末の持ち主の称号がみんなの見ているTVに出る。記録（gotAt）は上で済んでいる
     if(typeof rtIsBigScreen === "function" && rtIsBigScreen()) return;
-    // 第45弾 45-2：**褒めるのは、静まってから。**
-    // 決着の演出（爆発・解除成功の帯）と称号の重なりは、
-    // どちらも rtRenderCurrent の同じ1回のパスから出るので、同時に画面へ乗っていた
-    //（テストプレイで「爆発」の文字の上に「新しく手に入れた！」が半透明で重なった）。
-    // `praise:true` は「1拍おいて、舞台が空くのを待つ」という意味しか持たない——
-    // **「爆発の後に称号」とは書かない**（演出を足すたびに順序を足すことになる・落とし穴4）
+    markTitlesNew(ids);
+    var names = ids.map(function(id){
+      var f = findTitlePart(id);
+      return f ? ((f.def.emoji ? f.def.emoji + ' ' : '') + f.def.label) : '';
+    }).filter(Boolean);
+    if(!names.length) return;
     FxKit.stage(function(){
-      el('gotMuteToggle').classList.toggle('on', !appPrefs.titleFanfare);
-      el('titleGotOverlay').classList.add('show');
-      fanfareSound();
+      setTimeout(function(){ showTitleToast(names); }, 1600);
     }, { praise:true });
   }
+  /** 称号の知らせ（titleGotOverlay）を出す。5秒で自分で閉じる。押しても閉じる */
+  function showTitleToast(names){
+    el('gotLead').textContent = '🏅 称号を手に入れた！（' + names.length + 'つ）';
+    el('gotList').textContent = names.join('・');
+    el('titleGotOverlay').classList.add('show');
+    if(appPrefs.titleFanfare) fanfareSound();
+    if(titleToastTimer) clearTimeout(titleToastTimer);
+    titleToastTimer = setTimeout(closeTitleToast, 5000);
+  }
+  function closeTitleToast(){
+    if(titleToastTimer){ clearTimeout(titleToastTimer); titleToastTimer = null; }
+    el('titleGotOverlay').classList.remove('show');
+  }
+  el('titleGotOverlay').addEventListener('click', closeTitleToast);
   function saveTitleGotAt(){
     try{ localStorage.setItem('acac-title-gotat', JSON.stringify(myTitles.gotAt || {})); }catch(e){}
   }
@@ -9587,27 +9747,6 @@
     try{ myTitles.gotAt = JSON.parse(localStorage.getItem('acac-title-gotat') || '{}') || {}; }
     catch(e){ myTitles.gotAt = {}; }
   }
-  el('gotSkipBtn').addEventListener('click', function(){
-    titleGotPending = [];
-    el('titleGotOverlay').classList.remove('show');
-  });
-  el('gotEquipBtn').addEventListener('click', async function(){
-    // その場で着ける。同じ種類が複数あれば、最後のものになる
-    titleGotPending.forEach(function(id){
-      var f = findTitlePart(id);
-      if(f) myTitles.equipped[f.part] = id;
-    });
-    myTitles.equipped = TitleLogic.normalizeEquipped(myTitles.equipped, myTitles.unlocked);
-    titleGotPending = [];
-    el('titleGotOverlay').classList.remove('show');
-    renderShelfBar();
-    await saveTitles();
-  });
-  el('gotMuteToggle').addEventListener('click', function(){
-    appPrefs.titleFanfare = !appPrefs.titleFanfare;
-    saveAppPrefs();
-    el('gotMuteToggle').classList.toggle('on', !appPrefs.titleFanfare);
-  });
   function renderShelfBar(){
     var inn = loggedIn();
     el('shelfAvatar').textContent = inn ? myIcon() : guestIdentity.icon;
@@ -9706,19 +9845,64 @@
   // 検査から、開く所が2つでも実装が1つであることを確かめられるようにする
   window.titleSheetProbe = function(id){ return titleSheetData(id); };
   // 門E8：端末に残っている姿（無ければ null）。検査が localStorage を直接読まずに済むように
-  window.guestLookProbe = function(){ return loadGuestLook(); };
+  window.guestLookProbe = function(){ var g = loadGuestTitles(); return g ? g.equipped : null; };
   // 持ち物と、いま選んでいる姿。**画面の形に依らずに確かめられるようにする**——
   // 「手に入ったか」は持ち物の話で、どう描くかとは別（画面を作り直すたびに
   // 検査を書き直さずに済む）
   window.titleProbe = function(){
-    return { unlocked: myTitles.unlocked.slice(), equipped: Object.assign({}, myTitles.equipped) };
+    return { unlocked: myTitles.unlocked.slice(), equipped: Object.assign({}, myTitles.equipped),
+      newIds: (myTitles.newIds || []).slice() };
   };
   window.TitleLogic = TitleLogic;
   window.openTitleSheetRef = function(){ return openTitleSheet; };
 
   function enterTitles(){
     titleDraft = Object.assign({}, myTitles.equipped);
+    titleNewShown = (myTitles.newIds || []).slice();
+    clearTitleNew();   // 指示63 2-3：NEW は一度開いたら消える（この画面の中では印を出したまま）
     renderTitleScreen();
+  }
+  /**
+   * 指示63 2-3：**待合で着替える。**待合の上に重ねるシートで開き、別の画面に飛ばない
+   *（指示48 48-1 の事故の形を作らない：飛ぶと、そのあいだに始まったゲームを見逃す）。
+   * 開くたびに titleDraft を「いま着ているもの」から作り直す——作り直さないと、
+   * ほかの道で着替えた分が、古い下書きで上書きされて戻る（着手前の確かめで見つけた）。
+   * シートには data-looksheet の印を付け、ゲームが始まって待合を離れる時にまとめて閉じる
+   */
+  var titleNewShown = [];   // いま開いているシートで NEW を付けるもの（開いた瞬間の印）
+  function openLookSheet(){
+    if(typeof UiKit === 'undefined') return;
+    var T = UiText.TITLES;
+    titleDraft = Object.assign({}, myTitles.equipped);
+    titleNewShown = (myTitles.newIds || []).slice();
+    clearTitleNew();
+    el('rtLookNew').hidden = true;
+    var 新しい = function(part){
+      return TitleLogic.partsOf(part).some(function(p){ return titleNewShown.indexOf(p.id) !== -1; });
+    };
+    var newMark = '<span class="new-mark">NEW</span>';
+    UiKit.sheet({ ok: UiText.WORDS.close, title: T.着替えの見出し, html:
+      '<div data-looksheet class="look-now"><span class="look-icon" id="lookNowIcon">' +
+        escapeHtml(TitleLogic.iconEmoji(titleDraft)) + '</span>' +
+        '<span class="look-title" id="lookNowTitle">' + escapeHtml(TitleLogic.titleText(titleDraft)) + '</span></div>' +
+      '<div class="look-acts">' +
+        '<button class="btn btn-outline" data-lookopen="icon">' + escapeHtml(T.アイコンをかえる) + (新しい('icon') ? newMark : '') + '</button>' +
+        '<button class="btn btn-outline" data-lookopen="name">' + escapeHtml(T.二つ名をかえる) +
+          ((新しい('first') || 新しい('joiner') || 新しい('last')) ? newMark : '') + '</button>' +
+      '</div>' });
+  }
+  /**
+   * 指示63 2-3：**着ける道は、全部ここを通る。**（待合のシート・⚙→アイコン・二つ名・称号の画面）
+   * 保存して、部屋にも送る（pushMyLook → room:setLook。新しい道は作らない）。
+   * 道ごとに書くと、どれかが部屋に送り忘れる——実際、結果の幕の「すぐ着ける」は
+   * 端末の中だけで着いて、名簿にも大画面にも出ていなかった（着手前の確かめ）
+   */
+  function equipLook(next){
+    myTitles.equipped = TitleLogic.normalizeEquipped(next, myTitles.unlocked);
+    titleDraft = Object.assign({}, myTitles.equipped);
+    renderShelfBar();
+    saveTitles();
+    pushMyLook();
   }
   /**
    * **2-1：いまの自分と、あつめたものだけ。**
@@ -9795,8 +9979,9 @@
         return '<button class="ti-pick' + (titleDraft.icon === p.id ? ' on' : '') +
           '" data-pickicon="' + p.id + '">' +
           '<span class="tp-emoji">' + p.emoji + '</span>' +
-          '<span class="tp-label">' + escapeHtml(p.label) + '</span></button>';
-      }).join('') + '</div>' });
+          '<span class="tp-label">' + escapeHtml(p.label) + '</span>' +
+          (titleNewShown.indexOf(p.id) !== -1 ? '<span class="new-mark">NEW</span>' : '') + '</button>';
+      }).join('') + '</div><div data-looksheet hidden></div>' });
   }
   /**
    * 2-3：二つ名をかえる。**3列を一度に並べない。**
@@ -9807,6 +9992,7 @@
     if(typeof UiKit === 'undefined') return;
     var T = UiText.TITLES;
     UiKit.sheet({ ok: UiText.WORDS.close, title: T.二つ名の見出し, html:
+      '<div data-looksheet hidden></div>' +
       '<div class="tn-now" id="tnNow">' + escapeHtml(TitleLogic.titleText(titleDraft)) + '</div>' +
       ['first', 'joiner', 'last'].map(function(part){
         var p = TitleLogic.partById(part, titleDraft[part]);
@@ -9827,20 +10013,21 @@
         return '<button class="ti-pick' + (titleDraft[part] === p.id ? ' on' : '') +
           '" data-pickpart="' + part + '" data-pickid="' + p.id + '">' +
           '<span class="tp-label" style="font-size:12.5px;color:var(--ink);">' +
-          escapeHtml(p.label) + '</span></button>';
-      }).join('') + '</div>' });
+          escapeHtml(p.label) + '</span>' +
+          (titleNewShown.indexOf(p.id) !== -1 ? '<span class="new-mark">NEW</span>' : '') + '</button>';
+      }).join('') + '</div><div data-looksheet hidden></div>' });
   }
   /** えらんだものを、その場で「いまの自分」に反映して保存する（2-2・2-11） */
   function pickTitlePart(part, id){
     titleDraft[part] = id;
-    myTitles.equipped = Object.assign({}, titleDraft);
     FxKit.vibe('tick');
+    // 第42弾 門E6：**部屋にいる間に変えても、名簿にすぐ届く。**（送るのは equipLook の1か所）
+    equipLook(Object.assign({}, titleDraft));
     renderTitleScreen();
-    renderShelfBar();
-    saveTitles();
-    // 第42弾 門E6：**部屋にいる間に変えても、名簿にすぐ届く。**
-    // 入る時に一度送るだけだと、待合でアイコンを変えた人だけ名簿が古いままになる
-    pushMyLook();
+    // 待合のシートの「いまの自分」も書き換える（選んだのに変わらないように見せない）
+    var li = el('lookNowIcon'), lt = el('lookNowTitle');
+    if(li) li.textContent = TitleLogic.iconEmoji(titleDraft);
+    if(lt) lt.textContent = TitleLogic.titleText(titleDraft);
     UiKit.closeTop('pick');
     // **開いたままの二つ名シートも書き換える**（2-3「選ぶと上の1行が変わる」）。
     // 後ろの画面だけ描き直すと、いま見ているシートの上の行が古いまま残る——
@@ -9876,6 +10063,9 @@
       if(f) f(ho.dataset.handover);
       return;
     }
+    // 指示63 2-3：待合のシートから、アイコン・二つ名の選ぶシートを重ねて開く
+    var lo = e.target.closest('[data-lookopen]');
+    if(lo){ if(lo.dataset.lookopen === 'icon') openIconSheet(); else openNameSheet(); return; }
     var ic = e.target.closest('[data-pickicon]');
     if(ic){ pickTitlePart('icon', ic.dataset.pickicon); return; }
     var sl = e.target.closest('[data-pickslot]');
@@ -9938,7 +10128,7 @@
     renderShelf();
     renderShelfBar();
     renderShelfChip();
-    renderShelfRoomNote();
+    renderShelfRoomNote(); renderShelfReturnNote();
     // 送り幅は実物を測って決めるので、幅が確定してから位置を入れ直す。
     // **中央がどれかは数が持っている**ので、ここで計算し直すものは無い
     setTimeout(function(){
@@ -12479,6 +12669,15 @@
     if(prevScreen && prevScreen.id.indexOf('scr-rt-rc-') === 0 && id.indexOf('scr-rt-rc-') !== 0) rcLeaveScreen();
     // 指示55-②：進化じゃんけんの3枚から「3枚の外」へ出た時だけ捨てる
     if(prevScreen && prevScreen.id.indexOf('scr-rt-sh-') === 0 && id.indexOf('scr-rt-sh-') !== 0) shLeaveScreen();
+    // 指示63 2-3：**待合を離れたら（ゲームが選ばれてルールへ・始まって盤へ）、着替えのシートを閉じる。**
+    // 選んだものは押した瞬間に保存・送信済み（equipLook）なので、途中で閉じても失われない
+    if(prevScreen && prevScreen.id === 'scr-rt-room' && id !== 'scr-rt-room' && typeof UiKit !== 'undefined' && UiKit.closeWhere){
+      UiKit.closeWhere(function(n){ return !!n.querySelector('[data-looksheet]'); });
+    }
+    // 指示63：部屋の人狼・ワードウルフの手元の時計は、画面を離れたら止める
+    if(prevScreen && prevScreen.id === 'scr-rt-play' && id !== 'scr-rt-play' && rtPlayClock.timer){
+      clearInterval(rtPlayClock.timer); rtPlayClock.timer = null; rtPlayClock.ms = null;
+    }
     // 部屋のすごろくを離れる時。連打のタイマーと「押したまま」を必ず捨てる
     if(prevScreen && prevScreen.id === 'scr-rt-sugoroku' && id !== 'scr-rt-sugoroku'){
       if(rtSugo.stop){ rtSugo.stop(); rtSugo.stop = null; }
@@ -14281,7 +14480,33 @@
    * 引き戻さないための一時の印を、既読とは別に持つ。
    */
   var rtRulesSnoozed = {};
-  function rtForgetRulesSeen(){ rtRulesSeen = {}; rtRulesSnoozed = {}; }
+  /**
+   * 指示63（くまくんの判断4）：**読んだ記録を、部屋コードつきで端末にも残す。**
+   * メモリだけだと、ページを読み込み直した時・QRを読み直して戻った時に消え、
+   * 同じ部屋に戻っただけでルールをもう一度読まされていた（指示62）。
+   * 別の部屋に入ったら読み直す（部屋コードが違えば使わない）。日付が変わったら使わない
+   */
+  var RT_RULES_SEEN_KEY = 'acac-rules-seen';
+  var rtRulesCode = null;   // いまメモリに入っている「読んだ記録」が、どの部屋のものか
+  function rtSeen(){
+    var code = rt && rt.state && rt.state.code;
+    if(code && code !== rtRulesCode){
+      rtRulesCode = code;
+      rtRulesSeen = {};
+      try{
+        var v = JSON.parse(localStorage.getItem(RT_RULES_SEEN_KEY) || 'null');
+        if(v && v.code === code && v.day === jstDay()) rtRulesSeen = v.seen || {};
+      }catch(e){}
+    }
+    return rtRulesSeen;
+  }
+  function rtMarkRulesSeen(key){
+    rtSeen()[key] = true;
+    try{
+      localStorage.setItem(RT_RULES_SEEN_KEY, JSON.stringify({ code: rtRulesCode, day: jstDay(), seen: rtRulesSeen }));
+    }catch(e){}
+  }
+  function rtForgetRulesSeen(){ rtRulesSeen = {}; rtRulesSnoozed = {}; rtRulesCode = null; }
   /**
    * 「読んだ」を数える単位。
    * 指示37は「ゲームごと」と書いてあるが、**ルール文はモードが持っている**。
@@ -14368,6 +14593,11 @@
     }
     // ログイン名が分かっていれば、作る側の名前に入れておく
     if(state.displayName && !el('rtCreateName').value) el('rtCreateName').value = state.displayName;
+    // 指示63 2-1：その日に自分から出た部屋のQRを読み直した人には、前の名前を入れておく
+    //（名前を入れ直させない。memberId は rt.joinRoom が添える）
+    var 前 = (rt && rt.lastRoom) ? rt.lastRoom() : null;
+    if(前 && 前.name && !el('rtJoinName').value.trim() &&
+       el('rtJoinCode').value.trim().toUpperCase() === 前.code) el('rtJoinName').value = 前.name;
     renderRtJoinPeek(null);
     if(el('rtJoinCode').value.trim().length === 6) peekJoinRoom();
   }
@@ -14570,7 +14800,7 @@
     if(rtIAmReady()) return false;
     var key = rtRulesKey();
     if(!key) return false;
-    return !rtRulesSeen[key] && !rtRulesSnoozed[key];
+    return !rtSeen()[key] && !rtRulesSnoozed[key];
   }
   // 待つ相手（自分を除く）。名前ではなく名簿から引くので、同じ名前の人がいてもずれない
   function rtWaitingMembers(){
@@ -14598,7 +14828,7 @@
     // ここが持つのは「無い時の言い方」だけ
     var list = modeRulesHtml(rtPickedMode(),
       '<div class="mic-status">このゲームの説明は、まだ用意できていません</div>');
-    if(!rtRulesSeen[rtRulesKey()]) return list;
+    if(!rtSeen()[rtRulesKey()]) return list;
     return '<details><summary style="cursor:pointer;font-size:13px;">📖 ルールをもう一度読む</summary>' + list + '</details>';
   }
   function enterRtRules(){ renderRtRules(); }
@@ -14608,7 +14838,7 @@
     var gameId = rtPickedGame();
     var m = rtPickedMode();
     var g = gameById(gameId) || {};
-    var seen = !!rtRulesSeen[rtRulesKey()];
+    var seen = !!rtSeen()[rtRulesKey()];
     el('rtRulesTitle').textContent = seen ? '準備はいい？' : 'ルール';
     el('rtRulesSub').textContent = seen
       ? '前に読んだゲームです。準備ができたら押してください'
@@ -14636,7 +14866,7 @@
     var res = await rt.setReady(true);
     this.disabled = false;
     if(!res.ok){ showFlash(res.message || '送れませんでした', 'hit-wrong'); return; }
-    rtRulesSeen[key] = true;   // 押した＝読んだ。2周目からは待合で押すだけ
+    rtMarkRulesSeen(key);   // 押した＝読んだ。2周目からは待合で押すだけ（端末にも残す・指示63）
     goTo('scr-rt-room');
   });
   el('rtRulesCancelBtn').addEventListener('click', async function(){
@@ -14736,6 +14966,15 @@
       });
     }
     el('rtRoomCode').textContent = room.code;
+    // 指示63 第3部：並べ方は役割で決める（進行役は「友だちを呼ぶ」を開いて、いちばん上）
+    var 進行役 = rt.isHost();
+    el('scr-rt-room').classList.toggle('is-host', 進行役);
+    // 開け閉めは、その部屋で最初の1回だけ役割で決める（あとは人が押したまま。描き直しで勝手に閉じない）
+    var inv = el('rtInvite');
+    var 鍵 = room.code + ':' + (進行役 ? 'host' : 'guest');
+    if(inv.dataset.init !== 鍵){ inv.dataset.init = 鍵; inv.open = 進行役; }
+    // 着替えの NEW（新しく手に入れたものがあれば）
+    el('rtLookNew').hidden = !((myTitles.newIds || []).length);
     // 描けた時だけ「この部屋コードは済み」と覚える。
     // 先に覚えてしまうと、一度失敗したQRが二度と描き直されない。
     if(el('rtQr').dataset.code !== room.code){
@@ -14811,6 +15050,15 @@
     el('rtRoomNote').textContent = 多すぎ
       ? (多すぎ + (host ? '。' + gameMaxPlayers(picked) + '人まで減ると始められます' : ''))
       : rtRoomNoteText(host, picked, supported, enough, need, room.playerCount);
+    /**
+     * 指示63 第3部：**進行役の「はじめる」が押せない時は、その真上に理由を出す。**
+     * それまで「◯◯さんを待っています」は巻く箱の中（y≈1034）にしか無く、
+     * 灰色の「はじめる ▶」がなぜ押せないのか、進行役に分からなかった（指示62）
+     */
+    var 待ち = (host && picked && supported && enough && !allReady) ? rtWaitingMembers() : [];
+    var sw = el('rtStartWait');
+    sw.hidden = !待ち.length;
+    sw.textContent = 待ち.length ? 待ち.map(function(x){ return x.name; }).join('・') + ' さんを待っています' : '';
   }
   // 待合に出す一言。「いま何を待てばいいか」だけを書く
   function rtRoomNoteText(host, picked, supported, enough, need, count){
@@ -14834,7 +15082,10 @@
     var waiting = rtWaitingMembers();
     if(!rtIAmReady()) return name + 'を遊びます。ルールを読んで「準備OK」を押してください';
     if(waiting.length){
-      return waiting.map(function(x){ return x.name; }).join('・') + ' さんを待っています';
+      var 名 = waiting.map(function(x){ return x.name; }).join('・') + ' さん';
+      // 指示63 第3部：**準備OKを押した参加者に、押せたことを見える所で返す**（押すとボタンが消えるだけだった）
+      if(!host && rtIAmReady()) return '準備OK ✓ ほかの人を待っています（' + 名 + '）';
+      return 名 + 'を待っています';
     }
     return name + 'の準備ができました。まもなく始まります';
   }
@@ -14842,6 +15093,14 @@
     var g = gameById(gameId);
     return g ? g.title : String(gameId || '');
   }
+  // 指示63 第3部：「友だちを呼ぶ」を開いたら、QRの全体が見える所まで送る（開いても画面の下で切れないように）
+  el('rtInvite').addEventListener('toggle', function(){
+    if(!this.open) return;
+    var q = el('rtQrBox');
+    if(q && q.scrollIntoView) q.scrollIntoView({ block:'nearest' });
+  });
+  // 指示63 2-3：待合の「🏷 アイコン・二つ名をかえる」
+  el('rtLookBtn').addEventListener('click', function(){ openLookSheet(); });
   // 第41弾 2-1：棚はもう遊び方で絞られていないので、そのまま出せばよい。
   // 部屋にいることは、カセットを選んだ後の確認（playWayPlan）が見る
   el('rtPickGameBtn').addEventListener('click', function(){
@@ -14905,7 +15164,13 @@
     goTo(rtWantScreen());
   }
   el('rtToBigBtn').addEventListener('click', function(){ rtSetDisplayMode(true); });
-  el('bigToPlayerBtn').addEventListener('click', function(){ rtSetDisplayMode(false); });
+  // 指示63 2-1：**大画面の「プレイヤーにもどる」にも確認を入れる。**
+  // 確認なしで、TVが参加者の手元の画面になっていた（指示62）
+  el('bigToPlayerBtn').addEventListener('click', async function(){
+    var T = UiText.LEAVE;
+    if(!await UiKit.confirm(T.大画面をやめる見出し, T.大画面をやめる本文, { ok: T.大画面をやめる })) return;
+    rtSetDisplayMode(false);
+  });
   // 第32弾-E 第3部：待機画面のメンバー一覧から、進行役が直接操作する
   el('rtMemberList').addEventListener('click', async function(e){
     var room = rt && rt.state.room;
@@ -14946,8 +15211,28 @@
       return;
     }
   });
+  /**
+   * 指示63 2-1：**「← 部屋を出る」には確認を入れる**（進行役の「部屋をとじる」と同じ形）。
+   *
+   * それまで参加者と大画面の「← 部屋を出る」は確認なしで、結果の画面で押すと
+   * その場で抜けていた。QRで来たゲストは「はじめる」が押せない棚に出て、
+   * 部屋へ戻る道が画面に無かった（指示62・TOP1。部屋で遊ぶ8カセットすべて）。
+   * 文はここ1か所（⚙ の「部屋を出る」も同じ文を使う）。戻れるかどうかで言い分ける：
+   * 待合と決着のあいだなら同じ人として戻れる（サーバーの控え）、試合の途中なら見るだけで戻る
+   */
+  async function rtConfirmLeave(){
+    var T = UiText.LEAVE;
+    var v = rtView();
+    var 途中 = !!(v && v.phase && v.phase !== 'lobby' && v.phase !== 'ended');
+    // 戻れるので「取り返しがつかない」（danger）ではなく、ふつうの確認［出る／キャンセル］
+    return !!(await UiKit.confirm(T.見出し, 途中 ? T.途中 : T.戻れる, { ok: T.出る }));
+  }
+  async function rtLeaveRoomAsk(){
+    if(!await rtConfirmLeave()) return;
+    rtLeaveRoom();
+  }
   function rtLeaveRoom(){
-    rtForgetRulesSeen();  // 第37弾：部屋を出たら、読んだ記録も持ち出さない
+    rtForgetRulesSeen();  // 第37弾：部屋を出たら、読んだ記録はメモリから外す（同じ部屋に戻れば端末から読み直す・指示63）
     // 第35弾A：サーバーの返事を待たずに画面を出す。
     // 通信が詰まっていると、待つ作りでは最大8秒ボタンが無反応に見えて
     // 「部屋を出るを押しても出ない」になる。退室の頼みは裏で届く
@@ -14991,7 +15276,7 @@
    * 逆向き（画面に足したのに正本に無い）は tests/room-paths.js が見張る。
    */
   document.querySelectorAll('[id$="LeaveBtn"]').forEach(function(b){
-    b.addEventListener('click', rtLeaveRoom);
+    b.addEventListener('click', rtLeaveRoomAsk);   // 指示63 2-1：確認してから出る
   });
   // 第26弾-3：遊び終わったら、部屋を残したまま次のゲームを選びに行く。
   // ここで前のゲームの進行状態はサーバー側が捨てる（端末に残さない）
@@ -16212,6 +16497,28 @@
   // （役職ごとの仕事ぶりは、サーバーが配る result に載っていない）
   var rtTitlesDone = false; // 同じ試合で二重に数えないための印
   /**
+   * 指示63（くまくんの判断4）：**数えた印を、部屋コードつきで端末にも残す。**
+   * メモリだけだと、決着の画面のままページを読み込み直した（QRを読み直した）時に印が消え、
+   * 同じ試合の称号をもう一度数えていた——「新しく手に入れた！」がまた出て、
+   * ログインしている人はサーバーの数が2重に足される（stats は増える一方で戻せない）。
+   * 次の試合が始まったら（決着でない段階を見たら）外す。今までと同じ境界
+   */
+  var RT_TITLES_DONE_KEY = 'acac-rt-titles-done';
+  function rtTitlesDoneGet(){
+    if(rtTitlesDone) return true;
+    try{
+      var v = JSON.parse(localStorage.getItem(RT_TITLES_DONE_KEY) || 'null');
+      return !!(v && rt && v.code === rt.state.code);
+    }catch(e){ return false; }
+  }
+  function rtTitlesDoneSet(on){
+    rtTitlesDone = on;
+    try{
+      if(on && rt && rt.state.code) localStorage.setItem(RT_TITLES_DONE_KEY, JSON.stringify({ code: rt.state.code }));
+      else if(!on) localStorage.removeItem(RT_TITLES_DONE_KEY);
+    }catch(e){}
+  }
+  /**
    * 第32弾-B-2：爆弾解除・クイズ王・オークションの称号を数える。
    *
    * 人狼はサーバーが仕事ぶりまで数えて渡してくれるが、この3つは
@@ -16400,8 +16707,8 @@
     var v = rtView(), you = rt && rt.state.secret;
     var game = rtRoomGameId();
     if(!v) return;
-    if(v.phase !== 'ended'){ rtTitlesDone = false; return; }
-    if(!v.result || rtTitlesDone) return;
+    if(v.phase !== 'ended'){ rtTitlesDoneSet(false); return; }
+    if(!v.result || rtTitlesDoneGet()) return;
     // 決着は「部屋の状態」と「自分の情報」に分かれて届く。
     // 自分の情報が来る前に印を立てると、一度も数えられない（第32弾-Aで踏んだ）。
     // 第34弾：存在するだけでは足りない。部屋の決着が先に届いた時、
@@ -16410,7 +16717,7 @@
     // 自分の情報も「決着のもの」になるまで待つ
     if(!you || you.phase !== 'ended') return;
     if(game === 'wolfrole' || game === 'wordwolf'){ awardRtTitles(v, you); return; }
-    rtTitlesDone = true;
+    rtTitlesDoneSet(true);
     var gain = rtTitleGainFor(game, v, you);
     if(gain) recordTitleStats(gain.cassette, gain.add);
   }
@@ -16421,8 +16728,8 @@
     // 同じ部屋で2回目を遊んで、同じターン数で決着すると
     // 1回目と同じ印になり、2回目の称号が数えられていなかった。
     // 決着していない間に印を外す形にすれば、内容に頼らずに数えられる
-    if(v.phase !== 'ended'){ rtTitlesDone = false; return; }
-    if(!v.result || rtTitlesDone) return;
+    if(v.phase !== 'ended'){ rtTitlesDoneSet(false); return; }
+    if(!v.result || rtTitlesDoneGet()) return;
     // 決着は「部屋の状態」と「自分の情報」の2つに分かれて届く。
     // 部屋の方が先に届くので、その時点では自分の情報がまだ無い。
     // ここで先に印を立ててしまうと、あとから自分の情報が届いても
@@ -16430,7 +16737,7 @@
     // 印を立てるのは、実際に数える直前にする。
     // 第34弾：自分の情報が「決着のもの」になるまで待つ（awardRoomTitles と同じ理由）
     if(!you || you.phase !== 'ended') return;
-    rtTitlesDone = true;
+    rtTitlesDoneSet(true);
     var wordwolf = rtIsWordwolf();
     // 人狼もワードウルフも、サーバーが自分の仕事ぶりまで数えて渡してくれる。
     // 第34弾：ワードウルフは端末側で数えようとしていたが、公開ビューの roles には
@@ -16633,6 +16940,18 @@
     rtMaybeAutoStart();
     rtSyncHeadcountViews();
     var cur = (document.querySelector('.screen.active') || {}).id;
+    /**
+     * 指示63 2-3：**称号の画面（⚙ → アイコン・二つ名）にいる間に、ゲームが選ばれたり始まったりしたら
+     * 部屋へ引き戻す。**それまでは部屋の画面の外なので一度も引き戻されず、3-2-1 を見逃していた
+     */
+    if(cur === 'scr-titles' && rtWantScreen() !== 'scr-rt-room'){ goTo(rtWantScreen()); return; }
+    /**
+     * 指示63（くまくんの判断4）：**ページを読み込み直した人を、入る画面で止めない。**
+     * 読み込み直すと、端末の記憶でサーバーには同じ人としてつながる（名簿では接続中）のに、
+     * 画面は「部屋に入る」に落ちていた。名前を入れ直すまで準備OKも押せず、全員の
+     * 「もう一度」を止めていた（指示62 の確かめで実測）。部屋の一員なら、部屋の画面へ送る
+     */
+    if(cur === 'scr-rt-lobby' && rt.me && rt.me()){ goTo(rtWantScreen()); return; }
     // ロビーで入力中の人を引っぱらない。すでに部屋の画面にいる時だけ動かす
     if(RT_SCREENS.indexOf(cur) === -1) return;
     var want = rtWantScreen();
@@ -18106,9 +18425,34 @@
       }
     });
   }
+  /**
+   * 指示63 第5部：**手元にも話し合いの時計を出す。**
+   * それまで部屋の人狼・ワードウルフの画面（scr-rt-play）には時計の置き場が無く、
+   * 設定が「タイマーを使う 3:00／常に表示」でも、数えていたのは大画面だけだった（指示62）。
+   * 中身は芯が配る共通の時計（view.clock・realtime.js 時計をそえる）。大画面と同じものを読む
+   */
+  var rtPlayClock = { ms:null, at:0, timer:null };
+  function rtPlayRenderTimer(){
+    var d = el('rtPlayTimer');
+    if(!d) return;
+    if(rtPlayClock.ms == null){ d.style.display = 'none'; return; }
+    var sec = Math.max(0, Math.round((rtPlayClock.ms - (Date.now() - rtPlayClock.at)) / 1000));
+    d.style.display = 'inline-block';
+    d.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
+    timerChipTick(d, sec, { vibe:true });
+  }
+  function rtPlaySetClock(v){
+    var c = v && v.clock;
+    rtPlayClock.ms = (c && c.ms != null && v.phase !== 'ended') ? c.ms : null;
+    rtPlayClock.at = Date.now();
+    if(rtPlayClock.ms != null && !rtPlayClock.timer) rtPlayClock.timer = setInterval(rtPlayRenderTimer, 250);
+    if(rtPlayClock.ms == null && rtPlayClock.timer){ clearInterval(rtPlayClock.timer); rtPlayClock.timer = null; }
+    rtPlayRenderTimer();
+  }
   function renderRtPlay(){
     var v = rtView(), you = rt.state.secret;
     if(!v) return;
+    rtPlaySetClock(v);
     el('rtTurnBanner').innerHTML = turnBannerHtml(v.turn, v.turnLimit, '日目');
     // 第23弾-1：決選投票は、ふつうの投票と見分けがつくようにする
     el('rtPhase').textContent = (v.phase === 'vote' && v.runoff)
@@ -18340,10 +18684,19 @@
     if(you.youAreWolf){
       html += '<div class="ry-desc">⚠️ あなたはウルフ🐺です。バレないようシープ🐑のふりをして話しましょう</div>';
     }
-    html += '<div class="ry-info"><div class="ry-label">あなたの役職</div>' +
-      '<div class="ry-name" style="font-size:20px;">' +
-      escapeHtml(you.roleName || 'シープ🐑') + '</div>' +
-      '<div class="ry-desc">' + escapeHtml(you.roleDesc) + '</div></div>';
+    /**
+     * 指示63 第5部：**役職を使わない回は、役職の欄を出さない**（手渡し版 renderWolfRevealRole に合わせる）。
+     * それまでは役職なし（既定）でも欄を出していて、ウルフ本人に「あなたの役職 シープ🐑」と
+     * うそが出ていた。決着でも「ウルフ🐺：自分」の真下に自分の札「シープ」が並んだ（指示62）。
+     * 役職なしの回は全員に欄が無いので、欄の有無から誰がウルフかは分からない。
+     * 役職ありの回は手渡しと同じ言い方：自覚のあるウルフは「ウルフ🐺」、それ以外は役職名かシープ
+     */
+    if((v && v.roleCount) > 0){
+      var 札 = you.roleId ? (you.roleName || '') : (you.youAreWolf ? 'ウルフ🐺' : 'シープ🐑');
+      html += '<div class="ry-info"><div class="ry-label">あなたの役職</div>' +
+        '<div class="ry-name" style="font-size:20px;">' + escapeHtml(札) + '</div>' +
+        '<div class="ry-desc">' + escapeHtml(you.roleDesc) + '</div></div>';
+    }
     if(you.info) html += '<div class="ry-info">' + rtInfoHtml(you.info) + '</div>';
     if(you.out) html += '<div class="ry-info"><div class="ry-desc">💀 あなたは処刑されています</div></div>';
     return html;
@@ -22553,7 +22906,7 @@
       // **2秒であきらめて棚へ通した後、つながった場合。**
       // rtSync は棚にいる時は何もしないので、ここで帰り道を出す
       if((document.querySelector('.screen.active') || {}).id === 'scr-shelf'){
-        renderShelfRoomNote();
+        renderShelfRoomNote(); renderShelfReturnNote();
         renderShelfChip();   // 人数も実数に置き換わる（2-3）
       }
     });
@@ -28083,8 +28436,8 @@
       return;
     }
     if(act === 'leaveRoom'){
-      if(!await UiKit.confirm('部屋を出ますか？',
-        'ゲームはほかの人たちで続きます', { ok: '出る' })) return;
+      // 指示63 2-1：確認の文は「← 部屋を出る」と同じ1か所（試合が終わったあとも「続きます」と言っていた）
+      if(!await rtConfirmLeave()) return;
       el('settingsOverlay').classList.remove('show');
       rtLeaveRoom();
       return;
@@ -29385,6 +29738,10 @@
     applyAppPrefs();
     labelBombReviewBtns();   // 第45弾 45-6：答え合わせの入口の札を、1か所から入れる
     loadTitleGotAt();
+    // 指示63：ゲストのその日の称号を、起動した瞬間から持ち物にする。
+    // QRから来た人はログインの確かめ（checkAuth）を通らないので、loadTitles は一度も呼ばれない。
+    // ログインしている人は、このあと setUser → loadTitles がアカウントのものに置き換える
+    useGuestTitles();
     startFx();
     startEmojiSwap();
     applySeason();   // 第32弾-F：期間中なら、季節の装飾を重ねる（期間外は何も起きない）

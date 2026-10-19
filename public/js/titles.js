@@ -159,7 +159,9 @@
       summerPlays: 0,       // 夏まつりの期間中に、集まって遊んだ回数（第36弾で開催終了）
       summerCrowd: 0,       // うち、5人以上で遊んだ回数（同上）
       releasePlays: 0,      // 第36弾 36-7：リリース記念の期間中に、集まって遊んだ回数
-      releaseCrowd: 0       // うち、5人以上で遊んだ回数
+      releaseCrowd: 0,      // うち、5人以上で遊んだ回数（指示63で開催終了）
+      bunkasaiPlays: 0,     // 指示63：文化祭（2026/11/13・14）の間に、集まって遊んだ回数
+      bunkasaiCrowd: 0      // うち、5人以上で遊んだ回数
     },
     // ---- 第34弾 2-2：みんなからのおくりもの ----
     // カセットを問わない、アプリ全体を通しての数字。
@@ -178,18 +180,29 @@
   // 外し方は「この表から行を消す」だけ。seasonFor が summer を返さなくなるので、
   // 装飾も獲得条件も（コードを1行も書き換えずに）完全に止まる。
   // 夏の称号そのものは CATALOG に残してある——手に入れた人の持ち物を取り上げないため。
+  // 指示63 第5部：リリース記念（9/24〜10/24）を止めて、**文化祭（2026/11/13・11/14 の2日だけ）**に替えた。
+  // リリース記念の称号は CATALOG に残す（手に入れた人の持ち物を取り上げない・本人の指示）。
+  //
+  // 文化祭は**その年だけ**の催しなので、`year` を持てるようにした（毎年くり返す季節は year を書かない）。
+  // 判定は**日本時間**で行う：端末の時計の地域に左右されると、海外設定の端末で1日ずれる
   var SEASONS = [
-    { id: 'release', label: 'リリース記念', icon: '🎊', theme: 'season-release',
-      from: { m: 9, d: 24 }, to: { m: 10, d: 24 } }
+    { id: 'bunkasai', label: '文化祭', icon: '🏮', theme: 'season-bunkasai',
+      year: 2026, from: { m: 11, d: 13 }, to: { m: 11, d: 14 } }
     // 正月・春・ハロウィン・クリスマスなどは、ここに1件足し、
     // season のカウンタと CATALOG のパーツを添えるだけでよい
   ];
+  /** その時刻の日本時間の年・月・日（端末の地域設定に左右されない） */
+  function jstParts(d) {
+    var j = new Date(d.getTime() + 9 * 3600 * 1000);
+    return { y: j.getUTCFullYear(), m: j.getUTCMonth() + 1, d: j.getUTCDate() };
+  }
   // いまの季節。期間外は null（装飾も獲得条件も、完全に無効になる）
   function seasonFor(date) {
-    var d = date || new Date();
-    var md = (d.getMonth() + 1) * 100 + d.getDate();
+    var p = jstParts(date || new Date());
+    var md = p.m * 100 + p.d;
     for (var i = 0; i < SEASONS.length; i++) {
       var s = SEASONS[i];
+      if (s.year && s.year !== p.y) continue;   // その年だけの催し
       var a = s.from.m * 100 + s.from.d;
       var b = s.to.m * 100 + s.to.d;
       // 年またぎ（12月末〜1月の正月など）にも対応しておく
@@ -277,13 +290,20 @@
       { id: 'icon-season-hanabi', cassette: 'season', emoji: '🎆', label: '夏の夜空の証',
         hint: '夏まつりの間に、5人以上で集まってあそぶ（開催は終了しました）',
         need: function (s) { return s('season', 'summerCrowd') >= 1; } },
-      // 第36弾 36-7：リリース記念（9/24〜10/24）
+      // 第36弾 36-7：リリース記念（9/24〜10/24）。指示63 で開催を終えた（行は残す）
       { id: 'icon-season-release', cassette: 'season', emoji: '🎊', label: 'はじまりの日の記念',
-        hint: 'リリース記念（9/24〜10/24）の間に、みんなで集まって1回あそぶ',
+        hint: 'リリース記念（9/24〜10/24）の間に、みんなで集まって1回あそぶ（開催は終了しました）',
         need: function (s) { return s('season', 'releasePlays') >= 1; } },
       { id: 'icon-season-release-crowd', cassette: 'season', emoji: '🎉', label: '開店の日の証',
-        hint: 'リリース記念の間に、5人以上で集まってあそぶ',
+        hint: 'リリース記念の間に、5人以上で集まってあそぶ（開催は終了しました）',
         need: function (s) { return s('season', 'releaseCrowd') >= 1; } },
+      // 指示63 第5部：文化祭（2026/11/13・11/14）。形はリリース記念と同じ（名前はくまくんが最終決定）
+      { id: 'icon-season-bunkasai', cassette: 'season', emoji: '🏮', label: '文化祭の記念',
+        hint: '文化祭（2026年11/13・11/14）の2日間に、みんなで集まって1回あそぶ',
+        need: function (s) { return s('season', 'bunkasaiPlays') >= 1; } },
+      { id: 'icon-season-bunkasai-crowd', cassette: 'season', emoji: '🎪', label: '大にぎわいの証',
+        hint: '文化祭の2日間に、5人以上で集まってあそぶ',
+        need: function (s) { return s('season', 'bunkasaiCrowd') >= 1; } },
       // ---- 第32弾-B-2：爆弾解除 ----
       { id: 'icon-bomb-1', cassette: 'bakudan', emoji: '💣', label: '解除班の証',
         hint: '爆弾解除カセットを1回あそぶ',
@@ -418,8 +438,12 @@
         need: function (s) { return s('season', 'summerPlays') >= 3; } },
       // 第36弾 36-7：リリース記念
       { id: 'first-hajimari', cassette: 'season', label: 'はじまりの',
-        hint: 'リリース記念（9/24〜10/24）の間に、みんなで集まって3回あそぶ',
+        hint: 'リリース記念（9/24〜10/24）の間に、みんなで集まって3回あそぶ（開催は終了しました）',
         need: function (s) { return s('season', 'releasePlays') >= 3; } },
+      // 指示63：文化祭。「の」で終わるので、つなぎの「の」は重ねない（titleText）
+      { id: 'first-bunkasai', cassette: 'season', label: 'ぶんかさいの',
+        hint: '文化祭（2026年11/13・11/14）の2日間に、みんなで集まって3回あそぶ',
+        need: function (s) { return s('season', 'bunkasaiPlays') >= 3; } },
 
       { id: 'first-utagai', cassette: 'jinro', label: '疑り深き',
         hint: '投票でウルフ・人狼を正しく当てた回数が5回以上',
@@ -750,12 +774,21 @@
   }
 
   // 「はじめ」＋「の」＋「一歩」→「はじめの一歩」
+  //
+  // 指示63 第5部：**前の部品が、つなぎと同じ言葉で終わっていたら、つなぎを重ねない。**
+  // 季節の部品は「なつまつりの」「はじまりの」のように自分で「の」を持っているので、
+  // 既定のつなぎ「の」と続くと「なつまつりのの一歩」になっていた（指示62：9カセットすべての名簿で見えた）。
+  // 部品の文字を直すと、手に入れた人の称号の見た目が変わるので、つなぎ方の側で直す
   function titleText(equipped) {
     var eq = equipped || DEFAULTS;
-    return PARTS.map(function (part) {
+    var out = '';
+    PARTS.forEach(function (part) {
       var p = partById(part, eq[part]) || partById(part, DEFAULTS[part]);
-      return p ? p.label : '';
-    }).join('');
+      var label = p ? p.label : '';
+      if (part === 'joiner' && label && out.slice(-label.length) === label) return;
+      out += label;
+    });
+    return out;
   }
   /**
    * 指示58 2-4：**クイズで正解した問題の層**から、称号の数え（hardHits・muriHits）を作る。

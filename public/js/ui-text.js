@@ -582,6 +582,7 @@
    * 「顔をかえる」とは言わない——「アイコンをかえる」に統一（6節）。
    */
   var TITLES = {
+    着替えの見出し: 'アイコン・二つ名をかえる',
     あつめたもの: 'あつめたもの',
     アイコンをかえる: 'アイコンをかえる',
     二つ名をかえる: '二つ名をかえる',
@@ -671,6 +672,18 @@
    * ・**遊ぶ人に「チュートリアル」とは言わない**（正本10のひらがな寄り）。
    *   画面に出す語は「あそびかた」
    */
+  // 指示63 2-1：部屋を出る・大画面をやめる・さっきの部屋にもどる。文はここ1か所
+  var LEAVE = {
+    見出し: '部屋を出ますか？',
+    戻れる: '出たあとも、棚の「さっきの部屋にもどる」から同じ人としてもどれます',
+    途中: 'ゲームはほかの人たちで続きます。もどると、この試合は見るだけになります',
+    出る: '出る',
+    大画面をやめる見出し: '大画面をやめますか？',
+    大画面をやめる本文: 'この画面は、遊ぶ人の画面にもどります',
+    大画面をやめる: 'やめる',
+    さっきの部屋: function (code) { return '↩ さっきの部屋にもどる（コード ' + code + '）'; },
+    もどれない: 'さっきの部屋にもどれませんでした'
+  };
   var TUTORIAL = {
     はじめて: 'はじめてですね',
     さそい: 'あそびかたを、あそびながら見ますか？',
@@ -691,7 +704,7 @@
   };
 
   return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET,
-           TITLES: TITLES, TIMER: TIMER, BOMB: BOMB, TUTORIAL: TUTORIAL,
+           TITLES: TITLES, TIMER: TIMER, BOMB: BOMB, TUTORIAL: TUTORIAL, LEAVE: LEAVE,
            WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC, TIERS: TIERS, PAUSE: PAUSE,
            AUTH: AUTH };
 }));

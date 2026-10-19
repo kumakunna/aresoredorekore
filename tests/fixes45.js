@@ -296,9 +296,11 @@ const RULES = rulesOf(CSS);
   await r.test('45-2：順序は「褒めるかどうか」だけで決まる（個別の順序を書かない）', async () => {
     // 「爆発の後に称号」と個別に書くと、演出を1つ足すたびに順序も1つ足すことになる
     //（落とし穴4）。称号の側が `praise:true` を名乗るだけで済んでいることを見る
-    assert(/FxKit\.stage\(function\(\)\{[\s\S]{0,400}?titleGotOverlay/.test(INDEX_HTML),
-      '称号の重なりは、舞台に乗せてから出す');
-    assert(/titleGotOverlay[\s\S]{0,200}?praise\s*:\s*true/.test(INDEX_HTML),
+    // 指示63 2-2：称号は全面の幕ではなく、結果が読めてから下に出る小さな知らせ（showTitleToast）になった。
+    // 舞台に乗せる・「褒める」を名乗る、の2つは同じ
+    assert(/FxKit\.stage\(function\(\)\{[\s\S]{0,200}?showTitleToast/.test(INDEX_HTML),
+      '称号の知らせは、舞台に乗せてから出す');
+    assert(/showTitleToast\([^)]*\)[\s\S]{0,120}?praise\s*:\s*true/.test(INDEX_HTML),
       '称号は「褒める」を名乗る');
     const 個別の順序 = INDEX_HTML.split('\n')
       .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))

@@ -123,12 +123,14 @@
       // 全員がここで抜ける（ホストだけ終わって他が置き去りにならないように）
       // 第32弾-B-1：部屋から出された。理由を伝えて、画面が固まらないようにする
       socket.on('room:kicked', function (p) {
+        forgetLastRoom();
         state.code = null; state.memberId = null; state.room = null; state.secret = null;
         部屋を覚える();   // 出されたら忘れる
         emitLocal('kicked', p || {});
         emitLocal('status', state);
       });
       socket.on('room:closed', function (p) {
+        forgetLastRoom();
         state.code = null; state.memberId = null; state.room = null; state.secret = null;
         部屋を覚える();   // 閉じられたら忘れる
         emitLocal('closed', p || {});
@@ -199,6 +201,36 @@
     }
     部屋を思い出す();
 
+    /**
+     * 指示63 2-1：**自分から出た部屋を、その日のうちは覚えておく。**
+     *
+     * 「部屋を出る」は上の記憶（acac-room）を消す——開き直しても勝手に戻らないため。
+     * それとは別に、**戻りたくなった時の手がかり**だけをここに残す：
+     * 棚の「さっきの部屋にもどる（コード ◯◯）」と、同じQRを読み直した時に、
+     * 前と同じ memberId と名前で入る（サーバーが控えから同じ人として戻す）。
+     * 戻れるかどうかはサーバーに聞く（peek の canReturn）。端末は「何を聞くか」だけを持つ。
+     * 出された（kick）・閉じられた時は残さない。日付が変わったら使わない（日本時間）
+     */
+    var 出た部屋の鍵 = 'acac-last-room';
+    function 今日() { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
+    function 出た部屋を覚える(code, memberId) {
+      try {
+        if (code && memberId) {
+          localStorage.setItem(出た部屋の鍵, JSON.stringify({
+            code: code, memberId: memberId, name: state.name, role: state.role, look: state.look || null, day: 今日()
+          }));
+        } else localStorage.removeItem(出た部屋の鍵);
+      } catch (e) {}
+    }
+    function lastRoom() {
+      try {
+        var v = JSON.parse(localStorage.getItem(出た部屋の鍵) || 'null');
+        if (v && v.code && v.memberId && v.day === 今日()) return v;
+      } catch (e) {}
+      return null;
+    }
+    function forgetLastRoom() { 出た部屋を覚える(null, null); }
+
     async function createRoom(name, role, look) {
       connect();
       if (look !== undefined) state.look = look || null;
@@ -214,12 +246,16 @@
     async function joinRoom(code, name, role, look) {
       connect();
       if (look !== undefined) state.look = look || null;
-      var res = await call('room:join', { code: code, name: name, role: role, memberId: state.memberId,
+      // 指示63 2-1：いまの記憶が無く、その日に自分から出た部屋に入り直すなら、前の memberId を添える
+      var 前 = (!state.memberId && lastRoom()) || null;
+      var 添える = state.memberId || ((前 && 前.code === String(code || '').toUpperCase().trim()) ? 前.memberId : null);
+      var res = await call('room:join', { code: code, name: name, role: role, memberId: 添える,
         look: state.look || null });
       if (res.ok) {
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
         部屋を覚える();
+        forgetLastRoom();   // 戻れた（または別の部屋に入った）。もう手がかりは要らない
       } else state.error = res.message || res.error;
       emitLocal('status', state);
       return res;
@@ -268,6 +304,7 @@
       // 第35弾A：code+memberId を添えて頼む。つなぎ直した直後は
       // サーバー側の socket が部屋の印を失っていて、空の頼みだと無視されるため
       var code = state.code, memberId = state.memberId;
+      出た部屋を覚える(code, memberId);   // 指示63 2-1：戻りたくなった時の手がかりだけ残す
       state.code = null; state.memberId = null; state.room = null; state.secret = null;
       部屋を覚える();   // 自分から出たら忘れる（開き直しても戻らない）
       return call('room:leave', { code: code, memberId: memberId });
@@ -382,6 +419,7 @@
       createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, setLook: setLook,
       peekRoom: peekRoom, dropRoom: dropRoom,
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,
+      lastRoom: lastRoom, forgetLastRoom: forgetLastRoom,
       setReady: setReady,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase, pause: pause,
       gameOptions: gameOptions,

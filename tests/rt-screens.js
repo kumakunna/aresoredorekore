@@ -5308,6 +5308,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     for (const p of paths) {
       const { win, doc, errors } = await launch(LAUNCH);
       const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      // 指示63 2-1：出る前に確認が出る。ここでは「出る」を選ぶ（やめる側は次の検査）
+      autoDialog(win, doc, true);
       click(doc, p.btn);
       await waitFor(win, () => fake.emits.some(e => e.name === 'room:leave'), 2000, p.id + '：退室を頼む');
       const left = fake.emits.filter(e => e.name === 'room:leave').pop();
@@ -5341,6 +5343,163 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       assertNoErrors(errors, id + ' で未捕捉の例外');
       win.close();
     }
+  });
+
+  /**
+   * 指示63 2-1：**「← 部屋を出る」には確認がある。**「キャンセル」なら出ない。
+   * それまでは確認なしで、結果の画面で押すとその場で抜けていた（指示62・TOP1）。
+   * 正本（ROOM_EXIT_PATHS）の全ボタンで、やめる側を通す（型(c)：上の検査は「出る」側）
+   */
+  await r.test('63 2-1：「← 部屋を出る」は確認が出て、キャンセルなら部屋に残る（正本ループ）', async () => {
+    const paths = INV.ROOM_EXIT_PATHS.filter(p => p.kind === 'leave' && p.btn && p.btn !== 'endGameBtn');
+    for (const p of paths) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      const 前 = activeScreen(doc);
+      let 見出し = '';
+      autoDialog(win, doc, (dlg) => { 見出し = dlg.node.textContent; return false; });
+      click(doc, p.btn);
+      await waitFor(win, () => /部屋を出ますか/.test(見出し), 2000, p.id + '：確認が出る');
+      await sleep(win, 300);
+      assert(!fake.emits.some(e => e.name === 'room:leave'), p.id + '：キャンセルなら退室を頼まない');
+      assertEqual(activeScreen(doc), 前, p.id + '：キャンセルなら画面もそのまま');
+      assertNoErrors(errors, p.id + ' のキャンセルで未捕捉の例外');
+      win.close();
+    }
+  });
+
+  /**
+   * 指示63 2-1：**出てしまった人の棚に「さっきの部屋にもどる（コード ◯◯）」が出て、押すと前の memberId で入る。**
+   * 部屋があるかはサーバーに聞く（peek）。型(c)：部屋が無いと答えたら出さない
+   */
+  await r.test('63 2-1：出たあとの棚に「さっきの部屋にもどる」が出て、押すと前の memberId で入り直す', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', you: false, canReturn: true, playerCount: 4 });
+    autoDialog(win, doc, true);
+    click(doc, 'rtLeaveBtn');
+    await waitScreen(win, doc, 'scr-shelf', 3000);
+    const b = el(doc, 'shelfReturnNote');
+    await waitFor(win, () => b.style.display !== 'none', 2000, '棚に「さっきの部屋にもどる」が出る');
+    assert(/さっきの部屋にもどる/.test(b.textContent) && /ABC234/.test(b.textContent), '部屋コードつきで出る（' + b.textContent + '）');
+    fake.emits.length = 0;
+    click(doc, 'shelfReturnNote');
+    await waitFor(win, () => fake.emits.some((e) => e.name === 'room:join'), 2000, '入り直しを頼む');
+    const j = fake.emits.filter((e) => e.name === 'room:join').pop();
+    assertEqual(j.payload.memberId, 'm2', '前と同じ memberId を添える（サーバーが同じ人として戻す）');
+    assertEqual(j.payload.name, 'びび', '名前を入れ直させない');
+    await waitFor(win, () => /^scr-rt-/.test(activeScreen(doc)), 3000, '部屋の画面へ戻る');
+    assertNoErrors(errors, '「さっきの部屋にもどる」で未捕捉の例外');
+    win.close();
+    // 型(c)：部屋がもう無いと答えたら、出さない（手がかりも捨てる）
+    const g = await launch(LAUNCH);
+    const f2 = await toRoom(g.win, g.doc, { join: true, memberId: 'm2' });
+    f2.replies['room:peek'] = () => ({ ok: false, error: 'room_not_found' });
+    autoDialog(g.win, g.doc, true);
+    click(g.doc, 'rtLeaveBtn');
+    await waitScreen(g.win, g.doc, 'scr-shelf', 3000);
+    await sleep(g.win, 400);
+    assertEqual(el(g.doc, 'shelfReturnNote').style.display, 'none', '部屋が無ければ出さない');
+    assertEqual(g.win.localStorage.getItem('acac-last-room'), null, '手がかりも捨てる');
+    g.win.close();
+  });
+
+  /**
+   * 指示63（くまくんの判断4）：**読み込み直した人を、入る画面で止めない。**
+   * 部屋の一員なのに「部屋に入る」の画面にいたら、部屋の知らせが来た時に部屋の画面へ送る
+   */
+  await r.test('63：部屋の一員なのに「部屋に入る」の画面にいたら、部屋の知らせで部屋へ送る（読み込み直し）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    win.goToProbe('scr-rt-lobby');
+    await waitScreen(win, doc, 'scr-rt-lobby', 2000);   // 型(b)：その状況を作れている
+    push(fake, roomSnapshot({ state: { phase: 'lobby', game: null, data: {} } }));
+    await waitScreen(win, doc, 'scr-rt-room', 3000);
+    assertNoErrors(errors, '読み込み直しの送り先で未捕捉の例外');
+    win.close();
+  });
+
+  /**
+   * 指示63 2-3：**⚙ → アイコン・二つ名（scr-titles）にいる間にゲームが選ばれたら、部屋へ引き戻す。**
+   * それまでは部屋の画面の外なので一度も引き戻されず、3-2-1 を見逃していた
+   */
+  await r.test('63 2-3：称号の画面にいる間にゲームが選ばれたら、部屋（ルール）へ引き戻す', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({ state: { phase: 'lobby', game: null, data: {} } }));
+    win.goToProbe('scr-titles');
+    await waitScreen(win, doc, 'scr-titles', 2000);
+    push(fake, roomSnapshot({ state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } },
+      members: roomSnapshot().members.map((m) => Object.assign({}, m, { ready: false })),
+      ready: { count: 0, total: 5, waitingNames: [], all: false } }));
+    await waitFor(win, () => activeScreen(doc) !== 'scr-titles', 3000, '称号の画面から引き戻される');
+    assert(/^scr-rt-/.test(activeScreen(doc)), '部屋の画面へ（いま ' + activeScreen(doc) + '）');
+    assertNoErrors(errors, '称号の画面からの引き戻しで未捕捉の例外');
+    win.close();
+  });
+
+  /**
+   * 指示63 2-3：**待合で着替える。**待合の上に重ねるシートで開き（別の画面に飛ばない）、
+   * 選ぶとその場で部屋に送る（room:setLook）。ゲームが選ばれて待合を離れたら、シートは閉じる
+   */
+  await r.test('63 2-3：待合の「🏷 アイコン・二つ名をかえる」は重ねて開き、選ぶと部屋に送り、待合を離れたら閉じる', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+    push(fake, roomSnapshot({ state: { phase: 'lobby', game: null, data: {} } }));
+    await waitScreen(win, doc, 'scr-rt-room', 2000);
+    click(doc, 'rtLookBtn');
+    await waitFor(win, () => !!doc.querySelector('#uiLayerRoot [data-looksheet]'), 2000, 'シートが重なって開く');
+    assertEqual(activeScreen(doc), 'scr-rt-room', '別の画面に飛ばない');
+    doc.querySelector('#uiLayerRoot [data-lookopen="icon"]').click();
+    await waitFor(win, () => doc.querySelectorAll('#uiLayerRoot [data-pickicon]').length > 0, 2000, 'アイコンの選ぶシート');
+    fake.emits.length = 0;
+    doc.querySelector('#uiLayerRoot [data-pickicon]').click();
+    await waitFor(win, () => fake.emits.some((e) => e.name === 'room:setLook'), 2000, '選ぶと部屋に送る（pushMyLook の1か所）');
+    // ゲームが選ばれる → 待合を離れる → シートが閉じる
+    push(fake, roomSnapshot({ state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } },
+      members: roomSnapshot().members.map((m) => Object.assign({}, m, { ready: false })),
+      ready: { count: 0, total: 5, waitingNames: [], all: false } }));
+    await waitFor(win, () => activeScreen(doc) !== 'scr-rt-room', 3000, 'ルールへ進む');
+    await waitFor(win, () => !doc.querySelector('#uiLayerRoot [data-looksheet]'), 2000, '着替えのシートは閉じる');
+    assertNoErrors(errors, '待合の着替えで未捕捉の例外');
+    win.close();
+  });
+
+  /**
+   * 指示63 第3部：**待合のいちばん上に「いま何を待っているか」。**準備OKを押した参加者には
+   * 「準備OK ✓ ほかの人を待っています」。進行役は「はじめる」の真上に「◯◯さんを待っています」
+   */
+  await r.test('63 第3部：準備OKの参加者に「準備OK ✓ ほかの人を待っています」、進行役は「はじめる」の真上に待つ相手', async () => {
+    const 半分 = (over) => roomSnapshot(Object.assign({
+      members: roomSnapshot().members.map((m) => Object.assign({}, m, { ready: m.id !== 'm3' })),
+      ready: { count: 4, total: 5, waitingNames: ['ちか'], all: false },
+      state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
+    }, over || {}));
+    // 参加者（m2・押した）
+    const p = await launch(LAUNCH);
+    const fp = await toRoom(p.win, p.doc, { join: true, memberId: 'm2' });
+    p.win.goToProbe('scr-rt-room');
+    push(fp, 半分());
+    await sleep(p.win, 200);
+    if (activeScreen(p.doc) !== 'scr-rt-room') { p.win.goToProbe('scr-rt-room'); push(fp, 半分()); await sleep(p.win, 200); }
+    const note = el(p.doc, 'rtRoomNote').textContent;
+    assert(/準備OK ✓ ほかの人を待っています/.test(note) && /ちか/.test(note), '押した参加者に、押せたことと待つ相手が出る（いま「' + note + '」）');
+    const room = el(p.doc, 'scr-rt-room');
+    assert(el(p.doc, 'rtRoomNote').parentNode === room, '「いま何を待っているか」は巻く箱の外（いちばん上）');
+    assert(!el(p.doc, 'rtInvite').open, '参加者には「友だちを呼ぶ」はたたんである');
+    p.win.close();
+    // 進行役（m1・押した・はじめるは灰色）
+    const h = await launch(LAUNCH);
+    const fh = await toRoom(h.win, h.doc, { join: true, memberId: 'm1' });
+    h.win.goToProbe('scr-rt-room');
+    push(fh, 半分());
+    await sleep(h.win, 200);
+    if (activeScreen(h.doc) !== 'scr-rt-room') { h.win.goToProbe('scr-rt-room'); push(fh, 半分()); await sleep(h.win, 200); }
+    const sw = el(h.doc, 'rtStartWait');
+    assert(!sw.hidden && /ちか/.test(sw.textContent), '進行役の「はじめる」の真上に待つ相手が出る（いま「' + sw.textContent + '」）');
+    assertEqual(sw.nextElementSibling && sw.nextElementSibling.id, 'rtStartBtn', '「はじめる」のすぐ上');
+    assert(el(h.doc, 'rtInvite').open, '進行役には「友だちを呼ぶ」を開いておく（QR を見せる）');
+    h.win.close();
   });
 
   // ===================== 第37弾：ルールを読んで「準備OK」 =====================

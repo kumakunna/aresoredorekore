@@ -77,6 +77,34 @@ async function run() {
   });
 
   /**
+   * **3-2-1 の合図は、盤より先に届く。**
+   * 爆弾解除は startGame の中で盤を配りきっていて（問題バンクの説明文がその場でそろう）、
+   * 合図より先に盤が届いていた。手元は数字が無いまま盤を描き、吹き出しを出した（指示62・1-3 が残っていた）。
+   * 型(c)：全ゲームで見る（盤をその場で配るゲームと、配らないゲームの両方が入る）
+   */
+  await r.test('全ゲーム：参加者の端末には、3-2-1 の合図が、始まった状態や手元の秘密より先に届く', async () => {
+    let 先に盤が来た = 0;
+    for (const gameId of RT_GAME_IDS) {
+      const srv = await startTestServer({ countdownMs: 3000 });
+      const rm = await makeRoom(srv, 6);
+      try {
+        const 届いた順 = [];
+        const g = rm.guests[0].socket;
+        g.on('room:countdown', () => 届いた順.push('合図'));
+        g.on('room:update', (v) => { if (v && v.state && v.state.phase && v.state.phase !== 'lobby') 届いた順.push('始まった状態'); });
+        g.on('wolf:you', () => 届いた順.push('秘密'));
+        const res = await rm.host.call(RT_START_EVENT, RT_START_MIN_CONFIG[gameId]);
+        assertEqual(res.ok, true, gameId + '：始められる（' + (res.error || '') + '）');
+        await sleep(400);
+        assert(届いた順.length >= 2, gameId + '：合図と状態が届いている（型(b)：いま ' + 届いた順.join('→') + '）');
+        if (届いた順[0] !== '合図') 先に盤が来た++;
+        assertEqual(届いた順[0], '合図', gameId + '：最初に届くのは 3-2-1 の合図（いま ' + 届いた順.join('→') + '）');
+      } finally { rm.all.forEach((d) => d.close()); await srv.close(); }
+    }
+    assertEqual(先に盤が来た, 0, '合図より先に盤が届いたゲームが無い');
+  });
+
+  /**
    * **実時間で数える1本**（落とし穴24）。
    * 爆弾解除の協力版で：数えている間は持ち時間が減らず、押しても断られ、
    * 0 になったら押せる

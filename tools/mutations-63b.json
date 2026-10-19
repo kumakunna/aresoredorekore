@@ -126,5 +126,13 @@
     "from": "    if(!g || g.day !== jstDay()){ clearGuestTitles(); return null; }",
     "to": "    if(!g){ clearGuestTitles(); return null; }",
     "expect": "前の日に取った称号"
+  },
+  {
+    "name": "63-4D 始める処理の中から盤を配らせる（3-2-1 の合図より先に盤が届く元の形）",
+    "file": "realtime.js",
+    "suite": "tests/realtime-countdown.js",
+    "from": "notify: (r) => { if (!始めている最中) pushWolfState(r); }",
+    "to": "notify: (r) => { pushWolfState(r); }",
+    "expect": "最初に届くのは 3-2-1 の合図"
   }
 ]

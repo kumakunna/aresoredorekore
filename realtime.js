@@ -1472,7 +1472,20 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const gameId = (payload && payload.game) || 'wolfrole';
       const entry = GAME_DRIVERS[gameId];
       if (!entry) return fail(cb, 'unknown_game', 'そのゲームには対応していません');
-      const res = entry.driver.startGame(room, payload || {}, driverContext());
+      /**
+       * 指示63 第4部：**始める処理の中から、先に盤を配らせない。**
+       * 爆弾解除は問題バンクの説明文がその場でそろうので、startGame の中で
+       * notify（＝盤を全員へ）まで済ませていた。すると**3-2-1 の合図より先に盤が届き**、
+       * 手元はまだ数字が無いまま盤を描いて吹き出しを出していた（指示62・1-3 が残っていた。
+       * flow-walk の再通しで、最後に準備OKを押した参加者に出た）。
+       * 締め切りも 3-2-1 のぶんずらす前の値で一度配られていた。
+       * ここで同期に呼ばれた notify は捨てる——直後に、ずらした状態を合図のあとで必ず配る（pushWolfState）。
+       * あとから非同期に来る notify（AIの説明文が遅れてそろった時など）は、そのまま通す
+       */
+      let 始めている最中 = true;
+      const ctx = Object.assign({}, driverContext(), { notify: (r) => { if (!始めている最中) pushWolfState(r); } });
+      let res;
+      try { res = entry.driver.startGame(room, payload || {}, ctx); } finally { 始めている最中 = false; }
       if (!res.ok) return fail(cb, res.error, res.message);
       // 指示63 第4部：数えている間は始まっていない。持ち時間は0になった瞬間から減る
       if (countdownMs > 0) {

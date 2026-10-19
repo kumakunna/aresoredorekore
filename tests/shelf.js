@@ -1141,6 +1141,17 @@ function pickCart(doc, id) {
     // 季節のパーツも同時に手に入るので、季節は切っておく
     win.TitleLogic.seasonFor = () => null;
     // あれそれどれこれを1回あそぶと「はじめの参加証」が手に入る
+    /**
+     * **「褒める」の番が来た時刻を、本物の舞台から拾う。**
+     * 最初は「結果に着いて 700ms で出ていない」だけを見ていたが、褒めるは結果の演出が
+     * 済んでから回るので、**待ちを外しても 700ms では出ない**——変異が素通りした（落とし穴10-b）。
+     * 待ちが効いているかは、褒めるの番が来た瞬間から数える
+     */
+    let 番が来た = 0;
+    const 本物の舞台 = win.FxKit.stage;
+    win.FxKit.stage = function(fn, opt){
+      return 本物の舞台.call(this, function(){ if (opt && opt.praise && !番が来た) 番が来た = Date.now(); return fn.apply(this, arguments); }, opt);
+    };
     await setupPlayers(win, doc);
     await waitScreen(win, doc, 'scr-mode', 3000);
     click(doc, 'modeAutoBtn');
@@ -1159,7 +1170,12 @@ function pickCart(doc, id) {
     // 結果が読める間はかぶせない（着いてすぐには出ない）
     await sleep(win, 700);
     assert(!toast.classList.contains('show'), '結果に着いてすぐには出ない（自分の順位を先に読める）');
+    await waitFor(win, () => 番が来た > 0, 8000, '褒めるの番が来る（型(b)：待ちを数える起点がある）');
+    await sleep(win, 600);
+    assert(!toast.classList.contains('show'), '褒めるの番が来ても、すぐには出さない（1.5秒は結果を読ませる）');
     await waitFor(win, () => toast.classList.contains('show'), 5000, '少しして、知らせが出る');
+    const 待った = Date.now() - 番が来た;
+    assert(待った >= 1400, '褒めるの番から 1.5秒ほど待って出る（いま ' + 待った + 'ms）');
     assert(toast.closest('#uiLayerRoot'), '置き場は #app の外（長い画面でも画面の下に出る・落とし穴26）');
     assert(toast.classList.contains('title-toast'), '全面の幕ではなく、小さな知らせ');
     assert(/はじめの参加証/.test(toast.textContent), '何を手に入れたかが出る（いま「' + toast.textContent.trim().slice(0, 60) + '」）');

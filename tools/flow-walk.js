@@ -61,7 +61,12 @@ const 測る式 = `(function(){
       return { t: (b.innerText || b.textContent || b.getAttribute('aria-label') || '').trim().replace(/\\s+/g, ' ').slice(0, 40),
         k: /btn-main/.test(c) ? 'main' : /btn-outline/.test(c) ? 'outline' : /btn-ghost/.test(c) ? 'ghost' : /btn-teal/.test(c) ? 'teal' : 'other',
         w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.left), y: Math.round(r.top),
-        dis: !!b.disabled, 画面内: r.bottom > 0 && r.top < H };
+        dis: !!b.disabled, 画面内: r.bottom > 0 && r.top < H,
+        // 幕（確認・称号・チュートリアル）の下に隠れていて、いまは押せないか。
+        // 真ん中の点の一番上にあるものが、そのボタン自身（かその中身）でなければ隠れている
+        覆われ: (function(){ var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          if(cy < 0 || cy > H) return false; var top = document.elementFromPoint(cx, cy);
+          return !!top && top !== b && !b.contains(top); })() };
     });
   // 文のかたまり：文字の親から、いちばん近い「箱」（block/flex/grid/list-item）まで上がって束ねる
   var blocks = new Map();
@@ -100,7 +105,7 @@ const 測る式 = `(function(){
   return {
     画面: scr, 重なり: 重なり,
     ボタン: btns,
-    主ボタン数: btns.filter(function(b){ return b.k === 'main' && !b.dis && b.画面内; }).length,
+    主ボタン数: btns.filter(function(b){ return b.k === 'main' && !b.dis && b.画面内 && !b.覆われ; }).length,
     文: 文.slice(0, 5), 長い文: 文.filter(function(x){ return x.行 > 2; }).length,
     待ち文: 待ち文, 戻る: 戻る, 進行役語: 進行役語,
     小さい的: btns.filter(function(b){ return b.画面内 && !b.dis && (b.w < 44 || b.h < 44); }).map(function(b){ return b.t + '(' + b.w + '×' + b.h + ')'; }),
@@ -135,7 +140,8 @@ function makeWalk(opts) {
     /** 見えていて文字が合うボタンを押す。数える。押したボタンの文字を返す */
     async press(dev, re, scope) {
       const src = re instanceof RegExp ? re.source : String(re);
-      const t = await dev.ev("(function(){var re=new RegExp(" + JSON.stringify(src) + ");" +
+      // u フラグ：絵文字（サロゲート対）を ? や [] に入れても1文字として扱う（あれそれの担当が踏んだ）
+      const t = await dev.ev("(function(){var re=new RegExp(" + JSON.stringify(src) + ",'u');" +
         "var cv=typeof Element.prototype.checkVisibility==='function';" +
         "var bs=Array.from(document.querySelectorAll(" + JSON.stringify(scope || 'button, .btn, [role=button]') + ")).filter(function(b){var r=b.getBoundingClientRect();return r.width>0&&r.height>0&&(!cv||b.checkVisibility({opacityProperty:true,visibilityProperty:true}))&&!b.disabled&&re.test((b.innerText||b.textContent||'').trim());});" +
         "var top=bs.filter(function(b){return !!b.closest('.ui-layer');}); var b=(top.length?top[top.length-1]:bs[0]); if(!b) return null; b.click(); return (b.innerText||b.textContent).trim().replace(/\\s+/g,' ');})()");
@@ -155,7 +161,7 @@ function makeWalk(opts) {
     画面は: (dev, id, ms) => dev.until("(document.querySelector('.screen.active')||{}).id===" + JSON.stringify(id), ms || 15000, dev.name + '：' + id),
     見える: (sel) => "(function(){var e=document.querySelector(" + JSON.stringify(sel) + ");if(!e)return false;var r=e.getBoundingClientRect();if(r.width<1||r.height<1)return false;return typeof e.checkVisibility==='function'?e.checkVisibility({opacityProperty:true,visibilityProperty:true}):true;})()",
     /** その文字のボタンが見えているか */
-    ボタンあり: (dev, re) => dev.ev("(function(){var re=new RegExp(" + JSON.stringify(re instanceof RegExp ? re.source : String(re)) + ");return Array.from(document.querySelectorAll('button, .btn, [role=button]')).some(function(b){var r=b.getBoundingClientRect();return r.width>0&&r.height>0&&(typeof b.checkVisibility!=='function'||b.checkVisibility({opacityProperty:true,visibilityProperty:true}))&&!b.disabled&&re.test((b.innerText||b.textContent||'').trim());});})()"),
+    ボタンあり: (dev, re) => dev.ev("(function(){var re=new RegExp(" + JSON.stringify(re instanceof RegExp ? re.source : String(re)) + ",'u');return Array.from(document.querySelectorAll('button, .btn, [role=button]')).some(function(b){var r=b.getBoundingClientRect();return r.width>0&&r.height>0&&(typeof b.checkVisibility!=='function'||b.checkVisibility({opacityProperty:true,visibilityProperty:true}))&&!b.disabled&&re.test((b.innerText||b.textContent||'').trim());});})()"),
 
     /**
      * 手順を1つ記録する。
@@ -347,7 +353,10 @@ function makeWalk(opts) {
         '--n', String(n || 2), '--ready', '--play', '--hold', '7200'], { stdio: ['ignore', out, out] });
       W.bots = child;
       // 入ったことを部屋の名簿で確かめる（画面の数字だけで読まない）
-      await devices.進行役.until("(function(){var m=document.querySelectorAll('#rtMembers li, #rtMembers .member, #rtMembers > *');return m.length>=" + (2 + (n || 2)) + ";})()", 15000, 'bot が名簿に載る').catch(() => {});
+      // 待合の人数（#rtRoomCount＝playerCount。大画面は数えない）。
+      // 最初は実在しない '#rtMembers …' を待っていて、毎回15秒かけて黙って先へ進んでいた（8人の担当が指摘）
+      await devices.進行役.until("parseInt((document.getElementById('rtRoomCount')||{}).textContent,10)>=" + (2 + (n || 2)), 15000, 'bot が名簿に載る')
+        .catch(() => console.log('   ✖ bot が名簿に載りませんでした（bots.log を見る）'));
       await sleep(800);
       return child;
     },
@@ -489,7 +498,7 @@ function makeWalk(opts) {
       console.log('   → 行き先：' + 行き先.slice(0, 100));
       if (幕 && 出た.length && o.確かめて進む !== true) {
         // 確認なら「やめる」側、ただの重なりなら「とじる」で戻す
-        const ok = await W.pressIf(dev, /^(キャンセル|やめる|もどる|いいえ|とじない|このまま|とじる|✕)$/, '.ui-layer button');
+        const ok = await W.pressIf(dev, /^(キャンセル|やめる|もどる|いいえ|とじない|このまま続ける|このまま|とじる|✕)$/, '.ui-layer button');
         if (!ok) await dev.ev("(function(){var x=Array.from(document.querySelectorAll('.ui-layer [data-ui=close], .ui-layer [data-ui=cancel]')).pop(); if(x) x.click(); return !!x;})()");
         await sleep(600);
       } else if (o.戻す) {

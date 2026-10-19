@@ -97,6 +97,12 @@ function つなぐ(name, i) {
     const bot = { name, sock, memberId: null, ready: false, 大画面: false };
     bots.push(bot);
 
+    // 指示62：**心拍に答える。**サーバー（realtime.js）は10秒ごとに hb:ping を送り、
+    // 25秒 hb:pong が無い人を connected:false にして socketId を外す（本人の秘密が届かなくなる）。
+    // ここで答えていなかったので、bot は入って25〜35秒で「席を外した」人になり、
+    // 手元に「びびさんが席を外しました」が出て、待ちの数からも外れていた。
+    // メモリに「bot はバックグラウンドで切れる」とあった本当の原因はこれ
+    sock.on('hb:ping', () => sock.emit('hb:pong'));
     sock.on('connect', () => {
       sock.emit('room:join', { code: 部屋コード, name, role: 'player', look: LOOKS[i % LOOKS.length] }, (res) => {
         if (!res || !res.ok) {
@@ -118,16 +124,24 @@ function つなぐ(name, i) {
     });
 
     // 部屋の知らせ。**ゲームが決まったら準備OKを押す**（--ready の時だけ）
+    //
+    // 指示62：**「押したか」は自分で覚えず、部屋の名簿（members[自分].ready）から読む。**
+    // それまでは bot.ready を立てて「ゲームが空に戻るまで」押し直さなかったので、
+    // 「つぎは？ → もう一度」（同じゲームのまま待合へ戻り、サーバーが全員の準備OKを落とす）で
+    // bot だけ押さず、2試合目が始まらなかった（8カセットの台本づくりで4人が踏んだ）。
+    // 名簿を正にすれば、待合にいて未準備なら押す、で済む。始まっていれば already_started で弾かれるだけ
     sock.on('room:update', (p) => {
       const room = (p && p.room) || p;
-      const game = room && room.state && room.state.game;
-      if (READY && game && !bot.ready) {
-        bot.ready = true;
-        sock.emit('room:ready', { ready: true, game }, () => {
-          console.log('[' + name + '] 準備OK（' + game + '）');
-        });
-      }
-      if (!game) bot.ready = false;   // えらび直したら、また押せるようにする
+      const st = room && room.state;
+      const game = st && st.game;
+      if (!READY || !game || bot.準備を送った === game + ':' + (st.phase || '')) return;
+      const 自分 = (room.members || []).find((m) => m.id === bot.memberId);
+      if (!自分 || 自分.ready || (st.phase && st.phase !== 'lobby')) return;
+      bot.準備を送った = game + ':' + (st.phase || '');
+      sock.emit('room:ready', { ready: true, game }, (r) => {
+        if (r && r.ok) console.log('[' + name + '] 準備OK（' + game + '）');
+        bot.準備を送った = null;   // 返事が来たら、次の知らせでまた見直す（名簿が正）
+      });
     });
     /**
      * **遊ぶ**（--play）。いまは進化じゃんけんだけ。

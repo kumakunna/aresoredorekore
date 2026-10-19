@@ -40,6 +40,10 @@ async function launch(opt) {
     // 裏のタブでも時計を止めない（落とし穴28：止まった時計で測らない）
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
     '--disable-backgrounding-occluded-windows', '--autoplay-policy=no-user-gesture-required',
+    // **音は外へ出さない。**自動再生を許しているので、効果音が検証している PC のスピーカーから
+    // そのまま鳴っていた（2026-10-19 本人の指摘）。鳴らす処理は本物のまま走り、聞こえないだけ。
+    // 音を耳で確かめる検証はこの道具ではしていない（できない）
+    '--mute-audio',
     'about:blank'
   ];
   const proc = spawn(exe, args, { stdio: 'ignore' });

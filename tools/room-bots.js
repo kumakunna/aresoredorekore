@@ -161,7 +161,7 @@ function つなぐ(name, i) {
       if (bot.出した === 鍵) return;
       bot.出した = 鍵;
       const 手 = ['g', 'c', 'p'][Math.floor(Math.random() * 3)];
-      sock.emit('wolf:act', { hand: 手 }, (res) => {
+      送る('wolf:act', { hand: 手 }, (res) => {
         if (res && res.ok) console.log('[' + name + '] ' + 手 + ' を出した（' + v.round + '回戦）');
       });
     });
@@ -172,6 +172,18 @@ function つなぐ(name, i) {
      * 届く順番の保証が無いので（落とし穴18）、どちらが来ても今ある材料で判断させる。
      * 同じ段階で二度送らないための `once(鍵)` を渡す
      */
+    /**
+     * 指示63 第4部：**3-2-1 の最中に送ると not_started で断られる**（芯が止める）。
+     * 人は数字の幕で押せないが、bot は盤が届いた瞬間に送るので、断られたまま黙っていた
+     *（すごろくの「じゅんびOK」で、全員が bot を待ち続けた）。断られたら、少し待って送り直す
+     */
+    const 送る = (ev, payload, cb, 残り) => {
+      sock.emit(ev, payload || {}, (r) => {
+        const あと = 残り == null ? 12 : 残り;
+        if (r && r.error === 'not_started' && あと > 0) return setTimeout(() => 送る(ev, payload, cb, あと - 1), 400);
+        if (cb) cb(r);
+      });
+    };
     const 台本を呼ぶ = (from) => {
       if (!PLAY || !bot.room) return;
       const st = bot.room.state;
@@ -183,9 +195,9 @@ function つなぐ(name, i) {
         play(bot, {
           from, game: st.game, room: bot.room, view: st.data || {}, mine: bot.mine || null, me: bot.memberId,
           once: (k) => { if (bot.done.has(k)) return false; bot.done.add(k); return true; },
-          act: (payload, cb) => sock.emit('wolf:act', payload || {}, (r) => { if (cb) cb(r); }),
-          vote: (payload, cb) => sock.emit('wolf:vote', payload || {}, (r) => { if (cb) cb(r); }),
-          emit: (ev, payload, cb) => sock.emit(ev, payload || {}, (r) => { if (cb) cb(r); }),
+          act: (payload, cb) => 送る('wolf:act', payload, cb),
+          vote: (payload, cb) => 送る('wolf:vote', payload, cb),
+          emit: (ev, payload, cb) => 送る(ev, payload, cb),
           later: (ms, f) => setTimeout(f, ms),
           log: (m) => console.log('[' + name + '] ' + m)
         });

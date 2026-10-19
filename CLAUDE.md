@@ -716,6 +716,10 @@
   **並べて走らせる時は --port と --cdp をずらす。測る時は1本ずつ**（落とし穴11）。検証用の Chrome は音を消してある（`--mute-audio`）
 - **すごろくのミニゲームを bot 無し・全員が人で通すのは `node tools/probe-63-sugoroku-humans.js`**（指示63 門G2）。
   bot がいると bot の出した知らせで画面が描き直され、「知らせが来るまで入力が出ない」形が隠れる
+- **待合（375×667）の一言と QR は `node tools/probe-63-lobby.js`**、着替えが名簿と大画面に届くかは `probe-63-look.js`、
+  出て戻ると同じ人かは `probe-63-return.js`（指示63 門G5・G6・G8）。**QR は撮った画像を jsQR で読む**（画面の SVG ではない）。
+  通し直しを別の置き場に取るのは `flow-walk.js <id> --out DIR`、並べて比べるのは `flow-report.js --dir DIR`。
+  bot は 3-2-1 の最中に送って断られたら送り直す（`room-bots.js` の送る道1か所）
 - **検査が本当に赤くなるかは `node tools/mutate.js tools/mutations-43.json`**（42・51の分もある）。
   変異の一覧をJSONで渡すと、1つずつ実装を壊して該当スイートを回し、
   **狙った理由で赤くなったか**まで見る。後始末は `git checkout` に任せるので、

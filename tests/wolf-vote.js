@@ -1202,12 +1202,10 @@ function votesFrom(list) {
     assertEqual(w.phase, 'reveal', 'まずお題の確認');
     assertEqual(w.wolfIds.length, 1, 'ウルフは1人');
 
-    // 全員がお題を見る → 作戦会議 → 話し合い → 投票
+    // 全員がお題を見る → 話し合い → 投票（指示63：作戦会議は通らない）
     WordwolfRoom.expectedMembers(room).forEach((id) => WordwolfRoom.submitAction(room, id, null));
     WordwolfRoom.advance(room);
-    assertEqual(w.phase, 'meeting', 'お題のあとは作戦会議');
-    WordwolfRoom.advance(room);
-    assertEqual(w.phase, 'discuss', '作戦会議のあとは話し合い');
+    assertEqual(w.phase, 'discuss', 'お題のあとは、すぐ話し合い（作戦会議を通らない・指示63）');
     WordwolfRoom.advance(room);
     assertEqual(w.phase, 'vote', '役職がいなければ、そのまま投票へ');
 
@@ -1293,8 +1291,7 @@ function votesFrom(list) {
     WordwolfRoom.startGame(room, { wolfCount: 1, roles: [], multiTurn: false });
     const w = room.wordwolf;
     WordwolfRoom.expectedMembers(room).forEach((id) => WordwolfRoom.submitAction(room, id, null));
-    WordwolfRoom.advance(room); // meeting
-    WordwolfRoom.advance(room); // discuss
+    WordwolfRoom.advance(room); // discuss（指示63：作戦会議は通らない）
     WordwolfRoom.advance(room); // vote
     // 2人ずつに割って同数にする
     const ids = WordwolfRoom.expectedMembers(room);
@@ -1330,8 +1327,7 @@ function votesFrom(list) {
     });
     const w = room.wordwolf;
     WordwolfRoom.expectedMembers(room).forEach((id) => WordwolfRoom.submitAction(room, id, null));
-    WordwolfRoom.advance(room); // meeting
-    WordwolfRoom.advance(room); // discuss
+    WordwolfRoom.advance(room); // discuss（指示63：作戦会議は通らない）
     WordwolfRoom.advance(room); // vote
     // ウルフ以外の1人に全員で入れる → まだ続く
     const wolf = w.wolfIds[0];

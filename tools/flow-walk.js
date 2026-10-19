@@ -359,11 +359,13 @@ function makeWalk(opts) {
     },
 
     /** bot 2人を入れる（tools/room-bots.js --ready --play） */
-    async botを入れる(n) {
+    /** o.ready === false で、bot は準備OKを押さない（「だれかを待っている」待合を撮る時・probe-63-lobby） */
+    async botを入れる(n, o) {
       const logFile = path.join(OUT, 'bots.log');
       const out = fs.openSync(logFile, 'w');
+      const 押す = !(o && o.ready === false) ? ['--ready'] : [];
       const child = spawn(process.execPath, [path.join(__dirname, 'room-bots.js'), '--url', W.BASE, '--code', W.code,
-        '--n', String(n || 2), '--ready', '--play', '--hold', '7200'], { stdio: ['ignore', out, out] });
+        '--n', String(n || 2)].concat(押す, ['--play', '--hold', '7200']), { stdio: ['ignore', out, out] });
       W.bots = child;
       // 入ったことを部屋の名簿で確かめる（画面の数字だけで読まない）
       // 待合の人数（#rtRoomCount＝playerCount。大画面は数えない）。

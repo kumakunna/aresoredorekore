@@ -771,6 +771,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
     // 押すとプレイヤーに戻れる
     fake.replies['room:setRole'] = () => ({ ok: true, role: 'player', room: roomSnapshot() });
+    autoDialog(win, doc, true);   // 指示63 2-1：大画面をやめる前に確認が出る（「やめる」を選ぶ）
     click(doc, 'bigToPlayerBtn');
     await waitScreen(win, doc, 'scr-rt-room', 3000);
     const last = fake.emits.filter(e => e.name === 'room:setRole').pop();
@@ -4929,6 +4930,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
     fake.replies['room:leave'] = function(){ return undefined; }; // 返事が来ない状況
+    autoDialog(win, doc, true);   // 指示63 2-1：出る前の確認は手元だけで決まる（サーバーを待たない）
     click(doc, 'rtLeaveBtn');
     await waitScreen(win, doc, 'scr-shelf', 1500);
     const left = fake.emits.filter(e => e.name === 'room:leave').pop();
@@ -4950,6 +4952,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     fake.fire('disconnect');
     fake.fire('connect');
     await waitFor(win, () => !!joinCb, 2000, '入り直しが走る');
+    autoDialog(win, doc, true);   // 指示63 2-1：確認で「出る」
     click(doc, 'rtLeaveBtn'); // その間に本人が「部屋を出る」
     await waitScreen(win, doc, 'scr-shelf', 1500);
     joinCb({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }); // 遅れて返事が届く
@@ -5435,7 +5438,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       ready: { count: 0, total: 5, waitingNames: [], all: false } }));
     await sleep(win, 250);
     assertEqual(activeScreen(doc), 'scr-titles', '選ばれただけでは、見ている画面から飛ばさない');
-    push(fake, roomSnapshot({ state: { phase: 'playing', game: 'wolfrole', data: { modeId: 'wolf-normal' } } }));
+    push(fake, roomSnapshot({ state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) } }));
     await waitFor(win, () => activeScreen(doc) !== 'scr-titles', 3000, '始まったら、称号の画面から引き戻される');
     assert(/^scr-rt-/.test(activeScreen(doc)), '部屋の画面へ（いま ' + activeScreen(doc) + '）');
     assertNoErrors(errors, '称号の画面からの引き戻しで未捕捉の例外');

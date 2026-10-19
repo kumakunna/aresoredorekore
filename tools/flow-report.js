@@ -3,6 +3,7 @@
 //
 //   node tools/flow-report.js                 # docs/監査_審査会の指摘_画像/*/記録.json を読む
 //   node tools/flow-report.js --json OUT.json # 候補を JSON でも書く（レビュー役に渡す）
+//   node tools/flow-report.js --dir docs/監査_審査会の指摘_画像/_63_通し  # 別の置き場の通しを読む
 //
 // **ここが出すのは「候補」まで。**画面の材料（主ボタンの数・長い文・待ち文・戻るボタン・
 // 進行役の言葉）から機械的に拾うので、拾いすぎも取りこぼしもある。
@@ -19,7 +20,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const DIR = path.join(__dirname, '..', 'docs', '監査_審査会の指摘_画像');
+// --dir で置き場を変えられる（指示63：やり直した通しを _63_通し に置き、指示62 の記録と並べる）
+const DIR = (function(){ const a = process.argv.indexOf('--dir'); return a !== -1 ? path.resolve(process.argv[a + 1]) : path.join(__dirname, '..', 'docs', '監査_審査会の指摘_画像'); })();
 const 並び = ['aresoredorekore', 'jinro', 'bakudan', 'quizou', 'auction', 'sugoroku', 'falsetrue', 'rcard', 'shinka'];
 const 名前 = { aresoredorekore: 'あれそれどれこれ', jinro: '人狼ゲーム', bakudan: '爆弾解除', quizou: 'クイズ王', auction: 'オークション', sugoroku: 'すごろく', falsetrue: 'False or True', rcard: 'ロシアンカード', shinka: '進化じゃんけん' };
 

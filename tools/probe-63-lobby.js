@@ -70,13 +70,14 @@ const 待ちの文 = `(function(){
       const qr = await 画像から読む(dev, path.join(OUT, 名 + '.png'));
       const 待ち = await dev.ev(待ちの文);
       const 開いている = await dev.ev("!!(document.getElementById('rtInvite')||{}).open");
-      (結果.時点[時点] = 結果.時点[時点] || {})[dev.name + (開く ? '（開いた）' : '')] = { QRが読める: !!qr, QRの中身: qr, 友だちを呼ぶ: 開いている ? '開いている' : 'たたんである', 待ちの文: 待ち };
+      const 開始待ち = await dev.ev("(function(){var w=document.getElementById('rtStartWait');if(!w||w.hidden)return null;var r=w.getBoundingClientRect();return {文:w.textContent.trim(),巻かずに見える:r.top>=0&&r.bottom<=document.documentElement.clientHeight};})()");
+      (結果.時点[時点] = 結果.時点[時点] || {})[dev.name + (開く ? '（開いた）' : '')] = { QRが読める: !!qr, QRの中身: qr, 友だちを呼ぶ: 開いている ? '開いている' : 'たたんである', 待ちの文: 待ち, はじめるの上: 開始待ち };
       console.log(名 + '：QR ' + (qr ? '読める' : '読めない') + ' ／ 待ち「' + (待ち && 待ち.文) + '」' + (待ち && 待ち.巻かずに見える ? '（巻かずに見える）' : '（画面の外）'));
     }
 
     await W.進行役が部屋をつくる('bakudan', '爆弾解除');
     await W.参加者がQRで入る('ひろ');
-    await W.botを入れる(2);
+    await W.botを入れる(2, { ready: false });   // bot は準備OKを押さない＝「だれかを待っている」待合が撮れる
     await sleep(800);
     // A
     await 撮る('A', W.host);
@@ -89,9 +90,7 @@ const 待ちの文 = `(function(){
     await W.設定を進める({ cassetteId: 'bakudan', 名: '爆弾解除' });
     await W.part.until("(document.querySelector('.screen.active')||{}).id==='scr-rt-rules'", 10000, '参加者にルール');
     // 「はじめてですね」は断る（ここで見たいのは待合の並び）
-    await W.part.click('#rtRulesOkBtn');
-    await sleep(700);
-    await W.part.ev("(function(){var b=Array.from(document.querySelectorAll('.ui-layer button')).find(function(x){return /いらない/.test(x.textContent);}); if(b) b.click(); return true;})()");
+    await W.準備OKまで(W.part, { チュートリアル: 'いらない' });
     await W.part.until("(document.querySelector('.screen.active')||{}).id==='scr-rt-room'", 10000, '参加者が待合へ');
     await sleep(800);
     await 撮る('B', W.host);

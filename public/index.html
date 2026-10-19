@@ -1396,7 +1396,8 @@
   /* 指示63 2-2：称号の知らせ。画面の下に小さく、数秒で自分で閉じる（押しても閉じる）。
      結果の順位とボタンを隠さないよう、高さは2〜3行に抑え、下の反応の列より上に置く */
   .title-toast{
-    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom, 0px) + 64px);
+    /* 置き場の #uiLayerRoot が画面いっぱいに貼り付いているので、その中では absolute（52-7・落とし穴26） */
+    position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom, 0px) + 64px);
     transform:translate(-50%, 12px);z-index:88;
     width:max-content;max-width:min(340px, 90vw);
     background:rgba(36,39,46,0.92);color:#fff;border-radius:16px;
@@ -15059,7 +15060,29 @@
     var sw = el('rtStartWait');
     sw.hidden = !待ち.length;
     sw.textContent = 待ち.length ? 待ち.map(function(x){ return x.name; }).join('・') + ' さんを待っています' : '';
+    rtFitQr();
   }
+  /**
+   * 指示63 第3部：**待合の QR を、巻かずに全体が見える大きさにする。**
+   * 下の帯のボタンは場面で増減する（2回目の待合では「✓ 準備OK」が増える）。
+   * QR を決まった大きさ（最大280px）のままにすると、帯が増えた日に本文の箱が縮み、
+   * 375×667 で QR の下が切れて**カメラで読めなくなっていた**（probe-63-lobby の C で実測）。
+   * 本文の箱の高さから「見出し（友だちを呼ぶ）」を引いた残りに収める。下限は 140px
+   * （それより小さいと離れた所から読みにくい。そこまで縮む画面はそもそも巻いてもらう）
+   */
+  function rtFitQr(){
+    var body = document.querySelector('#scr-rt-room .rt-room-body');
+    var inv = el('rtInvite');
+    var svg = document.querySelector('#rtQr svg');
+    if(!body || !inv || !svg || !inv.open) return;
+    var 箱 = body.clientHeight;
+    if(!箱) return;                       // まだ版組みされていない（画面の外・検査の jsdom）
+    var 見出し = inv.querySelector('summary');
+    var 上 = 見出し ? 見出し.getBoundingClientRect().height : 0;
+    var 大きさ = Math.max(140, Math.min(280, Math.floor(document.documentElement.clientWidth * 0.78), Math.floor(箱 - 上 - 12)));
+    svg.style.width = svg.style.height = 大きさ + 'px';
+  }
+  window.addEventListener('resize', function(){ rtFitQr(); });
   // 待合に出す一言。「いま何を待てばいいか」だけを書く
   function rtRoomNoteText(host, picked, supported, enough, need, count){
     if(!picked){
@@ -15096,7 +15119,8 @@
   // 指示63 第3部：「友だちを呼ぶ」を開いたら、QRの全体が見える所まで送る（開いても画面の下で切れないように）
   el('rtInvite').addEventListener('toggle', function(){
     if(!this.open) return;
-    var q = el('rtQrBox');
+    rtFitQr();
+    var q = document.querySelector('#rtQr svg') || el('rtQrBox');
     if(q && q.scrollIntoView) q.scrollIntoView({ block:'nearest' });
   });
   // 指示63 2-3：待合の「🏷 アイコン・二つ名をかえる」

@@ -6,7 +6,8 @@
 // 爆発の回は第3部（爆発演出）で撮るので、ここでは通さない。
 
 const path = require('path');
-const QB = "(function(q){var all=[];Object.keys(QuizBank.QUESTIONS).forEach(function(k){all=all.concat(QuizBank.QUESTIONS[k]);});var h=all.find(function(x){return x.q===q;});return h?h.choices[h.correct]:null;})";
+// 問題文で問題バンクを引き、**いま画面に出ている3択に入っている**正解を返す
+const QB = "(function(q){var cs=Array.from(document.querySelectorAll('#rtBombChoices .pk-btn')).map(function(x){return x.textContent;});var all=[];Object.keys(QuizBank.QUESTIONS).forEach(function(k){all=all.concat(QuizBank.QUESTIONS[k]);});var h=all.find(function(x){return x.q===q&&cs.indexOf(x.choices[x.correct])!==-1;});return h?h.choices[h.correct]:null;})";
 
 /** 1本解く（コードを押す→3択で正解を押す）。解けたら true、押せるコードが無ければ false */
 async function 一本解く(W, dev) {
@@ -18,7 +19,7 @@ async function 一本解く(W, dev) {
   // 開けたタップを数える（W.click を通していないので、ここで足す）
   await W.sleep(1200);   // 人が問題を読む間
   const 答え = await dev.ev(QB + "(document.getElementById('rtBombDescription').textContent)");
-  await dev.ev("(function(){var a=" + JSON.stringify(答え) + ";var b=Array.from(document.querySelectorAll('#rtBombChoices .pk-btn')).find(function(x){return a?x.textContent===a:true;}); b.click(); return true;})()");
+  await dev.ev("(function(){var a=" + JSON.stringify(答え) + ";var b=Array.from(document.querySelectorAll('#rtBombChoices .pk-btn')).find(function(x){return a?x.textContent===a:true;}) || document.querySelector('#rtBombChoices .pk-btn'); b.click(); return true;})()");
   return true;
 }
 

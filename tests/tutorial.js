@@ -412,6 +412,36 @@ async function run() {
     } finally { win.close(); }
   });
 
+  /**
+   * 指示63 第4部：**3-2-1 が0になるまで、吹き出しを出さない。**
+   * 盤は数字の下で先に描かれるので、盤が出た瞬間に動かすと数字の最中に吹き出しが出ていた
+   * （指示62・1-3）。型(b)：数字が出ている状況を先に作り、それから「出ない」を見る。
+   * 型(h)：呼ぶ道は本物（聞く → 動かす）。数え終わったら出る、の側も見る
+   */
+  await r.test('63 第4部：3-2-1 の最中は吹き出しを出さず、数え終わったら出す', async () => {
+    const { win, doc } = await launch({ keepPlayGuide: true });
+    try {
+      const 的 = doc.createElement('div');
+      的.className = 'bomb-wire-btn';
+      doc.getElementById('app').appendChild(的);
+      的.getBoundingClientRect = () => ({ left: 20, top: 30, width: 60, height: 60, right: 80, bottom: 90 });
+      const 止める = autoDialog(win, doc, true);
+      assertEqual(await win.tutProbe().聞く('bomb'), true, '前提：「見る」まで行けている');
+      止める();
+      const 数字 = doc.createElement('div');
+      数字.className = 'fx-countdown';
+      doc.getElementById('app').appendChild(数字);
+      assert(doc.querySelector('.fx-countdown'), '前提：3-2-1 が出ている');   // 型(b)
+      const 返り = win.tutProbe().動かす('bomb');
+      await sleep(win, 400);
+      assert(!win.TutorialKit.いま(), '3-2-1 の最中に吹き出しが出ている');
+      数字.remove();
+      await waitFor(win, () => !!win.TutorialKit.いま(), 2000, '数え終わったら吹き出しが出る');
+      win.TutorialKit.stop('gone');
+      await 返り;
+    } finally { win.close(); }
+  });
+
   await r.test('57-4：本物の台本を最後まで通すと「見た」になる（門W4の対照）', async () => {
     const { win, doc } = await launch({ keepPlayGuide: true });
     try {

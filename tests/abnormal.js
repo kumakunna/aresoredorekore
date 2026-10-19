@@ -17,7 +17,8 @@ const WW_CFG = {
 async function toFinalVote(srv, rm) {
   const room = () => srv.store.get(rm.code);
   for (const d of rm.all) await d.call('wolf:act', { targetId: null });
-  await rm.host.call('wolf:next', {});
+  // 指示63：お題を見たら、すぐ話し合い（作戦会議を通らない）。話し合いから1回で投票へ
+  await waitUntil(() => room().wordwolf.phase === 'discuss', '話し合いに入る');
   await rm.host.call('wolf:next', {});
   await waitUntil(() => room().wordwolf.phase === 'vote', '投票フェーズに入る');
   const wolfId = room().wordwolf.wolfIds[0];
@@ -170,7 +171,7 @@ async function run() {
       await rm.host.call(RT_START_EVENT, WW_CFG);
       const room = () => srv.store.get(rm.code);
       for (const d of rm.all) await d.call('wolf:act', { targetId: null });
-      await rm.host.call('wolf:next', {});
+      await waitUntil(() => room().wordwolf.phase === 'discuss', '話し合いに入る（指示63：作戦会議は通らない）');
       await rm.host.call('wolf:next', {});
       await waitUntil(() => room().wordwolf.phase === 'vote', '投票フェーズに入る');
       const wolfId = room().wordwolf.wolfIds[0];

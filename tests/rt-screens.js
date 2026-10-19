@@ -5420,10 +5420,11 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   });
 
   /**
-   * 指示63 2-3：**⚙ → アイコン・二つ名（scr-titles）にいる間にゲームが選ばれたら、部屋へ引き戻す。**
-   * それまでは部屋の画面の外なので一度も引き戻されず、3-2-1 を見逃していた
+   * 指示63 2-3：**⚙ → アイコン・二つ名（scr-titles）にいる間にゲームが始まったら、部屋へ引き戻す。**
+   * それまでは部屋の画面の外なので一度も引き戻されず、3-2-1 を見逃していた。
+   * **選ばれただけでは引き戻さない**（48-1②：見ている画面から勝手に飛ばさない）——型(c) の両側を見る
    */
-  await r.test('63 2-3：称号の画面にいる間にゲームが選ばれたら、部屋（ルール）へ引き戻す', async () => {
+  await r.test('63 2-3：称号の画面にいる間に、選ばれただけなら留まり、始まったら部屋へ引き戻す', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
     push(fake, roomSnapshot({ state: { phase: 'lobby', game: null, data: {} } }));
@@ -5432,7 +5433,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, roomSnapshot({ state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } },
       members: roomSnapshot().members.map((m) => Object.assign({}, m, { ready: false })),
       ready: { count: 0, total: 5, waitingNames: [], all: false } }));
-    await waitFor(win, () => activeScreen(doc) !== 'scr-titles', 3000, '称号の画面から引き戻される');
+    await sleep(win, 250);
+    assertEqual(activeScreen(doc), 'scr-titles', '選ばれただけでは、見ている画面から飛ばさない');
+    push(fake, roomSnapshot({ state: { phase: 'playing', game: 'wolfrole', data: { modeId: 'wolf-normal' } } }));
+    await waitFor(win, () => activeScreen(doc) !== 'scr-titles', 3000, '始まったら、称号の画面から引き戻される');
     assert(/^scr-rt-/.test(activeScreen(doc)), '部屋の画面へ（いま ' + activeScreen(doc) + '）');
     assertNoErrors(errors, '称号の画面からの引き戻しで未捕捉の例外');
     win.close();

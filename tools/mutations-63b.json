@@ -1,0 +1,130 @@
+[
+  {
+    "name": "63-2-1A 部屋：出た人を控えに写さない（戻ると別人になる元の形）",
+    "file": "realtime.js",
+    "suite": "tests/room-return.js",
+    "from": "        keepLeft(room, me);   // 指示63 2-1：同じ人として戻れるように、消す前に控えへ写す",
+    "to": "",
+    "expect": "同じ人として戻る"
+  },
+  {
+    "name": "63-2-1B 部屋：試合の途中でも同じ人として戻す（判断2を破る形）",
+    "file": "realtime.js",
+    "suite": "tests/room-return.js",
+    "from": "  return !w || w.phase === 'ended' || (room.state && room.state.phase === 'ended');",
+    "to": "  return true;",
+    "expect": "見るだけ"
+  },
+  {
+    "name": "63-2-1C 画面：「← 部屋を出る」が確認なしで出る元の形",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    b.addEventListener('click', rtLeaveRoomAsk);   // 指示63 2-1：確認してから出る",
+    "to": "    b.addEventListener('click', function(){ rtLeaveRoom(); });",
+    "expect": "キャンセルなら部屋に残る"
+  },
+  {
+    "name": "63-2-1D 端末：前の memberId を添えずに入り直す（別人になる元の形）",
+    "file": "public/js/rt-client.js",
+    "suite": "tests/rt-screens.js",
+    "from": "      var 添える = state.memberId || ((前 && 前.code === String(code || '').toUpperCase().trim()) ? 前.memberId : null);",
+    "to": "      var 添える = state.memberId;",
+    "expect": "前の memberId"
+  },
+  {
+    "name": "63-2-2 称号の知らせを結果に着いた瞬間に出す（結果を覆う元の形）",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "      setTimeout(function(){ showTitleToast(names); }, 1600);",
+    "to": "      showTitleToast(names);",
+    "expect": "結果に着いてすぐには出ない"
+  },
+  {
+    "name": "63-2-3A 着替えを部屋に送らない（ほかの人の名簿に出ない形）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    saveTitles();\n    pushMyLook();\n  }\n  /**\n   * **2-1：いまの自分と、あつめたものだけ。**",
+    "to": "    saveTitles();\n  }\n  /**\n   * **2-1：いまの自分と、あつめたものだけ。**",
+    "expect": "部屋に送り"
+  },
+  {
+    "name": "63-2-3B 称号の画面から、始まっても引き戻さない（3-2-1 を見逃す元の形）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    if(cur === 'scr-titles' && 始まった){ goTo(rtWantScreen()); return; }",
+    "to": "",
+    "expect": "始まったら、称号の画面から引き戻される"
+  },
+  {
+    "name": "63-2-3C 称号の画面から、選ばれただけで引き戻す（48-1② を破る形）",
+    "file": "public/index.html",
+    "suite": "tests/fixes48.js",
+    "from": "    if(cur === 'scr-titles' && 始まった){ goTo(rtWantScreen()); return; }",
+    "to": "    if(cur === 'scr-titles' && rtWantScreen() !== 'scr-rt-room'){ goTo(rtWantScreen()); return; }",
+    "expect": "勝手に飛ばさない"
+  },
+  {
+    "name": "63-3 進行役の「はじめる」の真上に待つ相手を出さない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "    sw.hidden = !待ち.length;",
+    "to": "    sw.hidden = true;",
+    "expect": "待つ相手"
+  },
+  {
+    "name": "63-4A 3-2-1 の締め切りをずらさない（数字の間に持ち時間が減る元の形）",
+    "file": "realtime.js",
+    "suite": "tests/realtime-countdown.js",
+    "from": "        if (ws) shiftTimes(ws, countdownMs, 0);",
+    "to": "",
+    "expect": "3-2-1"
+  },
+  {
+    "name": "63-4B 3-2-1 の幕が指を通す（下の盤が押せる元の形）",
+    "file": "public/index.html",
+    "suite": "tests/fixes63.js",
+    "from": "    position:fixed;inset:0;z-index:94;pointer-events:auto;",
+    "to": "    position:fixed;inset:0;z-index:94;pointer-events:none;",
+    "expect": "指を受けない"
+  },
+  {
+    "name": "63-4C 吹き出しが 3-2-1 を待たない",
+    "file": "public/index.html",
+    "suite": "tests/tutorial.js",
+    "from": "    await whenCountdownDone();\n    var 結果 = await TutorialKit.start(台本);",
+    "to": "    var 結果 = await TutorialKit.start(台本);",
+    "expect": "3-2-1 の最中に吹き出し"
+  },
+  {
+    "name": "63-5A ワードウルフ：お題のあと作戦会議を通る元の形",
+    "file": "wordwolf-room.js",
+    "suite": "tests/fixes63.js",
+    "from": "  if (w.phase === PHASE.REVEAL) {\n    startDiscuss(room);\n    return { changed: true };\n  }",
+    "to": "  if (w.phase === PHASE.REVEAL) {\n    setPhase(room, PHASE.MEETING);\n    return { changed: true };\n  }",
+    "expect": "meeting ではない"
+  },
+  {
+    "name": "63-5B ワードウルフ：役職なしの回にも役職の欄を出す",
+    "file": "public/index.html",
+    "suite": "tests/fixes63.js",
+    "from": "    if((v && v.roleCount) > 0){",
+    "to": "    if(true){",
+    "expect": "役職の欄が無い"
+  },
+  {
+    "name": "63-5C 二つ名の「のの」：前が「の」で終わってもつなぎを重ねる",
+    "file": "public/js/titles.js",
+    "suite": "tests/titles.js",
+    "from": "      if (part === 'joiner' && label && out.slice(-label.length) === label) return;",
+    "to": "",
+    "expect": "の"
+  },
+  {
+    "name": "63-判断1 ゲストの称号を日付で捨てない（次の日に残る形）",
+    "file": "public/index.html",
+    "suite": "tests/fixes63.js",
+    "from": "    if(!g || g.day !== jstDay()){ clearGuestTitles(); return null; }",
+    "to": "    if(!g){ clearGuestTitles(); return null; }",
+    "expect": "前の日に取った称号"
+  }
+]

@@ -118,6 +118,25 @@ async function run() {
     } finally { g.win.close(); }
   });
 
+  // ===================== 第4部：3-2-1 が0になるまで、何も始まらない（画面の側） =====================
+  //
+  // サーバーの側（締め切りが後ろへずれる・操作は not_started）は tests/realtime-countdown.js。
+  // ここは画面の側の2行。**1か所で全カセットに効かせる**（出す側に条件を書かせない・良い型4）。
+  // jsdom は pointer-events も :has() も解かないので、CSSそのものを読む（落とし穴35と同じ理由）
+  await r.test('63 第4部：3-2-1 の幕は指を受け（下の盤は押せない）、その間は時計を出さない', async () => {
+    const fs = require('fs');
+    const html = fs.readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const 幕 = html.match(/\n\s*\.fx-countdown\{([^}]*)\}/);
+    assert(幕, '.fx-countdown の規則が読めた');   // 型(e)：読めなかったら赤
+    assert(/pointer-events:\s*auto/.test(幕[1]), '3-2-1 の幕が指を受けない（下の盤が押せてしまう）');
+    assert(/body:has\(\.fx-countdown\)\s*\[data-timer\]\s*\{\s*visibility:\s*hidden/.test(html),
+      '3-2-1 の間も、時計（[data-timer]）が見えている');
+    // 時計の印（data-timer）が、部屋のゲームの時計に付いている（印が無ければ、上の1行は何も隠さない）
+    ['rtPlayTimer', 'rtBombTimer', 'dfTimer', 'qzTimer', 'auBidTimer'].forEach((id) => {
+      assert(new RegExp('data-timer[^>]*id="' + id + '"|id="' + id + '"[^>]*data-timer').test(html), id + ' に data-timer の印が無い');
+    });
+  });
+
   // ===================== くまくんの判断1：ゲストの称号は、その日のうちは端末に残す =====================
 
   /**

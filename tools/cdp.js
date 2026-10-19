@@ -148,6 +148,14 @@ async function launch(opt) {
         fs.writeFileSync(file, Buffer.from(r.data, 'base64'));
         return file;
       },
+      /** ページ全体を1枚に撮る（指示62 の一覧の画像。size は {w,h}） */
+      async shotFull(file, size) {
+        const r = await s('Page.captureScreenshot', { format: 'jpeg', quality: 80, captureBeyondViewport: true,
+          clip: { x: 0, y: 0, width: size.w, height: size.h, scale: 1 } });
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, Buffer.from(r.data, 'base64'));
+        return file;
+      },
       async close() { try { await send('Target.disposeBrowserContext', { browserContextId }); } catch (e) {} }
     };
     return dev;

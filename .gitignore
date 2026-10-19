@@ -9,3 +9,6 @@ package-lock.json
 !.env.example
 data/
 *.log
+
+# 指示62：審査会の指摘の洗い出しで撮ったスクショ（重いので入れない。tools/flow-walk.js が作る）
+docs/監査_審査会の指摘_画像/

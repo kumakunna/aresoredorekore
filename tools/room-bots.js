@@ -16,7 +16,8 @@
 //   --code   入る部屋のコード（ブラウザ側で /dev-login → 部屋をつくる で出たもの）
 //   --n      入れる人数（既定 2）
 //   --ready  ゲームが決まったら「準備OK」を自動で押す
-//   --play   **遊ぶ。**いまは進化じゃんけん（shinka）だけ——手を出す段階になったら
+//   --play   **遊ぶ。**進化じゃんけん（shinka）はこの中に、ほかは tools/bot-play/<ゲームid>.js（指示62）。
+//            進化じゃんけんは——手を出す段階になったら
 //            グー／チョキ／パーをランダムに1つ出す。
 //            **これが無いと、bot は「準備OK」までで手を出さないので、**
 //            相手も出さず引き分けが続き、**優勝も10分の打ち切りも実サーバーで見られない**
@@ -76,6 +77,17 @@ if (!CODE) {
 }
 
 const bots = [];
+// 指示62：ゲームごとの遊び方（tools/bot-play/<ゲームid>.js）。無いゲームでは何もしない
+const 台本の棚 = {};
+function 台本(game) {
+  if (game in 台本の棚) return 台本の棚[game];
+  let f = null;
+  try { f = require(require('path').join(__dirname, 'bot-play', game + '.js')); } catch (e) {
+    if (!/Cannot find module/.test(String(e && e.message))) console.log('台本 ' + game + ' を読めません：' + e.message);
+  }
+  台本の棚[game] = f;
+  return f;
+}
 let 部屋コード = CODE;
 
 /** 1人つなぐ。入れたら解決する */
@@ -139,6 +151,34 @@ function つなぐ(name, i) {
         if (res && res.ok) console.log('[' + name + '] ' + 手 + ' を出した（' + v.round + '回戦）');
       });
     });
+    /**
+     * 指示62：**shinka 以外のゲームも遊ぶ。**台本は tools/bot-play/<ゲームid>.js に1本ずつ置く
+     * （ここに else if を積むと、9カセット分がこの1ファイルに混ざる）。
+     * 台本は「部屋の知らせ」と「本人の秘密（wolf:you）」の両方で呼ばれる——
+     * 届く順番の保証が無いので（落とし穴18）、どちらが来ても今ある材料で判断させる。
+     * 同じ段階で二度送らないための `once(鍵)` を渡す
+     */
+    const 台本を呼ぶ = (from) => {
+      if (!PLAY || !bot.room) return;
+      const st = bot.room.state;
+      if (!st || !st.game || st.game === 'shinka') return;
+      const play = 台本(st.game);
+      if (!play) return;
+      if (!bot.done) bot.done = new Set();
+      try {
+        play(bot, {
+          from, game: st.game, room: bot.room, view: st.data || {}, mine: bot.mine || null, me: bot.memberId,
+          once: (k) => { if (bot.done.has(k)) return false; bot.done.add(k); return true; },
+          act: (payload, cb) => sock.emit('wolf:act', payload || {}, (r) => { if (cb) cb(r); }),
+          vote: (payload, cb) => sock.emit('wolf:vote', payload || {}, (r) => { if (cb) cb(r); }),
+          emit: (ev, payload, cb) => sock.emit(ev, payload || {}, (r) => { if (cb) cb(r); }),
+          later: (ms, f) => setTimeout(f, ms),
+          log: (m) => console.log('[' + name + '] ' + m)
+        });
+      } catch (e) { console.log('[' + name + '] 台本で失敗：' + (e && e.message)); }
+    };
+    sock.on('room:update', (p) => { bot.room = (p && p.room) || p; 台本を呼ぶ('room'); });
+    sock.on('wolf:you', (mine) => { bot.mine = mine; 台本を呼ぶ('you'); });
     sock.on('room:closed', (p) => {
       console.log('[' + name + '] 部屋が閉じました' + (p && p.by ? '（' + p.by + ' さん）' : ''));
     });

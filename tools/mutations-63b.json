@@ -37,7 +37,7 @@
     "suite": "tests/shelf.js",
     "from": "      setTimeout(function(){ showTitleToast(names); }, 1600);",
     "to": "      showTitleToast(names);",
-    "expect": "結果に着いてすぐには出ない"
+    "expect": "褒めるの番が来ても、すぐには出さない"
   },
   {
     "name": "63-2-3A 着替えを部屋に送らない（ほかの人の名簿に出ない形）",

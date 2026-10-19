@@ -5319,6 +5319,30 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     }
   });
 
+  /**
+   * 指示63 第1部：**「つぎは？」のボタンが、全部「つぎは？」の画面につながっている。**
+   *
+   * 手書きの一覧（8つ）に進化じゃんけんの rtShAgainBtn が入っておらず、
+   * 結果のいちばん大きいボタンを押しても何も起きなかった（指示62 で見つけた）。
+   * ボタンの一覧は index.html から導く（手で書くと、同じ漏れ方をする・落とし穴4・10-a）
+   */
+  await r.test('63：画面にある「つぎは？」（*AgainBtn）は、押すと全部「つぎは？」の画面へ行く', async () => {
+    const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const ids = Array.from(new Set(Array.from(html.matchAll(/id="([A-Za-z]*AgainBtn)"/g)).map((m) => m[1])));
+    assert(ids.length >= 9, '「つぎは？」のボタンを index.html から拾えている（いま' + ids.length + '件）');
+    assert(ids.indexOf('rtShAgainBtn') !== -1, '進化じゃんけんの rtShAgainBtn も拾えている');
+    for (const id of ids) {
+      const { win, doc, errors } = await launch(LAUNCH);
+      await toRoom(win, doc, { join: true, memberId: 'm1' });
+      const b = doc.getElementById(id);
+      b.disabled = false;
+      b.click();
+      await waitScreen(win, doc, 'scr-next', 2000);
+      assertNoErrors(errors, id + ' で未捕捉の例外');
+      win.close();
+    }
+  });
+
   // ===================== 第37弾：ルールを読んで「準備OK」 =====================
   // サーバー側（誰が押したか・境界ごとに消えるか）は tests/room-ready.js。
   // ここで見るのは「届いたものを画面がどう出すか」と「押すまで始まらないか」。

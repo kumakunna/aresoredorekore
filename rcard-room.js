@@ -237,6 +237,11 @@ function flipCard(room, memberId, no) {
   const m = matchOf(room, memberId);
   if (!m) return { ok: false, error: 'not_in_match' };
   if (turnIdOf(m) !== memberId) return { ok: false, error: 'not_your_turn' };
+  // 指示63 第1部：**1つの番にめくれるのは1まいだけ。**
+  // 2組以上が同時に回る回（4人以上）は、もう1組がめくり終わるまで段階が TURN のまま残る。
+  // そのあいだ手番の人は変わらないので、ここで m.acted を見ないと2まい目も3まい目も通っていた
+  //（指示62 で見つけた。サーバーで止める——画面だけ止めると、連打や古い画面からは通る）
+  if (m.acted) return { ok: false, error: 'already_acted' };
   const 盤 = w.boards[memberId];
   const res = L.flip(盤, no, w.bombsOnBoard[memberId] || []);
   if (!res.ok) return { ok: false, error: res.error };
@@ -532,6 +537,8 @@ function privateFor(room, memberId) {
     opponentName: 相手 ? w.names[相手] : null,
     isBye: w.byeId === memberId,
     isMyTurn: !!(m && turnIdOf(m) === memberId),
+    // 指示63：この番でもうめくったか。めくったあとは「めくりました。相手を待っています」にする
+    iActed: !!(m && turnIdOf(m) === memberId && m.acted),
     // 自分が相手の盤に置いた位置（置いた本人なので知っていて当然）
     bombsIPlaced: 見てよい ? (w.bombsOnBoard[相手] || []).slice() : null,
     // **w.bombsOnBoard[memberId] は、どの分岐でも読まない**

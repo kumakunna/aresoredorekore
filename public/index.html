@@ -12484,6 +12484,7 @@
       if(rtSugo.stop){ rtSugo.stop(); rtSugo.stop = null; }
       rtSugo.key = ''; rtSugo.sent = ''; rtSugo.busy = false;
       rtSugo.sayArea = null; rtSugo.offerCard = null;
+      if(rtSugo.wake){ clearTimeout(rtSugo.wake); rtSugo.wake = null; rtSugo.wakeKey = ''; }
       if(rtSugoRelease) rtSugoRelease();
     }
     if(id === 'scr-wr-pass') enterWrPass();
@@ -15012,11 +15013,15 @@
     b.textContent = host ? 'つぎは？ ▶' : '進行役が つぎをえらんでいます…';
     if(typeof FxKit !== 'undefined') FxKit.alive(b, ended && !host);
   }
-  // 「つぎは？」のボタンは、どれも同じ画面へ行く（数はここに書かない・落とし穴33）
-  ['rtAgainBtn','rtBombAgainBtn','dfAgainBtn','qzAgainBtn','auAgainBtn',
-   'rtSugoAgainBtn','rtFtAgainBtn','rtRcAgainBtn'].forEach(function(id){
-    var b = el(id);
-    if(b) b.addEventListener('click', function(){ if(!this.disabled) goTo('scr-next'); });
+  // 「つぎは？」のボタンは、どれも同じ画面へ行く（数はここに書かない・落とし穴33）。
+  //
+  // 指示63 第1部：**手書きの一覧をやめて、名前で拾う**（「← 部屋を出る」の [id$="LeaveBtn"] と同じ形）。
+  // 一覧には8つのidが並んでいたが、進化じゃんけんの rtShAgainBtn が入っておらず、
+  // いちばん大きいボタンを押しても何も起きなかった（指示62 で見つけた・落とし穴4）。
+  // 名前で拾えば、カセットを足した日に結び忘れが起きない。tests/room-paths.js が
+  // 「AgainBtn で終わるボタンは全部、つぎは？に結ばれている」を見張る
+  document.querySelectorAll('[id$="AgainBtn"]').forEach(function(b){
+    b.addEventListener('click', function(){ if(!this.disabled) goTo('scr-next'); });
   });
   // 第24弾-3-5：ホストの終了を、部屋にいる全員に反映する
   el('rtEndBtn').addEventListener('click', async function(){
@@ -15622,12 +15627,30 @@
   //
   // 出す・振る・分ける・申告するの入口は、**この1か所から組み立てる**。
   // 段階ごとに別の場所へ書くと、新しい段階を足した時に片方だけ残る（落とし穴4）。
-  var rtSugo = { key:'', sent:'', stop:null, busy:false, sayArea:null, offerCard:null };
+  var rtSugo = { key:'', sent:'', stop:null, busy:false, sayArea:null, offerCard:null, wake:null, wakeKey:'' };
 
   // いまが「どの場面か」の印。変わったら入力を作り直す。
   // 毎描画で作り直すと、連打の数がゼロに戻ってしまうので、印で見る
   function rtSugoKey(v){
     return [v.phase, (v.mini && v.mini.id) || '', v.deadline || 0].join('|');
+  }
+  /**
+   * 指示63 第1部：**数え終わった瞬間に、自分で描き直す。**
+   *
+   * 3-2-1 の間は「もうすぐ始まります…」を出して戻るが、描き直すきっかけは
+   * 部屋の知らせ（rt.on('room'／'you'／'rejoined')）しか無かった。サーバーは startAt を
+   * 置くだけで、その時刻に何も送らない。だから**誰かが出して知らせが届くまで、押すものが出なかった**——
+   * bot がいる検証では bot が先に出すので見えず、**全員が人の部屋では誰も押せないまま締め切り**になっていた
+   *（指示62 で見つけた）。場面の印（key）ごとに1本だけ目覚ましを置く
+   */
+  function rtSugoWakeAt(at, key){
+    if(rtSugo.wake && rtSugo.wakeKey === key) return;
+    if(rtSugo.wake) clearTimeout(rtSugo.wake);
+    rtSugo.wakeKey = key;
+    rtSugo.wake = setTimeout(function(){
+      rtSugo.wake = null; rtSugo.wakeKey = '';
+      if(((document.querySelector('.screen.active') || {}).id) === 'scr-rt-sugoroku') renderRtSugoroku();
+    }, Math.max(0, at - Date.now()) + 30);
   }
   function rtSugoInputRender(v, you, mine){
     var host = el('rtSugoInput');
@@ -15636,6 +15659,7 @@
     if(rtSugo.key !== key){
       // 場面が変わった。前の入力は捨てる（連打のタイマーも必ず止める）
       if(rtSugo.stop){ rtSugo.stop(); rtSugo.stop = null; }
+      if(rtSugo.wake){ clearTimeout(rtSugo.wake); rtSugo.wake = null; rtSugo.wakeKey = ''; }
       rtSugo.key = key;
       rtSugo.sayArea = null;
       rtSugo.offerCard = null;
@@ -15683,6 +15707,7 @@
        */
       if(v.startAt && Date.now() < v.startAt){
         host.innerHTML = '<div class="sugo-hand-sub">' + escapeHtml(UiText.NOW.sugoroku.はじまる) + '</div>';
+        rtSugoWakeAt(v.startAt, key);
         return;
       }
       if(v.mini.id === 'quiz' && !v.question){
@@ -16770,6 +16795,7 @@
       return (v.placed || {})[ctx.meId] ? wait(R.しかけ終わり) : mine(R.しかける(v.bombsPerBoard || 0));
     }
     if(v.phase === 'turn'){
+      if(you.isMyTurn && you.iActed) return wait(R.めくり終わり);
       return you.isMyTurn ? mine(R.めくる) : wait(R.めくるのを待つ(you.opponentName || ''));
     }
     if(v.phase === 'show')  return wait(R.けっか);
@@ -17364,12 +17390,16 @@
       : '';
     el('rcPlayVs').style.display = foe ? '' : 'none';
 
-    var myTurn = !!you.isMyTurn && v.phase === 'turn';
+    // 指示63 第1部：**めくったら、その番はもう押せない。**サーバーも2まい目を断る（rcard-room.js flipCard）。
+    // それまでは、ほかの組が終わるまで題が「カードをめくる」のまま残りの札も明るく、もう1まい押せた
+    var めくった = !!you.iActed && v.phase === 'turn';
+    var myTurn = !!you.isMyTurn && v.phase === 'turn' && !めくった;
     el('rcPlayTitle').textContent = you.isBye ? 'この回は不戦勝' :
-      (v.phase === 'show' ? 'けっか' : (myTurn ? 'カードをめくる' : 'あいての番'));
+      (v.phase === 'show' ? 'けっか' : (めくった ? 'めくりました' : (myTurn ? 'カードをめくる' : 'あいての番')));
     el('rcPlayLead').textContent = you.isBye
       ? '体力はそのまま、つぎの相手を待ちます'
-      : (myTurn ? 'じぶんの9まいから1まい' : (foe ? (foe.name || '') + 'を待っています' : ''));
+      : (めくった ? 'ほかの組がめくるのを待っています' :
+        (myTurn ? 'じぶんの9まいから1まい' : (foe ? (foe.name || '') + 'を待っています' : '')));
 
     var cells = [];
     for(var i = 1; i <= 9; i++){
@@ -17468,7 +17498,7 @@
     cell.disabled = true;   // 連打で二重に送らない
     await rt.act(null, { flip: no });
   });
-  // 「つぎは？」は一覧の側（rtAgainBtn の並び）で結線する。
+  // 「つぎは？」は名前で拾う仕組み（[id$="AgainBtn"]）に自動で乗る。
   // 「← 部屋を出る」（rtRcResultLeaveBtn）は名前で拾う仕組みに自動で乗る
   el('rtRcEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 
@@ -17662,7 +17692,7 @@
     FxKit.vibe('tick');
     await rt.act(null, { hand: h });
   });
-  // 「つぎは？」は一覧の側（rtAgainBtn の並び）で結線する。
+  // 「つぎは？」は名前で拾う仕組み（[id$="AgainBtn"]）に自動で乗る。
   // 「← 部屋を出る」（rtShResultLeaveBtn）は名前で拾う仕組みに自動で乗る
   el('rtShEndBtn').addEventListener('click', function(){ el('rtEndBtn').click(); });
 

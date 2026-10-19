@@ -181,6 +181,44 @@ const 写す = (room) => JSON.stringify(pv(room), 時刻を潰す);
     assertEqual(直に(room, 手番, { flip: 5 }).ok, true, '手番の人は押せる');
   });
 
+  /**
+   * 指示63 第1部：**1つの番にめくれるのは1まいだけ。**
+   *
+   * 組が2つ以上ある回（4人以上）は、もう1組がめくり終わるまで段階が TURN のまま残る。
+   * 先にめくった人は手番のままなので、m.acted を見ないと2まい目も通っていた（指示62）。
+   * 型(b)：**本当に2組あり、1組目がめくったあとも TURN のままか**を先に確かめてから見る。
+   * 型(c)：2人（1組）の時は、めくった瞬間に段階が進むので、この分岐に入らない——
+   *        4人で作らないと「止めている」のか「そもそも起きない」のかが分からない
+   */
+  await r.test('63：1つの番にめくれるのは1まいだけ（4人・2組が同時に回る回）', async () => {
+    const { room } = start(['あき', 'びび', 'ちか', 'でん'], { cfg: { finalBombs: 3 } });
+    placeAll(room);
+    assertEqual(w_(room).phase, 'turn', 'めくる段階');
+    const 組 = R.liveMatches(room);
+    assertEqual(組.length, 2, '組が2つある（条件が作れている）');
+    const m = 組[0];
+    const 手番 = m.turn === 'a' ? m.a : m.b;
+    const 盤 = w_(room).boards[手番];
+    const 空き = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => 盤.flipped.indexOf(n) === -1);
+    const 一まい目 = 送る(room, 手番, { flip: 空き[0] });
+    assertEqual(一まい目.ok, true, '1まい目はめくれる');
+    assertEqual(w_(room).phase, 'turn', 'もう1組が残っているので、まだ TURN（条件が作れている）');
+    assertEqual(you(room, 手番).isMyTurn, true, 'まだ手番のまま（だから止めないと2まい目が通る）');
+    assertEqual(you(room, 手番).iActed, true, '本人の秘密に「もうめくった」が出る（画面が押せなくする材料）');
+    const めくった数 = 盤.flipped.length;
+    const 二まい目 = 直に(room, 手番, { flip: 空き[1] });
+    assertEqual(二まい目.ok, false, '2まい目はめくれない');
+    assertEqual(二まい目.error, 'already_acted', '理由が分かる');
+    assertEqual(盤.flipped.length, めくった数, '盤は増えていない');
+    // もう一方：次の番（手番が回ってきた時）には、またちゃんとめくれる
+    const m2 = 組[1];
+    const 手番2 = m2.turn === 'a' ? m2.a : m2.b;
+    送る(room, 手番2, { flip: 9 });
+    rush(room);                       // show → 次の番
+    assertEqual(w_(room).phase, 'turn', '次の番に入った');
+    assertEqual(you(room, 手番).iActed, false, '次の番では「もうめくった」が消える');
+  });
+
   await r.test('爆弾をめくると体力が1減り、安全なら減らない', async () => {
     const { room } = start(['あき', 'びび'], { cfg: { finalBombs: 3, lives: 3 } });
     const m = w_(room).matches[0];

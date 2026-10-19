@@ -1075,6 +1075,30 @@ async function ゲームを終了(win, doc) {
       } finally { g.win.close(); }
     });
 
+    /**
+     * 指示63 第1部：**数え終わったら、知らせが来なくても入力が出る。**
+     *
+     * 上の検査は「数え終わったら出せる」を見ていたが、確かめる前に `g.push()` で
+     * 部屋の知らせをもう一度流していた。**その知らせが、描き直しのきっかけを作っていた**——
+     * 本物では、誰かが出すまで知らせは来ない。全員が人の部屋では誰も押せないまま
+     * 締め切りになっていた（指示62）。ここでは**数え始めの知らせを1回だけ**流し、
+     * あとは何も流さずに待つ（落とし穴10-b：本物と同じ状況を作ってから見る）
+     */
+    await r.test('63：数え終わったら、部屋の知らせが来なくても入力が出る（全員が人の部屋）', async () => {
+      const g = await ミニまで(false);
+      try {
+        ['m1', 'm2', 'm3'].forEach((id) => g.d.submitAction(g.room, id, null, { act: 'ready' }));
+        g.d.advance(g.room);
+        assertEqual(g.w.phase, 'play', '全員そろったら本体へ');
+        g.w.playStartedAt = Date.now() + 500;   // 数え終わりを近くに寄せる（検査の早送り。遊びの数字は変えない）
+        await g.push();                         // ← 知らせはこの1回だけ
+        const 入力 = g.doc.getElementById('rtSugoInput');
+        assertEqual(入力.querySelectorAll('button').length, 0, '数えている間は押せない（型(b)：その状況が作れている）');
+        await waitFor(g.win, () => 入力.querySelectorAll('button, [data-sugopick]').length > 0, 3000,
+          '数え終わったら、知らせが無くても押すものが出る');
+      } finally { g.win.close(); }
+    });
+
     await r.test('52-4：全員がそろうまで、進んでよいと言わない（門そのもの）', async () => {
       /**
        * **ここが (3) の芯。**`realtime.js:1328` は `submitAction` の返す

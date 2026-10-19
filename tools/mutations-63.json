@@ -1,0 +1,26 @@
+[
+  {
+    "name": "63-1A つぎは？を手書きの一覧に戻す（進化じゃんけんが漏れる元の形）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "from": "  document.querySelectorAll('[id$=\"AgainBtn\"]').forEach(function(b){",
+    "to": "  ['rtAgainBtn','rtBombAgainBtn','dfAgainBtn','qzAgainBtn','auAgainBtn','rtSugoAgainBtn','rtFtAgainBtn','rtRcAgainBtn'].map(function(id){ return el(id); }).filter(Boolean).forEach(function(b){",
+    "expect": "63：画面にある「つぎは？」"
+  },
+  {
+    "name": "63-1B ロシアンカード：めくったかを見ない（2まい目が通る元の形）",
+    "file": "rcard-room.js",
+    "suite": "tests/rcard-room.js",
+    "from": "  if (m.acted) return { ok: false, error: 'already_acted' };",
+    "to": "",
+    "expect": "2まい目はめくれない"
+  },
+  {
+    "name": "63-1C すごろく：数え終わりの目覚ましを置かない（知らせが来るまで入力が出ない元の形）",
+    "file": "public/index.html",
+    "suite": "tests/fixes52.js",
+    "from": "        rtSugoWakeAt(v.startAt, key);",
+    "to": "",
+    "expect": "知らせが無くても押すものが出る"
+  }
+]

@@ -3333,7 +3333,8 @@
     #scr-rt-big .big-main .vs-mid{font:700 var(--tv-head)/1.2 'Zen Maru Gothic',sans-serif;letter-spacing:0;white-space:nowrap;}
     #scr-rt-big .big-main .bz-score{display:inline-block;white-space:nowrap;margin:0 .35em;}
     #scr-rt-big .big-main .bz-score .tv-n{font-size:var(--tv-main);line-height:1;vertical-align:baseline;}
-    #scr-rt-big .big-main .bz-dash{margin:0 .2em;font-weight:400;}
+    /* 得点板の「−」は数字と同じ高さの真ん中に（.vs-mid の48の丸ゴを受けると、小さく下に寄って「0_0」に見えた） */
+    #scr-rt-big .big-main .bz-dash{margin:0 .2em;font:500 var(--tv-main)/1 'Shippori Mincho',serif;}
     #scr-rt-big .big-sub{
       flex:none;margin:0;font:500 var(--tv-body)/1.45 'Zen Maru Gothic',sans-serif;
       color:var(--ink);text-align:center;letter-spacing:0;
@@ -3741,7 +3742,8 @@
     /* すごろくの盤：**残りの高さいっぱい**に広げる（マスは正方形にこだわらない）。
        列の数は JS が大画面のぶんだけ増やす（sugoFillBoard の cols。スマホは6列のまま） */
     #scr-rt-big .sugo-board.big-sugo{
-      flex:1 1 auto;min-height:calc(180 * var(--tv-u));width:100%;max-width:none;margin:0;padding:0;
+      /* 盤は残りの高さを全部使う。下限 150（名簿が3段になる8人で、一枚看板を押し下げずに盤がゆずる） */
+      flex:1 1 auto;min-height:calc(150 * var(--tv-u));width:100%;max-width:none;margin:0;padding:0;
       grid-auto-rows:minmax(0,1fr);gap:calc(6 * var(--tv-u));
     }
     #scr-rt-big .sugo-board.big-sugo .sugo-cell{aspect-ratio:auto;min-height:0;border-radius:calc(8 * var(--tv-u));}
@@ -22078,8 +22080,11 @@
     var n = list.children.length;
     // ハート（体力）を並べる行は横に長いので2列まで（5つ並ぶと 48px×5）
     // 添えの行と数の両方を持つ行（すごろくの「名前／🪙」と「あと40」）は3列まで（4列だと名前が1字になった）
+    // すごろくの盤が出ている間（名簿を測って減らさない時）も、数を持つ行は3列まで
+    //（こまはひとつの「名前・🪙20」の行が4列になり、「kensh…」と名前が2〜3字になった・見直し3回目）
+    var 盤あり = bigSugoBoardShown();
     var 最大 = list.querySelector('.is-icons') ? 2
-      : (list.querySelector('.bl-who') && list.querySelector('.bl-v')) ? 3
+      : (list.querySelector('.bl-v') && (list.querySelector('.bl-who') || 盤あり)) ? 3
       : (n > 16 ? 5 : 4);
     var 段 = Math.max(1, Math.ceil(n / 最大));
     var 列 = Math.max(1, Math.ceil(n / 段));
@@ -22093,14 +22098,19 @@
    * すごろくは盤が残りの高さを吸う（行が増えると盤が縮むだけで、舞台は「収まって」見える）ので触らない。
    * 版組みの無い所（検査の jsdom・狭い画面）では何もしない。字の形が届いたあとにもう一度（下の fonts.ready）
    */
+  /**
+   * すごろくの盤が見えているか。盤の要素は、ほかのゲームの間も隠れたまま舞台の中にある——**要素があるかでは見ない**
+   *（そう書いたら、どのゲームでも当たって、名簿の列を測る処理が一度も働かなかった・落とし穴46）
+   */
+  function bigSugoBoardShown(){
+    var 盤 = document.querySelector('#bigStage .sugo-board.big-sugo');
+    return !!(盤 && typeof getComputedStyle === 'function' && getComputedStyle(盤).display !== 'none' && 盤.getBoundingClientRect && 盤.getBoundingClientRect().height > 0);
+  }
   function bigWidenList(list, 列, 札){
     var 名 = 札 || '--bl-cols';
     var stage = el('bigStage');
     if(!stage || !list || !list.getBoundingClientRect || !list.getBoundingClientRect().width) return;
-    // 盤の要素は、ほかのゲームの間も隠れたまま舞台の中にある。**見えている時だけ**避ける
-    //（要素があるかで見ると、どのゲームでも当たって一度も働かなかった）
-    var 盤 = stage.querySelector('.sugo-board.big-sugo');
-    if(盤 && getComputedStyle(盤).display !== 'none') return;
+    if(bigSugoBoardShown()) return;
     var 切れている = function(){
       return Array.prototype.some.call(list.querySelectorAll('.bl-name, .blc-name, .bl-title'), function(n){
         return n.scrollWidth > n.clientWidth + 1;

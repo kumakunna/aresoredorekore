@@ -3111,7 +3111,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const all = el(doc, 'scr-rt-big').textContent;
     assert(all.indexOf('💀') === -1, '人狼の死亡表示が出ている（借りた世界の言葉・落とし穴2）');
     assertEqual(el(doc, 'bigPhase').textContent, '手番', 'すごろくの言葉で段階が出る');
-    assert(/あき/.test(el(doc, 'bigMain').textContent), '誰の番かが大きく出る');
+    // 指示64 G2：誰の番かは上の帯（いま誰が）。一枚看板には同じことを出さない（盤と名簿の場所を取った）
+    assert(/あき/.test(doc.querySelector('#scr-rt-big .now-line').textContent), '誰の番かが上の帯に出る');
+    assert(!/さんの番/.test(el(doc, 'bigMain').textContent), '一枚看板は「さんの番」を言い直さない');
     assert(/あと35/.test(el(doc, 'bigList').textContent), '残りマス数が出る');
     assertNoErrors(errors, 'すごろくの大画面で未捕捉の例外');
     win.close();

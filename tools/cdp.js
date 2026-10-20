@@ -160,7 +160,15 @@ async function launch(opt) {
         fs.writeFileSync(file, Buffer.from(r.data, 'base64'));
         return file;
       },
-      async close() { try { await send('Target.disposeBrowserContext', { browserContextId }); } catch (e) {} }
+      async close() { try { await send('Target.disposeBrowserContext', { browserContextId }); } catch (e) {} },
+      /** CDP の命令をこの端末にそのまま送る（指示62-3：記録係の差し込み・コマ撮り） */
+      raw(method, params) { return s(method, params); },
+      /** この端末に届く CDP の知らせを受け取る（Page.screencastFrame など）。戻り値で外す */
+      onEvent(fn) {
+        const f = (m) => { if (m.sessionId === sessionId) fn(m); };
+        listeners.push(f);
+        return () => { const i = listeners.indexOf(f); if (i !== -1) listeners.splice(i, 1); };
+      }
     };
     return dev;
   }

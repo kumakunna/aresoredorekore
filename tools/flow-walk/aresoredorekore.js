@@ -54,6 +54,8 @@ async function 重なりを測る(dev, a, b) {
 const 残り秒式 = "(function(){var t=(document.getElementById('playTimer')||{}).textContent||'';var m=t.match(/(\\d+):(\\d+)/);return m?(+m[1])*60+(+m[2]):null;})()";
 const お題式 = "((document.getElementById('topicName')||{}).textContent||'').trim()";
 const 帯が出ている式 = "!!document.querySelector('.fx-banner')";
+// 演出の速さ「スキップ」では帯が出ない（指示62-3 の設定③）。「出るのを待つ」時だけ、スキップなら待たない
+const 帯が出た式 = "(" + 帯が出ている式 + " || document.documentElement.classList.contains('fx-skip'))";
 const 選ぶ幕式 = "document.getElementById('correctPickerOverlay').classList.contains('show')";
 
 /** 1ラウンドを遊ぶ（scr-play にいる間）。o.撮る数 だけ最初の何問かを細かく撮る */
@@ -97,7 +99,7 @@ async function ラウンドを遊ぶ(W, h, o) {
       await W.手順を('進行役', '［' + 出題者 + '］当たった：✅ 正解を押す', '押す', () => W.tap(h, '#btnCorrect'),
         { 待ち: { 種類: '演出待ち', 何を: '「だれが正解した？」', until: () => h.until(選ぶ幕式, 3000) }, 間: 350 });
       await W.手順を('進行役', '［' + 出題者 + '］「だれが正解した？」：' + だれ + ' を押す', '押す', () => W.press(h, '^' + だれ + '( ★)?$', '#pickerGrid .pk-btn'),
-        { 待ち: { 種類: '演出待ち', 何を: '正解の帯', until: () => h.until(帯が出ている式, 3000) }, 間: 250 });
+        { 待ち: { 種類: '演出待ち', 何を: '正解の帯', until: () => h.until(帯が出た式, 3000) }, 間: 250 });
       await W.待つ('進行役', '正解の帯 → つぎのお題がめくれる', '演出待ち',
         () => h.until("!(" + 帯が出ている式 + ") && (" + お題式 + ")!==" + JSON.stringify(お題), 6000), { 間: 400 });
     } else {
@@ -126,7 +128,7 @@ async function ラウンドを遊ぶ(W, h, o) {
 /** 3-2-1 から、お題が出るまで（1-3：カウントダウン中に吹き出しが出るか） */
 async function 数えて渡す(W, h, 何回目) {
   await W.手順を('進行役', '［くま］準備はいい？：長押しでスタート（1秒）', '長押し', () => 長押し(W, h, '#holdBtn', 1300),
-    { 待ち: { 種類: '演出待ち', 何を: '3-2-1', until: () => W.画面は(h, 'scr-countdown', 5000) }, 間: 150 }).then((r) => { r.押す回数 += 1; });
+    { 待ち: { 種類: '演出待ち', 何を: '3-2-1', until: () => 三二一か先(W, h) }, 間: 150 }).then((r) => { r.押す回数 += 1; });
   const 吹き出しを見る = "(function(){var t=document.querySelector('.tut-say');return {吹き出し: !!t && t.getBoundingClientRect().width>0 && getComputedStyle(t).opacity!=='0', 数字: (document.querySelector('.screen.active')||{}).id==='scr-countdown' || !!document.querySelector('.fx-countdown'), 見えている数字: ((document.getElementById('cdNumber')||{}).textContent||'').trim()};})()";
   await W.手順を('進行役', 何回目 + 'の3-2-1の途中', '見る', null, { 間: 600 });
   const cd = await h.ev(吹き出しを見る);
@@ -157,6 +159,14 @@ async function 結果まで(W, h, 何回目) {
   if (点.length > 1 && 点[0] === 点[1] && 点[0] > 0) {
     W.気づいた('気になる', 何回目 + '：同じ点（' + 点[0] + '点）なのに、スコアの順位が「' + 並び[0].split(' ')[0] + '」と「' + 並び[1].split(' ')[0] + '」に分かれている（直前の祝い：' + JSON.stringify(祝い) + '）', 'scr-score');
   }
+}
+
+/**
+ * 3-2-1 の画面を待つ。**演出の速さ「スキップ」では手渡しの 3-2-1 が一瞬で過ぎる**（fxMs(650) が 0 になる）ので、
+ * もう次の画面（お題・合図）に進んでいたら、それも「過ぎた」として受ける（指示62-3：設定③で通すため）
+ */
+function 三二一か先(W, h) {
+  return h.until("['scr-countdown','scr-topic-pass','scr-play','scr-wolf-pass','scr-ready'].indexOf((document.querySelector('.screen.active')||{}).id)!==-1 && (document.querySelector('.screen.active')||{}).id!=='scr-ready'", 5000, '3-2-1 か、その先');
 }
 
 module.exports = {
@@ -271,7 +281,7 @@ module.exports = {
         await W.手順を('進行役', 'つぎは？：もう一度（さっきと同じ設定でそのまま）', '押す', () => W.press(h, /^もう一度/),
           { 待ち: { 種類: '演出待ち', 何を: '準備はいい？', until: () => W.画面は(h, 'scr-ready', 6000) }, 間: 900 });
         await W.手順を('進行役', '［くま］準備はいい？：長押しでスタート（1秒）', '長押し', () => 長押し(W, h, '#holdBtn', 1300),
-          { 待ち: { 種類: '演出待ち', 何を: '2回目の3-2-1', until: () => W.画面は(h, 'scr-countdown', 5000) }, 間: 300 }).then((r) => { r.押す回数 += 1; });
+          { 待ち: { 種類: '演出待ち', 何を: '2回目の3-2-1', until: () => 三二一か先(W, h) }, 間: 300 }).then((r) => { r.押す回数 += 1; });
       }
     });
 
@@ -317,7 +327,7 @@ module.exports = {
       await W.設定を進める({ cassetteId: 'aresoredorekore', 名: 'あれそれどれこれ', 終わり: 'scr-ready' });
     }
     await W.手順を('進行役', '［くま］準備はいい？：長押しでスタート（1秒）', '長押し', () => 長押し(W, h, '#holdBtn', 1300),
-      { 待ち: { 種類: '演出待ち', 何を: '3回目の3-2-1', until: () => W.画面は(h, 'scr-countdown', 5000) }, 間: 300 }).then((r) => { r.押す回数 += 1; });
+      { 待ち: { 種類: '演出待ち', 何を: '3回目の3-2-1', until: () => 三二一か先(W, h) }, 間: 300 }).then((r) => { r.押す回数 += 1; });
     await W.待つ('進行役', '3回目：3-2-1 → 「スマホをわたす」', '演出待ち', () => W.画面は(h, 'scr-topic-pass', 10000), { 間: 500 });
     await W.手順を('進行役', '［くま→' + 出題者 + 'に渡す］「わたしました」', '渡して押す', () => W.tap(h, '#topicPassBtn'),
       { 待ち: { 種類: '演出待ち', 何を: 'お題カードがめくれる', until: () => h.until("(document.querySelector('.screen.active')||{}).id==='scr-play' && (" + お題式 + ")!=='-'", 6000) }, 間: 700 });

@@ -32,6 +32,8 @@ const 大きさ = [[1280, 720], [1920, 1080]];
 
 // 測る式は tools/big-lab.js と共有する（写さない・落とし穴1）。中身は tools/big-measure.js
 const { 測る } = require('./big-measure');
+// ページの名簿・一枚看板の測り直し（bigReflowSoon・150ms）が残っている間も、まだ落ち着いていない
+const 動き中 = "(!!window.__bigReflowPending) || document.getAnimations().some(function(a){ if(a.playState!=='running') return false; var t=a.effect&&a.effect.getComputedTiming&&a.effect.getComputedTiming(); return !!t && isFinite(t.endTime); })";
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -63,6 +65,9 @@ const { 測る } = require('./big-measure');
               for (const [w, h] of 大きさ) {
                 await big.raw('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false });
                 await sleep(350);
+                // 終わりのある動き（演出）が走っている間は測らない——実験台（big-lab.js）と同じく、落ち着いた版組みを測る。
+                // 名簿の行の「当たった」演出（fx-hit・1.09倍）の最中の1コマで、端の札の縁が「切れ」に数えられていた（指示64）
+                for (let i = 0; i < 20 && await big.ev(動き中).catch(() => false); i++) await sleep(100);
                 rec.測り[w + 'x' + h] = await big.ev(測る);
                 const f = String(番).padStart(3, '0') + '_' + w + '.jpg';
                 await big.shot(path.join(OUT, f));

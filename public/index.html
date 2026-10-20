@@ -3254,6 +3254,9 @@
     #scr-rt-big .big-stage{
       flex:1;min-height:0;display:flex;flex-direction:column;align-items:stretch;
       justify-content:safe center;gap:var(--tv-gap);overflow:hidden;
+      /* 箱を左右に16ずつ広げ、同じだけ内側に余白を取る（中身の位置と幅は変わらない）。名簿の札の「当たった」
+         演出（1.09倍）の最中に、端の札の縁が舞台の端で欠けていた（census）。画面の外枠の余白（40）の内側に収まる */
+      margin-inline:calc(-16 * var(--tv-u));padding-inline:calc(16 * var(--tv-u));
     }
     /* 遊んでいる間は、**見出し（主役・添え書き）と盤・名簿をひとかたまりにして**帯の下の真ん中に置く
       （指示64の見直し）。盤だけを残りの高さの真ん中に置くと、「まだの人：16人」「が処刑されました」の
@@ -3459,7 +3462,10 @@
       gap:calc(10 * var(--tv-u));min-height:0;min-width:0;
     }
     #scr-rt-big[data-big="a"] .big-code{justify-content:safe center;}
-    #scr-rt-big[data-big="b"] .big-code{justify-content:flex-start;justify-self:end;width:max-content;}
+    /* QRの柱は段の高さを押し広げない（contain:size）。入場の知らせが2つ出て知らせの行が伸びた時、
+       柱が縮みきれずに3段目を押し広げ、名簿の舞台が低くなって最後の段が切れた（QRを縮める処理との順番しだい
+       で出たり出なかったりした）。柱の中では bigFitQr が QR を縮める（読める 160px まで） */
+    #scr-rt-big[data-big="b"] .big-code{justify-content:flex-start;justify-self:end;width:calc(200 * var(--tv-u));contain:size;}
     #scr-rt-big .big-head{grid-area:head;display:flex;flex-direction:column;justify-content:center;gap:calc(2 * var(--tv-u));min-width:0;text-align:left;margin:0;}
     #scr-rt-big .big-ready{grid-area:ready;display:flex;align-items:baseline;justify-content:flex-start;flex-wrap:wrap;column-gap:calc(16 * var(--tv-u));min-width:0;margin:0;}
     #scr-rt-big .big-entry{grid-area:entry;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;flex-wrap:nowrap;gap:var(--tv-gap-s);min-width:0;}
@@ -22074,8 +22080,9 @@
     var list = el('bigList');
     if(!list) return;
     if(!あとで) bigReflowSoon();
-    // 一枚看板を移すのは、落ち着いてからの測り直しの時だけ（描いた直後は絵文字が差し替わる前で高さが違い、
-    // 入るのに「入らない」と見て移してしまう。移した一枚看板は、その描画のあいだは戻らない）
+    // 一枚看板を移すのは、描いたその場と、落ち着いてからの測り直しの両方で。落ち着いてからだけにすると、
+    // 部屋の知らせが来て描き直すたびに、150ms だけ96pxの一枚看板が出てから移り、ちらついた（census で見つかった）
+    bigFitMain();
     if(あとで){ bigStackVs(); bigFitMain(); bigFitPodiumNote(); }
     var n = list.children.length;
     // ハート（体力）を並べる行は横に長いので2列まで（5つ並ぶと 48px×5）

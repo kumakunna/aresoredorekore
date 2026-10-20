@@ -266,7 +266,9 @@ const { createRunner, assert, assertEqual } = require('./harness');
   // ===================== 指示64 =====================
   const fs64 = require('fs');
   const path64 = require('path');
-  const html64 = fs64.readFileSync(path64.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  // **行末をそろえてから読む**。git が CRLF で取り出した作業ツリーでは「改行＋  }＋改行」が見つからず、
+  // 関数の切り出しが壊れて全部赤になった（変異の作業ツリーで分かった）
+  const html64 = fs64.readFileSync(path64.join(__dirname, '..', 'public', 'index.html'), 'utf8').replace(/\r\n/g, '\n');
   /** index.html の中の関数を、その本文のまま取り出して動かす（実装の写しを書かない・落とし穴10-a） */
   function 関数を取り出す(名前, 前置き) {
     const a = html64.indexOf('function ' + 名前 + '(');

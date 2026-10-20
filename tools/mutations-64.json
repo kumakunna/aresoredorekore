@@ -9,11 +9,11 @@
     "expect": "待合に前の試合の順位表を残さない"
   },
   {
-    "name": "64-B 1位が6人以上ならんでも表彰台を作る（C1 に切り替えない）",
+    "name": "64-B 表彰台を5枚までにしない（1位が6人以上ならんでも C1 に切り替えない）",
     "file": "public/index.html",
     "suite": "tests/big-screen.js",
-    "from": "    if(!一位 || 一位 > BIG_PODIUM_MAX) return null;",
-    "to": "    if(!一位) return null;",
+    "from": "      if(top.length && top.length <= BIG_PODIUM_MAX) return top;",
+    "to": "      if(top.length) return top;",
     "expect": "1位が6人以上ならんだら C1"
   },
   {
@@ -76,7 +76,7 @@
     "only": "⚙の中・確認つき",
     "from": "      if(!await rtConfirmLeaveBig()) return;",
     "to": "",
-    "expect": "キャンセルでは何も送らない"
+    "expect": "キャンセルしたら大画面のまま"
   },
   {
     "name": "64-J 大画面の ⚙ に「部屋を出る」を出さない（出口がボタンごと消えた元の形）",

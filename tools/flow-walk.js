@@ -364,6 +364,8 @@ function makeWalk(opts) {
       const logFile = path.join(OUT, 'bots.log');
       const out = fs.openSync(logFile, 'w');
       const 押す = !(o && o.ready === false) ? ['--ready'] : [];
+      // 指示64：部屋の人数を変えて通す（opts.bots で bot の数を上書き。台本は bot 2 のつもりで書いてある）
+      if (opts.bots != null) n = opts.bots;
       const child = spawn(process.execPath, [path.join(__dirname, 'room-bots.js'), '--url', W.BASE, '--code', W.code,
         '--n', String(n || 2)].concat(押す, ['--play', '--hold', '7200']), { stdio: ['ignore', out, out] });
       W.bots = child;

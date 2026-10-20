@@ -153,6 +153,9 @@ const PAIRS = [
   // 朱は「大事な数字」に使う。本文サイズで出るので 4.5 を求める
   { bg: '--card', fg: '--stamp-deep', min: 4.5, 何: 'カードの地に、朱（濃）' },
   { bg: '--paper', fg: '--stamp', min: 3.0, 何: '画面の地に、朱（見出し・大きい字）' },
+  // 青緑は「準備OK ✓」の印（大画面の名簿・手元の待合）。印なので 3.0。
+  // 人狼の世界は既定の深い青緑のままで、紫の地に 2.1:1 だった（指示64の見直し）
+  { bg: '--card', fg: '--teal', min: 3.0, 何: 'カードの地に、青緑（準備OK の ✓）' },
   // 主ボタンは地と文字が反転する
   { bg: '--ink', fg: '--paper', min: 4.5, 何: '主ボタン（地＝墨・文字＝紙）' },
   // 切り替えスイッチ。**見るべきは「つまみと、その下の帯」**——
@@ -273,6 +276,39 @@ const PAIRS = [
     assert(table.length === Object.keys(THEMES).length * PAIRS.length,
       Object.keys(THEMES).length + '配色 × ' + PAIRS.length + '組 を全部見た（実際:' + table.length + '）');
     assertEqual(bad.join('\n       '), '', '読めない組み合わせ');
+  });
+
+  await r.test('1位の札（金の面）の字と内訳が、すべての世界で読める（指示64の見直し）', async () => {
+    // **金は世界によって「面の色」にも「字の色」にもなる。**進化じゃんけんは金を空の上の字として
+    // 暗くした（#7A5A12）ので、その金を1位の札の面に塗ると、上の字が 2.5:1 で読めなかった。
+    // PAIRS は「同じ名前の札どうし」を見るが、1位の字の色は規則の中に直に書いてある（既定の値）ので、
+    // **規則から既定の値を読み**、世界ごとに 面＝--rk-top-bg（無ければ --gold）と突き合わせる。
+    // 既定の値をここに写さない（写すと規則を変えた日に検査だけ古くなる・落とし穴10-a）
+    const 規則 = /\.rk-row\.is-top\{([^}]*)\}/.exec(CSS_ONLY);
+    const 内訳規則 = /\.rk-row\.is-top \.rk-note\{([^}]*)\}/.exec(CSS_ONLY);
+    assert(規則 && 内訳規則, '.rk-row.is-top と .rk-row.is-top .rk-note の規則が読める');
+    assert(/background:var\(--rk-top-bg,var\(--gold\)\)/.test(規則[1].replace(/\s+/g, '')),
+      '1位の面は --rk-top-bg（無ければ --gold）から取る（いま：' + 規則[1].trim().slice(0, 120) + '）');
+    const 既定字 = /var\(--rk-top-ink,\s*(#[0-9A-Fa-f]{3,8})\)/.exec(規則[1]);
+    const 既定内訳 = /var\(--rk-top-note,\s*(#[0-9A-Fa-f]{3,8})\)/.exec(内訳規則[1]);
+    assert(既定字 && 既定内訳, '字と内訳の既定の色が規則に書いてある');
+    // **数を先に主張する**（型b）：世界を1つも読めていなければ「全部読める」は自明に成立する
+    assert(Object.keys(THEMES).length >= 8, '世界を8つ以上読めた（実際:' + Object.keys(THEMES).join('・') + '）');
+    const bad = [], 表 = [];
+    Object.keys(THEMES).forEach((name) => {
+      const p = paletteOf(name);
+      const 面 = toRgb(p['--rk-top-bg'] || p['--gold']);
+      const 字 = toRgb(p['--rk-top-ink'] || 既定字[1]);
+      const 内訳 = toRgb(p['--rk-top-note'] || 既定内訳[1]);
+      if (!面 || !字 || !内訳) { bad.push(name + '：色が読めない'); return; }
+      // 内訳は端末では 11px なので、字と同じ 4.5 を求める
+      [['字', 字], ['内訳', 内訳]].forEach(([何, 色]) => {
+        const c = contrast(色, 面);
+        表.push(name + ' ' + 何 + ' ' + c);
+        if (c < 4.5) bad.push(name + '：1位の面の上の' + 何 + 'が ' + c + ':1（最低 4.5:1）');
+      });
+    });
+    assertEqual(bad.join('\n       '), '', '1位の札で読めない世界');
   });
 
   await r.test('棚の染まる場も、すべての世界で読める（第41弾 2-2・第43弾）', async () => {

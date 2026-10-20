@@ -428,6 +428,10 @@ function* 決着と同着(lab, 揃える, 何組) {
   }
 }
 
+// 入場の知らせを2つ（長い名前で）。B の細い柱で名前が0幅になり、言葉が画面の右の外へ出ていた（指示64の見直し）。
+// 知らせは2.6秒で消えるので、本物の測りでは一度も撮れていなかった
+const 入場の知らせ = "window.bigEntryProbe([{icon:'🐉',name:'あいうえおかきくけこさし'},{icon:'🦊',name:'たかはしゆういちろう'}])";
+
 const SCENARIOS = [
   // ---- 待合（ゲームがまだ決まっていない） ----
   {
@@ -435,6 +439,7 @@ const SCENARIOS = [
     run: function* (lab) {
       lab.room.state = { phase: 'lobby', game: null, data: {} };
       yield 'none';
+      yield { label: 'entry', page: 入場の知らせ };
     }
   },
   // ---- 人狼（人数で、本物のモードを選ぶ：5人からノーマル） ----
@@ -443,6 +448,7 @@ const SCENARIOS = [
     run: function* (lab) {
       const pre = 人狼のプリセット(lab.spec.modeId);
       lab.待合(Math.ceil(lab.n / 4)); yield 'lobby-picked';
+      yield { label: 'lobby-entry', page: 入場の知らせ };
       // rtWolfroleConfig と同じ形（プリセットのまま・作戦会議は話し合いの時間 180秒）
       lab.開始({ game: 'wolfrole', roles: pre.roles || ['wolf', 'seer'], chaos: !!pre.chaos, turnLimit: pre.turnLimit || 5,
         seerResult: pre.seerResult, revealRoleOnDeath: pre.revealRoleOnDeath, wolfAttackDecision: pre.wolfAttackDecision,
@@ -547,6 +553,17 @@ const SCENARIOS = [
       yield* 決着と同着(lab, 同着.quiz);
     }
   },
+  // ラウンドのあるクイズラッシュ（「第2ラウンド」）。それまで添え書きに出て順位表の高さを削っていたが、
+  // 実験台の場面はラウンド無し（roundsToWin 0）だけで、その形は一度も測られていなかった（指示64の見直しの反証）
+  {
+    name: 'quizrush-rounds', game: 'quizrush', modeId: 'quizrush',
+    run: function* (lab) {
+      lab.開始({ game: 'quizrush', timerSec: 180, passLimit: 3, canChangeTier: true, roundsToWin: 2, preset: 'quizrush' });
+      yield 'play';
+      ラッシュ_何問か(lab, 4);
+      yield 'play-mid';
+    }
+  },
   ...['coop', 'survival'].map((style) => ({
     name: 'quizlist-' + style, game: 'quizlist', modeId: 'quizlist',
     run: function* (lab) {
@@ -581,6 +598,18 @@ const SCENARIOS = [
       // 対戦が変わるたび（break）と、早押しの最中を撮る
       yield* 段階ごとに(lab, { 何枚: 2 });
       yield 'ended';
+    }
+  },
+  // 早押し：**全員が長い名前**で、問題を文字で出す（得点板「名前 1 − 0 名前」が2行で収まるか）。
+  // 名前は12字まで（rtJoinName maxlength）。本物の部屋と同じく、始める前に名前が決まっている
+  {
+    name: 'buzzer-long', game: 'buzzer', modeId: 'buzzer-rt',
+    run: function* (lab) {
+      const 長い = ['あいうえおかきくけこさし', 'たかはしゆういちろう', 'しょうたろうくんだよ', 'みさきおねえちゃんだ',
+        'さくらさくらさくらさ', 'はるとはるとはると', 'ななななななななな', 'えまえまえまえまえま'];
+      lab.ids.forEach((id, i) => { lab.room.members.get(id).name = 長い[i % 長い.length]; });
+      lab.開始({ game: 'buzzer', winsNeeded: 3, delivery: 'text', preset: 'buzzer-rt' });
+      yield* 段階ごとに(lab, { 何枚: 2 });
     }
   },
   // ---- オークション ----
@@ -684,8 +713,12 @@ function* 回す(spec, n) {
       if (r.done) return;
       const snap = スナップ(lab.room);
       const view = snap.state && snap.state.data;
-      const want = /tie(d+)$/.exec(r.value);
-      const out = { label: r.value, snap, 一位: want ? 一位の数(view) : null };
+      // **`\d` の `\` を落とさない**——`/tie(d+)$/` になっていて、この確かめは一度も効いていなかった
+      //（「ended-tie2」に当たらず、1位が何人でも「作れた」ことになっていた・指示64の見直しで見つけた）
+      const want = /tie(\d+)$/.exec(typeof r.value === 'string' ? r.value : r.value.label);
+      // yield は名前（字）か、{ label, page }。page は描いたあとにページで評価する式（入場の知らせを出す等）
+      const label = typeof r.value === 'string' ? r.value : r.value.label;
+      const out = { label, snap, 一位: want ? 一位の数(view) : null, page: (r.value && r.value.page) || null };
       // 同着を作ったつもりで作れていないものは、出さずに理由を返す（落とし穴10-b）
       if (want && out.一位 !== parseInt(want[1], 10)) {
         out.作れなかった = '1位が ' + want[1] + ' 人のはずが ' + out.一位 + ' 人';

@@ -26,6 +26,14 @@
 //
 // 使い方：dev.ev(測る) を CDP の端末（tools/cdp.js）で評価する。戻り値は JSON にできる形。
 
+/**
+ * 数字の段（正本 §11-5「数字（得点・時計・残り・ライフ）は48」）を名乗る要素。**ここに入る要素だけ下限を 48 にする**。
+ * 数字の入った字をなんでも 48 で測ると、名前（kensho34）や問題文の中の数字まで拾って、直せない赤が立つ
+ * （指示64の見直しの反証）。役割で数える。数字の段を足したら、ここにも足す
+ */
+const 数字の段 = ['.tv-n', '.rk-n', '.bl-v:not(.is-word):not(.is-icons)', '.br-num', '.br-of', '.bs-clock',
+  '.bft-case', '.bk-v', '.sh-tier-count', '.bb-meta'];
+
 /** 演出の重なりの名前（この中にある要素は、切れ・小さい字に数えない） */
 const 演出の重なり = ['big-cd', 'bomb-boom', 'fx-banner', 'fx-cel', 'fx-countdown', 'fx-flash', 'fx-burst',
   'fx-blackout', 'fx-confetti', 'fx-edge', 'fx-shutter', 'fx-dawn', 'fx-notices', 'fx-notice', 'fx-fly', 'fx-word'];
@@ -43,6 +51,14 @@ const 測る = `(function(){
   // 切れ：文字を持つ要素とボタン・行
   var 切れ=[], 小さい=[], 文字=0, 演出で除いた=0, 除いた例=[];
   var 重なり=${JSON.stringify(演出の重なり)};
+  var 数字の段=${JSON.stringify(数字の段.join(','))};
+  // 省略（…）で切れた名前。**切れには数えない**（箱の中で自分で省略している）が、
+  // 名前が読めない場面を数えるために出す（指示64の見直し：切れ 0 なのに「こう…」が並んでいた）
+  var 省略=[], 薄め=[];
+  scr.querySelectorAll('.bl-name, .blc-name, .rk-name, .be-name').forEach(function(e){
+    if(!見える(e) || 演出か(e)) return;
+    if(e.scrollWidth > e.clientWidth + 1) 省略.push((e.firstChild && e.firstChild.nodeType===3 ? e.firstChild.nodeValue : e.textContent).trim().slice(0,14));
+  });
   function 演出か(e){ for(var p=e; p && p!==document.body && p!==document.documentElement; p=p.parentElement){ if(p.id==='uiLayerRoot') return true; var cl=p.classList; if(cl) for(var i=0;i<重なり.length;i++){ if(cl.contains(重なり[i])) return true; } } return false; }
   var 候補 = Array.prototype.filter.call(scr.querySelectorAll('*'), function(e){ return 見える(e) && (e.tagName==='BUTTON' || /(^|\\s)(bl-item|bl-card|rk-row|bb-row|sh-tier|bmk-c|bmk-k)(\\s|$)/.test(typeof e.className==='string'?e.className:'') || Array.prototype.some.call(e.childNodes,function(n){return n.nodeType===3&&n.textContent.trim().length>0;})); });
   候補.forEach(function(e){
@@ -53,15 +69,30 @@ const 測る = `(function(){
     for(var p=e.parentElement;p&&p!==document.body;p=p.parentElement){ var cs=getComputedStyle(p); if(cs.overflowY!=='visible'||cs.overflowX!=='visible'){ var pr=p.getBoundingClientRect(); if(r.bottom>pr.bottom+2||r.right>pr.right+2||r.top<pr.top-2||r.left<pr.left-2){ 切れ.push({何:名(e), 文字:t, 切る箱:名(p)}); return; } } }
     if(Array.prototype.some.call(e.childNodes,function(n){return n.nodeType===3&&n.textContent.trim().length>0;})){
       文字++;
+      // 薄め：先祖ぜんぶの opacity を掛けた値が1未満の字（§11-9「opacity で薄めない」。薄くするのは色で）
+      var 不透明 = 1; for(var q=e; q && q!==document.body; q=q.parentElement){ 不透明 *= +getComputedStyle(q).opacity; }
+      if(不透明 < 0.99) 薄め.push({何:名(e), 文字:t, opacity:Math.round(不透明*100)/100});
       var px=parseFloat(getComputedStyle(e).fontSize);
-      if(px < 28*倍 - 0.5) 小さい.push({何:名(e), 文字:t, px:Math.round(px), 下限:Math.round(28*倍)});
+      var 下限 = (e.matches && e.matches(数字の段)) ? 48 : 28;
+      if(px < 下限*倍 - 0.5) 小さい.push({何:名(e), 文字:t, px:Math.round(px), 下限:Math.round(下限*倍)});
     }
+  });
+  // 重なり：入場の知らせは QR と「準備OKの数」に重ならない（E1）。切れと同じく ✖ に数える
+  //（指示64の見直しで、知らせが2行に伸びて QR を覆ったのに、切れ 0 のまま通っていた）
+  var 守る = Array.prototype.filter.call(scr.querySelectorAll('#bigQr svg, #bigReady .br-num, #bigReady .br-of'), 見える);
+  Array.prototype.filter.call(scr.querySelectorAll('.be-item'), 見える).forEach(function(b){
+    var r1 = b.getBoundingClientRect();
+    守る.forEach(function(g){
+      var r2 = g.getBoundingClientRect();
+      if(r1.left < r2.right - 1 && r2.left < r1.right - 1 && r1.top < r2.bottom - 1 && r2.top < r1.bottom - 1)
+        切れ.push({何:'重なり：' + 名(b) + ' が ' + 名(g) + ' に', 文字:(b.innerText||'').trim().slice(0,20)});
+    });
   });
   var ボタン = Array.prototype.filter.call(scr.querySelectorAll('button, .btn'), 見える).map(function(b){var r=b.getBoundingClientRect(); var cs=getComputedStyle(b); return {文字:(b.innerText||'').trim().replace(/\\s+/g,' ').slice(0,24), 面積:Math.round(r.width*r.height), 色:cs.backgroundColor, 字:Math.round(parseFloat(cs.fontSize))};}).sort(function(a,b){return b.面積-a.面積;});
   var 段階=((document.getElementById('bigPhase')||{}).textContent||'').trim();
   var 主役=((document.getElementById('bigMain')||{}).textContent||'').trim().slice(0,30);
   var 名簿=document.querySelectorAll('#scr-rt-big .bl-item, #scr-rt-big .bl-card, #scr-rt-big .rk-row').length;
-  return { 画面:scr.id, class:scr.className, 段階:段階, 主役:主役, 名簿の数:名簿, W:W, H:H, ページの巻き:ページの巻き, 箱の巻き:箱の巻き, 切れ:切れ.slice(0,40), 切れの数:切れ.length, 小さい:小さい.slice(0,40), 小さいの数:小さい.length, 文字の数:文字, 演出で除いた:演出で除いた, 除いた例:除いた例,いちばん大きいボタン:ボタン[0]||null, ボタン:ボタン.slice(0,6) };
+  return { 画面:scr.id, class:scr.className, 段階:段階, 主役:主役, 名簿の数:名簿, W:W, H:H, ページの巻き:ページの巻き, 箱の巻き:箱の巻き, 切れ:切れ.slice(0,40), 切れの数:切れ.length, 小さい:小さい.slice(0,40), 小さいの数:小さい.length, 省略:省略.slice(0,20), 省略の数:省略.length, 薄め:薄め.slice(0,20), 薄めの数:薄め.length, 文字の数:文字, 演出で除いた:演出で除いた, 除いた例:除いた例,いちばん大きいボタン:ボタン[0]||null, ボタン:ボタン.slice(0,6) };
 })()`;
 
-module.exports = { 測る, 演出の重なり };
+module.exports = { 測る, 演出の重なり, 数字の段 };

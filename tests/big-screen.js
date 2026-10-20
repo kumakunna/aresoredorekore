@@ -364,6 +364,135 @@ const { createRunner, assert, assertEqual } = require('./harness');
     assert(/data-cols="3"/.test(二十), '20人が全員ならぶ：C1 を3列に');
   });
 
+  await r.test('64 見直し：順位表の数字だけが数字の段（単位は添えの字）・「あがり」は短い言葉', async () => {
+    // 「9本」「体力0」「12点」「1位」を丸ごと48pxのドットで組むと、「位・点・本・体力」が名前より重い
+    // ドットの漢字になっていた。**数字だけを .rk-n に**、前後の言葉は .rk-vpre／.rk-vpost に分ける
+    const 前置き = 'function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }\n' +
+      'function faceOf(){ return ""; }\n';
+    const 表 = 関数を取り出す('rankingHtml', 前置き);
+    const html = 表([
+      { id: 'a', rank: 1, name: 'あき', main: 'あがり' },
+      { id: 'b', rank: 2, name: 'ひろ', main: '9本' },
+      { id: 'c', rank: 3, name: 'ゆい', main: '体力0' },
+      { id: 'd', rank: 10, name: 'ゆう', main: '36/40' },
+      { id: 'e', rank: 11, name: 'まり', main: '🐤 ひよこ' }
+    ]);
+    // 型(b)：行が5つ組まれたことを先に見る
+    assertEqual((html.match(/class="rk-row/g) || []).length, 5, '行が5つ');
+    assert(/<span class="rk-n">9<\/span><span class="rk-vpost">本<\/span>/.test(html), '「9本」は数字だけが .rk-n、本は添え');
+    assert(/<span class="rk-vpre">体力<\/span><span class="rk-n">0<\/span>/.test(html), '「体力0」は体力が添え、0 が .rk-n');
+    assert(/<span class="rk-n">36\/40<\/span>/.test(html), '「36/40」は丸ごと数字');
+    assert(/<span class="rk-n">10<\/span><span class="rk-vpost">位<\/span>/.test(html), '「10位」は 10 が数字、位は添え');
+    assert(/class="rk-main is-word is-short">あがり</.test(html), '「あがり」（3字まで）は短い言葉');
+    assert(/class="rk-main is-word">🐤 ひよこ</.test(html), '「🐤 ひよこ」は言葉（短くない）');
+    // 端末と同じ部品なので、escape は分けた字ごとに（落とし穴43）
+    const 毒 = 表([{ id: 'x', rank: 1, name: 'x', main: '<b>5</b>点' }]);
+    assert(!/<b>/.test(毒), '数の欄の字は escape する（' + 毒.slice(0, 160) + '）');
+  });
+
+  await r.test('64 見直し：順位の欄の幅は表ぜんぶで1つ・内訳を落とせば2列に入るなら2列', async () => {
+    const 前置き = 'var BIG_PODIUM_MAX = 5;\n' +
+      'function rankingHtml(rows){ return "<div class=\\"rk-view\\"><div class=\\"rk-list\\">" + rows.map(function(r){ return "<div class=\\"rk-row\\"></div>"; }).join("") + "</div></div>"; }\n' +
+      ['bigPodiumRows', 'bigRankCols'].map(関数の字).join('\n') + '\n';
+    const 表 = 関数を取り出す('bigRankHtml', 前置き);
+    const 行 = (順位, 内訳) => 順位.map((x, i) => ({ id: 'p' + i, rank: x, name: 'n' + i, note: 内訳 || null }));
+    // 欄の幅：10位があれば表ぜんぶ2桁（表彰台も含む）、9位までなら1桁（分岐の両側・落とし穴10-c）
+    assert(/data-pw="2"/.test(表(行(Array.from({ length: 16 }, (_, i) => i + 1)))), '16人（10位から下がある）：2桁');
+    assert(/data-pw="1"/.test(表(行([1, 2, 3, 4, 5, 6, 7, 8]))), '8人：1桁');
+    // 1位が10人ならび（C1）で内訳が長い（7字）：3列にしても内訳は落とすので、**内訳を落として2列**
+    const 長い内訳 = 行([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 11, 12, 13, 14, 15, 16], '🟠 むずかしい');
+    const c1 = 表(長い内訳);
+    assert(/data-shape="c1"/.test(c1), 'C1 の形になっている（型b：' + c1.slice(0, 80) + '）');
+    assert(/data-cols="2"/.test(c1) && /data-note="none"/.test(c1) && /--rk-rows:8/.test(c1),
+      '内訳を落とせば2列×8段に入るので2列（いま：' + c1.slice(0, 120) + '）');
+    // 2列に入らない時（17人以上のC1）は、これまでどおり3列
+    const 二十 = 表(行(Array.from({ length: 20 }, () => 1), '🟠 むずかしい'));
+    assert(/data-cols="3"/.test(二十), '20人ならび：3列');
+  });
+
+  await r.test('64 見直し：一枚看板の名前は .tv-nm で包む（字の節点をたどる・escape をほどかない）', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM('<div id="m"></div>');
+    const doc = dom.window.document;
+    const 包む = new Function('document', 関数の字('bigWrapNames') + '\nreturn bigWrapNames;')(doc);
+    const m = doc.getElementById('m');
+    m.textContent = 'あき　VS　たかはしゆういちろう';
+    包む(m, ['あき', 'たかはしゆういちろう', 'あきら', 'ひ']);
+    const 包み = Array.from(m.querySelectorAll('.tv-nm')).map((x) => x.textContent);
+    assertEqual(包み.join('|'), 'あき|たかはしゆういちろう', '2人の名前が包まれる（1字の名前は包まない）');
+    assertEqual(m.textContent, 'あき　VS　たかはしゆういちろう', '字は変わらない');
+    // 長い名前から先に当てる：「あきら」の中の「あき」を包まない
+    m.textContent = 'あきら さんの番';
+    包む(m, ['あき', 'あきら']);
+    assertEqual(Array.from(m.querySelectorAll('.tv-nm')).map((x) => x.textContent).join('|'), 'あきら', '「あきら」を1つとして包む');
+    // escape をほどかない：名前に < > があっても、要素にならない（落とし穴43）
+    m.textContent = '<img src=x> さんの番';
+    包む(m, ['<img src=x>']);
+    assertEqual(m.querySelectorAll('img').length, 0, '名前の字が HTML にならない');
+    assertEqual(m.querySelector('.tv-nm').textContent, '<img src=x>', '名前は字のまま包まれる');
+    // すでに包んだ所は二重に包まない
+    包む(m, ['<img src=x>']);
+    assertEqual(m.querySelectorAll('.tv-nm').length, 1, '二重に包まない');
+  });
+
+  await r.test('64：大画面の段階の札は、表（RT_PHASE_LABEL）を読むゲームの段階と両方向で合う（英語の段階名を出さない）', async () => {
+    // 実物解除の大画面に「roles」「brief」「consent」が英語のまま出ていた（表に無い段階は生のidを出していた）。
+    // **どのゲームがこの表を読むかを、手で並べない**（落とし穴4）：
+    //   realtime.js の GAME_DRIVERS → 進行役のファイル → その PHASE。
+    //   index.html の振り分け（描いてから(renderRtBig◯◯)）→ その描画が札を自分の表で書くか。
+    //   描画が札に触れない（共通の行が表を読む）か、表を読んで書くなら「表を読むゲーム」
+    const fs = require('fs'), path = require('path');
+    const rtSrc = fs.readFileSync(path.join(__dirname, '..', 'realtime.js'), 'utf8').replace(/\r\n/g, '\n');
+    const 進行役のファイル = {};
+    for (const m of rtSrc.matchAll(/^const (\w+) = require\('\.\/([\w-]+-room)\.js'\);/gm)) 進行役のファイル[m[1]] = m[2];
+    const 表a = rtSrc.indexOf('const GAME_DRIVERS = {');
+    const 表b = rtSrc.indexOf('\n};', 表a);
+    const ゲーム = {};
+    for (const m of rtSrc.slice(表a, 表b).matchAll(/^\s*(\w+):\s*\{\s*driver:\s*(\w+)/gm)) ゲーム[m[1]] = 進行役のファイル[m[2]];
+    assert(Object.keys(ゲーム).length >= 15, 'GAME_DRIVERS を読めた（' + Object.keys(ゲーム).length + 'ゲーム）');
+    const 段階を読む = (file) => {
+      const src = fs.readFileSync(path.join(__dirname, '..', file + '.js'), 'utf8');
+      const m = /const PHASE = \{([\s\S]*?)\n\};/.exec(src);
+      assert(m, file + '.js の PHASE を読めた');
+      return Array.from(m[1].matchAll(/:\s*'(\w+)'/g)).map((x) => x[1]);
+    };
+    // 振り分け：ゲーム → 大画面の描画
+    const 一覧 = (名) => new Function('return ' + html64.slice(html64.indexOf('var ' + 名 + ' = '), html64.indexOf(';', html64.indexOf('var ' + 名 + ' = '))).replace('var ' + 名 + ' = ', ''))();
+    const 描画 = {};
+    for (const m of html64.matchAll(/if\(rtRoomGameId\(\) === '(\w+)'\) return 描いてから\(function\(\)\{ (renderRtBig\w+)\(v\)/g)) 描画[m[1]] = m[2];
+    一覧('RT_QUIZ_GAMES').forEach((g) => { 描画[g] = 'renderRtBigQuiz'; });
+    Object.keys(ゲーム).filter((g) => /^sugo/.test(g)).forEach((g) => { 描画[g] = 'renderRtBigSugoroku'; });
+    描画.wordwolf = 'renderRtBigWordwolf';
+    const 表を読む = Object.keys(ゲーム).filter((g) => {
+      if (!描画[g]) return true;   // 振り分けに無い（人狼）：共通の行が表を読む
+      const 本文 = 関数の字(描画[g]);
+      return !/el\('bigPhase'\)/.test(本文) || /RT_PHASE_LABEL/.test(本文);
+    });
+    // 型(b)：分け方が効いていることを先に見る（全部が「読む」でも「読まない」でもない）
+    assert(表を読む.indexOf('defuse') !== -1 && 表を読む.indexOf('wolfrole') !== -1, '実物解除と人狼は表を読む（' + 表を読む.join('・') + '）');
+    assert(表を読む.indexOf('quizrush') === -1 && 表を読む.indexOf('auction') === -1 && 表を読む.indexOf('sugotoll') === -1,
+      'クイズ・オークション・すごろくは自分の表で札を書く');
+    const 表a2 = html64.indexOf('var RT_PHASE_LABEL = {');
+    const 表 = new Function('return ' + html64.slice(表a2 + 'var RT_PHASE_LABEL = '.length, html64.indexOf('\n  };', 表a2) + 4))();
+    const 出る段階 = new Set();
+    const 足りない = [];
+    表を読む.forEach((g) => {
+      段階を読む(ゲーム[g]).filter((ph) => ph !== 'lobby').forEach((ph) => {
+        出る段階.add(ph);
+        if (!Object.prototype.hasOwnProperty.call(表, ph) || !表[ph]) 足りない.push(g + ' の ' + ph);
+      });
+    });
+    assertEqual(足りない.join('・'), '', '表に札が無い段階（大画面に英語が出る）');
+    // 帰り：表の札は、どれも表を読むゲームの段階（読まれない札は腐る・落とし穴20）
+    const 余り = Object.keys(表).filter((k) => !出る段階.has(k));
+    assertEqual(余り.join('・'), '', '表にあるのに、表を読むゲームのどの段階でもない札');
+    // 表に無い段階は、生のidではなく空の札にする。**「同じ1行があるか」では見ない**——
+    // 進化じゃんけん・ロシアンカードにも同じ1行があるので、共通の行を壊しても緑のままになる（落とし穴10-a）。
+    // 「生のidに落ちる書き方がどこにも無い」という性質で見る（大画面・手元とも）
+    const 生のid = html64.match(/RT_PHASE_LABEL\[v\.phase\]\s*\|\|\s*v\.phase/g) || [];
+    assertEqual(生のid.length, 0, '段階の表に無い時に、生のid（v.phase）を出す書き方が無い');
+  });
+
   await r.test('64：TVに「タップで…」を出さない（TVは無人で回す）', async () => {
     const css = html64.slice(html64.indexOf('<style>'), html64.indexOf('</style>')).replace(/\s+/g, ' ');
     assert(/:root\.big-screen \.fx-banner-skip, :root\.big-screen \.fx-banner-skip\.is-always\{display:none;\}/.test(css),

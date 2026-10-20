@@ -2808,7 +2808,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
     assert(/◻/.test(el(doc, 'bigMain').textContent), '開き具合がそのまま出る');
-    assert(/2 \/ 5問/.test(el(doc, 'bigSub').textContent), '何問目かが出る');
+    // 指示64の見直し：何問目かは**上の帯の数**（共通のもの・§11-1）。数字は数字の段（.tv-n）
+    assert(/2 \/ 5問/.test(el(doc, 'bigTurn').textContent), '何問目かが帯に出る（いま：' + el(doc, 'bigTurn').textContent + '）');
+    assert(el(doc, 'bigTurn').querySelector('.tv-n'), '何問目かの数字は数字の段');
+    assert(!/問/.test(el(doc, 'bigSub').textContent), '添え書きで何問目かを言い直さない');
     // 指示64：名簿は「顔・名前・数」を分けた1行（それまで「あき 5」と1本の文字列だった）
     const あき = [...doc.querySelectorAll('#bigList .bl-item')].find((x) => /あき/.test(x.textContent));
     assert(あき && あき.querySelector('.bl-name') && /あき/.test(あき.querySelector('.bl-name').textContent), '名前の欄がある');

@@ -46,6 +46,7 @@ const SIZES = String(arg('sizes', '1280,1920')).split(',').map((s) => parseInt(s
 const BASE = 'http://localhost:' + PORT;
 // 置き場。**2本を同時に回す時は --out で分ける**——全部の回は始めに置き場の画像と記録を消すので、
 // 同じ置き場で2本が走ると、あとから始めた方が先の方の絵を消す（flow-walk.js の --out と同じ考え）
+const PROBE = arg('probe', null);
 const OUT = arg('out', null) ? path.resolve(arg('out', null)) : path.join(ROOT, 'docs', '監査_大画面の画像', 'lab');
 // 絞った回（--only）は、全部を回した回の 記録.json を上書きしない（別の名前に書く）
 const 記録の名前 = ONLY ? '記録_' + String(ONLY).replace(/[\\/:*?"<>|\s]/g, '_') + '.json' : '記録.json';
@@ -126,7 +127,9 @@ const 落ち着いた = (q) => `(function(){
     var cs = getComputedStyle(e); return cs.visibility !== 'hidden' && +cs.opacity > 0.02 && cs.display !== 'none';
   });
   window.__labOverlay = 残る.map(function(e){ return e.className; }).slice(0, 4);
-  return performance.now() - __lab.last > ${q} && 走る.length === 0 && 残る.length === 0;
+  // 大画面の名簿の測り直し（bigReflowSoon）が残っている間と、字の形が届く前は、まだ落ち着いていない
+  var 待ち = !!window.__bigReflowPending || (document.fonts && document.fonts.status !== 'loaded');
+  return performance.now() - __lab.last > ${q} && 走る.length === 0 && 残る.length === 0 && !待ち;
 })()`;
 const 二コマ = `new Promise(function(r){ requestAnimationFrame(function(){ requestAnimationFrame(function(){ r(true); }); }); })`;
 const 画面 = `(document.querySelector('.screen.active')||{}).id`;
@@ -228,6 +231,16 @@ async function 物差しを確かめる(dev) {
   const 小 = await dev.ev(測る);
   await dev.ev("(function(){ var d=document.getElementById('labProbe12'); if(d) d.remove(); return true; })()");
   await dev.ev(二コマ);
+  // ③' 数字の段なのに 40px（28 は越えるが 48 に届かない）。**数字の下限 48 で拾えるか**（指示64の見直し）
+  await dev.ev(`(function(){
+    var host = document.querySelector('#scr-rt-big .big-stage') || document.querySelector('#scr-rt-big');
+    var d = document.createElement('span'); d.id = 'labProbeNum'; d.className = 'tv-n';
+    d.style.cssText = 'font-size:40px;flex:none;display:inline-block;';
+    d.textContent = '7'; host.insertBefore(d, host.firstChild); return true; })()`);
+  await dev.ev(二コマ);
+  const 数 = await dev.ev(測る);
+  await dev.ev("(function(){ var d=document.getElementById('labProbeNum'); if(d) d.remove(); return true; })()");
+  await dev.ev(二コマ);
   // ④ 演出の重なり（.big-cd）は、切れにも小さい字にも数えず「演出で除いた」に数える。
   //   画面の外へはみ出す位置に置いて、**除かなければ切れに数えられる形**を作ってから見る（落とし穴10-b）
   await dev.ev(`(function(){
@@ -252,10 +265,12 @@ async function 物差しを確かめる(dev) {
   r.箱を拾った = 拾った && 巻きか切れ(入れた) > 巻きか切れ(元);
   r.外すと戻る = 巻きか切れ(外した) === 巻きか切れ(元);
   r.小さい字を拾った = 小.小さい.some((x) => /labProbe12/.test(x.何)) && 小.小さいの数 === 外した.小さいの数 + 1;
+  r.小さい数字 = { 前: 外した.小さいの数, 入れた: 数.小さいの数 };
+  r.小さい数字を拾った = 数.小さい.some((x) => /labProbeNum/.test(x.何) && x.下限 >= 48) && 数.小さいの数 === 外した.小さいの数 + 1;
   r.演出 = { 前: 外した.演出で除いた, 入れた: 演.演出で除いた, 切れ: 演.切れの数, 小さい: 演.小さいの数, 例: 演.除いた例 };
   r.演出を除いた = 演.演出で除いた === 外した.演出で除いた + 1 && 演.除いた例.some((x) => /labProbeCd/.test(x)) &&
     演.切れの数 === 外した.切れの数 && 演.小さいの数 === 外した.小さいの数;
-  r.健全 = r.箱が本当に900 && r.箱を拾った && r.外すと戻る && r.小さい字を拾った && r.演出を除いた;
+  r.健全 = r.箱が本当に900 && r.箱を拾った && r.外すと戻る && r.小さい字を拾った && r.小さい数字を拾った && r.演出を除いた;
   return r;
 }
 
@@ -301,6 +316,7 @@ function 幅をそろえる(s, n) {
       '／外すと 巻き ' + 物差し.外した.巻き + '・箱の巻き ' + 物差し.外した.箱の巻き + '・切れ ' + 物差し.外した.切れ + ' → ' +
       (物差し.箱を拾った && 物差し.外すと戻る && 物差し.箱が本当に900 ? '拾えた' : '✖ 拾えていない'));
     console.log('  小さい字：12px を1つ入れて ' + 物差し.小さい字.前 + '→' + 物差し.小さい字.入れた + ' → ' + (物差し.小さい字を拾った ? '拾えた' : '✖ 拾えていない'));
+    console.log('  数字の下限：数字の段に 40px を1つ入れて ' + 物差し.小さい数字.前 + '→' + 物差し.小さい数字.入れた + ' → ' + (物差し.小さい数字を拾った ? '拾えた（下限48）' : '✖ 拾えていない'));
     console.log('  演出の重なり：画面の外にはみ出す 12px の .big-cd を1つ入れて 演出で除いた ' + 物差し.演出.前 + '→' + 物差し.演出.入れた +
       '・切れ ' + 物差し.外した.切れ + '→' + 物差し.演出.切れ + '・小さい字 ' + 物差し.小さい字.前 + '→' + 物差し.演出.小さい + ' → ' +
       (物差し.演出を除いた ? '除けた（黙って落とさず数えた）' : '✖ 除けていない'));
@@ -338,6 +354,7 @@ function 幅をそろえる(s, n) {
               流れ = await 流す(dev, f.snap);
             }
             if (!見る) continue;
+            if (f.page) await dev.ev(f.page);
             const 待ち = await 落ち着くまで(dev, 6000);
             const rec = { 場面: 名, シナリオ: spec.name, 状態: f.label, 人数: n, 一位: f.一位, 描き直し: 流れ.描き直し, 落ち着き: 待ち, 測り: {} };
             // 大きさの順は1枚ごとに入れ替える（変える回数を半分にする）
@@ -359,8 +376,11 @@ function 幅をそろえる(s, n) {
               const m = rec.測り[w + 'x' + h];
               const 悪い = m.画面 !== 'scr-rt-big' || m.ページの巻き > 0 || m.箱の巻き.length || m.切れの数 || m.小さいの数;
               return (悪い ? '✖' : '○') + w + ' 巻き' + m.ページの巻き + ' 箱' + m.箱の巻き.length + ' 切れ' + m.切れの数 + ' 小' + m.小さいの数 + (m.演出で除いた ? ' 演除' + m.演出で除いた : '') +
+                (m.省略の数 ? ' …' + m.省略の数 : '') + (m.薄めの数 ? ' 薄' + m.薄めの数 : '') +
                 (m.画面 !== 'scr-rt-big' ? ' 画面=' + m.画面 : '');
             }).join(' ｜ ');
+            // --probe：調べもの用。測り終わったページで式を1つ評価して出す（例：名前の幅・舞台の高さ・列の数）
+            if (PROBE) { try { console.log('    probe ' + JSON.stringify(await dev.ev(PROBE))); } catch (e) { console.log('    probe ✖ ' + e.message); } }
             console.log('  ' + 幅をそろえる(名, 34) + 幅をそろえる(n + '人', 5) + 行 + (rec.例外.length ? ' ⚠例外' + rec.例外.length : '') + (待ち.落ち着いた ? '' : ' (落ち着かず' + ((待ち.残った演出 || []).length ? '：演出 ' + 待ち.残った演出.join(' / ') : '') + ')'));
           }
         } catch (e) {
@@ -401,6 +421,15 @@ function 幅をそろえる(s, n) {
       }
     }
     console.log('✖ ' + 悪い数 + ' / ' + 記録.場面.length * SIZES.length);
+    // 名前の省略（…）は切れに数えない（箱の中で自分で省略している）。読めない名前がどれだけあるかを別に出す
+    let 省略の場面 = 0, 省略の計 = 0;
+    for (const rec of 記録.場面) for (const [w, h] of SIZES) { const m = rec.測り[w + 'x' + h]; if (m && m.省略の数) { 省略の場面++; 省略の計 += m.省略の数; } }
+    console.log('名前の省略（…）：' + 省略の場面 + ' / ' + 記録.場面.length * SIZES.length + ' の測りで、のべ ' + 省略の計 + ' 個（切れには数えない）');
+    // opacity で薄めた字（§11-9）。演出の最中の字は除いてある
+    const 薄めた = {};
+    for (const rec of 記録.場面) for (const [w, h] of SIZES) { const m = rec.測り[w + 'x' + h]; (m && m.薄め || []).forEach((x) => { (薄めた[x.何 + ' ' + x.opacity] = 薄めた[x.何 + ' ' + x.opacity] || []).push(rec.場面); }); }
+    console.log('opacity で薄めた字：' + (Object.keys(薄めた).length ? '' : 'なし'));
+    Object.keys(薄めた).forEach((k) => console.log('  ' + k + ' → ' + Array.from(new Set(薄めた[k])).slice(0, 6).join('、') + (薄めた[k].length > 6 ? ' …' : '')));
     if (記録.作れなかった.length) {
       console.log('\n== 作れなかった場面 ==');
       記録.作れなかった.forEach((x) => console.log('  ' + (x.場面 || x.シナリオ) + ' ' + x.人数 + '人：' + x.理由));

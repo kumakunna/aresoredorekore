@@ -42,7 +42,7 @@ window.__measureBig = function(){
    <div class="big-board" style="display:flex"><div class="bb-row"><div class="bb-head"><span class="bb-name">なまえ</span><span class="bb-meta">2 / 6</span></div><div class="bb-bar"><div class="bb-fill"></div></div></div></div>
    <div class="big-list"><span class="bl-item"><b class="sugo-piece">1位</b>なまえ<span class="bl-title">ふたつな</span></span>
      <span class="bl-card out"><span class="blc-face">A</span><span class="blc-name">なまえ</span><span class="blc-title">ふたつな</span><span class="blc-x">✕</span></span></div>
-   <div class="big-ft" style="display:flex"><span class="bft-case">3</span><span class="bft-note">のこり 4 枚</span></div>
+   <div class="big-ft" style="display:flex"><span class="bft-case">3</span></div>
    <div class="big-mk"><div class="bmk-market"><span class="bmk-k"><span class="bk-i">A</span><span class="bk-l">壺もの</span><span class="bk-v">9</span><span class="bk-hot">HOT</span></span></div>
      <div class="bmk-line"><div class="bmk-c"><span class="bc-no">1</span><span class="bc-i">I</span><span class="bc-l">しな</span><span class="bc-sold">SOLD</span></div></div></div>
    <div class="big-rules"><div class="big-rules-title">T</div><div class="big-rules-count">3つ</div><ol class="rules-ol"><li>R</li></ol></div>
@@ -59,7 +59,7 @@ window.__measureBig = function(){
     ['.bb-head','.bb-head'],['.bb-name','.bb-name'],['.bb-meta','.bb-meta'],
     ['.big-list','.big-list'],['.bl-item','.bl-item'],['.bl-title','.bl-title'],['.sugo-piece','.bl-item .sugo-piece'],
     ['.blc-face','.blc-face'],['.blc-name','.blc-name'],['.blc-title','.blc-title'],['.blc-x','.bl-card.out .blc-x'],
-    ['.bft-case','.bft-case'],['.bft-note','.bft-note'],
+    ['.bft-case','.bft-case'],
     ['.bk-l','.bk-l'],['.bk-v','.bk-v'],['.bk-hot','.bk-hot'],
     ['.bc-no','.bc-no'],['.bc-l','.bc-l'],['.bc-sold','.bc-sold'],
     ['.rules-ol','.rules-ol'],['.big-rules-count','.big-rules-count'],

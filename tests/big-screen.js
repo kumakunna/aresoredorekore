@@ -276,6 +276,12 @@ const { createRunner, assert, assertEqual } = require('./harness');
     const b = html64.indexOf('\n  }\n', a);
     return new Function((前置き || '') + html64.slice(a, b + 4) + '\nreturn ' + 名前 + ';')();
   }
+  /** 関数1つの字だけを切り出す（動かさない）。見つからなければ赤にする（読めなかったものを黙って通さない・落とし穴10-e） */
+  function 関数の字(名前) {
+    const a = html64.indexOf('function ' + 名前 + '(');
+    assert(a > 0, 名前 + ' が見つからない（名前が変わった？）');
+    return html64.slice(a, html64.indexOf('\n  }\n', a) + 4);
+  }
   function MODESを読む() {
     const a = html64.indexOf('var MODES = [');
     const b = html64.indexOf('\n  ];', a);
@@ -342,7 +348,9 @@ const { createRunner, assert, assertEqual } = require('./harness');
   await r.test('64 C2：順位表の置き方（C2／C1・下の段の列の数）', async () => {
     const 前置き = 'var BIG_PODIUM_MAX = 5;\n' +
       'function rankingHtml(rows){ return "<div class=\\"rk-view\\"><div class=\\"rk-list\\">" + rows.map(function(r){ return "<div class=\\"rk-row\\"></div>"; }).join("") + "</div></div>"; }\n' +
-      html64.slice(html64.indexOf('function bigPodiumRows('), html64.indexOf('\n  }\n', html64.indexOf('function bigPodiumRows(')) + 4) + '\n';
+      // bigRankHtml が呼ぶ関数は、全部ここで一緒に切り出す（a9f0d14 で bigRankCols を足した時に
+      // ここへ足し忘れ、「bigRankCols is not defined」のまま赤かった。変異の結果にも紛れていた）
+      ['bigPodiumRows', 'bigRankCols'].map(関数の字).join('\n') + '\n';
     const 表 = 関数を取り出す('bigRankHtml', 前置き);
     const 行 = (順位) => 順位.map((x, i) => ({ id: 'p' + i, rank: x, name: 'n' + i }));
     const c2 = 表(行([1, 2, 3, 4, 5, 6, 7, 8]));

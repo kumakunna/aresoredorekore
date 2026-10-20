@@ -31,6 +31,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { launch, sleep } = require('./cdp');
+const { 測る: 大画面の測り } = require('./big-measure');
 
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
@@ -239,6 +240,13 @@ function makeWalk(opts) {
         // まだアプリを開いていない端末（about:blank）は撮らない——黒い絵が並ぶだけ
         try { if (await d.ev("location.href==='about:blank'")) { 画面[k] = '（まだ開いていない）'; 測り[k] = { 画面: null }; return; } } catch (e) {}
         try { 測り[k] = await d.ev(測る式); 画面[k] = 測り[k].画面; } catch (e) { 画面[k] = '?'; 測り[k] = { 失敗: String(e.message) }; }
+        // 指示64 門B8：大画面は、巻き・切れ・小さい字も同じ式で測る（式は tools/big-measure.js の1つだけ。写さない）
+        if (k === '大画面' && 測り[k] && 測り[k].画面 === 'scr-rt-big') {
+          try {
+            const m = await d.ev(大画面の測り);
+            if (m) 測り[k].大画面 = { 巻き: m.ページの巻き, 箱の巻き: m.箱の巻き.length, 切れ: m.切れ.slice(0, 8), 切れの数: m.切れの数, 小さい: m.小さい.slice(0, 8), 小さいの数: m.小さいの数, 段階: m.段階 };
+          } catch (e) { 測り[k].大画面 = { 失敗: String(e.message) }; }
+        }
         if (撮らない) return;
         const f = String(no).padStart(3, '0') + '_' + k + '.jpg';
         try { await d.shot(path.join(OUT, f)); 画像[k] = f; } catch (e) { 画像[k] = null; }

@@ -33,6 +33,13 @@
 // 別の検査が巻き添えで落ちただけなら、その変異は何も証明していない。
 // `expect` を出力から探して、**狙った理由で赤くなったか**まで見る。
 //
+// **④ 壊す前に、その検査が緑かを見る**（指示64で踏んだ）。
+// 検査が最初から赤いと、どの変異を当てても「赤くなった」に見える。しかも `expect` を
+// 出力全体から探していたので、**緑の ✅ 行に同じ文言があっても「狙った理由で」と読んでいた**。
+// いまは (a) 変異を当てる前に (suite, only) ごとに1回回し、赤い検査を「基準の赤」として覚える
+// (b) 狙った理由は、**基準より新しく赤くなった検査の行（❌ とその下の → 行）だけ**から探す。
+// 基準が赤い変異は、結果に「基準が赤」と並べて出す（緑とは読まない）
+//
 // **③ 測定が取れなかったことを、緑とも赤とも読まない。**
 // 子プロセスが制限時間で殺されると、出力ごと失われて「赤くなった検査0件」に見える。
 // それは「素通り」ではなく「測れていない」——**別の結果として報告する**（落とし穴28）。
@@ -67,6 +74,35 @@ if (差分) {
   process.exit(1);
 }
 
+/** 1回回して、出力と「赤い検査の塊（❌ の行＋その下の → 行）」を返す */
+function 回す(m) {
+  const env = Object.assign({}, process.env, m.only ? { ACAC_ONLY: m.only } : {});
+  try {
+    const out = cp.execSync('node ' + m.suite, { cwd: R, encoding: 'utf8', timeout: 制限, stdio: ['ignore', 'pipe', 'pipe'], env });
+    return { 緑: true, out, 塊: [], 殺された: false };
+  } catch (e) {
+    const out = String((e.stdout || '') + (e.stderr || ''));
+    const 塊 = [];
+    out.split(LF).forEach((行) => {
+      const t = 行.trim();
+      if (/^❌ /.test(t)) 塊.push({ 名: t.replace(/^❌ /, ''), 字: t });
+      else if (/^→/.test(t) && 塊.length) 塊[塊.length - 1].字 += LF + t;
+      else if (/^✅ /.test(t)) 塊.push(null);   // 塊の区切り（→ 行を前の ❌ に付けない）
+    });
+    return { 緑: false, out, 塊: 塊.filter(Boolean), 殺された: !!e.killed || e.signal != null };
+  }
+}
+
+// ④(a) 基準：変異を当てる前に、(suite, only) ごとに1回
+const 基準 = {};
+for (const m of MUT) {
+  const k = m.suite + '|' + (m.only || '');
+  if (基準[k]) continue;
+  const b = 回す(m);
+  基準[k] = new Set(b.塊.map((x) => x.名));
+  console.log('基準 ' + k + '：' + (b.緑 ? '緑' : '**赤 ' + b.塊.length + '件**（' + b.塊.map((x) => x.名).join(' ／ ') + '）'));
+}
+
 const 結果 = [];
 for (const m of MUT) {
   const P = path.join(R, m.file);
@@ -78,30 +114,24 @@ for (const m of MUT) {
   const 汚 = body.split(m.from).join(m.to);
   fs.writeFileSync(P, crlf ? 汚.split(LF).join(CR + LF) : 汚);
 
-  let out = '', 殺された = false;
-  try {
-    // 指示64：only を書いた変異は、名前にその字を含む検査だけを回す（ACAC_ONLY・tests/harness.js）。
-    // 狙った検査が赤くなるかを見るのが目的なので、重いスイートを毎回まるごと回さなくてよい
-    const env = Object.assign({}, process.env, m.only ? { ACAC_ONLY: m.only } : {});
-    cp.execSync('node ' + m.suite, { cwd: R, encoding: 'utf8', timeout: 制限, stdio: ['ignore', 'pipe', 'pipe'], env });
-    結果.push([m.name, '**素通り（緑のまま）** ← 検査に穴がある']);
-    戻す();
-    console.log('… ' + m.name + ' 済み');
-    continue;
-  } catch (e) {
-    out = String((e.stdout || '') + (e.stderr || ''));
-    殺された = !!e.killed || e.signal != null;
-  }
+  // 指示64：only を書いた変異は、名前にその字を含む検査だけを回す（ACAC_ONLY・tests/harness.js）。
+  // 狙った検査が赤くなるかを見るのが目的なので、重いスイートを毎回まるごと回さなくてよい
+  const 走 = 回す(m);
   戻す();
-
-  const 落ちた = (out.match(/^\s*❌ .*$/gm) || []).map((s) => s.trim().replace(/^❌ /, ''));
-  if (!落ちた.length) {
+  const 基 = 基準[m.suite + '|' + (m.only || '')];
+  const 基準の注 = 基.size ? '（**基準が赤 ' + 基.size + '件**：変異の前から赤い検査は数えない）' : '';
+  const 新しい = 走.塊.filter((x) => !基.has(x.名));
+  if (走.緑 || (!走.殺された && 走.塊.length && !新しい.length)) {
+    結果.push([m.name, '**素通り（新しく赤くなった検査が無い）** ← 検査に穴がある' + 基準の注]);
+  } else if (!走.塊.length) {
     // 赤くなったのでも素通りでもなく、**測れていない**（落とし穴28）
-    結果.push([m.name, '**測れていない**（' + (殺された ? '制限時間で殺された' : '出力に検査の行が無い') +
+    結果.push([m.name, '**測れていない**（' + (走.殺された ? '制限時間で殺された' : '出力に検査の行が無い') +
       '）。単体で回し直して、出力をファイルに残すこと']);
   } else {
-    結果.push([m.name, (out.indexOf(m.expect) >= 0 ? '赤（狙った理由で）' : '**赤だが別の理由**') +
-      ' / 赤くなった検査 ' + 落ちた.length + '件：' + 落ちた.join(' ／ ')]);
+    // ④(b) 狙った理由は、新しく赤くなった検査の行だけから探す（緑の ✅ 行の同じ文言を拾わない）
+    const 狙い = 新しい.some((x) => x.字.indexOf(m.expect) >= 0);
+    結果.push([m.name, (狙い ? '赤（狙った理由で）' : '**赤だが別の理由**') +
+      ' / 新しく赤くなった検査 ' + 新しい.length + '件：' + 新しい.map((x) => x.名).join(' ／ ') + 基準の注]);
   }
   console.log('… ' + m.name + ' 済み');
 }

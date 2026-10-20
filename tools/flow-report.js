@@ -64,6 +64,24 @@ function 区間(手順) {
   };
 }
 
+/**
+ * 指示64 門B8：大画面（1280×720）を手順ごとに測った数（flow-walk が tools/big-measure.js の式で測る）。
+ * 測っていない記録（指示63 以前）は null を返す——「0」と書くと、測っていないものを緑に見せる（落とし穴32）
+ */
+function 大画面集計(d) {
+  const 測った = (d.手順 || []).map((r) => ((r.測り || {}).大画面 || {}).大画面).filter((m) => m && !m.失敗);
+  if (!測った.length) return null;
+  const 物 = {};
+  測った.forEach((m) => (m.切れ || []).concat(m.小さい || []).forEach((x) => { 物[x.何 + (x.px ? ' ' + x.px + 'px' : '')] = 1; }));
+  return {
+    測った手順: 測った.length,
+    巻いた手順: 測った.filter((m) => m.巻き > 0 || m.箱の巻き > 0).length,
+    切れた手順: 測った.filter((m) => m.切れの数 > 0).length,
+    小さい字の手順: 測った.filter((m) => m.小さいの数 > 0).length,
+    例: Object.keys(物).slice(0, 6)
+  };
+}
+
 /** 迷いそうな所の候補 */
 function 候補(d) {
   const out = [];
@@ -138,6 +156,15 @@ function main() {
       ' | ' + s.秒 + ' | ' + (r1.手順数 != null ? r1.手順数 + '手順・' + r1.押す回数 + '回' : '－') + ' | ' +
       ['a', 'b', 'c', 'd', 'e'].map((k) => 物[k] || 0).join('/') + ' |' + (d.失敗 ? ' **止まった**' : '') + ' |');
   }
+  console.log('大画面（1280×720）を手順ごとに測った数（指示64 門B8）');
+  console.log('| カセット | 測った手順 | 巻いた | 切れた | 小さい字 | 例 |');
+  console.log('|---|---|---|---|---|---|');
+  for (const id of 並び) {
+    const d = 読む(id); if (!d) continue;
+    const b = 大画面集計(d);
+    console.log('| ' + 名前[id] + ' | ' + (b ? b.測った手順 + ' | ' + b.巻いた手順 + ' | ' + b.切れた手順 + ' | ' + b.小さい字の手順 + ' | ' + b.例.join('・') : '（測っていない） | | | | ') + ' |');
+  }
+  console.log('');
   console.log('QRから結果まで（台本の最初の手順〜結果。結果のあとの調べは入れない）');
   console.log('| カセット | 通した遊び方 | 操作の手順（全手順） | 押す（参加者/進行役/大画面） | 入力 | 待ち秒（内訳） | 結果までの秒 | もう1回まで | 候補 a/b/c/d/e | |');
   console.log('|---|---|---|---|---|---|---|---|---|---|');
@@ -160,5 +187,5 @@ function main() {
   if (j !== -1) { fs.writeFileSync(argv[j + 1], JSON.stringify(all, null, 2)); console.log('\n→ ' + argv[j + 1]); }
 }
 
-module.exports = { 集計, 候補, 表 };
+module.exports = { 集計, 候補, 表, 大画面集計 };
 if (require.main === module) main();

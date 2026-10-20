@@ -3229,6 +3229,9 @@
     }
 
     /* ---- 骨組み：高さは画面ちょうど（min-height だけでは中身が伸ばす・落とし穴37） ---- */
+    /* TVの画面が出ている間は、ページそのものを巻かせない（画面が入ってくる途中に、切り替わる前の画面の
+       ぶんで 15px 巻けていた・census）。はみ出しは隠れるだけでなく、tools/big-measure.js が「切れ」に数える */
+    html:has(#scr-rt-big.active),body:has(#scr-rt-big.active){overflow:hidden;}
     #scr-rt-big.active{
       /* 日本語は文節で折る（「あがらせ／た」のような切れ方をしない。lang="ja" で効く） */
       word-break:auto-phrase;
@@ -3447,7 +3450,7 @@
     #scr-rt-big .br-num{font:400 var(--tv-count)/1 'DotGothic16',monospace;letter-spacing:.02em;color:var(--ink);}
     #scr-rt-big .br-of{font:400 var(--tv-num)/1 'DotGothic16',monospace;letter-spacing:.02em;color:var(--ink);}
     #scr-rt-big .br-label{font:700 var(--tv-name)/1.3 'Zen Maru Gothic',sans-serif;color:var(--ink);}
-    #scr-rt-big .br-wait{font:700 var(--tv-name)/1.3 'Zen Maru Gothic',sans-serif;color:var(--ink);}
+    #scr-rt-big .br-wait{font:700 var(--tv-name)/1.3 'Zen Maru Gothic',sans-serif;color:var(--ink);flex-basis:100%;}
     #scr-rt-big[data-big="b"] .br-num{font-size:calc(72 * var(--tv-u));}
     /* 待合の名簿：札を流して並べる（名前の長さがまちまちでも詰まる） */
     #scr-rt-big[data-big="a"] .big-list,#scr-rt-big[data-big="b"] .big-list{
@@ -3470,7 +3473,10 @@
       display:grid;grid-template-columns:repeat(var(--lb-cols,3),minmax(0,1fr));}
     /* 9〜15人は3列（5段まで。いちばん低い B の舞台でも入る）、16人は4列。列の数は JS が人数から（--lb-cols）。
        **どの段の列の数も --lb-cols で受ける**——名前が切れていて、1列減らしても舞台に収まるなら減らす（bigWidenLobby） */
-    #scr-rt-big[data-big="b"][data-size="l"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));}
+    #scr-rt-big[data-big="b"][data-size="l"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));row-gap:calc(6 * var(--tv-u));}
+    /* B の9〜16人は札を少し低く（字は32のまま。顔の絵が 45 あるので、上下の内側の余白を 2 に）。
+       52 のままだと、3列×6段が「待っています」の行のぶん 11px 足りず、名前の切れる4列にもどっていた */
+    #scr-rt-big[data-big="b"][data-size="l"] .big-list .bl-item{min-height:calc(48 * var(--tv-u));padding-block:calc(2 * var(--tv-u));}
     #scr-rt-big[data-big="b"][data-size="xl"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,5),minmax(0,1fr));}
     #scr-rt-big[data-big="a"][data-size="xl"] .big-list{grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));}
     #scr-rt-big .big-list .bl-item.is-wait{background:transparent;border-style:dashed;}
@@ -21164,11 +21170,11 @@
     el('bigRules').style.display = 札 ? '' : 'none';
     el('bigRules').innerHTML = 札;
     // 待っている人は**手元の待合と同じ言い方**（nlWaiting：2人までは名前、それより多いと人数）
-    // 待っている人は、名前を出せる時（2人まで）だけ言葉で。それより多い時は「12 / 16」と点線の札が言う
-    //（「12 / 16 4人を待っています」と、数が2つくっついて読めた・指示64の見直し）
+    // 待っている人は**手元と同じ言い方**で（2人までは名前、それより多いと人数）。数の行の**下の行**に置く——
+    // 同じ行に続けると「12 / 16 4人を待っています」と、数が2つくっついて読めた（指示64の見直し）
     el('bigReady').innerHTML = '<span class="br-label">準備OK</span>' +
       '<span class="br-num">' + bt.count + '</span><span class="br-of">/ ' + bt.total + '</span>' +
-      ((!bt.all && bt.total && (bt.waitingNames || []).length <= 2) ? '<span class="br-wait">' + escapeHtml(nlWaiting(bt.waitingNames)) + '</span>' : '');
+      ((!bt.all && bt.total) ? '<span class="br-wait">' + escapeHtml(nlWaiting(bt.waitingNames)) + '</span>' : '');
     el('bigList').innerHTML = bigRosterHtml(players, { titles: 二つ名も, ready: true });
     el('bigList').dataset.lbBase = players.length <= 15 ? '3' : '4';
     bigFitQr();
@@ -21875,10 +21881,39 @@
    * **段の数が同じなら列を減らして札を広くする**（6人を 4＋2 ではなく 3＋3 に）。
    * 中身が箱1つ（進化じゃんけんの階段）の時は1列
    */
+  /**
+   * 指示64の見直し（census）：**盤と名簿が舞台からはみ出しているなら、一枚看板を添え書きの頭へ移す。**
+   * 主役の大きさ（96）は下げない（§11-5 の下限）——そのかわり中身を全部見せる。
+   * オークションの値踏みで、品の名前（「裏返しに立てかけられた板絵」）が96pxで2行になり、
+   * 8人の名簿の2段目が画面の下へ押し出された。1行でも、品のヒントが2行・相場の札が広がると数px足りなかった
+   * （実験台の品の名前は短く、測れていなかった）。
+   * 盤（協力版の解除）・得点板（早押し）は一枚看板の中身そのものなので動かさない。
+   * 字ではなく**節点ごと移す**（絵文字は画像の節点なので、字で写すと消える・escape もほどけない）
+   */
+  function bigFitMain(){
+    var stage = el('bigStage'), m = el('bigMain');
+    if(!stage || !m || !m.getBoundingClientRect || !m.getBoundingClientRect().height) return;
+    if(stage.scrollHeight <= stage.clientHeight + 1) return;
+    if(m.querySelector('.bomb-coop, .bz-score')) return;
+    var 添え = el('bigSub');
+    var 頭 = document.createElement('span');
+    頭.className = 'big-lead';
+    while(m.firstChild) 頭.appendChild(m.firstChild);
+    var 前 = Array.prototype.slice.call(添え.childNodes);
+    添え.innerHTML = '';
+    添え.appendChild(頭);
+    if(前.length){
+      添え.appendChild(document.createElement('br'));
+      前.forEach(function(n){ 添え.appendChild(n); });
+    }
+  }
   function bigBalanceList(あとで){
     var list = el('bigList');
     if(!list) return;
     if(!あとで) bigReflowSoon();
+    // 一枚看板を移すのは、落ち着いてからの測り直しの時だけ（描いた直後は絵文字が差し替わる前で高さが違い、
+    // 入るのに「入らない」と見て移してしまう。移した一枚看板は、その描画のあいだは戻らない）
+    if(あとで) bigFitMain();
     var n = list.children.length;
     // ハート（体力）を並べる行は横に長いので2列まで（5つ並ぶと 48px×5）
     // 添えの行と数の両方を持つ行（すごろくの「名前／🪙」と「あと40」）は3列まで（4列だと名前が1字になった）

@@ -623,6 +623,20 @@ const SCENARIOS = [
       yield* 決着と同着(lab, 同着.auction);
     }
   })),
+  // 値踏み（落札しなかった人が正体を予想する間）を、**いちばん長い品の見た目**で。一枚看板が96pxで2行になり、
+  // 8人の名簿の2段目が画面の下へ押し出されていた（census で見つかり、この実験台では測れていなかった）
+  {
+    name: 'auction-long', game: 'auction', modeId: 'auction-open',
+    run: function* (lab) {
+      lab.開始({ game: 'auction', mode: 'open', rounds: AuctionLogic.RULES.ROUNDS_DEFAULT,
+        previewSec: AuctionLogic.RULES.PREVIEW_SEC_DEFAULT, preset: 'auction-open' });
+      const 長い = AuctionLogic.Items.ITEMS.map((x) => x.look).sort((a, b) => Array.from(b).length - Array.from(a).length)[0];
+      lab.w().items.forEach((it) => { it.look = 長い; });
+      for (let i = 0; i < 300 && lab.w().phase !== 'guess' && !lab.ended(); i++) オークションの一手(lab);
+      if (lab.w().phase !== 'guess') throw new Error('値踏みに届きません（いま ' + lab.w().phase + '）');
+      yield 'guess-long';
+    }
+  },
   // ---- すごろく5つ ----
   ...[['sugotoll', 同着.sugoPos], ['sugograb', 同着.sugoGrab], ['sugopair', 同着.sugoPair, true],
       ['sugohide', 同着.sugoPos], ['sugohand', 同着.sugoPos]].map(([game, 揃える, 組]) => ({

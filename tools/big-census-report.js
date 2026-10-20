@@ -14,6 +14,11 @@ const 名 = { jinro: '人狼', bakudan: '爆弾', quizou: 'クイズ', auction: 
 const 並び = ['jinro', 'bakudan', 'quizou', 'auction', 'sugoroku', 'falsetrue', 'rcard', 'shinka'];
 
 const runs = fs.existsSync(DIR) ? fs.readdirSync(DIR).filter((d) => fs.existsSync(path.join(DIR, d, '記録.json'))).map((d) => JSON.parse(fs.readFileSync(path.join(DIR, d, '記録.json'), 'utf8'))) : [];
+// 置き場には実験台（tools/big-lab.js）の記録（lab/）もある。**census の形（記録の配列）だけを読む**
+//（読めないものを黙って落とさず、何を外したかを出す・落とし穴10-e）
+const 外した = runs.filter((r) => !Array.isArray(r.記録)).length;
+if (外した) console.error('census の形でない記録を ' + 外した + ' 件外しました（実験台の lab/ など）');
+runs.splice(0, runs.length, ...runs.filter((r) => Array.isArray(r.記録)));
 runs.sort((a, b) => 並び.indexOf(a.カセット) - 並び.indexOf(b.カセット) || a.人数 - b.人数);
 
 function 状態名(m) {

@@ -641,6 +641,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 第32弾-D 5-3：人狼の大画面は、文字の一覧ではなく盤面（カード）になった
     const items = doc.querySelectorAll('#bigList .bl-card');
     assertEqual(items.length, 5, '全員が並ぶ');
+    // 指示64の見直し2回目：生きている全員の札に「✓／…」。待っている人は … と is-wait（太い点線・薄墨の名前）
+    const 生きている = Array.from(items).filter((c) => !c.classList.contains('out'));
+    assert(生きている.length >= 2, '生きている人がいる（型b）');
+    assert(生きている.every((c) => c.querySelector('.bl-mark')), '生きている全員の札に印がある');
+    const 待ち札 = 生きている.filter((c) => c.classList.contains('is-wait'));
+    assert(待ち札.length >= 1 && 待ち札.every((c) => c.querySelector('.bl-mark').textContent === '…'), '待っている人の印は …');
+    assert(生きている.filter((c) => c.classList.contains('is-ready')).every((c) => c.querySelector('.bl-mark').textContent === '✓'), '済んだ人の印は ✓');
     const txt = el(doc, 'scr-rt-big').textContent;
     ['占い師', '人狼', '騎士', '霊媒師'].forEach(n => {
       assert(txt.indexOf(n) === -1, '役職名を出さない（' + n + '）');
@@ -666,6 +673,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const あきの札 = doc.querySelector('#bigList .bl-card[data-pid="m1"]');
     assert(あきの札 && /人狼/.test(あきの札.textContent), '決着したので、その人の札に役職が出る');
     assert(/占い師/.test(doc.querySelector('#bigList .bl-card[data-pid="m2"]').textContent), 'ほかの人の札にも出る');
+    // 指示64の見直し2回目：人狼の陣営の札は team-wolf（役職の字を朱に）。占い師（村人の陣営）は付かない
+    assert(あきの札.classList.contains('team-wolf'), '人狼の札に人狼の陣営の印');
+    assert(!doc.querySelector('#bigList .bl-card[data-pid="m2"]').classList.contains('team-wolf'), '占い師の札には付かない');
     assertNoErrors(errors, '大画面で未捕捉の例外');
     win.close();
   });
@@ -2497,7 +2507,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     }));
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
-    assertEqual(el(doc, 'bigMain').textContent, '1 / 3個', '進み具合が大きく出る');
+    // 指示64の見直し2回目：いくつ解けたかは**上の帯の数**（共通のもの・§11-9）。数字は数字の段
+    assert(/1 \/ 3個/.test(el(doc, 'bigTurn').textContent), '進み具合が帯に出る（いま：' + el(doc, 'bigTurn').textContent + '）');
+    assert(el(doc, 'bigTurn').querySelector('.tv-n'), '進み具合の数字は数字の段');
+    assert(!/個/.test(el(doc, 'bigMain').textContent), '一枚看板で言い直さない');
     // 指示64・正本 §11-1：**のこりミスは上の帯に1つだけ**（それまで添え書きにも同じハートを並べていた）
     assertEqual(el(doc, 'bigStatus').hidden, false, '共通のものの帯が出る');
     assert(/❤️/.test(el(doc, 'bigLives').textContent), 'のこりミスは帯に出る');
@@ -3118,6 +3131,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(/あき/.test(doc.querySelector('#scr-rt-big .now-line').textContent), '誰の番かが上の帯に出る');
     assert(!/さんの番/.test(el(doc, 'bigMain').textContent), '一枚看板は「さんの番」を言い直さない');
     assert(/あと35/.test(el(doc, 'bigList').textContent), '残りマス数が出る');
+    // 指示64の見直し2回目：帯が名指ししている手番の人の札に印（is-now）。ほかの人には付かない
+    const 札 = (id) => doc.querySelector('#bigList [data-pid="' + id + '"]');
+    assert(札('m1') && 札('m1').classList.contains('is-now'), '手番のあきの札に印');
+    assert(!札('m2').classList.contains('is-now') && !札('m3').classList.contains('is-now'), 'ほかの人の札には付かない');
     assertNoErrors(errors, 'すごろくの大画面で未捕捉の例外');
     win.close();
   });

@@ -3262,6 +3262,9 @@
        すごろくは盤が残りの高さを全部使うので、いままでどおり */
     #scr-rt-big[data-big="play"]:not([data-game^="sugo"]) .big-strip{margin-bottom:auto;}
     #scr-rt-big[data-big="play"]:not([data-game^="sugo"]) .big-stage{flex:0 1 auto;margin-bottom:auto;}
+    /* すごろくでも、盤を隠して順位表を出している間（決着）は、ほかの結果と同じく真ん中に */
+    #scr-rt-big[data-big="play"][data-game^="sugo"]:has(#bigRank > .rk-tv) .big-strip{margin-bottom:auto;}
+    #scr-rt-big[data-big="play"][data-game^="sugo"]:has(#bigRank > .rk-tv) .big-stage{flex:0 1 auto;margin-bottom:auto;justify-content:safe center;}
     /* 盤と名簿は**縮めない**。縮められると、箱は小さいのに中身は描かれ、真ん中寄せの計算が
        小さい箱で行われて、上に空きができたまま下が切れた（16人の順位表で実測） */
     #scr-rt-big .big-stage > *{flex:none;}
@@ -3292,6 +3295,8 @@
     #scr-rt-big .big-sub .tv-n{margin:calc(-8 * var(--tv-u)) .08em;}
     #scr-rt-big .big-phase:empty,#scr-rt-big .big-turn:empty{display:none;}
     #scr-rt-big .now-line{
+      /* 名前は折らない（.tv-nm）が、帯より長い名前だけは折れる（時計の上へはみ出さない） */
+      overflow-wrap:anywhere;
       flex:1;min-width:0;margin:0;padding:0;border:none;border-radius:0;background:none;
       justify-content:flex-start;text-align:left;
       font:700 var(--tv-pill)/1.2 'Zen Maru Gothic',sans-serif;color:var(--ink);
@@ -3313,8 +3318,19 @@
     #scr-rt-big .big-main.is-dull{color:var(--ink-soft);}
     /* 一枚看板の中の名前は、途中で折らない（「たか／はしゆういちろう」）。1行より長い名前だけは
        主役の overflow-wrap:anywhere で折れる（横にはみ出さない） */
-    #scr-rt-big .big-main .tv-nm{word-break:keep-all;}
+    #scr-rt-big .tv-nm{word-break:keep-all;}
+    /* 一枚看板の中の数（bigWrapCounts）：数字は主役と同じ大きさのドット、助数詞は見出しの段 */
+    #scr-rt-big .big-main .tv-n{font-size:var(--tv-main);line-height:1;color:inherit;}
+    #scr-rt-big .big-main .tv-unit{font:700 var(--tv-head)/1 'Zen Maru Gothic',sans-serif;letter-spacing:0;margin-left:.05em;}
     /* 早押しの得点板：勝ち数は主役と同じ大きさの数字（ドット）。「−」は数の間の印 */
+    /* 対戦の一枚看板（bigVsHtml）。1行に入らない時は縦に積む（is-stack・bigStackVs） */
+    #scr-rt-big .big-main .tv-vs{display:inline-flex;flex-wrap:nowrap;align-items:baseline;justify-content:center;column-gap:.35em;max-width:100%;}
+    #scr-rt-big .big-main .tv-vs.is-stack{flex-direction:column;align-items:center;row-gap:0;}
+    #scr-rt-big .big-main .tv-vs.is-measure{max-width:none;}
+    /* 一枚看板が入らずに添え書きへ移った時（bigFitMain）も、VS の前後は空ける */
+    #scr-rt-big .big-sub .tv-vs .vs-mid{margin:0 .4em;}
+    #scr-rt-big .big-main .tv-vs.is-measure .tv-nm{white-space:nowrap;}
+    #scr-rt-big .big-main .vs-mid{font:700 var(--tv-head)/1.2 'Zen Maru Gothic',sans-serif;letter-spacing:0;white-space:nowrap;}
     #scr-rt-big .big-main .bz-score{display:inline-block;white-space:nowrap;margin:0 .35em;}
     #scr-rt-big .big-main .bz-score .tv-n{font-size:var(--tv-main);line-height:1;vertical-align:baseline;}
     #scr-rt-big .big-main .bz-dash{margin:0 .2em;font-weight:400;}
@@ -3350,7 +3366,8 @@
     /* 取り消し線は「済んだもの」（実物解除の解除できた装置）にだけ。人の名前には引かない（顔が 💀 になる） */
     #scr-rt-big .big-list .bl-item.is-done{color:var(--ink-soft);background:transparent;border-style:dashed;}
     #scr-rt-big .big-list .bl-item.is-done .bl-name{text-decoration:line-through;}
-    #scr-rt-big .bl-face{flex:none;font-size:var(--tv-face);line-height:1;}
+    /* 顔の箱は 1em ちょうど（絵文字の行の高さで 45 になり、16人の待合で札1枚ぶん高くなっていた） */
+    #scr-rt-big .bl-face{flex:none;font-size:var(--tv-face);line-height:1;display:inline-flex;align-items:center;height:1em;}
     #scr-rt-big .bl-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     #scr-rt-big .bl-name .bl-title{
       display:block;margin:0;font:500 var(--tv-note)/1.25 'Zen Maru Gothic',sans-serif;
@@ -3367,7 +3384,11 @@
     #scr-rt-big .bl-v .bl-vpre{font:700 var(--tv-note)/1 'Zen Maru Gothic',sans-serif;margin-right:.1em;}
     #scr-rt-big .bl-v .bl-vpost{font:700 var(--tv-note)/1 'Zen Maru Gothic',sans-serif;margin-left:.05em;}
     /* 待っている人の札（遊んでいる間）。縁を点線に、名前は少し沈める（色だけに頼らない） */
-    #scr-rt-big .big-list .bl-card.is-wait,#scr-rt-big[data-big="play"] .big-list .bl-item.is-wait{border-style:dashed;}
+    /* 待っている人（遊んでいる間）：太い点線の縁（outline なので高さは変わらない・--tv-u で大きくなる）と、薄墨の名前。
+       1px の点線だけでは、4m先から「済んだ人」と見分けられなかった（指示64の見直し2回目） */
+    #scr-rt-big[data-big="play"] .big-list .bl-card.is-wait,#scr-rt-big[data-big="play"] .big-list .bl-item.is-wait{
+      outline:calc(3 * var(--tv-u)) dashed var(--ink-soft);outline-offset:calc(-3 * var(--tv-u));}
+    #scr-rt-big[data-big="play"] .big-list .is-wait .blc-name,#scr-rt-big[data-big="play"] .big-list .is-wait .bl-name{color:var(--ink-soft);}
     #scr-rt-big .big-sub .big-lead{font-weight:700;}
     #scr-rt-big .bl-v.is-word{font:700 var(--tv-name)/1.2 'Zen Maru Gothic',sans-serif;}
     #scr-rt-big .bl-v.is-icons{letter-spacing:0;}
@@ -3379,6 +3400,9 @@
       border-radius:calc(12 * var(--tv-u));
     }
     #scr-rt-big .big-list .bl-card .blc-face{flex:none;font-size:calc(44 * var(--tv-u));}
+    /* 帯の一言が名指ししている人（手番・申告・答えている人）の札。青緑の太い縁（手元の「いまあなた」と同じ色。
+       金は TV では1位の色なので使わない）。outline なので高さは変わらない */
+    #scr-rt-big .big-list .is-now{outline:calc(3 * var(--tv-u)) solid var(--teal);outline-offset:calc(-3 * var(--tv-u));}
     #scr-rt-big .big-list .bl-card .blc-name{
       flex:1;min-width:0;font:700 var(--tv-name)/1.2 'Zen Maru Gothic',sans-serif;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;
@@ -3402,6 +3426,9 @@
     #scr-rt-big .big-list .bl-card .blc-votes{flex:none;font:700 var(--tv-note)/1 'Zen Maru Gothic',sans-serif;color:var(--ink);}
     #scr-rt-big .big-list .bl-card .blc-votes .tv-n{margin-right:.1em;}
     #scr-rt-big .big-list .bl-card.has-role .blc-title{color:var(--ink);font-weight:700;}
+    /* 決着の役職：人狼の陣営は朱で（16人の中から、だれが人狼だったかを1枚ずつ読まずに見つけられる）。
+       金は TV では「1位」なので使わない。字はそのまま残るので、色だけに頼らない */
+    #scr-rt-big .big-list .bl-card.has-role.team-wolf .blc-title{color:var(--stamp-deep);}
     /* 人数の段（data-size：s＝4人まで・m＝8人まで・l＝16人まで・xl＝それより多い）。
        多い時は札を細く。二つ名は8人以下の時だけ出す（指示64 の本人の決め） */
 
@@ -3411,7 +3438,9 @@
     #scr-rt-big[data-big="a"] .big-wrap{
       display:grid;column-gap:calc(48 * var(--tv-u));row-gap:var(--tv-gap);
       grid-template-columns:calc(420 * var(--tv-u)) minmax(0,1fr);
-      grid-template-rows:auto auto minmax(0,1fr) calc(56 * var(--tv-u));
+      /* 知らせの行は2行ぶんに固定（88）。中身に合わせて伸ばすと、知らせの無い時に測った名簿の列が、
+         知らせが出た瞬間に入らなくなる */
+      grid-template-rows:auto auto minmax(0,1fr) calc(88 * var(--tv-u));
       grid-template-areas:"code ready" "code head" "code stage" "code entry";
     }
     /* ---- 待合 B2（ゲームが決まったあと）：ルールを3枚の札に ----
@@ -3473,19 +3502,26 @@
       display:grid;grid-template-columns:repeat(var(--lb-cols,3),minmax(0,1fr));}
     /* 9〜15人は3列（5段まで。いちばん低い B の舞台でも入る）、16人は4列。列の数は JS が人数から（--lb-cols）。
        **どの段の列の数も --lb-cols で受ける**——名前が切れていて、1列減らしても舞台に収まるなら減らす（bigWidenLobby） */
-    #scr-rt-big[data-big="b"][data-size="l"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));row-gap:calc(6 * var(--tv-u));}
+    #scr-rt-big[data-big="b"][data-size="l"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));}
     /* B の9〜16人は札を少し低く（字は32のまま。顔の絵が 45 あるので、上下の内側の余白を 2 に）。
        52 のままだと、3列×6段が「待っています」の行のぶん 11px 足りず、名前の切れる4列にもどっていた */
-    #scr-rt-big[data-big="b"][data-size="l"] .big-list .bl-item{min-height:calc(48 * var(--tv-u));padding-block:calc(2 * var(--tv-u));}
+    #scr-rt-big[data-big="b"][data-size="l"] .big-list .bl-item,
+    #scr-rt-big[data-big="a"][data-size="l"] .big-list .bl-item,#scr-rt-big[data-big="a"][data-size="xl"] .big-list .bl-item{
+      min-height:calc(46 * var(--tv-u));padding-block:calc(2 * var(--tv-u));}
+    #scr-rt-big[data-big="b"][data-size="l"] .big-list,
+    #scr-rt-big[data-big="a"][data-size="l"] .big-list,#scr-rt-big[data-big="a"][data-size="xl"] .big-list{row-gap:calc(4 * var(--tv-u));}
     #scr-rt-big[data-big="b"][data-size="xl"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,5),minmax(0,1fr));}
     #scr-rt-big[data-big="a"][data-size="xl"] .big-list{grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));}
     #scr-rt-big .big-list .bl-item.is-wait{background:transparent;border-style:dashed;}
     #scr-rt-big .bl-mark{flex:none;font:700 var(--tv-name)/1 'Zen Maru Gothic',sans-serif;}
-    #scr-rt-big .bl-item.is-ready .bl-mark{color:var(--teal);}
-    #scr-rt-big .bl-item.is-wait .bl-mark{color:var(--ink-soft);}
+    #scr-rt-big .bl-item.is-ready .bl-mark,#scr-rt-big .bl-card.is-ready .bl-mark{color:var(--teal);}
+    #scr-rt-big .bl-item.is-wait .bl-mark,#scr-rt-big .bl-card.is-wait .bl-mark{color:var(--ink-soft);}
     #scr-rt-big .bl-item.is-off{color:var(--ink-soft);}
     /* 二つ名を出す時（8人以下）は、名前と二つ名の2行の札にする */
-    #scr-rt-big .bl-item.has-title{min-height:calc(76 * var(--tv-u));}
+    /* 二つ名つきの札（8人以下）は、上下の内側余白を詰める（待合 A の知らせの行が2行ぶんになり、
+       4人・8人の名簿の最後の行が舞台からはみ出した。字の大きさと行の高さは変えない＝ローマ字の下を欠かない） */
+    #scr-rt-big .bl-item.has-title{min-height:calc(72 * var(--tv-u));padding-block:calc(2 * var(--tv-u));}
+    #scr-rt-big[data-big="a"] .big-list:has(> .has-title){row-gap:calc(4 * var(--tv-u));}
     #scr-rt-big .bl-item.has-title .bl-name{max-width:none;}
 
     /* ルールの3枚の札（B2） */
@@ -3512,19 +3548,19 @@
     #scr-rt-big .be-item .be-who{display:flex;align-items:center;flex:0 1 auto;min-width:0;}
     #scr-rt-big .be-item .be-name{min-width:0;overflow:hidden;text-overflow:ellipsis;}
     #scr-rt-big .be-item .be-san,#scr-rt-big .be-item .be-said{flex:none;}
-    /* 「名前さん」と「が入りました」は続けて読む字。札の隙間（10）を打ち消してつなぐ */
-    #scr-rt-big .be-item .be-said{margin-left:calc(-10 * var(--tv-u));}
-    /* B（ゲームが決まったあと）は右の細い柱（240）に入る。1行の「◯◯さんが入りました」は柱に入らず、
-       名前が0幅になり、言葉が画面の右の外へ出ていた（指示64の見直しの反証で見つかった）。2行に組む */
-    /* B（ゲームが決まったあと）は右の細い柱（240）に入る。1行の「◯◯さんが入りました」は柱に入らないので
-       **2行に組む**：1行目＝顔・名前さん（名前だけ縮む）、2行目＝が入りました（名前の下にそろえる）。
-       知らせの行は中身の高さ（2つ積むと高くなる）。その分は上のQRの柱がゆずる（bigFitQr。読める 160px より下げない）。
-       **知らせはQRに重ならない**——重なりは tools/big-measure.js が数える */
-    #scr-rt-big[data-big="b"] .be-item{
-      flex-wrap:wrap;column-gap:calc(8 * var(--tv-u));row-gap:0;padding:calc(6 * var(--tv-u)) calc(12 * var(--tv-u));width:100%;
+    /* **知らせはどこでも2行**：1行目＝顔・名前さん（名前だけ縮む）、2行目＝が入りました（名前の下にそろえる）。
+       1行の「◯◯さんが入りました」は、B の細い柱（240）には入らず名前が0幅になり、
+       A でも2つ並ぶと1つが 362px しかなく、名前が「あ…」の1字になった（2つの知らせは、QR で
+       いっしょに入ってきた2人のこと——ふつうに起きる）。**知らせはQRに重ならない**（tools/big-measure.js が数える） */
+    #scr-rt-big .be-item{
+      flex-wrap:wrap;column-gap:calc(8 * var(--tv-u));row-gap:0;padding:calc(6 * var(--tv-u)) calc(12 * var(--tv-u));
     }
-    #scr-rt-big[data-big="b"] .be-item .be-who{flex:1 1 0;}
-    #scr-rt-big[data-big="b"] .be-item .be-said{flex:0 0 100%;margin-left:0;padding-left:calc(44 * var(--tv-u));}
+    #scr-rt-big .be-item .be-who{flex:1 1 0;}
+    #scr-rt-big .be-item .be-said{flex:0 0 100%;padding-left:calc(44 * var(--tv-u));}
+    /* B は右の柱の幅いっぱい。知らせの行は中身の高さ（2つ積むと高くなり、上のQRの柱がゆずる。bigFitQr・160px まで） */
+    #scr-rt-big[data-big="b"] .be-item{width:100%;}
+    /* A は2つを横に、半分ずつ */
+    #scr-rt-big[data-big="a"] .big-entry .be-item{flex:1 1 0;min-width:0;}
 
     /* ---- 順位表（C2・C1）。部品は rankingHtml のまま、TVでの並べ方だけをここで決める ----
        C2＝上の段（表彰台）を大きな札に、残りを2〜3列。C1＝1位が6人以上ならんだ時の2列 */
@@ -3584,6 +3620,9 @@
       grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"place place place" "face name name" "main main note";}
     #scr-rt-big .rk-tv[data-pod="1"] .rk-podium .rk-note,#scr-rt-big .rk-tv[data-pod="2"] .rk-podium .rk-note,
     #scr-rt-big .rk-tv[data-pod="3"] .rk-podium .rk-note{align-self:center;}
+    /* 内訳が数と同じ行に入らない時（bigFitPodiumNote）は、数の下の行へ */
+    #scr-rt-big .rk-tv[data-podnote="below"][data-pod="1"] .rk-podium .rk-row,#scr-rt-big .rk-tv[data-podnote="below"][data-pod="2"] .rk-podium .rk-row,
+    #scr-rt-big .rk-tv[data-podnote="below"][data-pod="3"] .rk-podium .rk-row{grid-template-areas:"place place place" "face name name" "main main main" "note note note";}
     #scr-rt-big .rk-podium .rk-main{grid-area:main;justify-self:start;white-space:nowrap;}
     /* 内訳は札の幅いっぱいまで（start にすると中身の幅になり、省略されずに札の外へはみ出した） */
     #scr-rt-big .rk-podium .rk-note{grid-area:note;justify-self:stretch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
@@ -3655,11 +3694,17 @@
     }
     #scr-rt-big .big-board .bb-row{flex:1 1 calc(540 * var(--tv-u));min-width:0;gap:calc(6 * var(--tv-u));}
     #scr-rt-big[data-size="s"] .big-board .bb-row{flex-basis:100%;}
-    #scr-rt-big .big-board .bb-head{font:700 var(--tv-name)/1.2 'Zen Maru Gothic',sans-serif;align-items:center;}
+    #scr-rt-big .big-board .bb-head{font:700 var(--tv-name)/1.2 'Zen Maru Gothic',sans-serif;align-items:center;gap:calc(16 * var(--tv-u));}
+    /* 競争版の行も、ほかの名簿と同じ札（地・縁・角）。顔は名簿と同じ 40。記録なし・切断は「地なし・点線・薄墨」 */
+    #scr-rt-big .big-board .bb-row{background:var(--card);border:1px solid var(--line);border-radius:calc(12 * var(--tv-u));
+      padding:calc(8 * var(--tv-u)) calc(16 * var(--tv-u));}
+    #scr-rt-big .big-board .bb-row.is-failed,#scr-rt-big .big-board .bb-row.is-off{background:transparent;border-style:dashed;}
+    #scr-rt-big .big-board .bb-face{font-size:var(--tv-face);line-height:1;margin-right:calc(10 * var(--tv-u));vertical-align:-.12em;}
+    #scr-rt-big .big-board .bb-face:empty{display:none;}
     #scr-rt-big .big-board .bb-meta{font:400 var(--tv-num)/1 'DotGothic16',monospace;letter-spacing:.02em;opacity:1;}
     #scr-rt-big .big-board .bb-bar{height:calc(24 * var(--tv-u));}
     #scr-rt-big .big-board .bb-row.is-failed .bb-name,
-    #scr-rt-big .big-board .bb-row.is-off .bb-name{opacity:1;color:var(--ink-soft);}
+    #scr-rt-big .big-board .bb-row.is-off .bb-name{opacity:1;color:var(--ink-soft);text-decoration:none;}
     /* False or True のケースの列（番号だけ） */
     #scr-rt-big .big-ft{margin:0;gap:calc(12 * var(--tv-u));}
     /* ケースの番号は数字の段（表に無い 56 の丸ゴだった） */
@@ -3668,6 +3713,8 @@
       min-width:calc(88 * var(--tv-u));padding:calc(16 * var(--tv-u)) calc(12 * var(--tv-u));
       border-radius:calc(12 * var(--tv-u));
     }
+    /* いま動いているケースは「点いた表示灯」（2px の線の色だけでは、4m先から分からなかった） */
+    #scr-rt-big .big-ft .bft-case.is-held{background:var(--switch-on);border-color:var(--switch-on);color:var(--paper);}
     /* 相場オークション：相場の札と、6つの品 */
     #scr-rt-big .big-mk{max-width:none;margin:0;gap:var(--tv-gap);}
     /* 相場の札は左から（真ん中に寄せると、下の品と名簿と左の端が3つになった。§11-9「揃えは左」） */
@@ -3684,11 +3731,12 @@
       min-height:0;flex-direction:row;justify-content:flex-start;gap:calc(10 * var(--tv-u));text-align:left;
       padding:calc(6 * var(--tv-u)) calc(14 * var(--tv-u));border-radius:calc(12 * var(--tv-u));
     }
-    #scr-rt-big .big-mk .bmk-c .bc-no{position:static;flex:none;font:400 var(--tv-note)/1 'DotGothic16',monospace;opacity:1;color:var(--ink-soft);}
+    /* 品の番号は「数」ではなく札（§11-5 の得点・時計・残り・ライフではない）。28 のドットは表に無い段なので、添えの丸ゴ */
+    #scr-rt-big .big-mk .bmk-c .bc-no{position:static;flex:none;font:700 var(--tv-note)/1 'Zen Maru Gothic',sans-serif;opacity:1;color:var(--ink-soft);}
     #scr-rt-big .big-mk .bmk-c .bc-i{flex:none;font-size:var(--tv-face);}
     #scr-rt-big .big-mk .bmk-c .bc-l{flex:1;min-width:0;font:500 var(--tv-note)/1.25 'Zen Maru Gothic',sans-serif;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    #scr-rt-big .big-mk .bmk-c .bc-sold{flex:none;font:400 var(--tv-note)/1 'DotGothic16',monospace;letter-spacing:.04em;}
+    #scr-rt-big .big-mk .bmk-c .bc-sold{flex:none;font:700 var(--tv-note)/1 'Zen Maru Gothic',sans-serif;letter-spacing:0;}
     #scr-rt-big .big-mk .bmk-c.sold{opacity:1;color:var(--ink-soft);background:transparent;border-style:dashed;}
     /* すごろくの盤：**残りの高さいっぱい**に広げる（マスは正方形にこだわらない）。
        列の数は JS が大画面のぶんだけ増やす（sugoFillBoard の cols。スマホは6列のまま） */
@@ -3714,9 +3762,19 @@
     #scr-rt-big .sh-tier{gap:calc(12 * var(--tv-u));padding:calc(2 * var(--tv-u)) calc(14 * var(--tv-u));border-radius:calc(10 * var(--tv-u));}
     #scr-rt-big .sh-tier-face{font-size:var(--tv-face);min-width:calc(48 * var(--tv-u));}
     #scr-rt-big .sh-tier-face img{width:var(--tv-face);height:var(--tv-face);}
-    #scr-rt-big .sh-tier-name{font:500 var(--tv-note)/1.3 'Zen Maru Gothic',sans-serif;min-width:calc(190 * var(--tv-u));}
-    #scr-rt-big .sh-who{font:700 var(--tv-note)/1.3 'Zen Maru Gothic',sans-serif;padding:calc(2 * var(--tv-u)) calc(12 * var(--tv-u));}
-    #scr-rt-big .sh-tier-count{font:400 var(--tv-num)/1 'DotGothic16',monospace;min-width:calc(64 * var(--tv-u));text-align:left;}
+    /* 段の名前と人の名前は名前の段（32/700。28/500 だと、盤でいちばん細い字が段の名前だった） */
+    #scr-rt-big .sh-tier-name{font:700 var(--tv-name)/1.3 'Zen Maru Gothic',sans-serif;min-width:calc(190 * var(--tv-u));}
+    #scr-rt-big .sh-who{font:700 var(--tv-name)/1.25 'Zen Maru Gothic',sans-serif;padding:calc(2 * var(--tv-u)) calc(12 * var(--tv-u));
+      max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    #scr-rt-big .sh-tier-who{min-width:0;}
+    #scr-rt-big .sh-tier-who:empty{display:none;}
+    /* 段が多い（2列）時は、その段の人を段の名前の下の行へ（横の欄は 226px しかなく、名前が隣の列にかぶった） */
+    #scr-rt-big .sh-stairs.is-two .sh-tier{flex-wrap:wrap;row-gap:calc(2 * var(--tv-u));}
+    #scr-rt-big .sh-stairs.is-two .sh-tier-who{flex:1 1 100%;padding-left:calc(60 * var(--tv-u));}
+    /* 2列の時は人が下の行なので、段の名前の欄を「チャレンジャー」（7字）まで広げて、数の列をそろえる */
+    #scr-rt-big .sh-stairs.is-two .sh-tier-name{min-width:calc(232 * var(--tv-u));}
+    /* 人数は段の名前のすぐ右の欄。欄の中は右揃え（§11-9 数字は右。「0」と「12」の一の位がそろう） */
+    #scr-rt-big .sh-tier-count{font:400 var(--tv-num)/1 'DotGothic16',monospace;min-width:calc(64 * var(--tv-u));text-align:right;}
 
     /* ---- TVの上の重なり（設定）も横幅を使う（第47弾 47-4 から移した）。
        **テーマを当てない決まり（正本1-3）はそのまま**——ここで触るのは並べ方だけ ---- */
@@ -16433,16 +16491,20 @@
    */
   function sugoRankRows(res){
     return (res.players || []).map(function(p){
-      var 内訳 = [];
+      // 指示64の見直し（2回目）：**のこりの距離は「あと◯」の1回だけ**（遊んでいる間の名簿と同じ言い方）。
+      // それまで「36/40」と「のこり4マス」で同じ距離を2回言い、「/40」は全員に同じだった（§11-1）。
+      // あがっていないのに「あと0」になるのは、ほかの人が共有の駒をあがらせた時（こまはひとつ）——
+      // その時の順位はコインで決まっているので、コインを数として出す
       // **コインを使わないゲームでは coins が null**（出す側に if を書かせない）
-      if(res.coinsUsed && p.coins != null) 内訳.push('🪙' + p.coins);
-      if(!p.goaled) 内訳.push('のこり' + Math.max(0, res.cells - p.pos) + 'マス');
+      var コイン = (res.coinsUsed && p.coins != null) ? ('🪙' + p.coins) : null;
+      var 残 = Math.max(0, res.cells - p.pos);
+      var main = p.goaled ? 'あがり' : (残 > 0 ? ('あと' + 残) : (コイン || 'あと0'));
       return {
         id: res.pairs ? null : p.id,
         rank: p.rank,
         name: p.name,
-        main: p.goaled ? 'あがり' : (p.pos + '/' + res.cells),
-        note: 内訳.length ? 内訳.join('　') : null
+        main: main,
+        note: (コイン && main !== コイン) ? コイン : null
       };
     });
   }
@@ -16861,7 +16923,9 @@
     el('bigBoard').style.display = 'none';
     // 指示64：開示でない段階で、開示の光の札を捨てる（次の開示・再戦の開示でまた光る）
     if(v.phase !== 'open') rtOnce('falsetrue:bigopen', false, null);
-    el('bigPhase').textContent = 'False or True　' + (RT_PHASE_LABEL[v.phase] || '');
+    // 段階の札は段階の語だけ（「False or True　」を頭に付けると、帯の一言「決着しました」と「決着」が2回並び、
+    // 札が 450px になって一言が2行に押し込まれた・指示64の見直し2回目）。ゲームの名前は待合が言う
+    el('bigPhase').textContent = RT_PHASE_LABEL[v.phase] || '';
 
     // ケースの列は、決着までずっと出しておく（卓の真ん中に置いた箱そのもの）
     var 列 = el('bigFtCases');
@@ -16887,7 +16951,7 @@
       rtBig.count = bigCountHtml('のこり', 残り.length, '枚');
     }
 
-    var main = '', sub = '';
+    var main = '', sub = '', mainHtml = '';
     if(v.phase === 'pick'){
       main = v.holderName || '';
       sub = 'ケースをえらんでいます';
@@ -16895,10 +16959,10 @@
       main = v.holderName || '';
       sub = '中身をみています（見えているのは本人だけ）';
     } else if(v.phase === 'face'){
-      main = (v.holderName || '') + '　VS　' + (v.oppName || '');
+      mainHtml = bigVsHtml(v.holderName, 'VS', v.oppName);
       sub = (v.holderName || '') + 'さんが持っている　／　' + (v.oppName || '') + 'さんが決める';
     } else if(v.phase === 'talk'){
-      main = (v.holderName || '') + '　×　' + (v.oppName || '');
+      mainHtml = bigVsHtml(v.holderName, '×', v.oppName);
       sub = '話し合い';
     } else if(v.phase === 'decide'){
       main = v.oppName || '';
@@ -16935,7 +16999,8 @@
       sub = '';
       // 指示60 A-2：決着の祝いは rtClearFx へ（生きのこりが0人なら祝わない。それまでは0人でも紙吹雪だった）
     }
-    el('bigMain').textContent = main;
+    if(mainHtml) el('bigMain').innerHTML = mainHtml;
+    else el('bigMain').textContent = main;
     el('bigSub').textContent = sub;
     /**
      * 指示55：**名簿を毎描画で書き直す。**
@@ -17007,10 +17072,14 @@
     // 手番なのに「7/8」と、済んだ人を数える数まで出ていた）。何人かを待つ時（ミニゲームの準備）は出す。
     // 数は数字の段で（§11-5）
     var 待ちの数 = '';
+    var 待ちを印す = false;
     if(!sub && (v.waiting || []).length && !(v.waiting.length === 1 && (v.sayer || sugoHasTurn(v)))){
       var 全 = (v.players || []).length || v.waiting.length;
-      sub = v.waiting.join('・') + ' さんを待っています';
-      待ちの数 = '（' + bigCountHtml('', Math.max(0, 全 - v.waiting.length) + '/' + 全, '') + '）';
+      // 手元・ほかのゲームと同じ言い方（2人までは名前、それより多いと人数）。数には「すんだ人」と名前を付ける
+      //（「待っています（0/8）」は「8人中0人を待っている」と読めた・指示64の見直し2回目）
+      sub = nlWaiting(v.waiting);
+      待ちの数 = '（すんだ人 ' + bigCountHtml('', Math.max(0, 全 - v.waiting.length) + '/' + 全, '') + '）';
+      待ちを印す = true;
     }
     // 指示64：**できごと・結果の一言は、添え書きの頭（太字）へ。**一枚看板（96px）はミニゲームの名前だけ。
     // すごろくは盤と名簿がいちばん場所を取る——8人で名簿を名前の読める3列にすると、
@@ -17039,6 +17108,7 @@
         // 駒の印がある行は顔を出さない（盤の上の印で、誰の駒か分かる。顔まで並べると名前が1字になった）
         return bigRowHtml({ id: x.id, mark: x.mark, face: (x.id && !x.mark) ? null : '', name: x.name, v: x.v, sub: x.sub });
       }).join('');
+      if(待ちを印す) bigMarkWaiting(v.waiting);
     }
   }
   function rtSugoBigRows(v, goal){
@@ -17634,7 +17704,9 @@
     return a.length + '人を待っています';
   }
   var mine = function(text){ return { text: text, mine: true }; };
-  var wait = function(text){ return { text: text, mine: false }; };
+  // ids：大画面で、その一言が名指ししている人（手番・申告・答えている人）。札に印を付ける（bigMarkNow）。
+  // 字から名前を探さない——「こた」さんが「こたえています」に当たる
+  var wait = function(text, ids){ return { text: text, mine: false, ids: ids || null }; };
 
   /**
    * ゲームごとの1行。**ここに無いゲームは帯を出さない**——
@@ -17817,17 +17889,17 @@
     var 自分の番 = !!(手番 && 手番.id === ctx.meId);
     if(ctx.isBig){
       if(v.phase === 'ready')  return wait(B.じゅんび);
-      if(v.phase === 'turn')   return wait(手番 ? B.振る(手番.name) : '');
+      if(v.phase === 'turn')   return wait(手番 ? B.振る(手番.name) : '', 手番 ? [手番.id] : null);
       if(v.phase === 'roll')   return wait(B.組で振る);
       if(v.phase === 'split')  return wait(B.分け合う);
       if(v.phase === 'mini')   return wait(S.ミニゲームの説明);
       if(v.phase === 'play')   return wait(S.ミニゲームの説明);
-      if(v.phase === 'grab')   return wait(手番 ? B.振る(手番.name) : '');
+      if(v.phase === 'grab')   return wait(手番 ? B.振る(手番.name) : '', 手番 ? [手番.id] : null);
       if(v.phase === 'offer')  return wait(B.売り買い);
-      if(v.phase === 'buy')    return wait(手番 ? B.買う(手番.name) : '');
+      if(v.phase === 'buy')    return wait(手番 ? B.買う(手番.name) : '', 手番 ? [手番.id] : null);
       if(v.phase === 'say'){
         var 申告者 = v.sayer || null;
-        return wait(申告者 ? B.申告(申告者.name) : '');
+        return wait(申告者 ? B.申告(申告者.name) : '', 申告者 ? [申告者.id] : null);
       }
       if(v.phase === 'judge'){
         // **黙ったまま締め切られた回がある。**「申告をたしかめる」と書くと、
@@ -17910,16 +17982,16 @@
     if(ctx.isBig){
       if(v.phase === 'ended') return wait(B.決着);
       if(v.variant === 'quizrush')   return wait(B.いっせいに);
-      if(v.variant === 'quizlist')   return wait(v.list && v.list.turnName ? B.手番(v.list.turnName) : '');
+      if(v.variant === 'quizlist')   return wait(v.list && v.list.turnName ? B.手番(v.list.turnName) : '', v.list && v.list.turnId ? [v.list.turnId] : null);
       if(v.variant === 'quizreveal'){
         var rv = v.reveal || {};
-        return wait(rv.buzzedName ? B.おされた(rv.buzzedName) : B.ひらいていく);
+        return wait(rv.buzzedName ? B.おされた(rv.buzzedName) : B.ひらいていく, rv.buzzedId ? [rv.buzzedId] : null);
       }
       if(v.variant === 'buzzer'){
         var b = v.buzzer || {};
         if(v.phase === 'break') return wait(B.つぎの対戦);
         var 組 = b.pair || [];
-        return wait(組.length === 2 ? B.対戦(組[0].name, 組[1].name) : '');
+        return wait(組.length === 2 ? B.対戦(組[0].name, 組[1].name) : '', 組.length === 2 ? [組[0].id, 組[1].id] : null);
       }
       return wait('');
     }
@@ -17979,6 +18051,8 @@
     if(fn){
       try{ out = fn(rtView() || {}, (rt && rt.state.secret) || null, nlCtx()); }catch(e){ out = null; }
     }
+    // 大画面：一言が名指ししている人を覚えておく（描いたあとに札へ印を付ける・bigMarkNow）
+    if(slot.closest && slot.closest('#scr-rt-big')) rtBig.now = (out && out.text && out.ids) ? out.ids.slice() : null;
     if(!out || !out.text){ slot.hidden = true; slot.textContent = ''; return; }
     slot.hidden = false;
     slot.classList.toggle('is-mine', !!out.mine);
@@ -17991,6 +18065,8 @@
     var t = document.createElement('span');
     t.className = 'nl-text'; t.textContent = out.text;
     slot.appendChild(t);
+    // 大画面の帯でも、名前を途中で折らない（一枚看板と同じ包み・指示64の見直し2回目）
+    if(slot.closest && slot.closest('#scr-rt-big')) bigWrapNames(t, bigNameList(rtView(), rt && rt.state && rt.state.room));
   }
 
   // ================= ロシアンカード・手渡し（指示55-①） =================
@@ -19943,10 +20019,8 @@
       // 「VS」は帯の一言が言う（ひろ VS たかはし…）
       var 組 = v.buzzer.pair || [];
       if(組.length === 2){
-        mainHtml = '<span class="tv-nm">' + escapeHtml(組[0].name || '') + '</span>' +
-          '<span class="bz-score"><span class="tv-n">' + escapeHtml(String(組[0].wins || 0)) + '</span>' +
-          '<span class="bz-dash">−</span><span class="tv-n">' + escapeHtml(String(組[1].wins || 0)) + '</span></span>' +
-          '<span class="tv-nm">' + escapeHtml(組[1].name || '') + '</span>';
+        mainHtml = bigVsHtml(組[0].name, '<span class="bz-score"><span class="tv-n">' + escapeHtml(String(組[0].wins || 0)) + '</span>' +
+          '<span class="bz-dash">−</span><span class="tv-n">' + escapeHtml(String(組[1].wins || 0)) + '</span></span>', 組[1].name);
       }
       // 読み上げにした時は、大画面にも文字を出さない（耳で勝負する遊びなので）。押した人は帯の一言が言う
       sub = (v.buzzer.question && v.buzzer.delivery === 'text') ? v.buzzer.question.text : '';
@@ -20845,8 +20919,9 @@
   // 「いま何が起きているか」より「盤面がどうなっているか」を大きく出す
   function renderRtBigAuction(v){
     el('bigBoard').style.display = 'none';
-    el('bigPhase').textContent = (v.mode === 'open' ? AU.TEXT.mode.open : AU.TEXT.mode.sealed) +
-      (v.phase === 'ended' ? '' : ('　' + (AU.TEXT.phase[v.phase] || v.phase)));
+    // 段階の札は段階の語だけ（せり上げ式／入札式は待合のルールの札が言う）。決着は「結果」——
+    // 帯の一言「結果発表」が札の語で始まるので、札の方が空く（言い直しを消す）
+    el('bigPhase').textContent = v.phase === 'ended' ? '結果' : (AU.TEXT.phase[v.phase] || '');
 
     var main = '', sub = '';
     // 下見の間は、**1品を大写しにしない**。6品ならんでいること自体が見せ場で、
@@ -21688,7 +21763,7 @@
       var A = (v.players || []).find(function(p){ return p.id === m.a; }) || {};
       var B = (v.players || []).find(function(p){ return p.id === m.b; }) || {};
       var 手番 = m.turnId === m.a ? A.name : (m.turnId === m.b ? B.name : '');
-      el('bigMain').textContent = (A.name || '') + '　VS　' + (B.name || '');
+      el('bigMain').innerHTML = bigVsHtml(A.name, 'VS', B.name);
       el('bigSub').textContent = 手番 ? 手番 + ' がめくります' : '';
     } else {
       // 予選：あと何人のこっているか
@@ -21826,6 +21901,11 @@
    * **字の節点をたどって DOM で包む**（innerHTML に戻すと escape がほどける・落とし穴43）。
    * 長い名前から先に当てる（「あき」が「あきら」の中に当たらないように）。すでに包んだもの・数字・盤の中は触らない
    */
+  /** 部屋にいる人の名前（公開ビューの players と、部屋の名簿）。名前を包む2か所（一枚看板・帯）で同じものを使う */
+  function bigNameList(v, room){
+    return ((v && v.players) || []).map(function(p){ return p && p.name; })
+      .concat(room ? bigPlayers(room).map(function(p){ return p.name; }) : []);
+  }
   function bigWrapNames(box, names){
     if(!box || typeof document.createTreeWalker !== 'function') return;
     var 名 = Array.from(new Set((names || []).map(function(n){ return String(n || '').trim(); })
@@ -21856,6 +21936,60 @@
       親.replaceChild(frag, t);
     });
   }
+  /**
+   * 指示64の見直し（2回目）：**一枚看板の中の「数＋助数詞」**（「8人」「3人 生きのこり」「🔨 25枚」）は、
+   * 数字を数字の段（DotGothic・主役と同じ大きさ）に、助数詞を見出しの段（48）に。明朝の数字は
+   * TVのどこにも無い形で、いちばん大きい字だけが別の書体になっていた。
+   * **数のすぐ後ろに助数詞がある所だけ**を包む——問題文（「1年は何日？」「2番目に高い山」）や
+   * 名前（kensho34）の数字は触らない。字の節点をたどって DOM で包む（escape をほどかない・落とし穴43）
+   */
+  /**
+   * 指示64の見直し（2回目）：**対戦の一枚看板は1つの形**（早押しの得点板・False or True の VS／×・ロシアンカードの決勝）。
+   * 名前は折らない（.tv-nm）。1行に入らない時は「名前／VS／名前」と縦に積む（bigStackVs）——
+   * そのまま折ると「ひろ 0−0／たかはしゆういちろう」と、点や VS が先の人にだけ付いて見えた
+   */
+  function bigVsHtml(a, midHtml, b){
+    return '<span class="tv-vs"><span class="tv-nm">' + escapeHtml(a || '') + '</span>' +
+      '<span class="vs-mid">' + midHtml + '</span>' +
+      '<span class="tv-nm">' + escapeHtml(b || '') + '</span></span>';
+  }
+  /** 1行に入らない対戦の一枚看板を縦に積む。描いたその場で（落ち着いてからのやり直しでもう一度）。版組みの無い所では何もしない */
+  function bigStackVs(){
+    var m = el('bigMain'), vs = m && m.querySelector('.tv-vs');
+    if(!vs || !m.getBoundingClientRect || !m.clientWidth) return;
+    vs.classList.remove('is-stack');
+    // 名前を折らない形の幅で測る（そのまま測ると、横並びの箱の中で名前が折れて「入っている」ように見えた）
+    vs.classList.add('is-measure');
+    var 幅 = vs.getBoundingClientRect().width;
+    vs.classList.remove('is-measure');
+    if(幅 > m.clientWidth + 1) vs.classList.add('is-stack');
+  }
+  var BIG_COUNTERS = '人個枚問点本';
+  function bigWrapCounts(box){
+    if(!box || typeof document.createTreeWalker !== 'function') return;
+    var re = new RegExp('([0-9]+(?:\\s*/\\s*[0-9]+)?)([' + BIG_COUNTERS + '])', 'g');
+    var walker = document.createTreeWalker(box, 4, null);
+    var 節 = [];
+    while(walker.nextNode()) 節.push(walker.currentNode);
+    節.forEach(function(t){
+      var 親 = t.parentNode;
+      if(!親 || (親.closest && 親.closest('.tv-n, .tv-nm, .tv-unit, .bz-score, .bomb-coop'))) return;
+      var 字 = t.nodeValue || '';
+      var m, 前 = 0, frag = null;
+      re.lastIndex = 0;
+      while((m = re.exec(字))){
+        frag = frag || document.createDocumentFragment();
+        if(m.index > 前) frag.appendChild(document.createTextNode(字.slice(前, m.index)));
+        var n = document.createElement('span'); n.className = 'tv-n'; n.textContent = m[1];
+        var u = document.createElement('span'); u.className = 'tv-unit'; u.textContent = m[2];
+        frag.appendChild(n); frag.appendChild(u);
+        前 = m.index + m[0].length;
+      }
+      if(!frag) return;
+      if(前 < 字.length) frag.appendChild(document.createTextNode(字.slice(前)));
+      親.replaceChild(frag, t);
+    });
+  }
   var BIG_WAIT_NAMES_UPTO = 3;
   function bigWaitingLine(names){
     var a = (names || []).filter(Boolean);
@@ -21867,13 +22001,27 @@
     if(a.length <= BIG_WAIT_NAMES_UPTO) return escapeHtml(bigWaitingLine(a));
     return 'まだの人：' + bigCountHtml('', a.length, '人');
   }
-  // 待っている人の札に印（is-wait）。公開ビューの waiting は名前なので、名前で引く（同じ名前は両方に付く）
+  /**
+   * 待っている人の札に印。公開ビューの waiting は名前なので、名前で引く（同じ名前は両方に付く）。
+   * 指示64の見直し（2回目）：**生きている全員の札に、待合 B と同じ「✓／…」の印**を付ける
+   * （待っている人だけに付けると、印のぶん名前の幅が変わり、測って決めた列の数が投票の途中で跳ねる）。
+   * 待っている人は名前を薄墨にし、札の縁を太い点線に。**札の地は残す**——人狼の盤では、地が生死の目じるし。
+   * 「誰を待っているか」は公開の情報（帯の「まだの人」と同じ）。数を札にしている行（すごろくの「あと◯」）には
+   * 印を付けず、縁と名前だけで見せる（名前が2〜3字まで縮んでいるので）
+   */
   function bigMarkWaiting(names){
     var a = (names || []).filter(Boolean);
     Array.prototype.forEach.call(el('bigList').querySelectorAll('.bl-card, .bl-item'), function(card){
+      if(card.classList.contains('out') || card.classList.contains('dead') || card.classList.contains('is-out')) return;
       var n = card.querySelector('.blc-name, .bl-name');
       var 名 = n ? (n.firstChild && n.firstChild.nodeType === 3 ? n.firstChild.nodeValue : n.textContent) : '';
-      if(a.indexOf(名) !== -1) card.classList.add('is-wait');
+      var 待ち = a.indexOf(名) !== -1;
+      card.classList.add(待ち ? 'is-wait' : 'is-ready');
+      if(card.querySelector('.bl-v') || card.querySelector('.bl-mark')) return;
+      var mk = document.createElement('span');
+      mk.className = 'bl-mark';
+      mk.textContent = 待ち ? '…' : '✓';
+      card.insertBefore(mk, card.firstChild);
     });
   }
   /**
@@ -21907,13 +22055,26 @@
       前.forEach(function(n){ 添え.appendChild(n); });
     }
   }
+  /**
+   * 表彰台（札1〜3枚）の内訳が、数と同じ行に入らない時は、数の下の行へ（すごろくの「🪙6　のこり4マ…」）。
+   * 下へ回して舞台からはみ出すなら、もとにもどす（16人の表では、いまの形のまま）
+   */
+  function bigFitPodiumNote(){
+    var tv = document.querySelector('#bigRank > .rk-tv'), stage = el('bigStage');
+    if(!tv || !stage || !tv.getBoundingClientRect || !tv.getBoundingClientRect().width) return;
+    tv.removeAttribute('data-podnote');
+    var 切れ = Array.prototype.some.call(tv.querySelectorAll('.rk-podium .rk-note'), function(n){ return n.scrollWidth > n.clientWidth + 1; });
+    if(!切れ) return;
+    tv.setAttribute('data-podnote', 'below');
+    if(stage.scrollHeight > stage.clientHeight + 1) tv.removeAttribute('data-podnote');
+  }
   function bigBalanceList(あとで){
     var list = el('bigList');
     if(!list) return;
     if(!あとで) bigReflowSoon();
     // 一枚看板を移すのは、落ち着いてからの測り直しの時だけ（描いた直後は絵文字が差し替わる前で高さが違い、
     // 入るのに「入らない」と見て移してしまう。移した一枚看板は、その描画のあいだは戻らない）
-    if(あとで) bigFitMain();
+    if(あとで){ bigStackVs(); bigFitMain(); bigFitPodiumNote(); }
     var n = list.children.length;
     // ハート（体力）を並べる行は横に長いので2列まで（5つ並ぶと 48px×5）
     // 添えの行と数の両方を持つ行（すごろくの「名前／🪙」と「あと40」）は3列まで（4列だと名前が1字になった）
@@ -21941,7 +22102,7 @@
     var 盤 = stage.querySelector('.sugo-board.big-sugo');
     if(盤 && getComputedStyle(盤).display !== 'none') return;
     var 切れている = function(){
-      return Array.prototype.some.call(list.querySelectorAll('.bl-name, .blc-name'), function(n){
+      return Array.prototype.some.call(list.querySelectorAll('.bl-name, .blc-name, .bl-title'), function(n){
         return n.scrollWidth > n.clientWidth + 1;
       });
     };
@@ -21988,6 +22149,14 @@
   }
   if(document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function'){
     document.fonts.ready.then(bigReflowSoon);
+  }
+  /** 帯の一言が名指ししている人（手番・申告・答えている人）の札に印（is-now）。data-pid で引く */
+  function bigMarkNow(){
+    var ids = rtBig.now || [];
+    if(!ids.length) return;
+    Array.prototype.forEach.call(el('bigList').querySelectorAll('[data-pid]'), function(card){
+      if(ids.indexOf(card.getAttribute('data-pid')) !== -1) card.classList.add('is-now');
+    });
   }
   function bigClearSlots(){
     el('bigRank').innerHTML = '';
@@ -22092,8 +22261,8 @@
       }
       // 一枚看板の中の名前を途中で折らない（上の「長い一枚看板は添え書きへ」のあとで包む——
       // 先に包むと、子を持つ一枚看板として長いまま 96px に残る）
-      bigWrapNames(m, (v.players || []).map(function(p){ return p && p.name; })
-        .concat(bigPlayers(room).map(function(p){ return p.name; })));
+      bigWrapNames(m, bigNameList(v, room));
+      bigWrapCounts(m);
     };
     /**
      * 指示64の見直し：**みんなに共通の数（のこり何枚・何問目・何個・第何ラウンド）は、上の帯に1つだけ**
@@ -22104,7 +22273,8 @@
       rtBig.count = null;
       f();
       if(rtBig.count) el('bigTurn').innerHTML = rtBig.count;
-      言い直しを消す(); bigBalanceList();
+      bigStackVs();
+      言い直しを消す(); bigBalanceList(); bigMarkNow();
     };
 
     if(rtRoomGameId() === 'bomb') return 描いてから(function(){ renderRtBigBomb(v); });
@@ -22168,9 +22338,12 @@
     ((v.phase === 'turnResult' && v.turnResult && v.turnResult.counts) || []).forEach(function(c){
       if(c.id) 票[c.id] = c.n;
     });
-    var 役 = {};
+    var 役 = {}, 陣営 = {};
     ((v.phase === 'ended' && v.result && v.result.roles) || []).forEach(function(r){
-      if(r.id) 役[r.id] = r.roleName;
+      if(!r.id) return;
+      役[r.id] = r.roleName;
+      // 決着した時だけ配られる公開の情報（wolf-room の result.roles に役職の id がある）
+      陣営[r.id] = WolfLogic.roleById(r.role).team;
     });
     var 二つ名も = (v.players || []).length <= BIG_TITLES_UPTO;
 
@@ -22188,7 +22361,8 @@
       // 札の2行目：決着したら役職（ここで初めて明かす）、それまでは二つ名（8人以下の時だけ）
       var 二行目 = 役[p.id] || (二つ名も ? look.title : '');
       return '<span class="bl-card' + (p.alive ? '' : ' out') +
-        (いま欠けた ? ' just-out' : '') + (役[p.id] ? ' has-role' : '') + '" data-pid="' + escapeHtml(p.id) + '">' +
+        (いま欠けた ? ' just-out' : '') + (役[p.id] ? ' has-role' : '') + (陣営[p.id] ? ' team-' + 陣営[p.id] : '') +
+        '" data-pid="' + escapeHtml(p.id) + '">' +
         '<span class="blc-face">' + (p.alive ? escapeHtml(look.icon || '🙂') : '💀') + '</span>' +
         '<span class="blc-name">' + escapeHtml(p.name) +
           (二行目 ? '<span class="blc-title">' + escapeHtml(二行目) + '</span>' : '') + '</span>' +
@@ -22730,7 +22904,8 @@
     var meta = p.solved + ' / ' + p.total + '　' +
       '❤️'.repeat(Math.max(0, p.lives)) + '🖤'.repeat(Math.max(0, p.livesMax - p.lives));
     return '<div class="' + cls + '">' +
-      '<div class="bb-head"><span class="bb-name">' + faceOf(p.id) + escapeHtml(p.name) +
+      // 顔は自分の箱に（大画面で名簿と同じ大きさにそろえる。手元ではそのまま字の大きさ）
+      '<div class="bb-head"><span class="bb-name"><span class="bb-face">' + escapeHtml(lookOf(p.id).icon || '') + '</span>' + escapeHtml(p.name) +
         (p.connected ? '' : '（切断中）') + '</span>' +
         '<span class="bb-meta">' + meta + '</span></div>' +
       '<div class="bb-bar"><div class="bb-fill" style="width:' + p.pct + '%;"></div></div>' +
@@ -23979,7 +24154,9 @@
       sub = r.solved + ' / ' + r.total + '個を解除　のこりミス ' + Math.max(0, r.strikesLeft);
     } else {
       var b = v.board || { solved:0, total:0, modules:[] };
-      main = b.solved + ' / ' + b.total + '個';
+      // 指示64の見直し（2回目）：いくつ解けたかは**帯の数**（共通のもの・§11-9）。一枚看板には置かない
+      rtBig.count = bigCountHtml('', b.solved + ' / ' + b.total, '個');
+      main = '';
       // 指示64・正本 §11-1：**のこりミスは上の帯に1つだけ**（bigStatus のハート）。
       // それまで添え書きにも同じハートを並べていた（共通のものを2回出していた）
       sub = '';

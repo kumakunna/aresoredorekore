@@ -431,6 +431,8 @@ function* 決着と同着(lab, 揃える, 何組) {
 // 入場の知らせを2つ（長い名前で）。B の細い柱で名前が0幅になり、言葉が画面の右の外へ出ていた（指示64の見直し）。
 // 知らせは2.6秒で消えるので、本物の測りでは一度も撮れていなかった
 const 入場の知らせ = "window.bigEntryProbe([{icon:'🐉',name:'あいうえおかきくけこさし'},{icon:'🦊',name:'たかはしゆういちろう'}])";
+// ふつうの長さの名前で2人いっしょに（QRをいっしょに読んだ2人。長い名前だけで測ると「省略は名前が長いから」で済んでしまう）
+const 入場の知らせ2 = "window.bigEntryProbe([{icon:'👑',name:'まりこ'},{icon:'🎭',name:'そうた'}])";
 
 const SCENARIOS = [
   // ---- 待合（ゲームがまだ決まっていない） ----
@@ -440,6 +442,7 @@ const SCENARIOS = [
       lab.room.state = { phase: 'lobby', game: null, data: {} };
       yield 'none';
       yield { label: 'entry', page: 入場の知らせ };
+      yield { label: 'entry2', page: 入場の知らせ2 };
     }
   },
   // ---- 人狼（人数で、本物のモードを選ぶ：5人からノーマル） ----
@@ -449,6 +452,7 @@ const SCENARIOS = [
       const pre = 人狼のプリセット(lab.spec.modeId);
       lab.待合(Math.ceil(lab.n / 4)); yield 'lobby-picked';
       yield { label: 'lobby-entry', page: 入場の知らせ };
+      yield { label: 'lobby-entry2', page: 入場の知らせ2 };
       // rtWolfroleConfig と同じ形（プリセットのまま・作戦会議は話し合いの時間 180秒）
       lab.開始({ game: 'wolfrole', roles: pre.roles || ['wolf', 'seer'], chaos: !!pre.chaos, turnLimit: pre.turnLimit || 5,
         seerResult: pre.seerResult, revealRoleOnDeath: pre.revealRoleOnDeath, wolfAttackDecision: pre.wolfAttackDecision,
@@ -661,6 +665,16 @@ const SCENARIOS = [
       yield 'ended';
     }
   },
+  // 短い名前と長い名前が向かい合う（「まりこ　VS／たかはしゆういちろう」と、VS が先の人にだけ付いて見えた）
+  {
+    name: 'falsetrue-mixed', game: 'falsetrue', modeId: 'falsetrue',
+    run: function* (lab) {
+      const 名 = ['ひろ', 'たかはしゆういちろう', 'ゆい', 'あいうえおかきくけこさし'];
+      lab.ids.forEach((id, i) => { lab.room.members.get(id).name = 名[i % 名.length] + (i >= 名.length ? i : ''); });
+      lab.開始({ game: 'falsetrue', talkSec: 60 });
+      yield* 段階ごとに(lab, {});
+    }
+  },
   // ---- ロシアンカード（生きのこり戦。1位は1人：同着は同じ回に両方0になった時だけで、ここでは作らない） ----
   {
     name: 'rcard', game: 'rcard', modeId: 'rcard',
@@ -681,6 +695,17 @@ const SCENARIOS = [
       yield* 段階ごとに(lab, { 何枚: 2, max: 800 });
       yield 'ended';
       yield* 進化じゃんけんの同着(lab, 決着の同着.filter((k) => k <= lab.n), cfg);
+    }
+  },
+  // 「たくさん」の段（10段・2列）。段の名前が長く（チャレンジャー）、人の札が隣の列にかぶっていた。
+  // それまでの実験台はふつうの段（5段）しか測っていなかった（指示64の見直し2回目の反証）
+  {
+    name: 'shinka-cs', game: 'shinka', modeId: 'shinka',
+    run: function* (lab) {
+      const cfg = Object.assign({}, RT_START_MIN_CONFIG.shinka, { ladder: 'cs' });
+      lab.開始(cfg);
+      yield* 段階ごとに(lab, { 何枚: 2, max: 800 });
+      yield 'ended';
     }
   }
 ];

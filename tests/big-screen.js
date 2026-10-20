@@ -435,6 +435,56 @@ const { createRunner, assert, assertEqual } = require('./harness');
     assertEqual(m.querySelectorAll('.tv-nm').length, 1, '二重に包まない');
   });
 
+  await r.test('64 見直し2：一枚看板の「数＋助数詞」だけを数字の段に（問題文・名前の数字は触らない）', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM('<div id="m"></div>');
+    const doc = dom.window.document;
+    const 包む = new Function('document', 'var BIG_COUNTERS = ' + JSON.stringify(
+      /var BIG_COUNTERS = '([^']+)'/.exec(html64)[1]) + ';\n' + 関数の字('bigWrapCounts') + '\nreturn bigWrapCounts;')(doc);
+    const m = doc.getElementById('m');
+    const 見る = (字, 前) => { m.innerHTML = ''; if (前) m.innerHTML = 前; else m.textContent = 字; 包む(m);
+      return { n: Array.from(m.querySelectorAll('.tv-n')).map((x) => x.textContent), u: Array.from(m.querySelectorAll('.tv-unit')).map((x) => x.textContent), t: m.textContent }; };
+    let r1 = 見る('3人 生きのこり');
+    assertEqual(r1.n.join('|') + '/' + r1.u.join('|'), '3/人', '「3人 生きのこり」は 3 が数字、人が助数詞');
+    assertEqual(r1.t, '3人 生きのこり', '字は変わらない');
+    r1 = 見る('🔨 25枚');
+    assertEqual(r1.n.join('|') + '/' + r1.u.join('|'), '25/枚', '「🔨 25枚」も包む');
+    r1 = 見る('0 / 5個');
+    assertEqual(r1.n.join('|'), '0 / 5', '「0 / 5個」は「0 / 5」を1つの数に');
+    // 分岐の反対側：数のすぐ後ろに助数詞が無い数字は包まない（落とし穴10-c）
+    assertEqual(見る('1年は何日？').n.length, 0, '問題文「1年は何日？」の数字は包まない');
+    assertEqual(見る('日本で2番目に高い山は？').n.length, 0, '「2番目」も包まない');
+    assertEqual(見る('', '<span class="tv-nm">kensho34</span> さんの番').n.length, 0, '名前の中の数字は包まない');
+    // escape をほどかない（落とし穴43）
+    m.textContent = '<img src=x>3人';
+    包む(m);
+    assertEqual(m.querySelectorAll('img').length, 0, '字が HTML にならない');
+  });
+
+  await r.test('64 見直し2：すごろくの決着の行は「あと◯」の1回だけ（距離を2回言わない）・共有の駒があがった回はコインで', async () => {
+    const 行 = 関数を取り出す('sugoRankRows', '');
+    const rows = 行({ cells: 40, coinsUsed: true, players: [
+      { id: 'a', rank: 1, name: 'ゆい', goaled: true, pos: 40, coins: 22 },
+      { id: 'b', rank: 2, name: 'まりこ', goaled: false, pos: 36, coins: 6 },
+      { id: 'c', rank: 3, name: 'そうた', goaled: false, pos: 40, coins: 9 }
+    ] });
+    assertEqual(rows.map((x) => x.main).join('|'), 'あがり|あと4|🪙9', '数：あがり／あと4／（あと0なら）コイン');
+    assertEqual(rows.map((x) => x.note).join('|'), '🪙22|🪙6|', '内訳はコインだけ（数に出したコインは言い直さない）');
+    assert(!rows.some((x) => /のこり|\/40/.test(String(x.main) + String(x.note))), '「のこり◯マス」「/40」を出さない');
+    const なし = 行({ cells: 30, coinsUsed: false, players: [{ id: 'a', rank: 2, name: 'あき', goaled: false, pos: 30, coins: null }] });
+    assertEqual(なし[0].main + '/' + なし[0].note, 'あと0/null', 'コインを使わないゲームで0の時は「あと0」・内訳なし');
+  });
+
+  await r.test('64 見直し2：対戦の一枚看板（bigVsHtml）は名前を escape し、名前を折らない箱に入れる', async () => {
+    const vs = 関数を取り出す('bigVsHtml', 'function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }\n');
+    const h = vs('<b>あ</b>', 'VS', 'ひろ');
+    assert(!/<b>/.test(h), '名前を escape する（' + h + '）');
+    assertEqual((h.match(/class="tv-nm"/g) || []).length, 2, '2人の名前を .tv-nm で包む');
+    assert(/class="vs-mid">VS</.test(h), '間の印（VS）');
+    // 対戦の一枚看板を「名前　VS　名前」の字のまま組む所が残っていない（5か所目を作ったら赤くなる）
+    assertEqual((html64.match(/'　VS　'|'　×　'/g) || []).length, 0, '「　VS　」「　×　」を字でつなぐ一枚看板が無い');
+  });
+
   await r.test('64：大画面の段階の札は、表（RT_PHASE_LABEL）を読むゲームの段階と両方向で合う（英語の段階名を出さない）', async () => {
     // 実物解除の大画面に「roles」「brief」「consent」が英語のまま出ていた（表に無い段階は生のidを出していた）。
     // **どのゲームがこの表を読むかを、手で並べない**（落とし穴4）：

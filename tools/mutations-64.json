@@ -9,12 +9,12 @@
     "expect": "待合に前の試合の順位表を残さない"
   },
   {
-    "name": "64-B 表彰台を5枚までにしない（1位が6人以上ならんでも C1 に切り替えない）",
+    "name": "64-B 表彰台を5枚までにしない（3位までのならびが多くても狭めない）",
     "file": "public/index.html",
     "suite": "tests/big-screen.js",
     "from": "      if(top.length && top.length <= BIG_PODIUM_MAX) return top;",
     "to": "      if(top.length) return top;",
-    "expect": "1位が6人以上ならんだら C1"
+    "expect": "3位のならびが多い時は2位まで"
   },
   {
     "name": "64-C 大画面の見始めを静かにしない（入り直すと終わった試合の祝いが流れる元の形）",

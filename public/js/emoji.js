@@ -165,6 +165,13 @@
       '<span class="emj-txt">' + seq + '</span></span>';
   }
 
+  // 字を HTML に入れる形にする（parse が文字の節点を組み直す時に使う）
+  function escText(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   // 文字列の中の絵文字をSVGに差し替える（HTMLを組み立てる側から使う）
   function html(text) {
     return String(text == null ? '' : text).replace(RE, spanHtml);
@@ -197,7 +204,10 @@
     }
     targets.forEach(function (t) {
       var span = d.createElement('span');
-      span.innerHTML = html(t.nodeValue);
+      // 指示64：**文字の節点の中身は、もう字そのもの**（escape がほどけた値）。
+      // そのまま innerHTML に戻すと、名前に書かれた HTML が動く——絵文字を含む行に名前が入るたびに
+      // （大画面の「⚖️ 決選投票：〈名前〉」で見つけた）。字を escape してから絵文字だけを差し替える
+      span.innerHTML = escText(t.nodeValue).replace(RE, spanHtml);
       t.parentNode.replaceChild(span, t);
       // 余計な入れ子を残さないよう、中身だけを移す
       while (span.firstChild) span.parentNode.insertBefore(span.firstChild, span);

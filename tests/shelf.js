@@ -1018,6 +1018,22 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  await r.test('64：絵文字の差し替えは、同じ行の字（名前）を HTML として動かさない', async () => {
+    // 文字の節点の中身は、もう escape がほどけた「字」。差し替えのために innerHTML へ戻すと、
+    // 名前に書いた HTML が動いた（大画面の「⚖️ 決選投票：〈名前〉」で見つけた。スマホの画面も同じ道を通る）
+    const { win, doc } = await launch();
+    const EmojiSvg = win.EmojiSvg;
+    const box = doc.createElement('div');
+    box.textContent = '⚖️ 決選投票：<img src=x data-xss=1>・びび & <b>';
+    doc.body.appendChild(box);
+    const 差し替えた = EmojiSvg.parse(box, doc);
+    assert(差し替えた > 0, '前提：絵文字の差し替えが走った');   // 型(b)：差し替えが走らなければ自明に通る
+    assertEqual(box.querySelectorAll('[data-xss], b').length, 0, '名前の HTML が要素にならない');
+    assert(/<img src=x data-xss=1>・びび & <b>/.test(box.textContent), '字はそのまま出る（' + box.textContent + '）');
+    assert(box.querySelector('.emj'), '絵文字は差し替わる');
+    win.close();
+  });
+
   await r.test('置いてあるSVGと一覧ファイルが食い違っていない', async () => {
     // 一覧を手で書くと、ファイルを足した時に更新し忘れる。
     // node tools/gen-emoji-list.js で作り直せる

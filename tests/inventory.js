@@ -129,8 +129,9 @@ const ROOM_EXIT_PATHS = [
   // 指示55-②：進化じゃんけん。出口は結果発表の1枚だけ（進行中の2枚には置かない）
   { id: 'shinka-result-leave', kind: 'leave', btn: 'rtShResultLeaveBtn', event: 'room:leave',
     label: '進化じゃんけん結果発表「← 部屋を出る」' },
-  { id: 'big-leave', kind: 'leave', btn: 'bigLeaveBtn', event: 'room:leave',
-    label: '大画面「← 部屋を出る」' },
+  // 指示64 D1：TVの画面からボタンを消し、⚙ の中（data-setact="leaveRoom"・settings-leave と同じ処理）へ移した
+  { id: 'big-leave', kind: 'leave', btn: null, event: 'room:leave',
+    label: '大画面→⚙→「部屋を出る」（data-setact="leaveRoom"。bigscreen の立場にも出す）' },
   { id: 'settings-leave', kind: 'leave', btn: null, event: 'room:leave',
     label: '設定→部屋→「部屋を出る」（data-setact="leaveRoom"）' },
   { id: 'settings-endgame-guest', kind: 'leave', btn: 'endGameBtn', event: 'room:leave',

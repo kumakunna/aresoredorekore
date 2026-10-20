@@ -250,7 +250,9 @@ const { createRunner, assert, assertEqual } = require('./harness');
     // わざと「あなた」を混ぜた変異が素通りした（落とし穴10-f）
     ['renderRtBig', 'renderRtBigFalsetrue', 'renderRtBigRcard', 'renderRtBigShinka', 'renderRtBigSugoroku',
       'renderRtBigQuiz', 'renderRtBigAuction',
-      'renderRtBigWordwolf', 'renderRtBigBomb', 'renderRtBigDefuse'].forEach((fn) => {
+      'renderRtBigWordwolf', 'renderRtBigBomb', 'renderRtBigDefuse',
+      // 指示64：待合（A3・B2）・名簿の1行・順位表・入場の知らせも、TVに字を組む
+      'renderBigLobby', 'bigRosterHtml', 'bigRuleCardsHtml', 'bigRowHtml', 'bigRankHtml', 'bigEntryShow'].forEach((fn) => {
       const a = html.indexOf('function ' + fn + '(');
       assert(a > 0, fn + ' が見つからない（名前が変わった？）');
       // 次の function まで
@@ -259,6 +261,106 @@ const { createRunner, assert, assertEqual } = require('./harness');
       if (本体.indexOf('あなた') !== -1) 描画.push(fn);
     });
     assertEqual(描画.join('・'), '', '大画面の描画が「あなた」を組み立てている');
+  });
+
+  // ===================== 指示64 =====================
+  const fs64 = require('fs');
+  const path64 = require('path');
+  const html64 = fs64.readFileSync(path64.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  /** index.html の中の関数を、その本文のまま取り出して動かす（実装の写しを書かない・落とし穴10-a） */
+  function 関数を取り出す(名前, 前置き) {
+    const a = html64.indexOf('function ' + 名前 + '(');
+    assert(a > 0, 名前 + ' が見つからない（名前が変わった？）');
+    const b = html64.indexOf('\n  }\n', a);
+    return new Function((前置き || '') + html64.slice(a, b + 4) + '\nreturn ' + 名前 + ';')();
+  }
+  function MODESを読む() {
+    const a = html64.indexOf('var MODES = [');
+    const b = html64.indexOf('\n  ];', a);
+    assert(a > 0 && b > a, 'MODES が見つからない');
+    return new Function('return ' + html64.slice(a + 'var MODES = '.length, b + 4))();
+  }
+
+  await r.test('64 B2：部屋で遊べるモードには、TVのルールの札がちょうど3枚ある（両方向）', async () => {
+    // 札は「遠くから一目で分かる」ための3つだけ。細かいことは手元のルール（MODES.bullets）に任せる。
+    // **部屋で遊べるモード ⇔ 札がある** を両方向で見る（落とし穴20）：
+    //   行き：遊べるのに札が無い → B2 の札の場所が空く
+    //   帰り：遊べないモード（手渡しだけ・隠しモード）に札がある → 誰も見ない文言が腐っていく（落とし穴33）
+    const MODES = MODESを読む();
+    const 部屋で遊べる = (m) => !m.hidden && !!m.game && !!GAME_DRIVERS[m.game];
+    const 足りない = [], 余り = [], 形 = [];
+    MODES.forEach((m) => {
+      if (部屋で遊べる(m) && !m.tv) 足りない.push(m.id);
+      if (!部屋で遊べる(m) && m.tv) 余り.push(m.id);
+      if (!m.tv) return;
+      if (!Array.isArray(m.tv) || m.tv.length !== 3) { 形.push(m.id + '：3枚でない'); return; }
+      m.tv.forEach((c, i) => {
+        const 字 = Array.from(String(c[1] || ''));
+        if (!c[0]) 形.push(m.id + '#' + i + '：絵が無い');
+        // 18字まで：TVの札1枚に、32px で2行に収まる長さ（実測は tools/big-census.js）
+        if (!字.length || 字.length > 18) 形.push(m.id + '#' + i + '：' + 字.length + '字（' + c[1] + '）');
+        if (/あなた|じぶん|自分/.test(c[1])) 形.push(m.id + '#' + i + '：二人称（' + c[1] + '）');
+        if (/[０-９]/.test(c[1])) 形.push(m.id + '#' + i + '：全角数字（' + c[1] + '）');
+      });
+    });
+    assert(MODES.filter(部屋で遊べる).length >= 20, '前提：部屋で遊べるモードが拾えている（' + MODES.filter(部屋で遊べる).length + '）');   // 型(b)
+    assertEqual(足りない.join('・'), '', '部屋で遊べるのに、TVの札が無いモード');
+    assertEqual(余り.join('・'), '', '部屋で遊べないのに、TVの札があるモード');
+    assertEqual(形.join(' ／ '), '', 'TVの札の形');
+  });
+
+  await r.test('64 C2：表彰台に乗る人の決まり（1位のならびは全員上へ・5枚まで・6人以上なら C1）', async () => {
+    const 台 = 関数を取り出す('bigPodiumRows', 'var BIG_PODIUM_MAX = 5;\n');
+    const 行 = (順位) => 順位.map((x, i) => ({ id: 'p' + i, rank: x }));
+    const 何人 = (順位) => { const t = 台(行(順位)); return t ? t.length : null; };
+    // ふつう：1〜3位の3枚
+    assertEqual(何人([1, 2, 3, 4, 5, 6]), 3, 'ふつうは1〜3位の3枚');
+    // 1位が2人ならぶ：2人とも上の段（3位も上の段に入る＝同着を割らない）
+    assertEqual(何人([1, 1, 3, 4, 5]), 3, '1位がならんでも、1〜3位までを上へ');
+    // 1位が4人：全員上の段（札を縮めて4枚）
+    assertEqual(何人([1, 1, 1, 1, 5, 6]), 4, '1位が4人ならんだら4枚');
+    assertEqual(何人([1, 1, 1, 1, 1, 6]), 5, '1位が5人ならんだら5枚');
+    // 1位が6人以上：C1（上の段を作らない）
+    assertEqual(何人([1, 1, 1, 1, 1, 1, 7]), null, '1位が6人以上ならんだら C1');
+    // 3位までで5人を超える時は、同着を割らずに2位までに狭める
+    assertEqual(何人([1, 2, 3, 3, 3, 3, 7]), 2, '3位のならびが多い時は2位まで（同着を上と下に割らない）');
+    assertEqual(何人([1, 2, 3, 3, 3, 6]), 5, '3位までで5人なら5枚');
+    // 記録なし（rank null）だけ・人が少ない
+    assertEqual(何人([null, null]), null, '全員が記録なしなら表彰台は作らない');
+    assertEqual(何人([1, 2]), 2, '2人なら2枚');
+    // **割らない**：上の段に入った順位は、下の段に1人も残らない
+    const ならび = 行([1, 2, 2, 2, 5, 6, 7]);
+    const 上 = 台(ならび);
+    const 上の順位 = 上.map((x) => x.rank);
+    ならび.filter((x) => 上.indexOf(x) === -1).forEach((x) => {
+      assert(上の順位.indexOf(x.rank) === -1, x.rank + '位が上と下に割れている');
+    });
+  });
+
+  await r.test('64 C2：順位表の置き方（C2／C1・下の段の列の数）', async () => {
+    const 前置き = 'var BIG_PODIUM_MAX = 5;\n' +
+      'function rankingHtml(rows){ return "<div class=\\"rk-view\\"><div class=\\"rk-list\\">" + rows.map(function(r){ return "<div class=\\"rk-row\\"></div>"; }).join("") + "</div></div>"; }\n' +
+      html64.slice(html64.indexOf('function bigPodiumRows('), html64.indexOf('\n  }\n', html64.indexOf('function bigPodiumRows(')) + 4) + '\n';
+    const 表 = 関数を取り出す('bigRankHtml', 前置き);
+    const 行 = (順位) => 順位.map((x, i) => ({ id: 'p' + i, rank: x, name: 'n' + i }));
+    const c2 = 表(行([1, 2, 3, 4, 5, 6, 7, 8]));
+    assert(/data-shape="c2"/.test(c2) && /--rk-pod:3/.test(c2), '8人：表彰台3枚の C2（' + c2.slice(0, 80) + '）');
+    assert(/data-cols="2"/.test(c2), '8人：下の段は2列');
+    const 十六 = 表(行(Array.from({ length: 16 }, (_, i) => i + 1)));
+    assert(/data-cols="3"/.test(十六) && /--rk-rows:5/.test(十六), '16人：下の13人は3列×5段（' + 十六.slice(0, 120) + '）');
+    const c1 = 表(行([1, 1, 1, 1, 1, 1, 1, 1]));
+    assert(/data-shape="c1"/.test(c1) && /--rk-rows:4/.test(c1) && !/rk-podium/.test(c1), '1位が8人ならぶ：C1 の2列×4段');
+    const 二十 = 表(行(Array.from({ length: 20 }, () => 1)));
+    assert(/data-cols="3"/.test(二十), '20人が全員ならぶ：C1 を3列に');
+  });
+
+  await r.test('64：TVに「タップで…」を出さない（TVは無人で回す）', async () => {
+    const css = html64.slice(html64.indexOf('<style>'), html64.indexOf('</style>')).replace(/\s+/g, ' ');
+    assert(/:root\.big-screen \.fx-banner-skip, :root\.big-screen \.fx-banner-skip\.is-always\{display:none;\}/.test(css),
+      ':root.big-screen で「タップでとばす／タップで結果へ」を消す規則がある');
+    // 打ち消しより後ろにあること（スキップ設定の人の is-always より強い）
+    assert(css.indexOf(':root.big-screen .fx-banner-skip') > css.indexOf(':root.fx-skip .fx-banner-skip.is-always{display:block;}'),
+      'スキップ設定の is-always より後ろで消している');
   });
 
   r.finish();

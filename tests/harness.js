@@ -772,8 +772,13 @@ function createRunner(title) {
   // 速さを直す時、まず「どこが遅いか」を測る。勘で縮めると、
   // 遊びの数字の方を歪めたくなる（落とし穴24）
   const 計測 = !!process.env.ACAC_TIME;
+  // 直している途中に、名前に含む検査だけを回す（指示64）。**npm test は付けない**——
+  // 付けると走った件数が減り、tools/run-tests.js の「件数がそろう」で赤くなる（落とし穴32：走らせていないは不明）
+  //   ACAC_ONLY='⑥' node tests/clear-fx.js
+  const だけ = process.env.ACAC_ONLY || '';
   return {
     async test(name, fn) {
+      if (だけ && String(name).indexOf(だけ) === -1) return;
       const t0 = Date.now();
       try {
         await fn();

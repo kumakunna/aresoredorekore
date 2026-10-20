@@ -1,0 +1,161 @@
+[
+  {
+    "name": "64-A 待合の枝で片付けない（前の試合の順位表・盤・色が待合に残る元の形）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "前の試合の順位表",
+    "from": "    bigClearSlots();",
+    "to": "    if(!待合) bigClearSlots();",
+    "expect": "待合に前の試合の順位表を残さない"
+  },
+  {
+    "name": "64-B 1位が6人以上ならんでも表彰台を作る（C1 に切り替えない）",
+    "file": "public/index.html",
+    "suite": "tests/big-screen.js",
+    "from": "    if(!一位 || 一位 > BIG_PODIUM_MAX) return null;",
+    "to": "    if(!一位) return null;",
+    "expect": "1位が6人以上ならんだら C1"
+  },
+  {
+    "name": "64-C 大画面の見始めを静かにしない（入り直すと終わった試合の祝いが流れる元の形）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "only": "⑥",
+    "from": "    return cur === 'scr-rt-big' && rtIsBigScreen() && !rtBig.looked;",
+    "to": "    return false;",
+    "expect": "入り直した大画面に、終わった試合の見せ場が出ない"
+  },
+  {
+    "name": "64-D rtBigFx が見始めで return して札を付けない（爆発・解除成功が2枚目で出る元の形）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "only": "⑥ bomb",
+    "from": "      if(!rtOnceQuiet) return;",
+    "to": "      return;",
+    "expect": "入り直した大画面に、終わった試合の見せ場が出ない"
+  },
+  {
+    "name": "64-E 見始めの1枚でも演出を出す（札だけ付ける門を外す）",
+    "file": "public/index.html",
+    "suite": "tests/clear-fx.js",
+    "only": "⑥ auction",
+    "from": "    if(rtOnceQuiet) return false;\n    try{ 出す(); }catch(e){}\n    return true;\n  }\n  /**",
+    "to": "    try{ 出す(); }catch(e){}\n    return true;\n  }\n  /**",
+    "expect": "入り直した大画面に、終わった試合の見せ場が出ない"
+  },
+  {
+    "name": "64-F 入場の知らせを2つまでにしない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "64 E1",
+    "from": "    while(box.children.length > BIG_ENTRY_MAX) box.removeChild(box.firstChild);",
+    "to": "",
+    "expect": "知らせは2つまで"
+  },
+  {
+    "name": "64-G 遊んでいる間に入った人を覚えない（待合にもどった瞬間にまとめて流れる元の形）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "64 E1",
+    "from": "    rtBig.members = ids;",
+    "to": "    if(待合) rtBig.members = ids;",
+    "expect": "遊んでいる間に入った人を、待合にもどった瞬間にまとめて流さない"
+  },
+  {
+    "name": "64-H TVに「タップでとばす」を出す（消す規則を外す）",
+    "file": "public/index.html",
+    "suite": "tests/big-screen.js",
+    "from": "  :root.big-screen .fx-banner-skip.is-always{display:none;}",
+    "to": "  :root.big-screen .fx-banner-skip-x{display:none;}",
+    "expect": "TVに「タップで…」を出さない"
+  },
+  {
+    "name": "64-I ⚙ の「プレイヤーにもどる」に確認を入れない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "⚙の中・確認つき",
+    "from": "      if(!await rtConfirmLeaveBig()) return;",
+    "to": "",
+    "expect": "キャンセルでは何も送らない"
+  },
+  {
+    "name": "64-J 大画面の ⚙ に「部屋を出る」を出さない（出口がボタンごと消えた元の形）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "大画面の先頭は",
+    "from": "      when:ctxIs('roomGuest', 'bigscreen'), sub:'ゲームはほかの人たちで続きます' }",
+    "to": "      when:ctxIs('roomGuest'), sub:'ゲームはほかの人たちで続きます' }",
+    "expect": "大画面は3つ"
+  },
+  {
+    "name": "64-K 決選投票の候補を escape しない（名前の HTML が TV で動く元の形）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "escape してから組む",
+    "from": "        sub += '<br>⚖️ 決選投票：' + escapeHtml(bro.candidates.join('・'));",
+    "to": "        sub += '<br>⚖️ 決選投票：' + bro.candidates.join('・');",
+    "expect": "名前の HTML が動かない"
+  },
+  {
+    "name": "64-L 絵文字の差し替えが字をそのまま innerHTML に戻す（元の形）",
+    "file": "public/js/emoji.js",
+    "suite": "tests/shelf.js",
+    "only": "64：絵文字の差し替え",
+    "from": "      span.innerHTML = escText(t.nodeValue).replace(RE, spanHtml);",
+    "to": "      span.innerHTML = html(t.nodeValue);",
+    "expect": "名前の HTML が要素にならない"
+  },
+  {
+    "name": "64-M 称号の知らせの置き場を測らない（下の帯に重なる元の形）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "64 4.",
+    "from": "    placeTitleToast();",
+    "to": "",
+    "expect": "🎁 の上端（700）より上に置く"
+  },
+  {
+    "name": "64-N 9人以上でも名簿に二つ名を出す",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "64 A3",
+    "from": "    var 二つ名も = players.length <= BIG_TITLES_UPTO;",
+    "to": "    var 二つ名も = true;",
+    "expect": "9人からは名前だけ"
+  },
+  {
+    "name": "64-O 待合の名簿に準備の印を出さない",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "37：大画面にもルールと準備の数",
+    "from": "        (o.ready ? '<span class=\"bl-mark\">' + (m.ready ? '✓' : '…') + '</span>' : '') +",
+    "to": "",
+    "expect": "準備できた2人に ✓"
+  },
+  {
+    "name": "64-P 順位表が出ていても一枚看板に1位の名前を出す",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "前の試合の順位表",
+    "from": "      if(el(\"bigRank\").querySelector(\".rk-tv\")) m.textContent = \"\";",
+    "to": "",
+    "expect": "一枚看板に1位の名前を重ねない"
+  },
+  {
+    "name": "64-Q 骨組みに高さの上限を置かない（min-height だけで中身が伸ばす元の形・落とし穴37）",
+    "file": "public/index.html",
+    "suite": "tests/rt-screens.js",
+    "only": "64：TVの置き方の規則",
+    "from": "      height:100vh;height:100dvh;min-height:0;overflow:hidden;",
+    "to": "      min-height:100dvh;",
+    "expect": "骨組みは画面の高さちょうどで、巻かない"
+  },
+  {
+    "name": "64-R TVのルールの札を1モードぶん消す",
+    "file": "public/index.html",
+    "suite": "tests/big-screen.js",
+    "from": "      tv:[[\"🔮\",\"占い師は夜に1人を占う\"], [\"🛡️\",\"騎士は夜に1人を守る\"], [\"🕯️\",\"霊媒師は処刑された人の正体を知る\"]],\n",
+    "to": "",
+    "expect": "部屋で遊べるのに、TVの札が無いモード"
+  }
+]

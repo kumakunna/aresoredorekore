@@ -215,6 +215,8 @@ function defuseView(over) {
   return Object.assign({
     phase: 'play', mode: 'normal', manual: true,
     strikesLeft: 3, strikesMax: 3, timerSec: 0, remainingMs: null,
+    // 本物の進行役（defuse-room.js の publicView）は、のこりミスを共通のものとしていつも送る（指示64：検体を本物に合わせた）
+    shared: { lives: 3, livesMax: 3 },
     players: [
       { id: 'm1', name: 'あき', connected: true, role: 'defuser', working: null, done: true },
       { id: 'm2', name: 'びび', connected: true, role: 'manual', working: null, done: true }
@@ -651,15 +653,19 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
         phase: 'ended',
         result: {
           winner: 'village', reason: null, teruteruWin: false,
-          roles: [{ name: 'あき', role: 'wolf', roleName: '人狼', alive: false },
-                  { name: 'びび', role: 'seer', roleName: '占い師', alive: true }],
+          // 指示64：本物の進行役（wolf-room.js）は id も添える。札に役職を載せるのに使う
+          roles: [{ id: 'm1', name: 'あき', role: 'wolf', roleName: '人狼', alive: false },
+                  { id: 'm2', name: 'びび', role: 'seer', roleName: '占い師', alive: true }],
           scores: {}
         }
       }) }
     }));
     await sleep(win, 100);
     assert(/村人陣営の勝ち/.test(el(doc, 'bigMain').textContent), '勝った陣営が出る');
-    assert(/人狼/.test(el(doc, 'bigSub').textContent), '決着したので役職が出る');
+    // 指示64：役職は**その人の札**に出る（それまで添え書きに16人ぶんを1行で並べていた）
+    const あきの札 = doc.querySelector('#bigList .bl-card[data-pid="m1"]');
+    assert(あきの札 && /人狼/.test(あきの札.textContent), '決着したので、その人の札に役職が出る');
+    assert(/占い師/.test(doc.querySelector('#bigList .bl-card[data-pid="m2"]').textContent), 'ほかの人の札にも出る');
     assertNoErrors(errors, '大画面で未捕捉の例外');
     win.close();
   });
@@ -761,18 +767,36 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('大画面にしても、プレイヤーに戻る道が常に出ている', async () => {
-    // 実機で「参加者が大画面を選ぶと、部屋を抜ける以外に戻る手段が無い」状態だった
+  await r.test('大画面にしても、プレイヤーに戻る道が常にある（⚙の中・確認つき）', async () => {
+    // 実機で「参加者が大画面を選ぶと、部屋を抜ける以外に戻る手段が無い」状態だった。
+    // 指示64 D1：TVの画面からボタンを消し、**右上の ⚙ の中へ**移した（会場の人が見るものだけを出す）
     const { win, doc } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面になっている');
-    const back = el(doc, 'bigToPlayerBtn');
-    assert(back && back.offsetParent !== null || back, 'プレイヤーに戻るボタンが出ている');
+    assert(el(doc, 'floatingGearBtn').style.display !== 'none', '大画面にも ⚙ が出ている');
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    const row = doc.querySelector('#setQuickMenu [data-setact="toPlayer"]');
+    assert(row, '⚙ の中に「プレイヤーにもどる」がある');
 
-    // 押すとプレイヤーに戻れる
+    // **確認なしでは戻らない**（指示63 2-1。⚙ の道にだけ確認が無い、を作らない・落とし穴1）
     fake.replies['room:setRole'] = () => ({ ok: true, role: 'player', room: roomSnapshot() });
-    autoDialog(win, doc, true);   // 指示63 2-1：大画面をやめる前に確認が出る（「やめる」を選ぶ）
-    click(doc, 'bigToPlayerBtn');
+    // 大画面になる時にも room:setRole を送っているので、ここから先の分だけを数える
+    const 前の数 = fake.emits.filter(e => e.name === 'room:setRole').length;
+    const 止める = autoDialog(win, doc, false);   // 「キャンセル」
+    click(doc, row);
+    await sleep(win, 150);
+    止める();
+    assertEqual(activeScreen(doc), 'scr-rt-big', 'キャンセルしたら大画面のまま');
+    assertEqual(fake.emits.filter(e => e.name === 'room:setRole').length - 前の数, 0, 'キャンセルでは何も送らない');
+    await sleep(win, 300);   // 閉じる動きが済むのを待つ（同じパネルに二度答えない）
+
+    autoDialog(win, doc, true);    // 「やめる」
+    if(!doc.querySelector('#setQuickMenu [data-setact="toPlayer"]')){
+      click(doc, 'floatingGearBtn');
+      await sleep(win, 100);
+    }
+    click(doc, doc.querySelector('#setQuickMenu [data-setact="toPlayer"]'));
     await waitScreen(win, doc, 'scr-rt-room', 3000);
     const last = fake.emits.filter(e => e.name === 'room:setRole').pop();
     assertEqual(last.payload.role, 'player', 'プレイヤーに戻す');
@@ -787,18 +811,26 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 「渡してから切り替える」ことで消える。守るものは2つに分かれた：
     //   ・大画面には必ず出口（🙋 プレイヤーにもどる）がある
     //   ・大画面は次のゲームを選ばない（進行役＝プレイヤー端末が選ぶのを待つ）
+    //
+    // 指示64 D1：**TVの画面には押すものを1つも置かない**（会場の人が見るものだけ）。
+    // それまで画面に出ていたいちばん強いボタンが「プレイヤーにもどる」だった。
+    // 出口は ⚙ の中（上の検査）。ゲームをえらぶ・はじめる・部屋をとじるは、
+    // 47-2 から一度も出ていなかったので、ボタンごと消した
     const { win, doc, errors } = await launch(LAUNCH);
     await toRoom(win, doc, { role: 'bigscreen', pick: false });
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面になっている');
 
-    assertEqual(el(doc, 'bigPickGameBtn').style.display, 'none',
-      '大画面から次のゲームは選ばない');
-    assertEqual(el(doc, 'bigStartBtn').style.display, 'none', '大画面から始めない');
-    assertEqual(el(doc, 'bigEndBtn').style.display, 'none', '大画面から部屋を閉じない');
-
-    // **出口はある。**押せば戻れる（行き止まりにしない）
-    const 出口 = el(doc, 'bigToPlayerBtn');
-    assert(出口 && 出口.getClientRects, 'プレイヤーにもどる出口がある');
+    const 押すもの = el(doc, 'scr-rt-big').querySelectorAll('button, [role="button"], a[href]');
+    assertEqual(押すもの.length, 0, 'TVの画面に押すものが無い（実際:' +
+      Array.from(押すもの).map((b) => b.id || b.textContent.trim()).join('／') + '）');
+    ['bigPickGameBtn', 'bigStartBtn', 'bigEndBtn', 'bigToPlayerBtn', 'bigLeaveBtn'].forEach((id) => {
+      assert(!doc.getElementById(id), id + ' は消した（幽霊を残さない）');
+    });
+    // **出口はある**（行き止まりにしない）。⚙ の中に、もどる・出るの2つ
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 100);
+    assert(doc.querySelector('#setQuickMenu [data-setact="toPlayer"]'), 'プレイヤーにもどる出口がある');
+    assert(doc.querySelector('#setQuickMenu [data-setact="leaveRoom"]'), '部屋を出る出口がある');
     assertNoErrors(errors, '大画面で未捕捉の例外');
     win.close();
   });
@@ -2466,8 +2498,15 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
     assertEqual(el(doc, 'bigMain').textContent, '1 / 3個', '進み具合が大きく出る');
-    assert(/❤️❤️❤️/.test(el(doc, 'bigSub').textContent), 'のこりミスが出る');
-    assert(/あきが「傾け迷路」に挑戦中/.test(el(doc, 'bigSub').textContent), '誰が何に挑んでいるか出る');
+    // 指示64・正本 §11-1：**のこりミスは上の帯に1つだけ**（それまで添え書きにも同じハートを並べていた）
+    assertEqual(el(doc, 'bigStatus').hidden, false, '共通のものの帯が出る');
+    assert(/❤️/.test(el(doc, 'bigLives').textContent), 'のこりミスは帯に出る');
+    assert(!/❤️/.test(el(doc, 'bigSub').textContent), '添え書きに同じハートを重ねない');
+    // 誰が何に挑んでいるかは、**そのモジュールの行に添える**（20人の部屋で添え書きが6〜7行になっていた）
+    const 迷路 = [...doc.querySelectorAll('#bigList .bl-item')].find((x) => /傾け迷路/.test(x.textContent));
+    assert(迷路, '傾け迷路の行がある');
+    assert(/あきが挑戦中/.test((迷路.querySelector('.bl-sub') || {}).textContent || ''),
+      '誰が挑んでいるかが、そのモジュールの行に出る（' + 迷路.textContent + '）');
     assert(/面認証/.test(el(doc, 'bigList').textContent), 'モジュール名は出る');
     // 中身（対応表・記号・迷路の地図）は大画面に出さない
     const big = el(doc, 'scr-rt-big').textContent;
@@ -2770,7 +2809,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
     assert(/◻/.test(el(doc, 'bigMain').textContent), '開き具合がそのまま出る');
     assert(/2 \/ 5問/.test(el(doc, 'bigSub').textContent), '何問目かが出る');
-    assert(/あき 5/.test(el(doc, 'bigList').textContent), '得点が出る');
+    // 指示64：名簿は「顔・名前・数」を分けた1行（それまで「あき 5」と1本の文字列だった）
+    const あき = [...doc.querySelectorAll('#bigList .bl-item')].find((x) => /あき/.test(x.textContent));
+    assert(あき && あき.querySelector('.bl-name') && /あき/.test(あき.querySelector('.bl-name').textContent), '名前の欄がある');
+    assertEqual((あき.querySelector('.bl-v') || {}).textContent, '5', '得点が数字の欄に出る');
     assertNoErrors(errors, '大画面で未捕捉の例外');
     win.close();
   });
@@ -4116,7 +4158,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('設定：大画面の先頭は「音を消す・プレイヤーにもどる」の2つ', async () => {
+  await r.test('設定：大画面の先頭は「音を消す・プレイヤーにもどる・部屋を出る」の3つ', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
     push(fake, roomSnapshot({
@@ -4128,9 +4170,11 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     click(doc, 'floatingGearBtn');
     await sleep(win, 100);
     const rows = quickRows(doc);
-    assertEqual(rows.length, 2, '大画面は2つ（' + rows.map((x) => x[0]).join('／') + '）');
+    // 指示64 D1：TVの画面から出口のボタンを消したので、「部屋を出る」もここへ来た
+    assertEqual(rows.length, 3, '大画面は3つ（' + rows.map((x) => x[0]).join('／') + '）');
     assertEqual(rows[0][1], 'muteAll', '1つ目は音を消す');
     assertEqual(rows[1][1], 'toPlayer', '2つ目はプレイヤーにもどる');
+    assertEqual(rows[2][1], 'leaveRoom', '3つ目は部屋を出る（こわれやすい方を後ろに）');
     // 第48弾 48-5：**大画面にポーズは出さない**（47-2：大画面から操作する道を作らない）。
     // 一覧に並べていないからではなく、setContext が最優先で 'bigscreen' を返すので
     // 構造的に出ない——除外の一覧を持たなくてよい（落とし穴4）
@@ -5684,11 +5728,21 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
     }));
     await waitScreen(win, doc, 'scr-rt-big', 4000);
+    // 指示64 B2：TVのルールは**3枚の札**（遠くから一目で分かる大きさ。細かいことは手元のルール）
+    assertEqual(el(doc, 'scr-rt-big').dataset.big, 'b', 'ゲームが決まったあとの待合の置き方');
     const box = el(doc, 'bigRules');
     assertEqual(box.style.display, '', 'ルールの箱が出る');
-    assert(/人狼/.test(box.textContent), '何を遊ぶかが出る');
-    assert(/準備できた人/.test(box.textContent), '準備できた人の見出しが出る');
-    assert(box.querySelectorAll('.rules-ol li').length > 0, 'ルールが読める');
+    assertEqual(box.querySelectorAll('.big-card').length, 3, 'ルールは3枚の札');
+    assert(/人狼/.test(el(doc, 'bigHead').textContent), '何を遊ぶかが出る');
+    // 準備OKの数と、まだの人（手元の待合と同じ言い方）
+    const ready = el(doc, 'bigReady').textContent;
+    // 大画面（m5）は数えない：遊ぶのは m1〜m4 の4人で、そのうち2人が準備OK
+    assert(/準備OK\s*2\s*\/\s*4/.test(ready), '準備OKの数が出る（' + ready + '）');
+    assert(/さんを待っています|人を待っています/.test(ready), 'まだの人を待っていると出る（' + ready + '）');
+    // 名簿：準備できた人に ✓、まだの人に …（色だけに頼らない）
+    const 印 = [...doc.querySelectorAll('#bigList .bl-item')].map((x) => (x.querySelector('.bl-mark') || {}).textContent);
+    assertEqual(印.filter((x) => x === '✓').length, 2, '準備できた2人に ✓');
+    assert(印.filter((x) => x === '…').length >= 2, 'まだの人に …');
     // 大画面の人は、押す相手に数えない（サーバー側の数え方と同じ）
     assert(!doc.getElementById('rtRulesOkBtn').offsetParent === false || true, '');
     assertNoErrors(errors, '大画面のルールで未捕捉の例外');
@@ -6126,9 +6180,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
         try { t.win.goToScreen(id); await sleep(t.win, 8); }
         catch (e) { 投げた.push(id); continue; }
         const g = t.doc.getElementById('floatingGearBtn');
+        // 指示64 D1：大画面の出口は ⚙ の中だけになった（TVの画面にはボタンを置かない）
         const ある = (g && g.style.display !== 'none')
-          || !!t.doc.querySelector('#' + id + ' [data-way="toPlayer"]')
-          || !!t.doc.querySelector('#' + id + ' #bigToPlayerBtn');
+          || !!t.doc.querySelector('#' + id + ' [data-way="toPlayer"]');
         if (!ある) 出口なし.push(id);
       }
       t.win.close();
@@ -6284,41 +6338,226 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, bigRoom({ state: { phase: 'lobby', game: null, data: {} } }));
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま（役割が落ちていない）');
-    const rules = el(doc, 'bigRules');
-    assertEqual(rules.style.display, '', '待機の表示は出ている');
-    assert(/まだゲームが決まっていません/.test(rules.textContent),
-      '決まっていないことが分かる（' + rules.textContent.slice(0, 40) + '）');
+    // 指示64 A3：ゲームが決まる前は、QRがいちばん大きい置き方
+    assertEqual(el(doc, 'scr-rt-big').dataset.big, 'a', 'ゲームが決まる前の待合の置き方');
+    const head = el(doc, 'bigHead');
+    assert(/まだゲームが決まっていません/.test(head.textContent),
+      '決まっていないことが分かる（' + head.textContent.slice(0, 40) + '）');
+    assertEqual(el(doc, 'bigRules').style.display, 'none', 'ルールの札は出さない（まだ決まっていない）');
     // **選択中の中身は映さない。**カセット名・モード名が漏れていないこと
-    assert(!/クイズ解除|人狼|オークション/.test(rules.textContent),
-      '選んでいる最中のものは映さない（' + rules.textContent.slice(0, 40) + '）');
+    const tv = el(doc, 'scr-rt-big').textContent;
+    assert(!/クイズ解除|人狼|オークション/.test(tv),
+      '選んでいる最中のものは映さない（' + tv.slice(0, 60) + '）');
     assertNoErrors(errors, '待機表示で未捕捉の例外');
     win.close();
   });
 
-  await r.test('47-4：横幅を使う配置の規則が、CSSに残っている（機械照合）', async () => {
-    // 実ブラウザの実測（1280×800）で確かめたのは次の3つ。
-    // ここは**その規則が消えていないか**を見る番人（実測はコミットの記録に残す）：
-    //   ・待合：はみ出し 412px → 0（左に部屋コードとQR・右にルール）
-    //   ・設定の重なり：幅 460 → 1000／高さ 1155 → 744（行が2列）
-    //   ・結果発表：もともと横幅を使えていた（はみ出し0）ので触っていない
+  // ===================== 指示64：大画面（TV） =====================
+  // 部屋の名簿を n 人にする（m1 は大画面・m2 が進行役）。姿（アイコン・二つ名）も付ける
+  const 名前64 = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん', 'はな', 'いと', 'うみ', 'えだ', 'みお', 'そら', 'りく', 'なな', 'kensho34', 'あいうえおか'];
+  function tvRoom64(n, over) {
+    const base = bigRoom(over);
+    const members = [base.members.find((m) => m.id === 'm1')];
+    for (let i = 2; i <= n + 1; i++) {
+      members.push({ id: 'm' + i, name: 名前64[i - 1], role: 'player', connected: true, isHost: i === 2,
+        ready: !!(over && over.readyAll), icon: '🎈', title: 名前64[i - 1] + 'の二つ名' });
+    }
+    base.members = members;
+    base.playerCount = n; base.memberCount = n + 1;
+    const players = members.filter((m) => m.role === 'player');
+    base.ready = { count: players.filter((m) => m.ready).length, total: players.length,
+      waitingNames: players.filter((m) => !m.ready).map((m) => m.name), all: players.every((m) => m.ready) };
+    return base;
+  }
+
+  await r.test('64 E1：入ってきた人は小さな知らせで（2つまで・幕を出さない・遊んでいる間に入った人は知らせない）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    const 待合 = (n) => tvRoom64(n, { state: { phase: 'lobby', game: null, data: {} } });
+    push(fake, 待合(4));
+    await sleep(win, 120);
+    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
+    assertEqual(el(doc, 'scr-rt-big').dataset.big, 'a', 'A3 の置き方');
+    let 幕 = 0;
+    const mo = new win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => {
+      if (n.classList && (n.classList.contains('fx-banner') || n.classList.contains('fx-shutter'))) 幕++;
+    })));
+    mo.observe(doc.body, { childList: true, subtree: true });
+    const 知らせ = () => Array.from(doc.querySelectorAll('#bigEntry .be-item')).map((x) => x.textContent);
+    assertEqual(知らせ().length, 0, '見始めた時にいた人は知らせない');
+
+    push(fake, 待合(5));   // m6（ふう）が入る
+    await sleep(win, 80);
+    assertEqual(知らせ().length, 1, '1人入ったら、知らせが1つ');
+    assert(/ふう/.test(知らせ()[0]) && /さんが入りました/.test(知らせ()[0]), '誰が入ったかが分かる（' + 知らせ()[0] + '）');
+    // **QRの柱の外**に出る（QRは会場の人が読む入口・B5）
+    assert(!el(doc, 'bigCodeCol').contains(el(doc, 'bigEntry')), '知らせはQRの柱の中に出ない');
+
+    push(fake, 待合(8));   // 3人まとめて入る
+    await sleep(win, 80);
+    assertEqual(知らせ().length, 2, '知らせは2つまで（' + 知らせ().join('／') + '）');
+    assert(/あいうえおか|はな/.test(知らせ().join('')) || /はな/.test(知らせ()[1]), '新しい方が残る（' + 知らせ().join('／') + '）');
+    assertEqual(幕, 0, '画面全体の幕は出さない（QRを覆わない）');
+
+    // 遊んでいる間に入った人（m10）は、待合にもどっても知らせない
+    const 遊ぶ = tvRoom64(9, { state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) } });
+    push(fake, 遊ぶ);
+    await sleep(win, 80);
+    assertEqual(知らせ().length, 0, '始まったら、待合の知らせは残さない');
+    push(fake, 待合(9));
+    await sleep(win, 80);
+    assertEqual(知らせ().length, 0, '遊んでいる間に入った人を、待合にもどった瞬間にまとめて流さない');
+    mo.disconnect();
+    assertNoErrors(errors, '入場の知らせで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('64 A3：8人以下は名簿に二つ名も出す。9人からは名前だけ', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    push(fake, tvRoom64(8, { state: { phase: 'lobby', game: null, data: {} } }));
+    await sleep(win, 100);
+    const 二つ名 = () => doc.querySelectorAll('#bigList .bl-item .bl-title').length;
+    assertEqual(doc.querySelectorAll('#bigList .bl-item').length, 8, '8人の札（大画面は数えない）');
+    assertEqual(二つ名(), 8, '8人なら二つ名も出す');
+    assert(/8/.test(el(doc, 'bigReady').textContent), '何人来たかが出る（' + el(doc, 'bigReady').textContent + '）');
+    push(fake, tvRoom64(9, { state: { phase: 'lobby', game: null, data: {} } }));
+    await sleep(win, 100);
+    assertEqual(二つ名(), 0, '9人からは名前だけ（28px に収めるため）');
+    assertNoErrors(errors, 'A3 の名簿で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('64 C2：大画面の順位表は表彰台と下の段。1位がならんだら全員上の段（6人以上で C1）', async () => {
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    const 出す = async (点) => {
+      const room = tvRoom64(点.length, { readyAll: true });
+      const players = room.members.filter((m) => m.role === 'player')
+        .map((m, i) => ({ id: m.id, name: m.name, connected: true, score: 点[i] }));
+      room.state = { phase: 'play', game: 'quizrush', data: quizView('quizrush', {
+        players, rush: { round: 1, roundsToWin: 0, roundResult: null,
+          board: players.map((p) => ({ id: p.id, name: p.name, score: p.score, wins: 0, answered: 1, hits: 1, tier: 'easy' })) } }) };
+      push(fake, room);
+      await sleep(win, 100);
+      const tv = doc.querySelector('#bigRank .rk-tv');
+      return { 形: tv && tv.dataset.shape, 上: doc.querySelectorAll('#bigRank .rk-podium .rk-row').length,
+        下: doc.querySelectorAll('#bigRank .rk-rest .rk-row').length, 全: doc.querySelectorAll('#bigRank .rk-row').length,
+        上の名: Array.from(doc.querySelectorAll('#bigRank .rk-podium .rk-name')).map((x) => x.textContent) };
+    };
+    let x = await 出す([9, 7, 5, 3, 1, 0, 0, 0]);
+    assertEqual(x.形, 'c2', 'ふつうは C2');
+    assertEqual(x.上, 3, '上の段は1〜3位の3枚');
+    assertEqual(x.全, 8, '最下位まで全員の行がある');
+    x = await 出す([9, 9, 9, 9, 5, 1, 0, 0]);
+    assertEqual(x.上, 4, '1位が4人ならんだら、4人とも上の段（' + x.上の名.join('・') + '）');
+    x = await 出す([9, 9, 9, 9, 9, 9, 1, 0]);
+    assertEqual(x.形, 'c1', '1位が6人以上ならんだら C1');
+    assertEqual(x.上, 0, 'C1 には表彰台を作らない');
+    assertEqual(x.全, 8, 'C1 でも最下位まで全員');
+    x = await 出す(Array.from({ length: 16 }, (_, i) => 32 - i * 2));
+    assertEqual(x.全, 16, '16人でも最下位まで行がある');
+    assertEqual(x.上 + x.下, 16, '上の段と下の段で全員');
+    assertNoErrors(errors, 'C2 で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('64：試合が終わって待合にもどると、前の試合の順位表・盤・色が残らない。決着の順位表では一枚看板を空ける', async () => {
+    // 第38弾の「毎描画で一度ぜんぶ隠す」は、待合の枝がその前で return していたので効いていなかった。
+    // 16人のクイズのあと、待合の下に前の順位表が居座って 2242px 巻いた（指示64 着手前の実測）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    const room = tvRoom64(4, { readyAll: true });
+    const players = room.members.filter((m) => m.role === 'player').map((m, i) => ({ id: m.id, name: m.name, connected: true, score: 9 - i * 2 }));
+    room.state = { phase: 'ended', game: 'quizrush', data: quizView('quizrush', { phase: 'ended', players,
+      result: { variant: 'quizrush', ranking: players.map((p, i) => ({ id: p.id, name: p.name, score: p.score, rank: i + 1 })) } }) };
+    push(fake, room);
+    await sleep(win, 120);
+    assert(doc.querySelectorAll('#bigRank .rk-row').length === 4, '前提：決着の順位表が出ている');   // 型(b)
+    assertEqual(el(doc, 'bigMain').textContent, '', '順位表が出ている時は、一枚看板に1位の名前を重ねない（主役は順位表）');
+    el(doc, 'bigMain').classList.add('is-fine');   // 前の試合の色が残っていた形（オークションの開示）
+    push(fake, tvRoom64(4, { state: { phase: 'lobby', game: null, data: {} } }));
+    await sleep(win, 120);
+    assertEqual(el(doc, 'bigRank').innerHTML, '', '待合に前の試合の順位表を残さない');
+    ['bigSugoBoard', 'bigAuMarket', 'bigFtCases', 'bigBoard'].forEach((id) => {
+      assertEqual(el(doc, id).style.display, 'none', id + ' を待合に残さない');
+    });
+    assert(!el(doc, 'bigMain').classList.contains('is-fine'), '前の試合の金色を残さない');
+    assert(el(doc, 'bigMain').classList.contains('is-code'), '待合では部屋コードの書体');
+    assertNoErrors(errors, '待合の片付けで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('64：大画面の添え書きは、名前を escape してから組む（人狼・ワードウルフ・実物解除）', async () => {
+    // 部屋は名前を trim するだけ。名前に HTML を書いた人がいると、TVでそのまま動いていた
+    const { win, doc, errors } = await launch(LAUNCH);
+    const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+    const 悪い名 = '<img src=x data-xss=1>';
+    const room = tvRoom64(4, { readyAll: true });
+    room.members[2].name = 悪い名;
+    const players = room.members.filter((m) => m.role === 'player').map((m) => ({ id: m.id, name: m.name, alive: true, role: null }));
+    room.state = { phase: 'turnResult', game: 'wolfrole', data: wolfView({
+      phase: 'turnResult', players,
+      turnResult: { executed: { name: 悪い名, role: null }, noVotes: false,
+        counts: [{ id: room.members[2].id, name: 悪い名, n: 2 }],
+        runoff: { candidates: [悪い名, 'びび'], counts: [{ id: room.members[2].id, name: 悪い名, n: 1 }] } } }) };
+    push(fake, room);
+    await sleep(win, 120);
+    assertEqual(doc.querySelectorAll('#scr-rt-big [data-xss]').length, 0, '名前の HTML が動かない（人狼の処刑の回）');
+    assert(/data-xss/.test(el(doc, 'bigSub').textContent), '名前は字として出る');
+    // 票の数は、その人の札に出る
+    const 札 = doc.querySelector('#bigList .bl-card[data-pid="' + room.members[2].id + '"]');
+    assert(札 && /2票/.test(札.textContent.replace(/\s+/g, '')), '票の数が札に出る（' + (札 && 札.textContent) + '）');
+    assertNoErrors(errors, 'escape で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('64 4.：称号の知らせは、手元の下の帯（← 部屋を出る・🎁）より上に出る', async () => {
+    // jsdom は版組みをしないので、**帯の位置を本物の値で差し込んで**置き方の計算だけを見る
+    // （どこに出たかの実測は tools/flow-walk.js の撮影で見る）
+    const { win, doc, errors } = await launch(LAUNCH);
+    const 置き場 = el(doc, 'titleGotOverlay');
+    Object.defineProperty(doc.documentElement, 'clientHeight', { configurable: true, get: () => 812 });
+    const 帯 = el(doc, 'thanksBtn');
+    帯.getBoundingClientRect = () => ({ top: 700, bottom: 748, left: 315, right: 363, width: 48, height: 48 });
+    win.titleToastProbe(['🏅 ためしの称号']);
+    const 下 = parseFloat(置き場.style.bottom);
+    assert(下 >= 812 - 700, '🎁 の上端（700）より上に置く（bottom ' + 置き場.style.bottom + '）');
+    // 帯が測れない時（版組みなし）は CSS のまま
+    帯.getBoundingClientRect = () => ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 });
+    win.titleToastProbe(['🏅 ためしの称号']);
+    assertEqual(置き場.style.bottom, '', '測れない時は CSS の置き場のまま');
+    assertNoErrors(errors, '称号の知らせで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('64：TVの置き方の規則が、CSSに残っている（機械照合）', async () => {
+    // 実ブラウザの実測（tools/big-census.js・tools/big-lab.js。1280×720 と 1920×1080）で確かめたのは
+    // 「巻かない・切れない」。ここは**その規則が消えていないか**を見る番人：
+    //   ・骨組み：高さは画面ちょうど・はみ出しは中で切る（巻きに逃がさない・落とし穴37）
+    //   ・待合 A3（左にQR・右に名簿）と B2（ルールの札・右下に小さなQR）は、どちらも grid の置き場
+    //   ・設定の重なり：幅 460 → 1000（行が2列。第47弾 47-4 から）
     const fs = require('fs');
     const path = require('path');
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
     const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>')).replace(/\s+/g, ' ');
-    assert(/#scr-rt-big\.big-lobby \.big-wrap\{[^}]*display:grid/.test(css),
-      '待合の大画面が2段組みになる規則がある');
-    assert(/#scr-rt-big\.big-lobby \.big-code\{[^}]*grid-column:1/.test(css),
-      '左に部屋コードのかたまり');
-    assert(/#scr-rt-big\.big-lobby \.big-rules\{[^}]*grid-column:2/.test(css),
-      '右にルール');
-    assert(/\.app:has\(#scr-rt-big\.active\) \.overlay-panel\{[^}]*max-width:1000px/.test(css),
+    // **スマホには効かせない**（900px以上の中に入っていること）
+    const 塊の頭 = css.indexOf('/* ===== 指示64：大画面（TV）の字の段と骨組み');
+    assert(塊の頭 !== -1, 'TVの規則の塊がある');
+    const 塊 = css.slice(css.indexOf('@media (min-width:900px){', 塊の頭));
+    const 塊の中 = 塊.slice(0, 塊.indexOf('@keyframes beIn'));
+    assert(/#scr-rt-big\.active\{[^}]*height:100dvh[^}]*overflow:hidden/.test(塊の中),
+      '骨組みは画面の高さちょうどで、巻かない');
+    assert(/--tv-u:min\(calc\(100vw \/ 1280\), calc\(100vh \/ 720\)\)/.test(塊の中),
+      '字の大きさは画面に比例させる（1280×720 で 1px）');
+    assert(/#scr-rt-big\[data-big="a"\] \.big-wrap\{[^}]*display:grid[^}]*grid-template-areas:"code ready" "code head" "code stage" "code entry"/.test(塊の中),
+      'A3：左にQRとコード、右に人数・見出し・名簿・入場の知らせ');
+    assert(/#scr-rt-big\[data-big="b"\] \.big-wrap\{[^}]*display:grid[^}]*grid-template-areas:"head head" "rules rules" "ready code" "stage code" "stage entry"/.test(塊の中),
+      'B2：上にゲームの名前とルールの札、下に準備OKと名簿、右下にQRと入場の知らせ');
+    assert(/\.app:has\(#scr-rt-big\.active\) \.overlay-panel\{[^}]*max-width:1000px/.test(塊の中),
       '大画面では重なりも横幅を使う');
-    assert(/\.app:has\(#scr-rt-big\.active\) \.set-menu\{[^}]*grid-template-columns:1fr 1fr/.test(css),
+    assert(/\.app:has\(#scr-rt-big\.active\) \.set-menu\{[^}]*grid-template-columns:1fr 1fr/.test(塊の中),
       '設定の行が2列になる');
-    // **スマホには効かせない**（1024px以上の中に入っていること）
-    const 広い画面の塊 = css.slice(css.indexOf('@media (min-width:1024px){ #scr-rt-big.big-lobby'));
-    assert(広い画面の塊.indexOf('big-lobby .big-wrap') >= 0 && 広い画面の塊.indexOf('big-lobby .big-wrap') < 600,
-      '2段組みは「横に広い時」の中にある（スマホでは縦のまま）');
   });
 
   // ---- 第47弾 47-5：朝／夜の配色を、部屋の全端末でそろえる ----

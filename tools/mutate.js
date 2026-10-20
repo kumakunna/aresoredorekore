@@ -17,7 +17,8 @@
 //       "suite": "tests/shelf.js",
 //       "from": "壊す前の文字列（1回だけ現れること）",
 //       "to":   "壊したあとの文字列",
-//       "expect": "赤くなってほしい検査の文言（一部でよい）" }
+//       "expect": "赤くなってほしい検査の文言（一部でよい）",
+//       "only": "（省略可）名前にこの字を含む検査だけを回す" }
 //   ]
 //
 // ── この道具が守っている2つのこと ──────────────────
@@ -79,7 +80,10 @@ for (const m of MUT) {
 
   let out = '', 殺された = false;
   try {
-    cp.execSync('node ' + m.suite, { cwd: R, encoding: 'utf8', timeout: 制限, stdio: ['ignore', 'pipe', 'pipe'] });
+    // 指示64：only を書いた変異は、名前にその字を含む検査だけを回す（ACAC_ONLY・tests/harness.js）。
+    // 狙った検査が赤くなるかを見るのが目的なので、重いスイートを毎回まるごと回さなくてよい
+    const env = Object.assign({}, process.env, m.only ? { ACAC_ONLY: m.only } : {});
+    cp.execSync('node ' + m.suite, { cwd: R, encoding: 'utf8', timeout: 制限, stdio: ['ignore', 'pipe', 'pipe'], env });
     結果.push([m.name, '**素通り（緑のまま）** ← 検査に穴がある']);
     戻す();
     console.log('… ' + m.name + ' 済み');

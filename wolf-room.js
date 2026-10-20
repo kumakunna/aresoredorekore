@@ -148,7 +148,9 @@ function publicView(room) {
       reason: g.result.reason,
       teruteruWin: !!g.teruteruWin,
       // 決着したので、ここで初めて全員の役職を明かす
-      roles: g.players.map((p) => ({ name: p.name, role: p.role, roleName: WolfLogic.roleById(p.role).name, alive: p.alive })),
+      // 指示64：id も添える（大画面が、その人の札に役職を載せるのに要る。名前で当てると同名を取り違える）。
+      // **秘密は増えない**——決着した今、名前と役職はもう公開している
+      roles: g.players.map((p) => ({ id: p.id, name: p.name, role: p.role, roleName: WolfLogic.roleById(p.role).name, alive: p.alive })),
       scores: WolfLogic.scoreGame(g),
       // 第23弾-2：決着したこの瞬間だけ、誰が誰に入れたかも開ける。
       // 手渡し方式と同じ扱いにする（片方だけ見られる、を作らない）

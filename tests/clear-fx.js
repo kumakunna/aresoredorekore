@@ -11,6 +11,8 @@
 //      競争版の「もう一度」で前の試合の祝い／つぎつぎの時間切れ（勝者なし）で全員「優勝！」／
 //      ロシアンカードの時間切れを大画面が「ばくだんをめくった」と言う／
 //      競争版の0本の時間切れで全員「1位！」／「全員が終わるまで」で最後に解き切った人に何も出ない
+//   ⑥ 指示64 3.：**入り直した大画面は、終わった試合の祝いを流さない**（読み込み直し・
+//      決着のあとで大画面にした・大画面→プレイヤー→大画面）。新しい決着では、ちゃんと出る
 //
 // **本物の進行役を動かし、本物の publicView / privateFor を本物の画面へ流す**（落とし穴25）。
 // 進め方は tests/room-drive.js（tests/now-line.js と共有）。
@@ -156,6 +158,85 @@ function 祝う相手(t, v) {
     return rows.filter((x) => x.rank === 1 && x.score !== 0).map((x) => x.id);
   }
   return ((r.ranking) || []).filter((x) => x.rank === 1 && !x.out && !x.failed).map((x) => x.id);
+}
+
+
+// ===== ⑥ 指示64 3.：入り直した大画面 =====
+// 数える演出：祝い・黒い幕・爆発の閃光・💥・落ちてくる帯（どれも「終わった試合の見せ場」）
+const 見せ場の印 = ['fx-cel', 'fx-blackout', 'fx-burst', 'bomb-boom', 'fx-shutter'];
+function 見せ場を数える(win, doc) {
+  const 記録 = [];
+  const mo = new win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => {
+    if (!n.classList) return;
+    const 印 = 見せ場の印.find((c) => n.classList.contains(c));
+    if (印) 記録.push(印);
+  })));
+  mo.observe(doc.body, { childList: true, subtree: true });
+  return { 記録, 止める: () => mo.disconnect() };
+}
+/**
+ * 決着した部屋に、大画面として**あとから**入る。
+ * 始め方・進め方は ② と同じ本物の進行役（tests/room-drive.js）。爆弾解除は fx-probe と同じ解き方
+ */
+async function 決着した部屋に大画面で入る(t) {
+  const { win, doc, errors } = await launch({ fakeSocket: true });
+  win.TitleLogic.seasonFor = () => null;
+  await waitScreen(win, doc, 'scr-shelf', 9000);
+  await openCassette(win, doc, t.cart);
+  const way = doc.querySelector('#wayChoices [data-way="room"]');
+  if (way) way.click();
+  await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+  const fake = win.__rtFake;
+  await waitFor(win, () => fake.connected, 5000, '疑似socket');
+
+  let room, d, key;
+  if (t.game === 'bomb') {
+    const members = new Map();
+    ['m1', 'm2'].forEach((id, i) => members.set(id, { id, name: ['あき', 'びび'][i], role: 'player', connected: true, socketId: 's' + id }));
+    members.set('tv', { id: 'tv', name: 'テレビ', role: 'bigscreen', connected: true });
+    room = { code: 'ABC234', members, state: { phase: 'playing', game: 'bomb', data: {} } };
+    d = Bomb; key = 'bomb';
+  } else {
+    room = 部屋を作る(t.n);
+    room.members.set('tv', { id: 'tv', name: 'テレビ', role: 'bigscreen', connected: true });
+    d = GAME_DRIVERS[t.game].driver; key = GAME_DRIVERS[t.game].key;
+  }
+  const 始める = () => {
+    const cfg = t.game === 'bomb' ? { mode: 'coop', counts: { easy: 4 }, lives: 3, timerSec: 0 }
+      : Object.assign({}, RT_START_MIN_CONFIG[t.game], t.cfg || {});
+    const res = d.startGame(room, cfg, { notify() {} });
+    assertEqual(res.ok, true, t.game + '：進行役を始められる（' + JSON.stringify(res) + '）');
+    room.state.game = t.game;
+    room.state.phase = 'playing';
+  };
+  const 進める = () => {
+    if (t.game === 'bomb') {
+      const w = room.bomb, e = w.entries.team;
+      const uid = e.order.find((u) => !e.solved[u]);
+      if (!uid) return;
+      const wire = w.wires.find((x) => x.uid === uid);
+      Bomb.submitAction(room, 'm1', uid);
+      Bomb.submitVote(room, 'm1', (e.choices[uid] || []).find((c) => BombLogic.isCorrect(wire, c)));
+      return;
+    }
+    すすめる(d, room, t.game, room[key]);
+  };
+  const 決着した = () => room[key] && room[key].phase === (d.PHASE ? d.PHASE.ENDED : 'ended');
+  let 自分の役 = 'bigscreen';
+  const 名簿 = () => Array.from(room.members.values()).map((m) => ({
+    id: m.id, name: m.name, role: m.id === 'tv' ? 自分の役 : m.role, connected: true, isHost: m.id === 'm1', ready: true }));
+  const snap = () => ({
+    code: 'ABC234', ownerUserId: 1, ownerUsername: 'kuma', hostMemberId: 'm1',
+    playerCount: room.members.size - 1, memberCount: room.members.size,
+    ready: { count: room.members.size - 1, total: room.members.size - 1, waitingNames: [], all: true },
+    members: 名簿(),
+    state: { phase: room.state.phase, game: t.game, data: room[key] ? d.publicView(room) : room.state.data }
+  });
+  始める();
+  for (let i = 0; i < 400 && !決着した(); i++) 進める();
+  assertEqual(決着した(), true, t.game + '：前提：決着まで回せた');   // 型(b)
+  return { win, doc, errors, fake, room, snap, 始める, 進める, 決着した,
+    役を: (r) => { 自分の役 = r; } };
 }
 
 (async function main() {
@@ -641,6 +722,61 @@ function 祝う相手(t, v) {
       assertNoErrors(g.errors);
     } finally { g.終わる(); g.win.close(); }
   });
+
+
+  // ===================== ⑥ 指示64 3.：入り直した大画面 =====================
+  // 祝いを出す道は2つ：rtClearFx（オークションなど6カセット）と rtBigFx（爆弾解除の爆発・解除成功）。
+  // **両方の道を通す**（型(c)：分岐のもう一方）
+  for (const t of [{ game: 'auction', cart: 'auction', n: 3 }, { game: 'bomb', cart: 'bakudan', n: 2 }]) {
+    await r.test('⑥ ' + t.game + '：決着のあとで大画面になっても、終わった試合の祝いは流れない。次の決着では出る', async () => {
+      const g = await 決着した部屋に大画面で入る(t);
+      const { win, doc, fake } = g;
+      try {
+        const 見張り = 見せ場を数える(win, doc);
+        // (1) 決着のまま入る（読み込み直した大画面・決着のあとで大画面にした端末と同じ）
+        fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'tv', room: g.snap() }) };
+        el(doc, 'rtJoinCode').value = 'ABC234';
+        el(doc, 'rtJoinName').value = 'テレビ';
+        click(doc, 'rtJoinBtn');
+        await waitScreen(win, doc, 'scr-rt-big', 8000);
+        // (2) 同じ決着のまま、知らせがもう2回届く（それまで爆発・解除成功は2回目で出ていた）
+        for (let i = 0; i < 2; i++) { fake.fire('room:update', g.snap()); await sleep(win, 120); }
+        await sleep(win, 2200);
+        assertEqual(見張り.記録.join('・'), '', '入り直した大画面に、終わった試合の見せ場が出ない');
+
+        // (3) 大画面 → プレイヤー → 大画面（同じページのまま。プレイヤーの間は「自分へ」が偽で札が消えていた）
+        g.役を('player');
+        fake.fire('room:update', g.snap());
+        await waitFor(win, () => activeScreen(doc) !== 'scr-rt-big', 6000, 'プレイヤーの画面へ');
+        g.役を('bigscreen');
+        fake.fire('room:update', g.snap());
+        await waitScreen(win, doc, 'scr-rt-big', 6000);
+        fake.fire('room:update', g.snap());
+        await sleep(win, 2200);
+        assertEqual(見張り.記録.join('・'), '', 'プレイヤーにもどってから大画面にもどっても、流れない');
+
+        // (4) **新しく起きた決着では、出る**（静かなのは見始めの1枚だけ・型(h)：呼ぶ道があって初めて意味がある）
+        g.room.state.phase = 'lobby';
+        g.room[t.game === 'bomb' ? 'bomb' : GAME_DRIVERS[t.game].key] = null;
+        fake.fire('room:update', g.snap());
+        await sleep(win, 200);
+        g.始める();
+        fake.fire('room:update', g.snap());
+        await sleep(win, 150);
+        for (let i = 0; i < 400 && !g.決着した(); i++) {
+          g.進める();
+          fake.fire('room:update', g.snap());
+          await sleep(win, 20);
+        }
+        assertEqual(g.決着した(), true, '前提：2試合目も決着した');   // 型(b)
+        fake.fire('room:update', g.snap());
+        await sleep(win, 2600);
+        見張り.止める();
+        assert(見張り.記録.length > 0, '新しい決着では見せ場が出る（' + 見張り.記録.join('・') + '）');
+        assertNoErrors(g.errors, t.game + '（入り直し）');
+      } finally { win.close(); }
+    });
+  }
 
   r.finish();
 })();

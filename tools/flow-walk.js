@@ -498,7 +498,7 @@ function makeWalk(opts) {
       const 前 = await dev.screen();
       const 前の重なり = await dev.ev(重なり式);
       let 押したもの = null;
-      const rec = await W.手順を(dev.name, '結果のボタンを試す：' + (o.名 || String(re)), '押す', async () => { 押したもの = await W.press(dev, re); }, { 間: o.間 || 1000, 失敗してよい: true });
+      const rec = await W.手順を(dev.name, '結果のボタンを試す：' + (o.名 || String(re)), '押す', async () => { 押したもの = await W.press(dev, re, o.範囲); }, { 間: o.間 || 1000, 失敗してよい: true });
       const 後 = await dev.screen();
       const 後の重なり = await dev.ev(重なり式);
       const 幕 = await dev.ev("(function(){var l=Array.from(document.querySelectorAll('.ui-layer')).filter(function(x){return x.getBoundingClientRect().width>0;}).pop(); if(!l) return null; var h=l.querySelector('.ui-head,.ui-popup-name'); var b=l.querySelector('.ui-body,.ui-scroll'); var acts=l.querySelectorAll('.ui-acts button'); return {確認: acts.length>=2, 見出し:h?h.innerText.trim():'', 本文:b?b.innerText.trim().replace(/\\s+/g,' ').slice(0,120):'', ボタン:Array.from(l.querySelectorAll('button')).map(function(x){return x.innerText.trim()||x.getAttribute('aria-label')||'';}).filter(Boolean)};})()");
@@ -521,6 +521,20 @@ function makeWalk(opts) {
       } else if (o.戻す) {
         try { await o.戻す(dev, 後); } catch (e) { r.戻せなかった = String(e.message); }
         await sleep(600);
+      }
+      return r;
+    },
+
+    /**
+     * 指示64 D1：**大画面の出口は ⚙ の中**（TVの画面にはボタンを置かない）。
+     * ⚙ を開いて、その行を「試す」（確認が出たら やめる）。済んだら ⚙ を閉じる。
+     * re は行の字（/プレイヤーにもどる/ ・ /部屋を出る/）
+     */
+    async 大画面の歯車を試す(dev, re, o) {
+      await W.手順を(dev.name, '⚙ を開く', '押す', () => W.click(dev, '#floatingGearBtn'), { 間: 700 });
+      const r = await W.ボタンを試す(dev, re, Object.assign({ 範囲: '#setQuickMenu .set-row' }, o || {}));
+      if (await dev.ev("!!document.querySelector('#settingsOverlay.show')")) {
+        await W.手順を(dev.name, '⚙ を閉じる', '押す', () => W.click(dev, '#closeSettingsBtn'), { 間: 500 });
       }
       return r;
     },

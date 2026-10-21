@@ -464,20 +464,28 @@ const { createRunner, assert, assertEqual } = require('./harness');
 
   await r.test('64 監査：舞台に「入る」は、下に 4（1280×720 の目盛り）の余りがある時だけ', async () => {
     const 作る = new Function('getComputedStyle', 'document', 関数の字('bigStageFits') + '\nreturn bigStageFits;');
-    const 測る = (高さ) => 作る(() => ({ paddingBottom: '0px', borderBottomWidth: '0px' }), { documentElement: { clientHeight: 高さ } });
-    const 舞台 = (余り, 巻く) => ({
-      scrollHeight: 巻く ? 420 : 400, clientHeight: 400,
-      getBoundingClientRect: () => ({ bottom: 700 }),
-      children: [{ getBoundingClientRect: () => ({ bottom: 700 - 余り, height: 120 }) }]
-    });
+    const 測る = (高さ) => 作る(() => ({ paddingBottom: '0px' }), { documentElement: { clientHeight: 高さ } });
+    // 舞台の偽物：中身の高さ＋下の余白が、箱の高さ（伸びられる所まで）を越えたら巻く。
+    // 「伸びられる所」は、高さの決まった舞台（待合）なら箱そのもの、中身と同じ高さの舞台（遊んでいる間）なら画面の残り
+    const 舞台 = (中身, 伸びられる) => {
+      const s = { style: { paddingBottom: '' } };
+      Object.defineProperty(s, 'scrollHeight', { get: () => 中身 + (parseFloat(s.style.paddingBottom) || 0) });
+      Object.defineProperty(s, 'clientHeight', { get: () => Math.min(伸びられる, 中身 + (parseFloat(s.style.paddingBottom) || 0)) });
+      return s;
+    };
     const 七二〇 = 測る(720), 千八十 = 測る(1080);
-    assertEqual(七二〇(舞台(6)), true, '余り6：入る');
-    assertEqual(七二〇(舞台(4)), true, '余り4：入る（ちょうど）');
-    assertEqual(七二〇(舞台(2)), false, '余り2：入らない（字の形が後から届くと切れる）');
-    assertEqual(七二〇(舞台(6, true)), false, '巻いている時は入らない');
+    assertEqual(七二〇(舞台(390, 400)), true, '余り10：入る');
+    assertEqual(七二〇(舞台(397, 400)), true, '余り3：入る（四捨五入の1を許す）');
+    assertEqual(七二〇(舞台(398, 400)), false, '余り2：入らない（字の形が後から届くと切れる）');
+    assertEqual(七二〇(舞台(420, 400)), false, '巻いている時は入らない');
+    // **中身と同じ高さの舞台**（箱の中の空きは 0）でも、画面に残りがあれば入る（箱の中の空きで測った形は、ここで全部「入らない」になった）
+    assertEqual(七二〇(舞台(300, 600)), true, '中身と同じ高さの舞台でも、伸びられるなら入る');
     // 目盛りは画面に比例する（1920×1080 では 6）
-    assertEqual(千八十(舞台(5)), false, '1080 で余り5：入らない');
-    assertEqual(千八十(舞台(7)), true, '1080 で余り7：入る');
+    assertEqual(千八十(舞台(396, 400)), false, '1080 で余り4：入らない');
+    assertEqual(千八十(舞台(394, 400)), true, '1080 で余り6：入る');
+    // 足した余白は戻す（測ったあとに見た目を変えない）
+    const s = 舞台(300, 600); s.style.paddingBottom = '8px'; 七二〇(s);
+    assertEqual(s.style.paddingBottom, '8px', '下の余白をもとにもどす');
   });
 
   await r.test('64 監査：列を減らせないまま名前が切れている名簿は、札の内側を詰める（切れていなければ詰めない）', async () => {

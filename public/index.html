@@ -3514,22 +3514,19 @@
     /* 9〜15人は3列（5段まで。いちばん低い B の舞台でも入る）、16人は4列。列の数は JS が人数から（--lb-cols）。
        **どの段の列の数も --lb-cols で受ける**——名前が切れていて、1列減らしても舞台に収まるなら減らす（bigWidenLobby） */
     #scr-rt-big[data-big="b"][data-size="l"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));}
-    /* B の9〜16人は札を少し低く（字は32のまま。顔の絵が 45 あるので、上下の内側の余白を 2 に）。
-       52 のままだと、3列×6段が「待っています」の行のぶん 11px 足りず、名前の切れる4列にもどっていた */
-    #scr-rt-big[data-big="b"][data-size="l"] .big-list .bl-item,
-    #scr-rt-big[data-big="a"][data-size="l"] .big-list .bl-item,#scr-rt-big[data-big="a"][data-size="xl"] .big-list .bl-item{
-      min-height:calc(46 * var(--tv-u));padding-block:calc(2 * var(--tv-u));}
-    #scr-rt-big[data-big="b"][data-size="l"] .big-list,
-    #scr-rt-big[data-big="a"][data-size="l"] .big-list,#scr-rt-big[data-big="a"][data-size="xl"] .big-list{row-gap:calc(4 * var(--tv-u));}
     #scr-rt-big[data-big="b"][data-size="xl"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,5),minmax(0,1fr));}
     #scr-rt-big[data-big="a"][data-size="xl"] .big-list{grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));}
-    /* 17〜20人（部屋の上限）は、顔を順位表と同じ 36 にして札を 42（顔＋上下2ずつ＋縁）まで低くし、3列×7段を舞台に入れる。
-       46 のままだと 3列が 4px 足りず、4〜5列にもどって名前が「あ…」「まり…」の1〜2字になっていた
-       （A は下が 200px 空いたまま。実験台が16人までしか測っていなかった・指示64の監査） */
+    /* 9人からの待合（名前だけの札）は、顔を順位表と同じ 36 にして札を 42（顔＋上下2ずつ＋縁）まで低くする。字は32のまま。
+       3列が舞台に入るように——46 のままだと、20人の3列×7段が 4px 足りず、4〜5列にもどって名前が「あ…」「まり…」の1〜2字、
+       16人の B でもルールの札が3行に折れるモード（実物解除・つぎつぎクイズ）では4列にもどり、12字の名前が2字になった
+       （実験台が16人までしか測っておらず、名前の省略も数えていなかった・指示64の監査） */
+    #scr-rt-big[data-big="a"][data-size="l"] .big-list .bl-item,#scr-rt-big[data-big="b"][data-size="l"] .big-list .bl-item,
     #scr-rt-big[data-big="a"][data-size="xl"] .big-list .bl-item,#scr-rt-big[data-big="b"][data-size="xl"] .big-list .bl-item{
       min-height:calc(42 * var(--tv-u));padding-block:calc(2 * var(--tv-u));line-height:1.15;}
+    #scr-rt-big[data-big="a"][data-size="l"] .big-list .bl-face,#scr-rt-big[data-big="b"][data-size="l"] .big-list .bl-face,
     #scr-rt-big[data-big="a"][data-size="xl"] .big-list .bl-face,#scr-rt-big[data-big="b"][data-size="xl"] .big-list .bl-face{font-size:calc(36 * var(--tv-u));}
-    #scr-rt-big[data-big="b"][data-size="xl"] .big-list{row-gap:calc(4 * var(--tv-u));}
+    #scr-rt-big[data-big="a"][data-size="l"] .big-list,#scr-rt-big[data-big="b"][data-size="l"] .big-list,
+    #scr-rt-big[data-big="a"][data-size="xl"] .big-list,#scr-rt-big[data-big="b"][data-size="xl"] .big-list{row-gap:calc(4 * var(--tv-u));}
     #scr-rt-big .big-list .bl-item.is-wait{background:transparent;border-style:dashed;}
     #scr-rt-big .bl-mark{flex:none;font:700 var(--tv-name)/1 'Zen Maru Gothic',sans-serif;}
     #scr-rt-big .bl-item.is-ready .bl-mark,#scr-rt-big .bl-card.is-ready .bl-mark{color:var(--teal);}
@@ -22199,20 +22196,22 @@
    * 舞台に収まっているか。**ぎりぎりで「入る」と読まない**——測った直後に字の形（日本語の書体は
    * 字の範囲ごとに後から届く）や絵文字の画像が届いて札が 1px 伸びると、最後の段が切れた
    *（人狼8人の待合で、2列×4段が 339px の舞台に 1〜3px 足りず、回によって切れた・指示64の監査）。
-   * 中身の下に 4（1280×720 で）の余りを求める
+   * 中身の下に 4（1280×720 で）の余りを求める。
+   * **余りは、舞台の下の余白を 4 だけ足して、それでもあふれないかで見る**（足した余白はすぐ戻す）。
+   * 舞台の箱の中の空きを測る形にしたら、遊んでいる間の舞台は**中身と同じ高さ**（帯の下の真ん中に寄せる骨組み）なので
+   * 空きが常に 0 になり、「入らない」としか読まなかった——16人のクイズの決着がいつも C1 に落ち、人狼20人の夜は
+   * 上下が空いたまま5列で名前が2字になった（指示64の監査の、自分の直しが生んだ退行）。足して見る形なら、
+   * 中身と同じ高さの舞台は伸びられる所まで伸び、高さの決まった舞台（待合）は中身が押し出されて、どちらも同じ式で読める
    */
   function bigStageFits(stage){
     if(stage.scrollHeight > stage.clientHeight + 1) return false;
-    var r = stage.getBoundingClientRect(), cs = getComputedStyle(stage);
-    var 床 = r.bottom - (parseFloat(cs.paddingBottom) || 0) - (parseFloat(cs.borderBottomWidth) || 0);
-    var 下 = -Infinity;
-    Array.prototype.forEach.call(stage.children, function(c){
-      var cr = c.getBoundingClientRect();
-      if(cr.height > 0) 下 = Math.max(下, cr.bottom);
-    });
-    if(下 === -Infinity) return true;
     var 余り = 4 * (document.documentElement.clientHeight / 720);
-    return 床 - 下 >= 余り;
+    var 元 = stage.style.paddingBottom;
+    var pb = parseFloat(getComputedStyle(stage).paddingBottom) || 0;
+    stage.style.paddingBottom = (pb + 余り) + 'px';
+    var 入る = stage.scrollHeight <= stage.clientHeight + 1;
+    stage.style.paddingBottom = 元;
+    return 入る;
   }
   /** 待合の名簿（A3・B2）も同じ測りで。**毎回、もとの列の数から測り直す**（renderBigLobby が置いた
    *  data-lb-base。無ければ CSS の既定）。いまの列の数は、効いている grid から読む（流して並べる時は触らない） */

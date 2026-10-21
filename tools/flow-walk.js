@@ -244,7 +244,7 @@ function makeWalk(opts) {
         if (k === '大画面' && 測り[k] && 測り[k].画面 === 'scr-rt-big') {
           try {
             const m = await d.ev(大画面の測り);
-            if (m) 測り[k].大画面 = { 巻き: m.ページの巻き, 箱の巻き: m.箱の巻き.length, 切れ: m.切れ.slice(0, 8), 切れの数: m.切れの数, 小さい: m.小さい.slice(0, 8), 小さいの数: m.小さいの数, 段階: m.段階 };
+            if (m) 測り[k].大画面 = { 巻き: m.ページの巻き, 箱の巻き: m.箱の巻き.length, 切れ: m.切れ.slice(0, 8), 切れの数: m.切れの数, 小さい: m.小さい.slice(0, 8), 小さいの数: m.小さいの数, 読めない: (m.読めない || []).slice(0, 8), 読めないの数: m.読めないの数 || 0, 段階: m.段階 };
           } catch (e) { 測り[k].大画面 = { 失敗: String(e.message) }; }
         }
         if (撮らない) return;
@@ -369,19 +369,31 @@ function makeWalk(opts) {
     /** bot 2人を入れる（tools/room-bots.js --ready --play） */
     /** o.ready === false で、bot は準備OKを押さない（「だれかを待っている」待合を撮る時・probe-63-lobby） */
     async botを入れる(n, o) {
-      const logFile = path.join(OUT, 'bots.log');
-      const out = fs.openSync(logFile, 'w');
       const 押す = !(o && o.ready === false) ? ['--ready'] : [];
       // 指示64：部屋の人数を変えて通す（opts.bots で bot の数を上書き。台本は bot 2 のつもりで書いてある）
       if (opts.bots != null) n = opts.bots;
+      if (n == null) n = 2;
+      n = parseInt(n, 10);
+      if (!Number.isFinite(n)) throw new Error('bot の数が数ではありません：' + n);
+      // 0人（進行役と参加者の2人で通す）は「入れない」。`n || 2` だと 0 が黙って 2 になり、
+      // room-bots.js も --n 0 を 2 と読むので、census --players 2 が4人で回る
+      //（人狼の census が 8人・16人のつもりで全部4人だったのと同じ形：頼んだ人数が黙って変わる）
+      // 入れた数と、名簿に載りきらなかったかを残す（記録.json の bot数・bot不足）。
+      // census は「頼んだ人数で本当に回ったか」をこれで確かめる（人狼が黙って4人だった・指示64）
+      W.bot数 = Math.max(0, n);
+      W.bot不足 = false;
+      if (n <= 0) { console.log('   bot は入れません（' + n + '人）'); return null; }
+      const logFile = path.join(OUT, 'bots.log');
+      const out = fs.openSync(logFile, 'w');
       const child = spawn(process.execPath, [path.join(__dirname, 'room-bots.js'), '--url', W.BASE, '--code', W.code,
-        '--n', String(n || 2)].concat(押す, ['--play', '--hold', '7200']), { stdio: ['ignore', out, out] });
+        '--n', String(n)].concat(押す, ['--play', '--hold', '7200']), { stdio: ['ignore', out, out] });
       W.bots = child;
       // 入ったことを部屋の名簿で確かめる（画面の数字だけで読まない）
       // 待合の人数（#rtRoomCount＝playerCount。大画面は数えない）。
       // 最初は実在しない '#rtMembers …' を待っていて、毎回15秒かけて黙って先へ進んでいた（8人の担当が指摘）
-      await devices.進行役.until("parseInt((document.getElementById('rtRoomCount')||{}).textContent,10)>=" + (2 + (n || 2)), 15000, 'bot が名簿に載る')
-        .catch(() => console.log('   ✖ bot が名簿に載りませんでした（bots.log を見る）'));
+      // 載りきらなくても台本は先へ進む（ここでは止めない）。かわりに W.bot不足 に残し、止めるかは台本と census が決める
+      await devices.進行役.until("parseInt((document.getElementById('rtRoomCount')||{}).textContent,10)>=" + (2 + n), 15000, 'bot が名簿に載る')
+        .catch(() => { W.bot不足 = true; console.log('   ✖ bot が名簿に載りませんでした（bots.log を見る）'); });
       await sleep(800);
       return child;
     },
@@ -626,8 +638,10 @@ function makeWalk(opts) {
   W.書き出す = (extra) => {
     const エラー = {};
     Object.keys(devices).forEach((k) => { エラー[k] = devices[k].logs.slice(0, 30); });
+    // bot数・bot不足：bot を入れなかった台本（手渡し）では null のまま
     const data = Object.assign({ カセット: opts.cassette, モード: W.モード, url: W.qrUrl, code: W.code,
-      かかった秒: Math.round((Date.now() - t0) / 1000), 手順, 気づき, 終わり方, 画面のエラー: エラー, メモ: W.メモ書き }, extra || {});
+      かかった秒: Math.round((Date.now() - t0) / 1000), bot数: W.bot数 == null ? null : W.bot数, bot不足: W.bot不足 == null ? null : W.bot不足,
+      手順, 気づき, 終わり方, 画面のエラー: エラー, メモ: W.メモ書き }, extra || {});
     fs.writeFileSync(path.join(OUT, '記録.json'), JSON.stringify(data, null, 2));
     return data;
   };

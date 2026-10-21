@@ -12,10 +12,6 @@
 // 文化祭では進行役が「すすむ」を押さずに話し続ける卓が必ずあるので、その道も撮っておく。
 // この放置は「待ち」に数えない（する＝'放置'。カセットどうしの待ち時間の比べに混ぜない）。
 
-const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
-
 /** いまの画面の「やること」を DOM から読む（rt は閉じた変数なので、画面だけを見る） */
 const 状態式 = "(function(){" +
   "function vis(id){var e=document.getElementById(id);if(!e)return false;var r=e.getBoundingClientRect();if(r.width<1||r.height<1)return false;return typeof e.checkVisibility==='function'?e.checkVisibility({opacityProperty:true,visibilityProperty:true}):true;}" +
@@ -49,22 +45,6 @@ const 覆い式 = (ids) => "(function(ids){return ids.map(function(id){var b=doc
   "pts.forEach(function(p){var e=document.elementFromPoint(p[0],p[1]);if(e&&e!==b&&!b.contains(e)){var c=e.closest('[id],[class]');覆い.push((c&&(c.id||String(c.className).split(' ')[0]))||e.tagName);}});" +
   "return {id:id,文字:b.textContent.trim().replace(/\\s+/g,' ').slice(0,20),上:Math.round(r.top),下:Math.round(r.bottom),覆われた点:覆い.length+'/4',何に:覆い.filter(function(x,i,a){return a.indexOf(x)===i;})};});})(" + JSON.stringify(ids) + ")";
 
-/**
- * bot を入れる（W.botを入れる と同じ起動の仕方。**待ち方だけ違う**）。
- * 共有の W.botを入れる は名簿を '#rtMembers …' で数えるが、その id は画面に無い（実物は #rtMemberList）。
- * 数えられないまま15秒待って先へ進むので、その15秒のあいだに bot は脈（hb:ping）に答えず
- * 切断扱いへ近づく（tools/bot-play/wordwolf.js の先頭）。ここでは部屋の人数（#rtRoomCount）で待つ
- */
-async function botを入れる(W, n) {
-  const logFile = path.join(W.OUT, 'bots.log');
-  const out = fs.openSync(logFile, 'w');
-  const child = spawn(process.execPath, [path.join(__dirname, '..', 'room-bots.js'), '--url', W.BASE, '--code', W.code,
-    '--n', String(n), '--ready', '--play', '--hold', '7200'], { stdio: ['ignore', out, out] });
-  W.bots = child;
-  await W.host.until("parseInt((document.getElementById('rtRoomCount')||{}).textContent,10)>=" + (2 + n), 15000, 'bot が名簿に載る');
-  await W.sleep(800);
-}
-
 module.exports = {
   way: 'room',
   async run(W) {
@@ -75,8 +55,14 @@ module.exports = {
     await W.手順を('進行役', '待合：QRをみんなに見せる', '見せる', null);
     await W.参加者がQRで入る('ひろ');
     await W.大画面が入る();
-    await botを入れる(W, 2);
-    await W.手順を('全員', 'bot 2人が入った（4人そろう）', '待つ', null);
+    // bot は共有の W.botを入れる で入れる（指示64）。前はここに自前の入れ方があり、bot 2 を決め打ちしていたので、
+    // census の人数の上書き（makeWalk の opts.bots）が届かず、人狼の 8人・16人の census は**全部4人で回っていた**。
+    // 自前にした理由（共有の方が実在しない '#rtMembers' を数えていた）は、共有の方を #rtRoomCount に直して無くなった
+    await W.botを入れる(2);
+    // 共有の方は載りきらなくても先へ進む（前の自前の方は、ここで止まっていた）。人狼は人数で投票の形が変わるので、
+    // 足りないまま通すと「8人のつもりの5人」を撮ってしまう——ここで止める
+    if (W.bot不足) throw new Error('bot が名簿に載りきりませんでした（' + W.bot数 + '人を入れたつもり。bots.log を見る）');
+    await W.手順を('全員', 'bot 2人が入った（4人そろう）', '待つ', null);   // 手順の名は他の台本とそろえる（flow-report で並べる）
     // 参加者は、進行役がゲームを選ぶあいだ何を見ているか（待っている理由の文は画面の中にあるか）
     const 待合の文 = await part.ev(文の位置('進行役がゲームを|えらんでいます|待っています'));
     W.メモ('参加者の待合で「何を待っているか」の文：' + JSON.stringify(待合の文));
@@ -147,7 +133,9 @@ module.exports = {
     };
 
     let 前 = null, 同じ = 0;
-    for (let i = 0; i < 80; i++) {
+    // 回す上限は人数で増やす：16人だと投票・決選が人数ぶん増え、4人のつもりの 80 では足りなくなる（指示64）
+    const 上限 = 80 + 4 * Math.max(0, (W.bot数 == null ? 2 : W.bot数) - 2);
+    for (let i = 0; i < 上限; i++) {
       const sp = await 見る(part), sh = await 見る(host);
       if (/決着/.test(sp.段階) || /決着/.test(sh.段階)) break;
       if (sp.scr !== 'scr-rt-play' && sh.scr !== 'scr-rt-play') throw new Error('遊ぶ画面から外れました：参加者 ' + sp.scr + '／進行役 ' + sh.scr);

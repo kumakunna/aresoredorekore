@@ -6465,10 +6465,14 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       const tv = doc.querySelector('#bigRank .rk-tv');
       return { 形: tv && tv.dataset.shape, 上: doc.querySelectorAll('#bigRank .rk-podium .rk-row').length,
         下: doc.querySelectorAll('#bigRank .rk-rest .rk-row').length, 全: doc.querySelectorAll('#bigRank .rk-row').length,
-        上の名: Array.from(doc.querySelectorAll('#bigRank .rk-podium .rk-name')).map((x) => x.textContent) };
+        上の名: Array.from(doc.querySelectorAll('#bigRank .rk-podium .rk-name')).map((x) => x.textContent),
+        段階: el(doc, 'scr-rt-big').dataset.phase, 札: el(doc, 'bigPhase').textContent.trim() };
     };
     let x = await 出す([9, 7, 5, 3, 1, 0, 0, 0]);
     assertEqual(x.形, 'c2', 'ふつうは C2');
+    // 指示64の監査：段階の印（census が遊んでいる間と決着を分けて測るために読む）と、段階の札は段階の語（ゲーム名でない）
+    assertEqual(x.段階, 'play', '大画面に段階の印がある');
+    assert(x.札 && !/クイズラッシュ|クイズ王/.test(x.札), '段階の札にゲーム名を出さない（' + x.札 + '）');
     assertEqual(x.上, 3, '上の段は1〜3位の3枚');
     assertEqual(x.全, 8, '最下位まで全員の行がある');
     x = await 出す([9, 9, 9, 9, 5, 1, 0, 0]);

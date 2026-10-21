@@ -20,6 +20,8 @@
 //   ② 物差し：大画面の舞台に flex:none の 900px の箱を入れ、本当に 900px になったかを測ってから、
 //      「切れ／巻き」として拾われるかを見る。外したら元の数にもどるかも見る（落とし穴10-f 49-2）
 //   ③ 小さい字：12px の字を1つ入れて、小さい字の数が1つ増えるかを見る
+//   ⑦ BGM の拍：オークションの競りでページ自身が打つ拍（縁の脈）の中でも「落ち着いた」になり、
+//      対照の 1500ms の動きを足すと「落ち着かない」になるか（拍を除く・同じ値に戻る書き換えを数えない、が効くか）
 // どれかが効かなければ、その回の数は信じられないので**止める**。
 //
 // 出力：docs/監査_大画面の画像/lab/<シナリオ.場面>_<人数>_<幅>.jpg と 記録.json（gitignore 済みの置き場）。
@@ -30,8 +32,15 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { launch, sleep } = require('./cdp');
-const { 測る, 演出の重なり } = require('./big-measure');
+const { 測る, 演出の重なり, 走る演出, 走る演出の名, 拍の数 } = require('./big-measure');
 const L = require('./big-lab-scenes');
+
+// 走っている演出の式（BGMの拍を除く）は big-measure.js から。big-census.js も同じものを読む（写さない・落とし穴1）。
+// **ここで1度だけ組み立てる**——拍の規則が index.html に見つからなければ、ここで止まる。
+// 落ち着くまで の try の中で組み立てると、失敗が飲み込まれて全部の場面が黙って「落ち着かず」になる（落とし穴10-e）
+const 走る式 = 走る演出();
+const 走る名の式 = 走る演出の名();
+const 拍の数式 = 拍の数();
 
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -106,18 +115,35 @@ function 配り手を立てる(fakeJs) {
 // **演出の重なり（爆発の帯・祝い・巨大カウントダウンなど）が画面に残っていない**。
 // 重なりは測り（big-measure.js）からは除いているが、写真には写る——帯が出たままの写真では版組みが見えない。
 // 重なりの名前は big-measure.js の一覧をそのまま使う（写さない）。容器（.fx-notices）は空なら大きさ0なので数えない
+//
+// **同じ値に戻っただけの属性の書き換えは、書き換えに数えない**（指示64）。BGM の拍（bgmBeat）は 0.46秒ごとに
+// #scr-rt-big の class から bgm-beat を外して付け直す——数えると、競りの間ずっと「書き換えたばかり」になる。
+// 1回の知らせ（MutationObserver の1束）の中で、属性ごとに「始めの値」と「いまの値」を比べ、どれも同じなら数えない
+//（class は字の並びではなく、名前の集まりで比べる：外して付け直すと末尾へ回るので）。数えなかった束は 戻った に数える。
+// 要素ごとの控えは Object.create(null)——ふつうの {} だと 'constructor' のような名前が「もう控えた」に見える
 const 見張りを置く = `(function(){ if(window.__lab) return true;
-  window.__lab = { n: 0, last: performance.now() };
-  new MutationObserver(function(){ __lab.n++; __lab.last = performance.now(); })
-    .observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+  window.__lab = { n: 0, last: performance.now(), 戻った: 0 };
+  function 同じか(name, a, b){
+    if(a === b) return true;
+    if(name !== 'class' || a == null || b == null) return false;
+    return a.trim().split(/\\s+/).sort().join(' ') === b.trim().split(/\\s+/).sort().join(' ');
+  }
+  new MutationObserver(function(recs){
+    var 変わった = false, 始め = new Map();
+    for(var i = 0; i < recs.length; i++){
+      var r = recs[i];
+      if(r.type !== 'attributes'){ 変わった = true; break; }
+      var m = 始め.get(r.target);
+      if(!m){ m = Object.create(null); 始め.set(r.target, m); }
+      if(!(r.attributeName in m)) m[r.attributeName] = r.oldValue;
+    }
+    if(!変わった) 始め.forEach(function(m, t){ for(var k in m){ if(!同じか(k, m[k], t.getAttribute(k))) 変わった = true; } });
+    if(変わった){ __lab.n++; __lab.last = performance.now(); } else __lab.戻った++;
+  }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true, attributeOldValue: true });
   return true; })()`;
 const 落ち着いた = (q) => `(function(){
   if(!window.__lab) return false;
-  var 走る = document.getAnimations().filter(function(a){
-    if(a.playState !== 'running') return false;
-    var t = a.effect && a.effect.getComputedTiming && a.effect.getComputedTiming();
-    return !!t && isFinite(t.endTime);
-  });
+  var 走る = ${走る式};
   var 重 = ${JSON.stringify(演出の重なり)};
   var 残る = Array.prototype.filter.call(document.querySelectorAll('#uiLayerRoot *, #scr-rt-big .big-cd'), function(e){
     var cl = e.classList; var hit = false;
@@ -129,21 +155,35 @@ const 落ち着いた = (q) => `(function(){
   window.__labOverlay = 残る.map(function(e){ return e.className; }).slice(0, 4);
   // 大画面の名簿の測り直し（bigReflowSoon）が残っている間と、字の形が届く前は、まだ落ち着いていない
   var 待ち = !!window.__bigReflowPending || (document.fonts && document.fonts.status !== 'loaded');
-  return performance.now() - __lab.last > ${q} && 走る.length === 0 && 残る.length === 0 && !待ち;
+  var 静か = Math.round(performance.now() - __lab.last);
+  // 落ち着かなかった時に「なぜ」を記録へ残すための控え（落ち着くまで が読む）
+  window.__labWhy = { 書き換えから: 静か, 走る: 走る.length, 重なり: 残る.length, 測り直し待ち: !!window.__bigReflowPending,
+    字の形: !(document.fonts && document.fonts.status !== 'loaded') };
+  return 静か > ${q} && 走る.length === 0 && 残る.length === 0 && !待ち;
 })()`;
 const 二コマ = `new Promise(function(r){ requestAnimationFrame(function(){ requestAnimationFrame(function(){ r(true); }); }); })`;
 const 画面 = `(document.querySelector('.screen.active')||{}).id`;
 
 async function 落ち着くまで(dev, ms) {
   const t0 = Date.now();
+  const 式 = 落ち着いた(300);
+  // 評価の失敗は数える（前は catch で黙って false にしていた——式が壊れると、全部の場面が黙って「落ち着かず」になる・落とし穴10-e）
+  let 失敗 = 0, 最初の失敗 = null, 測れた = 0;
+  const 失敗の控え = () => (失敗 ? { 式の失敗: 失敗, 最初の失敗 } : {});
   for (;;) {
     let ok = false;
-    try { ok = await dev.ev(落ち着いた(300)); } catch (e) {}
-    if (ok) { await dev.ev(二コマ); return { ms: Date.now() - t0, 落ち着いた: true }; }
+    try { ok = await dev.ev(式); 測れた++; } catch (e) { 失敗++; if (!最初の失敗) 最初の失敗 = String(e && e.message || e); }
+    if (ok) { await dev.ev(二コマ); return Object.assign({ ms: Date.now() - t0, 落ち着いた: true }, 失敗の控え()); }
     if (Date.now() - t0 > (ms || 6000)) {
+      // 一度も評価できなかった＝落ち着いたかを測れていない。「落ち着かず」として先へ進まず、止める
+      if (!測れた) throw new Error('落ち着いたかを測る式が、' + 失敗 + ' 回とも評価できません：' + 最初の失敗);
       await dev.ev(二コマ);
-      const 残った演出 = await dev.ev('window.__labOverlay || []').catch(() => []);
-      return { ms: Date.now() - t0, 落ち着いた: false, 残った演出 };
+      // なぜ落ち着かなかったか（走っていた演出の名前・残った重なり・最後の書き換えから何ms）を記録に残す
+      const 読む = (s) => dev.ev(s).catch((e) => '(読めない：' + String(e && e.message || e).split('\n')[0] + ')');
+      const 残った演出 = await 読む('window.__labOverlay || []');
+      const 走っていた = await 読む(走る名の式);
+      const なぜ = await 読む('window.__labWhy || null');
+      return Object.assign({ ms: Date.now() - t0, 落ち着いた: false, 残った演出, 走っていた, なぜ }, 失敗の控え());
     }
     await sleep(80);
   }
@@ -252,6 +292,27 @@ async function 物差しを確かめる(dev) {
   const 演 = await dev.ev(測る);
   await dev.ev("(function(){ var d=document.getElementById('labProbeCd'); if(d) d.remove(); return true; })()");
   await dev.ev(二コマ);
+  // ⑤ 読めない名前：名前の箱を 40px にして、7字の名前を1字まで縮める。**縮んだことを先に1つ測る**（落とし穴10-f）
+  await dev.ev(`(function(){
+    var host = document.querySelector('#scr-rt-big .big-stage') || document.querySelector('#scr-rt-big');
+    var d = document.createElement('span'); d.id = 'labProbeName'; d.className = 'bl-name';
+    d.style.cssText = 'flex:none;display:block;width:40px;font-size:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    d.textContent = 'あいうえおかき'; host.insertBefore(d, host.firstChild); return true; })()`);
+  await dev.ev(二コマ);
+  const 名 = await dev.ev(測る);
+  const 名の箱 = await dev.ev("(function(){ var d=document.getElementById('labProbeName'); var r={幅:d?d.clientWidth:0, 中身:d?d.scrollWidth:0}; if(d) d.remove(); return r; })()");
+  await dev.ev(二コマ);
+  // ⑥ 重なり：入場の知らせを QR の上に置く（QR の無い場面でも、置き場ごと作って見る）。切れに「重なり：」で数えるか
+  await dev.ev(`(function(){
+    var host = document.getElementById('scr-rt-big');
+    var w = document.createElement('div'); w.id = 'labProbeOv';
+    w.innerHTML = '<div id="bigQr"><svg width="120" height="120" style="position:fixed;left:200px;top:200px;"></svg></div>' +
+      '<div class="be-item" style="position:fixed;left:220px;top:220px;width:120px;height:40px;animation:none;opacity:1;">知らせ</div>';
+    host.appendChild(w); return true; })()`);
+  await dev.ev(二コマ);
+  const 重 = await dev.ev(測る);
+  await dev.ev("(function(){ var d=document.getElementById('labProbeOv'); if(d) d.remove(); return true; })()");
+  await dev.ev(二コマ);
   const 巻きか切れ = (m) => (m.ページの巻き > 0 ? 1 : 0) + m.箱の巻き.length + m.切れの数;
   const 拾った = 入れた.切れ.some((x) => /labProbe900/.test(x.何)) || 入れた.ページの巻き > 元.ページの巻き || 入れた.箱の巻き.length > 元.箱の巻き.length;
   const r = {
@@ -270,7 +331,87 @@ async function 物差しを確かめる(dev) {
   r.演出 = { 前: 外した.演出で除いた, 入れた: 演.演出で除いた, 切れ: 演.切れの数, 小さい: 演.小さいの数, 例: 演.除いた例 };
   r.演出を除いた = 演.演出で除いた === 外した.演出で除いた + 1 && 演.除いた例.some((x) => /labProbeCd/.test(x)) &&
     演.切れの数 === 外した.切れの数 && 演.小さいの数 === 外した.小さいの数;
-  r.健全 = r.箱が本当に900 && r.箱を拾った && r.外すと戻る && r.小さい字を拾った && r.小さい数字を拾った && r.演出を除いた;
+  r.読めない名前 = { 箱: 名の箱, 前: 外した.読めないの数, 入れた: 名.読めないの数 };
+  r.読めない名前を拾った = 名の箱.中身 > 名の箱.幅 && 名.読めないの数 === 外した.読めないの数 + 1 &&
+    (名.読めない || []).some((x) => /labProbe|bl-name/.test(x.何) && x.名 === 'あいうえおかき' && x.見 < 3);
+  r.重なり = { 前: 外した.切れの数, 入れた: 重.切れの数 };
+  r.重なりを拾った = 重.切れ.some((x) => /^重なり：/.test(x.何)) && 重.切れの数 >= 外した.切れの数 + 1;
+  r.健全 = r.箱が本当に900 && r.箱を拾った && r.外すと戻る && r.小さい字を拾った && r.小さい数字を拾った && r.演出を除いた &&
+    r.読めない名前を拾った && r.重なりを拾った;
+  return r;
+}
+
+/**
+ * ⑦ BGM の拍（縁の脈）の中でも「落ち着いた」と言えるか（指示64）。
+ * **拍はページ自身に打たせる**——オークションの競り（phase bid）を本物の進行役で作って流し、
+ * ページの見回り（bgmSync・500ms ごと）が本物の拍を始めるのを待つ。bgmBeat の中身を写して打つと、
+ * ページの拍の打ち方が変わった日にも、写した方だけで通り続ける（落とし穴1）。
+ *   (a) 拍が本当に走っている（除く相手がいる。いなければ (b) は自明に通る・落とし穴10-b）
+ *       ＋同じ値に戻っただけの class の書き換え（戻った）が本当に起きている
+ *   (b) その最中に、落ち着いた が true になる（拍が走っているのと同じ瞬間に見る）
+ *   (c) 対照：1500ms の element.animate を1つ足すと、落ち着いた が false になる。
+ *       DOM を書き換えずに動きだけ足す（要素を足すと、書き換えのせいで false になり、何も確かめていない）。
+ *       足した瞬間に「最後の書き換えから 300ms 超」であることも見る
+ */
+async function 拍を確かめる(dev) {
+  const spec = L.SCENARIOS.find((s) => s.name === 'auction-open');
+  if (!spec) throw new Error('拍の自己検査：big-lab-scenes.js に auction-open が見つかりません');
+  let 入口 = null, 競り = null;
+  for (const f of L.回す(spec, 4)) {
+    if (f.作れなかった) continue;
+    if (!入口) 入口 = f;
+    const v = f.snap && f.snap.state && f.snap.state.data;
+    if (v && v.phase === 'bid') { 競り = f; break; }
+  }
+  if (!入口 || !競り) throw new Error('拍の自己検査：オークションの競り（phase bid）が作れません');
+  await 大画面として入る(dev, 入口.snap);
+  await 落ち着くまで(dev, 8000);
+  const 流れ = await 流す(dev, 競り.snap);
+  const r = { 場面: 'auction-open.' + 競り.label + ' 4人', 描き直し: 流れ.描き直し };
+  // ページの見回りが拍を始めるまで（見回りは 500ms ごと）
+  const t0 = Date.now();
+  r.拍が出るまで = null;
+  while (Date.now() - t0 < 5000) {
+    if (await dev.ev(拍の数式) > 0) { r.拍が出るまで = Date.now() - t0; break; }
+    await sleep(100);
+  }
+  // (a)(b) を同じ瞬間に見る。「前の見方」＝拍を除かない数え方（これが 0 にならないのが、直す前の症状）
+  const 同時 = `(function(){ var ok = ${落ち着いた(300)};
+    return { ok: ok, 拍: ${拍の数式},
+      前の見方: document.getAnimations().filter(function(a){ if(a.playState!=='running') return false; var t=a.effect&&a.effect.getComputedTiming&&a.effect.getComputedTiming(); return !!t&&isFinite(t.endTime); }).length,
+      戻った: window.__lab ? __lab.戻った : 0, なぜ: window.__labWhy || null }; })()`;
+  let 見た = null;
+  const t1 = Date.now();
+  while (Date.now() - t1 < 8000) {
+    見た = await dev.ev(同時);
+    if (見た.ok && 見た.拍 > 0) break;
+    await sleep(80);
+  }
+  r.同時 = 見た;
+  r.落ち着くまで = Date.now() - t1;
+  // (c) 対照。**足す直前に落ち着いている**瞬間を待ってから足す——ほかの理由（書き換え・重なり）で false になったのを
+  // 「対照が効いた」と読まない。足した直後にも「最後の書き換えから 300ms 超」を見る
+  let 対照 = null;
+  for (let i = 0; i < 40; i++) {
+    対照 = await dev.ev(`(function(){
+      if(!window.__lab || performance.now() - __lab.last <= 400) return null;
+      if(!(${落ち着いた(300)})) return null;
+      var e = document.getElementById('bigPhase') || document.getElementById('scr-rt-big');
+      var a = e.animate([{ opacity: 1 }, { opacity: 1 }], { duration: 1500 }); a.id = 'labControl1500';
+      var ok = ${落ち着いた(300)};
+      var 名 = ${走る名の式};
+      var 書き換えから = Math.round(performance.now() - __lab.last);
+      a.cancel();
+      return { ok: ok, 名: 名, 書き換えから: 書き換えから };
+    })()`);
+    if (対照) break;
+    await sleep(100);
+  }
+  r.対照 = 対照;
+  r.拍が走っていた = !!見た && 見た.拍 > 0 && 見た.前の見方 > 0 && 見た.戻った > 0;
+  r.拍の中で落ち着いた = !!見た && 見た.ok && 見た.拍 > 0;
+  r.対照で落ち着かない = !!対照 && 対照.ok === false && 対照.書き換えから > 300 && (対照.名 || []).some((x) => /labControl1500/.test(x));
+  r.健全 = !!r.描き直し && r.拍が走っていた && r.拍の中で落ち着いた && r.対照で落ち着かない;
   return r;
 }
 
@@ -320,7 +461,19 @@ function 幅をそろえる(s, n) {
     console.log('  演出の重なり：画面の外にはみ出す 12px の .big-cd を1つ入れて 演出で除いた ' + 物差し.演出.前 + '→' + 物差し.演出.入れた +
       '・切れ ' + 物差し.外した.切れ + '→' + 物差し.演出.切れ + '・小さい字 ' + 物差し.小さい字.前 + '→' + 物差し.演出.小さい + ' → ' +
       (物差し.演出を除いた ? '除けた（黙って落とさず数えた）' : '✖ 除けていない'));
-    if (!時計.健全 || !物差し.健全) throw new Error('自己検査が通りません。この回の数は信じられないので止めます');
+    console.log('  読めない名前：40px の箱に7字の名前（中身 ' + 物差し.読めない名前.箱.中身 + 'px）を入れて ' + 物差し.読めない名前.前 + '→' + 物差し.読めない名前.入れた +
+      ' → ' + (物差し.読めない名前を拾った ? '拾えた（3字未満）' : '✖ 拾えていない'));
+    console.log('  知らせと QR の重なり：QR の上に知らせを1つ置いて 切れ ' + 物差し.重なり.前 + '→' + 物差し.重なり.入れた +
+      ' → ' + (物差し.重なりを拾った ? '拾えた' : '✖ 拾えていない'));
+    // ⑦ BGM の拍。ページ自身が打つ拍の中で（オークションの競りに入り直して）見る
+    const 拍 = await 拍を確かめる(dev);
+    記録.自己検査.拍 = 拍;
+    const 同 = 拍.同時 || {};
+    console.log('  BGMの拍：' + 拍.場面 + ' でページが拍を打つまで ' + 拍.拍が出るまで + 'ms・拍 ' + 同.拍 + '本（拍を除かない数え方なら ' + 同.前の見方 +
+      '本）・戻っただけの書き換え ' + 同.戻った + '束 → ' + (同.ok ? '落ち着いた（' + 拍.落ち着くまで + 'ms）' : '✖ 落ち着かない ' + JSON.stringify(同.なぜ)) +
+      '／対照 1500ms の動きを足すと ' + (拍.対照 ? (拍.対照.ok ? '✖ 落ち着いたまま' : '落ち着かない（' + (拍.対照.名 || []).join(',') + '・書き換えから ' + 拍.対照.書き換えから + 'ms）') : '✖ 足せなかった') +
+      ' → ' + (拍.健全 ? '拍を除けた' : '✖ 除けていない'));
+    if (!時計.健全 || !物差し.健全 || !拍.健全) throw new Error('自己検査が通りません。この回の数は信じられないので止めます');
     例外を拾う('自己検査');
 
     // ---- 本番 ----
@@ -374,14 +527,18 @@ function 幅をそろえる(s, n) {
             記録.場面.push(rec);
             const 行 = SIZES.map(([w, h]) => {
               const m = rec.測り[w + 'x' + h];
-              const 悪い = m.画面 !== 'scr-rt-big' || m.ページの巻き > 0 || m.箱の巻き.length || m.切れの数 || m.小さいの数;
-              return (悪い ? '✖' : '○') + w + ' 巻き' + m.ページの巻き + ' 箱' + m.箱の巻き.length + ' 切れ' + m.切れの数 + ' 小' + m.小さいの数 + (m.演出で除いた ? ' 演除' + m.演出で除いた : '') +
+              const 悪い = m.画面 !== 'scr-rt-big' || m.ページの巻き > 0 || m.箱の巻き.length || m.切れの数 || m.小さいの数 || m.読めないの数;
+              return (悪い ? '✖' : '○') + w + ' 巻き' + m.ページの巻き + ' 箱' + m.箱の巻き.length + ' 切れ' + m.切れの数 + ' 小' + m.小さいの数 + (m.読めないの数 ? ' 読めない' + m.読めないの数 : '') + (m.演出で除いた ? ' 演除' + m.演出で除いた : '') +
                 (m.省略の数 ? ' …' + m.省略の数 : '') + (m.薄めの数 ? ' 薄' + m.薄めの数 : '') +
                 (m.画面 !== 'scr-rt-big' ? ' 画面=' + m.画面 : '');
             }).join(' ｜ ');
             // --probe：調べもの用。測り終わったページで式を1つ評価して出す（例：名前の幅・舞台の高さ・列の数）
             if (PROBE) { try { console.log('    probe ' + JSON.stringify(await dev.ev(PROBE))); } catch (e) { console.log('    probe ✖ ' + e.message); } }
-            console.log('  ' + 幅をそろえる(名, 34) + 幅をそろえる(n + '人', 5) + 行 + (rec.例外.length ? ' ⚠例外' + rec.例外.length : '') + (待ち.落ち着いた ? '' : ' (落ち着かず' + ((待ち.残った演出 || []).length ? '：演出 ' + 待ち.残った演出.join(' / ') : '') + ')'));
+            // 落ち着かなかった時は、なぜかを並べる（走っていた動きの名前・残った重なり・最後の書き換えから何ms）
+            const 並べる = (x) => Array.isArray(x) ? x.join(' / ') : String(x || '');
+            const 理由 = 待ち.落ち着いた ? '' : [並べる(待ち.残った演出) && '演出 ' + 並べる(待ち.残った演出), 並べる(待ち.走っていた) && '走る ' + 並べる(待ち.走っていた),
+              待ち.なぜ && typeof 待ち.なぜ === 'object' ? '書き換えから ' + 待ち.なぜ.書き換えから + 'ms' + (待ち.なぜ.測り直し待ち ? '・測り直し待ち' : '') + (待ち.なぜ.字の形 ? '' : '・字の形待ち') : ''].filter(Boolean).join('・');
+            console.log('  ' + 幅をそろえる(名, 34) + 幅をそろえる(n + '人', 5) + 行 + (rec.例外.length ? ' ⚠例外' + rec.例外.length : '') + (待ち.落ち着いた ? '' : ' (落ち着かず' + (理由 ? '：' + 理由 : '') + ')') + (待ち.式の失敗 ? ' ⚠落ち着きの式の失敗' + 待ち.式の失敗 : ''));
           }
         } catch (e) {
           記録.作れなかった.push({ シナリオ: spec.name, 人数: n, 理由: '道具：' + String(e && e.message || e) });
@@ -414,6 +571,7 @@ function 幅をそろえる(s, n) {
         if (m.箱の巻き.length) 理由.push('中の巻き');
         if (m.切れの数) 理由.push('切れ');
         if (m.小さいの数) 理由.push('小さい字');
+        if (m.読めないの数) 理由.push('読めない名前');
         if (理由.length) 悪い数++;
         console.log(幅をそろえる(rec.場面, 36) + 幅をそろえる(rec.人数, 6) + 幅をそろえる(w + 'x' + h, 11) + 幅をそろえる(m.ページの巻き, 15) +
           幅をそろえる(m.箱の巻き.length ? m.箱の巻き.map((x) => x.中身 - x.見える高さ).join('/') : 0, 10) + 幅をそろえる(m.切れの数, 6) +
@@ -425,6 +583,18 @@ function 幅をそろえる(s, n) {
     let 省略の場面 = 0, 省略の計 = 0;
     for (const rec of 記録.場面) for (const [w, h] of SIZES) { const m = rec.測り[w + 'x' + h]; if (m && m.省略の数) { 省略の場面++; 省略の計 += m.省略の数; } }
     console.log('名前の省略（…）：' + 省略の場面 + ' / ' + 記録.場面.length * SIZES.length + ' の測りで、のべ ' + 省略の計 + ' 個（切れには数えない）');
+    // 何字まで縮んだか（見えている字の数ごと）。「たかは…」と「た…」を同じ1件に数えない
+    const 字の分布 = {}, 縮みすぎ = {};
+    for (const rec of 記録.場面) for (const [w, h] of SIZES) {
+      const m = rec.測り[w + 'x' + h];
+      (m && m.省略 || []).forEach((x) => {
+        if (typeof x !== 'object') return;
+        字の分布[x.見] = (字の分布[x.見] || 0) + 1;
+        if (x.見 < 3) (縮みすぎ[rec.場面 + ' ' + rec.人数 + '人'] = 縮みすぎ[rec.場面 + ' ' + rec.人数 + '人'] || new Set()).add(w + ':' + x.名 + '→' + x.見 + '字');
+      });
+    }
+    console.log('  見えている字の数：' + Object.keys(字の分布).sort((a, b) => a - b).map((k) => k + '字 ' + 字の分布[k]).join('・'));
+    Object.keys(縮みすぎ).forEach((k) => console.log('  3字未満 ' + k + '：' + Array.from(縮みすぎ[k]).slice(0, 8).join(' ')));
     // opacity で薄めた字（§11-9）。演出の最中の字は除いてある
     const 薄めた = {};
     for (const rec of 記録.場面) for (const [w, h] of SIZES) { const m = rec.測り[w + 'x' + h]; (m && m.薄め || []).forEach((x) => { (薄めた[x.何 + ' ' + x.opacity] = 薄めた[x.何 + ' ' + x.opacity] || []).push(rec.場面); }); }

@@ -410,6 +410,103 @@ const { createRunner, assert, assertEqual } = require('./harness');
     assert(/data-cols="3"/.test(二十), '20人ならび：3列');
   });
 
+  // ---- 指示64の監査：名前が「ひ」「あ…」の1〜2字まで縮んでいた（実験台が名前の省略を ✖ に数えていなかった） ----
+  const 順位表の前置き = 'var BIG_PODIUM_MAX = 5;\n' +
+    'function rankingHtml(rows){ return "<div class=\\"rk-view\\"><div class=\\"rk-list\\">" + rows.map(function(r){ return "<div class=\\"rk-row\\"></div>"; }).join("") + "</div></div>"; }\n' +
+    ['bigPodiumRows', 'bigRankCols'].map(関数の字).join('\n') + '\nvar bigRankLast = null;\n';
+
+  await r.test('64 監査：値が長い言葉の表は、3列の時に値を名前の下の行へ（数の表・2列の表はそのまま）', async () => {
+    const 表 = 関数を取り出す('bigRankHtml', 順位表の前置き);
+    // 進化じゃんけん12人：1位がひとり、下の11人は「🥚 たまご」——3列になる表
+    const 進化 = 表([{ id: 'w', rank: 1, name: 'あき', main: '🐤 ひよこ' }].concat(
+      Array.from({ length: 11 }, (_, i) => ({ id: 'p' + i, rank: 2, name: 'n' + i, main: '🥚 たまご' }))));
+    assert(/data-shape="c2"/.test(進化) && /data-cols="3"/.test(進化), '前提：表彰台の下が3列（型b：' + 進化.slice(0, 120) + '）');
+    assert(/data-main="below"/.test(進化), '値（たまご）を名前の下の行へ（' + 進化.slice(0, 160) + '）');
+    assert(/--rk-rows:4/.test(進化), '2行の行は1列に4段（11人で3列×4段）');
+    // 分岐のもう一方（落とし穴10-c）：数の値は横のまま／2列に入る表は横のまま
+    const 数 = 表([{ id: 'w', rank: 1, name: 'あき', main: '9点' }].concat(
+      Array.from({ length: 11 }, (_, i) => ({ id: 'p' + i, rank: 2, name: 'n' + i, main: '0点' }))));
+    assert(/data-cols="3"/.test(数) && !/data-main=/.test(数), '数の値は名前と同じ行（' + 数.slice(0, 160) + '）');
+    const 八人 = 表([{ id: 'w', rank: 1, name: 'あき', main: '🐤 ひよこ' }].concat(
+      Array.from({ length: 7 }, (_, i) => ({ id: 'p' + i, rank: 2, name: 'n' + i, main: '🥚 たまご' }))));
+    assert(/data-cols="2"/.test(八人) && !/data-main=/.test(八人), '2列に入る表は、言葉の値でも名前と同じ行');
+    // 3字までの言葉（「あがり」）は短いので横のまま
+    const 短い = 表([{ id: 'w', rank: 1, name: 'あき', main: 'あがり' }].concat(
+      Array.from({ length: 11 }, (_, i) => ({ id: 'p' + i, rank: 2, name: 'n' + i, main: 'あと3' }))));
+    assert(!/data-main=/.test(短い), '「あがり」「あと3」は横のまま');
+  });
+
+  await r.test('64 監査：表彰台の下が舞台に入らない時は、C1 で描き直す（入る時は C2 のまま）', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM('<div id="rank"></div>');
+    const box = dom.window.document.getElementById('rank');
+    // jsdom は版組みをしないので、幅だけ「描かれている」ことにする（判断の枝だけを試す）
+    dom.window.HTMLElement.prototype.getBoundingClientRect = function(){ return { width: 100, height: 100, top: 0, bottom: 100, left: 0, right: 100 }; };
+    let 入る = false;
+    const 舞台 = {};
+    const 作る = new Function('el', 'bigStageFits', 順位表の前置き + 関数の字('bigRankHtml') + '\n' + 関数の字('bigFitRank') +
+      '\nreturn { bigRankHtml: bigRankHtml, bigFitRank: bigFitRank };');
+    const f = 作る((id) => (id === 'bigRank' ? box : id === 'bigStage' ? 舞台 : null), () => 入る);
+    // つぎつぎクイズのサバイバル20人：1位がひとり、19人がならびの2位
+    const 行 = [{ id: 'w', rank: 1, name: 'りん', main: '1点' }].concat(Array.from({ length: 19 }, (_, i) => ({ id: 'p' + i, rank: 2, name: 'n' + i, main: '0点' })));
+    box.innerHTML = f.bigRankHtml(行, { showFace: true });
+    assertEqual(box.firstElementChild.getAttribute('data-shape'), 'c2', '前提：はじめは C2（型b）');
+    入る = true; f.bigFitRank();
+    assertEqual(box.firstElementChild.getAttribute('data-shape'), 'c2', '入る時は C2 のまま');
+    入る = false; f.bigFitRank();
+    assertEqual(box.firstElementChild.getAttribute('data-shape'), 'c1', '入らない時は C1 で描き直す');
+    assert(!box.querySelector('.rk-podium'), 'C1 には表彰台が無い');
+    assertEqual(box.querySelectorAll('.rk-row').length, 20, '描き直しても20人とも残る');
+    // C1 になったあとは、もう一度呼んでも描き直さない（入らなくても回り続けない）
+    const 前 = box.innerHTML; f.bigFitRank();
+    assertEqual(box.innerHTML, 前, 'C1 は描き直さない');
+  });
+
+  await r.test('64 監査：舞台に「入る」は、下に 4（1280×720 の目盛り）の余りがある時だけ', async () => {
+    const 作る = new Function('getComputedStyle', 'document', 関数の字('bigStageFits') + '\nreturn bigStageFits;');
+    const 測る = (高さ) => 作る(() => ({ paddingBottom: '0px', borderBottomWidth: '0px' }), { documentElement: { clientHeight: 高さ } });
+    const 舞台 = (余り, 巻く) => ({
+      scrollHeight: 巻く ? 420 : 400, clientHeight: 400,
+      getBoundingClientRect: () => ({ bottom: 700 }),
+      children: [{ getBoundingClientRect: () => ({ bottom: 700 - 余り, height: 120 }) }]
+    });
+    const 七二〇 = 測る(720), 千八十 = 測る(1080);
+    assertEqual(七二〇(舞台(6)), true, '余り6：入る');
+    assertEqual(七二〇(舞台(4)), true, '余り4：入る（ちょうど）');
+    assertEqual(七二〇(舞台(2)), false, '余り2：入らない（字の形が後から届くと切れる）');
+    assertEqual(七二〇(舞台(6, true)), false, '巻いている時は入らない');
+    // 目盛りは画面に比例する（1920×1080 では 6）
+    assertEqual(千八十(舞台(5)), false, '1080 で余り5：入らない');
+    assertEqual(千八十(舞台(7)), true, '1080 で余り7：入る');
+  });
+
+  await r.test('64 監査：列を減らせないまま名前が切れている名簿は、札の内側を詰める（切れていなければ詰めない）', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM('<div id="list"><span class="bl-item"><span class="bl-name">あいうえおかき</span></span><span class="bl-item"><span class="bl-name">ひろ</span></span></div>');
+    const list = dom.window.document.getElementById('list');
+    list.getBoundingClientRect = () => ({ width: 800, height: 100 });
+    // 名前は「列が切れ目より多いと切れる」ことにする（列を減らすと切れなくなる表を作れる）
+    let 切れ目 = 2;
+    list.querySelectorAll('.bl-name').forEach((n) => {
+      Object.defineProperty(n, 'clientWidth', { get: () => 100 });
+      Object.defineProperty(n, 'scrollWidth', { get: () => (parseInt(list.style.getPropertyValue('--bl-cols') || '4', 10) > 切れ目 ? 180 : 100) });
+    });
+    let 入る = true;
+    const 広げる = new Function('el', 'bigSugoBoardShown', 'bigStageFits', 関数の字('bigWidenList') + '\nreturn bigWidenList;')(
+      () => ({}), () => false, () => 入る);
+    // ① 列を減らせば切れなくなり、舞台にも入る：2列まで減らして、詰めない
+    list.style.setProperty('--bl-cols', '4'); 広げる(list, 4);
+    assertEqual(list.style.getPropertyValue('--bl-cols'), '2', '2列まで減らす');
+    assertEqual(list.hasAttribute('data-tight'), false, '切れなくなったので詰めない');
+    // ② 列を減らすと舞台に入らない：4列のまま、詰める
+    入る = false; list.style.setProperty('--bl-cols', '4'); 広げる(list, 4);
+    assertEqual(list.style.getPropertyValue('--bl-cols'), '4', '入らないので4列にもどす');
+    assertEqual(list.hasAttribute('data-tight'), true, '切れたままなので詰める');
+    // ③ 次に測った時に切れていなければ、詰めた印は外れる（前の回の印を持ち越さない）
+    切れ目 = 9; 広げる(list, 4);
+    assertEqual(list.hasAttribute('data-tight'), false, '切れていない回は詰めない');
+  });
+
   await r.test('64 見直し：一枚看板の名前は .tv-nm で包む（字の節点をたどる・escape をほどかない）', async () => {
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM('<div id="m"></div>');
@@ -541,6 +638,68 @@ const { createRunner, assert, assertEqual } = require('./harness');
     // 「生のidに落ちる書き方がどこにも無い」という性質で見る（大画面・手元とも）
     const 生のid = html64.match(/RT_PHASE_LABEL\[v\.phase\]\s*\|\|\s*v\.phase/g) || [];
     assertEqual(生のid.length, 0, '段階の表に無い時に、生のid（v.phase）を出す書き方が無い');
+  });
+
+  await r.test('64 監査：大画面の段階の札は、どのゲームも段階（v.phase）から引く——ゲーム名・方式名を書かない（§11-9）', async () => {
+    // クイズ王の4ゲームは、遊んでいる間も決着も札に「クイズラッシュ」などのゲーム名を出していた。
+    // 上の検査は「自分で札を書くゲーム」を表の検査から外し、外したこと自体を期待にしていたので、中身を誰も見ていなかった。
+    // **札を書く行を全部拾い、手で並べない**（落とし穴4）：待合（部屋コード）を除き、どの行も v.phase から引く
+    const 行 = [];
+    for (const m of html64.matchAll(/el\('bigPhase'\)\.textContent\s*=\s*([^;]+);/g)) {
+      const a = html64.lastIndexOf('\n  function ', m.index);
+      行.push({ 名: (/function (\w+)\(/.exec(html64.slice(a, a + 80)) || [])[1], 式: m[1].trim() });
+    }
+    // 型(b)：拾えていること（待合と、共通の行と、自分で書くゲーム）
+    assert(行.length >= 7 && 行.some((x) => x.名 === 'renderBigLobby') && 行.some((x) => x.名 === 'renderRtBigQuiz'),
+      '札を書く行を拾えた（' + 行.map((x) => x.名).join('・') + '）');
+    const 悪い = 行.filter((x) => x.名 !== 'renderBigLobby' && !/\bv\.phase\b/.test(x.式));
+    assertEqual(悪い.map((x) => x.名 + '：' + x.式).join(' ／ '), '', '段階に依らない札（ゲーム名などを出している）');
+    // クイズ王：段階ごとの語が、ゲーム名・方式名・カセット名を含まない（前に付けた形「クイズラッシュ　結果」も拾う）
+    const { READY_CASSETTE_TITLES } = require('./inventory');
+    const 前置き = ['QZ_PHASE_LABEL', 'QZ_BIG_PHASE_OWN', 'QZ_TITLE'].map((名) => {
+      const a = html64.indexOf('var ' + 名 + ' = ');
+      assert(a > 0, 名 + ' が見つからない');
+      return html64.slice(a, html64.indexOf(';', a) + 1);
+    }).join('\n') + '\n';
+    const 札 = 関数を取り出す('qzBigPhase', 前置き);
+    const QZ_TITLE = new Function(前置き + 'return QZ_TITLE;')();
+    const OWN = new Function(前置き + 'return QZ_BIG_PHASE_OWN;')();
+    const 名前 = MODESを読む().map((m) => m.title).concat(Object.values(READY_CASSETTE_TITLES), Object.values(QZ_TITLE)).filter(Boolean);
+    assert(名前.indexOf('クイズラッシュ') !== -1, '比べる名前にクイズのゲーム名が入っている（型b）');
+    const 段階 = Object.values(require('../quiz-room').PHASE || {}).filter((p) => p !== 'lobby');
+    assert(段階.indexOf('play') !== -1 && 段階.indexOf('ended') !== -1, 'quiz-room の段階を読めた（' + 段階.join('・') + '）');
+    const 一覧 = (名) => new Function('return ' + html64.slice(html64.indexOf('var ' + 名 + ' = '), html64.indexOf(';', html64.indexOf('var ' + 名 + ' = '))).replace('var ' + 名 + ' = ', ''))();
+    const 変種 = 一覧('RT_QUIZ_GAMES');
+    const 誤り = [];
+    変種.forEach((g) => 段階.forEach((ph) => {
+      const 字 = 札(g, ph);
+      if (名前.some((n) => 字.indexOf(n) !== -1)) 誤り.push(g + ' の ' + ph + '：「' + 字 + '」（名前）');
+      if (/^[A-Za-z_]+$/.test(字)) 誤り.push(g + ' の ' + ph + '：「' + 字 + '」（生のid）');
+    }));
+    assertEqual(誤り.join(' ／ '), '', 'クイズの札');
+    assert(札('quizrush', 'play') && 札('buzzer', 'play') && 札('quizrush', 'play') !== 札('buzzer', 'play'), '遊んでいる間の札は語がある（早押しは「対戦」）');
+    // 早押しに「ラウンド」を言わせない（ラッシュの語を漏らさない・落とし穴2）
+    assert(!/ラウンド/.test(札('buzzer', 'break')), '早押しの切れ目にラウンドと言わない（' + 札('buzzer', 'break') + '）');
+    // 帰り（落とし穴20）：自分の語を持つ表のキーは、実在する変種と段階だけ
+    const 幽霊 = [];
+    Object.keys(OWN).forEach((g) => {
+      if (変種.indexOf(g) === -1) 幽霊.push(g);
+      Object.keys(OWN[g]).forEach((ph) => { if (段階.indexOf(ph) === -1) 幽霊.push(g + '.' + ph); });
+    });
+    assertEqual(幽霊.join('・'), '', '実在しない変種・段階の札');
+  });
+
+  await r.test('64 監査：クイズラッシュのラウンドの合間に、大画面の帯は「みんなが挑んでいます」と言わない', async () => {
+    // 合間の札を「ラウンドの合間」にしたら、帯の一言は挑戦中のままだった（札と帯が食い違う）。端末と同じ文を使う
+    const NL = require('../public/js/ui-text.js').NOW;
+    // 文の表（NL）を渡して、本物の nlQuiz をそのまま動かす（写しを書かない・落とし穴10-a）
+    const 作る = new Function('NL', 'function wait(t, ids){ return { text: t, ids: ids || null }; }\nfunction mine(t){ return { text: t, mine: true }; }\n' + 関数の字('nlQuiz') + '\nreturn nlQuiz;');
+    const 一言 = (v) => 作る(NL)(v, null, { isBig: true }).text;
+    const 合間 = 一言({ variant: 'quizrush', phase: 'break' });
+    const 遊ぶ = 一言({ variant: 'quizrush', phase: 'play' });
+    assert(合間 && 遊ぶ && 合間 !== 遊ぶ, '合間と挑戦中で帯の一言が違う（合間：' + 合間 + '／挑戦中：' + 遊ぶ + '）');
+    assertEqual(合間, NL.quiz.つぎのラウンド, '合間は端末と同じ文（文を2か所に持たない）');
+    assert(!/あなた|じぶん|自分/.test(合間), '大画面は二人称を使わない');
   });
 
   await r.test('64：TVに「タップで…」を出さない（TVは無人で回す）', async () => {

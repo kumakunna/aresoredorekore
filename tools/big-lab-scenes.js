@@ -729,7 +729,9 @@ function 上限(gameId) {
 }
 function 人数(spec) {
   const cap = 上限(spec.game);
-  return Array.from(new Set([4, 8, 16].map((n) => Math.min(n, cap))));
+  // 20 は部屋の上限（realtime.js ROOM_MAX_PLAYERS）。上限なしのゲームは 17〜20人でも遊べる——
+  // 16 で止めていたので、xl（17人以上）の置き方は一度も測られていなかった（指示64の監査）
+  return Array.from(new Set([4, 8, 16, RT.ROOM_MAX_PLAYERS].map((n) => Math.min(n, cap))));
 }
 
 /**

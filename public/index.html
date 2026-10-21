@@ -3364,6 +3364,10 @@
       font:700 var(--tv-name)/1.2 'Zen Maru Gothic',sans-serif;color:var(--ink);letter-spacing:0;
       white-space:nowrap;overflow:hidden;text-decoration:none;opacity:1;
     }
+    /* 列を減らしても名前が切れたまま（舞台に入らない）の時は、札の内側の余白と隙間を詰める（bigWidenList が付ける）。
+       オークションの下見8人で「あい…」「たか…」の2字になっていた——数（20枚）と顔に押された分を、余白から返す */
+    #scr-rt-big .big-list[data-tight] .bl-item{padding-inline:calc(10 * var(--tv-u));gap:calc(6 * var(--tv-u));}
+    #scr-rt-big .big-list[data-tight]{column-gap:calc(8 * var(--tv-u));}
     #scr-rt-big .big-list .bl-item.dead,#scr-rt-big .big-list .bl-item.is-out{
       color:var(--ink-soft);background:transparent;border-style:dashed;
     }
@@ -3519,6 +3523,13 @@
     #scr-rt-big[data-big="a"][data-size="l"] .big-list,#scr-rt-big[data-big="a"][data-size="xl"] .big-list{row-gap:calc(4 * var(--tv-u));}
     #scr-rt-big[data-big="b"][data-size="xl"] .big-list{display:grid;grid-template-columns:repeat(var(--lb-cols,5),minmax(0,1fr));}
     #scr-rt-big[data-big="a"][data-size="xl"] .big-list{grid-template-columns:repeat(var(--lb-cols,4),minmax(0,1fr));}
+    /* 17〜20人（部屋の上限）は、顔を順位表と同じ 36 にして札を 42（顔＋上下2ずつ＋縁）まで低くし、3列×7段を舞台に入れる。
+       46 のままだと 3列が 4px 足りず、4〜5列にもどって名前が「あ…」「まり…」の1〜2字になっていた
+       （A は下が 200px 空いたまま。実験台が16人までしか測っていなかった・指示64の監査） */
+    #scr-rt-big[data-big="a"][data-size="xl"] .big-list .bl-item,#scr-rt-big[data-big="b"][data-size="xl"] .big-list .bl-item{
+      min-height:calc(42 * var(--tv-u));padding-block:calc(2 * var(--tv-u));line-height:1.15;}
+    #scr-rt-big[data-big="a"][data-size="xl"] .big-list .bl-face,#scr-rt-big[data-big="b"][data-size="xl"] .big-list .bl-face{font-size:calc(36 * var(--tv-u));}
+    #scr-rt-big[data-big="b"][data-size="xl"] .big-list{row-gap:calc(4 * var(--tv-u));}
     #scr-rt-big .big-list .bl-item.is-wait{background:transparent;border-style:dashed;}
     #scr-rt-big .bl-mark{flex:none;font:700 var(--tv-name)/1 'Zen Maru Gothic',sans-serif;}
     #scr-rt-big .bl-item.is-ready .bl-mark,#scr-rt-big .bl-card.is-ready .bl-mark{color:var(--teal);}
@@ -3671,6 +3682,18 @@
     #scr-rt-big .rk-tv[data-note="none"] .rk-rest .rk-note,#scr-rt-big .rk-tv[data-note="none"][data-shape="c1"] .rk-note{display:none;}
     #scr-rt-big .rk-tv[data-note="none"] .rk-rest .rk-name,#scr-rt-big .rk-tv[data-note="none"][data-shape="c1"] .rk-name{grid-row:1 / -1;align-self:center;}
     #scr-rt-big[data-size="xl"] .rk-tv .rk-row{min-height:calc(52 * var(--tv-u));}
+    /* 値が長い言葉の表（data-main="below"・bigRankCols）：値を名前の下の行へ。「2位 🥚 たまご」で名前が0幅になっていた */
+    /* 2行の行は上下の内側を 2 に・行の高さ 1.1（進化じゃんけん12人で、表彰台＋3列×4段が 8px 足りず C1 に落ちていた） */
+    #scr-rt-big .rk-tv[data-main="below"] .rk-rest .rk-row,#scr-rt-big .rk-tv[data-main="below"][data-shape="c1"] .rk-row{
+      grid-template-columns:auto auto minmax(0,1fr);
+      grid-template-areas:"place face name" "place face main";padding-block:calc(2 * var(--tv-u));}
+    #scr-rt-big .rk-tv[data-main="below"] .rk-rest .rk-row .rk-name,#scr-rt-big .rk-tv[data-main="below"][data-shape="c1"] .rk-row .rk-name{
+      grid-row:auto;align-self:end;line-height:1.1;}
+    #scr-rt-big .rk-tv[data-main="below"] .rk-rest .rk-row .rk-main,#scr-rt-big .rk-tv[data-main="below"][data-shape="c1"] .rk-row .rk-main{
+      justify-self:start;align-self:start;line-height:1.1;}
+    /* 17〜20人の表（3列）は、行の内側と隙間を詰める（名前の欄に返す）。「あい…」の2字になっていた */
+    #scr-rt-big[data-size="xl"] .rk-rest .rk-row,#scr-rt-big[data-size="xl"] .rk-tv[data-shape="c1"] .rk-row{
+      column-gap:calc(8 * var(--tv-u));padding-inline:calc(10 * var(--tv-u));}
 
 
     /* ---- ゲームごとの盤。描く関数はそれぞれ1か所のまま、TVの段で寸法だけ決め直す ---- */
@@ -17989,7 +18012,8 @@
     var Q = NL.quiz, B = Q.大画面;
     if(ctx.isBig){
       if(v.phase === 'ended') return wait(B.決着);
-      if(v.variant === 'quizrush')   return wait(B.いっせいに);
+      // ラウンドの合間は「みんなが挑んでいます」ではない（指示64の監査）。端末と同じ文を使う（文を2か所に持たない）
+      if(v.variant === 'quizrush')   return wait(v.phase === 'break' ? Q.つぎのラウンド : B.いっせいに);
       if(v.variant === 'quizlist')   return wait(v.list && v.list.turnName ? B.手番(v.list.turnName) : '', v.list && v.list.turnId ? [v.list.turnId] : null);
       if(v.variant === 'quizreveal'){
         var rv = v.reveal || {};
@@ -19544,6 +19568,18 @@
     el('qzEndBtn').style.display = host ? 'inline-flex' : 'none';
   }
   var QZ_PHASE_LABEL = { play:'挑戦中', break:'ラウンドの結果', ended:'結果' };
+  /**
+   * 指示64の監査：**大画面の段階の札**（§11-9：段階の語だけ。ゲームの名前は待合が言う）。
+   * それまで全段階でゲーム名（QZ_TITLE）を出し、決着では帯の一言「結果発表」の隣にゲーム名が並んでいた。
+   * 遊んでいる間と決着は端末と同じ語。**切れ目だけ違う**——端末はそのラウンドの結果を出すが、大画面は通しの順位の
+   * ままなので「結果」と言わない（言うと、出していないものを約束する・落とし穴33）。
+   * 早押しは「ラウンド」ではなく「対戦」（ラッシュの語を漏らさない・落とし穴2）
+   */
+  var QZ_BIG_PHASE_OWN = { quizrush: { break:'ラウンドの合間' }, buzzer: { play:'対戦中', break:'対戦の合間' } };
+  function qzBigPhase(variant, phase){
+    var own = QZ_BIG_PHASE_OWN[variant] || {};
+    return own[phase] || (phase === 'break' ? '' : (QZ_PHASE_LABEL[phase] || ''));
+  }
   var QZ_TITLE = {
     quizrush:'クイズラッシュ', quizlist:'つぎつぎクイズ',
     quizreveal:'とくとくクイズ', buzzer:'早押しトーナメント'
@@ -19988,7 +20024,7 @@
   }
   function renderRtBigQuiz(v){
     el('bigBoard').style.display = 'none';
-    el('bigPhase').textContent = QZ_TITLE[v.variant] || 'クイズ王';
+    el('bigPhase').textContent = qzBigPhase(v.variant, v.phase);
     var main = '', sub = '', mainHtml = '';
     if(v.phase === 'ended'){
       var res = v.result || {};
@@ -21192,24 +21228,34 @@
       //（クイズラッシュ16人で「🟠 むずかしい」のために3列になり、名前が「こう…」になっていた・指示64の見直し）
       var 短い段 = 台あり ? 5 : 8;
       if(rows.length <= 2 * 短い段) return { 列: 2, 内訳: 'none' };
+      // 値が長い言葉（進化じゃんけんの「⬜ アンランク」「🥚 たまご」）の表を3列にすると、値に押されて
+      // 名前が0〜1字になった（12人の結果で「ひろ」まで「ひ」）。**値を名前の下の行へ**（2行の行。1列に4段／6段）
+      var 言葉 = rows.some(function(r){ var v = String(r.main == null ? '' : r.main); return !/[0-9]/.test(v) && Array.from(v).length > 3; });
+      if(言葉) return { 列: Math.max(3, Math.ceil(rows.length / (台あり ? 4 : 6))), 内訳: 'none', 値: 'below' };
       return { 列: 3, 内訳: 'none' };
     }
     return { 列: 2, 内訳: 長い ? 'below' : 'inline' };
   }
+  /** いちばん最後に描いた順位表（bigFitRank が、入らない時に C1 で描き直すため） */
+  var bigRankLast = null;
   function bigRankHtml(rows, opts){
     var list = rows || [];
-    var 台 = bigPodiumRows(list);
+    bigRankLast = { rows: list, opts: opts };
+    // opts.shape === 'c1'：表彰台を作らない（bigFitRank が、表彰台の下が舞台に入らない時に使う）
+    var 台 = (opts && opts.shape === 'c1') ? null : bigPodiumRows(list);
     // 順位の欄の幅は表ぜんぶで1つ（「9位」と「10位」で顔と名前の位置がずれないように）
     var 桁 = list.some(function(r){ return r.rank != null && r.rank >= 10; }) ? '2' : '1';
     if(!台){
       var c1 = bigRankCols(list, false);
-      return '<div class="rk-tv" data-shape="c1" data-pw="' + 桁 + '" data-cols="' + c1.列 + '" data-note="' + c1.内訳 + '" style="--rk-rows:' +
+      return '<div class="rk-tv" data-shape="c1" data-pw="' + 桁 + '" data-cols="' + c1.列 + '" data-note="' + c1.内訳 + '"' +
+        (c1.値 ? ' data-main="' + c1.値 + '"' : '') + ' style="--rk-rows:' +
         Math.max(1, Math.ceil(list.length / c1.列)) + ';">' + rankingHtml(list, opts) + '</div>';
     }
     var 残り = list.filter(function(r){ return 台.indexOf(r) === -1; });
     var c2 = bigRankCols(残り, true);
     var 列 = c2.列;
-    return '<div class="rk-tv" data-shape="c2" data-pw="' + 桁 + '" data-cols="' + 列 + '" data-note="' + c2.内訳 + '" data-pod="' + 台.length + '" style="--rk-pod:' + 台.length +
+    return '<div class="rk-tv" data-shape="c2" data-pw="' + 桁 + '" data-cols="' + 列 + '" data-note="' + c2.内訳 + '"' +
+        (c2.値 ? ' data-main="' + c2.値 + '"' : '') + ' data-pod="' + 台.length + '" style="--rk-pod:' + 台.length +
         ';--rk-rows:' + Math.max(1, Math.ceil(残り.length / 列)) + ';">' +
       '<div class="rk-podium">' + rankingHtml(台, opts) + '</div>' +
       (残り.length ? '<div class="rk-rest">' + rankingHtml(残り, opts) + '</div>' : '') +
@@ -22074,7 +22120,20 @@
     var 切れ = Array.prototype.some.call(tv.querySelectorAll('.rk-podium .rk-note'), function(n){ return n.scrollWidth > n.clientWidth + 1; });
     if(!切れ) return;
     tv.setAttribute('data-podnote', 'below');
-    if(stage.scrollHeight > stage.clientHeight + 1) tv.removeAttribute('data-podnote');
+    if(!bigStageFits(stage)) tv.removeAttribute('data-podnote');
+  }
+  /**
+   * 表彰台（C2）の下の段が舞台に入らない時は、C1（表彰台なし・1位は金の行）で描き直す。
+   * 17〜20人で1位がひとり（2位以下がならび）だと、表彰台の下が3列×7段になって最後の段が切れた
+   *（つぎつぎクイズのサバイバル20人・指示64の監査）。C1 は「1位が6人以上ならんだ時」の形で、本人が選んだ切り替え先
+   */
+  function bigFitRank(){
+    var box = el('bigRank'), stage = el('bigStage');
+    var tv = box && box.firstElementChild;
+    if(!tv || !tv.classList.contains('rk-tv') || !stage || !tv.getBoundingClientRect || !tv.getBoundingClientRect().width) return;
+    if(tv.getAttribute('data-shape') !== 'c2' || !bigRankLast) return;
+    if(bigStageFits(stage)) return;
+    box.innerHTML = bigRankHtml(bigRankLast.rows, Object.assign({}, bigRankLast.opts, { shape: 'c1' }));
   }
   function bigBalanceList(あとで){
     var list = el('bigList');
@@ -22083,7 +22142,8 @@
     // 一枚看板を移すのは、描いたその場と、落ち着いてからの測り直しの両方で。落ち着いてからだけにすると、
     // 部屋の知らせが来て描き直すたびに、150ms だけ96pxの一枚看板が出てから移り、ちらついた（census で見つかった）
     bigFitMain();
-    if(あとで){ bigStackVs(); bigFitMain(); bigFitPodiumNote(); }
+    bigFitRank();
+    if(あとで){ bigStackVs(); bigFitMain(); bigFitRank(); bigFitPodiumNote(); }
     var n = list.children.length;
     // ハート（体力）を並べる行は横に長いので2列まで（5つ並ぶと 48px×5）
     // 添えの行と数の両方を持つ行（すごろくの「名前／🪙」と「あと40」）は3列まで（4列だと名前が1字になった）
@@ -22116,6 +22176,7 @@
   function bigWidenList(list, 列, 札){
     var 名 = 札 || '--bl-cols';
     var stage = el('bigStage');
+    if(list) list.removeAttribute('data-tight');
     if(!stage || !list || !list.getBoundingClientRect || !list.getBoundingClientRect().width) return;
     if(bigSugoBoardShown()) return;
     var 切れている = function(){
@@ -22125,12 +22186,33 @@
     };
     while(列 > 1 && 切れている()){
       list.style.setProperty(名, String(列 - 1));
-      if(stage.scrollHeight > stage.clientHeight + 1){
+      if(!bigStageFits(stage)){
         list.style.setProperty(名, String(列));
         break;
       }
       列--;
     }
+    // 列を減らせないまま名前が切れている時は、札の内側を詰める（高さは変わらない。横の余白だけを名前に返す）
+    if(切れている()) list.setAttribute('data-tight', '');
+  }
+  /**
+   * 舞台に収まっているか。**ぎりぎりで「入る」と読まない**——測った直後に字の形（日本語の書体は
+   * 字の範囲ごとに後から届く）や絵文字の画像が届いて札が 1px 伸びると、最後の段が切れた
+   *（人狼8人の待合で、2列×4段が 339px の舞台に 1〜3px 足りず、回によって切れた・指示64の監査）。
+   * 中身の下に 4（1280×720 で）の余りを求める
+   */
+  function bigStageFits(stage){
+    if(stage.scrollHeight > stage.clientHeight + 1) return false;
+    var r = stage.getBoundingClientRect(), cs = getComputedStyle(stage);
+    var 床 = r.bottom - (parseFloat(cs.paddingBottom) || 0) - (parseFloat(cs.borderBottomWidth) || 0);
+    var 下 = -Infinity;
+    Array.prototype.forEach.call(stage.children, function(c){
+      var cr = c.getBoundingClientRect();
+      if(cr.height > 0) 下 = Math.max(下, cr.bottom);
+    });
+    if(下 === -Infinity) return true;
+    var 余り = 4 * (document.documentElement.clientHeight / 720);
+    return 床 - 下 >= 余り;
   }
   /** 待合の名簿（A3・B2）も同じ測りで。**毎回、もとの列の数から測り直す**（renderBigLobby が置いた
    *  data-lb-base。無ければ CSS の既定）。いまの列の数は、効いている grid から読む（流して並べる時は触らない） */
@@ -22166,6 +22248,14 @@
   }
   if(document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function'){
     document.fonts.ready.then(bigReflowSoon);
+  }
+  // 日本語の書体は字の範囲ごとに分かれていて、**新しい字（二つ名・長い名前）が出た時に後から届く**。
+  // ready は最初の1回しか知らせないので、届くたびに測り直す（届く前の字の形で列を決めると、
+  // 届いたあとに札が伸びて最後の段が切れた・指示64の監査）
+  if(document.fonts && typeof document.fonts.addEventListener === 'function'){
+    document.fonts.addEventListener('loadingdone', function(){
+      if((document.querySelector('.screen.active') || {}).id === 'scr-rt-big') bigReflowSoon();
+    });
   }
   /** 帯の一言が名指ししている人（手番・申告・答えている人）の札に印（is-now）。data-pid で引く */
   function bigMarkNow(){
@@ -22203,6 +22293,10 @@
     scr.classList.toggle('big-lobby', 待合);
     scr.dataset.big = 待合 ? (picked ? 'b' : 'a') : 'play';
     scr.dataset.game = 待合 ? '' : (rtRoomGameId() || '');
+    // 段階の印。測る道具（tools/big-census.js）が「遊んでいる間」と「決着」を分けて測るために読む。
+    // 帯の札の字では分けられない——決着では札が空になり、一枚看板も順位表に場所をゆずって空になる（指示64の監査：
+    // クイズの決着を census が一度も測っていなかった）。段階は大画面に出してよい公開の情報
+    scr.dataset.phase = 待合 ? '' : String((v && v.phase) || '');
     var 人数 = (!待合 && v && v.players && v.players.length) ? v.players.length : bigPlayers(room).length;
     scr.dataset.size = bigSizeOf(人数);
     bigClearSlots();

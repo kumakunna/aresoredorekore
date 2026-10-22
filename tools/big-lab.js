@@ -56,6 +56,8 @@ const BASE = 'http://localhost:' + PORT;
 // 置き場。**2本を同時に回す時は --out で分ける**——全部の回は始めに置き場の画像と記録を消すので、
 // 同じ置き場で2本が走ると、あとから始めた方が先の方の絵を消す（flow-walk.js の --out と同じ考え）
 const PROBE = arg('probe', null);
+// --fx：出ている最中の演出（始まりの 3-2-1・残り5秒からの巨大カウントダウン）も撮る。下の「--fx」を見る
+const FX = argv.indexOf('--fx') !== -1;
 const OUT = arg('out', null) ? path.resolve(arg('out', null)) : path.join(ROOT, 'docs', '監査_大画面の画像', 'lab');
 // 絞った回（--only）は、全部を回した回の 記録.json を上書きしない（別の名前に書く）
 const 記録の名前 = ONLY ? '記録_' + String(ONLY).replace(/[\\/:*?"<>|\s]/g, '_') + '.json' : '記録.json';
@@ -489,6 +491,7 @@ function 幅をそろえる(s, n) {
         const it = L.回す(spec, n);
         let 初回 = true;
         const 使った = {};
+        const fx = {};   // --fx：このシナリオ×人数で、もう撮った演出
         try {
           for (const f of it) {
             let 名 = spec.name + '.' + f.label;
@@ -521,6 +524,41 @@ function 幅をそろえる(s, n) {
               m.画像 = file;
               m.落ち着き = 待ち2;
               rec.測り[w + 'x' + h] = m;
+            }
+            // --fx：落ち着いた画面のほかに、**出ている最中の演出も1枚ずつ撮る**（本人の頼み：待機・カウントダウン中も見たい）。
+            //   ① 始まりの 3-2-1：部屋が全員に配る room:countdown を、そのまま流す（受け手は本物の rt.on('countdown')）。
+            //      遊ぶ最初の場面で1回。0.45秒後（「3」が出ている最中）に撮る
+            //   ② 残り5秒からの巨大カウントダウン：進行役が play と名乗る時計がある最初の場面で1回。
+            //      時計だけ残り3.4秒にした部屋の知らせを流し、「3」が出ている最中に撮る（そのあと元の知らせにもどす）
+            //   どちらも 1280×720 だけ。**出ている最中に数える**（.fx-countdown／.big-cd の数。片付いたあとに数えない・落とし穴10-g）
+            if (FX) {
+              rec.演出の画像 = rec.演出の画像 || {};
+              const 時計 = f.snap && f.snap.state && f.snap.state.data && f.snap.state.data.clock;
+              const 三二一 = !fx.三二一 && !/^lobby|^ended/.test(f.label);
+              const 大きな数 = !fx.大きな数 && 時計 && 時計.kind === 'play';
+              if (三二一 || 大きな数) await 大きさを変える(dev, 1280, 720);
+              if (三二一) {
+                fx.三二一 = true;
+                await dev.ev('(function(){ window.__rtFake.fire("room:countdown", {seconds:3}); return true; })()');
+                await sleep(450);
+                const file = 名 + '_' + n + '_1280_演出321.jpg';
+                await dev.shot(path.join(OUT, file));
+                rec.演出の画像['3-2-1'] = { 画像: file, 出ていた: await dev.ev("document.querySelectorAll('.fx-countdown').length") };
+                try { await dev.until("!document.querySelector('.fx-countdown')", 6000, '3-2-1 が片付く'); } catch (e) {}
+              }
+              if (大きな数) {
+                fx.大きな数 = true;
+                const c = JSON.parse(JSON.stringify(f.snap)); c.state.data.clock.ms = 3400;
+                await dev.ev('(function(){ window.__rtFake.fire("room:update", ' + JSON.stringify(c) + '); return true; })()');
+                await sleep(700);
+                const file = 名 + '_' + n + '_1280_演出カウントダウン.jpg';
+                await dev.shot(path.join(OUT, file));
+                rec.演出の画像['巨大カウントダウン'] = { 画像: file, 出ていた: await dev.ev("document.querySelectorAll('.big-cd').length") };
+                await 流す(dev, f.snap);
+                try { await dev.until("!document.querySelector('.big-cd')", 3000, 'カウントダウンが片付く'); } catch (e) {}
+              }
+              const 撮った = Object.keys(rec.演出の画像).map((k) => k + (rec.演出の画像[k].出ていた ? '○' : '✖出ていない')).join(' ');
+              if (撮った) console.log('    演出の画像：' + 撮った);
             }
             例外を拾う(名 + ' ' + n + '人');
             rec.例外 = 記録.ページの例外.filter((x) => x.どこ === 名 + ' ' + n + '人').map((x) => x.msg);

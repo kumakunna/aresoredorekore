@@ -59,6 +59,8 @@ const STATES = {
   // 部品の見本：明るい世界（待合）と暗い世界（爆弾）の両方で、重なりを1つずつ開いて撮る
   parts: [
     { id: 'wait', world: 'wait', freeze: 23 },
+    { id: 'wait-end', world: 'wait', freeze: 23, scroll: 'end' },
+    { id: 'bomb-end', world: 'bomb', freeze: 4, scroll: 'end' },
     { id: 'wait-dlg', world: 'wait', freeze: 23, open: 'v2PartsDlg' },
     { id: 'wait-low', world: 'wait', freeze: 23, open: 'v2PartsLow' },
     { id: 'wait-tall', world: 'wait', freeze: 23, open: 'v2PartsTall' },
@@ -107,6 +109,8 @@ const 重なり = `(function(root){
     var has = [].some.call(e.childNodes, function(n){ return n.nodeType === 3 && n.nodeValue.trim(); });
     if(!has) return;
     var cs = getComputedStyle(e); if(cs.display === 'none' || cs.visibility === 'hidden') return;
+    // 巻いている間は、中身が浮いたボタンの下を通るのがふつう（iPhone の見出しの帯と同じ）。巻く前の形で重ならないことを見る
+    for(var p = e.parentElement; p && p !== root; p = p.parentElement) if(p.scrollTop > 0) return;
     var rg = document.createRange(); rg.selectNodeContents(e);
     [].forEach.call(rg.getClientRects(), function(r){
       var ox = Math.min(r.right, C.right) - Math.max(r.left, C.left), oy = Math.min(r.bottom, C.bottom) - Math.max(r.top, C.top);

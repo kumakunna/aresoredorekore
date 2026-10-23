@@ -72,6 +72,8 @@ async function 開く(dev, port, scene, st) {
   if (err) throw new Error(err);
   await dev.until(書体が届いた, 20000, '書体');
   await dev.ev(`(function(){ var s=document.getElementById(${JSON.stringify(scene.screen)}); V2.fitTv(s); V2.relayout(s); return 1; })()`);
+  // 巻ける中身を一番下まで送って撮る（部品の見本の下の方）
+  if (st.scroll === 'end') await dev.ev("(function(){ var b=document.querySelector('.screen.active .v2-in.is-scroll'); if(b) b.scrollTop=b.scrollHeight; return !!b; })()");
   if (st.open) await dev.ev(`(function(){ var l=document.querySelector('[data-v2-id="${st.open}"]'); V2.open(l); return !!l; })()`);
   await sleep(st.open ? 700 : 400);   // 出入りの 0.25 秒と、絵文字の差し替えが済むまで
   const ms = await dev.ev(時計);

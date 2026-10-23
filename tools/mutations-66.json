@@ -133,5 +133,14 @@
     "from": "'auction', 'falsetrue', 'rcard'];",
     "to": "'auction', 'falsetrue'];",
     "expect": "V2.WORLDS と、CSS の世界の名前が同じ"
+  },
+  {
+    "name": "66-P 題字の画像を消す（壊れた画像で出る元の形）",
+    "file": "public/js/v2-kit.js",
+    "suite": "tests/v2.js",
+    "only": "ゲームの印は",
+    "from": "logo: 'img/logo-aresore-v2.png'",
+    "to": "logo: 'img/logo-aresore-nai.png'",
+    "expect": "public/ に無い画像"
   }
 ]

@@ -31607,7 +31607,7 @@
           '<button type="button" class="v2-btn is-pri" disabled>' + V2.esc(W.enter) + '</button>') +
         節('名前の札', V2.meHtml(me)) +
         節('ルールの札（いつも3つ）', V2.rulesHtml(m ? m.tv : [])) +
-        節('ゲームの印', '<div class="v2-parts-tiles">' + V2.WORLDS.map(function(w){ return V2.tile(w); }).join('') + '</div>') +
+        節('ゲームの印', '<div class="v2-parts-tiles">' + V2.WORLDS.filter(function(w){ return w !== 'wait'; }).map(function(w){ return V2.tile(w); }).join('') + '</div>') +
         節('のこり時間', '<div class="v2-row">' + V2.cd({ end: Date.now() + 23000 }) + V2.cd({ end: Date.now() + 4000 }) + '</div>') +
       '</div></div>' +
       V2.toastHtml('v2PartsToast', '📺', F.TVを見て, F.光る) +

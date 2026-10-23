@@ -31,4 +31,6 @@ if (process.env.NODE_ENV !== 'production') {
   // 指示66-1：新しい見た目の画面を見本データで開く（/v2lab?scene=fes-lobby&n=6 など）。
   // 見本データと台本は tools/v2-lab/ にあり、public/ には置かない——本番（server.js）には、この道が無い
   require('./v2-lab/serve').mount(app);
+  // 指示66-2：検証用ユーザーを、文化祭の係（くまくんと同じ owner）にする。本番の係は .env の FES_OWNER・FES_STAFF
+  if (!process.env.FES_OWNER) process.env.FES_OWNER = 'kensho34';
 }

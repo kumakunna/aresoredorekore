@@ -329,7 +329,9 @@ const http = require('http');
 const { attachRealtime } = require('./realtime');
 
 const httpServer = http.createServer(app);
-attachRealtime(httpServer, sessionMiddleware);
+const io = attachRealtime(httpServer, sessionMiddleware);
+// 指示66-2：文化祭の部屋の道（/fes・名前の記録・感想）。部屋の仕組み（io）から、いまの部屋と係の判定を借りる
+require('./fes-routes').mountFesRoutes(app, io);
 
 httpServer.listen(PORT, () => {
   console.log(`[server] あれそれどれこれ backend running on port ${PORT}`);

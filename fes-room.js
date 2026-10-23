@@ -1,0 +1,300 @@
+// fes-room.js — 文化祭の部屋（指示66-2）。**人がいなくても回る、サーバーの進行役。**
+//
+// ふつうの部屋は、ゲームを選ぶ・始める・次へ進めるを進行役の端末が押す。
+// 文化祭（11/14・知らない人も含めて60人以上・TV 1台を無人で回す）では押す人がいないので、
+// 待合 → 投票 → 決定 → ルールと準備OK → 3-2-1 → 遊ぶ → 結果 → 待合 を、
+// realtime.js の見回り（0.5秒ごと）からここが進める。
+//
+// ここが持つのは「流れ」だけ。ゲームそのものは今までの進行役（*-room.js）が動かし、
+// 始める処理も realtime.js の startGameNow を通す（3-2-1 のずらしを2か所に書かない・落とし穴1）。
+// 人を外す処理も realtime.js の removeMember を通す（いなくなる経路を1か所に・落とし穴17）。
+//
+// 決めごと（docs/指示66/66-2_文化祭の流れ.md・00 の「見本どおりにしない所」・くまくんの決め 2026-10-24）
+//   ・部屋は16人まで
+//   ・候補は見本の3つ（クイズ解除の協力版・進化じゃんけん・ロシアンカード）。いまの人数で始められるものだけ
+//   ・投票は外れない（投票した後に別のゲームを押しても変わらない）。投票中は票の数をだれにも出さない
+//   ・えらばない人は「おまかせ」。0票ならくじ、同点は同点どうしのくじ
+//   ・準備OK は、しめきりまでに押した人だけで始める。足りなければ待合へもどる
+//   ・押すべき所で2回つづけて何も押さなかった人は、席を空ける（準備OK と「つづける？」）
+//   ・結果のあと15秒で待合へ。押さなければ「つづける」
+
+'use strict';
+
+/**
+ * 文化祭で投票に出すゲーム。人数の幅は public/index.html の MODES・GAMES と、
+ * 始める設定は端末の既定（state.bombCounts など）と同じ（tests/fes.js が照らす・写しが腐らないように）。
+ * 進化じゃんけんとロシアンカードは、何も送らなければ進行役が既定で始める
+ */
+const FES_GAMES = [
+  { mode: 'bomb-coop', game: 'bomb', min: 2, max: 8,
+    start: { game: 'bomb', mode: 'coop', counts: { easy: 12, normal: 10, hard: 8, nanisore: 0, muri: 0 }, lives: 3, timerSec: 180, showMisses: false } },
+  { mode: 'shinka', game: 'shinka', min: 3, max: 12, start: { game: 'shinka' } },
+  { mode: 'rcard', game: 'rcard', min: 2, max: 8, start: { game: 'rcard' } }
+];
+
+const ROOM_MAX = 16;
+const MISS_LIMIT = 2;
+const DIFFS = ['easy', 'normal', 'hard'];
+
+/**
+ * 長さ。**数字は遊びの長さで、検査の都合で縮めない**（落とし穴24）。
+ * 検査は opts.times で縮めた部屋を作る（realtime.js の fesTimes）
+ */
+const TIMES = {
+  lobbyMs: 30000,    // 2人そろってから投票まで（見本 F3「30秒」）
+  idleMs: 60000,     // だれもいないまま、これだけたったら呼び込みの画面へ（F6）
+  voteMs: 20000,     // 投票（F7「20秒」）
+  decideMs: 4000,    // 決定の4段（F8：①0〜0.7秒 ②0.75〜1.35秒 ③1.3〜2秒 ④2.1秒〜）
+  readyMs: 20000,    // ルールと準備OK。見本に長さが無いので投票と同じにした（門の記録に理由）
+  resultMs: 15000    // 結果と「つづける？」（F12「15秒」）
+};
+
+const PHASE = { IDLE: 'idle', LOBBY: 'lobby', VOTE: 'vote', DECIDE: 'decide', READY: 'ready', PLAY: 'play', RESULT: 'result' };
+
+function gameOf(mode) { return FES_GAMES.find((g) => g.mode === mode) || null; }
+
+/** 文化祭の部屋にする（作り直しの時も、まっさらから） */
+function init(room, opts) {
+  const o = opts || {};
+  room.fes = {
+    phase: PHASE.LOBBY,
+    createdAt: Date.now(),  // 作り直した時に「いまの部屋」を見分けるため（/fes）
+    endsAt: null,          // いまの段階の締め切り（無ければ時計を出さない）
+    emptySince: null,      // だれもいなくなった時刻（呼び込みの画面へ行くため）
+    round: 1,              // 何回目のゲームか（感想を「1ゲームに1回」聞く鍵にも使う）
+    candidates: [],        // 投票の候補（mode）
+    votes: new Map(),      // memberId -> mode。**外に出さない**（票の数を出さない）
+    pick: null,            // 決まったもの { mode, counts, lot }。決まった時だけ出す
+    played: null,          // 遊んだもの { mode, round, ids }（結果と感想のため）
+    cont: new Set(),       // 結果で「つづける」を押した人
+    hidden: new Set(),     // 係が隠した人（名前を ●●● に・TVの壁から消す）
+    inset: 0,              // TVの端あわせ（ふちから内側へ何%縮めるか）
+    note: null,            // 待合に出す一言のもと（'too_few' など）
+    times: Object.assign({}, TIMES, o.times || {}),
+    rnd: o.rnd || Math.random
+  };
+  return room.fes;
+}
+
+/** 遊ぶ人（大画面の端末をのぞく）。待っている人（今回は入らなかった人）も入る */
+function people(room) {
+  return Array.from(room.members.values()).filter((m) => m.role === 'player' || m.role === 'waiting');
+}
+function livePeople(room) { return people(room).filter((m) => m.connected); }
+
+function set(room, phase, ms, now) {
+  const f = room.fes;
+  f.phase = phase;
+  f.endsAt = ms != null ? now + ms : null;
+}
+
+/**
+ * 見回りから呼ぶ（0.5秒ごと）。変わったら true を返す（realtime.js が配る）。
+ * api：startGameNow / clearGameState / driverStateOf / removeMember / tell
+ */
+function tick(room, now, api) {
+  const f = room.fes;
+  if (!f) return false;
+  const t = f.times;
+  const n = livePeople(room).length;
+  switch (f.phase) {
+    case PHASE.IDLE:
+      if (n > 0) { set(room, PHASE.LOBBY, null, now); f.emptySince = null; return true; }
+      return false;
+    case PHASE.LOBBY: {
+      if (n === 0) {
+        if (!f.emptySince) f.emptySince = now;
+        if (now - f.emptySince >= t.idleMs) { set(room, PHASE.IDLE, null, now); return true; }
+      } else f.emptySince = null;
+      // 2人そろったら30秒の時計が動き出す。1人になったら止める（F6「あと1人で はじまるよ」）
+      if (n >= 2 && !f.endsAt) { f.endsAt = now + t.lobbyMs; return true; }
+      if (n < 2 && f.endsAt) { f.endsAt = null; return true; }
+      if (f.endsAt && now >= f.endsAt) return startVote(room, now);
+      return false;
+    }
+    case PHASE.VOTE:
+      if (now >= f.endsAt) return decide(room, now);
+      return false;
+    case PHASE.DECIDE:
+      if (now >= f.endsAt) return openReady(room, now);
+      return false;
+    case PHASE.READY:
+      if (now >= f.endsAt) return closeReady(room, now, api);
+      return false;
+    case PHASE.PLAY: {
+      // ゲームが終わったら結果へ。進行役が消えていても（全員いなくなった等）結果へ
+      const w = api.driverStateOf(room);
+      if (!w || w.phase === 'ended') { set(room, PHASE.RESULT, t.resultMs, now); f.cont = new Set(); return true; }
+      return false;
+    }
+    case PHASE.RESULT:
+      if (now >= f.endsAt) return backToLobby(room, now, api);
+      return false;
+  }
+  return false;
+}
+
+/** いまの人数で始められる候補。**人数の多すぎる回は、いちばん多く入れるものだけ**（下の説明） */
+function candidatesFor(n) {
+  const fit = FES_GAMES.filter((g) => n >= g.min && n <= g.max);
+  if (fit.length) return fit.map((g) => g.mode);
+  // 13〜16人は3つとも入りきらない。待合で止めると、いちばん人が集まった時に何も遊べない。
+  // その回は「いちばん多く入れるゲーム」だけを出し、準備OK を押した順に上限まで入る
+  // （あとの人は「つぎの回から」）。くまくんに確かめる（報告の質問）
+  const big = Math.max.apply(null, FES_GAMES.map((g) => g.max));
+  return n > big ? FES_GAMES.filter((g) => g.max === big).map((g) => g.mode) : [];
+}
+
+function startVote(room, now) {
+  const f = room.fes;
+  const c = candidatesFor(livePeople(room).length);
+  if (!c.length) { f.endsAt = now + f.times.lobbyMs; return true; }
+  f.candidates = c;
+  f.votes = new Map();
+  f.pick = null;
+  f.note = null;
+  set(room, PHASE.VOTE, f.times.voteMs, now);
+  return true;
+}
+
+/** 投票。**一度入れたら変わらない**（押し間違いで外れるのを防ぐ・00 の1） */
+function vote(room, memberId, mode) {
+  const f = room.fes;
+  if (!f || f.phase !== PHASE.VOTE) return { ok: false, error: 'not_voting', message: 'いまは投票の時間ではありません' };
+  if (f.candidates.indexOf(mode) === -1) return { ok: false, error: 'not_candidate', message: 'そのゲームは候補にありません' };
+  const m = room.members.get(memberId);
+  if (!m || m.role !== 'player') return { ok: false, error: 'not_player', message: '投票できません' };
+  if (f.votes.has(memberId)) return { ok: true, vote: f.votes.get(memberId), already: true };
+  f.votes.set(memberId, mode);
+  m.fesMiss = 0;
+  return { ok: true, vote: mode };
+}
+
+function decide(room, now) {
+  const f = room.fes;
+  const counts = {};
+  f.candidates.forEach((c) => { counts[c] = 0; });
+  f.votes.forEach((mode) => { if (counts[mode] != null) counts[mode]++; });
+  const top = Math.max.apply(null, f.candidates.map((c) => counts[c]));
+  const tied = f.candidates.filter((c) => counts[c] === top);
+  const lot = top === 0 ? 'zero' : (tied.length > 1 ? 'tie' : 'none');
+  const mode = tied[Math.floor(f.rnd() * tied.length) % tied.length];
+  f.pick = { mode, counts, lot, tied: lot === 'none' ? [] : tied };
+  set(room, PHASE.DECIDE, f.times.decideMs, now);
+  return true;
+}
+
+function openReady(room, now) {
+  const f = room.fes;
+  const g = gameOf(f.pick.mode);
+  // 準備OK は「いまのゲーム」に対して押すもの（realtime.js の room:ready がそう確かめる）
+  room.state.game = g.game;
+  room.state.data = Object.assign({}, room.state.data, { modeId: g.mode });
+  room.members.forEach((m) => { m.readyGame = null; m.readyAt = null; });
+  set(room, PHASE.READY, f.times.readyMs, now);
+  return true;
+}
+
+/** 押すべき所で何も押さなかった。2回つづいたら席を空ける */
+function missed(room, m, api) {
+  m.fesMiss = (m.fesMiss || 0) + 1;
+  if (m.fesMiss >= MISS_LIMIT) { api.removeMember(room, m.id, 'fes_idle'); return true; }
+  return false;
+}
+
+function closeReady(room, now, api) {
+  const f = room.fes;
+  const g = gameOf(f.pick.mode);
+  const live = livePeople(room);
+  let pressed = live.filter((m) => m.readyGame === g.game)
+    .sort((a, b) => (a.readyAt || 0) - (b.readyAt || 0));
+  live.filter((m) => m.readyGame !== g.game).forEach((m) => missed(room, m, api));
+  pressed.forEach((m) => { m.fesMiss = 0; });
+  if (pressed.length < g.min) {
+    f.note = 'too_few';
+    room.state.game = null;
+    room.members.forEach((m) => { m.readyGame = null; });
+    set(room, PHASE.LOBBY, null, now);
+    return true;
+  }
+  // 上限より多く押した時は、押した順に上限まで（あとの人は「つぎの回から」）
+  pressed = pressed.slice(0, g.max);
+  const ids = new Set(pressed.map((m) => m.id));
+  people(room).forEach((m) => { m.role = ids.has(m.id) ? 'player' : 'waiting'; });
+  const diffs = {};
+  pressed.forEach((m) => { diffs[m.id] = m.fesDiff || 'normal'; });
+  const res = api.startGameNow(room, Object.assign({}, g.start, { fesDiffs: diffs }));
+  if (!res.ok) {
+    people(room).forEach((m) => { m.role = 'player'; });
+    f.note = 'start_failed';
+    room.state.game = null;
+    set(room, PHASE.LOBBY, null, now);
+    return true;
+  }
+  f.played = { mode: g.mode, round: f.round, ids: Array.from(ids) };
+  set(room, PHASE.PLAY, null, now);
+  return true;
+}
+
+/** 結果で「つづける」 */
+function keepGoing(room, memberId) {
+  const f = room.fes;
+  if (!f || f.phase !== PHASE.RESULT) return { ok: false, error: 'not_result', message: 'いまは結果の時間ではありません' };
+  const m = room.members.get(memberId);
+  if (!m) return { ok: false, error: 'not_in_room' };
+  f.cont.add(memberId);
+  m.fesMiss = 0;
+  return { ok: true };
+}
+
+function backToLobby(room, now, api) {
+  const f = room.fes;
+  // 遊んだ人のうち、結果で何も押さなかった人は1つ数える（押さなければ「つづける」なので、ここでは外さない人がほとんど）
+  const ids = new Set((f.played && f.played.ids) || []);
+  livePeople(room).forEach((m) => { if (ids.has(m.id) && !f.cont.has(m.id)) missed(room, m, api); });
+  api.clearGameState(room);
+  room.state.game = null;
+  people(room).forEach((m) => { m.role = 'player'; m.readyGame = null; });
+  f.round++;
+  f.pick = null;
+  f.candidates = [];
+  f.votes = new Map();
+  set(room, PHASE.LOBBY, null, now);
+  return true;
+}
+
+/** だれでも見てよい形（票の数は、決まった後だけ） */
+function publicView(room, now) {
+  const f = room.fes;
+  if (!f) return null;
+  const show = f.phase === PHASE.DECIDE || f.phase === PHASE.READY || f.phase === PHASE.PLAY || f.phase === PHASE.RESULT;
+  return {
+    phase: f.phase,
+    remainingMs: f.endsAt ? Math.max(0, f.endsAt - now) : null,
+    round: f.round,
+    candidates: f.candidates.slice(),
+    pick: show && f.pick ? { mode: f.pick.mode, counts: Object.assign({}, f.pick.counts), lot: f.pick.lot, tied: f.pick.tied.slice() } : null,
+    played: f.played ? { mode: f.played.mode, round: f.played.round, ids: f.played.ids.slice() } : null,
+    full: livePeople(room).length >= ROOM_MAX,
+    max: ROOM_MAX,
+    hidden: Array.from(f.hidden),
+    inset: f.inset,
+    note: f.note
+  };
+}
+
+/** 本人だけに渡す（自分の投票・むずかしさ・押し忘れの数） */
+function privateFor(room, memberId) {
+  const f = room.fes;
+  const m = room.members.get(memberId);
+  if (!f || !m) return null;
+  return {
+    vote: f.votes.get(memberId) || null,
+    diff: m.fesDiff || null,
+    miss: m.fesMiss || 0,
+    cont: f.cont.has(memberId),
+    playing: !!(f.played && f.played.ids.indexOf(memberId) !== -1 && (f.phase === PHASE.PLAY || f.phase === PHASE.RESULT))
+  };
+}
+
+module.exports = { FES_GAMES, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, init, tick, vote, keepGoing, publicView, privateFor, candidatesFor, gameOf };

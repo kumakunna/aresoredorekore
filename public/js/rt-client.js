@@ -119,6 +119,9 @@
         emitLocal('you', p);
       });
       socket.on('wolf:ended', function (p) { emitLocal('ended', p); });
+      // 指示66-2：文化祭の部屋の、本人だけのもの（自分の投票・むずかしさ・押し忘れの数）と、係の画面の名簿
+      socket.on('fes:you', function (p) { state.fes = p || null; emitLocal('fes', p || null); });
+      socket.on('fes:staff', function (p) { emitLocal('fesStaff', p || null); });
       // 第24弾-3-5：ホストがゲームを終了すると、部屋ごと畳まれる。
       // 全員がここで抜ける（ホストだけ終わって他が置き去りにならないように）
       // 第32弾-B-1：部屋から出された。理由を伝えて、画面が固まらないようにする
@@ -243,14 +246,15 @@
       emitLocal('status', state);
       return res;
     }
-    async function joinRoom(code, name, role, look) {
+    async function joinRoom(code, name, role, look, diff) {
       connect();
       if (look !== undefined) state.look = look || null;
       // 指示63 2-1：いまの記憶が無く、その日に自分から出た部屋に入り直すなら、前の memberId を添える
       var 前 = (!state.memberId && lastRoom()) || null;
       var 添える = state.memberId || ((前 && 前.code === String(code || '').toUpperCase().trim()) ? 前.memberId : null);
+      // 指示66-2：文化祭の部屋は、むずかしさ（easy／normal／hard）を添えて入る。ふつうの部屋は送らない
       var res = await call('room:join', { code: code, name: name, role: role, memberId: 添える,
-        look: state.look || null });
+        look: state.look || null, diff: diff || undefined });
       if (res.ok) {
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
@@ -356,6 +360,19 @@
     //   act('defuser', { caps })            … 役割と、その端末で読めるセンサー
     //   vote(null, { action:{type:'tilt'} }) … 傾き・振り・入力などの操作
     function startWolf(config) { return call('wolf:start', config || {}); }
+    // ---- 指示66-2：文化祭の部屋 ----
+    // 投票は一度入れたら変わらない（サーバーが門）。感想は「やめた人」も送れるよう、code と memberId を添える
+    function fesVote(mode) { return call('fes:vote', { mode: mode }); }
+    function fesContinue() { return call('fes:continue', {}); }
+    function fesFeedback(p, code, memberId) {
+      return call('fes:feedback', Object.assign({}, p || {}, { code: code || state.code, memberId: memberId || state.memberId }));
+    }
+    // 係（くまくんと先生）だけ。サーバーがログインしたアカウントで門を持つ
+    function fesCreate(recreate) { connect(); return call('fes:create', { recreate: !!recreate }); }
+    function fesWatch(code) { connect(); return call('fes:watch', { code: code || null }); }
+    function fesHide(code, memberId, hidden) { return call('fes:hide', { code: code, memberId: memberId, hidden: hidden !== false }); }
+    function fesKick(code, memberId) { return call('fes:kick', { code: code, memberId: memberId }); }
+    function fesInset(code, inset) { return call('fes:inset', { code: code, inset: inset }); }
     // 第32弾-E：リアクション・感謝・アルバム
     function react(emoji) { return call('room:react', { emoji: emoji }); }
     function thanks(memberId, kind) { return call('room:thanks', { memberId: memberId, kind: kind }); }
@@ -426,6 +443,8 @@
       react: react, thanks: thanks,
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,
+      fesVote: fesVote, fesContinue: fesContinue, fesFeedback: fesFeedback,
+      fesCreate: fesCreate, fesWatch: fesWatch, fesHide: fesHide, fesKick: fesKick, fesInset: fesInset,
       // テストから中身を差し替えられるように（socket.io本体は持たせない）
       _call: call
     };

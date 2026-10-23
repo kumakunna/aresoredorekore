@@ -1,0 +1,365 @@
+// tests/fes.js — 文化祭の部屋（指示66-2）。本物のサーバーを立て、socket.io の端末で流れを回す
+//
+// 長さだけ縮める（fesTimes・3-2-1 は 0）。**遊びの数字は fes-room.js の TIMES のまま**（落とし穴24）。
+// 実時間の長さが本当に効くかは、通し（門1）で見る。
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const express = require('express');
+const session = require('express-session');
+const Database = require('better-sqlite3');
+const { io: ioClient } = require('socket.io-client');
+
+const { createRunner, assert, assertEqual } = require('./harness');
+const { attachRealtime, RoomStore } = require('../realtime');
+const { createFesStore, RETAIN_MS } = require('../fes-store');
+const { mountFesRoutes } = require('../fes-routes');
+const FesRoom = require('../fes-room');
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const OWNER = 900, STAFF = 901, NOBODY = 902;
+const T = { lobbyMs: 300, idleMs: 600, voteMs: 400, decideMs: 100, readyMs: 500, resultMs: 300 };
+
+function startTestServer() {
+  const app = express();
+  const sessionMiddleware = session({ secret: 'test-fes', resave: false, saveUninitialized: false,
+    cookie: { httpOnly: true, secure: false, sameSite: 'lax' } });
+  app.use(express.json());
+  app.use(sessionMiddleware);
+  app.post('/test-login', (req, res) => { req.session.userId = req.body.userId; res.json({ ok: true }); });
+  const httpServer = http.createServer(app);
+  const store = new RoomStore();
+  const fesStore = createFesStore(new Database(':memory:'));
+  const io = attachRealtime(httpServer, sessionMiddleware, {
+    store, db: null, describe: async () => ({ description: 'x' }), countdownMs: 0, fesStore, fesTimes: T,
+    fesRole: (uid) => (uid === OWNER ? 'owner' : uid === STAFF ? 'staff' : null)
+  });
+  mountFesRoutes(app, io);
+  return new Promise((resolve) => httpServer.listen(0, '127.0.0.1', () => {
+    const url = 'http://127.0.0.1:' + httpServer.address().port;
+    resolve({ url, store, io, fesStore,
+      close: () => new Promise((r) => { io.stopTimers(); io.close(() => httpServer.close(() => r())); }) });
+  }));
+}
+async function login(url, userId) {
+  const res = await fetch(url + '/test-login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userId }) });
+  return (res.headers.getSetCookie() || []).map((c) => c.split(';')[0]).join('; ');
+}
+function device(url, cookie) {
+  return new Promise((resolve, reject) => {
+    const opts = { transports: ['polling'], forceNew: true, reconnection: false };
+    if (cookie) opts.extraHeaders = { Cookie: cookie };
+    const s = ioClient(url, opts);
+    const d = { socket: s, room: null, me: null, wolf: null, kicked: null, gone: [], log: [], staff: null,
+      call(ev, p) { return new Promise((res) => { const t = setTimeout(() => res({ ok: false, error: 'timeout' }), 6000);
+        s.emit(ev, p || {}, (r) => { clearTimeout(t); res(r || {}); }); }); },
+      close() { s.close(); } };
+    s.on('room:update', (r) => { d.room = r; d.log.push(JSON.stringify(r)); });
+    s.on('fes:you', (p) => { d.me = p; });
+    s.on('fes:staff', (p) => { d.staff = p; });
+    s.on('wolf:you', (p) => { d.wolf = p; });
+    s.on('room:kicked', (p) => { d.kicked = p; });
+    s.on('room:memberGone', (p) => { d.gone.push(p); });
+    s.on('hb:ping', () => s.emit('hb:pong'));
+    s.on('connect', () => resolve(d));
+    s.on('connect_error', reject);
+  });
+}
+async function waitUntil(fn, label, ms) {
+  const limit = Date.now() + (ms || 5000);
+  while (Date.now() < limit) { if (fn()) return true; await sleep(25); }
+  throw new Error('条件が満たされませんでした: ' + label);
+}
+const fesOf = (d) => (d.room && d.room.fes) || {};
+
+async function makeFes(srv) {
+  const staff = await device(srv.url, await login(srv.url, STAFF));
+  const c = await staff.call('fes:create', {});
+  assertEqual(c.ok, true, '係は文化祭の部屋を作れる');
+  return { staff, code: c.code };
+}
+async function join(srv, code, name, diff, extra) {
+  const d = await device(srv.url);
+  const r = await d.call('room:join', Object.assign({ code, name, diff: diff === undefined ? 'normal' : diff }, extra || {}));
+  d.res = r; d.memberId = r.memberId; d.code = code;
+  // 入った直後の知らせ（部屋と、本人だけのもの）は返事のあとに届く。届くまで待つ
+  if (r.ok) await waitUntil(() => d.room && (d.me || (extra && extra.role === 'bigscreen')), '入った知らせが届く');
+  return d;
+}
+
+(async function main() {
+  const r = createRunner('fes：文化祭の部屋（指示66-2）');
+
+  await r.test('係でない人は文化祭の部屋を作れない・係は作れる・/fes がその部屋へ飛ぶ', async () => {
+    const srv = await startTestServer();
+    const nobody = await device(srv.url, await login(srv.url, NOBODY));
+    assertEqual((await nobody.call('fes:create', {})).error, 'not_staff', 'ログインしていても係でなければ作れない');
+    const guest = await device(srv.url);
+    assertEqual((await guest.call('fes:create', {})).error, 'not_staff', 'ログインしていなければ作れない');
+    const { code } = await makeFes(srv);
+    const res = await fetch(srv.url + '/fes', { redirect: 'manual' });
+    assertEqual(res.status, 302, '/fes は飛ばす');
+    assert(res.headers.get('location').indexOf('room=' + code) !== -1, '/fes はいまの部屋へ飛ぶ（' + res.headers.get('location') + '）');
+    [nobody, guest].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('門5：むずかしさを選ぶまで入れない', async () => {
+    const srv = await startTestServer();
+    const { code } = await makeFes(srv);
+    const a = await join(srv, code, 'ふう', null);
+    assertEqual(a.res.error, 'diff_required', 'むずかしさが無いと入れない');
+    const b = await join(srv, code, 'ふう', 'muri');
+    assertEqual(b.res.error, 'diff_required', '3つ以外のむずかしさでは入れない');
+    const c = await join(srv, code, 'ふう', 'easy');
+    assertEqual(c.res.ok, true, 'むずかしさを選べば入れる');
+    assertEqual(c.me && c.me.diff, 'easy', '選んだむずかしさは本人にだけ届く');
+    assert(!/"diff"/.test(JSON.stringify(c.room)), 'むずかしさは部屋の知らせ（みんなに配るもの）に入らない');
+    // TV は名前もむずかしさも見ない（名簿に出ない）
+    const tv = await join(srv, code, 'TV', null, { role: 'bigscreen' });
+    assertEqual(tv.res.ok, true, 'TV はむずかしさなしで入れる');
+    [a, b, c, tv].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('名前：8字まで・使えない言葉ではじく・同じ名前は「②」・はじいた名前も記録に残る', async () => {
+    const srv = await startTestServer();
+    const { code } = await makeFes(srv);
+    assertEqual((await join(srv, code, 'あいうえおかきくけ')).res.error, 'name_long', '9字ははじく');
+    assertEqual((await join(srv, code, 'ハチイチゼロ')).res.error, 'name_blocked', '数字の語呂（読み）もはじく');
+    assertEqual((await join(srv, code, '８ １ ０')).res.error, 'name_blocked', '全角と空白をはさんでもはじく');
+    const a = await join(srv, code, 'あいうえおかきく');
+    assertEqual(a.res.ok, true, '8字は入れる');
+    const b1 = await join(srv, code, 'ふう');
+    const b2 = await join(srv, code, 'ふう');
+    const names = b2.room.members.map((m) => m.name);
+    assert(names.indexOf('ふう') !== -1 && names.indexOf('ふう②') !== -1, '2人目は「ふう②」（' + names.join('・') + '）');
+    const log = srv.fesStore.listNames();
+    assert(log.some((x) => x.name === 'ハチイチゼロ' && x.blocked === 1), 'はじいた名前も記録に残る');
+    assert(log.some((x) => x.name === 'ふう' && x.blocked === 0), '入れた名前も記録に残る');
+    [a, b1, b2].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('門3・門4：投票は外れず、投票中は票の数がだれにも届かない（決まった後だけ出る）', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const tv = await join(srv, code, 'TV', null, { role: 'bigscreen' });
+    const a = await join(srv, code, 'ふう');
+    const b = await join(srv, code, 'ひろ');
+    await waitUntil(() => fesOf(a).phase === 'vote', '2人そろって投票へ');
+    assertEqual(fesOf(a).candidates.slice().sort().join(','), 'bomb-coop,rcard', '2人の候補は、2人で始められるものだけ（進化じゃんけんは3人から）');
+    const mark = tv.log.length;
+    const v1 = await a.call('fes:vote', { mode: 'rcard' });
+    assertEqual(v1.vote, 'rcard', '投票できる');
+    const v2 = await a.call('fes:vote', { mode: 'bomb-coop' });
+    assertEqual(v2.vote, 'rcard', '別のゲームを押しても、投票は変わらない');
+    assertEqual(a.me.vote, 'rcard', '本人の手元の投票も変わらない');
+    await b.call('fes:vote', { mode: 'rcard' });
+    const during = tv.log.slice(mark).concat(a.log, b.log).filter((j) => /"phase":"vote"/.test(j));
+    assert(during.length > 0, '投票中の知らせを1つ以上見ている（型(b)）');
+    during.forEach((j) => {
+      assert(!/"counts"/.test(j), '投票中の部屋の知らせに票の数が無い');
+      assert(!/"votes"/.test(j), '投票中の部屋の知らせに、だれが何に入れたかが無い');
+      assert(/"pick":null/.test(j), '投票中は決まったものも出さない');
+    });
+    await waitUntil(() => fesOf(tv).phase === 'decide', '決定へ');
+    assertEqual(fesOf(tv).pick.mode, 'rcard', '票の多いものに決まる');
+    assertEqual(fesOf(tv).pick.counts.rcard, 2, '決まった時だけ票の数が出る');
+    [staff, tv, a, b].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('準備OK：押した人だけで始まる・押さなかった人は今回は入らない', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const a = await join(srv, code, 'ふう');
+    const b = await join(srv, code, 'ひろ');
+    const c = await join(srv, code, 'びび');
+    await waitUntil(() => fesOf(a).phase === 'vote', '投票へ');
+    for (const d of [a, b, c]) await d.call('fes:vote', { mode: 'bomb-coop' });
+    await waitUntil(() => fesOf(a).phase === 'ready', 'ルールと準備OKへ');
+    assertEqual(a.room.state.game, 'bomb', '準備OK は決まったゲームに対して押す');
+    await a.call('room:ready', { game: 'bomb' });
+    await b.call('room:ready', { game: 'bomb' });
+    await waitUntil(() => fesOf(a).phase === 'play', '始まる');
+    const w = srv.store.get(code).bomb;
+    assertEqual(w.playerIds.slice().sort().join(','), [a.memberId, b.memberId].sort().join(','), '押した2人だけがゲームに入る');
+    assertEqual(c.room.members.find((m) => m.id === c.memberId).role, 'waiting', '押さなかった人は今回は待つ');
+    assertEqual(c.me.miss, 1, '押さなかった数が1つ');
+    [staff, a, b, c].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('門2：準備OKを2回つづけて押さなかった人の席が空く（無人のまま次の回へ進む）', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const a = await join(srv, code, 'ふう');
+    const b = await join(srv, code, 'ひろ');
+    const c = await join(srv, code, 'びび');
+    const round = async () => {
+      await waitUntil(() => fesOf(a).phase === 'vote', '投票へ', 8000);
+      await a.call('fes:vote', { mode: 'bomb-coop' });
+      await waitUntil(() => fesOf(a).phase === 'ready', '準備OKへ');
+      await a.call('room:ready', { game: 'bomb' });
+      await b.call('room:ready', { game: 'bomb' });
+    };
+    await round();
+    await waitUntil(() => fesOf(a).phase === 'play', '1回目が始まる');
+    assertEqual(c.me.miss, 1, '1回目：押さなかった数が1つ（まだ席はある）');
+    // 1回目のゲームを終わらせる（わざと3回外す＝爆発）。ここから先は何も押さない
+    const room = srv.store.get(code);
+    for (let i = 0; i < 3 && room.bomb.phase !== 'ended'; i++) {
+      const uid = a.wolf.board.find((x) => !x.solved && !x.by).uid;
+      await a.call('wolf:act', { targetId: uid });
+      await waitUntil(() => a.wolf.open && a.wolf.open.uid === uid, '開く');
+      const right = room.bomb.wires.find((x) => x.uid === uid).name;
+      await a.call('wolf:vote', { targetId: a.wolf.open.choices.find((x) => x !== right) });
+    }
+    await waitUntil(() => fesOf(a).phase === 'result', '結果へ（人が押さなくても）');
+    await waitUntil(() => fesOf(a).phase === 'lobby', '結果のあと、何も押さなくても待合へもどる');
+    assert(a.room.members.every((m) => m.role === 'player'), '待合にもどったら、待っていた人もまた入れる');
+    await round();
+    await waitUntil(() => c.kicked, '2回目も押さなかった人の席が空く');
+    assertEqual(c.kicked.reason, 'fes_idle', '本人には「席を空けた」が届く');
+    await waitUntil(() => !a.room.members.some((m) => m.id === c.memberId), 'ほかの人の名簿からも消える');
+    assertEqual(a.gone.length, 0, '席を空けたことは、ほかの人に言葉で知らせない');
+    assert(srv.store.get(code).members.has(b.memberId), '押していた人は残る');
+    [staff, a, b, c].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('門6：係が名前を隠すと、スマホとTVからすぐ消える・外した人のことはほかの人に知らせない', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const tv = await join(srv, code, 'TV', null, { role: 'bigscreen' });
+    const a = await join(srv, code, 'ふう');
+    const bad = await join(srv, code, 'わるいなまえ');
+    const w = await staff.call('fes:watch', { code });
+    assertEqual(w.ok, true, '係は係の画面を開ける');
+    const nobody = await device(srv.url, await login(srv.url, NOBODY));
+    assertEqual((await nobody.call('fes:hide', { code, memberId: bad.memberId })).error, 'not_staff', '係でない人は隠せない');
+    assertEqual((await a.call('fes:hide', { code, memberId: bad.memberId })).error, 'not_staff', '部屋の参加者も隠せない');
+    assertEqual((await staff.call('fes:hide', { code, memberId: bad.memberId })).ok, true, '係は隠せる');
+    for (const d of [tv, a]) {
+      await waitUntil(() => d.room.members.some((m) => m.id === bad.memberId && m.name === '●●●'), '名前が ●●● になる');
+      assert(!JSON.stringify(d.room).includes('わるいなまえ'), '元の名前は届かない');
+      assert(d.room.fes.hidden.indexOf(bad.memberId) !== -1, 'TVの壁から消すための印が届く');
+    }
+    assert(w.staff && w.staff.members.length === 2, '係の画面は開いた時に名簿を受け取る（TVは入らない）');
+    await waitUntil(() => staff.staff && staff.staff.members.some((m) => m.name === 'わるいなまえ' && m.hidden),
+      '係の画面には元の名前が出る（もどせるように）');
+    await staff.call('fes:hide', { code, memberId: bad.memberId, hidden: false });
+    await waitUntil(() => tv.room.members.some((m) => m.name === 'わるいなまえ'), 'もどせる');
+    assertEqual((await staff.call('fes:kick', { code, memberId: bad.memberId })).ok, true, '係は外せる');
+    await waitUntil(() => bad.kicked, '外された本人に届く');
+    await waitUntil(() => !tv.room.members.some((m) => m.id === bad.memberId), 'TVから消える');
+    assertEqual(a.gone.length + tv.gone.length, 0, 'だれを外したかは、ほかの人に知らせない');
+    [staff, tv, a, bad, nobody].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('門7（サーバー）：★は1回で送られ、押し直すと上書き・ひとことは別に送る・やめた人も送れる', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const a = await join(srv, code, 'ふう');
+    const s1 = await a.call('fes:feedback', { code, memberId: a.memberId, round: 1, mode: 'bomb-coop', stars: 4 });
+    assertEqual(s1.ok, true, '★1回で送られる');
+    let rows = srv.fesStore.listFeedback();
+    assertEqual(rows.length, 1, '1行'); assertEqual(rows[0].stars, 4, '★4');
+    await a.call('fes:feedback', { code, memberId: a.memberId, round: 1, mode: 'bomb-coop', stars: 2 });
+    await a.call('fes:feedback', { code, memberId: a.memberId, round: 1, mode: 'bomb-coop', text: 'たのしかった' });
+    rows = srv.fesStore.listFeedback();
+    assertEqual(rows.length, 1, '押し直しても1行のまま');
+    assertEqual(rows[0].stars, 2, '押し直した★で上書き');
+    assertEqual(rows[0].text, 'たのしかった', 'ひとことは別に送られ、★を消さない');
+    assertEqual((await a.call('fes:feedback', { code, memberId: a.memberId, round: 1, mode: 'bomb-coop', stars: 9 })).error, 'bad_stars', '★は1〜5');
+    assertEqual((await a.call('fes:feedback', { code, memberId: a.memberId, round: 5, mode: 'bomb-coop', stars: 3 })).error, 'bad_round', 'まだ無い回には送れない');
+    await a.call('room:leave', { code, memberId: a.memberId });
+    assertEqual((await a.call('fes:feedback', { code, memberId: a.memberId, round: 1, mode: 'bomb-coop', stars: 5 })).ok, true, '部屋を出たあと（やめた人）も送れる');
+    const stranger = await device(srv.url);
+    assertEqual((await stranger.call('fes:feedback', { code, memberId: 'm-nai', round: 1, mode: 'bomb-coop', stars: 5 })).error, 'not_in_room', '部屋にいなかった人は送れない');
+    [staff, a, stranger].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('門8：名前の記録と感想は1か月で消え、名前の記録はくまくん（owner）だけが見られる', async () => {
+    const srv = await startTestServer();
+    const now = Date.now();
+    srv.fesStore.logName('OLD111', 'むかしのなまえ', false, null, now - RETAIN_MS - 60000);
+    srv.fesStore.logName('NEW111', 'きょうのなまえ', false, null, now);
+    srv.fesStore.saveFeedback({ room: 'OLD111', round: 1, mode: 'rcard', member: 'm1', name: 'x', stars: 3 }, now - RETAIN_MS - 60000);
+    const get = async (p, uid) => {
+      const headers = uid ? { Cookie: await login(srv.url, uid) } : {};
+      return fetch(srv.url + p, { headers });
+    };
+    assertEqual((await get('/api/fes/names')).status, 401, 'ログインしていない人は見られない');
+    assertEqual((await get('/api/fes/names', NOBODY)).status, 403, '係でない人は見られない');
+    assertEqual((await get('/api/fes/names', STAFF)).status, 403, '先生（staff）も名前の記録は見られない');
+    const own = await get('/api/fes/names', OWNER);
+    assertEqual(own.status, 200, 'くまくん（owner）は見られる');
+    const names = (await own.json()).names.map((x) => x.name);
+    assert(names.indexOf('きょうのなまえ') !== -1, '今日の名前はある');
+    assert(names.indexOf('むかしのなまえ') === -1, '1か月より前の名前は消えている');
+    assertEqual((await get('/api/fes/feedback', STAFF)).status, 200, '先生は感想を見られる');
+    assertEqual((await get('/api/fes/feedback', NOBODY)).status, 403, '係でない人は感想を見られない');
+    assertEqual(srv.fesStore.listFeedback().length, 0, '1か月より前の感想は消えている');
+    // 消すのは「見た時」だけではない：起動のたびと1時間ごとに掃く（purge が本当に消すか）
+    srv.fesStore.logName('OLD222', 'ふるい', false, null, now - RETAIN_MS - 1);
+    assertEqual(srv.fesStore.purge(now).names, 1, '掃けば消える');
+    await srv.close();
+  });
+
+  await r.test('16人まで：17人目は入れない（TVは数えない）', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const ds = [await join(srv, code, 'TV', null, { role: 'bigscreen' })];
+    for (let i = 0; i < 16; i++) ds.push(await join(srv, code, 'ひと' + 'あいうえおかきくけこさしすせそた'[i]));
+    assert(ds.every((d) => d.res.ok), '16人とTVは入れる');
+    const x = await join(srv, code, 'じゅうなな');
+    assertEqual(x.res.error, 'room_full', '17人目は満員');
+    assertEqual(fesOf(ds[1]).full, true, '満員の印が届く（TVはQRを隠す）');
+    ds.concat([staff, x]).forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('だれもいない時間が続くと呼び込みの画面へ・人が来たら待合へ・1人の間は時計を回さない', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const tv = await join(srv, code, 'TV', null, { role: 'bigscreen' });
+    await waitUntil(() => fesOf(tv).phase === 'idle', 'だれもいないと呼び込みへ', 4000);
+    const a = await join(srv, code, 'ふう');
+    await waitUntil(() => fesOf(tv).phase === 'lobby', '人が来たら待合へ');
+    await sleep(T.lobbyMs + 700);
+    assertEqual(fesOf(tv).phase, 'lobby', '1人の間は投票へ進まない');
+    assertEqual(fesOf(tv).remainingMs, null, '1人の間は時計を出さない');
+    [staff, tv, a].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('投票の候補の人数の幅が、アプリの MODES・GAMES と同じ（写しが腐らない）', async () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    FesRoom.FES_GAMES.forEach((g) => {
+      const line = html.split('\n').find((l) => l.indexOf('{id:"' + g.mode + '"') !== -1);
+      assert(line, g.mode + ' のモードが index.html にある');
+      const min = +((/minPlayers:(\d+)/.exec(line) || [])[1] || 2);
+      const mMax = +((/maxPlayers:(\d+)/.exec(line) || [])[1] || Infinity);
+      // ゲームの行は GAMES の配列の中から探す（同じ id でカセットの行もあるため）
+      const gamesBlock = html.slice(html.indexOf('  var GAMES = ['), html.indexOf('  function gameById('));
+      const gl = gamesBlock.split('\n').find((l) => l.indexOf("{ id:'" + g.game + "',") !== -1);
+      assert(gl, g.game + ' のゲームが index.html にある');
+      const gMax = +((/maxPlayers:(\d+)/.exec(gl) || [])[1] || 8);
+      assertEqual(g.min, min, g.mode + ' の下限');
+      assertEqual(g.max, Math.min(mMax, gMax), g.mode + ' の上限');
+    });
+    // クイズ解除の始める設定は、端末の既定（state.bombCounts・bombLives・タイマー180秒）と同じ
+    const bc = /bombCounts: (\{[^}]*\})/.exec(html);
+    assert(bc, '端末の bombCounts の既定が読める');
+    const counts = Function('return ' + bc[1])();
+    const st = FesRoom.gameOf('bomb-coop').start;
+    assertEqual(JSON.stringify(st.counts), JSON.stringify(counts), 'クイズ解除の本数が端末の既定と同じ');
+    assertEqual(st.lives, +(/bombLives: (\d+)/.exec(html) || [])[1], 'ライフが端末の既定と同じ');
+  });
+
+  r.finish();
+})();

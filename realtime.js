@@ -22,6 +22,10 @@ const AuctionRoom = require('./auction-room.js');
 const SugorokuRoom = require('./sugoroku-room.js');
 const FalseTrueRoom = require('./falsetrue-room.js');
 const RcardRoom = require('./rcard-room.js');
+// 指示66-2：文化祭の部屋（人がいなくても回るサーバーの進行役）と、名前の決まり
+const FesRoom = require('./fes-room.js');
+const NameFilter = require('./public/js/name-filter.js');
+const { createFesStore } = require('./fes-store.js');
 const ShinkaRoom = require('./shinka-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
@@ -368,6 +372,24 @@ const EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
 
 // db.js はネイティブモジュール（better-sqlite3）を読む。
 // 読めない環境でも realtime 自体は動かしたいので、失敗しても落とさない。
+/**
+ * 指示66-2：文化祭の係かどうか。'owner'（くまくん：名前の記録まで見られる）／'staff'（先生：係の画面と感想）／null。
+ * だれが係かは .env の FES_OWNER・FES_STAFF（ユーザー名をカンマで）にだけ書く——公開のリポジトリなので、
+ * コードにも docs にも名前を書かない
+ */
+function defaultFesRole(db) {
+  const list = (v) => String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
+  return function (userId) {
+    if (!userId || !db || typeof db.prepare !== 'function') return null;
+    let row = null;
+    try { row = db.prepare('SELECT username FROM users WHERE id = ?').get(userId); } catch (e) { return null; }
+    if (!row) return null;
+    if (list(process.env.FES_OWNER).indexOf(row.username) !== -1) return 'owner';
+    if (list(process.env.FES_STAFF).indexOf(row.username) !== -1) return 'staff';
+    return null;
+  };
+}
+
 function safeRequireDb() {
   try { return require('./db'); }
   catch (e) {
@@ -537,7 +559,8 @@ function publicSnapshot(room) {
       .sort((a, b) => a.joinedAt - b.joinedAt)
       .map((m) => ({
         id: m.id,
-        name: m.name,
+        // 指示66-2：係が隠した人は、名前を ●●● にして配る（スマホにもTVにも、元の名前を届けない）
+        name: (room.fes && room.fes.hidden.has(m.id)) ? '●●●' : m.name,
         role: m.role,
         connected: m.connected,
         isHost: m.id === room.hostMemberId,
@@ -557,6 +580,8 @@ function publicSnapshot(room) {
      * 完全一致で見ているので、1つ足すと赤くなる（そして、そこは
      * 「集めたものを並べない」を守るための門なので、緩めてはいけない）
      */
+    // 指示66-2：文化祭の部屋の流れ（ふつうの部屋は null）。票の数は決まった後だけ
+    fes: room.fes ? FesRoom.publicView(room, Date.now()) : null,
     paused: room.pausedAt
       ? { at: room.pausedAt, by: (room.members.get(room.pausedBy) || {}).name || null }
       : null,
@@ -595,6 +620,13 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   const emptyRoomTtlMs = opts.emptyRoomTtlMs != null ? opts.emptyRoomTtlMs : EMPTY_ROOM_TTL_MS;
   // 第32弾-E 第6部：アルバムを自動で消すまでの時間（1時間）
   const albumTtlMs = opts.albumTtlMs != null ? opts.albumTtlMs : 60 * 60 * 1000;
+  // 指示66-2：文化祭の部屋。名前の記録と感想を残す所（本物の SQLite の時だけ。検査は opts.fesStore で渡す）、
+  // 長さ（検査だけが縮める・落とし穴24）、係かどうか（くまくん＝owner・先生＝staff。だれかは .env にだけ置く）
+  const fesStore = opts.fesStore !== undefined ? opts.fesStore
+    : ((db && typeof db.exec === 'function') ? createFesStore(db) : null);
+  const fesTimes = opts.fesTimes || null;
+  const fesRoleOf = opts.fesRole || defaultFesRole(db);
+  if (fesStore) { try { fesStore.purge(); } catch (e) { console.error('[realtime] 文化祭の記録の掃除で例外:', e); } }
 
   const io = new Server(httpServer, {
     cors: { origin: true, credentials: true },
@@ -616,6 +648,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
 
   function broadcast(room) {
     io.to('room:' + room.code).emit('room:update', publicSnapshot(room));
+    // 指示66-2：文化祭の部屋は、係の画面にも元の名前つきで配る（入る・出る・切れる、のどれでも）
+    if (room.fes) pushStaff(room);
   }
 
   function socketOf(memberId, room) {
@@ -1034,6 +1068,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
    * @returns {boolean} ホストが変わったか
    */
   function ensureHost(room, reason) {
+    // 指示66-2：文化祭の部屋には人の進行役を置かない（入った人が進行役になると、無人の流れと二重になる）
+    if (room.fes) return false;
     const cur = room.hostMemberId ? room.members.get(room.hostMemberId) : null;
     if (cur && cur.connected) return false;
     const next = pickNextHost(room, cur ? cur.id : null);
@@ -1126,7 +1162,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // サーバーはpushするまで動き続けるので、ここが無いと遊び終わった部屋が溜まり続ける。
       // 保険として、emptySince の付け忘れがあってもここで拾い直す。
       if (!connectedMembers(room).length && !room.emptySince) room.emptySince = now;
-      if (room.emptySince && now - room.emptySince > emptyRoomTtlMs) store.delete(code);
+      // 指示66-2：文化祭の部屋は、だれもいなくても片付けない（呼び込みの画面で次の人を待つ。消すのは係の作り直しだけ）
+      if (!room.fes && room.emptySince && now - room.emptySince > emptyRoomTtlMs) store.delete(code);
       // 第32弾-E 第6部：アルバムは一定時間さわられなければ自動で消す。
       // ホストが操作せずに部屋を閉じた場合に、写真がサーバーに残り続けない保険
       if (room.album && now - room.album.updatedAt > albumTtlMs) {
@@ -1152,9 +1189,122 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       dr.advance(room);
       pushWolfState(room);
     });
+    // 指示66-2：文化祭の部屋は、ここから流れを進める（ゲームの締め切りを見たあと＝終わったゲームをすぐ結果へ）
+    eachRoom('文化祭の進行', (room) => {
+      if (room.fes && FesRoom.tick(room, now, fesApi)) pushFes(room);
+    });
   }, 500));
+  // 指示66-2：名前の記録と感想は1か月で消す（起動時にも1回）
+  if (fesStore) timers.push(setInterval(() => {
+    try { fesStore.purge(); } catch (e) { console.error('[realtime] 文化祭の記録の掃除で例外:', e); }
+  }, 60 * 60 * 1000));
 
   timers.forEach((t) => { if (t.unref) t.unref(); });
+
+  // ---- 指示66-2：文化祭の部屋 ----
+  /**
+   * 人を部屋から外す（文化祭の「席を空ける」と、係の「外す」）。
+   * 外された本人にだけ room:kicked を届ける。**だれを外したかは、残った人に知らせない**（見本 F14）。
+   * 外したあとは、ほかの経路と同じ settleAfterMemberGone を通す（落とし穴17）
+   */
+  function removeMember(room, memberId, reason) {
+    const target = room.members.get(memberId);
+    if (!target) return false;
+    const s = socketOf(target.id, room);
+    room.members.delete(target.id);
+    if (room.fes) { room.fes.votes.delete(target.id); room.fes.cont.delete(target.id); room.fes.hidden.delete(target.id); }
+    if (s) {
+      s.emit('room:kicked', { by: null, reason: reason || 'fes' });
+      s.leave('room:' + room.code);
+      s.data.roomCode = null;
+      s.data.memberId = null;
+    }
+    if (!connectedMembers(room).length) room.emptySince = Date.now();
+    settleAfterMemberGone(room);
+    return true;
+  }
+  const fesApi = {
+    startGameNow: (room, payload) => startGameNow(room, payload),
+    clearGameState: (room) => clearGameState(room),
+    driverStateOf: (room) => driverStateOf(room),
+    removeMember: (room, id, reason) => removeMember(room, id, reason)
+  };
+  /** 文化祭の部屋の今を配る：部屋の知らせ（全員）と、本人だけのもの（自分の投票・むずかしさ） */
+  function pushFes(room) {
+    broadcast(room);
+    for (const m of room.members.values()) {
+      if (m.connected) emitPrivate(room, m.id, 'fes:you', FesRoom.privateFor(room, m.id));
+    }
+  }
+  /** 係の画面に出すもの：元の名前（隠した人も）・つながっているか・押し忘れの数 */
+  function staffView(room) {
+    return {
+      code: room.code,
+      members: Array.from(room.members.values()).filter((m) => m.role !== ROLE_BIGSCREEN)
+        .sort((a, b) => a.joinedAt - b.joinedAt)
+        .map((m) => ({ id: m.id, name: m.name, connected: m.connected, hidden: room.fes.hidden.has(m.id),
+          miss: m.fesMiss || 0, playing: m.role === 'player' })),
+      tv: Array.from(room.members.values()).filter((m) => m.role === ROLE_BIGSCREEN && m.connected).length,
+      fes: FesRoom.publicView(room, Date.now())
+    };
+  }
+  function pushStaff(room) { io.to('fesstaff:' + room.code).emit('fes:staff', staffView(room)); }
+  /** いまの文化祭の部屋（/fes が飛ばす先。作り直したら新しい方） */
+  function currentFesRoom() {
+    let best = null;
+    for (const room of store.rooms.values()) {
+      if (room.fes && (!best || room.fes.createdAt > best.fes.createdAt)) best = room;
+    }
+    return best;
+  }
+  io.fesCurrentCode = () => { const r = currentFesRoom(); return r ? r.code : null; };
+  io.fesStore = fesStore;
+  io.fesRoleOf = fesRoleOf;
+
+  /**
+   * ゲームを始める（指示66-2 で wolf:start から切り出した）。
+   * 進行役の端末（wolf:start）と、文化祭の部屋のサーバーの進行役（fes-room.js）の両方がここを通る——
+   * 3-2-1 のずらし・準備OK の片付け・合図の順番を、2か所に書かない（落とし穴1）。
+   * onStarted は、始まった直後・合図と盤を配る前に呼ぶ（wolf:start はここで返事を返す）
+   */
+  function startGameNow(room, payload, onStarted) {
+    if (driverOf(room)) return { ok: false, error: 'already_started', message: 'もう始まっています' };
+    const gameId = (payload && payload.game) || 'wolfrole';
+    const entry = GAME_DRIVERS[gameId];
+    if (!entry) return { ok: false, error: 'unknown_game', message: 'そのゲームには対応していません' };
+    /**
+     * 指示63 第4部：**始める処理の中から、先に盤を配らせない。**
+     * 爆弾解除は問題バンクの説明文がその場でそろうので、startGame の中で
+     * notify（＝盤を全員へ）まで済ませていた。すると**3-2-1 の合図より先に盤が届き**、
+     * 手元はまだ数字が無いまま盤を描いて吹き出しを出していた（指示62・1-3 が残っていた。
+     * flow-walk の再通しで、最後に準備OKを押した参加者に出た）。
+     * 締め切りも 3-2-1 のぶんずらす前の値で一度配られていた。
+     * ここで同期に呼ばれた notify は捨てる——直後に、ずらした状態を合図のあとで必ず配る（pushWolfState）。
+     * あとから非同期に来る notify（AIの説明文が遅れてそろった時など）は、そのまま通す
+     */
+    let 始めている最中 = true;
+    const ctx = Object.assign({}, driverContext(), { notify: (r) => { if (!始めている最中) pushWolfState(r); } });
+    let res;
+    try { res = entry.driver.startGame(room, payload || {}, ctx); } finally { 始めている最中 = false; }
+    if (!res.ok) return res;
+    // 指示63 第4部：数えている間は始まっていない。持ち時間は0になった瞬間から減る
+    if (countdownMs > 0) {
+      room.countdownUntil = Date.now() + countdownMs;
+      const ws = driverStateOf(room);
+      if (ws) shiftTimes(ws, countdownMs, 0);
+    } else {
+      room.countdownUntil = null;
+    }
+    // 第37弾：始まったら「準備OK」は役目を終える。
+    // 残すと、再戦（待合に戻ってもう一度）の時に押していない人が押したことになる
+    clearReady(room);
+    if (onStarted) onStarted();
+    // 第34弾 2-1：始まる合図。全員の端末に同じ放送が届いた瞬間から
+    // 3-2-1を数えるので、そろって見える（ゲームの状態はその下に描かれて待つ）
+    io.to('room:' + room.code).emit('room:countdown', { seconds: COUNTDOWN_SECONDS });
+    pushWolfState(room);
+    return { ok: true };
+  }
 
   io.on('connection', (socket) => {
     // このsocketがどの部屋の誰なのか。join/create が成功した時に埋まる
@@ -1246,12 +1396,30 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     socket.on('room:join', (payload, cb) => {
       const room = store.get(payload && payload.code);
       if (!room) return fail(cb, 'room_not_found', 'その部屋コードは見つかりません');
-      const name = String((payload && payload.name) || '').trim();
+      let name = String((payload && payload.name) || '').trim();
       if (!name) return fail(cb, 'name_required', '名前を入力してください');
 
       // 同じ端末が入り直した時は、前のメンバーとして復帰する（再接続で別人が増えないように）
       const rejoinId = payload && payload.memberId;
       let member = rejoinId ? room.members.get(rejoinId) : null;
+
+      // 指示66-2：文化祭の部屋は、新しく入る人に門が3つある——名前の決まり（8字・使えない言葉）・むずかしさ・16人まで。
+      // 入り直し（同じ memberId）は前の名前とむずかしさのまま通す。TV（大画面）は名前を出さないので見ない
+      let fesDiff = null;
+      if (room.fes && !member && normalizeRole(payload && payload.role) !== ROLE_BIGSCREEN) {
+        const c = NameFilter.check(name);
+        // 入力された名前は、はじいたものも残す（1か月で消える・見られるのはくまくんだけ）
+        if (fesStore) { try { fesStore.logName(room.code, name, !c.ok, c.reason); } catch (e) { console.error('[realtime] 名前の記録で例外:', e); } }
+        if (!c.ok) {
+          return fail(cb, 'name_' + c.reason, c.reason === 'long' ? '名前は8字までです' : 'この名前は使えません。ほかの名前にしてね');
+        }
+        if (FesRoom.DIFFS.indexOf(payload && payload.diff) === -1) return fail(cb, 'diff_required', 'むずかしさを えらんでね');
+        const live = Array.from(room.members.values()).filter((m) => m.role !== ROLE_BIGSCREEN && m.connected).length;
+        if (live >= FesRoom.ROOM_MAX) return fail(cb, 'room_full', '満員です（16人まで）。つぎの回をまってね');
+        // 同じ名前が2人いたら、2人目は自動で「ふう②」（見本 F2）
+        name = NameFilter.dedupe(c.name, Array.from(room.members.values()).map((m) => m.name));
+        fesDiff = payload.diff;
+      }
       // 指示63 2-1：出ていった人が、同じ memberId で戻ってきた（待合と決着のあいだだけ）
       const 戻り = (!member && rejoinId && room.left && room.left.has(rejoinId) && canReturnNow(room))
         ? room.left.get(rejoinId) : null;
@@ -1266,7 +1434,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       }
       if (member) {
         member.name = name;
-        if (payload && payload.role) member.role = normalizeRole(payload.role);
+        // 指示66-2：文化祭で「今回は入らなかった人」（waiting）は、入り直しても今回のゲームに入れない
+        if (payload && payload.role && member.role !== 'waiting') member.role = normalizeRole(payload.role);
       } else {
         // 新しい枠が要る時だけ満員を見る（既存メンバーの復帰は満員でも締め出さない）。
         // 数えるのは「接続中のプレイヤー」＝いま同時に遊ぶ人数。名簿の枠数（切断中含む）で
@@ -1291,6 +1460,13 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         };
         room.members.set(member.id, member);
         if (戻り) room.left.delete(戻り.id);
+        if (fesDiff) {
+          member.fesDiff = fesDiff;
+          member.fesMiss = 0;
+          // ゲームの最中に入った人は、つぎの回から（いまのゲームの人数に数えない）
+          const ph = room.fes.phase;
+          if (ph === FesRoom.PHASE.PLAY || ph === FesRoom.PHASE.RESULT) member.role = 'waiting';
+        }
       }
       // 第42弾 門E6：**入り直しでも作り直しでも、姿はここ1か所で入れる**（落とし穴17）
       applyLook(member, (payload && payload.look) || (戻り && 戻り.look));
@@ -1310,6 +1486,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         const mine = rejoinDriver.privateFor(room, member.id);
         if (mine) emitPrivate(room, member.id, 'wolf:you', mine);
       }
+      if (room.fes) emitPrivate(room, member.id, 'fes:you', FesRoom.privateFor(room, member.id));
     });
 
     // ---- 第37弾：ルールを読んで「準備OK」 ----
@@ -1327,8 +1504,12 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 端末が古いゲームのつもりで押していたら、それは準備できていない
       const want = (payload && payload.game) || room.state.game;
       if (want !== room.state.game) return fail(cb, 'stale_game', 'ゲームが変わりました');
+      // 指示66-2：文化祭の部屋は、ルールと準備OK の段階のあいだだけ押せる
+      if (room.fes && room.fes.phase !== FesRoom.PHASE.READY) return fail(cb, 'not_ready_time', 'いまは準備OK の時間ではありません');
       const ready = !(payload && payload.ready === false);
       me.readyGame = ready ? room.state.game : null;
+      // 上限より多く押された時は、押した順に入る（fes-room.js の closeReady）
+      me.readyAt = ready ? Date.now() : null;
       if (typeof cb === 'function') cb({ ok: true, ready, room: publicSnapshot(room) });
       broadcast(room);
     });
@@ -1467,42 +1648,11 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const me = currentMember();
       if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
       if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが始められます');
-      if (driverOf(room)) return fail(cb, 'already_started', 'もう始まっています');
-
-      const gameId = (payload && payload.game) || 'wolfrole';
-      const entry = GAME_DRIVERS[gameId];
-      if (!entry) return fail(cb, 'unknown_game', 'そのゲームには対応していません');
-      /**
-       * 指示63 第4部：**始める処理の中から、先に盤を配らせない。**
-       * 爆弾解除は問題バンクの説明文がその場でそろうので、startGame の中で
-       * notify（＝盤を全員へ）まで済ませていた。すると**3-2-1 の合図より先に盤が届き**、
-       * 手元はまだ数字が無いまま盤を描いて吹き出しを出していた（指示62・1-3 が残っていた。
-       * flow-walk の再通しで、最後に準備OKを押した参加者に出た）。
-       * 締め切りも 3-2-1 のぶんずらす前の値で一度配られていた。
-       * ここで同期に呼ばれた notify は捨てる——直後に、ずらした状態を合図のあとで必ず配る（pushWolfState）。
-       * あとから非同期に来る notify（AIの説明文が遅れてそろった時など）は、そのまま通す
-       */
-      let 始めている最中 = true;
-      const ctx = Object.assign({}, driverContext(), { notify: (r) => { if (!始めている最中) pushWolfState(r); } });
-      let res;
-      try { res = entry.driver.startGame(room, payload || {}, ctx); } finally { 始めている最中 = false; }
+      // 指示66-2：文化祭の部屋は、サーバーの進行役（fes-room.js）だけが始める
+      if (room.fes) return fail(cb, 'fes_room', 'この部屋は自動で始まります');
+      const res = startGameNow(room, payload);
       if (!res.ok) return fail(cb, res.error, res.message);
-      // 指示63 第4部：数えている間は始まっていない。持ち時間は0になった瞬間から減る
-      if (countdownMs > 0) {
-        room.countdownUntil = Date.now() + countdownMs;
-        const ws = driverStateOf(room);
-        if (ws) shiftTimes(ws, countdownMs, 0);
-      } else {
-        room.countdownUntil = null;
-      }
-      // 第37弾：始まったら「準備OK」は役目を終える。
-      // 残すと、再戦（待合に戻ってもう一度）の時に押していない人が押したことになる
-      clearReady(room);
       if (typeof cb === 'function') cb({ ok: true, room: publicSnapshot(room) });
-      // 第34弾 2-1：始まる合図。全員の端末に同じ放送が届いた瞬間から
-      // 3-2-1を数えるので、そろって見える（ゲームの状態はその下に描かれて待つ）
-      io.to('room:' + room.code).emit('room:countdown', { seconds: COUNTDOWN_SECONDS });
-      pushWolfState(room);
     });
 
     // 役職・お題の確認、夜の行動、投票の直前の行動。
@@ -1667,6 +1817,106 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       socket.data.roomCode = null;
       socket.data.memberId = null;
       if (typeof cb === 'function') cb({ ok: true });
+    });
+
+    // ---- 指示66-2：文化祭の部屋 ----
+    /** 係かどうか（'owner' くまくん／'staff' 先生／null）。部屋の進行役とは別のもの（ログインしたアカウントで決まる） */
+    function staffRole() { return fesRoleOf(sessionOf(socket).userId); }
+    function staffRoom(payload) {
+      const room = store.get(payload && payload.code);
+      return room && room.fes ? room : null;
+    }
+
+    // 係：文化祭の部屋を作る。作り直す時は、前の部屋を閉じてから（机のQRは /fes なので、作り直しても使える）
+    socket.on('fes:create', (payload, cb) => {
+      if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
+      const old = currentFesRoom();
+      if (old && !(payload && payload.recreate)) return fail(cb, 'exists', 'もう文化祭の部屋があります（' + old.code + '）');
+      if (old) {
+        io.to('room:' + old.code).emit('room:closed', { by: null, reason: 'fes_recreate' });
+        store.delete(old.code);
+      }
+      const room = store.create({ ownerUserId: sessionOf(socket).userId, ownerUsername: null });
+      room.hostMemberId = null;
+      FesRoom.init(room, { times: fesTimes });
+      if (typeof cb === 'function') cb({ ok: true, code: room.code });
+    });
+    // 係：係の画面を開く（部屋の名簿には入らない＝TVにも名簿にも出ない）
+    socket.on('fes:watch', (payload, cb) => {
+      if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
+      const room = staffRoom(payload) || currentFesRoom();
+      if (!room) return fail(cb, 'no_room', '文化祭の部屋がありません');
+      socket.join('room:' + room.code);
+      socket.join('fesstaff:' + room.code);
+      if (typeof cb === 'function') cb({ ok: true, role: staffRole(), room: publicSnapshot(room), staff: staffView(room) });
+    });
+    // 係：名前を隠す（●●● にして、TVの壁からも消す）／もどす
+    socket.on('fes:hide', (payload, cb) => {
+      if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
+      const room = staffRoom(payload);
+      const id = payload && payload.memberId;
+      if (!room || !room.members.has(id)) return fail(cb, 'member_not_found', 'その人は部屋にいません');
+      if (payload.hidden === false) room.fes.hidden.delete(id); else room.fes.hidden.add(id);
+      if (typeof cb === 'function') cb({ ok: true });
+      pushFes(room);
+    });
+    // 係：部屋から外す。**だれを外したかは、残った人に知らせない**
+    socket.on('fes:kick', (payload, cb) => {
+      if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
+      const room = staffRoom(payload);
+      if (!room || !removeMember(room, payload && payload.memberId, 'fes_staff')) return fail(cb, 'member_not_found', 'その人は部屋にいません');
+      if (typeof cb === 'function') cb({ ok: true });
+      pushFes(room);
+    });
+    // 係：TVの端あわせ（ふちから内側へ何%縮めるか。0〜10）
+    socket.on('fes:inset', (payload, cb) => {
+      if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
+      const room = staffRoom(payload);
+      if (!room) return fail(cb, 'no_room', '文化祭の部屋がありません');
+      const v = Number(payload && payload.inset);
+      room.fes.inset = Math.max(0, Math.min(10, isFinite(v) ? Math.round(v * 2) / 2 : 0));
+      if (typeof cb === 'function') cb({ ok: true, inset: room.fes.inset });
+      pushFes(room);
+    });
+    // 投票。**一度入れたら変わらない。票の数はだれにも配らない**（自分の投票だけ本人へ）
+    socket.on('fes:vote', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me || !room.fes) return fail(cb, 'not_in_room', '部屋に入っていません');
+      const r = FesRoom.vote(room, me.id, payload && payload.mode);
+      if (typeof cb === 'function') cb(r);
+      if (r.ok) emitPrivate(room, me.id, 'fes:you', FesRoom.privateFor(room, me.id));
+    });
+    // 結果で「つづける」
+    socket.on('fes:continue', (payload, cb) => {
+      const room = currentRoom();
+      const me = currentMember();
+      if (!room || !me || !room.fes) return fail(cb, 'not_in_room', '部屋に入っていません');
+      const r = FesRoom.keepGoing(room, me.id);
+      if (typeof cb === 'function') cb(r);
+      if (r.ok) emitPrivate(room, me.id, 'fes:you', FesRoom.privateFor(room, me.id));
+    });
+    /**
+     * 感想（★と「ひとこと」）。★は押した時点で送り、カードが開いている間に押し直したら上書きする。
+     * 「やめた人」（F13）は部屋を出たあとに送るので、room:leave と同じく code＋memberId で本人を確かめる
+     */
+    socket.on('fes:feedback', (payload, cb) => {
+      const p = payload || {};
+      const room = store.get(p.code) || currentRoom();
+      if (!room || !room.fes) return fail(cb, 'no_room', '部屋がありません');
+      const memberId = p.memberId || socket.data.memberId;
+      const m = room.members.get(memberId) || (room.left && room.left.get(memberId));
+      if (!m) return fail(cb, 'not_in_room', '部屋にいた人だけが送れます');
+      const round = p.round | 0;
+      if (round < 1 || round > room.fes.round || !FesRoom.gameOf(p.mode)) return fail(cb, 'bad_round', 'その回はありません');
+      const stars = p.stars == null ? null : (p.stars | 0);
+      if (stars != null && (stars < 1 || stars > 5)) return fail(cb, 'bad_stars', '★は1〜5です');
+      const text = p.text == null ? null : String(p.text).slice(0, 200);
+      if (stars == null && text == null) return fail(cb, 'empty', '送るものがありません');
+      if (!fesStore) return fail(cb, 'no_store', 'いまは送れません');
+      try { fesStore.saveFeedback({ room: room.code, round, mode: p.mode, member: memberId, name: m.name, stars, text }); }
+      catch (e) { console.error('[realtime] 感想の保存で例外:', e); return fail(cb, 'store_failed', 'いまは送れません'); }
+      if (typeof cb === 'function') cb({ ok: true, stars, text: text != null });
     });
 
     // ---- 第32弾-E 第4部：リアクション ----

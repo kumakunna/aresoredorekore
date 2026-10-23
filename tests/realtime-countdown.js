@@ -29,8 +29,15 @@ function 締め切り(w) {
 async function 始める(gameId, countdownMs) {
   const srv = await startTestServer({ countdownMs });
   const rm = await makeRoom(srv, 6);
+  // **3-2-1 なし／ありで、同じ問題を出す。**とくとくクイズの最初の締め切りは「次の1文字が出る時刻」で、
+  // 問題の長さで変わる。別々の問題で比べると差がぶれて、変更の前から4回に1回赤だった（2026-10-24）。
+  // サーバーはこのプロセスの中で動くので、始める間だけ乱数の種をそろえる
+  const 元 = Math.random;
+  let seed = 20261024;
+  Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const t0 = Date.now();
-  const res = await rm.host.call(RT_START_EVENT, RT_START_MIN_CONFIG[gameId]);
+  let res;
+  try { res = await rm.host.call(RT_START_EVENT, RT_START_MIN_CONFIG[gameId]); } finally { Math.random = 元; }
   const room = srv.store.get(rm.code);
   const w = room && room[GAME_DRIVERS[gameId].key];
   return { srv, rm, t0, res, room, w };

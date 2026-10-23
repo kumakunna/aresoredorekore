@@ -363,6 +363,19 @@ function v2のクラス(css) {
     });
   });
 
+  await r.test('ゲームの印は10の世界ぶんそろい、題字の画像のファイルがある', async () => {
+    // 題字の画像を置き忘れたまま、部品の見本の印が「壊れた画像」で出ていた（指示66-1 の途中で踏んだ）。
+    // check.js も撮る道具も、画像が読めないことは数えない——ここでファイルがあることを見る
+    const V2 = require('../public/js/v2-kit.js');
+    const 空 = V2.WORLDS.filter((w) => !V2.emblem(w));
+    assertEqual(空.join('・'), '', '印が空の世界');
+    const 画像 = [];
+    V2.WORLDS.forEach((w) => { const m = /src="([^"]+)"/.exec(V2.emblem(w)); if (m) 画像.push(m[1]); });
+    assert(画像.length >= 1, '題字の画像を使う印がある（あれそれどれこれ）');   // 型(b)
+    const 無い = 画像.filter((src) => !fs.existsSync(path.join(R, 'public', src)));
+    assertEqual(無い.join('・'), '', 'public/ に無い画像');
+  });
+
   await r.test('縦の英字は、画面いっぱいの塗り（幕）より上・TV では端から少し内側', async () => {
     const z = (sel) => { const x = cssRules(V2CSS).find((y) => y.sel === sel); const m = x && /z-index:(\d+)/.exec(x.body); return m ? +m[1] : null; };
     assert(z('.v2 .v2-brand') > z('.v2 .v2-scrim'), 'スマホの縦の字は幕より上');

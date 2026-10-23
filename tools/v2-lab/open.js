@@ -65,7 +65,8 @@ async function 開く(dev, port, scene, st) {
   if (st.world) q.set('world', st.world);
   const base = 'http://127.0.0.1:' + port;
   await dev.go(base + '/');
-  await dev.ev("(function(){ localStorage.setItem('acac-app-prefs', JSON.stringify({fxSpeed:" + JSON.stringify(st.fx || 'normal') + "})); return 1; })()");
+  // 文字サイズ（指示66-2：設定の「大」＝130 でルールとシートの文が 1.15倍）
+  await dev.ev("(function(){ localStorage.setItem('acac-app-prefs', JSON.stringify({fxSpeed:" + JSON.stringify(st.fx || 'normal') + ",fontScale:" + (+st.font || 100) + "})); return 1; })()");
   await dev.go(base + '/v2lab?' + q.toString());
   await dev.until('window.V2Lab && (window.V2Lab.ready || window.V2Lab.error)', 15000, '見本データの画面');
   const err = await dev.ev('window.V2Lab.error');

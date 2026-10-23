@@ -10,7 +10,10 @@
 <!-- 指示66：新しい見た目（.v2 の画面）は M PLUS 1（日本語）と League Spartan（英字・大きい数字）。どちらも SIL OFL -->
 <!-- Yuji Syuku（筆文字）は人狼カセットの「大きな一行の演出テキスト」専用。
      役職名や案内などの実用テキストには使わない（読みやすさを優先するため） -->
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;800&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&family=Yuji+Syuku&family=M+PLUS+1:wght@500;700;800;900&family=League+Spartan:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;800&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&family=Yuji+Syuku&display=swap" rel="stylesheet">
+<!-- 指示66-2：新しい見た目の2つの書体（M PLUS 1・League Spartan）は、使う字だけに絞ってアプリのサーバーから配る（tools/gen-fonts.js）。
+     文化祭の会場の通信が弱くても字が変わらないように。漢字の束は、画面に出た時だけ取りに来る（unicode-range） -->
+<link rel="stylesheet" href="fonts/fonts.css">
 <style>
   :root{
     /* 役割ごとの文字サイズ。**#app ではなく :root に置く。**
@@ -5224,6 +5227,15 @@
   .v2 .v2-fb-st{color:#F5B400;display:flex;}
   .v2 .v2-fb-st .v2-ic{width:15px;height:15px;}
   .v2 .v2-fb-f p{margin:8px 0 0;font-weight:700;font-size:15px;line-height:1.55;color:#141414;}
+  /* 設定の文字サイズ「大」（fs-large）：**ルールとシートの文だけ 1.15倍**。見出しと数字はそのまま
+     （くまくんの決め 2026-10-23。375×667 で check.js 0件が門・正本 12-8） */
+  :root.fs-large .v2 .v2-rule{font-size:19px;}
+  :root.fs-large .v2 .v2-rb-t{font-size:22px;}
+  :root.fs-large .v2 .v2-rrow-nm{font-size:19.5px;}
+  :root.fs-large .v2 .v2-rrow-tt{font-size:14.5px;}
+  :root.fs-large .v2 .v2-dlg-txt{font-size:17px;}
+  :root.fs-large .v2 .v2-fb-f p{font-size:17px;}
+  :root.fs-large .v2 .v2-textarea{font-size:18.5px;}
   /* ---- v2 ここまで ---- */
 
   /* ===================================================================
@@ -31949,7 +31961,8 @@
   }
   /** 開いていた重なりと書きかけの字は、描き直しても残す（人が入るたびに知らせが届くので） */
   function fesKeep(scr){
-    var open = Array.prototype.map.call(scr.querySelectorAll('[data-v2-id].is-open'), function(n){ return n.getAttribute('data-v2-id'); });
+    // 残すのは人が開いたシートと確認の枠だけ。感想のカード（.v2-pop）の開け閉めは fes.fb が決める（残すと、たたんでもすぐ開き直す）
+    var open = Array.prototype.map.call(scr.querySelectorAll('.v2-sheet[data-v2-id].is-open, .v2-dlg[data-v2-id].is-open'), function(n){ return n.getAttribute('data-v2-id'); });
     var txt = Array.prototype.map.call(scr.querySelectorAll('[data-fes-text]'), function(n){ return n.value; });
     var focus = document.activeElement && scr.contains(document.activeElement) && document.activeElement.matches('[data-fes-text]');
     return function(){
@@ -31958,7 +31971,7 @@
     };
   }
   function fesWorld(scr, world){ V2.WORLDS.forEach(function(w){ scr.classList.toggle('v2-w-' + w, w === world); }); }
-  // lab：見本データ（tools/v2-lab/）が渡す { room, you, meId, fb }。ふだんは今の部屋から取る
+  // lab：見本データ（撮る道具の台本）が渡す { room, you, meId, fb }。ふだんは今の部屋から取る
   function fesRender(cur, lab){
     var room = lab ? lab.room : fesRoom(); if(!room) return;
     var scr = el(cur); if(!scr) return;
@@ -32020,7 +32033,7 @@
     else if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv') rtRenderCurrent();
   }
 
-  /** 見本データで描く（tools/v2-lab/ の台本だけが呼ぶ。本番に入口は無い・V2Screens.fes） */
+  /** 見本データで描く（撮る道具の台本だけが呼ぶ。本番に入口は無い・V2Screens.fes） */
   function fesLab(lab){
     if(lab.screen === 'scr-v2-fes-join'){ fes.join = Object.assign({ code: '', n: null, name: '', diff: null, err: '', busy: false }, lab.join); fesRenderJoin(); }
     else if(lab.screen === 'scr-v2-fes-quit'){ fes.quit = lab.quit; fesRenderQuit(); }

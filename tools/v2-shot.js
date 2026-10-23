@@ -5,6 +5,7 @@
 //   node tools/v2-shot.js --only fes-lobby     … 名前がこの字で始まる画面だけ（--only fes2 で文化祭の流れ全部）
 //   node tools/v2-shot.js --mock               … 見本（docs/指示66/見本/）の同じ画面も撮って、左右に並べた画像を作る
 //   node tools/v2-shot.js --fx skip            … 演出「なし」で撮る（既定は ふつう）
+//   node tools/v2-shot.js --font 130           … 設定の文字サイズ「大」で撮る（ルールとシートの文が 1.15倍）
 //   --out DIR（既定 docs/監査_指示66の画像/shot）  --port 3966  --cdp 9666
 //
 // **サーバーも bot も要らない。**public/ をそのまま配り、socket.io は tests/harness.js の疑似を使い、
@@ -27,6 +28,8 @@ const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
 const PORT = +arg('port', 3966), CDP = +arg('cdp', 9666);
 const ONLY = arg('only', null), MOCK = !!arg('mock', false), FX = arg('fx', 'normal');
+// --font 130：設定の文字サイズ「大」で撮る（指示66-2 の門：375×667 で check.js 0件）
+const FONT = +arg('font', 100);
 const OUT = path.resolve(arg('out', path.join(ROOT, 'docs', '監査_指示66の画像', 'shot')));
 const CHECK_JS = fs.readFileSync(path.join(ROOT, 'docs', '指示66', 'tools', 'check.js'), 'utf8');
 const MOCK_DIR = path.join(ROOT, 'docs', '指示66', '見本');
@@ -90,7 +93,7 @@ const OPTS = {
 };
 
 // 配り手と開き方は tools/v2-lab/open.js（v2-ink.js・v2-motion.js と同じもの）
-async function 開く(dev, scene, st) { return 開くの本体(dev, PORT, scene, Object.assign({ fx: FX }, st)); }
+async function 開く(dev, scene, st) { return 開くの本体(dev, PORT, scene, Object.assign({ fx: FX, font: FONT }, st)); }
 
 async function 測る(dev, scene, kind) {
   await dev.ev('(function(){' + CHECK_JS + '; return typeof UICHECK; })()');

@@ -52,6 +52,8 @@ function 漏れる選択子(css) {
       if (/^\.v2[\s.:\-]/.test(s) || s === '.v2') return;
       if (/^\.screen\.v2[\s.:]/.test(s)) return;
       if (/^:root\.fx-skip \.v2[\s.]/.test(s)) return;
+      // 指示66-2：設定の文字サイズ「大」の印（:root.fs-large）も、箱の中を指す
+      if (/^:root\.fs-large \.v2[\s.]/.test(s)) return;
       if (箱の外の許し.some((re) => re.test(s))) return;
       bad.push(s);
     });
@@ -353,7 +355,22 @@ function v2のクラス(css) {
   });
 
   await r.test('書体と字の決まり：M PLUS 1 と League Spartan を読み込み、字の箱を詰める・折ってよい所だけで折る', async () => {
-    assert(/family=M\+PLUS\+1:wght@[\d;]+/.test(HTML) && /family=League\+Spartan:wght@[\d;]+/.test(HTML), '書体のリンクに2つがある');
+    // 指示66-2：2つの書体はアプリのサーバーから配る（会場の通信が弱くても字が変わらない）。Google Fonts には頼らない
+    assert(/<link rel="stylesheet" href="fonts\/fonts\.css">/.test(HTML), '書体は public/fonts/fonts.css から読む');
+    assert(!/family=M\+PLUS\+1|family=League\+Spartan/.test(HTML), 'M PLUS 1 と League Spartan を Google Fonts から読まない');
+    const FCSS = fs.readFileSync(path.join(R, 'public', 'fonts', 'fonts.css'), 'utf8');
+    const faces = (FCSS.match(/@font-face\{[^}]*\}/g) || []);
+    ['M PLUS 1|700', 'M PLUS 1|800', 'M PLUS 1|900', 'League Spartan|800', 'League Spartan|900'].forEach((k) => {
+      const [fam, w] = k.split('|');
+      assert(faces.some((f) => f.indexOf('"' + fam + '"') >= 0 && f.indexOf('font-weight:' + w + ';') >= 0), 'v2 が使う太さの書体がある：' + k);
+    });
+    faces.forEach((f) => { const u = /url\(([^)]+)\)/.exec(f)[1]; assert(fs.existsSync(path.join(R, 'public', 'fonts', u)), '書体のファイルがある：' + u); });
+    // アプリの字は全部、どれかの束に入っている（字を足したのに書体を作り直し忘れると、その字だけ端末の書体になる）
+    const { execFileSync } = require('child_process');
+    let 照合 = '';
+    try { 照合 = execFileSync(process.execPath, [path.join(R, 'tools', 'gen-fonts.js'), '--check'], { encoding: 'utf8' }); }
+    catch (e) { 照合 = String(e.stdout || '') + String(e.stderr || ''); }
+    assert(/✔ アプリの字は全部、書体の束にある/.test(照合), 'アプリの字が書体の束にそろっている（node tools/gen-fonts.js で作り直す）：' + 照合.trim().split('\n').pop());
     assert(/Yuji\+Syuku/.test(HTML), '人狼の筆（Yuji Syuku）は残っている');
     assert(/\.v2 \*\{text-box:trim-both cap alphabetic;\}/.test(V2CSS), '字の箱を詰める決まりは1か所（.v2 *）');
     assert(/word-break:keep-all;overflow-wrap:anywhere;line-break:strict/.test(V2CSS), '改行：keep-all・anywhere・strict');

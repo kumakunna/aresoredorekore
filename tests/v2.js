@@ -18,6 +18,9 @@ const { createRunner, assert, assertEqual, cssRules, launch, sleep, waitFor } = 
 const R = path.join(__dirname, '..');
 const HTML = fs.readFileSync(path.join(R, 'public', 'index.html'), 'utf8');
 const KIT = fs.readFileSync(path.join(R, 'public', 'js', 'v2-kit.js'), 'utf8');
+// 新しい見た目を組むファイルは v2-kit.js だけではない（指示66-2 の v2-fes.js など）。名前を並べず、置き場から導く（落とし穴4）
+const V2JS = fs.readdirSync(path.join(R, 'public', 'js')).filter((n) => /^v2-.*\.js$/.test(n))
+  .map((n) => fs.readFileSync(path.join(R, 'public', 'js', n), 'utf8')).join('\n');
 const STYLE = HTML.slice(HTML.indexOf('<style>') + 7, HTML.indexOf('</style>'));
 const 頭 = '指示66：新しい見た目（v2）';
 const 尾 = '/* ---- v2 ここまで ---- */';
@@ -158,7 +161,8 @@ function v2のクラス(css) {
     // dead-style.js の「頭が出れば着られている」は、v2- の頭がどこにでもあるので v2 には効かない。ここで名前そのもので見る
     const 規則 = v2のクラス(V2CSS);
     assert(規則.size > 80, 'v2 の規則のクラスを集められている（実際:' + 規則.size + '）');   // 型(b)
-    const SRC = HTML.replace(STYLE, '') + '\n' + KIT;
+    const SRC = HTML.replace(STYLE, '') + '\n' + V2JS;
+    assert(V2JS.indexOf('V2Fes') >= 0 && V2JS.indexOf('root.V2 =') >= 0, 'v2-kit.js と v2-fes.js の両方を読めている（型(b)）');
     const 世界 = new Set(['v2-w-wait', 'v2-w-aresore', 'v2-w-sugoroku', 'v2-w-shinka', 'v2-w-wolf', 'v2-w-bomb', 'v2-w-quiz', 'v2-w-auction', 'v2-w-falsetrue', 'v2-w-rcard']);
     const 着ない = [...規則].filter((c) => !世界.has(c) && !new RegExp('[\'"` ]' + c.replace(/-/g, '\\-') + '[\'"` ]').test(SRC));
     assertEqual(着ない.sort().join('・'), '', 'v2 の規則があるのに、名前そのものが書かれた所が無いクラス');

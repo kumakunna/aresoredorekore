@@ -5010,6 +5010,218 @@
   .v2 .v2-parts-sec{display:flex;flex-direction:column;gap:10px;}
   .v2 .v2-parts-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;}
   .v2 .v2-parts-tiles .v2-tile{width:100%;aspect-ratio:1;}
+
+  /* ==== 指示66-2：文化祭の流れ（見本 festival.html の F1〜F14。値は見本の ds.css・festival.html から） ==== */
+  .v2 .v2-spacer{flex:1;min-height:0;}
+  .v2 .v2-hint{font-weight:800;font-size:13px;color:var(--ws);line-height:1.5;margin:0;}
+  .v2 .v2-c{text-align:center;}
+  .v2 .v2-note{margin:0;font-weight:800;font-size:15px;line-height:1.55;background:var(--wc);border-radius:14px;padding:12px 14px;}
+  .v2 .v2-card{display:flex;flex-direction:column;gap:12px;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;padding:14px;}
+  /* F2 入る */
+  .v2 .v2-pills{display:flex;gap:8px;flex-wrap:wrap;}
+  .v2 .v2-pill{display:inline-flex;align-items:center;border-radius:999px;padding:6px 12px;background:var(--wc);font-weight:900;font-size:13px;line-height:1.2;}
+  .v2 .v2-field{display:flex;flex-direction:column;gap:9px;}
+  .v2 .v2-field-l{font-weight:900;font-size:14px;}
+  .v2 .v2-inp{display:flex;align-items:center;gap:8px;height:56px;border:3px solid var(--wl);border-radius:14px;background:#fff;color:#141414;padding:0 14px;}
+  .v2 .v2-inp.is-bad{border-color:var(--v2-red);}
+  .v2 .v2-inp-in{flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:var(--v2-jp);font-weight:900;font-size:20px;color:#141414;padding:0;height:100%;}
+  .v2 .v2-inp-cnt{flex:none;font-weight:800;font-size:13px;color:#5A5A5A;}
+  .v2 .v2-inp-cnt.is-over{color:var(--v2-red);}
+  .v2 .v2-why{font-weight:900;font-size:13px;color:var(--v2-red);line-height:1.45;}
+  /* むずかしさ：大きい縦の並び。最初はどれも選んでいない（00 の3）。選んだ札は太い縁＋右に ✓ */
+  .v2 .v2-diffs{display:flex;flex-direction:column;gap:8px;}
+  .v2 .v2-diff{display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 14px;border-radius:16px;border:3px solid var(--wl2);background:var(--wc);cursor:pointer;text-align:left;width:100%;}
+  .v2 .v2-diff:active{transform:scale(.98);}
+  .v2 .v2-diff.is-on{border-color:var(--wi);background:var(--wc2);box-shadow:0 0 0 2px var(--wi) inset;}
+  .v2 .v2-diff-f{font-size:28px;line-height:1;flex:none;}
+  .v2 .v2-diff-t{display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .v2 .v2-diff-t b{font-weight:900;font-size:18px;line-height:1.2;}
+  .v2 .v2-diff-t span{font-weight:800;font-size:13px;color:var(--ws);line-height:1.3;}
+  .v2 .v2-diff-ok{margin-left:auto;width:24px;height:24px;}
+  /* F4 前のゲームの感想：帯の上のふちから生えるカード。約5秒でたたんで、左下の「★ 感想」に */
+  .v2 .v2-pop{position:absolute;left:12px;right:12px;bottom:calc(var(--v2-bandh) + 4px);z-index:24;transform:translateY(calc(100% + 12px));opacity:0;pointer-events:none;
+    transition:transform var(--v2-move) var(--v2-ease),opacity var(--v2-move) var(--v2-ease);}
+  .v2 .v2-pop.is-open{transform:none;opacity:1;pointer-events:auto;}
+  .v2 .v2-pcard{display:flex;flex-direction:column;gap:10px;background:var(--wsheet);color:var(--wsheet-ink);border-radius:20px 20px 16px 16px;padding:14px 14px 12px;box-shadow:0 -8px 24px rgba(0,0,0,.16);}
+  .v2 .v2-pcard-h{display:flex;align-items:center;gap:10px;}
+  .v2 .v2-pcard .v2-x{width:36px;height:36px;}
+  .v2 .v2-pt{font-weight:900;font-size:17px;line-height:1.3;}
+  .v2 .v2-ps{align-self:flex-start;border:0;background:none;padding:6px 0;font-weight:900;font-size:14px;color:var(--wsheet-soft);cursor:pointer;}
+  .v2 .v2-sent{display:inline-flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:var(--v2-ok-ink);}
+  .v2 .v2-sent .v2-ic{width:18px;height:18px;}
+  .v2 .v2-minipill{position:absolute;left:12px;bottom:calc(var(--v2-bandh) + 12px);z-index:23;display:none;align-items:center;gap:6px;border:0;border-radius:999px;
+    padding:8px 14px;background:var(--wsheet);color:var(--wsheet-ink);font-weight:900;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.14);cursor:pointer;}
+  .v2 .v2-minipill.is-on{display:inline-flex;}
+  .v2 .v2-minipill .v2-ic{width:18px;height:18px;color:#F5B400;}
+  .v2 .v2-stars{display:flex;gap:6px;}
+  .v2 .v2-stars button{width:44px;height:44px;border:0;background:none;padding:0;cursor:pointer;color:#D9D4C4;display:flex;align-items:center;justify-content:center;}
+  .v2 .v2-stars button .v2-ic{width:38px;height:38px;}
+  .v2 .v2-stars button.is-on{color:#F5B400;}
+  .v2 .v2-stars.is-sm button{width:36px;height:36px;}
+  .v2 .v2-stars.is-sm button .v2-ic{width:30px;height:30px;}
+  .v2 .v2-textarea{min-height:84px;border:3px solid #141414;border-radius:14px;padding:10px 12px;font-family:var(--v2-jp);font-weight:700;font-size:16px;color:#141414;background:#fff;resize:none;width:100%;box-sizing:border-box;}
+  .v2 .v2-fbcard b{font-weight:900;font-size:17px;}
+  /* F7 投票：押す＝えらぶ（札が浮く）。投票したら外れない。票の数は出さない（00 の1・2） */
+  .v2 .v2-vlist{display:flex;flex-direction:column;gap:14px;}
+  .v2 .v2-vcard{position:relative;display:flex;align-items:center;gap:12px;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;padding:10px;cursor:pointer;
+    transition:transform var(--v2-press) var(--v2-ease),box-shadow var(--v2-move) var(--v2-ease),opacity var(--v2-move) var(--v2-ease);}
+  .v2 .v2-vcard .v2-tile{width:66px;height:66px;}
+  .v2 .v2-vt{min-width:0;display:flex;flex-direction:column;gap:6px;}
+  .v2 .v2-vn{font-weight:900;font-size:19px;line-height:1.2;}
+  .v2 .v2-vb{font-weight:800;font-size:13px;color:var(--ws);line-height:1.35;}
+  .v2 .v2-vmeta{display:flex;gap:6px;flex-wrap:wrap;}
+  .v2 .v2-vmeta span{font-weight:900;font-size:12px;border-radius:999px;padding:3px 8px;line-height:1.3;background:var(--wdim);}
+  .v2 .v2-vr{margin-left:auto;flex:none;width:44px;height:44px;border-radius:12px;border:0;background:var(--wdim);color:var(--wi);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}
+  .v2 .v2-vr .v2-ic{width:22px;height:22px;}
+  .v2 .v2-vcard.is-on{box-shadow:0 0 0 3px var(--wi) inset,0 5px 0 rgba(0,0,0,.16);transform:translateY(-2px);}
+  .v2 .v2-vok{position:absolute;top:-11px;left:12px;display:inline-flex;align-items:center;gap:4px;background:var(--wi);color:var(--won);border-radius:999px;padding:3px 10px;font-weight:900;font-size:12.5px;line-height:1.3;
+    animation:v2-pop-in var(--v2-move) var(--v2-pop);}
+  .v2 .v2-vok .v2-ic{width:14px;height:14px;}
+  .v2 .v2-vlist.is-chosen .v2-vcard:not(.is-on){opacity:.55;}
+  /* F8 決定：①見出し ②斜めの幕でゲームの世界へ ③印と名前 ④人数と自分の投票。.is-play の時だけ動き、それ以外は最後の形 */
+  .v2 .v2-layer{position:absolute;inset:-2px;z-index:2;background:linear-gradient(180deg,var(--wt),var(--wb));overflow:hidden;}
+  /* 幕のあとの字はゲームの世界の色（.v2-swap に世界のクラスを付けて、その字の色を使う） */
+  .v2 .v2-swap{z-index:3;color:var(--wi);}
+  .v2 .v2-dec{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;}
+  .v2 .v2-dec .v2-tile{width:150px;height:150px;box-shadow:0 0 0 5px rgba(255,255,255,.9);}
+  .v2 .v2-gname{font-weight:900;font-size:40px;line-height:1.15;}
+  .v2 .v2-gname-t small{display:block;font-size:17px;margin-top:8px;}
+  .v2 .v2-who5{font-weight:900;font-size:20px;}
+  .v2 .v2-myv{font-weight:800;font-size:15px;color:var(--ws);}
+  .v2.is-play .v2-layer{animation:v2-wipe var(--v2-show) var(--v2-ease) both;animation-delay:calc(.7s * var(--fx-scale));}
+  .v2.is-play .v2-swap{animation:v2-ink calc(.01s * var(--fx-scale)) linear both;animation-delay:calc(1.05s * var(--fx-scale));}
+  .v2.is-play .v2-a-fade{animation:v2-fade var(--v2-move) var(--v2-ease) both;}
+  .v2.is-play .v2-a-slam{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  .v2.is-play .v2-a-rise{animation:v2-rise var(--v2-move) var(--v2-ease) both;}
+  .v2.is-play .v2-d1{animation-delay:calc(1.3s * var(--fx-scale));}
+  .v2.is-play .v2-d2{animation-delay:calc(1.45s * var(--fx-scale));}
+  .v2.is-play .v2-d3{animation-delay:calc(2.15s * var(--fx-scale));}
+  .v2.is-play .v2-d4{animation-delay:calc(2.3s * var(--fx-scale));}
+  @keyframes v2-wipe{from{clip-path:polygon(0 -3%,0 -3%,-40% 103%,-40% 103%);}to{clip-path:polygon(0 -3%,140% -3%,100% 103%,-40% 103%);}}
+  @keyframes v2-ink{from{color:#1A1A1A;}to{color:var(--wi);}}
+  @keyframes v2-slam{0%{opacity:0;transform:scale(1.9);}60%{opacity:1;transform:scale(.94);}100%{opacity:1;transform:scale(1);}}
+  @keyframes v2-rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+  @keyframes v2-pop-in{0%{transform:scale(.6);opacity:0;}100%{transform:scale(1);opacity:1;}}
+  /* F9 ルールと準備OK */
+  .v2 .v2-hd-g small{font-size:.6em;}
+  .v2 .v2-rmore{border:0;background:var(--wc);border-radius:14px;min-height:48px;font-weight:900;font-size:15px;color:var(--wi);display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;width:100%;}
+  .v2 .v2-rmore .v2-ic{width:18px;height:18px;}
+  .v2 .v2-bump{font-family:var(--v2-en);font-weight:900;}
+  /* F12 結果と「つづける？」。協力版はみんなの成績だけ */
+  .v2 .v2-team{border:3px solid var(--wa);border-radius:18px;padding:14px 16px;background:var(--wc);display:flex;flex-direction:column;gap:10px;}
+  .v2 .v2-team-big{display:flex;align-items:baseline;gap:4px;font-family:var(--v2-en);font-weight:900;}
+  .v2 .v2-team-big b{font-size:64px;line-height:1;color:var(--wa);}
+  .v2 .v2-team-big span{font-size:22px;}
+  .v2 .v2-team-sub{font-weight:900;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .v2 .v2-lives{display:inline-flex;gap:2px;font-size:20px;line-height:1;}
+  .v2 .v2-life.is-gone{opacity:.25;filter:grayscale(1);}
+  .v2 .v2-minebox{background:var(--wc);border-radius:16px;padding:12px 16px;display:flex;align-items:baseline;gap:8px;font-weight:900;font-size:15px;}
+  .v2 .v2-minebox b{margin-left:auto;font-family:var(--v2-en);font-size:34px;line-height:1;}
+  .v2 .v2-minebox b small{font-family:var(--v2-jp);font-size:16px;margin-left:2px;}
+  .v2 .v2-ranks{display:flex;flex-direction:column;gap:8px;}
+  .v2 .v2-rk{display:flex;align-items:center;gap:12px;background:var(--wc);border-radius:14px;padding:10px 14px;}
+  .v2 .v2-rk.is-me{box-shadow:0 0 0 3px var(--wa) inset;}
+  .v2 .v2-rk-n{font-family:var(--v2-en);font-weight:900;font-size:24px;min-width:1.4em;}
+  .v2 .v2-rk-nm{font-weight:900;font-size:17px;flex:1;}
+  .v2 .v2-rk-x{flex:none;font-weight:900;font-size:14px;}
+  .v2 .v2-contsheet{padding:16px 18px 20px;}
+  .v2 .v2-cont{display:flex;flex-direction:column;gap:12px;}
+  .v2 .v2-cont-t{font-weight:900;font-size:19px;}
+  .v2 .v2-syncbar{height:8px;border-radius:4px;background:#EDEDED;overflow:hidden;}
+  .v2 .v2-syncbar i{display:block;height:100%;background:#141414;transform-origin:0 50%;animation:v2-sync linear both;}
+  @keyframes v2-sync{from{transform:scaleX(1);}to{transform:scaleX(0);}}
+  .v2 .v2-btnrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .v2 .v2-sheet .v2-btn.is-sec{border-color:#141414;color:#141414;}
+  .v2 .v2-cont-done{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;border-radius:16px;background:#E3F6EA;color:var(--v2-ok-ink);font-weight:900;font-size:17px;}
+  .v2 .v2-cont-done .v2-ic{width:20px;height:20px;}
+  .v2 .v2-cnote{font-weight:800;font-size:13px;color:#555;display:flex;align-items:baseline;flex-wrap:wrap;gap:2px;}
+  .v2 .v2-cnote .v2-cd-n{font-size:15px;padding:0 2px;}
+  /* TV：QRの下の字・呼び込み・投票・決定・準備OK・結果 */
+  .v2 .v2-tqr-cap{font-weight:900;font-size:44px;line-height:1.25;color:#141414;text-align:center;margin-top:14px;}
+  .v2 .v2-tqr.is-sm{padding:16px;border-radius:22px;}
+  .v2 .v2-tqr.is-full{aspect-ratio:1;justify-content:center;gap:24px;color:#141414;}
+  .v2 .v2-tqr.is-full .v2-ic{width:150px;height:150px;}
+  .v2 .v2-tfull{font-weight:900;font-size:64px;color:#141414;}
+  .v2 .v2-tva.is-full{grid-template-columns:560px minmax(0,1fr);}
+  .v2 .v2-tnote{font-weight:800;font-size:44px;line-height:1.3;color:var(--ws);}
+  .v2 .v2-tvIdle{display:grid;grid-template-columns:minmax(0,1fr) 640px;gap:60px;flex:1;min-height:0;}
+  .v2 .v2-tvIdle-l{display:flex;flex-direction:column;gap:36px;min-width:0;}
+  .v2 .v2-tvIdle-l .v2-thd-ttl{font-size:150px;line-height:1.02;}
+  .v2 .v2-tvIdle-r{display:flex;flex-direction:column;justify-content:center;gap:24px;}
+  .v2 .v2-tsteps{display:flex;flex-direction:column;gap:16px;}
+  .v2 .v2-tstep{display:flex;align-items:center;gap:22px;background:var(--wc);border-radius:24px;padding:16px 24px;font-weight:900;font-size:50px;line-height:1.25;}
+  .v2 .v2-tstep-ri{width:88px;height:88px;border-radius:22px;background:var(--wc2);display:flex;align-items:center;justify-content:center;flex:none;}
+  .v2 .v2-tstep-ri .v2-ic{width:52px;height:52px;}
+  .v2 .v2-tstep em{font-style:normal;background:var(--wi);color:var(--won);border-radius:14px;padding:4px 14px;margin:0 4px;}
+  .v2 .v2-tgames{display:flex;align-items:center;gap:18px;}
+  .v2 .v2-ttile{width:120px;height:120px;}
+  .v2 .v2-tcode{display:flex;align-items:baseline;gap:18px;justify-content:center;}
+  .v2 .v2-tcode b{font-weight:900;font-size:84px;line-height:1;letter-spacing:.05em;}
+  .v2 .v2-tin{display:flex;flex-direction:column;gap:26px;flex:1;min-height:0;}
+  .v2 .v2-tin .v2-thd-ttl{font-size:96px;}
+  .v2 .v2-tvVote{display:grid;grid-template-columns:minmax(0,1fr) 386px;gap:28px;flex:1;min-height:0;padding-bottom:20px;}
+  .v2 .v2-vrows{display:flex;flex-direction:column;gap:18px;min-width:0;}
+  .v2 .v2-tvrow{display:flex;align-items:center;gap:28px;background:var(--wc2);border:5px solid var(--wl);border-radius:30px;padding:16px 24px;min-width:0;flex:1;}
+  .v2 .v2-tvrow .v2-tile{width:132px;height:132px;}
+  .v2 .v2-tvrow .v2-vn{font-size:64px;line-height:1.1;}
+  .v2 .v2-tvrow .v2-vb{font-size:44px;line-height:1.25;}
+  .v2 .v2-tvrow .v2-vmeta{margin-left:auto;gap:14px;flex:none;flex-wrap:nowrap;}
+  .v2 .v2-tvrow .v2-vmeta span{font-size:42px;padding:6px 22px;}
+  .v2 .v2-qrside{display:flex;flex-direction:column;justify-content:flex-end;}
+  .v2 .v2-tdec{position:absolute;inset:54px 96px;display:flex;flex-direction:column;z-index:3;}
+  .v2 .v2-tdec-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;text-align:center;}
+  .v2 .v2-tdec .v2-gname{font-size:150px;line-height:1.05;}
+  .v2 .v2-tdec .v2-gname-t small{display:inline;font-size:60px;margin-left:10px;}
+  .v2 .v2-tdec .v2-who5{font-size:64px;}
+  .v2 .v2-tdec .v2-tile{width:280px;height:280px;box-shadow:0 0 0 10px rgba(255,255,255,.9);}
+  .v2 .v2-tvB{display:grid;grid-template-columns:minmax(0,1fr) 386px;gap:28px;flex:1;min-height:0;padding-bottom:20px;}
+  .v2 .v2-tvB-l{display:flex;flex-direction:column;gap:24px;min-width:0;}
+  .v2 .v2-tg{display:flex;align-items:center;gap:24px;}
+  .v2 .v2-tg-tile{width:118px;height:118px;}
+  .v2 .v2-tg-n small{font-size:.6em;}
+  .v2 .v2-trules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;}
+  .v2 .v2-trule{display:flex;align-items:center;gap:14px;background:var(--wc);border-radius:24px;padding:16px 18px;font-weight:900;font-size:42px;line-height:1.3;}
+  .v2 .v2-trule-ri{width:72px;height:72px;border-radius:20px;background:var(--wc2);display:flex;align-items:center;justify-content:center;flex:none;font-size:44px;line-height:1;}
+  .v2 .v2-trule-t{min-width:0;}
+  .v2 .v2-tmem.is-wait{opacity:.6;}
+  .v2 .v2-tmem-st{margin-left:auto;flex:none;font-weight:900;font-size:44px;display:flex;align-items:center;}
+  .v2 .v2-tmem-st .v2-ic{width:46px;height:46px;color:var(--wok);}
+  .v2 .v2-tend{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;text-align:center;}
+  .v2 .v2-tbig{font-weight:900;font-size:200px;line-height:1;letter-spacing:-.01em;}
+  .v2 .v2-tbig.is-dim,.v2 .v2-tstat.is-dim{color:#C9C9CE;}
+  .v2 .v2-tstat{display:flex;align-items:center;gap:40px;font-family:var(--v2-en);font-weight:900;font-size:110px;line-height:1;}
+  .v2 .v2-tstat-sl{width:10px;height:110px;background:currentColor;transform:skewX(-20deg);display:block;}
+  .v2 .v2-tend .v2-lives{font-size:96px;gap:14px;}
+  .v2 .v2-tranks{display:flex;flex-direction:column;gap:14px;font-weight:900;font-size:64px;}
+  .v2 .v2-trk{display:flex;align-items:baseline;gap:28px;min-width:0;max-width:1400px;}
+  .v2 .v2-tvc.is-gold .v2-nr{color:color-mix(in srgb,var(--v2-gold) 26%,transparent);}
+  .v2 .v2-tvc.is-dim .v2-nr{color:color-mix(in srgb,#fff 3%,transparent);}
+  /* F14 係の画面 */
+  .v2 .v2-adm{gap:12px;}
+  .v2 .v2-adm-st{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .v2 .v2-adm-s{background:var(--wc);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0;}
+  .v2 .v2-adm-s b{font-weight:900;font-size:17px;line-height:1.25;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+  .v2 .v2-adm-s b.is-ok{color:var(--v2-ok-ink);}
+  .v2 .v2-adm-s b.is-ng{color:var(--v2-red);}
+  .v2 .v2-adm-ops{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .v2 .v2-adm-ops .v2-btn{min-height:52px;font-size:14px;border-radius:14px;gap:6px;padding:6px 8px;}
+  .v2 .v2-adm-mem{display:flex;flex-direction:column;gap:6px;}
+  .v2 .v2-adm-r{display:flex;align-items:center;gap:8px;background:var(--wc);border-radius:12px;padding:5px 6px 5px 10px;}
+  .v2 .v2-adm-r.is-off{opacity:.55;}
+  .v2 .v2-adm-nm{font-weight:900;font-size:15px;flex:1;}
+  .v2 .v2-adm-b{border:2px solid var(--wl);background:transparent;color:var(--wi);border-radius:10px;font-weight:900;font-size:13px;min-height:44px;padding:0 10px;cursor:pointer;display:flex;align-items:center;gap:4px;flex:none;}
+  .v2 .v2-adm-b.is-on{background:#141414;color:#fff;border-color:#141414;}
+  .v2 .v2-adm-b .v2-ic{width:15px;height:15px;}
+  .v2 .v2-calib-ops{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+  .v2 .v2-fbsum{display:flex;gap:8px;flex:none;}
+  .v2 .v2-fbsum-s{flex:1;background:#F4F1E6;border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .v2 .v2-fbsum-s b{font-weight:900;font-size:18px;color:#141414;}
+  .v2 .v2-fb{display:flex;flex-direction:column;gap:8px;}
+  .v2 .v2-fb-f{border:2px solid #E6E6E6;border-radius:14px;padding:10px 12px;}
+  .v2 .v2-fb-h{display:flex;align-items:center;gap:8px;font-weight:900;font-size:13px;color:#555;}
+  .v2 .v2-fb-st{color:#F5B400;display:flex;}
+  .v2 .v2-fb-st .v2-ic{width:15px;height:15px;}
+  .v2 .v2-fb-f p{margin:8px 0 0;font-weight:700;font-size:15px;line-height:1.55;color:#141414;}
   /* ---- v2 ここまで ---- */
 
   /* ===================================================================
@@ -7137,6 +7349,11 @@
        66-1 では見本データでだけ開く（検証用サーバーだけが配る台本。本番では開けない）。66-2 で文化祭の部屋につなぐ -->
   <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-lobby"></div>
   <div class="screen v2 v2-tv v2-w-wait" id="scr-v2-fes-tv"></div>
+  <!-- 指示66-2：文化祭の部屋。入る（F2）・やめた人（F13）・係の画面（F14）。中身は public/js/v2-fes.js が組む。
+       待合〜結果のスマホは scr-v2-fes-lobby、TV は scr-v2-fes-tv を段階ごとに描き直す（遊んでいる間だけ、今までのゲームの画面） -->
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-join"></div>
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-quit"></div>
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-staff"></div>
   <!-- 指示66-1：新しい見た目の部品の見本（古い部品カタログ scr-catalog の新しい側）。本番の導線には出ない -->
   <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-parts"></div>
 
@@ -8524,6 +8741,8 @@
 <script src="js/budoux-ja.js"></script>
 <script src="js/v2-art.js"></script>
 <script src="js/v2-kit.js"></script>
+<script src="js/name-filter.js"></script>
+<script src="js/v2-fes.js"></script>
 <!-- 指示57：初プレイのチュートリアル。置き場は UiKit と同じ #uiLayerRoot -->
 <script src="js/tutorial.js"></script>
 <script src="js/emoji.js"></script>
@@ -13403,7 +13622,7 @@
     // （「一方通行」「入るたびゲートを閉じる」「DOMから消す」と合わせて4つの重ね合わせ）
     'scr-rc-pass', 'scr-rc-turn', 'scr-rc-done',
     // 指示66-1：新しい見た目の画面は、もどる道を画面の中に自分で持つ（文化祭の待合は、もどる先が無い）
-    'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts',
+    'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff',
     // 第38弾：部屋の画面はここに書かない。RT_SCREENS から導く（下）
   ];
   function canGoBackOne(screenId){
@@ -13468,7 +13687,7 @@
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
   // 画面遷移による自動適用の対象から外す
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -13644,7 +13863,7 @@
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts'];
+    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff'];
     // **大画面には、どの画面でも⚙を出す**（指示47-2）。
     // 47-2 は「大画面で到達できる全画面に、🙋 プレイヤーにもどる か⚙への出口がある」と
     // 決めている。設定を開けば必ず先頭に🙋が並ぶ（setContext が bigscreen を最優先で見る）ので、
@@ -13701,6 +13920,8 @@
     // 第32弾-E 第4部・第5部：リアクションの帯と🎁は、部屋の画面でだけ
     updateReactBar();
     if(RT_SCREENS.indexOf(id) === -1) el('thanksBtn').style.display = 'none';
+    // 指示66-2：文化祭の新しい見た目の画面には 🎁 を出さない（「つづける？」のシートに重なる。遊ぶ画面では今までどおり）
+    if(id === 'scr-v2-fes-lobby' || id === 'scr-v2-fes-tv') el('thanksBtn').style.display = 'none';
     syncFloatBottom();
     // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
     if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
@@ -13747,6 +13968,8 @@
     if(id === 'scr-rt-room') enterRtRoom();
     if(id === 'scr-rt-rules') enterRtRules();
     if(RT_GAME_SCREEN_IDS.indexOf(id) !== -1 || id === 'scr-rt-big') rtRender();
+    // 指示66-2：文化祭の部屋の画面も、入った瞬間に描く（知らせを待たない）。TV は出てから大きさを合わせ直す
+    if(id === 'scr-v2-fes-lobby' || id === 'scr-v2-fes-tv'){ rtRender(); if(id === 'scr-v2-fes-tv') requestAnimationFrame(function(){ var r = fesRoom(); V2.fitTv(el(id), r ? r.fes.inset : 0); }); }
     // 第36弾 36-3：棚は「どのゲームも遊んでいない場所」。
     // ここへ来たら、走っている時計と遅れて動く処理をまとめて捨てる（落とし穴17）
     if(id === 'scr-shelf') stopAllPlayTimers();
@@ -15980,6 +16203,8 @@
   var rtReadyWasAll = false;
   var rtAutoStarting = false;
   function rtMaybeAutoStart(){
+    // 指示66-2：文化祭の部屋は、サーバーの進行役が始める（端末は始めない）
+    if(rt && rt.state.room && rt.state.room.fes) return;
     if(!rt || !rt.state.room){ rtReadySeenGame = null; rtReadyWasAll = false; return; }
     var game = rtPickedGame();
     // 指示54：上限を超えている間は、自動でも始めない（ボタンと同じ門を通る）
@@ -17967,7 +18192,7 @@
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
   // 第38弾：ここに書くのは、どのゲームにも属さない3枚だけ。
   // ゲームの画面は RT_GAME_SCREEN_IDS から後で足す（下の宣言のすぐ後）
-  var RT_SCREENS = ['scr-rt-room', 'scr-rt-rules', 'scr-rt-big'];
+  var RT_SCREENS = ['scr-rt-room', 'scr-rt-rules', 'scr-rt-big', 'scr-v2-fes-lobby', 'scr-v2-fes-tv'];
   // 第30弾：クイズ王の4ゲーム。1枚の画面が中身を差し替えて受け持つ
   var RT_QUIZ_GAMES = ['quizrush', 'quizlist', 'quizreveal', 'buzzer'];
   // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
@@ -18014,6 +18239,9 @@
     shinka: ['scr-rt-sh-match', 'scr-rt-sh-play', 'scr-rt-sh-result']
   };
   function rtWantScreen(){
+    // 指示66-2：文化祭の部屋は、遊んでいる間だけ今までのゲームの画面。それ以外は新しい見た目の画面（段階ごとに描き直す）
+    var fesWant = fesWantScreen();
+    if(fesWant) return fesWant;
     if(rtIsBigScreen()) return 'scr-rt-big';
     var v = rtView();
     var started = !!(v && v.phase && v.phase !== 'lobby');
@@ -18092,6 +18320,8 @@
      * 「もう一度」を止めていた（指示62 の確かめで実測）。部屋の一員なら、部屋の画面へ送る
      */
     if(cur === 'scr-rt-lobby' && rt.me && rt.me()){ goTo(rtWantScreen()); return; }
+    // 指示66-2：文化祭の入る画面で、もう部屋の一員なら（読み込み直し・入れた直後）部屋の画面へ
+    if(cur === 'scr-v2-fes-join' && rt.me && rt.me()){ goTo(rtWantScreen()); return; }
     // ロビーで入力中の人を引っぱらない。すでに部屋の画面にいる時だけ動かす
     if(RT_SCREENS.indexOf(cur) === -1) return;
     var want = rtWantScreen();
@@ -19408,6 +19638,7 @@
     // 第48弾 48-2：**帯はここ1か所で描く。**部屋の画面すべてがここを通るので、
     // 画面ごとの描画関数に「この場面では出す」を書かせない
     renderNowLine();
+    if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ fesRender(cur); return; }
     if(cur === 'scr-rt-room') renderRtRoom();
     if(cur === 'scr-rt-rules') renderRtRules();
     else if(cur === 'scr-rt-big') renderRtBig();
@@ -24779,6 +25010,12 @@
     });
     // 第24弾-3-5：ホストが終了したら、この端末も部屋から抜けて棚に戻る
     rt.on('closed', function(p){
+      // 指示66-2：係が文化祭の部屋を作り直した。/fes が新しい部屋へ飛ばす（TV は TV のまま）
+      if(p && p.reason === 'fes_recreate'){
+        // 係の画面は部屋の一員ではない（見ているだけ）。新しい部屋を見直すだけで、入る画面へは行かない
+        if((document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-staff'){ fesOpenStaff(); return; }
+        location.href = '/fes' + (rtIsBigScreen() ? '?tv=1' : ''); return;
+      }
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
       closeSettingsIfOpen();   // 第43弾 2-8
@@ -24794,6 +25031,14 @@
     });
     // 第32弾-B-1：部屋から出された。黙って画面が固まらないよう、理由を出して棚へ返す
     rt.on('kicked', function(p){
+      // 指示66-2：文化祭の部屋で席を空けた（2回押さなかった）・係が外した。入る画面へ（名前はそのまま入れ直せる）
+      if(p && /^fes/.test(p.reason || '')){
+        var code = fes.join.code || (fes.quit && fes.quit.code);
+        fes.join.diff = null;
+        fes.join.err = p.reason === 'fes_idle' ? UiText.FES.入る.席を空けた : UiText.FES.入る.出ました;
+        goTo('scr-v2-fes-join'); if(code) fesOpenJoin(code); else fesRenderJoin();
+        return;
+      }
       closeSettingsIfOpen();
       goBack('scr-shelf');
       setTimeout(function(){
@@ -24878,7 +25123,8 @@
     var v = rtView();
     var ended = !!(v && v.phase === 'ended');
     if(!ended) thanksSent = false;
-    var on = ended && !thanksSent && rt && rt.state.room && !rtIsBigScreen();
+    // 指示66-2：文化祭の新しい見た目の画面（結果と「つづける？」）では出さない。重なって「やめる」を隠す
+    var on = ended && !thanksSent && rt && rt.state.room && !rtIsBigScreen() && !fesWantScreen();
     el('thanksBtn').style.display = on ? 'flex' : 'none';
     syncFloatBottom();
   }
@@ -31402,6 +31648,16 @@
     var nextPromise = (async function(){
       // QRで呼ばれた人は、ログインも棚も通さずに参加画面へ直行する
       var invited = roomCodeFromUrl();
+      // 指示66-2：文化祭の部屋（/fes から飛んでくる）。係の画面・TV・参加者の3つの入口
+      if(/[?&]fes=1/.test(location.search || '')){
+        if(/[?&]staff=1/.test(location.search)){ try{ await checkAuth(); }catch(e){} await fesOpenStaff(); return 'scr-v2-fes-staff'; }
+        if(invited && /[?&]tv=1/.test(location.search) && rt){
+          var tvr = await rt.joinRoom(invited, 'TV', 'bigscreen');
+          if(tvr && tvr.ok) return rtWantScreen();
+        }
+        if(invited){ await fesOpenJoin(invited); return 'scr-v2-fes-join'; }
+        fes.join.err = UiText.FES.入る.部屋が無い; fesRenderJoin(); return 'scr-v2-fes-join';
+      }
       if(invited){
         el('rtJoinCode').value = invited;
         rtLobbyBackTo = 'scr-shelf';
@@ -31639,12 +31895,271 @@
     if(act === 'gear'){ openSettings(); return; }
     // 着替え：66-1 では今の着替えのシートを開く（新しい見た目のシートは 66-2 の F5）
     if(act === 'look' && typeof openLookSheet === 'function'){ openLookSheet(); return; }
+    // 指示66-2：係の「部屋を作り直す」の確認の枠（V2.dlgHtml のボタンは data-v2-act で届く）
+    if(act === 'recreate' && rt){ V2.close(b.closest('.v2-dlg')); rt.fesCreate(true).then(function(){ fesOpenStaff(); }); return; }
   });
   // TV の大きさが変わったら、1920×1080 の箱を合わせ直す
-  window.addEventListener('resize', function(){ var t = el('scr-v2-fes-tv'); if(t && t.classList.contains('active')) V2.fitTv(t); });
+  window.addEventListener('resize', function(){ var t = el('scr-v2-fes-tv'); if(t && t.classList.contains('active')){ var r = (typeof fesRoom === 'function') && fesRoom(); V2.fitTv(t, r ? r.fes.inset : 0); } });
   // 検査と、検証用サーバーの見本データの台本から、同じ関数で描けるようにしておく（window.catalogSet と同じ作法）。
   // **描くだけで、画面へは移らない。**データを渡せるのは検証用サーバーが配る台本だけ（本番に入口は無い）
   window.V2Screens = { fesLobby: renderV2FesLobby, fesTv: renderV2FesTv, parts: renderV2Parts, modeInfo: v2ModeInfo };
+
+  // ===================== 指示66-2：文化祭の部屋（つなぎ） =====================
+  // 画面の組み立ては public/js/v2-fes.js。ここは「部屋の知らせ → 描く」と「押した時の動き」だけ。
+  // 流れを進めるのはサーバー（fes-room.js）で、端末は始めない・進めない（rtMaybeAutoStart も止めてある）
+  var fes = { sel: null, selRound: null, join: { code: null, n: null, name: '', diff: null, err: '', busy: false },
+              endFor: null, end: null, playAnim: null, seenIds: null, fb: null, fbAsked: null,
+              quit: null, staff: null, staffFb: [], staffErr: '', staffRole: null, canCreate: false, toastOnce: false };
+  var FES_NAME_KEY = 'fes_name_v1', FES_FB_KEY = 'fes_fb_v1';
+  function fesRoom(){ return rt && rt.state.room && rt.state.room.fes ? rt.state.room : null; }
+  /** 文化祭の部屋の画面か。遊んでいる間（今回のゲームに入っている人と TV）は null＝今までのゲームの画面 */
+  function fesWantScreen(){
+    var room = fesRoom(); if(!room) return null;
+    var big = rtIsBigScreen(), me = rt.me && rt.me();
+    if(room.fes.phase === 'play' && (big || (me && me.role === 'player'))) return null;
+    return big ? 'scr-v2-fes-tv' : 'scr-v2-fes-lobby';
+  }
+  /** 候補の札に出すもの：66-1 の v2ModeInfo に、版・一言・形（協力／対戦）・約何分を足す */
+  function fesInfo(mode){
+    var g = v2ModeInfo(mode); if(!g) return null;
+    var m = modeById(mode), P = UiText.FES.投票;
+    var room = rt && rt.state.room;
+    var n = room ? V2Fes.people({ members: room.members, fes: room.fes }).length : 4;
+    return Object.assign({}, g, {
+      name: gameTitleOf(gameIdForMode(mode)),
+      edition: (/（([^）]+)）/.exec((m && m.title) || '') || [])[1] || '',
+      lead: P.一言[mode] || (m && m.sub) || '',
+      kind: P.形[mode] || '',
+      // 文化祭の決まった設定での目安（見本 F7）。ふだんの部屋の設定から測る estimatePlayMinutes は使わない
+      minutes: P.分[mode] ? ('約' + P.分[mode] + '分') : ''
+    });
+  }
+  /** 描くもとの形（v2-fes.js の冒頭に書いた view） */
+  function fesView(){
+    var room = rt.state.room, f = room.fes;
+    // 締め切りは、知らせが届いた時刻から数える（端末の時計のずれに左右されない）
+    if(fes.endFor !== room){ fes.endFor = room; fes.end = f.remainingMs != null ? Date.now() + f.remainingMs : null; }
+    if(fes.selRound !== f.round + ':' + f.phase){ fes.selRound = f.round + ':' + f.phase; if(f.phase !== 'vote') fes.sel = null; }
+    return { code: room.code, max: f.max, joinUrl: location.origin + '/fes', meId: rt.state.memberId,
+      members: (room.members || []).map(function(m){ return m; }), fes: f, you: rt.state.fes || {}, end: fes.end,
+      sel: fes.sel, info: fesInfo, next: f.next || [], games: f.games || [], fb: fes.fb,
+      data: room.state && room.state.data, game: room.state && room.state.game };
+  }
+  /** 開いていた重なりと書きかけの字は、描き直しても残す（人が入るたびに知らせが届くので） */
+  function fesKeep(scr){
+    var open = Array.prototype.map.call(scr.querySelectorAll('[data-v2-id].is-open'), function(n){ return n.getAttribute('data-v2-id'); });
+    var txt = Array.prototype.map.call(scr.querySelectorAll('[data-fes-text]'), function(n){ return n.value; });
+    var focus = document.activeElement && scr.contains(document.activeElement) && document.activeElement.matches('[data-fes-text]');
+    return function(){
+      open.forEach(function(id){ var n = scr.querySelector('[data-v2-id="' + id + '"]'); if(n && !n.classList.contains('is-open')) V2.open(n); });
+      Array.prototype.forEach.call(scr.querySelectorAll('[data-fes-text]'), function(n, i){ if(txt[i] != null) n.value = txt[i]; if(focus && i === 0) n.focus(); });
+    };
+  }
+  function fesWorld(scr, world){ V2.WORLDS.forEach(function(w){ scr.classList.toggle('v2-w-' + w, w === world); }); }
+  function fesRender(cur){
+    var room = fesRoom(); if(!room) return;
+    var scr = el(cur); if(!scr) return;
+    var view = fesView(), f = room.fes;
+    if(cur === 'scr-v2-fes-lobby') fesFeedbackCheck(view);
+    view.fb = fes.fb;
+    var out = cur === 'scr-v2-fes-tv' ? V2Fes.tv(view) : V2Fes.phone(view);
+    var back = fesKeep(scr);
+    scr.innerHTML = out.html;
+    fesWorld(scr, out.world);
+    // 決定の4段は、その回に初めて描いた時だけ動かす（人が押すたびの描き直しで頭から動き直さない）
+    var key = f.round + ':' + f.phase;
+    scr.classList.toggle('is-play', f.phase === 'decide' && fes.playAnim !== key + cur);
+    if(f.phase === 'decide') fes.playAnim = key + cur;
+    back();
+    V2.mount(scr);
+    if(cur === 'scr-v2-fes-tv'){
+      V2.fitTv(scr, f.inset || 0);
+      // 入った瞬間、TV の名前の壁で、その人の名前が金色に光る（人数や QR の上に知らせを重ねない）
+      var ids = V2Fes.people(view, true).map(function(m){ return m.id; });
+      if(fes.seenIds){
+        V2Fes.people(view, true).filter(function(m){ return fes.seenIds.indexOf(m.id) === -1; })
+          .forEach(function(m){ V2.glow(scr.querySelector('.v2-wall'), m.name); });
+      }
+      fes.seenIds = ids;
+    } else if(fes.toastOnce){
+      fes.toastOnce = false;
+      V2.show(scr.querySelector('[data-v2-id="v2TvLook"]'), 2900);
+    }
+  }
+  /**
+   * F4 前のゲームの感想：遊んで待合にもどった時に、1回だけ帯の上から出る（約5秒でたたむ）。
+   * **同じゲームは1日1回だけ聞く**（端末に覚える。日付が変われば、また聞く）
+   */
+  function fesFeedbackCheck(view){
+    var f = view.fes, played = f.played;
+    if(f.phase !== 'lobby' || !played || played.ids.indexOf(view.meId) === -1) return;
+    var day = new Date().toISOString().slice(0, 10), asked = {};
+    try{ asked = JSON.parse(localStorage.getItem(FES_FB_KEY) || '{}') || {}; }catch(e){ asked = {}; }
+    if(fes.fb && fes.fb.round === played.round) return;
+    if(asked[day + ':' + played.mode]) return;
+    asked[day + ':' + played.mode] = true;
+    try{ localStorage.setItem(FES_FB_KEY, JSON.stringify(asked)); }catch(e){}
+    fes.fb = { mode: played.mode, round: played.round, stars: 0, open: true, sent: false };
+    clearTimeout(fes.fbFold);
+    fes.fbFold = setTimeout(function(){ if(fes.fb && fes.fb.open && !fes.fb.stars){ fes.fb.open = false; rtRenderCurrent(); } }, 5000);
+  }
+  function fesSendStars(fb, n, code, memberId){
+    fb.stars = n;
+    rt.fesFeedback({ round: fb.round, mode: fb.mode, stars: n }, code, memberId).then(function(r){ fb.sent = !!(r && r.ok); fesRerender(); });
+  }
+  function fesRerender(){
+    var cur = (document.querySelector('.screen.active') || {}).id;
+    if(cur === 'scr-v2-fes-join') fesRenderJoin();
+    else if(cur === 'scr-v2-fes-quit') fesRenderQuit();
+    else if(cur === 'scr-v2-fes-staff') fesRenderStaff();
+    else if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv') rtRenderCurrent();
+  }
+
+  // ---- F2 入る ----
+  function fesRenderJoin(){
+    var scr = el('scr-v2-fes-join'); if(!scr) return;
+    var j = fes.join;
+    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy });
+    V2.mount(scr);
+  }
+  async function fesOpenJoin(code){
+    fes.join.code = code;
+    try{ fes.join.name = fes.join.name || localStorage.getItem(FES_NAME_KEY) || ''; }catch(e){}
+    // つながる前に覗くと「部屋が無い」に見える。先につないでから覗く（1回だけ待ち直す）
+    var p = null;
+    if(rt){ rt.connect(); p = await rt.peekRoom(code); if(!p || !p.ok){ await new Promise(function(r){ setTimeout(r, 700); }); p = await rt.peekRoom(code); } }
+    if(!p || !p.ok){ fes.join.err = UiText.FES.入る.部屋が無い; }
+    else fes.join.n = p.playerCount;
+    fesRenderJoin();
+  }
+  var FES_JOIN_ERR = { name_blocked: '使えない', name_long: '長い', name_empty: '空', diff_required: 'えらんでね', room_full: '満員', room_not_found: '部屋が無い' };
+  async function fesJoin(){
+    var j = fes.join, J = UiText.FES.入る;
+    var c = NameFilter.check(j.name);
+    if(!c.ok){ j.err = J[FES_JOIN_ERR['name_' + c.reason]]; fesRenderJoin(); return; }
+    if(!j.diff || j.busy) return;
+    j.busy = true; j.err = ''; fesRenderJoin();
+    var res = await rt.joinRoom(j.code, c.name, 'player', undefined, j.diff);
+    j.busy = false;
+    if(!res.ok){ j.err = J[FES_JOIN_ERR[res.error]] || res.message || ''; fesRenderJoin(); return; }
+    try{ localStorage.setItem(FES_NAME_KEY, c.name); }catch(e){}
+    fes.toastOnce = true;
+    goTo(rtWantScreen());
+  }
+
+  // ---- F13 やめた人 ----
+  async function fesQuit(){
+    var room = fesRoom(); if(!room) return;
+    var f = room.fes;
+    fes.quit = { code: room.code, memberId: rt.state.memberId, mode: f.played && f.played.mode, round: f.played && f.played.round,
+                 stars: 0, sent: false, sentText: false };
+    await rt.leave();
+    goTo('scr-v2-fes-quit');
+    fesRenderQuit();
+  }
+  function fesRenderQuit(){
+    var scr = el('scr-v2-fes-quit'); if(!scr || !fes.quit) return;
+    var q = fes.quit;
+    var back = fesKeep(scr);
+    scr.innerHTML = V2Fes.quit({ game: q.mode ? fesInfo(q.mode) : null, stars: q.stars, sent: q.sentText, title: fesTitleToday() });
+    back(); V2.mount(scr);
+  }
+  /** やめた人に見せる称号：この端末でいま名乗っている姿（ログインしていない人は、その日のうちだけ端末に残る） */
+  function fesTitleToday(){
+    var look = (rt && rt.state.look) || null;
+    return look && look.title ? { icon: look.icon || '🙂', name: look.title } : null;
+  }
+
+  // ---- F14 係の画面 ----
+  async function fesOpenStaff(){
+    if(!rt) return;
+    var res = await rt.fesWatch(null);
+    fes.staffErr = ''; fes.canCreate = false;
+    if(res.ok){ fes.staff = res.staff; fes.staffRole = res.role; }
+    else if(res.error === 'no_room'){ fes.staffErr = res.message; fes.canCreate = true; }
+    else fes.staffErr = UiText.FES.係.ログインして;
+    fesRenderStaff();
+  }
+  function fesRenderStaff(){
+    var scr = el('scr-v2-fes-staff'); if(!scr) return;
+    var st = fes.staff, f = st && st.fes;
+    var end = f && f.remainingMs != null ? (fes.staffEndFor === st ? fes.staffEnd : (fes.staffEndFor = st, fes.staffEnd = Date.now() + f.remainingMs)) : null;
+    var back = fesKeep(scr);
+    scr.innerHTML = V2Fes.staff({ staff: st, fb: fes.staffFb, end: end, err: fes.staffErr, canCreate: fes.canCreate, canFb: !!fes.staffRole, info: fesInfo });
+    back(); V2.mount(scr);
+  }
+  async function fesLoadFeedback(){
+    try{
+      var r = await fetch('/api/fes/feedback', { credentials: 'same-origin' });
+      var j = r.ok ? await r.json() : null;
+      var day = new Date().toDateString();
+      fes.staffFb = ((j && j.feedback) || []).filter(function(x){ return new Date(x.at).toDateString() === day; });
+    }catch(e){ fes.staffFb = []; }
+    fesRenderStaff();
+  }
+  if(rt){
+    rt.on('fes', function(){ var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-lobby') rtRenderCurrent(); });
+    rt.on('fesStaff', function(p){ fes.staff = p; var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-staff') fesRenderStaff(); });
+  }
+
+  // ---- 押した時（文化祭の画面だけ。data-fes-*） ----
+  document.addEventListener('input', function(e){
+    var t = e.target;
+    if(!t.matches || !t.matches('[data-fes-name]')) return;
+    fes.join.name = t.value; fes.join.err = '';
+    var n = Array.from(t.value.trim()).length, c = t.closest('.v2-inp');
+    var cnt = c && c.querySelector('[data-fes-cnt]');
+    if(cnt){ cnt.textContent = n + '/8'; cnt.classList.toggle('is-over', n > 8); }
+  });
+  document.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('[data-fes-act],[data-fes-pick],[data-fes-diff],[data-fes-star],[data-fes-hide],[data-fes-kick],[data-fes-inset]');
+    if(!b || !rt) return;
+    var room = fesRoom(), code = room ? room.code : (fes.staff && fes.staff.code);
+    if(b.hasAttribute('data-fes-diff')){ fes.join.diff = b.getAttribute('data-fes-diff'); fes.join.err = ''; fesRenderJoin(); return; }
+    if(b.hasAttribute('data-fes-pick')){
+      // 投票は外れない：入れたあとは、ほかの札を押しても変わらない（00 の1）
+      if(rt.state.fes && rt.state.fes.vote) return;
+      fes.sel = b.getAttribute('data-fes-pick'); rtRenderCurrent(); return;
+    }
+    if(b.hasAttribute('data-fes-star')){
+      var n = +b.getAttribute('data-fes-star');
+      var cur = (document.querySelector('.screen.active') || {}).id;
+      if(cur === 'scr-v2-fes-quit' && fes.quit && fes.quit.mode){ fesSendStars(fes.quit, n, fes.quit.code, fes.quit.memberId); return; }
+      if(fes.fb){ clearTimeout(fes.fbFold); fesSendStars(fes.fb, n); }
+      return;
+    }
+    if(b.hasAttribute('data-fes-hide')){ rt.fesHide(fes.staff.code, b.getAttribute('data-fes-hide'), !b.getAttribute('data-hidden')); return; }
+    if(b.hasAttribute('data-fes-kick')){ rt.fesKick(fes.staff.code, b.getAttribute('data-fes-kick')); return; }
+    if(b.hasAttribute('data-fes-inset')){ rt.fesInset(fes.staff.code, +b.getAttribute('data-fes-inset')); return; }
+    var act = b.getAttribute('data-fes-act');
+    if(act === 'join') fesJoin();
+    else if(act === 'vote' && fes.sel) rt.fesVote(fes.sel);
+    else if(act === 'ready') rt.setReady(true);
+    else if(act === 'unready') rt.setReady(false);
+    else if(act === 'continue') rt.fesContinue();
+    else if(act === 'quit') fesQuit();
+    else if(act === 'fbopen' && fes.fb){ fes.fb.open = true; rtRenderCurrent(); }
+    else if(act === 'fbfold' && fes.fb){ fes.fb.open = false; rtRenderCurrent(); }
+    else if(act === 'fbsend' && fes.fb){
+      var ta = document.querySelector('#scr-v2-fes-lobby [data-fes-text]'), txt = ta ? ta.value.trim() : '';
+      if(txt) rt.fesFeedback({ round: fes.fb.round, mode: fes.fb.mode, text: txt });
+      if(ta) ta.value = '';
+      V2.close(document.querySelector('#scr-v2-fes-lobby [data-v2-id="v2FbText"]'));
+    }
+    else if(act === 'quitsend' && fes.quit){
+      var qa = document.querySelector('#scr-v2-fes-quit [data-fes-text]'), qt = qa ? qa.value.trim() : '';
+      if(qt && fes.quit.mode) rt.fesFeedback({ round: fes.quit.round, mode: fes.quit.mode, text: qt }, fes.quit.code, fes.quit.memberId)
+        .then(function(r){ fes.quit.sentText = !!(r && r.ok); fesRenderQuit(); });
+      else { fes.quit.sentText = true; fesRenderQuit(); }
+    }
+    else if(act === 'rejoin' && fes.quit){ var c2 = fes.quit.code; fes.quit = null; fes.join.diff = null; fes.join.err = ''; goTo('scr-v2-fes-join'); fesOpenJoin(c2); }
+    else if(act === 'pause' && fes.staff) rt.fesPause(fes.staff.code, !(fes.staff.fes && fes.staff.fes.paused));
+    else if(act === 'skip' && fes.staff) rt.fesSkip(fes.staff.code);
+    else if(act === 'fb'){ fesLoadFeedback().then(function(){ V2.open(document.querySelector('#scr-v2-fes-staff [data-v2-id="v2Fb"]')); }); }
+    else if(act === 'recreate' || act === 'create'){
+      rt.fesCreate(act === 'recreate').then(function(){ fesOpenStaff(); });
+    }
+  });
 
   function startEmojiSwap(){
     if(typeof EmojiSvg === 'undefined') return;

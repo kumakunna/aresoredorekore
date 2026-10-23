@@ -12,8 +12,10 @@
 function mountFesRoutes(app, io) {
   app.get('/fes', (req, res) => {
     const code = io.fesCurrentCode && io.fesCurrentCode();
+    // TV（/fes?tv=1）と係（/fes?staff=1）は、その印をつけたまま飛ばす
+    const extra = (req.query.tv ? '&tv=1' : '') + (req.query.staff ? '&staff=1' : '');
     // 部屋がまだ無い時は入口へ（「いまは部屋がありません」は入口が出す）
-    res.redirect(302, code ? '/?room=' + encodeURIComponent(code) + '&fes=1' : '/?fes=1');
+    res.redirect(302, code ? '/?room=' + encodeURIComponent(code) + '&fes=1' + extra : '/?fes=1' + extra);
   });
   function gate(need) {
     return (req, res, next) => {

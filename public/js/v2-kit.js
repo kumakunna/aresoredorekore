@@ -447,11 +447,13 @@
   // ---------- TV：1920×1080 で組んで、画面に合わせて縮める ----------
   // TV の大きさは会場ごとに違う（1280×720 のノート・1920×1080 の TV）。
   // 1920×1080 の見本と同じ並びのまま、画面に入る大きさにする（16:9 でない画面は、上下か左右に世界の色が残る）
-  function fitTv(outer) {
+  // inset：TVの端あわせ（指示66-2・F6）。TVによってはふちが切れて映るので、係のえらんだ%だけ内側に縮める
+  function fitTv(outer, inset) {
     if (!outer) return;
     var c = outer.querySelector(':scope > .v2-tvc'); if (!c) return;
     var W = outer.clientWidth, H = outer.clientHeight; if (!W || !H) return;
-    var k = Math.min(W / 1920, H / 1080);
+    var p = Math.max(0, Math.min(10, +inset || 0)) / 100;
+    var k = Math.min(W * (1 - 2 * p) / 1920, H * (1 - 2 * p) / 1080);
     c.style.transform = 'translate(' + ((W - 1920 * k) / 2) + 'px,' + ((H - 1080 * k) / 2) + 'px) scale(' + k + ')';
   }
 

@@ -306,6 +306,9 @@ function publicView(room, now) {
     remainingMs: f.endsAt ? Math.max(0, f.endsAt - now) : null,
     round: f.round,
     candidates: f.candidates.slice(),
+    // 文化祭で遊べるゲームの全部（TVの呼び込み）と、いまの人数での次の候補（待合）。端末に一覧を写さない（落とし穴1）
+    games: FES_GAMES.map((g) => g.mode),
+    next: candidatesFor(livePeople(room).length),
     pick: show && f.pick ? { mode: f.pick.mode, counts: Object.assign({}, f.pick.counts), lot: f.pick.lot, tied: f.pick.tied.slice() } : null,
     played: f.played ? { mode: f.played.mode, round: f.played.round, ids: f.played.ids.slice() } : null,
     full: livePeople(room).length >= ROOM_MAX,

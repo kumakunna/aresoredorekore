@@ -59,6 +59,14 @@ const STATES = {
     // 満員（16人）の QR を消す形・名前の段の決め方は 66-2（見本 F6）で決める
     { id: 'long16', n: 15, long: 1, freeze: 22, mock: null, info: true }
   ],
+  // 指示66-2：文化祭の TV の待合。見本 F6 の人数（1・6・16）と、くまくんの宿題「15人＋8字の名前」（参考・案を報告に書く）
+  'fes2-tv-lobby': [
+    { id: 'base', freeze: 27, mock: [] },
+    { id: 'n9', n: 9, freeze: 27, mock: null },
+    { id: 'n15', n: 15, freeze: 27, mock: null },
+    { id: 'long8', n: 8, long: 1, freeze: 27, mock: null },
+    { id: 'long15', n: 15, long: 1, freeze: 27, mock: null, info: true }
+  ],
   // 部品の見本：明るい世界（待合）と暗い世界（爆弾）の両方で、重なりを1つずつ開いて撮る
   parts: [
     { id: 'wait', world: 'wait', freeze: 23 },

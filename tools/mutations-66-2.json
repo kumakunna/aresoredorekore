@@ -1,0 +1,137 @@
+[
+  {
+    "name": "66-2A 投票を入れ直せる（押し間違いで外れる元の形・門3）",
+    "file": "fes-room.js",
+    "suite": "tests/fes.js",
+    "only": "門3・門4",
+    "from": "  if (f.votes.has(memberId)) return { ok: true, vote: f.votes.get(memberId), already: true };",
+    "to": "",
+    "expect": "別のゲームを押しても、投票は変わらない"
+  },
+  {
+    "name": "66-2B 投票中にも決まったもの（票の数）を配る（門4）",
+    "file": "fes-room.js",
+    "suite": "tests/fes.js",
+    "only": "門3・門4",
+    "from": "  const show = f.phase === PHASE.DECIDE || f.phase === PHASE.READY",
+    "to": "  const show = true || f.phase === PHASE.READY",
+    "expect": "投票中"
+  },
+  {
+    "name": "66-2C 席を空けるのを3回にする（門2）",
+    "file": "fes-room.js",
+    "suite": "tests/fes.js",
+    "only": "門2",
+    "from": "const MISS_LIMIT = 2;",
+    "to": "const MISS_LIMIT = 3;",
+    "expect": "2回目も押さなかった人の席が空く"
+  },
+  {
+    "name": "66-2D むずかしさなしでも入れる（門5）",
+    "file": "realtime.js",
+    "suite": "tests/fes.js",
+    "only": "門5",
+    "from": "        if (FesRoom.DIFFS.indexOf(payload && payload.diff) === -1) return fail(cb, 'diff_required', 'むずかしさを えらんでね');",
+    "to": "",
+    "expect": "むずかしさが無いと入れない"
+  },
+  {
+    "name": "66-2E 隠した名前をそのまま配る（門6）",
+    "file": "realtime.js",
+    "suite": "tests/fes.js",
+    "only": "門6",
+    "from": "        name: (room.fes && room.fes.hidden.has(m.id)) ? '●●●' : m.name,",
+    "to": "        name: m.name,",
+    "expect": "名前が ●●● になる"
+  },
+  {
+    "name": "66-2F ★を押し直しても上書きしない（門7）",
+    "file": "fes-store.js",
+    "suite": "tests/fes.js",
+    "only": "門7",
+    "from": "        if (fb.stars != null) updStars.run(fb.stars, String(fb.name || row.name), t, key);",
+    "to": "",
+    "expect": "押し直した★で上書き"
+  },
+  {
+    "name": "66-2G 名前の記録を1か月で消さない（門8）",
+    "file": "fes-store.js",
+    "suite": "tests/fes.js",
+    "only": "門8",
+    "from": "  const delNames = db.prepare('DELETE FROM fes_names WHERE at < ?');",
+    "to": "  const delNames = db.prepare('DELETE FROM fes_names WHERE at < ? AND 0');",
+    "expect": "1か月より前の名前は消えている"
+  },
+  {
+    "name": "66-2H 先生（staff）も名前の記録を見られる（門8）",
+    "file": "fes-routes.js",
+    "suite": "tests/fes.js",
+    "only": "門8",
+    "from": "      if (!role || (need === 'owner' && role !== 'owner')) return res.status(403).json({ error: '見られません' });",
+    "to": "      if (!role) return res.status(403).json({ error: '見られません' });",
+    "expect": "先生（staff）も名前の記録は見られない"
+  },
+  {
+    "name": "66-2I 画面：投票したあとに別のゲームを押すと選び直せる（門3・画面）",
+    "file": "public/index.html",
+    "suite": "tests/fes-screens.js",
+    "only": "門3",
+    "from": "      if(rt.state.fes && rt.state.fes.vote) return;",
+    "to": "",
+    "expect": "選んでいる札も変わらない"
+  },
+  {
+    "name": "66-2J 画面：★を押しても送らない（送るボタンを待つ元の形・門7）",
+    "file": "public/index.html",
+    "suite": "tests/fes-screens.js",
+    "only": "門7",
+    "from": "      if(fes.fb){ clearTimeout(fes.fbFold); fesSendStars(fes.fb, n); }",
+    "to": "      if(fes.fb){ clearTimeout(fes.fbFold); fes.fb.stars = n; }",
+    "expect": "★を押した時点で送る"
+  },
+  {
+    "name": "66-2K 画面：描き直しで感想のカードまで開き直す（落とし穴54）",
+    "file": "public/index.html",
+    "suite": "tests/fes-screens.js",
+    "only": "門7",
+    "from": "scr.querySelectorAll('.v2-sheet[data-v2-id].is-open, .v2-dlg[data-v2-id].is-open')",
+    "to": "scr.querySelectorAll('[data-v2-id].is-open')",
+    "expect": "たたんだら、知らせが来ても勝手に開かない"
+  },
+  {
+    "name": "66-2L 画面：むずかしさを選ぶ前から「入る」を押せる（門5・画面）",
+    "file": "public/js/v2-fes.js",
+    "suite": "tests/fes-screens.js",
+    "only": "門5",
+    "from": "(o.diff && !o.busy ? '' : ' disabled')",
+    "to": "(!o.busy ? '' : ' disabled')",
+    "expect": "選ぶまで「入る」は押せない"
+  },
+  {
+    "name": "66-2M 画面：隠した人を TV の札と壁に残す（門6・画面）",
+    "file": "public/js/v2-fes.js",
+    "suite": "tests/fes-screens.js",
+    "only": "門6",
+    "from": "      return !(forTv && hidden.indexOf(m.id) !== -1);",
+    "to": "      return true;",
+    "expect": "TVの札から消える"
+  },
+  {
+    "name": "66-2N むずかしさ：やさしいの人にも上の層の問題を出す",
+    "file": "bomb-room.js",
+    "suite": "tests/fes.js",
+    "only": "むずかしさ",
+    "from": "const DIFF_CAP = { easy: 'normal', normal: 'hard', hard: null };",
+    "to": "const DIFF_CAP = { easy: null, normal: 'hard', hard: null };",
+    "expect": "やさしいの人には別の問題が出る"
+  },
+  {
+    "name": "66-2O 名前：数字の語呂 810 を通す",
+    "file": "public/js/name-filter.js",
+    "suite": "tests/fes.js",
+    "only": "名前：",
+    "from": "  var DIGITS = ['810', '114514', '1919', '0721', '4545', '889464'];",
+    "to": "  var DIGITS = ['114514', '1919', '0721', '4545', '889464'];",
+    "expect": "数字の語呂（読み）もはじく"
+  }
+]

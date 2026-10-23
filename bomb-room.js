@@ -47,6 +47,8 @@ function playersOf(room) {
 // ---- 指示66-2：むずかしさの上限 ----
 // 文化祭の部屋で選ぶ3つの段と、その人に出す問題の層の上限。協力版だけに効かせる（競争版は全員同じ問題で競うので、変えると公平でなくなる）
 const DIFF_CAP = { easy: 'normal', normal: 'hard', hard: null };
+// 上限と比べるための層の並び（やさしい順）。上限は easy〜hard の3つだけなので、なにそれ・むりはここに出てこない
+const CAP_ORDER = ['easy', 'normal', 'hard', 'nanisore', 'muri'];
 function capsFrom(diffs, mode) {
   const out = {};
   if (!diffs || mode !== BombLogic.MODE.COOP) return out;
@@ -61,14 +63,15 @@ function questionFor(w, memberId, uid) {
   const wire = w.wires.find((x) => x.uid === uid);
   const cap = w.capOf && w.capOf[memberId];
   if (!wire || !cap) return { wire, key: uid };
-  const T = QuizBank.TIERS || ['easy', 'normal', 'hard', 'nanisore', 'muri'];
-  if (T.indexOf(wire.tier) <= T.indexOf(cap)) return { wire, key: uid };
+  if (CAP_ORDER.indexOf(wire.tier) <= CAP_ORDER.indexOf(cap)) return { wire, key: uid };
   const key = uid + '|' + memberId;
   if (!w.subs[key]) {
     const seen = {};
     w.wires.forEach((x) => { seen[x.question] = true; });
     Object.keys(w.subs).forEach((k) => { seen[w.subs[k].question] = true; });
-    const one = BombLogic.pickQuestionWires(QuizBank, { [cap]: 1 }, w.rnd || null, seen, [cap])[0];
+    // 引ける層は、この試合で許された層（w.allowedTiers＝QuizBank.allowedTiers を通したもの）のまま。
+    // 上限の層が許されていなければ引けない＝元の問題のまま（なにそれ・むりの門を、ここで外さない・指示58）
+    const one = BombLogic.pickQuestionWires(QuizBank, { [cap]: 1 }, w.rnd || null, seen, w.allowedTiers)[0];
     // 問題が尽きたら元の問題のまま（止まるより、むずかしくても出す方がよい）
     if (!one) return { wire, key: uid };
     w.subs[key] = Object.assign({}, one, { uid: uid, shownTier: wire.tier });

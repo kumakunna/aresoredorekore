@@ -5056,6 +5056,8 @@
   .v2 .v2-vlist{display:flex;flex-direction:column;gap:14px;}
   .v2 .v2-vcard{position:relative;display:flex;align-items:center;gap:12px;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;padding:10px;cursor:pointer;
     transition:transform var(--v2-press) var(--v2-ease),box-shadow var(--v2-move) var(--v2-ease),opacity var(--v2-move) var(--v2-ease);}
+  /* 押した瞬間に沈む（触れた瞬間の反応・tests/press-feedback.js） */
+  .v2 .v2-vcard:active{transform:scale(.98);}
   .v2 .v2-vcard .v2-tile{width:66px;height:66px;}
   .v2 .v2-vt{min-width:0;display:flex;flex-direction:column;gap:6px;}
   .v2 .v2-vn{font-weight:900;font-size:19px;line-height:1.2;}

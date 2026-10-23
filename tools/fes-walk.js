@@ -114,14 +114,16 @@ const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.a
       着いた('準備OK');
       for (const d of ph) await 押す(d, '[data-fes-act=ready]');
       await sleep(500); await 撮る(tv, lap + '_3_準備_TV');
-      await ph[0].until("(document.querySelector('.screen.active')||{}).id!=='scr-v2-fes-lobby'", 40000, '遊ぶ');
+      // 遊ぶ画面へ：ほかのゲームは今の画面へ移る。クイズ解除（協力版）の解除中は、新しい見た目の盤（F11）のまま
+      await ph[0].until("(document.querySelector('.screen.active')||{}).id!=='scr-v2-fes-lobby'||!!document.querySelector('#scr-v2-fes-lobby .v2-bgrid')", 40000, '遊ぶ');
       着いた('遊ぶ:' + (await 画面(ph[0]))); await sleep(4000); await 撮る(ph[0], lap + '_4_遊ぶ'); await 撮る(tv, lap + '_4_遊ぶ_TV');
-      // 遊ぶ間：クイズ解除だけは決着を早める。ほかはゲームの締め切りに任せる（だれも押さない）
+      // 遊ぶ間：クイズ解除だけは決着を早める。ほかはゲームの締め切りに任せる（押せる所を押すだけ）
       const until = Date.now() + 6 * 60 * 1000;
       while (Date.now() < until) {
-        if ((await 画面(ph[0])) === 'scr-v2-fes-lobby') break;
+        if (await ph[0].ev("!!document.querySelector('#scr-v2-fes-lobby .v2-contsheet')")) break;
         if (mode === 'bomb-coop') {
-          await ph[0].ev("(async function(){var b=document.querySelector('#scr-rt-bomb .bomb-wire-btn:not(.solved):not([disabled])');if(!b)return 0;b.click();for(var i=0;i<20&&!document.querySelector('#rtBombChoices [data-rtbombans]');i++)await new Promise(function(r){setTimeout(r,100);});var a=document.querySelector('#rtBombChoices [data-rtbombans]');if(a)a.click();return 1;})()");
+          // 新しい見た目の盤（F11）：空いているマスを押して、3択の1つ目を押す（外れたら爆発）
+          await ph[0].ev("(async function(){var b=document.querySelector('#scr-v2-fes-lobby .v2-bcell:not(:disabled)');if(!b)return 0;b.click();for(var i=0;i<20&&!document.querySelector('#scr-v2-fes-lobby [data-fes-ans]');i++)await new Promise(function(r){setTimeout(r,100);});var a=document.querySelector('#scr-v2-fes-lobby [data-fes-ans]');if(a)a.click();return 1;})()");
         } else {
           // 進化じゃんけん・ロシアンカード：遊ぶ人がするように、押せる所を押す（手を出す・しかける・めくる）。
           // だれも押さないと、進化じゃんけんは10分の打ち切りまで続く（ゲームの決まり）

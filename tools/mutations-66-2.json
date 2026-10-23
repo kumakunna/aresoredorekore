@@ -9,13 +9,13 @@
     "expect": "別のゲームを押しても、投票は変わらない"
   },
   {
-    "name": "66-2B 投票中にも決まったもの（票の数）を配る（門4）",
+    "name": "66-2B 投票中の知らせに票を足す（門4）。最初は「決まったものを出す門を外す」にしたが、投票中は決まったものがまだ無いので何も漏れず素通りした（変異の選び方の誤り）",
     "file": "fes-room.js",
     "suite": "tests/fes.js",
     "only": "門3・門4",
-    "from": "  const show = f.phase === PHASE.DECIDE || f.phase === PHASE.READY",
-    "to": "  const show = true || f.phase === PHASE.READY",
-    "expect": "投票中"
+    "from": "    candidates: f.candidates.slice(),",
+    "to": "    candidates: f.candidates.slice(), counts: Array.from(f.votes.values()),",
+    "expect": "投票中の部屋の知らせに票の数が無い"
   },
   {
     "name": "66-2C 席を空けるのを3回にする（門2）",
@@ -72,13 +72,13 @@
     "expect": "先生（staff）も名前の記録は見られない"
   },
   {
-    "name": "66-2I 画面：投票したあとに別のゲームを押すと選び直せる（門3・画面）",
-    "file": "public/index.html",
+    "name": "66-2I 画面：投票ずみでも投票のボタンを出す（門3・画面）。最初は「押した札を無視する」を外したが、画面は二重に守っていて素通りした（変異の選び方の誤り）",
+    "file": "public/js/v2-fes.js",
     "suite": "tests/fes-screens.js",
     "only": "門3",
-    "from": "      if(rt.state.fes && rt.state.fes.vote) return;",
-    "to": "",
-    "expect": "選んでいる札も変わらない"
+    "from": "    var btn = mine",
+    "to": "    var btn = false",
+    "expect": "投票のボタンはもう無い"
   },
   {
     "name": "66-2J 画面：★を押しても送らない（送るボタンを待つ元の形・門7）",

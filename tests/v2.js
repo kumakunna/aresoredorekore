@@ -206,8 +206,17 @@ function v2のクラス(css) {
     const server = fs.readFileSync(path.join(R, 'server.js'), 'utf8');
     assert(!/v2-lab|v2lab/.test(server), '本番の server.js は見本データの道を持たない');
     const dev = fs.readFileSync(path.join(R, 'tools', 'dev-server.js'), 'utf8');
+    // **門の { … } の中にあるか**を括弧を数えて見る。「門の字より後ろ」だけだと、} の外へ出しても通る
+    //（変異 66-N が素通りして分かった）
     const g = dev.indexOf("process.env.NODE_ENV !== 'production'"), m = dev.indexOf("require('./v2-lab/serve').mount(app)");
-    assert(g > 0 && m > g, '検証用サーバーが、本番でない時だけ /v2lab を足す');
+    const 開き = dev.indexOf('{', g);
+    let 深さ = 0, 閉じ = -1;
+    for (let i = 開き; i < dev.length; i++) {
+      if (dev[i] === '{') 深さ++;
+      else if (dev[i] === '}' && --深さ === 0) { 閉じ = i; break; }
+    }
+    assert(g > 0 && 開き > g && 閉じ > 開き, '検証用サーバーに「本番でない時だけ」の門がある');
+    assert(m > 開き && m < 閉じ, '検証用サーバーが、本番でない時だけ /v2lab を足す（門の { … } の中）');
     // 本番と同じ入り方（?scene= を付けても）では、新しい見た目の画面へは行かない
     const { win, doc } = await launch({ url: 'http://localhost/?scene=fes-lobby&n=6' });
     assert(!/^scr-v2-/.test((doc.querySelector('.screen.active') || {}).id || ''), 'URL だけでは新しい見た目の画面に入れない');

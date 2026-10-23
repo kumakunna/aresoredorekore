@@ -1,0 +1,137 @@
+[
+  {
+    "name": "66-A 名簿の名前を escape しない（名前に入れた HTML が画面で動く元の形）",
+    "file": "public/js/v2-kit.js",
+    "suite": "tests/v2.js",
+    "only": "待合のスマホ",
+    "from": "<div class=\"v2-rrow-nm v2-cut\">' + esc(m.name) + '</div>'",
+    "to": "<div class=\"v2-rrow-nm v2-cut\">' + m.name + '</div>'",
+    "expect": "名前の HTML は字のまま"
+  },
+  {
+    "name": "66-B オークションの薄い字を見本の値にもどす（6.67:1 で門に届かない）",
+    "file": "public/index.html",
+    "suite": "tests/design-tokens.js",
+    "only": "新しい世界の色",
+    "from": "--wi:#FFF6E6;--ws:#F6E5C7;",
+    "to": "--wi:#FFF6E6;--ws:#F5E3C4;",
+    "expect": "新しい世界の色の決まりから外れている"
+  },
+  {
+    "name": "66-C 背景の丸を、演出「なし」で止めない（スキップは回数を止めないのでチカチカする）",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "くり返す動き",
+    "from": "  :root.fx-skip .v2 .v2-circles i,:root.fx-skip .v2 .v2-nr,",
+    "to": "  :root.fx-skip .v2 .v2-nr,",
+    "expect": "止まらないくり返し"
+  },
+  {
+    "name": "66-D 幕の出入りに演出の速さをかけない",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "動き：",
+    "from": "opacity:0;pointer-events:none;transition:opacity var(--v2-move) var(--v2-ease);}",
+    "to": "opacity:0;pointer-events:none;transition:opacity .25s var(--v2-ease);}",
+    "expect": "演出の速さ（--fx-scale）をかけていない長さ"
+  },
+  {
+    "name": "66-E 新しい規則が箱の外を指す（古い画面の .v2-lbl でない .lbl に漏れる）",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "古い画面に漏れない",
+    "from": "  /* 小さな見出し */\n  .v2 .v2-lbl{",
+    "to": "  /* 小さな見出し */\n  .lbl,.v2 .v2-lbl{",
+    "expect": "v2 の箱の外を指している選択子"
+  },
+  {
+    "name": "66-F TV の3列を10人からにする（9人で2列のまま）",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "待合のTV",
+    "from": "    var two = n <= 6, cols = n >= 9 ? 3 : 2;",
+    "to": "    var two = n <= 6, cols = n >= 10 ? 3 : 2;",
+    "expect": "TV の列の決まり"
+  },
+  {
+    "name": "66-G 大画面の端末を名簿から外さない",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "待合のスマホ",
+    "from": "    return (view.members || []).filter(function(m){ return m.role !== 'bigscreen'; });",
+    "to": "    return (view.members || []).filter(function(m){ return true; });",
+    "expect": "名簿は遊ぶ人だけ"
+  },
+  {
+    "name": "66-H ルールを2つしか渡さない（いつも3つではない）",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "待合のスマホ",
+    "from": "meta: [版, 人, 時].filter(Boolean).join('・'), rules: m.tv || [] };",
+    "to": "meta: [版, 人, 時].filter(Boolean).join('・'), rules: (m.tv || []).slice(0, 2) };",
+    "expect": "ルールの3つは MODES[].tv と同じ文"
+  },
+  {
+    "name": "66-I ESC で新しい見た目の重なりを閉じない（後ろの画面だけが動く元の形）",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "重なりは",
+    "from": "    if(typeof V2 !== 'undefined' && V2.closeTop()) e.preventDefault();   // 指示66-1：新しい見た目の重なり",
+    "to": "    // （外した）",
+    "expect": "ESC で名簿がとじる"
+  },
+  {
+    "name": "66-J 確認の枠も ESC で閉じる（押し間違いで消える）",
+    "file": "public/js/v2-kit.js",
+    "suite": "tests/v2.js",
+    "only": "重なりは",
+    "from": "  function closeTop(scr) { var t = topLayer(scr); if (!t || t.hasAttribute('data-v2-keep')) return false; close(t); return true; }",
+    "to": "  function closeTop(scr) { var t = topLayer(scr); if (!t) return false; close(t); return true; }",
+    "expect": "確認の枠は ESC ではとじない"
+  },
+  {
+    "name": "66-K 長押しを 0.3秒にする",
+    "file": "public/js/v2-kit.js",
+    "suite": "tests/v2.js",
+    "only": "長押し",
+    "from": "  var LP_MS = 450;",
+    "to": "  var LP_MS = 250;",
+    "expect": "0.3秒ではまだ開かない"
+  },
+  {
+    "name": "66-L 1桁の印を9秒からにする（10秒から 1桁の寄せが始まらない）",
+    "file": "public/js/v2-kit.js",
+    "suite": "tests/v2.js",
+    "only": "のこり時間",
+    "from": "    el.classList.toggle('is-one', sec < 10);",
+    "to": "    el.classList.toggle('is-one', sec < 9);",
+    "expect": "23・9・6・5・4・0 秒"
+  },
+  {
+    "name": "66-M 5秒以下の札で大きさも変える（切りかわる時に字が動く）",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "のこり時間",
+    "from": "  .v2 .v2-cd.is-lo .v2-cd-n{background:var(--v2-red);color:#fff;}",
+    "to": "  .v2 .v2-cd.is-lo .v2-cd-n{background:var(--v2-red);color:#fff;padding:2px 7px 0;}",
+    "expect": "赤い札で変えてよいのは色だけ"
+  },
+  {
+    "name": "66-N 見本データの道を、本番でも足す",
+    "file": "tools/dev-server.js",
+    "suite": "tests/v2.js",
+    "only": "見本データの入口",
+    "from": "  require('./v2-lab/serve').mount(app);\n}",
+    "to": "}\nrequire('./v2-lab/serve').mount(app);",
+    "expect": "本番でない時だけ /v2lab を足す"
+  },
+  {
+    "name": "66-O 世界の一覧から1つ落とす（CSS の世界と食い違う）",
+    "file": "public/js/v2-kit.js",
+    "suite": "tests/v2.js",
+    "only": "名前そのもの",
+    "from": "'auction', 'falsetrue', 'rcard'];",
+    "to": "'auction', 'falsetrue'];",
+    "expect": "V2.WORLDS と、CSS の世界の名前が同じ"
+  }
+]

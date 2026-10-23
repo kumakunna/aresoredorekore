@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>あつまれ新画面案</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@600;700;800;900&family=M+PLUS+1:wght@500;700;800;900&display=swap">
+<link rel="stylesheet" href="assets/ds.css">
+<style>
+.ix-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.ix-card{display:flex;flex-direction:column;gap:6px;text-decoration:none;background:var(--pg-surface);border:1px solid var(--pg-line);border-radius:16px;padding:16px}
+.ix-card:hover{border-color:var(--pg-ink)}
+.ix-card b{font-size:18px;font-weight:900}
+.ix-card span{color:var(--pg-soft);font-size:14px}
+.ix-card.soon{border-style:dashed;opacity:.8}
+</style>
+</head>
+<body>
+<header class="pg-top"><div class="pg-top-in"><div class="pg-row"><a class="pg-logo" href="index.html">あつまれ、あれこれ <small>NEW SCREENS</small></a><div class="pg-ctl" role="group" aria-label="見え方の切り替え"><span>演出</span><span class="seg"><button type="button" data-fxset="normal" aria-pressed="true">普通</button><button type="button" data-fxset="fast" aria-pressed="false">速い</button><button type="button" data-fxset="none" aria-pressed="false">なし</button></span><span>スマホ</span><span class="seg"><button type="button" data-phset="normal" aria-pressed="true">ふつう</button><button type="button" data-phset="small" aria-pressed="false">小さい</button></span><label for="ctl-safe"><input type="checkbox" id="ctl-safe"> TVの安全な枠</label></div></div><nav class="pg-nav" aria-label="ページ"><a href="index.html" aria-current="page">目次</a><span class="soon">共通の部品と動き（作成中）</span><a href="entry.html">入口と部屋</a><a href="select.html">ゲームをえらぶ（3案）</a><a href="festival.html">文化祭の流れ</a><span class="soon">クイズ解除（作成中）</span><span class="soon">クイズ王（作成中）</span><span class="soon">進化じゃんけん（作成中）</span><span class="soon">ロシアンカード（作成中）</span><span class="soon">False or True（作成中）</span><span class="soon">人狼ゲーム（作成中）</span><span class="soon">すごろく（作成中）</span><span class="soon">オークション（作成中）</span><span class="soon">あれそれどれこれ（作成中）</span></nav></div></header>
+<main class="pg-main"><div class="pg-wrap">
+  <div class="pg-hero">
+        <h1>あつまれ、あれこれ　新しい画面案</h1>
+    <p>大画面（TV）とスマホの新しい画面案です。入口と部屋、ゲームをえらぶ画面、文化祭の流れ。カセットごとの遊ぶ画面は、本物のアプリで作ります。</p>
+  </div>
+  <section class="pg-sec">
+    <h2>見られるページ <span class="en">PAGES</span></h2>
+    <div class="ix-cards">
+      <a class="ix-card" href="select.html"><b>ゲームをえらぶ</b><span>決まった形（一覧 → 1本ずつのページ、TVは変えない）。えらんだ後と「決めた時」の演出、検討した3案も</span></a>
+      <a class="ix-card" href="festival.html"><b>文化祭の流れ</b><span>光と揺れの確認 → 入る → 待合 → 投票 → 決定 → ルール → 3・2・1 → クイズ解除 → 結果 → 感想、係の画面</span></a>
+      <a class="ix-card" href="entry.html"><b>入口と部屋</b><span>入口、部屋に入る（コード・名前）、部屋をつくった時のスマホとTV、待合、遊び終わった後</span></a>
+      <div class="ix-card soon"><b>このあと</b><span>カセットごとの遊ぶ画面は、見本ではなく本物のアプリで作ります（指示66）</span></div>
+    </div>
+  </section>
+  <section class="pg-sec">
+    <h2>見方 <span class="en">HOW TO</span></h2>
+    <div class="pg-box"><ul>
+      <li>上の「演出」で 普通・速い・なし を切り替えられます（なし＝最後の形だけ）</li>
+      <li>「スマホ 小さい」で 375×667 の小さい画面でも見られます。「TVの安全な枠」で、TVのふちで切れるかもしれない所が赤く出ます</li>
+      <li>画面の下の「もう一度」で動きをもう一度、「大きく」で本物に近い大きさで見られます</li>
+    </ul></div>
+  </section>
+</div></main>
+<footer class="pg-main" style="padding-block:8px 40px"><div class="pg-wrap" style="font-size:12px;color:var(--pg-soft);gap:4px"><div>画面の中の絵文字は Twemoji（© Twitter, Inc and other contributors / CC-BY 4.0）。書体は M PLUS 1・League Spartan（どちらも SIL Open Font License）。</div><div>この案は見本です。名前・数字・お題は例で、本物の記録ではありません。</div></div></footer>
+<script src="assets/twlist.js"></script>
+<script src="assets/ds.js"></script>
+</body>
+</html>

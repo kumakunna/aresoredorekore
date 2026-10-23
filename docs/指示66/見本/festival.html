@@ -1,0 +1,1325 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>文化祭の流れ ― 新しい画面案</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@600;700;800;900&family=M+PLUS+1:wght@500;700;800;900&display=swap">
+<link rel="stylesheet" href="assets/ds.css">
+<style>
+/* ---- このページだけの部品 ---- */
+.safe-row{display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;color:inherit;font:inherit;width:100%;padding:14px}
+.safe-row b{font-weight:900;font-size:18px;line-height:1.3}
+.safe-row .sri{width:46px;height:46px;border-radius:14px;background:var(--wi);color:var(--won);display:flex;align-items:center;justify-content:center;flex:none}
+.safe-row .sri .ic{width:26px;height:26px}
+.safe-row .sw{margin-left:auto}
+.safe-note{display:flex;gap:10px;align-items:flex-start;font-weight:800;font-size:14px;line-height:1.55;background:var(--wdim)}
+.safe-note .ic{width:22px;height:22px;flex:none;margin-top:1px}
+.nexts{display:flex;flex-direction:column;gap:8px}
+.nexts .nl{display:flex;align-items:baseline;justify-content:space-between}
+.nexts .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.nexts .nx{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--wc);border-radius:16px;padding:10px 4px 9px;text-align:center}
+.nexts .nx .tile{width:54px;height:54px}
+.nexts .nx b{font-weight:900;font-size:13px;line-height:1.25}
+.facesbtn{display:flex;align-items:center;gap:8px;background:var(--wc);border:0;border-radius:16px;padding:10px 12px;cursor:pointer;color:var(--wi);width:100%;text-align:left;font-family:var(--jp)}
+.facesbtn .faces .av{width:30px;height:30px;font-size:27px;margin-right:-5px;background:var(--wt);border-radius:50%;box-shadow:0 0 0 2px var(--wt)}
+.facesbtn .cnt{margin-left:auto;font-weight:900;font-size:15px;display:flex;align-items:center;gap:2px}
+.facesbtn .cnt .ic{width:18px;height:18px}
+.roster{display:flex;flex-direction:column;gap:6px}
+.roster .r{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid #EEE}
+.roster .r:last-child{border-bottom:0}
+.roster .r .nm{font-weight:900;font-size:17px;line-height:1.2}
+.roster .r .tt{font-weight:700;font-size:12.5px;color:#555}
+.roster .r .st{margin-left:auto;font-weight:900;font-size:13px;color:#555;white-space:nowrap}
+.roster .r .st.ok{color:#1B6E3D}
+.roster .r.me{background:#FFF4D0;border-radius:12px;border-bottom-color:transparent}
+.stars{display:flex;gap:6px}
+.stars button{width:44px;height:44px;border:0;background:none;padding:0;cursor:pointer;color:#D9D4C4;display:flex;align-items:center;justify-content:center}
+.stars button .ic{width:38px;height:38px}
+.stars button.on{color:#F5B400}
+.stars.sm button{width:36px;height:36px}.stars.sm button .ic{width:30px;height:30px}
+.textarea{min-height:84px;border:3px solid #141414;border-radius:14px;padding:10px 12px;font-weight:700;font-size:16px;color:#8A8A8A;background:#fff}
+.dress3{display:flex;flex-direction:column;gap:10px}
+.preview{display:flex;align-items:center;gap:12px;background:#F4F1E6;border-radius:16px;padding:10px 12px}
+.preview .lbl{font-size:12px}
+.preview .nm{font-weight:900;font-size:19px;line-height:1.2;color:#141414}
+.preview .tt{font-weight:800;font-size:13px;color:#4A4334}
+.icongrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.icongrid button{position:relative;aspect-ratio:1;border-radius:14px;border:3px solid #E2E2E2;background:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.icongrid button.on{border-color:#141414;background:#FFF4D0}
+.icongrid button .pill{position:absolute;top:-9px;right:-7px;font-size:12px;padding:0 6px}
+.icongrid button.lock{background:#F2F2F2;color:#9A9A9A;font-size:18px}
+.slots{display:flex;gap:6px;align-items:stretch}
+.slot{flex:1;border:3px solid #E2E2E2;border-radius:14px;background:#fff;padding:6px 8px;text-align:left;cursor:pointer;font-family:var(--jp);color:#141414;min-width:0}
+.slot.join{flex:.55}
+.slot .sl{display:block;font-weight:800;font-size:12px;color:#666;line-height:1.3}
+.slot b{display:block;font-weight:900;font-size:16px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot.on{border-color:#141414;background:#FFF4D0}
+.words{display:flex;flex-wrap:wrap;gap:8px}
+.words button{border:3px solid #DADADA;background:#fff;color:#141414;border-radius:999px;padding:6px 14px;font-family:var(--jp);font-weight:900;font-size:15px;cursor:pointer;position:relative}
+.words button.on{background:#141414;color:#fff;border-color:#141414}
+.words button .pill{position:absolute;top:-10px;right:-7px;font-size:12px;padding:0 6px}
+.words button.lock{border-style:dashed;color:#8A8A8A}
+.catbtns{display:flex;flex-direction:column;gap:10px}
+.catbtns .btn{justify-content:flex-start;padding-left:18px;gap:12px}
+.catbtns .btn .go{margin-left:auto;width:22px;height:22px}
+.catbtns .btn .pill{margin-left:6px}
+/* 決定の動き */
+.layer{position:absolute;inset:-2px;z-index:2;background:linear-gradient(180deg,var(--wt),var(--wb));overflow:hidden;clip-path:polygon(0 -3%,0 -3%,-40% 103%,-40% 103%)}
+.play .layer{animation:wipe calc(.75s * var(--fx)) cubic-bezier(.32,.72,0,1) both;animation-delay:calc(.7s * var(--fx))}
+.swap{color:#1A1A1A}
+.play .swap{animation:inkSwap .01s linear both;animation-delay:calc(1.05s * var(--fx))}
+@keyframes inkSwap{to{color:#F4F4F5}}
+.dec{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px}
+.dec .gname{font-weight:900;font-size:40px;line-height:1.15;color:#F4F4F5}
+.dec .gname small{display:block;font-size:17px;margin-top:4px}
+.dec .who5{font-weight:900;font-size:20px;color:#F4F4F5}
+.dec .myv{font-weight:800;font-size:15px;color:#DADADE;display:flex;align-items:center;gap:6px}
+.dec .tile{box-shadow:0 0 0 5px rgba(255,255,255,.9)}
+/* 3-2-1 */
+.cnt321{font-family:var(--en);font-weight:900;font-size:230px;line-height:1;color:#fff;text-align:center}
+.cnt321.go{font-size:150px}
+.tcnt321{font-family:var(--en);font-weight:900;font-size:560px;line-height:.9;color:#fff}
+.tcnt321.go{font-size:400px}
+/* 遊ぶ */
+.ptop{display:flex;align-items:center;gap:10px}
+.ptop .lives{margin-right:auto}
+.pnum{display:flex;align-items:baseline;gap:8px}
+.pnum b{font-family:var(--en);font-weight:900;font-size:48px;line-height:1}
+.pnum span{font-weight:900;font-size:15px}
+/* 係の画面 */
+.adm-st{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.adm-st .s{background:var(--wc);border-radius:14px;padding:8px 10px}
+.adm-st .s .lbl{font-size:12px}
+.adm-st .s b{display:block;font-weight:900;font-size:18px;line-height:1.25}
+.adm-ops{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.adm-ops .btn{min-height:52px;font-size:15px;border-radius:14px;gap:6px}
+.adm-mem{display:flex;flex-direction:column;gap:6px}
+.adm-mem .r{display:flex;align-items:center;gap:8px;background:var(--wc);border-radius:12px;padding:5px 6px 5px 10px}
+.adm-mem .r .nm{font-weight:900;font-size:15px;min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adm-mem .r button{border:2px solid var(--wl);background:transparent;color:var(--wi);border-radius:10px;font-family:var(--jp);font-weight:900;font-size:13px;min-height:36px;padding:0 10px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.adm-mem .r button .ic{width:15px;height:15px}
+.fb{display:flex;flex-direction:column;gap:8px}
+.fb .f{border:2px solid #E6E6E6;border-radius:14px;padding:9px 12px}
+.fb .f .h{display:flex;align-items:center;gap:8px;font-weight:900;font-size:13px;color:#555}
+.fb .f .h .st{color:#F5B400;display:flex}
+.fb .f .h .st .ic{width:15px;height:15px}
+.fb .f p{margin:4px 0 0;font-weight:700;font-size:15px;line-height:1.55;color:#141414}
+.fbsum{display:flex;gap:8px}
+.fbsum .s{flex:1;background:#F4F1E6;border-radius:12px;padding:6px 10px}
+.fbsum .s .lbl{font-size:11.5px;color:#4A4334}
+.fbsum .s b{display:block;font-weight:900;font-size:18px;color:#141414}
+
+/* ---- TVの骨組み ---- */
+.tvA{display:grid;grid-template-columns:688px 1fr;gap:40px;flex:1;min-height:0}
+.tvA .qrcol{display:flex;flex-direction:column;gap:10px}
+.tvA .qrcol .tqr{padding:24px}
+.tvA .right{display:flex;flex-direction:column;gap:26px;min-width:0}
+.tvA .right .thd .ttl{font-size:80px}
+.tcode{display:flex;align-items:baseline;gap:18px;justify-content:center}
+.tcode .lab{font-weight:900;font-size:42px;color:var(--ws)}
+.tcode b{font-family:var(--en);font-weight:900;font-size:84px;line-height:1;letter-spacing:.05em}
+.tv .tband .num{font-size:120px}
+.tv .tband .val{font-size:64px}
+.tsteps{display:flex;flex-direction:column;gap:16px}
+.tsteps .s{display:flex;align-items:center;gap:22px;background:var(--wc);border-radius:24px;padding:16px 24px;font-weight:900;font-size:50px;line-height:1.25}
+.tsteps .s .k{font-family:var(--en);font-size:56px;width:60px;flex:none}
+.tsteps .s .ri{width:88px;height:88px;border-radius:22px;background:var(--wc2);display:flex;align-items:center;justify-content:center;flex:none}
+.tsteps .s .ri .ic{width:52px;height:52px}
+.tsteps .s em{font-style:normal;background:var(--wi);color:var(--won);border-radius:14px;padding:0 14px}
+.tvB{display:grid;grid-template-columns:1fr 386px;gap:28px;flex:1;min-height:0;padding-bottom:20px}
+.tvVote{padding-bottom:20px}
+.adm-ops .btn{font-size:14px;padding:6px 8px;gap:6px}
+.tvB .left{display:flex;flex-direction:column;gap:24px;min-width:0}
+.tvB .trules{grid-template-columns:repeat(3,1fr)}
+.tvB .trule{font-size:42px;padding:16px 18px;gap:14px}
+.tvB .trule .ri{width:72px;height:72px}
+.tvB .trule .ri .ic{width:40px;height:40px}
+.qrside{display:flex;flex-direction:column;justify-content:flex-end}
+.tvVote{display:grid;grid-template-columns:1fr 386px;gap:28px;flex:1;min-height:0;align-items:stretch}
+.tvVote .vrows{display:flex;flex-direction:column;gap:18px;min-width:0}
+.tvrow{display:flex;align-items:center;gap:28px;background:var(--wc2);border:5px solid var(--wl);border-radius:30px;padding:16px 24px;min-width:0;flex:1}
+.tvrow .tile{width:132px;height:132px}
+.tvrow .vt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tvrow .vn{font-weight:900;font-size:64px;line-height:1.1}
+.tvrow .vb{font-weight:800;font-size:44px;line-height:1.25;color:var(--ws)}
+.tvrow .vmeta{margin-left:auto;display:flex;gap:14px;flex:none}
+.tvrow .vmeta span{font-weight:900;font-size:42px;border-radius:999px;padding:0 22px;background:var(--wdim);line-height:1.5}
+.tdec{position:absolute;inset:54px 96px;display:flex;flex-direction:column;z-index:3}
+.tdec .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;text-align:center}
+.tdec .gname{font-weight:900;font-size:150px;line-height:1.05;color:#F4F4F5}
+.tdec .gname small{font-size:60px;margin-left:10px}
+.tdec .who5{font-weight:900;font-size:64px;color:#F4F4F5}
+.tdec .tile{width:280px;height:280px;box-shadow:0 0 0 10px rgba(255,255,255,.9)}
+.tplay .topbar{display:flex;align-items:center;gap:28px}
+.tplay .topbar .lives{font-size:84px;gap:10px;margin-left:auto}
+.tplay .mid{display:flex;flex-direction:column;align-items:center;gap:22px}
+.tplay .pn{display:flex;align-items:baseline;gap:20px}
+.tplay .pn b{font-family:var(--en);font-weight:900;font-size:220px;line-height:.85}
+.tplay .pn span{font-weight:900;font-size:60px}
+.tplay .tprog{width:100%}
+.tplay .bottom{display:grid;grid-template-columns:1fr 386px;gap:28px;align-items:end}
+.tplay .tmem .st{font-size:44px}
+.tplay .tmem.two{height:132px}
+.tplay .tmem .tt{color:#fff}
+.tend{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;text-align:center}
+.tend .stat{display:flex;align-items:center;gap:40px;font-family:var(--en);font-weight:900;font-size:110px;line-height:1}
+.tend .stat i{width:10px;height:110px;background:currentColor;transform:skewX(-20deg);display:block}
+.tend .lives{font-size:96px;gap:14px}
+.names.gold .nr{color:color-mix(in srgb,#FFC93C 26%,transparent)}
+.names.dim .nr{color:color-mix(in srgb,#fff 3%,transparent)}
+.calib{position:absolute;inset:0;z-index:5}
+.calib .c{position:absolute;width:150px;height:150px;border:0 solid #FFD54A}
+.calib .c b{position:absolute;font-family:var(--en);font-weight:900;font-size:44px;color:#FFD54A;white-space:nowrap}
+.calib .c0{border-width:14px 0 0 14px}
+.calib .c25{border-width:14px 0 0 14px;border-color:#7DE3A2}
+.calib .c5{border-width:14px 0 0 14px;border-color:#9BC7FF}
+</style>
+</head>
+<body>
+<header class="pg-top"><div class="pg-top-in"><div class="pg-row"><a class="pg-logo" href="index.html">あつまれ、あれこれ <small>NEW SCREENS</small></a><div class="pg-ctl" role="group" aria-label="見え方の切り替え"><span>演出</span><span class="seg"><button type="button" data-fxset="normal" aria-pressed="true">普通</button><button type="button" data-fxset="fast" aria-pressed="false">速い</button><button type="button" data-fxset="none" aria-pressed="false">なし</button></span><span>スマホ</span><span class="seg"><button type="button" data-phset="normal" aria-pressed="true">ふつう</button><button type="button" data-phset="small" aria-pressed="false">小さい</button></span><label for="ctl-safe"><input type="checkbox" id="ctl-safe"> TVの安全な枠</label></div></div><nav class="pg-nav" aria-label="ページ"><a href="index.html">目次</a><span class="soon">共通の部品と動き（作成中）</span><a href="entry.html">入口と部屋</a><a href="select.html">ゲームをえらぶ（3案）</a><a href="festival.html" aria-current="page">文化祭の流れ</a><span class="soon">クイズ解除（作成中）</span><span class="soon">クイズ王（作成中）</span><span class="soon">進化じゃんけん（作成中）</span><span class="soon">ロシアンカード（作成中）</span><span class="soon">False or True（作成中）</span><span class="soon">人狼ゲーム（作成中）</span><span class="soon">すごろく（作成中）</span><span class="soon">オークション（作成中）</span><span class="soon">あれそれどれこれ（作成中）</span></nav></div></header>
+<main class="pg-main"><div class="pg-wrap">
+
+<div class="pg-hero">
+  <div class="eyebrow">FESTIVAL LOOP</div>
+  <h1>文化祭の流れ（投票ループ）</h1>
+  <p>11/14 の文化祭で、係がつかなくても回る1周です。<b>あつまる → えらぶ → 遊ぶ → 結果</b> をくり返します。スマホとTVを、同じ場面ごとに並べました。押せる所は押せます。動きは各枠の「もう一度」で何度でも見られます。</p>
+</div>
+
+<section class="pg-sec">
+  <h2>この流れに入れた決まり <span class="en">DECIDED</span></h2>
+  <div class="pg-grid2">
+    <div class="pg-box"><h3>ぜんぶの画面</h3><ul>
+      <li>下の帯は<b>すりガラス</b>（後ろの絵がぼけて見える）。感想などは<b>帯の上のふちから</b>出てくる。TVも同じ</li>
+      <li>のこり時間は1行。<b>5秒以下は赤い札に白い数字</b>。1桁になったら「のこり」が数字に寄る</li>
+      <li>右の縦の字「ATSUMARE AREKORE.」を、スマホにも小さく</li>
+      <li>説明のための文（くまくん向けのメモ）は画面に書かない</li>
+    </ul></div>
+    <div class="pg-box"><h3>投票と準備</h3><ul>
+      <li>投票は<b>20秒</b>。ゲームを押して、下の「投票する」で決める。押した後は<b>灰色で「投票ずみ・押すと取り消し」</b></li>
+      <li>ルールは<b>長押し</b>か<b>ルールのボタン</b>で、画面の9割のシート。3つだけ大きく、「くわしく見る」で細かい所</li>
+      <li>票の数は出さない。自分が入れたゲームの数だけ見える</li>
+      <li>始めるのは<b>準備OKを押した人だけ</b>。押さなかった人は見るだけ</li>
+    </ul></div>
+    <div class="pg-box"><h3>結果と感想</h3><ul>
+      <li>協力版は<b>順位を出さない</b>。自分の本数は自分のスマホにだけ</li>
+      <li>「つづける？」はTVと同じ<b>15秒</b>。押さなければ「つづける」。<b>2回続けて押さなかったら席を空ける</b></li>
+      <li>感想は待ち時間に帯の上から出て、5秒でたたんで ★ に。見るのは<b>くまくんと先生だけ</b>（1か月でサーバーから消す）</li>
+    </ul></div>
+    <div class="pg-box"><h3>TV</h3><ul>
+      <li>字・数・QRは<b>ふちから5%の内側</b>（上の「TVの安全な枠」で見える）。背景だけ端まで</li>
+      <li>QRは縮めない（50型で約37cm）。満員の間は隠す。遊んでいる間は右下に小さく</li>
+      <li>入ってきた人は<b>名前の壁の中で金色に光る</b>（人数の上に知らせを重ねない）</li>
+      <li>挑戦中は<b>色ではなく形</b>（点線の縁＋名前）。1位だけが金</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ============ 1 安全 ============ -->
+<section class="scene" id="safety">
+  <div class="scene-hd"><span class="no">F1</span><h3>はじめて開いた時：光と揺れの確認</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag">端末ごとに1回</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ（QRを読んだすぐ後）">
+        <div class="scr w-wait" data-id="f1" data-nogear>
+          <div class="in">
+            <div class="hd a-rise"><div class="en">Before you play</div><div class="ttl">はじめに、<br>光と揺れの確認</div><div class="arrow"></div></div>
+            <p class="a-rise" style="--d:.08s;margin:0;font-weight:800;font-size:16px;line-height:1.7">このアプリには、光の点滅や、画面が揺れる演出があります。気分が悪くなりそうなら、ここで切れます。</p>
+            <div class="col a-rise" style="--d:.16s;gap:12px">
+              <button type="button" class="card safe-row" data-tog>
+                <span class="sri"><i class="ic" data-ic="bolt"></i></span>
+                <span class="col" style="gap:0;min-width:0"><b>光の点滅をつかう</b><span class="hint">爆発の白い光・正解の光など</span></span><span class="sw on" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="card safe-row" data-tog>
+                <span class="sri"><i class="ic" data-ic="vibe"></i></span>
+                <span class="col" style="gap:0;min-width:0"><b>画面の揺れをつかう</b><span class="hint">まちがえた時に、少しだけ揺れる</span></span><span class="sw on" aria-hidden="true"></span>
+              </button>
+              <div class="card flat safe-note"><i class="ic" data-ic="sound"></i><span>光と揺れを切っても、<b>音と振動はそのまま</b>です（音は ⚙ で変えられます）</span></div>
+            </div>
+            <div class="spacer"></div>
+            <div class="hint a-rise" style="--d:.24s;text-align:center">あとから右上の ⚙ でも変えられます</div>
+            <button type="button" class="btn pri a-rise" style="--d:.28s">はじめる</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li><b>残す</b>（くまくんの決定）。安全の決まり「はじめて開いた時に自分で守れる」のため</li>
+        <li>端末ごとに1回だけ。2回目からは出ない</li>
+        <li>切っても<b>音と振動は消えない</b>（光は光だけ。指示65の決まり）</li>
+        <li>今の画面は黒い地だったが、ほかの画面と同じ黄色の世界にした。字は大きく、短く</li>
+      </ul>
+      <span class="try">押せる：スイッチ</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 名前 ============ -->
+<section class="scene" id="join">
+  <div class="scene-hd"><span class="no">F2</span><h3>入る：名前を入れる</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag new">新しい決まり</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="ふつう">
+        <div class="scr w-wait" data-id="f2a">
+          <div class="in">
+            <div class="hd"><div class="en">Join</div><div class="ttl">名前を入れてね</div><div class="arrow"></div></div>
+            <div class="row" style="gap:8px"><span class="pill soft">部屋 TST754</span><span class="pill soft">いま 6人</span></div>
+            <div class="field">
+              <label for="nm1">TVに出る名前（8字まで）</label>
+              <div class="inp" id="nm1">ふう<span class="caret"></span><span class="cnt">2/8</span></div>
+              <div class="hint">ニックネームでOK。本名は出さないでね</div>
+            </div>
+            <div class="field">
+              <label>むずかしさ</label>
+              <div class="row" style="gap:8px" data-picks>
+                <button type="button" class="chip" data-pick="easy">🐣 やさしい</button>
+                <button type="button" class="chip on" data-pick="normal">🙂 ふつう</button>
+                <button type="button" class="chip" data-pick="hard">🔥 むずかしい</button>
+              </div>
+            </div>
+            <div class="spacer"></div>
+            <button type="button" class="btn pri">入る</button>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="使えない名前の時" data-noreplay>
+        <div class="scr w-wait" data-id="f2b">
+          <div class="in">
+            <div class="hd"><div class="en">Join</div><div class="ttl">名前を入れてね</div><div class="arrow"></div></div>
+            <div class="row" style="gap:8px"><span class="pill soft">部屋 TST754</span><span class="pill soft">いま 6人</span></div>
+            <div class="field">
+              <label>TVに出る名前（8字まで）</label>
+              <div class="inp" style="border-color:var(--red)">●●●<span class="caret"></span><span class="cnt">3/8</span></div>
+              <div class="hint bad">この名前は使えません。ほかの名前にしてね</div>
+            </div>
+            <div class="field">
+              <label>むずかしさ</label>
+              <div class="row" style="gap:8px"><span class="chip">🐣 やさしい</span><span class="chip on">🙂 ふつう</span><span class="chip">🔥 むずかしい</span></div>
+            </div>
+            <div class="spacer"></div>
+            <button type="button" class="btn" disabled>入る</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li><b>自由に入れられる形を残す</b>（9a）。「自分の名前がTVに出た！」がこの遊びのいちばんの喜びなので</li>
+        <li>守り方は3つ重ねる：①短い禁止リスト（悪口・下ネタ・<b>810・114514・1919 のような数字のネタ</b>）②8字まで ③係が1回押せば隠せる</li>
+        <li>見る前に、ひらがな・カタカナ・全角・空白をそろえる（「8 1 0」「ハチイチゼロ」もすり抜けにくい）</li>
+        <li>同じ名前が2人いたら、2人目は自動で「ふう②」</li>
+        <li><b>むずかしさ</b>は新しい仕組み。<span class="why">実装チャットの指摘：今は進行役が部屋で決める形。ゲームごとにどう効くか（クイズ解除なら自分に出る3択がその段になる、など）を指示66で決める</span></li>
+      </ul>
+      <span class="try">押せる：むずかしさ</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3 待合 ============ -->
+<section class="scene" id="lobby">
+  <div class="scene-hd"><span class="no">F3</span><h3>待合（あつまる）</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag tvt">TV</span><span class="pg-tag">30秒</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ">
+        <div class="scr w-wait" data-id="f3" data-who="6" data-who-open="#roster3">
+          <div class="in">
+            <div class="hd"><div class="en">Waiting…</div><div class="ttl">参加者を<br>待っています…</div><div class="arrow"></div></div>
+            <div class="me"><span class="av lg">🙂</span><div><div class="nm">ふう</div><div class="tt">ぶんかさいの 一歩</div></div><span class="you">YOU</span></div>
+            <button type="button" class="btn lite" data-open="#dress3"><i class="ic" data-ic="tag" style="width:20px;height:20px"></i>アイコン・二つ名をかえる</button>
+            <button type="button" class="facesbtn" data-open="#roster3">
+              <span class="col" style="gap:4px"><span class="lbl" style="color:var(--ws)">いま部屋にいる人</span>
+              <span class="faces"><span class="av">🙂</span><span class="av">🌙</span><span class="av">🐺</span><span class="av">🎈</span><span class="av">💣</span><span class="av">🎆</span></span></span>
+              <span class="cnt">6人<i class="ic" data-ic="chev"></i></span>
+            </button>
+            <div class="nexts">
+              <div class="nl"><span class="lbl">次の投票の候補</span><span class="lbl">ルールは長押し</span></div>
+              <div class="row3">
+                <div class="nx" data-lp="#rules3"><span class="tile w-bomb"><i class="emb" data-emb="bomb"></i></span><b>クイズ解除</b></div>
+                <div class="nx" data-lp="#rules3"><span class="tile w-shinka"><i class="emb" data-emb="shinka"></i></span><b>進化<br>じゃんけん</b></div>
+                <div class="nx" data-lp="#rules3"><span class="tile w-rcard"><i class="emb" data-emb="rcard"></i></span><b>ロシアン<br>カード</b></div>
+              </div>
+            </div>
+          </div>
+          <div class="toast" data-id="tvlook"><span class="av">📺</span><div><div class="tt">TVを見て！</div><div class="ts">名前が金色に光っています</div></div></div>
+          <div class="band"><div class="what"><span class="lab">次は…</span><span class="msg">ゲームを投票</span></div><div class="cdx end" data-cd="27" data-group="lobby"></div></div>
+          <div class="scrim" data-id="scrim3" data-close></div>
+          <div class="sheet" data-id="roster3" data-scrim="#scrim3">
+            <div class="grab"></div>
+            <div class="sh"><h4>いま部屋にいる人 6人</h4><button type="button" class="xbtn x" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="roster">
+              <div class="r me"><span class="av">🙂</span><div><div class="nm">ふう</div><div class="tt">ぶんかさいの 一歩</div></div><span class="st">自分</span></div>
+              <div class="r"><span class="av">🌙</span><div><div class="nm">ひろ</div><div class="tt">こだわりの 解除名人</div></div><span class="st">さっき入った</span></div>
+              <div class="r"><span class="av">🐺</span><div><div class="nm">びび</div><div class="tt">はじまりの 一歩</div></div></div>
+              <div class="r"><span class="av">🎈</span><div><div class="nm">ちか</div><div class="tt">しずかな 名探偵</div></div></div>
+              <div class="r"><span class="av">💣</span><div><div class="nm">でん</div><div class="tt">ぶんかさいの 一歩</div></div></div>
+              <div class="r"><span class="av">🎆</span><div><div class="nm">えみ</div><div class="tt">ひらめきの 一歩</div></div></div>
+            </div>
+          </div>
+          <div class="sheet tall rsheet w-bomb" data-id="rules3" data-scrim="#scrim3">
+            <div class="rhead"><span class="tile w-bomb"><i class="emb" data-emb="bomb"></i></span><div><div class="rn">クイズ解除</div><div class="rm">協力版・2〜8人・約5分</div></div><button type="button" class="xbtn" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="sbody">
+              <div class="rbig">
+                <div class="rb"><span class="k">1</span><p>コードをえらんで、3択に答える</p></div>
+                <div class="rb"><span class="k">2</span><p>まちがえると、ライフが1つへる</p></div>
+                <div class="rb"><span class="k">3</span><p>時間内に全部切れたら、解除成功</p></div>
+              </div>
+            </div>
+            <div class="sfoot"><button type="button" class="btn pri" data-close>とじる</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（6人・入ってきた人の名前が光る）" data-size="lg">
+        <div class="tv w-wait" data-id="t3" data-bg="circles names" data-names="ふう,ひろ,びび,ちか,でん,えみ">
+          <div class="safe">
+            <div class="tvA">
+              <div class="qrcol">
+                <div class="tqr"><img src="assets/qr-room.svg" alt="部屋に入るQRコード" width="640" height="640"></div>
+              </div>
+              <div class="right">
+                <div class="thd"><div class="en">Room</div><div class="ttl">参加者を待っています…</div><div class="arrow"></div></div>
+                <div class="tgrid c2" data-id="t3grid">
+                  <div class="tmem two"><span class="av">🙂</span><div class="who"><div class="nm">ふう</div><div class="tt">ぶんかさいの一歩</div></div></div>
+                  <div class="tmem two"><span class="av">🌙</span><div class="who"><div class="nm">ひろ</div><div class="tt cut-ok">こだわりの解除名人</div></div></div>
+                  <div class="tmem two"><span class="av">🐺</span><div class="who"><div class="nm">びび</div><div class="tt">はじまりの一歩</div></div></div>
+                  <div class="tmem two"><span class="av">🎈</span><div class="who"><div class="nm">ちか</div><div class="tt">しずかな名探偵</div></div></div>
+                  <div class="tmem two"><span class="av">💣</span><div class="who"><div class="nm">でん</div><div class="tt">ぶんかさいの一歩</div></div></div>
+                  <div class="tmem two"><span class="av">🎆</span><div class="who"><div class="nm">えみ</div><div class="tt">ひらめきの一歩</div></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Room</span><span class="num">6<small>/16人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell"><span class="lab">部屋のコード</span><span class="val big-en" style="font-size:72px;letter-spacing:.04em">TST754</span></div>
+              <div class="slash"></div>
+              <div class="cell" style="flex:1"><span class="lab">次は…</span><span class="val">ゲームを投票</span></div>
+              <div class="slash"></div>
+              <div class="cell end"><div class="tcd" data-cd="27" data-group="lobby" data-label="のこり"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li><b>「いま部屋にいる人」を押すと名簿</b>が下から出る（右上の 👥 も同じ）。16人になると顔だけでは誰か分からないため</li>
+        <li>空いていたまん中に<b>「次の投票の候補」</b>。待つ時間が「何にしよう」を考える時間になる。長押しでルール</li>
+        <li>入った瞬間、スマホに「TVを見て！」、TVでは<b>名前の壁の中で自分の名前が金色に光る</b>。人数やQRの上に知らせを重ねない</li>
+        <li>TVは字・数・QRを<b>ふちから5%の内側</b>に置いた。QRは縮めず、部屋のコードを小さくした</li>
+        <li>6人までは二つ名つき（長い二つ名は「…」で切る。名前は切らない）。7〜8人は名前だけで2列、9人からは3列（下の F6）</li>
+      </ul>
+      <span class="try">押せる：顔の列・👥・着替え・候補の長押し</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 感想ポップアップ ============ -->
+<section class="scene" id="feedback">
+  <div class="scene-hd"><span class="no">F4</span><h3>待合：前のゲームの感想が、帯の上から出る</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag">1ゲーム1日1回</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="遊んだ後の待合（自動で動く）">
+        <div class="scr w-wait" data-id="f4" data-who="6">
+          <div class="in">
+            <div class="hd"><div class="en">Waiting…</div><div class="ttl">参加者を<br>待っています…</div><div class="arrow"></div></div>
+            <div class="me"><span class="av lg">🙂</span><div><div class="nm">ふう</div><div class="tt">ぶんかさいの 一歩</div></div><span class="you">YOU</span></div>
+            <button type="button" class="btn lite"><i class="ic" data-ic="tag" style="width:20px;height:20px"></i>アイコン・二つ名をかえる <span class="pill new">NEW</span></button>
+            <div class="facesbtn"><span class="col" style="gap:4px"><span class="lbl">いま部屋にいる人</span><span class="faces"><span class="av">🙂</span><span class="av">🌙</span><span class="av">🐺</span><span class="av">🎈</span><span class="av">💣</span><span class="av">🎆</span></span></span><span class="cnt">6人<i class="ic" data-ic="chev"></i></span></div>
+          </div>
+          <div class="pop" data-id="fbpop">
+            <div class="pcard col" style="gap:8px">
+              <div class="row" style="justify-content:space-between"><span class="pt">クイズ解除、どうだった？</span><button type="button" class="xbtn" style="width:36px;height:36px" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+              <div class="stars" data-stars><button type="button" aria-label="1"><i class="ic" data-ic="star"></i></button><button type="button" aria-label="2"><i class="ic" data-ic="star"></i></button><button type="button" aria-label="3"><i class="ic" data-ic="star"></i></button><button type="button" aria-label="4"><i class="ic" data-ic="star"></i></button><button type="button" aria-label="5"><i class="ic" data-ic="star"></i></button></div>
+              <span class="ps">ひとこと書く ›</span>
+            </div>
+          </div>
+          <button type="button" class="minipill" data-id="fbmini"><i class="ic" data-ic="star" style="color:#F5B400;width:18px;height:18px"></i>感想</button>
+          <div class="band"><div class="what"><span class="lab">次は…</span><span class="msg">ゲームを投票</span></div><div class="cdx end" data-cd="21" data-group="lobby2"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>帯は<b>すりガラス</b>。カードは帯の<b>上のふちから生えるように</b>出て、帯には隠れない</li>
+        <li>約5秒でたたんで、左下の <b>★ 感想</b> に。押すともう一度ひらく</li>
+        <li>同じゲームは1日1回だけ聞く。やめた人には F14 で同じものを出す</li>
+        <li>このカードがある間も、下の帯（次は投票・のこり時間）は見えたまま</li>
+      </ul>
+      <span class="try">押せる：★・× ・たたんだ「感想」</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 着替え ============ -->
+<section class="scene" id="dress">
+  <div class="scene-hd"><span class="no">F5</span><h3>着替え：アイコンと二つ名を分けて出す</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag fix">直した</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="① ひらいた時（低いシート）">
+        <div class="scr w-wait" data-id="f5a">
+          <div class="in">
+            <div class="hd"><div class="en">Waiting…</div><div class="ttl">参加者を<br>待っています…</div><div class="arrow"></div></div>
+            <div class="me"><span class="av lg">🙂</span><div><div class="nm">ふう</div><div class="tt">ぶんかさいの 一歩</div></div><span class="you">YOU</span></div>
+          </div>
+          <div class="band"><div class="what"><span class="lab">次は…</span><span class="msg">ゲームを投票</span></div><div class="cdx end" data-cd="24" data-group="lobby3"></div></div>
+          <div class="scrim open"></div>
+          <div class="sheet open">
+            <div class="grab"></div>
+            <div class="sh"><h4>アイコン・二つ名</h4></div>
+            <div class="preview"><span class="av lg">🙂</span><div><div class="lbl">TVにはこう出ます</div><div class="nm">ふう</div><div class="tt">ぶんかさいの 一歩</div></div></div>
+            <div class="catbtns">
+              <button type="button" class="btn sec"><span class="av sm">🙂</span>アイコン<span class="pill new">NEW 2</span><i class="ic go" data-ic="chev"></i></button>
+              <button type="button" class="btn sec"><i class="ic" data-ic="tag" style="width:24px;height:24px"></i>二つ名<span class="pill new">NEW 1</span><i class="ic go" data-ic="chev"></i></button>
+              <button type="button" class="btn pri">とじる</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="② アイコンを押した時">
+        <div class="scr w-wait" data-id="f5b">
+          <div class="in"><div class="hd"><div class="en">Waiting…</div><div class="ttl">参加者を<br>待っています…</div><div class="arrow"></div></div></div>
+          <div class="band"><div class="what"><span class="lab">次は…</span><span class="msg">ゲームを投票</span></div><div class="cdx end" data-cd="22" data-group="lobby3b"></div></div>
+          <div class="scrim open"></div>
+          <div class="sheet open" style="height:76%">
+            <div class="grab"></div>
+            <div class="sh"><button type="button" class="xbtn" aria-label="もどる"><i class="ic" data-ic="back"></i></button><h4>アイコンをえらぶ</h4><span class="lbl" style="margin-left:auto">TVにもすぐ出ます</span></div>
+            <div class="sbody">
+              <div class="icongrid" data-picks>
+                <button type="button" data-pick="1" class="on">🙂</button><button type="button" data-pick="2">🌙</button><button type="button" data-pick="3">🐺</button><button type="button" data-pick="4">🎈</button><button type="button" data-pick="5">💣</button>
+                <button type="button" data-pick="6">🎆<span class="pill new">NEW</span></button><button type="button" data-pick="7">🐉</button><button type="button" data-pick="8">🦅</button><button type="button" data-pick="9">🏮<span class="pill new">NEW</span></button><button type="button" data-pick="10">🎪</button>
+                <button type="button" class="lock"><i class="ic" data-ic="lock" style="width:20px;height:20px"></i></button><button type="button" class="lock"><i class="ic" data-ic="lock" style="width:20px;height:20px"></i></button><button type="button" class="lock"><i class="ic" data-ic="lock" style="width:20px;height:20px"></i></button><button type="button" class="lock"><i class="ic" data-ic="lock" style="width:20px;height:20px"></i></button><button type="button" class="lock"><i class="ic" data-ic="lock" style="width:20px;height:20px"></i></button>
+              </div>
+              <p class="hint" style="color:#4A4334;margin:12px 0 0">🔒 は遊ぶと手に入ります。押すと手に入れ方が出ます</p>
+            </div>
+            <button type="button" class="btn pri">これにする</button>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="③ 二つ名を押した時（3つの言葉）">
+        <div class="scr w-wait" data-id="f5c">
+          <div class="in"><div class="hd"><div class="en">Waiting…</div><div class="ttl">参加者を<br>待っています…</div><div class="arrow"></div></div></div>
+          <div class="band"><div class="what"><span class="lab">次は…</span><span class="msg">ゲームを投票</span></div><div class="cdx end" data-cd="20" data-group="lobby3c"></div></div>
+          <div class="scrim open"></div>
+          <div class="sheet open" style="height:76%">
+            <div class="grab"></div>
+            <div class="sh"><button type="button" class="xbtn" aria-label="もどる"><i class="ic" data-ic="back"></i></button><h4>二つ名をえらぶ</h4></div>
+            <div class="preview" style="background:#F4F1E6"><div><div class="lbl">いまの二つ名</div><div class="nm" data-title>ぶんかさいの 一歩</div></div></div>
+            <div class="slots" data-picks>
+              <button type="button" class="slot on" data-pick="first"><span class="sl">はじめの言葉</span><b data-s1>ぶんかさい</b></button>
+              <button type="button" class="slot join" data-pick="joiner"><span class="sl">つなぎ</span><b>の</b></button>
+              <button type="button" class="slot" data-pick="last"><span class="sl">おわりの言葉</span><b>一歩</b></button>
+            </div>
+            <div class="sbody">
+              <div class="words" data-picks data-words>
+                <button type="button" data-pick="はじまり">はじまり</button>
+                <button type="button" data-pick="ぶんかさい" class="on">ぶんかさい<span class="pill new">NEW</span></button>
+                <button type="button" data-pick="こだわり">こだわり</button>
+                <button type="button" data-pick="しずか">しずか</button>
+                <button type="button" data-pick="ひらめき">ひらめき</button>
+                <button type="button" class="lock">🔒 まだ</button>
+                <button type="button" class="lock">🔒 まだ</button>
+              </div>
+            </div>
+            <button type="button" class="btn pri">これにする</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>最初は<b>低いシート</b>に「アイコン」「二つ名」「とじる」の3つだけ。どれも「とじる」と同じ横長の角丸</li>
+        <li>空いた所には<b>「TVにはこう出ます」</b>の見本（押すとすぐTVにも出る）</li>
+        <li>アイコンと二つ名は<b>同じ場所に同時に出さない</b>。押した方だけが開く</li>
+        <li>二つ名は、アプリの決まりどおり<b>3つの言葉（はじめ・つなぎ・おわり）</b>。1つずつ開いてえらぶ</li>
+        <li>えらんだ言葉は<b>黒い地に白い字</b>（前の案の「白い地に白い字」を直した）</li>
+      </ul>
+      <span class="try">押せる：アイコン・言葉</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6 TVのいろいろな人数 ============ -->
+<section class="scene" id="tvstates">
+  <div class="scene-hd"><span class="no">F6</span><h3>TVの待合：だれもいない・1人・16人・端あわせ</h3><div class="tags"><span class="pg-tag tvt">TV</span><span class="pg-tag new">足りなかった画面</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="だれもいない時（呼び込み）">
+        <div class="tv w-wait" data-id="t6a">
+          <div class="safe">
+            <div style="display:grid;grid-template-columns:1fr 688px;gap:60px;flex:1;min-height:0;padding-right:70px">
+              <div class="col" style="display:flex;flex-direction:column;gap:30px;justify-content:center">
+                <div class="thd"><div class="en">Come play!</div><div class="ttl" style="font-size:150px;line-height:1.02">いっしょに<br>あそぼう！</div><div class="arrow"></div></div>
+                <div class="tsteps">
+                  <div class="s"><span class="ri"><i class="ic" data-ic="camera"></i></span>スマホのカメラで QRを読む</div>
+                  <div class="s"><span class="ri"><i class="ic" data-ic="pen"></i></span>名前を入れて <em>入る</em> を押す</div>
+                </div>
+                <div class="row" style="display:flex;gap:18px;align-items:center">
+                  <span class="tile w-bomb" style="width:120px;height:120px"><i class="emb" data-emb="bomb"></i></span>
+                  <span class="tile w-quiz" style="width:120px;height:120px"><i class="emb" data-emb="quiz"></i></span>
+                  <span class="tile w-shinka" style="width:120px;height:120px"><i class="emb" data-emb="shinka"></i></span>
+                  <span class="tile w-rcard" style="width:120px;height:120px"><i class="emb" data-emb="rcard"></i></span>
+                  <span class="tnote" style="margin-left:8px">1回 約3分</span>
+                </div>
+              </div>
+              <div class="col" style="display:flex;flex-direction:column;justify-content:center;gap:16px">
+                <div class="tqr"><img src="assets/qr-room.svg" alt="部屋に入るQRコード" width="640" height="640"></div>
+                <div class="tcode"><span class="lab">部屋のコード</span><b>TST754</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="1人だけの時（時計は出さない）">
+        <div class="tv w-wait" data-id="t6b" data-bg="circles names" data-names="ふう">
+          <div class="safe">
+            <div class="tvA">
+              <div class="qrcol"><div class="tqr"><img src="assets/qr-room.svg" alt="部屋に入るQRコード" width="640" height="640"></div></div>
+              <div class="right">
+                <div class="thd"><div class="en">Room</div><div class="ttl">あと1人で はじまるよ</div><div class="arrow"></div></div>
+                <div class="tgrid c2"><div class="tmem two"><span class="av">🙂</span><div class="who"><div class="nm">ふう</div><div class="tt">ぶんかさいの一歩</div></div></div></div>
+                <div class="tnote">友だちといっしょにどうぞ。2人から遊べます</div>
+              </div>
+            </div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Room</span><span class="num">1<small>/16人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell"><span class="lab">部屋のコード</span><span class="val big-en" style="font-size:72px;letter-spacing:.04em">TST754</span></div>
+              <div class="slash"></div>
+              <div class="cell" style="flex:1"><span class="lab">次は…</span><span class="val">2人そろったら投票</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="16人（満員の間はQRを隠す）">
+        <div class="tv w-wait" data-id="t6c" data-bg="circles names" data-names="あき,kensho,ひろ,あいう,まりこ,そうた,ゆい,たかはし,りん,こうへい,みさき,だいすけ,ももか,けん,さくら,ふう">
+          <div class="safe">
+            <div class="tvA" style="grid-template-columns:560px 1fr">
+              <div class="qrcol" style="justify-content:center">
+                <div class="tqr" style="aspect-ratio:1;justify-content:center;gap:24px;padding:40px"><i class="ic" data-ic="people" style="width:150px;height:150px;color:#141414"></i><div style="font-weight:900;font-size:64px;color:#141414;line-height:1.15;text-align:center">いまは満員</div><div class="cap">つぎの回は<br>約3分後</div></div>
+              </div>
+              <div class="right">
+                <div class="thd"><div class="en">Room</div><div class="ttl">参加者を待っています…</div><div class="arrow"></div></div>
+                <div class="tgrid c3">
+                  <div class="tmem sm"><span class="av">🙂</span><span class="nm">あき</span></div><div class="tmem sm"><span class="av">📖</span><span class="nm">kensho</span></div><div class="tmem sm"><span class="av">🎆</span><span class="nm">ひろ</span></div>
+                  <div class="tmem sm"><span class="av">💣</span><span class="nm">あいう</span></div><div class="tmem sm"><span class="av">👑</span><span class="nm">まりこ</span></div><div class="tmem sm"><span class="av">🎭</span><span class="nm">そうた</span></div>
+                  <div class="tmem sm"><span class="av">🔥</span><span class="nm">ゆい</span></div><div class="tmem sm"><span class="av">🐉</span><span class="nm">たかはし</span></div><div class="tmem sm"><span class="av">💰</span><span class="nm">りん</span></div>
+                  <div class="tmem sm"><span class="av">🎲</span><span class="nm">こうへい</span></div><div class="tmem sm"><span class="av">🌙</span><span class="nm">みさき</span></div><div class="tmem sm"><span class="av">📘</span><span class="nm">だいすけ</span></div>
+                  <div class="tmem sm"><span class="av">💣</span><span class="nm">ももか</span></div><div class="tmem sm"><span class="av">👑</span><span class="nm">けん</span></div><div class="tmem sm"><span class="av">🎭</span><span class="nm">さくら</span></div>
+                  <div class="tmem sm"><span class="av">🙂</span><span class="nm">ふう</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Room</span><span class="num">16<small>/16人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell" style="flex:1"><span class="lab">次は…</span><span class="val">ゲームを投票</span></div>
+              <div class="slash"></div>
+              <div class="cell end"><div class="tcd" data-cd="12" data-group="full"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TVの端あわせ（係が最初に1回）">
+        <div class="tv w-bomb" data-id="t6d" data-nobg data-nobrand>
+          <div class="calib" data-edge>
+            <div class="c c0" style="left:0;top:0"><b style="left:24px;top:22px">0%</b></div>
+            <div class="c c25" style="left:48px;top:27px"><b style="left:24px;top:22px">2.5%</b></div>
+            <div class="c c5" style="left:96px;top:54px"><b style="left:24px;top:22px">5%</b></div>
+          </div>
+          <div class="safe" style="align-items:center;justify-content:center;text-align:center;gap:24px">
+            <div class="tsub" style="font-size:84px">画面の端あわせ</div>
+            <div class="tnote" style="max-width:1300px">左上の角が<b style="color:#FFD54A">いちばん外まで</b>見えている色を、<br>係のスマホでえらんでください</div>
+            <div class="row" style="display:flex;gap:24px;justify-content:center"><span class="tpill" style="background:#FFD54A;color:#141414">0%</span><span class="tpill" style="background:#7DE3A2;color:#141414">2.5%</span><span class="tpill" style="background:#9BC7FF;color:#141414">5%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li><b>だれもいない</b>：時計を回さず、呼び込みの画面に。1分だれも来なければここへ</li>
+        <li><b>1人</b>：時計を出さず「あと1人で はじまるよ」。2人そろったら30秒の時計が動き出す</li>
+        <li><b>16人</b>：名前は3列×6段・5字まで。二つ名は出さない（8人まで）。<b>満員の間はQRを隠して</b>「つぎの回は約3分後」</li>
+        <li><b>端あわせ</b>：TVによっては、ふちが切れて映る。見えている一番外の角を係のスマホでえらぶと、全体がその内側に縮む。リハーサルでTVの「ジャストスキャン」も確かめる</li>
+        <li>TVの右上の ⚙ は、マウスを動かした時だけ出す（係のいない時に、押すものを置かない）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 投票 ============ -->
+<section class="scene" id="vote">
+  <div class="scene-hd"><span class="no">F7</span><h3>投票（20秒）</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag tvt">TV</span><span class="pg-tag new">新しい決まり</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ（押してためせる）">
+        <div class="scr w-wait" data-id="f7" data-who="6">
+          <div class="in">
+            <div class="hd"><div class="en">Vote!</div><div class="ttl">遊びたいゲームを<br>えらぼう！</div><div class="arrow"></div></div>
+            <div class="vlist" data-vlist>
+              <div class="vcard" data-v="bomb" data-lp="#rules7" role="button" tabindex="0"><span class="vok"><i class="ic" data-ic="check"></i>投票ずみ・いま3人</span><span class="tile w-bomb"><i class="emb" data-emb="bomb"></i></span><span class="vt"><span class="vn">クイズ解除</span><span class="vb">みんなで爆弾をとめる</span><span class="vmeta"><span>協力</span><span>約3分</span></span></span><button type="button" class="vr" data-open="#rules7" aria-label="ルール"><i class="ic" data-ic="rules"></i></button></div>
+              <div class="vcard" data-v="shinka" data-lp="#rules7s" role="button" tabindex="0"><span class="vok"><i class="ic" data-ic="check"></i>投票ずみ・いま2人</span><span class="tile w-shinka"><i class="emb" data-emb="shinka"></i></span><span class="vt"><span class="vn">進化じゃんけん</span><span class="vb">勝てば1つ上へ進化</span><span class="vmeta"><span>対戦</span><span>約3分</span></span></span><button type="button" class="vr" data-open="#rules7s" aria-label="ルール"><i class="ic" data-ic="rules"></i></button></div>
+              <div class="vcard" data-v="rcard" data-lp="#rules7r" role="button" tabindex="0"><span class="vok"><i class="ic" data-ic="check"></i>投票ずみ・いま1人</span><span class="tile w-rcard"><i class="emb" data-emb="rcard"></i></span><span class="vt"><span class="vn">ロシアンカード</span><span class="vb">爆弾をよけてめくる</span><span class="vmeta"><span>対戦</span><span>約4分</span></span></span><button type="button" class="vr" data-open="#rules7r" aria-label="ルール"><i class="ic" data-ic="rules"></i></button></div>
+            </div>
+            <div class="hint" style="text-align:center">長押し か <i class="ic" data-ic="rules" style="width:15px;height:15px;vertical-align:-2px"></i> でルール</div>
+            <div class="spacer"></div>
+            <button type="button" class="btn pri" data-votebtn disabled>ゲームをえらんでね</button>
+          </div>
+          <div class="band"><div class="what"><span class="lab">投票中</span><span class="msg">スマホで1つえらぶ</span></div><div class="cdx end" data-cd="20" data-group="vote"></div></div>
+          <div class="scrim" data-id="scrim7" data-close></div>
+          <div class="sheet tall rsheet w-bomb" data-id="rules7" data-scrim="#scrim7">
+            <div class="rhead"><span class="tile w-bomb"><i class="emb" data-emb="bomb"></i></span><div><div class="rn">クイズ解除</div><div class="rm">協力版・2〜8人・約3分</div></div><button type="button" class="xbtn" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="sbody">
+              <div class="rbig">
+                <div class="rb"><span class="k">1</span><p>コードをえらんで、3択に答える</p></div>
+                <div class="rb"><span class="k">2</span><p>まちがえると、ライフが1つへる</p></div>
+                <div class="rb"><span class="k">3</span><p>時間内に全部切れたら、解除成功</p></div>
+              </div>
+              <button type="button" class="rmore" data-more>くわしく見る<i class="ic" data-ic="chev"></i></button>
+              <div class="rdetail">
+                <h5>コードと色</h5>
+                <ul><li>コードは30本。縁の色はむずかしさ（緑→黄→だいだい→赤→むらさきの順にむずかしい）</li><li>だれかが挑戦中のコードは、点線の縁と名前が出て、ほかの人はえらべない</li></ul>
+                <h5>ライフと時間</h5>
+                <ul><li>ライフは3つ。0になると爆発</li><li>時間は3分。のこりが少ないと、心臓の音が速くなる</li></ul>
+                <h5>みんなで1つの爆弾</h5>
+                <ul><li>だれがまちがえたかは出ない。成功も失敗も、みんなのもの</li></ul>
+              </div>
+            </div>
+            <div class="sfoot"><button type="button" class="btn pri" data-close>とじる</button></div>
+          </div>
+          <div class="sheet tall rsheet w-shinka" data-id="rules7s" data-scrim="#scrim7">
+            <div class="rhead"><span class="tile w-shinka"><i class="emb" data-emb="shinka"></i></span><div><div class="rn">進化じゃんけん</div><div class="rm">3〜12人・約3分</div></div><button type="button" class="xbtn" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="sbody"><div class="rbig">
+              <div class="rb"><span class="k">1</span><p>おなじ段の人と、じゃんけん</p></div>
+              <div class="rb"><span class="k">2</span><p>勝てば、1つ上の段へ進化</p></div>
+              <div class="rb"><span class="k">3</span><p>さいしょに 🐉 りゅう になった人が優勝</p></div>
+            </div><button type="button" class="rmore" data-more>くわしく見る<i class="ic" data-ic="chev"></i></button>
+            <div class="rdetail"><h5>段</h5><ul><li>🥚 たまご → 🐣 ひよこ → 🐥 こども → 🐔 おとな → 🐉 りゅう</li><li>2回つづけて負けると、1つ下へ（たまごより下にはならない）</li></ul><h5>あいこ</h5><ul><li>3回つづいたら引き分け。どちらも動かない</li></ul></div></div>
+            <div class="sfoot"><button type="button" class="btn pri" data-close>とじる</button></div>
+          </div>
+          <div class="sheet tall rsheet w-rcard" data-id="rules7r" data-scrim="#scrim7">
+            <div class="rhead"><span class="tile w-rcard"><i class="emb" data-emb="rcard"></i></span><div><div class="rn">ロシアンカード</div><div class="rm">2〜8人・約4分</div></div><button type="button" class="xbtn" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="sbody"><div class="rbig">
+              <div class="rb"><span class="k">1</span><p>相手の9枚に、爆弾を3つしかける</p></div>
+              <div class="rb"><span class="k">2</span><p>自分の9枚を、1枚ずつ交代でめくる</p></div>
+              <div class="rb"><span class="k">3</span><p>爆弾なら体力−1。先に0になった方の負け</p></div>
+            </div><button type="button" class="rmore" data-more>くわしく見る<i class="ic" data-ic="chev"></i></button>
+            <div class="rdetail"><h5>しかける時</h5><ul><li>しかけた場所は、しかけた人ももう見られない</li></ul><h5>3人から</h5><ul><li>生き残り戦。勝った人は体力をそのまま持ちこす</li><li>めくるまで15秒。時間切れも体力−1</li></ul></div></div>
+            <div class="sfoot"><button type="button" class="btn pri" data-close>とじる</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（票の数は出さない）" data-size="lg">
+        <div class="tv w-wait" data-id="t7">
+          <div class="safe">
+            <div class="tin">
+              <div class="thd"><div class="en">Vote!</div><div class="ttl" style="font-size:96px">遊びたいゲームを えらぼう！</div><div class="arrow"></div></div>
+              <div class="tvVote">
+                <div class="vrows">
+                  <div class="tvrow"><span class="tile w-bomb"><i class="emb" data-emb="bomb"></i></span><span class="vt"><span class="vn">クイズ解除</span><span class="vb">みんなで爆弾をとめる</span></span><span class="vmeta"><span>協力</span><span>約3分</span></span></div>
+                  <div class="tvrow"><span class="tile w-shinka"><i class="emb" data-emb="shinka"></i></span><span class="vt"><span class="vn">進化じゃんけん</span><span class="vb">勝てば1つ上へ進化</span></span><span class="vmeta"><span>対戦</span><span>約3分</span></span></div>
+                  <div class="tvrow"><span class="tile w-rcard"><i class="emb" data-emb="rcard"></i></span><span class="vt"><span class="vn">ロシアンカード</span><span class="vb">爆弾をよけてめくる</span></span><span class="vmeta"><span>対戦</span><span>約4分</span></span></div>
+                </div>
+                <div class="qrside"><div class="tqr qsm"><img src="assets/qr-room.svg" alt="部屋に入るQRコード" width="350" height="350"><div class="cap">いまから<br>入れます</div></div></div>
+              </div>
+            </div>
+            <div class="tband">
+              <div class="cell" style="flex:1"><span class="lab">投票中</span><span class="val">スマホで1つえらぶ</span></div>
+              <div class="cell end"><div class="tcd" data-cd="20" data-group="vote"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li><b>押す</b>＝えらぶ（札が浮く）。下の主ボタンが「<b>クイズ解除に投票する</b>」に変わる</li>
+        <li>投票すると<b>灰色で「✓ 投票ずみ・押すと取り消し」</b>。札の上に「投票ずみ・いま3人」（自分が入れたゲームの数だけ）</li>
+        <li><b>長押し</b>（知っている人の近道）と<b>ルールのボタン</b>（知らない人の入口）の両方で、9割のシートが出る。アプリの今の決まり「長押しは近道、ⓘは入口」と同じ</li>
+        <li>候補は「いまの人数で始められるもの」だけ。16人ならクイズ解除（8人まで）は出ない</li>
+        <li>20秒たってもえらばない人は「おまかせ」。0票ならくじ、同点は短いくじ</li>
+      </ul>
+      <span class="try">押せる：札・長押し・ルール・投票する・取り消し・くわしく見る</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 決定 ============ -->
+<section class="scene" id="decide">
+  <div class="scene-hd"><span class="no">F8</span><h3>決定：4段で見せる</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag tvt">TV</span><span class="pg-tag new">動き</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ（約2.5秒）">
+        <div class="scr w-wait" data-id="f8" data-nogear data-bg="circles">
+          <div class="layer w-bomb"><div class="names"></div></div>
+          <div class="in swap" style="z-index:3">
+            <div class="hd a-fade"><div class="en">Next Game</div><div class="ttl">次のゲームは…</div><div class="arrow a-draw" style="--d:.1s"></div></div>
+            <div class="dec grow">
+              <span class="tile w-bomb a-slam" style="--d:1.3s;width:150px;height:150px"><i class="emb" data-emb="bomb"></i></span>
+              <div class="gname a-slam" style="--d:1.45s">クイズ解除<small>（協力版）</small></div>
+              <div class="who5 a-rise" style="--d:2.15s">5人がえらびました！</div>
+              <div class="myv a-rise" style="--d:2.3s">自分の投票：💣 クイズ解除</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（同じ順番）" data-size="lg">
+        <div class="tv w-wait" data-id="t8" data-bg="circles">
+          <div class="layer w-bomb"><div class="names" data-names="ふう,ひろ,びび,ちか,でん,えみ"></div></div>
+          <div class="tdec swap">
+            <div class="thd a-fade"><div class="en">Next Game</div><div class="ttl">次のゲームは…</div><div class="arrow a-draw" style="--d:.1s;margin-right:900px"></div></div>
+            <div class="mid">
+              <span class="tile w-bomb a-slam" style="--d:1.3s"><i class="emb" data-emb="bomb"></i></span>
+              <div class="gname a-slam" style="--d:1.45s">クイズ解除<small>（協力版）</small></div>
+              <div class="who5 a-rise" style="--d:2.15s">5人がえらびました！</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>①「次のゲームは…」と矢印と英語だけ（0〜0.7秒）</li>
+        <li>②画面の色が、斜めの幕でゲームの世界の色へ（0.75〜1.35秒）</li>
+        <li>③ゲームの印と名前をドンと出す（1.3〜2秒）</li>
+        <li>④人数・自分の投票など細かい所（2.1秒〜）。TVは「自分の投票」を出さない（TVで「あなた」を使わない決まり）</li>
+        <li>演出が「速い」なら半分、「なし」なら最後の形だけ（上の切り替えでためせる）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9 ルール＋準備 ============ -->
+<section class="scene" id="ready">
+  <div class="scene-hd"><span class="no">F9</span><h3>ルールと準備OK（押した人だけで始める）</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag tvt">TV</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ（押してためせる）">
+        <div class="scr w-bomb" data-id="f9" data-names="ふう,ひろ,びび,ちか,でん,えみ">
+          <div class="in">
+            <div class="hd"><div class="en">Next Game</div><div class="ttl">クイズ解除<small>（協力版）</small></div><div class="arrow"></div></div>
+            <div class="rules">
+              <div class="rule"><span class="k">1</span><span class="ri"><i class="ic" data-ic="grid"></i></span>コードをえらんで、3択に答える</div>
+              <div class="rule"><span class="k">2</span><span class="ri"><i class="ic" data-ic="heart" style="color:#FF6B7A"></i></span>まちがえると、ライフが1つへる</div>
+              <div class="rule"><span class="k">3</span><span class="ri"><i class="ic" data-ic="timer"></i></span>時間内に全部切れたら、解除成功</div>
+            </div>
+            <button type="button" class="rmore" style="background:rgba(255,255,255,.12);color:#fff" data-open="#rules9">くわしく見る<i class="ic" data-ic="chev"></i></button>
+            <div class="spacer"></div>
+            <button type="button" class="btn pri" data-readybtn>準備OK！</button>
+          </div>
+          <div class="band"><div class="what"><span class="lab">準備OK <span data-rc>5</span>/8人</span><span class="msg">押した人で始めます</span></div><div class="cdx end" data-cd="12" data-group="ready" data-label="しめきり"></div></div>
+          <div class="scrim" data-id="scrim9" data-close></div>
+          <div class="sheet tall rsheet w-bomb more" data-id="rules9" data-scrim="#scrim9">
+            <div class="rhead"><span class="tile w-bomb"><i class="emb" data-emb="bomb"></i></span><div><div class="rn">クイズ解除</div><div class="rm">協力版・ルールのくわしい所</div></div><button type="button" class="xbtn" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="sbody"><div class="rdetail"><h5>コードと色</h5><ul><li>コードは30本。縁の色はむずかしさ（緑→黄→だいだい→赤→むらさき）</li><li>だれかが挑戦中のコードは、点線の縁と名前が出る</li></ul><h5>ライフと時間</h5><ul><li>ライフは3つ。0になると爆発</li><li>時間は3分</li></ul><h5>みんなで1つの爆弾</h5><ul><li>だれがまちがえたかは出ない</li></ul></div></div>
+            <div class="sfoot"><button type="button" class="btn pri" data-close>とじる</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（ルール3枚と準備OKを1画面に）" data-size="lg">
+        <div class="tv w-bomb" data-id="t9" data-names="ふう,ひろ,びび,ちか,でん,えみ,ふう,くまくん">
+          <div class="safe">
+            <div class="tvB">
+              <div class="left">
+                <div class="thd"><div class="en">Next Game</div><div class="ttl" style="display:flex;align-items:center;gap:24px"><span class="tile w-bomb" style="width:118px;height:118px"><i class="emb" data-emb="bomb"></i></span>クイズ解除<small>（協力版）</small></div><div class="arrow"></div></div>
+                <div class="trules">
+                  <div class="trule"><span class="ri"><i class="ic" data-ic="grid"></i></span>コードを<wbr>えらんで3択</div>
+                  <div class="trule"><span class="ri"><i class="ic" data-ic="heart" style="color:#FF6B7A"></i></span>まちがえると<wbr>ライフ−1</div>
+                  <div class="trule"><span class="ri"><i class="ic" data-ic="timer"></i></span>全部切れば<wbr>解除成功</div>
+                </div>
+                <div class="tgrid c3" data-tready>
+                  <div class="tmem ok"><span class="av">🙂</span><span class="nm">ふう</span><span class="st"><i class="ic" data-ic="check" style="width:46px;height:46px;color:#7DE3A2"></i></span></div>
+                  <div class="tmem ok"><span class="av">🌙</span><span class="nm">ひろ</span><span class="st"><i class="ic" data-ic="check" style="width:46px;height:46px;color:#7DE3A2"></i></span></div>
+                  <div class="tmem wait" data-w="びび"><span class="av">🐺</span><span class="nm">びび</span><span class="st">…</span></div>
+                  <div class="tmem wait" data-w="ちか"><span class="av">🎈</span><span class="nm">ちか</span><span class="st">…</span></div>
+                  <div class="tmem ok"><span class="av">💣</span><span class="nm">でん</span><span class="st"><i class="ic" data-ic="check" style="width:46px;height:46px;color:#7DE3A2"></i></span></div>
+                  <div class="tmem ok"><span class="av">🎆</span><span class="nm">えみ</span><span class="st"><i class="ic" data-ic="check" style="width:46px;height:46px;color:#7DE3A2"></i></span></div>
+                  <div class="tmem ok"><span class="av">🐉</span><span class="nm">ふう②</span><span class="st"><i class="ic" data-ic="check" style="width:46px;height:46px;color:#7DE3A2"></i></span></div>
+                  <div class="tmem wait" data-w="くまくん"><span class="av">🦅</span><span class="nm">くまくん</span><span class="st">…</span></div>
+                </div>
+              </div>
+              <div class="qrside"><div class="tqr qsm"><img src="assets/qr-room.svg" alt="部屋に入るQRコード" width="350" height="350"><div class="cap">つぎの回に<br>入れます</div></div></div>
+            </div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Ready</span><span class="num"><span data-trc>5</span><small>/8人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell" style="min-width:0;flex:1"><span class="lab">準備中</span><span class="val" data-twait>3人を待っています</span></div>
+              <div class="slash"></div>
+              <div class="cell"><div class="tcd" data-cd="12" data-group="ready" data-label="しめきり"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>しめきりまでに<b>押した人だけで始める</b>。押さなかった人のスマホには「つぎの回から入れます」</li>
+        <li>だれかが押すたびに、帯の「5/8人」の数が<b>はねて増える</b>（数が回るように）</li>
+        <li>しめきりが5秒以下で赤い札。1桁で「しめきり」が数字に寄る</li>
+        <li>TVは「ルール3枚・準備OK・右下に小さなQR」を1画面に（前の 4 と 5 をまとめた）。3人までは名前、4人からは「◯人を待っています」</li>
+        <li>押した人の数がゲームの下限に足りなければ、待合へもどる</li>
+      </ul>
+      <span class="try">押せる：準備OK・取り消し・くわしく見る</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 3-2-1 ============ -->
+<section class="scene" id="count">
+  <div class="scene-hd"><span class="no">F10</span><h3>3・2・1（字は出さない）</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag tvt">TV</span><span class="pg-tag fix">直した</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ">
+        <div class="scr w-bomb noband" data-id="f10" data-nogear data-names="ふう,ひろ,びび,ちか,でん,えみ">
+          <div class="in">
+            <div class="hd"><div class="ttl" style="font-size:22px">クイズ解除<small>（協力版）</small></div><div class="arrow"></div></div>
+            <div class="center grow"><div class="cnt321" data-c321>3</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV" data-size="lg">
+        <div class="tv w-bomb" data-id="t10" data-names="ふう,ひろ,びび,ちか,でん,えみ">
+          <div class="safe">
+            <div class="thd"><div class="ttl" style="font-size:72px">クイズ解除<small>（協力版）</small></div><div class="arrow" style="margin-right:1000px"></div></div>
+            <div class="center" style="flex:1;display:flex;align-items:center;justify-content:center"><div class="tcnt321" data-c321>3</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>「いまは押せません。0で一斉にスタート！」は<b>入れない</b>。押せないのは当たり前で、字はいらない（今は押しても何も起きない作りになっている）</li>
+        <li>3-2-1 は「合図」なので、演出が「なし」でも残る。1秒ずつ（速さの設定で変わらない）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11 遊ぶ ============ -->
+<section class="scene" id="play">
+  <div class="scene-hd"><span class="no">F11</span><h3>遊ぶ：クイズ解除（協力版）</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag tvt">TV</span><span class="pg-tag fix">本物の盤に直した</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ（コードを押すと3択）">
+        <div class="scr w-bomb noband" data-id="f11" data-nogear data-names="ふう,ひろ,びび,ちか,でん,えみ">
+          <div class="in" style="gap:12px">
+            <div class="ptop"><div class="lives" data-lives>❤️❤️❤️</div><div class="clock">02:27</div><button type="button" class="cbtn" aria-label="設定" style="margin-right:-8px"><span class="ring"><i class="ic" data-ic="gear"></i></span></button></div>
+            <div class="pnum"><b data-done>15</b><b style="font-size:26px">/30</b><span>解除ずみ</span></div>
+            <div class="prog"><i data-bar style="width:50%"></i></div>
+            <div class="row" style="justify-content:space-between"><span style="font-weight:900;font-size:16px">コードをえらんで</span><span class="tierkey"><span><i style="color:var(--tier-easy)"></i>かんたん</span><span><i style="color:var(--tier-muri)"></i>むり</span></span></div>
+            <div class="bgrid" data-grid></div>
+          </div>
+          <div class="dock"><div class="rx" data-rx><button type="button" class="k" aria-label="リアクション"><i class="ic" data-ic="smile"></i></button><span class="fan"><button type="button">👏</button><button type="button">😂</button><button type="button">😮</button><button type="button">🔥</button></span></div><span class="spacer"></span><button type="button" class="gift" aria-label="ありがとう">🎁</button></div>
+          <div class="scrim" data-id="scrim11" data-close></div>
+          <div class="sheet" data-id="q11" data-scrim="#scrim11">
+            <div class="grab"></div>
+            <div class="sh"><span class="pill" style="background:var(--tier-normal);color:#141414" data-qtier>ふつう</span><span class="lbl" data-qno>12ばんのコード</span><button type="button" class="xbtn x" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="qtext">日本でいちばん高い山は？</div>
+            <div class="choices" data-choices>
+              <button type="button" class="choice"><span class="k">A</span>北岳</button>
+              <button type="button" class="choice" data-correct><span class="k">B</span>富士山</button>
+              <button type="button" class="choice"><span class="k">C</span>奥穂高岳</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（協力版）" data-size="lg">
+        <div class="tv w-bomb tplay" data-id="t11" data-names="ふう,ひろ,びび,ちか,でん,えみ,くまくん">
+          <div class="safe" style="gap:30px">
+            <div class="topbar"><span class="tpill" style="background:#FFD54A;color:#141414">解除中</span><span class="tsub" style="font-size:64px">クイズ解除</span><div class="lives">❤️❤️❤️</div><div class="tclock">02:27</div></div>
+            <div class="mid"><div class="pn"><b>15</b><b style="font-size:120px">/30</b><span>解除ずみ</span></div><div class="tprog"><i style="width:50%"></i></div></div>
+            <div class="bottom">
+              <div class="tgrid c3">
+                <div class="tmem two try"><span class="av">🙂</span><div class="who"><div class="nm">ふう</div><div class="tt">→ 12ばん</div></div></div>
+                <div class="tmem two try"><span class="av">🌙</span><div class="who"><div class="nm">ひろ</div><div class="tt">→ 3ばん</div></div></div>
+                <div class="tmem two"><span class="av">🐺</span><div class="who"><div class="nm">びび</div></div></div>
+                <div class="tmem two"><span class="av">🎈</span><div class="who"><div class="nm">ちか</div></div></div>
+                <div class="tmem two try"><span class="av">💣</span><div class="who"><div class="nm">でん</div><div class="tt">→ 27ばん</div></div></div>
+                <div class="tmem two"><span class="av">🎆</span><div class="who"><div class="nm">えみ</div></div></div>
+                <div class="tmem two try"><span class="av">🐉</span><div class="who"><div class="nm">ふう②</div><div class="tt">→ 8ばん</div></div></div>
+                <div class="tmem two"><span class="av">🦅</span><div class="who"><div class="nm">くまくん</div></div></div>
+              </div>
+              <div class="tqr qsm"><img src="assets/qr-room.svg" alt="部屋に入るQRコード" width="350" height="350"><div class="cap">つぎの回<br>あと約2分</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li><b>前の案のコード（あか・あお…6本）は私が作った仮の絵でした。</b>今のゲームどおり、<b>番号のマス30本・1行5つ</b>（31本からは1行6つ）、<b>縁の色＝むずかしさ</b>（5色）にもどした</li>
+        <li>挑戦中は<b>点線の縁＋名前</b>（色ではなく形）。緑の「かんたん」とまぎれない。外したマスは左上に ✕</li>
+        <li>時計の地は真っ黒ではなく、<b>背景より少し濃い黒</b>。TVも同じ</li>
+        <li>進み具合のバーの<b>まだの所は濃い灰</b>（白だと4m先で境目が消える）</li>
+        <li>左下にリアクション（押すと開く）、右下に 🎁（今のアプリの四隅の決まりのまま）</li>
+        <li>TVは「→ 12ばん」の札に点線の縁。右下に小さなQR（つぎの回に入る人のため）</li>
+      </ul>
+      <span class="try">押せる：マス → 3択（正解は富士山）・リアクション</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12 結果 ============ -->
+<section class="scene" id="result">
+  <div class="scene-hd"><span class="no">F12</span><h3>結果とつづける？（協力版は順位を出さない）</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag tvt">TV</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ（15秒）">
+        <div class="scr w-bomb" data-id="f12" data-nogear data-names="ふう,ひろ,びび,ちか,でん,えみ" style="--bandh:0px">
+          <div class="in">
+            <div class="hd a-rise"><div class="en">Clear!</div><div class="ttl" style="font-size:36px">解除成功！</div><div class="arrow a-draw" style="--d:.1s"></div></div>
+            <div class="team a-rise" style="--d:.2s"><div class="big"><b>30</b><span>/30本</span></div><div class="sub">みんなで全部切った！<span class="lives" style="font-size:20px">❤️❤️<span class="gone">❤️</span></span></div></div>
+            <div class="minebox a-rise" style="--d:.3s">ふう が切った本数<b>5<small>本</small></b></div>
+          </div>
+          <div class="sheet open" style="z-index:30">
+            <div class="cont">
+              <div class="ct">つづけて遊ぶ？</div>
+              <div class="syncbar" data-group="cont"><i></i></div>
+              <div class="btnrow"><button type="button" class="btn pri" data-contyes>つづける</button><button type="button" class="btn sec" data-contno>やめる</button></div>
+              <div class="cnote" data-contnote>押さないと、<b data-cdnum data-group="cont">15</b>秒で「つづける」になります</div>
+              <span class="cdx" data-cd="15" data-group="cont" hidden></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV：成功（壁の名前が金に光る）">
+        <div class="tv w-bomb" data-id="t12a" data-names="ふう,ひろ,びび,ちか,でん,えみ,くまくん">
+          <div class="safe">
+            <div class="thd"><div class="ttl" style="font-size:72px">クイズ解除<small>（協力版）</small></div><div class="arrow" style="margin-right:1000px"></div></div>
+            <div class="tend">
+              <div class="tbig a-slam" style="font-size:200px">解除成功！</div>
+              <div class="stat a-rise" style="--d:.5s"><span>30/30</span><i></i><span>02:27</span></div>
+              <div class="lives a-rise" style="--d:.65s">❤️❤️<span class="gone">❤️</span></div>
+            </div>
+            <div class="tband" style="justify-content:flex-end"><div class="cell end"><div class="tcd" data-cd="15" data-group="cont" data-label="もどるまで"></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV：爆発（静かに暗く）">
+        <div class="tv w-bomb" data-id="t12b" data-names="ふう,ひろ,びび,ちか,でん,えみ,くまくん">
+          <div class="safe">
+            <div class="thd"><div class="ttl" style="font-size:72px">クイズ解除<small>（協力版）</small></div><div class="arrow" style="margin-right:1000px"></div></div>
+            <div class="tend">
+              <div class="tbig" style="font-size:200px;color:#C9C9CE">爆発…</div>
+              <div class="stat" style="color:#C9C9CE"><span>27/30</span><i></i><span>00:27</span></div>
+              <div class="tnote">あと3本だった！ つぎはいけるかも</div>
+            </div>
+            <div class="tband" style="justify-content:flex-end"><div class="cell end"><div class="tcd" data-cd="15" data-group="cont" data-label="もどるまで"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>協力版は<b>みんなの成績だけ</b>。自分の本数は自分のスマホにだけ（「これは自分のスマホにだけ出ます」の文は消した）</li>
+        <li><b>バーと数字は同じ時計</b>から描く（前の案はテスト用に別々の時計で、ずれていた）。TVの「もどるまで」とも同じ15秒</li>
+        <li>押さなければ「つづける」。<b>2回続けて押さなかったら席を空ける</b></li>
+        <li>成功では<b>名前の壁が金色</b>に（この人たちで解いた）。爆発では壁が暗く静かに。責めない言い方（「あと3本だった！」）</li>
+        <li>爆発の瞬間そのもの（溜め・音・TVいっぱいの💥）は「クイズ解除」のページ</li>
+      </ul>
+      <span class="try">押せる：つづける・やめる</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13 やめた人 ============ -->
+<section class="scene" id="thanks">
+  <div class="scene-hd"><span class="no">F13</span><h3>やめた人：感想と称号</h3><div class="tags"><span class="pg-tag guest">参加者</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ">
+        <div class="scr w-wait noband" data-id="f13">
+          <div class="in">
+            <div class="hd a-rise"><div class="en">Thank you!</div><div class="ttl">遊んでくれて<br>ありがとう！</div><div class="arrow"></div></div>
+            <div class="card col a-rise" style="--d:.1s;background:var(--wc2)">
+              <b style="font-weight:900;font-size:17px">クイズ解除、どうだった？</b>
+              <div class="stars" data-stars><button type="button" aria-label="1"><i class="ic" data-ic="star"></i></button><button type="button" aria-label="2"><i class="ic" data-ic="star"></i></button><button type="button" aria-label="3"><i class="ic" data-ic="star"></i></button><button type="button" aria-label="4"><i class="ic" data-ic="star"></i></button><button type="button" aria-label="5"><i class="ic" data-ic="star"></i></button></div>
+              <div class="textarea">ひとことどうぞ（なくてもOK）</div>
+              <button type="button" class="btn pri" data-send>送る</button>
+            </div>
+            <div class="me a-rise" style="--d:.2s"><span class="av lg">🏮</span><div><div class="nm" style="font-size:19px">称号「文化祭の記念」</div><div class="tt">今日はこの端末に残ります</div></div></div>
+            <div class="spacer"></div>
+            <button type="button" class="btn sec a-rise" style="--d:.3s">もう一度 入る</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>このままでOK（くまくん）。感想は<b>くまくんと先生だけ</b>が係の画面で見る（F14）。1か月たったらサーバーから消す</li>
+        <li>ログインしていない人の称号は、<b>その日のうちだけ端末に残る</b>（決まり）</li>
+        <li>「もう一度 入る」で、同じ部屋の次の回へ（名前はそのまま）</li>
+      </ul>
+      <span class="try">押せる：★・送る</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14 係 ============ -->
+<section class="scene" id="staff">
+  <div class="scene-hd"><span class="no">F14</span><h3>係の画面（くまくんのスマホ）</h3><div class="tags"><span class="pg-tag host">係</span><span class="pg-tag new">新しい画面</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="係の画面">
+        <div class="scr w-wait noband" data-id="f14" data-gear-open="#fb14">
+          <div class="in scroll" style="gap:12px">
+            <div class="hd"><div class="en">Staff only</div><div class="ttl">係の画面</div><div class="arrow"></div></div>
+            <div class="adm-st">
+              <div class="s"><span class="lbl">いま</span><b>投票中・のこり12秒</b></div>
+              <div class="s"><span class="lbl">部屋</span><b>7/16人</b></div>
+              <div class="s"><span class="lbl">TV</span><b style="color:var(--ok-ink)">つながっている</b></div>
+              <div class="s"><span class="lbl">今日の回数</span><b>23回目</b></div>
+            </div>
+            <div class="adm-ops">
+              <button type="button" class="btn sec"><i class="ic" data-ic="pause"></i>一時停止</button>
+              <button type="button" class="btn sec"><i class="ic" data-ic="skip"></i>この回をとばす</button>
+              <button type="button" class="btn sec"><i class="ic" data-ic="calib"></i>TVの端あわせ</button>
+              <button type="button" class="btn sec" data-open="#dlg14"><i class="ic" data-ic="refresh"></i>部屋を作り直す</button>
+            </div>
+            <span class="lbl">いる人（名前を隠す・外す）</span>
+            <div class="adm-mem">
+              <div class="r"><span class="av sm">🙂</span><span class="nm">ふう</span><button type="button"><i class="ic" data-ic="eyeoff"></i>隠す</button><button type="button">外す</button></div>
+              <div class="r"><span class="av sm">🌙</span><span class="nm">ひろ</span><button type="button"><i class="ic" data-ic="eyeoff"></i>隠す</button><button type="button">外す</button></div>
+              <div class="r"><span class="av sm">🐺</span><span class="nm">●●●</span><button type="button" style="background:#141414;color:#fff;border-color:#141414"><i class="ic" data-ic="eye"></i>もどす</button><button type="button">外す</button></div>
+              <div class="r"><span class="av sm">🎈</span><span class="nm">ちか</span><button type="button"><i class="ic" data-ic="eyeoff"></i>隠す</button><button type="button">外す</button></div>
+            </div>
+            <button type="button" class="btn pri" data-open="#fb14"><i class="ic" data-ic="star"></i>感想を見る（12件）</button>
+          </div>
+          <div class="scrim dl" data-id="scrim14d" data-close></div>
+          <div class="dlg" data-id="dlg14" data-scrim="#scrim14d">
+            <h4>部屋を作り直しますか？</h4>
+            <p>いる7人は部屋から出ます。TVには新しいQRが出ます。机のポスターのQR（/fes）はそのまま使えます。</p>
+            <button type="button" class="btn danger" data-close>作り直す</button>
+            <button type="button" class="btn sec" data-close>やめる</button>
+          </div>
+          <div class="scrim" data-id="scrim14" data-close></div>
+          <div class="sheet tall" data-id="fb14" data-scrim="#scrim14">
+            <div class="grab"></div>
+            <div class="sh"><h4>感想（今日 12件）</h4><button type="button" class="xbtn x" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="fbsum"><div class="s"><span class="lbl">クイズ解除</span><b>★ 4.6</b></div><div class="s"><span class="lbl">進化じゃんけん</span><b>★ 4.2</b></div><div class="s"><span class="lbl">ロシアン</span><b>★ 3.9</b></div></div>
+            <div class="sbody"><div class="fb">
+              <div class="f"><div class="h"><span class="st"><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i></span>クイズ解除・14:32</div><p>ぎりぎりで解除できてめっちゃ盛り上がった</p></div>
+              <div class="f"><div class="h"><span class="st"><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i></span>ロシアンカード・14:20</div><p>ルールが最初わからなかった</p></div>
+              <div class="f"><div class="h"><span class="st"><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i><i class="ic" data-ic="star"></i></span>進化じゃんけん・14:05</div><p>（ひとことなし）</p></div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>係のアカウントでログインした時だけ出る。<b>見るのはくまくんと先生だけ</b></li>
+        <li><b>隠す</b>＝名前を「●●●」にしてTVの壁からも消す（もどせる）。<b>外す</b>＝部屋から出す。だれを外したかはみんなに知らせない</li>
+        <li>部屋を作り直す時だけ、<b>赤い主ボタン</b>（取り返しがつかない操作）</li>
+        <li>机や壁のポスターのQRは <b>/fes</b>（いまの文化祭の部屋へ自動で飛ぶ）にしておけば、作り直しても使える</li>
+      </ul>
+      <span class="try">押せる：作り直す（確認）・感想を見る</span>
+    </div>
+  </div>
+</section>
+
+</div></main>
+<footer class="pg-main" style="padding-block:8px 40px"><div class="pg-wrap" style="font-size:12px;color:var(--pg-soft);gap:4px"><div>画面の中の絵文字は Twemoji（© Twitter, Inc and other contributors / CC-BY 4.0）。書体は M PLUS 1・League Spartan（どちらも SIL Open Font License）。</div><div>この案は見本です。名前・数字・お題は例で、本物の記録ではありません。</div></div></footer>
+<script src="assets/twlist.js"></script>
+<script src="assets/ds.js"></script>
+<script>
+(function(){
+  var fx = function(){ return DS.fx(); };
+
+  /* スイッチ（安全の確認） */
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('[data-tog]'); if(!t) return;
+    var sw = t.querySelector('.sw'); sw.classList.toggle('on');
+  });
+
+  /* ★ */
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-stars] button'); if(!b) return;
+    var box = b.parentNode, all = [].slice.call(box.children), i = all.indexOf(b);
+    all.forEach(function(x, j){ x.classList.toggle('on', j <= i); });
+  });
+
+  /* くわしく見る */
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-more]'); if(!b) return;
+    b.closest('.rsheet').classList.toggle('more');
+  });
+
+  /* F3：入ってきた人の名前が光る＋スマホの「TVを見て！」 */
+  DS.scene('t3', function(scr){
+    scr.addEventListener('ds:start', function(){
+      var wall = scr.querySelector('.names');
+      DS.later(scr, 900, function(){ DS.glowName(wall, 'ひろ'); });
+      DS.every(scr, 7000, function(){ DS.glowName(wall, ['ひろ','でん','えみ'][Math.floor(Math.random()*3)]); });
+    });
+  });
+  DS.scene('f3', function(scr){
+    scr.addEventListener('ds:start', function(){
+      DS.later(scr, 700, function(){ DS.open(scr, '#tvlook'); });
+      DS.later(scr, 3600, function(){ DS.close(scr, '#tvlook'); });
+    });
+  });
+
+  /* F4：感想が帯の上から出て、5秒でたたむ */
+  DS.scene('f4', function(scr){
+    var pop = DS.q(scr, '#fbpop'), mini = DS.q(scr, '#fbmini');
+    function fold(){ pop.classList.remove('open'); mini.classList.add('on'); }
+    scr.addEventListener('ds:start', function(){
+      mini.classList.remove('on'); pop.classList.remove('open');
+      DS.later(scr, 800, function(){ pop.classList.add('open'); });
+      DS.later(scr, 5800, fold);
+    });
+    mini.addEventListener('click', function(){ mini.classList.remove('on'); pop.classList.add('open'); });
+    pop.addEventListener('ds:close', function(){ mini.classList.add('on'); });
+  });
+
+  /* F5：二つ名の言葉 */
+  DS.scene('f5c', function(scr){
+    var s1 = scr.querySelector('[data-s1]'), title = scr.querySelector('[data-title]');
+    scr.querySelector('[data-words]').addEventListener('ds:pick', function(e){
+      if(!e.detail) return; s1.textContent = e.detail; title.textContent = e.detail + 'の 一歩';
+    });
+  });
+
+  /* F7：投票（押す＝えらぶ、主ボタンで投票、灰色で取り消し） */
+  DS.scene('f7', function(scr){
+    var list = scr.querySelector('[data-vlist]'), btn = scr.querySelector('[data-votebtn]');
+    var names = {bomb:'クイズ解除', shinka:'進化じゃんけん', rcard:'ロシアンカード'};
+    var sel = null, voted = false;
+    function paint(){
+      [].forEach.call(list.querySelectorAll('.vcard'), function(c){
+        c.classList.toggle('on', c.getAttribute('data-v') === sel);
+        c.classList.toggle('voted', voted && c.getAttribute('data-v') === sel);
+      });
+      list.classList.toggle('chosen', !!sel);
+      if(!sel){ btn.disabled = true; btn.className = 'btn pri'; btn.innerHTML = 'ゲームをえらんでね'; return; }
+      btn.disabled = false;
+      if(voted){ btn.className = 'btn done'; btn.innerHTML = DS.icon('check') + '<span>投票ずみ<small>　押すと取り消し</small></span>'; }
+      else { btn.className = 'btn pri'; btn.innerHTML = names[sel] + 'に投票する'; }
+    }
+    list.addEventListener('click', function(e){
+      if(e.target.closest('.vr')) return;
+      var c = e.target.closest('.vcard'); if(!c) return;
+      var v = c.getAttribute('data-v');
+      if(voted && v !== sel){ voted = false; }
+      sel = v; paint();
+    });
+    btn.addEventListener('click', function(){ if(!sel) return; voted = !voted; paint(); });
+    scr.addEventListener('ds:start', function(e){ if(e.detail === 'replay'){ sel = null; voted = false; paint(); } });
+    paint();
+  });
+
+  /* F9：準備OK（数がはねて増える） */
+  DS.scene('f9', function(scr){
+    var btn = scr.querySelector('[data-readybtn]'), rc = scr.querySelector('[data-rc]'), on = false;
+    function setCount(n){ rc.textContent = n; rc.style.display = 'inline-block'; rc.style.animation = 'none'; void rc.offsetWidth; rc.style.animation = 'bump calc(.4s * var(--fx)) cubic-bezier(.2,1.6,.4,1)'; }
+    function paint(){
+      if(on){ btn.className = 'btn done'; btn.innerHTML = DS.icon('check') + '<span>準備OK<small>　押すと取り消し</small></span>'; }
+      else { btn.className = 'btn pri'; btn.innerHTML = '準備OK！'; }
+    }
+    btn.addEventListener('click', function(){ on = !on; paint(); setCount(parseInt(rc.textContent, 10) + (on ? 1 : -1)); });
+    scr.addEventListener('ds:start', function(){ on = false; paint(); rc.textContent = '5';
+      DS.later(scr, 2600, function(){ if(parseInt(rc.textContent,10) < 7) setCount(parseInt(rc.textContent,10) + 1); });
+    });
+  });
+  DS.scene('t9', function(scr){
+    var rc = scr.querySelector('[data-trc]'), wait = scr.querySelector('[data-twait]');
+    scr.addEventListener('ds:start', function(){
+      rc.textContent = '5'; wait.textContent = '3人を待っています';
+      [].forEach.call(scr.querySelectorAll('[data-w]'), function(m){ m.className = 'tmem wait'; m.querySelector('.st').innerHTML = '…'; });
+      DS.later(scr, 2600, function(){
+        var m = scr.querySelector('[data-w="びび"]'); m.className = 'tmem ok a-pop';
+        m.querySelector('.st').innerHTML = '<i class="ic" style="width:46px;height:46px;color:#7DE3A2">' + DS.icon('check') + '</i>';
+        rc.textContent = '6'; rc.style.display = 'inline-block'; rc.style.animation = 'none'; void rc.offsetWidth; rc.style.animation = 'bump calc(.4s * var(--fx)) cubic-bezier(.2,1.6,.4,1)';
+        wait.textContent = 'ちか・くまくんを待っています';
+      });
+    });
+  });
+
+  /* F10：3-2-1（合図なので速さの設定で変えない：1秒ずつ） */
+  ['f10','t10'].forEach(function(id){
+    DS.scene(id, function(scr){
+      var el = scr.querySelector('[data-c321]'), seq = ['3','2','1','GO',null,null];
+      scr.addEventListener('ds:start', function(){
+        var k = 0; el.textContent = '3'; el.classList.remove('go');
+        DS.every(scr, 1000 / DS.fx(), function(){
+          k = (k + 1) % seq.length; var v = seq[k]; if(!v) return;
+          el.textContent = v; el.classList.toggle('go', v === 'GO');
+          el.style.animation = 'none'; void el.offsetWidth; el.style.animation = 'popIn .25s cubic-bezier(.2,1.6,.4,1)';
+        });
+      });
+    });
+  });
+
+  /* F11：盤（30本・縁の色＝むずかしさ）と3択 */
+  DS.scene('f11', function(scr){
+    var grid = scr.querySelector('[data-grid]');
+    var tiers = [2,1,3,2,4,1,2,5,3,1,2,3,1,4,2,1,3,2,5,1,2,4,3,1,2,1,3,2,4,1];
+    var solved = {1:1,2:1,4:1,6:1,7:1,10:1,11:1,13:1,16:1,17:1,20:1,21:1,24:1,26:1,30:1};
+    var tryBy = {3:'ひろ', 27:'でん', 8:'ふう②'};
+    var miss = {5:1, 19:1};
+    var cur = null, done = 15, lives = 3;
+    var tierName = {1:'かんたん',2:'ふつう',3:'むずかしい',4:'ナニソレ',5:'むりなんだが'};
+    var tierVar = {1:'var(--tier-easy)',2:'var(--tier-normal)',3:'var(--tier-hard)',4:'var(--tier-nani)',5:'var(--tier-muri)'};
+    function draw(){
+      var h = '';
+      for(var i = 1; i <= 30; i++){
+        var t = tiers[i-1], cls = 'bcell t' + t;
+        if(solved[i]) h += '<button type="button" class="' + cls + ' solved" aria-label="' + i + 'ばん 解除ずみ">' + DS.icon('check') + '</button>';
+        else if(tryBy[i]) h += '<button type="button" class="' + cls + ' try" aria-label="' + i + 'ばん 挑戦中">' + i + '<span class="who">' + tryBy[i] + '</span></button>';
+        else h += '<button type="button" class="' + cls + (miss[i] ? ' miss' : '') + '" data-n="' + i + '">' + i + '</button>';
+      }
+      grid.innerHTML = h;
+      scr.querySelector('[data-done]').textContent = done;
+      scr.querySelector('[data-bar]').style.width = (done / 30 * 100) + '%';
+    }
+    grid.addEventListener('click', function(e){
+      var c = e.target.closest('[data-n]'); if(!c) return;
+      cur = parseInt(c.getAttribute('data-n'), 10);
+      var t = tiers[cur-1];
+      scr.querySelector('[data-qno]').textContent = cur + 'ばんのコード';
+      var tp = scr.querySelector('[data-qtier]'); tp.textContent = tierName[t]; tp.style.background = tierVar[t];
+      scr.querySelectorAll('.choice').forEach(function(x){ x.className = 'choice'; x.disabled = false; });
+      DS.open(scr, '#q11');
+    });
+    scr.querySelector('[data-choices]').addEventListener('click', function(e){
+      var c = e.target.closest('.choice'); if(!c || c.disabled) return;
+      var ok = c.hasAttribute('data-correct');
+      scr.querySelectorAll('.choice').forEach(function(x){ x.disabled = true; if(x.hasAttribute('data-correct')) x.classList.add('ok'); else if(x === c) x.classList.add('ng'); });
+      DS.later(scr, 900, function(){
+        DS.close(scr, '#q11');
+        if(ok){ solved[cur] = 1; done++; }
+        else { miss[cur] = 1; lives = Math.max(0, lives - 1); var lv = scr.querySelector('[data-lives]'); lv.innerHTML = '❤️'.repeat(lives) + '<span class="gone">' + '❤️'.repeat(3 - lives) + '</span>'; DS.twemojify(lv); }
+        draw();
+      });
+    });
+    scr.querySelector('[data-rx] .k').addEventListener('click', function(){ scr.querySelector('[data-rx]').classList.toggle('open'); });
+    scr.addEventListener('ds:start', function(e){ if(e.detail === 'replay'){ solved = {1:1,2:1,4:1,6:1,7:1,10:1,11:1,13:1,16:1,17:1,20:1,21:1,24:1,26:1,30:1}; miss = {5:1,19:1}; done = 15; lives = 3; var lv = scr.querySelector('[data-lives]'); lv.textContent = '❤️❤️❤️'; DS.twemojify(lv); } draw(); });
+    draw();
+  });
+
+  /* F12：つづける？ */
+  DS.scene('f12', function(scr){
+    var note = scr.querySelector('[data-contnote]');
+    var orig = note.innerHTML;
+    scr.querySelector('[data-contyes]').addEventListener('click', function(){ note.textContent = 'つづけます！ 次の待合へ'; });
+    scr.querySelector('[data-contno]').addEventListener('click', function(){ note.textContent = 'おつかれさま！ 感想の画面へ'; });
+    scr.addEventListener('ds:start', function(){ note.innerHTML = orig; DS.resetGroup('cont'); });
+  });
+  DS.scene('t12a', function(scr){
+    scr.addEventListener('ds:start', function(){ var w = scr.querySelector('.names'); w.classList.remove('gold'); DS.later(scr, 400, function(){ w.classList.add('gold'); }); });
+  });
+  DS.scene('t12b', function(scr){ scr.querySelector('.names').classList.add('dim'); });
+
+  /* F13：送る */
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-send]'); if(!b) return;
+    b.className = 'btn done'; b.innerHTML = DS.icon('check') + '送りました。ありがとう！';
+  });
+})();
+</script>
+</body>
+</html>

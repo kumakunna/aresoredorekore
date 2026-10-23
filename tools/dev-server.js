@@ -28,4 +28,7 @@ if (process.env.NODE_ENV !== 'production') {
     req.session.userId = user.id;
     res.send('<meta charset="utf-8">dev-login OK: ' + user.username + ' <a href="/">アプリへ</a>');
   });
+  // 指示66-1：新しい見た目の画面を見本データで開く（/v2lab?scene=fes-lobby&n=6 など）。
+  // 見本データと台本は tools/v2-lab/ にあり、public/ には置かない——本番（server.js）には、この道が無い
+  require('./v2-lab/serve').mount(app);
 }

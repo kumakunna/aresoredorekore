@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>入口と部屋 ― 新しい画面案</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@600;700;800;900&family=M+PLUS+1:wght@500;700;800;900&display=swap">
+<link rel="stylesheet" href="assets/ds.css">
+<style>
+.e-hd{padding-left:48px}
+.e-logo{font-weight:900;font-size:50px;line-height:1.02;letter-spacing:-.02em;margin-top:52px}
+.e-big{min-height:76px;justify-content:flex-start;gap:14px;padding-left:18px;text-align:left}
+.e-big span{display:flex;flex-direction:column;align-items:flex-start;gap:1px}
+.e-big small{font-size:13px;font-weight:800;opacity:.8}
+.e-code{display:flex;flex-direction:column;gap:2px}
+.e-code b{font-size:54px;line-height:1.05;letter-spacing:.06em}
+.e-mems{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.e-tv{display:grid;grid-template-columns:600px 1fr;gap:56px;flex:1;min-height:0;padding-right:70px}
+.e-tv .tqr{align-self:start}
+.e-tv .right{display:flex;flex-direction:column;gap:20px;min-width:0}
+</style>
+</head>
+<body>
+<header class="pg-top"><div class="pg-top-in"><div class="pg-row"><a class="pg-logo" href="index.html">あつまれ、あれこれ <small>NEW SCREENS</small></a><div class="pg-ctl" role="group" aria-label="見え方の切り替え"><span>演出</span><span class="seg"><button type="button" data-fxset="normal" aria-pressed="true">普通</button><button type="button" data-fxset="fast" aria-pressed="false">速い</button><button type="button" data-fxset="none" aria-pressed="false">なし</button></span><span>スマホ</span><span class="seg"><button type="button" data-phset="normal" aria-pressed="true">ふつう</button><button type="button" data-phset="small" aria-pressed="false">小さい</button></span><label for="ctl-safe"><input type="checkbox" id="ctl-safe"> TVの安全な枠</label></div></div><nav class="pg-nav" aria-label="ページ"><a href="index.html">目次</a><span class="soon">共通の部品と動き（作成中）</span><a href="entry.html" aria-current="page">入口と部屋</a><a href="select.html">ゲームをえらぶ（3案）</a><a href="festival.html">文化祭の流れ</a><span class="soon">クイズ解除（作成中）</span><span class="soon">クイズ王（作成中）</span><span class="soon">進化じゃんけん（作成中）</span><span class="soon">ロシアンカード（作成中）</span><span class="soon">False or True（作成中）</span><span class="soon">人狼ゲーム（作成中）</span><span class="soon">すごろく（作成中）</span><span class="soon">オークション（作成中）</span><span class="soon">あれそれどれこれ（作成中）</span></nav></div></header>
+<main class="pg-main"><div class="pg-wrap">
+
+<div class="pg-hero">
+  <h1>入口と部屋</h1>
+  <p>アプリを開いてから、部屋に集まって、遊び終わって次へ行くまで。ゲームをえらぶ所は「ゲームをえらぶ（3案）」のページにあります。</p>
+</div>
+
+<section class="scene">
+  <div class="scene-hd"><span class="no">E1</span><h3>入口</h3><div class="tags"><span class="pg-tag guest">みんな</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="開いた時">
+        <div class="scr w-wait noband" data-id="e1">
+          <div class="in" style="gap:12px">
+            <div class="e-logo a-rise" style="--d:.05s">あつまれ、<br>あれこれ</div>
+            <div class="spacer"></div>
+            <button type="button" class="btn pri e-big a-rise" style="--d:.12s"><i class="ic" data-ic="tv"></i><span>部屋をつくる<small>TVやPCに映して遊ぶ</small></span></button>
+            <button type="button" class="btn sec e-big a-rise" style="--d:.18s"><i class="ic" data-ic="door"></i><span>部屋に入る<small>コードかQRで</small></span></button>
+            <button type="button" class="btn lite a-rise" style="--d:.24s"><i class="ic" data-ic="phone"></i>1台で遊ぶ（スマホを回す）</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>えらぶのは3つだけ。友だちに誘われて開いた人は「部屋に入る」を押せばいい</li>
+        <li>ログインと設定は右上の⚙の中へ。入口には出さない</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="scene">
+  <div class="scene-hd"><span class="no">E2</span><h3>部屋に入る</h3><div class="tags"><span class="pg-tag guest">参加者</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="コードを入れる">
+        <div class="scr w-wait noband" data-id="e2a">
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="in">
+            <div class="hd e-hd"><div class="en">Join</div><div class="ttl">部屋に入る</div><div class="arrow"></div></div>
+            <div class="field a-rise" style="--d:.05s"><label>部屋のコード</label><div class="code6"><b>T</b><b>S</b><b>T</b><b>7</b><b>5</b><b class="cur"></b></div><span class="hint">TVの下に出ている6文字</span></div>
+            <button type="button" class="btn lite a-rise" style="--d:.1s"><i class="ic" data-ic="camera"></i>QRを読む</button>
+            <div class="spacer"></div>
+            <button type="button" class="btn" disabled>あと1文字</button>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="名前（QRで来た人はここから）">
+        <div class="scr w-wait noband" data-id="e2b">
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="in">
+            <div class="hd e-hd"><div class="en">Name</div><div class="ttl">名前</div><div class="arrow"></div></div>
+            <div class="field a-rise" style="--d:.05s"><label>TVとみんなのスマホに出る名前</label><div class="inp">くまくん<span class="caret"></span><span class="cnt">4/8</span></div></div>
+            <div class="spacer"></div>
+            <button type="button" class="btn pri">TST754 に入る</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>コードは6文字。押すボタンの字が「あと1文字」→「入る」に変わる</li>
+        <li>QRで来た人はコードを飛ばして、名前から</li>
+        <li>名前は8文字まで（TVの札に入る長さ）。前に使った名前が最初から入っている</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="scene">
+  <div class="scene-hd"><span class="no">E3</span><h3>部屋をつくった時（スマホとTV）</h3><div class="tags"><span class="pg-tag host">進行役</span><span class="pg-tag tvt">TV</span><span class="pg-tag">scr-rt-big</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="進行役のスマホ">
+        <div class="scr w-wait" data-id="e3">
+          <div class="in">
+            <div class="hd"><div class="en">Room</div><div class="ttl">部屋ができた</div><div class="arrow"></div></div>
+            <div class="card e-code a-rise" style="--d:.05s"><span class="lbl">部屋のコード</span><b class="big-en">TST754</b></div>
+            <button type="button" class="btn lite a-rise" style="--d:.1s"><i class="ic" data-ic="tv"></i>TVに映す</button>
+            <div class="col scroll grow" style="gap:8px">
+              <span class="lbl">入った人 6人</span>
+              <div class="e-mems">
+                <div class="mem"><span class="av">🙂</span><span class="nm">ふう</span><span class="st">進行役</span></div>
+                <div class="mem"><span class="av">🌙</span><span class="nm">ひろ</span></div>
+                <div class="mem"><span class="av">🐺</span><span class="nm">びび</span></div>
+                <div class="mem"><span class="av">🎈</span><span class="nm">ちか</span></div>
+                <div class="mem"><span class="av">💣</span><span class="nm">でん</span></div>
+                <div class="mem a-pop" style="--d:.3s"><span class="av">🐻</span><span class="nm">くまくん</span></div>
+              </div>
+            </div>
+            <button type="button" class="btn pri">ゲームをえらぶ</button>
+          </div>
+          <div class="band"><div class="what"><span class="lab">待合</span><span class="msg">6人 入っています</span></div></div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV" data-size="lg">
+        <div class="tv w-wait" data-id="te3" data-bg="circles names" data-names="ふう,ひろ,びび,ちか,でん,くまくん">
+          <div class="safe">
+            <div class="e-tv">
+              <div class="tqr"><img src="assets/qr-room.svg" alt="部屋に入るQR"><div class="cap">スマホのカメラで読む</div></div>
+              <div class="right">
+                <div class="thd"><div class="en">Room</div><div class="ttl" style="font-size:96px">QRを読んで 入る</div><div class="arrow"></div></div>
+                <span class="tnote">入った人 6人</span>
+                <div class="tgrid c2">
+                  <div class="tmem sm"><span class="av">🙂</span><span class="nm">ふう</span></div>
+                  <div class="tmem sm"><span class="av">🌙</span><span class="nm">ひろ</span></div>
+                  <div class="tmem sm"><span class="av">🐺</span><span class="nm">びび</span></div>
+                  <div class="tmem sm"><span class="av">🎈</span><span class="nm">ちか</span></div>
+                  <div class="tmem sm"><span class="av">💣</span><span class="nm">でん</span></div>
+                  <div class="tmem sm a-pop" style="--d:.3s"><span class="av">🐻</span><span class="nm">くまくん</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Room</span><span class="num">6<small>/16人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell"><span class="lab">部屋のコード</span><span class="val big-en">TST754</span></div>
+              <div class="slash"></div>
+              <div class="cell" style="flex:1"><span class="lab">進行役</span><span class="val">ふう</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>TVはQRが主役。文化祭の待合と同じで、コードは下の帯に回した</li>
+        <li>だれかが入ると、スマホとTVの両方で札がポンと増える</li>
+        <li>進行役のスマホは「コード」「TVに映す」「ゲームをえらぶ」の3つだけ。人を外す操作は札を長押し</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="scene">
+  <div class="scene-hd"><span class="no">E4</span><h3>参加者の待合</h3><div class="tags"><span class="pg-tag guest">参加者</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="入った後">
+        <div class="scr w-wait" data-id="e4">
+          <div class="in">
+            <div class="hd"><div class="en">Room TST754</div><div class="ttl">入りました</div><div class="arrow"></div></div>
+            <div class="me a-rise" style="--d:.05s"><span class="av lg">🐻</span><div class="col" style="gap:0;min-width:0"><span class="nm">くまくん</span><span class="tt">二つ名なし</span></div></div>
+            <button type="button" class="btn lite a-rise" style="--d:.1s"><i class="ic" data-ic="smile"></i>着替える</button>
+            <span class="lbl">ほかの人</span>
+            <div class="e-mems">
+              <div class="mem"><span class="av">🙂</span><span class="nm">ふう</span><span class="st">進行役</span></div>
+              <div class="mem"><span class="av">🌙</span><span class="nm">ひろ</span></div>
+              <div class="mem"><span class="av">🐺</span><span class="nm">びび</span></div>
+              <div class="mem"><span class="av">🎈</span><span class="nm">ちか</span></div>
+              <div class="mem"><span class="av">💣</span><span class="nm">でん</span></div>
+            </div>
+          </div>
+          <div class="band"><div class="what"><span class="lab">待合</span><span class="msg">進行役がゲームをえらんでいます</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>参加者は待つだけ。自分の札を上に大きく、ほかの人は小さく</li>
+        <li>着替え（アイコン・二つ名）は文化祭のページと同じシート</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="scene">
+  <div class="scene-hd"><span class="no">E5</span><h3>遊び終わった後</h3><div class="tags"><span class="pg-tag host">進行役</span><span class="pg-tag guest">参加者</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="進行役：つぎをえらぶ">
+        <div class="scr w-wait" data-id="e5a">
+          <div class="in">
+            <div class="hd"><div class="en">Next</div><div class="ttl">つぎは？</div><div class="arrow"></div></div>
+            <div class="card flat a-rise" style="--d:.05s"><span class="lbl">さっきのゲーム</span><div class="row" style="margin-top:4px"><span class="tile w-quiz" style="width:44px;height:44px"><i class="emb" data-emb="quiz"></i></span><b style="font-weight:900;font-size:17px">クイズラッシュ</b><span class="pill soft" style="margin-left:auto">6人・8分</span></div></div>
+            <div class="spacer"></div>
+            <button type="button" class="btn pri a-rise" style="--d:.1s"><i class="ic" data-ic="refresh"></i>もう一回</button>
+            <button type="button" class="btn sec a-rise" style="--d:.14s"><i class="ic" data-ic="grid"></i>ほかのゲームにする</button>
+            <button type="button" class="btn lite a-rise" style="--d:.18s"><i class="ic" data-ic="door"></i>部屋をとじる</button>
+          </div>
+          <div class="band"><div class="what"><span class="lab">待合</span><span class="msg">6人が待っています</span></div></div>
+        </div>
+      </div>
+      <div class="frame" data-cap="参加者：結果を見ながら待つ">
+        <div class="scr w-wait" data-id="e5b">
+          <div class="in">
+            <div class="hd"><div class="en">Result</div><div class="ttl">クイズラッシュ</div><div class="arrow"></div></div>
+            <div class="rank">
+              <div class="rk g1 a-rise" style="--d:.05s"><span class="p">1</span><span class="av">🌙</span><span class="nm">ひろ</span><span class="v">14</span></div>
+              <div class="rk g2 a-rise" style="--d:.09s"><span class="p">2</span><span class="av">🙂</span><span class="nm">ふう</span><span class="v">11</span></div>
+              <div class="rk g3 mine a-rise" style="--d:.13s"><span class="p">3</span><span class="av">🐻</span><span class="nm">くまくん</span><span class="v">9</span></div>
+              <div class="rk a-rise" style="--d:.17s"><span class="p">4</span><span class="av">🐺</span><span class="nm">びび</span><span class="v">7</span></div>
+              <div class="rk a-rise" style="--d:.21s"><span class="p">5</span><span class="av">🎈</span><span class="nm">ちか</span><span class="v">6</span></div>
+              <div class="rk a-rise" style="--d:.25s"><span class="p">6</span><span class="av">💣</span><span class="nm">でん</span><span class="v">4</span></div>
+            </div>
+          </div>
+          <div class="band"><div class="what"><span class="lab">待合</span><span class="msg">進行役が つぎを えらんでいます</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>つぎを決めるのは進行役だけ。「もう一回」は同じ設定ですぐ始まる</li>
+        <li>参加者は結果を見たまま待つ。自分の行だけ色が反転</li>
+        <li>「部屋をとじる」は押した後に確認を出す（全員が外に出るので）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</div></main>
+<footer class="pg-main" style="padding-block:8px 40px"><div class="pg-wrap" style="font-size:12px;color:var(--pg-soft);gap:4px"><div>画面の中の絵文字は Twemoji（© Twitter, Inc and other contributors / CC-BY 4.0）。書体は M PLUS 1・League Spartan（どちらも SIL Open Font License）。</div><div>この案は見本です。名前・数字・お題は例で、本物の記録ではありません。</div></div></footer>
+<script src="assets/twlist.js"></script>
+<script src="assets/ds.js"></script>
+</body>
+</html>

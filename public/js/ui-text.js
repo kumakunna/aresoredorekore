@@ -703,8 +703,44 @@
     }
   };
 
+  /**
+   * 指示66：新しい見た目（v2）の部品が出す字。
+   * 部品（public/js/v2-kit.js）は字を持たず、ここを読む（画面ごとに言い換えない）
+   */
+  var V2 = {
+    のこり: 'のこり',
+    秒: '秒',
+    人: '人',
+    いる人: 'いる人',
+    設定: '設定',
+    あなた: 'YOU',
+    くわしく: 'くわしく見る'
+  };
+
+  /**
+   * 指示66：文化祭の流れ（投票ループ）の画面の字。
+   * 66-1 では「待合」（見本 F3）だけ。字は見本の画面をそのまま写した
+   */
+  var FES = {
+    待合: {
+      見出し: '参加者を待っています…',
+      着替え: 'アイコン・二つ名をかえる',
+      いる人: 'いま部屋にいる人',
+      候補: '次の投票の候補',
+      長押し: 'ルールは長押し',
+      次は: '次は…',
+      投票: 'ゲームを投票',
+      TVを見て: 'TVを見て！',
+      光る: '名前が金色に光っています',
+      自分: '自分',
+      さっき: 'さっき入った',
+      コード: '部屋のコード',
+      QR: '部屋に入るQRコード'
+    }
+  };
+
   return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET,
            TITLES: TITLES, TIMER: TIMER, BOMB: BOMB, TUTORIAL: TUTORIAL, LEAVE: LEAVE,
            WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC, TIERS: TIERS, PAUSE: PAUSE,
-           AUTH: AUTH };
+           AUTH: AUTH, V2: V2, FES: FES };
 }));

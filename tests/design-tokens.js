@@ -772,5 +772,139 @@ const PAIRS = [
     win.close();
   });
 
+  // ================= 指示66-1：新しい見た目（v2）の世界の色 =================
+  // **古い世界の色（上の検査たち）はそのまま残す。**古い画面がまだあるあいだ、それを見張る。
+  // 新しい世界の色は「上が明るく、下が暗いグラデーション」なので、1色ではなく**3か所**で測る：
+  // 上（--wt）・下（--wb）・まん中（CSS の線形グラデーションの既定＝sRGB の各成分の平均）。
+  // 線（しきい値）は**数字で書く**——実装の定数を読むと、緩めた日に検査も一緒に緩む（落とし穴10-a）
+  const { hex2lab, deltaE2000: dE } = require('../tools/color-diff');
+  /** `.v2-w-◯◯{--wt:…;--wb:…;--wi:…;--ws:…;--wa:…;--won:…}` を CSS から読む（コメントは落としてある） */
+  function v2世界(css) {
+    const out = {};
+    for (const m of css.matchAll(/\.v2-w-([a-z0-9_-]+)\s*\{([^{}]*)\}/g)) {
+      const o = {};
+      for (const t of m[2].matchAll(/--(wt|wb|wi|ws|wa|won)\s*:\s*(#[0-9A-Fa-f]{6})/g)) o[t[1]] = t[2].toUpperCase();
+      if (o.wt) out[m[1]] = o;   // 地を持つ行だけ（明暗の作り分けの行は --wt を持たない）
+    }
+    return out;
+  }
+  function まん中(a, b) {
+    const x = toRgb(a), y = toRgb(b);
+    return '#' + x.map((v, i) => Math.round((v + y[i]) / 2).toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+  /** 3か所の地（上・まん中・下） */
+  function 三か所(w) { return { 上: w.wt, まん中: まん中(w.wt, w.wb), 下: w.wb }; }
+  /** 色の決まりを1つの表に当てて、外れたものを返す（本物の表にも、わざと壊した表にも同じ物差しを当てる） */
+  function v2の色の外れ(W) {
+    const bad = [];
+    const 名 = Object.keys(W);
+    for (let i = 0; i < 名.length; i++) {
+      for (let j = i + 1; j < 名.length; j++) {
+        const A = 三か所(W[名[i]]), B = 三か所(W[名[j]]);
+        ['上', 'まん中', '下'].forEach((k) => {
+          const d = dE(hex2lab(A[k]), hex2lab(B[k]));
+          if (d < 10.8) bad.push(名[i] + '×' + 名[j] + '（' + k + '）ΔE2000 ' + d.toFixed(2) + ' < 10.8');
+        });
+      }
+    }
+    名.forEach((n) => {
+      const 地 = 三か所(W[n]);
+      ['上', 'まん中', '下'].forEach((k) => {
+        const 字 = contrast(toRgb(W[n].wi), toRgb(地[k]));
+        const 薄 = contrast(toRgb(W[n].ws), toRgb(地[k]));
+        if (字 < 7.8) bad.push(n + '（' + k + '）字が ' + 字 + ' < 7.8');
+        if (薄 < 6.7) bad.push(n + '（' + k + '）薄い字が ' + 薄 + ' < 6.7');
+      });
+    });
+    return bad;
+  }
+  const V2W = v2世界(CSS_ONLY);
+
+  await r.test('ΔE2000 の計算が、Sharma らの検証データで正しい値を返す（指示66-1・落とし穴19）', async () => {
+    // 新しい世界の色の門（どの2つも ΔE2000 ≥ 10.8）は、この計算を信じて引く。
+    // CLAUDE.md は「Sharma らの検証データ9件で先に検算してある」と書いていたが、
+    // **その検算はリポジトリのどこにも残っていなかった**（指示66-1 の着手前に見つけた）。
+    // 公表された組（Sharma, Wu, Dalal 2005 の表）を、ここで毎回当てる
+    const 組 = [
+      [[50.0000, 2.6772, -79.7751], [50.0000, 0.0000, -82.7485], 2.0425],
+      [[50.0000, 3.1571, -77.2803], [50.0000, 0.0000, -82.7485], 2.8615],
+      [[50.0000, 2.8361, -74.0200], [50.0000, 0.0000, -82.7485], 3.4412],
+      [[50.0000, -1.3802, -84.2814], [50.0000, 0.0000, -82.7485], 1.0000],
+      [[50.0000, 0.0000, 0.0000], [50.0000, -1.0000, 2.0000], 2.3669],
+      [[50.0000, 2.5000, 0.0000], [73.0000, 25.0000, -18.0000], 27.1492],
+      [[60.2574, -34.0099, 36.2677], [60.4626, -34.1751, 39.4387], 1.2644]
+    ];
+    組.forEach((x, i) => {
+      const d = dE(x[0], x[1]);
+      assert(Math.abs(d - x[2]) < 0.0001, '組' + (i + 1) + '：' + x[2] + ' のはず（実際 ' + d.toFixed(4) + '）');
+      assert(Math.abs(dE(x[1], x[0]) - x[2]) < 0.0001, '組' + (i + 1) + '：向きを入れ替えても同じ');
+    });
+  });
+
+  await r.test('新しい世界の色は10あり、名前は「今の世界＋待合」と両方向で合う（指示66-1）', async () => {
+    const 名 = Object.keys(V2W).sort();
+    // **数を先に主張する**（型b）。0件なら「全部離れている」は自明に成立する
+    assertEqual(名.length, 10, '新しい世界の色が10ある（実際:' + 名.join('・') + '）');
+    const 期待 = THEME_NAMES.concat(['wait']).sort();
+    assertEqual(名.join('・'), 期待.join('・'),
+      '新しい世界の名前が、今のカセットの世界（.app.theme-◯◯）と待合（wait）にちょうど一致する');
+    名.forEach((n) => ['wt', 'wb', 'wi', 'ws', 'wa', 'won'].forEach((k) =>
+      assert(V2W[n][k], n + '：--' + k + ' を持っている')));
+  });
+
+  await r.test('新しい世界の色：どの2つも ΔE2000 ≥ 10.8、字 7.8・薄い字 6.7 以上（上・まん中・下）（指示66-1）', async () => {
+    const 名 = Object.keys(V2W);
+    assertEqual(名.length, 10, '10の世界を読めている');   // 型(b)
+    let 組 = 0;
+    for (let i = 0; i < 名.length; i++) for (let j = i + 1; j < 名.length; j++) 組++;
+    assertEqual(組 * 3, 135, '45組×3か所＝135を測る');
+    assertEqual(v2の色の外れ(V2W).join('\n       '), '', '新しい世界の色の決まりから外れている');
+  });
+
+  await r.test('新しい世界の色：主ボタンの字と、5秒以下の札の白い数字が読める（指示66-1）', async () => {
+    // 明るい世界の主ボタン＝地が字の色（wi）・字が反転色（won）。暗い世界＝地が強調（wa）・字が #141414
+    const 明るい = ['wait', 'aresore', 'sugoroku', 'shinka'];
+    const bad = [];
+    Object.keys(V2W).forEach((n) => {
+      const w = V2W[n];
+      const 比 = 明るい.indexOf(n) >= 0 ? contrast(toRgb(w.won), toRgb(w.wi)) : contrast(toRgb('#141414'), toRgb(w.wa));
+      if (比 < 4.5) bad.push(n + '：主ボタンの字が ' + 比 + ' < 4.5');
+    });
+    assertEqual(bad.join('\n       '), '', '主ボタンで読めない世界');
+    const 赤 = /--v2-red\s*:\s*(#[0-9A-Fa-f]{6})/.exec(CSS_ONLY);
+    assert(赤, '5秒以下の札の赤（--v2-red）が宣言されている');
+    assert(contrast(toRgb('#FFFFFF'), toRgb(赤[1])) >= 4.5, '赤い札の白い数字が 4.5 以上（' + contrast(toRgb('#FFFFFF'), toRgb(赤[1])) + '）');
+  });
+
+  await r.test('新しい世界の色：この検査が、わざと近づけた色で本当に赤くなる（落とし穴10）', async () => {
+    // 検体はその場で組み立てる（実データを名指しで壊さない・落とし穴10-d）
+    const 名 = Object.keys(V2W);
+    assert(名.length === 10, '本物の表が読めている');
+    const 近い = JSON.parse(JSON.stringify(V2W));
+    近い[名[1]].wt = 近い[名[0]].wt; 近い[名[1]].wb = 近い[名[0]].wb;   // 2つの世界を同じ地にする
+    assert(v2の色の外れ(近い).some((s) => s.indexOf('ΔE2000') >= 0), '同じ地の2つの世界を、ΔE で捕まえる');
+    const 薄い = JSON.parse(JSON.stringify(V2W));
+    薄い[名[2]].ws = 薄い[名[2]].wt;                                     // 薄い字を地と同じにする
+    assert(v2の色の外れ(薄い).some((s) => s.indexOf('薄い字') >= 0), '読めない薄い字を捕まえる');
+  });
+
+  await r.test('正本の「新しい世界の色」の表と、実装が一致する（両方向・指示66-1）', async () => {
+    // 正本 1-2 の行は `| 🟡 待合 \`v2-w-wait\` | \`#上\` | \`#下\` | \`#字\` | \`#薄い字\` | … |` の形。
+    // 古い表（`theme-◯◯`）とは名前の形で分かれるので、上の古い検査とは混ざらない
+    const md = fs.readFileSync(path.join(__dirname, '..', 'docs', 'デザインの正本.md'), 'utf8');
+    const 行 = Array.from(md.matchAll(
+      /^\|[^|]*`v2-w-([a-z]+)`[^|]*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|/gm
+    )).map((m) => ({ 名: m[1], wt: m[2], wb: m[3], wi: m[4], ws: m[5] }));
+    assertEqual(行.length, 10, '正本に新しい世界の色が10行ある（実際:' + 行.map((x) => x.名).join('・') + '）');
+    const bad = [];
+    行.forEach((x) => {
+      const w = V2W[x.名];
+      if (!w) { bad.push(x.名 + '：正本にあるのに、実装に .v2-w-' + x.名 + ' が無い'); return; }
+      ['wt', 'wb', 'wi', 'ws'].forEach((k) => { if (x[k].toUpperCase() !== w[k]) bad.push(x.名 + '：--' + k + ' が 正本=' + x[k] + ' / 実装=' + w[k]); });
+    });
+    Object.keys(V2W).forEach((n) => { if (!行.some((x) => x.名 === n)) bad.push(n + '：実装にあるのに、正本に行が無い'); });
+    assertEqual(bad.join('\n       '), '', '正本と実装が食い違っている');
+  });
+
   r.finish();
 })();

@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ゲームをえらぶ ― 新しい画面案</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@600;700;800;900&family=M+PLUS+1:wght@500;700;800;900&display=swap">
+<link rel="stylesheet" href="assets/ds.css">
+<style>
+/* ===== このページだけの部品（sl-） ===== */
+.sl-hd{padding-left:48px}
+.sl-ctx{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sl-ctx .pill{font-size:12.5px}
+/* ---- 案A：縦にならぶ札 ---- */
+.sl-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 calc(var(--side-r) * -1) 0 calc(var(--side) * -1);padding:0 var(--side-r) 2px var(--side);flex:none}
+.sl-chips::-webkit-scrollbar{display:none}
+.sl-chips .chip{flex:none;white-space:nowrap}
+.sl-list{display:flex;flex-direction:column;gap:10px;padding-bottom:12px}
+.sl-gl{font-weight:900;font-size:13px;color:var(--ws);margin-top:6px;display:flex;align-items:center;gap:8px}
+.sl-gl::after{content:"";flex:1;height:2px;background:var(--wl2)}
+.sl-card{position:relative;display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;padding:9px 10px;cursor:pointer;color:var(--wi);font-family:var(--jp);
+  transition:transform .15s cubic-bezier(.32,.72,0,1)}
+.sl-card:active{transform:scale(.98)}
+.sl-card .tile{width:62px;height:62px}
+.sl-card .ct{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.sl-card .cn{font-weight:900;font-size:18px;line-height:1.2}
+.sl-card .cb{font-weight:800;font-size:13px;color:var(--ws);line-height:1.35}
+.sl-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+.sl-meta span{display:inline-flex;align-items:center;gap:3px;font-weight:900;font-size:12px;border-radius:999px;padding:0 8px;line-height:1.7;background:var(--wdim)}
+.sl-meta span .ic{width:13px;height:13px}
+.sl-card .go{width:22px;height:22px;flex:none;color:var(--ws)}
+.sl-card.no{background:transparent;border-style:dashed;border-color:var(--wl2)}
+.sl-card.no .tile{filter:saturate(.25);opacity:.55}
+.sl-card.no .cn,.sl-card.no .cb{color:var(--ws)}
+.sl-why{display:inline-flex;align-items:center;gap:4px;font-weight:900;font-size:12.5px;color:var(--wi);background:var(--wc);border:2px solid var(--wl2);border-radius:999px;padding:0 9px;line-height:1.7;margin-top:3px;width:fit-content}
+.sl-why .ic{width:14px;height:14px}
+.sl-soon{display:flex;align-items:center;gap:12px;border:3px dashed var(--wl2);border-radius:18px;padding:9px 10px;color:var(--ws);font-weight:900;font-size:15px}
+.sl-soon .q{width:62px;height:62px;border-radius:22%;border:3px dashed var(--wl2);display:flex;align-items:center;justify-content:center;font-family:var(--en);font-size:30px}
+/* 詳しく（世界の色が丸く広がる） */
+.sl-det{position:absolute;inset:0;z-index:35;background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);clip-path:circle(0% at var(--cx,50%) var(--cy,50%));pointer-events:none;
+  transition:clip-path calc(.25s * var(--fx)) cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column}
+.sl-det.open{clip-path:circle(150% at var(--cx,50%) var(--cy,50%));pointer-events:auto}
+.sl-det .din{position:relative;z-index:3;flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;padding:16px var(--side-r) 22px var(--side)}
+.sl-det .dtop{display:flex;align-items:center;gap:8px}
+.sl-det .dtop .lbl{color:var(--ws)}
+.sl-det .dhead{display:flex;align-items:center;gap:14px}
+.sl-det .dhead .tile{width:92px;height:92px;box-shadow:0 0 0 4px rgba(255,255,255,.85)}
+.sl-det .dn{font-weight:900;font-size:30px;line-height:1.15}
+.sl-det .dg{font-weight:800;font-size:13px;color:var(--ws);margin-top:2px}
+.sl-det .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sl-det .facts div:nth-child(3),.sl-sheet .facts div:nth-child(3){grid-column:1/-1}
+.sl-det .facts div{background:var(--wc);border-radius:14px;padding:7px 10px}
+.sl-det .facts .lbl{font-size:12px;color:var(--ws)}
+.sl-det .facts b{display:block;font-weight:900;font-size:15px;line-height:1.3}
+.sl-paused{display:flex;gap:8px;align-items:flex-start;font-weight:800;font-size:13px;line-height:1.5;color:var(--ws);background:var(--wc);border:2px dashed var(--wl2);border-radius:14px;padding:8px 10px}
+.sl-paused .ic{width:18px;height:18px;flex:none;margin-top:1px}
+.play .sl-det.open .a-in{animation:riseIn calc(.25s * var(--fx)) cubic-bezier(.32,.72,0,1) both;animation-delay:calc(var(--d,.15s) * var(--fx))}
+
+/* ---- 案B：1本ずつ大きく（横に送る） ---- */
+.sl-pager{position:absolute;inset:0;overflow:hidden;touch-action:pan-y;cursor:grab}
+.sl-track{position:absolute;top:0;bottom:0;left:0;display:flex;will-change:transform}
+.sl-track.anim{transition:transform calc(.25s * var(--fx)) cubic-bezier(.32,.72,0,1)}
+.sl-page{position:relative;width:var(--ph-w);height:100%;flex:none;background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);overflow:hidden}
+.sl-page .pin{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;padding:78px var(--side-r) 172px var(--side);gap:12px;text-align:center}
+.sl-page .tile{width:150px;height:150px;box-shadow:0 0 0 5px rgba(255,255,255,.85);margin-top:4px}
+.sl-page .pn{font-weight:900;font-size:32px;line-height:1.15}
+.sl-page .pb{font-weight:800;font-size:15px;color:var(--ws)}
+.sl-page .rules{width:100%;text-align:left;margin-top:2px}
+.sl-page .rule{font-size:15.5px;padding:9px 12px;text-wrap:balance}
+.sl-page .sl-meta{justify-content:center}
+.sl-page.cur .tile{animation:popIn calc(.25s * var(--fx)) cubic-bezier(.2,1.6,.4,1)}
+.sl-page .why{margin-top:auto}
+.sl-bot{position:absolute;left:0;right:0;bottom:0;z-index:20;padding:10px var(--side-r) 18px var(--side);display:flex;flex-direction:column;gap:10px;
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,.18) 40%,rgba(0,0,0,.28));}
+.w-wait .sl-bot,.w-aresore .sl-bot,.w-sugoroku .sl-bot,.w-shinka .sl-bot{background:linear-gradient(180deg,transparent,rgba(255,255,255,.35) 40%,rgba(255,255,255,.55))}
+.sl-dots{display:flex;align-items:center;justify-content:center;gap:6px}
+.sl-dots i{width:8px;height:8px;border-radius:4px;background:currentColor;opacity:.35;transition:width calc(.25s * var(--fx)),opacity calc(.25s * var(--fx))}
+.sl-dots i.on{width:22px;opacity:1}
+.sl-dots i.no{background:none;box-shadow:inset 0 0 0 2px currentColor;opacity:.5}
+.sl-dots i.no.on{opacity:1}
+.sl-gname{text-align:center;font-weight:900;font-size:13px}
+.sl-edge{position:absolute;top:126px;z-index:21;width:40px;height:56px;border:0;border-radius:14px;background:rgba(0,0,0,.18);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sl-edge .ic{width:22px;height:22px}
+.sl-edge.l{left:6px}.sl-edge.r{right:12px}
+.sl-edge.l .ic{transform:rotate(180deg)}
+.w-wait .sl-edge,.w-aresore .sl-edge,.w-sugoroku .sl-edge,.w-shinka .sl-edge{background:rgba(0,0,0,.12);color:var(--wi)}
+.sl-tiles3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sl-mini{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;cursor:pointer;font-family:var(--jp);color:#141414;padding:0}
+.sl-mini .tile{width:100%;height:auto;aspect-ratio:1}
+.sl-mini b{font-weight:900;font-size:12.5px;line-height:1.25;text-align:center}
+.sl-mini.cur .tile{box-shadow:0 0 0 4px #141414}
+.sl-mini.no .tile{filter:saturate(.2);opacity:.5}
+
+/* ---- 案C：タイルの棚 ---- */
+.sl-filter{display:flex;align-items:center;gap:10px;background:var(--wc);border-radius:14px;padding:7px 10px;cursor:pointer;border:0;color:var(--wi);font-family:var(--jp);width:100%;text-align:left}
+.sl-filter b{font-weight:900;font-size:15px;flex:1}
+.sl-filter small{display:block;font-weight:800;font-size:12px;color:var(--ws)}
+.sl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding-bottom:12px}
+.sl-tile{position:relative;display:flex;flex-direction:column;justify-content:flex-end;aspect-ratio:1/1.08;border-radius:20px;overflow:hidden;cursor:pointer;border:0;padding:0;font-family:var(--jp);text-align:left;
+  background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);box-shadow:inset 0 0 0 2px rgba(255,255,255,.18),0 4px 0 rgba(0,0,0,.12);transition:transform .15s cubic-bezier(.32,.72,0,1),opacity calc(.25s * var(--fx))}
+.sl-tile:active{transform:scale(.97)}
+.sl-tile .emb{position:absolute;left:50%;top:44%;width:56%;height:56%;transform:translate(-50%,-50%)}
+.sl-tile .emb img{width:100%}
+.sl-tile .tn{position:relative;z-index:2;padding:0 10px 9px;font-weight:900;font-size:16px;line-height:1.2}
+.sl-tile .tm{position:relative;z-index:2;padding:0 10px 9px;margin-top:-6px;font-weight:800;font-size:12px;color:var(--ws)}
+.sl-tile .bad{position:absolute;top:8px;left:8px;right:8px;z-index:3;display:flex;align-items:center;gap:4px;justify-content:center;background:rgba(255,255,255,.92);color:#141414;border-radius:999px;font-weight:900;font-size:12px;line-height:1.8}
+.sl-tile .bad .ic{width:13px;height:13px}
+.sl-tile.no .emb{opacity:.35;filter:grayscale(.6)}
+.sl-tile.no{box-shadow:inset 0 0 0 2px rgba(255,255,255,.18)}
+.sl-tile.gone{display:none}
+.sl-tile.soon{background:transparent;box-shadow:inset 0 0 0 3px var(--wl2);color:var(--ws)}
+.sl-tile.soon .q{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-family:var(--en);font-weight:900;font-size:56px;color:var(--ws)}
+.play .sl-tile.sl-in{animation:popIn calc(.25s * var(--fx)) cubic-bezier(.2,1.6,.4,1) both;animation-delay:calc(var(--d,0s) * var(--fx))}
+
+/* 詳しいシート（案C） */
+.sl-sheet .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sl-sheet .facts div{background:#F3F3F1;border-radius:14px;padding:7px 10px}
+.sl-sheet .facts .lbl{font-size:12px;color:#555}
+.sl-sheet .facts b{display:block;font-weight:900;font-size:15px;line-height:1.3;color:#141414}
+.sl-sheet .rules .rule{background:#F3F3F1;color:#141414}
+.sl-sheet .rules .rule .k{color:#555}
+.sl-sheet .rules .rule .ri{background:#fff;color:#141414}
+
+/* えらんだ後 */
+.sl-gm{display:flex;flex-direction:column;gap:10px}
+
+/* ---- TV ---- */
+.sl-tA{display:grid;grid-template-columns:1.25fr 1fr;gap:34px;flex:1;min-height:0;padding-bottom:20px}
+.sl-look{display:flex;flex-direction:column;gap:16px;border-radius:34px;padding:22px 30px;background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);box-shadow:0 0 0 6px rgba(0,0,0,.08);min-width:0}
+.sl-look .lh{display:flex;align-items:center;gap:24px}
+.sl-look .tile{width:124px;height:124px;box-shadow:0 0 0 6px rgba(255,255,255,.85);flex:none}
+.sl-look .ln{font-weight:900;font-size:76px;line-height:1.05;white-space:nowrap}
+.sl-look .lb{font-weight:800;font-size:42px;color:var(--ws);margin-top:2px}
+.sl-look .trules{grid-template-columns:1fr;gap:10px}
+.sl-look .trule{font-size:44px;padding:6px 16px}
+.sl-look .trule .ri{width:60px;height:60px}
+.sl-look .trule .ri .ic{width:34px;height:34px}
+.sl-wait{display:flex;flex-direction:column;gap:18px;min-width:0}
+.sl-tvB{position:absolute;inset:54px 96px;z-index:3;display:flex;flex-direction:column;gap:26px}
+.sl-tvB .mid{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr;gap:56px;align-items:center;padding-right:70px}
+.sl-tvB .tile{width:380px;height:380px;box-shadow:0 0 0 10px rgba(255,255,255,.88)}
+.sl-tvB .bn{font-weight:900;font-size:140px;line-height:1.02}
+.sl-tvB .bb{font-weight:800;font-size:52px;color:var(--ws);margin:10px 0 26px}
+.sl-tvB .trules{grid-template-columns:1fr;gap:16px}
+.sl-tvB .trule{font-size:48px;padding:12px 22px;background:var(--wc)}
+.sl-tvB .trule .ri{width:72px;height:72px}
+.sl-tvB .trule .ri .ic{width:42px;height:42px}
+.sl-tdots{display:flex;gap:14px;align-items:center}
+.sl-tdots i{width:22px;height:22px;border-radius:11px;background:currentColor;opacity:.32}
+.sl-tdots i.on{width:64px;opacity:1}
+.sl-tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px 26px;flex:1;min-height:0;align-content:center}
+.sl-tt{position:relative;display:flex;align-items:center;gap:24px;border-radius:30px;padding:16px 22px;background:var(--wc);border:5px solid transparent;min-width:0;transition:opacity calc(.25s * var(--fx)),transform calc(.25s * var(--fx)) cubic-bezier(.32,.72,0,1)}
+.sl-tt .tile{width:112px;height:112px;flex:none}
+.sl-tt .tt{display:flex;flex-direction:column;min-width:0;gap:4px}
+.sl-tt b{font-weight:900;font-size:46px;line-height:1.12;white-space:nowrap}
+.sl-tt small{font-weight:800;font-size:42px;line-height:1.15;color:var(--ws);white-space:nowrap}
+.sl-tt.cur{border-color:var(--wi);background:var(--wc2);box-shadow:0 10px 0 rgba(0,0,0,.12);transform:scale(1.04)}
+.sl-tt .tpill{position:absolute;right:18px;top:-30px;font-size:42px;padding:0 22px;background:var(--wi);color:var(--won)}
+.sl-tt.no{opacity:.45}
+
+.sl-tvwipe{position:absolute;inset:0;z-index:5;background:linear-gradient(180deg,var(--wt),var(--wb));animation:tvwipe calc(.25s * var(--fx)) cubic-bezier(.32,.72,0,1) both}
+.sl-tvwipe.back{animation-name:tvwipeB}
+@keyframes tvwipe{from{clip-path:inset(0 0 0 100%)}to{clip-path:inset(0 0 0 0)}}
+@keyframes tvwipeB{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+
+/* 決めた時 */
+.sl-dec{position:absolute;inset:0;z-index:30;background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 var(--side-r) 0 var(--side)}
+.sl-dec>*:not(.bg){position:relative;z-index:2}
+.sl-dec .en{font-family:var(--en);font-weight:800;font-size:15px;letter-spacing:.14em}
+.sl-dec .tile{width:168px;height:168px;box-shadow:0 0 0 6px rgba(255,255,255,.85)}
+.sl-dec .dn{font-weight:900;font-size:34px;line-height:1.15}
+.sl-dec .ln{width:70%;height:4px;background:currentColor;transform-origin:0 50%}
+.sl-dec .by{font-weight:800;font-size:15px;color:var(--ws)}
+.sl-dec .nx{position:absolute;left:var(--side);right:var(--side-r);bottom:28px;display:flex;flex-direction:column;gap:10px;align-items:center;font-weight:900;font-size:14px;color:var(--ws)}
+.sl-dec .nx .syncbar{width:100%}
+.sl-fill i{transform:scaleX(1);transform-origin:0 50%}
+.play .sl-fill i{animation:slFill 1.5s linear both}
+@keyframes slFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.tv .sl-dec{padding:54px 96px;gap:24px}
+.tv .sl-dec .en{font-size:60px}
+.tv .sl-dec .tile{width:300px;height:300px;box-shadow:0 0 0 10px rgba(255,255,255,.88)}
+.tv .sl-dec .dn{font-size:150px;line-height:1.05}
+.tv .sl-dec .ln{width:52%;height:8px}
+.tv .sl-dec .by{font-size:52px}
+
+/* ---- 決まった形：一覧 → 1本ずつのページ ---- */
+.sl-ov{position:absolute;inset:0;z-index:35;clip-path:circle(0% at var(--cx,50%) var(--cy,50%));pointer-events:none;
+  transition:clip-path calc(.25s * var(--fx)) cubic-bezier(.32,.72,0,1)}
+.sl-ov.open{clip-path:circle(150% at var(--cx,50%) var(--cy,50%));pointer-events:auto}
+.sl-ov .sl-bot{background:linear-gradient(180deg,transparent,rgba(0,0,0,.18) 40%,rgba(0,0,0,.28))}
+.sl-ov.w-aresore .sl-bot,.sl-ov.w-sugoroku .sl-bot,.sl-ov.w-shinka .sl-bot{background:linear-gradient(180deg,transparent,rgba(255,255,255,.35) 40%,rgba(255,255,255,.55))}
+.sl-ov .sl-edge{background:rgba(0,0,0,.2);color:#fff}
+.sl-ov.w-aresore .sl-edge,.sl-ov.w-sugoroku .sl-edge,.sl-ov.w-shinka .sl-edge{background:rgba(0,0,0,.12);color:var(--wi)}
+.sl-wtv{display:grid;grid-template-columns:600px 1fr;gap:56px;flex:1;min-height:0;padding-right:70px;padding-bottom:20px}
+.sl-wtv .tqr{align-self:start}
+.sl-wtv .right{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+/* 比べる表 */
+.sl-cmp td b{font-weight:900}
+.sl-cmp .best{color:var(--pg-good);font-weight:900}
+</style>
+</head>
+<body>
+<header class="pg-top"><div class="pg-top-in"><div class="pg-row"><a class="pg-logo" href="index.html">あつまれ、あれこれ <small>NEW SCREENS</small></a><div class="pg-ctl" role="group" aria-label="見え方の切り替え"><span>演出</span><span class="seg"><button type="button" data-fxset="normal" aria-pressed="true">普通</button><button type="button" data-fxset="fast" aria-pressed="false">速い</button><button type="button" data-fxset="none" aria-pressed="false">なし</button></span><span>スマホ</span><span class="seg"><button type="button" data-phset="normal" aria-pressed="true">ふつう</button><button type="button" data-phset="small" aria-pressed="false">小さい</button></span><label for="ctl-safe"><input type="checkbox" id="ctl-safe"> TVの安全な枠</label></div></div><nav class="pg-nav" aria-label="ページ"><a href="index.html">目次</a><span class="soon">共通の部品と動き（作成中）</span><a href="entry.html">入口と部屋</a><a href="select.html" aria-current="page">ゲームをえらぶ（3案）</a><a href="festival.html">文化祭の流れ</a><span class="soon">クイズ解除（作成中）</span><span class="soon">クイズ王（作成中）</span><span class="soon">進化じゃんけん（作成中）</span><span class="soon">ロシアンカード（作成中）</span><span class="soon">False or True（作成中）</span><span class="soon">人狼ゲーム（作成中）</span><span class="soon">すごろく（作成中）</span><span class="soon">オークション（作成中）</span><span class="soon">あれそれどれこれ（作成中）</span></nav></div></header>
+<main class="pg-main"><div class="pg-wrap">
+
+<div class="pg-hero">
+  <h1>ゲームをえらぶ画面</h1>
+  <p>決まった形は、案Aの一覧から、案Bの「1本ずつのページ」に入る形です。TVは選んでいる間は変えません（QRと名前のまま）。決めた時に、スマホもTVもそのゲームの色に変わります。どれも同じ部屋・10人の場面です。下に、検討した3案も残しています。</p>
+</div>
+
+<section class="scene" id="final">
+  <div class="scene-hd"><span class="no">決定</span><h3>一覧 → 1本ずつのページ（A＋B）</h3><div class="tags"><span class="pg-tag host">進行役</span><span class="pg-tag tvt">TV</span><span class="pg-tag new">決まった形</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="進行役のスマホ（押す・指で送る・‹で一覧）">
+        <div class="scr w-wait" data-id="sm1" data-nogear>
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="in" style="gap:10px">
+            <div class="hd sl-hd"><div class="en">Games</div><div class="ttl">ゲームをえらぶ</div><div class="arrow"></div></div>
+            <div class="sl-ctx"><span class="pill soft">部屋 TST754</span><span class="pill soft">いま10人</span></div>
+            <div class="sl-chips" data-picks data-mchips>
+              <button type="button" class="chip on" data-pick="all">ぜんぶ</button>
+              <button type="button" class="chip" data-pick="brain">あたまをつかう</button>
+              <button type="button" class="chip" data-pick="deal">かけひき</button>
+              <button type="button" class="chip" data-pick="hide">正体をさぐる</button>
+              <button type="button" class="chip" data-pick="word">ことば</button>
+            </div>
+            <div class="sl-list scroll grow" data-mlist></div>
+          </div>
+          <div class="band"><div class="what"><span class="lab">待合</span><span class="msg">10人が待っています</span></div><span class="end faces"><span class="av sm">🙂</span><span class="av sm">🌙</span><span class="av sm">🐺</span><span class="more">+7</span></span></div>
+          <div class="sl-ov" data-mov>
+            <div class="sl-pager" data-mpager data-offok><div class="sl-track" data-mtrack></div></div>
+            <div class="corner l" style="z-index:22"><button type="button" class="cbtn" aria-label="一覧へ" data-mback><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+            <button type="button" class="sl-edge l" data-mprev aria-label="前のゲーム"><i class="ic" data-ic="chev"></i></button>
+            <button type="button" class="sl-edge r" data-mnext aria-label="次のゲーム"><i class="ic" data-ic="chev"></i></button>
+            <div class="sl-bot"><div class="sl-gname" data-mgname></div><div class="sl-dots" data-mdots></div><button type="button" class="btn pri" data-mcta>このゲームにする</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（選んでいる間は変わらない）" data-size="lg">
+        <div class="tv w-wait" data-id="tm1" data-bg="circles names" data-names="ふう,ひろ,びび,ちか,でん,えみ,くまくん,あき,りん,けん">
+          <div class="safe">
+            <div class="sl-wtv">
+              <div class="tqr"><img src="assets/qr-room.svg" alt="部屋に入るQR"><div class="cap">スマホのカメラで読む</div></div>
+              <div class="right">
+                <div class="thd"><div class="en">Next Game</div><div class="ttl" style="font-size:76px">ゲームを えらんでいます…</div><div class="arrow"></div></div>
+                <span class="tnote">入った人 10人</span>
+                <div class="tgrid c3">
+                  <div class="tmem sm"><span class="av">🙂</span><span class="nm">ふう</span></div><div class="tmem sm"><span class="av">🌙</span><span class="nm">ひろ</span></div><div class="tmem sm"><span class="av">🐺</span><span class="nm">びび</span></div>
+                  <div class="tmem sm"><span class="av">🎈</span><span class="nm">ちか</span></div><div class="tmem sm"><span class="av">💣</span><span class="nm">でん</span></div><div class="tmem sm"><span class="av">🎆</span><span class="nm">えみ</span></div>
+                  <div class="tmem sm"><span class="av">🐻</span><span class="nm">くまくん</span></div><div class="tmem sm"><span class="av">🐉</span><span class="nm">あき</span></div><div class="tmem sm"><span class="av">💰</span><span class="nm">りん</span></div>
+                  <div class="tmem sm"><span class="av">🎭</span><span class="nm">けん</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Room</span><span class="num">10<small>/16人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell"><span class="lab">部屋のコード</span><span class="val big-en">TST754</span></div>
+              <div class="slash"></div>
+              <div class="cell" style="flex:1"><span class="lab">進行役</span><span class="val">ふう</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>一覧で全体を見て、押すとそのゲームのページ。ルール3つは押さなくても見える</li>
+        <li>押した印から、そのゲームの色が丸く広がる（0.25秒）</li>
+        <li>ページは指で左右に送れる。順番は一覧と同じで、遊べないゲームもとばさずに理由を出す</li>
+        <li>‹で一覧へ。一覧は、さっき見ていたゲームの所に戻る</li>
+        <li>TVは選んでいる間は変えない。QRと入った人の名前のままなので、遅れて来た人もいつでも入れる</li>
+        <li>16人の時は、TVの名前の札を少し低くして3列×6段にすれば全員入る</li>
+        <li>決めたら、スマホもTVもそのゲームの色に変わる（下の「S6 決めた時」）</li>
+      </ul>
+      <span class="try">押せる：分類・札（→ ページ → 指で送る・‹ ›・‹で一覧）</span>
+    </div>
+  </div>
+</section>
+
+<section class="pg-sec">
+  <h2>検討した3案（記録）</h2>
+  <div class="pg-table sl-cmp"><table>
+    <tr><th></th><th>案A 縦にならぶ札</th><th>案B 1本ずつ大きく</th><th>案C タイルの棚</th></tr>
+    <tr><td><b>ひと目で見える数</b></td><td>5〜6本</td><td>1本（一覧ボタンで全部）</td><td class="best">6〜8本</td></tr>
+    <tr><td><b>ルールが分かるまで</b></td><td>1回押す</td><td class="best">押さなくても見える</td><td>1回押す</td></tr>
+    <tr><td><b>いまの人数で遊べるか</b></td><td>札に理由が出る</td><td>そのページで理由が出る</td><td class="best">「遊べるものだけ」で絞れる</td></tr>
+    <tr><td><b>TVで待っている人</b></td><td>開いたゲームが映る</td><td class="best">送るたびにTVの色ごと変わる</td><td>開いたタイルが光る</td></tr>
+    <tr><td><b>見た目の強さ（お偉い人）</b></td><td>ふつう（アプリの一覧らしい）</td><td class="best">いちばん強い（ゲーム機のタイトル画面）</td><td>強い（色のタイルが並ぶ）</td></tr>
+    <tr><td><b>カセットが増えた時</b></td><td class="best">増えても読みやすい</td><td>送る回数が増える</td><td class="best">増えても見やすい</td></tr>
+    <tr><td><b>作る手間（めやす）</b></td><td class="best">少ない</td><td>多い（横に送る・TVを合わせる）</td><td>ふつう（絞る動き）</td></tr>
+  </table></div>
+  <div class="pg-box"><h3>決まったこと（10/23）</h3>
+    <p>案Aの一覧から、案Bのページに入る形にしました。TVに「いま見ているゲーム」を映すのはやめました。選んでいる間にQRが消えてしまい、遅れて来た人が入れなくなるためです。</p>
+  </div>
+</section>
+
+<!-- ================= 案A ================= -->
+<section class="scene" id="planA">
+  <div class="scene-hd"><span class="no">案A</span><h3>縦にならぶ札（分類ごと）</h3><div class="tags"><span class="pg-tag host">進行役</span><span class="pg-tag tvt">TV</span><span class="pg-tag">scr-shelf・scr-cassette</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="① 一覧（押すと詳しく）">
+        <div class="scr w-wait" data-id="sa1" data-nogear>
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="in" style="gap:10px">
+            <div class="hd sl-hd"><div class="en">Games</div><div class="ttl">ゲームをえらぶ</div><div class="arrow"></div></div>
+            <div class="sl-ctx"><span class="pill soft">部屋 TST754</span><span class="pill soft">いま10人</span><span class="hint">うすい札は、いまの人数では遊べない</span></div>
+            <div class="sl-chips" data-picks data-achips>
+              <button type="button" class="chip on" data-pick="all">ぜんぶ</button>
+              <button type="button" class="chip" data-pick="brain">あたまをつかう</button>
+              <button type="button" class="chip" data-pick="deal">かけひき</button>
+              <button type="button" class="chip" data-pick="hide">正体をさぐる</button>
+              <button type="button" class="chip" data-pick="word">ことば</button>
+            </div>
+            <div class="sl-list scroll grow" data-alist></div>
+          </div>
+          <div class="band"><div class="what"><span class="lab">待合</span><span class="msg">10人が待っています</span></div><span class="end faces"><span class="av sm">🙂</span><span class="av sm">🌙</span><span class="av sm">🐺</span><span class="more">+7</span></span></div>
+          <div class="sl-det" data-id="adet"></div>
+        </div>
+      </div>
+      <div class="frame" data-cap="② 押した後（世界の色が丸く広がる）" data-noreplay>
+        <div class="scr w-rcard" data-id="sa2" data-nogear data-bg="circles names" data-names="ふう,ひろ,びび,ちか,でん,えみ,くまくん">
+          <div class="sl-det open" style="--cx:20%;--cy:40%" data-static="rcard"></div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（開いたゲームを映す）" data-size="lg">
+        <div class="tv w-wait" data-id="ta" data-bg="circles names" data-names="ふう,ひろ,びび,ちか,でん,えみ,くまくん,あき,りん,けん">
+          <div class="safe">
+            <div class="thd"><div class="en">Next Game</div><div class="ttl" style="font-size:84px">進行役が ゲームを えらんでいます…</div><div class="arrow"></div></div>
+            <div class="sl-tA" style="margin-top:26px">
+              <div class="sl-look w-rcard" data-tlook>
+                <span class="tpill" style="align-self:flex-start;background:var(--wi);color:var(--won)">いま見ているゲーム</span>
+                <div class="lh"><span class="tile w-rcard"><i class="emb" data-emb="rcard"></i></span><div><div class="ln">ロシアンカード</div><div class="lb">しかけ合って、めくり合う</div></div></div>
+                <div class="trules">
+                  <div class="trule"><span class="ri"><i class="ic" data-ic="grid"></i></span>相手の9枚に、爆弾をしかける</div>
+                  <div class="trule"><span class="ri"><i class="ic" data-ic="heart"></i></span>爆弾をめくると、体力がへる</div>
+                  <div class="trule"><span class="ri"><i class="ic" data-ic="trophy"></i></span>3人からは、生き残り戦</div>
+                </div>
+              </div>
+              <div class="sl-wait">
+                <span class="tnote">待っている人 10人</span>
+                <div class="tgrid c2">
+                  <div class="tmem sm"><span class="av">🙂</span><span class="nm">ふう</span></div><div class="tmem sm"><span class="av">🌙</span><span class="nm">ひろ</span></div>
+                  <div class="tmem sm"><span class="av">🐺</span><span class="nm">びび</span></div><div class="tmem sm"><span class="av">🎈</span><span class="nm">ちか</span></div>
+                  <div class="tmem sm"><span class="av">💣</span><span class="nm">でん</span></div><div class="tmem sm"><span class="av">🎆</span><span class="nm">えみ</span></div>
+                  <div class="tmem sm"><span class="av">🐉</span><span class="nm">あき</span></div><div class="tmem sm"><span class="av">💰</span><span class="nm">りん</span></div>
+                </div>
+                <span class="tnote">ほか 2人</span>
+              </div>
+            </div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Room</span><span class="num">10<small>/16人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell"><span class="lab">部屋のコード</span><span class="val big-en" style="font-size:72px;letter-spacing:.04em">TST754</span></div>
+              <div class="slash"></div>
+              <div class="cell" style="flex:1"><span class="lab">次は…</span><span class="val">決まったらルールと準備OK</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>分類（あたまをつかう・かけひき・正体をさぐる・ことば）ごとに、<b>札が縦にならぶ</b>。上のチップで分類へ飛ぶ</li>
+        <li>札には印・名前・ひとこと・人数・時間・遊び方（1台／みんなのスマホ）。<b>いまの人数で遊べない札は点線でうすく、理由が出る</b>（消さない＝「前はあったのに」を作らない。今のアプリの決まり）</li>
+        <li>押すと、押した札の印から<b>そのゲームの世界の色が丸く広がって</b>詳しい画面に（0.25秒）。ルール3つ・人数・時間・「このゲームにする」</li>
+        <li>TVは「進行役が えらんでいます…」。進行役が詳しい画面を開くと、<b>そのゲームがTVにも出る</b>（待っている人も「次これ？」と分かる）。<span class="why">新しい仕組み：進行役のスマホで開いたゲームをTVに送る</span></li>
+        <li>強み：ひと目で多く見えて、増えても読みやすい。作る手間が少ない。弱み：見た目はアプリの一覧らしく、いちばん「ふつう」</li>
+      </ul>
+      <span class="try">押せる：分類のチップ・札（→ 詳しく → ‹ 一覧）</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 案B ================= -->
+<section class="scene" id="planB">
+  <div class="scene-hd"><span class="no">案B</span><h3>1本ずつ大きく（横に送る）</h3><div class="tags"><span class="pg-tag host">進行役</span><span class="pg-tag tvt">TV</span><span class="pg-tag new">おすすめ</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="① 横に送る（指でも ‹ › でも）">
+        <div class="scr w-bomb" data-id="sb1" data-nogear data-nobg>
+          <div class="sl-pager" data-pager data-offok><div class="sl-track" data-track></div></div>
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="corner r"><button type="button" class="cbtn who" aria-label="一覧" data-open="#bgrid"><span class="ring"><i class="ic" data-ic="grid"></i>一覧</span></button></div>
+          <button type="button" class="sl-edge l" data-prev aria-label="前のゲーム"><i class="ic" data-ic="chev"></i></button>
+          <button type="button" class="sl-edge r" data-next aria-label="次のゲーム"><i class="ic" data-ic="chev"></i></button>
+          <div class="sl-bot">
+            <div class="sl-gname" data-gname>あたまをつかう　1 / 9</div>
+            <div class="sl-dots" data-dots></div>
+            <button type="button" class="btn pri" data-cta>このゲームにする</button>
+          </div>
+          <div class="scrim" data-id="bscrim" data-close></div>
+          <div class="sheet tall" data-id="bgrid" data-scrim="#bscrim">
+            <div class="grab"></div>
+            <div class="sh"><h4>ぜんぶのゲーム</h4><span class="lbl">いま10人</span><button type="button" class="xbtn x" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>
+            <div class="sbody"><div class="sl-tiles3" data-minis></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="② いまの人数では遊べないページ" data-noreplay>
+        <div class="scr w-sugoroku" data-id="sb2" data-nogear data-nobg>
+          <div class="sl-page w-sugoroku" style="position:absolute;inset:0;width:auto" data-static-page="sugoroku"></div>
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="corner r"><button type="button" class="cbtn who" aria-label="一覧"><span class="ring"><i class="ic" data-ic="grid"></i>一覧</span></button></div>
+          <div class="sl-bot">
+            <div class="sl-gname">かけひき　7 / 9</div>
+            <div class="sl-dots"><i></i><i></i><i></i><i></i><i class="no"></i><i class="no"></i><i class="no on"></i><i class="no"></i><i class="no"></i></div>
+            <button type="button" class="btn" disabled>8人までのゲーム（いま10人）</button>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（送るたびに色ごと変わる）" data-size="lg">
+        <div class="tv w-bomb" data-id="tb" data-names="ふう,ひろ,びび,ちか,でん,えみ,くまくん,あき,りん,けん">
+          <div class="sl-tvB">
+            <div class="thd"><div class="en">Next Game?</div><div class="ttl" style="font-size:72px">進行役が見ているゲーム</div><div class="arrow" style="margin-right:860px"></div></div>
+            <div class="mid" data-tbmid></div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Room</span><span class="num">10<small>/16人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell" style="flex:1"><span class="lab">次は…</span><span class="val">決まったらルールと準備OK</span></div>
+              <div class="cell end"><div class="sl-tdots" data-tdots></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>画面いっぱいが<b>そのゲームの世界</b>。印・名前・ひとこと・<b>ルール3つが押さなくても見える</b>。下に「このゲームにする」</li>
+        <li><b>指で横に送る</b>（離した所で止まる・0.25秒）。止まった時に印が少しはねる。PCでは左右の ‹ › でも送れる</li>
+        <li>右上の<b>「一覧」</b>で全部のタイルが出て、1回で飛べる（＝案Cのタイル）</li>
+        <li><b>いまの人数で遊べるゲームを前に</b>ならべる。遊べないページは消さずに後ろへ回し、主ボタンの所に<b>理由</b>（「8人までのゲーム（いま10人）」）。下の点も、遊べないページは白ぬきの輪</li>
+        <li>TVは進行役が見ているページを<b>色ごと</b>映す。送るたびにTVの世界が変わるので、待っている人の話題になる。<span class="why">新しい仕組み：見ているページ番号をTVに送る</span></li>
+        <li>強み：いちばんゲームらしく、ルールがすぐ分かり、TVと一体になる。弱み：全部を見くらべにくい・作る手間がいちばん多い</li>
+      </ul>
+      <span class="try">押せる：指で送る・‹ ›・一覧・タイル</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 案C ================= -->
+<section class="scene" id="planC">
+  <div class="scene-hd"><span class="no">案C</span><h3>タイルの棚（いまの人数で絞れる）</h3><div class="tags"><span class="pg-tag host">進行役</span><span class="pg-tag tvt">TV</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="① タイル（押すと詳しく・絞る）">
+        <div class="scr w-wait" data-id="sc1" data-nogear>
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="in" style="gap:10px">
+            <div class="hd sl-hd"><div class="en">Games</div><div class="ttl">ゲームをえらぶ</div><div class="arrow"></div></div>
+            <button type="button" class="sl-filter" data-filter><span class="col" style="gap:0;flex:1"><b>いまの10人で遊べるものだけ</b><small data-fcount>9本のうち 4本</small></span><span class="sw" data-fsw aria-hidden="true"></span></button>
+            <div class="scroll grow"><div class="sl-grid" data-cgrid></div></div>
+          </div>
+          <div class="band"><div class="what"><span class="lab">待合</span><span class="msg">10人が待っています</span></div><span class="end faces"><span class="av sm">🙂</span><span class="av sm">🌙</span><span class="av sm">🐺</span><span class="more">+7</span></span></div>
+          <div class="scrim" data-id="cscrim" data-close></div>
+          <div class="sheet tall rsheet sl-sheet" data-id="csheet" data-scrim="#cscrim"></div>
+        </div>
+      </div>
+      <div class="frame" data-cap="② タイルを押した時（シート）" data-noreplay>
+        <div class="scr w-wait" data-id="sc2" data-nogear>
+          <div class="in" style="gap:10px"><div class="hd sl-hd"><div class="en">Games</div><div class="ttl">ゲームをえらぶ</div><div class="arrow"></div></div></div>
+          <div class="scrim open"></div>
+          <div class="sheet tall rsheet sl-sheet open w-falsetrue" data-static-sheet="falsetrue"></div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（タイルの棚を映す。開いた物が光る）" data-size="lg">
+        <div class="tv w-wait" data-id="tc" data-bg="circles names" data-names="ふう,ひろ,びび,ちか,でん,えみ,くまくん,あき,りん,けん">
+          <div class="safe">
+            <div class="thd"><div class="en">Next Game</div><div class="ttl" style="font-size:84px">進行役が ゲームを えらんでいます…</div><div class="arrow"></div></div>
+            <div class="sl-tgrid" style="margin-top:30px;padding-right:70px" data-tcgrid></div>
+            <div class="tband">
+              <div class="cell"><span class="lab en">Room</span><span class="num">10<small>/16人</small></span></div>
+              <div class="slash"></div>
+              <div class="cell" style="flex:1"><span class="lab">次は…</span><span class="val">決まったらルールと準備OK</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>2列の<b>色のタイル</b>。印が大きく、ひと目で6〜8本見える。遊べないタイルはうすく、上に理由</li>
+        <li>上のスイッチで<b>「いまの10人で遊べるものだけ」</b>に絞れる（最初はOFF＝全部見える）。絞ると、残ったタイルが新しい場所へすべって動く（0.25秒）</li>
+        <li>押すと9割のシート。上がそのゲームの世界の色で、ルール3つ・人数・時間・「このゲームにする」</li>
+        <li>TVは同じタイルの棚を5列で映し、<b>進行役が開いたタイルが光る</b></li>
+        <li>強み：見くらべやすく、人数で絞れるので「何ができる？」にすぐ答える。投票の札と同じ形で覚えやすい。弱み：名前が長いと2行になる</li>
+      </ul>
+      <span class="try">押せる：スイッチ（絞る）・タイル（→ シート）</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= えらんだ後 ================= -->
+<section class="pg-sec">
+  <h2>えらんだ後（どの案でも同じ） <span class="en">AFTER</span></h2>
+  <p>カセットの中にゲームが2つ以上あれば「どれで遊ぶ？」、モードが2つ以上あれば「どう遊ぶ？」をはさみます（中身が1つしかない段は飛ばす、という今の決まりのまま）。設定（コードの本数・ライフなど）は、それぞれのゲームのページにあります。</p>
+</section>
+
+<section class="scene" id="games">
+  <div class="scene-hd"><span class="no">S4</span><h3>カセットの中のゲームをえらぶ</h3><div class="tags"><span class="pg-tag host">進行役</span><span class="pg-tag">scr-game</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="クイズ王（4つ）">
+        <div class="scr w-quiz" data-id="sg1" data-nogear data-names="ふう,ひろ,びび,ちか,でん,えみ">
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="in">
+            <div class="hd sl-hd"><div class="en">Quiz King</div><div class="ttl">どれで遊ぶ？</div><div class="arrow"></div></div>
+            <div class="row" style="gap:10px"><span class="tile w-quiz" style="width:44px;height:44px"><i class="emb" data-emb="quiz"></i></span><b style="font-weight:900;font-size:17px">クイズ王</b><span class="pill soft" style="margin-left:auto">いま10人</span></div>
+            <div class="scroll grow col" style="gap:12px"><div class="opts" data-picks>
+              <button type="button" class="opt on" data-pick="rush"><span class="oi">⚡</span><span class="ot"><span class="on1">クイズラッシュ</span><span class="os">むずかしさを選んで、解き続ける</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+              <button type="button" class="opt" data-pick="list"><span class="oi">🔁</span><span class="ot"><span class="on1">つぎつぎクイズ</span><span class="os">順番に1つずつ答える・出た答えはアウト</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+              <button type="button" class="opt" data-pick="reveal"><span class="oi">🔎</span><span class="ot"><span class="on1">とくとくクイズ</span><span class="os">だんだん見えてくる・早いほど高得点</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+              <button type="button" class="opt" data-pick="buzz"><span class="oi">🥊</span><span class="ot"><span class="on1">早押しトーナメント</span><span class="os">1対1の勝ち抜き</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+            </div></div>
+            <button type="button" class="btn pri">これで遊ぶ</button>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="すごろく（人数で遊べない物がある時）" data-noreplay>
+        <div class="scr w-sugoroku" data-id="sg2" data-nogear>
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="in">
+            <div class="hd sl-hd"><div class="en">Sugoroku</div><div class="ttl">どれで遊ぶ？</div><div class="arrow"></div></div>
+            <div class="row" style="gap:10px"><span class="tile w-sugoroku" style="width:44px;height:44px"><i class="emb" data-emb="sugoroku"></i></span><b style="font-weight:900;font-size:17px">すごろく</b><span class="pill soft" style="margin-left:auto">いま7人</span></div>
+            <div class="scroll grow col" style="gap:12px"><div class="opts">
+              <button type="button" class="opt on"><span class="oi">🪙</span><span class="ot"><span class="on1">つうこうりょう</span><span class="os">先頭ほど、進むのが高くつく</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+              <button type="button" class="opt"><span class="oi">🀄</span><span class="ot"><span class="on1">こまはひとつ</span><span class="os">ミニゲームに勝った人だけ、駒を動かす</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+              <button type="button" class="opt"><span class="oi">🤝</span><span class="ot"><span class="on1">ふたりでひとつ</span><span class="os">2人で1つの駒・出た目を分け合う</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+              <div class="opt off"><span class="oi">🌫️</span><span class="ot"><span class="on1">どこにいる？</span><span class="why">6人まで（いま7人）</span></span></div>
+              <div class="opt off"><span class="oi">🎴</span><span class="ot"><span class="on1">てふだ</span><span class="why">6人まで（いま7人）</span></span></div>
+            </div></div>
+            <button type="button" class="btn pri">これで遊ぶ</button>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="爆弾解除：どう遊ぶ？（モード）" data-noreplay>
+        <div class="scr w-bomb" data-id="sg3" data-nogear data-names="ふう,ひろ,びび,ちか,でん,えみ">
+          <div class="corner l"><button type="button" class="cbtn" aria-label="もどる"><span class="ring"><i class="ic" data-ic="back"></i></span></button></div>
+          <div class="in">
+            <div class="hd sl-hd"><div class="en">Mode</div><div class="ttl">どう遊ぶ？</div><div class="arrow"></div></div>
+            <div class="row" style="gap:10px"><span class="tile w-bomb" style="width:44px;height:44px"><i class="emb" data-emb="bomb"></i></span><b style="font-weight:900;font-size:17px">クイズ解除</b><span class="pill soft" style="margin-left:auto">いま6人</span></div>
+            <div class="scroll grow col" style="gap:12px"><div class="opts">
+              <button type="button" class="opt on"><span class="oi"><i class="ic" data-ic="people"></i></span><span class="ot"><span class="on1">協力版</span><span class="os">みんなで1つの爆弾を止める</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+              <button type="button" class="opt"><span class="oi"><i class="ic" data-ic="flag"></i></span><span class="ot"><span class="on1">競争版</span><span class="os">全員が同じコードに挑戦・順位あり</span></span><span class="ock"><i class="ic" data-ic="check"></i></span></button>
+              <div class="opt off"><span class="oi"><i class="ic" data-ic="pause"></i></span><span class="ot"><span class="on1">実物解除</span><span class="why">いったんお休み中</span></span></div>
+            </div>
+            <div class="rules">
+              <div class="rule"><span class="ri"><i class="ic" data-ic="grid"></i></span>3択に正解して、コードを切る</div>
+              <div class="rule"><span class="ri"><i class="ic" data-ic="trophy"></i></span>コードを全部切れば、みんなの勝ち</div>
+              <div class="rule"><span class="ri"><i class="ic" data-ic="heart" style="color:#FF6B7A"></i></span>外れるとライフが減る・0で爆発</div>
+            </div></div>
+            <button type="button" class="btn pri">つぎへ（設定）</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>えらぶ札（ラジオ）は、えらんだ物だけ<b>太い縁と ✓</b>。ゲームのアイコンはアプリの今の絵（⚡🔁🔎🥊 など）</li>
+        <li>人数で遊べない物は、点線でうすく<b>理由</b>（「6人まで（いま7人）」）。押せない</li>
+        <li>モードの画面には、そのモードの<b>ルール3つ</b>（今のアプリの「TVのルール札」と同じ文）。えらび直すと入れかわる</li>
+        <li>お休み中のゲーム（実物解除）は、消さずに理由つきで出す（今の決まり）</li>
+      </ul>
+      <span class="try">押せる：クイズ王の4つ</span>
+    </div>
+  </div>
+</section>
+
+<section class="scene" id="locked">
+  <div class="scene-hd"><span class="no">S5</span><h3>ログインしていない時・遊び方が合わない時</h3><div class="tags"><span class="pg-tag host">進行役</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="ログインしていない（見るだけ）" data-noreplay>
+        <div class="scr w-shinka" data-id="sl1" data-nogear>
+          <div class="sl-det open" data-static="shinka" data-lock="login"></div>
+        </div>
+      </div>
+      <div class="frame" data-cap="部屋にいるのに、1台で遊ぶゲーム" data-noreplay>
+        <div class="scr w-aresore" data-id="sl2" data-nogear>
+          <div class="sl-det open" data-static="aresore" data-lock="handoff"></div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>ログインしていない時は、中身は全部見られて、主ボタンの所に<b>「ログインすると はじめられます」と「ログイン」</b>（できないことではなく、できることを言う）</li>
+        <li>部屋にいるのに1台で遊ぶゲーム（あれそれどれこれ）は、<b>部屋をとじれば遊べる</b>ことを伝える（今の「遊び方の確認」の B）</li>
+        <li>案A・案Cの詳しい画面、案Bのページ、どれでも同じ出し方</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="scene" id="decided">
+  <div class="scene-hd"><span class="no">S6</span><h3>決めた時（みんなのスマホとTVに同じカード）</h3><div class="tags"><span class="pg-tag guest">参加者</span><span class="pg-tag tvt">TV</span><span class="pg-tag new">新しい演出</span></div></div>
+  <div class="scene-body">
+    <div class="frames">
+      <div class="frame" data-cap="参加者のスマホ">
+        <div class="scr w-wait" data-id="sd1" data-nogear>
+          <div class="sl-dec w-falsetrue a-wipe">
+            <div class="bg"><div class="circles"><i></i><i></i><i></i></div></div>
+            <div class="en a-fade" style="--d:.35s">NEXT GAME</div>
+            <span class="tile w-falsetrue a-slam" style="--d:.4s"><i class="emb" data-emb="falsetrue"></i></span>
+            <div class="dn a-rise" style="--d:.75s">False or True</div>
+            <div class="ln a-draw" style="--d:.85s"></div>
+            <div class="by a-fade" style="--d:.95s">進行役が えらびました</div>
+            <div class="nx a-fade" style="--d:1s"><span>このあと ルールの説明</span><div class="syncbar sl-fill"><i></i></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame" data-cap="TV（同じ時に、同じ動き）" data-size="lg">
+        <div class="tv w-wait" data-id="td" data-nobg>
+          <div class="sl-dec w-falsetrue a-wipe">
+            <div class="bg"><div class="circles"><i></i><i></i><i></i></div></div>
+            <div class="en a-fade" style="--d:.35s">NEXT GAME</div>
+            <span class="tile w-falsetrue a-slam" style="--d:.4s"><i class="emb" data-emb="falsetrue"></i></span>
+            <div class="dn a-rise" style="--d:.75s">False or True</div>
+            <div class="ln a-draw" style="--d:.85s"></div>
+            <div class="by a-fade" style="--d:.95s">ふう が えらびました</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <ul>
+        <li>進行役が「このゲームにする」を押すと、<b>全員のスマホとTVに同じカード</b>が出る（1.5秒）→ そのゲームのルールと準備OKへ。<span class="why">新しい演出：今は、いきなりルールの画面になる</span></li>
+        <li>動きの順：そのゲームの世界の色が斜めに広がる（0.75秒）→ 印がドンと出る → 名前 → 線がのびる → だれがえらんだか</li>
+        <li>文化祭の「決定（4段）」と同じ動きの仲間。部屋で遊ぶ時は投票がないので、1段だけ</li>
+        <li>「演出：なし」の人には、最後の形だけを出す（下の線も同じ時間で進む）</li>
+      </ul>
+      <span class="try">「もう一度」で動きを見られます</span>
+    </div>
+  </div>
+</section>
+
+</div></main>
+<footer class="pg-main" style="padding-block:8px 40px"><div class="pg-wrap" style="font-size:12px;color:var(--pg-soft);gap:4px"><div>画面の中の絵文字は Twemoji（© Twitter, Inc and other contributors / CC-BY 4.0）。書体は M PLUS 1・League Spartan（どちらも SIL Open Font License）。</div><div>この案は見本です。名前・数字・お題は例で、本物の記録ではありません。</div></div></footer>
+<script src="assets/twlist.js"></script>
+<script src="assets/ds.js"></script>
+<script>
+(function(){
+  /* ---- カセットのデータ（ルールの文はアプリの「TVのルール札」から） ---- */
+  var N = 10; // いまの部屋の人数
+  var CAS = [
+    {id:'bomb', name:'爆弾解除', sub:'クイズ解除', g:'brain', gl:'あたまをつかう', blurb:'問題を解いて、爆発を止める', ppl:'2〜8人', hi:8, min:'5分〜', ways:'both',
+      rules:[['grid','3択に正解して、コードを切る'],['trophy','コードを全部切れば、みんなの勝ち'],['heart','外れるとライフが減る・0で爆発']],
+      paused:'実物解除は、いったんお休み中です（一部の端末で傾きが読めないため）'},
+    {id:'quiz', name:'クイズ王', g:'brain', gl:'あたまをつかう', blurb:'1人1台で解いて競う', ppl:'2人〜', hi:0, min:'5分〜', ways:'room',
+      rules:[['list','4つの遊び方から1つえらぶ'],['phone','問題は、全員のスマホに同時に届く'],['crown','いちばん点が高い人がクイズ王']]},
+    {id:'shinka', name:'進化じゃんけん', g:'deal', gl:'かけひき', blurb:'勝てば1つ上の段へ進化する', ppl:'3〜12人', hi:12, min:'5分〜', ways:'room',
+      rules:[['hand','おなじ段の人と、じゃんけん'],['trophy','勝てば進化。いちばん上で優勝'],['minus','2回つづけて負けると、1つ下がる']]},
+    {id:'rcard', name:'ロシアンカード', g:'deal', gl:'かけひき', blurb:'しかけ合って、めくり合う', ppl:'2〜8人', hi:8, min:'5分〜', ways:'room',
+      rules:[['grid','相手の9枚に、爆弾をしかける'],['heart','爆弾をめくると、体力がへる'],['trophy','3人からは、生き残り戦']]},
+    {id:'sugoroku', name:'すごろく', g:'deal', gl:'かけひき', blurb:'先頭ほど、進むのが高くつく', ppl:'3〜8人', hi:8, min:'15分〜', ways:'both',
+      rules:[['dice','マスを進んで、ゴールをめざす'],['shuffle','5つの遊び方で「進む」の意味がちがう'],['flag','先にあがった人（組）の勝ち']]},
+    {id:'auction', name:'オークション', g:'deal', gl:'かけひき', blurb:'値をつけて競り合う', ppl:'3〜8人', hi:8, min:'15分〜', ways:'room',
+      rules:[['grid','6つの品物が、最初から全部ならぶ'],['bolt','同じ系統が売れるたび、相場が上がる'],['star','得点は、品質×売れた時の相場']]},
+    {id:'falsetrue', name:'False or True', g:'hide', gl:'正体をさぐる', blurb:'奪うか、奪わないか', ppl:'4〜12人', hi:12, min:'10分〜', ways:'room',
+      rules:[['people','中身を見た人と、対面して話し合う'],['lock','奪うかどうかと中身で、生存か脱落'],['trophy','生き残った人は、全員が勝ち']]},
+    {id:'wolf', name:'人狼ゲーム', g:'hide', gl:'正体をさぐる', blurb:'正体を隠して探り合う', ppl:'3人〜', hi:0, min:'10分〜', ways:'both',
+      rules:[['eye','ワードウルフ：1人だけ違うお題を探す'],['sparkle','人狼：役職を配って、夜と昼をくり返す'],['check','進行役はいらない。アプリが配って数える']]},
+    {id:'aresore', name:'あれそれどれこれ', g:'word', gl:'ことばであそぶ', blurb:'ことばで説明して当てる', ppl:'2〜8人', hi:8, min:'7分〜', ways:'one',
+      rules:[['pen','出題者がお題を、言葉だけで説明する'],['hand','ほかの人が、お題を当てる'],['timer','時間内に、たくさん当てよう']]}
+  ];
+  var BY = {}; CAS.forEach(function(c){ BY[c.id] = c; });
+  var WAYS = {both:['phone','1台でも・みんなでも'], room:['people','みんなのスマホ'], one:['phone','1台のスマホ']};
+  function why(c){
+    if(c.ways === 'one') return '1台で遊ぶゲーム';
+    if(c.hi && N > c.hi) return c.hi + '人まで（いま' + N + '人）';
+    return '';
+  }
+  function meta(c, short){
+    return '<span class="sl-meta"><span><i class="ic" data-ic="people"></i>' + c.ppl + '</span>' + (short ? '' : '<span><i class="ic" data-ic="timer"></i>' + c.min + '</span>') + '<span><i class="ic" data-ic="' + WAYS[c.ways][0] + '"></i>' + WAYS[c.ways][1] + '</span></span>';
+  }
+  function rulesHtml(c){
+    return '<div class="rules">' + c.rules.map(function(r, i){ return '<div class="rule"><span class="k">' + (i+1) + '</span><span class="ri"><i class="ic" data-ic="' + r[0] + '"' + (r[0]==='heart'?' style="color:#FF6B7A"':'') + '></i></span>' + r[1] + '</div>'; }).join('') + '</div>';
+  }
+  function factsHtml(c){
+    return '<div class="facts"><div><span class="lbl">人数</span><b>' + c.ppl + '</b></div><div><span class="lbl">時間</span><b>' + c.min + '</b></div><div><span class="lbl">遊び方</span><b>' + WAYS[c.ways][1] + '</b></div></div>';
+  }
+  function ctaHtml(c, lock){
+    if(lock === 'login') return '<button type="button" class="btn" disabled>ログインすると はじめられます</button><button type="button" class="btn sec">ログイン</button>';
+    if(lock === 'handoff') return '<button type="button" class="btn" disabled>1台で遊ぶゲームです</button><div class="why-off" style="color:var(--ws)">部屋をとじると、このスマホ1台で遊べます</div><button type="button" class="btn sec">部屋をとじて 1台で遊ぶ</button>';
+    var w = why(c);
+    if(w) return '<button type="button" class="btn" disabled>' + w + '</button>';
+    return '<button type="button" class="btn pri">このゲームにする</button>';
+  }
+  /* 案A・案Sの詳しい画面 */
+  function detHtml(c, lock){
+    return '<div class="bg"><div class="circles"><i></i><i></i><i></i></div></div><div class="din">' +
+      '<div class="dtop a-in" style="--d:.1s"><button type="button" class="cbtn" data-aback aria-label="一覧へ" style="margin-left:-8px"><span class="ring"><i class="ic" data-ic="back"></i></span></button><span class="lbl">' + c.gl + '</span></div>' +
+      '<div class="dhead a-in" style="--d:.12s"><span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span><div><div class="dn" data-fit>' + c.name + '</div><div class="dg">' + c.blurb + '</div></div></div>' +
+      '<div class="scroll grow col" style="gap:12px">' +
+      '<div class="a-in" style="--d:.18s">' + rulesHtml(c) + '</div>' +
+      '<div class="a-in" style="--d:.24s">' + factsHtml(c) + '</div>' +
+      (c.paused ? '<div class="sl-paused a-in" style="--d:.28s"><i class="ic" data-ic="pause"></i><span>' + c.paused + '</span></div>' : '') +
+      '</div>' +
+      '<div class="col a-in" style="--d:.3s">' + ctaHtml(c, lock) + '<div class="btnrow"><button type="button" class="btn lite">くわしいルール</button><button type="button" class="btn lite"><i class="ic" data-ic="trophy" style="width:18px;height:18px"></i>達成状況</button></div></div>' +
+      '</div>';
+  }
+  function worldOf(el, id){ el.className = el.className.replace(/\bw-[a-z]+\b/g, '').trim() + ' w-' + id; }
+
+  /* ---------------- 案A ---------------- */
+  (function(){
+    var scr = document.querySelector('[data-id="sa1"]');
+    var list = scr.querySelector('[data-alist]');
+    var order = ['brain','deal','hide','word'];
+    var h = '';
+    order.forEach(function(g){
+      var cs = CAS.filter(function(c){ return c.g === g; });
+      h += '<div class="sl-gl" data-g="' + g + '">' + cs[0].gl + '</div>';
+      cs.forEach(function(c, i){
+        var w = why(c);
+        h += '<button type="button" class="sl-card a-rise' + (w ? ' no' : '') + '" style="--d:' + (0.04 * (i + 1)).toFixed(2) + 's" data-c="' + c.id + '">' +
+          '<span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span>' +
+          '<span class="ct"><span class="cn">' + c.name + '</span><span class="cb">' + c.blurb + '</span>' + (w ? '<span class="sl-why"><i class="ic" data-ic="info"></i>' + w + '</span>' : meta(c, true)) + '</span>' +
+          '<i class="ic go" data-ic="chev"></i></button>';
+      });
+    });
+    h += '<div class="sl-gl">からだをうごかす</div><div class="sl-soon"><span class="q">?</span>近日とどきます</div>';
+    list.innerHTML = h;
+    var det = scr.querySelector('[data-id="adet"]');
+    list.addEventListener('click', function(e){
+      var b = e.target.closest('[data-c]'); if(!b) return;
+      var c = BY[b.getAttribute('data-c')];
+      var t = b.querySelector('.tile').getBoundingClientRect(), r = scr.getBoundingClientRect(), s = r.width / scr.offsetWidth;
+      det.style.setProperty('--cx', ((t.left + t.width/2 - r.left) / s) + 'px');
+      det.style.setProperty('--cy', ((t.top + t.height/2 - r.top) / s) + 'px');
+      worldOf(det, c.id);
+      det.innerHTML = detHtml(c); DS.hydrate(det);
+      requestAnimationFrame(function(){ det.classList.add('open'); });
+    });
+    det.addEventListener('click', function(e){ if(e.target.closest('[data-aback]')) det.classList.remove('open'); });
+    scr.querySelector('[data-achips]').addEventListener('ds:pick', function(e){
+      var g = e.detail;
+      if(g === 'all'){ list.scrollTo({top:0, behavior:'smooth'}); return; }
+      var t = list.querySelector('[data-g="' + g + '"]'); if(t) list.scrollTo({top:t.offsetTop - 4, behavior:'smooth'});
+    });
+    scr.addEventListener('ds:start', function(e){ if(e.detail === 'replay') det.classList.remove('open'); });
+  })();
+  /* 静かに開いている詳しい画面（案A②・S5） */
+  document.querySelectorAll('.sl-det[data-static]').forEach(function(d){
+    var c = BY[d.getAttribute('data-static')]; worldOf(d, c.id);
+    d.innerHTML = detHtml(c, d.getAttribute('data-lock'));
+  });
+
+  /* ---------------- 案B ---------------- */
+  (function(){
+    var scr = document.querySelector('[data-id="sb1"]');
+    var track = scr.querySelector('[data-track]'), pager = scr.querySelector('[data-pager]');
+    var dots = scr.querySelector('[data-dots]'), gname = scr.querySelector('[data-gname]'), cta = scr.querySelector('[data-cta]');
+    var minis = scr.querySelector('[data-minis]');
+    var names = 'ふう,ひろ,びび,ちか,でん,えみ,くまくん,あき,りん,けん';
+    function page(c){
+      return '<div class="sl-page w-' + c.id + '" data-p="' + c.id + '"><div class="bg"><div class="circles"><i></i><i></i><i></i></div>' + (/bomb|quiz|rcard|falsetrue|wolf|auction/.test(c.id) ? '<div class="names" data-names="' + names + '"></div>' : '') + '</div>' +
+        '<div class="pin"><span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span><div class="pn" data-fit>' + c.name + '</div><div class="pb">' + c.blurb + '</div>' + meta(c) + rulesHtml(c) + '</div></div>';
+    }
+    var L = CAS.filter(function(c){ return !why(c); }).concat(CAS.filter(function(c){ return !!why(c); }));
+    track.innerHTML = L.map(page).join('');
+    dots.innerHTML = L.map(function(c){ return '<i' + (why(c) ? ' class="no"' : '') + '></i>'; }).join('');
+    minis.innerHTML = L.map(function(c, i){ return '<button type="button" class="sl-mini' + (why(c) ? ' no' : '') + '" data-jump="' + i + '"><span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span><b>' + c.name + '</b></button>'; }).join('');
+    var idx = 0, W = function(){ return scr.offsetWidth; };
+    var tv = document.querySelector('[data-id="tb"]');
+    function tvShow(c, dir){
+      if(!tv) return;
+      var cur = (tv.className.match(/\bw-([a-z]+)\b/) || [])[1];
+      var old = tv.querySelector('.sl-tvwipe'); if(old) old.remove();
+      if(dir && cur && cur !== c.id && DS.fx() > .01){
+        var w = document.createElement('div'); w.className = 'sl-tvwipe w-' + c.id + (dir < 0 ? ' back' : '');
+        tv.appendChild(w);
+        w.addEventListener('animationend', function(){ if(w.parentNode){ tvPaint(c); w.remove(); } });
+        return;
+      }
+      tvPaint(c);
+    }
+    function tvPaint(c){
+      worldOf(tv, c.id);
+      var mid = tv.querySelector('[data-tbmid]');
+      mid.innerHTML = '<span class="tile w-' + c.id + ' a-pop"><i class="emb" data-emb="' + c.id + '"></i></span><div style="min-width:0"><div class="bn">' + c.name + '</div><div class="bb">' + c.blurb + '・' + c.ppl + '</div><div class="trules">' +
+        c.rules.map(function(r){ return '<div class="trule"><span class="ri"><i class="ic" data-ic="' + r[0] + '"></i></span>' + r[1] + '</div>'; }).join('') + '</div></div>';
+      DS.hydrate(mid);
+      var td = tv.querySelector('[data-tdots]');
+      td.innerHTML = L.map(function(x, i){ return '<i' + (i === idx ? ' class="on"' : '') + '></i>'; }).join('');
+    }
+    function go(i, anim){
+      var dir = i > idx ? 1 : (i < idx ? -1 : 0);
+      idx = Math.max(0, Math.min(L.length - 1, i));
+      track.classList.toggle('anim', anim !== false);
+      track.style.transform = 'translateX(' + (-idx * W()) + 'px)';
+      [].forEach.call(track.children, function(p, k){ p.classList.toggle('cur', k === idx); });
+      [].forEach.call(dots.children, function(d, k){ d.classList.toggle('on', k === idx); });
+      var c = L[idx];
+      worldOf(scr, c.id);
+      gname.textContent = c.gl + '　' + (idx + 1) + ' / ' + L.length;
+      var w = why(c);
+      cta.disabled = !!w; cta.className = w ? 'btn' : 'btn pri'; cta.textContent = w ? (c.hi ? c.hi + '人までのゲーム（いま' + N + '人）' : w) : 'このゲームにする';
+      [].forEach.call(minis.children, function(m, k){ m.classList.toggle('cur', k === idx); });
+      tvShow(c, anim === false ? 0 : dir);
+    }
+    var drag = null;
+    pager.addEventListener('pointerdown', function(e){ drag = {x:e.clientX, s:scr.getBoundingClientRect().width / scr.offsetWidth, dx:0}; track.classList.remove('anim'); pager.setPointerCapture(e.pointerId); });
+    pager.addEventListener('pointermove', function(e){ if(!drag) return; drag.dx = (e.clientX - drag.x) / drag.s; track.style.transform = 'translateX(' + (-idx * W() + drag.dx) + 'px)'; });
+    function end(){ if(!drag) return; var dx = drag.dx; drag = null; if(dx < -50) go(idx + 1); else if(dx > 50) go(idx - 1); else go(idx); }
+    pager.addEventListener('pointerup', end); pager.addEventListener('pointercancel', end);
+    scr.querySelector('[data-prev]').addEventListener('click', function(){ go(idx - 1); });
+    scr.querySelector('[data-next]').addEventListener('click', function(){ go(idx + 1); });
+    minis.addEventListener('click', function(e){ var b = e.target.closest('[data-jump]'); if(!b) return; DS.close(scr, '#bgrid'); go(parseInt(b.getAttribute('data-jump'), 10)); });
+    document.addEventListener('ds:ready', function(){ go(0, false); });
+    scr.addEventListener('ds:start', function(e){ if(e.detail === 'replay') go(0, false); });
+    window.addEventListener('resize', function(){ go(idx, false); });
+    document.querySelectorAll('[data-phset]').forEach(function(b){ b.addEventListener('click', function(){ setTimeout(function(){ go(idx, false); }, 60); }); });
+  })();
+  /* ---------------- 決まった形：一覧 → 1本ずつのページ ---------------- */
+  (function(){
+    var scr = document.querySelector('[data-id="sm1"]'); if(!scr) return;
+    var list = scr.querySelector('[data-mlist]'), ov = scr.querySelector('[data-mov]'), track = scr.querySelector('[data-mtrack]'), pager = scr.querySelector('[data-mpager]');
+    var dots = scr.querySelector('[data-mdots]'), gname = scr.querySelector('[data-mgname]'), cta = scr.querySelector('[data-mcta]');
+    var order = ['brain','deal','hide','word'], L = [];
+    order.forEach(function(g){ CAS.forEach(function(c){ if(c.g === g) L.push(c); }); });
+    var names = 'ふう,ひろ,びび,ちか,でん,えみ,くまくん,あき,りん,けん';
+    var h = '';
+    order.forEach(function(g){
+      var cs = L.filter(function(c){ return c.g === g; });
+      h += '<div class="sl-gl" data-g="' + g + '">' + cs[0].gl + '</div>';
+      cs.forEach(function(c, i){
+        var w = why(c);
+        h += '<button type="button" class="sl-card a-rise' + (w ? ' no' : '') + '" style="--d:' + (0.04 * (i + 1)).toFixed(2) + 's" data-i="' + L.indexOf(c) + '">' +
+          '<span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span>' +
+          '<span class="ct"><span class="cn">' + c.name + '</span><span class="cb">' + c.blurb + '</span>' + (w ? '<span class="sl-why"><i class="ic" data-ic="info"></i>' + w + '</span>' : meta(c, true)) + '</span>' +
+          '<i class="ic go" data-ic="chev"></i></button>';
+      });
+    });
+    list.innerHTML = h + '<div class="sl-gl">からだをうごかす</div><div class="sl-soon"><span class="q">?</span>近日とどきます</div>';
+    track.innerHTML = L.map(function(c){
+      return '<div class="sl-page w-' + c.id + '"><div class="bg"><div class="circles"><i></i><i></i><i></i></div>' + (/bomb|quiz|rcard|falsetrue|wolf|auction/.test(c.id) ? '<div class="names" data-names="' + names + '"></div>' : '') + '</div>' +
+        '<div class="pin"><span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span><div class="pn" data-fit>' + c.name + '</div><div class="pb">' + c.blurb + '</div>' + meta(c) + rulesHtml(c) + '</div></div>';
+    }).join('');
+    dots.innerHTML = L.map(function(c){ return '<i' + (why(c) ? ' class="no"' : '') + '></i>'; }).join('');
+    var idx = 0;
+    function W(){ return scr.offsetWidth; }
+    function go(i, anim){
+      idx = Math.max(0, Math.min(L.length - 1, i));
+      track.classList.toggle('anim', anim !== false);
+      track.style.transform = 'translateX(' + (-idx * W()) + 'px)';
+      [].forEach.call(track.children, function(p, k){ p.classList.toggle('cur', k === idx); });
+      [].forEach.call(dots.children, function(d, k){ d.classList.toggle('on', k === idx); });
+      var c = L[idx]; worldOf(ov, c.id);
+      gname.textContent = c.gl + '　' + (idx + 1) + ' / ' + L.length;
+      var w = why(c);
+      cta.disabled = !!w; cta.className = w ? 'btn' : 'btn pri';
+      cta.textContent = w ? (c.hi ? c.hi + '人までのゲーム（いま' + N + '人）' : w) : 'このゲームにする';
+    }
+    function aim(el){ var r = scr.getBoundingClientRect(), s = r.width / scr.offsetWidth, t = el.getBoundingClientRect();
+      ov.style.setProperty('--cx', ((t.left + t.width / 2 - r.left) / s) + 'px'); ov.style.setProperty('--cy', ((t.top + t.height / 2 - r.top) / s) + 'px'); }
+    list.addEventListener('click', function(e){
+      var b = e.target.closest('[data-i]'); if(!b) return;
+      aim(b.querySelector('.tile')); go(parseInt(b.getAttribute('data-i'), 10), false);
+      requestAnimationFrame(function(){ ov.classList.add('open'); });
+    });
+    scr.querySelector('[data-mback]').addEventListener('click', function(){
+      var card = list.querySelector('[data-i="' + idx + '"]');
+      if(card){ list.scrollTop = Math.max(0, card.offsetTop - list.offsetTop - list.clientHeight / 3); aim(card.querySelector('.tile')); }
+      ov.classList.remove('open');
+    });
+    scr.querySelector('[data-mprev]').addEventListener('click', function(){ go(idx - 1); });
+    scr.querySelector('[data-mnext]').addEventListener('click', function(){ go(idx + 1); });
+    var drag = null;
+    pager.addEventListener('pointerdown', function(e){ drag = {x:e.clientX, s:scr.getBoundingClientRect().width / scr.offsetWidth, dx:0}; track.classList.remove('anim'); pager.setPointerCapture(e.pointerId); });
+    pager.addEventListener('pointermove', function(e){ if(!drag) return; drag.dx = (e.clientX - drag.x) / drag.s; track.style.transform = 'translateX(' + (-idx * W() + drag.dx) + 'px)'; });
+    function end(){ if(!drag) return; var dx = drag.dx; drag = null; if(dx < -50) go(idx + 1); else if(dx > 50) go(idx - 1); else go(idx); }
+    pager.addEventListener('pointerup', end); pager.addEventListener('pointercancel', end);
+    scr.querySelector('[data-mchips]').addEventListener('ds:pick', function(e){
+      var g = e.detail; if(g === 'all'){ list.scrollTo({top:0, behavior:'smooth'}); return; }
+      var t = list.querySelector('[data-g="' + g + '"]'); if(t) list.scrollTo({top:t.offsetTop - list.offsetTop - 4, behavior:'smooth'});
+    });
+    go(0, false);
+    scr.addEventListener('ds:start', function(e){ if(e.detail === 'replay'){ ov.classList.remove('open'); go(0, false); } });
+    window.addEventListener('resize', function(){ go(idx, false); });
+    document.querySelectorAll('[data-phset]').forEach(function(b){ b.addEventListener('click', function(){ setTimeout(function(){ go(idx, false); }, 60); }); });
+  })();
+  /* 案B②：遊べないページ（静か） */
+  document.querySelectorAll('[data-static-page]').forEach(function(p){
+    var c = BY[p.getAttribute('data-static-page')];
+    p.innerHTML = '<div class="bg"><div class="circles"><i></i><i></i><i></i></div></div><div class="pin"><span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span><div class="pn" data-fit>' + c.name + '</div><div class="pb">' + c.blurb + '</div>' + meta(c) + rulesHtml(c) + '</div>';
+  });
+
+  /* ---------------- 案C ---------------- */
+  function sheetHtml(c){
+    return '<div class="rhead"><span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span><div><div class="rn">' + c.name + '</div><div class="rm">' + c.gl + '・' + c.blurb + '</div></div><button type="button" class="xbtn" data-close aria-label="とじる"><i class="ic" data-ic="close"></i></button></div>' +
+      '<div class="sbody">' + rulesHtml(c) + factsHtml(c) + (c.paused ? '<div class="sl-paused" style="color:#555;border-color:#DDD;background:#FAFAF8"><i class="ic" data-ic="pause"></i><span>' + c.paused + '</span></div>' : '') + '</div>' +
+      '<div class="sfoot col">' + ctaHtml(c).replace('btn" disabled', 'btn" disabled style="background:#EFEFEF;color:#555"') + '<button type="button" class="btn sec"><i class="ic" data-ic="trophy"></i>達成状況</button></div>';
+  }
+  (function(){
+    var scr = document.querySelector('[data-id="sc1"]');
+    var grid = scr.querySelector('[data-cgrid]'), sheet = scr.querySelector('[data-id="csheet"]');
+    var sw = scr.querySelector('[data-fsw]'), fc = scr.querySelector('[data-fcount]');
+    var ok = CAS.filter(function(c){ return !why(c); }).length;
+    grid.innerHTML = CAS.map(function(c, i){
+      var w = why(c);
+      return '<button type="button" class="sl-tile w-' + c.id + ' sl-in' + (w ? ' no' : '') + '" style="--d:' + (0.035 * i).toFixed(3) + 's" data-c="' + c.id + '">' +
+        (w ? '<span class="bad"><i class="ic" data-ic="info"></i>' + w + '</span>' : '') +
+        '<i class="emb" data-emb="' + c.id + '"></i><span class="tn">' + c.name + '</span><span class="tm">' + c.ppl + '・' + c.min + '</span></button>';
+    }).join('') + '<div class="sl-tile soon"><span class="q">?</span><span class="tn">近日とどきます</span></div>';
+    fc.textContent = CAS.length + '本のうち ' + ok + '本';
+    var on = false;
+    function flip(next){
+      var tiles = [].slice.call(grid.children);
+      var first = tiles.map(function(t){ return t.getBoundingClientRect(); });
+      tiles.forEach(function(t){ t.classList.toggle('gone', next && (t.classList.contains('no') || t.classList.contains('soon'))); });
+      var s = scr.getBoundingClientRect().width / scr.offsetWidth;
+      tiles.forEach(function(t, i){
+        if(t.classList.contains('gone')) return;
+        var last = t.getBoundingClientRect();
+        var dx = (first[i].left - last.left) / s, dy = (first[i].top - last.top) / s;
+        if(!first[i].width){ t.animate([{opacity:0, transform:'scale(.9)'}, {opacity:1, transform:'none'}], {duration:250 * DS.fx(), easing:'cubic-bezier(.32,.72,0,1)'}); return; }
+        if(dx || dy) t.animate([{transform:'translate(' + dx + 'px,' + dy + 'px)'}, {transform:'none'}], {duration:250 * DS.fx(), easing:'cubic-bezier(.32,.72,0,1)'});
+      });
+    }
+    scr.querySelector('[data-filter]').addEventListener('click', function(){ on = !on; sw.classList.toggle('on', on); flip(on); });
+    grid.addEventListener('click', function(e){
+      var b = e.target.closest('[data-c]'); if(!b) return;
+      var c = BY[b.getAttribute('data-c')];
+      worldOf(sheet, c.id); sheet.innerHTML = sheetHtml(c); DS.hydrate(sheet);
+      DS.open(scr, '#csheet');
+      var tv = document.querySelector('[data-id="tc"]');
+      if(tv) [].forEach.call(tv.querySelectorAll('.sl-tt'), function(t){ var me = t.getAttribute('data-c') === c.id; t.classList.toggle('cur', me); var p = t.querySelector('.tpill'); if(p) p.remove(); if(me){ t.insertAdjacentHTML('beforeend', '<span class="tpill">見ています</span>'); } });
+    });
+    scr.addEventListener('ds:start', function(e){ if(e.detail === 'replay'){ on = false; sw.classList.remove('on'); [].forEach.call(grid.children, function(t){ t.classList.remove('gone'); }); } });
+  })();
+  document.querySelectorAll('[data-static-sheet]').forEach(function(s){
+    var c = BY[s.getAttribute('data-static-sheet')]; worldOf(s, c.id); s.innerHTML = sheetHtml(c);
+  });
+  /* TV（案C）：タイルの棚 */
+  (function(){
+    var g = document.querySelector('[data-tcgrid]'); if(!g) return;
+    g.innerHTML = CAS.map(function(c){
+      var me = c.id === 'falsetrue';
+      return '<div class="sl-tt' + (me ? ' cur' : '') + (why(c) ? ' no' : '') + '" data-c="' + c.id + '"><span class="tile w-' + c.id + '"><i class="emb" data-emb="' + c.id + '"></i></span><span class="tt"><b>' + c.name + '</b><small>' + c.ppl + '・' + c.min + '</small></span>' + (me ? '<span class="tpill">見ています</span>' : '') + '</div>';
+    }).join('');
+  })();
+})();
+</script>
+</body>
+</html>

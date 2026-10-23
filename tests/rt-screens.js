@@ -6812,17 +6812,26 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       { id: 'm2', name: 'びび', alive: true, role: null, deadCause: null, deadTurn: null },
       { id: 'm3', name: 'ちか', alive: true, role: null, deadCause: null, deadTurn: null }
     ];
+    // **飛んだ印は、見張りに拾わせて数える**（落とし穴28「時々読むと取りこぼす」）。
+    // 印は 0.09秒おきに1つずつ出て、1つは 0.26秒で消える。前は「同時に4つ見えるまで待つ」だったので、
+    // 全テストで重い時（タイマーがばらばらに遅れる）は、最初の印が消えてから4つ目が出て、
+    // 4つそろう瞬間が来ずに時間切れになっていた（2026-10-23 の全テストで1回。
+    // タイマーに 0〜0.4秒の遅れを足すと4回に1回赤になるのを確かめてから直した）
+    const 飛んだ = [];
+    const 見張り = new win.MutationObserver((recs) => recs.forEach((r) => Array.prototype.forEach.call(r.addedNodes,
+      (n) => { if (n.classList && n.classList.contains('fx-fly')) 飛んだ.push(n.textContent); })));
+    見張り.observe(doc.body, { childList: true, subtree: true });
     push(fake, bigRoom({ state: { phase: 'turnResult', game: 'wolfrole',
       data: wolfView({ phase: 'turnResult', turn: 1, players: players,
         turnResult: { executed: { name: 'ちか', role: null }, noVotes: false,
           counts: [{ id: 'm3', name: 'ちか', n: 3 }, { id: 'm2', name: 'びび', n: 1 }], runoff: null } }) } }));
-    await waitFor(win, () => doc.querySelectorAll('.fx-fly').length >= 4, 4000, '票が飛ぶ');
-    assertEqual(doc.querySelectorAll('.fx-fly').length, 4, '票数のぶんだけ飛ぶ（3＋1）');
+    // 4つ飛び終わって、画面から印が消えるまで（5つ目が出ないことも見るため、出しきったのを待つ）
+    await waitFor(win, () => 飛んだ.length >= 4 && !doc.querySelector('.fx-fly'), 8000, '票が飛ぶ');
+    見張り.disconnect();
+    assertEqual(飛んだ.length, 4, '票数のぶんだけ飛ぶ（3＋1）');
     // **飛ぶ元は盤そのもの。**「誰から」を映さないことが、この検査の本体
-    const 印 = Array.prototype.map.call(doc.querySelectorAll('.fx-fly'), (n) => n.textContent);
-    assertEqual(Array.from(new Set(印)).join(''), '✓', '印はどれも同じ（誰からかを表さない）');
-    assert(!/びび|ちか/.test(Array.prototype.map.call(doc.querySelectorAll('.fx-fly'),
-      (n) => n.textContent).join('')), '飛ぶ印に名前を載せない');
+    assertEqual(Array.from(new Set(飛んだ)).join(''), '✓', '印はどれも同じ（誰からかを表さない）');
+    assert(!/びび|ちか/.test(飛んだ.join('')), '飛ぶ印に名前を載せない');
     assertNoErrors(errors, '票の演出で未捕捉の例外');
     win.close();
   });

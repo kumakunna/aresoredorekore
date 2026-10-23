@@ -363,11 +363,12 @@ function v2のクラス(css) {
     });
   });
 
-  await r.test('ゲームの印は10の世界ぶんそろい、題字の画像のファイルがある', async () => {
+  await r.test('ゲームの印は9つの世界ぶんそろい、題字の画像のファイルがある', async () => {
     // 題字の画像を置き忘れたまま、部品の見本の印が「壊れた画像」で出ていた（指示66-1 の途中で踏んだ）。
     // check.js も撮る道具も、画像が読めないことは数えない——ここでファイルがあることを見る
     const V2 = require('../public/js/v2-kit.js');
-    const 空 = V2.WORLDS.filter((w) => !V2.emblem(w));
+    // 待合（wait）はゲームではないので印が無い。ゲームの世界9つに印がある
+    const 空 = V2.WORLDS.filter((w) => w !== 'wait' && !V2.emblem(w));
     assertEqual(空.join('・'), '', '印が空の世界');
     const 画像 = [];
     V2.WORLDS.forEach((w) => { const m = /src="([^"]+)"/.exec(V2.emblem(w)); if (m) 画像.push(m[1]); });

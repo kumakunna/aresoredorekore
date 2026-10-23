@@ -1880,6 +1880,28 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (typeof cb === 'function') cb({ ok: true, inset: room.fes.inset });
       pushFes(room);
     });
+    // 係：一時停止／つづける。流れの締め切りを止め、ゲームの最中ならゲームのポーズ（48-5）も同じに止める
+    socket.on('fes:pause', (payload, cb) => {
+      if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
+      const room = staffRoom(payload);
+      if (!room) return fail(cb, 'no_room', '文化祭の部屋がありません');
+      const on = !(payload && payload.on === false);
+      FesRoom.pause(room, on, Date.now());
+      if (driverOf(room)) setPaused(room, on, null);
+      if (typeof cb === 'function') cb({ ok: true, paused: on });
+      pushFes(room);
+      if (driverOf(room)) pushWolfState(room);
+    });
+    // 係：この回をとばす（待合へもどす）
+    socket.on('fes:skip', (payload, cb) => {
+      if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
+      const room = staffRoom(payload);
+      if (!room) return fail(cb, 'no_room', '文化祭の部屋がありません');
+      if (isPaused(room)) setPaused(room, false);
+      FesRoom.skip(room, Date.now(), fesApi);
+      if (typeof cb === 'function') cb({ ok: true });
+      pushFes(room);
+    });
     // 投票。**一度入れたら変わらない。票の数はだれにも配らない**（自分の投票だけ本人へ）
     socket.on('fes:vote', (payload, cb) => {
       const room = currentRoom();

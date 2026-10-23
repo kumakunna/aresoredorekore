@@ -18,7 +18,7 @@ const FesRoom = require('../fes-room');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const OWNER = 900, STAFF = 901, NOBODY = 902;
-const T = { lobbyMs: 300, idleMs: 600, voteMs: 400, decideMs: 100, readyMs: 500, resultMs: 300 };
+const T = { lobbyMs: 300, idleMs: 600, voteMs: 400, decideMs: 100, readyMs: 500, resultMs: 300, endGraceMs: 100 };
 
 function startTestServer() {
   const app = express();
@@ -307,6 +307,33 @@ async function join(srv, code, name, diff, extra) {
     // 消すのは「見た時」だけではない：起動のたびと1時間ごとに掃く（purge が本当に消すか）
     srv.fesStore.logName('OLD222', 'ふるい', false, null, now - RETAIN_MS - 1);
     assertEqual(srv.fesStore.purge(now).names, 1, '掃けば消える');
+    await srv.close();
+  });
+
+  await r.test('係：一時停止で流れが止まり、つづけると止めた所から動く・この回をとばすと待合へもどる', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const a = await join(srv, code, 'ふう');
+    const b = await join(srv, code, 'ひろ');
+    await waitUntil(() => fesOf(a).phase === 'vote', '投票へ');
+    assertEqual((await a.call('fes:pause', { code })).error, 'not_staff', '参加者は止められない');
+    assertEqual((await staff.call('fes:pause', { code })).ok, true, '係は止められる');
+    await waitUntil(() => fesOf(a).paused, '止まった印が届く');
+    await sleep(T.voteMs + 800);
+    assertEqual(fesOf(a).phase, 'vote', '止めている間は、締め切りを過ぎても進まない');
+    await staff.call('fes:pause', { code, on: false });
+    await waitUntil(() => fesOf(a).phase === 'decide' || fesOf(a).phase === 'ready', 'つづけると進む');
+    await waitUntil(() => fesOf(a).phase === 'ready', '準備OKへ');
+    await a.call('room:ready', { game: a.room.state.game });
+    await b.call('room:ready', { game: b.room.state.game });
+    await waitUntil(() => fesOf(a).phase === 'play', '始まる');
+    assertEqual((await staff.call('fes:skip', { code })).ok, true, '係はこの回をとばせる');
+    await waitUntil(() => fesOf(a).phase === 'lobby', '待合へもどる');
+    const room = srv.store.get(code);
+    assert(!room.bomb && !room.rcard && !room.shinka, 'ゲームは片付いている');
+    assert(a.room.members.every((m) => m.role === 'player'), 'みんなまた入れる');
+    assertEqual(a.me.miss, 0, 'とばした回は、だれの押し忘れにも数えない');
+    [staff, a, b].forEach((d) => d.close());
     await srv.close();
   });
 

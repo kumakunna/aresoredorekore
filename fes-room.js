@@ -46,7 +46,10 @@ const TIMES = {
   voteMs: 20000,     // 投票（F7「20秒」）
   decideMs: 4000,    // 決定の4段（F8：①0〜0.7秒 ②0.75〜1.35秒 ③1.3〜2秒 ④2.1秒〜）
   readyMs: 20000,    // ルールと準備OK。見本に長さが無いので投票と同じにした（門の記録に理由）
-  resultMs: 15000    // 結果と「つづける？」（F12「15秒」）
+  resultMs: 15000,   // 結果と「つづける？」（F12「15秒」）
+  // ゲームが終わってから結果の画面へ移るまで。爆発・解除の瞬間そのもの（溜め・音・TVいっぱいの💥）は
+  // ゲームの画面が見せるので、それを切らない（F12「爆発の瞬間そのものは「クイズ解除」のページ」）
+  endGraceMs: 4500
 };
 
 const PHASE = { IDLE: 'idle', LOBBY: 'lobby', VOTE: 'vote', DECIDE: 'decide', READY: 'ready', PLAY: 'play', RESULT: 'result' };
@@ -95,6 +98,8 @@ function set(room, phase, ms, now) {
 function tick(room, now, api) {
   const f = room.fes;
   if (!f) return false;
+  // 係が一時停止している間は、どの段階も進めない
+  if (f.pausedLeft) return false;
   const t = f.times;
   const n = livePeople(room).length;
   switch (f.phase) {
@@ -124,7 +129,12 @@ function tick(room, now, api) {
     case PHASE.PLAY: {
       // ゲームが終わったら結果へ。進行役が消えていても（全員いなくなった等）結果へ
       const w = api.driverStateOf(room);
-      if (!w || w.phase === 'ended') { set(room, PHASE.RESULT, t.resultMs, now); f.cont = new Set(); return true; }
+      const ended = !w || w.phase === 'ended';
+      if (ended && !f.endedAt) f.endedAt = now;
+      if (ended && (!w || now - f.endedAt >= t.endGraceMs)) {
+        f.endedAt = null;
+        set(room, PHASE.RESULT, t.resultMs, now); f.cont = new Set(); return true;
+      }
       return false;
     }
     case PHASE.RESULT:
@@ -236,6 +246,29 @@ function closeReady(room, now, api) {
   return true;
 }
 
+/**
+ * 係：一時停止。いまの段階の締め切りを止める（ゲームの最中はゲームの側のポーズも realtime.js が止める）。
+ * もう一度押すと、止めた時ののこり時間から動き出す
+ */
+function pause(room, on, now) {
+  const f = room.fes;
+  if (on && !f.pausedLeft) { f.pausedLeft = f.endsAt ? Math.max(1, f.endsAt - now) : -1; f.endsAt = null; return true; }
+  if (!on && f.pausedLeft) { f.endsAt = f.pausedLeft > 0 ? now + f.pausedLeft : null; f.pausedLeft = null; return true; }
+  return false;
+}
+/** 係：この回をとばす。ゲームの最中ならそのゲームを片付けて、待合へもどす（だれの「押し忘れ」にも数えない） */
+function skip(room, now, api) {
+  const f = room.fes;
+  f.pausedLeft = null; f.endedAt = null;
+  api.clearGameState(room);
+  room.state.game = null;
+  people(room).forEach((m) => { m.role = 'player'; m.readyGame = null; });
+  if (f.phase === PHASE.PLAY || f.phase === PHASE.RESULT) f.round++;
+  f.pick = null; f.candidates = []; f.votes = new Map(); f.note = 'skipped';
+  set(room, PHASE.LOBBY, null, now);
+  return true;
+}
+
 /** 結果で「つづける」 */
 function keepGoing(room, memberId) {
   const f = room.fes;
@@ -279,7 +312,8 @@ function publicView(room, now) {
     max: ROOM_MAX,
     hidden: Array.from(f.hidden),
     inset: f.inset,
-    note: f.note
+    note: f.note,
+    paused: !!f.pausedLeft
   };
 }
 
@@ -297,4 +331,4 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { FES_GAMES, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, init, tick, vote, keepGoing, publicView, privateFor, candidatesFor, gameOf };
+module.exports = { FES_GAMES, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, init, tick, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf };

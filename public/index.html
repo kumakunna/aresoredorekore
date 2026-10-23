@@ -1690,11 +1690,15 @@
   /* 第32弾-B-1：演出の速さ。スキップにしたら、画面の動きを全部止める
      （待たされるのが苦手な人・急いでいる時のため。情報は必ず画面にも出す） */
   /* 印は html。#app の中だけにすると、重なりの出入りが止まらない */
+  /* 指示66-1：**くり返しも1回で止める。**長さを 0.001秒に縮めるだけだと、infinite の動き（待っている間の脈・
+     のこりわずかの時計・ランプなど）は 1ms でくり返し続け、描くたびにでたらめな位置へ飛ぶ＝チカチカになっていた
+     （tools/probe-skip-strobe.js。正本 §6「点滅は1秒に3回まで」）。1回で終われば、元の見た目のまま止まる */
   :root.fx-skip *,
   :root.fx-skip *::before,
   :root.fx-skip *::after{
     animation-duration:0.001s !important;
     animation-delay:0s !important;
+    animation-iteration-count:1 !important;
     transition-duration:0.001s !important;
   }
   /* 第32弾-A-3-9：この設定だと だいたい何分かかるか */

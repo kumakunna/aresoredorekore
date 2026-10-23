@@ -151,5 +151,14 @@
     "from": "     爆弾の「制御盤」テーマの節より上なのは、そこから下を smoke.js が「テーマ専用」として読むため",
     "to": "     「第28弾-2 第2部」より上なのは、そこから下を smoke.js が「テーマ専用」として読むため",
     "expect": "テーマ専用の節（smoke.js が読む）の印の1つ目は、v2 の節より後ろ"
+  },
+  {
+    "name": "66-R スキップで、くり返しを止めない（古い画面のチカチカの元の形）",
+    "file": "public/index.html",
+    "suite": "tests/safety-rules.js",
+    "only": "スキップ",
+    "from": "    animation-iteration-count:1 !important;\n    transition-duration:0.001s !important;",
+    "to": "    transition-duration:0.001s !important;",
+    "expect": "くり返しを1回で止める"
   }
 ]

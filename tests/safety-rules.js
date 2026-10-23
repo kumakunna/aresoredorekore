@@ -71,6 +71,28 @@ function animations() {
     assert(/no-flash|fxFlash|can\.flash/.test(CSS + FX), '「光の点滅をつかう」を切ると止まる');
   });
 
+  await r.test('演出「スキップ」でも、くり返す動きがチカチカしない（正本6・指示66-1 で見つけた）', async () => {
+    // アプリ全体のスキップ（:root.fx-skip *）は、動きの長さを 0.001秒に縮める。
+    // **回数を止めないと**、infinite の動きは 1ms でくり返し続け、描くたびにでたらめな位置へ飛ぶ
+    // ——ゆっくり脈打つ印が、コマごとに明るさの飛ぶチカチカになる（本物の CSS で、待っている間の脈が
+    // 0.55→0.61→0.81→0.94… と飛んだ。tools/probe-skip-strobe.js）。
+    // スキップを選ぶのは演出が苦手な人なので、いちばん困る人に出る。
+    // **1か所で止める**：スキップの全体の規則に「くり返しは1回」を持たせる（くり返す動きごとに止めを書くと、足した日に漏れる）
+    const 全体の止め = (css) => {
+      const m = /:root\.fx-skip \*,\s*:root\.fx-skip \*::before,\s*:root\.fx-skip \*::after\s*\{([^}]*)\}/.exec(css);
+      return m ? m[1].replace(/\s+/g, '') : null;
+    };
+    const 回数を止める = (body) => /animation-iteration-count:1!important/.test(body || '');
+    const 本体 = 全体の止め(CSS);
+    assert(本体, 'スキップの全体の規則（:root.fx-skip *）が見つかる');
+    const くり返し = animations().filter((a) => a.無限);
+    assert(くり返し.length >= 5, 'くり返す動きがある（実際:' + くり返し.length + '件）');   // 型(b)：止める相手がいる
+    assert(回数を止める(本体), 'スキップの全体の規則が、くり返しを1回で止める（animation-iteration-count:1 !important）');
+    // 赤くなるか（落とし穴10）：止めを外した規則を、同じ物差しで読む
+    const 外した = 本体.replace('animation-iteration-count:1!important;', '');
+    assert(!回数を止める(外した), '止めを外すと、この検査は赤くなる');
+  });
+
   await r.test('赤は縁のみ。塗ってよいのは主ボタン1つだけ（正本6）', async () => {
     // 赤い面は、それだけで「叱られている」に見える。
     // 原則C（責める時は静かに）と同じ理由で、**地**は輪郭にとどめる。

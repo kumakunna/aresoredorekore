@@ -31,7 +31,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { launch, sleep } = require('./cdp');
-const { 測る: 大画面の測り } = require('./big-measure');
+const { 測る: 大画面の測り, 走る演出の名 } = require('./big-measure');
 
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
@@ -244,7 +244,9 @@ function makeWalk(opts) {
         if (k === '大画面' && 測り[k] && 測り[k].画面 === 'scr-rt-big') {
           try {
             const m = await d.ev(大画面の測り);
-            if (m) 測り[k].大画面 = { 巻き: m.ページの巻き, 箱の巻き: m.箱の巻き.length, 切れ: m.切れ.slice(0, 8), 切れの数: m.切れの数, 小さい: m.小さい.slice(0, 8), 小さいの数: m.小さいの数, 読めない: (m.読めない || []).slice(0, 8), 読めないの数: m.読めないの数 || 0, 段階: m.段階 };
+            // 測った瞬間に走っていた演出も残す（切れが出た時、入れかわりの途中だったかを後で見分けるため）
+            const 走る = m && m.切れの数 ? await d.ev(走る演出の名()) : [];
+            if (m) 測り[k].大画面 = { 走る演出: 走る, 巻き: m.ページの巻き, 箱の巻き: m.箱の巻き.length, 切れ: m.切れ.slice(0, 8), 切れの数: m.切れの数, 小さい: m.小さい.slice(0, 8), 小さいの数: m.小さいの数, 読めない: (m.読めない || []).slice(0, 8), 読めないの数: m.読めないの数 || 0, 段階: m.段階 };
           } catch (e) { 測り[k].大画面 = { 失敗: String(e.message) }; }
         }
         if (撮らない) return;
@@ -431,7 +433,14 @@ function makeWalk(opts) {
           continue;
         }
         if (scr === 'scr-mode-rules') { await W.手順を('進行役', 'モードのルール：はじめる', '押す', () => W.click(h, '#rulesStartBtn'), { 間: 900 }); continue; }
-        if (scr === 'scr-rt-rules') { await W.手順を('進行役', '部屋のルール：準備OK', '押す', () => W.click(h, '#rtRulesOkBtn'), { 間: 900 }); continue; }
+        if (scr === 'scr-rt-rules') {
+          // 「はじめてですね」が出ていたら先に答える（出たまま準備OKを押すと、幕に当たって進まない）。
+          // 進行役は会場の係で遊び方を知っている前提なので「いらない」。参加者は 準備OKまで が「見る」を押す
+          const 問い = await h.ev("(function(){var b=Array.from(document.querySelectorAll('.ui-layer button, #uiLayerRoot button')).find(function(x){return /いらない/.test(x.textContent)&&x.getBoundingClientRect().width>0;});return !!b;})()");
+          if (問い) { await W.手順を('進行役', '「はじめてですね」：いらない', '押す', () => W.press(h, /^いらない$/, '.ui-layer button, #uiLayerRoot button'), { 間: 800 }); 前 = null; continue; }
+          await W.手順を('進行役', '部屋のルール：準備OK', '押す', () => W.click(h, '#rtRulesOkBtn'), { 間: 900 });
+          continue;
+        }
         const next = await h.ev("(function(){var n=Array.from(document.querySelectorAll('.screen.active [data-wiz-next]')).find(function(b){return b.getBoundingClientRect().width>0&&!b.disabled;});return n?(n.innerText||'').trim():null;})()");
         if (next !== null) {
           await W.手順を('進行役', '設定（' + scr + '）：既定のまま「' + next + '」', '押す', () => h.ev("(function(){var n=Array.from(document.querySelectorAll('.screen.active [data-wiz-next]')).find(function(b){return b.getBoundingClientRect().width>0&&!b.disabled;}); n.click(); return true;})()").then(() => { 押した++; }), { 間: 900 });

@@ -10,7 +10,8 @@
     "test": "node tools/run-tests.js",
     "playthrough": "node tests/playthrough.js",
     "test:time": "node tools/run-tests.js --time --jobs 1",
-    "test:list": "node tools/run-tests.js --list"
+    "test:list": "node tools/run-tests.js --list",
+    "test:short": "node tools/run-tests.js --short"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

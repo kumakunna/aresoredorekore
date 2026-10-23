@@ -26,6 +26,7 @@
 //   node tools/run-tests.js --jobs 1   # 並走なし（迷った時の基準）
 //   node tools/run-tests.js --list     # 走らせる一覧と、単独/並走の別を見るだけ
 //   node tools/run-tests.js --only shelf   # 名前に shelf を含むものだけ
+//   node tools/run-tests.js --short    # 赤のスイートと、まとめ・赤・最後の1行だけ（判定は同じ）
 //
 // ── 並走の決めごと（落とし穴11の読み直し）────────────
 //
@@ -58,6 +59,10 @@ function opt(name, def) {
 const 計測 = !!opt('time', false);
 const 一覧だけ = !!opt('list', false);
 const 絞り = opt('only', null);
+// 短く見る（使用量の決まり）。緑のスイートの行と、赤の中の長い出力を省く。
+// **判定と最後の1行は変えない**——門の証拠に要るのはそこだから
+const 短く = !!opt('short', false);
+const 短く行数 = 6;
 // 既定は3。**実測で決めた**（第44弾）。
 //
 // 並走できる36本の合計は1386秒だが、そのうち rt-screens 単体が510秒ある。
@@ -167,6 +172,7 @@ function 印字(r) {
   const s = r.報告;
   if (r.回し直した) console.log('  ↑ ' + r.file + ' は1回目が報告なし（' + r.前回 + '）で、回し直した結果');
   const 印 = (r.code === 0 && s && s.pass === s.total) ? '✅' : '❌';
+  if (短く && 印 === '✅') return;
   const 数 = s ? (s.pass + '/' + s.total) : '（報告なし）';
   const 秒 = (r.ms / 1000).toFixed(1) + '秒';
   const メ = (s && s.peakKb) ? ' ' + (s.peakKb / 1024).toFixed(0) + 'MB' : '';
@@ -245,7 +251,10 @@ function 印字(r) {
     console.log('══ 赤 ' + 赤.length + '件 ═══════════════════════════════');
     赤.forEach(([f, name, err]) => {
       console.log('  ❌ ' + f.replace(/\.js$/, '') + '：' + name);
-      if (err) console.log('       → ' + String(err).split('\n').join('\n         '));
+      if (!err) return;
+      let 行 = String(err).split('\n');
+      if (短く && 行.length > 短く行数) 行 = 行.slice(0, 短く行数).concat('…（ほか ' + (行.length - 短く行数) + '行。--short を外すと全部出る）');
+      console.log('       → ' + 行.join('\n         '));
     });
   }
 

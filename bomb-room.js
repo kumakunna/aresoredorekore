@@ -44,6 +44,38 @@ function playersOf(room) {
   return Array.from(room.members.values()).filter((m) => m.role === 'player');
 }
 
+// ---- 指示66-2：むずかしさの上限 ----
+// 文化祭の部屋で選ぶ3つの段と、その人に出す問題の層の上限。協力版だけに効かせる（競争版は全員同じ問題で競うので、変えると公平でなくなる）
+const DIFF_CAP = { easy: 'normal', normal: 'hard', hard: null };
+function capsFrom(diffs, mode) {
+  const out = {};
+  if (!diffs || mode !== BombLogic.MODE.COOP) return out;
+  Object.keys(diffs).forEach((id) => { const c = DIFF_CAP[diffs[id]]; if (c) out[id] = c; });
+  return out;
+}
+/**
+ * その人がそのコードで実際に答える問題（ふつうはコードそのもの）。
+ * 上限より上の色なら、上限の層から1つ選んで覚える——開き直しても同じ問題、ほかの人には元の問題
+ */
+function questionFor(w, memberId, uid) {
+  const wire = w.wires.find((x) => x.uid === uid);
+  const cap = w.capOf && w.capOf[memberId];
+  if (!wire || !cap) return { wire, key: uid };
+  const T = QuizBank.TIERS || ['easy', 'normal', 'hard', 'nanisore', 'muri'];
+  if (T.indexOf(wire.tier) <= T.indexOf(cap)) return { wire, key: uid };
+  const key = uid + '|' + memberId;
+  if (!w.subs[key]) {
+    const seen = {};
+    w.wires.forEach((x) => { seen[x.question] = true; });
+    Object.keys(w.subs).forEach((k) => { seen[w.subs[k].question] = true; });
+    const one = BombLogic.pickQuestionWires(QuizBank, { [cap]: 1 }, w.rnd || null, seen, [cap])[0];
+    // 問題が尽きたら元の問題のまま（止まるより、むずかしくても出す方がよい）
+    if (!one) return { wire, key: uid };
+    w.subs[key] = Object.assign({}, one, { uid: uid, shownTier: wire.tier });
+  }
+  return { wire: w.subs[key], key };
+}
+
 // ---- 成績の入れ物 ----
 // 通常版なら全員が同じものを、競争版なら自分のものを指す。
 // これがあるおかげで、ライフもミスも解けた数も「1つの書き方」で済む
@@ -149,6 +181,15 @@ function startGame(room, config, ctx) {
      * 見るだけの人をそこへ入れると、生きている人の挑戦を横取りしてしまう
      */
     peek: {},                // memberId -> 見るだけ開いている uid
+    /**
+     * 指示66-2：文化祭の部屋の「むずかしさ」（くまくんの決め 2026-10-24）。
+     * **コードの色と選び方は今のまま。その人に出る3択だけ、選んだ段を上限にする。**
+     * capOf：memberId -> 上限の層（やさしい＝ふつうの層まで・ふつう＝むずかしいの層まで・むずかしい＝上限なし）。
+     * 上限より上の色のコードを開いた人には、上限の層から別の問題を1つ出す（subs に、その人とコードの組で覚える）。
+     * 文化祭の部屋（fesDiffs を渡した時）だけ。ふつうの部屋は空のまま＝今までと同じ
+     */
+    capOf: capsFrom(config && config.fesDiffs, cfg.mode),
+    subs: {},                // uid|memberId -> その人に出す差しかえの問題（コードと同じ形）
     solvedBy: {},            // uid -> 解いた人（通常版の「誰が切ったか」の表示用）
     // 第45弾：**答えた記録。**45-4（だれが外したか）と 45-6（答え合わせ）の両方が
     // ここ1つを読む。別々に持つと、片方だけ数え方が古くなる（落とし穴1）
@@ -528,12 +569,14 @@ function privateFor(room, memberId) {
   const openUid = w.open[memberId];
   if (openUid && w.phase === PHASE.PLAY) {
     const wire = w.wires.find((x) => x.uid === openUid);
+    // 指示66-2：むずかしさの上限で差しかえた人には、差しかえた問題を（コードの色は元のまま）
+    const q = questionFor(w, memberId, openUid);
     if (wire) {
       out.open = {
         uid: openUid,
         tier: wire.tier,
-        description: wire.description,
-        choices: (e.choices[openUid] || []).slice()
+        description: q.wire.description,
+        choices: (e.choices[q.key] || []).slice()
       };
     }
   }
@@ -603,10 +646,8 @@ function submitAction(room, memberId, targetId) {
     if (holder && holder !== memberId) return { ok: false, error: 'taken' };
   }
   w.open[memberId] = targetId;
-  if (!e.choices[targetId]) {
-    const wire = w.wires.find((x) => x.uid === targetId);
-    e.choices[targetId] = BombLogic.buildChoices(wire);
-  }
+  const q = questionFor(w, memberId, targetId);
+  if (!e.choices[q.key]) e.choices[q.key] = BombLogic.buildChoices(q.wire);
   return { ok: true, allDone: false };
 }
 
@@ -624,11 +665,13 @@ function submitVote(room, memberId, targetId) {
   if (!entryActive(e)) return { ok: false, error: 'already_done' };
   const uid = w.open[memberId];
   if (!uid) return { ok: false, error: 'nothing_open' };
-  const wire = w.wires.find((x) => x.uid === uid);
-  if (!wire) return { ok: false, error: 'unknown_code' };
+  if (!w.wires.some((x) => x.uid === uid)) return { ok: false, error: 'unknown_code' };
+  // 指示66-2：その人が実際に見た問題で答え合わせする（むずかしさの上限で差しかえた人は、差しかえた問題）
+  const q = questionFor(w, memberId, uid);
+  const wire = q.wire;
   const answer = String(targetId == null ? '' : targetId);
   // 見せた3択以外は受け付けない（状態が壊れないようにするための門）
-  if ((e.choices[uid] || []).indexOf(answer) === -1) return { ok: false, error: 'not_a_choice' };
+  if ((e.choices[q.key] || []).indexOf(answer) === -1) return { ok: false, error: 'not_a_choice' };
 
   delete w.open[memberId];
   const now = Date.now();

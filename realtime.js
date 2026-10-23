@@ -1375,7 +1375,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         code: room.code,
         game: (room.state && room.state.game) || null,
         phase: (room.state && room.state.phase) || 'lobby',
-        playerCount: playerMembers(room).length
+        playerCount: playerMembers(room).length,
+        // 指示66-2：文化祭の部屋なら、入る画面を「名前とむずかしさ」にする（F2）
+        fes: !!room.fes
       };
       // 第35弾A：「部屋」ボタンの在室判定用。memberId を添えて覗くと、
       // 部屋があるかどうかに加えて「自分がまだ名簿にいるか」も返す。

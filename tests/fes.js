@@ -337,6 +337,50 @@ async function join(srv, code, name, diff, extra) {
     await srv.close();
   });
 
+  await r.test('むずかしさ（クイズ解除の協力版）：コードの色はそのまま、その人に出る3択だけ選んだ段が上限', async () => {
+    const BombRoom = require('../bomb-room');
+    const QuizBank = require('../public/js/quiz-bank');
+    const T = ['easy', 'normal', 'hard', 'nanisore', 'muri'];
+    const mk = (mode, diffs) => {
+      const members = new Map(['e', 'n', 'h'].map((id) => [id, { id, name: id, role: 'player', connected: true }]));
+      const room = { code: 'T', members, state: { phase: 'lobby', game: 'bomb', data: {} } };
+      const res = BombRoom.startGame(room, Object.assign({}, FesRoom.gameOf('bomb-coop').start, { mode, fesDiffs: diffs }), { notify() {} });
+      assertEqual(res.ok, true, '始められる（' + (res.error || '') + '）');
+      return room;
+    };
+    const diffs = { e: 'easy', n: 'normal', h: 'hard' };
+    const room = mk('coop', diffs);
+    const w = room.bomb;
+    const hard = w.wires.find((x) => x.tier === 'hard');
+    assert(hard, 'むずかしい層のコードがある（型(b)：差しかえが起きる状況を作れている）');
+    // やさしいを選んだ人が、だいだい（むずかしい層）のコードを開く
+    assertEqual(BombRoom.submitAction(room, 'e', hard.uid).ok, true, '開ける');
+    const pe = BombRoom.privateFor(room, 'e').open;
+    assertEqual(pe.tier, 'hard', 'コードの色は元のまま');
+    assert(pe.description !== hard.description, 'やさしいの人には別の問題が出る');
+    const sub = w.subs[hard.uid + '|e'];
+    assert(T.indexOf(sub.tier) <= T.indexOf('normal'), '差しかえた問題は「ふつう」の層まで（' + sub.tier + '）');
+    // 差しかえた問題の正解で、そのコードが解ける
+    const right = sub.choices[sub.correct];
+    assertEqual(BombRoom.submitVote(room, 'e', right).correct, true, '差しかえた問題の正解で解ける');
+    assert(BombRoom.privateFor(room, 'n').board.some((c) => c.uid === hard.uid && c.solved), 'そのコードは、みんなの盤でも切れている');
+    // むずかしいを選んだ人は元の問題（別のむずかしい層のコードで見る）
+    const hard2 = w.wires.find((x) => x.tier === 'hard' && x.uid !== hard.uid);
+    BombRoom.submitAction(room, 'h', hard2.uid);
+    assertEqual(BombRoom.privateFor(room, 'h').open.description, hard2.description, 'むずかしいの人には元の問題');
+    // ふつうを選んだ人は、むずかしい層までそのまま
+    const hard3 = w.wires.find((x) => x.tier === 'hard' && x.uid !== hard.uid && x.uid !== hard2.uid);
+    BombRoom.submitAction(room, 'n', hard3.uid);
+    assertEqual(BombRoom.privateFor(room, 'n').open.description, hard3.description, 'ふつうの人も、むずかしい層（だいだい）まではそのまま');
+    // 競争版には効かせない（全員同じ問題で競うので）
+    const race = mk('race', diffs);
+    const rh = race.bomb.wires.find((x) => x.tier === 'hard');
+    BombRoom.submitAction(race, 'e', rh.uid);
+    assertEqual(BombRoom.privateFor(race, 'e').open.description, rh.description, '競争版では差しかえない');
+    // 公開の知らせに差しかえの問題が漏れない
+    assert(!JSON.stringify(BombRoom.publicView(room)).includes(sub.description), '差しかえた問題はみんなに配らない');
+  });
+
   await r.test('投票の候補の人数の幅が、アプリの MODES・GAMES と同じ（写しが腐らない）', async () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
     FesRoom.FES_GAMES.forEach((g) => {

@@ -142,5 +142,14 @@
     "from": "logo: 'img/logo-aresore-v2.png'",
     "to": "logo: 'img/logo-aresore-nai.png'",
     "expect": "public/ に無い画像"
+  },
+  {
+    "name": "66-Q v2 の節のコメントに、テーマの節の見出しの字を写す（smoke.js がそこから読む）",
+    "file": "public/index.html",
+    "suite": "tests/v2.js",
+    "only": "新しい規則は",
+    "from": "     爆弾の「制御盤」テーマの節より上なのは、そこから下を smoke.js が「テーマ専用」として読むため",
+    "to": "     「第28弾-2 第2部」より上なのは、そこから下を smoke.js が「テーマ専用」として読むため",
+    "expect": "テーマ専用の節（smoke.js が読む）の印の1つ目は、v2 の節より後ろ"
   }
 ]

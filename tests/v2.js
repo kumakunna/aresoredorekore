@@ -109,7 +109,12 @@ function v2のクラス(css) {
 
   await r.test('新しい規則は、最初の <style> の中・「第28弾-2 第2部」より上にある（ほかの検査が読む所）', async () => {
     assert(V2CSS, 'v2 の節が最初の <style> の中にある');
-    assert(STYLE.indexOf(頭) < STYLE.indexOf('第28弾-2 第2部'), 'テーマ専用の節（smoke.js が読む）より上');
+    // テーマ専用の節の印は、smoke.js と同じく「1つ目」を読む。**1つ目が v2 の節の後ろ、かつ v2 の節の中に無い**こと
+    //（v2 の節のコメントに印の字を写したら、smoke.js がそこから読んで v2 を全部「テーマの外」と数えた。
+    // この確かめもその写しを拾って自明に通っていた——落とし穴10-a・45）
+    const 印 = '第28弾-2 ' + '第2部';
+    const 印の位置 = STYLE.indexOf(印), 尾の位置 = STYLE.indexOf(尾);
+    assert(印の位置 > 尾の位置 && 尾の位置 > STYLE.indexOf(頭), 'テーマ専用の節（smoke.js が読む）の印の1つ目は、v2 の節より後ろ');
     assert(cssRules(V2CSS).length > 120, 'v2 の規則を集められている（実際:' + cssRules(V2CSS).length + '件）');   // 型(b)
   });
 

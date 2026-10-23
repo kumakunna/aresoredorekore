@@ -70,6 +70,25 @@ function クイズ解除を終える(room, ok) {
   return ids;
 }
 
+/** クイズ解除（協力版）を本当に動かして、解除中の形にする：15本切れていて、何人かが挑戦中、1本は外れ、自分は1本開いている */
+function クイズ解除の途中(room) {
+  const ids = Array.from(room.members.values()).filter((m) => m.role === 'player').map((m) => m.id).slice(0, 8);
+  const res = BombRoom.startGame(room, FesRoom.gameOf('bomb-coop').start, { notify() {} });
+  if (!res.ok) throw new Error('クイズ解除を始められません: ' + res.error);
+  const w = room.bomb;
+  const order = w.entries[Object.keys(w.entries)[0]].order;
+  const byUid = (uid) => w.wires.find((x) => x.uid === uid);
+  order.slice(0, 15).forEach((uid, i) => { const x = byUid(uid); BombRoom.submitAction(room, ids[i % ids.length], uid); BombRoom.submitVote(room, ids[i % ids.length], x.choices[x.correct]); });
+  // 1本は外す（左上に ✕）
+  const miss = byUid(order[15]); BombRoom.submitAction(room, ids[1], miss.uid); BombRoom.submitVote(room, ids[1], miss.choices.find((c, j) => j !== miss.correct));
+  // 挑戦中の人（ひろ・でん・ふう②）と、自分（ふう）が開いている1本
+  [[ids[1], order[2 + 16]], [ids[4], order[26]], [ids[6] || ids[2], order[7 + 16]]].forEach(([id, uid]) => { if (id && uid) BombRoom.submitAction(room, id, uid); });
+  BombRoom.submitAction(room, ids[0], order[20]);
+  room.fes.played = { mode: 'bomb-coop', round: room.fes.round, ids: ids };
+  room.fes.phase = FesRoom.PHASE.PLAY;
+  return ids;
+}
+
 function snap(room) { return JSON.parse(JSON.stringify(RT.publicSnapshot(room))); }
 function lab(room, screen, meId, extra) {
   return Object.assign({ screen, room: snap(room), you: FesRoom.privateFor(room, meId || 'm1') || {}, meId: meId || 'm1' }, extra || {});
@@ -77,17 +96,25 @@ function lab(room, screen, meId, extra) {
 
 /** 場面ごと。o：{ n, long } */
 const BUILD = {
+  'fes2-safety': () => ({ screen: 'safetyGate' }),
+  'fes2-cd': () => ({ screen: 'v2Cdx', mode: 'bomb-coop' }),
+  'fes2-tv-cd': () => ({ screen: 'v2Cdx', mode: 'bomb-coop', tv: true }),
   'fes2-join': () => ({ screen: 'scr-v2-fes-join', join: { code: CODE, n: 6, name: 'ふう', diff: null } }),
   'fes2-join-on': () => ({ screen: 'scr-v2-fes-join', join: { code: CODE, n: 6, name: 'ふう', diff: 'normal' } }),
   'fes2-join-bad': () => ({ screen: 'scr-v2-fes-join', join: { code: CODE, n: 6, name: '', masked: true, diff: 'normal', err: 'この名前は使えません。ほかの名前にしてね' } }),
   'fes2-lobby': (o) => { const r = 部屋(o.n || 6, o.long); FesRoom.tick(r, Date.now(), api); のこり(r, 21); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-fb': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); のこり(r, 21); return lab(r, 'scr-v2-fes-lobby', 'm1', { fb: { mode: 'bomb-coop', round: 1, stars: 0, open: true } }); },
+  'fes2-look': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); のこり(r, 24); return lab(r, 'scr-v2-fes-lobby', 'm1', { open: ['v2Look'] }); },
+  'fes2-look-icon': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); のこり(r, 22); return lab(r, 'scr-v2-fes-lobby', 'm1', { open: ['v2Look', 'v2LookIcon'] }); },
+  'fes2-look-name': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); のこり(r, 20); return lab(r, 'scr-v2-fes-lobby', 'm1', { open: ['v2Look', 'v2LookName'] }); },
   'fes2-fbmini': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); のこり(r, 21); return lab(r, 'scr-v2-fes-lobby', 'm1', { fb: { mode: 'bomb-coop', round: 1, stars: 0, open: false } }); },
   'fes2-vote': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); のこり(r, 20); return lab(r, 'scr-v2-fes-lobby', 'm1', { sel: 'bomb-coop' }); },
   'fes2-voted': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); のこり(r, 14); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-decide': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); ['m1', 'm2', 'm3', 'm4', 'm5'].forEach((id) => FesRoom.vote(r, id, 'bomb-coop')); 進める(r); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-ready': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);
     ['m1', 'm2', 'm5', 'm6', 'm7'].forEach((id) => { const m = r.members.get(id); if (m) m.readyGame = 'bomb'; }); r.members.get('m1').readyGame = null; のこり(r, 12); return lab(r, 'scr-v2-fes-lobby'); },
+  'fes2-play': (o) => { const r = 部屋(o.n || 6); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-lobby', 'm1', { secret: JSON.parse(JSON.stringify(BombRoom.privateFor(r, 'm1'))) }); },
+  'fes2-tv-play': (o) => { const r = 部屋(o.n || 8); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-wait': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, true); r.fes.phase = FesRoom.PHASE.PLAY; r.members.get('m1').role = 'waiting'; return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-result': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, true); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-boom': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, false); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },
@@ -115,8 +142,11 @@ const BUILD = {
 
 /** 撮る道具の一覧に足す場面（kind：phone／tv、mock：見本の同じ場面） */
 const SCENES = [
+  ['fes2-safety', 'phone', 'f1'], ['fes2-cd', 'phone', 'f10'], ['fes2-tv-cd', 'tv', 't10'],
   ['fes2-join', 'phone', 'f2a'], ['fes2-join-on', 'phone', null], ['fes2-join-bad', 'phone', 'f2b'],
   ['fes2-lobby', 'phone', 'f3'], ['fes2-fb', 'phone', 'f4'], ['fes2-fbmini', 'phone', null],
+  ['fes2-play', 'phone', 'f11'], ['fes2-tv-play', 'tv', 't11'],
+  ['fes2-look', 'phone', 'f5a'], ['fes2-look-icon', 'phone', 'f5b'], ['fes2-look-name', 'phone', 'f5c'],
   ['fes2-vote', 'phone', 'f7'], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-ready', 'phone', 'f9'],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],
   ['fes2-tv-idle', 'tv', 't6a'], ['fes2-tv-one', 'tv', 't6b'], ['fes2-tv-lobby', 'tv', 't3'], ['fes2-tv-full', 'tv', 't6c'],

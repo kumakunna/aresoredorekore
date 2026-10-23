@@ -157,7 +157,8 @@
   function cd(opts) {
     var o = opts || {};
     var label = o.label == null ? T('のこり') : o.label, unit = o.unit == null ? T('秒') : o.unit;
-    return '<span class="v2-cd' + (o.tv ? ' is-tv' : '') + '" data-v2-cd data-end="' + (+o.end || 0) + '" data-lo="' + (o.lo == null ? 5 : o.lo) + '">' +
+    // mmss：遊んでいる間の時計（02:27）。見出しも単位も付けず、数字の箱だけ（指示66-2 F11）
+    return '<span class="v2-cd' + (o.tv ? ' is-tv' : '') + (o.mmss ? ' is-mmss' : '') + '" data-v2-cd data-end="' + (+o.end || 0) + '" data-lo="' + (o.lo == null ? 5 : o.lo) + '"' + (o.mmss ? ' data-mmss' : '') + '>' +
       (label ? '<span class="v2-cd-l">' + esc(label) + '</span>' : '') +
       '<b class="v2-cd-n"></b>' +
       (unit ? '<span class="v2-cd-u">' + esc(unit) + '</span>' : '') + '</span>';
@@ -168,7 +169,7 @@
     el.__v2sec = sec;
     var lo = +el.getAttribute('data-lo');
     var n = el.querySelector('.v2-cd-n');
-    if (n) n.innerHTML = digits(sec);
+    if (n) n.innerHTML = el.hasAttribute('data-mmss') ? digits(('0' + Math.floor(sec / 60)).slice(-2)) + ':' + digits(('0' + (sec % 60)).slice(-2)) : digits(sec);
     el.classList.toggle('is-lo', sec <= lo);
     el.classList.toggle('is-one', sec < 10);
     // 5秒以下は、数が変わるたびに1回だけ弾む（演出「なし」では CSS が止める）

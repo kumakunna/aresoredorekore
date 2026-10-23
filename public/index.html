@@ -1148,25 +1148,9 @@
      第28弾-4：戻る矢印のぶん、左側も同じだけ空ける */
   .play-topbar, .bomb-topbar{padding-right:42px;padding-left:42px;}
   /* ===== 第13弾：扉（友達の部屋に入るイメージ・奥に開く） ===== */
-  /* 第32弾-D 第4部：初回だけの安全の案内。黒背景・白文字・押せるトグル */
-  #safetyGate{
-    position:fixed;inset:0;z-index:200;background:#0d0f13;color:#fff;
-    display:flex;align-items:center;justify-content:center;text-align:center;
-  }
-  #safetyGate .sg-body{max-width:340px;padding:24px;}
-  #safetyGate .sg-lead{font-size:16px;line-height:2;margin:0 0 14px;}
-  #safetyGate .sg-sub{font-size:12.5px;line-height:1.9;opacity:.75;margin:0 0 22px;}
-  .sg-toggle{
-    display:flex;align-items:center;gap:10px;width:100%;margin:10px 0;
-    padding:14px 16px;border-radius:12px;border:1.5px solid rgba(255,255,255,.35);
-    background:transparent;color:#fff;font-size:14.5px;cursor:pointer;
-    font-family:'Zen Maru Gothic',sans-serif;
-  }
-  .sg-toggle .sg-check{width:22px;height:22px;border-radius:6px;flex:none;
-    border:1.5px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;
-    font-size:14px;color:transparent;}
-  .sg-toggle.on .sg-check{color:#0d0f13;background:#fff;border-color:#fff;}
-  .sg-toggle.on{border-color:#fff;}
+  /* 第32弾-D 第4部：初回だけの安全の案内。**指示66-2 F1 で新しい見た目にした**（黄色の世界・字は大きく短く）。
+     見た目は v2 の節（.v2-safety）。ここは重ね方だけ */
+  #safetyGate{position:fixed;inset:0;z-index:200;}
   /* 第32弾-D 第4部：光の点滅・画面の揺れを切っている人の画面。
      出す側に条件を書かせず、クラス1つで該当する演出がまとめて止まる。
 
@@ -4715,6 +4699,10 @@
   .v2 :where(button){font:inherit;color:inherit;letter-spacing:inherit;margin:0;-webkit-tap-highlight-color:transparent;
     transition:transform var(--v2-press) var(--v2-ease);}
   .v2 .v2-en{font-family:var(--v2-en);}
+  /* 古い全体の決まり（button:disabled を半透明＋灰色）を、新しい見た目の中では効かせない。押せない形は部品ごとに色で示す（見本と同じ） */
+  .v2 :where(button):disabled{opacity:1;filter:none;}
+  /* 数字の箱（V2.digits の <i>）は斜体にしない。どこに置いても同じ形 */
+  .v2 i{font-style:normal;}
   /* 1行に入れたい字：はみ出たら「…」。上下は切らない（字の箱を詰めているので、hidden だと字の頭と足が欠ける） */
   .v2 .v2-cut{white-space:nowrap;overflow-x:clip;overflow-y:visible;text-overflow:ellipsis;min-width:0;}
   .v2 .v2-ic{display:inline-flex;width:1em;height:1em;flex:none;}
@@ -5227,6 +5215,124 @@
   .v2 .v2-fb-st{color:#F5B400;display:flex;}
   .v2 .v2-fb-st .v2-ic{width:15px;height:15px;}
   .v2 .v2-fb-f p{margin:8px 0 0;font-weight:700;font-size:15px;line-height:1.55;color:#141414;}
+  /* F11 遊ぶ：クイズ解除（協力版）。盤の縁の色＝むずかしさ（見本 ds.css の --tier-*）。挑戦中は点線の縁＋名前（色ではなく形）。
+     時計の地は真っ黒ではなく背景より少し濃い黒。進み具合のまだの所は濃い灰（白だと4m先で境目が消える） */
+  .v2 .v2-play{gap:12px;}
+  .v2 .v2-ptop{display:flex;align-items:center;gap:10px;padding-right:56px;}
+  .v2 .v2-ptop .v2-lives{font-size:22px;margin-right:auto;}
+  .v2 .v2-pclock .v2-cd-n{background:rgba(0,0,0,.35);font-size:24px;padding:6px 10px;}
+  .v2 .v2-cd.is-mmss .v2-cd-n i{width:.6em;}
+  .v2 .v2-pnum{display:flex;align-items:baseline;gap:8px;}
+  .v2 .v2-pnum b{font-family:var(--v2-en);font-weight:900;font-size:48px;line-height:1;}
+  .v2 .v2-pnum .v2-pnum-of{font-size:26px;}
+  .v2 .v2-pnum span{font-weight:900;font-size:15px;}
+  .v2 .v2-prog{height:10px;border-radius:5px;background:#3A3A40;overflow:hidden;flex:none;}
+  .v2 .v2-prog i{display:block;height:100%;background:var(--wa);border-radius:inherit;transition:width var(--v2-move) var(--v2-ease);}
+  .v2 .v2-pkey{justify-content:space-between;}
+  .v2 .v2-pkey-t{font-weight:900;font-size:16px;}
+  .v2 .v2-tierkey{display:flex;flex-wrap:wrap;gap:4px 10px;font-weight:800;font-size:12px;color:var(--ws);}
+  .v2 .v2-tierkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;border:2px solid var(--tc);}
+  .v2 .v2-tierkey i.is-t1,.v2 .v2-bcell.is-t1,.v2 .v2-qtier.is-t1{--tc:#5FD07A;}
+  .v2 .v2-bcell.is-t2,.v2 .v2-qtier.is-t2{--tc:#F2C230;}
+  .v2 .v2-bcell.is-t3,.v2 .v2-qtier.is-t3{--tc:#F59331;}
+  .v2 .v2-bcell.is-t4,.v2 .v2-qtier.is-t4{--tc:#F2564B;}
+  .v2 .v2-tierkey i.is-t5,.v2 .v2-bcell.is-t5,.v2 .v2-qtier.is-t5{--tc:#B972E8;}
+  .v2 .v2-bgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;}
+  .v2 .v2-bgrid.is-c6{grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;}
+  .v2 .v2-bcell{position:relative;aspect-ratio:1;border-radius:12px;background:rgba(255,255,255,.06);border:3px solid var(--tc,#888);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--v2-en);font-weight:900;font-size:22px;line-height:1;color:var(--wi);cursor:pointer;padding:0;min-width:0;}
+  .v2 .v2-bcell:active{transform:scale(.94);}
+  .v2 .v2-bcell.is-solved{background:var(--tc);color:#141414;}
+  .v2 .v2-bcell.is-solved .v2-ic{width:22px;height:22px;}
+  .v2 .v2-bcell.is-try{border:3px dashed #fff;background:rgba(255,255,255,.14);font-size:15px;}
+  .v2 .v2-bcell-n{display:flex;}
+  .v2 .v2-bcell-who{font-family:var(--v2-jp);font-weight:900;font-size:12px;max-width:100%;padding:0 2px;}
+  .v2 .v2-bcell.is-mine{box-shadow:0 0 0 3px var(--wa);}
+  .v2 .v2-bcell.is-miss::before{content:"";position:absolute;top:4px;left:4px;width:12px;height:12px;
+    background:linear-gradient(45deg,transparent 42%,#FF8F86 42% 58%,transparent 58%),linear-gradient(-45deg,transparent 42%,#FF8F86 42% 58%,transparent 58%);}
+  .v2 .v2-bcell:disabled{cursor:default;}
+  .v2 .v2-qsheet .v2-sh{gap:10px;}
+  /* シートの地は白いので、小さな見出しはシートの薄い字（暗い世界の薄い字のままだと白に白で読めない） */
+  .v2 .v2-sheet .v2-lbl{color:var(--wsheet-soft);}
+  .v2 .v2-qtier{display:inline-flex;border-radius:999px;padding:4px 10px;background:var(--tc);color:#141414;font-weight:900;font-size:13px;}
+  .v2 .v2-qtext{font-weight:900;font-size:22px;line-height:1.45;color:#141414;}
+  .v2 .v2-choices{display:flex;flex-direction:column;gap:10px;}
+  .v2 .v2-choice{min-height:58px;border-radius:16px;border:3px solid #141414;background:#fff;color:#141414;font-weight:900;font-size:19px;cursor:pointer;display:flex;align-items:center;gap:10px;padding:0 16px;text-align:left;}
+  .v2 .v2-choice:active{transform:scale(.98);}
+  .v2 .v2-choice:disabled{opacity:.6;}
+  .v2 .v2-choice-k{font-family:var(--v2-en);font-size:16px;width:28px;height:28px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;}
+  /* TV */
+  .v2 .v2-tplay{display:flex;flex-direction:column;gap:30px;flex:1;min-height:0;}
+  .v2 .v2-ttop{display:flex;align-items:center;gap:28px;min-height:104px;}
+  .v2 .v2-tpill{display:inline-flex;align-items:center;border-radius:999px;padding:10px 26px;background:var(--wa);color:#141414;font-weight:900;font-size:46px;}
+  .v2 .v2-tsub{font-weight:900;font-size:64px;line-height:1.1;}
+  .v2 .v2-ttop .v2-lives{font-size:84px;gap:10px;margin-left:auto;}
+  .v2 .v2-tclock .v2-cd-n{background:rgba(0,0,0,.35);font-size:84px;padding:4px 18px;border-radius:18px;}
+  .v2 .v2-tmid{display:flex;flex-direction:column;align-items:center;gap:22px;}
+  .v2 .v2-tpn{display:flex;align-items:baseline;gap:20px;}
+  .v2 .v2-tpn b{font-family:var(--v2-en);font-weight:900;font-size:220px;line-height:.85;}
+  .v2 .v2-tpn .v2-tpn-of{font-size:120px;}
+  .v2 .v2-tpn span{font-weight:900;font-size:60px;}
+  .v2 .v2-tprog{width:100%;height:28px;border-radius:14px;background:#3A3A40;overflow:hidden;}
+  .v2 .v2-tprog i{display:block;height:100%;background:var(--wa);border-radius:inherit;}
+  .v2 .v2-tbottom{display:grid;grid-template-columns:minmax(0,1fr) 386px;gap:28px;align-items:end;}
+  .v2 .v2-tmem.is-try{border:4px dashed var(--wi);}
+  .v2 .v2-tmem.is-try .v2-tmem-tt{color:var(--wi);}
+  /* F5 着替え：いまの姿の見本・2つのボタン・アイコンの並び・二つ名の3つの言葉 */
+  .v2 .v2-sheet.is-mid{height:76%;}
+  .v2 .v2-sh-r{margin-left:auto;}
+  .v2 .v2-x.is-back{margin-left:0;}
+  .v2 .v2-preview{display:flex;align-items:center;gap:12px;background:#F4F1E6;border-radius:16px;padding:12px;flex:none;}
+  .v2 .v2-preview.is-plain{margin-bottom:12px;}
+  .v2 .v2-preview-who{display:flex;flex-direction:column;gap:8px;min-width:0;}
+  .v2 .v2-preview-nm{font-weight:900;font-size:19px;line-height:1.2;color:#141414;}
+  .v2 .v2-preview-tt{font-weight:800;font-size:13px;color:#4A4334;}
+  .v2 .v2-catbtns{display:flex;flex-direction:column;gap:10px;}
+  .v2 .v2-catbtns .v2-btn{justify-content:flex-start;padding-left:18px;gap:12px;}
+  .v2 .v2-go{margin-left:auto;width:22px;height:22px;}
+  .v2 .v2-new{display:inline-flex;align-items:center;border-radius:999px;background:var(--v2-red);color:#fff;font-family:var(--v2-en);font-weight:900;font-size:11px;padding:3px 6px;line-height:1;}
+  .v2 .v2-icongrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;}
+  .v2 .v2-icongrid button{position:relative;aspect-ratio:1;border-radius:14px;border:3px solid #E2E2E2;background:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}
+  .v2 .v2-icongrid button.is-on{border-color:#141414;background:#FFF4D0;}
+  .v2 .v2-icongrid .v2-new,.v2 .v2-words .v2-new{position:absolute;top:-9px;right:-7px;}
+  .v2 .v2-look-hint{color:#4A4334;margin-top:12px;}
+  .v2 .v2-slots{display:flex;gap:6px;align-items:stretch;margin-bottom:12px;}
+  .v2 .v2-slot{flex:1;border:3px solid #E2E2E2;border-radius:14px;background:#fff;padding:8px;text-align:left;cursor:pointer;color:#141414;min-width:0;display:flex;flex-direction:column;gap:8px;}
+  .v2 .v2-slot.is-join{flex:.55;}
+  .v2 .v2-slot.is-on{border-color:#141414;background:#FFF4D0;}
+  .v2 .v2-slot-l{font-weight:800;font-size:12px;color:#666;}
+  .v2 .v2-slot b{font-weight:900;font-size:16px;}
+  .v2 .v2-words{display:flex;flex-wrap:wrap;gap:8px;}
+  .v2 .v2-words button{position:relative;border:3px solid #DADADA;background:#fff;color:#141414;border-radius:999px;padding:8px 14px;font-weight:900;font-size:15px;cursor:pointer;}
+  .v2 .v2-words button.is-on{background:#141414;color:#fff;border-color:#141414;}
+  /* F1 はじめて開いた時の光と揺れの確認（#safetyGate）。黄色の世界・字は大きく短く */
+  .v2.v2-safety{background:linear-gradient(180deg,var(--wt),var(--wb));font-size:15px;line-height:1.55;}
+  .v2 .v2-lead{margin:0;font-weight:800;font-size:16px;line-height:1.6;}
+  .v2 .v2-safe-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px;text-align:left;cursor:pointer;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;}
+  .v2 .v2-safe-row:active{transform:scale(.98);}
+  .v2 .v2-safe-t{display:flex;flex-direction:column;gap:8px;min-width:0;}
+  .v2 .v2-safe-t b{font-weight:900;font-size:18px;line-height:1.3;}
+  .v2 .v2-sri{width:46px;height:46px;border-radius:14px;background:var(--wi);color:var(--won);display:flex;align-items:center;justify-content:center;flex:none;}
+  .v2 .v2-sri .v2-ic{width:26px;height:26px;}
+  .v2 .v2-sw{position:relative;margin-left:auto;flex:none;width:54px;height:32px;border-radius:999px;background:#B9B9B9;transition:background-color var(--v2-move) var(--v2-ease);}
+  .v2 .v2-sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left var(--v2-move) var(--v2-ease);}
+  .v2 .v2-safe-row.on .v2-sw{background:var(--wi);}
+  .v2 .v2-safe-row.on .v2-sw::after{left:25px;background:var(--won);}
+  .v2 .v2-safe-note{display:flex;gap:10px;align-items:flex-start;font-weight:800;font-size:14px;line-height:1.55;background:var(--wdim);border-radius:16px;padding:12px 14px;}
+  .v2 .v2-safe-note .v2-ic{width:22px;height:22px;margin-top:1px;}
+  /* F10 3・2・1（FxKit.countdown の着せ方。数え方は共通部品のまま）。字は出さない・ゲームの世界の色 */
+  .v2.v2-cdx{background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);flex-direction:column;justify-content:flex-start;padding:20px 26px 0 18px;}
+  .v2 .v2-cdx-hd{align-self:stretch;display:flex;flex-direction:column;}
+  .v2 .v2-cdx-g{font-weight:900;font-size:22px;line-height:1.2;}
+  .v2 .v2-cdx-g small{font-size:.65em;}
+  .v2 .v2-cdx-n{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--v2-en);font-weight:900;font-size:230px;line-height:1;padding-bottom:12vh;
+    animation:v2-slam var(--v2-show) var(--v2-pop) both;}
+  /* TV は 1920×1080 の箱（.v2-tvc）で組む。見本 t10：名前 72px・数字 560px */
+  .v2.v2-cdx.is-tv{padding:0;display:block;}
+  .v2.v2-cdx.is-tv .v2-cdx-hd{margin-right:1000px;}
+  .v2.v2-cdx.is-tv .v2-cdx-g{font-size:72px;}
+  .v2.v2-cdx.is-tv .v2-cdx-n{font-size:560px;line-height:.9;padding-bottom:40px;}
+  .v2.v2-cdx.is-tv .v2-arrow{height:8px;margin-top:26px;}
   /* 設定の文字サイズ「大」（fs-large）：**ルールとシートの文だけ 1.15倍**。見出しと数字はそのまま
      （くまくんの決め 2026-10-23。375×667 で check.js 0件が門・正本 12-8） */
   :root.fs-large .v2 .v2-rule{font-size:19px;}
@@ -6006,13 +6112,18 @@
        読ませて終わりにせず、その場でOFFにできる＝実際に自衛できる手段にする。
        体を動かす演出は、ここには出さない（実物解除の直前の同意画面が担当。
        出会わない人にまで意味不明な同意を求めると、本当に大事な警告が埋もれる） -->
-  <div id="safetyGate" style="display:none;">
-    <div class="sg-body">
-      <p class="sg-lead">このアプリには、光の点滅や<br>画面の揺れを使った演出が含まれます。</p>
-      <p class="sg-sub">気分が悪くなる方は、ここでオフにできます。<br>（あとから設定でも変えられます）</p>
-      <button class="sg-toggle" id="sgFlashBtn"><span class="sg-check">✓</span> 光の点滅をつかう</button>
-      <button class="sg-toggle" id="sgShakeBtn"><span class="sg-check">✓</span> 画面の揺れをつかう</button>
-      <button class="btn btn-main" id="sgStartBtn" style="margin-top:26px;">はじめる</button>
+  <!-- 指示66-2 F1：はじめて開いた時の光と揺れの確認（端末ごとに1回。消さない・くまくんの決定）。
+       見本 docs/指示66/見本/festival.html の f1。絵記号（data-ic）は出す時に V2.icon で入れる -->
+  <div id="safetyGate" class="v2 v2-w-wait v2-safety" style="display:none;">
+    <div class="v2-in is-noband">
+      <div class="v2-hd"><div class="v2-hd-en">Before you play</div><div class="v2-hd-ttl">はじめに、<br>光と揺れの確認</div><div class="v2-arrow"></div></div>
+      <p class="v2-lead">このアプリには、光の点滅や、画面が揺れる演出があります。気分が悪くなりそうなら、ここで切れます。</p>
+      <button type="button" class="v2-safe-row" id="sgFlashBtn"><span class="v2-sri"><i data-ic="bolt"></i></span><span class="v2-safe-t"><b>光の点滅をつかう</b><span class="v2-hint">爆発の白い光・正解の光など</span></span><span class="v2-sw"></span></button>
+      <button type="button" class="v2-safe-row" id="sgShakeBtn"><span class="v2-sri"><i data-ic="vibe"></i></span><span class="v2-safe-t"><b>画面の揺れをつかう</b><span class="v2-hint">まちがえた時に、少しだけ揺れる</span></span><span class="v2-sw"></span></button>
+      <div class="v2-safe-note"><i data-ic="sound"></i><span>光と揺れを切っても、<b>音と振動はそのまま</b>です（音は ⚙ で変えられます）</span></div>
+      <div class="v2-spacer"></div>
+      <p class="v2-hint v2-c">あとから右上の ⚙ でも変えられます</p>
+      <button type="button" class="v2-btn is-pri" id="sgStartBtn">はじめる</button>
     </div>
   </div>
 
@@ -25292,7 +25403,11 @@
        */
       el('titleGotOverlay').classList.remove('show');
       titleGotPending = [];
-      if(typeof FxKit !== 'undefined') FxKit.countdown(p && p.seconds);
+      if(typeof FxKit === 'undefined') return;
+      // 指示66-2 F10：文化祭の部屋は、ゲームの世界の色で大きな数字だけ（字は出さない。速さの設定で速くしない）
+      var fr = fesRoom(), g = fr && fr.fes.pick ? fesInfo(fr.fes.pick.mode) : null;
+      if(g){ fesCountdown(p && p.seconds, g, rtIsBigScreen()); return; }
+      FxKit.countdown(p && p.seconds);
     });
     rt.on('reacted', function(p){ showReaction(p); });
     rt.on('thanked', function(p){
@@ -31932,7 +32047,13 @@
   function fesWantScreen(){
     var room = fesRoom(); if(!room) return null;
     var big = rtIsBigScreen(), me = rt.me && rt.me();
-    if(room.fes.phase === 'play' && (big || (me && me.role === 'player'))) return null;
+    // 遊んでいる間は今までのゲームの画面。ただしクイズ解除（協力版）の**解除中だけ**は新しい見た目（F11）。
+    // 決着した瞬間（終わってからの4.5秒）は今の画面にもどす——💥・解除の祝いは今の画面が「事実」で出す（renderRtBomb・rtBigFx）
+    if(room.fes.phase === 'play' && (big || (me && me.role === 'player'))){
+      var gd = room.state && room.state.data;
+      var fesBomb = room.fes.played && room.fes.played.mode === 'bomb-coop' && gd && gd.phase === 'play';
+      if(!fesBomb) return null;
+    }
     return big ? 'scr-v2-fes-tv' : 'scr-v2-fes-lobby';
   }
   /** 候補の札に出すもの：66-1 の v2ModeInfo に、版・一言・形（協力／対戦）・約何分を足す */
@@ -31952,12 +32073,33 @@
   function fesView(room, you, meId){
     room = room || rt.state.room; var f = room.fes;
     // 締め切りは、知らせが届いた時刻から数える（端末の時計のずれに左右されない）
-    if(fes.endFor !== room){ fes.endFor = room; fes.end = f.remainingMs != null ? Date.now() + f.remainingMs : null; }
+    // 遊んでいる間は、ゲームの時計（部屋の知らせのゲームの中身の remainingMs）
+    var gdata = room.state && room.state.data;
+    var ms = f.phase === 'play' ? (gdata && gdata.remainingMs) : f.remainingMs;
+    if(fes.endFor !== room){ fes.endFor = room; fes.end = ms != null ? Date.now() + ms : null; }
     if(fes.selRound !== f.round + ':' + f.phase){ fes.selRound = f.round + ':' + f.phase; if(f.phase !== 'vote') fes.sel = null; }
     return { code: room.code, max: f.max, joinUrl: location.origin + '/fes', meId: meId || rt.state.memberId,
       members: (room.members || []).map(function(m){ return m; }), fes: f, you: you || rt.state.fes || {}, end: fes.end,
-      sel: fes.sel, info: fesInfo, next: f.next || [], games: f.games || [], fb: fes.fb,
-      data: room.state && room.state.data, game: room.state && room.state.game };
+      sel: fes.sel, info: fesInfo, next: f.next || [], games: f.games || [], fb: fes.fb, look: fesLookData(meId),
+      data: room.state && room.state.data, game: room.state && room.state.game,
+      secret: (rt && rt.state.secret) || null, tierLabel: function(t){ return rtBombTierLabel(t).replace(/^\S+\s/, ''); } };
+  }
+  /**
+   * F5 着替えのもと：**持っているものだけ**（最初から使えるもの＋手に入れたもの・門E4）。
+   * 下書き（fes.lookDraft）は「これにする」まで部屋に送らない。送るのは equipLook の1本（名簿と TV にすぐ出る）
+   */
+  function fesLookData(meId){
+    if(typeof myTitles === 'undefined' || !myTitles) return null;
+    var have = haveMap(), draft = fes.lookDraft || Object.assign({}, myTitles.equipped);
+    var newIds = myTitles.newIds || [];
+    var own = function(part){ return TitleLogic.partsOf(part).filter(function(p){ return p.free || have[p.id]; }); };
+    var room = rt && rt.state.room, me = room && (room.members || []).filter(function(m){ return m.id === (meId || rt.state.memberId); })[0];
+    var words = {};
+    ['first', 'joiner', 'last'].forEach(function(part){
+      words[part] = own(part).map(function(p){ return { id: p.id, label: p.label, on: draft[part] === p.id, isNew: newIds.indexOf(p.id) !== -1 }; });
+    });
+    return { icon: TitleLogic.iconEmoji(draft), title: TitleLogic.titleText(draft), name: (me && me.name) || '', slot: fes.lookSlot || 'first',
+      icons: own('icon').map(function(p){ return { id: p.id, emoji: p.emoji, on: draft.icon === p.id, isNew: newIds.indexOf(p.id) !== -1 }; }), words: words };
   }
   /** 開いていた重なりと書きかけの字は、描き直しても残す（人が入るたびに知らせが届くので） */
   function fesKeep(scr){
@@ -31979,7 +32121,14 @@
     var view = lab ? fesView(lab.room, lab.you, lab.meId) : fesView(), f = room.fes;
     if(!lab && cur === 'scr-v2-fes-lobby') fesFeedbackCheck(view);
     view.fb = fes.fb;
+    if(lab && lab.secret) view.secret = lab.secret;
     var out = cur === 'scr-v2-fes-tv' ? V2Fes.tv(view) : V2Fes.phone(view);
+    // F11：解除中の音・心臓・残りライフ1の赤い縁は、今のクイズ解除の部品をそのまま使う（新しく作らない）
+    if(!lab && f.phase === 'play' && cur === 'scr-v2-fes-lobby' && view.secret && view.secret.board){
+      rtBombFeedback(view.secret);
+      startBombHeart(view.secret.misses);
+      el('app').classList.toggle('bomb-danger', view.secret.lives === 1);
+    }
     var back = fesKeep(scr);
     scr.innerHTML = out.html;
     fesWorld(scr, out.world);
@@ -32033,12 +32182,30 @@
     else if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv') rtRenderCurrent();
   }
 
+  /**
+   * F10 3・2・1：共通部品（FxKit.countdown）に新しい見た目を着せる。数え方・音・速さの決まりは共通部品のまま
+   * （字は出さない・演出の設定で速くしない）。TV は 1920×1080 の箱で組んで縮める（ほかの TV の画面と同じ）
+   */
+  function fesCountdown(sec, g, tv){
+    var hd = '<span class="v2-cdx-g">' + V2.esc(g.name) + (g.edition ? '<small>（' + V2.esc(g.edition) + '）</small>' : '') + '</span>';
+    return FxKit.countdown(sec, { id: 'v2Cdx', cls: 'v2 v2-cdx v2-w-' + g.world + (tv ? ' is-tv' : ''),
+      render: function(num){
+        var inner = '<div class="v2-cdx-hd">' + hd + '<span class="v2-arrow"></span></div><div class="v2-cdx-n">' + num + '</div>';
+        return tv ? '<div class="v2-tvc"><div class="v2-safe">' + inner + '</div></div>' : inner;
+      },
+      after: function(box){ if(tv) V2.fitTv(box); } });
+  }
   /** 見本データで描く（撮る道具の台本だけが呼ぶ。本番に入口は無い・V2Screens.fes） */
   function fesLab(lab){
     if(lab.screen === 'scr-v2-fes-join'){ fes.join = Object.assign({ code: '', n: null, name: '', diff: null, err: '', busy: false }, lab.join); fesRenderJoin(); }
     else if(lab.screen === 'scr-v2-fes-quit'){ fes.quit = lab.quit; fesRenderQuit(); }
+    else if(lab.screen === 'safetyGate'){ try{ localStorage.removeItem(SAFETY_SEEN_KEY); }catch(e){} maybeShowSafetyGate(); }
+    // 撮っている間に消えないよう、見本では 9 から数える（形は 3 と同じ）
+    else if(lab.screen === 'v2Cdx'){ fesCountdown(9, fesInfo(lab.mode || 'bomb-coop'), !!lab.tv); }
     else if(lab.screen === 'scr-v2-fes-staff'){ fes.staff = lab.staff; fes.staffFb = lab.fb || []; fes.staffRole = 'owner'; fes.staffErr = ''; fesRenderStaff(); }
     else fesRender(lab.screen, lab);
+    // 見本データの「開いた形」（着替えのシートなど）
+    (lab.open || []).forEach(function(id){ var n = document.querySelector('#' + lab.screen + ' [data-v2-id="' + id + '"]'); if(n) V2.open(n); });
   }
 
   // ---- F2 入る ----
@@ -32138,7 +32305,7 @@
     if(cnt){ cnt.textContent = n + '/8'; cnt.classList.toggle('is-over', n > 8); }
   });
   document.addEventListener('click', function(e){
-    var b = e.target.closest && e.target.closest('[data-fes-act],[data-fes-pick],[data-fes-diff],[data-fes-star],[data-fes-hide],[data-fes-kick],[data-fes-inset]');
+    var b = e.target.closest && e.target.closest('[data-fes-act],[data-fes-pick],[data-fes-diff],[data-fes-star],[data-fes-hide],[data-fes-kick],[data-fes-inset],[data-fes-icon],[data-fes-slot],[data-fes-word],[data-fes-cell],[data-fes-ans]');
     if(!b || !rt) return;
     var room = fesRoom(), code = room ? room.code : (fes.staff && fes.staff.code);
     if(b.hasAttribute('data-fes-diff')){ fes.join.diff = b.getAttribute('data-fes-diff'); fes.join.err = ''; fesRenderJoin(); return; }
@@ -32154,6 +32321,16 @@
       if(fes.fb){ clearTimeout(fes.fbFold); fesSendStars(fes.fb, n); }
       return;
     }
+    // F5 着替え：下書きを変えて描き直す（開いているシートは残る）。送るのは「これにする」の時だけ
+    if(b.hasAttribute('data-fes-icon')){ fes.lookDraft = fes.lookDraft || Object.assign({}, myTitles.equipped); fes.lookDraft.icon = b.getAttribute('data-fes-icon'); rtRenderCurrent(); return; }
+    if(b.hasAttribute('data-fes-slot')){ fes.lookSlot = b.getAttribute('data-fes-slot'); rtRenderCurrent(); return; }
+    if(b.hasAttribute('data-fes-word')){ fes.lookDraft = fes.lookDraft || Object.assign({}, myTitles.equipped); fes.lookDraft[fes.lookSlot || 'first'] = b.getAttribute('data-fes-word'); rtRenderCurrent(); return; }
+    // F11：盤のマス・3択・閉じる（今の画面と同じ送り方：rt.act と rt.vote）
+    if(b.hasAttribute('data-fes-cell')){
+      rt.act(b.getAttribute('data-fes-cell')).then(function(res){ if(res && !res.ok && res.error === 'taken') showFlash(UiText.FES.遊ぶ.挑戦中, 'hit'); });
+      return;
+    }
+    if(b.hasAttribute('data-fes-ans')){ Array.prototype.forEach.call(b.parentNode.querySelectorAll('button'), function(x){ x.disabled = true; }); rt.vote(b.getAttribute('data-fes-ans')); return; }
     if(b.hasAttribute('data-fes-hide')){ rt.fesHide(fes.staff.code, b.getAttribute('data-fes-hide'), !b.getAttribute('data-hidden')); return; }
     if(b.hasAttribute('data-fes-kick')){ rt.fesKick(fes.staff.code, b.getAttribute('data-fes-kick')); return; }
     if(b.hasAttribute('data-fes-inset')){ rt.fesInset(fes.staff.code, +b.getAttribute('data-fes-inset')); return; }
@@ -32163,6 +32340,14 @@
     else if(act === 'ready') rt.setReady(true);
     else if(act === 'unready') rt.setReady(false);
     else if(act === 'continue') rt.fesContinue();
+    else if(act === 'bclose') rt.act(null);
+    else if(act === 'look'){ fes.lookDraft = null; fes.lookSlot = 'first'; clearTitleNew(); rtRenderCurrent(); }
+    else if((act === 'lookicon' || act === 'lookname') && fes.lookDraft){
+      equipLook(fes.lookDraft); fes.lookDraft = null;
+      var lscr = el('scr-v2-fes-lobby');
+      V2.close(lscr.querySelector('[data-v2-id="' + (act === 'lookicon' ? 'v2LookIcon' : 'v2LookName') + '"]'));
+      rtRenderCurrent();
+    }
     else if(act === 'quit') fesQuit();
     else if(act === 'fbopen' && fes.fb){ fes.fb.open = true; rtRenderCurrent(); }
     else if(act === 'fbfold' && fes.fb){ fes.fb.open = false; rtRenderCurrent(); }
@@ -32280,7 +32465,11 @@
     function syncGate(){
       el('sgFlashBtn').classList.toggle('on', appPrefs.fxFlash);
       el('sgShakeBtn').classList.toggle('on', appPrefs.fxShake);
+      el('sgFlashBtn').setAttribute('aria-pressed', String(!!appPrefs.fxFlash));
+      el('sgShakeBtn').setAttribute('aria-pressed', String(!!appPrefs.fxShake));
     }
+    // 指示66-2 F1：絵記号は新しい見た目の部品で入れる（markup には印だけ置いてある）
+    if(typeof V2 !== 'undefined') Array.prototype.forEach.call(gate.querySelectorAll('i[data-ic]'), function(i){ i.outerHTML = V2.icon(i.getAttribute('data-ic')); });
     el('sgFlashBtn').addEventListener('click', function(){
       appPrefs.fxFlash = !appPrefs.fxFlash;
       applyAppPrefs(); saveAppPrefs(); syncGate();

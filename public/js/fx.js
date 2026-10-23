@@ -906,9 +906,13 @@
     var total = (n == null || !(n > 0)) ? 3 : Math.min(9, Math.floor(n));
     var box = mk('fx-countdown');
     if (!box) return Promise.resolve(true);
+    // 着せ方だけを変えられる（指示66-2：文化祭の部屋は新しい見た目の 3・2・1）。数え方・音・速さの決まりは同じ
+    if (opts && opts.cls) box.className += ' ' + opts.cls;
+    if (opts && opts.id) box.id = opts.id;
     h.appendChild(box);
     function show(num) {
-      box.innerHTML = '<div class="fx-cd-num">' + num + '</div>';
+      box.innerHTML = (opts && opts.render) ? opts.render(num) : '<div class="fx-cd-num">' + num + '</div>';
+      if (opts && opts.after) opts.after(box);
       play('tick');
       vibe(num <= 1 ? 'ok' : 'tick');   // 最後の1つだけ決定の重さにする
     }

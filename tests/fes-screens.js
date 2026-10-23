@@ -151,5 +151,27 @@ async function 入った(o) {
     win.close();
   });
 
+  await r.test('F11（画面）：クイズ解除の解除中は新しい見た目。マスを押すと開き、3択で答え、閉じると手放す（今の画面と同じ送り方）', async () => {
+    const { win, doc } = await 入った();
+    const lab = 流す(win, 'fes2-play');
+    win.__rtFake.fire('wolf:you', lab.secret);
+    await waitFor(win, () => doc.querySelector('#scr-v2-fes-lobby .v2-bgrid'), 2000, '盤');
+    const scr = doc.getElementById('scr-v2-fes-lobby');
+    assertEqual(scr.querySelectorAll('.v2-bcell').length, lab.secret.board.length, 'マスの数は盤と同じ');
+    assertEqual(scr.querySelectorAll('.v2-bcell.is-solved').length, lab.secret.board.filter((c) => c.solved).length, '解いたマス');
+    assert(scr.querySelectorAll('.v2-bcell.is-try .v2-bcell-who').length >= 1, '挑戦中のマスは点線と名前（色ではなく形）');
+    assert(scr.querySelector('.v2-bcell.is-miss'), '外したマスに ✕ の印');
+    assert(scr.querySelector('[data-v2-id="v2Q"]').classList.contains('is-open'), '開いているコードの3択が出ている');
+    const 空き = scr.querySelector('.v2-bcell:not(:disabled):not(.is-mine)');
+    空き.click();
+    assertEqual(emits(win, 'wolf:act').slice(-1)[0].payload.targetId, 空き.getAttribute('data-fes-cell'), 'マスを押すと、そのコードを開く');
+    scr.querySelector('[data-fes-ans]').click();
+    assertEqual(emits(win, 'wolf:vote').slice(-1)[0].payload.targetId, scr.querySelector('[data-fes-ans]').getAttribute('data-fes-ans'), '3択を押すと答える');
+    scr.querySelector('[data-fes-act="bclose"]').click();
+    assertEqual(emits(win, 'wolf:act').slice(-1)[0].payload.targetId, null, '閉じると手放す');
+    assertEqual(scr.querySelectorAll('.v2-bcell.is-solved:not(:disabled)').length, 0, '解いたマスは押せない');
+    win.close();
+  });
+
   r.finish();
 })();

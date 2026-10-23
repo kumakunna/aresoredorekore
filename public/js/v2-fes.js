@@ -88,6 +88,7 @@
     var me = (view.members || []).filter(function (m) { return m.id === view.meId; })[0];
     // 今回のゲームに入らなかった人（準備OK を押さなかった・途中で入った）
     if ((f.phase === 'play' || f.phase === 'result') && me && me.role === 'waiting') return { world: 'wait', html: waiting(view) };
+    if (f.phase === 'play') return { world: view.info(f.played.mode).world, html: play(view) };
     switch (f.phase) {
       case 'vote': return { world: 'wait', html: vote(view) };
       case 'decide': return { world: 'wait', html: decide(view) };
@@ -112,7 +113,9 @@
       '<div class="v2-in">' +
         V.hdHtml('Waiting…', F.見出し) +
         V.meHtml(me) +
-        '<button type="button" class="v2-btn is-lite" data-v2-act="look">' + V.icon('tag') + '<span>' + e(F.着替え) + '</span></button>' +
+        // 着替え（F5）：見本データ（lab）で look が無い時は、今までのシート（data-v2-act="look"）
+        (view.look ? '<button type="button" class="v2-btn is-lite" data-v2-open="#v2Look" data-fes-act="look">' : '<button type="button" class="v2-btn is-lite" data-v2-act="look">') +
+          V.icon('tag') + '<span>' + e(F.着替え) + '</span></button>' +
         '<button type="button" class="v2-facesbtn" data-v2-open="#v2Roster"><span class="v2-facesbtn-l"><span class="v2-lbl">' + e(F.いる人) + '</span>' +
           '<span class="v2-faces">' + 顔 + '</span></span><span class="v2-facesbtn-n"><span>' + n + e(UiText.V2.人) + '</span>' + V.icon('chev') + '</span></button>' +
         (note ? '<p class="v2-note" role="status">' + e(note) + '</p>' : '') +
@@ -132,8 +135,49 @@
           return V.rowHtml(m, st, m.id === me.id);
         }).join('') + '</div>' }) +
       fbSheet(view) +
+      lookSheets(view.look) +
       rulesSheets(view, 候補);
     return h;
+  }
+
+  /**
+   * F5 着替え：低いシート（いまの姿・アイコン・二つ名・とじる）から、押した方だけを開く。
+   * look：{ icon, title, name, slot, icons:[{id,emoji,on,isNew}], words:{first,joiner,last:[{id,label,on,isNew}]}, sel:{first,joiner,last} }
+   * **持っているものだけ並べる**（門E4）
+   */
+  function lookSheets(look) {
+    if (!look) return '';
+    var L = U().着替え, V = K(), NEW = '<span class="v2-new">NEW</span>';
+    var 新しい = function (list) { return list.some(function (x) { return x.isNew; }); };
+    var back = '<button type="button" class="v2-x is-back" data-v2-close aria-label="' + e(L.もどる) + '">' + V.icon('back') + '</button>';
+    var preview = '<div class="v2-preview">' + V.avHtml(look.icon, 'is-lg') + '<div class="v2-preview-who"><span class="v2-lbl">' + e(L.TVには) + '</span>' +
+      '<span class="v2-preview-nm v2-cut">' + e(look.name) + '</span><span class="v2-preview-tt">' + e(look.title) + '</span></div></div>';
+    var slots = [['first', L.はじめ], ['joiner', L.つなぎ], ['last', L.おわり]];
+    var words = look.words[look.slot] || [];
+    return V.sheetHtml({ id: 'v2Look', title: L.見出し, body: preview +
+        '<div class="v2-catbtns">' +
+          '<button type="button" class="v2-btn is-sec" data-v2-open="#v2LookIcon">' + V.avHtml(look.icon) + '<span>' + e(L.アイコン) + '</span>' + (新しい(look.icons) ? NEW : '') + V.icon('chev', 'v2-go') + '</button>' +
+          '<button type="button" class="v2-btn is-sec" data-v2-open="#v2LookName">' + V.icon('tag') + '<span>' + e(L.二つ名) + '</span>' +
+            (新しい(look.words.first.concat(look.words.joiner, look.words.last)) ? NEW : '') + V.icon('chev', 'v2-go') + '</button>' +
+          '<button type="button" class="v2-btn is-pri" data-v2-close>' + e(W().close) + '</button></div>' }) +
+      V.sheetHtml({ id: 'v2LookIcon', cls: 'is-mid',
+        head: '<div class="v2-grab"></div><div class="v2-sh">' + back + '<div class="v2-sh-ttl">' + e(L.アイコンをえらぶ) + '</div><span class="v2-lbl v2-sh-r">' + e(L.TVにもすぐ) + '</span></div>',
+        body: '<div class="v2-icongrid">' + look.icons.map(function (x) {
+          return '<button type="button" class="' + (x.on ? 'is-on' : '') + '" data-fes-icon="' + e(x.id) + '" aria-pressed="' + x.on + '">' + e(x.emoji) + (x.isNew ? NEW : '') + '</button>';
+        }).join('') + '</div><p class="v2-hint v2-look-hint">' + e(L.遊ぶと) + '</p>',
+        foot: '<button type="button" class="v2-btn is-pri" data-fes-act="lookicon">' + e(L.これにする) + '</button>' }) +
+      V.sheetHtml({ id: 'v2LookName', cls: 'is-mid',
+        head: '<div class="v2-grab"></div><div class="v2-sh">' + back + '<div class="v2-sh-ttl">' + e(L.二つ名をえらぶ) + '</div></div>',
+        body: '<div class="v2-preview is-plain"><div class="v2-preview-who"><span class="v2-lbl">' + e(L.いまの二つ名) + '</span><span class="v2-preview-nm">' + e(look.title) + '</span></div></div>' +
+          '<div class="v2-slots">' + slots.map(function (s) {
+            var cur = (look.words[s[0]] || []).filter(function (x) { return x.on; })[0];
+            return '<button type="button" class="v2-slot' + (s[0] === 'joiner' ? ' is-join' : '') + (look.slot === s[0] ? ' is-on' : '') + '" data-fes-slot="' + s[0] + '">' +
+              '<span class="v2-slot-l">' + e(s[1]) + '</span><b class="v2-cut">' + e(cur ? cur.label : '') + '</b></button>';
+          }).join('') + '</div>' +
+          '<div class="v2-words">' + words.map(function (x) {
+            return '<button type="button" class="' + (x.on ? 'is-on' : '') + '" data-fes-word="' + e(x.id) + '">' + e(x.label) + (x.isNew ? NEW : '') + '</button>';
+          }).join('') + '</div><p class="v2-hint v2-look-hint">' + e(L.遊ぶと) + '</p>',
+        foot: '<button type="button" class="v2-btn is-pri" data-fes-act="lookname">' + e(L.これにする) + '</button>' });
   }
 
   /** F4 前のゲームの感想：帯の上から出るカードと、たたんだ「★ 感想」 */
@@ -246,6 +290,66 @@
       band(view, g ? g.name : '', R.遊んでいます);
   }
 
+  /**
+   * F11 遊ぶ：クイズ解除（協力版）のスマホ。盤は今のゲームどおり（番号のマス・縁の色＝むずかしさ）。
+   * 挑戦中は点線の縁＋名前（色ではなく形）。外したマスは左上に ✕。問題は下から出るシートで3択。
+   * view.secret：本人の盤（wolf:you）、view.data：部屋の知らせのゲームの中身、view.tierLabel(tier)
+   */
+  function play(view) {
+    var P = U().遊ぶ, V = K(), you = view.secret || {}, d = view.data || {};
+    var board = you.board || [], team = d.team || {}, open = you.open || null;
+    var solved = team.solved != null ? team.solved : (you.solvedCount || 0), total = team.total || you.total || board.length;
+    var lives = team.lives != null ? team.lives : you.lives, max = team.livesMax || you.livesMax || 3;
+    var T = { easy: 't1', normal: 't2', hard: 't3', nanisore: 't4', muri: 't5' };
+    var cells = board.map(function (c, i) {
+      var cls = 'v2-bcell ' + (T[c.tier] ? 'is-' + T[c.tier] : '');
+      var num = '<span class="v2-bcell-n">' + V.digits(i + 1) + '</span>', inner = num;
+      if (c.solved) { cls += ' is-solved'; inner = V.icon('check'); }
+      else if (open && open.uid === c.uid) cls += ' is-mine';
+      else if (c.by) { cls += ' is-try'; inner = num + '<span class="v2-bcell-who v2-cut">' + e(c.by) + '</span>'; }
+      if (c.missed && !c.solved) cls += ' is-miss';
+      return '<button type="button" class="' + cls + '" data-fes-cell="' + e(c.uid) + '"' + (c.solved || (c.by && !(open && open.uid === c.uid)) ? ' disabled' : '') + '>' + inner + '</button>';
+    }).join('');
+    var no = open ? board.map(function (c) { return c.uid; }).indexOf(open.uid) + 1 : 0;
+    return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
+      '<div class="v2-in is-noband v2-play">' +
+        '<div class="v2-ptop">' + livesHtml(lives, max) + '<span class="v2-pclock">' + (view.end ? V.cd({ end: view.end, mmss: true, label: '', unit: '' }) : '') + '</span></div>' +
+        '<div class="v2-pnum"><b class="v2-num">' + V.digits(solved) + '</b><b class="v2-num v2-pnum-of">/' + V.digits(total) + '</b><span>' + e(P.解除ずみ) + '</span></div>' +
+        '<div class="v2-prog"><i style="width:' + (total ? Math.round(solved / total * 100) : 0) + '%"></i></div>' +
+        '<div class="v2-row v2-pkey"><span class="v2-pkey-t">' + e(P.えらんで) + '</span><span class="v2-tierkey"><span><i class="is-t1"></i>' + e(P.かんたん) + '</span><span><i class="is-t5"></i>' + e(P.むり) + '</span></span></div>' +
+        '<div class="v2-bgrid' + (board.length > 30 ? ' is-c6' : '') + '">' + cells + '</div>' +
+      '</div>' +
+      V.scrimHtml() +
+      '<div class="v2-sheet' + (open ? ' is-open' : '') + ' v2-qsheet" data-v2-id="v2Q" data-v2-keep aria-hidden="' + (open ? 'false' : 'true') + '" role="dialog">' +
+        (open ? '<div class="v2-grab"></div><div class="v2-sh"><span class="v2-qtier is-' + (T[open.tier] || 't1') + '">' + e(view.tierLabel ? view.tierLabel(open.tier) : open.tier) + '</span>' +
+          '<span class="v2-lbl">' + e(no + P.のコード) + '</span><button type="button" class="v2-x" data-fes-act="bclose" aria-label="' + e(W().close) + '">' + V.icon('close') + '</button></div>' +
+          '<div class="v2-qtext" data-v2-wrap>' + V.phrase(open.description || '') + '</div>' +
+          '<div class="v2-choices">' + (open.choices || []).map(function (c, i) {
+            return '<button type="button" class="v2-choice" data-fes-ans="' + e(c) + '"><span class="v2-choice-k">' + 'ABC'.charAt(i) + '</span><span>' + e(c) + '</span></button>';
+          }).join('') + '</div>' : '') +
+      '</div>';
+  }
+  /** F11 遊ぶ（TV）：上の帯（解除中・ゲーム・ライフ・時計）→ 大きな本数と進み具合 → 名前の札（→ 12ばん）と小さな QR */
+  function tvPlay(view) {
+    var P = U().遊ぶ, V = K(), d = view.data || {}, team = d.team || {}, f = view.fes || {};
+    var g = view.info(f.played.mode);
+    var board = d.board || [];
+    var ps = people(view, true).filter(function (m) { return m.role === 'player'; });
+    var 番 = {};
+    board.forEach(function (c, i) { if (c.by && !c.solved) 番[c.by] = i + 1; });
+    var mins = Math.max(1, Math.round(((d.remainingMs || 0) / 60000) + 1));
+    return tvc(view,
+      '<div class="v2-tplay"><div class="v2-ttop"><span class="v2-tpill">' + e(P.解除中) + '</span><span class="v2-tsub">' + e(g.name) + '</span>' +
+          livesHtml(team.lives, team.livesMax || 3) + '<span class="v2-tclock">' + (view.end ? V.cd({ end: view.end, mmss: true, label: '', unit: '' }) : '') + '</span></div>' +
+        '<div class="v2-tmid"><div class="v2-tpn"><b class="v2-num">' + V.digits(team.solved || 0) + '</b><b class="v2-num v2-tpn-of">/' + V.digits(team.total || board.length) + '</b><span>' + e(P.解除ずみ) + '</span></div>' +
+          '<div class="v2-tprog"><i style="width:' + (team.total ? Math.round(team.solved / team.total * 100) : 0) + '%"></i></div></div>' +
+        '<div class="v2-tbottom"><div class="v2-tgrid is-c3">' + ps.map(function (m) {
+          var n = 番[m.name];
+          return '<div class="v2-tmem is-two' + (n ? ' is-try' : '') + '">' + V.avHtml(m.icon) + '<div class="v2-tmem-who"><div class="v2-tmem-nm v2-cut" data-v2-fit="42">' + e(m.name) + '</div>' +
+            (n ? '<div class="v2-tmem-tt">→ ' + V.digits(n) + e(P.ばん) + '</div>' : '') + '</div></div>';
+        }).join('') + '</div>' + qrHtml(view, 'is-sm', P.つぎの回 + '\n' + P.あと約 + mins + P.分) + '</div></div>');
+  }
+
   /** F12 結果と「つづける？」。協力版はみんなの成績だけ（順位を出さない）、対戦は順位の行 */
   function result(view) {
     var Rz = U().結果, V = K(), f = view.fes || {}, you = view.you || {};
@@ -317,6 +421,7 @@
       case 'decide': return { world: 'wait', html: tvDecide(view) };
       case 'ready': return { world: view.info(f.pick.mode).world, html: tvReady(view) };
       case 'result': return { world: view.info(f.played.mode).world, html: tvResult(view) };
+      case 'play': return { world: view.info(f.played.mode).world, html: tvPlay(view) };
       default: return { world: 'wait', html: tvLobby(view) };
     }
   }
@@ -332,7 +437,7 @@
     var F = U().待合, V = K();
     var tiles = (view.games || []).map(function (id) { var g = view.info(id); return g ? V.tile(g.world, 'v2-ttile') : ''; }).join('');
     return tvc(view,
-      '<div class="v2-tvIdle"><div class="v2-tvIdle-l">' + V.hdHtml(F.呼び込み英, F.呼び込み, true) +
+      '<div class="v2-tvIdle"><div class="v2-tvIdle-l">' + V.hdHtml(F.呼び込み英, F.呼び込み.join('\n'), true) +
         '<div class="v2-tsteps"><div class="v2-tstep"><span class="v2-tstep-ri">' + V.icon('camera') + '</span><span>' + e(F.読む) + '</span></div>' +
           '<div class="v2-tstep"><span class="v2-tstep-ri">' + V.icon('pen') + '</span><span>' + e(F.名前を入れて) + '<em>' + e(U().入る.入る) + '</em>' + e(F.入るを押す) + '</span></div></div>' +
         '<div class="v2-tgames">' + tiles + '<span class="v2-tnote">' + e(F.約) + '</span></div></div>' +

@@ -24,7 +24,9 @@
     view.joinUrl = location.origin + '/?room=' + view.code;
     if (q.get('freeze') != null && window.V2) V2.freeze(+q.get('freeze'));
     window.V2Screens[info.draw](view);
-    window.goToScreen(info.screen);
+    // 画面（.screen）のときだけ移る。重ねて出すもの（はじめの安全の案内・3・2・1）は、描く関数が自分で出す（指示66-2）
+    var 箱 = document.getElementById(info.screen);
+    if (箱 && 箱.classList.contains('screen')) window.goToScreen(info.screen);
     // 描いたあと、画面の箱が見えてから合わせる（TV の縮め・名前の縮め）
     setTimeout(function () {
       var scr = document.getElementById(info.screen);

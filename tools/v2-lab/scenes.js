@@ -65,7 +65,12 @@ const SCENES = [
  * 見本データ。opts：{ n＝人数（既定6）, long＝長い名前, cd＝のこり秒（既定27）, me＝自分の番号（既定1）, world＝部品の見本の世界 }
  * endsAt は「いま＋cd秒」。撮る時は V2.freeze で数を止める（毎回同じ写真にする）
  */
+// 指示66-2：文化祭の部屋の場面（本物の進行役を動かして作る・tools/v2-lab/fes-scenes.js）
+const FES = require('./fes-scenes');
+SCENES.push.apply(SCENES, FES.SCENES);
+
 function view(sceneId, opts) {
+  if (FES.SCENES.some((s) => s.id === sceneId)) return FES.view(sceneId, opts);
   const o = opts || {};
   const n = o.n == null ? 6 : o.n;
   const snap = 部屋(n, o.long);

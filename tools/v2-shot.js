@@ -2,7 +2,7 @@
 // tools/v2-shot.js — 新しい見た目（v2・指示66）の画面を、3つの大きさで撮って同じ物差しで測る（指示66-1 第6項）
 //
 //   node tools/v2-shot.js                      … 全部の画面 × 大きさ（スマホ 390×844・375×667／TV 1920×1080）× 状態
-//   node tools/v2-shot.js --only fes-lobby     … 1つの画面だけ
+//   node tools/v2-shot.js --only fes-lobby     … 名前がこの字で始まる画面だけ（--only fes2 で文化祭の流れ全部）
 //   node tools/v2-shot.js --mock               … 見本（docs/指示66/見本/）の同じ画面も撮って、左右に並べた画像を作る
 //   node tools/v2-shot.js --fx skip            … 演出「なし」で撮る（既定は ふつう）
 //   --out DIR（既定 docs/監査_指示66の画像/shot）  --port 3966  --cdp 9666
@@ -71,6 +71,12 @@ const STATES = {
     { id: 'shinka', world: 'shinka', freeze: 4 }
   ]
 };
+
+/**
+ * 表に無い場面（指示66-2 の文化祭の場面など）は1つの状態で撮る。のこりは20秒で止める（毎回同じ写真にする）。
+ * 見本があれば、見本の同じ場面（そのまま）と並べる
+ */
+function statesOf(scene) { return STATES[scene.id] || [{ id: 'base', freeze: 20, mock: scene.mock ? [] : null }]; }
 
 /** UICHECK に渡すアプリのセレクタ（見本のクラス名とは違う。名前は合わせなくてよい・66-1「入れ方」） */
 const OPTS = {
@@ -147,7 +153,9 @@ async function 物差しを確かめる(dev, scene, kind) {
       inn.appendChild(t);
       var hit = (${重なり})(scr).some(function(x){ return x.text === 'もぐる字'; });
       t.remove(); return hit; })()`);
-    if (r.重なり !== true) throw new Error('重なりの測りが効いていません' + JSON.stringify(r));
+    // 右上の丸ボタンが無い画面（見本でも ⚙ の無い決定・結果など・指示66-2）では、重なりは起きないので試せない。
+    // その時は「なし」と記録して先へ（丸ボタンのある画面で毎回試している）
+    if (r.重なり !== true && r.重なり !== 'なし') throw new Error('重なりの測りが効いていません' + JSON.stringify(r));
   }
   return r;
 }
@@ -193,11 +201,11 @@ async function 並べる(dev, left, right, file, w, h) {
   let 指摘の数 = 0;
   try {
     for (const scene of SCENES) {
-      if (ONLY && scene.id !== ONLY) continue;
+      if (ONLY && scene.id.indexOf(ONLY) !== 0) continue;
       for (const size of SIZES[scene.kind]) {
         const dev = await br.newDevice(scene.id, { width: size.w, height: size.h, deviceScaleFactor: 1, mobile: scene.kind === 'phone' });
         let 確かめた = false;
-        for (const st of STATES[scene.id]) {
+        for (const st of statesOf(scene)) {
           await 開く(dev, scene, st);
           if (!確かめた) { 記録.物差し.push({ scene: scene.id, size: size.w + 'x' + size.h, 結果: await 物差しを確かめる(dev, scene, scene.kind) }); 確かめた = true; }
           const issues = await 測る(dev, scene, scene.kind);
@@ -215,9 +223,9 @@ async function 並べる(dev, left, right, file, w, h) {
     if (MOCK) {
       const dev = await br.newDevice('mock', { width: 2100, height: 1300, deviceScaleFactor: 1 });
       for (const scene of SCENES) {
-        if (ONLY && scene.id !== ONLY) continue;
+        if (ONLY && scene.id.indexOf(ONLY) !== 0) continue;
         const size = SIZES[scene.kind][0];
-        for (const st of STATES[scene.id]) {
+        for (const st of statesOf(scene)) {
           if (!st.mock) continue;
           const mf = path.join(OUT, 'mock_' + scene.id + '_' + st.id + '.png');
           await 見本を撮る(dev, scene.mock.page, scene.mock.id, st.mock, mf);

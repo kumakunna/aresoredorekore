@@ -70,6 +70,8 @@ async function 開く(dev, port, scene, st) {
   await dev.until('window.V2Lab && (window.V2Lab.ready || window.V2Lab.error)', 15000, '見本データの画面');
   const err = await dev.ev('window.V2Lab.error');
   if (err) throw new Error(err);
+  // その画面で使わない太さは読み込まれないので、待つ前に頼んでおく（入る画面には League Spartan の 900 が無い・指示66-2）
+  await dev.ev("Promise.all([document.fonts.load('900 20px \"M PLUS 1\"'), document.fonts.load('900 20px \"League Spartan\"')]).then(function(){ return 1; }, function(){ return 0; })");
   await dev.until(書体が届いた, 20000, '書体');
   await dev.ev(`(function(){ var s=document.getElementById(${JSON.stringify(scene.screen)}); V2.fitTv(s); V2.relayout(s); return 1; })()`);
   // 巻ける中身を一番下まで送って撮る（部品の見本の下の方）

@@ -5152,7 +5152,9 @@
   .v2 .v2-tstep{display:flex;align-items:center;gap:22px;background:var(--wc);border-radius:24px;padding:16px 24px;font-weight:900;font-size:50px;line-height:1.25;}
   .v2 .v2-tstep-ri{width:88px;height:88px;border-radius:22px;background:var(--wc2);display:flex;align-items:center;justify-content:center;flex:none;}
   .v2 .v2-tstep-ri .v2-ic{width:52px;height:52px;}
-  .v2 .v2-tstep em{font-style:normal;background:var(--wi);color:var(--won);border-radius:14px;padding:4px 14px;margin:0 4px;}
+  .v2 .v2-tstep em{font-style:normal;display:inline-block;background:var(--wi);color:var(--won);border-radius:14px;padding:10px 14px;margin:0 6px;vertical-align:middle;}
+  .v2 .v2-tband.is-end{justify-content:flex-end;}
+  .v2 .v2-me.is-title .v2-me-nm{font-size:19px;}
   .v2 .v2-tgames{display:flex;align-items:center;gap:18px;}
   .v2 .v2-ttile{width:120px;height:120px;}
   .v2 .v2-tcode{display:flex;align-items:baseline;gap:18px;justify-content:center;}
@@ -31902,7 +31904,9 @@
   window.addEventListener('resize', function(){ var t = el('scr-v2-fes-tv'); if(t && t.classList.contains('active')){ var r = (typeof fesRoom === 'function') && fesRoom(); V2.fitTv(t, r ? r.fes.inset : 0); } });
   // 検査と、検証用サーバーの見本データの台本から、同じ関数で描けるようにしておく（window.catalogSet と同じ作法）。
   // **描くだけで、画面へは移らない。**データを渡せるのは検証用サーバーが配る台本だけ（本番に入口は無い）
-  window.V2Screens = { fesLobby: renderV2FesLobby, fesTv: renderV2FesTv, parts: renderV2Parts, modeInfo: v2ModeInfo };
+  window.V2Screens = { fesLobby: renderV2FesLobby, fesTv: renderV2FesTv, parts: renderV2Parts, modeInfo: v2ModeInfo,
+    // 指示66-2：文化祭の部屋の画面。lab：{ screen, room（部屋の知らせ）, you, meId, fb, join, quit, staff }
+    fes: function(lab){ return fesLab(lab); } };
 
   // ===================== 指示66-2：文化祭の部屋（つなぎ） =====================
   // 画面の組み立ては public/js/v2-fes.js。ここは「部屋の知らせ → 描く」と「押した時の動き」だけ。
@@ -31923,8 +31927,6 @@
   function fesInfo(mode){
     var g = v2ModeInfo(mode); if(!g) return null;
     var m = modeById(mode), P = UiText.FES.投票;
-    var room = rt && rt.state.room;
-    var n = room ? V2Fes.people({ members: room.members, fes: room.fes }).length : 4;
     return Object.assign({}, g, {
       name: gameTitleOf(gameIdForMode(mode)),
       edition: (/（([^）]+)）/.exec((m && m.title) || '') || [])[1] || '',
@@ -31935,13 +31937,13 @@
     });
   }
   /** 描くもとの形（v2-fes.js の冒頭に書いた view） */
-  function fesView(){
-    var room = rt.state.room, f = room.fes;
+  function fesView(room, you, meId){
+    room = room || rt.state.room; var f = room.fes;
     // 締め切りは、知らせが届いた時刻から数える（端末の時計のずれに左右されない）
     if(fes.endFor !== room){ fes.endFor = room; fes.end = f.remainingMs != null ? Date.now() + f.remainingMs : null; }
     if(fes.selRound !== f.round + ':' + f.phase){ fes.selRound = f.round + ':' + f.phase; if(f.phase !== 'vote') fes.sel = null; }
-    return { code: room.code, max: f.max, joinUrl: location.origin + '/fes', meId: rt.state.memberId,
-      members: (room.members || []).map(function(m){ return m; }), fes: f, you: rt.state.fes || {}, end: fes.end,
+    return { code: room.code, max: f.max, joinUrl: location.origin + '/fes', meId: meId || rt.state.memberId,
+      members: (room.members || []).map(function(m){ return m; }), fes: f, you: you || rt.state.fes || {}, end: fes.end,
       sel: fes.sel, info: fesInfo, next: f.next || [], games: f.games || [], fb: fes.fb,
       data: room.state && room.state.data, game: room.state && room.state.game };
   }
@@ -31956,11 +31958,13 @@
     };
   }
   function fesWorld(scr, world){ V2.WORLDS.forEach(function(w){ scr.classList.toggle('v2-w-' + w, w === world); }); }
-  function fesRender(cur){
-    var room = fesRoom(); if(!room) return;
+  // lab：見本データ（tools/v2-lab/）が渡す { room, you, meId, fb }。ふだんは今の部屋から取る
+  function fesRender(cur, lab){
+    var room = lab ? lab.room : fesRoom(); if(!room) return;
     var scr = el(cur); if(!scr) return;
-    var view = fesView(), f = room.fes;
-    if(cur === 'scr-v2-fes-lobby') fesFeedbackCheck(view);
+    if(lab){ fes.fb = lab.fb || null; fes.sel = lab.sel || null; fes.selRound = room.fes.round + ':' + room.fes.phase; }
+    var view = lab ? fesView(lab.room, lab.you, lab.meId) : fesView(), f = room.fes;
+    if(!lab && cur === 'scr-v2-fes-lobby') fesFeedbackCheck(view);
     view.fb = fes.fb;
     var out = cur === 'scr-v2-fes-tv' ? V2Fes.tv(view) : V2Fes.phone(view);
     var back = fesKeep(scr);
@@ -31968,7 +31972,8 @@
     fesWorld(scr, out.world);
     // 決定の4段は、その回に初めて描いた時だけ動かす（人が押すたびの描き直しで頭から動き直さない）
     var key = f.round + ':' + f.phase;
-    scr.classList.toggle('is-play', f.phase === 'decide' && fes.playAnim !== key + cur);
+    // 見本データ（lab）は動きの終わった形を撮る（lab.play のときだけ動かす）
+    scr.classList.toggle('is-play', f.phase === 'decide' && (lab ? !!lab.play : fes.playAnim !== key + cur));
     if(f.phase === 'decide') fes.playAnim = key + cur;
     back();
     V2.mount(scr);
@@ -32015,11 +32020,19 @@
     else if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv') rtRenderCurrent();
   }
 
+  /** 見本データで描く（tools/v2-lab/ の台本だけが呼ぶ。本番に入口は無い・V2Screens.fes） */
+  function fesLab(lab){
+    if(lab.screen === 'scr-v2-fes-join'){ fes.join = Object.assign({ code: '', n: null, name: '', diff: null, err: '', busy: false }, lab.join); fesRenderJoin(); }
+    else if(lab.screen === 'scr-v2-fes-quit'){ fes.quit = lab.quit; fesRenderQuit(); }
+    else if(lab.screen === 'scr-v2-fes-staff'){ fes.staff = lab.staff; fes.staffFb = lab.fb || []; fes.staffRole = 'owner'; fes.staffErr = ''; fesRenderStaff(); }
+    else fesRender(lab.screen, lab);
+  }
+
   // ---- F2 入る ----
   function fesRenderJoin(){
     var scr = el('scr-v2-fes-join'); if(!scr) return;
     var j = fes.join;
-    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy });
+    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy, masked: j.masked });
     V2.mount(scr);
   }
   async function fesOpenJoin(code){
@@ -32036,12 +32049,12 @@
   async function fesJoin(){
     var j = fes.join, J = UiText.FES.入る;
     var c = NameFilter.check(j.name);
-    if(!c.ok){ j.err = J[FES_JOIN_ERR['name_' + c.reason]]; fesRenderJoin(); return; }
+    if(!c.ok){ j.err = J[FES_JOIN_ERR['name_' + c.reason]]; if(c.reason === 'blocked'){ j.masked = true; j.name = ''; } fesRenderJoin(); return; }
     if(!j.diff || j.busy) return;
     j.busy = true; j.err = ''; fesRenderJoin();
     var res = await rt.joinRoom(j.code, c.name, 'player', undefined, j.diff);
     j.busy = false;
-    if(!res.ok){ j.err = J[FES_JOIN_ERR[res.error]] || res.message || ''; fesRenderJoin(); return; }
+    if(!res.ok){ j.err = J[FES_JOIN_ERR[res.error]] || res.message || ''; if(res.error === 'name_blocked'){ j.masked = true; j.name = ''; } fesRenderJoin(); return; }
     try{ localStorage.setItem(FES_NAME_KEY, c.name); }catch(e){}
     fes.toastOnce = true;
     goTo(rtWantScreen());
@@ -32061,7 +32074,7 @@
     var scr = el('scr-v2-fes-quit'); if(!scr || !fes.quit) return;
     var q = fes.quit;
     var back = fesKeep(scr);
-    scr.innerHTML = V2Fes.quit({ game: q.mode ? fesInfo(q.mode) : null, stars: q.stars, sent: q.sentText, title: fesTitleToday() });
+    scr.innerHTML = V2Fes.quit({ game: q.mode ? fesInfo(q.mode) : null, stars: q.stars, sent: q.sentText, title: q.title || fesTitleToday() });
     back(); V2.mount(scr);
   }
   /** やめた人に見せる称号：この端末でいま名乗っている姿（ログインしていない人は、その日のうちだけ端末に残る） */
@@ -32106,7 +32119,7 @@
   document.addEventListener('input', function(e){
     var t = e.target;
     if(!t.matches || !t.matches('[data-fes-name]')) return;
-    fes.join.name = t.value; fes.join.err = '';
+    fes.join.name = t.value; fes.join.err = ''; fes.join.masked = false;
     var n = Array.from(t.value.trim()).length, c = t.closest('.v2-inp');
     var cnt = c && c.querySelector('[data-fes-cnt]');
     if(cnt){ cnt.textContent = n + '/8'; cnt.classList.toggle('is-over', n > 8); }

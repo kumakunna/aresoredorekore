@@ -67,10 +67,12 @@
     return String(n).split('').map(function (d) { return /[0-9]/.test(d) ? '<i>' + d + '</i>' : esc(d); }).join('');
   }
   /** 長い文を文節（BudouX）で切り、切れ目にだけ <wbr> を入れる。字は esc 済み */
+  // 決まった文の改行の印（\n）は、そこで必ず折る（見出しの「いっしょに／あそぼう！」のように、文節では切れない所・指示66-2）
   function phrase(text) {
-    var s = String(text == null ? '' : text);
-    var parts = (Budoux && Budoux.parse) ? Budoux.parse(s) : [s];
-    return parts.map(esc).join('<wbr>');
+    return String(text == null ? '' : text).split('\n').map(function (s) {
+      var parts = (Budoux && Budoux.parse) ? Budoux.parse(s) : [s];
+      return parts.map(esc).join('<wbr>');
+    }).join('<br>');
   }
   /** 文節で折る字の箱（ルールの文・見出しなど）。描いたあと fixWraps が「1〜2文字だけの行」を直す */
   function wrapHtml(text, cls) { return '<span class="' + esc(cls || '') + '" data-v2-wrap>' + phrase(text) + '</span>'; }

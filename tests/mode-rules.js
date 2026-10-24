@@ -290,9 +290,11 @@ function はずれ(w, uid, choices) {
 
     // ③ **その一言を出す先が、実在すること**（型b）。
     //    文言だけ用意して、札に出していなければ意味がない
-    assert(/data-locked="'\+escapeHtml\(lock\)/.test(html.replace(/\s/g, '')) ||
-           /data-locked/.test(html),
-      '押せない理由が、モードの札に載っている');
+    // 指示66-3：札は新しい見た目の部品（public/js/v2-home.js の optItems）が組む。
+    // モードの画面は、その札に modeLockReason の一言を渡し、部品は押せない札に理由を書く
+    const kit = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'v2-home.js'), 'utf8');
+    assert(/why: modeLockReason\(m\)/.test(html), 'モードの画面が、押せない理由を札に渡している');
+    assert(/data-locked=/.test(kit) && /v2-owhy/.test(kit), '押せない理由が、モードの札に載っている');
 
     // ④ 部屋が要るモードが実在する（0件なら、この検査は何も守っていない）
     const 部屋が要る = ALL_MODES.filter((m) => m.roomOnly);

@@ -36,7 +36,7 @@ function 別名表() {
 async function startPlay(win, doc, modeId, names) {
   await setupPlayers(win, doc, names || ['あき', 'びび']);
   await waitScreen(win, doc, 'scr-mode', 3000);
-  click(doc, doc.querySelector('.mode-card[data-id="' + modeId + '"]'));
+  click(doc, doc.querySelector('#modeCards [data-id="' + modeId + '"]'));
   click(doc, 'modeNextBtn');
   for (let i = 0; i < 10; i++) {
     const cur = activeScreen(doc);
@@ -226,7 +226,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     const { win, doc, errors } = await launch({ fx: true });
     await setupPlayers(win, doc, ['あき', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="normal"]'));
     click(doc, 'modeNextBtn');
     for (let i = 0; i < 10; i++) {
       const cur = activeScreen(doc);
@@ -280,7 +280,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     const { win, doc, errors } = await launch();
     await setupPlayers(win, doc, ['あき', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="normal"]'));
     click(doc, 'modeNextBtn');
     for (let i = 0; i < 10; i++) {
       const cur = activeScreen(doc);
@@ -424,7 +424,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     await waitScreen(win, doc, 'scr-next', 3000);
     const ids = Array.from(doc.querySelectorAll('#nextChoices [data-next]')).map(b => b.dataset.next);
     assertEqual(ids[0], 'again', '「もう一度」がいちばん上');
-    assert(doc.querySelector('[data-next="again"]').classList.contains('main'),
+    assert(doc.querySelector('[data-next="again"]').classList.contains('is-pri'),
       '「もう一度」がいちばん大きい');
     assert(ids.indexOf('shelf') >= 0, '別のカセットへ戻れる');
     assertNoErrors(errors, 'つぎは？画面で未捕捉の例外');
@@ -472,7 +472,7 @@ function topicText(doc) { return el(doc, 'topicName').textContent; }
     autoDialog(win, doc);
     await playToScore(win, doc);
     await chooseNext(win, doc, 'shelf');
-    await waitScreen(win, doc, 'scr-shelf', 6000);
+    await waitScreen(win, doc, 'scr-v2-pick', 6000);
     // 記録画面に、いま遊んだ試合が入っている
     click(doc, 'floatingGearBtn');
     await sleep(win, 100);

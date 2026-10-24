@@ -15,7 +15,7 @@
 // 逆に E を素通りにすると、両方対応のカセットが黙って1台に落ちる。
 
 const { createRunner, assert, assertEqual, launch, sleep, waitFor,
-  waitScreen, el, click, activeScreen, openCassette } = require('./harness');
+  waitScreen, el, click, activeScreen, openCassette, makeRoomV2 } = require('./harness');
 
 /** 疑似socketに返させる部屋の姿 */
 function roomSnapshot(over) {
@@ -28,28 +28,18 @@ function roomSnapshot(over) {
 }
 
 /**
- * 部屋を持った状態にする（進行役として）。
- *
- * 道が変わった（第41弾 2-1・2-4）。以前は「あそびかたをえらぶ→みんなのスマホ」で
- * 部屋の画面へ行けた。その画面は廃止したので、
- * **部屋でしか遊べないカセットを選ぶ**→確認が「部屋をつくる」を出す、で行く。
+ * 部屋を持った状態にする（進行役として）。指示66-3：入口の「部屋をつくる」を押すと、すぐ部屋ができる
  */
 async function withRoom(win, doc) {
-  await openCassette(win, doc, 'quizou');
-  // **ここで waitScreen は使えない。**waitFor は「遊び方の確認」を
-  // 自動で通り抜けるので、その画面を待つと永遠に来ない（自分で通してしまう）
-  assertEqual(activeScreen(doc), 'scr-play-way', '部屋をつくる確認が出ている');
-  click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
-  await waitScreen(win, doc, 'scr-rt-lobby', 3000);
   const fake = win.__rtFake;
-  await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
-  fake.replies = {
-    'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() })
-  };
-  el(doc, 'rtCreateName').value = 'あき';
-  click(doc, 'rtCreateBtn');
-  await waitFor(win, () => ['scr-rt-room', 'scr-rt-big'].indexOf(activeScreen(doc)) >= 0,
-    4000, '部屋の画面に入る');
+  fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }) };
+  await makeRoomV2(win, doc);
+}
+/** 一覧でそのカセットのページを開き、ページの下（主ボタンの所）を返す */
+async function ページ(x, id) {
+  click(x.doc, x.doc.querySelector('#scr-v2-pick [data-home-id="' + id + '"]'));
+  await sleep(x.win, 40);
+  return x.doc.querySelector('#scr-v2-pick [data-home-cta]');
 }
 
 (async function main() {
@@ -169,114 +159,62 @@ async function withRoom(win, doc) {
     win.close();
   });
 
-  await r.test('聞く3通りは、確認の画面が出る（門D9）', async () => {
-    // C：部屋専用 × 部屋なし → 「部屋をつくる」
-    let x = await launch({ fakeSocket: true });
-    await openCassette(x.win, x.doc, 'quizou');
-    assertEqual(activeScreen(x.doc), 'scr-play-way', 'C：確認の画面が出る');
-    assertEqual(
-      Array.from(x.doc.querySelectorAll('#wayChoices [data-way]')).map((b) => b.dataset.way).join(','),
-      'room', 'C：出る道は「部屋をつくる」だけ');
-    assert(/つくる/.test(x.doc.getElementById('wayChoices').textContent),
-      'C：ボタンの札が「部屋をつくる」');
-    x.win.close();
-
-    // E：両方対応 × 部屋なし → 二択。**どちらも肯定の選択肢**
-    x = await launch({ fakeSocket: true });
-    await openCassette(x.win, x.doc, 'jinro');
-    assertEqual(activeScreen(x.doc), 'scr-play-way', 'E：確認の画面が出る');
-    assertEqual(
-      Array.from(x.doc.querySelectorAll('#wayChoices [data-way]')).map((b) => b.dataset.way).join(','),
-      'handoff,room', 'E：1台とみんなのスマホの二択');
-    // やめる道があること（行き止まりにしない）
-    assert(el(x.doc, 'wayCancelBtn').textContent.length > 0, 'E：やめる道がある');
-    x.win.close();
-  });
-
-  await r.test('素通りの3通りは、確認を挟まない（門D9）', async () => {
-    // A：1台専用 × 部屋なし。**ここに確認を挟むと1タップ増える**
+  // 指示66-3：確認の画面（scr-play-way）は無くなった。聞いていたことは、ゲームのページの主ボタンの所に出る（見本 S5）。
+  // 入口で「1台で遊ぶ」を選んだ人には、両方で遊べるゲーム（E）を聞き直さない——もう1台と決まっているから
+  await r.test('部屋が無い一覧：部屋でしか遊べないゲーム（C）は、主ボタンの所で「部屋をつくって 遊ぶ」（門D9 の後継）', async () => {
     const x = await launch({ fakeSocket: true });
-    await openCassette(x.win, x.doc, 'aresoredorekore');
-    assert(activeScreen(x.doc) !== 'scr-play-way',
-      'A：確認を挟まず先へ進む（実際: ' + activeScreen(x.doc) + '）');
+    const cta = await ページ(x, 'quizou');
+    assert(/みんなのスマホで遊ぶゲームです/.test(cta.textContent), 'C：理由（みんなのスマホで遊ぶ）');
+    const b = cta.querySelector('[data-home-act="pick-make"]');
+    assert(b && /部屋をつくって/.test(b.textContent), 'C：次にできること（部屋をつくって遊ぶ）');
+    assert(!cta.querySelector('[data-home-act="pick-go"]'), 'C：「このゲームにする」は出さない');
     x.win.close();
   });
 
-  await r.test('近日公開のカセットは、確認より手前で止まる', async () => {
-    // 遊び方の鍵は外したが、**まだ中身が無いものは止める**
+  await r.test('部屋が無い一覧：両方で遊べるゲーム（E）と1台だけのゲーム（A）は、聞き直さずに1台で進む', async () => {
+    for (const id of ['jinro', 'aresoredorekore']) {
+      const x = await launch({ fakeSocket: true });
+      await openCassette(x.win, x.doc, id);
+      await waitFor(x.win, () => activeScreen(x.doc) !== 'scr-v2-pick', 3000, id + '：進む');
+      assert(['scr-game', 'scr-setup', 'scr-mode'].indexOf(activeScreen(x.doc)) !== -1, id + '：確認を挟まず先へ（実際: ' + activeScreen(x.doc) + '）');
+      x.win.close();
+    }
+  });
+
+  await r.test('近日公開は、押せる札にしない（「近日とどきます」の枠だけ）', async () => {
     const x = await launch({ fakeSocket: true });
-    // **準備中は1枚に畳まれている**（第41弾 2-2）。
-    // 畳んだ札は data-cart を持たない——1枚が特定のidを名乗る嘘にしないため
-    const soon = x.doc.querySelector('.cart.soon[data-more]');
-    assert(soon, '準備中の札が棚にある');  // 型(b)
-    await openCassette(x.win, x.doc, null, soon);
-    assertEqual(activeScreen(x.doc), 'scr-shelf', '棚に留まる');
+    const soon = x.doc.querySelector('#scr-v2-pick .v2-ssoon');
+    assert(soon, '近日の枠がある');  // 型(b)
+    assertEqual(soon.tagName, 'DIV', '押せない（ボタンではない）');
+    assert(!soon.querySelector('[data-home-card]'), 'ページを開く札ではない');
     x.win.close();
   });
 
-  await r.test('棚のタイルの鍵は、遊び方に左右されない（第41弾）', async () => {
-    // **タイルが「みんなのスマホが必要です」と言うのに押すと開く、という嘘を作らない。**
-    // タップが playFlow を見なくなったのに、タイルの鍵だけ playFlow で描いていた時期があった。
-    // 遊び方の違いは、押した後の確認（playWayPlan）が引き受ける。
-    // 棚で止めるのは「まだ中身が無い」ものだけ
+  await r.test('部屋があっても無くても、一覧には同じゲームが全部ならぶ（消さない・理由が変わるだけ）', async () => {
     const { win, doc } = await launch({ fakeSocket: true });
-    const 前 = win.shelfProbe().locks;
-    assert(前.length >= 3, 'カセットの鍵を数えられている（実際:' + 前.length + '件）');  // 型(b)
-    assertEqual(win.shelfProbe().room, false, '部屋が無い状態から始めている');  // 型(b)
-
-    // **部屋を作っても、棚の鍵は1つも変わらない。**
-    // 以前は棚の 👥 で入口の値をずらして確かめていたが、その値も 👥 も
-    // 第41弾で無くなった。代わりに、鍵に影響しそうな一番大きい変化
-    //（部屋ができる）を実際に起こして、それでも変わらないことを見る
+    const 前 = Array.from(doc.querySelectorAll('#scr-v2-pick [data-home-card]')).map((c) => c.dataset.homeId);
+    assert(前.length >= 9, '一覧の札を数えられている（実際:' + 前.length + '件）');  // 型(b)
     await withRoom(win, doc);
     assertEqual(win.roomProbe().room, true, '部屋を作れている');     // 型(b)
-    click(doc, 'rtPickGameBtn');
-    await waitScreen(win, doc, 'scr-shelf', 3000);
-
-    assertEqual(win.shelfProbe().locks.join('|'), 前.join('|'),
-      '部屋ができても、棚の鍵は変わらない');
-
-    // 中身が無いものは止まる（鍵を全部外したわけではない）
-    const soon = doc.querySelector('.cart.soon[data-more]');
-    assert(soon, '準備中の札がある');
-    assert(/準備中/.test(soon.textContent), '中身が無いものは、それと分かる');
+    click(doc, doc.querySelector('#scr-v2-room [data-home-act="room-pick"]'));
+    await waitScreen(win, doc, 'scr-v2-pick', 3000);
+    const 後 = Array.from(doc.querySelectorAll('#scr-v2-pick [data-home-card]')).map((c) => c.dataset.homeId);
+    assertEqual(後.join('|'), 前.join('|'), '部屋ができても、同じゲームが同じ順で全部ならぶ');
     win.close();
   });
 
-  await r.test('確認の画面には、左上に戻るがある。押すと棚へ（指示44 44-5）', async () => {
-    // 「やめる」の文字リンクは小さくて見つけにくかった（本人の実機フィードバック）。
-    // 正本7「左上＝1つ前に戻る」に従って、**既存の浮いている戻る**を出す。
-    // **「やめる」は消さない**（44-6の禁止事項）——左上は片手だと遠いので、
-    // 下の文字リンクが片手の逃げ道として残る（44-8）
-    const 両方 = [
-      { id: 'quizou', 何: 'C：部屋をつくる' },
-      { id: 'jinro', 何: 'E：どうやって遊ぶ？' }
-    ];
-    for (const t of 両方) {
-      const x = await launch({ fakeSocket: true });
-      await openCassette(x.win, x.doc, t.id);
-      assertEqual(activeScreen(x.doc), 'scr-play-way', t.何 + '：確認の画面が出る');
-
-      const back = el(x.doc, 'floatingBackBtn');
-      assert(back.style.display !== 'none', t.何 + '：左上の戻るが出ている');
-      assertEqual(back.textContent, '←', t.何 + '：中身は矢印');
-      assert(el(x.doc, 'wayCancelBtn').textContent.length > 0,
-        t.何 + '：「やめる」も残っている（置き換えではない）');
-
-      // **押すと棚へ。**戻り先を確かめないと、出ているだけで役に立たない
-      click(x.doc, 'floatingBackBtn');
-      await waitScreen(x.win, x.doc, 'scr-shelf', 3000);
-      assertEqual(activeScreen(x.doc), 'scr-shelf', t.何 + '：押すと棚へもどる');
-      x.win.close();
-    }
-
-    // 丸の中の矢印であること（正本7・44-5）。**見た目はCSSにしか無い**
-    const html = require('fs').readFileSync(
-      require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
-    const rule = html.slice(html.indexOf('\n  .floating-back{'), html.indexOf('\n  .floating-back:active'));
-    assert(rule, '.floating-back の指定を読めている');   // 型(b)
-    assert(/border-radius:50%/.test(rule), '丸である');
-    assert(/background:var\(--card\)/.test(rule), '地がある（矢印1文字ではない）');
+  await r.test('ページの左上の ‹ で一覧へ。一覧の左上の ‹ で入口へ（指示44 44-5 の後継）', async () => {
+    const x = await launch({ fakeSocket: true });
+    await ページ(x, 'quizou');
+    const back = x.doc.querySelector('#scr-v2-pick .v2-ov-back [data-home-act="pick-back"]');
+    assert(back && back.querySelector('.v2-ring'), 'ページの左上に丸の ‹');
+    click(x.doc, back);
+    await sleep(x.win, 40);
+    assert(!x.doc.querySelector('#scr-v2-pick [data-home-ov]').classList.contains('is-open'), 'ページを閉じて一覧へ');
+    click(x.doc, x.doc.querySelector('#scr-v2-pick [data-home-act="pick-exit"]'));
+    await waitScreen(x.win, x.doc, 'scr-v2-home', 3000);
+    assertEqual(el(x.doc, 'floatingBackBtn').style.display, 'none', '新しい画面には、浮いている戻るを重ねない（自分の ‹ がある）');
+    x.win.close();
   });
 
   r.finish();

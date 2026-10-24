@@ -3,6 +3,7 @@
 //   GET /tv                  … ふだんの部屋の TV の入口（指示66-3。コードを入れる画面へ）
 //   GET /fes                 … いまの文化祭の部屋へ飛ぶ（机や壁のポスターのQRはここ。部屋を作り直しても使える）
 //   GET /api/fes/names       … 名前の記録（入力された名前と、はじいた名前）。**くまくん（owner）だけ**
+//   GET /fes/names           … 同じ記録を読む軽い画面（指示66-3。くまくんだけ。?only=blocked ではじいた名前だけ）
 //   GET /api/fes/feedback    … 感想（★と自由文）。**くまくんと先生（owner・staff）だけ**
 //
 // だれが係かは realtime.js の fesRoleOf（.env の FES_OWNER・FES_STAFF）。ログインしていなければ 401、
@@ -32,7 +33,44 @@ function mountFesRoutes(app, io) {
     };
   }
   app.get('/api/fes/names', gate('owner'), (req, res) => res.json({ names: io.fesStore.listNames() }));
+  // 指示66-3：くまくんが名前の記録を読む軽い画面（新しい→古いの順。はじいた名前だけにも絞れる）。
+  // JSON の道と同じ門（くまくんだけ）。名前は必ず字のまま出す（HTML として動かさない・落とし穴43）
+  app.get('/fes/names', (req, res) => {
+    const page = (code, title, body) => res.status(code).type('html').send(namesPage(title, body));
+    const uid = req.session && req.session.userId;
+    if (!uid) return page(401, 'ログインしてください', '<p>くまくんのアカウントでログインしてから、もう一度開いてください。</p><p><a href="/">ログインへ</a></p>');
+    const role = io.fesRoleOf ? io.fesRoleOf(uid) : null;
+    if (role !== 'owner') return page(403, '見られません', '<p>この画面は、くまくんのアカウントだけが見られます。</p>');
+    if (!io.fesStore) return page(503, '記録の入れ物がありません', '');
+    const only = req.query.only === 'blocked';
+    const rows = io.fesStore.listNames().filter((r) => !only || r.blocked);
+    const blockedN = io.fesStore.listNames().filter((r) => r.blocked).length;
+    const body = '<p class="n">' + rows.length + '件' + (only ? '（はじいた名前だけ）' : '') + '・1か月より前のものは消えます</p>' +
+      '<p class="f">' + (only ? '<a href="/fes/names">ぜんぶ見る</a>' : '<a href="/fes/names?only=blocked">はじいた名前だけ（' + blockedN + '件）</a>') + '</p>' +
+      '<table><thead><tr><th>いつ</th><th>部屋</th><th>名前</th><th>はじいた</th></tr></thead><tbody>' +
+      rows.map((r) => '<tr' + (r.blocked ? ' class="b"' : '') + '><td>' + whenText(r.at) + '</td><td>' + esc(r.room) + '</td><td>' + esc(r.name) + '</td><td>' +
+        (r.blocked ? esc(REASON[r.reason] || r.reason || 'はじいた') : '') + '</td></tr>').join('') +
+      '</tbody></table>';
+    page(200, '名前の記録', body);
+  });
   app.get('/api/fes/feedback', gate('staff'), (req, res) => res.json({ feedback: io.fesStore.listFeedback() }));
+}
+
+const REASON = { blocked: '使えない言葉', long: '長い', empty: '空' };
+function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+/** 日本の時刻で「10/24 13:05」 */
+function whenText(at) {
+  const d = new Date(+at + 9 * 3600 * 1000);
+  const z = (n) => (n < 10 ? '0' : '') + n;
+  return (d.getUTCMonth() + 1) + '/' + d.getUTCDate() + ' ' + z(d.getUTCHours()) + ':' + z(d.getUTCMinutes());
+}
+function namesPage(title, body) {
+  return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="robots" content="noindex"><title>' + esc(title) + '</title><style>' +
+    'body{margin:0;padding:16px;font-family:system-ui,sans-serif;background:#FFF6DC;color:#1A1A1A}h1{font-size:22px;margin:4px 0 8px}' +
+    '.n,.f{margin:4px 0;font-size:14px}a{color:#1A1A1A;font-weight:700}table{width:100%;border-collapse:collapse;margin-top:10px;background:#fff;font-size:15px}' +
+    'th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #EEE;word-break:break-all}th{font-size:12px;color:#555}tr.b td{background:#FFE9E6}' +
+    '</style></head><body><h1>' + esc(title) + '</h1>' + body + '</body></html>';
 }
 
 module.exports = { mountFesRoutes };

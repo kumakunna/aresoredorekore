@@ -1192,6 +1192,12 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     // 指示66-2：文化祭の部屋は、ここから流れを進める（ゲームの締め切りを見たあと＝終わったゲームをすぐ結果へ）
     eachRoom('文化祭の進行', (room) => {
       if (room.fes && FesRoom.tick(room, now, fesApi)) pushFes(room);
+      // 指示66-3：満員の時の予約。席が空いたら先頭の人に「どうぞ」（その人のスマホが自分で入る）。何番目かも知らせる
+      if (room.fes && room.fes.queue && room.fes.queue.length) {
+        const live = Array.from(room.members.values()).filter((m) => m.role !== ROLE_BIGSCREEN && m.connected).length;
+        FesRoom.queueTick(room, live, now).forEach((e) => io.to(e.socketId).emit('fes:turn', { code: room.code, token: e.token }));
+        room.fes.queue.forEach((e, i) => { if (e.pos !== i + 1) { e.pos = i + 1; io.to(e.socketId).emit('fes:queue', { code: room.code, pos: i + 1 }); } });
+      }
     });
   }, 500));
   // 指示66-2：名前の記録と感想は1か月で消す（起動時にも1回）
@@ -1417,7 +1423,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         }
         if (FesRoom.DIFFS.indexOf(payload && payload.diff) === -1) return fail(cb, 'diff_required', 'むずかしさを えらんでね');
         const live = Array.from(room.members.values()).filter((m) => m.role !== ROLE_BIGSCREEN && m.connected).length;
-        if (live >= FesRoom.ROOM_MAX) return fail(cb, 'room_full', '満員です（16人まで）。つぎの回をまってね');
+        // 指示66-3：予約の人のために取っておいている席も、空いていない席として数える（予約した本人は、自分の token で入れる）
+        const reserveToken = payload && payload.reserve ? String(payload.reserve) : null;
+        if (live + FesRoom.held(room, reserveToken, Date.now()) >= FesRoom.ROOM_MAX) return fail(cb, 'room_full', '満員です（16人まで）。つぎの回をまってね');
+        if (reserveToken) FesRoom.unreserve(room, reserveToken);
         // 同じ名前が2人いたら、2人目は自動で「ふう②」（見本 F2）
         name = NameFilter.dedupe(c.name, Array.from(room.members.values()).map((m) => m.name));
         fesDiff = payload.diff;
@@ -1903,6 +1912,20 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       pushFes(room);
     });
     // 投票。**一度入れたら変わらない。票の数はだれにも配らない**（自分の投票だけ本人へ）
+    // 指示66-3：満員の時の予約（つぎの回に入る）。名前とむずかしさは、入る時にいつもの門を通る（ここでは見ない）
+    socket.on('fes:reserve', (payload, cb) => {
+      const room = store.get(payload && payload.code);
+      if (!room || !room.fes) return fail(cb, 'room_not_found', 'その部屋コードは見つかりません');
+      const pos = FesRoom.reserve(room, socket.id, Date.now());
+      const e = room.fes.queue.filter((x) => x.socketId === socket.id)[0];
+      e.pos = pos;
+      if (typeof cb === 'function') cb({ ok: true, pos });
+    });
+    socket.on('fes:unreserve', (payload, cb) => {
+      const room = store.get(payload && payload.code);
+      if (room && room.fes) FesRoom.unreserve(room, socket.id);
+      if (typeof cb === 'function') cb({ ok: true });
+    });
     socket.on('fes:vote', (payload, cb) => {
       const room = currentRoom();
       const me = currentMember();
@@ -2042,6 +2065,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
 
     // ---- 第3部-2：切断されたら即座に別の端末へ引き継ぐ ----
     socket.on('disconnect', () => {
+      // 指示66-3：予約したまま閉じた端末の予約は消す（席を取っておかない）
+      eachRoom('予約の片づけ', (r) => { if (r.fes && r.fes.queue && r.fes.queue.length) FesRoom.unreserve(r, socket.id); });
       const room = currentRoom();
       const me = currentMember();
       if (!room || !me) return;

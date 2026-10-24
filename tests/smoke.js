@@ -37,7 +37,7 @@ const PLAYERS = ['あき', 'びび', 'ちか'];
 
 // 棚 → テスト用カセット → ゲーム選択 →（必要ならプレイヤー設定）→ モード選択
 async function gotoModeScreen(win, doc, gameId) {
-  if (activeScreen(doc) !== 'scr-shelf') {
+  if (activeScreen(doc) !== 'scr-v2-pick') {
     const back = doc.getElementById('backToShelfBtn');
     if (back && activeScreen(doc) === 'scr-mode') back.click();
     await sleep(win, 60);
@@ -45,11 +45,9 @@ async function gotoModeScreen(win, doc, gameId) {
   if (activeScreen(doc) === 'scr-game') {
     // すでにゲーム選択にいる場合はそのまま選ぶ
   } else {
-    await waitScreen(win, doc, 'scr-shelf', 3000);
-    const cart = doc.querySelector('.cart[data-cart="testall"]');
-    assert(cart, 'テスト用カセットが棚にある');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click(); // 中央でなければ2回目で選択
+    await waitScreen(win, doc, 'scr-v2-pick', 3000);
+    assert(doc.querySelector('#scr-v2-pick [data-home-id="testall"]'), 'テスト用カセットが棚にある');
+    await openCassette(win, doc, 'testall');
     await waitScreen(win, doc, 'scr-game', 3000);
   }
   pickGame(doc, gameId);
@@ -61,7 +59,7 @@ async function gotoModeScreen(win, doc, gameId) {
 async function startMode(win, doc, id) {
   const info = MODES.find(m => m.id === id) || { game: 'aresoredorekore' };
   await gotoModeScreen(win, doc, info.game);
-  const card = doc.querySelector('.mode-card[data-id="' + id + '"]');
+  const card = doc.querySelector('#modeCards [data-id="' + id + '"]');
   assert(card, 'モードカード ' + id + ' が一覧に無い');
   click(doc, card);
   click(doc, 'modeAutoBtn'); // おまかせで設定を飛ばす
@@ -82,7 +80,7 @@ async function startMode(win, doc, id) {
 async function startModeWithTimerOff(win, doc, id) {
   const info = MODES.find(m => m.id === id) || { game: 'aresoredorekore' };
   await gotoModeScreen(win, doc, info.game);
-  click(doc, doc.querySelector('.mode-card[data-id="' + id + '"]'));
+  click(doc, doc.querySelector('#modeCards [data-id="' + id + '"]'));
   click(doc, 'modeNextBtn');
   for (let i = 0; i < 10; i++) {
     const cur = activeScreen(doc);
@@ -120,22 +118,20 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('人狼ゲームカセット：お題配布→話し合い→投票→結果まで通る', async () => {
     // テスト用の細工なしで、棚に出ている本番のカセットをそのまま遊ぶ
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    assert(cart, '人狼ゲームのカセットが棚にある');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    assert(doc.querySelector('#scr-v2-pick [data-home-id="jinro"]'), '人狼ゲームのカセットが棚にある');
+    await openCassette(win, doc, 'jinro');
     // ゲームが2つ（ワードウルフ／人狼）になったので、ゲーム選択を経由する
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id);
     assert(ids.indexOf('wordwolf') >= 0, 'モード選択にワードウルフがある');
     assert(ids.indexOf('wordwolf-multi') >= 0, '2〜ターン版も並ぶ');
     assert(ids.every(id => /^wordwolf/.test(id)), 'ワードウルフのモードだけが並ぶ（' + ids.join(',') + '）');
 
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf"]'));
     click(doc, 'modeAutoBtn');
     await sleep(win, 80);
     if (activeScreen(doc) === 'scr-mode-rules') { click(doc, 'rulesStartBtn'); await sleep(win, 60); }
@@ -180,15 +176,13 @@ async function startModeWithTimerOff(win, doc, id) {
     const { win, doc, errors } = await launch();
     autoDialog(win, doc);
     // 棚 → 人狼カセット → プレイヤー4人
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    const card = doc.querySelector('.mode-card[data-id="wolf-normal"]');
+    const card = doc.querySelector('#modeCards [data-id="wolf-normal"]');
     assert(card, 'モード一覧にノーマル人狼がある');
     click(doc, card);
 
@@ -266,15 +260,13 @@ async function startModeWithTimerOff(win, doc, id) {
     const NAMES = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     const { win, doc, errors } = await launch();
     autoDialog(win, doc);
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, NAMES);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-casual"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
@@ -378,11 +370,9 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('人狼カセット：ゲーム選択を経由し、ゲームごとにモードが分かれる', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
-    const games = Array.from(doc.querySelectorAll('#gameCards .mode-card')).map(c => c.dataset.game);
+    const games = Array.from(doc.querySelectorAll('#gameCards [data-home-opt]')).map(c => c.dataset.game);
     assertEqual(games.join(','), 'wordwolf,wolfrole', 'ワードウルフと人狼の2ゲームが並ぶ');
 
     // 人狼側：プリセットがそれぞれ独立したモードカードになっている
@@ -390,7 +380,7 @@ async function startModeWithTimerOff(win, doc, id) {
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id);
     assert(ids.length >= 5, 'プリセットが5枚以上並ぶ（' + ids.length + '枚）');
     ['wolf-casual', 'wolf-normal', 'wolf-special', 'wolf-deep', 'wolf-chaos'].forEach(id => {
       assert(ids.indexOf(id) >= 0, id + ' がモードカードとして並ぶ');
@@ -404,15 +394,13 @@ async function startModeWithTimerOff(win, doc, id) {
   // 役職あり人狼を、指定した手順で1ターン進めるヘルパー
   // onWizard: 役職設定画面（scr-set-wolfrole）で追加の操作をしたいときに使う
   async function startWolfRole(win, doc, presetId, players, onWizard) {
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="' + presetId + '"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="' + presetId + '"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     if (onWizard) { onWizard(); await sleep(win, 40); }
@@ -589,15 +577,13 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('再発防止：おまかせで始めても、初回のルール説明は出る', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf"]'));
     click(doc, 'modeAutoBtn');                       // ⚡ おまかせ
     await sleep(win, 100);
     assertEqual(activeScreen(doc), 'scr-mode-rules', 'はじめてのモードでは説明が出る');
@@ -617,15 +603,13 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('第18弾：ワードウルフの話し合いは、時間を待たずに投票へ進める', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf"]'));
     // タイマーONのまま進める（スキップできることを確かめたいので切らない）
     click(doc, 'modeAutoBtn');
     await sleep(win, 80);
@@ -670,15 +654,13 @@ async function startModeWithTimerOff(win, doc, id) {
     autoDialog(win, doc);
     const posts = captureRounds(win);
 
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか', 'でん']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]')); // 役職が少なく早く決着する
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-casual"]')); // 役職が少なく早く決着する
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
@@ -766,15 +748,13 @@ async function startModeWithTimerOff(win, doc, id) {
   }
 
   async function startWolfMulti(win, doc, changeTopic) {
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf-multi"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf-multi"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfmulti', 3000);
     // ターン数を2にして、お題変更の有無を設定する
@@ -846,15 +826,13 @@ async function startModeWithTimerOff(win, doc, id) {
   // ワードウルフを、役職を配った状態で始める。
   // modeId: 'wordwolf'（1ターン）/ 'wordwolf-multi'（2〜ターン）
   async function startWordwolfWithRoles(win, doc, modeId, roleIds, players) {
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="' + modeId + '"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="' + modeId + '"]'));
     click(doc, 'modeNextBtn');
     await sleep(win, 60);
     if (activeScreen(doc) === 'scr-set-wolfmulti') {
@@ -1214,10 +1192,10 @@ async function startModeWithTimerOff(win, doc, id) {
     await sleep(win, 100); // カウントダウンの途中
     // 途中でゲームを終える
     await H.endGameFromSettings(win, doc);
-    await waitScreen(win, doc, 'scr-shelf', 6000);
+    await waitScreen(win, doc, 'scr-v2-pick', 6000);
     // カウントダウンが生き残っていると、ここで結果画面へ飛ばされてしまう
     await sleep(win, 2500);
-    assertEqual(activeScreen(doc), 'scr-shelf', '棚にいたまま動かない');
+    assertEqual(activeScreen(doc), 'scr-v2-pick', '棚にいたまま動かない');
     assertNoErrors(errors, '集計の中断で未捕捉の例外');
     win.close();
   });
@@ -1227,15 +1205,13 @@ async function startModeWithTimerOff(win, doc, id) {
     const { win, doc, errors } = await launch();
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     // 人狼（役職あり）
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-casual"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
@@ -1249,15 +1225,13 @@ async function startModeWithTimerOff(win, doc, id) {
 
     // ワードウルフ
     const b = await launch();
-    const cart2 = b.doc.querySelector('.cart[data-cart="jinro"]');
-    cart2.click();
-    if (activeScreen(b.doc) === 'scr-shelf') cart2.click();
+    await openCassette(b.win, b.doc, 'jinro');
     await waitScreen(b.win, b.doc, 'scr-game', 3000);
     pickGame(b.doc, 'wordwolf');
     await sleep(b.win, 60);
     await fillPlayerForm(b.win, b.doc, players);
     await waitScreen(b.win, b.doc, 'scr-mode', 3000);
-    click(b.doc, b.doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(b.doc, b.doc.querySelector('#modeCards [data-id="wordwolf"]'));
     click(b.doc, 'modeNextBtn');
     await waitScreen(b.win, b.doc, 'scr-set-wolf', 3000);
     click(b.doc, b.doc.querySelector('#scr-set-wolf [data-wiz-next]'));
@@ -1271,15 +1245,13 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('カオス人狼：ルール文に英語が混ざっていない', async () => {
     const { win, doc, errors } = await launch();
     const players = ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く'];
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-yaminabe"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-yaminabe"]'));
     click(doc, 'modeNextBtn');
     await sleep(win, 80);
     if (activeScreen(doc) === 'scr-mode-rules') {
@@ -1295,9 +1267,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // ここで「村人 1人」と出ると、始まる前に全員に分かってしまう
     const { win, doc, errors } = await launch();
     const players = ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く'];
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
@@ -1305,9 +1275,9 @@ async function startModeWithTimerOff(win, doc, id) {
     await waitScreen(win, doc, 'scr-mode', 3000);
     // 何度選び直しても、設定画面は必ず「全員が役職あり」でなければならない
     for (let i = 0; i < 30; i++) {
-      click(doc, doc.querySelector('.mode-card[data-id="wolf-normal"]'));
+      click(doc, doc.querySelector('#modeCards [data-id="wolf-normal"]'));
       await sleep(win, 10);
-      click(doc, doc.querySelector('.mode-card[data-id="wolf-yaminabe"]'));
+      click(doc, doc.querySelector('#modeCards [data-id="wolf-yaminabe"]'));
       await sleep(win, 10);
       click(doc, 'modeNextBtn');
       await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
@@ -1324,9 +1294,7 @@ async function startModeWithTimerOff(win, doc, id) {
   // ---- 第26弾 第3部：遊び方は入り口で決まる（「何台で遊ぶ？」の選択は消した） ----
   await r.test('棚からカセットを直接タップしたら、これまで通り手渡しのウィザードへ行く', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
@@ -1343,9 +1311,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('手渡しのプレイヤー設定に、1人1台で遊びたい人への案内がある', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'aresoredorekore');
     await waitScreen(win, doc, 'scr-setup', 3000);
     assert(/「部屋」から始めて/.test(el(doc, 'scr-setup').textContent),
       '先に「部屋」から始める道があることを伝える');
@@ -1361,11 +1327,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 部屋は「部屋でしか遊べないカセットを選ぶ」から生まれる1本になった
     const { win, doc, errors } = await launch({ atEntry: true });
     click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-shelf', 4000);
-    await openCassette(win, doc, 'quizou');
-    assertEqual(activeScreen(doc), 'scr-play-way', '部屋をつくる確認が出る');
-    click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
-    await waitScreen(win, doc, 'scr-rt-lobby', 3000);
+    await waitScreen(win, doc, 'scr-v2-pick', 4000);
     assert(doc.getElementById('rtCreateBtn'), '部屋をつくる導線がある');
     assert(doc.getElementById('rtJoinCode'), '部屋コードで入る導線がある');
     // socket.io を読み込めない環境では、その旨を出して手渡しへ誘導する
@@ -1373,7 +1335,7 @@ async function startModeWithTimerOff(win, doc, id) {
       'つながらない時は理由が出る（' + el(doc, 'rtLobbyStatus').textContent.slice(0, 20) + '）');
     assert(el(doc, 'rtCreateBtn').disabled, 'つながらないうちは押せない');
     click(doc, 'rtLobbyBackBtn');
-    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await waitScreen(win, doc, 'scr-v2-pick', 3000);
     assertNoErrors(errors, '部屋の入り口で未捕捉の例外');
     win.close();
   });
@@ -1400,7 +1362,7 @@ async function startModeWithTimerOff(win, doc, id) {
     }
     await waitScreen(win, doc, 'scr-score', 8000);
     await chooseNext(win, doc, 'shelf');
-    await waitScreen(win, doc, 'scr-shelf', 6000);
+    await waitScreen(win, doc, 'scr-v2-pick', 6000);
 
     // 記録画面を開く
     click(doc, 'floatingGearBtn');
@@ -1427,15 +1389,13 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('恋人：手動で2人えらぶと、その2人が恋人になる', async () => {
     const { win, doc, errors } = await launch();
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん', 'はな'];
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-chaos"]')); // 恋人ありのプリセット
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-chaos"]')); // 恋人ありのプリセット
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     assert(el(doc, 'wrLoversToggle').classList.contains('on'), 'このプリセットは恋人あり');
@@ -1556,15 +1516,13 @@ async function startModeWithTimerOff(win, doc, id) {
   // ワードウルフを、ウルフ人数を指定して話し合いまで進める。
   // 誰がウルフかは、配られたお題の少数派から割り出す。
   async function startWordwolfWithWolves(win, doc, players, wolfCount) {
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolf', 3000);
     const sl = el(doc, 'wolfCountSlider');
@@ -1742,20 +1700,18 @@ async function startModeWithTimerOff(win, doc, id) {
   // ---- 第20弾 第9部：プリセットの再編 ----
   await r.test('プリセット：全部のせ人狼とカオス人狼（闇鍋）が別々に並ぶ', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く', 'け']);
     await waitScreen(win, doc, 'scr-mode', 3000);
 
-    const title = id => doc.querySelector('.mode-card[data-id="' + id + '"] .m-title').textContent;
+    const title = id => doc.querySelector('#modeCards [data-id="' + id + '"] .m-title').textContent;
     assertEqual(title('wolf-chaos'), '全部のせ人狼', '元のカオス人狼は名前だけ変わった');
     assertEqual(title('wolf-yaminabe'), 'カオス人狼', '新しいカオス人狼が入った');
     // 記録との整合：中身を持つidは変えていない
-    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id);
     assert(ids.indexOf('wolf-chaos') >= 0, '既存のidは残っている（過去の記録が迷子にならない）');
     assertNoErrors(errors, 'プリセット一覧で未捕捉の例外');
     win.close();
@@ -1764,15 +1720,13 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('カオス人狼（闇鍋）を選ぶと、ただの村人は多くても1人になる', async () => {
     const { win, doc, errors } = await launch();
     const players = ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く'];
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-yaminabe"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-yaminabe"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
 
@@ -1807,9 +1761,7 @@ async function startModeWithTimerOff(win, doc, id) {
   // ---- 第20弾 第8部：役職ありワードウルフをカードにする ----
   // ワードウルフのモード選択まで進む
   async function toWordwolfModes(win, doc, players) {
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
@@ -1820,7 +1772,7 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('役職ありワードウルフが、独立したカードとして並ぶ', async () => {
     const { win, doc, errors } = await launch();
     await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん']);
-    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id);
     ['wordwolf', 'wordwolf-multi', 'wordwolf-peek', 'wordwolf-trick', 'wordwolf-seer']
       .forEach(id => assert(ids.indexOf(id) >= 0, id + ' が並ぶ'));
     assert(ids.every(id => /^wordwolf/.test(id)), '人狼側のカードは混ざらない（' + ids.join(',') + '）');
@@ -1833,7 +1785,7 @@ async function startModeWithTimerOff(win, doc, id) {
     await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう', 'げん']);
 
     // かき乱し（3役職）を選んでウィザードへ
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf-trick"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf-trick"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolf', 3000);
     const val = id => el(doc, 'wwCount-' + id).textContent;
@@ -1845,7 +1797,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 役職なしのカードに戻すと、前の配分が残らない
     click(doc, doc.querySelector('#scr-set-wolf [data-wiz-back]'));
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolf', 3000);
     assertEqual(val('peek'), '0', '前のカードの役職を持ち越さない');
@@ -1857,7 +1809,7 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('人数が足りない役職カードは、選べないようにする', async () => {
     const { win, doc, errors } = await launch();
     await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか']); // 3人
-    const locked = id => doc.querySelector('.mode-card[data-id="' + id + '"]').classList.contains('locked');
+    const locked = id => doc.querySelector('#modeCards [data-id="' + id + '"]').classList.contains('locked');
     assert(!locked('wordwolf'), 'いつものワードウルフは3人でも遊べる');
     assert(locked('wordwolf-peek'), 'のぞき見（4人〜）は選べない');
     assert(locked('wordwolf-trick'), 'かき乱し（6人〜）は選べない');
@@ -1870,7 +1822,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 村人が1人も残らない配分にしないこと（かき乱しは3役職だが、6人だと全部は入らない）
     const { win, doc, errors } = await launch();
     await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう']); // 6人
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf-trick"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf-trick"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolf', 3000);
     const n = ['peek', 'fake', 'involve']
@@ -2142,15 +2094,13 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('ワードウルフでも、お題を配る前に伏せる画面が出る', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf"]'));
     click(doc, 'modeNextBtn');
     await sleep(win, 60);
     for (let i = 0; i < 8; i++) {
@@ -2203,26 +2153,24 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('ゲーム選択はタップで即決定せず、「つぎへ」で確定する', async () => {
     // 実機で、棚から来た勢いのまま誤って選んでしまう問題があった
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
 
-    const wordwolf = doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]');
-    const wolfrole = doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]');
+    const wordwolf = doc.querySelector('#gameCards [data-home-opt="wordwolf"]');
+    const wolfrole = doc.querySelector('#gameCards [data-home-opt="wolfrole"]');
     assert(wordwolf.classList.contains('selected'), '最初は先頭が選ばれている（未選択にしない）');
 
     // 押しても画面は動かない
     wolfrole.click();
     await sleep(win, 80);
     assertEqual(activeScreen(doc), 'scr-game', 'タップだけでは進まない');
-    assert(doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').classList.contains('selected'),
+    assert(doc.querySelector('#gameCards [data-home-opt="wolfrole"]').classList.contains('selected'),
       '選択だけが移る');
-    assert(!doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').classList.contains('selected'),
+    assert(!doc.querySelector('#gameCards [data-home-opt="wordwolf"]').classList.contains('selected'),
       '前の選択は外れる');
 
     // 選び直しても大丈夫
-    doc.querySelector('#gameCards .mode-card[data-game="wordwolf"]').click();
+    doc.querySelector('#gameCards [data-home-opt="wordwolf"]').click();
     await sleep(win, 60);
     assertEqual(activeScreen(doc), 'scr-game', '選び直しても進まない');
 
@@ -2237,15 +2185,13 @@ async function startModeWithTimerOff(win, doc, id) {
     const { win, doc, errors } = await launch();
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     // タイマーONのまま始めたいので、ウィザードでは時間設定を触らない
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-casual"]'));
     click(doc, 'modeNextBtn');
     await sleep(win, 80);
     for (let i = 0; i < 8; i++) {
@@ -2405,7 +2351,7 @@ async function startModeWithTimerOff(win, doc, id) {
     win.alert = () => {};
     await setupPlayers(win, doc, ['あき', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="normal"]'));
     click(doc, 'modeNextBtn');
     await sleep(win, 60);
     for (let i = 0; i < 8; i++) {
@@ -2442,17 +2388,15 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('人数が足りない遊び方は選べず、理由が出る', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, ['あき', 'びび', 'ちか']); // 3人
     await waitScreen(win, doc, 'scr-mode', 3000);
 
-    const casual = doc.querySelector('.mode-card[data-id="wolf-casual"]');
-    const normal = doc.querySelector('.mode-card[data-id="wolf-normal"]');
+    const casual = doc.querySelector('#modeCards [data-id="wolf-casual"]');
+    const normal = doc.querySelector('#modeCards [data-id="wolf-normal"]');
     assert(!casual.classList.contains('locked'), 'カジュアル（3人〜）は3人で選べる');
     assert(normal.classList.contains('locked'), 'ノーマル（5人〜）は3人では選べない');
     assert(/5人以上/.test(normal.textContent), '必要な人数が読める（' + normal.textContent.trim() + '）');
@@ -2460,9 +2404,9 @@ async function startModeWithTimerOff(win, doc, id) {
     // 押しても選択が移らない
     normal.click();
     await sleep(win, 60);
-    assert(doc.querySelector('.mode-card[data-id="wolf-normal"]').classList.contains('locked'),
+    assert(doc.querySelector('#modeCards [data-id="wolf-normal"]').classList.contains('locked'),
       '押しても選ばれない');
-    assert(!doc.querySelector('.mode-card[data-id="wolf-normal"]').classList.contains('selected'),
+    assert(!doc.querySelector('#modeCards [data-id="wolf-normal"]').classList.contains('selected'),
       '選択状態にならない');
     assertNoErrors(errors, '人数制限で未捕捉の例外');
     win.close();
@@ -2531,13 +2475,11 @@ async function startModeWithTimerOff(win, doc, id) {
 
   await r.test('設定：お題プールを使うゲームでも、入口も画面も残っていない（第46弾）', async () => {
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'aresoredorekore');
     await sleep(win, 80);
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="normal"]'));
     click(doc, 'modeNextBtn');
     await sleep(win, 60);
     click(doc, 'floatingGearBtn');
@@ -2625,15 +2567,13 @@ async function startModeWithTimerOff(win, doc, id) {
 
     // 1ターン版では帯そのものを出さない
     const two = await launch();
-    const cart = two.doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(two.doc) === 'scr-shelf') cart.click();
+    await openCassette(two.win, two.doc, 'jinro');
     await waitScreen(two.win, two.doc, 'scr-game', 3000);
     pickGame(two.doc, 'wordwolf');
     await sleep(two.win, 60);
     await fillPlayerForm(two.win, two.doc, PLAYERS);
     await waitScreen(two.win, two.doc, 'scr-mode', 3000);
-    click(two.doc, two.doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(two.doc, two.doc.querySelector('#modeCards [data-id="wordwolf"]'));
     click(two.doc, 'modeNextBtn');
     await sleep(two.win, 60);
     for (let i = 0; i < 6; i++) {
@@ -2663,9 +2603,7 @@ async function startModeWithTimerOff(win, doc, id) {
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
 
     assert(!app.classList.contains('theme-wolf'), '棚では素のまま');
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     assert(app.classList.contains('theme-wolf'), 'ゲーム選択からもう夜になる');
     pickGame(doc, 'wolfrole');
@@ -2674,7 +2612,7 @@ async function startModeWithTimerOff(win, doc, id) {
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
     assert(app.classList.contains('theme-wolf'), 'モード選択でも続く');
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-casual"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     assert(app.classList.contains('theme-wolf'), '設定ウィザードでも続く');
@@ -2713,17 +2651,17 @@ async function startModeWithTimerOff(win, doc, id) {
     autoDialog(win, doc);
     win.alert = () => {};
     await H.endGameFromSettings(win, doc);
-    await waitScreen(win, doc, 'scr-shelf', 5000);
+    await waitScreen(win, doc, 'scr-v2-pick', 5000);
     assert(!app.classList.contains('theme-wolf'), 'ゲームを終えたら夜が外れる');
 
     const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
     if (cart) {
       cart.click();
-      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      if (activeScreen(doc) === 'scr-v2-pick') cart.click();
       await sleep(win, 80);
       if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
       await waitScreen(win, doc, 'scr-mode', 3000);
-      click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+      click(doc, doc.querySelector('#modeCards [data-id="normal"]'));
       click(doc, 'modeNextBtn');
       await sleep(win, 60);
       for (let i = 0; i < 8; i++) {
@@ -2773,7 +2711,7 @@ async function startModeWithTimerOff(win, doc, id) {
 
     // 通常プレイに切り替えて、1ラウンド遊んでスコア画面を見る
     await chooseNext(win, doc, 'shelf');
-    await waitScreen(win, doc, 'scr-shelf', 4000);
+    await waitScreen(win, doc, 'scr-v2-pick', 4000);
     await startModeWithTimerOff(win, doc, 'normal');
     await waitScreen(win, doc, 'scr-play', 6000);
     click(doc, 'endRoundBtn');
@@ -2792,7 +2730,7 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('再発防止：タイマーの秒ホイールが 00:00 を作れない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     await gotoModeScreen(win, doc, 'aresoredorekore');
-    click(doc, doc.querySelector('.mode-card[data-id="normal"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="normal"]'));
     click(doc, 'modeNextBtn');
     // タイマー設定画面まで進む
     for (let i = 0; i < 6; i++) {
@@ -2826,15 +2764,15 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(cart, '爆弾解除のカセットが棚にある');
     assert(!cart.classList.contains('soon'), '近日公開ではなく、遊べる状態');
     cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    if (activeScreen(doc) === 'scr-v2-pick') cart.click();
     // 第27弾-3で実物解除が入り、ゲームが2つになったので選択画面を通る
     // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
     await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    const ids = Array.from(doc.querySelectorAll('#modeCards .mode-card')).map(c => c.dataset.id);
+    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id);
     assertEqual(ids.join(','), 'bomb-coop,bomb-race', 'クイズ解除の2枚だけが並ぶ');
-    const cards = Array.from(doc.querySelectorAll('#modeCards .mode-card'));
+    const cards = Array.from(doc.querySelectorAll('#modeCards [data-id]'));
     assert(/クイズ解除/.test(cards[0].textContent), 'モードカードの名前が「クイズ解除」になっている');
 
     // 競争版は部屋が必須なので、手渡し方式では選べない（理由が読める）
@@ -2912,14 +2850,12 @@ async function startModeWithTimerOff(win, doc, id) {
    * 演出を見るテストが増えたので、同じ下ごしらえを何度も書き写さない。
    */
   async function startBombCoop(win, doc, codes, lives) {
-    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'bakudan');
     // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
     await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="bomb-coop"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-bomb', 3000);
     // 指示58：描かれている行（許された層）だけを回す（なにそれ・むりは既定で行が無い）
@@ -3049,14 +2985,12 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('コード数の「＋」は、上限に達したらそれ以上増やせない', async () => {
     // 以前は上限そのものを引き上げていたので、押し続ければいくらでも増やせた
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'bakudan');
     // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
     await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="bomb-coop"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-bomb', 3000);
 
@@ -3124,14 +3058,12 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('テーマ：爆弾解除の設定画面まで制御盤の見た目が続く', async () => {
     const { win, doc, errors } = await launch();
     const app = el(doc, 'app');
-    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'bakudan');
     // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
     await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="bomb-coop"]'));
     click(doc, 'modeNextBtn');
     // コード配分 → ライフ → タイマー、どの設定画面でもテーマが続く
     for (let i = 0; i < 4; i++) {
@@ -3154,9 +3086,7 @@ async function startModeWithTimerOff(win, doc, id) {
     const app = el(doc, 'app');
     assert(!app.classList.contains('theme-bomb'), '棚では素のまま');
 
-    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'bakudan');
     // **中身が1つになったので、ゲーム選択は挟まらない**（指示49 49-7）。
     // その次に来る「遊び方の確認」は THEME_FREE_SCREENS なので、
     // ここは素のまま——**それが正しい**（道具は世界の外にある・正本1-3）
@@ -3166,7 +3096,7 @@ async function startModeWithTimerOff(win, doc, id) {
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
     assert(app.classList.contains('theme-bomb'), 'モード選択でも続く');
-    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="bomb-coop"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-bomb', 3000);
     assert(app.classList.contains('theme-bomb'), '設定ウィザードでも続く');
@@ -3215,7 +3145,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 意味のある検査だった。第41弾でその値そのものを無くしたので、
     // いまは**どの棚でも施錠されない**ことを見る（理由は押した後の確認が出す）
     const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
-    assertEqual(activeScreen(doc), 'scr-shelf', '見るだけの棚に着いている');
+    assertEqual(activeScreen(doc), 'scr-v2-pick', '見るだけの棚に着いている');
     const 施錠 = Array.from(doc.querySelectorAll('.cart[data-cart]'))
       .filter((c) => c.classList.contains('locked'))
       .map((c) => c.dataset.cart);
@@ -3464,9 +3394,7 @@ async function startModeWithTimerOff(win, doc, id) {
     // 第32弾-A-3-9：カセットの「15分〜」は設定で大きく変わる。
     // 集まりの中では「あと何分で終わるか」が分からないと遊びづらい
     const t = await launch();
-    const cart = t.doc.querySelector('.cart[data-cart="aresoredorekore"]');
-    cart.click();
-    if (activeScreen(t.doc) === 'scr-shelf') cart.click();
+    await openCassette(t.win, t.doc, 'aresoredorekore');
     await fillPlayerForm(t.win, t.doc, PLAYERS);
     await waitScreen(t.win, t.doc, 'scr-mode', 3000);
     click(t.doc, 'modeAutoBtn');
@@ -3501,9 +3429,7 @@ async function startModeWithTimerOff(win, doc, id) {
     for (const c of [{ cart: 'jinro', game: 'wolfrole', theme: 'theme-wolf' },
                      { cart: 'bakudan', game: 'bomb', theme: 'theme-bomb' }]) {
       const { win, doc, errors } = await launch();
-      const cart = doc.querySelector('.cart[data-cart="' + c.cart + '"]');
-      cart.click();
-      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await openCassette(win, doc, c.cart);
       await sleep(win, 100);
       // 第41弾：カセットをえらぶと遊び方の確認が挟まる。
       // sleep では通り抜け処理が走らないので、ここで明示的に通す
@@ -3601,9 +3527,7 @@ async function startModeWithTimerOff(win, doc, id) {
     const app = el(doc, 'app');
     // **爆弾解除は中身が1つなのでゲーム選択を挟まない**（指示49 49-7）。
     // テーマが付くのは「遊び方の確認」の先（あそこは道具の画面なので素のまま）
-    const bomb = doc.querySelector('.cart[data-cart="bakudan"]');
-    bomb.click();
-    if (activeScreen(doc) === 'scr-shelf') bomb.click();
+    await openCassette(win, doc, 'bakudan');
     await passGameSelect(win, doc, 'bomb');
     passPlayWay(doc);
     await sleep(win, 80);
@@ -3612,12 +3536,10 @@ async function startModeWithTimerOff(win, doc, id) {
     assert(app.classList.contains('theme-bomb'), 'まず爆弾解除のテーマ');
 
     click(doc, 'backToShelfBtn');
-    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await waitScreen(win, doc, 'scr-v2-pick', 3000);
     assert(!app.classList.contains('theme-bomb'), '棚では外れる');
 
-    const wolf = doc.querySelector('.cart[data-cart="jinro"]');
-    wolf.click();
-    if (activeScreen(doc) === 'scr-shelf') wolf.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     assert(app.classList.contains('theme-wolf'), '人狼のテーマが付く');
     assert(!app.classList.contains('theme-bomb'), '爆弾解除のテーマは残らない');
@@ -3698,14 +3620,12 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('これから書く記録には、いまのモードIDが入る', async () => {
     // 古いIDを書き続けると、対応表を永久に外せなくなる
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'bakudan');
     // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
     await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    const card = doc.querySelector('.mode-card[data-id="bomb-coop"]');
+    const card = doc.querySelector('#modeCards [data-id="bomb-coop"]');
     assert(card, '協力版のカードがある（IDが bomb-coop になっている）');
     assert(/協力版/.test(card.textContent), 'カードの名前が「協力版」になっている');
     assertNoErrors(errors, 'モード一覧で未捕捉の例外');
@@ -3728,7 +3648,7 @@ async function startModeWithTimerOff(win, doc, id) {
     click(doc, 'floatingGearBtn');
     await sleep(win, 60);
     await H.endGameFromSettings(win, doc);
-    await waitScreen(win, doc, 'scr-shelf', 4000);
+    await waitScreen(win, doc, 'scr-v2-pick', 4000);
 
     await startMode(win, doc, 'wordwolf');
     await waitScreen(win, doc, 'scr-wolf-pass', 6000);

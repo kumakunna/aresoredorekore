@@ -35,17 +35,11 @@ function wwRoom(cfg) {
 /** 本物の部屋の状態を、本物の画面へ流す（自分は me） */
 async function 画面へ(x, me) {
   const { win, doc, errors } = await launch({ fakeSocket: true });
-  await waitScreen(win, doc, 'scr-shelf', 9000);
-  await openCassette(win, doc, 'jinro');
-  const way = doc.querySelector('#wayChoices [data-way="room"]');
-  if (way) way.click();
-  await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+  await waitScreen(win, doc, 'scr-v2-pick', 9000);
   const fake = win.__rtFake;
   await waitFor(win, () => fake.connected, 5000, '疑似socket');
   fake.replies = { 'room:join': () => ({ ok: true, code: x.room.code, memberId: me, room: publicSnapshot(x.room) }) };
-  el(doc, 'rtJoinCode').value = x.room.code;
-  el(doc, 'rtJoinName').value = NAMES[0];
-  click(doc, 'rtJoinBtn');
+  await require('./harness').joinRoomV2(win, doc, x.room.code, NAMES[0]);
   const push = async () => {
     fake.fire('room:update', publicSnapshot(x.room));
     const mine = x.d.privateFor(x.room, me);

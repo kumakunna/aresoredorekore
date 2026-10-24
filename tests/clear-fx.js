@@ -58,11 +58,7 @@ async function 決着まで(t, 自分, launchOpt) {
   const { win, doc, errors } = await launch(Object.assign({ fakeSocket: true }, launchOpt || {}));
   try {
     win.TitleLogic.seasonFor = () => null;
-    await waitScreen(win, doc, 'scr-shelf', 9000);
-    await openCassette(win, doc, t.cart);
-    const way = doc.querySelector('#wayChoices [data-way="room"]');
-    if (way) way.click();
-    await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+    await waitScreen(win, doc, 'scr-v2-pick', 9000);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 5000, '疑似socket');
 
@@ -83,9 +79,7 @@ async function 決着まで(t, 自分, launchOpt) {
                data: room[entry.key] ? d.publicView(room) : room.state.data }
     });
     fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 自分, room: snap() }) };
-    el(doc, 'rtJoinCode').value = 'ABC234';
-    el(doc, 'rtJoinName').value = 自分 === 'tv' ? 'テレビ' : 'あき';
-    click(doc, 'rtJoinBtn');
+    await require('./harness').joinRoomV2(win, doc, 'ABC234', 自分 === 'tv' ? 'テレビ' : 'あき');
     const 部屋の前置き = 'scr-' + 'rt-';   // 幽霊の画面idとして拾われないよう組み立てる（落とし穴32）
     await waitFor(win, () => String(activeScreen(doc)).indexOf(部屋の前置き) === 0, 8000, '部屋の画面');
 
@@ -181,11 +175,7 @@ function 見せ場を数える(win, doc) {
 async function 決着した部屋に大画面で入る(t) {
   const { win, doc, errors } = await launch({ fakeSocket: true });
   win.TitleLogic.seasonFor = () => null;
-  await waitScreen(win, doc, 'scr-shelf', 9000);
-  await openCassette(win, doc, t.cart);
-  const way = doc.querySelector('#wayChoices [data-way="room"]');
-  if (way) way.click();
-  await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+  await waitScreen(win, doc, 'scr-v2-pick', 9000);
   const fake = win.__rtFake;
   await waitFor(win, () => fake.connected, 5000, '疑似socket');
 
@@ -383,16 +373,14 @@ async function 決着した部屋に大画面で入る(t) {
   await r.test('④ ロシアンカード（いっきうち・手渡し）：「けっかを見る」のあと🃏→🏆で祝い、祝いの後ろで結果へ', async () => {
     const { win, doc, errors } = await launch();
     try {
-      const cart = doc.querySelector('.cart[data-cart="rcard"]');
-      cart.click();
-      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await openCassette(win, doc, 'rcard');
       await sleep(win, 100);
       passPlayWay(doc);
       await sleep(win, 80);
       if (activeScreen(doc) === 'scr-game') { pickGame(doc, 'rcard'); await sleep(win, 80); }
       if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, ['あき', 'びび']);
       await waitScreen(win, doc, 'scr-mode', 4000);
-      click(doc, doc.querySelector('.mode-card[data-id="rcard-duel"]'));
+      click(doc, doc.querySelector('#modeCards [data-id="rcard-duel"]'));
       click(doc, 'modeNextBtn');
       await sleep(win, 80);
       for (let i = 0; i < 10; i++) {
@@ -474,10 +462,7 @@ async function 決着した部屋に大画面で入る(t) {
     const { win, doc, errors } = await launch({ fakeSocket: true });
     try {
       win.TitleLogic.seasonFor = () => null;
-      await waitScreen(win, doc, 'scr-shelf', 9000);
-      await openCassette(win, doc, 'bakudan');
-      click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
-      await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+      await waitScreen(win, doc, 'scr-v2-pick', 9000);
       const fake = win.__rtFake;
       await waitFor(win, () => fake.connected, 5000, 'socket');
 
@@ -497,8 +482,7 @@ async function 決着した部屋に大画面で入る(t) {
       });
       fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: snap() }) };
       始める();
-      el(doc, 'rtCreateName').value = 'あき';
-      click(doc, 'rtCreateBtn');
+      await require('./harness').makeRoomV2(win, doc);
       await sleep(win, 300);
       const 部屋 = () => fake.fire('room:update', snap());
       const 秘密 = () => fake.fire('wolf:you', Bomb.privateFor(room, 'm1'));
@@ -559,7 +543,7 @@ async function 決着した部屋に大画面で入る(t) {
     await r.test('⑤ ロシアンカードの大画面：' + (時間切れ ? '時間切れは「⏱ 時間切れ」（めくっていない）' : 'めくって爆弾なら「💣 ばくだんをめくった」'), async () => {
       const { win, doc, errors } = await launch({ fakeSocket: true });
       try {
-        await waitScreen(win, doc, 'scr-shelf', 9000);
+        await waitScreen(win, doc, 'scr-v2-pick', 9000);
         await openCassette(win, doc, 'rcard');
         const way = doc.querySelector('#wayChoices [data-way="room"]');
         if (way) click(doc, way);
@@ -585,8 +569,7 @@ async function 決着した部屋に大画面で入る(t) {
           state: { phase: 'playing', game: 'rcard', data: Rcard.publicView(room) }
         });
         fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'tv', room: snap() }) };
-        el(doc, 'rtCreateName').value = 'TV';
-        click(doc, 'rtCreateBtn');
+        await require('./harness').makeRoomV2(win, doc);
         await sleep(win, 300);
         fake.fire('room:update', snap());
         await waitScreen(win, doc, 'scr-rt-big', 6000);
@@ -624,10 +607,7 @@ async function 決着した部屋に大画面で入る(t) {
   async function 競争の部屋(自分, cfg) {
     const { win, doc, errors } = await launch({ fakeSocket: true });
     win.TitleLogic.seasonFor = () => null;
-    await waitScreen(win, doc, 'scr-shelf', 9000);
-    await openCassette(win, doc, 'bakudan');
-    click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
-    await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+    await waitScreen(win, doc, 'scr-v2-pick', 9000);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 5000, 'socket');
     const members = new Map();
@@ -645,8 +625,7 @@ async function 決着した部屋に大画面で入る(t) {
       state: { phase: room.state.phase, game: 'bomb', data: Bomb.publicView(room) }
     });
     fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 自分, room: snap() }) };
-    el(doc, 'rtCreateName').value = 自分 === 'tv' ? 'TV' : 'あき';
-    click(doc, 'rtCreateBtn');
+    await require('./harness').makeRoomV2(win, doc);
     await sleep(win, 300);
     const push = async () => {
       fake.fire('room:update', snap());
@@ -735,9 +714,7 @@ async function 決着した部屋に大画面で入る(t) {
         const 見張り = 見せ場を数える(win, doc);
         // (1) 決着のまま入る（読み込み直した大画面・決着のあとで大画面にした端末と同じ）
         fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'tv', room: g.snap() }) };
-        el(doc, 'rtJoinCode').value = 'ABC234';
-        el(doc, 'rtJoinName').value = 'テレビ';
-        click(doc, 'rtJoinBtn');
+        await require('./harness').joinRoomV2(win, doc, 'ABC234', 'テレビ');
         await waitScreen(win, doc, 'scr-rt-big', 8000);
         // (2) 同じ決着のまま、知らせがもう2回届く（それまで爆発・解除成功は2回目で出ていた）
         for (let i = 0; i < 2; i++) { fake.fire('room:update', g.snap()); await sleep(win, 120); }

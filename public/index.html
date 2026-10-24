@@ -318,19 +318,8 @@
   }
   .handi-toggle.on{background:var(--gold);color:#fff;}
 
-  /* ---------- mode ---------- */
-  .scr-head-row{display:flex;align-items:flex-start;justify-content:space-between;}
-  .gear-btn{
-    width:38px;height:38px;border-radius:50%;background:var(--card);border:1px solid var(--line);
-    font-size:17px;cursor:pointer;flex:none;
-  }
-  .mode-score-preview{
-    background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;
-    margin-bottom:14px;font-size:13px;display:flex;flex-wrap:wrap;gap:10px;
-  }
-  .mode-score-preview .msp-item{display:flex;gap:5px;align-items:baseline;}
-  .mode-score-preview .msp-name{font-weight:700;}
-  .mode-score-preview .msp-score{font-family:'DotGothic16',monospace;color:var(--stamp-deep);}
+  /* ---------- mode ----------
+     指示66-3：モード画面は新しい見た目（.v2 の S4）になった。前の .scr-head-row・.gear-btn・.mode-score-preview は着る人がいないので消した */
   .timer-picker{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:4px;}
   .tp-label{font-size:var(--fs-body);font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;}
   .tp-label span{font-family:'DotGothic16',monospace;color:var(--stamp-deep);font-size:16px;}
@@ -341,11 +330,6 @@
     padding:7px 12px;cursor:pointer;user-select:none;
   }
   .handicap-picker .hp-chip.on{background:var(--gold);color:#fff;}
-  /* 第37弾：進行役だけに出る「ルールを見る」。押しても他の人には何も起きない */
-  .mode-peek{
-    flex:none;font-size:11px;border:1px solid var(--line);color:var(--ink-soft);
-    background:var(--paper);border-radius:999px;padding:7px 10px;cursor:pointer;white-space:nowrap;
-  }
   .mode-card{
     display:flex;align-items:center;gap:14px;background:var(--card);border:1.5px solid var(--line);
     border-radius:10px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .15s, background .15s;
@@ -4784,6 +4768,8 @@
   .v2 .v2-btn.is-lite{min-height:48px;background:var(--wc);border-color:var(--wl);color:var(--wi);font-size:15px;border-radius:14px;}
   .v2 .v2-btn.is-done{background:var(--wdone);color:var(--wdone-ink);}
   .v2 .v2-btn:disabled{background:var(--wdim);color:var(--ws);border-color:transparent;cursor:default;transform:none;}
+  /* 押すと別の画面を開くボタン（a 要素）も、同じ形（下線を引かない） */
+  .v2 a.v2-btn{text-decoration:none;box-sizing:border-box;}
 
   /* 小さな見出し */
   .v2 .v2-lbl{font-weight:900;font-size:13px;color:var(--ws);}
@@ -5382,7 +5368,7 @@
   .v2 button.v2-card{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;}
   .v2 .v2-card.is-flat{border-color:transparent;background:var(--wc);}
   .v2 .v2-ecode{position:relative;gap:10px;align-items:flex-start;}
-  .v2 .v2-ecode:active{transform:scale(.98);}
+  .v2 button.v2-card:active{transform:scale(.98);}
   .v2 .v2-ecode b{font-weight:900;font-size:54px;line-height:1;letter-spacing:.06em;}
   .v2 .v2-ecode-qr{position:absolute;right:16px;top:50%;width:34px;height:34px;transform:translateY(-50%);}
   .v2 .v2-ecode.is-big{align-items:center;text-align:center;margin-top:6px;}
@@ -5450,9 +5436,9 @@
   .v2 .v2-band-end .v2-faces .v2-av + .v2-av{margin-left:-6px;}
   /* ゲームのページ：押した印から色が丸く広がる（0.25秒）。指で横に送る（はなした所で止まる・0.25秒） */
   .v2 .v2-ov{position:absolute;inset:0;z-index:35;clip-path:circle(0% at var(--cx,50%) var(--cy,50%));pointer-events:none;visibility:hidden;
-    transition:clip-path var(--v2-move) var(--v2-ease),visibility 0s linear var(--v2-move);}
+    transition:clip-path var(--v2-move) var(--v2-ease),visibility var(--v2-move) steps(1,end);}
   .v2 .v2-ov.is-open{clip-path:circle(150% at var(--cx,50%) var(--cy,50%));pointer-events:auto;visibility:visible;
-    transition:clip-path var(--v2-move) var(--v2-ease),visibility 0s;}
+    transition:clip-path var(--v2-move) var(--v2-ease),visibility var(--v2-move) steps(1,start);}
   .v2 .v2-pager{position:absolute;inset:0;overflow:hidden;touch-action:pan-y;}
   .v2 .v2-track{position:absolute;inset:0;display:flex;will-change:transform;}
   .v2 .v2-track.is-anim{transition:transform var(--v2-move) var(--v2-ease);}
@@ -5460,6 +5446,8 @@
   .v2 .v2-pin{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
     padding:72px var(--v2-side-r) 176px var(--v2-side);overflow-y:auto;scrollbar-width:none;}
   .v2 .v2-pin::-webkit-scrollbar{display:none;}
+  /* ページの中は縦にだけ巻く。横の動きはページ送りに渡す（ブラウザに横の動きを取らせない） */
+  .v2 .v2-page,.v2 .v2-pin{touch-action:pan-y;}
   .v2 .v2-page .v2-tile{width:150px;height:150px;flex:none;box-shadow:0 0 0 5px rgba(255,255,255,.85);margin-top:4px;}
   .v2 .v2-page.is-cur .v2-tile{animation:v2-pop-in var(--v2-move) var(--v2-pop);}
   .v2 .v2-pn{max-width:100%;font-weight:900;font-size:32px;line-height:1.15;}
@@ -5513,6 +5501,7 @@
   .v2 .v2-olink{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:6px 0;font-weight:900;font-size:14px;color:var(--wi);cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
   .v2 .v2-olink:active{transform:scale(.97);}
   .v2 .v2-olink .v2-ic{width:16px;height:16px;}
+  .v2 .v2-plinks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;}
   /* 何人で遊ぶ？（1台の一覧だけ。答えなくても一覧は動く） */
   .v2 .v2-heads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
   .v2 .v2-heads button{height:56px;border-radius:14px;border:3px solid #E2E2E2;background:#fff;color:#141414;font-family:var(--v2-en);font-weight:900;font-size:24px;cursor:pointer;padding:0;}
@@ -5533,7 +5522,8 @@
   .v2 .v2-sdec-by{font-weight:800;font-size:15px;color:var(--ws);}
   .v2 .v2-sdec-nx{position:absolute;z-index:2;left:var(--v2-side);right:var(--v2-side-r);bottom:28px;display:flex;flex-direction:column;gap:10px;align-items:center;font-weight:900;font-size:14px;color:var(--ws);}
   .v2 .v2-sdec-nx .v2-syncbar{width:100%;background:var(--wdim);}
-  .v2 .v2-sdec-nx .v2-syncbar i{background:currentColor;animation:v2-draw 1.5s linear both;}
+  /* 下の線はカードの長さ（1.5秒）そのもの。演出の速さでは縮めない（「なし」でも同じ時間で進む・見本 S6）。長さは部品が書く */
+  .v2 .v2-sdec-nx .v2-syncbar i{background:currentColor;animation:v2-draw linear both;}
   .v2 .v2-sdec .v2-a-fade{animation:v2-fade var(--v2-move) var(--v2-ease) both;animation-delay:calc(.35s * var(--fx-scale));}
   .v2 .v2-sdec .v2-a-slam{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(.4s * var(--fx-scale));}
   .v2 .v2-sdec .v2-a-rise{animation:v2-rise var(--v2-move) var(--v2-ease) both;animation-delay:calc(.75s * var(--fx-scale));}
@@ -9685,6 +9675,13 @@
   // jsdom では開き直すと疑似socketの状態も消えてしまうので、置き場所だけ借りる。
   // **確かめている振る舞い（サーバーに聞いてから確認を出す）は本物のまま**
   window.goToScreen = function(id){ goTo(id); };
+  // 指示66-3：部屋に入る画面を、TV として（/tv から来た時と同じ形で）開く。検査が TV の入り方を歩くための窓
+  window.homeOpenJoin = function(o){ openV2Join(o || {}); };
+  // 指示66-3：検査が一覧の中身を読む窓（読むだけ。遊べるカセット・ページの順・いまのページ）
+  window.homeProbe = function(){
+    return { ready: CASSETTES.filter(function(c){ return c.ready; }).map(function(c){ return c.id; }),
+      cards: home.pick.cards.map(function(c){ return { id: c.id, world: c.world, why: c.why }; }), cur: home.pick.cur, open: home.pick.open };
+  };
   /**
    * @param {string} id カセット
    * @param {number} [人数] その人数で聞く（棚のチップを動かさずに両側を試すため・指示55-①）
@@ -14691,7 +14688,7 @@
     if(!m) return null;
     // 部屋が必須の遊び方。手渡し方式では成立しない（全員が同時に別々の盤面を持つため）
     if(m.roomOnly && !goingRealtime()){
-      return '📱 1人1台の遊び方です。棚の「部屋」から部屋を立ててください';
+      return '📱 1人1台の遊び方です。入口の「部屋をつくる」から部屋を立ててください';
     }
     // **人数で止めるのは手渡しの時だけ**（指示44 44-1）。
     // 部屋では、人が集まりきる前に進行役がゲームを決められるのが指示37の形なので、
@@ -32450,7 +32447,7 @@
   function fesRenderJoin(){
     var scr = el('scr-v2-fes-join'); if(!scr) return;
     var j = fes.join;
-    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy, masked: j.masked });
+    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy, masked: j.masked, full: j.full, reserved: j.reserved });
     V2.mount(scr);
   }
   async function fesOpenJoin(code){
@@ -32470,9 +32467,16 @@
     if(!c.ok){ j.err = J[FES_JOIN_ERR['name_' + c.reason]]; if(c.reason === 'blocked'){ j.masked = true; j.name = ''; } fesRenderJoin(); return; }
     if(!j.diff || j.busy) return;
     j.busy = true; j.err = ''; fesRenderJoin();
-    var res = await rt.joinRoom(j.code, c.name, 'player', undefined, j.diff);
+    var res = await rt.joinRoom(j.code, c.name, 'player', undefined, j.diff, j.token || undefined);
     j.busy = false;
-    if(!res.ok){ j.err = J[FES_JOIN_ERR[res.error]] || res.message || ''; if(res.error === 'name_blocked'){ j.masked = true; j.name = ''; } fesRenderJoin(); return; }
+    if(!res.ok){
+      j.err = J[FES_JOIN_ERR[res.error]] || res.message || '';
+      // 指示66-3：満員なら、予約のボタンに変わる（名前とむずかしさはそのまま）
+      j.full = res.error === 'room_full';
+      if(res.error === 'name_blocked'){ j.masked = true; j.name = ''; }
+      fesRenderJoin(); return;
+    }
+    j.full = false; j.reserved = null; j.token = null;
     try{ localStorage.setItem(FES_NAME_KEY, c.name); }catch(e){}
     fes.toastOnce = true;
     goTo(rtWantScreen());
@@ -32516,7 +32520,7 @@
     var st = fes.staff, f = st && st.fes;
     var end = f && f.remainingMs != null ? (fes.staffEndFor === st ? fes.staffEnd : (fes.staffEndFor = st, fes.staffEnd = Date.now() + f.remainingMs)) : null;
     var back = fesKeep(scr);
-    scr.innerHTML = V2Fes.staff({ staff: st, fb: fes.staffFb, end: end, err: fes.staffErr, canCreate: fes.canCreate, canFb: !!fes.staffRole, info: fesInfo });
+    scr.innerHTML = V2Fes.staff({ staff: st, fb: fes.staffFb, end: end, err: fes.staffErr, canCreate: fes.canCreate, canFb: !!fes.staffRole, canNames: fes.staffRole === 'owner', info: fesInfo });
     back(); V2.mount(scr);
   }
   async function fesLoadFeedback(){
@@ -32528,7 +32532,28 @@
     }catch(e){ fes.staffFb = []; }
     fesRenderStaff();
   }
+  /** 指示66-3：満員の時の予約。名前とむずかしさは入る時の門を通るので、先に確かめてから予約する */
+  async function fesReserve(){
+    var j = fes.join, J = UiText.FES.入る;
+    var c = NameFilter.check(j.name);
+    if(!c.ok){ j.err = J[FES_JOIN_ERR['name_' + c.reason]]; fesRenderJoin(); return; }
+    if(!j.diff || j.busy) return;
+    j.busy = true; fesRenderJoin();
+    var r = await rt.fesReserve(j.code);
+    j.busy = false;
+    if(r && r.ok){ j.reserved = r.pos; j.err = ''; }
+    else j.err = (r && r.message) || J.部屋が無い;
+    fesRenderJoin();
+  }
   if(rt){
+    rt.on('fesQueue', function(p){ if(p && fes.join.reserved && p.code === fes.join.code){ fes.join.reserved = p.pos; if((document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-join') fesRenderJoin(); } });
+    // 席が空いた：このスマホが自分で入る（予約の token を添えると、取っておいた席に入れる）
+    rt.on('fesTurn', function(p){
+      if(!p || !fes.join.reserved || p.code !== fes.join.code) return;
+      fes.join.token = p.token;
+      try{ FxKit.notice(UiText.FES.入る.どうぞ); }catch(e){}
+      fesJoin();
+    });
     rt.on('fes', function(){ var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-lobby') rtRenderCurrent(); });
     rt.on('fesStaff', function(p){ fes.staff = p; var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-staff') fesRenderStaff(); });
   }
@@ -32574,6 +32599,8 @@
     if(b.hasAttribute('data-fes-inset')){ rt.fesInset(fes.staff.code, +b.getAttribute('data-fes-inset')); return; }
     var act = b.getAttribute('data-fes-act');
     if(act === 'join') fesJoin();
+    else if(act === 'reserve') fesReserve();
+    else if(act === 'unreserve'){ rt.fesUnreserve(fes.join.code); fes.join.reserved = null; fes.join.full = false; fes.join.err = ''; fesRenderJoin(); }
     else if(act === 'vote' && fes.sel) rt.fesVote(fes.sel);
     else if(act === 'ready') rt.setReady(true);
     else if(act === 'unready') rt.setReady(false);
@@ -32667,6 +32694,9 @@
   async function enterV2Home(){
     home.back = null;
     renderV2Home();
+    // 先につないでおく（前の「部屋」の画面と同じ）。押してからつなぐと、つながった瞬間の入り直しと作る返事が前後する
+    if(rt && rt.available()) rt.connect();
+    if(home.afterLogin === 'make'){ home.afterLogin = null; if(loggedIn()){ homeMakeRoom(); return; } }
     var st = await roomMembership();
     if(st.ある && homeCur() === 'scr-v2-home'){ home.back = rt.state.code; renderV2Home(); }
   }
@@ -32679,7 +32709,7 @@
     if(!st.ある) return false;
     var T = UiText.ENTRY.部屋あり, R = homeT().部屋;
     var ok = await homeAsk('scr-v2-home', { title: T.見出し, text: 'コード ' + ((rt && rt.state.code) || '') + '　' + T.閉じる確認の本文,
-      ok: T.もどる, no: st.進行役 ? T.閉じる : UiText.LEAVE.出る });
+      ok: T.もどる, no: st.進行役 ? T.閉じる : homeT().入口.出る });
     if(ok){ goTo(rtWantScreen()); return true; }
     // とじる／出るを選んだ：部屋をとじてから（進行役）・出てから（参加者）、押したことを続ける
     if(st.進行役){
@@ -32695,7 +32725,10 @@
   async function homeMakeRoom(){
     if(!(rt && rt.available())){ showFlash(rtUnavailableMsg(), 'hit'); return; }
     if(await homeRoomStillOpen('make')) return;
+    // ログインしたら、頼まれた用事の続き（部屋をつくる）にもどる——入口へもどった時に続けて作る
+    if(!loggedIn()) home.afterLogin = 'make';
     if(!(await requireLogin('部屋を立てるにはログインが必要です', 'scr-v2-home'))) return;
+    home.afterLogin = null;
     var c = NameFilter.check(homeName() || state.displayName || '');
     var name = c.ok ? c.name : Array.from(String(state.displayName || 'host')).slice(0, 8).join('');
     resetAlbumUi();        // 前の部屋のアルバムの状態を持ち込まない
@@ -32825,6 +32858,8 @@
   function homeCardState(c, ctx, n){
     var P = homeT().一覧, lo = cassetteMinPlayers(c), hi = cassetteMaxPlayers(c);
     var plan = playWayPlan(c), いま = '（' + P.いま + n + P.人 + '）';
+    // TV（大画面）の端末は、遊ぶ側の操作をしない（指示47-2）。中身は見られて、主ボタンの所に「プレイヤーにもどる」
+    if(plan.kind === 'bigscreen'){ var B = UiText.WAY.bigscreen; return { why: null, cta: { kind: 'big', label: B.見出し, sub: B.本文, btn: { act: 'pick-toplayer', label: B.進む } } }; }
     if(ctx === 'room'){
       if(plan.kind === 'leaveRoom') return { why: P['1台のゲーム'], cta: { kind: 'leave', label: P['1台です'], sub: P.とじると, btn: { act: 'pick-leave', label: P.とじて } } };
       if(hi && n > hi) return { why: hi + P.まで + いま, cta: { kind: 'why', label: hi + P.人までのゲーム + いま } };
@@ -32887,6 +32922,9 @@
   function enterV2Pick(){
     var c = home.pick.focus;
     home.pick.focus = null;
+    // 棚に来た時と同じ後片づけ：名簿は人数の権威を手放し、チップ（何人で遊ぶ？）が勝つ（第52弾 52-1）
+    state.playersLive = false;
+    shelfHeads = shelfHeads || loadHeads();
     renderV2Pick();
     // 「ほかのゲームにする」から来た時は、さっきのゲームのページを開いたまま見せる
     if(c){
@@ -33037,6 +33075,7 @@
   function renderV2Room(){
     var scr = el('scr-v2-room'), room = rt && rt.state.room;
     if(!scr || !room) return;
+    homeDecideCheck();   // 入った時の形を覚える（入る前に決まっていたゲームでカードを出さない）
     // だれかが入ると札がポンと増える（その時だけ。描き直すたびに動かさない）
     var ids = (room.members || []).map(function(m){ return m.id; });
     home.roomFresh = home.roomSeen && home.roomSeen.code === room.code ? ids.filter(function(id){ return home.roomSeen.ids.indexOf(id) === -1; }) : [];
@@ -33087,6 +33126,7 @@
   function renderV2RoomTv(){
     var scr = el('scr-v2-room-tv'), room = rt && rt.state.room;
     if(!scr || !room) return;
+    homeDecideCheck();
     var ps = (room.members || []).filter(function(m){ return m.role !== 'bigscreen'; });
     var ids = ps.map(function(m){ return m.id; });
     home.tvFresh = home.tvSeen && home.tvSeen.code === room.code ? ids.filter(function(id){ return home.tvSeen.ids.indexOf(id) === -1; }) : [];
@@ -33188,6 +33228,7 @@
     }
   });
   document.addEventListener('keydown', function(e){
+    if(typeof UiKit !== 'undefined' && UiKit.anyOpen()) return;   // 重なりが開いている間は引き下がる（第41弾）
     if(e.key !== 'Enter' || !e.target.matches) return;
     if(e.target.matches('[data-home-code]') && home.join.code.length === 6){ e.preventDefault(); homeJoinCode(); }
     else if(e.target.matches('[data-home-name]')){ e.preventDefault(); homeJoinGo(); }
@@ -33223,7 +33264,13 @@
     if(act === 'make') homeMakeRoom();
     else if(act === 'join') openV2Join({});
     else if(act === 'one') homeOne();
-    else if(act === 'back'){ if(rt && rt.state.room) goTo(rtWantScreen()); else if((await roomMembership()).ある) goTo(rtWantScreen()); else { home.back = null; renderV2Home(); } }
+    else if(act === 'back'){
+      if(rt && rt.state.room){ goTo(rtWantScreen()); return; }
+      if((await roomMembership()).ある){ goTo(rtWantScreen()); return; }
+      // 出したあとに居なくなっていた（部屋がとじた・外された）：黙って行き止まりにしない。理由を1つ言って、入口に残す（第45弾 45-5）
+      home.back = null; renderV2Home();
+      try{ FxKit.notice(UiText.ENTRY.部屋あり.もう無い); }catch(x){}
+    }
     // E2
     else if(act === 'join-back'){
       homeScanStop();
@@ -33239,7 +33286,16 @@
     else if(act === 'pick-prev') homePickShow(home.pick.cur - 1, true);
     else if(act === 'pick-next') homePickShow(home.pick.cur + 1, true);
     else if(act === 'pick-go') homePickGo();
-    else if(act === 'pick-login') requireLogin(null, 'scr-v2-pick');
+    // ログインしたら、頼まれた用事の続き（そのゲームのページ）にもどる
+    else if(act === 'pick-login'){ home.pick.focus = (home.pick.cards[home.pick.cur] || {}).id || null; requireLogin(null, 'scr-v2-pick'); }
+    else if(act === 'pick-more'){ var cm = home.pick.cards[home.pick.cur]; if(cm) openCassettePopup(cm.id); }
+    else if(act === 'pick-titles'){
+      var ct = home.pick.cards[home.pick.cur];
+      if(!ct) return;
+      if(browsingOnly()) showFlash(UiText.SHELF.未ログインの記録, 'hit');
+      openTitleSheet(ct.id === 'aresoredorekore' ? 'aresore' : ct.id);
+    }
+    else if(act === 'pick-toplayer') rtSetDisplayMode(false);
     else if(act === 'pick-leave' || act === 'pick-make'){
       var c = cassetteById((home.pick.cards[home.pick.cur] || {}).id);
       if(!c) return;

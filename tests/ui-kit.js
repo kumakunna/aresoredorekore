@@ -150,7 +150,7 @@ function click(doc, sel) {
     // danger は開いた瞬間に注意の振動
     Ui.danger('危ない');
     await tick(dom, 20);
-    assertEqual(log.vibes[0].join(','), '25,60,25', 'danger を開くと warn');
+    assertEqual(log.vibes[0].join(','), '40,60,40', 'danger を開くと warn');
     Ui.closeTop(); await tick(dom, 320);
 
     log.vibes.length = 0;

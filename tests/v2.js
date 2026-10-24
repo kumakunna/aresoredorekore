@@ -230,7 +230,9 @@ function v2のクラス(css) {
     assert(m > 開き && m < 閉じ, '検証用サーバーが、本番でない時だけ /v2lab を足す（門の { … } の中）');
     // 本番と同じ入り方（?scene= を付けても）では、新しい見た目の画面へは行かない
     const { win, doc } = await launch({ url: 'http://localhost/?scene=fes-lobby&n=6' });
-    assert(!/^scr-v2-/.test((doc.querySelector('.screen.active') || {}).id || ''), 'URL だけでは新しい見た目の画面に入れない');
+    // 指示66-3 から入口そのものが新しい見た目（scr-v2-home）になったので、見るのは「見本データの画面へは行かない」こと
+    assert((doc.querySelector('.screen.active') || {}).id !== 'scr-v2-fes-lobby', 'URL だけでは見本データの画面に入れない');
+    assert(typeof win.__V2LAB_VIEW === 'undefined', '本番の入り方では、見本データが無い');
     assert(!win.__V2LAB_VIEW && !win.V2Lab, '見本データは読み込まれていない');
     win.close();
   });

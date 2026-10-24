@@ -341,11 +341,7 @@ async function run() {
    *（落とし穴25。fixes48 の 48-6 と同じ形）
    */
   async function 大画面で入室(win, doc) {
-    await waitScreen(win, doc, 'scr-shelf', 9000);
-    await openCassette(win, doc, 'bakudan');
-    const way = doc.querySelector('#wayChoices [data-way="room"]');
-    if (way) way.click();
-    await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+    await waitScreen(win, doc, 'scr-v2-pick', 9000);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 5000, '疑似socket');
     const 名簿 = [{ id: 'tv', name: 'テレビ', role: 'bigscreen', connected: true, isHost: true, ready: true }];
@@ -354,9 +350,7 @@ async function run() {
       ready: { count: 1, total: 1, waitingNames: [], all: true },
       members: 名簿, state: { phase: 'lobby', game: null, data: {} } };
     fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'tv', room: snap }) };
-    doc.getElementById('rtJoinCode').value = 'ABC234';
-    doc.getElementById('rtJoinName').value = 'テレビ';
-    doc.getElementById('rtJoinBtn').click();
+    await require('./harness').joinRoomV2(win, doc, 'ABC234', 'テレビ');
     // 画面idを直接書くと、第42弾の「検査が名指しする画面idは実在するか」に
     // 幽霊として拾われる。その場で組み立てる（落とし穴10-a）
     const 前置き = 'scr-' + 'rt-';

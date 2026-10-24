@@ -73,10 +73,47 @@ function init(room, opts) {
     hidden: new Set(),     // 係が隠した人（名前を ●●● に・TVの壁から消す）
     inset: 0,              // TVの端あわせ（ふちから内側へ何%縮めるか）
     note: null,            // 待合に出す一言のもと（'too_few' など）
+    queue: [],             // 指示66-3：満員の時の予約（つぎの回に入る）。{ socketId, token, at, offerUntil }。入った順
     times: Object.assign({}, TIMES, o.times || {}),
     rnd: o.rnd || Math.random
   };
   return room.fes;
+}
+
+// ===================== 指示66-3：満員の時の予約（つぎの回に入る） =====================
+// 部屋が16人でいっぱいの時、入れなかった人はスマホで予約する。席が1つ空くと、予約の先頭の人に
+// 「どうぞ」を送り、その人のために席を OFFER_MS のあいだ取っておく（そのあいだに後から来た人が割り込めない）。
+// 入らずに時間が切れたら、その予約は消えて次の人へ。予約した端末が切れたら、その予約も消える
+const OFFER_MS = 20000;
+function queueOf(room) { if (!room.fes.queue) room.fes.queue = []; return room.fes.queue; }
+/** 予約する。もう予約していれば、そのまま。返すのは何番目か（1から） */
+function reserve(room, socketId, now) {
+  const q = queueOf(room);
+  let e = q.filter((x) => x.socketId === socketId)[0];
+  if (!e) { e = { socketId, token: Math.floor((room.fes.rnd || Math.random)() * 1e9).toString(36) + now.toString(36), at: now, offerUntil: 0 }; q.push(e); }
+  return q.indexOf(e) + 1;
+}
+/** 予約をやめる（入れた・やめた・切れた）。token か socketId のどちらかで */
+function unreserve(room, key) {
+  const q = queueOf(room);
+  room.fes.queue = q.filter((x) => x.socketId !== key && x.token !== key);
+  return room.fes.queue.length !== q.length;
+}
+/** 席を取っておいている予約の数。token を渡すと、その人のぶんは数えない（本人は入れる） */
+function held(room, token, now) {
+  return queueOf(room).filter((x) => x.offerUntil > now && x.token !== token).length;
+}
+/**
+ * 0.5秒ごと。時間が切れた「どうぞ」を消し、空いた席のぶんだけ先頭から「どうぞ」を出す。
+ * live：いまつながっている遊ぶ人の数。返すのは、いま新しく「どうぞ」を出した予約
+ */
+function queueTick(room, live, now) {
+  let q = queueOf(room);
+  room.fes.queue = q = q.filter((x) => !(x.offerUntil && x.offerUntil <= now));
+  let free = ROOM_MAX - live - q.filter((x) => x.offerUntil > now).length;
+  const offered = [];
+  q.forEach((x) => { if (free > 0 && !x.offerUntil) { x.offerUntil = now + OFFER_MS; offered.push(x); free--; } });
+  return offered;
 }
 
 /** 遊ぶ人（大画面の端末をのぞく）。待っている人（今回は入らなかった人）も入る */
@@ -340,4 +377,5 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { FES_GAMES, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, init, tick, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf };
+module.exports = { FES_GAMES, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
+  reserve, unreserve, held, queueTick };

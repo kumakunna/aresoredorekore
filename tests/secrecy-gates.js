@@ -14,7 +14,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, passPlayWay, waitScreen, el, click, fillPlayerForm, pickGame,
-  createRunner, assert, assertEqual, assertNoErrors, autoDialog } = H;
+  createRunner, assert, assertEqual, assertNoErrors, autoDialog, openCassette } = H;
 
 const NAMES = ['あき', 'びび', 'ちか', 'でん'];
 
@@ -31,10 +31,7 @@ function visibleText(node) {
 
 // 棚 → カセット → ゲーム → プレイヤー設定 → モード選択（playthroughと同じ最小運転）
 async function toModeScreen(win, doc, cassette, gameId, players) {
-  const cart = doc.querySelector('.cart[data-cart="' + cassette + '"]');
-  assert(cart, cassette + ' のカセットが棚にある');
-  cart.click();
-  if (activeScreen(doc) === 'scr-shelf') cart.click();
+  await openCassette(win, doc, cassette);
   await sleep(win, 100);
   // 第41弾：カセットをえらぶと遊び方の確認が挟まる。
   // sleep では通り抜け処理が走らない（waitFor の中でしか動かない）ので明示的に通す
@@ -49,7 +46,7 @@ async function toModeScreen(win, doc, cassette, gameId, players) {
 }
 
 async function startMode(win, doc, modeId) {
-  const card = doc.querySelector('.mode-card[data-id="' + modeId + '"]');
+  const card = doc.querySelector('#modeCards [data-id="' + modeId + '"]');
   assert(card, modeId + ' のカードがある');
   click(doc, card);
   click(doc, 'modeNextBtn');

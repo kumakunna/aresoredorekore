@@ -52,7 +52,7 @@
   }
 
   // ===================== F2 入る（名前とむずかしさ） =====================
-  /** o：{ code, n, name, diff, error, busy } */
+  /** o：{ code, n, name, diff, error, busy, full（満員で入れなかった）, reserved（予約した何番目） } */
   function join(o) {
     var J = U().入る, V = K();
     var len = o.masked ? 0 : Array.from(String(o.name || '')).length;
@@ -75,9 +75,15 @@
               (on ? V.icon('check', 'v2-diff-ok') : '') + '</button>';
           }).join('') + '</div></div>' +
         '<div class="v2-spacer"></div>' +
+        // 指示66-3：満員の時の予約。予約したら、席が空いた時にこのまま入れる（何番目かを出す）
+        (o.reserved ? '<p class="v2-note" role="status">' + e(J.予約した前 + o.reserved + J.予約した後) + '</p>' : '') +
         '<p class="v2-hint v2-c">' + e(J.記録) + '</p>' +
-        '<button type="button" class="v2-btn is-pri" data-fes-act="join"' + (o.diff && !o.busy ? '' : ' disabled') + '>' +
-          e(o.diff ? J.入る : J.えらんでね) + '</button>' +
+        (o.reserved
+          ? '<button type="button" class="v2-btn is-pri" disabled>' + e(J.予約中) + '</button>' +
+            '<button type="button" class="v2-btn is-lite" data-fes-act="unreserve">' + e(J.予約をやめる) + '</button>'
+          : (o.full && o.diff ? '<button type="button" class="v2-btn is-pri" data-fes-act="reserve"' + (o.busy ? ' disabled' : '') + '>' + e(J.予約する) + '</button>'
+            : '<button type="button" class="v2-btn is-pri" data-fes-act="join"' + (o.diff && !o.busy ? '' : ' disabled') + '>' +
+              e(o.diff ? J.入る : J.えらんでね) + '</button>')) +
       '</div>';
     return h;
   }
@@ -580,6 +586,8 @@
             '<button type="button" class="v2-adm-b" data-fes-kick="' + e(m.id) + '">' + e(S.外す) + '</button></div>';
         }).join('') : '<p class="v2-note">' + e(S.いない) + '</p>') + '</div>' +
         (o.canFb ? '<button type="button" class="v2-btn is-pri" data-fes-act="fb">' + V.icon('star') + '<span>' + e(S.感想を見る + '（' + fb.length + S.件 + '）') + '</span></button>' : '') +
+        // 指示66-3：くまくん（owner）だけ、名前の記録を読む画面へ（別のタブで開く）
+        (o.canNames ? '<a class="v2-btn is-lite" href="/fes/names" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.名前の記録) + '</span></a>' : '') +
       '</div>' +
       V.scrimHtml() + V.scrimHtml(true) +
       V.dlgHtml({ id: 'v2Recreate', keep: true, title: S.作り直しますか, text: S.作り直し説明,

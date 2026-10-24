@@ -14,7 +14,7 @@ const path = require('path');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click,
-  fillPlayerForm, pickGame, passGameSelect } = require('./harness');
+  fillPlayerForm, pickGame, passGameSelect, openCassette } = require('./harness');
 
 const INDEX_HTML = fs.readFileSync(
   path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
@@ -607,67 +607,62 @@ const RULES = rulesOf(CSS);
   const いる = { ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 3, you: true, host: false };
   const 進行役 = Object.assign({}, いる, { host: true });
 
+  // 指示66-3：入口は新しい見た目（scr-v2-home）。帰り道は入口の「部屋 ◯◯ にもどる」。
+  // 押すと、その部屋のいるべき画面へ直に行く（前の「いま開いている部屋」の確認画面は、部屋の ⚙ と「部屋をつくる」の時のたずね方へ移った）
+  const 帰り道 = (t) => t.doc.querySelector('#scr-v2-home [data-home-act="back"]');
   await r.test('45-5：参加者が開き直しても、入口に帰り道が出る', async () => {
     const t = await 開き直す(いる);
-    const btn = el(t.doc, 'entryRoomBtn');
-    assertEqual(t.doc.querySelector('.screen.active').id, 'scr-entry', '入口にいる');   // 型(b)
-    await waitFor(t.win, () => btn.style.display !== 'none', 4000, '帰り道が出る');
-    assert(/部屋/.test(btn.textContent), '何の道か分かる（' + btn.textContent + '）');
-    // 押すと、進行役とまったく同じ画面へ（画面を2つ作らない）
-    click(t.doc, btn);
-    await waitFor(t.win, () => activeScreen(t.doc) === 'scr-room-open', 4000, '確認画面へ');
-    assert(/ABC234/.test(el(t.doc, 'scr-room-open').textContent), 'どの部屋かが出ている');
-    // **参加者には「部屋を閉じる」を出さない**（押せない札を置かない）
-    assertEqual(el(t.doc, 'roomOpenCloseBtn').style.display, 'none',
-      '参加者に「部屋を閉じる」は出さない');
-    assert(el(t.doc, 'roomOpenBackBtn').offsetParent !== null || true, '戻る道はある');
+    assertEqual(t.doc.querySelector('.screen.active').id, 'scr-v2-home', '入口にいる');   // 型(b)
+    await waitFor(t.win, () => 帰り道(t), 4000, '帰り道が出る');
+    assert(/部屋/.test(帰り道(t).textContent) && /ABC234/.test(帰り道(t).textContent), '何の道か分かる（' + 帰り道(t).textContent + '）');
+    click(t.doc, 帰り道(t));
+    await waitFor(t.win, () => activeScreen(t.doc) === 'scr-v2-room', 4000, 'その部屋へもどる');
     assertNoErrors(t.errors);
     t.win.close();
   });
 
-  await r.test('45-5：進行役なら、同じ画面に「部屋を閉じる」が出る', async () => {
+  await r.test('45-5：部屋を持ったまま「部屋をつくる」を押すと、たずねる。進行役には「部屋をとじる」、参加者には「部屋を出る」', async () => {
     // 型(c)：出し分けの分岐は、両方の入力を通す
-    const t = await 開き直す(進行役);
-    await waitFor(t.win, () => el(t.doc, 'entryRoomBtn').style.display !== 'none',
-      4000, '帰り道が出る');
-    click(t.doc, el(t.doc, 'entryRoomBtn'));
-    await waitFor(t.win, () => activeScreen(t.doc) === 'scr-room-open', 4000, '確認画面へ');
-    assertEqual(el(t.doc, 'roomOpenCloseBtn').style.display, '',
-      '進行役には「部屋を閉じる」が出る');
-    assertNoErrors(t.errors);
-    t.win.close();
+    for (const [peek, want] of [[進行役, '部屋をとじる'], [いる, '部屋を出る']]) {
+      const t = await 開き直す(peek);
+      await waitFor(t.win, () => 帰り道(t), 4000, '帰り道が出る');
+      click(t.doc, t.doc.querySelector('#scr-v2-home [data-home-act="make"]'));
+      await waitFor(t.win, () => t.doc.querySelector('#scr-v2-home [data-v2-id="v2Ask"].is-open'), 4000, 'たずねる');
+      const ask = t.doc.querySelector('#scr-v2-home [data-v2-id="v2Ask"]');
+      assert(/ABC234/.test(ask.textContent), 'どの部屋かが出ている');
+      assert(ask.querySelector('[data-v2-act="home-ask-no"]').textContent.indexOf(want) !== -1, (peek.host ? '進行役' : '参加者') + '：' + want);
+      assertNoErrors(t.errors);
+      t.win.close();
+    }
   });
 
   await r.test('45-5：もう名簿にいない端末には、帰り道を出さない', async () => {
     // kick された／自分から出た（部屋はある・自分はいない）
     const a = await 開き直す({ ok: true, code: 'ABC234', playerCount: 2, you: false, host: false });
     await sleep(a.win, 900);
-    assertEqual(el(a.doc, 'entryRoomBtn').style.display, 'none',
-      'kick された端末に帰り道を出さない');
+    assert(!帰り道(a), 'kick された端末に帰り道を出さない');
     assert(!a.win.localStorage.getItem('acac-room'), '端末の記憶も捨てる');
     a.win.close();
 
     // 部屋そのものが無い（型(c)：もう一方の入力）
     const b = await 開き直す({ ok: false, error: 'room_not_found' });
     await sleep(b.win, 900);
-    assertEqual(el(b.doc, 'entryRoomBtn').style.display, 'none',
-      '消えた部屋への帰り道を出さない');
+    assert(!帰り道(b), '消えた部屋への帰り道を出さない');
     assert(!b.win.localStorage.getItem('acac-room'), '端末の記憶も捨てる');
     b.win.close();
   });
 
   await r.test('45-5：出したあとに居なくなっていたら、行き止まりにせず一言いう', async () => {
     const t = await 開き直す(いる);
-    await waitFor(t.win, () => el(t.doc, 'entryRoomBtn').style.display !== 'none',
-      4000, '帰り道が出る');
+    await waitFor(t.win, () => 帰り道(t), 4000, '帰り道が出る');
     // 出してから押すまでのあいだに kick される
     t.win.__rtFake.replies = { 'room:peek': () => ({ ok: true, code: 'ABC234', you: false, host: false }) };
-    click(t.doc, el(t.doc, 'entryRoomBtn'));
-    await waitFor(t.win, () => t.doc.querySelector('.ui-layer'), 4000, '理由を1つ言う');
-    const 文 = t.doc.querySelector('.ui-layer').textContent;
-    assert(/入れません/.test(文), '入れないことを言う（' + 文.slice(0, 40) + '）');
-    assertEqual(activeScreen(t.doc), 'scr-entry', '入口に残る（行き止まりにしない）');
-    assertEqual(el(t.doc, 'entryRoomBtn').style.display, 'none', '帰り道はしまう');
+    click(t.doc, 帰り道(t));
+    await waitFor(t.win, () => /入れません/.test(t.doc.body.textContent.replace(t.doc.getElementById('app').textContent, '')) || !帰り道(t), 4000, '理由を1つ言う');
+    await sleep(t.win, 60);
+    assertEqual(activeScreen(t.doc), 'scr-v2-home', '入口に残る（行き止まりにしない）');
+    assert(!帰り道(t), '帰り道はしまう');
+    assert(/入れません/.test(t.doc.body.textContent), '入れないことを言う');
     t.win.close();
   });
 
@@ -721,14 +716,12 @@ const RULES = rulesOf(CSS);
     // **部屋だけ直して手渡しを忘れる**のが、このプロジェクトでいちばん多い事故（落とし穴1）。
     // 通しで遊んで、実際に開くところまで見る
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'bakudan');
     // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
     await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, ['あき', 'びび']);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="bomb-coop"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-bomb', 3000);
     // 指示58：描かれている行（許された層）だけを回す（なにそれ・むりは既定で行が無い）

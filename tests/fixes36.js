@@ -17,7 +17,7 @@ const path = require('path');
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame,
-  runWizardToPlay, autoDialog, endGameFromSettings } = require('./harness');
+  runWizardToPlay, autoDialog, endGameFromSettings, openCassette } = require('./harness');
 const INV = require('./inventory');
 
 const INDEX_HTML = fs.readFileSync(
@@ -145,7 +145,7 @@ function px(body, prop) {
 
       // 設定 →「ゲームを終了する」（実機で報告された経路そのもの）
       await endGameFromSettings(win, doc);
-      await waitScreen(win, doc, 'scr-shelf', 8000);
+      await waitScreen(win, doc, 'scr-v2-pick', 8000);
 
       const leftOver = started.filter((id) => live.has(id));
       assertEqual(leftOver.length, 0,
@@ -153,7 +153,7 @@ function px(body, prop) {
 
       // 走り残しが無いことを、時間を進めても何も起きないことでも確かめる
       await sleep(win, 1500);
-      assertEqual(activeScreen(doc), 'scr-shelf', '棚にいたまま、勝手に画面が変わらない');
+      assertEqual(activeScreen(doc), 'scr-v2-pick', '棚にいたまま、勝手に画面が変わらない');
       assertNoErrors(errors);
       win.close();
     });
@@ -249,15 +249,12 @@ function px(body, prop) {
  * ここが欲しいのは「時計が動いている状態」だけなので、遊びの中身には触れない。
  */
 async function startHandoffGame(win, doc, g) {
-  const cart = doc.querySelector('.cart[data-cart="' + g.cart + '"]');
-  if (!cart) throw new Error('カセットが棚にありません: ' + g.cart);
-  cart.click();
-  if (activeScreen(doc) === 'scr-shelf') cart.click();
-  await waitFor(win, () => activeScreen(doc) !== 'scr-shelf', 5000, 'カセットの中に入る');
+  await openCassette(win, doc, g.cart);
+  await waitFor(win, () => activeScreen(doc) !== 'scr-v2-pick', 5000, 'カセットの中に入る');
   if (activeScreen(doc) === 'scr-game') { pickGame(doc, g.game); await sleep(win, 80); }
   await fillPlayerForm(win, doc, g.players);
   await waitScreen(win, doc, 'scr-mode', 5000);
-  const card = doc.querySelector('.mode-card[data-id="' + g.mode + '"]');
+  const card = doc.querySelector('#modeCards [data-id="' + g.mode + '"]');
   if (!card) throw new Error('モードが見つかりません: ' + g.mode);
   card.click();
   await runWizardToPlay(win, doc, { auto: false });

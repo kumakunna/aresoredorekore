@@ -386,11 +386,14 @@ async function launch(opts) {
   // 入口で「1台か部屋か」を先に決めさせると、その値と部屋の実在がずれて
   // 行き止まりができる。決めるのはカセットを選んだ後（2-4）。
   // 以前ここにあった playFlow の受け渡しも、一緒に無くなっている。
-  if (!opts.atEntry && activeScreen(doc) === 'scr-entry') {
-    const b = doc.querySelector('#scr-entry [data-entry="choose"]');
+  //
+  // 指示66-3：入口は新しい見た目（scr-v2-home・見本 E1）。「1台で遊ぶ」でゲームをえらぶ一覧（scr-v2-pick）へ。
+  // **一覧まではログインが要らない**（見本 S5：中身は全部見られて、はじめる所で「ログインすると はじめられます」）
+  if (!opts.atEntry && activeScreen(doc) === 'scr-v2-home') {
+    const b = doc.querySelector('#scr-v2-home [data-home-act="one"]');
     if (b) {
       b.click();
-      await waitFor(win, () => activeScreen(doc) !== 'scr-entry', 4000, '入口を通る');
+      await waitFor(win, () => activeScreen(doc) !== 'scr-v2-home', 4000, '入口を通る');
     }
   }
   // ログインしていなければ、入口の先はログイン画面。
@@ -611,29 +614,71 @@ function cssRules(css) {
  * 実際、第41弾で「遊び方の確認」を挟んだ時に何度もそれを踏んだ。
  * **寄せ先をここに1つ置く。** 新しく書くものは、まずこれを呼ぶ。
  */
-async function openCassette(win, doc, id, el) {
-  // 畳んだ「ほか◯つ準備中」の札には data-cart が無いので、要素そのものも受ける
-  const cart = el || doc.querySelector('.cart[data-cart="' + id + '"]');
-  if (!cart) throw new Error('棚に無い: ' + id);
-  if (!cart.classList.contains('center')) {
-    cart.click();
-    await sleep(win, 400);   // 輪の座り直し（fxMs(250)+30）を待つ
+/**
+ * 指示66-3：カセットを開く＝ゲームをえらぶ一覧で札を押してページを開き、ページの下のボタンを押す。
+ * ボタンは「このゲームにする」か、遊べない時の次の一手（ログイン・部屋をつくって遊ぶ・部屋をとじて1台で遊ぶ）。
+ * どれも押した先は今までと同じ判断（遊び方の確認 playWayPlan）が決める
+ */
+async function openCassette(win, doc, id) {
+  if (activeScreen(doc) !== 'scr-v2-pick') throw new Error('ゲームをえらぶ一覧にいません（いま ' + activeScreen(doc) + '）');
+  const card = doc.querySelector('#scr-v2-pick [data-home-id="' + id + '"]');
+  if (!card) throw new Error('一覧に無い: ' + id);
+  card.click();
+  await sleep(win, 40);
+  const go = doc.querySelector('#scr-v2-pick [data-home-cta] [data-home-act]');
+  if (go) go.click();
+  await sleep(win, 300);
+}
+
+/**
+ * 指示66-3：部屋をつくる＝入口の「部屋をつくる」を押す（名前は聞かない。押したらすぐ部屋ができて待合へ）。
+ * 疑似socketの返事（room:create）は呼ぶ側が先に置く
+ */
+async function makeRoomV2(win, doc) {
+  if (activeScreen(doc) !== 'scr-v2-home') { win.goToScreen('scr-v2-home'); await sleep(win, 30); }
+  click(doc, doc.querySelector('#scr-v2-home [data-home-act="make"]'));
+  await waitFor(win, () => ['scr-v2-room', 'scr-v2-room-tv', 'scr-rt-big', 'scr-rt-rules'].indexOf(activeScreen(doc)) >= 0, 4000,
+    '部屋ができて待合へ（いま ' + activeScreen(doc) + '）');
+}
+/**
+ * 指示66-3：部屋に入る＝入口の「部屋に入る」→ コード6文字 →「入る」→ 名前 →「◯◯ に入る」（見本 E2）。
+ * TV として入る時（tv:true）は名前を聞かない。覗く返事（room:peek）が無ければ「待合にいる3人の部屋」を置く
+ */
+async function joinRoomV2(win, doc, code, name, opts) {
+  opts = opts || {};
+  const fake = win.__rtFake;
+  fake.replies = fake.replies || {};
+  if (!fake.replies['room:peek']) fake.replies['room:peek'] = () => ({ ok: true, code, game: null, phase: 'lobby', playerCount: 3, fes: false });
+  if (opts.tv) {
+    // TV は /tv（= ?tv=1）から来る。入口から押す道は無いので、同じ関数を直に開く
+    win.homeOpenJoin({ tv: true });
+    await waitScreen(win, doc, 'scr-v2-join', 3000);
+  } else if (activeScreen(doc) !== 'scr-v2-join') {
+    win.goToScreen('scr-v2-home'); await sleep(win, 30);
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="join"]'));
+    await waitScreen(win, doc, 'scr-v2-join', 3000);
   }
-  cart.click();
-  await sleep(win, 800);
+  const inp = doc.querySelector('#scr-v2-join [data-home-code]');
+  if (inp) {
+    inp.value = code; inp.dispatchEvent(new win.Event('input', { bubbles: true }));
+    click(doc, doc.querySelector('#scr-v2-join [data-home-act="code-go"]'));
+  }
+  if (opts.tv) { await waitFor(win, () => activeScreen(doc) !== 'scr-v2-join', 4000, 'TV として入る'); return; }
+  await waitFor(win, () => doc.querySelector('#scr-v2-join [data-home-name]') || activeScreen(doc) !== 'scr-v2-join', 3000, '名前の画面');
+  const nm = doc.querySelector('#scr-v2-join [data-home-name]');
+  if (nm) {
+    nm.value = name; nm.dispatchEvent(new win.Event('input', { bubbles: true }));
+    click(doc, doc.querySelector('#scr-v2-join [data-home-act="join-go"]'));
+    await waitFor(win, () => activeScreen(doc) !== 'scr-v2-join' || doc.querySelector('#scr-v2-join .v2-why'), 4000, '部屋に入る');
+  }
 }
 
 // プレイヤーを登録してモード選択まで進む（多くのテストの前準備）
 async function setupPlayers(win, doc, names) {
   names = names || ['あき', 'びび'];
-  if (activeScreen(doc) === 'scr-shelf') {
-    const cart = doc.querySelector('.cart[data-cart="aresoredorekore"]');
-    cart.click();
-    // 第32弾-C-1：カセットに入る演出が入ったので、押した直後はまだ棚にいることがある。
-    // 「中央でなければ2回目で選択」と区別するため、演出が始まっていないときだけ押し直す
-    await sleep(win, 20);
-    if (activeScreen(doc) === 'scr-shelf' && !doc.querySelector('.cassette-warp')) cart.click();
-    await waitFor(win, () => activeScreen(doc) !== 'scr-shelf', 4000, 'カセットの中に入る');
+  if (activeScreen(doc) === 'scr-v2-pick') {
+    await openCassette(win, doc, 'aresoredorekore');
+    await waitFor(win, () => activeScreen(doc) !== 'scr-v2-pick', 4000, 'カセットの中に入る');
   }
   await fillPlayerForm(win, doc, names);
 }
@@ -740,7 +785,7 @@ async function chooseNext(win, doc, id) {
  */
 async function passGameSelect(win, doc, gameId, timeout) {
   // 棚から離れるのを待つ（カセットを開いた直後はまだ scr-shelf のことがある）
-  await waitFor(win, () => activeScreen(doc) !== 'scr-shelf',
+  await waitFor(win, () => activeScreen(doc) !== 'scr-v2-pick',
     timeout || 3000, 'カセットを開く（現在: ' + activeScreen(doc) + '）');
   if (activeScreen(doc) !== 'scr-game') return false;   // 1つなら挟まれない
   pickGame(doc, gameId);
@@ -749,7 +794,7 @@ async function passGameSelect(win, doc, gameId, timeout) {
 }
 
 function pickGame(doc, gameId) {
-  const card = doc.querySelector('#gameCards .mode-card[data-game="' + gameId + '"]');
+  const card = doc.querySelector('#gameCards [data-home-opt="' + gameId + '"]');
   if (!card) throw new Error('ゲームカードが見つかりません: ' + gameId);
   card.click();
   el(doc, 'gameNextBtn').click();
@@ -899,6 +944,7 @@ function openDialog(doc) {
 }
 
 module.exports = {
+  makeRoomV2, joinRoomV2,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fakeRects,
   cssRules, openCassette, passGameSelect,
   autoDialog, openDialog,

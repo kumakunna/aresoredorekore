@@ -626,7 +626,7 @@ const PAIRS = [
     // 地は「自分か、場との間の先祖が塗っているもの」——半透明なら世界の色に重ねて解く。
     const { launch, activeScreen } = require('./harness');
     const { win, doc } = await launch();
-    assertEqual(activeScreen(doc), 'scr-shelf', '棚に着いている');
+    assertEqual(activeScreen(doc), 'scr-v2-pick', '棚に着いている');
 
     const stage = doc.getElementById('shelfStage');
     assert(stage, '染まる場がある');

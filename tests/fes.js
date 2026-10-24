@@ -327,6 +327,18 @@ async function join(srv, code, name, diff, extra) {
     assertEqual((await get('/api/fes/feedback', STAFF)).status, 200, '先生は感想を見られる');
     assertEqual((await get('/api/fes/feedback', NOBODY)).status, 403, '係でない人は感想を見られない');
     assertEqual(srv.fesStore.listFeedback().length, 0, '1か月より前の感想は消えている');
+    // 指示66-3：同じ記録を読む軽い画面（/fes/names）。門は JSON の道と同じ（くまくんだけ）
+    assertEqual((await get('/fes/names')).status, 401, '画面も、ログインしていない人は見られない');
+    assertEqual((await get('/fes/names', STAFF)).status, 403, '画面も、先生は見られない');
+    srv.fesStore.logName('NEW111', '<b>あやしい</b>', true, 'blocked', now);
+    const pg = await get('/fes/names', OWNER);
+    assertEqual(pg.status, 200, 'くまくんは画面で読める');
+    const html = await pg.text();
+    assert(html.indexOf('きょうのなまえ') !== -1 && html.indexOf('むかしのなまえ') === -1, '画面にも今日の名前だけ');
+    assert(html.indexOf('&lt;b&gt;あやしい&lt;/b&gt;') !== -1 && html.indexOf('<b>あやしい') === -1, '名前は字のまま（HTML として動かさない）');
+    assert(/使えない言葉/.test(html), 'はじいた理由が読める');
+    const only = await (await get('/fes/names?only=blocked', OWNER)).text();
+    assert(only.indexOf('あやしい') !== -1 && only.indexOf('きょうのなまえ') === -1, 'はじいた名前だけに絞れる');
     // 消すのは「見た時」だけではない：起動のたびと1時間ごとに掃く（purge が本当に消すか）
     srv.fesStore.logName('OLD222', 'ふるい', false, null, now - RETAIN_MS - 1);
     assertEqual(srv.fesStore.purge(now).names, 1, '掃けば消える');
@@ -371,6 +383,61 @@ async function join(srv, code, name, diff, extra) {
     assertEqual(fesOf(ds[1]).full, true, '満員の印が届く（TVはQRを隠す）');
     ds.concat([staff, x]).forEach((d) => d.close());
     await srv.close();
+  });
+
+  await r.test('満員の時の予約（指示66-3）：17人目は予約でき、席が空くと先頭に「どうぞ」。取っておいた席に後から来た人は入れない', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const ds = [];
+    for (let i = 0; i < 16; i++) ds.push(await join(srv, code, 'ひと' + 'あいうえおかきくけこさしすせそた'[i]));
+    const x = await join(srv, code, 'じゅうなな');
+    assertEqual(x.res.error, 'room_full', '17人目は満員');
+    let turn = null, pos = null;
+    x.socket.on('fes:turn', (p) => { turn = p; });
+    x.socket.on('fes:queue', (p) => { pos = p.pos; });
+    const rv = await x.call('fes:reserve', { code });
+    assertEqual(rv.ok && rv.pos, 1, '予約できて1番目');
+    const y = await join(srv, code, 'じゅうはち');
+    const rv2 = await y.call('fes:reserve', { code });
+    assertEqual(rv2.pos, 2, '後から来た人は2番目');
+    assertEqual((await x.call('fes:reserve', { code })).pos, 1, '同じ端末が押し直しても1つのまま');
+    // 1人が出る → 先頭（x）に「どうぞ」
+    await ds[0].call('room:leave', {});
+    await waitUntil(() => turn, '席が空いたら、先頭に「どうぞ」が届く', 3000);
+    assertEqual(turn.code, code, 'どの部屋の席か');
+    // 取っておいた席に、予約していない人は入れない（割り込めない）
+    const z = await join(srv, code, 'わりこみ');
+    assertEqual(z.res.error, 'room_full', '取っておいた席には割り込めない');
+    // 2番目の人も、まだ入れない（席は1つだけ）
+    const y2 = await y.call('room:join', { code, name: 'じゅうはち', diff: 'normal' });
+    assertEqual(y2.error, 'room_full', '2番目の人は、まだ入れない');
+    // 予約した本人は token で入れる（名前とむずかしさの門は、いつもどおり通る）
+    const ng = await x.call('room:join', { code, name: 'じゅうなな', diff: null, reserve: turn.token });
+    assertEqual(ng.error, 'diff_required', '予約でも、むずかしさの門はとばさない');
+    const ok = await x.call('room:join', { code, name: 'じゅうなな', diff: 'normal', reserve: turn.token });
+    assertEqual(ok.ok, true, '予約した本人は入れる');
+    await waitUntil(() => pos === null || srv.store.get(code).fes.queue.length === 1, '予約が1つ減る', 2000);
+    assertEqual(srv.store.get(code).fes.queue.length, 1, '入った人の予約は消え、2番目だけ残る');
+    // 予約したまま閉じた端末の予約は消える
+    y.close();
+    await waitUntil(() => srv.store.get(code).fes.queue.length === 0, '閉じた端末の予約は消える', 3000);
+    ds.concat([staff, x, z]).forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('満員の時の予約：「どうぞ」のあと入らずに時間が切れたら、その予約は消えて次の人へ', async () => {
+    const room = { members: new Map(), fes: null };
+    FesRoom.init(room, {});
+    const t0 = 1000000;
+    FesRoom.reserve(room, 'a', t0); FesRoom.reserve(room, 'b', t0);
+    assertEqual(FesRoom.queueTick(room, 16, t0).length, 0, '満員の間は「どうぞ」を出さない');
+    const o1 = FesRoom.queueTick(room, 15, t0 + 10);
+    assertEqual(o1.map((e) => e.socketId).join(','), 'a', '1席空いたら先頭だけ');
+    assertEqual(FesRoom.held(room, null, t0 + 20), 1, '先頭のぶんの席を取っておく');
+    assertEqual(FesRoom.held(room, o1[0].token, t0 + 20), 0, '本人には取っておいた席が数えられない（入れる）');
+    const o2 = FesRoom.queueTick(room, 15, t0 + 10 + FesRoom.OFFER_MS + 1);
+    assertEqual(o2.map((e) => e.socketId).join(','), 'b', '時間が切れたら次の人へ');
+    assertEqual(room.fes.queue.map((e) => e.socketId).join(','), 'b', '切れた予約は消える');
   });
 
   await r.test('だれもいない時間が続くと呼び込みの画面へ・人が来たら待合へ・1人の間は時計を回さない', async () => {

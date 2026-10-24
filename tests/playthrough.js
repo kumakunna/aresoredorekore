@@ -22,10 +22,7 @@ function names(n) { return NAMES.slice(0, n); }
 
 // 棚 → カセット → ゲーム →（初回のみプレイヤー設定）→ モード選択
 async function toModeScreen(win, doc, cassette, gameId, players) {
-  const cart = doc.querySelector('.cart[data-cart="' + cassette + '"]');
-  assert(cart, cassette + ' のカセットが棚にある');
-  cart.click();
-  if (activeScreen(doc) === 'scr-shelf') cart.click();
+  await openCassette(win, doc, cassette);
   /**
    * 第48弾：**「100ms待つ」で書いた待ちは、途中で画面が増えた日に嘘をつく**（落とし穴24）。
    *
@@ -53,7 +50,7 @@ async function toModeScreen(win, doc, cassette, gameId, players) {
 // モードを選んでウィザードを抜け、開始する。タイマーは既定のまま（切らない）
 async function startMode(win, doc, modeId, opts) {
   opts = opts || {};
-  const card = doc.querySelector('.mode-card[data-id="' + modeId + '"]');
+  const card = doc.querySelector('#modeCards [data-id="' + modeId + '"]');
   assert(card, modeId + ' のカードがある');
   assert(!card.classList.contains('locked'), modeId + ' がこの人数で選べる');
   click(doc, card);
@@ -116,7 +113,7 @@ function answerDialogs(win) {
 async function backToShelf(win, doc) {
   answerDialogs(win);
   await H.endGameFromSettings(win, doc);
-  await waitScreen(win, doc, 'scr-shelf', 8000);
+  await waitScreen(win, doc, 'scr-v2-pick', 8000);
 }
 
 // ワードウルフ／人狼の手渡しを、その段階のぶんだけ流す
@@ -438,7 +435,7 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
     const { win, doc, errors } = await launch();
     const players = names(8);
     await toModeScreen(win, doc, 'jinro', 'wordwolf', players);
-    click(doc, doc.querySelector('.mode-card[data-id="wordwolf"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wordwolf"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolf', 4000);
     const sl = el(doc, 'wolfCountSlider');
@@ -497,7 +494,7 @@ async function playWordwolfToEnd(win, doc, guardLimit) {
 
     // スコア画面から、もう一度同じカセットへ
     await chooseNext(win, doc, 'shelf');
-    await waitScreen(win, doc, 'scr-shelf', 6000);
+    await waitScreen(win, doc, 'scr-v2-pick', 6000);
     await toModeScreen(win, doc, 'jinro', 'wolfrole', names(7));
     await startMode(win, doc, 'wolf-normal', { noTimer: true });
     await waitScreen(win, doc, 'scr-wr-pass', 9000);

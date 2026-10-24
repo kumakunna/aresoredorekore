@@ -29,18 +29,19 @@
 
 const { createRunner, assert, assertEqual,
   launch, activeScreen, sleep, waitScreen, waitFor, el, click, openCassette, autoDialog,
-  assertNoErrors, passGameSelect, fillPlayerForm } = require('./harness');
+  assertNoErrors, passGameSelect, fillPlayerForm, makeRoomV2, joinRoomV2 } = require('./harness');
 const UiText = require('../public/js/ui-text');
 const { cssRules } = require('./harness');
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
 
-/** 棚のチップで人数を選ぶ（本物のシートを開いて押す） */
+/** 一覧の「何人で遊ぶ？」で人数を選ぶ（本物のシートを開いて押す・指示66-3） */
 async function 人数をえらぶ(win, doc, n) {
-  click(doc, 'shelfChip');
-  await sleep(win, 200);
-  const b = doc.querySelector('[data-heads="' + n + '"]');
+  if (activeScreen(doc) !== 'scr-v2-pick') { win.goToScreen('scr-v2-pick'); await sleep(win, 60); }
+  click(doc, doc.querySelector('#scr-v2-pick [data-v2-open="#v2Heads"]'));
+  await sleep(win, 50);
+  const b = doc.querySelector('#scr-v2-pick [data-home-heads="' + n + '"]');
   if (!b) throw new Error(n + '人が選べない');
   b.click();
   await sleep(win, 250);
@@ -53,10 +54,9 @@ async function 手渡しで登録(win, doc, 名前) {
     click(doc, doc.querySelector('#wayChoices [data-way="handoff"]'));
     await waitScreen(win, doc, 'scr-game', 3000);
   }
-  doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+  doc.querySelector('#gameCards [data-home-opt="wolfrole"]').click();
   await sleep(win, 50);
-  Array.from(doc.querySelectorAll('#scr-game button'))
-    .find((b) => /つぎへ/.test(b.textContent)).click();
+  doc.getElementById('gameNextBtn').click();
   await waitScreen(win, doc, 'scr-setup', 3000);
   // いまの行数を、欲しい人数に合わせる
   let 守り = 40;
@@ -102,7 +102,7 @@ async function ゲームを終了(win, doc) {
   const row = doc.getElementById('endGameBtn');
   if (!row) throw new Error('「ゲームを終了する」の行が出ていない');
   row.click();
-  await waitScreen(win, doc, 'scr-shelf', 5000);
+  await waitScreen(win, doc, 'scr-v2-pick', 5000);
 }
 
 (async () => {
@@ -134,8 +134,8 @@ async function ゲームを終了(win, doc) {
       assertEqual(p.見当, 6, 'チップの値は6になっている');
       assertEqual(p.heads, 6,
         '**チップを6にしたら、人数も6になる**（実機報告：ここが2のままだった）');
-      assert(/6人/.test(el(doc, 'shelfChip').textContent),
-        '棚のチップの文字も「6人」（押した本人の目に見える）');
+      assert(/6人/.test(doc.querySelector('#scr-v2-pick [data-v2-open="#v2Heads"]').textContent),
+        '一覧のチップの文字も「6人」（押した本人の目に見える）');
     } finally { stop(); win.close(); }
   });
 
@@ -150,8 +150,9 @@ async function ゲームを終了(win, doc) {
       await 手渡しで登録(win, doc, ['あき', 'びび']);
       await ゲームを終了(win, doc);
 
-      const 沈み = () => Array.from(doc.querySelectorAll('.cart[data-cart]'))
-        .filter((c) => c.classList.contains('dim')).map((c) => c.dataset.cart);
+      // 指示66-3：沈む＝一覧の札が点線で、人数の理由（◯人から／◯人まで）が出ている（遊び方の理由は人数では晴れないので数えない）
+      const 沈み = () => Array.from(doc.querySelectorAll('#scr-v2-pick [data-home-card].is-no'))
+        .filter((c) => /^\d+人(から|まで)（いま/.test(c.querySelector('.v2-swhy').textContent)).map((c) => c.dataset.homeId);
 
       await 人数をえらぶ(win, doc, 2);
       const 少ない時 = 沈み();
@@ -187,10 +188,9 @@ async function ゲームを終了(win, doc) {
           click(doc, doc.querySelector('#wayChoices [data-way="handoff"]'));
           await waitScreen(win, doc, 'scr-game', 3000);
         }
-        doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+        doc.querySelector('#gameCards [data-home-opt="wolfrole"]').click();
         await sleep(win, 50);
-        Array.from(doc.querySelectorAll('#scr-game button'))
-          .find((b) => /つぎへ/.test(b.textContent)).click();
+        doc.getElementById('gameNextBtn').click();
         await 着くまで待つ(win, doc, 'scr-setup', 4000);
 
         assertEqual(activeScreen(doc), 'scr-setup',
@@ -240,14 +240,13 @@ async function ゲームを終了(win, doc) {
         click(doc, doc.querySelector('#wayChoices [data-way="handoff"]'));
         await waitScreen(win, doc, 'scr-game', 3000);
       }
-      doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+      doc.querySelector('#gameCards [data-home-opt="wolfrole"]').click();
       await sleep(win, 50);
-      Array.from(doc.querySelectorAll('#scr-game button'))
-        .find((b) => /つぎへ/.test(b.textContent)).click();
+      doc.getElementById('gameNextBtn').click();
       await 着くまで待つ(win, doc, 'scr-mode', 4000);
-      const 押せない = Array.from(doc.querySelectorAll('#modeCards .mode-card'))
+      const 押せない = Array.from(doc.querySelectorAll('#modeCards [data-id]'))
         .filter((c) => c.dataset.locked);
-      assert(押せない.length < doc.querySelectorAll('#modeCards .mode-card').length,
+      assert(押せない.length < doc.querySelectorAll('#modeCards [data-id]').length,
         '3人で遊べるモードが押せる（「いま0人」で全部止まらない）');
     } finally { stop(); win.close(); }
   });
@@ -259,19 +258,19 @@ async function ゲームを終了(win, doc) {
       return true;
     });
     try {
-      await 人数をえらぶ(win, doc, 2);
-      await 手渡しで登録(win, doc, ['あき', 'びび']);
+      // 指示66-3：人狼は3人から。一覧は、いまの人数で遊べないゲームを始めさせないので、3人でそろえる
+      await 人数をえらぶ(win, doc, 3);
+      await 手渡しで登録(win, doc, ['あき', 'びび', 'ちか']);
       await ゲームを終了(win, doc);
-      // チップは触らない（2のまま＝名簿と同じ数）
+      // チップは触らない（3のまま＝名簿と同じ数）
       await openCassette(win, doc, 'jinro');
       if (activeScreen(doc) === 'scr-play-way') {
         click(doc, doc.querySelector('#wayChoices [data-way="handoff"]'));
         await waitScreen(win, doc, 'scr-game', 3000);
       }
-      doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+      doc.querySelector('#gameCards [data-home-opt="wolfrole"]').click();
       await sleep(win, 50);
-      Array.from(doc.querySelectorAll('#scr-game button'))
-        .find((b) => /つぎへ/.test(b.textContent)).click();
+      doc.getElementById('gameNextBtn').click();
       await 着くまで待つ(win, doc, 'scr-mode', 4000);
       assertEqual(activeScreen(doc), 'scr-mode',
         '同じ顔ぶれで続ける人は、いままで通り登録画面を飛ばす');
@@ -607,13 +606,11 @@ async function ゲームを終了(win, doc) {
     // 幕を上げた瞬間に結果が見える——順が逆だと、幕が上がってから画面が横へ滑る
     const { win, doc, errors } = await launch();
     try {
-      const cart = doc.querySelector('.cart[data-cart="bakudan"]');
-      cart.click();
-      if (activeScreen(doc) === 'scr-shelf') cart.click();
+      await openCassette(win, doc, 'bakudan');
       await passGameSelect(win, doc, 'bomb');
       await fillPlayerForm(win, doc, ['あき', 'びび']);
       await waitScreen(win, doc, 'scr-mode', 3000);
-      click(doc, doc.querySelector('.mode-card[data-id="bomb-coop"]'));
+      click(doc, doc.querySelector('#modeCards [data-id="bomb-coop"]'));
       click(doc, 'modeNextBtn');
       await waitScreen(win, doc, 'scr-set-bomb', 3000);
       for (let i = 0; i < 10; i++) {
@@ -732,11 +729,7 @@ async function ゲームを終了(win, doc) {
       const entry = GAME_DRIVERS[gameId];
       const d = entry.driver;
       const { win, doc, errors } = await launch({ fakeSocket: true });
-      await waitScreen(win, doc, 'scr-shelf', 9000);
-      await openCassette(win, doc, 'sugoroku');
-      const way = doc.querySelector('#wayChoices [data-way="room"]');
-      if (way) way.click();
-      await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+      await waitScreen(win, doc, 'scr-v2-pick', 9000);
       const fake = win.__rtFake;
       await waitFor(win, () => fake.connected, 5000, '疑似socket');
 
@@ -762,9 +755,7 @@ async function ゲームを終了(win, doc) {
       });
       const 自分 = big ? 'tv' : 'm1';
       fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 自分, room: snap() }) };
-      el(doc, 'rtJoinCode').value = 'ABC234';
-      el(doc, 'rtJoinName').value = big ? 'テレビ' : NAMES[0];
-      click(doc, 'rtJoinBtn');
+      await require('./harness').joinRoomV2(win, doc, 'ABC234', big ? 'テレビ' : NAMES[0]);
       const 前置き = 'scr-' + 'rt-';   // 幽霊の画面idとして拾われないよう組み立てる
       await waitFor(win, () => String(activeScreen(doc)).indexOf(前置き) === 0, 8000, '部屋の画面へ');
 
@@ -841,17 +832,11 @@ async function ゲームを終了(win, doc) {
 
       const { win, doc } = await launch({ fakeSocket: true });
       try {
-        await waitScreen(win, doc, 'scr-shelf', 9000);
-        await openCassette(win, doc, 'sugoroku');
-        const way = doc.querySelector('#wayChoices [data-way="room"]');
-        if (way) way.click();
-        await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+        await waitScreen(win, doc, 'scr-v2-pick', 9000);
         const fake = win.__rtFake;
         await waitFor(win, () => fake.connected, 5000, '疑似socket');
         fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: 決着の知らせ }) };
-        el(doc, 'rtJoinCode').value = 'ABC234';
-        el(doc, 'rtJoinName').value = 'あき';
-        click(doc, 'rtJoinBtn');
+        await require('./harness').joinRoomV2(win, doc, 'ABC234', 'あき');
         await waitFor(win, () => activeScreen(doc) === 'scr-rt-sugo-result', 8000,
           '入り直しで結果発表へ（現在: ' + activeScreen(doc) + '）');
         assert(doc.getElementById('rtSugoRsWin').textContent.trim(),
@@ -943,11 +928,7 @@ async function ゲームを終了(win, doc) {
       const entry = GAME_DRIVERS['sugograb'];
       const d = entry.driver;
       const { win, doc, errors } = await launch({ fakeSocket: true });
-      await waitScreen(win, doc, 'scr-shelf', 9000);
-      await openCassette(win, doc, 'sugoroku');
-      const way = doc.querySelector('#wayChoices [data-way="room"]');
-      if (way) way.click();
-      await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+      await waitScreen(win, doc, 'scr-v2-pick', 9000);
       const fake = win.__rtFake;
       await waitFor(win, () => fake.connected, 5000, '疑似socket');
 
@@ -973,9 +954,7 @@ async function ゲームを終了(win, doc) {
         state: { phase: room.state.phase, game: 'sugograb', data: d.publicView(room) },
       });
       fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 自分, room: snap() }) };
-      el(doc, 'rtJoinCode').value = 'ABC234';
-      el(doc, 'rtJoinName').value = big ? 'テレビ' : NAMES[0];
-      click(doc, 'rtJoinBtn');
+      await require('./harness').joinRoomV2(win, doc, 'ABC234', big ? 'テレビ' : NAMES[0]);
       const 前置き = 'scr-' + 'rt-';
       await waitFor(win, () => String(activeScreen(doc)).indexOf(前置き) === 0, 8000, '部屋の画面へ');
 

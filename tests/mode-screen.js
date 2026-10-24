@@ -28,11 +28,12 @@ const コード = SCRIPT
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 
-/** 棚で人数を選ぶ（第41弾 2-3 のチップ） */
+/** 一覧で人数を選ぶ（第41弾 2-3 のチップ。指示66-3：一覧の「何人で遊ぶ？」） */
 async function 人数をえらぶ(win, doc, n) {
-  click(doc, 'shelfChip');
-  await sleep(win, 200);
-  const b = doc.querySelector('[data-heads="' + n + '"]');
+  if (activeScreen(doc) !== 'scr-v2-pick') { win.goToScreen('scr-v2-pick'); await sleep(win, 60); }
+  win.V2.open(doc.querySelector('#scr-v2-pick [data-v2-id="v2Heads"]'));
+  await sleep(win, 50);
+  const b = doc.querySelector('#scr-v2-pick [data-home-heads="' + n + '"]');
   if (!b) throw new Error(n + '人が選べない');
   b.click();
   await sleep(win, 250);
@@ -40,15 +41,12 @@ async function 人数をえらぶ(win, doc, n) {
 
 /** 棚 →（遊び方の確認）→ ゲーム選択 → プレイヤー登録 まで、手渡しで進む */
 async function 人狼の登録画面まで(win, doc) {
+  // 指示66-3：入口で「1台で遊ぶ」を選んでいるので、人狼でも「1台か、みんなのスマホか」は聞き直さない
   await openCassette(win, doc, 'jinro');
-  // 人狼は「1台か、みんなのスマホか」を聞かれる（第41弾 2-4・E）
-  assertEqual(activeScreen(doc), 'scr-play-way', '遊び方の確認が出る');
-  click(doc, doc.querySelector('#wayChoices [data-way="handoff"]'));
   await waitScreen(win, doc, 'scr-game', 3000);
-  doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+  doc.querySelector('#gameCards [data-home-opt="wolfrole"]').click();
   await sleep(win, 50);
-  Array.from(doc.querySelectorAll('#scr-game button'))
-    .find((b) => /つぎへ/.test(b.textContent)).click();
+  click(doc, 'gameNextBtn');
   await waitScreen(win, doc, 'scr-setup', 3000);
 }
 
@@ -98,7 +96,7 @@ async function 長押し(win, card) {
     click(doc, 'setupNextBtn');
     await waitScreen(win, doc, 'scr-mode', 6000);
 
-    const 理由 = Array.from(doc.querySelectorAll('#modeCards .mode-card'))
+    const 理由 = Array.from(doc.querySelectorAll('#modeCards [data-id]'))
       .map((c) => c.dataset.locked).filter(Boolean);
     // **その状況が本当に起きているかを、先に1つ確かめる**（落とし穴10-b）。
     // 押せないモードが1つも無ければ「いま2人と出ない」は自明に成立してしまう
@@ -108,7 +106,7 @@ async function 長押し(win, card) {
     assertEqual(理由.filter((x) => /いま2人/.test(x)).length, 0, '「いま2人」はもう出ない');
 
     // 3人から遊べるモードは、4人なら押せる
-    const casual = doc.querySelector('#modeCards .mode-card[data-id="wolf-casual"]');
+    const casual = doc.querySelector('#modeCards [data-id="wolf-casual"]');
     assert(casual && !casual.classList.contains('locked'),
       '3人から遊べるモードは押せる（4人いるので）');
 
@@ -172,9 +170,6 @@ async function 長押し(win, card) {
     const { win, doc, errors } = await launch({ fakeSocket: true });
 
     // 部屋に入る（**進行役は別の人**：hostMemberId が自分と違う）
-    await openCassette(win, doc, 'quizou');   // 部屋専用 → 「部屋をつくる」の確認
-    click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
-    await waitScreen(win, doc, 'scr-rt-lobby', 4000);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 4000, '疑似socketがつながる');
     const 部屋 = {
@@ -191,10 +186,8 @@ async function 長押し(win, card) {
       state: { phase: 'lobby', game: null, data: {} }
     };
     fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm9', room: 部屋 }) };
-    el(doc, 'rtJoinCode').value = 'ABC234';
-    el(doc, 'rtJoinName').value = 'わたし';
-    click(doc, 'rtJoinBtn');
-    await waitScreen(win, doc, 'scr-rt-room', 5000);
+    await require('./harness').joinRoomV2(win, doc, 'ABC234', 'わたし');
+    await waitScreen(win, doc, 'scr-v2-room', 5000);
 
     // **その状況が本当に起きているかを、先に確かめる**（落とし穴10-b）。
     // 自分が進行役のままだと、これは「部屋ホストの面」をもう一度見ているだけになる
@@ -203,20 +196,19 @@ async function 長押し(win, card) {
 
     // ゲストが棚から人狼へ。部屋を持っているので確認は素通り（第41弾 2-4・F）
     win.goToScreen('scr-shelf');
-    await waitScreen(win, doc, 'scr-shelf', 3000);
+    await waitScreen(win, doc, 'scr-v2-pick', 3000);
     await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
-    doc.querySelector('#gameCards .mode-card[data-game="wolfrole"]').click();
+    doc.querySelector('#gameCards [data-home-opt="wolfrole"]').click();
     await sleep(win, 50);
-    Array.from(doc.querySelectorAll('#scr-game button'))
-      .find((b) => /つぎへ/.test(b.textContent)).click();
+    click(doc, 'gameNextBtn');
     await waitScreen(win, doc, 'scr-setup', 3000);
     // 登録画面の初期人数も、部屋の実人数から入る
     assertEqual(el(doc, 'playerCountLabel').textContent, '5', '登録画面も5人で始まる');
     click(doc, 'setupNextBtn');
     await waitScreen(win, doc, 'scr-mode', 6000);
 
-    const 理由 = Array.from(doc.querySelectorAll('#modeCards .mode-card'))
+    const 理由 = Array.from(doc.querySelectorAll('#modeCards [data-id]'))
       .map((c) => c.dataset.locked).filter(Boolean);
     assert(理由.length > 0, '人数が足りないモードが実際にある（実際:' + 理由.length + '件）');
     assertEqual(理由.filter((x) => /いま5人/.test(x)).length, 理由.length,
@@ -274,21 +266,21 @@ async function 長押し(win, card) {
     await waitScreen(win, doc, 'scr-mode', 6000);
 
     // ---- 押せるモード ----
-    const 押せる = doc.querySelector('#modeCards .mode-card[data-id="wolf-casual"]');
+    const 押せる = doc.querySelector('#modeCards [data-id="wolf-casual"]');
     assert(押せる && !押せる.classList.contains('locked'), '押せるモードがある');
-    const 前 = doc.querySelector('#modeCards .mode-card.selected').dataset.id;
+    const 前 = doc.querySelector('#modeCards .v2-opt.is-on').dataset.id;
     await 長押し(win, 押せる);
     let pop = doc.querySelector('#uiLayerRoot .ui-popup-in');
     assert(pop, '長押しで説明が開く');
     assert(/人狼|村人|投票/.test(pop.textContent), 'ルールの中身が出ている');
-    assertEqual(doc.querySelector('#modeCards .mode-card.selected').dataset.id, 前,
+    assertEqual(doc.querySelector('#modeCards .v2-opt.is-on').dataset.id, 前,
       '長押しでは、モードは選ばれない');
     win.UiKit.closeTop('test');
     await sleep(win, 60);
 
     // ---- 押せないモード（**ここが肝**）----
     // 「人数が足りなくて押せない」時ほど、それが何なのかを知りたい
-    const 押せない = doc.querySelector('#modeCards .mode-card.locked');
+    const 押せない = doc.querySelector('#modeCards .v2-opt.is-off');
     assert(押せない, '人数が足りないモードが実際にある');   // 型(b)
     await 長押し(win, 押せない);
     pop = doc.querySelector('#uiLayerRoot .ui-popup-in');
@@ -299,7 +291,7 @@ async function 長押し(win, card) {
     await sleep(win, 60);
 
     // ---- 指が動いたら開かない（送る操作と取り合わない）----
-    const card = doc.querySelector('#modeCards .mode-card');
+    const card = doc.querySelector('#modeCards [data-id]');
     card.dispatchEvent(new win.PointerEvent('pointerdown',
       { bubbles: true, pointerType: 'touch', pointerId: 9, clientX: 100, clientY: 100 }));
     card.dispatchEvent(new win.PointerEvent('pointermove',

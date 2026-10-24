@@ -224,6 +224,9 @@
         '<div class="v2-pn v2-cut" data-v2-fit>' + e(c.name) + '</div><div class="v2-pb">' + e(c.blurb) + '</div>' + meta(c) +
         V.rulesHtml(c.rules) +
         (c.paused || []).map(function (t) { return '<div class="v2-spaused">' + V.icon('pause') + '<span>' + e(t) + '</span></div>'; }).join('') +
+        // 前の棚の「くわしく ⓘ」（入っているゲームと、ゲームごとの人数）と「達成状況」は、消さずにページの下に置く
+        '<div class="v2-plinks"><button type="button" class="v2-olink" data-home-act="pick-more">' + e(U().一覧.くわしく) + V.icon('chev') + '</button>' +
+          '<button type="button" class="v2-olink" data-home-act="pick-titles">' + V.icon('trophy') + e(U().一覧.達成状況) + '</button></div>' +
       '</div></div>';
   }
   function pick(p) {
@@ -242,7 +245,7 @@
     var faces = (p.faces || []).slice(0, 5).map(function (f) { return V.avHtml(f, 'is-sm'); }).join('');
     return V.bgHtml() + V.brandHtml() + backHtml('pick-exit') +
       '<div class="v2-in">' + hd(P.英, P.見出し, true, true) +
-        '<div class="v2-pills v2-sctx">' + ctx + '</div>' +
+        '<div class="v2-pills">' + ctx + '</div>' +
         '<div class="v2-chips" data-home-chips>' + chips + '</div>' +
         '<div class="v2-slist" data-home-list>' + list + '</div>' +
       '</div>' +
@@ -301,7 +304,7 @@
       '<div class="v2-sdec-dn v2-cut v2-a-rise" data-v2-fit>' + e(o.name) + '</div>' +
       '<div class="v2-sdec-ln v2-a-draw"></div>' +
       '<div class="v2-sdec-by v2-a-fade">' + e(o.by) + '</div>' +
-      (o.tv ? '' : '<div class="v2-sdec-nx v2-a-fade"><span>' + e(D.このあと) + '</span><div class="v2-syncbar is-fill"><i></i></div></div>');
+      (o.tv ? '' : '<div class="v2-sdec-nx v2-a-fade"><span>' + e(D.このあと) + '</span><div class="v2-syncbar is-fill"><i style="animation-duration:1.5s"></i></div></div>');
     return '<div class="v2-sdec v2-w-' + e(o.world) + '">' + inner + '</div>';
   }
 

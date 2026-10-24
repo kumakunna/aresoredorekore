@@ -55,11 +55,7 @@ async function 帯をあつめる(gameId, cart, n, big) {
   const d = entry.driver;
   const { win, doc, errors } = await launch({ fakeSocket: true });
   try {
-    await waitScreen(win, doc, 'scr-shelf', 9000);
-    await openCassette(win, doc, cart);
-    const way = doc.querySelector('#wayChoices [data-way="room"]');
-    if (way) way.click();
-    await waitScreen(win, doc, 'scr-rt-lobby', 5000);
+    await waitScreen(win, doc, 'scr-v2-pick', 9000);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 5000, '疑似socket');
 
@@ -86,9 +82,7 @@ async function 帯をあつめる(gameId, cart, n, big) {
                data: room[entry.key] ? d.publicView(room) : room.state.data }
     });
     fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 自分, room: snap() }) };
-    el(doc, 'rtJoinCode').value = 'ABC234';
-    el(doc, 'rtJoinName').value = big ? 'テレビ' : 'あき';
-    click(doc, 'rtJoinBtn');
+    await require('./harness').joinRoomV2(win, doc, 'ABC234', big ? 'テレビ' : 'あき');
     // **どの部屋の画面でもよい。** 進行役はもう始まっているので、
     // 入った瞬間にそのゲームの画面（scr-rt-sugoroku など）へ着く——
     // 待合（scr-rt-room）だけを待つと、必ず時間切れになる

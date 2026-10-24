@@ -21,16 +21,14 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, passPlayWay, waitScreen, el, click,
-  fillPlayerForm, pickGame, createRunner, assert, assertEqual } = H;
+  fillPlayerForm, pickGame, openCassette, createRunner, assert, assertEqual } = H;
 
 const NAMES = ['あき', 'びび'];
 
 /** 棚 → カセット → ゲーム → プレイヤー設定 → モード選択（secrecy-gates と同じ最小運転） */
 async function toModeScreen(win, doc) {
-  const cart = doc.querySelector('.cart[data-cart="rcard"]');
-  assert(cart, 'ロシアンカードのカセットが棚にある');
-  cart.click();
-  if (activeScreen(doc) === 'scr-shelf') cart.click();
+  assert(doc.querySelector('#scr-v2-pick [data-home-id="rcard"]'), 'ロシアンカードのカセットが棚にある');
+  await openCassette(win, doc, 'rcard');
   await sleep(win, 100);
   passPlayWay(doc);
   await sleep(win, 80);
@@ -44,7 +42,7 @@ async function toModeScreen(win, doc) {
  * secrecy-gates の `startMode` は既定のまま通り抜けるので、ここは自前で持つ
  */
 async function 爆弾の数をえらんで始める(win, doc, 数) {
-  const card = doc.querySelector('.mode-card[data-id="rcard-duel"]');
+  const card = doc.querySelector('#modeCards [data-id="rcard-duel"]');
   assert(card, 'いっきうちのカードがある');
   click(doc, card);
   click(doc, 'modeNextBtn');
@@ -120,7 +118,7 @@ async function run() {
     const { win, doc } = await launch({});
     try {
       await toModeScreen(win, doc);
-      const card = doc.querySelector('.mode-card[data-id="rcard-duel"]');
+      const card = doc.querySelector('#modeCards [data-id="rcard-duel"]');
       click(doc, card);
       click(doc, 'modeNextBtn');
       await waitScreen(win, doc, 'scr-set-rcard', 4000);

@@ -551,7 +551,8 @@ function freshFx(opt) {
     assertEqual(Fx.vibe('tick'), true, 'tick は鳴る');
     assertEqual(log.vibes[0].join(','), '12', 'tick はごく短く1回');
     Fx.vibe('ok');    assertEqual(log.vibes[1].join(','), '30', 'ok は短く1回');
-    Fx.vibe('warn');  assertEqual(log.vibes[2].join(','), '25,60,25', 'warn は短く2回');
+    // 指示66-2 の実機の答え（2026-10-24）：25ms では感じられなかったので、感じられる長さ（40ms）にした
+    Fx.vibe('warn');  assertEqual(log.vibes[2].join(','), '40,60,40', 'warn は短く2回（感じられる長さ）');
     Fx.vibe('boom');  assertEqual(log.vibes[3].join(','), '200', 'boom は長く1回');
 
     // **知らない名前は鳴らさない。**鳴らしてしまうと、

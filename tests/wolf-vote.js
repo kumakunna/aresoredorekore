@@ -267,15 +267,13 @@ function votesFrom(list) {
   // ワードウルフを、人数とウルフの人数を指定して始める（タイマーは切る）
   async function startWordwolf(win, doc, modeId, players, wolfCount, wmOpts, opts) {
     opts = opts || {};
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wordwolf');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="' + modeId + '"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="' + modeId + '"]'));
     click(doc, 'modeNextBtn');
     for (let i = 0; i < 8; i++) {
       const cur = activeScreen(doc);
@@ -603,7 +601,7 @@ function votesFrom(list) {
     assert(出た見出し.some((h) => /入力しなおし/.test(h)),
       'メンバーを入力しなおすか聞かれる（出たのは：' +
       (出た見出し.join('／') || '何も出なかった') + '）');
-    await waitScreen(win, doc, 'scr-shelf', 8000);
+    await waitScreen(win, doc, 'scr-v2-pick', 8000);
 
     // 同じ人たちで、1ターン版を始め直す
     await startWordwolf(win, doc, 'wordwolf', players, 1);
@@ -866,15 +864,13 @@ function votesFrom(list) {
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ', 'ふう'];
     const { win, doc, errors } = await launch();
     // 役職の少ないカジュアル人狼で、投票の道筋だけを見る
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-casual"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
@@ -1140,15 +1136,13 @@ function votesFrom(list) {
   await r.test('実機・人狼：役職確認のあとに作戦会議が入り、長押しで夜へ進む', async () => {
     const players = ['あき', 'びび', 'ちか', 'でん', 'えみ'];
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="wolf-casual"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));
@@ -1428,7 +1422,7 @@ function votesFrom(list) {
     // ここでは記録を残さずに棚まで戻りたいので、モード選択を経由する
     if (activeScreen(doc) === 'scr-score') await chooseNext(win, doc, 'mode');
     let guard = 0;
-    while (activeScreen(doc) !== 'scr-shelf' && guard++ < 10) {
+    while (activeScreen(doc) !== 'scr-v2-pick' && guard++ < 10) {
       const cur = activeScreen(doc);
       let btn = doc.querySelector('#' + cur + ' [data-go-shelf]')
         || (cur === 'scr-mode' ? doc.getElementById('backToShelfBtn') : null);
@@ -1436,7 +1430,7 @@ function votesFrom(list) {
       btn.click();
       await sleep(win, 80);
     }
-    assertEqual(activeScreen(doc), 'scr-shelf', '棚まで戻れる');
+    assertEqual(activeScreen(doc), 'scr-v2-pick', '棚まで戻れる');
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
     // 第42弾：目録の画面（scr-title-name / scr-title-slot）は無くなり、
@@ -1467,18 +1461,13 @@ function votesFrom(list) {
 
   // 第32弾-C-3：役職あり人狼を、カジュアル構成で始める（この節の共通の下ごしらえ）
   async function startWolfRole(win, doc, presetId, players){
-    const cart = doc.querySelector('.cart[data-cart="jinro"]');
-    // 棚に入った直後は、30ms後に中央が計算し直される。
-    // ここで間を空けると、その計算が「中央にした指定」を取り消してしまうので、
-    // 間を空けずに2回押す（既存のテストと同じ書き方）
-    cart.click();
-    if (activeScreen(doc) === 'scr-shelf') cart.click();
+    await H.openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
     pickGame(doc, 'wolfrole');
     await sleep(win, 60);
     await fillPlayerForm(win, doc, players);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    click(doc, doc.querySelector('.mode-card[data-id="' + presetId + '"]'));
+    click(doc, doc.querySelector('#modeCards [data-id="' + presetId + '"]'));
     click(doc, 'modeNextBtn');
     await waitScreen(win, doc, 'scr-set-wolfrole', 3000);
     click(doc, doc.querySelector('#scr-set-wolfrole [data-wiz-next]'));

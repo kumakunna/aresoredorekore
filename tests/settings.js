@@ -14,7 +14,7 @@
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitScreen, el, click, passPlayWay, pickGame,
   fillPlayerForm, setupPlayers, createRunner, assert, assertEqual, assertNoErrors,
-  autoDialog, cssRules } = H;
+  autoDialog, cssRules, openCassette } = H;
 
 const fs = require('fs');
 const path = require('path');
@@ -94,17 +94,15 @@ function labelOf(b) {
  * 音そのものを鳴らして確かめるので、ここを通らないと門F5-3が書けない
  */
 async function toWolfNight(win, doc, players) {
-  const cart = doc.querySelector('.cart[data-cart="jinro"]');
-  assert(cart, '人狼のカセットが棚にある');
-  cart.click();
-  if (activeScreen(doc) === 'scr-shelf') cart.click();
+  assert(doc.querySelector('#scr-v2-pick [data-home-id="jinro"]'), '人狼のカセットが棚にある');
+  await openCassette(win, doc, 'jinro');
   await sleep(win, 120);
   passPlayWay(doc);
   await sleep(win, 80);
   if (activeScreen(doc) === 'scr-game') { pickGame(doc, 'wolfrole'); await sleep(win, 80); }
   if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, players);
   await waitScreen(win, doc, 'scr-mode', 4000);
-  click(doc, doc.querySelector('.mode-card[data-id="wolf-casual"]'));
+  click(doc, doc.querySelector('#modeCards [data-id="wolf-casual"]'));
   click(doc, 'modeNextBtn');
   await sleep(win, 80);
   for (let i = 0; i < 10; i++) {

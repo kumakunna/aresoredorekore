@@ -122,6 +122,9 @@
       // 指示66-2：文化祭の部屋の、本人だけのもの（自分の投票・むずかしさ・押し忘れの数）と、係の画面の名簿
       socket.on('fes:you', function (p) { state.fes = p || null; emitLocal('fes', p || null); });
       socket.on('fes:staff', function (p) { emitLocal('fesStaff', p || null); });
+      // 指示66-3：満員の時の予約。何番目か（fes:queue）と、席が空いた「どうぞ」（fes:turn）
+      socket.on('fes:queue', function (p) { emitLocal('fesQueue', p || null); });
+      socket.on('fes:turn', function (p) { emitLocal('fesTurn', p || null); });
       // 第24弾-3-5：ホストがゲームを終了すると、部屋ごと畳まれる。
       // 全員がここで抜ける（ホストだけ終わって他が置き去りにならないように）
       // 第32弾-B-1：部屋から出された。理由を伝えて、画面が固まらないようにする
@@ -246,7 +249,7 @@
       emitLocal('status', state);
       return res;
     }
-    async function joinRoom(code, name, role, look, diff) {
+    async function joinRoom(code, name, role, look, diff, reserve) {
       connect();
       if (look !== undefined) state.look = look || null;
       // 指示63 2-1：いまの記憶が無く、その日に自分から出た部屋に入り直すなら、前の memberId を添える
@@ -254,7 +257,7 @@
       var 添える = state.memberId || ((前 && 前.code === String(code || '').toUpperCase().trim()) ? 前.memberId : null);
       // 指示66-2：文化祭の部屋は、むずかしさ（easy／normal／hard）を添えて入る。ふつうの部屋は送らない
       var res = await call('room:join', { code: code, name: name, role: role, memberId: 添える,
-        look: state.look || null, diff: diff || undefined });
+        look: state.look || null, diff: diff || undefined, reserve: reserve || undefined });
       if (res.ok) {
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
@@ -375,6 +378,8 @@
     function fesInset(code, inset) { return call('fes:inset', { code: code, inset: inset }); }
     function fesPause(code, on) { return call('fes:pause', { code: code, on: on !== false }); }
     function fesSkip(code) { return call('fes:skip', { code: code }); }
+    function fesReserve(code) { connect(); return call('fes:reserve', { code: code }); }
+    function fesUnreserve(code) { return call('fes:unreserve', { code: code }); }
     // 第32弾-E：リアクション・感謝・アルバム
     function react(emoji) { return call('room:react', { emoji: emoji }); }
     function thanks(memberId, kind) { return call('room:thanks', { memberId: memberId, kind: kind }); }
@@ -446,7 +451,7 @@
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,
       fesVote: fesVote, fesContinue: fesContinue, fesFeedback: fesFeedback,
-      fesCreate: fesCreate, fesWatch: fesWatch, fesHide: fesHide, fesKick: fesKick, fesInset: fesInset, fesPause: fesPause, fesSkip: fesSkip,
+      fesCreate: fesCreate, fesWatch: fesWatch, fesHide: fesHide, fesKick: fesKick, fesInset: fesInset, fesPause: fesPause, fesSkip: fesSkip, fesReserve: fesReserve, fesUnreserve: fesUnreserve,
       // テストから中身を差し替えられるように（socket.io本体は持たせない）
       _call: call
     };

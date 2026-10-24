@@ -413,9 +413,17 @@ const 外で切れる = `(function(root, closedSel, deco){
  */
 const 字と印 = `(function(root, closedSel, deco, overSel){
   var out = [], g = document.createElement('canvas').getContext('2d');
-  var tiles = [].filter.call(root.querySelectorAll('.v2-tile'), function(t){ return !(closedSel && t.closest(closedSel)) && t.getClientRects().length; })
+  // 見えている印だけ（閉じているページの重なりは visibility:hidden のまま並んでいる）
+  var seen = function(t){ for(var p = t; p && p !== document.documentElement; p = p.parentElement){ var c = getComputedStyle(p); if(c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) return false; } return true; };
+  var tiles = [].filter.call(root.querySelectorAll('.v2-tile'), function(t){ return !(closedSel && t.closest(closedSel)) && t.getClientRects().length && seen(t); })
     .map(function(t){ var r = t.getBoundingClientRect(), sh = /0px 0px 0px (\\d+(\\.\\d+)?)px/.exec(getComputedStyle(t).boxShadow || ''), k = sh ? +sh[1] : 0;
-      return { t: t, l: r.left - k, r: r.right + k, top: r.top - k, b: r.bottom + k }; });
+      var q = { t: t, l: r.left - k, r: r.right + k, top: r.top - k, b: r.bottom + k };
+      // はみ出しを隠す箱（巻ける一覧など）の外の所は見えていない。見えている所だけで比べる
+      for(var p = t.parentElement; p && p !== document.documentElement; p = p.parentElement){
+        var c = getComputedStyle(p); if(c.overflowX === 'visible' && c.overflowY === 'visible') continue;
+        var B = p.getBoundingClientRect(); q.l = Math.max(q.l, B.left); q.r = Math.min(q.r, B.right); q.top = Math.max(q.top, B.top); q.b = Math.min(q.b, B.bottom);
+      }
+      return q; }).filter(function(q){ return q.r > q.l && q.b > q.top; });
   if(!tiles.length) return out;
   root.querySelectorAll('*').forEach(function(e){
     if((closedSel && e.closest(closedSel)) || e.closest(deco)) return;
@@ -427,11 +435,17 @@ const 字と印 = `(function(root, closedSel, deco, overSel){
       [].forEach.call(rg.getClientRects(), function(q){
         if(!q.width) return;
         var k = q.height / ((m.fontBoundingBoxAscent + m.fontBoundingBoxDescent) || q.height), base = q.top + m.fontBoundingBoxAscent * k;
-        var y1 = base - m.actualBoundingBoxAscent * k, y2 = base + m.actualBoundingBoxDescent * k;
+        var y1 = base - m.actualBoundingBoxAscent * k, y2 = base + m.actualBoundingBoxDescent * k, x1 = q.left, x2 = q.right;
+        // 字も、はみ出しを隠す箱（巻ける箱）の中で見えている所だけ
+        for(var pp = e; pp && pp !== document.documentElement; pp = pp.parentElement){
+          var cc = getComputedStyle(pp); if(cc.overflowX === 'visible' && cc.overflowY === 'visible') continue;
+          var BB = pp.getBoundingClientRect(); x1 = Math.max(x1, BB.left); x2 = Math.min(x2, BB.right); y1 = Math.max(y1, BB.top); y2 = Math.min(y2, BB.bottom);
+        }
+        if(x2 <= x1 || y2 <= y1) return;
         tiles.forEach(function(T){
           // 印の中の字・違う重なりの字（開いたシートの字と、その下の印）は比べない
           if(T.t.contains(e) || e.closest(overSel) !== T.t.closest(overSel)) return;
-          var ox = Math.min(q.right, T.r) - Math.max(q.left, T.l), oy = Math.min(y2, T.b) - Math.max(y1, T.top);
+          var ox = Math.min(x2, T.r) - Math.max(x1, T.l), oy = Math.min(y2, T.b) - Math.max(y1, T.top);
           if(ox > 2 && oy > 2) out.push({ kind: '字と印が重なる', text: (e.textContent || '').trim().slice(0, 30), ov: [Math.round(ox), Math.round(oy)] });
         });
       });

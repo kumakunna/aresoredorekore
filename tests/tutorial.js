@@ -353,8 +353,9 @@ async function run() {
     await require('./harness').joinRoomV2(win, doc, 'ABC234', 'テレビ');
     // 画面idを直接書くと、第42弾の「検査が名指しする画面idは実在するか」に
     // 幽霊として拾われる。その場で組み立てる（落とし穴10-a）
-    const 前置き = 'scr-' + 'rt-';
-    await waitFor(win, () => String(activeScreen(doc)).indexOf(前置き) === 0, 8000, '部屋の画面に入る');
+    // 指示66-3：ゲームが決まる前の TV は、新しい見た目の TV の待合（scr-v2-room-tv）
+    const 前置き = ['scr-' + 'rt-', 'scr-' + 'v2-room'];
+    await waitFor(win, () => 前置き.some((x) => String(activeScreen(doc)).indexOf(x) === 0), 8000, '部屋の画面に入る');
   }
 
   await r.test('57-4：大画面には、そもそも組み立てない（門W12）', async () => {

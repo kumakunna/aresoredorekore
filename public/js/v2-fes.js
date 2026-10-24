@@ -607,5 +607,7 @@
       }).join('') + '</div>';
   }
 
-  return { join: join, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText };
+  return { join: join, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText,
+    // 指示66-3：着替えのシートは、ふだんの部屋の待合（E4）も同じものを使う（見本「着替えは文化祭と同じシート」）
+    lookSheets: lookSheets };
 });

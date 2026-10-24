@@ -5353,6 +5353,200 @@
   :root.fs-large .v2 .v2-dlg-txt{font-size:17px;}
   :root.fs-large .v2 .v2-fb-f p{font-size:17px;}
   :root.fs-large .v2 .v2-textarea{font-size:18.5px;}
+
+  /* ===== 指示66-3：ふだんの画面（入口・部屋・ゲームをえらぶ）。見本 entry.html・select.html ===== */
+  /* 左上の ‹（もどる）。見出しは ‹ の右から始める */
+  .v2 .v2-corner.is-l{left:8px;}
+  .v2 .v2-hd.is-back{padding-left:48px;}
+  /* 右上に丸ボタンが無い画面（ゲームをえらぶ・部屋に入る）は、見出しを右の端まで使う */
+  .v2 .v2-hd.is-free{padding-right:0;}
+  .v2 .v2-hd.is-free .v2-arrow{margin-right:14px;}
+  /* 入るたびに一度だけ出す「ポン」（人が入った札）。演出の速さに従う */
+  .v2 .v2-born{animation:v2-pop-in calc(.35s * var(--fx-scale)) var(--v2-pop) both;}
+  /* E1 入口：題字と、大きな2つ＋小さな1つ */
+  .v2 .v2-elogo{font-weight:900;font-size:50px;line-height:1.02;letter-spacing:-.02em;margin-top:52px;}
+  .v2 .v2-ebig{min-height:76px;justify-content:flex-start;gap:14px;padding-left:18px;text-align:left;}
+  .v2 .v2-ebig .v2-ic{width:26px;height:26px;}
+  .v2 .v2-ebig-t{display:flex;flex-direction:column;align-items:flex-start;gap:7px;}
+  .v2 .v2-ebig-t small{font-size:13px;font-weight:800;opacity:.85;}
+  /* E2 部屋に入る：6つの箱（本物の入力欄は上に重ねて透明にする。打つと箱に字が入る） */
+  .v2 .v2-code6{position:relative;display:flex;gap:6px;}
+  .v2 .v2-code6 b{flex:1;height:58px;border:3px solid var(--wl);border-radius:12px;background:#fff;color:#141414;display:flex;align-items:center;justify-content:center;
+    font-family:var(--v2-en);font-weight:900;font-size:28px;}
+  .v2 .v2-code6 b.is-cur{box-shadow:0 0 0 3px var(--wi) inset;}
+  .v2 .v2-code6.is-bad b{border-color:var(--v2-red);}
+  .v2 .v2-code6-in{position:absolute;inset:0;z-index:2;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;font-size:16px;color:transparent;background:transparent;caret-color:transparent;}
+  .v2 .v2-qrscan:empty{display:none;}
+  .v2 .v2-qrscan video{display:block;width:100%;border-radius:14px;background:#000;}
+  /* E3・E4 待合 */
+  .v2 button.v2-card{width:100%;color:inherit;font:inherit;text-align:left;cursor:pointer;}
+  .v2 .v2-card.is-flat{border-color:transparent;background:var(--wc);}
+  .v2 .v2-ecode{position:relative;gap:10px;align-items:flex-start;}
+  .v2 .v2-ecode:active{transform:scale(.98);}
+  .v2 .v2-ecode b{font-weight:900;font-size:54px;line-height:1;letter-spacing:.06em;}
+  .v2 .v2-ecode-qr{position:absolute;right:16px;top:50%;width:34px;height:34px;transform:translateY(-50%);}
+  .v2 .v2-ecode.is-big{align-items:center;text-align:center;margin-top:6px;}
+  .v2 .v2-mems-box{display:flex;flex-direction:column;gap:10px;min-height:0;flex:0 1 auto;overflow-y:auto;scrollbar-width:none;}
+  .v2 .v2-mems-box::-webkit-scrollbar{display:none;}
+  .v2 .v2-mems-l{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .v2 .v2-mems{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .v2 .v2-mem{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:var(--wc);min-width:0;min-height:52px;}
+  .v2 .v2-mem[data-v2-lp]{cursor:pointer;}
+  .v2 .v2-mem[data-v2-lp]:active{transform:scale(.97);}
+  .v2 .v2-mem.is-off{background:transparent;box-shadow:inset 0 0 0 2px var(--wl2);}
+  .v2 .v2-mem-nm{flex:1;font-weight:900;font-size:16px;line-height:1.2;}
+  .v2 .v2-mem-st{margin-left:auto;flex:none;font-weight:900;font-size:13px;white-space:nowrap;}
+  .v2 .v2-mem-st.is-ok{color:var(--wok);}
+  .v2 .v2-mem-st .v2-ic{width:18px;height:18px;}
+  .v2 .v2-tile.is-sm{width:44px;height:44px;}
+  .v2 .v2-epick{gap:10px;}
+  .v2 .v2-epick-nm{flex:1;font-weight:900;font-size:17px;line-height:1.2;}
+  .v2 .v2-eqr{display:flex;justify-content:center;}
+  .v2 .v2-eqr svg{width:min(250px,64vw);height:auto;background:#fff;border-radius:16px;padding:10px;box-sizing:content-box;}
+  .v2 .v2-esteps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px;}
+  .v2 .v2-esteps li{display:flex;gap:12px;align-items:flex-start;font-weight:800;font-size:15px;line-height:1.55;}
+  .v2 .v2-esteps-k{width:28px;height:28px;border-radius:50%;background:var(--wsheet-ink);color:var(--wsheet);display:flex;align-items:center;justify-content:center;
+    font-family:var(--v2-en);font-weight:900;font-size:15px;flex:none;}
+  .v2 .v2-eurl{display:block;margin-top:8px;font-size:19px;font-weight:900;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;}
+  .v2 .v2-sheet .v2-btn.is-sec.v2-danger{border-color:var(--v2-red);color:var(--v2-red);}
+  /* TV の待合：16人の時は札を少し低くして 3列×6段 */
+  .v2 .v2-tva.is-low .v2-tgrid{gap:8px 12px;}
+  .v2 .v2-tva.is-low .v2-tmem.is-sm{height:72px;}
+  /* ゲームをえらぶ：一覧（分類ごとに縦） */
+  .v2 .v2-pill.is-btn{border:0;cursor:pointer;gap:6px;color:inherit;}
+  .v2 .v2-pill.is-btn:active{transform:scale(.96);}
+  .v2 .v2-pill .v2-ic{width:15px;height:15px;}
+  .v2 .v2-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:none;
+    margin:0 calc(var(--v2-side-r) * -1) 0 calc(var(--v2-side) * -1);padding:0 var(--v2-side-r) 2px var(--v2-side);}
+  .v2 .v2-chips::-webkit-scrollbar{display:none;}
+  .v2 .v2-chip{flex:none;white-space:nowrap;display:inline-flex;align-items:center;border:2.5px solid var(--wl);border-radius:999px;padding:8px 13px;
+    font-weight:800;font-size:14px;line-height:1.2;background:transparent;color:var(--wi);cursor:pointer;}
+  .v2 .v2-chip:active{transform:scale(.96);}
+  .v2 .v2-chip.is-on{background:var(--wi);color:var(--won);border-color:var(--wi);}
+  .v2 .v2-slist{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:10px;padding-bottom:12px;}
+  .v2 .v2-slist::-webkit-scrollbar{display:none;}
+  .v2 .v2-sgl{flex:none;display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:900;font-size:13px;color:var(--ws);}
+  .v2 .v2-sgl::after{content:"";flex:1;height:2px;background:var(--wl2);}
+  .v2 .v2-scard{position:relative;flex:none;display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--wc2);border:3px solid var(--wl);
+    border-radius:18px;padding:9px 10px;cursor:pointer;color:var(--wi);}
+  .v2 .v2-scard:active{transform:scale(.98);}
+  .v2 .v2-scard .v2-tile{width:62px;height:62px;}
+  .v2 .v2-scard-t{display:flex;flex-direction:column;gap:7px;min-width:0;flex:1;}
+  .v2 .v2-scard-n{font-weight:900;font-size:18px;line-height:1.2;}
+  .v2 .v2-scard-b{font-weight:800;font-size:13px;line-height:1.35;color:var(--ws);}
+  .v2 .v2-scard .v2-go{width:22px;height:22px;color:var(--ws);}
+  .v2 .v2-scard.is-no{background:transparent;border-style:dashed;border-color:var(--wl2);}
+  .v2 .v2-scard.is-no .v2-tile{filter:saturate(.25);opacity:.55;}
+  .v2 .v2-scard.is-no .v2-scard-n,.v2 .v2-scard.is-no .v2-scard-b{color:var(--ws);}
+  .v2 .v2-smeta{display:flex;gap:5px;flex-wrap:wrap;}
+  .v2 .v2-smeta>span{display:inline-flex;align-items:center;gap:4px;font-weight:900;font-size:12px;line-height:1.2;border-radius:999px;padding:4px 8px;background:var(--wdim);}
+  .v2 .v2-smeta .v2-ic{width:13px;height:13px;}
+  .v2 .v2-swhy{display:inline-flex;align-items:center;gap:5px;width:fit-content;font-weight:900;font-size:12.5px;line-height:1.2;color:var(--wi);
+    background:var(--wc);border:2px solid var(--wl2);border-radius:999px;padding:4px 9px;}
+  .v2 .v2-swhy .v2-ic{width:14px;height:14px;}
+  .v2 .v2-ssoon{flex:none;display:flex;align-items:center;gap:12px;border:3px dashed var(--wl2);border-radius:18px;padding:9px 10px;color:var(--ws);font-weight:900;font-size:15px;}
+  .v2 .v2-ssoon-q{width:62px;height:62px;border-radius:22%;border:3px dashed var(--wl2);display:flex;align-items:center;justify-content:center;font-size:30px;flex:none;}
+  .v2 .v2-av.is-sm{width:26px;height:26px;font-size:22px;}
+  .v2 .v2-band-end .v2-faces .v2-av + .v2-av{margin-left:-6px;}
+  /* ゲームのページ：押した印から色が丸く広がる（0.25秒）。指で横に送る（はなした所で止まる・0.25秒） */
+  .v2 .v2-ov{position:absolute;inset:0;z-index:35;clip-path:circle(0% at var(--cx,50%) var(--cy,50%));pointer-events:none;visibility:hidden;
+    transition:clip-path var(--v2-move) var(--v2-ease),visibility 0s linear var(--v2-move);}
+  .v2 .v2-ov.is-open{clip-path:circle(150% at var(--cx,50%) var(--cy,50%));pointer-events:auto;visibility:visible;
+    transition:clip-path var(--v2-move) var(--v2-ease),visibility 0s;}
+  .v2 .v2-pager{position:absolute;inset:0;overflow:hidden;touch-action:pan-y;}
+  .v2 .v2-track{position:absolute;inset:0;display:flex;will-change:transform;}
+  .v2 .v2-track.is-anim{transition:transform var(--v2-move) var(--v2-ease);}
+  .v2 .v2-page{position:relative;flex:0 0 100%;height:100%;overflow:hidden;background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);}
+  .v2 .v2-pin{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
+    padding:72px var(--v2-side-r) 176px var(--v2-side);overflow-y:auto;scrollbar-width:none;}
+  .v2 .v2-pin::-webkit-scrollbar{display:none;}
+  .v2 .v2-page .v2-tile{width:150px;height:150px;flex:none;box-shadow:0 0 0 5px rgba(255,255,255,.85);margin-top:4px;}
+  .v2 .v2-page.is-cur .v2-tile{animation:v2-pop-in var(--v2-move) var(--v2-pop);}
+  .v2 .v2-pn{max-width:100%;font-weight:900;font-size:32px;line-height:1.15;}
+  .v2 .v2-pb{font-weight:800;font-size:15px;line-height:1.4;color:var(--ws);}
+  .v2 .v2-page .v2-smeta{justify-content:center;}
+  .v2 .v2-page .v2-rules{width:100%;text-align:left;}
+  .v2 .v2-spaused{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;font-weight:800;font-size:13px;line-height:1.5;color:var(--ws);
+    background:var(--wc);border:2px dashed var(--wl2);border-radius:14px;padding:9px 10px;}
+  .v2 .v2-spaused .v2-ic{width:18px;height:18px;margin-top:1px;}
+  .v2 .v2-ov-back{z-index:22;}
+  .v2 .v2-sedge{position:absolute;top:126px;z-index:21;width:40px;height:56px;border:0;border-radius:14px;background:rgba(0,0,0,.2);color:#fff;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .v2 .v2-sedge:active{transform:scale(.94);}
+  .v2 .v2-sedge .v2-ic{width:22px;height:22px;}
+  .v2 .v2-sedge.is-l{left:6px;}
+  .v2 .v2-sedge.is-r{right:12px;}
+  .v2 .v2-sedge.is-l .v2-ic{transform:rotate(180deg);}
+  .v2 .v2-sbot{position:absolute;left:0;right:0;bottom:0;z-index:20;display:flex;flex-direction:column;gap:10px;padding:12px var(--v2-side-r) 18px var(--v2-side);
+    background:linear-gradient(180deg,transparent,rgba(0,0,0,.18) 40%,rgba(0,0,0,.28));}
+  .v2 .v2-ov.v2-w-aresore .v2-sbot,.v2 .v2-ov.v2-w-sugoroku .v2-sbot,.v2 .v2-ov.v2-w-shinka .v2-sbot,.v2 .v2-ov.v2-w-wait .v2-sbot{
+    background:linear-gradient(180deg,transparent,rgba(255,255,255,.35) 40%,rgba(255,255,255,.55));}
+  .v2 .v2-ov.v2-w-aresore .v2-sedge,.v2 .v2-ov.v2-w-sugoroku .v2-sedge,.v2 .v2-ov.v2-w-shinka .v2-sedge,.v2 .v2-ov.v2-w-wait .v2-sedge{background:rgba(0,0,0,.12);color:var(--wi);}
+  .v2 .v2-sgname{text-align:center;font-weight:900;font-size:13px;}
+  .v2 .v2-dots{display:flex;align-items:center;justify-content:center;gap:6px;}
+  .v2 .v2-dots i{width:8px;height:8px;border-radius:4px;background:currentColor;opacity:.35;transition:width var(--v2-move) var(--v2-ease),opacity var(--v2-move) var(--v2-ease);}
+  .v2 .v2-dots i.is-on{width:22px;opacity:1;}
+  .v2 .v2-dots i.is-no{background:none;box-shadow:inset 0 0 0 2px currentColor;opacity:.55;}
+  .v2 .v2-dots i.is-no.is-on{opacity:1;}
+  .v2 .v2-scta{display:flex;flex-direction:column;gap:10px;}
+  .v2 .v2-whyoff{font-weight:800;font-size:13px;line-height:1.45;text-align:center;color:var(--ws);}
+  /* S4 カセットの中のゲーム・モード（えらんだ物だけ太い縁と ✓。押せない物は点線で理由） */
+  .v2 .v2-ohead{gap:10px;}
+  .v2 .v2-ohead-nm{flex:1;font-weight:900;font-size:17px;line-height:1.2;}
+  .v2 .v2-opts{display:flex;flex-direction:column;gap:10px;}
+  .v2 .v2-opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--wc2);border:3px solid var(--wl2);border-radius:16px;padding:11px 13px;cursor:pointer;color:var(--wi);}
+  .v2 .v2-opt:active{transform:scale(.98);}
+  .v2 .v2-opt.is-on{border-color:var(--wi);box-shadow:inset 0 0 0 2px var(--wi);}
+  .v2 .v2-opt.is-off{background:transparent;border-style:dashed;color:var(--ws);cursor:default;}
+  .v2 .v2-oi{width:44px;height:44px;border-radius:12px;background:var(--wdim);display:flex;align-items:center;justify-content:center;font-size:26px;flex:none;}
+  .v2 .v2-oi .v2-ic{width:24px;height:24px;}
+  .v2 .v2-ot{display:flex;flex-direction:column;gap:7px;min-width:0;}
+  .v2 .v2-on1{font-weight:900;font-size:17px;line-height:1.25;}
+  .v2 .v2-os{font-weight:800;font-size:13px;line-height:1.4;color:var(--ws);}
+  .v2 .v2-owhy{font-weight:800;font-size:12.5px;line-height:1.4;color:var(--ws);}
+  .v2 .v2-ock{margin-left:auto;width:28px;height:28px;border-radius:50%;border:3px solid var(--wl2);flex:none;display:flex;align-items:center;justify-content:center;}
+  .v2 .v2-ock .v2-ic{width:16px;height:16px;visibility:hidden;}
+  .v2 .v2-opt.is-on .v2-ock{background:var(--wi);border-color:var(--wi);color:var(--won);}
+  .v2 .v2-opt.is-on .v2-ock .v2-ic{visibility:visible;}
+  .v2 .v2-oscroll{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:12px;}
+  .v2 .v2-oscroll::-webkit-scrollbar{display:none;}
+  .v2 .v2-olink{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:6px 0;font-weight:900;font-size:14px;color:var(--wi);cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+  .v2 .v2-olink:active{transform:scale(.97);}
+  .v2 .v2-olink .v2-ic{width:16px;height:16px;}
+  /* 何人で遊ぶ？（1台の一覧だけ。答えなくても一覧は動く） */
+  .v2 .v2-heads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+  .v2 .v2-heads button{height:56px;border-radius:14px;border:3px solid #E2E2E2;background:#fff;color:#141414;font-family:var(--v2-en);font-weight:900;font-size:24px;cursor:pointer;padding:0;}
+  .v2 .v2-heads button:active{transform:scale(.96);}
+  .v2 .v2-heads button.is-on{border-color:#141414;background:#FFF4D0;}
+  /* E5 つぎは？ */
+  .v2 .v2-nextc{display:flex;flex-direction:column;gap:10px;}
+  /* S6 決めた時：そのゲームの色が斜めに広がる（0.75秒）→ 印 → 名前 → 線 → だれがえらんだか。カードは 1.5秒（演出「なし」でも同じ長さ・最後の形だけ） */
+  .v2.v2-decided{position:fixed;inset:0;z-index:9500;overflow:hidden;background:transparent;}
+  .v2 .v2-sdec{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;
+    padding:0 var(--v2-side-r) 0 var(--v2-side);background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);
+    animation:v2-wipe var(--v2-show) var(--v2-ease) both;}
+  .v2 .v2-sdec>*:not(.v2-bg):not(.v2-sdec-nx){position:relative;z-index:2;}
+  .v2 .v2-sdec-en{font-weight:800;font-size:15px;letter-spacing:.14em;}
+  .v2 .v2-sdec .v2-tile{width:168px;height:168px;box-shadow:0 0 0 6px rgba(255,255,255,.85);}
+  .v2 .v2-sdec-dn{max-width:100%;font-weight:900;font-size:34px;line-height:1.15;}
+  .v2 .v2-sdec-ln{width:70%;height:4px;background:currentColor;transform-origin:0 50%;}
+  .v2 .v2-sdec-by{font-weight:800;font-size:15px;color:var(--ws);}
+  .v2 .v2-sdec-nx{position:absolute;z-index:2;left:var(--v2-side);right:var(--v2-side-r);bottom:28px;display:flex;flex-direction:column;gap:10px;align-items:center;font-weight:900;font-size:14px;color:var(--ws);}
+  .v2 .v2-sdec-nx .v2-syncbar{width:100%;background:var(--wdim);}
+  .v2 .v2-sdec-nx .v2-syncbar i{background:currentColor;animation:v2-draw 1.5s linear both;}
+  .v2 .v2-sdec .v2-a-fade{animation:v2-fade var(--v2-move) var(--v2-ease) both;animation-delay:calc(.35s * var(--fx-scale));}
+  .v2 .v2-sdec .v2-a-slam{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(.4s * var(--fx-scale));}
+  .v2 .v2-sdec .v2-a-rise{animation:v2-rise var(--v2-move) var(--v2-ease) both;animation-delay:calc(.75s * var(--fx-scale));}
+  .v2 .v2-sdec .v2-a-draw{animation:v2-draw var(--v2-move) var(--v2-ease) both;animation-delay:calc(.85s * var(--fx-scale));}
+  .v2 .v2-sdec .v2-sdec-by{animation-delay:calc(.95s * var(--fx-scale));}
+  .v2 .v2-sdec .v2-sdec-nx{animation-delay:calc(1s * var(--fx-scale));}
+  @keyframes v2-draw{from{transform:scaleX(0);}to{transform:scaleX(1);}}
+  .v2 .v2-tvc .v2-sdec{padding:54px 96px;gap:24px;}
+  .v2 .v2-tvc .v2-sdec-en{font-size:60px;}
+  .v2 .v2-tvc .v2-sdec .v2-tile{width:300px;height:300px;box-shadow:0 0 0 10px rgba(255,255,255,.88);}
+  .v2 .v2-tvc .v2-sdec-dn{font-size:150px;line-height:1.05;}
+  .v2 .v2-tvc .v2-sdec-ln{width:52%;height:8px;}
+  .v2 .v2-tvc .v2-sdec-by{font-size:52px;}
   /* ---- v2 ここまで ---- */
 
   /* ===================================================================
@@ -6453,44 +6647,42 @@
   </div>
 
   <!-- 3.5: game（第15弾・1つのカセットに複数ゲームが入っている時だけ通る画面） -->
-  <div class="screen" id="scr-game">
-    <div class="scr-head-row">
-      <div>
-        <h2 class="scr-title" id="gameTitle">ゲーム</h2>
-        <p class="scr-sub">このカセットのどれであそぶ？</p>
-      </div>
-    </div>
-    <div class="wiz-body"><div id="gameCards"></div></div>
-    <!-- 第20弾-3-1：実機で誤操作が出たので、タップで即決定をやめ、
-         モード選択と同じ「選んでから確定」に揃えた -->
-    <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-main" id="gameNextBtn">つぎへ ▶</button>
-      <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">🏠 棚にもどる</button>
+  <!-- 指示66-3 S4：カセットの中のゲームをえらぶ（見本 select.html の sg1・sg2）。
+       えらぶ札（ラジオ）は、えらんだ物だけ太い縁と ✓。人数で遊べない物は点線でうすく理由（押せない）。
+       札は enterGame が #gameCards に組む（data-home-opt）。もどる ‹ は一覧へ（data-go-shelf） -->
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-game">
+    <div class="v2-bg" aria-hidden="true"><div class="v2-circles"><i></i><i></i><i></i></div></div>
+    <div class="v2-brand" aria-hidden="true">ATSUMARE AREKORE.</div>
+    <div class="v2-corner is-l"><button type="button" class="v2-cbtn" data-go-shelf aria-label="もどる"><span class="v2-ring"><i data-ic="back"></i></span></button></div>
+    <div class="v2-in is-noband">
+      <div class="v2-hd is-back"><div class="v2-hd-en">Game</div><div class="v2-hd-ttl" id="gameTitle">どれで遊ぶ？</div><div class="v2-arrow"></div></div>
+      <div class="v2-oscroll" id="gameCards"></div>
+      <button type="button" class="v2-btn is-pri" id="gameNextBtn">これで遊ぶ</button>
     </div>
   </div>
 
-  <!-- 4: mode (モードを選ぶだけのシンプルな一覧) -->
-  <div class="screen" id="scr-mode">
-    <div class="scr-head-row">
-      <div>
-        <h2 class="scr-title">モード</h2>
-        <p class="scr-sub">あそびかたをえらぼう</p>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="gear-btn" id="recordsBtn">📊</button>
-        <button class="gear-btn" id="gearBtn">⚙</button>
-      </div>
+  <!-- 4: mode。指示66-3 S4（見本 select.html の sg3）：モードの札と、えらんだモードのルール3つ（えらび直すと入れかわる）。
+       札は enterMode が #modeCards に組む（data-id）。長押しで、そのモードのくわしい説明（今までどおり） -->
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-mode">
+    <div class="v2-bg" aria-hidden="true"><div class="v2-circles"><i></i><i></i><i></i></div></div>
+    <div class="v2-brand" aria-hidden="true">ATSUMARE AREKORE.</div>
+    <div class="v2-corner is-l"><button type="button" class="v2-cbtn" id="backToShelfBtn" aria-label="もどる"><span class="v2-ring"><i data-ic="back"></i></span></button></div>
+    <div class="v2-corner is-r">
+      <button type="button" class="v2-cbtn" id="recordsBtn" aria-label="記録"><span class="v2-ring"><i data-ic="list"></i></span></button>
+      <button type="button" class="v2-cbtn is-gear" id="gearBtn" aria-label="設定"><span class="v2-ring"><i data-ic="gear"></i></span></button>
     </div>
-    <div class="mode-score-preview" id="modeScorePreview" style="display:none;"></div>
-    <!-- 第26弾-3：「何台のスマホで遊ぶ？」はここから消した。
-         棚からカセットを直接タップ＝手渡し、部屋から入る＝1人1台と、
-         入り口の時点でもう決まっているため -->
-    <div class="mic-status" id="modeRoomNote" style="display:none;margin-bottom:12px;"></div>
-    <div class="wiz-body"><div id="modeCards"></div></div>
-    <div class="wiz-foot" style="flex-direction:column;">
-      <button class="btn btn-main" id="modeNextBtn">つぎへ ▶</button>
-      <button class="btn btn-outline" id="modeAutoBtn" style="margin-top:0;">⚡ おまかせで始める</button>
-      <button class="btn btn-ghost" id="backToShelfBtn" style="margin-top:0;">← ゲームをえらびなおす</button>
+    <div class="v2-in is-noband">
+      <div class="v2-hd is-back"><div class="v2-hd-en">Mode</div><div class="v2-hd-ttl">どう遊ぶ？</div><div class="v2-arrow"></div></div>
+      <div class="v2-oscroll">
+        <div id="modeHead"></div>
+        <div class="v2-pills" id="modeScorePreview" style="display:none;"></div>
+        <div class="v2-opts" id="modeCards" role="radiogroup"></div>
+        <div id="modeRules"></div>
+        <button type="button" class="v2-olink" id="modeRulesMore">くわしく見る<i data-ic="chev"></i></button>
+        <p class="v2-note" id="modeRoomNote" style="display:none;"></p>
+      </div>
+      <button type="button" class="v2-btn is-pri" id="modeNextBtn">つぎへ（設定）</button>
+      <button type="button" class="v2-btn is-lite" id="modeAutoBtn">おまかせで始める</button>
     </div>
   </div>
 
@@ -7492,6 +7684,14 @@
   <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-staff"></div>
   <!-- 指示66-1：新しい見た目の部品の見本（古い部品カタログ scr-catalog の新しい側）。本番の導線には出ない -->
   <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-parts"></div>
+  <!-- 指示66-3：ふだんの画面（見本 entry.html の E1〜E5・select.html の決定）。中身は public/js/v2-home.js が組む。
+       入口（E1）・部屋に入る（E2）・ゲームをえらぶ（一覧とページ）・部屋の待合（E3・E4）・TV の待合。
+       古い入口（scr-entry）と棚（scr-shelf）・部屋の画面（scr-rt-lobby・scr-rt-room）には、goTo がどこからも入れない（門7） -->
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-home"></div>
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-join"></div>
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-pick"></div>
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-room"></div>
+  <div class="screen v2 v2-tv v2-w-wait" id="scr-v2-room-tv"></div>
 
   <!-- 1人1台：大画面（TV・PC）。公開情報だけを大きく出す -->
   <!-- 8.6: すごろく（1人1台）。盤は手渡しと同じ部品で描く（見え方を1つに保つ） -->
@@ -8427,12 +8627,9 @@
        1試合終わるたびに棚まで戻ってカセット→ゲーム→モードを選び直していた。
        盛り上がった直後に何段階も選ばせると、せっかくの熱が冷める。
        「さっき楽しかったから、もう1回」に、いちばん少ない手順で応える。 -->
-  <div class="screen" id="scr-next">
-    <h2 class="scr-title">つぎは？</h2>
-    <p class="scr-sub" id="nextSub">えらんでね</p>
-    <div class="mic-status" id="nextWaitNote" style="display:none;text-align:center;margin-top:24px;"></div>
-    <div class="next-choices" id="nextChoices"></div>
-  </div>
+  <!-- 指示66-3 E5（見本 entry.html の e5a）：つぎを決めるのは進行役だけ。参加者は待つ（帯に「進行役が つぎを えらんでいます」）。
+       中身は enterNext が public/js/v2-home.js の next で組む -->
+  <div class="screen v2 v2-scr v2-w-wait" id="scr-next"></div>
 
   <svg class="stamp-fx" id="stampFx" viewBox="0 0 200 200">
     <circle cx="100" cy="100" r="86" fill="none" stroke="#B7242A" stroke-width="10"/>
@@ -8879,6 +9076,7 @@
 <script src="js/v2-kit.js"></script>
 <script src="js/name-filter.js"></script>
 <script src="js/v2-fes.js"></script>
+<script src="js/v2-home.js"></script>
 <!-- 指示57：初プレイのチュートリアル。置き場は UiKit と同じ #uiLayerRoot -->
 <script src="js/tutorial.js"></script>
 <script src="js/emoji.js"></script>
@@ -11472,7 +11670,8 @@
     var pp = e.target.closest('[data-pickpart]');
     if(pp){ pickTitlePart(pp.dataset.pickpart, pp.dataset.pickid); return; }
   });
-  el('titlesBackBtn').addEventListener('click', function(){ goBack('scr-shelf'); });
+  // 指示66-3：もどる先は入口（部屋にいる時は、その部屋のいるべき画面）
+  el('titlesBackBtn').addEventListener('click', function(){ goBack((rt && rt.state.room) ? rtWantScreen() : 'scr-v2-home'); });
 
   // ---- 名前を変える ----
   function enterRename(){
@@ -11680,31 +11879,39 @@
       goTo('scr-mode');
     }
   }
+  /**
+   * そのゲーム1つが、いまの人数で遊べない理由（指示66-3 S4：点線でうすく理由・押せない）。
+   * 人数が分からない時（1台で、人数を答えていない）は止めない
+   */
+  function gameHeadsWhy(gid, n){
+    if(!n) return null;
+    var P = UiText.HOME.一覧, hi = gameMaxPlayers(gid);
+    var lo = modesForGame(gid).reduce(function(a, m){ var v = modeMinPlayers(m); return a === null ? v : Math.min(a, v); }, null);
+    if(hi && n > hi) return hi + P.まで + '（' + P.いま + n + P.人 + '）';
+    if(lo && n < lo) return lo + P.から + '（' + P.いま + n + P.人 + '）';
+    return null;
+  }
+  /**
+   * 指示66-3 S4：カセットの中のゲーム（見本 sg1・sg2）。お休み中のゲームも、消さずに理由つきで出す。
+   * 選んでいるのが遊べないゲームなら、遊べる先頭に寄せる（何も選ばれていない状態を作らない）
+   */
   function enterGame(){
     var c = cassetteById(state.selectedCassetteId);
-    el('gameTitle').textContent = c ? (c.title || '').replace(/<br>/g, '') : 'ゲーム';
-    // 選択中がこのカセットのものでなければ、先頭に寄せる（何も選ばれていない状態を作らない）
-    var ids = cassetteGames(c);
-    if(ids.indexOf(state.selectedGameId) === -1) state.selectedGameId = ids[0];
-    el('gameCards').innerHTML = ids.map(function(gid){
+    var ids = cassetteGames(c), n = currentPlayerCount() || null;
+    var ok = ids.filter(function(gid){ return !gameHeadsWhy(gid, n); });
+    if(ok.indexOf(state.selectedGameId) === -1) state.selectedGameId = ok[0] || ids[0];
+    var items = ids.map(function(gid){
       var g = gameById(gid);
-      var sel = gid === state.selectedGameId;
-      return '<div class="mode-card' + (sel ? ' selected' : '') + '" data-game="' + gid + '">' +
-        '<div class="m-icon">' + g.icon + '</div>' +
-        '<div class="m-text"><div class="m-title">' + escapeHtml(g.title) + '</div>' +
-        '<div class="m-sub">' + escapeHtml(g.sub || '') + '</div></div>' +
-        '<div class="m-check"></div>' +
-      '</div>';
-    }).join('');
+      return { id: gid, icon: g.icon, title: g.title, sub: g.sub || '', why: gameHeadsWhy(gid, n), on: gid === state.selectedGameId };
+    }).concat(((c && c.paused) || []).map(function(p){ return { id: p.id, ic: 'pause', title: p.title, why: UiText.HOME.一覧.お休み + '（' + p.なぜ + '）' }; }));
+    var scr = el('scr-game');
+    fesWorld(scr, (c && c.theme) || 'wait');
+    el('gameCards').innerHTML = V2Home.opts({ world: (c && c.theme) || 'wait', name: c ? (c.title || '').replace(/<br>/g, '') : '', n: n, items: items });
+    el('gameNextBtn').disabled = !ok.length;
+    V2.mount(scr);
   }
-  // 第20弾-3-1：タップした瞬間に進むと、棚から来た勢いで誤操作しやすかった。
-  // ここでは選ぶだけにして、進むのは「つぎへ」に任せる（モード選択と同じ流儀）。
-  el('gameCards').addEventListener('click', function(e){
-    var card = e.target.closest('.mode-card');
-    if(!card) return;
-    state.selectedGameId = card.dataset.game;
-    enterGame();
-  });
+  // 第20弾-3-1：タップした瞬間に進むと誤操作しやすかった。ここでは選ぶだけにして、進むのは「これで遊ぶ」に任せる
+  //（押した札は data-home-opt。受けるのは 66-3 のつなぎの1か所）
   el('gameNextBtn').addEventListener('click', function(){
     selectGame(state.selectedGameId);
   });
@@ -13759,6 +13966,8 @@
     'scr-rc-pass', 'scr-rc-turn', 'scr-rc-done',
     // 指示66-1：新しい見た目の画面は、もどる道を画面の中に自分で持つ（文化祭の待合は、もどる先が無い）
     'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff',
+    // 指示66-3：ふだんの画面も同じ（左上の ‹ が画面の中にある）
+    'scr-v2-home', 'scr-v2-join', 'scr-v2-pick', 'scr-game', 'scr-mode', 'scr-next',
     // 第38弾：部屋の画面はここに書かない。RT_SCREENS から導く（下）
   ];
   function canGoBackOne(screenId){
@@ -13823,7 +14032,7 @@
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
   // 画面遷移による自動適用の対象から外す
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff', 'scr-v2-home', 'scr-v2-join', 'scr-v2-pick', 'scr-v2-room', 'scr-v2-room-tv'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -13964,7 +14173,16 @@
     var tone = (v && v.phase) ? WOLF_PHASE_TONE[v.phase] : null;
     setWolfPhaseTone(tone || null);
   }
+  /**
+   * 指示66-3（門7）：**古い入口・棚・部屋の画面には、どこからも入れない。**
+   * 呼ぶ所は新しい画面の名前に直したが、直し漏れた道（と、古い名前を覚えている検査）が来ても、
+   * ここで新しい画面へ送る。古い画面の箱と関数は、文化祭のあとに片づける（いまは消さない：
+   * 古い関数から呼ばれている判断が多く、消すと別の所が止まる）
+   */
+  var V2_INSTEAD = { 'scr-entry': 'scr-v2-home', 'scr-room-open': 'scr-v2-home', 'scr-shelf': 'scr-v2-pick',
+    'scr-cassette': 'scr-v2-pick', 'scr-play-way': 'scr-v2-pick', 'scr-rt-lobby': 'scr-v2-join', 'scr-rt-room': 'scr-v2-room' };
   function goTo(id){
+    if(V2_INSTEAD[id]) id = V2_INSTEAD[id];
     // 第45弾 45-1：起動時に「見たい時」をもどしたことを、最初の画面移りで1度だけ言う。
     // 起動の瞬間に出すと、まだ扉の演出の裏なので誰も読めない
     if(timerViewMoved && id !== 'scr-door'){
@@ -13999,7 +14217,7 @@
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
-    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff'];
+    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff','scr-v2-home','scr-v2-join','scr-v2-pick','scr-v2-room','scr-v2-room-tv','scr-next'];
     // **大画面には、どの画面でも⚙を出す**（指示47-2）。
     // 47-2 は「大画面で到達できる全画面に、🙋 プレイヤーにもどる か⚙への出口がある」と
     // 決めている。設定を開けば必ず先頭に🙋が並ぶ（setContext が bigscreen を最優先で見る）ので、
@@ -14101,8 +14319,14 @@
     if(id === 'scr-rename') enterRename();
     if(id === 'scr-cassette') enterCassetteDetail();
     if(id === 'scr-rt-lobby') enterRtLobby();
-    if(id === 'scr-rt-room') enterRtRoom();
     if(id === 'scr-rt-rules') enterRtRules();
+    // 指示66-3：ふだんの画面（入口・部屋に入る・ゲームをえらぶ・待合・TV の待合）
+    if(id === 'scr-v2-home') enterV2Home();
+    if(id === 'scr-v2-join') renderV2Join();
+    if(id === 'scr-v2-pick'){ stopAllPlayTimers(); enterV2Pick(); }
+    if(id === 'scr-v2-room') enterV2Room();
+    if(id === 'scr-v2-room-tv') renderV2RoomTv();
+    if(prevScreen && prevScreen.id === 'scr-v2-join' && id !== 'scr-v2-join') homeScanStop();
     if(RT_GAME_SCREEN_IDS.indexOf(id) !== -1 || id === 'scr-rt-big') rtRender();
     // 指示66-2：文化祭の部屋の画面も、入った瞬間に描く（知らせを待たない）。TV は出てから大きさを合わせ直す
     if(id === 'scr-v2-fes-lobby' || id === 'scr-v2-fes-tv'){ rtRender(); if(id === 'scr-v2-fes-tv') requestAnimationFrame(function(){ var r = fesRoom(); V2.fitTv(el(id), r ? r.fes.inset : 0); }); }
@@ -14172,7 +14396,7 @@
     loginCameFrom = (cur && cur !== 'scr-login') ? cur : (backTo || 'scr-shelf');
     el('loginSub').textContent = why || LOGIN_SUB_DEFAULT;
     el('loginBackBtn').textContent =
-      (loginCameFrom === 'scr-entry') ? '← さいしょにもどる' : '← 棚にもどる';
+      (loginCameFrom === 'scr-v2-home') ? '← さいしょにもどる' : '← もどる';
     // 2-1：ログインしない道も、行き止まりにしない
     el('loginBrowseBtn').textContent =
       (typeof UiText !== 'undefined') ? UiText.ENTRY.見るだけ : 'ログインせずに棚を見る';
@@ -14225,10 +14449,10 @@
   el('loginSubmitBtn').addEventListener('click', submitAuth);
   // 2-1：見るだけの棚へ。**はじめるは押せないが、何があるかは見られる**
   el('loginBrowseBtn').addEventListener('click', function(){
-    loginReturnTo = 'scr-shelf';
-    loginCameFrom = 'scr-shelf';
+    loginReturnTo = 'scr-v2-pick';
+    loginCameFrom = 'scr-v2-pick';
     el('loginSub').textContent = LOGIN_SUB_DEFAULT;
-    goTo('scr-shelf');
+    goTo('scr-v2-pick');
   });
   el('loginBackBtn').addEventListener('click', function(){
     var back = loginCameFrom || 'scr-shelf';
@@ -14357,7 +14581,7 @@
     var sorted = state.players.slice().sort(function(a,b){ return b.score - a.score; });
     box.style.display = 'flex';
     box.innerHTML = sorted.map(function(p){
-      return '<div class="msp-item"><span class="msp-name">'+escapeHtml(p.name)+'</span><span class="msp-score">'+p.score+'</span></div>';
+      return '<span class="v2-pill">'+escapeHtml(p.name)+'　'+p.score+'</span>';
     }).join('');
   }
   function renderHandicapPicker(){
@@ -14393,22 +14617,22 @@
        || modeLockReason(modeById(state.selectedModeId))){
       applyPreset((playable[0] || list[0]).id);
     }
-    el('modeCards').innerHTML = list.map(function(m){
-      var sel = m.id === state.selectedModeId;
-      var lock = modeLockReason(m);
-      var sub = lock || m.sub;
-      // 第37弾：部屋の進行役にだけ「ルールを見る」を出す。
-      // 選ぶ前に自分で読んで、口頭でみんなに相談するための入口。
-      // **進行役でない人には出さない**（相談を口で起こすための、意図した不便さ・指示37 2-1）
-      var canPeek = !!(rt && rt.state.room && rt.isHost());
-      return '<div class="mode-card'+(sel?' selected':'')+(lock?' locked':'')+'" data-id="'+m.id+'"'+
-          (lock ? ' data-locked="'+escapeHtml(lock)+'"' : '')+'>'+
-        '<div class="m-icon">'+m.icon+'</div>'+
-        '<div class="m-text"><div class="m-title">'+m.title+'</div><div class="m-sub">'+escapeHtml(sub)+'</div></div>'+
-        (canPeek ? '<button class="mode-peek" data-peek="'+m.id+'">📖 ルールを見る</button>' : '')+
-        '<div class="m-check"></div>'+
-      '</div>';
-    }).join('');
+    // 指示66-3 S4（見本 sg3）：モードの札と、えらんだモードのルール3つ（えらび直すと入れかわる）。押せないモードは点線で理由。
+    // 第37弾の「ルールを見る」（進行役が選ぶ前に読む入口）は、ルール3つがいつも出ているので要らなくなった。
+    // この画面は、部屋では進行役しか開かない（参加者に先に見せない形は変わらない・指示37 2-1）
+    var c = cassetteById(state.selectedCassetteId) || cassetteOfGame(state.selectedGameId);
+    var world = (c && c.theme) || 'wait';
+    var scr = el('scr-mode');
+    fesWorld(scr, world);
+    el('modeHead').innerHTML = V2Home.ohead({ world: world, name: gameTitleOf(state.selectedGameId), n: currentPlayerCount() || null });
+    // お休み中のゲーム（実物解除）は、ゲームの札が無いカセット（1つだけ）の時にここで理由つきで出す
+    var paused = (c && cassetteGames(c).length === 1) ? (c.paused || []) : [];
+    el('modeCards').innerHTML = V2Home.optItems(list.map(function(m){
+      return { id: m.id, icon: m.icon, title: String(m.title || '').replace(/<br>/g, ''), sub: m.sub, why: modeLockReason(m), on: m.id === state.selectedModeId };
+    }).concat(paused.map(function(p){ return { id: 'paused-' + p.id, ic: 'pause', title: p.title, why: UiText.HOME.一覧.お休み + '（' + p.なぜ + '）' }; })), 'data-id');
+    var sel = modeById(state.selectedModeId);
+    el('modeRules').innerHTML = (sel && sel.tv) ? V2.rulesHtml(sel.tv) : '';
+    V2.mount(scr);
     renderScorePreview();
     renderModeRoomNote();
   }
@@ -14424,9 +14648,7 @@
     // 進行役には「4人いる」と分かる場所がどこにも無かった。
     // カードを押せなくするのではなく**ここに1行**なのは、指示37の
     // 「人が集まる前に進行役が決めておける」を壊さないため
-    note.textContent = '👥 部屋「' + (rt.state.room ? rt.state.room.code : '') +
-      '」（いま' + currentPlayerCount() + '人）のためにえらんでいます。' +
-      '決まると待合にもどります。全員が「準備OK」を押すと始まります。';
+    note.textContent = UiText.HOME.えらぶ.部屋のため前 + (rt.state.room ? rt.state.room.code : '') + UiText.HOME.えらぶ.部屋のため後;
   }
 
   // その遊び方に必要な最低人数。プリセットに書いてあればそれ、
@@ -15756,17 +15978,15 @@
     return (なぜ ? なぜ : '') + modeRulesHtml(m);
   };
   el('modeCards').addEventListener('pointerdown', function(e){
-    // 「ルールを見る」は別の役。その上での長押しは拾わない
-    if(e.target.closest('[data-peek]')) return;
-    var card = e.target.closest('.mode-card');
-    if(!card) return;
+    var card = e.target.closest('[data-id]');
+    if(!card || !modeById(card.dataset.id)) return;
     modePress.開いた = false;
     modePress.x = e.clientX; modePress.y = e.clientY; modePress.id = e.pointerId;
     cancelModePress();
     modePress.timer = setTimeout(function(){
       modePress.開いた = true;      // 離した後の click を、選択として拾わせない
       doVibrate(30);
-      openModePopup(card.dataset.id);
+      if(modeById(card.dataset.id)) openModePopup(card.dataset.id);
     }, 450);
   });
   el('modeCards').addEventListener('pointermove', function(e){
@@ -15780,17 +16000,7 @@
     // 長押しで説明を開いた直後の click は、モードの選択として扱わない。
     // **印を消すのはここ**——pointerup で消すと、click より先に走るので効かない
     if(modePress.開いた){ modePress.開いた = false; return; }
-    // 第37弾：「ルールを見る」は、選ぶこととは別。押しても他の人には何も起きないし、
-    // 「見た」ことをどこにも記録しない（相談の前に知らせる意味が無い・指示37 2-2）
-    var peek = e.target.closest('[data-peek]');
-    if(peek){
-      e.stopPropagation();
-      rtPeekModeId = peek.dataset.peek;
-      renderModeRules();   // 描いてから出す（描かないと前の中身のままになる）
-      goTo('scr-mode-rules');
-      return;
-    }
-    var card = e.target.closest('.mode-card');
+    var card = e.target.closest('[data-id]');
     if(!card) return;
     // 第20弾-1-2：人数が足りない遊び方は選ばせない。押しても理由が分かるようにする
     // 第27弾：理由は modeLockReason が作った文をそのまま出す
@@ -15817,13 +16027,18 @@
   document.addEventListener('click', function(e){
     var b = e.target.closest('[data-go-shelf]');
     if(!b) return;
-    goBack('scr-shelf');
+    // 指示66-3：もどる先は、ゲームをえらぶ一覧（さっき見ていたゲームのページ）
+    home.pick.focus = state.selectedCassetteId || null;
+    goBack('scr-v2-pick');
   });
   // 第15弾：複数ゲームのカセットならゲーム選択へ、1つだけなら（その画面を飛ばしているので）棚へ
   el('backToShelfBtn').addEventListener('click', function(){
     var c = cassetteById(state.selectedCassetteId);
-    goBack(cassetteGames(c).length > 1 ? 'scr-game' : 'scr-shelf');
+    if(cassetteGames(c).length <= 1) home.pick.focus = state.selectedCassetteId || null;
+    goBack(cassetteGames(c).length > 1 ? 'scr-game' : 'scr-v2-pick');
   });
+  // えらんだモードの、くわしい説明（今までの長押しと同じもの）
+  el('modeRulesMore').addEventListener('click', function(){ openModePopup(state.selectedModeId); });
   // 第20弾-1-2：カードを押せなくするだけでは、設定画面から戻って人数を減らした場合に
   // 足りないまま先へ進めてしまう。開始の手前でも必ず確かめる。
   function guardMinPlayers(){
@@ -15853,7 +16068,7 @@
     // 第37弾：モードidも一緒に配る。ルール文はモードが持っているので、
     // これが無いと、選んでいない人（＝ホスト以外）はルールを出せない
     rt.pickGame(state.selectedGameId, { reset: true, data: { modeId: state.selectedModeId } });
-    goTo('scr-rt-room');
+    goTo('scr-v2-room');
   }
   el('modeNextBtn').addEventListener('click', function(){
     if(!guardPlayersForFlow()) return;
@@ -15959,13 +16174,8 @@
   // 呼ばれて入るだけの人（QR・ログイン画面から）には「部屋をつくる」が要らないので隠す。
   var rtLobbyJoinOnly = false;
   var rtJoinAsBig = false;   // 第47弾 47-3：入口で「大画面として入る」を選んだか
-  function openRoomLobby(from){
-    rtLobbyBackTo = from || 'scr-shelf';
-    rtLobbyJoinOnly = false;
-    resetAlbumUi();   // 第32弾-E 第6部：前の部屋のアルバムの状態を持ち込まない
-    rtForgetRulesSeen();  // 第37弾：別の部屋では、また最初から読む
-    goTo('scr-rt-lobby');
-  }
+  // 指示66-3：部屋をつくる画面は無くなった（押したらすぐ部屋ができて、コードと QR の待合へ・見本 E1→E3）
+  function openRoomLobby(){ homeMakeRoom(); }
   /**
    * 部屋に入る画面を開く。
    * @param {string} from もどる先
@@ -15974,14 +16184,8 @@
    * **引数で渡す。**どこかに置いた印にすると、置き忘れた道から来た人まで
    * 大画面になる（落とし穴4）。ここを通る全員が、必ずどちらかを言う
    */
-  function openJoinScreen(from, asBig){
-    rtJoinAsBig = !!asBig;
-    rtLobbyBackTo = from || 'scr-shelf';
-    rtLobbyJoinOnly = true;
-    resetAlbumUi();
-    rtForgetRulesSeen();  // 第37弾
-    goTo('scr-rt-lobby');
-  }
+  // 指示66-3：部屋に入る画面は新しい見た目（E2）。大画面として入るのは「TV として入る」（コードだけ）
+  function openJoinScreen(from, asBig){ openV2Join({ tv: !!asBig }); }
   function enterRtLobby(){
     el('rtLobbyStatus').textContent = (rt && rt.available())
       ? '' : rtUnavailableMsg();
@@ -16275,7 +16479,7 @@
     this.disabled = false;
     if(!res.ok){ showFlash(res.message || '送れませんでした', 'hit-wrong'); return; }
     rtMarkRulesSeen(key);   // 押した＝読んだ。2周目からは待合で押すだけ（端末にも残す・指示63）
-    goTo('scr-rt-room');
+    goTo('scr-v2-room');
   });
   el('rtRulesCancelBtn').addEventListener('click', async function(){
     var key = rtRulesKey();
@@ -16284,14 +16488,15 @@
       if(!await UiKit.confirm('ゲームをえらび直しますか？',
         'みんなの画面も、えらび直しにもどります', { ok: 'えらび直す' })) return;
       rt.pickGame(null, { reset: true });
-      goTo('scr-shelf');
+      home.pick.open = false;
+      goTo('scr-v2-pick');
       return;
     }
     // 進行役でない人：ゲームは止めない。自分だけ「まだ準備できていません」のまま待合へ。
     // **読んだ扱いにはしない**（第48弾 48-1）。引き戻されないための一時の印だけ立てる——
     // 読み直したい時は、待合の「📖 ルールを見る」か、設定→ルールをもう一度見る
     if(key) rtRulesSnoozed[key] = true;
-    goTo('scr-rt-room');
+    goTo('scr-v2-room');
   });
   // 待合からルールを読み直す。32-Bの「ルールをもう一度見る」とは別の入口だが、
   // 出しているものは同じ（MODES.bullets）。文言も画面もここで作り直さない
@@ -16537,7 +16742,8 @@
   // 第41弾 2-1：棚はもう遊び方で絞られていないので、そのまま出せばよい。
   // 部屋にいることは、カセットを選んだ後の確認（playWayPlan）が見る
   el('rtPickGameBtn').addEventListener('click', function(){
-    goTo('scr-shelf');
+    home.pick.open = false;
+    goTo('scr-v2-pick');
   });
   // 第32弾-A-2：大画面にする／プレイヤーに戻る。どちらもいつでも押せる。
   // 以前は参加する時に一度だけ選ぶ「役割」だったので、選ぶと戻れなくなっていた
@@ -16672,7 +16878,7 @@
     // 「部屋を出るを押しても出ない」になる。退室の頼みは裏で届く
     // （rt.leave() が code+memberId を添えるので、つなぎ直し後でも消してもらえる）
     rt.leave();
-    goBack('scr-shelf'); // 第26弾-2：部屋の入り口は棚に移った
+    goBack('scr-v2-home'); // 指示66-3：部屋を出たら入口へ
   }
   /**
    * **自分がゲストになる**（第41弾 2-15）。
@@ -18328,7 +18534,7 @@
   // 大画面は始まる前から専用画面（部屋コードを大きく出すため）。
   // 第38弾：ここに書くのは、どのゲームにも属さない3枚だけ。
   // ゲームの画面は RT_GAME_SCREEN_IDS から後で足す（下の宣言のすぐ後）
-  var RT_SCREENS = ['scr-rt-room', 'scr-rt-rules', 'scr-rt-big', 'scr-v2-fes-lobby', 'scr-v2-fes-tv'];
+  var RT_SCREENS = ['scr-v2-room', 'scr-v2-room-tv', 'scr-rt-rules', 'scr-rt-big', 'scr-v2-fes-lobby', 'scr-v2-fes-tv'];
   // 第30弾：クイズ王の4ゲーム。1枚の画面が中身を差し替えて受け持つ
   var RT_QUIZ_GAMES = ['quizrush', 'quizlist', 'quizreveal', 'buzzer'];
   // 第22弾-1：どのゲームの部屋かで、進行画面を切り替える。
@@ -18378,9 +18584,10 @@
     // 指示66-2：文化祭の部屋は、遊んでいる間だけ今までのゲームの画面。それ以外は新しい見た目の画面（段階ごとに描き直す）
     var fesWant = fesWantScreen();
     if(fesWant) return fesWant;
-    if(rtIsBigScreen()) return 'scr-rt-big';
     var v = rtView();
     var started = !!(v && v.phase && v.phase !== 'lobby');
+    // 指示66-3：TV は、ゲームが決まるまで新しい見た目の待合（QR・名前・コード・進行役）。進行役が選んでいる間も変えない
+    if(rtIsBigScreen()) return (!started && !rtPickedGame()) ? 'scr-v2-room-tv' : 'scr-rt-big';
     // 第37弾：ゲームが決まったら、まず全員がルールを読む。
     // 読んだことがあるゲームでは引っぱらない（待合で「準備OK」を押すだけ）。
     // ただし**自分でルール画面を開いている間は追い出さない**。
@@ -18391,7 +18598,7 @@
       // ただし、進行役がゲームをえらび直したら（＝ゲームが無くなったら）待合へ戻す。
       // 留まると、何のルールでもない空の画面に取り残される
       if(cur === 'scr-rt-rules' && rtPickedGame()) return 'scr-rt-rules';
-      return rtNeedsRules() ? 'scr-rt-rules' : 'scr-rt-room';
+      return rtNeedsRules() ? 'scr-rt-rules' : 'scr-v2-room';
     }
     var room = rt && rt.state.room;
     var game = room && room.state && room.state.game;
@@ -18410,7 +18617,7 @@
       if(SUGO_GAMES.indexOf(game) !== -1) return sugoWantScreen();
       return scr[0];
     }
-    return scr || 'scr-rt-room';
+    return scr || 'scr-v2-room';
   }
   /**
    * **人数を出している画面は、部屋の画面の外にもある**（指示44 44-7 の異常系）。
@@ -18423,10 +18630,7 @@
    */
   function rtSyncHeadcountViews(){
     var cur = (document.querySelector('.screen.active') || {}).id;
-    if(cur === 'scr-shelf'){
-      renderShelfChip(); renderShelf(); renderShelfBand();
-      return;
-    }
+    if(cur === 'scr-v2-pick'){ renderV2Pick(); return; }
     if(cur !== 'scr-mode') return;
     // 進行役は modeRoomNote の1行に、それ以外の人はカードの理由に人数が出る
     //（`modeLockReason` が人数を出すのは `!goingRealtime()` の側なので、
@@ -18458,6 +18662,9 @@
     if(cur === 'scr-rt-lobby' && rt.me && rt.me()){ goTo(rtWantScreen()); return; }
     // 指示66-2：文化祭の入る画面で、もう部屋の一員なら（読み込み直し・入れた直後）部屋の画面へ
     if(cur === 'scr-v2-fes-join' && rt.me && rt.me()){ goTo(rtWantScreen()); return; }
+    if(cur === 'scr-v2-join' && rt.me && rt.me()){ goTo(rtWantScreen()); return; }
+    // 指示66-3 S6：決めた時のカードは、どの画面にいても同じ時に出す（部屋の知らせが届いた瞬間）
+    homeDecideCheck();
     // ロビーで入力中の人を引っぱらない。すでに部屋の画面にいる時だけ動かす
     if(RT_SCREENS.indexOf(cur) === -1) return;
     var want = rtWantScreen();
@@ -19778,7 +19985,8 @@
     // 画面ごとの描画関数に「この場面では出す」を書かせない
     renderNowLine();
     if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ fesRender(cur); return; }
-    if(cur === 'scr-rt-room') renderRtRoom();
+    if(cur === 'scr-v2-room') renderV2Room();
+    else if(cur === 'scr-v2-room-tv') renderV2RoomTv();
     if(cur === 'scr-rt-rules') renderRtRules();
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-bomb') renderRtBomb();
@@ -25141,7 +25349,7 @@
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
       closeSettingsIfOpen();   // 第43弾 2-8
-      goBack('scr-shelf');
+      goBack('scr-v2-home');
       setTimeout(function(){
         UiKit.info('部屋がなくなっていました',
           'サーバーが再起動したか、しばらく誰もいない状態が続いたためです。\nもう一度、部屋を作り直してください。');
@@ -25179,7 +25387,7 @@
         return;
       }
       closeSettingsIfOpen();
-      goBack('scr-shelf');
+      goBack('scr-v2-home');
       setTimeout(function(){
         UiKit.info('部屋から出ました',
           '進行役' + (p && p.by ? '（' + p.by + ' さん）' : '') + 'が、あなたを部屋から出しました');
@@ -30307,7 +30515,13 @@
    * 回数の一覧は出さない（少ない人が疎外感を持つ表示を作らない）。
    */
   function pairNoteHtml(note){
-    if(!note) return '';
+    var lines = pairNoteLines(note);
+    if(!lines.length) return '';
+    return '<div class="pair-note">' + lines.join('<br>') + '</div>';
+  }
+  /** 2人組の記録の一言の行（字は esc 済み）。今までの待合と、新しい見た目の待合（指示66-3）が同じ文を出す */
+  function pairNoteLines(note){
+    if(!note) return [];
     var lines = [];
     (note.fresh || []).slice(0, 2).forEach(function(f){
       lines.push('✨ ' + escapeHtml(f.a) + ' さんと ' + escapeHtml(f.b) +
@@ -30317,8 +30531,7 @@
       lines.push('🤝 いちばん長い付き合いは ' + escapeHtml(note.top.a) + ' さんと ' +
         escapeHtml(note.top.b) + ' さん（一緒に' + note.top.count + '回遊びました）');
     }
-    if(!lines.length) return '';
-    return '<div class="pair-note">' + lines.join('<br>') + '</div>';
+    return lines;
   }
   el('toNextBtn').addEventListener('click', function(){ goTo('scr-next'); });
 
@@ -30363,26 +30576,28 @@
           '<span>' + escapeHtml(sub) + '</span></span></button>';
     }).join('');
   }
+  /**
+   * 指示66-3 E5：つぎは？（見本 e5a）。部屋では、次を決めるのは進行役ひとり——
+   * 他の人には「何も起きていない」ではなく「待っている」と分かる形で出す（原則D・帯の字）。
+   * 出せる選択肢は今までの NEXT_CHOICES（サバイバルの決まりもそのまま）
+   */
   function enterNext(){
     var room = rt && rt.state && rt.state.room;
     var host = !room || rt.isHost();
-    el('nextChoices').innerHTML = host ? nextChoicesHtml() : '';
-    el('nextChoices').style.display = host ? '' : 'none';
-    // 部屋では、次を決めるのは進行役ひとり。
-    // 他の人には「何も起きていない」ではなく「待っている」と分かる形で出す（原則D）
-    var wait = el('nextWaitNote');
-    wait.style.display = host ? 'none' : 'block';
-    wait.textContent = '進行役が、つぎのあそびをえらんでいます…';
-    if(typeof FxKit !== 'undefined') FxKit.alive(wait, !host);
-    el('nextSub').textContent = host ? 'えらんでね' : 'すこし待ってね';
-    // 直前の結果発表の余韻を少しだけ残す。
-    // 急に無音・無演出の画面へ切り替えると、テンションがそこで切れる
+    var survival = (play.nextSurvival === 'ongoing');
+    var choices = NEXT_CHOICES.filter(function(c){ return !c.when || c.when(); }).map(function(c){
+      return { id: c.id, label: (c.id === 'again') ? (survival ? 'つぎのラウンドへ' : UiText.HOME.つぎ.もう一回) : c.label };
+    });
+    var pm = room ? rtPickedMode() : modeById(state.selectedModeId);
+    var info = pm ? v2ModeInfo(pm.id) : null;
+    var n = room ? currentPlayerCount() : state.players.length;
     var scr = el('scr-next');
-    scr.classList.remove('next-afterglow');
-    void scr.offsetWidth;
-    scr.classList.add('next-afterglow');
+    scr.innerHTML = V2Home.next({ host: host, room: !!room, choices: choices, wait: n,
+      game: info ? { world: info.world, name: info.name, meta: n ? n + UiText.V2.人 : '' } : null });
+    V2.mount(scr);
+    homeKeepAsk();
   }
-  el('nextChoices').addEventListener('click', function(e){
+  el('scr-next').addEventListener('click', function(e){
     var b = e.target.closest('[data-next]');
     if(!b) return;
     doNextChoice(b.dataset.next);
@@ -30403,7 +30618,9 @@
     // ここから先は、この試合を終える。記録は今まで通りここで残す
     await finishHandoffMatch();
     if(id === 'game'){ goTo('scr-game'); return; }
-    goTo('scr-shelf');
+    // 指示66-3：「ほかのゲームにする」は一覧へ。さっき遊んだゲームのページを開いたまま見せる
+    home.pick.focus = state.selectedCassetteId || null; home.pick.open = false;
+    goTo('scr-v2-pick');
   }
   async function finishHandoffMatch(){
     var finalScores = {};
@@ -30420,16 +30637,17 @@
       // 全員を待合にもどし、ホストの「はじめる ▶」から
       // 最初のゲームとまったく同じ流れで始める（設定は選び直させない）。
       var reset = await rt.pickGame(gameId, { reset: true });
-      if(!reset.ok){ el('nextSub').textContent = reset.message || 'やり直せませんでした'; return; }
-      goTo('scr-rt-room');
+      if(!reset.ok){ showFlash(reset.message || 'やり直せませんでした', 'hit'); return; }
+      goTo('scr-v2-room');
       return;
     }
     // ここから先は、部屋を待機に戻してから選び直す
     var back = await rt.pickGame(id === 'mode' ? gameId : null, { reset: true });
-    if(!back.ok){ el('nextSub').textContent = back.message || 'えらび直せませんでした'; return; }
+    if(!back.ok){ showFlash(back.message || 'えらび直せませんでした', 'hit'); return; }
     if(id === 'mode'){ goTo('scr-mode'); return; }
     if(id === 'game'){ goTo('scr-game'); return; }
-    goTo('scr-shelf');
+    home.pick.focus = state.selectedCassetteId || null; home.pick.open = false;
+    goTo('scr-v2-pick');
   }
   // 第12弾-7：毎回プレイヤーを入力させると煩わしいので、終わる時に一度だけ聞く
   async function askPlayerChange(){
@@ -31349,7 +31567,7 @@
         btn.disabled = false;
         if(!res2.ok){ UiKit.info('終了できませんでした', res2.message || ''); return; }
         el('settingsOverlay').classList.remove('show');
-        goTo('scr-rt-room');
+        goTo('scr-v2-room');
       } else {
         if(!await UiKit.confirm('この部屋から抜けますか？',
           'ゲームはほかの人たちで続きます', { ok: '抜ける' })) return;
@@ -31369,7 +31587,7 @@
     stopAllPlayTimers();
     el('settingsOverlay').classList.remove('show');
     askPlayerChange();  // 第12弾-7
-    goTo('scr-shelf');  // 第12弾：棚に戻って次のゲームを選ぶ
+    goTo('scr-v2-pick');  // 第12弾：次のゲームを選ぶ（指示66-3：ゲームをえらぶ一覧）
   }
 
   // ---------- 2：プレイヤー編集（ゲーム共通） ----------
@@ -31754,7 +31972,7 @@
     state.players = []; state.topicStats = {}; state.topicHistory = [];
     playerDraft = []; saveLocalPrefs();
     el('settingsOverlay').classList.remove('show');
-    goTo('scr-shelf'); // 第13弾：扉は起動時だけ。リセット後は棚に戻る
+    goTo('scr-v2-home'); // 第13弾：扉は起動時だけ。リセット後は入口に戻る（指示66-3）
   }
   el('settingsLoginBtn').addEventListener('click', function(){
     el('settingsOverlay').classList.remove('show');
@@ -31769,7 +31987,7 @@
     // ログアウトした時も同じ。古いセッションのまま繋がったままにしない
     if(rt && rt.available()) rt.reconnect();
     el('settingsOverlay').classList.remove('show');
-    goTo('scr-shelf'); // 第26弾-2：ログアウトしても棚は見られる
+    goTo('scr-v2-home'); // 第26弾-2：ログアウトしても入口から遊べる（指示66-3）
   });
 
   // ---------- init ----------
@@ -31801,20 +32019,22 @@
         if(invited){ await fesOpenJoin(invited); return 'scr-v2-fes-join'; }
         fes.join.err = UiText.FES.入る.部屋が無い; fesRenderJoin(); return 'scr-v2-fes-join';
       }
-      if(invited){
-        el('rtJoinCode').value = invited;
-        rtLobbyBackTo = 'scr-shelf';
-        rtLobbyJoinOnly = true;
-        return 'scr-rt-lobby';
+      // 指示66-3 E2：QR で来た人は、コードを飛ばして名前から（覗いて確かめてから）。TV（/tv）はコードだけ
+      var asTv = /[?&]tv=1/.test(location.search || '');
+      if(invited || asTv){
+        try{ await checkAuth(); }catch(e){}
+        setTimeout(function(){ openV2Join({ code: invited || '', tv: asTv }); }, fxMs(260));
+        return null;
       }
-      // 第26弾-2：棚まではログイン不要。ログインは、記録が要る用事の時にだけ頼む
+      // 第26弾-2：入口まではログイン不要。ログインは、記録が要る用事の時にだけ頼む
       try{
         await checkAuth();
       }catch(e){}
-      return 'scr-entry';
+      return 'scr-v2-home';
     })();
     el('doorScene').classList.add('opened');
     var next = await nextPromise;
+    if(!next) return;   // 部屋に入る画面は、openV2Join が開く
     // 開き切る前に次の画面へ移る（テンポ優先）。
     // **fxMs を通す。**ここは扉が開く演出の一部で、
     // 「演出の速さ」を「スキップ」にした人まで0.26秒待たされていた
@@ -31884,6 +32104,8 @@
     }
     // 指示66-1：新しい見た目（v2）の部品。演出の長さは同じ fxMs を通す（3・2・1 と長押しは部品の側で通さない）
     if(typeof V2 !== 'undefined') V2.init({ doc: document, ms: fxMs });
+    // 指示66-3：markup に置いた新しい見た目の画面（S4 のゲーム・モード）のアイコンは、印だけ置いてここで入れる
+    if(typeof V2 !== 'undefined') Array.prototype.forEach.call(document.querySelectorAll('#scr-game i[data-ic], #scr-mode i[data-ic]'), function(i){ i.outerHTML = V2.icon(i.getAttribute('data-ic')); });
   }
 
   // ===== 指示66-1：新しい見た目（v2）の画面 =====
@@ -32047,7 +32269,9 @@
   // **描くだけで、画面へは移らない。**データを渡せるのは検証用サーバーが配る台本だけ（本番に入口は無い）
   window.V2Screens = { fesLobby: renderV2FesLobby, fesTv: renderV2FesTv, parts: renderV2Parts, modeInfo: v2ModeInfo,
     // 指示66-2：文化祭の部屋の画面。lab：{ screen, room（部屋の知らせ）, you, meId, fb, join, quit, staff }
-    fes: function(lab){ return fesLab(lab); } };
+    fes: function(lab){ return fesLab(lab); },
+    // 指示66-3：ふだんの画面。lab：{ screen, room（部屋の知らせ）, meId, login, heads, cassette, game, mode, join, pick, fresh, open, menu, ask, decided }
+    home: function(lab){ return homeLab(lab); } };
 
   // ===================== 指示66-2：文化祭の部屋（つなぎ） =====================
   // 画面の組み立ては public/js/v2-fes.js。ここは「部屋の知らせ → 描く」と「押した時の動き」だけ。
@@ -32384,6 +32608,711 @@
     else if(act === 'recreate' || act === 'create'){
       rt.fesCreate(act === 'recreate').then(function(){ fesOpenStaff(); });
     }
+  });
+
+  // ===================== 指示66-3：ふだんの画面（つなぎ） =====================
+  // 画面の組み立ては public/js/v2-home.js。ここは「いまの事実 → 描く」と「押した時の動き」だけ。
+  // **判断は今までの関数をそのまま使う**（遊び方の確認 playWayPlan・人数の理由・ログイン・部屋の進め方）。
+  // 入れかえたのは見た目と、そこへ行く道だけ（2つ持つと片方だけ直す日が来る・落とし穴1）
+  var home = { join: { step: 'code', code: '', name: '', err: '', busy: false, tv: false, peek: '' },
+               pick: { cur: 0, open: false, cards: [], cx: null, cy: null, focus: null },
+               back: null, dlg: null, ask: null, roomSeen: null, roomFresh: [], tvSeen: null, tvFresh: [],
+               dec: { code: null, key: null, timer: null } };
+  var HOME_NAME_KEY = 'home_name_v1';
+  // 一覧の分類の順（見本 select.html と同じ）。「からだをうごかす」は、まだ遊べるものが無いので「近日」だけ
+  var HOME_GENRES = ['brain', 'deal', 'hide', 'word', 'move'];
+  function homeCur(){ return (document.querySelector('.screen.active') || {}).id; }
+  function homeName(){ try{ return localStorage.getItem(HOME_NAME_KEY) || ''; }catch(e){ return ''; } }
+  function homeSaveName(n){ try{ localStorage.setItem(HOME_NAME_KEY, n); }catch(e){} }
+  function homeT(){ return UiText.HOME; }
+
+  // ---- 新しい見た目の「たずねる枠」（UiKit.confirm の代わり。描き直しても消えない） ----
+  // 答えは Promise で返す。部屋の知らせで画面を描き直しても、開いている枠は付け直す（homeKeepAsk）
+  function homeAsk(scrId, o){
+    var scr = el(scrId); if(!scr) return Promise.resolve(false);
+    if(home.ask) homeAskDone(false);
+    return new Promise(function(resolve){
+      var wrap = document.createElement('div');
+      wrap.innerHTML = V2.dlgHtml({ id: 'v2Ask', title: o.title, text: o.text, keep: true,
+        btns: [{ label: o.ok, pri: true, act: 'home-ask-ok' }, { label: o.no || homeT().部屋.やめる, act: 'home-ask-no' }] });
+      var node = wrap.firstChild;
+      if(o.danger) node.querySelector('.v2-btn.is-pri').classList.add('v2-danger');
+      home.ask = { scr: scrId, node: node, resolve: resolve };
+      homeKeepAsk();
+    });
+  }
+  function homeKeepAsk(){
+    var a = home.ask; if(!a) return;
+    var scr = el(a.scr); if(!scr) return;
+    if(!scr.querySelector(':scope > .v2-scrim.is-dlg')) scr.insertAdjacentHTML('beforeend', V2.scrimHtml(true));
+    if(a.node.parentNode !== scr) scr.appendChild(a.node);
+    V2.open(a.node);
+  }
+  function homeAskDone(ok){
+    var a = home.ask; if(!a) return;
+    home.ask = null;
+    V2.close(a.node);
+    if(a.node.parentNode) a.node.parentNode.removeChild(a.node);
+    a.resolve(!!ok);
+  }
+
+  // ===================== E1 入口 =====================
+  function renderV2Home(){
+    var scr = el('scr-v2-home'); if(!scr) return;
+    scr.innerHTML = V2Home.home({ back: home.back, who: loggedIn() ? state.displayName : null });
+    V2.mount(scr);
+    homeKeepAsk();
+  }
+  /** 入口に来た：「さっきの部屋にもどる」は、サーバーが「まだ名簿にいる」と答えてから出す（落とし穴14-b） */
+  async function enterV2Home(){
+    home.back = null;
+    renderV2Home();
+    var st = await roomMembership();
+    if(st.ある && homeCur() === 'scr-v2-home'){ home.back = rt.state.code; renderV2Home(); }
+  }
+  /**
+   * 部屋を持ったまま「部屋をつくる」「1台で遊ぶ」を押した時。黙って二重に作らない——
+   * 前の「いま開いている部屋」（scr-room-open）と同じことを、新しい見た目のたずねる枠で聞く
+   */
+  async function homeRoomStillOpen(next){
+    var st = (rt && rt.state.room) ? { ある: true, 進行役: rt.isHost() } : await roomMembership();
+    if(!st.ある) return false;
+    var T = UiText.ENTRY.部屋あり, R = homeT().部屋;
+    var ok = await homeAsk('scr-v2-home', { title: T.見出し, text: 'コード ' + ((rt && rt.state.code) || '') + '　' + T.閉じる確認の本文,
+      ok: T.もどる, no: st.進行役 ? T.閉じる : UiText.LEAVE.出る });
+    if(ok){ goTo(rtWantScreen()); return true; }
+    // とじる／出るを選んだ：部屋をとじてから（進行役）・出てから（参加者）、押したことを続ける
+    if(st.進行役){
+      var closed = await rt.closeRoom();
+      if(!closed.ok){ showFlash(closed.message || R.やめる, 'hit'); return true; }
+    } else {
+      await rt.leave();
+    }
+    home.back = null; renderV2Home();
+    return false;
+  }
+  /** E1「部屋をつくる」：押したらすぐ部屋ができて、コードと QR の待合へ（名前はログイン名か、前に使った名前） */
+  async function homeMakeRoom(){
+    if(!(rt && rt.available())){ showFlash(rtUnavailableMsg(), 'hit'); return; }
+    if(await homeRoomStillOpen('make')) return;
+    if(!(await requireLogin('部屋を立てるにはログインが必要です', 'scr-v2-home'))) return;
+    var c = NameFilter.check(homeName() || state.displayName || '');
+    var name = c.ok ? c.name : Array.from(String(state.displayName || 'host')).slice(0, 8).join('');
+    resetAlbumUi();        // 前の部屋のアルバムの状態を持ち込まない
+    rtForgetRulesSeen();   // 別の部屋では、また最初から読む
+    var res = await rt.createRoom(name, 'player', myLook());
+    if(!res.ok){
+      showFlash(res.error === 'auth_required' ? '部屋を作るにはログインが必要です' : (res.message || '部屋を作れませんでした'), 'hit');
+      return;
+    }
+    goTo(rtWantScreen());
+  }
+  async function homeOne(){
+    if(await homeRoomStillOpen('one')) return;
+    home.pick.open = false; home.pick.focus = null;
+    goTo('scr-v2-pick');
+  }
+
+  // ===================== E2 部屋に入る =====================
+  /** o：{ code（QR で来た時）, tv（TV として入る） } */
+  function openV2Join(o){
+    o = o || {};
+    var 前 = (rt && rt.lastRoom) ? rt.lastRoom() : null;
+    home.join = { step: 'code', code: String(o.code || '').toUpperCase().slice(0, 6), name: '', err: '', busy: false, tv: !!o.tv, peek: '' };
+    home.join.name = homeName() || ((前 && 前.code === home.join.code) ? 前.name : '') || '';
+    resetAlbumUi(); rtForgetRulesSeen();
+    if(rt && rt.available()) rt.connect();
+    goTo('scr-v2-join');
+    // QR で来た人は、コードを飛ばして名前から（コードは覗いて確かめてから）
+    if(home.join.code.length === 6) homeJoinCode();
+  }
+  function renderV2Join(){
+    var scr = el('scr-v2-join'); if(!scr) return;
+    scr.innerHTML = V2Home.join(home.join);
+    V2.mount(scr);
+  }
+  /** コードの6文字がそろって「入る」：部屋を覗く → 文化祭なら文化祭の入り方、TV ならそのまま、ほかは名前へ */
+  async function homeJoinCode(){
+    var j = home.join, J = homeT().入る;
+    if(j.code.length !== 6 || j.busy) return;
+    if(!(rt && rt.available())){ j.err = J.つながらない; renderV2Join(); return; }
+    j.busy = true; j.err = ''; renderV2Join();
+    var p = await rt.peekRoom(j.code);
+    if(!p || !p.ok){ await new Promise(function(r){ setTimeout(r, 600); }); p = await rt.peekRoom(j.code); }
+    j.busy = false;
+    if(!p || !p.ok){ j.err = J.部屋が無い; j.step = 'code'; renderV2Join(); return; }
+    if(p.fes){ goTo('scr-v2-fes-join'); fesOpenJoin(j.code); return; }
+    if(j.tv){
+      var tv = await rt.joinRoom(j.code, J.TVの名前, 'bigscreen', myLook());
+      if(!tv.ok){ j.err = tv.message || J.部屋が無い; renderV2Join(); return; }
+      goTo(rtWantScreen());
+      return;
+    }
+    j.step = 'name';
+    j.peek = (p.game ? J.で遊ぶ前 + gameTitleOf(p.game) + J.で遊ぶ後 : J.進行役を待つ) + '（' + UiText.HOME.一覧.いま + p.playerCount + UiText.V2.人 + '）';
+    renderV2Join();
+  }
+  async function homeJoinGo(){
+    var j = home.join, J = homeT().入る;
+    var c = NameFilter.check(j.name);
+    if(!c.ok){ j.err = c.reason === 'empty' ? J.名前を : UiText.FES.入る[FES_JOIN_ERR['name_' + c.reason]]; if(c.reason === 'blocked') j.name = ''; renderV2Join(); return; }
+    if(j.busy) return;
+    j.busy = true; j.err = ''; renderV2Join();
+    var res = await rt.joinRoom(j.code, c.name, 'player', myLook());
+    j.busy = false;
+    if(!res.ok){ j.err = res.error === 'room_full' ? J.満員 : (res.message || J.部屋が無い); renderV2Join(); return; }
+    homeSaveName(c.name);
+    goTo(rtWantScreen());
+  }
+  /** QR を読む：読める端末（Android の Chrome）はその場でカメラ。読めない端末は、カメラのアプリで読む案内だけ */
+  var homeScan = null;
+  function homeScanStop(){
+    if(!homeScan) return;
+    clearInterval(homeScan.timer);
+    try{ homeScan.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+    homeScan = null;
+  }
+  async function homeScanStart(scr){
+    var box = scr.querySelector('[data-home-scan]');
+    V2.open(scr.querySelector('[data-v2-id="v2QrHow"]'));
+    if(!box || typeof window.BarcodeDetector === 'undefined' || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
+    try{
+      var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      var video = document.createElement('video');
+      video.setAttribute('playsinline', ''); video.muted = true; video.srcObject = stream;
+      box.innerHTML = ''; box.appendChild(video); await video.play();
+      var det = new window.BarcodeDetector({ formats: ['qr_code'] });
+      homeScan = { stream: stream, timer: setInterval(async function(){
+        try{
+          var found = await det.detect(video);
+          var url = found && found[0] && found[0].rawValue;
+          var m = url && /[?&]room=([A-Za-z0-9]{6})/.exec(url);
+          if(!m) return;
+          homeScanStop();
+          home.join.code = m[1].toUpperCase();
+          homeJoinCode();
+        }catch(e){}
+      }, 350) };
+    }catch(e){ box.innerHTML = ''; }
+  }
+
+  // ===================== ゲームをえらぶ（一覧 → ページ） =====================
+  /** 部屋の進行役がえらぶ時は 'room'。それ以外（部屋が無い）は 'one'（1台で遊ぶ） */
+  function homePickCtx(){ return (rt && rt.state.room && rt.isHost()) ? 'room' : 'one'; }
+  function homeWays(c){ var r = cassetteSupportsRoom(c), h = cassetteSupportsHandoff(c); return (r && h) ? 'both' : (r ? 'room' : 'one'); }
+  function homePpl(c){
+    var lo = cassetteMinPlayers(c), hi = cassetteMaxPlayers(c), P = homeT().一覧;
+    if(lo == null) return '';
+    return !hi ? lo + P.人から短 : (lo === hi ? lo + P.人 : lo + '〜' + hi + P.人);
+  }
+  /** ページのルール3つ：ゲームが2つ以上のカセットは見本の文、1つならそのモードの「TVのルール札」 */
+  function homeRules(c){
+    var R = homeT().一覧.ルール[c.id];
+    if(R) return R;
+    var ms = cassetteModes(c);
+    return (ms[0] && ms[0].tv) || [];
+  }
+  /** 1台で遊べるモードの人数の上限（ロシアンカードの手渡しは2人まで） */
+  function homeHandoffMax(c){
+    var hi = 0;
+    cassetteModes(c).forEach(function(m){ if(!m.roomOnly) hi = Math.max(hi, isFinite(modeMaxPlayers(m)) ? modeMaxPlayers(m) : 99); });
+    return hi;
+  }
+  /**
+   * 遊べない理由と、ページの下のボタン。**消さない**——理由を出して、次にできることを置く（見本 S5）。
+   * 決めるのは playWayPlan（遊び方の確認の6通り）と人数。ここで別の表を持たない
+   */
+  function homeCardState(c, ctx, n){
+    var P = homeT().一覧, lo = cassetteMinPlayers(c), hi = cassetteMaxPlayers(c);
+    var plan = playWayPlan(c), いま = '（' + P.いま + n + P.人 + '）';
+    if(ctx === 'room'){
+      if(plan.kind === 'leaveRoom') return { why: P['1台のゲーム'], cta: { kind: 'leave', label: P['1台です'], sub: P.とじると, btn: { act: 'pick-leave', label: P.とじて } } };
+      if(hi && n > hi) return { why: hi + P.まで + いま, cta: { kind: 'why', label: hi + P.人までのゲーム + いま } };
+      if(lo && n < lo) return { why: lo + P.から + いま, cta: { kind: 'why', label: lo + P.人からのゲーム + いま } };
+      return { why: null, cta: { kind: 'go', label: P.このゲームにする } };
+    }
+    if(plan.kind === 'makeRoom'){
+      var w = plan.なぜ === '人数' ? P['1台は'] + homeHandoffMax(c) + P.まで + いま : P.部屋のゲーム;
+      return { why: w, cta: { kind: 'make', label: plan.なぜ === '人数' ? w : P.部屋です, sub: P.つくると, btn: { act: 'pick-make', label: P.つくって } } };
+    }
+    if(n && hi && n > hi) return { why: hi + P.まで + いま, cta: { kind: 'why', label: hi + P.人までのゲーム + いま } };
+    if(n && lo && n < lo) return { why: lo + P.から + いま, cta: { kind: 'why', label: lo + P.人からのゲーム + いま } };
+    if(!loggedIn()) return { why: null, cta: { kind: 'login', label: P.ログインすると, btn: { act: 'pick-login', label: P.ログイン } } };
+    return { why: null, cta: { kind: 'go', label: P.このゲームにする } };
+  }
+  function homePickView(){
+    var P = homeT().一覧, ctx = homePickCtx(), room = rt && rt.state.room;
+    var n = currentPlayerCount();
+    var cards = [], groups = [], soon = [];
+    HOME_GENRES.forEach(function(g){
+      var list = CASSETTES.filter(function(c){ return c.ready && cassetteGenres(c)[0] === g; });
+      if(!list.length){
+        if(CASSETTES.some(function(c){ return !c.ready && cassetteGenres(c)[0] === g; })) soon.push(genreLabel(g));
+        return;
+      }
+      var gcards = list.map(function(c){
+        var st = homeCardState(c, ctx, n);
+        var card = { i: cards.length, id: c.id, world: c.theme || 'wait', name: (c.title || '').replace(/<br>/g, ''), blurb: c.blurb || '',
+          gl: genreLabel(g), ppl: homePpl(c), min: cassetteMinutes(c) ? cassetteMinutes(c) + P.分から : '', ways: homeWays(c),
+          why: st.why, cta: st.cta, rules: homeRules(c),
+          paused: (c.paused || []).map(function(x){ return x.title + '：' + x.なぜ; }) };
+        cards.push(card);
+        return card;
+      });
+      groups.push({ id: g, label: genreLabel(g), chip: P.チップ[g], cards: gcards });
+    });
+    var ps = room ? (room.members || []).filter(function(m){ return m.role !== 'bigscreen'; }) : [];
+    return { ctx: ctx, code: room ? room.code : null, n: ctx === 'room' ? n : (n || null), wait: ps.length,
+      faces: ps.map(function(m){ return m.icon || '🙂'; }), groups: groups, soon: soon, cards: cards,
+      cur: home.pick.cur, open: home.pick.open };
+  }
+  /** 一覧を描く。**見ていた所（巻いた位置・開いているページ）は残す**（人が入って人数が変わるたびに描き直すので） */
+  function renderV2Pick(){
+    var scr = el('scr-v2-pick'); if(!scr) return;
+    var list0 = scr.querySelector('[data-home-list]'), chips0 = scr.querySelector('[data-home-chips]');
+    var top = list0 ? list0.scrollTop : 0, left = chips0 ? chips0.scrollLeft : 0;
+    var on = chips0 && chips0.querySelector('.is-on');
+    var v = homePickView();
+    home.pick.cards = v.cards;
+    if(home.pick.cur >= v.cards.length) home.pick.cur = 0;
+    scr.innerHTML = V2Home.pick(v);
+    var ov = scr.querySelector('[data-home-ov]');
+    if(home.pick.cx != null){ ov.style.setProperty('--cx', home.pick.cx + 'px'); ov.style.setProperty('--cy', home.pick.cy + 'px'); }
+    var list = scr.querySelector('[data-home-list]'), chips = scr.querySelector('[data-home-chips]');
+    if(list) list.scrollTop = top;
+    if(chips){ chips.scrollLeft = left; if(on) homeChipOn(scr, on.getAttribute('data-home-chip')); }
+    V2.mount(scr);
+    homeKeepAsk();
+  }
+  function enterV2Pick(){
+    var c = home.pick.focus;
+    home.pick.focus = null;
+    renderV2Pick();
+    // 「ほかのゲームにする」から来た時は、さっきのゲームのページを開いたまま見せる
+    if(c){
+      var i = home.pick.cards.findIndex(function(x){ return x.id === c; });
+      if(i >= 0){ homePickShow(i, false); homePickOpen(null, true); }
+    }
+  }
+  function homeChipOn(scr, g){
+    Array.prototype.forEach.call(scr.querySelectorAll('[data-home-chip]'), function(b){ b.classList.toggle('is-on', b.getAttribute('data-home-chip') === g); });
+  }
+  /** ページを i 枚目にする（anim：指をはなした後の 0.25秒） */
+  function homePickShow(i, anim){
+    var scr = el('scr-v2-pick'), cards = home.pick.cards;
+    if(!scr || !cards.length) return;
+    i = Math.max(0, Math.min(cards.length - 1, i));
+    home.pick.cur = i;
+    var c = cards[i];
+    var track = scr.querySelector('[data-home-track]'), ov = scr.querySelector('[data-home-ov]');
+    if(!track || !ov) return;
+    track.classList.toggle('is-anim', anim !== false && fxMs(250) > 0);
+    track.style.transform = 'translateX(' + (-100 * i) + '%)';
+    Array.prototype.forEach.call(track.children, function(p, k){ p.classList.toggle('is-cur', k === i); });
+    Array.prototype.forEach.call(scr.querySelectorAll('[data-home-dots] i'), function(d, k){ d.classList.toggle('is-on', k === i); });
+    V2.WORLDS.forEach(function(w){ ov.classList.toggle('v2-w-' + w, w === c.world); });
+    var gn = scr.querySelector('[data-home-gname]');
+    if(gn) gn.textContent = c.gl + '　' + (i + 1) + ' / ' + cards.length;
+    var cta = scr.querySelector('[data-home-cta]');
+    if(cta) cta.innerHTML = V2Home.cta(c);
+  }
+  /** 押した印から、そのゲームの色が丸く広がる（tile が無い＝ほかの画面から来た時は、まん中から） */
+  function homePickOpen(tile, now){
+    var scr = el('scr-v2-pick'); if(!scr) return;
+    var ov = scr.querySelector('[data-home-ov]'); if(!ov) return;
+    if(tile){
+      var r = scr.getBoundingClientRect(), k = (r.width / scr.offsetWidth) || 1, t = tile.getBoundingClientRect();
+      home.pick.cx = (t.left + t.width / 2 - r.left) / k; home.pick.cy = (t.top + t.height / 2 - r.top) / k;
+      ov.style.setProperty('--cx', home.pick.cx + 'px'); ov.style.setProperty('--cy', home.pick.cy + 'px');
+    }
+    home.pick.open = true;
+    ov.setAttribute('aria-hidden', 'false');
+    if(now){ ov.classList.add('is-open'); return; }
+    requestAnimationFrame(function(){ ov.classList.add('is-open'); });
+  }
+  /** ‹ で一覧へ。一覧は、さっき見ていたゲームの所に戻る（そのゲームの札へ色が縮んで消える） */
+  function homePickClose(){
+    var scr = el('scr-v2-pick'); if(!scr) return;
+    var ov = scr.querySelector('[data-home-ov]'), list = scr.querySelector('[data-home-list]');
+    var card = list && list.querySelector('[data-home-card="' + home.pick.cur + '"]');
+    if(card){
+      list.scrollTop = Math.max(0, card.offsetTop - list.offsetTop - list.clientHeight / 3);
+      var tile = card.querySelector('.v2-tile');
+      if(tile){
+        var r = scr.getBoundingClientRect(), k = (r.width / scr.offsetWidth) || 1, t = tile.getBoundingClientRect();
+        home.pick.cx = (t.left + t.width / 2 - r.left) / k; home.pick.cy = (t.top + t.height / 2 - r.top) / k;
+        ov.style.setProperty('--cx', home.pick.cx + 'px'); ov.style.setProperty('--cy', home.pick.cy + 'px');
+      }
+    }
+    home.pick.open = false;
+    ov.classList.remove('is-open');
+    ov.setAttribute('aria-hidden', 'true');
+  }
+  /** 「このゲームにする」：遊び方の確認（playWayPlan）が通した道で始める。1台の一覧で「どちらでも」のゲームは、1台で */
+  async function homePickGo(){
+    var c = cassetteById((home.pick.cards[home.pick.cur] || {}).id);
+    if(!c) return;
+    var plan = playWayPlan(c);
+    wayForCassetteId = c.id; wayPlan = plan;
+    var way = plan.kind === 'through' ? plan.way : (plan.kind === 'choose' ? 'handoff' : null);
+    if(way) await goPlayWay(way);
+  }
+  function homePickExit(){
+    if(rt && rt.state.room){ goTo(rtWantScreen()); return; }
+    goBack('scr-v2-home');
+  }
+  // 指で横に送る（はなした所で止まる）。縦に動かした時は、ページの中を巻く
+  var homeDrag = null;
+  document.addEventListener('pointerdown', function(e){
+    var pager = e.target.closest && e.target.closest('#scr-v2-pick [data-home-pager]');
+    if(!pager || !home.pick.open) return;
+    homeDrag = { x: e.clientX, y: e.clientY, dx: 0, id: e.pointerId, moved: false, pager: pager };
+  });
+  document.addEventListener('pointermove', function(e){
+    var d = homeDrag; if(!d || e.pointerId !== d.id) return;
+    var dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if(!d.moved){
+      if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if(Math.abs(dy) > Math.abs(dx)){ homeDrag = null; return; }
+      d.moved = true;
+      try{ d.pager.setPointerCapture(e.pointerId); }catch(x){}
+    }
+    d.dx = dx;
+    var track = d.pager.querySelector('[data-home-track]');
+    track.classList.remove('is-anim');
+    track.style.transform = 'translateX(calc(' + (-100 * home.pick.cur) + '% + ' + dx + 'px))';
+  });
+  function homeDragEnd(e){
+    var d = homeDrag; if(!d || (e && e.pointerId !== d.id)) return;
+    homeDrag = null;
+    if(!d.moved) return;
+    var w = d.pager.clientWidth || 390, cut = Math.min(80, w * 0.18);
+    homePickShow(home.pick.cur + (d.dx < -cut ? 1 : (d.dx > cut ? -1 : 0)), true);
+  }
+  document.addEventListener('pointerup', homeDragEnd);
+  document.addEventListener('pointercancel', homeDragEnd);
+
+  // ===================== E3・E4 部屋の待合（スマホ） =====================
+  /** 2人組の記録の一言（pairNoteHtml と同じ文。新しい見た目の箱で出す） */
+  function homePairHtml(note){
+    var lines = pairNoteLines(note);
+    return lines.length ? '<p class="v2-note v2-epair">' + lines.join('<br>') + '</p>' : '';
+  }
+  function homeRoomView(){
+    var room = rt.state.room, meId = rt.state.memberId, host = rt.isHost(), R = homeT().部屋;
+    var ps = (room.members || []).filter(function(m){ return m.role !== 'bigscreen'; });
+    var me = ps.filter(function(m){ return m.id === meId; })[0] || { name: '', icon: '', title: '' };
+    var picked = (room.state && room.state.game) || null;
+    var supported = !!RT_GAME_SCREENS[picked];
+    var need = modeMinPlayers(modeById(state.selectedModeId));
+    var enough = room.playerCount >= need;
+    var allReady = rtReadyTally().all, 多すぎ = rtTooManyReason();
+    var 待ち = (host && picked && supported && enough && !allReady) ? rtWaitingMembers() : [];
+    var pm = rtPickedMode(), info = pm ? v2ModeInfo(pm.id) : null;
+    var ops = {};
+    ps.forEach(function(m){
+      if(m.id === meId) return;
+      ops[m.id] = [
+        { act: 'room-host', icon: 'crown', label: '進行役をゆずる' },
+        { act: 'room-big', icon: 'tv', label: 'この人の端末を TV にする' },
+        { act: 'room-kick', icon: 'door', label: R.外す, danger: true }
+      ];
+    });
+    var qr = '';
+    try{ qr = QR.toSvg(roomJoinUrl(room.code), { quiet: 2 }); }catch(e){ qr = ''; }
+    return { host: host, code: room.code, meId: meId, members: ps.map(function(m){ return Object.assign({}, m, { off: !m.connected }); }),
+      others: ps.filter(function(m){ return m.id !== meId; }), me: me, fresh: home.roomFresh, ops: ops,
+      picked: (picked && supported) ? { world: info ? info.world : ((cassetteOfGame(picked) || {}).theme || 'wait'), name: info ? info.name : gameTitleOf(picked), label: homeT().決めた.英 } : null,
+      ready: rtReadyTally(), iReady: rtIAmReady(),
+      canStart: !!(host && enough && !多すぎ && picked && supported && allReady),
+      waitText: 待ち.length ? 待ち.map(function(x){ return x.name; }).join('・') + ' さん' + R.を待っています : '',
+      note: 多すぎ ? (多すぎ + (host ? '。' + gameMaxPlayers(picked) + '人まで減ると始められます' : ''))
+                  : (picked ? rtRoomNoteText(host, picked, supported, enough, need, room.playerCount) : ''),
+      qr: qr, local: /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname), tvUrl: location.origin + '/tv',
+      pair: homePairHtml(room.pairNote), look: fesLookData(meId), lookSheets: V2Fes.lookSheets(fesLookData(meId)),
+      lookNew: !!((myTitles.newIds || []).length), albumTitle: '📸 きょうのアルバム', menu: homeRoomMenuItems() };
+  }
+  // アルバムの箱（写真を撮る・箱から出す・受けとる）は今までのものをそのまま使い、待合のシートの中へ付け替える
+  var homeAlbumNode = null;
+  function renderV2Room(){
+    var scr = el('scr-v2-room'), room = rt && rt.state.room;
+    if(!scr || !room) return;
+    // だれかが入ると札がポンと増える（その時だけ。描き直すたびに動かさない）
+    var ids = (room.members || []).map(function(m){ return m.id; });
+    home.roomFresh = home.roomSeen && home.roomSeen.code === room.code ? ids.filter(function(id){ return home.roomSeen.ids.indexOf(id) === -1; }) : [];
+    home.roomSeen = { code: room.code, ids: ids };
+    if(rt.isHost()){
+      (room.members || []).forEach(function(m){
+        rtOnce('room:bigJoined:' + m.id, m.role === 'bigscreen' && m.connected, function(){ try{ FxKit.notice(UiText.ENTRY.大画面がつながった); }catch(e){} });
+      });
+    }
+    var back = fesKeep(scr);
+    if(!homeAlbumNode) homeAlbumNode = el('rtAlbumBox');
+    if(homeAlbumNode && homeAlbumNode.parentNode) homeAlbumNode.parentNode.removeChild(homeAlbumNode);
+    scr.innerHTML = V2Home.room(homeRoomView());
+    var slot = scr.querySelector('[data-home-album]');
+    if(slot && homeAlbumNode) slot.appendChild(homeAlbumNode);
+    renderAlbumBox();
+    back();
+    V2.mount(scr);
+    homeKeepAsk();
+  }
+  function enterV2Room(){
+    // 戻ってきた時に、いるべき画面を計算し直す（enterRtRoom と同じ・第48弾 48-1）
+    if(rtNeedsRules()){ goTo('scr-rt-rules'); return; }
+    renderV2Room();
+  }
+  /**
+   * 待合の ⚙：部屋のこと（たまに使うもの）。いちばん下に、アプリの設定。
+   * 前の待合で画面に積んでいたもの（アルバム・ルールの出し直し・参加者になる・大画面にする・出る）を、消さずにここへ移した（E3「3つだけ」）
+   */
+  function homeRoomMenuItems(){
+    var host = rt.isHost(), picked = rtPickedGame(), T = homeT().部屋;
+    var items = [];
+    if(host) items.push({ act: 'room-look', icon: 'smile', label: T.着替える });
+    items.push({ act: 'room-album', icon: 'camera', label: '📸 きょうのアルバム' });
+    if(host && picked) items.push({ act: 'room-reshow', icon: 'rules', label: 'ルールをもう一度みんなに見せる' });
+    items.push({ act: 'room-tome', icon: 'tv', label: T.このスマホを });
+    if(host) items.push({ act: 'room-toguest', icon: 'person', label: UiText.ROLE.ゲストになる });
+    items.push({ act: host ? 'room-close' : 'room-leave', icon: 'door', label: host ? UiText.ENTRY.部屋あり.閉じる : UiText.LEAVE.出る, danger: true });
+    items.push({ act: 'room-settings', icon: 'gear', label: UiText.V2.設定 });
+    return items;
+  }
+  function homeRoomMenu(){
+    var scr = el('scr-v2-room'); if(!scr) return;
+    V2.open(scr.querySelector('[data-v2-id="v2RoomMenu"]'));
+  }
+
+  // ===================== TV の待合（選んでいる間も、このまま） =====================
+  function renderV2RoomTv(){
+    var scr = el('scr-v2-room-tv'), room = rt && rt.state.room;
+    if(!scr || !room) return;
+    var ps = (room.members || []).filter(function(m){ return m.role !== 'bigscreen'; });
+    var ids = ps.map(function(m){ return m.id; });
+    home.tvFresh = home.tvSeen && home.tvSeen.code === room.code ? ids.filter(function(id){ return home.tvSeen.ids.indexOf(id) === -1; }) : [];
+    home.tvSeen = { code: room.code, ids: ids };
+    var hostM = ps.filter(function(m){ return m.isHost; })[0];
+    var qr = '';
+    try{ qr = QR.toSvg(roomJoinUrl(room.code), { quiet: 2, label: UiText.FES.待合.QR }); }catch(e){ qr = ''; }
+    scr.innerHTML = V2Home.roomTv({ code: room.code, members: ps, hostName: hostM ? hostM.name : '', qr: qr, max: 16, fresh: home.tvFresh });
+    V2.mount(scr);
+    V2.fitTv(scr, 0);
+  }
+
+  // ===================== S6 決めた時：全員のスマホと TV に同じカード（1.5秒） =====================
+  /**
+   * 進行役が「このゲームにする」まで決めると、部屋の知らせでゲームが届く。**届いた瞬間に、どの端末も同じカードを出す。**
+   * 入った時にもう決まっていた部屋では出さない（その部屋で最初に見た形を覚えておく）。文化祭の部屋は決定（4段）が別にある
+   */
+  function homeDecideCheck(){
+    var room = rt && rt.state.room;
+    if(!room || room.fes) return;
+    var v = rtView();
+    var lobby = !(v && v.phase && v.phase !== 'lobby');
+    var pm = rtPickedMode();
+    var key = (lobby && room.state && room.state.game) ? room.state.game + '|' + (pm ? pm.id : '') + '|' + ((v && v.rulesEpoch) || 0) : null;
+    var first = home.dec.code !== room.code;
+    var was = home.dec.key;
+    home.dec.code = room.code; home.dec.key = key;
+    if(first || !key || key === was) return;
+    // 「ルールをもう一度みんなに見せる」は同じゲームの出し直し。カードは出さない
+    if(was && was.split('|')[0] === key.split('|')[0] && was.split('|')[1] === key.split('|')[1]) return;
+    var info = pm ? v2ModeInfo(pm.id) : null;
+    var hostM = (room.members || []).filter(function(m){ return m.isHost; })[0];
+    homeShowDecided({ world: info ? info.world : ((cassetteOfGame(room.state.game) || {}).theme || 'wait'),
+      name: info ? info.name : gameTitleOf(room.state.game), tv: rtIsBigScreen(),
+      by: rtIsBigScreen() ? ((hostM ? hostM.name : '') + homeT().決めた.が) : homeT().決めた.進行役が });
+  }
+  function homeShowDecided(o){
+    var old = el('v2Decided'); if(old) old.parentNode.removeChild(old);
+    clearTimeout(home.dec.timer);
+    var box = document.createElement('div');
+    box.id = 'v2Decided';
+    box.className = 'v2 v2-decided' + (o.tv ? ' v2-tv' : ' v2-scr') + ' v2-w-' + o.world;
+    box.setAttribute('role', 'status');
+    var card = V2Home.decided(o);
+    box.innerHTML = o.tv ? '<div class="v2-tvc">' + card + '</div>' : card;
+    document.body.appendChild(box);
+    V2.mount(box);
+    if(o.tv) V2.fitTv(box, 0);
+    // 1.5秒（演出「なし」でも同じ長さ。動きだけが無くなる・見本 S6）
+    home.dec.timer = setTimeout(function(){ if(box.parentNode) box.parentNode.removeChild(box); }, 1500);
+    return box;
+  }
+
+  /**
+   * 見本データで描く（撮る道具の台本だけが呼ぶ。本番に入口は無い・V2Screens.home）。
+   * **見本だけの描き方を持たない**——部屋の知らせを rt に置いて、ふだんの描く関数と goTo をそのまま通す
+   */
+  function homeLab(lab){
+    if(lab.room && rt){ rt.state.room = lab.room; rt.state.code = lab.room.code; rt.state.memberId = lab.meId; }
+    if(lab.login === false) state.displayName = '';
+    else if(lab.login) state.displayName = lab.login;
+    if(lab.heads != null) shelfHeads = lab.heads || null;
+    if(lab.cassette){ state.selectedCassetteId = lab.cassette; state.selectedGameId = lab.game; if(lab.mode) applyPreset(lab.mode); }
+    // 決めた時のカードは、見本では出しっぱなしにする（撮るため）。部屋の場面で勝手に出ないよう、いまの形を覚えさせる
+    home.dec.code = lab.room ? lab.room.code : null; home.dec.key = null;
+    // TV がつながった知らせ（進行役だけに出る）は、見本では出さない（撮る写真の見出しに重なる）
+    if(lab.room) lab.room.members.forEach(function(m){ if(m.role === 'bigscreen') rtOnce('room:bigJoined:' + m.id, true, function(){}); });
+    if(lab.screen === 'v2Decided'){ homeShowDecided(lab.decided); clearTimeout(home.dec.timer); return; }
+    var ids = (lab.room ? lab.room.members : []).map(function(m){ return m.id; }).filter(function(id){ return (lab.fresh || []).indexOf(id) === -1; });
+    home.roomSeen = home.tvSeen = lab.room ? { code: lab.room.code, ids: ids } : null;
+    if(lab.join) home.join = Object.assign({ step: 'code', code: '', name: '', err: '', busy: false, tv: false, peek: '' }, lab.join);
+    if(lab.pick){ home.pick.cur = lab.pick.cur || 0; home.pick.open = !!lab.pick.open; home.pick.cx = null; }
+    goTo(lab.screen);
+    if(lab.menu) homeRoomMenu();
+    if(lab.ask === 'close'){ var N = homeT().つぎ; homeAsk(lab.screen, { title: N.とじますか, text: N.とじる説明, ok: N.とじる確定, danger: true }); }
+    (lab.open || []).forEach(function(id){ var n = document.querySelector('#' + lab.screen + ' [data-v2-id="' + id + '"]'); if(n) V2.open(n); });
+  }
+
+  // ===================== 押した時（data-home-act） =====================
+  document.addEventListener('input', function(e){
+    var t = e.target;
+    if(!t.matches) return;
+    if(t.matches('[data-home-code]')){
+      var v = t.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+      if(t.value !== v) t.value = v;
+      home.join.code = v; home.join.err = '';
+      // 打っている最中は描き直さない（字が消える・キーボードが閉じる）。箱とボタンの字だけ変える
+      var box = t.closest('.v2-code6'), J = homeT().入る;
+      box.classList.remove('is-bad');
+      Array.prototype.forEach.call(box.querySelectorAll('b'), function(b, i){ b.textContent = v.charAt(i); b.classList.toggle('is-cur', i === v.length); });
+      var btn = el('scr-v2-join').querySelector('[data-home-left]');
+      if(btn){ btn.disabled = v.length !== 6; btn.classList.toggle('is-pri', v.length === 6); btn.textContent = v.length === 6 ? J.入る : J.あと + (6 - v.length) + J.文字; }
+      return;
+    }
+    if(t.matches('[data-home-name]')){
+      home.join.name = t.value; home.join.err = '';
+      var n = Array.from(t.value.trim()).length, cnt = t.closest('.v2-inp').querySelector('[data-home-cnt]');
+      if(cnt){ cnt.textContent = n + '/8'; cnt.classList.toggle('is-over', n > 8); }
+    }
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' || !e.target.matches) return;
+    if(e.target.matches('[data-home-code]') && home.join.code.length === 6){ e.preventDefault(); homeJoinCode(); }
+    else if(e.target.matches('[data-home-name]')){ e.preventDefault(); homeJoinGo(); }
+  });
+  document.addEventListener('click', async function(e){
+    var ask = e.target.closest && e.target.closest('[data-v2-act="home-ask-ok"],[data-v2-act="home-ask-no"]');
+    if(ask){ homeAskDone(ask.getAttribute('data-v2-act') === 'home-ask-ok'); return; }
+    var cardBtn = e.target.closest && e.target.closest('#scr-v2-pick [data-home-card]');
+    if(cardBtn){ homePickShow(+cardBtn.getAttribute('data-home-card'), false); homePickOpen(cardBtn.querySelector('.v2-tile')); return; }
+    var chip = e.target.closest && e.target.closest('#scr-v2-pick [data-home-chip]');
+    if(chip){
+      var scr = el('scr-v2-pick'), g = chip.getAttribute('data-home-chip'), list = scr.querySelector('[data-home-list]');
+      homeChipOn(scr, g);
+      var to = g === 'all' ? null : list.querySelector('[data-home-g="' + g + '"]');
+      var y = to ? to.offsetTop - list.offsetTop - 4 : 0;
+      if(list.scrollTo) list.scrollTo({ top: y, behavior: fxMs(250) > 0 ? 'smooth' : 'auto' }); else list.scrollTop = y;
+      return;
+    }
+    var heads = e.target.closest && e.target.closest('[data-home-heads]');
+    if(heads){
+      shelfHeads = +heads.getAttribute('data-home-heads');
+      saveHeads(shelfHeads);
+      V2.close(heads.closest('.v2-sheet'));
+      renderV2Pick();
+      return;
+    }
+    var opt = e.target.closest && e.target.closest('#scr-game [data-home-opt]');
+    if(opt){ state.selectedGameId = opt.getAttribute('data-home-opt'); enterGame(); return; }
+    var b = e.target.closest && e.target.closest('[data-home-act]');
+    if(!b) return;
+    var act = b.getAttribute('data-home-act'), who = b.getAttribute('data-home-who');
+    // E1
+    if(act === 'make') homeMakeRoom();
+    else if(act === 'join') openV2Join({});
+    else if(act === 'one') homeOne();
+    else if(act === 'back'){ if(rt && rt.state.room) goTo(rtWantScreen()); else if((await roomMembership()).ある) goTo(rtWantScreen()); else { home.back = null; renderV2Home(); } }
+    // E2
+    else if(act === 'join-back'){
+      homeScanStop();
+      if(home.join.step === 'name'){ home.join.step = 'code'; home.join.err = ''; renderV2Join(); }
+      else goBack('scr-v2-home');
+    }
+    else if(act === 'code-go') homeJoinCode();
+    else if(act === 'join-go') homeJoinGo();
+    else if(act === 'qr') homeScanStart(el('scr-v2-join'));
+    // 一覧とページ
+    else if(act === 'pick-exit') homePickExit();
+    else if(act === 'pick-back') homePickClose();
+    else if(act === 'pick-prev') homePickShow(home.pick.cur - 1, true);
+    else if(act === 'pick-next') homePickShow(home.pick.cur + 1, true);
+    else if(act === 'pick-go') homePickGo();
+    else if(act === 'pick-login') requireLogin(null, 'scr-v2-pick');
+    else if(act === 'pick-leave' || act === 'pick-make'){
+      var c = cassetteById((home.pick.cards[home.pick.cur] || {}).id);
+      if(!c) return;
+      wayForCassetteId = c.id; wayPlan = playWayPlan(c);
+      goPlayWay(act === 'pick-leave' ? 'leave' : 'room');
+    }
+    // 待合
+    else if(act === 'room-pick'){ home.pick.open = false; goTo('scr-v2-pick'); }
+    else if(act === 'room-ready'){ b.disabled = true; var r0 = await rt.setReady(true); b.disabled = false; if(!r0.ok) showFlash(r0.message || '送れませんでした', 'hit-wrong'); }
+    else if(act === 'room-rules') goTo('scr-rt-rules');
+    else if(act === 'room-start'){ b.disabled = true; await rtStartGameNow(); }
+    else if(act === 'room-tome'){ V2.close(b.closest('.v2-sheet')); rtSetDisplayMode(true); }
+    else if(act === 'room-look'){ V2.close(b.closest('.v2-sheet')); fes.lookDraft = null; fes.lookSlot = 'first'; clearTitleNew(); renderV2Room(); V2.open(el('scr-v2-room').querySelector('[data-v2-id="v2Look"]')); }
+    else if(act === 'room-album'){ V2.close(b.closest('.v2-sheet')); renderAlbumBox(); V2.open(el('scr-v2-room').querySelector('[data-v2-id="v2Album"]')); }
+    else if(act === 'room-reshow'){
+      V2.close(b.closest('.v2-sheet'));
+      if(!await homeAsk('scr-v2-room', { title: 'ルールをもう一度、みんなに見せますか？', text: 'みんなの画面にルールが出ます。押し終わっていた「準備OK」も外れます', ok: '見せる' })) return;
+      var 札 = (rtView() && rtView().rulesEpoch) || 0;
+      var r1 = await rt.pickGame(rtPickedGame(), { reset: true, data: { rulesEpoch: 札 + 1 } });
+      if(!r1.ok){ showFlash(r1.message || '出し直せませんでした', 'hit-wrong'); return; }
+      try{ FxKit.notice(UiText.RULES.みんなに見せた); }catch(x){}
+    }
+    else if(act === 'room-toguest'){
+      V2.close(b.closest('.v2-sheet'));
+      var RT = UiText.ROLE;
+      if(!await homeAsk('scr-v2-room', { title: RT.見出し, text: RT.本文, ok: RT.進む, danger: true })) return;
+      var r2 = await rt.closeRoom();
+      if(!r2.ok){ showFlash(r2.message || 'とじられませんでした', 'hit'); return; }
+      openV2Join({});
+    }
+    else if(act === 'room-close' || act === 'next-close'){
+      if(b.closest('.v2-sheet')) V2.close(b.closest('.v2-sheet'));
+      var N = homeT().つぎ, sid = homeCur();
+      if(!await homeAsk(sid, { title: N.とじますか, text: N.とじる説明, ok: N.とじる確定, danger: true })) return;
+      var r3 = await rt.closeRoom();
+      if(!r3.ok){ showFlash(r3.message || 'とじられませんでした', 'hit'); return; }
+      goTo('scr-v2-home');
+    }
+    else if(act === 'room-leave'){
+      V2.close(b.closest('.v2-sheet'));
+      var L = UiText.LEAVE, vv = rtView(), 途中 = !!(vv && vv.phase && vv.phase !== 'lobby' && vv.phase !== 'ended');
+      if(!await homeAsk('scr-v2-room', { title: L.見出し, text: 途中 ? L.途中 : L.戻れる, ok: L.出る })) return;
+      rtLeaveRoom();
+    }
+    else if(act === 'room-settings'){ V2.close(b.closest('.v2-sheet')); openSettings(); }
+    else if(act === 'room-host' || act === 'room-big' || act === 'room-kick'){
+      V2.close(b.closest('.v2-sheet'));
+      var room = rt.state.room, m = room && (room.members || []).filter(function(x){ return x.id === who; })[0];
+      if(!m) return;
+      var R = homeT().部屋, res;
+      if(act === 'room-host'){
+        if(!await homeAsk('scr-v2-room', { title: '進行役をゆずりますか？', text: m.name + ' さんが進行役になります', ok: 'ゆずる' })) return;
+        res = await rt.transferHost(who);
+      } else if(act === 'room-big'){
+        if(!await homeAsk('scr-v2-room', { title: '大画面にしますか？', text: m.name + ' さんを大画面にします（遊ぶ人数に数えません）', ok: '大画面にする' })) return;
+        res = await rt.setRole('bigscreen', who);
+      } else {
+        if(!await homeAsk('scr-v2-room', { title: m.name + R.外しますか, text: R.外す説明, ok: R.外す, danger: true })) return;
+        res = await rt.kick(who);
+      }
+      if(res && !res.ok) showFlash(res.message || '切り替えられませんでした', 'hit-wrong');
+    }
+  });
+  // 新しい見た目の画面の ⚙：待合では部屋のシート、それ以外はアプリの設定（v2-kit の data-v2-act="gear"）
+  document.addEventListener('click', function(e){
+    var g = e.target.closest && e.target.closest('#scr-v2-room [data-v2-act="gear"]');
+    if(!g) return;
+    e.stopImmediatePropagation();
+    homeRoomMenu();
+  }, true);
+  window.addEventListener('resize', function(){
+    var t = el('scr-v2-room-tv'); if(t && t.classList.contains('active')) V2.fitTv(t, 0);
+    var d = el('v2Decided'); if(d && d.classList.contains('v2-tv')) V2.fitTv(d, 0);
   });
 
   function startEmojiSwap(){

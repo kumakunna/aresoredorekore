@@ -68,9 +68,13 @@ const SCENES = [
 // 指示66-2：文化祭の部屋の場面（本物の進行役を動かして作る・tools/v2-lab/fes-scenes.js）
 const FES = require('./fes-scenes');
 SCENES.push.apply(SCENES, FES.SCENES);
+// 指示66-3：ふだんの画面（入口・部屋・ゲームをえらぶ・決めた時）の場面（tools/v2-lab/home-scenes.js）
+const HOME = require('./home-scenes');
+SCENES.push.apply(SCENES, HOME.SCENES);
 
 function view(sceneId, opts) {
   if (FES.SCENES.some((s) => s.id === sceneId)) return FES.view(sceneId, opts);
+  if (HOME.SCENES.some((s) => s.id === sceneId)) return HOME.view(sceneId, opts);
   const o = opts || {};
   const n = o.n == null ? 6 : o.n;
   const snap = 部屋(n, o.long);

@@ -104,9 +104,7 @@
       var cls = 'v2-mem' + (m.off ? ' is-off' : '') + (v.fresh && v.fresh.indexOf(m.id) !== -1 ? ' v2-born' : '') + (m.ready ? ' is-ok' : '');
       var lp = v.host && m.id !== v.meId ? ' data-v2-lp="#v2Mem-' + e(m.id) + '"' : '';
       return '<div class="' + cls + '"' + lp + '>' + V.avHtml(m.icon) + '<span class="v2-mem-nm v2-cut">' + e(m.name) + '</span>' +
-        // 進行役の印は、ゲームが決まった後も残す（だれが「はじめる」を押すのかが分かる）
-        (tag(m) ? '<span class="v2-mem-st">' + e(tag(m)) + '</span>' : '') +
-        (v.picked && m.ready ? '<span class="v2-mem-st is-ok">' + V.icon('check') + '</span>' : '') + '</div>';
+        (v.picked && m.ready ? '<span class="v2-mem-st is-ok">' + V.icon('check') + '</span>' : (tag(m) ? '<span class="v2-mem-st">' + e(tag(m)) + '</span>' : '')) + '</div>';
     };
     var body;
     var band;

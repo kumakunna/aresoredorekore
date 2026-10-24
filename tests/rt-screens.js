@@ -524,7 +524,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(待合.count(doc), '5人', '人数が出る');
     const rows = 待合.mems(doc);
     assertEqual(rows.length, 5, '参加者がそのまま名簿になる');
-    assert(/進行役/.test(rows[0].textContent), '進行役が分かる');
+    // ゲームが決まる前の名簿で、進行役が分かる（決まった後は、押した人の✓が同じ場所に出る）
+    push(fake, roomSnapshot({ state: { phase: 'lobby', game: null, data: {} } }));
+    await sleep(win, 60);
+    assert(/進行役/.test(待合.mems(doc)[0].textContent), '進行役が分かる');
+    push(fake, roomSnapshot());
+    await sleep(win, 60);
     assert(!待合.startOff(doc), '進行役なら始められる');
 
     // 進行役でなければ押せない

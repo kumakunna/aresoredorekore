@@ -340,7 +340,8 @@ async function 物差しを確かめる(dev, scene, kind) {
     var b = document.createElement('div'); b.textContent = 'はみ出す字'; b.style.cssText = 'position:absolute;left:-200px;top:10px;font-size:${kind === 'tv' ? 60 : 16}px;white-space:nowrap';
     var s = document.createElement('div'); s.textContent = 'ちいさい字'; s.style.cssText = 'font-size:${kind === 'tv' ? 20 : 8}px';
     root.appendChild(b); root.appendChild(s);
-    var 実寸 = b.getBoundingClientRect().left;
+    // 画面の箱より左に出ているか（TV の大きさで撮るスマホの列は、画面の真ん中にある・指示68-0b K8 ②）
+    var 実寸 = b.getBoundingClientRect().left - root.getBoundingClientRect().left;
     var out = UICHECK(document.querySelector(${JSON.stringify(kind === 'tv' ? '#' + scene.screen + ' .v2-tvc' : '#' + scene.screen)}), ${JSON.stringify(OPTS[kind])});
     b.remove(); s.remove();
     return { 実寸: 実寸, 外: out.some(function(x){ return x.kind === '画面の外' && x.text === 'はみ出す字'; }),

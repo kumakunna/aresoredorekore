@@ -37,7 +37,7 @@
      印が中心からずれている（ゲームの印。印の幅の6%まではゆるす）
      部品の名前がぶつかっている（見本のみ：.sheet などが画面の奥に入っている）
      （指示68-0b で足した物）
-     字と字が重なる（K1：字の行の四角どうしが 2px×2px より重なる。親子は数えない。巻ける箱の中も測る）
+     字と字が重なる（K1：字が描かれている所どうしが 2px×2px より重なる。親子は数えない。巻ける箱の中も測る）
      色の差が足りない（K2：24px 未満（太字は 19px 未満）は 4.5、それより大きい字と TV は 3。WCAG 2.2 の 1.4.3）
      下の線に近すぎる をスマホでも測る（K5）／ボタンのすき間が狭い（K6：たてに並んだボタンが 8px 未満）
      TVの安全な枠の外 を、extra の部品（右上の⚙など）でも測る（K7）
@@ -110,6 +110,15 @@
   function lin(v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
   function lum(c) { return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); }
   function mix(top, under, a) { return [top[0] * a + under[0] * (1 - a), top[1] * a + under[1] * (1 - a), top[2] * a + under[2] * (1 - a)]; }
+  // 字の並びが描かれている所の上下（基準線から）と、書体の上下の余白（K1）。測れない古いブラウザは null（その時は Range の四角のまま）
+  var inkCtx = null;
+  function ink(cs, text) {
+    inkCtx = inkCtx || document.createElement('canvas').getContext('2d');
+    inkCtx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var m = inkCtx.measureText(String(text).trim());
+    if (!m.fontBoundingBoxAscent && !m.fontBoundingBoxDescent) return null;
+    return { fa: m.fontBoundingBoxAscent, fd: m.fontBoundingBoxDescent, ia: m.actualBoundingBoxAscent, id: m.actualBoundingBoxDescent };
+  }
   function contrast(p, q) { var a = lum(p), b = lum(q); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); }
 
   window.UICHECK = function (root, o) {
@@ -225,23 +234,28 @@
     all.forEach(function (el) {
       if (skip(el) || !shown(el, root) || el.closest('[data-overlapok]')) return;
       if (rgba(getComputedStyle(el).color)[3] === 0) return;
-      // 行の四角は、上下を字の大きさ（em）に縮めて比べる。Range の四角は書体の上下の余白（M PLUS 1 で字の約1.45倍）まで含むので、
-      // 小さな英字の見出しと大きな日本語のように、字が離れて見えていても四角だけが重なる
-      var rs = [], em = parseFloat(getComputedStyle(el).fontSize) / s;
+      // 行の四角の上下は、**字が実際に描かれている所**にする。Range の四角は書体の上下の余白（M PLUS 1 で字の約1.45倍）まで含み、
+      // 逆に CSS の箱は text-box（英字の高さで切る）で日本語の字より小さい——どちらで比べても実際の重なりとずれる（TV の投票で見逃した）。
+      // canvas の measureText で、その字の並びの「描かれている所」の上下と、書体の上下の余白を取り、Range の四角の中の基準線から置き直す
+      var cs1 = getComputedStyle(el), rs = [];
       ownText(el).forEach(function (n) {
+        var m = ink(cs1, n.nodeValue);
         var rg = document.createRange(); rg.selectNodeContents(n);
         [].forEach.call(rg.getClientRects(), function (r) {
           if (!(r.width > 0.5 && r.height > 0.5)) return;
-          var q = bx(r), cy = (q.y1 + q.y2) / 2, h = Math.min(q.y2 - q.y1, em) * 0.4;
-          rs.push({ x1: q.x1, x2: q.x2, y1: cy - h, y2: cy + h });
+          var q = bx(r);
+          if (!m) { rs.push(q); return; }
+          var k = (q.y2 - q.y1) / (m.fa + m.fd), base = q.y1 + m.fa * k;
+          rs.push({ x1: q.x1, x2: q.x2, y1: base - m.ia * k, y2: base + m.id * k });
         });
       });
-      if (rs.length) texts.push({ el: el, rs: rs, sc: scroller(el), ov: el.closest(overSel) });
+      // 切る箱は先に2通り求めておく（同じ巻ける箱の中どうし＝巻ける箱より内側だけ／違う箱どうし＝全部）。組ごとに先祖をたどると遅い
+      if (rs.length) { var sc = scroller(el); texts.push({ el: el, rs: rs, sc: sc, ov: el.closest(overSel), cIn: clipOf(el, sc), cAll: clipOf(el, null) }); }
     });
     for (var i = 0; i < texts.length; i++) for (var j = i + 1; j < texts.length; j++) {
       var A = texts[i], Bt = texts[j];
-      if (A.el.contains(Bt.el) || Bt.el.contains(A.el) || A.ov !== Bt.ov) continue;
-      var same = A.sc === Bt.sc, ca = clipOf(A.el, same ? A.sc : null), cb = clipOf(Bt.el, same ? Bt.sc : null), hit = null;
+      if (A.ov !== Bt.ov || A.el.contains(Bt.el) || Bt.el.contains(A.el)) continue;
+      var same = A.sc === Bt.sc, ca = same ? A.cIn : A.cAll, cb = same ? Bt.cIn : Bt.cAll, hit = null;
       for (var a = 0; a < A.rs.length && !hit; a++) for (var b2 = 0; b2 < Bt.rs.length && !hit; b2++) {
         var ra = cut(A.rs[a], ca), rb = cut(Bt.rs[b2], cb);
         var ox = Math.min(ra.x2, rb.x2) - Math.max(ra.x1, rb.x1), oy = Math.min(ra.y2, rb.y2) - Math.max(ra.y1, rb.y1);

@@ -276,7 +276,7 @@ module.exports = {
         // つぎは？ → 戻る矢印で、結果にもどれるか
         await W.ボタンを試す(h, /つぎは/, { 名: 'つぎは？', 戻す: async (d) => {
           W.終わり方を('つぎは？の選択肢（試した時）', await W.ボタン一覧(d));
-          await W.手順を('進行役', 'つぎは？：左上の ← で一個前へ', '押す', () => W.press(d, /^←$/), { 間: 900 });
+          await W.手順を('進行役', 'つぎは？：左上の ← で一個前へ', '押す', () => 左上の戻る(W, d), { 間: 900 });
           W.メモ('← で ' + (await d.screen()) + ' に戻った');
         } });
         if ((await h.screen()) !== 'scr-score') W.気づいた('気になる', 'つぎは？ から ← で戻ると、結果（scr-score）ではなく ' + (await h.screen()) + ' に着いた', 'scr-next');
@@ -305,13 +305,13 @@ module.exports = {
     await W.手順を('進行役', '2回目の結果：つぎは？', '押す', () => W.tap(h, '#toNextBtn'),
       { 待ち: { 種類: '演出待ち', 何を: 'つぎは？の画面', until: () => W.画面は(h, 'scr-next') }, 間: 700 });
     W.終わり方を('2回目のつぎは？の選択肢', await W.ボタン一覧(h));
-    // ---- モードを変える → どこへ行くか。← で戻るとどこか ----
+    // ---- ルールを変える（もとの「モードを変える」・指示68-0b B10）→ どこへ行くか。← で戻るとどこか ----
     const 得点式 = "(function(){var b=document.getElementById('modeScorePreview');return b&&b.style.display!=='none'?b.textContent.replace(/\\s+/g,' ').trim():'';})()";
     let モード後 = null;
-    const モード = await W.ボタンを試す(h, /モードを変える/, { 名: 'つぎは？：モードを変える', 戻す: async (d) => {
+    const モード = await W.ボタンを試す(h, /ルールを変える|モードを変える/, { 名: 'つぎは？：ルールを変える', 戻す: async (d) => {
       モード後 = await d.ev(得点式);
       W.メモ('モードの画面に出ている得点：' + JSON.stringify(モード後));
-      await W.手順を('進行役', 'モードの画面：左上の ← で一個前へ', '押す', () => W.press(d, /^←$/), { 間: 900 });
+      await W.手順を('進行役', 'モードの画面：左上の ← で一個前へ', '押す', () => 左上の戻る(W, d), { 間: 900 });
       W.メモ('← で ' + (await d.screen()) + ' に着いた');
     } });
     W.終わり方を('モードを変えるの行き先', モード.行き先);
@@ -343,8 +343,8 @@ module.exports = {
     await 結果まで(W, h, '3回目');
     await W.手順を('進行役', '3回目の結果：つぎは？', '押す', () => W.tap(h, '#toNextBtn'),
       { 待ち: { 種類: '演出待ち', 何を: 'つぎは？の画面', until: () => W.画面は(h, 'scr-next') }, 間: 700 });
-    // ---- 別のカセットへ（試合を終える）。いちばん最後 ----
-    const 別 = await W.ボタンを試す(h, /別のカセットへ/, { 名: 'つぎは？：別のカセットへ（いちばん最後）', 間: 1500, 確かめて進む: true });
+    // ---- 一覧から えらぶ（もとの「別のカセットへ」・指示68-0b B10。試合を終える）。いちばん最後 ----
+    const 別 = await W.ボタンを試す(h, /一覧から えらぶ|別のカセットへ/, { 名: 'つぎは？：一覧から えらぶ（いちばん最後）', 間: 1500, 確かめて進む: true });
     W.終わり方を('別のカセットへの行き先', 別.行き先 + '（後ろの画面：' + (await h.screen()) + '）');
     if (await W.ボタンあり(h, /^このまま続ける$/)) {
       await W.手順を('進行役', '「つぎは、メンバーを入力しなおしますか？」：このまま続ける', '押す', () => W.press(h, /^このまま続ける$/, '.ui-layer button'), { 間: 900 });
@@ -352,3 +352,15 @@ module.exports = {
     W.終わり方を('別のカセットへのあと', await h.screen());
   }
 };
+
+/**
+ * 左上の ← で一個前へ（指示68-0b K8 ⑨）。66-3 で ← は新しい見た目の丸ボタン（字は無く aria-label だけ）になり、
+ * 字で探す W.press(/^←$/) では押せなくなっていた。新しい丸ボタン → 古い浮いた ← の順に探し、無ければ「無い」と残す
+ */
+async function 左上の戻る(W, d) {
+  const sel = await d.ev("(function(){ var a=document.querySelector('.screen.active'); if(!a) return null;" +
+    "var b=a.querySelector(':scope > .v2-corner.is-l .v2-cbtn'); if(b && b.getBoundingClientRect().width) return '#'+a.id+' > .v2-corner.is-l .v2-cbtn';" +
+    "var f=document.getElementById('floatingBackBtn'); if(f && f.getBoundingClientRect().width && getComputedStyle(f).display!=='none') return '#floatingBackBtn'; return null; })()");
+  if (!sel) { W.メモ('左上の ← が無い（' + (await d.screen()) + '）'); return; }
+  await W.click(d, sel);
+}

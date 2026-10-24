@@ -133,8 +133,9 @@ const STATES = {
   'home-e2qr': [{ id: 'base', freeze: 20, mock: null }, { id: 'cam', cam: 1, freeze: 20, mock: null }],
   'fes2-lobby': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
   'fes2-staff': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
-  // K8 ⑦：TV の投票も長い名前で（A3：ゲーム名と一言が重ならない）
-  'fes2-tv-vote': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }]
+  // K8 ⑦：TV の投票も長い名前で。A3（ゲーム名と一言が重ならない）：8字の名前・2行になる一言 × 候補3つ・2つ
+  'fes2-tv-vote': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null },
+    { id: 'long3', edit: 'tvVoteLong', freeze: 20, mock: null }, { id: 'long2', edit: 'tvVoteLong2', freeze: 20, mock: null }]
 };
 
 /**
@@ -165,22 +166,38 @@ async function 開く(dev, scene, st, form) {
   await 開くの本体(dev, PORT, scene, Object.assign({ fx: form.fx, font: form.font }, st));
   const prod = st.prod || PROD;
   if (prod && scene.home) await 本番のアドレスにする(dev, scene, st, prod);
+  // 描いたあとで字だけ差しかえる形（見本データに無い長さを試す。描く関数はそのまま）
+  if (st.edit) await dev.ev('(' + EDITS[st.edit] + ')()');
   // カメラが映る端末の形：index.html の homeScanStart が箱に入れるのと同じ video（撮る道具にはカメラが無いので、黒い絵のまま）
   if (st.cam) await dev.ev("(function(){ var b=document.querySelector('.screen.active [data-home-scan]'); if(!b) return 0; var v=document.createElement('video'); v.setAttribute('playsinline',''); v.width=640; v.height=480; v.style.aspectRatio='4/3'; b.innerHTML=''; b.appendChild(v); return 1; })()");
   return 止まるまで(dev);
 }
 
+/** 描いたあとで字だけ差しかえる（st.edit）。差しかえたら名前の縮めと短い行の直しをやり直す */
+const EDITS = {
+  // A3：TV の投票の札に、いちばん幅の広い8字の名前と、2行になる一言（候補3つ）
+  tvVoteLong: `function(){ document.querySelectorAll('#scr-v2-fes-tv .v2-tvrow').forEach(function(r){
+    r.querySelector('.v2-vn').textContent = 'ながいなまえだよ'; r.querySelector('.v2-vb').textContent = 'みんなで力を合わせて、時間内に爆弾のコードを全部切ろう'; });
+    V2.relayout(document.getElementById('scr-v2-fes-tv')); return 1; }`,
+  // 候補2つ（人数で出せるゲームが2つだけの回）
+  tvVoteLong2: `function(){ var rs = document.querySelectorAll('#scr-v2-fes-tv .v2-tvrow'); if (rs[2]) rs[2].remove();
+    document.querySelectorAll('#scr-v2-fes-tv .v2-tvrow').forEach(function(r){
+    r.querySelector('.v2-vn').textContent = 'ながいなまえだよ'; r.querySelector('.v2-vb').textContent = 'みんなで力を合わせて、時間内に爆弾のコードを全部切ろう'; });
+    V2.relayout(document.getElementById('scr-v2-fes-tv')); return 1; }`
+};
+
 /**
  * K3（指示68-0b）：動きが終わってから撮る・測る。動きの途中で撮った写真が、門の証拠になっていた（決めた時のカード）。
- * ①くり返さない動き（CSS の動き・移り変わり。document.getAnimations()）が全部終わるまで待つ。
+ * ①くり返さない動き（CSS の動き・移り変わり。document.getAnimations()）が全部終わるまで待つ。5秒以上の時計の帯は止める側。
  *   くり返す動き（背景の丸・名前の壁）は最初のコマで止める——毎回同じ絵にするため（K4）
  * ②300ms あけて2回撮った絵が同じになるまで待つ（台本の setTimeout で変わる物も拾う）
  * 10秒で打ち切り、「止まらなかった」と返す（撮って測るのは続ける。記録に残す）
  */
 const くり返す動きを止める = `(function(){ var k = 0;
   document.getAnimations().forEach(function(x){
-    var it = x.effect && x.effect.getComputedTiming ? x.effect.getComputedTiming().iterations : 1;
-    if (it === Infinity) { if (x.playState !== 'paused' || x.currentTime !== 0) { x.pause(); x.currentTime = 0; } return; }
+    var tm = x.effect && x.effect.getComputedTiming ? x.effect.getComputedTiming() : { iterations: 1, duration: 0 };
+    // くり返す動きと、5秒以上かけて進む時計の帯（のこり時間の v2-sync など。V2.freeze で数は止まっても帯は進む）は最初のコマで止める
+    if (tm.iterations === Infinity || tm.duration >= 5000) { if (x.playState !== 'paused' || x.currentTime !== 0) { x.pause(); x.currentTime = 0; } return; }
     if (x.playState === 'running' || x.pending) k++;
   });
   return k; })()`;
@@ -241,7 +258,8 @@ async function 測る本体(dev, kind, sel) {
   return dev.ev(`(function(){ var ok=document.querySelectorAll(${JSON.stringify(OPTS[kind].cutOk)}); ok.forEach(function(e){ e.classList.add('cut-ok'); });
     var out=UICHECK(document.querySelector(${JSON.stringify(sel)}), ${JSON.stringify(OPTS[kind])});
     ok.forEach(function(e){ e.classList.remove('cut-ok'); });
-    return out.concat((${重なり})(document.querySelector(${JSON.stringify(sel)})), (${省略})(document.querySelector(${JSON.stringify(sel)}), ${JSON.stringify(OPTS[kind].cutOk)})); })()`);
+    var r0 = document.querySelector(${JSON.stringify(sel)});
+    return out.concat((${重なり})(r0), (${省略})(r0, ${JSON.stringify(OPTS[kind].cutOk)}), (${アドレス})(r0), (${字と印})(r0, ${JSON.stringify(OPTS[kind].layers)}, ${JSON.stringify(OPTS[kind].deco + ',' + INK_HIDE)}, ${JSON.stringify(OPTS[kind].over)}), (${外で切れる})(r0, ${JSON.stringify(OPTS[kind].layers)}, ${JSON.stringify(OPTS[kind].deco + ',' + INK_HIDE)})); })()`);
 }
 
 /**
@@ -330,6 +348,95 @@ async function 新しい物差しを確かめる(dev, scene, kind) {
   });
   return r;
 }
+
+/**
+ * アドレス（.v2-eurl）が、ことばの途中で折れていないか（指示68-0b B12：本番のアドレスが「…duckd／ns.org/tv」と折れていた。
+ * check.js は字が切れたわけではないので 0件と言った）。行の頭は、アドレスの頭か「.」「/」の直後だけ
+ */
+const アドレス = `(function(root){
+  var out = [];
+  root.querySelectorAll('.v2-eurl').forEach(function(u){
+    var w = document.createTreeWalker(u, NodeFilter.SHOW_TEXT), n, chars = [];
+    while((n = w.nextNode())) for(var i = 0; i < n.nodeValue.length; i++){
+      var rg = document.createRange(); rg.setStart(n, i); rg.setEnd(n, i + 1);
+      var b = rg.getClientRects()[0]; if(b && b.width) chars.push({ c: n.nodeValue[i], top: b.top, h: b.height });
+    }
+    for(var k = 1; k < chars.length; k++){
+      if(chars[k].top > chars[k - 1].top + chars[k - 1].h * 0.5 && '.\/'.indexOf(chars[k - 1].c) === -1)
+        out.push({ kind: 'アドレスがことばの途中で折れる', text: (u.textContent || '').trim().slice(0, 40), at: k });
+    }
+  });
+  return out;
+})`;
+
+/**
+ * 字が、外の箱で切れていないか（指示68-0b で足した）。「字が切れている」は字の箱そのものがはみ出す時だけ数えるので、
+ * 字の箱が中身の幅まで広がり、さらに外の「はみ出しを隠す」箱（シートなど）で切れた時は 0件と言った（TV に映すアドレス）。
+ * 縦に巻ける箱は、縦には巻けば見えるので数えない。ただし**横**は切れる（縦に巻ける箱は横も auto になるが、横には巻かない作り）。
+ * 横に巻く作りの箱（overflow-x だけ auto・scroll。チップの列など）は数えない。全部が外にある字（横に送るページの隣など）も数えない
+ */
+const 外で切れる = `(function(root, closedSel, deco){
+  var out = [];
+  root.querySelectorAll('*').forEach(function(e){
+    if((closedSel && e.closest(closedSel)) || e.closest(deco)) return;
+    var t = [].filter.call(e.childNodes, function(n){ return n.nodeType === 3 && n.nodeValue.trim(); });
+    if(!t.length) return;
+    var cs = getComputedStyle(e); if(cs.visibility === 'hidden' || !e.getClientRects().length || e.closest('.cut-ok,[data-offok]')) return;
+    if(cs.textOverflow === 'ellipsis') return;   // 「…」で省く所は「…で切れている」が見る
+    var clip = null, cut = function(b){ clip = clip ? { l: Math.max(clip.l, b.left), t: clip.t, r: Math.min(clip.r, b.right), b: clip.b } : { l: b.left, t: -1e9, r: b.right, b: 1e9 }; };
+    for(var p = e.parentElement; p; p = p.parentElement){
+      var ps = getComputedStyle(p), sy = ps.overflowY === 'auto' || ps.overflowY === 'scroll', sx = ps.overflowX === 'auto' || ps.overflowX === 'scroll';
+      // 横に巻く作り（横並びで折り返さない箱・チップの列など）は数えない。縦に巻く箱は横も auto になるので、並べ方で見分ける
+      if(sx && ((ps.display.indexOf('flex') !== -1 && ps.flexDirection.indexOf('row') === 0 && ps.flexWrap === 'nowrap') || ps.whiteSpace === 'nowrap')) break;
+      if(sx || ps.overflowX === 'hidden' || ps.overflowX === 'clip') cut(p.getBoundingClientRect());
+      if(p === root) break;
+    }
+    if(!clip) return;
+    var hit = false;
+    t.forEach(function(n){ var rg = document.createRange(); rg.selectNodeContents(n);
+      [].forEach.call(rg.getClientRects(), function(r){
+        if(!r.width) return;
+        var inX = Math.min(r.right, clip.r) - Math.max(r.left, clip.l), inY = Math.min(r.bottom, clip.b) - Math.max(r.top, clip.t);
+        if(inX <= 0 || inY <= 0) return;   // 全部が外（隣のページなど）
+        if(r.right > clip.r + 2 || r.left < clip.l - 2) hit = true;
+      }); });
+    if(hit) out.push({ kind: '字が外の箱で切れる', text: (e.textContent || '').trim().slice(0, 30) });
+  });
+  return out;
+})`;
+
+/**
+ * 字が、ゲームの印（.v2-tile）に重なっていないか（指示68-0b で足した）。check.js の K1 は字どうししか比べない。
+ * TV の決定で、150px の名前が印の白い縁にもぐっていた。字は描かれている所（measureText）で、印は縁の影も入れて比べる
+ */
+const 字と印 = `(function(root, closedSel, deco, overSel){
+  var out = [], g = document.createElement('canvas').getContext('2d');
+  var tiles = [].filter.call(root.querySelectorAll('.v2-tile'), function(t){ return !(closedSel && t.closest(closedSel)) && t.getClientRects().length; })
+    .map(function(t){ var r = t.getBoundingClientRect(), sh = /0px 0px 0px (\\d+(\\.\\d+)?)px/.exec(getComputedStyle(t).boxShadow || ''), k = sh ? +sh[1] : 0;
+      return { t: t, l: r.left - k, r: r.right + k, top: r.top - k, b: r.bottom + k }; });
+  if(!tiles.length) return out;
+  root.querySelectorAll('*').forEach(function(e){
+    if((closedSel && e.closest(closedSel)) || e.closest(deco)) return;
+    var tn = [].filter.call(e.childNodes, function(n){ return n.nodeType === 3 && n.nodeValue.trim(); }); if(!tn.length) return;
+    var cs = getComputedStyle(e); if(cs.visibility === 'hidden' || +cs.opacity === 0) return;
+    g.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    tn.forEach(function(n){
+      var m = g.measureText(n.nodeValue.trim()), rg = document.createRange(); rg.selectNodeContents(n);
+      [].forEach.call(rg.getClientRects(), function(q){
+        if(!q.width) return;
+        var k = q.height / ((m.fontBoundingBoxAscent + m.fontBoundingBoxDescent) || q.height), base = q.top + m.fontBoundingBoxAscent * k;
+        var y1 = base - m.actualBoundingBoxAscent * k, y2 = base + m.actualBoundingBoxDescent * k;
+        tiles.forEach(function(T){
+          // 印の中の字・違う重なりの字（開いたシートの字と、その下の印）は比べない
+          if(T.t.contains(e) || e.closest(overSel) !== T.t.closest(overSel)) return;
+          var ox = Math.min(q.right, T.r) - Math.max(q.left, T.l), oy = Math.min(y2, T.b) - Math.max(y1, T.top);
+          if(ox > 2 && oy > 2) out.push({ kind: '字と印が重なる', text: (e.textContent || '').trim().slice(0, 30), ov: [Math.round(ox), Math.round(oy)] });
+        });
+      });
+    });
+  });
+  return out;
+})`;
 
 /** 物差しの自己検査：わざとはみ出す字・小さい字を足すと、UICHECK がそれを言うか */
 async function 物差しを確かめる(dev, scene, kind) {

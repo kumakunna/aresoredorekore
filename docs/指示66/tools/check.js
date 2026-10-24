@@ -255,6 +255,8 @@
     for (var i = 0; i < texts.length; i++) for (var j = i + 1; j < texts.length; j++) {
       var A = texts[i], Bt = texts[j];
       if (A.ov !== Bt.ov || A.el.contains(Bt.el) || Bt.el.contains(A.el)) continue;
+      // 巻いた中身が、浮いた部品（右上の丸ボタンなど）の下を通るのはふつう（v2-shot の「右上のボタンと重なる」と同じ。巻く前の形で見る）
+      if (A.sc !== Bt.sc && ((A.sc && A.sc.scrollTop > 0) || (Bt.sc && Bt.sc.scrollTop > 0))) continue;
       var same = A.sc === Bt.sc, ca = same ? A.cIn : A.cAll, cb = same ? Bt.cIn : Bt.cAll, hit = null;
       for (var a = 0; a < A.rs.length && !hit; a++) for (var b2 = 0; b2 < Bt.rs.length && !hit; b2++) {
         var ra = cut(A.rs[a], ca), rb = cut(Bt.rs[b2], cb);
@@ -294,11 +296,29 @@
       return base;
     }
     // 上に重なる層（開いたシート・幕）の下にある字は、隠れているので測らない（その点でいちばん上にある物で見分ける）
+    // 開いている重なり（.is-open／.open／.on）の四角の中で、その重なりの外の字。幕は押せない（pointer-events:none）こともあるので、
+    // 「その点でいちばん上の物」ではなく四角で見る
+    var openOver = [].filter.call(root.querySelectorAll(overSel), function (l) { return l.matches('.is-open,.open,.on') && shown(l, root); })
+      .map(function (l) { return { l: l, r: l.getBoundingClientRect() }; });
+    // 巻いている箱（scrollTop>0）。巻いた中身の上に浮いた部品の字は、後ろが巻いた中身になる（巻く前の形で見る）
+    var scrolled = [].filter.call(root.querySelectorAll('*'), function (p) { return p.scrollTop > 0; }).map(function (p) { return { p: p, r: p.getBoundingClientRect() }; });
     function covered(el, r) {
-      var x = r.left + Math.min(r.width / 2, 6), y = r.top + r.height / 2, top = document.elementFromPoint(x, y);
+      var x = r.left + Math.min(r.width / 2, 6), y = r.top + r.height / 2;
+      var inR = function (q) { return x >= q.left && x <= q.right && y >= q.top && y <= q.bottom; };
+      if (openOver.some(function (o) { return !o.l.contains(el) && inR(o.r); })) return true;
+      if (scrolled.some(function (o) { return !o.p.contains(el) && inR(o.r); })) return true;
+      var top = document.elementFromPoint(x, y);
       if (!top || el.contains(top) || top.contains(el)) return false;
       var lay = top.closest(overSel);
       return !!lay && !lay.contains(el);
+    }
+    // 見えている所だけで測る（巻ける箱の外・はみ出しを隠す箱の外の字は、見えていないので数えない）
+    function visibleRects(el, rects) {
+      var c = clipOf(el, null);
+      return rects.filter(function (r) {
+        var q = bx(r), w = Math.min(q.x2, c.x2) - Math.max(q.x1, c.x1), h = Math.min(q.y2, c.y2) - Math.max(q.y1, c.y1);
+        return w > 0 && h > 0 && w * h >= (q.x2 - q.x1) * (q.y2 - q.y1) * 0.5;
+      });
     }
     all.forEach(function (el) {
       if (skip(el) || !shown(el, root) || !ownText(el).length) return;
@@ -308,6 +328,7 @@
       var op = 1; for (var p = el; p; p = p.parentElement) op *= parseFloat(getComputedStyle(p).opacity);
       var rects = [];
       ownText(el).forEach(function (n) { var rg = document.createRange(); rg.selectNodeContents(n); [].forEach.call(rg.getClientRects(), function (r) { if (r.width > 0.5) rects.push(r); }); });
+      rects = visibleRects(el, rects);
       if (!rects.length || covered(el, rects[0])) return;
       var bg = behind(el, rects); if (!bg) return;
       var f = mix(fg, bg, fg[3] * op), ratio = contrast(f, bg);
@@ -320,12 +341,14 @@
     // 立ったまま押すと、すき間 2〜4px では隣を押す（待合の「TVに映す」のシート）。8px 未満なら言う
     var btnSel = o.buttons || 'button,.btn,[role=button]';
     var bts = [].filter.call(root.querySelectorAll(btnSel), function (b) { return !skip(b) && shown(b, root) && !(b.parentElement && b.parentElement.closest(btnSel)); })
-      .map(function (b) { return { b: b, r: bx(b.getBoundingClientRect()), ov: b.closest(overSel) }; })
+      .map(function (b) { return { b: b, r: bx(b.getBoundingClientRect()), ov: b.closest(overSel), sc: scroller(b) }; })
       .filter(function (x) { return x.r.x2 - x.r.x1 > 1 && x.r.y2 - x.r.y1 > 1; });
     bts.forEach(function (A) {
       var best = null;
       bts.forEach(function (Bb) {
         if (Bb === A || Bb.ov !== A.ov) return;
+        // 巻いた中身と、その上に浮いた部品は比べない（巻く前の形で見る・K1 と同じ）
+        if (Bb.sc !== A.sc && ((Bb.sc && Bb.sc.scrollTop > 0) || (A.sc && A.sc.scrollTop > 0))) return;
         var ox = Math.min(A.r.x2, Bb.r.x2) - Math.max(A.r.x1, Bb.r.x1), w = Math.min(A.r.x2 - A.r.x1, Bb.r.x2 - Bb.r.x1);
         var g = Bb.r.y1 - A.r.y2;
         if (ox >= w * 0.5 && g >= -0.5 && (!best || g < best.g)) best = { g: g, b: Bb.b };

@@ -1,0 +1,70 @@
+[
+  {
+    "name": "68-0bK1 字と字の重なりを測らない（物差しの自己検査で止まる）",
+    "file": "docs/指示66/tools/check.js",
+    "suite": "tools/v2-shot-check.js --only fes2-tv-vote",
+    "from": "      if (hit) add('字と字が重なる', A.el, { with: txt(Bt.el), ov: hit });",
+    "to": "      if (false) add('字と字が重なる', A.el, { with: txt(Bt.el), ov: hit });",
+    "expect": "新しい物差し K1"
+  },
+  {
+    "name": "68-0bK2 色の差を測らない（物差しの自己検査で止まる）",
+    "file": "docs/指示66/tools/check.js",
+    "suite": "tools/v2-shot-check.js --only fes2-tv-vote",
+    "from": "      if (ratio < need) add('色の差が足りない',",
+    "to": "      if (false) add('色の差が足りない',",
+    "expect": "新しい物差し K2"
+  },
+  {
+    "name": "68-0bA4 係の「外す」をたずねずに外す",
+    "file": "public/index.html",
+    "suite": "tests/fes-screens.js",
+    "only": "A4",
+    "from": "    if(b.hasAttribute('data-fes-kick')){ fesAskKick(b.getAttribute('data-fes-kick')); return; }",
+    "to": "    if(b.hasAttribute('data-fes-kick')){ rt.fesKick(fes.staff.code, b.getAttribute('data-fes-kick')); return; }",
+    "expect": "1回押しただけでは送らない"
+  },
+  {
+    "name": "68-0bA5 あれそれどれこれのルールを1つ空にする",
+    "file": "public/js/ui-text.js",
+    "suite": "tests/home-screens.js",
+    "only": "A5",
+    "from": "['🕒', '時間内に、たくさん当てよう']",
+    "to": "['🕒', '']",
+    "expect": "ルールの文が空でない"
+  },
+  {
+    "name": "68-0bB2 文化祭の「入る」を、名前が空でも押せる形にもどす",
+    "file": "public/js/v2-fes.js",
+    "suite": "tests/fes-screens.js",
+    "only": "B2",
+    "from": "    return !!o.diff && !o.busy && len > 0 && len <= 8;",
+    "to": "    return !!o.diff && !o.busy;",
+    "expect": "名前が空なら押せない"
+  },
+  {
+    "name": "68-0bB3 文化祭のルールのシートの時間を、ふだんの部屋の目安にもどす",
+    "file": "public/index.html",
+    "suite": "tests/fes-screens.js",
+    "only": "B3",
+    "from": "      meta: [g.版, g.人, P.分[mode] ? ('約' + P.分[mode] + '分') : ''].filter(Boolean).join('・')",
+    "to": "      meta: g.meta",
+    "expect": "シートの時間が文化祭の値"
+  },
+  {
+    "name": "68-0bB14 演出「なし」の時、名前を合わせる間に移り変わりを止めない",
+    "file": "public/js/v2-kit.js",
+    "suite": "tools/v2-shot-check.js --only fes2-tv-lobby --fx skip",
+    "from": "      el.style.setProperty('transition', 'none', 'important');",
+    "to": "",
+    "expect": "…で切れている"
+  },
+  {
+    "name": "68-0bB15 待合の名前を縮めない（8字の名前が切れる）",
+    "file": "public/js/v2-home.js",
+    "suite": "tools/v2-shot-check.js --only home-e4",
+    "from": "<span class=\"v2-mem-nm v2-cut\" data-v2-fit=\"12\">",
+    "to": "<span class=\"v2-mem-nm v2-cut\">",
+    "expect": "切れている"
+  }
+]

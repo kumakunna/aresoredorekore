@@ -52,6 +52,14 @@
   }
 
   // ===================== F2 入る（名前とむずかしさ） =====================
+  /**
+   * 「入る」を押せるか（指示68-0b B2）：名前が空・8字より長い・はじかれた直後（●●●）・むずかしさを選んでいない・送っている途中は押せない。
+   * 描く時と、字を入れるたび（index.html の input）の両方がこれを使う（片方だけ直さない）
+   */
+  function joinOk(o) {
+    var len = o.masked ? 0 : Array.from(String(o.name || '').trim()).length;
+    return !!o.diff && !o.busy && len > 0 && len <= 8;
+  }
   /** o：{ code, n, name, diff, error, busy, full（満員で入れなかった）, reserved（予約した何番目） } */
   function join(o) {
     var J = U().入る, V = K();
@@ -82,7 +90,7 @@
           ? '<button type="button" class="v2-btn is-pri" disabled>' + e(J.予約中) + '</button>' +
             '<button type="button" class="v2-btn is-lite" data-fes-act="unreserve">' + e(J.予約をやめる) + '</button>'
           : (o.full && o.diff ? '<button type="button" class="v2-btn is-pri" data-fes-act="reserve"' + (o.busy ? ' disabled' : '') + '>' + e(J.予約する) + '</button>'
-            : '<button type="button" class="v2-btn is-pri" data-fes-act="join"' + (o.diff && !o.busy ? '' : ' disabled') + '>' +
+            : '<button type="button" class="v2-btn is-pri" data-fes-act="join"' + (joinOk(o) ? '' : ' disabled') + '>' +
               e(o.diff ? J.入る : J.えらんでね) + '</button>')) +
       '</div>';
     return h;
@@ -229,7 +237,8 @@
         V.hdHtml('Vote!', P.見出し) +
         '<div class="v2-vlist' + (mine ? ' is-chosen' : '') + '">' + list.map(function (g) {
           var on = sel === g.id, voted = mine === g.id;
-          return '<div class="v2-vcard' + (on ? ' is-on' : '') + (voted ? ' is-voted' : '') + '" role="button" tabindex="0" data-fes-pick="' + e(g.id) + '" data-v2-lp="#v2Rules-' + e(g.id) + '">' +
+          // data-dimok：投票したあとの、えらばなかった札はわざと薄くする（投票はもう変えられない。長押しでルールは見られる。物差しの K2 に数えない・指示68-0b）
+          return '<div class="v2-vcard' + (on ? ' is-on' : '') + (voted ? ' is-voted' : '') + '"' + (mine && !on ? ' data-dimok' : '') + ' role="button" tabindex="0" data-fes-pick="' + e(g.id) + '" data-v2-lp="#v2Rules-' + e(g.id) + '">' +
             (voted ? '<span class="v2-vok">' + V.icon('check') + e(P.投票ずみ) + '</span>' : '') +
             V.tile(g.world) +
             '<span class="v2-vt"><span class="v2-vn v2-cut" data-v2-fit>' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span>' +
@@ -592,6 +601,9 @@
       V.scrimHtml() + V.scrimHtml(true) +
       V.dlgHtml({ id: 'v2Recreate', keep: true, title: S.作り直しますか, text: S.作り直し説明,
         btns: [{ label: S.作り直す確定, pri: true, act: 'recreate' }, { label: S.やめる }] }) +
+      // 指示68-0b A4：「外す」は押したらたずねる。だれを外すか（o.kickName）は押した時に決まる（index.html の fesAskKick）
+      V.dlgHtml({ id: 'v2Kick', keep: true, title: (o.kickName || '') + S.外しますか後, text: S.外す説明,
+        btns: [{ label: S.外す確定, pri: true, act: 'fes-kick-ok' }, { label: S.やめる }] }) +
       V.sheetHtml({ id: 'v2Calib', title: S.端あわせ, body: '<p class="v2-hint">' + e(S.端あわせ説明) + '</p><div class="v2-calib-ops">' +
         [0, 2.5, 5].map(function (v) { return '<button type="button" class="v2-btn ' + ((f.inset || 0) === v ? 'is-pri' : 'is-sec') + '" data-fes-inset="' + v + '">' + v + '%</button>'; }).join('') + '</div>' }) +
       V.sheetHtml({ id: 'v2Fb', tall: true, title: S.感想 + '（' + S.今日 + ' ' + fb.length + S.件 + '）', body: fbList(fb, o.info) });
@@ -615,7 +627,7 @@
       }).join('') + '</div>';
   }
 
-  return { join: join, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText,
+  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText,
     // 指示66-3：着替えのシートは、ふだんの部屋の待合（E4）も同じものを使う（見本「着替えは文化祭と同じシート」）
     lookSheets: lookSheets };
 });

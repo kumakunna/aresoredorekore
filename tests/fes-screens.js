@@ -173,5 +173,71 @@ async function 入った(o) {
     win.close();
   });
 
+  // ===================== 指示68-0b =====================
+  await r.test('A4：係の「外す」は、1回押しただけでは外れない。たずねる枠（名前・外すとどうなるか）で「外す」を押して、はじめて送る', async () => {
+    const { win, doc } = await launch({ fakeSocket: true, atEntry: true });
+    const lab = FesScenes.view('fes2-staff');
+    win.V2Screens.fes(lab);
+    const scr = doc.getElementById('scr-v2-fes-staff');
+    const 人 = lab.staff.members.find((m) => m.id === 'm2');
+    scr.querySelector('[data-fes-kick="m2"]').click();
+    await sleep(win, 30);
+    assertEqual(emits(win, 'fes:kick').length, 0, '1回押しただけでは送らない');
+    const dlg = scr.querySelector('[data-v2-id="v2Kick"]');
+    assert(dlg && dlg.classList.contains('is-open'), 'たずねる枠が開く');
+    assert(dlg.textContent.indexOf(人.name) !== -1, 'だれを外すか、名前が出る');
+    assert(/スマホ/.test(dlg.textContent) && /もう一度/.test(dlg.textContent), '外すとどうなるか（その人のスマホ・もう一度入れるか）を書く');
+    dlg.querySelector('[data-v2-close]').click();
+    await sleep(win, 30);
+    assertEqual(emits(win, 'fes:kick').length, 0, '「やめる」なら送らない');
+    scr.querySelector('[data-fes-kick="m2"]').click();
+    await sleep(win, 30);
+    scr.querySelector('[data-v2-id="v2Kick"] [data-v2-act="fes-kick-ok"]').click();
+    await sleep(win, 30);
+    assertEqual(emits(win, 'fes:kick').length, 1, '枠の「外す」で1回だけ送る');
+    assertEqual(emits(win, 'fes:kick')[0].payload.memberId, 'm2', '押した人を外す');
+    // 「隠す」は今のまま（すぐもどせるので、たずねない）
+    scr.querySelector('[data-fes-hide="m4"]').click();
+    await sleep(win, 30);
+    assertEqual(emits(win, 'fes:hide').length, 1, '「隠す」はたずねずに送る');
+    win.close();
+  });
+
+  await r.test('B2：文化祭の「入る」は、名前が空・8字より長い・はじかれた直後は押せない。字を入れるたびにボタンも変わる', async () => {
+    const { win, doc } = await 入る画面();
+    doc.querySelector('[data-fes-diff="normal"]').click();
+    const btn = () => doc.querySelector('[data-fes-act="join"]');
+    const 打つ = (v) => { const n = doc.querySelector('[data-fes-name]'); n.value = v; n.dispatchEvent(new win.Event('input', { bubbles: true })); };
+    打つ('');
+    assert(btn().disabled, '名前が空なら押せない');
+    打つ('ふう');
+    assert(!btn().disabled, '名前とむずかしさがそろえば押せる');
+    打つ('あいうえおかきくけ');
+    assert(btn().disabled, '8字より長いと押せない');
+    打つ('ふう');
+    assert(!btn().disabled, '8字にもどすと押せる');
+    // はじかれた直後（●●●）：見本 F2b と同じ形を描く
+    win.V2Screens.fes(FesScenes.view('fes2-join-bad'));
+    assert(btn().disabled, 'はじかれた直後は押せない');
+    win.close();
+  });
+
+  await r.test('B3：文化祭の画面のルールのシートの時間は、文化祭の値（投票の札と TV と同じ）', async () => {
+    const { win, doc } = await 入った();
+    流す(win, 'fes2-vote');
+    await sleep(win, 30);
+    const 分 = win.UiText.FES.投票.分;
+    const modes = Object.keys(分);
+    assert(modes.length >= 3, '文化祭のゲームが3つ以上');
+    modes.forEach((mode) => {
+      const sheet = doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Rules-' + mode + '"]');
+      assert(sheet, mode + '：ルールのシートがある');
+      const t = sheet.textContent;
+      assert(t.indexOf('約' + 分[mode] + '分') !== -1, mode + '：シートの時間が文化祭の値（約' + 分[mode] + '分）：' + t.slice(0, 60));
+      assertEqual((t.match(/約\d+分/g) || []).length, 1, mode + '：時間はひとつだけ');
+    });
+    win.close();
+  });
+
   r.finish();
 })();

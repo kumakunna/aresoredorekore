@@ -129,11 +129,18 @@
     var list = (scope || d).querySelectorAll('[data-v2-fit]');
     for (var i = 0; i < list.length; i++) {
       var el = list[i];
+      // 測る間は移り変わりを止める（指示68-0b B14）。演出「なし」は全部の要素に 0.001秒の移り変わりを付けるので、
+      // 字の大きさを変えてすぐ測ると前の大きさのまま測れる——縮めた名前を「入った」と取りちがえて元の大きさにもどし、「…」で切れていた
+      el.style.setProperty('transition', 'none', 'important');
       el.style.fontSize = '';
       // 下限は7割。data-v2-fit に数（px）があれば、それより小さくはしない（TV の字の下限 42px など）
       var fs = parseFloat(getComputedStyle(el).fontSize), min = Math.max(fs * 0.7, +el.getAttribute('data-v2-fit') || 0), n = 0;
-      if (!el.clientWidth) continue;   // 見えていない（測れない）ものは触らない
-      while (el.scrollWidth > el.clientWidth + 1 && fs > min && n++ < 80) { fs = Math.max(min, fs - 0.5); el.style.fontSize = fs + 'px'; }
+      // 1px でもはみ出せば「…」が出るので、ゆるみは持たない（測る側の「…で切れている」と同じ決まり・指示68-0b）
+      if (el.clientWidth) {   // 見えていない（測れない）ものは触らない
+        while (el.scrollWidth > el.clientWidth && fs > min && n++ < 80) { fs = Math.max(min, fs - 0.5); el.style.fontSize = fs + 'px'; }
+      }
+      void el.offsetWidth;
+      el.style.removeProperty('transition');
     }
   }
 

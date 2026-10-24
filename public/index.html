@@ -10,7 +10,11 @@
 <!-- 指示66：新しい見た目（.v2 の画面）は M PLUS 1（日本語）と League Spartan（英字・大きい数字）。どちらも SIL OFL -->
 <!-- Yuji Syuku（筆文字）は人狼カセットの「大きな一行の演出テキスト」専用。
      役職名や案内などの実用テキストには使わない（読みやすさを優先するため） -->
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;800&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&family=Yuji+Syuku&display=swap" rel="stylesheet">
+<!-- 指示68-0b B19：古い画面の書体（Google Fonts の CSS・運ぶのは約200KB）を読み終わるまで、画面を描かなかった。
+     新しい見た目は自分の書体（public/fonts/）なので待たない。読めたら stylesheet に切りかえる（古い画面は、それまで端末の書体＝今の display=swap と同じ）。
+     台本が動かない端末は noscript で今の読み方 -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;800&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&family=Yuji+Syuku&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;800&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&family=Yuji+Syuku&display=swap" rel="stylesheet"></noscript>
 <!-- 指示66-2：新しい見た目の2つの書体（M PLUS 1・League Spartan）は、使う字だけに絞ってアプリのサーバーから配る（tools/gen-fonts.js）。
      文化祭の会場の通信が弱くても字が変わらないように。漢字の束は、画面に出た時だけ取りに来る（unicode-range） -->
 <link rel="stylesheet" href="fonts/fonts.css">
@@ -1101,6 +1105,9 @@
     background:rgba(255,255,255,.85);border:1px solid var(--line);font-size:14px;cursor:pointer;opacity:.55;
   }
   .floating-gear:active{opacity:1;}
+  /* TV の画面（新しい見た目の TV）では、右上の⚙を TV の安全な枠（1920×1080 の 上54・右96＝高さの5%・幅の5%）の中へ。
+     端の数%が映らない TV でも切れない（指示68-0b C17／物差し K7）。入れ物の側の部品なので、v2 の節ではなくここに置く */
+  .app:has(.v2-tv.active) .floating-gear{top:5vh;right:5vw;}
   /* 正本7「左上＝1つ前に戻る」。どの画面からも来た道を1つ戻る（第28弾-4）。
      画面の中にある「もどる」ボタン（横長・行き先が決まっている）とは別物で、
      こちらは「1つ戻る」だけを引き受ける。
@@ -4655,7 +4662,8 @@
   .v2-w-sugoroku{--wt:#D6F0C2;--wb:#A6DA8A;--wi:#11200C;--ws:#23361B;--wa:#11200C;--won:#F2FBEC;}
   .v2-w-shinka{--wt:#C4E6FA;--wb:#86C2E8;--wi:#0A1E2B;--ws:#16303F;--wa:#0A1E2B;--won:#EEF8FF;}
   .v2-w-wolf{--wt:#40288A;--wb:#1D0A40;--wi:#F3EFFF;--ws:#DAD2F7;--wa:#FFE38A;--won:#1D0A40;}
-  .v2-w-bomb{--wt:#46464B;--wb:#0E0E10;--wi:#F4F4F5;--ws:#DADADE;--wa:#FFD54A;--won:#141416;}
+  /* 爆弾の世界の薄い字（--ws）は、画面の上の明るい所の札の上でも 4.5 に届く明るさ（#DADADE では 4.1・物差し K2・指示68-0b） */
+  .v2-w-bomb{--wt:#46464B;--wb:#0E0E10;--wi:#F4F4F5;--ws:#E6E6EA;--wa:#FFD54A;--won:#141416;}
   .v2-w-quiz{--wt:#1545AA;--wb:#04265E;--wi:#F2F7FF;--ws:#DCE7FF;--wa:#F5C542;--won:#04265E;}
   .v2-w-auction{--wt:#6E4410;--wb:#2C1A05;--wi:#FFF6E6;--ws:#F6E5C7;--wa:#F2C14E;--won:#2C1A05;}
   .v2-w-falsetrue{--wt:#18563A;--wb:#062217;--wi:#EEF8F1;--ws:#CDEBD8;--wa:#7DE3A2;--won:#062217;}
@@ -4844,6 +4852,8 @@
   .v2 .v2-dlg-ttl{font-size:20px;font-weight:900;line-height:1.35;}
   .v2 .v2-dlg-txt{font-size:15px;font-weight:700;color:var(--wsheet-soft);line-height:1.6;}
   .v2 .v2-dlg .v2-btn.is-pri{background:#141414;color:#fff;}
+  /* 取り返せない確認の主ボタン（部屋をとじる）は赤（正本：赤は縁だけ、の例外。指示68-0b B10） */
+  .v2 .v2-dlg .v2-btn.is-pri.v2-danger{background:var(--v2-red);color:#fff;}
   .v2 .v2-dlg .v2-btn.is-sec{border-color:#141414;color:#141414;}
 
   /* 長押しの輪（押している間だけ出る。0.45秒は速さの設定ではかわらない） */
@@ -4884,7 +4894,8 @@
   .v2 .v2-rm{font-weight:800;font-size:13px;color:var(--ws);}
   .v2 .v2-rhead .v2-x{align-self:flex-start;background:rgba(255,255,255,.9);}
   .v2 .v2-rsheet .v2-sbody{padding:20px 18px 12px;display:flex;flex-direction:column;gap:12px;}
-  .v2 .v2-sfoot{padding:12px 18px 18px;border-top:1px solid #EDEDED;flex:none;}
+  /* 下のボタンが2つの時は 12px あける（立ったまま押すと、すき間 2〜4px では隣を押す・指示68-0b C3／物差し K6） */
+  .v2 .v2-sfoot{padding:12px 18px 18px;border-top:1px solid #EDEDED;flex:none;display:flex;flex-direction:column;gap:12px;}
 
   /* ---- 動き（すべて --fx-scale をかける。押した合図 0.15秒と長押しの 0.45秒だけはかけない） ---- */
   @keyframes v2-fade{from{opacity:0;}to{opacity:1;}}
@@ -5150,16 +5161,22 @@
   .v2 .v2-tin{display:flex;flex-direction:column;gap:26px;flex:1;min-height:0;}
   .v2 .v2-tin .v2-thd-ttl{font-size:96px;}
   .v2 .v2-tvVote{display:grid;grid-template-columns:minmax(0,1fr) 386px;gap:28px;flex:1;min-height:0;padding-bottom:20px;}
-  .v2 .v2-vrows{display:flex;flex-direction:column;gap:18px;min-width:0;}
-  .v2 .v2-tvrow{display:flex;align-items:center;gap:28px;background:var(--wc2);border:5px solid var(--wl);border-radius:30px;padding:16px 24px;min-width:0;flex:1;}
+  .v2 .v2-vrows{display:flex;flex-direction:column;gap:14px;min-width:0;}
+  .v2 .v2-tvrow{display:flex;align-items:center;gap:28px;background:var(--wc2);border:5px solid var(--wl);border-radius:30px;padding:12px 24px;min-width:0;flex:1;}
   .v2 .v2-tvrow .v2-tile{width:132px;height:132px;}
+  /* 指示68-0b A3：名前と一言の間を空ける。v2 の字の箱は英字の高さで切る（text-box）ので、日本語の字は箱の上下に約 0.15em はみ出す。
+     6px では名前の下と一言の上がはみ出し合って重なっていた（TV はいちばん大勢が遠くから見る所）。
+     候補3つで一言が2行でも帯まで伸びないよう、札の上下の余白（16→12px）と札どうしの間（18→14px）を詰めた */
+  .v2 .v2-tvrow .v2-vt{gap:20px;}
   .v2 .v2-tvrow .v2-vn{font-size:64px;line-height:1.1;}
   .v2 .v2-tvrow .v2-vb{font-size:44px;line-height:1.25;}
   .v2 .v2-tvrow .v2-vmeta{margin-left:auto;gap:14px;flex:none;flex-wrap:nowrap;}
   .v2 .v2-tvrow .v2-vmeta span{font-size:42px;padding:6px 22px;}
   .v2 .v2-qrside{display:flex;flex-direction:column;justify-content:flex-end;}
   .v2 .v2-tdec{position:absolute;inset:54px 96px;display:flex;flex-direction:column;z-index:3;}
-  .v2 .v2-tdec-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;text-align:center;}
+  /* 指示68-0b B6：間は 48px。字の箱は英字の高さで切る（text-box）ので、150px の日本語は箱の上に約 27px はみ出し、
+     24px では印（と白い縁 10px）に重なり、下の「5人がえらびました」にも詰まっていた */
+  .v2 .v2-tdec-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;text-align:center;}
   .v2 .v2-tdec .v2-gname{font-size:150px;line-height:1.05;}
   .v2 .v2-tdec .v2-gname-t small{display:inline;font-size:60px;margin-left:10px;}
   .v2 .v2-tdec .v2-who5{font-size:64px;}
@@ -5234,8 +5251,9 @@
   .v2 .v2-bcell.is-t3,.v2 .v2-qtier.is-t3{--tc:#F59331;}
   .v2 .v2-bcell.is-t4,.v2 .v2-qtier.is-t4{--tc:#F2564B;}
   .v2 .v2-tierkey i.is-t5,.v2 .v2-bcell.is-t5,.v2 .v2-qtier.is-t5{--tc:#B972E8;}
-  .v2 .v2-bgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;}
-  .v2 .v2-bgrid.is-c6{grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;}
+  /* マスのすき間は 8px（立ったまま押しても隣を押さない。物差し K6・指示68-0b） */
+  .v2 .v2-bgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;}
+  .v2 .v2-bgrid.is-c6{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;}
   .v2 .v2-bcell{position:relative;aspect-ratio:1;border-radius:12px;background:rgba(255,255,255,.06);border:3px solid var(--tc,#888);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--v2-en);font-weight:900;font-size:22px;line-height:1;color:var(--wi);cursor:pointer;padding:0;min-width:0;}
   .v2 .v2-bcell:active{transform:scale(.94);}
@@ -5380,8 +5398,11 @@
   .v2 .v2-mem[data-v2-lp]{cursor:pointer;}
   .v2 .v2-mem[data-v2-lp]:active{transform:scale(.97);}
   .v2 .v2-mem.is-off{background:transparent;box-shadow:inset 0 0 0 2px var(--wl2);}
-  .v2 .v2-mem-nm{flex:1;font-weight:900;font-size:16px;line-height:1.2;}
-  .v2 .v2-mem-st{margin-left:auto;flex:none;font-weight:900;font-size:13px;white-space:nowrap;}
+  .v2 .v2-mem-who{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .v2 .v2-mem-nm{font-weight:900;font-size:16px;line-height:1.2;}
+  .v2 .v2-mem-sub{display:flex;align-items:center;gap:6px;min-height:0;}
+  .v2 .v2-mem-host{font-weight:900;font-size:12px;line-height:1.2;color:var(--ws);white-space:nowrap;}
+  .v2 .v2-mem-st{flex:none;font-weight:900;font-size:13px;white-space:nowrap;display:flex;}
   .v2 .v2-mem-st.is-ok{color:var(--wok);}
   .v2 .v2-mem-st .v2-ic{width:18px;height:18px;}
   .v2 .v2-tile.is-sm{width:44px;height:44px;}
@@ -5391,9 +5412,14 @@
   .v2 .v2-eqr svg{width:min(250px,64vw);height:auto;background:#fff;border-radius:16px;padding:10px;box-sizing:content-box;}
   .v2 .v2-esteps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px;}
   .v2 .v2-esteps li{display:flex;gap:12px;align-items:flex-start;font-weight:800;font-size:15px;line-height:1.55;}
+  /* 段の字の箱は、画面の幅に収める（中身の幅まで広がると、アドレスが箱からはみ出さずにシートで切れ、縮める処理が働かなかった・指示68-0b B12） */
+  .v2 .v2-esteps li > span:last-child{flex:1;min-width:0;}
   .v2 .v2-esteps-k{width:28px;height:28px;border-radius:50%;background:var(--wsheet-ink);color:var(--wsheet);display:flex;align-items:center;justify-content:center;
     font-family:var(--v2-en);font-weight:900;font-size:15px;flex:none;}
-  .v2 .v2-eurl{display:block;margin-top:8px;font-size:19px;font-weight:900;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;}
+  /* 指示68-0b B12：アドレスはことばの途中で折らない（1行で7割まで縮める → 入らなければ最初の「.」の後ろで2行。homeUrlFit）。押すと写せる */
+  .v2 .v2-eurl{display:block;margin-top:8px;font-size:19px;font-weight:900;white-space:nowrap;overflow:hidden;cursor:pointer;user-select:text;-webkit-user-select:text;}
+  .v2 .v2-eurl.is-2{white-space:normal;}
+  .v2 .v2-eurl.is-2 span{display:block;}
   .v2 .v2-sheet .v2-btn.is-sec.v2-danger{border-color:var(--v2-red);color:var(--v2-red);}
   /* TV の待合：16人の時は札を少し低くして 3列×6段 */
   .v2 .v2-tva.is-low .v2-tgrid{gap:8px 12px;}
@@ -5436,6 +5462,9 @@
   .v2 .v2-av.is-sm{width:26px;height:26px;font-size:22px;}
   .v2 .v2-band-end .v2-faces .v2-av + .v2-av{margin-left:-6px;}
   /* ゲームのページ：押した印から色が丸く広がる（0.25秒）。指で横に送る（はなした所で止まる・0.25秒） */
+  /* 指示68-0b A2：ページの重なりの字はその世界の字の色（明るい世界は暗い字、暗い世界は明るい字）。下の「分類 n/9」・点・白ぬきの輪は
+     この色を受けつぐ。入れ物（一覧の画面）の色のままだと、人狼など暗い世界で暗い字になっていた */
+  .v2 .v2-ov{color:var(--wi);}
   .v2 .v2-ov{position:absolute;inset:0;z-index:35;clip-path:circle(0% at var(--cx,50%) var(--cy,50%));pointer-events:none;visibility:hidden;
     transition:clip-path var(--v2-move) var(--v2-ease),visibility var(--v2-move) steps(1,end);}
   .v2 .v2-ov.is-open{clip-path:circle(150% at var(--cx,50%) var(--cy,50%));pointer-events:auto;visibility:visible;
@@ -5444,8 +5473,19 @@
   .v2 .v2-track{position:absolute;inset:0;display:flex;will-change:transform;}
   .v2 .v2-track.is-anim{transition:transform var(--v2-move) var(--v2-ease);}
   .v2 .v2-page{position:relative;flex:0 0 100%;height:100%;overflow:hidden;background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);}
-  .v2 .v2-pin{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
-    padding:72px var(--v2-side-r) 176px var(--v2-side);overflow-y:auto;scrollbar-width:none;}
+  /* 指示68-0b A1：上の部分の下端は、下の部分（分類と点・主ボタン・理由・2つ目のボタン）の高さを測って決める（--v2-sbot-h・homePickFit）。
+     決まった 176px の余白だと、375×667 で理由の一言と2つ目のボタンが出た時に、ルールや「くわしく見る」と重なっていた。
+     上の部分は、その残りの高さで巻ける（巻いても下の部分の下にもぐらない） */
+  .v2 .v2-pin{position:absolute;left:0;right:0;top:0;bottom:var(--v2-sbot-h,164px);z-index:3;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
+    padding:72px var(--v2-side-r) 12px var(--v2-side);overflow-y:auto;scrollbar-width:none;}
+  .v2 .v2-phead{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;}
+  /* 入らない時：印を小さくして名前の左に（名前とひとことは左ぞろえ） */
+  /* 左右の送る矢印（‹ ›）は、小さい印の高さに上がる（.v2-ov.is-compact）。見出しの行は矢印の内側に収める */
+  .v2 .v2-page.is-compact .v2-phead{display:grid;grid-template-columns:64px minmax(0,1fr);column-gap:12px;row-gap:6px;align-items:center;text-align:left;padding:0 34px;}
+  .v2 .v2-ov.is-compact .v2-sedge{top:76px;}
+  .v2 .v2-page.is-compact .v2-phead .v2-tile{width:64px;height:64px;grid-row:1 / 3;margin-top:0;box-shadow:0 0 0 3px rgba(255,255,255,.85);}
+  .v2 .v2-page.is-compact .v2-pn{font-size:26px;align-self:end;}
+  .v2 .v2-page.is-compact .v2-pb{align-self:start;}
   .v2 .v2-pin::-webkit-scrollbar{display:none;}
   /* ページの中は縦にだけ巻く。横の動きはページ送りに渡す（ブラウザに横の動きを取らせない） */
   .v2 .v2-page,.v2 .v2-pin{touch-action:pan-y;}
@@ -9037,7 +9077,8 @@
 <!-- 役職あり人狼の「ルール」層。DOMに触れない純粋なロジックなので、単体テストもできる -->
 <!-- socket.io は本番のサーバーが自動で配る。読み込めなくても
      手渡し方式は動き続ける（rt-client が available:false を返すだけ） -->
-<script src="/socket.io/socket.io.js"></script>
+<!-- 指示68-0b B19：縮めた版（152KB → 約49KB。socket.io のサーバーが同じ道で配る） -->
+<script src="/socket.io/socket.io.min.js"></script>
 <!-- 指示55-①：1v1の組をつくる共通部品A。**quiz-logic より前に置く**——
      quiz-logic が buildPairs と shuffled をここから借りている（UMD の依存） -->
 <script src="js/versus.js"></script>
@@ -30591,18 +30632,38 @@
   function enterNext(){
     var room = rt && rt.state && rt.state.room;
     var host = !room || rt.isHost();
-    var survival = (play.nextSurvival === 'ongoing');
+    var survival = (play.nextSurvival === 'ongoing'), N = UiText.HOME.つぎ;
     var choices = NEXT_CHOICES.filter(function(c){ return !c.when || c.when(); }).map(function(c){
-      return { id: c.id, label: (c.id === 'again') ? (survival ? 'つぎのラウンドへ' : UiText.HOME.つぎ.もう一回) : c.label };
+      return { id: c.id, label: nextLabel(c, survival) };
     });
     var pm = room ? rtPickedMode() : modeById(state.selectedModeId);
     var info = pm ? v2ModeInfo(pm.id) : null;
     var n = room ? currentPlayerCount() : state.players.length;
+    // 指示68-0b B10：さっきのゲームに、人数と時間（見本 e5a：6人・8分）
+    var est = pm ? estimatePlayMinutes(pm.id, n) : null;
+    var meta = [n ? n + UiText.V2.人 : '', est && est.min ? N.分前 + est.min + N.分後 : ''].filter(Boolean).join('・');
     var scr = el('scr-next');
     scr.innerHTML = V2Home.next({ host: host, room: !!room, choices: choices, wait: n,
-      game: info ? { world: info.world, name: info.name, meta: n ? n + UiText.V2.人 : '' } : null });
+      game: info ? { world: info.world, name: info.name, meta: meta } : null });
     V2.mount(scr);
     homeKeepAsk();
+  }
+  /**
+   * つぎは？のボタンの字（指示68-0b B10）：**行き先の名前で言う**。同じカセットの別のゲームは、行き先が1つならその名前（「人狼（役職あり）にする」）、
+   * 2つ以上なら「〇〇 の中で えらぶ」。モードは「ルールを変える」、一覧へは「一覧から えらぶ」
+   */
+  function nextLabel(c, survival){
+    var N = UiText.HOME.つぎ;
+    if(c.id === 'again') return survival ? 'つぎのラウンドへ' : N.もう一回;
+    if(c.id === 'mode') return N.ルール;
+    if(c.id === 'shelf') return N.ほか;
+    if(c.id === 'game'){
+      var cas = cassetteById(state.selectedCassetteId), cur = currentGameId();
+      var others = cassetteGames(cas).filter(function(g){ return (g.id || g) !== cur; });
+      if(others.length === 1) return gameTitleOf(others[0].id || others[0]) + N.にする;
+      return (cas ? cas.title || cas.name || '' : '') + N.の中で;
+    }
+    return c.label;
   }
   el('scr-next').addEventListener('click', function(e){
     var b = e.target.closest('[data-next]');
@@ -32138,8 +32199,9 @@
     var 人 = !hi ? (lo + '人〜') : (hi === lo ? hi + '人' : lo + '〜' + hi + '人');
     var e = estimatePlayMinutes(m.id, 4);
     var 時 = (e && e.min) ? ('約' + e.min + '分') : '';
+    // 版・人は別にも返す（文化祭の画面は時間だけ文化祭の値にして meta を組み直す・fesInfo）
     return { id: m.id, world: (c && c.theme) || 'wait', name: gameTitleOf(gid),
-             meta: [版, 人, 時].filter(Boolean).join('・'), rules: m.tv || [] };
+             meta: [版, 人, 時].filter(Boolean).join('・'), 版: 版, 人: 人, rules: m.tv || [] };
   }
   /** 遊ぶ人だけ（大画面の端末は名簿に出さない） */
   function v2Players(view){
@@ -32269,7 +32331,17 @@
     if(act === 'look' && typeof openLookSheet === 'function'){ openLookSheet(); return; }
     // 指示66-2：係の「部屋を作り直す」の確認の枠（V2.dlgHtml のボタンは data-v2-act で届く）
     if(act === 'recreate' && rt){ V2.close(b.closest('.v2-dlg')); rt.fesCreate(true).then(function(){ fesOpenStaff(); }); return; }
+    // 指示68-0b A4：係の「外す」の確認の枠で「外す」
+    if(act === 'fes-kick-ok' && rt){ V2.close(b.closest('.v2-dlg')); var kid = fes.kickId; fes.kickId = null; if(kid && fes.staff) rt.fesKick(fes.staff.code, kid); return; }
   });
+  /** 係の「外す」：だれを外すかを決めて描き直し（枠の見出しに名前が入る）、枠を開く。名前は係の名簿のもの（係だけが見る画面） */
+  function fesAskKick(id){
+    if(!((fes.staff && fes.staff.members) || []).some(function(x){ return x.id === id; })) return;
+    fes.kickId = id;
+    fesRenderStaff();
+    var dlg = el('scr-v2-fes-staff').querySelector('[data-v2-id="v2Kick"]');
+    if(dlg) V2.open(dlg);
+  }
   // TV の大きさが変わったら、1920×1080 の箱を合わせ直す
   window.addEventListener('resize', function(){ var t = el('scr-v2-fes-tv'); if(t && t.classList.contains('active')){ var r = (typeof fesRoom === 'function') && fesRoom(); V2.fitTv(t, r ? r.fes.inset : 0); } });
   // 検査と、検証用サーバーの見本データの台本から、同じ関数で描けるようにしておく（window.catalogSet と同じ作法）。
@@ -32311,7 +32383,9 @@
       lead: P.一言[mode] || (m && m.sub) || '',
       kind: P.形[mode] || '',
       // 文化祭の決まった設定での目安（見本 F7）。ふだんの部屋の設定から測る estimatePlayMinutes は使わない
-      minutes: P.分[mode] ? ('約' + P.分[mode] + '分') : ''
+      minutes: P.分[mode] ? ('約' + P.分[mode] + '分') : '',
+      // ルールのシートの上の行も同じ値（指示68-0b B3：ふだんの部屋の目安「約14分」が残っていた。投票の札と TV は「約3分」）
+      meta: [g.版, g.人, P.分[mode] ? ('約' + P.分[mode] + '分') : ''].filter(Boolean).join('・')
     });
   }
   /** 描くもとの形（v2-fes.js の冒頭に書いた view） */
@@ -32530,7 +32604,9 @@
     var st = fes.staff, f = st && st.fes;
     var end = f && f.remainingMs != null ? (fes.staffEndFor === st ? fes.staffEnd : (fes.staffEndFor = st, fes.staffEnd = Date.now() + f.remainingMs)) : null;
     var back = fesKeep(scr);
-    scr.innerHTML = V2Fes.staff({ staff: st, fb: fes.staffFb, end: end, err: fes.staffErr, canCreate: fes.canCreate, canFb: !!fes.staffRole, canNames: fes.staffRole === 'owner', info: fesInfo });
+    var kick = fes.kickId && ((st && st.members) || []).filter(function(m){ return m.id === fes.kickId; })[0];
+    scr.innerHTML = V2Fes.staff({ staff: st, fb: fes.staffFb, end: end, err: fes.staffErr, canCreate: fes.canCreate, canFb: !!fes.staffRole, canNames: fes.staffRole === 'owner', info: fesInfo,
+      kickName: kick ? kick.name : '' });
     back(); V2.mount(scr);
   }
   async function fesLoadFeedback(){
@@ -32576,6 +32652,9 @@
     var n = Array.from(t.value.trim()).length, c = t.closest('.v2-inp');
     var cnt = c && c.querySelector('[data-fes-cnt]');
     if(cnt){ cnt.textContent = n + '/8'; cnt.classList.toggle('is-over', n > 8); }
+    // 指示68-0b B2：字を入れるたびに「入る」も押せる・押せないを変える（描き直すとキーボードが閉じるので、ボタンだけ）
+    var go = el('scr-v2-fes-join') && el('scr-v2-fes-join').querySelector('[data-fes-act="join"]');
+    if(go) go.disabled = !V2Fes.joinOk(fes.join);
   });
   document.addEventListener('click', function(e){
     var b = e.target.closest && e.target.closest('[data-fes-act],[data-fes-pick],[data-fes-diff],[data-fes-star],[data-fes-hide],[data-fes-kick],[data-fes-inset],[data-fes-icon],[data-fes-slot],[data-fes-word],[data-fes-cell],[data-fes-ans]');
@@ -32605,7 +32684,8 @@
     }
     if(b.hasAttribute('data-fes-ans')){ Array.prototype.forEach.call(b.parentNode.querySelectorAll('button'), function(x){ x.disabled = true; }); rt.vote(b.getAttribute('data-fes-ans')); return; }
     if(b.hasAttribute('data-fes-hide')){ rt.fesHide(fes.staff.code, b.getAttribute('data-fes-hide'), !b.getAttribute('data-hidden')); return; }
-    if(b.hasAttribute('data-fes-kick')){ rt.fesKick(fes.staff.code, b.getAttribute('data-fes-kick')); return; }
+    // 指示68-0b A4：押したらたずねる（すぐには外さない）。外すのは枠の「外す」（data-v2-act="fes-kick-ok"）
+    if(b.hasAttribute('data-fes-kick')){ fesAskKick(b.getAttribute('data-fes-kick')); return; }
     if(b.hasAttribute('data-fes-inset')){ rt.fesInset(fes.staff.code, +b.getAttribute('data-fes-inset')); return; }
     var act = b.getAttribute('data-fes-act');
     if(act === 'join') fesJoin();
@@ -32945,8 +33025,30 @@
     if(list) list.scrollTop = top;
     if(chips){ chips.scrollLeft = left; if(on) homeChipOn(scr, on.getAttribute('data-home-chip')); }
     V2.mount(scr);
+    homePickFit(scr);
     homeKeepAsk();
   }
+  /**
+   * 指示68-0b A1：ページの下の部分の高さを先に取り、上の部分をその残りに入れる。入らないページは印を小さくして名前の左へ（.is-compact）。
+   * 下の部分は送るたびに中身（理由の一言・2つ目のボタン）が変わるので、送った時・大きさが変わった時・字の形が届いた時にも測り直す
+   */
+  function homePickFit(scr){
+    scr = scr || el('scr-v2-pick'); if(!scr) return;
+    var ov = scr.querySelector('[data-home-ov]'), bot = ov && ov.querySelector('.v2-sbot');
+    if(!bot || !bot.offsetHeight) return;
+    ov.style.setProperty('--v2-sbot-h', bot.offsetHeight + 'px');
+    Array.prototype.forEach.call(ov.querySelectorAll('.v2-page'), function(p){
+      var pin = p.querySelector('.v2-pin'); if(!pin) return;
+      p.classList.remove('is-compact');
+      if(pin.scrollHeight > pin.clientHeight + 1) p.classList.add('is-compact');
+    });
+    var cur = ov.querySelector('.v2-page.is-cur');
+    ov.classList.toggle('is-compact', !!cur && cur.classList.contains('is-compact'));
+    // 名前の箱の幅が変わったので、名前の縮めをやり直す（小さい印の横は狭い）
+    V2.fit(ov);
+  }
+  window.addEventListener('resize', function(){ var s = el('scr-v2-pick'); if(s && s.classList.contains('active')) homePickFit(s); });
+  if(document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', function(){ var s = el('scr-v2-pick'); if(s && s.classList.contains('active')) homePickFit(s); });
   function enterV2Pick(){
     var c = home.pick.focus;
     home.pick.focus = null;
@@ -32981,6 +33083,7 @@
     if(gn) gn.textContent = c.gl + '　' + (i + 1) + ' / ' + cards.length;
     var cta = scr.querySelector('[data-home-cta]');
     if(cta) cta.innerHTML = V2Home.cta(c);
+    homePickFit(scr);
   }
   /** 押した印から、そのゲームの色が丸く広がる（tile が無い＝ほかの画面から来た時は、まん中から） */
   function homePickOpen(tile, now){
@@ -33122,8 +33225,26 @@
     renderAlbumBox();
     back();
     V2.mount(scr);
+    homeUrlFit(scr);
     homeKeepAsk();
   }
+  /** TV のアドレス：1行で7割まで縮めても入らなければ、2行にする（指示68-0b B12・v2-home.js の urlHtml） */
+  function homeUrlFit(scr){
+    Array.prototype.forEach.call((scr || document).querySelectorAll('.v2-eurl[data-home-url]'), function(u){
+      u.classList.remove('is-2');
+      V2.fit(u.parentNode);
+      if(u.clientWidth && u.scrollWidth > u.clientWidth){ u.classList.add('is-2'); u.style.fontSize = ''; }
+    });
+  }
+  if(document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', function(){ var s = el('scr-v2-room'); if(s && s.classList.contains('active')) homeUrlFit(s); });
+  // アドレスを押すと写す（TV で打つ時に、スマホから送ったり見せたりできるように）
+  document.addEventListener('click', function(e){
+    var u = e.target.closest && e.target.closest('[data-home-url]');
+    if(!u) return;
+    var url = u.getAttribute('data-home-url');
+    var done = function(){ showFlash(UiText.HOME.部屋.写しました); };
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function(){});
+  });
   function enterV2Room(){
     // 戻ってきた時に、いるべき画面を計算し直す（enterRtRoom と同じ・第48弾 48-1）
     if(rtNeedsRules()){ goTo('scr-rt-rules'); return; }

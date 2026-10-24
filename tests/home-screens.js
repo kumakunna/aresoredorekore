@@ -392,7 +392,23 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     assert(ts[1].doc.getElementById('v2Decided') === 前, '同じ決定で2回出さない');
     await sleep(ts[0].win, 1600);
     ts.forEach((t) => assert(!t.doc.getElementById('v2Decided'), '1.5秒で消える'));
+    // 指示68-0b B6：消えたあとに届く同じ部屋の知らせ（だれかが準備OK を押した等）でも、見た人にはもう出さない
+    const 準備した = 部屋(6, { game: 'falsetrue', mode: 'falsetrue' });
+    準備した.members.find((m) => m.id === 'm2').readyGame = 'falsetrue';
+    ts.forEach((t) => { t.win.__rtFake.fire('room:update', 準備した); t.win.__rtFake.fire('room:update', 決まった); });
+    await sleep(ts[0].win, 30);
+    ts.forEach((t, k) => assert(!t.doc.getElementById('v2Decided'), who[k][0] + '：見たあとの知らせでは、カードを出し直さない'));
     ts.forEach((t) => t.win.close());
+  });
+
+  await r.test('指示68-0b B6：見本データの「決定のカードを見たあと」（home-e3-picked）は、カードを出さずに待合を出す', async () => {
+    const t = await launch({ fakeSocket: true, atEntry: true });
+    const HomeScenes = require('../tools/v2-lab/home-scenes');
+    t.win.V2Screens.home(HomeScenes.view('home-e3-picked'));
+    await sleep(t.win, 40);
+    assert(!t.doc.getElementById('v2Decided'), '見たあとの形にカードは無い（撮った写真が決定のカードになっていた）');
+    assertEqual(activeScreen(t.doc), 'scr-v2-room', '待合が出ている');
+    t.win.close();
   });
 
   await r.test('決めた時のカードは、入った時にもう決まっていた部屋では出さない', async () => {
@@ -481,6 +497,65 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
   });
 
   function V2open(t, sel) { t.win.V2.open(t.doc.querySelector('#scr-v2-room [data-v2-id="' + sel.slice(1) + '"]')); }
+
+  // ===================== 指示68-0b =====================
+  await r.test('A5：ゲームをえらぶ一覧の、棚に出る全部のカセットのページに、ルールがちょうど3つ（あれそれどれこれにも）', async () => {
+    const t = await launch({ fakeSocket: true, atEntry: true });
+    const HomeScenes = require('../tools/v2-lab/home-scenes');
+    t.win.V2Screens.home(HomeScenes.view('pick-page-one'));
+    await sleep(t.win, 40);
+    const pages = Array.from(t.doc.querySelectorAll('#scr-v2-pick .v2-page'));
+    assert(pages.length >= 8, 'カセットのページが並ぶ（' + pages.length + '）');
+    const 札 = 一覧の札(t.doc);
+    assertEqual(pages.length, 札.length, '一覧の札とページの数が同じ（棚に出る全部）');
+    pages.forEach((p, i) => {
+      const 名 = (p.querySelector('.v2-pn') || {}).textContent;
+      const rs = Array.from(p.querySelectorAll('.v2-rule .v2-rule-t')).map((x) => x.textContent.trim());
+      assertEqual(rs.length, 3, 名 + '：ルールが3つ');
+      rs.forEach((x) => assert(x.length > 2, 名 + '：ルールの文が空でない'));
+    });
+    const あれそれ = pages.find((p) => /あれそれどれこれ/.test((p.querySelector('.v2-pn') || {}).textContent));
+    assert(あれそれ, 'あれそれどれこれのページがある');
+    assert(/言葉だけ/.test(あれそれ.textContent), 'あれそれどれこれは見本 S5 の3つ（出題者がお題を、言葉だけで説明する…）');
+    t.win.close();
+  });
+
+  await r.test('B10：つぎは？のボタンは行き先の名前で言う（同じ言葉が2つない）。さっきのゲームに人数と時間。とじる確認の主ボタンは赤', async () => {
+    const t = await launch({ fakeSocket: true, atEntry: true });
+    const HomeScenes = require('../tools/v2-lab/home-scenes');
+    t.win.V2Screens.home(HomeScenes.view('home-e5a'));
+    await sleep(t.win, 40);
+    const scr = t.doc.getElementById('scr-next');
+    const 字 = Array.from(scr.querySelectorAll('#nextChoices button')).map((b) => b.textContent.trim());
+    assertEqual(new Set(字).size, 字.length, '同じ言葉のボタンが2つない：' + 字.join(' / '));
+    const N = t.win.UiText.HOME.つぎ;
+    assertEqual(scr.querySelector('[data-next="shelf"]').textContent.trim(), N.ほか, '一覧へは「一覧から えらぶ」');
+    if (scr.querySelector('[data-next="mode"]')) assertEqual(scr.querySelector('[data-next="mode"]').textContent.trim(), N.ルール, 'モードは「ルールを変える」');
+    const g = scr.querySelector('[data-next="game"]');
+    assert(g && /クイズ王 の中で えらぶ|にする$/.test(g.textContent.trim()), '同じカセットの別のゲームは行き先の名前：' + (g && g.textContent));
+    assert(!/変える.*変える|ほかのゲームにする|別のゲームへ/.test(字.join('|')), '「変える」に読める言葉が並ばない');
+    assert(/人・約\d+分/.test(scr.querySelector('.v2-epick').textContent), 'さっきのゲームに人数と時間：' + scr.querySelector('.v2-epick').textContent);
+    t.win.V2Screens.home(HomeScenes.view('home-e5-close'));
+    await sleep(t.win, 40);
+    const ok = t.doc.querySelector('#scr-next [data-v2-id="v2Ask"] [data-v2-act="home-ask-ok"]');
+    assert(ok && ok.classList.contains('v2-danger'), '「とじる」の主ボタンは赤（v2-danger）');
+    t.win.close();
+  });
+
+  await r.test('B13：TV で /tv を開いた画面のコードの下の一言は、TV 自身の言葉（進行役のスマホに出ている6文字）', async () => {
+    const t = await launch({ fakeSocket: true, atEntry: true });
+    const HomeScenes = require('../tools/v2-lab/home-scenes');
+    t.win.V2Screens.home(HomeScenes.view('home-e2tv'));
+    await sleep(t.win, 40);
+    const hint = t.doc.querySelector('#scr-v2-join .v2-field .v2-hint').textContent;
+    assertEqual(hint, t.win.UiText.HOME.入る.TVのヒント, 'TV の時の一言');
+    assert(/進行役のスマホ/.test(hint), '進行役のスマホに出ている6文字：' + hint);
+    // スマホで入る人の一言はそのまま
+    t.win.V2Screens.home(HomeScenes.view('home-e2a'));
+    await sleep(t.win, 40);
+    assert(/TVの下/.test(t.doc.querySelector('#scr-v2-join .v2-field .v2-hint').textContent), 'スマホの時は今のまま（TVの下に出ている6文字）');
+    t.win.close();
+  });
 
   r.finish();
 })();

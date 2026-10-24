@@ -28,6 +28,16 @@
     return '<div class="v2-corner is-l"><button type="button" class="v2-cbtn" data-home-act="' + e(act) + '" aria-label="' + e(label || W().back || '') + '">' +
       '<span class="v2-ring">' + K().icon('back') + '</span></button></div>';
   }
+  /**
+   * TV に映すアドレス（指示68-0b B12）。「https://」は出さない（打つ時は無くても開ける）。ことばの途中で折らない：
+   * まず1行のまま字を小さく（7割まで・data-v2-fit）、それでも入らなければ最初の「.」の後ろで2行（index.html の homeUrlFit が .is-2 を付ける）。
+   * 押すと写せる（data-home-url に、そのまま開けるアドレス）
+   */
+  function urlHtml(url) {
+    var full = String(url || ''), show = full.replace(/^https?:\/\//, ''), dot = show.indexOf('.');
+    var inner = dot > 0 && dot < show.length - 1 ? '<span>' + e(show.slice(0, dot + 1)) + '</span><span>' + e(show.slice(dot + 1)) + '</span>' : e(show);
+    return '<b class="v2-eurl" role="button" tabindex="0" data-v2-fit data-home-url="' + e(full) + '">' + inner + '</b>';
+  }
   /** 見出し（左上に ‹ がある時は、字を ‹ の右から始める） */
   function hd(en, ttl, withBack, free) {
     var h = K().hdHtml(en, ttl);
@@ -79,7 +89,7 @@
       h += hd(J.英, o.tv ? J.TV見出し : J.見出し, true) +
         '<label class="v2-field v2-a-rise"><span class="v2-field-l">' + e(J.コード) + '</span>' +
           '<span class="v2-code6' + (o.err ? ' is-bad' : '') + '"><input type="text" class="v2-code6-in" data-home-code maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" value="' + e(code) + '" aria-label="' + e(J.コード) + '">' + boxes + '</span>' +
-          (o.err ? '<span class="v2-why" role="alert">' + e(o.err) + '</span>' : '<span class="v2-hint">' + e(J.コードのヒント) + '</span>') +
+          (o.err ? '<span class="v2-why" role="alert">' + e(o.err) + '</span>' : '<span class="v2-hint">' + e(o.tv ? J.TVのヒント : J.コードのヒント) + '</span>') +
         '</label>' +
         (o.tv ? '' : '<button type="button" class="v2-btn is-lite v2-a-rise" data-home-act="qr">' + V.icon('camera') + '<span>' + e(J.QRを読む) + '</span></button>') +
         '<div class="v2-spacer"></div>' +
@@ -103,8 +113,11 @@
     var memHtml = function (m, i) {
       var cls = 'v2-mem' + (m.off ? ' is-off' : '') + (v.fresh && v.fresh.indexOf(m.id) !== -1 ? ' v2-born' : '') + (m.ready ? ' is-ok' : '');
       var lp = v.host && m.id !== v.meId ? ' data-v2-lp="#v2Mem-' + e(m.id) + '"' : '';
-      return '<div class="' + cls + '"' + lp + '>' + V.avHtml(m.icon) + '<span class="v2-mem-nm v2-cut">' + e(m.name) + '</span>' +
-        (v.picked && m.ready ? '<span class="v2-mem-st is-ok">' + V.icon('check') + '</span>' : (tag(m) ? '<span class="v2-mem-st">' + e(tag(m)) + '</span>' : '')) + '</div>';
+      // 指示68-0b B15：名前の行は名前だけ（入らなければ 12px まで縮める・切らない）。「進行役」と準備OK の ✓ は名前の下の小さい行に。
+      // 同じ行に「進行役」があると、8字の名前（kensho34 など）が「kens…」と切れていた
+      var st = (tag(m) ? '<span class="v2-mem-host">' + e(tag(m)) + '</span>' : '') + (v.picked && m.ready ? '<span class="v2-mem-st is-ok">' + V.icon('check') + '</span>' : '');
+      return '<div class="' + cls + '"' + lp + '>' + V.avHtml(m.icon) + '<span class="v2-mem-who"><span class="v2-mem-nm v2-cut" data-v2-fit="12">' + e(m.name) + '</span>' +
+        (st ? '<span class="v2-mem-sub">' + st + '</span>' : '') + '</span></div>';
     };
     var body;
     var band;
@@ -140,7 +153,7 @@
       body: '<div class="v2-eqr">' + (v.qr || '') + '</div><p class="v2-hint v2-c">' + e(!v.qr ? R.QR失敗 : (v.local ? R.ローカル : R.QRの説明)) + '</p>' +
         '<div class="v2-ecode is-big"><span class="v2-lbl">' + e(R.コード) + '</span><b class="v2-en">' + e(v.code) + '</b></div>' });
     var tvSheet = V.sheetHtml({ id: 'v2RoomTv', title: R.TVの見出し,
-      body: '<ol class="v2-esteps"><li><span class="v2-esteps-k">1</span><span>' + e(R.TV手順1) + '<b class="v2-eurl">' + e(v.tvUrl || '') + '</b></span></li>' +
+      body: '<ol class="v2-esteps"><li><span class="v2-esteps-k">1</span><span>' + e(R.TV手順1) + urlHtml(v.tvUrl) + '</span></li>' +
         '<li><span class="v2-esteps-k">2</span><span>' + e(R.TV手順2) + '<b class="v2-en v2-eurl">' + e(v.code) + '</b></span></li>' +
         '<li><span class="v2-esteps-k">3</span><span>' + e(R.TV手順3) + '</span></li></ol>',
       foot: '<button type="button" class="v2-btn is-lite" data-home-act="room-tome">' + V.icon('phone') + '<span>' + e(R.このスマホを) + '</span></button>' +
@@ -223,8 +236,9 @@
   function pageHtml(c, cur) {
     var V = K();
     return '<div class="v2-page v2-w-' + e(c.world) + (cur ? ' is-cur' : '') + '" data-home-page="' + c.i + '">' + V.bgHtml() +
-      '<div class="v2-pin">' + V.tile(c.world) +
-        '<div class="v2-pn v2-cut" data-v2-fit>' + e(c.name) + '</div><div class="v2-pb">' + e(c.blurb) + '</div>' + meta(c) +
+      // 印・名前・ひとことは1つの箱（指示68-0b A1：入らない時は印を小さくして名前の左に置く＝.is-compact。見本 select.html S5）
+      '<div class="v2-pin"><div class="v2-phead">' + V.tile(c.world) +
+        '<div class="v2-pn v2-cut" data-v2-fit>' + e(c.name) + '</div><div class="v2-pb">' + e(c.blurb) + '</div></div>' + meta(c) +
         V.rulesHtml(c.rules) +
         (c.paused || []).map(function (t) { return '<div class="v2-spaused">' + V.icon('pause') + '<span>' + e(t) + '</span></div>'; }).join('') +
         // 前の棚の「くわしく ⓘ」（入っているゲームと、ゲームごとの人数）と「達成状況」は、消さずにページの下に置く

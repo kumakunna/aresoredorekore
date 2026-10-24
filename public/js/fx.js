@@ -918,6 +918,8 @@
     }
     // 最初の数字はその場で出す（合図が届いた瞬間から数え始めて見える）
     show(total);
+    // hold：数えずに、その数のまま止める（見本データの写真だけが使う。動きが終わってから撮るため・指示68-0b K3）
+    if (opts && opts.hold) return Promise.resolve(false);
     var p = wait();
     var step = function (num) {
       p = p.then(function (skipped) {

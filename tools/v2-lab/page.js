@@ -26,7 +26,8 @@
     window.V2Screens[info.draw](view);
     // 画面（.screen）のときだけ移る。重ねて出すもの（はじめの安全の案内・3・2・1）は、描く関数が自分で出す（指示66-2）
     var 箱 = document.getElementById(info.screen);
-    if (箱 && 箱.classList.contains('screen')) window.goToScreen(info.screen);
+    // 描く関数がもう移っていたら、移り直さない（移ると描き直して、開いたシートが閉じる。home-e2qr が撮れていなかった・指示68-0b K8 ③）
+    if (箱 && 箱.classList.contains('screen') && !箱.classList.contains('active')) window.goToScreen(info.screen);
     // 描いたあと、画面の箱が見えてから合わせる（TV の縮め・名前の縮め）
     setTimeout(function () {
       var scr = document.getElementById(info.screen);

@@ -32431,22 +32431,22 @@
    * F10 3・2・1：共通部品（FxKit.countdown）に新しい見た目を着せる。数え方・音・速さの決まりは共通部品のまま
    * （字は出さない・演出の設定で速くしない）。TV は 1920×1080 の箱で組んで縮める（ほかの TV の画面と同じ）
    */
-  function fesCountdown(sec, g, tv){
+  function fesCountdown(sec, g, tv, hold){
     var hd = '<span class="v2-cdx-g">' + V2.esc(g.name) + (g.edition ? '<small>（' + V2.esc(g.edition) + '）</small>' : '') + '</span>';
     return FxKit.countdown(sec, { id: 'v2Cdx', cls: 'v2 v2-cdx v2-w-' + g.world + (tv ? ' is-tv' : ''),
       render: function(num){
         var inner = '<div class="v2-cdx-hd">' + hd + '<span class="v2-arrow"></span></div><div class="v2-cdx-n">' + num + '</div>';
         return tv ? '<div class="v2-tvc"><div class="v2-safe">' + inner + '</div></div>' : inner;
       },
-      after: function(box){ if(tv) V2.fitTv(box); } });
+      after: function(box){ if(tv) V2.fitTv(box); }, hold: !!hold });
   }
   /** 見本データで描く（撮る道具の台本だけが呼ぶ。本番に入口は無い・V2Screens.fes） */
   function fesLab(lab){
     if(lab.screen === 'scr-v2-fes-join'){ fes.join = Object.assign({ code: '', n: null, name: '', diff: null, err: '', busy: false }, lab.join); fesRenderJoin(); }
     else if(lab.screen === 'scr-v2-fes-quit'){ fes.quit = lab.quit; fesRenderQuit(); }
     else if(lab.screen === 'safetyGate'){ try{ localStorage.removeItem(SAFETY_SEEN_KEY); }catch(e){} maybeShowSafetyGate(); }
-    // 撮っている間に消えないよう、見本では 9 から数える（形は 3 と同じ）
-    else if(lab.screen === 'v2Cdx'){ fesCountdown(9, fesInfo(lab.mode || 'bomb-coop'), !!lab.tv); }
+    // 見本では数えずに 3 のまま止める（動きが終わってから撮るので、数えると撮る前に消える・指示68-0b K3）
+    else if(lab.screen === 'v2Cdx'){ fesCountdown(3, fesInfo(lab.mode || 'bomb-coop'), !!lab.tv, true); }
     else if(lab.screen === 'scr-v2-fes-staff'){ fes.staff = lab.staff; fes.staffFb = lab.fb || []; fes.staffRole = 'owner'; fes.staffErr = ''; fesRenderStaff(); }
     else fesRender(lab.screen, lab);
     // 見本データの「開いた形」（着替えのシートなど）
@@ -33222,8 +33222,10 @@
     else if(lab.login) state.displayName = lab.login;
     if(lab.heads != null) shelfHeads = lab.heads || null;
     if(lab.cassette){ state.selectedCassetteId = lab.cassette; state.selectedGameId = lab.game; if(lab.mode) applyPreset(lab.mode); }
-    // 決めた時のカードは、見本では出しっぱなしにする（撮るため）。部屋の場面で勝手に出ないよう、いまの形を覚えさせる
-    home.dec.code = lab.room ? lab.room.code : null; home.dec.key = null;
+    // 決めた時のカードは、見本では出しっぱなしにする（撮るため）。部屋の場面で勝手に出ないよう、いまの形を覚えさせる。
+    // seen（カードを見たあと）は「入った時にもう決まっていた部屋」と同じ扱いにして、カードを出さない（指示68-0b B6：
+    // 見本データに seen を渡していたのに読んでいなかったので、写真が決定のカードになっていた）
+    home.dec.code = (lab.room && !lab.seen) ? lab.room.code : null; home.dec.key = null;
     // TV がつながった知らせ（進行役だけに出る）は、見本では出さない（撮る写真の見出しに重なる）
     if(lab.room) lab.room.members.forEach(function(m){ if(m.role === 'bigscreen') rtOnce('room:bigJoined:' + m.id, true, function(){}); });
     if(lab.screen === 'v2Decided'){ homeShowDecided(lab.decided); clearTimeout(home.dec.timer); return; }

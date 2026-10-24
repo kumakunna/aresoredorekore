@@ -75,8 +75,9 @@ const BUILD = {
   'game-sugo': () => ({ screen: 'scr-game', room: 部屋(7), meId: 'm1', cassette: 'sugoroku', game: 'sugotoll' }),
   'mode-bomb': () => ({ screen: 'scr-mode', room: 部屋(6), meId: 'm1', cassette: 'bakudan', game: 'bomb', mode: 'bomb-coop' }),
   // S6 決めた時
-  'dec': () => ({ screen: 'v2Decided', decided: { world: 'falsetrue', name: 'False or True', by: '進行役が えらびました', tv: false } }),
-  'dec-tv': () => ({ screen: 'v2Decided', decided: { world: 'falsetrue', name: 'False or True', by: 'ふう が えらびました', tv: true } }),
+  // 見本データは、68-1 のあとも棚に残るゲーム（人狼ゲーム）。False or True は 68-1 で棚から下りる（指示68-0b K8 ⑥）
+  'dec': () => ({ screen: 'v2Decided', decided: { world: 'wolf', name: '人狼ゲーム', by: '進行役が えらびました', tv: false } }),
+  'dec-tv': () => ({ screen: 'v2Decided', decided: { world: 'wolf', name: '人狼ゲーム', by: 'ふう が えらびました', tv: true } }),
   // TV：選んでいる間も変えない（10人・16人）
   'home-tv10': () => ({ screen: 'scr-v2-room-tv', room: 部屋(10), meId: 'tv' }),
   'home-tv16': (o) => ({ screen: 'scr-v2-room-tv', room: 部屋(16, o), meId: 'tv' })

@@ -28,6 +28,24 @@ const CHROME_CANDIDATES = [
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * 古い入口（指示66-3 の前の棚・遊び方・「大画面として部屋に入る」・古い待合）の目印（指示68-0b K10）。
+ * 見た目を入れかえると、古い入口を歩く道具（big-census・demo-walk・probe-63-* など）が「見つかりません」「待ちきれません」で
+ * 黙って壊れる（落とし穴55）。押す・待つが失敗した時、相手がこの目印なら、どの道具が合っていないかを言って止まる。
+ * 直すのは使う時でよい（flow-walk.js の 進行役が部屋をつくる・部屋でゲームをえらぶ・大画面が入る が新しい入口の歩き方）
+ */
+const 古い入口 = ["'scr-entry'", "'scr-shelf'", "'scr-play-way'", "'scr-rt-lobby'", '"scr-entry"', '"scr-shelf"', '"scr-play-way"', '"scr-rt-lobby"',
+  '[data-entry=', '#rtPickGameBtn', '#rtJoinName', '#rtJoinCode', '#rtJoinBtn', '.cart[data-cart', '#wayChoices', '#rtQr '];
+function 古い入口なら(e, what) {
+  const w = String(what || '');
+  if (!古い入口.some((k) => w.indexOf(k) !== -1)) return e;
+  const tool = path.basename((require.main && require.main.filename) || process.argv[1] || '?');
+  const err = new Error('新しい入口に合わせていません（' + tool + '）：古い入口の「' + w.slice(0, 80) + '」が見つかりません。' +
+    '入口は指示66-3 で新しい見た目（scr-v2-home → scr-v2-room → scr-v2-pick、TV は /tv）に変わりました。もとの失敗：' + e.message);
+  err.古い入口 = true;
+  return err;
+}
+
 async function launch(opt) {
   const o = opt || {};
   const exe = CHROME_CANDIDATES.find((p) => { try { return fs.existsSync(p); } catch (e) { return false; } });
@@ -115,7 +133,7 @@ async function launch(opt) {
           let ok = false;
           try { ok = await dev.ev(expr); } catch (e) {}
           if (ok) return ok;
-          if (Date.now() - t0 > (ms || 8000)) throw new Error(name + '：待ちきれませんでした（' + (what || expr) + '）');
+          if (Date.now() - t0 > (ms || 8000)) throw 古い入口なら(new Error(name + '：待ちきれませんでした（' + (what || expr) + '）'), expr);
           await sleep(120);
         }
       },
@@ -131,7 +149,7 @@ async function launch(opt) {
         const c = await dev.ev('(function(){var e=document.querySelector(' + JSON.stringify(sel) + ');' +
           'if(!e) return null; e.scrollIntoView({block:"center"}); var r=e.getBoundingClientRect();' +
           'return {x:r.left+r.width/2, y:r.top+r.height/2};})()');
-        if (!c) throw new Error(name + '：押すものが見つかりません ' + sel);
+        if (!c) throw 古い入口なら(new Error(name + '：押すものが見つかりません ' + sel), sel);
         await sleep(80);
         await dev.tapAt(c.x, c.y);
       },
@@ -142,7 +160,7 @@ async function launch(opt) {
       async click(sel) {
         const ok = await dev.ev('(function(){var e=document.querySelector(' + JSON.stringify(sel) + ');' +
           'if(!e) return false; e.click(); return true;})()');
-        if (!ok) throw new Error(name + '：押すものが見つかりません ' + sel);
+        if (!ok) throw 古い入口なら(new Error(name + '：押すものが見つかりません ' + sel), sel);
       },
       async shot(file) {
         // .jpg なら JPEG（手順書に置くスクショは容量を抑える）
@@ -182,4 +200,4 @@ async function launch(opt) {
   return { newDevice, close, send };
 }
 
-module.exports = { launch, sleep };
+module.exports = { launch, sleep, 古い入口なら };

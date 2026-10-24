@@ -7,14 +7,23 @@
 //   node tools/v2-shot.js --fx skip            … 演出「なし」で撮る（既定は ふつう）
 //   node tools/v2-shot.js --font 130           … 設定の文字サイズ「大」で撮る（ルールとシートの文が 1.15倍）
 //   node tools/v2-shot.js --only home-e3,home-te3 --prod-url https://aresoredorekore.duckdns.org … 待合を本番の長さのアドレスで（指示68-0a M8）
+//   node tools/v2-shot.js --gate               … 門の形（指示68-0b K8 ①⑧）：ふつう・文字「大」・演出「なし」・大＋なし の4通りを続けて撮る。
+//                                                  写真は out の下の normal／font130／skip／font130-skip に分ける
+//   node tools/v2-shot.js --mock-check         … 見本（docs/指示66/見本/）の全部の画面にも同じ物差しを当てて、記録に書くだけ（見本は直さない）
 //   --out DIR（既定 docs/監査_指示66の画像/shot）  --port 3966  --cdp 9666
+//
+// **動きが終わってから撮る・測る**（指示68-0b K3）：くり返さない動きが全部終わり、300ms あけて2回撮った絵が同じになるまで待つ。
+// くり返す動き（背景の丸・名前の壁）は最初のコマで止めて比べる。10秒で打ち切り、記録に「止まらなかった」と書く。
+// 途中の形を見たい時は tools/v2-motion.js で別に撮る（門には使わない）。
+// **見本データは毎回同じ**（K4）：見本データの乱数は場面ごとに種を決める（tools/v2-lab/serve.js）。
 //
 // **サーバーも bot も要らない。**public/ をそのまま配り、socket.io は tests/harness.js の疑似を使い、
 // 見本データは tools/v2-lab/（serve.js の labHtml）が index.html に差し込む——人が /v2lab で見る画面と同じもの。
 //
 // 測るのは見本を作った時と同じ物差し（docs/指示66/tools/check.js の UICHECK）。セレクタはアプリに合わせて渡す。
-// **測る前に、物差しが効くことを1つ確かめる**（落とし穴10-f・28）：わざと画面の外へはみ出す字を足して、
-// UICHECK が「画面の外」と言うか。言わなければ測らずに止める。
+// **測る前に、物差しが効くことを確かめる**（落とし穴10-f・28）：わざと画面の外へはみ出す字・小さい字・重なる字・
+// 薄い字・すき間の狭いボタン・帯の線に近い札・TV の枠の外の部品を足して、UICHECK がそれぞれを言うか（指示68-0b K9）。
+// 言わなければ測らずに止める。場面によって試せない物（帯の無い画面の K5 など）は、ほかの場面で1回は試せていることを最後に確かめる。
 //
 // 撮った写真は docs/監査_指示66の画像/（git に入れない）。数は 記録.json。
 
@@ -33,6 +42,13 @@ const ONLY = arg('only', null), MOCK = !!arg('mock', false), FX = arg('fx', 'nor
 const FONT = +arg('font', 100);
 // --prod-url https://…：ふだんの画面の待合を本番と同じ長さのアドレスで撮る（指示68-0a M8）。--only は「,」で区切って複数わたせる
 const PROD = arg('prod-url', null);
+// 本番のアドレス（K8 ⑤：home-e3-tv はこの長さでも門に数える）
+const PROD_URL = 'https://aresoredorekore.duckdns.org';
+const GATE = !!arg('gate', false), MOCK_CHECK = !!arg('mock-check', false);
+/** 撮る形。--gate は4通り（K8 ①⑧）。ふつうは1通り（--fx・--font） */
+const FORMS = GATE
+  ? [{ name: 'normal', fx: 'normal', font: 100 }, { name: 'font130', fx: 'normal', font: 130 }, { name: 'skip', fx: 'skip', font: 100 }, { name: 'font130-skip', fx: 'skip', font: 130 }]
+  : [{ name: '', fx: FX, font: FONT }];
 const ONLY_LIST = ONLY ? String(ONLY).split(',') : null;
 const 選ぶ = (id) => !ONLY_LIST || ONLY_LIST.some((p) => id.indexOf(p) === 0);
 const OUT = path.resolve(arg('out', path.join(ROOT, 'docs', '監査_指示66の画像', 'shot')));
@@ -40,6 +56,12 @@ const CHECK_JS = fs.readFileSync(path.join(ROOT, 'docs', '指示66', 'tools', 'c
 const MOCK_DIR = path.join(ROOT, 'docs', '指示66', '見本');
 
 const SIZES = { phone: [{ w: 390, h: 844 }, { w: 375, h: 667 }], tv: [{ w: 1920, h: 1080 }] };
+/**
+ * 大きさを足す場面（K8 ②：TV で /tv を開いた画面は、TV の大きさでも撮る）。
+ * 画面の形はまだスマホの列（TV の形にするのは 68-7 の C19）なので、物差しはスマホのまま当てる
+ */
+const MORE_SIZES = { 'home-e2tv': [{ w: 1920, h: 1080 }] };
+function sizesOf(scene) { return SIZES[scene.kind].concat(MORE_SIZES[scene.id] || []); }
 
 /**
  * 撮る状態。open：開く重なり（data-v2-id）、freeze：のこりの秒、mock：見本の同じ状態を開く手順（見本の DS.open）。
@@ -91,7 +113,28 @@ const STATES = {
     { id: 'bomb-dlg', world: 'bomb', freeze: 23, open: 'v2PartsDlg' },
     { id: 'quiz', world: 'quiz', freeze: 4 },
     { id: 'shinka', world: 'shinka', freeze: 4 }
-  ]
+  ],
+  // 指示68-0b K8 ④⑦：待合を 6・10・13・16人で。名前の札は、いちばん幅の広い8字でも（wide）
+  'home-e3': [
+    { id: 'base', freeze: 20, mock: [] },
+    { id: 'n10', n: 10, freeze: 20, mock: null },
+    { id: 'n13', n: 13, freeze: 20, mock: null },
+    { id: 'n16', n: 16, freeze: 20, mock: null },
+    { id: 'wide', long: 1, freeze: 20, mock: null },
+    { id: 'wide10', n: 10, long: 1, freeze: 20, mock: null }
+  ],
+  'home-e4': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  'home-te3': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  'home-tv16': [{ id: 'base', freeze: 20, mock: null }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  'home-e3-16': [{ id: 'base', freeze: 20, mock: null }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  // K8 ⑤：「TVに映す」のシートを本番と同じ長さのアドレスで
+  'home-e3-tv': [{ id: 'base', freeze: 20, mock: null }, { id: 'prod', prod: PROD_URL, freeze: 20, mock: null }],
+  // K8 ③：QR を読むシートが開いた形。base はカメラが使えない端末（案内だけ）、cam はその場でカメラが映る端末（Android の Chrome）
+  'home-e2qr': [{ id: 'base', freeze: 20, mock: null }, { id: 'cam', cam: 1, freeze: 20, mock: null }],
+  'fes2-lobby': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  'fes2-staff': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  // K8 ⑦：TV の投票も長い名前で（A3：ゲーム名と一言が重ならない）
+  'fes2-tv-vote': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }]
 };
 
 /**
@@ -105,16 +148,60 @@ const OPTS = {
   phone: { tv: false, band: '.v2-band', content: ':scope > .v2-in *', deco: '.v2-bg,.v2-brand,.v2-lpring',
     layers: '.v2-sheet:not(.is-open),.v2-dlg:not(.is-open),.v2-toast:not(.is-open),.v2-scrim:not(.is-open)',
     icons: '.v2-cbtn.is-gear .v2-ring,.v2-x,.v2-rule-ri', tiles: '.v2-tile', layerPlace: false,
+    over: '.v2-sheet,.v2-dlg,.v2-toast,.v2-scrim,.v2-pop,.v2-ov.is-open', buttons: 'button,.v2-btn,[role=button]',
     cutOk: '.v2-me-tt,.v2-rrow-tt,.v2-band-msg' },
+  // extra（K7）：TV の画面に重なる、アプリ全体の浮いた部品。#uicheck-extra-test は自己検査の試し
   tv: { tv: true, band: '.v2-tband', topLine: '.v2-thd .v2-arrow', deco: '.v2-bg,.v2-tbrand',
     layers: '.v2-none', icons: '.v2-x', tiles: '.v2-tile', layerPlace: false,
+    over: '.v2-sheet,.v2-dlg,.v2-toast,.v2-scrim,.v2-pop,.v2-ov.is-open', buttons: 'button,.v2-btn,[role=button]',
+    extra: '#floatingGearBtn,#floatingBackBtn,#floatingStatusBtn,#uicheck-extra-test',
     cutOk: '.v2-tmem-tt' }
 };
+/** 字の後ろの色を撮る時に、一緒に消す飾り（名前の壁・縦の英字。背景に入れない・K2） */
+const INK_HIDE = '.v2-wall,.v2-brand,.v2-tbrand';
 
 // 配り手と開き方は tools/v2-lab/open.js（v2-ink.js・v2-motion.js と同じもの）
-async function 開く(dev, scene, st) {
-  await 開くの本体(dev, PORT, scene, Object.assign({ fx: FX, font: FONT }, st));
-  if (PROD && scene.home) await 本番のアドレスにする(dev, scene, st);
+async function 開く(dev, scene, st, form) {
+  await 開くの本体(dev, PORT, scene, Object.assign({ fx: form.fx, font: form.font }, st));
+  const prod = st.prod || PROD;
+  if (prod && scene.home) await 本番のアドレスにする(dev, scene, st, prod);
+  // カメラが映る端末の形：index.html の homeScanStart が箱に入れるのと同じ video（撮る道具にはカメラが無いので、黒い絵のまま）
+  if (st.cam) await dev.ev("(function(){ var b=document.querySelector('.screen.active [data-home-scan]'); if(!b) return 0; var v=document.createElement('video'); v.setAttribute('playsinline',''); v.width=640; v.height=480; v.style.aspectRatio='4/3'; b.innerHTML=''; b.appendChild(v); return 1; })()");
+  return 止まるまで(dev);
+}
+
+/**
+ * K3（指示68-0b）：動きが終わってから撮る・測る。動きの途中で撮った写真が、門の証拠になっていた（決めた時のカード）。
+ * ①くり返さない動き（CSS の動き・移り変わり。document.getAnimations()）が全部終わるまで待つ。
+ *   くり返す動き（背景の丸・名前の壁）は最初のコマで止める——毎回同じ絵にするため（K4）
+ * ②300ms あけて2回撮った絵が同じになるまで待つ（台本の setTimeout で変わる物も拾う）
+ * 10秒で打ち切り、「止まらなかった」と返す（撮って測るのは続ける。記録に残す）
+ */
+const くり返す動きを止める = `(function(){ var k = 0;
+  document.getAnimations().forEach(function(x){
+    var it = x.effect && x.effect.getComputedTiming ? x.effect.getComputedTiming().iterations : 1;
+    if (it === Infinity) { if (x.playState !== 'paused' || x.currentTime !== 0) { x.pause(); x.currentTime = 0; } return; }
+    if (x.playState === 'running' || x.pending) k++;
+  });
+  return k; })()`;
+async function 止まるまで(dev) {
+  const t0 = Date.now();
+  let 動き = await dev.ev(くり返す動きを止める);
+  while (動き) {
+    if (Date.now() - t0 > 10000) return { 止まった: false, ms: Date.now() - t0, 何: 'CSS の動きが ' + 動き + ' 個終わらない' };
+    await sleep(100);
+    動き = await dev.ev(くり返す動きを止める);
+  }
+  let prev = null;
+  for (;;) {
+    await sleep(300);
+    await dev.ev(くり返す動きを止める);
+    // 比べるだけなので軽い形で撮る（同じ絵なら同じバイト列になる）
+    const r = await dev.raw('Page.captureScreenshot', { format: 'jpeg', quality: 40, optimizeForSpeed: true });
+    if (prev === r.data) return { 止まった: true, ms: Date.now() - t0 };
+    prev = r.data;
+    if (Date.now() - t0 > 10000) return { 止まった: false, ms: Date.now() - t0, 何: '2回撮った絵が同じにならない' };
+  }
 }
 
 /**
@@ -123,8 +210,8 @@ async function 開く(dev, scene, st) {
  * 部屋の画面に渡る値（tvUrl・local・qr）だけを差しかえる——描く関数（V2Home.room・roomTv）はそのまま通す。
  * QR に入れる形は index.html の roomJoinUrl と同じ（origin + '/' + '?room=' + コード）
  */
-async function 本番のアドレスにする(dev, scene, st) {
-  await dev.ev(`(function(){ var P = ${JSON.stringify(String(PROD).replace(/\/$/, ''))};
+async function 本番のアドレスにする(dev, scene, st, prod) {
+  await dev.ev(`(function(){ var P = ${JSON.stringify(String(prod).replace(/\/$/, ''))};
     var wrap = function(f){ return function(v){ v = Object.assign({}, v, { tvUrl: P + '/tv', local: false });
       if (v.qr && v.code && window.QR) v.qr = QR.toSvg(P + '/?room=' + encodeURIComponent(v.code), { quiet: 2 });
       return f(v); }; };
@@ -139,6 +226,16 @@ async function 本番のアドレスにする(dev, scene, st) {
 async function 測る(dev, scene, kind) {
   await dev.ev('(function(){' + CHECK_JS + '; return typeof UICHECK; })()');
   const sel = kind === 'tv' ? '#' + scene.screen + ' .v2-tvc' : '#' + scene.screen;
+  // K2：字を消して撮った写真を先に渡す（字の後ろの色を画素で測る。名前の壁と縦の英字は背景に入れない）
+  await dev.ev(`(function(){ UICHECK.inkOff(${JSON.stringify(INK_HIDE)}); return 1; })()`);
+  await sleep(60);
+  // 色を読むだけなので JPEG（PNG の 1920×1080 はページに渡すだけで数秒かかる）。字の後ろの色は中央値で読むので、圧縮のにじみは効かない
+  const bare = await dev.raw('Page.captureScreenshot', { format: 'jpeg', quality: 92, optimizeForSpeed: true });
+  await dev.ev(`(function(){ UICHECK.inkOn(); return 1; })()`);
+  await dev.ev(`UICHECK.loadShot('data:image/jpeg;base64,${bare.data}', window.devicePixelRatio || 1)`);
+  try { return await 測る本体(dev, kind, sel); } finally { await dev.ev('(function(){ UICHECK.pix = null; return 1; })()'); }
+}
+async function 測る本体(dev, kind, sel) {
   // 「…で切ってよい」と決めた所（二つ名・帯の一言）。**名前は入れない**（名前は切らない・見本 F3）。
   // check.js は .cut-ok で見分けるので、測る間だけその印を付ける（アプリの markup には持ち込まない）
   return dev.ev(`(function(){ var ok=document.querySelectorAll(${JSON.stringify(OPTS[kind].cutOk)}); ok.forEach(function(e){ e.classList.add('cut-ok'); });
@@ -183,6 +280,56 @@ const 省略 = `(function(root, ok){
   });
   return out;
 })`;
+
+/**
+ * 新しい物差しの自己検査（指示68-0b K9）：K1・K2・K5・K6・K7 それぞれに「わざと壊した見本」を足して、
+ * 本番と同じ測り方（字を消して撮る所から）で拾うかを見る。拾えなければ止める。
+ * 試せない場面（帯の無い画面の K5・スマホの K7）は「なし」。どれも1回は試せたことを最後に確かめる（試せた）
+ */
+const 試せた = { K1: 0, K2: 0, K5: 0, K6: 0, K7: 0 };
+async function 新しい物差しを確かめる(dev, scene, kind) {
+  const sel = kind === 'tv' ? '#' + scene.screen + ' .v2-tvc' : '#' + scene.screen;
+  const fs0 = kind === 'tv' ? 48 : 16;
+  const 置いた = await dev.ev(`(function(){
+    var root = document.querySelector(${JSON.stringify(sel)}), put = { K5: false, K7: false };
+    var box = document.createElement('div'); box.className = 'uicheck-self';
+    box.style.cssText = 'position:absolute;left:${kind === 'tv' ? 300 : 30}px;top:${kind === 'tv' ? 200 : 110}px;width:${kind === 'tv' ? 900 : 300}px;height:${kind === 'tv' ? 600 : 300}px;z-index:99;background:#fff;font-family:sans-serif';
+    box.innerHTML = '<div style="position:absolute;left:0;top:0;font-size:${fs0}px;color:#000;white-space:nowrap">かさなる字A</div>' +
+      '<div style="position:absolute;left:12px;top:${fs0 >> 2}px;font-size:${fs0}px;color:#000;white-space:nowrap">かさなる字B</div>' +
+      '<div style="position:absolute;left:0;top:${fs0 * 3}px;font-size:${fs0}px;color:#999;background:#aaa;white-space:nowrap">うすい字</div>' +
+      '<button style="position:absolute;left:0;top:${fs0 * 6}px;width:${fs0 * 12}px;height:${fs0 * 2.5}px;font-size:${fs0}px">ボタン上</button>' +
+      '<button style="position:absolute;left:0;top:${fs0 * 8.5 + 3}px;width:${fs0 * 12}px;height:${fs0 * 2.5}px;font-size:${fs0}px">ボタン下</button>';
+    root.appendChild(box);
+    // K5：帯の線から 5px 上に札（スマホは中身の層 .v2-in が巻けない画面だけ。巻ける箱の中は帯の測りの外）
+    var band = root.querySelector('.v2-band'), inn = root.querySelector(':scope > .v2-in');
+    if (${kind === 'phone'} && band && inn && getComputedStyle(inn).overflowY !== 'auto' && getComputedStyle(inn).overflowY !== 'scroll' && band.getBoundingClientRect().height) {
+      var B = band.getBoundingClientRect(), I = inn.getBoundingClientRect();
+      var f = document.createElement('div'); f.className = 'uicheck-self'; f.textContent = '帯の近くの札';
+      f.style.cssText = 'position:absolute;left:150px;top:' + (B.top - I.top - 5 - 30) + 'px;height:30px;width:120px;background:#fff;color:#000;font-size:14px';
+      inn.appendChild(f); put.K5 = true;
+    }
+    // K7：TV の右上に、アプリ全体の浮いた部品（⚙ と同じ所）
+    if (${kind === 'tv'}) { var g = document.createElement('button'); g.id = 'uicheck-extra-test'; g.className = 'uicheck-self'; g.textContent = '⚙';
+      g.style.cssText = 'position:fixed;top:6px;right:8px;width:44px;height:44px;z-index:999;background:#fff;color:#000'; document.body.appendChild(g); put.K7 = true; }
+    return put; })()`);
+  let out;
+  try { out = await 測る(dev, scene, kind); }
+  finally { await dev.ev("(function(){ document.querySelectorAll('.uicheck-self').forEach(function(e){ e.remove(); }); return 1; })()"); }
+  const 拾った = (k, t) => out.some((x) => x.kind === k && (x.text === t || x.with === t || x.part === t));
+  const r = {
+    K1: 拾った('字と字が重なる', 'かさなる字A') || 拾った('字と字が重なる', 'かさなる字B'),
+    K2: 拾った('色の差が足りない', 'うすい字'),
+    K6: 拾った('ボタンのすき間が狭い', 'ボタン上'),
+    K5: 置いた.K5 ? 拾った('下の線に近すぎる', '帯の近くの札') : 'なし',
+    K7: 置いた.K7 ? 拾った('TVの安全な枠の外', 'uicheck-extra-test') : 'なし'
+  };
+  Object.keys(r).forEach((k) => {
+    if (r[k] === 'なし') return;
+    if (r[k] !== true) throw new Error('新しい物差し ' + k + ' が、わざと壊した見本を拾えません（' + scene.id + '）' + JSON.stringify(out.slice(0, 12)));
+    試せた[k]++;
+  });
+  return r;
+}
 
 /** 物差しの自己検査：わざとはみ出す字・小さい字を足すと、UICHECK がそれを言うか */
 async function 物差しを確かめる(dev, scene, kind) {
@@ -237,6 +384,40 @@ async function 見本を撮る(dev, page, id, opens, file) {
   fs.writeFileSync(file, Buffer.from(res.data, 'base64'));
 }
 
+/**
+ * 見本にも同じ物差しを当てる（指示68-0b 第1部「check.js に足す物は、見本にも同じに当てる」）。
+ * 見本の画面（.scr と .tv で data-id のある物）を1枚ずつ見える所に出して、字を消して撮り、UICHECK を既定のクラス名で当てる。
+ * **記録に書くだけで、見本は直さない**（門の数にも入れない）
+ */
+async function 見本を測る(br) {
+  const dev = await br.newDevice('mock-check', { width: 2100, height: 1300, deviceScaleFactor: 1 });
+  const 結果 = [];
+  try {
+    for (const page of ['entry.html', 'select.html', 'festival.html']) {
+      await dev.go('file:///' + path.join(MOCK_DIR, page).replace(/\\/g, '/'));
+      await dev.until("window.DS && document.fonts.status==='loaded'", 20000, '見本');
+      await dev.ev(`(function(){ var b=document.querySelector('[data-fxset="none"]'); if(b) b.click();
+        document.documentElement.classList.add('native'); document.querySelectorAll('.frame').forEach(DS.fit); return 1; })()`);
+      await dev.ev('(function(){' + CHECK_JS + '; return typeof UICHECK; })()');
+      const ids = await dev.ev("[].map.call(document.querySelectorAll('.scr[data-id],.tv[data-id]'), function(e){ return e.getAttribute('data-id'); })");
+      for (const id of ids) {
+        await dev.ev(`(function(){ var s=document.querySelector('[data-id="${id}"]'); s.scrollIntoView({block:'center'}); s.classList.add('play'); return 1; })()`);
+        await sleep(1200);
+        await 止まるまで(dev);
+        await dev.ev(`(function(){ UICHECK.inkOff(); return 1; })()`);
+        await sleep(60);
+        const bare = await dev.raw('Page.captureScreenshot', { format: 'png' });
+        await dev.ev(`(function(){ UICHECK.inkOn(); return 1; })()`);
+        await dev.ev(`UICHECK.loadShot('data:image/png;base64,${bare.data}', 1)`);
+        const issues = await dev.ev(`(function(){ var s=document.querySelector('[data-id="${id}"]'); var o=UICHECK(s, { tv: s.classList.contains('tv') }); UICHECK.pix=null; return o; })()`);
+        結果.push({ 見本: page + '#' + id, 指摘: issues.length, 中身: issues });
+        console.log('見本 ' + page + '#' + id + '  ' + issues.length + ' 件' + (issues.length ? '：' + issues.map((x) => x.kind + '「' + x.text + '」').join(' / ') : ''));
+      }
+    }
+  } finally { await dev.close(); }
+  return 結果;
+}
+
 /** 2枚を左右に並べた画像（左＝見本・右＝アプリ）を作る */
 async function 並べる(dev, left, right, file, w, h) {
   const toUrl = (f) => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
@@ -255,29 +436,42 @@ async function 並べる(dev, left, right, file, w, h) {
   fs.mkdirSync(OUT, { recursive: true });
   const server = await 配り手の本体(PORT);
   const br = await launch({ port: CDP });
-  const 記録 = { いつ: new Date().toISOString(), 演出: FX, 物差し: [], 画面: [] };
+  const 記録 = { いつ: new Date().toISOString(), 形: FORMS.map((f) => f.name || (f.fx + '/' + f.font)), 物差し: [], 画面: [], 止まらなかった: [], 見本: [] };
   let 指摘の数 = 0;
   try {
-    for (const scene of SCENES) {
-      if (!選ぶ(scene.id)) continue;
-      for (const size of SIZES[scene.kind]) {
-        const dev = await br.newDevice(scene.id, { width: size.w, height: size.h, deviceScaleFactor: 1, mobile: scene.kind === 'phone' });
-        let 確かめた = false;
-        for (const st of statesOf(scene)) {
-          await 開く(dev, scene, st);
-          if (!確かめた) { 記録.物差し.push({ scene: scene.id, size: size.w + 'x' + size.h, 結果: await 物差しを確かめる(dev, scene, scene.kind) }); 確かめた = true; }
-          const issues = await 測る(dev, scene, scene.kind);
-          const name = scene.id + '_' + size.w + 'x' + size.h + '_' + st.id;
-          const file = path.join(OUT, name + '.png');
-          await dev.shot(file);
-          記録.画面.push({ 名前: name, 指摘: issues.length, 参考: !!st.info, 中身: issues });
-          if (!st.info) 指摘の数 += issues.length;
-          console.log((st.info ? '（参考）' : '') + (issues.length ? '✖ ' : '✔ ') + name + '  check.js ' + issues.length + ' 件' + (issues.length ? '：' + issues.map((x) => x.kind + '「' + x.text + '」').join(' / ') : ''));
-          if (logsOf(dev).length) console.log('   ページの例外:', logsOf(dev).join(' | '));
+    for (const form of FORMS) {
+      const out = form.name ? path.join(OUT, form.name) : OUT;
+      fs.mkdirSync(out, { recursive: true });
+      for (const scene of SCENES) {
+        if (!選ぶ(scene.id)) continue;
+        for (const size of sizesOf(scene)) {
+          const dev = await br.newDevice(scene.id, { width: size.w, height: size.h, deviceScaleFactor: 1, mobile: size.w < 1000 });
+          let 確かめた = false;
+          for (const st of statesOf(scene)) {
+            const 止まり = await 開く(dev, scene, st, form);
+            const name = scene.id + '_' + size.w + 'x' + size.h + '_' + st.id;
+            if (!止まり.止まった) { 記録.止まらなかった.push(Object.assign({ 名前: (form.name ? form.name + '/' : '') + name }, 止まり)); console.log('   止まらなかった：' + name + '（' + 止まり.何 + '）'); }
+            if (!確かめた) {
+              記録.物差し.push({ form: form.name, scene: scene.id, size: size.w + 'x' + size.h,
+                結果: await 物差しを確かめる(dev, scene, scene.kind), 新しい物差し: await 新しい物差しを確かめる(dev, scene, scene.kind) });
+              確かめた = true;
+            }
+            const issues = await 測る(dev, scene, scene.kind);
+            const file = path.join(out, name + '.png');
+            await dev.shot(file);
+            記録.画面.push({ 形: form.name, 名前: name, 指摘: issues.length, 参考: !!st.info, 止まるまで: 止まり.ms, 中身: issues });
+            if (!st.info) 指摘の数 += issues.length;
+            console.log((form.name ? '[' + form.name + '] ' : '') + (st.info ? '（参考）' : '') + (issues.length ? '✖ ' : '✔ ') + name + '  check.js ' + issues.length + ' 件' + (issues.length ? '：' + issues.map((x) => x.kind + '「' + x.text + '」').join(' / ') : ''));
+            if (logsOf(dev).length) console.log('   ページの例外:', logsOf(dev).join(' | '));
+          }
+          await dev.close();
         }
-        await dev.close();
       }
     }
+    // 自己検査：K5 と K7 は場面によって試せない。全体で1回も試せなかった物差しがあれば、門に使えない
+    if (!ONLY_LIST) Object.keys(試せた).forEach((k) => { if (!試せた[k]) throw new Error('新しい物差し ' + k + ' を1回も試せませんでした'); });
+    記録.試せた = 試せた;
+    if (MOCK_CHECK) 記録.見本 = await 見本を測る(br);
     if (MOCK) {
       const dev = await br.newDevice('mock', { width: 2100, height: 1300, deviceScaleFactor: 1 });
       for (const scene of SCENES) {
@@ -301,8 +495,10 @@ async function 並べる(dev, left, right, file, w, h) {
     await br.close();
     server.close();
   }
+  if (記録.止まらなかった.length) console.log('✖ 動きが止まらなかった写真 ' + 記録.止まらなかった.length + ' 枚（記録.json の 止まらなかった）');
+  if (MOCK_CHECK) console.log('見本の指摘（記録だけ・見本は直さない）：' + 記録.見本.reduce((a, x) => a + x.指摘, 0) + ' 件（' + 記録.見本.length + ' 枚）');
   console.log((指摘の数 ? '✖ ' : '✔ ') + 'check.js の指摘 合計 ' + 指摘の数 + ' 件（' + 記録.画面.length + ' 枚）。写真と記録：' + path.relative(ROOT, OUT));
-  process.exitCode = 指摘の数 ? 1 : 0;
+  process.exitCode = 指摘の数 || 記録.止まらなかった.length ? 1 : 0;
 })().catch((e) => { console.error(e); process.exit(2); });
 
 function logsOf(dev) { const l = dev.logs.slice(); dev.logs.length = 0; return l; }

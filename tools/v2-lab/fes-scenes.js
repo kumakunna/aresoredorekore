@@ -119,7 +119,7 @@ const BUILD = {
   'fes2-result': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, true); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-boom': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, false); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-quit': () => ({ screen: 'scr-v2-fes-quit', quit: { code: CODE, memberId: 'm1', mode: 'bomb-coop', round: 1, stars: 0, title: { icon: '🏮', name: '文化祭の記念' } } }),
-  'fes2-staff': (o) => { const r = 部屋(o.n || 7); FesRoom.tick(r, Date.now(), api); 進める(r); のこり(r, 12); r.fes.round = 23; r.fes.hidden.add('m3');
+  'fes2-staff': (o) => { const r = 部屋(o.n || 7, o.long); FesRoom.tick(r, Date.now(), api); 進める(r); のこり(r, 12); r.fes.round = 23; r.fes.hidden.add('m3');
     const s = snap(r);
     return { screen: 'scr-v2-fes-staff', staff: { code: CODE, tv: 1, fes: s.fes,
       members: Array.from(r.members.values()).filter((m) => m.role !== 'bigscreen').map((m) => ({ id: m.id, name: m.name, connected: true, hidden: r.fes.hidden.has(m.id), miss: 0, playing: true })) },
@@ -132,7 +132,7 @@ const BUILD = {
   'fes2-tv-one': () => { const r = 部屋(1); FesRoom.tick(r, Date.now(), api); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-lobby': (o) => { const r = 部屋(o.n || 6, o.long); FesRoom.tick(r, Date.now(), api); のこり(r, 27); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-full': (o) => { const r = 部屋(16, o.long); FesRoom.tick(r, Date.now(), api); のこり(r, 27); return lab(r, 'scr-v2-fes-tv', 'tv'); },
-  'fes2-tv-vote': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); のこり(r, 20); return lab(r, 'scr-v2-fes-tv', 'tv'); },
+  'fes2-tv-vote': (o) => { const r = 部屋(o.n || 6, o.long); FesRoom.tick(r, Date.now(), api); 進める(r); のこり(r, 20); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-decide': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); ['m1', 'm2', 'm3', 'm4', 'm5'].forEach((id) => FesRoom.vote(r, id, 'bomb-coop')); 進める(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-ready': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);
     ['m1', 'm2', 'm5', 'm6', 'm7'].forEach((id) => { const m = r.members.get(id); if (m) m.readyGame = 'bomb'; }); のこり(r, 12); return lab(r, 'scr-v2-fes-tv', 'tv'); },

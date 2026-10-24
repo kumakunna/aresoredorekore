@@ -20,6 +20,8 @@ const {
   launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame, holdPress,
   chooseNext, autoDialog
 } = require('./harness');
+const H = require('./harness');
+const { openCassette } = H;
 
 // 「誰が誰に入れたか」の形に組み立てる。['A','A','B'] → 3人がそれぞれ A,A,B に入れた
 function votesFrom(list) {

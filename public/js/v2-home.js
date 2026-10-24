@@ -45,6 +45,8 @@
         (o.who ? '<p class="v2-hint">' + e(o.who + H.ログイン中) + '</p>' : '') +
         '<div class="v2-spacer"></div>' +
         (o.back ? '<button type="button" class="v2-btn is-lite v2-a-rise" data-home-act="back">' + V.icon('door') + '<span>' + e(H.もどる前 + o.back + H.もどる後) + '</span></button>' : '') +
+        // 自分から出た部屋に、同じ人としてもどる（その日のうち・部屋がある間だけ・指示63 2-1）
+        (o.ret ? '<button type="button" class="v2-btn is-lite v2-a-rise" data-home-act="return">' + V.icon('refresh') + '<span>' + e(o.ret) + '</span></button>' : '') +
         '<button type="button" class="v2-btn is-pri v2-ebig v2-a-rise" data-home-act="make">' + V.icon('tv') +
           '<span class="v2-ebig-t"><span>' + e(H.つくる) + '</span><small>' + e(H.つくる説明) + '</small></span></button>' +
         '<button type="button" class="v2-btn is-sec v2-ebig v2-a-rise" data-home-act="join">' + V.icon('door') +
@@ -102,7 +104,9 @@
       var cls = 'v2-mem' + (m.off ? ' is-off' : '') + (v.fresh && v.fresh.indexOf(m.id) !== -1 ? ' v2-born' : '') + (m.ready ? ' is-ok' : '');
       var lp = v.host && m.id !== v.meId ? ' data-v2-lp="#v2Mem-' + e(m.id) + '"' : '';
       return '<div class="' + cls + '"' + lp + '>' + V.avHtml(m.icon) + '<span class="v2-mem-nm v2-cut">' + e(m.name) + '</span>' +
-        (v.picked && m.ready ? '<span class="v2-mem-st is-ok">' + V.icon('check') + '</span>' : (tag(m) ? '<span class="v2-mem-st">' + e(tag(m)) + '</span>' : '')) + '</div>';
+        // 進行役の印は、ゲームが決まった後も残す（だれが「はじめる」を押すのかが分かる）
+        (tag(m) ? '<span class="v2-mem-st">' + e(tag(m)) + '</span>' : '') +
+        (v.picked && m.ready ? '<span class="v2-mem-st is-ok">' + V.icon('check') + '</span>' : '') + '</div>';
     };
     var body;
     var band;
@@ -135,7 +139,7 @@
     }
     band = V.bandHtml({ lab: R.待合, msg: v.note || (v.host ? n + R.入っています : R.えらんでいます) });
     var qrSheet = V.sheetHtml({ id: 'v2RoomQr', title: R.QRの見出し,
-      body: '<div class="v2-eqr">' + (v.qr || '') + '</div><p class="v2-hint v2-c">' + e(v.local ? R.ローカル : R.QRの説明) + '</p>' +
+      body: '<div class="v2-eqr">' + (v.qr || '') + '</div><p class="v2-hint v2-c">' + e(!v.qr ? R.QR失敗 : (v.local ? R.ローカル : R.QRの説明)) + '</p>' +
         '<div class="v2-ecode is-big"><span class="v2-lbl">' + e(R.コード) + '</span><b class="v2-en">' + e(v.code) + '</b></div>' });
     var tvSheet = V.sheetHtml({ id: 'v2RoomTv', title: R.TVの見出し,
       body: '<ol class="v2-esteps"><li><span class="v2-esteps-k">1</span><span>' + e(R.TV手順1) + '<b class="v2-eurl">' + e(v.tvUrl || '') + '</b></span></li>' +
@@ -205,7 +209,8 @@
     var V = K();
     return '<button type="button" class="v2-scard v2-a-rise' + (c.why ? ' is-no' : '') + '" style="--d:' + (0.04 * (k + 1)).toFixed(2) + 's" data-home-card="' + c.i + '" data-home-id="' + e(c.id) + '">' +
       V.tile(c.world) +
-      '<span class="v2-scard-t"><span class="v2-scard-n">' + e(c.name) + '</span><span class="v2-scard-b">' + e(c.blurb) + '</span>' +
+      // 前回あそんだゲームには小さく「前回」（前の棚の 2-2：選ばれている理由が見える札。邪魔をしない）
+      '<span class="v2-scard-t"><span class="v2-scard-n">' + e(c.name) + (c.last ? '<span class="v2-last">' + e(U().一覧.前回) + '</span>' : '') + '</span><span class="v2-scard-b">' + e(c.blurb) + '</span>' +
         (c.why ? '<span class="v2-swhy">' + V.icon('info') + e(c.why) + '</span>' : meta(c, true)) + '</span>' +
       V.icon('chev', 'v2-go') + '</button>';
   }

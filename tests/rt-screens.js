@@ -13,6 +13,35 @@ const FalseTrueRoom = require('../falsetrue-room.js');
 
 const LAUNCH = { fakeSocket: true };
 
+/**
+ * 指示66-3：部屋の待合は新しい見た目（scr-v2-room・見本 E3・E4）。前の待合の部品を、新しい待合の同じ役目の所で読む。
+ * はじめる・準備OK・ルールを見るは、ゲームが決まってから出る（決まる前の進行役は「ゲームをえらぶ」だけ）
+ */
+const 待合 = {
+  scr: (doc) => doc.getElementById('scr-v2-room'),
+  code: (doc) => { const b = doc.querySelector('#scr-v2-room .v2-ecode b'); if (b) return b.textContent; const m = /Room (w{6})/.exec((doc.querySelector('#scr-v2-room .v2-hd-en') || {}).textContent || ''); return m ? m[1] : '------'; },
+  count: (doc) => doc.querySelectorAll('#scr-v2-room .v2-mems .v2-mem').length + (doc.querySelector('#scr-v2-room .v2-me') ? 1 : 0) + '人',
+  mems: (doc) => Array.from(doc.querySelectorAll('#scr-v2-room .v2-mems .v2-mem')),
+  start: (doc) => doc.querySelector('#scr-v2-room [data-home-act="room-start"]'),
+  startOff: (doc) => { const b = doc.querySelector('#scr-v2-room [data-home-act="room-start"]'); return !b || b.disabled; },
+  ready: (doc) => doc.querySelector('#scr-v2-room [data-home-act="room-ready"]'),
+  rules: (doc) => doc.querySelector('#scr-v2-room [data-home-act="room-rules"]'),
+  pick: (doc) => doc.querySelector('#scr-v2-room [data-home-act="room-pick"]'),
+  /** いま何を待っているか（帯の一言）と、はじめるの真上の「◯◯さんを待っています」 */
+  note: (doc) => Array.from(doc.querySelectorAll('#scr-v2-room .v2-band-msg, #scr-v2-room .v2-in .v2-note')).map((e) => e.textContent).join(' '),
+  wait: (doc) => Array.from(doc.querySelectorAll('#scr-v2-room .v2-in .v2-note')).map((e) => e.textContent).join(' '),
+  menu: (doc, act) => doc.querySelector('#scr-v2-room [data-v2-id="v2RoomMenu"] [data-home-act="' + act + '"]'),
+  /** 待合の ⚙ の項目を押して、たずねる枠が出たら答える（はい＝true） */
+  async 押す(win, doc, act, はい) {
+    const b = 待合.menu(doc, act);
+    if (!b) throw new Error('待合の⚙に無い: ' + act);
+    b.click();
+    await sleep(win, 30);
+    const ask = doc.querySelector('.screen.active [data-v2-id="v2Ask"].is-open');
+    if (ask) { ask.querySelector('[data-v2-act="' + (はい === false ? 'home-ask-no' : 'home-ask-ok') + '"]').click(); await sleep(win, 30); }
+  }
+};
+
 // 部屋に入った状態まで進める。room は疑似サーバーが返す部屋の中身
 function roomSnapshot(over) {
   return withReadyDefaults(Object.assign({
@@ -491,20 +520,19 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('部屋の画面：コードと参加者が出て、進行役だけが始められる', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc);
-    assertEqual(el(doc, 'rtRoomCode').textContent, 'ABC234', '部屋コードが大きく出る');
-    assertEqual(el(doc, 'rtRoomCount').textContent, '5人', '人数が出る');
-    const rows = doc.querySelectorAll('#rtMemberList .rt-member');
+    assertEqual(待合.code(doc), 'ABC234', '部屋コードが大きく出る');
+    assertEqual(待合.count(doc), '5人', '人数が出る');
+    const rows = 待合.mems(doc);
     assertEqual(rows.length, 5, '参加者がそのまま名簿になる');
     assert(/進行役/.test(rows[0].textContent), '進行役が分かる');
-    assert(/あなた/.test(rows[0].textContent), '自分が分かる');
-    assert(!el(doc, 'rtStartBtn').disabled, '進行役なら始められる');
+    assert(!待合.startOff(doc), '進行役なら始められる');
 
     // 進行役でなければ押せない
     push(fake, roomSnapshot({ hostMemberId: 'm2' }));
     await sleep(win, 60);
-    assert(el(doc, 'rtStartBtn').disabled, '進行役でなければ始められない');
+    assert(待合.startOff(doc), '進行役でなければ始められない');
     // 第37弾：全員が準備OKを押し終えた部屋なので、あとは始まるのを待つだけ
-    assert(/まもなく始まります/.test(el(doc, 'rtRoomNote').textContent), '待つように出る');
+    assert(/まもなく始まります/.test(待合.note(doc)), '待つように出る');
     assertNoErrors(errors, '部屋の画面で未捕捉の例外');
     win.close();
   });
@@ -514,9 +542,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const fake = await toRoom(win, doc);
     push(fake, roomSnapshot({ playerCount: 2, members: roomSnapshot().members.slice(0, 2) }));
     await sleep(win, 60);
-    assert(el(doc, 'rtStartBtn').disabled, '2人では始められない');
-    assert(/人以上そろうと/.test(el(doc, 'rtRoomNote').textContent),
-      '何人必要か分かる（' + el(doc, 'rtRoomNote').textContent + '）');
+    assert(待合.startOff(doc), '2人では始められない');
+    assert(/人以上そろうと/.test(待合.note(doc)),
+      '何人必要か分かる（' + 待合.note(doc) + '）');
     assertNoErrors(errors, '人数不足で未捕捉の例外');
     win.close();
   });
@@ -684,21 +712,16 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   });
 
   // ---- 第22弾 第1部／第26弾 第2部：ゲームに紐づかない参加の入り口 ----
-  await r.test('「みんなのスマホであそぶ」から、立てるにも参加するにも進める', async () => {
-    // **部屋への道は1本になった（第41弾 2-1・2-4）。**
-    // 入口 →（ログイン）→ 棚 → 部屋でしか遊べないカセット → 「部屋をつくる」。
-    // 棚の下部バーの近道も、あそびかたの選択も廃止した
+  await r.test('入口から、部屋を立てるにも参加するにも進める（指示66-3 E1）', async () => {
+    // 部屋への道は入口の2つ（「部屋をつくる」「部屋に入る」）。どのカセットにも属さない画面なので、前のテーマを引きずらない
     const b = await launch(Object.assign({}, LAUNCH, { atEntry: true }));
-    click(b.doc, b.doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(b.win, b.doc, 'scr-v2-pick', 4000);
-    await toRoomLobby(b.win, b.doc);
-    assert(b.doc.getElementById('rtJoinCode'), '部屋コードを入れられる');
-    assert(b.doc.getElementById('rtJoinName'), '名前を入れられる');
-    assertEqual(el(b.doc, 'rtCreateCard').style.display, '', 'ここからは「立てる」も出る');
-    // どのカセットにも属さない画面なので、前のテーマを引きずらない
+    assert(b.doc.querySelector('#scr-v2-home [data-home-act="make"]'), '部屋をつくるが出る');
+    click(b.doc, b.doc.querySelector('#scr-v2-home [data-home-act="join"]'));
+    await waitScreen(b.win, b.doc, 'scr-v2-join', 3000);
+    assert(b.doc.querySelector('#scr-v2-join [data-home-code]'), '部屋コードを入れられる');
     assert(!el(b.doc, 'app').classList.contains('theme-wolf'), '前のカセットのテーマが乗らない');
-    click(b.doc, 'rtLobbyBackBtn');
-    await waitScreen(b.win, b.doc, 'scr-v2-pick', 3000);
+    click(b.doc, b.doc.querySelector('#scr-v2-join [data-home-act="join-back"]'));
+    await waitScreen(b.win, b.doc, 'scr-v2-home', 3000);
     assertNoErrors(b.errors, '部屋の入口で未捕捉の例外');
     b.win.close();
   });
@@ -732,31 +755,37 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('部屋コードを入れると、その部屋で何を遊ぶのかが出る', async () => {
+  await r.test('部屋コードを入れると、その部屋で何を遊ぶのかが出る（名前の画面の一言）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     await toRoomLobby(win, doc);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
     fake.replies = fake.replies || {};
-
+    const コードで = async (code) => {
+      win.homeOpenJoin({});
+      await waitScreen(win, doc, 'scr-v2-join', 3000);
+      const inp = doc.querySelector('#scr-v2-join [data-home-code]');
+      inp.value = code; inp.dispatchEvent(new win.Event('input', { bubbles: true }));
+      click(doc, doc.querySelector('#scr-v2-join [data-home-act="code-go"]'));
+      await sleep(win, 80);
+      return doc.getElementById('scr-v2-join').textContent;
+    };
     // まだゲームが選ばれていない部屋
     fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 2 });
-    el(doc, 'rtJoinCode').value = 'ABC234';
-    el(doc, 'rtJoinCode').dispatchEvent(new win.Event('input'));
-    await waitFor(win, () => /待っています/.test(el(doc, 'rtJoinPeek').textContent), 2000, '待ちの案内が出る');
-    assert(/2人/.test(el(doc, 'rtJoinPeek').textContent), '何人いるかも出る');
-
+    let t = await コードで('ABC234');
+    assert(/待っています/.test(t), '待ちの案内が出る');
+    assert(/2人/.test(t), '何人いるかも出る');
     // ゲームが選ばれている部屋
-    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: 'quizrush', phase: 'lobby', playerCount: 3 });
-    el(doc, 'rtJoinCode').value = 'ABC235';
-    el(doc, 'rtJoinCode').dispatchEvent(new win.Event('input'));
-    await waitFor(win, () => /クイズラッシュ/.test(el(doc, 'rtJoinPeek').textContent), 2000, 'ゲーム名が出る');
-
+    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC235', game: 'quizrush', phase: 'lobby', playerCount: 3 });
+    t = await コードで('ABC235');
+    assert(/クイズラッシュ/.test(t), 'ゲーム名が出る');
     // 無い部屋
     fake.replies['room:peek'] = () => ({ ok: false, error: 'room_not_found' });
-    el(doc, 'rtJoinCode').value = 'ZZZZZZ';
-    el(doc, 'rtJoinCode').dispatchEvent(new win.Event('input'));
-    await waitFor(win, () => /見つかりません/.test(el(doc, 'rtJoinPeek').textContent), 2000, '無い時は理由が出る');
+    t = await コードで('ZZZZZZ');
+    // 無い時は、つながりの揺れを考えて0.6秒あけて1回だけ聞き直してから理由を出す
+    await waitFor(win, () => /見つかりません/.test(doc.getElementById('scr-v2-join').textContent), 3000, '理由が出る');
+    t = doc.getElementById('scr-v2-join').textContent;
+    assert(/見つかりません/.test(t), '無い時は理由が出る');
     assertNoErrors(errors, '部屋を覗くところで未捕捉の例外');
     win.close();
   });
@@ -860,8 +889,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // QRから来た人・ログイン画面から来た人は、部屋を立てには来ていない
     const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, { url: 'http://localhost/?room=ABC234' }));
     await waitScreen(win, doc, 'scr-v2-join', 4000);
-    assertEqual(el(doc, 'rtJoinCode').value, 'ABC234', 'QRのコードが入っている');
-    assertEqual(el(doc, 'rtCreateCard').style.display, 'none', '「立てる」は出さない');
+    // 指示66-3 E2：QR で来た人はコードを打たない。名前の段から始まり、入るボタンにコードが入っている
+    await waitFor(win, () => doc.querySelector('#scr-v2-join [data-home-act="join-go"]'), 3000, '名前の段から始まる');
+    assert(/ABC234/.test(doc.querySelector('#scr-v2-join [data-home-act="join-go"]').textContent), 'QRのコードが入っている');
+    assert(!doc.querySelector('#scr-v2-join [data-home-act="make"]'), '「立てる」は出さない（部屋に入る画面だけ）');
     assertNoErrors(errors, 'QRからの参加で未捕捉の例外');
     win.close();
   });
@@ -873,15 +904,15 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const fake = await toRoom(win, doc, { pick: false });
     push(fake, roomSnapshot({ state: { phase: 'lobby', game: null, data: {} } }));
     await sleep(win, 100);
-    assert(el(doc, 'rtStartBtn').disabled, 'ゲームが決まるまで始められない');
-    assert(el(doc, 'rtPickGameBtn').style.display !== 'none', 'ホストには「ゲームをえらぶ」が出る');
-    assert(/ゲームをえらぶ/.test(el(doc, 'rtRoomNote').textContent), '何をすればいいか書いてある');
+    assert(待合.startOff(doc), 'ゲームが決まるまで始められない');
+    assert(待合.pick(doc), 'ホストには「ゲームをえらぶ」が出る');
+    assert(/ゲームをえらぶ/.test(待合.pick(doc).textContent), '何をすればいいかがボタンに書いてある');
 
     // ホストでない人には、選ぶ側の案内は出さない
     push(fake, roomSnapshot({ hostMemberId: 'm2', state: { phase: 'lobby', game: null, data: {} } }));
     await sleep(win, 80);
-    assertEqual(el(doc, 'rtPickGameBtn').style.display, 'none', '選ぶのは進行役だけ');
-    assert(/進行役がゲームをえらんでいます/.test(el(doc, 'rtRoomNote').textContent), '待つ側の案内が出る');
+    assert(!待合.pick(doc), '選ぶのは進行役だけ');
+    assert(/進行役がゲームをえらんでいます/.test(待合.note(doc)), '待つ側の案内が出る');
     assertNoErrors(errors, 'ゲーム未選択の待合で未捕捉の例外');
     win.close();
   });
@@ -893,7 +924,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     for (const gameId of ['wolfrole', 'wordwolf']) {
       const { win, doc, errors } = await launch(LAUNCH);
       await toRoom(win, doc, { pick: false });
-      click(doc, 'rtPickGameBtn');
+      click(doc, 待合.pick(doc));
       await waitScreen(win, doc, 'scr-v2-pick', 3000);
       await openCassette(win, doc, 'jinro');
       await waitScreen(win, doc, 'scr-game', 3000);
@@ -936,9 +967,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, roomSnapshot({ hostMemberId: 'm2', state: { phase: 'lobby', game: 'aresoredorekore', data: {} } }));
     await sleep(win, 100);
     assertEqual(activeScreen(doc), 'scr-v2-room', '待合に留まる');
-    assert(el(doc, 'rtStartBtn').disabled, 'はじめられない');
-    assert(/まだ1人1台に対応していません/.test(el(doc, 'rtRoomNote').textContent),
-      '理由が書いてある（' + el(doc, 'rtRoomNote').textContent.slice(0, 30) + '）');
+    assert(待合.startOff(doc), 'はじめられない');
+    assert(/まだ1人1台に対応していません/.test(待合.note(doc)),
+      '理由が書いてある（' + 待合.note(doc).slice(0, 30) + '）');
     assertNoErrors(errors, '未対応カセットの待合で未捕捉の例外');
     win.close();
   });
@@ -983,7 +1014,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     fake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm2', room: roomSnapshot() }) };
     await require('./harness').joinRoomV2(win, doc, 'ABC234', 'びび');
     await waitScreen(win, doc, 'scr-v2-room', 4000);
-    assertEqual(el(doc, 'rtRoomCode').textContent, 'ABC234', '部屋コードが出る');
+    assertEqual(待合.code(doc), 'ABC234', '部屋コードが出る');
 
     // ホストが人狼を始めたら、人狼の画面へ移る
     push(fake, roomSnapshot({ state: { phase: 'roleReveal', game: 'wolfrole', data: wolfView() } }));
@@ -1019,8 +1050,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('部屋コードのQRが、待合と大画面に出る', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc);
-    const svg = doc.querySelector('#rtQr svg');
-    assert(svg, '待合にQRが出る');
+    const svg = doc.querySelector('#scr-v2-room [data-v2-id="v2RoomQr"] .v2-eqr svg');
+    assert(svg, '待合にQRが出る（コードを押すと開くシート）');
     assert(/viewBox/.test(svg.outerHTML), 'SVGとして描かれている');
     // xmlns に http が入るので、外部参照そのもの（画像・href・url()）だけを見る
     assert(!/<image|href=|url\(/.test(svg.outerHTML), '外部の画像を読み込まない');
@@ -1031,11 +1062,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const fake2 = await toRoom(b.win, b.doc, { join: true, memberId: 'm5', role: 'bigscreen' });
     push(fake2, roomSnapshot({
       members: roomSnapshot().members.map(m => m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m),
-      playerCount: 4
+      playerCount: 4, state: { phase: 'lobby', game: null, data: {} }
     }));
     await sleep(b.win, 120);
-    assertEqual(el(b.doc, 'bigQrBox').style.display, 'flex', '始まる前はQRを出す');
-    assert(b.doc.querySelector('#bigQr svg'), '大画面にもQRが描かれる');
+    // 指示66-3：ゲームが決まるまでの TV は新しい見た目の待合（QR が主役）
+    assertEqual(activeScreen(b.doc), 'scr-v2-room-tv', '始まる前は TV の待合');
+    assert(b.doc.querySelector('#scr-v2-room-tv .v2-tqr svg'), '大画面にもQRが描かれる');
 
     push(fake2, roomSnapshot({
       members: roomSnapshot().members.map(m => m.id === 'm5' ? Object.assign({}, m, { role: 'bigscreen' }) : m),
@@ -1055,16 +1087,14 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 手入力に切り替えればよいことも伝わらなかった
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc);
-    const note = doc.querySelector('#rtQrBox .qr-note');
-    assert(note, 'QRの下に説明が付いている');
+    const note = () => doc.querySelector('#scr-v2-room [data-v2-id="v2RoomQr"] .v2-hint');
+    assert(note(), 'QRの下に説明が付いている');
 
-    el(doc, 'rtQr').dataset.code = '';
-    el(doc, 'rtQr').innerHTML = '';
     win.QR.toSvg = () => { throw new Error('QRを作れない端末'); };
     push(fake, roomSnapshot({ playerCount: 3 }));
     await sleep(win, 120);
-    assertEqual(doc.querySelector('#rtQr svg'), null, '失敗したらSVGは残さない');
-    assert(/手で入れて/.test(note.textContent), '手入力に切り替えられることを伝える');
+    assertEqual(doc.querySelector('#scr-v2-room [data-v2-id="v2RoomQr"] .v2-eqr svg'), null, '失敗したらSVGは残さない');
+    assert(/手で入れて/.test(note().textContent), '手入力に切り替えられることを伝える');
     assertNoErrors(errors, 'QR失敗で未捕捉の例外');
     win.close();
   });
@@ -1076,18 +1106,16 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const fake = await toRoom(win, doc);
     const real = win.QR.toSvg;
 
-    el(doc, 'rtQr').dataset.code = '';
-    el(doc, 'rtQr').innerHTML = '';
+    const qr = () => doc.querySelector('#scr-v2-room [data-v2-id="v2RoomQr"] .v2-eqr svg');
     win.QR.toSvg = () => { throw new Error('一度だけ失敗'); };
     push(fake, roomSnapshot({ playerCount: 3 }));
     await sleep(win, 120);
-    assertEqual(doc.querySelector('#rtQr svg'), null, '失敗した回はQRが無い');
-    assertEqual(el(doc, 'rtQr').dataset.code, '', '失敗を「済み」と覚えない');
+    assertEqual(qr(), null, '失敗した回はQRが無い');
 
     win.QR.toSvg = real;
     push(fake, roomSnapshot({ playerCount: 4 }));
     await sleep(win, 120);
-    assert(doc.querySelector('#rtQr svg'), '次の更新で描き直される');
+    assert(qr(), '次の更新で描き直される（失敗を「済み」と覚えない）');
     assertNoErrors(errors, 'QR再描画で未捕捉の例外');
     win.close();
   });
@@ -1159,7 +1187,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 部屋が閉じた直後にしたいのは、たいてい「別の部屋に入る」か「やめる」——
     // 棚はその両方から遠い。**置き去りにしない**という意図は変わっていない
     assertEqual(activeScreen(doc), 'scr-v2-join', '「部屋に入る」に着く（置き去りにしない）');
-    assert(/部屋に入る/.test(el(doc, 'rtLobbyTitle').textContent), '見出しも「部屋に入る」');
+    assert(/部屋に入る/.test(doc.querySelector('#scr-v2-join .v2-hd-ttl').textContent), '見出しも「部屋に入る」');
     assertNoErrors(errors, '部屋が畳まれた時に未捕捉の例外');
     win.close();
   });
@@ -1197,8 +1225,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 待合の案内にも、何を遊ぶかが出る
     push(fake, bombRoom({ state: { phase: 'lobby', game: 'bomb', data: {} } }));
     await sleep(win, 80);
-    assert(/クイズ解除/.test(el(doc, 'rtRoomNote').textContent), '何を遊ぶかが待っている人にも見える');
-    assert(!el(doc, 'rtStartBtn').disabled, '進行役なら始められる');
+    assert(/クイズ解除/.test(待合.scr(doc).textContent), '何を遊ぶかが待っている人にも見える');
+    assert(!待合.startOff(doc), '進行役なら始められる');
     assertNoErrors(errors, '爆弾解除カセットを選ぶところで未捕捉の例外');
     win.close();
   });
@@ -1214,7 +1242,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await pickGameForRoom(win, doc, 'bomb', 'bomb-coop');
     push(fake, bombRoom({ state: { phase: 'lobby', game: 'bomb', data: {} } }));
     await sleep(win, 80);
-    click(doc, 'rtStartBtn');
+    click(doc, 待合.start(doc));
     await sleep(win, 120);
     const start = fake.emits.filter(e => e.name === 'wolf:start').pop();
     assert(start, '開始を送っている');
@@ -1553,48 +1581,43 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     autoDialog(win, doc);
     await H.endGameFromSettings(win, doc);
     await waitFor(win, () => fake.emits.some(e => e.name === 'room:leave'), 3000, '部屋から抜ける');
-    await waitScreen(win, doc, 'scr-v2-pick', 3000);
+    // 指示66-3：部屋を出た人は入口へ（部屋をつくる・入る・1台で遊ぶ を、そこでえらび直す）
+    await waitScreen(win, doc, 'scr-v2-home', 3000);
     assertNoErrors(errors, 'ゲーム終了（非ホスト）で未捕捉の例外');
     win.close();
   });
 
-  await r.test('部屋を持ったまま「1台のスマホで遊ぶ」を選ぶと、確認してから部屋を閉じる（第33弾 B-3）', async () => {
-    // 以前は部屋に紐づいたまま手渡しへ進めてしまい、状態が混ざっていた
+  await r.test('部屋を持ったまま1台のゲームをえらぶと、たずねてから部屋を閉じる（第33弾 B-3・指示66-3）', async () => {
+    // 以前は部屋に紐づいたまま手渡しへ進めてしまい、状態が混ざっていた。
+    // 指示66-3：一覧のページの主ボタンが「部屋をとじて 1台で遊ぶ」。押した後に、全員が終わることをたずねる
     const { win, doc, errors } = await launch(LAUNCH);
-    const fake = await toRoom(win, doc, { pick: false });   // ホスト・待合にいる
-    click(doc, 'rtPickGameBtn');
+    const fake = await toRoom(win, doc, { pick: false });   // ホスト・待合にいる（5人）
+    click(doc, 待合.pick(doc));
     await waitScreen(win, doc, 'scr-v2-pick', 3000);
-    // 1台でしか遊べないカセットを、部屋を持ったまま選ぶ（case B）
-    await openCassette(win, doc, 'aresoredorekore');
-
-    // **第41弾：ここは danger のダイアログから、確認の画面に変わった。**
-    // 6通りのうち3通りは画面で聞く（二択がどちらも肯定なので、
-    // confirm/danger/info/ask の4種に当てはまらない）。
-    // **安全策そのものは変わっていない**——部屋を閉じてから進む
-    assertEqual(activeScreen(doc), 'scr-play-way', '確認の画面が出る');
-    const 文面 = el(doc, 'scr-play-way').textContent;
-    assert(/とじ/.test(文面), '部屋をとじることが書いてある（実際: ' + 文面.replace(/\s+/g, ' ').trim().slice(0, 70) + '）');
-    assert(el(doc, 'wayCancelBtn').textContent.length > 0, 'やめる道がある');
-    assert(/全員/.test(文面), '「部屋にいる全員が終わる」ことが書いてある');
-    // 進む道の札にも、何が起きるかが書いてある（押す前に読める）
-    const 進む = doc.querySelector('#wayChoices [data-way]');
-    assert(進む && /とじ/.test(進む.textContent),
-      '進むボタンの札にも書いてある（実際: ' + (進む ? 進む.textContent : 'なし') + '）');
-    click(doc, 進む);
-
-    // **順番が大事：閉じてから進む。**
-    // 部屋に紐づいたまま手渡しへ進むと「もう一度」「ゲームを終了」が
-    // 部屋側へ流れて状態が混ざる（第33弾B-3で実機で起きた）
+    const 札 = doc.querySelector('#scr-v2-pick [data-home-id="aresoredorekore"]');
+    assert(札, '1台のゲームも一覧にある');
+    click(doc, 札);
+    await waitFor(win, () => doc.querySelector('#scr-v2-pick [data-home-act="pick-leave"]'), 2000, '主ボタンが「部屋をとじて」');
+    const 主 = doc.querySelector('#scr-v2-pick [data-home-cta]').textContent;
+    assert(/とじ/.test(主), '進む札に、部屋をとじることが書いてある（' + 主.replace(/\s+/g, ' ').trim() + '）');
+    click(doc, doc.querySelector('#scr-v2-pick [data-home-act="pick-leave"]'));
+    await waitFor(win, () => doc.querySelector('#scr-v2-pick [data-v2-id="v2Ask"].is-open'), 2000, 'たずねる');
+    const ask = doc.querySelector('#scr-v2-pick [data-v2-id="v2Ask"]');
+    assert(/全員/.test(ask.textContent), '「部屋にいる全員が終わる」ことが書いてある');
+    assert(ask.querySelector('[data-v2-act="home-ask-ok"]').classList.contains('v2-danger'), '取り返しがつかない側で出る');
+    // やめると、何も閉じない
+    click(doc, ask.querySelector('[data-v2-act="home-ask-no"]'));
+    await sleep(win, 60);
+    assert(!fake.emits.some(e => e.name === 'room:close'), 'やめたら閉じない');
+    // **順番が大事：閉じてから進む**（第33弾B-3で実機で起きた）
+    click(doc, doc.querySelector('#scr-v2-pick [data-home-act="pick-leave"]'));
+    await waitFor(win, () => doc.querySelector('#scr-v2-pick [data-v2-id="v2Ask"].is-open'), 2000, 'もう一度たずねる');
+    click(doc, doc.querySelector('#scr-v2-pick [data-v2-act="home-ask-ok"]'));
     await waitFor(win, () => fake.emits.some(e => e.name === 'room:close'), 3000, '部屋を閉じにいく');
-    // 札が「部屋を閉じて はじめる」なので、閉じたあとはそのまま遊びに入る
-    //（以前は棚に戻していた。第41弾で1タップ減った）
-    await waitFor(win, () => activeScreen(doc) !== 'scr-play-way', 3000, 'カセットの中へ進む');
+    await waitFor(win, () => activeScreen(doc) !== 'scr-v2-pick', 3000, 'カセットの中へ進む');
     assert(['scr-setup', 'scr-mode', 'scr-game'].indexOf(activeScreen(doc)) >= 0,
       '閉じたあと、そのまま遊びに入る（実際: ' + activeScreen(doc) + '）');
-    // **本物のサーバーは、閉じたことを部屋の全員に放送する**
-    //（realtime.js:1144 → 'room:closed'）。閉じた本人にも届く。
-    // 疑似socketは放送しないので、ここで本物と同じ形にしてから確かめる
-    //（落とし穴25：手で書いた検体は、実装から静かに離れていく）
+    // **本物のサーバーは、閉じたことを部屋の全員に放送する**（落とし穴25）
     fake.fire('room:closed', { by: 'あき' });
     await sleep(win, 80);
     assertEqual(win.roomProbe().room, false, '閉じた知らせが届けば、部屋は残らない');
@@ -1686,16 +1709,21 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });   // ホスト（m1）
     autoDialog(win, doc);
-    // 各メンバーの行に、進行役だけの操作が付く
-    const kick = doc.querySelector('#rtMemberList [data-rmkick="m2"]');
-    const toBig = doc.querySelector('#rtMemberList [data-rmrole="m2"]');
-    const toHost = doc.querySelector('#rtMemberList [data-rmhost="m2"]');
-    assert(kick && toBig && toHost, 'キック・大画面・進行役の操作が並ぶ');
-    assert(!doc.querySelector('#rtMemberList [data-rmkick="m1"]'), '自分の行には出ない');
-    toBig.click();
+    // 指示66-3（見本 E3）：人を外すのは札の長押し。開くシートに、進行役だけの操作（外す・TVにする・進行役をゆずる）が並ぶ
+    const シート = (id) => doc.querySelector('#scr-v2-room [data-v2-id="v2Mem-' + id + '"]');
+    const 押す = async (act) => {
+      win.V2.open(シート('m2'));
+      click(doc, シート('m2').querySelector('[data-home-act="' + act + '"]'));
+      await sleep(win, 30);
+      click(doc, doc.querySelector('#scr-v2-room [data-v2-id="v2Ask"] [data-v2-act="home-ask-ok"]'));
+    };
+    assert(シート('m2'), 'ほかの人の札には、長押しで開く操作がある');
+    ['room-kick', 'room-big', 'room-host'].forEach((a) => assert(シート('m2').querySelector('[data-home-act="' + a + '"]'), 'キック・大画面・進行役の操作が並ぶ（' + a + '）'));
+    assert(!シート('m1'), '自分の札には出ない');
+    await 押す('room-big');
     await waitFor(win, () => fake.emits.some(e => e.name === 'room:setRole'
       && e.payload.memberId === 'm2' && e.payload.role === 'bigscreen'), 3000, '大画面へ切り替えを送る');
-    kick.click();
+    await 押す('room-kick');
     await waitFor(win, () => fake.emits.some(e => e.name === 'room:kick'
       && e.payload.memberId === 'm2'), 3000, 'キックを送る');
     assertNoErrors(errors, 'メンバー操作で未捕捉の例外');
@@ -1705,7 +1733,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('待機画面でない人（非ホスト）には、メンバー操作が出ない', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     await toRoom(win, doc, { join: true, memberId: 'm2' });
-    assertEqual(doc.querySelectorAll('#rtMemberList .rm-op').length, 0, '操作ボタンが無い');
+    assertEqual(doc.querySelectorAll('#scr-v2-room [data-v2-lp], #scr-v2-room [data-home-act="room-kick"]').length, 0, '操作が無い（長押しも外すも無い）');
     assertNoErrors(errors, '非ホストの表示で未捕捉の例外');
     win.close();
   });
@@ -1714,10 +1742,12 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
     push(fake, roomSnapshot({
-      pairNote: { top: { a: 'あき', b: 'びび', count: 7 }, fresh: [{ a: 'ちか', b: 'でん' }] }
+      pairNote: { top: { a: 'あき', b: 'びび', count: 7 }, fresh: [{ a: 'ちか', b: 'でん' }] },
+      state: { phase: 'lobby', game: null, data: {} }
     }));
-    await sleep(win, 100);
-    const text = el(doc, 'rtPairNote').textContent;
+    await waitScreen(win, doc, 'scr-v2-room', 2000);
+    // 指示66-3：待合の名簿の下（E3・E4 とも同じ場所）
+    const text = (doc.querySelector('#scr-v2-room .v2-epair') || {}).textContent || '';
     assert(/あき さんと びび さん/.test(text) && /7回/.test(text), '一番長い付き合いが出る');
     assert(/ちか さんと でん さん/.test(text) && /初めての組み合わせ/.test(text), '初組み合わせを静かに祝う');
     // 一覧は出さない（回数の少ない人が疎外感を持つ表示にしない）
@@ -2521,7 +2551,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     for (const c of CASES) {
       const { win, doc, errors } = await launch(LAUNCH);
       await toRoom(win, doc, { pick: false });
-      click(doc, 'rtPickGameBtn');
+      click(doc, 待合.pick(doc));
       await waitScreen(win, doc, 'scr-v2-pick', 3000);
       await openCassette(win, doc, 'quizou');
       await waitScreen(win, doc, 'scr-game', 3000);
@@ -2562,7 +2592,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       // 疑似socketは部屋の中身を持たないので、選んだ結果を流し込む
       push(fake, quizRoom(c.game, {}));
       await sleep(win, 80);
-      click(doc, 'rtStartBtn');
+      click(doc, 待合.start(doc));
       await sleep(win, 120);
       const start = fake.emits.filter(e => e.name === 'wolf:start').pop();
       assert(start, c.game + '：開始を送っている');
@@ -2592,7 +2622,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
         await sleep(win, 80);
         // 状況を作る（型(b)）：なにそれ・むりに本数が残っている配分にしてから始める
         if (g.game === 'bomb') win.tierProbe.setup({ bombCounts: { easy: 1, normal: 0, hard: 0, nanisore: 3, muri: 2 } });
-        click(doc, 'rtStartBtn');
+        click(doc, 待合.start(doc));
         await sleep(win, 120);
         const start = fake.emits.filter((e) => e.name === 'wolf:start').pop();
         assert(start, c.label + ' ' + g.game + '：開始を送っている（型(b)）');
@@ -2883,7 +2913,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   // 1台を回す経路では選べない（それが正しい形）。
   // 部屋にいる時は人数を部屋が持っているので、人数の画面も出ない
   async function toSugoSetup(win, doc, gameId) {
-    click(doc, 'rtPickGameBtn');
+    click(doc, 待合.pick(doc));
     await waitScreen(win, doc, 'scr-v2-pick', 4000);
     await openCassette(win, doc, 'sugoroku');
     await waitScreen(win, doc, 'scr-game', 4000);
@@ -3871,7 +3901,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     for (const c of [{ mode: 'auction-open', sent: 'open' }, { mode: 'auction-sealed', sent: 'sealed' }]) {
       const { win, doc, errors } = await launch(LAUNCH);
       const fake = await toRoom(win, doc, { pick: false });
-      click(doc, 'rtPickGameBtn');
+      click(doc, 待合.pick(doc));
       await waitScreen(win, doc, 'scr-v2-pick', 3000);
       assert(doc.querySelector('#scr-v2-pick [data-home-id="auction"]'), 'オークションのカセットが棚にある');
       await openCassette(win, doc, 'auction');
@@ -3891,7 +3921,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
       push(fake, auRoom(auStage({ mode: c.sent }), 'lobby'));
       await sleep(win, 80);
-      click(doc, 'rtStartBtn');
+      click(doc, 待合.start(doc));
       await sleep(win, 120);
       const start = fake.emits.filter(e => e.name === 'wolf:start').pop();
       assert(start, c.mode + '：開始を送っている');
@@ -4506,8 +4536,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     fake.fire('disconnect');
     fake.fire('connect');
 
-    await waitFor(win, () => activeScreen(doc) === 'scr-v2-pick', 3000,
-      '棚にもどる（現在: ' + activeScreen(doc) + '）');
+    await waitFor(win, () => activeScreen(doc) === 'scr-v2-home', 3000, '入口にもどる');
     await waitFor(win, () => H.openDialog(doc), 2000, '理由が出る');
     const dlg = H.openDialog(doc);
     assertEqual(dlg.種類, 'info', '判断は無いので info');
@@ -4715,74 +4744,46 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('起動時のログイン確認が一度こけても、部屋を立てられる', async () => {
     // 本番のサーバーは2分ごとに git pull → pm2 restart で入れ替わる。
     // ちょうどその瞬間にアプリを開くと /api/auth/me だけが落ちる。
-    // セッションのクッキーは生きているのに、この端末は
-    // 「ログインしていない」と思い込んだまま、そのあとずっと直らなかった。
+    // **入口の「部屋をつくる」を押した時に聞き直す**ので、ログイン画面に飛ばされない
     const { win, doc, errors } = await launch({ fakeSocket: true, authFlaky: true, atEntry: true });
-    // 起動時の確認は落ちているので、この時点では未ログインに見えている。
-    // **入口を押した時に聞き直す**ので、ログイン画面に飛ばされずに棚へ着く
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-v2-pick', 4000);
-    await toRoomLobby(win, doc);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
     fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }) };
     await require('./harness').makeRoomV2(win, doc);
     await sleep(win, 200);
-    // ログイン画面に飛ばされない＝サーバーに聞き直している
-    assert(activeScreen(doc) !== 'scr-login',
-      'ログイン画面に飛ばされない（いまの画面: ' + activeScreen(doc) + '）');
-    const sent = fake.emits.filter(e => e.name === 'room:create');
-    assertEqual(sent.length, 1, '部屋を立てにいっている');
+    assert(activeScreen(doc) !== 'scr-login', 'ログイン画面に飛ばされない（いまの画面: ' + activeScreen(doc) + '）');
+    assertEqual(fake.emits.filter(e => e.name === 'room:create').length, 1, '部屋を立てにいっている');
     assertNoErrors(errors, '部屋を立てるところで未捕捉の例外');
     win.close();
   });
 
-  await r.test('部屋を持ったまま「ゲームをえらぶ」に来ると、棚の前で確かめる（第41弾 2-1-2）', async () => {
-    // **もとは棚の下部バーの 👥（近道）が持っていた役目。**
-    // その近道は 2-1 で廃止したので、同じ役目を入口に移した。
-    // 大事なのは置き場所ではなく「在室判定を端末の記憶で決めない」こと
-    //（落とし穴14-b。古い記憶のまま消えた部屋へ飛ぶと、新しい不整合を生む）
+  await r.test('部屋を持ったまま入口で「1台で遊ぶ」を押すと、たずねる（第41弾 2-1-2・指示66-3）', async () => {
+    // 大事なのは置き場所ではなく「在室判定を端末の記憶で決めない」こと（落とし穴14-b）。
+    // 黙って二重に部屋を持たせない——「この部屋にもどる」か、とじて（出て）進むかを聞く
     const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, { atEntry: true }));
     const fake = win.__rtFake;
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-v2-pick', 4000);
-    await toRoomLobby(win, doc);
-    // つなぎに行くのは部屋の画面に入った時。ここまで来てから待つ
-    await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
     fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }) };
     await require('./harness').makeRoomV2(win, doc);
     await waitScreen(win, doc, 'scr-v2-room', 4000);
-
-    // 部屋を持ったまま、入口へ戻ってやり直す
-    click(doc, 'rtPickGameBtn');
-    await waitScreen(win, doc, 'scr-v2-pick', 3000);
-    // host は第41弾 2-1-2 でサーバーが返すようになった。
-    // 開き直した端末は名簿を持たないので、進行役かどうかも**サーバーが答える**
     fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 5, you: true, host: true });
-    win.goToScreen('scr-entry');
-    await waitScreen(win, doc, 'scr-entry', 2000);
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-room-open', 3000);
-
+    win.goToScreen('scr-v2-home'); await waitScreen(win, doc, 'scr-v2-home', 2000);
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="one"]'));
+    await waitFor(win, () => doc.querySelector('#scr-v2-home [data-v2-id="v2Ask"].is-open'), 3000, 'たずねる');
     const peek = fake.emits.filter(e => e.name === 'room:peek').pop();
-    assert(peek && peek.payload.code === 'ABC234' && peek.payload.memberId === 'm1',
-      '在室判定は端末の記憶ではなく、サーバーに聞いて決める');
-    const 文面 = el(doc, 'scr-room-open').textContent;
+    assert(peek && peek.payload.code === 'ABC234' && peek.payload.memberId === 'm1', '在室判定は端末の記憶ではなく、サーバーに聞いて決める');
+    const 文面 = doc.querySelector('#scr-v2-home [data-v2-id="v2Ask"]').textContent;
     assert(/ABC234/.test(文面), 'どの部屋かが分かる（コードが出ている）');
-    assert(/人/.test(文面), '何人いるかが分かる');
-
     // 「この部屋にもどる」で待合へ帰れる
-    click(doc, 'roomOpenBackBtn');
+    click(doc, doc.querySelector('#scr-v2-home [data-v2-act="home-ask-ok"]'));
     await waitScreen(win, doc, 'scr-v2-room', 3000);
     assertNoErrors(errors, '部屋の確認で未捕捉の例外');
     win.close();
   });
 
-  await r.test('部屋を持っていなければ、棚の前で何も聞かない（第41弾 2-1-2）', async () => {
-    // **逆向きも見る**（落とし穴20）。部屋が無い人に確認を出すと、
-    // 毎回1タップ増えるだけの邪魔になる
+  await r.test('部屋を持っていなければ、入口で何も聞かない（第41弾 2-1-2）', async () => {
+    // **逆向きも見る**（落とし穴20）。部屋が無い人に確認を出すと、毎回1タップ増えるだけの邪魔になる
     const { win, doc, errors } = await launch({ fakeSocket: true, atEntry: true });
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="one"]'));
     await waitScreen(win, doc, 'scr-v2-pick', 4000);
     const peeks = (win.__rtFake ? win.__rtFake.emits : []).filter(e => e.name === 'room:peek');
     assertEqual(peeks.length, 0, '部屋を持っていなければ、サーバーに聞くまでもない');
@@ -4791,15 +4792,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   });
 
   await r.test('本当にログインしていない時は、いままで通りログイン画面へ', async () => {
-    // 聞き直した結果ほんとうに未ログインなら、今までどおり案内する
+    // 聞き直した結果ほんとうに未ログインなら、今までどおり案内する（部屋を立てるにはログインが要る）
     const { win, doc, errors } = await launch({ fakeSocket: true, loggedOut: true, atEntry: true });
-    // 未ログインなので、入口を押すとまずログイン画面。**見るだけの棚から進む**
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-login', 3000);
-    click(doc, 'loginBrowseBtn');
-    await waitScreen(win, doc, 'scr-v2-pick', 3000);
-    await toRoomLobby(win, doc);
-    await require('./harness').makeRoomV2(win, doc);
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="make"]'));
     await waitScreen(win, doc, 'scr-login', 3000);
     assert(/ログイン/.test(el(doc, 'loginSub').textContent), '理由が出ている');
     assertNoErrors(errors, '未ログインの案内で未捕捉の例外');
@@ -4916,32 +4911,19 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
   await r.test('ログインしたあとは、つなぎ直してから部屋を立てる', async () => {
     // socket.io のセッションは「つないだ時」のもので固定される。
-    // ログイン前につないだままだと、サーバーからは
-    // いつまでも未ログインに見えて、部屋を立てられない。
+    // ログイン前につないだままだと、サーバーからはいつまでも未ログインに見えて、部屋を立てられない
     const { win, doc, errors } = await launch({ fakeSocket: true, loggedOut: true, atEntry: true });
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-login', 3000);
-    click(doc, 'loginBrowseBtn');
-    await waitScreen(win, doc, 'scr-v2-pick', 3000);
-    await toRoomLobby(win, doc);
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
     const firstSocket = fake.socket;
-
-    // 未ログインなので、部屋を立てようとするとログイン画面へ
-    await require('./harness').makeRoomV2(win, doc);
+    fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }) };
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="make"]'));   // 未ログインなのでログイン画面へ
     await waitScreen(win, doc, 'scr-login', 3000);
-
-    // ログインする（ここから先はログイン済み）
     el(doc, 'loginUsername').value = 'kumakunn';
     el(doc, 'loginPassword').value = 'himitsu';
     click(doc, 'loginSubmitBtn');
-    await waitScreen(win, doc, 'scr-v2-join', 4000);
-
-    // ログインした瞬間に、つなぎ直していること。
-    // つなぎ直さないと、サーバーは古いセッションのまま見つづける
-    await waitFor(win, () => fake.socket !== firstSocket, 3000,
-      'ログインのあと、つなぎ直す');
+    // ログインした瞬間に、つなぎ直していること（そのあと、頼まれた「部屋をつくる」の続きをする）
+    await waitFor(win, () => fake.socket !== firstSocket, 3000, 'ログインのあと、つなぎ直す');
     assertNoErrors(errors, 'ログイン後の再接続で未捕捉の例外');
     win.close();
   });
@@ -4956,9 +4938,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
     fake.replies['room:leave'] = function(){ return undefined; }; // 返事が来ない状況
-    autoDialog(win, doc, true);   // 指示63 2-1：出る前の確認は手元だけで決まる（サーバーを待たない）
-    click(doc, 'rtLeaveBtn');
-    await waitScreen(win, doc, 'scr-v2-pick', 1500);
+    // 指示66-3：待合の ⚙ →「部屋を出る」→ たずねる枠で「出る」（手元だけで決まる・サーバーを待たない）
+    await 待合.押す(win, doc, 'room-leave');
+    await waitScreen(win, doc, 'scr-v2-home', 1500);
     const left = fake.emits.filter(e => e.name === 'room:leave').pop();
     assert(left, '退室は頼んでいる');
     assertEqual(left.payload.code, 'ABC234', '部屋コードを添える（つなぎ直し後でも消してもらえる）');
@@ -4978,63 +4960,48 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     fake.fire('disconnect');
     fake.fire('connect');
     await waitFor(win, () => !!joinCb, 2000, '入り直しが走る');
-    autoDialog(win, doc, true);   // 指示63 2-1：確認で「出る」
-    click(doc, 'rtLeaveBtn'); // その間に本人が「部屋を出る」
-    await waitScreen(win, doc, 'scr-v2-pick', 1500);
+    await 待合.押す(win, doc, 'room-leave'); // その間に本人が「部屋を出る」
+    await waitScreen(win, doc, 'scr-v2-home', 1500);
     joinCb({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() }); // 遅れて返事が届く
     await sleep(win, 120);
     const leaves = fake.emits.filter(e => e.name === 'room:leave');
     assertEqual(leaves.length, 2, '入り直してしまった枠も、あらためて出しておく');
     assertEqual(leaves[1].payload.memberId, 'm1', '出すのは自分の枠');
-    assertEqual(activeScreen(doc), 'scr-v2-pick', '画面は棚のまま（引き戻されない）');
+    assertEqual(activeScreen(doc), 'scr-v2-home', '画面は入口のまま（引き戻されない）');
     assertNoErrors(errors, '入り直し競合で未捕捉の例外');
     win.close();
   });
 
-  await r.test('部屋の確認から戻ると、始まっているゲームの画面に着く（第41弾 2-1-2）', async () => {
-    // **もとは棚の 👥（近道）が持っていた役目。**その近道は 2-1 で廃止した。
-    // 大事なのは「棚を見ている間に部屋が進んでいても、正しい画面に帰れる」こと
+  await r.test('一覧から ‹ で戻ると、始まっているゲームの画面に着く（第41弾 2-1-2・指示66-3）', async () => {
+    // 大事なのは「一覧を見ている間に部屋が進んでいても、正しい画面に帰れる」こと
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
-    click(doc, 'rtPickGameBtn');
+    click(doc, 待合.pick(doc));
     await waitScreen(win, doc, 'scr-v2-pick', 3000);
-    // 棚を見ている間に、部屋ではゲームが始まっていた
     push(fake, roomSnapshot({ state: { phase: 'roleReveal', game: 'wolfrole', data: wolfView() } }));
     await sleep(win, 80);
-    assertEqual(activeScreen(doc), 'scr-v2-pick', '棚で選んでいる人を引っぱらない（今まで通り）');
-
-    fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', game: 'wolfrole', phase: 'roleReveal', playerCount: 5, you: true, host: true });
-    win.goToScreen('scr-entry');
-    await waitScreen(win, doc, 'scr-entry', 2000);
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-room-open', 3000);
-    click(doc, 'roomOpenBackBtn');
+    assertEqual(activeScreen(doc), 'scr-v2-pick', '一覧で選んでいる人を引っぱらない（今まで通り）');
+    click(doc, doc.querySelector('#scr-v2-pick [data-home-act="pick-exit"]'));
     await waitScreen(win, doc, 'scr-rt-play', 2000);
-    assertNoErrors(errors, '部屋の確認（ゲーム中）で未捕捉の例外');
+    assertNoErrors(errors, '一覧から戻る（ゲーム中）で未捕捉の例外');
     win.close();
   });
 
   await r.test('サーバー側で部屋が消えていたら、確認を出さずに印を捨てる（第41弾 2-1-2）', async () => {
-    // 記憶が古いまま消えた部屋に飛ぶと、退室バグと同種の不整合を新しく生む
-    //（落とし穴14-b）。サーバーに「無い」と言われたら、印を捨てて棚へ通す
+    // 記憶が古いまま消えた部屋に飛ぶと、退室バグと同種の不整合を新しく生む（落とし穴14-b）。
+    // サーバーに「無い」と言われたら、印を捨てて先へ通す
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
-    click(doc, 'rtPickGameBtn');
-    await waitScreen(win, doc, 'scr-v2-pick', 3000);
     fake.replies['room:peek'] = () => ({ ok: false, error: 'room_not_found' });
-    win.goToScreen('scr-entry');
-    await waitScreen(win, doc, 'scr-entry', 2000);
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    win.goToScreen('scr-v2-home'); await waitScreen(win, doc, 'scr-v2-home', 2000);
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="one"]'));
     await waitScreen(win, doc, 'scr-v2-pick', 3000);
-    assert(activeScreen(doc) !== 'scr-room-open', '消えた部屋の確認は出さない');
-
-    // 印を捨てた＝つなぎ直しても、もう入り直しに行かない
+    assert(!doc.querySelector('#scr-v2-home [data-v2-id="v2Ask"].is-open'), '消えた部屋の確認は出さない');
     const joinsBefore = fake.emits.filter(e => e.name === 'room:join').length;
     fake.fire('disconnect');
     fake.fire('connect');
     await sleep(win, 120);
-    const joinsAfter = fake.emits.filter(e => e.name === 'room:join').length;
-    assertEqual(joinsAfter, joinsBefore, '消えた部屋へ入り直しに行かない');
+    assertEqual(fake.emits.filter(e => e.name === 'room:join').length, joinsBefore, '消えた部屋へ入り直しに行かない');
     assertNoErrors(errors, '部屋の確認（部屋消滅）で未捕捉の例外');
     win.close();
   });
@@ -5048,8 +5015,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     await toRoom(a.win, a.doc, { pick: false });          // 自分がホスト
     assertEqual(a.win.roleProbe().host, true, 'ホストとして部屋にいる');   // 型(b)
     assert(a.win.roleProbe().ゲストになる道, 'ホストには出る');
-    assert(/参加者/.test(el(a.doc, 'rtToGuestBtn').textContent),
-      '札で何をするか分かる：' + el(a.doc, 'rtToGuestBtn').textContent);
+    const 札 = 待合.menu(a.doc, 'room-toguest');
+    assert(/参加者/.test(札.textContent), '札で何をするか分かる：' + 札.textContent);
     a.win.close();
 
     // **逆向き**（落とし穴20）：参加者には出さない
@@ -5066,30 +5033,24 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { pick: false });
 
-    click(doc, 'rtToGuestBtn');
-    // **自動で押さず、中身を読んでから押す**（第39弾からの決まり）
-    await waitFor(win, () => H.openDialog(doc), 3000, '確認が出る');
-    const dlg = H.openDialog(doc);
-    assertEqual(dlg.種類, 'danger', '部屋ごと閉じるので、取り返しがつかない側で出る');
-    assert(/参加者/.test(dlg.見出し), '見出しで何をするか分かる（' + dlg.見出し + '）');
-    assert(/とじ/.test(dlg.本文) && /全員/.test(dlg.本文),
-      '本文に「部屋が閉じる・全員が退出する」が書いてある（' + dlg.本文 + '）');
-
+    // 指示66-3：待合の ⚙ の「自分が参加者になる」。たずねる枠は新しい見た目（**自動で押さず、中身を読んでから押す**）
+    click(doc, 待合.menu(doc, 'room-toguest'));
+    await waitFor(win, () => doc.querySelector('#scr-v2-room [data-v2-id="v2Ask"].is-open'), 3000, '確認が出る');
+    const dlg = doc.querySelector('#scr-v2-room [data-v2-id="v2Ask"]');
+    assert(dlg.querySelector('[data-v2-act="home-ask-ok"]').classList.contains('v2-danger'), '部屋ごと閉じるので、取り返しがつかない側で出る');
+    assert(/参加者/.test(dlg.querySelector('.v2-dlg-ttl').textContent), '見出しで何をするか分かる');
+    const 本文 = dlg.querySelector('.v2-dlg-txt').textContent;
+    assert(/とじ/.test(本文) && /全員/.test(本文), '本文に「部屋が閉じる・全員が退出する」が書いてある（' + 本文 + '）');
     // やめる道があること（取り返しがつかないので、逃げ道は要る）
-    assert(doc.querySelector('.ui-panel [data-ui="cancel"], .ui-panel [data-ui="no"]'),
-      'やめる道がある');
-
-    click(doc, doc.querySelector('.ui-panel [data-ui="ok"]'));
+    assert(dlg.querySelector('[data-v2-act="home-ask-no"]'), 'やめる道がある');
+    click(doc, dlg.querySelector('[data-v2-act="home-ask-ok"]'));
     await waitFor(win, () => fake.emits.some((e) => e.name === 'room:close'), 3000, '部屋を閉じにいく');
     // 本物のサーバーは、閉じたことを部屋の全員に放送する（realtime.js）
     fake.fire('room:closed', { by: 'あき' });
     await waitScreen(win, doc, 'scr-v2-join', 3000);
 
-    // **元ホストも「部屋に入る」に着地する**（棚ではない）
-    assertEqual(el(doc, 'rtCreateCard').style.display, 'none',
-      '着いたのは「部屋に入る」（部屋をつくる側は出ていない）');
-    assert(/部屋に入る/.test(el(doc, 'rtLobbyTitle').textContent),
-      '見出しが「部屋に入る」（実際: ' + el(doc, 'rtLobbyTitle').textContent + '）');
+    // **元ホストも「部屋に入る」に着地する**（入口ではない）
+    assert(/部屋に入る/.test(doc.querySelector('#scr-v2-join .v2-hd-ttl').textContent), '着いたのは「部屋に入る」');
     assertEqual(win.roleProbe().room, false, '部屋は残っていない');
     assertNoErrors(errors, 'ゲストになる操作で未捕捉の例外');
     win.close();
@@ -5106,155 +5067,98 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(dlg.種類, 'info', '判断は無いので info');
     assert(/とじ/.test(dlg.見出し), '何が起きたかが伝わる（' + dlg.見出し + '）');
     assert(/あき/.test(dlg.本文), '誰が閉じたかも伝わる（' + dlg.本文 + '）');
-    assert(/部屋に入る/.test(el(doc, 'rtLobbyTitle').textContent), '着いたのは「部屋に入る」');
+    assert(/部屋に入る/.test(doc.querySelector('#scr-v2-join .v2-hd-ttl').textContent), '着いたのは「部屋に入る」');
     assertNoErrors(errors, '閉じられた側で未捕捉の例外');
     win.close();
   });
 
-  await r.test('部屋を持ったまま**開き直す**と「いま開いている部屋」に来る（2-12・門D8）', async () => {
-    // **前の検査は、開き直していなかった。**同じセッションのまま入口へ戻って
-    // 確認画面が出ることだけを見ていたので、緑でも 2-12 を確かめていなかった——
-    // 実サーバーで開き直したら、そのまま棚に行ってしまった（端末が部屋を忘れていた）。
-    //
-    // 端末が持つのは「どの部屋のことを聞くか」だけ。
-    // **あるかどうかはサーバーに聞く**（落とし穴14-b）
+  await r.test('部屋を持ったまま**開き直す**と、入口に「部屋 ◯◯ にもどる」が出る（2-12・門D8・指示66-3）', async () => {
+    // 端末が持つのは「どの部屋のことを聞くか」だけ。**あるかどうかはサーバーに聞く**（落とし穴14-b）
     const a = await launch(LAUNCH);
-    const fake = await toRoom(a.win, a.doc, { pick: false });
+    await toRoom(a.win, a.doc, { pick: false });
     const 記憶 = a.win.localStorage.getItem('acac-room');
     assert(記憶, '部屋を持つと、端末が覚える（実際: ' + 記憶 + '）');
     const 覚えた = JSON.parse(記憶);
     assertEqual(覚えた.code, 'ABC234', 'どの部屋かを覚えている');
     assert(覚えた.memberId, '自分が誰かも覚えている');
     a.win.close();
-
     // **開き直す**（別の窓＝アプリを立ち上げ直したのと同じ）
-    const b = await launch(Object.assign({}, LAUNCH, {
-      atEntry: true, storage: { 'acac-room': 記憶 }
-    }));
+    const b = await launch(Object.assign({}, LAUNCH, { atEntry: true, storage: { 'acac-room': 記憶 } }));
     const f2 = b.win.__rtFake;
     f2.replies = { 'room:peek': () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 3, you: true, host: true }) };
-    click(b.doc, b.doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(b.win, b.doc, 'scr-room-open', 4000);
+    await waitFor(b.win, () => b.doc.querySelector('#scr-v2-home [data-home-act="back"]'), 4000, '帰り道が出る');
     const peek = f2.emits.filter((e) => e.name === 'room:peek').pop();
-    assert(peek && peek.payload.code === 'ABC234',
-      '開き直したあとも、サーバーにその部屋を聞いている');
-    assert(/ABC234/.test(el(b.doc, 'scr-room-open').textContent), 'どの部屋かが出ている');
+    assert(peek && peek.payload.code === 'ABC234', '開き直したあとも、サーバーにその部屋を聞いている');
+    assert(/ABC234/.test(b.doc.querySelector('#scr-v2-home [data-home-act="back"]').textContent), 'どの部屋かが出ている');
     b.win.close();
-
-    // **逆向き**（落とし穴20）：サーバーが「もう無い」と言えば、確認は出さずに棚へ
-    const c = await launch(Object.assign({}, LAUNCH, {
-      atEntry: true, storage: { 'acac-room': 記憶 }
-    }));
+    // **逆向き**（落とし穴20）：サーバーが「もう無い」と言えば、帰り道は出さない
+    const c = await launch(Object.assign({}, LAUNCH, { atEntry: true, storage: { 'acac-room': 記憶 } }));
     c.win.__rtFake.replies = { 'room:peek': () => ({ ok: false, error: 'room_not_found' }) };
-    click(c.doc, c.doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(c.win, c.doc, 'scr-v2-pick', 4000);
-    assert(activeScreen(c.doc) !== 'scr-room-open', '消えた部屋の確認は出さない');
+    await sleep(c.win, 900);
+    assert(!c.doc.querySelector('#scr-v2-home [data-home-act="back"]'), '消えた部屋への帰り道は出さない');
     assert(!c.win.localStorage.getItem('acac-room'), '端末の記憶も捨てる');
     c.win.close();
   });
 
-  await r.test('つながる前に聞かない。つながらなければ棚へ通す（2-12・実サーバーで見つけた）', async () => {
-    // **開き直した直後は、まだ socket が無い。**
-    // connect() を呼んだ直後に聞くと、通信層は「まだつながっていません」と即答し、
-    // **部屋があるのに「無い」と判断して棚へ通していた**
-    //（実サーバーで15msの即答を測って気づいた。8秒のタイムアウトより手前で返っていた）。
-    //
-    // 逆に、つながらない時に待ち続けるのも違う——
-    // 2-12「棚で通信が切れる → 棚は動く（棚はローカル）」。2秒であきらめる
+  await r.test('つながる前に聞かない。つながらなければ先へ通す（2-12・実サーバーで見つけた）', async () => {
+    // **開き直した直後は、まだ socket が無い。**つながる前に聞くと「無い」と即答されて見失う。
+    // 逆に、つながらない時に待ち続けるのも違う——2秒であきらめる（一覧は端末の中だけで動く）
     const 記憶 = JSON.stringify({ code: 'ABC234', memberId: 'm1', name: 'あき', role: 'player' });
-
-    // ① つながらない環境（疑似socketを与えない）＝棚へ通す。**止まらない**
+    // ① つながらない環境（疑似socketを与えない）＝一覧へ通す。**止まらない**
     const a2 = await launch({ atEntry: true, storage: { 'acac-room': 記憶 } });
-    click(a2.doc, a2.doc.querySelector('#scr-entry [data-entry="choose"]'));
+    click(a2.doc, a2.doc.querySelector('#scr-v2-home [data-home-act="one"]'));
     await waitScreen(a2.win, a2.doc, 'scr-v2-pick', 5000);
-    assertEqual(activeScreen(a2.doc), 'scr-v2-pick', 'つながらなくても棚には着く（行き止まりにしない）');
+    assertEqual(activeScreen(a2.doc), 'scr-v2-pick', 'つながらなくても一覧には着く（行き止まりにしない）');
     a2.win.close();
-
-    // ② つながる環境＝ちゃんと確認が出る（①が「いつも棚」で通らないことを示す）
+    // ② つながる環境＝ちゃんと帰り道が出る（①が「いつも素通り」で通らないことを示す）
     const b2 = await launch(Object.assign({}, LAUNCH, { atEntry: true, storage: { 'acac-room': 記憶 } }));
     b2.win.__rtFake.replies = { 'room:peek': () => ({ ok: true, code: 'ABC234', you: true, host: true, playerCount: 2, phase: 'lobby', game: null }) };
-    click(b2.doc, b2.doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(b2.win, b2.doc, 'scr-room-open', 5000);
-    assertEqual(activeScreen(b2.doc), 'scr-room-open', 'つながれば確認が出る');
+    await waitFor(b2.win, () => b2.doc.querySelector('#scr-v2-home [data-home-act="back"]'), 5000, 'つながれば帰り道が出る');
     b2.win.close();
   });
 
-  await r.test('棚で部屋を見失わない。持っている時だけ帰り道が出る（第41弾の穴）', async () => {
-    // **2-1・2-8 で棚から「部屋」ボタンを外したのは正しい**——
-    // あれは部屋を**作る**入口で、入口で分かれた今は要らない。
-    // だが**持っている部屋への帰り道**まで一緒に消えていた。
-    //
-    // ① 待合 →「ゲームをえらぶ」→ 棚 で、何も選ばずにいると戻れない
-    // ② 開き直して2秒でつながらず棚へ通したあと、回復しても道が無い
-    //    （rtSync は棚にいる時は何もしない）
+  await r.test('一覧で部屋を見失わない。部屋を持っている時の ‹ は待合へ（第41弾の穴・指示66-3）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
-
-    // **持っていない時は出さない**（ふだんの棚を静かなままにする。型b の裏返し）
     await waitScreen(win, doc, 'scr-v2-pick', 4000);
     assertEqual(win.roomProbe().room, false, 'まだ部屋を持っていない');
-    assert(!win.shelfRoomNoteShown(), '部屋が無い時は、帰り道の1行を出さない');
-
-    // ① 部屋を持って棚に出ると、帰り道が出る
     await toRoom(win, doc, { pick: false });
-    click(doc, 'rtPickGameBtn');
+    click(doc, 待合.pick(doc));
     await waitScreen(win, doc, 'scr-v2-pick', 3000);
     assertEqual(win.roomProbe().room, true, '部屋は持ったまま');   // 型(b)
-    assert(win.shelfRoomNoteShown(), '棚に帰り道の1行が出る');
-    const 札 = el(doc, 'shelfRoomNote').textContent;
-    assert(/部屋/.test(札), '何の道か分かる（実際: ' + 札.replace(/s+/g, ' ') + '）');
-
-    // 押すと 2-1-2 の確認へ（**確認の画面は1つのまま**。二重に作らない）
-    click(doc, 'shelfRoomNote');
-    await waitScreen(win, doc, 'scr-room-open', 3000);
-    click(doc, 'roomOpenBackBtn');
+    assert(/ABC234/.test(doc.querySelector('#scr-v2-pick .v2-pills').textContent), '一覧に、どの部屋のためかが出ている');
+    click(doc, doc.querySelector('#scr-v2-pick [data-home-act="pick-exit"]'));
     await waitScreen(win, doc, 'scr-v2-room', 3000);
-    assertNoErrors(errors, '棚の帰り道で未捕捉の例外');
+    assertNoErrors(errors, '一覧の帰り道で未捕捉の例外');
     win.close();
   });
 
-  await r.test('2秒であきらめた後につながっても、帰り道が出る（第41弾の穴）', async () => {
-    // **これが本題。**2-12「棚で通信が切れる → 棚は動く」を守るために
-    // 2秒であきらめて棚へ通す。そのあと回復した時、
-    // 部屋に居るのにそこへ行く道がどこにも無い、という形になっていた。
-    // 学校のWi-Fiなら2秒を超えることは普通にある
+  await r.test('2秒であきらめた後でも、入口と一覧は動く（第41弾の穴）', async () => {
+    // 学校のWi-Fiなら2秒を超えることは普通にある。あきらめたら、端末の中だけで動く所（入口・一覧）を止めない
     const 記憶 = JSON.stringify({ code: 'ABC234', memberId: 'm1', name: 'あき', role: 'player' });
-
-    // つながらない環境で開き直す＝棚へ通される（2-12）
     const { win, doc, errors } = await launch({ atEntry: true, storage: { 'acac-room': 記憶 } });
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
+    await sleep(win, 300);
+    assert(!doc.querySelector('#scr-v2-home [data-home-act="back"]'), 'つながっていないうちは、まだ何も言わない');
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="one"]'));
     await waitScreen(win, doc, 'scr-v2-pick', 5000);
-    assert(!win.shelfRoomNoteShown(), 'つながっていないうちは、まだ何も言わない');
-
-    assertEqual(activeScreen(doc), 'scr-v2-pick', '棚にいる（2-12：棚はローカルなので動く）');
     assertEqual(win.roomProbe().room, false, 'まだ部屋の中身は持っていない');
     win.close();
   });
 
-  await r.test('回復して部屋に戻れた瞬間、棚に帰り道が出る（第41弾の穴の本題）', async () => {
-    // 2秒であきらめて棚へ通したあと、**つながって部屋に復帰した**場面。
-    // rtSync は棚にいる時は何もしないので、ここで出さないと
-    // **部屋に居るのに、そこへ行く道がどこにも無い**まま残る
+  await r.test('回復して部屋に戻れた瞬間、入口に帰り道が出る（第41弾の穴の本題）', async () => {
+    // 2秒であきらめたあと、**つながって部屋に復帰した**場面。ここで出さないと、部屋に居るのにそこへ行く道がどこにも無い
     const 記憶 = JSON.stringify({ code: 'ABC234', memberId: 'm1', name: 'あき', role: 'player' });
-    const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, {
-      atEntry: true, storage: { 'acac-room': 記憶 }
-    }));
+    const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, { atEntry: true, storage: { 'acac-room': 記憶 } }));
     const fake = win.__rtFake;
-    // 最初は「部屋が見つからない」と答える＝棚へ通される
     fake.replies = { 'room:peek': () => ({ ok: false, error: 'timeout' }) };
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-v2-pick', 5000);
-    assert(!win.shelfRoomNoteShown(), 'この時点では帰り道を出していない');  // 型(b)
-
+    await sleep(win, 400);
+    assert(!doc.querySelector('#scr-v2-home [data-home-act="back"]'), 'この時点では帰り道を出していない');  // 型(b)
     // **回復する。**つなぎ直すと、通信層が同じメンバーとして入り直す
-    // （state.code / memberId は端末の記憶から戻っている）
     fake.replies['room:join'] = () => ({ ok: true, code: 'ABC234', memberId: 'm1', room: roomSnapshot() });
     fake.fire('connect');
-    await waitFor(win, () => win.shelfRoomNoteShown(), 3000, '棚に帰り道が出る');
-
+    await waitFor(win, () => doc.querySelector('#scr-v2-home [data-home-act="back"]'), 3000, '入口に帰り道が出る');
     assertEqual(win.roomProbe().room, true, '部屋に復帰できている');
-    assert(win.shelfRoomNoteShown(), '**回復したら、棚に帰り道が出る**');
-    click(doc, 'shelfRoomNote');
-    await waitScreen(win, doc, 'scr-room-open', 3000);
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="back"]'));
+    await waitScreen(win, doc, 'scr-v2-room', 3000);
     assertNoErrors(errors, '回復後の帰り道で未捕捉の例外');
     win.close();
   });
@@ -5344,7 +5248,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       const left = fake.emits.filter(e => e.name === 'room:leave').pop();
       assertEqual(left.payload.code, 'ABC234', p.id + '：部屋コードを添える');
       assertEqual(left.payload.memberId, 'm2', p.id + '：自分のmemberIdを添える');
-      await waitScreen(win, doc, 'scr-v2-pick', 2000);
+      await waitScreen(win, doc, 'scr-v2-home', 2000);   // 指示66-3：部屋を出たら入口
       assertNoErrors(errors, p.id + ' で未捕捉の例外');
       win.close();
     }
@@ -5405,30 +5309,29 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
     fake.replies['room:peek'] = () => ({ ok: true, code: 'ABC234', you: false, canReturn: true, playerCount: 4 });
-    autoDialog(win, doc, true);
-    click(doc, 'rtLeaveBtn');
-    await waitScreen(win, doc, 'scr-v2-pick', 3000);
-    const b = el(doc, 'shelfReturnNote');
-    await waitFor(win, () => b.style.display !== 'none', 2000, '棚に「さっきの部屋にもどる」が出る');
+    await 待合.押す(win, doc, 'room-leave');
+    await waitScreen(win, doc, 'scr-v2-home', 3000);
+    const もどる = () => doc.querySelector('#scr-v2-home [data-home-act="return"]');
+    await waitFor(win, () => もどる(), 2000, '入口に「さっきの部屋にもどる」が出る');
+    const b = もどる();
     assert(/さっきの部屋にもどる/.test(b.textContent) && /ABC234/.test(b.textContent), '部屋コードつきで出る（' + b.textContent + '）');
     fake.emits.length = 0;
-    click(doc, 'shelfReturnNote');
+    click(doc, b);
     await waitFor(win, () => fake.emits.some((e) => e.name === 'room:join'), 2000, '入り直しを頼む');
     const j = fake.emits.filter((e) => e.name === 'room:join').pop();
     assertEqual(j.payload.memberId, 'm2', '前と同じ memberId を添える（サーバーが同じ人として戻す）');
     assertEqual(j.payload.name, 'びび', '名前を入れ直させない');
-    await waitFor(win, () => /^scr-rt-/.test(activeScreen(doc)), 3000, '部屋の画面へ戻る');
+    await waitFor(win, () => /^scr-(rt|v2-room)/.test(activeScreen(doc)), 3000, '部屋の画面へ戻る');
     assertNoErrors(errors, '「さっきの部屋にもどる」で未捕捉の例外');
     win.close();
     // 型(c)：部屋がもう無いと答えたら、出さない（手がかりも捨てる）
     const g = await launch(LAUNCH);
     const f2 = await toRoom(g.win, g.doc, { join: true, memberId: 'm2' });
     f2.replies['room:peek'] = () => ({ ok: false, error: 'room_not_found' });
-    autoDialog(g.win, g.doc, true);
-    click(g.doc, 'rtLeaveBtn');
-    await waitScreen(g.win, g.doc, 'scr-v2-pick', 3000);
+    await 待合.押す(g.win, g.doc, 'room-leave');
+    await waitScreen(g.win, g.doc, 'scr-v2-home', 3000);
     await sleep(g.win, 400);
-    assertEqual(el(g.doc, 'shelfReturnNote').style.display, 'none', '部屋が無ければ出さない');
+    assert(!g.doc.querySelector('#scr-v2-home [data-home-act="return"]'), '部屋が無ければ出さない');
     assertEqual(g.win.localStorage.getItem('acac-last-room'), null, '手がかりも捨てる');
     g.win.close();
   });
@@ -5475,33 +5378,36 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
    * 指示63 2-3：**待合で着替える。**待合の上に重ねるシートで開き（別の画面に飛ばない）、
    * 選ぶとその場で部屋に送る（room:setLook）。ゲームが選ばれて待合を離れたら、シートは閉じる
    */
-  await r.test('63 2-3：待合の「🏷 アイコン・二つ名をかえる」は重ねて開き、選ぶと部屋に送り、待合を離れたら閉じる', async () => {
+  await r.test('63 2-3：待合の「着替える」はシートで開き、選ぶと部屋に送り、待合を離れたら閉じる（指示66-3 E4）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
     push(fake, roomSnapshot({ state: { phase: 'lobby', game: null, data: {} } }));
     await waitScreen(win, doc, 'scr-v2-room', 2000);
-    click(doc, 'rtLookBtn');
-    await waitFor(win, () => !!doc.querySelector('#uiLayerRoot [data-looksheet]'), 2000, 'シートが重なって開く');
+    // 着替えは文化祭の待合と同じシート（v2Look → アイコン → これにする）
+    click(doc, doc.querySelector('#scr-v2-room [data-v2-open="#v2Look"]'));
+    const look = () => doc.querySelector('#scr-v2-room [data-v2-id="v2Look"]');
+    await waitFor(win, () => look() && look().classList.contains('is-open'), 2000, 'シートが開く');
     assertEqual(activeScreen(doc), 'scr-v2-room', '別の画面に飛ばない');
-    doc.querySelector('#uiLayerRoot [data-lookopen="icon"]').click();
-    await waitFor(win, () => doc.querySelectorAll('#uiLayerRoot [data-pickicon]').length > 0, 2000, 'アイコンの選ぶシート');
+    click(doc, doc.querySelector('#scr-v2-room [data-v2-open="#v2LookIcon"]'));
+    await waitFor(win, () => doc.querySelectorAll('#scr-v2-room [data-fes-icon]').length > 0, 2000, 'アイコンの選ぶシート');
+    const 札 = Array.from(doc.querySelectorAll('#scr-v2-room [data-fes-icon]')).find((b) => !b.disabled);
+    click(doc, 札);
     fake.emits.length = 0;
-    doc.querySelector('#uiLayerRoot [data-pickicon]').click();
+    click(doc, doc.querySelector('#scr-v2-room [data-fes-act="lookicon"]'));
     await waitFor(win, () => fake.emits.some((e) => e.name === 'room:setLook'), 2000, '選ぶと部屋に送る（pushMyLook の1か所）');
-    // ゲームが選ばれる → 待合を離れる → シートが閉じる
+    assertNoErrors(errors, '着替えを部屋に送る時に未捕捉の例外');
+    // シートを開いたまま、ゲームが選ばれる → 待合を離れる → シートが閉じる
+    click(doc, doc.querySelector('#scr-v2-room [data-v2-open="#v2Look"]'));
+    await waitFor(win, () => look().classList.contains('is-open'), 2000, 'もう一度開く');
     push(fake, roomSnapshot({ state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } },
       members: roomSnapshot().members.map((m) => Object.assign({}, m, { ready: false })),
       ready: { count: 0, total: 5, waitingNames: [], all: false } }));
     await waitFor(win, () => activeScreen(doc) !== 'scr-v2-room', 3000, 'ルールへ進む');
-    await waitFor(win, () => !doc.querySelector('#uiLayerRoot [data-looksheet]'), 2000, '着替えのシートは閉じる');
+    assert(!doc.querySelector('#scr-v2-room .v2-sheet.is-open'), '待合を離れたら、着替えのシートは閉じる（戻った時に開いたまま残らない）');
     assertNoErrors(errors, '待合の着替えで未捕捉の例外');
     win.close();
   });
 
-  /**
-   * 指示63 第3部：**待合のいちばん上に「いま何を待っているか」。**準備OKを押した参加者には
-   * 「準備OK ✓ ほかの人を待っています」。進行役は「はじめる」の真上に「◯◯さんを待っています」
-   */
   await r.test('63 第3部：準備OKの参加者に「準備OK ✓ ほかの人を待っています」、進行役は「はじめる」の真上に待つ相手', async () => {
     const 半分 = (over) => roomSnapshot(Object.assign({
       members: roomSnapshot().members.map((m) => Object.assign({}, m, { ready: m.id !== 'm3' })),
@@ -5515,11 +5421,11 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fp, 半分());
     await sleep(p.win, 200);
     if (activeScreen(p.doc) !== 'scr-v2-room') { p.win.goToProbe('scr-v2-room'); push(fp, 半分()); await sleep(p.win, 200); }
-    const note = el(p.doc, 'rtRoomNote').textContent;
+    // 指示66-3：「いま何を待っているか」は待合の帯（いちばん上・巻かない所）
+    const note = 待合.note(p.doc);
     assert(/準備OK ✓ ほかの人を待っています/.test(note) && /ちか/.test(note), '押した参加者に、押せたことと待つ相手が出る（いま「' + note + '」）');
-    const room = el(p.doc, 'scr-v2-room');
-    assert(el(p.doc, 'rtRoomNote').parentNode === room, '「いま何を待っているか」は巻く箱の外（いちばん上）');
-    assert(!el(p.doc, 'rtInvite').open, '参加者には「友だちを呼ぶ」はたたんである');
+    assert(p.doc.querySelector('#scr-v2-room .v2-band-msg'), '帯に出ている');
+    assert(!p.doc.querySelector('#scr-v2-room [data-v2-id="v2RoomQr"].is-open'), '参加者には QR を開かない');
     p.win.close();
     // 進行役（m1・押した・はじめるは灰色）
     const h = await launch(LAUNCH);
@@ -5528,10 +5434,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fh, 半分());
     await sleep(h.win, 200);
     if (activeScreen(h.doc) !== 'scr-v2-room') { h.win.goToProbe('scr-v2-room'); push(fh, 半分()); await sleep(h.win, 200); }
-    const sw = el(h.doc, 'rtStartWait');
-    assert(!sw.hidden && /ちか/.test(sw.textContent), '進行役の「はじめる」の真上に待つ相手が出る（いま「' + sw.textContent + '」）');
-    assertEqual(sw.nextElementSibling && sw.nextElementSibling.id, 'rtStartBtn', '「はじめる」のすぐ上');
-    assert(el(h.doc, 'rtInvite').open, '進行役には「友だちを呼ぶ」を開いておく（QR を見せる）');
+    const sw = h.doc.querySelector('#scr-v2-room .v2-in .v2-note[role="status"]') || h.doc.querySelector('#scr-v2-room p.v2-note[role="status"]');
+    assert(sw && /ちか/.test(sw.textContent), '進行役の「はじめる」の真上に待つ相手が出る（いま「' + (sw ? sw.textContent : 'なし') + '」）');
+    assertEqual(sw.nextElementSibling && sw.nextElementSibling.getAttribute('data-home-act'), 'room-start', '「はじめる」のすぐ上');
+    assert(h.doc.querySelector('#scr-v2-room .v2-ecode'), '進行役にはコード（押すと QR）がいつも出ている');
     h.win.close();
   });
 
@@ -5592,7 +5498,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
     }));
     await waitScreen(win, doc, 'scr-v2-room', 4000);
-    assert(/待っています/.test(el(doc, 'rtRoomNote').textContent), '待合では、誰を待っているかが出る');
+    assert(/待っています/.test(待合.note(doc)), '待合では、誰を待っているかが出る');
     assertNoErrors(errors, '準備OKで未捕捉の例外');
     win.close();
   });
@@ -5613,7 +5519,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // 引き戻されない。待合から自分で押せる道が残っている
     await sleep(win, 200);
     assertEqual(activeScreen(doc), 'scr-v2-room', 'ルール画面に引き戻されない');
-    assertEqual(el(doc, 'rtRoomReadyBtn').style.display, '', '待合から「準備OK」を押せる');
+    assertEqual((待合.ready(doc) ? '' : 'none'), '', '待合から「準備OK」を押せる');
     assertNoErrors(errors, 'キャンセルで未捕捉の例外');
     win.close();
   });
@@ -5635,8 +5541,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, roomWithReady([], picked));
     await sleep(win, 250);
     assertEqual(activeScreen(doc), 'scr-v2-room', '読んだゲームでは、読む画面をはさまない');
-    assertEqual(el(doc, 'rtRoomReadyBtn').style.display, '', '押し直しは求める');
-    assertEqual(el(doc, 'rtRoomRulesBtn').style.display, '', '読み直す道は残っている');
+    assertEqual((待合.ready(doc) ? '' : 'none'), '', '押し直しは求める');
+    assertEqual((待合.rules(doc) ? '' : 'none'), '', '読み直す道は残っている');
     assertNoErrors(errors, '2周目で未捕捉の例外');
     win.close();
   });
@@ -5650,14 +5556,14 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // まだ2人しか押していない
     push(fake, roomWithReady(['m1', 'm2'], picked));
     await waitScreen(win, doc, 'scr-v2-room', 4000);
-    assert(el(doc, 'rtStartBtn').disabled, 'そろうまでは「はじめる」を押せない');   // 型(b)
+    assert(待合.startOff(doc), 'そろうまでは「はじめる」を押せない');   // 型(b)
     const before = fake.emits.filter((e) => e.name === 'wolf:start').length;
 
     // 最後の1人が押した瞬間
     push(fake, roomWithReady(['m1', 'm2', 'm3', 'm4', 'm5'], picked));
     await waitFor(win, () => fake.emits.filter((e) => e.name === 'wolf:start').length > before,
       3000, 'そろった瞬間に始まる');
-    assert(!el(doc, 'rtStartBtn').disabled, 'そろえば「はじめる」も押せる状態になる');
+    assert(!待合.startOff(doc), 'そろえば「はじめる」も押せる状態になる');
     assertNoErrors(errors, '自動の始まりで未捕捉の例外');
     win.close();
   });
@@ -5686,15 +5592,14 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } }
     }));
     await waitScreen(win, doc, 'scr-v2-room', 4000);
-    const rows = Array.from(doc.querySelectorAll('#rtMemberList .rt-member'));
-    assertEqual(rows.length, 5, '名簿は5人');                                   // 型(b)
-    const marked = rows.filter((x) => x.querySelector('.rm-ready')).map((x) => x.textContent);
-    assertEqual(marked.length, 2, '押した2人にだけ✓が付く');
-    assert(/あき/.test(marked.join('')) && /びび/.test(marked.join('')), '押した本人たちに付く');
-    // 待っている相手も、実際に押していない人だけを指す
-    const note = el(doc, 'rtRoomNote').textContent;
-    assert(/ちか/.test(note) && /でん/.test(note) && /えみ/.test(note), 'まだの3人を待っている');
-    assert(!/あき/.test(note), '押した人は待たれない');
+    // 指示66-3 E4：参加者の待合は、自分の札が上に大きく、ほかの人が名簿
+    const rows = Array.from(待合.mems(doc));
+    assertEqual(rows.length, 4, 'ほかの人の名簿は4人');                          // 型(b)
+    const marked = rows.filter((x) => x.querySelector('.v2-mem-st.is-ok')).map((x) => x.textContent);
+    assertEqual(marked.length, 1, 'ほかの人で押したのは1人');
+    assert(/あき/.test(marked.join('')), '押した本人（あき）に付く');
+    assert(!待合.ready(doc), '自分（びび）は押し終わっている＝準備OKのボタンは出ない');
+    assert(/2\/5/.test(doc.querySelector('#scr-v2-room .v2-epick').textContent), '押した数（2/5）が出る');
     assertNoErrors(errors, '名簿の✓で未捕捉の例外');
     win.close();
   });
@@ -5731,30 +5636,29 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('37：「ルールを見る」は進行役だけに出る', async () => {
-    // 相談を口頭で起こすための、意図した不便さ（指示37 2-1）
+  await r.test('37：モードをえらぶ画面では、えらんだモードのルール3つがいつも見える（見ても誰にも送らない）', async () => {
+    // 指示66-3 S4：前の「ルールを見る」（選ぶ前に読む入口）は、ルール3つがいつも出ているので要らなくなった。
+    // 守りたいのは「進行役が下見できる」「下見は誰にも何も起こさない」こと（指示37 2-1）
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { memberId: 'm1', pick: false });
-    click(doc, 'rtPickGameBtn');
+    click(doc, 待合.pick(doc));
     await waitScreen(win, doc, 'scr-v2-pick', 3000);
     await openCassette(win, doc, 'jinro');
     if (activeScreen(doc) === 'scr-game') pickGame(doc, 'wolfrole');
     await waitScreen(win, doc, 'scr-mode', 3000);
-    const peeks = doc.querySelectorAll('#modeCards [data-peek]');
-    assert(peeks.length > 0, '進行役には「ルールを見る」が出る');                 // 型(b)
-
-    // 押しても、選んだことにはならない・他の人には何も起きない
-    const before = el(doc, 'modeCards').querySelector('.mode-card.selected').dataset.id;
+    const ルール = () => el(doc, 'modeRules').textContent.replace(/\s+/g, ' ').trim();
+    const 最初 = ルール();
+    assert(最初.length > 0, 'えらんだモードのルールが出ている');
     const emitsBefore = fake.emits.length;
-    const other = Array.from(peeks).find((b) => b.dataset.peek !== before);
+    const before = el(doc, 'modeCards').querySelector('.v2-opt.is-on').dataset.id;
+    const other = Array.from(doc.querySelectorAll('#modeCards [data-id]')).find((b) => b.dataset.id !== before && !b.disabled && !b.classList.contains('is-off'));
     other.click();
-    await waitScreen(win, doc, 'scr-mode-rules', 3000);
-    assert(doc.querySelectorAll('#rulesBody .rules-ol li').length > 0, 'そのモードのルールが読める');
-    assertEqual(fake.emits.length, emitsBefore, '見ただけでは、誰にも何も送らない');
-    click(doc, 'rulesStartBtn');
-    await waitScreen(win, doc, 'scr-mode', 3000);
-    assertEqual(el(doc, 'modeCards').querySelector('.mode-card.selected').dataset.id, before,
-      '見ただけでは、選んだモードは変わらない');
+    await sleep(win, 60);
+    assert(ルール() !== 最初, 'ほかのモードを押すと、ルールがそのモードのものに入れかわる');
+    // くわしく見る（前のルールの画面）も開ける
+    click(doc, 'modeRulesMore');
+    await sleep(win, 80);
+    assertEqual(fake.emits.length, emitsBefore, '下見しただけでは、誰にも何も送らない');
     assertNoErrors(errors, 'ルールの下見で未捕捉の例外');
     win.close();
   });
@@ -5841,8 +5745,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     };
     push(fake, roomWithReady(['m1', 'm2'], picked));
     await waitScreen(win, doc, 'scr-v2-room', 4000);
-    assertEqual(el(doc, 'rtRoomRulesBtn').style.display, '', '待合から読み直せる');  // 型(b)
-    click(doc, 'rtRoomRulesBtn');
+    assertEqual((待合.rules(doc) ? '' : 'none'), '', '待合から読み直せる');  // 型(b)
+    click(doc, 待合.rules(doc));
     await waitScreen(win, doc, 'scr-rt-rules', 3000);
     // 部屋の知らせが届いても、開いたまま
     push(fake, roomWithReady(['m1', 'm2', 'm3'], picked));
@@ -5895,10 +5799,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // ② **名簿に出る**
     push(fake, roomSnapshot({ members: roomSnapshot().members.map(姿つき) }));
     await sleep(win, 300);
-    const 名簿 = el(doc, 'app').textContent;
-    assert(名簿.indexOf('あきの二つ名') >= 0, '待合の名簿に、その人の二つ名が出る');
-    assert(doc.querySelectorAll('#scr-rt-room .rm-icon').length >= 5,
-      'アイコンも人数ぶん出る（実際:' + doc.querySelectorAll('#scr-rt-room .rm-icon').length + '）');
+    // 指示66-3 E3：進行役の名簿の札はアイコンと名前（見本どおり・二つ名は札に入れない）
+    const 顔 = Array.from(doc.querySelectorAll('#scr-v2-room .v2-mems .v2-av')).map((x) => x.textContent).join('');
+    assertEqual(顔, '🌙🐺🎈💣🎊', 'アイコンが人数ぶん、その人が選んだもので出る');
+    // E4：参加者の待合では、自分の札に二つ名が出る（あき＝m1 を参加者にして見る）
+    push(fake, roomSnapshot({ hostMemberId: 'm2', members: roomSnapshot({ hostMemberId: 'm2' }).members.map(姿つき) }));
+    await sleep(win, 200);
+    assert(/あきの二つ名/.test((doc.querySelector('#scr-v2-room .v2-me') || {}).textContent || ''), '自分の札に、その人の二つ名が出る');
 
     // ③ **部屋にいる間に変えても届く**（入る時に一度送るだけでは足りない）
     const 前 = fake.emits.filter((e) => e.name === 'room:setLook').length;
@@ -5982,7 +5889,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc);
-    push(fake, 毒の部屋({ state: { phase: 'lobby', game: 'wolfrole', data: {} } }));
+    // 指示66-3：二つ名が出るのは参加者の自分の札（E4）。あき（m1）を参加者にして、出てよいものが拾えるようにする
+    push(fake, 毒の部屋({ hostMemberId: 'm2', state: { phase: 'lobby', game: null, data: {} } }));
     await sleep(win, 300);
 
     // **検出器そのものを先に試す**（落とし穴10-e：読めていないのに緑、を避ける）。
@@ -6189,39 +6097,28 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
   // ---- 第47弾 47-3：PCから最初から大画面で入る ----
 
-  await r.test('47-3：入口の3つ目から、大画面として部屋に入れる（ログイン不要）', async () => {
+  await r.test('47-3：TV（/tv）から、大画面として部屋に入れる（ログイン不要・指示66-3）', async () => {
+    // 入口の3つ目の札は無くなった（見本 E1 は3つだけ）。TV やPCは /tv（= ?tv=1）を開いてコードを入れる。
+    // **自動では大画面にしない**（画面の広さでは決めない）——/tv を開いた端末だけが TV になる
     const { win, doc, errors } = await launch(LAUNCH);
-    win.goToScreen('scr-entry');
-    await waitScreen(win, doc, 'scr-entry', 3000);
-
-    const 札 = doc.querySelector('#scr-entry [data-entry="big"]');
-    assert(札, '入口に3つ目の札がある');
-    assert(/大画面/.test(札.textContent), '大画面として入る札だと分かる');
-    // **自動では大画面にしない**（選択式）。3つとも並んでいる
-    assertEqual(doc.querySelectorAll('#scr-entry [data-entry]').length, 3, '入口は3つ');
-
-    札.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
-    await waitScreen(win, doc, 'scr-v2-join', 3000);
-    assert(/大画面/.test(el(doc, 'rtLobbyTitle').textContent),
-      '大画面として入る画面だと分かる（' + el(doc, 'rtLobbyTitle').textContent + '）');
-    assertEqual(el(doc, 'rtCreateCard').style.display, 'none', '部屋をつくる側は出ない');
-    assert(el(doc, 'rtJoinName').value.trim(), '名前は入れておく（大画面に名前を考えさせない）');
-
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, '疑似socketがつながる');
-    fake.replies = {};
-    fake.replies['room:join'] = () => ({ ok: true, code: 'ABC234', memberId: 'm9',
-      room: roomSnapshot({
-        memberCount: 6,
-        members: roomSnapshot().members.concat(
-          [{ id: 'm9', name: '大画面', role: 'bigscreen', connected: true, isHost: false, ready: true }])
-      }) });
-    el(doc, 'rtJoinCode').value = 'ABC234';
-    click(doc, 'rtJoinBtn');
+    fake.replies = {
+      'room:peek': () => ({ ok: true, code: 'ABC234', game: null, phase: 'lobby', playerCount: 5 }),
+      'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'm9',
+        room: roomSnapshot({ state: { phase: 'lobby', game: null, data: {} }, memberCount: 6, members: roomSnapshot().members.concat([{ id: 'm9', name: 'TV', role: 'bigscreen', connected: true, isHost: false, ready: true }]) }) })
+    };
+    win.homeOpenJoin({ tv: true });
+    await waitScreen(win, doc, 'scr-v2-join', 3000);
+    assert(/TV/.test(doc.querySelector('#scr-v2-join .v2-hd-ttl').textContent), 'TV として入る画面だと分かる');
+    assert(!doc.querySelector('#scr-v2-join [data-home-act="qr"]'), 'TV には QR を読む札を出さない');
+    const inp = doc.querySelector('#scr-v2-join [data-home-code]');
+    inp.value = 'ABC234'; inp.dispatchEvent(new win.Event('input', { bubbles: true }));
+    click(doc, doc.querySelector('#scr-v2-join [data-home-act="code-go"]'));
     await waitFor(win, () => fake.emits.some((e) => e.name === 'room:join'), 3000, '入る');
     const 送った = fake.emits.filter((e) => e.name === 'room:join').pop();
-    assertEqual(送った.payload.role, 'bigscreen', '**大画面として**入る');
-    await waitScreen(win, doc, 'scr-rt-big', 4000);
+    assertEqual(送った.payload.role, 'bigscreen', '**大画面として**入る（名前は聞かない）');
+    await waitScreen(win, doc, 'scr-v2-room-tv', 4000);
     assertNoErrors(errors, '大画面として入る時に未捕捉の例外');
     win.close();
   });
@@ -6229,19 +6126,14 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('47-3：「部屋に入る」を押した人は、大画面にならない（印が残らない）', async () => {
     // **置き忘れると、次に来た人まで大画面になる。**引数で渡している証拠
     const { win, doc, errors } = await launch(LAUNCH);
-    win.goToScreen('scr-entry');
-    await waitScreen(win, doc, 'scr-entry', 3000);
-    doc.querySelector('#scr-entry [data-entry="big"]')
-      .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    win.homeOpenJoin({ tv: true });
     await waitScreen(win, doc, 'scr-v2-join', 3000);
-    // もどって、ふつうに「部屋に入る」を押す
-    win.goToScreen('scr-entry');
-    await waitScreen(win, doc, 'scr-entry', 3000);
-    doc.querySelector('#scr-entry [data-entry="join"]')
-      .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    // もどって、ふつうに入口の「部屋に入る」を押す
+    win.goToScreen('scr-v2-home');
+    await waitScreen(win, doc, 'scr-v2-home', 3000);
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="join"]'));
     await waitScreen(win, doc, 'scr-v2-join', 3000);
-    assert(!/大画面/.test(el(doc, 'rtLobbyTitle').textContent),
-      '大画面の画面になっていない（' + el(doc, 'rtLobbyTitle').textContent + '）');
+    assert(!/TV/.test(doc.querySelector('#scr-v2-join .v2-hd-ttl').textContent), 'TV の画面になっていない');
 
     const fake = win.__rtFake;
     await waitFor(win, () => fake.connected, 3000, 'つながる');
@@ -6307,25 +6199,18 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('47-4：ゲームが決まっていない間、大画面は静かな待機表示にとどまる', async () => {
+  await r.test('47-4：ゲームが決まっていない間、大画面は TV の待合にとどまる（指示66-3 門4）', async () => {
     // **選んでいる最中の画面は鏡にしない**（本人の裁定 2026-09-14）。
-    // 決まっていない途中経過をTVに映しても見世物にならないし、
-    // 選択中の状態を配ると、47-2 で塞いだ漏れ口を別の形で開けることになる
+    // 指示66-3：決まるまでの TV は新しい見た目の待合（QR が主役・入った人の札）
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
     push(fake, bigRoom({ state: { phase: 'lobby', game: null, data: {} } }));
     await sleep(win, 150);
-    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま（役割が落ちていない）');
-    // 指示64 A3：ゲームが決まる前は、QRがいちばん大きい置き方
-    assertEqual(el(doc, 'scr-rt-big').dataset.big, 'a', 'ゲームが決まる前の待合の置き方');
-    const head = el(doc, 'bigHead');
-    assert(/まだゲームが決まっていません/.test(head.textContent),
-      '決まっていないことが分かる（' + head.textContent.slice(0, 40) + '）');
-    assertEqual(el(doc, 'bigRules').style.display, 'none', 'ルールの札は出さない（まだ決まっていない）');
+    assertEqual(activeScreen(doc), 'scr-v2-room-tv', 'TV の待合（役割が落ちていない）');
+    assert(doc.querySelector('#scr-v2-room-tv .v2-tqr svg'), 'QR が出ている');
     // **選択中の中身は映さない。**カセット名・モード名が漏れていないこと
-    const tv = el(doc, 'scr-rt-big').textContent;
-    assert(!/クイズ解除|人狼|オークション/.test(tv),
-      '選んでいる最中のものは映さない（' + tv.slice(0, 60) + '）');
+    const tv = el(doc, 'scr-v2-room-tv').textContent;
+    assert(!/クイズ解除|人狼|オークション/.test(tv), '選んでいる最中のものは映さない（' + tv.slice(0, 60) + '）');
     assertNoErrors(errors, '待機表示で未捕捉の例外');
     win.close();
   });
@@ -6348,60 +6233,56 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     return base;
   }
 
-  await r.test('64 E1：入ってきた人は小さな知らせで（2つまで・幕を出さない・遊んでいる間に入った人は知らせない）', async () => {
+  await r.test('64 E1：入ってきた人は札がポンと増える（幕を出さない・遊んでいる間に入った人はまとめて出さない・指示66-3）', async () => {
+    // 指示66-3：TV の待合は入った人の札が主役。前の「◯◯さんが入りました」の知らせは、札が増えるポンに置きかわった
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
     const 待合 = (n) => tvRoom64(n, { state: { phase: 'lobby', game: null, data: {} } });
     push(fake, 待合(4));
     await sleep(win, 120);
-    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
-    assertEqual(el(doc, 'scr-rt-big').dataset.big, 'a', 'A3 の置き方');
+    assertEqual(activeScreen(doc), 'scr-v2-room-tv', 'TV の待合');
     let 幕 = 0;
     const mo = new win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => {
       if (n.classList && (n.classList.contains('fx-banner') || n.classList.contains('fx-shutter'))) 幕++;
     })));
     mo.observe(doc.body, { childList: true, subtree: true });
-    const 知らせ = () => Array.from(doc.querySelectorAll('#bigEntry .be-item')).map((x) => x.textContent);
-    assertEqual(知らせ().length, 0, '見始めた時にいた人は知らせない');
+    const ポン = () => Array.from(doc.querySelectorAll('#scr-v2-room-tv .v2-born')).map((x) => x.textContent);
+    assertEqual(ポン().length, 0, '見始めた時にいた人はポンとしない');
 
     push(fake, 待合(5));   // m6（ふう）が入る
     await sleep(win, 80);
-    assertEqual(知らせ().length, 1, '1人入ったら、知らせが1つ');
-    assert(/ふう/.test(知らせ()[0]) && /さんが入りました/.test(知らせ()[0]), '誰が入ったかが分かる（' + 知らせ()[0] + '）');
-    // **QRの柱の外**に出る（QRは会場の人が読む入口・B5）
-    assert(!el(doc, 'bigCodeCol').contains(el(doc, 'bigEntry')), '知らせはQRの柱の中に出ない');
-
-    push(fake, 待合(8));   // 3人まとめて入る
+    assertEqual(ポン().length, 1, '1人入ったら、1枚だけポン');
+    assert(/ふう/.test(ポン()[0]), '入った人の札がポンと出る（' + ポン()[0] + '）');
+    push(fake, 待合(5));   // 何も変わらない更新
     await sleep(win, 80);
-    assertEqual(知らせ().length, 2, '知らせは2つまで（' + 知らせ().join('／') + '）');
-    assert(/あいうえおか|はな/.test(知らせ().join('')) || /はな/.test(知らせ()[1]), '新しい方が残る（' + 知らせ().join('／') + '）');
+    assertEqual(ポン().length, 0, '描き直すたびには動かさない（その時だけ）');
     assertEqual(幕, 0, '画面全体の幕は出さない（QRを覆わない）');
 
-    // 遊んでいる間に入った人（m10）は、待合にもどっても知らせない
-    const 遊ぶ = tvRoom64(9, { state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) } });
-    push(fake, 遊ぶ);
-    await sleep(win, 80);
-    assertEqual(知らせ().length, 0, '始まったら、待合の知らせは残さない');
+    // 遊んでいる間に入った人（m10）は、待合にもどってもまとめてポンとしない
+    push(fake, tvRoom64(9, { state: { phase: 'night', game: 'wolfrole', data: wolfView({ phase: 'night' }) } }));
+    await waitFor(win, () => activeScreen(doc) !== 'scr-v2-room-tv', 2000, '始まると盤へ');
     push(fake, 待合(9));
-    await sleep(win, 80);
-    assertEqual(知らせ().length, 0, '遊んでいる間に入った人を、待合にもどった瞬間にまとめて流さない');
+    await waitScreen(win, doc, 'scr-v2-room-tv', 2000);
+    assertEqual(ポン().length, 0, '遊んでいる間に入った人を、待合にもどった瞬間にまとめて出さない');
     mo.disconnect();
     assertNoErrors(errors, '入場の知らせで未捕捉の例外');
     win.close();
   });
 
-  await r.test('64 A3：8人以下は名簿に二つ名も出す。9人からは名前だけ', async () => {
+  await r.test('64 A3：6人までは名簿に二つ名も出す。7人からは名前だけ（指示66-3 の TV の待合・見本どおり）', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
-    push(fake, tvRoom64(8, { state: { phase: 'lobby', game: null, data: {} } }));
+    push(fake, tvRoom64(6, { state: { phase: 'lobby', game: null, data: {} } }));
     await sleep(win, 100);
-    const 二つ名 = () => doc.querySelectorAll('#bigList .bl-item .bl-title').length;
-    assertEqual(doc.querySelectorAll('#bigList .bl-item').length, 8, '8人の札（大画面は数えない）');
-    assertEqual(二つ名(), 8, '8人なら二つ名も出す');
-    assert(/8/.test(el(doc, 'bigReady').textContent), '何人来たかが出る（' + el(doc, 'bigReady').textContent + '）');
-    push(fake, tvRoom64(9, { state: { phase: 'lobby', game: null, data: {} } }));
+    const 札 = () => doc.querySelectorAll('#scr-v2-room-tv .v2-tmem').length;
+    const 二つ名 = () => doc.querySelectorAll('#scr-v2-room-tv .v2-tmem .v2-tmem-tt').length;
+    assertEqual(札(), 6, '6人の札（TV の端末は数えない）');
+    assertEqual(二つ名(), 6, '6人なら二つ名も出す');
+    assert(/6/.test(el(doc, 'scr-v2-room-tv').querySelector('.v2-tnote').textContent), '何人来たかが出る');
+    push(fake, tvRoom64(7, { state: { phase: 'lobby', game: null, data: {} } }));
     await sleep(win, 100);
-    assertEqual(二つ名(), 0, '9人からは名前だけ（28px に収めるため）');
+    assertEqual(札(), 7, '7人の札');
+    assertEqual(二つ名(), 0, '7人からは名前だけ（遠くから読める大きさに収めるため）');
     assertNoErrors(errors, 'A3 の名簿で未捕捉の例外');
     win.close();
   });
@@ -6458,8 +6339,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assert(doc.querySelectorAll('#bigRank .rk-row').length === 4, '前提：決着の順位表が出ている');   // 型(b)
     assertEqual(el(doc, 'bigMain').textContent, '', '順位表が出ている時は、一枚看板に1位の名前を重ねない（主役は順位表）');
     el(doc, 'bigMain').classList.add('is-fine');   // 前の試合の色が残っていた形（オークションの開示）
+    // 指示66-3：ゲームが決まっていない待合は TV の待合（別の画面）。順位表は持ち込まない
     push(fake, tvRoom64(4, { state: { phase: 'lobby', game: null, data: {} } }));
-    await sleep(win, 120);
+    await waitScreen(win, doc, 'scr-v2-room-tv', 2000);
+    assert(!doc.querySelector('#scr-v2-room-tv .rk-tv, #scr-v2-room-tv .rk-row'), 'TV の待合に前の試合の順位表を持ち込まない');
+    // つぎのゲームが決まると、盤の画面（ルールの置き方）にもどる。ここに前の試合のものを残さない
+    push(fake, tvRoom64(4, { state: { phase: 'lobby', game: 'wolfrole', data: { modeId: 'wolf-normal' } } }));
+    await waitScreen(win, doc, 'scr-rt-big', 2000);
     assertEqual(el(doc, 'bigRank').innerHTML, '', '待合に前の試合の順位表を残さない');
     ['bigSugoBoard', 'bigAuMarket', 'bigFtCases', 'bigBoard'].forEach((id) => {
       assertEqual(el(doc, id).style.display, 'none', id + ' を待合に残さない');
@@ -7023,13 +6909,13 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // ---- 上限ちょうど（12人）なら押せる ----
     push(fake, 部屋(12));
     await waitScreen(win, doc, 'scr-v2-room', 4000);
-    assertEqual(el(doc, 'rtStartBtn').disabled, false, '**12人ちょうどなら始められる**');
+    assertEqual(待合.startOff(doc), false, '**12人ちょうどなら始められる**');
 
     // ---- 1人超えたら押せない。理由も出る ----
     push(fake, 部屋(13));
     await sleep(win, 80);
-    assertEqual(el(doc, 'rtStartBtn').disabled, true, '13人では始められない');
-    const 一言 = el(doc, 'rtRoomNote').textContent;
+    assertEqual(待合.startOff(doc), true, '13人では始められない');
+    const 一言 = 待合.note(doc);
     assert(/13/.test(一言) && /12/.test(一言),
       'いまの人数と上限の両方が出ている（実際: ' + 一言 + '）');
     assert(/人までです/.test(一言), '「〇人までです」と出る');
@@ -7037,7 +6923,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // ---- 減れば、また押せる ----
     push(fake, 部屋(12));
     await sleep(win, 80);
-    assertEqual(el(doc, 'rtStartBtn').disabled, false, '12人に減れば、また始められる');
+    assertEqual(待合.startOff(doc), false, '12人に減れば、また始められる');
     assertNoErrors(errors, '上限を超えた待合で未捕捉の例外');
     win.close();
   });

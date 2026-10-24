@@ -372,7 +372,7 @@ async function startModeWithTimerOff(win, doc, id) {
     const { win, doc, errors } = await launch();
     await openCassette(win, doc, 'jinro');
     await waitScreen(win, doc, 'scr-game', 3000);
-    const games = Array.from(doc.querySelectorAll('#gameCards [data-home-opt]')).map(c => c.dataset.game);
+    const games = Array.from(doc.querySelectorAll('#gameCards [data-home-opt]')).map(c => c.dataset.homeOpt);
     assertEqual(games.join(','), 'wordwolf,wolfrole', 'ワードウルフと人狼の2ゲームが並ぶ');
 
     // 人狼側：プリセットがそれぞれ独立したモードカードになっている
@@ -1321,26 +1321,26 @@ async function startModeWithTimerOff(win, doc, id) {
     win.close();
   });
 
-  await r.test('部屋の入り口は、つながらない時に理由が出る', async () => {
-    // **道が変わった（第41弾 2-1・2-4）。**
-    // 「あそびかたをえらぶ」も棚の下部バーの近道も廃止し、
-    // 部屋は「部屋でしか遊べないカセットを選ぶ」から生まれる1本になった
+  await r.test('部屋の入り口は、つながらない時に理由が出る（指示66-3：入口の「部屋をつくる」「部屋に入る」）', async () => {
+    // socket.io を読み込めない環境では、その旨を出す（押しても黙って何も起きない、にしない）
     const { win, doc, errors } = await launch({ atEntry: true });
-    click(doc, doc.querySelector('#scr-entry [data-entry="choose"]'));
-    await waitScreen(win, doc, 'scr-v2-pick', 4000);
-    assert(doc.getElementById('rtCreateBtn'), '部屋をつくる導線がある');
-    assert(doc.getElementById('rtJoinCode'), '部屋コードで入る導線がある');
-    // socket.io を読み込めない環境では、その旨を出して手渡しへ誘導する
-    assert(/通信の準備/.test(el(doc, 'rtLobbyStatus').textContent),
-      'つながらない時は理由が出る（' + el(doc, 'rtLobbyStatus').textContent.slice(0, 20) + '）');
-    assert(el(doc, 'rtCreateBtn').disabled, 'つながらないうちは押せない');
-    click(doc, 'rtLobbyBackBtn');
-    await waitScreen(win, doc, 'scr-v2-pick', 3000);
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="make"]'));
+    await sleep(win, 200);
+    assert(/通信の準備/.test(doc.body.textContent), 'つくる：つながらない時は理由が出る');
+    assertEqual(activeScreen(doc), 'scr-v2-home', 'つくる：入口に残る');
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="join"]'));
+    await waitScreen(win, doc, 'scr-v2-join', 3000);
+    const inp = doc.querySelector('#scr-v2-join [data-home-code]');
+    inp.value = 'ABC234'; inp.dispatchEvent(new win.Event('input', { bubbles: true }));
+    click(doc, doc.querySelector('#scr-v2-join [data-home-act="code-go"]'));
+    await sleep(win, 100);
+    assert(/つながりません/.test(doc.querySelector('#scr-v2-join .v2-why').textContent), '入る：つながらない時は理由が出る');
+    click(doc, doc.querySelector('#scr-v2-join [data-home-act="join-back"]'));
+    await waitScreen(win, doc, 'scr-v2-home', 3000);
     assertNoErrors(errors, '部屋の入り口で未捕捉の例外');
     win.close();
   });
 
-  // ---- 第21弾 第3部：記録画面に detail を出す ----
   await r.test('記録：人狼の記録に、勝った陣営・ターン数・役職構成が出る', async () => {
     const { win, doc, errors } = await launch();
     autoDialog(win, doc);
@@ -1707,7 +1707,7 @@ async function startModeWithTimerOff(win, doc, id) {
     await fillPlayerForm(win, doc, ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く', 'け']);
     await waitScreen(win, doc, 'scr-mode', 3000);
 
-    const title = id => doc.querySelector('#modeCards [data-id="' + id + '"] .m-title').textContent;
+    const title = id => doc.querySelector('#modeCards [data-id="' + id + '"] .v2-on1').textContent;
     assertEqual(title('wolf-chaos'), '全部のせ人狼', '元のカオス人狼は名前だけ変わった');
     assertEqual(title('wolf-yaminabe'), 'カオス人狼', '新しいカオス人狼が入った');
     // 記録との整合：中身を持つidは変えていない
@@ -1809,7 +1809,7 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('人数が足りない役職カードは、選べないようにする', async () => {
     const { win, doc, errors } = await launch();
     await toWordwolfModes(win, doc, ['あき', 'びび', 'ちか']); // 3人
-    const locked = id => doc.querySelector('#modeCards [data-id="' + id + '"]').classList.contains('locked');
+    const locked = id => doc.querySelector('#modeCards [data-id="' + id + '"]').classList.contains('is-off');
     assert(!locked('wordwolf'), 'いつものワードウルフは3人でも遊べる');
     assert(locked('wordwolf-peek'), 'のぞき見（4人〜）は選べない');
     assert(locked('wordwolf-trick'), 'かき乱し（6人〜）は選べない');
@@ -2158,15 +2158,15 @@ async function startModeWithTimerOff(win, doc, id) {
 
     const wordwolf = doc.querySelector('#gameCards [data-home-opt="wordwolf"]');
     const wolfrole = doc.querySelector('#gameCards [data-home-opt="wolfrole"]');
-    assert(wordwolf.classList.contains('selected'), '最初は先頭が選ばれている（未選択にしない）');
+    assert(wordwolf.classList.contains('is-on'), '最初は先頭が選ばれている（未選択にしない）');
 
     // 押しても画面は動かない
     wolfrole.click();
     await sleep(win, 80);
     assertEqual(activeScreen(doc), 'scr-game', 'タップだけでは進まない');
-    assert(doc.querySelector('#gameCards [data-home-opt="wolfrole"]').classList.contains('selected'),
+    assert(doc.querySelector('#gameCards [data-home-opt="wolfrole"]').classList.contains('is-on'),
       '選択だけが移る');
-    assert(!doc.querySelector('#gameCards [data-home-opt="wordwolf"]').classList.contains('selected'),
+    assert(!doc.querySelector('#gameCards [data-home-opt="wordwolf"]').classList.contains('is-on'),
       '前の選択は外れる');
 
     // 選び直しても大丈夫
@@ -2397,16 +2397,16 @@ async function startModeWithTimerOff(win, doc, id) {
 
     const casual = doc.querySelector('#modeCards [data-id="wolf-casual"]');
     const normal = doc.querySelector('#modeCards [data-id="wolf-normal"]');
-    assert(!casual.classList.contains('locked'), 'カジュアル（3人〜）は3人で選べる');
-    assert(normal.classList.contains('locked'), 'ノーマル（5人〜）は3人では選べない');
+    assert(!casual.classList.contains('is-off'), 'カジュアル（3人〜）は3人で選べる');
+    assert(normal.classList.contains('is-off'), 'ノーマル（5人〜）は3人では選べない');
     assert(/5人以上/.test(normal.textContent), '必要な人数が読める（' + normal.textContent.trim() + '）');
 
     // 押しても選択が移らない
     normal.click();
     await sleep(win, 60);
-    assert(doc.querySelector('#modeCards [data-id="wolf-normal"]').classList.contains('locked'),
+    assert(doc.querySelector('#modeCards [data-id="wolf-normal"]').classList.contains('is-off'),
       '押しても選ばれない');
-    assert(!doc.querySelector('#modeCards [data-id="wolf-normal"]').classList.contains('selected'),
+    assert(!doc.querySelector('#modeCards [data-id="wolf-normal"]').classList.contains('is-on'),
       '選択状態にならない');
     assertNoErrors(errors, '人数制限で未捕捉の例外');
     win.close();
@@ -2760,23 +2760,22 @@ async function startModeWithTimerOff(win, doc, id) {
   await r.test('爆弾解除カセット：カウントダウン→3択→全解除まで通る', async () => {
     // テスト用の細工なしで、棚に出ている本番のカセットをそのまま遊ぶ
     const { win, doc, errors } = await launch();
-    const cart = doc.querySelector('.cart[data-cart="bakudan"]');
-    assert(cart, '爆弾解除のカセットが棚にある');
-    assert(!cart.classList.contains('soon'), '近日公開ではなく、遊べる状態');
-    cart.click();
-    if (activeScreen(doc) === 'scr-v2-pick') cart.click();
+    assert(doc.querySelector('#scr-v2-pick [data-home-id="bakudan"]'), '爆弾解除が一覧にある');
+    await openCassette(win, doc, 'bakudan');
     // 第27弾-3で実物解除が入り、ゲームが2つになったので選択画面を通る
     // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
     await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id);
+    // お休み中（実物解除）の札は、消さずに理由つきで並ぶ（指示66-3 門3）。遊べる札はクイズ解除の2枚
+    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id).filter(id => !/^paused-/.test(id));
     assertEqual(ids.join(','), 'bomb-coop,bomb-race', 'クイズ解除の2枚だけが並ぶ');
+    assert(doc.querySelector('#modeCards [data-id^="paused-"]'), 'お休み中のゲームは理由つきで残る');
     const cards = Array.from(doc.querySelectorAll('#modeCards [data-id]'));
     assert(/クイズ解除/.test(cards[0].textContent), 'モードカードの名前が「クイズ解除」になっている');
 
     // 競争版は部屋が必須なので、手渡し方式では選べない（理由が読める）
-    assert(cards[1].classList.contains('locked'), '競争版は手渡しでは選べない');
+    assert(cards[1].classList.contains('is-off'), '競争版は手渡しでは選べない');
     assert(/部屋/.test(cards[1].dataset.locked), '押した時に部屋が要ると分かる');
 
     // コードの本数を少なくして、最後まで解けるようにする
@@ -3112,51 +3111,20 @@ async function startModeWithTimerOff(win, doc, id) {
   // 以前は「選べるのに、モード画面で押せなくなる」形で、そこで詰んでいた。
   // （クイズ王・オークションのテーマが最後まで続くことは、
   //   部屋がある状態で歩く rt-screens.js の方で見ている）
-  await r.test('手渡しの棚では、部屋が必須のカセットは押す前に理由が読める', async () => {
+  await r.test('1台の一覧では、部屋が必須のカセットは押す前に理由が読める（指示66-3）', async () => {
     const { win, doc, errors } = await launch({});
     for (const id of ['quizou', 'auction']) {
-      const cart = doc.querySelector('.cart[data-cart="' + id + '"]');
-      assert(cart, id + ' のカセットは棚に並んでいる（隠さない）');
-      // **第41弾：遊び方による鍵は、タイルから確認画面へ移した。**
-      // 棚の時点では「1台か部屋か」がまだ決まっていないので、
-      // そこで施錠すると「決まっていない値で鍵を描く」ことになる。
-      // 隠さないこと（2-3）は変わらず、理由と次の行動は押した後に出る
-      assert(!cart.classList.contains('locked'), id + '：遊び方では施錠しない');
+      const card = doc.querySelector('#scr-v2-pick [data-home-id="' + id + '"]');
+      assert(card, id + ' のカセットは一覧に並んでいる（隠さない）');
+      assert(/みんなのスマホ/.test(card.textContent), id + '：押す前に理由が読める（' + card.textContent.replace(/s+/g, '') + '）');
     }
-    // **押した後に、次の行動が出る。**
-    // 第41弾より前は、押しても「みんなのスマホが必要です」と光るだけで
-    // 棚に留まり、部屋を立てる導線が無かった——理由は読めるが行き止まり。
-    // いまは確認画面に進み、そこから部屋をつくれる
-    const cart = doc.querySelector('.cart[data-cart="quizou"]');
-    fakeRects(win, doc, cart.closest('.rail'));
-    if (!cart.classList.contains('center')) { cart.click(); await sleep(win, 150); }
-    cart.click();
-    await sleep(win, 800);
-    assertEqual(activeScreen(doc), 'scr-play-way', '押すと遊び方の確認に進む');
-    assert(doc.querySelector('#wayChoices [data-way="room"]'),
-      '部屋をつくる道が出る（行き止まりにしない）');
-    assertNoErrors(errors, '手渡しの棚で未捕捉の例外');
+    // **押した後に、次の行動が出る**（理由だけで行き止まりにしない）。ページの主ボタンの所に「部屋をつくって 遊ぶ」
+    click(doc, doc.querySelector('#scr-v2-pick [data-home-id="quizou"]'));
+    await sleep(win, 60);
+    assert(doc.querySelector('#scr-v2-pick [data-home-cta] [data-home-act="pick-make"]'), '部屋をつくる道が出る（行き止まりにしない）');
+    assertNoErrors(errors, '1台の一覧で未捕捉の例外');
     win.close();
   });
-
-  await r.test('棚のカセットは、遊び方で施錠されない（第41弾 2-1）', async () => {
-    // **もとは「みんなのスマホの棚では1台専用に理由が出る」だった。**
-    // 入口で遊び方を先に決めていた頃は、棚がその遊び方で絞られていたので
-    // 意味のある検査だった。第41弾でその値そのものを無くしたので、
-    // いまは**どの棚でも施錠されない**ことを見る（理由は押した後の確認が出す）
-    const { win, doc, errors } = await launch({ loggedOut: true, browse: true });
-    assertEqual(activeScreen(doc), 'scr-v2-pick', '見るだけの棚に着いている');
-    const 施錠 = Array.from(doc.querySelectorAll('.cart[data-cart]'))
-      .filter((c) => c.classList.contains('locked'))
-      .map((c) => c.dataset.cart);
-    assert(doc.querySelectorAll('.cart[data-cart]').length > 3,
-      'カセットを数えられている（実際:' + doc.querySelectorAll('.cart[data-cart]').length + '枚）');  // 型(b)
-    assertEqual(施錠.join('・'), '', '遊び方でカセットを施錠しない');
-    assertNoErrors(errors, '見るだけの棚で未捕捉の例外');
-    win.close();
-  });
-
-  // ---- 第32弾-B 第1部：設定の再設計 ----
 
   await r.test('設定：項目を選ぶと専用画面が開き、もどれる', async () => {
     // 第43弾 2-2：棚では入口を飛ばすので、入口そのものを見るなら遊んでいる最中に開く
@@ -3416,14 +3384,15 @@ async function startModeWithTimerOff(win, doc, id) {
     const fs = require('fs');
     const path = require('path');
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-    const rule = html.match(/\.mode-card\.selected\{[^}]*\}/);
-    assert(rule, '.mode-card.selected の決まりごとがある');
+    // 指示66-3：モードの札は新しい見た目（.v2-opt）。選んだ札の色は、世界の色（--wi など）から作る
+    const rule = html.match(/\.v2 \.v2-opt\.is-on\{[^}]*\}/);
+    assert(rule, '.v2-opt.is-on の決まりごとがある');
     assertEqual(/background:#fff/i.test(rule[0]), false, '白を直書きしていない');
-    assert(/var\(--/.test(rule[0]), 'テーマが持っている色から作っている');
+    assert(/var\(--/.test(rule[0]), '世界が持っている色から作っている');
 
     // 選択中と分かる手がかりは、色以外にも残っている
-    assert(/\.mode-card\.selected\{[^}]*border-color/.test(html), '枠の濃さで分かる');
-    assert(/\.mode-card\.selected \.m-check\{/.test(html), 'チェックマークでも分かる');
+    assert(/\.v2 \.v2-opt\.is-on\{[^}]*border-color/.test(html), '枠の濃さで分かる');
+    assert(/\.v2 \.v2-opt\.is-on \.v2-ock \.v2-ic\{visibility:visible;\}/.test(html), 'チェックマークでも分かる');
 
     // 実際に各テーマで選んでも、背景に白が入らない
     for (const c of [{ cart: 'jinro', game: 'wolfrole', theme: 'theme-wolf' },
@@ -3440,7 +3409,7 @@ async function startModeWithTimerOff(win, doc, id) {
       if (activeScreen(doc) === 'scr-setup') await fillPlayerForm(win, doc, PLAYERS);
       await waitScreen(win, doc, 'scr-mode', 3000);
       assert(el(doc, 'app').classList.contains(c.theme), c.cart + '：テーマが当たっている');
-      const sel = doc.querySelector('.mode-card.selected');
+      const sel = doc.querySelector('#modeCards .v2-opt.is-on');
       assert(sel, c.cart + '：選ばれているカードがある');
       const bg = win.getComputedStyle(sel).backgroundColor;
       assertEqual(/^rgb\(255,\s*255,\s*255\)$/.test(bg), false,
@@ -3499,13 +3468,15 @@ async function startModeWithTimerOff(win, doc, id) {
       { cart: 'aresoredorekore', need: false, words: ['あれそれどれこれ'] }
     ];
     for (const c of CASES) {
-      const cart = doc.querySelector('.cart[data-cart="' + c.cart + '"]');
-      assert(cart, c.cart + ' のカセットが棚にある');
-      // 長押しで開く（第41弾 2-7）
-      cart.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, clientX: 100 }));
-      await sleep(win, 600);
+      const card = doc.querySelector('#scr-v2-pick [data-home-id="' + c.cart + '"]');
+      assert(card, c.cart + ' のカセットが一覧にある');
+      // 指示66-3：ページを開いて「くわしく見る」（前の棚の長押し／ⓘ と同じ説明）
+      click(doc, card);
+      await sleep(win, 60);
+      click(doc, doc.querySelector('#scr-v2-pick [data-home-page].is-cur [data-home-act="pick-more"]'));
+      await sleep(win, 400);
       const panel = doc.querySelector('#uiLayerRoot .ui-popup-in');
-      assert(panel, c.cart + '：長押しで説明が開く');
+      assert(panel, c.cart + '：くわしい説明が開く');
       const text = panel.textContent;
       if (c.need) assert(/みんなのスマホが必要/.test(text), c.cart + '：みんなのスマホが要ると分かる');
       else assert(/1台でもあそべる/.test(text), c.cart + '：1台でも遊べると分かる');
@@ -3516,6 +3487,8 @@ async function startModeWithTimerOff(win, doc, id) {
       assert(x, c.cart + '：とじる道がある');
       x.click();
       await sleep(win, 400);
+      click(doc, doc.querySelector('#scr-v2-pick [data-home-act="pick-back"]'));
+      await sleep(win, 60);
     }
     assertNoErrors(errors, 'カセットの説明で未捕捉の例外');
     win.close();

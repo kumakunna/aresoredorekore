@@ -107,7 +107,7 @@ async function 長押し(win, card) {
 
     // 3人から遊べるモードは、4人なら押せる
     const casual = doc.querySelector('#modeCards [data-id="wolf-casual"]');
-    assert(casual && !casual.classList.contains('locked'),
+    assert(casual && !casual.classList.contains('is-off'),
       '3人から遊べるモードは押せる（4人いるので）');
 
     assertNoErrors(errors, 'モード画面で未捕捉の例外');
@@ -267,7 +267,7 @@ async function 長押し(win, card) {
 
     // ---- 押せるモード ----
     const 押せる = doc.querySelector('#modeCards [data-id="wolf-casual"]');
-    assert(押せる && !押せる.classList.contains('locked'), '押せるモードがある');
+    assert(押せる && !押せる.classList.contains('is-off'), '押せるモードがある');
     const 前 = doc.querySelector('#modeCards .v2-opt.is-on').dataset.id;
     await 長押し(win, 押せる);
     let pop = doc.querySelector('#uiLayerRoot .ui-popup-in');
@@ -306,10 +306,11 @@ async function 長押し(win, card) {
   await r.test('44-6：長押しで文字がなぞられない（門G11）', async () => {
     // 長押しは、素のままだと文字の選択とコピーの吹き出しを呼ぶ。
     // **CSSにしか無い**ので、書いてあるかを見る（jsdom は選択を再現しない）
-    const rule = HTML.slice(HTML.indexOf('\n  .mode-card{'), HTML.indexOf('\n  .mode-card.selected'));
-    assert(rule, '.mode-card の指定を読めている');   // 型(b)
-    assert(/user-select:none/.test(rule), '文字がなぞられない');
-    assert(/-webkit-touch-callout:none/.test(rule), 'iOS の長押しメニューも出ない');
+    // 指示66-3：モードの札は新しい見た目（.v2-opt）。文字の選択は画面ごと止め、長押しメニューは札で止める
+    const 画面 = HTML.slice(HTML.indexOf('\n  .screen.v2.v2-scr{'), HTML.indexOf('\n  .screen.v2.v2-scr.active{'));
+    assert(画面, '新しい見た目の画面の指定を読めている');   // 型(b)
+    assert(/user-select:none/.test(画面), '文字がなぞられない');
+    assert(/\.v2 \.v2-opt,\.v2 \.v2-mem\{-webkit-touch-callout:none;\}/.test(HTML), 'iOS の長押しメニューも出ない');
   });
 
   await r.test('44-6：ルールの中身は1か所から出る（画面と popup が同じものを読む）', async () => {

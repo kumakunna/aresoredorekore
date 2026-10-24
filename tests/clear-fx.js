@@ -544,10 +544,6 @@ async function 決着した部屋に大画面で入る(t) {
       const { win, doc, errors } = await launch({ fakeSocket: true });
       try {
         await waitScreen(win, doc, 'scr-v2-pick', 9000);
-        await openCassette(win, doc, 'rcard');
-        const way = doc.querySelector('#wayChoices [data-way="room"]');
-        if (way) click(doc, way);
-        await waitScreen(win, doc, 'scr-rt-lobby', 5000);
         const fake = win.__rtFake;
         await waitFor(win, () => fake.connected, 5000, 'socket');
         const members = new Map();

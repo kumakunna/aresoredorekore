@@ -170,6 +170,29 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     t.win.close();
   });
 
+  await r.test('開き直すと、前回あそんだゲームの札に「前回」の印（前の棚の 2-2・門D13 の後継）', async () => {
+    const t = await launch({ fakeSocket: true, storage: { 'acac-last-cassette': 'rcard' } });
+    const 印 = Array.from(t.doc.querySelectorAll('#scr-v2-pick .v2-last')).map((x) => x.closest('[data-home-card]').dataset.homeId);
+    assertEqual(印.join(','), 'rcard', '前回のゲームにだけ印');
+    t.win.close();
+  });
+
+  await r.test('人が入って人数が変わっても、開いているページと一覧の巻いた所はそのまま（前の棚の「見ているカセットを失わない」の後継）', async () => {
+    const t = await launch({ fakeSocket: true, atEntry: true });
+    const fake = await 部屋に入る(t, 部屋(4));
+    click(t.doc, t.doc.querySelector('#scr-v2-room [data-home-act="room-pick"]'));
+    await waitScreen(t.win, t.doc, 'scr-v2-pick', 3000);
+    click(t.doc, 一覧の札(t.doc)[5]);
+    await sleep(t.win, 30);
+    fake.fire('room:update', 部屋(9));
+    await sleep(t.win, 60);
+    const ov = t.doc.querySelector('#scr-v2-pick [data-home-ov]');
+    assert(ov.classList.contains('is-open'), 'ページは開いたまま');
+    assert(/6 \/ /.test(t.doc.querySelector('#scr-v2-pick [data-home-gname]').textContent), '同じページ（6枚目）');
+    assert(/いま9人/.test(t.doc.querySelector('#scr-v2-pick .v2-pills').textContent), '人数は新しくなる');
+    t.win.close();
+  });
+
   await r.test('門3：いまの人数で遊べないゲームは、消さずに点線と理由で出る（部屋の人数 2・9・13 の3通り）', async () => {
     for (const n of [2, 9, 13]) {
       const t = await launch({ fakeSocket: true, atEntry: true });

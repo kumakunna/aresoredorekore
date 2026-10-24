@@ -5421,6 +5421,7 @@
   .v2 .v2-scard-n{font-weight:900;font-size:18px;line-height:1.2;}
   .v2 .v2-scard-b{font-weight:800;font-size:13px;line-height:1.35;color:var(--ws);}
   .v2 .v2-scard .v2-go{width:22px;height:22px;color:var(--ws);}
+  .v2 .v2-last{display:inline-block;margin-left:8px;padding:3px 7px;border-radius:999px;background:var(--wi);color:var(--won);font-size:11px;font-weight:900;line-height:1;vertical-align:2px;}
   .v2 .v2-scard.is-no{background:transparent;border-style:dashed;border-color:var(--wl2);}
   .v2 .v2-scard.is-no .v2-tile{filter:saturate(.25);opacity:.55;}
   .v2 .v2-scard.is-no .v2-scard-n,.v2 .v2-scard.is-no .v2-scard-b{color:var(--ws);}
@@ -5486,6 +5487,8 @@
   .v2 .v2-opt:active{transform:scale(.98);}
   .v2 .v2-opt.is-on{border-color:var(--wi);box-shadow:inset 0 0 0 2px var(--wi);}
   .v2 .v2-opt.is-off{background:transparent;border-style:dashed;color:var(--ws);cursor:default;}
+  /* 長押しする札（モードの説明・人を外す）は、iOS の長押しメニューを出さない（文字の選択は画面ごと止めてある） */
+  .v2 .v2-opt,.v2 .v2-mem{-webkit-touch-callout:none;}
   .v2 .v2-oi{width:44px;height:44px;border-radius:12px;background:var(--wdim);display:flex;align-items:center;justify-content:center;font-size:26px;flex:none;}
   .v2 .v2-oi .v2-ic{width:24px;height:24px;}
   .v2 .v2-ot{display:flex;flex-direction:column;gap:7px;min-width:0;}
@@ -9660,7 +9663,8 @@
   window.lastCassette = function(){ return loadLastCassette(); };
   window.roleProbe = function(){
     return { host: !!(rt && rt.isHost()), room: !!(rt && rt.state.room),
-             ゲストになる道: el('rtToGuestBtn') ? el('rtToGuestBtn').style.display !== 'none' : false };
+             // 指示66-3：待合の ⚙ の「自分が参加者になる」
+             ゲストになる道: !!document.querySelector('#scr-v2-room [data-home-act="room-toguest"]') };
   };
   window.shelfRoomNoteShown = function(){
     var n = el('shelfRoomNote');
@@ -14292,8 +14296,10 @@
     if(prevScreen && prevScreen.id.indexOf('scr-rt-sh-') === 0 && id.indexOf('scr-rt-sh-') !== 0) shLeaveScreen();
     // 指示63 2-3：**待合を離れたら（ゲームが選ばれてルールへ・始まって盤へ）、着替えのシートを閉じる。**
     // 選んだものは押した瞬間に保存・送信済み（equipLook）なので、途中で閉じても失われない
-    if(prevScreen && prevScreen.id === 'scr-rt-room' && id !== 'scr-rt-room' && typeof UiKit !== 'undefined' && UiKit.closeWhere){
-      UiKit.closeWhere(function(n){ return !!n.querySelector('[data-looksheet]'); });
+    // 指示66-3：待合は新しい画面（scr-v2-room）。着替え・メニュー・QR などのシートは画面の中にあるので、離れる時に閉じておく（戻った時に開いたまま残さない）
+    if(prevScreen && prevScreen.id === 'scr-v2-room' && id !== 'scr-v2-room'){
+      if(typeof UiKit !== 'undefined' && UiKit.closeWhere) UiKit.closeWhere(function(n){ return !!n.querySelector('[data-looksheet]'); });
+      Array.prototype.forEach.call(prevScreen.querySelectorAll('.v2-sheet.is-open'), function(sh){ V2.close(sh); });
     }
     // 指示63：部屋の人狼・ワードウルフの手元の時計は、画面を離れたら止める
     if(prevScreen && prevScreen.id === 'scr-rt-play' && id !== 'scr-rt-play' && rtPlayClock.timer){
@@ -14321,6 +14327,8 @@
     if(id === 'scr-v2-home') enterV2Home();
     if(id === 'scr-v2-join') renderV2Join();
     if(id === 'scr-v2-pick'){ stopAllPlayTimers(); enterV2Pick(); }
+    // ほかの画面（ゲーム中など）から戻った時は、その間に入った人をまとめてポンと出さない（指示64 E1 と同じ考え）
+    if((id === 'scr-v2-room' || id === 'scr-v2-room-tv') && !(prevScreen && prevScreen.id === id)){ home.roomSeen = null; home.tvSeen = null; }
     if(id === 'scr-v2-room') enterV2Room();
     if(id === 'scr-v2-room-tv') renderV2RoomTv();
     if(prevScreen && prevScreen.id === 'scr-v2-join' && id !== 'scr-v2-join') homeScanStop();
@@ -18660,6 +18668,8 @@
     // 指示66-2：文化祭の入る画面で、もう部屋の一員なら（読み込み直し・入れた直後）部屋の画面へ
     if(cur === 'scr-v2-fes-join' && rt.me && rt.me()){ goTo(rtWantScreen()); return; }
     if(cur === 'scr-v2-join' && rt.me && rt.me()){ goTo(rtWantScreen()); return; }
+    // 入口にいる間に、つなぎ直して部屋に戻れた：帰り道（「部屋 ◯◯ にもどる」）を出す（第41弾の穴の本題）
+    if(cur === 'scr-v2-home' && !home.back && rt.me && rt.me()){ home.back = rt.state.code; renderV2Home(); }
     // 指示66-3 S6：決めた時のカードは、どの画面にいても同じ時に出す（部屋の知らせが届いた瞬間）
     homeDecideCheck();
     // ロビーで入力中の人を引っぱらない。すでに部屋の画面にいる時だけ動かす
@@ -25438,8 +25448,8 @@
   function showReaction(p){
     if(!appPrefs.reactions || !p || !p.emoji) return;
     var scr = (document.querySelector('.screen.active') || {}).id;
-    if(RT_GAME_SCREEN_IDS.indexOf(scr) === -1 && scr !== 'scr-rt-big' && scr !== 'scr-rt-room') return;
-    var big = (scr === 'scr-rt-big');
+    if(RT_GAME_SCREEN_IDS.indexOf(scr) === -1 && scr !== 'scr-rt-big' && scr !== 'scr-v2-room' && scr !== 'scr-v2-room-tv') return;
+    var big = (scr === 'scr-rt-big' || scr === 'scr-v2-room-tv');
     var n = document.createElement('div');
     n.className = 'react-fly' + (big ? ' big' : '');
     n.innerHTML = (typeof EmojiSvg !== 'undefined') ? EmojiSvg.html(p.emoji) : p.emoji;
@@ -25647,7 +25657,7 @@
         // 消したことは、はっきり伝える（指示の必須事項）
         if(typeof FxKit !== 'undefined') FxKit.notice('アルバムをサーバーから削除しました');
       }
-      if((document.querySelector('.screen.active') || {}).id === 'scr-rt-room') renderAlbumBox();
+      if((document.querySelector('.screen.active') || {}).id === 'scr-v2-room') renderAlbumBox();
     });
   }
 
@@ -32609,8 +32619,8 @@
     else if(act === 'look'){ fes.lookDraft = null; fes.lookSlot = 'first'; clearTitleNew(); rtRenderCurrent(); }
     else if((act === 'lookicon' || act === 'lookname') && fes.lookDraft){
       equipLook(fes.lookDraft); fes.lookDraft = null;
-      var lscr = el('scr-v2-fes-lobby');
-      V2.close(lscr.querySelector('[data-v2-id="' + (act === 'lookicon' ? 'v2LookIcon' : 'v2LookName') + '"]'));
+      // 文化祭の待合でも、ふつうの部屋の待合（指示66-3）でも同じシート。押した札のシートを閉じる
+      V2.close(b.closest('.v2-sheet'));
       rtRenderCurrent();
     }
     else if(act === 'quit') fesQuit();
@@ -32686,26 +32696,44 @@
   // ===================== E1 入口 =====================
   function renderV2Home(){
     var scr = el('scr-v2-home'); if(!scr) return;
-    scr.innerHTML = V2Home.home({ back: home.back, who: loggedIn() ? state.displayName : null });
+    scr.innerHTML = V2Home.home({ back: home.back, ret: home.ret, who: loggedIn() ? state.displayName : null });
     V2.mount(scr);
     homeKeepAsk();
   }
   /** 入口に来た：「さっきの部屋にもどる」は、サーバーが「まだ名簿にいる」と答えてから出す（落とし穴14-b） */
   async function enterV2Home(){
-    home.back = null;
+    home.back = null; home.ret = null;
     renderV2Home();
     // 先につないでおく（前の「部屋」の画面と同じ）。押してからつなぐと、つながった瞬間の入り直しと作る返事が前後する
     if(rt && rt.available()) rt.connect();
     if(home.afterLogin === 'make'){ home.afterLogin = null; if(loggedIn()){ homeMakeRoom(); return; } }
     var st = await roomMembership();
-    if(st.ある && homeCur() === 'scr-v2-home'){ home.back = rt.state.code; renderV2Home(); }
+    if(st.ある && homeCur() === 'scr-v2-home'){ home.back = rt.state.code; renderV2Home(); return; }
+    homeReturnCheck();
+  }
+  /**
+   * 指示63 2-1：自分から出た部屋に、同じ人としてもどる道（前の棚の「↩ さっきの部屋にもどる」）。
+   * 部屋があるかはサーバーに聞いてから出す。無いと答えたら手がかりも捨てる（落とし穴14-b）
+   */
+  var homeReturnAsk = 0;
+  function homeReturnCheck(){
+    var last = (rt && !rt.state.room && rt.lastRoom) ? rt.lastRoom() : null;
+    if(!last) return;
+    var 番 = ++homeReturnAsk;
+    rt.peekRoom(last.code, last.memberId).then(function(res){
+      if(番 !== homeReturnAsk || homeCur() !== 'scr-v2-home') return;   // 古い問い合わせの答えは捨てる
+      if(!res || !res.ok){ if(res && res.error === 'room_not_found') rt.forgetLastRoom(); return; }
+      home.ret = UiText.LEAVE.さっきの部屋(last.code);
+      renderV2Home();
+    });
   }
   /**
    * 部屋を持ったまま「部屋をつくる」「1台で遊ぶ」を押した時。黙って二重に作らない——
    * 前の「いま開いている部屋」（scr-room-open）と同じことを、新しい見た目のたずねる枠で聞く
    */
   async function homeRoomStillOpen(next){
-    var st = (rt && rt.state.room) ? { ある: true, 進行役: rt.isHost() } : await roomMembership();
+    // 部屋があるかは、いつもサーバーに聞いて決める（端末の記憶のまま消えた部屋へ飛ばない・落とし穴14-b）
+    var st = await roomMembership();
     if(!st.ある) return false;
     var T = UiText.ENTRY.部屋あり, R = homeT().部屋;
     var ok = await homeAsk('scr-v2-home', { title: T.見出し, text: 'コード ' + ((rt && rt.state.code) || '') + '　' + T.閉じる確認の本文,
@@ -32889,7 +32917,7 @@
         var st = homeCardState(c, ctx, n);
         var card = { i: cards.length, id: c.id, world: c.theme || 'wait', name: (c.title || '').replace(/<br>/g, ''), blurb: c.blurb || '',
           gl: genreLabel(g), ppl: homePpl(c), min: cassetteMinutes(c) ? cassetteMinutes(c) + P.分から : '', ways: homeWays(c),
-          why: st.why, cta: st.cta, rules: homeRules(c),
+          why: st.why, cta: st.cta, rules: homeRules(c), last: c.id === loadLastCassette(),
           paused: (c.paused || []).map(function(x){ return x.title + '：' + x.なぜ; }) };
         cards.push(card);
         return card;
@@ -33110,10 +33138,14 @@
     var items = [];
     if(host) items.push({ act: 'room-look', icon: 'smile', label: T.着替える });
     items.push({ act: 'room-album', icon: 'camera', label: '📸 きょうのアルバム' });
+    // 決めたあとでも、進行役はゲームをえらびなおせる（押しまちがいで止まらない）
+    if(host && picked) items.push({ act: 'room-pick', icon: 'grid', label: T.えらびなおす });
     if(host && picked) items.push({ act: 'room-reshow', icon: 'rules', label: 'ルールをもう一度みんなに見せる' });
     items.push({ act: 'room-tome', icon: 'tv', label: T.このスマホを });
     if(host) items.push({ act: 'room-toguest', icon: 'person', label: UiText.ROLE.ゲストになる });
-    items.push({ act: host ? 'room-close' : 'room-leave', icon: 'door', label: host ? UiText.ENTRY.部屋あり.閉じる : UiText.LEAVE.出る, danger: true });
+    // 進行役も、部屋を残して自分だけ出られる（前の「← 部屋を出る」。進行役はサーバーが次の人へゆずる）。とじるのは進行役だけ
+    items.push({ act: 'room-leave', icon: 'door', label: homeT().入口.出る, danger: !host });
+    if(host) items.push({ act: 'room-close', icon: 'door', label: UiText.ENTRY.部屋あり.閉じる, danger: true });
     items.push({ act: 'room-settings', icon: 'gear', label: UiText.V2.設定 });
     return items;
   }
@@ -33263,6 +33295,15 @@
     // E1
     if(act === 'make') homeMakeRoom();
     else if(act === 'join') openV2Join({});
+    else if(act === 'return'){
+      var last = rt && rt.lastRoom ? rt.lastRoom() : null;
+      if(!last) return;
+      b.disabled = true;
+      var rr = await rt.joinRoom(last.code, last.name || '', last.role || 'player', myLook());
+      b.disabled = false;
+      if(!rr.ok){ try{ FxKit.notice(UiText.LEAVE.もどれない); }catch(x){} rt.forgetLastRoom(); home.ret = null; renderV2Home(); return; }
+      goTo(rtWantScreen());
+    }
     else if(act === 'one') homeOne();
     else if(act === 'back'){
       if(rt && rt.state.room){ goTo(rtWantScreen()); return; }
@@ -33300,10 +33341,15 @@
       var c = cassetteById((home.pick.cards[home.pick.cur] || {}).id);
       if(!c) return;
       wayForCassetteId = c.id; wayPlan = playWayPlan(c);
+      // 部屋をとじると、ほかの人もみんな待合から出る。進行役が押した時は、押した後にたずねる（第33弾 B-3 の安全策）
+      if(act === 'pick-leave' && wayPlan && wayPlan.isHost && ((rt.state.room || {}).members || []).length > 1){
+        var PA = homeT().一覧;
+        if(!await homeAsk('scr-v2-pick', { title: PA.とじて + '？', text: PA.全員が, ok: PA.とじて, danger: true })) return;
+      }
       goPlayWay(act === 'pick-leave' ? 'leave' : 'room');
     }
     // 待合
-    else if(act === 'room-pick'){ home.pick.open = false; goTo('scr-v2-pick'); }
+    else if(act === 'room-pick'){ var pk = b.closest('.v2-sheet'); if(pk) V2.close(pk); home.pick.open = false; goTo('scr-v2-pick'); }
     else if(act === 'room-ready'){ b.disabled = true; var r0 = await rt.setReady(true); b.disabled = false; if(!r0.ok) showFlash(r0.message || '送れませんでした', 'hit-wrong'); }
     else if(act === 'room-rules') goTo('scr-rt-rules');
     else if(act === 'room-start'){ b.disabled = true; await rtStartGameNow(); }

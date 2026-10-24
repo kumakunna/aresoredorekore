@@ -281,7 +281,7 @@ function pickCart(doc, id) {
       assert(/じゅんび中/.test(説明), 'じゅんび中だと分かる');
     });
     // **棚から本当に消えているか**——選べるゲームの側に残っていないこと（両方向）
-    const 遊べる = Array.from(doc.querySelectorAll('#gameCards [data-home-opt]')).map((c) => c.dataset.game);
+    const 遊べる = Array.from(doc.querySelectorAll('#gameCards [data-home-opt]')).map((c) => c.dataset.homeOpt);
     assert(遊べる.indexOf('defuse') === -1, '選べるゲームの側には出ていない');
     assertNoErrors(errors, '下ろしたゲームの説明で未捕捉の例外');
     win.close();

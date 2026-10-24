@@ -18,7 +18,7 @@
 const {
   createRunner, assert, assertEqual, assertNoErrors,
   launch, activeScreen, sleep, waitFor, waitScreen, el, click,
-  fillPlayerForm, setupPlayers, pickGame } = require('./harness');
+  fillPlayerForm, setupPlayers, pickGame, openCassette } = require('./harness');
 
 const Sugo = require('../sugoroku-room.js');
 const INV = require('./inventory');

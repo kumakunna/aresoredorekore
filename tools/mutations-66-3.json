@@ -1,0 +1,74 @@
+[
+  {
+    "name": "66-3A 古い棚の画面へ送る印を外す（門7）",
+    "file": "public/index.html",
+    "suite": "tests/home-screens.js",
+    "only": "門7",
+    "from": "'scr-shelf': 'scr-v2-pick',",
+    "to": "",
+    "expect": "古い棚（scr-shelf）を呼ぶと、古い画面が開く"
+  },
+  {
+    "name": "66-3B 部屋の人数が多すぎるゲームも押せる形にする（門3）",
+    "file": "public/index.html",
+    "suite": "tests/home-screens.js",
+    "only": "門3",
+    "from": "      if(hi && n > hi) return { why: hi + P.まで + いま",
+    "to": "      if(false) return { why: hi + P.まで + いま",
+    "expect": "13人の部屋で、上限のあるゲームに理由が出ない"
+  },
+  {
+    "name": "66-3C ‹ で一覧のいちばん上へ戻す（門2）",
+    "file": "public/index.html",
+    "suite": "tests/home-screens.js",
+    "only": "門2",
+    "from": "list.scrollTop = Math.max(0, card.offsetTop - list.offsetTop - list.clientHeight / 3);",
+    "to": "list.scrollTop = 0;",
+    "expect": "‹ のあと、さっき見ていたゲームの札が見えていない"
+  },
+  {
+    "name": "66-3D 入った時にもう決まっていた部屋でも、決めた時のカードを出す",
+    "file": "public/index.html",
+    "suite": "tests/home-screens.js",
+    "only": "決めた時のカードは",
+    "from": "if(first || !key || key === was) return;",
+    "to": "if(!key || key === was) return;",
+    "expect": "入った時に決まっていたゲームで、カードが出る"
+  },
+  {
+    "name": "66-3E TV の待合で決めた時のカードを見ない（門5）",
+    "file": "public/index.html",
+    "suite": "tests/home-screens.js",
+    "only": "門5",
+    "from": "    var old = el('v2Decided'); if(old) old.parentNode.removeChild(old);",
+    "to": "    if(o.tv) return; var old = el('v2Decided'); if(old) old.parentNode.removeChild(old);",
+    "expect": "TV にだけ、決めた時のカードが出ない"
+  },
+  {
+    "name": "66-3F 「どうぞ」の本人の席も取っておいた数に入れる（予約）",
+    "file": "fes-room.js",
+    "suite": "tests/fes.js",
+    "only": "満員の時の予約",
+    "from": "return queueOf(room).filter((x) => x.offerUntil > now && x.token !== token).length;",
+    "to": "return queueOf(room).filter((x) => x.offerUntil > now).length;",
+    "expect": "「どうぞ」をもらった本人が入れない"
+  },
+  {
+    "name": "66-3G 名前の記録の画面を先生にも見せる（門8）",
+    "file": "fes-routes.js",
+    "suite": "tests/fes.js",
+    "only": "門8",
+    "from": "if (role !== 'owner') return page(403",
+    "to": "if (!role) return page(403",
+    "expect": "先生が名前の記録の画面を開ける"
+  },
+  {
+    "name": "66-3H 名前の記録の画面で名前を字のまま出さない（門8）",
+    "file": "fes-routes.js",
+    "suite": "tests/fes.js",
+    "only": "門8",
+    "from": "'</td><td>' + esc(r.name) + '</td><td>",
+    "to": "'</td><td>' + r.name + '</td><td>",
+    "expect": "打たれた名前が HTML として動く"
+  }
+]

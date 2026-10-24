@@ -637,7 +637,8 @@ async function openCassette(win, doc, id) {
 async function makeRoomV2(win, doc) {
   if (activeScreen(doc) !== 'scr-v2-home') { win.goToScreen('scr-v2-home'); await sleep(win, 30); }
   click(doc, doc.querySelector('#scr-v2-home [data-home-act="make"]'));
-  await waitFor(win, () => ['scr-v2-room', 'scr-v2-room-tv', 'scr-rt-big', 'scr-rt-rules'].indexOf(activeScreen(doc)) >= 0, 4000,
+  // 着く先は部屋の知らせしだい（待合・ルール・もう始まっているゲームの画面）。入口を離れたら着いた
+  await waitFor(win, () => activeScreen(doc) !== 'scr-v2-home' && activeScreen(doc) !== 'scr-login', 4000,
     '部屋ができて待合へ（いま ' + activeScreen(doc) + '）');
 }
 /**
@@ -829,7 +830,9 @@ function createRunner(title) {
         await fn();
         results.push({ name, ok: true, ms: Date.now() - t0 });
       } catch (e) {
-        results.push({ name, ok: false, err: e && e.message ? e.message : String(e), ms: Date.now() - t0 });
+        // ACAC_STACK=1 の時は、どの行で落ちたかも出す（直す時だけ使う）
+        const err = (e && e.message ? e.message : String(e)) + (process.env.ACAC_STACK && e && e.stack ? '\n' + e.stack.split('\n').slice(1, 6).join('\n') : '');
+        results.push({ name, ok: false, err, ms: Date.now() - t0 });
       }
     },
     finish() {

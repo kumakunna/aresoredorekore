@@ -8,7 +8,7 @@
 
 const H = require('./harness');
 const { launch, activeScreen, sleep, waitFor, waitScreen, el, click, fillPlayerForm, pickGame,
-  holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog } = H;
+  holdPress, passNightfall, createRunner, assert, assertEqual, assertNoErrors, chooseNext, autoDialog, openCassette } = H;
 
 // 本番のカセット構成のまま到達できるモード（棚に出ているもの）
 const ARESORE_MODES = ['normal', 'seal', 'outstrict', 'oneword', 'ai', 'survival'];
@@ -52,7 +52,7 @@ async function startMode(win, doc, modeId, opts) {
   opts = opts || {};
   const card = doc.querySelector('#modeCards [data-id="' + modeId + '"]');
   assert(card, modeId + ' のカードがある');
-  assert(!card.classList.contains('locked'), modeId + ' がこの人数で選べる');
+  assert(!card.classList.contains('is-off'), modeId + ' がこの人数で選べる');
   click(doc, card);
   click(doc, 'modeNextBtn');
   await sleep(win, 80);

@@ -397,9 +397,17 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
 
   await r.test('決めた時のカードは、入った時にもう決まっていた部屋では出さない', async () => {
     const t = await launch({ fakeSocket: true, atEntry: true });
+    // 入る途中で一瞬だけ出て消えても見のがさないよう、入る前から見張る（カードは1.5秒で消えるので、終わってから見ただけでは分からない）
+    let 出た = 0;
+    const mo = new t.win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => { if (n.id === 'v2Decided') 出た++; })));
+    mo.observe(t.doc.body, { childList: true, subtree: true });
     await 部屋に入る(t, 部屋(6, { game: 'falsetrue', mode: 'falsetrue' }), 'm3');
     await sleep(t.win, 40);
-    assert(!t.doc.getElementById('v2Decided'), '途中から入った人には出さない');
+    // 入ったあとに届く、同じ部屋の知らせ（だれかが準備OKを押した等）。これを「決まった」と取りちがえない
+    t.win.__rtFake.fire('room:update', 部屋(6, { game: 'falsetrue', mode: 'falsetrue' }));
+    await sleep(t.win, 40);
+    mo.disconnect();
+    assertEqual(出た, 0, '途中から入った人には出さない');
     t.win.close();
   });
 

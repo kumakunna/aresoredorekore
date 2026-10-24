@@ -65,7 +65,13 @@ const STATES = {
     { id: 'n9', n: 9, freeze: 27, mock: null },
     { id: 'n15', n: 15, freeze: 27, mock: null },
     { id: 'long8', n: 8, long: 1, freeze: 27, mock: null },
-    { id: 'long15', n: 15, long: 1, freeze: 27, mock: null, info: true }
+    // くまくんの答え（2026-10-24）：9人からは名前の札を広げる（QR 350px）。15人が全員8字でも切れないことを門に数える
+    { id: 'long15', n: 15, long: 1, freeze: 27, mock: null },
+    { id: 'long9', n: 9, long: 1, freeze: 27, mock: null }
+  ],
+  'fes2-tv-full': [
+    { id: 'base', freeze: 27, mock: [] },
+    { id: 'long16', n: 16, long: 1, freeze: 27, mock: null }
   ],
   // 部品の見本：明るい世界（待合）と暗い世界（爆弾）の両方で、重なりを1つずつ開いて撮る
   parts: [
@@ -111,7 +117,7 @@ async function 測る(dev, scene, kind) {
   return dev.ev(`(function(){ var ok=document.querySelectorAll(${JSON.stringify(OPTS[kind].cutOk)}); ok.forEach(function(e){ e.classList.add('cut-ok'); });
     var out=UICHECK(document.querySelector(${JSON.stringify(sel)}), ${JSON.stringify(OPTS[kind])});
     ok.forEach(function(e){ e.classList.remove('cut-ok'); });
-    return out.concat((${重なり})(document.querySelector(${JSON.stringify(sel)}))); })()`);
+    return out.concat((${重なり})(document.querySelector(${JSON.stringify(sel)})), (${省略})(document.querySelector(${JSON.stringify(sel)}), ${JSON.stringify(OPTS[kind].cutOk)})); })()`);
 }
 
 /**
@@ -133,6 +139,20 @@ const 重なり = `(function(root){
       var ox = Math.min(r.right, C.right) - Math.max(r.left, C.left), oy = Math.min(r.bottom, C.bottom) - Math.max(r.top, C.top);
       if(ox > 1 && oy > 1) out.push({ kind: '右上のボタンと重なる', text: (e.textContent || '').trim().slice(0, 30) });
     });
+  });
+  return out;
+})`;
+
+/**
+ * check.js が見ない「…で切れている」を足して測る（指示66-2：TV の名前が 1px だけはみ出して「…」になっていたのに、check.js は 0件と言った）。
+ * 1行に入れる字（.v2-cut）で、「…で切ってよい」と決めた所（cutOk）でないのに、字の幅が箱より広いもの
+ */
+const 省略 = `(function(root, ok){
+  var out = [];
+  root.querySelectorAll('.v2-cut').forEach(function(e){
+    if(e.matches(ok)) return;
+    var cs = getComputedStyle(e); if(cs.display === 'none' || cs.visibility === 'hidden' || !e.offsetParent) return;
+    if(e.scrollWidth > e.clientWidth) out.push({ kind: '…で切れている', text: (e.textContent || '').trim().slice(0, 30) });
   });
   return out;
 })`;

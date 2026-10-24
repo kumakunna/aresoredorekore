@@ -2709,7 +2709,11 @@
   .rc-no{position:relative;font-family:'DotGothic16',monospace;font-size:var(--fs-small);color:var(--rc-ink);}
   /* 選んだ札（置く時）。**色ではなく縁で示す**——
      outline はテーマ側が一度も書いていないので勝てる（先例4つ） */
-  .rc-card.is-picked{outline:3px solid var(--stamp);outline-offset:-3px;}
+  /* 指示66-2 の実機（くまくん）：outline 3px は札の絵と印に負けて「細すぎて見切れている」。
+     **札のいちばん上に、内側へ 5px の縁を重ねる**（外へ出さないので、並びの箱に切られない）。少し浮かせて、選んだことを形でも示す */
+  .rc-card.is-picked{transform:translateY(-3px) scale(1.03);z-index:1;}
+  .rc-card.is-picked::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+    border:5px solid var(--stamp);border-radius:inherit;box-shadow:inset 0 0 0 2px rgba(255,255,255,.85);}
   .rc-card:disabled{opacity:.55;}
 
   /* 体力。**ハートの数＋数字**（数えなくても読める・指示55-① 2-10） */
@@ -5135,7 +5139,12 @@
   .v2 .v2-tqr.is-full{aspect-ratio:1;justify-content:center;gap:24px;color:#141414;}
   .v2 .v2-tqr.is-full .v2-ic{width:150px;height:150px;}
   .v2 .v2-tfull{font-weight:900;font-size:64px;color:#141414;}
-  .v2 .v2-tva.is-full{grid-template-columns:560px minmax(0,1fr);}
+  /* 9人から（is-many）と満員（is-full）は「名前が主役」：左の箱を 398px（中の QR がちょうど 350px・くまくんの下限）にして、
+     名前の札を広げ、札の余白を少し詰める——15人が全員8字でも、42px の字で8字が入る（くまくんの答え 2026-10-24・案A） */
+  .v2 .v2-tva.is-full,.v2 .v2-tva.is-many{grid-template-columns:398px minmax(0,1fr);gap:24px;}
+  .v2 .v2-tva.is-full .v2-tgrid,.v2 .v2-tva.is-many .v2-tgrid{gap:12px;}
+  .v2 .v2-tva.is-full .v2-tmem.is-sm,.v2 .v2-tva.is-many .v2-tmem.is-sm{padding:8px 10px;gap:8px;}
+  .v2 .v2-tva.is-full .v2-tmem.is-sm .v2-av,.v2 .v2-tva.is-many .v2-tmem.is-sm .v2-av{width:46px;height:46px;font-size:40px;}
   .v2 .v2-tnote{font-weight:800;font-size:44px;line-height:1.3;color:var(--ws);}
   .v2 .v2-tvIdle{display:grid;grid-template-columns:minmax(0,1fr) 640px;gap:60px;flex:1;min-height:0;}
   .v2 .v2-tvIdle-l{display:flex;flex-direction:column;gap:36px;min-width:0;}
@@ -19282,7 +19291,10 @@
     var 鍵 = 'rcard:hit:' + v.round + ':' + ((v.last && v.last.byId) || '') +
       ':' + ((v.last && v.last.no) || '');
     rtOnce(鍵, !!(v.last && v.last.hit && v.phase === 'show'), function(){
-      FxKit.vibe('warn');
+      // 指示66-2 の実機：「爆弾を引いた時の手応えが少ない・振動が無い」。
+      // **引いた本人**には、重い振動（boom）と画面の揺れと赤い縁。ほかの人には赤い縁だけ（責めない：誰かの失敗で全員を揺らさない）
+      var 自分 = rt && v.last.byId === rt.state.memberId;
+      if(自分){ FxKit.vibe('boom'); FxKit.shake('big'); }
       FxKit.edge('danger');
       // 大画面で「誰が」踏んだかは、名簿のその人の行に静かに出す（renderRtBigRcard）。
       // 指示60 A-1：それまでのコールアウトは kind 無しで**ファンファーレが鳴っていた**

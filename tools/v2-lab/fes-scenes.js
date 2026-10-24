@@ -131,7 +131,7 @@ const BUILD = {
   'fes2-tv-idle': () => { const r = 部屋(0); r.fes.phase = FesRoom.PHASE.IDLE; return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-one': () => { const r = 部屋(1); FesRoom.tick(r, Date.now(), api); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-lobby': (o) => { const r = 部屋(o.n || 6, o.long); FesRoom.tick(r, Date.now(), api); のこり(r, 27); return lab(r, 'scr-v2-fes-tv', 'tv'); },
-  'fes2-tv-full': () => { const r = 部屋(16); FesRoom.tick(r, Date.now(), api); のこり(r, 27); return lab(r, 'scr-v2-fes-tv', 'tv'); },
+  'fes2-tv-full': (o) => { const r = 部屋(16, o.long); FesRoom.tick(r, Date.now(), api); のこり(r, 27); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-vote': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); のこり(r, 20); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-decide': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); ['m1', 'm2', 'm3', 'm4', 'm5'].forEach((id) => FesRoom.vote(r, id, 'bomb-coop')); 進める(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-ready': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);

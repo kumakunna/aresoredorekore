@@ -283,9 +283,9 @@
     var R = U().準備, V = K(), f = view.fes || {};
     var g = f.played ? view.info(f.played.mode) : null;
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({ who: people(view).length }) +
-      '<div class="v2-in">' + V.hdHtml('Next…', R.つぎの回から) +
+      '<div class="v2-in">' + V.hdHtml('Next…', R.つぎの回に) +
         V.meHtml(meOf(view)) +
-        '<p class="v2-note">' + e(R.見ていてね) + '</p>' +
+        '<p class="v2-note">' + e(R.理由[(view.you || {}).bench] || R.理由.late) + '<br>' + e(R.見ていてね) + '</p>' +
       '</div>' +
       band(view, g ? g.name : '', R.遊んでいます);
   }
@@ -450,11 +450,12 @@
     var two = n <= 6, cols = n >= 9 ? 3 : 2;
     var 満員 = !!f.full;
     var 左 = 満員
-      ? '<div class="v2-tqr is-full">' + V.icon('people') + '<div class="v2-tfull">' + e(F.満員) + '</div><div class="v2-tqr-cap">' + e(F.つぎの回は) + '</div></div>'
+      ? '<div class="v2-tqr is-full">' + V.icon('people') + '<div class="v2-tfull">' + e(F.満員) + '</div><div class="v2-tqr-cap" data-v2-wrap>' + V.phrase(F.つぎの回は.join(String.fromCharCode(10))) + '</div></div>'
       : qrHtml(view);
     var 見出し = n === 1 ? F.あと1人 : F.見出し;
     return tvc(view,
-      '<div class="v2-tva' + (満員 ? ' is-full' : '') + '">' + 左 +
+      // 9人からは「名前が主役」：QR を 350px（くまくんの下限・2026-10-24）にして、名前の札を広げる（8字の名前が入る）
+      '<div class="v2-tva' + (満員 ? ' is-full' : (cols === 3 ? ' is-many' : '')) + '">' + 左 +
         '<div class="v2-tva-r">' + V.hdHtml('Room', 見出し, true) +
           '<div class="v2-tgrid ' + (cols === 3 ? 'is-c3' : 'is-c2') + '">' +
             ps.map(function (m) { return V.tmemHtml(m, { two: two, sm: cols === 3 }); }).join('') + '</div>' +

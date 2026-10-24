@@ -1467,7 +1467,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           member.fesMiss = 0;
           // ゲームの最中に入った人は、つぎの回から（いまのゲームの人数に数えない）
           const ph = room.fes.phase;
-          if (ph === FesRoom.PHASE.PLAY || ph === FesRoom.PHASE.RESULT) member.role = 'waiting';
+          if (ph === FesRoom.PHASE.PLAY || ph === FesRoom.PHASE.RESULT) { member.role = 'waiting'; member.fesBench = 'late'; }
         }
       }
       // 第42弾 門E6：**入り直しでも作り直しでも、姿はここ1か所で入れる**（落とし穴17）

@@ -187,8 +187,31 @@ async function join(srv, code, name, diff, extra) {
     assertEqual(w.playerIds.slice().sort().join(','), [a.memberId, b.memberId].sort().join(','), '押した2人だけがゲームに入る');
     assertEqual(c.room.members.find((m) => m.id === c.memberId).role, 'waiting', '押さなかった人は今回は待つ');
     assertEqual(c.me.miss, 1, '押さなかった数が1つ');
+    assertEqual(c.me.bench, 'missed', '入らなかった理由は「押さなかった」（本人にだけ届く）');
+    assert(!/"bench"/.test(JSON.stringify(c.room)), '理由は部屋の知らせ（みんなに配るもの）に入らない');
     [staff, a, b, c].forEach((d) => d.close());
     await srv.close();
+  });
+
+  await r.test('上限より多く押した時：押した順に上限まで入り、入れなかった人の理由は「いっぱい」（くまくんの答え 2026-10-24）', async () => {
+    const RT = require('../realtime');
+    const room = new RT.RoomStore().create({ ownerUserId: 1 });
+    for (let i = 0; i < 10; i++) room.members.set('m' + i, { id: 'm' + i, name: 'n' + i, role: 'player', connected: true, joinedAt: i, readyGame: null });
+    FesRoom.init(room, {});
+    room.fes.rnd = () => 0;
+    const started = [];
+    const api = { startGameNow: (r, p) => { started.push(p); return { ok: true }; }, clearGameState() {}, driverStateOf: () => null, removeMember() { return true; } };
+    const step = () => { room.fes.endsAt = Date.now() - 1; FesRoom.tick(room, Date.now(), api); };
+    FesRoom.tick(room, Date.now(), api); step();            // 待合 → 投票
+    room.fes.candidates = ['bomb-coop'];
+    FesRoom.vote(room, 'm0', 'bomb-coop'); step(); step();  // 決定 → 準備OK
+    for (let i = 0; i < 9; i++) { const m = room.members.get('m' + i); m.readyGame = 'bomb'; m.readyAt = 1000 + i; }
+    step();                                                 // しめきり：9人押した（クイズ解除は8人まで）、m9 は押さない
+    assertEqual(room.fes.phase, 'play', '始まる');
+    assertEqual(Object.keys(started[0].fesDiffs).sort().join(','), ['m0', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7'].join(','), '押した順に8人まで');
+    assertEqual(FesRoom.privateFor(room, 'm8').bench, 'full', '押したのに入れなかった人は「いっぱい」');
+    assertEqual(FesRoom.privateFor(room, 'm9').bench, 'missed', '押さなかった人は「押さなかった」');
+    assertEqual(FesRoom.privateFor(room, 'm0').bench, null, '入った人には理由が無い');
   });
 
   await r.test('門2：準備OKを2回つづけて押さなかった人の席が空く（無人のまま次の回へ進む）', async () => {

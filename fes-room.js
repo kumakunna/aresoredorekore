@@ -230,7 +230,12 @@ function closeReady(room, now, api) {
   // 上限より多く押した時は、押した順に上限まで（あとの人は「つぎの回から」）
   pressed = pressed.slice(0, g.max);
   const ids = new Set(pressed.map((m) => m.id));
-  people(room).forEach((m) => { m.role = ids.has(m.id) ? 'player' : 'waiting'; });
+  // 今回入らない人には、なぜかを本人にだけ渡す（くまくんの答え 2026-10-24：「つぎの回に入れます」と分かるように）。
+  //   full＝押したが上限で入れなかった／missed＝しめきりまでに押さなかった（途中で入った人は realtime.js が late）
+  people(room).forEach((m) => {
+    m.role = ids.has(m.id) ? 'player' : 'waiting';
+    m.fesBench = ids.has(m.id) ? null : (m.readyGame === g.game ? 'full' : 'missed');
+  });
   const diffs = {};
   pressed.forEach((m) => { diffs[m.id] = m.fesDiff || 'normal'; });
   const res = api.startGameNow(room, Object.assign({}, g.start, { fesDiffs: diffs }));
@@ -287,7 +292,7 @@ function backToLobby(room, now, api) {
   livePeople(room).forEach((m) => { if (ids.has(m.id) && !f.cont.has(m.id)) missed(room, m, api); });
   api.clearGameState(room);
   room.state.game = null;
-  people(room).forEach((m) => { m.role = 'player'; m.readyGame = null; });
+  people(room).forEach((m) => { m.role = 'player'; m.readyGame = null; m.fesBench = null; });
   f.round++;
   f.pick = null;
   f.candidates = [];
@@ -330,6 +335,7 @@ function privateFor(room, memberId) {
     diff: m.fesDiff || null,
     miss: m.fesMiss || 0,
     cont: f.cont.has(memberId),
+    bench: m.role === 'waiting' ? (m.fesBench || 'late') : null,
     playing: !!(f.played && f.played.ids.indexOf(memberId) !== -1 && (f.phase === PHASE.PLAY || f.phase === PHASE.RESULT))
   };
 }

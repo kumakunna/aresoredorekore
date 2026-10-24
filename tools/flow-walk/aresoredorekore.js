@@ -180,10 +180,17 @@ module.exports = {
     await W.手順を('進行役', 'アプリを開く（ログイン済みの1台）', '開く', async () => {
       await h.go(W.BASE + '/');
       await W.扉を越える(h, true);
-    }, { 待ち: { 種類: '演出待ち', 何を: '入口', until: () => W.画面は(h, 'scr-entry') } });
-    await W.手順を('進行役', '入口：ゲームをえらぶ', '押す', () => W.click(h, '[data-entry="choose"]'),
-      { 待ち: { 種類: '通信待ち', 何を: '棚', until: () => W.画面は(h, 'scr-shelf') }, 間: 700 });
-    await W.棚でカセットを選ぶ(h, 'aresoredorekore', 'あれそれどれこれ');
+    }, { 待ち: { 種類: '演出待ち', 何を: '入口', until: () => h.until("['scr-entry','scr-v2-home'].indexOf((document.querySelector('.screen.active')||{}).id)!==-1", 15000, '入口') } });
+    if ((await h.screen()) === 'scr-v2-home') {
+      // 指示66-3：入口の「1台で遊ぶ」→ ゲームをえらぶ一覧（scr-v2-pick）→ 札 → ページの「このゲームにする」
+      await W.手順を('進行役', '入口：1台で遊ぶ', '押す', () => W.click(h, '#scr-v2-home [data-home-act="one"]'),
+        { 待ち: { 種類: '演出待ち', 何を: '一覧', until: () => W.画面は(h, 'scr-v2-pick') }, 間: 700 });
+      await W.一覧でカセットを選ぶ(h, 'aresoredorekore', 'あれそれどれこれ');
+    } else {
+      await W.手順を('進行役', '入口：ゲームをえらぶ', '押す', () => W.click(h, '[data-entry="choose"]'),
+        { 待ち: { 種類: '通信待ち', 何を: '棚', until: () => W.画面は(h, 'scr-shelf') }, 間: 700 });
+      await W.棚でカセットを選ぶ(h, 'aresoredorekore', 'あれそれどれこれ');
+    }
     let scr = await h.screen();
     if (scr === 'scr-play-way') {
       // 1台でしか遊べないので、ふつうは聞かれない（through）。出たら「1台で」を押す
@@ -278,7 +285,7 @@ module.exports = {
         await W.手順を('進行役', '結果：つぎは？', '押す', () => W.tap(h, '#toNextBtn'),
           { 待ち: { 種類: '演出待ち', 何を: 'つぎは？の画面', until: () => W.画面は(h, 'scr-next') }, 間: 700 });
         W.終わり方を('つぎは？の選択肢', await W.ボタン一覧(h));
-        await W.手順を('進行役', 'つぎは？：もう一度（さっきと同じ設定でそのまま）', '押す', () => W.press(h, /^もう一度/),
+        await W.手順を('進行役', 'つぎは？：もう一度（さっきと同じ設定でそのまま）', '押す', () => W.press(h, /^もう一[度回]/),
           { 待ち: { 種類: '演出待ち', 何を: '準備はいい？', until: () => W.画面は(h, 'scr-ready', 6000) }, 間: 900 });
         await W.手順を('進行役', '［くま］準備はいい？：長押しでスタート（1秒）', '長押し', () => 長押し(W, h, '#holdBtn', 1300),
           { 待ち: { 種類: '演出待ち', 何を: '2回目の3-2-1', until: () => 三二一か先(W, h) }, 間: 300 }).then((r) => { r.押す回数 += 1; });

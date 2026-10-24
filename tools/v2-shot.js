@@ -6,6 +6,7 @@
 //   node tools/v2-shot.js --mock               … 見本（docs/指示66/見本/）の同じ画面も撮って、左右に並べた画像を作る
 //   node tools/v2-shot.js --fx skip            … 演出「なし」で撮る（既定は ふつう）
 //   node tools/v2-shot.js --font 130           … 設定の文字サイズ「大」で撮る（ルールとシートの文が 1.15倍）
+//   node tools/v2-shot.js --only home-e3,home-te3 --prod-url https://aresoredorekore.duckdns.org … 待合を本番の長さのアドレスで（指示68-0a M8）
 //   --out DIR（既定 docs/監査_指示66の画像/shot）  --port 3966  --cdp 9666
 //
 // **サーバーも bot も要らない。**public/ をそのまま配り、socket.io は tests/harness.js の疑似を使い、
@@ -30,6 +31,10 @@ const PORT = +arg('port', 3966), CDP = +arg('cdp', 9666);
 const ONLY = arg('only', null), MOCK = !!arg('mock', false), FX = arg('fx', 'normal');
 // --font 130：設定の文字サイズ「大」で撮る（指示66-2 の門：375×667 で check.js 0件）
 const FONT = +arg('font', 100);
+// --prod-url https://…：ふだんの画面の待合を本番と同じ長さのアドレスで撮る（指示68-0a M8）。--only は「,」で区切って複数わたせる
+const PROD = arg('prod-url', null);
+const ONLY_LIST = ONLY ? String(ONLY).split(',') : null;
+const 選ぶ = (id) => !ONLY_LIST || ONLY_LIST.some((p) => id.indexOf(p) === 0);
 const OUT = path.resolve(arg('out', path.join(ROOT, 'docs', '監査_指示66の画像', 'shot')));
 const CHECK_JS = fs.readFileSync(path.join(ROOT, 'docs', '指示66', 'tools', 'check.js'), 'utf8');
 const MOCK_DIR = path.join(ROOT, 'docs', '指示66', '見本');
@@ -107,7 +112,29 @@ const OPTS = {
 };
 
 // 配り手と開き方は tools/v2-lab/open.js（v2-ink.js・v2-motion.js と同じもの）
-async function 開く(dev, scene, st) { return 開くの本体(dev, PORT, scene, Object.assign({ fx: FX, font: FONT }, st)); }
+async function 開く(dev, scene, st) {
+  await 開くの本体(dev, PORT, scene, Object.assign({ fx: FX, font: FONT }, st));
+  if (PROD && scene.home) await 本番のアドレスにする(dev, scene, st);
+}
+
+/**
+ * --prod-url（指示68-0a M8）：ふだんの画面の待合を、本番と同じ長さのアドレスで描き直す。
+ * 見本は 127.0.0.1 の短いアドレスで描くので、「TVに映す」の手順の字と QR の細かさが本番と違う。
+ * 部屋の画面に渡る値（tvUrl・local・qr）だけを差しかえる——描く関数（V2Home.room・roomTv）はそのまま通す。
+ * QR に入れる形は index.html の roomJoinUrl と同じ（origin + '/' + '?room=' + コード）
+ */
+async function 本番のアドレスにする(dev, scene, st) {
+  await dev.ev(`(function(){ var P = ${JSON.stringify(String(PROD).replace(/\/$/, ''))};
+    var wrap = function(f){ return function(v){ v = Object.assign({}, v, { tvUrl: P + '/tv', local: false });
+      if (v.qr && v.code && window.QR) v.qr = QR.toSvg(P + '/?room=' + encodeURIComponent(v.code), { quiet: 2 });
+      return f(v); }; };
+    if (!V2Home.__prod) { V2Home.room = wrap(V2Home.room); V2Home.roomTv = wrap(V2Home.roomTv); V2Home.__prod = 1; }
+    V2Screens.home(window.__V2LAB_VIEW);
+    ${st.open ? `var l=document.querySelector('[data-v2-id="${st.open}"]'); if(l) V2.open(l);` : ''}
+    var s = document.getElementById(${JSON.stringify(scene.screen)}); if (s) { V2.fitTv(s); V2.relayout(s); }
+    return 1; })()`);
+  await sleep(700);
+}
 
 async function 測る(dev, scene, kind) {
   await dev.ev('(function(){' + CHECK_JS + '; return typeof UICHECK; })()');
@@ -232,7 +259,7 @@ async function 並べる(dev, left, right, file, w, h) {
   let 指摘の数 = 0;
   try {
     for (const scene of SCENES) {
-      if (ONLY && scene.id.indexOf(ONLY) !== 0) continue;
+      if (!選ぶ(scene.id)) continue;
       for (const size of SIZES[scene.kind]) {
         const dev = await br.newDevice(scene.id, { width: size.w, height: size.h, deviceScaleFactor: 1, mobile: scene.kind === 'phone' });
         let 確かめた = false;
@@ -254,7 +281,7 @@ async function 並べる(dev, left, right, file, w, h) {
     if (MOCK) {
       const dev = await br.newDevice('mock', { width: 2100, height: 1300, deviceScaleFactor: 1 });
       for (const scene of SCENES) {
-        if (ONLY && scene.id.indexOf(ONLY) !== 0) continue;
+        if (!選ぶ(scene.id)) continue;
         const size = SIZES[scene.kind][0];
         for (const st of statesOf(scene)) {
           if (!st.mock) continue;

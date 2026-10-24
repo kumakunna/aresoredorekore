@@ -78,8 +78,8 @@ module.exports = {
     }
 
     // ---- 進行役：ゲームをえらぶ ----
-    await W.手順を('進行役', '待合：ゲームをえらぶ', '押す', () => W.click(host, '#rtPickGameBtn'),
-      { 待ち: { 種類: '演出待ち', 何を: '棚', until: () => W.画面は(host, 'scr-shelf') }, 間: 800 });
+    // 指示66-3：新しい待合なら一覧（scr-v2-pick）へ、古い待合なら棚へ（W.部屋でゲームをえらぶ）
+    await W.部屋でゲームをえらぶ();
     await W.設定を進める({ cassetteId: 'jinro', 名: '人狼ゲーム' });
     await W.手順を('進行役', '待合に戻った（ゲームが決まった）', '見る', null);
     if (W.モード) W.モード.なぜ = (W.モード.なぜ || '') + '。ゲーム選択画面で最初に選ばれていたのは「' + (W.ゲーム || '?') + '」で、それも変えずに「つぎへ」';
@@ -228,7 +228,7 @@ module.exports = {
         await W.手順を('進行役', '結果：つぎは？', '押す', () => W.click(host, '#rtAgainBtn'),
           { 待ち: { 種類: '演出待ち', 何を: 'つぎは？の画面', until: () => W.画面は(host, 'scr-next') }, 間: 700 });
         W.終わり方を('つぎは？の選択肢', await W.ボタン一覧(host));
-        await W.手順を('進行役', 'つぎは？：もう一度（さっきと同じ設定でそのまま）', '押す', () => W.press(host, /^もう一度/), { 間: 1200 });
+        await W.手順を('進行役', 'つぎは？：もう一度（さっきと同じ設定でそのまま）', '押す', () => W.press(host, /^もう一[度回]/), { 間: 1200 });
         await W.準備OKまで(part);
         await W.準備OKまで(host);
         await W.待つ('参加者', '2回目の3-2-1', '他の人待ち', () => part.until("!!document.querySelector('.fx-countdown') || (document.querySelector('.screen.active')||{}).id==='scr-rt-play'", 20000), { 間: 800 });

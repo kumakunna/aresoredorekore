@@ -202,12 +202,24 @@ async function 大きさを変える(dev, w, h) {
 async function 大画面として入る(dev, room) {
   // 前の回の記憶（安全の案内を見た・覚えている部屋）を持ち越さない——毎回「初めて開いた TV」
   try { await dev.ev("(function(){ try{ localStorage.clear(); sessionStorage.clear(); }catch(e){} return true; })()"); } catch (e) {}
-  await dev.raw('Page.navigate', { url: BASE + '/?lab=' + Date.now() });
+  // 指示66-3：TV は /tv（＝ /?tv=1）から、コードだけで入る。古い入口の「大画面として部屋に入る」は無くなった
+  await dev.raw('Page.navigate', { url: BASE + '/?tv=1&lab=' + Date.now() });
   await dev.until("document.readyState==='complete'&&!!document.getElementById('safetyGate')&&!!window.__rtFake", 15000, 'ページの読み込み');
   // 扉（と初回の安全の案内）を越える：tools/flow-walk.js の 扉を越える と同じ見方
   await dev.until("document.getElementById('safetyGate').style.display==='flex'||" + 画面 + "!=='scr-door'", 10000, '起動');
   if (await dev.ev("document.getElementById('safetyGate').style.display==='flex'")) await dev.click('#sgStartBtn');
-  await dev.until(画面 + "==='scr-entry'", 10000, '入口');
+  await dev.until(画面 + "==='scr-entry'||!!document.querySelector('#scr-v2-join [data-home-code]')", 10000, '入口');
+  if (await dev.ev("!!document.querySelector('#scr-v2-join [data-home-code]')")) {
+    // 返事を先に置いてから押す（覗く→ TV として入る。大画面の端末＝memberId 'tv'）
+    await dev.ev('(function(){ var R=' + JSON.stringify(room) + '; window.__rtFake.replies = {' +
+      ' "room:peek": function(){ return { ok:true, code:R.code, game:(R.state&&R.state.game)||null, phase:"lobby", playerCount:(R.playerCount||0), fes:false }; },' +
+      ' "room:join": function(){ return { ok:true, code:R.code, memberId:' + JSON.stringify(L.TV_ID) + ', room:R }; } };' +
+      " var i=document.querySelector('#scr-v2-join [data-home-code]'); i.value=R.code; i.dispatchEvent(new Event('input',{bubbles:true})); return true; })()");
+    await dev.click('#scr-v2-join [data-home-act="code-go"]');
+    await dev.until(画面 + "==='scr-rt-big'", 10000, '大画面の画面');
+    await dev.ev(見張りを置く);
+    return;
+  }
   await dev.click('[data-entry="big"]');
   await dev.until(画面 + "==='scr-rt-lobby'", 8000, '部屋に入る画面');
   // 返事を先に置いてから押す（大画面の端末＝memberId 'tv'。役割は bigscreen、進行役ではない）
@@ -444,7 +456,9 @@ function 幅をそろえる(s, n) {
 
   try {
     // ---- 自己検査（いちばん最初の待合で） ----
-    const 最初 = L.SCENARIOS[0];
+    // 指示66-3：ゲームが決まっていない待合の TV は新しい見た目（scr-v2-room-tv）になった。
+    // 物差しは scr-rt-big の舞台で確かめるので、ゲームが決まっている最初のシナリオの待合で確かめる
+    const 最初 = L.SCENARIOS.find((s) => s.game) || L.SCENARIOS[0];
     const 入口 = L.回す(最初, 4).next().value;
     await 大画面として入る(dev, 入口.snap);
     await 落ち着くまで(dev, 8000);

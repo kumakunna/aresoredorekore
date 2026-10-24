@@ -262,10 +262,19 @@ function makeWalk(opts) {
     async 進行役が部屋をつくる(cassetteId, 名) {
       const h = devices.進行役;
       await h.go(W.BASE + '/dev-login');
+      // 指示66-3：入口は新しい見た目（scr-v2-home）。「部屋をつくる」を押すと、すぐ部屋ができて待合（scr-v2-room）。
+      // 棚・遊び方・名前を入れる画面は通らない（古い入口には goTo が入れない・V2_INSTEAD）。ゲームは待合の「ゲームをえらぶ」から
       await W.手順を('進行役', 'アプリを開く', '開く', async () => {
         await h.go(W.BASE + '/');
         await W.扉を越える(h, true);
-      }, { 待ち: { 種類: '演出待ち', 何を: '入口', until: () => W.画面は(h, 'scr-entry') } });
+      }, { 待ち: { 種類: '演出待ち', 何を: '入口', until: () => h.until("['scr-entry','scr-v2-home'].indexOf((document.querySelector('.screen.active')||{}).id)!==-1", 15000, '進行役：入口') } });
+      if ((await h.screen()) === 'scr-v2-home') {
+        await W.手順を('進行役', '入口：部屋をつくる', '押す', () => W.click(h, '#scr-v2-home [data-home-act="make"]'),
+          { 待ち: { 種類: '通信待ち', 何を: '部屋', until: () => W.画面は(h, 'scr-v2-room') }, 間: 700 });
+        W.code = (await h.ev("(document.querySelector('#scr-v2-room .v2-ecode b')||{}).textContent||''")).replace(/\s/g, '');
+        console.log('   部屋コード：' + W.code);
+        return W.code;
+      }
       await W.手順を('進行役', '入口：ゲームをえらぶ', '押す', async () => {
         await W.click(h, '[data-entry="choose"]');
       }, { 待ち: { 種類: '演出待ち', 何を: '棚', until: () => W.画面は(h, 'scr-shelf') }, 間: 700 });
@@ -297,6 +306,26 @@ function makeWalk(opts) {
       }
     },
 
+    /** 指示66-3：待合の「ゲームをえらぶ」から一覧（scr-v2-pick）へ。古い待合なら #rtPickGameBtn から棚へ */
+    async 部屋でゲームをえらぶ() {
+      const h = devices.進行役;
+      if ((await h.screen()) === 'scr-v2-room') {
+        await W.手順を('進行役', '待合：ゲームをえらぶ', '押す', () => W.click(h, '#scr-v2-room [data-home-act="room-pick"]'),
+          { 待ち: { 種類: '演出待ち', 何を: '一覧', until: () => W.画面は(h, 'scr-v2-pick') }, 間: 800 });
+        return;
+      }
+      await W.手順を('進行役', '待合：ゲームをえらぶ', '押す', () => W.click(h, '#rtPickGameBtn'),
+        { 待ち: { 種類: '演出待ち', 何を: '棚', until: () => W.画面は(h, 'scr-shelf') }, 間: 800 });
+    },
+
+    /** 指示66-3：ゲームをえらぶ一覧で、カセットの札を押してページを開き、「このゲームにする」 */
+    async 一覧でカセットを選ぶ(dev, cassetteId, 名) {
+      await W.手順を(dev.name, '一覧：' + (名 || cassetteId) + ' の札を押す', '押す', () => W.tap(dev, '#scr-v2-pick [data-home-id="' + cassetteId + '"] .v2-tile'),
+        { 待ち: { 種類: '演出待ち', 何を: 'ページ', until: () => dev.until("(function(){var o=document.querySelector('#scr-v2-pick [data-home-ov]');return !!o&&o.classList.contains('is-open');})()", 5000, 'ページが開く') }, 間: 600 });
+      await W.手順を(dev.name, 'ページ：このゲームにする', '押す', () => W.click(dev, '#scr-v2-pick [data-home-act="pick-go"]'),
+        { 待ち: { 種類: '演出待ち', 何を: '次の画面', until: () => dev.until("(document.querySelector('.screen.active')||{}).id!=='scr-v2-pick'", 8000) }, 間: 900 });
+    },
+
     /** 扉（と初回の安全の案内）を越える。安全の案内を押したら数える */
     async 扉を越える(dev, 数える) {
       await dev.until("document.getElementById('safetyGate').style.display==='flex'||(document.querySelector('.screen.active')||{}).id!=='scr-door'", 10000, '起動');
@@ -310,7 +339,8 @@ function makeWalk(opts) {
     async QRを読む() {
       const h = devices.進行役;
       const url = await h.ev("(async function(){" + JSQR + ";\n" +
-        "var svg=document.querySelector('#rtQr svg'); if(!svg) return null;" +
+        // 指示66-3：新しい待合の QR は、コードの札から開くシートの中（閉じていても DOM にある）
+        "var svg=document.querySelector('#scr-v2-room .v2-eqr svg')||document.querySelector('#rtQr svg'); if(!svg) return null;" +
         "var xml=new XMLSerializer().serializeToString(svg);" +
         "var img=new Image(); img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(xml);" +
         "await new Promise(function(r){img.onload=r;img.onerror=r;});" +
@@ -336,7 +366,15 @@ function makeWalk(opts) {
           await W.click(p, '#sgStartBtn');
         }, { 待ち: { 種類: '演出待ち', 何を: '扉が開く', until: () => p.until("(document.querySelector('.screen.active')||{}).id!=='scr-door'", 10000) }, 間: 1200 });
       }
-      if ((await p.screen()) === 'scr-rt-lobby') {
+      // 指示66-3 E2：QR で来た人は、コードを飛ばして名前から（scr-v2-join）
+      if ((await p.screen()) === 'scr-v2-join' && await p.ev("!!document.querySelector('#scr-v2-join [data-home-name]')")) {
+        await W.手順を('参加者', '名前を入れる', '入力', async () => {
+          await W.type(p, '#scr-v2-join [data-home-name]', 名前 || 'ひろ');
+        }, { 間: 200 });
+        await W.手順を('参加者', '部屋に入る', '押す', async () => {
+          await W.click(p, '#scr-v2-join [data-home-act="join-go"]');
+        }, { 待ち: { 種類: '通信待ち', 何を: '部屋', until: () => p.until("['scr-v2-room','scr-rt-rules'].indexOf((document.querySelector('.screen.active')||{}).id)!==-1", 12000) }, 間: 900 });
+      } else if ((await p.screen()) === 'scr-rt-lobby') {
         await W.手順を('参加者', '名前を入れる', '入力', async () => {
           await W.type(p, '#rtJoinName', 名前 || 'ひろ');
         }, { 間: 200 });
@@ -351,6 +389,18 @@ function makeWalk(opts) {
     /** 大画面：入口の「大画面として部屋に入る」から、コードを入れて入る */
     async 大画面が入る() {
       const b = devices.大画面;
+      // 指示66-3：TV は /tv から、コードだけで入る（名前は要らない）。ゲームが決まるまでは TV の待合（scr-v2-room-tv）
+      await W.手順を('大画面', '大画面：/tv を開く', '開く', async () => {
+        await b.go(W.BASE + '/tv');
+        await W.扉を越える(b, true);
+      }, { 待ち: { 種類: '演出待ち', 何を: '入口', until: () => b.until("['scr-entry','scr-v2-join'].indexOf((document.querySelector('.screen.active')||{}).id)!==-1", 10000, '大画面：入口') } });
+      if (await b.ev("!!document.querySelector('#scr-v2-join [data-home-code]')")) {
+        await W.手順を('大画面', 'コードを入れて入る', '入力して押す', async () => {
+          await W.type(b, '#scr-v2-join [data-home-code]', W.code);
+          await W.click(b, '#scr-v2-join [data-home-act="code-go"]');
+        }, { 待ち: { 種類: '通信待ち', 何を: '大画面', until: () => b.until("['scr-v2-room-tv','scr-rt-big'].indexOf((document.querySelector('.screen.active')||{}).id)!==-1", 12000) }, 間: 900 });
+        return;
+      }
       await W.手順を('大画面', '大画面：アプリを開く', '開く', async () => {
         await b.go(W.BASE + '/');
         await W.扉を越える(b, true);
@@ -394,7 +444,8 @@ function makeWalk(opts) {
       // 待合の人数（#rtRoomCount＝playerCount。大画面は数えない）。
       // 最初は実在しない '#rtMembers …' を待っていて、毎回15秒かけて黙って先へ進んでいた（8人の担当が指摘）
       // 載りきらなくても台本は先へ進む（ここでは止めない）。かわりに W.bot不足 に残し、止めるかは台本と census が決める
-      await devices.進行役.until("parseInt((document.getElementById('rtRoomCount')||{}).textContent,10)>=" + (2 + n), 15000, 'bot が名簿に載る')
+      // 指示66-3：新しい待合は名前の札（.v2-mem。TV は入らない）を数える
+      await devices.進行役.until("(document.querySelectorAll('#scr-v2-room .v2-mems .v2-mem').length||parseInt((document.getElementById('rtRoomCount')||{}).textContent,10))>=" + (2 + n), 15000, 'bot が名簿に載る')
         .catch(() => { W.bot不足 = true; console.log('   ✖ bot が名簿に載りませんでした（bots.log を見る）'); });
       await sleep(800);
       return child;
@@ -411,9 +462,12 @@ function makeWalk(opts) {
       for (let i = 0; i < 40; i++) {
         const scr = await h.screen();
         if (scr === (o.終わり || 'scr-rt-room')) return;
+        // 指示66-3：決めたあと、ルールを読んで準備OKを押すと新しい待合（scr-v2-room）にもどる
+        if (!o.終わり && scr === 'scr-v2-room' && i > 0) return;
         if (scr === 前) { if (++同じ > 3) throw new Error('進行役が ' + scr + ' から進めません'); } else { 前 = scr; 同じ = 0; }
         if (o.handlers && o.handlers[scr]) { const r = await o.handlers[scr](h); if (r !== false) continue; }
         if (scr === 'scr-shelf') { await W.棚でカセットを選ぶ(h, o.cassetteId, o.名); continue; }
+        if (scr === 'scr-v2-pick') { await W.一覧でカセットを選ぶ(h, o.cassetteId, o.名); continue; }
         if (scr === 'scr-play-way') {
           const ways = await h.ev("Array.from(document.querySelectorAll('#wayChoices [data-way]')).map(function(b){return b.dataset.way+':'+b.innerText.replace(/\\s+/g,' ').trim();})");
           const pick = ways.find((w) => /^room:/.test(w)) || ways[0];
@@ -421,13 +475,16 @@ function makeWalk(opts) {
           continue;
         }
         if (scr === 'scr-game') {
-          const g = await h.ev("(function(){var c=document.querySelector('#gameCards .mode-card.selected');return c?c.dataset.game+'：'+c.querySelector('.m-title').textContent:null;})()");
+          // 指示66-3 S4：札は新しい見た目（.v2-opt.is-on）。古い .mode-card も読む
+          const g = await h.ev("(function(){var c=document.querySelector('#gameCards .mode-card.selected');if(c)return c.dataset.game+'：'+c.querySelector('.m-title').textContent;" +
+            "c=document.querySelector('#gameCards .v2-opt.is-on');return c?(c.getAttribute('data-home-opt')||c.getAttribute('data-game')||c.getAttribute('data-id')||'')+'：'+((c.querySelector('.v2-on1')||{}).textContent||''):null;})()");
           W.ゲーム = g;
           await W.手順を('進行役', 'ゲーム：最初に選ばれている「' + g + '」のまま つぎへ', '押す', () => W.click(h, '#gameNextBtn'), { 間: 900 });
           continue;
         }
         if (scr === 'scr-mode') {
-          const m = await h.ev("(function(){var c=document.querySelector('#modeCards .mode-card.selected');return c?{id:c.dataset.id,t:c.querySelector('.m-title').textContent}:null;})()");
+          const m = await h.ev("(function(){var c=document.querySelector('#modeCards .mode-card.selected');if(c)return {id:c.dataset.id,t:c.querySelector('.m-title').textContent};" +
+            "c=document.querySelector('#modeCards .v2-opt.is-on');return c?{id:c.getAttribute('data-id'),t:(c.querySelector('.v2-on1')||{}).textContent||''}:null;})()");
           if (m && !W.モード) W.モードを(m.t + '（' + m.id + '）', 'モード画面で最初に選ばれていたもの（何も変えずに「つぎへ」）');
           await W.手順を('進行役', 'モード：最初に選ばれている「' + (m && m.t) + '」のまま つぎへ', '押す', () => W.click(h, '#modeNextBtn'), { 間: 900 });
           continue;
@@ -470,6 +527,11 @@ function makeWalk(opts) {
         const scr = await dev.screen();
         if (scr === 'scr-rt-rules') {
           await W.手順を(dev.name, 'ルールを読む → 準備OK', '読んで押す', () => W.click(dev, '#rtRulesOkBtn'), { 間: 900 });
+          continue;
+        }
+        // 指示66-3：新しい待合の「準備OK」（ルールを読まずに待合にいる人だけに出る）
+        if (scr === 'scr-v2-room' && await dev.ev(W.見える('#scr-v2-room [data-home-act="room-ready"]'))) {
+          await W.手順を(dev.name, '待合：準備OK', '押す', () => W.click(dev, '#scr-v2-room [data-home-act="room-ready"]'), { 間: 800 });
           continue;
         }
         if (await dev.ev(W.見える('#rtRoomReadyBtn')) && !(await dev.ev("document.getElementById('rtRoomReadyBtn').disabled"))) {

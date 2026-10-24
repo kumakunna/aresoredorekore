@@ -158,6 +158,10 @@ const TVの形 = "(function(){var s=document.getElementById('scr-v2-room-tv'); i
     await sleep(1700);
     記録.カードが消えた = await Promise.all(端末.map((d) => d.ev("!document.getElementById('v2Decided')")));
     await Promise.all([撮る(host, '23-そのあと-進行役'), 撮る(guest, '24-そのあと-参加者'), 撮る(tv, '25-そのあと-TV')]);
+    // 指示68-0b B6：カードが消えたあと、スマホはルールと準備OK（scr-rt-rules）へ進む（演出「なし」でも止まらない）。TV は TV の画面
+    記録.そのあとの画面 = await Promise.all(端末.map((d) => d.until("(function(){ var a=document.querySelector('.screen.active'); return !document.getElementById('v2Decided') && a ? a.id : null; })()", 6000, d.name + '：カードのあとの画面').catch(() => '（進まない）')));
+    記録.B6 = { カードが消えた: 記録.カードが消えた.every(Boolean), スマホはルールへ: 記録.そのあとの画面.slice(0, 2).every((id) => id === 'scr-rt-rules') };
+    log('カードのあと', JSON.stringify(記録.そのあとの画面), 'B6', JSON.stringify(記録.B6));
     for (const d of 端末) d.logs.forEach((l) => 記録.例外.push(d.name + '：' + l));
   } catch (e) {
     記録.失敗 = String(e && e.stack || e);

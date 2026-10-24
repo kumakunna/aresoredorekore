@@ -305,7 +305,9 @@
     function covered(el, r) {
       var x = r.left + Math.min(r.width / 2, 6), y = r.top + r.height / 2;
       var inR = function (q) { return x >= q.left && x <= q.right && y >= q.top && y <= q.bottom; };
-      if (openOver.some(function (o) { return !o.l.contains(el) && inR(o.r); })) return true;
+      // 字がいる重なり（無ければ画面）より**後ろに書かれた**重なりだけが上にある（シートの下の幕は、シートの中の字を隠さない）
+      var mine = el.closest(overSel);
+      if (openOver.some(function (o) { return !o.l.contains(el) && inR(o.r) && (!mine || (mine.compareDocumentPosition(o.l) & Node.DOCUMENT_POSITION_FOLLOWING)); })) return true;
       if (scrolled.some(function (o) { return !o.p.contains(el) && inR(o.r); })) return true;
       var top = document.elementFromPoint(x, y);
       if (!top || el.contains(top) || top.contains(el)) return false;

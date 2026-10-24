@@ -317,7 +317,9 @@ async function 新しい物差しを確かめる(dev, scene, kind) {
       '<div style="position:absolute;left:0;top:${fs0 * 3}px;font-size:${fs0}px;color:#999;background:#aaa;white-space:nowrap">うすい字</div>' +
       '<button style="position:absolute;left:0;top:${fs0 * 6}px;width:${fs0 * 12}px;height:${fs0 * 2.5}px;font-size:${fs0}px">ボタン上</button>' +
       '<button style="position:absolute;left:0;top:${fs0 * 8.5 + 3}px;width:${fs0 * 12}px;height:${fs0 * 2.5}px;font-size:${fs0}px">ボタン下</button>';
-    root.appendChild(box);
+    // 開いた重なり（シート・枠）があれば、その中に置く（重なりの下の字は「隠れている」ので測らない＝正しい振る舞い）
+    var tops = [].filter.call(root.querySelectorAll(${JSON.stringify(OPTS[kind].over)}), function (l) { return l.classList.contains('is-open'); });
+    (tops.length ? tops[tops.length - 1] : root).appendChild(box);
     // K5：帯の線から 5px 上に札（スマホは中身の層 .v2-in が巻けない画面だけ。巻ける箱の中は帯の測りの外）
     var band = root.querySelector('.v2-band'), inn = root.querySelector(':scope > .v2-in');
     if (${kind === 'phone'} && band && inn && getComputedStyle(inn).overflowY !== 'auto' && getComputedStyle(inn).overflowY !== 'scroll' && band.getBoundingClientRect().height) {

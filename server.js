@@ -29,6 +29,12 @@ if (!process.env.SESSION_SECRET) {
 app.set('trust proxy', 1); // Nginxの後ろで動かす前提。X-Forwarded-Protoを見てsecure cookieを正しく判定する
 
 app.use(cors({ origin: true, credentials: true }));
+// 指示68-0b B19：JS・CSS・JSON・SVG も縮めて送る（本番の nginx は既定で HTML しか縮めない。遅い端末と遅い通信で、
+// はじめての人が入口を押せるまで 13.8 秒かかっていた）。**部品が読めなくてもサーバーは起動する**——
+// deploy.sh は npm install に失敗すると再起動しないが、別の理由で再起動した時に、縮めないだけで動き続けるように
+let compression = null;
+try { compression = require('compression'); } catch (e) { console.warn('[server] compression が読めません。縮めずに送ります：' + e.message); }
+if (compression) app.use(compression());
 app.use(express.json());
 // 第19弾：socket.io にも同じセッションを通すため、ミドルウェアを変数に取り出しておく。
 // これで socket.request.session.userId と req.session.userId が同じものになる。

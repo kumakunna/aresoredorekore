@@ -7,8 +7,8 @@
 // 条件：Chrome の CPU を4倍遅く（Emulation.setCPUThrottlingRate）＋ネットは DevTools の「Fast 3G」と同じ値
 //   （往復 562.5ms・下り 1.6Mbps×0.9・上り 750kbps×0.9。Lighthouse の遅い 4G 以前の既定と同じ）。
 // 毎回まっさらな端末（キャッシュも localStorage も無い＝はじめて来た人）で開く。
-// **本番に近づけるため、HTML だけ gzip して配る**（本番の nginx は text/html を gzip し、JS は gzip しない：
-//   2026-10-24 に本番の応答の頭を見て確かめた）。検証用サーバーの前に、そのとおりに縮める小さな中継を置く。
+// **本番に近づけるため、nginx と同じ縮め方の中継を前に置く**（nginx は text/html を gzip し、node が縮めていない JS はそのまま：
+//   2026-10-24 に本番の応答の頭を見て確かめた）。node が自分で縮めた物（compression・socket.io）はそのまま通す（指示68-0b B19）。
 //
 // 測るもの（ページの中で、読み込みの始まりからのミリ秒）：
 //   最初に描く … first-contentful-paint
@@ -43,12 +43,17 @@ async function サーバー() {
   return child;
 }
 
-/** 本番の nginx と同じ縮め方の中継：text/html だけ gzip（ほかはそのまま） */
+/**
+ * 本番の nginx と同じ縮め方の中継：nginx は端末の Accept-Encoding をそのまま後ろ（node）へ渡し、
+ * 後ろが縮めていない text/html だけを gzip する（ほかはそのまま）。
+ * 指示68-0b B19：はじめは Accept-Encoding を消して渡していたので、node が縮めて返せる物（socket.io の台本など）も
+ * 縮めずに測っていた。後ろが縮めた物は、そのまま通す
+ */
 function 中継() {
   const server = http.createServer((req, res) => {
-    const up = http.request({ host: '127.0.0.1', port: PORT, path: req.url, method: req.method, headers: Object.assign({}, req.headers, { host: '127.0.0.1:' + PORT, 'accept-encoding': 'identity' }) }, (r) => {
+    const up = http.request({ host: '127.0.0.1', port: PORT, path: req.url, method: req.method, headers: Object.assign({}, req.headers, { host: '127.0.0.1:' + PORT }) }, (r) => {
       const type = String(r.headers['content-type'] || '');
-      const gz = /text\/html/.test(type) && /gzip/.test(String(req.headers['accept-encoding'] || ''));
+      const gz = /text\/html/.test(type) && !r.headers['content-encoding'] && /gzip/.test(String(req.headers['accept-encoding'] || ''));
       const h = Object.assign({}, r.headers);
       if (h.location) h.location = h.location.replace('127.0.0.1:' + PORT, '127.0.0.1:' + PROXY).replace('localhost:' + PORT, '127.0.0.1:' + PROXY);
       if (gz) { delete h['content-length']; h['content-encoding'] = 'gzip'; res.writeHead(r.statusCode, h); r.pipe(zlib.createGzip()).pipe(res); }
@@ -98,7 +103,7 @@ const 中央値 = (a) => { const v = a.filter((x) => x != null).sort((x, y) => x
   const proxy = await 中継();
   const b = await launch({ port: CDP });
   const base = 'http://127.0.0.1:' + PROXY;
-  const 記録 = { いつ: new Date().toISOString(), 条件: { CPU: CPU + '倍遅く', ネット: 'Fast 3G 相当 ' + JSON.stringify(FAST3G), 縮め: 'HTML だけ gzip（本番の nginx と同じ）', 端末: '390×844・毎回まっさら（はじめて来た人）', 回数: RUNS }, 入口: {} };
+  const 記録 = { いつ: new Date().toISOString(), 条件: { CPU: CPU + '倍遅く', ネット: 'Fast 3G 相当 ' + JSON.stringify(FAST3G), 縮め: '本番の nginx と同じ（node が縮めていない HTML は中継が gzip・node が縮めた物はそのまま）', 端末: '390×844・毎回まっさら（はじめて来た人）', 回数: RUNS }, 入口: {} };
   try {
     // 測る前に、測り方が効くかを1つ確かめる：遅くしない時の方が速いか（遅くする設定が本当に効いているか・落とし穴28）
     for (const url of ['/', '/fes']) {

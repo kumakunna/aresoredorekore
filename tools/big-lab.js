@@ -87,7 +87,7 @@ const 届いた頼み = { api: {}, 無い: {} };
 function 配り手を立てる(fakeJs) {
   const server = http.createServer((req, res) => {
     const p = decodeURIComponent(String(req.url).split('?')[0]);
-    if (p === '/socket.io/socket.io.js') {
+    if (p === '/socket.io/socket.io.js' || p === '/socket.io/socket.io.min.js') {
       res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-store' });
       return res.end(fakeJs);
     }

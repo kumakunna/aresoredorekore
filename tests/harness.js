@@ -196,7 +196,10 @@ async function launch(opts) {
         return s;
       };
     </script>`;
-    html = html.replace('<script src="/socket.io/socket.io.js"></script>', fake);
+    // 指示68-0b B19：本番は縮めた版（socket.io.min.js）を読む。どちらの道でも差しかえる（差しかえ損ねると、疑似が入らず全部の画面が動かない）
+    const tag = /<script src="\/socket\.io\/socket\.io(?:\.min)?\.js"><\/script>/;
+    if (!tag.test(html)) throw new Error('index.html に socket.io を読む行が見つかりません（疑似を差しこめない）');
+    html = html.replace(tag, () => fake);
   }
   // 長押しボタンは本番で1秒かけて溜める。テストでは1回ごとに1秒待つのが積み上がり、
   // 第20弾で長押しが増えた結果、全体の実行時間が10分近くまで伸びた。

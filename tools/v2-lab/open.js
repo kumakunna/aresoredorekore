@@ -32,7 +32,7 @@ function 配り手(port, publicDir) {
   const server = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x');
     const p = decodeURIComponent(u.pathname);
-    if (p === '/socket.io/socket.io.js') { res.writeHead(200, { 'Content-Type': TYPES['.js'] }); return res.end(fakeJs); }
+    if (p === '/socket.io/socket.io.js' || p === '/socket.io/socket.io.min.js') { res.writeHead(200, { 'Content-Type': TYPES['.js'] }); return res.end(fakeJs); }
     if (p === '/v2lab') { res.writeHead(200, { 'Content-Type': TYPES['.html'], 'Cache-Control': 'no-store' }); return res.end(labHtml(u.searchParams)); }
     if (p === '/dev/v2-lab/page.js') { res.writeHead(200, { 'Content-Type': TYPES['.js'] }); return res.end(fs.readFileSync(PAGE_JS)); }
     if (p.indexOf('/api/') === 0) { res.writeHead(401, { 'Content-Type': TYPES['.json'] }); return res.end('{"error":"未ログイン"}'); }

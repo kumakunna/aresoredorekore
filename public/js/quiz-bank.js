@@ -22,9 +22,10 @@
 //   下の TIER_HINT（指示58で、設定画面の説明にも出すのでデータにした。ここには写さない）
 
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.QuizBank = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
+  // 指示68-1：表から作った問題（quiz-tables.js）も同じ箱から出す。画面では quiz-tables.js を先に読む
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./quiz-tables.js'));
+  else root.QuizBank = factory(root.QuizTables);
+}(typeof self !== 'undefined' ? self : this, function (TABLES) {
   'use strict';
 
   var TIERS = ['easy', 'normal', 'hard', 'nanisore', 'muri'];
@@ -695,6 +696,36 @@
     return (said.indexOf(hit) !== -1) ? 'duplicate' : 'correct';
   }
 
+  // ================= 指示68-1：数字で答える問題 =================
+  //
+  // ---- 形 ----
+  //   { q: '問題文', answer: 答えの数, unit: '単位', source: '出典（URL つき）' }   層は鍵（QUESTIONS と同じ）
+  // 「いちばん近い人の勝ち」で使う（68-5 クイズ王2・68-Q）。**単位と出典の無い問題は tests/quiz-bank.js が赤くする**。
+  // 手で足す問題はここ。表（question-tables/）から作る問題は quiz-tables.js にあり、numbersOf が両方を出す
+  var NUMBER_QUESTIONS = { easy: [], normal: [], hard: [], nanisore: [], muri: [] };
+
+  var TABLE_DATA = TABLES || { sources: {}, compare: [], number: [] };
+  // 表から作った問題に、表の出典を貼って複製する（出典は表ごとに1つ。表を確かめたら1問ずつは確かめ直さない）
+  function withSource(q) {
+    var o = {};
+    Object.keys(q).forEach(function (k) { o[k] = Array.isArray(q[k]) ? q[k].slice() : q[k]; });
+    o.source = (TABLE_DATA.sources || {})[q.table] || '';
+    return o;
+  }
+  // 数字で答える問題（手で足した物＋表から作った物）。層を渡さなければ全部
+  function numbersOf(tier) {
+    var hand = [];
+    (tier ? [tier] : TIERS).forEach(function (t) {
+      (NUMBER_QUESTIONS[t] || []).forEach(function (q) { hand.push({ q: q.q, answer: q.answer, unit: q.unit, source: q.source, tier: t }); });
+    });
+    var fromTable = (TABLE_DATA.number || []).filter(function (q) { return !tier || q.tier === tier; }).map(withSource);
+    return hand.concat(fromTable);
+  }
+  // 表から作った「どっちが上？」（2択。形は QUESTIONS と同じ { q, choices, correct } に層と出典）
+  function comparesOf(tier) {
+    return (TABLE_DATA.compare || []).filter(function (q) { return !tier || q.tier === tier; }).map(withSource);
+  }
+
   // ---- 取り出し ----
   // 難易度は QUESTIONS の鍵として持っているだけで、問題そのものには入っていない。
   // 取り出す時に必ず貼っておく（貼り忘れると、得点の計算がどの難易度でも
@@ -773,6 +804,7 @@
 
   return {
     TIERS: TIERS, QUESTIONS: QUESTIONS, LIST_TOPICS: LIST_TOPICS,
+    NUMBER_QUESTIONS: NUMBER_QUESTIONS, numbersOf: numbersOf, comparesOf: comparesOf,
     questionsOf: questionsOf, countOf: countOf, allCounts: allCounts,
     listTopicsOf: listTopicsOf, pickQuestions: pickQuestions,
     BASE_TIERS: BASE_TIERS, allowedTiers: allowedTiers, TIER_HINT: TIER_HINT,

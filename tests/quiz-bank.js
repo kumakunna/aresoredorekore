@@ -320,5 +320,83 @@ const { createRunner, assert, assertEqual } = require('./harness');
     console.log('    別名の総数：' + 試した);
   });
 
+  // ================= 指示68-1 門10：数字で答える問題・表から作る問題 =================
+  const Gen = require('../tools/gen-table-questions');
+  const URLあり = /https?:\/\/\S+/;
+
+  await r.test('門10：数字で答える問題には、答えの数・単位・出典（URL）・層がある', async () => {
+    const all = Q.numbersOf();
+    assert(all.length > 0, '数字の問題を数えられている（' + all.length + '問）');   // 型(b)
+    all.forEach((q) => {
+      assert(q.q && q.q.length >= 5, '問題文がある：' + JSON.stringify(q));
+      assert(typeof q.answer === 'number' && isFinite(q.answer), q.q + '：答えが数');
+      assert(q.unit && String(q.unit).length >= 1, q.q + '：単位がある');
+      assert(URLあり.test(q.source || ''), q.q + '：出典に URL がある');
+      assert(Q.TIERS.indexOf(q.tier) !== -1, q.q + '：層がある');
+    });
+    // 手で足す箱は、層ごとに同じ形で足せる（鍵が層の一覧とそろっている）
+    assertEqual(Object.keys(Q.NUMBER_QUESTIONS).join(','), Q.TIERS.join(','), '手で足す箱の鍵が層の一覧と同じ');
+    assertEqual(Q.numbersOf('easy').every((q) => q.tier === 'easy'), true, '層で絞れる');
+  });
+
+  await r.test('門10：表から作った「どっちが上？」は2択で、正解は表の値が上の方', async () => {
+    const tables = Gen.readTables();
+    const 値 = {};
+    tables.forEach((t) => t.rows.forEach((row) => { 値[t.id + '/' + row.name] = row.value; }));
+    const all = Q.comparesOf();
+    assert(all.length > 0, '「どっちが上？」を数えられている（' + all.length + '問）');   // 型(b)
+    all.forEach((q) => {
+      assertEqual(q.choices.length, 2, q.q + '：2択');
+      assert(q.choices[0] !== q.choices[1], q.q + '：選択肢が同じでない');
+      const a = 値[q.table + '/' + q.choices[0]], b = 値[q.table + '/' + q.choices[1]];
+      assert(typeof a === 'number' && typeof b === 'number', q.q + '：選択肢が表の行にある');
+      assert(q.correct === (a > b ? 0 : 1), q.q + '：正解は値が上の方');
+      const t = tables.find((x) => x.id === q.table);
+      assert(Math.abs(a - b) >= (t.minGap || 1), q.q + '：差が小さすぎる組は作らない');
+      assert(URLあり.test(q.source || ''), q.q + '：出典に URL がある');
+      assert(Q.TIERS.indexOf(q.tier) !== -1, q.q + '：層がある');
+    });
+    // 選択肢を混ぜても正解は正解のまま（クイズ解除・クイズ王と同じ混ぜ方）
+    const q0 = all[0];
+    const mixed = Q.shuffleChoices(q0, () => 0);
+    assertEqual(mixed.choices[mixed.correct], q0.choices[q0.correct], '混ぜても正解は同じ');
+  });
+
+  await r.test('門10：表には出典が1つと単位があり、同じ名前の行が無い（無ければ道具が止まる）', async () => {
+    const tables = Gen.readTables();
+    assert(tables.length >= 1, '表を数えられている');   // 型(b)
+    tables.forEach((t) => assertEqual(Gen.problemsOf(t).join(' / '), '', t.file + ' の形'));
+    // 型(b)：わざと壊した表は止まる
+    const t = JSON.parse(JSON.stringify(tables[0]));
+    t.source = '国土地理院';                           // URL が無い
+    delete t.unit;
+    t.rows.push(Object.assign({}, t.rows[0]));         // 同じ名前の行
+    const bad = Gen.problemsOf(t).join(' / ');
+    assert(/URL/.test(bad) && /単位/.test(bad) && /同じ名前/.test(bad), '壊した表を止める（' + bad + '）');
+  });
+
+  await r.test('門10：書き出した quiz-tables.js が、いまの表と合っている（表だけ直して作り直し忘れない）', async () => {
+    const fs = require('fs');
+    const now = fs.readFileSync(Gen.OUT, 'utf8').replace(/\r\n/g, '\n');
+    assertEqual(now === Gen.build(), true, 'node tools/gen-table-questions.js で作り直してください');
+  });
+
+  await r.test('門10：同じ問題が2つ無い（3択・4択・数字の問題・表から作った問題をまたいで）', async () => {
+    const 文 = [];
+    Q.TIERS.forEach((t) => Q.questionsOf(t).forEach((q) => 文.push(q.q)));
+    Q.numbersOf().forEach((q) => 文.push(q.q));
+    Q.comparesOf().forEach((q) => 文.push(q.q));
+    const 見た = new Set(), 重なり = [];
+    文.forEach((x) => { const k = Q.normalize(x); if (見た.has(k)) 重なり.push(x); 見た.add(k); });
+    assertEqual(重なり.join(' / '), '', '同じ問題文');
+    // 「AとB」と「BとA」も同じ問題（表から作る時に片方だけ作る）
+    const 組 = new Set();
+    Q.comparesOf().forEach((q) => {
+      const k = q.table + ':' + q.choices.slice().sort().join('|');
+      assert(!組.has(k), '同じ2つの組が2回：' + q.q);
+      組.add(k);
+    });
+  });
+
   r.finish();
 })();

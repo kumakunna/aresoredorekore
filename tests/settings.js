@@ -389,14 +389,14 @@ async function walkSettings(win, doc, onPage) {
   // ================= 2-3 =================
 
 
-  // ================= 門F5：19個の設定が、切り替えた瞬間に効く =================
+  // ================= 門F5：18個の設定が、切り替えた瞬間に効く =================
   //
   // 見るのは「appPrefs が変わったか」ではない——それは
   // 「設定したことを設定した」と言っているだけで、効いているかは何も言っていない。
   // **効く先が変わったか**を見る（落とし穴21・落とし穴10-b）。
 
   /**
-   * 19個すべての窓口の表。**門F5の台帳そのもの。**
+   * 18個すべての窓口の表（体を動かす遊び fxBody は、実物解除と一緒に指示68-1 で消した）。**門F5の台帳そのもの。**
    * 一覧は手で書くが、appPrefs の側と**両方向で**照合するので腐らない（落とし穴20）。
    * どこで効くかを見ている検査も、行ごとに名前で残す
    */
@@ -415,7 +415,6 @@ async function walkSettings(win, doc, onPage) {
     fxSpeed:      { page: 'safety',  窓口: '#setFxSeg [data-fx]',検査: 'F5-4' },
     fxFlash:      { page: 'safety',  窓口: 'setFlashToggle',     検査: 'F5-8（演出の部品も門を読む）' },
     fxShake:      { page: 'safety',  窓口: 'setShakeToggle',     検査: 'F5-8（共通部品を通らない揺れも止まる）' },
-    fxBody:       { page: 'safety',  窓口: 'setBodyToggle',      検査: 'rt-screens（同意画面がその場で描き直る）' },
     vibrate:      { page: 'safety',  窓口: 'setVibrateToggle',   検査: 'F5-9' },
     // 指示58：マニアックな問題。**子の窓口は、親が ON の時にだけ描かれる**（禁止6-3）ので、
     // 子の行には「窓口を見る前に押すもの」（前提）を持たせる。前提も窓口と同じく実在を確かめる
@@ -474,13 +473,13 @@ async function walkSettings(win, doc, onPage) {
     sl.dispatchEvent(new win.Event('input', { bubbles: true }));
   }
 
-  await r.test('門F5：19個の設定に、設定画面の窓口が1つずつある（両方向）', async () => {
+  await r.test('門F5：18個の設定に、設定画面の窓口が1つずつある（両方向）', async () => {
     // 「効かない設定」の前に「**触れない設定**」を潰す。
     // titleFanfare がまさにそれで、設定のどのページにも行が無いのに、
     // 獲得の重なりの中の一度きりの窓口で切ると二度と戻せなかった（落とし穴21）
     const { win, doc } = await launch();
     const keys = win.prefsProbe().keys;
-    assertEqual(keys.length, 19, '設定は19個（' + keys.length + '個）');
+    assertEqual(keys.length, 18, '設定は18個（' + keys.length + '個）');
     // 行き：実装の15個が、表に載っている
     keys.forEach((k) => assert(窓口表[k], k + ' が門F5の表に無い'));
     // 帰り：表に載っているものが、実装にある（消した設定が表に残らない）

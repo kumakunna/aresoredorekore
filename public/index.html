@@ -4015,65 +4015,6 @@
   .bb-row.is-failed .bb-name{opacity:.55;text-decoration:line-through;}
   .bb-row.is-done .bb-fill{background:var(--stamp);}
   .bb-row.is-off .bb-name{opacity:.5;}
-  /* ===== 第27弾-3：実物解除 ===== */
-  /* モジュール一覧。どれから手をつけてもよいので、同じ大きさで並べる */
-  .df-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;}
-  .df-mod{
-    display:flex;flex-direction:column;align-items:center;gap:4px;
-    padding:14px 8px;border-radius:12px;border:1.5px solid var(--ink);background:var(--card);
-    font:inherit;color:inherit;cursor:pointer;min-height:88px;justify-content:center;
-  }
-  .df-mod .df-ico{font-size:26px;line-height:1;}
-  .df-mod .df-name{font-size:12px;font-weight:700;text-align:center;line-height:1.4;}
-  .df-mod.solved{background:var(--teal);border-color:var(--teal);color:#fff;opacity:.75;cursor:default;}
-  .df-mod.taken{opacity:.55;cursor:not-allowed;}
-  /* 役割えらび */
-  .df-role-btn{
-    display:flex;flex-direction:column;gap:4px;width:100%;margin-top:10px;
-    padding:14px;border-radius:12px;border:1.5px solid var(--ink);background:var(--card);
-    font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:44px;
-  }
-  .df-role-btn.on{background:var(--teal);border-color:var(--teal);color:#fff;}
-  .df-role-btn[disabled]{opacity:.45;cursor:not-allowed;}
-  .df-role-btn .df-role-name{font-size:15px;font-weight:700;}
-  .df-role-btn .df-role-desc{font-size:11.5px;line-height:1.6;opacity:.85;}
-  /* 対応表（マニュアル役の手元）。読み上げるものなので、行を大きく取る */
-  .df-page{border:1.5px solid var(--line);border-radius:12px;padding:12px;margin-top:12px;background:var(--card);}
-  .df-page-head{font-size:14px;font-weight:700;margin-bottom:8px;}
-  .df-page.solved{opacity:.5;}
-  .df-table{width:100%;border-collapse:collapse;font-size:13px;}
-  .df-table th,.df-table td{border:1px solid var(--line);padding:6px 8px;text-align:center;}
-  .df-table th{background:rgba(0,0,0,.04);font-size:11.5px;}
-  .df-big{font-size:30px;text-align:center;letter-spacing:2px;margin:8px 0;font-family:'DotGothic16',monospace;}
-  /* 迷路 */
-  .df-maze{display:grid;gap:3px;margin:10px auto;width:min(260px,80vw);}
-  .df-cell{aspect-ratio:1;border-radius:5px;border:1px solid var(--line);background:var(--paper);
-    display:flex;align-items:center;justify-content:center;font-size:15px;}
-  .df-cell.wall{background:var(--ink);border-color:var(--ink);}
-  .df-cell.trap{background:var(--stamp);border-color:var(--stamp);}
-  .df-cell.goal{background:var(--gold);border-color:var(--gold);}
-  /* 傾きの向きを出す十字。押しても動かせる（PCから遊ぶ人のため） */
-  .df-pad{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);
-    gap:4px;justify-content:center;margin:10px auto;}
-  .df-pad button{border-radius:8px;border:1.5px solid var(--ink);background:var(--card);font-size:16px;cursor:pointer;}
-  .df-pad .df-pad-mid{border:none;background:none;}
-  /* 水平器・コンパスの目安 */
-  .df-gauge{height:14px;border-radius:999px;border:1.5px solid var(--ink);background:var(--card);overflow:hidden;margin:10px 0;}
-  .df-gauge-fill{height:100%;width:0;background:var(--teal);transition:width .15s linear;}
-  .df-readout{font-family:'DotGothic16',monospace;font-size:26px;text-align:center;}
-  /* リズムの拍 */
-  .df-beats{display:flex;gap:6px;justify-content:center;margin:12px 0;}
-  .df-beat{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ink);background:var(--card);
-    display:flex;align-items:center;justify-content:center;font-size:11px;}
-  .df-beat.now{background:var(--stamp);border-color:var(--stamp);color:#fff;transform:scale(1.15);}
-  .df-beat.tapped{background:var(--teal);border-color:var(--teal);color:#fff;}
-  .df-tap{width:100%;min-height:76px;border-radius:14px;border:1.5px dashed var(--ink);
-    background:var(--card);font:inherit;color:inherit;font-size:15px;font-weight:700;cursor:pointer;}
-  .df-tap:active{background:rgba(0,0,0,.06);}
-  /* カメラ（ポーズ指定）。映像は端末の外に出さない */
-  .df-cam{width:100%;max-height:38vh;border-radius:12px;background:#000;transform:scaleX(-1);}
-  /* 第28弾-3：モジュールの説明・水平の確認の見出し */
-  .df-brief-head{font-size:17px;font-weight:700;margin-bottom:6px;}
   .bomblife-display{font-size:34px;text-align:center;letter-spacing:4px;margin:18px 0;}
   .bomblife-controls{display:flex;align-items:center;justify-content:center;gap:22px;}
   .bomblife-controls span{font-family:'DotGothic16',monospace;font-size:32px;min-width:40px;text-align:center;}
@@ -5668,7 +5609,6 @@
   }
   /* --- 面（カード・パネル）は角を落とさない --- */
   .app.theme-bomb .card,
-  .app.theme-bomb .df-page,
   .app.theme-bomb .overlay-panel,
   .app.theme-bomb .rt-public,
   .app.theme-bomb .rt-you{
@@ -5726,24 +5666,6 @@
     opacity:.65;
   }
   .app.theme-bomb .bomb-wire-btn.solved::before{opacity:.35;}
-  /* --- 実物解除のモジュールも同じ端子の見た目にそろえる --- */
-  .app.theme-bomb .df-mod{
-    border-radius:3px;
-    background:linear-gradient(180deg, #2C323C, #1C2029);
-    border:1px solid rgba(0,0,0,.6);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 2px 0 rgba(0,0,0,.5);
-    color:var(--ink);
-    position:relative;overflow:hidden;
-  }
-  .app.theme-bomb .df-mod::before{
-    content:'';position:absolute;left:0;right:0;top:0;height:6px;
-    background:repeating-linear-gradient(-45deg, var(--hazard) 0 6px, #14161A 6px 12px);
-  }
-  .app.theme-bomb .df-mod.solved{background:linear-gradient(180deg, #24493F, #16302A);}
-  .app.theme-bomb .df-mod.solved::before{opacity:.35;}
-  .app.theme-bomb .df-role-btn{border-radius:3px;background:var(--card);color:var(--ink);}
-  .app.theme-bomb .df-cell{border-radius:2px;background:var(--paper-deep);}
-  .app.theme-bomb .df-table th{background:rgba(255,255,255,.06);}
   /* --- 上のバー（ライフ・進捗・タイマー）を計器らしく --- */
   .app.theme-bomb .bomb-topbar{
     background:var(--paper-deep);
@@ -5758,7 +5680,6 @@
   /* --- 準備中のバーも同じ質感に --- */
   .app.theme-bomb .bomb-prep-bar{border-radius:2px;border-color:var(--line);background:var(--paper-deep);}
   .app.theme-bomb .bomb-prep-fill{background:var(--hazard);}
-  .app.theme-bomb .df-gauge{border-radius:2px;border-color:var(--line);background:var(--paper-deep);}
   /* --- 大画面のリーダーボード --- */
   .app.theme-bomb .bb-bar{border-radius:2px;border-color:var(--line);background:var(--paper-deep);}
   .app.theme-bomb .bb-fill{background:var(--hazard);}
@@ -6874,39 +6795,6 @@
     </div>
   </div>
 
-  <!-- 4d4: 設定ウィザード・実物解除（第27弾-3） -->
-  <div class="screen" id="scr-set-defuse">
-    <div class="wiz-head"><span class="wiz-step" id="wizStepDefuse"></span><h2 class="scr-title">爆弾の作り方</h2></div>
-    <p class="wiz-lead">しかけの数とミスの上限を決めよう。こだわらなければそのまま「つぎへ」でOK。</p>
-    <div class="wiz-body">
-      <div class="tp-label">しかけの数　<span id="dfCountValue">5</span>個</div>
-      <input type="range" id="dfCountSlider" min="4" max="8" step="1" value="5">
-      <div class="tp-label" style="margin-top:16px;">ミスの上限（全員で共有）</div>
-      <div class="bomblife-display" id="dfStrikeDisplay">❤️❤️❤️</div>
-      <div class="bomblife-controls">
-        <button class="bomb-minus" id="dfStrikeMinus">−</button>
-        <span id="dfStrikeValue">3</span>
-        <button class="bomb-plus" id="dfStrikePlus">＋</button>
-      </div>
-      <div class="toggle-row-mini" style="margin-top:20px;">
-        <div>マニュアルを使う
-          <div class="mic-status" id="dfManualNote"></div>
-        </div>
-        <div class="switch" id="dfManualToggle"></div>
-      </div>
-      <div class="toggle-row-mini" style="margin-top:12px;">
-        <div>体を動かすしかけを入れる
-          <div class="mic-status" id="dfPhysicalNote"></div>
-        </div>
-        <div class="switch" id="dfPhysicalToggle"></div>
-      </div>
-    </div>
-    <div class="wiz-foot">
-      <button class="btn btn-ghost wiz-back" data-wiz-back>← もどる</button>
-      <button class="btn btn-main" data-wiz-next>つぎへ ▶</button>
-    </div>
-  </div>
-
   <!-- 4d5: 設定ウィザード・クイズ王（第30弾）
        4ゲームで1枚を共有し、いま選んでいる遊びに関係するところだけを出す。
        ゲームごとに画面を分けると、直す時に片方だけ直す形になる（落とし穴1） -->
@@ -7021,7 +6909,7 @@
   <!-- 指示53：False or True の設定。**決めることは1つだけ**（話し合いの長さ）。
        ケースの数も中身の比も人数から決まるので、ここで聞くことは他に無い -->
   <div class="screen" id="scr-set-falsetrue">
-    <div class="wiz-head"><span class="wiz-step" id="wizStepFalsetrue"></span><h2 class="scr-title">False or True の設定</h2></div>
+    <div class="wiz-head"><span class="wiz-step" id="wizStepFalsetrue"></span><h2 class="scr-title">ハッタリケースの設定</h2></div>
     <p class="wiz-lead">こだわらなければ、そのまま「つぎへ」でOK。</p>
     <div class="wiz-body">
       <div class="timer-dmode">
@@ -7499,36 +7387,6 @@
       <button class="btn btn-main" id="rtBombAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="rtBombEndBtn" style="display:none;margin-top:10px;">🏁 部屋をとじる</button>
       <button class="btn btn-ghost" id="rtBombLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
-    </div>
-  </div>
-
-  <!-- 1人1台：実物解除。役割によって出るものが変わる（第27弾-3） -->
-  <div class="screen" id="scr-rt-defuse">
-    <div class="now-line" hidden></div>
-    <div class="bomb-topbar">
-      <div class="bomb-lives" id="dfStrikes">❤️❤️❤️</div>
-      <div class="bomb-progress" id="dfProgress">0 / 0 解除</div>
-      <div class="timer-chip" data-timer id="dfTimer" style="display:none;">--:--</div>
-    </div>
-    <div class="rt-phase" id="dfPhase">-</div>
-    <div class="wiz-body">
-      <div class="rt-public" id="dfNote"></div>
-      <!-- 体を動かすことへの同意（振る・ポーズが入る時だけ通る） -->
-      <div id="dfConsentBox" style="display:none;"></div>
-      <!-- 役割えらび -->
-      <div id="dfRolesBox" style="display:none;"></div>
-      <!-- 第28弾-3：モジュールの説明。初めて挑戦する種類だけを1つずつ出す -->
-      <div id="dfBriefBox" style="display:none;"></div>
-      <!-- 解除役：モジュール一覧 -->
-      <div id="dfBoardBox" style="display:none;"></div>
-      <!-- マニュアル役：自分が受け持つ対応表 -->
-      <div id="dfManualBox" style="display:none;"></div>
-      <div id="dfResultBox"></div>
-      <!-- 第28弾-3：説明はいつでも何度でも見返せる -->
-      <button class="btn btn-ghost" id="dfHelpBtn" style="display:none;margin-top:14px;">📘 しかけの説明を見る</button>
-      <button class="btn btn-main" id="dfAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
-      <button class="btn btn-outline" id="dfEndBtn" style="display:none;margin-top:10px;">🏁 部屋をとじる</button>
-      <button class="btn btn-ghost" id="dfLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -8905,14 +8763,6 @@
           </div>
           <div class="mic-status" id="setFxNote" style="margin-top:8px;"></div>
         </div>
-        <div class="card">
-          <div class="toggle-row-mini">
-            <div>体を動かす遊びをする
-              <div class="mic-status">ポーズの指定など、体を動かすしかけです。切ると、そのしかけは出てきません</div>
-            </div>
-            <div class="switch on" id="setBodyToggle"></div>
-          </div>
-        </div>
       </div>
 
       <div class="set-page" data-page="records" style="display:none;">
@@ -9009,21 +8859,6 @@
     </div>
   </div>
 
-  <!-- 第27弾-3：実物解除で、いま開けているモジュール。
-       解除役の端末にだけ出る。マニュアルなしの時は対応表もここに載る -->
-  <div class="overlay" id="dfModOverlay">
-    <div class="overlay-panel">
-      <div class="overlay-head">
-        <h3 id="dfModTitle">しかけ</h3>
-        <button class="close-x" id="dfModCloseBtn">✕</button>
-      </div>
-      <div class="mic-status" id="dfModLead"></div>
-      <div id="dfModBody"></div>
-      <div id="dfModManual"></div>
-      <div class="mic-status" id="dfModStatus" style="text-align:center;margin-top:10px;"></div>
-    </div>
-  </div>
-
   <!-- 第27弾：1人1台のクイズ解除で、いま開けているコード。
        説明文と3択は、開けた本人の端末にだけ届く -->
   <div class="overlay" id="rtBombOverlay">
@@ -9112,7 +8947,7 @@
 <script src="js/sugoroku-mini.js"></script>
 <script src="js/sugoroku-hide.js"></script>
 <script src="js/sugoroku-hand.js"></script>
-<script src="js/defuse-logic.js"></script>
+<script src="js/quiz-tables.js"></script>
 <script src="js/quiz-bank.js"></script>
 <script src="js/quiz-logic.js"></script>
 <script src="js/auction-items.js"></script>
@@ -9253,15 +9088,11 @@
     {id:"bomb-race", icon:"🏁", title:"クイズ解除（競争版）", sub:"同じコードに全員で同時挑戦・順位がつく", advanced:false, strict:false, oneWord:false, bomb:true, bombRace:true, coopLayout:false, roomOnly:true, game:'bomb', minPlayers:2,
       tv:[["👥","全員が同じコードに同時に挑戦"], ["🏆","解けた本数で順位・同数は早い順"], ["❤️","外れるとライフが減る・0で最下位"]],
       bullets:["全員が同じコード一覧に同時に挑戦する","コードの並び順は各自ばらばら（隣を見ても場所が違う）","問題文は、試合が始まるまで誰にも見えない","外れるとライフが1つ減り、残り時間も10秒減る","ライフが0になると記録なし・最下位扱い","解けた本数が多い順、同数ならタイムが早い順で順位がつく"]},
-    // ---- 第27弾-3：実物解除。解除役とマニュアル役が別々の画面を同時に見るのが肝なので、
-    // 手渡し（1台を回す）では成立しない。どちらも部屋が必須 ----
-    {id:"defuse", icon:"🧰", title:"実物解除", sub:"しかけを解除・マニュアル役と口で伝え合う", advanced:false, strict:false, oneWord:false, defuse:true, roomOnly:true, game:'defuse', minPlayers:2,
-      tv:[["👥","解除役とマニュアル役に分かれる"], ["🗣️","画面は見せず、口で伝え合って解く"], ["💥","のこりミスは全員で共有・0で爆発"]],
-      bullets:["解除役とマニュアル役に分かれる","解除役だけが爆弾（しかけ一覧）を見る","マニュアル役だけが対応表を見る","画面を見せ合わず、口で伝え合って解く","どれから手をつけてもよい","ミスの数は全員で共有・尽きると爆発","対応表はマニュアル役みんなで分け合う"]},
-    // 集中解除：マニュアル役1人・解除役全員という逆の構図
-    {id:"defuse-focus", icon:"🎯", title:"集中解除", sub:"マニュアル役1人・ほかは全員が解除役", advanced:false, strict:false, oneWord:false, defuse:true, defuseFocus:true, roomOnly:true, game:'defuse', minPlayers:2,
-      tv:[["📖","マニュアル役は1人、ほかは解除役"], ["🙋","1人に質問が集中・さばききれるか"], ["💥","のこりミスは全員で共有・0で爆発"]],
-      bullets:["マニュアル役はたった1人","ほかは全員が解除役","1人に質問が集中する・さばききれるか","対応表は全部その1人が持つ","ミスの数は全員で共有・尽きると爆発"]},
+    // 指示68-1：実物解除は 2026-10-24、くまくんの決定で削除した（傾きセンサーが一部のスマホで動かず、棚から下ろしていた）。
+    // **名前だけ残す**（removed）——古い記録の rounds[].mode にこの ID が残っていても、記録の画面が「実物解除」と読めるように。
+    // 棚・設定・遊ぶ画面には出ない（hidden）。中身（ルール・設定・進行役）は無い
+    {id:"defuse", icon:"🧰", title:"実物解除", sub:"（削除したゲーム）", hidden:true, removed:true, game:'defuse'},
+    {id:"defuse-focus", icon:"🎯", title:"集中解除", sub:"（削除したゲーム）", hidden:true, removed:true, game:'defuse'},
     {id:"quizking", icon:"👑", title:"クイズ王決定戦", sub:"難易度をえらんで挑戦・高難易度ほど高得点", advanced:false, strict:false, oneWord:false, quiz:true, hidden:true, game:'quizking',
       bullets:["自分の番に挑戦する難易度をえらぶ","難しいほど高得点（点は難易度のボタンに出ます）","問題を読んで3択で答える","正解で得点、外れても減点なし","気に入らないお題はパスできる"]},
     // ---- 第30弾：カセット「クイズ王」。4つとも1人1台・部屋が必須 ----
@@ -9292,7 +9123,7 @@
     // ここの数字と食い違わないことは tests/shelf.js が機械照合する
     // 指示53：False or True。部屋（1人1台）専用・4〜12人（上限は指示54で8→12）。
     // ルール文は設計メモの流れをそのまま「遊ぶ人の言葉」にしたもの
-    {id:"falsetrue", icon:"💼", title:"False or True", sub:"中身を知っているのは持っている人だけ", advanced:false, strict:false, oneWord:false, falseTrue:true, roomOnly:true, game:'falsetrue', minPlayers:4,
+    {id:"falsetrue", icon:"💼", title:"ハッタリケース", sub:"中身を知っているのは持っている人だけ", advanced:false, strict:false, oneWord:false, falseTrue:true, roomOnly:true, game:'falsetrue', minPlayers:4,
       tv:[["💬","中身を見た人と、対面して話し合う"], ["💼","奪うかどうかと中身で、生存か脱落"], ["🏆","生存した人は、全員が勝ち"]],
       bullets:["ケースが人数ぶんならぶ。中身は TRUE か FALSE で、FALSE のほうが多い","えらばれた人がケースを1つえらび、中身を自分だけが見る","そのあと、別の人と対面して話し合う","話し合いが終わったら、相手が「奪う」か「奪わない」かを決める","奪って TRUE なら相手が生存、FALSE なら相手が脱落","奪わずに TRUE なら持っていた人が生存、FALSE なら脱落","生存か脱落が決まった人は、そこで上がり。残った人だけで続ける","最後まで決まらなかった人は自動で生存。生存した人は全員が勝ち"]},
     // 指示55-①：ロシアンカード。いまは部屋専用（手渡しはこのあと足す）。
@@ -9306,7 +9137,7 @@
     // 棚のタイルが「2人」になり、6人のグループにはカセットごと沈んで見える
     // `rcardDuel:true` は、設定画面が「増えない」と言い分けるための印
     // （2026-09-21）。**モードidを直書きしない**ため（落とし穴5）——
-    // 他のモードの `bombRace` / `defuseFocus` / `quizRush` と同じ形
+    // 他のモードの `bombRace` / `quizRush` と同じ形
     {id:"rcard-duel", icon:"⚔️", title:"いっきうち", sub:"2人で1試合。スマホをわたし合ってもあそべる", advanced:false, strict:false, oneWord:false, rcard:true, rcardDuel:true, game:'rcard', minPlayers:2, maxPlayers:2,
       tv:[["💣","あいての9まいに、爆弾をしかける"], ["🃏","爆弾をめくると、体力が1へる"], ["❤️","体力が0になったら負け"]],
       bullets:["2人であそびます","スマホをわたし合って、あいての9まいに爆弾をひみつでしかける","しかけたら伏せてわたす。しかけた場所は、このあと自分でも見られない","じぶんの9まいから1まいずつ、こうたいでめくる","爆弾だったら体力が1へる。0になったら負け","3人いじょうであそぶときは、部屋を立ててください"]},
@@ -9433,41 +9264,29 @@
       blurb:'正体を隠して探り合う' },
     // 第27弾：爆弾解除。
     //
-    // **指示49 49-7：実物解除を棚から下ろした。**
-    // 傾きセンサーが Galaxy・Xiaomi・iOS で固定されてしまい、
-    // 「はじめる」の前の水平合わせから先に進めない端末がある
-    //（docs/切り出した宿題.md の16。**コードは消していない**）。
-    //
-    // 下ろしたので `alsoGenre:['move']` も外した——
-    // 体を動かすのは実物解除の側で、残ったクイズ解除は頭を使う遊び。
-    // 並べたままにすると「からだをうごかす」の段が嘘になる。
-    // 戻す時は、games と alsoGenre の**両方**を戻すこと（宿題16に書いてある）
+    // 指示68-1：実物解除は 2026-10-24、くまくんの決定で削除した（傾きセンサーが一部のスマホで動かず、棚から下ろしていた）。
+    // 中身はクイズ解除だけなので、ゲームをえらぶ所は飛ばす（中身が1つの階層は飛ばす）
     { id:'bakudan',         genre:'brain', ready:true,  icon:'💣', title:'爆弾解除',
       games:['bomb'],
-      // **下ろしたことを、遊ぶ人にも伝える。**黙って消すと「前はあったのに」になる。
-      // ここが正本——画面（カセットの説明）も tests/inventory.js の
-      // PAUSED_GAME_IDS も、この1か所を読む（2つ持つと片方だけ直す日が来る・落とし穴1）
-      paused:[{ id:'defuse', title:'実物解除',
-                なぜ:'一部の端末で傾きが読めないため、いったん下ろしています' }],
       // 第28弾-2：このカセットを選んだ時点から、制御盤の見た目にする
       theme:'bomb',
       blurb:'問題を解いて、爆発を止める' },
     // 第30弾：クイズ王。4つとも1人1台・部屋が必須（全員が別々の画面を同時に見る遊びなので、
     // 1台を回す手渡しでは成立しない）
-    { id:'quizou',          genre:'brain', ready:true,  icon:'👑', title:'クイズ王',
+    { id:'quizou',          genre:'brain', ready:true, hidden:true,  icon:'👑', title:'クイズ王',
       games:['quizrush', 'quizlist', 'quizreveal', 'buzzer'],
       theme:'quiz',
       blurb:'1人1台で解いて競う' },
     // 第31弾：オークションバトル（作り直し）。1人1台・部屋が必須。
     // 「かけひき」の段にちょうど合うので、空いていた枠に入れる
-    { id:'auction',         genre:'deal', ready:true,  icon:'💰', title:'オークション',
+    { id:'auction',         genre:'deal', ready:true, hidden:true,  icon:'💰', title:'オークション',
       games:['auction'],
       theme:'auction',
       blurb:'値をつけて競り合う' },
     // 第36弾：すごろく。中身があるのは「つうこうりょう」だけ（原則2：1つずつ完璧に）。
     // 通行料の読み合いが芯なので「かけひき」の段に置く。
     // 「どこにいる？」が入ったら「正体をさぐる」の段にも並べることになる
-    { id:'sugoroku',        genre:'deal', ready:true,  icon:'🎲', title:'すごろく',
+    { id:'sugoroku',        genre:'deal', ready:true, hidden:true,  icon:'🎲', title:'すごろく',
       games:['sugograb', 'sugopair', 'sugohide', 'sugotoll', 'sugohand'],
       theme:'sugoroku',
       blurb:'先頭ほど、進むのが高くつく' },
@@ -9475,7 +9294,7 @@
     // 分類は「正体をさぐる」（人狼と同じ）——嘘をつく人を見抜く遊びなので。
     // 「かけひき」の顔も持っているので alsoGenre に入れてある。
     // 空いていた hide の枠（hide-soon-1）を、そのまま差し替えた
-    { id:'falsetrue',       genre:'hide', alsoGenre:['deal'], ready:true,  icon:'💼', title:'False or True',
+    { id:'falsetrue',       genre:'hide', alsoGenre:['deal'], ready:true, hidden:true,  icon:'💼', title:'ハッタリケース',
       games:['falsetrue'],
       theme:'falsetrue',
       blurb:'奪うか、奪わないか' },
@@ -9483,14 +9302,14 @@
     { id:'brain-soon-1',    genre:'brain', ready:false, icon:'？' },
     // 指示55-①：ロシアンカード。爆弾をどこにしかけるか・どこをめくるかの読み合いなので
     // 「かけひき」の段。空いていた deal の枠を、そのまま差し替えた
-    { id:'rcard',           genre:'deal',  ready:true,  icon:'🃏', title:'ロシアンカード',
+    { id:'rcard',           genre:'deal',  ready:true, hidden:true,  icon:'🃏', title:'ロシアンカード',
       games:['rcard'],
       theme:'rcard',
       blurb:'しかけ合って、めくり合う' },
     // 指示55-②：進化じゃんけん。**かけひき**ではなく**からだをうごかす**でもないので、
     // いまある5つの段では 'deal'（かけひき）に置く。
     // ③④が入る『はやさきそい』の段は SHELF_GENRES にまだ無い（設計メモ:238 の未決）
-    { id:'shinka',          genre:'deal',  ready:true,  icon:'🥚', title:'進化じゃんけん',
+    { id:'shinka',          genre:'deal',  ready:true, hidden:true,  icon:'🥚', title:'進化じゃんけん',
       games:['shinka'],
       theme:'shinka',
       blurb:'おなじ段の人とじゃんけん。勝てば1つ上へ進化する' },
@@ -9499,6 +9318,20 @@
     { id:'move-soon-2',     genre:'move',  ready:false, icon:'？' }
   ];
   function cassetteById(id){ return CASSETTES.find(function(c){ return c.id === id; }); }
+  /**
+   * 指示68-1：ふだんの棚に出すか。**出すのは門を通った物だけ**（いまは爆弾解除・あれそれどれこれ・人狼ゲーム）。
+   * 下ろした物は hidden（コードは消さない。棚にも「じゅんび中」の数にも出さない）。
+   * 門を通る前の物（testing）は、くまくんのアカウント（/api/auth/me の tester）の時だけ、棚のいちばん後ろに「テスト中」で出る
+   */
+  var shelfAll = false;   // 検査の窓だけが入れる（下ろした物のゲームそのものを確かめる検査のため。本物の画面では入らない）
+  function shelfReady(c){ return !!c && c.ready && (!c.hidden || shelfAll); }
+  function shelfTesting(c){ return !!c && c.ready && !!c.testing && !!state.tester; }
+  function shelfSoon(c){ return !!c && !c.ready && !c.hidden; }
+  // 検査の窓：テスト中の印を付け外しする（2.0 の新しいゲームが入るまで、テスト中の物が無いので）
+  window.shelfShowProbe = {
+    testing: function(id, on){ var c = cassetteById(id); if(c) c.testing = !!on; },
+    showAll: function(on){ shelfAll = !!on; if((document.querySelector('.screen.active') || {}).id === 'scr-v2-pick') renderV2Pick(); }
+  };
 
   // ===== 第32弾-A 第1部：あそびかた =====
   // 扉のすぐ次にここを通るので、棚に並ぶ時点で「その遊び方で遊べるもの」だけになる。
@@ -9747,7 +9580,7 @@
   window.homeOpenJoin = function(o){ openV2Join(o || {}); };
   // 指示66-3：検査が一覧の中身を読む窓（読むだけ。遊べるカセット・ページの順・いまのページ）
   window.homeProbe = function(){
-    return { ready: CASSETTES.filter(function(c){ return c.ready; }).map(function(c){ return c.id; }),
+    return { ready: CASSETTES.filter(shelfReady).map(function(c){ return c.id; }), testing: CASSETTES.filter(shelfTesting).map(function(c){ return c.id; }),
       cards: home.pick.cards.map(function(c){ return { id: c.id, world: c.world, why: c.why }; }), cur: home.pick.cur, open: home.pick.open };
   };
   /**
@@ -10217,8 +10050,8 @@
   function shelfItems(){
     var out = [], soon = 0;
     CASSETTES.forEach(function(c){
-      if(c.ready) out.push({ kind:'cart', id:c.id, c:c });
-      else soon++;
+      if(shelfReady(c)) out.push({ kind:'cart', id:c.id, c:c });
+      else if(shelfSoon(c)) soon++;
     });
     if(soon) out.push({ kind:'more', n:soon });
     return out;
@@ -12081,10 +11914,10 @@
     { id:'wordwolf',        title:'ワードウルフ',       icon:'🐺', sub:'1人だけ違うお題・話し合って探り合う', maxPlayers:0 },
     { id:'wolfrole',        title:'人狼',               icon:'🌙', sub:'役職を配って夜と昼をくり返す・進行役は不要', maxPlayers:0 }, // 0＝上限なし
     // 第27弾：カセット「爆弾解除」の中の1つ目のゲーム。
-    // 実物解除・同時解除が入る時は、このカセットにゲームを足す形になる
+    // 指示68-1：実物解除は削除した（下の defuse は、古い記録の名前のためだけの行）
     { id:'bomb',            title:'クイズ解除',         icon:'💣', sub:'問題を読んで3択・コードを解除する', usesTopicPool:true },
-    // 第27弾-3：カセット「爆弾解除」の2つ目。センサーを使うので人数上限は設けない
-    { id:'defuse',          title:'実物解除',           icon:'🧰', sub:'しかけを解除する・マニュアル役と口で伝え合う', maxPlayers:0 },
+    // 指示68-1：削除したゲーム。名前だけ残す（古い記録が読めるように）。どのカセットにも入っていない
+    { id:'defuse',          title:'実物解除',           icon:'🧰', sub:'（削除したゲーム）', maxPlayers:0, removed:true },
     { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度をえらんで挑戦・高難度ほど高得点', usesTopicPool:true },
     // 第30弾：カセット「クイズ王」の4ゲーム。出題は問題バンク（quiz-bank.js）から。
     // ゲーム中にAIは呼ばないので usesTopicPool は付けない（お題プールも使わない）
@@ -12104,7 +11937,7 @@
     // 指示54で上限は12人。**falsetrue-logic.js の RULES.MAX_PLAYERS と一対**——
     // サーバーはあちら、端末はこちらしか読まないので、食い違うと押せるのに始まらない
     // （食い違いは tests/falsetrue-logic.js が両方向で照合している）
-    { id:'falsetrue',       title:'False or True',      icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:12 },
+    { id:'falsetrue',       title:'ハッタリケース',     icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:12 },
     { id:'rcard',           title:'ロシアンカード',      icon:'🃏', sub:'あいての9まいに爆弾をしかけ、じぶんの9まいをめくる', maxPlayers:8 },
     // 指示55-②：進化じゃんけん。部屋（3人以上）専用。段の配列は shinka-logic.js が正本
     { id:'shinka',          title:'進化じゃんけん',      icon:'🥚', sub:'おなじ段の人とじゃんけん・勝てば1つ上の段へ進化する', maxPlayers:12 }
@@ -12268,8 +12101,6 @@
     // 遊んだ人からは「誰が外したか分からない」と報告されたが、
     // 既定で名前を出すと「外した人の名前が毎回みんなの画面に出る」場になる（大切なこと5）
     bombShowMisses: false,
-    // 第27弾-3：実物解除の設定
-    dfCfg: { moduleCount:5, strikes:3, manual:true, allowPhysical:true },
     // 第30弾：クイズ王の設定。4ゲームぶんを1つに持つ（画面も1枚で共有している）。
     // tier の null は「おまかせ」——つぎつぎは許された層のお題ぜんぶから、
     // とくとく・早押しは「ふつう」（QuizLogic.fitTier。指示58）
@@ -12806,6 +12637,10 @@
     var changed = (state.displayName || null) !== (見せる || null);
     state.displayName = 見せる;
     state.loginId = ログインID;
+    // 指示68-1：テスト中の札を見られる人か（サーバーが FES_OWNER から決める）。変わったら棚を描き直す
+    var tester = !!(me && me.tester), testerChanged = !!state.tester !== tester;
+    state.tester = tester;
+    if(testerChanged && (document.querySelector('.screen.active') || {}).id === 'scr-v2-pick') renderV2Pick();
     // 第26弾-4：称号はアカウントに付くので、人が変わったら取り直す。
     // ログアウトした時に前の人の名乗りが残らないよう、必ずここを通す
     if(changed) loadTitles();
@@ -13013,7 +12848,6 @@
     // 第32弾-D 第4部：安全に関する設定。体に触る演出はまとめて切れるようにする
     fxFlash: true,     // 光の点滅（フラッシュ・明滅する縁）
     fxShake: true,     // 画面の揺れ
-    fxBody: true,      // 体を動かす演出（実物解除のポーズ指定など）
     bgmVolume: 40,     // 第32弾-D 第1部：BGMの音量（効果音・読み上げとは別）
     reactions: true,   // 第32弾-E 第4部：リアクション（送る・見える）
     // 第36弾 36-2：残り時間の見せ方。全カセット共通で、ここ1か所だけが持つ。
@@ -14345,8 +14179,6 @@
     // 指示66-2：文化祭の新しい見た目の画面には 🎁 を出さない（「つづける？」のシートに重なる。遊ぶ画面では今までどおり）
     if(id === 'scr-v2-fes-lobby' || id === 'scr-v2-fes-tv') el('thanksBtn').style.display = 'none';
     syncFloatBottom();
-    // 第27弾-3：実物解除を離れたら、センサーとカメラも必ず止める
-    if(prevScreen && prevScreen.id === 'scr-rt-defuse' && id !== 'scr-rt-defuse') dfLeaveScreen();
     if(prevScreen && prevScreen.id === 'scr-rt-quiz' && id !== 'scr-rt-quiz') qzLeaveScreen();
     // 第38弾：オークションの6枚から「6枚の外」へ出た時だけ捨てる。
     // 6枚のあいだを行き来しただけで時計を止めない（落とし穴7）
@@ -14792,7 +14624,6 @@
     bombcfg:   { screen:'scr-set-bomb',      badge:'wizStepBomb',      render:renderBombSection },
     bomblife:  { screen:'scr-set-bomblife',   badge:'wizStepBombLife',   render:renderBombLifeStep },
     bombrace:  { screen:'scr-set-bombrace',   badge:'wizStepBombRace',   render:renderBombRaceStep },
-    defusecfg: { screen:'scr-set-defuse',     badge:'wizStepDefuse',     render:renderDefuseStep },
     // 第30弾：クイズ王は4ゲームで1枚の設定画面を共有し、遊びに関係するところだけ出す。
     // ゲームごとに画面を作ると、直す時に片方だけ直す形になる（落とし穴1）
     quizcfg:   { screen:'scr-set-quiz',       badge:'wizStepQuiz',       render:renderQuizStep },
@@ -14818,8 +14649,6 @@
     // 第27弾：競争版だけ「終わり方」を1枚挟む
     if(m.bombRace) return ['bombcfg', 'bomblife', 'bombrace', 'timer'];
     if(m.bomb) return ['bombcfg', 'bomblife', 'timer'];
-    // 第27弾-3：実物解除は「爆弾の作り方」1枚 → 制限時間
-    if(m.defuse) return ['defusecfg', 'timer'];
     // 第30弾：クイズ王は設定1枚 →（早押し以外は）制限時間。
     // 早押しは「先に何問正解で勝ち」で終わるので、全体の制限時間は使わない
     if(m.quizKing) return m.quizBuzzer ? ['quizcfg'] : ['quizcfg', 'timer'];
@@ -15118,40 +14947,6 @@
       ? 'まだ解いている人を待ちます。最後まで自分のペースで挑めます。'
       : '誰かが全部解いた瞬間に、その場で全員の結果が出ます。';
   }
-  // 第27弾-3：実物解除の「爆弾の作り方」
-  function renderDefuseStep(){
-    var c = state.dfCfg;
-    el('dfCountValue').textContent = c.moduleCount;
-    el('dfCountSlider').value = c.moduleCount;
-    el('dfStrikeValue').textContent = c.strikes;
-    el('dfStrikeDisplay').textContent = '❤️'.repeat(c.strikes);
-    el('dfManualToggle').classList.toggle('on', c.manual);
-    el('dfManualNote').textContent = c.manual
-      ? '対応表はマニュアル役だけが見ます。口で伝え合って解きます'
-      : '対応表を解除役の画面にも出します。1人でも解けますが、やさしくなります';
-    el('dfPhysicalToggle').classList.toggle('on', c.allowPhysical);
-    el('dfPhysicalNote').textContent = c.allowPhysical
-      ? '端末を振る・ポーズを取るしかけが入ります（始める前に全員に確かめます）'
-      : '座ったまま遊べるしかけだけになります';
-  }
-  el('dfCountSlider').addEventListener('input', function(){
-    state.dfCfg.moduleCount = parseInt(this.value, 10);
-    renderDefuseStep();
-  });
-  el('dfStrikeMinus').addEventListener('click', function(){
-    if(state.dfCfg.strikes > 1){ state.dfCfg.strikes--; renderDefuseStep(); }
-  });
-  el('dfStrikePlus').addEventListener('click', function(){
-    if(state.dfCfg.strikes < 5){ state.dfCfg.strikes++; renderDefuseStep(); }
-  });
-  el('dfManualToggle').addEventListener('click', function(){
-    state.dfCfg.manual = !state.dfCfg.manual;
-    renderDefuseStep();
-  });
-  el('dfPhysicalToggle').addEventListener('click', function(){
-    state.dfCfg.allowPhysical = !state.dfCfg.allowPhysical;
-    renderDefuseStep();
-  });
 
   // ---------- クイズ王の設定（第30弾） ----------
   // 4ゲームで1枚を共有し、いま選んでいる遊びに関係するところだけを出す。
@@ -17040,7 +16835,6 @@
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
     bomb: rtBombConfig,
-    defuse: rtDefuseConfig,
     // 第30弾：クイズ王。4ゲームとも同じ作り方で送る（送る中身だけ違う）
     quizrush: rtQuizConfig,
     quizlist: rtQuizConfig,
@@ -17141,24 +16935,6 @@
       preset: state.selectedModeId
     };
   }
-  // 第27弾-3：1人1台の実物解除。
-  // モジュールの中身を決めるのはサーバー側なので、ここから渡すのは「爆弾の作り方」だけ。
-  // 端末で読めるセンサーは、役割を選ぶ時に各自が送る（誰が解除役になるか、まだ分からない）
-  function rtDefuseConfig(m){
-    var c = state.dfCfg;
-    return {
-      game: 'defuse',
-      mode: (m && m.defuseFocus) ? 'focus' : 'normal',
-      moduleCount: c.moduleCount,
-      strikes: c.strikes,
-      manual: c.manual,
-      allowPhysical: c.allowPhysical,
-      allowCamera: c.allowPhysical, // ポーズ指定は体を動かす側なので、同じ扱いにする
-      timerSec: state.timerEnabled ? (state.customTimer || 300) : 0,
-      preset: state.selectedModeId
-    };
-  }
-
   // 第30弾：クイズ王。4ゲームぶんをまとめて送る（サーバー側が遊びに要るものだけ拾う）。
   // 遊びの種類は game で決まるので、端末が variant を偽っても効かない
   function rtQuizConfig(m){
@@ -18243,10 +18019,6 @@
     prep: '準備中', play: '解除中',
     // 指示55-①：ロシアンカード。**ここに足さないと、大画面に生の英語が出る**
     place: '爆弾をしかける', turn: 'めくる', show: 'けっか', round: '生きのこり',
-    // 指示64の見直し：実物解除。それまで大画面の札に「roles」「brief」「consent」が英語のまま出ていた。
-    // **一枚看板（「役割をえらぶ」など）とちょうど同じ語にしない**——同じなら一枚看板の方が消える（言い直しを消す）。
-    // 足し忘れは tests/big-screen.js が両方向で見る（大画面がこの表を読むゲームの段階 ⇔ この表）
-    consent: '確認', roles: '役割', brief: '説明をよむ',
     // 指示53：False or True。**`reveal` を使わない**——この表はゲームをまたいだ1枚で、
     // `reveal` はワードウルフの「お題の確認」に取られている（落とし穴2）
     // 指示55-②：進化じゃんけん。**`reveal` は使わない**——
@@ -18387,18 +18159,6 @@
         if(h.oppId === me && h.content === true && h.taken) f.trusts = 1;
       });
       return { cassette: 'falsetrue', add: f };
-    }
-    if(game === 'defuse'){
-      var d = { plays: 1, defusePlays: 1 };
-      if(res.success){
-        d.wins = 1; d.defuseWins = 1;
-        if(v.strikesLeft === v.strikesMax) d.defuseNoMiss = 1;
-        if(v.mode === 'focus') d.focusWins = 1;
-        // マニュアル役として、成功した試合に加わっていた
-        var mine = (res.roles || []).find(function(p){ return p.id === meId; });
-        if(mine && mine.role === 'manual') d.manualHelps = 1;
-      }
-      return { cassette: 'bakudan', add: d };
     }
     if(RT_QUIZ_GAMES.indexOf(game) !== -1){
       var q = { plays: 1 };
@@ -18630,7 +18390,7 @@
      */
     falsetrue: ['scr-rt-ft-pick', 'scr-rt-ft-peek', 'scr-rt-ft-face', 'scr-rt-ft-talk',
                 'scr-rt-ft-decide', 'scr-rt-ft-open', 'scr-rt-ft-result'],
-    bomb: 'scr-rt-bomb', defuse: 'scr-rt-defuse',
+    bomb: 'scr-rt-bomb',
     // 第30弾：クイズ王。4つとも同じ1枚に送る
     quizrush: 'scr-rt-quiz', quizlist: 'scr-rt-quiz',
     quizreveal: 'scr-rt-quiz', buzzer: 'scr-rt-quiz',
@@ -19990,7 +19750,7 @@
   /** 検査の窓口：世界の見た目の表と、棚に出ているカセット（tests/clear-fx.js） */
   window.clearLookProbe = function(){
     return { look: CLEAR_LOOK,
-      棚: CASSETTES.filter(function(c){ return c.ready; }).map(function(c){ return c.id; }) };
+      棚: CASSETTES.filter(shelfReady).map(function(c){ return c.id; }) };
   };
   function rtMemberName(id){
     var m = ((rt && rt.state.room && rt.state.room.members) || []).find(function(x){ return x.id === id; });
@@ -20065,7 +19825,6 @@
     if(cur === 'scr-rt-rules') renderRtRules();
     else if(cur === 'scr-rt-big') renderRtBig();
     else if(cur === 'scr-rt-bomb') renderRtBomb();
-    else if(cur === 'scr-rt-defuse') renderRtDefuse();
     else if(cur === 'scr-rt-quiz') renderRtQuiz();
     else if(cur === 'scr-rt-au-open') renderRtAuOpen();
     else if(cur === 'scr-rt-au-power') renderRtAuPower();
@@ -22563,30 +22322,6 @@
       });
       return;
     }
-    if(game === 'defuse'){
-      // **第47弾で足した。** ここには枝そのものが無く、
-      // 実物解除の大画面は最初から最後まで無音・無演出だった（落とし穴1）。
-      // 同じカセットのクイズ解除と同じ形にそろえる
-      var 解 = v.result;
-      rtOnce('big:defuse:ended', v.phase === 'ended' && !!解, function(){
-        // 指示60 A-2：クイズ解除と同じ1本を呼び、言葉だけ実物解除のものにする（大切なこと9）
-        if(解.success) bombClearSequence({ text:'解除成功！' });
-        // 第59弾：**同じ「爆発」なので、見た目も同じ部品にそろえる**（落とし穴1）
-        else bigBoom();
-      });
-      /**
-       * 指示60 A-1：のこりミス1。**クイズ解除と同じ縁の脈動（bomb-danger）と、
-       * 減った瞬間の縁の光（edge）を借りる。**それまで実物解除の大画面は、
-       * この瞬間を CRITICAL のコールアウトだけで知らせていた（縁も脈動も無かった）。
-       * 借りずにコールアウトを消すと、大画面は静止したハートが変わるだけになる。
-       * bomb-danger の後片付けは GAME_LOOK_CLASSES（ゲームが変わる時）と、決着のここ
-       */
-      var のこり = (v.phase === 'play') ? v.strikesLeft : null;
-      if(rtBig.bombLives != null && のこり != null && のこり < rtBig.bombLives) FxKit.edge('danger');
-      rtBig.bombLives = のこり;
-      el('app').classList.toggle('bomb-danger', のこり === 1);
-      return;
-    }
     if(SUGO_GAMES.indexOf(game) !== -1){
       // 第47弾 47-6b：**突然のできごとを、画面いっぱいの札で。**
       // 次々と別のものに入れ替わるので `rtOnceValue`（47-1）。
@@ -23446,7 +23181,6 @@
     };
 
     if(rtRoomGameId() === 'bomb') return 描いてから(function(){ renderRtBigBomb(v); });
-    if(rtRoomGameId() === 'defuse') return 描いてから(function(){ renderRtBigDefuse(v); });
     if(RT_QUIZ_GAMES.indexOf(rtRoomGameId()) !== -1) return 描いてから(function(){ renderRtBigQuiz(v); });
     if(rtRoomGameId() === 'auction') return 描いてから(function(){ renderRtBigAuction(v); });
     if(SUGO_GAMES.indexOf(rtRoomGameId()) !== -1) return 描いてから(function(){ renderRtBigSugoroku(v); });
@@ -23644,121 +23378,6 @@
       bigMarkWaiting(v.waiting);
     }
   }
-
-  // ===================== 第27弾-3：センサーの読み取り =====================
-  // 実物解除だけが使う。ここは「読めたら教える」だけを引き受け、
-  // 何度傾いたら正解かは一切知らない（判定はサーバーが持つ）。
-  //
-  // 端末によって読めるものが違う（PCには傾きも方位も無い）。
-  // 読めないセンサーのモジュールを出すと一生解けないマスになるので、
-  // 何が読めるかを役割を選ぶ時にサーバーへ伝える。
-  var Sensors = (function(){
-    var last = { beta:0, gamma:0, alpha:0, heading:null };
-    var listening = false;
-    var shakeState = { count:0, lastAt:0, gaps:[], armed:true };
-    var onShake = null;
-
-    function hasOrientation(){ return typeof window.DeviceOrientationEvent !== 'undefined'; }
-    function hasMotion(){ return typeof window.DeviceMotionEvent !== 'undefined'; }
-    function hasCamera(){
-      return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-    }
-    // iOS 13以降は、ユーザーが押した操作の中で許可を求めないと読めない
-    function needsPermission(){
-      return !!(window.DeviceOrientationEvent &&
-        typeof window.DeviceOrientationEvent.requestPermission === 'function');
-    }
-    async function requestPermission(){
-      if(!needsPermission()) return true;
-      try{
-        var a = await window.DeviceOrientationEvent.requestPermission();
-        var b = 'granted';
-        if(window.DeviceMotionEvent && typeof window.DeviceMotionEvent.requestPermission === 'function'){
-          b = await window.DeviceMotionEvent.requestPermission();
-        }
-        return a === 'granted' && b === 'granted';
-      }catch(e){ return false; }
-    }
-
-    function onOrient(e){
-      last.beta = e.beta || 0;    // 前後の傾き
-      last.gamma = e.gamma || 0;  // 左右の傾き
-      last.alpha = e.alpha || 0;
-      // 方位は端末によって出どころが違う。Safariは webkitCompassHeading
-      if(typeof e.webkitCompassHeading === 'number') last.heading = e.webkitCompassHeading;
-      else if(e.absolute && typeof e.alpha === 'number') last.heading = (360 - e.alpha) % 360;
-    }
-    function onMotion(e){
-      var a = e.accelerationIncludingGravity;
-      if(!a) return;
-      var power = Math.abs(a.x || 0) + Math.abs(a.y || 0) + Math.abs(a.z || 0);
-      var now = Date.now();
-      // 25 は「はっきり振った」あたりの目安。小さく動かしただけでは数えない
-      if(power > 25 && shakeState.armed){
-        shakeState.armed = false;
-        if(shakeState.lastAt) shakeState.gaps.push(now - shakeState.lastAt);
-        shakeState.lastAt = now;
-        shakeState.count++;
-        if(onShake) onShake(shakeState.count);
-      }
-      // 一度静かになるまで、次の1回として数えない（1振りが何回にも化けるのを防ぐ）
-      if(power < 14) shakeState.armed = true;
-    }
-
-    function start(){
-      if(listening) return;
-      listening = true;
-      if(hasOrientation()) window.addEventListener('deviceorientation', onOrient, true);
-      if(hasMotion()) window.addEventListener('devicemotion', onMotion, true);
-    }
-    function stop(){
-      if(!listening) return;
-      listening = false;
-      window.removeEventListener('deviceorientation', onOrient, true);
-      window.removeEventListener('devicemotion', onMotion, true);
-      onShake = null;
-    }
-    function resetShake(cb){
-      shakeState = { count:0, lastAt:0, gaps:[], armed:true };
-      onShake = cb || null;
-    }
-    function shakes(){ return { count: shakeState.count, gaps: shakeState.gaps.slice() }; }
-    // いま端末がどの面を向いているか（①面認証）
-    function face(){
-      if(Math.abs(last.gamma) > 40) return last.gamma > 0 ? 'right' : 'left';
-      if(last.beta < -30) return 'down';
-      return 'up';
-    }
-    // 傾けた向き（②傾け迷路）。しきい値を超えている間だけ返す
-    function tiltDir(){
-      if(last.gamma > 22) return 'right';
-      if(last.gamma < -22) return 'left';
-      if(last.beta > 22) return 'down';
-      if(last.beta < -22) return 'up';
-      return null;
-    }
-    // 水平からのずれ（⑤水平キープ）
-    function levelDeg(){ return Math.max(Math.abs(last.beta), Math.abs(last.gamma)); }
-    function heading(){ return last.heading; }
-
-    // この端末で何が読めるか。役割を選ぶ時にサーバーへ渡す
-    function caps(){
-      return {
-        orientation: hasOrientation(),
-        // 方位は「読めるはず」でも実際に値が来ないことがある。
-        // 一度でも値が来ていれば確か、来ていなければ読めるはずの端末かで判断する
-        compass: hasOrientation() && (last.heading !== null || needsPermission()),
-        motion: hasMotion(),
-        camera: hasCamera()
-      };
-    }
-    return {
-      start: start, stop: stop, caps: caps, face: face, tiltDir: tiltDir,
-      levelDeg: levelDeg, heading: heading, resetShake: resetShake, shakes: shakes,
-      needsPermission: needsPermission, requestPermission: requestPermission,
-      hasCamera: hasCamera
-    };
-  })();
 
   // ===================== 第27弾：1人1台のクイズ解除 =====================
   // この端末に届くのは「自分の盤面」と「自分がいま開けているコードの説明文」だけ。
@@ -24357,1008 +23976,6 @@
       '<div class="bcb-count"><span class="tv-n">' + t.solved + ' / ' + t.total + '</span> 解除</div>' +
       '<div class="bcb-who">' + 行 + '</div>' +
     '</div>';
-  }
-
-  // ===================== 第27弾-3：1人1台の実物解除 =====================
-  // 同じ画面で、役割によって出るものが変わる。
-  //   解除役     … モジュール一覧と、開けたモジュールの中身
-  //   マニュアル役 … 自分が受け持つ対応表だけ（進み具合も答えも来ない）
-  // 判定はサーバーが持っているので、ここは「読んで送る」「届いたものを描く」だけ。
-  var dfPrev = null;          // 直前に見たミス数。音と演出の引き金
-  var dfClock = { ms:null, at:0, timer:null };
-  var dfOpenUid = null;       // いま開けているモジュール（描き直しの判断に使う）
-  var dfLoop = null;          // センサーを読むループ
-  var dfLocal = {};           // モジュールごとの、送る前の手元の状態
-
-  function dfSetClock(ms){ dfClock.ms = (ms == null) ? null : ms; dfClock.at = Date.now(); }
-  function dfRemainingSec(){
-    if(dfClock.ms == null) return null;
-    return Math.max(0, Math.round((dfClock.ms - (Date.now() - dfClock.at)) / 1000));
-  }
-  function dfRenderTimer(){
-    var chip = el('dfTimer');
-    var sec = dfRemainingSec();
-    if(sec == null){ chip.style.display = 'none'; return; }
-    chip.style.display = 'inline-block';
-    chip.textContent = pad(Math.floor(sec / 60)) + ':' + pad(sec % 60);
-    timerChipTick(chip, sec);
-  }
-  // 画面から離れる時に必ず呼ぶ。センサー・カメラ・時計・心拍を残さない
-  function dfLeaveScreen(){
-    clearInterval(dfClock.timer); dfClock.timer = null;
-    dfStopModule();
-    Sensors.stop();
-    stopBombHeart();
-    el('dfModOverlay').classList.remove('show');
-    dfPrev = null; dfOpenUid = null;
-  }
-
-  function renderRtDefuse(){
-    var v = rtView(), you = rt.state.secret;
-    if(!v) return;
-    // 手元の札。brief が抜けていて、手元にも「brief」と英語で出ていた（大画面と同じ穴・落とし穴1）
-    var LABEL = { consent:'確認', roles:'役割をえらぶ', brief:'説明をよむ', play:'解除中', ended:'結果' };
-    el('dfPhase').textContent = LABEL[v.phase] || '';
-
-    // 観戦（始まったあとに入ってきた端末）には何も配らない
-    if(!you){
-      dfLeaveScreen();
-      ['dfConsentBox','dfRolesBox','dfBriefBox','dfBoardBox','dfManualBox'].forEach(function(id){
-        el(id).style.display = 'none';
-      });
-      el('dfHelpBtn').style.display = 'none';
-      el('dfStrikes').textContent = ''; el('dfProgress').textContent = '';
-      el('dfNote').innerHTML = '<div class="ry-desc">この端末は観戦しています</div>';
-      el('dfResultBox').innerHTML = (v.phase === 'ended') ? dfResultHtml(v) : '';
-      dfEndButtons(v.phase === 'ended');
-      return;
-    }
-
-    el('dfStrikes').textContent = '❤️'.repeat(Math.max(0, you.strikesLeft)) +
-      '🖤'.repeat(Math.max(0, you.strikesMax - you.strikesLeft));
-    var board = you.board;
-    el('dfProgress').textContent = board ? (board.solved + ' / ' + board.total + ' 解除') : '';
-
-    ['dfConsentBox','dfRolesBox','dfBriefBox','dfBoardBox','dfManualBox'].forEach(function(id){
-      el(id).style.display = 'none';
-    });
-    el('dfResultBox').innerHTML = '';
-    // 説明は解除中でも決着後でも見返せる（役割がどちらでも）
-    el('dfHelpBtn').style.display = (v.phase === 'play' || v.phase === 'ended') ? 'inline-flex' : 'none';
-
-    if(v.phase === 'consent'){ dfLeaveScreen(); dfRenderConsent(you); return; }
-    if(v.phase === 'roles'){ dfLeaveScreen(); dfRenderRoles(v, you); return; }
-    if(v.phase === 'brief'){ dfLeaveScreen(); dfRenderBrief(v, you); return; }
-    // 決着の演出（第47弾 47-1）。**それまで実物解除には1つも無かった**——
-    // 同じカセットのクイズ解除にはあるのに、こちらは結果の文字が出るだけだった（落とし穴1）。
-    // 帯は共通の部品を使い、**言葉だけ実物解除のものにする**（大切なこと9）。
-    // 観戦の端末はここまで来ない（すぐ上で you が無ければ帰る）
-    rtOnce('defuse:ended', v.phase === 'ended' && !!v.result, function(){
-      if(v.result.success) bombClearFx('しかけを全部止めました');
-      else bombBoomFx(bombBoomCause(v.result.cause));
-    });
-    if(v.phase === 'ended'){
-      dfLeaveScreen();
-      el('dfNote').innerHTML = '';
-      el('dfResultBox').innerHTML = dfResultHtml(v);
-      dfEndButtons(true);
-      return;
-    }
-
-    // ---- 解除中 ----
-    dfFeedback(you);
-    dfSetClock(you.remainingMs);
-    dfRenderTimer();
-    if(!dfClock.timer) dfClock.timer = setInterval(dfRenderTimer, 500);
-    startBombHeart(you.strikesMax - you.strikesLeft);
-    dfEndButtons(false);
-
-    if(you.role === 'manual'){ dfRenderManual(v, you); return; }
-    dfRenderBoard(v, you);
-  }
-
-  // ---- 体を動かすことへの同意 ----
-  // 何をするのか・何に気をつけるのかを具体的に出す。
-  // 「参加しない」を選んでも、マニュアル役として一緒に遊べることを必ず書く
-  // 第43弾 2-4：設定を切り替えた時に描き直せるよう、最後に描いた相手を覚えておく。
-  // それまでは描いた時に一度だけ appPrefs.fxBody を読んでいて、
-  // **同意画面を開いたまま設定を切り替えても、下の画面は前のままだった**（落とし穴21）
-  var dfConsentYou = null;
-  function refreshBodyConsent(){
-    var box = el('dfConsentBox');
-    if(!box || box.style.display === 'none' || !dfConsentYou) return;
-    dfRenderConsent(dfConsentYou);
-  }
-  function dfRenderConsent(you){
-    dfConsentYou = you;
-    // 新しいゲームは必ずここ（か役割えらび）を通る。前のゲームの読みかけの説明を持ち越さない
-    dfBrief = { pages: [], at: 0, review: false };
-    var box = el('dfConsentBox');
-    box.style.display = 'block';
-    var ask = you.consentAsk || { moves:[], notes:[] };
-    if(you.done){
-      el('dfNote').innerHTML = '';
-      box.innerHTML = '<div class="ry-desc">' +
-        (you.consent ? '「参加する」をえらびました。' : '「参加しない」をえらびました。マニュアル役として一緒に遊べます。') +
-        '<br>ほかの人を待っています…</div>';
-      return;
-    }
-    el('dfNote').innerHTML = '⚠️ このゲームには、体を動かすしかけが入ります';
-    // 第32弾-D 第4部：設定で「体を動かす演出」を切っている人には、
-    // 「参加する」を選ばせない（この画面は残す：なぜマニュアル役なのかが分かるように）
-    var bodyOff = !appPrefs.fxBody;
-    box.innerHTML =
-      '<div class="df-page"><div class="df-page-head">こんな動作があります</div>' +
-        '<ul class="rules-ol">' + ask.moves.map(function(m){
-          return '<li>' + escapeHtml(m) + '</li>';
-        }).join('') + '</ul>' +
-        '<div class="df-page-head" style="margin-top:10px;">気をつけること</div>' +
-        '<ul class="rules-ol">' + (ask.notes || []).map(function(n){
-          return '<li>' + escapeHtml(n) + '</li>';
-        }).join('') + '</ul>' +
-      '</div>' +
-      '<div class="mic-status" style="margin-top:10px;">' + escapeHtml(ask.declineNote || '') + '</div>' +
-      (bodyOff
-        ? '<div class="mic-status" style="margin-top:10px;">🛡 設定の「安全に関する設定」で「体を動かす遊びをする」を切っています。マニュアル役として参加します</div>'
-        : '<button class="btn btn-main" id="dfConsentYes" style="margin-top:14px;">参加する</button>') +
-      '<button class="btn ' + (bodyOff ? 'btn-main' : 'btn-outline') +
-        '" id="dfConsentNo" style="margin-top:8px;">参加しない（マニュアル役で遊ぶ）</button>';
-    var yes = el('dfConsentYes');
-    if(yes) yes.addEventListener('click', async function(){
-      this.disabled = true;
-      // iOSは、押した操作の中で許可を求めないとセンサーが読めない
-      if(Sensors.needsPermission()) await Sensors.requestPermission();
-      Sensors.start();
-      await rt.act('yes');
-    });
-    el('dfConsentNo').addEventListener('click', async function(){
-      this.disabled = true;
-      await rt.act('no');
-    });
-  }
-
-  // ---- 役割をえらぶ ----
-  function dfRenderRoles(v, you){
-    // 新しいゲームは必ずここを通る。前のゲームの読みかけの説明を持ち越さない
-    dfBrief = { pages: [], at: 0, review: false };
-    var box = el('dfRolesBox');
-    box.style.display = 'block';
-    var ask = you.roleAsk || {};
-    var focus = !!ask.focus;
-    var manualTaken = focus && (ask.taken || []).some(function(t){ return t.role === 'manual'; })
-      && you.role !== 'manual';
-    el('dfNote').innerHTML = focus
-      ? '🎯 集中解除：マニュアル役はたった1人。ほかは全員が解除役です'
-      : '解除役は爆弾を持ちます。マニュアル役は対応表を読み上げます。<br>おたがいの画面は見せ合わないでください。';
-    box.innerHTML =
-      '<button class="df-role-btn' + (you.role === 'defuser' ? ' on' : '') + '" data-dfrole="defuser">' +
-        '<span class="df-role-name">🧰 解除役</span>' +
-        '<span class="df-role-desc">爆弾（しかけ一覧）を見て、実際に操作する人</span></button>' +
-      '<button class="df-role-btn' + (you.role === 'manual' ? ' on' : '') + '" data-dfrole="manual"' +
-        (manualTaken ? ' disabled' : '') + '>' +
-        '<span class="df-role-name">📖 マニュアル役</span>' +
-        '<span class="df-role-desc">' + (manualTaken
-          ? 'もう決まっています（集中解除は1人だけ）'
-          : '対応表を見て、解除役に口で伝える人') + '</span></button>' +
-      (ask.physicalDeclined
-        ? '<div class="mic-status" style="margin-top:10px;">体を動かすのは「参加しない」をえらんでいます。マニュアル役がおすすめです。</div>'
-        : '') +
-      '<div class="tp-label" style="margin-top:16px;">いまの顔ぶれ</div>' +
-      '<div class="mic-status">' + ((v.players || []).map(function(p){
-        return escapeHtml(p.name) + '：' + (p.role === 'defuser' ? '解除役'
-          : p.role === 'manual' ? 'マニュアル役' : 'まだ');
-      }).join('　／　') || '-') + '</div>' +
-      ((v.players || []).some(function(p){ return p.role === 'defuser'; })
-        ? '' : '<div class="mic-status" style="margin-top:8px;">⚠️ 解除役が1人もいないと始められません</div>');
-  }
-  el('dfRolesBox').addEventListener('click', async function(e){
-    var b = e.target.closest('[data-dfrole]');
-    if(!b || b.disabled) return;
-    // 端末で読めるセンサーを一緒に送る。読めないモジュールを載せられると詰むため
-    if(b.dataset.dfrole === 'defuser' && Sensors.needsPermission()){
-      await Sensors.requestPermission();
-    }
-    Sensors.start();
-    var res = await rt.act(b.dataset.dfrole, { caps: Sensors.caps() });
-    if(res && !res.ok && res.error === 'manual_taken'){
-      showFlash('マニュアル役はもう決まっています', 'hit');
-    }
-  });
-
-  // ---- 第28弾-3：モジュールの説明 ----
-  // 「初めて挑戦する時に1つずつ」出す。何を初めて見るかは人によって違うので、
-  // 見たことのある種類は端末が覚えておく（サーバーは知らなくてよい）。
-  var DF_SEEN_KEY = 'acac-defuse-seen';
-  function dfSeenTypes(){
-    try{ return JSON.parse(localStorage.getItem(DF_SEEN_KEY) || '[]') || []; }
-    catch(e){ return []; }
-  }
-  function dfMarkSeen(types){
-    try{
-      var all = dfSeenTypes();
-      (types || []).forEach(function(t){ if(all.indexOf(t) === -1) all.push(t); });
-      localStorage.setItem(DF_SEEN_KEY, JSON.stringify(all));
-    }catch(e){}
-  }
-  // いま見ている説明の状態。review=true は「見返す」から開いた時（全部見せる）
-  var dfBrief = { pages: [], at: 0, review: false };
-
-  function dfRenderBrief(v, you){
-    // 部屋の「brief段階になった」知らせは、自分の新しい秘密（説明の中身）より
-    // 先に届くことがある。古い秘密のまま組み立てると、「読むものが無い」と
-    // 誤判定して勝手に読了を送ったり（最後に役割を選んだ人の説明が丸ごと飛ぶ）、
-    // 前のゲームの説明を見せたりする。秘密がそろうまで何もしない
-    if(you.phase !== 'brief') return;
-    var box = el('dfBriefBox');
-    box.style.display = 'block';
-    var all = you.briefs || [];
-
-    if(you.done && !dfBrief.review){
-      el('dfNote').innerHTML = '';
-      var waiting = v.waiting || [];
-      box.innerHTML = '<div class="ry-desc">読み終わりました。' +
-        'ほかの人が読み終わるのを待っています…</div>' +
-        (waiting.length
-          ? '<div class="mic-status" style="margin-top:10px;">まだの人：' +
-            escapeHtml(waiting.join('、')) + '</div>'
-          : '');
-      return;
-    }
-
-    // まだ読んでいない種類だけを並べる。全部見たことがあれば、待たせずに済ませる
-    if(!dfBrief.pages.length){
-      var seen = dfSeenTypes();
-      dfBrief.pages = all.filter(function(b){ return seen.indexOf(b.type) === -1; });
-      dfBrief.at = 0;
-      if(!dfBrief.pages.length){
-        // 初めてのモジュールが無い人は、すぐ準備完了にする
-        dfMarkSeen(all.map(function(b){ return b.type; }));
-        rt.act(null);
-        return;
-      }
-    }
-    el('dfNote').innerHTML = '📘 はじめて出てくるしかけの説明です';
-    box.innerHTML = dfBriefPageHtml(dfBrief.pages[dfBrief.at], dfBrief.at, dfBrief.pages.length, false);
-  }
-
-  function dfBriefPageHtml(b, at, total, review){
-    if(!b) return '';
-    return '<div class="df-page">' +
-      '<div class="mic-status" style="text-align:right;">' + (at + 1) + ' / ' + total + '</div>' +
-      '<div class="df-brief-head">' + b.icon + ' ' + escapeHtml(b.name) + '</div>' +
-      '<div class="mic-status" style="margin-bottom:8px;">' + escapeHtml(b.lead || '') + '</div>' +
-      '<ol class="rules-ol">' + b.how.map(function(h){
-        return '<li>' + escapeHtml(h) + '</li>';
-      }).join('') + '</ol>' +
-      (b.tip ? '<div class="mic-status" style="margin-top:8px;">💡 ' + escapeHtml(b.tip) + '</div>' : '') +
-      (b.physical ? '<div class="mic-status" style="margin-top:6px;">🏃 体を動かします。まわりを確かめてください</div>' : '') +
-    '</div>' +
-    '<button class="btn btn-main" id="dfBriefNext" style="margin-top:12px;">' +
-      (at + 1 < total ? 'つぎへ ▶' : (review ? 'とじる' : '準備OK')) + '</button>' +
-    (at + 1 < total || !review
-      ? '<button class="btn btn-ghost" id="dfBriefSkip" style="margin-top:6px;">' +
-        (review ? 'とじる' : 'スキップ（全部読まずに始める）') + '</button>'
-      : '');
-  }
-
-  el('dfBriefBox').addEventListener('click', async function(e){
-    if(e.target.closest('#dfBriefNext')){
-      if(dfBrief.at + 1 < dfBrief.pages.length){
-        dfBrief.at++;
-        el('dfBriefBox').innerHTML = dfBriefPageHtml(
-          dfBrief.pages[dfBrief.at], dfBrief.at, dfBrief.pages.length, dfBrief.review);
-        return;
-      }
-      await dfFinishBrief();
-      return;
-    }
-    if(e.target.closest('#dfBriefSkip')) await dfFinishBrief();
-  });
-  // 読み終わり／スキップ。どちらでも「この爆弾に載っている種類は見た」ことにする
-  async function dfFinishBrief(){
-    dfMarkSeen(dfBrief.pages.map(function(b){ return b.type; }));
-    var wasReview = dfBrief.review;
-    dfBrief = { pages: [], at: 0, review: false };
-    if(wasReview){ renderRtDefuse(); return; }
-    await rt.act(null);
-  }
-  // いつでも見返せる。こちらは「初めてかどうか」に関係なく全部出す
-  el('dfHelpBtn').addEventListener('click', function(){
-    var you = rt.state.secret;
-    if(!you || !(you.briefs || []).length) return;
-    dfBrief = { pages: you.briefs.slice(), at: 0, review: true };
-    ['dfBoardBox','dfManualBox','dfResultBox'].forEach(function(id){
-      el(id).style.display = 'none';
-    });
-    el('dfHelpBtn').style.display = 'none';
-    el('dfBriefBox').style.display = 'block';
-    el('dfBriefBox').innerHTML = dfBriefPageHtml(dfBrief.pages[0], 0, dfBrief.pages.length, true);
-  });
-
-  // ---- 解除役：モジュール一覧 ----
-  function dfRenderBoard(v, you){
-    var box = el('dfBoardBox');
-    box.style.display = 'block';
-    var mine = (v.players || []).find(function(p){ return p.id === rt.state.memberId; });
-    var others = (v.players || []).filter(function(p){
-      return p.role === 'defuser' && p.id !== rt.state.memberId && p.working;
-    });
-    el('dfNote').innerHTML = '🧰 あなたは解除役です。' +
-      (you.manual ? 'マニュアル役に聞きながら解きましょう' : '対応表は自分の画面にも出ます') +
-      (others.length ? '<br>' + others.map(function(p){
-        return escapeHtml(p.name) + 'が「' + escapeHtml(p.working) + '」に挑戦中';
-      }).join('<br>') : '');
-    box.innerHTML = '<div class="df-grid">' + (you.board.modules || []).map(function(m){
-      var taken = others.some(function(p){ return p.working === m.name; });
-      return '<button class="df-mod' + (m.solved ? ' solved' : '') + (taken ? ' taken' : '') +
-        '" data-dfmod="' + escapeHtml(m.uid) + '">' +
-        '<span class="df-ico">' + (m.solved ? '✅' : m.icon) + '</span>' +
-        '<span class="df-name">' + escapeHtml(m.name) + '</span></button>';
-    }).join('') + '</div>';
-
-    // 開けているモジュールがあれば、その中身を出す
-    if(you.open){
-      if(dfOpenUid !== you.open.uid){ dfStopModule(); dfOpenModule(you.open, you); }
-      else dfUpdateModule(you.open);
-    } else if(dfOpenUid){
-      dfStopModule();
-      el('dfModOverlay').classList.remove('show');
-    }
-  }
-  el('dfBoardBox').addEventListener('click', async function(e){
-    var b = e.target.closest('[data-dfmod]');
-    if(!b || b.classList.contains('solved') || b.classList.contains('taken')) return;
-    var res = await rt.act(b.dataset.dfmod);
-    if(res && !res.ok && res.error === 'taken') showFlash('そのしかけは他の人が挑戦中です', 'hit');
-  });
-
-  // ---- マニュアル役：自分が受け持つ対応表 ----
-  function dfRenderManual(v, you){
-    var box = el('dfManualBox');
-    box.style.display = 'block';
-    var pages = you.manualPages || [];
-    el('dfNote').innerHTML = '📖 あなたはマニュアル役です。解除役に聞かれたら、ここを読み上げてください。' +
-      '<br>画面は解除役に見せないでください。';
-    box.innerHTML = pages.length
-      ? pages.map(dfManualPageHtml).join('')
-      : '<div class="ry-desc">あなたが受け持つ対応表はありません。' +
-        'ほかのマニュアル役を手伝ってください。</div>';
-  }
-  function dfManualPageHtml(page){
-    return '<div class="df-page' + (page.solved ? ' solved' : '') + '">' +
-      '<div class="df-page-head">' + page.icon + ' ' + escapeHtml(page.name) +
-      (page.solved ? '（解除ずみ）' : '') + '</div>' +
-      dfManualBodyHtml(page.manual) + '</div>';
-  }
-
-  // 対応表の中身。マニュアルなしの時は、同じものを解除役の画面にも出す
-  function dfManualBodyHtml(man){
-    if(!man) return '';
-    var C = function(id){ var c = DefuseLogic.colorById(id); return c.emoji + c.label; };
-    if(man.kind === 'faceTable'){
-      return '<table class="df-table"><tr><th>記号</th>' +
-        DefuseLogic.COLORS.map(function(c){ return '<th>' + C(c.id) + '</th>'; }).join('') + '</tr>' +
-        man.rows.map(function(r){
-          return '<tr><td><b>' + r.mark + '</b></td>' +
-            r.map.map(function(x){ return '<td>' + C(x.to) + '</td>'; }).join('') + '</tr>';
-        }).join('') + '</table>' +
-        '<div class="mic-status">面の記号の行を見て、面の色の列にある色を押してもらう</div>';
-    }
-    if(man.kind === 'mazeMap'){
-      var blocked = {}, traps = {};
-      man.blocked.forEach(function(k){ blocked[k] = true; });
-      man.traps.forEach(function(k){ traps[k] = true; });
-      var html = '<div class="df-maze" style="grid-template-columns:repeat(' + man.size + ',1fr);">';
-      for(var y = 0; y < man.size; y++){
-        for(var x = 0; x < man.size; x++){
-          var k = x + ',' + y;
-          var cls = blocked[k] ? ' wall' : traps[k] ? ' trap'
-            : (x === man.goal.x && y === man.goal.y) ? ' goal' : '';
-          html += '<div class="df-cell' + cls + '">' +
-            (x === 0 && y === 0 ? '🔵' : (x === man.goal.x && y === man.goal.y ? '🏁' : '')) + '</div>';
-        }
-      }
-      html += '</div><div class="mic-status">黒＝壁（進めない）／赤＝罠（ミス）／金＝ゴール。' +
-        '左上から1マスずつ誘導する</div>';
-      return html;
-    }
-    if(man.kind === 'shakeTable'){
-      return '<table class="df-table"><tr><th>記号</th><th>回数</th><th>テンポ</th></tr>' +
-        man.rows.map(function(r){
-          return '<tr><td><b>' + r.mark + '</b></td><td>' + r.count + '回</td><td>' +
-            (r.tempo === 'fast' ? 'はやく' : 'ゆっくり') + '</td></tr>';
-        }).join('') + '</table>';
-    }
-    if(man.kind === 'compassTable'){
-      return '<table class="df-table"><tr><th>色</th><th>方角</th></tr>' +
-        man.base.map(function(r){
-          return '<tr><td>' + C(r.color) + '</td><td>' + DefuseLogic.dirById(r.dir).label + '</td></tr>';
-        }).join('') + '</table>' +
-        '<div class="mic-status">記号が ' + man.shiftMarks.join('・') +
-        ' のどれかなら、表の方角から時計回りに1つずらす（北→東→南→西）</div>';
-    }
-    if(man.kind === 'levelTable'){
-      return '<table class="df-table"><tr><th>記号</th><th>秒数</th><th>許される傾き</th></tr>' +
-        man.rows.map(function(r){
-          return '<tr><td><b>' + r.mark + '</b></td><td>' + r.seconds + '秒</td><td>±' +
-            r.toleranceDeg + '度</td></tr>';
-        }).join('') + '</table>';
-    }
-    if(man.kind === 'rhythmTable'){
-      return '<table class="df-table"><tr><th>記号</th><th>叩く拍（' + man.beats + '拍のうち）</th></tr>' +
-        man.rows.map(function(r){
-          return '<tr><td><b>' + r.mark + '</b></td><td>' +
-            r.beats.map(function(b){ return (b + 1) + '拍目'; }).join('・') + '</td></tr>';
-        }).join('') + '</table>';
-    }
-    if(man.kind === 'poseTable'){
-      return '<table class="df-table"><tr><th>色</th><th>ポーズ</th></tr>' +
-        man.rows.map(function(r){
-          var p = DefuseLogic.poseById(r.pose);
-          return '<tr><td>' + C(r.color) + '</td><td>' + p.label + '<br>' +
-            '<span style="font-size:11px;opacity:.8;">' + p.desc + '</span></td></tr>';
-        }).join('') + '</table>';
-    }
-    if(man.kind === 'cipherParts'){
-      return '<div class="mic-status">あなたのぶんの暗号。ほかのマニュアル役とつなげてもらう</div>' +
-        man.parts.map(function(p){
-          return '<div class="df-big">' + escapeHtml(p.text) + '</div>';
-        }).join('');
-    }
-    return '';
-  }
-
-  function dfEndButtons(ended){
-    el('dfLeaveBtn').style.display = ended ? 'inline-flex' : 'none';
-    var host = ended && rt.isHost();
-    rtNextButton('dfAgainBtn', ended, host);
-    el('dfEndBtn').style.display = host ? 'inline-flex' : 'none';
-  }
-  function dfFeedback(you){
-    var now = { strikes: you.strikesLeft, solved: you.board ? you.board.solved : 0 };
-    if(!dfPrev){ dfPrev = now; return; }
-    if(now.solved > dfPrev.solved) snipSound();
-    if(now.strikes < dfPrev.strikes){
-      wrongSound();
-      var s = el('dfStrikes');
-      s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake');
-      showFlash('💔 ミス！のこり ' + Math.max(0, now.strikes), 'hit-wrong');
-    }
-    dfPrev = now;
-  }
-
-  function dfResultHtml(v){
-    var r = v.result;
-    if(!r) return '';
-    var lines = [];
-    lines.push('<b>' + (r.success ? '💚 解除成功！' : '💥 爆発してしまった…') + '</b>');
-    lines.push(r.solved + ' / ' + r.total + '個を解除　のこりミス ' + Math.max(0, r.strikesLeft));
-    if(!r.success && r.cause === 'time') lines.push('⏱ 時間切れでした');
-    if(!r.success && r.cause === 'strikes') lines.push('ミスの上限に達しました');
-    if((r.modules || []).length){
-      lines.push('<div class="vote-counts">' + r.modules.map(function(m){
-        return '<span class="vc-item">' + (m.solved ? '✅' : '❌') + ' ' + escapeHtml(m.name) + '</span>';
-      }).join('') + '</div>');
-    }
-    if((r.roles || []).length){
-      lines.push('<div class="mic-status">' + r.roles.map(function(x){
-        return escapeHtml(x.name) + '：' + (x.role === 'defuser' ? '解除役' : x.role === 'manual' ? 'マニュアル役' : '-');
-      }).join('　／　') + '</div>');
-    }
-    if((r.misses || []).length){
-      lines.push('<div class="vote-log"><div class="vl-title">💔 どこで転んだか</div><div class="vl-turn">' +
-        r.misses.map(function(m){
-          return '<span class="vl-row">' + escapeHtml(m.name) + '（' + escapeHtml(m.by || '') + '）</span>';
-        }).join('') + '</div></div>');
-    }
-    return lines.join('<br>');
-  }
-
-  el('dfEndBtn').addEventListener('click', async function(){
-    if(!await UiKit.danger('部屋をとじますか？',
-      '部屋にいる全員が退出します', { ok: 'とじる' })) return;
-    this.disabled = true;
-    var res = await rt.closeRoom();
-    this.disabled = false;
-    if(!res.ok) el('dfNote').textContent = res.message || '終了できませんでした';
-  });
-  // ---- 9種のモジュールの画面 ----
-  // どれも同じ約束で書く：
-  //   html(open)  … 中身のHTML
-  //   start(open) … センサーの読み取りや、押した時の処理をつなぐ
-  //   tick(open)  … センサーを見て、必要ならサーバーへ送る（120msごと）
-  // 正解は持っていないので、送るのは「押した」「傾いた」という事実だけ。
-  function dfSend(action){ return rt.vote(null, { action: action }); }
-  function dfStatus(text){ el('dfModStatus').textContent = text || ''; }
-  var DF_UI = {};
-
-  // ① 面認証：端末を回して出た面のとおりにボタンを押す
-  DF_UI.face = {
-    html: function(open){
-      var faces = open.hint.faces || [];
-      var step = open.progress.step || 0;
-      return '<div class="df-readout" id="dfFaceNow">…</div>' +
-        '<div class="mic-status" style="text-align:center;">' +
-        (step) + ' / 4 面おわり　いまの面：<span id="dfFaceLabel">-</span></div>' +
-        '<div class="picker-grid" style="margin-top:12px;">' +
-        DefuseLogic.COLORS.map(function(c){
-          return '<button class="pk-btn" data-dfcolor="' + c.id + '">' + c.emoji + c.label + '</button>';
-        }).join('') + '</div>' +
-        '<div class="mic-status" style="margin-top:8px;">' +
-        '端末を回すと面が変わります。' + (faces.length ? '' : '（面の情報が届いていません）') + '</div>';
-    },
-    tick: function(open){
-      var f = Sensors.face();
-      dfLocal.face = f;
-      var cell = (open.hint.faces || []).find(function(x){ return x.face === f; });
-      var lab = el('dfFaceLabel'), now = el('dfFaceNow');
-      var def = DefuseLogic.FACES.find(function(x){ return x.id === f; });
-      if(lab) lab.textContent = def ? def.label : '-';
-      if(now && cell){
-        var c = DefuseLogic.colorById(cell.color);
-        now.textContent = c.emoji + ' ' + cell.mark;
-      }
-    },
-    click: function(e, open){
-      var b = e.target.closest('[data-dfcolor]');
-      if(!b) return;
-      dfSend({ type:'press', face: dfLocal.face || 'up', color: b.dataset.dfcolor })
-        .then(function(res){
-          if(res && res.note === 'wrongFace') dfStatus('その面はまだ順番ではありません');
-        });
-    }
-  };
-
-  // ② 傾け迷路：傾けた向きに1マスずつ。押しても動かせる（PCから遊ぶ人のため）
-  DF_UI.maze = {
-    html: function(open){
-      var n = open.hint.size;
-      var man = open.manual; // マニュアルなしの時だけ届く
-      var blocked = {}, traps = {};
-      if(man){ man.blocked.forEach(function(k){ blocked[k] = true; }); man.traps.forEach(function(k){ traps[k] = true; }); }
-      var html = '<div class="df-maze" id="dfMaze" style="grid-template-columns:repeat(' + n + ',1fr);">';
-      for(var y = 0; y < n; y++){
-        for(var x = 0; x < n; x++){
-          var k = x + ',' + y;
-          var cls = man && blocked[k] ? ' wall' : man && traps[k] ? ' trap'
-            : (x === open.hint.goal.x && y === open.hint.goal.y) ? ' goal' : '';
-          html += '<div class="df-cell' + cls + '" data-cell="' + k + '"></div>';
-        }
-      }
-      html += '</div>' +
-        '<div class="df-pad">' +
-          '<span></span><button data-dfstep="up">▲</button><span></span>' +
-          '<button data-dfstep="left">◀</button><span class="df-pad-mid"></span><button data-dfstep="right">▶</button>' +
-          '<span></span><button data-dfstep="down">▼</button><span></span>' +
-        '</div>' +
-        '<div class="mic-status" style="text-align:center;">端末を傾けても、ボタンでも動かせます</div>';
-      return html;
-    },
-    start: function(){ dfLocal.mazeAt = null; dfLocal.mazeLast = 0; },
-    tick: function(open){
-      // ボールの位置を描き直す
-      var at = open.progress.at;
-      var maze = el('dfMaze');
-      if(maze){
-        Array.prototype.forEach.call(maze.children, function(c){
-          if(c.dataset.cell === at.x + ',' + at.y) c.textContent = '🔵';
-          else if(c.textContent === '🔵') c.textContent = '';
-        });
-        var goal = maze.querySelector('[data-cell="' + open.hint.goal.x + ',' + open.hint.goal.y + '"]');
-        if(goal && goal.textContent !== '🔵') goal.textContent = '🏁';
-      }
-      // 傾けっぱなしで走り続けないよう、1マスごとに間を置く
-      var dir = Sensors.tiltDir();
-      if(dir && Date.now() - dfLocal.mazeLast > 420){
-        dfLocal.mazeLast = Date.now();
-        dfSend({ type:'step', dir: dir }).then(function(res){
-          if(res && res.note === 'wall') dfStatus('壁だ！');
-        });
-      }
-    },
-    click: function(e){
-      var b = e.target.closest('[data-dfstep]');
-      if(!b) return;
-      dfSend({ type:'step', dir: b.dataset.dfstep }).then(function(res){
-        if(res && res.note === 'wall') dfStatus('壁だ！');
-      });
-    }
-  };
-
-  // ③ 振ってアクション：指定の回数・テンポで振る
-  DF_UI.shake = {
-    html: function(open){
-      return '<div class="df-readout" style="font-size:44px;">' + open.hint.mark + '</div>' +
-        '<div class="mic-status" style="text-align:center;">この記号のとおりに振ってください</div>' +
-        '<div class="df-readout" id="dfShakeCount" style="margin-top:12px;">0 回</div>' +
-        '<button class="btn btn-outline" id="dfShakeManual" style="margin-top:8px;">端末を振れない時はここを押す</button>' +
-        '<button class="btn btn-main" id="dfShakeDone" style="margin-top:8px;">振り終わった</button>' +
-        '<button class="btn btn-ghost" id="dfShakeReset" style="margin-top:4px;">数え直す</button>';
-    },
-    start: function(){
-      Sensors.resetShake(function(n){
-        var e2 = el('dfShakeCount'); if(e2) e2.textContent = n + ' 回';
-      });
-      dfLocal.manualShakes = { count:0, gaps:[], lastAt:0 };
-      el('dfShakeManual').addEventListener('click', function(){
-        var s = dfLocal.manualShakes, now = Date.now();
-        if(s.lastAt) s.gaps.push(now - s.lastAt);
-        s.lastAt = now; s.count++;
-        el('dfShakeCount').textContent = s.count + ' 回';
-      });
-      el('dfShakeReset').addEventListener('click', function(){
-        Sensors.resetShake(function(n){ el('dfShakeCount').textContent = n + ' 回'; });
-        dfLocal.manualShakes = { count:0, gaps:[], lastAt:0 };
-        el('dfShakeCount').textContent = '0 回';
-        dfStatus('');
-      });
-      el('dfShakeDone').addEventListener('click', function(){
-        var s = Sensors.shakes();
-        // センサーで数えられていなければ、押した回数を使う
-        if(!s.count) s = dfLocal.manualShakes;
-        dfSend({ type:'shakes', count: s.count, gaps: s.gaps });
-      });
-    }
-  };
-
-  // ④ コンパス方角：決まった方角へ向けてキープ
-  DF_UI.compass = {
-    html: function(open){
-      var c = DefuseLogic.colorById(open.hint.color);
-      return '<div class="df-readout" style="font-size:40px;">' + c.emoji + ' ' + open.hint.mark + '</div>' +
-        '<div class="df-readout" id="dfHeading" style="margin-top:10px;">--</div>' +
-        '<div class="df-gauge"><div class="df-gauge-fill" id="dfHoldBar"></div></div>' +
-        '<div class="mic-status" style="text-align:center;">向きを合わせて、そのまま止めてください</div>';
-    },
-    start: function(){ dfLocal.lastSend = 0; },
-    tick: function(open){
-      var h = Sensors.heading();
-      var out = el('dfHeading');
-      if(out){
-        out.textContent = (h == null) ? '方位が読めません' : Math.round(h) + '°';
-      }
-      var bar = el('dfHoldBar');
-      if(bar) bar.style.width = Math.min(100, (open.progress.holdMs / open.progress.needMs) * 100) + '%';
-      if(h == null) return;
-      var now = Date.now();
-      if(now - dfLocal.lastSend < 350) return;
-      var dt = dfLocal.lastSend ? (now - dfLocal.lastSend) : 350;
-      dfLocal.lastSend = now;
-      dfSend({ type:'heading', deg: h, dtMs: dt });
-    }
-  };
-
-  // ⑤ 水平キープ：決まった秒数だけ水平を保つ
-  DF_UI.level = {
-    html: function(open){
-      return '<div class="df-readout" style="font-size:40px;">' + open.hint.mark + '</div>' +
-        '<div class="df-readout" id="dfTilt" style="margin-top:10px;">--</div>' +
-        '<div class="df-gauge"><div class="df-gauge-fill" id="dfLevelBar"></div></div>' +
-        '<div class="mic-status" style="text-align:center;">端末を水平にして、そのまま止めてください</div>';
-    },
-    start: function(){ dfLocal.lastSend = 0; },
-    tick: function(open){
-      var deg = Sensors.levelDeg();
-      var out = el('dfTilt');
-      if(out) out.textContent = Math.round(deg) + '° かたむき';
-      var bar = el('dfLevelBar');
-      if(bar) bar.style.width = Math.min(100, (open.progress.holdMs / open.progress.needMs) * 100) + '%';
-      var now = Date.now();
-      if(now - dfLocal.lastSend < 350) return;
-      var dt = dfLocal.lastSend ? (now - dfLocal.lastSend) : 350;
-      dfLocal.lastSend = now;
-      dfSend({ type:'tilt', deg: deg, dtMs: dt });
-    }
-  };
-
-  // ⑥ リズム合わせ：心拍に合わせて、決められた拍だけ叩く
-  DF_UI.rhythm = {
-    html: function(open){
-      var n = open.hint.beats;
-      var beats = '';
-      for(var i = 0; i < n; i++) beats += '<div class="df-beat" data-beat="' + i + '">' + (i + 1) + '</div>';
-      return '<div class="df-readout" style="font-size:40px;">' + open.hint.mark + '</div>' +
-        '<div class="df-beats" id="dfBeats">' + beats + '</div>' +
-        '<button class="df-tap" id="dfTapPad">ここを叩く</button>' +
-        '<button class="btn btn-main" id="dfRhythmDone" style="margin-top:10px;">これで送る</button>' +
-        '<button class="btn btn-ghost" id="dfRhythmReset" style="margin-top:4px;">やり直す</button>' +
-        '<div class="mic-status" style="text-align:center;margin-top:6px;">' +
-        '光っている拍のときに叩くと、その拍をえらんだことになります</div>';
-    },
-    start: function(open){
-      dfLocal.beat = 0;
-      dfLocal.tapped = {};
-      // 拍の速さは、クイズ解除の心拍とそろえる（同じカセットの演出）
-      var ms = BombLogic.heartIntervalMs(0);
-      dfLocal.beatTimer = setInterval(function(){
-        dfLocal.beat = (dfLocal.beat + 1) % open.hint.beats;
-        var list = document.querySelectorAll('#dfBeats .df-beat');
-        Array.prototype.forEach.call(list, function(b, i){
-          b.classList.toggle('now', i === dfLocal.beat);
-        });
-      }, ms);
-      el('dfTapPad').addEventListener('click', function(){
-        dfLocal.tapped[dfLocal.beat] = true;
-        var b = document.querySelector('#dfBeats .df-beat[data-beat="' + dfLocal.beat + '"]');
-        if(b) b.classList.add('tapped');
-      });
-      el('dfRhythmReset').addEventListener('click', function(){
-        dfLocal.tapped = {};
-        Array.prototype.forEach.call(document.querySelectorAll('#dfBeats .df-beat'), function(b){
-          b.classList.remove('tapped');
-        });
-      });
-      el('dfRhythmDone').addEventListener('click', function(){
-        var beats = Object.keys(dfLocal.tapped).map(Number).sort(function(a, b){ return a - b; });
-        dfSend({ type:'taps', beats: beats });
-      });
-    },
-    stop: function(){ clearInterval(dfLocal.beatTimer); dfLocal.beatTimer = null; }
-  };
-
-  // ⑧ ポーズ指定：カメラは端末の中だけで使う。映像は外に出さない
-  DF_UI.pose = {
-    html: function(open){
-      var c = DefuseLogic.colorById(open.hint.color);
-      return '<div class="df-readout" style="font-size:40px;">' + c.emoji + '</div>' +
-        '<video class="df-cam" id="dfCam" playsinline muted autoplay></video>' +
-        '<div class="mic-status" id="dfPoseNote" style="text-align:center;">カメラを準備しています…</div>' +
-        '<div class="picker-grid" style="margin-top:10px;">' +
-        DefuseLogic.POSES.map(function(p){
-          return '<button class="pk-btn" data-dfpose="' + p.id + '">' + escapeHtml(p.label) + '</button>';
-        }).join('') + '</div>' +
-        '<div class="mic-status" style="margin-top:8px;">' +
-        '姿勢の見分けがうまくいかない時は、ポーズを取ってからボタンでえらんでください。' +
-        'カメラの映像は端末の外に出しませんし、保存もしません。</div>';
-    },
-    start: async function(){
-      try{
-        var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' }, audio: false });
-        dfLocal.stream = stream;
-        var v = el('dfCam');
-        if(v){ v.srcObject = stream; }
-        el('dfPoseNote').textContent = 'ポーズを取って、ボタンでえらんでください';
-      }catch(e){
-        el('dfPoseNote').textContent = 'カメラを使えませんでした。ポーズを取ってからボタンでえらんでください';
-      }
-    },
-    stop: function(){
-      if(dfLocal.stream){
-        dfLocal.stream.getTracks().forEach(function(t){ t.stop(); });
-        dfLocal.stream = null;
-      }
-    },
-    click: function(e){
-      var b = e.target.closest('[data-dfpose]');
-      if(!b) return;
-      dfSend({ type:'pose', pose: b.dataset.dfpose });
-    }
-  };
-
-  // ⑨ 分割暗号：マニュアル役みんなのぶんをつなげて入力する
-  DF_UI.cipher = {
-    html: function(open){
-      return '<div class="mic-status" style="text-align:center;">' +
-        'マニュアル役 ' + open.hint.parts + '人ぶんをつなげた ' + open.hint.length + ' 文字</div>' +
-        '<input type="text" id="dfCipherInput" maxlength="' + (open.hint.length + 4) + '" ' +
-        'autocapitalize="characters" placeholder="暗号を入力" style="margin-top:10px;text-align:center;' +
-        'font-family:\'DotGothic16\',monospace;font-size:22px;letter-spacing:4px;">' +
-        '<button class="btn btn-main" id="dfCipherSend" style="margin-top:10px;">送る</button>';
-    },
-    start: function(){
-      el('dfCipherSend').addEventListener('click', function(){
-        var t = el('dfCipherInput').value.trim();
-        if(!t) return;
-        dfSend({ type:'code', text: t });
-      });
-    }
-  };
-
-  // ⑩ イエスノー解錠：質問して、はい／いいえ から正体を当てる
-  DF_UI.yesno = {
-    html: function(open){
-      var asked = open.progress.asked || [];
-      var LABEL = { yes:'はい', no:'いいえ', unknown:'わからない' };
-      return '<div class="mic-status" style="text-align:center;">あと ' + open.progress.left + ' 回きけます</div>' +
-        (asked.length ? '<div class="df-page"><div class="df-page-head">聞いたこと</div>' +
-          asked.map(function(a){
-            return '<div style="font-size:13px;line-height:1.8;">' + escapeHtml(a.q) +
-              ' → <b>' + LABEL[a.a] + '</b></div>';
-          }).join('') + '</div>' : '') +
-        (open.progress.left > 0
-          ? '<div class="tp-label" style="margin-top:12px;">きくことをえらぶ</div>' +
-            (open.hint.questions || []).filter(function(q){
-              return !asked.some(function(a){ return a.q === q; });
-            }).map(function(q){
-              return '<button class="btn btn-outline" data-dfask="' + escapeHtml(q) + '" ' +
-                'style="margin-top:6px;font-size:13px;">' + escapeHtml(q) + '</button>';
-            }).join('')
-          : '<div class="mic-status" style="margin-top:10px;">もう質問できません。答えをえらんでください</div>') +
-        '<div class="tp-label" style="margin-top:14px;">正体はどれ？</div>' +
-        '<div class="picker-grid">' + (open.hint.choices || []).map(function(c){
-          return '<button class="pk-btn" data-dfguess="' + escapeHtml(c) + '">' + escapeHtml(c) + '</button>';
-        }).join('') + '</div>';
-    },
-    click: function(e){
-      var ask = e.target.closest('[data-dfask]');
-      if(ask){ dfSend({ type:'ask', question: ask.dataset.dfask }); return; }
-      var g = e.target.closest('[data-dfguess]');
-      if(g) dfSend({ type:'guess', name: g.dataset.dfguess });
-    }
-  };
-
-  // ---- 第28弾-3：傾き・向きを使うモジュールの、水平の確認 ----
-  // 斜めに持ったまま始めると、最初から範囲の外にいることになり
-  // 「反応しない」と感じてしまう。始める前に一度だけ水平を取ってもらう。
-  // 対象かどうかはルール層が決める（モジュールを足した時に付け忘れないように）。
-  function dfLevelGateHtml(){
-    return '<div class="df-page" style="text-align:center;">' +
-      '<div class="df-brief-head">📐 まず端末を水平に</div>' +
-      '<div class="mic-status" style="margin:8px 0;">' +
-      '机の上に置くか、まっすぐ持ってください。<br>' +
-      '傾いたまま始めると、うまく反応しません。</div>' +
-      '<div class="df-readout" id="dfGateTilt">--</div>' +
-      '<div class="df-gauge"><div class="df-gauge-fill" id="dfGateBar"></div></div>' +
-      '</div>' +
-      '<button class="btn btn-main" id="dfGateStart" disabled style="margin-top:12px;">はじめる</button>' +
-      '<div class="mic-status" id="dfGateNote" style="text-align:center;margin-top:6px;"></div>';
-  }
-  // 水平とみなす角度。これより傾いていたら始めさせない
-  var DF_LEVEL_OK_DEG = 12;
-  function dfStartLevelGate(open){
-    el('dfModBody').innerHTML = dfLevelGateHtml();
-    el('dfModManual').innerHTML = '';
-    var canRead = Sensors.caps().orientation;
-    if(!canRead){
-      // 傾きが読めない端末は、そもそもこの種類のモジュールが載らない。
-      // それでも念のため、行き止まりにはしない
-      el('dfGateNote').textContent = 'この端末では傾きを読めません。そのまま始めます。';
-      el('dfGateStart').disabled = false;
-    }
-    el('dfGateStart').addEventListener('click', function(){
-      dfLocal.gatePassed = true;
-      dfShowModuleBody(open);
-    });
-    clearInterval(dfLoop);
-    dfLoop = setInterval(function(){
-      if(dfLocal.gatePassed) return;
-      var deg = Sensors.levelDeg();
-      var out = el('dfGateTilt');
-      if(out) out.textContent = Math.round(deg) + '°';
-      var bar = el('dfGateBar');
-      // 水平に近いほどゲージが伸びる
-      if(bar) bar.style.width = Math.max(0, 100 - (deg / DF_LEVEL_OK_DEG) * 100) + '%';
-      var ok = canRead ? (deg <= DF_LEVEL_OK_DEG) : true;
-      var btn = el('dfGateStart');
-      if(btn) btn.disabled = !ok;
-      var note = el('dfGateNote');
-      if(note && canRead) note.textContent = ok ? '水平になりました' : 'もう少しまっすぐに…';
-    }, 120);
-  }
-
-  // ---- モジュールを開く／閉じる ----
-  function dfShowModuleBody(open){
-    var ui = DF_UI[open.type];
-    el('dfModBody').innerHTML = ui ? ui.html(open) : '';
-    // マニュアルなしの設定なら、対応表もここに出す（自力で解ける）
-    el('dfModManual').innerHTML = open.manual
-      ? '<div class="df-page"><div class="df-page-head">📖 対応表</div>' +
-        dfManualBodyHtml(open.manual) + '</div>'
-      : '';
-    dfStatus('');
-    el('dfModOverlay').classList.add('show');
-    if(ui && ui.start) ui.start(open);
-    // センサーを見るループ。開けている間だけ回す
-    clearInterval(dfLoop);
-    dfLoop = setInterval(function(){
-      var cur = rt.state.secret && rt.state.secret.open;
-      if(!cur || cur.uid !== dfOpenUid) return;
-      var u = DF_UI[cur.type];
-      if(u && u.tick) u.tick(cur);
-    }, 120);
-  }
-  // モジュールを開けた入口。傾きを使うものは、先に水平を取ってもらう
-  function dfOpenModule(open){
-    dfOpenUid = open.uid;
-    dfLocal = {};
-    el('dfModTitle').textContent = open.icon + ' ' + open.name;
-    el('dfModLead').textContent = open.lead || '';
-    dfStatus('');
-    el('dfModOverlay').classList.add('show');
-    if(DefuseLogic.needsLevelCheck(open.type)) dfStartLevelGate(open);
-    else dfShowModuleBody(open);
-  }
-  function dfUpdateModule(open){
-    // 水平を取っている最中は、まだ中身を出さない
-    if(DefuseLogic.needsLevelCheck(open.type) && !dfLocal.gatePassed) return;
-    // サーバーから届いた進み具合だけを描き直す。
-    // 入力中の欄を壊さないよう、中身は作り直さない（tick が数字を更新する）
-    var ui = DF_UI[open.type];
-    if(ui && ui.redraw) ui.redraw(open);
-    // イエスノー解錠だけは、聞いた答えが増えるので作り直す
-    if(open.type === 'yesno'){
-      el('dfModBody').innerHTML = ui.html(open);
-    }
-  }
-  function dfStopModule(){
-    clearInterval(dfLoop); dfLoop = null;
-    // どのモジュールを開けていたかに関わらず、後始末は全部呼ぶ。
-    // カメラや拍が回りっぱなしになるのが一番まずいので、取りこぼさない方を選ぶ
-    Object.keys(DF_UI).forEach(function(k){
-      if(DF_UI[k].stop){ try{ DF_UI[k].stop(); }catch(e){} }
-    });
-    dfOpenUid = null;
-  }
-  // 開いているモジュールの中で押された時は、そのモジュールの受け口へ渡す
-  el('dfModBody').addEventListener('click', function(e){
-    var open = rt.state.secret && rt.state.secret.open;
-    if(!open) return;
-    var ui = DF_UI[open.type];
-    if(ui && ui.click) ui.click(e, open);
-  });
-
-  el('dfModCloseBtn').addEventListener('click', async function(){
-    el('dfModOverlay').classList.remove('show');
-    dfStopModule();
-    await rt.act(null);
-  });
-
-  // ---- 大画面：実物解除（第27弾-3） ----
-  // 出すのは公開情報だけ。モジュールの中身も対応表も、ここには一切出さない。
-  function renderRtBigDefuse(v){
-    el('bigBoard').style.display = 'none';
-    var main = '', sub = '';
-    if(v.phase === 'consent'){
-      main = '体を動かす確認';
-      sub = '全員が自分のスマホで答えてください';
-    } else if(v.phase === 'roles'){
-      // 指示64：誰がどの役かは**名簿の行**に出す（下の bigList）。それまでは全員を1行の文字列に
-      // つないでいて、名前を escape していなかった（人数の上限が無いので、20人で6〜7行になった）
-      main = '役割をえらぶ';
-      sub = '';
-    } else if(v.phase === 'ended'){
-      var r = v.result || {};
-      main = r.success ? '解除成功！' : '爆発…';
-      sub = r.solved + ' / ' + r.total + '個を解除　のこりミス ' + Math.max(0, r.strikesLeft);
-    } else {
-      var b = v.board || { solved:0, total:0, modules:[] };
-      // 指示64の見直し（2回目）：いくつ解けたかは**帯の数**（共通のもの・§11-9）。一枚看板には置かない
-      rtBig.count = bigCountHtml('', b.solved + ' / ' + b.total, '個');
-      main = '';
-      // 指示64・正本 §11-1：**のこりミスは上の帯に1つだけ**（bigStatus のハート）。
-      // それまで添え書きにも同じハートを並べていた（共通のものを2回出していた）
-      sub = '';
-      var working = (v.players || []).filter(function(p){ return p.working; });
-      var 札の名 = ((v.board && v.board.modules) || []).map(function(m){ return m.name; });
-      // 誰が何に挑んでいるかは、**そのモジュールの行に添える**。行の無いものだけ、ここに1行で
-      var 行の外 = working.filter(function(p){ return 札の名.indexOf(p.working) === -1; });
-      if(行の外.length){
-        sub = 行の外.map(function(p){
-          return escapeHtml(p.name) + 'が「' + escapeHtml(p.working) + '」に挑戦中';
-        }).join(' ／ ');
-      }
-    }
-    el('bigMain').textContent = main;
-    el('bigSub').innerHTML = sub;
-    if(v.phase === 'roles'){
-      el('bigList').innerHTML = (v.players || []).map(function(p){
-        return bigRowHtml({ id: p.id, name: p.name,
-          sub: p.role === 'defuser' ? '解除役' : p.role === 'manual' ? 'マニュアル役' : 'まだ' });
-      }).join('');
-      return;
-    }
-    // モジュールは名前と解除済みかだけ。中身は出さない
-    var mods = (v.board && v.board.modules) || [];
-    var 挑戦中 = {};
-    (v.players || []).forEach(function(p){
-      if(p.working) (挑戦中[p.working] = 挑戦中[p.working] || []).push(p.name);
-    });
-    el('bigList').innerHTML = mods.map(function(m){
-      var だれ = 挑戦中[m.name] || [];
-      // 解除できた装置は「済み」（脱落の印 dead を借りない。済みには取り消し線が似合うが、人には似合わない）
-      return bigRowHtml({ face: m.icon, name: m.name, cls: m.solved ? 'is-done' : '',
-        sub: (!m.solved && だれ.length) ? (だれ.join('・') + 'が挑戦中') : '' });
-    }).join('');
   }
 
   /**
@@ -26682,10 +25299,6 @@
       // 指示58：許された層の本数だけを数える（隠れた層の本数で目安が嘘にならないように）
       var wires = bombSum();
       return { min: round(wires * 25 + 60), perRound: false };
-    }
-    // 実物解除：モジュール1つあたり、伝え合って約90秒
-    if(m.defuse){
-      return { min: round((state.dfCfg.moduleCount || 5) * 90 + 90), perRound: false };
     }
     // クイズ王：遊びごとに終わり方が違う
     if(m.quizKing){
@@ -29788,7 +28401,7 @@
    */
   function needsTopicPass(){
     var m = modeById(state.selectedModeId) || {};
-    if(m.wolf || m.wolfRole || m.bomb || m.quiz || m.buzzer || m.auction || m.defuse) return false;
+    if(m.wolf || m.wolfRole || m.bomb || m.quiz || m.buzzer || m.auction) return false;
     return !isAIDescribe();
   }
   function enterTopicPass(){
@@ -31114,12 +29727,6 @@
         set:function(v){ state.bombShowMisses = !!v; },
         note:'外れた時に「◯◯さんが ◯ばんめのコードを外しました」と静かに出ます（次のゲームから効きます）' });
     }
-    if(m.defuse){
-      out.push({ id:'dfStrikes', label:'ミスの上限', min:1, max:5, step:1,
-        get:function(){ return state.dfCfg.strikes; },
-        set:function(v){ state.dfCfg.strikes = v; },
-        note:'次のゲームから効きます' });
-    }
     if(m.quizKing){
       out.push({ id:'qkTimer', label:'制限時間（秒）', min:30, max:600, step:30,
         get:function(){ return state.customTimer || m.timer || 180; },
@@ -31377,7 +29984,6 @@
     // 第32弾-D 第4部：安全に関する設定
     el('setFlashToggle').classList.toggle('on', appPrefs.fxFlash);
     el('setShakeToggle').classList.toggle('on', appPrefs.fxShake);
-    el('setBodyToggle').classList.toggle('on', appPrefs.fxBody);
     // 第32弾-D 第1部：BGMの音量
     el('setBgmVol').value = appPrefs.bgmVolume;
     el('setBgmVolValue').textContent = appPrefs.bgmVolume;
@@ -31423,11 +30029,6 @@
   el('setShakeToggle').addEventListener('click', function(){
     appPrefs.fxShake = !appPrefs.fxShake;
     applyAppPrefs(); saveAppPrefs(); renderSetPrefs();
-  });
-  el('setBodyToggle').addEventListener('click', function(){
-    appPrefs.fxBody = !appPrefs.fxBody;
-    saveAppPrefs(); renderSetPrefs();
-    refreshBodyConsent();   // 第43弾 2-4：開いたままの同意画面にも、その場で効かせる
   });
   // 第32弾-E 第4部：リアクションのON/OFF。切り替えた瞬間から帯にも効く
   el('setReactionsToggle').addEventListener('click', function(){
@@ -32781,6 +31382,7 @@
     else if(act === 'rejoin' && fes.quit){ var c2 = fes.quit.code; fes.quit = null; fes.join.diff = null; fes.join.err = ''; goTo('scr-v2-fes-join'); fesOpenJoin(c2); }
     else if(act === 'pause' && fes.staff) rt.fesPause(fes.staff.code, !(fes.staff.fes && fes.staff.fes.paused));
     else if(act === 'skip' && fes.staff) rt.fesSkip(fes.staff.code);
+    else if(act === 'testing' && fes.staff) rt.fesTesting(fes.staff.code, !(fes.staff.fes && fes.staff.fes.withTesting));   // 指示68-1：くまくんだけ
     else if(act === 'fb'){ fesLoadFeedback().then(function(){ V2.open(document.querySelector('#scr-v2-fes-staff [data-v2-id="v2Fb"]')); }); }
     else if(act === 'recreate' || act === 'create'){
       rt.fesCreate(act === 'recreate').then(function(){ fesOpenStaff(); });
@@ -33048,26 +31650,33 @@
     var n = currentPlayerCount();
     var cards = [], groups = [], soon = [];
     HOME_GENRES.forEach(function(g){
-      var list = CASSETTES.filter(function(c){ return c.ready && cassetteGenres(c)[0] === g; });
+      var list = CASSETTES.filter(function(c){ return shelfReady(c) && cassetteGenres(c)[0] === g; });
       if(!list.length){
-        if(CASSETTES.some(function(c){ return !c.ready && cassetteGenres(c)[0] === g; })) soon.push(genreLabel(g));
+        if(CASSETTES.some(function(c){ return shelfSoon(c) && cassetteGenres(c)[0] === g; })) soon.push(genreLabel(g));
         return;
       }
-      var gcards = list.map(function(c){
-        var st = homeCardState(c, ctx, n);
-        var card = { i: cards.length, id: c.id, world: c.theme || 'wait', name: (c.title || '').replace(/<br>/g, ''), blurb: c.blurb || '',
-          gl: genreLabel(g), ppl: homePpl(c), min: cassetteMinutes(c) ? cassetteMinutes(c) + P.分から : '', ways: homeWays(c),
-          why: st.why, cta: st.cta, rules: homeRules(c), last: c.id === loadLastCassette(),
-          paused: (c.paused || []).map(function(x){ return x.title + '：' + x.なぜ; }) };
-        cards.push(card);
-        return card;
-      });
-      groups.push({ id: g, label: genreLabel(g), chip: P.チップ[g], cards: gcards });
+      groups.push(homePickGroup(g, genreLabel(g), P.チップ[g], list, cards, ctx, n, P));
     });
+    // 指示68-1：テスト中の札（くまくんのアカウントだけ）は、いちばん後ろにまとめる
+    var testing = CASSETTES.filter(shelfTesting);
+    if(testing.length) groups.push(homePickGroup('testing', P.テスト中, P.テスト中, testing, cards, ctx, n, P, true));
     var ps = room ? (room.members || []).filter(function(m){ return m.role !== 'bigscreen'; }) : [];
     return { ctx: ctx, code: room ? room.code : null, n: ctx === 'room' ? n : (n || null), wait: ps.length,
       faces: ps.map(function(m){ return m.icon || '🙂'; }), groups: groups, soon: soon, cards: cards,
       cur: home.pick.cur, open: home.pick.open };
+  }
+  /** 一覧の1つの分類（札を cards に足していく。ページの順＝札の順） */
+  function homePickGroup(g, label, chip, list, cards, ctx, n, P, testing){
+      var gcards = list.map(function(c){
+        var st = homeCardState(c, ctx, n);
+        var card = { i: cards.length, id: c.id, world: c.theme || 'wait', name: (c.title || '').replace(/<br>/g, ''), blurb: c.blurb || '',
+          gl: label, ppl: homePpl(c), min: cassetteMinutes(c) ? cassetteMinutes(c) + P.分から : '', ways: homeWays(c),
+          why: st.why, cta: st.cta, rules: homeRules(c), last: c.id === loadLastCassette(),
+          paused: (c.paused || []).map(function(x){ return x.title + '：' + x.なぜ; }), testing: !!testing };
+        cards.push(card);
+        return card;
+      });
+      return { id: g, label: label, chip: chip, cards: gcards };
   }
   /** 一覧を描く。**見ていた所（巻いた位置・開いているページ）は残す**（人が入って人数が変わるたびに描き直すので） */
   function renderV2Pick(){

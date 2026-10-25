@@ -102,8 +102,6 @@ const ROOM_EXIT_PATHS = [
     label: '人狼・ワードウルフ画面（決着後）「← 部屋を出る」' },
   { id: 'bomb-leave', kind: 'leave', btn: 'rtBombLeaveBtn', event: 'room:leave',
     label: 'クイズ解除画面（決着後）「← 部屋を出る」' },
-  { id: 'defuse-leave', kind: 'leave', btn: 'dfLeaveBtn', event: 'room:leave',
-    label: '実物解除画面（決着後）「← 部屋を出る」' },
   { id: 'quiz-leave', kind: 'leave', btn: 'qzLeaveBtn', event: 'room:leave',
     label: 'クイズ王画面（決着後）「← 部屋を出る」' },
   { id: 'auction-leave', kind: 'leave', btn: 'auLeaveBtn', event: 'room:leave',
@@ -122,7 +120,7 @@ const ROOM_EXIT_PATHS = [
   // 指示53：False or True。出口は結果発表の1枚だけ——
   // 進行中の6枚には「部屋を出る」を置いていない（1画面につき、やることは1つ）
   { id: 'falsetrue-result-leave', kind: 'leave', btn: 'rtFtResultLeaveBtn', event: 'room:leave',
-    label: 'False or True 結果発表「← 部屋を出る」' },
+    label: 'ハッタリケース 結果発表「← 部屋を出る」' },
   // 指示55-①：ロシアンカード。出口は結果発表の1枚だけ（進行中の2枚には置かない）
   { id: 'rcard-result-leave', kind: 'leave', btn: 'rtRcResultLeaveBtn', event: 'room:leave',
     label: 'ロシアンカード結果発表「← 部屋を出る」' },
@@ -177,7 +175,6 @@ const RT_START_MIN_CONFIG = {
   wolfrole: { game: 'wolfrole', roles: ['wolf', 'seer'], turnLimit: 5, meetingSec: 0 },
   wordwolf: { game: 'wordwolf', wolfCount: 1, wolfAware: false, roles: {}, multiTurn: false, meetingSec: 0, discussSec: 0 },
   bomb: { game: 'bomb', mode: 'coop', counts: { easy: 2, normal: 1, hard: 0 }, lives: 3, timerSec: 120 },
-  defuse: { game: 'defuse', mode: 'normal', manual: true, strikes: 3, timerSec: 0 },
   quizrush: { game: 'quizrush', timerSec: 60 },
   quizlist: { game: 'quizlist', timerSec: 60 },
   quizreveal: { game: 'quizreveal', timerSec: 60 },

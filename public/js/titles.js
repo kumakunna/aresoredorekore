@@ -336,10 +336,10 @@
 
       // ---- 指示53：False or True ----
       { id: 'icon-ft-1', cassette: 'falsetrue', emoji: '💼', label: '立会人の証',
-        hint: 'False or True を1回あそぶ',
+        hint: 'ハッタリケースを1回あそぶ',
         need: function (s) { return s('falsetrue', 'plays') >= 1; } },
       { id: 'icon-ft-10', cassette: 'falsetrue', emoji: '🔑', label: '常連の証',
-        hint: 'False or True を通算10回あそぶ',
+        hint: 'ハッタリケースを通算10回あそぶ',
         need: function (s) { return s('falsetrue', 'plays') >= 10; } },
       { id: 'icon-ft-bluff', cassette: 'falsetrue', emoji: '🎭', label: 'はったりの証',
         hint: '自分の FALSE を、相手に奪わせる',

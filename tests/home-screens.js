@@ -60,7 +60,7 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     const t = await launch({ fakeSocket: true, atEntry: true, loggedOut: true });
     click(t.doc, t.doc.querySelector('#scr-v2-home [data-home-act="one"]'));
     await waitScreen(t.win, t.doc, 'scr-v2-pick', 3000);
-    assert(一覧の札(t.doc).length >= 9, '一覧が出ている（実際:' + 一覧の札(t.doc).length + '枚）');
+    assert(一覧の札(t.doc).length >= 3 && 一覧の札(t.doc).length === t.win.homeProbe().ready.length, '一覧が出ている（実際:' + 一覧の札(t.doc).length + '枚）');
     t.win.close();
   });
 
@@ -157,6 +157,7 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
   // ===================== ゲームをえらぶ =====================
   await r.test('一覧：分類ごとに縦にならぶ（上のチップで飛ぶ）。どのゲームも1回だけ出る', async () => {
     const t = await launch({ fakeSocket: true });
+    t.win.shelfShowProbe.showAll(true);   // 指示68-1：一覧の動きを、下ろした物も並べた多い札で確かめる（本物の棚は3本・tests/shelf.js が見張る）
     assertEqual(activeScreen(t.doc), 'scr-v2-pick', '1台で遊ぶ一覧');
     const 分類 = Array.from(t.doc.querySelectorAll('#scr-v2-pick [data-home-g]')).map((g) => g.dataset.homeG);
     assertEqual(分類.join(','), 'brain,deal,hide,word', '分類の順（見本と同じ）');
@@ -171,9 +172,9 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
   });
 
   await r.test('開き直すと、前回あそんだゲームの札に「前回」の印（前の棚の 2-2・門D13 の後継）', async () => {
-    const t = await launch({ fakeSocket: true, storage: { 'acac-last-cassette': 'rcard' } });
+    const t = await launch({ fakeSocket: true, storage: { 'acac-last-cassette': 'jinro' } });
     const 印 = Array.from(t.doc.querySelectorAll('#scr-v2-pick .v2-last')).map((x) => x.closest('[data-home-card]').dataset.homeId);
-    assertEqual(印.join(','), 'rcard', '前回のゲームにだけ印');
+    assertEqual(印.join(','), 'jinro', '前回のゲームにだけ印');
     t.win.close();
   });
 
@@ -182,6 +183,7 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     const fake = await 部屋に入る(t, 部屋(4));
     click(t.doc, t.doc.querySelector('#scr-v2-room [data-home-act="room-pick"]'));
     await waitScreen(t.win, t.doc, 'scr-v2-pick', 3000);
+    t.win.shelfShowProbe.showAll(true);   // 指示68-1：一覧の動きを、下ろした物も並べた多い札で確かめる（本物の棚は3本・tests/shelf.js が見張る）
     click(t.doc, 一覧の札(t.doc)[5]);
     await sleep(t.win, 30);
     fake.fire('room:update', 部屋(9));
@@ -234,6 +236,7 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
 
   await r.test('門2：一覧 → ページ → 指で送る → ‹ で一覧（さっき見ていたゲームの所）', async () => {
     const t = await launch({ fakeSocket: true });
+    t.win.shelfShowProbe.showAll(true);   // 指示68-1：一覧の動きを、下ろした物も並べた多い札で確かめる（本物の棚は3本・tests/shelf.js が見張る）
     const scr = t.doc.getElementById('scr-v2-pick');
     const 札 = 一覧の札(t.doc);
     // jsdom には版組みが無いので、札の高さだけ置く（一覧が戻る位置を測るため）
@@ -318,6 +321,7 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     await 部屋に入る(t, 部屋(7));
     click(t.doc, t.doc.querySelector('#scr-v2-room [data-home-act="room-pick"]'));
     await waitScreen(t.win, t.doc, 'scr-v2-pick', 3000);
+    t.win.shelfShowProbe.showAll(true);   // 指示68-1：一覧の動きを、下ろした物も並べた多い札で確かめる（本物の棚は3本・tests/shelf.js が見張る）
     await H.openCassette(t.win, t.doc, 'sugoroku');
     await waitScreen(t.win, t.doc, 'scr-game', 3000);
     const off = Array.from(t.doc.querySelectorAll('#gameCards .v2-opt.is-off'));
@@ -381,7 +385,7 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
       const card = t.doc.getElementById('v2Decided');
       assert(card, who[k][0] + '：カードが出る');
       assert(card.classList.contains('v2-w-falsetrue'), who[k][0] + '：そのゲームの色');
-      assert(/False or True/.test(card.textContent), who[k][0] + '：ゲームの名前');
+      assert(/ハッタリケース/.test(card.textContent), who[k][0] + '：ゲームの名前');
       assertEqual(card.classList.contains('v2-tv'), who[k][1] === 'tv', who[k][0] + '：TV は TV の大きさ');
     });
     assert(/ふう が えらびました/.test(ts[2].doc.getElementById('v2Decided').textContent), 'TV には、だれがえらんだか');
@@ -505,7 +509,7 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     t.win.V2Screens.home(HomeScenes.view('pick-page-one'));
     await sleep(t.win, 40);
     const pages = Array.from(t.doc.querySelectorAll('#scr-v2-pick .v2-page'));
-    assert(pages.length >= 8, 'カセットのページが並ぶ（' + pages.length + '）');
+    assert(pages.length >= 3, 'カセットのページが並ぶ（' + pages.length + '）');
     const 札 = 一覧の札(t.doc);
     assertEqual(pages.length, 札.length, '一覧の札とページの数が同じ（棚に出る全部）');
     pages.forEach((p, i) => {

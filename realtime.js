@@ -17,7 +17,6 @@ const WolfLogic = require('./public/js/wolf-logic.js');
 const WolfRoom = require('./wolf-room.js');
 const WordwolfRoom = require('./wordwolf-room.js');
 const BombRoom = require('./bomb-room.js');
-const DefuseRoom = require('./defuse-room.js');
 const QuizRoom = require('./quiz-room.js');
 const AuctionRoom = require('./auction-room.js');
 const SugorokuRoom = require('./sugoroku-room.js');
@@ -39,8 +38,6 @@ const GAME_DRIVERS = {
   wordwolf: { driver: WordwolfRoom, key: 'wordwolf' },
   // 第27弾：爆弾解除（クイズ解除）。約束の形が同じなので、足したのはこの1行だけ
   bomb: { driver: BombRoom, key: 'bomb' },
-  // 第27弾-3：爆弾解除（実物解除）。センサーを使うが、約束の形は変わらない
-  defuse: { driver: DefuseRoom, key: 'defuse' },
   // 第30弾：カセット「クイズ王」の4ゲーム。
   // 得点・順番・時間の扱いが同じなので、進行役は1つ（quiz-room.js）を共有し、
   // 部屋に置く状態も1つ（room.quiz）にまとめてある。
@@ -688,7 +685,6 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.wolf) return recordWolfMatch(room);
     if (room.wordwolf) return recordWordwolfMatch(room);
     if (room.bomb) return recordBombMatch(room);
-    if (room.defuse) return recordDefuseMatch(room);
     if (room.quiz) return recordQuizMatch(room);
     if (room.auction) return recordAuctionMatch(room);
     if (room.sugoroku) return recordSugorokuMatch(room);
@@ -867,50 +863,6 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       });
       const rounds = [{
         mode: w.preset || w.variant,
-        score_deltas: deltas,
-        at: new Date().toISOString(),
-        detail
-      }];
-      saveMatchRecord(room, names, rounds, finalScores);
-    } catch (e) {
-      console.warn('[realtime] 対戦履歴の保存に失敗しました:', e.message);
-    }
-  }
-
-  // 第27弾-3：実物解除。協力プレイなので、成功したら全員に同じ点を入れる。
-  // 誰が解除役でマニュアル役だったかは、あとから見返した時に効くので残す
-  function recordDefuseMatch(room) {
-    if (!db || !room.ownerUserId || !room.defuse) return;
-    try {
-      const w = room.defuse;
-      if (!w.modules.length) return; // 始まる前に畳まれた試合は記録しない
-      const view = DefuseRoom.resultView(room);
-      const names = w.playerIds.map((id) => w.names[id]);
-      const deltas = {}, finalScores = {};
-      w.playerIds.forEach((id) => {
-        const pts = view.success ? 1 : 0;
-        deltas[w.names[id]] = pts;
-        finalScores[w.names[id]] = pts;
-      });
-      const detail = {
-        game: 'defuse',
-        style: 'realtime',
-        variant: w.mode,               // 'normal' | 'focus'（集中解除）
-        withManual: !!w.manual,
-        preset: w.preset || null,
-        modules: view.modules.map((m) => ({ name: m.name, solved: m.solved })),
-        solved: view.solved,
-        total: view.total,
-        strikesMax: w.strikesMax,
-        strikesLeft: w.strikesLeft,
-        timerSec: w.timerSec,
-        elapsedSec: view.elapsedSec,
-        success: view.success,
-        cause: view.cause,
-        roles: view.roles
-      };
-      const rounds = [{
-        mode: w.preset || 'defuse',
         score_deltas: deltas,
         at: new Date().toISOString(),
         detail
@@ -1683,7 +1635,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 指示63 第4部：3-2-1 の最中は、まだ始まっていない
       if (inCountdown(room)) return fail(cb, 'not_started', '3-2-1 のあとに始まります');
       // 第27弾-3：4つめの引数は payload まるごと。
-      // 実物解除は「傾き何度」「何回振った」のように、targetId 1つでは足りない操作がある。
+      // targetId 1つでは足りない操作のあるゲームのため（もとは実物解除。指示68-1 で削除したが、渡し方は残す）。
       // 人狼・ワードウルフ・爆弾解除は受け取っても使わない（無視するだけ）。
       const res = dr.submitAction(room, me.id, (payload && payload.targetId) || null, payload);
       if (!res.ok) return fail(cb, res.error, 'いまはその操作ができません');
@@ -1880,6 +1832,15 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = staffRoom(payload);
       if (!room || !removeMember(room, payload && payload.memberId, 'fes_staff')) return fail(cb, 'member_not_found', 'その人は部屋にいません');
       if (typeof cb === 'function') cb({ ok: true });
+      pushFes(room);
+    });
+    // 指示68-1：係（くまくんだけ）：テスト中のゲームも候補に入れる（はじめは切）
+    socket.on('fes:testing', (payload, cb) => {
+      if (staffRole() !== 'owner') return fail(cb, 'not_owner', 'くまくんのアカウントだけが変えられます');
+      const room = staffRoom(payload);
+      if (!room) return fail(cb, 'no_room', '文化祭の部屋がありません');
+      room.fes.withTesting = !!(payload && payload.on);
+      if (typeof cb === 'function') cb({ ok: true, on: room.fes.withTesting });
       pushFes(room);
     });
     // 係：TVの端あわせ（ふちから内側へ何%縮めるか。0〜10）

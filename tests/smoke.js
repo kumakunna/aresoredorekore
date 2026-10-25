@@ -2762,15 +2762,13 @@ async function startModeWithTimerOff(win, doc, id) {
     const { win, doc, errors } = await launch();
     assert(doc.querySelector('#scr-v2-pick [data-home-id="bakudan"]'), '爆弾解除が一覧にある');
     await openCassette(win, doc, 'bakudan');
-    // 第27弾-3で実物解除が入り、ゲームが2つになったので選択画面を通る
     // ゲームが1つのカセットは選択画面を挟まない（指示49 49-7）
     await passGameSelect(win, doc, 'bomb');
     await fillPlayerForm(win, doc, PLAYERS);
     await waitScreen(win, doc, 'scr-mode', 3000);
-    // お休み中（実物解除）の札は、消さずに理由つきで並ぶ（指示66-3 門3）。遊べる札はクイズ解除の2枚
-    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id).filter(id => !/^paused-/.test(id));
+    // 実物解除は指示68-1 で消した。下ろした札（paused-）も並ばない
+    const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id);
     assertEqual(ids.join(','), 'bomb-coop,bomb-race', 'クイズ解除の2枚だけが並ぶ');
-    assert(doc.querySelector('#modeCards [data-id^="paused-"]'), 'お休み中のゲームは理由つきで残る');
     const cards = Array.from(doc.querySelectorAll('#modeCards [data-id]'));
     assert(/クイズ解除/.test(cards[0].textContent), 'モードカードの名前が「クイズ解除」になっている');
 
@@ -3113,6 +3111,8 @@ async function startModeWithTimerOff(win, doc, id) {
   //   部屋がある状態で歩く rt-screens.js の方で見ている）
   await r.test('1台の一覧では、部屋が必須のカセットは押す前に理由が読める（指示66-3）', async () => {
     const { win, doc, errors } = await launch({});
+    win.shelfShowProbe.showAll(true);   // 指示68-1：棚に出していない物も並べて、全部のカセットを見る
+    await sleep(win, 20);
     for (const id of ['quizou', 'auction']) {
       const card = doc.querySelector('#scr-v2-pick [data-home-id="' + id + '"]');
       assert(card, id + ' のカセットは一覧に並んでいる（隠さない）');
@@ -3462,6 +3462,8 @@ async function startModeWithTimerOff(win, doc, id) {
     // 2-7 のとおり長押し／i の popup に移し、画面は使わなくなった。
     // 中身は増えている（ゲームごとの人数・もう一方の分類）
     const { win, doc, errors } = await launch();
+    win.shelfShowProbe.showAll(true);   // 指示68-1：棚に出していない物も並べて、全部のカセットを見る
+    await sleep(win, 20);
     const CASES = [
       { cart: 'auction',  need: true,  words: ['せり上げ式', '秘密入札'] },
       { cart: 'quizou',   need: true,  words: ['クイズラッシュ', 'つぎつぎクイズ', 'とくとくクイズ', '早押し'] },
@@ -3587,6 +3589,29 @@ async function startModeWithTimerOff(win, doc, id) {
       '古いIDでも爆弾解除の記録として出る（実際: ' + gameName + '）');
     assert(!/あれそれどれこれ/.test(gameName), 'ほかのゲームに化けない');
     assertNoErrors(errors, '古い記録の表示で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('門8（指示68-1）：消したゲーム（実物解除）の古い記録があっても、記録の画面が壊れない', async () => {
+    // 実物解除は 2026-10-24 に消した。前に遊んだ人の記録には mode: 'defuse'／'defuse-focus' が残っている。
+    // MODES・GAMES に名前だけの墓標（removed:true）を残したので、名前で読める
+    const { win, doc, errors } = await launch({
+      seedMatches: ['defuse', 'defuse-focus'].map((mode) => ({
+        player_names: ['あき', 'びび'],
+        rounds: [{ mode, opts: { strikes: 3 }, detail: { result: 'defused', strikes: 1 }, score_deltas: { あき: 1, びび: 1 }, at: new Date().toISOString() }],
+        final_scores: { あき: 1, びび: 1 }
+      }))
+    });
+    click(doc, 'recordsBtn');
+    await sleep(win, 300);
+    const items = Array.from(doc.querySelectorAll('#recordsList .record-item'));
+    assertEqual(items.length, 2, '記録が2件出る');
+    // 記録の札はゲームの名前で出す（集中解除も「実物解除」の札になる）
+    const 名前 = items.map((it) => it.querySelector('.record-game').textContent);
+    名前.forEach((x) => assert(/実物解除/.test(x), '消したゲームの名前で読める（' + x + '）'));
+    const 名前の字 = 名前.join('／');
+    assert(!/あれそれどれこれ|undefined/.test(名前の字), 'ほかのゲームに化けない・undefined を出さない');
+    assertNoErrors(errors, '消したゲームの記録の表示で未捕捉の例外');
     win.close();
   });
 

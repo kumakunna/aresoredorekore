@@ -114,12 +114,96 @@ function pickCart(doc, id) {
       '正本の抽出（' + INV.READY_CASSETTE_IDS.join(',') + '）が、実際の ready:true の数と合っている');
   });
 
+  // ---- 指示68-1：棚は3本だけ（門3）・テスト中の札はくまくんだけ（門4） ----
+  // 一覧に出す正本は CASSETTES の hidden: と testing:。画面の札（DOM）と homeProbe の両方を見る
+  const 棚の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [data-home-card]')).map((e) => e.dataset.homeId);
+  const 棚の3本 = ['aresoredorekore', 'jinro', 'bakudan'];
+
+  await r.test('門3：棚に並ぶのは3本だけ（ゲストでも、ふつうのログインでも）', async () => {
+    const { win, doc, errors } = await launch();
+    for (const [名, me] of [['ゲスト', null], ['ふつうのログイン', { username: 'taro', displayName: 'たろう' }]]) {
+      win.authProbe(me);
+      win.shelfShowProbe.showAll(false);
+      await sleep(win, 30);
+      assertEqual(win.homeProbe().ready.slice().sort().join(','), 棚の3本.slice().sort().join(','), 名 + '：遊べるカセットは3本');
+      assertEqual(win.homeProbe().testing.join(','), '', 名 + '：テスト中の札は出ない');
+      const 札 = Array.from(new Set(棚の札(doc)));
+      assert(札.length >= 1, 名 + '：一覧の札を数えられている（' + 札.length + '）');   // 型(b)
+      札.forEach((id) => assert(棚の3本.indexOf(id) !== -1, 名 + '：棚に出していない ' + id + ' が一覧に出ている'));
+    }
+    // 型(b)：全部を並べる窓を開ければ、隠した物も数えられる（数え方が効いている）
+    win.shelfShowProbe.showAll(true);
+    assert(win.homeProbe().ready.length > 棚の3本.length, '隠した物も ready には残っている（消していない）');
+    win.shelfShowProbe.showAll(false);
+    assertNoErrors(errors, '棚の描画で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('門4：テスト中の札は、くまくん（tester）の時だけ、棚の後ろに「テスト中」として出る', async () => {
+    const { win, doc, errors } = await launch();
+    win.shelfShowProbe.testing('falsetrue', true);
+    win.authProbe({ username: 'taro', displayName: 'たろう' });
+    await sleep(win, 30);
+    assertEqual(win.homeProbe().testing.join(','), '', 'ふつうのログインには出ない');
+    assert(!doc.querySelector('#scr-v2-pick [data-home-testing]'), 'ふつうのログインの一覧に「テスト中」の印が無い');
+    win.authProbe({ username: 'kuma', displayName: 'くま', tester: true });
+    await sleep(win, 30);
+    assertEqual(win.homeProbe().testing.join(','), 'falsetrue', 'くまくんにはテスト中の札が出る');
+    assertEqual(win.homeProbe().ready.indexOf('falsetrue'), -1, 'ふつうの遊べる札には混ざらない');
+    if (activeScreen(doc) === 'scr-v2-pick') {
+      const 札 = 棚の札(doc);
+      assert(札.indexOf('falsetrue') > 札.indexOf('bakudan'), '棚のいちばん後ろ（' + 札.join(',') + '）');
+      assert(doc.querySelector('#scr-v2-pick [data-home-testing]'), '「テスト中」の印がある');
+    }
+    // ログアウトしたら消える
+    win.authProbe(null);
+    await sleep(win, 30);
+    assertEqual(win.homeProbe().testing.join(','), '', 'ログアウトしたら出ない');
+    win.shelfShowProbe.testing('falsetrue', false);
+    assertNoErrors(errors, 'テスト中の札で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('門4：サーバーは FES_OWNER の人にだけ tester を返す（ログインと /api/auth/me の両方）', async () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'server.js'), 'utf8');
+    const 返事 = src.match(/tester:\s*isTester\(/g) || [];
+    assert(返事.length >= 2, 'ログインと /api/auth/me の両方が tester を返す（' + 返事.length + 'か所）');
+    assert(/function isTester\([^)]*\)\s*\{[^}]*FES_OWNER/.test(src), 'tester は FES_OWNER から決める');
+  });
+
+  await r.test('門9（指示68-1）：False or True の表示名は「ハッタリケース」（画面・ルール文・称号・記録。ID は falsetrue のまま）', async () => {
+    const fs = require('fs'), path = require('path');
+    // 画面に出る字（引用符・タグの中）に、古い名前が残っていない。コメントの経緯は残してよい
+    ['public/index.html', 'public/js/titles.js', 'public/js/ui-text.js', 'public/js/falsetrue-logic.js', 'public/js/v2-home.js', 'public/js/v2-fes.js'].forEach((f) => {
+      const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+      assert(!/['"`>]\s*False or True/i.test(src), f + ' の画面に出る字に「False or True」が残っている');
+    });
+    const { win, errors } = await launch();
+    win.shelfShowProbe.showAll(true);
+    const 説明 = win.cassettePopupText('falsetrue');
+    assert(説明 && /ハッタリケース/.test(説明), 'カセットの説明（ルール文）が新しい名前');
+    // 称号：ハッタリケースの条件の言葉も新しい名前（称号の ID・数える物は変えない）
+    const 称号 = require('../public/js/titles');
+    const 言葉 = JSON.stringify(称号).match(/ハッタリケース/g) || [];
+    assert(言葉.length >= 2, '称号の条件の言葉に新しい名前（' + 言葉.length + 'か所）');
+    assert(!/False or True/.test(JSON.stringify(称号)), '称号の言葉に古い名前が無い');
+    // 記録：rounds[].mode は falsetrue のまま、表示は新しい名前（ID を変えていないので LEGACY_MODE_IDS は要らない）
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/\{id:"falsetrue", icon:"💼", title:"ハッタリケース"/.test(html), 'モード（記録の名前の元）');
+    assert(/\{ id:'falsetrue',\s+title:'ハッタリケース'/.test(html), 'ゲーム（記録の名前の元）');
+    win.shelfShowProbe.showAll(false);
+    assertNoErrors(errors, 'ハッタリケースの説明で未捕捉の例外');
+    win.close();
+  });
+
   await r.test('alsoGenre の綴りが、分類の一覧に実在する（第41弾）', async () => {
     // **棚に出ない値ほど、検査が無いと事故に気づけない。**
     // genre は棚に出るので、綴りを間違えればカセットが消えて分かる。
     // alsoGenre は popup の奥にしか出ないので、間違えても
     // 「その行が出ない」だけで、誰も気づけないまま残る（落とし穴6の型）。
     const { win, doc } = await launch();
+    win.shelfShowProbe.showAll(true);   // 指示68-1：棚に出していない物も並べて、全部のカセットを見る
+    await sleep(win, 20);
     const ids = Array.from(doc.querySelectorAll('#scr-v2-pick [data-home-card]'))
       .map((e) => e.dataset.homeId);
     assert(ids.length > 5, 'カセットを数えられている（実際:' + ids.length + '件）');
@@ -247,7 +331,7 @@ function pickCart(doc, id) {
 
   await r.test('爆弾解除カセット：ゲームが1つなので、選択画面を挟まない（指示49 49-7）', async () => {
     // **第27弾-3で実物解除が入り2つになったので選択画面を通っていた。**
-    // 指示49 49-7 で実物解除を下ろし、中身はクイズ解除だけになった——
+    // 指示49 49-7 で実物解除を下ろし、指示68-1 で消して、中身はクイズ解除だけになった——
     // `games` が1つのカセットは選択画面を挟まない（CASSETTES の約束）ので、
     // まっすぐ先へ進む（指示66-3：1台の一覧では、両方で遊べるゲームは1台で進む）
     const { win, doc, errors } = await launch();
@@ -259,31 +343,19 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('下ろしたゲームは、説明から黙って消えない（指示49 49-7）', async () => {
-    // **「無かったことにしない」**（49-7）。
-    // 前に遊んだ人には、黙って消えると「壊れた／消された」としか見えない。
-    // 正本は CASSETTES の `paused:` で、tests/inventory.js もそこを読む（落とし穴1）
+  await r.test('消したゲーム（実物解除）は、棚にも説明にも残らない（指示68-1）', async () => {
+    // 実物解除は指示49 49-7 で「じゅんび中」として下ろし、説明に理由つきで残していた。
+    // 2026-10-24、くまくんの決定で消した（傾きセンサーが一部のスマホで動かない）。
+    // 下ろした札が残ると「いつか遊べる」と読める——消した物は、説明からも選ぶ所からも消す。
+    // 古い記録が読めることは tests/titles.js と rt-screens の称号の表が見る
     const { win, doc, errors } = await launch();
     const 説明 = win.cassettePopupText('bakudan');
-    assert(説明, '爆弾解除の説明が読める');
-    // 下ろしたゲームの一覧はデータから導く（名指ししない・落とし穴10-d）
-    const 下ろした = win.cassettePaused('bakudan');
-    assert(下ろした && 下ろした.length > 0,
-      '下ろしたゲームが宣言されている（実際:' + JSON.stringify(下ろした) + '）');  // 型(b)
-    下ろした.forEach((p) => {
-      assert(p.title && p.title.length >= 2, '下ろしたゲームに名前がある');
-      // **空文字を先に弾く。**`indexOf('')` は必ず 0 を返すので、
-      // 理由が空のまま「説明に出ている」が通ってしまう（自己赤チェックで見つけた穴）
-      assert(p.なぜ && p.なぜ.length >= 10,
-        p.title + ' に、遊ぶ人へ出す理由が書いてある（実際:「' + p.なぜ + '」）');
-      assert(説明.indexOf(p.title) >= 0, p.title + ' が説明に出ている（黙って消えていない）');
-      assert(説明.indexOf(p.なぜ) >= 0, p.title + ' の「なぜ下ろしたか」が出ている');
-      assert(/じゅんび中/.test(説明), 'じゅんび中だと分かる');
-    });
-    // **棚から本当に消えているか**——選べるゲームの側に残っていないこと（両方向）
+    assert(説明 && /クイズ解除/.test(説明), '爆弾解除の説明が読める（型(b)：中身がある）');
+    assertEqual(説明.indexOf('実物解除'), -1, '説明に実物解除が出ない');
+    assertEqual(JSON.stringify(win.cassettePaused('bakudan')), '[]', '下ろしたゲームの宣言も残っていない');
     const 遊べる = Array.from(doc.querySelectorAll('#gameCards [data-home-opt]')).map((c) => c.dataset.homeOpt);
-    assert(遊べる.indexOf('defuse') === -1, '選べるゲームの側には出ていない');
-    assertNoErrors(errors, '下ろしたゲームの説明で未捕捉の例外');
+    assert(遊べる.indexOf('defuse') === -1, '選べるゲームの側にも出ない');
+    assertNoErrors(errors, '爆弾解除の説明で未捕捉の例外');
     win.close();
   });
 
@@ -1009,14 +1081,14 @@ function pickCart(doc, id) {
     win.close();
   });
 
-  await r.test('安全に関する設定に、光・揺れ・振動・速さ・体を動かす遊びが並ぶ', async () => {
+  await r.test('安全に関する設定に、光・揺れ・振動・速さが並ぶ', async () => {
     const t = await launch();
     await H.openAppSettings(t.win, t.doc);
     const row = t.doc.querySelector('#setAppMenu [data-setpage="safety"]');
     assert(row, '「安全に関する設定」の入口がある');
     row.click();
     await sleep(t.win, 60);
-    ['setFlashToggle', 'setShakeToggle', 'setVibrateToggle', 'setFxSeg', 'setBodyToggle']
+    ['setFlashToggle', 'setShakeToggle', 'setVibrateToggle', 'setFxSeg']
       .forEach((id) => assert(el(t.doc, id), id + ' が並んでいる'));
     // 光の点滅を切ると、その瞬間から画面に印がつく（CSSがまとめて止める）
     click(t.doc, 'setFlashToggle');

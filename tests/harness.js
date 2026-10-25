@@ -624,7 +624,10 @@ function cssRules(css) {
  */
 async function openCassette(win, doc, id) {
   if (activeScreen(doc) !== 'scr-v2-pick') throw new Error('ゲームをえらぶ一覧にいません（いま ' + activeScreen(doc) + '）');
-  const card = doc.querySelector('#scr-v2-pick [data-home-id="' + id + '"]');
+  let card = doc.querySelector('#scr-v2-pick [data-home-id="' + id + '"]');
+  // 指示68-1：棚は門を通った3本だけになった。下ろしたゲーム（コードは残す）そのものを確かめる検査は、
+  // 検査の窓で下ろした物も並べてから開く（本物の棚の中身は tests/shelf.js の「指示68-1」が見張る）
+  if (!card && win.shelfShowProbe) { win.shelfShowProbe.showAll(true); await sleep(win, 20); card = doc.querySelector('#scr-v2-pick [data-home-id="' + id + '"]'); }
   if (!card) throw new Error('一覧に無い: ' + id);
   card.click();
   await sleep(win, 40);

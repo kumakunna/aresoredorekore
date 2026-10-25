@@ -20,7 +20,7 @@ const MOCK = [
 const LONG = ['ながいなまえだよ', 'たかはしゆういち', 'あいうえおかきく', 'kensho34', 'まりこさんだよ', 'しょうたろう', 'みさきちゃん', 'だいすけくん'];
 const CODE = 'TST754';
 
-function 部屋(n, long) {
+function 部屋(n, long, one) {
   const store = new RT.RoomStore();
   const room = store.create({ ownerUserId: 1, ownerUsername: 'kuma' });
   room.code = CODE;
@@ -34,7 +34,9 @@ function 部屋(n, long) {
   }
   room.members.set('tv', { id: 'tv', name: 'テレビ', role: RT.ROLE_BIGSCREEN, socketId: null, connected: true,
     joinedAt: t0 + 200, lastSeen: Date.now(), readyGame: null, userId: null, look: null });
-  FesRoom.init(room, {});
+  // 指示68-1：いまの候補はクイズ解除だけ（投票を飛ばす）。見本は投票の画面も撮るので、候補を全部 on にした表で作る。
+  // 本物の表（候補1つ）の場面は fes2-decide-one・fes2-tv-decide-one
+  FesRoom.init(room, { games: one ? null : FesRoom.FES_GAMES.map((g) => Object.assign({}, g, { on: true })) });
   room.fes.rnd = () => 0;
   return room;
 }
@@ -128,6 +130,9 @@ const BUILD = {
            { room: CODE, round: 2, mode: 'rcard', name: 'ひろ', stars: 3, text: 'ルールが最初わからなかった', at: Date.now() - 1300000 },
            { room: CODE, round: 1, mode: 'shinka', name: 'びび', stars: 4, text: null, at: Date.now() - 2200000 }] };
   },
+  // 指示68-1：本物の表（候補はクイズ解除だけ）。投票を飛ばして「このゲームで遊びます！」
+  'fes2-decide-one': (o) => { const r = 部屋(o.n || 6, false, true); FesRoom.tick(r, Date.now(), api); 進める(r); return lab(r, 'scr-v2-fes-lobby'); },
+  'fes2-tv-decide-one': (o) => { const r = 部屋(o.n || 6, o.long, true); FesRoom.tick(r, Date.now(), api); 進める(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   // TV
   'fes2-tv-idle': () => { const r = 部屋(0); r.fes.phase = FesRoom.PHASE.IDLE; return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-one': () => { const r = 部屋(1); FesRoom.tick(r, Date.now(), api); return lab(r, 'scr-v2-fes-tv', 'tv'); },

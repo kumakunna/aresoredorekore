@@ -510,39 +510,6 @@ const SCENARIOS = [
       }
     }
   })),
-  // ---- 実物解除 ----
-  ...['defuse', 'defuse-focus'].map((modeId) => ({
-    name: modeId, game: 'defuse', modeId,
-    run: function* (lab) {
-      lab.待合(Math.ceil(lab.n / 4)); yield 'lobby-picked';
-      lab.開始({ game: 'defuse', mode: modeId === 'defuse-focus' ? 'focus' : 'normal', moduleCount: 5, strikes: 3,
-        manual: true, allowPhysical: true, allowCamera: true, timerSec: 300, preset: modeId });
-      yield 'consent';
-      lab.ids.forEach((id, i) => lab.act(id, i === 2 ? 'no' : 'yes'));
-      yield 'roles';
-      const caps = { orientation: true, compass: true, motion: true, camera: true };
-      // 集中解除はマニュアル役1人・ほかは解除役。通常は半々（payload に端末のセンサーを添える：本物と同じ）
-      lab.ids.forEach((id, i) => {
-        const 役 = modeId === 'defuse-focus' ? (i === 1 ? 'manual' : 'defuser') : (i % 2 === 0 ? 'defuser' : 'manual');
-        lab.act(id, 役, { targetId: 役, caps });
-      });
-      yield 'brief';
-      lab.ids.forEach((id) => lab.act(id, null));
-      if (lab.w().phase === 'brief') lab.締め切り();
-      yield 'play';
-      // 解除役がモジュールを開ける（大画面の「いま誰がどれに」）
-      const w = lab.w();
-      lab.ids.filter((id) => w.roles[id] === 'defuser').forEach((id, i) => {
-        const m = w.modules.filter((x) => !x.solved)[i];
-        if (m) lab.d.submitAction(lab.room, id, m.uid);
-      });
-      yield 'play-open';
-      // 決着：時間切れ（本物の checkEnd）
-      w.deadline = Date.now() - 1; lab.d.advance(lab.room);
-      if (!lab.ended()) throw new Error('実物解除：時間切れで決着しません');
-      yield 'ended-time';
-    }
-  })),
   // ---- クイズ王 ----
   {
     name: 'quizrush', game: 'quizrush', modeId: 'quizrush',

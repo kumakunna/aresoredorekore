@@ -257,7 +257,7 @@
     var D = U().決定, V = K(), f = view.fes || {}, you = view.you || {};
     var p = f.pick || {}, g = view.info(p.mode);
     var n = (p.counts || {})[p.mode] || 0;
-    var who = p.lot === 'zero' ? D.くじ0 : (p.lot === 'tie' ? D.くじ同点 : n + D.えらびました);
+    var who = p.lot === 'single' ? D.ひとつ : p.lot === 'zero' ? D.くじ0 : (p.lot === 'tie' ? D.くじ同点 : n + D.えらびました);
     var my = you.vote ? D.自分の投票 + view.info(you.vote).name : D.おまかせ;
     return '<div class="v2-layer v2-w-' + e(g.world) + '">' + V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) + '</div>' +
       '<div class="v2-in v2-swap v2-w-' + e(g.world) + '">' +
@@ -266,7 +266,8 @@
           V.tile(g.world, 'v2-a-slam v2-d1') +
           '<div class="v2-gname v2-a-slam v2-d2">' + gnameHtml(g, 'v2-gname-t') + '</div>' +
           '<div class="v2-who5 v2-a-rise v2-d3">' + e(who) + '</div>' +
-          '<div class="v2-myv v2-a-rise v2-d4">' + e(my) + '</div>' +
+          // 指示68-1：投票を飛ばした時（候補1つ）は、投票していないので「自分の投票」を出さない
+          (p.lot === 'single' ? '' : '<div class="v2-myv v2-a-rise v2-d4">' + e(my) + '</div>') +
         '</div>' +
       '</div>';
   }
@@ -501,7 +502,7 @@
     var D = U().決定, V = K(), f = view.fes || {};
     var p = f.pick || {}, g = view.info(p.mode);
     var n = (p.counts || {})[p.mode] || 0;
-    var who = p.lot === 'zero' ? D.くじ0 : (p.lot === 'tie' ? D.くじ同点 : n + D.えらびました);
+    var who = p.lot === 'single' ? D.ひとつ : p.lot === 'zero' ? D.くじ0 : (p.lot === 'tie' ? D.くじ同点 : n + D.えらびました);
     return tvc(view,
       '<div class="v2-tdec v2-swap v2-w-' + e(g.world) + '"><div class="v2-a-fade">' + V.hdHtml('Next Game', D.見出し, true) + '</div>' +
         '<div class="v2-tdec-mid">' + V.tile(g.world, 'v2-a-slam v2-d1') +
@@ -594,6 +595,9 @@
           // 指示66-3：くまくん（owner）だけ、名前の記録を読む画面へ（別のタブで開く）
           (o.canNames ? '<a class="v2-btn is-sec" href="/fes/names" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.名前の記録) + '</span></a>' : '') +
         '</div>' +
+        // 指示68-1：くまくん（owner）だけ「テスト中のゲームも候補に入れる」（はじめは切）
+        (o.canNames ? '<button type="button" class="v2-btn ' + (f.withTesting ? 'is-pri' : 'is-sec') + '" data-fes-act="testing" aria-pressed="' + !!f.withTesting + '"><span>' +
+          e(S.テスト中を入れる + '：' + (f.withTesting ? S.入 : S.切)) + '</span></button>' : '') +
         '<span class="v2-lbl">' + e(S.いる人) + '</span>' +
         '<div class="v2-adm-mem">' + (mem.length ? mem.map(function (m) {
           // 指示68-0b B5：隠した人は名前を灰色にして、横に「かくし中」の札（「●●● びび」が名前の一部に見えていた）

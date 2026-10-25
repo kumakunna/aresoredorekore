@@ -72,10 +72,14 @@ async function waitUntil(fn, label, ms) {
 }
 const fesOf = (d) => (d.room && d.room.fes) || {};
 
-async function makeFes(srv) {
+// 指示68-1：いまの候補はクイズ解除だけで、投票を飛ばす。投票の流れを見る検査は、候補を全部 on にした表で部屋を作る。
+// 本物の表（候補1つ）は「門5」の検査が見る
+const 全部on = () => FesRoom.FES_GAMES.map((g) => Object.assign({}, g, { on: true }));
+async function makeFes(srv, opts) {
   const staff = await device(srv.url, await login(srv.url, STAFF));
   const c = await staff.call('fes:create', {});
   assertEqual(c.ok, true, '係は文化祭の部屋を作れる');
+  if (!(opts && opts.本物の表)) srv.store.get(c.code).fes.games = 全部on();
   return { staff, code: c.code };
 }
 async function join(srv, code, name, diff, extra) {
@@ -197,7 +201,8 @@ async function join(srv, code, name, diff, extra) {
     const RT = require('../realtime');
     const room = new RT.RoomStore().create({ ownerUserId: 1 });
     for (let i = 0; i < 10; i++) room.members.set('m' + i, { id: 'm' + i, name: 'n' + i, role: 'player', connected: true, joinedAt: i, readyGame: null });
-    FesRoom.init(room, {});
+    // 10人だと上限8人のクイズ解除は候補に入らず、候補が1つだと投票を飛ばす。投票を通すために10人で遊べる仮の行を足す（候補は下で差しかえる）
+    FesRoom.init(room, { games: 全部on().concat([{ mode: 'x-test', game: 'x-test', min: 2, max: 16, on: true, start: { game: 'x-test' } }]) });
     room.fes.rnd = () => 0;
     const started = [];
     const api = { startGameNow: (r, p) => { started.push(p); return { ok: true }; }, clearGameState() {}, driverStateOf: () => null, removeMember() { return true; } };
@@ -229,6 +234,8 @@ async function join(srv, code, name, diff, extra) {
     };
     await round();
     await waitUntil(() => fesOf(a).phase === 'play', '1回目が始まる');
+    // 本人だけの知らせ（fes:you）は部屋の知らせのあとに届くことがある。届くまで待ってから見る（重い時に赤くなった）
+    await waitUntil(() => c.me && c.me.miss === 1, '押さなかった数が届く', 3000).catch(() => null);
     assertEqual(c.me.miss, 1, '1回目：押さなかった数が1つ（まだ席はある）');
     // 1回目のゲームを終わらせる（わざと3回外す＝爆発）。ここから先は何も押さない
     const room = srv.store.get(code);
@@ -496,6 +503,38 @@ async function join(srv, code, name, diff, extra) {
     assertEqual(BombRoom.privateFor(race, 'e').open.description, rh.description, '競争版では差しかえない');
     // 公開の知らせに差しかえの問題が漏れない
     assert(!JSON.stringify(BombRoom.publicView(room)).includes(sub.description), '差しかえた問題はみんなに配らない');
+  });
+
+  // ---- 指示68-1 門5：候補の数（1つ・2つ・4つ以上） ----
+  const 表 = (modes) => modes.map((m, i) => ({ mode: m, game: m, min: 2, max: 8, on: true, start: { game: m } }));
+  await r.test('門5：いまの候補はクイズ解除だけ・候補が1つなら投票を飛ばして決定のカードへ', async () => {
+    assertEqual(FesRoom.gamesFor({}).map((g) => g.mode).join(','), 'bomb-coop', 'on の物はクイズ解除の協力版だけ');
+    const RT = require('../realtime');
+    const room = new RT.RoomStore().create({ ownerUserId: 1 });
+    for (let i = 0; i < 4; i++) room.members.set('m' + i, { id: 'm' + i, name: 'n' + i, role: 'player', connected: true, joinedAt: i, readyGame: null });
+    FesRoom.init(room, {});
+    const api = { startGameNow: () => ({ ok: true }), clearGameState() {}, driverStateOf: () => null, removeMember() { return true; } };
+    FesRoom.tick(room, Date.now(), api);
+    room.fes.endsAt = Date.now() - 1; FesRoom.tick(room, Date.now(), api);   // 待合 → 候補を決める
+    assertEqual(room.fes.phase, 'decide', '投票を飛ばして決定へ');
+    assertEqual(room.fes.pick && room.fes.pick.mode, 'bomb-coop', 'クイズ解除に決まる');
+    assertEqual(room.fes.pick.lot, 'single', '「このゲームで遊びます！」の形（くじでも票でもない）');
+  });
+
+  await r.test('門5：候補が2つなら、2つで投票する', async () => {
+    const f = { games: 表(['bomb-coop', 'rcard']), round: 1 };
+    assertEqual(FesRoom.candidatesFor(4, f).join(','), 'bomb-coop,rcard', '2つとも出る');
+  });
+
+  await r.test('門5：候補が4つ以上なら3つ（前の回のゲームを除き、出た回が古い順・1回目はクイズ解除を必ず入れる）', async () => {
+    const games = 表(['a1', 'a2', 'a3', 'bomb-coop', 'a5']);
+    const one = FesRoom.candidatesFor(4, { games, round: 1, shown: {} });
+    assertEqual(one.length, 3, '3つ');
+    assert(one.indexOf('bomb-coop') !== -1, '1回目はクイズ解除を必ず入れる（' + one.join(',') + '）');
+    const two = FesRoom.candidatesFor(4, { games, round: 2, played: { mode: 'a1' }, shown: { a1: 1, a2: 1, a3: 1, 'bomb-coop': 1 } });
+    assertEqual(two.length, 3, '3つ');
+    assert(two.indexOf('a1') === -1, '前の回のゲームは出さない（' + two.join(',') + '）');
+    assertEqual(two[0], 'a5', 'まだ出ていない物が先');
   });
 
   await r.test('投票の候補の人数の幅が、アプリの MODES・GAMES と同じ（写しが腐らない）', async () => {

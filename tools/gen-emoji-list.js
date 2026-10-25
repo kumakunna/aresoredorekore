@@ -28,7 +28,6 @@ const SOURCES = [
   // 第38弾：ここは tests/shelf.js にもう一つ手書きの一覧があって、
   // そちらの方が広かった。ツールが狭いと「足りない」と言われないまま素通りする
   // （相場オークションの 🏺 が実際にそうなった）。**この一覧を正本にする**
-  'public/js/defuse-logic.js',
   'public/js/auction-items.js',
   'public/js/auction-logic.js',
   'public/js/quiz-logic.js',

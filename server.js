@@ -92,6 +92,14 @@ app.post('/api/auth/register', (req, res) => {
   res.json({ id: info.lastInsertRowid, username, displayName: username });
 });
 
+/**
+ * 指示68-1：テスト中の札を見られる人か（くまくん＝.env の FES_OWNER）。名前はコードにも docs にも書かない（公開のリポジトリ）。
+ * 画面はこれを見て、ふだんの棚のいちばん後ろに「テスト中」の札を出す
+ */
+function isTester(username) {
+  return String(process.env.FES_OWNER || '').split(',').map((x) => x.trim()).filter(Boolean).indexOf(username) !== -1;
+}
+
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body || {};
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
@@ -100,7 +108,7 @@ app.post('/api/auth/login', (req, res) => {
   }
   req.session.userId = user.id;
   res.json({ id: user.id, username: user.username,
-             displayName: user.display_name || user.username });
+             displayName: user.display_name || user.username, tester: isTester(user.username) });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -140,7 +148,7 @@ app.get('/api/auth/me', (req, res) => {
     .get(req.session.userId);
   if (!user) return res.status(401).json({ error: '未ログイン' });
   res.json({ id: user.id, username: user.username,
-             displayName: user.display_name || user.username });
+             displayName: user.display_name || user.username, tester: isTester(user.username) });
 });
 
 // -------------------- お題API：第46弾で撤去した --------------------

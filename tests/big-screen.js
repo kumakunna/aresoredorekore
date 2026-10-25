@@ -250,7 +250,7 @@ const { createRunner, assert, assertEqual } = require('./harness');
     // わざと「あなた」を混ぜた変異が素通りした（落とし穴10-f）
     ['renderRtBig', 'renderRtBigFalsetrue', 'renderRtBigRcard', 'renderRtBigShinka', 'renderRtBigSugoroku',
       'renderRtBigQuiz', 'renderRtBigAuction',
-      'renderRtBigWordwolf', 'renderRtBigBomb', 'renderRtBigDefuse',
+      'renderRtBigWordwolf', 'renderRtBigBomb',
       // 指示64：待合（A3・B2）・名簿の1行・順位表・入場の知らせも、TVに字を組む
       'renderBigLobby', 'bigRosterHtml', 'bigRuleCardsHtml', 'bigRowHtml', 'bigRankHtml', 'bigEntryShow'].forEach((fn) => {
       const a = html.indexOf('function ' + fn + '(');
@@ -624,7 +624,7 @@ const { createRunner, assert, assertEqual } = require('./harness');
       return !/el\('bigPhase'\)/.test(本文) || /RT_PHASE_LABEL/.test(本文);
     });
     // 型(b)：分け方が効いていることを先に見る（全部が「読む」でも「読まない」でもない）
-    assert(表を読む.indexOf('defuse') !== -1 && 表を読む.indexOf('wolfrole') !== -1, '実物解除と人狼は表を読む（' + 表を読む.join('・') + '）');
+    assert(表を読む.indexOf('wolfrole') !== -1, '人狼は表を読む（' + 表を読む.join('・') + '）');
     assert(表を読む.indexOf('quizrush') === -1 && 表を読む.indexOf('auction') === -1 && 表を読む.indexOf('sugotoll') === -1,
       'クイズ・オークション・すごろくは自分の表で札を書く');
     const 表a2 = html64.indexOf('var RT_PHASE_LABEL = {');

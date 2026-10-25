@@ -25,12 +25,20 @@
  * 始める設定は端末の既定（state.bombCounts など）と同じ（tests/fes.js が照らす・写しが腐らないように）。
  * 進化じゃんけんとロシアンカードは、何も送らなければ進行役が既定で始める
  */
+// 指示68-1：on＝文化祭の候補に出す（門を通った物だけ）。いまはクイズ解除の協力版だけ。
+// 進化じゃんけん・ロシアンカードは棚から下ろした（コードは残す・on:false）。2.0 の物は門を通ったら on にする。
+// testing＝門を通る前の物。係（くまくん）が「テスト中のゲームも候補に入れる」を入れた時だけ候補に出る
 const FES_GAMES = [
-  { mode: 'bomb-coop', game: 'bomb', min: 2, max: 8,
+  { mode: 'bomb-coop', game: 'bomb', min: 2, max: 8, on: true,
     start: { game: 'bomb', mode: 'coop', counts: { easy: 12, normal: 10, hard: 8, nanisore: 0, muri: 0 }, lives: 3, timerSec: 180, showMisses: false } },
-  { mode: 'shinka', game: 'shinka', min: 3, max: 12, start: { game: 'shinka' } },
-  { mode: 'rcard', game: 'rcard', min: 2, max: 8, start: { game: 'rcard' } }
+  { mode: 'shinka', game: 'shinka', min: 3, max: 12, on: false, start: { game: 'shinka' } },
+  { mode: 'rcard', game: 'rcard', min: 2, max: 8, on: false, start: { game: 'rcard' } }
 ];
+/** 候補にできるゲーム。opts.games（検査が表を差しかえる）と、テスト中を入れるかのスイッチ */
+function gamesFor(f) {
+  const list = (f && f.games) || FES_GAMES;
+  return list.filter((g) => g.on || (g.testing && f && f.withTesting));
+}
 
 const ROOM_MAX = 16;
 const MISS_LIMIT = 2;
@@ -54,7 +62,7 @@ const TIMES = {
 
 const PHASE = { IDLE: 'idle', LOBBY: 'lobby', VOTE: 'vote', DECIDE: 'decide', READY: 'ready', PLAY: 'play', RESULT: 'result' };
 
-function gameOf(mode) { return FES_GAMES.find((g) => g.mode === mode) || null; }
+function gameOf(mode, f) { return ((f && f.games) || FES_GAMES).find((g) => g.mode === mode) || FES_GAMES.find((g) => g.mode === mode) || null; }
 
 /** 文化祭の部屋にする（作り直しの時も、まっさらから） */
 function init(room, opts) {
@@ -74,6 +82,9 @@ function init(room, opts) {
     inset: 0,              // TVの端あわせ（ふちから内側へ何%縮めるか）
     note: null,            // 待合に出す一言のもと（'too_few' など）
     queue: [],             // 指示66-3：満員の時の予約（つぎの回に入る）。{ socketId, token, at, offerUntil }。入った順
+    shown: {},             // 指示68-1：mode -> 最後に候補に出した回（出ていない回が長い順に選ぶ）
+    games: o.games || null,  // 検査だけが差しかえる（無ければ FES_GAMES）
+    withTesting: false,    // 係（くまくん）の「テスト中のゲームも候補に入れる」
     times: Object.assign({}, TIMES, o.times || {}),
     rnd: o.rnd || Math.random
   };
@@ -181,25 +192,47 @@ function tick(room, now, api) {
   return false;
 }
 
-/** いまの人数で始められる候補。**人数の多すぎる回は、いちばん多く入れるものだけ**（下の説明） */
-function candidatesFor(n) {
-  const fit = FES_GAMES.filter((g) => n >= g.min && n <= g.max);
-  if (fit.length) return fit.map((g) => g.mode);
-  // 13〜16人は3つとも入りきらない。待合で止めると、いちばん人が集まった時に何も遊べない。
-  // その回は「いちばん多く入れるゲーム」だけを出し、準備OK を押した順に上限まで入る
-  // （あとの人は「つぎの回から」）。くまくんに確かめる（報告の質問）
-  const big = Math.max.apply(null, FES_GAMES.map((g) => g.max));
-  return n > big ? FES_GAMES.filter((g) => g.max === big).map((g) => g.mode) : [];
+/**
+ * いまの人数で始められる候補（指示68-1）。
+ * ・その人数で遊べる物。3つまでなら全部（1つなら投票を飛ばす・2つなら2択）
+ * ・4つ以上なら3つ：前の回に遊んだ物をのぞき、候補に出ていない回が長い順。その日の最初の回は、クイズ解除を必ず入れる（遊べる人数の時）
+ * ・その人数で遊べる物が無い時は、いちばん多く入れる物を出し、準備OK を押した順に入る（あとの人は「つぎの回から」）
+ */
+function candidatesFor(n, f) {
+  const avail = gamesFor(f);
+  if (!avail.length) return [];
+  const fit = avail.filter((g) => n >= g.min && n <= g.max);
+  if (!fit.length) {
+    const big = Math.max.apply(null, avail.map((g) => g.max));
+    return n > big ? avail.filter((g) => g.max === big).map((g) => g.mode) : [];
+  }
+  if (fit.length <= 3) return fit.map((g) => g.mode);
+  const last = f && f.played ? f.played.mode : null;
+  let pool = fit.filter((g) => g.mode !== last);
+  if (pool.length < 3) pool = fit.slice();
+  const shown = (f && f.shown) || {};
+  pool.sort((a, b) => (shown[a.mode] || 0) - (shown[b.mode] || 0));   // 同じなら表の順（並べかえは安定）
+  let pick = pool.slice(0, 3);
+  const bomb = fit.find((g) => g.mode === 'bomb-coop');
+  if (f && f.round === 1 && bomb && pick.indexOf(bomb) === -1) pick = [bomb].concat(pick.slice(0, 2));
+  return pick.map((g) => g.mode);
 }
 
 function startVote(room, now) {
   const f = room.fes;
-  const c = candidatesFor(livePeople(room).length);
+  const c = candidatesFor(livePeople(room).length, f);
   if (!c.length) { f.endsAt = now + f.times.lobbyMs; return true; }
   f.candidates = c;
+  c.forEach((mode) => { if (!f.shown) f.shown = {}; f.shown[mode] = f.round; });
   f.votes = new Map();
   f.pick = null;
   f.note = null;
+  // 指示68-1：候補が1つなら投票を飛ばして、そのゲームに決める（決定のカードは出す）
+  if (c.length === 1) {
+    f.pick = { mode: c[0], counts: { [c[0]]: 0 }, lot: 'single', tied: [] };
+    set(room, PHASE.DECIDE, f.times.decideMs, now);
+    return true;
+  }
   set(room, PHASE.VOTE, f.times.voteMs, now);
   return true;
 }
@@ -233,7 +266,7 @@ function decide(room, now) {
 
 function openReady(room, now) {
   const f = room.fes;
-  const g = gameOf(f.pick.mode);
+  const g = gameOf(f.pick.mode, f);
   // 準備OK は「いまのゲーム」に対して押すもの（realtime.js の room:ready がそう確かめる）
   room.state.game = g.game;
   room.state.data = Object.assign({}, room.state.data, { modeId: g.mode });
@@ -251,7 +284,7 @@ function missed(room, m, api) {
 
 function closeReady(room, now, api) {
   const f = room.fes;
-  const g = gameOf(f.pick.mode);
+  const g = gameOf(f.pick.mode, f);
   const live = livePeople(room);
   let pressed = live.filter((m) => m.readyGame === g.game)
     .sort((a, b) => (a.readyAt || 0) - (b.readyAt || 0));
@@ -349,8 +382,9 @@ function publicView(room, now) {
     round: f.round,
     candidates: f.candidates.slice(),
     // 文化祭で遊べるゲームの全部（TVの呼び込み）と、いまの人数での次の候補（待合）。端末に一覧を写さない（落とし穴1）
-    games: FES_GAMES.map((g) => g.mode),
-    next: candidatesFor(livePeople(room).length),
+    games: gamesFor(f).map((g) => g.mode),
+    next: candidatesFor(livePeople(room).length, f),
+    withTesting: !!f.withTesting,
     pick: show && f.pick ? { mode: f.pick.mode, counts: Object.assign({}, f.pick.counts), lot: f.pick.lot, tied: f.pick.tied.slice() } : null,
     played: f.played ? { mode: f.played.mode, round: f.played.round, ids: f.played.ids.slice() } : null,
     full: livePeople(room).length >= ROOM_MAX,
@@ -377,5 +411,5 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { FES_GAMES, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
+module.exports = { FES_GAMES, gamesFor, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
   reserve, unreserve, held, queueTick };

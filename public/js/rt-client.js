@@ -377,6 +377,7 @@
     function fesWatch(code) { connect(); return call('fes:watch', { code: code || null }); }
     function fesHide(code, memberId, hidden) { return call('fes:hide', { code: code, memberId: memberId, hidden: hidden !== false }); }
     function fesKick(code, memberId) { return call('fes:kick', { code: code, memberId: memberId }); }
+    function fesTesting(code, on) { return call('fes:testing', { code: code, on: !!on }); }
     function fesInset(code, inset) { return call('fes:inset', { code: code, inset: inset }); }
     function fesPause(code, on) { return call('fes:pause', { code: code, on: on !== false }); }
     function fesSkip(code) { return call('fes:skip', { code: code }); }
@@ -453,7 +454,7 @@
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,
       fesVote: fesVote, fesContinue: fesContinue, fesFeedback: fesFeedback,
-      fesCreate: fesCreate, fesWatch: fesWatch, fesHide: fesHide, fesKick: fesKick, fesInset: fesInset, fesPause: fesPause, fesSkip: fesSkip, fesReserve: fesReserve, fesUnreserve: fesUnreserve,
+      fesCreate: fesCreate, fesWatch: fesWatch, fesHide: fesHide, fesKick: fesKick, fesTesting: fesTesting, fesInset: fesInset, fesPause: fesPause, fesSkip: fesSkip, fesReserve: fesReserve, fesUnreserve: fesUnreserve,
       // テストから中身を差し替えられるように（socket.io本体は持たせない）
       _call: call
     };

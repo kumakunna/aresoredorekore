@@ -325,7 +325,7 @@ async function run() {
     // ② **お題と封印語を部屋へ配る経路が、1つも無い。**
     //    サーバー側（部屋の知らせを作る所）に、お題の語が現れないことを見る
     const 部屋を作る側 = ['realtime.js', 'wolf-room.js', 'wordwolf-room.js', 'bomb-room.js',
-      'defuse-room.js', 'quiz-room.js', 'auction-room.js', 'sugoroku-room.js']
+      'quiz-room.js', 'auction-room.js', 'sugoroku-room.js']
       .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join(' ');
     const 漏れ語 = ['topicPool', 'aresoreTopic', 'sealedWord', '封印語'];
     const 見つかった = 漏れ語.filter((w) => 部屋を作る側.indexOf(w) >= 0);

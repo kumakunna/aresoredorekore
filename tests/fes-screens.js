@@ -96,6 +96,21 @@ async function 入った(o) {
     win.close();
   });
 
+  await r.test('門5（画面）：候補が1つで投票を飛ばした時は「このゲームで遊びます！」（スマホとTV）', async () => {
+    const { win, doc } = await 入った();
+    const lab = 流す(win, 'fes2-decide-one');
+    assertEqual(lab.room.fes.pick && lab.room.fes.pick.lot, 'single', '見本は本物の表（候補1つ）で投票を飛ばしている');
+    await waitFor(win, () => /このゲームで遊びます！/.test(doc.getElementById('scr-v2-fes-lobby').textContent), 2000, 'スマホの決定のカード');
+    assert(!/えらびました|くじ/.test(doc.getElementById('scr-v2-fes-lobby').textContent), '票やくじの言い方をしない');
+    assert(!/自分の投票/.test(doc.getElementById('scr-v2-fes-lobby').textContent), '投票していないので「自分の投票」を出さない（fes-walk で見つけた）');
+    win.V2Screens.fes(FesScenes.view('fes2-tv-decide-one'));
+    await sleep(win, 60);
+    const tv = doc.getElementById('scr-v2-fes-tv').textContent;
+    assert(/このゲームで遊びます！/.test(tv), 'TVの決定のカード');
+    assert(!/えらびました|くじ/.test(tv), 'TVも票やくじの言い方をしない');
+    win.close();
+  });
+
   await r.test('門4（画面）：投票中のスマホにもTVにも、票の数が出ない', async () => {
     const { win, doc } = await 入った();
     流す(win, 'fes2-voted');

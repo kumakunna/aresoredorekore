@@ -1,6 +1,6 @@
 // quiz-logic.js — カセット「クイズ王」4ゲームのルール層（第30弾）
 //
-// 設計の芯は bomb-logic.js / defuse-logic.js とまったく同じ:
+// 設計の芯は bomb-logic.js とまったく同じ（もとは実物解除の defuse-logic.js も同じ形だった・指示68-1 で削除）:
 //   DOM も socket.io も知らない。Node.js から require できる純粋な計算だけを置く。
 //
 // ---- なぜ4ゲームを1つのファイルにまとめたか（判断の記録） ----

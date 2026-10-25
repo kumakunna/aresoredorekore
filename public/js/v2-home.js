@@ -221,7 +221,8 @@
     return '<button type="button" class="v2-scard v2-a-rise' + (c.why ? ' is-no' : '') + '" style="--d:' + (0.04 * (k + 1)).toFixed(2) + 's" data-home-card="' + c.i + '" data-home-id="' + e(c.id) + '">' +
       V.tile(c.world) +
       // 前回あそんだゲームには小さく「前回」（前の棚の 2-2：選ばれている理由が見える札。邪魔をしない）
-      '<span class="v2-scard-t"><span class="v2-scard-n">' + e(c.name) + (c.last ? '<span class="v2-last">' + e(U().一覧.前回) + '</span>' : '') + '</span><span class="v2-scard-b">' + e(c.blurb) + '</span>' +
+      '<span class="v2-scard-t"><span class="v2-scard-n">' + e(c.name) + (c.last ? '<span class="v2-last">' + e(U().一覧.前回) + '</span>' : '') +
+        (c.testing ? '<span class="v2-last is-test" data-home-testing>' + e(U().一覧.テスト中) + '</span>' : '') + '</span><span class="v2-scard-b">' + e(c.blurb) + '</span>' +
         (c.why ? '<span class="v2-swhy">' + V.icon('info') + e(c.why) + '</span>' : meta(c, true)) + '</span>' +
       V.icon('chev', 'v2-go') + '</button>';
   }

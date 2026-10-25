@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // tools/fes-walk.js — 文化祭の部屋（指示66-2）を、スマホ3台とTVで何周も回す（門1・門11）
 //
-//   node tools/fes-walk.js                       … 3周（クイズ解除 → 進化じゃんけん → ロシアンカード の順に投票）
+//   node tools/fes-walk.js                       … 3周（いまの候補はクイズ解除だけ。投票を飛ばして回る・指示68-1）
 //   node tools/fes-walk.js --laps 3 --fx skip    … 演出「なし」で回す（門11）
-//   --games bomb-coop,shinka,rcard   周ごとに投票するゲーム（足りなければ頭から繰り返す）
+//   --games bomb-coop,shinka,rcard   周ごとに投票するゲーム（ほかの候補を on にした部屋で）（足りなければ頭から繰り返す）
 //   --port 3301  --cdp 9701  --out DIR（既定 docs/監査_指示66の画像/fes-walk）
 //
 // **係は部屋を作るだけ。そのあと係の操作は1つもしない**（「人がいなくても回る」を確かめるため）。
@@ -22,7 +22,7 @@ const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
 const PORT = +arg('port', 3301), CDP = +arg('cdp', 9701), LAPS = +arg('laps', 3), FX = arg('fx', 'normal');
-const GAMES = String(arg('games', 'bomb-coop,shinka,rcard')).split(',');
+const GAMES = String(arg('games', 'bomb-coop')).split(',');
 const OUT = path.resolve(arg('out', path.join(ROOT, 'docs', '監査_指示66の画像', 'fes-walk' + (FX === 'skip' ? '-skip' : ''))));
 
 const 記録 = { いつ: new Date().toISOString(), 演出: FX, 周: [], 例外: [], 失敗: null };
@@ -103,11 +103,18 @@ const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.a
       const 周 = { 周: lap, 投票: mode, 段階: [] };
       記録.周.push(周);
       const 着いた = (s) => { 周.段階.push({ 段階: s, 秒: +((Date.now() - t0) / 1000).toFixed(1) }); log('周' + lap, s); };
-      await ph[0].until("!!document.querySelector('#scr-v2-fes-lobby .v2-vlist')", 90000, '投票へ');
-      着いた('投票'); await 撮る(ph[0], lap + '_1_投票'); await 撮る(tv, lap + '_1_投票_TV');
-      // TV に票の数が出ていないこと（門4）：投票中の TV の字に「人」の数字が無い
-      周.TVに票の数 = await tv.ev("/\\d+\\s*(人|票)/.test((document.querySelector('#scr-v2-fes-tv .v2-vrows')||{}).innerText||'')");
-      for (const d of ph) { await 押す(d, '[data-fes-pick="' + mode + '"]'); await sleep(120); await 押す(d, '[data-fes-act=vote]'); }
+      // 指示68-1：候補が1つの時（いまはクイズ解除だけ）は投票を飛ばして決定のカードへ。どちらが来たかを記録する
+      await ph[0].until("!!document.querySelector('#scr-v2-fes-lobby .v2-vlist')||!!document.querySelector('#scr-v2-fes-lobby .v2-dec')", 90000, '投票か決定へ');
+      周.投票を飛ばした = await ph[0].ev("!document.querySelector('#scr-v2-fes-lobby .v2-vlist')");
+      if (!周.投票を飛ばした) {
+        着いた('投票'); await 撮る(ph[0], lap + '_1_投票'); await 撮る(tv, lap + '_1_投票_TV');
+        // TV に票の数が出ていないこと（門4）：投票中の TV の字に「人」の数字が無い
+        周.TVに票の数 = await tv.ev("/\\d+\\s*(人|票)/.test((document.querySelector('#scr-v2-fes-tv .v2-vrows')||{}).innerText||'')");
+        for (const d of ph) { await 押す(d, '[data-fes-pick="' + mode + '"]'); await sleep(120); await 押す(d, '[data-fes-act=vote]'); }
+      } else {
+        着いた('投票を飛ばした');
+        周.決定の字 = await ph[0].ev("(document.querySelector('#scr-v2-fes-lobby .v2-dec')||{}).innerText||''");
+      }
       await ph[0].until("!!document.querySelector('#scr-v2-fes-lobby .v2-dec')", 40000, '決定');
       着いた('決定'); await sleep(2500); await 撮る(ph[0], lap + '_2_決定'); await 撮る(tv, lap + '_2_決定_TV');
       await ph[0].until("!!document.querySelector('[data-fes-act=ready]')", 20000, '準備OK');

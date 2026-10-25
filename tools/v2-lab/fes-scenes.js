@@ -153,10 +153,10 @@ const SCENES = [
   ['fes2-lobby', 'phone', 'f3'], ['fes2-fb', 'phone', 'f4'], ['fes2-fbmini', 'phone', null],
   ['fes2-play', 'phone', 'f11'], ['fes2-tv-play', 'tv', 't11'],
   ['fes2-look', 'phone', 'f5a'], ['fes2-look-icon', 'phone', 'f5b'], ['fes2-look-name', 'phone', 'f5c'],
-  ['fes2-vote', 'phone', 'f7'], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-ready', 'phone', 'f9'],
+  ['fes2-vote', 'phone', 'f7'], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],
   ['fes2-tv-idle', 'tv', 't6a'], ['fes2-tv-one', 'tv', 't6b'], ['fes2-tv-lobby', 'tv', 't3'], ['fes2-tv-full', 'tv', 't6c'],
-  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b']
+  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b']
 ].map(([id, kind, mock]) => ({ id, kind, draw: 'fes', fes: true,
   screen: BUILD[id]({}).screen, mock: mock ? { page: 'festival.html', id: mock } : null }));
 

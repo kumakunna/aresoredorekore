@@ -314,7 +314,8 @@
   function nameWallHtml(names, rows) {
     var list = (names || []).filter(Boolean);
     if (!list.length) return '';
-    var n = rows || 13, html = '';
+    // 段は、画面の下の端まで全面が埋まるだけ（13段では TV の下・右下が空いていた。くり返すので名前が少なくても埋まる・指示68-0b）
+    var n = rows || 30, html = '';
     for (var r = 0; r < n; r++) {
       var k = r % list.length, rot = list.slice(k).concat(list.slice(0, k));
       var seg = rot.join(' / ') + ' / ';
@@ -333,8 +334,9 @@
     var scr = scrOf(wall) || wall, wr = scr.getBoundingClientRect();
     var rows = wall.querySelectorAll('.v2-nr'); if (!rows.length) return false;
     var best = null, bd = 1e12;
-    [rows[Math.floor(rows.length * 0.42)], rows[Math.floor(rows.length * 0.5)], rows[Math.floor(rows.length * 0.58)]].forEach(function (row) {
-      if (!row) return;
+    // 全部の段から探す（段の数は画面の大きさで見えている範囲が変わる。決まった3段だと画面の外の段を選んでいた・指示68-0b）
+    Array.prototype.forEach.call(rows, function (row) {
+      var rr = row.getBoundingClientRect(); if (rr.bottom < wr.top || rr.top > wr.bottom) return;
       if (row.childNodes.length !== 1 || row.firstChild.nodeType !== 3) row.textContent = row.textContent;
       var tn = row.firstChild, txt = tn.nodeValue, i = -1;
       while ((i = txt.indexOf(name, i + 1)) >= 0) {

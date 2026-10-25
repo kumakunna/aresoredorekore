@@ -124,7 +124,8 @@ const STATES = {
     { id: 'wide10', n: 10, long: 1, freeze: 20, mock: null }
   ],
   'home-e4': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
-  'home-te3': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  // 名前の壁（くまくんの指摘 2026-10-25）：4人・1人でも全面を埋める
+  'home-te3': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }, { id: 'n4', n: 4, freeze: 20, mock: null }, { id: 'n1', n: 1, freeze: 20, mock: null }],
   'home-tv16': [{ id: 'base', freeze: 20, mock: null }, { id: 'wide', long: 1, freeze: 20, mock: null }],
   'home-e3-16': [{ id: 'base', freeze: 20, mock: null }, { id: 'wide', long: 1, freeze: 20, mock: null }],
   // B1：部屋の QR のシート。ローカル（注意書き3行）・本番のアドレス・QR を出せなかった時

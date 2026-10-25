@@ -4728,7 +4728,9 @@
   /* 名前の壁（遊ぶ人の名前が、ゆっくり流れる） */
   .v2 .v2-wall{position:absolute;left:-40%;top:-30%;width:180%;height:160%;transform:rotate(-14deg);
     display:flex;flex-direction:column;gap:6px;}
-  .v2 .v2-nr{white-space:nowrap;font-weight:900;font-size:46px;line-height:1.05;letter-spacing:.01em;
+  /* 指示68-0b（くまくんの指摘 2026-10-25）：行の箱を英字の高さで切らない（text-box）。切ると段の間が字の高さより狭くなり、
+     上下の段の名前が重なっていた。段の数は全面が埋まるだけ作る（v2-kit.js の nameWallHtml・30段） */
+  .v2 .v2-nr{white-space:nowrap;font-weight:900;font-size:46px;line-height:1.2;letter-spacing:.01em;text-box:normal;
     color:color-mix(in srgb,var(--wi) 7%,transparent);animation:v2-flow calc(110s * var(--fx-scale)) linear infinite;}
   .v2 .v2-nr:nth-child(even){animation-duration:calc(130s * var(--fx-scale));animation-direction:reverse;}
   .v2 .v2-glow{display:inline-block;color:var(--v2-gold);transform-origin:50% 60%;
@@ -4923,7 +4925,7 @@
   .screen.v2.v2-tv.active{display:block;}
   .v2 .v2-tvc{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;
     background:linear-gradient(180deg,var(--wt),var(--wb));font-size:44px;line-height:1.35;}
-  .v2 .v2-tvc .v2-nr{font-size:120px;line-height:1.02;}
+  .v2 .v2-tvc .v2-nr{font-size:120px;line-height:1.2;}
   /* 安全な枠：TVはふちを切って映すことがある。字・数・QRは内側（ふちから5%）に置く。背景だけ端まで */
   .v2 .v2-safe{position:absolute;inset:54px 96px;z-index:3;display:flex;flex-direction:column;}
   /* 縦の字は、端ぴったりにせず少し内側（TVによっては、ふちが切れて映る） */
@@ -32529,8 +32531,7 @@
    * （字は出さない・演出の設定で速くしない）。TV は 1920×1080 の箱で組んで縮める（ほかの TV の画面と同じ）
    */
   function fesCountdown(sec, g, tv, hold, names){
-    // 段は多めに（3・2・1 の箱は画面いっぱいで、13段だと上の方にしか壁が出ない）
-    var bg = (names && names.length) ? V2.bgHtml({ names: names, rows: 26 }) : '';
+    var bg = (names && names.length) ? V2.bgHtml({ names: names }) : '';
     var hd = '<span class="v2-cdx-g">' + V2.esc(g.name) + (g.edition ? '<small>（' + V2.esc(g.edition) + '）</small>' : '') + '</span>';
     return FxKit.countdown(sec, { id: 'v2Cdx', cls: 'v2 v2-cdx v2-w-' + g.world + (tv ? ' is-tv' : ''),
       render: function(num){

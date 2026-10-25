@@ -1086,6 +1086,8 @@ function pickCart(doc, id) {
     await H.openAppSettings(t.win, t.doc);
     const row = t.doc.querySelector('#setAppMenu [data-setpage="safety"]');
     assert(row, '「安全に関する設定」の入口がある');
+    // 指示68-1：「体を動かす遊び」は実物解除と一緒に消した。入口の説明にも名前を残さない（写真で見つけた）
+    assert(!/体を動かす/.test(row.textContent), '入口の説明に、消した「体を動かす遊び」が無い（' + row.textContent.trim() + '）');
     row.click();
     await sleep(t.win, 60);
     ['setFlashToggle', 'setShakeToggle', 'setVibrateToggle', 'setFxSeg']

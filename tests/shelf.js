@@ -1186,7 +1186,9 @@ function pickCart(doc, id) {
     // 称号の画面で、参加証が持ち物に入っている
     await chooseNext(win, doc, 'mode');
     await waitScreen(win, doc, 'scr-mode', 3000);
+    // 「ルールを変える」から来たモードの画面の ← は「つぎは？」にもどる（くまくんの決め 2026-10-25）。一覧へは「一覧から えらぶ」
     click(doc, 'backToShelfBtn');
+    await chooseNext(win, doc, 'shelf');
     await waitScreen(win, doc, 'scr-v2-pick', 3000);
     win.goToScreen('scr-titles');   // ⚙ →「アイコン・二つ名」と同じ画面
     await waitScreen(win, doc, 'scr-titles', 3000);
@@ -1238,7 +1240,9 @@ function pickCart(doc, id) {
     const stats = win.eval('JSON.stringify(0)') && null; // 内部は見ないで、画面から確かめる
     await chooseNext(win, doc, 'mode');
     await waitScreen(win, doc, 'scr-mode', 3000);
+    // 「ルールを変える」から来たモードの画面の ← は「つぎは？」にもどる（くまくんの決め 2026-10-25）。一覧へは「一覧から えらぶ」
     click(doc, 'backToShelfBtn');
+    await chooseNext(win, doc, 'shelf');
     await waitScreen(win, doc, 'scr-v2-pick', 3000);
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);
@@ -1273,7 +1277,9 @@ function pickCart(doc, id) {
 
     await chooseNext(win, doc, 'mode');
     await waitScreen(win, doc, 'scr-mode', 3000);
+    // 「ルールを変える」から来たモードの画面の ← は「つぎは？」にもどる（くまくんの決め 2026-10-25）。一覧へは「一覧から えらぶ」
     click(doc, 'backToShelfBtn');
+    await chooseNext(win, doc, 'shelf');
     await waitScreen(win, doc, 'scr-v2-pick', 3000);
     click(doc, 'shelfMeBtn');
     await waitScreen(win, doc, 'scr-titles', 3000);

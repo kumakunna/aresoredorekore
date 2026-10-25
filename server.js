@@ -339,8 +339,13 @@ const io = attachRealtime(httpServer, sessionMiddleware);
 // 指示66-2：文化祭の部屋の道（/fes・名前の記録・感想）。部屋の仕組み（io）から、いまの部屋と係の判定を借りる
 require('./fes-routes').mountFesRoutes(app, io);
 
+// 指示68-1：落ちた時の記録に、その時の版を残す（落ちる振る舞いは今のまま：記録してから終わる）
+const APP_VERSION = require('./public/js/version.js');
+process.on('uncaughtException', (e) => { console.error('[server] ' + APP_VERSION.label + ' で落ちました:', e); process.exit(1); });
+process.on('unhandledRejection', (e) => { console.error('[server] ' + APP_VERSION.label + ' で落ちました（受け取られなかった失敗）:', e); process.exit(1); });
+
 httpServer.listen(PORT, () => {
-  console.log(`[server] あれそれどれこれ backend running on port ${PORT}`);
+  console.log(`[server] あれそれどれこれ backend running on port ${PORT}（${APP_VERSION.label}）`);
   // 起動時に「.env が効いているか」を1行で出す（第37弾）。
   // 予備値のまま静かに動いてしまう値が3つある（登録コード・署名鍵・NODE_ENV）。
   // 立ち上げ直後にここを見れば、入れ忘れがその場で分かる。

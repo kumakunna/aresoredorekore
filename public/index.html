@@ -8950,6 +8950,8 @@
       <button class="btn btn-ghost" id="logoutBtn" style="display:none;">ログアウト</button>
       <button class="btn btn-main" id="settingsLoginBtn" style="display:none;">ログインする</button>
       <div class="set-credit" id="setCredit">絵文字は Twemoji（© 2020 Twitter, Inc and other contributors / CC-BY 4.0）を使っています。</div>
+      <!-- 指示68-1：版（public/js/version.js が1か所）。TV には出さない（openSettings で隠す） -->
+      <div class="set-credit" id="setVersion"></div>
     </div>
   </div>
 
@@ -9101,6 +9103,7 @@
 <script src="/socket.io/socket.io.min.js"></script>
 <!-- 指示55-①：1v1の組をつくる共通部品A。**quiz-logic より前に置く**——
      quiz-logic が buildPairs と shuffled をここから借りている（UMD の依存） -->
+<script src="js/version.js"></script>
 <script src="js/versus.js"></script>
 <script src="js/wolf-logic.js"></script>
 <script src="js/wordwolf-logic.js"></script>
@@ -14280,6 +14283,8 @@
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
     if(id !== 'scr-mode') goTo.fromNext = false;   // 「つぎは？」から来た印は、モードの画面にいる間だけ
+    // 指示68-1：版が変わっていたら、待合に着いた時に読み込み直す
+    if(typeof appReloadIfIdle === 'function') setTimeout(appReloadIfIdle, 0);
     var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff','scr-v2-home','scr-v2-join','scr-v2-pick','scr-v2-room','scr-v2-room-tv','scr-next'];
     // **大画面には、どの画面でも⚙を出す**（指示47-2）。
     // 47-2 は「大画面で到達できる全画面に、🙋 プレイヤーにもどる か⚙への出口がある」と
@@ -25400,7 +25405,7 @@
   }
 
   if(rt){
-    rt.on('room', function(){ rtNoticeConnections(); rtSync(); });
+    rt.on('room', function(){ rtNoticeConnections(); rtSync(); appReloadIfIdle(); });   // 指示68-1：文化祭の段階が待合にもどった時も
     rt.on('memberGone', rtNoticeMemberGone); // 第35弾B：退室・kickの知らせ（理由つき）
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){
@@ -25447,6 +25452,13 @@
       }, 400);
     });
     // 第32弾-B-1：部屋から出された。黙って画面が固まらないよう、理由を出して棚へ返す
+    // 指示68-1：サーバーの版が画面の版と違ったら、待合にいる時だけ読み込み直す（遊んでいる途中は読み込まない）。
+    // 待合でない時は覚えておき、待合にもどった時（画面が変わる・部屋の知らせ）に読み込み直す
+    rt.on('version', function(p){
+      if(!p || !p.v || p.v === AppVersion.VERSION) { appStale = null; return; }
+      appStale = p.v;
+      appReloadIfIdle();
+    });
     rt.on('kicked', function(p){
       // 指示66-2：文化祭の部屋で席を空けた（2回押さなかった）・係が外した。入る画面へ（名前はそのまま入れ直せる）
       if(p && /^fes/.test(p.reason || '')){
@@ -31577,8 +31589,29 @@
     // 開く入口は openSettings の1か所だけなので、ここにも書くと同じことが2か所になる。
     // しかも 'root' 固定にすると、棚（'app' から始まる）とは食い違う（2-7・落とし穴1）
   }
+  /** 待合にいるか（版が変わった時に読み込み直してよい所）。部屋の待合・TV の待合・文化祭の待合（呼び込み・待合の段階） */
+  var appStale = null;
+  function appIdleForReload(){
+    var id = (document.querySelector('.screen.active') || {}).id;
+    if(id === 'scr-v2-room' || id === 'scr-v2-room-tv') return true;
+    if(id === 'scr-v2-fes-lobby' || id === 'scr-v2-fes-tv'){
+      var fr = (typeof fesRoom === 'function') && fesRoom();
+      return !!fr && (fr.fes.phase === 'idle' || fr.fes.phase === 'lobby');
+    }
+    return false;
+  }
+  function appReloadIfIdle(){
+    if(!appStale || !appIdleForReload()) return false;
+    // 読み込み直しても古いままの時（届くファイルがまだ古い）に、くり返さない
+    try{ if(sessionStorage.getItem('acac-reloaded-for') === appStale) return false; sessionStorage.setItem('acac-reloaded-for', appStale); }catch(e){}
+    window.__appReload();
+    return true;
+  }
+  window.__appReload = function(){ location.reload(); };   // テストが差しかえる
   function openSettings(from){
     setOpenedFrom = from || 'shelf';
+    el('setVersion').textContent = AppVersion.name;
+    el('setVersion').style.display = rtIsBigScreen() ? 'none' : '';
     // 第26弾-2：棚から開いた時は、まだログインしていないことがある。
     // 記録に関わる操作は、ログインしてからでないと意味がないので隠す
     var inn = loggedIn();
@@ -32633,7 +32666,7 @@
     var back = fesKeep(scr);
     var kick = fes.kickId && ((st && st.members) || []).filter(function(m){ return m.id === fes.kickId; })[0];
     scr.innerHTML = V2Fes.staff({ staff: st, fb: fes.staffFb, end: end, err: fes.staffErr, canCreate: fes.canCreate, canFb: !!fes.staffRole, canNames: fes.staffRole === 'owner', info: fesInfo,
-      kickName: kick ? kick.name : '' });
+      kickName: kick ? kick.name : '', ver: AppVersion.name });
     back(); V2.mount(scr);
   }
   async function fesLoadFeedback(){

@@ -125,6 +125,8 @@
       // 指示66-3：満員の時の予約。何番目か（fes:queue）と、席が空いた「どうぞ」（fes:turn）
       socket.on('fes:queue', function (p) { emitLocal('fesQueue', p || null); });
       socket.on('fes:turn', function (p) { emitLocal('fesTurn', p || null); });
+      // 指示68-1：サーバーの版（つながるたびに届く）。画面の版と違えば、待合にいる時だけ読み込み直す（index.html）
+      socket.on('app:version', function (p) { emitLocal('version', p || null); });
       // 第24弾-3-5：ホストがゲームを終了すると、部屋ごと畳まれる。
       // 全員がここで抜ける（ホストだけ終わって他が置き去りにならないように）
       // 第32弾-B-1：部屋から出された。理由を伝えて、画面が固まらないようにする

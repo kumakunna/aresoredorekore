@@ -38,12 +38,14 @@ function createFesStore(db) {
     CREATE INDEX IF NOT EXISTS fes_names_at ON fes_names(at);
     CREATE INDEX IF NOT EXISTS fes_feedback_at ON fes_feedback(at);
   `);
+  // 指示68-1：感想に、その時の版を残す（あとから足した列。前からある表にも足す）
+  try { db.exec('ALTER TABLE fes_feedback ADD COLUMN ver TEXT'); } catch (e) { /* もうある */ }
   const insName = db.prepare('INSERT INTO fes_names (room, name, blocked, reason, at) VALUES (?, ?, ?, ?, ?)');
   const getFb = db.prepare('SELECT * FROM fes_feedback WHERE key = ?');
-  const insFb = db.prepare(`INSERT INTO fes_feedback (key, room, round, mode, member, name, stars, text, at, updated_at)
-    VALUES (@key, @room, @round, @mode, @member, @name, @stars, @text, @at, @at)`);
-  const updStars = db.prepare('UPDATE fes_feedback SET stars = ?, name = ?, updated_at = ? WHERE key = ?');
-  const updText = db.prepare('UPDATE fes_feedback SET text = ?, name = ?, updated_at = ? WHERE key = ?');
+  const insFb = db.prepare(`INSERT INTO fes_feedback (key, room, round, mode, member, name, stars, text, at, updated_at, ver)
+    VALUES (@key, @room, @round, @mode, @member, @name, @stars, @text, @at, @at, @ver)`);
+  const updStars = db.prepare('UPDATE fes_feedback SET stars = ?, name = ?, updated_at = ?, ver = COALESCE(?, ver) WHERE key = ?');
+  const updText = db.prepare('UPDATE fes_feedback SET text = ?, name = ?, updated_at = ?, ver = COALESCE(?, ver) WHERE key = ?');
   const delNames = db.prepare('DELETE FROM fes_names WHERE at < ?');
   const delFb = db.prepare('DELETE FROM fes_feedback WHERE at < ?');
 
@@ -63,10 +65,10 @@ function createFesStore(db) {
       const row = getFb.get(key);
       if (!row) {
         insFb.run({ key, room: String(fb.room), round: fb.round | 0, mode: String(fb.mode), member: String(fb.member),
-          name: String(fb.name || ''), stars: fb.stars == null ? null : fb.stars, text: fb.text == null ? null : fb.text, at: t });
+          name: String(fb.name || ''), stars: fb.stars == null ? null : fb.stars, text: fb.text == null ? null : fb.text, at: t, ver: fb.ver || null });
       } else {
-        if (fb.stars != null) updStars.run(fb.stars, String(fb.name || row.name), t, key);
-        if (fb.text != null) updText.run(fb.text, String(fb.name || row.name), t, key);
+        if (fb.stars != null) updStars.run(fb.stars, String(fb.name || row.name), t, fb.ver || null, key);
+        if (fb.text != null) updText.run(fb.text, String(fb.name || row.name), t, fb.ver || null, key);
       }
       return getFb.get(key);
     },
@@ -81,7 +83,7 @@ function createFesStore(db) {
     },
     listFeedback(now) {
       this.purge(now);
-      return db.prepare('SELECT room, round, mode, name, stars, text, at, updated_at FROM fes_feedback ORDER BY at DESC LIMIT 2000').all();
+      return db.prepare('SELECT room, round, mode, name, stars, text, at, updated_at, ver FROM fes_feedback ORDER BY at DESC LIMIT 2000').all();
     }
   };
 }

@@ -12,6 +12,7 @@
 // 部屋はメモリ上のみ。サーバーを再起動すると進行中の部屋は消える（今回は許容する仕様）。
 
 const crypto = require('crypto');
+const APP_VERSION = require('./public/js/version.js');
 const WolfLogic = require('./public/js/wolf-logic.js');
 const WolfRoom = require('./wolf-room.js');
 const WordwolfRoom = require('./wordwolf-room.js');
@@ -1313,6 +1314,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   }
 
   io.on('connection', (socket) => {
+    // 指示68-1：いまの版を知らせる。古い画面のままの端末は、待合にいる時だけ読み込み直す（public/js/version.js が1か所）
+    socket.emit('app:version', { v: APP_VERSION.VERSION });
     // このsocketがどの部屋の誰なのか。join/create が成功した時に埋まる
     socket.data.roomCode = null;
     socket.data.memberId = null;
@@ -1961,7 +1964,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const text = p.text == null ? null : String(p.text).slice(0, 200);
       if (stars == null && text == null) return fail(cb, 'empty', '送るものがありません');
       if (!fesStore) return fail(cb, 'no_store', 'いまは送れません');
-      try { fesStore.saveFeedback({ room: room.code, round, mode: p.mode, member: memberId, name: m.name, stars, text }); }
+      try { fesStore.saveFeedback({ room: room.code, round, mode: p.mode, member: memberId, name: m.name, stars, text, ver: APP_VERSION.VERSION }); }
       catch (e) { console.error('[realtime] 感想の保存で例外:', e); return fail(cb, 'store_failed', 'いまは送れません'); }
       if (typeof cb === 'function') cb({ ok: true, stars, text: text != null });
     });

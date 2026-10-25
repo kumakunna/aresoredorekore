@@ -602,6 +602,8 @@
             '<button type="button" class="v2-adm-b' + (m.hidden ? ' is-on' : '') + '" data-fes-hide="' + e(m.id) + '" data-hidden="' + (m.hidden ? '1' : '') + '">' + V.icon(m.hidden ? 'eye' : 'eyeoff') + e(m.hidden ? S.もどす : S.隠す) + '</button>' +
             '<button type="button" class="v2-adm-b" data-fes-kick="' + e(m.id) + '">' + e(S.外す) + '</button></div>';
         }).join('') : '<p class="v2-note">' + e(S.いない) + '</p>') + '</div>' +
+        // 指示68-1：版（public/js/version.js が1か所。係が「いまどの版で動いているか」を見られる）
+        (o.ver ? '<p class="v2-hint v2-c" data-fes-ver>' + e(o.ver) + '</p>' : '') +
       '</div>' +
       V.scrimHtml() + V.scrimHtml(true) +
       V.dlgHtml({ id: 'v2Recreate', keep: true, title: S.作り直しますか, text: S.作り直し説明,

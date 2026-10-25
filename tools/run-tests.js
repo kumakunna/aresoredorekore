@@ -89,7 +89,8 @@ function 単独か(f) {
   return null;
 }
 
-const 対象 = すべて.filter((f) => !絞り || 絞り === true || f.indexOf(String(絞り)) >= 0);
+// `--only shelf,smoke` のように , で区切ると、どれかを含むものを走らせる
+const 対象 = すべて.filter((f) => !絞り || 絞り === true || String(絞り).split(',').some((x) => f.indexOf(x) >= 0));
 const 単独組 = 対象.filter((f) => 単独か(f));
 const 並走組 = 対象.filter((f) => !単独か(f));
 

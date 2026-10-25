@@ -1427,7 +1427,9 @@ function votesFrom(list) {
     while (activeScreen(doc) !== 'scr-v2-pick' && guard++ < 10) {
       const cur = activeScreen(doc);
       let btn = doc.querySelector('#' + cur + ' [data-go-shelf]')
-        || (cur === 'scr-mode' ? doc.getElementById('backToShelfBtn') : null);
+        || (cur === 'scr-mode' ? doc.getElementById('backToShelfBtn') : null)
+        // 「ルールを変える」から来たモードの画面の ← は「つぎは？」にもどる（くまくんの決め 2026-10-25）。そこから「一覧から えらぶ」
+        || (cur === 'scr-next' ? doc.querySelector('#scr-next [data-next="shelf"]') : null);
       if (!btn) break;
       btn.click();
       await sleep(win, 80);

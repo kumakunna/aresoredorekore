@@ -30,7 +30,8 @@ const { labHtml } = require('../tools/v2-lab/serve');
       const m = /window\.__V2LAB_VIEW=(.*?);Math\.random=/.exec(html);
       assert(m, '見本データが差し込まれている');
       const v = JSON.parse(m[1]);
-      return JSON.stringify(v.secret);
+      // のこり時間・時刻は作った瞬間の時計で変わる（重い時は 1ms ずれて赤くなった）。乱数で決まる所だけを比べる
+      return JSON.stringify(v.secret, (k, x) => (/remaining|endsAt|At$|Ms$/.test(k) ? undefined : x));
     };
     const a = 中身(), b = 中身();
     assert(a.length > 20, '自分の問題が入っている');

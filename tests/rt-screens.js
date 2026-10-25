@@ -6584,17 +6584,29 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const 部屋 = (phase, turn) => bigRoom({
       state: { phase: phase, game: 'wolfrole', data: wolfView({ phase: phase, turn: turn }) } });
 
+    // 夜明けの演出は 750ms（テストでは速さの設定でもっと短い）で消えるので、「いまいくつあるか」ではなく
+    // **出た回数**を出た瞬間に数える（ある時刻にまだ残っているかで数えると、処理の速さで赤くなった・指示68-0b）
+    let 明けた = 0;
+    const mo = new win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => { if (n.classList && n.classList.contains('fx-dawn')) 明けた++; })));
+    mo.observe(doc.body, { childList: true, subtree: true });
     push(fake, 部屋('night', 1));
     await sleep(win, 120);
-    assertEqual(doc.querySelectorAll('.fx-dawn').length, 0, '夜のあいだは明けない');
+    assertEqual(明けた, 0, '夜のあいだは明けない');
 
     push(fake, 部屋('day', 1));
     await sleep(win, 120);
-    assertEqual(doc.querySelectorAll('.fx-dawn').length, 1, '朝が来ると明ける');
+    assertEqual(明けた, 1, '朝が来ると明ける');
     // **同じ朝で2回明けない**（描き直しのたびに出ない）
     push(fake, 部屋('day', 1));
     await sleep(win, 120);
-    assertEqual(doc.querySelectorAll('.fx-dawn').length, 1, '同じ朝では1回だけ');
+    assertEqual(明けた, 1, '同じ朝では1回だけ');
+    // 次の朝はまた明ける（ターンごとに1回）
+    push(fake, 部屋('night', 2));
+    await sleep(win, 60);
+    push(fake, 部屋('day', 2));
+    await sleep(win, 120);
+    assertEqual(明けた, 2, '次の朝は、また明ける');
+    mo.disconnect();
     assertNoErrors(errors, '夜明けで未捕捉の例外');
     win.close();
   });

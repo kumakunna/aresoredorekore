@@ -5418,6 +5418,7 @@
     font-family:var(--v2-en);font-weight:900;font-size:15px;flex:none;}
   /* 指示68-0b B12：アドレスはことばの途中で折らない（1行で7割まで縮める → 入らなければ最初の「.」の後ろで2行。homeUrlFit）。押すと写せる */
   .v2 .v2-eurl{display:block;margin-top:8px;font-size:19px;font-weight:900;white-space:nowrap;overflow:hidden;cursor:pointer;user-select:text;-webkit-user-select:text;}
+  .v2 .v2-eurl:active{opacity:.55;}   /* 押せる物は、触れた瞬間に反応する（tests/press-feedback.js） */
   .v2 .v2-eurl.is-2{white-space:normal;}
   .v2 .v2-eurl.is-2 span{display:block;}
   .v2 .v2-eurl.is-2 span + span{margin-top:.3em;}   /* 字の箱は英字の高さで切るので、2行目の上を空けないと字が重なる */

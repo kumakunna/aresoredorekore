@@ -126,7 +126,8 @@ async function run() {
     assert(/body:has\(\.fx-countdown\)\s*\[data-timer\]\s*\{\s*visibility:\s*hidden/.test(html),
       '3-2-1 の間も、時計（[data-timer]）が見えている');
     // 時計の印（data-timer）が、部屋のゲームの時計に付いている（印が無ければ、上の1行は何も隠さない）
-    ['rtPlayTimer', 'rtBombTimer', 'dfTimer', 'qzTimer', 'auBidTimer'].forEach((id) => {
+    // dfTimer は実物解除と一緒に消した（指示68-1）
+    ['rtPlayTimer', 'rtBombTimer', 'qzTimer', 'auBidTimer'].forEach((id) => {
       assert(new RegExp('data-timer[^>]*id="' + id + '"|id="' + id + '"[^>]*data-timer').test(html), id + ' に data-timer の印が無い');
     });
   });

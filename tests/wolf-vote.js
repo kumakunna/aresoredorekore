@@ -817,7 +817,7 @@ function votesFrom(list) {
     assert(!/^\s*rules:"/m.test(html), 'rules: フィールドが残っている');
     // 画面側も rules を読みに行かない
     assert(!/m\.rules/.test(html), 'm.rules を読んでいる箇所が残っている');
-    modesOf(html).forEach((mode) => {
+    modesOf(html).filter((mode) => !/removed:true/.test(mode.src)).forEach((mode) => {   // 指示68-1：消したゲームの墓標は名前だけ
       assert(mode.bullets.length >= 3, mode.id + ' に説明が3つ以上ある');
     });
   });

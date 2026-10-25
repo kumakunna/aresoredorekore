@@ -27,6 +27,7 @@ const NAMES = ['あき', 'びび'];
 
 /** 棚 → カセット → ゲーム → プレイヤー設定 → モード選択（secrecy-gates と同じ最小運転） */
 async function toModeScreen(win, doc) {
+  win.shelfShowProbe.showAll(true);   // 指示68-1：棚に出していないカセットも並べて見る（本物の棚は3本・tests/shelf.js の門3が見張る）
   assert(doc.querySelector('#scr-v2-pick [data-home-id="rcard"]'), 'ロシアンカードのカセットが棚にある');
   await openCassette(win, doc, 'rcard');
   await sleep(win, 100);

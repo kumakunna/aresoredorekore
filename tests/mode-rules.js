@@ -305,9 +305,9 @@ function はずれ(w, uid, choices) {
   await r.test('49-5：全モードにルール文がある（空の器を作らない）', async () => {
     // ルール文が空のモードは、セットアップ画面（大切なこと6）が
     // **中身の無い紙**になる。増やした時に書き忘れたら、ここで赤くなる
-    const 空 = ALL_MODES.filter((m) => !m.bullets.length).map((m) => m.id);
+    const 空 = ALL_MODES.filter((m) => !m.removed && !m.bullets.length).map((m) => m.id);   // 消したゲームの墓標（removed:true・指示68-1）は名前だけ
     assertEqual(空.join('・'), '', 'ルール文の無いモードがある');
-    const 短い = ALL_MODES.filter((m) => m.bullets.length < 3)
+    const 短い = ALL_MODES.filter((m) => !m.removed && m.bullets.length < 3)
       .map((m) => m.id + '（' + m.bullets.length + '行）');
     assertEqual(短い.join('・'), '', 'ルール文が3行に満たないモードがある');
   });

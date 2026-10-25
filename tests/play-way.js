@@ -37,6 +37,7 @@ async function withRoom(win, doc) {
 }
 /** 一覧でそのカセットのページを開き、ページの下（主ボタンの所）を返す */
 async function ページ(x, id) {
+  x.win.shelfShowProbe.showAll(true);   // 指示68-1：棚に出していないカセットも並べて見る（本物の棚は3本・tests/shelf.js の門3が見張る）
   click(x.doc, x.doc.querySelector('#scr-v2-pick [data-home-id="' + id + '"]'));
   await sleep(x.win, 40);
   return x.doc.querySelector('#scr-v2-pick [data-home-cta]');
@@ -192,6 +193,7 @@ async function ページ(x, id) {
 
   await r.test('部屋があっても無くても、一覧には同じゲームが全部ならぶ（消さない・理由が変わるだけ）', async () => {
     const { win, doc } = await launch({ fakeSocket: true });
+    win.shelfShowProbe.showAll(true);   // 指示68-1：棚に出していないカセットも並べて見る（本物の棚は3本・tests/shelf.js の門3が見張る）
     const 前 = Array.from(doc.querySelectorAll('#scr-v2-pick [data-home-card]')).map((c) => c.dataset.homeId);
     assert(前.length >= 9, '一覧の札を数えられている（実際:' + 前.length + '件）');  // 型(b)
     await withRoom(win, doc);

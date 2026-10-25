@@ -236,6 +236,7 @@ async function 決着した部屋に大画面で入る(t) {
   await r.test('① 棚に出ている全カセットに、クリア演出の行がある（両方向・落とし穴20）', async () => {
     const { win, doc } = await launch();
     try {
+      win.shelfShowProbe.showAll(true);   // 指示68-1：棚に出していないカセットも並べて見る（本物の棚は3本・tests/shelf.js の門3が見張る）
       const p = win.clearLookProbe();
       const 棚 = p.棚;
       // 型(b)：棚が本当に読めている

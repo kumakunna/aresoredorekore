@@ -3397,6 +3397,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       const fake = await toRoom(win, doc, { pick: false });
       click(doc, 待合.pick(doc));
       await waitScreen(win, doc, 'scr-v2-pick', 3000);
+      win.shelfShowProbe.showAll(true);   // 指示68-1：棚に出していないカセットも並べて見る（本物の棚は3本・tests/shelf.js の門3が見張る）
+      await sleep(win, 20);
       assert(doc.querySelector('#scr-v2-pick [data-home-id="auction"]'), 'オークションのカセットが棚にある');
       await openCassette(win, doc, 'auction');
       await waitScreen(win, doc, 'scr-mode', 3000);
@@ -4715,7 +4717,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('63：画面にある「つぎは？」（*AgainBtn）は、押すと全部「つぎは？」の画面へ行く', async () => {
     const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
     const ids = Array.from(new Set(Array.from(html.matchAll(/id="([A-Za-z]*AgainBtn)"/g)).map((m) => m[1])));
-    assert(ids.length >= 9, '「つぎは？」のボタンを index.html から拾えている（いま' + ids.length + '件）');
+    assert(ids.length >= 8, '「つぎは？」のボタンを index.html から拾えている（いま' + ids.length + '件）');
     assert(ids.indexOf('rtShAgainBtn') !== -1, '進化じゃんけんの rtShAgainBtn も拾えている');
     for (const id of ids) {
       const { win, doc, errors } = await launch(LAUNCH);

@@ -229,7 +229,7 @@ const ALL_MODES = (function () {
     const bullets = ((b.match(/bullets:\s*\[([^\]]*)\]/) || [])[1] || '')
       .split('","').map((x) => x.replace(/^"|"$/g, '')).filter(Boolean);
     return { id, title: g('title'), sub: g('sub'), bullets,
-      ai: 旗('ai') || 旗('aiHint'), roomOnly: 旗('roomOnly'), hidden: 旗('hidden'),
+      ai: 旗('ai') || 旗('aiHint'), roomOnly: 旗('roomOnly'), hidden: 旗('hidden'), removed: 旗('removed'),
       全文: g('title') + '／' + g('sub') + '／' + bullets.join('／') };
   }).filter((m) => m.id);
 })();

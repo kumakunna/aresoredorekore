@@ -55,7 +55,7 @@
     "name": "68-0bB14 演出「なし」の時、名前を合わせる間に移り変わりを止めない",
     "file": "public/js/v2-kit.js",
     "suite": "tools/v2-shot-check.js --only fes2-tv-lobby --fx skip",
-    "from": "      el.style.setProperty('transition', 'none', 'important');",
+    "from": "      if (still) el.style.setProperty('transition', 'none', 'important');",
     "to": "",
     "expect": "…で切れている"
   },

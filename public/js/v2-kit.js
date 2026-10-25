@@ -131,16 +131,18 @@
       var el = list[i];
       // 測る間は移り変わりを止める（指示68-0b B14）。演出「なし」は全部の要素に 0.001秒の移り変わりを付けるので、
       // 字の大きさを変えてすぐ測ると前の大きさのまま測れる——縮めた名前を「入った」と取りちがえて元の大きさにもどし、「…」で切れていた
-      el.style.setProperty('transition', 'none', 'important');
-      el.style.fontSize = '';
+      // 見えていない（測れない）ものは、字の大きさをもどすだけで触らない。むだに style を書きかえない
+      //（書きかえるたびに計算し直しになる。tests の jsdom では全部の CSS を数え直すので、rt-screens が 2.6倍遅くなった）
+      if (!el.clientWidth) { if (el.style.fontSize) el.style.fontSize = ''; continue; }
+      // 移り変わりを止めるのは、演出「なし」（0.001秒の移り変わり）の時だけ
+      var still = d.documentElement.classList.contains('fx-skip');
+      if (still) el.style.setProperty('transition', 'none', 'important');
+      if (el.style.fontSize) el.style.fontSize = '';
       // 下限は7割。data-v2-fit に数（px）があれば、それより小さくはしない（TV の字の下限 42px など）
       var fs = parseFloat(getComputedStyle(el).fontSize), min = Math.max(fs * 0.7, +el.getAttribute('data-v2-fit') || 0), n = 0;
       // 1px でもはみ出せば「…」が出るので、ゆるみは持たない（測る側の「…で切れている」と同じ決まり・指示68-0b）
-      if (el.clientWidth) {   // 見えていない（測れない）ものは触らない
-        while (el.scrollWidth > el.clientWidth && fs > min && n++ < 80) { fs = Math.max(min, fs - 0.5); el.style.fontSize = fs + 'px'; }
-      }
-      void el.offsetWidth;
-      el.style.removeProperty('transition');
+      while (el.scrollWidth > el.clientWidth && fs > min && n++ < 80) { fs = Math.max(min, fs - 0.5); el.style.fontSize = fs + 'px'; }
+      if (still) { void el.offsetWidth; el.style.removeProperty('transition'); }
     }
   }
 

@@ -33239,7 +33239,8 @@
   /** TV のアドレス：1行で7割まで縮めても入らなければ、2行にする（指示68-0b B12・v2-home.js の urlHtml） */
   function homeUrlFit(scr){
     Array.prototype.forEach.call((scr || document).querySelectorAll('.v2-eurl[data-home-url]'), function(u){
-      u.classList.remove('is-2');
+      if(!u.clientWidth) return;   // 測れない（見えていない）時は触らない
+      if(u.classList.contains('is-2')) u.classList.remove('is-2');
       V2.fit(u.parentNode);
       if(u.clientWidth && u.scrollWidth > u.clientWidth){ u.classList.add('is-2'); u.style.fontSize = ''; }
     });

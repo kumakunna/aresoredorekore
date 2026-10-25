@@ -358,7 +358,8 @@
           livesHtml(team.lives, team.livesMax || 3) + '<span class="v2-tclock">' + (view.end ? V.cd({ end: view.end, mmss: true, label: '', unit: '' }) : '') + '</span></div>' +
         '<div class="v2-tmid"><div class="v2-tpn"><b class="v2-num">' + V.digits(team.solved || 0) + '</b><b class="v2-num v2-tpn-of">/' + V.digits(team.total || board.length) + '</b><span>' + e(P.解除ずみ) + '</span></div>' +
           '<div class="v2-tprog"><i style="width:' + (team.total ? Math.round(team.solved / team.total * 100) : 0) + '%"></i></div></div>' +
-        '<div class="v2-tbottom"><div class="v2-tgrid is-c3">' + ps.map(function (m) {
+        // 2列（8人で4段）。QR を黒い所で 350px 以上にしたので、3列ではいちばん幅の広い8字の名前が 42px で入らない（指示68-0b）
+        '<div class="v2-tbottom"><div class="v2-tgrid is-c2">' + ps.map(function (m) {
           var n = 番[m.name];
           return '<div class="v2-tmem is-two' + (n ? ' is-try' : '') + '">' + V.avHtml(m.icon) + '<div class="v2-tmem-who"><div class="v2-tmem-nm v2-cut" data-v2-fit="42">' + e(m.name) + '</div>' +
             (n ? '<div class="v2-tmem-tt">→ ' + V.digits(n) + e(P.ばん) + '</div>' : '') + '</div></div>';
@@ -572,12 +573,13 @@
     var st = o.staff || {}, f = st.fes || {};
     var mem = st.members || [];
     var live = mem.filter(function (m) { return m.connected; }).length;
-    var いま = f.paused ? S.止まっている : (S.段階[f.phase] || '') + (o.end ? '・' + S.のこり : '');
+    // 指示68-0b B5：段階と「のこり ◯秒」は別の行（「投票中・のこり」と「２０ 秒」が2行に分かれ、数字と単位が離れていた）
+    var いま = f.paused ? S.止まっている : (S.段階[f.phase] || '');
     var fb = o.fb || [];
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
       '<div class="v2-in is-scroll v2-adm">' + V.hdHtml(S.英, S.見出し) +
         '<div class="v2-adm-st">' +
-          '<div class="v2-adm-s"><span class="v2-lbl">' + e(S.いま) + '</span><b>' + e(いま) + (o.end && !f.paused ? V.cd({ end: o.end, label: '' }) : '') + '</b></div>' +
+          '<div class="v2-adm-s"><span class="v2-lbl">' + e(S.いま) + '</span><b>' + e(いま) + '</b>' + (o.end && !f.paused ? '<span class="v2-adm-cd">' + V.cd({ end: o.end, label: S.のこり }) + '</span>' : '') + '</div>' +
           '<div class="v2-adm-s"><span class="v2-lbl">' + e(S.部屋) + '</span><b>' + e(live + '/' + (f.max || 16) + UiText.V2.人) + ' · <span class="v2-en">' + e(st.code || '') + '</span></b></div>' +
           '<div class="v2-adm-s"><span class="v2-lbl">' + e(S.TV) + '</span><b class="' + (st.tv ? 'is-ok' : 'is-ng') + '">' + e(st.tv ? S.つながっている : S.つながっていない) + '</b></div>' +
           '<div class="v2-adm-s"><span class="v2-lbl">' + e(S.回数) + '</span><b>' + e((f.round || 1) + S.回目) + '</b></div>' +
@@ -587,16 +589,19 @@
           '<button type="button" class="v2-btn is-sec" data-fes-act="skip">' + V.icon('skip') + '<span>' + e(S.とばす) + '</span></button>' +
           '<button type="button" class="v2-btn is-sec" data-v2-open="#v2Calib">' + V.icon('calib') + '<span>' + e(S.端あわせ) + '</span></button>' +
           '<button type="button" class="v2-btn is-sec" data-v2-open="#v2Recreate">' + V.icon('refresh') + '<span>' + e(S.作り直す) + '</span></button>' +
+          // 指示68-0b B5：「感想を見る」「名前の記録」も係の操作の並びに（名簿が長いと下に隠れていた）
+          (o.canFb ? '<button type="button" class="v2-btn is-sec" data-fes-act="fb" aria-label="' + e(S.感想を見る) + '">' + V.icon('star') + '<span>' + e(S.感想 + '（' + fb.length + S.件 + '）') + '</span></button>' : '') +
+          // 指示66-3：くまくん（owner）だけ、名前の記録を読む画面へ（別のタブで開く）
+          (o.canNames ? '<a class="v2-btn is-sec" href="/fes/names" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.名前の記録) + '</span></a>' : '') +
         '</div>' +
         '<span class="v2-lbl">' + e(S.いる人) + '</span>' +
         '<div class="v2-adm-mem">' + (mem.length ? mem.map(function (m) {
-          return '<div class="v2-adm-r' + (m.connected ? '' : ' is-off') + '"><span class="v2-adm-nm v2-cut">' + e(m.hidden ? '●●● ' + m.name : m.name) + '</span>' +
+          // 指示68-0b B5：隠した人は名前を灰色にして、横に「かくし中」の札（「●●● びび」が名前の一部に見えていた）
+          return '<div class="v2-adm-r' + (m.connected ? '' : ' is-off') + (m.hidden ? ' is-hidden' : '') + '"><span class="v2-adm-who"><span class="v2-adm-nm v2-cut" data-v2-fit="12">' + e(m.name) + '</span>' +
+            (m.hidden ? '<span class="v2-adm-tag">' + e(S.かくし中) + '</span>' : '') + '</span>' +
             '<button type="button" class="v2-adm-b' + (m.hidden ? ' is-on' : '') + '" data-fes-hide="' + e(m.id) + '" data-hidden="' + (m.hidden ? '1' : '') + '">' + V.icon(m.hidden ? 'eye' : 'eyeoff') + e(m.hidden ? S.もどす : S.隠す) + '</button>' +
             '<button type="button" class="v2-adm-b" data-fes-kick="' + e(m.id) + '">' + e(S.外す) + '</button></div>';
         }).join('') : '<p class="v2-note">' + e(S.いない) + '</p>') + '</div>' +
-        (o.canFb ? '<button type="button" class="v2-btn is-pri" data-fes-act="fb">' + V.icon('star') + '<span>' + e(S.感想を見る + '（' + fb.length + S.件 + '）') + '</span></button>' : '') +
-        // 指示66-3：くまくん（owner）だけ、名前の記録を読む画面へ（別のタブで開く）
-        (o.canNames ? '<a class="v2-btn is-lite" href="/fes/names" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.名前の記録) + '</span></a>' : '') +
       '</div>' +
       V.scrimHtml() + V.scrimHtml(true) +
       V.dlgHtml({ id: 'v2Recreate', keep: true, title: S.作り直しますか, text: S.作り直し説明,

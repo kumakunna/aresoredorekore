@@ -4839,6 +4839,9 @@
   .v2 .v2-sh-ttl{font-size:20px;font-weight:900;line-height:1.3;}
   .v2 .v2-sbody{flex:1;min-height:0;overflow:auto;scrollbar-width:none;}
   .v2 .v2-sbody::-webkit-scrollbar{display:none;}
+  /* 中の部品は縮めない（指示68-0b B1：部屋の QR のシートで、コードの箱が 11px まで押しつぶされて注意書きに重なっていた）。
+     入らなければシートが高くなり（90% まで）、それでも入らなければ中が巻ける */
+  .v2 .v2-sbody > *{flex-shrink:0;}
   .v2 .v2-sheet .v2-btn.is-pri{background:#141414;color:#fff;}
   .v2 .v2-x{width:44px;height:44px;border-radius:50%;border:0;background:#EFEFEF;color:#141414;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;margin-left:auto;padding:0;}
   .v2 .v2-x:active{transform:scale(.94);}
@@ -5215,7 +5218,12 @@
   .v2 .v2-adm-mem{display:flex;flex-direction:column;gap:6px;}
   .v2 .v2-adm-r{display:flex;align-items:center;gap:8px;background:var(--wc);border-radius:12px;padding:5px 6px 5px 10px;}
   .v2 .v2-adm-r.is-off{opacity:.55;}
-  .v2 .v2-adm-nm{font-weight:900;font-size:15px;flex:1;}
+  .v2 .v2-adm-who{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
+  .v2 .v2-adm-nm{font-weight:900;font-size:15px;max-width:100%;}
+  /* 指示68-0b B5：のこり時間は別の行で、数字と単位を離さない。隠した人は名前を灰色にして「かくし中」の札 */
+  .v2 .v2-adm-cd{white-space:nowrap;font-weight:900;font-size:15px;}
+  .v2 .v2-adm-r.is-hidden .v2-adm-nm{color:var(--ws);}
+  .v2 .v2-adm-tag{font-weight:900;font-size:12px;line-height:1;border-radius:999px;padding:5px 8px;background:var(--wdim);color:var(--wi);white-space:nowrap;}
   .v2 .v2-adm-b{border:2px solid var(--wl);background:transparent;color:var(--wi);border-radius:10px;font-weight:900;font-size:13px;min-height:44px;padding:0 10px;cursor:pointer;display:flex;align-items:center;gap:4px;flex:none;}
   .v2 .v2-adm-b.is-on{background:#141414;color:#fff;border-color:#141414;}
   .v2 .v2-adm-b .v2-ic{width:15px;height:15px;}
@@ -5277,7 +5285,9 @@
   .v2 .v2-choice:disabled{opacity:.6;}
   .v2 .v2-choice-k{font-family:var(--v2-en);font-size:16px;width:28px;height:28px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;}
   /* TV */
-  .v2 .v2-tplay{display:flex;flex-direction:column;gap:30px;flex:1;min-height:0;}
+  /* 札は2列×4段（QR を大きくしたため）。収まるよう、上下の間と札の段の間を詰める（指示68-0b） */
+  .v2 .v2-tplay{display:flex;flex-direction:column;gap:18px;flex:1;min-height:0;}
+  .v2 .v2-tplay .v2-tgrid{row-gap:8px;}
   .v2 .v2-ttop{display:flex;align-items:center;gap:28px;min-height:104px;}
   .v2 .v2-tpill{display:inline-flex;align-items:center;border-radius:999px;padding:10px 26px;background:var(--wa);color:#141414;font-weight:900;font-size:46px;}
   .v2 .v2-tsub{font-weight:900;font-size:64px;line-height:1.1;}
@@ -5290,7 +5300,9 @@
   .v2 .v2-tpn span{font-weight:900;font-size:60px;}
   .v2 .v2-tprog{width:100%;height:28px;border-radius:14px;background:#3A3A40;overflow:hidden;}
   .v2 .v2-tprog i{display:block;height:100%;background:var(--wa);border-radius:inherit;}
-  .v2 .v2-tbottom{display:grid;grid-template-columns:minmax(0,1fr) 386px;gap:28px;align-items:end;}
+  /* 遊んでいる間の QR は、黒い模様の所で 350px 以上（くまくんの決め 2026-10-25・正本 §12）。白い箱 432px・中の余白 12px で、絵 408px・黒い所 約352px */
+  .v2 .v2-tbottom{display:grid;grid-template-columns:minmax(0,1fr) 432px;gap:28px;align-items:end;}
+  .v2 .v2-tbottom .v2-tqr.is-sm{padding:12px;}
   .v2 .v2-tmem.is-try{border:4px dashed var(--wi);}
   .v2 .v2-tmem.is-try .v2-tmem-tt{color:var(--wi);}
   /* F5 着替え：いまの姿の見本・2つのボタン・アイコンの並び・二つ名の3つの言葉 */
@@ -5337,10 +5349,11 @@
   .v2 .v2-safe-note .v2-ic{width:22px;height:22px;margin-top:1px;}
   /* F10 3・2・1（FxKit.countdown の着せ方。数え方は共通部品のまま）。字は出さない・ゲームの世界の色 */
   .v2.v2-cdx{background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);flex-direction:column;justify-content:flex-start;padding:20px 26px 0 18px;}
-  .v2 .v2-cdx-hd{align-self:stretch;display:flex;flex-direction:column;}
+  /* 名前の壁（.v2-bg）より上に出す（壁は position:absolute なので、字の側も重ね順に入れる） */
+  .v2 .v2-cdx-hd{align-self:stretch;display:flex;flex-direction:column;position:relative;}
   .v2 .v2-cdx-g{font-weight:900;font-size:22px;line-height:1.2;}
   .v2 .v2-cdx-g small{font-size:.65em;}
-  .v2 .v2-cdx-n{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--v2-en);font-weight:900;font-size:230px;line-height:1;padding-bottom:12vh;
+  .v2 .v2-cdx-n{position:relative;flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--v2-en);font-weight:900;font-size:230px;line-height:1;padding-bottom:12vh;
     animation:v2-slam var(--v2-show) var(--v2-pop) both;}
   /* TV は 1920×1080 の箱（.v2-tvc）で組む。見本 t10：名前 72px・数字 560px */
   .v2.v2-cdx.is-tv{padding:0;display:block;}
@@ -5389,7 +5402,8 @@
   .v2 button.v2-card:active{transform:scale(.98);}
   .v2 .v2-ecode b{font-weight:900;font-size:54px;line-height:1;letter-spacing:.06em;}
   .v2 .v2-ecode-qr{position:absolute;right:16px;top:50%;width:34px;height:34px;transform:translateY(-50%);}
-  .v2 .v2-ecode.is-big{align-items:center;text-align:center;margin-top:6px;}
+  /* シートの中のコードは、見出しの小さい字とコードを縦に積む（指示68-0b B1：行の中に並べると、54px のコードが行の上にはみ出して注意書きに重なった） */
+  .v2 .v2-ecode.is-big{display:flex;flex-direction:column;align-items:center;text-align:center;margin-top:6px;}
   .v2 .v2-mems-box{display:flex;flex-direction:column;gap:10px;min-height:0;flex:0 1 auto;overflow-y:auto;scrollbar-width:none;}
   .v2 .v2-mems-box::-webkit-scrollbar{display:none;}
   .v2 .v2-mems-l{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
@@ -14263,6 +14277,7 @@
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
+    if(id !== 'scr-mode') goTo.fromNext = false;   // 「つぎは？」から来た印は、モードの画面にいる間だけ
     var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff','scr-v2-home','scr-v2-join','scr-v2-pick','scr-v2-room','scr-v2-room-tv','scr-next'];
     // **大画面には、どの画面でも⚙を出す**（指示47-2）。
     // 47-2 は「大画面で到達できる全画面に、🙋 プレイヤーにもどる か⚙への出口がある」と
@@ -16083,6 +16098,7 @@
   });
   // 第15弾：複数ゲームのカセットならゲーム選択へ、1つだけなら（その画面を飛ばしているので）棚へ
   el('backToShelfBtn').addEventListener('click', function(){
+    if(goTo.fromNext){ goTo.fromNext = false; goBack('scr-next'); return; }
     var c = cassetteById(state.selectedCassetteId);
     if(cassetteGames(c).length <= 1) home.pick.focus = state.selectedCassetteId || null;
     goBack(cassetteGames(c).length > 1 ? 'scr-game' : 'scr-v2-pick');
@@ -25680,7 +25696,9 @@
       if(typeof FxKit === 'undefined') return;
       // 指示66-2 F10：文化祭の部屋は、ゲームの世界の色で大きな数字だけ（字は出さない。速さの設定で速くしない）
       var fr = fesRoom(), g = fr && fr.fes.pick ? fesInfo(fr.fes.pick.mode) : null;
-      if(g){ fesCountdown(p && p.seconds, g, rtIsBigScreen()); return; }
+      // 名前の壁も出す（決定・結果と同じ。係が隠した人は出さない・くまくんの決め 2026-10-25）
+      var 壁 = []; try{ 壁 = V2Fes.people(fesView(), true).map(function(m){ return m.name; }); }catch(e){}
+      if(g){ fesCountdown(p && p.seconds, g, rtIsBigScreen(), false, 壁); return; }
       FxKit.countdown(p && p.seconds);
     });
     rt.on('reacted', function(p){ showReaction(p); });
@@ -30686,7 +30704,8 @@
     // 「もう一度」を押した人以外は、まだ心の準備ができていない。
     // 設定を選び直させないのが要点で、始まる合図まで飛ばすことではない
     if(id === 'again'){ goTo('scr-ready'); return; }
-    if(id === 'mode'){ goBack('scr-mode'); return; }
+    // 「ルールを変える」から来たモードの画面の ← は「つぎは？」へ（くまくんの決め 2026-10-25。goTo が scr-mode 以外へ移ると印は消える）
+    if(id === 'mode'){ goTo.fromNext = true; goBack('scr-mode'); return; }
     // ここから先は、この試合を終える。記録は今まで通りここで残す
     await finishHandoffMatch();
     if(id === 'game'){ goTo('scr-game'); return; }
@@ -30716,7 +30735,7 @@
     // ここから先は、部屋を待機に戻してから選び直す
     var back = await rt.pickGame(id === 'mode' ? gameId : null, { reset: true });
     if(!back.ok){ showFlash(back.message || 'えらび直せませんでした', 'hit'); return; }
-    if(id === 'mode'){ goTo('scr-mode'); return; }
+    if(id === 'mode'){ goTo.fromNext = true; goTo('scr-mode'); return; }
     if(id === 'game'){ goTo('scr-game'); return; }
     home.pick.focus = state.selectedCassetteId || null; home.pick.open = false;
     goTo('scr-v2-pick');
@@ -32509,12 +32528,15 @@
    * F10 3・2・1：共通部品（FxKit.countdown）に新しい見た目を着せる。数え方・音・速さの決まりは共通部品のまま
    * （字は出さない・演出の設定で速くしない）。TV は 1920×1080 の箱で組んで縮める（ほかの TV の画面と同じ）
    */
-  function fesCountdown(sec, g, tv, hold){
+  function fesCountdown(sec, g, tv, hold, names){
+    // 段は多めに（3・2・1 の箱は画面いっぱいで、13段だと上の方にしか壁が出ない）
+    var bg = (names && names.length) ? V2.bgHtml({ names: names, rows: 26 }) : '';
     var hd = '<span class="v2-cdx-g">' + V2.esc(g.name) + (g.edition ? '<small>（' + V2.esc(g.edition) + '）</small>' : '') + '</span>';
     return FxKit.countdown(sec, { id: 'v2Cdx', cls: 'v2 v2-cdx v2-w-' + g.world + (tv ? ' is-tv' : ''),
       render: function(num){
         var inner = '<div class="v2-cdx-hd">' + hd + '<span class="v2-arrow"></span></div><div class="v2-cdx-n">' + num + '</div>';
-        return tv ? '<div class="v2-tvc"><div class="v2-safe">' + inner + '</div></div>' : inner;
+        // TV は 1920×1080 の箱の中に壁を置く（箱の外だと箱の背景に隠れる。ふだんの TV と同じ置き方）
+        return tv ? '<div class="v2-tvc">' + bg + '<div class="v2-safe">' + inner + '</div></div>' : bg + inner;
       },
       after: function(box){ if(tv) V2.fitTv(box); }, hold: !!hold });
   }
@@ -32524,7 +32546,7 @@
     else if(lab.screen === 'scr-v2-fes-quit'){ fes.quit = lab.quit; fesRenderQuit(); }
     else if(lab.screen === 'safetyGate'){ try{ localStorage.removeItem(SAFETY_SEEN_KEY); }catch(e){} maybeShowSafetyGate(); }
     // 見本では数えずに 3 のまま止める（動きが終わってから撮るので、数えると撮る前に消える・指示68-0b K3）
-    else if(lab.screen === 'v2Cdx'){ fesCountdown(3, fesInfo(lab.mode || 'bomb-coop'), !!lab.tv, true); }
+    else if(lab.screen === 'v2Cdx'){ fesCountdown(3, fesInfo(lab.mode || 'bomb-coop'), !!lab.tv, true, lab.names); }
     else if(lab.screen === 'scr-v2-fes-staff'){ fes.staff = lab.staff; fes.staffFb = lab.fb || []; fes.staffRole = 'owner'; fes.staffErr = ''; fesRenderStaff(); }
     else fesRender(lab.screen, lab);
     // 見本データの「開いた形」（着替えのシートなど）

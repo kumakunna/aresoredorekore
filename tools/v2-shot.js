@@ -127,12 +127,17 @@ const STATES = {
   'home-te3': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
   'home-tv16': [{ id: 'base', freeze: 20, mock: null }, { id: 'wide', long: 1, freeze: 20, mock: null }],
   'home-e3-16': [{ id: 'base', freeze: 20, mock: null }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  // B1：部屋の QR のシート。ローカル（注意書き3行）・本番のアドレス・QR を出せなかった時
+  'home-e3-qr': [{ id: 'base', freeze: 20, mock: null }, { id: 'prod', prod: PROD_URL, freeze: 20, mock: null }, { id: 'noqr', edit: 'qrFail', freeze: 20, mock: null }],
   // K8 ⑤：「TVに映す」のシートを本番と同じ長さのアドレスで
   'home-e3-tv': [{ id: 'base', freeze: 20, mock: null }, { id: 'prod', prod: PROD_URL, freeze: 20, mock: null }],
   // K8 ③：QR を読むシートが開いた形。base はカメラが使えない端末（案内だけ）、cam はその場でカメラが映る端末（Android の Chrome）
   'home-e2qr': [{ id: 'base', freeze: 20, mock: null }, { id: 'cam', cam: 1, freeze: 20, mock: null }],
   'fes2-lobby': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
-  'fes2-staff': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  // B5：7人と16人（16人は名簿が長く、下のボタンが隠れていた）・いちばん幅の広い8字の名前
+  // 遊んでいる間の TV：QR を大きくした（黒い所 350px 以上）ので、8人がいちばん幅の広い8字でも名前の札が切れないか
+  'fes2-tv-play': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  'fes2-staff': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }, { id: 'n16', n: 16, freeze: 20, mock: null }, { id: 'wide16', n: 16, long: 1, freeze: 20, mock: null }],
   // K8 ⑦：TV の投票も長い名前で。A3（ゲーム名と一言が重ならない）：8字の名前・2行になる一言 × 候補3つ・2つ
   'fes2-tv-vote': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null },
     { id: 'long3', edit: 'tvVoteLong', freeze: 20, mock: null }, { id: 'long2', edit: 'tvVoteLong2', freeze: 20, mock: null }]
@@ -175,6 +180,10 @@ async function 開く(dev, scene, st, form) {
 
 /** 描いたあとで字だけ差しかえる（st.edit）。差しかえたら名前の縮めと短い行の直しをやり直す */
 const EDITS = {
+  // B1：QR を出せなかった時（v2-home.js の room() は qr が無い時、QR の所を空にして注意書きを UiText.HOME.部屋.QR失敗 にする。その形を作る）
+  qrFail: `function(){ var s = document.querySelector('[data-v2-id="v2RoomQr"]'); if (!s) return 0;
+    s.querySelector('.v2-eqr').innerHTML = ''; s.querySelector('.v2-hint').textContent = UiText.HOME.部屋.QR失敗;
+    V2.relayout(document.getElementById('scr-v2-room')); return 1; }`,
   // A3：TV の投票の札に、いちばん幅の広い8字の名前と、2行になる一言（候補3つ）
   tvVoteLong: `function(){ document.querySelectorAll('#scr-v2-fes-tv .v2-tvrow').forEach(function(r){
     r.querySelector('.v2-vn').textContent = 'ながいなまえだよ'; r.querySelector('.v2-vb').textContent = 'みんなで力を合わせて、時間内に爆弾のコードを全部切ろう'; });

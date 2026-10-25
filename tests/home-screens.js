@@ -542,6 +542,28 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     t.win.close();
   });
 
+  await r.test('つぎは？ →「ルールを変える」→ モードの画面の左上の ← で「つぎは？」にもどる（くまくんの決め 2026-10-25）', async () => {
+    const t = await launch({ fakeSocket: true, atEntry: true });
+    const fake = await 部屋に入る(t, 部屋(6, { game: 'bomb', mode: 'bomb-coop' }));
+    fake.replies['room:setState'] = () => ({ ok: true });
+    t.win.goToScreen('scr-next');
+    await sleep(t.win, 40);
+    const mode = t.doc.querySelector('#scr-next [data-next="mode"]');
+    assert(mode, '「ルールを変える」がある（爆弾解除はモードが2つ）');
+    click(t.doc, mode);
+    await waitScreen(t.win, t.doc, 'scr-mode', 3000);
+    click(t.doc, t.doc.getElementById('backToShelfBtn'));
+    await sleep(t.win, 60);
+    assertEqual(activeScreen(t.doc), 'scr-next', '← で「つぎは？」にもどる（一覧ではなく）');
+    // 「つぎは？」を通らずに来たモードの画面の ← は、今までどおり（ゲームの札か一覧）
+    t.win.goToScreen('scr-mode');
+    await sleep(t.win, 40);
+    click(t.doc, t.doc.getElementById('backToShelfBtn'));
+    await sleep(t.win, 60);
+    assert(activeScreen(t.doc) !== 'scr-next', 'ふつうに来た時は「つぎは？」へは行かない（いま ' + activeScreen(t.doc) + '）');
+    t.win.close();
+  });
+
   await r.test('B13：TV で /tv を開いた画面のコードの下の一言は、TV 自身の言葉（進行役のスマホに出ている6文字）', async () => {
     const t = await launch({ fakeSocket: true, atEntry: true });
     const HomeScenes = require('../tools/v2-lab/home-scenes');

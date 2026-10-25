@@ -97,8 +97,9 @@ function lab(room, screen, meId, extra) {
 /** 場面ごと。o：{ n, long } */
 const BUILD = {
   'fes2-safety': () => ({ screen: 'safetyGate' }),
-  'fes2-cd': () => ({ screen: 'v2Cdx', mode: 'bomb-coop' }),
-  'fes2-tv-cd': () => ({ screen: 'v2Cdx', mode: 'bomb-coop', tv: true }),
+  // 名前の壁（決定・結果と同じ6人）
+  'fes2-cd': () => ({ screen: 'v2Cdx', mode: 'bomb-coop', names: MOCK.slice(0, 6).map((m) => m[0]) }),
+  'fes2-tv-cd': () => ({ screen: 'v2Cdx', mode: 'bomb-coop', tv: true, names: MOCK.slice(0, 6).map((m) => m[0]) }),
   'fes2-join': () => ({ screen: 'scr-v2-fes-join', join: { code: CODE, n: 6, name: 'ふう', diff: null } }),
   'fes2-join-on': () => ({ screen: 'scr-v2-fes-join', join: { code: CODE, n: 6, name: 'ふう', diff: 'normal' } }),
   'fes2-join-bad': () => ({ screen: 'scr-v2-fes-join', join: { code: CODE, n: 6, name: '', masked: true, diff: 'normal', err: 'この名前は使えません。ほかの名前にしてね' } }),
@@ -114,7 +115,7 @@ const BUILD = {
   'fes2-ready': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);
     ['m1', 'm2', 'm5', 'm6', 'm7'].forEach((id) => { const m = r.members.get(id); if (m) m.readyGame = 'bomb'; }); r.members.get('m1').readyGame = null; のこり(r, 12); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-play': (o) => { const r = 部屋(o.n || 6); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-lobby', 'm1', { secret: JSON.parse(JSON.stringify(BombRoom.privateFor(r, 'm1'))) }); },
-  'fes2-tv-play': (o) => { const r = 部屋(o.n || 8); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
+  'fes2-tv-play': (o) => { const r = 部屋(o.n || 8, o.long); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-wait': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, true); r.fes.phase = FesRoom.PHASE.PLAY; r.members.get('m1').role = 'waiting'; return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-result': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, true); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-boom': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, false); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },

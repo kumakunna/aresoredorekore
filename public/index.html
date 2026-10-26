@@ -13448,6 +13448,21 @@
     else if(w.tvInRoom) Sound.preload('tap');
     else if(screenId && !SFX_ENTRY.test(screenId)) Sound.preload('all');
   }
+  /**
+   * 指示68-2 第3節：司会の声のうち、部屋の段階で決まるもの（TV だけで鳴る・音の箱が決める）。
+   *   v01「あつまれ、あれこれ！」… 待合に入った時（ふだんの部屋はゲームを選ぶ前・文化祭は待合）
+   *   v06「じゅんびはいい？」… ルールと準備OK（ふだんの部屋はゲームを選んだ待合・文化祭は準備OK）
+   * rtOnce なので、その段階にいる間は1回。段階を出てもどれば、また言う
+   */
+  function voiceSync(){
+    var room = rt && rt.state && rt.state.room;
+    if(!room || !rtIsBigScreen()) return;
+    var f = room.fes, st = room.state || {};
+    var 待合 = f ? f.phase === 'lobby' : (st.phase === 'lobby' && !st.game);
+    var 準備 = f ? f.phase === 'ready' : (st.phase === 'lobby' && !!st.game);
+    rtOnce('voice:v01', 待合, function(){ if(window.Sound) Sound.voice('v01'); });
+    rtOnce('voice:v06', 準備, function(){ if(window.Sound) Sound.voice('v06'); });
+  }
   window.sfxProbe = function(){ return { where: sfxWhere(), log: window.Sound ? Sound.log() : [] }; };
 
   // ---------- sound / fx ----------
@@ -24136,7 +24151,7 @@
   }
 
   if(rt){
-    rt.on('room', function(){ rtNoticeConnections(); rtSync(); appReloadIfIdle(); sfxPreloadSync((document.querySelector('.screen.active') || {}).id); });   // 指示68-1：文化祭の段階が待合にもどった時も
+    rt.on('room', function(){ rtNoticeConnections(); rtSync(); appReloadIfIdle(); sfxPreloadSync((document.querySelector('.screen.active') || {}).id); voiceSync(); });   // 指示68-1：文化祭の段階が待合にもどった時も
     rt.on('memberGone', rtNoticeMemberGone); // 第35弾B：退室・kickの知らせ（理由つき）
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){
@@ -27760,6 +27775,9 @@
     if(typeof FxKit === 'undefined' || !FxKit.finale){ 結果へ(); return Promise.resolve(); }
     var T = UiText.BOMB.終わり;
     var clear = !!o.success, tv = !!o.tv;
+    // 司会の声（第3節）：TV だけで鳴る（音の箱が決める）。言葉が重ならないよう、区切りごとに1つ
+    var 声 = function(id){ if(window.Sound) Sound.voice(id); };
+    if(!clear && o.cause === 'time') 声('v09');   // 時間切れは「そこまで！」から ため に入る
     var left = Math.max(0, o.left || 0);
     var sub = clear ? (tv ? T.全員で : '') : (left > 0 ? T.あと(left) : (bombBoomCause(o.cause) || ''));
     return FxKit.finale({
@@ -27768,11 +27786,11 @@
       names: clear ? (tv ? (o.names || []) : (o.me ? [o.me] : [])) : [],
       sub: sub,
       onOpen: function(){
-        if(clear){ sfx('defuse'); if(window.Sound) Sound.voice('v24'); if(!tv) doVibrate(60); }
+        if(clear){ sfx('defuse'); 声('v24'); if(!tv) doVibrate(60); }
         else { sfx('boom'); if(!tv) doVibrate(400); }
       },
-      onText: function(){ if(!clear && window.Sound) Sound.voice('v12'); },
-      behind: 結果へ
+      onText: function(){ if(!clear) 声('v12'); },        // 「おしい！」（明るく）
+      behind: function(){ 声(clear ? 'v11' : 'v10'); 結果へ(); }   // 幕が上がる時：「おめでとう！」／「結果発表！」
     });
   }
   window.bombFinaleProbe = function(o){ return bombFinale(o); };   // 検査が4面の形を直に回す窓（tests/bomb-finale.js）
@@ -30946,6 +30964,7 @@
       layer: el('uiLayerRoot'),
       ms: fxMs,          // 「演出の速さ」設定を通す
       vibrate: doVibrate, // 「振動」設定を通す
+      say: function(id){ if(window.Sound) Sound.voice(id); },   // 指示68-2：司会の声（TV だけ・音の箱が決める）
       sound: {
         // 指示68-2：音の箱を通す（振動は FxKit が自分で出すので、ここでは震わせない）
         good: function(){ sfx('ok', { noVibe: true }); },

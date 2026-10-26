@@ -27,6 +27,7 @@
     layer: null,                      // **重ねる層**（#uiLayerRoot）。画面いっぱいの演出はここ
     ms: function (n) { return n; },   // 演出の速さ設定を通す関数
     sound: {},                        // { good, bad, tick, big, cheer } 無くてよい
+    say: null,                        // 指示68-2：司会の声 function(ID)。鳴らすかどうか（TV だけ）は呼ぶ側の音の箱が決める
     vibrate: function () {},
     // 第32弾-D 第4部：安全に関する設定。「今の設定」を返す関数を渡してもらう
     //（設定を切り替えた瞬間から効くように、値ではなく関数で持つ）
@@ -132,6 +133,7 @@
     if (opt.layer) cfg.layer = opt.layer;
     if (typeof opt.ms === 'function') cfg.ms = opt.ms;
     if (opt.sound) cfg.sound = opt.sound;
+    if (opt.say) cfg.say = opt.say;
     if (typeof opt.vibrate === 'function') cfg.vibrate = opt.vibrate;
     if (opt.can) cfg.can = Object.assign(cfg.can, opt.can);
     var d = doc();
@@ -915,6 +917,8 @@
       if (opts && opts.after) opts.after(box);
       play('tick');
       vibe(num <= 1 ? 'ok' : 'tick');   // 最後の1つだけ決定の重さにする
+      // 指示68-2：3・2・1 の声（v07a・v07b・v07c）。4 より上の数は声を付けない
+      if (cfg.say && num >= 1 && num <= 3) { try { cfg.say('v07' + 'cba'.charAt(num - 1)); } catch (e) {} }
     }
     // 最初の数字はその場で出す（合図が届いた瞬間から数え始めて見える）
     show(total);
@@ -931,6 +935,7 @@
     for (var i = total - 1; i >= 1; i--) step(i);
     return p.then(function (skipped) {
       if (box.parentNode) box.parentNode.removeChild(box);
+      if (cfg.say) { try { cfg.say('v08'); } catch (e) {} }   // 指示68-2：「スタート！」
       return skipped;
     });
   }

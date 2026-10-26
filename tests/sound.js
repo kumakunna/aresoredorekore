@@ -179,5 +179,58 @@ function 箱(o) {
     b.win.close();
   });
 
+  // ===== 第3節：司会の声を流れに差しこむ（言うのは TV だけ。ここでは「何を言おうとしたか」を記録して見る） =====
+  const 声を聞く = (win) => { const 言った = []; win.Sound.voice = (id) => { 言った.push(id); return 'none'; }; return 言った; };
+
+  await r.test('第3節：3・2・1 は v07a・v07b・v07c、数え終わりに v08「スタート！」', async () => {
+    const t = await launch({ fakeSocket: true });
+    const 言った = 声を聞く(t.win);
+    await t.win.FxKit.countdown(3);
+    assertEqual(言った.join(','), 'v07a,v07b,v07c,v08', '3→v07a・2→v07b・1→v07c・スタート');
+    t.win.close();
+  });
+
+  await r.test('第3節：終わりの声 … 解除は v24 → 幕が上がる時 v11、時間切れの爆発は v09 → v12 → v10', async () => {
+    const t = await launch({ fakeSocket: true });
+    const 言った = 声を聞く(t.win);
+    const 送る = async () => { for (let i = 0; i < 5 && t.doc.querySelector('.fx-finale'); i++) { t.win.FxKit.skipNow(); await sleep(t.win, 150); } };
+    const p1 = t.win.bombFinaleProbe({ success: true, tv: true, names: ['ふう'] });
+    await sleep(t.win, 900); await 送る(); await p1;
+    assertEqual(言った.join(','), 'v24,v11', '解除成功！ → おめでとう！');
+    言った.length = 0;
+    const p2 = t.win.bombFinaleProbe({ success: false, tv: true, left: 2, cause: 'time' });
+    await sleep(t.win, 2100); await 送る(); await p2;
+    assertEqual(言った.join(','), 'v09,v12,v10', 'そこまで！ → おしい！ → 結果発表！');
+    t.win.close();
+  });
+
+  await r.test('第3節：TV の待合で v01、ゲームを選んで準備OK の待合で v06（段階を出てもどれば、また言う）', async () => {
+    const t = await launch({ fakeSocket: true });
+    const store = new RT.RoomStore();
+    const room = store.create({ ownerUserId: 1, ownerUsername: 'kuma' });
+    room.code = 'ABC234';
+    room.members.set('m1', { id: 'm1', name: 'ふう', role: RT.ROLE_PLAYER, connected: true, joinedAt: 1, lastSeen: Date.now(), readyGame: null });
+    room.members.set('tv', { id: 'tv', name: 'テレビ', role: RT.ROLE_BIGSCREEN, connected: true, joinedAt: 1, lastSeen: Date.now(), readyGame: null });
+    room.hostMemberId = 'm1';
+    const snap = () => JSON.parse(JSON.stringify(RT.publicSnapshot(room)));
+    t.win.__rtFake.replies = { 'room:join': () => ({ ok: true, code: 'ABC234', memberId: 'tv', room: snap() }) };
+    await H.joinRoomV2(t.win, t.doc, 'ABC234', 'テレビ');
+    const 言った = 声を聞く(t.win);
+    t.win.__rtFake.fire('room:update', snap());
+    await sleep(t.win, 60);
+    t.win.__rtFake.fire('room:update', snap());
+    await sleep(t.win, 60);
+    assertEqual(言った.join(','), 'v01', '待合で1回（知らせが2回来ても1回）');
+    room.state.game = 'bomb';
+    t.win.__rtFake.fire('room:update', snap());
+    await sleep(t.win, 60);
+    assertEqual(言った.join(','), 'v01,v06', 'ゲームを選んだら「じゅんびはいい？」');
+    room.state.game = null;
+    t.win.__rtFake.fire('room:update', snap());
+    await sleep(t.win, 60);
+    assertEqual(言った.join(','), 'v01,v06,v01', '待合にもどれば、また v01');
+    t.win.close();
+  });
+
   r.finish();
 })();

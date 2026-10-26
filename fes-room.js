@@ -29,8 +29,9 @@
 // 進化じゃんけん・ロシアンカードは棚から下ろした（コードは残す・on:false）。2.0 の物は門を通ったら on にする。
 // testing＝門を通る前の物。係（くまくん）が「テスト中のゲームも候補に入れる」を入れた時だけ候補に出る
 const FES_GAMES = [
-  { mode: 'bomb-coop', game: 'bomb', min: 2, max: 8, on: true,
-    start: { game: 'bomb', mode: 'coop', counts: { easy: 12, normal: 10, hard: 8, nanisore: 0, muri: 0 }, lives: 3, timerSec: 180, showMisses: false } },
+  // 指示68-2 第4節：16人まで。本数・ライフ・制限時間は人数の表（BombLogic.sizeFor・sizeByPlayers）。下の counts などは8人までの値と同じ（端末の既定と照らす）
+  { mode: 'bomb-coop', game: 'bomb', min: 2, max: 16, on: true,
+    start: { game: 'bomb', mode: 'coop', counts: { easy: 12, normal: 10, hard: 8, nanisore: 0, muri: 0 }, lives: 3, timerSec: 180, showMisses: false, sizeByPlayers: true } },
   { mode: 'shinka', game: 'shinka', min: 3, max: 12, on: false, start: { game: 'shinka' } },
   { mode: 'rcard', game: 'rcard', min: 2, max: 8, on: false, start: { game: 'rcard' } }
 ];

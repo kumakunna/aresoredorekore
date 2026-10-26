@@ -147,7 +147,10 @@ function startGame(room, config, ctx) {
   // その外の本数は許された一番上の層へ寄せる。送られてこなければ3層（落とし穴14：
   // 端末で隠しただけにしない）
   const allowed = QuizBank.allowedTiers(config && config.tierMix);
-  const cfg = BombLogic.normalizeConfig(config, allowed, QuizBank.countOf);
+  // 指示68-2 第4節：sizeByPlayers（文化祭の部屋）は、本数・ライフ・制限時間を人数の表（BombLogic.sizeFor）から決める
+  const sized = config && config.sizeByPlayers && config.mode !== BombLogic.MODE.RACE
+    ? Object.assign({}, config, BombLogic.sizeFor(members.length)) : config;
+  const cfg = BombLogic.normalizeConfig(sized, allowed, QuizBank.countOf);
   const rnd = (config && config.rnd) || null;
   // 第32弾-A-3-6：問題バンクから作る。AIは呼ばないので、
   // 「説明文ができるまで待つ」段階そのものが無くなった

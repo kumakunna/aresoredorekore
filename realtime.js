@@ -677,8 +677,30 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (w.phase === driver.PHASE.ENDED && !w.recorded) {
       w.recorded = true;
       recordMatch(room);
+      if (room.bomb) recordBombStats(room);   // 指示68-2：あそびテストの正答率と終わり方
       io.to('room:' + room.code).emit('wolf:ended', driver.publicView(room));
     }
+  }
+  /**
+   * 指示68-2（くまくんの決め 2026-10-26）：クイズ解除の1試合ごとに、終わり方と問題ごとの正答率を残す（文化祭の保存・1か月で消える）。
+   * ふだんの部屋も文化祭も残す（あそびテストはどちらでも遊ぶ）。名前は残さない。始まらなかった試合は残さない
+   */
+  function recordBombStats(room) {
+    if (!fesStore || !fesStore.recordBombPlay || !room.bomb) return;
+    try {
+      const w = room.bomb;
+      if (w.result && w.result.aborted) return;
+      const v = BombRoom.resultView(room);
+      const questions = w.wires.map((x) => {
+        const tries = w.log.filter((t) => t.uid === x.uid);
+        return { q: x.question || x.description || x.name, tier: x.tier, tries: tries.length,
+          firstOk: tries.length ? !!tries[0].correct : null, wrong: tries.filter((t) => !t.correct).length,
+          solved: tries.some((t) => t.correct) };
+      });
+      fesStore.recordBombPlay({ room: room.code, fes: !!room.fes, mode: w.mode, players: w.playerIds.length, codes: w.wires.length,
+        lives: w.lives, timerSec: w.timerSec, cause: v.cause, success: w.mode === 'coop' ? !!v.success : null,
+        solved: v.solved, misses: v.misses, elapsedSec: v.elapsedSec, ver: APP_VERSION.VERSION, questions });
+    } catch (e) { console.error('[realtime] クイズ解除の記録で例外:', e); }
   }
   // 決着したら記録に残す。ゲームごとに残す中身が違うので、ここで振り分ける
   function recordMatch(room) {

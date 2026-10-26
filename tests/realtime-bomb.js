@@ -245,6 +245,43 @@ async function missOne(srv, d) {
     } finally { await srv.close(); }
   });
 
+  await r.test('指示68-2 門8：16人（＋TV）で、人数の表の本数を最後まで解き、記録に終わり方と問題ごとの答えが残る', async () => {
+    const Database = require('better-sqlite3');
+    const { createFesStore } = require('../fes-store');
+    const BombLogic = require('../public/js/bomb-logic');
+    const fesStore = createFesStore(new Database(':memory:'));
+    const srv = await startTestServer({ fesStore });
+    try {
+      const rm = await makeRoom(srv, 16, true);
+      rm.all.forEach((g) => { g.code = rm.code; });
+      assertEqual(rm.all.length, 16, '16人が入れる');
+      const res = await rm.host.call('wolf:start', { game: 'bomb', mode: 'coop', counts: { easy: 12, normal: 10, hard: 8 }, lives: 3, timerSec: 180, sizeByPlayers: true });
+      assertEqual(res.ok, true, '16人で始められる');
+      await waitUntil(() => rm.all.every((d) => d.you && d.you.phase === 'play'), '16人とも解除が始まる', 8000);
+      const z = BombLogic.sizeFor(16);
+      assertEqual(rm.host.you.total, z.codes, '本数は人数の表（' + z.codes + '本）');
+      assertEqual(bombOf(srv, rm.code).lives, z.lives, 'ライフは人数の表');
+      assertEqual(bombOf(srv, rm.code).timerSec, z.timerSec, '制限時間は人数の表');
+      // 1本だけわざと外してから、みんなで手分けして全部解く
+      await missOne(srv, rm.all[1]);
+      for (let i = 0; i < z.codes * 2 && bombOf(srv, rm.code).phase !== 'ended'; i++) {
+        await solveOne(srv, rm.all[i % 16]);
+      }
+      await waitUntil(() => rm.all.every((d) => d.you && d.you.phase === 'ended'), '決着する', 8000);
+      const result = rm.host.you.result;
+      assertEqual(result.success, true, '解除に成功した');
+      assertEqual(result.names.length, 16, '結果に16人の名前（TV の「全員の名前」）');
+      const st = fesStore.listBombStats();
+      assertEqual(st.plays.length, 1, '1試合が記録に残る');
+      const p = st.plays[0];
+      assertEqual(JSON.stringify([p.players, p.codes, p.cause, p.success, p.misses]), JSON.stringify([16, z.codes, 'defused', 1, 1]), '人数・本数・終わり方・ミス');
+      const qs = st.questions.reduce((n, q) => n + q.plays, 0);
+      assertEqual(qs, z.codes, '問題ごとの行が本数ぶん');
+      assertEqual(st.questions.filter((q) => q.first_ok === 0).length, 1, '1回目で外した問題が1つ');
+      assert(!JSON.stringify(st).includes('びび'), '記録に名前は無い');
+    } finally { await srv.close(); }
+  });
+
   await r.test('通常版：ライフが尽きると爆発する（ライフは全員で共有）', async () => {
     const srv = await startTestServer();
     try {

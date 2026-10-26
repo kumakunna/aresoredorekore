@@ -5,6 +5,8 @@
 //   GET /api/fes/names       … 名前の記録（入力された名前と、はじいた名前）。**くまくん（owner）だけ**
 //   GET /fes/names           … 同じ記録を読む軽い画面（指示66-3。くまくんだけ。?only=blocked ではじいた名前だけ）
 //   GET /api/fes/feedback    … 感想（★と自由文）。**くまくんと先生（owner・staff）だけ**
+//   GET /api/fes/bomb-stats  … クイズ解除の記録（終わり方・問題ごとの正答率。名前は無い）。**くまくんだけ**（指示68-2）
+//   GET /fes/bomb-stats      … 同じ記録を読む軽い画面（くまくんだけ）
 //
 // だれが係かは realtime.js の fesRoleOf（.env の FES_OWNER・FES_STAFF）。ログインしていなければ 401、
 // 係でなければ 403。中身を返す前に、必ず1か月より前のものを掃く（fes-store.js の list* が掃く）
@@ -54,6 +56,34 @@ function mountFesRoutes(app, io) {
     page(200, '名前の記録', body);
   });
   app.get('/api/fes/feedback', gate('staff'), (req, res) => res.json({ feedback: io.fesStore.listFeedback() }));
+  // 指示68-2：あそびテストの記録（10/30 の結果で、人数の表 BombLogic.SIZING の数字を決め直す）
+  app.get('/api/fes/bomb-stats', gate('owner'), (req, res) => res.json(io.fesStore.listBombStats()));
+  app.get('/fes/bomb-stats', (req, res) => {
+    const page = (code, title, body) => res.status(code).type('html').send(namesPage(title, body));
+    const uid = req.session && req.session.userId;
+    if (!uid) return page(401, 'ログインしてください', '<p>くまくんのアカウントでログインしてから、もう一度開いてください。</p><p><a href="/">ログインへ</a></p>');
+    if ((io.fesRoleOf ? io.fesRoleOf(uid) : null) !== 'owner') return page(403, '見られません', '<p>この画面は、くまくんのアカウントだけが見られます。</p>');
+    if (!io.fesStore) return page(503, '記録の入れ物がありません', '');
+    page(200, 'クイズ解除の記録', bombStatsHtml(io.fesStore.listBombStats()));
+  });
+}
+
+const CAUSE = { defused: '解除', lives: '爆発', time: '時間切れ', firstDone: '1人が解き切った', allDone: '全員が終わった' };
+/** 指示68-2：クイズ解除の記録を読む表。問題文は字のまま出す（落とし穴43）。正答率が半分より下の問題は色を変える */
+function bombStatsHtml(st) {
+  const cnt = {};
+  st.plays.forEach((p) => { cnt[p.cause] = (cnt[p.cause] || 0) + 1; });
+  const pct = (v) => (v == null ? '' : v + '%');
+  return '<p class="n">' + st.plays.length + '試合・1か月より前のものは消えます</p>' +
+    '<p class="f">' + Object.keys(cnt).map((k) => esc(CAUSE[k] || k) + ' ' + cnt[k]).join('・') + '</p>' +
+    '<h2>難しさごとの正答率（1回目で正解）</h2><table><thead><tr><th>難しさ</th><th>答えた</th><th>正答率</th></tr></thead><tbody>' +
+    st.tiers.map((t) => '<tr><td>' + esc(t.tier) + '</td><td>' + t.asked + '</td><td>' + pct(t.first_ok_rate) + '</td></tr>').join('') + '</tbody></table>' +
+    '<h2>試合</h2><table><thead><tr><th>いつ</th><th>人数</th><th>本数・ライフ・時間</th><th>終わり方</th><th>解除・ミス・かかった秒</th></tr></thead><tbody>' +
+    st.plays.map((p) => '<tr><td>' + whenText(p.at) + (p.fes ? '（文化祭）' : '') + '</td><td>' + p.players + '</td><td>' + p.codes + '本・' + p.lives + '・' + p.timer_sec + '秒</td><td>' +
+      esc(CAUSE[p.cause] || p.cause || '') + '</td><td>' + (p.solved == null ? '' : p.solved) + '・' + (p.misses == null ? '' : p.misses) + '・' + p.elapsed_sec + '</td></tr>').join('') + '</tbody></table>' +
+    '<h2>問題ごと（答えた数の多い順）</h2><table><thead><tr><th>問題</th><th>難しさ</th><th>答えた</th><th>正答率</th><th>外した</th></tr></thead><tbody>' +
+    st.questions.map((q) => '<tr' + (q.first_ok_rate != null && q.first_ok_rate < 50 ? ' class="b"' : '') + '><td>' + esc(q.q) + '</td><td>' + esc(q.tier) + '</td><td>' + q.asked + '</td><td>' +
+      pct(q.first_ok_rate) + '</td><td>' + q.wrong + '</td></tr>').join('') + '</tbody></table>';
 }
 
 const REASON = { blocked: '使えない言葉', long: '長い', empty: '空' };

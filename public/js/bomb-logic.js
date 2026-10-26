@@ -36,6 +36,26 @@
   var MAX_LIVES = 5;         // ライフ設定の上限と同じ
   var MISS_TIME_PENALTY_SEC = 10; // 競争版：ミスすると残り時間が10秒減る
 
+  /**
+   * 指示68-2 第4節：人数ごとの本数・ライフ・制限時間（くまくんの決め 2026-10-26：案D）。**数字はこの表だけ。**
+   * 10/30 のあそびテストの記録（正答率・終わり方）を見て、ここの数字だけを変えれば全部に効く。
+   *   ・8人までは今の既定（30本・ライフ3・180秒）
+   *   ・9人から1人ふえるごとに +2.5本（16人で50本・上限 MAX_WIRES）
+   *   ・ライフは本数÷10（30本で3・50本で5）＝人数が変わっても爆発しやすさがほぼ同じ（tools/bomb-sizing.js の表）
+   *   ・制限時間は1本あたり6秒（今の 180秒÷30本）。50本で300秒（180秒のまま50本だと時間切れで負けやすい）
+   *   ・難しさの割合は今の既定 12:10:8
+   */
+  var SIZING = { upTo: 8, codes: 30, perExtra: 2.5, livesPer: 10, secPerCode: 6, mix: { easy: 12, normal: 10, hard: 8 } };
+  function sizeFor(players) {
+    var n = Math.max(2, parseInt(players, 10) || 2);
+    var codes = Math.min(MAX_WIRES, Math.round(SIZING.codes + Math.max(0, n - SIZING.upTo) * SIZING.perExtra));
+    var lives = clampInt(Math.round(codes / SIZING.livesPer), 1, MAX_LIVES, 3);
+    var sum = SIZING.mix.easy + SIZING.mix.normal + SIZING.mix.hard;
+    var easy = Math.round(codes * SIZING.mix.easy / sum), normal = Math.round(codes * SIZING.mix.normal / sum);
+    return { codes: codes, lives: lives, timerSec: codes * SIZING.secPerCode,
+      counts: { easy: easy, normal: normal, hard: codes - easy - normal, nanisore: 0, muri: 0 } };
+  }
+
   // 心拍。ミスが増えるほど速くなる（爆弾解除カセット共通の演出）
   var HEART_BASE_MS = 1000;
   var HEART_STEP_MS = 90;
@@ -326,7 +346,7 @@
   return {
     TIERS: TIERS, MODE: MODE, END_WHEN: END_WHEN,
     CHOICE_COUNT: CHOICE_COUNT, MAX_WIRES: MAX_WIRES, MAX_LIVES: MAX_LIVES,
-    MISS_TIME_PENALTY_SEC: MISS_TIME_PENALTY_SEC,
+    MISS_TIME_PENALTY_SEC: MISS_TIME_PENALTY_SEC, SIZING: SIZING, sizeFor: sizeFor,
     HEART_BASE_MS: HEART_BASE_MS, HEART_MIN_MS: HEART_MIN_MS,
     normalizeConfig: normalizeConfig, normalizeTopics: normalizeTopics, fitCounts: fitCounts,
     pickWires: pickWires, pickQuestionWires: pickQuestionWires, isBankWire: isBankWire,

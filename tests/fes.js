@@ -202,7 +202,8 @@ async function join(srv, code, name, diff, extra) {
     const room = new RT.RoomStore().create({ ownerUserId: 1 });
     for (let i = 0; i < 10; i++) room.members.set('m' + i, { id: 'm' + i, name: 'n' + i, role: 'player', connected: true, joinedAt: i, readyGame: null });
     // 10人だと上限8人のクイズ解除は候補に入らず、候補が1つだと投票を飛ばす。投票を通すために10人で遊べる仮の行を足す（候補は下で差しかえる）
-    FesRoom.init(room, { games: 全部on().concat([{ mode: 'x-test', game: 'x-test', min: 2, max: 16, on: true, start: { game: 'x-test' } }]) });
+    // 押した順に上限まで入る仕組みを、上限8の表で試す（クイズ解除は指示68-2 で16人までになった）
+    FesRoom.init(room, { games: 全部on().map((g) => g.mode === 'bomb-coop' ? Object.assign({}, g, { max: 8 }) : g).concat([{ mode: 'x-test', game: 'x-test', min: 2, max: 16, on: true, start: { game: 'x-test' } }]) });
     room.fes.rnd = () => 0;
     const started = [];
     const api = { startGameNow: (r, p) => { started.push(p); return { ok: true }; }, clearGameState() {}, driverStateOf: () => null, removeMember() { return true; } };
@@ -337,6 +338,14 @@ async function join(srv, code, name, diff, extra) {
     // 指示66-3：同じ記録を読む軽い画面（/fes/names）。門は JSON の道と同じ（くまくんだけ）
     assertEqual((await get('/fes/names')).status, 401, '画面も、ログインしていない人は見られない');
     assertEqual((await get('/fes/names', STAFF)).status, 403, '画面も、先生は見られない');
+    // 指示68-2：クイズ解除の記録（正答率・終わり方）も、くまくんだけ。問題文は字のまま
+    srv.fesStore.recordBombPlay({ room: 'B1', mode: 'coop', players: 3, codes: 1, lives: 3, timerSec: 180, cause: 'time', success: false, solved: 0, misses: 0, elapsedSec: 180,
+      questions: [{ q: '<i>Q</i>', tier: 'easy', tries: 1, firstOk: false, wrong: 1, solved: false }] }, now);
+    assertEqual((await get('/api/fes/bomb-stats', STAFF)).status, 403, '先生はクイズ解除の記録を見られない');
+    const bs = await get('/fes/bomb-stats', OWNER);
+    assertEqual(bs.status, 200, 'くまくんは記録の画面で読める');
+    const bsText = await bs.text();
+    assert(/時間切れ 1/.test(bsText) && bsText.indexOf('&lt;i&gt;Q&lt;/i&gt;') !== -1, '終わり方の数と、問題文を字のまま出す');
     srv.fesStore.logName('NEW111', '<b>あやしい</b>', true, 'blocked', now);
     const pg = await get('/fes/names', OWNER);
     assertEqual(pg.status, 200, 'くまくんは画面で読める');
@@ -559,6 +568,33 @@ async function join(srv, code, name, diff, extra) {
     const st = FesRoom.gameOf('bomb-coop').start;
     assertEqual(JSON.stringify(st.counts), JSON.stringify(counts), 'クイズ解除の本数が端末の既定と同じ');
     assertEqual(st.lives, +(/bombLives: (\d+)/.exec(html) || [])[1], 'ライフが端末の既定と同じ');
+  });
+
+  await r.test('指示68-2 第4節：文化祭のクイズ解除は16人まで。本数・ライフ・制限時間は人数の表（BombLogic.sizeFor）から', async () => {
+    const BombLogic = require('../public/js/bomb-logic');
+    const Bomb = require('../bomb-room');
+    assertEqual(FesRoom.gameOf('bomb-coop').max, 16, '文化祭の上限は16人');
+    assertEqual(FesRoom.gameOf('bomb-coop').start.sizeByPlayers, true, '人数の表を使う');
+    // 8人までは今の既定と同じ（端末の既定と照らす検査がそのまま通る）
+    const s8 = BombLogic.sizeFor(8);
+    assertEqual(JSON.stringify([s8.codes, s8.lives, s8.timerSec]), '[30,3,180]', '8人は30本・ライフ3・180秒');
+    const s16 = BombLogic.sizeFor(16);
+    assertEqual(JSON.stringify([s16.codes, s16.lives, s16.timerSec]), '[50,5,300]', '16人は50本・ライフ5・300秒');
+    for (let n = 2; n <= 16; n++) {
+      const z = BombLogic.sizeFor(n);
+      const sum = z.counts.easy + z.counts.normal + z.counts.hard;
+      assertEqual(sum, z.codes, n + '人：難しさの内訳の合計が本数');
+      assert(z.codes <= BombLogic.MAX_WIRES && z.lives <= BombLogic.MAX_LIVES, n + '人：上限の中');
+      assert(n === 2 || z.codes >= BombLogic.sizeFor(n - 1).codes, n + '人：人数が増えて本数が減らない');
+    }
+    // 本物の進行役：12人の部屋で始めると、表の数字になる
+    const RT = require('../realtime');
+    const room = new RT.RoomStore().create({ ownerUserId: 1 });
+    for (let i = 0; i < 12; i++) room.members.set('m' + i, { id: 'm' + i, name: 'n' + i, role: 'player', connected: true, joinedAt: i, readyGame: null });
+    const res = Bomb.startGame(room, Object.assign({}, FesRoom.gameOf('bomb-coop').start), { notify() {} });
+    assertEqual(res.ok, true, '12人で始まる');
+    const s12 = BombLogic.sizeFor(12);
+    assertEqual(JSON.stringify([room.bomb.wires.length, room.bomb.lives, room.bomb.timerSec]), JSON.stringify([s12.codes, s12.lives, s12.timerSec]), '12人の数字');
   });
 
   r.finish();

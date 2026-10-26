@@ -191,7 +191,9 @@ const RT_START_MIN_CONFIG = {
   // 指示55-①：ロシアンカード。盤の形（3×3）はルール層が持っているので、送るのは決めごとだけ
   rcard: { game: 'rcard', lives: 3, bombs: 3, finalBombs: 5, turnSec: 15 },
   // 指示55-②：進化じゃんけん。段の配列はルール層が持っているので、送るのは「どちらのはしごか」と決めごとだけ
-  shinka: { game: 'shinka', ladder: 'normal', throwSec: 3, drawMax: 3, limitSec: 600 }
+  shinka: { game: 'shinka', ladder: 'normal', throwSec: 3, drawMax: 3, limitSec: 600 },
+  // 指示68-3：みんなと同じ。お題も問題の数も進行役が持っているので、送るのはモードだけ
+  onaji: { game: 'onaji', mode: 'many' }
 };
 
 // ---- 画面とオーバーレイの一覧（第35弾C：体験品質監査の正本） ----

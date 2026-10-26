@@ -33,7 +33,9 @@ const FES_GAMES = [
   { mode: 'bomb-coop', game: 'bomb', min: 2, max: 16, on: true,
     start: { game: 'bomb', mode: 'coop', counts: { easy: 12, normal: 10, hard: 8, nanisore: 0, muri: 0 }, lives: 3, timerSec: 180, showMisses: false, sizeByPlayers: true } },
   { mode: 'shinka', game: 'shinka', min: 3, max: 12, on: false, start: { game: 'shinka' } },
-  { mode: 'rcard', game: 'rcard', min: 2, max: 8, on: false, start: { game: 'rcard' } }
+  { mode: 'rcard', game: 'rcard', min: 2, max: 8, on: false, start: { game: 'rcard' } },
+  // 指示68-3：みんなと同じ（多い方）。門を通るまではテスト中（係のくまくんが「テスト中を入れる」にした時だけ候補に出る）
+  { mode: 'onaji-many', game: 'onaji', min: 3, max: 16, on: false, testing: true, start: { game: 'onaji', mode: 'many' } }
 ];
 /** 候補にできるゲーム。opts.games（検査が表を差しかえる）と、テスト中を入れるかのスイッチ */
 function gamesFor(f) {

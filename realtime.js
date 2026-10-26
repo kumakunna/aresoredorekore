@@ -27,6 +27,7 @@ const FesRoom = require('./fes-room.js');
 const NameFilter = require('./public/js/name-filter.js');
 const { createFesStore } = require('./fes-store.js');
 const ShinkaRoom = require('./shinka-room.js');
+const OnajiRoom = require('./onaji-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -67,6 +68,8 @@ const GAME_DRIVERS = {
   // 同じ段の人どうしで一斉に1v1し、勝てば1つ上の段へ。組を作るのは部品A（versus.js）。
   // 「出した手」と「AIの正体」の2つが秘密（shinka-room.js の冒頭）
   shinka: { driver: ShinkaRoom, key: 'shinka' },
+  // 指示68-3：新作「みんなと同じ」（カセットの約束 v1 の最初の1本）。約束の形は同じなので、足したのはこの1行だけ
+  onaji: { driver: OnajiRoom, key: 'onaji' },
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -712,6 +715,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.sugoroku) return recordSugorokuMatch(room);
     if (room.falsetrue) return recordFalseTrueMatch(room);
     if (room.shinka) return recordShinkaMatch(room);
+    if (room.onaji) return recordOnajiMatch(room);
     // **`room.rcard` の行がここに無い。**指示55-② の着手前の掃引で見つけた——
     // ロシアンカードの対戦は `saveMatchRecord` に一度も届いておらず、DBに1件も残っていない。
     // 例外も警告も出ないので、誰も気づかなかった（落とし穴4：手書きの振り分けは腐る）。
@@ -743,6 +747,33 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         優勝: view.優勝,
         rounds: view.rounds,
         ranking: 居た.map((p) => ({ name: p.name, rank: p.rank, 段: p.no, 段名: p.段名 })),
+        deltas: finalScores
+      }];
+      saveMatchRecord(room, names, rounds, finalScores);
+    } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
+  }
+
+  /**
+   * 指示68-3：みんなと同じ。多い方・少ない方は点（いちばん多い／少ない答えの人に1点）がそのまま成績。
+   * 一致団結は順位を出さない遊びなので、だれの点も付けず「何問そろったか」だけを残す
+   */
+  function recordOnajiMatch(room) {
+    if (!db || !room.ownerUserId || !room.onaji) return;
+    try {
+      const v = OnajiRoom.resultView(room);
+      const w = room.onaji;
+      const ids = w.playerIds.filter((id) => room.members.has(id));
+      const names = ids.map((id) => w.names[id]);
+      const finalScores = {};
+      if (v.ranking) v.ranking.forEach((x) => { finalScores[x.name] = x.score; });
+      const rounds = [{
+        mode: 'onaji-' + v.mode,
+        game: 'onaji',
+        style: 'realtime',
+        questions: v.questions,
+        together: v.together,
+        sync: v.sync,
+        ranking: v.ranking ? v.ranking.map((x) => ({ name: x.name, rank: x.rank, score: x.score })) : null,
         deltas: finalScores
       }];
       saveMatchRecord(room, names, rounds, finalScores);

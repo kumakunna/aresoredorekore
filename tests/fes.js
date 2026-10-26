@@ -74,7 +74,10 @@ const fesOf = (d) => (d.room && d.room.fes) || {};
 
 // 指示68-1：いまの候補はクイズ解除だけで、投票を飛ばす。投票の流れを見る検査は、候補を全部 on にした表で部屋を作る。
 // 本物の表（候補1つ）は「門5」の検査が見る
-const 全部on = () => FesRoom.FES_GAMES.map((g) => Object.assign({}, g, { on: true }));
+// 候補を全部 on にする。**テスト中（testing）の物はのぞく**——テスト中は係の「テスト中を入れる」でだけ候補に入る物で、
+// ここで混ぜると候補が4つになり、直前に遊んだゲームが候補から外れる（candidatesFor・3つまで）。
+// 門2はクイズ解除をもう一度選ぶ前提なので、指示68-3 でみんなと同じが入った時に赤くなった
+const 全部on = () => FesRoom.FES_GAMES.filter((g) => !g.testing).map((g) => Object.assign({}, g, { on: true }));
 async function makeFes(srv, opts) {
   const staff = await device(srv.url, await login(srv.url, STAFF));
   const c = await staff.call('fes:create', {});

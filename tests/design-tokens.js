@@ -529,7 +529,7 @@ const PAIRS = [
     const { hex2lab, deltaE2000 } = require('../tools/color-diff');
     const 名前 = Object.keys(世界);
     // **数を先に主張する**（型b）。1色しか読めていなければ「全部離れている」は自明に成立する
-    assertEqual(名前.length, 10, '世界が10ある（実際:' + 名前.join('・') + '）');
+    assertEqual(名前.length, 11, '世界が11ある（実際:' + 名前.join('・') + '）');
 
     const 閾値 = 10;
     const 組 = [], bad = [];
@@ -541,7 +541,7 @@ const PAIRS = [
         if (de < 閾値) bad.push(a + ' × ' + b + '：ΔE2000 ' + de.toFixed(1) + ' < ' + 閾値);
       }
     }
-    assertEqual(組.length, 45, '45組すべてを見た（実際:' + 組.length + '組）');
+    assertEqual(組.length, 55, '55組すべてを見た（実際:' + 組.length + '組）');
     assertEqual(bad.join('\n       '), '', '見分けがつかないほど近い世界の色がある');
   });
 
@@ -557,7 +557,7 @@ const PAIRS = [
     // ——**どれも小さい字**で、4.5 では実際に読みにくかった（本人の指摘）。
     // 大きい字なら 4.5 で足りるが、ここは足りない。
     const 名前 = Object.keys(世界);
-    assertEqual(名前.length, 10, '世界が10ある（実際:' + 名前.join('・') + '）');  // 型(b)
+    assertEqual(名前.length, 11, '世界が11ある（実際:' + 名前.join('・') + '）');  // 型(b)
 
     const bad = [], 表 = [];
     名前.forEach((名) => {
@@ -567,7 +567,7 @@ const PAIRS = [
       表.push(名 + '=' + 比);
       if (比 < 7) bad.push(名 + '：薄墨が ' + 比 + ' : 1（7:1 に届いていない）');
     });
-    assertEqual(表.length, 10, '10全部で測った（実際:' + 表.join(' / ') + '）');
+    assertEqual(表.length, 11, '11全部で測った（実際:' + 表.join(' / ') + '）');
     assertEqual(bad.join(String.fromCharCode(10) + "       "), '', '小さい字の薄墨が、AAA に届いていない');
   });
 
@@ -841,10 +841,10 @@ const PAIRS = [
     });
   });
 
-  await r.test('新しい世界の色は10あり、名前は「今の世界＋待合」と両方向で合う（指示66-1）', async () => {
+  await r.test('新しい世界の色は11あり、名前は「今の世界＋待合」と両方向で合う（指示66-1）', async () => {
     const 名 = Object.keys(V2W).sort();
     // **数を先に主張する**（型b）。0件なら「全部離れている」は自明に成立する
-    assertEqual(名.length, 10, '新しい世界の色が10ある（実際:' + 名.join('・') + '）');
+    assertEqual(名.length, 11, '新しい世界の色が11ある（実際:' + 名.join('・') + '）');
     const 期待 = THEME_NAMES.concat(['wait']).sort();
     assertEqual(名.join('・'), 期待.join('・'),
       '新しい世界の名前が、今のカセットの世界（.app.theme-◯◯）と待合（wait）にちょうど一致する');
@@ -854,16 +854,17 @@ const PAIRS = [
 
   await r.test('新しい世界の色：どの2つも ΔE2000 ≥ 10.8、字 7.8・薄い字 6.7 以上（上・まん中・下）（指示66-1）', async () => {
     const 名 = Object.keys(V2W);
-    assertEqual(名.length, 10, '10の世界を読めている');   // 型(b)
+    assertEqual(名.length, 11, '11の世界を読めている');   // 型(b)
     let 組 = 0;
     for (let i = 0; i < 名.length; i++) for (let j = i + 1; j < 名.length; j++) 組++;
-    assertEqual(組 * 3, 135, '45組×3か所＝135を測る');
+    assertEqual(組 * 3, 165, '55組×3か所＝165を測る');
     assertEqual(v2の色の外れ(V2W).join('\n       '), '', '新しい世界の色の決まりから外れている');
   });
 
   await r.test('新しい世界の色：主ボタンの字と、5秒以下の札の白い数字が読める（指示66-1）', async () => {
     // 明るい世界の主ボタン＝地が字の色（wi）・字が反転色（won）。暗い世界＝地が強調（wa）・字が #141414
-    const 明るい = ['wait', 'aresore', 'sugoroku', 'shinka'];
+    // 明るい世界は V2.LIGHT が正本（指示68-3 でみんなと同じが足された）
+    const 明るい = Object.keys(require('../public/js/v2-kit.js').LIGHT);
     const bad = [];
     Object.keys(V2W).forEach((n) => {
       const w = V2W[n];
@@ -879,7 +880,7 @@ const PAIRS = [
   await r.test('新しい世界の色：この検査が、わざと近づけた色で本当に赤くなる（落とし穴10）', async () => {
     // 検体はその場で組み立てる（実データを名指しで壊さない・落とし穴10-d）
     const 名 = Object.keys(V2W);
-    assert(名.length === 10, '本物の表が読めている');
+    assert(名.length === 11, '本物の表が読めている');
     const 近い = JSON.parse(JSON.stringify(V2W));
     近い[名[1]].wt = 近い[名[0]].wt; 近い[名[1]].wb = 近い[名[0]].wb;   // 2つの世界を同じ地にする
     assert(v2の色の外れ(近い).some((s) => s.indexOf('ΔE2000') >= 0), '同じ地の2つの世界を、ΔE で捕まえる');
@@ -895,7 +896,7 @@ const PAIRS = [
     const 行 = Array.from(md.matchAll(
       /^\|[^|]*`v2-w-([a-z]+)`[^|]*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|\s*`(#[0-9A-Fa-f]{6})`\s*\|/gm
     )).map((m) => ({ 名: m[1], wt: m[2], wb: m[3], wi: m[4], ws: m[5] }));
-    assertEqual(行.length, 10, '正本に新しい世界の色が10行ある（実際:' + 行.map((x) => x.名).join('・') + '）');
+    assertEqual(行.length, 11, '正本に新しい世界の色が11行ある（実際:' + 行.map((x) => x.名).join('・') + '）');
     const bad = [];
     行.forEach((x) => {
       const w = V2W[x.名];

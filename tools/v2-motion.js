@@ -3,6 +3,7 @@
 //
 //   node tools/v2-motion.js        … 待合（スマホ・TV）と部品の見本を、演出「ふつう」と「なし」で開いて比べる
 //   --out DIR（既定 docs/監査_指示66の画像/motion）  --port 3968 --cdp 9668
+//   --only onaji   … 名前がこの字で始まる場面だけ（「,」で複数・指示68-3）
 //
 // 見るもの（どちらも「ふつう」で動いていることを先に確かめる——動いていないものが止まっても証拠にならない・落とし穴10-h）：
 //   ① 走っている動き：document.getAnimations() のうち、その画面の中で running のもの（名前・長さ・回数）
@@ -19,6 +20,7 @@ const { SCENES } = require('./v2-lab/scenes');
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : argv[i + 1]; };
 const PORT = +arg('port', 3968), CDP = +arg('cdp', 9668);
+const ONLY = arg('only', null) ? String(arg('only')).split(',') : null;
 const OUT = path.resolve(arg('out', path.join(ROOT, 'docs', '監査_指示66の画像', 'motion')));
 const SIZE = { phone: { width: 390, height: 844, mobile: true }, tv: { width: 1920, height: 1080, mobile: false } };
 const WHEN = [0, 1500, 3000];
@@ -49,7 +51,7 @@ const 違う = `async function(a, b){
   const 表 = [];
   let 悪い = 0;
   try {
-    for (const scene of SCENES) {
+    for (const scene of SCENES.filter((x) => !ONLY || ONLY.some((p) => x.id.indexOf(p) === 0))) {
       for (const fx of ['normal', 'skip']) {
         const dev = await br.newDevice(scene.id + fx, Object.assign({ deviceScaleFactor: 1 }, SIZE[scene.kind]));
         await 開く(dev, PORT, scene, { fx, freeze: 23, n: 6 });

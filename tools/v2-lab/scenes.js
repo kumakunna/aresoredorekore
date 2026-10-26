@@ -71,10 +71,14 @@ SCENES.push.apply(SCENES, FES.SCENES);
 // 指示66-3：ふだんの画面（入口・部屋・ゲームをえらぶ・決めた時）の場面（tools/v2-lab/home-scenes.js）
 const HOME = require('./home-scenes');
 SCENES.push.apply(SCENES, HOME.SCENES);
+// 指示68-3：みんなと同じ（tools/v2-lab/onaji-scenes.js）
+const ONAJI = require('./onaji-scenes');
+SCENES.push.apply(SCENES, ONAJI.SCENES);
 
 function view(sceneId, opts) {
   if (FES.SCENES.some((s) => s.id === sceneId)) return FES.view(sceneId, opts);
   if (HOME.SCENES.some((s) => s.id === sceneId)) return HOME.view(sceneId, opts);
+  if (ONAJI.SCENES.some((s) => s.id === sceneId)) return ONAJI.view(sceneId, opts);
   const o = opts || {};
   const n = o.n == null ? 6 : o.n;
   const snap = 部屋(n, o.long);

@@ -4,6 +4,7 @@
 //   node tools/fes-walk.js                       … 3周（いまの候補はクイズ解除だけ。投票を飛ばして回る・指示68-1）
 //   node tools/fes-walk.js --laps 3 --fx skip    … 演出「なし」で回す（門11）
 //   --games bomb-coop,shinka,rcard   周ごとに投票するゲーム（ほかの候補を on にした部屋で）（足りなければ頭から繰り返す）
+//   --games onaji-many               テスト中のゲーム（FES_GAMES の testing）は、係が部屋を作った直後に「テスト中を入れる」を押す（指示68-3）
 //   --port 3301  --cdp 9701  --out DIR（既定 docs/監査_指示66の画像/fes-walk）
 //
 // **係は部屋を作るだけ。そのあと係の操作は1つもしない**（「人がいなくても回る」を確かめるため）。
@@ -61,6 +62,7 @@ const 自動で遊ぶ = "(function(){var s=(document.querySelector('.screen.acti
   "if(s==='scr-rt-sh-play'||s==='scr-rt-sh-match'){var h=pick('#'+s+' [data-sh-hand]');if(h){h.click();return 'hand';}}" +
   "if(s==='scr-rt-rc-place'){var c=pick('#rcPlaceBoard [data-rc-cell]');if(c)c.click();var d=document.getElementById('rcPlaceDoneBtn');if(d&&!d.disabled&&d.offsetParent!==null){d.click();return 'place';}return 'pick';}" +
   "if(s==='scr-rt-rc-play'){var f=pick('#rcPlayBoard [data-rc-cell]');if(f){f.click();return 'flip';}}" +
+  "if(s==='scr-v2-onaji'){var o=pick('#scr-v2-onaji [data-onaji-pick]:not([aria-disabled=true])');if(o){o.click();return 'pick';}}" +
   "return s;})()";
 const 押す = (d, sel) => d.ev('(function(){var b=document.querySelector(' + JSON.stringify(sel) + ');if(b&&!b.disabled){b.click();return true;}return false;})()');
 async function 撮る(d, name) { try { await d.shot(path.join(OUT, name + '.jpg')); } catch (e) {} }
@@ -84,6 +86,13 @@ const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.a
     if (!(await 押す(staff, '[data-fes-act=create]'))) { await 押す(staff, '[data-v2-open="#v2Recreate"]'); await sleep(400); await 押す(staff, '[data-v2-act=recreate]'); }
     await sleep(1500);
     log('係が部屋を作った');
+    // 指示68-3：テスト中のゲームを回す時だけ、係（くまくん）が「テスト中を入れる」を押す（部屋を作る支度の一部。そのあとは何も押さない）
+    const FES_GAMES = require(path.join(ROOT, 'fes-room.js')).FES_GAMES;
+    if (GAMES.some((m) => (FES_GAMES.find((g) => g.mode === m) || {}).testing)) {
+      await staff.until("!!document.querySelector('[data-fes-act=testing]')", 10000, 'テスト中を入れるボタン');
+      await 押す(staff, '[data-fes-act=testing]'); await sleep(600);
+      log('係がテスト中のゲームを候補に入れた');
+    }
     const tv = await b.newDevice('TV', { width: 1280, height: 720 }); devs.push(tv);
     log('TV', await 開く(tv, base, '/fes?tv=1'));
     const names = ['ふう', 'ひろ', 'びび'], diffs = ['easy', 'normal', 'hard'];

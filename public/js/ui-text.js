@@ -1140,8 +1140,41 @@
     }
   };
 
+  // 指示68-3：みんなと同じ（public/js/v2-onaji.js が読む）。選ばなかった人を責める言葉は置かない
+  var ONAJI = {
+    名前: 'みんなと同じ',
+    モード: { many: '多い方', few: '少ない方', team: '一致団結' },
+    問目: '問目',
+    秒: '秒',
+    えらんで: 'えらんだら、もう変えられません',
+    えらんだ: 'えらんだ',
+    まっています: 'みんながえらぶのを待っています',
+    せーの: 'せーの！',
+    人: '人',
+    ばらばら: 'ばらばら！',
+    ばらばら説明: 'みんなちがう答え。この問題はだれも点なし',
+    そろった: '全員そろった！',
+    そろい度: 'そろい度',
+    あなたの答え: 'あなたの答え',
+    プラス1: '+1点！',
+    結果: '結果',
+    同じ賞: 'いちばんみんなと同じだった人',
+    ひとり賞: 'ひとりだけの答えをいちばん多く出した人',
+    そろった数: '問で全員そろった',
+    ぴったり: 'みんなの気持ちが、ぴったり！',
+    あなたは: 'あなたの点',
+    ほか: '　ほか',
+    点: '点',
+    つぎは: 'つぎは？',
+    とじる: '部屋をとじる',
+    出る: '部屋を出る',
+    進行役が: '進行役が つぎを えらんでいます',
+    見ていて見出し: 'つぎの回から入れます',
+    見ていてね: 'いまの5問が終わったら、つぎの回からいっしょに遊べます'
+  };
+
   return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET, HOME: HOME,
            TITLES: TITLES, TIMER: TIMER, BOMB: BOMB, TUTORIAL: TUTORIAL, LEAVE: LEAVE,
            WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC, TIERS: TIERS, PAUSE: PAUSE,
-           AUTH: AUTH, V2: V2, FES: FES };
+           AUTH: AUTH, V2: V2, FES: FES, ONAJI: ONAJI };
 }));

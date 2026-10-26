@@ -412,6 +412,9 @@
         '<div class="v2-team"><div class="v2-team-big"><b>' + V.digits(t.solved) + '</b><span>/' + V.digits(t.total) + e(Rz.本) + '</span></div>' +
           '<div class="v2-team-sub">' + e(ok ? Rz.全部 : Rz.あと + (t.total - t.solved) + Rz.だった) + livesHtml(t.lives, t.livesMax) + '</div></div>' +
         '<div class="v2-minebox"><span>' + e(meOf(view).name + Rz.が切った) + '</span><b>' + V.digits(mine) + '<small>' + e(Rz.本) + '</small></b></div>';
+    } else if (view.game === 'onaji' && d.result && typeof V2Onaji !== 'undefined') {
+      // 指示68-3：みんなと同じ。結果の中身は遊んでいた画面と同じ物（順位か、一致団結ならそろい度）
+      body = V2Onaji.resultBody(view, false);
     } else {
       var rk = (d.result && d.result.ranking) || [];
       body = V.hdHtml(Rz.おわり英, Rz.おわり) +
@@ -581,6 +584,8 @@
       inner = '<div class="v2-tend' + (miss ? ' is-withq' : '') + '"><div class="v2-tbig' + (ok ? ' v2-a-slam' : ' is-dim') + '">' + e(ok ? Rz.成功 : Rz.爆発) + '</div>' +
         '<div class="v2-tstat' + (ok ? '' : ' is-dim') + '"><span>' + V.digits(t.solved) + '/' + V.digits(t.total) + '</span><b class="v2-tstat-sl"></b><span>' + clockText(r.elapsedSec) + '</span></div>' +
         (ok ? livesHtml(t.lives, t.livesMax) : '<div class="v2-tnote">' + e(Rz.あと + (t.total - t.solved) + Rz.だった) + '</div>') + miss + '</div>';
+    } else if (view.game === 'onaji' && d.result && typeof V2Onaji !== 'undefined') {
+      inner = '<div class="v2-otv is-end">' + V2Onaji.resultBody(view, true, { noHead: true }) + '</div>';
     } else {
       var rk = (d.result && d.result.ranking) || [];
       inner = '<div class="v2-tend"><div class="v2-tbig">' + e(Rz.おわり) + '</div><div class="v2-tranks">' + rk.slice(0, 6).map(function (x) {
@@ -671,7 +676,9 @@
       }).join('') + '</div>';
   }
 
+  // tvc：TV の外枠（名前の壁・縦の字・端あわせ）。指示68-3 のみんなと同じも同じ枠で描く（写さない）
   return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText, mostMissed: mostMissed,
+    tvc: tvc,
     // 指示66-3：着替えのシートは、ふだんの部屋の待合（E4）も同じものを使う（見本「着替えは文化祭と同じシート」）
     lookSheets: lookSheets };
 });

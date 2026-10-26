@@ -118,6 +118,11 @@ const CASES = [
   ['icon-rc-streak', 'rcard', {}, { streak3: 1 }],
   ['icon-rc-rounds', 'rcard', { rounds: 19 }, { rounds: 20 }],
   // ---- 指示55-②：進化じゃんけん ----
+  // 指示68-3：みんなと同じ
+  ['icon-on-1', 'onaji', {}, { plays: 1 }],
+  ['icon-on-same', 'onaji', {}, { sames: 1 }],
+  ['icon-on-solo', 'onaji', {}, { solos: 1 }],
+  ['icon-on-team', 'onaji', { togethers: 4 }, { togethers: 5 }],
   ['icon-sh-1', 'shinka', {}, { plays: 1 }],
   ['icon-sh-10', 'shinka', { plays: 9 }, { plays: 10 }],
   ['icon-sh-top', 'shinka', {}, { tops: 1 }],

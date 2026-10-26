@@ -1923,6 +1923,11 @@
      測り直すなら node tools/fot-color.js '#9FC6DF' */
   .cassette-warp[data-theme="shinka"], .shelf-stage[data-theme="shinka"]{--warp-color:#9FC6DF;--warp-ink:#0C202A;--warp-soft:#192C37;}
 
+  /* 指示68-3：みんなと同じ（theme-onaji）。**藤色。**
+     新しい見た目の世界（.v2-w-onaji）と同じ色の家。ルールと準備の画面（今までの画面）もこの色に染まる。
+     ΔE2000 の最小は 18.6（対 進化じゃんけん #9FC6DF）。測り直すなら node tools/fot-color.js '#CDB9F2' */
+  .cassette-warp[data-theme="onaji"], .shelf-stage[data-theme="onaji"]{--warp-color:#CDB9F2;--warp-ink:#1C0F36;--warp-soft:#2E2148;}
+
   /* ---- 棚の染まる場（第41弾 2-2「世界を借りる」／第43弾で画面いっぱいに）----
      **染まるのはここだけ。**上の帯（タイトル）と下部バーはクリームのまま。
      scr-shelf は THEME_FREE_SCREENS のままなので、.app には手を付けない
@@ -4644,6 +4649,8 @@
   .v2-w-aresore{--wt:#FFCFB0;--wb:#FFA77E;--wi:#2A1406;--ws:#3D2210;--wa:#2A1406;--won:#FFF4EC;}
   .v2-w-sugoroku{--wt:#D6F0C2;--wb:#A6DA8A;--wi:#11200C;--ws:#23361B;--wa:#11200C;--won:#F2FBEC;}
   .v2-w-shinka{--wt:#C4E6FA;--wb:#86C2E8;--wi:#0A1E2B;--ws:#16303F;--wa:#0A1E2B;--won:#EEF8FF;}
+  /* 指示68-3：みんなと同じ（明るい藤色）。ほかの世界と色で見分けられる（見張りは同じ物差し） */
+  .v2-w-onaji{--wt:#E6DBFF;--wb:#BFA6F5;--wi:#1C0F36;--ws:#30204B;--wa:#1C0F36;--won:#F6F1FF;}
   .v2-w-wolf{--wt:#40288A;--wb:#1D0A40;--wi:#F3EFFF;--ws:#DAD2F7;--wa:#FFE38A;--won:#1D0A40;}
   /* 爆弾の世界の薄い字（--ws）は、画面の上の明るい所の札の上でも 4.5 に届く明るさ（#DADADE では 4.1・物差し K2・指示68-0b） */
   .v2-w-bomb{--wt:#46464B;--wb:#0E0E10;--wi:#F4F4F5;--ws:#E6E6EA;--wa:#FFD54A;--won:#141416;}
@@ -4652,7 +4659,7 @@
   .v2-w-falsetrue{--wt:#18563A;--wb:#062217;--wi:#EEF8F1;--ws:#CDEBD8;--wa:#7DE3A2;--won:#062217;}
   .v2-w-rcard{--wt:#8A1C35;--wb:#33050E;--wi:#FFF0F2;--ws:#F8D7DD;--wa:#F3E3C3;--won:#33050E;}
   /* 明るい世界と暗い世界で、カード・線・帯の作り方を変える */
-  .v2-w-wait,.v2-w-aresore,.v2-w-sugoroku,.v2-w-shinka{
+  .v2-w-wait,.v2-w-aresore,.v2-w-sugoroku,.v2-w-shinka,.v2-w-onaji{
     --wc:rgba(255,255,255,.66);--wc2:rgba(255,255,255,.9);--wl:var(--wi);--wl2:rgba(0,0,0,.14);
     --wband:rgba(255,250,236,.74);--wscrim:rgba(16,16,18,.48);--wdim:rgba(0,0,0,.08);
     --wsheet:#FFFDF6;--wsheet-ink:#1A1A1A;--wsheet-soft:#4A4334;--wglow:rgba(255,255,255,.34);
@@ -5060,6 +5067,109 @@
     animation:v2-pop-in var(--v2-move) var(--v2-pop);}
   .v2 .v2-vok .v2-ic{width:14px;height:14px;}
   .v2 .v2-vlist.is-chosen .v2-vcard:not(.is-on){opacity:.55;}
+  /* ---- 指示68-3：みんなと同じ（public/js/v2-onaji.js）。選ぶ札は上の投票の札をそのまま使う ----
+     開く（unveil）の動きは .is-play の時だけ（その問題を初めて描いた時）：せーの → 棒がのびる → 冠 → 名前。
+     長さはどれも「演出の速さ」をかける（演出「なし」で止まる） */
+  /* 右上の丸ボタン（設定）の下に時計が入らないよう、右をあける（解除中の .v2-ptop と同じ幅） */
+  .v2 .v2-otop{display:flex;align-items:center;gap:10px;padding-right:56px;}
+  .v2 .v2-opill{display:inline-flex;align-items:baseline;gap:2px;background:var(--wi);color:var(--won);border-radius:999px;padding:4px 12px;font-weight:900;font-size:15px;line-height:1.3;}
+  .v2 .v2-opill small{font-size:.8em;margin-right:2px;}
+  .v2 .v2-omode{font-weight:900;font-size:14px;color:var(--ws);}
+  .v2 .v2-oclock{margin-left:auto;}
+  .v2 .v2-oq{font-weight:900;font-size:24px;line-height:1.35;margin:14px 0 16px;}
+  .v2 .v2-okey{flex:none;width:44px;height:44px;border-radius:12px;background:var(--wi);color:var(--won);display:flex;align-items:center;justify-content:center;font-family:var(--v2-en);font-weight:900;font-size:24px;line-height:1;}
+  .v2 .v2-ochoice{min-height:72px;}
+  .v2 .v2-ochoice .v2-vn{font-size:21px;}
+  .v2 .v2-ochoice[aria-disabled="true"]{cursor:default;}
+  .v2 .v2-ounv{position:relative;display:flex;flex-direction:column;gap:10px;margin-top:12px;}
+  .v2 .v2-osay{position:absolute;left:0;right:0;top:30%;z-index:2;text-align:center;font-weight:900;font-size:48px;color:var(--wi);opacity:0;pointer-events:none;}
+  .v2.is-play .v2-osay{animation:v2-osay calc(.9s * var(--fx-scale)) var(--v2-ease) both;}
+  .v2 .v2-oqs{font-weight:900;font-size:17px;line-height:1.35;color:var(--ws);}
+  .v2 .v2-obars{display:flex;flex-direction:column;gap:8px;}
+  .v2 .v2-obar{display:flex;align-items:center;gap:10px;background:var(--wc);border:3px solid var(--wl2);border-radius:16px;padding:8px 10px;}
+  .v2 .v2-obar.is-win{border-color:var(--wi);background:var(--wc2);}
+  .v2 .v2-obar-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+  .v2 .v2-obar-c{font-weight:900;font-size:16px;line-height:1.3;}
+  .v2 .v2-obar-tr{height:12px;border-radius:999px;background:var(--wdim);overflow:hidden;}
+  .v2 .v2-obar-tr i{display:block;height:100%;width:var(--p);background:var(--wi);border-radius:inherit;transform-origin:left center;}
+  /* 棒は上から順に少しずつ遅れてのびる（4本まで） */
+  .v2.is-play .v2-obar-tr i{animation:v2-draw var(--v2-show) var(--v2-ease) both;animation-delay:calc(.7s * var(--fx-scale));}
+  .v2.is-play .v2-obar:nth-child(2) .v2-obar-tr i{animation-delay:calc(.82s * var(--fx-scale));}
+  .v2.is-play .v2-obar:nth-child(3) .v2-obar-tr i{animation-delay:calc(.94s * var(--fx-scale));}
+  .v2.is-play .v2-obar:nth-child(4) .v2-obar-tr i{animation-delay:calc(1.06s * var(--fx-scale));}
+  .v2 .v2-obar-n{flex:none;font-weight:900;font-size:22px;line-height:1;}
+  .v2 .v2-obar-n small{font-size:.6em;margin-left:2px;}
+  .v2 .v2-ocrown{flex:none;width:30px;font-size:26px;line-height:1;text-align:center;}
+  .v2.is-play .v2-obar.is-win .v2-ocrown{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(1.4s * var(--fx-scale));}
+  .v2 .v2-oban{text-align:center;font-weight:900;font-size:26px;line-height:1.3;}
+  .v2 .v2-oban small{display:block;font-size:14px;color:var(--ws);margin-top:4px;}
+  .v2 .v2-oban b{font-size:1.3em;margin:0 4px;}
+  .v2.is-play .v2-oban{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(1.4s * var(--fx-scale));}
+  .v2 .v2-onames{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+  .v2 .v2-oname{background:var(--wi);color:var(--won);border-radius:999px;padding:4px 12px;font-weight:900;font-size:15px;line-height:1.3;max-width:100%;}
+  .v2.is-play .v2-onames{animation:v2-rise var(--v2-move) var(--v2-ease) both;animation-delay:calc(1.8s * var(--fx-scale));}
+  .v2 .v2-omine{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;background:var(--wc);border-radius:16px;padding:10px 12px;}
+  .v2 .v2-omine b{font-weight:900;font-size:17px;min-width:0;}
+  .v2 .v2-oplus{margin-left:auto;font-weight:900;font-size:26px;line-height:1;color:var(--wi);}
+  .v2.is-play .v2-oplus{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(1.6s * var(--fx-scale));}
+  .v2 .v2-oaws{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
+  .v2 .v2-oaw{background:var(--wc);border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;}
+  .v2 .v2-oaw-t{font-weight:800;font-size:13px;color:var(--ws);}
+  .v2 .v2-oaw-n{font-weight:900;font-size:18px;line-height:1.35;}
+  .v2 .v2-osync{display:flex;flex-direction:column;align-items:center;gap:8px;margin:16px 0;}
+  .v2 .v2-osync b{font-family:var(--v2-en);font-weight:900;font-size:72px;line-height:1;}
+  .v2 .v2-osync b small{font-size:.4em;}
+  .v2 .v2-osync-s{font-weight:900;font-size:16px;}
+  .v2 .v2-osync-w{font-weight:900;font-size:20px;}
+  .v2.is-play .v2-osync.is-gold .v2-osync-w{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  @keyframes v2-osay{0%{opacity:0;transform:scale(1.6);}25%{opacity:1;transform:scale(1);}75%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1);}}
+  /* TV（1920×1080 の箱。字は 42px 以上） */
+  .v2 .v2-otv{display:flex;flex-direction:column;gap:24px;flex:1;min-height:0;padding-bottom:20px;}
+  .v2 .v2-otv .v2-otop{padding-right:0;min-height:104px;gap:28px;}
+  .v2 .v2-otv .v2-opill{font-size:48px;padding:8px 28px;}
+  .v2 .v2-otv .v2-opill small{font-size:1em;}
+  .v2 .v2-otv .v2-oclock .v2-cd-n{font-size:84px;line-height:1;}
+  .v2 .v2-otv .v2-omode{font-size:44px;}
+  .v2 .v2-otq{font-weight:900;font-size:72px;line-height:1.25;}
+  .v2 .v2-ochs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;}
+  .v2 .v2-ochs.is-n3{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .v2 .v2-och{display:flex;align-items:center;gap:18px;background:var(--wc2);border:5px solid var(--wl);border-radius:26px;padding:14px 20px;font-weight:900;font-size:50px;line-height:1.2;min-width:0;}
+  .v2 .v2-och-t{min-width:0;}
+  .v2 .v2-otv .v2-okey{width:76px;height:76px;border-radius:20px;font-size:48px;}
+  .v2 .v2-ogrid{gap:12px 16px;}
+  .v2 .v2-ogrid.is-c4{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .v2 .v2-ogrid .v2-tmem.is-ok{border-color:var(--wi);background:var(--wc2);}
+  .v2 .v2-ounv.is-tv{gap:16px;margin-top:0;}
+  .v2 .v2-ounv.is-tv .v2-osay{font-size:200px;top:25%;}
+  .v2 .v2-ounv.is-tv .v2-oqs{font-size:48px;}
+  .v2 .v2-ounv.is-tv .v2-obars{gap:14px;}
+  .v2 .v2-ounv.is-tv .v2-obar{border-width:5px;border-radius:26px;padding:10px 20px;gap:20px;}
+  .v2 .v2-ounv.is-tv .v2-obar-c{font-size:50px;}
+  .v2 .v2-ounv.is-tv .v2-obar-t{gap:10px;}
+  .v2 .v2-ounv.is-tv .v2-obar-tr{height:28px;}
+  .v2 .v2-ounv.is-tv .v2-obar-n{font-size:64px;}
+  .v2 .v2-ounv.is-tv .v2-obar-n small{font-size:44px;}
+  .v2 .v2-ounv.is-tv .v2-ocrown{width:84px;font-size:72px;}
+  .v2 .v2-ounv.is-tv .v2-oban{font-size:80px;}
+  .v2 .v2-ounv.is-tv .v2-oban small{font-size:44px;}
+  .v2 .v2-ounv.is-tv .v2-onames{gap:12px;}
+  .v2 .v2-ounv.is-tv .v2-oname{font-size:44px;padding:6px 22px;}
+  .v2 .v2-otv.is-end{gap:20px;}
+  .v2 .v2-otv .v2-oaws{flex-direction:row;gap:20px;margin:0;}
+  .v2 .v2-otv .v2-oaw{flex:1;min-width:0;border-radius:26px;padding:16px 24px;gap:10px;}
+  .v2 .v2-otv .v2-oaw-t{font-size:42px;}
+  .v2 .v2-otv .v2-oaw-n{font-size:56px;}
+  .v2 .v2-otv .v2-osync{gap:44px;margin:24px 0;}
+  .v2 .v2-otv .v2-osync .v2-lbl{font-size:48px;}
+  .v2 .v2-otv .v2-osync b{font-size:220px;}
+  .v2 .v2-otv .v2-osync-s{font-size:56px;}
+  .v2 .v2-otv .v2-osync-w{font-size:64px;}
+  .v2 .v2-otv .v2-oranks{gap:12px;}
+  .v2 .v2-otv .v2-oranks.is-c2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;}
+  .v2 .v2-otv .v2-rk{border-radius:22px;padding:8px 22px;gap:22px;}
+  .v2 .v2-otv .v2-rk-n{font-size:50px;}
+  .v2 .v2-otv .v2-rk-nm{font-size:50px;min-width:0;}
+  .v2 .v2-otv .v2-rk-x{font-size:46px;}
   /* F8 決定：①見出し ②斜めの幕でゲームの世界へ ③印と名前 ④人数と自分の投票。.is-play の時だけ動き、それ以外は最後の形 */
   .v2 .v2-layer{position:absolute;inset:-2px;z-index:2;background:linear-gradient(180deg,var(--wt),var(--wb));overflow:hidden;}
   /* 幕のあとの字はゲームの世界の色（.v2-swap に世界のクラスを付けて、その字の色を使う） */
@@ -5556,9 +5666,9 @@
   .v2 .v2-sedge.is-l .v2-ic{transform:rotate(180deg);}
   .v2 .v2-sbot{position:absolute;left:0;right:0;bottom:0;z-index:20;display:flex;flex-direction:column;gap:10px;padding:12px var(--v2-side-r) 18px var(--v2-side);
     background:linear-gradient(180deg,transparent,rgba(0,0,0,.18) 40%,rgba(0,0,0,.28));}
-  .v2 .v2-ov.v2-w-aresore .v2-sbot,.v2 .v2-ov.v2-w-sugoroku .v2-sbot,.v2 .v2-ov.v2-w-shinka .v2-sbot,.v2 .v2-ov.v2-w-wait .v2-sbot{
+  .v2 .v2-ov.v2-w-aresore .v2-sbot,.v2 .v2-ov.v2-w-sugoroku .v2-sbot,.v2 .v2-ov.v2-w-shinka .v2-sbot,.v2 .v2-ov.v2-w-onaji .v2-sbot,.v2 .v2-ov.v2-w-wait .v2-sbot{
     background:linear-gradient(180deg,transparent,rgba(255,255,255,.35) 40%,rgba(255,255,255,.55));}
-  .v2 .v2-ov.v2-w-aresore .v2-sedge,.v2 .v2-ov.v2-w-sugoroku .v2-sedge,.v2 .v2-ov.v2-w-shinka .v2-sedge,.v2 .v2-ov.v2-w-wait .v2-sedge{background:rgba(0,0,0,.12);color:var(--wi);}
+  .v2 .v2-ov.v2-w-aresore .v2-sedge,.v2 .v2-ov.v2-w-sugoroku .v2-sedge,.v2 .v2-ov.v2-w-shinka .v2-sedge,.v2 .v2-ov.v2-w-onaji .v2-sedge,.v2 .v2-ov.v2-w-wait .v2-sedge{background:rgba(0,0,0,.12);color:var(--wi);}
   .v2 .v2-sgname{text-align:center;font-weight:900;font-size:13px;}
   .v2 .v2-dots{display:flex;align-items:center;justify-content:center;gap:6px;}
   .v2 .v2-dots i{width:8px;height:8px;border-radius:4px;background:currentColor;opacity:.35;transition:width var(--v2-move) var(--v2-ease),opacity var(--v2-move) var(--v2-ease);}
@@ -6360,6 +6470,60 @@
   @media (prefers-reduced-motion: reduce){
     .app.theme-shinka{transition:none;}
     .app.theme-shinka .fx-alive{animation:none;}
+  }
+  /* 指示68-3：みんなと同じ（theme-onaji）。明るい世界の作りは進化じゃんけん（theme-shinka）と同じ形で、色だけ藤色 */
+  .app.theme-onaji{
+    --switch-on:#7A4FD8;
+    --paper:#CDB9F2;
+    --paper-deep:#AE97DE;
+    --card:#E2D6FA;
+    --ink:#1C0F36;
+    --ink-soft:#2E2148;
+    --stamp:#8F1B20;
+    --stamp-deep:#7E2413;
+    --gold:#6A4C0C;
+    --rk-top-bg:#E9C46A;
+    --rk-top-edge:#6A4C0C;
+    --teal:#1E4F46;
+    --line:rgba(28,15,54,0.18);
+    --shadow:0 10px 26px rgba(28,15,54,0.22);
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(255,255,255,0.45), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  body:has(.app.theme-onaji){
+    background:
+      radial-gradient(circle at 50% 0%, #E2D6FA, transparent 60%),
+      #B9A2E8;
+  }
+  .app.theme-onaji .scr-title,
+  .app.theme-onaji .sec-title,
+  .app.theme-onaji .tp-label,
+  .app.theme-onaji .rt-phase,
+  .app.theme-onaji .wiz-step,
+  .app.theme-onaji .big-phase,
+  .app.theme-onaji .big-main:not(.is-code){
+    color:var(--ink);
+  }
+  .app.theme-onaji .card,
+  .app.theme-onaji .overlay-panel,
+  .app.theme-onaji .rt-public,
+  .app.theme-onaji .rt-you,
+  .app.theme-onaji .qb-row{
+    background:var(--card);
+    border-color:var(--line);
+    color:var(--ink);
+  }
+  .app.theme-onaji .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-onaji .floating-gear{background:rgba(28,15,54,.10);color:var(--ink);}
+  .app.theme-onaji .rules-ol li{color:var(--ink);}
+  .app.theme-onaji .ry-desc{color:var(--ink-soft);}
+  .app.theme-onaji .fx-alive{animation:fxAliveLamp 3.2s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){
+    .app.theme-onaji{transition:none;}
+    .app.theme-onaji .fx-alive{animation:none;}
   }
 </style>
 </head>
@@ -7676,6 +7840,9 @@
        66-1 では見本データでだけ開く（検証用サーバーだけが配る台本。本番では開けない）。66-2 で文化祭の部屋につなぐ -->
   <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-lobby"></div>
   <div class="screen v2 v2-tv v2-w-wait" id="scr-v2-fes-tv"></div>
+  <!-- 指示68-3：みんなと同じ（スマホ・TV）。**箱だけ置く。中身は public/js/v2-onaji.js が毎回まるごと組み立てる** -->
+  <div class="screen v2 v2-scr v2-w-onaji" id="scr-v2-onaji"></div>
+  <div class="screen v2 v2-tv v2-w-onaji" id="scr-v2-onaji-tv"></div>
   <!-- 指示66-2：文化祭の部屋。入る（F2）・やめた人（F13）・係の画面（F14）。中身は public/js/v2-fes.js が組む。
        待合〜結果のスマホは scr-v2-fes-lobby、TV は scr-v2-fes-tv を段階ごとに描き直す（遊んでいる間だけ、今までのゲームの画面） -->
   <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-join"></div>
@@ -9057,6 +9224,7 @@
 <script src="js/v2-kit.js"></script>
 <script src="js/name-filter.js"></script>
 <script src="js/v2-fes.js"></script>
+<script src="js/v2-onaji.js"></script>
 <script src="js/v2-home.js"></script>
 <!-- 指示57：初プレイのチュートリアル。置き場は UiKit と同じ #uiLayerRoot -->
 <script src="js/tutorial.js"></script>
@@ -9236,6 +9404,18 @@
     {id:"shinka", icon:"🥚", title:"進化じゃんけん", sub:"おなじ段の人とじゃんけん・勝てば進化する", advanced:false, strict:false, oneWord:false, shinka:true, roomOnly:true, game:'shinka', minPlayers:3,
       tv:[["✊","おなじ段の人と、じゃんけん"], ["🏆","勝てば進化。いちばん上でゆうしょう"], ["⬇️","2回つづけてまけると、1つ下がる"]],
       bullets:["1人1台・部屋が必要です","ぜんいん いちばん下の段から はじまります","おなじ段の人と、じどうで1たい1のじゃんけん","勝てば1つ上の段へ。まけても その段のまま","2回つづけてまけると、1つ下がります（いちばん下では下がりません）","おなじ段に じぶんしかいないときは、1つ上の人とたいせん","あいこは もういちど。3回つづいたら ひきわけ","さいしょに いちばん上まで進化した人が ゆうしょう"]},
+    // 指示68-3：みんなと同じ。**部屋（3〜16人）専用**——全員が同時にこっそり選ぶ遊びなので、1台の手渡しは作らない。
+    // ルールの札3枚は指示書のまま。3つのモードは、送る onajiMode だけが違う（進行役は1つ・onaji-room.js）。
+    // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js の抽出がこの順）
+    {id:"onaji-many", icon:"🤝", title:"みんなと同じ（多い方）", sub:"お題に答えて、いちばん多い答えをねらう", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'many', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
+      tv:[["👥","お題に、3つか4つの中から答える"], ["👑","いちばん多い答えの人に1点"], ["🔄","5問で1回。1問は約20秒"]],
+      bullets:["1人1台・部屋が必要です（3〜16人）","お題が出たら、10秒で3つか4つの中から答えをえらぶ","えらんだら変えられない。だれが何をえらんだかは、開くまでだれにも見えない","「せーの！」で開く。いちばん多い答えをえらんだ人に1点","並んだら、並んだ答えの人みんなに1点","全員ちがう答えなら「ばらばら！」で、この問題はだれも点なし","5問で1回。点がいちばん多い人の勝ち"]},
+    {id:"onaji-few", icon:"🤝", title:"みんなと同じ（少ない方）", sub:"お題に答えて、いちばん少ない答えをねらう", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'few', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
+      tv:[["👥","お題に、3つか4つの中から答える"], ["💎","いちばん少ない答えの人に1点"], ["🔄","5問で1回。1問は約20秒"]],
+      bullets:["1人1台・部屋が必要です（3〜16人）","お題が出たら、10秒で3つか4つの中から答えをえらぶ","えらんだら変えられない。だれが何をえらんだかは、開くまでだれにも見えない","「せーの！」で開く。いちばん少ない答えをえらんだ人に1点（だれもえらばなかった答えはのぞく）","並んだら、並んだ答えの人みんなに1点","全員ちがう答えなら「ばらばら！」で、この問題はだれも点なし","5問で1回。点がいちばん多い人の勝ち"]},
+    {id:"onaji-team", icon:"🤝", title:"みんなと同じ（一致団結）", sub:"みんなで同じ答えにそろえる協力モード", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'team', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
+      tv:[["👥","お題に、3つか4つの中から答える"], ["🤝","みんなで同じ答えにそろえる"], ["🔄","5問で1回。1問は約20秒"]],
+      bullets:["1人1台・部屋が必要です（3〜16人）","お題が出たら、10秒で3つか4つの中から答えをえらぶ","しゃべらずに、みんなが同じ答えになるようにえらぶ","「せーの！」で開く。全員そろったら大成功","5問で1回。順位はつけず、みんなのそろい度だけを出す"]},
     {id:"auction-open", icon:"🔨", title:"せり上げ式", sub:"みんなの前で値が吊り上がっていく", advanced:false, strict:false, oneWord:false, auctionNew:true, auctionOpen:true, roomOnly:true, game:'auction', minPlayers:3,
       tv:[["🔨","みんなの前で、値をつけていく"], ["💰","得点は、品質×系統の相場"], ["🔥","同じ系統が売れるたび、相場が上がる"]],
       bullets:["6つの品が、はじめから全部ならぶ（見比べてえらべる）","品質（上物・並物・偽物）は伏せられている。内訳の数だけ先に分かる","競りが進むと、みんなに同じヒントが順に開いていく","誰かが値をつけるたびに、締め切りが延びる","同じ系統が売れるたび、その系統の相場が上がる","得点は「品質 × 売れた時の相場」。人気の系統ほど高くつく","落札できなかった人は品質を言い当てるとチップがもらえる","最初に値をつけた人にはチップのごほうびがある"]},
@@ -9402,6 +9582,11 @@
       games:['shinka'],
       theme:'shinka',
       blurb:'おなじ段の人とじゃんけん。勝てば1つ上へ進化する' },
+    // 指示68-3：みんなと同じ。2.0 の「カセットの約束 v1」で作る最初の1本。門を通るまではテスト中（くまくんの棚だけ）
+    { id:'onaji',           genre:'word',  ready:true, hidden:true, testing:true, icon:'🤝', title:'みんなと同じ',
+      games:['onaji'],
+      theme:'onaji',
+      blurb:'お題に答えて、みんなと同じ答えをねらう' },
     { id:'deal-soon-3',     genre:'deal',  ready:false, icon:'？' },
     { id:'move-soon-1',     genre:'move',  ready:false, icon:'？' },
     { id:'move-soon-2',     genre:'move',  ready:false, icon:'？' }
@@ -12031,7 +12216,9 @@
     { id:'falsetrue',       title:'ハッタリケース',     icon:'💼', sub:'中身を知っているのは持っている人だけ・奪うか奪わないか', maxPlayers:12 },
     { id:'rcard',           title:'ロシアンカード',      icon:'🃏', sub:'あいての9まいに爆弾をしかけ、じぶんの9まいをめくる', maxPlayers:8 },
     // 指示55-②：進化じゃんけん。部屋（3人以上）専用。段の配列は shinka-logic.js が正本
-    { id:'shinka',          title:'進化じゃんけん',      icon:'🥚', sub:'おなじ段の人とじゃんけん・勝てば1つ上の段へ進化する', maxPlayers:12 }
+    { id:'shinka',          title:'進化じゃんけん',      icon:'🥚', sub:'おなじ段の人とじゃんけん・勝てば1つ上の段へ進化する', maxPlayers:12 },
+    // 指示68-3：みんなと同じ。**onaji-logic.js の RULES.MAX_PLAYERS と一対**（tests/onaji-logic.js が照らす）
+    { id:'onaji',           title:'みんなと同じ',        icon:'🤝', sub:'お題に答えて、みんなと同じ答えをねらう', maxPlayers:16 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -14098,7 +14285,7 @@
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
   // 画面遷移による自動適用の対象から外す
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff', 'scr-v2-home', 'scr-v2-join', 'scr-v2-pick', 'scr-v2-room', 'scr-v2-room-tv'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff', 'scr-v2-home', 'scr-v2-join', 'scr-v2-pick', 'scr-v2-room', 'scr-v2-room-tv', 'scr-v2-onaji', 'scr-v2-onaji-tv'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -14144,7 +14331,9 @@
     // 指示55-①：ロシアンカード。**ここに足さないと、幕と棚だけ新しい色になり、
     // 遊ぶ画面は染まらない**（CSSもJSもエラーを出さない・落とし穴3）
     rcard: 'theme-rcard',
-    shinka: 'theme-shinka'
+    shinka: 'theme-shinka',
+    // 指示68-3：みんなと同じ
+    onaji: 'theme-onaji'
   };
   function applyGameTheme(screenId){
     var app = el('app');
@@ -14287,7 +14476,7 @@
     // 指示68-1：版が変わっていたら、待合に着いた時に読み込み直す
     if(typeof appReloadIfIdle === 'function') setTimeout(appReloadIfIdle, 0);
     setTimeout(function(){ sfxPreloadSync(id); }, 0);   // 指示68-2：音のファイルは入口では読まない
-    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff','scr-v2-home','scr-v2-join','scr-v2-pick','scr-v2-room','scr-v2-room-tv','scr-next'];
+    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff','scr-v2-home','scr-v2-join','scr-v2-pick','scr-v2-room','scr-v2-room-tv','scr-v2-onaji','scr-v2-onaji-tv','scr-next'];
     // **大画面には、どの画面でも⚙を出す**（指示47-2）。
     // 47-2 は「大画面で到達できる全画面に、🙋 プレイヤーにもどる か⚙への出口がある」と
     // 決めている。設定を開けば必ず先頭に🙋が並ぶ（setContext が bigscreen を最優先で見る）ので、
@@ -14406,6 +14595,8 @@
     if(RT_GAME_SCREEN_IDS.indexOf(id) !== -1 || id === 'scr-rt-big') rtRender();
     // 指示66-2：文化祭の部屋の画面も、入った瞬間に描く（知らせを待たない）。TV は出てから大きさを合わせ直す
     if(id === 'scr-v2-fes-lobby' || id === 'scr-v2-fes-tv'){ rtRender(); if(id === 'scr-v2-fes-tv') requestAnimationFrame(function(){ var r = fesRoom(); V2.fitTv(el(id), r ? r.fes.inset : 0); }); }
+    // 指示68-3：みんなと同じの TV も、出てから大きさを合わせ直す（描いた時はまだ見えていない）
+    if(id === 'scr-v2-onaji-tv') requestAnimationFrame(function(){ var r = rt && rt.state.room; V2.fitTv(el(id), (r && r.fes && r.fes.inset) || 0); });
     // 第36弾 36-3：棚は「どのゲームも遊んでいない場所」。
     // ここへ来たら、走っている時計と遅れて動く処理をまとめて捨てる（落とし穴17）
     if(id === 'scr-shelf') stopAllPlayTimers();
@@ -17004,6 +17195,7 @@
     falsetrue: rtFalsetrueConfig,
     rcard: rtRcardConfig,
     shinka: rtShinkaConfig,
+    onaji: rtOnajiConfig,
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
     bomb: rtBombConfig,
@@ -17177,6 +17369,11 @@
       drawMax: state.shCfg.drawMax,
       limitSec: state.shCfg.limitSec
     };
+  }
+
+  // 指示68-3：みんなと同じ。お題も問題の数も時間も進行役（onaji-room.js）が持っているので、送るのはモードだけ
+  function rtOnajiConfig(m){
+    return { game: 'onaji', mode: (m && m.onajiMode) || 'many' };
   }
 
   // 第36弾：すごろく。盤・人数・目安時間は sugoroku-logic.js が持っているので、
@@ -18197,7 +18394,9 @@
     // この表はゲームをまたいだ1枚で、`reveal` はワードウルフの「お題の確認」に取られている
     match: '組みあわせ', throw: '手を出す', hands: 'けっか',
     pick: 'ケースをえらぶ', peek: '中身をみる', face: '対面', talk: '話し合い',
-    decide: '奪うか決める', open: 'ケースが開く'
+    decide: '奪うか決める', open: 'ケースが開く',
+    // 指示68-3：みんなと同じ。開くのは 'unveil'（'open' は False or True に取られている）
+    choose: 'えらぶ', unveil: 'せーの！'
   };
   // いま部屋で遊んでいるのがワードウルフか
   // ---- 第26弾-4：1人1台の称号 ----
@@ -18305,6 +18504,15 @@
       // 最下段から1歩も動かなかった人が「ぶれない証」を取るのは、言葉が嘘になる
       if(私h.fell === 0 && 私h.ups > 0) shAdd.noFall = 1;
       return { cassette: 'shinka', add: shAdd };
+    }
+    if(game === 'onaji'){
+      // 指示68-3：みんなと同じ。結果の2つの称号は id で照らす（ふだんの部屋では同じ名前が2人いることがある）
+      var aw = res.awardIds || {};
+      var onAdd = { plays: 1 };
+      if((aw.same || []).indexOf(meId) !== -1) onAdd.sames = 1;
+      if((aw.solo || []).indexOf(meId) !== -1) onAdd.solos = 1;
+      if(res.mode === 'team' && res.together > 0) onAdd.togethers = res.together;
+      return { cassette: 'onaji', add: onAdd };
     }
     if(game === 'falsetrue'){
       /**
@@ -18583,7 +18791,9 @@
     // 指示55-①：ロシアンカード。置く／めくる／結果の3枚
     rcard: ['scr-rt-rc-place', 'scr-rt-rc-play', 'scr-rt-rc-result'],
     // 指示55-②：進化じゃんけん。発表／手を出す・開く／結果の3枚
-    shinka: ['scr-rt-sh-match', 'scr-rt-sh-play', 'scr-rt-sh-result']
+    shinka: ['scr-rt-sh-match', 'scr-rt-sh-play', 'scr-rt-sh-result'],
+    // 指示68-3：みんなと同じ。新しい見た目の2枚（スマホ・TV）。TV も今までの大画面（scr-rt-big）ではなくこちら
+    onaji: ['scr-v2-onaji', 'scr-v2-onaji-tv']
   };
   function rtWantScreen(){
     // 指示66-2：文化祭の部屋は、遊んでいる間だけ今までのゲームの画面。それ以外は新しい見た目の画面（段階ごとに描き直す）
@@ -18594,6 +18804,8 @@
     if(bombV2Room()) return rtIsBigScreen() ? 'scr-v2-fes-tv' : 'scr-v2-fes-lobby';
     var v = rtView();
     var started = !!(v && v.phase && v.phase !== 'lobby');
+    // 指示68-3：みんなと同じは、遊んでいる間はスマホも TV も新しい見た目の画面（文化祭の部屋の遊ぶ段階も、ここを通る）
+    if(started && rtRoomGameId() === 'onaji') return rtIsBigScreen() ? 'scr-v2-onaji-tv' : 'scr-v2-onaji';
     // 指示66-3：TV は、ゲームが決まるまで新しい見た目の待合（QR・名前・コード・進行役）。進行役が選んでいる間も変えない
     if(rtIsBigScreen()) return (!started && !rtPickedGame()) ? 'scr-v2-room-tv' : 'scr-rt-big';
     // 第37弾：ゲームが決まったら、まず全員がルールを読む。
@@ -19778,6 +19990,10 @@
     rcard: { motion:'flip', icons:['🃏', '🏆'], pieces:'card', words:['A', 'K', 'Q', 'J'],
       colors:['#FFF1EC', '#F2D98C', '#F0C9BC'],
       bg:['rgba(122,26,6,1)', 'rgba(54,9,0,1)'], ink:'#FFF1EC', glow:'rgba(242,217,140,.6)' },
+    // 指示68-3：みんなと同じ … 藤色の地に👑が押され、火花が舞う（開く時の冠と同じ絵）
+    onaji: { motion:'stamp', icon:'👑', pieces:'spark',
+      colors:['#7A4FD8', '#E2D6FA', '#FFD27A'],
+      bg:['rgba(226,214,250,1)', 'rgba(92,62,160,1)'], ink:'#1C0F36', glow:'rgba(255,255,255,.7)' },
     shinka: { motion:'evolve', icons:['🥚', '🐤', '🐔', '🐉'], pieces:'spark',
       colors:['#E06A3C', '#FFD27A', '#FFF3C4'],
       bg:['rgba(185,216,235,1)', 'rgba(52,96,128,1)'], ink:'#0C202A', glow:'rgba(255,210,122,.8)' },
@@ -19838,6 +20054,21 @@
    * 大画面の言葉は**二人称を使わない**（§11-6）——名前が主役
    */
   var CLEAR_WHO = {
+    // 指示68-3：みんなと同じ。多い方・少ない方は点がいちばんの人（並んだら全員・0点なら祝わない）。
+    // 一致団結は順位が無いので、5問とも全員そろった時だけ参加者全員を祝う（そろわなかった時は静かに）
+    onaji: function(v){
+      var r = v.result || {};
+      if(r.mode === 'team'){
+        if(!r.questions || r.together !== r.questions) return null;
+        return { ids: (v.players || []).map(function(p){ return p.id; }), all: true,
+          大: { text: '全員そろった！', sub: r.questions + '問とも' }, 手: { text: '全員そろった！', sub: r.questions + '問とも' } };
+      }
+      var 上 = clearRank1(r.ranking);
+      if(!上.length || !上[0].score) return null;
+      return { ids: 上.map(function(x){ return x.id; }),
+        大: { text: clearNames(上), sub: 上[0].score + '点でいちばん' },
+        手: { text: 'いちばん！', sub: 上[0].score + '点' } };
+    },
     rcard: function(v){
       var 上 = clearRank1((v.result || {}).ranking);
       if(!上.length) return null;
@@ -19995,6 +20226,7 @@
     // 画面ごとの描画関数に「この場面では出す」を書かせない
     renderNowLine();
     if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ fesRender(cur); return; }
+    if(cur === 'scr-v2-onaji' || cur === 'scr-v2-onaji-tv'){ onajiRender(cur); return; }
     if(cur === 'scr-v2-room') renderV2Room();
     else if(cur === 'scr-v2-room-tv') renderV2RoomTv();
     if(cur === 'scr-rt-rules') renderRtRules();
@@ -24294,7 +24526,8 @@
   // 部屋のゲーム画面でだけ出す。設定でOFFなら出さない
   function updateReactBar(){
     var id = (document.querySelector('.screen.active') || {}).id;
-    var on = appPrefs.reactions && rt && rt.state.room && RT_GAME_SCREEN_IDS.indexOf(id) >= 0;
+    // 指示68-3：新しい見た目のゲームの画面（scr-v2-…）には出さない（文化祭の画面と同じ。TV には押す人がいない）
+    var on = appPrefs.reactions && rt && rt.state.room && RT_GAME_SCREEN_IDS.indexOf(id) >= 0 && id.indexOf('scr-v2-') !== 0;
     el('reactBar').style.display = on ? 'flex' : 'none';
     syncFloatBottom();
   }
@@ -31231,13 +31464,17 @@
   }
   // TV の大きさが変わったら、1920×1080 の箱を合わせ直す
   window.addEventListener('resize', function(){ var t = el('scr-v2-fes-tv'); if(t && t.classList.contains('active')){ var r = (typeof fesRoom === 'function') && fesRoom(); V2.fitTv(t, r ? r.fes.inset : 0); } });
+  // 指示68-3：みんなと同じの TV も同じ
+  window.addEventListener('resize', function(){ var t = el('scr-v2-onaji-tv'); if(t && t.classList.contains('active')){ var r = rt && rt.state.room; V2.fitTv(t, (r && r.fes && r.fes.inset) || 0); } });
   // 検査と、検証用サーバーの見本データの台本から、同じ関数で描けるようにしておく（window.catalogSet と同じ作法）。
   // **描くだけで、画面へは移らない。**データを渡せるのは検証用サーバーが配る台本だけ（本番に入口は無い）
   window.V2Screens = { fesLobby: renderV2FesLobby, fesTv: renderV2FesTv, parts: renderV2Parts, modeInfo: v2ModeInfo,
     // 指示66-2：文化祭の部屋の画面。lab：{ screen, room（部屋の知らせ）, you, meId, fb, join, quit, staff }
     fes: function(lab){ return fesLab(lab); },
     // 指示66-3：ふだんの画面。lab：{ screen, room（部屋の知らせ）, meId, login, heads, cassette, game, mode, join, pick, fresh, open, menu, ask, decided }
-    home: function(lab){ return homeLab(lab); } };
+    home: function(lab){ return homeLab(lab); },
+    // 指示68-3：みんなと同じ。lab：{ screen, room（部屋の知らせ・state.data がゲームの中身）, you, meId, host, play }
+    onaji: function(lab){ return onajiRender(lab.screen, lab); } };
 
   // ===================== 指示66-2：文化祭の部屋（つなぎ） =====================
   // 画面の組み立ては public/js/v2-fes.js。ここは「部屋の知らせ → 描く」と「押した時の動き」だけ。
@@ -31432,6 +31669,62 @@
       V2.show(scr.querySelector('[data-v2-id="v2TvLook"]'), 2900);
     }
   }
+  /**
+   * 指示68-3：みんなと同じ。画面の組み立ては public/js/v2-onaji.js。ここは「部屋の知らせ → 描く」と「押した時の動き」だけ。
+   * 開く（unveil）の動き（せーの → 棒がのびる → 冠 → 名前）は、その問題を初めて描いた時だけ（is-play）。
+   * 人が入るたびに知らせが届くので、描き直しのたびに頭から動き直さない
+   */
+  var onaji = { endKey: null, end: null, played: null };
+  function onajiRender(cur, lab){
+    var room = lab ? lab.room : (rt && rt.state.room); if(!room) return;
+    var scr = el(cur); if(!scr) return;
+    var d = (room.state && room.state.data) || {};
+    var key = room.code + ':' + (room.state.game || '') + ':' + d.round + ':' + d.phase;
+    // 締め切りは、その段階の知らせが最初に届いた時刻から数える（端末の時計のずれに左右されない・文化祭と同じ）
+    if(onaji.endKey !== key){ onaji.endKey = key; onaji.end = d.remainingMs != null ? Date.now() + d.remainingMs : null; }
+    var tv = cur === 'scr-v2-onaji-tv';
+    var meId = lab ? lab.meId : rt.state.memberId;
+    var view = { data: d, you: (lab ? lab.you : rt.state.secret) || {}, meId: meId, members: room.members || [],
+      host: lab ? !!lab.host : room.hostMemberId === meId, fesRoom: !!room.fes, fes: { inset: (room.fes && room.fes.inset) || 0 }, end: onaji.end };
+    // 見本データ（lab）は動きの終わった形を撮る（lab.play のときだけ動かす）
+    var first = lab ? !!lab.play : onaji.played !== key + cur;
+    onaji.played = key + cur;
+    scr.innerHTML = tv ? V2Onaji.tv(view) : V2Onaji.phone(view);
+    scr.classList.toggle('is-play', first && (d.phase === 'unveil' || d.phase === 'ended'));
+    if(first && !lab) onajiFx(view, tv, key);
+    // 決着の祝い（クリア演出）は全ゲーム共通の1か所（rtClearFx）。この画面は共通の描き分けより前で返るので、ここから呼ぶ
+    if(!lab) rtClearFx(d);
+    V2.mount(scr);
+    if(tv) V2.fitTv(scr, view.fes.inset);
+  }
+  /** 音と震え。褒める時は全力で（点になった・全員そろった）、点にならなかった時は鳴らさない（責めない） */
+  function onajiFx(view, tv, key){
+    var d = view.data, r = d.reveal || {}, me = view.you || {};
+    if(d.phase === 'unveil'){
+      // 声「せーの！」（v15）は TV だけ（音の箱が決める）
+      rtOnce('onaji:v15:' + key, true, function(){ if(window.Sound) Sound.voice('v15'); });
+      if(tv) return;
+      var got = d.mode !== 'team' && !r.scatter && typeof me.myChoice === 'number' && (r.winners || []).indexOf(me.myChoice) !== -1;
+      if(got || (d.mode === 'team' && r.together)){ sfx('cheer'); FxKit.vibe('ok'); }
+    }
+  }
+  el('scr-v2-onaji').addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('[data-onaji-pick],[data-onaji-act]');
+    if(!b) return;
+    if(b.hasAttribute('data-onaji-pick')){
+      if(b.getAttribute('aria-disabled') === 'true') return;
+      // **押した瞬間に全部止める**（選んだら変えられない・連打で二重に送らない）
+      Array.prototype.forEach.call(this.querySelectorAll('[data-onaji-pick]'), function(x){ x.setAttribute('aria-disabled', 'true'); });
+      b.classList.add('is-on');
+      FxKit.vibe('tick');
+      rt.act(null, { pick: +b.getAttribute('data-onaji-pick') });
+      return;
+    }
+    var act = b.getAttribute('data-onaji-act');
+    if(act === 'again') goTo('scr-next');
+    else if(act === 'end') el('rtEndBtn').click();
+    else if(act === 'leave') rtLeaveRoomAsk();
+  });
   /**
    * F4 前のゲームの感想：遊んで待合にもどった時に、1回だけ帯の上から出る（約5秒でたたむ）。
    * **同じゲームは1日1回だけ聞く**（端末に覚える。日付が変われば、また聞く）

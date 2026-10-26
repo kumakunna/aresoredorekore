@@ -148,7 +148,8 @@ function pickCart(doc, id) {
     assert(!doc.querySelector('#scr-v2-pick [data-home-testing]'), 'ふつうのログインの一覧に「テスト中」の印が無い');
     win.authProbe({ username: 'kuma', displayName: 'くま', tester: true });
     await sleep(win, 30);
-    assertEqual(win.homeProbe().testing.join(','), 'falsetrue', 'くまくんにはテスト中の札が出る');
+    // 指示68-3：みんなと同じ（onaji）は本物のテスト中。検査で印を付けた falsetrue と並んで出る
+    assertEqual(win.homeProbe().testing.join(','), 'falsetrue,onaji', 'くまくんにはテスト中の札が出る');
     assertEqual(win.homeProbe().ready.indexOf('falsetrue'), -1, 'ふつうの遊べる札には混ざらない');
     if (activeScreen(doc) === 'scr-v2-pick') {
       const 札 = 棚の札(doc);

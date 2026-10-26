@@ -133,6 +133,14 @@
       challengeWins: 0,     // 1つ上への挑戦に勝った回数
       noFall: 0             // 一度も落ちずに終えた回数
     },
+    // 指示68-3：みんなと同じ。結果の2つの称号（指示書）を、そのまま数える。
+    // 「ひとりだけの答え」も褒める側に数える——多い方が正解の遊びでも、ちがう答えを出した人をほめる（大切なこと5）
+    onaji: {
+      plays: 0,             // みんなと同じを遊んだ回数
+      sames: 0,             // 「いちばんみんなと同じだった人」になった回数
+      solos: 0,             // 「ひとりだけの答えをいちばん多く出した人」になった回数
+      togethers: 0          // 一致団結で、全員の答えがそろった問題の数（通算）
+    },
     // ※**最高記録の形（bestOO）にしなかった理由。**
     //   `recordTitleStats`（public/index.html）は渡された値を**加算する**ので、
     //   最高記録をそのまま渡すと積み上がってしまう。
@@ -385,6 +393,19 @@
       { id: 'icon-sh-ups', cassette: 'shinka', emoji: '🦅', label: '歴戦の証',
         hint: '通算で20回 進化する',
         need: function (s) { return s('shinka', 'ups') >= 20; } },
+      // ---- 指示68-3：みんなと同じ ----
+      { id: 'icon-on-1', cassette: 'onaji', emoji: '👥', label: 'みんなの証',
+        hint: 'みんなと同じを1回あそぶ',
+        need: function (s) { return s('onaji', 'plays') >= 1; } },
+      { id: 'icon-on-same', cassette: 'onaji', emoji: '🎯', label: '以心伝心の証',
+        hint: '「いちばんみんなと同じだった人」になる',
+        need: function (s) { return s('onaji', 'sames') >= 1; } },
+      { id: 'icon-on-solo', cassette: 'onaji', emoji: '💎', label: 'わが道の証',
+        hint: '「ひとりだけの答えをいちばん多く出した人」になる',
+        need: function (s) { return s('onaji', 'solos') >= 1; } },
+      { id: 'icon-on-team', cassette: 'onaji', emoji: '🎈', label: '一致団結の証',
+        hint: '一致団結で、通算5問 全員の答えがそろう',
+        need: function (s) { return s('onaji', 'togethers') >= 5; } },
       { id: 'icon-ft-trust', cassette: 'falsetrue', emoji: '🤝', label: '信じた証',
         hint: '相手の TRUE を信じて奪い、当てる',
         need: function (s) { return s('falsetrue', 'trusts') >= 1; } },

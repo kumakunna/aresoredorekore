@@ -60,7 +60,8 @@ function アプリの字() {
   add(ui, fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8'));
   fs.readdirSync(path.join(ROOT, 'public', 'js')).filter((f) => f.endsWith('.js')).forEach((f) => {
     const t = fs.readFileSync(path.join(ROOT, 'public', 'js', f), 'utf8');
-    add(/^quiz-bank|^emoji-list|^budoux|^v2-art/.test(f) ? quiz : ui, t);
+    // 問題の字（quiz-bank.js・表から作った quiz-tables.js）は漢字の束へ。指示68-1 で quiz-tables.js が ui に入っていた
+    add(/^quiz-|^emoji-list|^budoux|^v2-art/.test(f) ? quiz : ui, t);
   });
   // かな・英数・記号は全部（名前に打たれる字）
   const 範囲で = (a, b) => { for (let p = a; p <= b; p++) ui.add(String.fromCodePoint(p)); };
@@ -98,7 +99,10 @@ async function 取る(url, file) {
     }));
     const 無い = uiChars.filter((c) => !持っている.has(c.codePointAt(0)));
     console.log(無い.length ? '✖ 書体の束に無いアプリの字 ' + 無い.length + '：' + 無い.slice(0, 40).join('') : '✔ アプリの字は全部、書体の束にある');
-    process.exitCode = 無い.length ? 1 : 0;
+    // 指示68-1：問題の漢字も束にあるか（問題の字のかな・英数は ui の範囲で持っている）
+    const 問題の無い = [...quiz].filter((c) => isKanji(c) && !持っている.has(c.codePointAt(0)));
+    console.log(問題の無い.length ? '✖ 書体の束に無い問題の漢字 ' + 問題の無い.length + '：' + 問題の無い.slice(0, 40).join('') : '✔ 問題の漢字も全部、書体の束にある');
+    process.exitCode = 無い.length || 問題の無い.length ? 1 : 0;
     return;
   }
 

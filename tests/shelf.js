@@ -196,6 +196,27 @@ function pickCart(doc, id) {
     win.close();
   });
 
+  await r.test('指示68-1：実物解除の称号は、取った人には残り、まだの人の「取れる一覧」と分母からは消える', async () => {
+    // もう取れない（ゲームを消した）パーツは retired:。どれが retired かは目録から導く（名指ししない）
+    const T = require('../public/js/titles');
+    const 消した = T.PART_KEYS.reduce((a, k) => a.concat(T.partsOf(k).filter((p) => p.retired).map((p) => p.id)), []);
+    assert(消した.length >= 1, 'もう取れないパーツを数えられている（' + 消した.join(',') + '）');   // 型(b)
+    const 行 = (win) => win.titleSheetProbe('bakudan').行.map((x) => x.id);
+    // まだ取っていない人
+    const a = await launch();
+    消した.forEach((id) => assert(行(a.win).indexOf(id) === -1, 'まだの人の一覧に ' + id + ' が出ている'));
+    assert(行(a.win).length >= 3, '爆弾解除のほかの称号は出る（型(b)）');
+    a.win.close();
+    // 取った人（2つだけ持っている）
+    const 持つ = 消した.slice(0, 2);
+    const b = await launch({ seedTitles: 持つ });
+    await waitFor(b.win, () => 持つ.every((id) => 行(b.win).indexOf(id) !== -1), 3000, '取った称号が一覧に出る');
+    消した.slice(2).forEach((id) => assert(行(b.win).indexOf(id) === -1, '持っていない ' + id + ' は出ない'));
+    const d = b.win.titleSheetProbe('bakudan');
+    assert(d.取得 >= 持つ.length, '取ったものは数に入る（' + d.取得 + '／' + d.全部 + '）');
+    b.win.close();
+  });
+
   await r.test('alsoGenre の綴りが、分類の一覧に実在する（第41弾）', async () => {
     // **棚に出ない値ほど、検査が無いと事故に気づけない。**
     // genre は棚に出るので、綴りを間違えればカセットが消えて分かる。
@@ -772,7 +793,8 @@ function pickCart(doc, id) {
     const m = /(\d+)\s*\/\s*(\d+)/.exec(数);
     assert(m, '「持っている数 / 全部の数」が出る（実際: ' + 数 + '）');
     const 目録の全数 = win.TitleLogic
-      ? win.TitleLogic.PART_KEYS.reduce((n, k) => n + win.TitleLogic.partsOf(k).length, 0)
+      // 指示68-1：もう取れないパーツ（retired・実物解除）は、持っていない人の分母に入れない
+      ? win.TitleLogic.PART_KEYS.reduce((n, k) => n + win.TitleLogic.partsOf(k).filter((p) => !p.retired).length, 0)
       : null;
     assertEqual(Number(m[2]), 目録の全数, '分母が目録の実際のパーツ数と一致する');
     assertEqual(Number(m[1]), 並んだ.length, '分子が、実際に並んでいる数と一致する');

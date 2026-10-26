@@ -311,7 +311,7 @@
       { id: 'icon-bomb-10', cassette: 'bakudan', emoji: '🧨', label: 'ベテラン解除班の証',
         hint: '爆弾解除カセットを通算10回あそぶ',
         need: function (s) { return s('bakudan', 'plays') >= 10; } },
-      { id: 'icon-bomb-defuse', cassette: 'bakudan', emoji: '🧰', label: '実物解除の証',
+      { id: 'icon-bomb-defuse', cassette: 'bakudan', emoji: '🧰', label: '実物解除の証', retired: '実物解除（2026-10-24 に消した）',
         hint: '実物解除を1回成功させる',
         need: function (s) { return s('bakudan', 'defuseWins') >= 1; } },
       { id: 'icon-bomb-clean', cassette: 'bakudan', emoji: '🎯', label: '無傷の証',
@@ -495,7 +495,7 @@
       { id: 'first-jinsoku', cassette: 'bakudan', label: '迅速',
         hint: 'クイズ解除（競争版）で1位になる',
         need: function (s) { return s('bakudan', 'raceWins') >= 1; } },
-      { id: 'first-shincho', cassette: 'bakudan', label: '慎重',
+      { id: 'first-shincho', cassette: 'bakudan', label: '慎重', retired: '実物解除（2026-10-24 に消した）',
         hint: '実物解除をミス0で終える',
         need: function (s) { return s('bakudan', 'defuseNoMiss') >= 1; } },
       { id: 'first-koko', cassette: 'bakudan', label: '孤高',
@@ -621,7 +621,7 @@
         need: function (s) { return s('aresore', 'comebackWins') >= 1; } },
 
       // ---- 第32弾-B-2：爆弾解除 ----
-      { id: 'last-shokunin', cassette: 'bakudan', label: '職人',
+      { id: 'last-shokunin', cassette: 'bakudan', label: '職人', retired: '実物解除（2026-10-24 に消した）',
         hint: '実物解除を5回成功させる',
         need: function (s) { return s('bakudan', 'defuseWins') >= 5; } },
       { id: 'last-meishu-bomb', cassette: 'bakudan', label: '名手',
@@ -723,6 +723,12 @@
   function partById(part, id) {
     return partsOf(part).filter(function (p) { return p.id === id; })[0] || null;
   }
+  /**
+   * 指示68-1：ゲームを消して、もう取れないパーツ（retired:）。
+   * **取った人のものは残す**（人の記録）。まだ持っていない人の「取れる一覧」と「あと◯つ」には出さない——
+   * 取れない目標が残るから。have は { id: true } の形
+   */
+  function shownTo(def, have) { return !def.retired || !!(have && have[def.id]); }
   function allParts() {
     return ['icon'].concat(PARTS).reduce(function (acc, part) {
       return acc.concat(partsOf(part).map(function (p) {
@@ -827,6 +833,7 @@
     normalizeStats: normalizeStats,
     partsOf: partsOf,
     partById: partById,
+    shownTo: shownTo,
     lastPlaceIds: lastPlaceIds,
     unlockedIds: unlockedIds,
     mergeUnlocked: mergeUnlocked,

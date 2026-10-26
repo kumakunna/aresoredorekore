@@ -11312,6 +11312,7 @@
     TitleLogic.PART_KEYS.forEach(function(part){
       TitleLogic.partsOf(part).forEach(function(p){
         if((p.cassette || null) !== (cassetteId || null)) return;
+        if(!TitleLogic.shownTo(p, have)) return;   // 指示68-1：もう取れないもの（実物解除）は、持っていない人には出さない
         行.push({ part: part, id: p.id, emoji: p.emoji || '', label: p.label,
                   hint: p.hint || '', もっている: !!have[p.id] });
       });
@@ -11429,6 +11430,7 @@
     var 全部 = 0, もっている = [];
     TitleLogic.PART_KEYS.forEach(function(part){
       TitleLogic.partsOf(part).forEach(function(p){
+        if(!TitleLogic.shownTo(p, have)) return;   // 指示68-1：もう取れないものは分母に入れない（持っている人は数える）
         全部++;
         if(have[p.id]) もっている.push(p);
       });

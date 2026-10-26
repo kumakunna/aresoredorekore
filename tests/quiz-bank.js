@@ -398,5 +398,31 @@ const { createRunner, assert, assertEqual } = require('./harness');
     });
   });
 
+  await r.test('指示68-1：問題の文に使った字は全部、書体の束にある（「嶽」が無かった・68-Q で増やす時に止める）', async () => {
+    // 書体は public/fonts/ の束を unicode-range で分けて読む。束に無い字は別の書体で出て、字の形がそろわない
+    const fs = require('fs'), path = require('path');
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'fonts', 'fonts.css'), 'utf8');
+    const 持っている = new Set();
+    (css.match(/unicode-range:([^;]+);/g) || []).forEach((m) => m.slice(14, -1).split(',').forEach((x) => {
+      const [a, b] = x.trim().slice(2).split('-').map((h) => parseInt(h, 16));
+      for (let p = a; p <= (b || a); p++) 持っている.add(p);
+    }));
+    assert(持っている.size > 3000, '書体の束の字を読めた（' + 持っている.size + '字）');   // 型(b)
+    // 問題の箱から、画面に出る字を全部集める（3択・4択・つぎつぎクイズ・数字の問題・表から作った問題）
+    const 文 = [];
+    Q.TIERS.forEach((t) => Q.questionsOf(t).forEach((q) => { 文.push(q.q); q.choices.forEach((c) => 文.push(c)); }));
+    Q.LIST_TOPICS.forEach((t) => { 文.push(t.topic); (t.answers || []).forEach((a) => 文.push(a)); Object.keys(t.alias || {}).forEach((a) => 文.push(a)); });
+    Q.numbersOf().forEach((q) => { 文.push(q.q); 文.push(q.unit); });
+    Q.comparesOf().forEach((q) => { 文.push(q.q); q.choices.forEach((c) => 文.push(c)); });
+    const 無い字 = (list) => {
+      const out = new Set();
+      list.forEach((t) => { for (const c of String(t)) { if (/\s/.test(c) || c.codePointAt(0) < 0x20) continue; if (!持っている.has(c.codePointAt(0))) out.add(c); } });
+      return Array.from(out);
+    };
+    // 型(b)：書体に無い字を混ぜたら拾う
+    assertEqual(無い字(['𠮷野家']).join(''), '𠮷', '書体に無い字を拾える');
+    assertEqual(無い字(文).join(''), '', '書体の束に無い字（node tools/gen-fonts.js で作り直す）');
+  });
+
   r.finish();
 })();

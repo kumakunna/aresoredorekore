@@ -1927,6 +1927,10 @@
      新しい見た目の世界（.v2-w-onaji）と同じ色の家。ルールと準備の画面（今までの画面）もこの色に染まる。
      ΔE2000 の最小は 18.6（対 進化じゃんけん #9FC6DF）。測り直すなら node tools/fot-color.js '#CDB9F2' */
   .cassette-warp[data-theme="onaji"], .shelf-stage[data-theme="onaji"]{--warp-color:#CDB9F2;--warp-ink:#1C0F36;--warp-soft:#2E2148;}
+  /* 指示68-4：ぴったり10秒（theme-pittari・明るい桃色）・そろえて発射（theme-soroe・夜空の青緑）。
+     測り直すなら node tools/fot-color.js '#FFC2D4'・'#0E4452' */
+  .cassette-warp[data-theme="pittari"], .shelf-stage[data-theme="pittari"]{--warp-color:#FFC2D4;--warp-ink:#3A0F22;--warp-soft:#4E1A30;}
+  .cassette-warp[data-theme="soroe"], .shelf-stage[data-theme="soroe"]{--warp-color:#0E4452;--warp-ink:#EAFBFF;--warp-soft:#BFE6EE;}
 
   /* ---- 棚の染まる場（第41弾 2-2「世界を借りる」／第43弾で画面いっぱいに）----
      **染まるのはここだけ。**上の帯（タイトル）と下部バーはクリームのまま。
@@ -4650,6 +4654,9 @@
   .v2-w-sugoroku{--wt:#D6F0C2;--wb:#A6DA8A;--wi:#11200C;--ws:#23361B;--wa:#11200C;--won:#F2FBEC;}
   .v2-w-shinka{--wt:#C4E6FA;--wb:#86C2E8;--wi:#0A1E2B;--ws:#16303F;--wa:#0A1E2B;--won:#EEF8FF;}
   /* 指示68-3：みんなと同じ（明るい藤色）。ほかの世界と色で見分けられる（見張りは同じ物差し） */
+  /* 指示68-4：ぴったり10秒（明るい桃色）・そろえて発射（夜空の青緑・暗い世界） */
+  .v2-w-pittari{--wt:#FFDDE7;--wb:#F7A9C0;--wi:#3A0F22;--ws:#4A1830;--wa:#3A0F22;--won:#FFF3F7;}
+  .v2-w-soroe{--wt:#0F4F60;--wb:#04222B;--wi:#EAFBFF;--ws:#D4F3F9;--wa:#7FE7F2;--won:#04222B;}
   .v2-w-onaji{--wt:#E6DBFF;--wb:#BFA6F5;--wi:#1C0F36;--ws:#30204B;--wa:#1C0F36;--won:#F6F1FF;}
   .v2-w-wolf{--wt:#40288A;--wb:#1D0A40;--wi:#F3EFFF;--ws:#DAD2F7;--wa:#FFE38A;--won:#1D0A40;}
   /* 爆弾の世界の薄い字（--ws）は、画面の上の明るい所の札の上でも 4.5 に届く明るさ（#DADADE では 4.1・物差し K2・指示68-0b） */
@@ -4659,13 +4666,13 @@
   .v2-w-falsetrue{--wt:#18563A;--wb:#062217;--wi:#EEF8F1;--ws:#CDEBD8;--wa:#7DE3A2;--won:#062217;}
   .v2-w-rcard{--wt:#8A1C35;--wb:#33050E;--wi:#FFF0F2;--ws:#F8D7DD;--wa:#F3E3C3;--won:#33050E;}
   /* 明るい世界と暗い世界で、カード・線・帯の作り方を変える */
-  .v2-w-wait,.v2-w-aresore,.v2-w-sugoroku,.v2-w-shinka,.v2-w-onaji{
+  .v2-w-wait,.v2-w-aresore,.v2-w-sugoroku,.v2-w-shinka,.v2-w-onaji,.v2-w-pittari{
     --wc:rgba(255,255,255,.66);--wc2:rgba(255,255,255,.9);--wl:var(--wi);--wl2:rgba(0,0,0,.14);
     --wband:rgba(255,250,236,.74);--wscrim:rgba(16,16,18,.48);--wdim:rgba(0,0,0,.08);
     --wsheet:#FFFDF6;--wsheet-ink:#1A1A1A;--wsheet-soft:#4A4334;--wglow:rgba(255,255,255,.34);
     --wbtn:var(--wi);--wbtn-ink:var(--won);--wdone:var(--v2-done);--wdone-ink:var(--v2-done-ink);--wok:var(--v2-ok-ink);
   }
-  .v2-w-wolf,.v2-w-bomb,.v2-w-quiz,.v2-w-auction,.v2-w-falsetrue,.v2-w-rcard{
+  .v2-w-wolf,.v2-w-bomb,.v2-w-quiz,.v2-w-auction,.v2-w-falsetrue,.v2-w-rcard,.v2-w-soroe{
     --wc:rgba(255,255,255,.09);--wc2:rgba(255,255,255,.16);--wl:rgba(255,255,255,.34);--wl2:rgba(255,255,255,.16);
     --wband:rgba(8,8,10,.52);--wscrim:rgba(0,0,0,.55);--wdim:rgba(255,255,255,.06);
     --wsheet:#FFFFFF;--wsheet-ink:#141414;--wsheet-soft:#4A4A4A;--wglow:rgba(255,255,255,.08);
@@ -5122,6 +5129,228 @@
   .v2 .v2-osync-s{font-weight:900;font-size:16px;}
   .v2 .v2-osync-w{font-weight:900;font-size:20px;}
   .v2.is-play .v2-osync.is-gold .v2-osync-w{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  /* ---- 指示68-4：ぴったり10秒（v2-pittari.js）・そろえて発射（v2-soroe.js）。上の行と開く札は、みんなと同じの物を使う ---- */
+  .v2 .v2-ptx2{background:var(--wi);color:var(--won);border-radius:999px;padding:2px 10px;font-weight:900;font-size:13px;line-height:1.4;}
+  .v2 .v2-ptset{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;}
+  .v2 .v2-ptready{font-weight:900;font-size:34px;line-height:1.2;}
+  .v2 .v2-pttgt{display:flex;align-items:baseline;gap:6px;}
+  .v2 .v2-pttgt b{font-family:var(--v2-en);font-weight:900;font-size:96px;line-height:1;}
+  .v2 .v2-pttgt span{font-weight:900;font-size:28px;}
+  .v2 .v2-ptclock{font-family:var(--v2-en);font-weight:900;font-size:72px;line-height:1;text-align:center;margin:22px 0 6px;}
+  .v2 .v2-ptclock.is-hidden{opacity:.4;}
+  .v2 .v2-ptbtn{display:block;margin:auto auto 10px;width:min(72vw,260px);height:min(72vw,260px);border-radius:50%;border:6px solid var(--wi);background:var(--wbtn);color:var(--wbtn-ink);
+    font-family:var(--v2-jp);font-weight:900;font-size:40px;box-shadow:0 10px 0 rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation;
+    transition:transform var(--v2-press) var(--v2-ease),box-shadow var(--v2-press) var(--v2-ease);}
+  .v2 .v2-ptbtn:active{transform:translateY(6px) scale(.97);box-shadow:0 4px 0 rgba(0,0,0,.25);}
+  .v2 .v2-ptbtn:disabled{opacity:.5;cursor:default;}
+  .v2 .v2-ptdone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
+  .v2 .v2-ptstop{font-weight:900;font-size:56px;line-height:1.2;}
+  .v2 .v2-ptrk{font-weight:900;font-size:15px;}
+  .v2 .v2-ptwrap{display:flex;flex-direction:column;gap:12px;margin-top:14px;}
+  .v2 .v2-ptline{position:relative;height:calc(var(--lanes) * 50px + 70px);}
+  .v2 .v2-ptaxis{position:absolute;left:2%;right:2%;bottom:30px;height:4px;background:var(--wi);border-radius:2px;}
+  .v2 .v2-pttick{position:absolute;left:50%;top:-10px;width:4px;height:24px;background:var(--wi);transform:translateX(-50%);}
+  .v2 .v2-ptmarks{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;font-weight:800;font-size:12px;line-height:1.2;color:var(--ws);}
+  .v2 .v2-ptmarks .is-c{font-weight:900;font-size:14px;color:var(--wi);}
+  .v2 .v2-ptpin{position:absolute;bottom:calc(44px + var(--lane) * 50px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;
+    background:var(--wc2);border:3px solid var(--wl2);border-radius:12px;padding:3px 8px;white-space:nowrap;}
+  .v2 .v2-ptpin.is-win{border-color:var(--wi);background:var(--wi);color:var(--won);}
+  .v2 .v2-ptname{font-weight:900;font-size:13px;line-height:1.2;max-width:7em;}
+  .v2 .v2-ptdiff{font-family:var(--v2-en);font-weight:900;font-size:12px;line-height:1.2;}
+  .v2 .v2-ptcrown{position:absolute;top:-22px;font-size:18px;line-height:1;}
+  .v2.is-play .v2-ptpin{animation:v2-ptfall var(--v2-show) var(--v2-pop) both;}
+  @keyframes v2-ptfall{from{opacity:0;transform:translate(-50%,-90px);}to{opacity:1;transform:translate(-50%,0);}}
+  .v2 .v2-ptset.is-tv .v2-ptready{font-size:120px;}
+  .v2 .v2-ptset.is-tv .v2-pttgt b{font-size:300px;}
+  .v2 .v2-ptset.is-tv .v2-pttgt span{font-size:90px;}
+  .v2 .v2-ptset.is-tv .v2-hint{font-size:48px;}
+  .v2 .v2-ptclock.is-tv{font-size:280px;margin:0;}
+  .v2 .v2-pthint{font-weight:900;font-size:56px;line-height:1.3;text-align:center;}
+  .v2 .v2-otv .v2-ptx2{font-size:44px;padding:6px 22px;}
+  .v2 .v2-ptwrap.is-tv{gap:20px;margin-top:0;flex:1;min-height:0;justify-content:flex-end;}
+  .v2 .v2-ptwrap.is-tv .v2-ptline{height:calc(var(--lanes) * 78px + 130px);}
+  .v2 .v2-ptwrap.is-tv .v2-ptaxis{bottom:62px;height:8px;}
+  .v2 .v2-ptwrap.is-tv .v2-pttick{width:8px;height:48px;top:-20px;}
+  .v2 .v2-ptwrap.is-tv .v2-ptmarks{font-size:44px;}
+  .v2 .v2-ptwrap.is-tv .v2-ptmarks .is-c{font-size:48px;}
+  .v2 .v2-ptwrap.is-tv .v2-ptpin{bottom:calc(92px + var(--lane) * 78px);flex-direction:row;gap:14px;border-width:5px;border-radius:22px;padding:6px 18px;}
+  .v2 .v2-ptwrap.is-tv .v2-ptname{font-size:44px;}
+  .v2 .v2-ptwrap.is-tv .v2-ptdiff{font-size:42px;}
+  .v2 .v2-ptwrap.is-tv .v2-ptcrown{position:static;font-size:48px;}
+  .v2 .v2-ptwrap.is-tv .v2-oban,.v2 .v2-sowrap.is-tv .v2-oban{font-size:72px;}
+  .v2 .v2-ptwrap.is-tv .v2-oban small,.v2 .v2-sowrap.is-tv .v2-oban small{font-size:44px;margin-top:10px;}
+  /* 指示68-4：ぴったり10秒の「開く」（TV・見せ場の台本）。ため → 物差しがせり上がる → 札が1枚ずつ落ちて刺さる → 寄る → 冠と名前 */
+  .v2 .v2-ptr{position:relative;flex:1;min-height:0;}
+  .v2 .v2-ptr-dim{position:absolute;inset:0;border-radius:30px;background:#000;opacity:0;pointer-events:none;}
+  .v2.is-play .v2-ptr-dim{animation:v2-ptrdim calc(1.1s * var(--fx-scale)) var(--v2-ease) both;}
+  @keyframes v2-ptrdim{0%{opacity:0;}65%{opacity:.3;}100%{opacity:0;}}
+  .v2 .v2-ptr-ruler{position:absolute;inset:0;}
+  .v2.is-play .v2-ptr-ruler{animation:v2-ptrup var(--v2-show) var(--v2-ease) both;}
+  @keyframes v2-ptrup{from{transform:translateY(320px);opacity:0;}}
+  .v2 .v2-ptr-axis{position:absolute;left:2%;right:2%;bottom:118px;height:10px;border-radius:5px;background:var(--wi);}
+  .v2 .v2-ptr-center{position:absolute;left:50%;bottom:92px;width:14px;height:72px;border-radius:7px;background:var(--wi);transform:translateX(-50%);}
+  .v2 .v2-ptr-tgt{position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-weight:900;font-size:60px;line-height:1.2;}
+  .v2 .v2-ptr-marks{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:space-between;font-weight:800;font-size:44px;line-height:1.2;color:var(--ws);}
+  .v2 .v2-ptr-marks.is-wide{opacity:0;}
+  .v2.is-play .v2-ptr-marks.is-wide{animation:v2-ptrout var(--v2-move) var(--v2-ease) both;animation-delay:var(--zt);}
+  .v2.is-play .v2-ptr-marks.is-near{animation:v2-fade var(--v2-move) var(--v2-ease) both;animation-delay:var(--zt);}
+  @keyframes v2-ptrout{from{opacity:1;}to{opacity:0;}}
+  .v2 .v2-ptp{position:absolute;bottom:calc(128px + var(--lane) * 66px);transform:translateX(-50%);}
+  /* 端に積む札（物差しから外れた人）：左は左の端から、右は右の端から。棒は出さない */
+  .v2 .v2-ptp.is-edge.is-l{transform:none;margin-left:-2%;}
+  .v2 .v2-ptp.is-edge.is-r{transform:translateX(-100%);margin-left:2%;}
+  .v2 .v2-ptp.is-edge .v2-ptp-stick{display:none;}
+  .v2.is-play .v2-ptp{animation:v2-ptmove calc(.35s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--zt);}
+  @keyframes v2-ptmove{from{left:var(--l0);bottom:calc(128px + var(--n0) * 66px);}}
+  .v2 .v2-ptp-in{position:relative;}
+  .v2.is-play .v2-ptp-in{animation-name:v2-ptdrop;animation-timing-function:var(--v2-ease);animation-fill-mode:both;}
+  @keyframes v2-ptdrop{from{transform:translateY(-760px);opacity:0;}}
+  .v2 .v2-ptp-tag{display:inline-flex;align-items:baseline;gap:14px;white-space:nowrap;background:var(--wc2);border:5px solid var(--wl2);border-radius:22px;padding:4px 18px;}
+  .v2 .v2-ptp-nm{font-weight:900;font-size:44px;line-height:1.25;max-width:8em;}
+  .v2 .v2-ptp-df{font-family:var(--v2-en);font-weight:900;font-size:42px;line-height:1.25;}
+  .v2 .v2-ptp-stick{position:absolute;left:50%;top:100%;width:5px;height:calc(var(--lane) * 66px + 10px);margin-left:-2px;background:var(--wl2);}
+  .v2 .v2-ptp.is-win .v2-ptp-tag{background:var(--wi);color:var(--won);border-color:var(--wi);}
+  .v2 .v2-ptp.is-early .v2-ptp-tag{opacity:.55;}
+  .v2.is-play .v2-ptp.is-early .v2-ptp-tag{animation:v2-ptrfade var(--v2-move) var(--v2-ease) both;animation-delay:var(--zt);}
+  @keyframes v2-ptrfade{from{opacity:1;}}
+  .v2 .v2-ptwin{position:absolute;left:50%;top:0;transform:translateX(-50%);display:flex;flex-direction:row;align-items:center;gap:28px;max-width:1500px;white-space:nowrap;
+    background:var(--wc2);border:6px solid var(--wi);border-radius:40px;padding:6px 48px;box-shadow:0 14px 0 rgba(0,0,0,.18);}
+  .v2 .v2-ptr.is-perfect .v2-ptwin{top:140px;}
+  .v2 .v2-ptwin-c{font-size:80px;line-height:1;}
+  .v2 .v2-ptwin-n{font-weight:900;font-size:104px;line-height:1.2;max-width:1000px;}
+  .v2 .v2-ptwin-d{font-family:var(--v2-en);font-weight:900;font-size:56px;line-height:1.1;}
+  .v2 .v2-ptwin.is-none{font-weight:900;font-size:56px;}
+  .v2.is-play .v2-ptwin{animation:v2-ptwin calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  @keyframes v2-ptwin{0%{opacity:0;transform:translateX(-50%) scale(1.8);}60%{opacity:1;transform:translateX(-50%) scale(.95);}100%{opacity:1;transform:translateX(-50%) scale(1);}}
+  .v2 .v2-ptgold{position:absolute;inset:0;pointer-events:none;}
+  .v2 .v2-ptgold-p{position:absolute;width:20px;height:20px;border-radius:50%;background:#FFD54A;box-shadow:0 0 16px rgba(255,213,74,.9);opacity:.9;}
+  .v2.is-play .v2-ptgold-p{animation:v2-ptspark var(--v2-show) var(--v2-ease) both;}
+  @keyframes v2-ptspark{from{transform:translateY(60px) scale(0);opacity:0;}}
+  .v2 .v2-ptband{position:absolute;left:0;right:0;top:0;text-align:center;background:#FFD54A;color:#3A0F22;font-weight:900;font-size:100px;line-height:1.3;border-radius:30px;box-shadow:0 10px 0 rgba(0,0,0,.18);}
+  .v2.is-play .v2-ptband{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  .v2 .v2-sosig{display:flex;flex-direction:column;align-items:center;gap:10px;margin:14px 0;text-align:center;}
+  .v2 .v2-socount{font-family:var(--v2-en);font-weight:900;font-size:110px;line-height:1;min-height:110px;}
+  .v2 .v2-sosay{font-weight:900;font-size:48px;line-height:1.2;}
+  .v2 .v2-sorocket{display:inline-block;width:56px;height:56px;color:var(--wi);}
+  .v2 .v2-sorocket svg{width:100%;height:100%;display:block;}
+  .v2 .v2-sorocket.is-mini{width:72px;height:72px;}
+  .v2 .v2-sobest{font-weight:900;font-size:56px;text-align:right;}
+  /* ---- そろえて発射の舞台（見せ場の台本）：合図の間は発射台、開くと 点火 → 発射 → 景色が流れる → 着いた ---- */
+  .v2 .v2-sowrap{display:flex;flex-direction:column;gap:12px;margin-top:12px;}
+  .v2 .v2-sowrap.is-tv{flex:1;min-height:0;margin-top:0;}
+  .v2 .v2-soscene{position:relative;height:330px;border-radius:18px;overflow:hidden;border:3px solid var(--wl);}
+  .v2 .v2-sowrap.is-tv .v2-soscene{flex:1;min-height:0;height:auto;border-width:5px;border-radius:30px;}
+  /* 景色の柱：画面5つぶん。着いた高さ k だけ下げる（20%＝画面1つ）。地面 → ビル → 雲 → 月 → 星と銀河。空の色も 昼 → 夜 → 宇宙 */
+  .v2 .v2-socol{position:absolute;left:0;right:0;bottom:0;height:500%;transform:translateY(calc(var(--k) * 20%));
+    background:linear-gradient(to top,#A9DDF2 0%,#6CB8E2 14%,#3F86C4 30%,#2A5492 46%,#1A2F66 62%,#0C1538 78%,#03051A 90%,#01020A 100%);}
+  .v2 .v2-soground{position:absolute;left:0;right:0;bottom:0;height:1.6%;background:linear-gradient(#5E9E52,#3B6E35);}
+  .v2 .v2-sopad{position:absolute;left:44%;width:12%;bottom:1.6%;height:.5%;background:#4B5563;border-radius:6px 6px 0 0;}
+  .v2 .v2-sobld{position:absolute;bottom:1.6%;background:#2D3A4F;border-top:4px solid #1F2838;
+    /* 窓：たての柱（上の層）が、横の明かりを区切って格子にする */
+    background-image:repeating-linear-gradient(to right,#2D3A4F 0 6px,transparent 6px 14px),repeating-linear-gradient(to top,#2D3A4F 0 10px,rgba(255,226,140,.75) 10px 16px);}
+  .v2 .v2-socloud{position:absolute;height:2.4%;border-radius:999px;background:#FFFFFF;opacity:.92;box-shadow:24px -10px 0 6px #FFFFFF,-20px -6px 0 2px #FFFFFF;}
+  .v2 .v2-somoon{position:absolute;left:64%;bottom:65%;width:22%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle at 34% 38%,#D8D2B4 0 9%,transparent 10%),radial-gradient(circle at 62% 64%,#D8D2B4 0 12%,transparent 13%),radial-gradient(circle at 66% 30%,#DDD7BA 0 6%,transparent 7%),#F4F0DA;
+    box-shadow:0 0 40px rgba(244,240,218,.45);}
+  .v2 .v2-sostars{position:absolute;left:0;right:0;top:0;height:30%;
+    background-image:radial-gradient(circle,#FFFFFF 0 1.5px,transparent 2px),radial-gradient(circle,rgba(255,255,255,.7) 0 1px,transparent 1.5px);
+    background-size:90px 70px,53px 41px;background-position:0 0,27px 19px;}
+  .v2 .v2-sogalaxy{position:absolute;left:52%;top:4%;width:40%;height:7%;border-radius:50%;transform:rotate(-16deg);
+    background:radial-gradient(ellipse at center,rgba(255,240,255,.95) 0 6%,rgba(196,150,255,.75) 18%,rgba(110,90,220,.45) 40%,transparent 70%);}
+  /* 通りすぎる看板：通っている間だけ見える（着いた時には画面の外。ふだんは隠しておく） */
+  .v2 .v2-sobb{position:absolute;left:6%;visibility:hidden;background:rgba(255,255,255,.9);color:#12313B;font-weight:900;font-size:20px;line-height:1.3;border-radius:12px;padding:4px 14px;}
+  .v2.is-play .v2-sobb{animation-name:v2-sobb;animation-timing-function:var(--v2-ease);animation-fill-mode:both;}
+  @keyframes v2-sobb{0%,99%{visibility:visible;}100%{visibility:hidden;}}
+  .v2 .v2-sodim{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;}
+  .v2.is-play .v2-soscene:not(.is-pad) .v2-sodim{animation:v2-sodim calc(1.25s * var(--fx-scale)) var(--v2-ease) both;}
+  @keyframes v2-sodim{0%{opacity:0;}60%{opacity:.32;}100%{opacity:0;}}
+  /* ロケット（炎・煙・火の粒をつれて動く）。飛ぶ時はまん中より少し下、発射台・飛ばない・ぽてっ は地面 */
+  .v2 .v2-sorkt{position:absolute;left:50%;bottom:30%;width:64px;height:64px;transform:translateX(-50%);}
+  .v2 .v2-soscene.is-pad .v2-sorkt,.v2 .v2-soscene.is-ground .v2-sorkt,.v2 .v2-soscene.is-plop .v2-sorkt{bottom:10%;}
+  .v2 .v2-soscene.is-plop .v2-sorkt{transform:translateX(-50%) rotate(100deg);}
+  .v2 .v2-sowrap.is-tv .v2-sorkt{width:170px;height:170px;}
+  .v2 .v2-sorkt .v2-sorocket{position:relative;z-index:2;display:block;width:100%;height:100%;color:#EAFBFF;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35));}
+  .v2.is-play .v2-soscene.is-fly .v2-sorkt{animation:v2-sorkup calc(.4s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--lift);}
+  @keyframes v2-sorkup{from{bottom:10%;}}
+  .v2.is-play .v2-soscene.is-plop .v2-sorkt{animation:v2-sowob calc(1.25s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--lift);}
+  @keyframes v2-sowob{0%{bottom:10%;transform:translateX(-50%);}30%{bottom:22%;transform:translateX(-50%) rotate(-12deg);}50%{bottom:24%;transform:translateX(-50%) rotate(14deg);}
+    70%{bottom:22%;transform:translateX(-50%) rotate(-10deg);}100%{bottom:10%;transform:translateX(-50%) rotate(100deg);}}
+  .v2 .v2-soflame{position:absolute;left:50%;top:78%;z-index:1;width:46%;height:70%;border-radius:50% 50% 50% 50% / 30% 30% 70% 70%;
+    background:radial-gradient(ellipse at 50% 30%,#FFF5C0 0 18%,#FFB347 45%,#FF5A1F 75%,transparent 80%);transform:translateX(-50%) scale(1);transform-origin:50% 0;}
+  .v2 .v2-soflame.is-small{transform:translateX(-50%) scale(.55);}
+  .v2 .v2-soflame.is-mid{transform:translateX(-50%) scale(.85);}
+  .v2 .v2-soflame.is-big{transform:translateX(-50%) scale(1.5);}
+  .v2 .v2-soflame.is-gold{background:radial-gradient(ellipse at 50% 30%,#FFFFFF 0 16%,#FFE680 40%,#FFC93C 70%,transparent 80%);box-shadow:0 0 40px rgba(255,214,90,.7);}
+  .v2.is-play .v2-soflame{animation:v2-soflame calc(.4s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(.85s * var(--fx-scale));}
+  @keyframes v2-soflame{from{transform:translateX(-50%) scale(0);opacity:0;}}
+  /* ぽてっ：落ちたら火が消える */
+  .v2 .v2-soscene.is-plop .v2-soflame{opacity:0;}
+  .v2.is-play .v2-soscene.is-plop .v2-soflame{animation:v2-soflameout calc(1.65s * var(--fx-scale)) var(--v2-ease) both;animation-delay:calc(.85s * var(--fx-scale));}
+  @keyframes v2-soflameout{0%{transform:translateX(-50%) scale(0);opacity:0;}20%{transform:translateX(-50%) scale(.55);opacity:1;}85%{opacity:1;}100%{opacity:0;}}
+  .v2 .v2-sosmoke{position:absolute;left:50%;top:70%;width:110%;height:60%;border-radius:50%;background:radial-gradient(circle,rgba(220,224,230,.9),rgba(220,224,230,0) 70%);
+    opacity:0;transform:translateX(-50%);pointer-events:none;}
+  .v2.is-play .v2-soscene:not(.is-pad) .v2-sosmoke{animation:v2-sosmoke calc(.75s * var(--fx-scale)) var(--v2-ease) both;}
+  .v2 .v2-sosmoke.is-puff{width:220%;height:120%;}
+  .v2.is-play .v2-soscene .v2-sosmoke.is-puff{animation:v2-sosmoke calc(.8s * var(--fx-scale)) var(--v2-ease) both;animation-delay:calc(.75s * var(--fx-scale));}
+  @keyframes v2-sosmoke{0%{opacity:0;transform:translateX(-50%) scale(.3);}50%{opacity:.7;}100%{opacity:0;transform:translateX(-50%) scale(1.2);}}
+  /* 火の粒：押した順と間かくのまま、ロケットの下に飛びこむ（着いたら消える＝ふだんは見えない） */
+  .v2 .v2-sofp{position:absolute;left:50%;top:92%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#FFB347;box-shadow:0 0 12px #FF8A2A;opacity:0;}
+  .v2 .v2-sowrap.is-tv .v2-sofp{width:30px;height:30px;margin-left:-15px;}
+  .v2.is-play .v2-sofp{animation:v2-sofp calc(.3s * var(--fx-scale)) var(--v2-ease) both;}
+  @keyframes v2-sofp{0%{transform:translate(var(--sx),var(--sy)) scale(1);opacity:0;}12%{opacity:1;}85%{opacity:1;}100%{transform:none;opacity:0;}}
+  /* 景色は1段0.6秒ずつ流れる。段ごとに速く動いて目印でゆっくりになる（曲線はふやさず、段の数だけ区切った keyframes・門A4） */
+  .v2.is-play .v2-soscene.is-k1 .v2-socol{animation:v2-soclimb1 calc(.6s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
+  .v2.is-play .v2-soscene.is-k2 .v2-socol{animation:v2-soclimb2 calc(1.2s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
+  .v2.is-play .v2-soscene.is-k3 .v2-socol{animation:v2-soclimb3 calc(1.8s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
+  .v2.is-play .v2-soscene.is-k4 .v2-socol{animation:v2-soclimb4 calc(2.4s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
+  @keyframes v2-soclimb1{from{transform:none;}}
+  @keyframes v2-soclimb2{0%{transform:none;}50%{transform:translateY(20%);}}
+  @keyframes v2-soclimb3{0%{transform:none;}33.3%{transform:translateY(20%);}66.6%{transform:translateY(40%);}}
+  @keyframes v2-soclimb4{0%{transform:none;}25%{transform:translateY(20%);}50%{transform:translateY(40%);}75%{transform:translateY(60%);}}
+  /* 着いた：高さの名前が大きく、その下に小さく差と点 */
+  .v2 .v2-soarrive{position:absolute;left:0;right:0;top:6%;z-index:5;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;color:#FFFFFF;text-shadow:0 3px 10px rgba(0,0,0,.55);}
+  .v2 .v2-soarrive b,.v2 .v2-soarrive small{background:rgba(4,30,40,.62);border-radius:14px;padding:2px 14px;}
+  .v2 .v2-soarrive b{font-weight:900;font-size:34px;line-height:1.2;}
+  .v2 .v2-soarrive small{font-weight:800;font-size:16px;line-height:1.3;}
+  .v2 .v2-soarrive.is-gold b{color:#FFD54A;}
+  .v2 .v2-soarrive.is-quiet b{font-size:26px;}
+  .v2 .v2-sowrap.is-tv .v2-soarrive b{font-size:110px;}
+  .v2 .v2-sowrap.is-tv .v2-soarrive{gap:22px;}
+  .v2 .v2-sowrap.is-tv .v2-soarrive b,.v2 .v2-sowrap.is-tv .v2-soarrive small{border-radius:30px;padding:4px 36px;}
+  .v2 .v2-sowrap.is-tv .v2-soarrive small{font-size:48px;}
+  .v2 .v2-sowrap.is-tv .v2-soarrive.is-quiet b{font-size:72px;}
+  .v2.is-play .v2-soarrive{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  /* 宇宙：金の粒（点滅しない）と、全員の名前の星座（協力の成功は全員が主役） */
+  .v2 .v2-sospace{position:absolute;inset:0;pointer-events:none;z-index:3;}
+  .v2 .v2-sospk{position:absolute;width:8px;height:8px;border-radius:50%;background:#FFE680;box-shadow:0 0 10px rgba(255,230,128,.9);opacity:.9;}
+  .v2 .v2-sowrap.is-tv .v2-sospk{width:16px;height:16px;}
+  .v2.is-play .v2-sospk{animation:v2-ptspark var(--v2-show) var(--v2-ease) both;}
+  .v2 .v2-sostarn{position:absolute;z-index:4;max-width:13%;font-weight:900;font-size:15px;line-height:1.2;color:#FFF7D6;text-shadow:0 0 12px rgba(255,214,90,.95),0 0 3px rgba(255,214,90,.9);}
+  .v2 .v2-sowrap.is-tv .v2-sostarn{font-size:46px;}
+  .v2.is-play .v2-sostarn{animation:v2-sostarn var(--v2-show) var(--v2-ease) both;}
+  @keyframes v2-sostarn{from{opacity:0;transform:scale(.6);}}
+  .v2 .v2-soband{position:absolute;left:6%;right:6%;top:31%;z-index:5;text-align:center;background:#FFD54A;color:#3A0F22;font-weight:900;font-size:22px;line-height:1.3;border-radius:14px;}
+  .v2 .v2-sowrap.is-tv .v2-soband{font-size:80px;border-radius:30px;}
+  .v2.is-play .v2-soband{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  /* 合図（TV は舞台の上に重ねる） */
+  .v2 .v2-soscene .v2-sosig{position:absolute;inset:0;z-index:4;margin:0;justify-content:center;color:#FFFFFF;text-shadow:0 4px 14px rgba(0,0,0,.55);}
+  /* 空（明るい）の上でも読めるように、字のうしろに暗い札 */
+  .v2 .v2-soscene .v2-socount:not(:empty),.v2 .v2-soscene .v2-sosay,.v2 .v2-soscene .v2-sosig .v2-hint{background:rgba(4,30,40,.62);border-radius:40px;padding:0 48px;}
+  .v2 .v2-sosig.is-tv{gap:40px;}
+  .v2 .v2-sosig.is-tv .v2-socount{font-size:360px;min-height:360px;}
+  .v2 .v2-sosig.is-tv .v2-sosay{font-size:150px;line-height:1.3;}
+  .v2 .v2-sosig.is-tv .v2-hint{font-size:48px;color:#FFFFFF;}
+  .v2 .v2-sowrap.is-tv .v2-sobld{border-top-width:8px;background-image:repeating-linear-gradient(to right,#2D3A4F 0 14px,transparent 14px 32px),repeating-linear-gradient(to top,#2D3A4F 0 22px,rgba(255,226,140,.75) 22px 36px);}
+  .v2 .v2-sowrap.is-tv .v2-socloud{box-shadow:60px -24px 0 14px #FFFFFF,-48px -14px 0 6px #FFFFFF;}
+  .v2 .v2-sowrap.is-tv .v2-sostars{background-size:160px 120px,97px 73px;}
+  .v2 .v2-sowrap.is-tv .v2-sobb{font-size:48px;border-radius:24px;padding:6px 26px;}
+  /* スマホ（TV がある部屋）：開く間は「テレビを見てね」と小さなロケット。着いたら高さと点だけ */
+  .v2 .v2-solook{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;}
+  .v2 .v2-solook-t{font-weight:900;font-size:22px;}
+  .v2 .v2-solook-r{display:flex;flex-direction:column;gap:12px;}
+  .v2 .v2-solook-r b{font-weight:900;font-size:34px;line-height:1.2;}
+  .v2 .v2-solook-r small{font-weight:900;font-size:20px;}
+  .v2.is-play .v2-solook-r{animation:v2-rise var(--v2-move) var(--v2-ease) both;}
   @keyframes v2-osay{0%{opacity:0;transform:scale(1.6);}25%{opacity:1;transform:scale(1);}75%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1);}}
   /* TV（1920×1080 の箱。字は 42px 以上） */
   .v2 .v2-otv{display:flex;flex-direction:column;gap:24px;flex:1;min-height:0;padding-bottom:20px;}
@@ -5666,9 +5895,9 @@
   .v2 .v2-sedge.is-l .v2-ic{transform:rotate(180deg);}
   .v2 .v2-sbot{position:absolute;left:0;right:0;bottom:0;z-index:20;display:flex;flex-direction:column;gap:10px;padding:12px var(--v2-side-r) 18px var(--v2-side);
     background:linear-gradient(180deg,transparent,rgba(0,0,0,.18) 40%,rgba(0,0,0,.28));}
-  .v2 .v2-ov.v2-w-aresore .v2-sbot,.v2 .v2-ov.v2-w-sugoroku .v2-sbot,.v2 .v2-ov.v2-w-shinka .v2-sbot,.v2 .v2-ov.v2-w-onaji .v2-sbot,.v2 .v2-ov.v2-w-wait .v2-sbot{
+  .v2 .v2-ov.v2-w-aresore .v2-sbot,.v2 .v2-ov.v2-w-sugoroku .v2-sbot,.v2 .v2-ov.v2-w-shinka .v2-sbot,.v2 .v2-ov.v2-w-onaji .v2-sbot,.v2 .v2-ov.v2-w-pittari .v2-sbot,.v2 .v2-ov.v2-w-wait .v2-sbot{
     background:linear-gradient(180deg,transparent,rgba(255,255,255,.35) 40%,rgba(255,255,255,.55));}
-  .v2 .v2-ov.v2-w-aresore .v2-sedge,.v2 .v2-ov.v2-w-sugoroku .v2-sedge,.v2 .v2-ov.v2-w-shinka .v2-sedge,.v2 .v2-ov.v2-w-onaji .v2-sedge,.v2 .v2-ov.v2-w-wait .v2-sedge{background:rgba(0,0,0,.12);color:var(--wi);}
+  .v2 .v2-ov.v2-w-aresore .v2-sedge,.v2 .v2-ov.v2-w-sugoroku .v2-sedge,.v2 .v2-ov.v2-w-shinka .v2-sedge,.v2 .v2-ov.v2-w-onaji .v2-sedge,.v2 .v2-ov.v2-w-pittari .v2-sedge,.v2 .v2-ov.v2-w-wait .v2-sedge{background:rgba(0,0,0,.12);color:var(--wi);}
   .v2 .v2-sgname{text-align:center;font-weight:900;font-size:13px;}
   .v2 .v2-dots{display:flex;align-items:center;justify-content:center;gap:6px;}
   .v2 .v2-dots i{width:8px;height:8px;border-radius:4px;background:currentColor;opacity:.35;transition:width var(--v2-move) var(--v2-ease),opacity var(--v2-move) var(--v2-ease);}
@@ -6470,6 +6699,112 @@
   @media (prefers-reduced-motion: reduce){
     .app.theme-shinka{transition:none;}
     .app.theme-shinka .fx-alive{animation:none;}
+  }
+  /* 指示68-4：ぴったり10秒（theme-pittari）。明るい世界の作りは進化じゃんけん・みんなと同じと同じ形で、色だけ桃色 */
+  .app.theme-pittari{
+    --switch-on:#E0486E;
+    --paper:#FFC2D4;
+    --paper-deep:#F29DB6;
+    --card:#FFDCE6;
+    --ink:#3A0F22;
+    --ink-soft:#4E1A30;
+    --stamp:#8F1B20;
+    --stamp-deep:#7E2413;
+    --gold:#6A4C0C;
+    --rk-top-bg:#E9C46A;
+    --rk-top-edge:#6A4C0C;
+    --teal:#1E4F46;
+    --line:rgba(58,15,34,0.18);
+    --shadow:0 10px 26px rgba(58,15,34,0.22);
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(255,255,255,0.45), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  body:has(.app.theme-pittari){
+    background:
+      radial-gradient(circle at 50% 0%, #FFDCE6, transparent 60%),
+      #F5A9BF;
+  }
+  .app.theme-pittari .scr-title,
+  .app.theme-pittari .sec-title,
+  .app.theme-pittari .tp-label,
+  .app.theme-pittari .rt-phase,
+  .app.theme-pittari .wiz-step,
+  .app.theme-pittari .big-phase,
+  .app.theme-pittari .big-main:not(.is-code){
+    color:var(--ink);
+  }
+  .app.theme-pittari .card,
+  .app.theme-pittari .overlay-panel,
+  .app.theme-pittari .rt-public,
+  .app.theme-pittari .rt-you,
+  .app.theme-pittari .qb-row{
+    background:var(--card);
+    border-color:var(--line);
+    color:var(--ink);
+  }
+  .app.theme-pittari .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-pittari .floating-gear{background:rgba(58,15,34,.10);color:var(--ink);}
+  .app.theme-pittari .rules-ol li{color:var(--ink);}
+  .app.theme-pittari .ry-desc{color:var(--ink-soft);}
+  .app.theme-pittari .fx-alive{animation:fxAliveLamp 3.2s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){
+    .app.theme-pittari{transition:none;}
+    .app.theme-pittari .fx-alive{animation:none;}
+  }
+  /* 指示68-4：そろえて発射（theme-soroe）。暗い世界の作りはロシアンカードと同じ形で、色だけ夜空の青緑 */
+  .app.theme-soroe{
+    --switch-on:#2FB8C8;
+    --paper:#0E4452;
+    --paper-deep:#072A33;
+    --card:#17535F;
+    --ink:#EAFBFF;
+    --ink-soft:#BFE6EE;
+    --stamp:#FFD27A;
+    --stamp-deep:#FFE3A6;
+    --teal:#7FE7F2;
+    --gold:#FFD27A;
+    --line:rgba(234,251,255,0.18);
+    --shadow:0 10px 26px rgba(0,0,0,0.60);
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(127,231,242,0.16), transparent 70%),
+      var(--paper);
+    color:var(--ink);
+    transition:background-color .4s ease, color .4s ease;
+  }
+  body:has(.app.theme-soroe){
+    background:
+      radial-gradient(circle at 50% 0%, #17535F, transparent 60%),
+      #072A33;
+  }
+  .app.theme-soroe .scr-title,
+  .app.theme-soroe .sec-title,
+  .app.theme-soroe .tp-label,
+  .app.theme-soroe .rt-phase,
+  .app.theme-soroe .wiz-step,
+  .app.theme-soroe .big-phase,
+  .app.theme-soroe .big-main:not(.is-code){
+    color:var(--ink);
+  }
+  .app.theme-soroe .card,
+  .app.theme-soroe .overlay-panel,
+  .app.theme-soroe .rt-public,
+  .app.theme-soroe .rt-you,
+  .app.theme-soroe .qb-row{
+    background:var(--card);
+    border-color:var(--line);
+    color:var(--ink);
+  }
+  .app.theme-soroe .bl-item{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .app.theme-soroe .floating-gear{background:rgba(234,251,255,.14);color:var(--ink);}
+  .app.theme-soroe .rules-ol li{color:var(--ink);}
+  .app.theme-soroe .ry-desc{color:var(--ink-soft);}
+  .app.theme-soroe .fx-alive{animation:fxAliveLamp 3.2s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){
+    .app.theme-soroe{transition:none;}
+    .app.theme-soroe .fx-alive{animation:none;}
   }
   /* 指示68-3：みんなと同じ（theme-onaji）。明るい世界の作りは進化じゃんけん（theme-shinka）と同じ形で、色だけ藤色 */
   .app.theme-onaji{
@@ -7843,6 +8178,11 @@
   <!-- 指示68-3：みんなと同じ（スマホ・TV）。**箱だけ置く。中身は public/js/v2-onaji.js が毎回まるごと組み立てる** -->
   <div class="screen v2 v2-scr v2-w-onaji" id="scr-v2-onaji"></div>
   <div class="screen v2 v2-tv v2-w-onaji" id="scr-v2-onaji-tv"></div>
+  <!-- 指示68-4：ぴったり10秒・そろえて発射（スマホ・TV）。中身は public/js/v2-pittari.js・v2-soroe.js が毎回まるごと組み立てる -->
+  <div class="screen v2 v2-scr v2-w-pittari" id="scr-v2-pittari"></div>
+  <div class="screen v2 v2-tv v2-w-pittari" id="scr-v2-pittari-tv"></div>
+  <div class="screen v2 v2-scr v2-w-soroe" id="scr-v2-soroe"></div>
+  <div class="screen v2 v2-tv v2-w-soroe" id="scr-v2-soroe-tv"></div>
   <!-- 指示66-2：文化祭の部屋。入る（F2）・やめた人（F13）・係の画面（F14）。中身は public/js/v2-fes.js が組む。
        待合〜結果のスマホは scr-v2-fes-lobby、TV は scr-v2-fes-tv を段階ごとに描き直す（遊んでいる間だけ、今までのゲームの画面） -->
   <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-join"></div>
@@ -9225,6 +9565,10 @@
 <script src="js/name-filter.js"></script>
 <script src="js/v2-fes.js"></script>
 <script src="js/v2-onaji.js"></script>
+<script src="js/pittari-logic.js"></script>
+<script src="js/soroe-logic.js"></script>
+<script src="js/v2-pittari.js"></script>
+<script src="js/v2-soroe.js"></script>
 <script src="js/v2-home.js"></script>
 <!-- 指示57：初プレイのチュートリアル。置き場は UiKit と同じ #uiLayerRoot -->
 <script src="js/tutorial.js"></script>
@@ -9413,6 +9757,14 @@
     {id:"onaji-few", icon:"🤝", title:"みんなと同じ（少ない方）", sub:"お題に答えて、いちばん少ない答えをねらう", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'few', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
       tv:[["👥","お題に、3つか4つの中から答える"], ["💎","いちばん少ない答えの人に1点"], ["🔄","5問で1回。1問は約20秒"]],
       bullets:["1人1台・部屋が必要です（3〜16人）","お題が出たら、10秒で3つか4つの中から答えをえらぶ","えらんだら変えられない。だれが何をえらんだかは、開くまでだれにも見えない","「せーの！」で開く。いちばん少ない答えをえらんだ人に1点（だれもえらばなかった答えはのぞく）","並んだら、並んだ答えの人みんなに1点","全員ちがう答えなら「ばらばら！」で、この問題はだれも点なし","5問で1回。点がいちばん多い人の勝ち"]},
+    // 指示68-4：ぴったり10秒（競争）・そろえて発射（協力）。どちらもボタン1つ・部屋（2〜16人）専用
+    // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js の抽出がこの順）
+    {id:"pittari", icon:"🏁", title:"ぴったり10秒", sub:"心の中で10秒数えて、ぴったりで止める", advanced:false, strict:false, oneWord:false, pittari:true, roomOnly:true, game:'pittari', minPlayers:2, maxPlayers:16,
+      tv:[["🏁","スタートから、心の中で10秒数える"], ["✋","10秒だと思ったら「ストップ」"], ["👑","いちばん近い人の勝ち。5回勝負"]],
+      bullets:["1人1台・部屋が必要です（2〜16人）","「スタート！」で、全員のスマホの時計が動き始める","時計は3秒で見えなくなる。そこからは心の中で数える","目標の秒だと思ったら「ストップ」。タイムは、みんなで開くまでだれにも見えない","開くと、目標に近い順に5・4・3・2・1点（差が同じなら同じ順位）","5回の目標は 10秒 → 5秒 → 15秒 → 10秒（時計が最初から見えない）→ 20秒（点が2倍）"]},
+    {id:"soroe", icon:"🎆", title:"そろえて発射", sub:"全員で同じ瞬間に押して、ロケットを飛ばす協力ゲーム", advanced:false, strict:false, oneWord:false, soroe:true, roomOnly:true, game:'soroe', minPlayers:2, maxPlayers:16,
+      tv:[["🎆","全員で、同じ瞬間に「発射」を押す"], ["⭐","そろうほど、ロケットが高く飛ぶ"], ["🔥","5回たして、今日の記録をめざす"]],
+      bullets:["1人1台・部屋が必要です（2〜16人）","合図にあわせて、全員で同じ瞬間に「発射」を押す","いちばん早い人と、いちばん遅い人の差が小さいほど高く飛ぶ（宇宙・月・雲の上・ビルの上）","合図は回ごとに変わる：カウントの0で押す／カウントが途中で消える／みんなで声を合わせて「せーの」","押した人が半分より少ない回は、ロケットが飛ばない","だれがずれたかは出さない。みんなの記録だけ"]},
     {id:"onaji-team", icon:"🤝", title:"みんなと同じ（一致団結）", sub:"みんなで同じ答えにそろえる協力モード", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'team', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
       tv:[["👥","お題に、3つか4つの中から答える"], ["🤝","みんなで同じ答えにそろえる"], ["🔄","5問で1回。1問は約20秒"]],
       bullets:["1人1台・部屋が必要です（3〜16人）","お題が出たら、10秒で3つか4つの中から答えをえらぶ","しゃべらずに、みんなが同じ答えになるようにえらぶ","「せーの！」で開く。全員そろったら大成功","5問で1回。順位はつけず、みんなのそろい度だけを出す"]},
@@ -9587,6 +9939,15 @@
       games:['onaji'],
       theme:'onaji',
       blurb:'お題に答えて、みんなと同じ答えをねらう' },
+    // 指示68-4：ボタン1つの2本。門を通るまではテスト中（くまくんの棚だけ）
+    { id:'pittari',         genre:'brain', ready:true, hidden:true, testing:true, icon:'🏁', title:'ぴったり10秒',
+      games:['pittari'],
+      theme:'pittari',
+      blurb:'心の中で10秒数えて、ぴったりで止める' },
+    { id:'soroe',           genre:'move',  ready:true, hidden:true, testing:true, icon:'🎆', title:'そろえて発射',
+      games:['soroe'],
+      theme:'soroe',
+      blurb:'全員で同じ瞬間に押して、ロケットを飛ばす' },
     { id:'deal-soon-3',     genre:'deal',  ready:false, icon:'？' },
     { id:'move-soon-1',     genre:'move',  ready:false, icon:'？' },
     { id:'move-soon-2',     genre:'move',  ready:false, icon:'？' }
@@ -12218,7 +12579,10 @@
     // 指示55-②：進化じゃんけん。部屋（3人以上）専用。段の配列は shinka-logic.js が正本
     { id:'shinka',          title:'進化じゃんけん',      icon:'🥚', sub:'おなじ段の人とじゃんけん・勝てば1つ上の段へ進化する', maxPlayers:12 },
     // 指示68-3：みんなと同じ。**onaji-logic.js の RULES.MAX_PLAYERS と一対**（tests/onaji-logic.js が照らす）
-    { id:'onaji',           title:'みんなと同じ',        icon:'🤝', sub:'お題に答えて、みんなと同じ答えをねらう', maxPlayers:16 }
+    { id:'onaji',           title:'みんなと同じ',        icon:'🤝', sub:'お題に答えて、みんなと同じ答えをねらう', maxPlayers:16 },
+    // 指示68-4：**pittari-logic.js・soroe-logic.js の RULES.MAX_PLAYERS と一対**（tests/pittari-logic.js・soroe-logic.js が照らす）
+    { id:'pittari',         title:'ぴったり10秒',        icon:'🏁', sub:'心の中で10秒数えて、ぴったりで止める', maxPlayers:16 },
+    { id:'soroe',           title:'そろえて発射',        icon:'🎆', sub:'全員で同じ瞬間に押して、ロケットを飛ばす', maxPlayers:16 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -14285,7 +14649,7 @@
   // 前に遊んだカセットのテーマを引きずらせない（第22弾-1）
   // 第39弾：カタログは、テーマを自分で切り替えて見比べる画面なので、
   // 画面遷移による自動適用の対象から外す
-  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff', 'scr-v2-home', 'scr-v2-join', 'scr-v2-pick', 'scr-v2-room', 'scr-v2-room-tv', 'scr-v2-onaji', 'scr-v2-onaji-tv'];
+  var THEME_FREE_SCREENS = ['scr-door', 'scr-entry', 'scr-play-way', 'scr-room-open', 'scr-cassette', 'scr-login', 'scr-shelf', 'scr-titles', 'scr-rename', 'scr-rt-lobby', 'scr-catalog', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff', 'scr-v2-home', 'scr-v2-join', 'scr-v2-pick', 'scr-v2-room', 'scr-v2-room-tv', 'scr-v2-onaji', 'scr-v2-onaji-tv', 'scr-v2-pittari', 'scr-v2-pittari-tv', 'scr-v2-soroe', 'scr-v2-soroe-tv'];
   // 第24弾-3：テーマは「棚でどのカセットを選んだか」で決めていたので、
   // 部屋コードで直接参加した人（棚を通らない）にはテーマが当たらず、
   // 同じ部屋なのにホストだけ夜の見た目、という状態になっていた。
@@ -14333,7 +14697,9 @@
     rcard: 'theme-rcard',
     shinka: 'theme-shinka',
     // 指示68-3：みんなと同じ
-    onaji: 'theme-onaji'
+    onaji: 'theme-onaji',
+    // 指示68-4
+    pittari: 'theme-pittari', soroe: 'theme-soroe'
   };
   function applyGameTheme(screenId){
     var app = el('app');
@@ -14476,7 +14842,7 @@
     // 指示68-1：版が変わっていたら、待合に着いた時に読み込み直す
     if(typeof appReloadIfIdle === 'function') setTimeout(appReloadIfIdle, 0);
     setTimeout(function(){ sfxPreloadSync(id); }, 0);   // 指示68-2：音のファイルは入口では読まない
-    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff','scr-v2-home','scr-v2-join','scr-v2-pick','scr-v2-room','scr-v2-room-tv','scr-v2-onaji','scr-v2-onaji-tv','scr-next'];
+    var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff','scr-v2-home','scr-v2-join','scr-v2-pick','scr-v2-room','scr-v2-room-tv','scr-v2-onaji','scr-v2-onaji-tv','scr-v2-pittari','scr-v2-pittari-tv','scr-v2-soroe','scr-v2-soroe-tv','scr-next'];
     // **大画面には、どの画面でも⚙を出す**（指示47-2）。
     // 47-2 は「大画面で到達できる全画面に、🙋 プレイヤーにもどる か⚙への出口がある」と
     // 決めている。設定を開けば必ず先頭に🙋が並ぶ（setContext が bigscreen を最優先で見る）ので、
@@ -14595,8 +14961,8 @@
     if(RT_GAME_SCREEN_IDS.indexOf(id) !== -1 || id === 'scr-rt-big') rtRender();
     // 指示66-2：文化祭の部屋の画面も、入った瞬間に描く（知らせを待たない）。TV は出てから大きさを合わせ直す
     if(id === 'scr-v2-fes-lobby' || id === 'scr-v2-fes-tv'){ rtRender(); if(id === 'scr-v2-fes-tv') requestAnimationFrame(function(){ var r = fesRoom(); V2.fitTv(el(id), r ? r.fes.inset : 0); }); }
-    // 指示68-3：みんなと同じの TV も、出てから大きさを合わせ直す（描いた時はまだ見えていない）
-    if(id === 'scr-v2-onaji-tv') requestAnimationFrame(function(){ var r = rt && rt.state.room; V2.fitTv(el(id), (r && r.fes && r.fes.inset) || 0); });
+    // 指示68-3・68-4：新しい見た目のゲームの TV も、出てから大きさを合わせ直す（描いた時はまだ見えていない）
+    if(v2GameOf(id) && /-tv$/.test(id)) requestAnimationFrame(function(){ var r = rt && rt.state.room; V2.fitTv(el(id), (r && r.fes && r.fes.inset) || 0); });
     // 第36弾 36-3：棚は「どのゲームも遊んでいない場所」。
     // ここへ来たら、走っている時計と遅れて動く処理をまとめて捨てる（落とし穴17）
     if(id === 'scr-shelf') stopAllPlayTimers();
@@ -17196,6 +17562,8 @@
     rcard: rtRcardConfig,
     shinka: rtShinkaConfig,
     onaji: rtOnajiConfig,
+    pittari: rtPittariConfig,
+    soroe: rtSoroeConfig,
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
     bomb: rtBombConfig,
@@ -17371,6 +17739,9 @@
     };
   }
 
+  // 指示68-4：目標・合図・時間は進行役（pittari-room.js・soroe-room.js）が持っているので、送るのはゲームだけ
+  function rtPittariConfig(){ return { game: 'pittari' }; }
+  function rtSoroeConfig(){ return { game: 'soroe' }; }
   // 指示68-3：みんなと同じ。お題も問題の数も時間も進行役（onaji-room.js）が持っているので、送るのはモードだけ
   function rtOnajiConfig(m){
     return { game: 'onaji', mode: (m && m.onajiMode) || 'many' };
@@ -18396,7 +18767,9 @@
     pick: 'ケースをえらぶ', peek: '中身をみる', face: '対面', talk: '話し合い',
     decide: '奪うか決める', open: 'ケースが開く',
     // 指示68-3：みんなと同じ。開くのは 'unveil'（'open' は False or True に取られている）
-    choose: 'えらぶ', unveil: 'せーの！'
+    choose: 'えらぶ', unveil: 'せーの！',
+    // 指示68-4：ぴったり10秒（set・run）・そろえて発射（launch）。開くのは roundResult（「結果」を共有）
+    set: 'よーい', run: '心の中で数える', launch: '発射'
   };
   // いま部屋で遊んでいるのがワードウルフか
   // ---- 第26弾-4：1人1台の称号 ----
@@ -18513,6 +18886,22 @@
       if((aw.solo || []).indexOf(meId) !== -1) onAdd.solos = 1;
       if(res.mode === 'team' && res.together > 0) onAdd.togethers = res.together;
       return { cassette: 'onaji', add: onAdd };
+    }
+    if(game === 'pittari'){
+      // 指示68-4：ぴったり10秒。称号の2つ（ぴったりの人・体内時計の名人）は id で照らす
+      var paw = res.awardIds || {}, 私p = (res.ranking || []).filter(function(x){ return x.id === meId; })[0] || {};
+      var ptAdd = { plays: 1 };
+      if((paw.perfect || []).indexOf(meId) !== -1) ptAdd.perfects = 1;
+      if((paw.master || []).indexOf(meId) !== -1) ptAdd.masters = 1;
+      if(私p.rank === 1 && 私p.score > 0) ptAdd.wins = 1;
+      return { cassette: 'pittari', add: ptAdd };
+    }
+    if(game === 'soroe'){
+      // 指示68-4：そろえて発射（協力）。みんなの記録をそのまま、遊んだ全員に数える（だれのおかげかは数えない）
+      var soAdd = { plays: 1 };
+      if(res.together > 0) soAdd.togethers = res.together;
+      if(res.space > 0) soAdd.spaces = res.space;
+      return { cassette: 'soroe', add: soAdd };
     }
     if(game === 'falsetrue'){
       /**
@@ -18793,7 +19182,10 @@
     // 指示55-②：進化じゃんけん。発表／手を出す・開く／結果の3枚
     shinka: ['scr-rt-sh-match', 'scr-rt-sh-play', 'scr-rt-sh-result'],
     // 指示68-3：みんなと同じ。新しい見た目の2枚（スマホ・TV）。TV も今までの大画面（scr-rt-big）ではなくこちら
-    onaji: ['scr-v2-onaji', 'scr-v2-onaji-tv']
+    onaji: ['scr-v2-onaji', 'scr-v2-onaji-tv'],
+    // 指示68-4：ボタン1つの2本も同じ形（スマホ・TV の2枚）
+    pittari: ['scr-v2-pittari', 'scr-v2-pittari-tv'],
+    soroe: ['scr-v2-soroe', 'scr-v2-soroe-tv']
   };
   function rtWantScreen(){
     // 指示66-2：文化祭の部屋は、遊んでいる間だけ今までのゲームの画面。それ以外は新しい見た目の画面（段階ごとに描き直す）
@@ -18804,8 +19196,8 @@
     if(bombV2Room()) return rtIsBigScreen() ? 'scr-v2-fes-tv' : 'scr-v2-fes-lobby';
     var v = rtView();
     var started = !!(v && v.phase && v.phase !== 'lobby');
-    // 指示68-3：みんなと同じは、遊んでいる間はスマホも TV も新しい見た目の画面（文化祭の部屋の遊ぶ段階も、ここを通る）
-    if(started && rtRoomGameId() === 'onaji') return rtIsBigScreen() ? 'scr-v2-onaji-tv' : 'scr-v2-onaji';
+    // 指示68-3・68-4：新しい見た目で作ったゲーム（V2GAMES）は、遊んでいる間はスマホも TV も新しい画面（文化祭の部屋の遊ぶ段階も、ここを通る）
+    if(started && V2GAMES[rtRoomGameId()]) return 'scr-v2-' + rtRoomGameId() + (rtIsBigScreen() ? '-tv' : '');
     // 指示66-3：TV は、ゲームが決まるまで新しい見た目の待合（QR・名前・コード・進行役）。進行役が選んでいる間も変えない
     if(rtIsBigScreen()) return (!started && !rtPickedGame()) ? 'scr-v2-room-tv' : 'scr-rt-big';
     // 第37弾：ゲームが決まったら、まず全員がルールを読む。
@@ -19990,6 +20382,13 @@
     rcard: { motion:'flip', icons:['🃏', '🏆'], pieces:'card', words:['A', 'K', 'Q', 'J'],
       colors:['#FFF1EC', '#F2D98C', '#F0C9BC'],
       bg:['rgba(122,26,6,1)', 'rgba(54,9,0,1)'], ink:'#FFF1EC', glow:'rgba(242,217,140,.6)' },
+    // 指示68-4：ぴったり10秒 … 桃色の地に👑。そろえて発射 … 夜空の地に🎆、火花が舞う
+    pittari: { motion:'stamp', icon:'👑', pieces:'spark',
+      colors:['#C2185B', '#FFDCE6', '#FFD27A'],
+      bg:['rgba(255,220,230,1)', 'rgba(150,40,80,1)'], ink:'#3A0F22', glow:'rgba(255,255,255,.7)' },
+    soroe: { motion:'stamp', icon:'🎆', pieces:'spark',
+      colors:['#7FE7F2', '#FFD27A', '#EAFBFF'],
+      bg:['rgba(23,83,95,1)', 'rgba(4,34,43,1)'], ink:'#EAFBFF', glow:'rgba(127,231,242,.6)' },
     // 指示68-3：みんなと同じ … 藤色の地に👑が押され、火花が舞う（開く時の冠と同じ絵）
     onaji: { motion:'stamp', icon:'👑', pieces:'spark',
       colors:['#7A4FD8', '#E2D6FA', '#FFD27A'],
@@ -20054,6 +20453,21 @@
    * 大画面の言葉は**二人称を使わない**（§11-6）——名前が主役
    */
   var CLEAR_WHO = {
+    // 指示68-4：ぴったり10秒は点がいちばんの人（並んだら全員・0点なら祝わない）
+    pittari: function(v){
+      var 上 = clearRank1((v.result || {}).ranking);
+      if(!上.length || !上[0].score) return null;
+      return { ids: 上.map(function(x){ return x.id; }),
+        大: { text: clearNames(上), sub: 上[0].score + '点でいちばん' }, 手: { text: 'いちばん！', sub: 上[0].score + '点' } };
+    },
+    // そろえて発射（協力）は、宇宙までとどいたか全員そろった回があれば、遊んだ全員を祝う（とどかなかった時は静かに）
+    soroe: function(v){
+      var r = v.result || {};
+      if(!r.space && !r.together) return null;
+      var 言葉 = r.space ? '宇宙までとどいた！' : '全員そろった！';
+      return { ids: (v.players || []).map(function(p){ return p.id; }), all: true,
+        大: { text: 言葉, sub: 'みんなの記録 ' + r.total + '点' }, 手: { text: 言葉, sub: 'みんなの記録 ' + r.total + '点' } };
+    },
     // 指示68-3：みんなと同じ。多い方・少ない方は点がいちばんの人（並んだら全員・0点なら祝わない）。
     // 一致団結は順位が無いので、5問とも全員そろった時だけ参加者全員を祝う（そろわなかった時は静かに）
     onaji: function(v){
@@ -20209,6 +20623,8 @@
     // 第32弾-B-2：称号を数えるのは、部屋の画面すべてが通るここ1か所。
     // 画面ごとに書くと、ゲームを足した時に数え忘れる
     awardRoomTitles();
+    // 指示68-4：そろえて発射が選ばれたら、待合にいるうちに時計を合わせておく（押す時には終わっている）
+    if(rtRoomGameId() === 'soroe' && so.offset == null) soroeSync();
     // 第32弾-E 第5部：決着した時だけ🎁を出す（これも全ゲーム共通のここ1か所）
     refreshThanksBtn();
     // 第38弾：段階の変わり目の音は、6枚それぞれではなくここ1か所で鳴らす。
@@ -20226,7 +20642,7 @@
     // 画面ごとの描画関数に「この場面では出す」を書かせない
     renderNowLine();
     if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ fesRender(cur); return; }
-    if(cur === 'scr-v2-onaji' || cur === 'scr-v2-onaji-tv'){ onajiRender(cur); return; }
+    if(v2GameOf(cur)){ v2GameRender(cur); return; }
     if(cur === 'scr-v2-room') renderV2Room();
     else if(cur === 'scr-v2-room-tv') renderV2RoomTv();
     if(cur === 'scr-rt-rules') renderRtRules();
@@ -31464,8 +31880,8 @@
   }
   // TV の大きさが変わったら、1920×1080 の箱を合わせ直す
   window.addEventListener('resize', function(){ var t = el('scr-v2-fes-tv'); if(t && t.classList.contains('active')){ var r = (typeof fesRoom === 'function') && fesRoom(); V2.fitTv(t, r ? r.fes.inset : 0); } });
-  // 指示68-3：みんなと同じの TV も同じ
-  window.addEventListener('resize', function(){ var t = el('scr-v2-onaji-tv'); if(t && t.classList.contains('active')){ var r = rt && rt.state.room; V2.fitTv(t, (r && r.fes && r.fes.inset) || 0); } });
+  // 指示68-3・68-4：新しい見た目のゲームの TV も同じ
+  window.addEventListener('resize', function(){ var t = document.querySelector('.screen.active[id^="scr-v2-"][id$="-tv"]'); if(t && !v2GameOf(t.id)) t = null; if(t && t.classList.contains('active')){ var r = rt && rt.state.room; V2.fitTv(t, (r && r.fes && r.fes.inset) || 0); } });
   // 検査と、検証用サーバーの見本データの台本から、同じ関数で描けるようにしておく（window.catalogSet と同じ作法）。
   // **描くだけで、画面へは移らない。**データを渡せるのは検証用サーバーが配る台本だけ（本番に入口は無い）
   window.V2Screens = { fesLobby: renderV2FesLobby, fesTv: renderV2FesTv, parts: renderV2Parts, modeInfo: v2ModeInfo,
@@ -31473,8 +31889,8 @@
     fes: function(lab){ return fesLab(lab); },
     // 指示66-3：ふだんの画面。lab：{ screen, room（部屋の知らせ）, meId, login, heads, cassette, game, mode, join, pick, fresh, open, menu, ask, decided }
     home: function(lab){ return homeLab(lab); },
-    // 指示68-3：みんなと同じ。lab：{ screen, room（部屋の知らせ・state.data がゲームの中身）, you, meId, host, play }
-    onaji: function(lab){ return onajiRender(lab.screen, lab); } };
+    // 指示68-3・68-4：新しい見た目のゲーム（V2GAMES）。lab：{ screen, room（部屋の知らせ・state.data がゲームの中身）, you, meId, host, play, local }
+    v2game: function(lab){ return v2GameRender(lab.screen, lab); } };
 
   // ===================== 指示66-2：文化祭の部屋（つなぎ） =====================
   // 画面の組み立ては public/js/v2-fes.js。ここは「部屋の知らせ → 描く」と「押した時の動き」だけ。
@@ -31670,34 +32086,49 @@
     }
   }
   /**
-   * 指示68-3：みんなと同じ。画面の組み立ては public/js/v2-onaji.js。ここは「部屋の知らせ → 描く」と「押した時の動き」だけ。
-   * 開く（unveil）の動き（せーの → 棒がのびる → 冠 → 名前）は、その問題を初めて描いた時だけ（is-play）。
-   * 人が入るたびに知らせが届くので、描き直しのたびに頭から動き直さない
+   * 指示68-3・68-4：新しい見た目で作ったゲーム（カセットの約束 v1）の画面。**描き方は1つで、3本が使う**。
+   * 画面の組み立ては public/js/v2-<ゲーム>.js。ここは「部屋の知らせ → 描く」と「押した時の動き」と、端末の中の時計だけ。
+   * 動き（開く・結果）は、その段階を初めて描いた時だけ（is-play）——人が入るたびの描き直しで頭から動き直さない。
+   *   mod   … 画面の組み立て（phone・tv・resultBody）
+   *   play  … 動かす段階
+   *   fx    … 音と震え（その段階を初めて描いた時だけ）
+   *   local … 端末の中だけの状態（押したか・時計）。描くたびに作る
+   *   after … 描いたあと（時計やカウントを動かす）
    */
-  var onaji = { endKey: null, end: null, played: null };
-  function onajiRender(cur, lab){
+  var V2GAMES = {
+    onaji: { mod: function(){ return V2Onaji; }, play: ['unveil', 'ended'], fx: onajiFx },
+    pittari: { mod: function(){ return V2Pittari; }, play: ['roundResult', 'ended'], fx: pittariFx, local: pittariLocal, after: pittariAfter },
+    soroe: { mod: function(){ return V2Soroe; }, play: ['roundResult', 'ended'], fx: soroeFx, local: soroeLocal, after: soroeAfter }
+  };
+  function v2GameOf(id){ var m = /^scr-v2-([a-z]+?)(-tv)?$/.exec(id || ''); return m && V2GAMES[m[1]] ? m[1] : null; }
+  var v2game = { endKey: null, end: null, played: null };
+  function v2GameRender(cur, lab){
     var room = lab ? lab.room : (rt && rt.state.room); if(!room) return;
     var scr = el(cur); if(!scr) return;
+    var g = v2GameOf(cur), G = V2GAMES[g];
     var d = (room.state && room.state.data) || {};
     var key = room.code + ':' + (room.state.game || '') + ':' + d.round + ':' + d.phase;
     // 締め切りは、その段階の知らせが最初に届いた時刻から数える（端末の時計のずれに左右されない・文化祭と同じ）
-    if(onaji.endKey !== key){ onaji.endKey = key; onaji.end = d.remainingMs != null ? Date.now() + d.remainingMs : null; }
-    var tv = cur === 'scr-v2-onaji-tv';
+    if(v2game.endKey !== key){ v2game.endKey = key; v2game.end = d.remainingMs != null ? Date.now() + d.remainingMs : null; }
+    var tv = /-tv$/.test(cur);
     var meId = lab ? lab.meId : rt.state.memberId;
     var view = { data: d, you: (lab ? lab.you : rt.state.secret) || {}, meId: meId, members: room.members || [],
-      host: lab ? !!lab.host : room.hostMemberId === meId, fesRoom: !!room.fes, fes: { inset: (room.fes && room.fes.inset) || 0 }, end: onaji.end };
+      host: lab ? !!lab.host : room.hostMemberId === meId, fesRoom: !!room.fes, fes: { inset: (room.fes && room.fes.inset) || 0 }, end: v2game.end };
+    view.local = lab ? (lab.local || {}) : (G.local ? G.local(d, key, tv) : {});
     // 見本データ（lab）は動きの終わった形を撮る（lab.play のときだけ動かす）
-    var first = lab ? !!lab.play : onaji.played !== key + cur;
-    onaji.played = key + cur;
-    scr.innerHTML = tv ? V2Onaji.tv(view) : V2Onaji.phone(view);
-    scr.classList.toggle('is-play', first && (d.phase === 'unveil' || d.phase === 'ended'));
-    if(first && !lab) onajiFx(view, tv, key);
+    var first = lab ? !!lab.play : v2game.played !== key + cur;
+    v2game.played = key + cur;
+    var M = G.mod();
+    scr.innerHTML = tv ? M.tv(view) : M.phone(view);
+    scr.classList.toggle('is-play', first && G.play.indexOf(d.phase) !== -1);
+    if(first && !lab) G.fx(view, tv, key);
     // 決着の祝い（クリア演出）は全ゲーム共通の1か所（rtClearFx）。この画面は共通の描き分けより前で返るので、ここから呼ぶ
     if(!lab) rtClearFx(d);
     V2.mount(scr);
+    if(G.after) G.after(scr, d, lab, tv);
     if(tv) V2.fitTv(scr, view.fes.inset);
   }
-  /** 音と震え。褒める時は全力で（点になった・全員そろった）、点にならなかった時は鳴らさない（責めない） */
+  /** みんなと同じの音と震え。褒める時は全力で（点になった・全員そろった）、点にならなかった時は鳴らさない（責めない） */
   function onajiFx(view, tv, key){
     var d = view.data, r = d.reveal || {}, me = view.you || {};
     if(d.phase === 'unveil'){
@@ -31708,22 +32139,160 @@
       if(got || (d.mode === 'team' && r.together)){ sfx('cheer'); FxKit.vibe('ok'); }
     }
   }
-  el('scr-v2-onaji').addEventListener('click', function(e){
-    var b = e.target.closest && e.target.closest('[data-onaji-pick],[data-onaji-act]');
-    if(!b) return;
-    if(b.hasAttribute('data-onaji-pick')){
-      if(b.getAttribute('aria-disabled') === 'true') return;
-      // **押した瞬間に全部止める**（選んだら変えられない・連打で二重に送らない）
-      Array.prototype.forEach.call(this.querySelectorAll('[data-onaji-pick]'), function(x){ x.setAttribute('aria-disabled', 'true'); });
-      b.classList.add('is-on');
-      FxKit.vibe('tick');
-      rt.act(null, { pick: +b.getAttribute('data-onaji-pick') });
+
+  // ---- 指示68-4：ぴったり10秒。**時間は端末の中で測る**（時計を出した時から、ストップを押した時まで） ----
+  var pt = { key: null, sw: null, stopped: false, timer: null };
+  function pittariLocal(d, key){
+    if(pt.key !== key){
+      pt.key = key; pt.stopped = false;
+      // はかる段階を初めて描いた時＝時計を出した時に測り始める（知らせが届くまでの遅れはタイムに入らない）
+      pt.sw = d.phase === 'run' ? new PittariLogic.Stopwatch().start(performance.now()) : null;
+    }
+    return { stopped: pt.stopped };
+  }
+  /** 時計の字：見えている間（3秒・見えない回は0秒）は経った秒、そのあとは「？」 */
+  function pittariAfter(scr, d, lab){
+    clearInterval(pt.timer); pt.timer = null;
+    var c = scr.querySelector('[data-pt-clock]'); if(!c) return;
+    var show = d.show === false ? 0 : (d.showMs || 3000);
+    var draw = function(){
+      if(!lab && !document.body.contains(c)){ clearInterval(pt.timer); pt.timer = null; return; }
+      var ms = lab ? 1234 : (pt.sw && pt.sw.t0 != null ? performance.now() - pt.sw.t0 : 0);
+      var 見える = ms < show;
+      c.textContent = 見える ? (Math.floor(ms / 100) / 10).toFixed(1) : '？';
+      c.classList.toggle('is-hidden', !見える);
+    };
+    draw();
+    if(!lab && d.phase === 'run') pt.timer = setInterval(draw, 50);
+  }
+  function pittariStop(){
+    if(!pt.sw || pt.stopped) return;
+    var ms = pt.sw.stop(performance.now());
+    pt.stopped = true;
+    FxKit.vibe('ok');
+    rt.act(null, { ms: ms });
+    rtRenderCurrent();
+  }
+  /**
+   * 見せ場の音は、画面と同じ時刻表（V2Pittari.timeline・V2Soroe.timeline）で鳴らす（台本の「音」の列）。
+   * 時刻は「演出の速さ」をかける。演出「なし」の時は、最後の音だけをすぐ鳴らす
+   */
+  function v2FxAt(sec, fn, last){
+    if(fxMs(1000) <= 0){ if(last) fn(); return; }
+    setTimeout(fn, fxMs(sec * 1000));
+  }
+  /** 声：よーい（v31）→ スタート（v08）。開く：1枚ごとに短い音（だんだん高く）→ 寄る時に心臓の音 → 決まった音と声（v17／0.00秒は v18） */
+  function pittariFx(view, tv, key){
+    var d = view.data, r = d.reveal || {}, me = view.you || {};
+    if(d.phase === 'set') rtOnce('pt:v31:' + key, true, function(){ if(window.Sound) Sound.voice('v31'); });
+    if(d.phase === 'run'){ rtOnce('pt:v08:' + key, true, function(){ if(window.Sound) Sound.voice('v08'); }); if(!tv) sfx('decide'); }
+    if(d.phase !== 'roundResult') return;
+    if(tv){
+      var rows = r.rows || [], tl = V2Pittari.timeline(rows), 早い = Math.max(0, rows.length - 2);
+      tl.pins.forEach(function(p, i){ v2FxAt(p.at + p.dur, function(){ sfx('tick', { rate: i < 早い ? 0.9 + i * 0.06 : 0.8 }); }); });
+      if(rows.length >= 2){ v2FxAt(tl.zoom, function(){ sfx('count', { rate: 0.6 }); }); v2FxAt(tl.zoom + 0.45, function(){ sfx('count', { rate: 0.6 }); }); }
+      v2FxAt(tl.end, function(){
+        if(!rows.length) return;
+        sfx('decide');
+        if(window.Sound) Sound.voice((r.perfect || []).length ? 'v18' : 'v17');
+      }, true);
       return;
     }
-    var act = b.getAttribute('data-onaji-act');
-    if(act === 'again') goTo('scr-next');
-    else if(act === 'end') el('rtEndBtn').click();
-    else if(act === 'leave') rtLeaveRoomAsk();
+    if(me.myRank === 1){ sfx('cheer'); FxKit.vibe('ok'); }
+  }
+
+  // ---- 指示68-4：そろえて発射。**押した時刻を、サーバーの時刻に直して送る**（時計合わせ：SoroeLogic.offsetOf） ----
+  var so = { offset: null, rtt: null, busy: false, key: null, pressed: false, timer: null, resyncFor: null };
+  /** 端末の時計（戻らない時計。Date.now は端末の設定で飛ぶことがある） */
+  function soNow(){ return performance.timeOrigin + performance.now(); }
+  function soServerNow(){ return soNow() + (so.offset || 0); }
+  function soroeSync(){
+    if(so.busy || !rt || !rt.clockSync) return;
+    so.busy = true;
+    rt.clockSync(SoroeLogic.RULES.SYNC_SAMPLES, soNow).then(function(samples){
+      var o = SoroeLogic.offsetOf(samples);
+      if(o){ so.offset = o.offset; so.rtt = o.rtt; }
+      so.busy = false;
+      if(v2GameOf((document.querySelector('.screen.active') || {}).id)) rtRenderCurrent();
+    });
+  }
+  function soroeLocal(d, key){
+    if(so.key !== key){ so.key = key; so.pressed = false; }
+    if(so.offset == null) soroeSync();
+    // 開いている間に合わせ直す（回と回のあいだ。押す時には終わっている）
+    if(d.phase === 'roundResult' && so.resyncFor !== key){ so.resyncFor = key; soroeSync(); }
+    return { pressed: so.pressed, ready: so.offset != null };
+  }
+  /** カウントの字：直した時計で 0 の時刻までを数える。fade は「3・2」で消える。せーのの回は数を出さない */
+  function soroeAfter(scr, d, lab){
+    clearInterval(so.timer); so.timer = null;
+    var c = scr.querySelector('[data-so-count]'); if(!c || d.zeroAt == null) return;
+    var step = d.step || 1000;
+    var draw = function(){
+      if(!lab && !document.body.contains(c)){ clearInterval(so.timer); so.timer = null; return; }
+      var left = lab ? 1.5 * step : d.zeroAt - soServerNow();
+      var n = Math.ceil(left / step);
+      var txt = left > 3 * step ? '' : (n <= 0 ? '0' : String(n));
+      if(d.signal === 'fade' && n <= 1) txt = '';
+      if(c.textContent !== txt){ c.textContent = txt; if(txt && !lab) sfx(txt === '0' ? 'decide' : 'tick'); }
+    };
+    draw();
+    if(!lab && d.phase === 'launch') so.timer = setInterval(draw, 20);
+  }
+  function soroeFire(){
+    if(so.pressed || so.offset == null) return;
+    var at = Math.round(soServerNow());
+    so.pressed = true;
+    FxKit.vibe('ok');
+    rt.act(null, { at: at });
+    rtRenderCurrent();
+  }
+  /**
+   * 音（台本）：ためは音を止める → 火の粒ごとに「ボッ」→ 発射の声（v32）→ 着いた音（宇宙は声 v33）。
+   * ぽてっは気の抜けた音、飛ばない回は小さい音。せーのの回の合図には声を出さない（みんなの声が合図）
+   */
+  function soroeFx(view, tv, key){
+    var d = view.data, r = d.reveal || {};
+    if(d.phase !== 'roundResult') return;
+    var tl = V2Soroe.timeline(r), last = -1;
+    if(!r.flew){ v2FxAt(0.9, function(){ sfx('ng'); }, true); return; }
+    tl.fires.forEach(function(at){ if(at - last < 0.05) return; last = at; v2FxAt(at + 0.25, function(){ sfx('spark'); }); });
+    v2FxAt(tl.lift, function(){ if(tv) rtOnce('so:v32:' + key, true, function(){ if(window.Sound) Sound.voice('v32'); }); sfx('decide'); });
+    v2FxAt(tl.arrive, function(){
+      if(r.height === 'plop'){ sfx('miss'); return; }
+      if(r.height === 'space'){ if(tv && window.Sound) Sound.voice('v33'); sfx('cheer'); FxKit.vibe('ok'); return; }
+      sfx(r.height === 'moon' || r.together ? 'cheer' : 'ok');
+    }, true);
+  }
+
+  // 押した時。ストップと発射は**指が触れた瞬間**に測る（pointerdown。指を離した時の click では、離すまでの時間が入る）
+  ['scr-v2-onaji', 'scr-v2-pittari', 'scr-v2-soroe'].forEach(function(id){
+    el(id).addEventListener('pointerdown', function(e){
+      var b = e.target.closest && e.target.closest('[data-pt-stop],[data-so-fire]');
+      if(!b || b.disabled) return;
+      e.preventDefault();
+      if(b.hasAttribute('data-pt-stop')) pittariStop(); else soroeFire();
+    });
+    el(id).addEventListener('click', function(e){
+      var b = e.target.closest && e.target.closest('[data-onaji-pick],[data-v2game-act],[data-pt-stop],[data-so-fire]');
+      if(!b) return;
+      // キーボード・読み上げで押した時（pointerdown が来ない）も同じ動き。2回目は中で止まる
+      if(b.hasAttribute('data-pt-stop')){ pittariStop(); return; }
+      if(b.hasAttribute('data-so-fire')){ if(!b.disabled) soroeFire(); return; }
+      if(b.hasAttribute('data-onaji-pick')){
+        if(b.getAttribute('aria-disabled') === 'true') return;
+        // **押した瞬間に全部止める**（選んだら変えられない・連打で二重に送らない）
+        Array.prototype.forEach.call(this.querySelectorAll('[data-onaji-pick]'), function(x){ x.setAttribute('aria-disabled', 'true'); });
+        b.classList.add('is-on');
+        FxKit.vibe('tick');
+        rt.act(null, { pick: +b.getAttribute('data-onaji-pick') });
+        return;
+      }
+      var act = b.getAttribute('data-v2game-act');
+      if(act === 'again') goTo('scr-next');
+      else if(act === 'end') el('rtEndBtn').click();
+      else if(act === 'leave') rtLeaveRoomAsk();
+    });
   });
   /**
    * F4 前のゲームの感想：遊んで待合にもどった時に、1回だけ帯の上から出る（約5秒でたたむ）。

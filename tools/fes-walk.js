@@ -63,6 +63,8 @@ const 自動で遊ぶ = "(function(){var s=(document.querySelector('.screen.acti
   "if(s==='scr-rt-rc-place'){var c=pick('#rcPlaceBoard [data-rc-cell]');if(c)c.click();var d=document.getElementById('rcPlaceDoneBtn');if(d&&!d.disabled&&d.offsetParent!==null){d.click();return 'place';}return 'pick';}" +
   "if(s==='scr-rt-rc-play'){var f=pick('#rcPlayBoard [data-rc-cell]');if(f){f.click();return 'flip';}}" +
   "if(s==='scr-v2-onaji'){var o=pick('#scr-v2-onaji [data-onaji-pick]:not([aria-disabled=true])');if(o){o.click();return 'pick';}}" +
+  "if(s==='scr-v2-pittari'){var p=pick('#scr-v2-pittari [data-pt-stop]');if(p){p.click();return 'stop';}}" +
+  "if(s==='scr-v2-soroe'){var f=pick('#scr-v2-soroe [data-so-fire]');if(f){f.click();return 'fire';}}" +
   "return s;})()";
 const 押す = (d, sel) => d.ev('(function(){var b=document.querySelector(' + JSON.stringify(sel) + ');if(b&&!b.disabled){b.click();return true;}return false;})()');
 async function 撮る(d, name) { try { await d.shot(path.join(OUT, name + '.jpg')); } catch (e) {} }

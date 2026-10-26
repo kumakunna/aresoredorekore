@@ -55,5 +55,15 @@ const 点 = (r) => ids.map((id) => r.points[id]).join(',');
     assertEqual(res.awards.master.join(','), 'b', '体内時計の名人（3回とも押した a と b のうち、差の合計が小さい b。c は1回押していない）');
   });
 
+  await r.test('人数：端末の表（GAMES・MODES）とサーバーの RULES が一対（食い違うと、押せるのに始まらない）', async () => {
+    const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const g = /\{ id:'pittari',\s+title:'[^']+',\s+icon:'[^']+', sub:'[^']+', maxPlayers:(\d+) \}/.exec(html);
+    assert(g, 'GAMES の pittari を読めた');
+    assertEqual(+g[1], L.RULES.MAX_PLAYERS, 'GAMES の上限');
+    const m = /\{id:"pittari".*?game:'pittari', minPlayers:(\d+), maxPlayers:(\d+)/.exec(html);
+    assert(m, 'MODES の pittari を読めた');
+    assertEqual(+m[1] + '〜' + m[2], L.RULES.MIN_PLAYERS + '〜' + L.RULES.MAX_PLAYERS, 'MODES の下限と上限');
+  });
+
   r.finish();
 })();

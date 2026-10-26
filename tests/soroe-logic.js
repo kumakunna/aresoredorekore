@@ -43,5 +43,15 @@ const L = require('../public/js/soroe-logic');
     assertEqual(L.offsetOf([]), null, 'たずねていなければ決まらない');
   });
 
+  await r.test('人数：端末の表（GAMES・MODES）とサーバーの RULES が一対（食い違うと、押せるのに始まらない）', async () => {
+    const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const g = /\{ id:'soroe',\s+title:'[^']+',\s+icon:'[^']+', sub:'[^']+', maxPlayers:(\d+) \}/.exec(html);
+    assert(g, 'GAMES の soroe を読めた');
+    assertEqual(+g[1], L.RULES.MAX_PLAYERS, 'GAMES の上限');
+    const m = /\{id:"soroe".*?game:'soroe', minPlayers:(\d+), maxPlayers:(\d+)/.exec(html);
+    assert(m, 'MODES の soroe を読めた');
+    assertEqual(+m[1] + '〜' + m[2], L.RULES.MIN_PLAYERS + '〜' + L.RULES.MAX_PLAYERS, 'MODES の下限と上限');
+  });
+
   r.finish();
 })();

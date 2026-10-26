@@ -385,6 +385,25 @@
     function fesUnreserve(code) { return call('fes:unreserve', { code: code }); }
     // 第32弾-E：リアクション・感謝・アルバム
     function react(emoji) { return call('room:react', { emoji: emoji }); }
+    /**
+     * 指示68-4：時計合わせ。サーバーに n 回「いまの時刻」をたずねる（1回ずつ順に）。
+     * 返すのは [{ t0, t1, server }]（t0・t1 は local() の時刻）。ずれの計算は SoroeLogic.offsetOf
+     */
+    function clockSync(n, local) {
+      local = local || Date.now;
+      var samples = [], i = 0;
+      return new Promise(function (resolve) {
+        (function next() {
+          if (i++ >= n) { resolve(samples); return; }
+          var t0 = local();
+          call('clock:sync', {}, 3000).then(function (r) {
+            var t1 = local();
+            if (r && typeof r.now === 'number') samples.push({ t0: t0, t1: t1, server: r.now });
+            next();
+          });
+        })();
+      });
+    }
     function thanks(memberId, kind) { return call('room:thanks', { memberId: memberId, kind: kind }); }
     function albumAdd(photo) { return call('album:add', { photo: photo }, 30000); }
     function albumRemove() { return call('album:remove', {}); }
@@ -450,7 +469,7 @@
       setReady: setReady,
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase, pause: pause,
       gameOptions: gameOptions,
-      react: react, thanks: thanks,
+      react: react, thanks: thanks, clockSync: clockSync,
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,
       fesVote: fesVote, fesContinue: fesContinue, fesFeedback: fesFeedback,

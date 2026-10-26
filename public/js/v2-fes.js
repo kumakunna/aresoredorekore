@@ -399,6 +399,11 @@
       '<div class="v2-tmiss-a">' + e(Rz.正解は) + '<b>' + e(m.answer) + '</b></div></div>';
   }
 
+  /** 新しい見た目で作ったゲーム（カセットの約束 v1）の画面の組み立て。無ければ null */
+  function gameMod(view) {
+    var m = { onaji: typeof V2Onaji !== 'undefined' && V2Onaji, pittari: typeof V2Pittari !== 'undefined' && V2Pittari, soroe: typeof V2Soroe !== 'undefined' && V2Soroe };
+    return m[view.game] || null;
+  }
   /** F12 結果と「つづける？」。協力版はみんなの成績だけ（順位を出さない）、対戦は順位の行 */
   function result(view) {
     var Rz = U().結果, V = K(), f = view.fes || {}, you = view.you || {};
@@ -412,9 +417,9 @@
         '<div class="v2-team"><div class="v2-team-big"><b>' + V.digits(t.solved) + '</b><span>/' + V.digits(t.total) + e(Rz.本) + '</span></div>' +
           '<div class="v2-team-sub">' + e(ok ? Rz.全部 : Rz.あと + (t.total - t.solved) + Rz.だった) + livesHtml(t.lives, t.livesMax) + '</div></div>' +
         '<div class="v2-minebox"><span>' + e(meOf(view).name + Rz.が切った) + '</span><b>' + V.digits(mine) + '<small>' + e(Rz.本) + '</small></b></div>';
-    } else if (view.game === 'onaji' && d.result && typeof V2Onaji !== 'undefined') {
-      // 指示68-3：みんなと同じ。結果の中身は遊んでいた画面と同じ物（順位か、一致団結ならそろい度）
-      body = V2Onaji.resultBody(view, false);
+    } else if (gameMod(view) && d.result) {
+      // 指示68-3・68-4：新しい見た目で作ったゲーム。結果の中身は遊んでいた画面と同じ物
+      body = gameMod(view).resultBody(view, false);
     } else {
       var rk = (d.result && d.result.ranking) || [];
       body = V.hdHtml(Rz.おわり英, Rz.おわり) +
@@ -584,8 +589,8 @@
       inner = '<div class="v2-tend' + (miss ? ' is-withq' : '') + '"><div class="v2-tbig' + (ok ? ' v2-a-slam' : ' is-dim') + '">' + e(ok ? Rz.成功 : Rz.爆発) + '</div>' +
         '<div class="v2-tstat' + (ok ? '' : ' is-dim') + '"><span>' + V.digits(t.solved) + '/' + V.digits(t.total) + '</span><b class="v2-tstat-sl"></b><span>' + clockText(r.elapsedSec) + '</span></div>' +
         (ok ? livesHtml(t.lives, t.livesMax) : '<div class="v2-tnote">' + e(Rz.あと + (t.total - t.solved) + Rz.だった) + '</div>') + miss + '</div>';
-    } else if (view.game === 'onaji' && d.result && typeof V2Onaji !== 'undefined') {
-      inner = '<div class="v2-otv is-end">' + V2Onaji.resultBody(view, true, { noHead: true }) + '</div>';
+    } else if (gameMod(view) && d.result) {
+      inner = '<div class="v2-otv is-end">' + gameMod(view).resultBody(view, true, { noHead: true }) + '</div>';
     } else {
       var rk = (d.result && d.result.ranking) || [];
       inner = '<div class="v2-tend"><div class="v2-tbig">' + e(Rz.おわり) + '</div><div class="v2-tranks">' + rk.slice(0, 6).map(function (x) {

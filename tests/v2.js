@@ -165,7 +165,7 @@ function v2のクラス(css) {
     assert(規則.size > 80, 'v2 の規則のクラスを集められている（実際:' + 規則.size + '）');   // 型(b)
     const SRC = HTML.replace(STYLE, '') + '\n' + V2JS;
     assert(V2JS.indexOf('V2Fes') >= 0 && V2JS.indexOf('root.V2 =') >= 0, 'v2-kit.js と v2-fes.js の両方を読めている（型(b)）');
-    const 世界 = new Set(['v2-w-wait', 'v2-w-aresore', 'v2-w-sugoroku', 'v2-w-shinka', 'v2-w-wolf', 'v2-w-bomb', 'v2-w-quiz', 'v2-w-auction', 'v2-w-falsetrue', 'v2-w-rcard', 'v2-w-onaji']);
+    const 世界 = new Set(['v2-w-wait', 'v2-w-aresore', 'v2-w-sugoroku', 'v2-w-shinka', 'v2-w-wolf', 'v2-w-bomb', 'v2-w-quiz', 'v2-w-auction', 'v2-w-falsetrue', 'v2-w-rcard', 'v2-w-onaji', 'v2-w-pittari', 'v2-w-soroe']);
     const 着ない = [...規則].filter((c) => !世界.has(c) && !new RegExp('[\'"` ]' + c.replace(/-/g, '\\-') + '[\'"` ]').test(SRC));
     assertEqual(着ない.sort().join('・'), '', 'v2 の規則があるのに、名前そのものが書かれた所が無いクラス');
     // 世界の名前は V2.WORLDS から組む（V2.WORLDS と CSS の世界が同じであること）

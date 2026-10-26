@@ -193,7 +193,10 @@ const RT_START_MIN_CONFIG = {
   // 指示55-②：進化じゃんけん。段の配列はルール層が持っているので、送るのは「どちらのはしごか」と決めごとだけ
   shinka: { game: 'shinka', ladder: 'normal', throwSec: 3, drawMax: 3, limitSec: 600 },
   // 指示68-3：みんなと同じ。お題も問題の数も進行役が持っているので、送るのはモードだけ
-  onaji: { game: 'onaji', mode: 'many' }
+  onaji: { game: 'onaji', mode: 'many' },
+  // 指示68-4：目標・合図・時間は進行役が持っているので、送るのはゲームだけ
+  pittari: { game: 'pittari' },
+  soroe: { game: 'soroe' }
 };
 
 // ---- 画面とオーバーレイの一覧（第35弾C：体験品質監査の正本） ----

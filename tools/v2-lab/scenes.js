@@ -74,11 +74,15 @@ SCENES.push.apply(SCENES, HOME.SCENES);
 // 指示68-3：みんなと同じ（tools/v2-lab/onaji-scenes.js）
 const ONAJI = require('./onaji-scenes');
 SCENES.push.apply(SCENES, ONAJI.SCENES);
+// 指示68-4：ぴったり10秒・そろえて発射（tools/v2-lab/button-scenes.js）
+const BTN = require('./button-scenes');
+SCENES.push.apply(SCENES, BTN.SCENES);
 
 function view(sceneId, opts) {
   if (FES.SCENES.some((s) => s.id === sceneId)) return FES.view(sceneId, opts);
   if (HOME.SCENES.some((s) => s.id === sceneId)) return HOME.view(sceneId, opts);
   if (ONAJI.SCENES.some((s) => s.id === sceneId)) return ONAJI.view(sceneId, opts);
+  if (BTN.SCENES.some((s) => s.id === sceneId)) return BTN.view(sceneId, opts);
   const o = opts || {};
   const n = o.n == null ? 6 : o.n;
   const snap = 部屋(n, o.long);

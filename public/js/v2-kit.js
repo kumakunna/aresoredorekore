@@ -36,9 +36,9 @@
   function D() { return cfg.doc || (typeof document !== 'undefined' ? document : null); }
 
   /** 世界の名前（CSS の .v2-w-◯◯）。'wait' は待合と共通の画面の黄色 */
-  var WORLDS = ['wait', 'aresore', 'sugoroku', 'shinka', 'wolf', 'bomb', 'quiz', 'auction', 'falsetrue', 'rcard', 'onaji'];
+  var WORLDS = ['wait', 'aresore', 'sugoroku', 'shinka', 'wolf', 'bomb', 'quiz', 'auction', 'falsetrue', 'rcard', 'onaji', 'pittari', 'soroe'];
   /** 明るい世界（地が明るく字が暗い）。暗い世界とは、カード・線・帯の作り方が変わる */
-  var LIGHT = { wait: 1, aresore: 1, sugoroku: 1, shinka: 1, onaji: 1 };
+  var LIGHT = { wait: 1, aresore: 1, sugoroku: 1, shinka: 1, onaji: 1, pittari: 1 };
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {

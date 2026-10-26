@@ -78,7 +78,7 @@ const BUILD = {
   'onaji-tv-team-result': (o) => { const r = 部屋(o.n || 8, Object.assign({ mode: 'team' }, o)); 終える(r, [8]); return lab(r, 'scr-v2-onaji-tv', 'tv'); }
 };
 
-const SCENES = Object.keys(BUILD).map((id) => ({ id, kind: id.indexOf('onaji-tv') === 0 ? 'tv' : 'phone', draw: 'onaji',
+const SCENES = Object.keys(BUILD).map((id) => ({ id, kind: id.indexOf('onaji-tv') === 0 ? 'tv' : 'phone', draw: 'v2game',
   screen: BUILD[id]({}).screen, mock: null }));
 
 function view(sceneId, opts) {

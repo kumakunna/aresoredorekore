@@ -135,6 +135,18 @@
     },
     // 指示68-3：みんなと同じ。結果の2つの称号（指示書）を、そのまま数える。
     // 「ひとりだけの答え」も褒める側に数える——多い方が正解の遊びでも、ちがう答えを出した人をほめる（大切なこと5）
+    // 指示68-4：ぴったり10秒（競争）と、そろえて発射（協力。みんなの記録をそのまま全員に数える）
+    pittari: {
+      plays: 0,             // 遊んだ回数
+      wins: 0,              // 点がいちばんだった回数
+      perfects: 0,          // 「ぴったりの人」（0.00秒）になった回数
+      masters: 0            // 「体内時計の名人」になった回数
+    },
+    soroe: {
+      plays: 0,             // 遊んだ回数
+      togethers: 0,         // 全員そろった回の数（通算）
+      spaces: 0             // 宇宙までとどいた回の数（通算）
+    },
     onaji: {
       plays: 0,             // みんなと同じを遊んだ回数
       sames: 0,             // 「いちばんみんなと同じだった人」になった回数
@@ -393,6 +405,25 @@
       { id: 'icon-sh-ups', cassette: 'shinka', emoji: '🦅', label: '歴戦の証',
         hint: '通算で20回 進化する',
         need: function (s) { return s('shinka', 'ups') >= 20; } },
+      // ---- 指示68-4：ぴったり10秒・そろえて発射 ----
+      { id: 'icon-pt-1', cassette: 'pittari', emoji: '🏁', label: 'スタートの証',
+        hint: 'ぴったり10秒を1回あそぶ',
+        need: function (s) { return s('pittari', 'plays') >= 1; } },
+      { id: 'icon-pt-perfect', cassette: 'pittari', emoji: '✨', label: 'ぴったりの証',
+        hint: '0.00秒（ぴったり）でストップする',
+        need: function (s) { return s('pittari', 'perfects') >= 1; } },
+      { id: 'icon-pt-master', cassette: 'pittari', emoji: '🧠', label: '体内時計の証',
+        hint: '「体内時計の名人」になる（5回の差の合計がいちばん小さい）',
+        need: function (s) { return s('pittari', 'masters') >= 1; } },
+      { id: 'icon-so-1', cassette: 'soroe', emoji: '🎆', label: '発射の証',
+        hint: 'そろえて発射を1回あそぶ',
+        need: function (s) { return s('soroe', 'plays') >= 1; } },
+      { id: 'icon-so-together', cassette: 'soroe', emoji: '⭐', label: '息ぴったりの証',
+        hint: '全員の差が0.10秒以内でそろう',
+        need: function (s) { return s('soroe', 'togethers') >= 1; } },
+      { id: 'icon-so-space', cassette: 'soroe', emoji: '🌙', label: '宇宙の証',
+        hint: 'ロケットを宇宙までとどかせる（差0.05秒以内）',
+        need: function (s) { return s('soroe', 'spaces') >= 1; } },
       // ---- 指示68-3：みんなと同じ ----
       { id: 'icon-on-1', cassette: 'onaji', emoji: '👥', label: 'みんなの証',
         hint: 'みんなと同じを1回あそぶ',

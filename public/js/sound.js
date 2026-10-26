@@ -137,12 +137,14 @@
     st.last[key] = n;
     return { n: n, buf: st.buffers[kind + '/' + id + '-' + n] };
   }
-  function playBuffer(buf) {
+  /** rate：音の高さ（1＝そのまま。指示68-4 の「1枚ごとに、だんだん高く」） */
+  function playBuffer(buf, rate) {
     var c = ctx();
     if (!c || !buf) return false;
     try {
       var s = c.createBufferSource();
       s.buffer = buf;
+      if (rate && rate > 0 && s.playbackRate) s.playbackRate.value = rate;
       s.connect((cfg.out && cfg.out(c)) || c.destination);
       s.start(0);
       return true;
@@ -160,7 +162,7 @@
     var here = opt && opt.force ? vol > 0 : shouldPlay(id, cfg.where(), vol);
     if (!here) return note({ id: id, how: 'off' });
     var p = pick('se', id);
-    if (p && playBuffer(p.buf)) return note({ id: id, how: 'file', n: p.n });
+    if (p && playBuffer(p.buf, opt && opt.rate)) return note({ id: id, how: 'file', n: p.n });
     var fb = cfg.fallback[id];
     if (typeof fb === 'function') { try { fb(opt); } catch (e) {} return note({ id: id, how: 'fallback' }); }
     return note({ id: id, how: 'none' });

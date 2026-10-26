@@ -152,10 +152,10 @@
     if (view.fesRoom) return '';
     var t = T();
     return '<div class="v2-spacer"></div>' + (view.host
-      ? '<button type="button" class="v2-btn is-pri" data-onaji-act="again">' + e(t.つぎは) + '</button>' +
-        '<button type="button" class="v2-btn is-sec" data-onaji-act="end">' + e(t.とじる) + '</button>'
+      ? '<button type="button" class="v2-btn is-pri" data-v2game-act="again">' + e(t.つぎは) + '</button>' +
+        '<button type="button" class="v2-btn is-sec" data-v2game-act="end">' + e(t.とじる) + '</button>'
       : '<div class="v2-hint v2-c" role="status">' + e(t.進行役が) + '</div>') +
-      '<button type="button" class="v2-btn is-sec" data-onaji-act="leave">' + e(t.出る) + '</button>';
+      '<button type="button" class="v2-btn is-sec" data-v2game-act="leave">' + e(t.出る) + '</button>';
   }
 
   // ===================== TV =====================

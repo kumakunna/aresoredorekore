@@ -35,7 +35,10 @@ const FES_GAMES = [
   { mode: 'shinka', game: 'shinka', min: 3, max: 12, on: false, start: { game: 'shinka' } },
   { mode: 'rcard', game: 'rcard', min: 2, max: 8, on: false, start: { game: 'rcard' } },
   // 指示68-3：みんなと同じ（多い方）。門を通るまではテスト中（係のくまくんが「テスト中を入れる」にした時だけ候補に出る）
-  { mode: 'onaji-many', game: 'onaji', min: 3, max: 16, on: false, testing: true, start: { game: 'onaji', mode: 'many' } }
+  { mode: 'onaji-many', game: 'onaji', min: 3, max: 16, on: false, testing: true, start: { game: 'onaji', mode: 'many' } },
+  // 指示68-4：ボタン1つの2本（テスト中）
+  { mode: 'pittari', game: 'pittari', min: 2, max: 16, on: false, testing: true, start: { game: 'pittari' } },
+  { mode: 'soroe', game: 'soroe', min: 2, max: 16, on: false, testing: true, start: { game: 'soroe' } }
 ];
 /** 候補にできるゲーム。opts.games（検査が表を差しかえる）と、テスト中を入れるかのスイッチ */
 function gamesFor(f) {

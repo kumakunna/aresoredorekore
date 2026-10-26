@@ -25,3 +25,6 @@ docs/監査_指示66の画像/
 
 # 指示68：くまくんの声の録音（164MB・重いので入れない。使う物は 68-2 の音の箱へ書き出してから入れる）
 docs/声の素材/
+
+# Claude Code の端末だけの許可（earshot の python など）
+.claude/settings.local.json

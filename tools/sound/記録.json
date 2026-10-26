@@ -1,0 +1,577 @@
+{
+ "target_lufs_m_max": -25.0,
+ "band_lu": 2.0,
+ "peak_max_db": -1.0,
+ "range_lufs": [
+  -26.97,
+  -23.0
+ ],
+ "files": {
+  "tick-1": {
+   "lufs_m_max": -25.51,
+   "peak_db": -1.0,
+   "dur_s": 0.082,
+   "parts": [
+    {
+     "sound": "hover_tick/detent",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "tick-2": {
+   "lufs_m_max": -26.97,
+   "peak_db": -1.0,
+   "dur_s": 0.082,
+   "parts": [
+    {
+     "sound": "hover_tick/mid",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "tick-3": {
+   "lufs_m_max": -26.28,
+   "peak_db": -1.0,
+   "dur_s": 0.065,
+   "parts": [
+    {
+     "sound": "click/tink",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "count-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -12.28,
+   "dur_s": 0.59,
+   "parts": [
+    {
+     "sound": "pluck/kalimba_soft",
+     "pitch": "G4",
+     "at": 0.0,
+     "w": 1.0,
+     "seed": 11,
+     "dur": 0.6
+    }
+   ]
+  },
+  "count-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -14.29,
+   "dur_s": 0.591,
+   "parts": [
+    {
+     "sound": "pluck/kalimba_soft",
+     "pitch": "G4",
+     "at": 0.0,
+     "w": 1.0,
+     "seed": 12,
+     "dur": 0.6
+    }
+   ]
+  },
+  "ok-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -12.73,
+   "dur_s": 0.804,
+   "parts": [
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "E5",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 0.6
+    },
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "A5",
+     "at": 0.12,
+     "w": 1.0,
+     "dur": 0.7
+    }
+   ]
+  },
+  "ok-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -13.9,
+   "dur_s": 0.807,
+   "parts": [
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "C5",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 0.6
+    },
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "G5",
+     "at": 0.12,
+     "w": 1.0,
+     "dur": 0.7
+    }
+   ]
+  },
+  "ok-3": {
+   "lufs_m_max": -25.0,
+   "peak_db": -13.66,
+   "dur_s": 0.804,
+   "parts": [
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "D5",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 0.6
+    },
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "A5",
+     "at": 0.12,
+     "w": 1.0,
+     "dur": 0.7
+    }
+   ]
+  },
+  "decide-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -13.85,
+   "dur_s": 1.042,
+   "parts": [
+    {
+     "sound": "pluck/kalimba_ring",
+     "pitch": "C5",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 1.0
+    },
+    {
+     "sound": "pluck/kalimba_ring",
+     "pitch": "G5",
+     "at": 0.06,
+     "w": 0.7,
+     "dur": 1.0
+    }
+   ]
+  },
+  "decide-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -14.76,
+   "dur_s": 1.042,
+   "parts": [
+    {
+     "sound": "pluck/kalimba_ring",
+     "pitch": "D5",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 1.0
+    },
+    {
+     "sound": "pluck/kalimba_ring",
+     "pitch": "A5",
+     "at": 0.06,
+     "w": 0.7,
+     "dur": 1.0
+    }
+   ]
+  },
+  "tap-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -1.18,
+   "dur_s": 0.09,
+   "parts": [
+    {
+     "sound": "click/soft",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "tap-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -1.7,
+   "dur_s": 0.12,
+   "parts": [
+    {
+     "sound": "tap/soft",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "tap-3": {
+   "lufs_m_max": -25.0,
+   "peak_db": -1.85,
+   "dur_s": 0.116,
+   "parts": [
+    {
+     "sound": "tap/finger",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "ng-1": {
+   "lufs_m_max": -25.91,
+   "peak_db": -1.0,
+   "dur_s": 0.132,
+   "parts": [
+    {
+     "sound": "knock/plastic",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "ng-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -1.05,
+   "dur_s": 0.116,
+   "parts": [
+    {
+     "sound": "knock/double",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "miss-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -5.77,
+   "dur_s": 0.206,
+   "parts": [
+    {
+     "sound": "knock/desk",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "miss-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -4.48,
+   "dur_s": 0.245,
+   "parts": [
+    {
+     "sound": "knock/desk",
+     "at": 0.0,
+     "w": 1.0,
+     "seed": 7
+    }
+   ]
+  },
+  "fanfare-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -13.86,
+   "dur_s": 1.351,
+   "parts": [
+    {
+     "sound": "pluck/kalimba_ring",
+     "pitch": "C5",
+     "at": 0.0,
+     "w": 0.9,
+     "dur": 0.9
+    },
+    {
+     "sound": "pluck/kalimba_ring",
+     "pitch": "E5",
+     "at": 0.09,
+     "w": 0.9,
+     "dur": 0.9
+    },
+    {
+     "sound": "pluck/kalimba_ring",
+     "pitch": "G5",
+     "at": 0.18,
+     "w": 0.9,
+     "dur": 0.9
+    },
+    {
+     "sound": "pluck/kalimba_ring",
+     "pitch": "C6",
+     "at": 0.27,
+     "w": 1.0,
+     "dur": 1.1
+    }
+   ]
+  },
+  "fanfare-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -12.53,
+   "dur_s": 1.342,
+   "parts": [
+    {
+     "sound": "logo_sting/soft_bloom",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 1.4
+    }
+   ]
+  },
+  "cheer-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -9.1,
+   "dur_s": 1.16,
+   "parts": [
+    {
+     "sound": "shimmer/m2",
+     "at": 0.0,
+     "w": 0.8,
+     "dur": 1.2
+    },
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "C5",
+     "at": 0.0,
+     "w": 0.6,
+     "dur": 1.0
+    },
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "E5",
+     "at": 0.0,
+     "w": 0.6,
+     "dur": 1.0
+    },
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "G5",
+     "at": 0.0,
+     "w": 0.6,
+     "dur": 1.0
+    }
+   ]
+  },
+  "cheer-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -9.04,
+   "dur_s": 1.09,
+   "parts": [
+    {
+     "sound": "pro_shimmer/m1",
+     "at": 0.0,
+     "w": 0.8,
+     "dur": 1.2
+    },
+    {
+     "sound": "pop/2",
+     "at": 0.0,
+     "w": 0.8
+    }
+   ]
+  },
+  "timeup-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -13.92,
+   "dur_s": 1.047,
+   "parts": [
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "A4",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 0.7
+    },
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "E4",
+     "at": 0.16,
+     "w": 1.0,
+     "dur": 0.9
+    }
+   ]
+  },
+  "timeup-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -14.22,
+   "dur_s": 1.047,
+   "parts": [
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "G4",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 0.7
+    },
+    {
+     "sound": "pluck/kalimba",
+     "pitch": "D4",
+     "at": 0.16,
+     "w": 1.0,
+     "dur": 0.9
+    }
+   ]
+  },
+  "gavel-1": {
+   "lufs_m_max": -25.79,
+   "peak_db": -1.0,
+   "dur_s": 0.144,
+   "parts": [
+    {
+     "sound": "knock/wood",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "gavel-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -2.46,
+   "dur_s": 0.138,
+   "parts": [
+    {
+     "sound": "knock/wood",
+     "at": 0.0,
+     "w": 1.0,
+     "seed": 5
+    }
+   ]
+  },
+  "sold-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -7.49,
+   "dur_s": 0.365,
+   "parts": [
+    {
+     "sound": "knock/wood",
+     "at": 0.0,
+     "w": 1.0
+    },
+    {
+     "sound": "pop/2",
+     "at": 0.12,
+     "w": 0.8
+    }
+   ]
+  },
+  "sold-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -5.52,
+   "dur_s": 0.232,
+   "parts": [
+    {
+     "sound": "knock/wood",
+     "at": 0.0,
+     "w": 1.0,
+     "seed": 5
+    },
+    {
+     "sound": "pop/3",
+     "at": 0.12,
+     "w": 0.8
+    }
+   ]
+  },
+  "cut-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -5.23,
+   "dur_s": 0.39,
+   "parts": [
+    {
+     "sound": "cut_hit/air",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 0.4
+    }
+   ]
+  },
+  "cut-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -7.58,
+   "dur_s": 0.279,
+   "parts": [
+    {
+     "sound": "cut_hit/punch",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 0.4
+    }
+   ]
+  },
+  "cut-3": {
+   "lufs_m_max": -25.0,
+   "peak_db": -6.1,
+   "dur_s": 0.17,
+   "parts": [
+    {
+     "sound": "pro_tap/knock",
+     "at": 0.0,
+     "w": 1.0
+    },
+    {
+     "sound": "pop/1",
+     "at": 0.03,
+     "w": 0.7
+    }
+   ]
+  },
+  "spark-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -4.44,
+   "dur_s": 0.142,
+   "parts": [
+    {
+     "sound": "pro_pop_in/airy",
+     "at": 0.0,
+     "w": 1.0
+    }
+   ]
+  },
+  "spark-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -16.77,
+   "dur_s": 0.496,
+   "parts": [
+    {
+     "sound": "shimmer/m0",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 0.5
+    }
+   ]
+  },
+  "defuse-1": {
+   "lufs_m_max": -25.0,
+   "peak_db": -11.69,
+   "dur_s": 1.514,
+   "parts": [
+    {
+     "sound": "logo_sting/spark",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 1.6
+    }
+   ]
+  },
+  "defuse-2": {
+   "lufs_m_max": -25.0,
+   "peak_db": -13.1,
+   "dur_s": 1.532,
+   "parts": [
+    {
+     "sound": "logo_sting/soft_bloom",
+     "at": 0.0,
+     "w": 1.0,
+     "seed": 3,
+     "dur": 1.6
+    }
+   ]
+  },
+  "boom-1": {
+   "lufs_m_max": -23.0,
+   "peak_db": -8.52,
+   "dur_s": 2.479,
+   "parts": [
+    {
+     "sound": "impact/blast",
+     "at": 0.0,
+     "w": 1.0,
+     "dur": 2.5
+    }
+   ]
+  }
+ }
+}

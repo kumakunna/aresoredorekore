@@ -15,11 +15,11 @@ const TV = (doc) => doc.getElementById('scr-v2-fes-tv');
     const t = await launch({ fakeSocket: true, atEntry: true });
     t.win.V2Screens.fes(FesScenes.view('fes2-tv-play'));
     await sleep(t.win, 60);
-    assertEqual(TV(t.doc).querySelectorAll('.v2-tcell').length, 30, '30マス');
+    assertEqual(TV(t.doc).querySelectorAll('.v2-tbcell').length, 30, '30マス');
     assert(TV(t.doc).querySelector('.v2-tboard.is-c8'), '30本は8列');
     t.win.V2Screens.fes(FesScenes.view('fes2-tv-play16'));
     await sleep(t.win, 60);
-    assertEqual(TV(t.doc).querySelectorAll('.v2-tcell').length, 50, '16人は50マス');
+    assertEqual(TV(t.doc).querySelectorAll('.v2-tbcell').length, 50, '16人は50マス');
     assert(TV(t.doc).querySelector('.v2-tboard.is-c10'), '50本は10列');
     t.win.close();
   });
@@ -32,10 +32,10 @@ const TV = (doc) => doc.getElementById('scr-v2-fes-tv');
     const board = lab.room.state.data.board;
     const tries = board.filter((c) => c.by && !c.solved).length;
     assert(tries >= 1, '前提：挑戦中のマスがある');   // 型(b)
-    assertEqual(TV(t.doc).querySelectorAll('.v2-tcell.is-try .v2-av').length, tries, '挑戦中はアイコン');
+    assertEqual(TV(t.doc).querySelectorAll('.v2-tbcell.is-try .v2-av').length, tries, '挑戦中はアイコン');
     const 盤の字 = TV(t.doc).querySelector('.v2-tboard').textContent;
     lab.room.members.forEach((m) => { if (m.role === 'player') assert(盤の字.indexOf(m.name) === -1, '盤に名前「' + m.name + '」が出ない'); });
-    assertEqual(TV(t.doc).querySelectorAll('.v2-tcell.is-solved').length, board.filter((c) => c.solved).length, '解いたマスに印');
+    assertEqual(TV(t.doc).querySelectorAll('.v2-tbcell.is-solved').length, board.filter((c) => c.solved).length, '解いたマスに印');
     t.win.close();
   });
 
@@ -54,7 +54,7 @@ const TV = (doc) => doc.getElementById('scr-v2-fes-tv');
     // 画面：fresh の時だけマスに火花、名前の帯
     t.win.V2Screens.fes(FesScenes.view('fes2-tv-play-cut'));
     await sleep(t.win, 60);
-    assertEqual(TV(t.doc).querySelectorAll('.v2-tcell.is-cutnow').length, 1, '火花はそのマス1つ');
+    assertEqual(TV(t.doc).querySelectorAll('.v2-tbcell.is-cutnow').length, 1, '火花はそのマス1つ');
     assert(/ が切った/.test(TV(t.doc).querySelector('.v2-tcut').textContent), '「〇〇 が切った」');
     t.win.close();
   });
@@ -63,10 +63,10 @@ const TV = (doc) => doc.getElementById('scr-v2-fes-tv');
     const t = await launch({ fakeSocket: true, atEntry: true });
     t.win.V2Screens.fes(FesScenes.view('fes2-tv-play-last'));
     await sleep(t.win, 60);
-    assertEqual(TV(t.doc).querySelectorAll('.v2-tcell.is-last').length, 1, 'のこり1本のマスだけ');
+    assertEqual(TV(t.doc).querySelectorAll('.v2-tbcell.is-last').length, 1, 'のこり1本のマスだけ');
     t.win.V2Screens.fes(FesScenes.view('fes2-tv-play'));
     await sleep(t.win, 60);
-    assertEqual(TV(t.doc).querySelectorAll('.v2-tcell.is-last').length, 0, 'のこりが多い時は出さない');
+    assertEqual(TV(t.doc).querySelectorAll('.v2-tbcell.is-last').length, 0, 'のこりが多い時は出さない');
     t.win.close();
   });
 

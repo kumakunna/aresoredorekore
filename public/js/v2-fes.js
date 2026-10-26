@@ -363,8 +363,8 @@
     var 顔 = {};
     people(view, true).forEach(function (m) { 顔[m.name] = m.icon; });
     var cells = board.map(function (c, i) {
-      var cls = 'v2-tcell ' + (T[c.tier] ? 'is-' + T[c.tier] : '');
-      var inner = '<span class="v2-tcell-n v2-num">' + V.digits(i + 1) + '</span>';
+      var cls = 'v2-tbcell ' + (T[c.tier] ? 'is-' + T[c.tier] : '');
+      var inner = '<span class="v2-tbcell-n v2-num">' + V.digits(i + 1) + '</span>';
       if (c.solved) { cls += ' is-solved'; inner = V.icon('check'); }
       else if (c.by) { cls += ' is-try'; inner = V.avHtml(顔[c.by] || '🙂'); }
       if (!c.solved && left === 1) cls += ' is-last';

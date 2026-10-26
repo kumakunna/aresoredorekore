@@ -22,7 +22,7 @@
 //   下の TIER_HINT（指示58で、設定画面の説明にも出すのでデータにした。ここには写さない）
 
 (function (root, factory) {
-  // 指示68-1：表から作った問題（quiz-tables.js）も同じ箱から出す。画面では quiz-tables.js を先に読む
+  // 指示68-1：表から作った問題（quiz-tables.js）も同じ箱から出す。画面はまだ使わないので読んでいない（root.QuizTables が無ければ空）
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./quiz-tables.js'));
   else root.QuizBank = factory(root.QuizTables);
 }(typeof self !== 'undefined' ? self : this, function (TABLES) {

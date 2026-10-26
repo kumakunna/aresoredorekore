@@ -1381,7 +1381,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
       push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: bombView() } }));
       await waitScreen(win, doc, 'scr-v2-fes-tv', 4000);
-      assertEqual(doc.querySelectorAll('#scr-v2-fes-tv .v2-tboard .v2-tcell').length, 4, 'TV は盤が主役');
+      assertEqual(doc.querySelectorAll('#scr-v2-fes-tv .v2-tboard .v2-tbcell').length, 4, 'TV は盤が主役');
       assertNoErrors(errors, 'ふだんの部屋の TV');
       win.close();
     }
@@ -1958,7 +1958,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(tv.querySelectorAll('.v2-ttop .v2-lives').length, 1, '共有ライフは帯に1つだけ');
     assertEqual(tv.querySelectorAll('.v2-tprog').length, 1, '進み具合は1本');
     assertEqual(tv.querySelectorAll('.bb-row, .bcb-row').length, 0, '同じ値の棒が人数ぶん並ばない');
-    assertEqual(tv.querySelectorAll('.v2-tboard .v2-tcell').length, 4, '盤が主役（4マス）');
+    assertEqual(tv.querySelectorAll('.v2-tboard .v2-tbcell').length, 4, '盤が主役（4マス）');
     assertNoErrors(errors, '大画面の協力版で未捕捉の例外');
     win.close();
   });

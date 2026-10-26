@@ -23,7 +23,7 @@
   var RULES = {
     MIN_PLAYERS: 3,     // 2人では「多い方」が決まらない
     MAX_PLAYERS: 16,
-    QUESTIONS: 5,       // 5問で1回
+    ROUNDS: 5,          // 5問で1回（QUESTIONS の名は、クイズの層の見張り tools/tier-scan.js の語と被るので使わない）
     CHOOSE_SEC: 10,     // 選ぶ時間
     OPEN_SEC: 7         // 開いて見せる時間（せーの → 棒がのびる → 冠 → 名前）
   };

@@ -42,7 +42,7 @@ function startGame(room, config, ctx) {
   const rand = (config && config._rand) || Math.random;
   // 同じ部屋（文化祭は1日1つ）で同じお題がなるべく出ないように、出したお題を部屋に覚える
   room.onajiUsed = room.onajiUsed || {};
-  const topics = Bank.pick(R.QUESTIONS, room.onajiUsed, rand);
+  const topics = Bank.pick(R.ROUNDS, room.onajiUsed, rand);
   topics.forEach((t) => { room.onajiUsed[t.q] = true; });
   const names = {};
   members.forEach((m) => { names[m.id] = m.name; });

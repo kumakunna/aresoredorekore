@@ -1142,7 +1142,7 @@
     var 大きく = tv || clear;   // スマホの爆発だけは静かに
     var names = (opt.names || []).filter(Boolean);
     var 粒 = '';
-    if (clear && 光) {
+    if (clear && 光 && tv) {   // 粒は TV（みんなで見る画面）だけ。スマホは「解除！」と自分の名前だけ
       for (var i = 0; i < 14; i++) {
         粒 += '<i class="fx-fin-dot" style="--x:' + ((i * 37) % 100) + '%;--d:' + ((i * 53) % 400) + 'ms;--s:' + (6 + (i % 3) * 3) + 'px"></i>';
       }

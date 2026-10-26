@@ -864,7 +864,7 @@
      ため 0.75秒は爆弾の光がゆっくり弱まる → 開く。**光（明るさ・揺れ・粒）は is-* の要素ごと付け外す**ので、
      光を切った端末には最初から無い（fx.js が can.flash / can.shake を見て組む）。
      明るさが変わるのは爆発の1回だけ（.fx-fin-flash）、揺れは0.2秒を1回（.is-shake）。粒は上へ流れて消えるだけで点滅しない */
-  .fx-finale{position:fixed;inset:0;z-index:86;pointer-events:auto;background:#08090B;color:#F4F6F8;
+  .fx-finale{position:fixed;inset:0;z-index:86;pointer-events:auto;background:#08090B;color:#F4F6F8;font-family:"M PLUS 1",sans-serif;
     display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center;}
   .fx-fin-bomb{font-size:min(28vmin,180px);line-height:1;filter:drop-shadow(0 0 28px rgba(240,161,58,.75));
     animation:fxFinTame calc(0.75s * var(--fx-scale)) ease forwards;}

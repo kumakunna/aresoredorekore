@@ -73,14 +73,19 @@ function クイズ解除を終える(room, ok) {
 }
 
 /** クイズ解除（協力版）を本当に動かして、解除中の形にする：15本切れていて、何人かが挑戦中、1本は外れ、自分は1本開いている */
-function クイズ解除の途中(room) {
-  const ids = Array.from(room.members.values()).filter((m) => m.role === 'player').map((m) => m.id).slice(0, 8);
+function クイズ解除の途中(room, o) {
+  o = o || {};
+  // 指示68-2：16人まで（本数は人数の表）。o.last で「のこり1本」の形
+  const ids = Array.from(room.members.values()).filter((m) => m.role === 'player').map((m) => m.id).slice(0, o.max || 8);
+  room.members.forEach((m) => { if (m.role === 'player' && ids.indexOf(m.id) === -1) m.role = 'waiting'; });
   const res = BombRoom.startGame(room, FesRoom.gameOf('bomb-coop').start, { notify() {} });
   if (!res.ok) throw new Error('クイズ解除を始められません: ' + res.error);
   const w = room.bomb;
   const order = w.entries[Object.keys(w.entries)[0]].order;
   const byUid = (uid) => w.wires.find((x) => x.uid === uid);
-  order.slice(0, 15).forEach((uid, i) => { const x = byUid(uid); BombRoom.submitAction(room, ids[i % ids.length], uid); BombRoom.submitVote(room, ids[i % ids.length], x.choices[x.correct]); });
+  const 切る = o.last ? order.length - 1 : 15;
+  order.slice(0, 切る).forEach((uid, i) => { const x = byUid(uid); BombRoom.submitAction(room, ids[i % ids.length], uid); BombRoom.submitVote(room, ids[i % ids.length], x.choices[x.correct]); });
+  if (o.last) { room.fes.played = { mode: 'bomb-coop', round: room.fes.round, ids: ids }; room.fes.phase = FesRoom.PHASE.PLAY; return ids; }
   // 1本は外す（左上に ✕）
   const miss = byUid(order[15]); BombRoom.submitAction(room, ids[1], miss.uid); BombRoom.submitVote(room, ids[1], miss.choices.find((c, j) => j !== miss.correct));
   // 挑戦中の人（ひろ・でん・ふう②）と、自分（ふう）が開いている1本
@@ -118,6 +123,11 @@ const BUILD = {
     ['m1', 'm2', 'm5', 'm6', 'm7'].forEach((id) => { const m = r.members.get(id); if (m) m.readyGame = 'bomb'; }); r.members.get('m1').readyGame = null; のこり(r, 12); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-play': (o) => { const r = 部屋(o.n || 6); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-lobby', 'm1', { secret: JSON.parse(JSON.stringify(BombRoom.privateFor(r, 'm1'))) }); },
   'fes2-tv-play': (o) => { const r = 部屋(o.n || 8, o.long); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
+  // 指示68-2 第2節：TV の盤。16人で50本・正しく切った瞬間（火花と「〇〇 が切った」）・のこり1本
+  'fes2-tv-play16': (o) => { const r = 部屋(16, o.long); クイズ解除の途中(r, { max: 16 }); return lab(r, 'scr-v2-fes-tv', 'tv'); },
+  'fes2-tv-play-cut': (o) => { const r = 部屋(o.n || 8, o.long); クイズ解除の途中(r); const c = r.bomb.entries[Object.keys(r.bomb.entries)[0]].order[14];
+    return lab(r, 'scr-v2-fes-tv', 'tv', { cut: { uid: c, name: r.bomb.names[r.bomb.solvedBy[c]], fresh: true } }); },
+  'fes2-tv-play-last': (o) => { const r = 部屋(o.n || 8, o.long); クイズ解除の途中(r, { last: true }); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-wait': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, true); r.fes.phase = FesRoom.PHASE.PLAY; r.members.get('m1').role = 'waiting'; return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-result': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, true); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-boom': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, false); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },
@@ -151,7 +161,7 @@ const SCENES = [
   ['fes2-safety', 'phone', 'f1'], ['fes2-cd', 'phone', 'f10'], ['fes2-tv-cd', 'tv', 't10'],
   ['fes2-join', 'phone', 'f2a'], ['fes2-join-on', 'phone', null], ['fes2-join-bad', 'phone', 'f2b'],
   ['fes2-lobby', 'phone', 'f3'], ['fes2-fb', 'phone', 'f4'], ['fes2-fbmini', 'phone', null],
-  ['fes2-play', 'phone', 'f11'], ['fes2-tv-play', 'tv', 't11'],
+  ['fes2-play', 'phone', 'f11'], ['fes2-tv-play16', 'tv', null], ['fes2-tv-play-cut', 'tv', null], ['fes2-tv-play-last', 'tv', null], ['fes2-tv-play', 'tv', 't11'],
   ['fes2-look', 'phone', 'f5a'], ['fes2-look-icon', 'phone', 'f5b'], ['fes2-look-name', 'phone', 'f5c'],
   ['fes2-vote', 'phone', 'f7'], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],

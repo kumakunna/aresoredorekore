@@ -345,26 +345,58 @@
           }).join('') + '</div>' : '') +
       '</div>';
   }
-  /** F11 遊ぶ（TV）：上の帯（解除中・ゲーム・ライフ・時計）→ 大きな本数と進み具合 → 名前の札（→ 12ばん）と小さな QR */
+  /**
+   * F11 遊ぶ（TV）：上の帯（解除中・ゲーム・ライフ・時計）→ 本数と進み具合 → **盤（TV の主役・指示68-2 第2節）**と小さな QR。
+   * 盤のマス：解いた所は色が付いて ✓、挑んでいる所は点線とその人のアイコン（TV の字は 42px 以上なので、マスに名前は入れない）。
+   * のこり1本はそのマスを大きく。
+   * 正しく切った瞬間は view.cut（index.html が、知らせの前と後を比べて渡す）のマスに火花＋「〇〇 が切った」。
+   * 外した時は TV では何も出さない（静かに・名前は出さない）
+   */
   function tvPlay(view) {
     var P = U().遊ぶ, V = K(), d = view.data || {}, team = d.team || {}, f = view.fes || {};
     var g = view.info(f.played.mode);
     var board = d.board || [];
-    var ps = people(view, true).filter(function (m) { return m.role === 'player'; });
-    var 番 = {};
-    board.forEach(function (c, i) { if (c.by && !c.solved) 番[c.by] = i + 1; });
+    var left = board.filter(function (c) { return !c.solved; }).length;
+    var cut = view.cut || null;
+    var T = { easy: 't1', normal: 't2', hard: 't3', nanisore: 't4', muri: 't5' };
+    var cols = board.length <= 10 ? 5 : board.length <= 18 ? 6 : board.length <= 32 ? 8 : 10;
+    var 顔 = {};
+    people(view, true).forEach(function (m) { 顔[m.name] = m.icon; });
+    var cells = board.map(function (c, i) {
+      var cls = 'v2-tcell ' + (T[c.tier] ? 'is-' + T[c.tier] : '');
+      var inner = '<span class="v2-tcell-n v2-num">' + V.digits(i + 1) + '</span>';
+      if (c.solved) { cls += ' is-solved'; inner = V.icon('check'); }
+      else if (c.by) { cls += ' is-try'; inner = V.avHtml(顔[c.by] || '🙂'); }
+      if (!c.solved && left === 1) cls += ' is-last';
+      if (cut && cut.fresh && cut.uid === c.uid) cls += ' is-cutnow';   // 火花は知らせの後の最初の1回だけ（描き直しでくり返さない）
+      return '<div class="' + cls + '" data-tv-cell="' + e(c.uid) + '">' + inner + '</div>';
+    }).join('');
     var mins = Math.max(1, Math.round(((d.remainingMs || 0) / 60000) + 1));
     return tvc(view,
       '<div class="v2-tplay"><div class="v2-ttop"><span class="v2-tpill">' + e(P.解除中) + '</span><span class="v2-tsub">' + e(g.name) + '</span>' +
           livesHtml(team.lives, team.livesMax || 3) + '<span class="v2-tclock">' + (view.end ? V.cd({ end: view.end, mmss: true, label: '', unit: '' }) : '') + '</span></div>' +
-        '<div class="v2-tmid"><div class="v2-tpn"><b class="v2-num">' + V.digits(team.solved || 0) + '</b><b class="v2-num v2-tpn-of">/' + V.digits(team.total || board.length) + '</b><span>' + e(P.解除ずみ) + '</span></div>' +
-          '<div class="v2-tprog"><i style="width:' + (team.total ? Math.round(team.solved / team.total * 100) : 0) + '%"></i></div></div>' +
-        // 2列（8人で4段）。QR を黒い所で 350px 以上にしたので、3列ではいちばん幅の広い8字の名前が 42px で入らない（指示68-0b）
-        '<div class="v2-tbottom"><div class="v2-tgrid is-c2">' + ps.map(function (m) {
-          var n = 番[m.name];
-          return '<div class="v2-tmem is-two' + (n ? ' is-try' : '') + '">' + V.avHtml(m.icon) + '<div class="v2-tmem-who"><div class="v2-tmem-nm v2-cut" data-v2-fit="42">' + e(m.name) + '</div>' +
-            (n ? '<div class="v2-tmem-tt">→ ' + V.digits(n) + e(P.ばん) + '</div>' : '') + '</div></div>';
-        }).join('') + '</div>' + qrHtml(view, 'is-sm', P.つぎの回 + '\n' + P.あと約 + mins + P.分) + '</div></div>');
+        '<div class="v2-tmid is-row"><div class="v2-tpn is-sm"><b class="v2-num">' + V.digits(team.solved || 0) + '</b><b class="v2-num v2-tpn-of">/' + V.digits(team.total || board.length) + '</b><span>' + e(P.解除ずみ) + '</span></div>' +
+          '<div class="v2-tprog"><i style="width:' + (team.total ? Math.round(team.solved / team.total * 100) : 0) + '%"></i></div>' +
+          '<span class="v2-tcut' + (cut ? ' is-on' : '') + (cut && cut.fresh ? ' is-new' : '') + '" role="status">' + (cut && cut.name ? e(cut.name + P.が切った) : '') + '</span></div>' +
+        '<div class="v2-tbottom"><div class="v2-tboard is-c' + cols + '">' + cells + '</div>' + qrHtml(view, 'is-sm', P.つぎの回 + '\n' + P.あと約 + mins + P.分) + '</div></div>');
+  }
+  /**
+   * 指示68-2 第2節：終わったあとの「みんながいちばん迷った問題」。外した数がいちばん多いコード（同じなら、あとの物）。
+   * 出すのは問題と正解だけ（だれが外したかは出さない）。だれも外していなければ出さない
+   */
+  function mostMissed(codes) {
+    var best = null, most = 0;
+    (codes || []).forEach(function (c) {
+      var n = (c.tries || []).filter(function (t) { return !t.correct; }).length;
+      if (n > 0 && n >= most) { most = n; best = c; }
+    });
+    return best ? { question: best.question, answer: best.name, wrong: most } : null;
+  }
+  function missedHtml(codes) {
+    var m = mostMissed(codes), Rz = U().結果;
+    if (!m) return '';
+    return '<div class="v2-tmiss"><div class="v2-tmiss-h">' + e(Rz.迷った) + '</div><div class="v2-tmiss-q" data-v2-wrap>' + K().phrase(m.question || '') + '</div>' +
+      '<div class="v2-tmiss-a">' + e(Rz.正解は) + '<b>' + e(m.answer) + '</b></div></div>';
   }
 
   /** F12 結果と「つづける？」。協力版はみんなの成績だけ（順位を出さない）、対戦は順位の行 */
@@ -545,9 +577,10 @@
       var t = d.team, ok = t.solved >= t.total;
       var r = d.result || {};
       cls = ok ? 'is-gold' : 'is-dim';
-      inner = '<div class="v2-tend"><div class="v2-tbig' + (ok ? ' v2-a-slam' : ' is-dim') + '">' + e(ok ? Rz.成功 : Rz.爆発) + '</div>' +
+      var miss = missedHtml(r.codes);
+      inner = '<div class="v2-tend' + (miss ? ' is-withq' : '') + '"><div class="v2-tbig' + (ok ? ' v2-a-slam' : ' is-dim') + '">' + e(ok ? Rz.成功 : Rz.爆発) + '</div>' +
         '<div class="v2-tstat' + (ok ? '' : ' is-dim') + '"><span>' + V.digits(t.solved) + '/' + V.digits(t.total) + '</span><b class="v2-tstat-sl"></b><span>' + clockText(r.elapsedSec) + '</span></div>' +
-        (ok ? livesHtml(t.lives, t.livesMax) : '<div class="v2-tnote">' + e(Rz.あと + (t.total - t.solved) + Rz.だった) + '</div>') + '</div>';
+        (ok ? livesHtml(t.lives, t.livesMax) : '<div class="v2-tnote">' + e(Rz.あと + (t.total - t.solved) + Rz.だった) + '</div>') + miss + '</div>';
     } else {
       var rk = (d.result && d.result.ranking) || [];
       inner = '<div class="v2-tend"><div class="v2-tbig">' + e(Rz.おわり) + '</div><div class="v2-tranks">' + rk.slice(0, 6).map(function (x) {
@@ -638,7 +671,7 @@
       }).join('') + '</div>';
   }
 
-  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText,
+  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText, mostMissed: mostMissed,
     // 指示66-3：着替えのシートは、ふだんの部屋の待合（E4）も同じものを使う（見本「着替えは文化祭と同じシート」）
     lookSheets: lookSheets };
 });

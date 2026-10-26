@@ -341,6 +341,7 @@
       var tn = row.firstChild, txt = tn.nodeValue, i = -1;
       while ((i = txt.indexOf(name, i + 1)) >= 0) {
         var rg = D().createRange(); rg.setStart(tn, i); rg.setEnd(tn, i + name.length);
+        if (typeof rg.getBoundingClientRect !== 'function') return;   // 字の位置を測れない所（検査の jsdom）では光らせない
         var b = rg.getBoundingClientRect();
         if (!(b.left > wr.left && b.right < wr.right && b.top > wr.top && b.bottom < wr.bottom)) continue;
         var dx = b.left + b.width / 2 - (wr.left + wr.width * 0.55), dy = b.top + b.height / 2 - (wr.top + wr.height * 0.45);

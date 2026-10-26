@@ -403,7 +403,9 @@ function click(doc, sel) {
       // 指示60 A-1a①：💥と同じ瞬間に下ろす黒い幕。確かめたら上げる（下りたままにしない）
       { cls: 'fx-blackout', go: () => { const up = win.FxKit.blackout(); setTimeout(up, 0); } },
       // 指示60 A-2：クリア演出
-      { cls: 'fx-cel', go: () => win.FxKit.celebrate({ icon: '🏆', text: 'たしかめ', ms: 300 }) }
+      { cls: 'fx-cel', go: () => win.FxKit.celebrate({ icon: '🏆', text: 'たしかめ', ms: 300 }) },
+      // 指示68-2 第1節：クイズ解除の終わりの幕
+      { cls: 'fx-finale', go: () => win.FxKit.finale({ kind: 'clear', title: 'たしかめ', linger: 100 }) }
     ];
     const 外れ = [];
     出す.forEach((x) => {

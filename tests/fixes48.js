@@ -657,7 +657,8 @@ async function run() {
     // それを幽霊の画面idとして拾う。**説明のための引用も同じ**——
     // このコメントに書いても拾われる（落とし穴10-a：自分の説明が自分の目を塞ぐ）
     const 部屋の前置き = 'scr-' + 'rt-';
-    await waitFor(win, () => String(activeScreen(doc)).indexOf(部屋の前置き) === 0,
+    // 指示68-2 第5節：協力版の解除中は新しい画面（scr-v2-fes-…）
+    await waitFor(win, () => String(activeScreen(doc)).indexOf(部屋の前置き) === 0 || /^scr-v2-fes-/.test(activeScreen(doc)),
           8000, '部屋の画面に入る');
 
         const push = async () => {
@@ -669,8 +670,8 @@ async function run() {
         await push();
         // 型(b)：**その画面に着いているか**を先に確かめる。
         // 着いていなければ描画が走らず、下の主張は何も試していない
-        assertEqual(activeScreen(doc), big ? 'scr-rt-big' : 'scr-rt-bomb',
-          (big ? '大画面' : '部屋のスマホ') + 'が、爆弾の画面に着いている');
+        assertEqual(activeScreen(doc), big ? 'scr-v2-fes-tv' : 'scr-v2-fes-lobby',
+          (big ? '大画面' : '部屋のスマホ') + 'が、解除中の画面に着いている（指示68-2 第5節：新しい画面）');
         assert(!赤い(), 'はじめは赤くない');
 
         // ライフを1まで減らす（型(b)：**赤くなることを先に確かめる**。

@@ -498,6 +498,8 @@ function resultView(room, memberId) {
     const team = w.entries[TEAM_KEY];
     out.success = !!(w.result && w.result.success);
     out.solved = team.solvedCount;
+    // 指示68-2 第1節：解除成功の TV に、入った全員の名前を大きく出す（協力なので全員・誰が切ったかは入れない）
+    out.names = w.playerIds.map((id) => w.names[id]).filter(Boolean);
     out.lives = Math.max(0, team.lives);
     out.livesMax = w.lives;
     out.misses = team.misses;

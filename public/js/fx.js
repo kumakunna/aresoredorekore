@@ -1115,6 +1115,79 @@
     catch (e) { return false; }
   }
 
+  // ---------- 指示68-2 第1節：クイズ解除の終わり（ため → 開く → ほめる／静かに → 結果） ----------
+  /**
+   * 解除成功と爆発を1本で。**手渡し・部屋のスマホ・TV・文化祭が、これを呼ぶ**（3面を別々に書かない・落とし穴1）。
+   *
+   * opt：{ kind:'clear'|'boom', tv:true|false, icon, title, names:[], sub, onOpen:fn, onText:fn, behind:fn, linger:ms }
+   *   ・**幕は出た瞬間から不透明**（指示60 A-1a①：結果が後ろで描かれていても透けない）。真ん中に爆弾
+   *   ・ため 0.75秒：爆弾の光がゆっくり弱まる（音は呼ぶ側が止めている）
+   *   ・開く（onOpen：音と声と振動は呼ぶ側。光とは別に鳴らす）
+   *       clear … 爆弾の光が消えて title →（0.4秒）names を大きく → 小さな粒（点滅しない）
+   *       boom（tv）… 明るさが変わるのは1回だけ・揺れは0.2秒を1回 → 煙が晴れて（1.2秒）、静かに sub
+   *       boom（スマホ）… 光も揺れも無く、静かに title と sub
+   *   ・**光（明るさ・揺れ・粒）は cfg.can.flash / can.shake に従う**。切っても言葉・音・振動は残る
+   *   ・どこを押しても先へ（原則B）。演出「なし」では、ためと動きが0になり、言葉だけ linger の間出る
+   *   ・behind：幕を上げる前に呼ぶ（手渡しはここで結果の画面へ移る）
+   */
+  function finale(opt) {
+    opt = opt || {};
+    var h = layer();
+    var behind = typeof opt.behind === 'function' ? opt.behind : function () {};
+    if (!h) { behind(); return Promise.resolve(true); }
+    var clear = opt.kind !== 'boom';
+    var tv = !!opt.tv;
+    var 光 = !(cfg.can.flash && !cfg.can.flash());
+    var 揺れ = !(cfg.can.shake && !cfg.can.shake());
+    var 大きく = tv || clear;   // スマホの爆発だけは静かに
+    var names = (opt.names || []).filter(Boolean);
+    var 粒 = '';
+    if (clear && 光) {
+      for (var i = 0; i < 14; i++) {
+        粒 += '<i class="fx-fin-dot" style="--x:' + ((i * 37) % 100) + '%;--d:' + ((i * 53) % 400) + 'ms;--s:' + (6 + (i % 3) * 3) + 'px"></i>';
+      }
+    }
+    var n = mk('fx-finale fx-fin-' + (clear ? 'clear' : 'boom') + (tv ? ' is-tv' : ' is-phone'),
+      '<div class="fx-fin-bomb" aria-hidden="true">' + esc(opt.icon || '💣') + '</div>' +
+      (!clear && tv && 光 ? '<div class="fx-fin-flash"></div>' : '') +
+      (!clear && tv ? '<div class="fx-fin-smoke"></div>' : '') +
+      '<div class="fx-fin-body" role="status">' +
+        (opt.title ? '<div class="fx-fin-title">' + esc(opt.title) + '</div>' : '') +
+        (names.length ? '<div class="fx-fin-names">' + names.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div>' : '') +
+        (opt.sub ? '<div class="fx-fin-sub">' + esc(opt.sub) + '</div>' : '') +
+      '</div>' + 粒);
+    if (!n) { behind(); return Promise.resolve(true); }
+    n.setAttribute('data-fx-finale', clear ? 'clear' : 'boom');
+    h.appendChild(n);
+    var 開く = function () {
+      n.classList.add('is-open');
+      try { if (typeof opt.onOpen === 'function') opt.onOpen(); } catch (e) {}
+      if (!clear && tv && 揺れ) n.classList.add('is-shake');
+    };
+    var p = hold(750).then(function () {
+      開く();
+      // 爆発（TV）は、煙が晴れてから字を出す（演出と結果の字を重ねない・04の反省）
+      return hold(!clear && tv ? 1200 : 400);
+    }).then(function () {
+      n.classList.add('is-text');
+      try { if (typeof opt.onText === 'function') opt.onText(); } catch (e) {}
+      return linger(opt.linger == null ? (大きく ? 2600 : 2000) : opt.linger);
+    }).then(function () {
+      try { behind(); } catch (e) {}
+      return 指が離れるまで();
+    }).then(function () {
+      n.classList.add('fx-out');
+      return hold(250);
+    }).then(function () {
+      if (n.parentNode) n.parentNode.removeChild(n);
+      return true;
+    }, function () {
+      if (n.parentNode) n.parentNode.removeChild(n);
+      return true;
+    });
+    return 前座に乗せる(p);
+  }
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -1124,7 +1197,7 @@
   var api = {
     init: init, hold: hold, linger: linger, skipNow: skipNow, busy: busy,
     flash: flash, boom: boom, dawn: dawn, banner: banner, burst: burst, shutter: shutter,
-    blackout: blackout, celebrate: celebrate,
+    blackout: blackout, celebrate: celebrate, finale: finale,
     flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,
     shake: shake, edge: edge, confetti: confetti, vibe: vibe,

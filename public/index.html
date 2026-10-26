@@ -859,6 +859,48 @@
   .fx-blackout.fx-out{animation:fxBlackoutOut calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
   @keyframes fxBlackoutOut{to{opacity:0;}}
 
+  /* --- 指示68-2 第1節：クイズ解除の終わり（FxKit.finale） ---
+     幕は出た瞬間から不透明（結果が後ろで描かれていても透けない・上の黒い幕と同じ考え）。
+     ため 0.75秒は爆弾の光がゆっくり弱まる → 開く。**光（明るさ・揺れ・粒）は is-* の要素ごと付け外す**ので、
+     光を切った端末には最初から無い（fx.js が can.flash / can.shake を見て組む）。
+     明るさが変わるのは爆発の1回だけ（.fx-fin-flash）、揺れは0.2秒を1回（.is-shake）。粒は上へ流れて消えるだけで点滅しない */
+  .fx-finale{position:fixed;inset:0;z-index:86;pointer-events:auto;background:#08090B;color:#F4F6F8;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center;}
+  .fx-fin-bomb{font-size:min(28vmin,180px);line-height:1;filter:drop-shadow(0 0 28px rgba(240,161,58,.75));
+    animation:fxFinTame calc(0.75s * var(--fx-scale)) ease forwards;}
+  .fx-finale.is-tv .fx-fin-bomb{font-size:30vmin;}
+  @keyframes fxFinTame{to{filter:drop-shadow(0 0 4px rgba(240,161,58,.15));opacity:.82;}}
+  .fx-finale.is-open .fx-fin-bomb{animation:fxFinOff calc(0.4s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
+  @keyframes fxFinOff{to{opacity:0;transform:scale(.6);}}
+  .fx-fin-body{position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%);}
+  .fx-fin-title,.fx-fin-names,.fx-fin-sub{opacity:0;}
+  .fx-fin-title{font-weight:900;font-size:min(16vw,96px);line-height:1.1;}
+  .fx-fin-clear .fx-fin-title{color:#3FBFA5;}
+  .fx-fin-boom .fx-fin-title{color:#C9CED6;font-size:min(10vw,56px);}
+  .fx-fin-names{display:flex;flex-wrap:wrap;justify-content:center;gap:.2em .6em;margin-top:.5em;font-weight:900;font-size:min(8vw,44px);}
+  .fx-fin-sub{margin-top:.6em;font-weight:700;font-size:min(5.4vw,28px);color:#C9CED6;}
+  .fx-finale.is-tv .fx-fin-title{font-size:13vmin;}
+  .fx-finale.is-tv .fx-fin-names{font-size:6.4vmin;max-width:86vw;margin-left:auto;margin-right:auto;}
+  .fx-finale.is-tv .fx-fin-sub{font-size:4.4vmin;}
+  .fx-fin-clear.is-open .fx-fin-title{animation:fxFinIn calc(0.5s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) forwards;}
+  .fx-finale.is-text .fx-fin-title,.fx-finale.is-text .fx-fin-names,.fx-finale.is-text .fx-fin-sub{
+    animation:fxFinIn calc(0.5s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) forwards;}
+  .fx-fin-clear.is-text .fx-fin-title{opacity:1;animation:none;}
+  @keyframes fxFinIn{from{opacity:0;transform:scale(.86);}to{opacity:1;transform:none;}}
+  .fx-fin-flash{position:absolute;inset:0;background:#FFF3C4;opacity:0;pointer-events:none;}
+  .fx-finale.is-open .fx-fin-flash{animation:fxFinFlash calc(0.45s * var(--fx-scale)) ease forwards;}
+  @keyframes fxFinFlash{0%{opacity:.8;}100%{opacity:0;}}
+  .fx-fin-smoke{position:absolute;inset:-10%;opacity:0;pointer-events:none;
+    background:radial-gradient(circle at 50% 55%, rgba(120,126,136,.9), rgba(60,64,70,.6) 45%, rgba(8,9,11,0) 75%);}
+  .fx-finale.is-open .fx-fin-smoke{animation:fxFinSmoke calc(1.2s * var(--fx-scale)) ease forwards;}
+  @keyframes fxFinSmoke{0%{opacity:1;transform:scale(.7);}100%{opacity:0;transform:scale(1.25);}}
+  .fx-finale.is-shake .fx-fin-smoke{animation:fxFinSmoke calc(1.2s * var(--fx-scale)) ease forwards, fxShake 0.2s linear 1;}
+  .fx-fin-dot{position:absolute;bottom:-12px;left:var(--x);width:var(--s);height:var(--s);border-radius:50%;
+    background:#F0C44A;opacity:0;}
+  .fx-finale.is-open .fx-fin-dot{animation:fxFinDot calc(2.2s * var(--fx-scale)) ease var(--d) forwards;}
+  @keyframes fxFinDot{0%{opacity:0;transform:translateY(0);}15%{opacity:.9;}100%{opacity:0;transform:translateY(-70vh);}}
+  .fx-finale.fx-out{animation:fxBlackoutOut calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
+
   /* --- 指示60 A-2：クリア演出（FxKit.celebrate） ---
      ゲームは絵・色・言葉を渡すだけ。動きの種類はここにしか無い。
      **地は出た瞬間から不透明に近い**（後ろで結果が描かれても透けない）。
@@ -13678,7 +13720,7 @@
   // beep() のように「1回ごとに AudioContext を作る」やり方はここでは使えない。
   // 0.5秒ごとに作ると、ブラウザが持てる数（6個前後）を超えて音が止まるため、
   // 1つだけ作って使い回す。
-  var bombHeart = { ctx:null, timer:null, level:-1 };
+  var bombHeart = { ctx:null, timer:null, level:-1, boost:false };
   function bombHeartCtx(){
     if(bombHeart.ctx) return bombHeart.ctx;
     try{
@@ -13698,7 +13740,7 @@
         o.type = 'sine';
         o.frequency.setValueAtTime(pair[1], at);
         g.gain.setValueAtTime(0.0001, at);
-        g.gain.linearRampToValueAtTime(0.09, at + 0.02);
+        g.gain.linearRampToValueAtTime(bombHeart.boost ? 0.12 : 0.09, at + 0.02);   // 指示68-2：のこり1本は少し大きく
         g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
         o.connect(g); g.connect(sfxOut(ctx));
         o.start(at); o.stop(at + 0.16);
@@ -13722,6 +13764,19 @@
     clearInterval(bombHeart.timer);
     bombHeart.timer = null;
     bombHeart.level = -1;
+    bombHeart.boost = false;
+  }
+  /**
+   * 指示68-2 第1節：のこり1本・ライフ1（協力版）。声（v25「あと1本！」・v26「ラストチャンス！」）は TV だけ（音の箱が決める）。
+   * のこり1本の間は心拍を少し大きく。v は部屋の知らせのクイズ解除（board・shared が公開されている）、key は端末ごとの印
+   */
+  function bombLastCall(v, key){
+    if(!v || v.mode !== 'coop' || v.phase !== 'play'){ bombHeart.boost = false; return; }
+    var board = v.board || [], sh = v.shared || {};
+    var left = board.filter(function(c){ return !c.solved; }).length;
+    bombHeart.boost = left === 1;
+    rtOnce(key + ':last1', left === 1 && board.length > 1, function(){ if(window.Sound) Sound.voice('v25'); });
+    rtOnce(key + ':life1', sh.lives === 1 && (sh.livesMax || 0) > 1, function(){ if(window.Sound) Sound.voice('v26'); });
   }
 
   // #3（第5弾）：時間切れは「失敗」ではないのでニュートラルなチャイム（不正解音とは別）
@@ -22347,12 +22402,13 @@
       // 安全基準（点滅は1秒に3回まで）の内側。切っている人には
       // `:root.no-flash .app.bomb-danger::before` が止める
       el('app').classList.toggle('bomb-danger', lives === 1 && v.phase !== 'ended');
+      bombLastCall(v, 'big:bomb');
       var 結 = v.result;
       rtOnce('big:bomb:ended', v.phase === 'ended' && !!結 && !結.aborted, function(){
         if(結.mode === 'coop'){
-          // 指示60 A-2：解除成功は、爆発と対になる1本（bombClearSequence）を3面が呼ぶ
-          if(結.success) bombClearSequence({});
-          else bigBoom();
+          // 指示68-2 第1節：TV は全員の名前を大きく／爆発は ため → 光 → 煙が晴れて「あと◯本だった」
+          bombFinale({ success: !!結.success, tv: true, names: 結.names || [],
+            left: (結.total || 0) - (結.solved || 0), cause: 結.cause });
           return;
         }
         // 競争版（第47弾で足した）。それまで大画面は、競争版の決着を素通りしていた——
@@ -23630,10 +23686,16 @@
       bombClearSequence({ face:'🏆', text:'1位！',
         sub: 私の順位.solved + '本' + (私の順位.finished ? 'すべて解除' : '解除') });
     });
+    if(!競争) bombLastCall(v, 'bomb');
     // 協力版はチームで1つ。決着そのものが演出の合図
     rtOnce('bomb:teamEnd',
       !競争 && v.phase === 'ended' && !!v.result && !v.result.aborted,
-      function(){ if(v.result.success) bombClearFx(); else bombBoomFx(bombBoomCause(v.result.cause)); });
+      function(){
+        // 指示68-2 第1節：スマホは「解除！」と自分の名前だけ／静かに「ばくはつ…」（音は TV。TV がいなければ音の箱がこの端末で鳴らす）
+        var 自分 = ((rt.state.room && rt.state.room.members) || []).filter(function(m){ return m.id === rt.state.memberId; })[0];
+        bombFinale({ success: !!v.result.success, tv: false, me: 自分 ? 自分.name : '',
+          left: (v.result.total || 0) - (v.result.solved || 0), cause: v.result.cause });
+      });
 
     // ---- 待機中：説明文を用意している。中身はここに1文字も出ない ----
     if(v.phase === 'prep'){
@@ -27682,6 +27744,38 @@
    *   ・`opt.結果へ` は手渡しの画面遷移。**祝いの後ろで**結果へ移る（祝いが消えた時には結果画面）
    *   ・`opt.face`（表の絵）と `opt.text` は呼ぶ側が決める（競争版の勝者は🏆と名前）
    */
+  /**
+   * **指示68-2 第1節：クイズ解除（協力版）の終わり。**手渡し・部屋のスマホ・TV・文化祭が呼ぶ1本（形は FxKit.finale）。
+   *   o：{ success, tv（全員で見る画面＝TV と手渡しの1台）, names（遊んだ全員）, me（スマホの自分の名前）, left（残りの本数）, cause, 結果へ }
+   *   ・解除成功：TV は「解除」→ 全員の名前を大きく → 粒（点滅しない）→ 声「解除成功！」（v24）。スマホは「解除！」と自分の名前だけ・短い振動1回
+   *   ・爆発：TV は ため → 爆発（明るさは1回・揺れは0.2秒を1回）→ 煙が晴れて静かに「あと◯本だった」。スマホは静かに「ばくはつ…」・長めの振動1回
+   *   ・音（sfx）と振動は光と別（光を切っても鳴る・震える）。どの端末で鳴らすかは音の箱が決める（TV がいる部屋のスマホは鳴らない）
+   *   ・心臓の音はため の始まりで止める
+   */
+  function bombFinale(o){
+    o = o || {};
+    stopBombHeart();
+    el('app').classList.remove('bomb-danger');
+    var 結果へ = (typeof o.結果へ === 'function') ? o.結果へ : function(){};
+    if(typeof FxKit === 'undefined' || !FxKit.finale){ 結果へ(); return Promise.resolve(); }
+    var T = UiText.BOMB.終わり;
+    var clear = !!o.success, tv = !!o.tv;
+    var left = Math.max(0, o.left || 0);
+    var sub = clear ? (tv ? T.全員で : '') : (left > 0 ? T.あと(left) : (bombBoomCause(o.cause) || ''));
+    return FxKit.finale({
+      kind: clear ? 'clear' : 'boom', tv: tv,
+      title: clear ? (tv ? T.解除 : T.解除スマホ) : (tv ? T.爆発 : T.ばくはつ),
+      names: clear ? (tv ? (o.names || []) : (o.me ? [o.me] : [])) : [],
+      sub: sub,
+      onOpen: function(){
+        if(clear){ sfx('defuse'); if(window.Sound) Sound.voice('v24'); if(!tv) doVibrate(60); }
+        else { sfx('boom'); if(!tv) doVibrate(400); }
+      },
+      onText: function(){ if(!clear && window.Sound) Sound.voice('v12'); },
+      behind: 結果へ
+    });
+  }
+  window.bombFinaleProbe = function(o){ return bombFinale(o); };   // 検査が4面の形を直に回す窓（tests/bomb-finale.js）
   function bombClearSequence(opt){
     opt = opt || {};
     var 結果へ = (typeof opt.結果へ === 'function') ? opt.結果へ : function(){};
@@ -27761,12 +27855,12 @@
     stopBombHeart();
     el('bombWireOverlay').classList.remove('show');
     el('app').classList.remove('bomb-danger');
-    sfx('ok');
     var inside = el('bombInside');
     inside.classList.remove('bomb-defused'); void inside.offsetWidth; inside.classList.add('bomb-defused');
     if(typeof FxKit !== 'undefined'){
-      // 指示60 A-2：**祝いの後ろで**結果へ移る（祝いが消えた時には、もう結果画面にいる）
-      bombClearFx(null, function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); });
+      // 指示68-2 第1節：手渡しの1台はみんなで見る画面（TV と同じ形・全員の名前）。**幕の後ろで**結果へ移る
+      bombFinale({ success: true, tv: true, names: (state.players || []).map(function(p){ return p.name; }),
+        結果へ: function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); } });
       return;
     }
     setTimeout(function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); }, 750);
@@ -27780,8 +27874,10 @@
     play.currentBombWire = null;
     el('app').classList.remove('bomb-danger');
     if(typeof FxKit !== 'undefined'){
-      // 指示60 A-1a①：**幕の後ろで**結果へ移る（幕を上げた時には、もう結果画面にいる）
-      bombBoomFx(bombBoomCause(cause), function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); });
+      // 指示68-2 第1節：ため → 爆発 → 煙が晴れて「あと◯本だった」。**幕の後ろで**結果へ移る
+      bombFinale({ success: false, tv: true, cause: cause,
+        left: (play.bombWires || []).filter(function(x){ return !x.solved; }).length,
+        結果へ: function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); } });
       return;
     }
     sfx('ng');
@@ -31142,6 +31238,10 @@
       Array.prototype.forEach.call(scr.querySelectorAll('[data-fes-text]'), function(n, i){ if(txt[i] != null) n.value = txt[i]; if(focus && i === 0) n.focus(); });
     };
   }
+  function meNameOf(view){
+    var me = (view.members || []).filter(function(m){ return m.id === view.meId; })[0];
+    return me ? me.name : '';
+  }
   function fesWorld(scr, world){ V2.WORLDS.forEach(function(w){ scr.classList.toggle('v2-w-' + w, w === world); }); }
   // lab：見本データ（撮る道具の台本）が渡す { room, you, meId, fb }。ふだんは今の部屋から取る
   function fesRender(cur, lab){
@@ -31159,6 +31259,15 @@
       startBombHeart(view.secret.misses);
       el('app').classList.toggle('bomb-danger', view.secret.lives === 1);
     }
+    // 指示68-2 第1節：クイズ解除（協力版）の決着。結果の画面の上に幕を下ろしてから演出（演出 → 結果の順）
+    var gd = view.data;
+    if(!lab && view.game === 'bomb' && gd && gd.phase === 'ended' && gd.result && gd.mode === 'coop' && !gd.result.aborted){
+      rtOnce('fes:bomb:end:' + f.round + ':' + cur, true, function(){
+        bombFinale({ success: !!gd.result.success, tv: cur === 'scr-v2-fes-tv', names: gd.result.names || [], me: meNameOf(view),
+          left: (gd.result.total || 0) - (gd.result.solved || 0), cause: gd.result.cause });
+      });
+    }
+    if(!lab && view.game === 'bomb') bombLastCall(gd, 'fes:bomb:' + f.round + ':' + cur);
     var back = fesKeep(scr);
     scr.innerHTML = out.html;
     fesWorld(scr, out.world);

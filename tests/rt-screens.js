@@ -1379,8 +1379,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, bombRoom());
     pushYou(fake, bombYou());
     await waitScreen(win, doc, 'scr-rt-bomb', 4000);
-    assertEqual(doc.querySelectorAll('.fx-burst').length, 0, 'まだ爆発は出ていない');
-    // 協力版の失敗で決着 → 爆発の演出（赤い閃光）が出る
+    assertEqual(doc.querySelectorAll('.fx-finale[data-fx-finale="boom"]').length, 0, 'まだ爆発は出ていない');
+    // 協力版の失敗で決着 → 爆発の演出が出る（指示68-2 第1節：協力版は FxKit.finale の1本）
     const lost = bombView({
       phase: 'ended',
       result: { mode: 'coop', success: false, cause: 'lives', solved: 2, total: 4,
@@ -1389,16 +1389,16 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     push(fake, bombRoom({ state: { phase: 'ended', game: 'bomb', data: lost } }));
     pushYou(fake, bombYou({ phase: 'ended', lives: 0, result: lost.result }));
     await sleep(win, 100);
-    assertEqual(doc.querySelectorAll('.fx-burst').length, 1, '爆発の閃光が出る');
-    assert(/爆発/.test(el(doc, 'rtBombResult').textContent), '結果も出ている');
-    // 決着の画面を描き直しても、爆発は繰り返さない（1回だけの閃光）
-    const firstBoom = doc.querySelector('.fx-burst');
+    assertEqual(doc.querySelectorAll('.fx-finale[data-fx-finale="boom"]').length, 1, '爆発の演出が出る');
+    assert(/爆発/.test(el(doc, 'rtBombResult').textContent), '結果も（幕の後ろに）出ている');
+    // 決着の画面を描き直しても、爆発は繰り返さない（1回だけ）
+    const firstBoom = doc.querySelector('.fx-finale[data-fx-finale="boom"]');
     push(fake, bombRoom({ state: { phase: 'ended', game: 'bomb', data: lost } }));
     await sleep(win, 100);
-    const booms = doc.querySelectorAll('.fx-burst');
-    assert(booms.length === 1 && booms[0] === firstBoom, '2発目の閃光は出ない');
-    await sleep(win, 800);
-    assertEqual(doc.querySelectorAll('.fx-burst').length, 0, '閃光は時間で消える');
+    const booms = doc.querySelectorAll('.fx-finale[data-fx-finale="boom"]');
+    assert(booms.length === 1 && booms[0] === firstBoom, '2回目は出ない');
+    for (let i = 0; i < 4 && doc.querySelector('.fx-finale'); i++) { win.FxKit.skipNow(); await sleep(win, 120); }
+    assertEqual(doc.querySelectorAll('.fx-finale').length, 0, '押せば幕が上がって結果が見える');
     assertNoErrors(errors, '爆発の演出で未捕捉の例外');
     win.close();
   });
@@ -1421,7 +1421,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       pushYou(fake, 秘密());
       await waitScreen(win, doc, 'scr-rt-bomb', 4000);
       await sleep(win, 100);
-      assertEqual(doc.querySelectorAll('.fx-burst').length, 1,
+      assertEqual(doc.querySelectorAll('.fx-finale[data-fx-finale="boom"]').length, 1,
         '解除中を見ていなくても、決着の爆発は出る');
       assertNoErrors(errors, '決着だけ届いた時に未捕捉の例外');
       win.close();
@@ -1436,7 +1436,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       pushYou(fake, 秘密());       // 秘密が先
       push(fake, 部屋());          // 部屋の知らせが後
       await sleep(win, 100);
-      assertEqual(doc.querySelectorAll('.fx-burst').length, 1, '順番が逆でも1回だけ');
+      assertEqual(doc.querySelectorAll('.fx-finale[data-fx-finale="boom"]').length, 1, '順番が逆でも1回だけ');
       assertNoErrors(errors, '順番が逆の時に未捕捉の例外');
       win.close();
     }
@@ -1452,7 +1452,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       await waitScreen(win, doc, 'scr-rt-bomb', 4000);
       assert(/観戦/.test(el(doc, 'rtBombNote').textContent), '観戦の画面になっている');
       await sleep(win, 100);
-      assertEqual(doc.querySelectorAll('.fx-burst').length, 0,
+      assertEqual(doc.querySelectorAll('.fx-finale').length, 0,
         'あとから覗いた端末には、いきなり爆発を見せない');
       assertNoErrors(errors, '観戦で未捕捉の例外');
       win.close();
@@ -5956,13 +5956,10 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
 
   // ---- 第47弾 47-6a：大画面だけの見せ場 ----
 
-  await r.test('59：爆発は、💥（拡大縮小）のあとに「爆発しました」が落ちてくる（3面とも同じ）', async () => {
-    // 第59弾で大画面の演出を差し替えた。それまでは大画面だけ「爆発」のコールアウトで、
-    // スマホは何も文字を出さなかった（意図して違えていた）。いまは
-    // `bombBoomSequence` を両方が呼ぶので、**同じ「爆発しました」が両方に出る**。
-    //
-    // **連なる演出は、あとから来る。**💥が引いてから文字が落ちてくるので、
-    // 直後だけを見ていると「出ていない」と読み違える（早すぎても嘘になる）
+  await r.test('68-2：協力版の爆発は、TV は「煙が晴れて あと◯本だった」、スマホは静かに「ばくはつ…」（同じ1本 FxKit.finale）', async () => {
+    // 第59弾〜指示60 は💥と「爆発しました」を3面で同じにしていた。
+    // 指示68-2 第1節で、TV は舞台（光と音・あと何本だったか）、スマホは静かに、と役目を分けた。
+    // 部品は1本（bombFinale → FxKit.finale）で、TV かどうかだけを渡す
     async function 見る(大画面) {
       const t = await launch(LAUNCH);
       const fake = await toRoom(t.win, t.doc, 大画面
@@ -5970,11 +5967,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       const 決着 = { mode: 'coop', success: false, cause: 'lives', solved: 0, total: 4,
         lives: 0, livesMax: 3, misses: 3, elapsedSec: 30, codes: [] };
       const view = bombView({ phase: 'ended', result: 決着 });
-      // **大画面は「見始めた直後は静かに」**（第32弾-D）。
-      // いきなり決着だけを渡すと黙るのが正しいので、先に解除中を1枚見せる。
-      // 自分の端末の側は、逆に「この試合のプレイヤーなら出す」（47-1）——
-      // **意図して違う**。TVは見ていなかった試合を祝わないが、
-      // 遊んでいた人は通信が切れて戻っても自分の結末を受け取れる
+      // 大画面は「見始めた直後は静かに」（第32弾-D）。先に解除中を1枚見せる
       if(大画面){
         push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: bombView() } }));
         await sleep(t.win, 100);
@@ -5985,21 +5978,19 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       push(fake, room);
       if(!大画面) pushYou(fake, bombYou({ phase: 'ended', lives: 0, misses: 3, result: 決着 }));
       await sleep(t.win, 120);
-      const 閃光 = t.doc.querySelectorAll('.fx-burst').length;
-      // 💥が引くのを待ってから、落ちてくる帯を見る
-      await waitFor(t.win, () => t.doc.querySelectorAll('.fx-burst').length === 0, 3000, '💥が引く')
-        .catch(() => {});
-      await sleep(t.win, 250);
-      const 語 = (t.doc.querySelector('.fx-shutter .fx-banner-text') || { textContent: '' }).textContent.trim();
+      const 幕 = t.doc.querySelector('.fx-finale[data-fx-finale="boom"]');
+      const 形 = 幕 ? (幕.classList.contains('is-tv') ? 'tv' : 'phone') : null;
+      await waitFor(t.win, () => 幕 && 幕.classList.contains('is-text'), 4000, '字が出る').catch(() => {});
+      const 語 = 幕 ? 幕.querySelector('.fx-fin-body').textContent : '';
       t.win.close();
-      return { 閃光, 語 };
+      return { 形, 語 };
     }
     const 大 = await 見る(true);
-    assertEqual(大.閃光, 1, '大画面にも💥が出る');
-    assertEqual(大.語, '爆発しました', '💥のあとに「爆発しました」が落ちてくる');
+    assertEqual(大.形, 'tv', '大画面は TV の形');
+    assert(/あと4本だった/.test(大.語), '煙が晴れて「あと4本だった」（' + 大.語 + '）');
     const 手元 = await 見る(false);
-    assertEqual(手元.閃光, 1, '自分の端末にも💥が出る');
-    assertEqual(手元.語, '爆発しました', 'スマホにも同じ「爆発しました」が出る（3面とも同じ）');
+    assertEqual(手元.形, 'phone', 'スマホはスマホの形');
+    assert(/ばくはつ…/.test(手元.語), 'スマホは静かに「ばくはつ…」（' + 手元.語 + '）');
   });
 
   await r.test('47-6：大画面は、のこりミス1で縁が脈打ち、決着で止まる', async () => {

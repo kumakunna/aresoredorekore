@@ -157,7 +157,7 @@ function 祝う相手(t, v) {
 
 // ===== ⑥ 指示64 3.：入り直した大画面 =====
 // 数える演出：祝い・黒い幕・爆発の閃光・💥・落ちてくる帯（どれも「終わった試合の見せ場」）
-const 見せ場の印 = ['fx-cel', 'fx-blackout', 'fx-burst', 'bomb-boom', 'fx-shutter'];
+const 見せ場の印 = ['fx-cel', 'fx-blackout', 'fx-burst', 'bomb-boom', 'fx-shutter', 'fx-finale'];   // fx-finale：指示68-2 の協力版の終わり
 function 見せ場を数える(win, doc) {
   const 記録 = [];
   const mo = new win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => {

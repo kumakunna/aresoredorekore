@@ -230,9 +230,10 @@ async function launch(opts) {
   // これを使わない検査を必ず1つ残すこと。**全部を早送りにすると、
   // 「ふつうの速さで本当に待つのか」を誰も見なくなる。**
   //   → tests/wolf-vote.js「集計は、票が集まりきってから処刑を発表する」
-  if (opts.fxSkip) {
+  // opts.prefs：ほかの保存された設定も同じ形で先に置く（指示68-2：光を切った人・音量0の人）
+  if (opts.fxSkip || opts.prefs) {
     const seed = '<script>try{localStorage.setItem("acac-app-prefs",' +
-      'JSON.stringify({fxSpeed:"skip"}));}catch(e){}</script>';
+      JSON.stringify(JSON.stringify(Object.assign(opts.fxSkip ? { fxSpeed: 'skip' } : {}, opts.prefs || {}))) + ');}catch(e){}</script>';
     const marker = '<body>';
     if (html.indexOf(marker) < 0) throw new Error('<body> が見つかりません');
     html = html.replace(marker, marker + seed);

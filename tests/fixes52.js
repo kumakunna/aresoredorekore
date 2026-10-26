@@ -634,10 +634,11 @@ async function ゲームを終了(win, doc) {
       const mo = new win.MutationObserver((recs) => {
         recs.forEach((rec) => {
           Array.from(rec.addedNodes).forEach((n) => {
-            if (n.classList && n.classList.contains('fx-blackout')) 記録.push('下りた:' + activeScreen(doc));
+            // 指示68-2：協力版の爆発の幕は fx-finale（出た瞬間から不透明な点は黒い幕と同じ）
+            if (n.classList && (n.classList.contains('fx-blackout') || n.classList.contains('fx-finale'))) 記録.push('下りた:' + activeScreen(doc));
           });
           Array.from(rec.removedNodes).forEach((n) => {
-            if (n.classList && n.classList.contains('fx-blackout')) 記録.push('上がった:' + activeScreen(doc));
+            if (n.classList && (n.classList.contains('fx-blackout') || n.classList.contains('fx-finale'))) 記録.push('上がった:' + activeScreen(doc));
           });
         });
       });

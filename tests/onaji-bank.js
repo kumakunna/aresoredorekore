@@ -17,7 +17,7 @@ const 出さない = ['体重', '身長', '顔', '見た目', 'かわいい', '�
   const 全部 = B.APPROVED.concat(B.DRAFT);
 
   await r.test('門5：選択肢は3つか4つ・空の選択肢がない・同じ選択肢が2つない', async () => {
-    assert(全部.length >= 100, 'お題を数えられている（' + 全部.length + '）');   // 型(b)
+    assert(全部.length >= 98, 'お題を数えられている（' + 全部.length + '）');   // 型(b)
     全部.forEach((t) => {
       assert(t.q && t.q.length >= 4, 'お題の文がある：' + JSON.stringify(t));
       assert(t.choices.length === 3 || t.choices.length === 4, t.q + '：選択肢は3つか4つ（' + t.choices.length + '）');
@@ -43,12 +43,29 @@ const 出さない = ['体重', '身長', '顔', '見た目', 'かわいい', '�
     assert(['この中でいちばん足がはやいのは？'].some((q) => 出さない.some((w) => q.indexOf(w) !== -1)), '見張りが「この中で」を止める');
   });
 
+  await r.test('にげ道の選択肢が無い（「どっちも」「人による」「わからない」「なにも〜」など）', async () => {
+    // Claude（チャット）の確認 2026-10-26：どちらにも付かない答えがあると、みんながそこに集まり、
+    // 考えなくても当たるので盛り上がらない。これから作るお題（下書きも）にも入れない
+    const にげ道 = [/^どっちも$/, /^どちらも$/, /^りょうほう$/, /人による/, /わからない/, /^とくにない$/, /^なにも/, /^なんでも$/, /^いない$/, /^ない$/, /^その他$/, /^ほか$/];
+    const 悪い = [];
+    全部.forEach((t) => t.choices.forEach((c) => { if (にげ道.some((re) => re.test(c))) 悪い.push(t.q + '（' + c + '）'); }));
+    assertEqual(悪い.join('・'), '', 'にげ道の選択肢');
+    // 型(b)：見張りが本当に止める（直す前のお題の形で）
+    ['どっちも', '人による', 'なにもぬらない', 'わからない'].forEach((c) =>
+      assert(にげ道.some((re) => re.test(c)), '見張りが「' + c + '」を止める'));
+    assert(!にげ道.some((re) => re.test('食べない')), '「食べない」（ふつうの答え）は止めない');
+  });
+
   await r.test('本番の箱は Claude（チャット）が通した物だけ。空の間は下書きを使い、そうと分かる（usingDraft）', async () => {
     assertEqual(B.usingDraft(), B.APPROVED.length === 0, '下書きを使っているか');
     assertEqual(B.topics().length, (B.APPROVED.length || B.DRAFT.length), '使うお題');
-    // 下書きの文書と、下書きの箱が同じ数（片方だけ直さない）
+    // 文書（docs/みんなと同じ_お題の下書き.md）と箱が両方向で同じ（片方だけ直さない）。選択肢まで照らす
     const doc = fs.readFileSync(path.join(__dirname, '..', 'docs', 'みんなと同じ_お題の下書き.md'), 'utf8');
-    B.DRAFT.forEach((t) => assert(doc.indexOf(t.q) !== -1, '下書きの文書にある：' + t.q));
+    const 行 = Array.from(doc.matchAll(/^\| \d+ \| (.+?) \| (.+?) \|$/gm)).map((m) => m[1] + '＝' + m[2]);
+    const 箱 = 全部.map((t) => t.q + '＝' + t.choices.join('／'));
+    assert(行.length >= 98, '文書の行を読めた（' + 行.length + '）');
+    assertEqual(箱.filter((x) => 行.indexOf(x) === -1).join('・'), '', '箱にあって文書に無い（または選択肢がちがう）');
+    assertEqual(行.filter((x) => 箱.indexOf(x) === -1).join('・'), '', '文書にあって箱に無い（または選択肢がちがう）');
   });
 
   await r.test('5問えらぶ：同じお題を続けて出さない（使ったお題は後回し）', async () => {

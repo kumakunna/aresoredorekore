@@ -8961,6 +8961,7 @@
      3すくみの表（BEATS）をあちらから借りている（UMD の依存。versus.js と quiz-logic.js の関係と同じ） -->
 <script src="js/shinka-logic.js"></script>
 <script src="js/fx.js"></script>
+<script src="js/sound.js"></script>
 <script src="js/ui-text.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/budoux-ja.js"></script>
@@ -11224,7 +11225,7 @@
     el('gotList').textContent = names.join('・');
     placeTitleToast();
     el('titleGotOverlay').classList.add('show');
-    if(appPrefs.titleFanfare) fanfareSound();
+    if(appPrefs.titleFanfare) sfx('fanfare');
     if(titleToastTimer) clearTimeout(titleToastTimer);
     titleToastTimer = setTimeout(closeTitleToast, 5000);
   }
@@ -13362,6 +13363,51 @@
     try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
   }
 
+  // ===================== 指示68-2 第6節：音の箱（public/js/sound.js）につなぐ =====================
+  // **効果音は全部 sfx('ID') を通す。**下の beep・buzz などの電子音は、音のファイルが読めない時の代わり（fallback）としてだけ使う
+  // （ここ以外から直に呼ばない。tests/sound.js が grep で見張る）。
+  // 振動は音と別：音を切っても、この端末で音を鳴らさなくても、震える（光と音と振動を分ける・第1節）
+  var SFX_VIBE = { ng: [120,60,120], miss: 150, fanfare: [30,40,60], timeup: [90,60,90], gavel: 50, cut: 40 };
+  function sfxWhere(){
+    var room = rt && rt.state && rt.state.room;
+    var tvInRoom = !!(room && (room.members || []).some(function(m){ return m.role === 'bigscreen' && m.connected !== false; }));
+    return { tv: rtIsBigScreen(), tvInRoom: tvInRoom };
+  }
+  if(window.Sound) Sound.setup({
+    base: 'sound/',
+    volume: function(){ return volSe() / 100; },
+    where: sfxWhere,
+    out: sfxOut,
+    fallback: {
+      tick: function(o){ beep((o && o.hz) || 1200, (o && o.ms) || 45); },
+      count: function(o){ beep((o && o.hz) || 700, (o && o.ms) || 150); },
+      ok: function(){ beep(784, 140); setTimeout(function(){ beep(1046, 240); }, 170); },
+      decide: function(){ beep(1046, 180); },
+      ng: buzz, miss: wrongSound, fanfare: fanfareSound, cheer: cheerSound,
+      timeup: function(o){ if(o && o.chime) timesUpChimeSound(); else timeUpSound(); },
+      gavel: gavelSound, sold: soldSound, cut: snipSound
+      // tap・spark・defuse・boom は代わりの電子音を持たない（ファイルが届くまでは今と同じ静けさ）
+    }
+  });
+  function sfx(id, opt){
+    var how = window.Sound ? Sound.play(id, opt) : 'none';
+    if(SFX_VIBE[id] && !(opt && opt.noVibe)) doVibrate(SFX_VIBE[id]);
+    return how;
+  }
+  /**
+   * 音のファイルは入口では読まない。TV の画面になったら全部、TV がいる部屋のスマホは「コツ」だけ、
+   * TV が無い遊び方では遊ぶ画面に入った時に効果音を全部、あとから読む（Sound が2回目からは何もしない）
+   */
+  var SFX_ENTRY = /^scr-(door|v2-home|v2-pick|v2-join|v2-fes-join|login|titles|rename)$/;
+  function sfxPreloadSync(screenId){
+    if(!window.Sound) return;
+    var w = sfxWhere();
+    if(w.tv) Sound.preload('tv');
+    else if(w.tvInRoom) Sound.preload('tap');
+    else if(screenId && !SFX_ENTRY.test(screenId)) Sound.preload('all');
+  }
+  window.sfxProbe = function(){ return { where: sfxWhere(), log: window.Sound ? Sound.log() : [] }; };
+
   // ---------- sound / fx ----------
   function beep(freq, dur){
     try{
@@ -13380,7 +13426,6 @@
       o.connect(g); g.connect(sfxOut(ctx)); o.start();
       setTimeout(function(){ o.stop(); ctx.close(); }, 350);
     }catch(e){}
-    doVibrate([120,60,120]);
   }
   function wrongSound(){
     try{
@@ -13393,7 +13438,6 @@
       o.connect(g); g.connect(sfxOut(ctx)); o.start();
       setTimeout(function(){ o.stop(); ctx.close(); }, 320);
     }catch(e){}
-    doVibrate(150);
   }
   // ---------- 第30・31弾：クイズ王とオークションの効果音 ----------
   // 既存の beep / buzz と同じで、音のファイルは持たない（読み込みを増やさない）。
@@ -13415,7 +13459,6 @@
       });
       setTimeout(function(){ ctx.close(); }, 700);
     }catch(e){}
-    doVibrate([30, 40, 60]);
   }
   // ===================== 第32弾-D 第1部：BGM =====================
   // 方針：音声認識・読み上げを使う場面では絶対に鳴らさない（この制約は今も生きている）。
@@ -13517,8 +13560,14 @@
     if(bgm.gain) bgm.gain.gain.value = bgmGainValue(); // 音量設定は即座に効かせる
   }
   // iOS はユーザー操作の中でしか音を開始できない。触った時に眠っていたら起こす
-  document.addEventListener('pointerdown', function(){
-    if(bgm.ctx && bgm.ctx.state === 'suspended'){ try{ bgm.ctx.resume(); }catch(e){} }
+  document.addEventListener('pointerdown', function(e){
+    if(bgm.ctx && bgm.ctx.state === 'suspended'){ try{ bgm.ctx.resume(); }catch(e2){} }
+    // 指示68-2：音の箱も起こす。押せる物を押した時だけ「コツ」（スマホで鳴る唯一の音。ファイルが届くまでは鳴らない）
+    if(window.Sound){
+      Sound.wake();
+      var t = e && e.target && e.target.closest && e.target.closest('button, a.v2-btn, [role="button"]');
+      if(t && !t.disabled) sfx('tap');
+    }
   }, true);
   /**
    * 第32弾-D 5-5：BGMに合わせて、大画面の縁がかすかに脈打つ。
@@ -13676,10 +13725,10 @@
   }
 
   // #3（第5弾）：時間切れは「失敗」ではないのでニュートラルなチャイム（不正解音とは別）
-  function timesUpChime(){
+  function timesUpChime(){ sfx('timeup', { chime: true }); }
+  function timesUpChimeSound(){
     beep(660, 150);
     setTimeout(function(){ beep(880, 220); }, 160);
-    doVibrate(60);
   }
   // ===================== 第18弾 第5部：人狼カセットの効果音 =====================
   // 音源ファイルは持っていないので、すべて WebAudio の合成音。
@@ -14121,6 +14170,7 @@
     if(id !== 'scr-mode') goTo.fromNext = false;   // 「つぎは？」から来た印は、モードの画面にいる間だけ
     // 指示68-1：版が変わっていたら、待合に着いた時に読み込み直す
     if(typeof appReloadIfIdle === 'function') setTimeout(appReloadIfIdle, 0);
+    setTimeout(function(){ sfxPreloadSync(id); }, 0);   // 指示68-2：音のファイルは入口では読まない
     var noGear = ['scr-door','scr-entry','scr-play-way','scr-room-open','scr-cassette','scr-login','scr-shelf','scr-game','scr-setup','scr-mode','scr-countdown','scr-titles','scr-rename','scr-v2-fes-lobby','scr-v2-fes-tv','scr-v2-parts','scr-v2-fes-join','scr-v2-fes-quit','scr-v2-fes-staff','scr-v2-home','scr-v2-join','scr-v2-pick','scr-v2-room','scr-v2-room-tv','scr-next'];
     // **大画面には、どの画面でも⚙を出す**（指示47-2）。
     // 47-2 は「大画面で到達できる全画面に、🙋 プレイヤーにもどる か⚙への出口がある」と
@@ -20460,7 +20510,7 @@
 
     el('qzScore').textContent = you.score + '点';
     // 得点が増えた瞬間だけ鳴らす（描き直すたびに鳴らさない）
-    if(qzPrevScore != null && you.score > qzPrevScore) fanfareSound();
+    if(qzPrevScore != null && you.score > qzPrevScore) sfx('fanfare');
     qzPrevScore = you.score;
 
     // 決着の音は1回だけ。結果を見ている間ずっと鳴り続けないように。
@@ -20470,7 +20520,7 @@
     // 「決着にいて、まだ出していないなら出す」に寄せると、覚えておく変数が要らない。
     // **分岐の外に置く**（分岐の中だと、その分岐を通らない経路で札が捨てられない）
     rtOnce('quiz:ended', v.phase === 'ended', function(){
-      timeUpSound();
+      sfx('timeup');
       // 指示60 A-2：紙吹雪（全員に同じ・協力の失敗にも降っていた）は、
       // 勝った人に向けるクリア演出（rtClearFx）に置き換えた
     });
@@ -21516,7 +21566,7 @@
     // 途中から見はじめた端末には鳴らさない（すでに済んだ入札の音を出さない）が、
     // 「値がまだ無い」は**見たうえでの事実**なので、次の1本目からちゃんと鳴る
     if(isOpen && high && auPrevHighest.額 !== high.amount){
-      if(auPrevHighest.みた) gavelSound();
+      if(auPrevHighest.みた) sfx('gavel');
       auPrevHighest = { みた:true, 額: high.amount };
     }
     if(!high) auPrevHighest = { みた:true, 額:null };
@@ -21768,7 +21818,7 @@
     var was = auPrevPhase;
     auPrevPhase = v.phase;
     if(was === null) return;
-    if(v.phase === 'guess'){ soldSound(); if(typeof FxKit !== 'undefined') FxKit.vibe('ok'); }
+    if(v.phase === 'guess'){ sfx('sold'); if(typeof FxKit !== 'undefined') FxKit.vibe('ok'); }
     // 指示60 A-2：決着の紙吹雪は、勝った人に向けるクリア演出（rtClearFx）に置き換えた。
     // ここは大画面も通るので、rtBigFx の紙吹雪と**二重に**降っていた
   }
@@ -22383,7 +22433,7 @@
     d.className = 'big-cd';
     d.textContent = String(sec);
     el('scr-rt-big').appendChild(d);
-    beep(600 + (5 - sec) * 120, 90);
+    sfx('count', { hz: 600 + (5 - sec) * 120, ms: 90 });
     setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 900);
   }
   setInterval(bigCountdownTick, 200);
@@ -23829,9 +23879,9 @@
   function rtBombFeedback(you){
     var now = { solved: you.solvedCount, misses: you.misses, failed: !!you.failed };
     if(!rtBombPrev){ rtBombPrev = now; return; }
-    if(now.solved > rtBombPrev.solved) snipSound();
+    if(now.solved > rtBombPrev.solved) sfx('cut');
     if(now.misses > rtBombPrev.misses){
-      wrongSound();
+      sfx('miss');
       var lives = el('rtBombLives');
       lives.classList.remove('shake'); void lives.offsetWidth; lives.classList.add('shake');
       showFlash(you.mode === 'race'
@@ -24024,7 +24074,7 @@
   }
 
   if(rt){
-    rt.on('room', function(){ rtNoticeConnections(); rtSync(); appReloadIfIdle(); });   // 指示68-1：文化祭の段階が待合にもどった時も
+    rt.on('room', function(){ rtNoticeConnections(); rtSync(); appReloadIfIdle(); sfxPreloadSync((document.querySelector('.screen.active') || {}).id); });   // 指示68-1：文化祭の段階が待合にもどった時も
     rt.on('memberGone', rtNoticeMemberGone); // 第35弾B：退室・kickの知らせ（理由つき）
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){
@@ -25392,7 +25442,7 @@
     }
     function complete(){
       reset();
-      beep(1046, 180);
+      sfx('decide');
       doVibrate(80);
       onComplete();
     }
@@ -25424,13 +25474,13 @@
       elNum.textContent = seq[i];
       elNum.classList.toggle('cd-go', seq[i].length > 1); // #5：「スタート！」だけ専用スタイル
       elNum.style.animation = 'none'; void elNum.offsetWidth; elNum.style.animation = '';
-      if(i < 3) beep(700 + i*120, 150);
+      if(i < 3) sfx('count', { hz: 700 + i*120, ms: 150 });
       i++;
       if(i < seq.length){
         setTimeout(tick, fxMs(650));
       } else {
         setTimeout(function(){
-          beep(1046, 220);
+          sfx('count', { hz: 1046, ms: 220 });
           startRound();
           var m = modeById(state.selectedModeId);
           play.wmActive = false; // 2〜ターン版のフラグは毎回リセット（1ターン版に影響させない）
@@ -26338,7 +26388,7 @@
     var n = 3;
     numberEl.textContent = n;
     numberEl.style.animation = 'none'; void numberEl.offsetWidth; numberEl.style.animation = '';
-    beep(700, 150);
+    sfx('count', { hz: 700, ms: 150 });
     tallyCdTimer = setInterval(function(){
       n--;
       if(n <= 0){
@@ -26351,7 +26401,7 @@
       }
       numberEl.textContent = n;
       numberEl.style.animation = 'none'; void numberEl.offsetWidth; numberEl.style.animation = '';
-      beep(600 + (3 - n) * 120, 120);
+      sfx('count', { hz: 600 + (3 - n) * 120, ms: 120 });
     }, 700);
   }
 
@@ -27607,7 +27657,6 @@
   }
   function snipSound(){
     beep(900, 70); setTimeout(function(){ beep(1250, 60); }, 80);
-    doVibrate(40);
   }
   /**
    * 第33弾 A-2：解除成功・爆発の見せ場は、共通部品にして両方から呼ぶ。
@@ -27712,7 +27761,7 @@
     stopBombHeart();
     el('bombWireOverlay').classList.remove('show');
     el('app').classList.remove('bomb-danger');
-    beep(784, 140); setTimeout(function(){ beep(1046, 240); }, 170);
+    sfx('ok');
     var inside = el('bombInside');
     inside.classList.remove('bomb-defused'); void inside.offsetWidth; inside.classList.add('bomb-defused');
     if(typeof FxKit !== 'undefined'){
@@ -27735,7 +27784,7 @@
       bombBoomFx(bombBoomCause(cause), function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); });
       return;
     }
-    buzz();
+    sfx('ng');
     setTimeout(function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); }, 650);
   }
   el('bombWireList').addEventListener('click', function(e){
@@ -27800,7 +27849,7 @@
     play.currentBombWire = null;
     if(correct){
       w.solved = true;
-      snipSound();
+      sfx('cut');
       // 配線が「パチン」と切れる演出
       var wireBtn = el('bombWireList').querySelector('.bomb-wire-btn[data-id="' + w.uid + '"]');
       // 第32弾-C-4：解けたマスは、緑に光ってから消える
@@ -27813,7 +27862,7 @@
       play.bombLives--;
       play.bombMisses = (play.bombMisses || 0) + 1;
       // 第32弾-C-4 原則C：責める時は静かに。0.15秒の薄い赤と短い音だけ
-      if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else wrongSound();
+      if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else sfx('miss');
       var lives = el('bombLives');
       lives.classList.remove('shake', 'broke');
       void lives.offsetWidth;
@@ -27975,7 +28024,7 @@
       scoreDeltas[p.name] = pts;
       showQuizResult(true, pts, w.name);
     } else {
-      wrongSound();
+      sfx('miss');
       showQuizResult(false, 0, w.name);
     }
     logRound('quizking', scoreDeltas);
@@ -28677,7 +28726,7 @@
    */
   function hurryTick(remaining){
     if(remaining <= 0 || remaining > 10) return;
-    beep(700 + (10 - remaining) * 45, 70);
+    sfx('tick', { hz: 700 + (10 - remaining) * 45, ms: 70 });
   }
   // タイマー満了 or 手動終了で、ラウンドを締める共通処理（②）
   function finishPlayRound(){
@@ -28848,7 +28897,7 @@
     // 第32弾-C-2 原則C：責める時は静かに。
     // 0.15秒の薄い赤と短い音だけ。みんなで遊ぶ場で恥をかかせないため。
     // 文字は残す（音を切っている人にも、何が起きたかは伝わらないといけない）
-    if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else wrongSound();
+    if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else sfx('miss');
     // AI/一言ヒントモードはお題名を隠す設計なので、不正解表示に名前を出さない
     var name = play.currentTopic ? play.currentTopic.name : '';
     showQuietNote(isAIDescribe() ? '❌ 不正解' : ('❌ 不正解：'+name));
@@ -28862,7 +28911,7 @@
     if(play.autoAdvancing) return; // 連打による二重送りを防ぐ
     // 第32弾-C-2 原則C：反則も責める側。派手に光らせず、短く伝えるだけにする
     logResult('foul');
-    if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else buzz();
+    if(typeof FxKit !== 'undefined') FxKit.flash('bad'); else sfx('ng');
     doVibrate([120,60,120]);
     showQuietNote('🚫 反則を記録しました');
     if(isSealStrict()){
@@ -28962,7 +29011,7 @@
           if(!voiceCommandAllowed()) return; // 同じ発話の連続発火を抑える
           voiceFlaggedWords['ng:'+w] = true;
           logResult('foul');
-          buzz(); showFlash('🚫 「'+word+'」を検知しました', 'hit');
+          sfx('ng'); showFlash('🚫 「'+word+'」を検知しました', 'hit');
           if(isSealStrict()) setTimeout(nextTopic, 700);
           return;
         }
@@ -30038,7 +30087,7 @@
     saveAppPrefs(); renderSetPrefs();
     updateReactBar();
   });
-  el('setSeTestBtn').addEventListener('click', function(){ snipSound(); });
+  el('setSeTestBtn').addEventListener('click', function(){ sfx('cut', { force: true }); });   // 音量を試すボタンは、この端末で鳴らす
   el('setSpeechTestBtn').addEventListener('click', function(){
     speakJapanese('この速さと声で読み上げます');
   });
@@ -30802,11 +30851,12 @@
       ms: fxMs,          // 「演出の速さ」設定を通す
       vibrate: doVibrate, // 「振動」設定を通す
       sound: {
-        good: function(){ beep(880, 140); },
-        bad:  wrongSound,
-        tick: function(){ beep(1200, 45); },
-        big:  fanfareSound,
-        cheer: cheerSound   // 第32弾-D 4-3：勝利の瞬間の歓声
+        // 指示68-2：音の箱を通す（振動は FxKit が自分で出すので、ここでは震わせない）
+        good: function(){ sfx('ok', { noVibe: true }); },
+        bad:  function(){ sfx('miss', { noVibe: true }); },
+        tick: function(){ sfx('tick', { noVibe: true }); },
+        big:  function(){ sfx('fanfare', { noVibe: true }); },
+        cheer: function(){ sfx('cheer', { noVibe: true }); }   // 第32弾-D 4-3：勝利の瞬間の歓声
       },
       // 第32弾-D 第4部：安全に関する設定。切り替えた瞬間から効くよう関数で渡す
       can: {

@@ -3352,8 +3352,10 @@ async function startModeWithTimerOff(win, doc, id) {
     gains = [];
     click(doc, 'setSeTestBtn');
     await sleep(win, 120);
-    assert(gains.length > 0, '音を作ろうとはする');
-    assert(gains.some((g) => g.gain.value === 0), '出口のつまみが0になっている');
+    // 指示68-2：音の箱（sound.js）は、音量0なら音を作ること自体をしない（'off'）。作った時は出口が0であること
+    const 最後 = win.sfxProbe().log.slice(-1)[0] || {};
+    assertEqual(最後.how, 'off', '音量0では箱が鳴らさない（' + JSON.stringify(最後) + '）');
+    assert(gains.every((g) => g.gain.value === 0) || gains.length === 0, '作ったつまみがあれば0');
     assertNoErrors(errors, '音量0で未捕捉の例外');
     win.close();
   });

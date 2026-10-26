@@ -144,46 +144,47 @@
   }
   var ss = function (sec) { return 'calc(' + sec.toFixed(2) + 's * var(--fx-scale))'; };
   function tvRevealHtml(view) {
-    var d = view.data || {}, r = d.reveal || {}, V = K(), t = T(), Lg = L();
+    var d = view.data || {}, r = d.reveal || {}, t = T(), Lg = L();
     var rows = r.rows || [];   // 遠い順
     var tl = timeline(rows), z = zoomOf(rows);
     var xOf = function (diff, zz) { return Math.max(-1.02, Math.min(1.02, diff / 3000 * zz)); };
-    var 幅 = function (x) { return (x.name.length * 46 + 7 * 27 + 70) / 1700 * 2; };
     /**
-     * 段：物差しの上に、近い人から重ならない段に置く（6段まで。多い時は重なりのいちばん少ない段。冠の人の札には重ねない）。
-     * 物差しから外れる人（その目盛りの端より遠い人）は、左右の端に縦に積む（近い人が下）——台本の「端に寄せて止める」
+     * 札は**いちばん近い3人だけ**（物差しの上・重ならない段に）。ほかの人は物差しの上の点と、線の下の小さい名前（3段まで）。
+     * 16人でも読めるように（Claude チャット 2026-10-27）。冠の人の札には、ほかの札を重ねない
      */
-    function 段を決める(zz) {
+    var 近い = rows.slice(-3), 遠い = rows.slice(0, Math.max(0, rows.length - 3));
+    function 並べる(list, zz, 字幅, 上限) {
       var lanes = [], out = {};
-      var 置く = function (x, pos, w, edge) {
-        // 冠の人の札には、だれも重ねない（重なりを100と数える）
+      list.slice().reverse().forEach(function (x) {
+        var pos = xOf(x.diff, zz), w = 字幅(x) / 1700 * 2;
         var 重なり = function (k) { return (lanes[k] || []).reduce(function (n, p) { return n + (Math.abs(p.pos - pos) < (p.w + w) / 2 ? (p.win ? 100 : 1) : 0); }, 0); };
         var lane = 0;
-        while (lane < 6 && 重なり(lane)) lane++;
-        if (lane >= 6) { lane = 0; for (var k = 1; k < 6; k++) if (重なり(k) < 重なり(lane)) lane = k; }
+        while (lane < 上限 && 重なり(lane)) lane++;
+        if (lane >= 上限) { lane = 0; for (var k = 1; k < 上限; k++) if (重なり(k) < 重なり(lane)) lane = k; }
         (lanes[lane] = lanes[lane] || []).push({ pos: pos, w: w, win: x.rank === 1 });
-        out[x.id] = { x: edge ? (edge === 'l' ? -1.04 : 1.04) : pos, lane: lane, edge: edge };
-      };
-      var 近い順 = rows.slice().reverse();
-      // 先に冠の人、つぎに端に寄せる人（端から積む）、のこりを近い順に
-      近い順.filter(function (x) { return x.rank === 1; }).forEach(function (x) { 置く(x, xOf(x.diff, zz), 幅(x)); });
-      近い順.filter(function (x) { return x.rank !== 1 && Math.abs(x.diff / 3000 * zz) > 1; }).forEach(function (x) {
-        var w = 幅(x), edge = x.diff < 0 ? 'l' : 'r';
-        置く(x, edge === 'l' ? -1.04 + w / 2 : 1.04 - w / 2, w, edge);
+        out[x.id] = { x: pos, lane: lane };
       });
-      近い順.filter(function (x) { return x.rank !== 1 && Math.abs(x.diff / 3000 * zz) <= 1; }).forEach(function (x) { 置く(x, xOf(x.diff, zz), 幅(x)); });
       return out;
     }
-    var 前 = 段を決める(1), 後 = 段を決める(z);
+    var 札幅 = function (x) { return x.name.length * 46 + 7 * 27 + 70; };
+    var 名幅 = function (x) { return x.name.length * 44 + 40; };
+    var 札 = 並べる(近い, z, 札幅, 3), 名前 = 並べる(遠い, z, 名幅, 3), 名前0 = 並べる(遠い, 1, 名幅, 3);
     var 早い = Math.max(0, rows.length - 2);
     var 左 = function (x) { return 'calc(50% + ' + (x * 46).toFixed(2) + '%)'; };
-    // 外側：寄る時に動く（--l0・--n0 → left・--lane）。内側：上から落ちて刺さる（1枚ずつの時刻）。端に積んだ札は棒を出さない
-    var pins = rows.map(function (x, i) {
-      var p = tl.pins[i], 先 = i < 早い, a0 = 先 ? 前[x.id] : 後[x.id], a1 = 後[x.id];
-      return '<div class="v2-ptp' + (先 ? ' is-early' : ' is-last') + (x.rank === 1 ? ' is-win' : '') + (a1.edge ? ' is-edge is-' + a1.edge : '') +
-        '" style="left:' + 左(a1.x) + ';--lane:' + a1.lane + ';--l0:' + 左(a0.x) + ';--n0:' + a0.lane + '">' +
+    var 位置 = {};
+    rows.forEach(function (x, i) { 位置[x.id] = i; });
+    // 外側：寄る時に動く（--l0 → left）。内側：上から落ちて刺さる（1枚ずつの時刻）
+    var pins = 近い.map(function (x) {
+      var i = 位置[x.id], p = tl.pins[i], 先 = i < 早い, a1 = 札[x.id];
+      return '<div class="v2-ptp' + (x.rank === 1 ? ' is-win' : '') + '" style="left:' + 左(a1.x) + ';--lane:' + a1.lane + ';--l0:' + 左(xOf(x.diff, 先 ? 1 : z)) + ';--n0:' + a1.lane + '">' +
         '<div class="v2-ptp-in" style="animation-delay:' + ss(p.at) + ';animation-duration:' + ss(p.dur) + '">' +
         '<span class="v2-ptp-tag"><span class="v2-ptp-nm v2-cut">' + e(x.name) + '</span><span class="v2-ptp-df">' + e(Lg.diffText(x.diff)) + '</span></span><i class="v2-ptp-stick"></i></div></div>';
+    }).join('');
+    var dots = 遠い.map(function (x) {
+      var i = 位置[x.id], p = tl.pins[i], a1 = 名前[x.id];
+      return '<div class="v2-ptd' + (a1.x < -0.8 ? ' is-l' : a1.x > 0.8 ? ' is-r' : '') + '" style="left:' + 左(a1.x) + ';--row:' + a1.lane + ';--l0:' + 左(xOf(x.diff, 1)) + ';--r0:' + 名前0[x.id].lane + '">' +
+        '<div class="v2-ptp-in" style="animation-delay:' + ss(p.at) + ';animation-duration:' + ss(p.dur) + '"><i class="v2-ptd-dot"></i><i class="v2-ptd-stick"></i>' +
+        '<span class="v2-ptd-nm v2-cut">' + e(x.name) + '</span></div></div>';
     }).join('');
     var 上 = rows.filter(function (x) { return x.rank === 1; });
     var perfect = r.perfect && r.perfect.length;
@@ -196,10 +197,10 @@
     return '<div class="v2-ptr' + (perfect ? ' is-perfect' : '') + '" style="--zt:' + ss(tl.zoom) + '">' +
       '<i class="v2-ptr-dim"></i>' +
       '<div class="v2-ptr-ruler">' +
-        '<i class="v2-ptr-axis"></i><i class="v2-ptr-center"></i><span class="v2-ptr-tgt">' + e(r.target + t.秒) + '</span>' +
+        '<i class="v2-ptr-axis"></i><i class="v2-ptr-center"></i>' +
         '<div class="v2-ptr-marks' + (z > 1.01 ? ' is-wide' : '') + '"><span>' + e(字(-3)) + '</span><span>' + e(字(3)) + '</span></div>' +
         (z > 1.01 ? '<div class="v2-ptr-marks is-near"><span>' + e(字(-端)) + '</span><span>' + e(字(端)) + '</span></div>' : '') +
-        pins + '</div>' +
+        dots + pins + '</div>' +
       (上.length ? '<div class="v2-ptwin" style="animation-delay:' + ss(tl.end) + '"><span class="v2-ptwin-c" aria-hidden="true">👑</span>' +
         '<span class="v2-ptwin-n v2-cut">' + e(上.map(function (x) { return x.name; }).join('・')) + '</span>' +
         '<span class="v2-ptwin-d">' + e(Lg.diffText(上[0].diff)) + '</span></div>' : '<div class="v2-ptwin is-none" style="animation-delay:' + ss(tl.end) + '">' + e(t.だれも) + '</div>') +
@@ -240,12 +241,14 @@
   // ===================== TV =====================
   function tv(view) {
     var d = view.data || {}, inner;
+    // 開く間は名前の壁をうすく（札の名前と見分けがつくように）
+    var 壁 = d.phase === 'roundResult' ? 'is-quietwall' : '';
     if (d.phase === 'roundResult') inner = '<div class="v2-otv">' + topRow(view) + tvRevealHtml(view) + '</div>';
     else if (d.phase === 'ended') inner = '<div class="v2-otv is-end">' + resultBody(view, true) + '</div>';
     else if (d.phase === 'run') inner = '<div class="v2-otv">' + topRow(view) + '<div class="v2-ptset is-tv">' +
       '<div class="v2-ptclock is-tv" data-pt-clock aria-hidden="true">0.0</div><div class="v2-pthint">' + e(T().心の中で) + '</div></div></div>';
     else inner = '<div class="v2-otv">' + topRow(view) + setHtml(view, true) + '</div>';
-    return F().tvc(view, inner, { names: (d.players || []).map(function (p) { return p.name; }) });
+    return F().tvc(view, inner, { cls: 壁, names: (d.players || []).map(function (p) { return p.name; }) });
   }
 
   return { phone: phone, tv: tv, resultBody: resultBody, timeline: timeline };

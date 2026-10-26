@@ -98,7 +98,7 @@
     var 火 = '';
     if (r && r.flew) {
       tl.fires.forEach(function (at, i) {
-        var a = (i * 137.5) * Math.PI / 180, R = (tv ? 380 : 120) + (i % 3) * (tv ? 60 : 20);
+        var a = (i * 137.5) * Math.PI / 180, R = (tv ? 560 : 120) + (i % 3) * (tv ? 80 : 20);
         // 左右と上から、ロケットの下（エンジン）へ飛びこむ（ロケットは地面にいるので、下からは見えない）
         火 += '<i class="v2-sofp" style="--sx:' + Math.round(Math.cos(a) * R) + 'px;--sy:' + Math.round(-Math.abs(Math.sin(a)) * R * 0.7 - (tv ? 60 : 20)) + 'px;animation-delay:' + ss(at) + '"></i>';
       });
@@ -112,7 +112,8 @@
     var d = view.data || {}, names = (d.players || []).map(function (p) { return p.name; }).slice(0, 18);
     var 粒 = '';
     for (var i = 0; i < 28; i++) 粒 += '<i class="v2-sospk" style="left:' + ((i * 41) % 100) + '%;top:' + (8 + (i * 29) % 84) + '%;animation-delay:' + ss(tl.arrive + 0.1 + (i % 10) * 0.05) + '"></i>';
-    var 列 = [3, 17, 31, 63, 77, 91], 行 = [48, 64, 80];
+    // TV の安全な枠（左右 96px＝5%）の内側。ロケット（まん中）と見出し・帯（上）をあける
+    var 列 = [6, 20, 34, 66, 80, 94], 行 = [58, 72, 86];
     var 星 = names.map(function (nm, i) {
       var c = 列[(i % 2) * 3 + Math.floor(i / 6) % 3], r = 行[Math.floor(i / 2) % 3];
       var 右 = c > 50;
@@ -176,13 +177,17 @@
   }
 
   // ===================== TV =====================
+  /**
+   * TV：遊んでいる間は、景色を画面いっぱいに広げる（舞台そのもの・名前の壁の中の窓にしない）。上の行は景色の上に重ねる。
+   * 結果（ended）だけは、ふだんの TV の枠（名前の壁）
+   */
   function tv(view) {
-    var d = view.data || {}, t = T(), inner;
-    if (d.phase === 'ended') inner = '<div class="v2-otv is-end">' + resultBody(view, true) + '</div>';
-    else if (d.phase === 'roundResult') inner = '<div class="v2-otv">' + topRow(view) + '<div class="v2-sowrap is-tv">' + sceneHtml(view, true) + '</div></div>';
-    else inner = '<div class="v2-otv">' + topRow(view) + '<div class="v2-sowrap is-tv">' + sceneHtml(view, true, signalHtml(view, true)) + '</div>' +
-      (d.best != null ? '<div class="v2-sobest">' + e(t.今日の最高 + ' ' + d.best + t.点) + '</div>' : '') + '</div>';
-    return F().tvc(view, inner, { names: (d.players || []).map(function (p) { return p.name; }) });
+    var d = view.data || {}, t = T();
+    if (d.phase === 'ended') return F().tvc(view, '<div class="v2-otv is-end">' + resultBody(view, true) + '</div>', { names: (d.players || []).map(function (p) { return p.name; }) });
+    var layer = '<div class="v2-sowrap is-tv is-full">' + sceneHtml(view, true, d.phase === 'roundResult' ? '' : signalHtml(view, true)) + '</div>';
+    var inner = '<div class="v2-otv v2-sotv">' + topRow(view) +
+      (d.best != null && d.phase !== 'roundResult' ? '<div class="v2-sobest">' + e(t.今日の最高 + ' ' + d.best + t.点) + '</div>' : '') + '</div>';
+    return F().tvc(view, inner, { layer: layer });
   }
 
   return { phone: phone, tv: tv, resultBody: resultBody, STEP: STEP, timeline: timeline };

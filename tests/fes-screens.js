@@ -254,5 +254,35 @@ async function 入った(o) {
     win.close();
   });
 
+  await r.test('68-2 第1節：文化祭のクイズ解除の終わりの演出は1回だけ（決着の瞬間の今までの画面と、結果の段階の新しい画面の両方が呼んでも）', async () => {
+    const { win, doc } = await 入った();
+    const 数 = [];
+    const mo = new win.MutationObserver((recs) => recs.forEach((rec) => Array.from(rec.addedNodes).forEach((n) => {
+      if (n.classList && n.classList.contains('fx-finale')) 数.push(n.getAttribute('data-fx-finale'));
+    })));
+    mo.observe(doc.body, { childList: true, subtree: true });
+    // 解除中（新しい画面）を見てから
+    const 遊ぶ = FesScenes.view('fes2-play');
+    win.__rtFake.fire('room:update', 遊ぶ.room);
+    win.__rtFake.fire('fes:you', 遊ぶ.you);
+    win.__rtFake.fire('wolf:you', 遊ぶ.secret);
+    await sleep(win, 150);
+    const lab = FesScenes.view('fes2-boom');
+    // 決着の瞬間：クイズ解除は終わったが、文化祭はまだ「遊ぶ」（今までの画面にもどる）
+    const 瞬間 = JSON.parse(JSON.stringify(lab.room));
+    瞬間.fes.phase = 'play';
+    const d = 瞬間.state.data;
+    win.__rtFake.fire('room:update', 瞬間);
+    win.__rtFake.fire('fes:you', lab.you);
+    win.__rtFake.fire('wolf:you', { phase: 'ended', mode: 'coop', total: d.board.length, board: d.board, result: d.result, lives: 0, livesMax: 3 });
+    await sleep(win, 150);
+    // 結果の段階（新しい画面）
+    win.__rtFake.fire('room:update', lab.room);
+    await sleep(win, 150);
+    mo.disconnect();
+    assertEqual(数.join(','), 'boom', '終わりの演出は1回（' + 数.join(',') + '）');
+    win.close();
+  });
+
   r.finish();
 })();

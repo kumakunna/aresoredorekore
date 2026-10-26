@@ -821,8 +821,9 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
   await r.test('大画面が無くても、みんなの状況を自分のスマホから見られる', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
-    push(fake, bombRoom());
-    pushYou(fake, bombYou());
+    // 指示68-2 第5節：協力版の解除中は新しい画面になったので、今までの画面のままの競争版で見る
+    push(fake, bombRoom({ state: { phase: 'play', game: 'bomb', data: bombView({ mode: 'race', coop: false }) } }));
+    pushYou(fake, bombYou({ mode: 'race' }));
     await waitScreen(win, doc, 'scr-rt-bomb', 4000);
     assert(el(doc, 'floatingStatusBtn').style.display !== 'none', 'みんなの状況を開くボタンが出る');
     click(doc, 'floatingStatusBtn');
@@ -1235,73 +1236,59 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('クイズ解除：自分の盤面・ライフ・残り時間が出る', async () => {
+  await r.test('クイズ解除（協力版・指示68-2 第5節の新しい画面）：自分の盤面・ライフ・残り時間が出る', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
     push(fake, bombRoom());
     pushYou(fake, bombYou());
-    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
-    assertEqual(el(doc, 'rtBombLives').textContent, '❤️❤️🖤', 'ライフが減った分だけ黒くなる');
-    assertEqual(el(doc, 'rtBombProgress').textContent, '1 / 4 解除', '進捗が出る');
-    assert(/^0[12]:/.test(el(doc, 'rtBombTimer').textContent), '残り時間が出る（' + el(doc, 'rtBombTimer').textContent + '）');
-
-    const cells = doc.querySelectorAll('#rtBombBoard .bomb-wire-btn');
+    await waitScreen(win, doc, 'scr-v2-fes-lobby', 4000);
+    const scr = el(doc, 'scr-v2-fes-lobby');
+    assert(scr.querySelector('.v2-ptop .v2-lives'), 'ライフが出る');
+    assert(/1\s*\/\s*4/.test(scr.querySelector('.v2-pnum').textContent), '進捗が出る（' + scr.querySelector('.v2-pnum').textContent + '）');
+    assert(scr.querySelector('.v2-pclock'), '残り時間の場所がある');
+    const cells = scr.querySelectorAll('.v2-bgrid .v2-bcell');
     assertEqual(cells.length, 4, '4本のコードが並ぶ');
-    assert(cells[0].classList.contains('solved'), '解除済みが分かる');
-    assert(cells[1].classList.contains('taken'), '他の人が挑戦中のコードは押せない見た目になる');
-    // 誰が挑戦中かは名前で分かる（お題の中身は出さない）
-    assert(/びび さんが挑戦中/.test(el(doc, 'rtBombBoard').textContent), '誰が挑戦中かが分かる');
-    assert(!/せつめい/.test(el(doc, 'rtBombBoard').textContent), '説明文は盤面に出ない');
-    // 第28弾-1：難易度で区切らず、届いた順にひとつのグリッドで並べる。
-    // 区切ると盤面が緑→黄→橙→赤のグラデーションに見えてしまう
-    assertEqual(doc.querySelectorAll('#rtBombBoard .sec-title').length, 0, '難易度で区切らない');
-    assertEqual(doc.querySelectorAll('#rtBombBoard .bomb-wire-grid').length, 1,
-      'ひとつのグリッドにまとめて並べる');
-    // 難易度そのものは枠の色で分かる
-    assert(cells[0].className.indexOf('t-') >= 0, '難易度は枠の色で示す');
+    assert(cells[0].classList.contains('is-solved'), '解除済みが分かる');
+    assert(cells[1].classList.contains('is-try') && cells[1].disabled, '他の人が挑戦中のコードは押せない');
+    assert(/びび/.test(cells[1].textContent), '誰が挑戦中かは名前で分かる');
+    assert(!/せつめい/.test(scr.querySelector('.v2-bgrid').textContent), '説明文は盤面に出ない');
+    assert(/is-t/.test(cells[2].className), '難易度は枠の色で示す');
     assertNoErrors(errors, '盤面の表示で未捕捉の例外');
     win.close();
   });
 
-  await r.test('クイズ解除：コードを押すとサーバーに伝え、開いた分だけ3択が出る', async () => {
+  await r.test('クイズ解除（協力版・新しい画面）：コードを押すとサーバーに伝え、開いた分だけ3択が出る', async () => {
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
     push(fake, bombRoom());
     pushYou(fake, bombYou());
-    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
-
-    // ふさがっているコードは押しても何も送らない
+    await waitScreen(win, doc, 'scr-v2-fes-lobby', 4000);
+    const cell = (i) => doc.querySelectorAll('#scr-v2-fes-lobby .v2-bgrid .v2-bcell')[i];
+    // ふさがっているコードは押せない（押しても送らない）
     const before = fake.emits.filter(e => e.name === 'wolf:act').length;
-    doc.querySelectorAll('#rtBombBoard .bomb-wire-btn')[1].click();
+    cell(1).click();
     await sleep(win, 60);
-    assertEqual(fake.emits.filter(e => e.name === 'wolf:act').length, before,
-      '他の人が挑戦中のコードは送らない');
-
+    assertEqual(fake.emits.filter(e => e.name === 'wolf:act').length, before, '他の人が挑戦中のコードは送らない');
     // 空いているコードを押す
-    doc.querySelectorAll('#rtBombBoard .bomb-wire-btn')[2].click();
+    cell(2).click();
     await sleep(win, 80);
     const act = fake.emits.filter(e => e.name === 'wolf:act').pop();
     assertEqual(act.payload.targetId, 'w2', '押したコードを伝えている');
-
     // サーバーが説明文と3択を返してきたら、そのコードだけを出す
-    pushYou(fake, bombYou({
-      open: { uid: 'w2', tier: 'normal', description: 'まるくて甘い果物です', choices: ['りんご', 'みかん', 'すいか'] }
-    }));
+    pushYou(fake, bombYou({ open: { uid: 'w2', tier: 'normal', description: 'まるくて甘い果物です', choices: ['りんご', 'みかん', 'すいか'] } }));
     await sleep(win, 100);
-    assert(el(doc, 'rtBombOverlay').classList.contains('show'), '3択が出る');
-    assertEqual(el(doc, 'rtBombDescription').textContent, 'まるくて甘い果物です', '説明文が出る');
-    assertEqual(doc.querySelectorAll('#rtBombChoices .pk-btn').length, 3, '3択');
-
-    // 答えると、選んだ言葉をそのまま送る
-    doc.querySelectorAll('#rtBombChoices .pk-btn')[0].click();
+    const sheet = doc.querySelector('#scr-v2-fes-lobby .v2-qsheet');
+    assert(sheet && sheet.classList.contains('is-open'), '3択が出る');
+    assert(/まるくて甘い果物です/.test(sheet.querySelector('.v2-qtext').textContent), '説明文が出る');
+    assertEqual(sheet.querySelectorAll('[data-fes-ans]').length, 3, '3択');
+    sheet.querySelectorAll('[data-fes-ans]')[0].click();
     await sleep(win, 80);
     const vote = fake.emits.filter(e => e.name === 'wolf:vote').pop();
     assertEqual(vote.payload.targetId, 'りんご', '選んだ答えを送っている');
-
     // 正解して閉じたら、3択は消える
     pushYou(fake, bombYou({ solvedCount: 2 }));
     await sleep(win, 80);
-    assert(!el(doc, 'rtBombOverlay').classList.contains('show'), '答えたら3択は閉じる');
+    assert(!doc.querySelector('#scr-v2-fes-lobby .v2-qsheet.is-open'), '答えたら3択は閉じる');
     assertNoErrors(errors, '3択のやりとりで未捕捉の例外');
     win.close();
   });
@@ -1370,6 +1357,36 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
+  await r.test('68-2 第5節：ふだんの部屋の協力版も、解除中は文化祭と同じ新しい画面（スマホは盤・TV は盤が主役）。決着したら今までの画面で終わりの演出が1回', async () => {
+    // スマホ
+    {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
+      push(fake, bombRoom());
+      pushYou(fake, bombYou());
+      await waitScreen(win, doc, 'scr-v2-fes-lobby', 4000);
+      assertEqual(doc.querySelectorAll('#scr-v2-fes-lobby .v2-bgrid .v2-bcell').length, 4, '新しい画面の盤（4マス）');
+      const lost = bombView({ phase: 'ended', result: { mode: 'coop', success: false, cause: 'lives', solved: 1, total: 4, lives: 0, livesMax: 3, misses: 3, elapsedSec: 60, codes: [] } });
+      push(fake, bombRoom({ state: { phase: 'ended', game: 'bomb', data: lost } }));
+      pushYou(fake, bombYou({ phase: 'ended', lives: 0, result: lost.result }));
+      await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+      await sleep(win, 100);
+      assertEqual(doc.querySelectorAll('.fx-finale').length, 1, '決着したら今までの画面で、終わりの演出が1回');
+      assertNoErrors(errors, 'ふだんの部屋の新しい画面');
+      win.close();
+    }
+    // TV
+    {
+      const { win, doc, errors } = await launch(LAUNCH);
+      const fake = await toRoom(win, doc, { role: 'bigscreen', pick: false });
+      push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: bombView() } }));
+      await waitScreen(win, doc, 'scr-v2-fes-tv', 4000);
+      assertEqual(doc.querySelectorAll('#scr-v2-fes-tv .v2-tboard .v2-tcell').length, 4, 'TV は盤が主役');
+      assertNoErrors(errors, 'ふだんの部屋の TV');
+      win.close();
+    }
+  });
+
   await r.test('クイズ解除：部屋版でも、爆発・解除成功の瞬間の演出が出る（第33弾 A-2）', async () => {
     // 前回まで手渡し版にだけ実装していて、部屋版は結果の文字が出るだけだった。
     // 実機テストは部屋で行われたので「爆発のアニメーションが無い」ように見えた（落とし穴1）
@@ -1378,7 +1395,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     // まず解除中の画面を見る（決着の演出は、見ていた人にだけ出す）
     push(fake, bombRoom());
     pushYou(fake, bombYou());
-    await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+    await waitScreen(win, doc, 'scr-v2-fes-lobby', 4000);   // 指示68-2 第5節：解除中は新しい画面
     assertEqual(doc.querySelectorAll('.fx-finale[data-fx-finale="boom"]').length, 0, 'まだ爆発は出ていない');
     // 協力版の失敗で決着 → 爆発の演出が出る（指示68-2 第1節：協力版は FxKit.finale の1本）
     const lost = bombView({
@@ -1432,7 +1449,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       const fake = await toRoom(win, doc, { join: true, memberId: 'm2' });
       push(fake, bombRoom());
       pushYou(fake, bombYou());
-      await waitScreen(win, doc, 'scr-rt-bomb', 4000);
+      await waitScreen(win, doc, 'scr-v2-fes-lobby', 4000);   // 指示68-2 第5節：解除中は新しい画面
       pushYou(fake, 秘密());       // 秘密が先
       push(fake, 部屋());          // 部屋の知らせが後
       await sleep(win, 100);
@@ -1927,47 +1944,22 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     win.close();
   });
 
-  await r.test('大画面：協力版は、共通のものを1つだけ大きく出す（正本§11-1）', async () => {
-    /**
-     * 指示55：**ここは前まで逆のことを主張していた。**
-     * 「両方の棒に 1 / 4 と ❤️❤️🖤 が出る」＝**同じ値が人数ぶん並ぶ形を、正解として固定していた。**
-     * 協力版は entryOf がチームの entry を返すので players[] は全員同じ値になり、
-     * 検体（bombView）も2人とも同じ値だったので、そのまま通っていた。
-     */
+  await r.test('大画面：協力版は、共通のものを1つだけ大きく出す（正本§11-1・指示68-2 第5節の新しい TV の画面）', async () => {
+    // 指示55：協力版は同じ値が人数ぶん並ぶ形にしない。新しい TV の画面では、ライフと時計は上の帯に1つ、
+    // 進み具合は1本、盤が主役（人ごとの横棒は無い）
     const { win, doc, errors } = await launch(LAUNCH);
     const fake = await toRoom(win, doc, { join: true, memberId: 'm5', role: 'bigscreen' });
     const members = bombRoom().members.concat([
       { id: 'm5', name: 'テレビ', role: 'bigscreen', connected: true, isHost: false }
     ]);
     push(fake, bombRoom({ members, memberCount: 3 }));
-    await sleep(win, 150);
-    assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま');
-
-    // 共通のものは、いちばん上の帯に1つだけ
-    assertEqual(el(doc, 'bigStatus').hidden, false, '共通のものの帯が出る');
-    assertEqual(el(doc, 'bigLives').textContent, '❤️❤️🖤', '共有ライフは帯に1つだけ');
-
-    // 人数ぶんの同じ横棒は、出さない
-    assertEqual(el(doc, 'bigBoard').style.display, 'none', '協力版では横棒を出さない');
-    assertEqual(doc.querySelectorAll('#bigBoard .bb-row').length, 0, '同じ値の棒が人数ぶん並ばない');
-
-    // 進み具合は共通なのでゲージ1本
-    assertEqual(doc.querySelectorAll('.bomb-coop .bcb-gauge').length, 1, '進み具合はゲージ1本');
-    assertEqual(doc.querySelector('.bomb-coop .bcb-fill').style.width, '25%', 'ゲージが進み具合を表す');
-    assert(/1 \/ 4 解除/.test(doc.querySelector('.bomb-coop .bcb-count').textContent), '本数が出る');
-
-    // 個人のものは、人ごとに1行（誰がどの端子を担当しているか）
-    const 担当 = doc.querySelectorAll('.bomb-coop .bcb-row');
-    assertEqual(担当.length, 2, 'プレイヤーぶんの担当の行が出る');
-    const びび = [...担当].find((x) => /びび/.test(x.textContent));
-    assert(びび && /2ばん/.test(びび.textContent), 'びびが2ばんを担当していると分かる');
-    const あき = [...担当].find((x) => /あき/.test(x.textContent));
-    assert(あき && /待ち/.test(あき.textContent), '担当していない人は「待ち」');
-
-    // 大画面に秘密は出さない
-    const big = el(doc, 'scr-rt-big').textContent;
-    assert(!/せつめい/.test(big), '説明文は出ない');
-    assertNoErrors(errors, '大画面のリーダーボードで未捕捉の例外');
+    await waitScreen(win, doc, 'scr-v2-fes-tv', 4000);
+    const tv = el(doc, 'scr-v2-fes-tv');
+    assertEqual(tv.querySelectorAll('.v2-ttop .v2-lives').length, 1, '共有ライフは帯に1つだけ');
+    assertEqual(tv.querySelectorAll('.v2-tprog').length, 1, '進み具合は1本');
+    assertEqual(tv.querySelectorAll('.bb-row, .bcb-row').length, 0, '同じ値の棒が人数ぶん並ばない');
+    assertEqual(tv.querySelectorAll('.v2-tboard .v2-tcell').length, 4, '盤が主役（4マス）');
+    assertNoErrors(errors, '大画面の協力版で未捕捉の例外');
     win.close();
   });
 
@@ -5643,7 +5635,8 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面になっている');
     assert(el(doc, 'scr-rt-big').classList.contains('big-lobby'), '待合では横並びの印が付く');
 
-    push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: bombView() } }));
+    // 指示68-2 第5節：協力版の解除中は新しい TV の画面になったので、今までの大画面のままの競争版で見る
+    push(fake, bigRoom({ state: { phase: 'play', game: 'bomb', data: bombView({ mode: 'race', coop: false }) } }));
     await sleep(win, 150);
     assertEqual(activeScreen(doc), 'scr-rt-big', '大画面のまま（役割が落ちていない）');
     assert(!el(doc, 'scr-rt-big').classList.contains('big-lobby'),

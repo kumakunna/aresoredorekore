@@ -336,7 +336,7 @@
         '<div class="v2-bgrid' + (board.length > 30 ? ' is-c6' : '') + '">' + cells + '</div>' +
       '</div>' +
       V.scrimHtml() +
-      '<div class="v2-sheet' + (open ? ' is-open' : '') + ' v2-qsheet" data-v2-id="v2Q" data-v2-keep aria-hidden="' + (open ? 'false' : 'true') + '" role="dialog">' +
+      '<div class="v2-sheet' + (open ? ' is-open' : '') + ' v2-qsheet" data-v2-id="v2Q" data-v2-keep data-v2-state aria-hidden="' + (open ? 'false' : 'true') + '" role="dialog">' +
         (open ? '<div class="v2-grab"></div><div class="v2-sh"><span class="v2-qtier is-' + (T[open.tier] || 't1') + '">' + e(view.tierLabel ? view.tierLabel(open.tier) : open.tier) + '</span>' +
           '<span class="v2-lbl">' + e(no + P.のコード) + '</span><button type="button" class="v2-x" data-fes-act="bclose" aria-label="' + e(W().close) + '">' + V.icon('close') + '</button></div>' +
           '<div class="v2-qtext" data-v2-wrap>' + V.phrase(open.description || '') + '</div>' +
@@ -427,7 +427,7 @@
         '<button type="button" class="v2-btn is-sec" data-fes-act="quit">' + e(Rz.やめる) + '</button></div>';
     return V.bgHtml() + V.brandHtml() +
       '<div class="v2-in">' + body + '</div>' +
-      '<div class="v2-sheet is-open v2-contsheet" data-v2-id="v2Cont" data-v2-keep aria-hidden="false"><div class="v2-cont">' +
+      '<div class="v2-sheet is-open v2-contsheet" data-v2-id="v2Cont" data-v2-keep data-v2-state aria-hidden="false"><div class="v2-cont">' +
         '<div class="v2-cont-t">' + e(Rz.つづけて) + '</div>' +
         '<div class="v2-syncbar"><i data-fes-bar style="animation-duration:' + Math.max(0, (view.end || 0) - Date.now()) + 'ms"></i></div>' +
         cont +

@@ -18585,6 +18585,9 @@
     // 指示66-2：文化祭の部屋は、遊んでいる間だけ今までのゲームの画面。それ以外は新しい見た目の画面（段階ごとに描き直す）
     var fesWant = fesWantScreen();
     if(fesWant) return fesWant;
+    // 指示68-2 第5節：ふだんの部屋のクイズ解除（協力版）も、解除中は文化祭と同じ新しい画面（違う画面を2つ残さない）。
+    // 決着したら、文化祭と同じく今までの画面へ（終わりの演出・答え合わせ・つぎは？）
+    if(bombV2Room()) return rtIsBigScreen() ? 'scr-v2-fes-tv' : 'scr-v2-fes-lobby';
     var v = rtView();
     var started = !!(v && v.phase && v.phase !== 'lobby');
     // 指示66-3：TV は、ゲームが決まるまで新しい見た目の待合（QR・名前・コード・進行役）。進行役が選んでいる間も変えない
@@ -22469,7 +22472,8 @@
         if(結.mode === 'coop'){
           // 指示68-2 第1節：TV は全員の名前を大きく／爆発は ため → 光 → 煙が晴れて「あと◯本だった」
           bombFinale({ success: !!結.success, tv: true, names: 結.names || [],
-            left: (結.total || 0) - (結.solved || 0), cause: 結.cause });
+            left: (結.total || 0) - (結.solved || 0), cause: 結.cause,
+            key: bombFinaleKey(rt.state.room && rt.state.room.code, 結) });
           return;
         }
         // 競争版（第47弾で足した）。それまで大画面は、競争版の決着を素通りしていた——
@@ -23755,7 +23759,8 @@
         // 指示68-2 第1節：スマホは「解除！」と自分の名前だけ／静かに「ばくはつ…」（音は TV。TV がいなければ音の箱がこの端末で鳴らす）
         var 自分 = ((rt.state.room && rt.state.room.members) || []).filter(function(m){ return m.id === rt.state.memberId; })[0];
         bombFinale({ success: !!v.result.success, tv: false, me: 自分 ? 自分.name : '',
-          left: (v.result.total || 0) - (v.result.solved || 0), cause: v.result.cause });
+          left: (v.result.total || 0) - (v.result.solved || 0), cause: v.result.cause,
+          key: bombFinaleKey(rt.state.room && rt.state.room.code, v.result) });
       });
 
     // ---- 待機中：説明文を用意している。中身はここに1文字も出ない ----
@@ -27813,8 +27818,14 @@
    *   ・音（sfx）と振動は光と別（光を切っても鳴る・震える）。どの端末で鳴らすかは音の箱が決める（TV がいる部屋のスマホは鳴らない）
    *   ・心臓の音はため の始まりで止める
    */
+  // 同じ決着で2回出さない（o.key）。文化祭は、決着の瞬間（今までの画面）と結果の段階（新しい画面）の両方が呼びうる
+  var bombFinaleKeys = {};
+  function bombFinaleKey(code, r){
+    return [code, r.mode, r.cause, r.solved, r.total, r.misses, r.elapsedSec].join('|');
+  }
   function bombFinale(o){
     o = o || {};
+    if(o.key){ if(bombFinaleKeys[o.key]) return Promise.resolve(); bombFinaleKeys[o.key] = true; }
     stopBombHeart();
     el('app').classList.remove('bomb-danger');
     var 結果へ = (typeof o.結果へ === 'function') ? o.結果へ : function(){};
@@ -31233,6 +31244,23 @@
   var FES_NAME_KEY = 'fes_name_v1', FES_FB_KEY = 'fes_fb_v1';
   function fesRoom(){ return rt && rt.state.room && rt.state.room.fes ? rt.state.room : null; }
   /** 文化祭の部屋の画面か。遊んでいる間（今回のゲームに入っている人と TV）は null＝今までのゲームの画面 */
+  /**
+   * 指示68-2 第5節：ふだんの部屋（文化祭でない）で、クイズ解除の協力版を解除している間なら、その部屋。
+   * TV と、この試合に入っている人だけ（途中で入ってきた人は、今までの画面のまま）
+   */
+  function bombV2Room(){
+    var room = rt && rt.state && rt.state.room;
+    if(!room || room.fes) return null;
+    var st = room.state || {}, d = st.data;
+    if(st.game !== 'bomb' || !d || d.mode !== 'coop' || d.phase !== 'play') return null;
+    if(rtIsBigScreen()) return room;
+    var mine = rt.state.secret;
+    return (mine && mine.board) ? room : null;
+  }
+  /** 文化祭でない部屋を、文化祭の画面の部品（V2Fes）で描くための「解除中」の札 */
+  function bombV2Fes(){
+    return { phase: 'play', round: 0, played: { mode: 'bomb-coop', round: 0, ids: [] }, max: 16, inset: 0, games: [], next: [] };
+  }
   function fesWantScreen(){
     var room = fesRoom(); if(!room) return null;
     var big = rtIsBigScreen(), me = rt.me && rt.me();
@@ -31262,14 +31290,14 @@
   }
   /** 描くもとの形（v2-fes.js の冒頭に書いた view） */
   function fesView(room, you, meId){
-    room = room || rt.state.room; var f = room.fes;
+    room = room || rt.state.room; var f = room.fes || bombV2Fes();   // 指示68-2 第5節：ふだんの部屋の解除中も同じ画面
     // 締め切りは、知らせが届いた時刻から数える（端末の時計のずれに左右されない）
     // 遊んでいる間は、ゲームの時計（部屋の知らせのゲームの中身の remainingMs）
     var gdata = room.state && room.state.data;
     var ms = f.phase === 'play' ? (gdata && gdata.remainingMs) : f.remainingMs;
     if(fes.endFor !== room){ fes.endFor = room; fes.end = ms != null ? Date.now() + ms : null; }
     if(fes.selRound !== f.round + ':' + f.phase){ fes.selRound = f.round + ':' + f.phase; if(f.phase !== 'vote') fes.sel = null; }
-    return { code: room.code, max: f.max, joinUrl: location.origin + '/fes', meId: meId || rt.state.memberId,
+    return { code: room.code, max: f.max, joinUrl: room.fes ? location.origin + '/fes' : roomJoinUrl(room.code), meId: meId || rt.state.memberId,
       members: (room.members || []).map(function(m){ return m; }), fes: f, you: you || rt.state.fes || {}, end: fes.end,
       sel: fes.sel, info: fesInfo, next: f.next || [], games: f.games || [], fb: fes.fb, look: fesLookData(meId),
       data: room.state && room.state.data, game: room.state && room.state.game,
@@ -31295,7 +31323,9 @@
   /** 開いていた重なりと書きかけの字は、描き直しても残す（人が入るたびに知らせが届くので） */
   function fesKeep(scr){
     // 残すのは人が開いたシートと確認の枠だけ。感想のカード（.v2-pop）の開け閉めは fes.fb が決める（残すと、たたんでもすぐ開き直す）
-    var open = Array.prototype.map.call(scr.querySelectorAll('.v2-sheet[data-v2-id].is-open, .v2-dlg[data-v2-id].is-open'), function(n){ return n.getAttribute('data-v2-id'); });
+    // 指示68-2：サーバーの状態で開け閉めするシート（data-v2-state：問題の3択・つづける？）は開き直さない。
+    // 開き直すと、答えて閉じたはずの3択が描き直しのたびに開いたまま残る（ふだんの部屋を新しい画面にして見つけた）
+    var open = Array.prototype.map.call(scr.querySelectorAll('.v2-sheet[data-v2-id].is-open:not([data-v2-state]), .v2-dlg[data-v2-id].is-open'), function(n){ return n.getAttribute('data-v2-id'); });
     var txt = Array.prototype.map.call(scr.querySelectorAll('[data-fes-text]'), function(n){ return n.value; });
     var focus = document.activeElement && scr.contains(document.activeElement) && document.activeElement.matches('[data-fes-text]');
     return function(){
@@ -31309,11 +31339,14 @@
    * 音（切る・火花）は TV で鳴らす（音の箱が決める）。外した時は何もしない（静かに）
    */
   var bombTv = { key: null, solved: null, cut: null };
+  var bombV2Saw = false;   // この端末が、新しい画面で解除中を見ていたか（途中から入って決着だけ見た端末に、終わりの演出をくり返さない）
   function bombTvCut(board, key){
     var now = Date.now();
     var 解いた = {};
     board.forEach(function(c){ if(c.solved) 解いた[c.uid] = true; });
-    if(bombTv.key !== key){ bombTv = { key: key, solved: 解いた, cut: null }; return null; }
+    // 部屋（key）が変わった時と、解いた数が減った時（同じ部屋で次の試合が始まった）は、比べる相手を作り直す
+    var 前の数 = bombTv.solved ? Object.keys(bombTv.solved).length : 0;
+    if(bombTv.key !== key || Object.keys(解いた).length < 前の数){ bombTv = { key: key, solved: 解いた, cut: null }; return null; }
     board.forEach(function(c){
       if(c.solved && !bombTv.solved[c.uid]){ bombTv.cut = { uid: c.uid, name: c.solvedBy || '', at: now, shown: false }; sfx('cut'); sfx('spark'); }
     });
@@ -31332,10 +31365,10 @@
   function fesWorld(scr, world){ V2.WORLDS.forEach(function(w){ scr.classList.toggle('v2-w-' + w, w === world); }); }
   // lab：見本データ（撮る道具の台本）が渡す { room, you, meId, fb }。ふだんは今の部屋から取る
   function fesRender(cur, lab){
-    var room = lab ? lab.room : fesRoom(); if(!room) return;
+    var room = lab ? lab.room : (fesRoom() || bombV2Room()); if(!room) return;
     var scr = el(cur); if(!scr) return;
     if(lab){ fes.fb = lab.fb || null; fes.sel = lab.sel || null; fes.selRound = room.fes.round + ':' + room.fes.phase; }
-    var view = lab ? fesView(lab.room, lab.you, lab.meId) : fesView(), f = room.fes;
+    var view = lab ? fesView(lab.room, lab.you, lab.meId) : fesView(room), f = room.fes || bombV2Fes();
     if(!lab && cur === 'scr-v2-fes-lobby') fesFeedbackCheck(view);
     view.fb = fes.fb;
     if(lab && lab.secret) view.secret = lab.secret;
@@ -31349,12 +31382,25 @@
       startBombHeart(view.secret.misses);
       el('app').classList.toggle('bomb-danger', view.secret.lives === 1);
     }
+    // 指示68-2 第5節：TV が解除中をこの画面で見ていたら「見ていた」（決着で今までの画面に移った最初の1枚を、
+    // 見始めの静かな1枚にしない＝終わりの演出が出る）。のこりライフ1の縁の脈打ちも TV で（第47弾 47-6 を引き継ぐ）
+    if(!lab && view.game === 'bomb' && view.data && view.data.phase === 'play'){
+      bombV2Saw = true;
+      // 解除中は今までの画面が描かれないので、そこが持つ「もう出した」の印をここで外す（外さないと2試合目の決着で出ない）
+      rtOnce('bomb:teamEnd', false); rtOnce('big:bomb:ended', false);
+      if(cur === 'scr-v2-fes-tv'){
+        rtBig.looked = true;
+        rtBig.seen = { phase: 'play', turn: 0, runoff: false, game: 'bomb' };   // 大画面の演出（rtBigFx）も「解除中から見ていた」
+        var 共 = view.data.team || view.data.shared || {};
+        el('app').classList.toggle('bomb-danger', 共.lives === 1);
+      }
+    }
     // 指示68-2 第1節：クイズ解除（協力版）の決着。結果の画面の上に幕を下ろしてから演出（演出 → 結果の順）
     var gd = view.data;
-    if(!lab && view.game === 'bomb' && gd && gd.phase === 'ended' && gd.result && gd.mode === 'coop' && !gd.result.aborted){
+    if(!lab && bombV2Saw && view.game === 'bomb' && gd && gd.phase === 'ended' && gd.result && gd.mode === 'coop' && !gd.result.aborted){
       rtOnce('fes:bomb:end:' + f.round + ':' + cur, true, function(){
         bombFinale({ success: !!gd.result.success, tv: cur === 'scr-v2-fes-tv', names: gd.result.names || [], me: meNameOf(view),
-          left: (gd.result.total || 0) - (gd.result.solved || 0), cause: gd.result.cause });
+          left: (gd.result.total || 0) - (gd.result.solved || 0), cause: gd.result.cause, key: bombFinaleKey(room.code, gd.result) });
       });
     }
     if(!lab && view.game === 'bomb') bombLastCall(gd, 'fes:bomb:' + f.round + ':' + cur);

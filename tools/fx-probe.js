@@ -360,11 +360,8 @@ async function mainBomb() {
   // 第59弾：opts.storage は fxSkip と同じ仕組み（保存された設定を先に置くだけ）。
   // SKIP と同時には使わない（同じキー acac-app-prefs を取り合う）
   if (NOFLASH) launchOpt.storage = { 'acac-app-prefs': JSON.stringify({ fxFlash: false }) };
-  const { win, doc, errors } = await launch(launchOpt);
-  await waitScreen(win, doc, 'scr-shelf', 8000);
-  await openCassette(win, doc, 'bakudan');
-  click(doc, doc.querySelector('#wayChoices [data-way="room"]'));
-  await waitScreen(win, doc, 'scr-rt-lobby', 4000);
+  // 指示68-2：入口は指示66-3 の新しい入口（「部屋をつくる」）。古い棚（scr-shelf）を待っていて動かなくなっていた
+  const { win, doc, errors } = await launch(Object.assign({ atEntry: true }, launchOpt));
   const fake = win.__rtFake;
   await waitFor(win, () => fake.connected, 4000, 'socket');
 
@@ -394,11 +391,12 @@ async function mainBomb() {
     state: { phase: room.state.phase, game: 'bomb', data: Bomb.publicView(room) }
   });
   fake.replies = { 'room:create': () => ({ ok: true, code: 'ABC234', memberId: MY_ID, room: snap() }) };
-  el(doc, 'rtCreateName').value = BIG ? 'TV' : 'あき';
-  click(doc, 'rtCreateBtn');
+  await require('../tests/harness').makeRoomV2(win, doc);
   await sleep(win, 300);
 
+  // 決着の画面（今までの画面）。指示68-2 第5節：協力版の解除中は新しい画面（wantPlay）
   const wantScreen = BIG ? 'scr-rt-big' : 'scr-rt-bomb';
+  const wantPlay = mode === 'coop' ? (BIG ? 'scr-v2-fes-tv' : 'scr-v2-fes-lobby') : wantScreen;
   const push = () => {
     const mine = Bomb.privateFor(room, MY_ID);
     if (REVERSED) { if (mine) fake.fire('wolf:you', mine); fake.fire('room:update', snap()); }
@@ -407,7 +405,7 @@ async function mainBomb() {
 
   if (!LATE) {
     push();
-    await waitFor(win, () => activeScreen(doc) === wantScreen, 6000, wantScreen).catch(() => {});
+    await waitFor(win, () => activeScreen(doc) === wantPlay, 6000, wantPlay).catch(() => {});
   }
 
   const rows = [];
@@ -437,6 +435,10 @@ async function mainBomb() {
     黒: doc.querySelectorAll('.fx-blackout').length,
     祝い: doc.querySelectorAll('.fx-cel').length,
     紙吹雪: doc.querySelectorAll('.fx-confetti').length,
+    // 指示68-2 第1節：協力版の終わりの幕（FxKit.finale）。明るさの変化（光）と揺れは、出ている幕の中に1つずつまで
+    幕: doc.querySelectorAll('.fx-finale').length,
+    幕の光: doc.querySelectorAll('.fx-finale.is-open .fx-fin-flash').length,
+    幕の揺れ: doc.querySelectorAll('.fx-finale.is-shake').length,
     ...(DUMP ? 大画面の中身() : {})
   });
 
@@ -452,7 +454,8 @@ async function mainBomb() {
     : n.classList.contains('fx-shutter') ? '帯「' + ((n.querySelector('.fx-banner-text') || {}).textContent || '') + '」'
     : n.classList.contains('fx-banner') ? '帯「' + ((n.querySelector('.fx-banner-text') || {}).textContent || '') + '」'
     : n.classList.contains('fx-cel') ? '祝い「' + ((n.querySelector('.fx-cel-text') || {}).textContent || '') + '」'
-    : n.classList.contains('fx-confetti') ? '紙吹雪' : null;
+    : n.classList.contains('fx-confetti') ? '紙吹雪'
+    : n.classList.contains('fx-finale') ? '終わりの幕「' + (n.getAttribute('data-fx-finale') || '') + (n.classList.contains('is-tv') ? '・TV' : '・スマホ') + '」' : null;
   const mo = new win.MutationObserver((recs) => recs.forEach((rec) => {
     Array.from(rec.addedNodes).forEach((n) => { const k = 名前(n); if (k) 時系列.push([Date.now() - t0, '出た', k]); });
     Array.from(rec.removedNodes).forEach((n) => { const k = 名前(n); if (k) 時系列.push([Date.now() - t0, '消えた', k]); });
@@ -470,7 +473,7 @@ async function mainBomb() {
     if (結果 && 結果の最初 < 0) 結果の最初 = Date.now() - t0;
     const 出ている = doc.querySelectorAll('.fx-burst,.fx-banner').length > 0;
     // クリア演出（.fx-cel）は自分の地が不透明なので、黒い幕は要らない
-    if (結果 && 出ている && !doc.querySelector('.fx-blackout') && !doc.querySelector('.fx-cel')) 透け++;
+    if (結果 && 出ている && !doc.querySelector('.fx-blackout') && !doc.querySelector('.fx-cel') && !doc.querySelector('.fx-finale')) 透け++;
   }, 25);
   if (opt('tap')) {
     // 帯が出てから押す（本物の pointerdown → pointerup）

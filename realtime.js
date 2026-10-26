@@ -28,6 +28,8 @@ const NameFilter = require('./public/js/name-filter.js');
 const { createFesStore } = require('./fes-store.js');
 const ShinkaRoom = require('./shinka-room.js');
 const OnajiRoom = require('./onaji-room.js');
+const PittariRoom = require('./pittari-room.js');
+const SoroeRoom = require('./soroe-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
 // どのゲームも同じ形（startGame / publicView / privateFor / submitAction /
@@ -70,6 +72,9 @@ const GAME_DRIVERS = {
   shinka: { driver: ShinkaRoom, key: 'shinka' },
   // 指示68-3：新作「みんなと同じ」（カセットの約束 v1 の最初の1本）。約束の形は同じなので、足したのはこの1行だけ
   onaji: { driver: OnajiRoom, key: 'onaji' },
+  // 指示68-4：新作「ぴったり10秒」（競争）と「そろえて発射」（協力）。どちらもボタン1つ。約束の形は同じ
+  pittari: { driver: PittariRoom, key: 'pittari' },
+  soroe: { driver: SoroeRoom, key: 'soroe' },
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -716,6 +721,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.falsetrue) return recordFalseTrueMatch(room);
     if (room.shinka) return recordShinkaMatch(room);
     if (room.onaji) return recordOnajiMatch(room);
+    if (room.pittari) return recordPittariMatch(room);
+    if (room.soroe) return recordSoroeMatch(room);
     // **`room.rcard` の行がここに無い。**指示55-② の着手前の掃引で見つけた——
     // ロシアンカードの対戦は `saveMatchRecord` に一度も届いておらず、DBに1件も残っていない。
     // 例外も警告も出ないので、誰も気づかなかった（落とし穴4：手書きの振り分けは腐る）。
@@ -750,6 +757,30 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         deltas: finalScores
       }];
       saveMatchRecord(room, names, rounds, finalScores);
+    } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
+  }
+
+  /** 指示68-4：ぴったり10秒。点（近い順に5〜1点・最後は2倍）がそのまま成績 */
+  function recordPittariMatch(room) {
+    if (!db || !room.ownerUserId || !room.pittari) return;
+    try {
+      const v = PittariRoom.resultView(room);
+      const names = v.ranking.map((x) => x.name);
+      const finalScores = {};
+      v.ranking.forEach((x) => { finalScores[x.name] = x.score; });
+      saveMatchRecord(room, names, [{ mode: 'pittari', game: 'pittari', style: 'realtime', rounds: v.rounds,
+        ranking: v.ranking.map((x) => ({ name: x.name, rank: x.rank, score: x.score })), deltas: finalScores }], finalScores);
+    } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
+  }
+  /** 指示68-4：そろえて発射。協力なので、だれの点も付けず、みんなの合計と高さだけを残す */
+  function recordSoroeMatch(room) {
+    if (!db || !room.ownerUserId || !room.soroe) return;
+    try {
+      const v = SoroeRoom.resultView(room);
+      const w = room.soroe;
+      const names = w.playerIds.filter((id) => room.members.has(id)).map((id) => w.names[id]);
+      saveMatchRecord(room, names, [{ mode: 'soroe', game: 'soroe', style: 'realtime', total: v.total,
+        heights: v.heights.map((h) => h.height), deltas: {} }], {});
     } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
   }
 
@@ -1631,6 +1662,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     });
 
     // ---- 第3部-3：ハートビートの応答 ----
+    // 指示68-4：時計合わせ。端末が「いまのサーバーの時刻」をたずねる（そろえて発射が、押した時刻をサーバーの時刻に直すため）。
+    // どのゲームにも属さない1行の返事。部屋に入っていなくても答える（入る前に合わせておける）
+    socket.on('clock:sync', (payload, cb) => { if (typeof cb === 'function') cb({ now: Date.now() }); });
+
     socket.on('hb:pong', () => {
       const me = currentMember();
       if (me) me.lastSeen = Date.now();

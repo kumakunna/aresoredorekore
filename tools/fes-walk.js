@@ -71,7 +71,7 @@ async function 撮る(d, name) { try { await d.shot(path.join(OUT, name + '.jpg'
 /** 文化祭の部屋の段階（スマホの画面から読む。描いた画面の目印で） */
 const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.active')||{}).id;if(s!=='scr-v2-fes-lobby'&&s!=='scr-v2-fes-tv')return s;" +
   "var q=function(x){return !!document.querySelector('#'+s+' '+x);};" +
-  "return q('.v2-vlist')||q('.v2-tvVote')?'vote':q('.v2-dec')||q('.v2-tdec')?'decide':q('[data-fes-act=ready],[data-fes-act=unready]')||q('.v2-tvB')?'ready':q('.v2-contsheet')||q('.v2-tend')?'result':q('.v2-tvIdle')?'idle':'lobby';})()");
+  "return q('.v2-vlist')||q('.v2-tvVote')?'vote':q('.v2-dec')||q('.v2-tdec2')?'decide':q('[data-fes-act=ready],[data-fes-act=unready]')||q('.v2-tvB')?'ready':q('.v2-contsheet')||q('.v2-tend')?'result':q('.v2-tvIdle')?'idle':'lobby';})()");
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

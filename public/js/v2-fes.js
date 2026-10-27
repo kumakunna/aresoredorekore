@@ -537,18 +537,55 @@
         '<div class="v2-qrside">' + qrHtml(view, 'is-sm', P.いまから) + '</div></div></div>' +
       V.tbandHtml([{ lab: P.投票中, val: P.スマホで, grow: true }], cdHtml(view, true)));
   }
-  /** F8 決定（TV）。TV は「自分の投票」を出さない（TV で「あなた」を使わない決まり） */
+  /**
+   * F8 決定（TV・指示68-S の台本）。TV は「自分の投票」を出さない（TV で「あなた」を使わない決まり）。
+   *   0〜0.75 ため：候補の札が並び、照明が落ちる（声 v04）→ 0.75〜2.5 スポットライトが札から札へはねるように移り、だんだんゆっくり
+   *   （行き先は決まった物。動きは見せるだけ）→ 2.5 決まった札で止まり、札が前に飛び出して画面のまん中へ・印がはずみ、
+   *   そのゲームの世界の色が画面に広がる（声 v05）→ 3.0 小さく「◯人がえらびました！」
+   *   候補が1つの時：札が上から落ちてきて「これだ！」のはんこ。秒は画面と音で同じ物（decideTimeline）
+   */
+  function decideTimeline(view) {
+    var f = view.fes || {}, p = f.pick || {};
+    var list = (f.candidates && f.candidates.length ? f.candidates : Object.keys(p.counts || {})).slice();
+    if (p.mode && list.indexOf(p.mode) === -1) list.unshift(p.mode);
+    var C = list.length, pick = Math.max(0, list.indexOf(p.mode));
+    if (C <= 1 || p.lot === 'single') return { single: true, list: [p.mode], pick: 0, hops: [], fall: 0.75, stop: 1.5, who: 2.0 };
+    var H = C === 2 ? 7 : 8, r = 1.25, d0 = 1.75 * (r - 1) / (Math.pow(r, H) - 1), t = 0.75, hops = [];
+    for (var i = 0; i < H; i++) {
+      var d = d0 * Math.pow(r, i);
+      hops.push({ k: ((pick - (H - 1 - i)) % C + C) % C, at: t, dur: d });
+      t += d;
+    }
+    return { single: false, list: list, pick: pick, hops: hops, stop: 2.5, who: 3.0 };
+  }
   function tvDecide(view) {
     var D = U().決定, V = K(), f = view.fes || {};
-    var p = f.pick || {}, g = view.info(p.mode);
+    var p = f.pick || {}, g = view.info(p.mode), tl = decideTimeline(view), C = tl.list.length;
     var n = (p.counts || {})[p.mode] || 0;
     var who = p.lot === 'single' ? D.ひとつ : p.lot === 'zero' ? D.くじ0 : (p.lot === 'tie' ? D.くじ同点 : n + D.えらびました);
+    var ss = function (sec) { return 'calc(' + sec.toFixed(2) + 's * var(--fx-scale))'; };
+    var cards = tl.single ? '' : '<div class="v2-dcards" style="--dc:' + C + ';animation-delay:' + ss(tl.stop) + '">' + tl.list.map(function (m, k) {
+      var c = view.info(m) || {};
+      return '<div class="v2-dcard">' + V.tile(c.world, 'v2-dcard-tile') + '<div class="v2-dcard-n">' + gnameHtml(c, 'v2-dcard-t') + '</div></div>';
+    }).join('') + tl.hops.map(function (h, i) {
+      var last = i === tl.hops.length - 1;
+      return '<i class="v2-dhop' + (last ? ' is-last' : '') + '" style="left:' + ((h.k + 0.5) / C * 100).toFixed(2) + '%;' +
+        (last ? 'animation-duration:' + ss(h.at) : 'animation-delay:' + ss(h.at) + ';animation-duration:' + ss(h.dur)) + '"></i>';
+    }).join('') + '</div>';
+    var sx = tl.single ? 0 : ((tl.pick + 0.5) / C - 0.5) * 84;
     return tvc(view,
-      '<div class="v2-tdec v2-swap v2-w-' + e(g.world) + '"><div class="v2-a-fade">' + V.hdHtml('Next Game', D.見出し, true) + '</div>' +
-        '<div class="v2-tdec-mid">' + V.tile(g.world, 'v2-a-slam v2-d1') +
-          '<div class="v2-gname v2-a-slam v2-d2">' + gnameHtml(g, 'v2-gname-t') + '</div>' +
-          '<div class="v2-who5 v2-a-rise v2-d3">' + e(who) + '</div></div></div>',
-      { layer: '<div class="v2-layer v2-w-' + e(g.world) + '">' + V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) + '</div>' + V.bgHtml() });
+      '<div class="v2-tdec2' + (tl.single ? ' is-single' : '') + '" style="--sx:' + sx.toFixed(1) + 'vw">' +
+        '<i class="v2-ddim"></i>' +
+        '<div class="v2-tdec2-hd v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall : tl.stop) + '">' + V.hdHtml('Next Game', D.見出し, true) + '</div>' +
+        cards +
+        '<div class="v2-dwin v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall + 0.15 : tl.stop + 0.15) + '">' +
+          V.tile(g.world, 'v2-dwin-tile') +
+          '<div class="v2-gname">' + gnameHtml(g, 'v2-gname-t') + '</div>' +
+          (tl.single ? '<span class="v2-dstamp" style="animation-delay:' + ss(tl.stop) + '">' + e(D.これだ) + '</span>' : '') +
+          '<div class="v2-who5" style="animation-delay:' + ss(tl.who) + '">' + e(who) + '</div></div>' +
+      '</div>',
+      { layer: V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) +
+        '<div class="v2-dwash v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall : tl.stop) + '">' + V.bgHtml() + '</div>' });
   }
   /** F9 ルールと準備OK（TV）：ルール3枚・準備OK・右下に小さなQR。待っている人は2人までは名前、3人からは数で（アプリの「待っています」と同じ・見本 t9） */
   function tvReady(view) {
@@ -682,7 +719,7 @@
   }
 
   // tvc：TV の外枠（名前の壁・縦の字・端あわせ）。指示68-3 のみんなと同じも同じ枠で描く（写さない）
-  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText, mostMissed: mostMissed,
+  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText, mostMissed: mostMissed, decideTimeline: decideTimeline,
     tvc: tvc,
     // 指示66-3：着替えのシートは、ふだんの部屋の待合（E4）も同じものを使う（見本「着替えは文化祭と同じシート」）
     lookSheets: lookSheets };

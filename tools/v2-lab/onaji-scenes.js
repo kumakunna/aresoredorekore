@@ -75,6 +75,10 @@ const BUILD = {
   // 見せ場の動画（tools/v2-film.js）：みんなと同じの開く（8人・16人）
   'onaji-tv-film-unveil': (o) => Object.assign(BUILD['onaji-tv-unveil'](o), { play: true }),
   'onaji-tv-film-unveil16': (o) => Object.assign(BUILD['onaji-tv-unveil16'](o), { play: true }),
+  // 指示68-S：ひとりだけ（少ない方で1人だけの答え）と、一致団結で全員そろった時
+  'onaji-tv-solo': (o) => { const r = 部屋(o.n || 8, Object.assign({ mode: 'few' }, o)); 四択へ(r); 選ぶ(r, 散らす(8, [4, 3, 1])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
+  'onaji-tv-film-solo': (o) => Object.assign(BUILD['onaji-tv-solo'](o), { play: true }),
+  'onaji-tv-film-team': (o) => Object.assign(BUILD['onaji-tv-team'](o), { play: true }),
   'onaji-tv-scatter': (o) => { const r = 部屋(4, o); 四択へ(r); 選ぶ(r, 散らす(4, [1, 1, 1, 1])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
   'onaji-tv-team': (o) => { const r = 部屋(o.n || 8, Object.assign({ mode: 'team' }, o)); 四択へ(r); 選ぶ(r, 散らす(8, [8])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
   'onaji-tv-result16': (o) => { const r = 部屋(16, o); 終える(r, [8, 5, 2, 1]); return lab(r, 'scr-v2-onaji-tv', 'tv'); },

@@ -117,6 +117,85 @@
     '</div>';
   }
 
+  // ===================== TV の開く（指示68-S の台本） =====================
+  /**
+   * 0〜0.75 ため：選択肢の札が横に大きく並び、まわりが暗くなる。**人数はまだ出さない**
+   * 0.75〜2.25 1人1つの玉（その人の印と色）が、選んだ札の上へぽとぽと落ちて積み上がる。人数は玉が落ちるたびに1ずつ
+   * 2.25 いちばん高い山にスポットライトと冠　3.0 冠の山の玉が名前の札に変わってぽんぽん開く（「+1点！」の粒）
+   * ひとりだけの時は、その1つの玉にスポットライト、名前が大きく。秒は画面と音で同じ物（timeline）を使う
+   * 玉と名前は、開いたあとに届く「答えごとの名前」（reveal.names）だけから組む（開く前には何も無い）
+   */
+  var TL = { tame: 0.75, drops: 1.2, fall: 0.3, crown: 2.25, tags: 3.0 };
+  var ss = function (sec) { return 'calc(' + sec.toFixed(2) + 's * var(--fx-scale))'; };
+  var 玉の色 = ['#FF8A5B', '#5BB8FF', '#FFC94A', '#7ED957', '#C792FF', '#FF7EB6', '#4FD1C5', '#F4F6F8'];
+  function 色(name) {
+    var h = 0;
+    String(name || '').split('').forEach(function (c) { h = (h * 31 + c.charCodeAt(0)) >>> 0; });
+    return 玉の色[h % 玉の色.length];
+  }
+  function timeline(view) {
+    var d = view.data || {}, r = d.reveal || {}, names = r.names || [];
+    var order = [], most = names.reduce(function (a, l) { return Math.max(a, (l || []).length); }, 0);
+    for (var j = 0; j < most; j++) names.forEach(function (l, k) { if (l && l[j] != null) order.push({ k: k, j: j }); });
+    var gap = order.length ? TL.drops / order.length : 0;
+    order.forEach(function (o, i) { o.at = TL.tame + i * gap; o.land = o.at + TL.fall; });
+    var crowned = !r.scatter && d.mode !== 'team' ? (r.crowned || []) : [];
+    return { drops: order, tame: TL.tame, crown: TL.crown, tags: TL.tags, crowned: crowned,
+      solo: crowned.length === 1 && (d.players || []).length > 2, end: crowned.length ? TL.tags + 0.6 + crowned.length * 0.06 : TL.crown + 0.6 };
+  }
+  function facesByName(view) {
+    var o = {};
+    (view.members || []).forEach(function (m) { if (m && m.name) o[m.name] = m.icon; });
+    return o;
+  }
+  function tvUnveilHtml(view) {
+    var d = view.data || {}, r = d.reveal || {}, V = K(), t = T(), tl = timeline(view);
+    var choices = r.choices || (d.topic && d.topic.choices) || [], C = Math.max(1, choices.length);
+    var names = r.names || [], 顔 = facesByName(view);
+    var team = d.mode === 'team', crown = (r.scatter || team) ? [] : (r.winners || []);
+    var 落ちる = {};
+    tl.drops.forEach(function (o) { (落ちる[o.k] = 落ちる[o.k] || [])[o.j] = o; });
+    var cols = choices.map(function (c, k) {
+      var list = names[k] || [], win = crown.indexOf(k) !== -1, ds = 落ちる[k] || [];
+      var balls = list.map(function (nm, j) {
+        var o = ds[j] || { at: 0 };
+        return '<i class="v2-oball" style="--bc:' + 色(nm) + ';animation-delay:' + ss(o.at) + (win ? ',' + ss(tl.tags) : '') + '">' + e(顔[nm] || '🙂') + '</i>';
+      }).join('');
+      // 人数：玉が落ちるたびに1ずつ（字を重ねて、落ちた時から次の玉までだけ見せる）。0人の札は、冠の時に「0」
+      var cnt = list.length ? list.map(function (nm, j) {
+        var on = (ds[j] || { land: 0 }).land, last = j === list.length - 1;
+        return last ? '<span class="v2-ocn is-last" style="animation-duration:' + ss(on) + '">' + V.digits(j + 1) + '</span>'
+          : '<span class="v2-ocn" style="animation-delay:' + ss(on) + ';animation-duration:' + ss(Math.max(0.01, (ds[j + 1] || { land: on }).land - on)) + '">' + V.digits(j + 1) + '</span>';
+      }).join('') : '<span class="v2-ocn is-last" style="animation-duration:' + ss(tl.crown) + '">' + V.digits(0) + '</span>';
+      return '<div class="v2-ocol' + (win ? ' is-win' : (crown.length ? ' is-lose' : '')) + '">' +
+        '<div class="v2-opile">' + (win ? '<i class="v2-ospot"></i>' : '') + balls + (win ? '<span class="v2-ocrown2" aria-hidden="true">👑</span>' : '') + '</div>' +
+        '<div class="v2-ocard"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-ocard-t" data-v2-wrap>' + V.phrase(c) + '</span>' +
+          '<span class="v2-ocnt"><b class="v2-num">' + cnt + '</b><small>' + e(t.人) + '</small></span></div></div>';
+    }).join('');
+    // 冠の山の玉が、名前の札に変わる（全員同じ大きさ。ひとりだけの時は大きく1枚）
+    var tags = '';
+    if (tl.crowned.length) {
+      var n = tl.crowned.length, tc = tl.solo ? 1 : Math.min(4, n), rows = Math.ceil(n / tc), 山 = {};
+      crown.forEach(function (k) { (names[k] || []).forEach(function (nm) { 山[nm] = k; }); });
+      tags = '<div class="v2-otags' + (tl.solo ? ' is-solo' : '') + '" style="--tc:' + tc + '">' + tl.crowned.map(function (nm, i) {
+        var col = i % tc, row = Math.floor(i / tc);
+        var sx = (((山[nm] || 0) + 0.5) / C - (col + 0.5) / tc) * 92, sy = 34 - (row - (rows - 1) / 2) * 9;
+        return '<span class="v2-otag" style="--sx:' + sx.toFixed(1) + 'vw;--sy:' + sy.toFixed(1) + 'vmin;animation-delay:' + ss(tl.tags + i * 0.06) + '">' +
+          '<i class="v2-otag-f">' + e(顔[nm] || '🙂') + '</i><span class="v2-cut">' + e(nm) + '</span>' +
+          '<i class="v2-oplus" style="animation-delay:' + ss(tl.tags + 0.3 + i * 0.06) + '">' + e(t.プラス1) + '</i></span>';
+      }).join('') + '</div>';
+    }
+    var ban = '';
+    if (r.scatter) ban = '<div class="v2-oban is-scatter">' + e(t.ばらばら) + '<small>' + e(t.ばらばら説明) + '</small></div>';
+    else if (team) ban = r.together ? '<div class="v2-oban is-gold">' + e(t.そろった) + '</div>'
+      : '<div class="v2-oban">' + e(t.そろい度) + '<b class="v2-num">' + V.digits(r.ratio || 0) + '</b>%</div>';
+    return '<div class="v2-ounv is-tv is-stage">' + '<i class="v2-odim"></i>' +
+      '<div class="v2-osay" aria-hidden="true">' + e(t.せーの) + '</div>' +
+      '<div class="v2-oqs" data-v2-wrap>' + V.phrase(r.q || (d.topic && d.topic.q) || '') + '</div>' +
+      '<div class="v2-ostg" style="--oc:' + C + '">' + cols + tags + (ban ? '<div class="v2-oban-at" style="animation-delay:' + ss(tl.crown) + '">' + ban + '</div>' : '') + '</div>' +
+    '</div>';
+  }
+
   /** 結果の中身（スマホ・TV・文化祭の結果の画面で同じ物）。多い方・少ない方は順位、一致団結はそろい度だけ */
   function resultBody(view, tv, o) {
     var d = view.data || {}, res = d.result || {}, V = K(), t = T();
@@ -162,7 +241,7 @@
   function tv(view) {
     var d = view.data || {}, V = K(), Fz = F();
     var inner;
-    if (d.phase === 'unveil') inner = '<div class="v2-otv">' + topRow(view, true) + unveilHtml(view, true) + '</div>';
+    if (d.phase === 'unveil') inner = '<div class="v2-otv">' + topRow(view, true) + tvUnveilHtml(view) + '</div>';
     else if (d.phase === 'ended') inner = '<div class="v2-otv is-end">' + resultBody(view, true) + '</div>';
     else inner = '<div class="v2-otv">' + topRow(view, true) + tvChoose(view) + '</div>';
     return Fz.tvc(view, inner, { names: (d.players || []).map(function (p) { return p.name; }) });
@@ -186,5 +265,5 @@
       }).join('') + '</div>';
   }
 
-  return { phone: phone, tv: tv, resultBody: resultBody, KEYS: KEYS };
+  return { phone: phone, tv: tv, resultBody: resultBody, timeline: timeline, KEYS: KEYS };
 });

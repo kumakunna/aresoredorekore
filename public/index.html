@@ -5349,8 +5349,9 @@
   .v2 .v2-sowrap.is-full .v2-soarrive{top:17%;}
   .v2 .v2-sowrap.is-full .v2-soband{top:42%;}
   .v2 .v2-sowrap.is-full .v2-sosig{justify-content:flex-start;padding-top:190px;}
-  .v2 .v2-sotv .v2-omode{background:rgba(4,30,40,.62);color:#FFFFFF;border-radius:999px;padding:6px 28px;}
-  .v2 .v2-sotv .v2-sobest{align-self:flex-end;background:rgba(4,30,40,.62);color:#FFFFFF;border-radius:999px;padding:8px 32px;}
+  /* 上の行は景色の上。雲が後ろを通っても読めるように、地は透かさない（指示68-S 4） */
+  .v2 .v2-sotv .v2-omode{background:#0E3540;color:#FFFFFF;border-radius:999px;padding:6px 28px;}
+  .v2 .v2-sotv .v2-sobest{align-self:flex-end;background:#0E3540;color:#FFFFFF;border-radius:999px;padding:8px 32px;}
   /* 景色の柱：画面5つぶん。着いた高さ k だけ下げる（20%＝画面1つ）。地面 → ビル → 雲 → 月 → 星と銀河。空の色も 昼 → 夜 → 宇宙 */
   .v2 .v2-socol{position:absolute;left:0;right:0;bottom:0;height:500%;transform:translateY(calc(var(--k) * 20%));
     background:linear-gradient(to top,#A9DDF2 0%,#6CB8E2 14%,#3F86C4 30%,#2A5492 46%,#1A2F66 62%,#0C1538 78%,#03051A 90%,#01020A 100%);}
@@ -5496,18 +5497,70 @@
   .v2 .v2-ounv.is-tv{gap:16px;margin-top:0;}
   .v2 .v2-ounv.is-tv .v2-osay{font-size:200px;top:25%;}
   .v2 .v2-ounv.is-tv .v2-oqs{font-size:48px;}
-  .v2 .v2-ounv.is-tv .v2-obars{gap:14px;}
-  .v2 .v2-ounv.is-tv .v2-obar{border-width:5px;border-radius:26px;padding:10px 20px;gap:20px;}
-  .v2 .v2-ounv.is-tv .v2-obar-c{font-size:50px;}
-  .v2 .v2-ounv.is-tv .v2-obar-t{gap:10px;}
-  .v2 .v2-ounv.is-tv .v2-obar-tr{height:28px;}
-  .v2 .v2-ounv.is-tv .v2-obar-n{font-size:64px;}
-  .v2 .v2-ounv.is-tv .v2-obar-n small{font-size:44px;}
-  .v2 .v2-ounv.is-tv .v2-ocrown{width:84px;font-size:72px;}
   .v2 .v2-ounv.is-tv .v2-oban{font-size:80px;}
   .v2 .v2-ounv.is-tv .v2-oban small{font-size:44px;}
-  .v2 .v2-ounv.is-tv .v2-onames{gap:12px;}
-  .v2 .v2-ounv.is-tv .v2-oname{font-size:44px;padding:6px 22px;}
+  /* 指示68-S：みんなと同じの開く（TV）。ため（札が大きく並んで、まわりが暗くなる・人数はまだ）→ 玉がぽとぽと落ちて山になる
+     （人数は玉が落ちるたびに1ずつ）→ 2.25秒 いちばん高い山にスポットライトと冠 → 3.0秒 冠の山の玉が名前の札に変わる。
+     最後の形が素の形（演出「なし」ではそれがすぐ出る）。動きは .is-play の時だけ */
+  .v2 .v2-ounv.is-stage{flex:1;min-height:0;gap:18px;}
+  .v2 .v2-odim{position:absolute;inset:-80px -120px;background:rgba(10,6,24,.4);pointer-events:none;}
+  .v2.is-play .v2-odim{animation:v2-ofade calc(.75s * var(--fx-scale)) ease both;}
+  @keyframes v2-ofade{from{opacity:0;}}
+  .v2 .v2-ounv.is-stage .v2-oqs,.v2 .v2-ostg{position:relative;}
+  .v2 .v2-ostg{flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--oc),minmax(0,1fr));gap:28px;}
+  .v2 .v2-ocol{display:flex;flex-direction:column;min-width:0;min-height:0;}
+  .v2 .v2-opile{position:relative;flex:1;min-height:0;display:flex;flex-wrap:wrap-reverse;align-content:flex-start;justify-content:center;gap:10px;padding:20px 8px 10px;}
+  .v2 .v2-oball{position:relative;width:84px;height:84px;border-radius:50%;background:var(--bc);display:flex;align-items:center;justify-content:center;
+    font-size:50px;font-style:normal;line-height:1;box-shadow:inset 0 -6px 0 rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.25);}
+  .v2.is-play .v2-oball{animation:v2-odrop calc(.3s * var(--fx-scale)) ease-in both;}
+  @keyframes v2-odrop{0%{transform:translateY(-1200px);}82%{transform:translateY(0);}92%{transform:translateY(-12px);}100%{transform:translateY(0);}}
+  /* 冠の山の玉は、名前の札に変わって消える */
+  .v2 .v2-ocol.is-win .v2-oball{opacity:0;}
+  .v2.is-play .v2-ocol.is-win .v2-oball{animation:v2-odrop calc(.3s * var(--fx-scale)) ease-in both,v2-ogone calc(.25s * var(--fx-scale)) ease both;}
+  @keyframes v2-ogone{from{opacity:1;}to{opacity:0;}}
+  .v2 .v2-ocol.is-lose .v2-opile{opacity:.4;}
+  .v2.is-play .v2-ocol.is-lose .v2-opile{animation:v2-oback calc(.4s * var(--fx-scale)) ease both;animation-delay:calc(2.25s * var(--fx-scale));}
+  @keyframes v2-oback{from{opacity:1;}}
+  .v2 .v2-ospot{position:absolute;left:-14px;right:-14px;top:0;bottom:-6px;border-radius:30px;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 100%,rgba(255,238,170,.6),rgba(255,238,170,0) 72%);}
+  /* 冠は山のいちばん上の段（玉のすぐ上）に乗る：折り返しの1段ぶんを使う */
+  .v2 .v2-ocrown2{flex:0 0 100%;text-align:center;font-size:84px;line-height:1;z-index:2;}
+  .v2.is-play .v2-ospot{animation:v2-ofade calc(.4s * var(--fx-scale)) ease both;animation-delay:calc(2.25s * var(--fx-scale));}
+  .v2.is-play .v2-ocrown2{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(2.25s * var(--fx-scale));}
+  .v2 .v2-ocard{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:12px;padding:16px 22px;min-height:140px;border-radius:26px;
+    background:var(--wc2);border:5px solid var(--wl);font-weight:900;}
+  .v2 .v2-ocol.is-win .v2-ocard{border-color:var(--wi);}
+  .v2 .v2-ocard-t{flex:1;min-width:0;font-size:52px;line-height:1.15;}
+  /* 人数は札の2段目（右寄せ）。1段目は札の字だけ（短い言葉が1字で折れない） */
+  .v2 .v2-ocnt{flex:0 0 100%;display:flex;justify-content:flex-end;align-items:baseline;gap:2px;}
+  .v2 .v2-ocnt b{display:grid;font-size:96px;line-height:1;}
+  .v2 .v2-ocn{grid-area:1/1;opacity:0;text-align:right;}
+  .v2 .v2-ocn.is-last{opacity:1;}
+  .v2 .v2-ocnt small{font-size:44px;}
+  /* 人数の字：落ちた時から次の玉まで見せる（最後の字は、落ちるまで隠す） */
+  .v2.is-play .v2-ocn{animation:v2-onum calc(1s * var(--fx-scale)) linear;}
+  .v2.is-play .v2-ocn.is-last{animation-name:v2-onum0;}
+  @keyframes v2-onum{from,to{opacity:1;}}
+  @keyframes v2-onum0{from,to{opacity:0;}}
+  /* 名前の札（集合写真・全員同じ大きさ）。玉のあった山から飛び出して並ぶ */
+  .v2 .v2-otags{position:absolute;left:0;right:0;top:0;bottom:142px;display:grid;grid-template-columns:repeat(var(--tc),minmax(0,max-content));
+    justify-content:center;align-content:center;gap:16px 22px;pointer-events:none;z-index:3;}
+  .v2 .v2-otag{position:relative;display:flex;align-items:center;gap:14px;min-width:0;max-width:440px;padding:10px 26px 10px 12px;border-radius:999px;
+    background:var(--wi);color:var(--won);font-weight:900;font-size:52px;line-height:1.2;box-shadow:0 10px 28px rgba(0,0,0,.3);}
+  .v2 .v2-otag-f{flex:none;width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;
+    font-size:42px;font-style:normal;line-height:1;}
+  .v2 .v2-otags.is-solo .v2-otag{font-size:110px;max-width:1200px;padding:18px 48px 18px 20px;gap:22px;}
+  .v2 .v2-otags.is-solo .v2-otag-f{width:130px;height:130px;font-size:84px;}
+  .v2.is-play .v2-otag{animation:v2-otag calc(.45s * var(--fx-scale)) var(--v2-pop) both;}
+  @keyframes v2-otag{from{opacity:0;transform:translate(var(--sx),var(--sy)) scale(.25);}}
+  .v2 .v2-oplus{position:absolute;right:-6px;top:-30px;font-style:normal;font-size:44px;color:#FFD84A;text-shadow:0 2px 0 rgba(0,0,0,.35);opacity:0;}
+  .v2.is-play .v2-oplus{animation:v2-oplus calc(1.1s * var(--fx-scale)) ease both;}
+  @keyframes v2-oplus{0%{opacity:0;transform:translateY(16px);}25%{opacity:1;transform:none;}75%{opacity:1;}100%{opacity:0;transform:translateY(-36px);}}
+  /* 一致団結・ばらばら：冠のかわりに、冠の時に帯 */
+  .v2 .v2-oban-at{position:absolute;left:0;right:0;top:40%;display:flex;justify-content:center;z-index:3;pointer-events:none;}
+  .v2 .v2-oban-at .v2-oban{background:var(--wi);color:var(--won);border-radius:30px;padding:22px 56px;}
+  .v2 .v2-oban-at .v2-oban small{color:var(--won);}
+  .v2.is-play .v2-oban-at{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
   .v2 .v2-otv.is-end{gap:20px;}
   .v2 .v2-otv .v2-oaws{flex-direction:row;gap:20px;margin:0;}
   .v2 .v2-otv .v2-oaw{flex:1;min-width:0;border-radius:26px;padding:16px 24px;gap:10px;}
@@ -5625,14 +5678,56 @@
   .v2 .v2-tvrow .v2-vmeta{margin-left:auto;gap:14px;flex:none;flex-wrap:nowrap;}
   .v2 .v2-tvrow .v2-vmeta span{font-size:42px;padding:6px 22px;}
   .v2 .v2-qrside{display:flex;flex-direction:column;justify-content:flex-end;}
-  .v2 .v2-tdec{position:absolute;inset:54px 96px;display:flex;flex-direction:column;z-index:3;}
-  /* 指示68-0b B6：間は 48px。字の箱は英字の高さで切る（text-box）ので、150px の日本語は箱の上に約 27px はみ出し、
-     24px では印（と白い縁 10px）に重なり、下の「5人がえらびました」にも詰まっていた */
-  .v2 .v2-tdec-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;text-align:center;}
-  .v2 .v2-tdec .v2-gname{font-size:150px;line-height:1.05;}
-  .v2 .v2-tdec .v2-gname-t small{display:inline;font-size:60px;margin-left:10px;}
-  .v2 .v2-tdec .v2-who5{font-size:64px;}
-  .v2 .v2-tdec .v2-tile{width:280px;height:280px;box-shadow:0 0 0 10px rgba(255,255,255,.9);}
+  /* 指示68-S：投票の決定（TV）。ため（候補の札・照明が落ちる）→ スポットライトが札から札へ（だんだんゆっくり）→ 2.5秒 止まって、
+     札がまん中へ飛び出し、世界の色が画面に広がる → 3.0秒「◯人がえらびました！」。候補が1つの時は札が落ちてきて「これだ！」のはんこ。
+     最後の形が素の形（演出「なし」ではそれがすぐ出る）。動きは .is-play の時だけ */
+  .v2 .v2-tdec2{position:absolute;inset:54px 96px;display:flex;flex-direction:column;z-index:3;--ink0:var(--wi);}
+  /* 見出しは、世界の色が広がるまでは待合の字の色、広がったらその世界の字の色 */
+  .v2 .v2-tdec2-hd{position:relative;z-index:2;color:var(--wi);}
+  .v2.is-play .v2-tdec2-hd{animation:v2-dink calc(.3s * var(--fx-scale)) ease both;}
+  @keyframes v2-dink{from{color:var(--ink0);}}
+  .v2 .v2-ddim{position:absolute;inset:-120px -200px;background:rgba(6,6,16,.5);opacity:0;pointer-events:none;}
+  .v2.is-play .v2-ddim{animation:v2-ddim calc(2.7s * var(--fx-scale)) ease;}
+  @keyframes v2-ddim{0%{opacity:0;}28%{opacity:1;}90%{opacity:1;}100%{opacity:0;}}
+  .v2 .v2-dcards{position:absolute;left:0;right:0;top:50%;margin-top:-230px;height:460px;display:grid;grid-template-columns:repeat(var(--dc),minmax(0,1fr));
+    gap:40px;opacity:0;visibility:hidden;}
+  .v2.is-play .v2-dcards{animation:v2-dgone calc(.3s * var(--fx-scale)) ease both;}
+  @keyframes v2-dgone{from{opacity:1;visibility:visible;}to{opacity:0;visibility:hidden;}}
+  .v2 .v2-dcard{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;border-radius:40px;
+    background:rgba(255,255,255,.14);text-align:center;}
+  .v2 .v2-dcard-tile{width:200px;height:200px;}
+  .v2 .v2-dcard-n{font-weight:900;font-size:64px;line-height:1.1;}
+  .v2 .v2-dcard-t small{display:block;font-size:44px;}
+  /* スポットライト：1か所ずつ光る（光っている間だけ見える。最後の1つは止まったまま） */
+  .v2 .v2-dhop{position:absolute;top:-24px;bottom:-24px;width:calc((100% - (var(--dc) - 1) * 40px) / var(--dc) + 40px);transform:translateX(-50%);
+    border-radius:52px;border:8px solid #FFE58A;box-shadow:0 0 60px rgba(255,229,138,.75),inset 0 0 60px rgba(255,229,138,.35);opacity:0;pointer-events:none;z-index:2;}
+  .v2.is-play .v2-dhop{animation:v2-dhop calc(1s * var(--fx-scale)) linear;}
+  .v2.is-play .v2-dhop.is-last{opacity:1;animation-name:v2-dhop0;}
+  @keyframes v2-dhop{from,to{opacity:1;}}
+  @keyframes v2-dhop0{from,to{opacity:0;}}
+  /* 止まった札が、まん中へ飛び出す。印がはずむ */
+  .v2 .v2-dwin{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;text-align:center;color:var(--wi);}
+  .v2.is-play .v2-dwin{animation:v2-dwin calc(.5s * var(--fx-scale)) var(--v2-pop) both;}
+  @keyframes v2-dwin{from{opacity:0;transform:translateX(var(--sx)) scale(.45);}}
+  .v2 .v2-dwin .v2-gname{font-size:150px;line-height:1.05;}
+  .v2 .v2-dwin .v2-gname-t small{display:inline;font-size:60px;margin-left:10px;}
+  .v2 .v2-dwin .v2-who5{font-size:64px;}
+  .v2 .v2-dwin-tile{width:280px;height:280px;box-shadow:0 0 0 10px rgba(255,255,255,.9);}
+  .v2.is-play .v2-dwin-tile{animation:v2-dbounce calc(.5s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(2.75s * var(--fx-scale));}
+  .v2.is-play .v2-tdec2.is-single .v2-dwin-tile{animation-delay:calc(1.6s * var(--fx-scale));}
+  @keyframes v2-dbounce{0%{transform:scale(1);}45%{transform:scale(1.16);}100%{transform:scale(1);}}
+  .v2.is-play .v2-dwin .v2-who5{animation:v2-rise var(--v2-move) var(--v2-ease) both;}
+  /* 候補が1つ：札が上から落ちてくる → 「これだ！」のはんこ */
+  .v2.is-play .v2-tdec2.is-single .v2-dwin{animation-name:v2-dfall;}
+  @keyframes v2-dfall{from{opacity:0;transform:translateY(-110vh);}}
+  .v2 .v2-dstamp{position:absolute;left:calc(50% + 190px);top:8%;padding:30px 52px;border:10px solid #C42B32;border-radius:24px;color:#C42B32;background:#FFFFFF;
+    font-weight:900;font-size:110px;line-height:1.1;transform:rotate(-7deg);}
+  .v2.is-play .v2-dstamp{animation:v2-dstamp calc(.45s * var(--fx-scale)) var(--v2-pop) both;}
+  @keyframes v2-dstamp{from{opacity:0;transform:rotate(-7deg) scale(2.4);}}
+  /* 世界の色が、止まった札のあたりから画面に広がる */
+  .v2 .v2-dwash{position:absolute;inset:-2px;z-index:2;background:linear-gradient(180deg,var(--wt),var(--wb));overflow:hidden;}
+  .v2.is-play .v2-dwash{animation:v2-dwash calc(.6s * var(--fx-scale)) var(--v2-ease) both;}
+  @keyframes v2-dwash{from{clip-path:circle(0% at 50% 50%);}to{clip-path:circle(75% at 50% 50%);}}
   .v2 .v2-tvB{display:grid;grid-template-columns:minmax(0,1fr) 386px;gap:28px;flex:1;min-height:0;padding-bottom:20px;}
   .v2 .v2-tvB-l{display:flex;flex-direction:column;gap:24px;min-width:0;}
   .v2 .v2-tg{display:flex;align-items:center;gap:24px;}
@@ -32170,6 +32265,14 @@
   }
   function fesWorld(scr, world){ V2.WORLDS.forEach(function(w){ scr.classList.toggle('v2-w-' + w, w === world); }); }
   // lab：見本データ（撮る道具の台本）が渡す { room, you, meId, fb }。ふだんは今の部屋から取る
+  /** 指示68-S：決定の音（TV だけ。秒は画面と同じ V2Fes.decideTimeline）：声「つぎのゲームは……」（v04）→ スポットライトが移るたびにカチ
+   *（だんだん遅く）→ 止まって声「これだ！」（v05） */
+  function fesDecideFx(view){
+    var tl = V2Fes.decideTimeline(view), 声 = function(id){ if(window.Sound) Sound.voice(id); };
+    声('v04');
+    tl.hops.forEach(function(h){ v2FxAt(h.at, function(){ sfx('tick'); }); });
+    v2FxAt(tl.stop, function(){ 声('v05'); sfx('decide'); }, true);
+  }
   function fesRender(cur, lab){
     var room = lab ? lab.room : (fesRoom() || bombV2Room()); if(!room) return;
     var scr = el(cur); if(!scr) return;
@@ -32218,6 +32321,7 @@
     var key = f.round + ':' + f.phase;
     // 見本データ（lab）は動きの終わった形を撮る（lab.play のときだけ動かす）
     scr.classList.toggle('is-play', f.phase === 'decide' && (lab ? !!lab.play : fes.playAnim !== key + cur));
+    if(f.phase === 'decide' && !lab && cur === 'scr-v2-fes-tv' && scr.classList.contains('is-play')) fesDecideFx(view);
     if(f.phase === 'decide') fes.playAnim = key + cur;
     back();
     V2.mount(scr);
@@ -32284,7 +32388,17 @@
     if(d.phase === 'unveil'){
       // 声「せーの！」（v15）は TV だけ（音の箱が決める）
       rtOnce('onaji:v15:' + key, true, function(){ if(window.Sound) Sound.voice('v15'); });
-      if(tv) return;
+      if(tv){
+        // 指示68-S の台本（秒は画面と同じ V2Onaji.timeline）：玉ごとに軽い音（だんだん高く）→ 冠「いちばん多かったのは……」（v21）
+        // ／ひとりだけ「まさかの、ひとりだけ！」（v23）→ 名前の札「みんなと同じ！」（v22）
+        var tl = V2Onaji.timeline(view), 声 = function(id){ if(window.Sound) Sound.voice(id); };
+        tl.drops.forEach(function(o, i){ v2FxAt(o.land, function(){ sfx('tap', { rate: Math.min(1.7, 0.9 + i * 0.05) }); }); });
+        if(tl.crowned.length){
+          v2FxAt(tl.crown, function(){ 声(tl.solo ? 'v23' : 'v21'); });
+          if(!tl.solo) v2FxAt(tl.tags, function(){ 声('v22'); sfx('cheer'); }, true);
+        } else if(d.mode === 'team' && r.together) v2FxAt(tl.crown, function(){ sfx('cheer'); }, true);
+        return;
+      }
       var got = d.mode !== 'team' && !r.scatter && typeof me.myChoice === 'number' && (r.winners || []).indexOf(me.myChoice) !== -1;
       if(got || (d.mode === 'team' && r.together)){ sfx('cheer'); FxKit.vibe('ok'); }
     }

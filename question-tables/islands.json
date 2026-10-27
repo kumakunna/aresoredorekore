@@ -1,0 +1,77 @@
+{
+  "id": "islands",
+  "title": "日本の島の面積",
+  "what": "面積",
+  "unit": "km²",
+  "source": "国土地理院「全国都道府県市区町村別面積調」令和8年4月1日版 付3 島面積（小数点以下で四捨五入。奄美大島は表では「大島」（鹿児島県）） https://www.gsi.go.jp/KOKUJYOHO/MENCHO/backnumber/GSI-menseki20260401.pdf",
+  "checked": "2026-10-27 手伝い（別の目）が国土地理院の PDF を開き、島面積の表から下の12行を読んだ（指示68-Q）。境界が決まっていない島は入れていない",
+  "ask": {
+    "compare": "{a}と{b}、面積が広いのはどっち？",
+    "number": "{a}の面積は約何km²？（いちばん近い人の勝ち）"
+  },
+  "minGap": 30,
+  "rows": [
+    {
+      "name": "本州",
+      "value": 227943,
+      "tier": "easy"
+    },
+    {
+      "name": "北海道本島",
+      "value": 77982,
+      "tier": "easy",
+      "row": "北海道"
+    },
+    {
+      "name": "九州",
+      "value": 36782,
+      "tier": "easy"
+    },
+    {
+      "name": "四国",
+      "value": 18296,
+      "tier": "easy"
+    },
+    {
+      "name": "沖縄島",
+      "value": 1208,
+      "tier": "normal"
+    },
+    {
+      "name": "佐渡島",
+      "value": 855,
+      "tier": "normal"
+    },
+    {
+      "name": "奄美大島",
+      "row": "大島（鹿児島県）",
+      "value": 712,
+      "tier": "hard"
+    },
+    {
+      "name": "対馬",
+      "value": 696,
+      "tier": "hard"
+    },
+    {
+      "name": "淡路島",
+      "value": 592,
+      "tier": "normal"
+    },
+    {
+      "name": "屋久島",
+      "value": 504,
+      "tier": "normal"
+    },
+    {
+      "name": "種子島",
+      "value": 444,
+      "tier": "hard"
+    },
+    {
+      "name": "小豆島",
+      "value": 153,
+      "tier": "normal"
+    }
+  ]
+}

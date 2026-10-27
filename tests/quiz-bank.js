@@ -356,6 +356,13 @@ const { createRunner, assert, assertEqual } = require('./harness');
       assert(URLあり.test(q.source || ''), q.q + '：出典に URL がある');
       assert(Q.TIERS.indexOf(q.tier) !== -1, q.q + '：層がある');
     });
+    // 68-Q（くまくんの決め 2026-10-27）：1つの表から作りすぎない（同じ物ばかりにしない）。片方は有名な物（層が easy か normal）
+    tables.forEach((t) => {
+      const mine = all.filter((q) => q.table === t.id);
+      assert(mine.length <= (t.maxCompare || Gen.MAX_COMPARE), t.id + '：どっちが上？は ' + (t.maxCompare || Gen.MAX_COMPARE) + '問まで（' + mine.length + '）');
+      const 層 = {}; t.rows.forEach((row) => { 層[row.name] = row.tier; });
+      mine.forEach((q) => assert(層[q.choices[0]] !== 'hard' || 層[q.choices[1]] !== 'hard', q.q + '：片方は有名な物'));
+    });
     // 選択肢を混ぜても正解は正解のまま（クイズ解除・クイズ王と同じ混ぜ方）
     const q0 = all[0];
     const mixed = Q.shuffleChoices(q0, () => 0);

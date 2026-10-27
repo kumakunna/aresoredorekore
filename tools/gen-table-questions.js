@@ -57,19 +57,40 @@ const harder = (x, y) => TIERS[Math.max(TIERS.indexOf(x), TIERS.indexOf(y))];
  * どっちが上？は、差が minGap より小さい組を作らない（同じ高さ・ほぼ同じ高さを当てさせない）。
  * 層は2つのうち難しい方。選択肢の並びは出す時に混ぜる（quiz-bank の shuffleChoices）ので、ここでは上を先に置く
  */
+/**
+ * 1つの表から作る「どっちが上？」の上限（くまくんの決め 2026-10-27：山だけで180問だと、遊ぶと同じ山ばかりになる）。
+ * 増やす時は表の数（種類）を増やす。表ごとに maxCompare で変えられる
+ */
+const MAX_COMPARE = 30;
+
 function questionsFrom(t) {
   const rows = t.rows;
   const gap = t.minGap || 0;
-  const compare = [];
+  const pairs = [];
   for (let i = 0; i < rows.length; i++) {
     for (let j = i + 1; j < rows.length; j++) {
       const a = rows[i], b = rows[j];
       if (Math.abs(a.value - b.value) < Math.max(gap, 1)) continue;
-      const top = a.value > b.value ? a : b;
-      compare.push({ q: fill(t.ask.compare, a.name, b.name), choices: [top.name, top === a ? b.name : a.name], correct: 0,
-        tier: harder(a.tier, b.tier), table: t.id });
+      // だれも知らない物どうしにしない：片方は有名な物（層が easy か normal）
+      if (a.tier === 'hard' && b.tier === 'hard') continue;
+      pairs.push([a, b]);
     }
   }
+  // 上限まで、どの行もなるべく同じ回数だけ出るように選ぶ（同じ物ばかりにしない）。並びは表の順で決まる（毎回同じ）
+  const cap = t.maxCompare || MAX_COMPARE, used = new Map(), picked = [];
+  const n = (r) => used.get(r.name) || 0;
+  while (picked.length < cap && pairs.length) {
+    let best = 0;
+    pairs.forEach((p, k) => { if (n(p[0]) + n(p[1]) < n(pairs[best][0]) + n(pairs[best][1])) best = k; });
+    const [a, b] = pairs.splice(best, 1)[0];
+    used.set(a.name, n(a) + 1); used.set(b.name, n(b) + 1);
+    picked.push([a, b]);
+  }
+  const compare = picked.map(([a, b]) => {
+    const top = a.value > b.value ? a : b;
+    return { q: fill(t.ask.compare, a.name, b.name), choices: [top.name, top === a ? b.name : a.name], correct: 0,
+      tier: harder(a.tier, b.tier), table: t.id };
+  });
   const number = rows.map((r) => ({ q: fill(t.ask.number, r.name), answer: r.value, unit: t.unit, tier: r.tier, table: t.id }));
   return { compare, number };
 }
@@ -106,4 +127,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { build, problemsOf, questionsFrom, readTables, OUT };
+module.exports = { build, problemsOf, questionsFrom, readTables, OUT, MAX_COMPARE };

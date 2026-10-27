@@ -1,0 +1,85 @@
+{
+  "id": "lakes",
+  "title": "日本の湖の面積",
+  "what": "面積",
+  "unit": "km²",
+  "source": "国土地理院「全国都道府県市区町村別面積調」令和8年4月1日版 付1 湖沼面積（小数点以下で四捨五入） https://www.gsi.go.jp/KOKUJYOHO/MENCHO/backnumber/GSI-menseki20260401.pdf",
+  "checked": "2026-10-27 手伝い（別の目）が国土地理院の PDF を開き、湖沼面積の表から下の14行を読んだ。大きい6つは同じ PDF の「湖沼面積20傑」の表とも合う（指示68-Q）",
+  "ask": {
+    "compare": "{a}と{b}、面積が広いのはどっち？",
+    "number": "{a}の面積は約何km²？（いちばん近い人の勝ち）"
+  },
+  "minGap": 5,
+  "rows": [
+    {
+      "name": "琵琶湖",
+      "value": 669,
+      "tier": "easy"
+    },
+    {
+      "name": "霞ヶ浦",
+      "value": 168,
+      "tier": "normal"
+    },
+    {
+      "name": "サロマ湖",
+      "value": 152,
+      "tier": "hard"
+    },
+    {
+      "name": "猪苗代湖",
+      "value": 103,
+      "tier": "normal"
+    },
+    {
+      "name": "中海",
+      "value": 86,
+      "tier": "hard"
+    },
+    {
+      "name": "屈斜路湖",
+      "value": 80,
+      "tier": "hard"
+    },
+    {
+      "name": "宍道湖",
+      "value": 79,
+      "tier": "hard"
+    },
+    {
+      "name": "支笏湖",
+      "value": 78,
+      "tier": "hard"
+    },
+    {
+      "name": "洞爺湖",
+      "value": 71,
+      "tier": "hard"
+    },
+    {
+      "name": "浜名湖",
+      "value": 65,
+      "tier": "normal"
+    },
+    {
+      "name": "十和田湖",
+      "value": 61,
+      "tier": "normal"
+    },
+    {
+      "name": "田沢湖",
+      "value": 26,
+      "tier": "hard"
+    },
+    {
+      "name": "諏訪湖",
+      "value": 13,
+      "tier": "normal"
+    },
+    {
+      "name": "山中湖",
+      "value": 7,
+      "tier": "normal"
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "id": "rivers",
+  "title": "日本の川の長さ",
+  "what": "長さ（幹川流路延長）",
+  "unit": "km",
+  "source": "総務省統計局「日本統計年鑑 第73回」第1章「主な水系（令和4年）」（元は国土交通省「河川管理統計」。四万十川は水系名「渡川」で載っている） https://www.stat.go.jp/data/nenkan/73nenkan/zenbun/jp73/book/pageindices/index56.html",
+  "checked": "2026-10-27 手伝い（別の目）が統計年鑑のページを開き、下の15行の幹川流路延長を写した（指示68-Q）。多摩川は年鑑に無い（別の出典になる）ので入れていない",
+  "ask": {
+    "compare": "{a}と{b}、長いのはどっち？",
+    "number": "{a}の長さは約何km？（いちばん近い人の勝ち）"
+  },
+  "minGap": 10,
+  "rows": [
+    {
+      "name": "信濃川",
+      "value": 367,
+      "tier": "easy"
+    },
+    {
+      "name": "利根川",
+      "value": 322,
+      "tier": "normal"
+    },
+    {
+      "name": "石狩川",
+      "value": 268,
+      "tier": "normal"
+    },
+    {
+      "name": "天塩川",
+      "value": 256,
+      "tier": "hard"
+    },
+    {
+      "name": "北上川",
+      "value": 249,
+      "tier": "hard"
+    },
+    {
+      "name": "阿武隈川",
+      "value": 239,
+      "tier": "hard"
+    },
+    {
+      "name": "木曽川",
+      "value": 229,
+      "tier": "normal"
+    },
+    {
+      "name": "最上川",
+      "value": 229,
+      "tier": "normal"
+    },
+    {
+      "name": "天竜川",
+      "value": 213,
+      "tier": "normal"
+    },
+    {
+      "name": "阿賀野川",
+      "value": 210,
+      "tier": "hard"
+    },
+    {
+      "name": "四万十川",
+      "row": "渡川",
+      "value": 196,
+      "tier": "normal"
+    },
+    {
+      "name": "吉野川",
+      "value": 194,
+      "tier": "normal"
+    },
+    {
+      "name": "十勝川",
+      "value": 156,
+      "tier": "hard"
+    },
+    {
+      "name": "筑後川",
+      "value": 143,
+      "tier": "hard"
+    },
+    {
+      "name": "淀川",
+      "value": 75,
+      "tier": "normal"
+    }
+  ]
+}

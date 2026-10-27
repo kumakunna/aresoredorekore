@@ -1,0 +1,95 @@
+{
+  "id": "pref-pop",
+  "title": "都道府県の人口（2020年）",
+  "what": "人口",
+  "unit": "人",
+  "source": "総務省統計局「令和2年国勢調査 人口等基本集計 結果の概要」（確定値・令和2年10月1日現在）の都道府県別人口 https://www.stat.go.jp/data/kokusei/2020/kekka/pdf/outline_01.pdf",
+  "checked": "2026-10-27 手伝い（別の目）が PDF を開き、都道府県コード順の数の行を写して、順位の列（東京1・神奈川2…鳥取47）と合うことを確かめた（指示68-Q）",
+  "ask": {
+    "compare": "{a}と{b}、人口が多いのはどっち？（2020年）",
+    "number": "{a}の人口は約何人？（2020年・いちばん近い人の勝ち）"
+  },
+  "minGap": 100000,
+  "rows": [
+    {
+      "name": "東京都",
+      "value": 14047594,
+      "tier": "easy"
+    },
+    {
+      "name": "神奈川県",
+      "value": 9237337,
+      "tier": "normal"
+    },
+    {
+      "name": "大阪府",
+      "value": 8837685,
+      "tier": "easy"
+    },
+    {
+      "name": "愛知県",
+      "value": 7542415,
+      "tier": "normal"
+    },
+    {
+      "name": "埼玉県",
+      "value": 7344765,
+      "tier": "normal"
+    },
+    {
+      "name": "北海道",
+      "value": 5224614,
+      "tier": "normal"
+    },
+    {
+      "name": "福岡県",
+      "value": 5135214,
+      "tier": "normal"
+    },
+    {
+      "name": "広島県",
+      "value": 2799702,
+      "tier": "hard"
+    },
+    {
+      "name": "京都府",
+      "value": 2578087,
+      "tier": "normal"
+    },
+    {
+      "name": "宮城県",
+      "value": 2301996,
+      "tier": "hard"
+    },
+    {
+      "name": "沖縄県",
+      "value": 1467480,
+      "tier": "normal"
+    },
+    {
+      "name": "石川県",
+      "value": 1132526,
+      "tier": "hard"
+    },
+    {
+      "name": "秋田県",
+      "value": 959502,
+      "tier": "hard"
+    },
+    {
+      "name": "高知県",
+      "value": 691527,
+      "tier": "hard"
+    },
+    {
+      "name": "島根県",
+      "value": 671126,
+      "tier": "hard"
+    },
+    {
+      "name": "鳥取県",
+      "value": 553407,
+      "tier": "normal"
+    }
+  ]
+}

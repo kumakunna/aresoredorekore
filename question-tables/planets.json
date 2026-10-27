@@ -1,0 +1,55 @@
+{
+  "id": "planets",
+  "title": "太陽系の惑星の半径",
+  "what": "半径",
+  "unit": "km",
+  "source": "国立天文台 暦計算室「天体の半径」（地球は赤道半径 GRS-80、火星から海王星は赤道半径 WGCCRE 2015、水星・金星は平均半径。小数点以下で四捨五入） https://eco.mtk.nao.ac.jp/koyomi/wiki/CFC7C0B12FC8BEB7C2.html",
+  "checked": "2026-10-27 手伝い（別の目）が国立天文台のページを開き、8つの惑星の半径を写した（指示68-Q）",
+  "ask": {
+    "compare": "{a}と{b}、大きいのはどっち？",
+    "number": "{a}の半径は約何km？（いちばん近い人の勝ち）"
+  },
+  "minGap": 500,
+  "rows": [
+    {
+      "name": "水星",
+      "value": 2439,
+      "tier": "normal"
+    },
+    {
+      "name": "金星",
+      "value": 6052,
+      "tier": "normal"
+    },
+    {
+      "name": "地球",
+      "value": 6378,
+      "tier": "easy"
+    },
+    {
+      "name": "火星",
+      "value": 3396,
+      "tier": "normal"
+    },
+    {
+      "name": "木星",
+      "value": 71492,
+      "tier": "easy"
+    },
+    {
+      "name": "土星",
+      "value": 60268,
+      "tier": "normal"
+    },
+    {
+      "name": "天王星",
+      "value": 25559,
+      "tier": "hard"
+    },
+    {
+      "name": "海王星",
+      "value": 24764,
+      "tier": "hard"
+    }
+  ]
+}

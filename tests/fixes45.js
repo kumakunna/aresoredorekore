@@ -765,7 +765,8 @@ const RULES = rulesOf(CSS);
     await sleep(win, 400);
     const 二回目 = await 開く();
     二回目.choices.find((c) => c.textContent === 二回目.正解).click();
-    await waitScreen(win, doc, 'scr-bomb-end', 6000);
+    // 指示68-S：解除の幕は台本で6秒（4.5秒に結果の札・そのあと結果へ）
+    await waitScreen(win, doc, 'scr-bomb-end', 9000);
 
     // 入口が出て、押すと開く
     const btn = el(doc, 'bombReviewBtn');

@@ -2834,7 +2834,8 @@ async function startModeWithTimerOff(win, doc, id) {
       right.click();
       await sleep(win, 600);
     }
-    await waitScreen(win, doc, 'scr-bomb-end', 4000);
+    // 指示68-S：解除の幕は台本で6秒（4.5秒に結果の札・そのあと結果へ）
+    await waitScreen(win, doc, 'scr-bomb-end', 9000);
     assert(/解除成功/.test(el(doc, 'bombEndTitle').textContent), '全解除で成功になる');
     assertNoErrors(errors, '爆弾解除の通しプレイで未捕捉の例外');
     win.close();

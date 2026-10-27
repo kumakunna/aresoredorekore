@@ -29,6 +29,10 @@ const SC = require('../tools/v2-lab/scenes.js');
       assert(tl.hops[i].dur > tl.hops[i - 1].dur, 'だんだんゆっくり（' + i + '）');
       assert(tl.hops[i].k !== tl.hops[i - 1].k, '毎回となりの札へ移る（' + i + '）');
     }
+    // 同じ札が光るのは1秒に3回まで（同じ札にもどるまでの間が 1/3 秒より長い）
+    for (let i = 0; i < tl.hops.length; i++) for (let j = i + 1; j < tl.hops.length; j++) {
+      if (tl.hops[j].k === tl.hops[i].k) { assert(tl.hops[j].at - tl.hops[i].at > 1 / 3, '同じ札の光りなおしは1秒に3回まで（' + i + '→' + j + '）'); break; }
+    }
     const 終わり = tl.hops[tl.hops.length - 1].at + tl.hops[tl.hops.length - 1].dur;
     assert(Math.abs(終わり - 2.5) < 1e-6, '2.5秒で止まる（' + 終わり + '）');
     assertEqual(tl.stop, 2.5, '止まる時刻'); assertEqual(tl.who, 3, '人数の一言');

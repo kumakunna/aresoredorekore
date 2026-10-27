@@ -550,7 +550,8 @@
     if (p.mode && list.indexOf(p.mode) === -1) list.unshift(p.mode);
     var C = list.length, pick = Math.max(0, list.indexOf(p.mode));
     if (C <= 1 || p.lot === 'single') return { single: true, list: [p.mode], pick: 0, hops: [], fall: 0.75, stop: 1.5, who: 2.0 };
-    var H = C === 2 ? 7 : 8, r = 1.25, d0 = 1.75 * (r - 1) / (Math.pow(r, H) - 1), t = 0.75, hops = [];
+    // 同じ札が光るのは1秒に3回まで（安全の決まり）：はじめの移り（最も速い）でも、同じ札にもどるまで0.33秒より長い
+    var H = C === 2 ? 5 : 6, r = 1.3, d0 = 1.75 * (r - 1) / (Math.pow(r, H) - 1), t = 0.75, hops = [];
     for (var i = 0; i < H; i++) {
       var d = d0 * Math.pow(r, i);
       hops.push({ k: ((pick - (H - 1 - i)) % C + C) % C, at: t, dur: d });

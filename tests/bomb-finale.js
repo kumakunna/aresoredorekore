@@ -154,6 +154,11 @@ async function 終わらせる(t) {
     assert(/あと2本だった/.test(字(t.doc)), '言葉は読める');
     await 終わらせる(t);
     assert(!幕(t.doc), '押せば終わる');
+    // 指示68-S：解除も、最後の形（名前の集合写真・ハート・結果の札）がすぐ出る
+    t.win.bombFinaleProbe({ success: true, tv: true, names: ['ふう', 'ひろ'], total: 10, sec: 60, lives: 1 });
+    await sleep(t.win, 60);
+    ['is-open', 'is-text', 'is-names', 'is-card'].forEach((c) => assert(幕(t.doc).classList.contains(c), '解除：' + c + ' がすぐ'));
+    await 終わらせる(t);
     t.win.close();
   });
 

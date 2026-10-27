@@ -1,0 +1,50 @@
+[
+  {
+    "name": "S1 クイズ解除の幕：結果の札を上げない（台本の 4.5秒が抜ける）",
+    "file": "public/js/fx.js",
+    "suite": "tests/bomb-finale.js",
+    "from": "        付ける('is-card');\n        return linger(opt.linger == null ? 1500 : opt.linger);",
+    "to": "        return linger(opt.linger == null ? 1500 : opt.linger);",
+    "expect": "4.5秒：結果の札が上がる"
+  },
+  {
+    "name": "S2 クイズ解除の幕：ほめる音を、ふたが開く前（ランプの時）に鳴らす",
+    "file": "public/js/fx.js",
+    "suite": "tests/bomb-finale.js",
+    "from": "        開く(); 呼ぶ(opt.onLamp);",
+    "to": "        開く(); 呼ぶ(opt.onLamp); 呼ぶ(opt.onOpen);",
+    "expect": "ほめる音は、ふたが開いてから"
+  },
+  {
+    "name": "S3 みんなと同じ：一致団結でも名前の札を出す",
+    "file": "public/js/v2-onaji.js",
+    "suite": "tests/onaji-unveil-tv.js",
+    "from": "    var crowned = !r.scatter && d.mode !== 'team' ? (r.crowned || []) : [];",
+    "to": "    var crowned = r.crowned || [];",
+    "expect": "冠も名前の札も無い"
+  },
+  {
+    "name": "S4 みんなと同じ：玉が 2.25秒までに落ちきらない",
+    "file": "public/js/v2-onaji.js",
+    "suite": "tests/onaji-unveil-tv.js",
+    "from": "  var TL = { tame: 0.75, drops: 1.2, fall: 0.3, crown: 2.25, tags: 3.0 };",
+    "to": "  var TL = { tame: 0.75, drops: 1.6, fall: 0.3, crown: 2.25, tags: 3.0 };",
+    "expect": "2.25秒までに落ちきる"
+  },
+  {
+    "name": "S5 投票の決定：スポットライトが決まった札で止まらない",
+    "file": "public/js/v2-fes.js",
+    "suite": "tests/fes-decide-tv.js",
+    "from": "      hops.push({ k: ((pick - (H - 1 - i)) % C + C) % C, at: t, dur: d });",
+    "to": "      hops.push({ k: i % C, at: t, dur: d });",
+    "expect": "最後のスポットライトは決まった札"
+  },
+  {
+    "name": "S6 投票の決定：スポットライトを速くしすぎる（同じ札が1秒に3回より多く光る）",
+    "file": "public/js/v2-fes.js",
+    "suite": "tests/fes-decide-tv.js",
+    "from": "    var H = C === 2 ? 5 : 6, r = 1.3,",
+    "to": "    var H = C === 2 ? 9 : 10, r = 1.3,",
+    "expect": "同じ札の光りなおしは1秒に3回まで"
+  }
+]

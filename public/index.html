@@ -5280,7 +5280,8 @@
   .v2 .v2-ptwrap.is-tv .v2-oban small,.v2 .v2-sowrap.is-tv .v2-oban small{font-size:44px;margin-top:10px;}
   /* 指示68-4：ぴったり10秒の「開く」（TV・見せ場の台本）。ため → 物差しがせり上がる → 札が1枚ずつ落ちて刺さる → 寄る → 冠と名前 */
   .v2 .v2-ptr{position:relative;flex:1;min-height:0;}
-  .v2 .v2-ptr-dim{position:absolute;inset:0;border-radius:30px;background:#000;opacity:0;pointer-events:none;}
+  /* 指示68-S 4：ため で暗くなるのは画面全体（箱の形にしない。外は TV の枠が切る） */
+  .v2 .v2-ptr-dim{position:absolute;inset:-1200px -400px;background:#000;opacity:0;pointer-events:none;}
   .v2.is-play .v2-ptr-dim{animation:v2-ptrdim calc(1.1s * var(--fx-scale)) var(--v2-ease) both;}
   @keyframes v2-ptrdim{0%{opacity:0;}65%{opacity:.3;}100%{opacity:0;}}
   .v2 .v2-ptr-ruler{position:absolute;inset:0;}
@@ -5314,6 +5315,8 @@
     font-weight:900;font-size:42px;line-height:1.2;background:var(--wc);border-radius:14px;padding:0 12px;}
   .v2 .v2-ptd.is-l .v2-ptd-nm{transform:translateX(-24px);}
   .v2 .v2-ptd.is-r .v2-ptd-nm{transform:translateX(calc(-100% + 24px));}
+  /* 指示68-S 4：ぴったり10秒の TV は、うしろの光の輪を出さない（名前の壁が光の形に切れて、かたまりに見えた）。壁は全体に同じうすさ */
+  .v2 .v2-tvc.is-ptwall .v2-circles{display:none;}
   .v2 .v2-tvc.is-quietwall .v2-nr{color:color-mix(in srgb,var(--wi) 3%,transparent);}
   .v2 .v2-ptwin{position:absolute;left:50%;top:0;transform:translateX(-50%);display:flex;flex-direction:row;align-items:center;gap:28px;max-width:1500px;white-space:nowrap;
     background:var(--wc2);border:6px solid var(--wi);border-radius:40px;padding:16px 48px;box-shadow:0 14px 0 rgba(0,0,0,.18);}
@@ -5347,7 +5350,9 @@
   .v2 .v2-sowrap.is-full{position:absolute;inset:0;margin:0;z-index:1;}
   .v2 .v2-sowrap.is-full .v2-soscene{position:absolute;inset:0;height:auto;border:0;border-radius:0;}
   .v2 .v2-sowrap.is-full .v2-soarrive{top:17%;}
-  .v2 .v2-sowrap.is-full .v2-soband{top:42%;}
+  /* 指示68-S 4：帯は上に、飛んでいるロケットは少し下に（帯がロケットの先にかぶらない） */
+  .v2 .v2-sowrap.is-full .v2-soband{top:38%;}
+  .v2 .v2-sowrap.is-full .v2-soscene.is-fly .v2-sorkt{bottom:17%;}
   .v2 .v2-sowrap.is-full .v2-sosig{justify-content:flex-start;padding-top:190px;}
   /* 上の行は景色の上。雲が後ろを通っても読めるように、地は透かさない（指示68-S 4） */
   .v2 .v2-sotv .v2-omode{background:#0E3540;color:#FFFFFF;border-radius:999px;padding:6px 28px;}

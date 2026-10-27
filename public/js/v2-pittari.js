@@ -242,7 +242,8 @@
   function tv(view) {
     var d = view.data || {}, inner;
     // 開く間は名前の壁をうすく（札の名前と見分けがつくように）
-    var 壁 = d.phase === 'roundResult' ? 'is-quietwall' : '';
+    // うしろの光の輪は出さない（壁が光の形に切れて、かたまりに見えた・指示68-S 4）
+    var 壁 = 'is-ptwall' + (d.phase === 'roundResult' ? ' is-quietwall' : '');
     if (d.phase === 'roundResult') inner = '<div class="v2-otv">' + topRow(view) + tvRevealHtml(view) + '</div>';
     else if (d.phase === 'ended') inner = '<div class="v2-otv is-end">' + resultBody(view, true) + '</div>';
     else if (d.phase === 'run') inner = '<div class="v2-otv">' + topRow(view) + '<div class="v2-ptset is-tv">' +

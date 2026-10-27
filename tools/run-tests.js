@@ -27,6 +27,7 @@
 //   node tools/run-tests.js --list     # 走らせる一覧と、単独/並走の別を見るだけ
 //   node tools/run-tests.js --only shelf   # 名前に shelf を含むものだけ
 //   node tools/run-tests.js --short    # 赤のスイートと、まとめ・赤・最後の1行だけ（判定は同じ）
+//   node tools/run-tests.js --limit-min 20   # 1本の時間切れ（分）。既定20
 //
 // ── 並走の決めごと（落とし穴11の読み直し）────────────
 //
@@ -71,6 +72,10 @@ const 短く行数 = 6;
 // この機械の空き16GBに対して余裕がある。
 // 迷ったら --jobs 1 に落とせば、昔と同じ「1本ずつ」に戻る
 const 並走上限 = Math.max(1, parseInt(opt('jobs', 3), 10) || 3);
+// **1本の時間切れ（既定20分）。**指示68-4（2026-10-27）で rt-screens が終わらない待ち（画面が休まず聞き直す）に入り、
+// 全テストが**8時間**止まったまま、だれも気づかなかった。いちばん遅い rt-screens でも約8分なので、20分を越えたら
+// 止まっているとみなして殺し、**赤として出す**（くまくんの決め 2026-10-27・案A）。時間切れは回し直さない（また20分かかるだけ）
+const 時間切れ分 = Math.max(0.01, parseFloat(opt('limit-min', 20)) || 20);
 
 // ---- 走らせるスイートを、tests/ から導く（手書きの一覧を持たない）----
 const 除外 = ['harness.js', 'inventory.js', 'playthrough.js'];
@@ -121,17 +126,25 @@ function 走らせる(f) {
      */
     const ch = cp.spawn(process.execPath,
       ['--max-old-space-size=6144', path.join('tests', f)], { cwd: R, env });
-    let out = '';
+    let out = '', 切れた = false;
     ch.stdout.on('data', (d) => { out += d; });
     ch.stderr.on('data', (d) => { out += d; });
+    const 見張り = setTimeout(() => {
+      切れた = true;
+      // 子が立てたサーバーや Chrome も残さない（Windows は木ごと止める）
+      if (process.platform === 'win32') cp.spawnSync('taskkill', ['/PID', String(ch.pid), '/T', '/F']);
+      else ch.kill('SIGKILL');
+    }, 時間切れ分 * 60000);
     ch.on('close', (code, signal) => {
+      clearTimeout(見張り);
       // **合否は「機械が読む1行」だけで決める。**日本語の本文を正規表現で
       // 拾う形にすると、文言を直した日に判定が壊れる
       let 報告 = null;
       const m = out.match(/^##ACAC## (.+)$/m);
       if (m) { try { 報告 = JSON.parse(m[1]); } catch (e) { 報告 = null; } }
+      if (切れた) { 報告 = null; code = '時間切れ（' + 時間切れ分 + '分）'; signal = null; }
       resolve({
-        file: f, code: code, signal: signal, ms: Date.now() - t0,
+        file: f, code: code, signal: signal, ms: Date.now() - t0, 時間切れ: 切れた,
         報告: 報告,
         out: out.replace(/^##ACAC## .+$/m, '').replace(/\n{3,}/g, '\n\n')
       });
@@ -153,7 +166,7 @@ async function 流す(list, 本数) {
     while (i < list.length) {
       const f = list[i++];
       let r = await 走らせる(f);
-      if (!r.報告) {
+      if (!r.報告 && !r.時間切れ) {
         console.log('… ' + f + ' が報告を出さずに終わった（' + (r.signal || r.code) +
           '）。**単独で1回だけ回し直す**');
         const r2 = await 走らせる(f);
@@ -200,6 +213,11 @@ function 印字(r) {
   const 合計件数 = 報告あり.reduce((s, r) => s + r.報告.total, 0);
   const 赤 = [];
   結果.forEach((r) => {
+    if (r.時間切れ) {
+      赤.push([r.file, '（' + r.code + 'を越えても終わらなかったので止めた。どこかで待ち続けている）',
+        r.out.trim() ? r.out.trim().split('\n').slice(-8).join('\n         ') : '（出力も残っていない）']);
+      return;
+    }
     if (!r.報告) {
       赤.push([r.file, '（報告が無い。落ちたか、途中で殺された。終了コード ' + (r.signal || r.code) + '）',
         r.out.trim() ? r.out.trim().split('\n').slice(-8).join('\n         ') : '（出力も残っていない）']);

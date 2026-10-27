@@ -156,6 +156,9 @@ const BUILD = {
   'fes2-tv-boom': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, false); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); }
 };
 
+// 見せ場の動画（tools/v2-film.js）：投票の決定を、動きを頭から（play）
+BUILD['fes2-tv-film-decide'] = (o) => Object.assign(BUILD['fes2-tv-decide'](o), { play: true });
+
 /** 撮る道具の一覧に足す場面（kind：phone／tv、mock：見本の同じ場面） */
 const SCENES = [
   ['fes2-safety', 'phone', 'f1'], ['fes2-cd', 'phone', 'f10'], ['fes2-tv-cd', 'tv', 't10'],
@@ -166,7 +169,7 @@ const SCENES = [
   ['fes2-vote', 'phone', 'f7'], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],
   ['fes2-tv-idle', 'tv', 't6a'], ['fes2-tv-one', 'tv', 't6b'], ['fes2-tv-lobby', 'tv', 't3'], ['fes2-tv-full', 'tv', 't6c'],
-  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b']
+  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b']
 ].map(([id, kind, mock]) => ({ id, kind, draw: 'fes', fes: true,
   screen: BUILD[id]({}).screen, mock: mock ? { page: 'festival.html', id: mock } : null }));
 

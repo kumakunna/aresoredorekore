@@ -72,6 +72,9 @@ const BUILD = {
   // 見せ場の動き（せーの → 棒 → 冠 → 名前）を、動かして開く。tools/v2-motion.js が「なし」で止まるかを見る
   'onaji-tv-unveil-play': (o) => Object.assign(BUILD['onaji-tv-unveil'](o), { play: true }),
   'onaji-unveil-play': (o) => Object.assign(BUILD['onaji-unveil'](o), { play: true }),
+  // 見せ場の動画（tools/v2-film.js）：みんなと同じの開く（8人・16人）
+  'onaji-tv-film-unveil': (o) => Object.assign(BUILD['onaji-tv-unveil'](o), { play: true }),
+  'onaji-tv-film-unveil16': (o) => Object.assign(BUILD['onaji-tv-unveil16'](o), { play: true }),
   'onaji-tv-scatter': (o) => { const r = 部屋(4, o); 四択へ(r); 選ぶ(r, 散らす(4, [1, 1, 1, 1])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
   'onaji-tv-team': (o) => { const r = 部屋(o.n || 8, Object.assign({ mode: 'team' }, o)); 四択へ(r); 選ぶ(r, 散らす(8, [8])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
   'onaji-tv-result16': (o) => { const r = 部屋(16, o); 終える(r, [8, 5, 2, 1]); return lab(r, 'scr-v2-onaji-tv', 'tv'); },

@@ -46,7 +46,8 @@ async function 終わらせる(t) {
     await sleep(t.win, 900);
     assert(n.classList.contains('is-open'), '0.75秒で開く（ランプが赤 → 消える → 緑）');
     assertEqual(音(t.win, 'tick').length, 1, '「カチッ」');
-    assertEqual(音(t.win, 'defuse').length, 0, 'ほめる音は、ふたが開いてから');
+    // 時刻で見ずに順番で見る（並走で機械が重いと、待っている間に 1.5秒を越えることがある）：ふたが開く前は鳴っていない
+    assertEqual(音(t.win, 'defuse').length, n.classList.contains('is-text') ? 1 : 0, 'ほめる音は、ふたが開いてから');
     await sleep(t.win, 800);
     assert(n.classList.contains('is-text'), '1.5秒：ふたが開いて字');
     assertEqual(音(t.win, 'defuse').length, 1, 'ふたが開いた時にほめる音');

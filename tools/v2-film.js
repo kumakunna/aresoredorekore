@@ -30,8 +30,8 @@ const PORT = +arg('port', 3972), CDP = +arg('cdp', 9672);
 /** 本当の時計で撮る見せ場：どの場面を開いて、何を呼ぶか（ページの中の式） */
 const REAL = {
   // クイズ解除（協力版）の終わりの幕（TV）。名前は見本の6人。window.bombFinaleProbe は tests/bomb-finale.js と同じ窓
-  'bomb-film-clear': { scene: 'fes2-tv-result', call: "window.bombFinaleProbe({ success: true, tv: true, names: ['ふう', 'ひろ', 'びび', 'ちか', 'でん', 'えみ'], left: 0 })" },
-  'bomb-film-boom': { scene: 'fes2-tv-boom', call: "window.bombFinaleProbe({ success: false, tv: true, left: 3, cause: 'lives' })" }
+  'bomb-film-clear': { scene: 'fes2-tv-result', call: "window.bombFinaleProbe({ success: true, tv: true, names: ['ふう', 'ひろ', 'びび', 'ちか', 'でん', 'えみ'], left: 0, total: 30, sec: 147, lives: 3, missed: { question: '「枕草子」の書き出しは？', answer: '春はあけぼの' } })" },
+  'bomb-film-boom': { scene: 'fes2-tv-boom', call: "window.bombFinaleProbe({ success: false, tv: true, left: 3, total: 30, sec: 153, cause: 'lives', missed: { question: '「枕草子」の書き出しは？', answer: '春はあけぼの' } })" }
 };
 
 /** 本当の時計で撮る：画面の送りを受けて、0.1秒ごとのコマに並べ直す（足りない所は前のコマをくり返す） */

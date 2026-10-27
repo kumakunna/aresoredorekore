@@ -868,7 +868,6 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center;}
   .fx-fin-bomb{font-size:min(28vmin,180px);line-height:1;filter:drop-shadow(0 0 28px rgba(240,161,58,.75));
     animation:fxFinTame calc(0.75s * var(--fx-scale)) ease forwards;}
-  .fx-finale.is-tv .fx-fin-bomb{font-size:30vmin;}
   @keyframes fxFinTame{to{filter:drop-shadow(0 0 4px rgba(240,161,58,.15));opacity:.82;}}
   .fx-finale.is-open .fx-fin-bomb{animation:fxFinOff calc(0.4s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
   @keyframes fxFinOff{to{opacity:0;transform:scale(.6);}}
@@ -880,8 +879,6 @@
   .fx-fin-names{display:flex;flex-wrap:wrap;justify-content:center;gap:.2em .6em;margin-top:.5em;font-weight:900;font-size:min(8vw,44px);}
   .fx-fin-sub{margin-top:.6em;font-weight:700;font-size:min(5.4vw,28px);color:#C9CED6;}
   .fx-finale.is-tv .fx-fin-title{font-size:13vmin;}
-  .fx-finale.is-tv .fx-fin-names{font-size:6.4vmin;max-width:86vw;margin-left:auto;margin-right:auto;}
-  .fx-finale.is-tv .fx-fin-sub{font-size:4.4vmin;}
   .fx-fin-clear.is-open .fx-fin-title{animation:fxFinIn calc(0.5s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) forwards;}
   .fx-finale.is-text .fx-fin-title,.fx-finale.is-text .fx-fin-names,.fx-finale.is-text .fx-fin-sub{
     animation:fxFinIn calc(0.5s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) forwards;}
@@ -899,6 +896,108 @@
     background:#F0C44A;opacity:0;}
   .fx-finale.is-open .fx-fin-dot{animation:fxFinDot calc(2.2s * var(--fx-scale)) ease var(--d) forwards;}
   @keyframes fxFinDot{0%{opacity:0;transform:translateY(0);}15%{opacity:.9;}100%{opacity:0;transform:translateY(-70vh);}}
+  /* --- 指示68-S：TV の舞台（クイズ解除の終わり） ---
+     解除：ため（最後のコードが切れて、ほかが暗くなる・時計は止まったまま）→ 0.75 爆弾が大きく、ランプが赤 → 消える → 緑 →
+     1.5 ふたがぱかっと開いて紙ふぶき（上へ舞うだけ・点滅しない）と「解除成功！」→ 3.0 爆弾から全員の名前が飛び出して集合写真
+     （全員同じ大きさ）とハート → 4.5 下から結果の札。
+     爆発：ため（爆弾だけが残り、残ったコードがふるえる）→ 0.75 爆発（明るさは1回・揺れは0.2秒を1回・輪と破片と煙）→
+     煙がゆっくり晴れて、こげた盤の**切れなかったコードだけが光る** → 3.0「あと◯本だった！」 */
+  .fx-finale.is-tv .fx-fin-rig{position:absolute;left:0;right:0;top:calc(56% - 23vmin);display:flex;flex-direction:column;align-items:center;
+    transform:scale(.82);}
+  .fx-fin-boom.is-tv .fx-fin-rig{top:calc(36% - 23vmin);}
+  .fx-fin-case{position:relative;width:44vmin;height:27vmin;border-radius:3vmin;background:linear-gradient(#3A4150,#232833);
+    box-shadow:inset 0 -1.2vmin 0 rgba(0,0,0,.35),0 2vmin 5vmin rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;}
+  .fx-fin-lid{position:absolute;left:-1vmin;right:-1vmin;top:-3vmin;height:5vmin;border-radius:2vmin 2vmin .6vmin .6vmin;
+    background:linear-gradient(#4C5568,#343B4A);transform-origin:50% 100%;}
+  .fx-fin-lamp{position:absolute;left:50%;top:-8vmin;width:6vmin;height:6vmin;margin-left:-3vmin;border-radius:50%;
+    background:#E5484D;box-shadow:0 0 3vmin rgba(229,72,77,.8);}
+  .fx-fin-clock{font-family:"Bebas Neue","M PLUS 1",sans-serif;font-weight:900;font-size:13vmin;line-height:1;letter-spacing:.06em;color:#F0A13A;
+    background:#0B0D10;border-radius:1.6vmin;padding:1.6vmin 3vmin;font-variant-numeric:tabular-nums;text-shadow:0 0 2vmin rgba(240,161,58,.6);}
+  .fx-fin-wires{display:flex;justify-content:center;gap:max(.4vmin,calc(36vmin / 60));width:52vmin;height:15vmin;margin-top:-.6vmin;
+    padding:0 2vmin;border-radius:0 0 2vmin 2vmin;background:#1A1E26;}
+  .fx-fin-w{position:relative;flex:1 1 0;max-width:2.4vmin;display:flex;flex-direction:column;}
+  .fx-fin-w b{flex:1;background:var(--c);border-radius:.6vmin;}
+  .fx-fin-w b:first-child{border-radius:0 0 .6vmin .6vmin;}
+  .fx-fin-w.is-cut b:first-child{transform:translateY(-2.4vmin) rotate(-8deg);}
+  .fx-fin-w.is-cut b:last-child{transform:translateY(2.4vmin) rotate(7deg);}
+  .fx-fin-w.is-cut{opacity:.55;}
+  /* ため：最後の1本が切れて、ほかは暗くなる */
+  .fx-fin-w.is-last b:first-child{animation:fxWireTop calc(.3s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) calc(.15s * var(--fx-scale)) forwards;}
+  .fx-fin-w.is-last b:last-child{animation:fxWireBot calc(.3s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) calc(.15s * var(--fx-scale)) forwards;}
+  @keyframes fxWireTop{to{transform:translateY(-2.4vmin) rotate(-8deg);}}
+  @keyframes fxWireBot{to{transform:translateY(2.4vmin) rotate(7deg);}}
+  .fx-fin-clear.is-tv .fx-fin-w:not(.is-last){animation:fxFinDim calc(.6s * var(--fx-scale)) ease calc(.15s * var(--fx-scale)) forwards;}
+  @keyframes fxFinDim{to{opacity:.3;}}
+  /* 0.75：爆弾がまん中に大きく、ランプが 赤 → 消える → 緑（色が変わるのは2回だけ・くり返さない） */
+  .fx-fin-clear.is-tv.is-open .fx-fin-rig{animation:fxRigUp calc(.5s * var(--fx-scale)) cubic-bezier(.2,1.5,.4,1) forwards;}
+  @keyframes fxRigUp{from{transform:scale(.82);}to{transform:scale(1.12);}}
+  .fx-fin-clear.is-tv.is-open .fx-fin-lamp{animation:fxLamp calc(.6s * var(--fx-scale)) ease forwards;}
+  @keyframes fxLamp{0%{background:#E5484D;box-shadow:0 0 3vmin rgba(229,72,77,.8);}45%{background:#2A2F38;box-shadow:none;}
+    100%{background:#3FBFA5;box-shadow:0 0 4vmin rgba(63,191,165,.9);}}
+  /* 1.5：ふたがぱかっと開く。3.0：爆弾は小さく消えて、名前に場所をゆずる */
+  .fx-fin-clear.is-tv.is-text .fx-fin-lid{animation:fxLid calc(.45s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) forwards;}
+  @keyframes fxLid{to{transform:perspective(60vmin) translateY(-1.6vmin) rotateX(72deg);}}
+  .fx-fin-clear.is-tv.is-names .fx-fin-rig{animation:fxRigOut calc(.4s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
+  @keyframes fxRigOut{from{transform:scale(1.12);opacity:1;}to{transform:scale(.5);opacity:0;}}
+  /* 文字の置き場：解除は上に「解除成功！」、まん中に名前の集合写真。爆発は下に字 */
+  .fx-finale.is-tv .fx-fin-body{top:7%;transform:none;}
+  .fx-fin-boom.is-tv .fx-fin-body{top:auto;bottom:25%;}
+  .fx-fin-boom.is-tv .fx-fin-title{font-size:11vmin;color:#F4F6F8;}
+  .fx-finale.is-tv .fx-fin-sub{font-size:4.6vmin;}
+  .fx-finale.is-tv .fx-fin-names{display:grid;grid-template-columns:repeat(var(--cols),22vw);justify-content:center;gap:2.2vmin 0;
+    margin-top:5vmin;font-size:5.6vmin;opacity:1;animation:none;}
+  .fx-finale.is-tv .fx-fin-names span{opacity:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 1vmin;}
+  .fx-fin-clear.is-tv.is-names .fx-fin-names span{animation:fxNameOut calc(.5s * var(--fx-scale)) cubic-bezier(.2,1.5,.4,1)
+    calc(var(--k) * 70ms * var(--fx-scale)) forwards;}
+  @keyframes fxNameOut{from{opacity:0;transform:translate(var(--sx),var(--sy)) scale(.3);}to{opacity:1;transform:none;}}
+  .fx-fin-hearts{display:flex;justify-content:center;gap:1.4vmin;margin-top:2vmin;height:6vmin;}
+  .fx-fin-heart{width:6vmin;height:6vmin;opacity:0;}
+  .fx-fin-heart svg{width:100%;height:100%;fill:#E5484D;}
+  .fx-fin-clear.is-tv.is-names .fx-fin-heart{animation:fxFinIn calc(.4s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1)
+    calc((.5s + var(--k) * .18s) * var(--fx-scale)) forwards;}
+  /* 4.5：下から結果の札 */
+  .fx-fin-card{position:absolute;left:50%;bottom:4%;width:min(78vw,140vmin);margin-left:max(-39vw,-70vmin);padding:2.2vmin 4vmin;border-radius:2.4vmin;
+    background:#F4F6F8;color:#14171C;opacity:0;transform:translateY(130%);display:flex;flex-direction:column;align-items:center;gap:1vmin;}
+  .fx-fin-card-l{font-weight:900;font-size:6vmin;line-height:1.1;font-variant-numeric:tabular-nums;}
+  .fx-fin-card-m{display:flex;flex-direction:column;align-items:center;gap:.4vmin;}
+  .fx-fin-card-m small{font-weight:700;font-size:3.9vmin;color:#5A6170;}
+  .fx-fin-card-m span{font-weight:800;font-size:3.9vmin;}
+  .fx-fin-card-m b{font-weight:900;font-size:3.9vmin;color:#1E8C77;}
+  .fx-fin-clear.is-card .fx-fin-card{animation:fxCardUp calc(.5s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
+  .fx-fin-boom.is-tv .fx-fin-card{bottom:3%;transform:none;padding:1.2vmin 3vmin;gap:.4vmin;background:rgba(244,246,248,.12);color:#F4F6F8;}
+  .fx-fin-boom.is-tv .fx-fin-card-m small{color:#C9CED6;}
+  .fx-fin-boom.is-tv .fx-fin-card-m b{color:#7FE0CB;}
+  .fx-fin-boom.is-text .fx-fin-card{animation:fxFinIn calc(.5s * var(--fx-scale)) ease calc(.3s * var(--fx-scale)) forwards;}
+  @keyframes fxCardUp{to{opacity:1;transform:none;}}
+  /* 紙ふぶき：爆弾から上へ舞って、左右に散って消える（点滅しない） */
+  .fx-finale.is-tv .fx-fin-dot{left:50%;top:44%;bottom:auto;border-radius:2px;background:var(--c);width:var(--s);height:calc(var(--s) * .6);}
+  .fx-fin-clear.is-tv.is-text .fx-fin-dot{animation:fxConfetti calc(1.8s * var(--fx-scale)) ease-out var(--d) forwards;}
+  @keyframes fxConfetti{0%{opacity:0;transform:translate(0,0) rotate(0);}12%{opacity:1;}
+    100%{opacity:0;transform:translate(var(--dx),-48vh) rotate(var(--r));}}
+  /* 爆発：ため で残ったコードがふるえる → 輪・破片・煙 → こげた盤で、切れなかったコードだけが光る */
+  .fx-fin-boom.is-tv .fx-fin-w.is-live{animation:fxShiver calc(.09s * var(--fx-scale)) linear calc(var(--j) * 20ms) 8 alternate;}
+  @keyframes fxShiver{from{transform:translateX(-.25vmin);}to{transform:translateX(.25vmin);}}
+  .fx-fin-boom.is-tv.is-open .fx-fin-case,.fx-fin-boom.is-tv.is-open .fx-fin-lid{background:linear-gradient(#22252B,#121418);}
+  .fx-fin-boom.is-tv.is-open .fx-fin-lamp{background:#2A2F38;box-shadow:none;}
+  .fx-fin-boom.is-tv.is-open .fx-fin-clock{color:#6B4A28;text-shadow:none;}
+  .fx-fin-boom.is-tv.is-open .fx-fin-w.is-cut{opacity:.3;filter:grayscale(1);}
+  .fx-fin-boom.is-tv.is-open .fx-fin-w.is-live b{box-shadow:0 0 2.4vmin var(--c),0 0 .8vmin var(--c);}
+  .fx-fin-ring{position:absolute;left:50%;top:40%;width:12vmin;height:12vmin;margin:-6vmin 0 0 -6vmin;border-radius:50%;
+    border:1.4vmin solid #F0C44A;opacity:0;}
+  .fx-fin-boom.is-open .fx-fin-ring{animation:fxRing calc(.6s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
+  @keyframes fxRing{0%{opacity:1;transform:scale(.3);}100%{opacity:0;transform:scale(7);}}
+  .fx-fin-deb{position:absolute;left:50%;top:40%;width:6vmin;height:4.4vmin;margin:-2.2vmin 0 0 -3vmin;background:#F0A13A;
+    clip-path:polygon(0 30%,40% 0,100% 20%,80% 100%,20% 85%);opacity:0;}
+  .fx-fin-deb:nth-child(2n){background:#C9CED6;}
+  .fx-fin-deb:nth-child(3n){background:#5A6170;}
+  .fx-fin-boom.is-open .fx-fin-deb{animation:fxDebris calc(.9s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
+  @keyframes fxDebris{0%{opacity:1;transform:rotate(var(--a)) translateX(0) rotate(0);}
+    80%{opacity:1;}100%{opacity:0;transform:rotate(var(--a)) translateX(var(--r)) rotate(var(--t));}}
+  .fx-finale.is-tv .fx-fin-smoke{background:radial-gradient(circle at 50% 38%, rgba(140,146,156,.95), rgba(70,74,82,.75) 40%, rgba(8,9,11,0) 72%);}
+  .fx-finale.is-tv.is-open .fx-fin-smoke{animation:fxFinSmokeTv calc(2.2s * var(--fx-scale)) ease forwards;}
+  .fx-finale.is-tv.is-shake .fx-fin-smoke{animation:fxFinSmokeTv calc(2.2s * var(--fx-scale)) ease forwards;}
+  .fx-finale.is-tv.is-shake .fx-fin-rig{animation:fxShake 0.2s linear 1;}
+  @keyframes fxFinSmokeTv{0%{opacity:0;transform:scale(.5);}12%{opacity:1;transform:scale(1);}30%{opacity:1;}100%{opacity:0;transform:scale(1.3);}}
   .fx-finale.fx-out{animation:fxBlackoutOut calc(0.25s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
 
   /* --- 指示60 A-2：クリア演出（FxKit.celebrate） ---
@@ -23150,7 +23249,8 @@
         if(結.mode === 'coop'){
           // 指示68-2 第1節：TV は全員の名前を大きく／爆発は ため → 光 → 煙が晴れて「あと◯本だった」
           bombFinale({ success: !!結.success, tv: true, names: 結.names || [],
-            left: (結.total || 0) - (結.solved || 0), cause: 結.cause,
+            left: (結.total || 0) - (結.solved || 0), cause: 結.cause, total: 結.total, sec: 結.elapsedSec, lives: (v.shared || {}).lives,
+            missed: typeof V2Fes !== 'undefined' && V2Fes.mostMissed ? V2Fes.mostMissed(結.codes) : null,
             key: bombFinaleKey(rt.state.room && rt.state.room.code, 結) });
           return;
         }
@@ -28515,16 +28615,31 @@
     var 声 = function(id){ if(window.Sound) Sound.voice(id); };
     if(!clear && o.cause === 'time') 声('v09');   // 時間切れは「そこまで！」から ため に入る
     var left = Math.max(0, o.left || 0);
-    var sub = clear ? (tv ? T.全員で : '') : (left > 0 ? T.あと(left) : (bombBoomCause(o.cause) || ''));
+    // 指示68-S：TV の舞台の材料（コードの本数・止まった時計・残ったライフ・いちばん迷った問題）。無い時は出さない
+    var total = Math.max(0, o.total || ((o.solved || 0) + left)), solved = clear ? total : Math.max(0, total - left);
+    var 時計 = o.sec == null ? '' : (typeof V2Fes !== 'undefined' && V2Fes.clockText ? V2Fes.clockText(o.sec)
+      : (('0' + Math.floor(o.sec / 60)).slice(-2) + ':' + ('0' + (o.sec % 60)).slice(-2)));
+    var 迷 = o.missed && o.missed.question ? o.missed : null, Rz = UiText.FES && UiText.FES.結果;
+    var card = !tv ? null : {
+      line: clear && total ? solved + '/' + total + T.本 + (時計 ? '・' + 時計 : '') : '',
+      h: 迷 && Rz ? Rz.迷った : '', q: 迷 ? 迷.question : '', a: 迷 ? (Rz ? Rz.正解は : '') + 迷.answer : ''
+    };
+    var sub = clear ? '' : (tv ? T.つぎは : (left > 0 ? T.あと(left) : (bombBoomCause(o.cause) || '')));
+    var 高さ = 0;
     return FxKit.finale({
       kind: clear ? 'clear' : 'boom', tv: tv,
-      title: clear ? (tv ? T.解除 : T.解除スマホ) : (tv ? T.爆発 : T.ばくはつ),
+      title: clear ? (tv ? T.解除 : T.解除スマホ) : (tv ? (left > 0 ? T.あと(left) : (bombBoomCause(o.cause) || T.爆発)) : T.ばくはつ),
       names: clear ? (tv ? (o.names || []) : (o.me ? [o.me] : [])) : [],
       sub: sub,
+      rig: { total: total, solved: solved, clock: !clear && o.cause === 'time' ? '00:00' : 時計 },
+      hearts: clear ? o.lives : 0,
+      card: card,
+      onLamp: function(){ sfx('tick'); },                      // ランプが緑に変わる「カチッ」
       onOpen: function(){
         if(clear){ sfx('defuse'); 声('v24'); if(!tv) doVibrate(60); }
         else { sfx('boom'); if(!tv) doVibrate(400); }
       },
+      onName: function(){ sfx('tap', { rate: Math.min(1.6, 1 + (高さ++) * 0.04) }); },   // 名前ごとに軽い音（だんだん高く）
       onText: function(){ if(!clear) 声('v12'); },        // 「おしい！」（明るく）
       behind: function(){ 声(clear ? 'v11' : 'v10'); 結果へ(); }   // 幕が上がる時：「おめでとう！」／「結果発表！」
     });
@@ -28602,6 +28717,11 @@
     return bombBoomSequence({ sub: (typeof sub === 'string' && sub) || null,
       結果へ: 結果へ });
   }
+  /** 手渡し版の、かかった時間（秒）。時間の設定が無い遊び方は分からないので出さない（指示68-S：爆弾の止まった時計） */
+  function bombHandoffSec(){
+    if(!state.timerEnabled) return null;
+    return Math.max(0, (state.customTimer || 180) - Math.max(0, play.bombRemaining || 0));
+  }
   function defuseComplete(){
     var gen = playGen;   // 第36弾 36-3
     play.bombPhase = 'over';
@@ -28614,6 +28734,8 @@
     if(typeof FxKit !== 'undefined'){
       // 指示68-2 第1節：手渡しの1台はみんなで見る画面（TV と同じ形・全員の名前）。**幕の後ろで**結果へ移る
       bombFinale({ success: true, tv: true, names: (state.players || []).map(function(p){ return p.name; }),
+        total: (play.bombWires || []).length, sec: bombHandoffSec(), lives: Math.max(0, (play.bombLivesMax || 0) - (play.bombMisses || 0)),
+        missed: V2Fes.mostMissed(bombHandoffReviewCodes()),
         結果へ: function(){ if(!playAlive(gen)) return; enterBombEnd(true); goTo('scr-bomb-end'); } });
       return;
     }
@@ -28631,6 +28753,7 @@
       // 指示68-2 第1節：ため → 爆発 → 煙が晴れて「あと◯本だった」。**幕の後ろで**結果へ移る
       bombFinale({ success: false, tv: true, cause: cause,
         left: (play.bombWires || []).filter(function(x){ return !x.solved; }).length,
+        total: (play.bombWires || []).length, sec: bombHandoffSec(), missed: V2Fes.mostMissed(bombHandoffReviewCodes()),
         結果へ: function(){ if(!playAlive(gen)) return; enterBombEnd(false); goTo('scr-bomb-end'); } });
       return;
     }
@@ -32083,7 +32206,8 @@
     if(!lab && bombV2Saw && view.game === 'bomb' && gd && gd.phase === 'ended' && gd.result && gd.mode === 'coop' && !gd.result.aborted){
       rtOnce('fes:bomb:end:' + f.round + ':' + cur, true, function(){
         bombFinale({ success: !!gd.result.success, tv: cur === 'scr-v2-fes-tv', names: gd.result.names || [], me: meNameOf(view),
-          left: (gd.result.total || 0) - (gd.result.solved || 0), cause: gd.result.cause, key: bombFinaleKey(room.code, gd.result) });
+          left: (gd.result.total || 0) - (gd.result.solved || 0), cause: gd.result.cause, key: bombFinaleKey(room.code, gd.result),
+          total: gd.result.total, sec: gd.result.elapsedSec, lives: (gd.shared || {}).lives, missed: V2Fes.mostMissed(gd.result.codes) });
       });
     }
     if(!lab && view.game === 'bomb') bombLastCall(gd, 'fes:bomb:' + f.round + ':' + cur);

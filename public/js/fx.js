@@ -1147,37 +1147,74 @@
     var 大きく = tv || clear;   // スマホの爆発だけは静かに
     var names = (opt.names || []).filter(Boolean);
     var 粒 = '';
-    if (clear && 光 && tv) {   // 粒は TV（みんなで見る画面）だけ。スマホは「解除！」と自分の名前だけ
-      for (var i = 0; i < 14; i++) {
-        粒 += '<i class="fx-fin-dot" style="--x:' + ((i * 37) % 100) + '%;--d:' + ((i * 53) % 400) + 'ms;--s:' + (6 + (i % 3) * 3) + 'px"></i>';
+    if (clear && 光 && tv) {   // 紙ふぶきは TV（みんなで見る画面）だけ。上へ舞って消えるだけで点滅しない
+      for (var i = 0; i < 36; i++) {
+        粒 += '<i class="fx-fin-dot" style="--dx:' + (((i * 37) % 84 - 42) * 0.9).toFixed(1) + 'vw;--d:' + ((i * 53) % 500) + 'ms;--s:' + (22 + (i % 3) * 8) + 'px;--c:' +
+          ['#F0C44A', '#3FBFA5', '#F4F6F8', '#F28AA8'][i % 4] + ';--r:' + ((i * 47) % 360) + 'deg"></i>';
       }
     }
     var n = mk('fx-finale fx-fin-' + (clear ? 'clear' : 'boom') + (tv ? ' is-tv' : ' is-phone'),
-      '<div class="fx-fin-bomb" aria-hidden="true">' + esc(opt.icon || '💣') + '</div>' +
+      (tv ? 爆弾の舞台(opt, clear) : '<div class="fx-fin-bomb" aria-hidden="true">' + esc(opt.icon || '💣') + '</div>') +
       (!clear && tv && 光 ? '<div class="fx-fin-flash"></div>' : '') +
       (!clear && tv ? '<div class="fx-fin-smoke"></div>' : '') +
       '<div class="fx-fin-body" role="status">' +
         (opt.title ? '<div class="fx-fin-title">' + esc(opt.title) + '</div>' : '') +
-        (names.length ? '<div class="fx-fin-names">' + names.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div>' : '') +
+        (tv && clear ? 心(opt.hearts) : '') +
+        (names.length ? '<div class="fx-fin-names"' + (tv ? ' style="--cols:' + 列(names.length) + '"' : '') + '>' + names.map(function (x, k) {
+          return '<span' + (tv ? 飛ぶ(k, names.length) : '') + '>' + esc(x) + '</span>';
+        }).join('') + '</div>' : '') +
         (opt.sub ? '<div class="fx-fin-sub">' + esc(opt.sub) + '</div>' : '') +
-      '</div>' + 粒);
+      '</div>' + (tv ? 札(opt.card) : '') + 粒);
     if (!n) { behind(); return Promise.resolve(true); }
     n.setAttribute('data-fx-finale', clear ? 'clear' : 'boom');
     h.appendChild(n);
-    var 開く = function () {
-      n.classList.add('is-open');
-      try { if (typeof opt.onOpen === 'function') opt.onOpen(); } catch (e) {}
-      if (!clear && tv && 揺れ) n.classList.add('is-shake');
+    var 呼ぶ = function (fn) { try { if (typeof fn === 'function') fn(); } catch (e) {} };
+    // 1回押したら、残りの段は待たずに最後の形まで（段ごとに押させない）
+    var 飛ばす = false;
+    var 段 = function (ms) {
+      if (飛ばす) return Promise.resolve(true);
+      return hold(ms).then(function (s) { if (s) 飛ばす = true; return s; });
     };
-    var p = hold(750).then(function () {
-      開く();
-      // 爆発（TV）は、煙が晴れてから字を出す（演出と結果の字を重ねない・04の反省）
-      return hold(!clear && tv ? 1200 : 400);
-    }).then(function () {
-      n.classList.add('is-text');
-      try { if (typeof opt.onText === 'function') opt.onText(); } catch (e) {}
-      return linger(opt.linger == null ? (大きく ? 2600 : 2000) : opt.linger);
-    }).then(function () {
+    var 付ける = function (c) { n.classList.add(c); };
+    var 開く = function () {
+      付ける('is-open');
+      if (!(tv && clear)) 呼ぶ(opt.onOpen);
+      if (!clear && tv && 揺れ) 付ける('is-shake');
+    };
+    var p;
+    if (tv && clear) {
+      // 指示68-S の台本：0.75 ランプが緑（カチッ）→ 1.5 ふたが開いて「解除成功！」→ 3.0 名前が飛び出す → 4.5 結果の札
+      p = 段(750).then(function () {
+        開く(); 呼ぶ(opt.onLamp);
+        return 段(750);
+      }).then(function () {
+        付ける('is-text'); 呼ぶ(opt.onOpen); 呼ぶ(opt.onText);
+        return 段(1500);
+      }).then(function () {
+        付ける('is-names');
+        if (!飛ばす && typeof opt.onName === 'function') {
+          var 間 = Math.min(110, 1100 / Math.max(1, names.length));
+          names.forEach(function (x, k) {
+            setTimeout(function () { if (!飛ばす) 呼ぶ(function () { opt.onName(k); }); }, cfg.ms(k * 間));
+          });
+        }
+        return 段(1500);
+      }).then(function () {
+        付ける('is-card');
+        return linger(opt.linger == null ? 1500 : opt.linger);
+      });
+    } else {
+      p = 段(750).then(function () {
+        開く();
+        // 爆発（TV）は、煙が晴れてから字を出す（台本：0.75 爆発 → 1.25〜3.0 煙が晴れる → 3.0 字）
+        return 段(!clear && tv ? 2250 : 400);
+      }).then(function () {
+        付ける('is-text');
+        呼ぶ(opt.onText);
+        return linger(opt.linger == null ? (!clear && tv ? 2500 : (大きく ? 2600 : 2000)) : opt.linger);
+      });
+    }
+    p = p.then(function () {
       try { behind(); } catch (e) {}
       return 指が離れるまで();
     }).then(function () {
@@ -1191,6 +1228,57 @@
       return true;
     });
     return 前座に乗せる(p);
+  }
+  /**
+   * TV の舞台（指示68-S）：まん中の爆弾（ランプ・ふた・止まった時計）と、その下のコードの盤。
+   * 解除は最後の1本が切れる。爆発は切れなかったコードだけが光る（あと何本だったかが目で分かる）。爆発の輪と破片
+   */
+  function 爆弾の舞台(opt, clear) {
+    var r = opt.rig || {};
+    var total = Math.max(0, Math.min(60, r.total | 0)), solved = Math.max(0, Math.min(total, r.solved | 0));
+    var 色 = ['#E5484D', '#3B82F6', '#F5B83D', '#3FBFA5', '#C084FC', '#F4F6F8'];
+    var w = '';
+    for (var i = 0; i < total; i++) {
+      var 最後 = clear && i === total - 1;
+      var 切れた = i < solved && !最後;
+      w += '<i class="fx-fin-w' + (切れた ? ' is-cut' : (最後 ? ' is-last' : ' is-live')) + '" style="--c:' + 色[i % 色.length] + ';--j:' + (i % 5) + '"><b></b><b></b></i>';
+    }
+    var 破片 = '';
+    if (!clear) {
+      for (var k = 0; k < 10; k++) {
+        破片 += '<i class="fx-fin-deb" style="--a:' + (k * 36 + 12) + 'deg;--r:' + (300 + (k % 3) * 90) + 'px;--t:' + ((k * 73) % 360) + 'deg"></i>';
+      }
+    }
+    return '<div class="fx-fin-rig" aria-hidden="true">' +
+      '<div class="fx-fin-case"><i class="fx-fin-lamp"></i><i class="fx-fin-lid"></i>' +
+        '<div class="fx-fin-clock">' + esc(r.clock || '') + '</div></div>' +
+      (total ? '<div class="fx-fin-wires">' + w + '</div>' : '') +
+      (!clear ? '<i class="fx-fin-ring"></i>' + 破片 : '') +
+      '</div>';
+  }
+  /** 残ったライフのハート（1つずつポンと出る） */
+  function 心(n) {
+    n = Math.max(0, Math.min(10, n | 0));
+    var s = '';
+    for (var i = 0; i < n; i++) {
+      s += '<i class="fx-fin-heart" style="--k:' + i + '"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.7-9.2C.6 8.2 2.6 4 6.6 4c2.2 0 3.7 1.2 5.4 3.2C13.7 5.2 15.2 4 17.4 4c4 0 6 4.2 4.3 7.8C19.5 16.4 12 21 12 21z"/></svg></i>';
+    }
+    return s ? '<div class="fx-fin-hearts">' + s + '</div>' : '';
+  }
+  /** 名前の集合写真の列の数（全員同じ大きさ。協力なので全員が主役） */
+  function 列(n) { return n <= 4 ? Math.max(1, n) : 4; }
+  /** 爆弾（並びのまん中より下）から、自分の場所へ飛び出す。行と列から出どころを決める */
+  function 飛ぶ(k, n) {
+    var c = 列(n), rows = Math.ceil(n / c), col = k % c, row = Math.floor(k / c);
+    var dx = -((col - (c - 1) / 2) * 22), dy = (rows - 1) / 2 - row + 1.6;
+    return ' style="--k:' + k + ';--sx:' + dx.toFixed(1) + 'vw;--sy:' + (dy * 9).toFixed(1) + 'vmin"';
+  }
+  /** 下から上がる結果の札（本数・時間、いちばん迷った問題） */
+  function 札(c) {
+    if (!c || (!c.line && !c.q)) return '';
+    return '<div class="fx-fin-card">' + (c.line ? '<div class="fx-fin-card-l">' + esc(c.line) + '</div>' : '') +
+      (c.q ? '<div class="fx-fin-card-m"><small>' + esc(c.h || '') + '</small><span>' + esc(c.q) + '</span>' +
+        (c.a ? '<b>' + esc(c.a) + '</b>' : '') + '</div>' : '') + '</div>';
   }
 
   function esc(s) {

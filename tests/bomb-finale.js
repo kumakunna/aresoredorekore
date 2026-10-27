@@ -27,23 +27,40 @@ async function 終わらせる(t) {
 (async function main() {
   const r = createRunner('bomb-finale：クイズ解除の終わりの演出（指示68-2 第1節）');
 
-  await r.test('門1：解除成功（TV）… ため 0.75秒 → 「解除」→ 全員の名前を大きく。音は開いた時', async () => {
+  await r.test('門1：解除成功（TV・指示68-S の台本）… ため 0.75秒 → ランプが緑「カチッ」→ 1.5秒 ふたが開いて「解除成功！」→ 3.0秒 名前が飛び出す → 4.5秒 結果の札', async () => {
     const t = await 開く();
     let 後ろ = 0;
-    const p = t.win.bombFinaleProbe({ success: true, tv: true, names: ['ふう', 'ひろ', 'びび'], 結果へ: () => { 後ろ++; } });
+    const p = t.win.bombFinaleProbe({ success: true, tv: true, names: ['ふう', 'ひろ', 'びび'], solved: 30, total: 30, sec: 147, lives: 2,
+      missed: { question: '「枕草子」の書き出しは？', answer: '春はあけぼの' }, 結果へ: () => { 後ろ++; } });
     await sleep(t.win, 20);
-    assert(幕(t.doc), '幕がすぐ出る（結果が透けない）');
-    assertEqual(t.win.getComputedStyle(幕(t.doc)).backgroundColor !== 'rgba(0, 0, 0, 0)', true, '幕に地の色がある');
-    assert(!幕(t.doc).classList.contains('is-open'), 'ためのあいだは開かない');
-    assertEqual(音(t.win, 'defuse').length, 0, 'ためのあいだは鳴らない');
+    const n = 幕(t.doc);
+    assert(n, '幕がすぐ出る（結果が透けない）');
+    assertEqual(t.win.getComputedStyle(n).backgroundColor !== 'rgba(0, 0, 0, 0)', true, '幕に地の色がある');
+    assert(!n.classList.contains('is-open'), 'ためのあいだは開かない');
+    assertEqual(音(t.win, 'tick').length + 音(t.win, 'defuse').length, 0, 'ためのあいだは鳴らない');
+    assert(n.querySelector('.fx-fin-case'), '爆弾（ふた・ランプ・時計）');
+    assertEqual(n.querySelector('.fx-fin-clock').textContent, '02:27', '時計は止まった時刻のまま');
+    assertEqual(n.querySelectorAll('.fx-fin-w').length, 30, 'コードは全部の本数');
+    assertEqual(n.querySelectorAll('.fx-fin-w.is-last').length, 1, '最後のコードが切れる');
+    assert(!/ふう/.test(字(t.doc)) || !n.classList.contains('is-names'), 'ためのあいだは名前を出さない');
     await sleep(t.win, 900);
-    assert(幕(t.doc).classList.contains('is-open'), '0.75秒で開く');
-    assertEqual(音(t.win, 'defuse').length, 1, '開いた時に解除の音');
-    assert(/解除/.test(幕(t.doc).querySelector('.fx-fin-title').textContent), '「解除」');
-    await sleep(t.win, 500);
-    assert(幕(t.doc).classList.contains('is-text'), '名前が出る');
-    ['ふう', 'ひろ', 'びび'].forEach((n) => assert(字(t.doc).indexOf(n) !== -1, n + ' の名前（協力なので全員）'));
+    assert(n.classList.contains('is-open'), '0.75秒で開く（ランプが赤 → 消える → 緑）');
+    assertEqual(音(t.win, 'tick').length, 1, '「カチッ」');
+    assertEqual(音(t.win, 'defuse').length, 0, 'ほめる音は、ふたが開いてから');
+    await sleep(t.win, 800);
+    assert(n.classList.contains('is-text'), '1.5秒：ふたが開いて字');
+    assertEqual(音(t.win, 'defuse').length, 1, 'ふたが開いた時にほめる音');
+    assert(/解除成功！/.test(n.querySelector('.fx-fin-title').textContent), '「解除成功！」');
+    assert(!n.classList.contains('is-names'), '名前はまだ');
+    await sleep(t.win, 1500);
+    assert(n.classList.contains('is-names'), '3.0秒：名前が飛び出す');
+    ['ふう', 'ひろ', 'びび'].forEach((x) => assert(字(t.doc).indexOf(x) !== -1, x + ' の名前（協力なので全員）'));
+    assertEqual(n.querySelectorAll('.fx-fin-heart').length, 2, '残ったライフのハート');
     assertEqual(後ろ, 0, 'まだ結果へ移らない');
+    await sleep(t.win, 1500);
+    assert(n.classList.contains('is-card'), '4.5秒：結果の札が上がる');
+    const 札 = n.querySelector('.fx-fin-card').textContent;
+    assert(/30\/30/.test(札) && /02:27/.test(札) && /枕草子/.test(札), '札に本数・時間・迷った問題（' + 札 + '）');
     await 終わらせる(t);
     await p;
     assertEqual(後ろ, 1, '幕の後ろで結果へ移る（1回だけ）');
@@ -51,19 +68,24 @@ async function 終わらせる(t) {
     t.win.close();
   });
 
-  await r.test('門1：爆発（TV）… ため → 爆発（光1回・揺れ0.2秒を1回）→ 煙が晴れてから静かに「あと◯本だった」', async () => {
+  await r.test('門1：爆発（TV・指示68-S の台本）… ため → 0.75秒 爆発（光1回・揺れ0.2秒を1回）→ 煙が晴れて切れなかったコードが光る → 3.0秒「あと3本だった！」', async () => {
     const t = await 開く();
-    t.win.bombFinaleProbe({ success: false, tv: true, left: 3, cause: 'lives' });
-    await sleep(t.win, 900);
+    t.win.bombFinaleProbe({ success: false, tv: true, left: 3, solved: 27, total: 30, sec: 153, cause: 'lives' });
+    await sleep(t.win, 20);
     const n = 幕(t.doc);
+    assertEqual(n.querySelectorAll('.fx-fin-w.is-live').length, 3, '切れなかったコードは3本（ほかは切れている）');
+    assert(!n.querySelector('.fx-fin-w.is-last'), '爆発では最後のコードを切らない');
+    await sleep(t.win, 900);
     assert(n.classList.contains('is-open'), '0.75秒で爆発');
     assertEqual(n.querySelectorAll('.fx-fin-flash').length, 1, '明るさが変わるのは1回だけ（光の要素は1つ）');
     assert(n.classList.contains('is-shake'), '揺れ');
     assertEqual(音(t.win, 'boom').length, 1, '爆発の音');
-    assert(!n.classList.contains('is-text'), '煙が晴れるまでは字を出さない（演出と字を重ねない）');
+    assert(n.querySelectorAll('.fx-fin-deb').length > 0 && n.querySelector('.fx-fin-ring'), 'マンガのような破片と輪');
     await sleep(t.win, 1300);
-    assert(n.classList.contains('is-text'), '煙が晴れて字');
-    assert(/あと3本だった/.test(字(t.doc)), '「あと3本だった」（' + 字(t.doc) + '）');
+    assert(!n.classList.contains('is-text'), '煙が晴れるまでは字を出さない（演出と字を重ねない）');
+    await sleep(t.win, 1100);
+    assert(n.classList.contains('is-text'), '3.0秒：字');
+    assert(/あと3本だった！/.test(字(t.doc)) && /つぎはいけるかも/.test(字(t.doc)), '「あと3本だった！」「つぎはいけるかも」（' + 字(t.doc) + '）');
     // CSS：揺れは 0.2秒を1回、明るさは1回（くり返さない）
     const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     assert(/\.fx-finale\.is-shake[^{]*\{[^}]*fxShake 0\.2s linear 1/.test(css), '揺れは0.2秒を1回');

@@ -5260,7 +5260,11 @@
   .v2 .v2-sobld{position:absolute;bottom:1.6%;background:#2D3A4F;border-top:4px solid #1F2838;
     /* 窓：たての柱（上の層）が、横の明かりを区切って格子にする */
     background-image:repeating-linear-gradient(to right,#2D3A4F 0 6px,transparent 6px 14px),repeating-linear-gradient(to top,#2D3A4F 0 10px,rgba(255,226,140,.75) 10px 16px);}
-  .v2 .v2-socloud{position:absolute;height:2.4%;border-radius:999px;background:#FFFFFF;opacity:.92;box-shadow:24px -10px 0 6px #FFFFFF,-20px -6px 0 2px #FFFFFF;}
+  .v2 .v2-socloud{position:absolute;height:2.4%;border-radius:999px;background:#FFFFFF;opacity:.92;box-shadow:24px -10px 0 6px #FFFFFF,-20px -6px 0 2px #FFFFFF;
+    animation:v2-socloud calc(30s * var(--fx-scale)) ease-in-out infinite alternate;}
+  .v2 .v2-socloud:nth-child(2n){animation-direction:alternate-reverse;}
+  /* 全画面の景色は背景（v2-circles のゆっくりした動き）を隠すので、雲が同じ役目でゆっくり流れる */
+  @keyframes v2-socloud{to{transform:translateX(60px);}}
   .v2 .v2-somoon{position:absolute;left:64%;bottom:65%;width:22%;aspect-ratio:1;border-radius:50%;
     background:radial-gradient(circle at 34% 38%,#D8D2B4 0 9%,transparent 10%),radial-gradient(circle at 62% 64%,#D8D2B4 0 12%,transparent 13%),radial-gradient(circle at 66% 30%,#DDD7BA 0 6%,transparent 7%),#F4F0DA;
     box-shadow:0 0 40px rgba(244,240,218,.45);}
@@ -5303,7 +5307,11 @@
     opacity:0;transform:translateX(-50%);pointer-events:none;}
   .v2.is-play .v2-soscene:not(.is-pad) .v2-sosmoke{animation:v2-sosmoke calc(.75s * var(--fx-scale)) var(--v2-ease) both;}
   .v2 .v2-sosmoke.is-puff{width:220%;height:120%;}
-  .v2.is-play .v2-soscene .v2-sosmoke.is-puff{animation:v2-sosmoke calc(.8s * var(--fx-scale)) var(--v2-ease) both;animation-delay:calc(.75s * var(--fx-scale));}
+  .v2.is-play .v2-soscene .v2-sosmoke.is-puff{animation:v2-sosmoke calc(.8s * var(--fx-scale)) var(--v2-ease) both calc(.75s * var(--fx-scale)),
+    v2-sovent calc(3.2s * var(--fx-scale)) ease-in-out calc(1.55s * var(--fx-scale)) infinite alternate;}
+  /* 発射を待つ間（発射台）は、エンジンから細い湯気がゆっくり出る。プスッのあとは、同じ湯気が細く残る（責める時は静かに） */
+  .v2 .v2-soscene.is-pad .v2-sosmoke{animation:v2-sovent calc(3.2s * var(--fx-scale)) ease-in-out infinite alternate;}
+  @keyframes v2-sovent{from{opacity:.12;transform:translateX(-50%) scale(.45);}to{opacity:.34;transform:translateX(-50%) scale(.62);}}
   @keyframes v2-sosmoke{0%{opacity:0;transform:translateX(-50%) scale(.3);}50%{opacity:.7;}100%{opacity:0;transform:translateX(-50%) scale(1.2);}}
   /* 火の粒：押した順と間かくのまま、ロケットの下に飛びこむ（着いたら消える＝ふだんは見えない） */
   .v2 .v2-sofp{position:absolute;left:50%;top:92%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#FFB347;box-shadow:0 0 12px #FF8A2A;opacity:0;}
@@ -32226,8 +32234,11 @@
     rt.clockSync(SoroeLogic.RULES.SYNC_SAMPLES, soNow).then(function(samples){
       var o = SoroeLogic.offsetOf(samples);
       if(o){ so.offset = o.offset; so.rtt = o.rtt; }
-      so.busy = false;
-      if(v2GameOf((document.querySelector('.screen.active') || {}).id)) rtRenderCurrent();
+      // 返事が1つも無かった時は、すぐには聞き直さない（つながっていない時は失敗がすぐ返り、描き直し→聞き直しが休みなく回って画面がかたまる）
+      setTimeout(function(){
+        so.busy = false;
+        if(v2GameOf((document.querySelector('.screen.active') || {}).id)) rtRenderCurrent();
+      }, o ? 0 : 2000);
     });
   }
   function soroeLocal(d, key){

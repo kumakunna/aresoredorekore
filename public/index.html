@@ -5311,6 +5311,10 @@
     v2-sovent calc(3.2s * var(--fx-scale)) ease-in-out calc(1.55s * var(--fx-scale)) infinite alternate;}
   /* 発射を待つ間（発射台）は、エンジンから細い湯気がゆっくり出る。プスッのあとは、同じ湯気が細く残る（責める時は静かに） */
   .v2 .v2-soscene.is-pad .v2-sosmoke{animation:v2-sovent calc(3.2s * var(--fx-scale)) ease-in-out infinite alternate;}
+  :root.fx-skip .v2 .v2-socloud,:root.fx-skip .v2 .v2-soscene.is-pad .v2-sosmoke,:root.fx-skip .v2.is-play .v2-soscene .v2-sosmoke.is-puff{animation:none;}
+  @media (prefers-reduced-motion: reduce){
+    .v2 .v2-socloud,.v2 .v2-soscene.is-pad .v2-sosmoke,.v2.is-play .v2-soscene .v2-sosmoke.is-puff{animation:none;}
+  }
   @keyframes v2-sovent{from{opacity:.12;transform:translateX(-50%) scale(.45);}to{opacity:.34;transform:translateX(-50%) scale(.62);}}
   @keyframes v2-sosmoke{0%{opacity:0;transform:translateX(-50%) scale(.3);}50%{opacity:.7;}100%{opacity:0;transform:translateX(-50%) scale(1.2);}}
   /* 火の粒：押した順と間かくのまま、ロケットの下に飛びこむ（着いたら消える＝ふだんは見えない） */
@@ -5325,7 +5329,7 @@
   .v2.is-play .v2-soscene.is-k4 .v2-socol{animation:v2-soclimb4 calc(2.4s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
   @keyframes v2-soclimb1{from{transform:none;}}
   @keyframes v2-soclimb2{0%{transform:none;}50%{transform:translateY(20%);}}
-  @keyframes v2-soclimb3{0%{transform:none;}33.3%{transform:translateY(20%);}66.6%{transform:translateY(40%);}}
+  @keyframes v2-soclimb3{0%{transform:none;}33%{transform:translateY(20%);}67%{transform:translateY(40%);}}
   @keyframes v2-soclimb4{0%{transform:none;}25%{transform:translateY(20%);}50%{transform:translateY(40%);}75%{transform:translateY(60%);}}
   /* 着いた：高さの名前が大きく、その下に小さく差と点 */
   .v2 .v2-soarrive{position:absolute;left:0;right:0;top:6%;z-index:5;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;color:#FFFFFF;text-shadow:0 3px 10px rgba(0,0,0,.55);}

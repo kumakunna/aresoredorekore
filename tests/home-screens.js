@@ -160,14 +160,18 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     t.win.shelfShowProbe.showAll(true);   // 指示68-1：一覧の動きを、下ろした物も並べた多い札で確かめる（本物の棚は3本・tests/shelf.js が見張る）
     assertEqual(activeScreen(t.doc), 'scr-v2-pick', '1台で遊ぶ一覧');
     const 分類 = Array.from(t.doc.querySelectorAll('#scr-v2-pick [data-home-g]')).map((g) => g.dataset.homeG);
-    assertEqual(分類.join(','), 'brain,deal,hide,word', '分類の順（見本と同じ）');
+    assertEqual(分類.join(','), 'brain,deal,hide,word,move', '分類の順（見本と同じ・指示68-4 でそろえて発射が「からだをうごかす」に入った）');
     const チップ = Array.from(t.doc.querySelectorAll('#scr-v2-pick [data-home-chip]')).map((g) => g.dataset.homeChip);
-    assertEqual(チップ.join(','), 'all,brain,deal,hide,word', 'チップ');
+    assertEqual(チップ.join(','), 'all,brain,deal,hide,word,move', 'チップ');
     const ids = 一覧の札(t.doc).map((c) => c.dataset.homeId);
     assertEqual(new Set(ids).size, ids.length, '同じゲームは1回だけ');
     const 遊べる = t.win.homeProbe().ready;
     assertEqual(ids.slice().sort().join(','), 遊べる.slice().sort().join(','), '遊べるカセットが全部ならぶ');
-    assert(/近日/.test(t.doc.querySelector('#scr-v2-pick .v2-ssoon').textContent), 'まだ遊べない分類は「近日とどきます」');
+    // 全部を並べると、どの分類にも遊べる札がある（指示68-4 でそろえて発射が「からだをうごかす」に入った）。
+    // 「近日とどきます」は本物の棚（並べる物だけ）で見る
+    t.win.shelfShowProbe.showAll(false);
+    const 近日 = t.doc.querySelector('#scr-v2-pick .v2-ssoon');
+    assert(近日 && /近日/.test(近日.textContent), 'まだ遊べない分類は「近日とどきます」');
     t.win.close();
   });
 

@@ -149,7 +149,7 @@ function pickCart(doc, id) {
     win.authProbe({ username: 'kuma', displayName: 'くま', tester: true });
     await sleep(win, 30);
     // 指示68-3・68-4：みんなと同じ・ぴったり10秒・そろえて発射は本物のテスト中。検査で印を付けた falsetrue と並んで出る
-    assertEqual(win.homeProbe().testing.join(','), 'falsetrue,onaji,pittari,soroe', 'くまくんにはテスト中の札が出る');
+    assertEqual(win.homeProbe().testing.join(','), 'quizou,falsetrue,onaji,pittari,soroe', 'くまくんにはテスト中の札が出る');
     assertEqual(win.homeProbe().ready.indexOf('falsetrue'), -1, 'ふつうの遊べる札には混ざらない');
     if (activeScreen(doc) === 'scr-v2-pick') {
       const 札 = 棚の札(doc);

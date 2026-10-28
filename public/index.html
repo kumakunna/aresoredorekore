@@ -5247,8 +5247,11 @@
   .v2 .v2-q2spark i:last-child{animation:v2-q2spark calc(.35s * var(--fx-scale)) var(--v2-pop) both;}
   @keyframes v2-q2spark{from{opacity:0;}}
   .v2 .v2-q2bar{position:relative;height:30px;border-radius:999px;background:rgba(0,0,0,.18);overflow:hidden;}
-  .v2 .v2-q2bar i{position:absolute;inset:0;border-radius:999px;background:var(--wi);transform-origin:0 50%;transform:scaleX(0);
-    animation:v2-q2bar 10s linear both;}
+  /* 帯の長さは、のこり時間（端末の時計）を描いた所で入れる。演出「なし」でも時計は時計なので、動きだけ止めて、いまの長さで出す */
+  .v2 .v2-q2bar i{position:absolute;inset:0;border-radius:999px;background:var(--wi);transform-origin:0 50%;transform:scaleX(var(--from));
+    animation:v2-q2bar calc(10s * var(--fx-scale)) linear both;}
+  :root.fx-skip .v2 .v2-q2bar i{animation:none;}
+  @media (prefers-reduced-motion: reduce){ .v2 .v2-q2bar i{animation:none;} }
   @keyframes v2-q2bar{from{transform:scaleX(var(--from));}to{transform:scaleX(0);}}
   .v2 .v2-q2bar b{position:absolute;inset:0;border-radius:999px;box-shadow:inset 0 0 0 6px #E5484D;opacity:0;animation:v2-q2late 1ms linear forwards;}
   @keyframes v2-q2late{to{opacity:1;}}
@@ -10120,7 +10123,7 @@
       tv:[["⚡","全員が同じ問題に、同時に答える"], ["⏱","早く正しく答えるほど、点が高い"], ["👑","10問で1回。最後の問題は点が2倍"]],
       bullets:["1人1台・部屋が必要です（2〜16人）","問題はテレビとスマホに出る。答えはスマホの3つか4つのボタン","10秒で答える。押したら変えられない","正解で100点＋早さの点（0秒で100点・10秒で0点）。まちがいは0点（引かない）","1〜3問目はやさしい・4〜7問目はふつう・8〜10問目はむずかしい","3問ごとに順位が動く。最後の問題は点が2倍"]},
     {id:"qnear", icon:"🎯", title:"数字ちかい方", sub:"答えを数字で入れる。いちばん近い人の勝ち", advanced:false, strict:false, oneWord:false, qnear:true, roomOnly:true, game:'qnear', minPlayers:2, maxPlayers:16,
-      tv:[["🔢","答えを数字で入れる"], ["🎯","いちばん近い人の勝ち"], ["👑","5問で1回"]],
+      tv:[["📱","答えを数字で入れる"], ["🎯","いちばん近い人の勝ち"], ["👑","5問で1回"]],
       bullets:["1人1台・部屋が必要です（2〜16人）","問題はテレビに出る。スマホの数字のボタンで答えを入れる","15秒で入れる。「決定」を押したら変えられない","近い順に5・3・1点（差が同じなら同じ順位）。ぴったりは＋5点","だれも正確には知らないけれど、だいたいは考えられる問題（高さ・長さ・人口など）"]},
     // 指示68-4：ぴったり10秒（競争）・そろえて発射（協力）。どちらもボタン1つ・部屋（2〜16人）専用
     // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js の抽出がこの順）
@@ -10263,6 +10266,8 @@
     // 新しい見た目にした時に戻す）。門を通るまではテスト中（くまくんの棚だけ）
     { id:'quizou',          genre:'brain', ready:true, hidden:true, testing:true, icon:'👑', title:'クイズ王',
       games:['qhaya', 'qnear'],
+      // 外した4つ。棚には出さないが、そのゲームの記録・祝い・色はクイズ王のまま（cassetteOfGame が見る）
+      retiredGames:['quizrush', 'quizlist', 'quizreveal', 'buzzer'],
       theme:'quiz',
       blurb:'1人1台で解いて競う' },
     // 第31弾：オークションバトル（作り直し）。1人1台・部屋が必須。
@@ -10332,6 +10337,8 @@
   // 検査の窓：テスト中の印を付け外しする（2.0 の新しいゲームが入るまで、テスト中の物が無いので）
   window.shelfShowProbe = {
     testing: function(id, on){ var c = cassetteById(id); if(c) c.testing = !!on; },
+    // 指示68-5：外したゲーム（retiredGames）を棚にもどす（検査が、もどす日のために古い流れを歩く窓）
+    retired: function(id){ var c = cassetteById(id); if(c && c.retiredGames) c.games = c.games.concat(c.retiredGames); },
     showAll: function(on){ shelfAll = !!on; if((document.querySelector('.screen.active') || {}).id === 'scr-v2-pick') renderV2Pick(); }
   };
 
@@ -15027,7 +15034,7 @@
   function cassetteOfGame(gameId){
     if(!gameId) return null;
     return CASSETTES.find(function(c){
-      return (c.games || []).indexOf(gameId) !== -1;
+      return (c.games || []).indexOf(gameId) !== -1 || (c.retiredGames || []).indexOf(gameId) !== -1;
     }) || null;
   }
   function currentThemeName(){

@@ -5228,6 +5228,131 @@
   .v2 .v2-osync-s{font-weight:900;font-size:16px;}
   .v2 .v2-osync-w{font-weight:900;font-size:20px;}
   .v2.is-play .v2-osync.is-gold .v2-osync-w{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  /* ---- 指示68-5：クイズ王2.0（v2-quiz2.js）。クイズ番組のスタジオ：暗い床に上からスポットライト3本・いまの問題だけ光る ----
+     答えの札・玉・名前の札は みんなと同じ（.v2-ostg …）、数直線・札・冠は ぴったり10秒（.v2-ptr …）の物を使う。
+     最後の形が素の形（演出「なし」ではそれがすぐ出る）。開く動きは .is-play の時だけ */
+  .v2 .v2-tvc.is-stage2::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse 18% 70% at 22% -8%,rgba(255,240,190,.20),rgba(255,240,190,0) 70%),
+      radial-gradient(ellipse 18% 75% at 50% -8%,rgba(255,240,190,.26),rgba(255,240,190,0) 70%),
+      radial-gradient(ellipse 18% 70% at 78% -8%,rgba(255,240,190,.20),rgba(255,240,190,0) 70%),
+      linear-gradient(180deg,rgba(0,0,0,0) 55%,rgba(0,0,0,.32));}
+  .v2 .v2-q2tv{position:relative;z-index:2;}
+  /* 答えている間：問題の札（光る）・10秒の帯・光の粒 */
+  .v2 .v2-q2qa{position:relative;padding:22px 34px;border-radius:30px;background:var(--wc2);border:5px solid var(--wl);
+    box-shadow:0 0 70px rgba(255,236,170,.35);}
+  .v2 .v2-q2qa.is-near{margin-top:30px;}
+  .v2 .v2-q2spark{position:absolute;inset:0;pointer-events:none;}
+  .v2 .v2-q2spark i{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;border-radius:50%;background:#FFE58A;
+    box-shadow:0 0 18px #FFE58A;transform:rotate(var(--a)) translateX(min(48vw,880px)) rotate(calc(var(--a) * -1)) scale(.9);}
+  .v2 .v2-q2spark i:last-child{animation:v2-q2spark calc(.35s * var(--fx-scale)) var(--v2-pop) both;}
+  @keyframes v2-q2spark{from{opacity:0;}}
+  .v2 .v2-q2bar{position:relative;height:30px;border-radius:999px;background:rgba(0,0,0,.18);overflow:hidden;}
+  .v2 .v2-q2bar i{position:absolute;inset:0;border-radius:999px;background:var(--wi);transform-origin:0 50%;transform:scaleX(0);
+    animation:v2-q2bar 10s linear both;}
+  @keyframes v2-q2bar{from{transform:scaleX(var(--from));}to{transform:scaleX(0);}}
+  .v2 .v2-q2bar b{position:absolute;inset:0;border-radius:999px;box-shadow:inset 0 0 0 6px #E5484D;opacity:0;animation:v2-q2late 1ms linear forwards;}
+  @keyframes v2-q2late{to{opacity:1;}}
+  .v2 .v2-q2unit{font-weight:900;font-size:160px;line-height:1;text-align:center;color:var(--wi);}
+  .v2 .v2-q2unit small{font-size:72px;}
+  /* 最後の問題「ラストは2倍！」の帯（横から入る・0.4秒） */
+  .v2 .v2-q2dbl{align-self:center;padding:8px 26px;border-radius:999px;background:#FFD84A;color:#3A2A00;font-weight:900;font-size:20px;}
+  .v2 .v2-q2dbl.is-tv{margin-top:20px;font-size:64px;padding:12px 56px;}
+  .v2 .v2-q2tv .v2-ochs{flex:1;min-height:0;align-items:stretch;}
+  .v2 .v2-q2tv .v2-och{min-height:200px;font-size:64px;}
+  .v2.is-play .v2-q2dbl{animation:v2-q2slide calc(.4s * var(--fx-scale)) var(--v2-ease) both;}
+  @keyframes v2-q2slide{from{opacity:0;transform:translateX(-60vw);}}
+  /* 開く（早答え）：玉はだれのか分からない白い玉。スポットライトが札の上をゆれて、正解の札で止まる（正解は金・まちがいは暗く） */
+  .v2 .v2-q2ball{--bc:#FFFFFF;}
+  .v2 .v2-q2hops{position:absolute;inset:0 0 0 0;pointer-events:none;z-index:2;}
+  .v2 .v2-q2hop{position:absolute;top:-10px;bottom:-10px;width:calc((100% - (var(--oc) - 1) * 28px) / var(--oc) + 28px);transform:translateX(-50%);
+    border-radius:40px;border:8px solid #FFE58A;box-shadow:0 0 60px rgba(255,229,138,.7);opacity:0;}
+  .v2.is-play .v2-q2hop{animation:v2-q2hop calc(1s * var(--fx-scale)) linear;}
+  .v2.is-play .v2-q2hop.is-last{opacity:1;animation-name:v2-q2hop0;}
+  @keyframes v2-q2hop{from,to{opacity:1;}}
+  @keyframes v2-q2hop0{from,to{opacity:0;}}
+  .v2 .v2-ocol.is-right .v2-ocard{background:#FFD84A;border-color:#B8860B;color:#3A2A00;}
+  .v2 .v2-ocol.is-wrong{opacity:.42;}
+  .v2.is-play .v2-ocol.is-right .v2-ocard{animation:v2-q2gold calc(.4s * var(--fx-scale)) var(--v2-pop) both;animation-delay:var(--wd);}
+  @keyframes v2-q2gold{from{background:var(--wc2);border-color:var(--wl);color:inherit;transform:scale(1);}50%{transform:scale(1.08);}}
+  .v2.is-play .v2-ocol.is-wrong{animation:v2-oback calc(.4s * var(--fx-scale)) ease both;animation-delay:var(--wd);}
+  /* いちばん早かった人：札から飛び出して画面いっぱいに大きく＋「1.2秒」 */
+  .v2 .v2-q2fast{position:absolute;left:0;right:0;top:0;z-index:4;display:flex;flex-direction:column;align-items:center;gap:18px;pointer-events:none;
+    text-align:center;color:var(--wi);}
+  .v2 .v2-q2fast small{font-weight:900;font-size:46px;padding:4px 26px;border-radius:999px;background:var(--wc2);}
+  .v2 .v2-q2fast b{max-width:90%;font-weight:900;font-size:150px;line-height:1.05;padding:6px 40px;border-radius:30px;background:var(--wi);color:var(--won);}
+  .v2 .v2-q2fast span{font-weight:900;font-size:72px;padding:2px 30px;border-radius:999px;background:#FFD84A;color:#3A2A00;}
+  .v2 .v2-q2fast.is-none small{font-size:52px;}
+  .v2.is-play .v2-q2fast{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
+  /* 3問ごとの順位：入れかわりながら上下に動く（0.4秒）。上がった人の行は一瞬光る */
+  .v2 .v2-q2rank{position:absolute;inset:0 4%;z-index:5;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:min-content;align-content:center;gap:10px 30px;padding:24px 44px;
+    border-radius:34px;background:#FFFDF6;color:#14141A;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+  /* 名前の札は、いちばん早かった人（上）の下に並べる */
+  .v2 .v2-q2tv .v2-otags{top:230px;}
+  .v2 .v2-ptd.is-out{opacity:0;}
+  .v2.is-play .v2-ptd.is-out{animation:v2-ptrout var(--v2-move) var(--v2-ease) both;animation-delay:var(--zt);}
+  .v2 .v2-q2rank-h{grid-column:1 / -1;font-weight:900;font-size:52px;text-align:center;}
+  .v2 .v2-q2rk{display:grid;grid-template-columns:90px minmax(0,1fr) auto;align-items:center;gap:20px;padding:6px 26px;border-radius:20px;
+    background:#EEF2FA;font-weight:900;font-size:44px;line-height:1.2;}
+  .v2 .v2-q2rk b{font-size:44px;}
+  .v2.is-play .v2-q2rank{animation:v2-ofade calc(.3s * var(--fx-scale)) ease both;}
+  .v2.is-play .v2-q2rk{animation:v2-q2move calc(.4s * var(--fx-scale)) var(--v2-ease) both;}
+  .v2.is-play .v2-q2rk.is-up{animation:v2-q2move calc(.4s * var(--fx-scale)) var(--v2-ease) both,v2-q2up calc(.6s * var(--fx-scale)) ease both;}
+  @keyframes v2-q2move{from{transform:translateY(calc(var(--mv) * 72px));}}
+  @keyframes v2-q2up{0%{background:#EEF2FA;}40%{background:#FFE58A;}100%{background:#EEF2FA;}}
+  /* スマホ：開いたあと自分のこと・数字のボタン */
+  .v2 .v2-q2mine{display:flex;flex-direction:column;align-items:center;gap:6px;margin:16px 0;padding:18px;border-radius:22px;background:var(--wc2);
+    text-align:center;font-weight:900;}
+  .v2 .v2-q2mine b{font-size:34px;}
+  .v2 .v2-q2mine.is-right{background:#FFD84A;color:#3A2A00;}
+  .v2 .v2-q2mine small{font-size:15px;font-weight:700;}
+  .v2 .v2-q2mine-a{font-size:22px;}
+  .v2 .v2-q2disp{display:flex;align-items:baseline;justify-content:center;gap:8px;min-height:72px;margin:12px 0;padding:10px 18px;border-radius:20px;
+    background:var(--wc2);border:4px solid var(--wl);font-weight:900;}
+  .v2 .v2-q2disp b{font-size:44px;line-height:1.1;}
+  .v2 .v2-q2disp small{font-size:20px;}
+  .v2 .v2-q2disp.is-done{border-color:var(--wi);}
+  .v2 .v2-q2pad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  .v2 .v2-q2key{min-height:58px;border-radius:16px;border:3px solid var(--wl);background:var(--wc2);color:var(--wi);font-weight:900;font-size:28px;
+    font-family:inherit;cursor:pointer;}
+  .v2 .v2-q2key.is-sub{font-size:18px;}
+  .v2 .v2-q2key.is-go{background:var(--wbtn);color:var(--wbtn-ink);border-color:var(--wbtn);font-size:22px;}
+  .v2 .v2-q2key:disabled{opacity:.4;cursor:default;}
+  /* 開く（数字ちかい方）：正解の旗が上から落ちて刺さる（少しはねて止まる）。とても遠い答えは端の「→」の束 */
+  .v2 .v2-q2tv .v2-q2q{position:relative;font-size:52px;}
+  /* 端の札は端にそろえる（画面の外に出さない） */
+  .v2 .v2-q2line .v2-ptp.is-l{transform:none;}
+  .v2 .v2-q2line .v2-ptp.is-r{transform:translateX(-100%);}
+  /* 順位が出る問題は、順位が出たら名前の札といちばん早かった人をしまう（順位の板の下に字を残さない） */
+  .v2 .v2-ostg.has-rank .v2-otags,.v2 .v2-ostg.has-rank .v2-q2fast{visibility:hidden;}
+  .v2.is-play .v2-ostg.has-rank .v2-otags{animation:v2-dgone calc(.3s * var(--fx-scale)) ease both;animation-delay:var(--rk);}
+  .v2.is-play .v2-ostg.has-rank .v2-q2fast{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both,v2-dgone calc(.3s * var(--fx-scale)) ease both;animation-delay:calc(3s * var(--fx-scale)),var(--rk);}
+  .v2 .v2-q2flag{position:absolute;left:50%;bottom:var(--axis-b,240px);z-index:3;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%);}
+  .v2 .v2-q2flag i{width:8px;height:330px;background:#E5484D;border-radius:4px;}
+  .v2 .v2-q2flag-t{padding:8px 26px;border-radius:16px;background:#E5484D;color:#FFFFFF;font-weight:900;font-size:52px;white-space:nowrap;}
+  .v2.is-play .v2-q2flag{animation:v2-q2flag calc(.5s * var(--fx-scale)) ease-in both;}
+  @keyframes v2-q2flag{0%{transform:translate(-50%,-110vh);}75%{transform:translate(-50%,0);}88%{transform:translate(-50%,-26px);}100%{transform:translate(-50%,0);}}
+  .v2 .v2-q2far{position:absolute;bottom:calc(var(--axis-b,240px) + 40px);z-index:3;display:flex;flex-direction:column;gap:2px;max-width:24%;
+    padding:6px 18px;border-radius:16px;background:var(--wc2);font-weight:900;}
+  .v2 .v2-q2far.is-left{left:0;align-items:flex-start;}
+  .v2 .v2-q2far.is-right{right:0;align-items:flex-end;}
+  .v2 .v2-q2far b{font-size:44px;line-height:1.25;}
+  .v2 .v2-q2far small{max-width:100%;font-size:42px;line-height:1.25;margin-top:8px;}
+  .v2.is-play .v2-q2far{animation:v2-ofade calc(.25s * var(--fx-scale)) ease both;}
+  /* 1位の発表：照明が落ちる → ドラムロール1.5秒 → スポットライトが1人に → 名前が大きく・紙ふぶき（点滅しない）→ 順位 */
+  .v2 .v2-q2champ{position:relative;height:430px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;overflow:hidden;}
+  .v2 .v2-q2c-dim{position:absolute;inset:-200px;background:rgba(6,6,16,.45);opacity:0;}
+  .v2.is-play .v2-q2c-dim{animation:v2-ddim calc(2.2s * var(--fx-scale)) ease;}
+  .v2 .v2-q2c-spot{position:absolute;left:50%;top:-40px;width:900px;height:560px;margin-left:-450px;pointer-events:none;
+    background:radial-gradient(ellipse 50% 60% at 50% 30%,rgba(255,240,190,.55),rgba(255,240,190,0) 70%);}
+  .v2.is-play .v2-q2c-spot{animation:v2-ofade calc(.3s * var(--fx-scale)) ease both;animation-delay:calc(1.5s * var(--fx-scale));}
+  .v2 .v2-q2c-hd{position:relative;font-weight:900;font-size:60px;padding:4px 34px;border-radius:999px;background:var(--won);color:var(--wi);}
+  .v2 .v2-q2c-nm{position:relative;max-width:92%;font-weight:900;font-size:170px;line-height:1.05;padding:8px 50px;border-radius:36px;background:var(--wi);color:var(--won);}
+  .v2.is-play .v2-q2c-nm{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(1.5s * var(--fx-scale));}
+  .v2 .v2-q2conf{position:absolute;top:-30px;width:24px;height:14px;border-radius:3px;background:var(--c);opacity:0;}
+  .v2.is-play .v2-q2conf{animation:v2-q2conf calc(2s * var(--fx-scale)) ease-in both;}
+  @keyframes v2-q2conf{0%{opacity:1;transform:translateY(0) rotate(0);}100%{opacity:0;transform:translateY(520px) rotate(540deg);}}
+  .v2 .v2-q2c-rk{display:flex;flex-direction:column;gap:12px;}
+  .v2.is-play .v2-q2c-rk{animation:v2-rise var(--v2-move) var(--v2-ease) both;animation-delay:calc(2.3s * var(--fx-scale));}
   /* ---- 指示68-4：ぴったり10秒（v2-pittari.js）・そろえて発射（v2-soroe.js）。上の行と開く札は、みんなと同じの物を使う ---- */
   .v2 .v2-ptx2{background:var(--wi);color:var(--won);border-radius:999px;padding:2px 10px;font-weight:900;font-size:13px;line-height:1.4;}
   .v2 .v2-ptset{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;}
@@ -8408,6 +8533,11 @@
   <div class="screen v2 v2-tv v2-w-pittari" id="scr-v2-pittari-tv"></div>
   <div class="screen v2 v2-scr v2-w-soroe" id="scr-v2-soroe"></div>
   <div class="screen v2 v2-tv v2-w-soroe" id="scr-v2-soroe-tv"></div>
+  <!-- 指示68-5：クイズ王2.0「みんなで早答え」「数字ちかい方」（スマホ・TV）。中身は public/js/v2-quiz2.js が毎回まるごと組み立てる -->
+  <div class="screen v2 v2-scr v2-w-quiz" id="scr-v2-qhaya"></div>
+  <div class="screen v2 v2-tv v2-w-quiz" id="scr-v2-qhaya-tv"></div>
+  <div class="screen v2 v2-scr v2-w-quiz" id="scr-v2-qnear"></div>
+  <div class="screen v2 v2-tv v2-w-quiz" id="scr-v2-qnear-tv"></div>
   <!-- 指示66-2：文化祭の部屋。入る（F2）・やめた人（F13）・係の画面（F14）。中身は public/js/v2-fes.js が組む。
        待合〜結果のスマホは scr-v2-fes-lobby、TV は scr-v2-fes-tv を段階ごとに描き直す（遊んでいる間だけ、今までのゲームの画面） -->
   <div class="screen v2 v2-scr v2-w-wait" id="scr-v2-fes-join"></div>
@@ -9794,6 +9924,8 @@
 <script src="js/soroe-logic.js"></script>
 <script src="js/v2-pittari.js"></script>
 <script src="js/v2-soroe.js"></script>
+<script src="js/quiz2-logic.js"></script>
+<script src="js/v2-quiz2.js"></script>
 <script src="js/v2-home.js"></script>
 <!-- 指示57：初プレイのチュートリアル。置き場は UiKit と同じ #uiLayerRoot -->
 <script src="js/tutorial.js"></script>
@@ -9982,6 +10114,14 @@
     {id:"onaji-few", icon:"🤝", title:"みんなと同じ（少ない方）", sub:"お題に答えて、いちばん少ない答えをねらう", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'few', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
       tv:[["👥","お題に、3つか4つの中から答える"], ["💎","いちばん少ない答えの人に1点"], ["🔄","5問で1回。1問は約20秒"]],
       bullets:["1人1台・部屋が必要です（3〜16人）","お題が出たら、10秒で3つか4つの中から答えをえらぶ","えらんだら変えられない。だれが何をえらんだかは、開くまでだれにも見えない","「せーの！」で開く。いちばん少ない答えをえらんだ人に1点（だれもえらばなかった答えはのぞく）","並んだら、並んだ答えの人みんなに1点","全員ちがう答えなら「ばらばら！」で、この問題はだれも点なし","5問で1回。点がいちばん多い人の勝ち"]},
+    // 指示68-5：クイズ王2.0。文化祭のクイズ王はこの2つだけ（今の4つはカセットから外した・コードは残す）。部屋（2〜16人）専用
+    // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js の抽出がこの順）
+    {id:"qhaya", icon:"⚡", title:"みんなで早答え", sub:"全員が同じ問題に同時に答える。早く正しいほど高い点", advanced:false, strict:false, oneWord:false, qhaya:true, roomOnly:true, game:'qhaya', minPlayers:2, maxPlayers:16,
+      tv:[["⚡","全員が同じ問題に、同時に答える"], ["⏱","早く正しく答えるほど、点が高い"], ["👑","10問で1回。最後の問題は点が2倍"]],
+      bullets:["1人1台・部屋が必要です（2〜16人）","問題はテレビとスマホに出る。答えはスマホの3つか4つのボタン","10秒で答える。押したら変えられない","正解で100点＋早さの点（0秒で100点・10秒で0点）。まちがいは0点（引かない）","1〜3問目はやさしい・4〜7問目はふつう・8〜10問目はむずかしい","3問ごとに順位が動く。最後の問題は点が2倍"]},
+    {id:"qnear", icon:"🎯", title:"数字ちかい方", sub:"答えを数字で入れる。いちばん近い人の勝ち", advanced:false, strict:false, oneWord:false, qnear:true, roomOnly:true, game:'qnear', minPlayers:2, maxPlayers:16,
+      tv:[["🔢","答えを数字で入れる"], ["🎯","いちばん近い人の勝ち"], ["👑","5問で1回"]],
+      bullets:["1人1台・部屋が必要です（2〜16人）","問題はテレビに出る。スマホの数字のボタンで答えを入れる","15秒で入れる。「決定」を押したら変えられない","近い順に5・3・1点（差が同じなら同じ順位）。ぴったりは＋5点","だれも正確には知らないけれど、だいたいは考えられる問題（高さ・長さ・人口など）"]},
     // 指示68-4：ぴったり10秒（競争）・そろえて発射（協力）。どちらもボタン1つ・部屋（2〜16人）専用
     // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js の抽出がこの順）
     {id:"pittari", icon:"🏁", title:"ぴったり10秒", sub:"心の中で10秒数えて、ぴったりで止める", advanced:false, strict:false, oneWord:false, pittari:true, roomOnly:true, game:'pittari', minPlayers:2, maxPlayers:16,
@@ -10119,8 +10259,10 @@
       blurb:'問題を解いて、爆発を止める' },
     // 第30弾：クイズ王。4つとも1人1台・部屋が必須（全員が別々の画面を同時に見る遊びなので、
     // 1台を回す手渡しでは成立しない）
-    { id:'quizou',          genre:'brain', ready:true, hidden:true,  icon:'👑', title:'クイズ王',
-      games:['quizrush', 'quizlist', 'quizreveal', 'buzzer'],
+    // 指示68-5：中は「みんなで早答え」「数字ちかい方」の2つだけ。今の4つ（quizrush・quizlist・quizreveal・buzzer）は外した（コードは残す・
+    // 新しい見た目にした時に戻す）。門を通るまではテスト中（くまくんの棚だけ）
+    { id:'quizou',          genre:'brain', ready:true, hidden:true, testing:true, icon:'👑', title:'クイズ王',
+      games:['qhaya', 'qnear'],
       theme:'quiz',
       blurb:'1人1台で解いて競う' },
     // 第31弾：オークションバトル（作り直し）。1人1台・部屋が必須。
@@ -12807,7 +12949,10 @@
     { id:'onaji',           title:'みんなと同じ',        icon:'🤝', sub:'お題に答えて、みんなと同じ答えをねらう', maxPlayers:16 },
     // 指示68-4：**pittari-logic.js・soroe-logic.js の RULES.MAX_PLAYERS と一対**（tests/pittari-logic.js・soroe-logic.js が照らす）
     { id:'pittari',         title:'ぴったり10秒',        icon:'🏁', sub:'心の中で10秒数えて、ぴったりで止める', maxPlayers:16 },
-    { id:'soroe',           title:'そろえて発射',        icon:'🎆', sub:'全員で同じ瞬間に押して、ロケットを飛ばす', maxPlayers:16 }
+    { id:'soroe',           title:'そろえて発射',        icon:'🎆', sub:'全員で同じ瞬間に押して、ロケットを飛ばす', maxPlayers:16 },
+    // 指示68-5：**quiz2-logic.js の RULES.MAX_PLAYERS と一対**（tests/quiz2-logic.js が照らす）
+    { id:'qhaya',           title:'みんなで早答え',      icon:'⚡', sub:'全員が同じ問題に同時に答える。早く正しいほど高い点', maxPlayers:16 },
+    { id:'qnear',           title:'数字ちかい方',        icon:'🎯', sub:'答えを数字で入れる。いちばん近い人の勝ち', maxPlayers:16 }
   ];
   function gameById(id){
     return GAMES.find(function(g){ return g.id === id; }) || { id:id, title:id || '不明', icon:'🎲' };
@@ -17789,6 +17934,8 @@
     onaji: rtOnajiConfig,
     pittari: rtPittariConfig,
     soroe: rtSoroeConfig,
+    qhaya: rtQhayaConfig,
+    qnear: rtQnearConfig,
     wordwolf: rtWordwolfConfig,
     wolfrole: rtWolfroleConfig,
     bomb: rtBombConfig,
@@ -17966,6 +18113,9 @@
 
   // 指示68-4：目標・合図・時間は進行役（pittari-room.js・soroe-room.js）が持っているので、送るのはゲームだけ
   function rtPittariConfig(){ return { game: 'pittari' }; }
+  // 指示68-5：クイズ王2.0。問題も順番もサーバーが決める（端末から送るのはゲームの名前だけ）
+  function rtQhayaConfig(){ return { game: 'qhaya' }; }
+  function rtQnearConfig(){ return { game: 'qnear' }; }
   function rtSoroeConfig(){ return { game: 'soroe' }; }
   // 指示68-3：みんなと同じ。お題も問題の数も時間も進行役（onaji-room.js）が持っているので、送るのはモードだけ
   function rtOnajiConfig(m){
@@ -18994,7 +19144,9 @@
     // 指示68-3：みんなと同じ。開くのは 'unveil'（'open' は False or True に取られている）
     choose: 'えらぶ', unveil: 'せーの！',
     // 指示68-4：ぴったり10秒（set・run）・そろえて発射（launch）。開くのは roundResult（「結果」を共有）
-    set: 'よーい', run: '心の中で数える', launch: '発射'
+    set: 'よーい', run: '心の中で数える', launch: '発射',
+    // 指示68-5：数字ちかい方の「数字を入れる」（3択の 'choose' とは別）
+    guess: '数字を入れる'
   };
   // いま部屋で遊んでいるのがワードウルフか
   // ---- 第26弾-4：1人1台の称号 ----
@@ -19153,6 +19305,12 @@
         if(h.oppId === me && h.content === true && h.taken) f.trusts = 1;
       });
       return { cassette: 'falsetrue', add: f };
+    }
+    if(game === 'qhaya' || game === 'qnear'){
+      // 指示68-5：クイズ王2.0。クイズ王のカセットに、遊んだ回数と1位を数える（層ごとの正解の数えは、本人の分が配られていないので数えない）
+      var q2 = { plays: 1 };
+      if(rank1()) q2.wins = 1;
+      return { cassette: 'quizou', add: q2 };
     }
     if(RT_QUIZ_GAMES.indexOf(game) !== -1){
       var q = { plays: 1 };
@@ -19410,7 +19568,10 @@
     onaji: ['scr-v2-onaji', 'scr-v2-onaji-tv'],
     // 指示68-4：ボタン1つの2本も同じ形（スマホ・TV の2枚）
     pittari: ['scr-v2-pittari', 'scr-v2-pittari-tv'],
-    soroe: ['scr-v2-soroe', 'scr-v2-soroe-tv']
+    soroe: ['scr-v2-soroe', 'scr-v2-soroe-tv'],
+    // 指示68-5：クイズ王2.0（スマホ・TV の2枚ずつ）
+    qhaya: ['scr-v2-qhaya', 'scr-v2-qhaya-tv'],
+    qnear: ['scr-v2-qnear', 'scr-v2-qnear-tv']
   };
   function rtWantScreen(){
     // 指示66-2：文化祭の部屋は、遊んでいる間だけ今までのゲームの画面。それ以外は新しい見た目の画面（段階ごとに描き直す）
@@ -32357,7 +32518,10 @@
   var V2GAMES = {
     onaji: { mod: function(){ return V2Onaji; }, play: ['unveil', 'ended'], fx: onajiFx },
     pittari: { mod: function(){ return V2Pittari; }, play: ['roundResult', 'ended'], fx: pittariFx, local: pittariLocal, after: pittariAfter },
-    soroe: { mod: function(){ return V2Soroe; }, play: ['roundResult', 'ended'], fx: soroeFx, local: soroeLocal, after: soroeAfter }
+    soroe: { mod: function(){ return V2Soroe; }, play: ['roundResult', 'ended'], fx: soroeFx, local: soroeLocal, after: soroeAfter },
+    // 指示68-5：クイズ王2.0。答える段階も play に入れる（「ラストは2倍！」の帯は、その問題を初めて描いた時だけ入る）
+    qhaya: { mod: function(){ return V2Quiz2.haya; }, play: ['choose', 'unveil', 'ended'], fx: qhayaFx, local: qhayaLocal },
+    qnear: { mod: function(){ return V2Quiz2.near; }, play: ['unveil', 'ended'], fx: qnearFx, local: qnearLocal }
   };
   function v2GameOf(id){ var m = /^scr-v2-([a-z]+?)(-tv)?$/.exec(id || ''); return m && V2GAMES[m[1]] ? m[1] : null; }
   var v2game = { endKey: null, end: null, played: null };
@@ -32408,6 +32572,93 @@
       if(got || (d.mode === 'team' && r.together)){ sfx('cheer'); FxKit.vibe('ok'); }
     }
   }
+
+  // ---- 指示68-5：クイズ王2.0。早答えの時間は**端末の中で測る**（問題を出した時から、押した時まで・届くまでの遅れは入らない） ----
+  var q2 = { key: null, t0: null, digits: '' };
+  function qhayaLocal(d, key){
+    if(q2.key !== key){ q2.key = key; q2.t0 = d.phase === 'choose' ? performance.now() : null; q2.digits = ''; }
+    return {};
+  }
+  function qnearLocal(d, key){
+    if(q2.key !== key){ q2.key = key; q2.t0 = null; q2.digits = ''; }
+    return { digits: q2.digits };
+  }
+  /** 早答えの音：答えている間は TV で押すたびに「ピッ」（qhayaAfter）。開く：玉ごとに軽い音 → 声「正解は……」（v16）→ 決まった音 → 「いちばん早かったのは……」（v20）→ 3問ごとに入れかわりの音 */
+  function qhayaFx(view, tv, key){
+    var d = view.data, r = d.reveal || {}, me = view.you || {}, 声 = function(id){ if(window.Sound) Sound.voice(id); };
+    if(d.phase === 'ended'){
+      if(tv){ v2FxAt(0.2, function(){ sfx('count', { rate: 0.7 }); }); v2FxAt(1.5, function(){ 声('v11'); sfx('fanfare'); }, true); }
+      return;
+    }
+    if(d.phase !== 'unveil') return;
+    rtOnce('qhaya:v15:' + key, true, function(){ 声('v15'); });
+    if(tv){
+      var tl = V2Quiz2.haya.timeline(view);
+      tl.drops.forEach(function(o, i){ v2FxAt(o.land, function(){ sfx('tap', { rate: Math.min(1.7, 0.9 + i * 0.05) }); }); });
+      v2FxAt(1.75, function(){ 声('v16'); });
+      tl.hops.forEach(function(h){ v2FxAt(h.at, function(){ sfx('tick'); }); });
+      v2FxAt(tl.stop, function(){ sfx('decide'); }, true);
+      if((r.fastest || []).length) v2FxAt(tl.fast, function(){ 声('v20'); sfx('cheer'); }, true);
+      if(r.ranking) v2FxAt(tl.rank + 0.3, function(){ sfx('ok'); }, true);
+      return;
+    }
+    // スマホ：当たったら大きくほめる。まちがいは鳴らさない（責めない）
+    if(me.myRight === true){ sfx('ok'); FxKit.vibe('ok'); }
+  }
+  /** 数字ちかい方の音：開く：札ごとに「トン」→ 旗が刺さる「ドン」と声「正解は……」（v16）→ 「いちばん近かったのは……」（v19）／ぴったりは v18 */
+  function qnearFx(view, tv, key){
+    var d = view.data, r = d.reveal || {}, me = view.you || {}, 声 = function(id){ if(window.Sound) Sound.voice(id); };
+    if(d.phase === 'ended'){
+      if(tv){ v2FxAt(0.2, function(){ sfx('count', { rate: 0.7 }); }); v2FxAt(1.5, function(){ 声('v11'); sfx('fanfare'); }, true); }
+      return;
+    }
+    if(d.phase !== 'unveil') return;
+    if(tv){
+      var tl = V2Quiz2.near.timeline(r.rows || []);
+      tl.pins.forEach(function(p, i){ v2FxAt(p.at + p.dur, function(){ sfx('tick', { rate: 0.9 + i * 0.03 }); }); });
+      v2FxAt(tl.flag, function(){ 声('v16'); });
+      v2FxAt(tl.flag + 0.35, function(){ sfx('decide'); }, true);
+      v2FxAt(tl.end, function(){ if((r.perfect || []).length){ 声('v18'); sfx('fanfare'); } else if((r.crowned || []).length){ 声('v19'); sfx('cheer'); } }, true);
+      return;
+    }
+    if(me.myRank === 1){ sfx(me.myDiff === 0 ? 'fanfare' : 'ok'); FxKit.vibe('ok'); }
+  }
+  function qhayaPick(b, scr){
+    if(b.getAttribute('aria-disabled') === 'true') return;
+    // **押した瞬間に全部止める**（押したら変えられない・連打で二重に送らない）。時間は押した瞬間に測る
+    var ms = q2.t0 == null ? null : Math.round(performance.now() - q2.t0);
+    Array.prototype.forEach.call(scr.querySelectorAll('[data-qh-pick]'), function(x){ x.setAttribute('aria-disabled', 'true'); });
+    b.classList.add('is-on');
+    FxKit.vibe('tick');
+    rt.act(null, { pick: +b.getAttribute('data-qh-pick'), ms: ms });
+  }
+  function qnearKey(k, scr){
+    if(k === 'del') q2.digits = q2.digits.slice(0, -1);
+    else if(q2.digits.length < Quiz2Logic.RULES.NEAR.MAX_DIGITS) q2.digits = (q2.digits === '0' ? '' : q2.digits) + k;
+    var disp = scr.querySelector('[data-qn-disp]'), go = scr.querySelector('[data-qn-go]');
+    if(disp) disp.textContent = q2.digits ? V2Quiz2.near.fmt(Number(q2.digits)) : '';
+    if(go) go.disabled = !q2.digits;
+    FxKit.vibe('tick');
+  }
+  function qnearGo(scr){
+    if(!q2.digits) return;
+    Array.prototype.forEach.call(scr.querySelectorAll('[data-qn-key],[data-qn-go]'), function(x){ x.disabled = true; });
+    FxKit.vibe('ok');
+    rt.act(null, { value: q2.digits });
+  }
+  ['scr-v2-qhaya', 'scr-v2-qnear'].forEach(function(id){
+    el(id).addEventListener('click', function(e){
+      var b = e.target.closest && e.target.closest('[data-qh-pick],[data-qn-key],[data-qn-go],[data-v2game-act]');
+      if(!b || b.disabled) return;
+      if(b.hasAttribute('data-qh-pick')){ qhayaPick(b, this); return; }
+      if(b.hasAttribute('data-qn-key')){ qnearKey(b.getAttribute('data-qn-key'), this); return; }
+      if(b.hasAttribute('data-qn-go')){ qnearGo(this); return; }
+      var act = b.getAttribute('data-v2game-act');
+      if(act === 'again') goTo('scr-next');
+      else if(act === 'end') el('rtEndBtn').click();
+      else if(act === 'leave') rtLeaveRoomAsk();
+    });
+  });
 
   // ---- 指示68-4：ぴったり10秒。**時間は端末の中で測る**（時計を出した時から、ストップを押した時まで） ----
   var pt = { key: null, sw: null, stopped: false, timer: null };

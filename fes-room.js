@@ -38,7 +38,10 @@ const FES_GAMES = [
   { mode: 'onaji-many', game: 'onaji', min: 3, max: 16, on: false, testing: true, start: { game: 'onaji', mode: 'many' } },
   // 指示68-4：ボタン1つの2本（テスト中）
   { mode: 'pittari', game: 'pittari', min: 2, max: 16, on: false, testing: true, start: { game: 'pittari' } },
-  { mode: 'soroe', game: 'soroe', min: 2, max: 16, on: false, testing: true, start: { game: 'soroe' } }
+  { mode: 'soroe', game: 'soroe', min: 2, max: 16, on: false, testing: true, start: { game: 'soroe' } },
+  // 指示68-5：クイズ王2.0（テスト中）。文化祭のクイズ王はこの2つだけ
+  { mode: 'qhaya', game: 'qhaya', min: 2, max: 16, on: false, testing: true, start: { game: 'qhaya' } },
+  { mode: 'qnear', game: 'qnear', min: 2, max: 16, on: false, testing: true, start: { game: 'qnear' } }
 ];
 /** 候補にできるゲーム。opts.games（検査が表を差しかえる）と、テスト中を入れるかのスイッチ */
 function gamesFor(f) {

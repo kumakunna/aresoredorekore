@@ -170,9 +170,10 @@
           (last ? 'animation-duration:' + ss(h.at) : 'animation-delay:' + ss(h.at) + ';animation-duration:' + ss(h.dur)) + '"></i>';
       }).join('');
       var right = r.right || [];
-      // 名前の札は1行に6枚まで（16人でも3段＝いちばん早かった人の下に入る）
-      var TC = Math.min(6, right.length);
-      var tags = right.length ? '<div class="v2-otags" style="--tc:' + TC + '">' + right.map(function (x, i) {
+      // 名前の札は1行に6枚まで（16人でも3段＝いちばん早かった人の下に入る）。6文字より長い名前がある時は、切らずに1行に4枚（4段）
+      var long = right.some(function (x) { return String(x.name).length > 5; });
+      var TC = Math.min(long ? 4 : 6, right.length);
+      var tags = right.length ? '<div class="v2-otags' + (long ? ' is-long' : '') + '" style="--tc:' + TC + '">' + right.map(function (x, i) {
         var col = i % TC, sx = ((r.correct + 0.5) / C - (col + 0.5) / TC) * 92;
         return '<span class="v2-otag" style="--sx:' + sx.toFixed(1) + 'vw;--sy:30vmin;animation-delay:' + ss(tl.tags + i * 0.05) + '"><span class="v2-cut">' + e(x.name) + '</span></span>';
       }).join('') + '</div>' : '';
@@ -293,9 +294,8 @@
         if (!list.length) return '';
         var at = tl.pins[rows.indexOf(list[0])].at;
         return '<div class="v2-q2far is-' + side + '" style="animation-delay:' + ss(at) + '"><b>' + (side === 'left' ? '←' : '→') + ' ' + V.digits(list.length) + e(t.人) + '</b>' +
-          // 名前は1行に1人（束はせまいので、つなげると切れる）。3人より多い時は「ほか N人」
-          '<small>' + list.slice(0, 3).map(function (x) { return '<span class="v2-cut">' + e(x.name) + '</span>'; }).join('') +
-          (list.length > 3 ? '<span>' + e(t.ほか + (list.length - 3) + t.人) + '</span>' : '') + '</small></div>';
+          // 名前は出さない（線の外の せまい所。名前は切らない決まりなので、長い名前が入らない）。だれが遠かったかは、スマホと結果で分かる
+          '</div>';
       };
       var 上 = rows.filter(function (x) { return x.rank === 1; });
       var perfect = (r.perfect || []).length;

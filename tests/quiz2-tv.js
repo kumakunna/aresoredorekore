@@ -68,6 +68,22 @@ function tvView(room) {
     assert(/\.v2 \.v2-q2rank\{inset:0;[^}]*background:none;/.test(css), '順位は白い箱にしない');
   });
 
+  await r.test('1：3問ごと（順位が出る）の問題で、いちばん早かった人の札は 3.0秒まで出ない・順位で消える（待っている間「見えている」側に止まる動きを使わない）', async () => {
+    // 札には animation-delay（3.0秒）が直に書いてあり、2つの動きの両方に効く。v2-dgone（both）は待つ間「見えている」に止まり、
+    // 開いた最初から 1.9倍の札が出て、3.3秒で消えていた（10/28 の動画 qh-tv-film-rank16 の最初の6コマ）。jsdom は動きを走らせないので決まりで見る
+    const css = D.documentElement.outerHTML;
+    const key = '.v2.is-play .v2-ostg.has-rank .v2-q2fast{animation:';
+    const at = css.indexOf(key);
+    assert(at !== -1, '順位が出る問題の いちばん早かった人の札の動きがある');
+    const rule = css.slice(at + key.length, css.indexOf('}', at));
+    assert(rule.indexOf('v2-dgone') === -1, 'v2-dgone を使わない（' + rule.slice(0, 80) + '）');
+    assert(rule.indexOf('v2-q2vis calc(var(--rk) - 3s * var(--fx-scale))') !== -1, '見える長さは 3.0秒から順位まで');
+    const room = S.早答え(16, 3);
+    box.innerHTML = W.V2Quiz2.haya.tv(tvView(room));
+    const f = box.querySelector('.v2-q2fast');
+    assert(f.getAttribute('style').indexOf('animation-delay:calc(3.00s') !== -1, '札の待ち時間は 3.0秒（tl.fast）');
+  });
+
   t.win.close();
   r.finish();
 })();

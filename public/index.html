@@ -5292,7 +5292,9 @@
   /* 名前の札は、いちばん早かった人（上）の下に並べる */
   .v2 .v2-q2tv .v2-otags{top:230px;}
   .v2 .v2-ptd.is-out{opacity:0;}
-  .v2.is-play .v2-ptd.is-out{animation:v2-ptrout var(--v2-move) var(--v2-ease) both;animation-delay:var(--zt);}
+  .v2.is-play .v2-ptd.is-out{animation:v2-ptdmove calc(.35s * var(--fx-scale)) var(--v2-ease) both,v2-q2out var(--v2-move) var(--v2-ease) both;animation-delay:var(--zt);}
+  /* 寄るまでは見えていて、寄ったら消える（線の外に出る） */
+  @keyframes v2-q2out{from{opacity:1;}to{opacity:0;}}
   .v2 .v2-q2rank-h{grid-column:1 / -1;font-weight:900;font-size:52px;text-align:center;}
   .v2 .v2-q2rk{display:grid;grid-template-columns:90px minmax(0,1fr) auto;align-items:center;gap:20px;padding:6px 26px;border-radius:20px;
     background:#EEF2FA;font-weight:900;font-size:44px;line-height:1.2;}

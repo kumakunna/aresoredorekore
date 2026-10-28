@@ -258,10 +258,13 @@
       var 近い = inLine.slice(-3), 位置 = {};
       rows.forEach(function (x, i) { 位置[i] = x; });
       // 点の下の名前は、重ならない段（3段まで）に置く。入らない人は点だけ（名前は開いたあとスマホと結果で分かる）
-      var 段 = [[], [], []], 段of = {};
+      // 寄ると線の外に出る点（out）は、寄る前の場所で段を決める（寄ったら消える）。残る点は寄ったあとの場所で決める
+      var isOut = function (x) { return Math.abs((x.value - mid) / half * z) > 1; };
+      var 段 = [[], [], []], 段外 = [[], [], []], 段of = {};
       inLine.filter(function (x) { return 近い.indexOf(x) === -1; }).forEach(function (x) {
-        var px = xOf(x.value, z) * 0.46 * 1728, w = x.name.length * 44 + 40;
-        for (var k = 0; k < 3; k++) if (段[k].every(function (q) { return Math.abs(q.px - px) > (q.w + w) / 2; })) { 段[k].push({ px: px, w: w }); 段of[rows.indexOf(x)] = k; return; }
+        var out = isOut(x), 置き場 = out ? 段外 : 段;
+        var px = xOf(x.value, out ? 1 : z) * 0.46 * 1728, w = x.name.length * 44 + 40;
+        for (var k = 0; k < 3; k++) if (置き場[k].every(function (q) { return Math.abs(q.px - px) > (q.w + w) / 2; })) { 置き場[k].push({ px: px, w: w }); 段of[rows.indexOf(x)] = k; return; }
         段of[rows.indexOf(x)] = -1;
       });
       var pins = rows.map(function (x, i) {
@@ -271,8 +274,8 @@
         var xz = xOf(x.value, z), out = !札 && Math.abs((x.value - mid) / half * z) > 1;
         var inner = 札
           ? '<span class="v2-ptp-tag"><span class="v2-ptp-nm v2-cut">' + e(x.name) + '</span><span class="v2-ptp-df">' + e(fmt(x.value)) + '</span></span><i class="v2-ptp-stick"></i>'
-          : '<i class="v2-ptd-dot"></i><i class="v2-ptd-stick"></i>' + (段of[i] >= 0 && !out ? '<span class="v2-ptd-nm v2-cut">' + e(x.name) + '</span>' : '');
-        return '<div class="' + (札 ? 'v2-ptp' : 'v2-ptd') + (x.rank === 1 ? ' is-win' : '') + (out ? ' is-out' : '') + (xz < -0.8 ? ' is-l' : xz > 0.8 ? ' is-r' : '') + '" style="left:' + 左(xz) + ';--lane:' + lane + ';--row:' + lane +
+          : '<i class="v2-ptd-dot"></i><i class="v2-ptd-stick"></i>' + (段of[i] >= 0 ? '<span class="v2-ptd-nm v2-cut">' + e(x.name) + '</span>' : '');
+        return '<div class="' + (札 ? 'v2-ptp' : 'v2-ptd') + (x.rank === 1 ? ' is-win' : '') + (out ? ' is-out' : '') + (xz < -0.8 ? ' is-l' : xz > 0.8 ? ' is-r' : '') + '" style="left:' + 左(xz) + ';--lane:' + lane + ';--row:' + lane + ';--n0:' + lane + ';--r0:' + lane +
           ';--l0:' + 左(xOf(x.value, 1)) + '"><div class="v2-ptp-in" style="animation-delay:' + ss(p.at) + ';animation-duration:' + ss(p.dur) + '">' + inner + '</div></div>';
       }).join('');
       var farOf = function (side) {

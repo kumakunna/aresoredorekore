@@ -5417,7 +5417,7 @@
   /* 順位が出たら、答えの札とスポットライトもしまう（行を舞台いっぱいに並べる） */
   .v2 .v2-ostg.has-rank .v2-ocol,.v2 .v2-ostg.has-rank .v2-q2hops{visibility:hidden;}
   .v2.is-play .v2-ostg.has-rank .v2-ocol,.v2.is-play .v2-ostg.has-rank .v2-q2hops{animation:v2-q2vis var(--rk) linear;}
-  .v2.is-play .v2-ostg.has-rank .v2-ocol.is-wrong{animation:v2-oback calc(.4s * var(--fx-scale)) ease both,v2-q2vis var(--rk) linear;animation-delay:var(--wd),0s;}
+  .v2.is-play .v2-ostg.has-rank .v2-ocol.is-wrong{animation:v2-oback calc(.4s * var(--fx-scale)) ease both,v2-q2vis var(--rk) linear;animation-delay:var(--wd),calc(0s * var(--fx-scale));}
   /* 1位の発表：照明は TV 全体で落とす（箱に閉じない）。スポットライトは上から1人に */
   .v2 .v2-q2champ{position:relative;z-index:2;height:auto;min-height:300px;gap:10px;overflow:visible;}
   .v2 .v2-q2c-dim{position:fixed;inset:0;z-index:1;background:rgba(3,3,12,.72);opacity:1;pointer-events:none;}

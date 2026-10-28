@@ -20,7 +20,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const OWNER = 900, STAFF = 901, NOBODY = 902;
 const T = { lobbyMs: 300, idleMs: 600, voteMs: 400, decideMs: 100, readyMs: 500, resultMs: 300, endGraceMs: 100 };
 
-function startTestServer() {
+// 16人を入れる検査だけは待合を長くする。縮めた長さのままだと、重い時は入れている間に 投票→決定→準備OK と進み、
+// 準備OK を押さなかった人が外れて席が空く＝17人目が入れてしまう（満員の判定ではなく、検査の書き方の穴・2026-10-28）
+const 待合を長く = Object.assign({}, T, { lobbyMs: 60000 });
+
+function startTestServer(times) {
   const app = express();
   const sessionMiddleware = session({ secret: 'test-fes', resave: false, saveUninitialized: false,
     cookie: { httpOnly: true, secure: false, sameSite: 'lax' } });
@@ -31,7 +35,7 @@ function startTestServer() {
   const store = new RoomStore();
   const fesStore = createFesStore(new Database(':memory:'));
   const io = attachRealtime(httpServer, sessionMiddleware, {
-    store, db: null, describe: async () => ({ description: 'x' }), countdownMs: 0, fesStore, fesTimes: T,
+    store, db: null, describe: async () => ({ description: 'x' }), countdownMs: 0, fesStore, fesTimes: times || T,
     fesRole: (uid) => (uid === OWNER ? 'owner' : uid === STAFF ? 'staff' : null)
   });
   mountFesRoutes(app, io);
@@ -392,7 +396,7 @@ async function join(srv, code, name, diff, extra) {
   });
 
   await r.test('16人まで：17人目は入れない（TVは数えない）', async () => {
-    const srv = await startTestServer();
+    const srv = await startTestServer(待合を長く);
     const { staff, code } = await makeFes(srv);
     const ds = [await join(srv, code, 'TV', null, { role: 'bigscreen' })];
     for (let i = 0; i < 16; i++) ds.push(await join(srv, code, 'ひと' + 'あいうえおかきくけこさしすせそた'[i]));
@@ -404,8 +408,23 @@ async function join(srv, code, name, diff, extra) {
     await srv.close();
   });
 
+  await r.test('30人が同時に入ろうとしても、入れるのは16人ちょうど（学校の Wi-Fi で一度にQRを読む時・2026-10-28）', async () => {
+    // 満員の判定と人を足す所は、待ちをはさまない1つの処理（realtime.js の room:join）。同時に押しても数がずれないことを、本当に同時に送って見る
+    const srv = await startTestServer(待合を長く);
+    const { staff, code } = await makeFes(srv);
+    const ds = await Promise.all(Array.from({ length: 30 }, () => device(srv.url)));
+    const 名 = (i) => 'ど' + 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほ'[i];
+    const rs = await Promise.all(ds.map((d, i) => d.call('room:join', { code, name: 名(i), diff: 'normal' })));
+    assertEqual(rs.filter((x) => x.ok).length, 16, '入れたのは16人');
+    assertEqual(rs.filter((x) => x.error === 'room_full').length, 14, 'ほかの14人は満員');
+    const room = srv.store.get(code);
+    assertEqual(Array.from(room.members.values()).filter((m) => m.role !== 'bigscreen' && m.connected).length, 16, '部屋の人数も16人');
+    ds.concat([staff]).forEach((d) => d.close());
+    await srv.close();
+  });
+
   await r.test('満員の時の予約（指示66-3）：17人目は予約でき、席が空くと先頭に「どうぞ」。取っておいた席に後から来た人は入れない', async () => {
-    const srv = await startTestServer();
+    const srv = await startTestServer(待合を長く);
     const { staff, code } = await makeFes(srv);
     const ds = [];
     for (let i = 0; i < 16; i++) ds.push(await join(srv, code, 'ひと' + 'あいうえおかきくけこさしすせそた'[i]));

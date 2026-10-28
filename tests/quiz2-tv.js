@@ -77,11 +77,13 @@ function tvView(room) {
     assert(at !== -1, '順位が出る問題の いちばん早かった人の札の動きがある');
     const rule = css.slice(at + key.length, css.indexOf('}', at));
     assert(rule.indexOf('v2-dgone') === -1, 'v2-dgone を使わない（' + rule.slice(0, 80) + '）');
-    assert(rule.indexOf('v2-q2vis calc(var(--rk) - 3s * var(--fx-scale))') !== -1, '見える長さは 3.0秒から順位まで');
+    assert(rule.indexOf('v2-q2vis calc(1.2s * var(--fx-scale))') !== -1, '見える長さは 3.0秒から順位（4.2秒）まで');
     const room = S.早答え(16, 3);
     box.innerHTML = W.V2Quiz2.haya.tv(tvView(room));
     const f = box.querySelector('.v2-q2fast');
     assert(f.getAttribute('style').indexOf('animation-delay:calc(3.00s') !== -1, '札の待ち時間は 3.0秒（tl.fast）');
+    const tl = W.V2Quiz2.haya.timeline(tvView(room));
+    assertEqual(Math.round((tl.rank - tl.fast) * 10) / 10, 1.2, '札が見える 1.2秒は、順位（tl.rank）と札（tl.fast）の差と同じ');
   });
 
   t.win.close();

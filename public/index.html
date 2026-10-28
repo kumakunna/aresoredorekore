@@ -5332,8 +5332,8 @@
   .v2.is-play .v2-ostg.has-rank .v2-otags{animation:v2-dgone calc(.3s * var(--fx-scale)) ease both;animation-delay:var(--rk);}
   /* 指示68-5 の直し：v2-dgone（both）は待っている間も「見えている」側に止まるので、3問ごとの問題では いちばん早かった人の札が
      開いた最初から（v2-slam の 1.9倍の大きさで）出ていた。見える・見えないは v2-q2vis だけで決める。
-     札には animation-delay（3.0秒・v2-quiz2.js の tl.fast）が直に書いてあり、2つの動きの両方に効く——v2-q2vis は 3.0秒から順位（--rk）までの長さ */
-  .v2.is-play .v2-ostg.has-rank .v2-q2fast{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both,v2-q2vis calc(var(--rk) - 3s * var(--fx-scale)) linear;}
+     札には animation-delay（3.0秒・v2-quiz2.js の tl.fast）が直に書いてあり、2つの動きの両方に効く——v2-q2vis は 3.0秒から順位（tl.rank 4.2秒）までの 1.2秒 */
+  .v2.is-play .v2-ostg.has-rank .v2-q2fast{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both,v2-q2vis calc(1.2s * var(--fx-scale)) linear;}
   .v2 .v2-q2flag{position:absolute;left:50%;bottom:var(--axis-b,240px);z-index:3;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%);}
   .v2 .v2-q2flag i{width:8px;height:330px;background:#E5484D;border-radius:4px;}
   .v2 .v2-q2flag-t{padding:8px 26px;border-radius:16px;background:#E5484D;color:#FFFFFF;font-weight:900;font-size:52px;white-space:nowrap;}

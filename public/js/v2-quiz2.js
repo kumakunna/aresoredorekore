@@ -25,7 +25,8 @@
   function topRow(view, tv, mode) {
     var d = view.data || {}, V = K(), t = T();
     var answering = d.phase === 'choose' || d.phase === 'guess';
-    var clock = answering && view.end ? (tv ? V.cd({ end: view.end, mmss: true, label: '', unit: '' }) : V.cd({ end: view.end, label: '', unit: t.秒 })) : '';
+    // TV は時計の数字を出さない（答えている間は、ちぢむ帯が のこり時間。数字の時計は文化祭の「のこり分」と見分けがつかなかった）
+    var clock = answering && view.end && !tv ? V.cd({ end: view.end, label: '', unit: t.秒 }) : '';
     return '<div class="v2-otop"><span class="v2-opill"><b class="v2-num">' + V.digits(d.round || 1) + '</b><small>/' + V.digits(d.total || 10) + '</small>' + e(t.問目) + '</span>' +
       // 遊び方の名前と層は TV だけ（スマホの細い幅では行が折れる）
       (tv ? '<span class="v2-omode">' + e(mode === 'near' ? t.ちかい : t.早答え) + (d.tier && mode !== 'near' ? '・' + e((t.層 || {})[d.tier] || '') : '') + '</span>' : '') +
@@ -70,6 +71,8 @@
           '<span class="v2-rk-nm v2-cut">' + e(x.name) + '</span><span class="v2-rk-x">' + V.digits(x.score) + e(t.点) + '</span></div>';
       }).join('') + '</div>';
   }
+  /** 大きく出す名前（いちばん早かった人・1位）の字の大きさ：箱は画面の幅の半分より広く、長い名前は字を小さくして1行に入れる */
+  function bigFs(name, max) { return Math.max(96, Math.min(max, Math.floor(1560 / Math.max(1, String(name || '').length)))); }
   /**
    * 1位の発表（TV・最後）：照明が落ちる → ドラムロール1.5秒 → スポットライトが1人に → 名前が大きく・紙ふぶき（点滅しない）→ 順位
    */
@@ -79,9 +82,11 @@
     var 粒 = '';
     for (var i = 0; i < 30; i++) 粒 += '<i class="v2-q2conf" style="left:' + ((i * 37) % 100) + '%;--c:' + ['#FFD84A', '#7FE7F2', '#F28AA8', '#FFFFFF'][i % 4] +
       ';animation-delay:' + ss(1.6 + (i % 10) * 0.05) + '"></i>';
-    return '<div class="v2-q2champ"><i class="v2-q2c-dim"></i><i class="v2-q2c-spot"></i>' +
+    // 照明（暗さ・スポットライト）は TV 全体に当てる（箱の中に閉じると、ドラムロールの間「空の暗い四角」に見えた）
+    return '<i class="v2-q2c-dim" aria-hidden="true"></i><i class="v2-q2c-spot" aria-hidden="true"></i>' +
+      '<div class="v2-q2champ">' +
       '<div class="v2-q2c-hd">' + e(t.一位) + '</div>' +
-      '<div class="v2-q2c-nm v2-cut">' + e(who) + '</div>' + 粒 + '</div>' +
+      '<div class="v2-q2c-nm v2-cut" style="font-size:' + bigFs(who, 150) + 'px">' + e(who) + '</div>' + 粒 + '</div>' +
       '<div class="v2-q2c-rk">' + resultBody(view, true, { noHead: true }, mode) + '</div>';
   }
 
@@ -165,22 +170,26 @@
           (last ? 'animation-duration:' + ss(h.at) : 'animation-delay:' + ss(h.at) + ';animation-duration:' + ss(h.dur)) + '"></i>';
       }).join('');
       var right = r.right || [];
-      var tags = right.length ? '<div class="v2-otags" style="--tc:' + Math.min(4, right.length) + '">' + right.map(function (x, i) {
-        var col = i % Math.min(4, right.length), sx = ((r.correct + 0.5) / C - (col + 0.5) / Math.min(4, right.length)) * 92;
+      // 名前の札は1行に6枚まで（16人でも3段＝いちばん早かった人の下に入る）
+      var TC = Math.min(6, right.length);
+      var tags = right.length ? '<div class="v2-otags" style="--tc:' + TC + '">' + right.map(function (x, i) {
+        var col = i % TC, sx = ((r.correct + 0.5) / C - (col + 0.5) / TC) * 92;
         return '<span class="v2-otag" style="--sx:' + sx.toFixed(1) + 'vw;--sy:30vmin;animation-delay:' + ss(tl.tags + i * 0.05) + '"><span class="v2-cut">' + e(x.name) + '</span></span>';
       }).join('') + '</div>' : '';
       var fast = (r.fastest || []).length ? '<div class="v2-q2fast" style="animation-delay:' + ss(tl.fast) + '"><small>' + e(t.いちばん早い) + '</small>' +
-        '<b class="v2-cut">' + e(r.fastest.join('・')) + '</b><span class="v2-num">' + e(((r.fastestMs || 0) / 1000).toFixed(1) + t.秒) + '</span></div>'
+        '<div class="v2-q2fast-r"><b class="v2-cut" style="font-size:' + bigFs(r.fastest.join('・'), 150) + 'px">' + e(r.fastest.join('・')) + '</b>' +
+        '<span class="v2-num">' + e(((r.fastestMs || 0) / 1000).toFixed(1) + t.秒) + '</span></div></div>'
         : '<div class="v2-q2fast is-none" style="animation-delay:' + ss(tl.fast) + '"><small>' + e(t.だれも) + '</small></div>';
       return '<div class="v2-ounv is-tv is-stage">' + '<i class="v2-odim"></i>' +
         '<div class="v2-osay" aria-hidden="true">' + e(t.せーの) + '</div>' +
         '<div class="v2-oqs" data-v2-wrap>' + V.phrase(r.q || '') + '</div>' +
-        '<div class="v2-ostg' + (r.ranking ? ' has-rank' : '') + '" style="--oc:' + C + ';--rk:' + ss(tl.rank) + '">' + cols + '<div class="v2-q2hops">' + hops + '</div>' + tags + fast +
+        '<div class="v2-ostg' + (r.ranking ? ' has-rank' : '') + '" style="--oc:' + C + ';--rk:' + ss(tl.rank) + ';--tg:' + ss(tl.tags) + '">' + cols + '<div class="v2-q2hops">' + hops + '</div>' + tags + fast +
           (r.ranking ? rankHtml(r.ranking, tl.rank) : '') + '</div></div>';
     }
     /** 3問ごとの順位：入れかわりながら動く（0.4秒）。上がった人の行は、一瞬光る */
     function rankHtml(rows, at) {
       var t = T(), V = K(), top = rows.slice(0, 8);
+      // 白い箱にしない：舞台の上に大きな行を1列で並べる（入れかわりの上下の動きが見えるように）
       return '<div class="v2-q2rank" style="animation-delay:' + ss(at) + '"><div class="v2-q2rank-h">' + e(t.順位) + '</div>' + top.map(function (x) {
         var move = (x.prevRank || x.rank) - x.rank;
         return '<div class="v2-q2rk' + (move > 0 ? ' is-up' : '') + '" style="--mv:' + move + ';animation-delay:' + ss(at + 0.3) + '">' +
@@ -254,17 +263,18 @@
       var near2 = inLine.slice(-2).reduce(function (m, x) { return Math.max(m, x.diff); }, 0);
       var z = Math.max(1, Math.min(6, half / Math.max(near2 * 1.4, half / 6)));
       var xOf = function (v, zz) { return Math.max(-1.02, Math.min(1.02, (v - mid) / half * zz)); };
-      var 左 = function (x) { return 'calc(50% + ' + (x * 46).toFixed(2) + '%)'; };
+      // 線は 13%〜87%（両端の外は、とても遠い答えの束の場所）
+      var 左 = function (x) { return 'calc(50% + ' + (x * 35).toFixed(2) + '%)'; };
       var 近い = inLine.slice(-3), 位置 = {};
       rows.forEach(function (x, i) { 位置[i] = x; });
-      // 点の下の名前は、重ならない段（3段まで）に置く。入らない人は点だけ（名前は開いたあとスマホと結果で分かる）
+      // 点の下の名前は、重ならない段（2段まで）に置く。入らない人は点だけ（名前は開いたあとスマホと結果で分かる）
       // 寄ると線の外に出る点（out）は、寄る前の場所で段を決める（寄ったら消える）。残る点は寄ったあとの場所で決める
       var isOut = function (x) { return Math.abs((x.value - mid) / half * z) > 1; };
       var 段 = [[], [], []], 段外 = [[], [], []], 段of = {};
       inLine.filter(function (x) { return 近い.indexOf(x) === -1; }).forEach(function (x) {
         var out = isOut(x), 置き場 = out ? 段外 : 段;
-        var px = xOf(x.value, out ? 1 : z) * 0.46 * 1728, w = x.name.length * 44 + 40;
-        for (var k = 0; k < 3; k++) if (置き場[k].every(function (q) { return Math.abs(q.px - px) > (q.w + w) / 2; })) { 置き場[k].push({ px: px, w: w }); 段of[rows.indexOf(x)] = k; return; }
+        var px = xOf(x.value, out ? 1 : z) * 0.35 * 1728, w = x.name.length * 50 + 40;
+        for (var k = 0; k < 2; k++) if (置き場[k].every(function (q) { return Math.abs(q.px - px) > (q.w + w) / 2; })) { 置き場[k].push({ px: px, w: w }); 段of[rows.indexOf(x)] = k; return; }
         段of[rows.indexOf(x)] = -1;
       });
       var pins = rows.map(function (x, i) {
@@ -283,14 +293,16 @@
         if (!list.length) return '';
         var at = tl.pins[rows.indexOf(list[0])].at;
         return '<div class="v2-q2far is-' + side + '" style="animation-delay:' + ss(at) + '"><b>' + (side === 'left' ? '←' : '→') + ' ' + V.digits(list.length) + e(t.人) + '</b>' +
-          '<small class="v2-cut">' + e(list.map(function (x) { return x.name; }).join('・')) + '</small></div>';
+          // 名前は1行に1人（束はせまいので、つなげると切れる）。3人より多い時は「ほか N人」
+          '<small>' + list.slice(0, 3).map(function (x) { return '<span class="v2-cut">' + e(x.name) + '</span>'; }).join('') +
+          (list.length > 3 ? '<span>' + e(t.ほか + (list.length - 3) + t.人) + '</span>' : '') + '</small></div>';
       };
       var 上 = rows.filter(function (x) { return x.rank === 1; });
       var perfect = (r.perfect || []).length;
       var 粒 = '';
       if (perfect) for (var i = 0; i < 36; i++) 粒 += '<i class="v2-ptgold-p" style="left:' + ((i * 37) % 100) + '%;top:' + (10 + (i * 53) % 80) + '%;animation-delay:' + ss(tl.end + 0.1 + (i % 9) * 0.05) + '"></i>';
       var win = 上.length
-        ? '<div class="v2-ptwin" style="animation-delay:' + ss(tl.end) + '"><span class="v2-ptwin-c" aria-hidden="true">👑</span><span class="v2-ptwin-n v2-cut">' + e(上.map(function (x) { return x.name; }).join('・')) + '</span>' +
+        ? '<div class="v2-ptwin" style="animation-delay:' + ss(tl.end) + '"><span class="v2-ptwin-c" aria-hidden="true">👑</span><span class="v2-ptwin-n v2-cut" style="font-size:' + bigFs(上.map(function (x) { return x.name; }).join('・'), 110) + 'px">' + e(上.map(function (x) { return x.name; }).join('・')) + '</span>' +
           '<span class="v2-ptwin-d">' + e(上[0].diff === 0 ? t.ぴったり : t.あと + ' ' + fmt(上[0].diff) + (r.unit || '')) + '</span></div>'
         : '<div class="v2-ptwin is-none" style="animation-delay:' + ss(tl.end) + '">' + e(t.だれも入れず) + '</div>';
       return '<div class="v2-oqs v2-q2q" data-v2-wrap>' + V.phrase(r.q || '') + '</div>' +
@@ -300,7 +312,8 @@
           '<i class="v2-ptr-axis"></i>' +
           '<div class="v2-q2flag" style="animation-delay:' + ss(tl.flag) + '"><span class="v2-q2flag-t">' + e(fmt(r.answer) + ' ' + (r.unit || '')) + '</span><i></i></div>' +
           pins + farOf('left') + farOf('right') + '</div>' +
-        win + (perfect ? '<div class="v2-ptgold" aria-hidden="true">' + 粒 + '</div><div class="v2-ptband" style="animation-delay:' + ss(tl.end + 0.15) + '">' + e(t.ぴったり) + '</div>' : '') +
+        // ぴったりは、いちばん近い人の札そのものが金の帯「ぴったり！」になる（帯を別に重ねると、旗の字と冠の札にかぶった）
+        win + (perfect ? '<div class="v2-ptgold" aria-hidden="true">' + 粒 + '</div>' : '') +
       '</div>';
     }
     function tv(view) {

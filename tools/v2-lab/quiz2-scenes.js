@@ -103,4 +103,4 @@ function view(sceneId, opts) {
   return b(opts || {});
 }
 
-module.exports = { SCENES, view };
+module.exports = { SCENES, view, 早答え };

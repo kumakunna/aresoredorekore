@@ -5355,9 +5355,104 @@
   .v2.is-play .v2-q2c-nm{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(1.5s * var(--fx-scale));}
   .v2 .v2-q2conf{position:absolute;top:-30px;width:24px;height:14px;border-radius:3px;background:var(--c);opacity:0;}
   .v2.is-play .v2-q2conf{animation:v2-q2conf calc(2s * var(--fx-scale)) ease-in both;}
-  @keyframes v2-q2conf{0%{opacity:1;transform:translateY(0) rotate(0);}100%{opacity:0;transform:translateY(520px) rotate(540deg);}}
+  @keyframes v2-q2conf{0%{opacity:0;transform:translateY(0) rotate(0);}6%{opacity:1;}100%{opacity:0;transform:translateY(520px) rotate(540deg);}}
   .v2 .v2-q2c-rk{display:flex;flex-direction:column;gap:12px;}
   .v2.is-play .v2-q2c-rk{animation:v2-rise var(--v2-move) var(--v2-ease) both;animation-delay:calc(2.3s * var(--fx-scale));}
+  /* ---- 指示68-5 の直し（Claude チャットが動画を見て・10/28）：舞台・字の大きさ・重なり。上の同じ名前の決まりより後ろに置いて上書きする ----
+     舞台：暗い床・上からスポットライト3本（円すい）・名前の壁はうすく。TV 1920×1080 で 名前の札は高さ48px 以上・問題文は64px 以上
+     （docs/指示66/tools/check.js の「TVの名前の札が小さい」「TVの問題文が小さい」が見張る） */
+  .v2 .v2-tvc.is-stage2 .v2-circles{display:none;}
+  .v2 .v2-tvc.is-stage2 .v2-nr{color:color-mix(in srgb,var(--wi) 4%,transparent);}
+  .v2 .v2-tvc.is-stage2::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse 72% 20% at 50% 100%,rgba(255,236,190,.12),rgba(255,236,190,0) 72%),
+      linear-gradient(180deg,rgba(4,5,18,.52),rgba(4,5,18,.82));}
+  .v2 .v2-tvc.is-stage2::after{
+    background:conic-gradient(from 166deg at 18% -4%,rgba(255,244,205,0) 0deg,rgba(255,244,205,.13) 6deg 22deg,rgba(255,244,205,0) 28deg),
+      conic-gradient(from 163deg at 50% -4%,rgba(255,244,205,0) 0deg,rgba(255,244,205,.17) 7deg 27deg,rgba(255,244,205,0) 34deg),
+      conic-gradient(from 166deg at 82% -4%,rgba(255,244,205,0) 0deg,rgba(255,244,205,.13) 6deg 22deg,rgba(255,244,205,0) 28deg);
+    -webkit-mask-image:linear-gradient(180deg,#000 30%,rgba(0,0,0,.4));mask-image:linear-gradient(180deg,#000 30%,rgba(0,0,0,.4));}
+  /* 答えている間：問題の札は真ん中で大きく光る。答えの札は字を札の真ん中に大きく（記号は左上） */
+  .v2 .v2-q2tv .v2-q2qa{text-align:center;padding:28px 48px;border-color:#FFE58A;
+    box-shadow:0 0 0 4px rgba(255,229,138,.35),0 0 120px rgba(255,229,138,.45);}
+  .v2 .v2-q2tv .v2-q2qa .v2-otq{font-size:80px;}
+  .v2 .v2-q2tv .v2-och{position:relative;justify-content:center;text-align:center;padding:96px 24px 28px;font-size:80px;line-height:1.15;}
+  .v2 .v2-q2tv .v2-ochs.is-n4 .v2-och{font-size:68px;}
+  .v2 .v2-q2tv .v2-och .v2-okey{position:absolute;left:22px;top:22px;}
+  /* 開く（早答え）：問題文 64px。答えの札は1行（字・人数）にして、上を名前の札と「いちばん早かった人」にあける */
+  .v2 .v2-q2tv .v2-ounv.is-tv .v2-oqs{font-size:64px;line-height:1.2;}
+  .v2 .v2-q2tv .v2-ocol{position:relative;z-index:1;}
+  .v2 .v2-q2tv .v2-ocard{flex-wrap:nowrap;min-height:0;margin-top:8px;padding:10px 20px;}
+  .v2 .v2-q2tv .v2-ocard-t{font-size:48px;}
+  .v2 .v2-q2tv .v2-ocnt{flex:none;}
+  .v2 .v2-q2tv .v2-ocnt b{font-size:72px;}
+  .v2 .v2-q2tv .v2-ocol.is-right .v2-ocard{box-shadow:0 0 70px rgba(255,216,74,.7);}
+  /* まちがいの山は、名前の札が出る時にしまう（札と玉が重ならない） */
+  .v2 .v2-q2tv .v2-ocol.is-wrong .v2-opile{visibility:hidden;}
+  .v2.is-play .v2-q2tv .v2-ocol.is-wrong .v2-opile{animation:v2-q2vis var(--tg) linear;}
+  @keyframes v2-q2vis{from,to{visibility:visible;}}
+  /* 正解：スポットライト（上からの円すい）が札から札へゆれて、正解の札で止まる。札のうしろを照らす */
+  .v2 .v2-q2tv .v2-q2hops{z-index:0;top:-300px;}
+  .v2 .v2-q2tv .v2-q2hop{top:0;bottom:-10px;border:0;border-radius:0;box-shadow:none;
+    background:linear-gradient(180deg,rgba(255,240,190,.04),rgba(255,240,190,.46));clip-path:polygon(38% 0,62% 0,100% 100%,0 100%);}
+  /* いちばん早かった人：名前の箱は画面の幅の半分より広く（字の大きさは長さで決める・v2-quiz2.js bigFs） */
+  .v2 .v2-q2tv .v2-q2fast{gap:12px;}
+  .v2 .v2-q2tv .v2-q2fast small{font-size:48px;}
+  .v2 .v2-q2fast-r{display:flex;align-items:center;justify-content:center;gap:28px;max-width:100%;}
+  .v2 .v2-q2tv .v2-q2fast b{min-width:960px;max-width:1440px;line-height:1.1;padding:26px 40px;text-align:center;}
+  .v2 .v2-q2tv .v2-q2fast span{padding:12px 30px;}
+  /* 止まったスポットライト（正解の札）は、演出のあとも残す */
+  .v2 .v2-q2tv .v2-q2hop.is-last{opacity:1;}
+  /* 名前の札（48px・1行に6枚まで）：いちばん早かった人の下、答えの札の上 */
+  .v2 .v2-q2tv .v2-otags{top:266px;bottom:150px;gap:8px 18px;}
+  .v2 .v2-q2tv .v2-otag{font-size:48px;line-height:1.15;max-width:270px;padding:8px 24px;}
+  /* 3問ごとの順位：白い箱をやめ、舞台の上に大きな行を1列で（1行 62px＋すき間 6px＝入れかわりの1段 68px） */
+  .v2 .v2-q2rank{inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0;border-radius:0;
+    background:none;color:var(--wi);box-shadow:none;}
+  .v2 .v2-q2rank-h{font-size:56px;line-height:1.2;margin-bottom:4px;}
+  .v2 .v2-q2rk{width:min(1300px,100%);height:62px;grid-template-columns:110px minmax(0,1fr) auto;padding:0 30px;border-radius:20px;
+    background:rgba(255,255,255,.10);font-size:50px;line-height:1.2;}
+  .v2 .v2-q2rk b{font-size:50px;}
+  @keyframes v2-q2move{from{transform:translateY(calc(var(--mv) * 68px));}}
+  @keyframes v2-q2up{0%{background:rgba(255,255,255,.10);}40%{background:rgba(255,216,74,.6);}100%{background:rgba(255,255,255,.10);}}
+  /* 順位が出たら、答えの札とスポットライトもしまう（行を舞台いっぱいに並べる） */
+  .v2 .v2-ostg.has-rank .v2-ocol,.v2 .v2-ostg.has-rank .v2-q2hops{visibility:hidden;}
+  .v2.is-play .v2-ostg.has-rank .v2-ocol,.v2.is-play .v2-ostg.has-rank .v2-q2hops{animation:v2-q2vis var(--rk) linear;}
+  .v2.is-play .v2-ostg.has-rank .v2-ocol.is-wrong{animation:v2-oback calc(.4s * var(--fx-scale)) ease both,v2-q2vis var(--rk) linear;animation-delay:var(--wd),0s;}
+  /* 1位の発表：照明は TV 全体で落とす（箱に閉じない）。スポットライトは上から1人に */
+  .v2 .v2-q2champ{position:relative;z-index:2;height:auto;min-height:300px;gap:10px;overflow:visible;}
+  .v2 .v2-q2c-dim{position:fixed;inset:0;z-index:1;background:rgba(3,3,12,.72);opacity:1;pointer-events:none;}
+  .v2.is-play .v2-q2c-dim{animation:v2-ofade calc(.6s * var(--fx-scale)) ease both;}
+  .v2 .v2-q2c-spot{position:fixed;left:50%;top:0;width:1200px;height:330px;margin-left:-600px;z-index:1;pointer-events:none;
+    background:linear-gradient(180deg,rgba(255,244,205,.06),rgba(255,244,205,.36));clip-path:polygon(43% 0,57% 0,100% 100%,0 100%);}
+  .v2 .v2-q2c-nm{min-width:960px;text-align:center;line-height:1.1;padding:26px 50px;}
+  .v2 .v2-q2c-rk{position:relative;z-index:2;}
+  /* 数字ちかい方：問題文 64px・名前は 48px。線は 13%〜87%（外はとても遠い答えの束）。下から：点の名前（2段）→ 線 → 近い3人の札（3段）→ 旗の字 → 冠の札 */
+  .v2 .v2-q2tv .v2-q2q{font-size:64px;line-height:1.2;}
+  .v2 .v2-q2line{--axis-b:160px;}
+  .v2 .v2-q2line .v2-ptr-axis{left:13%;right:13%;bottom:var(--axis-b);}
+  .v2 .v2-q2line .v2-ptp{bottom:calc(var(--axis-b) + 40px + var(--lane) * 80px);z-index:2;}
+  .v2.is-play .v2-q2line .v2-ptp{animation-name:v2-q2ptmove;}
+  @keyframes v2-q2ptmove{from{left:var(--l0);bottom:calc(var(--axis-b) + 40px + var(--n0) * 80px);}}
+  .v2 .v2-q2line .v2-ptp-nm,.v2 .v2-q2line .v2-ptp-df{font-size:48px;line-height:1.2;}
+  .v2 .v2-q2line .v2-ptp-stick{height:calc(var(--lane) * 80px + 34px);}
+  .v2 .v2-q2line .v2-ptd{bottom:calc(var(--axis-b) + 5px);}
+  .v2 .v2-q2line .v2-ptd-nm{top:calc(30px + var(--row) * 64px);font-size:48px;}
+  .v2 .v2-q2line .v2-ptd-stick{height:calc(var(--row) * 64px + 16px);}
+  .v2 .v2-q2line .v2-q2flag{z-index:1;}
+  .v2 .v2-q2line .v2-q2flag i{height:290px;}
+  .v2 .v2-q2line .v2-q2far{bottom:calc(var(--axis-b) + 24px);width:12%;max-width:none;gap:10px;padding:8px 12px;}
+  .v2 .v2-q2line .v2-q2far{width:13%;}
+  .v2 .v2-q2line .v2-q2far b,.v2 .v2-q2line .v2-q2far small{font-size:48px;line-height:1.2;margin-top:0;}
+  .v2 .v2-q2line .v2-q2far{gap:22px;}
+  /* 字の上下は切ってある（.v2 * の text-box）ので、行のすき間は gap で取る */
+  .v2 .v2-q2line .v2-q2far small{display:flex;flex-direction:column;align-items:inherit;gap:22px;}
+  .v2 .v2-q2line .v2-q2far.is-right{text-align:right;}
+  .v2 .v2-q2line .v2-q2far small span{display:block;max-width:100%;line-height:1.5;}
+  /* 札は透けない色（うしろを通る旗の棒と点の棒が、字の上に見えない） */
+  .v2 .v2-q2line .v2-ptp-tag{background:color-mix(in srgb,var(--won) 88%,var(--wi));}
+  .v2 .v2-q2line .v2-ptwin{padding:8px 40px;border-width:5px;}
+  .v2 .v2-q2line .v2-ptwin-n{line-height:1.15;max-width:1100px;}
+  .v2 .v2-ptr.is-perfect.v2-q2line .v2-ptwin{top:0;background:#FFD84A;border-color:#B8860B;color:#3A2A00;}
   /* ---- 指示68-4：ぴったり10秒（v2-pittari.js）・そろえて発射（v2-soroe.js）。上の行と開く札は、みんなと同じの物を使う ---- */
   .v2 .v2-ptx2{background:var(--wi);color:var(--won);border-radius:999px;padding:2px 10px;font-weight:900;font-size:13px;line-height:1.4;}
   .v2 .v2-ptset{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;}
@@ -5794,7 +5889,9 @@
   .v2 .v2-tstep em{font-style:normal;display:inline-block;background:var(--wi);color:var(--won);border-radius:14px;padding:10px 14px;margin:0 6px;vertical-align:middle;}
   .v2 .v2-tband.is-end{justify-content:flex-end;}
   .v2 .v2-me.is-title .v2-me-nm{font-size:19px;}
-  .v2 .v2-tgames{display:flex;align-items:center;gap:18px;}
+  /* 指示68-5：ゲームが増えて「1回 約3分」が折れた。折らずに、入らない時は次の行へ */
+  .v2 .v2-tgames{display:flex;flex-wrap:wrap;align-items:center;gap:18px;}
+  .v2 .v2-tgames .v2-tnote{white-space:nowrap;}
   .v2 .v2-ttile{width:120px;height:120px;}
   .v2 .v2-tcode{display:flex;align-items:baseline;gap:18px;justify-content:center;}
   .v2 .v2-tcode b{font-weight:900;font-size:84px;line-height:1;letter-spacing:.05em;}

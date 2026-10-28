@@ -302,7 +302,7 @@
       var 粒 = '';
       if (perfect) for (var i = 0; i < 36; i++) 粒 += '<i class="v2-ptgold-p" style="left:' + ((i * 37) % 100) + '%;top:' + (10 + (i * 53) % 80) + '%;animation-delay:' + ss(tl.end + 0.1 + (i % 9) * 0.05) + '"></i>';
       var win = 上.length
-        ? '<div class="v2-ptwin" style="animation-delay:' + ss(tl.end) + '"><span class="v2-ptwin-c" aria-hidden="true">👑</span><span class="v2-ptwin-n v2-cut" style="font-size:' + bigFs(上.map(function (x) { return x.name; }).join('・'), 110) + 'px">' + e(上.map(function (x) { return x.name; }).join('・')) + '</span>' +
+        ? '<div class="v2-ptwin" style="animation-delay:' + ss(tl.end) + '"><span class="v2-ptwin-c" aria-hidden="true">👑</span><span class="v2-ptwin-n v2-cut" style="font-size:' + bigFs(上.map(function (x) { return x.name; }).join('・'), 140) + 'px">' + e(上.map(function (x) { return x.name; }).join('・')) + '</span>' +
           '<span class="v2-ptwin-d">' + e(上[0].diff === 0 ? t.ぴったり : t.あと + ' ' + fmt(上[0].diff) + (r.unit || '')) + '</span></div>'
         : '<div class="v2-ptwin is-none" style="animation-delay:' + ss(tl.end) + '">' + e(t.だれも入れず) + '</div>';
       return '<div class="v2-oqs v2-q2q" data-v2-wrap>' + V.phrase(r.q || '') + '</div>' +

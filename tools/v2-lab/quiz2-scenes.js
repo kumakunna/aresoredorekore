@@ -65,6 +65,14 @@ function 数字(n, k, opts) {
   return r;
 }
 
+// 長い名前（8文字・指示68-5 の直し）：大きく出す名前（いちばん早かった人・1位・いちばん近い人）が画面からはみ出さないかを見る
+const 長い = ['たかはしゆういち', 'ながいなまえだよ', 'さくらもちこさん', 'やまのぼりたろう', 'うみべのはなこさ', 'あいうえおかきく', 'きたかぜとたいよ', 'みなみのしまのこ',
+  'ひがしのそらいろ', 'にしのゆうやけだ', 'ほしぞらみあげる', 'つきよのうさぎだ', 'はるのおがわさん', 'なつまつりのよる', 'あきのもみじがり', 'ふゆのこたつねこ'];
+function 長くする(r, game) {
+  const w = r[game]; let i = 0;
+  r.members.forEach((m) => { if (m.role === RT.ROLE_PLAYER) { m.name = 長い[i % 長い.length]; if (w.names[m.id] != null) w.names[m.id] = m.name; i++; } });
+  return r;
+}
 const BUILD = {
   'qh-choose': (o) => { const r = 早答え(o.n || 6, 0); QHaya.submitAction(r, 'm2', null, { pick: 0, ms: 2000 }); return lab(r, QHaya, 'scr-v2-qhaya', 'm1'); },
   'qh-chosen': (o) => { const r = 早答え(o.n || 6, 0); QHaya.submitAction(r, 'm1', null, { pick: 1, ms: 2000 }); return lab(r, QHaya, 'scr-v2-qhaya', 'm1'); },
@@ -85,7 +93,12 @@ const BUILD = {
   'qn-tv-open': (o) => { const r = 数字(o.n || 8, 1); return lab(r, QNear, 'scr-v2-qnear-tv', 'tv'); },
   'qn-tv-open16': (o) => { const r = 数字(16, 1); return lab(r, QNear, 'scr-v2-qnear-tv', 'tv'); },
   'qn-tv-perfect': (o) => { const r = 数字(o.n || 8, 1, { perfect: true }); return lab(r, QNear, 'scr-v2-qnear-tv', 'tv'); },
-  'qn-tv-ended16': (o) => { const r = 数字(16, 5, { next: true }); return lab(r, QNear, 'scr-v2-qnear-tv', 'tv'); }
+  'qn-tv-ended16': (o) => { const r = 数字(16, 5, { next: true }); return lab(r, QNear, 'scr-v2-qnear-tv', 'tv'); },
+  'qh-tv-open16-long': (o) => { const r = 長くする(早答え(16, 2), 'qhaya'); return lab(r, QHaya, 'scr-v2-qhaya-tv', 'tv'); },
+  'qh-tv-rank16-long': (o) => { const r = 長くする(早答え(16, 3), 'qhaya'); return lab(r, QHaya, 'scr-v2-qhaya-tv', 'tv'); },
+  'qh-tv-ended16-long': (o) => { const r = 長くする(早答え(16, 10, { next: true }), 'qhaya'); return lab(r, QHaya, 'scr-v2-qhaya-tv', 'tv'); },
+  'qn-tv-open16-long': (o) => { const r = 長くする(数字(16, 1), 'qnear'); return lab(r, QNear, 'scr-v2-qnear-tv', 'tv'); },
+  'qn-tv-perfect-long': (o) => { const r = 長くする(数字(8, 1, { perfect: true }), 'qnear'); return lab(r, QNear, 'scr-v2-qnear-tv', 'tv'); }
 };
 // 見せ場の動画（tools/v2-film.js）：動かして開く
 BUILD['qh-tv-film-open16'] = (o) => Object.assign(BUILD['qh-tv-open16'](o), { play: true });
@@ -94,6 +107,7 @@ BUILD['qh-tv-film-ended16'] = (o) => Object.assign(BUILD['qh-tv-ended16'](o), { 
 BUILD['qh-tv-film-last'] = (o) => Object.assign(BUILD['qh-tv-last'](o), { play: true });
 BUILD['qn-tv-film-open16'] = (o) => Object.assign(BUILD['qn-tv-open16'](o), { play: true });
 BUILD['qn-tv-film-perfect'] = (o) => Object.assign(BUILD['qn-tv-perfect'](o), { play: true });
+BUILD['qh-tv-film-rank16-long'] = (o) => Object.assign(BUILD['qh-tv-rank16-long'](o), { play: true });
 
 const SCENES = Object.keys(BUILD).map((id) => ({ id, kind: /-tv-/.test(id) ? 'tv' : 'phone', draw: 'v2game', screen: BUILD[id]({}).screen, mock: null }));
 

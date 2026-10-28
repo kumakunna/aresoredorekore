@@ -22,7 +22,8 @@ const FILES = [
 ];
 // ルール層（層を引数で受ける下請け）。門は呼び手に置く決まりなので、掃く対象から外す。
 // 中身は tests/tier-gate.js の A（単体）が見る
-const RULE_LAYER = ['public/js/quiz-bank.js', 'public/js/quiz-logic.js', 'public/js/bomb-logic.js'];
+// 指示68-5：quiz2-logic.js（クイズ王2.0）は、決まった3層（やさしい・ふつう・むずかしい）だけを並べる下請け。なにそれ・むりは引かない
+const RULE_LAYER = ['public/js/quiz-bank.js', 'public/js/quiz-logic.js', 'public/js/bomb-logic.js', 'public/js/quiz2-logic.js'];
 
 // 層を「引く・並べる・受け取る」語。ここに出てくる関数は、門を通るか、理由つきで除外される
 const SOURCES = [

@@ -22,7 +22,13 @@ const Bank = require(path.join(__dirname, 'public', 'js', 'quiz-bank.js'));
 const R = L.RULES, H = R.HAYA;
 const LATE_MS = 1500;
 
-const PHASE = { LOBBY: 'lobby', CHOOSE: 'choose', OPEN: 'unveil', ENDED: 'ended' };
+// 段階は複数行で書く（tests/big-screen.js が札の表と照らす時に、この形で読む）
+const PHASE = {
+  LOBBY: 'lobby',
+  CHOOSE: 'choose',
+  OPEN: 'unveil',
+  ENDED: 'ended'
+};
 
 function now() { return Date.now(); }
 function playersOf(room) { return Array.from(room.members.values()).filter((m) => m.role === 'player'); }

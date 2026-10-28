@@ -26,6 +26,12 @@ const CASSETTE_GAME_IDS = Array.from(new Set(
     .flatMap((m) => m[1].split(',').map((s) => s.replace(/['"\s]/g, '')).filter(Boolean))
 ));
 
+// 指示68-5：カセットから外したゲーム（retiredGames）。棚には出さないが、コードと記録は残す（クイズ王の今の4つ）
+const RETIRED_GAME_IDS = Array.from(new Set(
+  Array.from(INDEX_HTML.matchAll(/retiredGames:\s*\[([^\]]*)\]/g))
+    .flatMap((m) => m[1].split(',').map((s) => s.replace(/['"\s]/g, '')).filter(Boolean))
+));
+
 // ---- 完成しているカセットのid（public/index.html の CASSETTES から自動抽出） ----
 // ready:true のものだけ。棚に出ていて実際に遊べるカセットは、
 // 称号（TitleLogic）にも項目があるはず——という照合に使う（tests/titles.js）
@@ -196,6 +202,8 @@ const RT_START_MIN_CONFIG = {
   onaji: { game: 'onaji', mode: 'many' },
   // 指示68-4：目標・合図・時間は進行役が持っているので、送るのはゲームだけ
   pittari: { game: 'pittari' },
+  qhaya: { game: 'qhaya' },
+  qnear: { game: 'qnear' },
   soroe: { game: 'soroe' }
 };
 
@@ -329,6 +337,7 @@ module.exports = {
   READY_CASSETTE_TITLES,
   HANDOFF_ONLY_GAME_IDS,
   PAUSED_GAME_IDS,
+  RETIRED_GAME_IDS,
   RT_START_EVENT,
   RT_START_MIN_CONFIG,
   ROOM_ENTRY_PATHS,

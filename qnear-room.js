@@ -18,7 +18,12 @@ const Bank = require(path.join(__dirname, 'public', 'js', 'quiz-bank.js'));
 const R = L.RULES, N = R.NEAR;
 
 // 'choose' は 3択の「えらぶ」。数字を入れる段階は札の表（index.html の RT_PHASE_LABEL）に 'guess' を足した
-const PHASE = { LOBBY: 'lobby', GUESS: 'guess', OPEN: 'unveil', ENDED: 'ended' };
+const PHASE = {
+  LOBBY: 'lobby',
+  GUESS: 'guess',
+  OPEN: 'unveil',
+  ENDED: 'ended'
+};
 
 function now() { return Date.now(); }
 function playersOf(room) { return Array.from(room.members.values()).filter((m) => m.role === 'player'); }

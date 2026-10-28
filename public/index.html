@@ -10339,8 +10339,8 @@
   // 検査の窓：テスト中の印を付け外しする（2.0 の新しいゲームが入るまで、テスト中の物が無いので）
   window.shelfShowProbe = {
     testing: function(id, on){ var c = cassetteById(id); if(c) c.testing = !!on; },
-    // 指示68-5：外したゲーム（retiredGames）を棚にもどす（検査が、もどす日のために古い流れを歩く窓）
-    retired: function(id){ var c = cassetteById(id); if(c && c.retiredGames) c.games = c.games.concat(c.retiredGames); },
+    // 指示68-5：外したゲーム（retiredGames）を棚にもどす＝カセットの中を前の形にする（検査が、もどす日のために古い流れを歩く窓）
+    retired: function(id){ var c = cassetteById(id); if(c && c.retiredGames) c.games = c.retiredGames.slice(); if((document.querySelector('.screen.active') || {}).id === 'scr-v2-pick') renderV2Pick(); },
     showAll: function(on){ shelfAll = !!on; if((document.querySelector('.screen.active') || {}).id === 'scr-v2-pick') renderV2Pick(); }
   };
 

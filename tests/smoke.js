@@ -3469,7 +3469,8 @@ async function startModeWithTimerOff(win, doc, id) {
     await sleep(win, 20);
     const CASES = [
       { cart: 'auction',  need: true,  words: ['せり上げ式', '秘密入札'] },
-      { cart: 'quizou',   need: true,  words: ['クイズラッシュ', 'つぎつぎクイズ', 'とくとくクイズ', '早押し'] },
+      // 指示68-5：クイズ王の中は2つだけ（今の4つは外した）
+      { cart: 'quizou',   need: true,  words: ['みんなで早答え', '数字ちかい方'] },
       { cart: 'aresoredorekore', need: false, words: ['あれそれどれこれ'] }
     ];
     for (const c of CASES) {

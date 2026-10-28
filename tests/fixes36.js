@@ -127,6 +127,8 @@ function px(body, prop) {
   for (const g of TIMER_GAMES) {
     await r.test('36-3：' + g.label + 'を途中で終わらせると、走っていた時計が全部止まる', async () => {
       const { win, doc, errors } = await launch(g.hidden ? { showHiddenModes: true } : undefined);
+      // 指示68-5：早押しトーナメントはクイズ王から外した。棚にもどす窓で歩く（もどす日のための見張り）
+      if (g.game === 'buzzer') { win.shelfShowProbe.retired('quizou'); win.shelfShowProbe.testing('quizou', false); }
       autoDialog(win, doc);
 
       // 「このゲームが動かしている時計」を、外から見える側で数える

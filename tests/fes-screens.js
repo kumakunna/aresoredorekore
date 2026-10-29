@@ -115,6 +115,9 @@ async function 入った(o) {
     await つなぎ直す(win);
     await waitFor(win, () => 移った.length, 2000, 'ページを移る');
     assertEqual(移った[0], '/?fes=1&wait=1', '作り直しを待つ画面へ（ホームではない）');
+    // 消えた部屋の記憶を端末に残さない（残すと、読み込み直した時のつなぎ直しが前の部屋に入ろうとして、新しい部屋に入った TV の印を消した・写真で見つけた）
+    const 記憶 = []; for (let i = 0; i < win.localStorage.length; i++) 記憶.push(win.localStorage.getItem(win.localStorage.key(i)) || '');
+    assert(!記憶.some((v) => v.indexOf('TST754') !== -1), '消えた部屋（TST754）の記憶が残っていない');
     assert(act(doc) !== 'scr-v2-home', 'ホームに落ちない');
     win.close();
   });
@@ -130,6 +133,9 @@ async function 入った(o) {
     await つなぎ直す(win);
     await waitFor(win, () => 移った.length, 2000, 'ページを移る');
     assertEqual(移った[0], '/?fes=1&wait=1&tv=1', 'TV は TV のまま、作り直しを待つ画面へ');
+    // 消えた部屋の記憶を端末に残さない（残すと、読み込み直した時のつなぎ直しが前の部屋に入ろうとして、新しい部屋に入った TV の印を消した・写真で見つけた）
+    const 記憶 = []; for (let i = 0; i < win.localStorage.length; i++) 記憶.push(win.localStorage.getItem(win.localStorage.key(i)) || '');
+    assert(!記憶.some((v) => v.indexOf('TST754') !== -1), '消えた部屋（TST754）の記憶が残っていない');
     win.close();
   });
 

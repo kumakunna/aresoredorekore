@@ -1,0 +1,34 @@
+[
+ {
+  "name": "S1 文化祭の部屋が消えたら、今までどおりホームへ（作り直しを待つ画面へ行かない）",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "from": "      if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ rt.dropRoom(); window.fesNav('/?fes=1&wait=1' + (cur === 'scr-v2-fes-tv' ? '&tv=1' : '')); return; }",
+  "to": "      if(false){ return; }",
+  "expect": "作り直しを待つ画面へ"
+ },
+ {
+  "name": "S2 消えた部屋の記憶を落とさずに移る",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "from": "      if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ rt.dropRoom(); window.fesNav('/?fes=1&wait=1' + (cur === 'scr-v2-fes-tv' ? '&tv=1' : '')); return; }",
+  "to": "      if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ window.fesNav('/?fes=1&wait=1' + (cur === 'scr-v2-fes-tv' ? '&tv=1' : '')); return; }",
+  "expect": "記憶が残っていない"
+ },
+ {
+  "name": "S3 係の画面が、つなぎ直しても見張りを入れ直さない",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "from": "      if(now && !rtWasConnected && (document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-staff') fesOpenStaff();",
+  "to": "      void 0;",
+  "expect": "部屋が消えました"
+ },
+ {
+  "name": "S4 待つ画面が、部屋ができても進まない",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "from": "        if(j && j.code){ clearInterval(fesWaitTimer); fesWaitTimer = null; window.fesNav('/fes' + (tv ? '?tv=1' : '')); }",
+  "to": "        void j;",
+  "expect": "移る"
+ }
+]

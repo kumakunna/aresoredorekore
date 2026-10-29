@@ -25114,7 +25114,8 @@
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
       // 2026-10-29：文化祭の部屋（参加者・TV）は、ホームではなく「作り直しています」の画面へ。係が作り直したら自動で入る（TV は TV のまま）
-      if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ window.fesNav('/?fes=1&wait=1' + (cur === 'scr-v2-fes-tv' ? '&tv=1' : '')); return; }
+      //   消えた部屋の記憶は端末からも落とす（残すと、読み込み直した時のつなぎ直しが前の部屋に入ろうとして失敗し、新しい部屋に入った TV の印まで消していた）
+      if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ rt.dropRoom(); window.fesNav('/?fes=1&wait=1' + (cur === 'scr-v2-fes-tv' ? '&tv=1' : '')); return; }
       closeSettingsIfOpen();   // 第43弾 2-8
       goBack('scr-v2-home');
       setTimeout(function(){

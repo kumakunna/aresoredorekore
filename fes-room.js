@@ -60,6 +60,7 @@ const TIMES = {
   voteMs: 20000,     // 投票（F7「20秒」）
   decideMs: 4000,    // 決定の4段（F8：①0〜0.7秒 ②0.75〜1.35秒 ③1.3〜2秒 ④2.1秒〜）
   readyMs: 20000,    // ルールと準備OK。見本に長さが無いので投票と同じにした（門の記録に理由）
+  readyAllMs: 3000,  // 全員が準備OK を押したら、のこりをこれだけにする（くまくん 2026-10-29：全員そろったら待たせない）
   resultMs: 15000,   // 結果と「つづける？」（F12「15秒」）
   // ゲームが終わってから結果の画面へ移るまで。爆発・解除の瞬間そのもの（溜め・音・TVいっぱいの💥）は
   // ゲームの画面が見せるので、それを切らない（F12「爆発の瞬間そのものは「クイズ解除」のページ」）
@@ -179,7 +180,7 @@ function tick(room, now, api) {
       return false;
     case PHASE.READY:
       if (now >= f.endsAt) return closeReady(room, now, api);
-      return false;
+      return allReady(room, now);
     case PHASE.PLAY: {
       // ゲームが終わったら結果へ。進行役が消えていても（全員いなくなった等）結果へ
       const w = api.driverStateOf(room);
@@ -278,6 +279,22 @@ function openReady(room, now) {
   room.state.data = Object.assign({}, room.state.data, { modeId: g.mode });
   room.members.forEach((m) => { m.readyGame = null; m.readyAt = null; });
   set(room, PHASE.READY, f.times.readyMs, now);
+  return true;
+}
+
+/**
+ * 全員（つながっている参加者）が準備OK を押したら、のこりを readyAllMs（3秒）に縮める。縮めるだけで延ばさない
+ *（押したあとで取り消しても、のこりは もどさない）。変わったら true。realtime.js の room:ready も押した時にすぐ呼ぶ（見回りの0.5秒を待たない）
+ */
+function allReady(room, now) {
+  const f = room.fes;
+  if (!f || f.phase !== PHASE.READY || f.pausedLeft || !f.endsAt) return false;
+  const live = livePeople(room);
+  const g = room.state.game;
+  if (!live.length || !live.every((m) => m.readyGame === g)) return false;
+  const end = now + f.times.readyAllMs;
+  if (end >= f.endsAt) return false;
+  f.endsAt = end;
   return true;
 }
 
@@ -417,5 +434,5 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { FES_GAMES, gamesFor, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
+module.exports = { FES_GAMES, gamesFor, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
   reserve, unreserve, held, queueTick };

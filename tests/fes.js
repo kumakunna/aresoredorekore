@@ -204,6 +204,35 @@ async function join(srv, code, name, diff, extra) {
     await srv.close();
   });
 
+  await r.test('全員が準備OKを押したら、のこりは3秒（2026-10-29 くまくん）。1人でも押していない間は縮めない・取り消しても延ばさない', async () => {
+    // 準備OK を長く（60秒）して、縮んだことが分かるようにする。のこり3秒は本番の長さ（TIMES.readyAllMs）のまま
+    const srv = await startTestServer(Object.assign({}, T, { readyMs: 60000 }));
+    const { staff, code } = await makeFes(srv);
+    const a = await join(srv, code, 'ふう');
+    const b = await join(srv, code, 'ひろ');
+    const c = await join(srv, code, 'びび');
+    await waitUntil(() => fesOf(a).phase === 'vote', '投票へ');
+    for (const d of [a, b, c]) await d.call('fes:vote', { mode: 'bomb-coop' });
+    await waitUntil(() => fesOf(a).phase === 'ready', 'ルールと準備OKへ');
+    const f = srv.store.get(code).fes;
+    assertEqual(FesRoom.TIMES.readyAllMs, 3000, '全員そろった時の のこりは3秒');
+    await a.call('room:ready', { game: 'bomb' });
+    await b.call('room:ready', { game: 'bomb' });
+    await new Promise((res) => setTimeout(res, 700));      // 見回り（0.5秒ごと）が1回は回る
+    assert(f.endsAt - Date.now() > 50000, '3人中2人の間は縮めない（のこり ' + (f.endsAt - Date.now()) + 'ms）');
+    await c.call('room:ready', { game: 'bomb' });
+    const left = f.endsAt - Date.now();
+    assert(left <= 3000 && left > 2000, '3人目が押したら、すぐ のこり3秒（' + left + 'ms）');
+    await c.call('room:ready', { game: 'bomb', ready: false });
+    await new Promise((res) => setTimeout(res, 600));
+    assert(f.endsAt - Date.now() <= 3000, '取り消しても のこりは延ばさない');
+    await waitUntil(() => fesOf(a).phase === 'play', '3秒で始まる', 5000);
+    const w = srv.store.get(code).bomb;
+    assertEqual(w.playerIds.slice().sort().join(','), [a.memberId, b.memberId].sort().join(','), '取り消した人は入らない（押した人だけで始める決まりのまま）');
+    [staff, a, b, c].forEach((d) => d.close());
+    await srv.close();
+  });
+
   await r.test('上限より多く押した時：押した順に上限まで入り、入れなかった人の理由は「いっぱい」（くまくんの答え 2026-10-24）', async () => {
     const RT = require('../realtime');
     const room = new RT.RoomStore().create({ ownerUserId: 1 });

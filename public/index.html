@@ -32752,6 +32752,10 @@
     var go = el('scr-v2-fes-join') && el('scr-v2-fes-join').querySelector('[data-fes-act="join"]');
     if(go) go.disabled = !V2Fes.joinOk(fes.join);
   });
+  // 2026-10-29（くまくん）：文化祭の準備OK の取り消しは長押し（v2-kit.js の data-v2-lp が 0.45秒で v2:longpress を出す）。触っただけでは取り消さない
+  document.addEventListener('v2:longpress', function(e){
+    if(rt && e.target.closest && e.target.closest('[data-fes-unready]')) rt.setReady(false);
+  });
   document.addEventListener('click', function(e){
     var b = e.target.closest && e.target.closest('[data-fes-act],[data-fes-pick],[data-fes-diff],[data-fes-star],[data-fes-hide],[data-fes-kick],[data-fes-inset],[data-fes-icon],[data-fes-slot],[data-fes-word],[data-fes-cell],[data-fes-ans]');
     if(!b || !rt) return;
@@ -32789,7 +32793,6 @@
     else if(act === 'unreserve'){ rt.fesUnreserve(fes.join.code); fes.join.reserved = null; fes.join.full = false; fes.join.err = ''; fesRenderJoin(); }
     else if(act === 'vote' && fes.sel) rt.fesVote(fes.sel);
     else if(act === 'ready') rt.setReady(true);
-    else if(act === 'unready') rt.setReady(false);
     else if(act === 'continue') rt.fesContinue();
     else if(act === 'bclose') rt.act(null);
     else if(act === 'look'){ fes.lookDraft = null; fes.lookSlot = 'first'; clearTitleNew(); rtRenderCurrent(); }

@@ -1560,6 +1560,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       me.readyGame = ready ? room.state.game : null;
       // 上限より多く押された時は、押した順に入る（fes-room.js の closeReady）
       me.readyAt = ready ? Date.now() : null;
+      // 文化祭：全員そろったら のこり3秒（fes-room.js allReady）
+      if (room.fes) FesRoom.allReady(room, Date.now());
       if (typeof cb === 'function') cb({ ok: true, ready, room: publicSnapshot(room) });
       broadcast(room);
     });

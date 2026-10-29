@@ -121,6 +121,9 @@ const BUILD = {
   'fes2-decide': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); ['m1', 'm2', 'm3', 'm4', 'm5'].forEach((id) => FesRoom.vote(r, id, 'bomb-coop')); 進める(r); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-ready': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);
     ['m1', 'm2', 'm5', 'm6', 'm7'].forEach((id) => { const m = r.members.get(id); if (m) m.readyGame = 'bomb'; }); r.members.get('m1').readyGame = null; のこり(r, 12); return lab(r, 'scr-v2-fes-lobby'); },
+  // 自分が準備OK を押したあと（取り消しは長押し・2026-10-29）
+  'fes2-readied': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);
+    ['m1', 'm2', 'm5', 'm6', 'm7'].forEach((id) => { const m = r.members.get(id); if (m) m.readyGame = 'bomb'; }); のこり(r, 12); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-play': (o) => { const r = 部屋(o.n || 6); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-lobby', 'm1', { secret: JSON.parse(JSON.stringify(BombRoom.privateFor(r, 'm1'))) }); },
   'fes2-tv-play': (o) => { const r = 部屋(o.n || 8, o.long); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   // 指示68-2 第2節：TV の盤。16人で50本・正しく切った瞬間（火花と「〇〇 が切った」）・のこり1本
@@ -167,7 +170,7 @@ const SCENES = [
   ['fes2-lobby', 'phone', 'f3'], ['fes2-fb', 'phone', 'f4'], ['fes2-fbmini', 'phone', null],
   ['fes2-play', 'phone', 'f11'], ['fes2-tv-play16', 'tv', null], ['fes2-tv-play-cut', 'tv', null], ['fes2-tv-play-last', 'tv', null], ['fes2-tv-play', 'tv', 't11'],
   ['fes2-look', 'phone', 'f5a'], ['fes2-look-icon', 'phone', 'f5b'], ['fes2-look-name', 'phone', 'f5c'],
-  ['fes2-vote', 'phone', 'f7'], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'],
+  ['fes2-vote', 'phone', 'f7'], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'], ['fes2-readied', 'phone', null],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],
   ['fes2-tv-idle', 'tv', 't6a'], ['fes2-tv-one', 'tv', 't6b'], ['fes2-tv-lobby', 'tv', 't3'], ['fes2-tv-full', 'tv', 't6c'],
   ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-film-decide-one', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b']

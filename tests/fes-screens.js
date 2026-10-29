@@ -96,6 +96,29 @@ async function 入った(o) {
     win.close();
   });
 
+  await r.test('準備OK の取り消しは長押し（2026-10-29 くまくん）：押したあとのボタンは触っただけでは取り消さず、長押しで取り消しを送る', async () => {
+    const { win, doc } = await 入った();
+    流す(win, 'fes2-ready');
+    await waitFor(win, () => doc.querySelector('#scr-v2-fes-lobby [data-fes-act="ready"]'), 2000, '準備OK のボタン');
+    doc.querySelector('#scr-v2-fes-lobby [data-fes-act="ready"]').click();
+    assertEqual(emits(win, 'room:ready').slice(-1)[0].payload.ready, true, '準備OK は1回押せば送る');
+    流す(win, 'fes2-readied');
+    await waitFor(win, () => doc.querySelector('#scr-v2-fes-lobby [data-fes-unready]'), 2000, '押したあとのボタン');
+    const b = doc.querySelector('#scr-v2-fes-lobby [data-fes-unready]');
+    assert(b.hasAttribute('data-v2-lp'), '長押しのボタン');
+    assert(!b.hasAttribute('data-fes-act'), '触っただけで送る印は付いていない');
+    assert(/長押しで とりけせます/.test(doc.getElementById('scr-v2-fes-lobby').textContent), '長押しで取り消せることを書いてある');
+    const n = emits(win, 'room:ready').length;
+    b.click();
+    await sleep(win, 50);
+    assertEqual(emits(win, 'room:ready').length, n, '触っただけでは何も送らない');
+    b.dispatchEvent(new win.CustomEvent('v2:longpress', { bubbles: true, detail: { target: null } }));
+    await sleep(win, 50);
+    assertEqual(emits(win, 'room:ready').length, n + 1, '長押しで1回送る');
+    assertEqual(emits(win, 'room:ready').slice(-1)[0].payload.ready, false, '送るのは取り消し');
+    win.close();
+  });
+
   await r.test('門5（画面）：候補が1つで投票を飛ばした時は「このゲームで遊びます！」（スマホとTV）', async () => {
     const { win, doc } = await 入った();
     const lab = 流す(win, 'fes2-decide-one');

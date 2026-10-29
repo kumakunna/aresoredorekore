@@ -280,7 +280,9 @@
     var k = ps.filter(function (m) { return m.ready; }).length;
     var me = meOf(view);
     var btn = me.ready
-      ? '<button type="button" class="v2-btn is-done" data-fes-act="unready">' + V.icon('check') + '<span>' + e(R.準備OK) + '</span></button>'
+      // 取り消しは長押し（0.45秒・v2-kit.js の data-v2-lp）。触っただけでは取り消さない（2026-10-29 くまくん）
+      ? '<button type="button" class="v2-btn is-done" data-v2-lp data-fes-unready aria-label="' + e(R.とりけす) + '">' + V.icon('check') + '<span>' + e(R.準備OK) + '</span></button>' +
+        '<p class="v2-hint v2-c">' + e(R.長押しで) + '</p>'
       : '<button type="button" class="v2-btn is-pri" data-fes-act="ready">' + e(R.準備OK) + '</button>';
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
       '<div class="v2-in">' +

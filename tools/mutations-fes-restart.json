@@ -5,7 +5,7 @@
   "suite": "tests/fes-screens.js",
   "from": "      if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ rt.dropRoom(); window.fesNav('/?fes=1&wait=1' + (cur === 'scr-v2-fes-tv' ? '&tv=1' : '')); return; }",
   "to": "      if(false){ return; }",
-  "expect": "作り直しを待つ画面へ"
+  "expect": "ページを移る"
  },
  {
   "name": "S2 消えた部屋の記憶を落とさずに移る",

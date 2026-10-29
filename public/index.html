@@ -5653,6 +5653,14 @@
   .v2 .v2-tva.is-full .v2-tmem.is-sm,.v2 .v2-tva.is-many .v2-tmem.is-sm{padding:8px 10px;gap:8px;}
   .v2 .v2-tva.is-full .v2-tmem.is-sm .v2-av,.v2 .v2-tva.is-many .v2-tmem.is-sm .v2-av{width:46px;height:46px;font-size:40px;}
   .v2 .v2-tnote{font-weight:800;font-size:44px;line-height:1.3;color:var(--ws);}
+  /* 2026-10-29：部屋が消えたあと、係が作り直すのを待つ画面（スマホ・TV）と、係の画面の「部屋が消えました」 */
+  .v2 .v2-fes-wait{display:flex;flex-direction:column;gap:14px;margin-top:20px;}
+  .v2 .v2-fes-wait b{font-weight:900;font-size:26px;line-height:1.4;}
+  .v2 .v2-fes-wait span{font-weight:700;font-size:16px;line-height:1.5;color:var(--ws);}
+  .v2 .v2-fes-wait.is-tv{flex:1;justify-content:center;align-items:center;gap:36px;margin:0;text-align:center;}
+  .v2 .v2-fes-wait.is-tv b{font-size:88px;line-height:1.3;max-width:1500px;}
+  .v2 .v2-fes-wait.is-tv span{font-size:48px;}
+  .v2 .v2-fes-lost{margin:24px 0;font-weight:900;font-size:30px;line-height:1.4;color:var(--wi);}
   .v2 .v2-tvIdle{display:grid;grid-template-columns:minmax(0,1fr) 640px;gap:60px;flex:1;min-height:0;}
   .v2 .v2-tvIdle-l{display:flex;flex-direction:column;gap:36px;min-width:0;}
   .v2 .v2-tvIdle-l .v2-thd-ttl{font-size:150px;line-height:1.02;}
@@ -25095,9 +25103,18 @@
     // 第27弾-1：つなぎ直したら部屋が無くなっていた時。
     // サーバーが再起動したか、誰も繋がっていない時間が続いて片付けられたか。
     // 以前はここで何も起きず、画面が前のまま固まっていた（押しても無反応）。
+    // 2026-10-29：係の画面は部屋の一員ではないので、つなぎ直しても「部屋が無い」の知らせが来ない。つながり直したら見張りを入れ直す
+    var rtWasConnected = false;
+    rt.on('status', function(st){
+      var now = !!(st && st.connected);
+      if(now && !rtWasConnected && (document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-staff') fesOpenStaff();
+      rtWasConnected = now;
+    });
     rt.on('lost', function(){
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
+      // 2026-10-29：文化祭の部屋（参加者・TV）は、ホームではなく「作り直しています」の画面へ。係が作り直したら自動で入る（TV は TV のまま）
+      if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ window.fesNav('/?fes=1&wait=1' + (cur === 'scr-v2-fes-tv' ? '&tv=1' : '')); return; }
       closeSettingsIfOpen();   // 第43弾 2-8
       goBack('scr-v2-home');
       setTimeout(function(){
@@ -31868,6 +31885,10 @@
           if(tvr && tvr.ok) return rtWantScreen();
         }
         if(invited){ await fesOpenJoin(invited); return 'scr-v2-fes-join'; }
+        // 部屋が無い：作り直しを待つ（サーバーが作り直された・TV はいつもこれ）か、「いまは部屋がありません」。どちらも部屋ができたら自動で入る
+        var asTvW = /[?&]tv=1/.test(location.search);
+        fesWaitRoom(asTvW);
+        if(asTvW || /[?&]wait=1/.test(location.search)){ var wsc = asTvW ? 'scr-v2-fes-tv' : 'scr-v2-fes-join'; el(wsc).innerHTML = V2Fes.wait({ tv: asTvW }); V2.mount(el(wsc)); if(asTvW) setTimeout(function(){ V2.fitTv(el(wsc), 0); }, 0); return wsc; }
         fes.join.err = UiText.FES.入る.部屋が無い; fesRenderJoin(); return 'scr-v2-fes-join';
       }
       // 指示66-3 E2：QR で来た人は、コードを飛ばして名前から（覗いて確かめてから）。TV（/tv）はコードだけ
@@ -32630,6 +32651,22 @@
     scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy, masked: j.masked, full: j.full, reserved: j.reserved });
     V2.mount(scr);
   }
+  /**
+   * 2026-10-29：文化祭の部屋が無い間の見張り。数秒ごとに /api/fes/current を見て、部屋ができたら /fes へ進む（TV は TV のまま）。
+   * 「いまは部屋がありません」と、サーバーが作り直されたあとの「作り直しています」の両方が使う
+   */
+  var fesWaitTimer = null;
+  function fesWaitRoom(tv){
+    if(fesWaitTimer) return;
+    fesWaitTimer = setInterval(function(){
+      fetch('/api/fes/current', { credentials: 'same-origin', cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+        if(j && j.code){ clearInterval(fesWaitTimer); fesWaitTimer = null; window.fesNav('/fes' + (tv ? '?tv=1' : '')); }
+      }).catch(function(){});
+    }, FES_WAIT_MS);
+  }
+  var FES_WAIT_MS = 3000;
+  // ページを移る1か所（検査が差しかえて、どこへ移ろうとしたかを見る。jsdom はページを移れない）
+  window.fesNav = function(u){ location.href = u; };
   async function fesOpenJoin(code){
     fes.join.code = code;
     try{ fes.join.name = fes.join.name || localStorage.getItem(FES_NAME_KEY) || ''; }catch(e){}
@@ -32690,8 +32727,10 @@
     if(!rt) return;
     var res = await rt.fesWatch(null);
     fes.staffErr = ''; fes.canCreate = false;
+    // 2026-10-29：部屋を見ていたのに、見直したら無かった（サーバーが作り直された）。大きく「部屋が消えました」
+    fes.staffLost = !res.ok && res.error === 'no_room' && (!!fes.staff || !!fes.staffLost);
     if(res.ok){ fes.staff = res.staff; fes.staffRole = res.role; }
-    else if(res.error === 'no_room'){ fes.staffErr = res.message; fes.canCreate = true; }
+    else if(res.error === 'no_room'){ fes.staffErr = res.message; fes.canCreate = true; fes.staff = null; }
     else fes.staffErr = UiText.FES.係.ログインして;
     fesRenderStaff();
   }
@@ -32701,7 +32740,7 @@
     var end = f && f.remainingMs != null ? (fes.staffEndFor === st ? fes.staffEnd : (fes.staffEndFor = st, fes.staffEnd = Date.now() + f.remainingMs)) : null;
     var back = fesKeep(scr);
     var kick = fes.kickId && ((st && st.members) || []).filter(function(m){ return m.id === fes.kickId; })[0];
-    scr.innerHTML = V2Fes.staff({ staff: st, fb: fes.staffFb, end: end, err: fes.staffErr, canCreate: fes.canCreate, canFb: !!fes.staffRole, canNames: fes.staffRole === 'owner', info: fesInfo,
+    scr.innerHTML = V2Fes.staff({ staff: st, fb: fes.staffFb, end: end, err: fes.staffErr, canCreate: fes.canCreate, lost: fes.staffLost, canFb: !!fes.staffRole, canNames: fes.staffRole === 'owner', info: fesInfo,
       kickName: kick ? kick.name : '', ver: AppVersion.name });
     back(); V2.mount(scr);
   }

@@ -652,6 +652,9 @@
   /** o：{ staff（サーバーの係の名簿）, fb（感想の一覧）, end, err } */
   function staff(o) {
     var S = U().係, V = K();
+    // 2026-10-29：つなぎ直したら部屋が無かった（サーバーが作り直された）。大きく出して、作るボタンを置く
+    if (o.lost) return V.bgHtml() + '<div class="v2-in">' + V.hdHtml(S.英, S.見出し) + '<p class="v2-fes-lost" role="alert">' + e(S.消えた) + '</p>' +
+      '<button type="button" class="v2-btn is-pri" data-fes-act="create">' + e(S.作る) + '</button></div>';
     if (o.err) return V.bgHtml() + '<div class="v2-in">' + V.hdHtml(S.英, S.見出し) + '<p class="v2-note">' + e(o.err) + '</p>' +
       (o.canCreate ? '<button type="button" class="v2-btn is-pri" data-fes-act="create">' + e(S.作る) + '</button>' : '') + '</div>';
     var st = o.staff || {}, f = st.fes || {};
@@ -722,7 +725,18 @@
   }
 
   // tvc：TV の外枠（名前の壁・縦の字・端あわせ）。指示68-3 のみんなと同じも同じ枠で描く（写さない）
-  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, people: people, clockText: clockText, mostMissed: mostMissed, decideTimeline: decideTimeline,
+  /**
+   * 2026-10-29：部屋が消えた（サーバーが作り直された）あと、係が作り直すのを待つ画面。スマホとTV。
+   * 見張り（index.html fesWaitRoom）が数秒ごとに /api/fes/current を見て、部屋ができたら /fes へ進む
+   */
+  function wait(o) {
+    var J = U().入る, V = K();
+    if (o && o.tv) return tvc({ fes: { inset: (o.inset || 0) } }, '<div class="v2-fes-wait is-tv" role="status"><b>' + e(J.作り直し中) + '</b><span>' + e(J.できたら) + '</span></div>', { names: [] });
+    return V.bgHtml() + V.brandHtml() + '<div class="v2-in">' + V.hdHtml(J.作り直し英, J.作り直し見出し) +
+      '<div class="v2-fes-wait" role="status"><b>' + e(J.作り直し中) + '</b><span>' + e(J.できたら) + '</span></div></div>';
+  }
+
+  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, wait: wait, people: people, clockText: clockText, mostMissed: mostMissed, decideTimeline: decideTimeline,
     tvc: tvc,
     // 指示66-3：着替えのシートは、ふだんの部屋の待合（E4）も同じものを使う（見本「着替えは文化祭と同じシート」）
     lookSheets: lookSheets };

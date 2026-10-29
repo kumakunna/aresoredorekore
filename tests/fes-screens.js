@@ -96,6 +96,88 @@ async function 入った(o) {
     win.close();
   });
 
+  // ---- 2026-10-29：サーバーが作り直された時（部屋が消えた）。調べもの docs/監査_文化祭の抜けて戻る.md の 6 ----
+  /** つなぎ直し：切れて、またつながる（rt-client がつなぎ直しの入り直しを送る） */
+  async function つなぎ直す(win) {
+    const f = win.__rtFake;
+    f.socket.disconnect();
+    await sleep(win, 30);
+    f.connected = true; f.fire('connect');
+    await sleep(win, 80);
+  }
+  const 部屋が無い = () => ({ ok: false, error: 'room_not_found', message: 'その部屋コードは見つかりません' });
+
+  await r.test('再起動（スマホ）：文化祭の待合で部屋が消えたら、ホームではなく「作り直しています」の画面へ移る', async () => {
+    const { win, doc } = await 入った();
+    流す(win, 'fes2-lobby');
+    const 移った = []; win.fesNav = (u) => 移った.push(u);
+    win.__rtFake.replies['room:join'] = 部屋が無い;
+    await つなぎ直す(win);
+    await waitFor(win, () => 移った.length, 2000, 'ページを移る');
+    assertEqual(移った[0], '/?fes=1&wait=1', '作り直しを待つ画面へ（ホームではない）');
+    assert(act(doc) !== 'scr-v2-home', 'ホームに落ちない');
+    win.close();
+  });
+
+  await r.test('再起動（TV）：文化祭の TV で部屋が消えたら、TV のまま「作り直しています」の画面へ移る', async () => {
+    // 部屋にいる端末を、TV の画面にして確かめる（疑似の socket では TV の入口が返事を置く前に走るため。分かれ道は今の画面だけで決まる）
+    const { win, doc } = await 入った();
+    win.__rtFake.fire('room:update', FesScenes.view('fes2-tv-lobby').room);
+    win.goToScreen('scr-v2-fes-tv');
+    await waitFor(win, () => act(doc) === 'scr-v2-fes-tv', 2000, 'TV の画面');
+    const 移った = []; win.fesNav = (u) => 移った.push(u);
+    win.__rtFake.replies['room:join'] = 部屋が無い;
+    await つなぎ直す(win);
+    await waitFor(win, () => 移った.length, 2000, 'ページを移る');
+    assertEqual(移った[0], '/?fes=1&wait=1&tv=1', 'TV は TV のまま、作り直しを待つ画面へ');
+    win.close();
+  });
+
+  for (const tv of [false, true]) {
+    await r.test('再起動のあと（' + (tv ? 'TV' : 'スマホ') + '）：「いま部屋を作り直しています。係の人を待ってね」を出し、部屋ができたら自動で /fes へ進む', async () => {
+      const { win, doc } = await launch({ url: 'http://localhost/?fes=1&wait=1' + (tv ? '&tv=1' : ''), fakeSocket: true });
+      const scr = tv ? 'scr-v2-fes-tv' : 'scr-v2-fes-join';
+      await waitFor(win, () => act(doc) === scr, 6000, '待つ画面');
+      assert(/いま部屋を作り直しています。係の人を待ってね/.test(doc.getElementById(scr).textContent), '作り直しを待つ文');
+      const 移った = []; win.fesNav = (u) => 移った.push(u);
+      let 見た = 0;
+      win.fetch = async (u) => { 見た++; return { ok: true, json: async () => ({ code: 見た >= 2 ? 'NEW123' : null }) }; };
+      await waitFor(win, () => 移った.length, 9000, '部屋ができたら移る');
+      assertEqual(移った[0], tv ? '/fes?tv=1' : '/fes', tv ? 'TV は TV の入口へ' : '参加者は入る画面へ');
+      assert(見た >= 2, '部屋ができるまで見つづける（' + 見た + '回）');
+      win.close();
+    });
+  }
+
+  await r.test('「いまは部屋がありません」の画面（スマホ）も、部屋ができたら自動で /fes へ進む', async () => {
+    const { win, doc } = await launch({ url: 'http://localhost/?fes=1', fakeSocket: true });
+    await waitFor(win, () => act(doc) === 'scr-v2-fes-join', 6000, '入る画面');
+    assert(/いまは文化祭の部屋がありません/.test(doc.getElementById('scr-v2-fes-join').textContent), '部屋が無い文');
+    const 移った = []; win.fesNav = (u) => 移った.push(u);
+    win.fetch = async () => ({ ok: true, json: async () => ({ code: 'NEW123' }) });
+    await waitFor(win, () => 移った.length, 6000, '部屋ができたら移る');
+    assertEqual(移った[0], '/fes', '入る画面へ');
+    win.close();
+  });
+
+  await r.test('再起動（係）：つなぎ直したら見張りを入れ直し、部屋が消えていたら「部屋が消えました。作り直してください」と作るボタン', async () => {
+    const { win, doc } = await launch({ url: 'http://localhost/?fes=1&staff=1', fakeSocket: true });
+    await waitFor(win, () => win.__rtFake && win.__rtFake.connected, 3000, '疑似socketがつながる');
+    const lab = FesScenes.view('fes2-lobby');
+    win.__rtFake.replies = { 'fes:watch': () => ({ ok: true, role: 'staff', room: lab.room,
+      staff: { code: 'TST754', fes: lab.room.fes, members: lab.room.members, tv: true } }) };
+    await waitFor(win, () => act(doc) === 'scr-v2-fes-staff', 6000, '係の画面');
+    await つなぎ直す(win);   // 入口は疑似の返事を置く前に走るので、1回つなぎ直して部屋を見る（これも つなぎ直しの見直しの確かめ）
+    await waitFor(win, () => /TST754/.test(doc.getElementById('scr-v2-fes-staff').textContent), 3000, '係の画面に部屋');
+    const n = emits(win, 'fes:watch').length;
+    win.__rtFake.replies['fes:watch'] = () => ({ ok: false, error: 'no_room', message: '文化祭の部屋がありません' });
+    await つなぎ直す(win);
+    await waitFor(win, () => /部屋が消えました。作り直してください/.test(doc.getElementById('scr-v2-fes-staff').textContent), 3000, '部屋が消えました');
+    assert(emits(win, 'fes:watch').length > n, 'つなぎ直したら見張りを入れ直した');
+    assert(doc.querySelector('#scr-v2-fes-staff [data-fes-act="create"]'), '作るボタン');
+    win.close();
+  });
+
   await r.test('準備OK の取り消しは長押し（2026-10-29 くまくん）：押したあとのボタンは触っただけでは取り消さず、長押しで取り消しを送る', async () => {
     const { win, doc } = await 入った();
     流す(win, 'fes2-ready');

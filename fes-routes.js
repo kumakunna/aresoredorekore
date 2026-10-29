@@ -1,6 +1,7 @@
 // fes-routes.js — 文化祭の部屋のための道（指示66-2）。server.js と検査の両方がここを mount する
 //
 //   GET /tv                  … ふだんの部屋の TV の入口（指示66-3。コードを入れる画面へ）
+//   GET /api/fes/current     … いまの文化祭の部屋のコード（無い時は null）。部屋を待つ画面が見る（だれでも読める・コードは QR にも出ている）
 //   GET /fes                 … いまの文化祭の部屋へ飛ぶ（机や壁のポスターのQRはここ。部屋を作り直しても使える）
 //   GET /api/fes/names       … 名前の記録（入力された名前と、はじいた名前）。**くまくん（owner）だけ**
 //   GET /fes/names           … 同じ記録を読む軽い画面（指示66-3。くまくんだけ。?only=blocked ではじいた名前だけ）
@@ -17,6 +18,8 @@ function mountFesRoutes(app, io) {
   // 指示66-3：ふだんの部屋の TV の入口。進行役のスマホの「TVに映す」がこのアドレスを出す（TV のリモコンで打てる短さ）。
   // 開くとコードを入れる画面になり、入れるとその部屋の TV になる（名前は聞かない）
   app.get('/tv', (req, res) => res.redirect(302, '/?tv=1'));
+  // 2026-10-29：いまの文化祭の部屋のコード（無い時は null）。「部屋がありません」「作り直しています」の画面が数秒ごとに見て、できたら入る
+  app.get('/api/fes/current', (req, res) => res.json({ code: (io.fesCurrentCode && io.fesCurrentCode()) || null }));
   app.get('/fes', (req, res) => {
     const code = io.fesCurrentCode && io.fesCurrentCode();
     // TV（/fes?tv=1）と係（/fes?staff=1）は、その印をつけたまま飛ばす

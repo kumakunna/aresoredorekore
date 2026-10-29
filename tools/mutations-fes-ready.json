@@ -1,0 +1,18 @@
+[
+ {
+  "name": "R1 全員そろっても のこりを縮めない（allReady が何もしない）",
+  "file": "fes-room.js",
+  "suite": "tests/fes.js",
+  "from": "  f.endsAt = end;",
+  "to": "  void end;",
+  "expect": "のこり3秒"
+ },
+ {
+  "name": "R2 取り消しを長押しでなく触っただけにする",
+  "file": "public/js/v2-fes.js",
+  "suite": "tests/fes-screens.js",
+  "from": "      ? '<button type=\"button\" class=\"v2-btn is-done\" data-v2-lp data-fes-unready aria-label=\"' + e(R.とりけす) + '\">' + V.icon('check') + '<span>' + e(R.準備OK) + '</span></button>' +",
+  "to": "      ? '<button type=\"button\" class=\"v2-btn is-done\" data-fes-act=\\\"unready\\\" data-fes-unready aria-label=\"' + e(R.とりけす) + '\">' + V.icon('check') + '<span>' + e(R.準備OK) + '</span></button>' +",
+  "expect": "長押し"
+ }
+]

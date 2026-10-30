@@ -57,6 +57,17 @@ function lab(room, screen, meId, extra) {
   return Object.assign({ screen, room: snap, you: JSON.parse(JSON.stringify(OnajiRoom.privateFor(room, meId) || {})), meId }, extra || {});
 }
 
+/**
+ * 指示68-T 二の束（くまくんの決め 10/31）：TV の問題文を64px にしたので、いちばん長いお題（字の数）ではみ出さないかを撮る。
+ * お題の箱（onaji-bank.js の APPROVED）から、いちばん長い物をいまの問題に差しかえる（選択肢もそのお題の物）
+ */
+function 長いお題へ(room) {
+  const Bank = require('../../public/js/onaji-bank');
+  const all = (Bank.APPROVED || []).slice().sort((a, b) => b.q.length - a.q.length);
+  const t = room.onaji.topics[room.onaji.round];
+  Object.assign(t, { q: all[0].q, choices: all[0].choices.slice() });
+  room.state.data = OnajiRoom.publicView ? OnajiRoom.publicView(room) : room.state.data;
+}
 /** 場面ごと。o：{ n, long } */
 const BUILD = {
   'onaji-choose': (o) => { const r = 部屋(o.n || 6, o); 選ぶ(r, { m2: 1, m3: 0 }); return lab(r, 'scr-v2-onaji', 'm1'); },
@@ -69,6 +80,10 @@ const BUILD = {
   'onaji-tv-choose16': (o) => { const r = 部屋(16, o); 選ぶ(r, 散らす(9, [4, 3, 2])); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
   'onaji-tv-unveil': (o) => { const r = 部屋(o.n || 8, o); 四択へ(r); 選ぶ(r, 散らす(8, [4, 2, 1, 1])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
   'onaji-tv-unveil16': (o) => { const r = 部屋(16, o); 四択へ(r); 選ぶ(r, 散らす(16, [6, 6, 3, 1])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
+  'onaji-tv-choose-longq': (o) => { const r = 部屋(o.n || 8, o); 長いお題へ(r); 選ぶ(r, { m2: 1, m3: 0, m5: 2, m6: 0 }); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
+  'onaji-tv-unveil-longq': (o) => { const r = 部屋(o.n || 8, o); 長いお題へ(r); 選ぶ(r, 散らす(8, [4, 3, 1])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
+  'onaji-tv-unveil16-longq': (o) => { const r = 部屋(16, o); 長いお題へ(r); 選ぶ(r, 散らす(16, [7, 6, 3])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
+  'onaji-unveil-longq': (o) => { const r = 部屋(o.n || 6, o); 長いお題へ(r); 選ぶ(r, 散らす(6, [3, 2, 1])); 開く(r); return lab(r, 'scr-v2-onaji', 'm1'); },
   // 見せ場の動き（せーの → 棒 → 冠 → 名前）を、動かして開く。tools/v2-motion.js が「なし」で止まるかを見る
   'onaji-tv-unveil-play': (o) => Object.assign(BUILD['onaji-tv-unveil'](o), { play: true }),
   'onaji-unveil-play': (o) => Object.assign(BUILD['onaji-unveil'](o), { play: true }),

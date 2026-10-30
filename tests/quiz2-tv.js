@@ -36,6 +36,23 @@ function tvView(room) {
     assert(box.textContent.indexOf(W.UiText.QUIZ2.いちばん早い) === -1, '「いちばん早かったのは」の字も無い');
   });
 
+  await r.test('指示68-T 二の束2：声だった「正解は……」（v16）は、TV に字で出る（早答えは tl.say＝1.75秒・数字ちかい方は旗の0.5秒前）', async () => {
+    const room = S.早答え(6, 1);
+    const v = tvView(room);
+    box.innerHTML = W.V2Quiz2.haya.tv(v);
+    const say = box.querySelector('.v2-osay.is-ans');
+    assert(say, '早答えの TV に「正解は……」の字');
+    assertEqual(say.textContent, W.UiText.QUIZ2.正解は, '字');
+    assertEqual(W.V2Quiz2.haya.timeline(v).say, 1.75, '時刻は声のあった 1.75秒');
+    const QNear = require(path.join(__dirname, '..', 'qnear-room.js'));
+    const rn = S.数字(6, 1);
+    const vn = { data: JSON.parse(JSON.stringify(QNear.publicView(rn))), members: [], meId: 'tv', you: {}, fes: null, end: Date.now() + 8000 };
+    box.innerHTML = W.V2Quiz2.near.tv(vn);
+    assert(box.querySelector('.v2-osay.is-ans'), '数字ちかい方の TV にも「正解は……」の字');
+    const tl = W.V2Quiz2.near.timeline(vn.data.reveal.rows || []);
+    assert(Math.abs(tl.say - Math.max(0.75, tl.flag - 0.5)) < 1e-9, '旗が落ちる0.5秒前から');
+  });
+
   await r.test('5：答えている間の TV に数字の時計は無い（スマホには のこり秒がある）', async () => {
     const room = S.早答え(4, 1, { next: true });
     const v = tvView(room);

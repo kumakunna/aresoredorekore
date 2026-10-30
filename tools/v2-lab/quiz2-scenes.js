@@ -117,4 +117,4 @@ function view(sceneId, opts) {
   return b(opts || {});
 }
 
-module.exports = { SCENES, view, 早答え };
+module.exports = { SCENES, view, 早答え, 数字 };

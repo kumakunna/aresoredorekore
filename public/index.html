@@ -25446,7 +25446,49 @@
       : name + 'さんが部屋を抜けました');
   }
 
+  /**
+   * 指示68-T 二の束5：3・2・1 は「0になるサーバーの時刻」（endsAt）の残りから数える。
+   * 遅れて受けた端末（TV）も、ほかと同じ時刻に0になる。部屋の状態（countdownEndsAt）にも入っているので、
+   * 数えている最中につなぎ直した端末にも、残りから出る。残りが1秒より短い時は出さない（一瞬だけ数字が出るのを防ぐ）。
+   * 残りは、そろえて発射の時計合わせ（so.offset）でサーバーの時計に直して数える。まだ合わせていなければ、
+   * 知らせに添えた送った時刻（sentAt）からの3秒（＝今までどおり）、つなぎ直しは端末の時計で
+   */
+  var rtCdShown = null;
+  function rtCountdown(endsAt, seconds, sentAt){
+    if(endsAt && rtCdShown === endsAt) return;   // 同じ回を2回出さない（知らせと部屋の状態の両方で届く）
+    if(endsAt) rtCdShown = endsAt;
+    var full = (seconds > 0 ? seconds : 3) * 1000, rem = full;
+    if(endsAt){
+      if(typeof so !== 'undefined' && so.offset != null) rem = endsAt - (soNow() + so.offset);
+      else rem = sentAt ? endsAt - sentAt : endsAt - Date.now();
+    }
+    rem = Math.min(full, rem);
+    if(rem < 1000) return;
+    var n = Math.ceil(rem / 1000 - 0.001), firstMs = rem - (n - 1) * 1000;
+    rtCountdownShow(n, firstMs);
+  }
+  window.rtCountdownProbe = function(){ return { shown: rtCdShown, offset: typeof so !== 'undefined' ? so.offset : null }; };
+  function rtCountdownShow(n, firstMs){
+    /**
+     * 指示60 B-4：**次の試合が始まる時は、開いたままの称号の幕を閉じる。**
+     * 部屋ではほかの人の準備OKで自動的に始まるので、押して閉じる前に次の試合が来る——
+     * 閉じないと、前の試合の「新しく手に入れた！」が盤と3択の後ろに残り続けた
+     *（デモの流れを実サーバーで通して見つけた）。手に入れた記録は残っている
+     *（あとから称号の画面で着けられる）ので、見せ場だけを畳む
+     */
+    el('titleGotOverlay').classList.remove('show');
+    titleGotPending = [];
+    if(typeof FxKit === 'undefined') return;
+    // 指示66-2 F10：文化祭の部屋は、ゲームの世界の色で大きな数字だけ（字は出さない。速さの設定で速くしない）
+    var fr = fesRoom(), g = fr && fr.fes.pick ? fesInfo(fr.fes.pick.mode) : null;
+    // 名前の壁も出す（決定・結果と同じ。係が隠した人は出さない・くまくんの決め 2026-10-25）
+    var 壁 = []; try{ 壁 = V2Fes.people(fesView(), true).map(function(m){ return m.name; }); }catch(e){}
+    if(g){ fesCountdown(n, g, rtIsBigScreen(), false, 壁, firstMs); return; }
+    FxKit.countdown(n, { firstMs: firstMs });
+  }
   if(rt){
+    // 指示68-T 二の束5：数えている最中につなぎ直した端末にも、3・2・1 を残りから。時計合わせ（so.offset）は部屋に入ったら1回
+    rt.on('room', function(room){ if(room && room.countdownEndsAt) rtCountdown(room.countdownEndsAt, 3, null); if(room && so.offset == null) soroeSync(); });
     rt.on('room', function(){ rtNoticeConnections(); rtSync(); appReloadIfIdle(); sfxPreloadSync((document.querySelector('.screen.active') || {}).id); voiceSync(); fxSpeedSync(); });   // 指示68-1：文化祭の段階が待合にもどった時も
     rt.on('memberGone', rtNoticeMemberGone); // 第35弾B：退室・kickの知らせ（理由つき）
     rt.on('you', function(){ rtSync(); });
@@ -25750,24 +25792,7 @@
 
   if(rt){
     // 第34弾 2-1：ゲームが始まる前の合図。全員の画面で同じタイミングで3-2-1
-    rt.on('countdown', function(p){
-      /**
-       * 指示60 B-4：**次の試合が始まる時は、開いたままの称号の幕を閉じる。**
-       * 部屋ではほかの人の準備OKで自動的に始まるので、押して閉じる前に次の試合が来る——
-       * 閉じないと、前の試合の「新しく手に入れた！」が盤と3択の後ろに残り続けた
-       *（デモの流れを実サーバーで通して見つけた）。手に入れた記録は残っている
-       *（あとから称号の画面で着けられる）ので、見せ場だけを畳む
-       */
-      el('titleGotOverlay').classList.remove('show');
-      titleGotPending = [];
-      if(typeof FxKit === 'undefined') return;
-      // 指示66-2 F10：文化祭の部屋は、ゲームの世界の色で大きな数字だけ（字は出さない。速さの設定で速くしない）
-      var fr = fesRoom(), g = fr && fr.fes.pick ? fesInfo(fr.fes.pick.mode) : null;
-      // 名前の壁も出す（決定・結果と同じ。係が隠した人は出さない・くまくんの決め 2026-10-25）
-      var 壁 = []; try{ 壁 = V2Fes.people(fesView(), true).map(function(m){ return m.name; }); }catch(e){}
-      if(g){ fesCountdown(p && p.seconds, g, rtIsBigScreen(), false, 壁); return; }
-      FxKit.countdown(p && p.seconds);
-    });
+    rt.on('countdown', function(p){ rtCountdown(p && p.endsAt, p && p.seconds, p && p.now); });
     rt.on('reacted', function(p){ showReaction(p); });
     rt.on('thanked', function(p){
       // 選ばれた人にだけ届く。誰から贈られたかも分かる
@@ -33131,7 +33156,7 @@
    * F10 3・2・1：共通部品（FxKit.countdown）に新しい見た目を着せる。数え方・音・速さの決まりは共通部品のまま
    * （字は出さない・演出の設定で速くしない）。TV は 1920×1080 の箱で組んで縮める（ほかの TV の画面と同じ）
    */
-  function fesCountdown(sec, g, tv, hold, names){
+  function fesCountdown(sec, g, tv, hold, names, firstMs){
     var bg = (names && names.length) ? V2.bgHtml({ names: names }) : '';
     var hd = '<span class="v2-cdx-g">' + V2.esc(g.name) + (g.edition ? '<small>（' + V2.esc(g.edition) + '）</small>' : '') + '</span>';
     return FxKit.countdown(sec, { id: 'v2Cdx', cls: 'v2 v2-cdx v2-w-' + g.world + (tv ? ' is-tv' : ''),
@@ -33140,7 +33165,7 @@
         // TV は 1920×1080 の箱の中に壁を置く（箱の外だと箱の背景に隠れる。ふだんの TV と同じ置き方）
         return tv ? '<div class="v2-tvc">' + bg + '<div class="v2-safe">' + inner + '</div></div>' : bg + inner;
       },
-      after: function(box){ if(tv) V2.fitTv(box); }, hold: !!hold });
+      after: function(box){ if(tv) V2.fitTv(box); }, hold: !!hold, firstMs: firstMs });
   }
   /** 見本データで描く（撮る道具の台本だけが呼ぶ。本番に入口は無い・V2Screens.fes） */
   function fesLab(lab){

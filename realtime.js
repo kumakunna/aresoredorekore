@@ -596,6 +596,8 @@ function publicSnapshot(room) {
     paused: room.pausedAt
       ? { at: room.pausedAt, by: (room.members.get(room.pausedBy) || {}).name || null }
       : null,
+    // 指示68-T 二の束5：3・2・1 が0になるサーバーの時刻（数えている間だけ）。つなぎ直した端末も、残りから数える
+    countdownEndsAt: inCountdown(room) ? room.countdownUntil : null,
     state: {
       phase: room.state.phase,
       game: room.state.game,
@@ -1369,7 +1371,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (onStarted) onStarted();
     // 第34弾 2-1：始まる合図。全員の端末に同じ放送が届いた瞬間から
     // 3-2-1を数えるので、そろって見える（ゲームの状態はその下に描かれて待つ）
-    io.to('room:' + room.code).emit('room:countdown', { seconds: COUNTDOWN_SECONDS });
+    // 指示68-T 二の束5：0になるサーバーの時刻も添える。受けた端末は残りから数える（遅れて受けた TV も、ほかと同じ時刻に0になる）
+    io.to('room:' + room.code).emit('room:countdown', { seconds: COUNTDOWN_SECONDS, endsAt: room.countdownUntil || null, now: Date.now() });
     pushWolfState(room);
     return { ok: true };
   }

@@ -89,6 +89,22 @@ async function run() {
    * 合図より先に盤が届いていた。手元は数字が無いまま盤を描き、吹き出しを出した（指示62・1-3 が残っていた）。
    * 型(c)：全ゲームで見る（盤をその場で配るゲームと、配らないゲームの両方が入る）
    */
+  await r.test('二の束5：合図と部屋の状態に「0になるサーバーの時刻」が入る。数えている間だけ（つなぎ直した端末も残りから数える）', async () => {
+    const x = await 始める('bomb', 3000);
+    try {
+      const g = x.rm.guests[0];
+      const 合図 = await new Promise((res) => { g.socket.once('room:countdown', res); setTimeout(() => res(null), 1500); });
+      // 始める呼び出しの返事より先に合図が来ている時もあるので、部屋の状態で見る
+      const until = x.room.countdownUntil;
+      assert(until > x.t0 + 2500 && until <= Date.now() + 3000, '0になる時刻は始めてから3秒後（' + (until - x.t0) + 'ms）');
+      const snap = require('../realtime').publicSnapshot(x.room);
+      assertEqual(snap.countdownEndsAt, until, '数えている間は、部屋の状態に0になる時刻');
+      if (合図) assertEqual(合図.endsAt, until, '合図にも同じ時刻');
+      await sleep(3200);
+      assertEqual(require('../realtime').publicSnapshot(x.room).countdownEndsAt, null, '0になったら入れない');
+    } finally { await 片付け(x); }
+  });
+
   await r.test('全ゲーム：参加者の端末には、3-2-1 の合図が、始まった状態や手元の秘密より先に届く', async () => {
     let 先に盤が来た = 0;
     for (const gameId of RT_GAME_IDS) {

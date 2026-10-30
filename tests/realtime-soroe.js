@@ -159,7 +159,7 @@ async function 始める(srv, n, 支度) {
         await waitUntil(() => (viewOf(rm.host) || {}).phase === 'ended', '5回で終わる', 6000);
         const res = viewOf(rm.host).result;
         const spread = (n - 1) * 3;
-        const h = L.heightOf(spread);
+        const h = L.heightOf(spread, rm.all.length);
         assertEqual(res.total, h.points * 4 + h.points * 2, '合計（差 ' + spread + 'ms・最後は2倍）');
         [rm.all, [rm.tv]].forEach((list) => list.forEach((d) => d.close()));
       } finally { await srv.close(); }

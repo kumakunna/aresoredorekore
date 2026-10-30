@@ -41,14 +41,48 @@
     { signal: 'count', step: 550 },
     { signal: 'seeno', double: true }
   ];
-  /** 高さ（差がこれ以内）。いちばん上から順に見る。voice は TV の声 */
+  /**
+   * 高さ（差がこれ以内）。いちばん上から順に見る。voice は TV の声。
+   * max は 8人の時の数（見本）。**本当の境目は人数で変わる**（BY_PLAYERS・heightOf）
+   */
   var HEIGHTS = [
-    { id: 'space', max: 50, points: 100, voice: 'v33' },
-    { id: 'moon', max: 100, points: 70 },
-    { id: 'cloud', max: 200, points: 40 },
-    { id: 'building', max: 400, points: 20 },
+    { id: 'space', max: 115, points: 100, voice: 'v33' },
+    { id: 'moon', max: 165, points: 70 },
+    { id: 'cloud', max: 235, points: 40 },
+    { id: 'building', max: 385, points: 20 },
     { id: 'plop', max: Infinity, points: 5 }
   ];
+  /**
+   * 指示68-T 7：人数ごとの境目（ミリ秒。人数は「押した人の数」）。[人数, 宇宙, 月, 雲の上, ビルの上]
+   * 人数が多いほど、いちばん早い人と遅い人の差は広がる（10/30 の8人で「0.15」が何度も出た）。
+   * 考え方：1人のばらつきを 60ms とした試算で、宇宙は約1割・月までで半分・雲の上までで9割。
+   * 2人でも宇宙は 30ms より小さくしない（測る誤差 ±20ms より小さい差は運になる）。ビルの上は雲の上＋150ms。
+   * 表にない人数は、近い2つのあいだを線でつなぐ（整数に丸める）
+   */
+  var BY_PLAYERS = [
+    [2, 30, 55, 140, 290],
+    [3, 40, 95, 175, 325],
+    [4, 65, 120, 195, 345],
+    [5, 80, 135, 210, 360],
+    [6, 95, 150, 220, 370],
+    [8, 115, 165, 235, 385],
+    [10, 130, 180, 250, 400],
+    [12, 140, 190, 255, 405],
+    [16, 160, 210, 270, 420]
+  ];
+  /** その人数の境目 [宇宙, 月, 雲の上, ビルの上]（ミリ秒） */
+  function limitsFor(n) {
+    var T = BY_PLAYERS, k = +n || 0;
+    if (k <= T[0][0]) return T[0].slice(1);
+    if (k >= T[T.length - 1][0]) return T[T.length - 1].slice(1);
+    for (var i = 1; i < T.length; i++) {
+      if (k <= T[i][0]) {
+        var a = T[i - 1], b = T[i], f = (k - a[0]) / (b[0] - a[0]);
+        return [1, 2, 3, 4].map(function (j) { return Math.round(a[j] + (b[j] - a[j]) * f); });
+      }
+    }
+    return T[T.length - 1].slice(1);
+  }
 
   /** その回の 0 の時刻（サーバーの時刻）。「せーの」の回は 0 が無い（null） */
   function zeroAt(round, startedAt) {
@@ -65,8 +99,13 @@
     return typeof at === 'number' && isFinite(at) && at >= startedAt && at <= close + 1000;
   }
 
-  function heightOf(spread) {
-    for (var i = 0; i < HEIGHTS.length; i++) if (spread <= HEIGHTS[i].max) return HEIGHTS[i];
+  /** 差（ミリ秒）と押した人の数から高さ。n を渡さない時は 8人の境目（HEIGHTS の max） */
+  function heightOf(spread, n) {
+    var lim = n == null ? null : limitsFor(n);
+    for (var i = 0; i < HEIGHTS.length; i++) {
+      var max = lim && i < lim.length ? lim[i] : HEIGHTS[i].max;
+      if (spread <= max) return HEIGHTS[i];
+    }
     return HEIGHTS[HEIGHTS.length - 1];
   }
 
@@ -83,7 +122,7 @@
     var n = (ids || []).length, count = ats.length;
     var flew = count >= 2 && count * 2 >= n;
     var spread = count ? Math.round(ats[count - 1] - ats[0]) : null;
-    var h = flew ? heightOf(spread) : null;
+    var h = flew ? heightOf(spread, count) : null;   // 境目は押した人の数で決める（指示68-T 7）
     return {
       count: count, n: n, flew: flew, spread: spread,
       height: h ? h.id : null,
@@ -113,6 +152,6 @@
     return best;
   }
 
-  return { RULES: RULES, ROUNDS: ROUNDS, HEIGHTS: HEIGHTS, zeroAt: zeroAt, closeAt: closeAt, validAt: validAt,
+  return { RULES: RULES, ROUNDS: ROUNDS, HEIGHTS: HEIGHTS, BY_PLAYERS: BY_PLAYERS, limitsFor: limitsFor, zeroAt: zeroAt, closeAt: closeAt, validAt: validAt,
     heightOf: heightOf, scoreRound: scoreRound, finalResult: finalResult, offsetOf: offsetOf };
 });

@@ -99,9 +99,12 @@ Object.assign(BUILD, {
   'pt-tv-film-perfect': () => { const r = 部屋(16, 'pittari'); 押して開く(r, 差16); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv', { play: true }); },
   'pt-tv-film-normal': () => { const r = 部屋(8, 'pittari'); 押して開く(r, 差8); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv', { play: true }); },
   'so-tv-film-space': () => { const r = 部屋(8, 'soroe'); 押して飛ぶ(r, [0, 12, 30, 41, 8, 22, 35, 18]); return lab(r, 'soroe', 'scr-v2-soroe-tv', 'tv', { play: true }); },
-  'so-tv-film-moon': () => { const r = 部屋(8, 'soroe'); 押して飛ぶ(r, [0, 22, 60, 84, 35, 51, 70, 12]); return lab(r, 'soroe', 'scr-v2-soroe-tv', 'tv', { play: true }); },
+  // 指示68-T 7：8人の月は 0.116〜0.165秒（宇宙は 0.115秒まで）
+  'so-tv-film-moon': () => { const r = 部屋(8, 'soroe'); 押して飛ぶ(r, [0, 22, 60, 140, 35, 51, 70, 12]); return lab(r, 'soroe', 'scr-v2-soroe-tv', 'tv', { play: true }); },
   'so-tv-film-plop': () => { const r = 部屋(12, 'soroe'); 押して飛ぶ(r, [0, 120, 300, 520, 90, 610, 44, 260, 380, 150, 700, 20]); return lab(r, 'soroe', 'scr-v2-soroe-tv', 'tv', { play: true }); },
-  'so-tv-film-notflew': () => { const r = 部屋(8, 'soroe'); 押して飛ぶ(r, [0, 30]); return lab(r, 'soroe', 'scr-v2-soroe-tv', 'tv', { play: true }); }
+  'so-tv-film-notflew': () => { const r = 部屋(8, 'soroe'); 押して飛ぶ(r, [0, 30]); return lab(r, 'soroe', 'scr-v2-soroe-tv', 'tv', { play: true }); },
+  // 指示68-T 4：16人の点火（火の粒が16回）。tools/sound-peak.js が音を重ねて測る
+  'so-tv-film-space16': () => { const r = 部屋(16, 'soroe'); 押して飛ぶ(r, [0, 8, 15, 22, 30, 38, 45, 52, 60, 68, 75, 82, 90, 98, 105, 112]); return lab(r, 'soroe', 'scr-v2-soroe-tv', 'tv', { play: true }); }
 });
 
 const SCENES = Object.keys(BUILD).map((id) => ({ id, kind: /-tv-/.test(id) ? 'tv' : 'phone', draw: 'v2game', screen: BUILD[id]().screen, mock: null }));

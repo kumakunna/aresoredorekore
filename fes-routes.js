@@ -8,6 +8,7 @@
 //   GET /api/fes/feedback    … 感想（★と自由文）。**くまくんと先生（owner・staff）だけ**
 //   GET /api/fes/bomb-stats  … クイズ解除の記録（終わり方・問題ごとの正答率。名前は無い）。**くまくんだけ**（指示68-2）
 //   GET /fes/bomb-stats      … 同じ記録を読む軽い画面（くまくんだけ）
+//   GET /api/fes/rounds・/fes/rounds … 回ごとの記録（名前は無い）。係（くまくんと先生）（指示68-T 二の束6）
 //
 // だれが係かは realtime.js の fesRoleOf（.env の FES_OWNER・FES_STAFF）。ログインしていなければ 401、
 // 係でなければ 403。中身を返す前に、必ず1か月より前のものを掃く（fes-store.js の list* が掃く）
@@ -69,6 +70,39 @@ function mountFesRoutes(app, io) {
     if (!io.fesStore) return page(503, '記録の入れ物がありません', '');
     page(200, 'クイズ解除の記録', bombStatsHtml(io.fesStore.listBombStats()));
   });
+  // 指示68-T 二の束6：回ごとの記録（名前は無い・1か月で消える）。係（くまくんと先生）が係の画面から開く。
+  // 11/6 のリハーサルで数を取って、しきい値とライフを見直すため
+  app.get('/api/fes/rounds', gate('staff'), (req, res) => res.json({ rounds: io.fesStore.listRounds() }));
+  app.get('/fes/rounds', (req, res) => {
+    const page = (code, title, body) => res.status(code).type('html').send(namesPage(title, body));
+    const uid = req.session && req.session.userId;
+    if (!uid) return page(401, 'ログインしてください', '<p>係のアカウントでログインしてから、もう一度開いてください。</p><p><a href="/">ログインへ</a></p>');
+    if (!(io.fesRoleOf ? io.fesRoleOf(uid) : null)) return page(403, '見られません', '<p>この画面は、係のアカウントだけが見られます。</p>');
+    if (!io.fesStore) return page(503, '記録の入れ物がありません', '');
+    page(200, '回ごとの記録', roundsHtml(io.fesStore.listRounds()));
+  });
+}
+
+const MODE_NAME = { 'bomb-coop': 'クイズ解除', 'onaji-many': 'みんなと同じ', pittari: 'ぴったり10秒', soroe: 'そろえて発射', qhaya: 'みんなで早答え', qnear: '数字ちかい方' };
+/** 指示68-T 二の束6：回ごとの記録の表。秒は「待合→開始」「開始→結果」「結果→次の待合」。中身はゲームごとに短く */
+function roundsHtml(rows) {
+  const sec = (a, b) => (a && b ? Math.round((b - a) / 1000) + '秒' : '');
+  const ms = (v) => (v == null ? '-' : (v > 0 ? '+' : '') + (v / 1000).toFixed(2));
+  const 中身 = (r) => {
+    const d = r.detail || {}, R = d.rounds || [];
+    if (r.mode === 'soroe') return R.map((x, i) => (i + 1) + '回目 ' + (x.spread == null ? '飛ばず' : 'そろい ' + x.spread + 'ms') + '（' + x.count + '/' + x.n + '人）').join('<br>');
+    if (r.mode === 'pittari') return R.map((x, i) => (i + 1) + '回目 ' + x.target + '秒' + (x.show ? '' : '（時計なし）') + '：' + (x.diffs || []).map(ms).join(' ')).join('<br>');
+    if (r.mode === 'onaji-many') return R.map((x) => esc(x.q) + '：いちばん多い ' + x.top + '/' + x.answered + '人').join('<br>');
+    if (r.mode === 'qhaya') return R.map((x) => esc(x.q) + '：' + (x.rate == null ? '答えなし' : '正答率 ' + x.rate + '%（' + x.answered + '人）')).join('<br>');
+    if (r.mode === 'qnear') return R.map((x) => esc(x.q) + '：' + x.answered + '人・ぴったり ' + x.perfect + '人').join('<br>');
+    if (r.mode === 'bomb-coop') return esc(CAUSE[d.cause] || d.cause || '') + (d.total ? '（' + d.solved + '/' + d.total + '本）' : '');
+    return '';
+  };
+  return '<p class="n">' + rows.length + '回・名前は残していません・1か月より前のものは消えます</p>' +
+    '<table><thead><tr><th>いつ</th><th>ゲーム</th><th>人数</th><th>待合→開始</th><th>開始→結果</th><th>結果→次</th><th>中身</th></tr></thead><tbody>' +
+    rows.map((r) => '<tr><td>' + whenText(r.result_at || r.at) + '</td><td>' + esc(MODE_NAME[r.mode] || r.mode) + '</td><td>' + r.players + '</td><td>' +
+      sec(r.lobby_at, r.start_at) + '</td><td>' + sec(r.start_at, r.result_at) + '</td><td>' + sec(r.result_at, r.next_at) + '</td><td>' + 中身(r) + '</td></tr>').join('') +
+    '</tbody></table>';
 }
 
 const CAUSE = { defused: '解除', lives: '爆発', time: '時間切れ', firstDone: '1人が解き切った', allDone: '全員が終わった' };

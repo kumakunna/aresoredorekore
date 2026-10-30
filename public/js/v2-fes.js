@@ -700,6 +700,8 @@
           (o.canFb ? '<button type="button" class="v2-btn is-sec" data-fes-act="fb" aria-label="' + e(S.感想を見る) + '">' + V.icon('star') + '<span>' + e(S.感想 + '（' + fb.length + S.件 + '）') + '</span></button>' : '') +
           // 指示66-3：くまくん（owner）だけ、名前の記録を読む画面へ（別のタブで開く）
           (o.canNames ? '<a class="v2-btn is-sec" href="/fes/names" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.名前の記録) + '</span></a>' : '') +
+          // 指示68-T 二の束6：回ごとの記録（名前は無い）。係なら先生も見られる。別のタブで開く
+          (o.canFb ? '<a class="v2-btn is-sec" href="/fes/rounds" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.回ごとの記録) + '</span></a>' : '') +
         '</div>' +
         // 指示68-T 二の束1：くまくん（owner）だけ、ゲームごとの入／切（「テスト中を入れる」を置きかえた）。
         // 入はいつも2本以上：入が2本の時、その2本の「切」は押せない（サーバーも断る）

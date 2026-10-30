@@ -111,6 +111,7 @@ function init(room, opts) {
   room.fes = {
     phase: PHASE.LOBBY,
     createdAt: Date.now(),  // 作り直した時に「いまの部屋」を見分けるため（/fes）
+    lobbyAt: Date.now(),   // 指示68-T 二の束6：この回の待合が始まった時刻（回ごとの記録）
     endsAt: null,          // いまの段階の締め切り（無ければ時計を出さない）
     emptySince: null,      // だれもいなくなった時刻（呼び込みの画面へ行くため）
     round: 1,              // 何回目のゲームか（感想を「1ゲームに1回」聞く鍵にも使う）
@@ -127,7 +128,8 @@ function init(room, opts) {
     games: o.games || null,  // 検査だけが差しかえる（無ければ FES_GAMES）
     enabled: Object.assign({}, o.enabled || {}),   // 係の入／切（mode -> 真偽）。入れ物（fes-store）から読んだ物。無いゲームははじめの値
     times: Object.assign({}, TIMES, o.times || {}),
-    rnd: o.rnd || Math.random
+    rnd: o.rnd || Math.random,
+    onPhase: o.onPhase || null   // 指示68-T 二の束6：段階が変わった時に呼ぶ（回ごとの記録）
   };
   return room.fes;
 }
@@ -176,8 +178,49 @@ function livePeople(room) { return people(room).filter((m) => m.connected); }
 
 function set(room, phase, ms, now) {
   const f = room.fes;
+  const prev = f.phase;
   f.phase = phase;
   f.endsAt = ms != null ? now + ms : null;
+  // 指示68-T 二の束6：回ごとの記録の時刻（待合 → 開始 → 結果 → 次の待合）。残すのは呼んだ側（realtime.js の onPhase → fes-store）
+  if (phase === PHASE.LOBBY) f.lobbyAt = now;
+  if (phase === PHASE.PLAY) f.startAt = now;
+  if (phase === PHASE.RESULT) f.resultAt = now;
+  if (prev !== phase && typeof f.onPhase === 'function') { try { f.onPhase(room, prev, phase, now); } catch (e) { /* 記録に失敗しても、流れは止めない */ } }
+}
+
+/**
+ * 指示68-T 二の束6：回ごとの記録の中身（結果の時に、終わったゲームの状態から）。**名前も memberId も入れない**。
+ * 11/6 のリハーサルで数を取って、しきい値とライフを見直すため：
+ *   そろえて発射 … 回ごとの「そろい」（いちばん早い人と遅い人の差・ms）と押した人数・高さ
+ *   ぴったり10秒 … 回ごとの目標と、全員の差（ms・近い順）
+ *   みんなと同じ … お題と、いちばん多かった答えの人数・答えた人数
+ *   クイズ王2   … 早答えは問題ごとの正答率（%）、数字ちかい方は答えた人数とぴったりの人数
+ *   クイズ解除   … 終わり方と解いた本数（くわしい記録は bomb_plays にある）
+ */
+function roundDetail(room, mode) {
+  const g = gameOf(mode, room.fes);
+  const w = g && room[g.game];
+  if (!w) return null;
+  const H = w.history || [];
+  switch (g.game) {
+    case 'soroe': return { rounds: H.map((h) => ({ n: h.n, count: h.count, spread: h.spread == null ? null : h.spread, flew: !!h.flew, height: h.height || null })) };
+    case 'pittari': return { rounds: H.map((h) => ({ target: h.target, show: h.show !== false, diffs: (h.rows || []).map((x) => x.diff) })) };
+    case 'onaji': return { rounds: H.map((h) => {
+      const counts = (h.choices || []).map((c, k) => Object.keys(h.answers || {}).filter((id) => h.answers[id] === k).length);
+      return { q: h.q, top: counts.length ? Math.max.apply(null, counts) : 0, answered: Object.keys(h.answers || {}).length };
+    }) };
+    case 'qhaya': return { rounds: H.map((h) => {
+      const rows = Object.keys(h.rows || {}).map((id) => h.rows[id]).filter((x) => x && x.pick != null);
+      return { q: h.q, tier: h.tier || null, answered: rows.length, rate: rows.length ? Math.round(rows.filter((x) => x.right).length / rows.length * 100) : null };
+    }) };
+    case 'qnear': return { rounds: H.map((h) => {
+      const rows = Object.keys(h.rows || {}).map((id) => h.rows[id]).filter((x) => x && x.value != null);
+      return { q: h.q, answered: rows.length, perfect: (h.perfect || []).length };
+    }) };
+    case 'bomb': return { cause: (w.result && w.result.cause) || null, success: !!(w.result && w.result.success),
+      solved: w.result ? w.result.solved : null, total: w.result ? w.result.total : null };
+  }
+  return null;
 }
 
 /**
@@ -467,5 +510,5 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
+module.exports = { FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, roundDetail, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
   reserve, unreserve, held, queueTick };

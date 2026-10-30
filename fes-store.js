@@ -1,6 +1,6 @@
 // fes-store.js — 文化祭の部屋で、サーバーに残すもの（指示66-2）
 //
-// 残すのは3つだけ。どれも**1か月で自動で消す**（RETAIN_MS）。ほかに、係の画面の設定（ゲームごとの入／切）は消さずに覚える。
+// 残すのは4つだけ。どれも**1か月で自動で消す**（RETAIN_MS）。4つ目は回ごとの記録（指示68-T 二の束6・名前は残さない）。ほかに、係の画面の設定（ゲームごとの入／切）は消さずに覚える。
 //   ・クイズ解除の記録（指示68-2・くまくんの決め 2026-10-26）：1試合ごとの終わり方（解除・爆発・時間切れ）と人数・本数・ライフ・時間、
 //     問題ごとの「答えた数・1回目で正解したか・外した数」。**名前も端末も残さない**（問題の正答率と数字の決め直しのため）
 //   ・名前の記録：入力された名前と、規制ではじいた名前。不適切な言葉の対策のため。
@@ -69,6 +69,22 @@ function createFesStore(db) {
       on_ INTEGER NOT NULL,
       at INTEGER NOT NULL
     );
+    -- 指示68-T 二の束6：回ごとの記録。名前も端末も残さない。1か月で消す
+    CREATE TABLE IF NOT EXISTS fes_rounds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      at INTEGER NOT NULL,           -- 結果になった時刻（消す時の目安）
+      room TEXT NOT NULL,
+      round INTEGER NOT NULL,
+      mode TEXT NOT NULL,
+      players INTEGER NOT NULL,
+      lobby_at INTEGER,              -- 待合が始まった
+      start_at INTEGER,              -- ゲームが始まった（準備OK のあと）
+      result_at INTEGER,             -- 結果になった
+      next_at INTEGER,               -- 次の待合になった（結果を見ていた長さが分かる）
+      detail TEXT,                   -- 中身（JSON・fes-room.js の roundDetail）
+      ver TEXT
+    );
+    CREATE INDEX IF NOT EXISTS fes_rounds_at ON fes_rounds(at);
     CREATE INDEX IF NOT EXISTS bomb_plays_at ON bomb_plays(at);
     CREATE INDEX IF NOT EXISTS fes_names_at ON fes_names(at);
     CREATE INDEX IF NOT EXISTS fes_feedback_at ON fes_feedback(at);
@@ -91,6 +107,10 @@ function createFesStore(db) {
   const delQ = db.prepare('DELETE FROM bomb_questions WHERE play_id IN (SELECT id FROM bomb_plays WHERE at < ?)');
   const delPlays = db.prepare('DELETE FROM bomb_plays WHERE at < ?');
 
+  const insRound = db.prepare(`INSERT INTO fes_rounds (at, room, round, mode, players, lobby_at, start_at, result_at, next_at, detail, ver)
+    VALUES (@at, @room, @round, @mode, @players, @lobby_at, @start_at, @result_at, NULL, @detail, @ver)`);
+  const updRoundNext = db.prepare('UPDATE fes_rounds SET next_at = ? WHERE id = ? AND next_at IS NULL');
+  const delRounds = db.prepare('DELETE FROM fes_rounds WHERE at < ?');
   const getSw = db.prepare('SELECT mode, on_ FROM fes_game_switch');
   const putSw = db.prepare('INSERT INTO fes_game_switch (mode, on_, at) VALUES (?, ?, ?) ON CONFLICT(mode) DO UPDATE SET on_ = excluded.on_, at = excluded.at');
 
@@ -103,6 +123,23 @@ function createFesStore(db) {
       return out;
     },
     setGameSwitch(mode, on, now) { putSw.run(String(mode), on ? 1 : 0, now || Date.now()); },
+    /**
+     * 指示68-T 二の束6：回ごとの記録を1つ残す（結果になった時）。返すのは id（次の待合になった時に nextRound で時刻を足す）。
+     * p：{ room, round, mode, players, lobbyAt, startAt, resultAt, detail, ver }。名前・memberId は受け取らない
+     */
+    recordRound(p, now) {
+      const t = now || Date.now();
+      return insRound.run({ at: t, room: String(p.room || ''), round: p.round | 0, mode: String(p.mode || ''), players: p.players | 0,
+        lobby_at: p.lobbyAt || null, start_at: p.startAt || null, result_at: p.resultAt || t,
+        detail: p.detail == null ? null : JSON.stringify(p.detail).slice(0, 20000), ver: p.ver || null }).lastInsertRowid;
+    },
+    nextRound(id, at) { if (id != null) updRoundNext.run(at || Date.now(), id); },
+    /** 新しい順（係の画面・/api/fes/rounds）。detail は JSON をほどいて返す */
+    listRounds(now) {
+      this.purge(now);
+      return db.prepare('SELECT * FROM fes_rounds ORDER BY at DESC LIMIT 2000').all()
+        .map((r) => Object.assign(r, { detail: r.detail ? (() => { try { return JSON.parse(r.detail); } catch (e) { return null; } })() : null }));
+    },
     /** 入力された名前を1つ残す（はじいた名前も） */
     logName(room, name, blocked, reason, now) {
       insName.run(String(room), String(name).slice(0, 64), blocked ? 1 : 0, reason || null, now || Date.now());
@@ -157,7 +194,7 @@ function createFesStore(db) {
     purge(now) {
       const cut = (now || Date.now()) - RETAIN_MS;
       delQ.run(cut);
-      return { names: delNames.run(cut).changes, feedback: delFb.run(cut).changes, bomb: delPlays.run(cut).changes };
+      return { names: delNames.run(cut).changes, feedback: delFb.run(cut).changes, bomb: delPlays.run(cut).changes, rounds: delRounds.run(cut).changes };
     },
     listNames(now) {
       this.purge(now);

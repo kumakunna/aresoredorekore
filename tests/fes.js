@@ -286,6 +286,10 @@ async function join(srv, code, name, diff, extra) {
     }
     await waitUntil(() => fesOf(a).phase === 'result', '結果へ（人が押さなくても）');
     await waitUntil(() => fesOf(a).phase === 'lobby', '結果のあと、何も押さなくても待合へもどる');
+    // 指示68-T 二の束6：本物の流れで、回ごとの記録が1つ残り、次の待合の時刻まで入る
+    const rec = srv.fesStore.listRounds();
+    assertEqual(rec.length, 1, '回ごとの記録が1つ（' + rec.length + '）');
+    assert(rec[0].mode === 'bomb-coop' && rec[0].start_at && rec[0].result_at && rec[0].next_at && rec[0].detail && rec[0].detail.cause, '時刻と中身がそろう（' + JSON.stringify(rec[0]) + '）');
     assert(a.room.members.every((m) => m.role === 'player'), '待合にもどったら、待っていた人もまた入れる');
     await round();
     await waitUntil(() => c.kicked, '2回目も押さなかった人の席が空く');
@@ -620,6 +624,48 @@ async function join(srv, code, name, diff, extra) {
       FesRoom.init(room, { enabled: srv.fesStore.gameSwitches() });
       assert(FesRoom.gamesFor(room.fes).every((g) => g.mode !== 'pittari'), '入れ物から読めば切のまま');
       owner.close(); teacher.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('二の束6：回ごとの記録。結果で1つ残り、次の待合で時刻が足される。名前も memberId も残らない・1か月で消える・係なら見られる', async () => {
+    const srv = await startTestServer();
+    try {
+      const RT = require('../realtime');
+      const room = new RT.RoomStore().create({ ownerUserId: 1 });
+      ['ふう', 'ひろ', 'びび'].forEach((nm, i) => room.members.set('m' + i, { id: 'm' + i, name: nm, role: 'player', connected: true, joinedAt: i, readyGame: null }));
+      const calls = [];
+      FesRoom.init(room, { onPhase: (rm, a, b, now) => calls.push(a + '>' + b) });
+      // ぴったり10秒を遊び終えた形（本物の進行役の history の形）
+      room.fes.played = { mode: 'pittari', round: 1, ids: ['m0', 'm1', 'm2'] };
+      room.pittari = { phase: 'ended', history: [{ target: 10, show: true, ids: ['m0', 'm1', 'm2'], rows: [{ id: 'm1', ms: 10040, diff: 40 }, { id: 'm0', ms: 9700, diff: -300 }] }] };
+      const d = FesRoom.roundDetail(room, 'pittari');
+      assertEqual(JSON.stringify(d), JSON.stringify({ rounds: [{ target: 10, show: true, diffs: [40, -300] }] }), 'ぴったり10秒は目標と差だけ');
+      const id = srv.fesStore.recordRound({ room: room.code, round: 1, mode: 'pittari', players: 3, lobbyAt: 1000, startAt: 31000, resultAt: 61000, detail: d, ver: 'x' }, 61000);
+      srv.fesStore.nextRound(id, 76000);
+      const rows = srv.fesStore.listRounds(76000);
+      assertEqual(rows.length, 1, '1つ残る');
+      assertEqual([rows[0].lobby_at, rows[0].start_at, rows[0].result_at, rows[0].next_at].join(','), '1000,31000,61000,76000', '待合→開始→結果→次の待合');
+      assert(!/ふう|ひろ|びび|"m[0-9]"/.test(JSON.stringify(rows)), '名前も memberId も残らない（' + JSON.stringify(rows[0].detail) + '）');
+      srv.fesStore.purge(61000 + RETAIN_MS + 1);
+      assertEqual(srv.fesStore.listRounds(61000 + RETAIN_MS + 1).length, 0, '1か月で消える');
+      // 中身の形（ほかのゲーム）
+      room.fes.played = { mode: 'onaji-many', round: 2, ids: ['m0', 'm1', 'm2'] };
+      room.onaji = { history: [{ q: 'おにぎりの具といえば？', choices: ['うめ', 'さけ', 'こんぶ'], answers: { m0: 1, m1: 1, m2: 0 }, ids: ['m0', 'm1', 'm2'] }] };
+      assertEqual(JSON.stringify(FesRoom.roundDetail(room, 'onaji-many').rounds[0]), JSON.stringify({ q: 'おにぎりの具といえば？', top: 2, answered: 3 }), 'みんなと同じはお題といちばん多かった人数');
+      room.qhaya = { history: [{ q: 'Q', tier: 'easy', rows: { m0: { pick: 1, right: true }, m1: { pick: 0, right: false }, m2: { pick: null, right: false } } }] };
+      assertEqual(FesRoom.roundDetail(room, 'qhaya').rounds[0].rate, 50, '早答えは答えた人の正答率');
+      room.soroe = { history: [{ n: 8, count: 7, spread: 132, flew: true }] };
+      assertEqual(FesRoom.roundDetail(room, 'soroe').rounds[0].spread, 132, 'そろえて発射はそろい（ms）');
+      // 本物の流れ：段階が変わるたびに onPhase
+      const api = { startGameNow: () => ({ ok: true }), clearGameState() {}, driverStateOf: () => null, removeMember() { return true; } };
+      FesRoom.tick(room, Date.now(), api);
+      room.fes.endsAt = Date.now() - 1; FesRoom.tick(room, Date.now(), api);
+      assert(calls.length >= 1 && calls[0] === 'lobby>vote', '段階が変わると呼ばれる（' + calls.join(' ') + '）');
+      // 係の門：先生（staff）も見られる・ログインしていない人は見られない
+      const get = async (pathname, uid) => fetch(srv.url + pathname, { headers: uid ? { cookie: await login(srv.url, uid) } : {} });
+      assertEqual((await get('/api/fes/rounds', STAFF)).status, 200, '先生は見られる');
+      assertEqual((await get('/api/fes/rounds', NOBODY)).status, 403, '係でない人は見られない');
+      assertEqual((await get('/fes/rounds', OWNER)).status, 200, '読む画面');
     } finally { await srv.close(); }
   });
 

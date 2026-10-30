@@ -1300,6 +1300,23 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (m.connected) emitPrivate(room, m.id, 'fes:you', FesRoom.privateFor(room, m.id));
     }
   }
+  /**
+   * 指示68-T 二の束6：回ごとの記録。結果になった時に1つ残し（名前・memberId は入れない）、次の待合になった時に時刻を足す。
+   * 記録に失敗しても、流れは止めない
+   */
+  function fesOnPhase(room, prev, phase, now) {
+    if (!fesStore || !fesStore.recordRound) return;
+    const f = room.fes;
+    try {
+      if (phase === FesRoom.PHASE.RESULT && f.played) {
+        f.roundRecId = fesStore.recordRound({ room: room.code, round: f.played.round, mode: f.played.mode, players: f.played.ids.length,
+          lobbyAt: f.lobbyAt, startAt: f.startAt, resultAt: now, detail: FesRoom.roundDetail(room, f.played.mode), ver: APP_VERSION.VERSION }, now);
+      } else if (phase === FesRoom.PHASE.LOBBY && f.roundRecId != null) {
+        fesStore.nextRound(f.roundRecId, now);
+        f.roundRecId = null;
+      }
+    } catch (e) { console.error('[realtime] 回ごとの記録で例外:', e); }
+  }
   /** 係の入／切を入れ物から読む（無ければ空＝はじめの値） */
   function fesSwitches() {
     if (!fesStore || !fesStore.gameSwitches) return {};
@@ -1922,7 +1939,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       }
       const room = store.create({ ownerUserId: sessionOf(socket).userId, ownerUsername: null });
       room.hostMemberId = null;
-      FesRoom.init(room, { times: fesTimes, enabled: fesSwitches() });
+      FesRoom.init(room, { times: fesTimes, enabled: fesSwitches(), onPhase: fesOnPhase });
       if (typeof cb === 'function') cb({ ok: true, code: room.code });
     });
     // 係：係の画面を開く（部屋の名簿には入らない＝TVにも名簿にも出ない）

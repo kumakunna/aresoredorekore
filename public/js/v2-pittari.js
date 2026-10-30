@@ -67,7 +67,9 @@
     var you = view.you || {}, t = T(), V = K(), Lg = L();
     if (you.myDiff == null) return '';
     var top = you.myRank === 1;
-    return '<div class="v2-omine' + (top ? ' is-got' : '') + '"><span class="v2-lbl">' + e(t.あなた) + '</span>' +
+    // 指示68-T 二の束3：TV がいる部屋では、自分の差・順位・+点は TV の冠（timeline の end）と同じ時刻に
+    var at = V.tvAt(view, timeline(((view.data || {}).reveal || {}).rows || []).end);
+    return '<div class="v2-omine' + (top ? ' is-got' : '') + '"' + at + '><span class="v2-lbl">' + e(t.あなた) + '</span>' +
       '<b>' + e(Lg.diffText(you.myDiff)) + '</b><span class="v2-ptrk">' + e(you.myRank + t.位) + '</span>' +
       (you.myPoints ? '<span class="v2-oplus">' + e('+' + you.myPoints + t.点) + '</span>' : '') + '</div>';
   }
@@ -100,17 +102,19 @@
       (lanes[lane] = lanes[lane] || []).push({ pos: pos, w: w });
       laneOf[x.id] = lane;
     });
+    // 指示68-T 二の束3：TV がいる部屋のスマホは、札を TV で刺さるのと同じ時刻に1枚ずつ（自分の遅れは無し）
+    var V = K(), 待つ = !tv && V.hasTv(view), tl = timeline(rows);
     var pins = rows.map(function (x, i) {
       var win = x.rank === 1;
       return '<div class="v2-ptpin' + (win ? ' is-win' : '') + (x.diff === 0 ? ' is-perfect' : '') + '" style="left:' + posOf(x.diff).toFixed(2) + '%;--lane:' + laneOf[x.id] +
-        ';animation-delay:calc(' + (0.4 + i * 0.28).toFixed(2) + 's * var(--fx-scale))">' +
+        ';animation-delay:' + (待つ ? '0s' : 'calc(' + (0.4 + i * 0.28).toFixed(2) + 's * var(--fx-scale))') + '"' + (待つ ? V.tvAt(view, tl.pins[i].at + tl.pins[i].dur) : '') + '>' +
         (win ? '<span class="v2-ptcrown" aria-hidden="true">👑</span>' : '') +
         '<span class="v2-ptname v2-cut">' + e(x.name) + '</span><span class="v2-ptdiff">' + e(Lg.diffText(x.diff)) + '</span></div>';
     }).join('');
     var 段 = Math.max(1, lanes.length);
     var 秒 = (range / 1000).toFixed(range % 1000 ? 1 : 0);
     return '<div class="v2-ptwrap' + (tv ? ' is-tv' : '') + '">' +
-      (r.perfect && r.perfect.length ? '<div class="v2-oban is-gold">' + e(t.ぴったり) + '</div>' : '') +
+      (r.perfect && r.perfect.length ? '<div class="v2-oban is-gold"' + (待つ ? V.tvAt(view, tl.end) + ' style="animation-delay:0s"' : '') + '>' + e(t.ぴったり) + '</div>' : '') +
       '<div class="v2-ptline" style="--lanes:' + 段 + '">' + pins +
         '<div class="v2-ptaxis"><i class="v2-pttick"></i></div>' +
         '<div class="v2-ptmarks"><span>' + e('-' + 秒 + t.秒) + '</span><span class="is-c">' + e(r.target + t.秒) + '</span><span>' + e('+' + 秒 + t.秒) + '</span></div>' +

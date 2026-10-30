@@ -133,12 +133,14 @@
     function mineOpen(view) {
       var d = view.data || {}, r = d.reveal || {}, you = view.you || {}, V = K(), t = T();
       var right = you.myRight === true;
+      // 指示68-T 二の束3：TV がいる部屋では、正解・自分の結果・点は TV の正解の札が光る時刻（tl.stop）に
+      var at = V.tvAt(view, timeline(view).stop);
       return '<div class="v2-oq" data-v2-wrap>' + V.phrase(r.q || '') + '</div>' +
-        '<div class="v2-q2mine' + (right ? ' is-right' : '') + '">' +
+        '<div class="v2-q2mine' + (right ? ' is-right' : '') + '"' + at + '>' +
           (right ? '<b>' + e(t.正解) + '</b><span class="v2-num">+' + V.digits(you.myPoints || 0) + e(t.点) + '</span>'
             : '<small>' + e(t.ざんねん) + '</small>') +
           '<span class="v2-q2mine-a">' + e(KEYS.charAt(r.correct) + '　' + ((r.choices || [])[r.correct] || '')) + '</span></div>' +
-        '<div class="v2-minebox"><span>' + e(t.あなたの点) + '</span><b>' + V.digits(you.myScore || 0) + '<small>' + e(t.点) + '</small></b></div>';
+        '<div class="v2-minebox"' + at + '><span>' + e(t.あなたの点) + '</span><b>' + V.digits(you.myScore || 0) + '<small>' + e(t.点) + '</small></b></div>';
     }
     function tvChoose(view) {
       var d = view.data || {}, V = K(), t = T(), topic = d.topic || { q: '', choices: [] };
@@ -232,14 +234,16 @@
       var topic = d.topic || {};
       if (d.phase === 'unveil') {
         var r = d.reveal || {};
+        // 指示68-T 二の束3：TV がいる部屋では、正解・自分の結果・点は TV の冠（timeline の end）と同じ時刻に
+        var at = V.tvAt(view, timeline(r.rows || []).end);
         return head + '<div class="v2-in is-noband v2-oph">' + topRow(view, false, 'near') +
           '<div class="v2-oq" data-v2-wrap>' + V.phrase(r.q || '') + '</div>' +
-          '<div class="v2-q2mine' + (you.myRank === 1 ? ' is-right' : '') + '">' +
+          '<div class="v2-q2mine' + (you.myRank === 1 ? ' is-right' : '') + '"' + at + '>' +
             (you.myDiff === 0 ? '<b>' + e(t.ぴったり) + '</b>' : '') +
             '<span class="v2-q2mine-a">' + e(fmt(r.answer) + ' ' + (r.unit || '')) + '</span>' +
             (you.myValue != null ? '<small>' + e(t.あなたの答え + '　' + fmt(you.myValue) + ' ' + (r.unit || '')) + '</small>' : '') +
             (you.myPoints ? '<span class="v2-num">+' + V.digits(you.myPoints) + e(t.点) + '</span>' : '') + '</div>' +
-          '<div class="v2-minebox"><span>' + e(t.あなたの点) + '</span><b>' + V.digits(you.myScore || 0) + '<small>' + e(t.点) + '</small></b></div></div>';
+          '<div class="v2-minebox"' + at + '><span>' + e(t.あなたの点) + '</span><b>' + V.digits(you.myScore || 0) + '<small>' + e(t.点) + '</small></b></div></div>';
       }
       var done = typeof you.myValue === 'number';
       var shown = done ? fmt(you.myValue) : (loc.digits ? fmt(Number(loc.digits)) : '');

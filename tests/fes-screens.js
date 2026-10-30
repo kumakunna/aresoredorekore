@@ -207,6 +207,19 @@ async function 入った(o) {
     win.close();
   });
 
+  await r.test('二の束3：TV がいる部屋のスマホの決定は、TV のスポットライトが止まる時刻まで、世界の幕・印・名前を出さない（人数は TV の人数と同じ時刻）', async () => {
+    const { win, doc } = await 入った();
+    const lab = 流す(win, 'fes2-decide');
+    await waitFor(win, () => !!doc.querySelector('#scr-v2-fes-lobby .v2-gname'), 2000, 'スマホの決定');
+    const tl = win.V2Fes.decideTimeline({ fes: lab.room.fes });
+    const nm = doc.querySelector('#scr-v2-fes-lobby .v2-gname');
+    assertEqual(+nm.getAttribute('data-tvat'), +tl.stop.toFixed(2), 'ゲームの名前は TV のスポットライトが止まる秒');
+    assert(nm.classList.contains('is-tvwait'), 'まだ隠れている（1.45秒で出ていた）');
+    assert(doc.querySelector('#scr-v2-fes-lobby .v2-layer').classList.contains('is-tvwait'), 'ゲームの世界の幕も、まだ下りない（色でばれない）');
+    assertEqual(+doc.querySelector('#scr-v2-fes-lobby .v2-who5').getAttribute('data-tvat'), +tl.who.toFixed(2), '人数は TV の人数の秒');
+    win.close();
+  });
+
   await r.test('門5（画面）：候補が1つで投票を飛ばした時は「このゲームで遊びます！」（スマホとTV）', async () => {
     const { win, doc } = await 入った();
     const lab = 流す(win, 'fes2-decide-one');

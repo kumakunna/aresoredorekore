@@ -79,7 +79,8 @@
     var mine = typeof you.myChoice === 'number' ? you.myChoice : null;
     if (mine == null || !d.topic) return '';
     var got = d.mode !== 'team' && !r.scatter && (r.winners || []).indexOf(mine) !== -1;
-    return '<div class="v2-omine' + (got ? ' is-got' : '') + '"><span class="v2-lbl">' + e(t.あなたの答え) + '</span>' +
+    // 指示68-T 二の束3：TV がいる部屋では、自分の答えと +1 は TV の名前の札（timeline の tags）と同じ時刻に
+    return '<div class="v2-omine' + (got ? ' is-got' : '') + '"' + V.tvAt(view, timeline(view).tags) + '><span class="v2-lbl">' + e(t.あなたの答え) + '</span>' +
       '<b class="v2-cut">' + e(KEYS.charAt(mine) + '　' + (d.topic.choices[mine] || '')) + '</b>' +
       (got ? '<span class="v2-oplus">' + e(t.プラス1) + '</span>' : '') + '</div>';
   }
@@ -105,15 +106,18 @@
     }).join('');
     var names = (r.crowned || []);
     var ban = '';
+    // 指示68-T 二の束3：TV がいる部屋のスマホは、人数・冠・帯を TV の冠（tl.crown）、名前を TV の名前の札（tl.tags）と同じ時刻に
+    var 待つ = !tv && V.hasTv(view), tl = 待つ ? timeline(view) : null;
+    var at = function (sec) { return 待つ ? V.tvAt(view, sec) : ''; };
     if (r.scatter) ban = '<div class="v2-oban is-scatter">' + e(t.ばらばら) + '<small>' + e(t.ばらばら説明) + '</small></div>';
     else if (d.mode === 'team') ban = r.together ? '<div class="v2-oban is-gold">' + e(t.そろった) + '</div>'
       : '<div class="v2-oban">' + e(t.そろい度) + '<b class="v2-num">' + V.digits(r.ratio || 0) + '</b>%</div>';
     return '<div class="v2-ounv' + (tv ? ' is-tv' : '') + '">' +
       '<div class="v2-osay" aria-hidden="true">' + e(t.せーの) + '</div>' +
       '<div class="v2-oqs" data-v2-wrap>' + V.phrase(r.q || (d.topic && d.topic.q) || '') + '</div>' +
-      '<div class="v2-obars">' + rows + '</div>' + ban +
+      '<div class="v2-obars"' + (待つ ? at(tl.crown) : '') + '>' + rows + '</div>' + (待つ && ban ? '<div' + at(tl.crown) + '>' + ban + '</div>' : ban) +
       (names.length && !r.scatter && d.mode !== 'team'
-        ? '<div class="v2-onames">' + names.map(function (nm) { return '<span class="v2-oname v2-cut">' + e(nm) + '</span>'; }).join('') + '</div>' : '') +
+        ? '<div class="v2-onames"' + (待つ ? at(tl.tags) : '') + '>' + names.map(function (nm) { return '<span class="v2-oname v2-cut">' + e(nm) + '</span>'; }).join('') + '</div>' : '') +
     '</div>';
   }
 

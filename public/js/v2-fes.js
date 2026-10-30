@@ -259,15 +259,22 @@
     var n = (p.counts || {})[p.mode] || 0;
     var who = p.lot === 'single' ? D.ひとつ : p.lot === 'zero' ? D.くじ0 : (p.lot === 'tie' ? D.くじ同点 : n + D.えらびました);
     var my = you.vote ? D.自分の投票 + view.info(you.vote).name : D.おまかせ;
-    return '<div class="v2-layer v2-w-' + e(g.world) + '">' + V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) + '</div>' +
-      '<div class="v2-in v2-swap v2-w-' + e(g.world) + '">' +
+    // 指示68-T 二の束3：TV がいる部屋のスマホは、TV のスポットライトが止まる時刻（tl.stop）まで世界の幕・印・名前を出さない。
+    // 人数と自分の投票は TV の人数（tl.who）と同じ時刻。自分の遅れ（.v2-d1〜d4）は使わない
+    var 待つ = V.hasTv(view), tl = 待つ ? decideTimeline(view) : null;
+    var at = function (sec) { return 待つ ? V.tvAt(view, sec) + ' style="animation-delay:0s"' : ''; };
+    var wipe = 待つ ? Math.max(0, tl.stop - 0.4) : 0;
+    var tile = V.tile(g.world, 'v2-a-slam v2-d1');
+    if (待つ) tile = '<div' + at(tl.stop) + '>' + tile.replace(/ v2-d1/, '') + '</div>';
+    return '<div class="v2-layer v2-w-' + e(g.world) + '"' + at(wipe) + '>' + V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) + '</div>' +
+      '<div class="v2-in v2-swap v2-w-' + e(g.world) + '"' + (待つ ? ' style="animation-delay:' + (wipe + 0.35).toFixed(2) + 's"' : '') + '>' +
         '<div class="v2-a-fade">' + V.hdHtml('Next Game', D.見出し) + '</div>' +
         '<div class="v2-dec">' +
-          V.tile(g.world, 'v2-a-slam v2-d1') +
-          '<div class="v2-gname v2-a-slam v2-d2">' + gnameHtml(g, 'v2-gname-t') + '</div>' +
-          '<div class="v2-who5 v2-a-rise v2-d3">' + e(who) + '</div>' +
+          tile +
+          '<div class="v2-gname v2-a-slam' + (待つ ? '"' + at(tl.stop) : ' v2-d2"') + '>' + gnameHtml(g, 'v2-gname-t') + '</div>' +
+          '<div class="v2-who5 v2-a-rise' + (待つ ? '"' + at(tl.who) : ' v2-d3"') + '>' + e(who) + '</div>' +
           // 指示68-1：投票を飛ばした時（候補1つ）は、投票していないので「自分の投票」を出さない
-          (p.lot === 'single' ? '' : '<div class="v2-myv v2-a-rise v2-d4">' + e(my) + '</div>') +
+          (p.lot === 'single' ? '' : '<div class="v2-myv v2-a-rise' + (待つ ? '"' + at(tl.who) : ' v2-d4"') + '>' + e(my) + '</div>') +
         '</div>' +
       '</div>';
   }

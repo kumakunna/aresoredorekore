@@ -433,6 +433,16 @@
    * 指示68-T 2：ルールのシートの中身。くわしい説明（detail＝MODES の bullets から、文化祭で要らない行を抜いた物）があれば、それを全部。
    * 無い時は札と同じ大きな3つ。g：{ rules, detail }
    */
+  /**
+   * 指示68-T 二の束3：TV がいる部屋のスマホは、TV の台本で同じ物が出る時刻まで結果を出さない（そろえて発射の phoneRevealHtml と同じ考え）。
+   * hasTv：部屋に、つながっている TV がいるか。tvAt(view, 秒)：その部品に「TV で出る秒」を付ける（TV がいなければ何も付けない＝今までどおりすぐ出す）。
+   * 秒は TV の「ふつう」の速さの秒（文化祭の TV は「ふつう」に決めてある・指示68-T 5）。スマホの演出の速さはかけない（はやい・なしでも TV より先に出ない）。
+   * 隠すのと出すのは index.html の tvWaitApply（画面を描くたびに、最初に描いた時からの経過で残りを数え直す）
+   */
+  function hasTv(view) {
+    return ((view && view.members) || []).some(function (m) { return m.role === 'bigscreen' && m.connected !== false; });
+  }
+  function tvAt(view, sec) { return hasTv(view) ? ' data-tvat="' + Math.max(0, +sec || 0).toFixed(2) + '"' : ''; }
   function rulesBodyHtml(g) {
     var list = (g && g.detail) || [];
     if (!list.length) return rulesBigHtml(g && g.rules);
@@ -493,7 +503,7 @@
     nameWallHtml: nameWallHtml, glow: glow, fitTv: fitTv,
     bgHtml: bgHtml, brandHtml: brandHtml, hdHtml: hdHtml, cornerHtml: cornerHtml, avHtml: avHtml, meHtml: meHtml,
     bandHtml: bandHtml, toastHtml: toastHtml, scrimHtml: scrimHtml, sheetHtml: sheetHtml, xHtml: xHtml, dlgHtml: dlgHtml,
-    rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rulesBodyHtml: rulesBodyHtml, rheadHtml: rheadHtml, rowHtml: rowHtml,
+    rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rulesBodyHtml: rulesBodyHtml, hasTv: hasTv, tvAt: tvAt, rheadHtml: rheadHtml, rowHtml: rowHtml,
     tmemHtml: tmemHtml, tbandHtml: tbandHtml
   };
 }));

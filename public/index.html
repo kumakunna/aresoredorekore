@@ -5218,6 +5218,9 @@
   .v2 .v2-ochoice .v2-vn{font-size:21px;}
   .v2 .v2-ochoice[aria-disabled="true"]{cursor:default;}
   .v2 .v2-ounv{position:relative;display:flex;flex-direction:column;gap:10px;margin-top:12px;}
+  /* 指示68-T 二の束3：TV がいる部屋のスマホは、TV で同じ物が出るまで隠す（中の動きも止めておき、出す時に頭から動く） */
+  .v2 .is-tvwait{visibility:hidden !important;}
+  .v2 .is-tvwait,.v2 .is-tvwait *{animation-play-state:paused !important;}
   .v2 .v2-osay{position:absolute;left:0;right:0;top:30%;z-index:2;text-align:center;font-weight:900;font-size:48px;color:var(--wi);opacity:0;pointer-events:none;}
   .v2.is-play .v2-osay{animation:v2-osay calc(.9s * var(--fx-scale)) var(--v2-ease) both;}
   .v2 .v2-oqs{font-weight:900;font-size:17px;line-height:1.35;color:var(--ws);}
@@ -5822,8 +5825,10 @@
   .v2 .v2-otags.is-solo .v2-otag-f{width:130px;height:130px;font-size:84px;}
   .v2.is-play .v2-otag{animation:v2-otag calc(.45s * var(--fx-scale)) var(--v2-pop) both;}
   @keyframes v2-otag{from{opacity:0;transform:translate(var(--sx),var(--sy)) scale(.25);}}
-  .v2 .v2-oplus{position:absolute;right:-6px;top:-30px;font-style:normal;font-size:44px;color:#FFD84A;text-shadow:0 2px 0 rgba(0,0,0,.35);opacity:0;}
-  .v2.is-play .v2-oplus{animation:v2-oplus calc(1.1s * var(--fx-scale)) ease both;}
+  /* TV の名前の札の「+1点！」だけ（指示68-T 二の束3 で見つけた：.v2-otag で絞っていなかったので、スマホの自分の結果の「+5点」「+1点！」まで
+     右上へ飛んでボタンに重なり、1.1秒で消えていた。check.js の pt-reveal・onaji-unveil の6件） */
+  .v2 .v2-otag .v2-oplus{position:absolute;right:-6px;top:-30px;font-style:normal;font-size:44px;color:#FFD84A;text-shadow:0 2px 0 rgba(0,0,0,.35);opacity:0;}
+  .v2.is-play .v2-otag .v2-oplus{animation:v2-oplus calc(1.1s * var(--fx-scale)) ease both;}
   @keyframes v2-oplus{0%{opacity:0;transform:translateY(16px);}25%{opacity:1;transform:none;}75%{opacity:1;}100%{opacity:0;transform:translateY(-36px);}}
   /* 一致団結・ばらばら：冠のかわりに、冠の時に帯 */
   .v2 .v2-oban-at{position:absolute;left:0;right:0;top:40%;display:flex;justify-content:center;z-index:3;pointer-events:none;}
@@ -32711,6 +32716,7 @@
     scr.classList.toggle('is-play', f.phase === 'decide' && (lab ? !!lab.play : fes.playAnim !== key + cur));
     if(f.phase === 'decide' && !lab && cur === 'scr-v2-fes-tv' && scr.classList.contains('is-play')) fesDecideFx(view);
     if(f.phase === 'decide') fes.playAnim = key + cur;
+    if(!lab && cur !== 'scr-v2-fes-tv') tvWaitApply(scr, 'fes:' + key);   // 指示68-T 二の束3：TV がいる部屋のスマホは、TV で出る時刻まで隠す
     back();
     V2.mount(scr);
     if(cur === 'scr-v2-fes-tv'){
@@ -32771,6 +32777,7 @@
     var M = G.mod();
     scr.innerHTML = tv ? M.tv(view) : M.phone(view);
     scr.classList.toggle('is-play', first && G.play.indexOf(d.phase) !== -1);
+    if(!lab && !tv) tvWaitApply(scr, key);
     if(first && !lab) G.fx(view, tv, key);
     // 決着の祝い（クリア演出）は全ゲーム共通の1か所（rtClearFx）。この画面は共通の描き分けより前で返るので、ここから呼ぶ
     if(!lab) rtClearFx(d);
@@ -32796,7 +32803,8 @@
         return;
       }
       var got = d.mode !== 'team' && !r.scatter && typeof me.myChoice === 'number' && (r.winners || []).indexOf(me.myChoice) !== -1;
-      if(got || (d.mode === 'team' && r.together)){ sfx('cheer'); FxKit.vibe('ok'); }
+      // 指示68-T 二の束3：TV がいる部屋では、TV の名前の札と同じ時刻に
+      if(got || (d.mode === 'team' && r.together)) tvWaitDo(view, V2Onaji.timeline(view).tags, function(){ sfx('cheer'); FxKit.vibe('ok'); });
     }
   }
 
@@ -32831,7 +32839,7 @@
       return;
     }
     // スマホ：当たったら大きくほめる。まちがいは鳴らさない（責めない）
-    if(me.myRight === true){ sfx('ok'); FxKit.vibe('ok'); }
+    if(me.myRight === true) tvWaitDo(view, V2Quiz2.haya.timeline(view).stop, function(){ sfx('ok'); FxKit.vibe('ok'); });   // 指示68-T 二の束3：TV の正解と同じ時刻に
   }
   /** 数字ちかい方の音：開く：札ごとに「トン」→ 旗が刺さる「ドン」と声「正解は……」（v16）→ 「いちばん近かったのは……」（v19）／ぴったりは v18 */
   function qnearFx(view, tv, key){
@@ -32849,7 +32857,7 @@
       v2FxAt(tl.end, function(){ if((r.perfect || []).length){ 声('v18'); sfx('fanfare'); } else if((r.crowned || []).length){ 声('v19'); sfx('cheer'); } }, true);
       return;
     }
-    if(me.myRank === 1){ sfx(me.myDiff === 0 ? 'fanfare' : 'ok'); FxKit.vibe('ok'); }
+    if(me.myRank === 1) tvWaitDo(view, V2Quiz2.near.timeline(r.rows || []).end, function(){ sfx(me.myDiff === 0 ? 'fanfare' : 'ok'); FxKit.vibe('ok'); });   // 指示68-T 二の束3：TV の冠と同じ時刻に
   }
   function qhayaPick(b, scr){
     if(b.getAttribute('aria-disabled') === 'true') return;
@@ -32934,6 +32942,30 @@
    * 見せ場の音は、画面と同じ時刻表（V2Pittari.timeline・V2Soroe.timeline）で鳴らす（台本の「音」の列）。
    * 時刻は「演出の速さ」をかける。演出「なし」の時は、最後の音だけをすぐ鳴らす
    */
+  /**
+   * 指示68-T 二の束3：TV がいる部屋のスマホは、TV の台本で同じ物が出る時刻まで結果を出さない。
+   * 部品に付いた data-tvat（V2.tvAt・TV の「ふつう」の秒）まで、.is-tvwait で隠して動きも止めておく（止めた動きは、出す時に頭から動く）。
+   * 時計は「この段階を最初に描いた時」から。描き直しても数え直さない（残りだけ待つ）。演出の速さはかけない（なしでも TV より先に出さない）
+   */
+  var tvWait = { key: null, t0: 0, timers: [] };
+  function tvWaitApply(scr, key){
+    if(tvWait.key !== key){ tvWait.key = key; tvWait.t0 = performance.now(); }
+    tvWait.timers.forEach(clearTimeout); tvWait.timers = [];
+    Array.prototype.forEach.call(scr.querySelectorAll('[data-tvat]'), function(n){
+      var ms = tvWaitMs(+n.getAttribute('data-tvat'));
+      if(ms <= 0) return;
+      n.classList.add('is-tvwait');
+      tvWait.timers.push(setTimeout(function(){ n.classList.remove('is-tvwait'); }, ms));
+    });
+  }
+  /** TV の秒 sec まで、あと何ミリ秒か（この段階を最初に描いた時から） */
+  function tvWaitMs(sec){ return Math.max(0, sec * 1000 - (performance.now() - tvWait.t0)); }
+  /** 指示68-T 二の束3：スマホの音と震えを、TV で同じ物が出る時刻に（TV がいなければすぐ） */
+  function tvWaitDo(view, sec, fn){
+    if(!V2.hasTv(view)) return fn();
+    setTimeout(fn, tvWaitMs(sec));
+  }
+  window.tvWaitProbe = function(){ return { key: tvWait.key, waiting: document.querySelectorAll('.screen.active .is-tvwait').length }; };
   function v2FxAt(sec, fn, last){
     if(fxMs(1000) <= 0){ if(last) fn(); return; }
     setTimeout(fn, fxMs(sec * 1000));
@@ -32965,7 +32997,8 @@
       }, true);
       return;
     }
-    if(me.myRank === 1){ sfx('cheer'); FxKit.vibe('ok'); }
+    // 指示68-T 二の束3：TV がいる部屋では、TV の冠と同じ時刻に
+    if(me.myRank === 1) tvWaitDo(view, V2Pittari.timeline(r.rows || []).end, function(){ sfx('cheer'); FxKit.vibe('ok'); });
   }
 
   // ---- 指示68-4：そろえて発射。**押した時刻を、サーバーの時刻に直して送る**（時計合わせ：SoroeLogic.offsetOf） ----

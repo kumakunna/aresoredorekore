@@ -3,6 +3,8 @@
 // 見るもの（門6・門10・門11）：
 //   ・だれが鳴らすか：TV は全部・TV がいる部屋のスマホは「コツ」だけ・TV が無い遊び方はスマホが全部・音量 0 は何も
 //   ・声は TV だけ。ファイルが無い言葉は何も鳴らさない（止まらない）。ある時は毎回変わる
+//   ・**指示68-T 3：声は全部止めた**（TV でも鳴らさない・読み込まない。ファイルは残す）
+//   ・指示68-T 4：同じ効果音は同時に3つまで
 //   ・ファイルが読めない時は今の電子音（代わり）で鳴る。AudioContext は1つを使い回す
 //   ・index.html から電子音（beep・buzz など）を直に呼んでいる所が、箱の「代わり」と電子音どうしの中だけ
 const fs = require('fs');
@@ -59,8 +61,9 @@ function 箱(o) {
       [{ tv: true, tvInRoom: true }, 0, 'ok', false], [{ tv: false, tvInRoom: true }, 0, 'tap', false]
     ];
     表.forEach(([w, vol, id, want]) => assertEqual(Sound.shouldPlay(id, w, vol), want, JSON.stringify(w) + ' 音量' + vol + ' の ' + id));
-    // 声は TV だけ（TV が無くてもスマホでは鳴らさない）
-    assertEqual(Sound.voiceShouldPlay({ tv: true }, 1), true, 'TV は声を鳴らす');
+    // 声は止めた（指示68-T 3）：TV でも鳴らさない。スマホは前から鳴らさない
+    assertEqual(Sound.voiceShouldPlay({ tv: true }, 1), false, '指示68-T 3：TV でも声を鳴らさない');
+    assertEqual(Sound.VOICE_ON, false, '声のスイッチは切');
     assertEqual(Sound.voiceShouldPlay({ tv: false, tvInRoom: false }, 1), false, 'TV が無い時もスマホは声を鳴らさない');
     assertEqual(Sound.voiceShouldPlay({ tv: true }, 0), false, '音量0の TV は鳴らさない');
   });
@@ -75,15 +78,14 @@ function 箱(o) {
     assertEqual(代わり.join(','), 'ok,miss', '代わりが呼ばれた');
   });
 
-  await r.test('門6：声のファイルが無くても止まらない／ある時は毎回変わる／スマホでは鳴らない', async () => {
+  await r.test('門6：声は止めた（TV でも鳴らない・指示68-T 3）／効果音は毎回変わる／スマホでは鳴らない', async () => {
     const 音 = 偽の音();
     const 配り手 = 偽の配り手({ se: { ok: 3 }, voice: { v24: 2 } });
     箱({ fetch: 配り手.f, makeContext: 音.make, rnd: () => 0 });
     await Sound.preload('tv');
-    assertEqual(Sound.voice('v25'), 'none', 'ファイルが無い言葉は何も鳴らさない');
-    const 鳴った = [];
-    for (let i = 0; i < 6; i++) { assertEqual(Sound.voice('v24'), 'file', '声が鳴る'); 鳴った.push(音.記録.鳴った[音.記録.鳴った.length - 1]); }
-    for (let i = 1; i < 鳴った.length; i++) assert(鳴った[i] !== 鳴った[i - 1], '同じ声が続かない（' + 鳴った.join(' ') + '）');
+    assertEqual(Sound.voice('v25'), 'off', 'TV でも声は鳴らさない（ファイルが無い言葉）');
+    assertEqual(Sound.voice('v24'), 'off', 'TV でも声は鳴らさない（ファイルがある言葉）');
+    assertEqual(音.記録.鳴った.length, 0, '何も鳴っていない');
     // 効果音も同じ（3本から、前と違う1本）
     const 効果 = [];
     for (let i = 0; i < 6; i++) { Sound.play('ok'); 効果.push(音.記録.鳴った[音.記録.鳴った.length - 1]); }
@@ -91,6 +93,30 @@ function 箱(o) {
     // スマホ（TV がいる部屋）では声を鳴らさない
     Sound.setup({ where: () => ({ tv: false, tvInRoom: true }) });
     assertEqual(Sound.voice('v24'), 'off', 'スマホでは声を鳴らさない');
+  });
+
+  await r.test('指示68-T 4：同じ効果音は同時に3つまで（4つ目は鳴らさない）。鳴り終わればまた鳴る・ほかの音は数えない', async () => {
+    const 記録 = { 鳴った: [] };
+    const c = {
+      state: 'running', destination: {}, currentTime: 0,
+      decodeAudioData: (ab, ok) => ok({ from: ab.url, duration: 0.1 }),
+      createBufferSource: () => ({ playbackRate: { value: 1 }, connect() {}, start() { 記録.鳴った.push(this.buffer.from); } })
+    };
+    箱({ fetch: 偽の配り手({ se: { tap: 3, ok: 1 } }).f, makeContext: () => c });
+    await Sound.preload('all');
+    const 結果 = [];
+    for (let i = 0; i < 5; i++) 結果.push(Sound.play('tap'));
+    assertEqual(結果.join(','), 'file,file,file,full,full', '同じ瞬間の tap は3つまで');
+    assertEqual(Sound.play('ok'), 'file', 'ほかの音は数えない');
+    c.currentTime = 0.05;
+    assertEqual(Sound.play('tap'), 'full', 'まだ3つ鳴っている');
+    c.currentTime = 0.11;
+    assertEqual(Sound.play('tap'), 'file', '鳴り終われば、また鳴る');
+    // 高さを上げると早く終わる（長さ÷高さ）
+    c.currentTime = 1; Sound.play('tap', { rate: 2 }); Sound.play('tap', { rate: 2 }); Sound.play('tap', { rate: 2 });
+    c.currentTime = 1.06;
+    assertEqual(Sound.play('tap'), 'file', '高さ2倍の音は 0.05秒で終わる');
+    assertEqual(Sound.MAX_SAME, 3, '上限は3');
   });
 
   await r.test('門11：AudioContext は1つを使い回す（1回ごとに作ると6個前後で音が止まる）', async () => {
@@ -110,7 +136,8 @@ function 箱(o) {
     assertEqual(配り手.頼まれた.filter((u) => /\.mp3$/.test(u)).join(','), 'sound/se/tap-1.mp3,sound/se/tap-2.mp3', 'スマホはコツだけ');
     await Sound.preload('tv');
     const 声 = 配り手.頼まれた.filter((u) => /voice\//.test(u));
-    assertEqual(声.length, 2, 'TV は声も読む');
+    assertEqual(声.length, 0, '指示68-T 3：TV も声は読まない（効果音だけ）');
+    assert(配り手.頼まれた.some((u) => /se\/boom-1\.mp3$/.test(u)), 'TV は効果音を全部読む');
     const 前 = 配り手.頼まれた.length;
     await Sound.preload('tv');
     assertEqual(配り手.頼まれた.length, 前, '2回目は何も読まない');

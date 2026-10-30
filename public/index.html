@@ -14246,12 +14246,31 @@
       // 第32弾-C：ここは ctx.destination。以前はここで出口自身を呼んでいて、
       // ctx.__out がまだ空なので自分を呼び続け、例外で catch に落ちていた。
       // 結果として音量つまみが1つも効いていなかった（スピーカー直結だった）。
-      g.connect(ctx.destination);
+      // 指示68-T 4：音量のつまみの先にリミッターを1つ（大きすぎる音をおさえる。重なっても割れない）。
+      // 作れない古いブラウザでは、今までどおりスピーカーへ直に
+      var lim = sfxLimiter(ctx);
+      g.connect(lim || ctx.destination);
+      if(lim) lim.connect(ctx.destination);
       ctx.__out = g;
       sfxOuts.push(g);
       return g;
     }catch(e){ return ctx.destination; }
   }
+  /**
+   * 指示68-T 4：リミッター（DynamicsCompressorNode）。MDN の初期値（threshold −24・knee 30・ratio 12）では
+   * ふつうの音までつぶれるので、−6dB より上だけを強くおさえる形にする。
+   * 検査（tests/sound-peak.js）が OfflineAudioContext で同じ物を作って、ピークを測る
+   */
+  var SFX_LIMITER = { threshold: -6, knee: 0, ratio: 20, attack: 0.003, release: 0.25 };
+  function sfxLimiter(ctx){
+    if(!ctx || !ctx.createDynamicsCompressor) return null;
+    try{
+      var c = ctx.createDynamicsCompressor();
+      Object.keys(SFX_LIMITER).forEach(function(k){ if(c[k] && 'value' in c[k]) c[k].value = SFX_LIMITER[k]; });
+      return c;
+    }catch(e){ return null; }
+  }
+  window.sfxOutProbe = function(ctx){ return sfxOut(ctx); };
   // 振動も1か所にまとめる。設定でOFFにしたら、どこからも鳴らない
   function doVibrate(pattern){
     if(!appPrefs.vibrate) return;
@@ -32414,6 +32433,11 @@
   };
   function v2GameOf(id){ var m = /^scr-v2-([a-z]+?)(-tv)?$/.exec(id || ''); return m && V2GAMES[m[1]] ? m[1] : null; }
   var v2game = { endKey: null, end: null, played: null };
+  /** 指示68-T 4：見せ場の音を、本番と同じ関数で鳴らす窓（tools/sound-peak.js が鳴った順と時刻を記録して、重ねて測る）。lab：見本データ { room, you, meId } */
+  window.v2GameFxProbe = function(game, lab, tv){
+    var d = lab.room.state.data;
+    V2GAMES[game].fx({ data: d, you: lab.you || {}, meId: lab.meId, members: lab.room.members || [] }, !!tv, 'probe:' + game + ':' + d.round + ':' + d.phase + ':' + Date.now());
+  };
   function v2GameRender(cur, lab){
     var room = lab ? lab.room : (rt && rt.state.room); if(!room) return;
     var scr = el(cur); if(!scr) return;

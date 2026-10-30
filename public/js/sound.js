@@ -7,6 +7,10 @@
 //   ・音は TV だけで鳴らす。スマホは「押した時のコツ」（tap）1つだけ
 //   ・TV が無い遊び方（1台で遊ぶ・TV をつないでいない部屋）の時だけ、スマホで TV の音を鳴らす
 //   ・司会の声は TV だけ。スマホでは鳴らさない（TV が無くても鳴らさない）
+//   ・**指示68-T 3（10/30 のあそびテストのあと）：声は全部止める。TV でも鳴らさない・読み込まない。**
+//     声のファイルと差し込み口（voice）は残す（もどす時は voiceShouldPlay と preload の2か所）。
+//     声だけで合図していた所は、字と効果音に置きかえた（docs/監査_指示68-Tの門.md に一覧）
+//   ・**同じ音は、同時に3つまで**（MAX_SAME。4つ目は鳴らさない）。重なると割れる（指示68-T 4）
 //   ・音量（効果音のつまみ・一時ミュート）が 0 なら、何も鳴らさない
 //
 // ---- ファイル ----
@@ -33,6 +37,10 @@
     'v14', 'v15', 'v16', 'v17', 'v18', 'v19', 'v20', 'v21', 'v22', 'v23', 'v24', 'v25', 'v26', 'v27', 'v28', 'v29',
     'v30', 'v31', 'v32', 'v33'];
   var PHONE_ONLY = ['tap'];
+  /** 指示68-T 4：同じ効果音が同時に鳴ってよい数。みんなと同じの玉（16人で1.2秒に16回）・そろえて発射の火の粒が重なる */
+  var MAX_SAME = 3;
+  /** 指示68-T 3：司会の声を止める（ファイルは残す）。もどす時はここを true に */
+  var VOICE_ON = false;
 
   var cfg = {
     base: 'sound/',
@@ -44,7 +52,7 @@
     makeContext: null,                                       // 検査が差しかえる
     rnd: Math.random
   };
-  var st = { ctx: null, manifest: null, manifestTried: false, buffers: {}, last: {}, loading: {}, log: [] };
+  var st = { ctx: null, manifest: null, manifestTried: false, buffers: {}, last: {}, loading: {}, log: [], busy: {} };
 
   /**
    * この端末で、この音を鳴らすか（DOM を見ない・検査が表で回す）。
@@ -57,7 +65,7 @@
     if (w.tvInRoom) return PHONE_ONLY.indexOf(id) !== -1;
     return true;   // TV が無い遊び方：スマホが TV の代わりに鳴らす
   }
-  function voiceShouldPlay(w, vol) { return !!(w && w.tv) && vol > 0; }
+  function voiceShouldPlay(w, vol) { return VOICE_ON && !!(w && w.tv) && vol > 0; }
 
   function ctx() {
     if (st.ctx) return st.ctx;
@@ -122,7 +130,7 @@
         }
       };
       (which === 'tap' ? PHONE_ONLY : IDS).forEach(function (id) { want('se', id); });
-      if (which === 'tv') VOICES.forEach(function (id) { want('voice', id); });
+      if (which === 'tv' && VOICE_ON) VOICES.forEach(function (id) { want('voice', id); });
       return Promise.all(jobs).then(function () { return jobs.length; });
     });
   }
@@ -136,6 +144,23 @@
     var n = choices[Math.floor(cfg.rnd() * choices.length) % choices.length];
     st.last[key] = n;
     return { n: n, buf: st.buffers[kind + '/' + id + '-' + n] };
+  }
+  /**
+   * 指示68-T 4：いま鳴っている同じ音の数。終わる時刻（鳴らした時刻＋長さ÷高さ）で数える
+   *（onended を待つ形だと、OfflineAudioContext で確かめる時に数がずれる）。
+   * 時刻か長さが分からない箱（検査の偽物）では数えない
+   */
+  function sameBusy(id, c) {
+    var now = c && c.currentTime;
+    if (typeof now !== 'number' || !isFinite(now)) return 0;
+    var list = (st.busy[id] || []).filter(function (end) { return end > now + 1e-6; });
+    st.busy[id] = list;
+    return list.length;
+  }
+  function markBusy(id, c, buf, rate) {
+    var now = c && c.currentTime, len = buf && buf.duration;
+    if (typeof now !== 'number' || !isFinite(now) || !(len > 0)) return;
+    (st.busy[id] = st.busy[id] || []).push(now + len / (rate && rate > 0 ? rate : 1));
   }
   /** rate：音の高さ（1＝そのまま。指示68-4 の「1枚ごとに、だんだん高く」） */
   function playBuffer(buf, rate) {
@@ -153,7 +178,7 @@
   function note(what) { st.log.push(what); if (st.log.length > 50) st.log.shift(); return what.how; }
 
   /**
-   * 効果音を鳴らす。返す値：'off'（この端末では鳴らさない）・'file'・'fallback'（電子音）・'none'
+   * 効果音を鳴らす。返す値：'off'（この端末では鳴らさない）・'file'・'fallback'（電子音）・'none'・'full'（同じ音が3つ鳴っている）
    * opt はそのまま代わりの電子音に渡す（3・2・1 の高さなど）
    */
   function play(id, opt) {
@@ -161,8 +186,10 @@
     // force：音量を試すボタンなど、この端末で鳴らすと決まっている時（音量 0 なら鳴らさないのは同じ）
     var here = opt && opt.force ? vol > 0 : shouldPlay(id, cfg.where(), vol);
     if (!here) return note({ id: id, how: 'off' });
+    // 同じ音が3つ鳴っている間は、4つ目を鳴らさない（代わりの電子音も鳴らさない）
+    if (sameBusy(id, ctx()) >= MAX_SAME) return note({ id: id, how: 'full' });
     var p = pick('se', id);
-    if (p && playBuffer(p.buf, opt && opt.rate)) return note({ id: id, how: 'file', n: p.n });
+    if (p && playBuffer(p.buf, opt && opt.rate)) { markBusy(id, st.ctx, p.buf, opt && opt.rate); return note({ id: id, how: 'file', n: p.n }); }
     var fb = cfg.fallback[id];
     if (typeof fb === 'function') { try { fb(opt); } catch (e) {} return note({ id: id, how: 'fallback' }); }
     return note({ id: id, how: 'none' });
@@ -181,10 +208,10 @@
     return api;
   }
   /** 検査用：読み込みと記録を空にする */
-  function reset() { st = { ctx: null, manifest: null, manifestTried: false, buffers: {}, last: {}, loading: {}, log: [] }; }
+  function reset() { st = { ctx: null, manifest: null, manifestTried: false, buffers: {}, last: {}, loading: {}, log: [], busy: {} }; }
 
   var api = {
-    IDS: IDS, VOICES: VOICES, PHONE_ONLY: PHONE_ONLY,
+    IDS: IDS, VOICES: VOICES, PHONE_ONLY: PHONE_ONLY, MAX_SAME: MAX_SAME, VOICE_ON: VOICE_ON,
     setup: setup, play: play, voice: voice, preload: preload, wake: wake,
     shouldPlay: shouldPlay, voiceShouldPlay: voiceShouldPlay,
     log: function () { return st.log.slice(); }, reset: reset,

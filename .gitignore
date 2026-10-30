@@ -28,3 +28,6 @@ docs/声の素材/
 
 # Claude Code の端末だけの許可（earshot の python など）
 .claude/settings.local.json
+
+# 指示68-T：音のピークの記録・写真・動画（tools/sound-peak.js などが作る）
+docs/監査_指示68-Tの画像/

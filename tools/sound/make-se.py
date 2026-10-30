@@ -9,9 +9,12 @@
 # **音は下の表 SE から作る。手でファイルを直さない**（作り直すと同じ音になる：部品の seed を表に書いてある）。
 # 1つの ID に 2〜3本（鳴らすたびに変える）。1本は「部品の重ね」：(部品, 高さ, 始まりの秒, 重さ, seed) の並び。
 #
-# 大きさ：どの音も「瞬間の大きさの最大（LUFS momentary max）」を TARGET ±2LU にそろえ、最大は -1dBFS 以下。
-#   静かすぎて目標に届かない部品は使わない（ここで止まる）。爆発（boom）だけは帯のいちばん上（TARGET+2）に置く
-#   ＝大きな音は爆発の1回だけ（安全の決まり）。高すぎる音（hover_tick/high など）・長く続く音は使わない
+# 大きさ（指示68-T 4・10/30 のあそびテストで「割れる」と言われて直した）：
+#   「瞬間の大きさの最大（LUFS momentary max）」を、音の役ごとの段（LEVEL）にそろえる。±BAND。
+#   大きい出来事（解除・ファンファーレ・歓声）は大きく、tap・tick のような小さい合図は小さく。爆発（boom）がいちばん上。
+#   **どの音も、いちばん大きい所（ピーク）が -3dBFS を超えない**（mp3 にしてから読みもどして測る）。
+#   それまでは全部 -25 にそろえていて、短い音（tick・tap・ng・gavel）は -1dB 近くまで上げないと届かなかった＝2つ重なると割れた。
+#   静かすぎて段に届かない部品は使わない（ここで止まる）。高すぎる音（hover_tick/high など）・長く続く音は使わない
 #
 # 出すもの：
 #   public/sound/se/<ID>-<n>.mp3       アプリが読む
@@ -36,9 +39,10 @@ from earshot.forge import bank
 from earshot.forge.polish import lufs_max
 
 SR = 48000
-TARGET = -25.0      # LUFS momentary max（短いクリックは最大 -1dB でも -24〜-27 までしか届かないので、そこに合わせて大きい音を下げる）
-BAND = 2.0          # ±LU
-PEAK = -1.0         # dBFS 以下
+TARGET = -26.0      # LUFS momentary max・ふつうの合図（中の段）
+BAND = 1.5          # ±LU
+PEAK = -3.0         # dBFS 以下（mp3 を読みもどした値で見る）
+PEAK_IN = -3.6      # 書き出す前の上限（mp3 にすると少し上がるので、その分あける）
 
 def P(sound, pitch=None, at=0.0, w=1.0, seed=None, dur=None):
     return {'sound': sound, 'pitch': pitch, 'at': at, 'w': w, 'seed': seed, 'dur': dur}
@@ -86,7 +90,12 @@ SE = {
     # クイズ解除：爆発（大きな音はこの1回だけ）
     'boom':    [[P('impact/blast', dur=2.5)]],
 }
-LOUD = {'boom': TARGET + BAND}   # ID ごとの目標（無ければ TARGET）
+# 音の役ごとの段（LUFS momentary max）。無い ID は TARGET（中）
+LEVEL = {
+    'boom': -22.0,                                                     # 爆発：いちばん上
+    'defuse': -23.0, 'fanfare': -23.0, 'cheer': -23.0,                 # 大きい出来事
+    'tap': -29.5, 'tick': -29.5, 'spark': -29.5, 'ng': -29.5, 'gavel': -29.5,   # 小さい合図（短いので、ピーク -3dB ではここまでしか届かない）
+}
 
 def mono(y):
     y = np.asarray(y, np.float64)
@@ -117,7 +126,7 @@ def build(recipe):
 
 def fit_level(y, target):
     """瞬間の大きさの最大を target に。最大が PEAK を超えるなら PEAK で止める（その時は届かない＝表を直す）"""
-    y = y / (np.abs(y).max() + 1e-12) * 10 ** (PEAK / 20)
+    y = y / (np.abs(y).max() + 1e-12) * 10 ** (PEAK_IN / 20)
     l = lufs_max(y)
     g = 10 ** ((target - l) / 20)
     if g > 1:
@@ -130,18 +139,25 @@ def mp3_bytes(y):
     sf.write(buf, y.astype(np.float32), SR, format='MP3')
     return buf.getvalue()
 
+def decoded_peak(b):
+    """mp3 を読みもどした時のピーク（dBFS）。mp3 にすると波の形が少し変わって、ピークが上がる"""
+    y, _ = sf.read(io.BytesIO(b), dtype='float64')
+    return float(20 * np.log10(np.abs(mono(y)).max() + 1e-12))
+
 def make_all():
     files, rec, bad = {}, {}, []
     for sid, takes in SE.items():
-        target = LOUD.get(sid, TARGET)
+        target = LEVEL.get(sid, TARGET)
         for i, recipe in enumerate(takes, 1):
             y, l, pk = fit_level(build(recipe), target)
             name = f'{sid}-{i}'
-            ok = abs(l - target) <= (0.5 if sid in LOUD else BAND) or (abs(l - TARGET) <= BAND)
-            if pk > PEAK + 0.01 or abs(l - TARGET) > BAND + (BAND if sid in LOUD else 0):
-                bad.append(f'{name}: 大きさ {l:.1f} LUFS（目標 {target:.0f}±{BAND:.0f}）・最大 {pk:.1f} dB')
-            files[name] = (y, mp3_bytes(y))
-            rec[name] = {'lufs_m_max': round(l, 2), 'peak_db': round(pk, 2), 'dur_s': round(len(y) / SR, 3),
+            b = mp3_bytes(y)
+            pk_mp3 = decoded_peak(b)
+            if pk_mp3 > PEAK or abs(l - target) > BAND:
+                bad.append(f'{name}: 大きさ {l:.1f} LUFS（目標 {target:.1f}±{BAND}）・最大 {pk_mp3:.2f} dB（mp3）')
+            files[name] = (y, b)
+            rec[name] = {'lufs_m_max': round(l, 2), 'target': target, 'peak_db': round(pk, 2), 'peak_db_mp3': round(pk_mp3, 2),
+                         'dur_s': round(len(y) / SR, 3),
                          'parts': [{k: v for k, v in p.items() if v is not None} for p in recipe]}
     return files, rec, bad
 
@@ -172,7 +188,7 @@ def main():
     idx.setdefault('voice', {})
     json.dump(idx, open(ip, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     louds = [r['lufs_m_max'] for r in rec.values()]
-    json.dump({'target_lufs_m_max': TARGET, 'band_lu': BAND, 'peak_max_db': PEAK,
+    json.dump({'target_lufs_m_max': TARGET, 'levels': LEVEL, 'band_lu': BAND, 'peak_max_db': PEAK,
                'range_lufs': [min(louds), max(louds)], 'files': rec},
               open(os.path.join(ROOT, 'tools', 'sound', '記録.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     # 見本帳：全部を順番に（0.7秒あけて）1つの mp3 に

@@ -1,15 +1,28 @@
 {
- "target_lufs_m_max": -25.0,
- "band_lu": 2.0,
- "peak_max_db": -1.0,
+ "target_lufs_m_max": -26.0,
+ "levels": {
+  "boom": -22.0,
+  "defuse": -23.0,
+  "fanfare": -23.0,
+  "cheer": -23.0,
+  "tap": -29.5,
+  "tick": -29.5,
+  "spark": -29.5,
+  "ng": -29.5,
+  "gavel": -29.5
+ },
+ "band_lu": 1.5,
+ "peak_max_db": -3.0,
  "range_lufs": [
-  -26.97,
-  -23.0
+  -29.57,
+  -22.0
  ],
  "files": {
   "tick-1": {
-   "lufs_m_max": -25.51,
-   "peak_db": -1.0,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -4.99,
+   "peak_db_mp3": -4.87,
    "dur_s": 0.082,
    "parts": [
     {
@@ -20,8 +33,10 @@
    ]
   },
   "tick-2": {
-   "lufs_m_max": -26.97,
-   "peak_db": -1.0,
+   "lufs_m_max": -29.57,
+   "target": -29.5,
+   "peak_db": -3.6,
+   "peak_db_mp3": -3.75,
    "dur_s": 0.082,
    "parts": [
     {
@@ -32,8 +47,10 @@
    ]
   },
   "tick-3": {
-   "lufs_m_max": -26.28,
-   "peak_db": -1.0,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -4.22,
+   "peak_db_mp3": -3.21,
    "dur_s": 0.065,
    "parts": [
     {
@@ -44,8 +61,10 @@
    ]
   },
   "count-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -12.28,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -13.28,
+   "peak_db_mp3": -13.31,
    "dur_s": 0.59,
    "parts": [
     {
@@ -59,8 +78,10 @@
    ]
   },
   "count-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -14.29,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -15.29,
+   "peak_db_mp3": -15.3,
    "dur_s": 0.591,
    "parts": [
     {
@@ -74,8 +95,10 @@
    ]
   },
   "ok-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -12.73,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -13.73,
+   "peak_db_mp3": -13.68,
    "dur_s": 0.804,
    "parts": [
     {
@@ -95,8 +118,10 @@
    ]
   },
   "ok-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -13.9,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -14.9,
+   "peak_db_mp3": -14.91,
    "dur_s": 0.807,
    "parts": [
     {
@@ -116,8 +141,10 @@
    ]
   },
   "ok-3": {
-   "lufs_m_max": -25.0,
-   "peak_db": -13.66,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -14.66,
+   "peak_db_mp3": -14.65,
    "dur_s": 0.804,
    "parts": [
     {
@@ -137,8 +164,10 @@
    ]
   },
   "decide-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -13.85,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -14.85,
+   "peak_db_mp3": -14.78,
    "dur_s": 1.042,
    "parts": [
     {
@@ -158,8 +187,10 @@
    ]
   },
   "decide-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -14.76,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -15.76,
+   "peak_db_mp3": -15.76,
    "dur_s": 1.042,
    "parts": [
     {
@@ -179,8 +210,10 @@
    ]
   },
   "tap-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -1.18,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -5.68,
+   "peak_db_mp3": -5.24,
    "dur_s": 0.09,
    "parts": [
     {
@@ -191,8 +224,10 @@
    ]
   },
   "tap-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -1.7,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -6.2,
+   "peak_db_mp3": -6.23,
    "dur_s": 0.12,
    "parts": [
     {
@@ -203,8 +238,10 @@
    ]
   },
   "tap-3": {
-   "lufs_m_max": -25.0,
-   "peak_db": -1.85,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -6.35,
+   "peak_db_mp3": -6.42,
    "dur_s": 0.116,
    "parts": [
     {
@@ -215,8 +252,10 @@
    ]
   },
   "ng-1": {
-   "lufs_m_max": -25.91,
-   "peak_db": -1.0,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -4.59,
+   "peak_db_mp3": -4.59,
    "dur_s": 0.132,
    "parts": [
     {
@@ -227,8 +266,10 @@
    ]
   },
   "ng-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -1.05,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -5.55,
+   "peak_db_mp3": -5.69,
    "dur_s": 0.116,
    "parts": [
     {
@@ -239,8 +280,10 @@
    ]
   },
   "miss-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -5.77,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -6.77,
+   "peak_db_mp3": -6.8,
    "dur_s": 0.206,
    "parts": [
     {
@@ -251,8 +294,10 @@
    ]
   },
   "miss-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -4.48,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -5.48,
+   "peak_db_mp3": -5.48,
    "dur_s": 0.245,
    "parts": [
     {
@@ -264,8 +309,10 @@
    ]
   },
   "fanfare-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -13.86,
+   "lufs_m_max": -23.0,
+   "target": -23.0,
+   "peak_db": -11.86,
+   "peak_db_mp3": -11.88,
    "dur_s": 1.351,
    "parts": [
     {
@@ -299,8 +346,10 @@
    ]
   },
   "fanfare-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -12.53,
+   "lufs_m_max": -23.0,
+   "target": -23.0,
+   "peak_db": -10.53,
+   "peak_db_mp3": -10.45,
    "dur_s": 1.342,
    "parts": [
     {
@@ -312,8 +361,10 @@
    ]
   },
   "cheer-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -9.1,
+   "lufs_m_max": -23.0,
+   "target": -23.0,
+   "peak_db": -7.1,
+   "peak_db_mp3": -6.99,
    "dur_s": 1.16,
    "parts": [
     {
@@ -346,8 +397,10 @@
    ]
   },
   "cheer-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -9.04,
+   "lufs_m_max": -23.0,
+   "target": -23.0,
+   "peak_db": -7.04,
+   "peak_db_mp3": -7.01,
    "dur_s": 1.09,
    "parts": [
     {
@@ -364,8 +417,10 @@
    ]
   },
   "timeup-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -13.92,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -14.92,
+   "peak_db_mp3": -15.0,
    "dur_s": 1.047,
    "parts": [
     {
@@ -385,8 +440,10 @@
    ]
   },
   "timeup-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -14.22,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -15.22,
+   "peak_db_mp3": -15.2,
    "dur_s": 1.047,
    "parts": [
     {
@@ -406,8 +463,10 @@
    ]
   },
   "gavel-1": {
-   "lufs_m_max": -25.79,
-   "peak_db": -1.0,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -4.71,
+   "peak_db_mp3": -4.71,
    "dur_s": 0.144,
    "parts": [
     {
@@ -418,8 +477,10 @@
    ]
   },
   "gavel-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -2.46,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -6.96,
+   "peak_db_mp3": -6.95,
    "dur_s": 0.138,
    "parts": [
     {
@@ -431,8 +492,10 @@
    ]
   },
   "sold-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -7.49,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -8.49,
+   "peak_db_mp3": -8.48,
    "dur_s": 0.365,
    "parts": [
     {
@@ -448,8 +511,10 @@
    ]
   },
   "sold-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -5.52,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -6.52,
+   "peak_db_mp3": -6.51,
    "dur_s": 0.232,
    "parts": [
     {
@@ -466,8 +531,10 @@
    ]
   },
   "cut-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -5.23,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -6.23,
+   "peak_db_mp3": -6.32,
    "dur_s": 0.39,
    "parts": [
     {
@@ -479,8 +546,10 @@
    ]
   },
   "cut-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -7.58,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -8.58,
+   "peak_db_mp3": -8.33,
    "dur_s": 0.279,
    "parts": [
     {
@@ -492,8 +561,10 @@
    ]
   },
   "cut-3": {
-   "lufs_m_max": -25.0,
-   "peak_db": -6.1,
+   "lufs_m_max": -26.0,
+   "target": -26.0,
+   "peak_db": -7.1,
+   "peak_db_mp3": -7.02,
    "dur_s": 0.17,
    "parts": [
     {
@@ -509,8 +580,10 @@
    ]
   },
   "spark-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -4.44,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -8.94,
+   "peak_db_mp3": -8.91,
    "dur_s": 0.142,
    "parts": [
     {
@@ -521,8 +594,10 @@
    ]
   },
   "spark-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -16.77,
+   "lufs_m_max": -29.5,
+   "target": -29.5,
+   "peak_db": -21.27,
+   "peak_db_mp3": -21.41,
    "dur_s": 0.496,
    "parts": [
     {
@@ -534,8 +609,10 @@
    ]
   },
   "defuse-1": {
-   "lufs_m_max": -25.0,
-   "peak_db": -11.69,
+   "lufs_m_max": -23.0,
+   "target": -23.0,
+   "peak_db": -9.69,
+   "peak_db_mp3": -9.81,
    "dur_s": 1.514,
    "parts": [
     {
@@ -547,8 +624,10 @@
    ]
   },
   "defuse-2": {
-   "lufs_m_max": -25.0,
-   "peak_db": -13.1,
+   "lufs_m_max": -23.0,
+   "target": -23.0,
+   "peak_db": -11.1,
+   "peak_db_mp3": -10.9,
    "dur_s": 1.532,
    "parts": [
     {
@@ -561,8 +640,10 @@
    ]
   },
   "boom-1": {
-   "lufs_m_max": -23.0,
-   "peak_db": -8.52,
+   "lufs_m_max": -22.0,
+   "target": -22.0,
+   "peak_db": -7.52,
+   "peak_db_mp3": -7.61,
    "dur_s": 2.479,
    "parts": [
     {

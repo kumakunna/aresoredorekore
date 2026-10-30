@@ -9,7 +9,7 @@ const path = require('path');
 const { createRunner, assert, assertEqual } = require('./harness');
 const { startTestServer, device, waitUntil, makeRoom, sleep } = require('./room-edge');
 const {
-  RT_GAME_IDS, CASSETTE_GAME_IDS, HANDOFF_ONLY_GAME_IDS, PAUSED_GAME_IDS,
+  RT_GAME_IDS, CASSETTE_GAME_IDS, HANDOFF_ONLY_GAME_IDS, PAUSED_GAME_IDS, RETIRED_GAME_IDS,
   RT_START_EVENT, RT_START_MIN_CONFIG, ROOM_EXIT_PATHS, ROOM_ONLY_MODES, GAME_ABNORMAL
 } = require('./inventory');
 
@@ -363,7 +363,9 @@ async function run() {
     // 遊べない進行役は、作った人以外には存在しないのと同じ
     // **いったん下ろしたゲームは、宣言してあれば通す**（指示49 49-7）。
     // 「作り忘れ」と「意識して下ろした」を区別する——宣言しない限り、ここは赤くなる
-    const 下ろした = PAUSED_GAME_IDS.map((p) => p.id);
+    // 指示68-5：カセットの retiredGames に書いた物（外したがコードは残す）も、意識して下ろした物として通す
+    const 下ろした = PAUSED_GAME_IDS.map((p) => p.id).concat(RETIRED_GAME_IDS);
+    assert(RETIRED_GAME_IDS.indexOf('quizrush') !== -1, '外したゲームを読めている（型b）');
     RT_GAME_IDS.forEach((id) => {
       if (下ろした.indexOf(id) !== -1) return;
       assert(CASSETTE_GAME_IDS.indexOf(id) !== -1,

@@ -24,6 +24,8 @@
      safe      : TVの安全な枠 [上,右,下,左]（既定 54,96,54,96）
      gap       : 線と箱の最小のすき間（既定 12px）
      minPx     : 字の最小（既定 スマホ12 / TV42）
+     tvName    : TVの名前の札（既定 名前の札のクラス・[data-tvname]）。高さ 48px より低いと「TVの名前の札が小さい」
+     tvQ       : TVの問題文（既定 問題文のクラス・[data-tvq]）。字が 64px より小さいと「TVの問題文が小さい」
      over      : 上に重なる層（開いたシート・たずねる枠・知らせ）。中の字と外の字は比べない（K1）
      buttons   : 縦のすき間を測るボタン（既定 'button,.btn,[role=button]'）（K6）
      extra     : root の外にある、アプリ全体の部品（右上の⚙など）。TV の安全な枠で測る（K7）
@@ -41,6 +43,7 @@
      色の差が足りない（K2：24px 未満（太字は 19px 未満）は 4.5、それより大きい字と TV は 3。WCAG 2.2 の 1.4.3）
      下の線に近すぎる をスマホでも測る（K5）／ボタンのすき間が狭い（K6：たてに並んだボタンが 8px 未満）
      TVの安全な枠の外 を、extra の部品（右上の⚙など）でも測る（K7）
+     （指示68-5 の直しで足した物）TVの名前の札が小さい（高さ 48px 未満）／TVの問題文が小さい（字が 64px 未満）。TV 1920×1080 の下限
 
    わざとの時の印（属性）
      data-offok  … 画面の外にあってよい（横に送るページの、隣のページ）
@@ -126,6 +129,8 @@
     var tv = !!o.tv, out = [];
     var R = root.getBoundingClientRect(), s = (R.width / root.offsetWidth) || 1, W = root.offsetWidth, H = root.offsetHeight;
     var minPx = o.minPx || (tv ? 42 : 12), safe = o.safe || [54, 96, 54, 96], gap = o.gap || 12;
+    // 指示68-5：TV の名前の札と問題文の下限（Claude チャットが動画を見て決めた数）
+    var tvName = o.tvName || '.v2-otag,.v2-ptp-tag,.v2-ptd-nm,.v2-tmem,[data-tvname]', tvQ = o.tvQ || '.v2-otq,.v2-oqs,.v2-q2q,[data-tvq]';
     var deco = o.deco || '.bg,.names,.circles,.lpring,[data-edge],.brand,.tbrand,.guide';
     var layers = [].slice.call(root.querySelectorAll(o.layers || '.sheet,.pop,.dlg,.toast,.scrim,.minipill,[data-hide]'));
     function closed(el) { return layers.some(function (h) { return h.contains(el) && !h.classList.contains('open') && !h.classList.contains('on'); }); }
@@ -150,6 +155,8 @@
         add('画面の外', el, { box: [b.x1 | 0, b.y1 | 0, b.x2 | 0, b.y2 | 0] });
       if (tv && !el.closest('[data-offok]') && (hasText || el.tagName === 'IMG') && (b.x1 < safe[3] - 2 || b.y1 < safe[0] - 2 || b.x2 > W - safe[1] + 2 || b.y2 > H - safe[2] + 2))
         add('TVの安全な枠の外', el, { box: [b.x1 | 0, b.y1 | 0, b.x2 | 0, b.y2 | 0] });
+      if (tv && el.matches(tvName) && b.y2 - b.y1 < 48 - 0.5) add('TVの名前の札が小さい', el, { px: Math.round(b.y2 - b.y1) });
+      if (tv && el.matches(tvQ) && parseFloat(cs.fontSize) < 64) add('TVの問題文が小さい', el, { px: parseFloat(cs.fontSize) });
       if (!hasText) return;
       var fs = parseFloat(cs.fontSize);
       if (fs < minPx) add(tv ? 'TVの小さい字' : '小さい字', el, { px: fs });

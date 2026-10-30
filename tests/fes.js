@@ -585,8 +585,8 @@ async function join(srv, code, name, diff, extra) {
 
   await r.test('二の束1：ゲームごとの入／切。いつも2本以上は入・切ったら候補から消える', async () => {
     const f = { enabled: {} };
-    assertEqual(FesRoom.switchesFor(f).map((g) => g.mode + (g.on ? '入' : '切')).join(','), 'bomb-coop入,onaji-many入,pittari入,soroe入',
-      '並ぶのは入／切できる物だけ（棚から下ろした進化じゃんけん・ロシアンカードは出ない）');
+    assertEqual(FesRoom.switchesFor(f).map((g) => g.mode + (g.on ? '入' : '切')).join(','), 'bomb-coop入,onaji-many入,pittari入,soroe入,qhaya切,qnear切',
+      '並ぶのは入／切できる物だけ（棚から下ろした進化じゃんけん・ロシアンカードは出ない）。クイズ王2の2本ははじめは切（二の束2）');
     assertEqual(FesRoom.setGame(f, 'pittari', false).ok, true, '切にできる');
     assert(FesRoom.gamesFor(f).every((g) => g.mode !== 'pittari'), '切にしたら候補に出ない');
     assertEqual(FesRoom.setGame(f, 'soroe', false).ok, true, '3本目も切にできる（残り2本）');

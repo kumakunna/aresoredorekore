@@ -41,7 +41,10 @@ const FES_GAMES = [
   { mode: 'onaji-many', game: 'onaji', min: 3, max: 16, on: false, testing: true, def: true, start: { game: 'onaji', mode: 'many' } },
   // 指示68-4：ボタン1つの2本（テスト中）
   { mode: 'pittari', game: 'pittari', min: 2, max: 16, on: false, testing: true, def: true, start: { game: 'pittari' } },
-  { mode: 'soroe', game: 'soroe', min: 2, max: 16, on: false, testing: true, def: true, start: { game: 'soroe' } }
+  { mode: 'soroe', game: 'soroe', min: 2, max: 16, on: false, testing: true, def: true, start: { game: 'soroe' } },
+  // 指示68-5：クイズ王2.0（テスト中）。文化祭のクイズ王はこの2つだけ。はじめは切（11/6 のリハーサルで係が入にして試す・指示68-T 二の束2）
+  { mode: 'qhaya', game: 'qhaya', min: 2, max: 16, on: false, testing: true, start: { game: 'qhaya' } },
+  { mode: 'qnear', game: 'qnear', min: 2, max: 16, on: false, testing: true, start: { game: 'qnear' } }
 ];
 /** 係が入／切できるゲーム（棚から下ろした物はのぞく） */
 const switchable = (g) => !!(g.on || g.testing);

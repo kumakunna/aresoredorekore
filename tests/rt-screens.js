@@ -2036,6 +2036,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     const BOXES = ['quizCfgRush', 'quizCfgList', 'quizCfgReveal', 'quizCfgBuzzer'];
     for (const c of CASES) {
       const { win, doc, errors } = await launch(LAUNCH);
+      win.shelfShowProbe.retired('quizou');   // 指示68-5：外した4つを棚にもどして歩く（もどす日のための見張り）
       await toRoom(win, doc, { pick: false });
       click(doc, 待合.pick(doc));
       await waitScreen(win, doc, 'scr-v2-pick', 3000);
@@ -2073,6 +2074,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
     ];
     for (const c of CASES) {
       const { win, doc, errors } = await launch(LAUNCH);
+      win.shelfShowProbe.retired('quizou');   // 指示68-5：外した4つを棚にもどして歩く（もどす日のための見張り）
       const fake = await toRoom(win, doc, { pick: false });
       await pickGameForRoom(win, doc, c.game, c.mode);
       // 疑似socketは部屋の中身を持たないので、選んだ結果を流し込む
@@ -2102,6 +2104,7 @@ function pushYou(fake, you) { fake.fire('wolf:you', you); }
       for (const g of [{ game: 'quizrush', mode: 'quizrush' }, { game: 'bomb', mode: 'bomb-coop' }]) {
         const opt = c.prefs ? { storage: { 'acac-app-prefs': JSON.stringify(c.prefs) } } : {};
         const { win, doc, errors } = await launch(Object.assign({}, LAUNCH, opt));
+        win.shelfShowProbe.retired('quizou');
         const fake = await toRoom(win, doc, { pick: false });
         await pickGameForRoom(win, doc, g.game, g.mode);
         push(fake, g.game === 'bomb' ? bombRoom({ state: { phase: 'lobby', game: 'bomb', data: {} } }) : quizRoom(g.game, {}));

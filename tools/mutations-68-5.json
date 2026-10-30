@@ -1,0 +1,74 @@
+[
+ {
+  "name": "Q1 早答え：答えている間の知らせに正解の番号を入れてしまう（門1）",
+  "file": "qhaya-room.js",
+  "suite": "tests/realtime-quiz2.js",
+  "from": "    topic: q ? { q: q.q, choices: q.choices.slice() } : null,",
+  "to": "    topic: q ? { q: q.q, choices: q.choices.slice(), correct: q.correct } : null,",
+  "expect": "正解の番号が届いていない"
+ },
+ {
+  "name": "Q2 数字ちかい方：入れている間の知らせに正解の数を入れてしまう（門1）",
+  "file": "qnear-room.js",
+  "suite": "tests/realtime-quiz2.js",
+  "from": "    topic: q ? { q: q.q, unit: q.unit } : null,",
+  "to": "    topic: q ? { q: q.q, unit: q.unit, answer: q.answer } : null,",
+  "expect": "正解の数が届いていない"
+ },
+ {
+  "name": "Q3 早さの点を半分の傾きにする（10秒で0点にならない・門2）",
+  "file": "public/js/quiz2-logic.js",
+  "suite": "tests/quiz2-logic.js",
+  "from": "    return Math.round(RULES.HAYA.SPEED * (1 - t / lim));",
+  "to": "    return Math.round(RULES.HAYA.SPEED * (1 - t / (lim * 2)));",
+  "expect": "早さの点"
+ },
+ {
+  "name": "Q4 最後の問題を2倍にしない（門2）",
+  "file": "qhaya-room.js",
+  "suite": "tests/realtime-quiz2.js",
+  "from": "function isDouble(w, k) { return k === w.qs.length - 1; }",
+  "to": "function isDouble(w, k) { return false; }",
+  "expect": "2倍は最後だけ"
+ },
+ {
+  "name": "Q5 ぴったりの上乗せを付けない（門3）",
+  "file": "public/js/quiz2-logic.js",
+  "suite": "tests/quiz2-logic.js",
+  "from": "      var pts = (RULES.NEAR.POINTS[rank - 1] || 0) + (perfect ? RULES.NEAR.PERFECT : 0);",
+  "to": "      var pts = (RULES.NEAR.POINTS[rank - 1] || 0);",
+  "expect": "ぴったりは1位5点＋5点"
+ },
+ {
+  "name": "Q6 数字ちかい方の5問を、同じ表からも選ぶ（同じ山ばかり・門4）",
+  "file": "public/js/quiz2-logic.js",
+  "suite": "tests/quiz2-logic.js",
+  "from": "    a.forEach(function (q) { if (out.length < RULES.NEAR.ROUNDS && !tables[q.table || q.q]) { tables[q.table || q.q] = true; out.push(q); } });",
+  "to": "    a.forEach(function (q) { if (out.length < RULES.NEAR.ROUNDS) out.push(q); });",
+  "expect": "ちがう表から5問"
+ },
+ {
+  "name": "Q7 TV にも数字の時計を出す（直し5：00:23）",
+  "file": "public/js/v2-quiz2.js",
+  "suite": "tests/quiz2-tv.js",
+  "from": "    var clock = answering && view.end && !tv ? V.cd({ end: view.end, label: '', unit: t.秒 }) : '';",
+  "to": "    var clock = answering && view.end ? V.cd({ end: view.end, label: '', unit: t.秒 }) : '';",
+  "expect": "TV に時計の数字は無い"
+ },
+ {
+  "name": "Q8 順位の行に入れかわりの量を入れない（直し3：動きが見えない）",
+  "file": "public/js/v2-quiz2.js",
+  "suite": "tests/quiz2-tv.js",
+  "from": "'\" style=\"--mv:' + move + ';animation-delay:'",
+  "to": "'\" style=\"--mv:0;animation-delay:'",
+  "expect": "入れかわる"
+ },
+ {
+  "name": "Q9 3問ごとの問題の いちばん早かった人の札を、前の止まり方（v2-dgone both）にもどす（直し2-1：開いた最初から出る）",
+  "file": "public/index.html",
+  "suite": "tests/quiz2-tv.js",
+  "from": "  .v2.is-play .v2-ostg.has-rank .v2-q2fast{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both,v2-q2vis calc(1.2s * var(--fx-scale)) linear;}",
+  "to": "  .v2.is-play .v2-ostg.has-rank .v2-q2fast{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both,v2-dgone calc(.3s * var(--fx-scale)) ease both;animation-delay:calc(3s * var(--fx-scale)),var(--rk);}",
+  "expect": "v2-dgone を使わない"
+ }
+]

@@ -29,6 +29,8 @@ const { createFesStore } = require('./fes-store.js');
 const ShinkaRoom = require('./shinka-room.js');
 const OnajiRoom = require('./onaji-room.js');
 const PittariRoom = require('./pittari-room.js');
+const QHayaRoom = require('./qhaya-room.js');
+const QNearRoom = require('./qnear-room.js');
 const SoroeRoom = require('./soroe-room.js');
 
 // 第24弾：部屋で遊べるゲームの一覧。
@@ -75,6 +77,9 @@ const GAME_DRIVERS = {
   // 指示68-4：新作「ぴったり10秒」（競争）と「そろえて発射」（協力）。どちらもボタン1つ。約束の形は同じ
   pittari: { driver: PittariRoom, key: 'pittari' },
   soroe: { driver: SoroeRoom, key: 'soroe' },
+  // 指示68-5：クイズ王2.0「みんなで早答え」「数字ちかい方」（文化祭のクイズ王はこの2つだけ）。約束の形は同じ
+  qhaya: { driver: QHayaRoom, key: 'qhaya' },
+  qnear: { driver: QNearRoom, key: 'qnear' },
 };
 // その部屋でいま動いているゲームの進行役。始まっていなければ null
 function driverOf(room) {
@@ -723,6 +728,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (room.onaji) return recordOnajiMatch(room);
     if (room.pittari) return recordPittariMatch(room);
     if (room.soroe) return recordSoroeMatch(room);
+    if (room.qhaya) return recordQuiz2Match(room, 'qhaya', QHayaRoom);
+    if (room.qnear) return recordQuiz2Match(room, 'qnear', QNearRoom);
     // **`room.rcard` の行がここに無い。**指示55-② の着手前の掃引で見つけた——
     // ロシアンカードの対戦は `saveMatchRecord` に一度も届いておらず、DBに1件も残っていない。
     // 例外も警告も出ないので、誰も気づかなかった（落とし穴4：手書きの振り分けは腐る）。
@@ -769,6 +776,18 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const finalScores = {};
       v.ranking.forEach((x) => { finalScores[x.name] = x.score; });
       saveMatchRecord(room, names, [{ mode: 'pittari', game: 'pittari', style: 'realtime', rounds: v.rounds,
+        ranking: v.ranking.map((x) => ({ name: x.name, rank: x.rank, score: x.score })), deltas: finalScores }], finalScores);
+    } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
+  }
+  /** 指示68-5：クイズ王2.0（早答え・数字ちかい方）。点がそのまま成績（2つとも同じ形） */
+  function recordQuiz2Match(room, game, Room) {
+    if (!db || !room.ownerUserId || !room[game]) return;
+    try {
+      const v = Room.resultView(room);
+      const names = v.ranking.map((x) => x.name);
+      const finalScores = {};
+      v.ranking.forEach((x) => { finalScores[x.name] = x.score; });
+      saveMatchRecord(room, names, [{ mode: game, game: game, style: 'realtime', questions: v.questions,
         ranking: v.ranking.map((x) => ({ name: x.name, rank: x.rank, score: x.score })), deltas: finalScores }], finalScores);
     } catch (e) { /* 記録に失敗しても、遊びは終わっている */ }
   }

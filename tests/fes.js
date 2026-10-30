@@ -216,6 +216,7 @@ async function join(srv, code, name, diff, extra) {
     await waitUntil(() => fesOf(a).phase === 'ready', 'ルールと準備OKへ');
     const f = srv.store.get(code).fes;
     assertEqual(FesRoom.TIMES.readyAllMs, 3000, '全員そろった時の のこりは3秒');
+    assertEqual(FesRoom.TIMES.decideMs, 5000, '指示68-T 5：決定は5秒（TV の台本 約3.5秒が、少し遅れて受けても途中で消えない）');
     await a.call('room:ready', { game: 'bomb' });
     await b.call('room:ready', { game: 'bomb' });
     await new Promise((res) => setTimeout(res, 700));      // 見回り（0.5秒ごと）が1回は回る

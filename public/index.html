@@ -12575,7 +12575,7 @@
     if(!app){ go(); return Promise.resolve(true); }
     // 演出を切っている人は、間を空けずにその場で入る。
     // 待たせないことがこの設定の目的なので、1フレームも挟まない
-    if(!FX_MS.warp || appPrefs.fxSpeed === 'skip'){ go(); return Promise.resolve(true); }
+    if(!FX_MS.warp || fxSpeed() === 'skip'){ go(); return Promise.resolve(true); }
     var ov = document.createElement('div');
     ov.className = 'cassette-warp';
     ov.setAttribute('data-theme', (c && c.theme) || 'none');
@@ -13841,11 +13841,13 @@
     if(appPrefs.brightness === 100) rootEl.removeAttribute('data-bright');
     else rootEl.setAttribute('data-bright', String(appPrefs.brightness));
     // 演出の速さ。0 はスキップ（時間0で終わる）
-    var fx = appPrefs.fxSpeed === 'fast' ? 0.5 : (appPrefs.fxSpeed === 'skip' ? 0 : 1);
+    var 速さ = fxSpeed();   // 指示68-T 5：文化祭の TV は「ふつう」
+    fxSpeedWas = 速さ;
+    var fx = 速さ === 'fast' ? 0.5 : (速さ === 'skip' ? 0 : 1);
     // 明るさと同じく :root に置く。重なり（#uiLayerRoot）は #app の外にいて、
     // #app に置いた値は読めない——「速い」がダイアログにだけ効かなくなる
     rootEl.style.setProperty('--fx-scale', String(fx));
-    rootEl.classList.toggle('fx-skip', appPrefs.fxSpeed === 'skip');  // 重なりの出入りも止める
+    rootEl.classList.toggle('fx-skip', 速さ === 'skip');  // 重なりの出入りも止める
     // 第32弾-D 第4部：光の点滅・画面の揺れを切っている人には出さない。
     // CSSのクラス1つで全部の該当演出が止まる形にする（出す側に条件を書かせない）
     refreshSfxGain();   // 第43弾：作り置きの出口にも、いまの音量を届ける
@@ -14113,10 +14115,25 @@
     if(!res.ok) el('pauseNote').textContent = res.message || 'もどせませんでした';
   });
 
+  /**
+   * 指示68-T 5：いま効いている演出の速さ。**文化祭の TV は、端末に残っている設定を使わず「ふつう」**
+   *（TV にしたブラウザで前に「はやい／なし」が選ばれていると、どの見せ場も短くなっていた）。
+   * ふだんの部屋・スマホは設定のまま。OS の「動きを減らす」の扱いは変えない。設定画面は appPrefs.fxSpeed を直に見る
+   */
+  function fesTvNow(){ return !!(rt && rt.state && rt.state.room && rt.state.room.fes && rtIsBigScreen()); }
+  function fxSpeed(){ return fesTvNow() ? 'normal' : appPrefs.fxSpeed; }
+  var fxSpeedWas = null;
+  /** 部屋の知らせごとに見る：文化祭の TV になった／でなくなった時だけ、速さの印（--fx-scale）を付け直す */
+  function fxSpeedSync(){
+    var now = fxSpeed();
+    if(now !== fxSpeedWas){ fxSpeedWas = now; applyAppPrefs(); }
+  }
+  window.fxSpeedProbe = function(){ return { speed: fxSpeed(), pref: appPrefs.fxSpeed, scale: document.documentElement.style.getPropertyValue('--fx-scale'), ms: fxMs(1000) }; };
   // 演出の待ち時間。setTimeout の代わりにこれを通すと、速さの設定が効く
   function fxMs(ms){
-    if(appPrefs.fxSpeed === 'skip') return 0;
-    if(appPrefs.fxSpeed === 'fast') return Math.round(ms * 0.5);
+    var s = fxSpeed();
+    if(s === 'skip') return 0;
+    if(s === 'fast') return Math.round(ms * 0.5);
     return ms;
   }
   /**
@@ -23554,7 +23571,7 @@
       delete 前の順位[鍵];
       return Promise.resolve(true);
     }
-    if(!旧 || !私 || appPrefs.fxSpeed === 'skip'){
+    if(!旧 || !私 || fxSpeed() === 'skip'){
       入れる();
       前の順位[鍵] = 並びを読む();
       return Promise.resolve(true);
@@ -25088,7 +25105,7 @@
   }
 
   if(rt){
-    rt.on('room', function(){ rtNoticeConnections(); rtSync(); appReloadIfIdle(); sfxPreloadSync((document.querySelector('.screen.active') || {}).id); voiceSync(); });   // 指示68-1：文化祭の段階が待合にもどった時も
+    rt.on('room', function(){ rtNoticeConnections(); rtSync(); appReloadIfIdle(); sfxPreloadSync((document.querySelector('.screen.active') || {}).id); voiceSync(); fxSpeedSync(); });   // 指示68-1：文化祭の段階が待合にもどった時も
     rt.on('memberGone', rtNoticeMemberGone); // 第35弾B：退室・kickの知らせ（理由つき）
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){
@@ -29667,7 +29684,7 @@
   function revealTopicCard(){
     var card = document.querySelector('#scr-play .topic-card');
     if(typeof FxKit === 'undefined' || !card || !FX_MS.flip
-       || appPrefs.fxSpeed === 'skip'){ renderTopic(); return; }
+       || fxSpeed() === 'skip'){ renderTopic(); return; }
     FxKit.flip(card, renderTopic, FX_MS.flip);
   }
   // 封印ワードの表示制御（第10弾）。AI出題でも封印ワードは有効で、

@@ -6,6 +6,7 @@
 //   node tools/v2-shot.js --mock               … 見本（docs/指示66/見本/）の同じ画面も撮って、左右に並べた画像を作る
 //   node tools/v2-shot.js --fx skip            … 演出「なし」で撮る（既定は ふつう）
 //   node tools/v2-shot.js --font 130           … 設定の文字サイズ「大」で撮る（ルールとシートの文が 1.15倍）
+//   node tools/v2-shot.js --phone 320x568,300x640 … スマホの大きさを差しかえる（字を大きくする設定・ページの拡大の代わり・指示68-T 二の束7）
 //   node tools/v2-shot.js --only home-e3,home-te3 --prod-url https://aresoredorekore.duckdns.org … 待合を本番の長さのアドレスで（指示68-0a M8）
 //   node tools/v2-shot.js --gate               … 門の形（指示68-0b K8 ①⑧）：ふつう・文字「大」・演出「なし」・大＋なし の4通りを続けて撮る。
 //                                                  写真は out の下の normal／font130／skip／font130-skip に分ける
@@ -56,6 +57,8 @@ const CHECK_JS = fs.readFileSync(path.join(ROOT, 'docs', '指示66', 'tools', 'c
 const MOCK_DIR = path.join(ROOT, 'docs', '指示66', '見本');
 
 const SIZES = { phone: [{ w: 390, h: 844 }, { w: 375, h: 667 }], tv: [{ w: 1920, h: 1080 }] };
+// 指示68-T 二の束7 D6：--phone 320x568,300x600 … スマホの大きさを差しかえる（字を大きくする設定・ページの拡大で細くなった画面を測る）
+if (arg('phone')) SIZES.phone = String(arg('phone')).split(',').map((s) => { const m = /^(\d+)x(\d+)$/.exec(s.trim()); return m ? { w: +m[1], h: +m[2] } : null; }).filter(Boolean);
 /**
  * 大きさを足す場面（K8 ②：TV で /tv を開いた画面は、TV の大きさでも撮る）。
  * 画面の形はまだスマホの列（TV の形にするのは 68-7 の C19）なので、物差しはスマホのまま当てる

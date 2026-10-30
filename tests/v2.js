@@ -418,5 +418,13 @@ function v2のクラス(css) {
     assert(/mix-blend-mode:difference/.test(tb.body), 'どの色の上でも読める合成');
   });
 
+  await r.test('二の束7 D2：iPhone のホームバーのぶん、下の帯・下だけの画面・シートが上がる（viewport-fit=cover と env(safe-area-inset-bottom)）', async () => {
+    assert(/<meta name="viewport" content="[^"]*viewport-fit=cover/.test(HTML), 'viewport-fit=cover（これが無いと env() はいつも0）');
+    assert(/--v2-safe-b:env\(safe-area-inset-bottom, 0px\)/.test(STYLE), 'ホームバーの高さを1か所で持つ（--v2-safe-b）');
+    assert(/--v2-bandh:calc\(68px \+ var\(--v2-safe-b\)\)/.test(STYLE), '下の帯の高さにホームバーを足す（帯の上の中身も、そのぶん上がる）');
+    assert(/\.v2 \.v2-in\.is-noband\{bottom:0;padding-bottom:calc\(22px \+ var\(--v2-safe-b\)\)/.test(STYLE), '帯の無い画面も下を空ける');
+    assert(/\.v2 \.v2-sheet\{[^}]*padding:10px 18px calc\(20px \+ var\(--v2-safe-b\)\)/.test(STYLE), 'シートも下を空ける');
+    // 実際の位置は tools/safe-area.js（Chrome で下に34px を作って、いちばん下のボタンを測る）
+  });
   r.finish();
 })();

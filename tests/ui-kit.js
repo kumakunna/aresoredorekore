@@ -405,7 +405,9 @@ function click(doc, sel) {
       // 指示60 A-2：クリア演出
       { cls: 'fx-cel', go: () => win.FxKit.celebrate({ icon: '🏆', text: 'たしかめ', ms: 300 }) },
       // 指示68-2 第1節：クイズ解除の終わりの幕
-      { cls: 'fx-finale', go: () => win.FxKit.finale({ kind: 'clear', title: 'たしかめ', linger: 100 }) }
+      { cls: 'fx-finale', go: () => win.FxKit.finale({ kind: 'clear', title: 'たしかめ', linger: 100 }) },
+      // 指示68-T 3：「スタート！」などの合図の字（押す邪魔をしない・演出「なし」でも出る）
+      { cls: 'fx-cue', go: () => win.FxKit.cue('たしかめ', { ms: 300 }) }
     ];
     const 外れ = [];
     出す.forEach((x) => {

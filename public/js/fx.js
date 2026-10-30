@@ -460,6 +460,23 @@
    * 同時に出すのは1つ（前の合図が残っていたら消してから出す）
    */
   var cueNode = null;
+  /**
+   * 指示68-T：l・xl の合図（「スタート！」）は1行のまま。CSS は画面の幅で字の大きさを決めるが、
+   * 細い箱・文字サイズの設定・字の幅の違う書体では入りきらないことがある。折り返すと「スタ／ー／ト！」と縦に崩れるので、
+   * 出したあとに測って、入らなければその分だけ字を小さくする（余白は em なので、字といっしょに縮む）。
+   * offsetWidth は出てくる時の拡大（transform）を含まない、ほんとうの幅
+   */
+  function fitCue(n) {
+    if (/\bfx-cue-m\b/.test(n.className)) return;   // m は長い文なので、折り返してよい
+    var t = n.firstChild;
+    var w = n.ownerDocument && n.ownerDocument.defaultView;
+    if (!t || !t.offsetWidth || !w || !w.getComputedStyle) return;
+    var cs = w.getComputedStyle(n);
+    var room = n.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    if (room <= 0 || t.offsetWidth <= room) return;
+    var fs = parseFloat(w.getComputedStyle(t).fontSize) || 0;
+    if (fs) t.style.fontSize = Math.floor(fs * room / t.offsetWidth * 100) / 100 + 'px';
+  }
   function cue(text, opt) {
     opt = opt || {};
     var h = layer();
@@ -470,6 +487,7 @@
     n.setAttribute('aria-hidden', 'true');
     h.appendChild(n);
     cueNode = n;
+    fitCue(n);
     var ms = opt.ms == null ? 600 : opt.ms;
     setTimeout(function () {
       n.classList.add('fx-out');

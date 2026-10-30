@@ -59,8 +59,9 @@ function クイズ解除を終える(room, ok) {
     BombRoom.submitVote(room, who, x.choices[x.correct]);
   });
   if (!ok) {
-    for (let k = 0; k < 3 && w.phase !== 'ended'; k++) {
-      const x = w.wires[solve + k];
+    // ライフがなくなるまで外す（ライフは人数の表で決まる：30本で7・指示68-T 6）。のこりのコードを順に、何度でも
+    for (let k = 0; k < 60 && w.phase !== 'ended'; k++) {
+      const x = w.wires[solve + (k % (w.wires.length - solve))];
       BombRoom.submitAction(room, ids[0], x.uid);
       BombRoom.submitVote(room, ids[0], x.choices.find((c, j) => j !== x.correct));
     }

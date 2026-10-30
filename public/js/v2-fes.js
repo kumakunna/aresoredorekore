@@ -445,7 +445,8 @@
       '</div></div>';
   }
   function livesHtml(n, max) {
-    var h = '<span class="v2-lives">';
+    // 指示68-T 6：ライフは人数の表で 7〜12 になる。7つからは小さく並べる（TV で見出しを押しつぶさない）
+    var h = '<span class="v2-lives' + ((max || 0) > 6 ? ' is-many' : '') + '">';
     for (var i = 0; i < (max || 0); i++) h += '<span class="' + (i < n ? 'v2-life' : 'v2-life is-gone') + '">❤️</span>';
     return h + '</span>';
   }

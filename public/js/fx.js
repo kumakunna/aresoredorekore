@@ -1285,7 +1285,7 @@
   }
   /** 残ったライフのハート（1つずつポンと出る） */
   function 心(n) {
-    n = Math.max(0, Math.min(10, n | 0));
+    n = Math.max(0, Math.min(12, n | 0));   // 文化祭の人数の表で、ライフは50本で12まで（指示68-T 6・BombLogic.MAX_LIVES）
     var s = '';
     for (var i = 0; i < n; i++) {
       s += '<i class="fx-fin-heart" style="--k:' + i + '"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.7-9.2C.6 8.2 2.6 4 6.6 4c2.2 0 3.7 1.2 5.4 3.2C13.7 5.2 15.2 4 17.4 4c4 0 6 4.2 4.3 7.8C19.5 16.4 12 21 12 21z"/></svg></i>';

@@ -275,9 +275,9 @@ async function join(srv, code, name, diff, extra) {
     // 本人だけの知らせ（fes:you）は部屋の知らせのあとに届くことがある。届くまで待ってから見る（重い時に赤くなった）
     await waitUntil(() => c.me && c.me.miss === 1, '押さなかった数が届く', 3000).catch(() => null);
     assertEqual(c.me.miss, 1, '1回目：押さなかった数が1つ（まだ席はある）');
-    // 1回目のゲームを終わらせる（わざと3回外す＝爆発）。ここから先は何も押さない
+    // 1回目のゲームを終わらせる（ライフがなくなるまでわざと外す＝爆発。ライフは人数の表：30本で7・指示68-T 6）。ここから先は何も押さない
     const room = srv.store.get(code);
-    for (let i = 0; i < 3 && room.bomb.phase !== 'ended'; i++) {
+    for (let i = 0; i < 20 && room.bomb.phase !== 'ended'; i++) {
       const uid = a.wolf.board.find((x) => !x.solved && !x.by).uid;
       await a.call('wolf:act', { targetId: uid });
       await waitUntil(() => a.wolf.open && a.wolf.open.uid === uid, '開く');
@@ -627,11 +627,13 @@ async function join(srv, code, name, diff, extra) {
     const Bomb = require('../bomb-room');
     assertEqual(FesRoom.gameOf('bomb-coop').max, 16, '文化祭の上限は16人');
     assertEqual(FesRoom.gameOf('bomb-coop').start.sizeByPlayers, true, '人数の表を使う');
-    // 8人までは今の既定と同じ（端末の既定と照らす検査がそのまま通る）
+    // 指示68-T 6（くまくんの決め 2026-10-30）：ライフは本数に比例して 30本で7、中身は やさしい6・ふつう13・むずかしい11
     const s8 = BombLogic.sizeFor(8);
-    assertEqual(JSON.stringify([s8.codes, s8.lives, s8.timerSec]), '[30,3,180]', '8人は30本・ライフ3・180秒');
+    assertEqual(JSON.stringify([s8.codes, s8.lives, s8.timerSec]), '[30,7,180]', '8人は30本・ライフ7・180秒');
+    assertEqual([s8.counts.easy, s8.counts.normal, s8.counts.hard].join('・'), '6・13・11', '30本の中身は やさしい6・ふつう13・むずかしい11');
     const s16 = BombLogic.sizeFor(16);
-    assertEqual(JSON.stringify([s16.codes, s16.lives, s16.timerSec]), '[50,5,300]', '16人は50本・ライフ5・300秒');
+    assertEqual(JSON.stringify([s16.codes, s16.lives, s16.timerSec]), '[50,12,300]', '16人は50本・ライフ12・300秒');
+    assertEqual(BombLogic.MAX_LIVES, 12, 'ライフの上限は表のいちばん上（50本で12）に合わせる');
     for (let n = 2; n <= 16; n++) {
       const z = BombLogic.sizeFor(n);
       const sum = z.counts.easy + z.counts.normal + z.counts.hard;

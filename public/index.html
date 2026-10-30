@@ -32910,7 +32910,7 @@
     if(rt && e.target.closest && e.target.closest('[data-fes-unready]')) rt.setReady(false);
   });
   document.addEventListener('click', function(e){
-    var b = e.target.closest && e.target.closest('[data-fes-act],[data-fes-pick],[data-fes-diff],[data-fes-star],[data-fes-hide],[data-fes-kick],[data-fes-inset],[data-fes-icon],[data-fes-slot],[data-fes-word],[data-fes-cell],[data-fes-ans]');
+    var b = e.target.closest && e.target.closest('[data-fes-act],[data-fes-pick],[data-fes-diff],[data-fes-star],[data-fes-hide],[data-fes-game],[data-fes-kick],[data-fes-inset],[data-fes-icon],[data-fes-slot],[data-fes-word],[data-fes-cell],[data-fes-ans]');
     if(!b || !rt) return;
     var room = fesRoom(), code = room ? room.code : (fes.staff && fes.staff.code);
     if(b.hasAttribute('data-fes-diff')){ fes.join.diff = b.getAttribute('data-fes-diff'); fes.join.err = ''; fesRenderJoin(); return; }
@@ -32941,6 +32941,8 @@
       return;
     }
     if(b.hasAttribute('data-fes-ans')){ Array.prototype.forEach.call(b.parentNode.querySelectorAll('button'), function(x){ x.disabled = true; }); rt.vote(b.getAttribute('data-fes-ans')); return; }
+    // 指示68-T 二の束1：くまくんだけ、ゲームごとの入／切
+    if(b.hasAttribute('data-fes-game')){ if(!b.disabled) rt.fesGame(fes.staff.code, b.getAttribute('data-fes-game'), !b.getAttribute('data-on')); return; }
     if(b.hasAttribute('data-fes-hide')){ rt.fesHide(fes.staff.code, b.getAttribute('data-fes-hide'), !b.getAttribute('data-hidden')); return; }
     // 指示68-0b A4：押したらたずねる（すぐには外さない）。外すのは枠の「外す」（data-v2-act="fes-kick-ok"）
     if(b.hasAttribute('data-fes-kick')){ fesAskKick(b.getAttribute('data-fes-kick')); return; }
@@ -32978,7 +32980,6 @@
     else if(act === 'rejoin' && fes.quit){ var c2 = fes.quit.code; fes.quit = null; fes.join.diff = null; fes.join.err = ''; goTo('scr-v2-fes-join'); fesOpenJoin(c2); }
     else if(act === 'pause' && fes.staff) rt.fesPause(fes.staff.code, !(fes.staff.fes && fes.staff.fes.paused));
     else if(act === 'skip' && fes.staff) rt.fesSkip(fes.staff.code);
-    else if(act === 'testing' && fes.staff) rt.fesTesting(fes.staff.code, !(fes.staff.fes && fes.staff.fes.withTesting));   // 指示68-1：くまくんだけ
     else if(act === 'fb'){ fesLoadFeedback().then(function(){ V2.open(document.querySelector('#scr-v2-fes-staff [data-v2-id="v2Fb"]')); }); }
     else if(act === 'recreate' || act === 'create'){
       rt.fesCreate(act === 'recreate').then(function(){ fesOpenStaff(); });

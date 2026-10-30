@@ -1279,10 +1279,16 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (m.connected) emitPrivate(room, m.id, 'fes:you', FesRoom.privateFor(room, m.id));
     }
   }
+  /** 係の入／切を入れ物から読む（無ければ空＝はじめの値） */
+  function fesSwitches() {
+    if (!fesStore || !fesStore.gameSwitches) return {};
+    try { return fesStore.gameSwitches(); } catch (e) { console.error('[realtime] 入／切を読めません:', e); return {}; }
+  }
   /** 係の画面に出すもの：元の名前（隠した人も）・つながっているか・押し忘れの数 */
   function staffView(room) {
     return {
       code: room.code,
+      games: FesRoom.switchesFor(room.fes),   // 指示68-T 二の束1：係の入／切
       members: Array.from(room.members.values()).filter((m) => m.role !== ROLE_BIGSCREEN)
         .sort((a, b) => a.joinedAt - b.joinedAt)
         .map((m) => ({ id: m.id, name: m.name, connected: m.connected, hidden: room.fes.hidden.has(m.id),
@@ -1894,7 +1900,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       }
       const room = store.create({ ownerUserId: sessionOf(socket).userId, ownerUsername: null });
       room.hostMemberId = null;
-      FesRoom.init(room, { times: fesTimes });
+      FesRoom.init(room, { times: fesTimes, enabled: fesSwitches() });
       if (typeof cb === 'function') cb({ ok: true, code: room.code });
     });
     // 係：係の画面を開く（部屋の名簿には入らない＝TVにも名簿にも出ない）
@@ -1924,13 +1930,16 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (typeof cb === 'function') cb({ ok: true });
       pushFes(room);
     });
-    // 指示68-1：係（くまくんだけ）：テスト中のゲームも候補に入れる（はじめは切）
-    socket.on('fes:testing', (payload, cb) => {
+    // 指示68-T 二の束1：係（くまくんだけ）：ゲームごとの入／切（「テスト中を入れる」を置きかえた）。
+    // 入れ物に覚えるので、部屋やサーバーを作り直しても戻らない。いつも2本以上は入
+    socket.on('fes:game', (payload, cb) => {
       if (staffRole() !== 'owner') return fail(cb, 'not_owner', 'くまくんのアカウントだけが変えられます');
       const room = staffRoom(payload);
       if (!room) return fail(cb, 'no_room', '文化祭の部屋がありません');
-      room.fes.withTesting = !!(payload && payload.on);
-      if (typeof cb === 'function') cb({ ok: true, on: room.fes.withTesting });
+      const r = FesRoom.setGame(room.fes, payload && payload.mode, !(payload && payload.on === false));
+      if (!r.ok) return fail(cb, r.error, r.message);
+      if (fesStore) { try { fesStore.setGameSwitch(r.mode, r.on); } catch (e) { console.error('[realtime] 入／切の記録で例外:', e); } }
+      if (typeof cb === 'function') cb({ ok: true, mode: r.mode, on: r.on });
       pushFes(room);
     });
     // 係：TVの端あわせ（ふちから内側へ何%縮めるか。0〜10）

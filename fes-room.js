@@ -27,23 +27,53 @@
  */
 // 指示68-1：on＝文化祭の候補に出す（門を通った物だけ）。いまはクイズ解除の協力版だけ。
 // 進化じゃんけん・ロシアンカードは棚から下ろした（コードは残す・on:false）。2.0 の物は門を通ったら on にする。
-// testing＝門を通る前の物。係（くまくん）が「テスト中のゲームも候補に入れる」を入れた時だけ候補に出る
+// testing＝門を通る前の物（係の画面に「テスト中」の印）。
+// 指示68-T 二の束1：候補に出すかは、係（くまくん）の画面のゲームごとの「入／切」で決める（「テスト中を入れる」を置きかえた）。
+//   入／切はサーバーの入れ物（SQLite・fes-store.js の fes_game_switch）に覚えるので、部屋やサーバーを作り直しても戻らない。
+//   まだ一度も押していないゲームは、on か def（はじめは入）なら入、それ以外は切。いつも2本以上は入（1本だけだと決定の演出が短くなる）
 const FES_GAMES = [
   // 指示68-2 第4節：16人まで。本数・ライフ・制限時間は人数の表（BombLogic.sizeFor・sizeByPlayers）。下の counts などは8人までの値と同じ（端末の既定と照らす）
   { mode: 'bomb-coop', game: 'bomb', min: 2, max: 16, on: true,
     start: { game: 'bomb', mode: 'coop', counts: { easy: 12, normal: 10, hard: 8, nanisore: 0, muri: 0 }, lives: 3, timerSec: 180, showMisses: false, sizeByPlayers: true } },
   { mode: 'shinka', game: 'shinka', min: 3, max: 12, on: false, start: { game: 'shinka' } },
   { mode: 'rcard', game: 'rcard', min: 2, max: 8, on: false, start: { game: 'rcard' } },
-  // 指示68-3：みんなと同じ（多い方）。門を通るまではテスト中（係のくまくんが「テスト中を入れる」にした時だけ候補に出る）
-  { mode: 'onaji-many', game: 'onaji', min: 3, max: 16, on: false, testing: true, start: { game: 'onaji', mode: 'many' } },
+  // 指示68-3：みんなと同じ（多い方）。テスト中の印のまま、はじめは入（10/30 のあそびテストで遊んだ3本・指示68-T 二の束1）
+  { mode: 'onaji-many', game: 'onaji', min: 3, max: 16, on: false, testing: true, def: true, start: { game: 'onaji', mode: 'many' } },
   // 指示68-4：ボタン1つの2本（テスト中）
-  { mode: 'pittari', game: 'pittari', min: 2, max: 16, on: false, testing: true, start: { game: 'pittari' } },
-  { mode: 'soroe', game: 'soroe', min: 2, max: 16, on: false, testing: true, start: { game: 'soroe' } }
+  { mode: 'pittari', game: 'pittari', min: 2, max: 16, on: false, testing: true, def: true, start: { game: 'pittari' } },
+  { mode: 'soroe', game: 'soroe', min: 2, max: 16, on: false, testing: true, def: true, start: { game: 'soroe' } }
 ];
-/** 候補にできるゲーム。opts.games（検査が表を差しかえる）と、テスト中を入れるかのスイッチ */
+/** 係が入／切できるゲーム（棚から下ろした物はのぞく） */
+const switchable = (g) => !!(g.on || g.testing);
+/** そのゲームがいま入か。f.enabled（入れ物から読んだ mode -> 真偽）に無ければ、はじめの値（on か def） */
+function isOn(g, f) {
+  const en = f && f.enabled;
+  return en && Object.prototype.hasOwnProperty.call(en, g.mode) ? !!en[g.mode] : !!(g.on || g.def);
+}
+/** 候補にできるゲーム。opts.games（検査が表を差しかえる）と、係の入／切 */
 function gamesFor(f) {
   const list = (f && f.games) || FES_GAMES;
-  return list.filter((g) => g.on || (g.testing && f && f.withTesting));
+  return list.filter((g) => switchable(g) && isOn(g, f));
+}
+/** 係の画面の入／切の並び（表の順） */
+function switchesFor(f) {
+  const list = (f && f.games) || FES_GAMES;
+  return list.filter(switchable).map((g) => ({ mode: g.mode, on: isOn(g, f), testing: !!g.testing }));
+}
+const MIN_ON = 2;
+/**
+ * 係の入／切。切って入が MIN_ON 本より少なくなる時は変えない（{ ok:false, error:'min_on' }）。
+ * 変えたら f.enabled を書きかえ、入れ物に残すのは呼んだ側（realtime.js）
+ */
+function setGame(f, mode, on) {
+  const list = (f && f.games) || FES_GAMES;
+  const g = list.find((x) => x.mode === mode && switchable(x));
+  if (!g) return { ok: false, error: 'no_game', message: 'そのゲームはありません' };
+  if (!on && isOn(g, f) && switchesFor(f).filter((x) => x.on).length <= MIN_ON) {
+    return { ok: false, error: 'min_on', message: MIN_ON + '本より少なくはできません' };
+  }
+  f.enabled = Object.assign({}, f.enabled || {}, { [mode]: !!on });
+  return { ok: true, mode, on: !!on };
 }
 
 const ROOM_MAX = 16;
@@ -91,7 +121,7 @@ function init(room, opts) {
     queue: [],             // 指示66-3：満員の時の予約（つぎの回に入る）。{ socketId, token, at, offerUntil }。入った順
     shown: {},             // 指示68-1：mode -> 最後に候補に出した回（出ていない回が長い順に選ぶ）
     games: o.games || null,  // 検査だけが差しかえる（無ければ FES_GAMES）
-    withTesting: false,    // 係（くまくん）の「テスト中のゲームも候補に入れる」
+    enabled: Object.assign({}, o.enabled || {}),   // 係の入／切（mode -> 真偽）。入れ物（fes-store）から読んだ物。無いゲームははじめの値
     times: Object.assign({}, TIMES, o.times || {}),
     rnd: o.rnd || Math.random
   };
@@ -407,7 +437,6 @@ function publicView(room, now) {
     // 文化祭で遊べるゲームの全部（TVの呼び込み）と、いまの人数での次の候補（待合）。端末に一覧を写さない（落とし穴1）
     games: gamesFor(f).map((g) => g.mode),
     next: candidatesFor(livePeople(room).length, f),
-    withTesting: !!f.withTesting,
     pick: show && f.pick ? { mode: f.pick.mode, counts: Object.assign({}, f.pick.counts), lot: f.pick.lot, tied: f.pick.tied.slice() } : null,
     played: f.played ? { mode: f.played.mode, round: f.played.round, ids: f.played.ids.slice() } : null,
     full: livePeople(room).length >= ROOM_MAX,
@@ -434,5 +463,5 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { FES_GAMES, gamesFor, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
+module.exports = { FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
   reserve, unreserve, held, queueTick };

@@ -1,6 +1,6 @@
 // fes-store.js — 文化祭の部屋で、サーバーに残すもの（指示66-2）
 //
-// 残すのは3つだけ。どれも**1か月で自動で消す**（RETAIN_MS）。
+// 残すのは3つだけ。どれも**1か月で自動で消す**（RETAIN_MS）。ほかに、係の画面の設定（ゲームごとの入／切）は消さずに覚える。
 //   ・クイズ解除の記録（指示68-2・くまくんの決め 2026-10-26）：1試合ごとの終わり方（解除・爆発・時間切れ）と人数・本数・ライフ・時間、
 //     問題ごとの「答えた数・1回目で正解したか・外した数」。**名前も端末も残さない**（問題の正答率と数字の決め直しのため）
 //   ・名前の記録：入力された名前と、規制ではじいた名前。不適切な言葉の対策のため。
@@ -63,6 +63,12 @@ function createFesStore(db) {
       wrong INTEGER NOT NULL,
       solved INTEGER NOT NULL
     );
+    -- 指示68-T 二の束1：係の画面のゲームごとの入／切。記録ではなく設定なので、1か月で消さない
+    CREATE TABLE IF NOT EXISTS fes_game_switch (
+      mode TEXT PRIMARY KEY,
+      on_ INTEGER NOT NULL,
+      at INTEGER NOT NULL
+    );
     CREATE INDEX IF NOT EXISTS bomb_plays_at ON bomb_plays(at);
     CREATE INDEX IF NOT EXISTS fes_names_at ON fes_names(at);
     CREATE INDEX IF NOT EXISTS fes_feedback_at ON fes_feedback(at);
@@ -85,8 +91,18 @@ function createFesStore(db) {
   const delQ = db.prepare('DELETE FROM bomb_questions WHERE play_id IN (SELECT id FROM bomb_plays WHERE at < ?)');
   const delPlays = db.prepare('DELETE FROM bomb_plays WHERE at < ?');
 
+  const getSw = db.prepare('SELECT mode, on_ FROM fes_game_switch');
+  const putSw = db.prepare('INSERT INTO fes_game_switch (mode, on_, at) VALUES (?, ?, ?) ON CONFLICT(mode) DO UPDATE SET on_ = excluded.on_, at = excluded.at');
+
   return {
     RETAIN_MS,
+    /** 指示68-T 二の束1：係の入／切（mode -> 真偽）。一度も押していないゲームは入っていない */
+    gameSwitches() {
+      const out = {};
+      getSw.all().forEach((r) => { out[r.mode] = !!r.on_; });
+      return out;
+    },
+    setGameSwitch(mode, on, now) { putSw.run(String(mode), on ? 1 : 0, now || Date.now()); },
     /** 入力された名前を1つ残す（はじいた名前も） */
     logName(room, name, blocked, reason, now) {
       insName.run(String(room), String(name).slice(0, 64), blocked ? 1 : 0, reason || null, now || Date.now());

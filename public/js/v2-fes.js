@@ -651,6 +651,18 @@
 
   // ===================== F14 係の画面 =====================
   /** o：{ staff（サーバーの係の名簿）, fb（感想の一覧）, end, err } */
+  /** 係の入／切の並び。名簿の行と同じ形（名前と、右に押す所） */
+  function gamesHtml(list, info) {
+    var S = U().係, V = K();
+    var nOn = list.filter(function (g) { return g.on; }).length;
+    return '<span class="v2-lbl">' + e(S.出すゲーム) + '</span><div class="v2-adm-mem" data-fes-games>' + list.map(function (g) {
+      var i = info ? info(g.mode) : null, last = g.on && nOn <= 2;
+      return '<div class="v2-adm-r' + (g.on ? '' : ' is-off') + '"><span class="v2-adm-who"><span class="v2-adm-nm v2-cut" data-v2-fit="12">' + e(i ? i.name : g.mode) + '</span>' +
+        (g.testing ? '<span class="v2-adm-tag">' + e(S.テスト中) + '</span>' : '') + '</span>' +
+        '<button type="button" class="v2-adm-b' + (g.on ? ' is-on' : '') + '" data-fes-game="' + e(g.mode) + '" data-on="' + (g.on ? '1' : '') + '" aria-pressed="' + !!g.on + '"' +
+        (last ? ' disabled aria-disabled="true" title="' + e(S.二本より) + '"' : '') + '>' + e(g.on ? S.入 : S.切) + '</button></div>';
+    }).join('') + '</div>' + (nOn <= 2 ? '<p class="v2-hint">' + e(S.二本より) + '</p>' : '');
+  }
   function staff(o) {
     var S = U().係, V = K();
     // 2026-10-29：つなぎ直したら部屋が無かった（サーバーが作り直された）。大きく出して、作るボタンを置く
@@ -682,9 +694,9 @@
           // 指示66-3：くまくん（owner）だけ、名前の記録を読む画面へ（別のタブで開く）
           (o.canNames ? '<a class="v2-btn is-sec" href="/fes/names" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.名前の記録) + '</span></a>' : '') +
         '</div>' +
-        // 指示68-1：くまくん（owner）だけ「テスト中のゲームも候補に入れる」（はじめは切）
-        (o.canNames ? '<button type="button" class="v2-btn ' + (f.withTesting ? 'is-pri' : 'is-sec') + '" data-fes-act="testing" aria-pressed="' + !!f.withTesting + '"><span>' +
-          e(S.テスト中を入れる + '：' + (f.withTesting ? S.入 : S.切)) + '</span></button>' : '') +
+        // 指示68-T 二の束1：くまくん（owner）だけ、ゲームごとの入／切（「テスト中を入れる」を置きかえた）。
+        // 入はいつも2本以上：入が2本の時、その2本の「切」は押せない（サーバーも断る）
+        (o.canNames ? gamesHtml(st.games || [], o.info) : '') +
         '<span class="v2-lbl">' + e(S.いる人) + '</span>' +
         '<div class="v2-adm-mem">' + (mem.length ? mem.map(function (m) {
           // 指示68-0b B5：隠した人は名前を灰色にして、横に「かくし中」の札（「●●● びび」が名前の一部に見えていた）

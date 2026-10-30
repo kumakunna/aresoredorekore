@@ -78,7 +78,7 @@ const fesOf = (d) => (d.room && d.room.fes) || {};
 
 // 指示68-1：いまの候補はクイズ解除だけで、投票を飛ばす。投票の流れを見る検査は、候補を全部 on にした表で部屋を作る。
 // 本物の表（候補1つ）は「門5」の検査が見る
-// 候補を全部 on にする。**テスト中（testing）の物はのぞく**——テスト中は係の「テスト中を入れる」でだけ候補に入る物で、
+// 候補を全部 on にする。**テスト中（testing）の物はのぞく**——テスト中の物は係の入／切で出し入れする物で、
 // ここで混ぜると候補が4つになり、直前に遊んだゲームが候補から外れる（candidatesFor・3つまで）。
 // 門2はクイズ解除をもう一度選ぶ前提なので、指示68-3 でみんなと同じが入った時に赤くなった
 const 全部on = () => FesRoom.FES_GAMES.filter((g) => !g.testing).map((g) => Object.assign({}, g, { on: true }));
@@ -568,18 +568,59 @@ async function join(srv, code, name, diff, extra) {
 
   // ---- 指示68-1 門5：候補の数（1つ・2つ・4つ以上） ----
   const 表 = (modes) => modes.map((m, i) => ({ mode: m, game: m, min: 2, max: 8, on: true, start: { game: m } }));
-  await r.test('門5：いまの候補はクイズ解除だけ・候補が1つなら投票を飛ばして決定のカードへ', async () => {
-    assertEqual(FesRoom.gamesFor({}).map((g) => g.mode).join(','), 'bomb-coop', 'on の物はクイズ解除の協力版だけ');
+  await r.test('門5：候補が1つなら投票を飛ばして決定のカードへ（係がほかを切にした部屋）', async () => {
+    // 指示68-T 二の束1：はじめの入は、クイズ解除と 10/30 に遊んだ3本。切にした表を入れ物から読んだ形で作る
+    assertEqual(FesRoom.gamesFor({}).map((g) => g.mode).join(','), 'bomb-coop,onaji-many,pittari,soroe', 'はじめの入はクイズ解除と3本');
     const RT = require('../realtime');
     const room = new RT.RoomStore().create({ ownerUserId: 1 });
     for (let i = 0; i < 4; i++) room.members.set('m' + i, { id: 'm' + i, name: 'n' + i, role: 'player', connected: true, joinedAt: i, readyGame: null });
-    FesRoom.init(room, {});
+    FesRoom.init(room, { enabled: { 'onaji-many': false, pittari: false, soroe: false } });
     const api = { startGameNow: () => ({ ok: true }), clearGameState() {}, driverStateOf: () => null, removeMember() { return true; } };
     FesRoom.tick(room, Date.now(), api);
     room.fes.endsAt = Date.now() - 1; FesRoom.tick(room, Date.now(), api);   // 待合 → 候補を決める
     assertEqual(room.fes.phase, 'decide', '投票を飛ばして決定へ');
     assertEqual(room.fes.pick && room.fes.pick.mode, 'bomb-coop', 'クイズ解除に決まる');
     assertEqual(room.fes.pick.lot, 'single', '「このゲームで遊びます！」の形（くじでも票でもない）');
+  });
+
+  await r.test('二の束1：ゲームごとの入／切。いつも2本以上は入・切ったら候補から消える', async () => {
+    const f = { enabled: {} };
+    assertEqual(FesRoom.switchesFor(f).map((g) => g.mode + (g.on ? '入' : '切')).join(','), 'bomb-coop入,onaji-many入,pittari入,soroe入',
+      '並ぶのは入／切できる物だけ（棚から下ろした進化じゃんけん・ロシアンカードは出ない）');
+    assertEqual(FesRoom.setGame(f, 'pittari', false).ok, true, '切にできる');
+    assert(FesRoom.gamesFor(f).every((g) => g.mode !== 'pittari'), '切にしたら候補に出ない');
+    assertEqual(FesRoom.setGame(f, 'soroe', false).ok, true, '3本目も切にできる（残り2本）');
+    const no = FesRoom.setGame(f, 'onaji-many', false);
+    assertEqual(no.error, 'min_on', '入が2本の時は、それ以上切れない');
+    assertEqual(FesRoom.gamesFor(f).length, 2, '2本のまま');
+    assertEqual(FesRoom.setGame(f, 'pittari', true).ok, true, '入にもどせる');
+    assertEqual(FesRoom.setGame(f, 'shinka', true).error, 'no_game', '棚から下ろした物は入にできない');
+  });
+
+  await r.test('二の束1：入／切は入れ物に残り、部屋を作り直しても・サーバーを作り直しても戻らない。くまくんだけが変えられる', async () => {
+    const srv = await startTestServer();
+    try {
+      const owner = await device(srv.url, await login(srv.url, OWNER));
+      const c = await owner.call('fes:create', {});
+      assertEqual(c.ok, true, '部屋ができる');
+      await owner.call('fes:watch', { code: c.code });
+      const teacher = await device(srv.url, await login(srv.url, STAFF));
+      assertEqual((await teacher.call('fes:game', { code: c.code, mode: 'pittari', on: false })).error, 'not_owner', '先生は変えられない');
+      const off = await owner.call('fes:game', { code: c.code, mode: 'pittari', on: false });
+      assertEqual(off.ok, true, 'くまくんは切にできる');
+      await waitUntil(() => owner.staff && owner.staff.games && owner.staff.games.some((g) => g.mode === 'pittari' && !g.on), '係の画面に切が届く');
+      assert(srv.store.get(c.code).fes && FesRoom.gamesFor(srv.store.get(c.code).fes).every((g) => g.mode !== 'pittari'), '部屋の候補から消える');
+      assertEqual(srv.fesStore.gameSwitches().pittari, false, '入れ物に残る');
+      // 部屋を作り直す
+      const c2 = await owner.call('fes:create', { recreate: true });
+      assertEqual(c2.ok, true, '作り直せる');
+      assert(FesRoom.gamesFor(srv.store.get(c2.code).fes).every((g) => g.mode !== 'pittari'), '作り直しても切のまま（' + c2.code + '）');
+      // サーバーを作り直した形：同じ入れ物を読んで部屋を作る
+      const room = new (require('../realtime').RoomStore)().create({ ownerUserId: 1 });
+      FesRoom.init(room, { enabled: srv.fesStore.gameSwitches() });
+      assert(FesRoom.gamesFor(room.fes).every((g) => g.mode !== 'pittari'), '入れ物から読めば切のまま');
+      owner.close(); teacher.close();
+    } finally { await srv.close(); }
   });
 
   await r.test('門5：候補が2つなら、2つで投票する', async () => {

@@ -4,7 +4,7 @@
 //   node tools/fes-walk.js                       … 3周（いまの候補はクイズ解除だけ。投票を飛ばして回る・指示68-1）
 //   node tools/fes-walk.js --laps 3 --fx skip    … 演出「なし」で回す（門11）
 //   --games bomb-coop,shinka,rcard   周ごとに投票するゲーム（ほかの候補を on にした部屋で）（足りなければ頭から繰り返す）
-//   --games onaji-many               テスト中のゲーム（FES_GAMES の testing）は、係が部屋を作った直後に「テスト中を入れる」を押す（指示68-3）
+//   --games onaji-many               係の入／切で「切」のゲームは、係が部屋を作った直後に入にする（指示68-T 二の束1）
 //   --port 3301  --cdp 9701  --out DIR（既定 docs/監査_指示66の画像/fes-walk）
 //
 // **係は部屋を作るだけ。そのあと係の操作は1つもしない**（「人がいなくても回る」を確かめるため）。
@@ -88,12 +88,14 @@ const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.a
     if (!(await 押す(staff, '[data-fes-act=create]'))) { await 押す(staff, '[data-v2-open="#v2Recreate"]'); await sleep(400); await 押す(staff, '[data-v2-act=recreate]'); }
     await sleep(1500);
     log('係が部屋を作った');
-    // 指示68-3：テスト中のゲームを回す時だけ、係（くまくん）が「テスト中を入れる」を押す（部屋を作る支度の一部。そのあとは何も押さない）
-    const FES_GAMES = require(path.join(ROOT, 'fes-room.js')).FES_GAMES;
-    if (GAMES.some((m) => (FES_GAMES.find((g) => g.mode === m) || {}).testing)) {
-      await staff.until("!!document.querySelector('[data-fes-act=testing]')", 10000, 'テスト中を入れるボタン');
-      await 押す(staff, '[data-fes-act=testing]'); await sleep(600);
-      log('係がテスト中のゲームを候補に入れた');
+    // 指示68-T 二の束1：回すゲームが「切」なら、係（くまくん）が入／切の「切」を押して入にする（部屋を作る支度の一部。そのあとは何も押さない）
+    for (const m of GAMES.filter((x, i, a) => a.indexOf(x) === i)) {
+      const sel = '[data-fes-game="' + m + '"]';
+      if (!(await staff.ev('!!document.querySelector(' + JSON.stringify(sel) + ')'))) continue;
+      if (await staff.ev('!document.querySelector(' + JSON.stringify(sel) + ').getAttribute("data-on")')) {
+        await 押す(staff, sel); await sleep(600);
+        log('係が ' + m + ' を入にした');
+      }
     }
     const tv = await b.newDevice('TV', { width: 1280, height: 720 }); devs.push(tv);
     log('TV', await 開く(tv, base, '/fes?tv=1'));

@@ -429,6 +429,17 @@
       return '<div class="v2-rb"><span class="v2-rb-k"><span>' + (i + 1) + '</span></span><span class="v2-rb-t" data-v2-wrap>' + phrase(r[1]) + '</span></div>';
     }).join('') + '</div>';
   }
+  /**
+   * 指示68-T 2：ルールのシートの中身。くわしい説明（detail＝MODES の bullets から、文化祭で要らない行を抜いた物）があれば、それを全部。
+   * 無い時は札と同じ大きな3つ。g：{ rules, detail }
+   */
+  function rulesBodyHtml(g) {
+    var list = (g && g.detail) || [];
+    if (!list.length) return rulesBigHtml(g && g.rules);
+    return '<div class="v2-rlist">' + list.map(function (t, i) {
+      return '<div class="v2-rl"><span class="v2-rb-k"><span>' + (i + 1) + '</span></span><span class="v2-rl-t" data-v2-wrap>' + phrase(t) + '</span></div>';
+    }).join('') + '</div>';
+  }
   /** ルールのシートの頭：上はゲームの世界の色 */
   function rheadHtml(world, name, meta) {
     return '<div class="v2-rhead v2-w-' + esc(world) + '">' + tile(world) + '<div class="v2-rhead-who"><div class="v2-rn">' + esc(name) + '</div>' +
@@ -482,7 +493,7 @@
     nameWallHtml: nameWallHtml, glow: glow, fitTv: fitTv,
     bgHtml: bgHtml, brandHtml: brandHtml, hdHtml: hdHtml, cornerHtml: cornerHtml, avHtml: avHtml, meHtml: meHtml,
     bandHtml: bandHtml, toastHtml: toastHtml, scrimHtml: scrimHtml, sheetHtml: sheetHtml, xHtml: xHtml, dlgHtml: dlgHtml,
-    rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rheadHtml: rheadHtml, rowHtml: rowHtml,
+    rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rulesBodyHtml: rulesBodyHtml, rheadHtml: rheadHtml, rowHtml: rowHtml,
     tmemHtml: tmemHtml, tbandHtml: tbandHtml
   };
 }));

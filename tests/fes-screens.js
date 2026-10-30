@@ -365,6 +365,105 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示68-T 1・2：投票の ⓘ は、投票する前でもシートを開く（4本とも）。中身はくわしい説明（札の3行ではない）
+  const 文化祭の4本 = ['bomb-coop', 'onaji-many', 'pittari', 'soroe'];
+  const くわしく = (win, mode) => (win.modeProbe(mode).bullets || []).filter((t) => !/^1人1台・部屋が必要|^部屋を立てて遊ぶと/.test(t));
+  const シートの文 = (sheet) => Array.from(sheet.querySelectorAll('.v2-rl-t')).map((e) => e.textContent);
+  await r.test('68-T 1・2：投票する前に ⓘ を押すとシートが開く（4本とも）。えらばない。中身はくわしい説明', async () => {
+    const { win, doc } = await 入った();
+    const lab = FesScenes.view('fes2-vote');
+    lab.room.fes.candidates = 文化祭の4本.slice();
+    win.__rtFake.fire('room:update', lab.room);
+    win.__rtFake.fire('fes:you', lab.you);
+    await sleep(win, 40);
+    const scr = doc.getElementById('scr-v2-fes-lobby');
+    assert(!(lab.you || {}).vote, '前提：まだ投票していない');
+    for (const mode of 文化祭の4本) {
+      const i = scr.querySelector('[data-fes-pick="' + mode + '"] [data-v2-open]');
+      assert(i, mode + '：札に ⓘ がある');
+      i.click();
+      const sheet = scr.querySelector('[data-v2-id="v2Rules-' + mode + '"]');
+      assert(sheet && sheet.classList.contains('is-open'), mode + '：ⓘ でシートが開いた');
+      assertEqual(scr.querySelectorAll('.v2-vcard.is-on').length, 0, mode + '：ⓘ を押しても札はえらばれない');
+      const 期待 = くわしく(win, mode);
+      assert(期待.length >= 4, mode + '：くわしい説明が4行以上ある（札の3行より多い）');
+      assertEqual(シートの文(sheet).join('｜'), 期待.join('｜'), mode + '：シートの中はくわしい説明');
+      assert(!/部屋が必要/.test(sheet.textContent), mode + '：「部屋が必要です」は出さない');
+      // 知らせが来て描き直しても、開いたまま
+      win.__rtFake.fire('room:update', lab.room);
+      await sleep(win, 20);
+      assert(scr.querySelector('[data-v2-id="v2Rules-' + mode + '"]').classList.contains('is-open'), mode + '：描き直しても開いたまま');
+      scr.querySelector('[data-v2-id="v2Rules-' + mode + '"] .v2-sfoot [data-v2-close]').click();
+      assert(!scr.querySelector('[data-v2-id="v2Rules-' + mode + '"]').classList.contains('is-open'), mode + '：閉じる で閉じる');
+    }
+    // 札そのものを押せば、今までどおりえらべる
+    scr.querySelector('[data-fes-pick="pittari"]').click();
+    await sleep(win, 20);
+    assertEqual(doc.querySelector('#scr-v2-fes-lobby .v2-vcard.is-on').getAttribute('data-fes-pick'), 'pittari', '札を押すとえらべる');
+    // 投票したあとも ⓘ で開く
+    const voted = FesScenes.view('fes2-voted');
+    voted.room.fes.candidates = 文化祭の4本.slice();
+    win.__rtFake.fire('room:update', voted.room);
+    win.__rtFake.fire('fes:you', voted.you);
+    await sleep(win, 40);
+    doc.querySelector('#scr-v2-fes-lobby [data-fes-pick="soroe"] [data-v2-open]').click();
+    assert(doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Rules-soroe"]').classList.contains('is-open'), '投票したあとも ⓘ で開く');
+    win.close();
+  });
+
+  await r.test('68-T 1：長押しでルールを開いた時、指を離した click で札をえらばない（開いたまま）', async () => {
+    const { win, doc } = await 入った();
+    const lab = FesScenes.view('fes2-vote');
+    lab.room.fes.candidates = 文化祭の4本.slice();
+    win.__rtFake.fire('room:update', lab.room);
+    win.__rtFake.fire('fes:you', lab.you);
+    await sleep(win, 40);
+    const card = doc.querySelector('#scr-v2-fes-lobby [data-fes-pick="onaji-many"]');
+    const r0 = card.getBoundingClientRect();
+    const ev = (type) => new win.PointerEvent(type, { bubbles: true, clientX: r0.left + 10, clientY: r0.top + 10 });
+    card.dispatchEvent(ev('pointerdown'));
+    await sleep(win, 600);
+    assert(doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Rules-onaji-many"]').classList.contains('is-open'), '長押しで開いた');
+    card.dispatchEvent(ev('pointerup'));
+    card.click();
+    await sleep(win, 30);
+    assertEqual(doc.querySelectorAll('#scr-v2-fes-lobby .v2-vcard.is-on').length, 0, '長押しのあとの click ではえらばない');
+    assert(doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Rules-onaji-many"]').classList.contains('is-open'), '開いたまま');
+    win.close();
+  });
+
+  await r.test('68-T 5：文化祭の TV は、端末に残っている演出の速さ（なし）を使わず「ふつう」。スマホとふだんの部屋は設定のまま', async () => {
+    const { win } = await 入った({ prefs: { fxSpeed: 'skip' } });
+    const lab = FesScenes.view('fes2-lobby');
+    const 送る = async (room) => { win.__rtFake.fire('room:update', room); await sleep(win, 30); return win.fxSpeedProbe(); };
+    let p = await 送る(lab.room);
+    assertEqual(p.speed + '/' + p.ms, 'skip/0', '文化祭のスマホは設定のまま（なし）');
+    const tvRoom = JSON.parse(JSON.stringify(lab.room));
+    tvRoom.members.forEach((m) => { if (m.id === 'm1') m.role = 'bigscreen'; });
+    p = await 送る(tvRoom);
+    assertEqual(p.speed + '/' + p.ms + '/' + p.scale, 'normal/1000/1', '文化祭の TV は「ふつう」（--fx-scale も 1）');
+    assert(!win.document.documentElement.classList.contains('fx-skip'), 'TV では「なし」の印も外れる');
+    assertEqual(p.pref, 'skip', '端末の設定そのものは変えない');
+    const ふだん = JSON.parse(JSON.stringify(tvRoom)); delete ふだん.fes;
+    p = await 送る(ふだん);
+    assertEqual(p.speed + '/' + p.ms + '/' + p.scale, 'skip/0/0', 'ふだんの部屋の TV は設定のまま');
+    win.close();
+  });
+
+  await r.test('68-T 2：準備OK の「くわしく見る」も、くわしい説明', async () => {
+    const { win, doc } = await 入った();
+    const lab = 流す(win, 'fes2-ready');
+    await sleep(win, 40);
+    const mode = lab.room.fes.pick.mode;
+    const more = doc.querySelector('#scr-v2-fes-lobby .v2-rmore[data-v2-open]');
+    assert(more, '「くわしく見る」がある');
+    more.click();
+    const sheet = doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Rules-' + mode + '"]');
+    assert(sheet.classList.contains('is-open'), '開いた');
+    assertEqual(シートの文(sheet).join('｜'), くわしく(win, mode).join('｜'), 'シートの中はくわしい説明');
+    win.close();
+  });
+
   await r.test('68-2 第1節：文化祭のクイズ解除の終わりの演出は1回だけ（決着の瞬間の今までの画面と、結果の段階の新しい画面の両方が呼んでも）', async () => {
     const { win, doc } = await 入った();
     const 数 = [];

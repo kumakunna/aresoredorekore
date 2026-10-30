@@ -42,11 +42,11 @@
   function gnameHtml(g, cls) {
     return '<span class="' + cls + '">' + e(g.name) + (g.edition ? '<small>（' + e(g.edition) + '）</small>' : '') + '</span>';
   }
-  /** ルールの9割シート（候補ごと。長押しとⓘで同じものが開く） */
+  /** ルールの9割シート（候補ごと。長押しとⓘで同じものが開く）。中身はくわしい説明（指示68-T 2・札と同じ3行ではない） */
   function rulesSheets(view, list) {
     return list.map(function (g) {
       return K().sheetHtml({ id: 'v2Rules-' + g.id, tall: true, cls: 'v2-rsheet v2-w-' + g.world,
-        head: K().rheadHtml(g.world, g.name, g.meta), body: K().rulesBigHtml(g.rules),
+        head: K().rheadHtml(g.world, g.name, g.meta), body: K().rulesBodyHtml(g),
         foot: '<button type="button" class="v2-btn is-pri" data-v2-close>' + e(W().close) + '</button>' });
     }).join('');
   }

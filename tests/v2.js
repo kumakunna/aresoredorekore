@@ -263,9 +263,13 @@ function v2のクラス(css) {
     view.candidates.forEach((id) => {
       const sheet = s.querySelector('[data-v2-id="v2Rules-' + id + '"]');
       assert(sheet, id + '：長押しで開くルールのシートがある');
-      const 文 = Array.from(sheet.querySelectorAll('.v2-rb-t')).map((e) => e.textContent);
-      const tv = MODES().find((m) => m.id === id).tv.map((x) => x[1]);
-      assertEqual(文.join('｜'), tv.join('｜'), id + '：ルールの3つは MODES[].tv と同じ文');
+      // 指示68-T 2：シートの中はくわしい説明（MODES[].bullets から、部屋に入る前の案内の行を抜いた物）。無いモードは札と同じ3つ
+      const m = MODES().find((x) => x.id === id);
+      const くわしく = (m.bullets || []).filter((t) => !/^1人1台・部屋が必要|^部屋を立てて遊ぶと/.test(t));
+      const 文 = Array.from(sheet.querySelectorAll(くわしく.length ? '.v2-rl-t' : '.v2-rb-t')).map((e) => e.textContent);
+      const 期待文 = くわしく.length ? くわしく : m.tv.map((x) => x[1]);
+      assertEqual(文.join('｜'), 期待文.join('｜'), id + '：ルールのシートは MODES[].bullets（くわしい説明）と同じ文');
+      assert(!/部屋が必要/.test(sheet.textContent), id + '：「部屋が必要です」の行は出さない（もう部屋の中）');
       assert(sheet.classList.contains('v2-w-' + win.V2Screens.modeInfo(id).world), id + '：シートはそのゲームの世界');
     });
     // のこり時間：数字は1桁ずつの箱

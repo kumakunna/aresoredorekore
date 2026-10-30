@@ -4994,7 +4994,13 @@
   .v2 .v2-rn{font-weight:900;font-size:23px;line-height:1.2;}
   .v2 .v2-rm{font-weight:800;font-size:13px;color:var(--ws);}
   .v2 .v2-rhead .v2-x{align-self:flex-start;background:rgba(255,255,255,.9);}
-  .v2 .v2-rsheet .v2-sbody{padding:20px 18px 12px;display:flex;flex-direction:column;gap:12px;}
+  .v2 .v2-rsheet .v2-sbody{padding:20px 18px 12px;display:flex;flex-direction:column;gap:12px;flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+  /* 指示68-T 2：くわしい説明（全部の行）。札の3つより小さい字で、巻いて下まで読める */
+  .v2 .v2-rlist{display:flex;flex-direction:column;gap:12px;}
+  .v2 .v2-rl{display:flex;gap:12px;align-items:flex-start;}
+  .v2 .v2-rl .v2-rb-k{width:28px;height:28px;font-size:15px;margin-top:1px;}
+  .v2 .v2-rl-t{font-weight:800;font-size:16px;line-height:1.6;}
+  :root.fs-large .v2 .v2-rl-t{font-size:19px;}
   /* 下のボタンが2つの時は 12px あける（立ったまま押すと、すき間 2〜4px では隣を押す・指示68-0b C3／物差し K6） */
   .v2 .v2-sfoot{padding:12px 18px 18px;border-top:1px solid #EDEDED;flex:none;display:flex;flex-direction:column;gap:12px;}
 
@@ -32025,7 +32031,15 @@
     var 時 = (e && e.min) ? ('約' + e.min + '分') : '';
     // 版・人は別にも返す（文化祭の画面は時間だけ文化祭の値にして meta を組み直す・fesInfo）
     return { id: m.id, world: (c && c.theme) || 'wait', name: gameTitleOf(gid),
-             meta: [版, 人, 時].filter(Boolean).join('・'), 版: 版, 人: 人, rules: m.tv || [] };
+             meta: [版, 人, 時].filter(Boolean).join('・'), 版: 版, 人: 人, rules: m.tv || [], detail: v2RulesDetail(m) };
+  }
+  /**
+   * 指示68-T 2：ルールのシートに出す、くわしい説明（MODES の bullets）。部屋の中で読む物なので、
+   * 「1人1台・部屋が必要です」「部屋を立てて遊ぶと…」のような、部屋に入る前の案内の行は抜く
+   */
+  var V2_RULES_SKIP = /^1人1台・部屋が必要|^部屋を立てて遊ぶと/;
+  function v2RulesDetail(m){
+    return ((m && m.bullets) || []).filter(function(t){ return !V2_RULES_SKIP.test(t); });
   }
   /** 遊ぶ人だけ（大画面の端末は名簿に出さない） */
   function v2Players(view){
@@ -32069,7 +32083,7 @@
       候補.map(function(g){
         // シートごとそのゲームの世界にする（暗い世界のシートは白・明るい世界は生成り。見本の rsheet と同じ）
         return V2.sheetHtml({ id: 'v2Rules-' + g.id, tall: true, cls: 'v2-rsheet v2-w-' + g.world,
-          head: V2.rheadHtml(g.world, g.name, g.meta), body: V2.rulesBigHtml(g.rules),
+          head: V2.rheadHtml(g.world, g.name, g.meta), body: V2.rulesBodyHtml(g),
           foot: '<button type="button" class="v2-btn is-pri" data-v2-close>' + V2.esc(UiText.WORDS.close) + '</button>' });
       }).join('');
     scr.innerHTML = h;
@@ -32185,7 +32199,7 @@
   // 流れを進めるのはサーバー（fes-room.js）で、端末は始めない・進めない（rtMaybeAutoStart も止めてある）
   var fes = { sel: null, selRound: null, join: { code: null, n: null, name: '', diff: null, err: '', busy: false },
               endFor: null, end: null, playAnim: null, seenIds: null, fb: null, fbAsked: null,
-              quit: null, staff: null, staffFb: [], staffErr: '', staffRole: null, canCreate: false, toastOnce: false };
+              quit: null, staff: null, staffFb: [], staffErr: '', staffRole: null, canCreate: false, toastOnce: false, lpAt: 0 };
   var FES_NAME_KEY = 'fes_name_v1', FES_FB_KEY = 'fes_fb_v1';
   function fesRoom(){ return rt && rt.state.room && rt.state.room.fes ? rt.state.room : null; }
   /** 文化祭の部屋の画面か。遊んでいる間（今回のゲームに入っている人と TV）は null＝今までのゲームの画面 */
@@ -32811,6 +32825,7 @@
   });
   // 2026-10-29（くまくん）：文化祭の準備OK の取り消しは長押し（v2-kit.js の data-v2-lp が 0.45秒で v2:longpress を出す）。触っただけでは取り消さない
   document.addEventListener('v2:longpress', function(e){
+    if(e.target.closest && e.target.closest('[data-fes-pick]')) fes.lpAt = Date.now();   // 指示68-T 1：この長押しのあとの click では、えらばない
     if(rt && e.target.closest && e.target.closest('[data-fes-unready]')) rt.setReady(false);
   });
   document.addEventListener('click', function(e){
@@ -32819,6 +32834,11 @@
     var room = fesRoom(), code = room ? room.code : (fes.staff && fes.staff.code);
     if(b.hasAttribute('data-fes-diff')){ fes.join.diff = b.getAttribute('data-fes-diff'); fes.join.err = ''; fesRenderJoin(); return; }
     if(b.hasAttribute('data-fes-pick')){
+      // 指示68-T 1：札の中の ⓘ（data-v2-open）を押した時は、えらばない・描き直さない。
+      // 描き直すと、押した ⓘ が画面から外れて、v2-kit.js がシートを探せなかった（投票する前は開かなかった）
+      if(e.target.closest('[data-v2-open]')) return;
+      // 長押しでルールを開いた時も、えらばない（指を離した click が来る）
+      if(Date.now() - fes.lpAt < 800) return;
       // 投票は外れない：入れたあとは、ほかの札を押しても変わらない（00 の1）
       if(rt.state.fes && rt.state.fes.vote) return;
       fes.sel = b.getAttribute('data-fes-pick'); rtRenderCurrent(); return;

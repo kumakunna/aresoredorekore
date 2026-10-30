@@ -78,6 +78,8 @@ async function 開く(dev, port, scene, st) {
   // 巻ける中身を一番下まで送って撮る（部品の見本の下の方）
   if (st.scroll === 'end') await dev.ev("(function(){ var b=document.querySelector('.screen.active .v2-in.is-scroll'); if(b) b.scrollTop=b.scrollHeight; return !!b; })()");
   if (st.open) await dev.ev(`(function(){ var l=document.querySelector('[data-v2-id="${st.open}"]'); V2.open(l); return !!l; })()`);
+  // 指示68-T 2：開いたシートの中を一番下まで送る（くわしい説明が下まで読めるか）
+  if (st.open && st.scroll === 'sheet') await dev.ev("(function(){ var b=document.querySelector('.screen.active .v2-sheet.is-open .v2-sbody'); if(b) b.scrollTop=b.scrollHeight; return !!b; })()");
   await sleep(st.open ? 700 : 400);   // 出入りの 0.25 秒と、絵文字の差し替えが済むまで
   const ms = await dev.ev(時計);
   if (!(ms > 0 && ms < 500)) throw new Error('ページの時計が止まっています（rAF ' + ms + 'ms）');

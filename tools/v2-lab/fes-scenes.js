@@ -117,6 +117,9 @@ const BUILD = {
   'fes2-look-name': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); のこり(r, 20); return lab(r, 'scr-v2-fes-lobby', 'm1', { open: ['v2Look', 'v2LookName'] }); },
   'fes2-fbmini': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); のこり(r, 21); return lab(r, 'scr-v2-fes-lobby', 'm1', { fb: { mode: 'bomb-coop', round: 1, stars: 0, open: false } }); },
   'fes2-vote': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); のこり(r, 20); return lab(r, 'scr-v2-fes-lobby', 'm1', { sel: 'bomb-coop' }); },
+  // 指示68-T 1・2：テスト中の3本（みんなと同じ・ぴったり10秒・そろえて発射）が候補の投票。ⓘ のシートを1本ずつ撮る
+  //（候補は3つまで：4本以上は進行役が3つに絞る。クイズ解除のシートは fes2-vote・fes2-ready で撮る）
+  'fes2-vote-t': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); r.fes.candidates = ['onaji-many', 'pittari', 'soroe']; のこり(r, 20); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-voted': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); のこり(r, 14); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-decide': (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); ['m1', 'm2', 'm3', 'm4', 'm5'].forEach((id) => FesRoom.vote(r, id, 'bomb-coop')); 進める(r); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-ready': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);
@@ -170,7 +173,7 @@ const SCENES = [
   ['fes2-lobby', 'phone', 'f3'], ['fes2-fb', 'phone', 'f4'], ['fes2-fbmini', 'phone', null],
   ['fes2-play', 'phone', 'f11'], ['fes2-tv-play16', 'tv', null], ['fes2-tv-play-cut', 'tv', null], ['fes2-tv-play-last', 'tv', null], ['fes2-tv-play', 'tv', 't11'],
   ['fes2-look', 'phone', 'f5a'], ['fes2-look-icon', 'phone', 'f5b'], ['fes2-look-name', 'phone', 'f5c'],
-  ['fes2-vote', 'phone', 'f7'], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'], ['fes2-readied', 'phone', null],
+  ['fes2-vote', 'phone', 'f7'], ['fes2-vote-t', 'phone', null], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'], ['fes2-readied', 'phone', null],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],
   ['fes2-tv-idle', 'tv', 't6a'], ['fes2-tv-one', 'tv', 't6b'], ['fes2-tv-lobby', 'tv', 't3'], ['fes2-tv-full', 'tv', 't6c'],
   ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-film-decide-one', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b']

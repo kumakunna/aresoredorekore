@@ -135,6 +135,15 @@ const STATES = {
   // K8 ③：QR を読むシートが開いた形。base はカメラが使えない端末（案内だけ）、cam はその場でカメラが映る端末（Android の Chrome）
   'home-e2qr': [{ id: 'base', freeze: 20, mock: null }, { id: 'cam', cam: 1, freeze: 20, mock: null }],
   'fes2-lobby': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],
+  // 指示68-T 1・2：投票の ⓘ と準備OK の「くわしく見る」で開くシート（くわしい説明）。開いた形と、シートの中を下まで送った形。
+  // クイズ解除のシートは fes2-vote（rules）と fes2-ready で撮る
+  'fes2-vote': [{ id: 'base', freeze: 20, mock: [] }, { id: 'rules-bomb-coop', freeze: 20, open: 'v2Rules-bomb-coop', mock: null },
+    { id: 'rules-bomb-coop-end', freeze: 20, open: 'v2Rules-bomb-coop', scroll: 'sheet', mock: null }],
+  'fes2-vote-t': ['onaji-many', 'pittari', 'soroe'].reduce((a, m) => a.concat([
+    { id: 'rules-' + m, freeze: 20, open: 'v2Rules-' + m, mock: null },
+    { id: 'rules-' + m + '-end', freeze: 20, open: 'v2Rules-' + m, scroll: 'sheet', mock: null }]), [{ id: 'base', freeze: 20, mock: null }]),
+  'fes2-ready': [{ id: 'base', freeze: 12, mock: [] }, { id: 'rules', freeze: 12, open: 'v2Rules-bomb-coop', mock: null },
+    { id: 'rules-end', freeze: 12, open: 'v2Rules-bomb-coop', scroll: 'sheet', mock: null }],
   // B5：7人と16人（16人は名簿が長く、下のボタンが隠れていた）・いちばん幅の広い8字の名前
   // 遊んでいる間の TV：QR を大きくした（黒い所 350px 以上）ので、8人がいちばん幅の広い8字でも名前の札が切れないか
   'fes2-tv-play': [{ id: 'base', freeze: 20, mock: [] }, { id: 'wide', long: 1, freeze: 20, mock: null }],

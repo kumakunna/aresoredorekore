@@ -48,7 +48,8 @@
   /** よーい（スマホと TV） */
   function setHtml(view, tv) {
     var d = view.data || {}, V = K(), t = T();
-    return '<div class="v2-ptset' + (tv ? ' is-tv' : '') + '"><div class="v2-ptready">' + e(t.よーい) + '</div>' +
+    // 指示68-T 3：時計が最初から見えない回は「よーい……」を大きく（スタートの字も大きい・index.html の pittariFx）
+    return '<div class="v2-ptset' + (tv ? ' is-tv' : '') + (d.show === false ? ' is-blind' : '') + '"><div class="v2-ptready">' + e(t.よーい) + '</div>' +
       '<div class="v2-pttgt"><b class="v2-num">' + V.digits(d.target || 10) + '</b><span>' + e(t.秒) + '</span></div>' +
       '<div class="v2-hint v2-c">' + e(d.show === false ? t.見えない回 : t.三秒で消える) + '</div></div>';
   }

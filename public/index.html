@@ -822,6 +822,30 @@
     100%{transform:scale(1);}
   }
 
+  /* --- 指示68-T 3：大きな字の合図（FxKit.cue）。声を止めた代わりに「スタート！」などを字で出す ---
+     押す邪魔をしない（pointer-events:none）。出ている長さは JS が決める（演出の速さをかけない）。
+     出入りだけ --fx-scale に乗る。曲線は正本4の3つから */
+  .fx-cue{
+    position:fixed;inset:0;z-index:90;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;padding:0 16px;
+  }
+  .fx-cue-text{
+    font-weight:900;line-height:1.15;text-align:center;color:#fff;
+    background:#1A1C24;border-radius:28px;padding:.25em .6em;
+    text-shadow:0 2px 0 rgba(0,0,0,.35);
+    animation:fxCueIn calc(0.18s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) both;
+  }
+  .fx-cue.fx-out .fx-cue-text{animation:fxCueOut calc(0.14s * var(--fx-scale)) ease-in forwards;}
+  .fx-cue-m .fx-cue-text{font-size:min(7vw,30px);max-width:min(92vw,560px);}
+  /* l・xl は1行（「スタート！」5字が 320px の幅でも折れない。xl は枠を細くして字を大きく） */
+  .fx-cue-l .fx-cue-text{font-size:min(13vw,60px);white-space:nowrap;}
+  .fx-cue-xl .fx-cue-text{font-size:min(calc((100vw - 32px) / 5.8),84px);white-space:nowrap;padding:.2em .35em;}
+  :root.big-screen .fx-cue-m .fx-cue-text{font-size:min(4.4vw,84px);max-width:80vw;}
+  :root.big-screen .fx-cue-l .fx-cue-text{font-size:min(10vw,190px);}
+  :root.big-screen .fx-cue-xl .fx-cue-text{font-size:min(14vw,260px);}
+  @keyframes fxCueIn{ 0%{transform:scale(.6);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+  @keyframes fxCueOut{ to{transform:scale(1.06);opacity:0;} }
+
   /* --- 第59弾：上から一気に落ちて、少し跳ねて止まる帯 ---
      中身は .fx-banner と同じ（icon/text/sub/skip案内）。違うのは出方だけ。
      2クラス・3クラスの組み合わせにしているのは、CSSの並び順に頼らないため
@@ -5266,6 +5290,9 @@
   .v2.is-play .v2-ptpin{animation:v2-ptfall var(--v2-show) var(--v2-pop) both;}
   @keyframes v2-ptfall{from{opacity:0;transform:translate(-50%,-90px);}to{opacity:1;transform:translate(-50%,0);}}
   .v2 .v2-ptset.is-tv .v2-ptready{font-size:120px;}
+  /* 指示68-T 3：時計が最初から見えない回（4回目）は「よーい……」を大きく */
+  .v2 .v2-ptset.is-blind .v2-ptready{font-size:48px;}
+  .v2 .v2-ptset.is-tv.is-blind .v2-ptready{font-size:170px;}
   .v2 .v2-ptset.is-tv .v2-pttgt b{font-size:300px;}
   .v2 .v2-ptset.is-tv .v2-pttgt span{font-size:90px;}
   .v2 .v2-ptset.is-tv .v2-hint{font-size:48px;}
@@ -32487,7 +32514,7 @@
   }
 
   // ---- 指示68-4：ぴったり10秒。**時間は端末の中で測る**（時計を出した時から、ストップを押した時まで） ----
-  var pt = { key: null, sw: null, stopped: false, timer: null };
+  var pt = { key: null, sw: null, stopped: false, timer: null, hidCue: null };
   function pittariLocal(d, key){
     if(pt.key !== key){
       pt.key = key; pt.stopped = false;
@@ -32496,8 +32523,12 @@
     }
     return { stopped: pt.stopped };
   }
-  /** 時計の字：見えている間（3秒・見えない回は0秒）は経った秒、そのあとは「？」 */
-  function pittariAfter(scr, d, lab){
+  /**
+   * 時計の字：見えている間（3秒・見えない回は0秒）は経った秒、そのあとは「？」。
+   * 指示68-T 3：時計が消える瞬間に「時計は消えても、そのまま数えつづけて」を1回だけ（0.8秒）。
+   * 見えない回（4回目）は消える瞬間が無いので出さない（スタートの字を大きくしてある）
+   */
+  function pittariAfter(scr, d, lab, tv){
     clearInterval(pt.timer); pt.timer = null;
     var c = scr.querySelector('[data-pt-clock]'); if(!c) return;
     var show = d.show === false ? 0 : (d.showMs || 3000);
@@ -32507,6 +32538,11 @@
       var 見える = ms < show;
       c.textContent = 見える ? (Math.floor(ms / 100) / 10).toFixed(1) : '？';
       c.classList.toggle('is-hidden', !見える);
+      if(!lab && !見える && show > 0 && pt.key && pt.hidCue !== pt.key){
+        pt.hidCue = pt.key;
+        // 消えた直後だけ（あとから描き直した端末に、遅れて出さない）
+        if(ms < show + 600) FxKit.cue(UiText.PITTARI.消えても, { ms: 800, size: 'm' });
+      }
     };
     draw();
     if(!lab && d.phase === 'run') pt.timer = setInterval(draw, 50);
@@ -32527,11 +32563,21 @@
     if(fxMs(1000) <= 0){ if(last) fn(); return; }
     setTimeout(fn, fxMs(sec * 1000));
   }
-  /** 声：よーい（v31）→ スタート（v08）。開く：1枚ごとに短い音（だんだん高く）→ 寄る時に心臓の音 → 決まった音と声（v17／0.00秒は v18） */
+  /**
+   * 声：よーい（v31）→ スタート（v08）。開く：1枚ごとに短い音（だんだん高く）→ 寄る時に心臓の音 → 決まった音と声（v17／0.00秒は v18）
+   * 指示68-T 3：声は止めた（音の箱が鳴らさない）。**スタートの合図は字と音**：TV とスマホの両方に大きな「スタート！」（0.6秒）、
+   * 音は「決まった」の音（TV で鳴る・TV が無い部屋はスマホで）。iPhone は Web から振動できないので、振動にたよらない。
+   * 時計が最初から見えない回（4回目）は、字をもっと大きく
+   */
   function pittariFx(view, tv, key){
     var d = view.data, r = d.reveal || {}, me = view.you || {};
     if(d.phase === 'set') rtOnce('pt:v31:' + key, true, function(){ if(window.Sound) Sound.voice('v31'); });
-    if(d.phase === 'run'){ rtOnce('pt:v08:' + key, true, function(){ if(window.Sound) Sound.voice('v08'); }); if(!tv) sfx('decide'); }
+    if(d.phase === 'run'){
+      rtOnce('pt:v08:' + key, true, function(){ if(window.Sound) Sound.voice('v08'); });
+      var 遊ぶ = tv || (d.players || []).some(function(p){ return p.id === view.meId; });
+      if(遊ぶ) FxKit.cue(UiText.PITTARI.スタート, { ms: 600, size: d.show === false ? 'xl' : 'l', cls: 'is-pt-go' });
+      sfx('decide');
+    }
     if(d.phase !== 'roundResult') return;
     if(tv){
       var rows = r.rows || [], tl = V2Pittari.timeline(rows), 早い = Math.max(0, rows.length - 2);

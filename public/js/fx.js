@@ -452,6 +452,33 @@
   }
 
   /**
+   * **大きな字の合図**（指示68-T 3：声を止めた代わり）。「スタート！」のように、いつ何をするかを字で知らせる。
+   * 押す邪魔をしない（pointer-events なし・舞台の順番に並ばない・待たなくてよい）。
+   * **出ている長さ（ms）は演出の速さをかけない**——合図そのものなので、演出「なし」の人にも同じ長さで出す。
+   * 出入りの動きだけが --fx-scale に乗る（「なし」なら、ぱっと出て、ぱっと消える）。
+   *   opt.ms：出ている長さ（既定 600）・opt.size：'m'｜'l'｜'xl'（既定 'l'）・opt.cls：着せ方を足す
+   * 同時に出すのは1つ（前の合図が残っていたら消してから出す）
+   */
+  var cueNode = null;
+  function cue(text, opt) {
+    opt = opt || {};
+    var h = layer();
+    if (!h) return null;
+    if (cueNode && cueNode.parentNode) cueNode.parentNode.removeChild(cueNode);
+    var n = mk('fx-cue fx-cue-' + (opt.size || 'l') + (opt.cls ? ' ' + opt.cls : ''), '<div class="fx-cue-text">' + esc(text || '') + '</div>');
+    if (!n) return null;
+    n.setAttribute('aria-hidden', 'true');
+    h.appendChild(n);
+    cueNode = n;
+    var ms = opt.ms == null ? 600 : opt.ms;
+    setTimeout(function () {
+      n.classList.add('fx-out');
+      setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); if (cueNode === n) cueNode = null; }, 160);
+    }, ms);
+    return n;
+  }
+
+  /**
    * 上から一気に落ちて、少し跳ねて止まる帯（第59弾）。
    * 中身（icon/text/sub）は `banner` と同じ組み立てを使う——違うのは出方だけ
    * （沸き出る vs 落ちてくる）。責める場面にも使うので、banner と違い kind:'bad' の縛りは無い
@@ -1289,7 +1316,7 @@
 
   var api = {
     init: init, hold: hold, linger: linger, skipNow: skipNow, busy: busy,
-    flash: flash, boom: boom, dawn: dawn, banner: banner, burst: burst, shutter: shutter,
+    flash: flash, boom: boom, dawn: dawn, banner: banner, burst: burst, shutter: shutter, cue: cue,
     blackout: blackout, celebrate: celebrate, finale: finale,
     flip: flip, countUp: countUp,
     stagger: stagger, fly: fly, alive: alive, notice: notice,

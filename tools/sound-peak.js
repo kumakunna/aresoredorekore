@@ -7,7 +7,7 @@
 //   1. Chrome（tools/cdp.js）で public/ を開き、見せ場の音を出す関数（index.html の onajiFx・soroeFx・bombFinale）を
 //      見本データ（本物の進行役で作った物・tools/v2-lab/）で本当に動かす。そのとき Sound.play を横取りして「何を・いつ」だけ記録する
 //   2. OfflineAudioContext に、本物の音の箱（sound.js：同じ音は3つまで）と本物の出口（index.html の sfxOut：
-//      音量のつまみ → リミッター）をつないで、記録した時刻に Sound.play を呼ぶ（suspend で止めて鳴らす）
+//      リミッター → 音量のつまみ）をつないで、記録した時刻に Sound.play を呼ぶ（suspend で止めて鳴らす）
 //   3. できた音の、いちばん大きい所（ピーク）を dBFS で数える。−1dB を超えたら赤（終わりの数が 1）
 // 音量は、まっさらな端末の設定（効果音の音量の既定）と、いちばん大きい 100 の2つ
 const fs = require('fs');
@@ -57,11 +57,11 @@ function 鳴らす式(log, o) {
     var out = function(c){
       if(!plain){
         var g0 = window.sfxOutProbe(c);
-        if(vol != null) g0.gain.value = vol;
+        if(vol != null) window.sfxVolProbe(c).gain.value = vol;
         return g0;
       }
       if(c.__plain) return c.__plain;
-      var g = c.createGain(); g.gain.value = vol != null ? vol : window.sfxOutProbe(c).gain.value; g.connect(c.destination); c.__plain = g; return g;
+      var g = c.createGain(); g.gain.value = vol != null ? vol : window.sfxVolProbe(c).gain.value; g.connect(c.destination); c.__plain = g; return g;
     };
     Sound.reset();
     Sound.setup({ makeContext: function(){ return off; }, out: out, volume: function(){ return 1; },
@@ -78,7 +78,7 @@ function 鳴らす式(log, o) {
     var buf = await off.startRendering();
     var peak = 0;
     for (var ch = 0; ch < buf.numberOfChannels; ch++) { var a = buf.getChannelData(ch); for (var i = 0; i < a.length; i++) { var v = Math.abs(a[i]); if (v > peak) peak = v; } }
-    var gain = window.sfxOutProbe(new OfflineAudioContext(1, 128, SR)).gain.value;
+    var gain = window.sfxVolProbe(new OfflineAudioContext(1, 128, SR)).gain.value;
     return { peakDb: peak > 0 ? 20 * Math.log10(peak) : -Infinity, how: how, defaultGain: gain };
   })()`;
 }

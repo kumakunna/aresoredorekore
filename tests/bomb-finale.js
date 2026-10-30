@@ -27,7 +27,7 @@ async function 終わらせる(t) {
 (async function main() {
   const r = createRunner('bomb-finale：クイズ解除の終わりの演出（指示68-2 第1節）');
 
-  await r.test('門1：解除成功（TV・指示68-S の台本）… ため 0.75秒 → ランプが緑「カチッ」→ 1.5秒 ふたが開いて「解除成功！」→ 3.0秒 名前が飛び出す → 4.5秒 結果の札', async () => {
+  await r.test('門1：解除成功（TV・指示68-S の台本を 68-T 二の束4 で縮めた）… ため 0.75秒 → ランプが緑「カチッ」→ 1.25秒 ふたが開いて「解除成功！」→ 2.0秒 名前が飛び出す → 3.0秒 結果の札 → 4.0秒までに幕が上がる', async () => {
     const t = await 開く();
     let 後ろ = 0;
     const p = t.win.bombFinaleProbe({ success: true, tv: true, names: ['ふう', 'ひろ', 'びび'], solved: 30, total: 30, sec: 147, lives: 2,
@@ -48,18 +48,18 @@ async function 終わらせる(t) {
     assertEqual(音(t.win, 'tick').length, 1, '「カチッ」');
     // 時刻で見ずに順番で見る（並走で機械が重いと、待っている間に 1.5秒を越えることがある）：ふたが開く前は鳴っていない
     assertEqual(音(t.win, 'defuse').length, n.classList.contains('is-text') ? 1 : 0, 'ほめる音は、ふたが開いてから');
-    await sleep(t.win, 800);
-    assert(n.classList.contains('is-text'), '1.5秒：ふたが開いて字');
+    await sleep(t.win, 500);
+    assert(n.classList.contains('is-text'), '1.25秒：ふたが開いて字');
     assertEqual(音(t.win, 'defuse').length, 1, 'ふたが開いた時にほめる音');
     assert(/解除成功！/.test(n.querySelector('.fx-fin-title').textContent), '「解除成功！」');
     assert(!n.classList.contains('is-names'), '名前はまだ');
-    await sleep(t.win, 1500);
-    assert(n.classList.contains('is-names'), '3.0秒：名前が飛び出す');
+    await sleep(t.win, 750);
+    assert(n.classList.contains('is-names'), '2.0秒：名前が飛び出す');
     ['ふう', 'ひろ', 'びび'].forEach((x) => assert(字(t.doc).indexOf(x) !== -1, x + ' の名前（協力なので全員）'));
     assertEqual(n.querySelectorAll('.fx-fin-heart').length, 2, '残ったライフのハート');
     assertEqual(後ろ, 0, 'まだ結果へ移らない');
-    await sleep(t.win, 1500);
-    assert(n.classList.contains('is-card'), '4.5秒：結果の札が上がる');
+    await sleep(t.win, 950);
+    assert(n.classList.contains('is-card'), '3.0秒：結果の札が上がる');
     const 札 = n.querySelector('.fx-fin-card').textContent;
     assert(/30\/30/.test(札) && /02:27/.test(札) && /枕草子/.test(札), '札に本数・時間・迷った問題（' + 札 + '）');
     await 終わらせる(t);
@@ -69,7 +69,7 @@ async function 終わらせる(t) {
     t.win.close();
   });
 
-  await r.test('門1：爆発（TV・指示68-S の台本）… ため → 0.75秒 爆発（光1回・揺れ0.2秒を1回）→ 煙が晴れて切れなかったコードが光る → 3.0秒「あと3本だった！」', async () => {
+  await r.test('門1：爆発（TV・指示68-S の台本を 68-T 二の束4 で縮めた）… ため → 0.75秒 爆発（光1回・揺れ0.2秒を1回）→ 煙がほぼ晴れて切れなかったコードが光る → 2.0秒「あと3本だった！」', async () => {
     const t = await 開く();
     t.win.bombFinaleProbe({ success: false, tv: true, left: 3, solved: 27, total: 30, sec: 153, cause: 'lives' });
     await sleep(t.win, 20);
@@ -82,10 +82,10 @@ async function 終わらせる(t) {
     assert(n.classList.contains('is-shake'), '揺れ');
     assertEqual(音(t.win, 'boom').length, 1, '爆発の音');
     assert(n.querySelectorAll('.fx-fin-deb').length > 0 && n.querySelector('.fx-fin-ring'), 'マンガのような破片と輪');
-    await sleep(t.win, 1300);
+    await sleep(t.win, 600);
     assert(!n.classList.contains('is-text'), '煙が晴れるまでは字を出さない（演出と字を重ねない）');
-    await sleep(t.win, 1100);
-    assert(n.classList.contains('is-text'), '3.0秒：字');
+    await sleep(t.win, 700);
+    assert(n.classList.contains('is-text'), '2.0秒：字');
     assert(/あと3本だった！/.test(字(t.doc)) && /つぎはいけるかも/.test(字(t.doc)), '「あと3本だった！」「つぎはいけるかも」（' + 字(t.doc) + '）');
     // CSS：揺れは 0.2秒を1回、明るさは1回（くり返さない）
     const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
@@ -93,6 +93,28 @@ async function 終わらせる(t) {
     assert(/@keyframes fxFinFlash\{0%\{opacity:\.8;\}100%\{opacity:0;\}\}/.test(css), '明るさは1回だけ変わって戻る');
     await 終わらせる(t);
     t.win.close();
+  });
+
+  await r.test('二の束4：幕は TV もスマホも、解除も爆発も、全部で4秒以内（同じ時刻に上がる）。文化祭の結果へ移るのは幕より0.5秒以上あと', async () => {
+    const 長さ = async (o) => {
+      const t = await 開く();
+      const t0 = Date.now();
+      await t.win.bombFinaleProbe(Object.assign({ total: 30, solved: 27 }, o));
+      const ms = Date.now() - t0;
+      t.win.close();
+      return ms;
+    };
+    const ms = {
+      TV解除: await 長さ({ success: true, tv: true, names: ['ふう', 'ひろ', 'びび', 'ちか', 'でん', 'えみ', 'あき', 'くまくん', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'], solved: 30 }),
+      TV爆発: await 長さ({ success: false, tv: true, left: 3, cause: 'lives' }),
+      スマホ解除: await 長さ({ success: true, tv: false, me: 'ふう', names: ['ふう'], solved: 30 }),
+      スマホ爆発: await 長さ({ success: false, tv: false, left: 3 })
+    };
+    Object.keys(ms).forEach((k) => assert(ms[k] <= 4200, k + ' は4秒以内（' + ms[k] + 'ms）'));
+    const 差 = Math.max.apply(null, Object.values(ms)) - Math.min.apply(null, Object.values(ms));
+    assert(差 <= 300, 'TV とスマホ・解除と爆発の幕が同じ時刻に上がる（差 ' + 差 + 'ms・' + JSON.stringify(ms) + '）');
+    const FesRoom = require('../fes-room');
+    assert(FesRoom.TIMES.endGraceMs >= 4000 + 500, '文化祭の結果へ移るのは幕（4.0秒）より0.5秒以上あと（' + FesRoom.TIMES.endGraceMs + 'ms）');
   });
 
   await r.test('門1：スマホ … 解除は「解除！」と自分の名前だけ・短い振動／爆発は静かに「ばくはつ…」・長めの振動', async () => {

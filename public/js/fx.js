@@ -1227,36 +1227,39 @@
       if (!clear && tv && 揺れ) 付ける('is-shake');
     };
     var p;
+    // 指示68-T 二の束4（くまくんの「幕は短く」）：幕は TV もスマホも、消えるまで全部で4.0秒（FINALE_MS）。
+    // 爆発そのもの（輪・破片）は小さくも短くもしない。縮めたのは、字が出るまでの間と、出たあとの間（と TV の煙が晴れる長さ 2.2→1.6秒）
     if (tv && clear) {
-      // 指示68-S の台本：0.75 ランプが緑（カチッ）→ 1.5 ふたが開いて「解除成功！」→ 3.0 名前が飛び出す → 4.5 結果の札
+      // 指示68-S の台本を縮めた：0.75 ランプが緑（カチッ）→ 1.25 ふたが開いて「解除成功！」→ 2.0 名前が飛び出す → 3.0 結果の札 → 3.75 幕が上がる
       p = 段(750).then(function () {
         開く(); 呼ぶ(opt.onLamp);
-        return 段(750);
+        return 段(500);
       }).then(function () {
         付ける('is-text'); 呼ぶ(opt.onOpen); 呼ぶ(opt.onText);
-        return 段(1500);
+        return 段(750);
       }).then(function () {
         付ける('is-names');
         if (!飛ばす && typeof opt.onName === 'function') {
-          var 間 = Math.min(110, 1100 / Math.max(1, names.length));
+          var 間 = Math.min(110, 900 / Math.max(1, names.length));
           names.forEach(function (x, k) {
             setTimeout(function () { if (!飛ばす) 呼ぶ(function () { opt.onName(k); }); }, cfg.ms(k * 間));
           });
         }
-        return 段(1500);
+        return 段(1000);
       }).then(function () {
         付ける('is-card');
-        return linger(opt.linger == null ? 1500 : opt.linger);
+        return linger(opt.linger == null ? 750 : opt.linger);
       });
     } else {
       p = 段(750).then(function () {
         開く();
-        // 爆発（TV）は、煙が晴れてから字を出す（台本：0.75 爆発 → 1.25〜3.0 煙が晴れる → 3.0 字）
-        return 段(!clear && tv ? 2250 : 400);
+        // 爆発（TV）は、煙がほぼ晴れてから字を出す（0.75 爆発 → 煙は 2.35 で晴れる → 2.0 字 → 3.75 幕が上がる）
+        return 段(!clear && tv ? 1250 : 400);
       }).then(function () {
         付ける('is-text');
         呼ぶ(opt.onText);
-        return linger(opt.linger == null ? (!clear && tv ? 2500 : (大きく ? 2600 : 2000)) : opt.linger);
+        // スマホは 0.75＋0.4＋2.6＝3.75 で TV と同じ時刻に幕を上げる（指示68-T 二の束4）
+        return linger(opt.linger == null ? (!clear && tv ? 1750 : 2600) : opt.linger);
       });
     }
     p = p.then(function () {

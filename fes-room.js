@@ -97,7 +97,8 @@ const TIMES = {
   resultMs: 15000,   // 結果と「つづける？」（F12「15秒」）
   // ゲームが終わってから結果の画面へ移るまで。爆発・解除の瞬間そのもの（溜め・音・TVいっぱいの💥）は
   // ゲームの画面が見せるので、それを切らない（F12「爆発の瞬間そのものは「クイズ解除」のページ」）
-  endGraceMs: 4500
+  // 指示68-T 二の束4：クイズ解除の幕（TV・スマホとも全部で4.0秒・fx.js finale）より1秒長く。知らせが少し遅れて届いた TV でも、幕の途中で結果へ移らない
+  endGraceMs: 5000
 };
 
 const PHASE = { IDLE: 'idle', LOBBY: 'lobby', VOTE: 'vote', DECIDE: 'decide', READY: 'ready', PLAY: 'play', RESULT: 'result' };

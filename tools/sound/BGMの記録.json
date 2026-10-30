@@ -1,0 +1,26 @@
+{
+ "bpm": 112,
+ "bars": 16,
+ "loop_s": 34.2857,
+ "lufs_integrated": -20.0,
+ "peak_db_mp3": -4.98,
+ "kb": 506,
+ "chords": [
+  "C",
+  "Am",
+  "F",
+  "G",
+  "C",
+  "Am",
+  "Dm",
+  "G",
+  "F",
+  "G",
+  "Em",
+  "Am",
+  "Dm",
+  "G",
+  "C",
+  "G"
+ ]
+}

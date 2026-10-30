@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const { 配り手, ROOT } = require('./v2-lab/open');
-const { decodePng, encodeGif } = require('./gif-lite');
+const { encodeGif } = require('./gif-lite');
 const RT = require('../realtime');
 const PittariRoom = require('../pittari-room');
 
@@ -76,40 +76,9 @@ async function 端末(br, name, size, me, set) {
   await dev.ev("document.fonts.ready.then(function(){ return 1; })");
   return dev;
 }
-function 送りを受ける(dev, w, h) {
-  const got = [];
-  const off = dev.onEvent((m) => {
-    if (m.method !== 'Page.screencastFrame') return;
-    got.push({ t: m.params.metadata.timestamp * 1000, data: m.params.data });
-    dev.raw('Page.screencastFrameAck', { sessionId: m.params.sessionId }).catch(() => {});
-  });
-  return { got, start: () => dev.raw('Page.startScreencast', { format: 'png', maxWidth: w, maxHeight: h, everyNthFrame: 1 }),
-    stop: async () => { await dev.raw('Page.stopScreencast'); off(); } };
-}
-function コマを並べる(got, t0) {
-  const out = [];
-  for (let i = 0; i <= Math.round(SEC * FPS); i++) {
-    const want = t0 + i * 1000 / FPS;
-    let pick = got[0];
-    for (const f of got) { if (f.t <= want) pick = f; else break; }
-    out.push(decodePng(Buffer.from(pick.data, 'base64')));
-  }
-  return out;
-}
-/** 左に TV、右にスマホ（高さを TV に合わせて、近いほうの画素で縮める） */
-function 並べる(a, b) {
-  const h = a.h, k = b.h / h, bw = Math.round(b.w / k), gap = 8, w = a.w + gap + bw;
-  const rgba = new Uint8Array(w * h * 4).fill(255);
-  for (let y = 0; y < h; y++) {
-    rgba.set(a.rgba.subarray((y * a.w) * 4, (y * a.w + a.w) * 4), (y * w) * 4);
-    const sy = Math.min(b.h - 1, Math.floor(y * k));
-    for (let x = 0; x < bw; x++) {
-      const sx = Math.min(b.w - 1, Math.floor(x * k));
-      rgba.set(b.rgba.subarray((sy * b.w + sx) * 4, (sy * b.w + sx) * 4 + 4), (y * w + a.w + gap + x) * 4);
-    }
-  }
-  return { w, h, rgba };
-}
+const Pair = require('./film-pair');
+const 送りを受ける = Pair.送りを受ける, 並べる = Pair.並べる;
+const コマを並べる = (got, t0) => Pair.コマを並べる(got, t0, SEC, FPS);
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

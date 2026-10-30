@@ -426,5 +426,21 @@ function v2のクラス(css) {
     assert(/\.v2 \.v2-sheet\{[^}]*padding:10px 18px calc\(20px \+ var\(--v2-safe-b\)\)/.test(STYLE), 'シートも下を空ける');
     // 実際の位置は tools/safe-area.js（Chrome で下に34px を作って、いちばん下のボタンを測る）
   });
+
+  await r.test('二の束7 D6（くまくんの決め 案A）：幅が360より細い時は、スマホの画面を 375 で組んで幅に合わせて縮める', async () => {
+    assert(/\.screen\.v2\.v2-scr\{zoom:var\(--v2-z,1\);height:calc\(100vh \/ var\(--v2-z,1\)\)/.test(STYLE), '縮めて、高さは割りもどす（TV の画面は縮めない）');
+    const { win } = await launch();
+    Object.defineProperty(win, 'innerWidth', { value: 320, configurable: true });
+    win.dispatchEvent(new win.Event('resize'));
+    let p = win.v2NarrowProbe();
+    assertEqual(p.on, true, '320 は細い');
+    assertEqual(+p.z, +(320 / 375).toFixed(4), '倍率は 幅 ÷ 375');
+    Object.defineProperty(win, 'innerWidth', { value: 375, configurable: true });
+    win.dispatchEvent(new win.Event('resize'));
+    p = win.v2NarrowProbe();
+    assertEqual(p.on, false, '375 は縮めない');
+    // 実際の形は node tools/v2-shot.js --phone 320x568,300x640（check.js）
+    win.close();
+  });
   r.finish();
 })();

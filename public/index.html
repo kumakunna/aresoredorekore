@@ -4839,6 +4839,10 @@
     display:none;background:linear-gradient(180deg,var(--wt) 0%,var(--wb) 100%);
     font-size:15px;line-height:1.55;user-select:none;-webkit-user-select:none;}
   .screen.v2.v2-scr.active{display:block;}
+  /* 指示68-T 二の束7 D6（くまくんの決め 2026-10-31 案A）：幅が360より細い時（字を大きくする設定・ページの拡大）は、
+     画面全体を 375 の幅で組んで、幅に合わせて縮める（見た目は 375 と同じ・字は少し小さくなる）。倍率は v2Narrow が :root の --v2-z に入れる
+     （細くない時は入れない＝1）。zoom は高さも縮めるので、高さは割りもどす */
+  .screen.v2.v2-scr{zoom:var(--v2-z,1);height:calc(100vh / var(--v2-z,1));height:calc(100dvh / var(--v2-z,1));}
   .screen.v2.scr-in-fwd,.screen.v2.scr-in-back{animation:v2-fade var(--v2-move) var(--v2-ease);}
   /* 画面いっぱいの塗りは、ふちまで少しはみ出して塗る（下に後ろの色が 1〜2px もれていた） */
   .v2 .v2-bg{position:absolute;inset:-2px;pointer-events:none;overflow:hidden;}
@@ -5772,7 +5776,8 @@
   .v2 .v2-ogrid .v2-tmem.is-ok{border-color:var(--wi);background:var(--wc2);}
   .v2 .v2-ounv.is-tv{gap:16px;margin-top:0;}
   .v2 .v2-ounv.is-tv .v2-osay{font-size:200px;top:25%;}
-  .v2 .v2-ounv.is-tv .v2-oqs{font-size:48px;}
+  /* 指示68-T 二の束（くまくんの決め 2026-10-31）：TV の問題文は64px（クイズ王2 とそろえる・check.js の下限）。いちばん長いお題でもはみ出さない（onaji-tv-*-longq で撮る） */
+  .v2 .v2-ounv.is-tv .v2-oqs{font-size:64px;line-height:1.2;}
   .v2 .v2-ounv.is-tv .v2-oban{font-size:80px;}
   .v2 .v2-ounv.is-tv .v2-oban small{font-size:44px;}
   /* 指示68-S：みんなと同じの開く（TV）。ため（札が大きく並んで、まわりが暗くなる・人数はまだ）→ 玉がぽとぽと落ちて山になる
@@ -6216,6 +6221,7 @@
   .v2 .v2-words button.is-on{background:#141414;color:#fff;border-color:#141414;}
   /* F1 はじめて開いた時の光と揺れの確認（#safetyGate）。黄色の世界・字は大きく短く */
   .v2.v2-safety{background:linear-gradient(180deg,var(--wt),var(--wb));font-size:15px;line-height:1.55;}
+  .v2.v2-safety{zoom:var(--v2-z,1);}   /* 指示68-T 二の束7 D6：細い画面では、はじめの安全の案内も縮める（画面いっぱいの fixed なので高さは割りもどさなくてよい） */
   .v2 .v2-lead{margin:0;font-weight:800;font-size:16px;line-height:1.6;}
   .v2 .v2-safe-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px;text-align:left;cursor:pointer;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;}
   .v2 .v2-safe-row:active{transform:scale(.98);}
@@ -32994,6 +33000,17 @@
     if(!V2.hasTv(view)) return fn();
     setTimeout(fn, tvWaitMs(sec));
   }
+  /** 指示68-T 二の束7 D6：幅が360より細い時は、スマホの画面を 375 で組んで幅に合わせて縮める（CSS の :root.v2-narrow） */
+  var V2_NARROW = 360, V2_BASE_W = 375;
+  function v2Narrow(){
+    var w = window.innerWidth || 0, on = w > 0 && w < V2_NARROW;
+    document.documentElement.classList.toggle('v2-narrow', on);
+    if(on) document.documentElement.style.setProperty('--v2-z', (w / V2_BASE_W).toFixed(4));
+    else document.documentElement.style.removeProperty('--v2-z');
+  }
+  v2Narrow();
+  window.addEventListener('resize', v2Narrow);
+  window.v2NarrowProbe = function(){ return { on: document.documentElement.classList.contains('v2-narrow'), z: document.documentElement.style.getPropertyValue('--v2-z') }; };
   window.tvWaitProbe = function(){ return { key: tvWait.key, waiting: document.querySelectorAll('.screen.active .is-tvwait').length }; };
   function v2FxAt(sec, fn, last){
     if(fxMs(1000) <= 0){ if(last) fn(); return; }

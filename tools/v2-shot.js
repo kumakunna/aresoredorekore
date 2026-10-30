@@ -346,8 +346,10 @@ async function 新しい物差しを確かめる(dev, scene, kind) {
     var band = root.querySelector('.v2-band'), inn = root.querySelector(':scope > .v2-in');
     if (${kind === 'phone'} && band && inn && getComputedStyle(inn).overflowY !== 'auto' && getComputedStyle(inn).overflowY !== 'scroll' && band.getBoundingClientRect().height) {
       var B = band.getBoundingClientRect(), I = inn.getBoundingClientRect();
+      // 画面を縮めている時（細い画面・指示68-T 二の束7 D6 の zoom）は、見た目の px を中の px に直す
+      var Z = parseFloat(getComputedStyle(root).zoom) || 1;
       var f = document.createElement('div'); f.className = 'uicheck-self'; f.textContent = '帯の近くの札';
-      f.style.cssText = 'position:absolute;left:150px;top:' + (B.top - I.top - 5 - 30) + 'px;height:30px;width:120px;background:#fff;color:#000;font-size:14px';
+      f.style.cssText = 'position:absolute;left:150px;top:' + ((B.top - I.top) / Z - 5 - 30) + 'px;height:30px;width:120px;background:#fff;color:#000;font-size:14px';
       inn.appendChild(f); put.K5 = true;
     }
     // K7：TV の右上に、アプリ全体の浮いた部品（⚙ と同じ所）
@@ -498,9 +500,9 @@ async function 物差しを確かめる(dev, scene, kind) {
     r.重なり = await dev.ev(`(function(){
       var scr = document.getElementById(${JSON.stringify(scene.screen)}), c = scr.querySelector(':scope > .v2-corner'), inn = scr.querySelector(':scope > .v2-in');
       if(!c || !inn) return 'なし';
-      var C = c.getBoundingClientRect(), I = inn.getBoundingClientRect();
+      var C = c.getBoundingClientRect(), I = inn.getBoundingClientRect(), Z = parseFloat(getComputedStyle(scr).zoom) || 1;   // 縮めた画面（D6）は中の px に直す
       var t = document.createElement('div'); t.textContent = 'もぐる字';
-      t.style.cssText = 'position:absolute;left:' + (C.left - I.left + 4) + 'px;top:' + (C.top - I.top + 6) + 'px;font-size:14px';
+      t.style.cssText = 'position:absolute;left:' + ((C.left - I.left) / Z + 4) + 'px;top:' + ((C.top - I.top) / Z + 6) + 'px;font-size:14px';
       inn.appendChild(t);
       var hit = (${重なり})(scr).some(function(x){ return x.text === 'もぐる字'; });
       t.remove(); return hit; })()`);

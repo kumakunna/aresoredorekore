@@ -5661,24 +5661,25 @@
   .v2.is-play .v2-soscene:not(.is-pad) .v2-sodim{animation:v2-sodim calc(1.25s * var(--fx-scale)) var(--v2-ease) both;}
   @keyframes v2-sodim{0%{opacity:0;}60%{opacity:.32;}100%{opacity:0;}}
   /* ロケット（炎・煙・火の粒をつれて動く）。飛ぶ時はまん中より少し下、発射台・飛ばない・ぽてっ は地面 */
-  .v2 .v2-sorkt{position:absolute;left:50%;bottom:30%;width:64px;height:64px;transform:translateX(-50%);}
+  .v2 .v2-sorkt{position:absolute;left:50%;bottom:30%;width:64px;height:64px;transform:translateX(-50%);--rkw:64px;}
   .v2 .v2-soscene.is-pad .v2-sorkt,.v2 .v2-soscene.is-ground .v2-sorkt,.v2 .v2-soscene.is-plop .v2-sorkt{bottom:10%;}
-  .v2 .v2-soscene.is-plop .v2-sorkt{transform:translateX(-50%) rotate(100deg);}
-  .v2 .v2-sowrap.is-tv .v2-sorkt{width:340px;height:340px;}
+  /* 指示68-T：ぽてっは発射台の横の地面まで落ちて止まる（地面の上の線は場面の下から8%。横に倒れたロケットの絵の下はしは、箱の下はしより箱の0.2ぶん上） */
+  .v2 .v2-soscene.is-plop .v2-sorkt{left:64%;bottom:calc(8% - var(--rkw) * .2);transform:translateX(-50%) rotate(100deg);}
+  .v2 .v2-sowrap.is-tv .v2-sorkt{width:340px;height:340px;--rkw:340px;}
   .v2 .v2-sorkt .v2-sorocket{position:relative;z-index:2;display:block;width:100%;height:100%;color:#EAFBFF;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35));}
   .v2.is-play .v2-soscene.is-fly .v2-sorkt{animation:v2-sorkup calc(.4s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--lift);}
   @keyframes v2-sorkup{from{bottom:10%;}}
   /* 指示68-T 三の束1：ぽてっ（ロケット 1.4秒）：浮く 0〜0.4 → 左右に2回ふらふら 0.4〜1.0 → 横に倒れて地面で1回はねる 1.0〜1.4 */
   .v2.is-play .v2-soscene.is-plop .v2-sorkt{animation:v2-soplop calc(1.4s * var(--fx-scale)) linear both;animation-delay:var(--lift);}
-  @keyframes v2-soplop{0%{bottom:10%;transform:translateX(-50%);animation-timing-function:ease-out;}
+  @keyframes v2-soplop{0%{left:50%;bottom:10%;transform:translateX(-50%);animation-timing-function:ease-out;}
     29%{bottom:24%;transform:translateX(-50%) rotate(0deg);animation-timing-function:ease-in-out;}
     39%{bottom:25%;transform:translateX(-50%) rotate(-14deg);animation-timing-function:ease-in-out;}
     50%{bottom:24%;transform:translateX(-50%) rotate(13deg);animation-timing-function:ease-in-out;}
     61%{bottom:25%;transform:translateX(-50%) rotate(-12deg);animation-timing-function:ease-in-out;}
-    71%{bottom:24%;transform:translateX(-50%) rotate(10deg);animation-timing-function:ease-in;}
-    87%{bottom:10%;transform:translateX(-50%) rotate(100deg);animation-timing-function:ease-out;}
-    94%{bottom:13%;transform:translateX(-50%) rotate(100deg);animation-timing-function:ease-in;}
-    100%{bottom:10%;transform:translateX(-50%) rotate(100deg);}}
+    71%{left:50%;bottom:24%;transform:translateX(-50%) rotate(10deg);animation-timing-function:ease-in;}
+    87%{left:64%;bottom:calc(8% - var(--rkw) * .2);transform:translateX(-50%) rotate(100deg);animation-timing-function:ease-out;}
+    94%{left:64%;bottom:calc(11% - var(--rkw) * .2);transform:translateX(-50%) rotate(100deg);animation-timing-function:ease-in;}
+    100%{left:64%;bottom:calc(8% - var(--rkw) * .2);transform:translateX(-50%) rotate(100deg);}}
   /* 「ぽてっ」の字は上から落ちてきて、1回はねて止まる（0.2秒） */
   .v2.is-play .v2-soarrive.is-plop{animation-name:v2-soplopt;animation-duration:calc(.2s * var(--fx-scale));animation-timing-function:linear;}
   @keyframes v2-soplopt{0%{opacity:0;transform:translateY(-140%);}55%{opacity:1;transform:translateY(10%);}78%{transform:translateY(-8%);}100%{opacity:1;transform:none;}}
@@ -5791,7 +5792,8 @@
   .v2 .v2-sowrap.is-tv .v2-sobld{border-top-width:8px;background-image:repeating-linear-gradient(to right,#2D3A4F 0 14px,transparent 14px 32px),repeating-linear-gradient(to top,#2D3A4F 0 22px,rgba(255,226,140,.75) 22px 36px);}
   .v2 .v2-sowrap.is-tv .v2-socloud{box-shadow:60px -24px 0 14px #FFFFFF,-48px -14px 0 6px #FFFFFF;}
   .v2 .v2-sowrap.is-tv .v2-sostars{background-size:160px 120px,97px 73px;}
-  .v2 .v2-sowrap.is-tv .v2-sobb{left:60%;font-size:80px;line-height:1.3;border:8px solid #12313B;border-radius:30px;padding:14px 48px;}
+  /* 指示68-T：通りすぎる看板は、右はしの高さの目じるし（字の左はしは 1530px あたり）より左で終わる。ロケット（右はし 1130px）とのあいだに収める */
+  .v2 .v2-sowrap.is-tv .v2-sobb{left:59.5%;font-size:64px;line-height:1.3;border:6px solid #12313B;border-radius:26px;padding:10px 32px;}
   /* スマホ（TV がある部屋）：開く間は「テレビを見てね」と小さなロケット。着いたら高さと点だけ */
   .v2 .v2-solook{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;}
   .v2 .v2-solook-t{font-weight:900;font-size:22px;}

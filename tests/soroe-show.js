@@ -67,6 +67,10 @@ const ButtonScenes = require('../tools/v2-lab/button-scenes');
     const m = /@keyframes v2-soplop\{([\s\S]*?)\}\}/.exec(css);
     const 傾き = (m[1].match(/rotate\(-?\d+deg\)/g) || []).filter((x) => /rotate\(-?1[0-4]deg\)/.test(x)).length;
     assert(傾き >= 4, '左右に2回ふらふら（' + 傾き + '）');
+    // 10/31：倒れたロケットが発射台の上で浮いていた。発射台の横の地面（場面の下から8%）まで落ちて、1回はねて止まる
+    assert(css.indexOf('.v2 .v2-soscene.is-plop .v2-sorkt{left:64%;bottom:calc(8% - var(--rkw) * .2);') !== -1, '止まった形は発射台の横の地面');
+    assert(m[1].indexOf('100%{left:64%;bottom:calc(8% - var(--rkw) * .2);') !== -1 && m[1].indexOf('94%{left:64%;bottom:calc(11% - var(--rkw) * .2);') !== -1, '地面で1回はねて、地面で止まる');
+    assert(m[1].indexOf('0%{left:50%;bottom:10%;') !== -1, '発射台の上から始まる');
   });
 
   await r.test('飛ばない回は、目じるしのロケットの印も下のまま', async () => {

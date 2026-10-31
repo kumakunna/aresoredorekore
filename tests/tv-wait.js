@@ -113,6 +113,20 @@ const 隠れている = (doc, sel) => { const n = doc.querySelector('.screen.act
     t.win.close();
   });
 
-  W.win.close();
+  await r.test('スマホの見せ場の動き：部屋の知らせのすぐあとに本人だけの知らせが来ても、動きは消えない（頭から1回だけ）。少したってからの描き直しでは流しなおさない', async () => {
+    const t = await 場面(ButtonScenes.view('pt-reveal'), 'scr-v2-pittari');   // 部屋の知らせ → 本人だけの知らせ（本番と同じ順）
+    const scr = t.doc.getElementById('scr-v2-pittari');
+    assert(scr.classList.contains('is-play'), '本人だけの知らせのあとも、見せ場の動きが付いている');
+    const 歓声 = () => t.win.sfxProbe().log.filter((x) => x.id === 'cheer' || x.id === 'decide').length;
+    const n0 = 歓声();
+    await sleep(t.win, 1000);
+    t.win.__rtFake.fire('room:update', t.room);
+    await sleep(t.win, 30);
+    assert(!scr.classList.contains('is-play'), '1秒たってからの描き直しでは、頭から流しなおさない（終わりの形）');
+    assertEqual(歓声(), n0, '描き直しで音を2回鳴らさない');
+    t.win.close();
+  });
+
+  W.win.close();
   r.finish();
 })();

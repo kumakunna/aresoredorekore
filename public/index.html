@@ -32748,8 +32748,12 @@
     // 決定の4段は、その回に初めて描いた時だけ動かす（人が押すたびの描き直しで頭から動き直さない）
     var key = f.round + ':' + f.phase;
     // 見本データ（lab）は動きの終わった形を撮る（lab.play のときだけ動かす）
-    scr.classList.toggle('is-play', f.phase === 'decide' && (lab ? !!lab.play : fes.playAnim !== key + cur));
-    if(f.phase === 'decide' && !lab && cur === 'scr-v2-fes-tv' && scr.classList.contains('is-play')) fesDecideFx(view);
+    // 本人だけの知らせ（fes:you）がすぐあとに来て描き直しても、少しの間は動きを頭から流しなおす（v2GameRender と同じ・V2_PLAY_GRACE_MS）
+    var fesFirst = !lab && fes.playAnim !== key + cur;
+    if(fesFirst) fes.playAt = performance.now();
+    var fes続き = !lab && !fesFirst && scr.classList.contains('is-play') && performance.now() - (fes.playAt || 0) < V2_PLAY_GRACE_MS;
+    scr.classList.toggle('is-play', f.phase === 'decide' && (lab ? !!lab.play : (fesFirst || fes続き)));
+    if(f.phase === 'decide' && !lab && cur === 'scr-v2-fes-tv' && fesFirst) fesDecideFx(view);   // 音は最初の1回だけ
     if(f.phase === 'decide') fes.playAnim = key + cur;
     if(!lab && cur !== 'scr-v2-fes-tv') tvWaitApply(scr, 'fes:' + key);   // 指示68-T 二の束3：TV がいる部屋のスマホは、TV で出る時刻まで隠す
     back();
@@ -32808,10 +32812,15 @@
     view.local = lab ? (lab.local || {}) : (G.local ? G.local(d, key, tv) : {});
     // 見本データ（lab）は動きの終わった形を撮る（lab.play のときだけ動かす）
     var first = lab ? !!lab.play : v2game.played !== key + cur;
+    // 指示68-T：本番は「部屋の知らせ」のすぐあとに「本人だけの知らせ」が届き、2回描く。2回目を「描き直し」と見て動きを外すと、
+    // スマホの見せ場（札が落ちる・棒がのびる）が終わりの形に飛んでいた。最初に描いてから少しの間（V2_PLAY_GRACE_MS）の描き直しは、
+    // 動きを頭から1回だけ流しなおす（そのぶん遅れるだけで、2回流れたり先に出たりはしない）。音と震え（G.fx）は最初の1回だけ
+    var 続き = !lab && !first && scr.classList.contains('is-play') && performance.now() - (v2game.playedAt || 0) < V2_PLAY_GRACE_MS;
+    if(first) v2game.playedAt = performance.now();
     v2game.played = key + cur;
     var M = G.mod();
     scr.innerHTML = tv ? M.tv(view) : M.phone(view);
-    scr.classList.toggle('is-play', first && G.play.indexOf(d.phase) !== -1);
+    scr.classList.toggle('is-play', (first || 続き) && G.play.indexOf(d.phase) !== -1);
     if(!lab && !tv) tvWaitApply(scr, key);
     if(first && !lab) G.fx(view, tv, key);
     // 決着の祝い（クリア演出）は全ゲーム共通の1か所（rtClearFx）。この画面は共通の描き分けより前で返るので、ここから呼ぶ
@@ -32983,6 +32992,7 @@
    * 時計は「この段階を最初に描いた時」から。描き直しても数え直さない（残りだけ待つ）。演出の速さはかけない（なしでも TV より先に出さない）
    */
   var tvWait = { key: null, t0: 0, timers: [] };
+  var V2_PLAY_GRACE_MS = 800;   // 最初に描いてからこの間の描き直しは、見せ場の動きを流しなおす（本人だけの知らせが追って届くため）
   function tvWaitApply(scr, key){
     if(tvWait.key !== key){ tvWait.key = key; tvWait.t0 = performance.now(); }
     tvWait.timers.forEach(clearTimeout); tvWait.timers = [];

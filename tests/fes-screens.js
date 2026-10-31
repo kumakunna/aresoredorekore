@@ -217,6 +217,7 @@ async function 入った(o) {
     assert(nm.classList.contains('is-tvwait'), 'まだ隠れている（1.45秒で出ていた）');
     assert(doc.querySelector('#scr-v2-fes-lobby .v2-layer').classList.contains('is-tvwait'), 'ゲームの世界の幕も、まだ下りない（色でばれない）');
     assertEqual(+doc.querySelector('#scr-v2-fes-lobby .v2-who5').getAttribute('data-tvat'), +tl.who.toFixed(2), '人数は TV の人数の秒');
+    assert(doc.getElementById('scr-v2-fes-lobby').classList.contains('is-play'), '本人だけの知らせ（fes:you）がすぐあとに来ても、決定の動きは消えない');
     win.close();
   });
 

@@ -1,0 +1,82 @@
+[
+ {
+  "name": "X1 見張りを起こさない",
+  "file": "public/index.html",
+  "suite": "tests/fes-tv-watch.js",
+  "from": "          fesTvWatch(invited);",
+  "to": "",
+  "expect": "TV の画面"
+ },
+ {
+  "name": "X2 着いていてもログを送る",
+  "file": "public/index.html",
+  "suite": "tests/fes-tv-watch.js",
+  "from": "      if(fesTvArrived()) return;\r\n      var cur = (document",
+  "to": "      var cur = (document",
+  "expect": "ログは送らない"
+ },
+ {
+  "name": "X3 入り直さない",
+  "file": "public/index.html",
+  "suite": "tests/fes-tv-watch.js",
+  "from": "      var r2 = await rt.joinRoom(rt.state.code || code, 'TV', 'bigscreen');",
+  "to": "      var r2 = null;",
+  "expect": "TV の画面"
+ },
+ {
+  "name": "X4 古い TV の席を消さない",
+  "file": "realtime.js",
+  "suite": "tests/fes-tv-watch.js",
+  "from": ".forEach((m) => room.members.delete(m.id));",
+  "to": ".forEach(() => {});",
+  "expect": "TV の席は1つ"
+ },
+ {
+  "name": "X5 別のつなぎの TV も消す",
+  "file": "realtime.js",
+  "suite": "tests/fes-tv-watch.js",
+  "from": "m.role === ROLE_BIGSCREEN && m.socketId === socket.id)",
+  "to": "m.role === ROLE_BIGSCREEN)",
+  "expect": "別の TV"
+ },
+ {
+  "name": "X6 F5 の一言を出さない",
+  "file": "public/index.html",
+  "suite": "tests/fes-tv-watch.js",
+  "from": "        document.body.appendChild(h);",
+  "to": "",
+  "expect": "F5 で開き直してください"
+ },
+ {
+  "name": "X7 F5 の一言をすぐ出す",
+  "file": "public/index.html",
+  "suite": "tests/fes-tv-watch.js",
+  "from": "      }, FES_TV_WATCH_MS);",
+  "to": "      }, 0);",
+  "expect": "8秒たつまでは"
+ },
+ {
+  "name": "X8 ログの改行を消さない",
+  "file": "fes-routes.js",
+  "suite": "tests/fes-tv-watch.js",
+  "from": ".replace(/\\s+/g, ' ')",
+  "to": "",
+  "expect": "改行が無い"
+ },
+ {
+  "name": "X9 返事が来ない TV を参加者の入る画面へ落とす",
+  "file": "public/index.html",
+  "suite": "tests/fes-tv-watch.js",
+  "from": "          if(tvr && tvr.error === 'timeout') return null;",
+  "to": "",
+  "expect": "参加者の入る画面"
+ },
+ {
+  "name": "X10 入り直したのに、ログをもう1行送る",
+  "file": "public/index.html",
+  "suite": "tests/fes-tv-watch.js",
+  "from": "        if(fesTvArrived()) return;\r\n        var h",
+  "to": "        window.fetch('/api/fes/tv-stuck', { method: 'POST', body: '{}' });\r\n        if(fesTvArrived()) return;\r\n        var h",
+  "expect": "ログは1行だけ"
+ }
+]

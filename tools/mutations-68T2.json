@@ -28,7 +28,7 @@
   { "name": "U14 回ごとの記録に名前を入れる", "file": "fes-room.js", "suite": "tests/fes.js", "only": "二の束6",
     "from": "    case 'pittari': return { rounds: H.map((h) => ({ target: h.target, show: h.show !== false, diffs: (h.rows || []).map((x) => x.diff) })) };",
     "to": "    case 'pittari': return { rounds: H.map((h) => ({ target: h.target, show: h.show !== false, diffs: (h.rows || []).map((x) => x.diff), who: (h.rows || []).map((x) => x.id) })) };", "expect": "ぴったり10秒は目標と差だけ" },
-  { "name": "U15 回ごとの記録を残さない", "file": "realtime.js", "suite": "tests/fes.js", "only": "二の束6",
+  { "name": "U15 回ごとの記録を残さない", "file": "realtime.js", "suite": "tests/fes.js", "only": "門2：準備OKを2回つづけて",
     "from": "      FesRoom.init(room, { times: fesTimes, enabled: fesSwitches(), onPhase: fesOnPhase });", "to": "      FesRoom.init(room, { times: fesTimes, enabled: fesSwitches() });", "expect": "回ごとの記録が1つ" },
   { "name": "U16 ホームバーのぶんを空けない", "file": "public/index.html", "suite": "tests/v2.js", "only": "二の束7",
     "from": "    --v2-bandh:calc(68px + var(--v2-safe-b));", "to": "    --v2-bandh:68px;", "expect": "下の帯の高さにホームバー" },

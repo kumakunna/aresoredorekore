@@ -29,6 +29,7 @@ function playersOf(room) {
 function isPresent(room, id) { return room.members.has(id); }
 function isLive(room, id) { const m = room.members.get(id); return !!(m && m.connected); }
 /** 文化祭の部屋の「今日」（その日だけの最高記録の鍵） */
+const TOP_STEP = { building: 1, cloud: 2, moon: 3, space: 4 };
 function today(t) { const d = new Date(t); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 
 function startGame(room, config, ctx) {
@@ -70,6 +71,12 @@ function settle(room) {
   const ids = w.playerIds.filter((id) => isPresent(room, id));
   const s = L.scoreRound(w.presses, ids, !!t.double);
   w.history.push(Object.assign({ signal: t.signal, double: !!t.double }, s));
+  // 指示68-T 三の束1：その日の最高の高さを部屋に覚える（右はしの目じるしの旗・その日だけ・部屋ごと）
+  const step = s.flew ? (TOP_STEP[s.height] || 0) : 0;
+  if (step) {
+    const day = today(now());
+    if (!room.soroeTop || room.soroeTop.day !== day || step > room.soroeTop.step) room.soroeTop = { day, step, height: s.height };
+  }
   w.phase = PHASE.RESULT;
   room.state.phase = PHASE.RESULT;
   w.deadline = now() + R.OPEN_MS;
@@ -140,6 +147,7 @@ function publicView(room) {
     players: w.playerIds.filter((id) => isPresent(room, id)).map((id) => ({ id, name: w.names[id] })),
     score: fr.total,
     best: room.fes && room.soroeBest && room.soroeBest.day === today(now()) ? room.soroeBest.total : null,
+    bestHeight: room.soroeTop && room.soroeTop.day === today(now()) ? room.soroeTop.height : null,   // 指示68-T 三の束1：その日の最高の高さ（旗）
     reveal: null,
     result: null
   };

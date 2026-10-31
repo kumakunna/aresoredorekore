@@ -59,17 +59,20 @@
    *   0.00〜0.75 ため … 少し暗くなり、エンジンが小さくくすぶる
    *   0.75〜1.25 点火 … 押した人数ぶんの「火の粒」が、押した順と間かくのまま（0.5秒に縮めて）ロケットの下に飛びこむ。
    *                     そろっていると1つの大きな炎（宇宙・月は金色）、ばらばらだと小さい炎
-   *   1.25〜     発射 … ロケットはまん中より少し下に止まり、景色が下へ流れる（1段0.6秒）。高さの名前は通りすぎる看板
+   *   1.25〜     発射 … ロケットはまん中より少し下に止まり、景色が下へ流れる（1段0.9秒・着く前の0.4秒はゆっくり・指示68-T 三の束1）。高さの名前は通りすぎる看板。右はしの目じるしをロケットの印がのぼる
    *   着いた     … 景色が止まり、着いた高さの名前が大きく。その下に小さく「差 0.04秒 ＋70点」
    *   宇宙       … 金の粒。全員の名前が星座のように散らばって光る。全員そろったら金の帯
    *   ぽてっ     … 少し浮いて、ふらふら傾いて、ぽてっと落ちる。飛ばない回は煙が「プスッ」と出るだけ
    * 時刻は timeline が1か所で決め、画面（ここ）と音（index.html の soroeFx）が同じ物を読む。どれも「演出の速さ」をかける
    */
   var STEP = { building: 1, cloud: 2, moon: 3, space: 4 };
+  // 指示68-T 三の束1：1段 0.9秒（着く前の0.4秒はゆっくり・CSS の v2-soclimbK）。宇宙でも 0.75＋0.5＋4×0.9＋着いた1.0＝5.85秒。
+  // ぽてっは全部で1.6秒：浮く0.4 → ふらふら2回0.6 → 倒れてはねる0.4（ロケットは 1.4秒）→「ぽてっ」の字が落ちてはねる0.2
+  var STEP_S = 0.9, PLOP_S = 1.4;
   function timeline(r) {
     var k = r && r.flew ? (STEP[r.height] || 0) : 0;
     var lift = 1.25, climb = 1.35;
-    var arrive = !r || !r.flew ? 1.0 : (r.height === 'plop' ? 2.5 : climb + 0.6 * k + 0.05);
+    var arrive = !r || !r.flew ? 1.0 : (r.height === 'plop' ? lift + PLOP_S : climb + STEP_S * k + 0.05);
     var 幅 = Math.max(400, (r && r.spread) || 0);
     var fires = ((r && r.dots) || []).slice(0, 16).map(function (ms) { return 0.75 + (ms / 幅) * 0.5; });
     return { k: k, lift: lift, climb: climb, arrive: arrive, fires: fires };
@@ -88,10 +91,29 @@
     var 看板 = '';
     ['building', 'cloud', 'moon'].forEach(function (id, j) {
       if (j + 1 >= k) return;
-      看板 += '<span class="v2-sobb" style="bottom:' + ((j + 1) * 20 + 6) + '%;animation-delay:' + ss(tl.climb) + ';animation-duration:' + ss(0.6 * k) + '">' + e((t.高さ || {})[id]) + '</span>';
+      看板 += '<span class="v2-sobb" style="bottom:' + ((j + 1) * 20 + 6) + '%;animation-delay:' + ss(tl.climb) + ';animation-duration:' + ss(STEP_S * k) + '">' + e((t.高さ || {})[id]) + '</span>';
     });
     return '<div class="v2-socol" style="--k:' + k + '">' +
       '<i class="v2-sostars"></i><i class="v2-sogalaxy"></i><i class="v2-somoon"></i>' + 雲 + bld + '<i class="v2-soground"></i><i class="v2-sopad"></i>' + 看板 + '</div>';
+  }
+  /**
+   * 指示68-T 三の束1：画面の右はしの、たての高さの目じるし（下から ビルの上・雲の上・月・宇宙＝いちばん上で光る星）。
+   * その日の最高の所に小さな旗（d.bestHeight）。上がっている間は、小さなロケットの印が同じ時刻でのぼる。何をめざすかが押す前に分かる
+   */
+  // 宇宙だけ上に離す（いちばん遠い所・TV のせーのの説明の帯と月が重ならない）
+  var MARK = { building: 20, cloud: 38, moon: 56, space: 88 };
+  function gaugeHtml(view, r, tl) {
+    var d = view.data || {}, t = T(), best = d.bestHeight;
+    var marks = ['building', 'cloud', 'moon', 'space'].map(function (id) {
+      return '<span class="v2-sog-m is-' + id + (best === id ? ' is-best' : '') + '" style="bottom:' + MARK[id] + '%"><i></i><b>' + e((t.高さ || {})[id]) + '</b></span>';
+    }).join('');
+    var flag = best && MARK[best] != null ? '<span class="v2-sog-flag" style="bottom:' + MARK[best] + '%"><i></i></span>' : '';
+    var to = r && r.flew && tl.k ? MARK[['', 'building', 'cloud', 'moon', 'space'][tl.k]] : null;
+    var rk = to != null ? '<span class="v2-sog-rk" style="--to:' + to + '%;animation-delay:' + ss(tl.climb) + ';animation-duration:' + ss(STEP_S * tl.k) + '">' + K().emblem('soroe') + '</span>'
+      : '<span class="v2-sog-rk is-still">' + K().emblem('soroe') + '</span>';
+    // 宇宙に着いたら、名前の星座のじゃまをしないように目じるしは消える（着いた時刻に）
+    var out = r && r.flew && r.height === 'space' ? ' is-out" style="animation-delay:' + ss(tl.arrive) : '';
+    return '<div class="v2-sogauge' + out + '" aria-hidden="true"><i class="v2-sog-bar"></i>' + marks + flag + rk + '</div>';
   }
   /** ロケットとエンジン（炎・煙・火の粒） */
   function rocketHtml(r, tl, tv) {
@@ -130,11 +152,11 @@
     if (r) {
       着 = !r.flew
         ? '<div class="v2-soarrive is-quiet" style="animation-delay:' + ss(tl.arrive) + '"><b>' + e(t.プスッ) + '</b><small>' + e(r.count < 2 && r.n >= 2 && r.count * 2 >= r.n ? t.ひとりでは : t.飛ばなかった) + '</small></div>'
-        : '<div class="v2-soarrive' + (r.height === 'space' ? ' is-gold' : '') + '" style="animation-delay:' + ss(tl.arrive) + '"><b>' + e((t.着いた || {})[r.height] || '') + '</b>' +
+        : '<div class="v2-soarrive' + (r.height === 'space' ? ' is-gold' : '') + (r.height === 'plop' ? ' is-plop' : '') + '" style="animation-delay:' + ss(tl.arrive) + '"><b>' + e((t.着いた || {})[r.height] || '') + '</b>' +
           '<small>' + e(t.差 + ' ' + (r.spread / 1000).toFixed(2) + t.秒 + '　＋' + r.points + t.点) + '</small></div>';
     }
     return '<div class="v2-soscene' + (tv ? ' is-tv' : '') + 形 + (tl.k ? ' is-k' + tl.k : '') + '" style="--lift:' + ss(tl.lift) + ';--climb:' + ss(tl.climb) + '">' +
-      columnHtml(tl.k, tl) + '<i class="v2-sodim"></i>' + rocketHtml(r, tl, tv) +
+      columnHtml(tl.k, tl) + '<i class="v2-sodim"></i>' + gaugeHtml(view, r, tl) + rocketHtml(r, tl, tv) +
       (r && r.height === 'space' ? spaceHtml(view, tl) : '') + 着 +
       (r && r.together ? '<div class="v2-soband" style="animation-delay:' + ss(tl.arrive + 0.35) + '">' + e(t.全員そろった) + '</div>' : '') +
       (overlay || '') + '</div>';
@@ -190,5 +212,5 @@
     return F().tvc(view, inner, { layer: layer });
   }
 
-  return { phone: phone, tv: tv, resultBody: resultBody, STEP: STEP, timeline: timeline };
+  return { phone: phone, tv: tv, resultBody: resultBody, STEP: STEP, STEP_S: STEP_S, PLOP_S: PLOP_S, MARK: MARK, timeline: timeline };
 });

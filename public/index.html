@@ -5668,9 +5668,20 @@
   .v2 .v2-sorkt .v2-sorocket{position:relative;z-index:2;display:block;width:100%;height:100%;color:#EAFBFF;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35));}
   .v2.is-play .v2-soscene.is-fly .v2-sorkt{animation:v2-sorkup calc(.4s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--lift);}
   @keyframes v2-sorkup{from{bottom:10%;}}
-  .v2.is-play .v2-soscene.is-plop .v2-sorkt{animation:v2-sowob calc(1.25s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--lift);}
-  @keyframes v2-sowob{0%{bottom:10%;transform:translateX(-50%);}30%{bottom:22%;transform:translateX(-50%) rotate(-12deg);}50%{bottom:24%;transform:translateX(-50%) rotate(14deg);}
-    70%{bottom:22%;transform:translateX(-50%) rotate(-10deg);}100%{bottom:10%;transform:translateX(-50%) rotate(100deg);}}
+  /* 指示68-T 三の束1：ぽてっ（ロケット 1.4秒）：浮く 0〜0.4 → 左右に2回ふらふら 0.4〜1.0 → 横に倒れて地面で1回はねる 1.0〜1.4 */
+  .v2.is-play .v2-soscene.is-plop .v2-sorkt{animation:v2-soplop calc(1.4s * var(--fx-scale)) linear both;animation-delay:var(--lift);}
+  @keyframes v2-soplop{0%{bottom:10%;transform:translateX(-50%);animation-timing-function:ease-out;}
+    29%{bottom:24%;transform:translateX(-50%) rotate(0deg);animation-timing-function:ease-in-out;}
+    39%{bottom:25%;transform:translateX(-50%) rotate(-14deg);animation-timing-function:ease-in-out;}
+    50%{bottom:24%;transform:translateX(-50%) rotate(13deg);animation-timing-function:ease-in-out;}
+    61%{bottom:25%;transform:translateX(-50%) rotate(-12deg);animation-timing-function:ease-in-out;}
+    71%{bottom:24%;transform:translateX(-50%) rotate(10deg);animation-timing-function:ease-in;}
+    87%{bottom:10%;transform:translateX(-50%) rotate(100deg);animation-timing-function:ease-out;}
+    94%{bottom:13%;transform:translateX(-50%) rotate(100deg);animation-timing-function:ease-in;}
+    100%{bottom:10%;transform:translateX(-50%) rotate(100deg);}}
+  /* 「ぽてっ」の字は上から落ちてきて、1回はねて止まる（0.2秒） */
+  .v2.is-play .v2-soarrive.is-plop{animation-name:v2-soplopt;animation-duration:calc(.2s * var(--fx-scale));animation-timing-function:linear;}
+  @keyframes v2-soplopt{0%{opacity:0;transform:translateY(-140%);}55%{opacity:1;transform:translateY(10%);}78%{transform:translateY(-8%);}100%{opacity:1;transform:none;}}
   .v2 .v2-soflame{position:absolute;left:50%;top:78%;z-index:1;width:46%;height:70%;border-radius:50% 50% 50% 50% / 30% 30% 70% 70%;
     background:radial-gradient(ellipse at 50% 30%,#FFF5C0 0 18%,#FFB347 45%,#FF5A1F 75%,transparent 80%);transform:translateX(-50%) scale(1);transform-origin:50% 0;}
   .v2 .v2-soflame.is-small{transform:translateX(-50%) scale(.55);}
@@ -5703,14 +5714,45 @@
   .v2.is-play .v2-sofp{animation:v2-sofp calc(.3s * var(--fx-scale)) var(--v2-ease) both;}
   @keyframes v2-sofp{0%{transform:translate(var(--sx),var(--sy)) scale(1);opacity:0;}12%{opacity:1;}85%{opacity:1;}100%{transform:none;opacity:0;}}
   /* 景色は1段0.6秒ずつ流れる。段ごとに速く動いて目印でゆっくりになる（曲線はふやさず、段の数だけ区切った keyframes・門A4） */
-  .v2.is-play .v2-soscene.is-k1 .v2-socol{animation:v2-soclimb1 calc(.6s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
-  .v2.is-play .v2-soscene.is-k2 .v2-socol{animation:v2-soclimb2 calc(1.2s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
-  .v2.is-play .v2-soscene.is-k3 .v2-socol{animation:v2-soclimb3 calc(1.8s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
-  .v2.is-play .v2-soscene.is-k4 .v2-socol{animation:v2-soclimb4 calc(2.4s * var(--fx-scale)) var(--v2-ease) both;animation-delay:var(--climb);}
-  @keyframes v2-soclimb1{from{transform:none;}}
-  @keyframes v2-soclimb2{0%{transform:none;}50%{transform:translateY(20%);}}
-  @keyframes v2-soclimb3{0%{transform:none;}33%{transform:translateY(20%);}67%{transform:translateY(40%);}}
-  @keyframes v2-soclimb4{0%{transform:none;}25%{transform:translateY(20%);}50%{transform:translateY(40%);}75%{transform:translateY(60%);}}
+  /* 指示68-T 三の束1：1段 0.9秒。途中の段は同じ速さで流れ、最後の段だけゆっくり止まる（着く前の0.4秒はゆっくり＝「どこまで行く？」） */
+  .v2.is-play .v2-soscene.is-k1 .v2-socol{animation:v2-soclimb1 calc(.9s * var(--fx-scale)) linear both;animation-delay:var(--climb);}
+  .v2.is-play .v2-soscene.is-k2 .v2-socol{animation:v2-soclimb2 calc(1.8s * var(--fx-scale)) linear both;animation-delay:var(--climb);}
+  .v2.is-play .v2-soscene.is-k3 .v2-socol{animation:v2-soclimb3 calc(2.7s * var(--fx-scale)) linear both;animation-delay:var(--climb);}
+  .v2.is-play .v2-soscene.is-k4 .v2-socol{animation:v2-soclimb4 calc(3.6s * var(--fx-scale)) linear both;animation-delay:var(--climb);}
+  @keyframes v2-soclimb1{0%{transform:none;animation-timing-function:cubic-bezier(.32,.72,0,1);}}
+  @keyframes v2-soclimb2{0%{transform:none;animation-timing-function:ease-in;}50%{transform:translateY(20%);animation-timing-function:cubic-bezier(.32,.72,0,1);}}
+  @keyframes v2-soclimb3{0%{transform:none;animation-timing-function:ease-in;}33%{transform:translateY(20%);animation-timing-function:linear;}67%{transform:translateY(40%);animation-timing-function:cubic-bezier(.32,.72,0,1);}}
+  @keyframes v2-soclimb4{0%{transform:none;animation-timing-function:ease-in;}25%{transform:translateY(20%);animation-timing-function:linear;}50%{transform:translateY(40%);animation-timing-function:linear;}75%{transform:translateY(60%);animation-timing-function:cubic-bezier(.32,.72,0,1);}}
+  /* 右はしの高さの目じるし（下から ビルの上・雲の上・月・宇宙）・その日の最高の旗・のぼるロケットの印 */
+  .v2 .v2-sogauge{position:absolute;right:3%;top:10%;bottom:8%;width:22%;max-width:120px;z-index:3;pointer-events:none;}
+  .v2 .v2-sog-bar{position:absolute;right:10px;top:0;bottom:0;width:4px;border-radius:4px;background:rgba(255,255,255,.55);}
+  .v2 .v2-sog-m{position:absolute;right:0;display:flex;align-items:center;gap:4px;transform:translateY(50%);flex-direction:row-reverse;}
+  .v2 .v2-sog-m i{width:24px;height:4px;border-radius:4px;background:#FFFFFF;flex:none;}
+  .v2 .v2-sog-m b{font-weight:900;font-size:12px;line-height:1.1;color:#FFFFFF;background:rgba(4,30,40,.62);border-radius:8px;padding:2px 6px;white-space:nowrap;}
+  .v2 .v2-sog-m.is-space i{width:22px;height:22px;border-radius:0;margin-right:-9px;background:#FFD54A;
+    clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);filter:drop-shadow(0 0 6px #FFE58A);animation:v2-sogstar calc(1.6s * var(--fx-scale)) ease-in-out infinite alternate;}
+  @keyframes v2-sogstar{from{transform:scale(.9);opacity:.8;}to{transform:scale(1.15);opacity:1;}}
+  .v2 .v2-sog-m.is-best b{color:#FFD54A;}
+  .v2 .v2-sog-flag{position:absolute;right:30px;width:4px;height:26px;background:#FFFFFF;border-radius:2px;transform:translateY(100%);}
+  .v2 .v2-sog-flag i{position:absolute;left:4px;top:0;width:18px;height:13px;background:#E5484D;clip-path:polygon(0 0,100% 50%,0 100%);}
+  .v2 .v2-sog-rk{position:absolute;right:2px;bottom:2%;width:20px;height:20px;transform:translateY(50%);}
+  .v2 .v2-sog-rk svg{width:100%;height:100%;display:block;}
+  .v2.is-play .v2-sog-rk:not(.is-still){animation:v2-sogrk calc(.9s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) both;}
+  .v2 .v2-sog-rk:not(.is-still){bottom:var(--to);}
+  @keyframes v2-sogrk{from{bottom:2%;}}
+  .v2 .v2-sowrap.is-tv .v2-sogauge{right:5.5%;top:12%;bottom:10%;max-width:330px;}
+  .v2 .v2-sogauge.is-out{opacity:0;}
+  .v2.is-play .v2-sogauge.is-out{animation:v2-sogout calc(.3s * var(--fx-scale)) ease both;}
+  @keyframes v2-sogout{from{opacity:1;}to{opacity:0;}}
+  .v2 .v2-sowrap.is-tv .v2-sog-bar{right:26px;width:8px;}
+  .v2 .v2-sowrap.is-tv .v2-sog-m i{width:60px;height:8px;}
+  .v2 .v2-sowrap.is-tv .v2-sog-m b{font-size:42px;border-radius:14px;padding:4px 14px;}
+  .v2 .v2-sowrap.is-tv .v2-sog-m.is-space i{width:64px;height:64px;margin-right:-28px;}
+  .v2 .v2-sowrap.is-tv .v2-sog-flag{right:84px;width:8px;height:64px;}
+  .v2 .v2-sowrap.is-tv .v2-sog-flag i{left:8px;width:44px;height:32px;}
+  .v2 .v2-sowrap.is-tv .v2-sog-rk{width:60px;height:60px;}
+  :root.fx-skip .v2 .v2-sog-m.is-space i{animation:none;}
+  @media (prefers-reduced-motion:reduce){ .v2 .v2-sog-m.is-space i{animation:none;} }
   /* 着いた：高さの名前が大きく、その下に小さく差と点 */
   .v2 .v2-soarrive{position:absolute;left:0;right:0;top:6%;z-index:5;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;color:#FFFFFF;text-shadow:0 3px 10px rgba(0,0,0,.55);}
   .v2 .v2-soarrive b,.v2 .v2-soarrive small{background:rgba(4,30,40,.62);border-radius:14px;padding:6px 16px;}
@@ -33122,6 +33164,13 @@
     if(d.phase !== 'roundResult') return;
     var tl = V2Soroe.timeline(r), last = -1;
     if(!r.flew){ v2FxAt(0.9, function(){ sfx('ng'); }, true); return; }
+    // 指示68-T 三の束1：ぽてっ。エンジンの「ボッ」（点火の音）→ 倒れる時に気の抜けた音 → 地面ではねる音。だれのせいにもしない
+    if(r.height === 'plop'){
+      v2FxAt(tl.lift, function(){ sfx('spark'); });
+      v2FxAt(tl.lift + V2Soroe.PLOP_S * 0.72, function(){ sfx('miss'); });
+      v2FxAt(tl.lift + V2Soroe.PLOP_S * 0.87, function(){ sfx('tick', { rate: 0.6 }); }, true);
+      return;
+    }
     tl.fires.forEach(function(at){ if(at - last < 0.05) return; last = at; v2FxAt(at + 0.25, function(){ sfx('spark'); }); });
     v2FxAt(tl.lift, function(){ if(tv) rtOnce('so:v32:' + key, true, function(){ if(window.Sound) Sound.voice('v32'); }); sfx('decide'); });
     v2FxAt(tl.arrive, function(){

@@ -29260,7 +29260,7 @@
       onLamp: function(){ sfx('tick'); },                      // ランプが緑に変わる「カチッ」
       onOpen: function(){
         if(clear){ sfx('defuse'); 声('v24'); if(!tv) doVibrate(60); }
-        else { sfx('boom'); if(tv) setTimeout(function(){ sfx('boom', { rate: 0.8 }); }, 80); if(!tv) doVibrate(400); }   // 68-S の残り3：TV は少し遅らせて低い爆発をもう1つ重ねる（響き）
+        else { sfx('boom'); if(!tv) doVibrate(400); }
       },
       onName: function(){ sfx('tap', { rate: Math.min(1.6, 1 + (高さ++) * 0.04) }); },   // 名前ごとに軽い音（だんだん高く）
       onText: function(){ if(!clear) 声('v12'); },        // 「おしい！」（明るく）

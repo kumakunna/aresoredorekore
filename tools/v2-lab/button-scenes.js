@@ -85,6 +85,8 @@ const BUILD = {
   'pt-tv-reveal16-far': () => { const r = 部屋(16, 'pittari'); 押して開く(r, [6070, -4210, 120, -900, 10, 5300, -260, 70, -7100, 640, 3900, -330, 220, -15, 8400, -3500]); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
   'pt-tv-reveal-play': () => { const r = 部屋(16, 'pittari'); 押して開く(r, 差16); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv', { play: true }); },
   'pt-tv-result16': () => { const r = 部屋(16, 'pittari'); 最後まで(r, [差16]); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
+  // 結果の見せ場（10/31・Claude チャットの台本）を動かして撮る
+  'pt-tv-film-result16': () => Object.assign(BUILD['pt-tv-result16'](), { play: true }),
   'so-launch': () => lab(部屋(6, 'soroe'), 'soroe', 'scr-v2-soroe', 'm1', { local: { ready: true } }),
   'so-launch-seeno': () => { const r = 部屋(6, 'soroe'); 押して飛ぶ(r, [0, 20, 40]); 次へ(r, 1); 押して飛ぶ(r, [0, 20, 40]); 次へ(r, 1); return lab(r, 'soroe', 'scr-v2-soroe', 'm1', { local: { ready: true } }); },
   'so-pressed': () => lab(部屋(6, 'soroe'), 'soroe', 'scr-v2-soroe', 'm1', { local: { ready: true, pressed: true } }),

@@ -60,16 +60,14 @@
     var d = view.data || {}, res = d.result || {}, V = K(), t = T();
     var head = o && o.noHead ? '' : V.hdHtml('Result!', t.結果, tv);
     var 札 = mode === 'near' ? [t.ぴったりの人, res.perfect || []] : [t.早い人, res.fastestMost || []];
-    var aws = 札[1].length ? '<div class="v2-oaws"><div class="v2-oaw"><span class="v2-oaw-t">' + e(札[0]) + '</span><span class="v2-oaw-n" data-v2-wrap>' +
+    var aws = 札[1].length ? '<div class="v2-oaws"' + (tv || (view.fes && view.fes.phase) ? '' : V.tvAt(view, V.RANK_TL.top)) + '><div class="v2-oaw"><span class="v2-oaw-t">' + e(札[0]) + '</span><span class="v2-oaw-n" data-v2-wrap>' +
       V.phrase(札[1].slice(0, 6).join('・') + (札[1].length > 6 ? t.ほか + (札[1].length - 6) + t.人 : '')) + '</span></div></div>' : '';
     var rk = res.ranking || [];
     var me = rk.filter(function (x) { return x.id === view.meId; })[0];
     return head +
-      (me && !tv ? '<div class="v2-minebox"><span>' + e(t.あなたの点) + '</span><b>' + V.digits(me.score) + '<small>' + e(t.点) + '</small></b></div>' : '') + aws +
-      '<div class="v2-ranks v2-oranks' + (rk.length > 8 && tv ? ' is-c2' : '') + '">' + rk.map(function (x) {
-        return '<div class="v2-rk' + (x.id === view.meId ? ' is-me' : '') + '"><span class="v2-rk-n v2-num">' + V.digits(x.rank) + '</span>' +
-          '<span class="v2-rk-nm v2-cut">' + e(x.name) + '</span><span class="v2-rk-x">' + V.digits(x.score) + e(t.点) + '</span></div>';
-      }).join('') + '</div>';
+      (me && !tv ? '<div class="v2-minebox"' + (view.fes && view.fes.phase ? '' : V.tvAt(view, V.RANK_TL.top)) + '><span>' + e(t.あなたの点) + '</span><b>' + V.digits(me.score) + '<small>' + e(t.点) + '</small></b></div>' : '') + aws +
+      // 結果の見せ場（10/31・Claude チャットの台本）：TV は下の順位から出て最後に1位。スマホは TV で1位が出るまで待つ（V2.rankRevealHtml）
+      V.rankRevealHtml(view, rk, tv, t.点);
   }
   /** 大きく出す名前（いちばん早かった人・1位）の字の大きさ：箱は画面の幅の半分より広く、長い名前は字を小さくして1行に入れる */
   function bigFs(name, max) { return Math.max(96, Math.min(max, Math.floor(1560 / Math.max(1, String(name || '').length)))); }

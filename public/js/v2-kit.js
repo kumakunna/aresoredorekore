@@ -443,6 +443,36 @@
     return ((view && view.members) || []).some(function (m) { return m.role === 'bigscreen' && m.connected !== false; });
   }
   function tvAt(view, sec) { return hasTv(view) ? ' data-tvat="' + Math.max(0, +sec || 0).toFixed(2) + '"' : ''; }
+  /**
+   * 結果の見せ場（Claude チャットの台本・くまくん 10/31）。順位のあるゲーム（ぴったり10秒・みんなと同じ・クイズ王2）の終わり：
+   *   0〜0.8秒   画面が少し暗くなる（音は止まっている）
+   *   0.8〜2.0秒 下の順位から1行ずつ下から出る（1行0.2秒・人数が多い時は 1.2秒に詰める）。1位の行はまだ出さない
+   *   2.0〜2.8秒 ため：1位の所が空いて光る・短いドラムロール（音は index.html の rankRevealFx）
+   *   2.8秒〜    1位の名前が大きく出て、冠と紙ふぶき（点滅しない）・決まった音
+   * 全部で4秒以内（3.3秒）。演出「なし」は最後の形がすぐ（遅れも長さも --fx-scale をかける）。
+   * TV だけが動く。スマホは、TV がいる部屋では TV で1位が出る時刻（top）まで順位を出さない（tvAt）。TV がいない部屋は今までどおりすぐ
+   */
+  var RANK_TL = { dim: 0.8, rows: 2.0, glow: 2.0, top: 2.8, end: 3.3 };
+  function rankRevealHtml(view, rk, tv, 点) {
+    // 文化祭の結果の画面（同じ中身をもう一度描く・view.fes に段階がある）は、終わりの形だけ（見せ場はゲームの終わりの画面で1回）
+    if (view && view.fes && view.fes.phase) tv = tv && 'still';
+    var rest = rk.filter(function (x) { return x.rank !== 1; }).length;
+    var per = rest ? Math.min(0.2, (RANK_TL.rows - RANK_TL.dim) / rest) : 0;
+    var k = 0, ss = function (sec) { return 'calc(' + sec.toFixed(2) + 's * var(--fx-scale))'; };
+    var at = [];
+    for (var i = rk.length - 1; i >= 0; i--) at[i] = rk[i].rank === 1 ? RANK_TL.top : RANK_TL.dim + (k++) * per;
+    var rows = rk.map(function (x, i) {
+      var top = x.rank === 1;
+      return '<div class="v2-rk' + (x.id === view.meId ? ' is-me' : '') + (top && tv ? ' is-top' : '') + '"' + (tv && !top ? ' style="animation-delay:' + ss(at[i]) + '"' : '') + '>' +
+        '<span class="v2-rk-n v2-num">' + digits(x.rank) + '</span>' +
+        (top && tv ? '<span class="v2-rk-crown" aria-hidden="true">👑</span>' : '') +
+        // 1位の名前は大きく（1.4倍）。2列で入らない時だけ縮める（V2 の fit）
+        '<span class="v2-rk-nm v2-cut"' + (top && tv ? ' data-v2-fit' : '') + '>' + esc(x.name) + '</span><span class="v2-rk-x">' + digits(x.score) + esc(点) + '</span></div>';
+    }).join('');
+    var 待つ = !tv && !(view && view.fes && view.fes.phase);
+    return '<div class="v2-ranks v2-oranks' + (tv ? ' is-reveal' : '') + (tv === 'still' ? ' is-still' : '') + (rk.length > 8 && tv ? ' is-c2' : '') + '"' + (待つ ? tvAt(view, RANK_TL.top) : '') + '>' +
+      (tv ? '<i class="v2-rkdim" aria-hidden="true"></i>' : '') + rows + '</div>';
+  }
   function rulesBodyHtml(g) {
     var list = (g && g.detail) || [];
     if (!list.length) return rulesBigHtml(g && g.rules);
@@ -503,7 +533,7 @@
     nameWallHtml: nameWallHtml, glow: glow, fitTv: fitTv,
     bgHtml: bgHtml, brandHtml: brandHtml, hdHtml: hdHtml, cornerHtml: cornerHtml, avHtml: avHtml, meHtml: meHtml,
     bandHtml: bandHtml, toastHtml: toastHtml, scrimHtml: scrimHtml, sheetHtml: sheetHtml, xHtml: xHtml, dlgHtml: dlgHtml,
-    rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rulesBodyHtml: rulesBodyHtml, hasTv: hasTv, tvAt: tvAt, rheadHtml: rheadHtml, rowHtml: rowHtml,
+    rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rulesBodyHtml: rulesBodyHtml, hasTv: hasTv, tvAt: tvAt, rankRevealHtml: rankRevealHtml, RANK_TL: RANK_TL, rheadHtml: rheadHtml, rowHtml: rowHtml,
     tmemHtml: tmemHtml, tbandHtml: tbandHtml
   };
 }));

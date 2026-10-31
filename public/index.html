@@ -5933,6 +5933,24 @@
   .v2 .v2-otv .v2-osync-w{font-size:64px;}
   .v2 .v2-otv .v2-oranks{gap:12px;}
   .v2 .v2-otv .v2-oranks.is-c2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;}
+  /* 結果の見せ場（Claude チャットの台本・くまくん 10/31・V2.rankRevealHtml）。TV だけ動く。素の形＝最後の形（演出「なし」はすぐ最後の形）
+     0〜0.8 少し暗く → 0.8〜2.0 下の順位から1行ずつ下から → 2.0 1位の所が空いて光る → 2.8 1位の名前が大きく・冠 → 3.3 暗さがもどる */
+  .v2 .v2-oranks.is-reveal{position:relative;}
+  .v2 .v2-oranks.is-reveal .v2-rk{position:relative;z-index:1;}
+  .v2 .v2-rkdim{position:absolute;inset:-100vmax;background:rgba(0,0,0,.32);opacity:0;pointer-events:none;z-index:0;}
+  .v2.is-play .v2-rkdim{animation:v2-rkdim calc(3.3s * var(--fx-scale)) linear both;}
+  @keyframes v2-rkdim{0%{opacity:0;}24%{opacity:1;}85%{opacity:1;}100%{opacity:0;}}
+  .v2.is-play .v2-oranks.is-reveal .v2-rk:not(.is-top){animation:v2-rkup calc(.3s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) both;}
+  @keyframes v2-rkup{from{opacity:0;transform:translateY(48px);}}
+  .v2 .v2-oranks.is-reveal .v2-rk.is-top{box-shadow:0 0 0 6px #FFD54A,0 0 44px rgba(255,213,74,.55);}
+  .v2 .v2-oranks.is-reveal .v2-rk.is-top .v2-rk-nm{font-size:1.4em;}
+  .v2 .v2-rk-crown{flex:none;font-size:1.2em;line-height:1;}
+  .v2.is-play .v2-oranks.is-reveal .v2-rk.is-top{animation:v2-rkslot calc(.4s * var(--fx-scale)) ease both;animation-delay:calc(2s * var(--fx-scale));}
+  @keyframes v2-rkslot{from{opacity:0;box-shadow:0 0 0 0 rgba(255,213,74,0),0 0 0 rgba(255,213,74,0);}}
+  .v2.is-play .v2-oranks.is-reveal .v2-rk.is-top > *{animation:v2-rktop calc(.5s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) both;animation-delay:calc(2.8s * var(--fx-scale));}
+  @keyframes v2-rktop{from{opacity:0;transform:scale(.4);}}
+  /* 賞（ぴったりの人・名人など）は1位の名前を言ってしまうので、1位の発表のあと（3.0秒）に出す。スマホは TV がいれば同じ時刻まで待つ（tvAt） */
+  .v2.is-play .v2-otv .v2-oaws{animation:v2-rkup calc(.3s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) both;animation-delay:calc(3s * var(--fx-scale));}
   .v2 .v2-otv .v2-rk{border-radius:22px;padding:8px 22px;gap:22px;}
   .v2 .v2-otv .v2-rk-n{font-size:50px;}
   .v2 .v2-otv .v2-rk-nm{font-size:50px;min-width:0;}
@@ -32935,15 +32953,31 @@
     scr.classList.toggle('is-play', (first || 続き) && G.play.indexOf(d.phase) !== -1);
     if(!lab && !tv) tvWaitApply(scr, key);
     if(first && !lab) G.fx(view, tv, key);
-    // 決着の祝い（クリア演出）は全ゲーム共通の1か所（rtClearFx）。この画面は共通の描き分けより前で返るので、ここから呼ぶ
-    if(!lab) rtClearFx(d);
+    // 決着の祝い（クリア演出）は全ゲーム共通の1か所（rtClearFx）。この画面は共通の描き分けより前で返るので、ここから呼ぶ。
+    // 結果の見せ場のあるゲーム（10/31）：TV は見せ場が1位を祝うので大きな祝いは出さない。スマホは TV で1位が出る時刻に（TV がいなければすぐ）
+    if(!lab && RANK_REVEAL[rtRoomGameId()] && d.phase === 'ended' && ((d.result || {}).ranking || []).length){ if(!tv) tvWaitDo(view, V2.RANK_TL.top, function(){ rtClearFx(d); }); }
+    else if(!lab) rtClearFx(d);
     V2.mount(scr);
     if(G.after) G.after(scr, d, lab, tv);
     if(tv) V2.fitTv(scr, view.fes.inset);
   }
   /** みんなと同じの音と震え。褒める時は全力で（点になった・全員そろった）、点にならなかった時は鳴らさない（責めない） */
+  /**
+   * 結果の見せ場の音と紙ふぶき（TV だけ・時刻は V2.RANK_TL）：0〜2.0 は鳴らさない（音を止めた静けさ）→ 2.0〜2.8 短いドラムロール（「カチ」を細かく）→
+   * 2.8 決まった音と紙ふぶき（点滅しない・FxKit.confetti）。順位の無い回（一致団結・だれも点が無い）は鳴らさない
+   */
+  function rankRevealFx(view, tv){
+    var d = view.data || {}, rk = (d.result && d.result.ranking) || [];
+    if(!tv || d.phase !== 'ended' || !rk.length) return;
+    var T = V2.RANK_TL;
+    for(var i = 0; i < 9; i++) v2FxAt(T.glow + i * 0.09, function(){ sfx('tick', { rate: 1.3 }); });
+    v2FxAt(T.top, function(){ sfx('decide'); if(typeof FxKit !== 'undefined' && FxKit.confetti) FxKit.confetti(); }, true);
+  }
+  /** 結果の見せ場のあるゲーム（V2.rankRevealHtml を使う物）。TV の大きな祝い（rtClearFx）は出さず、スマホの「いちばん！」は TV の1位と同じ時刻に */
+  var RANK_REVEAL = { pittari: true, onaji: true, qhaya: true, qnear: true };
   function onajiFx(view, tv, key){
     var d = view.data, r = d.reveal || {}, me = view.you || {};
+    if(d.phase === 'ended'){ rankRevealFx(view, tv); return; }
     if(d.phase === 'unveil'){
       // 声「せーの！」（v15）は TV だけ（音の箱が決める）
       rtOnce('onaji:v15:' + key, true, function(){ if(window.Sound) Sound.voice('v15'); });
@@ -32977,10 +33011,7 @@
   /** 早答えの音：答えている間は TV で押すたびに「ピッ」（qhayaAfter）。開く：玉ごとに軽い音 → 声「正解は……」（v16）→ 決まった音 → 「いちばん早かったのは……」（v20）→ 3問ごとに入れかわりの音 */
   function qhayaFx(view, tv, key){
     var d = view.data, r = d.reveal || {}, me = view.you || {}, 声 = function(id){ if(window.Sound) Sound.voice(id); };
-    if(d.phase === 'ended'){
-      if(tv){ v2FxAt(0.2, function(){ sfx('count', { rate: 0.7 }); }); v2FxAt(1.5, function(){ 声('v11'); sfx('fanfare'); }, true); }
-      return;
-    }
+    if(d.phase === 'ended'){ rankRevealFx(view, tv); return; }   // 10/31：結果の見せ場（前の「数える音 → ファンファーレ」は台本に合わせて置きかえた）
     if(d.phase !== 'unveil') return;
     rtOnce('qhaya:v15:' + key, true, function(){ 声('v15'); });
     if(tv){
@@ -33000,10 +33031,7 @@
   /** 数字ちかい方の音：開く：札ごとに「トン」→ 旗が刺さる「ドン」と声「正解は……」（v16）→ 「いちばん近かったのは……」（v19）／ぴったりは v18 */
   function qnearFx(view, tv, key){
     var d = view.data, r = d.reveal || {}, me = view.you || {}, 声 = function(id){ if(window.Sound) Sound.voice(id); };
-    if(d.phase === 'ended'){
-      if(tv){ v2FxAt(0.2, function(){ sfx('count', { rate: 0.7 }); }); v2FxAt(1.5, function(){ 声('v11'); sfx('fanfare'); }, true); }
-      return;
-    }
+    if(d.phase === 'ended'){ rankRevealFx(view, tv); return; }
     if(d.phase !== 'unveil') return;
     if(tv){
       var tl = V2Quiz2.near.timeline(r.rows || []);
@@ -33146,6 +33174,7 @@
    */
   function pittariFx(view, tv, key){
     var d = view.data, r = d.reveal || {}, me = view.you || {};
+    if(d.phase === 'ended'){ rankRevealFx(view, tv); return; }
     if(d.phase === 'set') rtOnce('pt:v31:' + key, true, function(){ if(window.Sound) Sound.voice('v31'); });
     if(d.phase === 'run'){
       rtOnce('pt:v08:' + key, true, function(){ if(window.Sound) Sound.voice('v08'); });

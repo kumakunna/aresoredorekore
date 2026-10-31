@@ -40,6 +40,14 @@ const ButtonScenes = require('../tools/v2-lab/button-scenes');
     assert(Array.prototype.some.call(box.querySelectorAll('.v2-ptd'), (d) => d.style.getPropertyValue('--nx') !== '0px'), 'ずらした名前がある（端に3人より多く集まった）');
   });
 
+  await r.test('「よーい……」と大きな「10秒」と説明は、TV では間を広く（64px）とって重ねない（4回目の大きな「よーい……」も）', async () => {
+    描く('pt-tv-set-blind');
+    const s = box.querySelector('.v2-ptset.is-tv.is-blind');
+    assert(s, '4回目の「よーい」の画面');
+    // jsdom は gap を計算しないので、決まりの字で見る（実際の並びは node tools/v2-shot.js --only pt-tv-set で撮って測る）
+    assert(D.documentElement.outerHTML.indexOf('.v2 .v2-ptset.is-tv{gap:64px;}') !== -1, 'TV の間は 64px（スマホは 14px のまま）');
+  });
+
   t.win.close();
   r.finish();
 })();

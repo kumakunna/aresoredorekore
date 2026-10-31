@@ -837,6 +837,7 @@
   }
   .fx-cue.fx-out .fx-cue-text{animation:fxCueOut calc(0.14s * var(--fx-scale)) ease-in forwards;}
   .fx-cue-m .fx-cue-text{font-size:min(7vw,30px);max-width:min(92vw,560px);}
+  .fx-cue.is-one .fx-cue-text{white-space:nowrap;max-width:none;}   /* 10/31：1行の合図（「時計が消えても、数えつづけて」）。入らなければ fitCue が字を小さくする */
   /* l・xl は1行（「スタート！」5字が 320px の幅でも折れない。xl は枠を細くして字を大きく） */
   .fx-cue-l .fx-cue-text{font-size:min(13vw,60px);white-space:nowrap;}
   .fx-cue-xl .fx-cue-text{font-size:min(calc((100vw - 32px) / 5.8),84px);white-space:nowrap;padding:.2em .35em;}
@@ -5532,6 +5533,7 @@
   .v2.is-play .v2-ptpin{animation:v2-ptfall var(--v2-show) var(--v2-pop) both;}
   @keyframes v2-ptfall{from{opacity:0;transform:translate(-50%,-90px);}to{opacity:1;transform:translate(-50%,0);}}
   .v2 .v2-ptset.is-tv .v2-ptready{font-size:120px;}
+  .v2 .v2-ptset.is-tv{gap:64px;}   /* 10/31：TV では「よーい……」と大きな「10秒」と説明が重なっていた（字が大きいのに間がスマホと同じ14px） */
   /* 指示68-T 3：時計が最初から見えない回（4回目）は「よーい……」を大きく */
   .v2 .v2-ptset.is-blind .v2-ptready{font-size:48px;}
   .v2 .v2-ptset.is-tv.is-blind .v2-ptready{font-size:170px;}
@@ -33040,7 +33042,7 @@
   }
   /**
    * 時計の字：見えている間（3秒・見えない回は0秒）は経った秒、そのあとは「？」。
-   * 指示68-T 3：時計が消える瞬間に「時計は消えても、そのまま数えつづけて」を1回だけ（0.8秒）。
+   * 指示68-T 3：時計が消える瞬間に「時計が消えても、数えつづけて」を1回だけ（0.8秒・1行）。
    * 見えない回（4回目）は消える瞬間が無いので出さない（スタートの字を大きくしてある）
    */
   function pittariAfter(scr, d, lab, tv){
@@ -33056,7 +33058,7 @@
       if(!lab && !見える && show > 0 && pt.key && pt.hidCue !== pt.key){
         pt.hidCue = pt.key;
         // 消えた直後だけ（あとから描き直した端末に、遅れて出さない）
-        if(ms < show + 600) FxKit.cue(UiText.PITTARI.消えても, { ms: 800, size: 'm' });
+        if(ms < show + 600) FxKit.cue(UiText.PITTARI.消えても, { ms: 800, size: 'm', one: true });   // 10/31：1行のまま（入らなければ字を小さく）
       }
     };
     draw();

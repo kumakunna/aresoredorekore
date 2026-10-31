@@ -31,11 +31,13 @@ const FORMS = [
   { id: 'TV', vp: { width: 1920, height: 1080 }, tv: true }
 ];
 const TEXTS = [{ id: 'スタート', text: null }, { id: 'ラストチャンス', text: 'ラストチャンス！' }];
+// 10/31：「時計が消えても、数えつづけて」は m の大きさで1行（one）。m1 の時だけ、この字で測る
+const M1 = { id: '消えても', text: null, src: 'UiText.PITTARI.消えても' };
 
 const 測る = (text, size, narrow, tv) => `(async function(){
   ${tv ? "document.documentElement.classList.add('big-screen');   // 見本の画面は大画面の印を付けないので、本番の TV と同じに付ける" : ''}
   ${narrow ? `var L = document.getElementById('uiLayerRoot'); L.style.cssText += ';position:fixed;left:0;top:0;width:${narrow}px;height:100%;transform:translateZ(0);outline:2px dashed #f0a';` : ''}
-  var n = FxKit.cue(${text ? JSON.stringify(text) : 'UiText.PITTARI.スタート'}, { ms: 4000, size: ${JSON.stringify(size)}, cls: 'is-pt-go' });
+  var n = FxKit.cue(${size === 'm1' ? 'UiText.PITTARI.消えても' : (text ? JSON.stringify(text) : 'UiText.PITTARI.スタート')}, { ms: 4000, size: ${JSON.stringify(size === 'm1' ? 'm' : size)}, one: ${size === 'm1'}, cls: 'is-pt-go' });
   await new Promise(function(r){ setTimeout(r, 450); });   // 出てくる拡大（0.18秒）が済むまで
   var t = n.firstChild, b = n.getBoundingClientRect(), r = t.getBoundingClientRect(), cs = getComputedStyle(n);
   var fs = parseFloat(getComputedStyle(t).fontSize);
@@ -50,8 +52,8 @@ const 測る = (text, size, narrow, tv) => `(async function(){
   const rows = [], bad = [];
   try {
     for (const f of FORMS) {
-      for (const size of ['l', 'xl']) {
-        for (const tx of TEXTS) {
+      for (const size of ['l', 'xl', 'm1']) {
+        for (const tx of (size === 'm1' ? [M1] : TEXTS)) {
           const dev = await br.newDevice(f.id, f.vp);
           await 開く(dev, PORT, f.tv ? 場面TV : 場面, { fx: 'normal', font: f.font || 100 });
           const m = await dev.ev(測る(tx.text, size, f.narrow, f.tv));

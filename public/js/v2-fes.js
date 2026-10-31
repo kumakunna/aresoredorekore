@@ -665,7 +665,7 @@
     return '<span class="v2-lbl">' + e(S.出すゲーム) + '</span><div class="v2-adm-mem" data-fes-games>' + list.map(function (g) {
       var i = info ? info(g.mode) : null, last = g.on && nOn <= 2;
       return '<div class="v2-adm-r' + (g.on ? '' : ' is-off') + '"><span class="v2-adm-who"><span class="v2-adm-nm v2-cut" data-v2-fit="12">' + e(i ? i.name : g.mode) + '</span>' +
-        (g.testing ? '<span class="v2-adm-tag">' + e(S.テスト中) + '</span>' : '') + '</span>' +
+        '</span>' +   // 10/31：「テスト中」の札は外した（出すかどうかは入／切だけで決める）
         '<button type="button" class="v2-adm-b' + (g.on ? ' is-on' : '') + '" data-fes-game="' + e(g.mode) + '" data-on="' + (g.on ? '1' : '') + '" aria-pressed="' + !!g.on + '"' +
         (last ? ' disabled aria-disabled="true" title="' + e(S.二本より) + '"' : '') + '>' + e(g.on ? S.入 : S.切) + '</button></div>';
     }).join('') + '</div>' + (nOn <= 2 ? '<p class="v2-hint">' + e(S.二本より) + '</p>' : '');

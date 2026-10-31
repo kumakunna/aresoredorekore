@@ -75,6 +75,8 @@ const BUILD = {
   'pt-reveal': () => { const r = 部屋(6, 'pittari'); 押して開く(r, 差8.slice(0, 6)); return lab(r, 'pittari', 'scr-v2-pittari', 'm5'); },
   'pt-result': () => { const r = 部屋(6, 'pittari'); 最後まで(r, [差8.slice(0, 6)]); return lab(r, 'pittari', 'scr-v2-pittari', 'm1', { host: true }); },
   'pt-tv-set': () => lab(部屋(8, 'pittari'), 'pittari', 'scr-v2-pittari-tv', 'tv'),
+  // 4回目（時計が最初から見えない回）：「よーい……」がいちばん大きい（10/31 の重なりの確かめ）
+  'pt-tv-set-blind': () => { const v = BUILD['pt-tv-set'](); v.room.state.data.show = false; v.room.state.data.round = 4; return v; },
   'pt-tv-run': () => { const r = 部屋(8, 'pittari'); PittariRoom.advance(r); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
   'pt-tv-reveal': () => { const r = 部屋(8, 'pittari'); 押して開く(r, 差8); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
   'pt-tv-reveal16': () => { const r = 部屋(16, 'pittari'); 押して開く(r, 差16); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },

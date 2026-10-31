@@ -467,7 +467,7 @@
    * offsetWidth は出てくる時の拡大（transform）を含まない、ほんとうの幅
    */
   function fitCue(n) {
-    if (/\bfx-cue-m\b/.test(n.className)) return;   // m は長い文なので、折り返してよい
+    if (/\bfx-cue-m\b/.test(n.className) && !/\bis-one\b/.test(n.className)) return;   // m は長い文なので折り返してよい（one の時は1行のまま縮める）
     var t = n.firstChild;
     var w = n.ownerDocument && n.ownerDocument.defaultView;
     if (!t || !t.offsetWidth || !w || !w.getComputedStyle) return;
@@ -482,7 +482,7 @@
     var h = layer();
     if (!h) return null;
     if (cueNode && cueNode.parentNode) cueNode.parentNode.removeChild(cueNode);
-    var n = mk('fx-cue fx-cue-' + (opt.size || 'l') + (opt.cls ? ' ' + opt.cls : ''), '<div class="fx-cue-text">' + esc(text || '') + '</div>');
+    var n = mk('fx-cue fx-cue-' + (opt.size || 'l') + (opt.one ? ' is-one' : '') + (opt.cls ? ' ' + opt.cls : ''), '<div class="fx-cue-text">' + esc(text || '') + '</div>');
     if (!n) return null;
     n.setAttribute('aria-hidden', 'true');
     h.appendChild(n);

@@ -2,7 +2,7 @@
 //
 // 声（v08「スタート！」）を止めたので、合図は字と音でする：
 //   ・スタート：TV とスマホの両方に大きな「スタート！」（0.6秒）。音は「決まった」の音（TV が鳴らす・スマホは TV がいれば鳴らさない）
-//   ・時計が消える時：「時計は消えても、そのまま数えつづけて」を1回だけ（0.8秒）
+//   ・時計が消える時：「時計が消えても、数えつづけて」を1回だけ（0.8秒・1行のまま。10/31 に短くした）
 //   ・4回目（時計が最初から見えない回）：「よーい……」と「スタート！」の字を、ほかの回より大きく
 //   ・合図の字は押す邪魔をしない（pointer-events なし）。演出「なし」でも同じ長さで出て、消える
 // 部屋の知らせは本物の進行役で作った見本データ（tools/v2-lab/button-scenes.js）を流す（落とし穴25）
@@ -77,12 +77,13 @@ const 合図 = (doc) => doc.querySelector('.fx-cue');
     run.win.close();
   });
 
-  await r.test('時計が消える時に「時計は消えても、そのまま数えつづけて」を1回だけ（0.8秒）。見えない回は出さない', async () => {
+  await r.test('時計が消える時に「時計が消えても、数えつづけて」を1回だけ（0.8秒・1行の印 is-one）。見えない回は出さない', async () => {
     const t = await 場面('pt-run', { edit: (d) => { d.showMs = 1600; } });
     await sleep(t.win, 900);   // スタートの字が消えるまで
     assert(!合図(t.doc), 'まだ時計が見えている（字は出ていない）');
     await waitFor(t.win, () => 合図(t.doc) && /数えつづけて/.test(合図(t.doc).textContent), 1500, '時計が消えた時の字');
-    assertEqual(合図(t.doc).textContent, '時計は消えても、そのまま数えつづけて', '字');
+    assertEqual(合図(t.doc).textContent, '時計が消えても、数えつづけて', '字');
+    assert(合図(t.doc).classList.contains('is-one'), '1行のまま（折り返さない・入らなければ字を小さく）');
     assert(t.doc.querySelector('#scr-v2-pittari [data-pt-clock]').classList.contains('is-hidden'), '時計は「？」になっている');
     await sleep(t.win, 1100);
     assert(!合図(t.doc), '0.8秒で消える');

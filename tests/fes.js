@@ -610,6 +610,12 @@ async function join(srv, code, name, diff, extra) {
       await owner.call('fes:watch', { code: c.code });
       const teacher = await device(srv.url, await login(srv.url, STAFF));
       assertEqual((await teacher.call('fes:game', { code: c.code, mode: 'pittari', on: false })).error, 'not_owner', '先生は変えられない');
+      // 指示68-T 三の束2：待合の BGM は係（くまくんと先生）が入／切。はじめは切
+      assertEqual(srv.store.get(c.code).fes.bgm, false, 'BGM ははじめは切');
+      assertEqual((await teacher.call('fes:bgm', { code: c.code, on: true })).ok, true, '先生も BGM を入にできる');
+      assertEqual(srv.store.get(c.code).fes.bgm, true, '入になる');
+      assertEqual(FesRoom.publicView(srv.store.get(c.code), Date.now()).bgm, true, 'TV に知らせる');
+      await teacher.call('fes:bgm', { code: c.code, on: false });
       const off = await owner.call('fes:game', { code: c.code, mode: 'pittari', on: false });
       assertEqual(off.ok, true, 'くまくんは切にできる');
       await waitUntil(() => owner.staff && owner.staff.games && owner.staff.games.some((g) => g.mode === 'pittari' && !g.on), '係の画面に切が届く');

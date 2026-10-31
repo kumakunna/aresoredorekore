@@ -1971,6 +1971,15 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     });
     // 指示68-T 二の束1：係（くまくんだけ）：ゲームごとの入／切（「テスト中を入れる」を置きかえた）。
     // 入れ物に覚えるので、部屋やサーバーを作り直しても戻らない。いつも2本以上は入
+    // 指示68-T 三の束2：係（くまくんと先生）：待合の BGM の入／切（TV だけで鳴る・はじめは切）
+    socket.on('fes:bgm', (payload, cb) => {
+      if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
+      const room = staffRoom(payload);
+      if (!room) return fail(cb, 'no_room', '文化祭の部屋がありません');
+      room.fes.bgm = !!(payload && payload.on);
+      if (typeof cb === 'function') cb({ ok: true, on: room.fes.bgm });
+      pushFes(room);
+    });
     socket.on('fes:game', (payload, cb) => {
       if (staffRole() !== 'owner') return fail(cb, 'not_owner', 'くまくんのアカウントだけが変えられます');
       const room = staffRoom(payload);

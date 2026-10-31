@@ -14753,9 +14753,10 @@
   //
   // どんな音が鳴るかは BGM_KINDS に、いつ鳴るかは bgmDesired() に集める。
   // 個々の画面に start/stop を書かせると、離れた時の止め忘れが必ず起きる（落とし穴7）。
-  var bgm = { ctx: null, gain: null, timer: null, kind: null, step: 0 };
+  var bgm = { ctx: null, gain: null, timer: null, kind: null, step: 0, src: null };
   function bgmGainValue(){
-    return Math.max(0, Math.min(100, volBgm() || 0)) / 100 * 0.12;
+    var def = BGM_KINDS[bgm.kind] || {};
+    return Math.max(0, Math.min(100, volBgm() || 0)) / 100 * (def.scale || 0.12);
   }
   // 1音だけ鳴らす小さな部品。すべてのBGMはこれの組み合わせで作る
   function bgmNote(freq, dur, type, vol){
@@ -14790,8 +14791,33 @@
     waiting: { stepMs: 1200, glow: 'rgba(240,196,74,.3)', play: function(step){
       var seq = [261.6, 329.6, 392, 329.6];
       bgmNote(seq[step % 4], 0.9, 'triangle', 0.35);
-    } }
+    } },
+    // 指示68-T 三の束2：文化祭の待合（TV だけ）。くまくんが earshot で作った曲（tools/sound/make-bgm.py・16小節 34.29秒でくり返す）。
+    // とても小さく：曲は −20 LUFS、BGM の音量（既定40）× 0.25 ＝ さらに約 −20dB。電子音ではなくファイルをくり返して鳴らす
+    fesWait: { file: 'sound/bgm/wait.mp3', loopSec: 34.2857, scale: 0.25 }
   };
+  /**
+   * ファイルの BGM（指示68-T 三の束2）：読んで、ずっとくり返す。mp3 は頭にわずかな無音（エンコーダーのすき間）が入るので、
+   * 最初に音が始まる所から loopSec をくり返す（つなぎ目でぷつっと切れない・make-bgm.py が頭に尾を重ねてある）
+   */
+  function bgmPlayFile(def, kind){
+    fetch(def.file).then(function(r){ return r.arrayBuffer(); }).then(function(ab){
+      if(bgm.kind !== kind || !bgm.ctx) return null;
+      return new Promise(function(ok, ng){ bgm.ctx.decodeAudioData(ab, ok, ng); });
+    }).then(function(buf){
+      if(!buf || bgm.kind !== kind || !bgm.ctx) return;
+      var a = buf.getChannelData(0), head = 0;
+      while(head < a.length && Math.abs(a[head]) < 1e-4) head++;
+      var start = head / buf.sampleRate;
+      var src = bgm.ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      src.loopStart = start; src.loopEnd = Math.min(buf.duration, start + def.loopSec);
+      src.connect(bgm.gain); src.start(0, start);
+      bgm.src = src;
+    }).catch(function(){});
+  }
+  window.bgmWantProbe = function(){ return bgmDesired(); };
+  window.bgmProbe = function(){ return { kind: bgm.kind, playing: !!bgm.src, gain: bgm.gain ? bgm.gain.gain.value : null, loopStart: bgm.src ? bgm.src.loopStart : null, loopEnd: bgm.src ? bgm.src.loopEnd : null }; };
   function bgmStart(kind){
     if(bgm.kind === kind) return;
     bgmStop();
@@ -14805,6 +14831,8 @@
     }catch(e){ bgm.ctx = null; return; }
     bgm.kind = kind;
     bgm.step = 0;
+    bgm.gain.gain.value = bgmGainValue();
+    if(def.file){ bgmPlayFile(def, kind); return; }
     var tick = function(){
       try{ def.play(bgm.step); }catch(e){}
       bgmBeat(def);   // 第5部-5：大画面の縁を音に合わせて脈打たせる
@@ -14815,6 +14843,7 @@
   }
   function bgmStop(){
     clearInterval(bgm.timer); bgm.timer = null;
+    if(bgm.src){ try{ bgm.src.stop(); }catch(e){} bgm.src = null; }
     bgm.kind = null;
     if(bgm.ctx){ try{ bgm.ctx.close(); }catch(e){} bgm.ctx = null; bgm.gain = null; }
   }
@@ -14828,6 +14857,11 @@
     var scr = (document.querySelector('.screen.active') || {}).id;
     // 手渡しの人狼・ワードウルフ：スマホを回して秘密の行動をする時間（誰も声を出さない）
     if(scr === 'scr-wr-pass') return 'wolfNight';
+    // 指示68-T 三の束2：文化祭の待合（呼び込み・待合）の TV だけ。係の画面で「入」にした時だけ（はじめは切）
+    if(scr === 'scr-v2-fes-tv'){
+      var fr = fesRoom();
+      return fr && fr.fes && fr.fes.bgm && (fr.fes.phase === 'idle' || fr.fes.phase === 'lobby') ? 'fesWait' : null;
+    }
     var v = rtView();
     var game = rtRoomGameId();
     if(v && game){
@@ -33489,6 +33523,7 @@
     else if(act === 'rejoin' && fes.quit){ var c2 = fes.quit.code; fes.quit = null; fes.join.diff = null; fes.join.err = ''; goTo('scr-v2-fes-join'); fesOpenJoin(c2); }
     else if(act === 'pause' && fes.staff) rt.fesPause(fes.staff.code, !(fes.staff.fes && fes.staff.fes.paused));
     else if(act === 'skip' && fes.staff) rt.fesSkip(fes.staff.code);
+    else if(act === 'bgm' && fes.staff) rt.fesBgm(fes.staff.code, !(fes.staff.fes && fes.staff.fes.bgm));   // 指示68-T 三の束2
     else if(act === 'fb'){ fesLoadFeedback().then(function(){ V2.open(document.querySelector('#scr-v2-fes-staff [data-v2-id="v2Fb"]')); }); }
     else if(act === 'recreate' || act === 'create'){
       rt.fesCreate(act === 'recreate').then(function(){ fesOpenStaff(); });

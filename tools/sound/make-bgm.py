@@ -3,7 +3,8 @@
 #   .cache/earshot-venv/Scripts/python tools/sound/make-bgm.py           … 作って docs/音の見本帳/BGM_待合.mp3 に書き出す
 #   .cache/earshot-venv/Scripts/python tools/sound/make-bgm.py --check   … 作り直して、今のファイルと同じ音になるかだけ見る
 #
-# **アプリには入れない**（くまくんの指示 10/30：mp3 だけ）。入れるかどうか・どこで鳴らすかは三の束で決める。
+# 指示68-T 三の束2（10/31）でアプリに入れた：public/sound/bgm/wait.mp3 に写して、文化祭の TV の待合だけで鳴らす（係の画面の入／切・はじめは切）。
+# 作り直したら、docs/音の見本帳/BGM_待合.mp3 を public/sound/bgm/wait.mp3 に写す（index.html の BGM_KINDS.fesWait）。
 # earshot を使う条件は tools/sound/README.md（591fa3e に固定・音の部品 bank だけ・動かすのは tools/sound/ の台本だけ）。
 #
 # 曲：ハ長調・112 BPM・4/4・16小節（約34秒）でくり返す。A（8小節）→ B（8小節）→ A にもどる。

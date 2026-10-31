@@ -694,6 +694,8 @@
         '<div class="v2-adm-ops">' +
           '<button type="button" class="v2-btn is-sec" data-fes-act="pause">' + V.icon(f.paused ? 'play' : 'pause') + '<span>' + e(f.paused ? S.つづける : S.一時停止) + '</span></button>' +
           '<button type="button" class="v2-btn is-sec" data-fes-act="skip">' + V.icon('skip') + '<span>' + e(S.とばす) + '</span></button>' +
+          // 指示68-T 三の束2：待合の BGM（TV だけ・とても小さく・はじめは切）
+          '<button type="button" class="v2-btn ' + (f.bgm ? 'is-pri' : 'is-sec') + '" data-fes-act="bgm" aria-pressed="' + !!f.bgm + '"><span>' + e(S.BGM + '：' + (f.bgm ? S.入 : S.切)) + '</span></button>' +
           '<button type="button" class="v2-btn is-sec" data-v2-open="#v2Calib">' + V.icon('calib') + '<span>' + e(S.端あわせ) + '</span></button>' +
           '<button type="button" class="v2-btn is-sec" data-v2-open="#v2Recreate">' + V.icon('refresh') + '<span>' + e(S.作り直す) + '</span></button>' +
           // 指示68-0b B5：「感想を見る」「名前の記録」も係の操作の並びに（名簿が長いと下に隠れていた）

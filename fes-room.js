@@ -127,6 +127,7 @@ function init(room, opts) {
     shown: {},             // 指示68-1：mode -> 最後に候補に出した回（出ていない回が長い順に選ぶ）
     games: o.games || null,  // 検査だけが差しかえる（無ければ FES_GAMES）
     enabled: Object.assign({}, o.enabled || {}),   // 係の入／切（mode -> 真偽）。入れ物（fes-store）から読んだ物。無いゲームははじめの値
+    bgm: false,            // 指示68-T 三の束2：待合の BGM（TV だけ）。**はじめは切**（くまくんが 11/5 に聞いてから入れる）。部屋を作り直すと切にもどる
     times: Object.assign({}, TIMES, o.times || {}),
     rnd: o.rnd || Math.random,
     onPhase: o.onPhase || null   // 指示68-T 二の束6：段階が変わった時に呼ぶ（回ごとの記録）
@@ -488,6 +489,7 @@ function publicView(room, now) {
     played: f.played ? { mode: f.played.mode, round: f.played.round, ids: f.played.ids.slice() } : null,
     full: livePeople(room).length >= ROOM_MAX,
     max: ROOM_MAX,
+    bgm: !!f.bgm,   // 指示68-T 三の束2：TV が待合で BGM を鳴らすか
     hidden: Array.from(f.hidden),
     inset: f.inset,
     note: f.note,

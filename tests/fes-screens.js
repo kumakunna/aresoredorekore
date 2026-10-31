@@ -3,6 +3,7 @@
 // サーバーの側（投票が変わらない・票の数を配らない・感想の上書き…）は tests/fes.js が本物のサーバーで見る。
 // ここは**画面の側**：押した時に何を送るか・届いたものをどう描くか。
 // 部屋の知らせは、本物の進行役を動かして作った見本データ（tools/v2-lab/fes-scenes.js）をそのまま流す（落とし穴25）
+const H = require('./harness');
 const { createRunner, assert, assertEqual, launch, waitFor, sleep } = require('./harness');
 const FesScenes = require('../tools/v2-lab/fes-scenes');
 
@@ -205,6 +206,32 @@ async function 入った(o) {
     assertEqual(emits(win, 'room:ready').length, n + 1, '長押しで1回送る');
     assertEqual(emits(win, 'room:ready').slice(-1)[0].payload.ready, false, '送るのは取り消し');
     win.close();
+  });
+
+  await r.test('三の束2：待合の BGM は文化祭の TV の待合だけ・係が「入」にした時だけ（はじめは切）。スマホでは鳴らさない', async () => {
+    const FesRoom = require('../fes-room');
+    const room0 = FesScenes.view('fes2-lobby').room;
+    assertEqual(room0.fes.bgm, false, 'はじめは切');
+    // TV の端末（部屋の memberId 'tv'＝大画面）として入る（返事を先に置ける入口から）
+    const tv = await launch({ fakeSocket: true });
+    tv.win.__rtFake.replies = { 'room:create': () => ({ ok: true, code: 'TST754', memberId: 'tv', room: room0 }) };
+    await H.makeRoomV2(tv.win, tv.doc);
+    tv.win.__rtFake.fire('room:update', room0);
+    await waitFor(tv.win, () => act(tv.doc) === 'scr-v2-fes-tv', 4000, 'TV の画面');
+    assertEqual(tv.win.bgmWantProbe(), null, '切の間は鳴らさない');
+    const on = JSON.parse(JSON.stringify(room0)); on.fes.bgm = true;
+    tv.win.__rtFake.fire('room:update', on);
+    assertEqual(tv.win.bgmWantProbe(), 'fesWait', '入にしたら、TV の待合で鳴らす');
+    const vote = JSON.parse(JSON.stringify(FesScenes.view('fes2-vote').room)); vote.fes.bgm = true;
+    tv.win.__rtFake.fire('room:update', vote);
+    await waitFor(tv.win, () => act(tv.doc) === 'scr-v2-fes-tv', 2000, 'TV');
+    assertEqual(tv.win.bgmWantProbe(), null, '投票になったら止める（待合だけ）');
+    tv.win.close();
+    const { win } = await 入った();
+    win.__rtFake.fire('room:update', on);
+    assertEqual(win.bgmWantProbe(), null, 'スマホでは鳴らさない');
+    win.close();
+    assert(FesRoom, '');
   });
 
   await r.test('二の束3：TV がいる部屋のスマホの決定は、TV のスポットライトが止まる時刻まで、世界の幕・印・名前を出さない（人数は TV の人数と同じ時刻）', async () => {

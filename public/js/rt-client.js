@@ -379,6 +379,8 @@
     function fesKick(code, memberId) { return call('fes:kick', { code: code, memberId: memberId }); }
     // 指示68-T 二の束1：係（くまくん）のゲームごとの入／切（「テスト中を入れる」を置きかえた）
     function fesGame(code, mode, on) { return call('fes:game', { code: code, mode: mode, on: !!on }); }
+    // 指示68-T 三の束2：待合の BGM の入／切（係）
+    function fesBgm(code, on) { return call('fes:bgm', { code: code, on: !!on }); }
     function fesInset(code, inset) { return call('fes:inset', { code: code, inset: inset }); }
     function fesPause(code, on) { return call('fes:pause', { code: code, on: on !== false }); }
     function fesSkip(code) { return call('fes:skip', { code: code }); }
@@ -474,7 +476,7 @@
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,
       fesVote: fesVote, fesContinue: fesContinue, fesFeedback: fesFeedback,
-      fesCreate: fesCreate, fesWatch: fesWatch, fesHide: fesHide, fesKick: fesKick, fesGame: fesGame, fesInset: fesInset, fesPause: fesPause, fesSkip: fesSkip, fesReserve: fesReserve, fesUnreserve: fesUnreserve,
+      fesCreate: fesCreate, fesWatch: fesWatch, fesHide: fesHide, fesKick: fesKick, fesGame: fesGame, fesBgm: fesBgm, fesInset: fesInset, fesPause: fesPause, fesSkip: fesSkip, fesReserve: fesReserve, fesUnreserve: fesUnreserve,
       // テストから中身を差し替えられるように（socket.io本体は持たせない）
       _call: call
     };

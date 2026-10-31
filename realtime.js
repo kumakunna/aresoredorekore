@@ -1527,6 +1527,14 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           (m) => !m.connected && m.name === name
         ) || null;
       }
+      // 2026-10-31：入る返事が届かなかった TV が、同じつなぎのまま memberId なしで入り直した（index.html fesTvWatch）。
+      // サーバーは1回目で席を作っているので、そのままだと TV の席が2つになる（tools/fes-tv-first.js --drop-join で見た）。
+      // 同じつなぎ（socket）の TV の古い席を消す。別のつなぎの TV（2台目）は消さない
+      if (!member && !戻り && normalizeRole(payload && payload.role) === ROLE_BIGSCREEN) {
+        Array.from(room.members.values())
+          .filter((m) => m.role === ROLE_BIGSCREEN && m.socketId === socket.id)
+          .forEach((m) => room.members.delete(m.id));
+      }
       if (member) {
         member.name = name;
         // 指示66-2：文化祭で「今回は入らなかった人」（waiting）は、入り直しても今回のゲームに入れない

@@ -33061,7 +33061,9 @@
       // 返事が1つも無かった時は、すぐには聞き直さない（つながっていない時は失敗がすぐ返り、描き直し→聞き直しが休みなく回って画面がかたまる）
       setTimeout(function(){
         so.busy = false;
-        if(v2GameOf((document.querySelector('.screen.active') || {}).id)) rtRenderCurrent();
+        // 描き直すのは、そろえて発射の画面だけ（時計がそろうのを待って描く画面）。指示68-T 二の束5 で、部屋に入ったら
+        // どのゲームでも時計を合わせるようにした——ほかのゲームまで描き直すと、見せ場の途中で動き（.is-play）が消えて終わりの形に飛ぶ
+        if(rtRoomGameId() === 'soroe' && v2GameOf((document.querySelector('.screen.active') || {}).id)) rtRenderCurrent();
       }, o ? 0 : 2000);
     });
   }

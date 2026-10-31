@@ -35,5 +35,7 @@
   { "name": "U17 細い画面で縮めない", "file": "public/index.html", "suite": "tests/v2.js", "only": "二の束7",
     "from": "    var w = window.innerWidth || 0, on = w > 0 && w < V2_NARROW;", "to": "    var w = window.innerWidth || 0, on = false;", "expect": "320 は細い" },
   { "name": "U18 早答えの「正解は……」の字を出さない", "file": "public/js/v2-quiz2.js", "suite": "tests/quiz2-tv.js",
-    "from": "        '<div class=\"v2-osay is-ans\" aria-hidden=\"true\" style=\"animation-delay:' + ss(tl.say) + '\">' + e(t.正解は) + '</div>' +\n        '<div class=\"v2-oqs\"", "to": "        '<div class=\"v2-oqs\"", "expect": "正解は" }
+    "from": "        '<div class=\"v2-osay is-ans\" aria-hidden=\"true\" style=\"animation-delay:' + ss(tl.say) + '\">' + e(t.正解は) + '</div>' +\n        '<div class=\"v2-oqs\"", "to": "        '<div class=\"v2-oqs\"", "expect": "正解は" },
+  { "name": "U19 時計合わせのあと、どのゲームでも描き直す（見せ場の動きが消える）", "file": "public/index.html", "suite": "tests/tv-wait.js",
+    "from": "        if(rtRoomGameId() === 'soroe' && v2GameOf((document.querySelector('.screen.active') || {}).id)) rtRenderCurrent();", "to": "        if(v2GameOf((document.querySelector('.screen.active') || {}).id)) rtRenderCurrent();", "expect": "描き直していない" }
 ]

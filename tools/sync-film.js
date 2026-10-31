@@ -77,7 +77,7 @@ async function 部屋に入る(br, name, vp, me, lab, screenFor) {
     await dev.ev("(function(){ var n=document.querySelector('#scr-v2-join [data-home-name]'); if(!n) return 0; n.value='ふう'; n.dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('#scr-v2-join [data-home-act=\"join-go\"]').click(); return 1; })()");
   }
   await dev.until("(document.querySelector('.screen.active')||{}).id !== 'scr-v2-join'", 8000, '部屋に入った');
-  await 流す(dev, lab);
+  await 流す(dev, lab, me === 'tv');
   const want = screenFor(me);
   await dev.until("(document.querySelector('.screen.active')||{}).id === " + JSON.stringify(want), 8000, want);
   await dev.ev("document.fonts.ready.then(function(){ return 1; })");
@@ -98,13 +98,15 @@ async function 文化祭に入る(br, name, vp, me, lab) {
   }
   const want = me === 'tv' ? 'scr-v2-fes-tv' : 'scr-v2-fes-lobby';
   await dev.until("(document.querySelector('.screen.active')||{}).id === " + JSON.stringify(want), 10000, want);
-  await 流す(dev, lab);
+  await 流す(dev, lab, me === 'tv');
   await sleep(600);
   await dev.ev("document.fonts.ready.then(function(){ return 1; })");
   return dev;
 }
-const 流す式 = (lab) => `(function(){ window.__rtFake.fire('room:update', ${JSON.stringify(lab.room)}); ${lab.you ? "window.__rtFake.fire(" + (lab.room.fes ? "'fes:you'" : "'wolf:you'") + ", " + JSON.stringify(lab.you) + ");" : ''} return 1; })()`;
-const 流す = (dev, lab) => dev.ev(流す式(lab));
+// 本人だけの知らせ（wolf:you・fes:you）は、本番と同じくスマホにだけ、部屋の知らせのあとに流す。
+// **TV には流さない**（本番の TV は遊ぶ人ではないので privateFor が null で、届かない。流すと2回目の描き直しで動きが消える）
+const 流す式 = (lab, tv) => `(function(){ window.__rtFake.fire('room:update', ${JSON.stringify(lab.room)}); ${lab.you && !tv ? "window.__rtFake.fire(" + (lab.room.fes ? "'fes:you'" : "'wolf:you'") + ", " + JSON.stringify(lab.you) + ");" : ''} return 1; })()`;
+const 流す = (dev, lab, tv) => dev.ev(流す式(lab, tv));
 
 /** スマホ：data-tvat の部品が出た時刻を数え始める（流す直前に呼ぶ） */
 const 見張る = `(function(){
@@ -131,7 +133,8 @@ const 先に出た = "Array.prototype.map.call(document.querySelectorAll('.scree
       const before = sc.before(), after = sc.after ? sc.after() : null;
       const me = (after && after.meId) || before.meId || 'm1';
       const screenFor = (who) => who === 'tv' ? sc.screen + '-tv' : sc.screen;
-      const tv = sc.kind === 'fes' ? await 文化祭に入る(br, 'tv-' + sc.id, TV_VP, 'tv', before) : await 部屋に入る(br, 'tv-' + sc.id, TV_VP, 'tv', before, screenFor);
+      // TV は文化祭でも、ふだんの部屋と同じ入口（コード）から入る（/fes?tv=1 の飛び先は、疑似の返事を置く前に入りに行ってしまう）。部屋の知らせが文化祭なので、文化祭の TV になる
+      const tv = await 部屋に入る(br, 'tv-' + sc.id, TV_VP, 'tv', before, sc.kind === 'fes' ? () => 'scr-v2-fes-tv' : screenFor);
       const ph = sc.kind === 'fes' ? await 文化祭に入る(br, 'ph-' + sc.id, PH_VP, me, before) : await 部屋に入る(br, 'ph-' + sc.id, PH_VP, me, before, screenFor);
       const rt = Pair.送りを受ける(tv, 960, 540), rp = Pair.送りを受ける(ph, 390, 844);
       await rt.start(); await rp.start();
@@ -161,14 +164,16 @@ const 先に出た = "Array.prototype.map.call(document.querySelectorAll('.scree
         row.合格 = row.三二一.差 != null && row.三二一.差 <= 0.25 && ct.seen.indexOf('1') !== -1;
       } else {
         await ph.ev(見張る);
-        await Promise.all([流す(tv, after), 流す(ph, after)]);
+        await Promise.all([流す(tv, after, true), 流す(ph, after, false)]);
+        // TV の見せ場が動いているか（動いていないと、TV の時刻とくらべる意味が無い）
+        row.TV動く = await tv.ev("(function(){ var s=document.querySelector('.screen.active'); return !!(s && s.classList.contains('is-play')); })()");
         await sleep(80);
         const 先 = await ph.ev(先に出た);
         await sleep(sc.sec * 1000);
         const seen = await ph.ev('window.__tw.seen');
         const 早い = seen.filter((x) => x.at < x.tvat - 0.05);
         row.スマホ = { 待った部品: seen.length, 先に出た: 先, TVより早い: 早い, 出た: seen.map((x) => x.cls + ' ' + x.at.toFixed(2) + '秒（TV ' + x.tvat + '）') };
-        row.合格 = seen.length > 0 && !先.length && !早い.length;
+        row.合格 = row.TV動く && seen.length > 0 && !先.length && !早い.length;
       }
       await sleep(300);
       await rt.stop(); await rp.stop();
@@ -180,7 +185,7 @@ const 先に出た = "Array.prototype.map.call(document.querySelectorAll('.scree
       row.KB = Math.round(gif.length / 1024);
       記録.push(row);
       if (!row.合格) bad++;
-      console.log((row.合格 ? '✔ ' : '✖ ') + sc.id + '：' + JSON.stringify(row.幕 || row.三二一 || { 待った部品: row.スマホ.待った部品, 先に出た: row.スマホ.先に出た.length, TVより早い: row.スマホ.TVより早い.length }) + '（' + row.KB + 'KB）');
+      console.log((row.合格 ? '✔ ' : '✖ ') + sc.id + '：' + JSON.stringify(row.幕 || row.三二一 || { TV動く: row.TV動く, 待った部品: row.スマホ.待った部品, 先に出た: row.スマホ.先に出た.length, TVより早い: row.スマホ.TVより早い.length }) + '（' + row.KB + 'KB）');
       if (row.スマホ) row.スマホ.出た.forEach((x) => console.log('    ' + x));
       await tv.close(); await ph.close();
     }

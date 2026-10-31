@@ -104,6 +104,15 @@ const 隠れている = (doc, sel) => { const n = doc.querySelector('.screen.act
     t.win.close();
   });
 
+  await r.test('二の束5 の時計合わせが終わっても、そろえて発射でなければ見せ場を描き直さない（動きが消えて終わりの形に飛ばない）', async () => {
+    const t = await 場面(ButtonScenes.view('pt-reveal'), 'scr-v2-pittari');
+    // 疑似の socket は時計の返事をしない＝合わせに失敗して、2秒後に「描き直すか」を決める所を通る
+    const scr = t.doc.getElementById('scr-v2-pittari'), first = scr.firstElementChild;
+    await sleep(t.win, 2400);
+    assert(scr.firstElementChild === first, '描き直していない（同じ部品のまま）');
+    t.win.close();
+  });
+
   W.win.close();
   r.finish();
 })();

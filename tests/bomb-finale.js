@@ -95,7 +95,7 @@ async function 終わらせる(t) {
     t.win.close();
   });
 
-  await r.test('二の束4：幕は TV もスマホも、解除も爆発も、全部で4秒以内（同じ時刻に上がる）。文化祭の結果へ移るのは幕より0.5秒以上あと', async () => {
+  await r.test('二の束4：幕は TV もスマホも、解除も爆発も、全部で4秒以内（同じ時刻に上がる）。文化祭の結果へは幕が消えるまでに移る（68-S の残り2）', async () => {
     const 長さ = async (o) => {
       const t = await 開く();
       const t0 = Date.now();
@@ -114,7 +114,9 @@ async function 終わらせる(t) {
     const 差 = Math.max.apply(null, Object.values(ms)) - Math.min.apply(null, Object.values(ms));
     assert(差 <= 300, 'TV とスマホ・解除と爆発の幕が同じ時刻に上がる（差 ' + 差 + 'ms・' + JSON.stringify(ms) + '）');
     const FesRoom = require('../fes-room');
-    assert(FesRoom.TIMES.endGraceMs >= 4000 + 500, '文化祭の結果へ移るのは幕（4.0秒）より0.5秒以上あと（' + FesRoom.TIMES.endGraceMs + 'ms）');
+    // 68-S の残り2（10/31）：幕が上がったらすぐ文化祭の結果。見回り（0.5秒ごと）の分を足しても、幕が消える 4.0秒までに結果へ移る
+    assert(FesRoom.TIMES.endGraceMs + 500 <= 4000, '文化祭の結果へは、幕が消えるまでに移る（' + FesRoom.TIMES.endGraceMs + 'ms＋見回り0.5秒）');
+    assert(FesRoom.TIMES.endGraceMs >= 3000, '幕が上がる前に結果へ移りすぎない（結果の見せ場が幕の下で終わらない）');
   });
 
   await r.test('門1：スマホ … 解除は「解除！」と自分の名前だけ・短い振動／爆発は静かに「ばくはつ…」・長めの振動', async () => {

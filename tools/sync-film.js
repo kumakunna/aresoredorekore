@@ -15,6 +15,7 @@
 //   qnear     … クイズ王2 数字ちかい方の開く
 //   bomb      … クイズ解除の幕（TV の爆発の幕とスマホの幕。どちらも4秒以内で、同じ時刻に上がる）
 //   countdown … 3・2・1 の途中で TV をつなぎ直した形（スマホは合図から、TV は1.2秒遅れて部屋の状態から。0になる時刻がそろう）
+//   fesend    … 文化祭のクイズ解除が爆発で終わった時：幕が上がってから文化祭の結果までに、今までのゲームの画面が見えないか（68-S の残り2）
 // 測るもの（ページの中で数える）：
 //   スマホの「TV で出る秒」（data-tvat）の部品が出た時刻と、その秒。**出た時刻 ≥ TV の秒 − 0.05秒**なら合格。描いた直後に出ていた部品は「先に出た」
 //   幕：bombFinaleProbe が返るまでの長さ（TV とスマホ）。4.0秒＋0.2秒以内で、差は0.3秒以内
@@ -44,6 +45,9 @@ const PH_VP = { width: 390, height: 844, mobile: true, deviceScaleFactor: 1 };
 /** 場面：before（入ってすぐの知らせ）・after（同時に流す知らせ）・screen・me（スマホの memberId）・sec（撮る長さ）・still（1コマの秒） */
 const SCENES = [
   { id: 'decide', kind: 'fes', before: () => FesScenes.view('fes2-vote'), after: () => FesScenes.view('fes2-decide'), sec: 4.0, still: 1.8 },
+  // 68-S の残り2：文化祭のクイズ解除が終わった時。幕が上がってから文化祭の結果が出るまで、何が見えるか（0.1秒ごとの画面を記録）。
+  // 「爆発した（文化祭はまだ遊ぶ段階）」を流し、endGraceMs（fes-room.js の TIMES）たってから「文化祭の結果」を流す（サーバーと同じ順と間）
+  { id: 'fesend', kind: 'fes', me: 'm1', before: () => FesScenes.view('fes2-tv-play-last'), phoneBefore: () => FesScenes.view('fes2-play'), sec: 7.0, still: 4.3 },
   { id: 'pittari', kind: 'game', game: 'pittari', before: () => ButtonScenes.view('pt-run'), after: () => ButtonScenes.view('pt-reveal'), screen: 'scr-v2-pittari', sec: 5.0, still: 2.0 },
   { id: 'onaji', kind: 'game', game: 'onaji', before: () => OnajiScenes.view('onaji-choose'), after: () => OnajiScenes.view('onaji-unveil'), screen: 'scr-v2-onaji', sec: 4.5, still: 1.5 },
   { id: 'qhaya', kind: 'game', game: 'qhaya', before: () => Quiz2Scenes.view('qh-choose'), after: () => Quiz2Scenes.view('qh-open'), screen: 'scr-v2-qhaya', sec: 4.5, still: 2.0 },
@@ -105,7 +109,7 @@ async function 文化祭に入る(br, name, vp, me, lab) {
 }
 // 本人だけの知らせ（wolf:you・fes:you）は、本番と同じくスマホにだけ、部屋の知らせのあとに流す。
 // **TV には流さない**（本番の TV は遊ぶ人ではないので privateFor が null で、届かない。流すと2回目の描き直しで動きが消える）
-const 流す式 = (lab, tv) => `(function(){ window.__rtFake.fire('room:update', ${JSON.stringify(lab.room)}); ${lab.you && !tv ? "window.__rtFake.fire(" + (lab.room.fes ? "'fes:you'" : "'wolf:you'") + ", " + JSON.stringify(lab.you) + ");" : ''} return 1; })()`;
+const 流す式 = (lab, tv) => `(function(){ window.__rtFake.fire('room:update', ${JSON.stringify(lab.room)}); ${lab.you && !tv ? "window.__rtFake.fire(" + (lab.room.fes ? "'fes:you'" : "'wolf:you'") + ", " + JSON.stringify(lab.you) + ");" : ''}${lab.secret && !tv ? " window.__rtFake.fire('wolf:you', " + JSON.stringify(lab.secret) + ");" : ''} return 1; })()`;
 const 流す = (dev, lab, tv) => dev.ev(流す式(lab, tv));
 
 /** スマホ：data-tvat の部品が出た時刻を数え始める（流す直前に呼ぶ） */
@@ -131,11 +135,11 @@ const 先に出た = "Array.prototype.map.call(document.querySelectorAll('.scree
   try {
     for (const sc of SCENES) {
       const before = sc.before(), after = sc.after ? sc.after() : null;
-      const me = (after && after.meId) || before.meId || 'm1';
+      const me = sc.me || (after && after.meId) || before.meId || 'm1';
       const screenFor = (who) => who === 'tv' ? sc.screen + '-tv' : sc.screen;
       // TV は文化祭でも、ふだんの部屋と同じ入口（コード）から入る（/fes?tv=1 の飛び先は、疑似の返事を置く前に入りに行ってしまう）。部屋の知らせが文化祭なので、文化祭の TV になる
       const tv = await 部屋に入る(br, 'tv-' + sc.id, TV_VP, 'tv', before, sc.kind === 'fes' ? () => 'scr-v2-fes-tv' : screenFor);
-      const ph = sc.kind === 'fes' ? await 文化祭に入る(br, 'ph-' + sc.id, PH_VP, me, before) : await 部屋に入る(br, 'ph-' + sc.id, PH_VP, me, before, screenFor);
+      const ph = sc.kind === 'fes' ? await 文化祭に入る(br, 'ph-' + sc.id, PH_VP, me, sc.phoneBefore ? sc.phoneBefore() : before) : await 部屋に入る(br, 'ph-' + sc.id, PH_VP, me, before, screenFor);
       const rt = Pair.送りを受ける(tv, 960, 540), rp = Pair.送りを受ける(ph, 390, 844);
       await rt.start(); await rp.start();
       await sleep(500);
@@ -147,6 +151,27 @@ const 先に出た = "Array.prototype.map.call(document.querySelectorAll('.scree
         const [a, b] = await Promise.all([幕(tv, true), 幕(ph, false)]);
         row.幕 = { TV: +a.toFixed(2), スマホ: +b.toFixed(2) };
         row.合格 = a <= 4.2 && b <= 4.2 && Math.abs(a - b) <= 0.3;
+      } else if (sc.id === 'fesend') {
+        const 結果 = FesScenes.view('fes2-tv-boom'), 終わり = JSON.parse(JSON.stringify(結果));
+        終わり.room.fes.phase = 'play';   // 爆発した瞬間：ゲームは終わったが、文化祭は結果へ移る前（endGraceMs の間）
+        const 結果P = FesScenes.view('fes2-boom'), 終わりP = JSON.parse(JSON.stringify(結果P));   // スマホは手元の知らせ（secret）も
+        終わりP.room.fes.phase = 'play';
+        const grace = require('../fes-room').TIMES.endGraceMs;
+        const 画面 = `(function(){ window.__scr = []; var t0 = performance.now(); var id = setInterval(function(){
+          var a = document.querySelector('.screen.active'), f = document.querySelector('.fx-finale');
+          window.__scr.push({ t: (performance.now() - t0) / 1000, s: (a ? a.id : '') + (f ? '+幕' : '') });
+          if (performance.now() - t0 > 7500) clearInterval(id); }, 100); return 1; })()`;
+        await Promise.all([tv.ev(画面), ph.ev(画面)]);
+        await Promise.all([流す(tv, 終わり, true), 流す(ph, 終わりP, false)]);
+        await sleep(grace);
+        await Promise.all([流す(tv, 結果, true), 流す(ph, 結果P, false)]);
+        await sleep(sc.sec * 1000 - grace);
+        const 区切り = async (dev) => { const l = await dev.ev('window.__scr'); const out = []; l.forEach((x) => { if (!out.length || out[out.length - 1].s !== x.s) out.push({ t: +x.t.toFixed(1), s: x.s }); }); return out; };
+        row.TV = await 区切り(tv); row.スマホ = await 区切り(ph); row.endGraceMs = grace;
+        // 合格：幕が上がったあと、文化祭の結果の画面より前に、ほかの画面（今までのゲームの画面）が見えていない
+        const 見えた = (l) => l.filter((x) => x.s.indexOf('+幕') === -1 && !/scr-v2-fes-(tv|lobby)$/.test(x.s)).map((x) => x.t + '秒 ' + x.s);
+        row.幕のあとの別の画面 = { TV: 見えた(row.TV), スマホ: 見えた(row.スマホ) };
+        row.合格 = !row.幕のあとの別の画面.TV.length && !row.幕のあとの別の画面.スマホ.length;
       } else if (sc.id === 'countdown') {
         // スマホはふつうに合図を受ける。TV は1.2秒遅れてつなぎ直し、部屋の状態（countdownEndsAt）から数える
         const 読む = `(function(){ window.__cd = []; var t0 = performance.now(); var id = setInterval(function(){
@@ -185,8 +210,8 @@ const 先に出た = "Array.prototype.map.call(document.querySelectorAll('.scree
       row.KB = Math.round(gif.length / 1024);
       記録.push(row);
       if (!row.合格) bad++;
-      console.log((row.合格 ? '✔ ' : '✖ ') + sc.id + '：' + JSON.stringify(row.幕 || row.三二一 || { TV動く: row.TV動く, 待った部品: row.スマホ.待った部品, 先に出た: row.スマホ.先に出た.length, TVより早い: row.スマホ.TVより早い.length }) + '（' + row.KB + 'KB）');
-      if (row.スマホ) row.スマホ.出た.forEach((x) => console.log('    ' + x));
+      console.log((row.合格 ? '✔ ' : '✖ ') + sc.id + '：' + JSON.stringify(row.幕のあとの別の画面 ? { 画面: row.TV, 別の画面: row.幕のあとの別の画面 } : row.幕 || row.三二一 || { TV動く: row.TV動く, 待った部品: row.スマホ.待った部品, 先に出た: row.スマホ.先に出た.length, TVより早い: row.スマホ.TVより早い.length }) + '（' + row.KB + 'KB）');
+      if (row.スマホ && row.スマホ.出た) row.スマホ.出た.forEach((x) => console.log('    ' + x));
       await tv.close(); await ph.close();
     }
   } catch (e) {

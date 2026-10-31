@@ -53,6 +53,15 @@ const SC = require('../tools/v2-lab/scenes.js');
     assert(box.querySelector('.v2-tdec2.is-single'), '落ちてくる形');
   });
 
+  await r.test('68-S の残り5：候補の札を大きく（高さ 640px・印 280px）。名前は1行（入らなければ縮める）', async () => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(css.indexOf('.v2 .v2-dcards{position:absolute;left:0;right:0;top:50%;margin-top:-250px;height:640px;') !== -1, '札の高さ 640px（前は 460px）');
+    assert(css.indexOf('.v2 .v2-dcard-tile{width:280px;height:280px;}') !== -1, '印 280px（前は 200px）');
+    const { box } = 描く('fes2-tv-decide');
+    const n = box.querySelector('.v2-dcard-n');
+    assert(n && n.hasAttribute('data-v2-fit') && n.classList.contains('v2-cut'), '名前は1行で、入らなければ字を小さく');
+  });
+
   t.win.close();
   r.finish();
 })();

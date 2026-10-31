@@ -6051,15 +6051,16 @@
   .v2 .v2-ddim{position:absolute;inset:-120px -200px;background:rgba(6,6,16,.5);opacity:0;pointer-events:none;}
   .v2.is-play .v2-ddim{animation:v2-ddim calc(2.7s * var(--fx-scale)) ease;}
   @keyframes v2-ddim{0%{opacity:0;}28%{opacity:1;}90%{opacity:1;}100%{opacity:0;}}
-  .v2 .v2-dcards{position:absolute;left:0;right:0;top:50%;margin-top:-230px;height:460px;display:grid;grid-template-columns:repeat(var(--dc),minmax(0,1fr));
+  /* 68-S の残り5（くまくん 10/31）：候補の札を大きく（高さ 460→640px・印 200→280px）。名前は前と同じ 64px で1行（入らなければ縮める）。見出しの下から画面の下の方まで */
+  .v2 .v2-dcards{position:absolute;left:0;right:0;top:50%;margin-top:-250px;height:640px;display:grid;grid-template-columns:repeat(var(--dc),minmax(0,1fr));
     gap:40px;opacity:0;visibility:hidden;}
   .v2.is-play .v2-dcards{animation:v2-dgone calc(.3s * var(--fx-scale)) ease both;}
   @keyframes v2-dgone{from{opacity:1;visibility:visible;}to{opacity:0;visibility:hidden;}}
   .v2 .v2-dcard{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;border-radius:40px;
     background:rgba(255,255,255,.14);text-align:center;}
-  .v2 .v2-dcard-tile{width:200px;height:200px;}
-  .v2 .v2-dcard-n{font-weight:900;font-size:64px;line-height:1.1;}
-  .v2 .v2-dcard-t small{display:block;font-size:44px;}
+  .v2 .v2-dcard-tile{width:280px;height:280px;}
+  .v2 .v2-dcard-n{font-weight:900;font-size:64px;line-height:1.1;white-space:nowrap;max-width:100%;padding:0 12px;}   /* 名前は1行（7字で札の幅いっぱい）。入らなければ V2 の fit が字を小さく（下限 48px） */
+  .v2 .v2-dcard-t small{display:block;font-size:52px;}
   /* スポットライト：1か所ずつ光る（光っている間だけ見える。最後の1つは止まったまま） */
   .v2 .v2-dhop{position:absolute;top:-24px;bottom:-24px;width:calc((100% - (var(--dc) - 1) * 40px) / var(--dc) + 40px);transform:translateX(-50%);
     border-radius:52px;border:8px solid #FFE58A;box-shadow:0 0 60px rgba(255,229,138,.75),inset 0 0 60px rgba(255,229,138,.35);opacity:0;pointer-events:none;z-index:2;}

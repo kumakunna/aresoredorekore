@@ -577,7 +577,8 @@
     var ss = function (sec) { return 'calc(' + sec.toFixed(2) + 's * var(--fx-scale))'; };
     var cards = tl.single ? '' : '<div class="v2-dcards" style="--dc:' + C + ';animation-delay:' + ss(tl.stop) + '">' + tl.list.map(function (m, k) {
       var c = view.info(m) || {};
-      return '<div class="v2-dcard">' + V.tile(c.world, 'v2-dcard-tile') + '<div class="v2-dcard-n">' + gnameHtml(c, 'v2-dcard-t') + '</div></div>';
+      // 68-S の残り5：名前は1行。札に入らない時だけ字を小さく（下限 48px・V2 の fit）
+      return '<div class="v2-dcard">' + V.tile(c.world, 'v2-dcard-tile') + '<div class="v2-dcard-n v2-cut" data-v2-fit="48">' + gnameHtml(c, 'v2-dcard-t') + '</div></div>';
     }).join('') + tl.hops.map(function (h, i) {
       var last = i === tl.hops.length - 1;
       return '<i class="v2-dhop' + (last ? ' is-last' : '') + '" style="left:' + ((h.k + 0.5) / C * 100).toFixed(2) + '%;' +

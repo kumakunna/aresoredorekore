@@ -3,6 +3,7 @@
 //
 //   node tools/fes-tv-first.js            … 本物のサーバー（tools/dev-server.js）と本物の Chrome で。0.5秒ごとの画面を出す。TV の画面に着かなければ終わりの数が 1
 //   --port 3311  --cdp 9711  --shot DIR（TV の写真を残す）  --slow 300（TV の通信に遅れを入れる・ミリ秒。本番の回線に近づける）
+//   --tv-first（TV を先に開いて待たせ、そのあと係が部屋を作る。作るのと開くのがほぼ同時だった時の道）
 //
 // 手順（10/31 12:45 本番・部屋 U3GU55・v2.13 で起きた）：
 //   1. 係（/dev-login のくまくん）が係の画面で文化祭の部屋を作る
@@ -17,7 +18,7 @@ const { launch, sleep } = require('./cdp');
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
-const PORT = +arg('port', 3311), CDP = +arg('cdp', 9711), SHOT = arg('shot', null), SLOW = +arg('slow', 0);
+const PORT = +arg('port', 3311), CDP = +arg('cdp', 9711), SHOT = arg('shot', null), SLOW = +arg('slow', 0), TV_FIRST = argv.includes('--tv-first');
 
 async function サーバー() {
   const base = 'http://localhost:' + PORT;
@@ -37,6 +38,17 @@ const 見る = "(function(){ var a=document.querySelector('.screen.active'); var
   const b = await launch({ port: CDP });
   let code = 1;
   try {
+    let tv = null;
+    if (TV_FIRST) {
+      tv = await b.newDevice('TV', { width: 1920, height: 1080, deviceScaleFactor: 0.5 });
+      if (SLOW) { await tv.raw('Network.enable', {}); await tv.raw('Network.emulateNetworkConditions', { offline: false, latency: SLOW, downloadThroughput: -1, uploadThroughput: -1 }); }
+      await tv.go(base + '/fes?tv=1');
+      await sleep(2500);
+      const g = await tv.ev("(function(){ var g=document.getElementById('safetyGate'); return !!g && getComputedStyle(g).display !== 'none'; })()");
+      if (g) await tv.ev("document.getElementById('sgStartBtn').click()");
+      await sleep(2000);
+      console.log('TV を先に開いた：' + JSON.stringify(await tv.ev(見る)));
+    }
     const staff = await b.newDevice('係', { width: 390, height: 844, mobile: true });
     await staff.go(base + '/');
     await staff.ev("(function(){ localStorage.setItem('acac-safety-seen','1'); return 1; })()");
@@ -51,9 +63,11 @@ const 見る = "(function(){ var a=document.querySelector('.screen.active'); var
     const cur = await (await fetch(base + '/api/fes/current')).json();
     console.log('係が部屋を作った：' + cur.code);
 
-    const tv = await b.newDevice('TV', { width: 1920, height: 1080, deviceScaleFactor: 0.5 });
-    if (SLOW) { await tv.raw('Network.enable', {}); await tv.raw('Network.emulateNetworkConditions', { offline: false, latency: SLOW, downloadThroughput: -1, uploadThroughput: -1 }); }
-    await tv.go(base + '/fes?tv=1');   // 記憶は空のまま
+    if (!TV_FIRST) {
+      tv = await b.newDevice('TV', { width: 1920, height: 1080, deviceScaleFactor: 0.5 });
+      if (SLOW) { await tv.raw('Network.enable', {}); await tv.raw('Network.emulateNetworkConditions', { offline: false, latency: SLOW, downloadThroughput: -1, uploadThroughput: -1 }); }
+      await tv.go(base + '/fes?tv=1');   // 記憶は空のまま
+    }
     const 道 = [];
     for (let i = 0; i < 24; i++) {
       await sleep(500);

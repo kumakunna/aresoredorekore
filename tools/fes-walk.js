@@ -99,7 +99,7 @@ const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.a
     }
     const tv = await b.newDevice('TV', { width: 1280, height: 720 }); devs.push(tv);
     log('TV', await 開く(tv, base, '/fes?tv=1'));
-    const names = ['ふう', 'ひろ', 'びび'], diffs = ['easy', 'normal', 'hard'];
+    const names = ['ふう', 'ひろ', 'びび'], diffs = ['easy', 'normal', 'normal'];   // むずかしさは2つ（10/31）
     const ph = [];
     for (let i = 0; i < 3; i++) {
       const d = await b.newDevice('スマホ' + (i + 1), { width: 390, height: 844, mobile: true }); devs.push(d);

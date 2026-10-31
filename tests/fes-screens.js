@@ -49,6 +49,9 @@ async function 入った(o) {
     assert(btn.disabled, '選ぶまで「入る」は押せない');
     assert(/むずかしさを えらんでね/.test(btn.textContent), '押せないボタンに「むずかしさを えらんでね」');
     assertEqual(doc.querySelectorAll('.v2-diff.is-on').length, 0, '最初はどのむずかしさも選ばれていない');
+    // くまくんの答え 2026-10-31：やさしい・ふつうの2つだけ
+    assertEqual(Array.from(doc.querySelectorAll('[data-fes-diff]')).map((d) => d.getAttribute('data-fes-diff')).join(','), 'easy,normal', 'むずかしさは「やさしい」「ふつう」の2つ');
+    assert(!/むずかしい/.test(doc.querySelector('.v2-diffs').textContent), '「むずかしい」の字が無い');
     btn.click();
     assertEqual(emits(win, 'room:join').length, 0, '押しても送らない');
     doc.querySelector('[data-fes-diff="easy"]').click();

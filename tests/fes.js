@@ -234,6 +234,36 @@ async function join(srv, code, name, diff, extra) {
     await srv.close();
   });
 
+  await r.test('むずかしさは「やさしい」「ふつう」の2つ。「むずかしい」は「ふつう」として扱う（くまくんの答え 2026-10-31）', async () => {
+    assertEqual(FesRoom.DIFFS.join(','), 'easy,normal', '選べるのは2つ');
+    // 古い画面（まだ「むずかしい」が出ている）から入った人
+    const srv = await startTestServer();
+    const { code } = await makeFes(srv);
+    const h = await join(srv, code, 'ふう', 'hard');
+    assertEqual(h.res.ok, true, '「むずかしい」を添えても入れる');
+    assertEqual(h.me && h.me.diff, 'normal', '本人に届くむずかしさは「ふつう」');
+    assertEqual(srv.store.get(code).members.get(h.memberId).fesDiff, 'normal', '部屋に残すのも「ふつう」');
+    h.close();
+    await srv.close();
+    // すでに「むずかしい」で部屋にいる人（覚えている値が hard）
+    const RT = require('../realtime');
+    const room = new RT.RoomStore().create({ ownerUserId: 1 });
+    ['a', 'b'].forEach((id, i) => room.members.set(id, { id, name: id, role: 'player', connected: true, joinedAt: i, readyGame: null, fesDiff: i ? 'hard' : 'easy' }));
+    FesRoom.init(room, { games: 全部on() });
+    room.fes.rnd = () => 0;
+    assertEqual(FesRoom.privateFor(room, 'b').diff, 'normal', '本人だけの知らせでも「ふつう」');
+    const started = [];
+    const api = { startGameNow: (r2, p) => { started.push(p); return { ok: true }; }, clearGameState() {}, driverStateOf: () => null, removeMember() { return true; } };
+    const step = () => { room.fes.endsAt = Date.now() - 1; FesRoom.tick(room, Date.now(), api); };
+    FesRoom.tick(room, Date.now(), api); step();
+    room.fes.candidates = ['bomb-coop'];
+    FesRoom.vote(room, 'a', 'bomb-coop'); step(); step();
+    ['a', 'b'].forEach((id, i) => { const m = room.members.get(id); m.readyGame = 'bomb'; m.readyAt = 1000 + i; });
+    step();
+    assertEqual(room.fes.phase, 'play', '始まる');
+    assertEqual(JSON.stringify(started[0].fesDiffs), JSON.stringify({ a: 'easy', b: 'normal' }), 'ゲームに渡すのも「ふつう」（DIFF_CAP の上限は「むずかしい」まで）');
+  });
+
   await r.test('上限より多く押した時：押した順に上限まで入り、入れなかった人の理由は「いっぱい」（くまくんの答え 2026-10-24）', async () => {
     const RT = require('../realtime');
     const room = new RT.RoomStore().create({ ownerUserId: 1 });

@@ -81,7 +81,9 @@ function setGame(f, mode, on) {
 
 const ROOM_MAX = 16;
 const MISS_LIMIT = 2;
-const DIFFS = ['easy', 'normal', 'hard'];
+// むずかしさは2つ（くまくんの答え 2026-10-31）。古い画面から来た「むずかしい」や、もう部屋にいる人の hard は「ふつう」として読む
+const DIFFS = ['easy', 'normal'];
+function diffOf(d) { return d === 'hard' ? 'normal' : (DIFFS.indexOf(d) === -1 ? null : d); }
 
 /**
  * 長さ。**数字は遊びの長さで、検査の都合で縮めない**（落とし穴24）。
@@ -409,7 +411,7 @@ function closeReady(room, now, api) {
     m.fesBench = ids.has(m.id) ? null : (m.readyGame === g.game ? 'full' : 'missed');
   });
   const diffs = {};
-  pressed.forEach((m) => { diffs[m.id] = m.fesDiff || 'normal'; });
+  pressed.forEach((m) => { diffs[m.id] = diffOf(m.fesDiff) || 'normal'; });
   const res = api.startGameNow(room, Object.assign({}, g.start, { fesDiffs: diffs }));
   if (!res.ok) {
     people(room).forEach((m) => { m.role = 'player'; });
@@ -505,7 +507,7 @@ function privateFor(room, memberId) {
   if (!f || !m) return null;
   return {
     vote: f.votes.get(memberId) || null,
-    diff: m.fesDiff || null,
+    diff: diffOf(m.fesDiff),
     miss: m.fesMiss || 0,
     cont: f.cont.has(memberId),
     bench: m.role === 'waiting' ? (m.fesBench || 'late') : null,
@@ -513,5 +515,5 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, roundDetail, ROOM_MAX, MISS_LIMIT, DIFFS, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
+module.exports = { FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, roundDetail, ROOM_MAX, MISS_LIMIT, DIFFS, diffOf, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
   reserve, unreserve, held, queueTick };

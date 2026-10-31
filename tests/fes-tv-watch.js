@@ -61,6 +61,8 @@ async function TV(順) {
     const h = t.doc.querySelector('.v2.v2-tvhint[data-tv-stuck]');
     assert(h && h.textContent === 'F5 で開き直してください', '入り直してさらに8秒着かない → TV の隅に「F5 で開き直してください」（' + (h && h.textContent) + '）');
     assertEqual(t.doc.querySelectorAll('[data-tv-stuck]').length, 1, '一言は1つ');
+    const fs = parseFloat(t.win.getComputedStyle(h).fontSize);
+    assert(fs >= 48, '字は 48px 以上（離れた係が読める・10/31 の指示。いま ' + fs + 'px）');
     assertEqual(joins(t.win), 2, '入る（最初）＋入り直し1回だけ');
     assertEqual(t.sent.length, 1, 'ログは1行だけ（F5 の一言でログは増やさない）');
     assert(act(t.doc) !== 'scr-v2-fes-join', 'TV に参加者の入る画面（名前を打つ）を出さない（いま ' + act(t.doc) + '）');

@@ -1505,7 +1505,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         if (!c.ok) {
           return fail(cb, 'name_' + c.reason, c.reason === 'long' ? '名前は8字までです' : 'この名前は使えません。ほかの名前にしてね');
         }
-        if (FesRoom.DIFFS.indexOf(payload && payload.diff) === -1) return fail(cb, 'diff_required', 'むずかしさを えらんでね');
+        if (!FesRoom.diffOf(payload && payload.diff)) return fail(cb, 'diff_required', 'むずかしさを えらんでね');
         const live = Array.from(room.members.values()).filter((m) => m.role !== ROLE_BIGSCREEN && m.connected).length;
         // 指示66-3：予約の人のために取っておいている席も、空いていない席として数える（予約した本人は、自分の token で入れる）
         const reserveToken = payload && payload.reserve ? String(payload.reserve) : null;
@@ -1513,7 +1513,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         if (reserveToken) FesRoom.unreserve(room, reserveToken);
         // 同じ名前が2人いたら、2人目は自動で「ふう②」（見本 F2）
         name = NameFilter.dedupe(c.name, Array.from(room.members.values()).map((m) => m.name));
-        fesDiff = payload.diff;
+        fesDiff = FesRoom.diffOf(payload.diff);
       }
       // 指示63 2-1：出ていった人が、同じ memberId で戻ってきた（待合と決着のあいだだけ）
       const 戻り = (!member && rejoinId && room.left && room.left.has(rejoinId) && canReturnNow(room))

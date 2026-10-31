@@ -195,6 +195,8 @@ async function launch(opts) {
         setTimeout(function(){ f.connected = true; f.fire('connect'); }, 0);
         return s;
       };
+      // 10/31：起動してすぐ送るもの（TV の入る返事など）の返事を、読み込む前に置く（opts.rtSeed・JS の字）
+      ${opts.rtSeed || ''}
     </script>`;
     // 指示68-0b B19：本番は縮めた版（socket.io.min.js）を読む。どちらの道でも差しかえる（差しかえ損ねると、疑似が入らず全部の画面が動かない）
     const tag = /<script src="\/socket\.io\/socket\.io(?:\.min)?\.js"><\/script>/;
@@ -380,7 +382,8 @@ async function launch(opts) {
     return !gate || gate.style.display === 'none';
   }, 5000, '安全の案内を通過');
   // 扉が自動で開くまで待つ（起動時は必ず扉を通る）
-  await waitFor(win, () => activeScreen(doc) !== 'scr-door', 5000, '扉が開く');
+  // opts.noDoorWait：扉の先がサーバーの返事を待つ検査（TV の入る返事が来ない・10/31）は、ここで待たない
+  if (!opts.noDoorWait) await waitFor(win, () => activeScreen(doc) !== 'scr-door', 5000, '扉が開く');
 
   // 第41弾：扉の次は入口（scr-entry）。
   // ほとんどの検査はその先を見たいので、ここで1回だけ通す。

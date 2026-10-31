@@ -32405,8 +32405,12 @@
       if(/[?&]fes=1/.test(location.search || '')){
         if(/[?&]staff=1/.test(location.search)){ try{ await checkAuth(); }catch(e){} await fesOpenStaff(); return 'scr-v2-fes-staff'; }
         if(invited && /[?&]tv=1/.test(location.search) && rt){
+          fesTvWatch(invited);
           var tvr = await rt.joinRoom(invited, 'TV', 'bigscreen');
+          if(tvr && tvr.error !== 'timeout') fesTvWatch.replied = true;
           if(tvr && tvr.ok) return rtWantScreen();
+          // 入る返事が来なかった（8秒）：TV に参加者の入る画面（名前を打つ）は出さない。見張りが1回だけ入り直す
+          if(tvr && tvr.error === 'timeout') return null;
         }
         if(invited){ await fesOpenJoin(invited); return 'scr-v2-fes-join'; }
         // 部屋が無い：作り直しを待つ（サーバーが作り直された・TV はいつもこれ）か、「いまは部屋がありません」。どちらも部屋ができたら自動で入る
@@ -32436,6 +32440,30 @@
     // 「演出の速さ」を「スキップ」にした人まで0.26秒待たされていた
     //（大切なこと7「すべての演出はスキップできる」に反する・第44弾で見つけた）
     setTimeout(function(){ goTo(next); }, fxMs(260));
+  }
+  /**
+   * 2026-10-31（くまくん「手がかりを取る」）：文化祭の TV を開いて8秒たっても、文化祭の画面に着かない時。
+   * 本番で1回だけ、TV が真っ白（scr-v2-room）のまま止まった。手元では再現できない（tools/fes-tv-first.js）ので、直す前に手がかりを取る：
+   *   1. サーバーのログに1行残す（今の画面・入る返事が来たか・版・つなぎ直した回数）——/api/fes/tv-stuck（fes-routes.js）
+   *   2. 1回だけ黙って入り直す（画面には何も出さない）。入り直しても着かなければ、それ以上は何もしない（何度も聞き直さない）
+   * 「着いた」＝TV として部屋にいて、文化祭の部屋が届いていて、今の画面が rtWantScreen() と同じ（遊んでいる途中のゲームの画面も着いたうち）
+   */
+  var FES_TV_WATCH_MS = 8000;
+  function fesTvWatch(code){
+    fesTvWatch.replied = false;
+    setTimeout(async function(){
+      var cur = (document.querySelector('.screen.active') || {}).id || null;
+      var me = rt.me && rt.me();
+      if(me && me.role === 'bigscreen' && fesRoom() && cur === rtWantScreen()) return;
+      try{
+        var p = window.fetch('/api/fes/tv-stuck', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+          body: JSON.stringify({ scr: cur, replied: !!fesTvWatch.replied, v: AppVersion.VERSION,
+            reconnects: Math.max(0, (rt.state.connects || 0) - 1), code: code }) });
+        if(p && p.catch) p.catch(function(){});
+      }catch(e){}
+      var r2 = await rt.joinRoom(rt.state.code || code, 'TV', 'bigscreen');
+      if(r2 && r2.ok) goTo(rtWantScreen());
+    }, FES_TV_WATCH_MS);
   }
   el('doorPanel').addEventListener('click', openDoorAndEnter); // 保険：待てない時
   el('doorScene').addEventListener('click', openDoorAndEnter);

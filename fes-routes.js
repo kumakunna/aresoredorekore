@@ -21,6 +21,19 @@ function mountFesRoutes(app, io) {
   app.get('/tv', (req, res) => res.redirect(302, '/?tv=1'));
   // 2026-10-29：いまの文化祭の部屋のコード（無い時は null）。「部屋がありません」「作り直しています」の画面が数秒ごとに見て、できたら入る
   app.get('/api/fes/current', (req, res) => res.json({ code: (io.fesCurrentCode && io.fesCurrentCode()) || null }));
+  // 2026-10-31：TV を開いて8秒たっても文化祭の画面に着かない時の手がかり（本番で1回だけ見た真っ白・手元では再現できない）。
+  // TV が1回だけ送る（index.html fesTvWatch）。ログに1行だけ残す。人の打った字は無いが、改行は消して長さを切る。送りすぎは1分20回まで
+  let 着かない = { t: 0, n: 0 };
+  app.post('/api/fes/tv-stuck', (req, res) => {
+    const now = Date.now();
+    if (now - 着かない.t > 60000) 着かない = { t: now, n: 0 };
+    if (++着かない.n > 20) return res.status(429).json({ ok: false });
+    const b = req.body || {};
+    const 字 = (v, n) => String(v == null ? '-' : v).replace(/\s+/g, ' ').slice(0, n);
+    console.log('[fes] TV が8秒で着かない（tv-stuck）：画面=' + 字(b.scr, 40) + ' 入る返事=' + (b.replied ? '来た' : '来ない') +
+      ' 版=' + 字(b.v, 16) + ' つなぎ直し=' + Math.max(0, Math.min(999, Math.floor(+b.reconnects) || 0)) + '回 部屋=' + 字(b.code, 8));
+    res.json({ ok: true });
+  });
   app.get('/fes', (req, res) => {
     const code = io.fesCurrentCode && io.fesCurrentCode();
     // TV（/fes?tv=1）と係（/fes?staff=1）は、その印をつけたまま飛ばす

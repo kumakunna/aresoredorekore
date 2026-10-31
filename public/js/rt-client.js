@@ -56,6 +56,8 @@
 
       socket.on('connect', function () {
         state.connected = true;
+        // 10/31：つながった回数（2回目からが「つなぎ直し」）。TV が着かない時の手がかりに送る（index.html fesTvWatch）
+        state.connects = (state.connects || 0) + 1;
         emitLocal('status', state);
         // スマホの画面を消すと、しばらくして接続が切れる（JSが止まって
         // ハートビートに応えられなくなるため）。socket.io は自動でつなぎ直すが、

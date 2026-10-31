@@ -5,6 +5,7 @@
 //   --port 3311  --cdp 9711  --shot DIR（TV の写真を残す）  --slow 300（TV の通信に遅れを入れる・ミリ秒。本番の回線に近づける）
 //   --tv-first（TV を先に開いて待たせ、そのあと係が部屋を作る。作るのと開くのがほぼ同時だった時の道）
 //   --film FILE.gif（TV の画面を開いた所から 12秒、GIF に撮る・960×540・8コマ/秒）
+//   --drop-join（TV の最初の「入る」の返事を捨てる＝返事が届かない。8秒の見張りがログに1行残し、1回だけ入り直すのを見る・10/31）
 //
 // 手順（10/31 12:45 本番・部屋 U3GU55・v2.13 で起きた）：
 //   1. 係（/dev-login のくまくん）が係の画面で文化祭の部屋を作る
@@ -19,7 +20,12 @@ const { launch, sleep } = require('./cdp');
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
-const PORT = +arg('port', 3311), CDP = +arg('cdp', 9711), SHOT = arg('shot', null), SLOW = +arg('slow', 0), TV_FIRST = argv.includes('--tv-first'), FILM = arg('film', null);
+const PORT = +arg('port', 3311), CDP = +arg('cdp', 9711), SHOT = arg('shot', null), SLOW = +arg('slow', 0), TV_FIRST = argv.includes('--tv-first'), FILM = arg('film', null), DROP = argv.includes('--drop-join');
+// 読み込む前に入れる：socket.io の io() を包み、最初の room:join の返事だけ受け取らない（サーバーには届く・本物の「返事が落ちた」と同じ）
+const 返事を捨てる = "(function(){ var real; Object.defineProperty(window, 'io', { configurable: true, get: function(){ return real; }, set: function(v){" +
+  " real = function(){ var s = v.apply(this, arguments), emit = s.emit, n = 0; s.emit = function(name, p, cb){" +
+  " if (name === 'room:join' && typeof cb === 'function' && n++ === 0) return emit.call(this, name, p, function(){}); return emit.apply(this, arguments); }; return s; };" +
+  " Object.keys(v).forEach(function(k){ real[k] = v[k]; }); } }); })()";
 
 async function サーバー() {
   const base = 'http://localhost:' + PORT;
@@ -68,6 +74,7 @@ const 見る = "(function(){ var a=document.querySelector('.screen.active'); var
       tv = await b.newDevice('TV', { width: 1920, height: 1080, deviceScaleFactor: 0.5 });
       if (SLOW) { await tv.raw('Network.enable', {}); await tv.raw('Network.emulateNetworkConditions', { offline: false, latency: SLOW, downloadThroughput: -1, uploadThroughput: -1 }); }
       if (FILM) { 送り = require('./film-pair').送りを受ける(tv, 960, 540); await 送り.start(); 撮り始め = Date.now(); }
+      if (DROP) { await tv.raw('Page.enable', {}); await tv.raw('Page.addScriptToEvaluateOnNewDocument', { source: 返事を捨てる }); }
       await tv.go(base + '/fes?tv=1');   // 記憶は空のまま
     }
     const 道 = [];
@@ -81,6 +88,8 @@ const 見る = "(function(){ var a=document.querySelector('.screen.active'); var
     const tvSt = await staff.ev("(function(){ var b=document.querySelector('#scr-v2-fes-staff .v2-adm-st'); return b ? b.innerText.replace(/\\s+/g,' ') : null; })()");
     console.log([...new Set(道)].join('\n'));
     console.log('係の画面：' + tvSt);
+    const ログ = fs.readFileSync(path.join(require('os').tmpdir(), 'fes-tv-first-' + PORT + '.log'), 'utf8').split(/\r?\n/).filter((l) => /tv-stuck/.test(l));
+    console.log('サーバーのログ（tv-stuck）：' + ログ.length + '行' + (ログ.length ? '\n  ' + ログ.join('\n  ') : ''));
     if (SHOT) { fs.mkdirSync(SHOT, { recursive: true }); await tv.shot(path.join(SHOT, 'fes-tv-first.png')); }
     if (送り) {
       await 送り.stop();

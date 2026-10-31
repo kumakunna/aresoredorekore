@@ -87,6 +87,12 @@ async function 終わらせる(t) {
     assert(n.classList.contains('is-shake'), '揺れ');
     assertEqual(音(t.win, 'boom').length, 1, '爆発の音');
     assert(n.querySelectorAll('.fx-fin-deb').length > 0 && n.querySelector('.fx-fin-ring'), 'マンガのような破片と輪');
+    // 68-S の残り3（くまくん 10/31）：迫力は「光は1回・揺れは1回」の中で。破片18・2つ目の衝撃波の輪・玉が弾け飛ぶ・揺れの幅だけ大きく
+    assertEqual(n.querySelectorAll('.fx-fin-deb').length, 18, '破片は18');
+    assert(n.querySelector('.fx-fin-ring.is-wave'), '少し遅れて2つ目の衝撃波の輪');
+    const css3 = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+    assert(/\.fx-fin-boom\.is-tv\.is-open \.fx-fin-case\{animation:fxCaseBlow/.test(css3), '玉は弾け飛んで消える（煙が晴れると、こげた盤だけ）');
+    assert(/\.fx-finale\.is-tv\.is-shake \.fx-fin-rig\{animation:fxShakeBig 0\.2s linear 1;\}/.test(css3), '揺れは0.2秒を1回のまま（幅だけ大きく）');
     await sleep(t.win, 600);
     assert(!n.classList.contains('is-text'), '煙が晴れるまでは字を出さない（演出と字を重ねない）');
     await sleep(t.win, 700);

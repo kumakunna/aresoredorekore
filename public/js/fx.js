@@ -1295,8 +1295,9 @@
     }
     var 破片 = '';
     if (!clear) {
-      for (var k = 0; k < 10; k++) {
-        破片 += '<i class="fx-fin-deb" style="--a:' + (k * 36 + 12) + 'deg;--r:' + (300 + (k % 3) * 90) + 'px;--t:' + ((k * 73) % 360) + 'deg"></i>';
+      // 68-S の残り3（くまくん 10/31）：爆発の迫力。破片を 10→18 に、大きさをばらし（--z）、遠くまで（420〜780px）。光と揺れの回数は変えない
+      for (var k = 0; k < 18; k++) {
+        破片 += '<i class="fx-fin-deb" style="--a:' + (k * 20 + 7) + 'deg;--r:' + (420 + (k % 4) * 120) + 'px;--t:' + ((k * 73) % 360) + 'deg;--z:' + (0.7 + (k % 3) * 0.45) + '"></i>';
       }
     }
     return '<div class="fx-fin-rig" aria-hidden="true">' +
@@ -1304,7 +1305,7 @@
       '<div class="fx-fin-case"><i class="fx-fin-shine"></i><i class="fx-fin-fuse"><b class="fx-fin-spark"></b></i><i class="fx-fin-lid"></i><i class="fx-fin-lamp"></i>' +
         '<div class="fx-fin-clock">' + esc(r.clock || '') + '</div></div>' +
       (total ? '<div class="fx-fin-wires">' + w + '</div>' : '') +
-      (!clear ? '<i class="fx-fin-ring"></i>' + 破片 : '') +
+      (!clear ? '<i class="fx-fin-ring"></i><i class="fx-fin-ring is-wave"></i>' + 破片 : '') +
       '</div>';
   }
   /** 残ったライフのハート（1つずつポンと出る） */

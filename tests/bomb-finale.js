@@ -39,6 +39,11 @@ async function 終わらせる(t) {
     assert(!n.classList.contains('is-open'), 'ためのあいだは開かない');
     assertEqual(音(t.win, 'tick').length + 音(t.win, 'defuse').length, 0, 'ためのあいだは鳴らない');
     assert(n.querySelector('.fx-fin-case'), '爆弾（ふた・ランプ・時計）');
+    // 68-S の残り1（くまくん 10/31）：爆弾らしく、丸い玉と導火線（先に火花）
+    assert(n.querySelector('.fx-fin-case .fx-fin-fuse .fx-fin-spark') && n.querySelector('.fx-fin-case .fx-fin-lid'), '導火線と火花・口金（ふた）がある');
+    const css0 = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+    assert(/\.fx-fin-case\{position:relative;width:46vmin;height:46vmin;margin-top:15vmin;border-radius:50%;/.test(css0), '丸い玉（直径 46vmin・前の四角い箱 44×27vmin より大きい）');
+    assert(/\.fx-fin-clear\.is-tv\.is-open \.fx-fin-spark\{animation:fxSparkOut/.test(css0), '解除でランプが緑になる時に、火花は1回だけ消える（点滅しない）');
     assertEqual(n.querySelector('.fx-fin-clock').textContent, '02:27', '時計は止まった時刻のまま');
     assertEqual(n.querySelectorAll('.fx-fin-w').length, 30, 'コードは全部の本数');
     assertEqual(n.querySelectorAll('.fx-fin-w.is-last').length, 1, '最後のコードが切れる');

@@ -1300,7 +1300,8 @@
       }
     }
     return '<div class="fx-fin-rig" aria-hidden="true">' +
-      '<div class="fx-fin-case"><i class="fx-fin-lamp"></i><i class="fx-fin-lid"></i>' +
+      // 68-S の残り1（くまくん 10/31）：爆弾らしく、丸い黒い玉と導火線（先に火花）。上の口金がふた（解除でぽんと外れる）・ランプ・止まった時計は玉の前
+      '<div class="fx-fin-case"><i class="fx-fin-shine"></i><i class="fx-fin-fuse"><b class="fx-fin-spark"></b></i><i class="fx-fin-lid"></i><i class="fx-fin-lamp"></i>' +
         '<div class="fx-fin-clock">' + esc(r.clock || '') + '</div></div>' +
       (total ? '<div class="fx-fin-wires">' + w + '</div>' : '') +
       (!clear ? '<i class="fx-fin-ring"></i>' + 破片 : '') +

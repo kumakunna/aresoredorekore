@@ -927,18 +927,30 @@
      （全員同じ大きさ）とハート → 4.5 下から結果の札。
      爆発：ため（爆弾だけが残り、残ったコードがふるえる）→ 0.75 爆発（明るさは1回・揺れは0.2秒を1回・輪と破片と煙）→
      煙がゆっくり晴れて、こげた盤の**切れなかったコードだけが光る** → 3.0「あと◯本だった！」 */
-  .fx-finale.is-tv .fx-fin-rig{position:absolute;left:0;right:0;top:calc(56% - 23vmin);display:flex;flex-direction:column;align-items:center;
+  .fx-finale.is-tv .fx-fin-rig{position:absolute;left:0;right:0;top:calc(56% - 32vmin);display:flex;flex-direction:column;align-items:center;
     transform:scale(.82);}
-  .fx-fin-boom.is-tv .fx-fin-rig{top:calc(36% - 23vmin);}
-  .fx-fin-case{position:relative;width:44vmin;height:27vmin;border-radius:3vmin;background:linear-gradient(#3A4150,#232833);
-    box-shadow:inset 0 -1.2vmin 0 rgba(0,0,0,.35),0 2vmin 5vmin rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;}
-  .fx-fin-lid{position:absolute;left:-1vmin;right:-1vmin;top:-3vmin;height:5vmin;border-radius:2vmin 2vmin .6vmin .6vmin;
-    background:linear-gradient(#4C5568,#343B4A);transform-origin:50% 100%;}
-  .fx-fin-lamp{position:absolute;left:50%;top:-8vmin;width:6vmin;height:6vmin;margin-left:-3vmin;border-radius:50%;
+  .fx-fin-boom.is-tv .fx-fin-rig{top:calc(34% - 32vmin);}
+  /* 68-S の残り1（くまくん 10/31）：爆弾らしく。丸い黒い玉（光の当たる所が少し明るい）・上に口金と導火線・先に火花（光り方は変えない＝点滅しない）。
+     前に、ランプと止まった時計。前の四角い箱（44×27vmin）より大きい（直径 46vmin） */
+  .fx-fin-case{position:relative;width:46vmin;height:46vmin;margin-top:15vmin;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,#5B6374 0,#2C313C 34%,#14171D 70%,#0B0D11 100%);
+    box-shadow:inset -2vmin -2.6vmin 0 rgba(0,0,0,.35),0 2.4vmin 5vmin rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .fx-fin-shine{position:absolute;left:17%;top:13%;width:24%;height:13%;border-radius:50%;background:rgba(255,255,255,.2);transform:rotate(-32deg);}
+  .fx-fin-lid{position:absolute;left:50%;top:-4.6vmin;width:14vmin;height:7vmin;margin-left:-7vmin;border-radius:1.6vmin 1.6vmin .8vmin .8vmin;
+    background:linear-gradient(#69728A,#3B4253);box-shadow:inset 0 -1vmin 0 rgba(0,0,0,.3);transform-origin:50% 100%;z-index:1;}
+  .fx-fin-fuse{position:absolute;left:50%;top:-15vmin;width:13vmin;height:12vmin;margin-left:-1vmin;border:1.5vmin solid #C9A26B;
+    border-color:#C9A26B transparent transparent #C9A26B;border-radius:70% 0 0 0;transform:rotate(18deg);transform-origin:0 100%;}
+  .fx-fin-spark{position:absolute;right:-3.4vmin;top:-3.4vmin;width:5.2vmin;height:5.2vmin;border-radius:50%;
+    background:radial-gradient(circle,#FFF7D1 0,#FFC75A 38%,rgba(255,140,40,.55) 60%,rgba(255,120,40,0) 72%);}
+  .fx-fin-lamp{position:relative;width:5.6vmin;height:5.6vmin;margin-bottom:2.4vmin;border-radius:50%;
     background:#E5484D;box-shadow:0 0 3vmin rgba(229,72,77,.8);}
-  .fx-fin-clock{font-family:"Bebas Neue","M PLUS 1",sans-serif;font-weight:900;font-size:13vmin;line-height:1;letter-spacing:.06em;color:#F0A13A;
-    background:#0B0D10;border-radius:1.6vmin;padding:1.6vmin 3vmin;font-variant-numeric:tabular-nums;text-shadow:0 0 2vmin rgba(240,161,58,.6);}
-  .fx-fin-wires{display:flex;justify-content:center;gap:max(.4vmin,calc(36vmin / 60));width:52vmin;height:15vmin;margin-top:-.6vmin;
+  .fx-fin-clock{font-family:"Bebas Neue","M PLUS 1",sans-serif;font-weight:900;font-size:10vmin;line-height:1;letter-spacing:.06em;color:#F0A13A;
+    background:#0B0D10;border-radius:1.6vmin;padding:1.4vmin 2.6vmin;font-variant-numeric:tabular-nums;text-shadow:0 0 2vmin rgba(240,161,58,.6);
+    box-shadow:0 0 0 .6vmin #2C313C;}
+  /* 解除：ランプが緑になる時（0.75秒）に、導火線の火花は消える（1回だけ・点滅しない） */
+  .fx-fin-clear.is-tv.is-open .fx-fin-spark{animation:fxSparkOut calc(.4s * var(--fx-scale)) ease forwards;}
+  @keyframes fxSparkOut{to{opacity:0;transform:scale(.4);}}
+  .fx-fin-wires{display:flex;justify-content:center;gap:max(.4vmin,calc(36vmin / 60));width:52vmin;height:15vmin;margin-top:-3.6vmin;
     padding:0 2vmin;border-radius:0 0 2vmin 2vmin;background:#1A1E26;}
   .fx-fin-w{position:relative;flex:1 1 0;max-width:2.4vmin;display:flex;flex-direction:column;}
   .fx-fin-w b{flex:1;background:var(--c);border-radius:.6vmin;}
@@ -961,7 +973,7 @@
     100%{background:#3FBFA5;box-shadow:0 0 4vmin rgba(63,191,165,.9);}}
   /* 1.5：ふたがぱかっと開く。3.0：爆弾は小さく消えて、名前に場所をゆずる */
   .fx-fin-clear.is-tv.is-text .fx-fin-lid{animation:fxLid calc(.45s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) forwards;}
-  @keyframes fxLid{to{transform:perspective(60vmin) translateY(-1.6vmin) rotateX(72deg);}}
+  @keyframes fxLid{to{transform:translateY(-7vmin) rotate(-28deg);}}   /* 口金（ふた）がぽんと外れて傾く */
   .fx-fin-clear.is-tv.is-names .fx-fin-rig{animation:fxRigOut calc(.4s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) forwards;}
   @keyframes fxRigOut{from{transform:scale(1.12);opacity:1;}to{transform:scale(.5);opacity:0;}}
   /* 文字の置き場：解除は上に「解除成功！」、まん中に名前の集合写真。爆発は下に字 */
@@ -5826,7 +5838,7 @@
   .v2 .v2-ogrid.is-c4{grid-template-columns:repeat(4,minmax(0,1fr));}
   .v2 .v2-ogrid .v2-tmem.is-ok{border-color:var(--wi);background:var(--wc2);}
   .v2 .v2-ounv.is-tv{gap:16px;margin-top:0;}
-  .v2 .v2-ounv.is-tv .v2-osay{font-size:200px;top:25%;}
+  .v2 .v2-ounv.is-tv .v2-osay{font-size:200px;top:25%;}
   /* 指示68-T（くまくん 10/31）：クイズ王2 の「せーの！」「正解は……」は声の代わりの合図。暗い舞台でも遠くから読めるよう、
      白い字に黒いふちと影・240px・出ている時間を 0.9→1.3秒（数字ちかい方は .v2-ounv の外なので、ここで大きさも決める） */
   .v2 .v2-q2tv .v2-osay{font-size:240px;line-height:1.1;top:22%;color:#FFFFFF;-webkit-text-stroke:10px #141414;paint-order:stroke fill;

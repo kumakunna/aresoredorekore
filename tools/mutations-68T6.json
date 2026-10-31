@@ -29,7 +29,7 @@
   "suite": "tests/fes.js",
   "from": "fesDiff = FesRoom.diffOf(payload.diff);",
   "to": "fesDiff = payload.diff;",
-  "expect": "本人に届くむずかしさは「ふつう」"
+  "expect": "部屋に残すのも「ふつう」"
  },
  {
   "name": "Y5 部屋にいる人の hard をゲームへそのまま渡す",

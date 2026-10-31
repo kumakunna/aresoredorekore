@@ -86,6 +86,13 @@ function 描く(win, view) {
   });
 
   t.win.close();
+  await r.test('68-S の残り4：名前の札の「+1点！」が、となりや上の段の札に重ならない（段の間 52px・上がるのは少しだけ）', async () => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/\.v2 \.v2-otags\{[^}]*gap:52px 22px;/.test(css), '段の間は「+1点！」が入る 52px');
+    assert(/\.v2 \.v2-otag \.v2-oplus\{position:absolute;right:-6px;top:-44px;/.test(css), '「+1点！」は札のすぐ上（段の間の中）');
+    assert(css.indexOf('@keyframes v2-oplus{0%{opacity:0;transform:translateY(12px);}25%{opacity:1;transform:none;}75%{opacity:1;}100%{opacity:0;transform:translateY(-6px);}}') !== -1, '上がるのは少しだけ（上の段にかからない）');
+    // 実際の重なり（止めた時計で 2.8〜4.2秒・8人と16人）は 10/31 に測って0（直す前は 8人で2か所・16人で9か所）
+  });
   r.finish();
 })();
 

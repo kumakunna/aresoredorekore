@@ -51,6 +51,10 @@ function tvView(room) {
     assert(box.querySelector('.v2-osay.is-ans'), '数字ちかい方の TV にも「正解は……」の字');
     const tl = W.V2Quiz2.near.timeline(vn.data.reveal.rows || []);
     assert(Math.abs(tl.say - Math.max(0.75, tl.flag - 0.5)) < 1e-9, '旗が落ちる0.5秒前から');
+    // 10/31 くまくん：暗い舞台で見えにくかった。白い字・240px（数字ちかい方も同じ）
+    const cs = W.getComputedStyle(box.querySelector('.v2-osay.is-ans'));
+    assertEqual(cs.color, 'rgb(255, 255, 255)', '白い字');
+    assertEqual(cs.fontSize, '240px', '遠くから読める大きさ（数字ちかい方も）');
   });
 
   await r.test('5：答えている間の TV に数字の時計は無い（スマホには のこり秒がある）', async () => {

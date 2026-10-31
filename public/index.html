@@ -5775,7 +5775,12 @@
   .v2 .v2-ogrid.is-c4{grid-template-columns:repeat(4,minmax(0,1fr));}
   .v2 .v2-ogrid .v2-tmem.is-ok{border-color:var(--wi);background:var(--wc2);}
   .v2 .v2-ounv.is-tv{gap:16px;margin-top:0;}
-  .v2 .v2-ounv.is-tv .v2-osay{font-size:200px;top:25%;}
+  .v2 .v2-ounv.is-tv .v2-osay{font-size:200px;top:25%;}
+  /* 指示68-T（くまくん 10/31）：クイズ王2 の「せーの！」「正解は……」は声の代わりの合図。暗い舞台でも遠くから読めるよう、
+     白い字に黒いふちと影・240px・出ている時間を 0.9→1.3秒（数字ちかい方は .v2-ounv の外なので、ここで大きさも決める） */
+  .v2 .v2-q2tv .v2-osay{font-size:240px;line-height:1.1;top:22%;color:#FFFFFF;-webkit-text-stroke:10px #141414;paint-order:stroke fill;
+    text-shadow:0 10px 0 rgba(0,0,0,.6),0 0 60px rgba(0,0,0,.75);z-index:30;}
+  .v2.is-play .v2-q2tv .v2-osay{animation-duration:calc(1.3s * var(--fx-scale));}
   /* 指示68-T 二の束（くまくんの決め 2026-10-31）：TV の問題文は64px（クイズ王2 とそろえる・check.js の下限）。いちばん長いお題でもはみ出さない（onaji-tv-*-longq で撮る） */
   .v2 .v2-ounv.is-tv .v2-oqs{font-size:64px;line-height:1.2;}
   .v2 .v2-ounv.is-tv .v2-oban{font-size:80px;}

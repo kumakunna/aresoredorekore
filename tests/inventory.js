@@ -273,7 +273,9 @@ const CORNER_SLOTS = [
   { sel: '.floating-gear', corner: 'top-right', role: '設定' },
   { sel: '.floating-status', corner: 'top-right', role: 'みんなの状況（⚙の左隣へ横にずらす）' },
   { sel: '#reactBar', corner: 'bottom-left', role: 'リアクションを送る' },
-  { sel: '#thanksBtn', corner: 'bottom-right', role: 'ありがとうを贈る' }
+  { sel: '#thanksBtn', corner: 'bottom-right', role: 'ありがとうを贈る' },
+  // 2026-10-31：文化祭の TV が入り直しても着かない時だけ出る、係への一言。🎁 は TV（文化祭の TV・扉）では出ないので同時にはならない
+  { sel: '.v2.v2-tvhint', corner: 'bottom-right', role: 'TV だけ：「F5 で開き直してください」（係向け・押せない）' }
 ];
 
 // ---- 異常系シナリオの一覧（第35弾D：通信・異常系・状態復帰の正本） ----

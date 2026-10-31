@@ -11,7 +11,7 @@
   "name": "X2 着いていてもログを送る",
   "file": "public/index.html",
   "suite": "tests/fes-tv-watch.js",
-  "from": "      if(fesTvArrived()) return;\r\n      var cur = (document",
+  "from": "      if(fesTvArrived()) return;\n      var cur = (document",
   "to": "      var cur = (document",
   "expect": "ログは送らない"
  },
@@ -75,8 +75,8 @@
   "name": "X10 入り直したのに、ログをもう1行送る",
   "file": "public/index.html",
   "suite": "tests/fes-tv-watch.js",
-  "from": "        if(fesTvArrived()) return;\r\n        var h",
-  "to": "        window.fetch('/api/fes/tv-stuck', { method: 'POST', body: '{}' });\r\n        if(fesTvArrived()) return;\r\n        var h",
+  "from": "        if(fesTvArrived()) return;\n        var h",
+  "to": "        window.fetch('/api/fes/tv-stuck', { method: 'POST', body: '{}' });\n        if(fesTvArrived()) return;\n        var h",
   "expect": "ログは1行だけ"
  }
 ]

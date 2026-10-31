@@ -5579,6 +5579,11 @@
   .v2 .v2-ptp-nm{font-weight:900;font-size:44px;line-height:1.25;max-width:8em;}
   .v2 .v2-ptp-df{font-family:var(--v2-en);font-weight:900;font-size:42px;line-height:1.25;}
   .v2 .v2-ptp-stick{position:absolute;left:50%;top:100%;width:5px;height:calc(var(--lane) * 66px + 36px);margin-left:-2px;background:var(--wl2);}
+  /* 10/31：物差しの端ではみ出す札は、点から内側へ寄せる（棒は点の所のまま） */
+  .v2 .v2-ptp.is-r{transform:translateX(calc(-100% + 30px));}
+  .v2 .v2-ptp.is-r .v2-ptp-stick{left:auto;right:28px;margin-left:0;}
+  .v2 .v2-ptp.is-l{transform:translateX(-30px);}
+  .v2 .v2-ptp.is-l .v2-ptp-stick{left:28px;margin-left:0;}
   .v2 .v2-ptp.is-win .v2-ptp-tag{background:var(--wi);color:var(--won);border-color:var(--wi);}
   /* 近い3人より遠い人：物差しの上の点と、線の下の小さい名前（3段）。端の人は端にそろえる */
   .v2 .v2-ptd{position:absolute;bottom:245px;width:0;}
@@ -5586,10 +5591,10 @@
   @keyframes v2-ptdmove{from{left:var(--l0);}}
   .v2 .v2-ptd-dot{position:absolute;left:-14px;bottom:-14px;width:28px;height:28px;border-radius:50%;background:var(--wi);border:4px solid var(--wc2);box-sizing:border-box;}
   .v2 .v2-ptd-stick{position:absolute;left:-2px;top:14px;width:4px;height:calc(var(--row) * 58px + 18px);background:var(--wl2);}
-  .v2 .v2-ptd-nm{position:absolute;top:calc(32px + var(--row) * 58px);left:0;transform:translateX(-50%);white-space:nowrap;max-width:7em;
+  .v2 .v2-ptd-nm{position:absolute;top:calc(32px + var(--row) * 58px);left:0;transform:translateX(calc(-50% + var(--nx, 0px)));white-space:nowrap;max-width:7em;
     font-weight:900;font-size:42px;line-height:1.2;background:var(--wc);border-radius:14px;padding:0 12px;}
-  .v2 .v2-ptd.is-l .v2-ptd-nm{transform:translateX(-24px);}
-  .v2 .v2-ptd.is-r .v2-ptd-nm{transform:translateX(calc(-100% + 24px));}
+  .v2 .v2-ptd.is-l .v2-ptd-nm{transform:translateX(calc(-24px + var(--nx, 0px)));}
+  .v2 .v2-ptd.is-r .v2-ptd-nm{transform:translateX(calc(-100% + 24px + var(--nx, 0px)));}
   /* 指示68-S 4：ぴったり10秒の TV は、うしろの光の輪を出さない（名前の壁が光の形に切れて、かたまりに見えた）。壁は全体に同じうすさ */
   .v2 .v2-tvc.is-ptwall .v2-circles{display:none;}
   .v2 .v2-tvc.is-quietwall .v2-nr{color:color-mix(in srgb,var(--wi) 3%,transparent);}

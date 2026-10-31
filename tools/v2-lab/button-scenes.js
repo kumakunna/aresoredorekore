@@ -78,6 +78,9 @@ const BUILD = {
   'pt-tv-run': () => { const r = 部屋(8, 'pittari'); PittariRoom.advance(r); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
   'pt-tv-reveal': () => { const r = 部屋(8, 'pittari'); 押して開く(r, 差8); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
   'pt-tv-reveal16': () => { const r = 部屋(16, 'pittari'); 押して開く(r, 差16); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
+  // 10/31：物差しの外（±3秒より遠い）の名前の札が右の端で切れていた（「+6.07秒」が読めない）。3人だと全員が札になる
+  'pt-tv-reveal-far': () => { const r = 部屋(3, 'pittari'); 押して開く(r, [6070, -4210, 120]); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
+  'pt-tv-reveal16-far': () => { const r = 部屋(16, 'pittari'); 押して開く(r, [6070, -4210, 120, -900, 10, 5300, -260, 70, -7100, 640, 3900, -330, 220, -15, 8400, -3500]); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
   'pt-tv-reveal-play': () => { const r = 部屋(16, 'pittari'); 押して開く(r, 差16); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv', { play: true }); },
   'pt-tv-result16': () => { const r = 部屋(16, 'pittari'); 最後まで(r, [差16]); return lab(r, 'pittari', 'scr-v2-pittari-tv', 'tv'); },
   'so-launch': () => lab(部屋(6, 'soroe'), 'soroe', 'scr-v2-soroe', 'm1', { local: { ready: true } }),

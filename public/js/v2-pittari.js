@@ -158,22 +158,41 @@
      * 16人でも読めるように（Claude チャット 2026-10-27）。冠の人の札には、ほかの札を重ねない
      */
     var 近い = rows.slice(-3), 遠い = rows.slice(0, Math.max(0, rows.length - 3));
-    function 並べる(list, zz, 字幅, 上限) {
-      var lanes = [], out = {};
+    /**
+     * 10/31：物差しの外（±3秒より遠い）の人の札が、右の端で切れて「+3秒」の字やロゴと重なっていた。
+     *   ・札（端札）は、はみ出す時は点から内側へ寄せる（is-l／is-r。点の所に棒が立つのは同じ）
+     *   ・いちばん下の段は、両端の「±3秒」の字の所をふさいでおく（重なる札は上の段へ）
+     */
+    var 寄せ = 30 / 1700 * 2, 目盛り = 160 / 1700 * 2, 端 = 50 / 46;
+    function 並べる(list, zz, 字幅, 上限, 端札) {
+      var lanes = 端札 ? [[{ pos: 端 - 目盛り / 2, w: 目盛り }, { pos: -端 + 目盛り / 2, w: 目盛り }]] : [], out = {};
       list.slice().reverse().forEach(function (x) {
-        var pos = xOf(x.diff, zz), w = 字幅(x) / 1700 * 2;
+        var pt = xOf(x.diff, zz), w = 字幅(x) / 1700 * 2;
+        var side = 端札 ? (pt + w / 2 > 1 ? 'r' : pt - w / 2 < -1 ? 'l' : '') : '';
+        var pos = side === 'r' ? pt - w / 2 + 寄せ : side === 'l' ? pt + w / 2 - 寄せ : pt;
         var 重なり = function (k) { return (lanes[k] || []).reduce(function (n, p) { return n + (Math.abs(p.pos - pos) < (p.w + w) / 2 ? (p.win ? 100 : 1) : 0); }, 0); };
         var lane = 0;
         while (lane < 上限 && 重なり(lane)) lane++;
+        // 10/31：段が足りない時（端に遠い人が何人も集まった時）は、名前だけを内側へ1つずつずらして並べる（点は本当の所のまま）
+        var nx = 0;
+        if (lane >= 上限 && !端札) {
+          var dir = pos > 0 ? -1 : 1, 元 = pos;
+          for (var s2 = 1; s2 <= 8 && lane >= 上限; s2++) {
+            pos = 元 + dir * s2 * w;
+            lane = 0;
+            while (lane < 上限 && 重なり(lane)) lane++;
+          }
+          nx = pos - 元;
+        }
         if (lane >= 上限) { lane = 0; for (var k = 1; k < 上限; k++) if (重なり(k) < 重なり(lane)) lane = k; }
         (lanes[lane] = lanes[lane] || []).push({ pos: pos, w: w, win: x.rank === 1 });
-        out[x.id] = { x: pos, lane: lane };
+        out[x.id] = { x: 端札 ? pt : pos - nx, lane: lane, side: side, nx: nx };
       });
       return out;
     }
     var 札幅 = function (x) { return x.name.length * 46 + 7 * 27 + 70; };
     var 名幅 = function (x) { return x.name.length * 44 + 40; };
-    var 札 = 並べる(近い, z, 札幅, 3), 名前 = 並べる(遠い, z, 名幅, 3), 名前0 = 並べる(遠い, 1, 名幅, 3);
+    var 札 = 並べる(近い, z, 札幅, 3, true), 札0 = 並べる(近い, 1, 札幅, 3, true), 名前 = 並べる(遠い, z, 名幅, 3), 名前0 = 並べる(遠い, 1, 名幅, 3);
     var 早い = Math.max(0, rows.length - 2);
     var 左 = function (x) { return 'calc(50% + ' + (x * 46).toFixed(2) + '%)'; };
     var 位置 = {};
@@ -181,13 +200,13 @@
     // 外側：寄る時に動く（--l0 → left）。内側：上から落ちて刺さる（1枚ずつの時刻）
     var pins = 近い.map(function (x) {
       var i = 位置[x.id], p = tl.pins[i], 先 = i < 早い, a1 = 札[x.id];
-      return '<div class="v2-ptp' + (x.rank === 1 ? ' is-win' : '') + '" style="left:' + 左(a1.x) + ';--lane:' + a1.lane + ';--l0:' + 左(xOf(x.diff, 先 ? 1 : z)) + ';--n0:' + a1.lane + '">' +
+      return '<div class="v2-ptp' + (x.rank === 1 ? ' is-win' : '') + (a1.side ? ' is-' + a1.side : '') + '" style="left:' + 左(a1.x) + ';--lane:' + a1.lane + ';--l0:' + 左(xOf(x.diff, 先 ? 1 : z)) + ';--n0:' + (先 ? 札0[x.id].lane : a1.lane) + '">' +
         '<div class="v2-ptp-in" style="animation-delay:' + ss(p.at) + ';animation-duration:' + ss(p.dur) + '">' +
         '<span class="v2-ptp-tag"><span class="v2-ptp-nm v2-cut">' + e(x.name) + '</span><span class="v2-ptp-df">' + e(Lg.diffText(x.diff)) + '</span></span><i class="v2-ptp-stick"></i></div></div>';
     }).join('');
     var dots = 遠い.map(function (x) {
       var i = 位置[x.id], p = tl.pins[i], a1 = 名前[x.id];
-      return '<div class="v2-ptd' + (a1.x < -0.8 ? ' is-l' : a1.x > 0.8 ? ' is-r' : '') + '" style="left:' + 左(a1.x) + ';--row:' + a1.lane + ';--l0:' + 左(xOf(x.diff, 1)) + ';--r0:' + 名前0[x.id].lane + '">' +
+      return '<div class="v2-ptd' + (a1.x < -0.8 ? ' is-l' : a1.x > 0.8 ? ' is-r' : '') + '" style="left:' + 左(a1.x) + ';--row:' + a1.lane + ';--l0:' + 左(xOf(x.diff, 1)) + ';--r0:' + 名前0[x.id].lane + ';--nx:' + Math.round(a1.nx * 1700 / 2) + 'px">' +
         '<div class="v2-ptp-in" style="animation-delay:' + ss(p.at) + ';animation-duration:' + ss(p.dur) + '"><i class="v2-ptd-dot"></i><i class="v2-ptd-stick"></i>' +
         '<span class="v2-ptd-nm v2-cut">' + e(x.name) + '</span></div></div>';
     }).join('');

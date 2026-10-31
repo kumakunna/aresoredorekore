@@ -208,6 +208,18 @@ async function 入った(o) {
     win.close();
   });
 
+  await r.test('10/31：係の画面の「文化祭に出すゲーム」に「テスト中」の札を出さない（出すかどうかは入／切だけ）', async () => {
+    const t = await launch({ fakeSocket: true });
+    const html = t.win.V2Fes.staff({ staff: { code: 'TST754', fes: { phase: 'lobby', max: 16 }, members: [], tv: 1,
+      games: [{ mode: 'bomb-coop', on: true, testing: false }, { mode: 'onaji-many', on: true, testing: true }, { mode: 'qhaya', on: false, testing: true }] },
+      fb: [], canFb: true, canNames: true, info: (m) => ({ name: m, world: 'wait' }) });
+    const box = t.doc.createElement('div'); box.innerHTML = html;
+    const list = box.querySelector('[data-fes-games]');
+    assert(list && list.querySelectorAll('[data-fes-game]').length === 3, '入／切の並びがある');
+    assert(!/テスト中/.test(list.textContent), '「テスト中」の札は無い（' + list.textContent.trim() + '）');
+    t.win.close();
+  });
+
   await r.test('三の束2：待合の BGM は文化祭の TV の待合だけ・係が「入」にした時だけ（はじめは切）。スマホでは鳴らさない', async () => {
     const FesRoom = require('../fes-room');
     const room0 = FesScenes.view('fes2-lobby').room;

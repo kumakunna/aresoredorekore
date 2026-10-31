@@ -4,6 +4,7 @@
 //   node tools/fes-tv-first.js            … 本物のサーバー（tools/dev-server.js）と本物の Chrome で。0.5秒ごとの画面を出す。TV の画面に着かなければ終わりの数が 1
 //   --port 3311  --cdp 9711  --shot DIR（TV の写真を残す）  --slow 300（TV の通信に遅れを入れる・ミリ秒。本番の回線に近づける）
 //   --tv-first（TV を先に開いて待たせ、そのあと係が部屋を作る。作るのと開くのがほぼ同時だった時の道）
+//   --film FILE.gif（TV の画面を開いた所から 12秒、GIF に撮る・960×540・8コマ/秒）
 //
 // 手順（10/31 12:45 本番・部屋 U3GU55・v2.13 で起きた）：
 //   1. 係（/dev-login のくまくん）が係の画面で文化祭の部屋を作る
@@ -18,7 +19,7 @@ const { launch, sleep } = require('./cdp');
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
-const PORT = +arg('port', 3311), CDP = +arg('cdp', 9711), SHOT = arg('shot', null), SLOW = +arg('slow', 0), TV_FIRST = argv.includes('--tv-first');
+const PORT = +arg('port', 3311), CDP = +arg('cdp', 9711), SHOT = arg('shot', null), SLOW = +arg('slow', 0), TV_FIRST = argv.includes('--tv-first'), FILM = arg('film', null);
 
 async function サーバー() {
   const base = 'http://localhost:' + PORT;
@@ -38,7 +39,7 @@ const 見る = "(function(){ var a=document.querySelector('.screen.active'); var
   const b = await launch({ port: CDP });
   let code = 1;
   try {
-    let tv = null;
+    let tv = null, 送り = null, 撮り始め = 0;
     if (TV_FIRST) {
       tv = await b.newDevice('TV', { width: 1920, height: 1080, deviceScaleFactor: 0.5 });
       if (SLOW) { await tv.raw('Network.enable', {}); await tv.raw('Network.emulateNetworkConditions', { offline: false, latency: SLOW, downloadThroughput: -1, uploadThroughput: -1 }); }
@@ -66,6 +67,7 @@ const 見る = "(function(){ var a=document.querySelector('.screen.active'); var
     if (!TV_FIRST) {
       tv = await b.newDevice('TV', { width: 1920, height: 1080, deviceScaleFactor: 0.5 });
       if (SLOW) { await tv.raw('Network.enable', {}); await tv.raw('Network.emulateNetworkConditions', { offline: false, latency: SLOW, downloadThroughput: -1, uploadThroughput: -1 }); }
+      if (FILM) { 送り = require('./film-pair').送りを受ける(tv, 960, 540); await 送り.start(); 撮り始め = Date.now(); }
       await tv.go(base + '/fes?tv=1');   // 記憶は空のまま
     }
     const 道 = [];
@@ -80,6 +82,14 @@ const 見る = "(function(){ var a=document.querySelector('.screen.active'); var
     console.log([...new Set(道)].join('\n'));
     console.log('係の画面：' + tvSt);
     if (SHOT) { fs.mkdirSync(SHOT, { recursive: true }); await tv.shot(path.join(SHOT, 'fes-tv-first.png')); }
+    if (送り) {
+      await 送り.stop();
+      const Pair = require('./film-pair'), { encodeGif } = require('./gif-lite');
+      const コマ = Pair.コマを並べる(送り.got, 撮り始め, 12, 8);
+      fs.mkdirSync(path.dirname(path.resolve(FILM)), { recursive: true });
+      fs.writeFileSync(path.resolve(FILM), encodeGif(コマ, Math.round(100 / 8)));
+      console.log('動画：' + FILM + '（' + コマ.length + 'コマ）');
+    }
     const errs = await tv.ev("JSON.stringify((window.__appErrors || []).slice(-5))");
     if (errs && errs !== '[]') console.log('例外：' + errs);
     code = last.scr === 'scr-v2-fes-tv' ? 0 : 1;

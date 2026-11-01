@@ -60,5 +60,18 @@ const 読み = { unko: 'うんこ', unchi: 'うんち', chinko: 'ちんこ', chi
     assert(止まる('はげ') && 止まる('SEX') && 止まる('Dick'), 'それだけの名前は止まる');
   });
 
+  // 2026-11-01 いじわるなテスト（tools/fes-mean.js）で見つけた：見えない字をはさむと門を通り、TV には「しね」と見えていた。
+  // 向きを逆にする字（U+202E）は、逆さに打った言葉を TV で正しい向きに見せる
+  await r.test('見えない字（ゼロ幅・向きの字・制御文字）をはさんでも止まる。名前からは消える。絵文字の ZWJ はそのまま', async () => {
+    const 見えない = ['​', '‌', '‍', '⁠', '­', '‎', '‮', '⁦', '\u0000', '\n'];
+    const 抜けた = 見えない.filter((c) => !止まる('し' + c + 'ね') || !止まる('う' + c + 'んこ')).map((c) => 'U+' + c.charCodeAt(0).toString(16));
+    assertEqual(抜けた.join('・'), '', 'すり抜けた見えない字');
+    assertEqual(F.check('‮ねし').name, 'ねし', '逆さに打って向きの字で戻す形は、向きの字が消えて打った順のまま（TV で逆さに見えない）');
+    assertEqual(F.check('ゼ​ロ').name, 'ゼロ', '通る名前からも見えない字は消える');
+    assertEqual(F.check('a‮bc').name, 'abc', '向きの字も消える');
+    assertEqual(F.check('👨‍👩‍👧‍👦').name, '👨‍👩‍👧‍👦', '家族の絵文字（ZWJ でつないだ1つ）はそのまま');
+    assertEqual(F.check('​​').reason, 'empty', '見えない字だけの名前は空');
+  });
+
   r.finish();
 })();

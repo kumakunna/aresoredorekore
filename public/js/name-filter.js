@@ -55,6 +55,7 @@
     t = t.toLowerCase();
     t = t.replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); });
     t = t.replace(/ー/g, '');
+    t = t.replace(INVISIBLE, '').replace(/[‍︀-️]/g, '');
     // 空白・記号・句読点（字と数字だけ残す）
     t = t.replace(/[\s　.,、。・!?！？'"`~^_\-=+*/\\|()（）\[\]{}<>「」『』【】…:;：；@#$%&♪☆★○●◎◇◆□■△▲▽▼※〜]/g, '');
     return t;
@@ -84,8 +85,11 @@
    * reason：'empty'（空）／'long'（8字を超える）／'blocked'（使えない言葉）
    * name は前後の空白を落としたもの（見せる名前はそろえない。そろえるのは見る時だけ）
    */
+  // 見えない字（制御文字・ゼロ幅・向きを変える字）。はさむと禁止リストをすり抜け、向きの字は逆さに打った言葉を TV で正しい向きに見せる
+  // （2026-11-01 tools/fes-mean.js で見つけた）。名前から消す。ZWJ（U+200D）と異体字セレクタは絵文字をつなぐので名前には残し、見比べる時だけ消す
+  var INVISIBLE = /[\u0000-\u001F\u007F-\u009F­؜᠎​‌‎‏‪-‮⁠-⁤⁦-⁯﻿]/g;
   function check(raw) {
-    var name = String(raw == null ? '' : raw).replace(/^[\s　]+|[\s　]+$/g, '');
+    var name = String(raw == null ? '' : raw).replace(INVISIBLE, '').replace(/^[\s　]+|[\s　]+$/g, '');
     if (!name) return { ok: false, name: name, reason: 'empty' };
     if (length(name) > MAX_LEN) return { ok: false, name: name, reason: 'long' };
     var t = normalize(name);

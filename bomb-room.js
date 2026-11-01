@@ -154,7 +154,10 @@ function startGame(room, config, ctx) {
   const rnd = (config && config.rnd) || null;
   // 第32弾-A-3-6：問題バンクから作る。AIは呼ばないので、
   // 「説明文ができるまで待つ」段階そのものが無くなった
-  const wires = BombLogic.pickQuestionWires(QuizBank, cfg.counts, rnd, {}, allowed);
+  // 前の回に出した問題はよける。覚えは早押し・数字ちかい方と分け合う部屋の room.quiz2Used（部屋を作り直すと消える）。
+  // 層の問題が足りなくなったら、その層は全部から選び直す（pickQuestions）。くまくんの答え 2026-11-01
+  room.quiz2Used = room.quiz2Used || {};
+  const wires = BombLogic.pickQuestionWires(QuizBank, cfg.counts, rnd, room.quiz2Used, allowed);
   if (!wires.length) {
     return { ok: false, error: 'no_wires', message: 'コードが1本もありません。設定を見直してください' };
   }

@@ -264,6 +264,31 @@ async function join(srv, code, name, diff, extra) {
     assertEqual(JSON.stringify(started[0].fesDiffs), JSON.stringify({ a: 'easy', b: 'normal' }), 'ゲームに渡すのも「ふつう」（DIFF_CAP の上限は「むずかしい」まで）');
   });
 
+  await r.test('クイズ解除を2回続けて遊んでも、問題が1本も重ならない（早押し・数字ちかい方と同じ覚えを分け合う・くまくんの答え 2026-11-01）', async () => {
+    const BombRoom = require('../bomb-room');
+    const members = new Map(['a', 'b', 'c', 'd'].map((id) => [id, { id, name: id, role: 'player', connected: true }]));
+    const room = { code: 'T', members, state: { phase: 'lobby', game: 'bomb', data: {} } };
+    const start = () => {
+      const res = BombRoom.startGame(room, Object.assign({}, FesRoom.gameOf('bomb-coop').start), { notify() {} });
+      assertEqual(res.ok, true, '始められる（' + (res.error || '') + '）');
+      const qs = room.bomb.wires.map((w) => w.question);
+      delete room.bomb;
+      return qs;
+    };
+    const q1 = start(), q2 = start();
+    assertEqual(q1.length, 30, '1回は30本');
+    const 重なり = q2.filter((q) => q1.indexOf(q) !== -1);
+    assertEqual(重なり.length, 0, '2回目は1回目の問題を出さない（重なり：' + 重なり.slice(0, 2).join('／') + '）');
+    assert(q1.concat(q2).every((q) => room.quiz2Used && room.quiz2Used[q]), '出した問題は部屋の覚え（room.quiz2Used・早押しと同じ）に積む');
+    // 早押しで出した問題も、クイズ解除はよける（覚えを分け合う）
+    const 早押しで出した = q1.concat(q2);
+    room.quiz2Used = {}; 早押しで出した.slice(0, 30).forEach((q) => { room.quiz2Used[q] = true; });
+    const q3 = start();
+    assertEqual(q3.filter((q) => 早押しで出した.slice(0, 30).indexOf(q) !== -1).length, 0, '覚えにある問題（早押しで出したもの）はよける');
+    // 足りなくなったら全部から選び直す（何回遊んでも始められる）
+    for (let i = 0; i < 12; i++) assertEqual(start().length, 30, (i + 4) + '回目も30本');
+  });
+
   await r.test('上限より多く押した時：押した順に上限まで入り、入れなかった人の理由は「いっぱい」（くまくんの答え 2026-10-24）', async () => {
     const RT = require('../realtime');
     const room = new RT.RoomStore().create({ ownerUserId: 1 });

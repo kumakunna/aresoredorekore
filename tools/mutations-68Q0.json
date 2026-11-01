@@ -14,5 +14,13 @@
   "from": "x[0] !== y[0] ? x[0] > y[0] : x[1] > y[1]",
   "to": "x[0] !== y[0] ? x[0] > y[0] : x[1] >= y[1]",
   "expect": "版の比べ方"
+ },
+ {
+  "name": "Q3 クイズ解除は前の回をよけない",
+  "file": "bomb-room.js",
+  "suite": "tests/fes.js",
+  "from": "pickQuestionWires(QuizBank, cfg.counts, rnd, room.quiz2Used, allowed)",
+  "to": "pickQuestionWires(QuizBank, cfg.counts, rnd, {}, allowed)",
+  "expect": "1回目の問題を出さない"
  }
 ]

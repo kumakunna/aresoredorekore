@@ -1019,6 +1019,26 @@
   .fx-fin-boom.is-tv.is-open .fx-fin-clock{color:#6B4A28;text-shadow:none;}
   .fx-fin-boom.is-tv.is-open .fx-fin-w.is-cut{opacity:.3;filter:grayscale(1);}
   .fx-fin-boom.is-tv.is-open .fx-fin-w.is-live b{box-shadow:0 0 2.4vmin var(--c),0 0 .8vmin var(--c);}
+  /* くまくん 11/01：こげた盤。しま模様の四角だけだと壊れた画面に見えた → 煙の下で、盤は黒っぽい焦げ茶に・切れたコードは焼けてくすむ・
+     まわりにすすのこげ跡とひび。煙が晴れたあと、細いけむりが3すじ、1回だけのぼって消える（明るさは変えない・光1回と揺れ1回の決まりはそのまま） */
+  .fx-fin-wires{position:relative;}
+  .fx-fin-w{z-index:1;}
+  .fx-fin-boom.is-tv.is-open .fx-fin-wires{background:radial-gradient(ellipse at 50% 35%,#2E241D 0,#1E1814 55%,#100D0B 100%);
+    box-shadow:inset 0 0 2.4vmin rgba(0,0,0,.8);}
+  .fx-fin-boom.is-tv.is-open .fx-fin-w.is-cut{opacity:.22;filter:grayscale(1) sepia(.5) brightness(.4);}
+  .fx-fin-char,.fx-fin-wisp{position:absolute;pointer-events:none;opacity:0;}
+  .fx-fin-char{left:-7vmin;right:-7vmin;top:-6vmin;bottom:-5vmin;z-index:2;
+    clip-path:polygon(4% 38%,10% 16%,19% 22%,26% 4%,37% 14%,46% 0,55% 12%,66% 3%,74% 18%,84% 8%,92% 26%,100% 44%,95% 62%,99% 80%,86% 88%,78% 100%,64% 90%,52% 98%,40% 88%,28% 100%,18% 86%,6% 92%,0 70%);
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23070504' stroke-width='.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8 L24 15 L21 22 L28 30'/%3E%3Cpath d='M24 15 L31 13'/%3E%3Cpath d='M55 6 L52 14 L58 19 L55 27 L60 34'/%3E%3Cpath d='M58 19 L65 17'/%3E%3Cpath d='M82 10 L78 18 L84 25'/%3E%3C/g%3E%3C/svg%3E") center/88% 70% no-repeat,
+      radial-gradient(circle at 22% 60%,rgba(8,6,5,.85) 0,rgba(8,6,5,0) 22%),radial-gradient(circle at 70% 35%,rgba(8,6,5,.8) 0,rgba(8,6,5,0) 20%),
+      radial-gradient(circle at 48% 72%,rgba(10,7,5,.7) 0,rgba(10,7,5,0) 18%),
+      radial-gradient(ellipse at 50% 50%,rgba(26,18,13,.55) 30%,rgba(54,36,24,.8) 58%,rgba(30,21,15,.6) 76%,rgba(0,0,0,0) 94%);}
+  .fx-fin-boom.is-tv.is-open .fx-fin-char{opacity:1;}
+  .fx-fin-boom.is-tv .fx-fin-w.is-live{z-index:3;}   /* 切れなかったコードは、こげ跡より前で光る（台本どおり） */
+  .fx-fin-wisp{left:calc(24% + var(--k) * 26%);bottom:55%;width:3.4vmin;height:13vmin;margin-left:-1.7vmin;z-index:3;border-radius:50%;
+    background:radial-gradient(ellipse at 50% 70%,rgba(150,150,156,.6),rgba(110,110,118,.28) 45%,rgba(0,0,0,0) 70%);}
+  .fx-fin-boom.is-tv.is-open .fx-fin-wisp{animation:fxWisp calc(2.2s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) calc((1.2s + var(--k) * .22s) * var(--fx-scale)) forwards;}
+  @keyframes fxWisp{0%{opacity:0;transform:translateY(0) scaleX(.6);}25%{opacity:.85;}100%{opacity:0;transform:translateY(-17vmin) scaleX(1.7) rotate(6deg);}}
   /* 68-S の残り3（くまくん 10/31）：爆発の迫力は「光は1回・揺れは1回」の中で。輪を太く大きく（scale 7→10）・少し遅れて2つ目の衝撃波の輪（明るさは変えない）。
      破片は18・大きさはばらす・遠くまで。揺れは回数と長さ（0.2秒を1回）はそのまま、幅だけ大きい揺れ（fxShakeBig） */
   .fx-fin-ring{position:absolute;left:50%;top:40%;width:12vmin;height:12vmin;margin:-6vmin 0 0 -6vmin;border-radius:50%;

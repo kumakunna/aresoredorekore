@@ -93,6 +93,13 @@ async function 終わらせる(t) {
     const css3 = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     assert(/\.fx-fin-boom\.is-tv\.is-open \.fx-fin-case\{animation:fxCaseBlow/.test(css3), '玉は弾け飛んで消える（煙が晴れると、こげた盤だけ）');
     assert(/\.fx-finale\.is-tv\.is-shake \.fx-fin-rig\{animation:fxShakeBig 0\.2s linear 1;\}/.test(css3), '揺れは0.2秒を1回のまま（幅だけ大きく）');
+    // くまくん 11/01：こげた盤が「しま模様の四角」だけで、画面が壊れたように見えた → 黒くこげた跡・ひび・細いけむり（光と揺れの回数は変えない）
+    assertEqual(n.querySelectorAll('.fx-fin-wires .fx-fin-char').length, 1, 'こげ跡（ひび入り）が盤に1つ');
+    assertEqual(n.querySelectorAll('.fx-fin-wires .fx-fin-wisp').length, 3, '盤から細いけむりが3すじ');
+    assert(/\.fx-fin-boom\.is-tv\.is-open \.fx-fin-wires\{[^}]*background:[^}]*#2/.test(css3), '爆発のあと、盤は黒っぽい焦げ茶に変わる');
+    const wisp = /@keyframes fxWisp\{[^}]*\}[^@]*/.exec(css3);
+    assert(wisp && !/brightness|fxFinFlash/.test(wisp[0]), 'けむりは明るさを変えない');
+    assert(/\.fx-fin-wisp\{[^}]*\}/.test(css3) && !/fxWisp[^;]*infinite/.test(css3), 'けむりはくり返さない（1回のぼって消える）');
     await sleep(t.win, 600);
     assert(!n.classList.contains('is-text'), '煙が晴れるまでは字を出さない（演出と字を重ねない）');
     await sleep(t.win, 700);

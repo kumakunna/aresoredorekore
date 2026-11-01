@@ -1304,7 +1304,9 @@
       // 68-S の残り1（くまくん 10/31）：爆弾らしく、丸い黒い玉と導火線（先に火花）。上の口金がふた（解除でぽんと外れる）・ランプ・止まった時計は玉の前
       '<div class="fx-fin-case"><i class="fx-fin-shine"></i><i class="fx-fin-fuse"><b class="fx-fin-spark"></b></i><i class="fx-fin-lid"></i><i class="fx-fin-lamp"></i>' +
         '<div class="fx-fin-clock">' + esc(r.clock || '') + '</div></div>' +
-      (total ? '<div class="fx-fin-wires">' + w + '</div>' : '') +
+      // くまくん 11/01：爆発のあとの盤が「しま模様の四角」だけで、壊れた画面に見えた。こげ跡（ひび入り）と、細いけむり3すじを盤に足す
+      (total ? '<div class="fx-fin-wires">' + w + (!clear ? '<i class="fx-fin-char"></i>' +
+        '<i class="fx-fin-wisp" style="--k:0"></i><i class="fx-fin-wisp" style="--k:1"></i><i class="fx-fin-wisp" style="--k:2"></i>' : '') + '</div>' : '') +
       (!clear ? '<i class="fx-fin-ring"></i><i class="fx-fin-ring is-wave"></i>' + 破片 : '') +
       '</div>';
   }

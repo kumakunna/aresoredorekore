@@ -22,5 +22,21 @@
   "from": "pickQuestionWires(QuizBank, cfg.counts, rnd, room.quiz2Used, allowed)",
   "to": "pickQuestionWires(QuizBank, cfg.counts, rnd, {}, allowed)",
   "expect": "1回目の問題を出さない"
+ },
+ {
+  "name": "Q4 こげ跡とけむりを出さない",
+  "file": "public/js/fx.js",
+  "suite": "tests/bomb-finale.js",
+  "from": "(!clear ? '<i class=\"fx-fin-char\"></i>' +",
+  "to": "(false ? '<i class=\"fx-fin-char\"></i>' +",
+  "expect": "こげ跡"
+ },
+ {
+  "name": "Q5 けむりをくり返す",
+  "file": "public/index.html",
+  "suite": "tests/bomb-finale.js",
+  "from": "(1.2s + var(--k) * .22s) * var(--fx-scale)) forwards;}",
+  "to": "(1.2s + var(--k) * .22s) * var(--fx-scale)) infinite;}",
+  "expect": "くり返さない"
  }
 ]

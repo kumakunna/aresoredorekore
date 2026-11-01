@@ -137,9 +137,13 @@ const AGENT = function () {
   };
   S.report = function () {
     var a = document.querySelector('.screen.active');
-    var txt = a ? (a.innerText || '').replace(/\s+/g, ' ').slice(0, 400) : '';
+    // 2026-11-01：先頭400字だけ比べると、TV は名前の札が先頭に並ぶので、ゲームが進んでも「変わらない」に見えた（誤報）。
+    // 画面の名前・段階・字の全部（ハッシュ）で比べる。記録に残す字は、名前の札のあとの所（末尾）
+    var all = a ? (a.innerText || '').replace(/\s+/g, ' ') : '';
+    var h = 5381;
+    for (var i = 0; i < all.length; i++) h = ((h * 33) ^ all.charCodeAt(i)) >>> 0;
     var e = S.errs.splice(0);
-    return { scr: scr(), stage: S.stage(), sig: txt, errs: e, tmem: document.querySelectorAll('#scr-v2-fes-tv .v2-tmem').length, stuck: !!document.querySelector('[data-tv-stuck]') };
+    return { scr: scr(), stage: S.stage(), sig: scr() + '|' + S.stage() + '|' + all.length + ':' + h.toString(36), txt: all.slice(-160), errs: e, tmem: document.querySelectorAll('#scr-v2-fes-tv .v2-tmem').length, stuck: !!document.querySelector('[data-tv-stuck]') };
   };
   S.timer = setInterval(function () { try { S.last = S.step(); } catch (e) { S.errs.push('step ' + e.message); } }, 1200);
   return 'new';
@@ -275,7 +279,7 @@ function 合うTV(phase, rep) {
         if (ok) 食い違い.delete(k);
         else if (!食い違い.has(k)) 食い違い.set(k, Date.now());
         else if (Date.now() - 食い違い.get(k) > 25000) {
-          記録.止まった.push({ 分: 分(), 端末: k, 種類: 'サーバーと食い違う', サーバー: f.phase, 画面: rep.scr + '/' + rep.stage, 字: rep.sig.slice(0, 120) });
+          記録.止まった.push({ 分: 分(), 端末: k, 種類: 'サーバーと食い違う', サーバー: f.phase, 画面: rep.scr + '/' + rep.stage, 字: rep.txt });
           log('食い違い', k, 'サーバー=' + f.phase, '画面=' + rep.scr + '/' + rep.stage);
           await 撮る(d, k.replace(/[（）]/g, '') + '_食い違い'); 食い違い.set(k, Date.now() + 60000);   // 同じ食い違いは1分あけて書く
         }
@@ -283,7 +287,7 @@ function 合うTV(phase, rep) {
         const lc = 最後の中身.get(k);
         if (!lc || lc.sig !== rep.sig) 最後の中身.set(k, { sig: rep.sig, at: Date.now(), ph: 記録.段階の数.vote || 0 });
         else if (Date.now() - lc.at > 240000 && (記録.段階の数.vote || 0) - lc.ph >= 2 && rep.stage !== 'join') {
-          記録.止まった.push({ 分: 分(), 端末: k, 種類: '画面が4分変わらない', 画面: rep.scr + '/' + rep.stage, 字: rep.sig.slice(0, 120) });
+          記録.止まった.push({ 分: 分(), 端末: k, 種類: '画面が4分変わらない', 画面: rep.scr + '/' + rep.stage, 字: rep.txt });
           log('画面が変わらない', k, rep.scr); await 撮る(d, k.replace(/[（）]/g, '') + '_止まった'); lc.at = Date.now();
         }
         d.rep = rep;

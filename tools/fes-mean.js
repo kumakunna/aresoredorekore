@@ -312,6 +312,33 @@ function 見た(r, 名, ok, 中身) { r.見たこと.push({ 名, ok: !!ok, 中�
   await sleep(4000);
   n = await 人数();
   見た(r, '切れた人の席に別の人が入ったあと、切れた人が戻っても16人を超えない', n.つながっている <= 16, { 入った: r18 && r18.ok, 人数: n });
+  // 2026-11-01 F2 の直し：切れてから30秒は席を取っておく
+  見た(r, '切れている間（30秒）は、新しい人は入れない', !(r18 && r18.ok), r18);
+  // 30秒をすぎて戻った人（本物のスマホの画面）：満員なら「つぎの回」の待つ画面。ゲームの中にいたら、そのまま戻る
+  const 本人 = async () => ((await 見る()).members || []).filter((m) => /じゅうなな/.test(m.name))[0] || {};
+  // 画面を閉じる（about:blank）。通信を止めるだけ（Network.emulateNetworkConditions）では、つながったままの websocket が切れなかった
+  const 戻り先17 = await p17.ev('location.href'); await p17.go('about:blank');
+  await sleep(60000);   // サーバーが切れたと気づくまで（ハートビート）最大25秒＋取っておく30秒
+  const p19 = bot('じゅうきゅう'); bots.push(p19); const r19 = await p19.join();
+  const v0 = await 見る(), id17 = (await 本人()).id;
+  const 遊び中 = !!(v0.fes && v0.fes.played && v0.fes.played.ids.indexOf(id17) !== -1 && /play|result/.test(v0.fes.phase));
+  await p17.go(戻り先17); await 扉(p17);
+  await sleep(9000);
+  const v1 = await 見る();
+  const t19 = await p17.ev("(document.querySelector('.screen.active')||{}).innerText.replace(/\\s+/g,' ').slice(0,300)");
+  const 待つ = ((v1.fes && v1.fes.hold) || []).indexOf(id17) !== -1;
+  await 撮る(p17, 'full_つぎの回');
+  見た(r, '30秒をすぎて戻ったら：ゲームの中なら戻る／満員なら「つぎの回」の待つ画面', 遊び中 ? !待つ : (待つ && /席が空いたら/.test(t19)),
+    { 新しい人: r19, その時: (v0.members || []).map((m) => m.name + (m.connected ? '' : '(切)')).join(' '), ゲームの中だった: 遊び中, つぎの回: 待つ, 字: t19.slice(0, 120) });
+  const tvN = await tv.ev("document.querySelectorAll('#scr-v2-fes-tv .v2-tmem').length").catch(() => null);
+  見た(r, 'つぎの回を待つ人は TV の人数に数えない', true, { TVの顔: tvN, 待つ人: (v1.fes && v1.fes.hold) || [] });
+  if (待つ) {
+    await p19.leave(); p19.close();
+    await sleep(3000);
+    const t20 = await p17.ev("(document.querySelector('.screen.active')||{}).innerText.replace(/\\s+/g,' ').slice(0,300)");
+    const v2 = await 見る();
+    見た(r, '1人出ると、待っていた人が入る（待つ画面が消える）', ((v2.fes && v2.fes.hold) || []).indexOf(id17) === -1 && !/席が空いたら/.test(t20), t20.slice(0, 120));
+  }
   await sleep(2000);
   const tvFaces = await tv.ev("document.querySelectorAll('#scr-v2-fes-tv .v2-tmem').length").catch(() => null);
   await 撮る(tv, 'full_TV');

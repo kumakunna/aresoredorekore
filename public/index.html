@@ -25691,7 +25691,7 @@
       if(p && p.reason === 'fes_recreate'){
         // 係の画面は部屋の一員ではない（見ているだけ）。新しい部屋を見直すだけで、入る画面へは行かない
         if((document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-staff'){ fesOpenStaff(); return; }
-        location.href = '/fes' + (rtIsBigScreen() ? '?tv=1' : ''); return;
+        window.fesNav('/fes' + ((p.wasBigScreen || rtIsBigScreen()) ? '?tv=1' : '')); return;
       }
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない

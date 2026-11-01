@@ -143,6 +143,27 @@ async function 入った(o) {
     win.close();
   });
 
+  // 2026-11-01 耐久（tools/fes-soak.js）で見つけた：係が部屋を作り直すと、TV が「名前を入れてね」（スマホの入口）に落ちていた。
+  // rt-client は部屋の記憶を消してから closed を知らせるので、その時の rtIsBigScreen() はいつも偽だった
+  await r.test('作り直し（TV）：係が部屋を作り直したら、TV は TV の入口（/fes?tv=1）へ。スマホは /fes へ', async () => {
+    const room = FesScenes.view('fes2-tv-lobby').room;
+    const seed = 'window.__rtFake.replies = { "room:join": function(p, cb){ setTimeout(function(){ cb({ ok: true, code: "TST754", memberId: "tv", room: ' + JSON.stringify(room) + ' }); }, 30); return undefined; } };';
+    const t = await launch({ url: URL + '&tv=1', fakeSocket: true, rtSeed: seed, noDoorWait: true });
+    await waitFor(t.win, () => act(t.doc) === 'scr-v2-fes-tv', 6000, 'TV の画面（いま ' + act(t.doc) + '）');
+    const 移った = []; t.win.fesNav = (u) => 移った.push(u);
+    t.win.__rtFake.fire('room:closed', { by: null, reason: 'fes_recreate' });
+    await waitFor(t.win, () => 移った.length, 2000, 'ページを移る');
+    assertEqual(移った[0], '/fes?tv=1', 'TV は TV の入口へ（スマホの入口に落ちない）');
+    t.win.close();
+    const p = await 入った();
+    流す(p.win, 'fes2-lobby');
+    const 移った2 = []; p.win.fesNav = (u) => 移った2.push(u);
+    p.win.__rtFake.fire('room:closed', { by: null, reason: 'fes_recreate' });
+    await waitFor(p.win, () => 移った2.length, 2000, 'ページを移る');
+    assertEqual(移った2[0], '/fes', 'スマホは入る画面へ');
+    p.win.close();
+  });
+
   for (const tv of [false, true]) {
     await r.test('再起動のあと（' + (tv ? 'TV' : 'スマホ') + '）：「いま部屋を作り直しています。係の人を待ってね」を出し、部屋ができたら自動で /fes へ進む', async () => {
       const { win, doc } = await launch({ url: 'http://localhost/?fes=1&wait=1' + (tv ? '&tv=1' : ''), fakeSocket: true });

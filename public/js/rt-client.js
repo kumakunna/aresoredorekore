@@ -140,10 +140,14 @@
         emitLocal('status', state);
       });
       socket.on('room:closed', function (p) {
+        // 2026-11-01：記憶を消すと自分の役も分からなくなる。TV だったかを先に読んで知らせに添える
+        //（文化祭の作り直しで、TV がスマホの入口へ飛んでいた・tools/fes-soak.js で見つけた）
+        var mine = me();
+        var wasBig = !!(mine && mine.role === 'bigscreen');
         forgetLastRoom();
         state.code = null; state.memberId = null; state.room = null; state.secret = null;
         部屋を覚える();   // 閉じられたら忘れる
-        emitLocal('closed', p || {});
+        emitLocal('closed', Object.assign({}, p || {}, { wasBigScreen: wasBig }));
         emitLocal('status', state);
       });
       // 第32弾-E：リアクション・感謝・アルバム。どれも進行そのものには関係しない

@@ -3,6 +3,7 @@
 // 版は public/js/version.js の1か所だけ。サーバーと画面がそこから読み、⚙設定のいちばん下と係の画面に出る（TV には出さない）。
 // 感想の記録に版が残る。版が変わったら、古い画面の端末は待合にいる時だけ読み込み直す（遊んでいる途中は読み込まない）
 const fs = require('fs');
+const cp = require('child_process');
 const path = require('path');
 const Database = require('better-sqlite3');
 const { createRunner, assert, assertEqual, launch, sleep, click, activeScreen } = require('./harness');
@@ -80,6 +81,22 @@ const ROOT = path.join(__dirname, '..');
     await sleep(t.win, 20);
     assertEqual(読み込み直し, 1, '同じ新しい版で、くり返し読み込み直さない');
     t.win.close();
+  });
+
+  await r.test('push の前：origin（main）とちがう中身があるなら、版は origin より上がっている（11/01 の上げ忘れ・指示68-Q）', async () => {
+    // 版の比べ方（「2.9」と「2.10」も正しく比べる）
+    const 上 = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); return x[0] !== y[0] ? x[0] > y[0] : x[1] > y[1]; };
+    assert(上('2.15', '2.14') && 上('2.10', '2.9') && 上('3.00', '2.99') && !上('2.14', '2.14') && !上('2.13', '2.14'), '版の比べ方');
+    const git = (a) => cp.execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    let 差, 前の版;
+    try {
+      // origin にまだ無いもの＝コミットした分と、まだコミットしていない分（押す時にはコミットになる）
+      差 = git(['diff', '--name-only', 'origin/main']).split(/\r?\n/).filter(Boolean);
+      前の版 = /VERSION = '([\d.]+)'/.exec(git(['show', 'origin/main:public/js/version.js']))[1];
+    } catch (e) { console.log('  （git か origin/main が無いので見ない）'); return; }
+    if (!差.length) return;   // origin と同じ：押すものが無い
+    assert(上(AppVersion.VERSION, 前の版), 'origin とちがう所がある（' + 差.slice(0, 3).join('・') + (差.length > 3 ? ' ほか' + (差.length - 3) + '件' : '') +
+      '）のに、版が origin の v' + 前の版 + ' から上がっていない（いま v' + AppVersion.VERSION + '）。public/js/version.js を 0.01 上げる');
   });
 
   r.finish();

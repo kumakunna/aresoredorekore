@@ -1,0 +1,18 @@
+[
+ {
+  "name": "Q1 版を上げないまま",
+  "file": "public/js/version.js",
+  "suite": "tests/version.js",
+  "from": "var VERSION = '2.15';",
+  "to": "var VERSION = '2.14';",
+  "expect": "上がっていない"
+ },
+ {
+  "name": "Q2 同じ版でも上がったと見る",
+  "file": "tests/version.js",
+  "suite": "tests/version.js",
+  "from": "x[0] !== y[0] ? x[0] > y[0] : x[1] > y[1]",
+  "to": "x[0] !== y[0] ? x[0] > y[0] : x[1] >= y[1]",
+  "expect": "版の比べ方"
+ }
+]

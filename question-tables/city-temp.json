@@ -1,0 +1,90 @@
+{
+  "id": "city-temp",
+  "title": "日本の都市の年の平均気温（平年値）",
+  "what": "年の平均気温",
+  "unit": "度",
+  "source": "気象庁 報道発表（2021年3月24日）別添「付録：主な新平年値のデータ表」平均気温の「年」（統計期間1991〜2020年・各地の気象台の値。小数点以下で四捨五入） https://www.jma.go.jp/jma/press/2103/24a/3_huroku.pdf",
+  "checked": "2026-11-01 手伝い（別の目）が気象庁の PDF を開き、平均気温の表の「年」の列から下の15地点を写した（指示68-Q）。四捨五入するので、どっちが上？は2度以上ちがう組だけ（minGap）",
+  "ask": {
+    "compare": "{a}と{b}、年の平均気温が高いのはどっち？（1991〜2020年の平年値）",
+    "number": "{a}の年の平均気温は約何度？（1991〜2020年の平年値・いちばん近い人の勝ち）"
+  },
+  "minGap": 2,
+  "rows": [
+    {
+      "name": "札幌",
+      "value": 9,
+      "tier": "easy"
+    },
+    {
+      "name": "仙台",
+      "value": 13,
+      "tier": "normal"
+    },
+    {
+      "name": "東京",
+      "value": 16,
+      "tier": "easy"
+    },
+    {
+      "name": "新潟",
+      "value": 14,
+      "tier": "normal"
+    },
+    {
+      "name": "名古屋",
+      "value": 16,
+      "tier": "normal"
+    },
+    {
+      "name": "大阪",
+      "value": 17,
+      "tier": "normal"
+    },
+    {
+      "name": "広島",
+      "value": 17,
+      "tier": "normal"
+    },
+    {
+      "name": "高知",
+      "value": 17,
+      "tier": "hard"
+    },
+    {
+      "name": "福岡",
+      "value": 17,
+      "tier": "normal"
+    },
+    {
+      "name": "鹿児島",
+      "value": 19,
+      "tier": "normal"
+    },
+    {
+      "name": "那覇",
+      "value": 23,
+      "tier": "easy"
+    },
+    {
+      "name": "青森",
+      "value": 11,
+      "tier": "hard"
+    },
+    {
+      "name": "長野",
+      "value": 12,
+      "tier": "hard"
+    },
+    {
+      "name": "金沢",
+      "value": 15,
+      "tier": "hard"
+    },
+    {
+      "name": "松山",
+      "value": 17,
+      "tier": "hard"
+    }
+  ]
+}

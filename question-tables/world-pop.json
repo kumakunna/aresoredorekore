@@ -1,0 +1,96 @@
+{
+  "id": "world-pop",
+  "title": "世界の国の人口（2024年）",
+  "what": "人口",
+  "unit": "万人",
+  "source": "総務省統計局「世界の統計2026」第2章 表2-4「人口・面積」（原資料は国連 Demographic Yearbook 2023・World Population Prospects 2024）の推計人口（2024年7月1日・千人の単位を万人に直して四捨五入） https://www.stat.go.jp/data/sekai/pdf/2026half1.pdf（表2-4は同PDFの印刷ページ26前後・PDF 29〜34ページ目）",
+  "checked": "2026-11-01 手伝い（別の目）が統計局の PDF を開き、表2-4 から下の16行の推計人口（2024年）を写した（指示68-Q）。センサス人口は国ごとに年がちがうので使わない",
+  "ask": {
+    "compare": "{a}と{b}、人口が多いのはどっち？（2024年）",
+    "number": "{a}の人口は約何万人？（2024年・いちばん近い人の勝ち）"
+  },
+  "minGap": 300,
+  "rows": [
+    {
+      "name": "インド",
+      "value": 145094,
+      "tier": "normal"
+    },
+    {
+      "name": "中国",
+      "value": 141932,
+      "tier": "easy"
+    },
+    {
+      "name": "アメリカ合衆国",
+      "value": 34543,
+      "tier": "easy"
+    },
+    {
+      "name": "インドネシア",
+      "value": 28349,
+      "tier": "hard"
+    },
+    {
+      "name": "ブラジル",
+      "value": 21200,
+      "tier": "normal"
+    },
+    {
+      "name": "日本",
+      "value": 12380,
+      "tier": "easy"
+    },
+    {
+      "name": "メキシコ",
+      "value": 13086,
+      "tier": "hard"
+    },
+    {
+      "name": "エジプト",
+      "value": 11654,
+      "tier": "hard"
+    },
+    {
+      "name": "ドイツ",
+      "value": 8455,
+      "tier": "normal"
+    },
+    {
+      "name": "イギリス",
+      "value": 6914,
+      "tier": "normal"
+    },
+    {
+      "name": "フランス",
+      "value": 6655,
+      "tier": "normal"
+    },
+    {
+      "name": "イタリア",
+      "value": 5934,
+      "tier": "normal"
+    },
+    {
+      "name": "大韓民国",
+      "value": 5172,
+      "tier": "normal",
+      "row": "韓国"
+    },
+    {
+      "name": "カナダ",
+      "value": 3974,
+      "tier": "normal"
+    },
+    {
+      "name": "オーストラリア",
+      "value": 2671,
+      "tier": "normal"
+    },
+    {
+      "name": "ニュージーランド",
+      "value": 521,
+      "tier": "hard"
+    }
+  ]
+}

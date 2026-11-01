@@ -1,0 +1,96 @@
+{
+  "id": "world-area",
+  "title": "世界の国の面積",
+  "what": "面積",
+  "unit": "km²",
+  "source": "総務省統計局「世界の統計2026」第2章 表2-4「人口・面積」（原資料は国連 Demographic Yearbook 2023・World Population Prospects 2024）の面積（2024年・内水面を含む全面積） https://www.stat.go.jp/data/sekai/pdf/2026half1.pdf（表2-4は同PDFの印刷ページ26前後・PDF 29〜34ページ目）",
+  "checked": "2026-11-01 手伝い（別の目）が統計局の PDF を開き、表2-4 から下の16行の面積を写した（指示68-Q）。中国は値が丸めてあり、香港・マカオ・台湾をふくむか書いていないので入れていない",
+  "ask": {
+    "compare": "{a}と{b}、面積が広いのはどっち？",
+    "number": "{a}の面積は約何km²？（いちばん近い人の勝ち）"
+  },
+  "minGap": 15000,
+  "rows": [
+    {
+      "name": "ロシア",
+      "value": 17098246,
+      "tier": "easy"
+    },
+    {
+      "name": "カナダ",
+      "value": 9984670,
+      "tier": "normal"
+    },
+    {
+      "name": "アメリカ合衆国",
+      "value": 9833517,
+      "tier": "easy"
+    },
+    {
+      "name": "ブラジル",
+      "value": 8510417,
+      "tier": "normal"
+    },
+    {
+      "name": "オーストラリア",
+      "value": 7692024,
+      "tier": "normal"
+    },
+    {
+      "name": "インド",
+      "value": 3287263,
+      "tier": "normal"
+    },
+    {
+      "name": "アルゼンチン",
+      "value": 2796427,
+      "tier": "hard"
+    },
+    {
+      "name": "エジプト",
+      "value": 1002000,
+      "tier": "hard"
+    },
+    {
+      "name": "フランス",
+      "value": 551500,
+      "tier": "normal"
+    },
+    {
+      "name": "スペイン",
+      "value": 506009,
+      "tier": "hard"
+    },
+    {
+      "name": "日本",
+      "value": 377976,
+      "tier": "easy"
+    },
+    {
+      "name": "ドイツ",
+      "value": 357581,
+      "tier": "normal"
+    },
+    {
+      "name": "イタリア",
+      "value": 302068,
+      "tier": "normal"
+    },
+    {
+      "name": "イギリス",
+      "value": 244376,
+      "tier": "normal"
+    },
+    {
+      "name": "大韓民国",
+      "value": 100460,
+      "tier": "normal",
+      "row": "韓国"
+    },
+    {
+      "name": "ニュージーランド",
+      "value": 268164,
+      "tier": "hard"
+    }
+  ]
+}

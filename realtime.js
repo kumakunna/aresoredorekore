@@ -1171,6 +1171,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     if (!member.connected) return;
     member.connected = false;
     member.socketId = null;
+    // 2026-11-01 F2：文化祭は、切れてから30秒は席を取っておく（fes-room.js の holdMs）
+    member.goneAt = Date.now();
     const changed = ensureHost(room, 'disconnect');
     if (!connectedMembers(room).length) room.emptySince = Date.now();
     // 第21弾：切れた人は待たない。数え直さないと、最後の1人が切れた時に止まったままになる
@@ -1250,10 +1252,18 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     // 指示66-2：文化祭の部屋は、ここから流れを進める（ゲームの締め切りを見たあと＝終わったゲームをすぐ結果へ）
     eachRoom('文化祭の進行', (room) => {
       if (room.fes && FesRoom.tick(room, now, fesApi)) pushFes(room);
+      // 2026-11-01 F2：満員で「つぎの回」を待っていた人は、席が空いたら遊ぶ人へ（予約の「どうぞ」より先）
+      if (room.fes) {
+        const up = FesRoom.promoteHeld(room, now);
+        if (up.length) {
+          broadcast(room);
+          up.forEach((m) => emitPrivate(room, m.id, 'fes:you', FesRoom.privateFor(room, m.id)));
+        }
+      }
       // 指示66-3：満員の時の予約。席が空いたら先頭の人に「どうぞ」（その人のスマホが自分で入る）。何番目かも知らせる
       if (room.fes && room.fes.queue && room.fes.queue.length) {
-        const live = Array.from(room.members.values()).filter((m) => m.role !== ROLE_BIGSCREEN && m.connected).length;
-        FesRoom.queueTick(room, live, now).forEach((e) => io.to(e.socketId).emit('fes:turn', { code: room.code, token: e.token }));
+        // 2026-11-01 F2：切れてから30秒の席は空いていない（Wi-Fi が一瞬切れた人の席に「どうぞ」を出さない）
+        FesRoom.queueTick(room, FesRoom.seats(room, now), now).forEach((e) => io.to(e.socketId).emit('fes:turn', { code: room.code, token: e.token }));
         room.fes.queue.forEach((e, i) => { if (e.pos !== i + 1) { e.pos = i + 1; io.to(e.socketId).emit('fes:queue', { code: room.code, pos: i + 1 }); } });
       }
     });
@@ -1506,7 +1516,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           return fail(cb, 'name_' + c.reason, c.reason === 'long' ? '名前は8字までです' : 'この名前は使えません。ほかの名前にしてね');
         }
         if (!FesRoom.diffOf(payload && payload.diff)) return fail(cb, 'diff_required', 'むずかしさを えらんでね');
-        const live = Array.from(room.members.values()).filter((m) => m.role !== ROLE_BIGSCREEN && m.connected).length;
+        // 2026-11-01 F2：切れてから30秒の人の席も、空いていない席として数える（fes-room.js の seats）
+        const live = FesRoom.seats(room, Date.now());
         // 指示66-3：予約の人のために取っておいている席も、空いていない席として数える（予約した本人は、自分の token で入れる）
         const reserveToken = payload && payload.reserve ? String(payload.reserve) : null;
         if (live + FesRoom.held(room, reserveToken, Date.now()) >= FesRoom.ROOM_MAX) return fail(cb, 'room_full', '満員です（16人まで）。つぎの回をまってね');
@@ -1536,6 +1547,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           .forEach((m) => room.members.delete(m.id));
       }
       if (member) {
+        // 2026-11-01 F2（くまくんの答え）：30秒をすぎて戻った時に満員なら「つぎの回」として待合で待つ（締め出さない）。
+        // 30秒の間と、いま遊んでいるゲームの中にいる人は、そのまま戻る（fes-room.js の onReturn）
+        FesRoom.onReturn(room, member, Date.now());
         member.name = name;
         // 指示66-2：文化祭で「今回は入らなかった人」（waiting）は、入り直しても今回のゲームに入れない
         if (payload && payload.role && member.role !== 'waiting') member.role = normalizeRole(payload.role);

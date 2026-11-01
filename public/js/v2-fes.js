@@ -23,8 +23,11 @@
   /** 遊ぶ人（TV の端末をのぞく）。係が隠した人は TV の壁と札から外す（スマホの名簿には ●●● で残る） */
   function people(view, forTv) {
     var hidden = (view.fes && view.fes.hidden) || [];
+    // 2026-11-01 F2：満員で「つぎの回」を待つ人は、TV と待合の人数に数えない（本人のスマホでは自分を残す）
+    var hold = (view.fes && view.fes.hold) || [];
     return (view.members || []).filter(function (m) {
       if (m.role === 'bigscreen') return false;
+      if (hold.indexOf(m.id) !== -1 && m.id !== view.meId) return false;
       return !(forTv && hidden.indexOf(m.id) !== -1);
     });
   }
@@ -101,7 +104,8 @@
     var f = view.fes || {}, you = view.you || {};
     var me = (view.members || []).filter(function (m) { return m.id === view.meId; })[0];
     // 今回のゲームに入らなかった人（準備OK を押さなかった・途中で入った）
-    if ((f.phase === 'play' || f.phase === 'result') && me && me.role === 'waiting') return { world: 'wait', html: waiting(view) };
+    // 2026-11-01 F2：満員で「つぎの回」を待つ人（30秒をすぎて戻った）は、どの段階でも待つ画面
+    if (you.bench === 'hold' || ((f.phase === 'play' || f.phase === 'result') && me && me.role === 'waiting')) return { world: 'wait', html: waiting(view) };
     if (f.phase === 'play') return { world: view.info(f.played.mode).world, html: play(view) };
     switch (f.phase) {
       case 'vote': return { world: 'wait', html: vote(view) };
@@ -307,12 +311,14 @@
   function waiting(view) {
     var R = U().準備, V = K(), f = view.fes || {};
     var g = f.played ? view.info(f.played.mode) : null;
-    return V.bgHtml() + V.brandHtml() + V.cornerHtml({ who: people(view).length }) +
+    var hold = (view.you || {}).bench === 'hold';
+    // 「つぎの回」を待つ人の人数は部屋の人（自分を数えない）。待合の時計は自分には関係ないので出さない
+    return V.bgHtml() + V.brandHtml() + V.cornerHtml({ who: people(view).length - (hold ? 1 : 0) }) +
       '<div class="v2-in">' + V.hdHtml('Next…', R.つぎの回に) +
         V.meHtml(meOf(view)) +
-        '<p class="v2-note">' + e(R.理由[(view.you || {}).bench] || R.理由.late) + '<br>' + e(R.見ていてね) + '</p>' +
+        '<p class="v2-note">' + e(R.理由[(view.you || {}).bench] || R.理由.late) + '<br>' + e(hold ? R.空いたら : R.見ていてね) + '</p>' +
       '</div>' +
-      band(view, g ? g.name : '', R.遊んでいます);
+      (hold ? V.bandHtml({ lab: '', msg: R.空くのを, end: '' }) : band(view, g ? g.name : '', R.遊んでいます));
   }
 
   /**

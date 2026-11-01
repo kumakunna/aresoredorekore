@@ -101,7 +101,10 @@ const TIMES = {
   // ゲームの画面が見せるので、それを切らない（F12「爆発の瞬間そのものは「クイズ解除」のページ」）
   // 68-S の残り2（くまくん 10/31）：幕が上がったらすぐ文化祭の結果。幕（TV・スマホとも 3.75秒で上がり始め 4.0秒で消える・fx.js finale）の下で結果へ移っておく。
   // 見回りは0.5秒ごとなので、結果が届くのは 3.5〜4.0秒（幕の下・不透明）。5秒の時は、幕が上がってから約1秒、今までのクイズ解除の画面が見えていた
-  endGraceMs: 3500
+  endGraceMs: 3500,
+  // 切れた人の席を取っておく長さ（2026-11-01 くまくんの答え・F2）。Wi-Fi が一瞬切れた・画面ロックから戻った人の席に、
+  // その間に来た人や予約の人が入らないように。すぎて戻った時に満員なら「つぎの回」（fesHold）として待合で待つ
+  holdMs: 30000
 };
 
 const PHASE = { IDLE: 'idle', LOBBY: 'lobby', VOTE: 'vote', DECIDE: 'decide', READY: 'ready', PLAY: 'play', RESULT: 'result' };
@@ -174,9 +177,59 @@ function queueTick(room, live, now) {
   return offered;
 }
 
-/** 遊ぶ人（大画面の端末をのぞく）。待っている人（今回は入らなかった人）も入る */
+/** 遊ぶ人（大画面の端末をのぞく）。待っている人（今回は入らなかった人）も入る。満員で「つぎの回」を待つ人（fesHold）は入らない */
 function people(room) {
-  return Array.from(room.members.values()).filter((m) => m.role === 'player' || m.role === 'waiting');
+  return Array.from(room.members.values()).filter((m) => (m.role === 'player' || m.role === 'waiting') && !m.fesHold);
+}
+
+// ===================== 2026-11-01 F2：切れた人の席（30秒）と「つぎの回」を待つ人 =====================
+/** その人が、いま遊んでいるゲームの中にいるか（何秒たっても・満員でも戻れる） */
+function isPlaying(room, memberId) {
+  const f = room.fes;
+  return !!(f && f.played && f.played.ids.indexOf(memberId) !== -1 && (f.phase === PHASE.PLAY || f.phase === PHASE.RESULT));
+}
+/** 切れてから holdMs たっていない席（だれも入れずに取っておく） */
+function seatKept(room, m, now) {
+  return !m.connected && !m.fesHold && !!m.goneAt && now - m.goneAt < room.fes.times.holdMs;
+}
+/**
+ * ふさがっている席の数（TV をのぞく）：つながっている人（「つぎの回」を待つ人も、部屋にいるので入る）と、取っておいている席。
+ * 新しく入る人の門と予約の「どうぞ」は、これで数える（realtime.js）。exceptId：戻ってきた本人は数えない
+ */
+function seats(room, now, exceptId) {
+  return Array.from(room.members.values()).filter((m) => m.role !== 'bigscreen' && m.id !== exceptId &&
+    (m.connected || seatKept(room, m, now))).length;
+}
+/**
+ * 戻ってきた人（同じ memberId）。席を取っておく間か、いまのゲームの中にいれば、そのまま戻る。
+ * どちらでもなく満員なら「つぎの回」を待つ人にする（入口には落とさない。待合で待って、席が空いたら入る）。返すのは待つ人にしたか
+ */
+function onReturn(room, m, now) {
+  if (!room.fes || m.connected || m.role === 'bigscreen' || m.fesHold) return false;
+  if (seatKept(room, m, now) || isPlaying(room, m.id)) return false;
+  if (seats(room, now, m.id) + held(room, null, now) < ROOM_MAX) return false;
+  m.fesHold = true; m.holdAt = now; m.role = 'waiting'; m.readyGame = null;
+  return true;
+}
+/**
+ * 0.5秒ごと。「つぎの回」を待つ人を、席が空いたら来た順に遊ぶ人へ戻す（予約の人より先・部屋にもういるので）。
+ * 空いている席＝16 −（待つ人をのぞいた、ふさがっている席）−（予約の人に取っておいている席）。返すのは戻した人
+ */
+function promoteHeld(room, now) {
+  const f = room.fes;
+  if (!f) return [];
+  const wait = Array.from(room.members.values()).filter((m) => m.fesHold && m.connected).sort((a, b) => a.holdAt - b.holdAt);
+  if (!wait.length) return [];
+  let free = ROOM_MAX - (seats(room, now) - wait.length) - held(room, null, now);
+  const up = [];
+  wait.forEach((m) => {
+    if (free <= 0) return;
+    m.fesHold = false; m.holdAt = null;
+    // ゲームの最中なら、新しく入った人と同じく、つぎの回から（いまのゲームの人数に数えない）
+    if (f.phase === PHASE.PLAY || f.phase === PHASE.RESULT) { m.role = 'waiting'; m.fesBench = 'late'; } else { m.role = 'player'; m.fesBench = null; }
+    up.push(m); free--;
+  });
+  return up;
 }
 function livePeople(room) { return people(room).filter((m) => m.connected); }
 
@@ -490,6 +543,8 @@ function publicView(room, now) {
     next: candidatesFor(livePeople(room).length, f),
     pick: show && f.pick ? { mode: f.pick.mode, counts: Object.assign({}, f.pick.counts), lot: f.pick.lot, tied: f.pick.tied.slice() } : null,
     played: f.played ? { mode: f.played.mode, round: f.played.round, ids: f.played.ids.slice() } : null,
+    // 2026-11-01 F2：満員で「つぎの回」を待っている人（TV と待合の人数に数えない・本人の画面は待つ画面）
+    hold: Array.from(room.members.values()).filter((m) => m.fesHold).map((m) => m.id),
     full: livePeople(room).length >= ROOM_MAX,
     max: ROOM_MAX,
     bgm: !!f.bgm,   // 指示68-T 三の束2：TV が待合で BGM を鳴らすか
@@ -510,10 +565,10 @@ function privateFor(room, memberId) {
     diff: diffOf(m.fesDiff),
     miss: m.fesMiss || 0,
     cont: f.cont.has(memberId),
-    bench: m.role === 'waiting' ? (m.fesBench || 'late') : null,
-    playing: !!(f.played && f.played.ids.indexOf(memberId) !== -1 && (f.phase === PHASE.PLAY || f.phase === PHASE.RESULT))
+    bench: m.fesHold ? 'hold' : m.role === 'waiting' ? (m.fesBench || 'late') : null,
+    playing: isPlaying(room, memberId)
   };
 }
 
 module.exports = { FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, roundDetail, ROOM_MAX, MISS_LIMIT, DIFFS, diffOf, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
-  reserve, unreserve, held, queueTick };
+  reserve, unreserve, held, queueTick, seats, onReturn, promoteHeld, isPlaying };

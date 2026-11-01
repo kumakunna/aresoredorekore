@@ -552,6 +552,104 @@ async function join(srv, code, name, diff, extra) {
     await srv.close();
   });
 
+  // ---- 2026-11-01 F2（くまくんの答え）：切れた人の席は30秒だけ取っておく・すぎて満員なら「つぎの回」・遊んでいる人はいつでも戻れる ----
+  // 待合を飛ばして、クイズ解除だけの表（候補1つ＝投票なし）で16人で始める
+  async function 十六人で遊ぶ(srv) {
+    const { staff, code } = await makeFes(srv, { 本物の表: true });
+    srv.store.get(code).fes.games = FesRoom.FES_GAMES.map((g) => Object.assign({}, g, { on: g.mode === 'bomb-coop', def: false }));
+    const ds = [];
+    for (let i = 0; i < 16; i++) ds.push(await join(srv, code, 'ひと' + 'あいうえおかきくけこさしすせそた'[i]));
+    srv.store.get(code).fes.endsAt = Date.now();
+    await waitUntil(() => fesOf(ds[0]).phase === 'ready', 'ルールと準備OKへ', 5000);
+    // 縮めた準備OK（0.5秒）では16人が押し終わらない。押す間は締め切りを延ばす（全員そろえば3秒で始まる）
+    srv.store.get(code).fes.endsAt = Date.now() + 60000;
+    for (const d of ds) await d.call('room:ready', { game: 'bomb' });
+    await waitUntil(() => fesOf(ds[0]).phase === 'play', '16人で始まる', 8000);
+    assertEqual(srv.store.get(code).bomb.playerIds.length, 16, '16人ともゲームに入る');
+    return { staff, code, ds };
+  }
+  const 遊ぶ人 = (srv, code) => Array.from(srv.store.get(code).members.values()).filter((m) => m.role === 'player' && m.connected && !m.fesHold);
+  const つながっている = (srv, code) => Array.from(srv.store.get(code).members.values()).filter((m) => m.role !== 'bigscreen' && m.connected);
+
+  await r.test('F2：Wi-Fi が3秒切れて全員がつなぎ直す間に、予約の人が入っても、遊んでいる人が外されない（席は30秒取っておく）', async () => {
+    const srv = await startTestServer(待合を長く);
+    const { staff, code, ds } = await 十六人で遊ぶ(srv);
+    const x = await join(srv, code, 'よやく');
+    assertEqual(x.res.error, 'room_full', '17人目は満員');
+    let turn = null;
+    x.socket.on('fes:turn', (p) => { turn = p; });
+    assertEqual((await x.call('fes:reserve', { code })).pos, 1, '予約できる');
+    // Wi-Fi が切れる：16台が一度に切れる
+    ds.forEach((d) => d.close());
+    await waitUntil(() => つながっている(srv, code).length === 0, '16人が切れる', 3000);
+    await sleep(1500);
+    // その間に、予約の人が入ろうとする（「どうぞ」が来ていれば token で、来ていなくても）
+    const xr = await x.call('room:join', { code, name: 'よやく', diff: 'normal', reserve: turn ? turn.token : undefined });
+    assertEqual(turn, null, '切れた人の席は取ってあるので、予約の人に「どうぞ」は出ない');
+    assertEqual(xr.error, 'room_full', '予約の人は、まだ入れない');
+    // 3秒たって、16台がつなぎ直す（同じ memberId で入り直す）
+    await sleep(1500);
+    const back = await Promise.all(ds.map(async (d, i) => {
+      const n = await device(srv.url);
+      const res = await n.call('room:join', { code, name: 'ひと' + 'あいうえおかきくけこさしすせそた'[i], memberId: d.memberId, diff: 'normal' });
+      n.res = res; return n;
+    }));
+    assertEqual(back.filter((n) => n.res.ok).length, 16, '16人とも戻れる');
+    assertEqual(遊ぶ人(srv, code).length, 16, '16人とも遊ぶ人のまま（つぎの回へ外されない）');
+    assertEqual(つながっている(srv, code).length, 16, '部屋は16人（17人にならない）');
+    assertEqual(srv.store.get(code).bomb.playerIds.length, 16, 'ゲームの中も16人');
+    back.concat([staff, x]).forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('F2：30秒をすぎて戻った時に満員なら「つぎの回」として待合で待つ。席が空いたら遊ぶ人に戻る', async () => {
+    const srv = await startTestServer(Object.assign({}, 待合を長く, { holdMs: 300 }));
+    const { staff, code } = await makeFes(srv);
+    const ds = [];
+    for (let i = 0; i < 16; i++) ds.push(await join(srv, code, 'ひと' + 'あいうえおかきくけこさしすせそた'[i]));
+    const a = ds[0];
+    a.close();
+    await waitUntil(() => つながっている(srv, code).length === 15, '1人が切れる', 3000);
+    const y = await join(srv, code, 'すぐ');
+    assertEqual(y.res.error, 'room_full', '取っておく間（30秒）は、新しい人は入れない');
+    await sleep(500);
+    const y2 = await join(srv, code, 'あとから');
+    assertEqual(y2.res.ok, true, '30秒をすぎたら、新しい人が入れる');
+    const a2 = await device(srv.url);
+    const ar = await a2.call('room:join', { code, name: 'ひとあ', memberId: a.memberId, diff: 'normal' });
+    assertEqual(ar.ok, true, '戻った人は締め出さない（入口に落とさない）');
+    await waitUntil(() => a2.me, '本人の知らせが届く');
+    assertEqual(a2.me.bench, 'hold', '本人には「満員なので、つぎの回」');
+    assertEqual(遊ぶ人(srv, code).length, 16, '遊ぶ人は16人のまま');
+    assertEqual((fesOf(a2).hold || []).join(','), a.memberId, 'つぎの回を待つ人は、部屋の知らせで分かる（TV の人数に数えない）');
+    // 1人が出たら、待っていた人が遊ぶ人に戻る（予約の人より先）
+    await y2.call('room:leave', {});
+    await waitUntil(() => !srv.store.get(code).members.get(a.memberId).fesHold, '席が空いたら、待っていた人が入る', 3000);
+    assertEqual(srv.store.get(code).members.get(a.memberId).role, 'player', '遊ぶ人に戻る');
+    await waitUntil(() => a2.me && a2.me.bench === null, '本人の知らせも戻る', 3000);
+    ds.slice(1).concat([staff, y, a2]).forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('F2：いま遊んでいるゲームの中にいる人は、30秒をすぎても・満員でも戻れる', async () => {
+    const srv = await startTestServer(Object.assign({}, 待合を長く, { holdMs: 300 }));
+    const { staff, code, ds } = await 十六人で遊ぶ(srv);
+    const b = ds[3];
+    b.close();
+    await waitUntil(() => つながっている(srv, code).length === 15, '1人が切れる', 3000);
+    await sleep(500);
+    const n = await join(srv, code, 'あとから');
+    assertEqual(n.res.ok, true, '30秒をすぎたので新しい人が入る（ゲームの途中なので、つぎの回から）');
+    const b2 = await device(srv.url);
+    const br = await b2.call('room:join', { code, name: 'ひとえ', memberId: b.memberId, diff: 'normal' });
+    assertEqual(br.ok, true, 'ゲームの中の人は戻れる');
+    const m = srv.store.get(code).members.get(b.memberId);
+    assertEqual(!!m.fesHold, false, 'つぎの回にされない');
+    assertEqual(m.role, 'player', '遊ぶ人のまま');
+    ds.filter((d) => d !== b).concat([staff, n, b2]).forEach((d) => d.close());
+    await srv.close();
+  });
+
   await r.test('満員の時の予約：「どうぞ」のあと入らずに時間が切れたら、その予約は消えて次の人へ', async () => {
     const room = { members: new Map(), fes: null };
     FesRoom.init(room, {});

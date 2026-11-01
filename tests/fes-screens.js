@@ -82,6 +82,28 @@ async function 入った(o) {
     win.close();
   });
 
+  // 2026-11-01 F2（くまくんの答え）：30秒をすぎて戻った時に満員なら「つぎの回」として待合で待つ
+  await r.test('F2（画面）：「つぎの回」を待つ人のスマホは待つ画面（席が空いたら入れる）。人数に自分を数えず、待合の時計も出さない。空いたら待合へ', async () => {
+    const { win, doc, errors } = await 入った();
+    const lab = FesScenes.view('fes2-lobby');
+    const 他 = lab.room.members.filter((m) => m.role !== 'bigscreen' && m.id !== 'm1').length;
+    const room = JSON.parse(JSON.stringify(lab.room));
+    if (!room.members.some((m) => m.id === 'm1')) room.members.push({ id: 'm1', name: 'ふう', role: 'waiting', connected: true, isHost: false, icon: '', title: '', ready: false });
+    room.fes.hold = ['m1'];
+    win.__rtFake.fire('room:update', room);
+    win.__rtFake.fire('fes:you', Object.assign({}, lab.you, { bench: 'hold' }));
+    await waitFor(win, () => /席が空いたら/.test((doc.querySelector('.screen.active') || {}).textContent || ''), 3000, '待つ画面');
+    const scr = doc.querySelector('.screen.active');
+    assert(/戻ってきた時に満員だったので/.test(scr.textContent), 'なぜ待つのかを本人に言う');
+    assertEqual(scr.querySelector('.v2-cbtn.is-who span span').textContent, String(他), '右上の人数は部屋の人（自分を数えない）');
+    assertEqual(scr.querySelectorAll('.v2-band-end').length, 0, '待合の時計は出さない');
+    // 席が空いた（遊ぶ人に戻った）→ 待合の画面へ
+    win.__rtFake.fire('room:update', lab.room);
+    win.__rtFake.fire('fes:you', lab.you);
+    await waitFor(win, () => !/席が空いたら/.test((doc.querySelector('.screen.active') || {}).textContent || ''), 3000, '待合へ戻る');
+    assertEqual(errors.length, 0, '画面の例外なし');
+  });
+
   await r.test('門3（画面）：投票したあとに別のゲームを押しても、送り直さず・札も変わらない', async () => {
     const { win, doc } = await 入った();
     流す(win, 'fes2-vote');

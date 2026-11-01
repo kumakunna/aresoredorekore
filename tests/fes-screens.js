@@ -94,7 +94,7 @@ async function 入った(o) {
     win.__rtFake.fire('fes:you', Object.assign({}, lab.you, { bench: 'hold' }));
     await waitFor(win, () => /席が空いたら/.test((doc.querySelector('.screen.active') || {}).textContent || ''), 3000, '待つ画面');
     const scr = doc.querySelector('.screen.active');
-    assert(/戻ってきた時に満員だったので/.test(scr.textContent), 'なぜ待つのかを本人に言う');
+    assert(/もどってきた時に満員だったので/.test(scr.textContent), 'なぜ待つのかを本人に言う');
     assertEqual(scr.querySelector('.v2-cbtn.is-who span span').textContent, String(他), '右上の人数は部屋の人（自分を数えない）');
     assertEqual(scr.querySelectorAll('.v2-band-end').length, 0, '待合の時計は出さない');
     // 席が空いた（遊ぶ人に戻った）→ 待合の画面へ
@@ -102,6 +102,7 @@ async function 入った(o) {
     win.__rtFake.fire('fes:you', lab.you);
     await waitFor(win, () => !/席が空いたら/.test((doc.querySelector('.screen.active') || {}).textContent || ''), 3000, '待合へ戻る');
     assertEqual(errors.length, 0, '画面の例外なし');
+    win.close();
   });
 
   await r.test('門3（画面）：投票したあとに別のゲームを押しても、送り直さず・札も変わらない', async () => {

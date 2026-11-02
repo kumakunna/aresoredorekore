@@ -192,6 +192,7 @@ chrome.tabs.onActivated.addListener((info) => {
   });
 });
 
-// Chrome を開いたら「はじめる」の画面を出す。ボタン（拡張機能のアイコン）からも開ける
+// Chrome を開いたら「はじめる」の画面を出す。入れた時（はじめての日）も出す。ボタン（拡張機能のアイコン）からも開ける
 chrome.runtime.onStartup.addListener(() => chrome.tabs.create({ url: 'start.html' }));
+chrome.runtime.onInstalled.addListener((d) => { if (d.reason === 'install') chrome.tabs.create({ url: 'start.html' }); });
 chrome.action.onClicked.addListener(() => chrome.tabs.create({ url: 'start.html' }));

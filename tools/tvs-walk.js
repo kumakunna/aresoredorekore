@@ -52,7 +52,7 @@ const monitor = http.createServer((req, res) => {
   res.setHeader('content-type', 'text/html; charset=utf-8');
   res.end('<!doctype html><title>にせのモニター</title><body style="font:40px sans-serif">' +
     '<button id="go" style="font-size:40px">押すと始まります</button><div id="n">0</div><script>' +
-    'var id=Math.random().toString(36).slice(2),seen=null,ac=null,n=0;window.__id=id;window.__beeps=0;' +
+    'var id=Math.random().toString(36).slice(2),seen=null,ac=null,n=0;window.__id=id;window.__beeps=0;window.__iv=[];setInterval(function(){window.__iv.push(Date.now())},2000);' +
     'document.getElementById("go").onclick=function(){ac=new AudioContext();this.remove();tick();};' +
     'function beep(){window.__beeps++;var o=ac.createOscillator(),g=ac.createGain();g.gain.value=.2;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+1.5);}' +
     'function tick(){fetch("/poll?id="+id).then(function(r){return r.json()}).then(function(j){document.getElementById("n").textContent=++n;' +
@@ -118,15 +118,17 @@ async function until(fn, label, ms) {
   let ok = false;
   try {
     await cdpOpen();
-    const sw = await until(async () => (await targets()).find((t) => t.type === 'service_worker' && /background\.js$/.test(t.url)), '拡張機能の裏の処理');
-    const EXT = sw.url.replace(/background\.js$/, '');
+    // 拡張機能の場所は、拡張機能が入った時に自分で開く「はじめる」の画面から引く（Chrome for Testing には background.js という名前の別の拡張機能もある）
+    const startT = await until(async () => (await targets()).find((t) => t.type === 'page' && /^chrome-extension:\/\/[a-p]{32}\/start\.html$/.test(t.url)), 'はじめるの画面（拡張機能が入った）', 20000);
+    const EXT = startT.url.replace(/start\.html$/, '');
     note('拡張機能', '読み込めた');
 
     // 係のログイン（この Chrome のクッキー）と、「はじめる」
     const { targetId: login } = await cdp('Target.createTarget', { url: BASE + '/dev-login', newWindow: true });
     await until(async () => /dev-login OK/.test(await ev(login, 'document.body ? document.body.textContent : ""')), 'ログイン');
-    const { targetId: start } = await cdp('Target.createTarget', { url: EXT + 'start.html', newWindow: true });
-    await until(() => ev(start, '!!document.getElementById("start")'), 'はじめるの画面').catch(async (e) => { console.log(JSON.stringify((await targets()).map((t) => t.type + ' ' + t.url))); throw e; });
+    // 「はじめる」の画面は、拡張機能が入った時に自分で開く（background.js onInstalled）。外から開くと開かないことがある
+    const start = startT.targetId;
+    await until(() => ev(start, '!!document.getElementById("start")'), 'はじめるの画面の中身');
     // 拡張機能の API は、眠る裏の処理（service worker）ではなく、この画面（拡張機能のページ）で使う
     const sv = (expr) => ev(start, expr);
     await sv('self.__act = []; chrome.tabs.onActivated.addListener((i) => self.__act.push({ t: Date.now(), tab: i.tabId })); true');
@@ -272,30 +274,50 @@ async function hidden(remote, press, sv, S, born) {
   await press(1, 'fes');
   const st = await S();
   const fesT = born['1fes'][0].id;
-  await until(() => ev(fesT, '(document.querySelector(".screen.active")||{}).id === "scr-v2-fes-tv"'), 'TV① のあつまれが文化祭の TV の画面に着く', 30000);
+  // 新しい Chrome の箱なので、はじめての「光と揺れの確認」が出ている（端末ごとに1回）。本物の TV の PC でも、はじめての日に1回押す
+  await ev(fesT, '(() => { const b = document.getElementById("sgStartBtn"); if (b && b.offsetParent) b.click(); return true; })()');
+  await until(() => ev(fesT, '(document.querySelector(".screen.active")||{}).id === "scr-v2-fes-tv"'), 'TV① のあつまれが文化祭の TV の画面に着く', 30000)
+    .catch(async (e) => { console.log('  いま：' + JSON.stringify(await ev(fesT, '({ url: location.href, scr: (document.querySelector(".screen.active")||{}).id, vis: document.visibilityState, text: document.body.innerText.slice(0, 120) })'))); throw e; });
   note('門14 部屋', c.code + '・TV① のあつまれが TV の画面に着いた');
-  const bots = spawn(process.execPath, ['tools/room-bots.js', '--code', c.code, '--n', '3', '--ready', '--play', '--url', BASE, '--hold', String(Math.ceil(HIDDEN_MIN * 60 + 120))], { cwd: ROOT, stdio: 'ignore' });
+  // 着いたあと、アプリは自分で1回 /?room=… へ移る（表のままでも同じ・11/02 に確かめた）。比べる印はそのあとで取る
+  await until(async () => /[?&]room=/.test(await ev(fesT, 'location.search')) && (await ev(fesT, '(document.querySelector(".screen.active")||{}).id')) === 'scr-v2-fes-tv', '部屋のアドレスへ移る', 30000);
+  const arrived = await ev(fesT, 'performance.timeOrigin');
+  note('門14 着いた時', { origin: arrived, href: await ev(fesT, 'location.pathname + location.search') });
+  // 文化祭のスマホ3台のふり（入る・準備OK を押す・心拍に返す）。遊びの中身は押さない（ゲームは時間で終わる）
+  const bots = [];
+  for (let i = 0; i < 3; i++) {
+    const b = ioClient(BASE, { transports: ['websocket'], forceNew: true });
+    b.on('hb:ping', () => b.emit('hb:pong'));
+    b.on('room:update', (r) => { const f = r && r.fes; if (f && f.phase === 'ready' && r.state && r.state.game && b.__readyFor !== f.round) { b.__readyFor = f.round; b.emit('room:ready', { ready: true, game: r.state.game }, () => {}); } });
+    await new Promise((r) => b.on('connect', r));
+    const j = await new Promise((r) => b.emit('room:join', { code: c.code, name: 'ボット' + (i + 1), diff: 'normal' }, r));
+    if (!j || !j.ok) throw new Error('ボットが入れない：' + JSON.stringify(j));
+    bots.push(b);
+  }
   await sleep(4000);
-  await press(1, 'menu');
+  // --visible：比べるため、あつまれを表のままにして同じことをする
+  if (!arg('visible', false)) await press(1, 'menu');
   const t0 = Date.now();
   note('門14 裏にした', 'TV① をメニューへ（あつまれは裏）');
   const samples = [];
   while (Date.now() - t0 < HIDDEN_MIN * 60000) {
     await sleep(30000);
-    const s = await ev(fesT, '({ vis: document.visibilityState, scr: (document.querySelector(".screen.active")||{}).id, stuck: document.querySelectorAll("[data-tv-stuck]").length })');
+    const s = await ev(fesT, '({ origin: performance.timeOrigin, href: location.pathname + location.search, vis: document.visibilityState, scr: (document.querySelector(".screen.active")||{}).id, stuck: document.querySelectorAll("[data-tv-stuck]").length })');
     s.min = +((Date.now() - t0) / 60000).toFixed(1);
     samples.push(s);
     console.log('  ' + s.min + '分 ' + JSON.stringify(s));
   }
   note('門14 裏の間の様子（30秒ごと）', samples);
   const remoteStuck = await ev(remote, 'document.querySelector(\'.tv[data-tv="1"]\').classList.contains("is-stuck")');
-  await press(1, 'fes');
+  if (!arg('visible', false)) await press(1, 'fes');
   await sleep(2000);
-  const after = await ev(fesT, '({ vis: document.visibilityState, scr: (document.querySelector(".screen.active")||{}).id, stuck: document.querySelectorAll("[data-tv-stuck]").length, origin: performance.timeOrigin })');
-  note('門14 表にもどした', Object.assign(after, { reloaded: after.origin !== born['1fes'][0].o, remoteStuck }));
+  const after = await ev(fesT, '({ scr: (document.querySelector(".screen.active")||{}).id, stuck: document.querySelectorAll("[data-tv-stuck]").length, origin: performance.timeOrigin })');
+  after.active = await sv('chrome.tabs.get(' + st.tabs[1].fes + ').then((t) => t.active)');
+  note('門14 表にもどした', Object.assign(after, { reloaded: after.origin !== arrived, remoteStuck }));
   // 段ごとの長さ（裏の TV が進みを遅らせていないか：決めた長さのままか）
   const dur = phases.slice(0, -1).map((x, i) => x.p + ' ' + ((phases[i + 1].t - x.t) / 1000).toFixed(1) + '秒');
   note('門14 段の長さ（裏の間）', dur);
+  note('門14 段の並び', phases.map((x) => x.p + '(' + x.n + '人)').join(' → '));
   // 裏のにせのモニターの、聞きに行く間（はじめの5分と、5分より後）
   for (const id of Object.keys(polls)) {
     const ts = polls[id].filter((t) => t >= t0);
@@ -304,5 +326,13 @@ async function hidden(remote, press, sv, S, born) {
     const mx = (a) => (a.length ? Math.max.apply(null, a) : null);
     note('門14 にせのモニターの聞きに行く間 ' + id, { 回: ts.length, はじめ5分の最大ms: mx(early), 五分より後の最大ms: mx(late) });
   }
-  bots.kill(); staff.close();
+  // setInterval の形（2秒ごと）が、裏で何秒おきになったか
+  for (const t of (await targets()).filter((x) => x.type === 'page' && x.url.indexOf(':' + MON + '/monitor') !== -1)) {
+    const iv = (await ev(t.targetId, 'window.__iv')).filter((x) => x >= t0);
+    const gaps = iv.slice(1).map((x, i) => x - iv[i]);
+    const late = gaps.filter((g, i) => iv[i] - t0 >= 5 * 60000), early = gaps.filter((g, i) => iv[i] - t0 < 5 * 60000);
+    const mx = (a) => (a.length ? Math.max.apply(null, a) : null);
+    note('門14 にせのモニターの setInterval(2秒) の間', { 回: iv.length, はじめ5分の最大ms: mx(early), 五分より後の最大ms: mx(late) });
+  }
+  bots.forEach((b) => b.close()); staff.close();
 }

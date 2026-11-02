@@ -1,37 +1,170 @@
 [
-  { "name": "T1 画面の門を外す（係でない人がリモコンを開ける）", "file": "tvs-routes.js", "suite": "tests/tvs.js",
-    "from": "    if (!roleOf(uid)) { res.status(403)", "to": "    if (false) { res.status(403)",
-    "expect": "門4：係でない人は、リモコン・出す物の一覧・休けいの画面を開けない" },
-  { "name": "T2 つなぎの門を外す（係でない人が押せる）", "file": "tvs-routes.js", "suite": "tests/tvs.js",
-    "from": "    if (!role) return next(new Error('forbidden'));", "to": "",
-    "expect": "門4：係でない人は、つなげない＝押せない" },
-  { "name": "T3 あそびまちの URL の門を外す", "file": "tvs-routes.js", "suite": "tests/tvs.js",
+  {
+    "name": "T1 画面の門を外す（係でない人がリモコンを開ける）",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "    if (!roleOf(uid)) { res.status(403)",
+    "to": "    if (false) { res.status(403)",
+    "expect": "門4：係でない人は、リモコン・出す物の一覧・休けいの画面を開けない"
+  },
+  {
+    "name": "T2 つなぎの門を外す（係でない人が押せる）",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "    if (!role) return next(new Error('forbidden'));",
+    "to": "",
+    "expect": "門4：係でない人は、つなげない＝押せない"
+  },
+  {
+    "name": "T3 あそびまちの URL の門を外す",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
     "from": "    if (!roleOf(uid)) return res.status(403).json({ error: '見られません' });\n    res.set('Cache-Control', 'no-store').json({ url: asobiUrl() || null });",
     "to": "    res.set('Cache-Control', 'no-store').json({ url: asobiUrl() || null });",
-    "expect": "門4・2-4：あそびまちの URL は" },
-  { "name": "T4 リモコンに配る状態に URL が混ざる", "file": "tvs-routes.js", "suite": "tests/tvs.js",
-    "from": "    return { items, tvs, playing: isPlaying() };", "to": "    return { items, tvs, playing: isPlaying(), a: asobiUrl() };",
-    "expect": "門4・2-4：あそびまちの URL は" },
-  { "name": "T5 ゲーム中の確かめを出さない", "file": "tvs-routes.js", "suite": "tests/tvs.js",
-    "from": "if (cur === 'fes' && it.id !== 'fes' && !force && isPlaying())", "to": "if (false)",
-    "expect": "門8：ゲーム中（遊ぶ＝3-2-1 と遊んでいる間）" },
-  { "name": "T6 ゲーム中でなくても確かめる", "file": "tvs-routes.js", "suite": "tests/tvs.js",
-    "from": "if (cur === 'fes' && it.id !== 'fes' && !force && isPlaying())", "to": "if (cur === 'fes' && it.id !== 'fes' && !force)",
-    "expect": "門8：ゲーム中（遊ぶ＝3-2-1 と遊んでいる間）" },
-  { "name": "T7 あそびまちを全部の窓で鳴らす（2回鳴る）", "file": "tv-switcher/extension/logic.js", "suite": "tests/tvs.js",
-    "from": "    if (it.kind === 'asobi') return win !== asobiOwner(items);", "to": "    if (it.kind === 'asobi') return false;",
-    "expect": "門3：見えていないタブは鳴らない" },
-  { "name": "T8 見えていないタブも鳴らす", "file": "tv-switcher/extension/logic.js", "suite": "tests/tvs.js",
-    "from": "    return !(win === 1 && active && active[1] === id && it.sound);", "to": "    return !(it.sound);",
-    "expect": "門3：見えていないタブは鳴らない" },
-  { "name": "T9 今の画面を覚えない（作り直すとはじめにもどる）", "file": "tvs-store.js", "suite": "tests/tvs.js",
+    "expect": "門4・2-4：あそびまちの URL は"
+  },
+  {
+    "name": "T4 リモコンに配る状態に URL が混ざる",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "    return { items, tvs, playing: isPlaying(), settings: store.settings(),",
+    "to": "    return { a: asobiUrl(), items, tvs, playing: isPlaying(), settings: store.settings(),",
+    "expect": "門4・2-4：あそびまちの URL は"
+  },
+  {
+    "name": "T5 ゲーム中の確かめを出さない",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "if (cur === 'fes' && it.id !== 'fes' && !force && isPlaying())",
+    "to": "if (false)",
+    "expect": "門8：ゲーム中（遊ぶ＝3-2-1 と遊んでいる間）"
+  },
+  {
+    "name": "T6 ゲーム中でなくても確かめる",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "if (cur === 'fes' && it.id !== 'fes' && !force && isPlaying())",
+    "to": "if (cur === 'fes' && it.id !== 'fes' && !force)",
+    "expect": "門8：ゲーム中（遊ぶ＝3-2-1 と遊んでいる間）"
+  },
+  {
+    "name": "T7 あそびまちを全部の窓で鳴らす（2回鳴る）",
+    "file": "tv-switcher/extension/logic.js",
+    "suite": "tests/tvs.js",
+    "from": "    if (it.kind === 'asobi') return win !== asobiOwner(items);",
+    "to": "    if (it.kind === 'asobi') return false;",
+    "expect": "門3：見えていないタブは鳴らない"
+  },
+  {
+    "name": "T8 見えていないタブも鳴らす",
+    "file": "tv-switcher/extension/logic.js",
+    "suite": "tests/tvs.js",
+    "from": "    return !(win === 1 && active && active[1] === id && it.sound);",
+    "to": "    return !(it.sound);",
+    "expect": "門3：見えていないタブは鳴らない"
+  },
+  {
+    "name": "T9 今の画面を覚えない（作り直すとはじめにもどる）",
+    "file": "tvs-store.js",
+    "suite": "tests/tvs.js",
     "from": "      out[tv] = r ? { item: r.item, prev: r.prev || null, at: r.at } : { item: DEFAULT_SCREEN[tv], prev: null, at: 0 };",
     "to": "      out[tv] = { item: DEFAULT_SCREEN[tv], prev: null, at: 0 };",
-    "expect": "門5：サーバーを作り直しても" },
-  { "name": "T10 「出して」を両方の TV に送る", "file": "tvs-routes.js", "suite": "tests/tvs.js",
-    "from": "    nsp.to('screen:' + tv).emit('tvs:apply', { item, seq: s });", "to": "    nsp.to('screen:1').to('screen:2').emit('tvs:apply', { item, seq: s });",
-    "expect": "1回押すだけで、その TV の休けいのタブに" },
-  { "name": "T11 あそびまちの URL をログに出す", "file": "tvs-routes.js", "suite": "tests/tvs.js",
-    "from": "    res.set('Cache-Control', 'no-store').json({ url: asobiUrl() || null });", "to": "    console.log('[tvs] asobi ' + asobiUrl()); res.set('Cache-Control', 'no-store').json({ url: asobiUrl() || null });",
-    "expect": "門10：このスイートで出たログに" }
+    "expect": "門5：サーバーを作り直しても"
+  },
+  {
+    "name": "T10 「出して」を両方の TV に送る",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "    nsp.to('screen:' + tv).emit('tvs:apply', { item, seq: s });",
+    "to": "    nsp.to('screen:1').to('screen:2').emit('tvs:apply', { item, seq: s });",
+    "expect": "1回押すだけで、その TV の休けいのタブに"
+  },
+  {
+    "name": "T11 あそびまちの URL をログに出す",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "    res.set('Cache-Control', 'no-store').json({ url: asobiUrl() || null });",
+    "to": "    console.log('[tvs] asobi ' + asobiUrl()); res.set('Cache-Control', 'no-store').json({ url: asobiUrl() || null });",
+    "expect": "門10：このスイートで出たログに"
+  },
+  {
+    "name": "T12 手で押しても自動を切にしない",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "    if (store.settings().auto[tv]) store.setSettings({ auto: { [tv]: false } });",
+    "to": "",
+    "expect": "二の束：はじめは TV② の自動が入"
+  },
+  {
+    "name": "T13 ゲーム中のあつまれも自動で変える",
+    "file": "tvs-auto.js",
+    "suite": "tests/tvs-auto.js",
+    "from": "  const locked = (ctx, tv) => ctx.screens[tv].item === 'fes' && ctx.phase === 'play';",
+    "to": "  const locked = () => false;",
+    "expect": "門：ゲーム中（play）にあつまれを映している TV は"
+  },
+  {
+    "name": "T14 呼び出しの長さが30秒でない",
+    "file": "tvs-auto.js",
+    "suite": "tests/tvs-auto.js",
+    "from": "const CHIME_SEC = 30;",
+    "to": "const CHIME_SEC = 10;",
+    "expect": "呼び出し：TV② をあそびまちに30秒"
+  },
+  {
+    "name": "T15 呼び出しのあと、あそびまちにさらに20秒残る（直す前の形）",
+    "file": "tvs-auto.js",
+    "suite": "tests/tvs-auto.js",
+    "from": "        const list = S.auto[tv] ? listOf(ctx, tv) : [];",
+    "to": "        const list = [];",
+    "expect": "回していてあそびまちを出している時に呼ばれた"
+  },
+  {
+    "name": "T16 人が入った時の切が効かない",
+    "file": "tvs-auto.js",
+    "suite": "tests/tvs-auto.js",
+    "from": "    if (S.fesBack && lastPhase === 'idle'",
+    "to": "    if (lastPhase === 'idle'",
+    "expect": "人が入った（呼び込み→待合）→ TV① をあつまれへ。切なら"
+  },
+  {
+    "name": "T17 お知らせ・休けいの字を休けいのタブに送らない",
+    "file": "tvs-routes.js",
+    "suite": "tests/tvs.js",
+    "from": "      if (changed.indexOf('rest') !== -1 || changed.indexOf('notice') !== -1) sendLooks();",
+    "to": "",
+    "expect": "二の束：お知らせの一言と休けいの字"
+  },
+  {
+    "name": "T18 お知らせが40字で切れない",
+    "file": "tvs-store.js",
+    "suite": "tests/tvs.js",
+    "from": "typeof v === 'string' ? text(v, 40)",
+    "to": "typeof v === 'string' ? text(v, 400)",
+    "expect": "二の束：お知らせの一言と休けいの字"
+  },
+  {
+    "name": "T19 記録が古い順",
+    "file": "tvs-store.js",
+    "suite": "tests/tvs.js",
+    "from": "ORDER BY id DESC LIMIT ?",
+    "to": "ORDER BY id ASC LIMIT ?",
+    "expect": "二の束：切りかえの記録は新しい順10件"
+  },
+  {
+    "name": "T20 設定を覚えない",
+    "file": "tvs-store.js",
+    "suite": "tests/tvs.js",
+    "from": "      if (r.key in out) {",
+    "to": "      if (false) {",
+    "expect": "二の束 門5"
+  },
+  {
+    "name": "T21 動画の「1回分」に長さを使わない",
+    "file": "tvs-auto.js",
+    "suite": "tests/tvs-auto.js",
+    "from": "((ctx.durations && ctx.durations[e.item]) || VIDEO_FALLBACK_SEC)",
+    "to": "(VIDEO_FALLBACK_SEC)",
+    "expect": "はじめは TV② が入（メニュー20秒"
+  }
 ]

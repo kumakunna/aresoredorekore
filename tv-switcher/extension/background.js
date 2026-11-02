@@ -158,11 +158,16 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         for (const n of [1, 2]) { const w = await winAlive(S.win[n]); if (w && S.place[n]) await placeWindow(w.id, S.place[n]); }
         break;
       case 'asobi-guide':   // あそびまちの「押すと始まります」を押してもらう間、両方の TV にあそびまちを出す
+        // 手で切りかえたとは数えない（数えると、サーバーの今の画面があそびまちになり、「押しおわった」でもどる先が無くなっていた・11/02 通しで見た）
+        if (!S.guide) S.guide = { 1: S.active[1], 2: S.active[2] };
         for (const n of [1, 2]) { const t = await tabAlive((S.tabs[n] || {}).asobi); if (t) await chrome.tabs.update(t.id, { active: true }); }
         break;
-      case 'asobi-done':    // 押し終わった：もとの画面へ
-        for (const n of [1, 2]) await show(S, n, S.active[n] || 'rest');
+      case 'asobi-done': {  // 押し終わった：あそびまちを出す前の画面へ
+        const back = S.guide || S.active;
+        S.guide = null;
+        for (const n of [1, 2]) await show(S, n, back[n] || 'rest');
         break;
+      }
       case 'look': {   // 休けいのタブから：その TV のお知らせの一言
         S.notice = Object.assign({ 1: '', 2: '' }, S.notice, { [tv]: String(msg.notice || '') });
         for (const id of Object.keys(S.tabs[tv] || {})) { try { await chrome.tabs.sendMessage(S.tabs[tv][id], { t: 'notice', text: S.notice[tv] }); } catch (e) {} }
@@ -177,9 +182,12 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       case 'status':
         res = { ok: true, server: S.server, windows: { 1: !!(await winAlive(S.win[1])), 2: !!(await winAlive(S.win[2])) }, items: S.items, asobi: !!S.asobiUrl, swapped: !!(S.place && S.place.swapped) };
         break;
-      case 'media-changed':
-        res = { ok: true, have: await haveMedia(S) };
+      case 'media-changed': {   // 「はじめる」の画面で画像・動画をえらんだ：すぐサーバーに教える（10秒ごとの確かめを待たない。待つと、えらんだ直後のリモコンが「まだありません」のままだった）
+        const have = await haveMedia(S);
+        for (const n of [1, 2]) await push(S, n, { t: 'have', have });
+        res = { ok: true, have };
         break;
+      }
       default:
         res = { ok: false };
     }
@@ -196,7 +204,7 @@ chrome.tabs.onActivated.addListener((info) => {
     const tv = tvOfWindow(S, info.windowId);
     if (!tv) return;
     const id = itemOfTab(S, tv, info.tabId);
-    if (!id || S.active[tv] === id) return;
+    if (!id || S.active[tv] === id || S.guide) return;   // あそびまちの準備の間は数えない
     S.active[tv] = id;
     await applyMutes(S);
     await save(S);
@@ -220,6 +228,11 @@ chrome.tabs.onUpdated.addListener((tabId, info) => {
 });
 
 // Chrome を開いたら「はじめる」の画面を出す。入れた時（はじめての日）も出す。ボタン（拡張機能のアイコン）からも開ける
-chrome.runtime.onStartup.addListener(() => chrome.tabs.create({ url: 'start.html' }));
+// Chrome を開き直したら、前の窓とタブの番号は捨てる（新しい Chrome では同じ番号が別の窓・タブに付くことがある。
+// 残すと「はじめる」の画面の窓を TV の窓と取りちがえる）。今の画面はサーバーが覚えているので、「はじめる」でもどる
+chrome.runtime.onStartup.addListener(() => {
+  queue(async () => { const S = await load(); S.win = {}; S.tabs = { 1: {}, 2: {} }; S.stuck = { 1: false, 2: false }; await save(S); });
+  chrome.tabs.create({ url: 'start.html' });
+});
 chrome.runtime.onInstalled.addListener((d) => { if (d.reason === 'install') chrome.tabs.create({ url: 'start.html' }); });
 chrome.action.onClicked.addListener(() => chrome.tabs.create({ url: 'start.html' }));

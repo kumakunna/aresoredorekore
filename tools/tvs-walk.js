@@ -7,10 +7,13 @@
 //
 // **Chrome for Testing を使う。**ふつうの Chrome（137 から）は --load-extension を受けつけない。
 // puppeteer が置く ~/.cache/puppeteer/chrome/*/chrome-win64/chrome.exe（CHROME_CFT で場所を渡せる）。
-// 音は消す（--mute-audio・落とし穴の決まり）。タブの「鳴っている」の印（audible）は、音を消しても Chrome が付ける。
+// 音は出さない：--disable-audio-output（音の出口を、にせの出口にする。PC のスピーカーを開かない）。
+// --mute-audio だと、Chrome がタブの「鳴っている」の印（audible）を付けなくなり、呼び出しと動画の音の門が測れない（11/02 に確かめた）。
+// 念のため、にせのモニターの音と動画の音はとても小さく作る
 // あそびまちは本物を使わない：同じ形の「にせのモニター」（押すと始まります・数秒ごとに聞きに行く・呼ばれたら鳴る）を
 // この道具が 127.0.0.1:(port+1) に立てる。**本物の key は使わない・出さない**。
-// 検査の都合で、Chrome に --autoplay-policy=no-user-gesture-required を付ける（にせのモニターの音のため。TV の PC には付けない）
+// 「押すと始まります」は、本物と同じく人の押し方（CDP の Input・信頼されたクリック）で押す。自動再生の許しのフラグは付けない（動画の音の門を本物に近く見るため）
+//   --restart 0：最後の「Chrome を開き直す」を飛ばす
 
 const fs = require('fs');
 const os = require('os');
@@ -54,7 +57,7 @@ const monitor = http.createServer((req, res) => {
     '<button id="go" style="font-size:40px">押すと始まります</button><div id="n">0</div><script>' +
     'var id=Math.random().toString(36).slice(2),seen=null,ac=null,n=0;window.__id=id;window.__beeps=0;window.__iv=[];setInterval(function(){window.__iv.push(Date.now())},2000);' +
     'document.getElementById("go").onclick=function(){ac=new AudioContext();this.remove();tick();};' +
-    'function beep(){window.__beeps++;var o=ac.createOscillator(),g=ac.createGain();g.gain.value=.2;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+1.5);}' +
+    'function beep(){window.__beeps++;var o=ac.createOscillator(),g=ac.createGain();g.gain.value=.02;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+1.5);}' +
     'function tick(){fetch("/poll?id="+id).then(function(r){return r.json()}).then(function(j){document.getElementById("n").textContent=++n;' +
     'if(seen!==null&&j.call!==seen)beep();seen=j.call;}).catch(function(){}).then(function(){setTimeout(tick,2000)});}' +
     '</script></body>');
@@ -64,9 +67,11 @@ const monitor = http.createServer((req, res) => {
 let ws, mid = 0;
 const wait = {}, events = [];
 async function cdpOpen() {
-  for (let i = 0; i < 60; i++) {
-    try { const j = await (await fetch('http://127.0.0.1:' + CDP + '/json/version')).json(); ws = new WebSocket(j.webSocketDebuggerUrl); break; } catch (e) { await sleep(250); }
+  ws = null;
+  for (let i = 0; i < 240 && !ws; i++) {
+    try { const j = await (await fetch('http://127.0.0.1:' + CDP + '/json/version')).json(); ws = new WebSocket(j.webSocketDebuggerUrl); } catch (e) { await sleep(250); }
   }
+  if (!ws) throw new Error('Chrome の口（CDP ' + CDP + '）が60秒たっても開かない');
   if (ws.readyState !== 1) await new Promise((r) => ws.addEventListener('open', r, { once: true }));
   console.log('・CDP：つながった');
   ws.addEventListener('message', (m) => {
@@ -113,8 +118,11 @@ async function until(fn, label, ms) {
   // ---- Chrome（拡張機能を読み込む） ----
   const ext = path.join(ROOT, 'tv-switcher', 'extension');
   const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'tvs-walk-'));
-  const ch = spawn(cft(), ['--remote-debugging-port=' + CDP, '--user-data-dir=' + prof, '--load-extension=' + ext, '--disable-extensions-except=' + ext,
-    '--mute-audio', '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required', '--window-size=1400,900', 'about:blank'], { stdio: 'ignore' });
+  const launchChrome = (dir) => spawn(cft(), ['--remote-debugging-port=' + CDP, '--user-data-dir=' + dir, '--load-extension=' + ext, '--disable-extensions-except=' + ext,
+    '--disable-audio-output', '--no-first-run', '--no-default-browser-check', '--window-size=1400,900', 'about:blank'], { stdio: 'ignore' });
+  // 前の通しの Chrome がまだ閉じきっていない時は、その口が閉じるまで待つ（同じポートにつなぐと、閉じる途中の Chrome と話してしまう）
+  await until(async () => { try { await fetch('http://127.0.0.1:' + CDP + '/json/version'); return false; } catch (e) { return true; } }, '前の Chrome が閉じる', 30000);
+  const cx = { ch: launchChrome(prof), launchChrome, prof };
   let ok = false;
   try {
     await cdpOpen();
@@ -132,6 +140,15 @@ async function until(fn, label, ms) {
     // 拡張機能の API は、眠る裏の処理（service worker）ではなく、この画面（拡張機能のページ）で使う
     const sv = (expr) => ev(start, expr);
     await sv('self.__act = []; chrome.tabs.onActivated.addListener((i) => self.__act.push({ t: Date.now(), tab: i.tabId })); true');
+    await sv('self.__aud = []; chrome.tabs.onUpdated.addListener((id, i) => { if ("audible" in i) self.__aud.push({ t: Date.now(), id, a: i.audible }); }); true');
+    // 係（node の socket）：設定をはじめの形にもどす（検証用サーバーの SQLite には前の通しの設定が残っている）
+    const cookie = await (async () => { const r = await fetch(BASE + '/dev-login'); return (r.headers.getSetCookie() || []).map((c) => c.split(';')[0]).join('; '); })();
+    cx.staff = ioClient(BASE + '/tvs', { transports: ['websocket'], extraHeaders: { Cookie: cookie }, auth: { as: 'remote' } });
+    await new Promise((r) => cx.staff.on('connect', r));
+    const scall = (e, p) => new Promise((r) => cx.staff.emit(e, p || {}, r));
+    await scall('tvs:settings', { auto: undefined, rot: { 1: [], 2: [{ item: 'menu', sec: 20 }, { item: 'asobi', sec: 20 }, { item: 'video', sec: null }] }, chime: true, fesBack: true, rest: '準備中です', notice: { 1: '', 2: '' } });
+    await scall('tvs:auto', { tv: 1, on: false }); await scall('tvs:auto', { tv: 2, on: false });
+    await scall('tvs:items:update', { id: 'video', sound: false });
     await ev(start, 'document.getElementById("server").value = ' + JSON.stringify(BASE) + '; document.getElementById("start").click(); true');
     const S = () => sv('chrome.storage.local.get("S").then((v) => v.S)');
     await until(async () => { const s = await S(); return s && Object.keys(s.tabs[1] || {}).length === 5 && Object.keys(s.tabs[2] || {}).length === 5; }, '窓2つ・タブ5つずつ', 30000);
@@ -139,12 +156,24 @@ async function until(fn, label, ms) {
     note('はじめる', 'TV① と TV② の窓・タブ5つずつ');
 
     // 動画と画像を「はじめる」の画面に入れる（キャンバスで作る・4秒の動画と画像2枚）
+    { const s = await attach(start); for (const type of ['mousePressed', 'mouseReleased']) await cdp('Input.dispatchMouseEvent', { type, x: 5, y: 5, button: 'left', clickCount: 1 }, s); }
     await ev(start, `(async () => {
       const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d');
-      const rec = new MediaRecorder(c.captureStream(30), { mimeType: 'video/webm' }); const parts = []; rec.ondataavailable = (e) => parts.push(e.data);
-      rec.start(); let f = 0; const t = setInterval(() => { g.fillStyle = 'hsl(' + (f++ * 7) + ',70%,50%)'; g.fillRect(0, 0, 320, 180); }, 33);
-      await new Promise((r) => setTimeout(r, 4000)); rec.stop(); clearInterval(t); await new Promise((r) => (rec.onstop = r));
-      await MediaDb.put('video', [{ name: 'test.webm', type: 'video/webm', blob: new Blob(parts, { type: 'video/webm' }) }]);
+      const ac = new AudioContext(); await ac.resume(); const osc = ac.createOscillator(), gn = ac.createGain(), dst = ac.createMediaStreamDestination(); gn.gain.value = 0.02; osc.connect(gn); gn.connect(dst); osc.start();
+      const ms = c.captureStream(30); dst.stream.getAudioTracks().forEach((t) => ms.addTrack(t));
+      // 録った動画が出せない形になることがある（NotSupportedError・11/02 に見た）。この画面で一度読んでみて、だめなら録り直す（3回まで）
+      let blob = null;
+      for (let k = 0; k < 3 && !blob; k++) {
+        const rec = new MediaRecorder(ms, { mimeType: 'video/webm;codecs=vp8,opus' }); const parts = []; rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
+        rec.start(500); let f = 0; const t = setInterval(() => { g.fillStyle = 'hsl(' + (f++ * 7) + ',70%,50%)'; g.fillRect(0, 0, 320, 180); }, 33);
+        await new Promise((r) => setTimeout(r, 4000)); rec.stop(); clearInterval(t); await new Promise((r) => (rec.onstop = r));
+        const b = new Blob(parts, { type: 'video/webm' });
+        const v = document.createElement('video'); v.muted = true; v.src = URL.createObjectURL(b);
+        const good = await new Promise((r) => { v.onloadeddata = () => r(true); v.onerror = () => r(false); setTimeout(() => r(false), 3000); });
+        if (good) blob = b;
+      }
+      if (!blob) throw new Error('出せる動画を録れない');
+      await MediaDb.put('video', [{ name: 'test.webm', type: 'video/webm', blob }]);
       const img = async (col) => { g.fillStyle = col; g.fillRect(0, 0, 320, 180); return new Promise((r) => c.toBlob(r)); };
       await MediaDb.put('menu', [{ name: 'a.png', type: 'image/png', blob: await img('#c33') }, { name: 'b.png', type: 'image/png', blob: await img('#33c') }]);
       await chrome.runtime.sendMessage({ t: 'media-changed', id: 'video' }); await chrome.runtime.sendMessage({ t: 'media-changed', id: 'menu' });
@@ -167,7 +196,18 @@ async function until(fn, label, ms) {
     };
     st = await S();
     const asobiT = await until(async () => { const c = await tgt(tid(1, 'asobi')); return c.length === 2 ? c : null; }, 'あそびまちのタブ2つ', 20000);
-    for (const t of asobiT) await ev(t.targetId, 'document.getElementById("go") && document.getElementById("go").click(); true');
+    // 本物と同じ手順：「あそびまちの準備をする」→ 両方の TV の「押すと始まります」を押す（信頼されたクリック）→「押しおわった」
+    await sv('chrome.runtime.sendMessage({ t: "asobi-guide" })');
+    await sleep(800);
+    for (const t of asobiT) {
+      const s = await attach(t.targetId);
+      await cdp('Page.bringToFront', {}, s).catch(() => {});
+      const r = await ev(t.targetId, '(() => { const b = document.getElementById("go"); if (!b) return null; const q = b.getBoundingClientRect(); return { x: q.x + q.width / 2, y: q.y + q.height / 2 }; })()');
+      if (r) for (const type of ['mousePressed', 'mouseReleased']) await cdp('Input.dispatchMouseEvent', { type, x: r.x, y: r.y, button: 'left', clickCount: 1 }, s);
+    }
+    await sleep(500);
+    await sv('chrome.runtime.sendMessage({ t: "asobi-done" })');
+    note('あそびまち', '「押すと始まります」：' + JSON.stringify(await Promise.all(asobiT.map((t) => ev(t.targetId, '!document.getElementById("go")')))));
     note('あそびまち', '両方の TV で「押すと始まります」を押した（にせのモニター）');
 
     // リモコン
@@ -175,6 +215,9 @@ async function until(fn, label, ms) {
     await until(() => ev(remote, '!!document.querySelector(".tv[data-tv=\\"1\\"] .grid button")'), 'リモコン');
     await until(() => ev(remote, '(document.querySelector(".tv[data-tv=\\"1\\"] .st .c")||{}).textContent === "● つながっている" && (document.querySelector(".tv[data-tv=\\"2\\"] .st .c")||{}).textContent === "● つながっている"'), 'リモコンに ● つながっている', 20000);
     note('リモコン', '両方 ● つながっている');
+    // リモコンの一言（変わりました・TV から返事がありません）を、ページの中で時刻つきで書き留める。
+    // 外から何度も読みに行く形だと、読むのが遅れた間に「変わりました」（4秒で消える）を見のがす（11/02 に見た）
+    await ev(remote, `(() => { window.__fb = []; let last = {}; new MutationObserver(() => { document.querySelectorAll('.tv').forEach((x) => { const tv = x.getAttribute('data-tv'); const f = x.querySelector('.fb'); const t = f ? f.textContent : ''; if (t !== last[tv]) { last[tv] = t; window.__fb.push({ t: Date.now(), tv: +tv, text: t }); } }); }).observe(document.body, { childList: true, subtree: true, characterData: true }); return true; })()`);
 
     // 開き直していないかの印：はじめの timeOrigin
     const born = {};
@@ -187,8 +230,17 @@ async function until(fn, label, ms) {
     const press = async (tv, item) => {
       const t0 = Date.now();
       await ev(remote, 'document.querySelector(\'.tv[data-tv="' + tv + '"] button[data-item="' + item + '"]\').click(); true');
-      const changed = await until(async () => { const a = await sv('self.__act.filter((x) => x.tab === ' + tid(tv, item) + ' && x.t >= ' + t0 + ')[0] || null'); return a; }, 'タブが変わる', 5000);
-      const said = await until(async () => { const s = await ev(remote, 'document.querySelector(\'.tv[data-tv="' + tv + '"] .fb\').textContent'); return s === '変わりました' ? Date.now() : null; }, '変わりました', 5000);
+      const changed = await until(async () => { const a = await sv('self.__act.filter((x) => x.tab === ' + tid(tv, item) + ' && x.t >= ' + t0 + ')[0] || null'); return a; }, 'タブが変わる', 5000).catch(async (e) => {
+        const s2 = await S();
+        const box = await ev(remote, 'document.querySelector(".tv[data-tv=\\"' + tv + '\\"]").innerText.replace(/\\s+/g, " ").slice(0, 160)');
+        console.log('  押した：TV' + tv + ' ' + item + ' / リモコン：' + box +
+          ' / 拡張機能：' + JSON.stringify({ active: s2.active, tab: tid(tv, item), now: s2.tabs[tv] }) + ' / 変わったタブ：' + JSON.stringify(await sv('self.__act.slice(-5)')));
+        throw e;
+      });
+      const said = await until(async () => { const l = await ev(remote, 'window.__fb.filter((x) => x.tv === ' + tv + ' && x.t >= ' + t0 + ')'); const h = l.find((x) => x.text === '変わりました'); return h ? h.t : null; }, '変わりました', 5000).catch(async (e) => {
+        console.log('  押した：TV' + tv + ' ' + item + '・タブは ' + (changed.t - t0) + 'ms で変わった / リモコンの一言：' + JSON.stringify(await ev(remote, 'window.__fb.slice(-6)')));
+        throw e;
+      });
       return { tv, item, tab: changed.t - t0, said: said - t0 };
     };
     const seq = [[1, 'menu'], [2, 'video'], [1, 'asobi'], [2, 'fes'], [1, 'video'], [2, 'menu'], [1, 'rest'], [2, 'asobi'], [1, 'fes'], [2, 'rest']];
@@ -234,8 +286,9 @@ async function until(fn, label, ms) {
     for (const [w, h] of [[390, 844], [375, 667]]) {
       await cdp('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: true }, rs);
       await sleep(400);
-      const m = await ev(remote, `(() => { const de = document.documentElement; const bs = Array.from(document.querySelectorAll('.grid button, .back'));
-        return { scroll: de.scrollHeight > innerHeight || document.body.scrollHeight > innerHeight, out: bs.filter((b) => { const r = b.getBoundingClientRect(); return r.bottom > innerHeight || r.top < 0 || r.right > innerWidth; }).length,
+      // 二の束で、ボタンの画面の下に記録を足した（記録はスクロールで見る）。見るのは「ボタンが全部、最初の画面に入っているか」
+      const m = await ev(remote, `(() => { const main = document.querySelector('main'); const bs = Array.from(document.querySelectorAll('.grid button, .back, .auto'));
+        return { scroll: main.getBoundingClientRect().bottom > innerHeight + 1, out: bs.filter((b) => { const r = b.getBoundingClientRect(); return r.bottom > innerHeight || r.top < 0 || r.right > innerWidth; }).length,
           small: bs.filter((b) => b.closest('.grid') && b.getBoundingClientRect().height < 56).length, n: bs.length }; })()`);
       note('門7 ' + w + '×' + h, m);
       const shot = await cdp('Page.captureScreenshot', { format: 'png' }, rs);
@@ -243,15 +296,18 @@ async function until(fn, label, ms) {
     }
     await cdp('Emulation.clearDeviceMetricsOverride', {}, rs);
 
+    await part2({ remote, press, sv, S, pick, staff: cx.staff });
     // 門14：あつまれの TV を裏にしたまま、文化祭の部屋を回す
     if (HIDDEN_MIN > 0) await hidden(remote, press, sv, S, born);
+    if (String(arg('restart', '1')) !== '0') await reopen(cx);
     ok = true;
   } catch (e) {
     note('止まった', e.message);
   } finally {
     fs.writeFileSync(path.join(OUT, 'record.json'), JSON.stringify(rec, null, 1));
     try { await cdp('Browser.close'); } catch (e) {}
-    try { ch.kill(); } catch (e) {}
+    try { cx.ch.kill(); } catch (e) {}
+    try { cx.staff && cx.staff.close(); } catch (e) {}
     srv.kill(); monitor.close();
     const L = fs.readFileSync(path.join(OUT, 'server.log'), 'utf8');
     console.log('・サーバーのログ：tv-stuck ' + (L.match(/tv-stuck/g) || []).length + '行・FAKE-NOT-REAL（にせの key） ' + (L.match(/FAKE-NOT-REAL/g) || []).length + '回');
@@ -335,4 +391,113 @@ async function hidden(remote, press, sv, S, born) {
     note('門14 にせのモニターの setInterval(2秒) の間', { 回: iv.length, はじめ5分の最大ms: mx(early), 五分より後の最大ms: mx(late) });
   }
   bots.forEach((b) => b.close()); staff.close();
+}
+
+// ---- 二の束（指示69）：お知らせの一言・休けいの字・動画の音・自動で回す・呼び出し・記録 ----
+async function part2(c) {
+  const { remote, press, sv, S, pick, staff } = c;
+  const call = (e, p) => new Promise((r) => staff.emit(e, p || {}, r));
+  let state = null;
+  staff.on('tvs:state', (s) => { state = s; });
+  await until(() => state, '係の状態');
+
+  // 呼び出し（門3 でにせのモニターを鳴らした）：TV② があそびまちへ・記録は「あそびまちの呼び出し」
+  const aud = await sv('self.__aud');
+  const st = await S();
+  const nameOf = (id) => { for (const tv of [1, 2]) for (const k of Object.keys(st.tabs[tv])) if (st.tabs[tv][k] === id) return 'TV' + tv + ':' + k; return 'ほか'; };
+  note('二 呼び出し：タブの音の始まり（audible）', aud.filter((x) => x.a).map((x) => nameOf(x.id)));
+  note('二 呼び出し：記録', (state.log || []).filter((x) => x.who === 'あそびまちの呼び出し').map((x) => 'TV' + x.tv + ' ' + x.item));
+
+  // お知らせの一言：どのタブの上にも出る（TV ごと）
+  await call('tvs:settings', { notice: { 1: 'TV1 のお知らせ', 2: 'TV2 のお知らせ' } });
+  await sleep(1500);
+  const band = {};
+  for (const tv of [1, 2]) for (const item of ['fes', 'menu', 'asobi', 'video', 'rest']) {
+    const t = await pick(tv, item);
+    band[tv + item] = await ev(t.targetId, '(() => { const h = document.querySelector("[data-tvs-notice]"); return h && h.style.display !== "none" ? h.getAttribute("data-text") : "なし"; })()').catch((e) => '読めない');
+  }
+  note('二 お知らせの一言（タブごと）', band);
+  await call('tvs:settings', { notice: { 1: '', 2: '' } });
+  await sleep(1000);
+  const gone = [];
+  for (const tv of [1, 2]) { const t = await pick(tv, 'fes'); gone.push(await ev(t.targetId, '(() => { const h = document.querySelector("[data-tvs-notice]"); return !h || h.style.display === "none"; })()')); }
+  note('二 お知らせを消した', gone.every(Boolean) ? '消えた' : '残っている');
+
+  // 休けいの字
+  await call('tvs:settings', { rest: 'テストの休けい' });
+  await sleep(800);
+  note('二 休けいの字（TV①の休けい）', await ev((await pick(1, 'rest')).targetId, 'document.getElementById("msg").textContent'));
+  await call('tvs:settings', { rest: '準備中です' });
+
+  // 動画の音を入 → 本当に鳴るか（タブの音を消していない・動画の音を消していない・止まっていない・Chrome の「鳴っている」の印）
+  await call('tvs:items:update', { id: 'video', sound: true });
+  await press(1, 'menu');
+  await sleep(500);
+  const a0 = Date.now();
+  await press(1, 'video'); await sleep(2500);
+  const vtab = st.tabs[1].video;
+  const vinfo = await sv('chrome.tabs.get(' + vtab + ').then((t) => ({ muted: !!(t.mutedInfo && t.mutedInfo.muted), audible: !!t.audible }))');
+  const vel = await ev((await pick(1, 'video')).targetId, '(() => { const v = document.querySelector("video"); return v ? { muted: v.muted, paused: v.paused, volume: v.volume, t: +v.currentTime.toFixed(2), play: window.__play } : null; })()');
+  const vaud = (await sv('self.__aud')).filter((x) => x.id === vtab && x.t >= a0 && x.a).length;
+  note('二 動画の音を入（TV①）', { タブの音を消している: vinfo.muted, 鳴っている印: vinfo.audible, 印が付いた回数: vaud, 動画: vel });
+  await call('tvs:items:update', { id: 'video', sound: false });
+
+  // 自動で回す（短い秒で TV②）
+  await call('tvs:settings', { rot: { 2: [{ item: 'menu', sec: 5 }, { item: 'rest', sec: 5 }] } });
+  const t0 = Date.now();
+  await call('tvs:auto', { tv: 2, on: true });
+  await sleep(12500);
+  const autoLog = (state.log || []).filter((x) => x.who === '自動で回す' && x.at >= t0 - 1000).map((x) => 'TV' + x.tv + ' ' + x.item).reverse();
+  const act2 = (await sv('self.__act')).filter((x) => x.t >= t0 && Object.values(st.tabs[2]).indexOf(x.tab) !== -1).map((x) => nameOf(x.tab));
+  note('二 自動で回す（TV②・5秒ずつ）：記録', autoLog);
+  note('二 自動で回す：TV② のタブが変わった', act2);
+  await call('tvs:auto', { tv: 2, on: false });
+  await call('tvs:settings', { rot: { 2: [{ item: 'menu', sec: 20 }, { item: 'asobi', sec: 20 }, { item: 'video', sec: null }] } });
+
+  // リモコンの記録（10件）
+  note('二 リモコンの記録の行', await ev(remote, 'document.querySelectorAll("#log li").length'));
+}
+
+// ---- Chrome を開き直す（同じ箱で）→「はじめる」→ 前の画面にもどるか ----
+async function reopen(c) {
+  const { launchChrome, prof, staff } = c;
+  let state = null;
+  staff.on('tvs:state', (s) => { state = s; });
+  await until(() => state, '状態');
+  const want = { 1: state.tvs[1].item, 2: state.tvs[2].item };
+  try { await cdp('Browser.close'); } catch (e) {}
+  // 前の Chrome が口（CDP のポート）を閉じきるまで待つ。閉じる途中の Chrome につなぐと、返事が来ないまま止まる（11/02 に見た）
+  await until(async () => { try { await fetch('http://127.0.0.1:' + CDP + '/json/version'); return false; } catch (e) { return true; } }, '前の Chrome が閉じる', 20000);
+  try { c.ch.kill(); } catch (e) {}
+  try { ws.close(); } catch (e) {}
+  await sleep(1000);
+  Object.keys(sessions).forEach((k) => delete sessions[k]);
+  c.ch = launchChrome(prof);
+  await cdpOpen();
+  const startT = await until(async () => (await targets()).find((t) => t.type === 'page' && /\/start\.html$/.test(t.url)), 'はじめるの画面（Chrome を開いた時に自分で開く）', 30000);
+  note('開き直し：はじめるの画面', '自分で開いた');
+  const start = startT.targetId;
+  await until(() => ev(start, '!!document.getElementById("start") && !!document.getElementById("server").value'), 'サーバーの欄が入る');
+  const t0 = Date.now();
+  await ev(start, 'document.getElementById("start").click(); true');
+  const sv = (expr) => ev(start, expr);
+  const S = () => sv('chrome.storage.local.get("S").then((v) => v.S)');
+  const got = await until(async () => {
+    const s = await S();
+    if (!s || Object.keys(s.tabs[1] || {}).length !== 5 || Object.keys(s.tabs[2] || {}).length !== 5) return null;
+    const act = {};
+    for (const tv of [1, 2]) {
+      const tabs = await sv('chrome.tabs.query({ windowId: ' + s.win[tv] + ', active: true }).then((t) => t.map((x) => x.id))');
+      act[tv] = Object.keys(s.tabs[tv]).find((k) => s.tabs[tv][k] === tabs[0]);
+    }
+    return act[1] === want[1] && act[2] === want[2] ? act : null;
+  }, '前の画面にもどる', 30000).catch(async () => {
+    const s = await S().catch(() => null);
+    const rest = (await targets()).filter((t) => t.type === 'page' && t.url.indexOf('/tvs/screen') !== -1);
+    for (const t of rest) console.log('  休けいのタブ：' + t.url + ' / ' + await ev(t.targetId, 'document.title + " / " + document.body.innerText.slice(0, 80)').catch((e) => e.message));
+    console.log('  サーバーから見た TV：' + JSON.stringify(state && state.tvs));
+    console.log('  開き直しの様子：' + JSON.stringify({ win: s && s.win, tabs: s && s.tabs, active: s && s.active, pages: (await targets()).filter((t) => t.type === 'page').map((t) => t.url.slice(0, 60)) }));
+    return null;
+  });
+  note('開き直し：前の画面', { 前: want, もどった: got || 'もどらない', 秒: +((Date.now() - t0) / 1000).toFixed(1) });
 }

@@ -46,6 +46,7 @@
     if (d.push && d.push.t === 'manual') socket.emit('tvs:manual', { item: d.push.item });
     if (d.push && d.push.t === 'stuck') socket.emit('tvs:stuck', { on: !!d.push.on });
     if (d.push && d.push.t === 'chime') socket.emit('tvs:chime', {});
+    if (d.push && d.push.t === 'have') socket.emit('tvs:pong', { ext: true, have: d.push.have });
   });
 
   var socket = io('/tvs', { auth: { as: 'screen', tv: tv } });

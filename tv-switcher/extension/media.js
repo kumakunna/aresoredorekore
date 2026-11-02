@@ -23,8 +23,17 @@
       v.src = urls[0]; v.loop = true; v.playsInline = true; v.muted = false;
       // 長さを裏の処理に教える（自動で回す時の「1回分」）
       v.addEventListener('loadedmetadata', () => { if (isFinite(v.duration)) chrome.runtime.sendMessage({ t: 'duration', id, sec: Math.round(v.duration * 10) / 10 }).catch(() => {}); });
+      // 出せないファイル（形がちがう・こわれている）の時は、黒い画面にせず「この動画は出せません」
+      v.addEventListener('error', () => { none.textContent = 'この動画は出せません'; none.style.display = 'flex'; });
       box.appendChild(v);
-      v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+      // 何が起きたかを残す（検証の道具が読む・window.__play）
+      window.__play = [];
+      ['playing', 'pause', 'volumechange'].forEach((k) => v.addEventListener(k, () => window.__play.push(k + (k === 'volumechange' ? ':' + v.muted : ''))));
+      v.play().then(() => window.__play.push('play-ok')).catch((e) => {
+        window.__play.push('play-ng:' + (e && e.name));
+        v.muted = true;
+        v.play().then(() => window.__play.push('muted-play-ok')).catch((e2) => window.__play.push('muted-play-ng:' + (e2 && e2.name)));
+      });
       return;
     }
     const imgs = urls.map((u, i) => { const im = document.createElement('img'); im.src = u; if (!i) im.className = 'on'; box.appendChild(im); return im; });

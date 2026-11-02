@@ -95,6 +95,9 @@ async function start(S, startWindowId) {
   for (const tv of [1, 2]) {
     let w = await winAlive(S.win[tv]);
     if (!w) {
+      // 窓を開いた時に Chrome が出す「1つ目のタブが見えた」は、手で切りかえたのではない。サーバーから最初の「出して」が来るまで数えない
+      // （数えると、サーバーの覚えている画面を「あつまれ」で上書きし、開き直しで前の画面にもどらなかった・11/02 通しで見た）
+      S.boot = Object.assign({}, S.boot, { [tv]: true });
       // 休けいのタブだけで窓を開く。ほかのタブは、休けいのタブがサーバーから一覧をもらってから開く（sync）
       const items = S.items.length ? S.items : [{ id: 'rest', kind: 'rest' }];
       const urls = TvsLogic.plan(items, tv, S.server, S.asobiUrl, EXT);
@@ -133,6 +136,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         break;
       case 'apply':
         res = { ok: await show(S, tv, msg.item) };
+        if (S.boot && S.boot[tv]) S.boot = Object.assign({}, S.boot, { [tv]: false });
         break;
       case 'active':
         res = { ok: true, item: S.active[tv] };
@@ -205,6 +209,7 @@ chrome.tabs.onActivated.addListener((info) => {
     if (!tv) return;
     const id = itemOfTab(S, tv, info.tabId);
     if (!id || S.active[tv] === id || S.guide) return;   // あそびまちの準備の間は数えない
+    if (S.boot && S.boot[tv]) return;                     // 窓を開いた直後（サーバーの最初の「出して」の前）は数えない
     S.active[tv] = id;
     await applyMutes(S);
     await save(S);

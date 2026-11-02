@@ -82,7 +82,7 @@ async function cdpOpen() {
 function cdp(method, params, sessionId) {
   return new Promise((resolve, reject) => {
     const id = ++mid;
-    const t = setTimeout(() => { delete wait[id]; reject(new Error(method + '：10秒たっても返事が無い')); }, 10000);
+    const t = setTimeout(() => { delete wait[id]; reject(new Error(method + '：30秒たっても返事が無い')); }, 30000);
     wait[id] = (d) => { clearTimeout(t); return d.error ? reject(new Error(method + ': ' + d.error.message)) : resolve(d.result); };
     ws.send(JSON.stringify({ id, method, params: params || {}, sessionId }));
   });
@@ -156,7 +156,7 @@ async function until(fn, label, ms) {
     note('はじめる', 'TV① と TV② の窓・タブ5つずつ');
 
     // 動画と画像を「はじめる」の画面に入れる（キャンバスで作る・4秒の動画と画像2枚）
-    { const s = await attach(start); for (const type of ['mousePressed', 'mouseReleased']) await cdp('Input.dispatchMouseEvent', { type, x: 5, y: 5, button: 'left', clickCount: 1 }, s); }
+    { const s = await attach(start); await cdp('Page.bringToFront', {}, s).catch(() => {}); for (const type of ['mousePressed', 'mouseReleased']) await cdp('Input.dispatchMouseEvent', { type, x: 5, y: 5, button: 'left', clickCount: 1 }, s); }
     await ev(start, `(async () => {
       const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d');
       const ac = new AudioContext(); await ac.resume(); const osc = ac.createOscillator(), gn = ac.createGain(), dst = ac.createMediaStreamDestination(); gn.gain.value = 0.02; osc.connect(gn); gn.connect(dst); osc.start();
@@ -168,9 +168,9 @@ async function until(fn, label, ms) {
         rec.start(500); let f = 0; const t = setInterval(() => { g.fillStyle = 'hsl(' + (f++ * 7) + ',70%,50%)'; g.fillRect(0, 0, 320, 180); }, 33);
         await new Promise((r) => setTimeout(r, 4000)); rec.stop(); clearInterval(t); await new Promise((r) => (rec.onstop = r));
         const b = new Blob(parts, { type: 'video/webm' });
-        const v = document.createElement('video'); v.muted = true; v.src = URL.createObjectURL(b);
-        const good = await new Promise((r) => { v.onloadeddata = () => r(true); v.onerror = () => r(false); setTimeout(() => r(false), 3000); });
-        if (good) blob = b;
+        // 読めるかは、ファイルの頭（WebM の印 1A 45 DF A3）と大きさで見る（この画面は裏にいることがあり、裏では動画を読みこまない）
+        const head = new Uint8Array(await b.slice(0, 4).arrayBuffer());
+        if (b.size > 20000 && head[0] === 0x1A && head[1] === 0x45 && head[2] === 0xDF && head[3] === 0xA3) blob = b;
       }
       if (!blob) throw new Error('出せる動画を録れない');
       await MediaDb.put('video', [{ name: 'test.webm', type: 'video/webm', blob }]);

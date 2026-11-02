@@ -9,12 +9,15 @@
   指示69：リモコン（係のスマホ）。1画面だけ。上に TV①、下に TV②。390×844 と 375×667 でスクロールせずに全部押せる。
   1回押すだけで切りかわる（確かめは、ゲーム中のあつまれから離れる時だけ・window.confirm は使わない）。
   開発の言葉（タブ・拡張機能など）は出さない（指示69 2-7）。見た目より使いやすさ（くまくん）
+  二の束：TV ごとの「自動で回す」入／切（出す物のボタンを押すと、その TV は切になる＝サーバーが決める）。
+  切りかえの記録（新しい順10件）は、ボタンの画面の下（スクロールすると見える。ボタンはスクロールせずに全部押せるまま）
 -->
 <style>
   :root{--bg:#FFF6DC;--ink:#1A1A1A;--card:#fff;--line:#E4DCC4;--now:#1F6FEB;--ok:#1A7F37;--ng:#B42318;--warn:#FFF1C2}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans",sans-serif;-webkit-text-size-adjust:100%}
-  body{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) 10px env(safe-area-inset-bottom);overflow:hidden}
+  body{padding:0 10px env(safe-area-inset-bottom)}
+  main{display:flex;flex-direction:column;height:100dvh;padding-top:env(safe-area-inset-top)}
   .top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;height:40px}
   .top h1{font-size:17px;margin:0}
   .top a{font-size:14px;color:var(--ink);font-weight:700;padding:8px 4px}
@@ -31,9 +34,14 @@
   .grid button .b{display:block;font-size:12px;font-weight:700;margin-top:2px}
   .grid button:disabled{opacity:.55}
   .row{display:flex;align-items:center;gap:8px;min-height:44px}
+  .auto{min-height:44px;font-size:15px;font-weight:700;border:2px solid var(--line);background:#fff;border-radius:12px;padding:0 12px;color:var(--ink);margin-left:auto}
+  .auto.on{background:var(--ok);border-color:var(--ok);color:#fff}
+  .name small{font-size:15px;font-weight:700;color:var(--ok);margin-left:6px}
+  .log{padding:12px 4px 24px}.log h2{font-size:16px;margin:0 0 6px}.log ol{list-style:none;margin:0;padding:0}
+  .log li{font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}.log time{font-weight:700;margin-right:6px}
   .back{min-height:44px;font-size:15px;font-weight:700;border:2px solid var(--line);background:#fff;border-radius:12px;padding:0 12px;color:var(--ink)}
   .back:disabled{opacity:.4}
-  .fb{font-size:15px;font-weight:700}.fb.is-ok{color:var(--ok)}.fb.is-ng{color:var(--ng)}
+  .fb{font-size:15px;font-weight:700;min-height:20px;line-height:20px}.fb.is-ok{color:var(--ok)}.fb.is-ng{color:var(--ng)}
   .alert{display:none;align-items:center;justify-content:space-between;gap:6px;background:var(--warn);border-radius:8px;padding:2px 6px;font-size:14px;font-weight:700}
   .tv.is-stuck .alert{display:flex}.tv.is-stuck .st{display:none}
   .alert button{min-height:40px;font-size:15px;font-weight:700;border:0;background:var(--ink);color:#fff;border-radius:10px;padding:0 12px}
@@ -46,10 +54,13 @@
 </style>
 </head>
 <body>
-<div class="top"><h1>TV の切りかえ</h1><a href="/tvs/items">出す物の一覧</a></div>
+<main>
+<div class="top"><h1>TV の切りかえ</h1><a href="/tvs/items">出す物と設定</a></div>
 <div class="off" role="alert" id="off">サーバーにつながりません</div>
 <section class="tv" data-tv="1"></section>
 <section class="tv" data-tv="2"></section>
+</main>
+<section class="log" aria-label="切りかえの記録"><h2>切りかえの記録（新しい順）</h2><ol id="log"></ol></section>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function(){
@@ -86,7 +97,8 @@
       var T = S.tvs[tv], sec = document.querySelector('.tv[data-tv="' + tv + '"]');
       var items = S.items.filter(function(it){ return it.tvs.indexOf(tv) !== -1; });
       var live = T.connected && T.ext;
-      var html = '<div class="name">' + TVN[tv] + '：' + esc(itemName(T.item)) + '</div>' +
+      var on = !!(S.settings && S.settings.auto[tv]);
+      var html = '<div class="name">' + TVN[tv] + '：' + esc(itemName(T.item)) + (on ? '<small>自動</small>' : '') + '</div>' +
         '<div class="st"><span class="c ' + (live ? 'is-ok' : 'is-ng') + '">' + (live ? '● つながっている' : '× 切れている') + '</span>' +
         (T.seen ? '<span>最後の連絡 ' + hhmm(T.seen) + '</span>' : '') + '</div>' +
         '<div class="alert" role="alert"><span>あつまれの開き直しが要ります</span><button type="button" data-reload>開き直す</button></div>' +
@@ -96,13 +108,17 @@
             esc(it.name) + (now ? '<span class="b">いま</span>' : none ? '<span class="b">まだありません</span>' : '') + '</button>';
         }).join('') + '</div>' +
         '<div class="row"><button type="button" class="back" data-back' + (T.prev ? '' : ' disabled') + '>さっきの画面にもどす</button>' +
-        '<span class="fb ' + fb[tv].cls + '" role="status">' + esc(fb[tv].text) + '</span></div>' +
+        '<button type="button" class="auto' + (on ? ' on' : '') + '" data-auto aria-pressed="' + on + '">自動で回す：' + (on ? '入' : '切') + '</button></div>' +
+        '<div class="fb ' + fb[tv].cls + '" role="status">' + esc(fb[tv].text) + '</div>' +
         '<div class="ask" role="dialog" aria-label="ゲーム中の確かめ"><p>いまゲーム中です。<br>切りかえますか？</p>' +
         '<div><button type="button" class="go" data-ask-go>切りかえる</button><button type="button" data-ask-no>やめる</button></div></div>';
       sec.innerHTML = html;
       sec.classList.toggle('is-stuck', !!(T.stuck && T.connected));
       sec.classList.toggle('is-ask', !!ask[tv]);
     });
+    document.getElementById('log').innerHTML = (S.log || []).map(function(r){
+      return '<li><time>' + hhmm(r.at).slice(0, 5) + '</time>' + TVN[r.tv] + '：' + esc(itemName(r.item) || r.item) + '（' + esc(r.who) + '）</li>';
+    }).join('') || '<li>まだありません</li>';
   }
 
   function send(tv, what, force){
@@ -128,6 +144,7 @@
     var b = ev.target.closest('button'); if (!b || b.disabled) return;
     if (b.hasAttribute('data-item')) return send(tv, { item: b.getAttribute('data-item') });
     if (b.hasAttribute('data-back')) return send(tv, { back: true });
+    if (b.hasAttribute('data-auto')) return socket.emit('tvs:auto', { tv: tv, on: !(S.settings && S.settings.auto[tv]) }, function(){});
     if (b.hasAttribute('data-ask-go')) return ask[tv] && send(tv, ask[tv], true);
     if (b.hasAttribute('data-ask-no')) { ask[tv] = null; return draw(); }
     if (b.hasAttribute('data-reload')) socket.emit('tvs:reload', { tv: tv }, function(){ say(tv, '開き直しています', '', 4000); });

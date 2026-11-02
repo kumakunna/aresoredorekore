@@ -21,6 +21,8 @@
     if (kind === 'video') {
       const v = document.createElement('video');
       v.src = urls[0]; v.loop = true; v.playsInline = true; v.muted = false;
+      // 長さを裏の処理に教える（自動で回す時の「1回分」）
+      v.addEventListener('loadedmetadata', () => { if (isFinite(v.duration)) chrome.runtime.sendMessage({ t: 'duration', id, sec: Math.round(v.duration * 10) / 10 }).catch(() => {}); });
       box.appendChild(v);
       v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
       return;

@@ -3,19 +3,53 @@
   "name": "TV の切りかえ（あつまれ）",
   "version": "1.0",
   "description": "係のスマホのリモコンで、TV① と TV② に出す物を切りかえる（指示69）",
-  "permissions": ["tabs", "storage", "unlimitedStorage", "system.display"],
-  "host_permissions": ["https://aresoredorekore.duckdns.org/*", "http://localhost/*", "http://127.0.0.1/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_title": "TV の切りかえ（はじめる）" },
+  "permissions": [
+    "tabs",
+    "storage",
+    "unlimitedStorage",
+    "system.display"
+  ],
+  "host_permissions": [
+    "https://aresoredorekore.duckdns.org/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "TV の切りかえ（はじめる）"
+  },
   "content_scripts": [
     {
-      "matches": ["https://aresoredorekore.duckdns.org/tvs/screen*", "http://localhost/tvs/screen*", "http://127.0.0.1/tvs/screen*"],
-      "js": ["bridge.js"],
+      "matches": [
+        "https://aresoredorekore.duckdns.org/tvs/screen*",
+        "http://localhost/tvs/screen*",
+        "http://127.0.0.1/tvs/screen*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://aresoredorekore.duckdns.org/*", "http://localhost/*", "http://127.0.0.1/*"],
-      "js": ["fes-watch.js"],
+      "matches": [
+        "https://aresoredorekore.duckdns.org/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "fes-watch.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "notice.js"
+      ],
       "run_at": "document_idle"
     }
   ]

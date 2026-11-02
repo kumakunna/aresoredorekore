@@ -4,9 +4,12 @@
 //   ・出す物の一覧（tvs_items）：はじめからある5つ（あつまれ・メニュー・あそびまち・動画・休けい）と、係が足した物
 //   ・TV ごとの今の画面と、ひとつ前の画面（tvs_screens）：「さっきの画面にもどす」のため
 //   ・切りかえの記録（tvs_log）：だれが・いつ・何を。1か月で消す（fes-store.js と同じ）
+//   ・設定（tvs_settings・二の束）：自動で回す入／切と中身・呼び出し・人が入った時・休けいの字・お知らせの一言
 // **あそびまちの URL（key 付き）はここに入れない。**.env の TVS_ASOBI_URL だけに置く（指示69 2-4）
 
 'use strict';
+
+const { DEFAULT_SETTINGS } = require('./tvs-auto');
 
 const RETAIN_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_ITEMS = 6;   // リモコンが 1列3つ×2段で、スクロールせずに出せる数（指示69 2-2）
@@ -39,6 +42,10 @@ function createTvsStore(db) {
       item TEXT NOT NULL,
       prev TEXT,
       at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS tvs_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS tvs_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,9 +118,36 @@ function createTvsStore(db) {
     }
     return item(id);
   }
+  /** 設定（決まった6つの欄だけ）。無い欄は既定（tvs-auto.js DEFAULT_SETTINGS） */
+  function settings() {
+    const out = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+    for (const r of db.prepare('SELECT key, value FROM tvs_settings').all()) {
+      if (r.key in out) { try { out[r.key] = JSON.parse(r.value); } catch (e) {} }
+    }
+    return out;
+  }
+  /** 設定を変える。欄ごとに形を確かめ、合わない物は捨てる（変えた欄の名前を返す） */
+  function setSettings(patch) {
+    const p = patch || {}, cur = settings(), changed = [];
+    const put = (k, v) => { db.prepare('INSERT INTO tvs_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(k, JSON.stringify(v)); changed.push(k); };
+    const tvMap = (v, f) => { const o = {}; [1, 2].forEach((tv) => { o[tv] = f(v && v[tv], tv); }); return o; };
+    const text = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n);
+    if (p.auto && typeof p.auto === 'object') put('auto', tvMap(p.auto, (v, tv) => (typeof v === 'boolean' ? v : !!cur.auto[tv])));
+    if (p.rot && typeof p.rot === 'object') {
+      const ids = items().map((it) => it.id);
+      put('rot', tvMap(p.rot, (v, tv) => (Array.isArray(v) ? v : cur.rot[tv] || []).slice(0, 8)
+        .filter((e) => e && ids.indexOf(e.item) !== -1)
+        .map((e) => ({ item: e.item, sec: e.sec == null || e.sec === '' ? null : Math.max(5, Math.min(600, Math.round(+e.sec) || 20)) }))));
+    }
+    if (typeof p.chime === 'boolean') put('chime', p.chime);
+    if (typeof p.fesBack === 'boolean') put('fesBack', p.fesBack);
+    if (typeof p.rest === 'string') put('rest', text(p.rest, 30) || DEFAULT_SETTINGS.rest);
+    if (p.notice && typeof p.notice === 'object') put('notice', tvMap(p.notice, (v, tv) => (typeof v === 'string' ? text(v, 40) : cur.notice[tv] || '')));
+    return changed;
+  }
   function listLog(limit) { return db.prepare('SELECT at, who, tv, item FROM tvs_log ORDER BY id DESC LIMIT ?').all(limit || 10); }
   function purge(now) { db.prepare('DELETE FROM tvs_log WHERE at < ?').run((now || Date.now()) - RETAIN_MS); }
-  return { items, item, screens, setScreen, addItem, removeItem, updateItem, listLog, purge };
+  return { items, item, screens, setScreen, addItem, removeItem, updateItem, listLog, purge, settings, setSettings };
 }
 
 module.exports = { createTvsStore, BUILTIN, MAX_ITEMS, DEFAULT_SCREEN };

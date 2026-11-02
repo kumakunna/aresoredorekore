@@ -42,7 +42,9 @@ function startTestServer(o) {
   });
   if (opt.phase) io.fesPhase = () => opt.phase.v;
   const db = opt.db || new Database(':memory:');
-  const tvs = mountTvs(app, io, { db, asobiUrl: opt.asobiUrl !== undefined ? opt.asobiUrl : SECRET, pingMs: opt.pingMs || 200 });
+  // 自動（1秒ごと）は、検査では止めておき、見たい所で tvs.tick() を呼ぶ。時計は opt.clock（{ t }）で進められる
+  const tvs = mountTvs(app, io, { db, asobiUrl: opt.asobiUrl !== undefined ? opt.asobiUrl : SECRET, pingMs: opt.pingMs || 200, tickMs: opt.tickMs || 1e9,
+    now: opt.clock ? () => opt.clock.t : undefined });
   return new Promise((resolve) => httpServer.listen(0, '127.0.0.1', () => {
     const url = 'http://127.0.0.1:' + httpServer.address().port;
     resolve({ url, io, db, tvs,
@@ -68,6 +70,7 @@ function dev(url, cookie, auth, ns) {
     s.on('tvs:reload', (v) => d.reloads.push(v));
     s.on('tvs:items', (v) => { d.items = v.items; });
     s.on('tvs:ping', () => { d.pings++; });
+    d.looks = []; s.on('tvs:look', (v) => d.looks.push(v));
     s.on('connect', () => resolve(d));
     s.on('connect_error', (e) => resolve({ error: e && e.message }));
   });
@@ -338,6 +341,135 @@ async function screen(url, cookie, tv) {
     assertEqual(st.listLog(10).map((x) => x.who + ' ' + x.tv + ' ' + x.item).join('|'), 'owner:900 2 video|staff:901 1 menu', '新しい順');
     st.purge(Date.now());
     assertEqual(st.listLog(10).length, 1, '古い記録は消える');
+  });
+
+  // ---- 二の束（自動・お知らせ・休けいの字・記録）----
+  await r.test('二の束：はじめは TV② の自動が入・TV① は切。係が出す物のボタンを押すと、その TV の自動は切（もう片方はそのまま）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await dev(srv.url, await login(srv.url, STAFF), { as: 'remote' });
+      await until(() => rm.state, '状態');
+      assertEqual(JSON.stringify(rm.state.settings.auto), '{"1":false,"2":true}', 'はじめ');
+      await rm.call('tvs:show', { tv: 2, item: 'video' });
+      await until(() => rm.state.settings.auto[2] === false, 'TV② の自動が切に');
+      assertEqual((await rm.call('tvs:auto', { tv: 1, on: true })).ok, true, 'TV① を入に');
+      await rm.call('tvs:show', { tv: 2, item: 'menu' });
+      await until(() => rm.state.settings.auto[1] === true && rm.state.settings.auto[2] === false, 'TV② を押しても TV① は入のまま');
+      rm.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('二の束：自動で回す（サーバーの時計で）。休けいのタブに「出して」が届き、記録の「だれが」は「自動で回す」', async () => {
+    const clock = { t: 1000000 };
+    const srv = await startTestServer({ clock });
+    try {
+      const staff = await login(srv.url, STAFF);
+      const rm = await dev(srv.url, staff, { as: 'remote' }), s2 = await screen(srv.url, staff, 2);
+      srv.tvs.tick();
+      await until(() => s2.applies.some((a) => a.item === 'menu'), 'TV② にメニュー');
+      clock.t += 20000; srv.tvs.tick();
+      await until(() => s2.applies.some((a) => a.item === 'asobi'), '20秒であそびまち');
+      await until(() => rm.state.log.length >= 2, '記録');
+      assertEqual(rm.state.log[0].who + ' ' + rm.state.log[0].item, '自動で回す asobi', '新しい順・だれが');
+      rm.close(); s2.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('二の束：あそびまちの呼び出し（TV の PC が見つけた）→ TV② をあそびまちに30秒→元へ（元がもう出せなければ休けいへ）。ゲーム中にあつまれを映していたら変えない', async () => {
+    const clock = { t: 1000000 }, phase = { v: 'idle' };
+    const srv = await startTestServer({ clock, phase });
+    try {
+      const staff = await login(srv.url, STAFF);
+      const rm = await dev(srv.url, staff, { as: 'remote' }), s2 = await screen(srv.url, staff, 2);
+      await rm.call('tvs:show', { tv: 2, item: 'menu' });   // 押したので TV② の自動は切
+      s2.socket.emit('tvs:chime', {});
+      await until(() => rm.state.tvs[2].item === 'asobi', 'あそびまちへ');
+      assertEqual(rm.state.log[0].who, 'あそびまちの呼び出し', '記録');
+      clock.t += 29000; srv.tvs.tick(); await sleep(50);
+      assertEqual(rm.state.tvs[2].item, 'asobi', '30秒の間はそのまま');
+      clock.t += 1000; srv.tvs.tick();
+      await until(() => rm.state.tvs[2].item === 'menu', '30秒で元のメニューへ');
+      await rm.call('tvs:show', { tv: 2, item: 'video' });   // この休けいのタブのふりは「動画のファイルが無い」と言う
+      s2.socket.emit('tvs:chime', {});
+      await until(() => rm.state.tvs[2].item === 'asobi', '2回目');
+      clock.t += 30000; srv.tvs.tick();
+      await until(() => rm.state.tvs[2].item === 'rest', '元の動画は出せないので休けいへ');
+      await rm.call('tvs:show', { tv: 2, item: 'fes' });
+      phase.v = 'play';
+      s2.socket.emit('tvs:chime', {});
+      await sleep(150);
+      assertEqual(rm.state.tvs[2].item, 'fes', 'ゲーム中のあつまれは変えない');
+      rm.close(); s2.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('二の束：人が入った（呼び込み→待合）→ TV① をあつまれへ', async () => {
+    const phase = { v: 'idle' };
+    const srv = await startTestServer({ phase });
+    try {
+      const rm = await dev(srv.url, await login(srv.url, STAFF), { as: 'remote' });
+      await rm.call('tvs:show', { tv: 1, item: 'menu' });
+      srv.tvs.tick();
+      phase.v = 'lobby'; srv.tvs.tick();
+      await until(() => rm.state.tvs[1].item === 'fes', 'TV① があつまれ');
+      assertEqual(rm.state.log[0].who, 'あつまれに人が入った', '記録');
+      rm.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('二の束：お知らせの一言と休けいの字 → その TV の休けいのタブに届く（つないだ時にも）。40字まで・改行は空白', async () => {
+    const srv = await startTestServer();
+    try {
+      const staff = await login(srv.url, STAFF);
+      const rm = await dev(srv.url, staff, { as: 'remote' }), s1 = await screen(srv.url, staff, 1), s2 = await screen(srv.url, staff, 2);
+      assertEqual(JSON.stringify(s1.hello.look), '{"rest":"準備中です","notice":""}', 'つないだ時：はじめの字');
+      await rm.call('tvs:settings', { notice: { 1: '12:30 から体育館で\n発表', 2: '' }, rest: 'ただいま 休けい中' });
+      await until(() => s1.looks.length && s2.looks.length, '両方に届く');
+      assertEqual(s1.looks.pop().notice, '12:30 から体育館で 発表', 'TV① の一言（改行は空白）');
+      assertEqual(s2.looks.pop().notice, '', 'TV② は空');
+      await rm.call('tvs:settings', { notice: { 1: 'あ'.repeat(80), 2: 'x' } });
+      await until(() => s1.looks.length, '2回目');
+      assertEqual(s1.looks.pop().notice.length, 40, '40字まで');
+      const s1b = await screen(srv.url, staff, 1);
+      assertEqual(s1b.hello.look.rest, 'ただいま 休けい中', 'つなぎ直した時も休けいの字');
+      rm.close(); s1.close(); s2.close(); s1b.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('二の束：切りかえの記録は新しい順10件（だれが＝係のアカウントの名前・いつ・何を）', async () => {
+    const db = new Database(':memory:');
+    db.exec('CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, display_name TEXT)');
+    db.prepare('INSERT INTO users (id, username, display_name) VALUES (?, ?, ?)').run(STAFF, 'sensei-acct', null);
+    const srv = await startTestServer({ db });
+    try {
+      const rm = await dev(srv.url, await login(srv.url, STAFF), { as: 'remote' });
+      for (let i = 0; i < 12; i++) await rm.call('tvs:show', { tv: 2, item: i % 2 ? 'menu' : 'video' });
+      await until(() => rm.state.log.length === 10 && rm.state.log[0].item === 'menu', '10件');
+      assertEqual(rm.state.log[0].who, 'sensei-acct', 'だれが＝アカウントの名前');
+      assert(rm.state.log[0].at > 0, 'いつ');
+      rm.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('二の束 門5：自動の入／切・回す物・呼び出し・休けいの字・一言は、サーバーを作り直しても残る', async () => {
+    const file = path.join(os.tmpdir(), 'tvs-test2-' + process.pid + '.db');
+    try { fs.unlinkSync(file); } catch (e) {}
+    let db = new Database(file);
+    const a = await startTestServer({ db });
+    const rm = await dev(a.url, await login(a.url, STAFF), { as: 'remote' });
+    await rm.call('tvs:auto', { tv: 1, on: true });
+    await rm.call('tvs:settings', { rot: { 1: [{ item: 'menu', sec: 15 }], 2: [{ item: 'video', sec: null }] }, chime: false, rest: '休み', notice: { 1: '', 2: 'お昼' } });
+    rm.close(); await a.close(); db.close();
+    db = new Database(file);
+    const b = await startTestServer({ db });
+    try {
+      const rm2 = await dev(b.url, await login(b.url, STAFF), { as: 'remote' });
+      await until(() => rm2.state, '状態');
+      const S = rm2.state.settings;
+      assertEqual(JSON.stringify([S.auto, S.rot, S.chime, S.rest, S.notice]),
+        JSON.stringify([{ 1: true, 2: true }, { 1: [{ item: 'menu', sec: 15 }], 2: [{ item: 'video', sec: null }] }, false, '休み', { 1: '', 2: 'お昼' }]), '残る');
+      rm2.close();
+    } finally { await b.close(); db.close(); try { fs.unlinkSync(file); } catch (e) {} }
   });
 
   // ---- 拡張機能の決まり（logic.js）----

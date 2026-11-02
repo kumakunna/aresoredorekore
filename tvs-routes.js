@@ -10,15 +10,20 @@
 // **あそびまちの URL は、ログ・リモコン・画面に出さない**（指示69 2-4）。
 // TV ごとの今の画面は tvs-store.js（SQLite）に覚えるので、作り直してももどる。部屋の進行（realtime.js・fes-room.js）には何もしない。
 // 「いまゲーム中か」だけ io.fesPhase で読む（文化祭の部屋が「遊ぶ」の段＝3-2-1 と遊んでいる間）
+// 二の束：自動（回す・呼び出し・人が入った）は tvs-auto.js が決め、ここが1秒ごとに聞いて出す。サーバーの時計で回す（TV の PC の裏のタイマーに頼らない）
 
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const { createTvsStore } = require('./tvs-store');
+const { createAuto } = require('./tvs-auto');
 
 const PAGES = path.join(__dirname, 'tv-switcher', 'pages');
-const PING_MS = 10000;      // TV の PC へ「生きているか」を聞く間（返事は受けた時にすぐ返す作り＝裏のタブでも遅れない）
+const PING_MS = 10000;
+const TICK_MS = 1000;       // 自動を見る間
+// 記録の「だれが」：係はアカウントの名前、自動はその理由
+const WHY = { auto: '自動で回す', chime: 'あそびまちの呼び出し', 'chime-end': '呼び出しのあと', fes: 'あつまれに人が入った', 'tv-pc': 'TV の PC', system: '出す物を消した' };      // TV の PC へ「生きているか」を聞く間（返事は受けた時にすぐ返す作り＝裏のタブでも遅れない）
 const GAME_PHASES = ['play'];
 
 function mountTvs(app, io, opts) {
@@ -27,6 +32,8 @@ function mountTvs(app, io, opts) {
   const asobiUrl = () => (o.asobiUrl !== undefined ? o.asobiUrl : process.env.TVS_ASOBI_URL) || '';
   const now = o.now || (() => Date.now());
   const roleOf = (uid) => (uid && io.fesRoleOf ? io.fesRoleOf(uid) : null);
+  const auto = createAuto();
+  let durations = {};   // PC の動画の長さ（秒・拡張機能が教える）。「1回分」に使う
   try { store.purge(now()); } catch (e) { console.error('[tvs] 記録の掃除で例外:', e); }
 
   // ---- HTTP ----
@@ -77,8 +84,27 @@ function mountTvs(app, io, opts) {
       tvs[tv] = { item: sc[tv].item, prev: sc[tv].prev, connected: L.sockets.size > 0, ext: L.sockets.size > 0 && L.ext,
         seen: L.seen || null, shown: L.shown, stuck: L.stuck };
     });
-    return { items, tvs, playing: isPlaying() };
+    return { items, tvs, playing: isPlaying(), settings: store.settings(), log: store.listLog(10).map((r) => ({ at: r.at, who: whoName(r.who), tv: r.tv, item: r.item })) };
   }
+  function whoName(w) {
+    const m = /^(owner|staff):([0-9]+)$/.exec(String(w || ''));
+    if (!m) return WHY[w] || String(w || '');
+    try {
+      const u = o.db && o.db.prepare('SELECT display_name, username FROM users WHERE id = ?').get(Number(m[2]));
+      if (u) return u.display_name || u.username;
+    } catch (e) {}
+    return '係';
+  }
+  function ctx() { return { now: now(), settings: store.settings(), screens: store.screens(), phase: io.fesPhase ? io.fesPhase() : null, items: state().items, durations }; }
+  /** 自動が決めた切りかえを出す */
+  function perform(actions) {
+    if (!actions.length) return;
+    for (const a of actions) { store.setScreen(a.tv, a.item, a.why, now()); apply(a.tv); }
+    broadcast();
+  }
+  /** 休けいのタブへ：休けいの字と、その TV のお知らせの一言 */
+  function look(tv) { const S = store.settings(); return { rest: S.rest, notice: S.notice[tv] || '' }; }
+  const sendLooks = () => [1, 2].forEach((tv) => nsp.to('screen:' + tv).emit('tvs:look', look(tv)));
   function isPlaying() { const p = io.fesPhase ? io.fesPhase() : null; return GAME_PHASES.indexOf(p) !== -1; }
   const broadcast = () => nsp.to('remote').emit('tvs:state', state());
   /** 休けいのタブ（TV の PC）に、出す物の一覧を渡す。URL の物はここで URL を付ける（あそびまちは付けない：拡張機能が自分で読む） */
@@ -104,6 +130,9 @@ function mountTvs(app, io, opts) {
     const cur = store.screens()[tv].item;
     if (cur === 'fes' && it.id !== 'fes' && !force && isPlaying()) return ng(cb, 'confirm');
     store.setScreen(tv, it.id, who(socket), now());
+    // 係が出す物のボタンを押したら、その TV の自動は切（指示69 二の束）
+    if (store.settings().auto[tv]) store.setSettings({ auto: { [tv]: false } });
+    auto.reset(tv);
     const s = apply(tv);
     broadcast();
     ok(cb, { seq: s });
@@ -121,7 +150,8 @@ function mountTvs(app, io, opts) {
         L.ext = !!(p && p.ext); L.seen = now();
         if (p && p.have && typeof p.have === 'object') have = Object.assign({}, have, clean(p.have));
         const sc = store.screens()[tv];
-        ok(cb, { items: screenItems(), item: sc.item, seq: ++seq });
+        if (p && p.durations) durations = Object.assign({}, durations, cleanNum(p.durations));
+        ok(cb, { items: screenItems(), item: sc.item, seq: ++seq, look: look(tv) });
         broadcast();
       });
       socket.on('tvs:pong', (p) => {
@@ -129,6 +159,7 @@ function mountTvs(app, io, opts) {
         L.ext = !!(p && p.ext);
         if (p && p.have && typeof p.have === 'object') have = Object.assign({}, have, clean(p.have));
         if (p && typeof p.stuck === 'boolean') L.stuck = p.stuck;
+        if (p && p.durations) durations = Object.assign({}, durations, cleanNum(p.durations));
         broadcast();
       });
       // 拡張機能が切りかえ終わった（返事）。リモコンに「変わりました」
@@ -145,9 +176,11 @@ function mountTvs(app, io, opts) {
         const it = p && store.item(p.item);
         if (!it) return;
         L.shown = it.id;
-        if (store.screens()[tv].item !== it.id) store.setScreen(tv, it.id, 'tv-pc', now());
+        if (store.screens()[tv].item !== it.id) { store.setScreen(tv, it.id, 'tv-pc', now()); auto.reset(tv); }
         broadcast();
       });
+      // 拡張機能が、あそびまちのタブの音の始まりを見つけた（呼び出しのチャイム）
+      socket.on('tvs:chime', () => { L.seen = now(); perform(auto.chime(ctx())); });
       socket.on('tvs:stuck', (p) => { L.stuck = !!(p && p.on); L.seen = now(); broadcast(); });
       socket.on('disconnect', () => { L.sockets.delete(socket); if (!L.sockets.size) { L.ext = false; L.stuck = false; } broadcast(); });
       return;
@@ -186,22 +219,43 @@ function mountTvs(app, io, opts) {
       nsp.to('screen:1').to('screen:2').emit('tvs:items', { items: screenItems() });
       broadcast(); ok(cb, { item: it });
     });
-    socket.on('tvs:log', (p, cb) => ok(cb, { log: store.listLog(10) }));
+    socket.on('tvs:auto', (p, cb) => {
+      const t = Number(p && p.tv);
+      if (t !== 1 && t !== 2) return ng(cb, 'bad_tv');
+      store.setSettings({ auto: { [t]: !!(p && p.on) } });
+      auto.reset(t);
+      broadcast(); ok(cb);
+      perform(auto.tick(ctx()));   // 入にしたら、すぐ回し始める
+    });
+    socket.on('tvs:settings', (p, cb) => {
+      const changed = store.setSettings({ rot: p && p.rot, chime: p && p.chime, fesBack: p && p.fesBack, rest: p && p.rest, notice: p && p.notice });
+      if (changed.indexOf('rot') !== -1) [1, 2].forEach((t) => auto.reset(t));
+      if (changed.indexOf('rest') !== -1 || changed.indexOf('notice') !== -1) sendLooks();
+      broadcast(); ok(cb, { changed });
+    });
   });
 
+  const ticker = setInterval(() => { try { perform(auto.tick(ctx())); } catch (e) { console.error('[tvs] 自動で例外:', e); } }, o.tickMs || TICK_MS);
+  if (ticker.unref) ticker.unref();
   const timer = setInterval(() => {
     nsp.to('screen:1').to('screen:2').emit('tvs:ping', { at: now() });
     broadcast();   // 「最後に連絡があった時刻」と、ゲーム中かどうかを、リモコンに配り直す
   }, o.pingMs || PING_MS);
   if (timer.unref) timer.unref();
 
-  return { store, nsp, state, stop: () => clearInterval(timer) };
+  return { store, nsp, state, tick: () => perform(auto.tick(ctx())), stop: () => { clearInterval(timer); clearInterval(ticker); } };
 }
 
 /** 拡張機能が教える「ある・ない」は、id と真偽だけにする */
 function clean(h) {
   const out = {};
   Object.keys(h).slice(0, 20).forEach((k) => { if (/^[a-z0-9]{1,20}$/i.test(k)) out[k] = !!h[k]; });
+  return out;
+}
+/** 拡張機能が教える動画の長さは、id と秒（0〜3600）だけにする */
+function cleanNum(h) {
+  const out = {};
+  Object.keys(h || {}).slice(0, 20).forEach((k) => { const v = +h[k]; if (/^[a-z0-9]{1,20}$/i.test(k) && v > 0 && v <= 3600) out[k] = v; });
   return out;
 }
 function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }

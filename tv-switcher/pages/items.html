@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>出す物の一覧</title>
-<!-- 指示69：係の画面（出す物の一覧）。足す・消す・音の入／切・出せる TV。あそびまちは「あそびまち」としか出さない（URL は .env だけ） -->
+<title>出す物と設定</title>
+<!-- 指示69：係の画面（出す物の一覧と、二の束の設定：自動で回す中身・呼び出し・人が入った時・休けいの字・お知らせの一言）。足す・消す・音の入／切・出せる TV。あそびまちは「あそびまち」としか出さない（URL は .env だけ） -->
 <style>
   *{box-sizing:border-box}
   body{margin:0;padding:12px 16px 32px;background:#FFF6DC;color:#1A1A1A;font-family:system-ui,-apple-system,"Hiragino Sans",sans-serif}
@@ -23,11 +23,15 @@
   form{background:#fff;border:1px solid #E4DCC4;border-radius:12px;padding:12px;display:grid;gap:8px}
   #err{color:#B42318;font-weight:700;min-height:1.4em}
   .note{font-size:14px;color:#444;line-height:1.6}
+  .step{display:flex;gap:6px;align-items:center;margin:6px 0}.step select{flex:1}.step input{width:84px}
+  input[type=number]{font-size:16px;min-height:44px;border-radius:10px;border:2px solid #E4DCC4;padding:0 8px}
+  input.wide{width:100%}
+  .ok{color:#1A7F37;font-weight:700;min-height:1.4em}
 </style>
 </head>
 <body>
 <p><a href="/tvs">← リモコンへ</a></p>
-<h1>出す物の一覧</h1>
+<h1>出す物と設定</h1>
 <p class="note">PC の画像・動画は、TV の PC の「はじめる」の画面でえらびます。</p>
 <div id="list"></div>
 <h2>出す物を足す</h2>
@@ -39,6 +43,22 @@
   <button type="submit">足す</button>
   <div id="err" role="alert"></div>
 </form>
+<h2>お知らせの一言</h2>
+<p class="note">TV の画面の下に、字の帯で出ます（どの画面の上にも）。空にすると消えます。40字まで。</p>
+<form id="notice">
+  <label>TV①<input type="text" class="wide" id="n1" maxlength="40" autocomplete="off"></label>
+  <label>TV②<input type="text" class="wide" id="n2" maxlength="40" autocomplete="off"></label>
+  <div class="ctl"><button type="submit">出す</button><button type="button" id="nBoth">TV① の字を両方に出す</button><button type="button" id="nClear">両方消す</button></div>
+  <div class="ok" id="nOk" role="status"></div>
+</form>
+<h2>休けいの字</h2>
+<form id="rest"><input type="text" class="wide" id="restText" maxlength="30" autocomplete="off"><button type="submit">変える</button><div class="ok" id="rOk" role="status"></div></form>
+<h2>自動</h2>
+<div class="it"><div class="ctl">
+  <button type="button" id="chime" aria-pressed="false"></button>
+  <button type="button" id="fesBack" aria-pressed="false"></button>
+</div><p class="note">呼び出し：あそびまちで呼び出しの音が鳴ったら、TV② を30秒あそびまちに。<br>人が入った：あつまれの呼び込みに人が来たら、TV① をあつまれに。<br>どちらも、あつまれのゲーム中にあつまれを映している TV は切りかえません。</p></div>
+<div id="rots"></div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function(){
@@ -46,7 +66,8 @@
   var KIND = { fes: 'あつまれ', asobi: 'あそびまち', rest: '休けい', url: 'ページ', images: 'PC の画像', video: 'PC の動画' };
   var S = null, socket = io('/tvs', { auth: { as: 'remote' } });
   function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  socket.on('tvs:state', function(s){ S = s; draw(); });
+  var drawn = false;
+  socket.on('tvs:state', function(s){ S = s; draw(); if (!drawn) { drawn = true; fill(); } drawAuto(); });
   function draw(){
     document.getElementById('list').innerHTML = S.items.map(function(it){
       var fixed = it.builtin && (it.kind === 'rest' || it.kind === 'fes');
@@ -82,6 +103,64 @@
       document.getElementById('err').textContent = r && r.ok ? '' : ((r && r.error) || 'うまくいきませんでした');
       if (r && r.ok) { document.getElementById('name').value = ''; url.value = ''; }
     });
+  });
+  // ---- 二の束の設定 ----
+  var TVN = { 1: 'TV①', 2: 'TV②' };
+  function name(id){ var it = S.items.filter(function(x){ return x.id === id; })[0]; return it ? it.name : id; }
+  function fill(){
+    document.getElementById('n1').value = S.settings.notice[1] || '';
+    document.getElementById('n2').value = S.settings.notice[2] || '';
+    document.getElementById('restText').value = S.settings.rest || '';
+    drawRots();
+  }
+  function drawAuto(){
+    var c = document.getElementById('chime'), f = document.getElementById('fesBack');
+    c.textContent = '呼び出しで TV② をあそびまちへ：' + (S.settings.chime ? '入' : '切'); c.className = S.settings.chime ? 'on' : ''; c.setAttribute('aria-pressed', S.settings.chime);
+    f.textContent = '人が入ったら TV① をあつまれへ：' + (S.settings.fesBack ? '入' : '切'); f.className = S.settings.fesBack ? 'on' : ''; f.setAttribute('aria-pressed', S.settings.fesBack);
+  }
+  var rot = null;
+  function drawRots(){
+    if (!rot) rot = JSON.parse(JSON.stringify(S.settings.rot));
+    document.getElementById('rots').innerHTML = [1, 2].map(function(tv){
+      var opts = S.items.filter(function(it){ return it.tvs.indexOf(tv) !== -1; });
+      return '<div class="it" data-rot="' + tv + '"><b>' + TVN[tv] + 'で自動で回す物</b><small>' + (S.settings.auto[tv] ? '（いま入）' : '（いま切・リモコンで入にする）') + '</small>' +
+        (rot[tv] || []).map(function(e, i){
+          return '<div class="step" data-i="' + i + '"><select data-item>' + opts.map(function(it){ return '<option value="' + esc(it.id) + '"' + (it.id === e.item ? ' selected' : '') + '>' + esc(it.name) + '</option>'; }).join('') + '</select>' +
+            '<input type="number" min="5" max="600" data-sec value="' + (e.sec == null ? '' : e.sec) + '" placeholder="' + (e.item === 'video' ? '1回分' : '秒') + '" aria-label="秒">秒<button type="button" data-del>消す</button></div>';
+        }).join('') +
+        '<div class="ctl"><button type="button" data-add>足す</button><button type="button" data-save>この順で回す</button></div><div class="ok" role="status"></div></div>';
+    }).join('');
+  }
+  document.getElementById('rots').addEventListener('change', function(ev){
+    var box = ev.target.closest('[data-rot]'), st = ev.target.closest('.step'); if (!box || !st) return;
+    var tv = +box.getAttribute('data-rot'), i = +st.getAttribute('data-i');
+    if (ev.target.hasAttribute('data-item')) rot[tv][i].item = ev.target.value;
+    if (ev.target.hasAttribute('data-sec')) rot[tv][i].sec = ev.target.value === '' ? null : +ev.target.value;
+  });
+  document.getElementById('rots').addEventListener('click', function(ev){
+    var box = ev.target.closest('[data-rot]'), b = ev.target.closest('button'); if (!box || !b) return;
+    var tv = +box.getAttribute('data-rot');
+    if (b.hasAttribute('data-del')) { rot[tv].splice(+b.closest('.step').getAttribute('data-i'), 1); drawRots(); }
+    if (b.hasAttribute('data-add')) { rot[tv] = (rot[tv] || []).concat([{ item: 'menu', sec: 20 }]); drawRots(); }
+    if (b.hasAttribute('data-save')) socket.emit('tvs:settings', { rot: rot }, function(r){
+      rot = null; drawRots();
+      var ok = document.querySelector('[data-rot="' + tv + '"] .ok'); if (ok) ok.textContent = r && r.ok ? '回す物を変えました' : 'うまくいきませんでした';
+    });
+  });
+  document.getElementById('chime').addEventListener('click', function(){ socket.emit('tvs:settings', { chime: !S.settings.chime }); });
+  document.getElementById('fesBack').addEventListener('click', function(){ socket.emit('tvs:settings', { fesBack: !S.settings.fesBack }); });
+  function sendNotice(n1, n2){
+    socket.emit('tvs:settings', { notice: { 1: n1, 2: n2 } }, function(r){
+      document.getElementById('n1').value = n1; document.getElementById('n2').value = n2;
+      document.getElementById('nOk').textContent = r && r.ok ? (n1 || n2 ? '出しました' : '消しました') : 'うまくいきませんでした';
+    });
+  }
+  document.getElementById('notice').addEventListener('submit', function(ev){ ev.preventDefault(); sendNotice(document.getElementById('n1').value, document.getElementById('n2').value); });
+  document.getElementById('nBoth').addEventListener('click', function(){ var t = document.getElementById('n1').value; sendNotice(t, t); });
+  document.getElementById('nClear').addEventListener('click', function(){ sendNotice('', ''); });
+  document.getElementById('rest').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    socket.emit('tvs:settings', { rest: document.getElementById('restText').value }, function(r){ document.getElementById('rOk').textContent = r && r.ok ? '変えました' : 'うまくいきませんでした'; });
   });
 })();
 </script>

@@ -4,11 +4,12 @@
 // （サーバーの /tvs/screen?tv=N）が持ち、知らせが来た時だけ bridge.js 経由でここを起こす（指示69 2-1）。
 // 覚えること（窓・タブ・見えている物・あそびまちの URL）は chrome.storage.local に置く（眠っても忘れない）。
 // **あそびまちの URL はログに出さない。**
+// 二の束：お知らせの一言（その TV の窓の全部のタブに notice.js が帯で出す）・あそびまちの呼び出し（鳴らすタブの音の始まり）・動画の長さ
 
 importScripts('logic.js', 'media-db.js');
 
 const EXT = chrome.runtime.getURL('');
-const BLANK = { server: 'https://aresoredorekore.duckdns.org', win: {}, tabs: { 1: {}, 2: {} }, active: { 1: null, 2: null }, items: [], asobiUrl: '', stuck: { 1: false, 2: false }, place: null };
+const BLANK = { server: 'https://aresoredorekore.duckdns.org', win: {}, tabs: { 1: {}, 2: {} }, active: { 1: null, 2: null }, items: [], asobiUrl: '', stuck: { 1: false, 2: false }, place: null, notice: { 1: '', 2: '' }, durations: {}, chimeAt: 0 };
 
 // 知らせは1つずつ順に（同時に来ても、窓とタブの記録が食いちがわない）
 let chain = Promise.resolve();
@@ -122,7 +123,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     const tv = Number(msg && msg.tv) || (sender.tab ? tvOfWindow(S, sender.tab.windowId) : null);
     switch (msg && msg.t) {
       case 'ping':
-        res = { ok: true, have: await haveMedia(S), stuck: !!S.stuck[tv] };
+        res = { ok: true, have: await haveMedia(S), stuck: !!S.stuck[tv], durations: S.durations };
         break;
       case 'sync':   // 休けいのタブから：出す物の一覧（と、bridge.js が読んだあそびまちの URL）
         if (Array.isArray(msg.items)) S.items = msg.items;
@@ -162,6 +163,17 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       case 'asobi-done':    // 押し終わった：もとの画面へ
         for (const n of [1, 2]) await show(S, n, S.active[n] || 'rest');
         break;
+      case 'look': {   // 休けいのタブから：その TV のお知らせの一言
+        S.notice = Object.assign({ 1: '', 2: '' }, S.notice, { [tv]: String(msg.notice || '') });
+        for (const id of Object.keys(S.tabs[tv] || {})) { try { await chrome.tabs.sendMessage(S.tabs[tv][id], { t: 'notice', text: S.notice[tv] }); } catch (e) {} }
+        break;
+      }
+      case 'notice-get':   // notice.js が開いた時に聞く（その窓の TV の一言。TV の窓でなければ空）
+        res = { ok: true, text: tv && S.notice ? S.notice[tv] || '' : '' };
+        break;
+      case 'duration':     // media.js：動画の長さ（「1回分」に使う）
+        if (msg.id && msg.sec > 0) S.durations = Object.assign({}, S.durations, { [msg.id]: msg.sec });
+        break;
       case 'status':
         res = { ok: true, server: S.server, windows: { 1: !!(await winAlive(S.win[1])), 2: !!(await winAlive(S.win[2])) }, items: S.items, asobi: !!S.asobiUrl, swapped: !!(S.place && S.place.swapped) };
         break;
@@ -189,6 +201,21 @@ chrome.tabs.onActivated.addListener((info) => {
     await applyMutes(S);
     await save(S);
     await push(S, tv, { t: 'manual', item: id });
+  });
+});
+
+// あそびまちの呼び出し：鳴らすタブ（logic.js asobiOwner）の音が始まったら、その窓の休けいのタブからサーバーへ（10秒に1回まで）
+chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (info.audible !== true) return;
+  queue(async () => {
+    const S = await load();
+    const owner = TvsLogic.asobiOwner(S.items);
+    if ((S.tabs[owner] || {}).asobi !== tabId) return;
+    const t = Date.now();
+    if (t - (S.chimeAt || 0) < 10000) return;
+    S.chimeAt = t;
+    await save(S);
+    await push(S, owner, { t: 'chime' });
   });
 });
 

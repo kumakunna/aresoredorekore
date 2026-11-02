@@ -11,6 +11,7 @@
   拡張機能とは、このページに入る拡張機能の content script（tv-switcher/extension/bridge.js）が window.postMessage で取り次ぐ。
   **あそびまちの URL はこのページの中には来ない**（content script が自分で読んで、拡張機能に直接渡す・指示69 2-4）。
   受けた知らせにはすぐ返す作り（タイマーで待たない）。見えていない時は Chrome がタイマーを遅らせるため（指示69 門14）
+  二の束：休けいの字（係の画面で変える）・お知らせの一言（拡張機能が、その TV の全部のタブの下に帯で出す）・あそびまちの呼び出しを見つけたらサーバーへ
 -->
 <style>
   html,body{margin:0;height:100%;background:#FFF6DC;color:#1A1A1A;font-family:system-ui,sans-serif}
@@ -44,14 +45,16 @@
     if (d.id && waiting[d.id]) { var f = waiting[d.id]; delete waiting[d.id]; f(d.res); return; }
     if (d.push && d.push.t === 'manual') socket.emit('tvs:manual', { item: d.push.item });
     if (d.push && d.push.t === 'stuck') socket.emit('tvs:stuck', { on: !!d.push.on });
+    if (d.push && d.push.t === 'chime') socket.emit('tvs:chime', {});
   });
 
   var socket = io('/tvs', { auth: { as: 'screen', tv: tv } });
   var first = true;
   socket.on('connect', function(){
     ext({ t: 'ping', tv: tv }).then(function(p){
-      socket.emit('tvs:hello', { ext: !!p, have: p && p.have }, function(r){
+      socket.emit('tvs:hello', { ext: !!p, have: p && p.have, durations: p && p.durations }, function(r){
         if (!r || !r.ok) return;
+        lookOf(r.look);
         ext({ t: 'sync', tv: tv, items: r.items }, 8000).then(function(){
           if (first) {
             // はじめて（「はじめる」や Chrome の開き直しのあと）：サーバーが覚えている画面へ
@@ -70,11 +73,18 @@
       if (res && res.ok) socket.emit('tvs:shown', { item: item, seq: seq });
     });
   }
+  /** 休けいの字と、お知らせの一言（一言は拡張機能に渡して、TV の全部のタブに出してもらう） */
+  function lookOf(l){
+    if (!l) return;
+    document.getElementById('msg').textContent = l.rest || '準備中です';
+    ext({ t: 'look', tv: tv, notice: l.notice || '' });
+  }
+  socket.on('tvs:look', lookOf);
   socket.on('tvs:apply', function(p){ show(p.item, p.seq); });
   socket.on('tvs:items', function(p){ ext({ t: 'sync', tv: tv, items: p.items }, 8000); });
   socket.on('tvs:reload', function(p){ ext({ t: 'reload', tv: tv, item: p.item }); });
   socket.on('tvs:ping', function(){
-    ext({ t: 'ping', tv: tv }).then(function(p){ socket.emit('tvs:pong', { ext: !!p, have: p && p.have, stuck: p ? !!p.stuck : undefined }); });
+    ext({ t: 'ping', tv: tv }).then(function(p){ socket.emit('tvs:pong', { ext: !!p, have: p && p.have, durations: p && p.durations, stuck: p ? !!p.stuck : undefined }); });
   });
 })();
 </script>

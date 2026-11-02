@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>TV の切りかえ：はじめる</title>
+<!-- 指示69：TV の PC の準備の画面。「はじめる」を1回押すだけ。あそびまちの「押すと始まります」だけは人が押す -->
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:#FFF6DC;color:#1A1A1A;font-family:system-ui,sans-serif;max-width:760px}
+  h1{font-size:26px;margin:0 0 16px}h2{font-size:19px;margin:24px 0 8px}
+  button{font-size:18px;font-weight:700;min-height:52px;padding:0 20px;border-radius:12px;border:2px solid #1A1A1A;background:#fff;color:#1A1A1A;cursor:pointer}
+  button.big{font-size:24px;min-height:72px;padding:0 40px;background:#1A1A1A;color:#fff}
+  input[type=text]{font-size:16px;min-height:44px;width:100%;padding:0 10px;border-radius:10px;border:2px solid #E4DCC4}
+  .box{background:#fff;border:1px solid #E4DCC4;border-radius:12px;padding:14px;margin:10px 0}
+  .ok{color:#1A7F37;font-weight:700}.ng{color:#B42318;font-weight:700}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  #guide{display:none;background:#FFF1C2}
+  p{line-height:1.6;margin:6px 0}
+</style></head>
+<body>
+<h1>TV の切りかえ</h1>
+<div class="row"><button class="big" id="start">はじめる</button><span id="msg"></span></div>
+<div class="box"><div id="wins">TV①：－　TV②：－</div>
+  <p id="login" class="ng" style="display:none">TV に「ログインしてください」が出ていたら、この Chrome で係のアカウントでログインしてから、もう一度「はじめる」を押してください。<a id="loginLink" href="#" target="_blank">ログインの画面を開く</a></p>
+</div>
+<div class="row"><button id="swap">TV① と TV② を入れかえる</button></div>
+
+<h2>あそびまち</h2>
+<p>「はじめる」のあと、毎回1度だけ。両方の TV に出る「押すと始まります」を、マウスで1回ずつ押します（ブラウザーの決まりで、押さないと呼び出しの音が鳴りません）。</p>
+<div class="row"><button id="asobi">あそびまちの準備をする</button><span id="asobiNo" class="ng"></span></div>
+<div class="box" id="guide"><p><b>TV① と TV② の「押すと始まります」を、1回ずつ押してください。</b></p><button id="asobiDone">押しおわった（もとの画面にもどす）</button></div>
+
+<h2>メニューの画像・動画</h2>
+<p>ここでえらぶと、この PC の中に写して覚えます。入れかえる時は、もう一度えらぶだけ。</p>
+<div id="media"></div>
+
+<h2>サーバー</h2>
+<input type="text" id="server">
+<script src="media-db.js"></script>
+<script src="start.js"></script>
+</body></html>

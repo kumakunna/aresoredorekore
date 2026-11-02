@@ -1357,6 +1357,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   io.fesCurrentCode = () => { const r = currentFesRoom(); return r ? r.code : null; };
   io.fesStore = fesStore;
   io.fesRoleOf = fesRoleOf;
+  // 指示69：TV の切りかえ（tvs-routes.js）が「いまゲーム中か」を読むだけの口。進行には何もしない
+  io.fesPhase = () => { const r = currentFesRoom(); return r ? r.fes.phase : null; };
 
   /**
    * ゲームを始める（指示66-2 で wolf:start から切り出した）。

@@ -346,6 +346,8 @@ const httpServer = http.createServer(app);
 const io = attachRealtime(httpServer, sessionMiddleware);
 // 指示66-2：文化祭の部屋の道（/fes・名前の記録・感想）。部屋の仕組み（io）から、いまの部屋と係の判定を借りる
 require('./fes-routes').mountFesRoutes(app, io);
+// 指示69：TV の切りかえ（リモコン /tvs と、TV の PC の拡張機能のつなぎ）。係の判定は文化祭の部屋のものを借りる
+require('./tvs-routes').mountTvs(app, io, { db });
 
 // 指示68-1：落ちた時の記録に、その時の版を残す（落ちる振る舞いは今のまま：記録してから終わる）
 const APP_VERSION = require('./public/js/version.js');

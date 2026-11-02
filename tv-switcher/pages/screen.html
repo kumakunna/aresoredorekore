@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>休けい</title>
+<!--
+  指示69：TV の PC の「休けい」のタブ（/tvs/screen?tv=1 か 2）。画面には「準備中です」だけ。
+  裏の役：サーバー（socket.io の /tvs）とつながり、言われた物を拡張機能に出させ、出たら返事をする。
+  拡張機能とは、このページに入る拡張機能の content script（tv-switcher/extension/bridge.js）が window.postMessage で取り次ぐ。
+  **あそびまちの URL はこのページの中には来ない**（content script が自分で読んで、拡張機能に直接渡す・指示69 2-4）。
+  受けた知らせにはすぐ返す作り（タイマーで待たない）。見えていない時は Chrome がタイマーを遅らせるため（指示69 門14）
+-->
+<style>
+  html,body{margin:0;height:100%;background:#FFF6DC;color:#1A1A1A;font-family:system-ui,sans-serif}
+  body{display:flex;align-items:center;justify-content:center}
+  #msg{font-size:12vw;font-weight:800;letter-spacing:.06em}
+</style>
+</head>
+<body>
+<div id="msg">準備中です</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+  'use strict';
+  var tv = Number(new URLSearchParams(location.search).get('tv'));
+  if (tv !== 1 && tv !== 2) return;
+  document.title = '休けい（TV' + (tv === 1 ? '①' : '②') + '）';
+
+  // ---- 拡張機能への取り次ぎ（返事が来なければ、拡張機能が止まっている）----
+  var waiting = {}, nextId = 1;
+  function ext(msg, ms){
+    return new Promise(function(resolve){
+      var id = nextId++;
+      var t = setTimeout(function(){ delete waiting[id]; resolve(null); }, ms || 1500);
+      waiting[id] = function(res){ clearTimeout(t); resolve(res || null); };
+      window.postMessage({ tvsTo: 'ext', id: id, msg: msg }, location.origin);
+    });
+  }
+  window.addEventListener('message', function(ev){
+    if (ev.source !== window || !ev.data || ev.data.tvsFrom !== 'ext') return;
+    var d = ev.data;
+    if (d.id && waiting[d.id]) { var f = waiting[d.id]; delete waiting[d.id]; f(d.res); return; }
+    if (d.push && d.push.t === 'manual') socket.emit('tvs:manual', { item: d.push.item });
+    if (d.push && d.push.t === 'stuck') socket.emit('tvs:stuck', { on: !!d.push.on });
+  });
+
+  var socket = io('/tvs', { auth: { as: 'screen', tv: tv } });
+  var first = true;
+  socket.on('connect', function(){
+    ext({ t: 'ping', tv: tv }).then(function(p){
+      socket.emit('tvs:hello', { ext: !!p, have: p && p.have }, function(r){
+        if (!r || !r.ok) return;
+        ext({ t: 'sync', tv: tv, items: r.items }, 8000).then(function(){
+          if (first) {
+            // はじめて（「はじめる」や Chrome の開き直しのあと）：サーバーが覚えている画面へ
+            first = false;
+            show(r.item, r.seq);
+          } else {
+            // つなぎ直し（サーバーの作り直しなど）：TV は今の画面のまま。いま映っている物をサーバーに教える（指示69 2-6）
+            ext({ t: 'active', tv: tv }).then(function(a){ if (a && a.item) socket.emit('tvs:manual', { item: a.item }); });
+          }
+        });
+      });
+    });
+  });
+  function show(item, seq){
+    ext({ t: 'apply', tv: tv, item: item }).then(function(res){
+      if (res && res.ok) socket.emit('tvs:shown', { item: item, seq: seq });
+    });
+  }
+  socket.on('tvs:apply', function(p){ show(p.item, p.seq); });
+  socket.on('tvs:items', function(p){ ext({ t: 'sync', tv: tv, items: p.items }, 8000); });
+  socket.on('tvs:reload', function(p){ ext({ t: 'reload', tv: tv, item: p.item }); });
+  socket.on('tvs:ping', function(){
+    ext({ t: 'ping', tv: tv }).then(function(p){ socket.emit('tvs:pong', { ext: !!p, have: p && p.have, stuck: p ? !!p.stuck : undefined }); });
+  });
+})();
+</script>
+</body>
+</html>

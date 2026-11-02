@@ -1,0 +1,399 @@
+// tests/tvs.js — TV の切りかえ（指示69 一の束）。本物のサーバー（express＋socket.io の /tvs）を立て、
+// リモコン（係のスマホ）と、TV の PC の休けいのタブのふりをする端末で回す。拡張機能の決まり（logic.js）も、ここで見る。
+//
+// 門4（係でない人は開けない・押せない・URL を受け取れない）・門5（作り直してももどる）・門8（ゲーム中の確かめはゲーム中だけ）・
+// 門3 の決まり（見えていないタブは鳴らさない・あそびまちは1つだけ鳴る）・門10（key がログに出ない）
+const http = require('http');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const express = require('express');
+const session = require('express-session');
+const Database = require('better-sqlite3');
+const { io: ioClient } = require('socket.io-client');
+
+const { createRunner, assert, assertEqual } = require('./harness');
+const { attachRealtime, RoomStore } = require('../realtime');
+const { createFesStore } = require('../fes-store');
+const { mountTvs } = require('../tvs-routes');
+const { createTvsStore, MAX_ITEMS } = require('../tvs-store');
+const Logic = require('../tv-switcher/extension/logic');
+
+const OWNER = 900, STAFF = 901, NOBODY = 902;
+const SECRET = 'https://asobi.example.test/monitor?key=TVS-SECRET-7f3a9';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ログに key が出ないかを見るため、このスイートの間の console をためる
+const 出た = [];
+['log', 'warn', 'error'].forEach((k) => { const o = console[k]; console[k] = (...a) => { 出た.push(a.map(String).join(' ')); o.apply(console, a); }; });
+
+/** db：同じ db を渡すと「サーバーの作り直し」になる。phase：文化祭の部屋の段（無ければ本物の io.fesPhase） */
+function startTestServer(o) {
+  const opt = o || {};
+  const app = express();
+  const sessionMiddleware = session({ secret: 'test-tvs', resave: false, saveUninitialized: false, cookie: { httpOnly: true, secure: false, sameSite: 'lax' } });
+  app.use(express.json());
+  app.use(sessionMiddleware);
+  app.post('/test-login', (req, res) => { req.session.userId = req.body.userId; res.json({ ok: true }); });
+  const httpServer = http.createServer(app);
+  const io = attachRealtime(httpServer, sessionMiddleware, {
+    store: new RoomStore(), db: null, describe: async () => ({ description: 'x' }), countdownMs: 0, fesStore: createFesStore(new Database(':memory:')),
+    fesRole: (uid) => (uid === OWNER ? 'owner' : uid === STAFF ? 'staff' : null)
+  });
+  if (opt.phase) io.fesPhase = () => opt.phase.v;
+  const db = opt.db || new Database(':memory:');
+  const tvs = mountTvs(app, io, { db, asobiUrl: opt.asobiUrl !== undefined ? opt.asobiUrl : SECRET, pingMs: opt.pingMs || 200 });
+  return new Promise((resolve) => httpServer.listen(0, '127.0.0.1', () => {
+    const url = 'http://127.0.0.1:' + httpServer.address().port;
+    resolve({ url, io, db, tvs,
+      close: () => new Promise((r) => { tvs.stop(); io.stopTimers(); io.close(() => httpServer.close(() => r())); }) });
+  }));
+}
+async function login(url, userId) {
+  const res = await fetch(url + '/test-login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userId }) });
+  return (res.headers.getSetCookie() || []).map((c) => c.split(';')[0]).join('; ');
+}
+/** /tvs につなぐ。auth：{ as:'remote' } か { as:'screen', tv }。つながらない時は { error } */
+function dev(url, cookie, auth, ns) {
+  return new Promise((resolve) => {
+    const opts = { transports: ['polling'], forceNew: true, reconnection: false, auth };
+    if (cookie) opts.extraHeaders = { Cookie: cookie };
+    const s = ioClient(url + (ns || '/tvs'), opts);
+    const d = { socket: s, state: null, states: [], acks: [], applies: [], reloads: [], items: null, pings: 0,
+      call(ev, p) { return new Promise((res) => { const t = setTimeout(() => res({ ok: false, error: 'timeout' }), 4000); s.emit(ev, p || {}, (r) => { clearTimeout(t); res(r || {}); }); }); },
+      close() { s.close(); } };
+    s.on('tvs:state', (v) => { d.state = v; d.states.push(v); });
+    s.on('tvs:ack', (v) => d.acks.push(v));
+    s.on('tvs:apply', (v) => d.applies.push(v));
+    s.on('tvs:reload', (v) => d.reloads.push(v));
+    s.on('tvs:items', (v) => { d.items = v.items; });
+    s.on('tvs:ping', () => { d.pings++; });
+    s.on('connect', () => resolve(d));
+    s.on('connect_error', (e) => resolve({ error: e && e.message }));
+  });
+}
+async function until(fn, label, ms) {
+  const limit = Date.now() + (ms || 3000);
+  while (Date.now() < limit) { if (fn()) return; await sleep(15); }
+  throw new Error('条件が満たされませんでした: ' + label);
+}
+/** 休けいのタブのふり：つながって hello、言われたら「出した」と返す（拡張機能は生きている体） */
+async function screen(url, cookie, tv) {
+  const d = await dev(url, cookie, { as: 'screen', tv });
+  d.hello = await d.call('tvs:hello', { ext: true, have: { menu: true, video: false } });
+  d.socket.on('tvs:apply', (p) => d.socket.emit('tvs:shown', { item: p.item, seq: p.seq }));
+  return d;
+}
+
+(async function main() {
+  const r = createRunner('tvs：TV の切りかえ（指示69 一の束）');
+
+  await r.test('門4：係でない人は、リモコン・出す物の一覧・休けいの画面を開けない（ログイン無し 401／係でない 403）。係は開ける', async () => {
+    const srv = await startTestServer();
+    try {
+      const nobody = await login(srv.url, NOBODY), staff = await login(srv.url, STAFF), owner = await login(srv.url, OWNER);
+      for (const p of ['/tvs', '/tvs/items', '/tvs/screen?tv=1']) {
+        assertEqual((await fetch(srv.url + p)).status, 401, p + '：ログイン無し');
+        const n = await fetch(srv.url + p, { headers: { cookie: nobody } });
+        assertEqual(n.status, 403, p + '：係でない');
+        assert((await n.text()).indexOf('<script') === -1, p + '：係でない人には、画面の中身（スクリプト）を渡さない');
+        assertEqual((await fetch(srv.url + p, { headers: { cookie: staff } })).status, 200, p + '：先生（staff）');
+        assertEqual((await fetch(srv.url + p, { headers: { cookie: owner } })).status, 200, p + '：くまくん（owner）');
+      }
+    } finally { await srv.close(); }
+  });
+
+  await r.test('門4：係でない人は、つなげない＝押せない（ログイン無しは login・係でないは forbidden）', async () => {
+    const srv = await startTestServer();
+    try {
+      assertEqual((await dev(srv.url, null, { as: 'remote' })).error, 'login', 'ログイン無し');
+      assertEqual((await dev(srv.url, await login(srv.url, NOBODY), { as: 'remote' })).error, 'forbidden', '係でない（リモコン）');
+      assertEqual((await dev(srv.url, await login(srv.url, NOBODY), { as: 'screen', tv: 1 })).error, 'forbidden', '係でない（休けいのタブのふり）');
+      const ok = await dev(srv.url, await login(srv.url, STAFF), { as: 'remote' });
+      assert(!ok.error, '係はつながる');
+      ok.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('門4・2-4：あそびまちの URL は、係のログインを通した /api/tvs/asobi だけが渡す。係でない人は 401／403。リモコンに届く物には無い', async () => {
+    const srv = await startTestServer();
+    try {
+      assertEqual((await fetch(srv.url + '/api/tvs/asobi')).status, 401, 'ログイン無し');
+      const n = await fetch(srv.url + '/api/tvs/asobi', { headers: { cookie: await login(srv.url, NOBODY) } });
+      assertEqual(n.status, 403, '係でない');
+      assert((await n.text()).indexOf('TVS-SECRET') === -1, '係でない人への返事に key が無い');
+      const staff = await login(srv.url, STAFF);
+      assertEqual((await (await fetch(srv.url + '/api/tvs/asobi', { headers: { cookie: staff } })).json()).url, SECRET, '係のログイン（TV の PC の拡張機能が読む）');
+      const rm = await dev(srv.url, staff, { as: 'remote' });
+      const sc = await screen(srv.url, staff, 1);
+      await until(() => rm.state, 'リモコンの状態');
+      await rm.call('tvs:show', { tv: 1, item: 'asobi' });
+      await sleep(250);   // 生きているかの知らせ（ping）も1回は回る
+      const 全部 = JSON.stringify(rm.states) + JSON.stringify(sc.hello) + JSON.stringify(sc.applies);
+      assert(全部.indexOf('TVS-SECRET') === -1 && 全部.indexOf('asobi.example') === -1, 'リモコンと休けいのページに届いた物に、あそびまちの URL が無い');
+      const rem = await (await fetch(srv.url + '/tvs', { headers: { cookie: staff } })).text();
+      assert(rem.indexOf('/api/tvs/asobi') === -1, 'リモコンの画面は、URL の道を読まない');
+      const asobi = rm.state.items.find((it) => it.id === 'asobi');
+      assertEqual(asobi.name, 'あそびまち', 'リモコンには名前だけ');
+      assertEqual(asobi.have, true, 'URL があるので「まだありません」ではない');
+      rm.close(); sc.close();
+    } finally { await srv.close(); }
+    const 無し = await startTestServer({ asobiUrl: '' });
+    try {
+      const rm = await dev(無し.url, await login(無し.url, STAFF), { as: 'remote' });
+      await until(() => rm.state, '状態');
+      assertEqual(rm.state.items.find((it) => it.id === 'asobi').have, false, '.env に無い時は「まだありません」');
+      rm.close();
+    } finally { await 無し.close(); }
+  });
+
+  await r.test('1回押すだけで、その TV の休けいのタブに「出して」が届き、出したら両方のリモコンに「変わりました」の返事（もう片方の TV には届かない）', async () => {
+    const srv = await startTestServer();
+    try {
+      const staff = await login(srv.url, STAFF), owner = await login(srv.url, OWNER);
+      const a = await dev(srv.url, staff, { as: 'remote' }), b = await dev(srv.url, owner, { as: 'remote' });
+      const s1 = await screen(srv.url, staff, 1), s2 = await screen(srv.url, staff, 2);
+      assertEqual(s1.hello.item, 'fes', 'TV① のはじめはあつまれ');
+      assertEqual(s2.hello.item, 'rest', 'TV② のはじめは休けい');
+      assertEqual(s1.hello.items.map((it) => it.id).join(','), 'fes,menu,asobi,video,rest', 'タブの並び＝Ctrl+1〜5');
+      const res = await a.call('tvs:show', { tv: 2, item: 'menu' });
+      assert(res.ok && res.seq, '押したら ok と番号');
+      await until(() => a.acks.some((x) => x.tv === 2 && x.seq === res.seq), 'リモコンA に返事');
+      await until(() => b.acks.some((x) => x.tv === 2 && x.seq === res.seq), 'リモコンB に返事');
+      assertEqual(s2.applies.length, 1, 'TV② に1回');
+      assertEqual(s1.applies.length, 0, 'TV① には届かない');
+      await until(() => b.state.tvs[2].item === 'menu' && b.state.tvs[2].shown === 'menu', 'もう片方のリモコンにも同じ状態');
+      assertEqual(b.state.tvs[2].connected && b.state.tvs[2].ext, true, '● つながっている');
+      assert(b.state.tvs[2].seen > 0, '最後の連絡の時刻');
+      [a, b, s1, s2].forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
+  await r.test('出せない物・出せない TV は押せない。足した物を消すと、映していた TV は休けいへ。数は ' + MAX_ITEMS + ' つまで', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await dev(srv.url, await login(srv.url, OWNER), { as: 'remote' });
+      assertEqual((await rm.call('tvs:show', { tv: 3, item: 'menu' })).ok, false, 'TV③ は無い');
+      assertEqual((await rm.call('tvs:show', { tv: 1, item: 'nope' })).ok, false, '無い物');
+      const add = await rm.call('tvs:items:add', { name: '学校の案内', kind: 'url', url: 'https://example.test/', tvs: [2], sound: false });
+      assert(add.ok, '足せる（' + add.error + '）');
+      assertEqual((await rm.call('tvs:show', { tv: 1, item: add.item.id })).ok, false, 'TV② だけの物は、TV① に出せない');
+      assertEqual((await rm.call('tvs:show', { tv: 2, item: add.item.id })).ok, true, 'TV② には出せる');
+      assertEqual((await rm.call('tvs:items:add', { name: 'もう1つ', kind: 'video', tvs: [1, 2] })).error, '出す物は ' + MAX_ITEMS + ' つまでです', '上限');
+      assertEqual((await rm.call('tvs:items:add', { name: 'x', kind: 'url', url: 'javascript:alert(1)', tvs: [1] })).ok, false, 'http でないアドレスは足せない');
+      assertEqual((await rm.call('tvs:items:remove', { id: 'fes' })).ok, false, 'はじめからある物は消せない');
+      assert((await rm.call('tvs:items:remove', { id: add.item.id })).ok, '足した物は消せる');
+      await until(() => rm.state.tvs[2].item === 'rest', '映していた TV② は休けいへ');
+      rm.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('門8：ゲーム中（遊ぶ＝3-2-1 と遊んでいる間）にあつまれから離れる時だけ確かめる。待合・呼び込み・投票・結果では確かめない', async () => {
+    const phase = { v: 'lobby' };
+    const srv = await startTestServer({ phase });
+    try {
+      const rm = await dev(srv.url, await login(srv.url, STAFF), { as: 'remote' });
+      for (const p of ['idle', 'lobby', 'vote', 'decide', 'ready', 'result', null]) {
+        phase.v = p;
+        await rm.call('tvs:show', { tv: 1, item: 'fes' });
+        assertEqual((await rm.call('tvs:show', { tv: 1, item: 'menu' })).ok, true, p + '：確かめずに切りかわる');
+      }
+      phase.v = 'play';
+      await rm.call('tvs:show', { tv: 1, item: 'fes' });
+      const r1 = await rm.call('tvs:show', { tv: 1, item: 'menu' });
+      assertEqual(r1.error, 'confirm', 'ゲーム中のあつまれから離れる → 確かめ');
+      await until(() => rm.state && rm.state.playing === true, 'リモコンにもゲーム中が届く');
+      assertEqual(rm.state.tvs[1].item, 'fes', '確かめの間は切りかえない');
+      assertEqual((await rm.call('tvs:back', { tv: 1 })).error, 'confirm', '「さっきの画面にもどす」でも確かめる');
+      assertEqual((await rm.call('tvs:show', { tv: 1, item: 'fes' })).ok, true, 'あつまれ→あつまれは確かめない');
+      assertEqual((await rm.call('tvs:show', { tv: 2, item: 'menu' })).ok, true, 'あつまれを映していない TV は確かめない');
+      assertEqual((await rm.call('tvs:show', { tv: 1, item: 'menu', force: true })).ok, true, '［切りかえる］を押したら切りかわる');
+      assertEqual(rm.state && (await until(() => rm.state.tvs[1].item === 'menu', 'TV① がメニュー'), rm.state.tvs[1].item), 'menu', '切りかわった');
+      assertEqual((await rm.call('tvs:show', { tv: 1, item: 'fes' })).ok, true, 'メニュー→あつまれ（ゲーム中でも、あつまれへは確かめない）');
+      rm.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('門8：本物の文化祭の部屋の段を読む（部屋が無ければゲーム中でない・作ったら待合）', async () => {
+    const srv = await startTestServer();
+    try {
+      assertEqual(srv.io.fesPhase(), null, '部屋が無い');
+      const owner = await login(srv.url, OWNER);
+      const st = await dev(srv.url, owner, {}, '/');
+      assert((await st.call('fes:create', {})).ok, '文化祭の部屋を作る');
+      assertEqual(srv.io.fesPhase(), 'lobby', '作ったら待合');
+      const rm = await dev(srv.url, owner, { as: 'remote' });
+      assertEqual((await rm.call('tvs:show', { tv: 1, item: 'menu' })).ok, true, '待合では確かめない');
+      st.close(); rm.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('「さっきの画面にもどす」：ひとつ前へ。もう一度押すと、また入れかわる。前が無い時は押せない', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await dev(srv.url, await login(srv.url, STAFF), { as: 'remote' });
+      assertEqual((await rm.call('tvs:back', { tv: 2 })).ok, false, 'はじめは前が無い');
+      await rm.call('tvs:show', { tv: 2, item: 'menu' });
+      await rm.call('tvs:show', { tv: 2, item: 'video' });
+      await rm.call('tvs:back', { tv: 2 });
+      await until(() => rm.state.tvs[2].item === 'menu' && rm.state.tvs[2].prev === 'video', 'メニューにもどる（前は動画）');
+      await rm.call('tvs:back', { tv: 2 });
+      await until(() => rm.state.tvs[2].item === 'video', 'もう一度で動画');
+      rm.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('2-6：係が2人で同時に押した → あとから届いた方にそろい、両方のリモコンに同じ結果', async () => {
+    const srv = await startTestServer();
+    try {
+      const a = await dev(srv.url, await login(srv.url, STAFF), { as: 'remote' });
+      const b = await dev(srv.url, await login(srv.url, OWNER), { as: 'remote' });
+      const [ra, rb] = await Promise.all([a.call('tvs:show', { tv: 2, item: 'menu' }), b.call('tvs:show', { tv: 2, item: 'video' })]);
+      const last = ra.seq > rb.seq ? 'menu' : 'video';
+      await until(() => a.state.tvs[2].item === last && b.state.tvs[2].item === last, '両方が「あとから届いた方」にそろう');
+      a.close(); b.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('TV の PC で手で切りかえた（Ctrl+1〜5）→ サーバーの今の画面もそれに合わせ、リモコンに出る', async () => {
+    const srv = await startTestServer();
+    try {
+      const staff = await login(srv.url, STAFF);
+      const rm = await dev(srv.url, staff, { as: 'remote' }), s1 = await screen(srv.url, staff, 1);
+      s1.socket.emit('tvs:manual', { item: 'video' });
+      await until(() => rm.state.tvs[1].item === 'video' && rm.state.tvs[1].shown === 'video', 'リモコンに TV①：動画');
+      s1.socket.emit('tvs:manual', { item: 'nope' });
+      await sleep(100);
+      assertEqual(rm.state.tvs[1].item, 'video', '知らない物は無視');
+      rm.close(); s1.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('2-6：あつまれが「F5 で開き直してください」を出した → リモコンに「開き直しが要ります」。［開き直す］で TV の PC へ', async () => {
+    const srv = await startTestServer();
+    try {
+      const staff = await login(srv.url, STAFF);
+      const rm = await dev(srv.url, staff, { as: 'remote' }), s1 = await screen(srv.url, staff, 1);
+      s1.socket.emit('tvs:stuck', { on: true });
+      await until(() => rm.state.tvs[1].stuck === true, 'リモコンに出る');
+      assertEqual(rm.state.tvs[2].stuck, false, 'TV② には出ない');
+      assert((await rm.call('tvs:reload', { tv: 1 })).ok, '開き直す');
+      await until(() => s1.reloads.length === 1 && s1.reloads[0].item === 'fes', 'TV① の休けいのタブに「あつまれを開き直して」');
+      s1.socket.emit('tvs:pong', { ext: true, stuck: false });
+      await until(() => rm.state.tvs[1].stuck === false, '消えたら消える');
+      rm.close(); s1.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('2-6：拡張機能が止まった・休けいのタブが切れた → リモコンは ×。最後の連絡の時刻は残る', async () => {
+    const srv = await startTestServer();
+    try {
+      const staff = await login(srv.url, STAFF);
+      const rm = await dev(srv.url, staff, { as: 'remote' }), s1 = await screen(srv.url, staff, 1);
+      await until(() => s1.pings > 0, '生きているかを聞かれる');
+      s1.socket.emit('tvs:pong', { ext: false });
+      await until(() => rm.state.tvs[1].connected === true && rm.state.tvs[1].ext === false, '拡張機能が止まった → ×');
+      s1.close();
+      await until(() => rm.state.tvs[1].connected === false && rm.state.tvs[1].ext === false, '切れた → ×');
+      assert(rm.state.tvs[1].seen > 0, '最後の連絡の時刻は残る');
+      rm.close();
+    } finally { await srv.close(); }
+  });
+
+  await r.test('門5：サーバーを作り直しても、TV ごとの今の画面・さっきの画面・出す物の一覧がもどり、つなぎ直した休けいのタブにも同じ物が届く', async () => {
+    const file = path.join(os.tmpdir(), 'tvs-test-' + process.pid + '.db');
+    try { fs.unlinkSync(file); } catch (e) {}
+    let db = new Database(file);
+    const a = await startTestServer({ db });
+    const staff = await login(a.url, STAFF);
+    const rm = await dev(a.url, staff, { as: 'remote' });
+    await rm.call('tvs:show', { tv: 1, item: 'video' });
+    await rm.call('tvs:show', { tv: 2, item: 'menu' });
+    await rm.call('tvs:show', { tv: 2, item: 'asobi' });
+    const add = await rm.call('tvs:items:add', { name: '案内', kind: 'url', url: 'https://example.test/', tvs: [1, 2] });
+    await rm.call('tvs:items:update', { id: 'video', sound: true });
+    rm.close();
+    await a.close(); db.close();
+    db = new Database(file);
+    const b = await startTestServer({ db });
+    try {
+      const staff2 = await login(b.url, STAFF);
+      const rm2 = await dev(b.url, staff2, { as: 'remote' });
+      await until(() => rm2.state, '状態');
+      assertEqual(rm2.state.tvs[1].item, 'video', 'TV① は動画のまま');
+      assertEqual(rm2.state.tvs[2].item + '/' + rm2.state.tvs[2].prev, 'asobi/menu', 'TV② はあそびまち（前はメニュー）');
+      assert(rm2.state.items.some((it) => it.id === add.item.id), '足した物も残る');
+      assertEqual(rm2.state.items.find((it) => it.id === 'video').sound, true, '動画の音の入も残る');
+      const s1 = await screen(b.url, staff2, 1), s2 = await screen(b.url, staff2, 2);
+      assertEqual(s1.hello.item + '/' + s2.hello.item, 'video/asobi', 'つなぎ直した休けいのタブに、覚えていた画面');
+      rm2.close(); s1.close(); s2.close();
+    } finally { await b.close(); db.close(); try { fs.unlinkSync(file); } catch (e) {} }
+  });
+
+  await r.test('記録：切りかえは「だれが・いつ・何を」残す（係の番号と役。1か月より前は消える）', async () => {
+    const db = new Database(':memory:');
+    const st = createTvsStore(db);
+    st.setScreen(1, 'menu', 'staff:901', 1000);
+    st.setScreen(2, 'video', 'owner:900', Date.now());
+    assertEqual(st.listLog(10).map((x) => x.who + ' ' + x.tv + ' ' + x.item).join('|'), 'owner:900 2 video|staff:901 1 menu', '新しい順');
+    st.purge(Date.now());
+    assertEqual(st.listLog(10).length, 1, '古い記録は消える');
+  });
+
+  // ---- 拡張機能の決まり（logic.js）----
+  const ITEMS = [
+    { id: 'fes', kind: 'fes', sound: true, tvs: [1, 2] }, { id: 'menu', kind: 'images', sound: false, tvs: [1, 2] },
+    { id: 'asobi', kind: 'asobi', sound: true, tvs: [1, 2] }, { id: 'video', kind: 'video', sound: false, tvs: [1, 2] },
+    { id: 'rest', kind: 'rest', sound: false, tvs: [1, 2] }];
+  const 鳴る = (active, items) => {
+    const out = [];
+    [1, 2].forEach((w) => (items || ITEMS).forEach((it) => { if (!Logic.muted(w, it.id, active, items || ITEMS)) out.push(w + ':' + it.id); }));
+    return out.join(',');
+  };
+
+  await r.test('門3：見えていないタブは鳴らない。あそびまちは見えていなくても、TV② の窓の1つだけが鳴る（2回鳴らない）', async () => {
+    assertEqual(鳴る({ 1: 'fes', 2: 'menu' }), '1:fes,2:asobi', 'TV① あつまれ（鳴る）・あそびまちは裏でも TV② の1つだけ');
+    assertEqual(鳴る({ 1: 'menu', 2: 'rest' }), '2:asobi', 'あつまれが裏 → あつまれは鳴らない');
+    assertEqual(鳴る({ 1: 'asobi', 2: 'asobi' }), '2:asobi', '両方の TV にあそびまち → 鳴るのは1つだけ');
+    assertEqual(鳴る({ 1: 'fes', 2: 'fes' }), '1:fes,2:asobi', '両方の TV にあつまれ → TV① の1つだけ（2つ目の TV は鳴らさない）');
+    assertEqual(鳴る({ 1: 'video', 2: 'fes' }), '2:asobi', '動画の音ははじめ「切」');
+    const 音入 = ITEMS.map((it) => (it.id === 'video' ? Object.assign({}, it, { sound: true }) : it));
+    assertEqual(鳴る({ 1: 'video', 2: 'video' }, 音入), '1:video,2:asobi', '動画の音を入にすると、TV① の動画だけ鳴る');
+    assertEqual(鳴る({ 1: 'rest', 2: 'video' }, 音入), '2:asobi', 'TV② の画面の物で鳴らすのは、あそびまちのチャイムだけ（くまくんの決め）');
+    const 左だけ = ITEMS.map((it) => (it.id === 'asobi' ? Object.assign({}, it, { tvs: [1] }) : it));
+    assertEqual(鳴る({ 1: 'menu', 2: 'menu' }, 左だけ), '1:asobi', 'あそびまちを TV① にしか出さない時は、TV① の窓の1つが鳴る');
+    for (const a1 of ITEMS) for (const a2 of ITEMS) {
+      const n = 鳴る({ 1: a1.id, 2: a2.id }).split(',').filter((x) => /asobi/.test(x)).length;
+      assertEqual(n, 1, 'どの組み合わせでも、あそびまちが鳴るタブはちょうど1つ（' + a1.id + '/' + a2.id + '）');
+    }
+  });
+
+  await r.test('2-3 案3・門6：どちらの窓も、全部の物を同じ並びで開く（1 あつまれ・2 メニュー・3 あそびまち・4 動画・5 休けい）。休けいは TV ごと', async () => {
+    const p1 = Logic.plan(ITEMS, 1, 'https://s.example/', '', 'chrome-extension://x/');
+    const p2 = Logic.plan(ITEMS, 2, 'https://s.example/', '', 'chrome-extension://x/');
+    assertEqual(p1.map((p) => p.id).join(','), 'fes,menu,asobi,video,rest', 'TV① の並び');
+    assertEqual(p2.map((p) => p.id).join(','), p1.map((p) => p.id).join(','), 'TV② も同じ並び');
+    assertEqual(p1[0].url, 'https://s.example/fes?tv=1', 'あつまれは TV として入る');
+    assertEqual(p1[4].url + ' ' + p2[4].url, 'https://s.example/tvs/screen?tv=1 https://s.example/tvs/screen?tv=2', '休けいは TV ごと');
+    assertEqual(p1[2].url, 'chrome-extension://x/wait.html', 'あそびまちの URL がまだ無い時は「準備中です」の画面');
+    assertEqual(Logic.plan(ITEMS, 1, 'https://s', SECRET, 'e/')[2].url, SECRET, 'URL が届いたらそこへ');
+  });
+
+  await r.test('「はじめる」の画面えらび：左から TV①・TV②。3つ以上なら「はじめる」を押した画面をのぞく。1つなら左右に分ける', async () => {
+    const d = (id, left) => ({ id, bounds: { left, top: 0, width: 1920, height: 1080 } });
+    const two = Logic.pickDisplays([d('R', 1920), d('L', 0)], 'L');
+    assertEqual(two[1].bounds.left + '/' + two[2].bounds.left + '/' + two[1].full, '0/1920/true', '2つ：左が TV①（全画面）');
+    const three = Logic.pickDisplays([d('pc', 0), d('a', 1920), d('b', 3840)], 'pc');
+    assertEqual(three[1].bounds.left + '/' + three[2].bounds.left, '1920/3840', '3つ：PC の画面をのぞいた左右');
+    const one = Logic.pickDisplays([d('only', 0)], 'only');
+    assertEqual(one[1].bounds.width + '/' + one[2].bounds.left + '/' + one[1].full, '960/960/false', '1つ：左右に分ける（全画面にしない）');
+  });
+
+  await r.test('門10：このスイートで出たログに、あそびまちの key が1度も無い', async () => {
+    assert(出た.length >= 0, '');
+    assert(!出た.some((s) => s.indexOf('TVS-SECRET') !== -1), 'ログに key が出た：' + 出た.filter((s) => s.indexOf('TVS-SECRET') !== -1)[0]);
+  });
+
+  r.finish();
+  process.exit(0);
+})();

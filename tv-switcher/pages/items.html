@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>出す物の一覧</title>
+<!-- 指示69：係の画面（出す物の一覧）。足す・消す・音の入／切・出せる TV。あそびまちは「あそびまち」としか出さない（URL は .env だけ） -->
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;padding:12px 16px 32px;background:#FFF6DC;color:#1A1A1A;font-family:system-ui,-apple-system,"Hiragino Sans",sans-serif}
+  h1{font-size:22px;margin:4px 0 4px}h2{font-size:18px;margin:20px 0 8px}
+  a{color:#1A1A1A;font-weight:700}
+  .it{background:#fff;border:1px solid #E4DCC4;border-radius:12px;padding:10px 12px;margin:8px 0}
+  .it b{font-size:18px}.it small{color:#555;margin-left:6px}
+  .ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
+  button,select,input[type=text]{font-size:16px;min-height:44px;border-radius:10px;border:2px solid #E4DCC4;background:#fff;color:#1A1A1A;padding:0 12px}
+  button{font-weight:700}
+  button.on{background:#1F6FEB;border-color:#1F6FEB;color:#fff}
+  button.del{border-color:#B42318;color:#B42318}
+  label{display:flex;align-items:center;gap:6px;font-size:16px;min-height:44px}
+  input[type=checkbox]{width:22px;height:22px}
+  form{background:#fff;border:1px solid #E4DCC4;border-radius:12px;padding:12px;display:grid;gap:8px}
+  #err{color:#B42318;font-weight:700;min-height:1.4em}
+  .note{font-size:14px;color:#444;line-height:1.6}
+</style>
+</head>
+<body>
+<p><a href="/tvs">← リモコンへ</a></p>
+<h1>出す物の一覧</h1>
+<p class="note">PC の画像・動画は、TV の PC の「はじめる」の画面でえらびます。</p>
+<div id="list"></div>
+<h2>出す物を足す</h2>
+<form id="add">
+  <input type="text" id="name" maxlength="12" placeholder="名前（12字まで）" autocomplete="off">
+  <select id="kind"><option value="url">ページ（アドレス）</option><option value="images">PC の画像</option><option value="video">PC の動画</option></select>
+  <input type="text" id="url" placeholder="https://..." autocomplete="off" inputmode="url">
+  <div class="ctl"><label><input type="checkbox" id="tv1" checked>TV①</label><label><input type="checkbox" id="tv2" checked>TV②</label><label><input type="checkbox" id="snd">音を出す</label></div>
+  <button type="submit">足す</button>
+  <div id="err" role="alert"></div>
+</form>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+  'use strict';
+  var KIND = { fes: 'あつまれ', asobi: 'あそびまち', rest: '休けい', url: 'ページ', images: 'PC の画像', video: 'PC の動画' };
+  var S = null, socket = io('/tvs', { auth: { as: 'remote' } });
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  socket.on('tvs:state', function(s){ S = s; draw(); });
+  function draw(){
+    document.getElementById('list').innerHTML = S.items.map(function(it){
+      var fixed = it.builtin && (it.kind === 'rest' || it.kind === 'fes');
+      var soundless = it.kind === 'rest' || it.kind === 'images' || it.kind === 'asobi';
+      return '<div class="it" data-id="' + esc(it.id) + '"><b>' + esc(it.name) + '</b><small>' + esc(KIND[it.kind] || '') + (it.have === false ? '・まだありません' : '') + '</small>' +
+        '<div class="ctl">' +
+        (fixed ? '' : [1, 2].map(function(n){ return '<button type="button" data-tv="' + n + '" class="' + (it.tvs.indexOf(n) !== -1 ? 'on' : '') + '" aria-pressed="' + (it.tvs.indexOf(n) !== -1) + '">TV' + (n === 1 ? '①' : '②') + '</button>'; }).join('')) +
+        (soundless ? '' : '<button type="button" data-sound class="' + (it.sound ? 'on' : '') + '" aria-pressed="' + it.sound + '">音：' + (it.sound ? '入' : '切') + '</button>') +
+        (it.builtin ? '' : '<button type="button" class="del" data-del>消す</button>') +
+        '</div></div>';
+    }).join('');
+  }
+  document.getElementById('list').addEventListener('click', function(ev){
+    var b = ev.target.closest('button'), box = ev.target.closest('.it'); if (!b || !box) return;
+    var it = S.items.filter(function(x){ return x.id === box.getAttribute('data-id'); })[0]; if (!it) return;
+    if (b.hasAttribute('data-sound')) socket.emit('tvs:items:update', { id: it.id, sound: !it.sound });
+    if (b.hasAttribute('data-tv')) {
+      var n = Number(b.getAttribute('data-tv')), tvs = it.tvs.indexOf(n) !== -1 ? it.tvs.filter(function(x){ return x !== n; }) : it.tvs.concat([n]);
+      if (tvs.length) socket.emit('tvs:items:update', { id: it.id, tvs: tvs });
+    }
+    if (b.hasAttribute('data-del')) {
+      if (b.getAttribute('data-sure')) socket.emit('tvs:items:remove', { id: it.id });
+      else { b.setAttribute('data-sure', '1'); b.textContent = 'もう一度押すと消えます'; }
+    }
+  });
+  var kind = document.getElementById('kind'), url = document.getElementById('url');
+  kind.addEventListener('change', function(){ url.style.display = kind.value === 'url' ? '' : 'none'; });
+  document.getElementById('add').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var p = { name: document.getElementById('name').value, kind: kind.value, url: url.value,
+      tvs: [1, 2].filter(function(n){ return document.getElementById('tv' + n).checked; }), sound: document.getElementById('snd').checked };
+    socket.emit('tvs:items:add', p, function(r){
+      document.getElementById('err').textContent = r && r.ok ? '' : ((r && r.error) || 'うまくいきませんでした');
+      if (r && r.ok) { document.getElementById('name').value = ''; url.value = ''; }
+    });
+  });
+})();
+</script>
+</body>
+</html>

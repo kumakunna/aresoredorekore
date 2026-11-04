@@ -122,7 +122,7 @@
           var on = mine === k;
           return '<div class="v2-vcard v2-ochoice' + (on ? ' is-on' : '') + '"' + (mine != null && !on ? ' data-dimok' : '') +
             ' role="button" tabindex="0"' + (mine != null ? ' aria-disabled="true"' : '') + ' data-qh-pick="' + k + '">' +
-            '<span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-vt"><span class="v2-vn" data-v2-wrap>' + V.phrase(c) + '</span></span>' +
+            '<span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-vt"><span class="v2-vn" data-v2-wrap data-v2-fit>' + V.phrase(c) + '</span></span>' +
             (on ? '<span class="v2-vok">' + V.icon('check') + e(t.答えた) + '</span>' : '') + '</div>';
         }).join('') + '</div>' +
         '<div class="v2-hint v2-c" role="status">' + e(mine != null ? t.テレビ : t.押したら) + '</div></div>';

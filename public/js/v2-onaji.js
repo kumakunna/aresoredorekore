@@ -67,7 +67,7 @@
         // data-dimok：選んだあとの、選ばなかった札はわざと薄くする（もう変えられない・物差しの K2 に数えない）
         return '<div class="v2-vcard v2-ochoice' + (on ? ' is-on' : '') + '"' + (mine != null && !on ? ' data-dimok' : '') +
           ' role="button" tabindex="0"' + (mine != null ? ' aria-disabled="true"' : '') + ' data-onaji-pick="' + k + '">' +
-          '<span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-vt"><span class="v2-vn" data-v2-wrap>' + V.phrase(c) + '</span></span>' +
+          '<span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-vt"><span class="v2-vn" data-v2-wrap data-v2-fit>' + V.phrase(c) + '</span></span>' +
           (on ? '<span class="v2-vok">' + V.icon('check') + e(t.えらんだ) + '</span>' : '') + '</div>';
       }).join('') + '</div>' +
       '<div class="v2-hint v2-c" role="status">' + e(mine != null ? t.まっています : t.えらんで) + '</div>';

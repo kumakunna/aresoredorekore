@@ -206,7 +206,9 @@ async function 入った(o) {
   await r.test('「いまは部屋がありません」の画面（スマホ）も、部屋ができたら自動で /fes へ進む', async () => {
     const { win, doc } = await launch({ url: 'http://localhost/?fes=1', fakeSocket: true });
     await waitFor(win, () => act(doc) === 'scr-v2-fes-join', 6000, '入る画面');
-    assert(/いまは文化祭の部屋がありません/.test(doc.getElementById('scr-v2-fes-join').textContent), '部屋が無い文');
+    // 指示71 追記2e：部屋が無い時は、名前の欄の赤い字ではなく「まもなく始まります。待ってね」の画面
+    assert(/まもなく始まります/.test(doc.getElementById('scr-v2-fes-join').textContent), 'まもなく始まります');
+    assert(!doc.querySelector('#scr-v2-fes-join .v2-why, #scr-v2-fes-join .is-bad'), '赤い字（名前のまちがいの形）では出さない');
     const 移った = []; win.fesNav = (u) => 移った.push(u);
     win.fetch = async () => ({ ok: true, json: async () => ({ code: 'NEW123' }) });
     await waitFor(win, () => 移った.length, 6000, '部屋ができたら移る');
@@ -450,10 +452,11 @@ async function 入った(o) {
 
   await r.test('B3：文化祭の画面のルールのシートの時間は、文化祭の値（投票の札と TV と同じ）', async () => {
     const { win, doc } = await 入った();
-    流す(win, 'fes2-vote');
+    const lab = 流す(win, 'fes2-vote');
     await sleep(win, 30);
     const 分 = win.UiText.FES.投票.分;
-    const modes = Object.keys(分);
+    // この場面の候補のゲーム（指示71 追記2a で、分の表に2.0 の5本も足した。候補でないゲームのシートは、この場面には無い）
+    const modes = (lab.room.fes.candidates || []).filter((m) => 分[m] != null);
     assert(modes.length >= 3, '文化祭のゲームが3つ以上');
     modes.forEach((mode) => {
       const sheet = doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Rules-' + mode + '"]');
@@ -714,6 +717,50 @@ async function 入った(o) {
     win.__rtFake.fire('fes:turn', { code: 'TST754', token: 'tokre1' });
     await waitFor(win, () => emits(win, 'room:join').some((e) => e.payload.name === 'まち' && e.payload.diff === 'easy' && e.payload.reserve === 'tokre1'), 2000, '「どうぞ」で、名前とむずかしさと合い札を添えて入りにいく');
     H.assertNoErrors(errors, '開き直した予約で未捕捉の例外');
+    win.close();
+  });
+
+  // ===== 指示71 追記2 =====
+  await r.test('追記2h・2i：TV の準備OK の帯は、待っている人を名前ではなく人数で。全員押したら「そろいました！」', async () => {
+    const lab = FesScenes.view('fes2-tv-ready');
+    const room = JSON.parse(JSON.stringify(lab.room));
+    const { win, doc } = await launch({ url: 'http://localhost/?room=TST754&fes=1&tv=1', fakeSocket: true, noDoorWait: true,
+      rtSeed: 'window.__rtFake.replies = { "room:join": function(p, cb){ setTimeout(function(){ cb({ ok: true, code: "TST754", memberId: "tv", room: ' + JSON.stringify(room) + ' }); }, 30); return undefined; } };' });
+    await waitFor(win, () => doc.querySelector('#scr-v2-fes-tv .v2-tband'), 8000, 'TV の準備OK');
+    const ps = room.members.filter((m) => m.role !== 'bigscreen');
+    const send = () => win.__rtFake.fire('room:update', JSON.parse(JSON.stringify(room)));
+    ps.forEach((m, i) => { m.ready = i >= 1; });   // 1人だけまだ
+    send(); await sleep(win, 150);
+    const band = () => doc.querySelector('#scr-v2-fes-tv .v2-tband').textContent;
+    assert(/1人を待っています/.test(band()), '人数で（' + band() + '）');
+    assert(!ps.some((m) => band().indexOf(m.name) !== -1), '帯に名前を出さない');
+    ps.forEach((m) => { m.ready = true; });
+    send(); await sleep(win, 150);
+    assert(/そろいました！/.test(band()) && !/準備中/.test(band()), '全員押したら「そろいました！」（' + band() + '）');
+    win.close();
+  });
+
+  await r.test('追記2f：部屋が無い朝の TV は「まもなく始まります」。作り直しの途中（wait=1）だけ「作り直しています」', async () => {
+    for (const [url, want, no] of [['http://localhost/?fes=1&tv=1', /まもなく始まります/, /作り直して/], ['http://localhost/?fes=1&tv=1&wait=1', /作り直して/, /まもなく始まります/]]) {
+      const { win, doc } = await launch({ url, fakeSocket: true });
+      await waitFor(win, () => /まもなく|作り直して/.test((doc.getElementById('scr-v2-fes-tv') || {}).textContent || ''), 6000, 'TV の待つ画面');
+      const t = doc.getElementById('scr-v2-fes-tv').textContent;
+      assert(want.test(t) && !no.test(t), url + '：' + t.slice(0, 60));
+      win.close();
+    }
+  });
+
+  await r.test('追記2e：満員は、名前の欄の赤い字ではなく、赤を使わない札（予約のボタンも出る）', async () => {
+    const t = await 入る画面();
+    const { win, doc } = t;
+    win.__rtFake.replies['room:join'] = () => ({ ok: false, error: 'room_full', message: '満員です' });
+    const n = doc.querySelector('[data-fes-name]');
+    n.value = 'まち'; n.dispatchEvent(new win.Event('input', { bubbles: true }));
+    doc.querySelector('[data-fes-diff="normal"]').click();
+    doc.querySelector('[data-fes-act="join"]').click();
+    await waitFor(win, () => doc.querySelector('[data-fes-act="reserve"]'), 3000, '予約のボタン');
+    assert(!doc.querySelector('#scr-v2-fes-join .v2-why, #scr-v2-fes-join .is-bad'), '赤い字（名前のまちがいの形）では出さない');
+    assert(/満員/.test(doc.querySelector('#scr-v2-fes-join .v2-note').textContent), '赤を使わない札で満員と出す');
     win.close();
   });
 

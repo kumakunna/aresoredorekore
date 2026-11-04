@@ -5244,6 +5244,9 @@
   .v2 .v2-vcard .v2-tile{width:66px;height:66px;}
   .v2 .v2-vt{min-width:0;display:flex;flex-direction:column;gap:6px;}
   .v2 .v2-vn{font-weight:900;font-size:19px;line-height:1.2;}
+  /* 指示71 追記2b：選択肢は語の途中で折らない（「てんと／うむし」「大玉ころが／し」）。折るのは文節の切れ目（<wbr>）だけ。
+     1つの文節が札より長い時は、字を縮める（data-v2-fit・7割まで。V2.fit が測る） */
+  .v2 .v2-vn[data-v2-fit]{display:block;overflow-wrap:normal;}
   .v2 .v2-vb{font-weight:800;font-size:13px;color:var(--ws);line-height:1.35;}
   .v2 .v2-vmeta{display:flex;gap:6px;flex-wrap:wrap;}
   .v2 .v2-vmeta span{font-weight:900;font-size:12px;border-radius:999px;padding:3px 8px;line-height:1.3;background:var(--wdim);}
@@ -5258,8 +5261,8 @@
      開く（unveil）の動きは .is-play の時だけ（その問題を初めて描いた時）：せーの → 棒がのびる → 冠 → 名前。
      長さはどれも「演出の速さ」をかける（演出「なし」で止まる） */
   /* 右上の丸ボタン（設定）の下に時計が入らないよう、右をあける（解除中の .v2-ptop と同じ幅） */
-  .v2 .v2-otop{display:flex;align-items:center;gap:10px;padding-right:56px;}
-  .v2 .v2-opill{display:inline-flex;align-items:baseline;gap:2px;background:var(--wi);color:var(--won);border-radius:999px;padding:4px 12px;font-weight:900;font-size:15px;line-height:1.3;}
+  .v2 .v2-otop{display:flex;align-items:center;gap:10px;padding-right:56px;flex-wrap:wrap;}
+  .v2 .v2-opill{display:inline-flex;align-items:baseline;gap:2px;background:var(--wi);color:var(--won);border-radius:999px;padding:4px 12px;font-weight:900;font-size:15px;line-height:1.3;white-space:nowrap;}
   .v2 .v2-opill small{font-size:.8em;margin-right:2px;}
   .v2 .v2-omode{font-weight:900;font-size:14px;color:var(--ws);}
   .v2 .v2-oclock{margin-left:auto;}
@@ -5544,7 +5547,7 @@
   .v2 .v2-q2line .v2-ptwin-n{line-height:1.15;max-width:1200px;}
   .v2 .v2-ptr.is-perfect.v2-q2line .v2-ptwin{top:0;background:#FFD84A;border-color:#B8860B;color:#3A2A00;}
   /* ---- 指示68-4：ぴったり10秒（v2-pittari.js）・そろえて発射（v2-soroe.js）。上の行と開く札は、みんなと同じの物を使う ---- */
-  .v2 .v2-ptx2{background:var(--wi);color:var(--won);border-radius:999px;padding:2px 10px;font-weight:900;font-size:13px;line-height:1.4;}
+  .v2 .v2-ptx2{background:var(--wi);color:var(--won);border-radius:999px;padding:2px 10px;font-weight:900;font-size:13px;line-height:1.4;white-space:nowrap;}
   .v2 .v2-ptset{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;}
   .v2 .v2-ptready{font-weight:900;font-size:34px;line-height:1.2;}
   .v2 .v2-pttgt{display:flex;align-items:baseline;gap:6px;}
@@ -20145,10 +20148,12 @@
       name: function(id){ return 名簿[id] || ''; }
     };
   }
-  // 「◯◯さんを待っています」。2人までは名前を出し、それ以上は数で言う
+  // 「◯◯さんを待っています」。2人までは名前を出し、それ以上は数で言う。
+  // 指示71 追記2h：**TV（大画面）では名前を出さず、人数だけ**（大切なこと5：だれのせいで待っているかをみんなに見せない。68-0b でも人数のままと決めた）
   function nlWaiting(names){
     var a = (names || []).filter(Boolean);
     if(!a.length) return NL.共通.みんなを待つ;
+    if(rtIsBigScreen()) return a.length + '人を待っています';
     if(a.length === 1) return NL.共通.だれかを待つ(a[0]);
     if(a.length === 2) return NL.共通.だれかを待つ(a[0] + '・' + a[1]);
     return a.length + '人を待っています';
@@ -32527,8 +32532,9 @@
         // 部屋が無い：作り直しを待つ（サーバーが作り直された・TV はいつもこれ）か、「いまは部屋がありません」。どちらも部屋ができたら自動で入る
         var asTvW = /[?&]tv=1/.test(location.search);
         fesWaitRoom(asTvW);
-        if(asTvW || /[?&]wait=1/.test(location.search)){ var wsc = asTvW ? 'scr-v2-fes-tv' : 'scr-v2-fes-join'; el(wsc).innerHTML = V2Fes.wait({ tv: asTvW }); V2.mount(el(wsc)); if(asTvW) setTimeout(function(){ V2.fitTv(el(wsc), 0); }, 0); return wsc; }
-        fes.join.err = UiText.FES.入る.部屋が無い; fesRenderJoin(); return 'scr-v2-fes-join';
+        // 指示71 追記2e・2f：作り直しの途中（wait=1）だけ「作り直しています」。それ以外（朝・部屋を作る前）は「まもなく始まります」。
+        // スマホも名前の欄の赤い字ではなく、この画面で待つ（部屋ができたら自動で入る：fesWaitRoom）
+        var wsc = asTvW ? 'scr-v2-fes-tv' : 'scr-v2-fes-join'; el(wsc).innerHTML = V2Fes.wait({ tv: asTvW, recreating: /[?&]wait=1/.test(location.search) }); V2.mount(el(wsc)); if(asTvW) setTimeout(function(){ V2.fitTv(el(wsc), 0); }, 0); return wsc;
       }
       // 指示66-3 E2：QR で来た人は、コードを飛ばして名前から（覗いて確かめてから）。TV（/tv）はコードだけ
       var asTv = /[?&]tv=1/.test(location.search || '');
@@ -33518,7 +33524,7 @@
     var scr = el('scr-v2-fes-join'); if(!scr) return;
     var j = fes.join;
     var turnLeft = j.turnUntil ? Math.max(0, Math.ceil((j.turnUntil - Date.now()) / 1000)) : 0;
-    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy, masked: j.masked, full: j.full, reserved: j.reserved,
+    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, info: j.info, busy: j.busy, masked: j.masked, full: j.full, reserved: j.reserved,
       gone: j.gone, eta: j.reserved ? fesEtaMin() : null, turn: turnLeft || null });
     V2.mount(scr);
   }
@@ -33544,8 +33550,9 @@
     // つながる前に覗くと「部屋が無い」に見える。先につないでから覗く（1回だけ待ち直す）
     var p = null;
     if(rt){ rt.connect(); p = await rt.peekRoom(code); if(!p || !p.ok){ await new Promise(function(r){ setTimeout(r, 700); }); p = await rt.peekRoom(code); } }
-    if(!p || !p.ok){ fes.join.err = UiText.FES.入る.部屋が無い; }
-    else fes.join.n = p.playerCount;
+    // 指示71 追記2e：部屋が無い（作り直された・古い QR）は、名前の欄の赤い字ではなく、部屋を待つ画面（できたら自動で入る）
+    if(!p || !p.ok){ el('scr-v2-fes-join').innerHTML = V2Fes.wait({}); V2.mount(el('scr-v2-fes-join')); fesWaitRoom(false); return; }
+    fes.join.n = p.playerCount;
     fesRenderJoin();
     // 指示71 追記1：この部屋に予約していた端末（開き直した・つなぎ直した）は、合い札で同じ予約にもどる
     if(p && p.ok) fesResume();
@@ -33559,8 +33566,13 @@
     j.busy = true; j.err = ''; fesRenderJoin();
     var res = await rt.joinRoom(j.code, c.name, 'player', undefined, j.diff, j.token || undefined);
     j.busy = false;
+    j.info = '';
+    // 指示71 追記2e：部屋が無い（作り直された・まちがったコード）は、名前のまちがいではない。部屋を待つ画面へ（できたら自動で入る）
+    if(!res.ok && res.error === 'room_not_found'){ el('scr-v2-fes-join').innerHTML = V2Fes.wait({}); V2.mount(el('scr-v2-fes-join')); fesWaitRoom(false); return; }
     if(!res.ok){
       j.err = J[FES_JOIN_ERR[res.error]] || res.message || '';
+      // 満員は赤い字（名前のまちがい）にしない。赤を使わない札で
+      if(res.error === 'room_full'){ j.info = j.err; j.err = ''; }
       // 指示66-3：満員なら、予約のボタンに変わる（名前とむずかしさはそのまま）
       j.full = res.error === 'room_full';
       if(res.error === 'name_blocked'){ j.masked = true; j.name = ''; }

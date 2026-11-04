@@ -150,5 +150,21 @@
   "from": "'baka', ",
   "to": "'shine', 'baka', ",
   "expect": "追記3"
+ },
+ {
+  "name": "D1 幕が次の画面を待たない（直す前）",
+  "file": "public/js/fx.js",
+  "suite": "tests/bomb-finale.js",
+  "from": "      return 描けるまで(opt.ready);   // 指示71 追記2d：次の画面が後ろに描けてから上げる\n",
+  "to": "      return null;\n",
+  "expect": "追記2d"
+ },
+ {
+  "name": "D2 bombFinale が ready を渡さない（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/bomb-finale.js",
+  "from": ",\n      ready: bombFinaleReady()\n",
+  "to": "\n",
+  "expect": "追記2d"
  }
 ]

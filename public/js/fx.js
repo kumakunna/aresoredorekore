@@ -396,6 +396,27 @@
       setTimeout(済む, 800);
     });
   }
+  /**
+   * 幕の後ろに次の画面が描けるまで待つ（指示71 追記2d）。ready() が真になってから2コマ（描けた所まで）。
+   * 文化祭のクイズ解除は、決着から結果の段階まで3.5秒＋見回りの間かかる。幕（4秒）が先に上がると、その間だけ
+   * 今までの画面（決着・爆発の見出し）が見えていた（遅い機械で約1秒）。**6秒で見切る**（幕が下りたままにならない）
+   */
+  function 描けるまで(ready) {
+    if (typeof ready !== 'function') return Promise.resolve();
+    return new Promise(function (resolve) {
+      var t0 = Date.now();
+      var コマ = function () {
+        if (typeof requestAnimationFrame !== 'function') return resolve();
+        requestAnimationFrame(function () { requestAnimationFrame(function () { resolve(); }); });
+      };
+      (function 見る() {
+        var ok = true;
+        try { ok = !!ready(); } catch (e) {}
+        if (ok || Date.now() - t0 > 6000) return コマ();
+        setTimeout(見る, 50);
+      })();
+    });
+  }
 
   /** banner と shutter が共有する中身（icon/text/sub/skip案内）の組み立て（第59弾） */
   function bannerInnerHtml(opt) {
@@ -1181,6 +1202,7 @@
    *   ・**光（明るさ・揺れ・粒）は cfg.can.flash / can.shake に従う**。切っても言葉・音・振動は残る
    *   ・どこを押しても先へ（原則B）。演出「なし」では、ためと動きが0になり、言葉だけ linger の間出る
    *   ・behind：幕を上げる前に呼ぶ（手渡しはここで結果の画面へ移る）
+   *   ・ready：幕を上げてよいか（次の画面が後ろに描けたか）。真になるまで幕を下ろしたまま待つ（6秒で見切る・指示71 追記2d）
    */
   function finale(opt) {
     opt = opt || {};
@@ -1266,6 +1288,8 @@
     }
     p = p.then(function () {
       try { behind(); } catch (e) {}
+      return 描けるまで(opt.ready);   // 指示71 追記2d：次の画面が後ろに描けてから上げる
+    }).then(function () {
       return 指が離れるまで();
     }).then(function () {
       n.classList.add('fx-out');

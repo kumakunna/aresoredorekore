@@ -29392,8 +29392,22 @@
       },
       onName: function(){ sfx('tap', { rate: Math.min(1.6, 1 + (高さ++) * 0.04) }); },   // 名前ごとに軽い音（だんだん高く）
       onText: function(){ if(!clear) 声('v12'); },        // 「おしい！」（明るく）
-      behind: function(){ 声(clear ? 'v11' : 'v10'); 結果へ(); }   // 幕が上がる時：「おめでとう！」／「結果発表！」
+      behind: function(){ 声(clear ? 'v11' : 'v10'); 結果へ(); },   // 幕が上がる時：「おめでとう！」／「結果発表！」
+      ready: bombFinaleReady()
     });
+  }
+  /**
+   * 指示71 追記2d：文化祭の部屋では、幕の後ろに文化祭の結果の画面が描けてから幕を上げる。
+   * 決着の瞬間は今までの画面（決着・爆発の見出し）にいて、結果の段階（決着の3.5秒後＋見回りの間）で文化祭の画面へ移る。
+   * 幕（4秒）が先に上がると、遅い機械で今までの画面が約1秒見えていた。文化祭でない部屋・手渡しは待たない（null）
+   */
+  function bombFinaleReady(){
+    if(typeof fesRoom !== 'function' || !fesRoom()) return null;
+    return function(){
+      if(!fesRoom()) return true;   // 部屋を出た・閉じた：待たない
+      var want = fesWantScreen(), a = document.querySelector('.screen.active');
+      return !!want && !!a && a.id === want;
+    };
   }
   window.bombFinaleProbe = function(o){ return bombFinale(o); };   // 検査が4面の形を直に回す窓（tests/bomb-finale.js）
   function bombClearSequence(opt){

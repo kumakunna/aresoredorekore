@@ -66,7 +66,8 @@ async function 終わらせる(t) {
     await sleep(t.win, 950);
     assert(n.classList.contains('is-card'), '3.0秒：結果の札が上がる');
     const 札 = n.querySelector('.fx-fin-card').textContent;
-    assert(/30\/30/.test(札) && /02:27/.test(札) && /枕草子/.test(札), '札に本数・時間・迷った問題（' + 札 + '）');
+    // 指示71 追記2j：時間は言葉で（「2分27秒で解除！」）。「02:27」だと何の時間か分からなかった
+    assert(/30\/30/.test(札) && /2分27秒で解除！/.test(札) && !/02:27/.test(札) && /枕草子/.test(札), '札に本数・時間（言葉で）・迷った問題（' + 札 + '）');
     await 終わらせる(t);
     await p;
     assertEqual(後ろ, 1, '幕の後ろで結果へ移る（1回だけ）');
@@ -135,6 +136,32 @@ async function 終わらせる(t) {
     // 68-S の残り2（10/31）：幕が上がったらすぐ文化祭の結果。見回り（0.5秒ごと）の分を足しても、幕が消える 4.0秒までに結果へ移る
     assert(FesRoom.TIMES.endGraceMs + 500 <= 4000, '文化祭の結果へは、幕が消えるまでに移る（' + FesRoom.TIMES.endGraceMs + 'ms＋見回り0.5秒）');
     assert(FesRoom.TIMES.endGraceMs >= 3000, '幕が上がる前に結果へ移りすぎない（結果の見せ場が幕の下で終わらない）');
+  });
+
+  await r.test('追記2d：幕は、後ろに次の画面が描けるまで上げない（ready）。描けたらすぐ上がる・6秒で見切る。文化祭の部屋の bombFinale は ready を渡す', async () => {
+    const t = await 開く();
+    let 描けた = false;
+    const 終わり = t.win.FxKit.finale({ kind: 'boom', tv: false, title: 'ばくはつ…', ready: () => 描けた });
+    await sleep(t.win, 4600);
+    assert(幕(t.doc) && !幕(t.doc).classList.contains('fx-out'), '4秒をすぎても、次の画面が描けるまでは幕が下りたまま（古い画面を見せない）');
+    描けた = true;
+    const t0 = Date.now();
+    await 終わり;
+    assert(!幕(t.doc), '描けたら幕が上がって消える');
+    assert(Date.now() - t0 < 1500, '描けてから幕が上がるまで短い（' + (Date.now() - t0) + 'ms）');
+    // 見切り：いつまでも描けなくても、幕は下りたままにならない
+    const t1 = Date.now();
+    const 見切り = t.win.FxKit.finale({ kind: 'boom', tv: false, title: 'ばくはつ…', ready: () => false });
+    await 見切り;
+    const ms = Date.now() - t1;
+    // 幕の4秒のあと、待つのは6秒まで（4秒＋6秒＋上がる0.25秒）
+    assert(!幕(t.doc) && ms >= 9500 && ms < 11500, '6秒で見切って幕が上がる（全部で ' + ms + 'ms）');
+    t.win.close();
+    const html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+    const fn = html.slice(html.indexOf('function bombFinale(o){'), html.indexOf('function bombFinaleReady(){'));
+    assert(/ready: bombFinaleReady\(\)/.test(fn), 'bombFinale（4面が呼ぶ1本）が ready を渡す');
+    const rd = html.slice(html.indexOf('function bombFinaleReady(){'), html.indexOf('function bombFinaleReady(){') + 700);
+    assert(/fesWantScreen\(\)/.test(rd) && /\.screen\.active/.test(rd), '文化祭の部屋では、文化祭の画面が表に出たら上げる');
   });
 
   await r.test('門1：スマホ … 解除は「解除！」と自分の名前だけ・短い振動／爆発は静かに「ばくはつ…」・長めの振動', async () => {

@@ -199,6 +199,23 @@ async function run() {
     return fake;
   }
 
+  await r.test('指示71-2：ふだんの部屋の待合で ⚙ →「アイコン・二つ名」は、待合の着替えのシートを開く（古い画面へ行かない・「着替えは待合で」と言わない）', async () => {
+    const { win, doc, errors } = await launch({ fakeSocket: true });
+    await 待合に入る(win, doc);
+    click(doc, 'floatingGearBtn');
+    await sleep(win, 150);
+    const toApp = doc.querySelector('#settingsOverlay [data-setpage="app"]');
+    if (toApp) { toApp.click(); await sleep(win, 150); }
+    const 二つ名 = doc.querySelector('#settingsOverlay [data-setact="titles"]');
+    assert(二つ名, '設定に「アイコン・二つ名」の行がある');
+    二つ名.click();
+    await waitFor(win, () => doc.querySelector('#scr-v2-room [data-v2-id="v2Look"].is-open'), 2000, '待合の着替えのシートが開く');
+    assertEqual(activeScreen(doc), 'scr-v2-room', '部屋の画面のまま');
+    assert(!/着替えは待合で/.test(doc.body.textContent.replace(/\s+/g, '')) || !doc.querySelector('.fx-notice'), '「着替えは待合で」と言わない');
+    assertNoErrors(errors, '未捕捉の例外');
+    win.close();
+  });
+
   await r.test('48-1②：部屋の画面の外にいる間に選ばれても、戻ったらルールが出る', async () => {
     const { win, doc, errors } = await launch({ fakeSocket: true });
     const fake = await 待合に入る(win, doc);
@@ -213,14 +230,10 @@ async function run() {
     fake.fire('room:update', 部屋());
     await waitFor(win, () => activeScreen(doc) === 'scr-v2-room', 3000, '待合にもどる');
 
-    // ⚙ →「アプリの設定」→「アイコン・二つ名」で、部屋の画面の外へ出る
-    click(doc, 'floatingGearBtn');
-    await sleep(win, 150);
-    const toApp = doc.querySelector('#settingsOverlay [data-setpage="app"]');
-    if (toApp) { toApp.click(); await sleep(win, 150); }
-    const 二つ名 = doc.querySelector('#settingsOverlay [data-setact="titles"]');
-    assert(二つ名, '設定に「アイコン・二つ名」の行がある');
-    二つ名.click();
+    // 部屋の画面の外（古い称号の画面）にいる形を作る。
+    // それまでは ⚙ →「アイコン・二つ名」で出ていたが、指示71-2 で部屋にいる間は待合の着替えのシートを開くようにした
+    // （部屋の画面から出ない）。外にいる時の振る舞いは残っているので、画面だけを goToProbe で移して確かめる
+    win.goToProbe('scr-titles');
     await waitScreen(win, doc, 'scr-titles', 4000);
 
     // その間にホストがゲームを選ぶ

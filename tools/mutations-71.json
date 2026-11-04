@@ -250,5 +250,14 @@
   "to": "",
   "expect": "追記7：決定の間",
   "only": "追記7：決定の間"
+ },
+ {
+  "name": "S6 ふだんの部屋で着替えのシートを開かない（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/fixes48.js",
+  "from": "        if(lookSheet){ setTimeout(function(){ V2.open(lookSheet); }, 0); return; }\n",
+  "to": "",
+  "expect": "指示71-2：ふだんの部屋の待合",
+  "only": "指示71-2：ふだんの部屋の待合"
  }
 ]

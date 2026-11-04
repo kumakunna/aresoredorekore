@@ -6430,6 +6430,7 @@
   /* 箱に入らない人は「ほか◯人」の札に（v2-kit.js の clipRows） */
   .v2 .v2-mems > .is-clipped{display:none;}
   .v2 .v2-mem-more{justify-content:center;font-weight:900;font-size:14px;color:var(--wi);border:0;cursor:pointer;box-shadow:inset 0 0 0 2px var(--wl2);background:transparent;}
+  .v2 .v2-mem-more:active{transform:scale(.97);}   /* 押した瞬間の反応（tests/press-feedback.js） */
   .v2 .v2-tile.is-sm{width:44px;height:44px;}
   .v2 .v2-epick{gap:10px;}
   .v2 .v2-epick-nm{flex:1;font-weight:900;font-size:17px;line-height:1.2;}
@@ -31446,9 +31447,15 @@
       // 指示71-2：部屋にいる時（文化祭も）は、新しい見た目の着替え（待合のシート）を開く。古い scr-titles へ行かない。
       // 着替えは待合で（指示63 2-3）。待合が出ていない時（遊んでいる途中）は、そう伝えるだけ
       if(inRoomNow()){
-        var look = document.querySelector('.screen.active [data-fes-act="look"]');
+        var lookScr = document.querySelector('.screen.active');
+        // 文化祭の待合はボタンを押す（押した時に着替えの中身を組み直す）。ふだんの部屋は待合の画面のシート（v2Look）をそのまま開く——
+        // 進行役の待合には着替えのボタンが無いが、シートはある（指示71 の npm test で見つけた：文化祭の印だけを探していて、
+        // ふだんの部屋では待合にいても「着替えは待合で」と出ていた）
+        var look = lookScr && lookScr.querySelector('[data-fes-act="look"]');
+        var lookSheet = !look && lookScr && lookScr.querySelector('[data-v2-id="v2Look"]');
         // 次の番で押す：この行を押した「クリック」がまだ上へ伝わっている途中に開くと、シートは外を押されたと思って閉じる
         if(look){ setTimeout(function(){ look.click(); }, 0); return; }
+        if(lookSheet){ setTimeout(function(){ V2.open(lookSheet); }, 0); return; }
         try{ FxKit.notice(UiText.SET.着替えは待合で); }catch(e){}
         return;
       }
@@ -33615,7 +33622,7 @@
     var j = fes.join;
     var turnLeft = j.turnUntil ? Math.max(0, Math.ceil((j.turnUntil - Date.now()) / 1000)) : 0;
     scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, info: j.info, busy: j.busy, masked: j.masked, full: j.full, reserved: j.reserved,
-      gone: j.gone, eta: j.reserved ? fesEtaMin() : null, turn: turnLeft || null });
+      resvLost: j.resvLost, eta: j.reserved ? fesEtaMin() : null, turn: turnLeft || null });
     V2.mount(scr);
   }
   /**
@@ -33686,7 +33693,7 @@
       if(res.error === 'name_blocked'){ j.masked = true; j.name = ''; }
       fesRenderJoin(); return;
     }
-    j.full = false; j.reserved = null; j.token = null; j.turnUntil = null; j.gone = false;
+    j.full = false; j.reserved = null; j.token = null; j.turnUntil = null; j.resvLost = false;
     fesResvSave(null);   // 入れた：予約の合い札は忘れる
     try{ localStorage.setItem(FES_NAME_KEY, c.name); }catch(e){}
     fes.toastOnce = true;
@@ -33756,7 +33763,7 @@
     j.busy = true; fesRenderJoin();
     var r = await rt.fesReserve(j.code);
     j.busy = false;
-    if(r && r.ok){ j.reserved = r.pos; j.err = ''; j.gone = false; fesEta(r.etaMs); fesResvSave(j.code, r.token); fesQueueTimer(); }
+    if(r && r.ok){ j.reserved = r.pos; j.err = ''; j.resvLost = false; fesEta(r.etaMs); fesResvSave(j.code, r.token); fesQueueTimer(); }
     else j.err = (r && r.message) || J.部屋が無い;
     fesRenderJoin();
   }
@@ -33795,11 +33802,11 @@
     var r = await rt.fesReserve(j.code, sv.token);
     j.resuming = false;
     if(r && r.ok){
-      j.reserved = r.pos; j.gone = false; j.full = true; fesEta(r.etaMs); fesQueueTimer();
+      j.reserved = r.pos; j.resvLost = false; j.full = true; fesEta(r.etaMs); fesQueueTimer();
       if(!j.name && sv.name) j.name = sv.name;
       if(sv.diff) j.diff = sv.diff;   // 予約した時のむずかしさ（追記7 の既定「ふつう」より先）
     }
-    else if(r && r.error === 'reserve_gone'){ j.reserved = null; j.gone = true; j.full = true; fesResvSave(null); }
+    else if(r && r.error === 'reserve_gone'){ j.reserved = null; j.resvLost = true; j.full = true; fesResvSave(null); }
     else return;
     // 入る画面へ移る前に返事が届くことがある（開いた直後）。見えていなくても描き直す（入る画面の中身を書くだけ）
     fesRenderJoin();

@@ -63,7 +63,7 @@
     var len = o.masked ? 0 : Array.from(String(o.name || '').trim()).length;
     return !!o.diff && !o.busy && len > 0 && len <= 8;
   }
-  /** o：{ code, n, name, diff, error, info（満員など・赤を使わない）, busy, full（満員で入れなかった）, reserved（予約した何番目）, gone（予約が消えた・指示71 追記1）,
+  /** o：{ code, n, name, diff, error, info（満員など・赤を使わない）, busy, full（満員で入れなかった）, reserved（予約した何番目）, resvLost（予約が消えた・指示71 追記1）,
    *       eta（あと約◯分）, turn（「どうぞ」の残り秒） } */
   function join(o) {
     var J = U().入る, V = K();
@@ -94,7 +94,7 @@
         (o.reserved ? '<p class="v2-note" role="status">' + e(J.予約した前 + o.reserved + J.予約した後) + '</p>' : '') +
         // 指示71 追記1：「あと約◯分」（出せない時は出さない）・予約が消えた時（「予約しました」のままにしない）
         (o.reserved && o.eta ? '<p class="v2-note" role="status">' + e(J.あと約 + o.eta + J.分) + '</p>' : '') +
-        (o.gone && !o.reserved ? '<p class="v2-note" role="status">' + e(J.順番が消えた) + '</p>' : '') +
+        (o.resvLost && !o.reserved ? '<p class="v2-note" role="status">' + e(J.順番が消えた) + '</p>' : '') +
         '<p class="v2-hint v2-c">' + e(J.記録) + '</p>' +
         (o.reserved
           ? '<button type="button" class="v2-btn is-pri" disabled>' + e(J.予約中) + '</button>' +

@@ -72,7 +72,9 @@ function 規則のあるクラス(css) {
  */
 function markupのクラス(html) {
   const BODY = html.slice(html.indexOf('<body'));
-  const MARK = BODY.slice(0, BODY.indexOf('<script'));
+  // markup は、外から読む script（<script src=…>）の前まで。その間にある小さな script（指示71-4：起動のロゴを読みこみの途中から
+  // 動かすため scr-door のすぐ後ろに置いた）は中身を消して、行の数だけ残す（行番号をずらさない）
+  const MARK = BODY.slice(0, BODY.indexOf('<script src')).replace(/<script>[\s\S]*?<\/script>/g, (s) => s.replace(/[^\n]/g, ''));
   const out = new Map();
   let m;
   const re = /class\s*=\s*["']([^"']+)["']/g;

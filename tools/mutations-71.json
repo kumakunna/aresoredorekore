@@ -123,7 +123,7 @@
   "name": "R6 開き直すと名前とむずかしさが消える（直す前）",
   "file": "public/index.html",
   "suite": "tests/fes-screens.js",
-  "from": "      if(!j.name && sv.name) j.name = sv.name;\n      if(!j.diff && sv.diff) j.diff = sv.diff;\n",
+  "from": "      if(!j.name && sv.name) j.name = sv.name;\n      if(sv.diff) j.diff = sv.diff;   // 予約した時のむずかしさ（追記7 の既定「ふつう」より先）\n",
   "to": "",
   "expect": "追記1：予約したまま開き直した端末"
  },
@@ -166,5 +166,13 @@
   "from": ",\n      ready: bombFinaleReady()\n",
   "to": "\n",
   "expect": "追記2d"
+ },
+ {
+  "name": "K1 むずかしさの既定が無い（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "from": "fes.join.diff = FES_DIFF_IDS.indexOf(sd) !== -1 ? sd : 'normal';",
+  "to": "fes.join.diff = null;",
+  "expect": "追記7"
  }
 ]

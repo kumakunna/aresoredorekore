@@ -1411,65 +1411,29 @@
     animation:bgmBeatFade 0.9s ease-out forwards;
   }
   @keyframes bgmBeatFade{from{opacity:.85;}to{opacity:0;}}
-  #scr-door{padding:0;overflow:hidden;}
-  .door-scene{
-    position:absolute;inset:0;z-index:5;
-    perspective:1200px;perspective-origin:50% 45%;
-    background:radial-gradient(ellipse at 50% 40%, #4a3a2c 0%, #2a2018 100%);
-    display:flex;align-items:center;justify-content:center;
-    transition:opacity .3s ease .12s;
-  }
-  .door-scene.opened{pointer-events:none;opacity:0;}
-  .door{
-    width:78%;height:74%;
-    transform-origin:left center;transform:rotateY(0deg);
-    transition:transform .38s cubic-bezier(.32,.72,0,1), opacity .3s ease .1s;
-    background:
-      linear-gradient(90deg, rgba(0,0,0,.22) 0 3%, transparent 12%),
-      linear-gradient(180deg, var(--wood-light), var(--wood) 55%, var(--wood-dark));
-    border-radius:5px 8px 8px 5px;
-    box-shadow:0 24px 60px rgba(0,0,0,.55), inset 0 0 0 3px rgba(0,0,0,.14);
-    position:relative;cursor:pointer;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-  }
-  .door-scene.opened .door{transform:rotateY(-105deg);opacity:0;}
-  .door::before{
-    content:'';position:absolute;inset:16px 14px;border-radius:4px;
-    border:2px solid rgba(0,0,0,.16);
-    box-shadow:inset 0 2px 6px rgba(255,255,255,.13), inset 0 -3px 8px rgba(0,0,0,.2);
-  }
-  .door-knob{
-    position:absolute;right:16px;top:52%;width:15px;height:15px;border-radius:50%;
-    background:radial-gradient(circle at 34% 30%, #F0D68A, var(--gold) 55%, #8a6a1c);
-    box-shadow:0 2px 5px rgba(0,0,0,.5);
-  }
-  /* 扉に画鋲で留めたロゴ札 */
-  .door-plate{
-    background:var(--card);border-radius:8px;padding:20px 22px;
-    box-shadow:0 6px 18px rgba(0,0,0,.35);transform:rotate(-1.6deg);
-    border:1px solid rgba(0,0,0,.1);text-align:center;position:relative;z-index:2;
-  }
-  .door-plate .lead{font-size:11px;letter-spacing:.24em;color:var(--ink-soft);margin-bottom:6px;}
-  .door-plate .logo{font-family:'Shippori Mincho',serif;font-weight:800;font-size:27px;line-height:1.25;letter-spacing:.03em;}
-  .door-plate .logo .c{color:var(--stamp);}
-  /* 第32弾-C-1：扉の向こうで何が始まるか。
-     扉が開ききるより少し遅れて出す（先に出すと、扉より先に目が行ってしまう） */
-  .door-lead{
-    position:absolute;bottom:11%;left:0;right:0;text-align:center;
-    color:rgba(255,244,224,0.86);font-size:13px;font-weight:700;letter-spacing:.18em;
-    text-shadow:0 2px 12px rgba(0,0,0,.6);
-    opacity:0;animation:doorLeadIn .5s ease .34s forwards;pointer-events:none;
-  }
-  @keyframes doorLeadIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
-  .door-pin{
-    position:absolute;top:-7px;left:50%;transform:translateX(-50%);
-    width:13px;height:13px;border-radius:50%;
-    background:radial-gradient(circle at 34% 30%, #fff, var(--stamp) 60%, var(--stamp-deep));
-    box-shadow:0 2px 4px rgba(0,0,0,.4);
-  }
-  @media (prefers-reduced-motion: reduce){
-    .door, .door-scene{transition:none;}
-  }
+  /* 指示71-4：起動の画面はロゴの動き（見本 docs/指示68/見本_ロゴの動き.html の時間・曲線・順番のまま）。
+     出さない時（2回目・演出「なし」・/fes・QR・TV）は、入口（v2 の待合の世界）と同じ色だけ——
+     それまでの「クリーム色に薄い『あそびをえらぼう』」が約1秒見えていた所（追記6）を、次の画面と同じ色にした。
+     動く時（.play）は見本のクリーム色の上で動き、消える時（.out）に入口の色へ溶ける */
+  #scr-door{padding:0;overflow:hidden;background:linear-gradient(180deg,#FFF0C4,#FFD782);}
+  .door-scene{position:absolute;inset:0;z-index:5;display:grid;place-items:center;overflow:hidden;background:#FFF6DA;}
+  .door-scene::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#FFF0C4,#FFD782);opacity:1;}
+  .door-scene.play::before{opacity:0;}
+  .door-scene.play.out::before{opacity:1;transition:opacity calc(.25s * var(--fx-scale)) ease;}
+  .door-logo{position:relative;width:min(62vmin,520px);height:auto;display:block;visibility:hidden;}
+  .door-scene.play .door-logo{visibility:visible;}
+  .door-logo .s{transform-box:fill-box;transform-origin:right center;}
+  .door-logo .a,.door-logo .w{fill:#111;transform-box:fill-box;transform-origin:50% 55%;}
+  .door-scene.play .s3{animation:doorInR calc(.42s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) 0s both;}
+  .door-scene.play .s2{animation:doorInR calc(.42s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) calc(.08s * var(--fx-scale)) both;}
+  .door-scene.play .s1{animation:doorInR calc(.42s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) calc(.16s * var(--fx-scale)) both;}
+  .door-scene.play .a{animation:doorPop calc(.40s * var(--fx-scale)) cubic-bezier(.2,1.6,.4,1) calc(.36s * var(--fx-scale)) both;}
+  .door-scene.play .w{animation:doorUp calc(.25s * var(--fx-scale)) ease calc(.62s * var(--fx-scale)) both;}
+  .door-scene.play.out .door-logo{animation:doorLeave calc(.25s * var(--fx-scale)) ease forwards;}
+  @keyframes doorInR{from{opacity:0;transform:translateX(18%);}to{opacity:1;transform:none;}}
+  @keyframes doorPop{from{opacity:0;transform:scale(.6);}to{opacity:1;transform:none;}}
+  @keyframes doorUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+  @keyframes doorLeave{to{opacity:0;transform:scale(1.04);}}
 
   /* ===== 第12弾：棚とカセット（あつまれ、あれこれ） ===== */
   /* 第27弾-2：下部バーが貼り付く先なので、下の余白は持たせない。
@@ -1616,8 +1580,7 @@
   .mode-card:active,
   .handicap-picker .hp-chip:active,
   .bomb-wire-btn:active,
-  .sugo-dice:active,
-  .door:active{
+  .sugo-dice:active{
     transform:scale(.97);
     transition:transform .15s cubic-bezier(.32,.72,0,1);
   }
@@ -3173,8 +3136,6 @@
   .app.season-bunkasai .shelf-stage{
     background-image:linear-gradient(180deg, rgba(230,180,90,.16), rgba(230,180,90,0) 40%);
   }
-  /* 扉：ようこその一言に、記念のひとつ */
-  .app.season-bunkasai #scr-door .door-lead::after{content:' 🏮';}
   /* 第22弾-1：ログイン画面の「または」区切りと、部屋コードのQR */
   .join-divider{display:flex;align-items:center;gap:10px;margin:18px 0 12px;color:var(--ink-soft);font-size:12px;}
   .join-divider::before, .join-divider::after{content:'';flex:1;height:1px;background:var(--line);}
@@ -6686,6 +6647,9 @@
   .v2.v2-setov .rt-code-label,.v2.v2-setov .qr-note,.v2.v2-setov .rt-code-box .mic-status{font-weight:800;font-size:13px;color:var(--ws);}
   /* 文字サイズ「大」：説明の字だけ 1.15倍（12-8 と同じ考え・見出しと数字はそのまま） */
   :root.fs-large .v2.v2-setov .sr-sub,:root.fs-large .v2.v2-setov .mic-status{font-size:15px;}
+  /* 指示71 追記7：決定の間（TV で出るまで）のスマホに「TVを見て！」。TV で出る時刻に消える（data-tvuntil・tvWaitApply） */
+  .v2 .v2-dlook{position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%);z-index:4;text-align:center;font-weight:900;font-size:30px;line-height:1.3;color:var(--wi);pointer-events:none;}
+  .v2 .v2-dlook.is-tvdone{display:none;}
   /* ---- v2 ここまで ---- */
 
   /* ===================================================================
@@ -7612,21 +7576,20 @@
   </div>
 
   <!-- 1: splash -->
-  <!-- 0: 扉（第13弾・起動時に自動で開く。友達の部屋に入るイメージ） -->
+  <!-- 0: 起動の画面（指示71-4・68-7 の3）。それまでの「扉」（押して開く・明朝体とはんこ）をやめて、ロゴの動きにした。
+       形は docs/ロゴ/アイコン.svg（半円3つ・「あ」・英字）そのまま。動きは docs/指示68/見本_ロゴの動き.html のとおり（全部で約1.55秒・押すと飛ばせる）。
+       出すのは1日に1回・演出「なし」・文化祭（/fes）・部屋の QR・TV から来た時は出さない（その時は入口と同じ色のまま、すぐ次の画面へ）。
+       画面の id（scr-door）は残す：TV を初めて開いた時の道（8秒の見張り・F5 の札）は、この画面を通って確かめてある -->
   <div class="screen active" id="scr-door">
-    <div class="door-scene" id="doorScene">
-      <div class="door" id="doorPanel">
-        <div class="door-plate">
-          <div class="door-pin"></div>
-          <div class="lead">ようこそ</div>
-          <div class="logo">あつまれ<span class="c">、</span><br>あれこれ</div>
-        </div>
-        <div class="door-knob"></div>
-      </div>
-      <!-- 第32弾-C-1：扉の向こうで何が始まるかを一言。
-           初めての人は、開いた先に何があるか分からないまま待たされていた。
-           扉より下に置いて、開く動きの邪魔をしない -->
-      <div class="door-lead" id="doorLead">あそびをえらぼう</div>
+    <div class="door-scene" id="doorScene" aria-label="あつまれ、あれこれ">
+      <svg class="door-logo" viewBox="0 0 768 768" aria-hidden="true" focusable="false">
+<defs><linearGradient id="doorLogoLg" gradientUnits="userSpaceOnUse" x1="44" y1="0" x2="684" y2="0"><stop offset="0" stop-color="#FFD21F"/><stop offset=".5" stop-color="#FFE157"/><stop offset="1" stop-color="#FFF08E"/></linearGradient></defs>
+<g class="s s3"><path fill="url(#doorLogoLg)" d="M 570.71875 392.4375 C 570.71875 307.46875 592.945312 229.035156 615.167969 174.132812 C 626.933594 146.679688 640.003906 124.457031 654.382812 108.769531 C 666.148438 97.003906 677.914062 89.160156 684.449219 87.851562 L 684.449219 700.945312 C 677.914062 695.71875 662.226562 689.179688 654.382812 676.109375 C 640.003906 661.730469 626.933594 639.507812 615.167969 612.054688 C 594.25 559.765625 570.71875 487.867188 570.71875 409.433594 Z"/></g>
+<g class="s s2"><path fill="url(#doorLogoLg)" d="M 348.492188 381.980469 L 348.492188 384.59375 C 348.492188 303.546875 382.480469 229.035156 420.390625 175.4375 C 458.296875 123.148438 509.28125 89.160156 570.71875 86.546875 L 570.71875 700.945312 C 509.28125 695.71875 458.296875 663.035156 420.390625 610.746094 C 382.480469 557.152344 348.492188 482.636719 348.492188 400.28125 Z"/></g>
+<g class="s s1"><path fill="url(#doorLogoLg)" d="M 348.492188 392.4375 L 348.492188 700.945312 C 177.242188 694.410156 43.90625 559.765625 43.90625 392.4375 C 43.90625 226.421875 177.242188 90.46875 348.492188 86.546875 L 348.492188 395.054688 Z"/></g>
+<g class="a"><path transform="translate(101.368 561.103)" d="M 345.367188 -248.710938 C 321.0625 -187.097656 287.710938 -141.878906 250.972656 -107.398438 C 245.320312 -139.617188 241.363281 -173.53125 241.363281 -209.144531 C 241.363281 -216.492188 241.363281 -223.839844 241.363281 -231.1875 C 267.929688 -240.796875 300.148438 -248.710938 336.324219 -248.710938 Z M 201.792969 -204.054688 C 201.792969 -162.226562 206.882812 -117.570312 214.796875 -77.4375 C 186.53125 -57.65625 159.402344 -48.046875 137.921875 -48.046875 C 117.007812 -48.046875 106.265625 -59.351562 106.265625 -81.960938 C 106.265625 -127.179688 147.53125 -182.574219 201.792969 -213.664062 Z M 398.5 -279.800781 C 401.894531 -288.277344 406.414062 -303.539062 409.804688 -310.886719 L 364.585938 -322.191406 C 364.019531 -313.148438 361.195312 -298.453125 358.933594 -289.972656 L 357.238281 -284.886719 C 350.457031 -285.453125 343.671875 -285.453125 336.890625 -285.453125 C 308.625 -285.453125 274.144531 -280.363281 243.058594 -270.753906 C 244.753906 -294.496094 246.449219 -318.234375 248.710938 -339.714844 C 317.105469 -343.105469 391.71875 -350.457031 450.503906 -360.066406 L 449.9375 -402.457031 C 392.285156 -389.457031 324.453125 -382.109375 253.796875 -378.71875 C 256.058594 -395.109375 258.320312 -409.242188 260.582031 -421.113281 C 262.277344 -428.460938 264.539062 -438.632812 267.363281 -445.984375 L 219.882812 -447.113281 C 219.882812 -440.328125 219.316406 -429.589844 218.1875 -420.546875 C 217.054688 -408.675781 215.359375 -393.980469 213.664062 -377.585938 C 201.230469 -377.023438 188.792969 -377.023438 176.359375 -377.023438 C 152.617188 -377.023438 103.441406 -380.980469 84.222656 -383.804688 L 85.351562 -341.410156 C 107.960938 -340.28125 151.488281 -338.019531 175.792969 -338.019531 C 186.53125 -338.019531 197.835938 -338.019531 209.707031 -338.585938 C 207.445312 -312.582031 204.621094 -284.320312 203.488281 -256.058594 C 126.617188 -221.011719 63.875 -146.964844 63.875 -75.179688 C 63.875 -27.132812 92.699219 -4.523438 130.574219 -4.523438 C 160.53125 -4.523438 193.882812 -16.390625 224.40625 -35.046875 C 227.230469 -23.742188 230.621094 -13.566406 233.449219 -3.957031 L 274.710938 -16.390625 C 270.191406 -30.523438 265.667969 -45.785156 261.144531 -61.613281 C 308.625 -101.746094 353.847656 -163.355469 384.933594 -242.492188 C 437.503906 -228.359375 465.199219 -189.925781 465.199219 -147.53125 C 465.199219 -75.179688 403.023438 -23.175781 302.410156 -12.433594 L 326.714844 25.4375 C 456.722656 5.085938 509.855469 -65.003906 509.855469 -145.269531 C 509.855469 -206.882812 468.027344 -258.882812 397.9375 -277.539062 Z M 398.5 -279.800781 "/></g>
+<g class="w"><path transform="translate(184.277 631.343)" d="M 16.734375 -28.8125 L 28.359375 0 L 21.296875 0 L 19.171875 -5.765625 L 8.203125 -5.765625 L 6.078125 0 L -0.984375 0 L 10.65625 -28.8125 Z M 16.9375 -11.53125 L 13.71875 -19.90625 L 13.65625 -19.90625 L 10.4375 -11.53125 Z M 16.9375 -11.53125 "/><path transform="translate(209.984 631.343)" d="M 0.28125 -23.046875 L 0.28125 -28.8125 L 20.53125 -28.8125 L 20.53125 -23.046875 L 13.6875 -23.046875 L 13.6875 0 L 7.125 0 L 7.125 -23.046875 Z M 0.28125 -23.046875 "/><path transform="translate(230.800 631.343)" d="M 12.71875 -29.328125 C 14.269531 -29.328125 15.789062 -29.097656 17.28125 -28.640625 C 18.769531 -28.191406 19.878906 -27.75 20.609375 -27.3125 L 21.65625 -26.609375 L 19 -21.375 C 18.789062 -21.507812 18.5 -21.6875 18.125 -21.90625 C 17.75 -22.132812 17.050781 -22.429688 16.03125 -22.796875 C 15.007812 -23.171875 14.054688 -23.359375 13.171875 -23.359375 C 12.078125 -23.359375 11.234375 -23.125 10.640625 -22.65625 C 10.046875 -22.195312 9.75 -21.570312 9.75 -20.78125 C 9.75 -20.382812 9.882812 -20.015625 10.15625 -19.671875 C 10.4375 -19.335938 10.914062 -18.976562 11.59375 -18.59375 C 12.269531 -18.207031 12.863281 -17.898438 13.375 -17.671875 C 13.882812 -17.441406 14.675781 -17.09375 15.75 -16.625 C 17.613281 -15.832031 19.203125 -14.753906 20.515625 -13.390625 C 21.828125 -12.023438 22.484375 -10.484375 22.484375 -8.765625 C 22.484375 -7.109375 22.1875 -5.660156 21.59375 -4.421875 C 21 -3.191406 20.179688 -2.226562 19.140625 -1.53125 C 18.109375 -0.832031 16.960938 -0.316406 15.703125 0.015625 C 14.453125 0.359375 13.09375 0.53125 11.625 0.53125 C 10.375 0.53125 9.140625 0.398438 7.921875 0.140625 C 6.710938 -0.117188 5.703125 -0.4375 4.890625 -0.8125 C 4.078125 -1.195312 3.34375 -1.578125 2.6875 -1.953125 C 2.039062 -2.328125 1.5625 -2.644531 1.25 -2.90625 L 0.796875 -3.28125 L 4.078125 -8.796875 C 4.359375 -8.566406 4.742188 -8.269531 5.234375 -7.90625 C 5.722656 -7.550781 6.585938 -7.066406 7.828125 -6.453125 C 9.078125 -5.847656 10.179688 -5.546875 11.140625 -5.546875 C 13.910156 -5.546875 15.296875 -6.488281 15.296875 -8.375 C 15.296875 -8.769531 15.195312 -9.132812 15 -9.46875 C 14.800781 -9.8125 14.453125 -10.148438 13.953125 -10.484375 C 13.453125 -10.828125 13.007812 -11.097656 12.625 -11.296875 C 12.238281 -11.492188 11.609375 -11.796875 10.734375 -12.203125 C 9.859375 -12.609375 9.210938 -12.914062 8.796875 -13.125 C 7.054688 -13.988281 5.707031 -15.066406 4.75 -16.359375 C 3.789062 -17.648438 3.3125 -19.039062 3.3125 -20.53125 C 3.3125 -23.113281 4.265625 -25.222656 6.171875 -26.859375 C 8.085938 -28.503906 10.269531 -29.328125 12.71875 -29.328125 Z M 12.71875 -29.328125 "/><path transform="translate(254.271 631.343)" d="M 24.234375 -28.8125 L 24.234375 -10.234375 C 24.234375 -6.691406 23.28125 -4.007812 21.375 -2.1875 C 19.46875 -0.375 16.671875 0.53125 12.984375 0.53125 C 9.304688 0.53125 6.515625 -0.375 4.609375 -2.1875 C 2.703125 -4.007812 1.75 -6.691406 1.75 -10.234375 L 1.75 -28.8125 L 8.3125 -28.8125 L 8.3125 -12.15625 C 8.3125 -9.820312 8.675781 -8.203125 9.40625 -7.296875 C 10.144531 -6.390625 11.335938 -5.9375 12.984375 -5.9375 C 14.640625 -5.9375 15.832031 -6.390625 16.5625 -7.296875 C 17.300781 -8.203125 17.671875 -9.820312 17.671875 -12.15625 L 17.671875 -28.8125 Z M 24.234375 -28.8125 "/><path transform="translate(280.257 631.343)" d="M 25.90625 0 L 24.546875 -17.078125 L 24.375 -17.078125 L 18.46875 -0.171875 L 14.5625 -0.171875 L 8.65625 -17.078125 L 8.484375 -17.078125 L 7.125 0 L 0.5625 0 L 3.140625 -28.8125 L 10.125 -28.8125 L 16.515625 -12.1875 L 22.90625 -28.8125 L 29.890625 -28.8125 L 32.484375 0 Z M 25.90625 0 "/><path transform="translate(313.298 631.343)" d="M 16.734375 -28.8125 L 28.359375 0 L 21.296875 0 L 19.171875 -5.765625 L 8.203125 -5.765625 L 6.078125 0 L -0.984375 0 L 10.65625 -28.8125 Z M 16.9375 -11.53125 L 13.71875 -19.90625 L 13.65625 -19.90625 L 10.4375 -11.53125 Z M 16.9375 -11.53125 "/><path transform="translate(340.681 631.343)" d="M 2.09375 -28.8125 L 12.390625 -28.8125 C 15.160156 -28.8125 17.421875 -28.070312 19.171875 -26.59375 C 20.921875 -25.113281 21.796875 -23 21.796875 -20.25 C 21.796875 -18.132812 21.265625 -16.359375 20.203125 -14.921875 C 19.140625 -13.492188 17.703125 -12.488281 15.890625 -11.90625 L 25.8125 0 L 17.46875 0 L 8.65625 -11.390625 L 8.65625 0 L 2.09375 0 Z M 8.65625 -16.03125 L 9.421875 -16.03125 C 10.035156 -16.03125 10.550781 -16.039062 10.96875 -16.0625 C 11.382812 -16.082031 11.859375 -16.160156 12.390625 -16.296875 C 12.929688 -16.441406 13.363281 -16.640625 13.6875 -16.890625 C 14.007812 -17.148438 14.285156 -17.523438 14.515625 -18.015625 C 14.753906 -18.503906 14.875 -19.097656 14.875 -19.796875 C 14.875 -20.492188 14.753906 -21.085938 14.515625 -21.578125 C 14.285156 -22.066406 14.007812 -22.4375 13.6875 -22.6875 C 13.363281 -22.945312 12.929688 -23.144531 12.390625 -23.28125 C 11.859375 -23.425781 11.382812 -23.507812 10.96875 -23.53125 C 10.550781 -23.5625 10.035156 -23.578125 9.421875 -23.578125 L 8.65625 -23.578125 Z M 8.65625 -16.03125 "/><path transform="translate(365.689 631.343)" d="M 18.578125 -28.8125 L 18.578125 -23.046875 L 8.65625 -23.046875 L 8.65625 -17.328125 L 18.15625 -17.328125 L 18.15625 -11.5625 L 8.65625 -11.5625 L 8.65625 -5.765625 L 18.578125 -5.765625 L 18.578125 0 L 2.09375 0 L 2.09375 -28.8125 Z M 18.578125 -28.8125 "/><path transform="translate(395.482 631.343)" d="M 16.734375 -28.8125 L 28.359375 0 L 21.296875 0 L 19.171875 -5.765625 L 8.203125 -5.765625 L 6.078125 0 L -0.984375 0 L 10.65625 -28.8125 Z M 16.9375 -11.53125 L 13.71875 -19.90625 L 13.65625 -19.90625 L 10.4375 -11.53125 Z M 16.9375 -11.53125 "/><path transform="translate(422.865 631.343)" d="M 2.09375 -28.8125 L 12.390625 -28.8125 C 15.160156 -28.8125 17.421875 -28.070312 19.171875 -26.59375 C 20.921875 -25.113281 21.796875 -23 21.796875 -20.25 C 21.796875 -18.132812 21.265625 -16.359375 20.203125 -14.921875 C 19.140625 -13.492188 17.703125 -12.488281 15.890625 -11.90625 L 25.8125 0 L 17.46875 0 L 8.65625 -11.390625 L 8.65625 0 L 2.09375 0 Z M 8.65625 -16.03125 L 9.421875 -16.03125 C 10.035156 -16.03125 10.550781 -16.039062 10.96875 -16.0625 C 11.382812 -16.082031 11.859375 -16.160156 12.390625 -16.296875 C 12.929688 -16.441406 13.363281 -16.640625 13.6875 -16.890625 C 14.007812 -17.148438 14.285156 -17.523438 14.515625 -18.015625 C 14.753906 -18.503906 14.875 -19.097656 14.875 -19.796875 C 14.875 -20.492188 14.753906 -21.085938 14.515625 -21.578125 C 14.285156 -22.066406 14.007812 -22.4375 13.6875 -22.6875 C 13.363281 -22.945312 12.929688 -23.144531 12.390625 -23.28125 C 11.859375 -23.425781 11.382812 -23.507812 10.96875 -23.53125 C 10.550781 -23.5625 10.035156 -23.578125 9.421875 -23.578125 L 8.65625 -23.578125 Z M 8.65625 -16.03125 "/><path transform="translate(447.872 631.343)" d="M 18.578125 -28.8125 L 18.578125 -23.046875 L 8.65625 -23.046875 L 8.65625 -17.328125 L 18.15625 -17.328125 L 18.15625 -11.5625 L 8.65625 -11.5625 L 8.65625 -5.765625 L 18.578125 -5.765625 L 18.578125 0 L 2.09375 0 L 2.09375 -28.8125 Z M 18.578125 -28.8125 "/><path transform="translate(468.130 631.343)" d="M 28.328125 0 L 19.28125 0 L 8.65625 -12.21875 L 8.65625 0 L 2.09375 0 L 2.09375 -28.8125 L 8.65625 -28.8125 L 8.65625 -17.046875 L 18.546875 -28.8125 L 26.5 -28.8125 L 14.90625 -15.15625 Z M 28.328125 0 "/><path transform="translate(495.618 631.343)" d="M 0.796875 -14.421875 C 0.796875 -18.585938 2.21875 -22.113281 5.0625 -25 C 7.90625 -27.882812 11.328125 -29.328125 15.328125 -29.328125 C 19.359375 -29.328125 22.78125 -27.890625 25.59375 -25.015625 C 28.414062 -22.140625 29.828125 -18.609375 29.828125 -14.421875 C 29.828125 -10.210938 28.441406 -6.664062 25.671875 -3.78125 C 22.898438 -0.90625 19.453125 0.53125 15.328125 0.53125 C 11.117188 0.53125 7.644531 -0.894531 4.90625 -3.75 C 2.164062 -6.601562 0.796875 -10.160156 0.796875 -14.421875 Z M 7.890625 -14.421875 C 7.890625 -12.910156 8.125 -11.53125 8.59375 -10.28125 C 9.0625 -9.039062 9.875 -7.988281 11.03125 -7.125 C 12.195312 -6.257812 13.628906 -5.828125 15.328125 -5.828125 C 17.773438 -5.828125 19.617188 -6.664062 20.859375 -8.34375 C 22.109375 -10.019531 22.734375 -12.046875 22.734375 -14.421875 C 22.734375 -16.773438 22.097656 -18.796875 20.828125 -20.484375 C 19.554688 -22.171875 17.722656 -23.015625 15.328125 -23.015625 C 12.953125 -23.015625 11.117188 -22.171875 9.828125 -20.484375 C 8.535156 -18.796875 7.890625 -16.773438 7.890625 -14.421875 Z M 7.890625 -14.421875 "/><path transform="translate(526.249 631.343)" d="M 2.09375 -28.8125 L 12.390625 -28.8125 C 15.160156 -28.8125 17.421875 -28.070312 19.171875 -26.59375 C 20.921875 -25.113281 21.796875 -23 21.796875 -20.25 C 21.796875 -18.132812 21.265625 -16.359375 20.203125 -14.921875 C 19.140625 -13.492188 17.703125 -12.488281 15.890625 -11.90625 L 25.8125 0 L 17.46875 0 L 8.65625 -11.390625 L 8.65625 0 L 2.09375 0 Z M 8.65625 -16.03125 L 9.421875 -16.03125 C 10.035156 -16.03125 10.550781 -16.039062 10.96875 -16.0625 C 11.382812 -16.082031 11.859375 -16.160156 12.390625 -16.296875 C 12.929688 -16.441406 13.363281 -16.640625 13.6875 -16.890625 C 14.007812 -17.148438 14.285156 -17.523438 14.515625 -18.015625 C 14.753906 -18.503906 14.875 -19.097656 14.875 -19.796875 C 14.875 -20.492188 14.753906 -21.085938 14.515625 -21.578125 C 14.285156 -22.066406 14.007812 -22.4375 13.6875 -22.6875 C 13.363281 -22.945312 12.929688 -23.144531 12.390625 -23.28125 C 11.859375 -23.425781 11.382812 -23.507812 10.96875 -23.53125 C 10.550781 -23.5625 10.035156 -23.578125 9.421875 -23.578125 L 8.65625 -23.578125 Z M 8.65625 -16.03125 "/><path transform="translate(551.257 631.343)" d="M 18.578125 -28.8125 L 18.578125 -23.046875 L 8.65625 -23.046875 L 8.65625 -17.328125 L 18.15625 -17.328125 L 18.15625 -11.5625 L 8.65625 -11.5625 L 8.65625 -5.765625 L 18.578125 -5.765625 L 18.578125 0 L 2.09375 0 L 2.09375 -28.8125 Z M 18.578125 -28.8125 "/><path transform="translate(571.514 631.343)" d="M 6.078125 -7.46875 C 7.191406 -7.46875 8.140625 -7.078125 8.921875 -6.296875 C 9.703125 -5.523438 10.09375 -4.578125 10.09375 -3.453125 C 10.09375 -2.359375 9.703125 -1.421875 8.921875 -0.640625 C 8.140625 0.140625 7.191406 0.53125 6.078125 0.53125 C 4.984375 0.53125 4.046875 0.140625 3.265625 -0.640625 C 2.484375 -1.421875 2.09375 -2.359375 2.09375 -3.453125 C 2.09375 -4.578125 2.484375 -5.523438 3.265625 -6.296875 C 4.046875 -7.078125 4.984375 -7.46875 6.078125 -7.46875 Z M 6.078125 -7.46875 "/></g>
+</svg>
     </div>
   </div>
 
@@ -32519,10 +32482,34 @@
   });
 
   // ---------- init ----------
-  // ---------- 第13弾：扉を開けて中に入る ----------
+  // ---------- 第13弾：扉を開けて中に入る（指示71-4 からはロゴの動き） ----------
   // 起動時に必ず1回だけ通る。開くのは自動（待てない人はタップでも開く）。
   // 扉は .screen なので、開いた後は display:none になり棚を覆い続ける心配がない。
   var doorOpened = false;
+  /**
+   * 指示71-4（68-7 の3）：扉の代わりのロゴの動き。**1日に1回だけ**・演出「なし」では出さない・音は鳴らさない。
+   * 文化祭（?fes=1）・部屋の QR（?room=）・TV（?tv=1）から来た時は出さない（待たせない・TV の道を変えない）。
+   * 検査（tests/harness.js）はふだん LOGO_OFF を true に差しかえる（全スイートの起動に1.55秒ずつ足さないため。opts.fx の時は本物）
+   */
+  var LOGO_OFF = false;
+  var LOGO_DAY_KEY = 'acac-logo-day', LOGO_MS = 1300, LOGO_OUT_MS = 250;
+  var logoSkip = null;
+  function logoToday(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function logoWanted(){
+    if(LOGO_OFF || fxSpeed() === 'skip') return false;
+    if(/[?&](fes|room|tv)=/.test(location.search || '')) return false;
+    try{ return localStorage.getItem(LOGO_DAY_KEY) !== logoToday(); }catch(e){ return false; }
+  }
+  /** ロゴを動かして、見せ終わる（1.3秒・押したらすぐ）のを待つ。その日の印を先に残す（途中で閉じても、その日はもう出さない） */
+  function playLogo(){
+    try{ localStorage.setItem(LOGO_DAY_KEY, logoToday()); }catch(e){}
+    el('doorScene').classList.add('play');
+    return new Promise(function(resolve){
+      var t = setTimeout(done, fxMs(LOGO_MS));
+      function done(){ clearTimeout(t); logoSkip = null; resolve(); }
+      logoSkip = done;
+    });
+  }
   // 第22弾-1：QRから来た時は ?room=XXXX が付いている
   function roomCodeFromUrl(){
     try{
@@ -32533,6 +32520,7 @@
   async function openDoorAndEnter(){
     if(doorOpened) return;
     doorOpened = true;
+    var logo = logoWanted() ? playLogo() : null;
     // ログイン確認は扉が開く裏で進めておく（待ち時間を足さない）
     var nextPromise = (async function(){
       // QRで呼ばれた人は、ログインも棚も通さずに参加画面へ直行する
@@ -32569,14 +32557,14 @@
       }catch(e){}
       return 'scr-v2-home';
     })();
-    el('doorScene').classList.add('opened');
     var next = await nextPromise;
+    // ロゴは見せ終わるまで（ログインの確かめが遅くても、ロゴのまま待つ。クリーム色の空の画面を出さない）
+    if(logo) await logo;
     if(!next) return;   // 部屋に入る画面は、openV2Join が開く
-    // 開き切る前に次の画面へ移る（テンポ優先）。
-    // **fxMs を通す。**ここは扉が開く演出の一部で、
-    // 「演出の速さ」を「スキップ」にした人まで0.26秒待たされていた
-    //（大切なこと7「すべての演出はスキップできる」に反する・第44弾で見つけた）
-    setTimeout(function(){ goTo(next); }, fxMs(260));
+    if(!logo){ goTo(next); return; }   // 指示71-4：扉が無いので、待たずに次の画面（入口と同じ色のまま移る）
+    // ロゴが少し大きくなって消え、入口の色に溶けてから移る。**fxMs を通す**（大切なこと7「すべての演出はスキップできる」・第44弾）
+    el('doorScene').classList.add('out');
+    setTimeout(function(){ goTo(next); }, fxMs(LOGO_OUT_MS));
   }
   /**
    * 2026-10-31（くまくん「手がかりを取る」）：文化祭の TV を開いて8秒たっても、文化祭の画面に着かない時。
@@ -32616,8 +32604,8 @@
       if(r2 && r2.ok) goTo(rtWantScreen());
     }, FES_TV_WATCH_MS);
   }
-  el('doorPanel').addEventListener('click', openDoorAndEnter); // 保険：待てない時
-  el('doorScene').addEventListener('click', openDoorAndEnter);
+  // 保険：待てない時。ロゴが動いている間に押したら、そこで飛ばす（すべての演出はスキップできる）
+  el('doorScene').addEventListener('click', function(){ if(logoSkip) logoSkip(); else openDoorAndEnter(); });
 
   // ---------- init ----------
   /**
@@ -32880,6 +32868,8 @@
               endFor: null, end: null, playAnim: null, seenIds: null, fb: null, fbAsked: null,
               quit: null, staff: null, staffFb: [], staffErr: '', staffRole: null, canCreate: false, toastOnce: false, lpAt: 0 };
   var FES_NAME_KEY = 'fes_name_v1', FES_FB_KEY = 'fes_fb_v1';
+  // 指示71 追記7（くまくんの答え 2026-11-04）：入る画面のむずかしさは、はじめから「ふつう」。前に選んだ物があれば、それ
+  var FES_DIFF_KEY = 'fes_diff_v1', FES_DIFF_IDS = ['easy', 'normal'];
   function fesRoom(){ return rt && rt.state.room && rt.state.room.fes ? rt.state.room : null; }
   /** 文化祭の部屋の画面か。遊んでいる間（今回のゲームに入っている人と TV）は null＝今までのゲームの画面 */
   /**
@@ -33321,6 +33311,12 @@
       n.classList.add('is-tvwait');
       tvWait.timers.push(setTimeout(function(){ n.classList.remove('is-tvwait'); }, ms));
     });
+    // 指示71 追記7：逆向き。TV で出る時刻までだけ見せる物（決定の「TVを見て！」）
+    Array.prototype.forEach.call(scr.querySelectorAll('[data-tvuntil]'), function(n){
+      var ms = tvWaitMs(+n.getAttribute('data-tvuntil'));
+      n.classList.toggle('is-tvdone', ms <= 0);
+      if(ms > 0) tvWait.timers.push(setTimeout(function(){ n.classList.add('is-tvdone'); }, ms));
+    });
   }
   /** TV の秒 sec まで、あと何ミリ秒か（この段階を最初に描いた時から） */
   function tvWaitMs(sec){ return Math.max(0, sec * 1000 - (performance.now() - tvWait.t0)); }
@@ -33583,6 +33579,7 @@
   async function fesOpenJoin(code){
     fes.join.code = code;
     try{ fes.join.name = fes.join.name || localStorage.getItem(FES_NAME_KEY) || ''; }catch(e){}
+    if(!fes.join.diff){ var sd = null; try{ sd = localStorage.getItem(FES_DIFF_KEY); }catch(e){} fes.join.diff = FES_DIFF_IDS.indexOf(sd) !== -1 ? sd : 'normal'; }
     // つながる前に覗くと「部屋が無い」に見える。先につないでから覗く（1回だけ待ち直す）
     var p = null;
     if(rt){ rt.connect(); p = await rt.peekRoom(code); if(!p || !p.ok){ await new Promise(function(r){ setTimeout(r, 700); }); p = await rt.peekRoom(code); } }
@@ -33726,7 +33723,7 @@
     if(r && r.ok){
       j.reserved = r.pos; j.gone = false; j.full = true; fesEta(r.etaMs); fesQueueTimer();
       if(!j.name && sv.name) j.name = sv.name;
-      if(!j.diff && sv.diff) j.diff = sv.diff;
+      if(sv.diff) j.diff = sv.diff;   // 予約した時のむずかしさ（追記7 の既定「ふつう」より先）
     }
     else if(r && r.error === 'reserve_gone'){ j.reserved = null; j.gone = true; j.full = true; fesResvSave(null); }
     else return;
@@ -33782,7 +33779,7 @@
     var b = e.target.closest && e.target.closest('[data-fes-act],[data-fes-pick],[data-fes-diff],[data-fes-star],[data-fes-hide],[data-fes-game],[data-fes-kick],[data-fes-inset],[data-fes-icon],[data-fes-slot],[data-fes-word],[data-fes-cell],[data-fes-ans]');
     if(!b || !rt) return;
     var room = fesRoom(), code = room ? room.code : (fes.staff && fes.staff.code);
-    if(b.hasAttribute('data-fes-diff')){ fes.join.diff = b.getAttribute('data-fes-diff'); fes.join.err = ''; fesRenderJoin(); return; }
+    if(b.hasAttribute('data-fes-diff')){ fes.join.diff = b.getAttribute('data-fes-diff'); fes.join.err = ''; try{ localStorage.setItem(FES_DIFF_KEY, fes.join.diff); }catch(e){} fesRenderJoin(); return; }
     if(b.hasAttribute('data-fes-pick')){
       // 指示68-T 1：札の中の ⓘ（data-v2-open）を押した時は、えらばない・描き直さない。
       // 描き直すと、押した ⓘ が画面から外れて、v2-kit.js がシートを探せなかった（投票する前は開かなかった）

@@ -773,7 +773,7 @@ async function run() {
         .filter((x) => 相手の盤.order.indexOf(x.uid) !== -1 && x.uid !== まだ)
         .map((x) => x.name);
       相手の答え.forEach((n) => {
-        assert(出た文字.indexOf(n) === -1, 'ほかの端子の答え「' + n + '」は出ない');
+        assert(出た文字.indexOf(n) === -1, 'ほかの端子の答え「' + n + '」は出ない（シートの字「' + 出た文字.replace(/s+/g, ' ').slice(0, 300) + '」）');
       });
       assertNoErrors(errors, '48-4 で未捕捉の例外');
     } finally { win.close(); }

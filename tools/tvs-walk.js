@@ -12,7 +12,9 @@
 // 念のため、にせのモニターの音と動画の音はとても小さく作る
 // あそびまちは本物を使わない：同じ形の「にせのモニター」（押すと始まります・数秒ごとに聞きに行く・呼ばれたら鳴る）を
 // この道具が 127.0.0.1:(port+1) に立てる。**本物の key は使わない・出さない**。
-// 「押すと始まります」は、本物と同じく人の押し方（CDP の Input・信頼されたクリック）で押す。自動再生の許しのフラグは付けない（動画の音の門を本物に近く見るため）
+// 指示71 追記（11/04）：TV の PC の Chrome は --autoplay-policy=no-user-gesture-required で起動する（tv-switcher/TVを開く.cmd）。この道具の Chrome も同じにする。
+// 「押すと始まります」は**だれも押さない**——拡張機能（asobi-start.js）が押すのを見る。にせのモニターも本物と同じ形（div.mon-start を押すと音の箱を起こす）。
+// （前の形のメモ：人の押し方（CDP の Input・信頼されたクリック）で押していた。自動再生の許しのフラグは付けなかった（動画の音の門を本物に近く見るため）
 //   --restart 0：最後の「Chrome を開き直す」を飛ばす
 
 const fs = require('fs');
@@ -54,9 +56,9 @@ const monitor = http.createServer((req, res) => {
   }
   res.setHeader('content-type', 'text/html; charset=utf-8');
   res.end('<!doctype html><title>にせのモニター</title><body style="font:40px sans-serif">' +
-    '<button id="go" style="font-size:40px">押すと始まります</button><div id="n">0</div><script>' +
+    '<div class="mon-start" role="button" tabindex="0" style="font-size:40px">押すと始まります</div><div id="n">0</div><script>' +
     'var id=Math.random().toString(36).slice(2),seen=null,ac=null,n=0;window.__id=id;window.__beeps=0;window.__iv=[];setInterval(function(){window.__iv.push(Date.now())},2000);' +
-    'document.getElementById("go").onclick=function(){ac=new AudioContext();this.remove();tick();};' +
+    'document.querySelector(".mon-start").addEventListener("click",function(){ac=new AudioContext();window.__acState=ac.state;this.remove();tick();});' +
     'function beep(){window.__beeps++;var o=ac.createOscillator(),g=ac.createGain();g.gain.value=.02;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+1.5);}' +
     'function tick(){fetch("/poll?id="+id).then(function(r){return r.json()}).then(function(j){document.getElementById("n").textContent=++n;' +
     'if(seen!==null&&j.call!==seen)beep();seen=j.call;}).catch(function(){}).then(function(){setTimeout(tick,2000)});}' +
@@ -119,7 +121,7 @@ async function until(fn, label, ms) {
   const ext = path.join(ROOT, 'tv-switcher', 'extension');
   const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'tvs-walk-'));
   const launchChrome = (dir) => spawn(cft(), ['--remote-debugging-port=' + CDP, '--user-data-dir=' + dir, '--load-extension=' + ext, '--disable-extensions-except=' + ext,
-    '--disable-audio-output', '--no-first-run', '--no-default-browser-check', '--window-size=1400,900', 'about:blank'], { stdio: 'ignore' });
+    '--disable-audio-output', '--autoplay-policy=no-user-gesture-required', '--no-first-run', '--no-default-browser-check', '--window-size=1400,900', 'about:blank'], { stdio: 'ignore' });
   // 前の通しの Chrome がまだ閉じきっていない時は、その口が閉じるまで待つ（同じポートにつなぐと、閉じる途中の Chrome と話してしまう）
   await until(async () => { try { await fetch('http://127.0.0.1:' + CDP + '/json/version'); return false; } catch (e) { return true; } }, '前の Chrome が閉じる', 30000);
   const cx = { ch: launchChrome(prof), launchChrome, prof };
@@ -196,19 +198,9 @@ async function until(fn, label, ms) {
     };
     st = await S();
     const asobiT = await until(async () => { const c = await tgt(tid(1, 'asobi')); return c.length === 2 ? c : null; }, 'あそびまちのタブ2つ', 20000);
-    // 本物と同じ手順：「あそびまちの準備をする」→ 両方の TV の「押すと始まります」を押す（信頼されたクリック）→「押しおわった」
-    await sv('chrome.runtime.sendMessage({ t: "asobi-guide" })');
-    await sleep(800);
-    for (const t of asobiT) {
-      const s = await attach(t.targetId);
-      await cdp('Page.bringToFront', {}, s).catch(() => {});
-      const r = await ev(t.targetId, '(() => { const b = document.getElementById("go"); if (!b) return null; const q = b.getBoundingClientRect(); return { x: q.x + q.width / 2, y: q.y + q.height / 2 }; })()');
-      if (r) for (const type of ['mousePressed', 'mouseReleased']) await cdp('Input.dispatchMouseEvent', { type, x: r.x, y: r.y, button: 'left', clickCount: 1 }, s);
-    }
-    await sleep(500);
-    await sv('chrome.runtime.sendMessage({ t: "asobi-done" })');
-    note('あそびまち', '「押すと始まります」：' + JSON.stringify(await Promise.all(asobiT.map((t) => ev(t.targetId, '!document.getElementById("go")')))));
-    note('あそびまち', '両方の TV で「押すと始まります」を押した（にせのモニター）');
+    // だれも押さない。拡張機能（asobi-start.js）が「押すと始まります」を押し、音の箱が動いている（running）こと
+    const 始まった = await until(async () => { const v = await Promise.all(asobiT.map((t) => ev(t.targetId, '({ 押した: !document.querySelector(".mon-start"), 音の箱: window.__acState || null })'))); return v.every((x) => x.押した) ? v : null; }, '拡張機能が押すと始まりますを押す', 15000).catch(() => null);
+    note('あそびまち（だれも押さない）', 始まった || '押されなかった');
 
     // リモコン
     const { targetId: remote } = await cdp('Target.createTarget', { url: BASE + '/tvs', newWindow: true });
@@ -370,6 +362,8 @@ async function hidden(remote, press, sv, S, born) {
   const after = await ev(fesT, '({ scr: (document.querySelector(".screen.active")||{}).id, stuck: document.querySelectorAll("[data-tv-stuck]").length, origin: performance.timeOrigin })');
   after.active = await sv('chrome.tabs.get(' + st.tabs[1].fes + ').then((t) => t.active)');
   note('門14 表にもどした', Object.assign(after, { reloaded: after.origin !== arrived, remoteStuck }));
+  const fesAud = (await sv('self.__aud')).filter((x) => x.id === st.tabs[1].fes && x.a).length;
+  note('あつまれの TV（だれもそのタブを押していない）が音を出した回数（鳴っている印）', fesAud);
   // 段ごとの長さ（裏の TV が進みを遅らせていないか：決めた長さのままか）
   const dur = phases.slice(0, -1).map((x, i) => x.p + ' ' + ((phases[i + 1].t - x.t) / 1000).toFixed(1) + '秒');
   note('門14 段の長さ（裏の間）', dur);

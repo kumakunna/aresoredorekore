@@ -51,6 +51,16 @@
         "notice.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://asobimachi.duckdns.org/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "asobi-start.js"
+      ],
+      "run_at": "document_idle"
     }
   ]
 }

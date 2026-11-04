@@ -764,5 +764,23 @@ async function 入った(o) {
     win.close();
   });
 
+  await r.test('追記2j：クイズ解除の結果の時間は言葉で（「23秒で解除！」）', async () => {
+    const { win } = await launch({});
+    assertEqual([23, 83, 120, 0].map((x) => win.V2Fes.clearTimeText(x)).join('｜'), '23秒で解除！｜1分23秒で解除！｜2分で解除！｜0秒で解除！', '言葉で');
+    win.close();
+  });
+
+  await r.test('追記2k：入る画面の「いま◯人」は、人数が変わったら書きかわる（名前を打っている途中は描き直さない）', async () => {
+    const { win, doc } = await 入る画面();
+    const pill = () => doc.querySelector('#scr-v2-fes-join [data-fes-n]').textContent;
+    assert(!/16人/.test(pill()), 'はじめは16人ではない（' + pill() + '）');
+    const n = doc.querySelector('[data-fes-name]');
+    n.value = 'うち'; n.dispatchEvent(new win.Event('input', { bubbles: true }));
+    win.__rtFake.replies['room:peek'] = () => ({ ok: true, code: 'TST754', playerCount: 16, fes: true });
+    await waitFor(win, () => /16人/.test(pill()), 12000, '16人に書きかわる');
+    assertEqual(doc.querySelector('[data-fes-name]'), n, '名前の欄はそのまま（描き直していない）');
+    win.close();
+  });
+
   r.finish();
 })();

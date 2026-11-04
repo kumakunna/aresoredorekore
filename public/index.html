@@ -29366,7 +29366,8 @@
       : (('0' + Math.floor(o.sec / 60)).slice(-2) + ':' + ('0' + (o.sec % 60)).slice(-2)));
     var 迷 = o.missed && o.missed.question ? o.missed : null, Rz = UiText.FES && UiText.FES.結果;
     var card = !tv ? null : {
-      line: clear && total ? solved + '/' + total + T.本 + (時計 ? '・' + 時計 : '') : '',
+      // 指示71 追記2j：時間は言葉で（「4/4本・23秒で解除！」）。「00:23」だと何の時間か分からなかった
+      line: clear && total ? solved + '/' + total + T.本 + (o.sec != null && typeof V2Fes !== 'undefined' && V2Fes.clearTimeText ? '・' + V2Fes.clearTimeText(o.sec) : (時計 ? '・' + 時計 : '')) : '',
       h: 迷 && Rz ? Rz.迷った : '', q: 迷 ? 迷.question : '', a: 迷 ? (Rz ? Rz.正解は : '') + 迷.answer : ''
     };
     var sub = clear ? '' : (tv ? T.つぎは : (left > 0 ? T.あと(left) : (bombBoomCause(o.cause) || '')));
@@ -33544,6 +33545,22 @@
   var FES_WAIT_MS = 3000;
   // ページを移る1か所（検査が差しかえて、どこへ移ろうとしたかを見る。jsdom はページを移れない）
   window.fesNav = function(u){ location.href = u; };
+  /**
+   * 指示71 追記2k：入る画面の「いま◯人」を、人数が変わったら書きかえる（それまでは開いた時の1回きりで、16人になっても14人のままだった）。
+   * 入る画面にいる間だけ10秒ごとに覗く。名前を打っている途中を壊さないよう、画面は描き直さず、人数の札の字だけ書きかえる
+   */
+  var FES_PEEK_MS = 10000;
+  function fesPeekLoop(){
+    if(fes.join.peekTimer || !rt) return;
+    fes.join.peekTimer = setInterval(async function(){
+      if((document.querySelector('.screen.active') || {}).id !== 'scr-v2-fes-join' || !fes.join.code){ clearInterval(fes.join.peekTimer); fes.join.peekTimer = null; return; }
+      var p = await rt.peekRoom(fes.join.code);
+      if(!p || !p.ok || p.playerCount === fes.join.n) return;
+      fes.join.n = p.playerCount;
+      var pill = document.querySelector('#scr-v2-fes-join [data-fes-n]');
+      if(pill){ pill.textContent = UiText.FES.入る.いま + ' ' + p.playerCount + UiText.V2.人; pill.style.display = ''; }
+    }, FES_PEEK_MS);
+  }
   async function fesOpenJoin(code){
     fes.join.code = code;
     try{ fes.join.name = fes.join.name || localStorage.getItem(FES_NAME_KEY) || ''; }catch(e){}
@@ -33554,6 +33571,7 @@
     if(!p || !p.ok){ el('scr-v2-fes-join').innerHTML = V2Fes.wait({}); V2.mount(el('scr-v2-fes-join')); fesWaitRoom(false); return; }
     fes.join.n = p.playerCount;
     fesRenderJoin();
+    fesPeekLoop();
     // 指示71 追記1：この部屋に予約していた端末（開き直した・つなぎ直した）は、合い札で同じ予約にもどる
     if(p && p.ok) fesResume();
   }

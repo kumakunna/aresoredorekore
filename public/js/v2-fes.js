@@ -72,7 +72,8 @@
       '<div class="v2-in is-scroll">' +
         V.hdHtml('Join', J.見出し) +
         '<div class="v2-pills"><span class="v2-pill">' + e(J.部屋 + ' ' + (o.code || '')) + '</span>' +
-          (o.n != null ? '<span class="v2-pill">' + e(J.いま + ' ' + o.n + UiText.V2.人) + '</span>' : '') + '</div>' +
+          // 指示71 追記2k：人数の札はいつも置く（はじめに人数が取れなくても、あとで書きかえられるように）。分からない間は見せない
+          '<span class="v2-pill" data-fes-n' + (o.n != null ? '' : ' style="display:none"') + '>' + (o.n != null ? e(J.いま + ' ' + o.n + UiText.V2.人) : '') + '</span>' + '</div>' +
         '<label class="v2-field"><span class="v2-field-l">' + e(J.名前の札) + '</span>' +
           // はじいた名前は画面に残さない（見本 F2b：まわりの人に見えないよう ●●● にする）
           '<span class="v2-inp' + (o.error ? ' is-bad' : '') + '"><input type="text" class="v2-inp-in" data-fes-name maxlength="16" autocomplete="nickname" enterkeyhint="done" value="' + e(o.masked ? '' : (o.name || '')) + '"' + (o.masked ? ' placeholder="●●●"' : '') + '>' +
@@ -657,7 +658,7 @@
       cls = ok ? 'is-gold' : 'is-dim';
       var miss = missedHtml(r.codes);
       inner = '<div class="v2-tend' + (miss ? ' is-withq' : '') + '"><div class="v2-tbig' + (ok ? ' v2-a-slam' : ' is-dim') + '">' + e(ok ? Rz.成功 : Rz.爆発) + '</div>' +
-        '<div class="v2-tstat' + (ok ? '' : ' is-dim') + '"><span>' + V.digits(t.solved) + '/' + V.digits(t.total) + '</span><b class="v2-tstat-sl"></b><span>' + clockText(r.elapsedSec) + '</span></div>' +
+        '<div class="v2-tstat' + (ok ? '' : ' is-dim') + '"><span>' + V.digits(t.solved) + '/' + V.digits(t.total) + '</span><b class="v2-tstat-sl"></b>' + (ok ? '<span>' + e(clearTimeText(r.elapsedSec)) + '</span>' : '') + '</div>' +
         (ok ? livesHtml(t.lives, t.livesMax) : '<div class="v2-tnote">' + e(Rz.あと + (t.total - t.solved) + Rz.だった) + '</div>') + miss + '</div>';
     } else if (gameMod(view) && d.result) {
       inner = '<div class="v2-otv is-end">' + gameMod(view).resultBody(view, true, { noHead: true }) + '</div>';
@@ -671,6 +672,14 @@
       '<div class="v2-thd"><div class="v2-thd-ttl">' + gnameHtml(g, 'v2-tg-n') + '</div><div class="v2-arrow"></div></div>' + inner +
       // 帯は右に「もどるまで ◯秒」だけ（見本 t12）
       '<div class="v2-tband is-end"><div class="v2-band-end">' + (view.end ? V.cd({ end: view.end, tv: true, label: Rz.もどるまで }) : '') + '</div></div>', { cls: cls, names: names });
+  }
+  /**
+   * 指示71 追記2j：かかった時間を言葉で（「23秒で解除！」「1分23秒で解除！」）。「00:23」だと何の時間か分からなかった（C16 と同じ）
+   */
+  function clearTimeText(sec) {
+    sec = Math.max(0, sec | 0);
+    var R = U().結果, m = Math.floor(sec / 60), s = sec % 60;
+    return (m ? m + R.分 : '') + (s || !m ? s + R.秒 : '') + R.で解除;
   }
   function clockText(sec) {
     sec = Math.max(0, sec | 0);
@@ -788,7 +797,7 @@
       '<div class="v2-fes-wait" role="status"><b>' + e(b) + '</b><span>' + e(sp) + '</span></div></div>';
   }
 
-  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, wait: wait, people: people, clockText: clockText, mostMissed: mostMissed, decideTimeline: decideTimeline,
+  return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, wait: wait, people: people, clockText: clockText, clearTimeText: clearTimeText, mostMissed: mostMissed, decideTimeline: decideTimeline,
     tvc: tvc,
     // 指示66-3：着替えのシートは、ふだんの部屋の待合（E4）も同じものを使う（見本「着替えは文化祭と同じシート」）
     lookSheets: lookSheets };

@@ -8,9 +8,9 @@
 //   --port 3301  --cdp 9701  --out DIR（既定 docs/監査_指示66の画像/fes-walk）
 //   --cpu 6                          スマホ1台目と TV の CPU を6倍遅くする（遅い機械・指示71 追記2d）
 //
-// クイズ解除の周では、スマホ1台目と TV に見張りを置く（指示71 追記2d）：解除中から結果の画面まで、毎コマ（requestAnimationFrame）
-// 「表の画面が文化祭の画面ではなく、終わりの幕（.fx-finale）にも覆われていない（上がりかけを含む）」コマを数える＝幕のあとに見えた今までの画面。
-// 記録.json の 周[].古い画面 に、端末ごとのコマ数と、その時の画面の id を書く（結果の画面に着いて1.5秒後に読む）。0コマが正しい
+// スマホ1台目と TV に見張りを置く（指示71 追記2d・全体の門3）：入ったところから最後まで、毎コマ（requestAnimationFrame）
+// 「表の画面が新しい見た目（scr-v2-）ではなく、終わりの幕（.fx-finale）にも覆われていない（上がりかけを含む）」コマを数える＝幕のあとに見えた今までの画面。
+// 記録.json の 周[].古い画面 に、端末ごとのコマ数（入ってからの通し）と、その時の画面の id を書く（結果の画面に着いて1.5秒後に読む）。0コマが正しい
 //
 // **係は部屋を作るだけ。そのあと係の操作は1つもしない**（「人がいなくても回る」を確かめるため）。
 // スマホは、投票と準備OKを押すだけ。遊んでいる間はゲームに任せる（ゲームの締め切りで進む）。
@@ -37,9 +37,9 @@ const t0 = Date.now();
 const log = (...a) => { const line = ((Date.now() - t0) / 1000).toFixed(1).padStart(6) + 's ' + a.join(' '); console.log(line); };
 
 /** 幕のあとに見えた今までの画面を、毎コマ数える（指示71 追記2d） */
-const 見張り = "(function(){ var o = window.__oldFrames = { n: 0, frames: 0, ids: {}, cpu: " + CPU + " }; (function f(){ o.frames++;" +
+const 見張り = "(function(){ if (window.__oldFrames) return 1; var o = window.__oldFrames = { n: 0, frames: 0, ids: {}, cpu: " + CPU + " }; (function f(){ o.frames++;" +
   " var a = document.querySelector('.screen.active'), id = a ? a.id : '', 幕 = document.querySelector('.fx-finale');" +
-  " if (!/^scr-v2-fes-/.test(id) && !(幕 && !幕.classList.contains('fx-out'))) { o.n++; o.ids[id] = (o.ids[id] || 0) + 1; }" +
+  " if (!/^scr-v2-/.test(id) && !(幕 && !幕.classList.contains('fx-out'))) { o.n++; o.ids[id] = (o.ids[id] || 0) + 1; }" +
   " if (o.n && !o.first) o.first = Date.now(); if (o.n) o.last = Date.now(); requestAnimationFrame(f); })(); return 1; })()";
 
 async function サーバー() {
@@ -124,6 +124,8 @@ const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.a
     }
     if (CPU > 1) for (const d of [ph[0], tv]) await d.cdp('Emulation.setCPUThrottlingRate', { rate: CPU });
     log('3人入った');
+    // 見張りは入ったところから最後まで（指示71 全体の門3：投票→ゲーム→結果で、古い見た目の画面が1つも出ない）
+    for (const d of [ph[0], tv]) await d.ev(見張り).catch(() => null);
     for (let lap = 1; lap <= LAPS; lap++) {
       const mode = GAMES[(lap - 1) % GAMES.length];
       const 周 = { 周: lap, 投票: mode, 段階: [] };
@@ -149,7 +151,6 @@ const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.a
       await sleep(500); await 撮る(tv, lap + '_3_準備_TV');
       // 遊ぶ画面へ：ほかのゲームは今の画面へ移る。クイズ解除（協力版）の解除中は、新しい見た目の盤（F11）のまま
       await ph[0].until("(document.querySelector('.screen.active')||{}).id!=='scr-v2-fes-lobby'||!!document.querySelector('#scr-v2-fes-lobby .v2-bgrid')", 40000, '遊ぶ');
-      if (mode === 'bomb-coop') for (const d of [ph[0], tv]) await d.ev(見張り).catch(() => null);
       着いた('遊ぶ:' + (await 画面(ph[0]))); await sleep(4000); await 撮る(ph[0], lap + '_4_遊ぶ'); await 撮る(tv, lap + '_4_遊ぶ_TV');
       // 遊ぶ間：クイズ解除だけは決着を早める。ほかはゲームの締め切りに任せる（押せる所を押すだけ）
       const until = Date.now() + 6 * 60 * 1000;
@@ -167,7 +168,7 @@ const 段階 = (d) => d.ev("(function(){var s=(document.querySelector('.screen.a
       }
       await ph[0].until("!!document.querySelector('#scr-v2-fes-lobby .v2-contsheet')", 30000, '結果');
       着いた('結果');
-      if (mode === 'bomb-coop') { await sleep(1500); 周.古い画面 = { スマホ: await ph[0].ev('window.__oldFrames').catch(() => null), TV: await tv.ev('window.__oldFrames').catch(() => null) }; log('周' + lap, '古い画面', JSON.stringify(周.古い画面)); }
+      { await sleep(1500); 周.古い画面 = { スマホ: await ph[0].ev('window.__oldFrames').catch(() => null), TV: await tv.ev('window.__oldFrames').catch(() => null) }; log('周' + lap, '古い画面', JSON.stringify(周.古い画面)); }
       await sleep(800); await 撮る(ph[0], lap + '_5_結果'); await 撮る(tv, lap + '_5_結果_TV');
       await 押す(ph[0], '[data-fes-act=continue]'); await 押す(ph[1], '[data-fes-act=continue]');   // 3台目は押さない
       await ph[0].until("!!document.querySelector('#scr-v2-fes-lobby .v2-facesbtn')", 40000, '待合へ');

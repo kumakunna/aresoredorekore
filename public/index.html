@@ -10111,7 +10111,7 @@
           <div class="seg" id="setFxSeg">
             <button class="seg-btn" data-fx="normal">ふつう</button>
             <button class="seg-btn" data-fx="fast">速い</button>
-            <button class="seg-btn" data-fx="skip">スキップ</button>
+            <button class="seg-btn" data-fx="skip">なし</button><!-- 指示71-7（68-0b C22）：ほかの所（説明・指示）は「なし」。中の値は skip のまま -->
           </div>
           <div class="mic-status" id="setFxNote" style="margin-top:8px;"></div>
         </div>
@@ -10444,7 +10444,7 @@
       // どちらも実装が正しいので、言葉の側を実装に合わせた。
       // ここの各行が本当かは tests/fixes45.js が1行ずつ照合する
       // 指示71-5（68-0b C11）：TV で2行までの短い文（見本）。「切れば」だけの行ができていた
-      tv:[["🔌","コードを選んで3択"], ["❤️","まちがえるとライフ-1"], ["🏆","全部切れば解除成功"]],
+      tv:[["🔌","コードをえらんで3択"], ["❤️","まちがえるとライフ-1"], ["🏆","全部切れば解除成功"]],
       bullets:["チームで協力して爆弾を解除する","コードをタップすると、問題と3つの答えが出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る（同じコードは何度でも再挑戦できる）","ライフが0で爆発・全解除で勝利","部屋を立てて遊ぶと、全員が同じ盤面を自分のスマホで見られる"]},
     // 競争版：1人1台・部屋が必須。観戦者は出ない（全員が同じコードに同時に挑む）
     {id:"bomb-race", icon:"🏁", title:"クイズ解除（競争版）", sub:"同じコードに全員で同時挑戦・順位がつく", advanced:false, strict:false, oneWord:false, bomb:true, bombRace:true, coopLayout:false, roomOnly:true, game:'bomb', minPlayers:2,

@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 // tools/haichi-walk.js — 配置づくり（指示70）を、本物の Chrome 2つで通して測る
 //
-//   node tools/haichi-walk.js [--port 3021]
+//   node tools/haichi-walk.js [--port 3021] [--page 別のページ.html]
+//   --page：haichi/haichi.html のかわりに、そのページを出す（前の版で赤・新しい版で緑を見るため・11/04）
 //
+// 消えないかの3つ（11/04・見本 docs/指示70/見本_消えないかの確かめ.js）：サーバーが20秒止まっている間の直しが、もどったら届き画面からも消えない／
+//   止まっている間に開き直しても届く／あとから直した人の形が残る。「止まる」は道（/api/haichi）だけが 502 を返す（nginx の後ろで、アプリを作り直している間と同じ）
 // 見る物：門5（片方で直した案が、もう片方に6秒以内に出る）・門6（はじめて開くと12の案が入る・2回目や同時に開いても2重に入らない）
 // **今ある DB にはさわらない。**道（haichi-routes.js）を、この道具だけの小さなサーバーに、使い捨ての SQLite（一時フォルダー）でつなぐ。
 // 合い言葉はその場で作る乱数（どこにも書かない・出さない）。Chrome は tools/cdp.js（裏で動かす・音なし）を2つ別々に立てる（別の人のつもり）
@@ -20,6 +23,7 @@ const { mountHaichi } = require('../haichi-routes');
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : argv[i + 1]; };
 const PORT = Number(arg('port', 3021));
+const PAGE = arg('page', null);
 const OUT = path.join(__dirname, '..', 'docs', '監査_指示70', 'walk');
 fs.mkdirSync(OUT, { recursive: true });
 const rec = [];
@@ -29,9 +33,11 @@ const note = (k, v) => { rec.push({ t: Date.now(), k, v }); console.log('・' + 
   const KEY = crypto.randomBytes(24).toString('hex');
   const dbFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'haichi-walk-')), 'h.db');
   let db = new Database(dbFile);
-  let server = null;
+  let server = null, downUntil = 0;
   const startServer = () => new Promise((r) => {
     const app = express();
+    app.use('/api/haichi', (req, res, next) => (Date.now() < downUntil ? res.status(502).end() : next()));
+    if (PAGE) app.get('/haichi', (req, res, next) => (req.query.key === KEY ? res.set({ 'cache-control': 'no-store' }).type('html').send(fs.readFileSync(PAGE)) : next()));
     mountHaichi(app, { db, key: KEY });
     app.use(express.json());
     server = http.createServer(app).listen(PORT, '127.0.0.1', r);
@@ -90,6 +96,44 @@ const note = (k, v) => { rec.push({ t: Date.now(), k, v }); console.log('・' + 
     }
     note('門5 B で直した → A に出るまで（ms）', seen2 === null ? '15秒たっても出ない' : seen2);
     note('状態の字（A）', await a.ev('(document.getElementById("status") || {}).textContent'));
+
+    // ---- 消えないかの3つ ----
+    const ids = await plans();
+    const [p1, p2] = [ids[0], ids[1]];
+    const memoOf = async (id) => ((await api()).plans.find((p) => p.id === id) || { data: {} }).data.memo;
+    const pickP = (d, id) => d.ev('(() => { const t = document.querySelector(' + JSON.stringify('.tab[data-plan="' + id + '"]') + '); if (t) t.click(); return !!t; })()');
+    const setMemo = (d, t) => d.ev('(() => { const m = document.getElementById("memo"); m.focus(); m.value = ' + JSON.stringify(t) + '; m.dispatchEvent(new Event("input", { bubbles: true })); m.blur(); return true; })()');
+    const memoOn = (d) => d.ev('document.getElementById("memo").value');
+    const st = (d) => d.ev('(document.getElementById("status") || {}).textContent');
+    const net = (d, off) => d.cdp('Network.emulateNetworkConditions', { offline: off, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    const judge = [];
+    const check = (name, cond, extra) => { judge.push({ name, ok: !!cond, extra }); note((cond ? 'OK ' : 'NG ') + name, extra == null ? '' : extra); };
+    await pickP(a, p1); await sleep(300); await setMemo(a, 'A1'); await sleep(4500);
+    check('ふつうの直しが届く', (await memoOf(p1)) === 'A1', await memoOf(p1));
+    // 1) サーバーが20秒止まっている間に直す → もどったら届く。ほかの人の直しで消えない
+    downUntil = Date.now() + 20000; await sleep(500);
+    await setMemo(a, 'A2-止まっている間'); await sleep(12000);
+    note('止まっている間の字（A）', await st(a));
+    await sleep(9000);
+    await pickP(b, p2); await sleep(300); await setMemo(b, 'B-もどったあと'); await sleep(8000);
+    check('1 止まっていた20秒の直しが、もどったあと届く', (await memoOf(p1)) === 'A2-止まっている間', await memoOf(p1));
+    check('1 A の画面からも消えていない', (await memoOn(a)) === 'A2-止まっている間', await memoOn(a));
+    check('1 A の字が「保存しました」にもどる', /保存しました/.test(await st(a)), await st(a));
+    // 2) 止まっている間に直して、ページを開き直す → もどったら届く
+    downUntil = Date.now() + 15000; await sleep(500);
+    await setMemo(a, 'A3-開き直す前'); await sleep(1500);
+    await a.go(URL); await sleep(16000);
+    check('2 止まっている間に開き直しても、もどったら届く', (await memoOf(p1)) === 'A3-開き直す前', await memoOf(p1));
+    // 3) A だけネットが切れている間に、B があとから同じ案を直す → B の形が残る
+    await pickP(a, p1); await sleep(300);
+    await a.cdp('Network.enable'); await net(a, true);
+    await setMemo(a, 'A4-ネットが切れた間'); await sleep(1500);
+    await pickP(b, p1); await sleep(300); await setMemo(b, 'B4-あとから直した'); await sleep(4000);
+    await net(a, false); await sleep(20000);
+    check('3 あとから直した B の形が残る', (await memoOf(p1)) === 'B4-あとから直した', await memoOf(p1));
+    check('3 A の画面も B の形になる', (await memoOn(a)) === 'B4-あとから直した', await memoOn(a));
+    note('消えないかの3つ', judge.every((x) => x.ok) ? '全部 OK' : 'NG ' + judge.filter((x) => !x.ok).length + '件');
+    await a.ev('(() => { document.getElementById("memo").blur(); return true; })()');
 
     // 門4（本物のページで）：サーバーを作り直す → ページが自分でつなぎ直し、案はそのまま
     server.close(); db.close();

@@ -113,6 +113,8 @@ async function launch(opt) {
     });
     const dev = {
       name, logs,
+      /** この端末のページに CDP の命令をそのまま送る（例：Network.emulateNetworkConditions でこの端末だけネットを切る・指示70） */
+      cdp: s,
       async go(url) {
         await s('Page.navigate', { url });
         await sleep(1200);

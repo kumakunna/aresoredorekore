@@ -1406,8 +1406,11 @@ function pickCart(doc, id) {
     assert(!doc.getElementById('doorLead') && !doc.getElementById('doorPanel'), '扉（板・一言）は無い');
     assertEqual(doc.querySelectorAll('#doorScene svg .s').length, 3, '半円3つ');
     assert(doc.querySelector('#doorScene svg .a') && doc.querySelector('#doorScene svg .w'), '「あ」と英字');
-    const ms = await 入口まで(win, doc);
-    assert(ms >= 1200 && ms <= 2600, 'ロゴは見本の時間（1.3秒＋消える0.25秒）だけ出る（' + ms + 'ms）');
+    // 本体の script を待たずに、読みこみの途中から動く（遅い端末で何も描かれない時間を作らない・入口の重さ「最初に描く」）
+    assert(win.__logoAt > 0, '読みこみの途中で動きはじめている（__logoAt）');
+    await 入口まで(win, doc);
+    const ms = Date.now() - win.__logoAt;
+    assert(ms >= 1200 && ms <= 2600, 'ロゴは見本の時間（1.3秒＋消える0.25秒）だけ出る（動きはじめから ' + ms + 'ms）');
     assertEqual(activeScreen(doc), 'scr-v2-home', '入口へ');
     assertEqual(win.sfxProbe().log.length, 音0, 'ロゴは音を鳴らさない');
     assertEqual(win.localStorage.getItem('acac-logo-day'), 今日(win), 'その日の印が残る');
@@ -1419,6 +1422,22 @@ function pickCart(doc, id) {
     assert(!t2.doc.getElementById('doorScene').classList.contains('play'), '2回目はロゴを動かさない');
     assert(ms2 < 1000, '2回目はすぐ入口（' + ms2 + 'ms）');
     t2.win.close();
+  });
+
+  await r.test('71-5（68-0b B23）：はじめの光と揺れの確認に「文字を大きくする」。設定の文字サイズと同じ値（入＝大 130・切＝100）', async () => {
+    const { win, doc, errors } = await launch({ keepSafetyGate: true });
+    await sleep(win, 300);
+    const b = doc.getElementById('sgFontBtn');
+    assert(b && /文字を大きくする/.test(b.textContent), '行がある');
+    assertEqual(b.getAttribute('aria-pressed'), 'false', 'はじめは切');
+    b.click(); await sleep(win, 30);
+    assert(doc.documentElement.classList.contains('fs-130'), '押すと、その場で文字サイズ「大」');
+    assertEqual(JSON.parse(win.localStorage.getItem('acac-app-prefs')).fontScale, 130, '設定の文字サイズと同じ値に残る');
+    assertEqual(b.getAttribute('aria-pressed'), 'true', '入');
+    b.click(); await sleep(win, 30);
+    assert(!doc.documentElement.classList.contains('fs-130') && doc.documentElement.classList.contains('fs-100'), 'もう一度押すと、ふつう');
+    assertNoErrors(errors, '未捕捉の例外');
+    win.close();
   });
 
   await r.test('71-4：ロゴは押すと飛ばせる。演出「なし」・/fes・部屋の QR・TV から来た時は出さない', async () => {

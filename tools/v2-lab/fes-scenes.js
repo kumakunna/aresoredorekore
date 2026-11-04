@@ -11,6 +11,8 @@ const RT = require(path.join(ROOT, 'realtime.js'));
 const FesRoom = require(path.join(ROOT, 'fes-room.js'));
 const BombRoom = require(path.join(ROOT, 'bomb-room.js'));
 const SoroeRoom = require(path.join(ROOT, 'soroe-room.js'));
+const QHaya = require(path.join(ROOT, 'qhaya-room.js'));
+const QNear = require(path.join(ROOT, 'qnear-room.js'));
 
 const MOCK = [
   ['ふう', '🙂', 'ぶんかさいの一歩'], ['ひろ', '🌙', 'こだわりの解除名人'], ['びび', '🐺', 'はじまりの一歩'],
@@ -86,6 +88,26 @@ function そろえてを終える(room) {
     for (let k = 0; k < 4 && room.soroe.phase !== 'ended'; k++) SoroeRoom.advance(room);
   }
   room.fes.played = { mode: 'soroe', round: room.fes.round, ids: ids };
+  room.fes.phase = FesRoom.PHASE.RESULT;
+  return ids;
+}
+
+/** 早答え・数字ちかい方を本当に動かして、結果まで（指示71 追記9：文化祭の結果をほかの4本と同じ順位表に） */
+function クイズ2を終える(room, mode) {
+  const Room = mode === 'qhaya' ? QHaya : QNear, key = mode;
+  const ids = Array.from(room.members.values()).filter((m) => m.role === 'player').map((m) => m.id);
+  let seed = 3; const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  const res = Room.startGame(room, Object.assign({ _rand: rnd }, FesRoom.gameOf(mode).start), { notify() {} });
+  if (!res.ok) throw new Error(mode + ' を始められません: ' + res.error);
+  const w = room[key];
+  for (let q = 0; q < w.qs.length && w.phase !== 'ended'; q++) {
+    ids.forEach((id, i) => {
+      if (mode === 'qhaya') { const c = w.qs[q].correct, C = w.qs[q].choices.length; Room.submitAction(room, id, null, { pick: (i + q) % 3 === 0 ? c : (c + 1 + (i % (C - 1))) % C, ms: 750 + i * 90 }); }
+      else { const a = w.qs[q].answer; Room.submitAction(room, id, null, { value: Math.max(0, Math.round(a * (1 + ((i % 7) - 3) * 0.06)) + i) }); }
+    });
+    Room.advance(room); Room.advance(room);
+  }
+  room.fes.played = { mode: mode, round: room.fes.round, ids: ids };
   room.fes.phase = FesRoom.PHASE.RESULT;
   return ids;
 }
@@ -182,6 +204,13 @@ const BUILD = {
   'fes2-tv-result-soroe': (o) => { const r = 部屋(o.n || 16); そろえてを終える(r); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); }
 };
 
+// 指示71 追記7：呼び込みの印にゲーム名（入が4本の時）
+['qhaya', 'qnear'].forEach((m) => {
+  BUILD['fes2-result-' + m] = (o) => { const r = 部屋(o.n || 16); クイズ2を終える(r, m); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); };
+  BUILD['fes2-tv-result-' + m] = (o) => { const r = 部屋(o.n || 16); クイズ2を終える(r, m); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); };
+});
+BUILD['fes2-tv-idle4'] = () => { const v = BUILD['fes2-tv-idle'](); v.room.fes.games = v.room.fes.games.slice(0, 4); return v; };
+
 // 見せ場の動画（tools/v2-film.js）：投票の決定を、動きを頭から（play）
 BUILD['fes2-tv-film-decide'] = (o) => Object.assign(BUILD['fes2-tv-decide'](o), { play: true });
 BUILD['fes2-tv-film-decide-one'] = (o) => Object.assign(BUILD['fes2-tv-decide-one'](o), { play: true });
@@ -196,7 +225,7 @@ const SCENES = [
   ['fes2-vote', 'phone', 'f7'], ['fes2-vote-t', 'phone', null], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'], ['fes2-readied', 'phone', null],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],
   ['fes2-tv-idle', 'tv', 't6a'], ['fes2-tv-one', 'tv', 't6b'], ['fes2-tv-lobby', 'tv', 't3'], ['fes2-tv-full', 'tv', 't6c'],
-  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-film-decide-one', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b'], ['fes2-tv-result-soroe', 'tv', null]
+  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-film-decide-one', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b'], ['fes2-tv-result-soroe', 'tv', null], ['fes2-tv-idle4', 'tv', null], ['fes2-result-qhaya', 'phone', null], ['fes2-result-qnear', 'phone', null], ['fes2-tv-result-qhaya', 'tv', null], ['fes2-tv-result-qnear', 'tv', null]
 ].map(([id, kind, mock]) => ({ id, kind, draw: 'fes', fes: true,
   screen: BUILD[id]({}).screen, mock: mock ? { page: 'festival.html', id: mock } : null }));
 

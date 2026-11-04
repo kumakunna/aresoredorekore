@@ -64,6 +64,34 @@ async function 入った(o) {
     win.close();
   });
 
+  await r.test('追記7：1人の時のスマホに「あと1人で はじまるよ」と /fes の QR。2人からは出さない（TV の呼び込みの名前は tools/v2-shot.js の fes2-tv-idle4）', async () => {
+    const { win, doc, errors } = await 入った();
+    const one = FesScenes.view('fes2-lobby', { n: 1 });
+    win.__rtFake.fire('room:update', one.room); win.__rtFake.fire('fes:you', one.you);
+    await waitFor(win, () => doc.querySelector('#scr-v2-fes-lobby .v2-alone'), 2000, '1人の時の札');
+    const a = doc.querySelector('#scr-v2-fes-lobby .v2-alone');
+    assert(/あと1人で はじまるよ/.test(a.textContent) && /QR を友だちに見せてね/.test(a.textContent), '「あと1人で はじまるよ」と「この QR を友だちに見せてね」');
+    assert(a.querySelector('.v2-alone-qr svg'), 'QR がある');
+    流す(win, 'fes2-lobby');
+    await waitFor(win, () => !doc.querySelector('#scr-v2-fes-lobby .v2-alone'), 2000, '6人では出さない');
+    assertEqual(errors.length, 0, '未捕捉の例外が無い');
+    win.close();
+  });
+
+  await r.test('追記7：決定の間（TV で出るまで）のスマホに「TVを見て！」。TV で出る時刻に消える', async () => {
+    const { win, doc, errors } = await 入った();
+    流す(win, 'fes2-decide');
+    await waitFor(win, () => doc.querySelector('#scr-v2-fes-lobby .v2-dlook'), 2000, '決定の画面');
+    const d = doc.querySelector('#scr-v2-fes-lobby .v2-dlook');
+    assert(/TVを見て！/.test(d.textContent), '「TVを見て！」');
+    assert(d.classList.contains('is-tvlook'), 'はじめは見えている（TV で出る時刻まで）');
+    const ms = +d.getAttribute('data-tvuntil') * 1000;
+    assert(ms > 500 && ms < 4000, 'TV で出る時刻（' + ms + 'ms）');
+    await waitFor(win, () => !doc.querySelector('#scr-v2-fes-lobby .v2-dlook.is-tvlook'), ms + 2000, 'TV で出る時刻に消える');
+    assertEqual(errors.length, 0, '未捕捉の例外が無い');
+    win.close();
+  });
+
   await r.test('追記7：前に「やさしい」を選んだ端末は、次に開いた時も「やさしい」', async () => {
     const { win, doc, errors } = await 入る画面({ storage: { fes_diff_v1: 'easy' } });
     assertEqual(Array.from(doc.querySelectorAll('.v2-diff.is-on')).map((d) => d.getAttribute('data-fes-diff')).join(','), 'easy', '前に選んだ「やさしい」');

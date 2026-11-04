@@ -35,6 +35,9 @@ app.use(cors({ origin: true, credentials: true }));
 let compression = null;
 try { compression = require('compression'); } catch (e) { console.warn('[server] compression が読めません。縮めずに送ります：' + e.message); }
 if (compression) app.use(compression());
+// 指示70：文化祭の「配置づくり」（/haichi?key=…）。合い言葉は .env の HAICHI_KEY だけ。
+// express.json（100KB まで）より前につなぐ——案は 300KB まで置けるので、後ろだと道に届く前に断られる
+require('./haichi-routes').mountHaichi(app, { db });
 app.use(express.json());
 // 第19弾：socket.io にも同じセッションを通すため、ミドルウェアを変数に取り出しておく。
 // これで socket.request.session.userId と req.session.userId が同じものになる。

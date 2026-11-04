@@ -1422,6 +1422,11 @@
   .door-scene.play.out::before{opacity:1;transition:opacity calc(.25s * var(--fx-scale)) ease;}
   .door-logo{position:relative;width:min(62vmin,520px);height:auto;display:block;visibility:hidden;}
   .door-scene.play .door-logo{visibility:visible;}
+  /* 動かさない時（2回目・/fes・QR・TV）：読みこみが0.1秒より長い時だけ、止まったロゴを出す（遅い回線で、何も無い色だけが長く続かない）。
+     速い時は出る前に次の画面へ移る。読みこみの合図なので、演出の速さには従わない（「なし」でも0.1秒は待つ。0.4秒だと /fes の最初に描くが 2.8→3.1秒に遅れた）。
+     溶かして出すと、Chrome が「描いた」と数えるのが遅れた（入口の重さ：/fes の最初に描く 5.1秒）ので、ぱっと出す（visibility） */
+  .door-scene.still:not(.play) .door-logo{animation:doorShow 0s linear .1s forwards;}
+  @keyframes doorShow{to{visibility:visible;}}
   .door-logo .s{transform-box:fill-box;transform-origin:right center;}
   .door-logo .a,.door-logo .w{fill:#111;transform-box:fill-box;transform-origin:50% 55%;}
   .door-scene.play .s3{animation:doorInR calc(.42s * var(--fx-scale)) cubic-bezier(.32,.72,0,1) 0s both;}
@@ -5174,7 +5179,8 @@
   .v2 .v2-diff-t span{font-weight:800;font-size:13px;color:var(--ws);line-height:1.3;}
   .v2 .v2-diff-ok{margin-left:auto;width:24px;height:24px;}
   /* F4 前のゲームの感想：帯の上のふちから生えるカード。約5秒でたたんで、左下の「★ 感想」に */
-  .v2 .v2-pop{position:absolute;left:12px;right:12px;bottom:calc(var(--v2-bandh) + 4px);z-index:24;transform:translateY(calc(100% + 12px));opacity:0;pointer-events:none;
+  /* 指示71-5（68-0b C9）：帯の線とのすき間 4→12px（K5）・左右 12→18px（ほかと同じ） */
+  .v2 .v2-pop{position:absolute;left:18px;right:18px;bottom:calc(var(--v2-bandh) + 12px);z-index:24;transform:translateY(calc(100% + 12px));opacity:0;pointer-events:none;
     transition:transform var(--v2-move) var(--v2-ease),opacity var(--v2-move) var(--v2-ease);}
   .v2 .v2-pop.is-open{transform:none;opacity:1;pointer-events:auto;}
   .v2 .v2-pcard{display:flex;flex-direction:column;gap:10px;background:var(--wsheet);color:var(--wsheet-ink);border-radius:20px 20px 16px 16px;padding:14px 14px 12px;box-shadow:0 -8px 24px rgba(0,0,0,.16);}
@@ -5923,6 +5929,11 @@
   .v2 .v2-otv.is-fesend{gap:12px;padding-top:28px;padding-bottom:8px;}
   .v2 .v2-otv.is-fesend .v2-osync{gap:14px;margin:0 0 6px;}
   .v2 .v2-otv.is-fesend .v2-osync b{font-size:150px;}
+  /* 指示71 追記9：早答え・数字ちかい方の16人（2列×8段）。帯がある文化祭の結果では段を詰める（8段目が帯にかかっていた） */
+  .v2 .v2-otv.is-fesend .v2-oranks.is-c2{gap:6px 24px;}
+  .v2 .v2-otv.is-fesend .v2-oranks.is-c2 .v2-rk{padding:3px 22px;}
+  .v2 .v2-otv.is-fesend .v2-oranks.is-c2 .v2-rk-n,.v2 .v2-otv.is-fesend .v2-oranks.is-c2 .v2-rk-nm{font-size:44px;}
+  .v2 .v2-otv.is-fesend .v2-oranks.is-c2 .v2-rk-x{font-size:42px;}
   .v2 .v2-otv .v2-oranks.is-c2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;}
   /* 結果の見せ場（Claude チャットの台本・くまくん 10/31・V2.rankRevealHtml）。TV だけ動く。素の形＝最後の形（演出「なし」はすぐ最後の形）
      0〜0.8 少し暗く → 0.8〜2.0 下の順位から1行ずつ下から → 2.0 1位の所が空いて光る → 2.8 1位の名前が大きく・冠 → 3.3 暗さがもどる */
@@ -5993,6 +6004,7 @@
   .v2 .v2-rk-nm{font-weight:900;font-size:17px;flex:1;}
   .v2 .v2-rk-x{flex:none;font-weight:900;font-size:14px;}
   .v2 .v2-contsheet{padding:16px 18px 20px;}
+  .v2 .v2-in.is-fesres{padding-bottom:calc(var(--v2-contsh,230px) + 12px);}   /* 指示71 追記9：結果の表を「つづける？」のシートの上まで送れる */
   .v2 .v2-cont{display:flex;flex-direction:column;gap:12px;}
   .v2 .v2-cont-t{font-weight:900;font-size:19px;}
   .v2 .v2-syncbar{height:8px;border-radius:4px;background:#EDEDED;overflow:hidden;}
@@ -6026,7 +6038,7 @@
   .v2 .v2-fes-wait.is-tv span{font-size:48px;}
   .v2 .v2-fes-lost{margin:24px 0;font-weight:900;font-size:30px;line-height:1.4;color:var(--wi);}
   .v2 .v2-tvIdle{display:grid;grid-template-columns:minmax(0,1fr) 640px;gap:60px;flex:1;min-height:0;}
-  .v2 .v2-tvIdle-l{display:flex;flex-direction:column;gap:36px;min-width:0;}
+  .v2 .v2-tvIdle-l{display:flex;flex-direction:column;justify-content:center;gap:36px;min-width:0;}   /* 指示71-5（68-0b C13）：上に寄っていた */
   .v2 .v2-tvIdle-l .v2-thd-ttl{font-size:150px;line-height:1.02;}
   .v2 .v2-tvIdle-r{display:flex;flex-direction:column;justify-content:center;gap:24px;}
   .v2 .v2-tsteps{display:flex;flex-direction:column;gap:16px;}
@@ -6040,6 +6052,15 @@
   .v2 .v2-tgames{display:flex;flex-wrap:wrap;align-items:center;gap:18px;}
   .v2 .v2-tgames .v2-tnote{white-space:nowrap;}
   .v2 .v2-ttile{width:120px;height:120px;}
+  /* 指示71 追記7：呼び込みの印の下にゲーム名 */
+  /* 4本まで（ふだんの入の数）。5本からは印だけ（名前を並べると TV の安全な枠に入らない）。名前は TV の字の下限 42px・1行 */
+  /* 名前がある時は、印の右に名前・2列×2段（4本が1行に入らない） */
+  .v2 .v2-tgames:not(.is-many){display:grid;grid-template-columns:repeat(2,max-content);gap:14px 40px;}
+  .v2 .v2-tgames:not(.is-many) .v2-tnote{grid-column:1/-1;}
+  .v2 .v2-tgame{display:flex;align-items:center;gap:16px;}
+  .v2 .v2-tgames:not(.is-many) .v2-ttile{width:92px;height:92px;}
+  .v2 .v2-tgame-n{font-weight:900;font-size:42px;line-height:1.15;white-space:nowrap;color:var(--wi);}
+  .v2 .v2-tgames.is-many .v2-tgame-n{display:none;}
   .v2 .v2-tcode{display:flex;align-items:baseline;gap:18px;justify-content:center;}
   .v2 .v2-tcode b{font-weight:900;font-size:84px;line-height:1;letter-spacing:.05em;}
   .v2 .v2-tin{display:flex;flex-direction:column;gap:26px;flex:1;min-height:0;}
@@ -6118,6 +6139,8 @@
   .v2 .v2-trule-ri{width:72px;height:72px;border-radius:20px;background:var(--wc2);display:flex;align-items:center;justify-content:center;flex:none;font-size:44px;line-height:1;}
   .v2 .v2-trule-t{min-width:0;}
   .v2 .v2-tmem.is-wait{opacity:.6;}
+  /* 指示71-5（68-0b C11）：TV の準備OK の人に緑の縁（見本） */
+  .v2 .v2-tgrid:not(.v2-ogrid) .v2-tmem.is-ok{border-color:var(--v2-ok);}   /* みんなと同じの段（.v2-ogrid）は自分の色のまま */
   .v2 .v2-tmem-st{margin-left:auto;flex:none;font-weight:900;font-size:44px;display:flex;align-items:center;}
   .v2 .v2-tmem-st .v2-ic{width:46px;height:46px;color:var(--wok);}
   .v2 .v2-tend{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;text-align:center;}
@@ -6175,7 +6198,8 @@
   .v2 .v2-prog{height:10px;border-radius:5px;background:#3A3A40;overflow:hidden;flex:none;}
   .v2 .v2-prog i{display:block;height:100%;background:var(--wa);border-radius:inherit;transition:width var(--v2-move) var(--v2-ease);}
   .v2 .v2-pkey{justify-content:space-between;}
-  .v2 .v2-pkey-t{font-weight:900;font-size:16px;}
+  .v2 .v2-pkey-t{font-weight:900;font-size:16px;flex:none;white-space:nowrap;}   /* 指示71 追記2g のあと：凡例が3つになり、375 で「コードをえらんで」が割れていた */
+  .v2 .v2-pkey .v2-tierkey{justify-content:flex-end;min-width:0;}
   .v2 .v2-tierkey{display:flex;flex-wrap:wrap;gap:4px 10px;font-weight:800;font-size:12px;color:var(--ws);}
   .v2 .v2-tierkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;border:2px solid var(--tc);}
   .v2 .v2-tierkey i.is-t1,.v2 .v2-bcell.is-t1,.v2 .v2-qtier.is-t1{--tc:#5FD07A;}
@@ -6320,6 +6344,8 @@
   .v2 .v2-sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left var(--v2-move) var(--v2-ease);}
   .v2 .v2-safe-row.on .v2-sw{background:var(--wi);}
   .v2 .v2-safe-row.on .v2-sw::after{left:25px;background:var(--won);}
+  /* 指示71-5 B23：行が3つになったので、低い画面（375×667 など）では行と注意書きを詰める（「はじめる」が画面の外に出ていた） */
+  @media (max-height:720px){ .v2 .v2-safe-row{padding:9px 14px;} .v2.v2-safety .v2-safe-note{padding:8px 12px;font-size:13px;} .v2.v2-safety .v2-lead{margin:0;} }
   .v2 .v2-safe-note{display:flex;gap:10px;align-items:flex-start;font-weight:800;font-size:14px;line-height:1.55;background:var(--wdim);border-radius:16px;padding:12px 14px;}
   .v2 .v2-safe-note .v2-ic{width:22px;height:22px;margin-top:1px;}
   /* F10 3・2・1（FxKit.countdown の着せ方。数え方は共通部品のまま）。字は出さない・ゲームの世界の色 */
@@ -6394,6 +6420,16 @@
   .v2 .v2-mem-st{flex:none;font-weight:900;font-size:13px;white-space:nowrap;display:flex;}
   .v2 .v2-mem-st.is-ok{color:var(--wok);}
   .v2 .v2-mem-st .v2-ic{width:18px;height:18px;}
+  /* 指示71-5（68-0b B4）：9人からは小さい札（顔の下に名前）の3列。16人でも箱の下で切れる札を作らない */
+  .v2 .v2-mems.is-many{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+  .v2 .v2-mems.is-many .v2-mem{flex-direction:column;gap:4px;padding:6px 4px;min-height:0;}
+  .v2 .v2-mems.is-many .v2-mem .v2-av{width:30px;height:30px;font-size:18px;}
+  .v2 .v2-mems.is-many .v2-mem-who{width:100%;align-items:center;text-align:center;gap:2px;}
+  .v2 .v2-mems.is-many .v2-mem-nm{font-size:13px;}
+  .v2 .v2-mems.is-many .v2-mem-host{font-size:12px;}
+  /* 箱に入らない人は「ほか◯人」の札に（v2-kit.js の clipRows） */
+  .v2 .v2-mems > .is-clipped{display:none;}
+  .v2 .v2-mem-more{justify-content:center;font-weight:900;font-size:14px;color:var(--wi);border:0;cursor:pointer;box-shadow:inset 0 0 0 2px var(--wl2);background:transparent;}
   .v2 .v2-tile.is-sm{width:44px;height:44px;}
   .v2 .v2-epick{gap:10px;}
   .v2 .v2-epick-nm{flex:1;font-weight:900;font-size:17px;line-height:1.2;}
@@ -6649,7 +6685,20 @@
   :root.fs-large .v2.v2-setov .sr-sub,:root.fs-large .v2.v2-setov .mic-status{font-size:15px;}
   /* 指示71 追記7：決定の間（TV で出るまで）のスマホに「TVを見て！」。TV で出る時刻に消える（data-tvuntil・tvWaitApply） */
   .v2 .v2-dlook{position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%);z-index:4;text-align:center;font-weight:900;font-size:30px;line-height:1.3;color:var(--wi);pointer-events:none;}
-  .v2 .v2-dlook.is-tvdone{display:none;}
+  .v2 .v2-dlook{display:none;}
+  .v2 .v2-dlook.is-tvlook{display:block;}   /* tvWaitApply が TV で出る時刻まで付ける（見本データ・TV の無い部屋では出ない） */
+  /* 指示71 追記7：1人の時のスマホ（あと1人・/fes の QR） */
+  .v2 .v2-alone{display:flex;align-items:center;gap:14px;padding:12px;border-radius:18px;background:rgba(255,255,255,.72);}
+  .v2 .v2-alone-qr{flex:none;width:112px;height:112px;background:#fff;border-radius:10px;padding:4px;}
+  .v2 .v2-alone-qr svg{display:block;width:100%;height:100%;}
+  .v2 .v2-alone-t{display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .v2 .v2-alone-t b{font-weight:900;font-size:18px;line-height:1.3;}
+  .v2 .v2-alone-t span{font-weight:800;font-size:13px;line-height:1.5;color:var(--ws);}
+  /* 指示71-5（68-0b C8）：入る画面の「ニックネームでOK…」と「むずかしさ」の見出しがくっついていた */
+  .v2 #scr-v2-fes-join .v2-field + .v2-field{margin-top:14px;}
+  /* 指示71-5（68-0b B21）：満員の TV の小さい QR */
+  .v2 .v2-tqr.is-full .v2-tqr-mini{display:block;width:300px;height:300px;}
+  .v2 .v2-tqr.is-full .v2-tqr-mini svg{display:block;width:100%;height:100%;}
   /* ---- v2 ここまで ---- */
 
   /* ===================================================================
@@ -7568,6 +7617,8 @@
       <p class="v2-lead">このアプリには、光の点滅や、画面が揺れる演出があります。気分が悪くなりそうなら、ここで切れます。</p>
       <button type="button" class="v2-safe-row" id="sgFlashBtn"><span class="v2-sri"><i data-ic="bolt"></i></span><span class="v2-safe-t"><b>光の点滅をつかう</b><span class="v2-hint">爆発の白い光・正解の光など</span></span><span class="v2-sw"></span></button>
       <button type="button" class="v2-safe-row" id="sgShakeBtn"><span class="v2-sri"><i data-ic="vibe"></i></span><span class="v2-safe-t"><b>画面の揺れをつかう</b><span class="v2-hint">まちがえた時に、少しだけ揺れる</span></span><span class="v2-sw"></span></button>
+      <!-- 指示71-5（68-0b B23・くまくんの答え 10/24 案A）：文字を大きく。設定の「文字サイズ」と同じ値（大＝130・2か所に持たない） -->
+      <button type="button" class="v2-safe-row" id="sgFontBtn"><span class="v2-sri"><i data-ic="eye"></i></span><span class="v2-safe-t"><b>文字を大きくする</b><span class="v2-hint">ルールや説明の字</span></span><span class="v2-sw"></span></button>
       <div class="v2-safe-note"><i data-ic="sound"></i><span>光と揺れを切っても、<b>音と振動はそのまま</b>です（音は ⚙ で変えられます）</span></div>
       <div class="v2-spacer"></div>
       <p class="v2-hint v2-c">あとから右上の ⚙ でも変えられます</p>
@@ -7592,6 +7643,25 @@
 </svg>
     </div>
   </div>
+  <script>
+  // 指示71-4：ロゴは**読みこみの途中から**動かす（本体の script を待たない）。待つと、遅い端末では本体が届くまで
+  // 何も描かれない時間が長くなった（入口の重さ：最初に描く 2.2秒 → 9.9秒・Fast 3G と CPU 4倍）。
+  // 出すかどうかの決まりは本体の logoWanted と同じ（1日に1回・演出「なし」・/fes・QR・TV では出さない）。
+  // はじめての端末（安全の案内が本体から出る）も同じ：読みこみの間に見せ終わり、案内の「はじめる」のあとは待たずに入口へ。
+  // 検査（tests/harness.js）はふだん LOGO_OFF を true にする
+  var LOGO_OFF = false;
+  (function(){
+    var sc = document.getElementById('doorScene'), play = false;
+    try{
+      var pr = JSON.parse(localStorage.getItem('acac-app-prefs') || '{}') || {};
+      var d = new Date(), day = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+      play = !LOGO_OFF && !/[?&](fes|room|tv)=/.test(location.search || '') && pr.fxSpeed !== 'skip' && localStorage.getItem('acac-logo-day') !== day;
+      if(play){ localStorage.setItem('acac-logo-day', day); window.__logoAt = Date.now(); }
+    }catch(e){ play = false; }
+    // 動かさない時は still：読みこみが長い時だけ、止まったロゴを静かに出す（CSS の doorSplash）
+    sc.classList.add(play ? 'play' : 'still');
+  })();
+  </script>
 
 
   <!-- 1.2: あそびかたをえらぶ（第32弾-A 第1部）
@@ -10373,7 +10443,8 @@
       //
       // どちらも実装が正しいので、言葉の側を実装に合わせた。
       // ここの各行が本当かは tests/fixes45.js が1行ずつ照合する
-      tv:[["🔌","3択に正解してコードを切る"], ["🏆","コードを全部切ればみんなの勝ち"], ["❤️","外れるとライフが減る・0で爆発"]],
+      // 指示71-5（68-0b C11）：TV で2行までの短い文（見本）。「切れば」だけの行ができていた
+      tv:[["🔌","コードを選んで3択"], ["❤️","まちがえるとライフ-1"], ["🏆","全部切れば解除成功"]],
       bullets:["チームで協力して爆弾を解除する","コードをタップすると、問題と3つの答えが出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る（同じコードは何度でも再挑戦できる）","ライフが0で爆発・全解除で勝利","部屋を立てて遊ぶと、全員が同じ盤面を自分のスマホで見られる"]},
     // 競争版：1人1台・部屋が必須。観戦者は出ない（全員が同じコードに同時に挑む）
     {id:"bomb-race", icon:"🏁", title:"クイズ解除（競争版）", sub:"同じコードに全員で同時挑戦・順位がつく", advanced:false, strict:false, oneWord:false, bomb:true, bombRace:true, coopLayout:false, roomOnly:true, game:'bomb', minPlayers:2,
@@ -32491,21 +32562,24 @@
    * 文化祭（?fes=1）・部屋の QR（?room=）・TV（?tv=1）から来た時は出さない（待たせない・TV の道を変えない）。
    * 検査（tests/harness.js）はふだん LOGO_OFF を true に差しかえる（全スイートの起動に1.55秒ずつ足さないため。opts.fx の時は本物）
    */
-  var LOGO_OFF = false;
+  // LOGO_OFF は scr-door のすぐ後ろの小さな script にある（読みこみの途中からロゴを動かす所）
   var LOGO_DAY_KEY = 'acac-logo-day', LOGO_MS = 1300, LOGO_OUT_MS = 250;
-  var logoSkip = null;
+  var logoSkip = null, logoSkipped = false;   // logoSkipped：本体が待ちに入る前に押された（読みこみの途中から動いている時）
   function logoToday(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
   function logoWanted(){
     if(LOGO_OFF || fxSpeed() === 'skip') return false;
     if(/[?&](fes|room|tv)=/.test(location.search || '')) return false;
     try{ return localStorage.getItem(LOGO_DAY_KEY) !== logoToday(); }catch(e){ return false; }
   }
-  /** ロゴを動かして、見せ終わる（1.3秒・押したらすぐ）のを待つ。その日の印を先に残す（途中で閉じても、その日はもう出さない） */
+  /**
+   * ロゴを動かして、見せ終わる（1.3秒・押したらすぐ）のを待つ。その日の印を先に残す（途中で閉じても、その日はもう出さない）。
+   * 読みこみの途中ですでに動きはじめていたら（window.__logoAt）、のこりだけ待つ（遅い端末では、もう見せ終わっている）
+   */
   function playLogo(){
-    try{ localStorage.setItem(LOGO_DAY_KEY, logoToday()); }catch(e){}
-    el('doorScene').classList.add('play');
+    var at = window.__logoAt || 0;
+    if(!at){ try{ localStorage.setItem(LOGO_DAY_KEY, logoToday()); }catch(e){} el('doorScene').classList.remove('still'); el('doorScene').classList.add('play'); at = Date.now(); }
     return new Promise(function(resolve){
-      var t = setTimeout(done, fxMs(LOGO_MS));
+      var t = setTimeout(done, logoSkipped ? 0 : Math.max(0, fxMs(LOGO_MS) - (Date.now() - at)));
       function done(){ clearTimeout(t); logoSkip = null; resolve(); }
       logoSkip = done;
     });
@@ -32520,7 +32594,7 @@
   async function openDoorAndEnter(){
     if(doorOpened) return;
     doorOpened = true;
-    var logo = logoWanted() ? playLogo() : null;
+    var logo = (window.__logoAt || logoWanted()) ? playLogo() : null;
     // ログイン確認は扉が開く裏で進めておく（待ち時間を足さない）
     var nextPromise = (async function(){
       // QRで呼ばれた人は、ログインも棚も通さずに参加画面へ直行する
@@ -32605,7 +32679,7 @@
     }, FES_TV_WATCH_MS);
   }
   // 保険：待てない時。ロゴが動いている間に押したら、そこで飛ばす（すべての演出はスキップできる）
-  el('doorScene').addEventListener('click', function(){ if(logoSkip) logoSkip(); else openDoorAndEnter(); });
+  el('doorScene').addEventListener('click', function(){ if(logoSkip) return logoSkip(); logoSkipped = true; openDoorAndEnter(); });
 
   // ---------- init ----------
   /**
@@ -33314,8 +33388,8 @@
     // 指示71 追記7：逆向き。TV で出る時刻までだけ見せる物（決定の「TVを見て！」）
     Array.prototype.forEach.call(scr.querySelectorAll('[data-tvuntil]'), function(n){
       var ms = tvWaitMs(+n.getAttribute('data-tvuntil'));
-      n.classList.toggle('is-tvdone', ms <= 0);
-      if(ms > 0) tvWait.timers.push(setTimeout(function(){ n.classList.add('is-tvdone'); }, ms));
+      n.classList.toggle('is-tvlook', ms > 0);
+      if(ms > 0) tvWait.timers.push(setTimeout(function(){ n.classList.remove('is-tvlook'); }, ms));
     });
   }
   /** TV の秒 sec まで、あと何ミリ秒か（この段階を最初に描いた時から） */
@@ -34779,11 +34853,18 @@
       el('sgShakeBtn').classList.toggle('on', appPrefs.fxShake);
       el('sgFlashBtn').setAttribute('aria-pressed', String(!!appPrefs.fxFlash));
       el('sgShakeBtn').setAttribute('aria-pressed', String(!!appPrefs.fxShake));
+      el('sgFontBtn').classList.toggle('on', appPrefs.fontScale >= 130);
+      el('sgFontBtn').setAttribute('aria-pressed', String(appPrefs.fontScale >= 130));
     }
     // 指示66-2 F1：絵記号は新しい見た目の部品で入れる（markup には印だけ置いてある）
     if(typeof V2 !== 'undefined') Array.prototype.forEach.call(gate.querySelectorAll('i[data-ic]'), function(i){ i.outerHTML = V2.icon(i.getAttribute('data-ic')); });
     el('sgFlashBtn').addEventListener('click', function(){
       appPrefs.fxFlash = !appPrefs.fxFlash;
+      applyAppPrefs(); saveAppPrefs(); syncGate();
+    });
+    // 指示71-5 B23：入＝設定の文字サイズ「大」（130）・切＝ふつう（100）。設定の画面と同じ appPrefs.fontScale を変える
+    el('sgFontBtn').addEventListener('click', function(){
+      appPrefs.fontScale = appPrefs.fontScale >= 130 ? 100 : 130;
       applyAppPrefs(); saveAppPrefs(); syncGate();
     });
     el('sgShakeBtn').addEventListener('click', function(){

@@ -148,6 +148,8 @@
         '<button type="button" class="v2-facesbtn" data-v2-open="#v2Roster"><span class="v2-facesbtn-l"><span class="v2-lbl">' + e(F.いる人) + '</span>' +
           '<span class="v2-faces">' + 顔 + '</span></span><span class="v2-facesbtn-n"><span>' + n + e(UiText.V2.人) + '</span>' + V.icon('chev') + '</span></button>' +
         (note ? '<p class="v2-note" role="status">' + e(note) + '</p>' : '') +
+        // 指示71 追記7：1人の時は「あと1人で はじまるよ」と、友だちに見せる /fes の QR（TV の前にいなくても呼べる）
+        (n === 1 ? aloneHtml(view) : '') +
         (候補.length ? '<div class="v2-nexts"><div class="v2-nexts-l"><span class="v2-lbl">' + e(F.候補) + '</span><span class="v2-lbl">' + e(F.長押し) + '</span></div>' +
           '<div class="v2-nexts-row">' + 候補.map(function (g) {
             return '<button type="button" class="v2-nx" data-v2-lp="#v2Rules-' + e(g.id) + '">' + V.tile(g.world) +
@@ -167,6 +169,13 @@
       lookSheets(view.look) +
       rulesSheets(view, 候補);
     return h;
+  }
+
+  /** 1人の時のスマホ：あと1人・/fes の QR（指示71 追記7） */
+  function aloneHtml(view) {
+    var F = U().待合, q = '';
+    try { q = QR.toSvg(view.joinUrl || '', { quiet: 2, label: F.QR }); } catch (x) { q = ''; }
+    return '<div class="v2-alone"><div class="v2-alone-qr">' + q + '</div><div class="v2-alone-t"><b>' + e(F.あと1人) + '</b><span>' + e(F.見せてね) + '</span></div></div>';
   }
 
   /**
@@ -258,7 +267,8 @@
             V.tile(g.world) +
             '<span class="v2-vt"><span class="v2-vn v2-cut" data-v2-fit>' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span>' +
               '<span class="v2-vmeta">' + (g.kind ? '<span>' + e(g.kind) + '</span>' : '') + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></span>' +
-            '<button type="button" class="v2-vr" data-v2-open="#v2Rules-' + e(g.id) + '" aria-label="' + e(P.ルール) + '">' + V.icon('rules') + '</button></div>';
+            // 指示71-5（68-0b C10）：「長押し か ⓘ でルール」と書いてあるので、印も ⓘ（紙の印だった）
+            '<button type="button" class="v2-vr" data-v2-open="#v2Rules-' + e(g.id) + '" aria-label="' + e(P.ルール) + '">' + V.icon('info') + '</button></div>';
         }).join('') + '</div>' +
         '<div class="v2-hint v2-c">' + e(P.ルールは) + '</div>' +
         '<div class="v2-spacer"></div>' + btn +
@@ -431,7 +441,9 @@
 
   /** 新しい見た目で作ったゲーム（カセットの約束 v1）の画面の組み立て。無ければ null */
   function gameMod(view) {
-    var m = { onaji: typeof V2Onaji !== 'undefined' && V2Onaji, pittari: typeof V2Pittari !== 'undefined' && V2Pittari, soroe: typeof V2Soroe !== 'undefined' && V2Soroe };
+    var m = { onaji: typeof V2Onaji !== 'undefined' && V2Onaji, pittari: typeof V2Pittari !== 'undefined' && V2Pittari, soroe: typeof V2Soroe !== 'undefined' && V2Soroe,
+      // 指示71 追記9：早答え・数字ちかい方も、ほかの4本と同じ順位表（それまでは「おわり」と上の6人だけ）
+      qhaya: typeof V2Quiz2 !== 'undefined' && V2Quiz2.haya, qnear: typeof V2Quiz2 !== 'undefined' && V2Quiz2.near };
     return m[view.game] || null;
   }
   /** F12 結果と「つづける？」。協力版はみんなの成績だけ（順位を出さない）、対戦は順位の行 */
@@ -463,8 +475,9 @@
       ? '<div class="v2-cont-done" role="status">' + V.icon('check') + e(Rz.つづけます) + '</div>'
       : '<div class="v2-btnrow"><button type="button" class="v2-btn is-pri" data-fes-act="continue">' + e(Rz.つづける) + '</button>' +
         '<button type="button" class="v2-btn is-sec" data-fes-act="quit">' + e(Rz.やめる) + '</button></div>';
+    // 指示71 追記9：ゲームの結果の表（16人で長い）は巻ける箱に（下の「つづける？」のシートの分だけ下をあける：.v2-in.is-fesres）
     return V.bgHtml() + V.brandHtml() +
-      '<div class="v2-in">' + body + '</div>' +
+      '<div class="v2-in' + (gameMod(view) && d.result ? ' is-scroll is-fesres' : '') + '">' + body + '</div>' +
       '<div class="v2-sheet is-open v2-contsheet" data-v2-id="v2Cont" data-v2-keep data-v2-state aria-hidden="false"><div class="v2-cont">' +
         '<div class="v2-cont-t">' + e(Rz.つづけて) + '</div>' +
         '<div class="v2-syncbar"><i data-fes-bar style="animation-duration:' + Math.max(0, (view.end || 0) - Date.now()) + 'ms"></i></div>' +
@@ -523,13 +536,18 @@
   /** F6 だれもいない：呼び込み（時計は回さない） */
   function tvIdle(view) {
     var F = U().待合, V = K();
-    var tiles = (view.games || []).map(function (id) { var g = view.info(id); return g ? V.tile(g.world, 'v2-ttile') : ''; }).join('');
+    // 指示71 追記7：印だけでは何のゲームか分からないので、名前を下に（動きは文化祭のあと）
+    var tiles = (view.games || []).map(function (id) { var g = view.info(id); return g ? '<span class="v2-tgame">' + V.tile(g.world, 'v2-ttile') + '<span class="v2-tgame-n">' + e(g.name) + '</span></span>' : ''; }).join('');
     return tvc(view,
       '<div class="v2-tvIdle"><div class="v2-tvIdle-l">' + V.hdHtml(F.呼び込み英, F.呼び込み.join('\n'), true) +
         '<div class="v2-tsteps"><div class="v2-tstep"><span class="v2-tstep-ri">' + V.icon('camera') + '</span><span>' + e(F.読む) + '</span></div>' +
           '<div class="v2-tstep"><span class="v2-tstep-ri">' + V.icon('pen') + '</span><span>' + e(F.名前を入れて) + '<em>' + e(U().入る.入る) + '</em>' + e(F.入るを押す) + '</span></div></div>' +
-        '<div class="v2-tgames">' + tiles + '<span class="v2-tnote">' + e(F.約) + '</span></div></div>' +
+        '<div class="v2-tgames' + ((view.games || []).length > 4 ? ' is-many' : '') + '">' + tiles + '<span class="v2-tnote">' + e(F.約) + '</span></div></div>' +
       '<div class="v2-tvIdle-r">' + qrHtml(view) + '<div class="v2-tcode"><span class="v2-tlab">' + e(F.コード) + '</span><b class="v2-en">' + e(view.code) + '</b></div></div></div>', { names: [] });
+  }
+  /** 満員の TV の小さい QR（指示71-5 B21） */
+  function qrMini(view) {
+    try { return '<span class="v2-tqr-mini">' + QR.toSvg(view.joinUrl || '', { quiet: 2, label: U().待合.QR }) + '</span>'; } catch (x) { return K().icon('people'); }
   }
   /** F3・F6 待合（1人・2〜16人・満員） */
   function tvLobby(view) {
@@ -538,7 +556,8 @@
     var two = n <= 6, cols = n >= 9 ? 3 : 2;
     var 満員 = !!f.full;
     var 左 = 満員
-      ? '<div class="v2-tqr is-full">' + V.icon('people') + '<div class="v2-tfull">' + e(F.満員) + '</div><div class="v2-tqr-cap" data-v2-wrap>' + V.phrase(F.つぎの回は.join(String.fromCharCode(10))) + '</div></div>'
+      // 指示71-5（68-0b B21・くまくんの答え 10/24 案B）：満員でも小さい QR を出す。読むと入る画面が予約の形で開く（「満員の時は QR を消す」をやめた）
+      ? '<div class="v2-tqr is-full">' + qrMini(view) + '<div class="v2-tfull">' + e(F.満員) + '</div><div class="v2-tqr-cap" data-v2-wrap>' + V.phrase(F.予約できます.join(String.fromCharCode(10))) + '</div></div>'
       : qrHtml(view);
     var 見出し = n === 1 ? F.あと1人 : F.見出し;
     return tvc(view,

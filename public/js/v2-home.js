@@ -127,14 +127,15 @@
         '<button type="button" class="v2-btn is-lite v2-a-rise" data-v2-open="#v2RoomTv">' + V.icon('tv') + '<span>' + e(R.TVに映す) + '</span></button>' +
         '<div class="v2-mems-box"><div class="v2-mems-l"><span class="v2-lbl">' + e(R.入った人 + ' ' + n + 人()) + '</span>' +
           (n > 1 ? '<span class="v2-lbl">' + e(R.長押し) + '</span>' : '') + '</div>' +
-          '<div class="v2-mems">' + ps.map(memHtml).join('') + '</div>' +
+          // 指示71-5（68-0b B4）：9人からは小さい札の3列（16人まで全員が入る。最後の段の札が途中で切れていた）
+          '<div class="v2-mems' + (n >= 9 ? ' is-many' : '') + '" data-v2-clip="#v2Roster" data-v2-clip-t="' + e(R.ほか) + '">' + ps.map(memHtml).join('') + '</div>' +
           (n < 2 ? '<p class="v2-hint">' + e(R.まだ1人) + '</p>' : '') + (v.pair || '') + '</div>';
     } else {
       body = hd(R.英 + ' ' + v.code, R.入りました) +
         V.meHtml({ icon: v.me.icon, name: v.me.name, title: v.me.title || R.二つ名なし }) +
         '<button type="button" class="v2-btn is-lite v2-a-rise"' + (v.look ? ' data-v2-open="#v2Look"' : ' data-v2-act="look"') + '>' + V.icon('smile') + '<span>' + e(R.着替える) + '</span>' + (v.lookNew ? '<span class="v2-new">NEW</span>' : '') + '</button>' +
         '<div class="v2-mems-box"><span class="v2-lbl">' + e(R.ほかの人) + '</span>' +
-          '<div class="v2-mems">' + (v.others || []).map(memHtml).join('') + '</div>' + (v.pair || '') + '</div>';
+          '<div class="v2-mems' + ((v.others || []).length >= 8 ? ' is-many' : '') + '" data-v2-clip="#v2Roster" data-v2-clip-t="' + e(R.ほか) + '">' + (v.others || []).map(memHtml).join('') + '</div>' + (v.pair || '') + '</div>';
     }
     // ゲームが決まった後（ルールを読んで準備OK → 進行役が「はじめる」）
     var foot = '';
@@ -168,6 +169,8 @@
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
       '<div class="v2-in">' + body + '<div class="v2-spacer"></div>' + foot + '</div>' +
       band + V.scrimHtml() + qrSheet + tvSheet + memSheets +
+      // 指示71-5 B4：箱に入らなかった人も見られる（「ほか◯人」の札から開く）
+      V.sheetHtml({ id: 'v2Roster', title: R.いる人 + ' ' + n + 人(), body: '<div class="v2-roster">' + ps.map(function (m) { return V.rowHtml(m, tag(m), m.id === v.meId); }).join('') + '</div>' }) +
       (v.lookSheets || '') +
       V.sheetHtml({ id: 'v2Album', title: v.albumTitle || '', body: '<div data-home-album></div>' }) +
       V.sheetHtml({ id: 'v2RoomMenu', title: R.英 + ' ' + v.code, body: '<div class="v2-catbtns">' + (v.menu || []).map(function (it) {

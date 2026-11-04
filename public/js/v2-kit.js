@@ -200,7 +200,29 @@
     relayout(scope);
   }
   /** 字の形が届いた時・画面の大きさが変わった時にも呼ぶ（名前の縮め・短い行の直し） */
-  function relayout(scope) { fit(scope); fixWraps(scope); }
+  function relayout(scope) { fit(scope); fixWraps(scope); clipRows(scope); }
+  /**
+   * 指示71-5（68-0b B4）：札の並び（data-v2-clip）が箱（親の巻ける箱）に入りきらない時、入る段までの札だけ出して、
+   * 最後の1枚を「ほか◯人」にする（押すと data-v2-clip のシート）。札を途中で切らない・送らないと見えない札を作らない
+   */
+  function clipRows(scope) {
+    var root = scope || D();
+    Array.prototype.forEach.call(root.querySelectorAll('[data-v2-clip]'), function (list) {
+      var box = list.parentNode; if (!box || !box.getBoundingClientRect) return;
+      Array.prototype.forEach.call(list.querySelectorAll(':scope > .is-clipped'), function (c) { c.classList.remove('is-clipped'); });
+      var old = list.querySelector(':scope > .v2-mem-more'); if (old) old.remove();
+      var items = Array.prototype.slice.call(list.children);
+      if (!items.length || box.scrollHeight <= box.clientHeight + 1) return;
+      var bottom = box.getBoundingClientRect().top + box.clientHeight;
+      var fit = items.filter(function (c) { return c.getBoundingClientRect().bottom <= bottom + 0.5; }).length;
+      var keep = Math.max(0, fit - 1), rest = items.length - keep;
+      items.slice(keep).forEach(function (c) { c.classList.add('is-clipped'); });
+      var more = D().createElement('button');
+      more.type = 'button'; more.className = 'v2-mem v2-mem-more'; more.setAttribute('data-v2-open', list.getAttribute('data-v2-clip'));
+      more.textContent = (list.getAttribute('data-v2-clip-t') || '') + ' ' + rest + (T('人') || '人');
+      list.appendChild(more);
+    });
+  }
 
   // ---------- 重なり（シート・まん中の確認・帯の上から出るもの・知らせ） ----------
   // 置き場は **その画面の箱のすぐ下**（.v2-scr / .v2-tvc の子）。画面は画面の高さちょうどで巻かないので、

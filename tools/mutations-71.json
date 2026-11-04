@@ -174,5 +174,53 @@
   "from": "fes.join.diff = FES_DIFF_IDS.indexOf(sd) !== -1 ? sd : 'normal';",
   "to": "fes.join.diff = null;",
   "expect": "追記7"
+ },
+ {
+  "name": "G1 ロゴを読みこみの途中から動かさない（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/shelf.js",
+  "from": "      if(play){ localStorage.setItem('acac-logo-day', day); window.__logoAt = Date.now(); }",
+  "to": "      if(play){ localStorage.setItem('acac-logo-day', day); }",
+  "expect": "71-4：その日はじめて"
+ },
+ {
+  "name": "G2 ロゴを1日に何回も出す（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/shelf.js",
+  "from": " && localStorage.getItem('acac-logo-day') !== day;",
+  "to": ";",
+  "expect": "71-4：その日はじめて"
+ },
+ {
+  "name": "G3 押してもロゴを飛ばさない（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/shelf.js",
+  "from": "logoSkipped ? 0 : ",
+  "to": "",
+  "expect": "71-4：ロゴは押すと飛ばせる"
+ },
+ {
+  "name": "B23 文字を大きくするが効かない（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/shelf.js",
+  "from": "      appPrefs.fontScale = appPrefs.fontScale >= 130 ? 100 : 130;\n",
+  "to": "",
+  "expect": "B23"
+ },
+ {
+  "name": "T1 1人の時の QR を出さない（直す前）",
+  "file": "public/js/v2-fes.js",
+  "suite": "tests/fes-screens.js",
+  "from": "        (n === 1 ? aloneHtml(view) : '') +\n",
+  "to": "",
+  "expect": "追記7：1人の時"
+ },
+ {
+  "name": "T2 決定の「TVを見て！」が出ない（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "from": "      n.classList.toggle('is-tvlook', ms > 0);\n",
+  "to": "",
+  "expect": "追記7：決定の間"
  }
 ]

@@ -117,15 +117,16 @@ function pickCart(doc, id) {
   // ---- 指示68-1：棚は3本だけ（門3）・テスト中の札はくまくんだけ（門4） ----
   // 一覧に出す正本は CASSETTES の hidden: と testing:。画面の札（DOM）と homeProbe の両方を見る
   const 棚の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [data-home-card]')).map((e) => e.dataset.homeId);
-  const 棚の3本 = ['aresoredorekore', 'jinro', 'bakudan'];
+  // 指示71-3（くまくんの決め3 2026-11-04）：文化祭の3本（みんなと同じ・ぴったり10秒・そろえて発射）も、ふだんの棚に出す
+  const 棚の3本 = ['aresoredorekore', 'jinro', 'bakudan', 'onaji', 'pittari', 'soroe'];
 
-  await r.test('門3：棚に並ぶのは3本だけ（ゲストでも、ふつうのログインでも）', async () => {
+  await r.test('門3：棚に並ぶのは決めた6本だけ（ゲストでも、ふつうのログインでも・指示71-3 で3本から6本）', async () => {
     const { win, doc, errors } = await launch();
     for (const [名, me] of [['ゲスト', null], ['ふつうのログイン', { username: 'taro', displayName: 'たろう' }]]) {
       win.authProbe(me);
       win.shelfShowProbe.showAll(false);
       await sleep(win, 30);
-      assertEqual(win.homeProbe().ready.slice().sort().join(','), 棚の3本.slice().sort().join(','), 名 + '：遊べるカセットは3本');
+      assertEqual(win.homeProbe().ready.slice().sort().join(','), 棚の3本.slice().sort().join(','), 名 + '：遊べるカセットは決めた6本');
       assertEqual(win.homeProbe().testing.join(','), '', 名 + '：テスト中の札は出ない');
       const 札 = Array.from(new Set(棚の札(doc)));
       assert(札.length >= 1, 名 + '：一覧の札を数えられている（' + 札.length + '）');   // 型(b)
@@ -148,8 +149,9 @@ function pickCart(doc, id) {
     assert(!doc.querySelector('#scr-v2-pick [data-home-testing]'), 'ふつうのログインの一覧に「テスト中」の印が無い');
     win.authProbe({ username: 'kuma', displayName: 'くま', tester: true });
     await sleep(win, 30);
-    // 指示68-3・68-4：みんなと同じ・ぴったり10秒・そろえて発射は本物のテスト中。検査で印を付けた falsetrue と並んで出る
-    assertEqual(win.homeProbe().testing.join(','), 'quizou,falsetrue,onaji,pittari,soroe', 'くまくんにはテスト中の札が出る');
+    // 本物のテスト中はクイズ王2（11/6 のリハーサルで決める）。検査で印を付けた falsetrue と並んで出る。
+    // 指示71-3：みんなと同じ・ぴったり10秒・そろえて発射はテスト中を外し、ふつうの棚へ（テスト中の札には出ない）
+    assertEqual(win.homeProbe().testing.join(','), 'quizou,falsetrue', 'くまくんにはテスト中の札が出る');
     assertEqual(win.homeProbe().ready.indexOf('falsetrue'), -1, 'ふつうの遊べる札には混ざらない');
     if (activeScreen(doc) === 'scr-v2-pick') {
       const 札 = 棚の札(doc);
@@ -1638,6 +1640,20 @@ function pickCart(doc, id) {
     assertEqual(win.guestLookProbe(), null, '端末に残っていた姿は消えている');
     assertEqual(win.localStorage.getItem('acac-guest-titles'), null, 'localStorage からも消えている');
     assertNoErrors(errors, 'ログイン時の姿の取り直しで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('指示71-3：文化祭の3本は、1台で遊ぶ時は「みんなのスマホで遊ぶ」（部屋が要る）と、今までの部屋のゲームと同じ形で出る', async () => {
+    const { win, doc, errors } = await launch();
+    win.authProbe({ username: 'taro', displayName: 'たろう' });
+    win.goToScreen('scr-v2-home'); await sleep(win, 30);
+    click(doc, doc.querySelector('#scr-v2-home [data-home-act="one"]'));
+    await sleep(win, 200);
+    const cards = win.homeProbe().cards;
+    const why = (id) => (cards.find((c) => c.id === id) || {}).why;
+    // 今までの部屋のゲーム（人狼ゲームは1台でも遊べるので、ここは部屋だけのゲームの札の形と同じかを見る）
+    ['onaji', 'pittari', 'soroe'].forEach((id) => assertEqual(why(id), win.UiText.HOME.一覧.部屋のゲーム, id + '：1台では、部屋のゲームと出る'));
+    assertNoErrors(errors, '1台の一覧で未捕捉の例外');
     win.close();
   });
 

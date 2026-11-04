@@ -13,7 +13,8 @@ const カナ = (s) => s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charC
 
 const CONTAINS = ['unko', 'unchi', 'chinko', 'chinchin', 'manko', 'oppai', 'sekkusu', 'korosu', 'kimoi', 'uzai', 'fuck', 'shit', 'bitch', 'porn',
   '死ね', '氏ね', '殺す', '糞', '馬鹿', '阿呆', '変態', '基地外', '売春'];
-const EXACT = ['baka', 'aho', 'kuso', 'kasu', 'gomi', 'busu', 'debu', 'hage', 'ero', 'shine', 'sex', 'dick', 'kill', '屑', '障害'];
+// 指示71 追記3（くまくんの答え 11/04）：「shine」（英語の「かがやく」）は止まりすぎなので通す（下の検査）。カタカナの「シネ」は「しね」で止まる
+const EXACT = ['baka', 'aho', 'kuso', 'kasu', 'gomi', 'busu', 'debu', 'hage', 'ero', 'sex', 'dick', 'kill', '屑', '障害'];
 // カタカナで打った時（ローマ字の語の読み・漢字の語の読み）
 const 読み = { unko: 'うんこ', unchi: 'うんち', chinko: 'ちんこ', chinchin: 'ちんちん', manko: 'まんこ', oppai: 'おっぱい', sekkusu: 'せっくす',
   korosu: 'ころす', kimoi: 'きもい', uzai: 'うざい', fuck: 'ふぁっく', shit: 'しっと', bitch: 'びっち', porn: 'ぽるの', 死ね: 'しね', 氏ね: 'しね', 殺す: 'ころす',
@@ -71,6 +72,26 @@ const 読み = { unko: 'うんこ', unchi: 'うんち', chinko: 'ちんこ', chi
     assertEqual(F.check('a‮bc').name, 'abc', '向きの字も消える');
     assertEqual(F.check('👨‍👩‍👧‍👦').name, '👨‍👩‍👧‍👦', '家族の絵文字（ZWJ でつないだ1つ）はそのまま');
     assertEqual(F.check('​​').reason, 'empty', '見えない字だけの名前は空');
+  });
+
+  // ===== 指示71 追記3（くまくんの答え 2026-11-04）=====
+  await r.test('追記3：足した言葉が止まる（そのまま・カタカナ・ひらがな・全角・記号や空白をはさんでも・前後に字をつけても）', async () => {
+    const 足した = ['タヒね', '4ね', 'しんで', 'ガイジ', '池沼', 'きんたま', '金玉', 'ちくび', 'ヒトラー', 'ナチス', 'ㄘんこ'];
+    const ひら = (x) => x.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+    const 抜けた = [];
+    足した.forEach((w) => {
+      const 形 = [w, カナ(w), ひら(w), 全角(w), Array.from(w).join('・'), Array.from(w).join(' ')];
+      if (w !== 'しんで') 形.push('あ' + w, w + 'z');   // しんで は名前そのものの時だけ（「しんでれら」を止めない）
+      形.forEach((x) => { if (Array.from(x).length <= 8 && !止まる(x)) 抜けた.push(x); });
+    });
+    assertEqual(抜けた.join('・'), '', '止まらなかった形');
+    ['しんでね', 'シンデクレ', 'ヒトラ', 'ちんこ'.replace('ち', 'ㄘ')].forEach((x) => assert(止まる(x), x + ' も止まる'));
+  });
+
+  await r.test('追記3：止めない名前（先生・校長・shine・言葉の一部を含むふつうの名前）', async () => {
+    const 通す = ['先生', '校長', 'shine', 'Shine', 'ＳＨＩＮＥ', 'しんでれら', 'シンデレラ', 'しんでん', 'ちくわ', 'きんた', 'がいこつ', 'なちゅ', 'ひとみ'];
+    const 止まった = 通す.filter((x) => !F.check(x).ok);
+    assertEqual(止まった.join('・'), '', '止まってしまった名前');
   });
 
   r.finish();

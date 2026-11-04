@@ -545,9 +545,10 @@ async function join(srv, code, name, diff, extra) {
     assertEqual(ok.ok, true, '予約した本人は入れる');
     await waitUntil(() => pos === null || srv.store.get(code).fes.queue.length === 1, '予約が1つ減る', 2000);
     assertEqual(srv.store.get(code).fes.queue.length, 1, '入った人の予約は消え、2番目だけ残る');
-    // 予約したまま閉じた端末の予約は消える
+    // 予約したまま閉じた端末の予約は、指示71 追記1 から**すぐには消さない**（60秒は順番を取っておく。
+    // それまでは消していたので、つなぎ直したスマホは「予約しました」のまま順番だけが消えていた）。消えるまでは tests/fes-reserve.js が見る
     y.close();
-    await waitUntil(() => srv.store.get(code).fes.queue.length === 0, '閉じた端末の予約は消える', 3000);
+    await waitUntil(() => { const q = srv.store.get(code).fes.queue; return q.length === 1 && q[0].socketId === null && q[0].goneAt > 0; }, '閉じた端末の予約は、切れた印を付けて取っておく', 3000);
     ds.concat([staff, x, z]).forEach((d) => d.close());
     await srv.close();
   });

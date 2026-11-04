@@ -626,5 +626,96 @@ async function 入った(o) {
     win.close();
   });
 
+  // ===== 指示71 追記1・71-6：予約を取っておく・「どうぞ」に気づける =====
+  /** 満員で入れない → 予約する（返事の合い札・何番目は reply で決める） */
+  async function 予約した(reserveReply, o) {
+    const t = await 入る画面(o);
+    const { win, doc } = t;
+    win.__rtFake.replies['room:join'] = () => ({ ok: false, error: 'room_full', message: '満員です' });
+    win.__rtFake.replies['fes:reserve'] = reserveReply;
+    const n = doc.querySelector('[data-fes-name]');
+    n.value = 'まち'; n.dispatchEvent(new win.Event('input', { bubbles: true }));
+    doc.querySelector('[data-fes-diff="normal"]').click();
+    doc.querySelector('[data-fes-act="join"]').click();
+    await waitFor(win, () => doc.querySelector('[data-fes-act="reserve"]'), 3000, '満員 → 予約のボタン');
+    doc.querySelector('[data-fes-act="reserve"]').click();
+    await waitFor(win, () => /予約しました/.test(doc.getElementById('scr-v2-fes-join').textContent), 3000, '予約しました');
+    return t;
+  }
+  const 予約中につなぎ直す = (win) => { win.__rtFake.fire('disconnect'); win.__rtFake.connected = true; win.__rtFake.fire('connect'); };
+
+  await r.test('追記1：予約の合い札を覚え、つなぎ直したら合い札で予約にもどる（何番目も今のものに合わせる）', async () => {
+    let n = 0;
+    const { win, doc, errors } = await 予約した((p) => (++n === 1 ? { ok: true, pos: 3, token: 'tok123abc', etaMs: 4 * 60000 } : { ok: true, pos: 2, token: 'tok123abc' }));
+    const sv = JSON.parse(win.localStorage.getItem('acac-fes-reserve'));
+    assertEqual(sv && sv.token, 'tok123abc', '合い札を端末に覚えた');
+    assert(/あと約s*4s*分/.test(doc.getElementById('scr-v2-fes-join').textContent), '「あと約4分」');
+    予約中につなぎ直す(win);
+    await waitFor(win, () => emits(win, 'fes:reserve').some((e) => e.payload.resume === 'tok123abc'), 2000, 'つなぎ直したら合い札を添えて聞く');
+    await waitFor(win, () => /予約しました（2番目/.test(doc.getElementById('scr-v2-fes-join').textContent), 2000, '今の順番（2番目）に合わせる');
+    H.assertNoErrors(errors, '予約のつなぎ直しで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('追記1：60秒をすぎて予約が消えていた → 「順番が消えました。もう一度予約してね」（「予約しました」のままにしない）・予約のボタンにもどる', async () => {
+    let n = 0;
+    const { win, doc, errors } = await 予約した(() => (++n === 1 ? { ok: true, pos: 1, token: 'tokgone1' } : { ok: false, error: 'reserve_gone', message: '順番が消えました' }));
+    予約中につなぎ直す(win);
+    const txt = () => doc.getElementById('scr-v2-fes-join').textContent;
+    await waitFor(win, () => /順番が消えました。もう一度予約してね/.test(txt()), 2000, '消えたと出る');
+    assert(!/予約しました/.test(txt()), '「予約しました」は消える');
+    assert(doc.querySelector('[data-fes-act="reserve"]'), 'もう一度予約できる');
+    assertEqual(win.localStorage.getItem('acac-fes-reserve'), null, '合い札は忘れる');
+    H.assertNoErrors(errors, '消えた予約で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('71-6：「どうぞ」が届くと、ふるえる・音（TV がいる部屋でもこの端末で）・画面いっぱいの「どうぞ！ 20秒以内に入ってね」と残りの秒数', async () => {
+    const { win, doc, errors } = await 予約した(() => ({ ok: true, pos: 1, token: 'tokturn1' }));
+    const ふるえ = [], 音 = [];
+    win.navigator.vibrate = (p) => { ふるえ.push(p); return true; };
+    const play = win.Sound.play; win.Sound.play = (id, opt) => { 音.push(id + ':' + !!(opt && opt.force)); return play.call(win.Sound, id, opt); };
+    win.__rtFake.replies['room:join'] = () => undefined;   // 入る返事はまだ来ない（その間の画面を見る）
+    win.__rtFake.fire('fes:turn', { code: 'TST754', token: 'tokturn1' });
+    await sleep(win, 150);
+    const t = doc.querySelector('#scr-v2-fes-join .v2-turn');
+    assert(t && /どうぞ！/.test(t.textContent) && /20秒以内に入ってね/.test(t.textContent), '画面いっぱいの「どうぞ！」');
+    assertEqual(t.querySelector('[data-fes-turnsec]').textContent, '20', '残り20秒');
+    await sleep(win, 1200);
+    assert(+t.querySelector('[data-fes-turnsec]').textContent <= 19, '秒が減る（' + t.querySelector('[data-fes-turnsec]').textContent + '）');
+    assert(ふるえ.length >= 1, 'ふるえた');
+    assert(音.indexOf('decide:true') !== -1, 'この端末で音を鳴らす（force・' + 音.join(',') + '）');
+    assert(emits(win, 'room:join').some((e) => e.payload.reserve === 'tokturn1' || e.payload.reserve === undefined), 'そのまま自分で入りにいく');
+    H.assertNoErrors(errors, '「どうぞ」で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('71-6：設定の「振動」が切なら、「どうぞ」でもふるえない（音と画面は出る）', async () => {
+    const { win, doc } = await 予約した(() => ({ ok: true, pos: 1, token: 'tokturn2' }), { prefs: { vibrate: false } });
+    const ふるえ = [];
+    win.navigator.vibrate = (p) => { ふるえ.push(p); return true; };
+    win.__rtFake.replies['room:join'] = () => undefined;
+    win.__rtFake.fire('fes:turn', { code: 'TST754', token: 'tokturn2' });
+    await sleep(win, 200);
+    assertEqual(ふるえ.length, 0, 'ふるえない');
+    assert(doc.querySelector('#scr-v2-fes-join .v2-turn'), '画面は出る');
+    win.close();
+  });
+
+  await r.test('追記1：予約したまま開き直した端末は、合い札で予約にもどり、名前とむずかしさも元にもどる（「どうぞ」でそのまま入れる）', async () => {
+    const sv = JSON.stringify({ code: 'TST754', token: 'tokre1', name: 'まち', diff: 'easy' });
+    const t = await launch({ url: URL, fakeSocket: true, storage: { 'acac-fes-reserve': sv },
+      rtSeed: 'window.__rtFake.replies = { "room:peek": function(){ return { ok: true, code: "TST754", playerCount: 16, fes: true }; }, "fes:reserve": function(p){ return p.resume === "tokre1" ? { ok: true, pos: 1, token: "tokre1" } : { ok: false, error: "x" }; } };' });
+    const { win, doc, errors } = t;
+    await waitFor(win, () => /予約しました（1番目/.test((doc.getElementById('scr-v2-fes-join') || {}).textContent || ''), 6000, '開き直しても予約しました（1番目）');
+    assertEqual(doc.querySelector('[data-fes-name]').value, 'まち', '名前がもどる');
+    assert(doc.querySelector('[data-fes-diff="easy"].is-on'), 'むずかしさがもどる');
+    win.__rtFake.replies['room:join'] = () => undefined;
+    win.__rtFake.fire('fes:turn', { code: 'TST754', token: 'tokre1' });
+    await waitFor(win, () => emits(win, 'room:join').some((e) => e.payload.name === 'まち' && e.payload.diff === 'easy' && e.payload.reserve === 'tokre1'), 2000, '「どうぞ」で、名前とむずかしさと合い札を添えて入りにいく');
+    H.assertNoErrors(errors, '開き直した予約で未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

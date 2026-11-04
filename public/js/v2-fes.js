@@ -63,7 +63,8 @@
     var len = o.masked ? 0 : Array.from(String(o.name || '').trim()).length;
     return !!o.diff && !o.busy && len > 0 && len <= 8;
   }
-  /** o：{ code, n, name, diff, error, busy, full（満員で入れなかった）, reserved（予約した何番目） } */
+  /** o：{ code, n, name, diff, error, busy, full（満員で入れなかった）, reserved（予約した何番目）, gone（予約が消えた・指示71 追記1）,
+   *       eta（あと約◯分）, turn（「どうぞ」の残り秒） } */
   function join(o) {
     var J = U().入る, V = K();
     var len = o.masked ? 0 : Array.from(String(o.name || '')).length;
@@ -88,6 +89,9 @@
         '<div class="v2-spacer"></div>' +
         // 指示66-3：満員の時の予約。予約したら、席が空いた時にこのまま入れる（何番目かを出す）
         (o.reserved ? '<p class="v2-note" role="status">' + e(J.予約した前 + o.reserved + J.予約した後) + '</p>' : '') +
+        // 指示71 追記1：「あと約◯分」（出せない時は出さない）・予約が消えた時（「予約しました」のままにしない）
+        (o.reserved && o.eta ? '<p class="v2-note" role="status">' + e(J.あと約 + o.eta + J.分) + '</p>' : '') +
+        (o.gone && !o.reserved ? '<p class="v2-note" role="status">' + e(J.順番が消えた) + '</p>' : '') +
         '<p class="v2-hint v2-c">' + e(J.記録) + '</p>' +
         (o.reserved
           ? '<button type="button" class="v2-btn is-pri" disabled>' + e(J.予約中) + '</button>' +
@@ -95,7 +99,11 @@
           : (o.full && o.diff ? '<button type="button" class="v2-btn is-pri" data-fes-act="reserve"' + (o.busy ? ' disabled' : '') + '>' + e(J.予約する) + '</button>'
             : '<button type="button" class="v2-btn is-pri" data-fes-act="join"' + (joinOk(o) ? '' : ' disabled') + '>' +
               e(o.diff ? J.入る : J.えらんでね) + '</button>')) +
-      '</div>';
+      '</div>' +
+      // 指示71-6：予約の「どうぞ」。画面いっぱい・残りの秒数。このあと自分で入りにいく（入れたら待合へ移るので消える）
+      (o.turn ? '<div class="v2-turn" role="alert"><b>' + e(J.どうぞ見出し) + '</b><span>' + e(J.どうぞ本文) + '</span>' +
+        '<span class="v2-turn-sec"><i data-fes-turnsec>' + o.turn + '</i>' + e(J.秒) + '</span>' +
+        '<button type="button" class="v2-btn is-pri" data-fes-act="join">' + e(J.入る) + '</button></div>' : '');
     return h;
   }
 

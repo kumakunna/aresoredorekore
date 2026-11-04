@@ -1263,8 +1263,11 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 指示66-3：満員の時の予約。席が空いたら先頭の人に「どうぞ」（その人のスマホが自分で入る）。何番目かも知らせる
       if (room.fes && room.fes.queue && room.fes.queue.length) {
         // 2026-11-01 F2：切れてから30秒の席は空いていない（Wi-Fi が一瞬切れた人の席に「どうぞ」を出さない）
-        FesRoom.queueTick(room, FesRoom.seats(room, now), now).forEach((e) => io.to(e.socketId).emit('fes:turn', { code: room.code, token: e.token }));
-        room.fes.queue.forEach((e, i) => { if (e.pos !== i + 1) { e.pos = i + 1; io.to(e.socketId).emit('fes:queue', { code: room.code, pos: i + 1 }); } });
+        // 切れている予約（socketId が無い）には送らない。もどった時に fes:reserve の返事と「どうぞ」の送り直しで合わせる
+        FesRoom.queueTick(room, FesRoom.seats(room, now), now).forEach((e) => { if (e.socketId) io.to(e.socketId).emit('fes:turn', { code: room.code, token: e.token }); });
+        // 「あと約◯分」も一緒に（段が変わった時にも送る＝見込みが変わるので）
+        const eta = FesRoom.etaMs(room, now), ph = room.fes.phase;
+        room.fes.queue.forEach((e, i) => { if (e.pos !== i + 1 || e.ph !== ph) { e.pos = i + 1; e.ph = ph; if (e.socketId) io.to(e.socketId).emit('fes:queue', { code: room.code, pos: i + 1, etaMs: eta }); } });
       }
     });
   }, 500));
@@ -2048,13 +2051,23 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     });
     // 投票。**一度入れたら変わらない。票の数はだれにも配らない**（自分の投票だけ本人へ）
     // 指示66-3：満員の時の予約（つぎの回に入る）。名前とむずかしさは、入る時にいつもの門を通る（ここでは見ない）
+    // 指示71 追記1：予約には合い札（token）を付けて返す（端末が覚える）。つなぎ直した端末は resume に合い札を添えて、同じ予約にもどる。
+    // 消えていたら reserve_gone（スマホは「順番が消えました。もう一度予約してね」）。取っておく間に「どうぞ」が出ていたら、もどった端末に送り直す
     socket.on('fes:reserve', (payload, cb) => {
       const room = store.get(payload && payload.code);
       if (!room || !room.fes) return fail(cb, 'room_not_found', 'その部屋コードは見つかりません');
-      const pos = FesRoom.reserve(room, socket.id, Date.now());
-      const e = room.fes.queue.filter((x) => x.socketId === socket.id)[0];
-      e.pos = pos;
-      if (typeof cb === 'function') cb({ ok: true, pos });
+      const now = Date.now();
+      let e;
+      if (payload && payload.resume) {
+        e = FesRoom.resumeReserve(room, String(payload.resume), socket.id);
+        if (!e) return fail(cb, 'reserve_gone', '順番が消えました。もう一度予約してね');
+      } else {
+        FesRoom.reserve(room, socket.id, now);
+        e = room.fes.queue.filter((x) => x.socketId === socket.id)[0];
+      }
+      e.pos = room.fes.queue.indexOf(e) + 1;
+      if (typeof cb === 'function') cb({ ok: true, pos: e.pos, token: e.token, etaMs: FesRoom.etaMs(room, now) });
+      if (e.offerUntil > now) socket.emit('fes:turn', { code: room.code, token: e.token });
     });
     socket.on('fes:unreserve', (payload, cb) => {
       const room = store.get(payload && payload.code);
@@ -2200,8 +2213,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
 
     // ---- 第3部-2：切断されたら即座に別の端末へ引き継ぐ ----
     socket.on('disconnect', () => {
-      // 指示66-3：予約したまま閉じた端末の予約は消す（席を取っておかない）
-      eachRoom('予約の片づけ', (r) => { if (r.fes && r.fes.queue && r.fes.queue.length) FesRoom.unreserve(r, socket.id); });
+      // 指示71 追記1：予約したまま切れた端末の予約は、すぐには消さない（60秒は順番を取っておく・fes-room.js goneReserve）。
+      // それまでは消していたので、つなぎ直したスマホは「予約しました」のまま、順番だけが消えていた
+      eachRoom('予約の片づけ', (r) => { if (r.fes && r.fes.queue && r.fes.queue.length) FesRoom.goneReserve(r, socket.id, Date.now()); });
       const room = currentRoom();
       const me = currentMember();
       if (!room || !me) return;

@@ -661,7 +661,8 @@
         '<div class="v2-tstat' + (ok ? '' : ' is-dim') + '"><span>' + V.digits(t.solved) + '/' + V.digits(t.total) + '</span><b class="v2-tstat-sl"></b>' + (ok ? '<span>' + e(clearTimeText(r.elapsedSec)) + '</span>' : '') + '</div>' +
         (ok ? livesHtml(t.lives, t.livesMax) : '<div class="v2-tnote">' + e(Rz.あと + (t.total - t.solved) + Rz.だった) + '</div>') + miss + '</div>';
     } else if (gameMod(view) && d.result) {
-      inner = '<div class="v2-otv is-end">' + gameMod(view).resultBody(view, true, { noHead: true }) + '</div>';
+      // 指示71 追記2c：文化祭の結果は下に帯（もどるまで）がある。表を詰めて、帯の上の線が表の行（そろえて発射の5行目）にかからないように（is-fesend）
+      inner = '<div class="v2-otv is-end is-fesend">' + gameMod(view).resultBody(view, true, { noHead: true }) + '</div>';
     } else {
       var rk = (d.result && d.result.ranking) || [];
       inner = '<div class="v2-tend"><div class="v2-tbig">' + e(Rz.おわり) + '</div><div class="v2-tranks">' + rk.slice(0, 6).map(function (x) {

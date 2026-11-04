@@ -10,6 +10,7 @@ const ROOT = path.join(__dirname, '..', '..');
 const RT = require(path.join(ROOT, 'realtime.js'));
 const FesRoom = require(path.join(ROOT, 'fes-room.js'));
 const BombRoom = require(path.join(ROOT, 'bomb-room.js'));
+const SoroeRoom = require(path.join(ROOT, 'soroe-room.js'));
 
 const MOCK = [
   ['ふう', '🙂', 'ぶんかさいの一歩'], ['ひろ', '🌙', 'こだわりの解除名人'], ['びび', '🐺', 'はじまりの一歩'],
@@ -70,6 +71,21 @@ function クイズ解除を終える(room, ok) {
   w.startedAt = Date.now() - (ok ? 147 : 153) * 1000;
   w.endedAt = Date.now();
   room.fes.played = { mode: 'bomb-coop', round: room.fes.round, ids: ids };
+  room.fes.phase = FesRoom.PHASE.RESULT;
+  return ids;
+}
+
+/** そろえて発射を本当に動かして、5回とも飛ばして結果まで（指示71 追記2c） */
+function そろえてを終える(room) {
+  const ids = Array.from(room.members.values()).filter((m) => m.role === 'player').map((m) => m.id);
+  const res = SoroeRoom.startGame(room, FesRoom.gameOf('soroe').start, { notify() {} });
+  if (!res.ok) throw new Error('そろえて発射を始められません: ' + res.error);
+  for (let q = 0; q < 5 && room.soroe.phase !== 'ended'; q++) {
+    const base = room.soroe.startedAt + 1500;
+    ids.forEach((id, i) => SoroeRoom.submitAction(room, id, null, { at: base + ((i * 37 + q * 11) % 160) }));
+    for (let k = 0; k < 4 && room.soroe.phase !== 'ended'; k++) SoroeRoom.advance(room);
+  }
+  room.fes.played = { mode: 'soroe', round: room.fes.round, ids: ids };
   room.fes.phase = FesRoom.PHASE.RESULT;
   return ids;
 }
@@ -161,7 +177,9 @@ const BUILD = {
   'fes2-tv-ready': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);
     ['m1', 'm2', 'm5', 'm6', 'm7'].forEach((id) => { const m = r.members.get(id); if (m) m.readyGame = 'bomb'; }); のこり(r, 12); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-result': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, true); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); },
-  'fes2-tv-boom': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, false); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); }
+  'fes2-tv-boom': (o) => { const r = 部屋(o.n || 6); クイズ解除を終える(r, false); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); },
+  // 指示71 追記2c：そろえて発射の文化祭の結果（16人）。下の帯（もどるまで）の線が表の5行目にかかっていた
+  'fes2-tv-result-soroe': (o) => { const r = 部屋(o.n || 16); そろえてを終える(r); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); }
 };
 
 // 見せ場の動画（tools/v2-film.js）：投票の決定を、動きを頭から（play）
@@ -178,7 +196,7 @@ const SCENES = [
   ['fes2-vote', 'phone', 'f7'], ['fes2-vote-t', 'phone', null], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'], ['fes2-readied', 'phone', null],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],
   ['fes2-tv-idle', 'tv', 't6a'], ['fes2-tv-one', 'tv', 't6b'], ['fes2-tv-lobby', 'tv', 't3'], ['fes2-tv-full', 'tv', 't6c'],
-  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-film-decide-one', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b']
+  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-film-decide-one', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b'], ['fes2-tv-result-soroe', 'tv', null]
 ].map(([id, kind, mock]) => ({ id, kind, draw: 'fes', fes: true,
   screen: BUILD[id]({}).screen, mock: mock ? { page: 'festival.html', id: mock } : null }));
 

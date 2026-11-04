@@ -63,7 +63,7 @@
     var len = o.masked ? 0 : Array.from(String(o.name || '').trim()).length;
     return !!o.diff && !o.busy && len > 0 && len <= 8;
   }
-  /** o：{ code, n, name, diff, error, busy, full（満員で入れなかった）, reserved（予約した何番目）, gone（予約が消えた・指示71 追記1）,
+  /** o：{ code, n, name, diff, error, info（満員など・赤を使わない）, busy, full（満員で入れなかった）, reserved（予約した何番目）, gone（予約が消えた・指示71 追記1）,
    *       eta（あと約◯分）, turn（「どうぞ」の残り秒） } */
   function join(o) {
     var J = U().入る, V = K();
@@ -87,6 +87,8 @@
               (on ? V.icon('check', 'v2-diff-ok') : '') + '</button>';
           }).join('') + '</div></div>' +
         '<div class="v2-spacer"></div>' +
+        // 指示71 追記2e：満員は名前のまちがいではないので、赤を使わない札で（o.info）
+        (o.info && !o.reserved ? '<p class="v2-note" role="status">' + e(o.info) + '</p>' : '') +
         // 指示66-3：満員の時の予約。予約したら、席が空いた時にこのまま入れる（何番目かを出す）
         (o.reserved ? '<p class="v2-note" role="status">' + e(J.予約した前 + o.reserved + J.予約した後) + '</p>' : '') +
         // 指示71 追記1：「あと約◯分」（出せない時は出さない）・予約が消えた時（「予約しました」のままにしない）
@@ -254,7 +256,7 @@
             (voted ? '<span class="v2-vok">' + V.icon('check') + e(P.投票ずみ) + '</span>' : '') +
             V.tile(g.world) +
             '<span class="v2-vt"><span class="v2-vn v2-cut" data-v2-fit>' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span>' +
-              '<span class="v2-vmeta"><span>' + e(g.kind) + '</span>' + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></span>' +
+              '<span class="v2-vmeta">' + (g.kind ? '<span>' + e(g.kind) + '</span>' : '') + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></span>' +
             '<button type="button" class="v2-vr" data-v2-open="#v2Rules-' + e(g.id) + '" aria-label="' + e(P.ルール) + '">' + V.icon('rules') + '</button></div>';
         }).join('') + '</div>' +
         '<div class="v2-hint v2-c">' + e(P.ルールは) + '</div>' +
@@ -556,7 +558,7 @@
       '<div class="v2-tin">' + V.hdHtml('Vote!', P.見出し, true) +
         '<div class="v2-tvVote"><div class="v2-vrows">' + list.map(function (g) {
           return '<div class="v2-tvrow">' + V.tile(g.world) + '<span class="v2-vt"><span class="v2-vn">' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span></span>' +
-            '<span class="v2-vmeta"><span>' + e(g.kind) + '</span>' + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></div>';
+            '<span class="v2-vmeta">' + (g.kind ? '<span>' + e(g.kind) + '</span>' : '') + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></div>';
         }).join('') + '</div>' +
         '<div class="v2-qrside">' + qrHtml(view, 'is-sm', P.いまから) + '</div></div></div>' +
       V.tbandHtml([{ lab: P.投票中, val: P.スマホで, grow: true }], cdHtml(view, true)));
@@ -613,14 +615,17 @@
       { layer: V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) +
         '<div class="v2-dwash v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall : tl.stop) + '">' + V.bgHtml() + '</div>' });
   }
-  /** F9 ルールと準備OK（TV）：ルール3枚・準備OK・右下に小さなQR。待っている人は2人までは名前、3人からは数で（アプリの「待っています」と同じ・見本 t9） */
+  /** F9 ルールと準備OK（TV）：ルール3枚・準備OK・右下に小さなQR。
+   * 指示71 追記2h：待っている人は**人数だけ**（それまでは2人まで名前を出していた。だれのせいで待っているかを TV に出さない・大切なこと5）。
+   * 追記2i：全員が押したら、帯を「そろいました！」に変える（それまでは全員押しても「準備中」のままだった） */
   function tvReady(view) {
     var R = U().準備, V = K(), f = view.fes || {};
     var g = view.info(f.pick.mode);
     var ps = people(view, true), n = ps.length;
     var ok = ps.filter(function (m) { return m.ready; });
     var wait = ps.filter(function (m) { return !m.ready; });
-    var 待ち = !wait.length ? '' : (wait.length <= 2 ? wait.map(function (m) { return m.name; }).join('・') + R.さんを : wait.length + R.待っています);
+    var そろった = n > 0 && !wait.length;
+    var 待ち = !wait.length ? (そろった ? R.まもなく : '') : wait.length + R.待っています;
     return tvc(view,
       '<div class="v2-tvB"><div class="v2-tvB-l">' +
         '<div class="v2-thd"><div class="v2-thd-en">Next Game</div><div class="v2-thd-ttl v2-tg">' + V.tile(g.world, 'v2-tg-tile') + gnameHtml(g, 'v2-tg-n') + '</div><div class="v2-arrow"></div></div>' +
@@ -634,7 +639,7 @@
       '<div class="v2-qrside">' + qrHtml(view, 'is-sm', R.つぎの回に) + '</div></div>' +
       V.tbandHtml([
         { lab: 'Ready', en: true, num: ok.length, small: '/' + n + UiText.V2.人 },
-        { lab: R.準備中, val: 待ち, grow: true }
+        { lab: そろった ? R.そろった : R.準備中, val: 待ち, grow: true }
       ], cdHtml(view, true)));
   }
   /** F12 結果（TV）。成功は名前の壁が金色、爆発は暗く静かに。責めない言い方 */
@@ -768,11 +773,17 @@
    * 2026-10-29：部屋が消えた（サーバーが作り直された）あと、係が作り直すのを待つ画面。スマホとTV。
    * 見張り（index.html fesWaitRoom）が数秒ごとに /api/fes/current を見て、部屋ができたら /fes へ進む
    */
+  /**
+   * 部屋が無い時の待つ画面（TV とスマホ）。o.recreating：係が作り直している途中（URL の wait=1）。
+   * 指示71 追記2f・2e：作り直していない時（朝・部屋を作る前）は「まもなく始まります」。それまでは TV がいつも「作り直しています」だった。
+   * スマホも、部屋が無い時は名前の欄の赤い字ではなく、この画面で待つ（部屋ができたら、このまま次へ進む）
+   */
   function wait(o) {
-    var J = U().入る, V = K();
-    if (o && o.tv) return tvc({ fes: { inset: (o.inset || 0) } }, '<div class="v2-fes-wait is-tv" role="status"><b>' + e(J.作り直し中) + '</b><span>' + e(J.できたら) + '</span></div>', { names: [] });
-    return V.bgHtml() + V.brandHtml() + '<div class="v2-in">' + V.hdHtml(J.作り直し英, J.作り直し見出し) +
-      '<div class="v2-fes-wait" role="status"><b>' + e(J.作り直し中) + '</b><span>' + e(J.できたら) + '</span></div></div>';
+    var J = U().入る, V = K(), re = !!(o && o.recreating);
+    var b = re ? J.作り直し中 : J.まもなく, sp = re ? J.できたら : J.待ってね;
+    if (o && o.tv) return tvc({ fes: { inset: (o.inset || 0) } }, '<div class="v2-fes-wait is-tv" role="status"><b>' + e(b) + '</b><span>' + e(sp) + '</span></div>', { names: [] });
+    return V.bgHtml() + V.brandHtml() + '<div class="v2-in">' + V.hdHtml(re ? J.作り直し英 : 'Soon', re ? J.作り直し見出し : J.まもなく見出し) +
+      '<div class="v2-fes-wait" role="status"><b>' + e(b) + '</b><span>' + e(sp) + '</span></div></div>';
   }
 
   return { join: join, joinOk: joinOk, phone: phone, tv: tv, quit: quit, staff: staff, wait: wait, people: people, clockText: clockText, mostMissed: mostMissed, decideTimeline: decideTimeline,

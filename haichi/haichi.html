@@ -1163,39 +1163,50 @@ pop.addEventListener('submit', e => { e.preventDefault(); const p = cur(); const
 pop.addEventListener('keydown', e => { if (e.key === 'Escape') closePop(); });
 
 /* ====== 保存（みんなで同じ案を見る保存先 → なければこのブラウザ） ====== */
-const LS_KEY = 'haichi.v1.plans', UI_KEY = 'haichi.v1.ui';
+const LS_KEY = 'haichi.v1.plans', UI_KEY = 'haichi.v1.ui', DIRTY_KEY = 'haichi.v1.dirty';
+/* まだ保存先に届いていない案の id を、このブラウザに覚えておく（開き直しても、届くまで持っておくため） */
+function saveDirty() { try { localStorage.setItem(DIRTY_KEY, JSON.stringify([...new Set([...ST.dirty, ...ST.saving])])); } catch (e) {} }
 function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify([...S.plans.values()].map(p => Object.assign({id: p.id}, serialize(p))))); } catch (e) {} }
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({cur: S.cur})); } catch (e) {} }
 function loadLocal() {
   try { const a = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (Array.isArray(a) && a.length) { for (const d of a.slice(0, 60)) if (d && typeof d.id === 'string') S.plans.set(d.id, normalize(d, d.id)); } } catch (e) {}
   if (!S.plans.size && Array.isArray(window.HAICHI_SEED)) { for (const d of window.HAICHI_SEED.slice(0, 60)) if (d && typeof d.id === 'string') S.plans.set(d.id, normalize(d, d.id)); }
   if (!S.plans.size) { const t = templatePlan('p-now'); S.plans.set(t.id, t); }
+  try { const d = JSON.parse(localStorage.getItem(DIRTY_KEY) || '[]'); if (Array.isArray(d)) for (const id of d) if (typeof id === 'string' && S.plans.has(id)) ST.dirty.add(id); } catch (e) {}
   rebuildOrder();
   let c = null; try { c = (JSON.parse(localStorage.getItem(UI_KEY) || 'null') || {}).cur; } catch (e) {}
   S.cur = S.plans.has(c) ? c : S.order[0];
 }
-const STATUS = {wait: '読み込み中…', empty: 'まだ保存していません（さわると保存）', saving: '保存中…', saved: '保存しました（みんなで同じ案）', local: 'このブラウザにだけ保存', slow: '保存先につながりません（このブラウザに保存中）', readonly: '見るだけ（変更は保存されません）', error: '保存できませんでした', full: '保存先がいっぱいです'};
-function setStatus(k) { const el = $('#status'); el.dataset.k = k; el.textContent = STATUS[k] || ''; }
+const STATUS = {wait: '読み込み中…', empty: 'まだ保存していません（さわると保存）', saving: '保存中…', saved: '保存しました（みんなで同じ案）', local: 'このブラウザにだけ保存', slow: '保存先につながりません。つながったら自動で送ります', readonly: '見るだけ（変更は保存されません）', error: '保存できませんでした', full: '保存先がいっぱいです'};
+function setStatus(k) { ST.status = k; const el = $('#status'); el.dataset.k = k; el.textContent = STATUS[k] || ''; }
 function markDirty(id) {
   const p = S.plans.get(id); if (!p) return;
   p.updated = Date.now(); saveLocal();
   if (ST.readOnly) return;
   if (ST.ready === 'none') { setStatus('local'); return; }
-  ST.dirty.add(id);
-  if (ST.db) { setStatus('saving'); scheduleFlush(); }
+  ST.dirty.add(id); saveDirty();
+  if (ST.db) { if (ST.status !== 'slow') setStatus('saving'); scheduleFlush(); }
 }
 function scheduleFlush() { if (!ST.db || ST.readOnly) return; clearTimeout(ST.timer); ST.timer = setTimeout(flush, 700); }
 async function flush() {
   if (!ST.db) return;
-  for (const id of [...ST.del]) { if (ST.saving.has(id)) continue; ST.del.delete(id); ST.saving.add(id); try { await ST.db.doc('plans/' + id).delete(); } catch (e) { onWriteErr(e, id, true); } finally { ST.saving.delete(id); } }
-  for (const id of [...ST.dirty]) {
+  let failed = false;
+  for (const id of [...ST.del]) {
+    if (failed) break;
     if (ST.saving.has(id)) continue;
-    const p = S.plans.get(id); ST.dirty.delete(id); if (!p) continue;
+    ST.del.delete(id); ST.saving.add(id);
+    try { await ST.db.doc('plans/' + id).delete(); ST.retry.delete(id); } catch (e) { failed = true; onWriteErr(e, id, true); } finally { ST.saving.delete(id); }
+  }
+  for (const id of [...ST.dirty]) {
+    if (failed) break;   // つながらない時は、残りもまとめて、あとでやり直す
+    if (ST.saving.has(id)) continue;
+    const p = S.plans.get(id); ST.dirty.delete(id); if (!p) { saveDirty(); continue; }
     ST.saving.add(id);
     try { await ST.db.doc('plans/' + id).set(JSON.parse(JSON.stringify(serialize(p)))); ST.retry.delete(id); }
-    catch (e) { onWriteErr(e, id, false); }
-    finally { ST.saving.delete(id); }
+    catch (e) { failed = true; onWriteErr(e, id, false); }
+    finally { ST.saving.delete(id); saveDirty(); }
   }
+  if (failed) return;   // やり直しは onWriteErr のタイマーにまかせる
   if (ST.dirty.size || ST.del.size) scheduleFlush();
   else if (!ST.readOnly && ST.status !== 'error') setStatus('saved');
 }
@@ -1206,10 +1217,14 @@ function onWriteErr(e, id, isDel) {
     if (big) { setStatus('error'); toast('この案は描いた線が多すぎて保存できません。線を少し消してください'); return; }
     ST.readOnly = true; setStatus('readonly'); return;
   }
-  if (code === 'quota_exceeded') { setStatus('full'); return; }
+  if (code === 'denied') { ST.readOnly = true; setStatus('readonly'); return; }
+  // つながらない・いっぱい・そのほか：直した分は捨てずに持っておき、間をあけて、届くまで何回でもやり直す
+  if (isDel) ST.del.add(id); else ST.dirty.add(id);
+  saveDirty();
   const n = (ST.retry.get(id) || 0) + 1; ST.retry.set(id, n);
-  if (n <= 3) { if (isDel) ST.del.add(id); else ST.dirty.add(id); setTimeout(scheduleFlush, 1500 + Math.random() * 1500); }
-  else { ST.status = 'error'; setStatus('error'); }
+  setStatus(code === 'quota_exceeded' ? 'full' : 'slow');
+  clearTimeout(ST.timer);
+  ST.timer = setTimeout(flush, Math.min(15000, 1500 * Math.pow(1.5, Math.min(n - 1, 6))) + Math.random() * 1000);
 }
 function toast(msg) { const el = $('#shareMsg'); el.textContent = msg; }
 function applyRemote(id, data) {
@@ -1224,7 +1239,13 @@ function onSnap(snap) {
   let changed = false; const seen = new Set();
   for (const doc of snap.docs) {
     const id = doc.id; seen.add(id); const data = doc.data(); if (!data) continue;
-    if (ST.dirty.has(id) || ST.saving.has(id) || ST.del.has(id)) continue;
+    if (ST.saving.has(id) || ST.del.has(id)) continue;
+    if (ST.dirty.has(id)) {
+      // まだ届いていない直しがある案：ほかの人が、それより「あと」に直していたら、そちらを残す（新しく直した方が残る）
+      const local = S.plans.get(id);
+      if (local && (Number(data.updated) || 0) > local.updated) { ST.dirty.delete(id); saveDirty(); toast(`「${local.name}」は、ほかの人があとから直したので、その形にしました`); }
+      else continue;
+    }
     if (S.drag && id === S.cur) { ST.pending.set(id, data); continue; }
     changed = applyRemote(id, data) || changed;
   }
@@ -1232,6 +1253,7 @@ function onSnap(snap) {
     ST.ready = true;
     if (snap.size) for (const id of [...S.plans.keys()]) if (!seen.has(id) && !ST.dirty.has(id) && !ST.saving.has(id)) { S.plans.delete(id); changed = true; }
     if (!ST.dirty.size && !ST.saving.size && !ST.readOnly) setStatus(snap.size ? 'saved' : 'empty');
+    else if ((ST.dirty.size || ST.del.size) && ST.status !== 'slow') scheduleFlush();   // 前に開いた時の、届いていない分も、ここで送る（保存先の今の形と比べてから）
   }
   if (changed) {
     rebuildOrder(); if (!S.plans.has(S.cur)) { S.cur = S.order[0]; S.sel.clear(); }
@@ -1258,7 +1280,7 @@ function serverDb() {
     },
     collection() {
       return {
-        onSnapshot(cb, onErr) {
+        onSnapshot(cb, onErr, onOk) {
           let rev = -1, stopped = false, seeded = false;
           async function tick() {
             if (stopped) return;
@@ -1273,6 +1295,7 @@ function serverDb() {
                 }
                 cb({docs: res.plans.map(p => ({id: p.id, data: () => p.data})), size: res.plans.length, metadata: {fromCache: false}});
               }
+              if (onOk) onOk();
             } catch (e) {
               if (e.code === 'denied') { stopped = true; onErr(e); return; }
               onErr(e);
@@ -1290,10 +1313,14 @@ async function initServer() {
   const db = serverDb();
   ST.db = db; ST.standalone = true; setStatus('wait');
   $('#savePng').hidden = false; $('#exportPlans').hidden = false;
-  if (ST.dirty.size) scheduleFlush();
   db.collection('plans').onSnapshot(onSnap, e => {
     if (e.code === 'denied') { ST.db = null; ST.readOnly = true; setStatus('readonly'); toast('URL の合い言葉がちがうようです。もらった URL をそのまま開いてください'); }
-    else if (ST.ready !== true) setStatus('slow');
+    else if (!ST.readOnly) setStatus('slow');
+  }, () => {
+    // つながった。止まっていた間の直しがあれば、すぐ送る
+    if (ST.status !== 'slow' || ST.readOnly) return;
+    if (ST.dirty.size || ST.del.size) { clearTimeout(ST.timer); flush(); }
+    else setStatus('saved');
   });
 }
 async function initCaps() {
@@ -1304,7 +1331,6 @@ async function initCaps() {
   try { db = await C.use('db'); } catch (e) { db = null; }
   if (db) {
     ST.db = db; setStatus('wait');
-    if (ST.dirty.size) scheduleFlush();
     const t = setTimeout(() => { if (ST.ready !== true) setStatus('slow'); }, 10000);
     try {
       db.collection('plans').onSnapshot(s => { if (!s.metadata.fromCache) clearTimeout(t); onSnap(s); }, err => { clearTimeout(t); if (err && err.code === 'revoked') { ST.db = null; setStatus('local'); } else setStatus('slow'); });

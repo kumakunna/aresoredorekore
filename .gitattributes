@@ -6,3 +6,7 @@
 
 # 指示70：配置づくりのページは Claude チャットが作った物をバイトのまま置く（改行も変えない）
 haichi/haichi.html -text
+
+# 指示71 追記：TV の PC の起動（cmd は CRLF・ps1 は BOM 付き UTF-8 のまま）
+*.cmd text eol=crlf
+*.ps1 -text

@@ -5,7 +5,8 @@
   "suite": "tests/wake-keep.js",
   "from": "    want: function(){ return !!(rt && rt.state && rt.state.code) || !!(fes.join && fes.join.reserved); } }) : null;",
   "to": "    want: function(){ return false; } }) : null;",
-  "expect": "画面：部屋に入ると取る"
+  "expect": "画面：部屋に入ると取る",
+  "only": "画面：部屋に入ると取る"
  },
  {
   "name": "W2 見え直しても取り直さない",
@@ -13,7 +14,8 @@
   "suite": "tests/wake-keep.js",
   "from": "      doc.addEventListener('visibilitychange', function () { if (visible()) sync(); });",
   "to": "",
-  "expect": "見えなくなるとブラウザが外す"
+  "expect": "見えなくなるとブラウザが外す",
+  "only": "見えなくなるとブラウザが外す"
  },
  {
   "name": "W3 部屋を出ても外さない",
@@ -21,7 +23,8 @@
   "suite": "tests/wake-keep.js",
   "from": "    function sync() { if (wanted()) acquire(); else release(); }",
   "to": "    function sync() { if (wanted()) acquire(); }",
-  "expect": "取りたくなくなったら外す"
+  "expect": "取りたくなくなったら外す",
+  "only": "取りたくなくなったら外す"
  },
  {
   "name": "W4 取りに行く途中で出ても持ちっぱなし",
@@ -29,7 +32,8 @@
   "suite": "tests/wake-keep.js",
   "from": "        if (stopped || !wanted()) {",
   "to": "        if (stopped) {",
-  "expect": "取りに行っている途中で部屋を出た"
+  "expect": "取りに行っている途中で部屋を出た",
+  "only": "取りに行っている途中で部屋を出た"
  },
  {
   "name": "W5 使えない端末で例外",
@@ -37,7 +41,8 @@
   "suite": "tests/wake-keep.js",
   "from": "      }, function () { asking = false; });",
   "to": "      });",
-  "expect": "使えない端末"
+  "expect": "使えない端末",
+  "only": "使えない端末"
  },
  {
   "name": "S1 ⚙ が古い見た目のまま",
@@ -45,7 +50,8 @@
   "suite": "tests/settings.js",
   "from": "<div class=\"overlay v2 v2-w-wait v2-setov\" id=\"settingsOverlay\">",
   "to": "<div class=\"overlay\" id=\"settingsOverlay\">",
-  "expect": "指示71-2：⚙ は新しい見た目"
+  "expect": "指示71-2：⚙ は新しい見た目",
+  "only": "指示71-2：⚙ は新しい見た目"
  },
  {
   "name": "S2 読み上げの行が出る",
@@ -53,7 +59,8 @@
   "suite": "tests/settings.js",
   "from": "  var SPEECH_HIDDEN = true;",
   "to": "  var SPEECH_HIDDEN = false;",
-  "expect": "指示71-2：⚙ は新しい見た目"
+  "expect": "指示71-2：⚙ は新しい見た目",
+  "only": "指示71-2：⚙ は新しい見た目"
  },
  {
   "name": "S3 部屋でも古い scr-titles へ行く",
@@ -61,7 +68,8 @@
   "suite": "tests/fes-screens.js",
   "from": "      if(inRoomNow()){\n        var look = document.querySelector",
   "to": "      if(false){\n        var look = document.querySelector",
-  "expect": "指示71-2：文化祭の待合で ⚙"
+  "expect": "指示71-2：文化祭の待合で ⚙",
+  "only": "指示71-2：文化祭の待合で ⚙"
  },
  {
   "name": "S4 文化祭の着替えのシートが開かない（直す前）",
@@ -69,7 +77,8 @@
   "suite": "tests/fes-screens.js",
   "from": "      if(lk && !lk.classList.contains('is-open')) V2.open(lk);",
   "to": "",
-  "expect": "F5 着替え：文化祭の待合で"
+  "expect": "F5 着替え：文化祭の待合で",
+  "only": "F5 着替え：文化祭の待合で"
  },
  {
   "name": "S5 文化祭の3本がまたテスト中",
@@ -77,7 +86,8 @@
   "suite": "tests/shelf.js",
   "from": "    { id:'pittari',         genre:'brain', ready:true, icon:'🏁', title:'ぴったり10秒',",
   "to": "    { id:'pittari',         genre:'brain', ready:true, hidden:true, testing:true, icon:'🏁', title:'ぴったり10秒',",
-  "expect": "門3：棚に並ぶのは決めた6本だけ"
+  "expect": "門3：棚に並ぶのは決めた6本だけ",
+  "only": "門3：棚に並ぶのは決めた6本だけ"
  },
  {
   "name": "R1 つなぎ直しても合い札でもどらない",
@@ -85,7 +95,8 @@
   "suite": "tests/fes-screens.js",
   "from": "if(again && fesResvLoad()) fesResume();",
   "to": "",
-  "expect": "追記1：予約の合い札を覚え"
+  "expect": "追記1：予約の合い札を覚え",
+  "only": "追記1：予約の合い札を覚え"
  },
  {
   "name": "R2 消えた予約を「消えた」と言わない",
@@ -93,7 +104,8 @@
   "suite": "tests/fes-screens.js",
   "from": "    else if(r && r.error === 'reserve_gone'){",
   "to": "    else if(false){",
-  "expect": "追記1：60秒をすぎて"
+  "expect": "追記1：60秒をすぎて",
+  "only": "追記1：60秒をすぎて"
  },
  {
   "name": "R3 「どうぞ」でふるえない",
@@ -101,7 +113,8 @@
   "suite": "tests/fes-screens.js",
   "from": "      try{ FxKit.vibe('warn'); }catch(e){}",
   "to": "",
-  "expect": "71-6：「どうぞ」が届くと"
+  "expect": "71-6：「どうぞ」が届くと",
+  "only": "71-6：「どうぞ」が届くと"
  },
  {
   "name": "R4 切れたら予約を消す（直す前）",
@@ -109,7 +122,8 @@
   "suite": "tests/fes-reserve.js",
   "from": "FesRoom.goneReserve(r, socket.id, Date.now())",
   "to": "FesRoom.unreserve(r, socket.id)",
-  "expect": "予約すると合い札"
+  "expect": "予約すると合い札",
+  "only": "予約すると合い札"
  },
  {
   "name": "R5 60秒すぎても消えない",
@@ -117,7 +131,8 @@
   "suite": "tests/fes-reserve.js",
   "from": " && !(x.goneAt && now - x.goneAt >= keep)",
   "to": "",
-  "expect": "切れて 60秒"
+  "expect": "切れて 60秒",
+  "only": "切れて 60秒"
  },
  {
   "name": "R6 開き直すと名前とむずかしさが消える（直す前）",
@@ -125,7 +140,8 @@
   "suite": "tests/fes-screens.js",
   "from": "      if(!j.name && sv.name) j.name = sv.name;\n      if(sv.diff) j.diff = sv.diff;   // 予約した時のむずかしさ（追記7 の既定「ふつう」より先）\n",
   "to": "",
-  "expect": "追記1：予約したまま開き直した端末"
+  "expect": "追記1：予約したまま開き直した端末",
+  "only": "追記1：予約したまま開き直した端末"
  },
  {
   "name": "N1 似た形の字をそろえない（直す前）",
@@ -133,7 +149,8 @@
   "suite": "tests/name-filter.js",
   "from": "    t = t.replace(/\\u3118/g, 'ち');\n",
   "to": "",
-  "expect": "追記3"
+  "expect": "追記3",
+  "only": "追記3"
  },
  {
   "name": "N2 「ガイジ」を止めない（直す前）",
@@ -141,7 +158,8 @@
   "suite": "tests/name-filter.js",
   "from": "'がいじ', ",
   "to": "",
-  "expect": "追記3"
+  "expect": "追記3",
+  "only": "追記3"
  },
  {
   "name": "N3 「shine」を止める（直す前）",
@@ -149,7 +167,8 @@
   "suite": "tests/name-filter.js",
   "from": "'baka', ",
   "to": "'shine', 'baka', ",
-  "expect": "追記3"
+  "expect": "追記3",
+  "only": "追記3"
  },
  {
   "name": "D1 幕が次の画面を待たない（直す前）",
@@ -157,7 +176,8 @@
   "suite": "tests/bomb-finale.js",
   "from": "      return 描けるまで(opt.ready);   // 指示71 追記2d：次の画面が後ろに描けてから上げる\n",
   "to": "      return null;\n",
-  "expect": "追記2d"
+  "expect": "追記2d",
+  "only": "追記2d"
  },
  {
   "name": "D2 bombFinale が ready を渡さない（直す前）",
@@ -165,7 +185,8 @@
   "suite": "tests/bomb-finale.js",
   "from": ",\n      ready: bombFinaleReady()\n",
   "to": "\n",
-  "expect": "追記2d"
+  "expect": "追記2d",
+  "only": "追記2d"
  },
  {
   "name": "K1 むずかしさの既定が無い（直す前）",
@@ -173,7 +194,8 @@
   "suite": "tests/fes-screens.js",
   "from": "fes.join.diff = FES_DIFF_IDS.indexOf(sd) !== -1 ? sd : 'normal';",
   "to": "fes.join.diff = null;",
-  "expect": "追記7"
+  "expect": "追記7",
+  "only": "追記7"
  },
  {
   "name": "G1 ロゴを読みこみの途中から動かさない（直す前）",
@@ -181,7 +203,8 @@
   "suite": "tests/shelf.js",
   "from": "      if(play){ localStorage.setItem('acac-logo-day', day); window.__logoAt = Date.now(); }",
   "to": "      if(play){ localStorage.setItem('acac-logo-day', day); }",
-  "expect": "71-4：その日はじめて"
+  "expect": "71-4：その日はじめて",
+  "only": "71-4：その日はじめて"
  },
  {
   "name": "G2 ロゴを1日に何回も出す（直す前）",
@@ -189,7 +212,8 @@
   "suite": "tests/shelf.js",
   "from": " && localStorage.getItem('acac-logo-day') !== day;",
   "to": ";",
-  "expect": "71-4：その日はじめて"
+  "expect": "71-4：その日はじめて",
+  "only": "71-4：その日はじめて"
  },
  {
   "name": "G3 押してもロゴを飛ばさない（直す前）",
@@ -197,7 +221,8 @@
   "suite": "tests/shelf.js",
   "from": "logoSkipped ? 0 : ",
   "to": "",
-  "expect": "71-4：ロゴは押すと飛ばせる"
+  "expect": "71-4：ロゴは押すと飛ばせる",
+  "only": "71-4：ロゴは押すと飛ばせる"
  },
  {
   "name": "B23 文字を大きくするが効かない（直す前）",
@@ -205,7 +230,8 @@
   "suite": "tests/shelf.js",
   "from": "      appPrefs.fontScale = appPrefs.fontScale >= 130 ? 100 : 130;\n",
   "to": "",
-  "expect": "B23"
+  "expect": "B23",
+  "only": "B23"
  },
  {
   "name": "T1 1人の時の QR を出さない（直す前）",
@@ -213,7 +239,8 @@
   "suite": "tests/fes-screens.js",
   "from": "        (n === 1 ? aloneHtml(view) : '') +\n",
   "to": "",
-  "expect": "追記7：1人の時"
+  "expect": "追記7：1人の時",
+  "only": "追記7：1人の時"
  },
  {
   "name": "T2 決定の「TVを見て！」が出ない（直す前）",
@@ -221,6 +248,7 @@
   "suite": "tests/fes-screens.js",
   "from": "      n.classList.toggle('is-tvlook', ms > 0);\n",
   "to": "",
-  "expect": "追記7：決定の間"
+  "expect": "追記7：決定の間",
+  "only": "追記7：決定の間"
  }
 ]

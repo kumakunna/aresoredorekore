@@ -86,7 +86,7 @@
       var code = String(o.code || '').toUpperCase().slice(0, 6), n = code.length;
       var boxes = '';
       for (var i = 0; i < 6; i++) boxes += '<b class="' + (i === n ? 'is-cur' : '') + '">' + e(code.charAt(i)) + '</b>';
-      h += hd(J.英, o.tv ? J.TV見出し : J.見出し, true) +
+      h += hd(J.英, o.tv ? J.TV見出し.join(String.fromCharCode(10)) : J.見出し, true) +
         '<label class="v2-field v2-a-rise"><span class="v2-field-l">' + e(J.コード) + '</span>' +
           '<span class="v2-code6' + (o.err ? ' is-bad' : '') + '"><input type="text" class="v2-code6-in" data-home-code maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" value="' + e(code) + '" aria-label="' + e(J.コード) + '">' + boxes + '</span>' +
           (o.err ? '<span class="v2-why" role="alert">' + e(o.err) + '</span>' : '<span class="v2-hint">' + e(o.tv ? J.TVのヒント : J.コードのヒント) + '</span>') +
@@ -126,13 +126,14 @@
         '<button type="button" class="v2-card v2-ecode v2-a-rise" data-v2-open="#v2RoomQr"><span class="v2-lbl">' + e(R.コード) + '</span><b class="v2-en">' + e(v.code) + '</b>' + V.icon('qr', 'v2-ecode-qr') + '</button>' +
         '<button type="button" class="v2-btn is-lite v2-a-rise" data-v2-open="#v2RoomTv">' + V.icon('tv') + '<span>' + e(R.TVに映す) + '</span></button>' +
         '<div class="v2-mems-box"><div class="v2-mems-l"><span class="v2-lbl">' + e(R.入った人 + ' ' + n + 人()) + '</span>' +
-          (n > 1 ? '<span class="v2-lbl">' + e(R.長押し) + '</span>' : '') + '</div>' +
+          (n > 1 ? '<span class="v2-hint">' + e(R.長押し) + '</span>' : '') + '</div>' +
           // 指示71-5（68-0b B4）：9人からは小さい札の3列（16人まで全員が入る。最後の段の札が途中で切れていた）
           '<div class="v2-mems' + (n >= 9 ? ' is-many' : '') + '" data-v2-clip="#v2Roster" data-v2-clip-t="' + e(R.ほか) + '">' + ps.map(memHtml).join('') + '</div>' +
           (n < 2 ? '<p class="v2-hint">' + e(R.まだ1人) + '</p>' : '') + (v.pair || '') + '</div>';
     } else {
       body = hd(R.英 + ' ' + v.code, R.入りました) +
-        V.meHtml({ icon: v.me.icon, name: v.me.name, title: v.me.title || R.二つ名なし }) +
+        // 指示71-7（68-0b C4）：二つ名が無い時は出さない（「二つ名なし」と書いていた）
+        V.meHtml({ icon: v.me.icon, name: v.me.name, title: v.me.title || '' }) +
         '<button type="button" class="v2-btn is-lite v2-a-rise"' + (v.look ? ' data-v2-open="#v2Look"' : ' data-v2-act="look"') + '>' + V.icon('smile') + '<span>' + e(R.着替える) + '</span>' + (v.lookNew ? '<span class="v2-new">NEW</span>' : '') + '</button>' +
         '<div class="v2-mems-box"><span class="v2-lbl">' + e(R.ほかの人) + '</span>' +
           '<div class="v2-mems' + ((v.others || []).length >= 8 ? ' is-many' : '') + '" data-v2-clip="#v2Roster" data-v2-clip-t="' + e(R.ほか) + '">' + (v.others || []).map(memHtml).join('') + '</div>' + (v.pair || '') + '</div>';

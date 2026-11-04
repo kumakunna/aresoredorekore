@@ -585,7 +585,9 @@ function privateFor(room, memberId) {
     if (wire) {
       out.open = {
         uid: openUid,
-        tier: wire.tier,
+        // 指示71 追記2g：札（問題のシートの段）は、その人に実際に出す問題の段。やさしい人の差しかえで、札が「むずかしい」のまま
+        // 問題が「ふつう」になっていた。盤の色（コードの色）は元のまま（publicView の wires）
+        tier: (q.wire && q.wire.tier) || wire.tier,
         description: q.wire.description,
         choices: (e.choices[q.key] || []).slice()
       };

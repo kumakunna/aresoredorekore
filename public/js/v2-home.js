@@ -86,7 +86,7 @@
       var code = String(o.code || '').toUpperCase().slice(0, 6), n = code.length;
       var boxes = '';
       for (var i = 0; i < 6; i++) boxes += '<b class="' + (i === n ? 'is-cur' : '') + '">' + e(code.charAt(i)) + '</b>';
-      h += hd(J.英, o.tv ? J.TV見出し.join(String.fromCharCode(10)) : J.見出し, true) +
+      h += hd(J.英, o.tv ? J.TV見出し : J.見出し, true) +
         '<label class="v2-field v2-a-rise"><span class="v2-field-l">' + e(J.コード) + '</span>' +
           '<span class="v2-code6' + (o.err ? ' is-bad' : '') + '"><input type="text" class="v2-code6-in" data-home-code maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" value="' + e(code) + '" aria-label="' + e(J.コード) + '">' + boxes + '</span>' +
           (o.err ? '<span class="v2-why" role="alert">' + e(o.err) + '</span>' : '<span class="v2-hint">' + e(o.tv ? J.TVのヒント : J.コードのヒント) + '</span>') +

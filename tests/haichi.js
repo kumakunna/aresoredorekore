@@ -30,8 +30,12 @@ function start(o) {
   }));
 }
 const k = (extra) => '?key=' + encodeURIComponent(KEY) + (extra || '');
-async function call(s, method, p, body, raw) {
-  const r = await fetch(s.url + p, { method, headers: body !== undefined ? { 'content-type': 'application/json' } : {}, body: raw !== undefined ? raw : (body !== undefined ? JSON.stringify(body) : undefined) });
+// 指示72：新しいページは全部の道に x-haichi-v: 2 を付けて送る。PUT・DELETE は、それが無い（古いページ）と 409。
+// ここの検査は新しいページのつもりで付ける。v に null を渡すと付けない・数を渡すとその数（古いページのつもり）
+async function call(s, method, p, body, raw, v) {
+  const h = body !== undefined ? { 'content-type': 'application/json' } : {};
+  if ((method === 'PUT' || method === 'DELETE') && v !== null) h['x-haichi-v'] = String(v === undefined ? 2 : v);
+  const r = await fetch(s.url + p, { method, headers: h, body: raw !== undefined ? raw : (body !== undefined ? JSON.stringify(body) : undefined) });
   const text = await r.text();
   let json = null; try { json = JSON.parse(text); } catch (e) {}
   return { status: r.status, json, text, headers: r.headers };
@@ -183,6 +187,24 @@ async function call(s, method, p, body, raw) {
       assertEqual(JSON.stringify((await call(b, 'GET', '/api/haichi/plans' + k('&since=-1'))).json), '{"rev":3,"plans":[{"id":"x","data":{"name":"案X","list":[1,2,3]}}]}', '残る');
       assertEqual(JSON.stringify((await call(b, 'PUT', '/api/haichi/plans/z' + k(), { data: {} })).json), '{"ok":true,"rev":4}', 'rev は続きから');
     } finally { await b.close(); db.close(); try { fs.unlinkSync(file); } catch (e) {} }
+  });
+
+  await r.test('指示72 門3・門4：見出し x-haichi-v が無い・2より小さい PUT・DELETE は 409 {error:"old page"} で、保存先の案は変わらない。見出しありはこれまでどおり（答えに rev）。GET はそのまま', async () => {
+    const s = await start();
+    try {
+      assertEqual(JSON.stringify((await call(s, 'PUT', '/api/haichi/plans/p1' + k(), { data: { name: '新しいページの案', desks: [{ id: 'd16a' }] } })).json), '{"ok":true,"rev":1}', '見出しありの置く（rev あり）');
+      const before = JSON.stringify((await call(s, 'GET', '/api/haichi/plans' + k('&since=-1'))).json);
+      for (const v of [null, 1, 0, 'x']) {
+        const a = await call(s, 'PUT', '/api/haichi/plans/p1' + k(), { data: { name: '古いページで上書き' } }, undefined, v);
+        assertEqual(a.status + ' ' + a.text, '409 {"error":"old page"}', '置く・見出し ' + v);
+        const d = await call(s, 'DELETE', '/api/haichi/plans/p1' + k(), undefined, undefined, v);
+        assertEqual(d.status + ' ' + d.text, '409 {"error":"old page"}', '消す・見出し ' + v);
+      }
+      assertEqual(JSON.stringify((await call(s, 'GET', '/api/haichi/plans' + k('&since=-1'))).json), before, '保存先の案も rev も変わらない');
+      assertEqual((await call(s, 'GET', '/api/haichi/plans' + k('&since=1'))).status, 200, 'GET は見出しが無くてもそのまま');
+      assertEqual(JSON.stringify((await call(s, 'DELETE', '/api/haichi/plans/p1' + k(), undefined, undefined, 3)).json), '{"ok":true,"rev":2}', '見出し 3 でも消せる（rev あり）');
+      assertEqual((await call(s, 'PUT', '/api/haichi/plans/p1' + k('x'), { data: {} }, undefined, null)).status, 403, '合い言葉がちがえば、見出しより先に 403（古いかどうかも教えない）');
+    } finally { await s.close(); }
   });
 
   await r.test('門8：この検査で出たログに、合い言葉が1度も無い', async () => {

@@ -4,6 +4,9 @@
 //   GET    /api/haichi/plans?key=…&since=数   … { rev, plans }。since が今の rev と同じなら plans: null
 //   PUT    /api/haichi/plans/:id?key=…        … 本文 { data } でその案を置きかえる。rev が1つ上がる
 //   DELETE /api/haichi/plans/:id?key=…        … その案を消す。rev が1つ上がる
+// 指示72：PUT・DELETE は見出し x-haichi-v が 2 以上の時だけ（新しいページは全部の道に付けて送る）。無い・小さい時は 409 {error:'old page'}。
+// push の前から開いたままの古いページは、分けた机・増やした机・傘立て・固定などを知らないので、保存すると消してしまう。
+// 409 なら古いページには「保存先につながりません」と出て、開き直すきっかけになる。GET と /haichi はそのまま
 // 道の形・答えの形・エラーの番号は docs/指示70/見本_サーバーの道.js と同じ（ページがこの形で話す）。
 // 見本とちがうのは1つだけ：data が null の時も 400 no data にする（見本は null を通して入れてしまう）。
 //
@@ -22,6 +25,7 @@ const { createHaichiStore } = require('./haichi-store');
 const HAICHI_HTML = path.join(__dirname, 'haichi', 'haichi.html');
 const MAX_BODY = 300000;   // バイト
 const KEY_MIN = 16;
+const PAGE_V = 2;   // 指示72：PUT・DELETE に要る見出し x-haichi-v の下限
 const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
 const DENIED_PAGE = '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>開けません</title></head>' +
   '<body style="font-family:system-ui,sans-serif;padding:24px"><p>この URL では開けません</p></body></html>';
@@ -63,6 +67,7 @@ function mountHaichi(app, opts) {
       return send(res, 200, { rev, plans: store.list() });
     }
     if (!ID_RE.test(id)) return send(res, 400, { error: 'bad id' });
+    if ((req.method === 'PUT' || req.method === 'DELETE') && !(Number(req.get('x-haichi-v')) >= PAGE_V)) return send(res, 409, { error: 'old page' });
     if (req.method === 'DELETE') return send(res, 200, Object.assign({ ok: true }, store.remove(id)));
     if (req.method === 'PUT') {
       // 本文は自分で読む（300000 バイトまで）。こえたら読み捨ててから 413（つなぎを途中で切らない）

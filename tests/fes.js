@@ -699,10 +699,12 @@ async function join(srv, code, name, diff, extra) {
     // やさしいを選んだ人が、だいだい（むずかしい層）のコードを開く
     assertEqual(BombRoom.submitAction(room, 'e', hard.uid).ok, true, '開ける');
     const pe = BombRoom.privateFor(room, 'e').open;
-    assertEqual(pe.tier, 'hard', 'コードの色は元のまま');
     assert(pe.description !== hard.description, 'やさしいの人には別の問題が出る');
     const sub = w.subs[hard.uid + '|e'];
     assert(T.indexOf(sub.tier) <= T.indexOf('normal'), '差しかえた問題は「ふつう」の層まで（' + sub.tier + '）');
+    // 指示71 追記2g：問題のシートの札は、実際に出る問題の段（それまでは「むずかしい」のまま問題が「ふつう」だった）。盤の色は元のまま
+    assertEqual(pe.tier, sub.tier, 'シートの札は差しかえた問題の段');
+    assertEqual(BombRoom.privateFor(room, 'e').board.find((x) => x.uid === hard.uid).tier, 'hard', '盤のコードの色は元のまま（むずかしい）');
     // 差しかえた問題の正解で、そのコードが解ける
     const right = sub.choices[sub.correct];
     assertEqual(BombRoom.submitVote(room, 'e', right).correct, true, '差しかえた問題の正解で解ける');

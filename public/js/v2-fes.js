@@ -357,7 +357,9 @@
         '<div class="v2-ptop">' + livesHtml(lives, max) + '<span class="v2-pclock">' + (view.end ? V.cd({ end: view.end, mmss: true, label: '', unit: '' }) : '') + '</span></div>' +
         '<div class="v2-pnum"><b class="v2-num">' + V.digits(solved) + '</b><b class="v2-num v2-pnum-of">/' + V.digits(total) + '</b><span>' + e(P.解除ずみ) + '</span></div>' +
         '<div class="v2-prog"><i style="width:' + (total ? Math.round(solved / total * 100) : 0) + '%"></i></div>' +
-        '<div class="v2-row v2-pkey"><span class="v2-pkey-t">' + e(P.えらんで) + '</span><span class="v2-tierkey"><span><i class="is-t1"></i>' + e(P.かんたん) + '</span><span><i class="is-t5"></i>' + e(P.むり) + '</span></span></div>' +
+        '<div class="v2-row v2-pkey"><span class="v2-pkey-t">' + e(P.えらんで) + '</span><span class="v2-tierkey">' +
+          // 指示71 追記2g：盤は3色（やさしい・ふつう・むずかしい）。凡例も3つ（それまでは5段の端の「かんたん／むり」で、むりは盤に出ない）
+          '<span><i class="is-t1"></i>' + e(P.やさしい) + '</span><span><i class="is-t2"></i>' + e(P.ふつう) + '</span><span><i class="is-t3"></i>' + e(P.むずかしい) + '</span></span></div>' +
         '<div class="v2-bgrid' + (board.length > 30 ? ' is-c6' : '') + '">' + cells + '</div>' +
       '</div>' +
       V.scrimHtml() +

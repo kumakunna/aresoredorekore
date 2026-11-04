@@ -390,7 +390,8 @@
     function fesInset(code, inset) { return call('fes:inset', { code: code, inset: inset }); }
     function fesPause(code, on) { return call('fes:pause', { code: code, on: on !== false }); }
     function fesSkip(code) { return call('fes:skip', { code: code }); }
-    function fesReserve(code) { connect(); return call('fes:reserve', { code: code }); }
+    // 指示71 追記1：resume に合い札を添えると、切れる前の予約にもどる（消えていたら reserve_gone）
+    function fesReserve(code, resume) { connect(); return call('fes:reserve', { code: code, resume: resume || undefined }); }
     function fesUnreserve(code) { return call('fes:unreserve', { code: code }); }
     // 第32弾-E：リアクション・感謝・アルバム
     function react(emoji) { return call('room:react', { emoji: emoji }); }

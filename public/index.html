@@ -6604,6 +6604,14 @@
   .v2 .v2-tvc .v2-sdec-dn{font-size:150px;line-height:1.05;}
   .v2 .v2-tvc .v2-sdec-ln{width:52%;height:8px;}
   .v2 .v2-tvc .v2-sdec-by{font-size:52px;}
+  /* 指示71-6：予約の「どうぞ」。入る画面いっぱいに、大きく。残りの秒数（数字は1桁ずつ同じ幅にしない：1つの数なので） */
+  .v2 .v2-turn{position:absolute;inset:-2px;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;
+    background:var(--wi);color:var(--won);text-align:center;animation:v2-fade var(--v2-move) var(--v2-ease);}
+  .v2 .v2-turn b{font-weight:900;font-size:52px;line-height:1.1;}
+  .v2 .v2-turn > span{font-weight:900;font-size:22px;line-height:1.4;}
+  .v2 .v2-turn .v2-turn-sec{font-family:var(--v2-en);font-weight:900;font-size:64px;line-height:1;}
+  .v2 .v2-turn .v2-turn-sec i{font-style:normal;}
+  .v2 .v2-turn .v2-btn.is-pri{max-width:320px;background:var(--won);color:var(--wi);}
   /* 指示71-2：⚙ の設定（#settingsOverlay）を新しい見た目に（68-7 の1と4）。**中身は変えない**——項目・既定値・id・
      JS が付けはずしする印（.on・.seg-btn・.switch）と、検査が見る札の名前はそのまま。v2 の箱（.v2-setov）の中で着せ直すだけ。
      古い規則（.card・.set-row・.switch など・最初の <style> の上の方）より強くするため、全部 .v2.v2-setov から書く。
@@ -33509,7 +33517,9 @@
   function fesRenderJoin(){
     var scr = el('scr-v2-fes-join'); if(!scr) return;
     var j = fes.join;
-    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy, masked: j.masked, full: j.full, reserved: j.reserved });
+    var turnLeft = j.turnUntil ? Math.max(0, Math.ceil((j.turnUntil - Date.now()) / 1000)) : 0;
+    scr.innerHTML = V2Fes.join({ code: j.code, n: j.n, name: j.name, diff: j.diff, error: j.err, busy: j.busy, masked: j.masked, full: j.full, reserved: j.reserved,
+      gone: j.gone, eta: j.reserved ? fesEtaMin() : null, turn: turnLeft || null });
     V2.mount(scr);
   }
   /**
@@ -33537,6 +33547,8 @@
     if(!p || !p.ok){ fes.join.err = UiText.FES.入る.部屋が無い; }
     else fes.join.n = p.playerCount;
     fesRenderJoin();
+    // 指示71 追記1：この部屋に予約していた端末（開き直した・つなぎ直した）は、合い札で同じ予約にもどる
+    if(p && p.ok) fesResume();
   }
   var FES_JOIN_ERR = { name_blocked: '使えない', name_long: '長い', name_empty: '空', diff_required: 'えらんでね', room_full: '満員', room_not_found: '部屋が無い' };
   async function fesJoin(){
@@ -33554,7 +33566,8 @@
       if(res.error === 'name_blocked'){ j.masked = true; j.name = ''; }
       fesRenderJoin(); return;
     }
-    j.full = false; j.reserved = null; j.token = null;
+    j.full = false; j.reserved = null; j.token = null; j.turnUntil = null; j.gone = false;
+    fesResvSave(null);   // 入れた：予約の合い札は忘れる
     try{ localStorage.setItem(FES_NAME_KEY, c.name); }catch(e){}
     fes.toastOnce = true;
     goTo(rtWantScreen());
@@ -33623,17 +33636,70 @@
     j.busy = true; fesRenderJoin();
     var r = await rt.fesReserve(j.code);
     j.busy = false;
-    if(r && r.ok){ j.reserved = r.pos; j.err = ''; }
+    if(r && r.ok){ j.reserved = r.pos; j.err = ''; j.gone = false; fesEta(r.etaMs); fesResvSave(j.code, r.token); fesQueueTimer(); }
     else j.err = (r && r.message) || J.部屋が無い;
     fesRenderJoin();
   }
+  function fesTurnTick(){
+    if(fes.join.turnTimer) clearInterval(fes.join.turnTimer);
+    fes.join.turnTimer = setInterval(function(){
+      var left = fes.join.turnUntil ? Math.max(0, Math.ceil((fes.join.turnUntil - Date.now()) / 1000)) : 0;
+      var n = document.querySelector('#scr-v2-fes-join [data-fes-turnsec]');
+      if(n) n.textContent = left;
+      if(!left || !fes.join.turnUntil){ clearInterval(fes.join.turnTimer); fes.join.turnTimer = null; if(fes.join.turnUntil){ fes.join.turnUntil = null; fesRenderJoin(); } }
+    }, 1000);
+  }
+  /**
+   * 指示71 追記1：予約の合い札を端末に覚える（つなぎ直した時・開き直した時に、同じ予約へもどる）。やめた・入れた時は忘れる
+   */
+  var FES_RESV_KEY = 'acac-fes-reserve';
+  // 名前とむずかしさも一緒に覚える：開き直すと入る画面が空になり、「どうぞ」が来ても自分で入れなかった（本物の Chrome・tools/fes-reserve-walk.js で見つけた）
+  function fesResvSave(code, token){ try{ if(code && token) localStorage.setItem(FES_RESV_KEY, JSON.stringify({ code: code, token: token, name: fes.join.name || '', diff: fes.join.diff || null })); else localStorage.removeItem(FES_RESV_KEY); }catch(e){} }
+  function fesResvLoad(){ try{ return JSON.parse(localStorage.getItem(FES_RESV_KEY) || 'null'); }catch(e){ return null; } }
+  /** 「あと約◯分」：サーバーの見込み（ミリ秒）を、届いた時刻つきで持つ（描くたびに残りを数え直す）。出せない時は出さない */
+  function fesEta(ms){ fes.join.etaAt = (ms != null && isFinite(ms)) ? Date.now() + ms : null; }
+  function fesEtaMin(){ var a = fes.join.etaAt; return a ? Math.max(1, Math.ceil((a - Date.now()) / 60000)) : null; }
+  /** 予約している間は、30秒ごとに描き直して「あと約◯分」を合わせる（入る画面にいる時だけ） */
+  function fesQueueTimer(){
+    if(fes.join.qTimer) return;
+    fes.join.qTimer = setInterval(function(){
+      if(!fes.join.reserved){ clearInterval(fes.join.qTimer); fes.join.qTimer = null; return; }
+      if((document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-join') fesRenderJoin();
+    }, 30000);
+  }
+  /** 合い札で予約にもどる。消えていたら「順番が消えました。もう一度予約してね」（「予約しました」のままにしない） */
+  async function fesResume(){
+    var j = fes.join, sv = fesResvLoad();
+    if(!rt || !sv || !j.code || sv.code !== j.code || j.resuming) return;
+    j.resuming = true;
+    var r = await rt.fesReserve(j.code, sv.token);
+    j.resuming = false;
+    if(r && r.ok){
+      j.reserved = r.pos; j.gone = false; j.full = true; fesEta(r.etaMs); fesQueueTimer();
+      if(!j.name && sv.name) j.name = sv.name;
+      if(!j.diff && sv.diff) j.diff = sv.diff;
+    }
+    else if(r && r.error === 'reserve_gone'){ j.reserved = null; j.gone = true; j.full = true; fesResvSave(null); }
+    else return;
+    // 入る画面へ移る前に返事が届くことがある（開いた直後）。見えていなくても描き直す（入る画面の中身を書くだけ）
+    fesRenderJoin();
+  }
   if(rt){
-    rt.on('fesQueue', function(p){ if(p && fes.join.reserved && p.code === fes.join.code){ fes.join.reserved = p.pos; if((document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-join') fesRenderJoin(); } });
+    // 指示71 追記1：つなぎ直したら、合い札で予約にもどる（切れている間にサーバーは順番を取っておく）
+    var fesConnects = 0;
+    rt.on('status', function(st){ if(st && st.connects > fesConnects){ var again = fesConnects > 0; fesConnects = st.connects; if(again && fesResvLoad()) fesResume(); } });
+    rt.on('fesQueue', function(p){ if(p && fes.join.reserved && p.code === fes.join.code){ fes.join.reserved = p.pos; if('etaMs' in p) fesEta(p.etaMs); if((document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-join') fesRenderJoin(); } });
     // 席が空いた：このスマホが自分で入る（予約の token を添えると、取っておいた席に入れる）
     rt.on('fesTurn', function(p){
       if(!p || !fes.join.reserved || p.code !== fes.join.code) return;
       fes.join.token = p.token;
-      try{ FxKit.notice(UiText.FES.入る.どうぞ); }catch(e){}
+      // 指示71-6（追記1）：気づけるように。ふるえる（設定の「振動」が入の時だけ・FxKit.vibe が見る）・短い音（この知らせだけは、
+      // TV がいる部屋でもスマホで鳴らす：force）・画面いっぱいの「どうぞ！ 20秒以内に入ってね」と残りの秒数。このまま自分で入りにいく
+      fes.join.turnUntil = Date.now() + 20000;
+      try{ FxKit.vibe('warn'); }catch(e){}
+      try{ if(window.Sound) Sound.play('decide', { force: true }); }catch(e){}
+      fesRenderJoin();
+      fesTurnTick();
       fesJoin();
     });
     rt.on('fes', function(){ var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-lobby') rtRenderCurrent(); });
@@ -33704,7 +33770,7 @@
     var act = b.getAttribute('data-fes-act');
     if(act === 'join') fesJoin();
     else if(act === 'reserve') fesReserve();
-    else if(act === 'unreserve'){ rt.fesUnreserve(fes.join.code); fes.join.reserved = null; fes.join.full = false; fes.join.err = ''; fesRenderJoin(); }
+    else if(act === 'unreserve'){ rt.fesUnreserve(fes.join.code); fes.join.reserved = null; fes.join.full = false; fes.join.err = ''; fes.join.turnUntil = null; fesResvSave(null); fesRenderJoin(); }
     else if(act === 'vote' && fes.sel) rt.fesVote(fes.sel);
     else if(act === 'ready') rt.setReady(true);
     else if(act === 'continue') rt.fesContinue();

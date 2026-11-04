@@ -104,7 +104,9 @@ const TIMES = {
   endGraceMs: 3500,
   // 切れた人の席を取っておく長さ（2026-11-01 くまくんの答え・F2）。Wi-Fi が一瞬切れた・画面ロックから戻った人の席に、
   // その間に来た人や予約の人が入らないように。すぎて戻った時に満員なら「つぎの回」（fesHold）として待合で待つ
-  holdMs: 30000
+  holdMs: 30000,
+  // 指示71 追記1（11/04）：予約した端末が切れても、順番を取っておく長さ。それまでは切れるとすぐ消え、スマホは「予約しました」のままだった
+  reserveKeepMs: 60000
 };
 
 const PHASE = { IDLE: 'idle', LOBBY: 'lobby', VOTE: 'vote', DECIDE: 'decide', READY: 'ready', PLAY: 'play', RESULT: 'result' };
@@ -144,7 +146,9 @@ function init(room, opts) {
 // ===================== 指示66-3：満員の時の予約（つぎの回に入る） =====================
 // 部屋が16人でいっぱいの時、入れなかった人はスマホで予約する。席が1つ空くと、予約の先頭の人に
 // 「どうぞ」を送り、その人のために席を OFFER_MS のあいだ取っておく（そのあいだに後から来た人が割り込めない）。
-// 入らずに時間が切れたら、その予約は消えて次の人へ。予約した端末が切れたら、その予約も消える
+// 入らずに時間が切れたら、その予約は消えて次の人へ。
+// 指示71 追記1：予約した端末が切れても、reserveKeepMs（60秒）は順番を取っておく。端末は合い札（token）を覚えていて、
+// つなぎ直したら resumeReserve で同じ予約にもどる。すぎたら消える（もどった端末には「消えました」）
 const OFFER_MS = 20000;
 function queueOf(room) { if (!room.fes.queue) room.fes.queue = []; return room.fes.queue; }
 /** 予約する。もう予約していれば、そのまま。返すのは何番目か（1から） */
@@ -154,7 +158,33 @@ function reserve(room, socketId, now) {
   if (!e) { e = { socketId, token: Math.floor((room.fes.rnd || Math.random)() * 1e9).toString(36) + now.toString(36), at: now, offerUntil: 0 }; q.push(e); }
   return q.indexOf(e) + 1;
 }
-/** 予約をやめる（入れた・やめた・切れた）。token か socketId のどちらかで */
+/** 合い札で予約にもどる（つなぎ直した端末）。消えていれば null */
+function resumeReserve(room, token, socketId) {
+  const e = queueOf(room).filter((x) => x.token === token)[0];
+  if (!e) return null;
+  e.socketId = socketId; e.goneAt = null;
+  return e;
+}
+/** 予約した端末が切れた：消さずに、切れた時刻を付ける（reserveKeepMs のあいだ順番を取っておく） */
+function goneReserve(room, socketId, now) {
+  queueOf(room).forEach((x) => { if (x.socketId === socketId) { x.socketId = null; x.goneAt = now; } });
+}
+/**
+ * 指示71 追記1：予約の「あと約◯分」の見込み（ミリ秒）。席が空くのは、ふつう今の回が終わった時（結果のあと）。
+ * 今の段の残り＋このあとの段の長さ＋この部屋で実際に遊んだ長さの平均。まだ1回も遊んでいない・待合の間は出せないので null（出さない）
+ */
+function etaMs(room, now) {
+  const f = room.fes; if (!f) return null;
+  const t = f.times, left = f.endsAt ? Math.max(0, f.endsAt - now) : 0;
+  if (f.phase === PHASE.RESULT) return left;
+  if (!f.playAvg) return null;
+  if (f.phase === PHASE.PLAY) return Math.max(0, (f.startAt || now) + f.playAvg - now) + t.resultMs;
+  if (f.phase === PHASE.READY) return left + f.playAvg + t.resultMs;
+  if (f.phase === PHASE.DECIDE) return left + t.readyMs + f.playAvg + t.resultMs;
+  if (f.phase === PHASE.VOTE) return left + t.decideMs + t.readyMs + f.playAvg + t.resultMs;
+  return null;
+}
+/** 予約をやめる（入れた・やめた）。token か socketId のどちらかで */
 function unreserve(room, key) {
   const q = queueOf(room);
   room.fes.queue = q.filter((x) => x.socketId !== key && x.token !== key);
@@ -170,7 +200,8 @@ function held(room, token, now) {
  */
 function queueTick(room, live, now) {
   let q = queueOf(room);
-  room.fes.queue = q = q.filter((x) => !(x.offerUntil && x.offerUntil <= now));
+  const keep = room.fes.times.reserveKeepMs;
+  room.fes.queue = q = q.filter((x) => !(x.offerUntil && x.offerUntil <= now) && !(x.goneAt && now - x.goneAt >= keep));
   let free = ROOM_MAX - live - q.filter((x) => x.offerUntil > now).length;
   const offered = [];
   q.forEach((x) => { if (free > 0 && !x.offerUntil) { x.offerUntil = now + OFFER_MS; offered.push(x); free--; } });
@@ -322,6 +353,8 @@ function tick(room, now, api) {
       if (ended && !f.endedAt) f.endedAt = now;
       if (ended && (!w || now - f.endedAt >= t.endGraceMs)) {
         f.endedAt = null;
+        // 指示71 追記1：遊んだ長さを覚える（予約の「あと約◯分」の見込みに使うだけ・進み方は変えない）
+        if (f.startAt) f.playAvg = f.playAvg ? Math.round((f.playAvg + (now - f.startAt)) / 2) : now - f.startAt;
         set(room, PHASE.RESULT, t.resultMs, now); f.cont = new Set(); return true;
       }
       return false;
@@ -570,5 +603,5 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, roundDetail, ROOM_MAX, MISS_LIMIT, DIFFS, diffOf, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
+module.exports = { resumeReserve, goneReserve, etaMs, FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, roundDetail, ROOM_MAX, MISS_LIMIT, DIFFS, diffOf, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
   reserve, unreserve, held, queueTick, seats, onReturn, promoteHeld, isPlaying };

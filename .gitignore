@@ -36,3 +36,6 @@ docs/監査_指示68-Qの画像/
 
 # 指示69：TV の切りかえの通し（tools/tvs-walk.js が作る・サーバーのログと写真）
 docs/監査_指示69/walk*/
+
+# 指示70：配置づくりの通し（tools/haichi-walk.js が作る）
+docs/監査_指示70/walk*/

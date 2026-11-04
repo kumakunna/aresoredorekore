@@ -3,3 +3,6 @@
 # 「$'\r': command not found」という、原因の見えない壊れ方をする。
 # 今のところ問題は出ていないが、Windowsで編集した1行が混ざるだけで起きる
 *.sh text eol=lf
+
+# 指示70：配置づくりのページは Claude チャットが作った物をバイトのまま置く（改行も変えない）
+haichi/haichi.html -text

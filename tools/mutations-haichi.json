@@ -1,0 +1,90 @@
+[
+  {
+    "name": "H1 合い言葉を見ない（だれでも開ける）",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": "    if (!open || typeof given !== 'string') return false;",
+    "to": "    return true;",
+    "expect": "門1：合い言葉が合う時だけページが開く"
+  },
+  {
+    "name": "H2 短い合い言葉でも開く",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": "  const open = real.length >= KEY_MIN;",
+    "to": "  const open = true;",
+    "expect": ".env に合い言葉が無い・短い"
+  },
+  {
+    "name": "H3 道の合い言葉の確かめを外す",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": "    if (!keyOk(req.query.key)) return send(res, 403, { error: 'denied' });",
+    "to": "",
+    "expect": "道（読む・置く・消す）が 403"
+  },
+  {
+    "name": "H4 since が同じでも中身を送る",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": "      if (since === rev) return send(res, 200, { rev, plans: null });",
+    "to": "",
+    "expect": "門2：答えの形が見本と同じ"
+  },
+  {
+    "name": "H5 300KB をこえても置ける",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": "if (size > MAX_BODY)",
+    "to": "if (size > MAX_BODY * 10)",
+    "expect": "門3：300KB"
+  },
+  {
+    "name": "H6 60をこえても置ける",
+    "file": "haichi-store.js",
+    "suite": "tests/haichi.js",
+    "from": "    if (!has.get(id) && count.get().n >= MAX_PLANS) return { full: true };",
+    "to": "",
+    "expect": "門3：案は60まで"
+  },
+  {
+    "name": "H7 変な id も通す",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": "const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;",
+    "to": "const ID_RE = /^.{1,400}$/;",
+    "expect": "門3：id は英数字と"
+  },
+  {
+    "name": "H8 作り直すと rev が0にもどる",
+    "file": "haichi-store.js",
+    "suite": "tests/haichi.js",
+    "from": "INSERT OR IGNORE INTO haichi_rev",
+    "to": "INSERT OR REPLACE INTO haichi_rev",
+    "expect": "門4：サーバーを作り直しても"
+  },
+  {
+    "name": "H9 リファラーを送る",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": "    res.set('referrer-policy', 'no-referrer');",
+    "to": "",
+    "expect": "門1：合い言葉が合う時だけページが開く"
+  },
+  {
+    "name": "H10 合い言葉をログに出す",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": "  if (!open) console.warn(",
+    "to": "  console.log('[haichi] ' + real); if (!open) console.warn(",
+    "expect": "門8：この検査で出たログに"
+  },
+  {
+    "name": "H11 data:null を通す",
+    "file": "haichi-routes.js",
+    "suite": "tests/haichi.js",
+    "from": " || j.data === null",
+    "to": "",
+    "expect": "門2：本文がおかしい時は 400"
+  }
+]

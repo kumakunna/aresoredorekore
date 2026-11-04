@@ -6604,6 +6604,72 @@
   .v2 .v2-tvc .v2-sdec-dn{font-size:150px;line-height:1.05;}
   .v2 .v2-tvc .v2-sdec-ln{width:52%;height:8px;}
   .v2 .v2-tvc .v2-sdec-by{font-size:52px;}
+  /* 指示71-2：⚙ の設定（#settingsOverlay）を新しい見た目に（68-7 の1と4）。**中身は変えない**——項目・既定値・id・
+     JS が付けはずしする印（.on・.seg-btn・.switch）と、検査が見る札の名前はそのまま。v2 の箱（.v2-setov）の中で着せ直すだけ。
+     古い規則（.card・.set-row・.switch など・最初の <style> の上の方）より強くするため、全部 .v2.v2-setov から書く。
+     色は待合の世界（.v2-w-wait）。部品の形は、はじめの光と揺れの確認（.v2-safety の行・スイッチ）とそろえる */
+  .v2.v2-setov{background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);font-size:15px;line-height:1.55;zoom:var(--v2-z,1);}
+  .v2.v2-setov .overlay-panel{--paper:transparent;--paper-deep:var(--wdim);--card:var(--wc2);--ink:var(--wi);--ink-soft:var(--ws);--line:var(--wl2);--stamp:#C42B22;--stamp-deep:#9E1F18;
+    background:transparent;color:var(--wi);max-width:520px;margin:0 auto;border-radius:0;padding:16px 18px 44px;height:100%;overflow-y:auto;box-sizing:border-box;animation:v2-fade var(--v2-move) var(--v2-ease);}
+  .v2.v2-setov .overlay-head{min-height:52px;margin-bottom:12px;padding:0 54px;}
+  .v2.v2-setov .overlay-head h3{font-family:var(--v2-jp);font-weight:900;font-size:22px;line-height:1.2;color:var(--wi);text-wrap:balance;}
+  .v2.v2-setov .sr-text,.v2.v2-setov .tp-label,.v2.v2-setov .mic-status{text-wrap:pretty;}
+  /* .v2 の keep-all は日本語の中で改行しない（はみ出した所で切れて「出す」「す」が1行になる）。設定の中は文節で切る（Chrome。ほかはふつうの改行） */
+  .v2.v2-setov .overlay-panel{word-break:auto-phrase;}
+  .v2.v2-setov .toggle-row-mini > div{text-wrap:balance;}
+  .v2.v2-setov .toggle-row-mini > div > span:first-child{display:block;text-wrap:balance;}
+  .v2.v2-setov .set-back,.v2.v2-setov .close-x{width:46px;height:46px;border-radius:50%;background:var(--wc2);border:3px solid var(--wl);color:var(--wi);
+    font-family:var(--v2-en);font-size:19px;font-weight:900;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .v2.v2-setov .set-back{position:absolute;left:0;top:50%;transform:translateY(-50%);}
+  .v2.v2-setov .close-x{position:absolute;right:0;top:50%;transform:translateY(-50%);}
+  .v2.v2-setov .set-back:active,.v2.v2-setov .close-x:active{transform:translateY(-50%) scale(.94);}
+  .v2.v2-setov #loggedInAs{font-weight:800;font-size:13px;color:var(--ws);text-align:center;margin-bottom:14px;}
+  .v2.v2-setov .set-menu{gap:10px;margin-bottom:10px;}
+  .v2.v2-setov #setQuickMenu > .set-menu{margin-bottom:20px;}
+  .v2.v2-setov .set-row{gap:12px;padding:12px 14px;min-height:68px;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;
+    font-family:var(--v2-jp);font-weight:900;font-size:17px;line-height:1.3;color:var(--wi);}
+  .v2.v2-setov .set-row:active{transform:scale(.98);filter:none;}
+  .v2.v2-setov .set-row .sr-icon{width:44px;height:44px;border-radius:14px;background:var(--wc);border:2px solid var(--wl2);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none;}
+  .v2.v2-setov .set-row .sr-sub{font-weight:800;font-size:13px;line-height:1.5;color:var(--ws);margin-top:6px;}
+  .v2.v2-setov .set-row .sr-arrow{font-family:var(--v2-en);font-weight:900;font-size:24px;color:var(--wi);}
+  .v2.v2-setov .set-row.danger{border-color:#C42B22;color:#9E1F18;}
+  .v2.v2-setov .set-row.danger .sr-sub{color:#9E1F18;opacity:1;}
+  .v2.v2-setov .card{background:var(--wc2);border:3px solid var(--wl);border-radius:18px;padding:16px;margin:0 0 12px;box-shadow:none;color:var(--wi);}
+  .v2.v2-setov .sec-title{font-family:var(--v2-jp);font-weight:900;font-size:17px;margin-bottom:10px;}
+  .v2.v2-setov .tp-label{display:block;font-weight:900;font-size:17px;line-height:1.3;margin-bottom:12px;}
+  .v2.v2-setov .tp-label span{font-family:var(--v2-en);font-weight:800;font-size:20px;color:var(--wi);margin-left:4px;}
+  .v2.v2-setov .mic-status{font-weight:800;font-size:13px;line-height:1.55;color:var(--ws);margin-top:8px;}
+  .v2.v2-setov .toggle-row-mini{gap:12px;margin-top:0;font-weight:900;font-size:17px;line-height:1.3;}
+  .v2.v2-setov .toggle-row-mini .mic-status{font-size:13px;}
+  .v2.v2-setov .switch{width:54px;height:32px;border-radius:999px;background:#B9B9B9;transition:background-color var(--v2-move) var(--v2-ease);}
+  .v2.v2-setov .switch::after{top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left var(--v2-move) var(--v2-ease);}
+  .v2.v2-setov .switch.on{background:var(--wi);}
+  .v2.v2-setov .switch.on::after{left:25px;background:var(--won);}
+  .v2.v2-setov .seg{border:3px solid var(--wl);border-radius:999px;overflow:hidden;background:var(--wc2);margin-top:4px;}
+  .v2.v2-setov .seg-btn{min-height:48px;padding:8px 6px;background:transparent;font-family:var(--v2-jp);font-weight:900;font-size:15px;color:var(--wi);}
+  .v2.v2-setov .seg-btn + .seg-btn{border-left:2px solid var(--wl2);}
+  .v2.v2-setov .seg-btn.on{background:var(--wi);color:var(--won);}
+  /* つまみと線は古い規則のまま（押せる高さ 44px・指示60 B-6）。色だけ世界の色に */
+  .v2.v2-setov .overlay-panel{--switch-on:var(--wi);--switch-knob:#fff;--switch-knob-edge:rgba(0,0,0,.25);}
+  .v2.v2-setov input[type=range]::-webkit-slider-runnable-track{background:rgba(0,0,0,.16);}
+  .v2.v2-setov .set-select{min-height:48px;border:3px solid var(--wl);border-radius:14px;background:var(--wc2);color:var(--wi);font-family:var(--v2-jp);font-weight:800;font-size:15px;}
+  .v2.v2-setov .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;padding:8px 16px;border-radius:16px;box-shadow:none;
+    font-family:var(--v2-jp);font-weight:900;font-size:16px;border:3px solid var(--wi);background:transparent;color:var(--wi);}
+  .v2.v2-setov .btn:active{transform:scale(.97);}
+  .v2.v2-setov .btn.btn-main,.v2.v2-setov .btn.btn-teal{background:var(--wbtn);color:var(--wbtn-ink);border-color:var(--wbtn);}
+  .v2.v2-setov .btn + .btn{margin-top:10px;}
+  .v2.v2-setov #logoutBtn,.v2.v2-setov #settingsLoginBtn{margin-top:18px;}
+  .v2.v2-setov .danger-note{border:3px solid #C42B22;border-radius:16px;padding:12px 14px;color:#9E1F18;font-weight:800;font-size:14px;background:var(--wc2);}
+  .v2.v2-setov .set-credit{font-weight:700;font-size:13px;color:var(--ws);margin-top:16px;}
+  /* 部屋のページの名簿（renderSetPage の room が描く .set-member・.sm-btn） */
+  .v2.v2-setov .set-member{background:var(--wc2);border:3px solid var(--wl);border-radius:16px;padding:10px 14px;font-weight:900;font-size:16px;color:var(--wi);}
+  .v2.v2-setov .sm-btn{min-height:40px;border:2px solid var(--wi);border-radius:12px;background:transparent;color:var(--wi);font-family:var(--v2-jp);font-weight:900;font-size:14px;}
+  .v2.v2-setov .sm-btn.danger{border-color:#C42B22;color:#9E1F18;}
+  .v2.v2-setov .rt-code-box,.v2.v2-setov .qr-box{background:var(--wc2);border:3px solid var(--wl);border-radius:18px;color:var(--wi);}
+  .v2.v2-setov .rt-code{font-family:var(--v2-en);font-weight:900;color:var(--wi);margin:8px 0 12px;}
+  .v2.v2-setov .rt-code-label,.v2.v2-setov .qr-note,.v2.v2-setov .rt-code-box .mic-status{font-weight:800;font-size:13px;color:var(--ws);}
+  /* 文字サイズ「大」：説明の字だけ 1.15倍（12-8 と同じ考え・見出しと数字はそのまま） */
+  :root.fs-large .v2.v2-setov .sr-sub,:root.fs-large .v2.v2-setov .mic-status{font-size:15px;}
   /* ---- v2 ここまで ---- */
 
   /* ===================================================================
@@ -9803,7 +9869,7 @@
        1画面に全部並べると、項目が増えるほど探せなくなる。
        どのページを出すかは setPages のデータから作るので、
        ページを足す時に出し分けの条件を書き足す場所が散らない（落とし穴4）。 -->
-  <div class="overlay" id="settingsOverlay">
+  <div class="overlay v2 v2-w-wait v2-setov" id="settingsOverlay">
     <div class="overlay-panel">
       <div class="overlay-head">
         <button class="set-back" id="setBackBtn" style="display:none;" aria-label="ひとつ前にもどる">←</button>
@@ -9881,7 +9947,8 @@
           <div class="mic-status">0にすると、効果音は鳴りません</div>
           <button class="btn btn-outline" id="setSeTestBtn" style="margin-top:10px;">🔊 音を鳴らして確かめる</button>
         </div>
-        <div class="card">
+        <!-- 指示71-2：読み上げは隠す（声は 68-T で止めた）。行と値は残す -->
+        <div class="card" id="setSpeechVolCard" style="display:none;">
           <div class="tp-label">読み上げ　<span id="setSpeechVolValue">100</span></div>
           <input type="range" id="setSpeechVol" min="0" max="100" step="5" value="100">
           <div class="mic-status">早押しトーナメントなどで、問題を読み上げる音の大きさです</div>
@@ -31264,9 +31331,12 @@
       when:function(){ return inRoomNow() && rt.isHost(); },
       sub:'部屋にいる全員が退出します（進行役だけ）' }
   ];
+  var SPEECH_HIDDEN = true;   // 指示71-2：読み上げを隠す（声を止めているあいだ）
   var SET_APP_ITEMS = [
-    { icon:'🔊', label:'音量', page:'sound', sub:'効果音・読み上げ・BGM' },
-    { icon:'🗣', label:'読み上げ', page:'speech', sub:'速さと声' },
+    // 指示71-2（くまくんの決め2 2026-11-04）：**「読み上げ」は隠す。**声は 68-T で全部止めたので、押しても何も変わらない。
+    // 読み上げのページ・音のファイル・appPrefs の値は残す（when で隠すだけ）。音量のページの「読み上げ」の行も隠す
+    { icon:'🔊', label:'音量', page:'sound', sub:'効果音・BGM' },
+    { icon:'🗣', label:'読み上げ', page:'speech', sub:'速さと声', when:function(){ return !SPEECH_HIDDEN; } },
     { icon:'🎨', label:'見た目と演出', page:'display', sub:'時間の見せ方・あそびかたの案内など' },
     // 第32弾-D 第4部：体に触る演出（光・揺れ・振動・体を動かす）は1か所にまとめる
     { icon:'🛡', label:'安全に関する設定', page:'safety',
@@ -31305,6 +31375,15 @@
     }
     if(act === 'titles'){
       el('settingsOverlay').classList.remove('show');
+      // 指示71-2：部屋にいる時（文化祭も）は、新しい見た目の着替え（待合のシート）を開く。古い scr-titles へ行かない。
+      // 着替えは待合で（指示63 2-3）。待合が出ていない時（遊んでいる途中）は、そう伝えるだけ
+      if(inRoomNow()){
+        var look = document.querySelector('.screen.active [data-fes-act="look"]');
+        // 次の番で押す：この行を押した「クリック」がまだ上へ伝わっている途中に開くと、シートは外を押されたと思って閉じる
+        if(look){ setTimeout(function(){ look.click(); }, 0); return; }
+        try{ FxKit.notice(UiText.SET.着替えは待合で); }catch(e){}
+        return;
+      }
       goTo('scr-titles');
       return;
     }
@@ -33629,7 +33708,13 @@
     else if(act === 'ready') rt.setReady(true);
     else if(act === 'continue') rt.fesContinue();
     else if(act === 'bclose') rt.act(null);
-    else if(act === 'look'){ fes.lookDraft = null; fes.lookSlot = 'first'; clearTitleNew(); rtRenderCurrent(); }
+    else if(act === 'look'){
+      fes.lookDraft = null; fes.lookSlot = 'first'; clearTitleNew(); rtRenderCurrent();
+      // 指示71-2 で見つけた：描き直したあとで、着替えのシートをここで開く。ボタンの data-v2-open に任せると、
+      // v2 の部品より先にこの処理が待合を描き直した時、部品がもう無いボタンからシートを探して何も開かなかった（本物の Chrome・tests/fes-screens.js）
+      var lk = document.querySelector('.screen.active [data-v2-id="v2Look"]');
+      if(lk && !lk.classList.contains('is-open')) V2.open(lk);
+    }
     else if((act === 'lookicon' || act === 'lookname') && fes.lookDraft){
       equipLook(fes.lookDraft); fes.lookDraft = null;
       // 文化祭の待合でも、ふつうの部屋の待合（指示66-3）でも同じシート。押した札のシートを閉じる

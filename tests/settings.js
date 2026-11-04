@@ -462,6 +462,17 @@ async function walkSettings(win, doc, onPage) {
       await sleep(win, 120);
     }
     const row = doc.querySelector('#settingsOverlay [data-setpage="' + page + '"]');
+    if (page === 'speech') {
+      // 指示71-2：「読み上げ」の入口は隠した（声は 68-T で止めた）。ページ・値・読み上げへの届き方は残っているので、
+      // 設定の画面と同じ道（data-setpage）で、隠したページを開いて確かめる
+      assert(!row, '読み上げの入口は隠してある（指示71-2）');
+      const b = doc.createElement('button');
+      b.setAttribute('data-setpage', 'speech');
+      el(doc, 'settingsOverlay').querySelector('.overlay-panel').appendChild(b);
+      b.click(); b.remove();
+      await sleep(win, 90);
+      return doc.querySelector('.set-page[data-page="speech"]');
+    }
     assert(row, page + ' の入口がある');
     row.click();
     await sleep(win, 90);
@@ -853,6 +864,31 @@ async function walkSettings(win, doc, onPage) {
     assertEqual(行(済.doc).querySelector('.sr-sub').textContent, '集めたものからえらびます',
       'ログイン済みなら、案内ではなく説明');
     済.win.close();
+  });
+
+  // ================= 指示71-2：新しい見た目・「読み上げ」を隠す =================
+  await r.test('指示71-2：⚙ は新しい見た目（v2）で開き、アプリの設定の行は前と同じ（「読み上げ」が隠れたことだけちがう）', async () => {
+    const { win, doc, errors } = await launch();
+    click(doc, 'shelfGearBtn');
+    await sleep(win, 120);
+    const ov = el(doc, 'settingsOverlay');
+    assert(ov.classList.contains('show'), '開く');
+    assert(ov.classList.contains('v2') && ov.classList.contains('v2-w-wait') && ov.classList.contains('v2-setov'), '新しい見た目の箱（.v2.v2-w-wait.v2-setov）');
+    const rows = Array.from(doc.querySelectorAll('#setAppMenu .set-row .sr-text')).map((x) => x.childNodes[0].textContent.trim());
+    // 指示71 の前（9db83a6）の SET_APP_ITEMS：音量・読み上げ・見た目と演出・安全に関する設定・マニアック・アイコン・二つ名・記録（ログイン時）・危険な操作（棚）
+    const 前 = ['音量', '見た目と演出', '安全に関する設定', win.UiText.TIERS.入口, 'アイコン・二つ名', '記録', '危険な操作'];
+    assertEqual(rows.join('・'), 前.join('・'), '行の並び（検査の端末はログインしている棚：記録も出る＝前と同じ）');
+    assert(rows.indexOf('読み上げ') === -1, '読み上げの行は隠した');
+    const 音量 = doc.querySelector('#setAppMenu [data-setpage="sound"] .sr-sub').textContent;
+    assertEqual(音量, '効果音・BGM', '音量の説明から読み上げを外した');
+    doc.querySelector('#setAppMenu [data-setpage="sound"]').click();
+    await sleep(win, 80);
+    const card = el(doc, 'setSpeechVolCard');
+    assert(card && card.style.display === 'none', '音量のページの「読み上げ」の行は隠した');
+    assert(el(doc, 'setSpeechVol'), '読み上げの音量の値（setSpeechVol）は残っている');
+    assert(doc.querySelector('.set-page[data-page="speech"] #setRate') && doc.querySelector('.set-page[data-page="speech"] #setVoice'), '読み上げのページ（速さ・声）は残っている');
+    assertNoErrors(errors, '新しい見た目の設定で未捕捉の例外');
+    win.close();
   });
 
   r.finish();

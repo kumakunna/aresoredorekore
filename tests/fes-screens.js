@@ -594,5 +594,37 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示71-2 で見つけた：文化祭の待合の「アイコン・二つ名をかえる」（data-v2-open と data-fes-act="look" の両方）を押しても、シートが開かなかった。
+  // 文化祭の押した時の処理が先に待合を描き直し、そのあと v2 の部品が、もう無いボタンからシートを探していた（本物の Chrome で見た）
+  await r.test('F5 着替え：文化祭の待合で「アイコン・二つ名をかえる」を押すと、着替えのシートが開く', async () => {
+    const { win, doc, errors } = await 入った();
+    流す(win, 'fes2-lobby');
+    await sleep(win, 200);
+    doc.querySelector('#scr-v2-fes-lobby [data-fes-act="look"]').click();
+    const look = () => doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Look"]');
+    await waitFor(win, () => look() && look().classList.contains('is-open'), 2000, '着替えのシートが開く');
+    H.assertNoErrors(errors, '着替えで未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('指示71-2：文化祭の待合で ⚙ → アプリの設定 →「アイコン・二つ名」→ 新しい見た目の着替えのシート（古い scr-titles へ行かない）', async () => {
+    const { win, doc, errors } = await 入った();
+    流す(win, 'fes2-lobby');
+    await sleep(win, 200);
+    doc.querySelector('#scr-v2-fes-lobby [data-v2-act="gear"]').click();
+    await sleep(win, 150);
+    const ov = doc.getElementById('settingsOverlay');
+    assert(ov.classList.contains('show') && ov.classList.contains('v2'), '⚙ の設定が、新しい見た目（v2）で開く');
+    doc.querySelector('#settingsOverlay [data-setpage="app"]').click();
+    await sleep(win, 100);
+    doc.querySelector('#settingsOverlay [data-setact="titles"]').click();
+    const look = () => doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Look"]');
+    await waitFor(win, () => look() && look().classList.contains('is-open'), 2000, '着替えのシートが開く');
+    assertEqual(act(doc), 'scr-v2-fes-lobby', '古い scr-titles へ行かない');
+    assert(!ov.classList.contains('show'), '設定は閉じる');
+    H.assertNoErrors(errors, '⚙ から着替えで未捕捉の例外');
+    win.close();
+  });
+
   r.finish();
 })();

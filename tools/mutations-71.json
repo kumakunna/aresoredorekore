@@ -38,5 +38,37 @@
     "from": "      }, function () { asking = false; });",
     "to": "      });",
     "expect": "使えない端末"
+  },
+  {
+    "name": "S1 ⚙ が古い見た目のまま",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "<div class=\"overlay v2 v2-w-wait v2-setov\" id=\"settingsOverlay\">",
+    "to": "<div class=\"overlay\" id=\"settingsOverlay\">",
+    "expect": "指示71-2：⚙ は新しい見た目"
+  },
+  {
+    "name": "S2 読み上げの行が出る",
+    "file": "public/index.html",
+    "suite": "tests/settings.js",
+    "from": "  var SPEECH_HIDDEN = true;",
+    "to": "  var SPEECH_HIDDEN = false;",
+    "expect": "指示71-2：⚙ は新しい見た目"
+  },
+  {
+    "name": "S3 部屋でも古い scr-titles へ行く",
+    "file": "public/index.html",
+    "suite": "tests/fes-screens.js",
+    "from": "      if(inRoomNow()){\n        var look = document.querySelector",
+    "to": "      if(false){\n        var look = document.querySelector",
+    "expect": "指示71-2：文化祭の待合で ⚙"
+  },
+  {
+    "name": "S4 文化祭の着替えのシートが開かない（直す前）",
+    "file": "public/index.html",
+    "suite": "tests/fes-screens.js",
+    "from": "      if(lk && !lk.classList.contains('is-open')) V2.open(lk);",
+    "to": "",
+    "expect": "F5 着替え：文化祭の待合で"
   }
 ]

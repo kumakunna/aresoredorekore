@@ -183,8 +183,8 @@
   "name": "D2 bombFinale が ready を渡さない（直す前）",
   "file": "public/index.html",
   "suite": "tests/bomb-finale.js",
-  "from": ",\n      ready: bombFinaleReady()\n",
-  "to": "\n",
+  "from": "      ready: bombFinaleReady()\n",
+  "to": "      ready: null\n",
   "expect": "追記2d",
   "only": "追記2d"
  },

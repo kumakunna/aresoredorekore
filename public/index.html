@@ -5926,7 +5926,8 @@
   @keyframes v2-onum0{from,to{opacity:0;}}
   /* 名前の札（集合写真・全員同じ大きさ）。玉のあった山から飛び出して並ぶ */
   .v2 .v2-otags{position:absolute;left:0;right:0;top:0;bottom:142px;display:grid;grid-template-columns:repeat(var(--tc),minmax(0,max-content));
-    justify-content:center;align-content:center;gap:52px 22px;pointer-events:none;z-index:3;}   /* 68-S の残り4：段の間は「+1点！」が入る高さ（16→52px） */
+    justify-content:center;align-content:center;gap:60px 22px;pointer-events:none;z-index:3;}   /* 68-S の残り4：段の間は「+1点！」が入る高さ（16→52px）。
+       指示71 追記2l：52px では上の段の札とのすき間が 1.4px しかなく、端末によって「+1点！」が上の札に半分かくれた → 60px（tools/onaji-plus-overlap.js） */
   .v2 .v2-otag{position:relative;display:flex;align-items:center;gap:14px;min-width:0;max-width:440px;padding:10px 26px 10px 12px;border-radius:999px;
     background:var(--wi);color:var(--won);font-weight:900;font-size:52px;line-height:1.2;box-shadow:0 10px 28px rgba(0,0,0,.3);}
   .v2 .v2-otag-f{flex:none;width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;
@@ -5937,7 +5938,7 @@
   @keyframes v2-otag{from{opacity:0;transform:translate(var(--sx),var(--sy)) scale(.25);}}
   /* TV の名前の札の「+1点！」だけ（指示68-T 二の束3 で見つけた：.v2-otag で絞っていなかったので、スマホの自分の結果の「+5点」「+1点！」まで
      右上へ飛んでボタンに重なり、1.1秒で消えていた。check.js の pt-reveal・onaji-unveil の6件） */
-  .v2 .v2-otag .v2-oplus{position:absolute;right:-6px;top:-44px;font-style:normal;font-size:44px;color:#FFD84A;text-shadow:0 2px 0 rgba(0,0,0,.35);opacity:0;}
+  .v2 .v2-otag .v2-oplus{position:absolute;right:-6px;top:-38px;line-height:1;font-style:normal;font-size:44px;color:#FFD84A;text-shadow:0 2px 0 rgba(0,0,0,.35);opacity:0;}
   .v2.is-play .v2-otag .v2-oplus{animation:v2-oplus calc(1.1s * var(--fx-scale)) ease both;}
   /* 68-S の残り4：上がるのは少しだけ（-36px だと上の段の札にかかっていた。8人で2か所・16人で9か所） */
   @keyframes v2-oplus{0%{opacity:0;transform:translateY(12px);}25%{opacity:1;transform:none;}75%{opacity:1;}100%{opacity:0;transform:translateY(-6px);}}

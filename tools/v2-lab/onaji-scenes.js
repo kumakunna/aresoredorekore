@@ -90,6 +90,9 @@ const BUILD = {
   // 見せ場の動画（tools/v2-film.js）：みんなと同じの開く（8人・16人）
   'onaji-tv-film-unveil': (o) => Object.assign(BUILD['onaji-tv-unveil'](o), { play: true }),
   'onaji-tv-film-unveil16': (o) => Object.assign(BUILD['onaji-tv-unveil16'](o), { play: true }),
+  // 指示71 追記2l：冠が16人（4段）と14人（4段・最後の段が2人）。名前の札の「+1点！」が上の段の札にかからないか（tools/onaji-plus-overlap.js）
+  'onaji-tv-unveil16-all': (o) => { const r = 部屋(16, o); 四択へ(r); 選ぶ(r, 散らす(16, [16])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
+  'onaji-tv-unveil16-14': (o) => { const r = 部屋(16, o); 四択へ(r); 選ぶ(r, 散らす(16, [14, 2])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
   // 指示68-S：ひとりだけ（少ない方で1人だけの答え）と、一致団結で全員そろった時
   'onaji-tv-solo': (o) => { const r = 部屋(o.n || 8, Object.assign({ mode: 'few' }, o)); 四択へ(r); 選ぶ(r, 散らす(8, [4, 3, 1])); 開く(r); return lab(r, 'scr-v2-onaji-tv', 'tv'); },
   'onaji-tv-film-solo': (o) => Object.assign(BUILD['onaji-tv-solo'](o), { play: true }),

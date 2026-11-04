@@ -70,5 +70,13 @@
     "from": "      if(lk && !lk.classList.contains('is-open')) V2.open(lk);",
     "to": "",
     "expect": "F5 着替え：文化祭の待合で"
+  },
+  {
+    "name": "S5 文化祭の3本がまたテスト中",
+    "file": "public/index.html",
+    "suite": "tests/shelf.js",
+    "from": "    { id:'pittari',         genre:'brain', ready:true, icon:'🏁', title:'ぴったり10秒',",
+    "to": "    { id:'pittari',         genre:'brain', ready:true, hidden:true, testing:true, icon:'🏁', title:'ぴったり10秒',",
+    "expect": "門3：棚に並ぶのは決めた6本だけ"
   }
 ]

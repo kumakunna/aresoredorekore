@@ -41,26 +41,34 @@ async function 入った(o) {
 (async function main() {
   const r = createRunner('fes-screens：文化祭の部屋の画面（指示66-2）');
 
-  await r.test('門5（画面）：むずかしさを選ぶまで「入る」は押せず、押しても送らない。選ぶと、むずかしさを添えて入る', async () => {
+  // 指示71 追記7（くまくんの答え 2026-11-04）：入る画面では、はじめから「ふつう」を選んだ形（前に選んだ物があれば、それ）。
+  // それまでは「選ぶまで押せない」だった（この検査も、その決まりを書いていた）
+  await r.test('追記7：むずかしさは、はじめから「ふつう」。名前を入れればそのまま入れる。えらび直すと、そのむずかしさを添えて入る', async () => {
     const { win, doc, errors } = await 入る画面();
     const n = doc.querySelector('[data-fes-name]');
     n.value = 'ふう'; n.dispatchEvent(new win.Event('input', { bubbles: true }));
     const btn = doc.querySelector('[data-fes-act="join"]');
-    assert(btn.disabled, '選ぶまで「入る」は押せない');
-    assert(/むずかしさを えらんでね/.test(btn.textContent), '押せないボタンに「むずかしさを えらんでね」');
-    assertEqual(doc.querySelectorAll('.v2-diff.is-on').length, 0, '最初はどのむずかしさも選ばれていない');
+    assertEqual(Array.from(doc.querySelectorAll('.v2-diff.is-on')).map((d) => d.getAttribute('data-fes-diff')).join(','), 'normal', 'はじめから「ふつう」が選ばれている');
+    assert(!btn.disabled, '名前を入れれば「入る」を押せる');
     // くまくんの答え 2026-10-31：やさしい・ふつうの2つだけ
     assertEqual(Array.from(doc.querySelectorAll('[data-fes-diff]')).map((d) => d.getAttribute('data-fes-diff')).join(','), 'easy,normal', 'むずかしさは「やさしい」「ふつう」の2つ');
     assert(!/むずかしい/.test(doc.querySelector('.v2-diffs').textContent), '「むずかしい」の字が無い');
-    btn.click();
-    assertEqual(emits(win, 'room:join').length, 0, '押しても送らない');
     doc.querySelector('[data-fes-diff="easy"]').click();
-    assert(!doc.querySelector('[data-fes-act="join"]').disabled, '選ぶと押せる');
+    assert(!doc.querySelector('[data-fes-act="join"]').disabled, '選び直しても押せる');
     doc.querySelectorAll('.v2-diff').forEach((d) => assert(d.querySelector('.v2-diff-t span').textContent.length > 2, 'むずかしさに一言の説明がある'));
     doc.querySelector('[data-fes-act="join"]').click();
     await waitFor(win, () => emits(win, 'room:join').length === 1, 2000, '入る');
     assertEqual(emits(win, 'room:join')[0].payload.diff, 'easy', '選んだむずかしさを添えて入る');
     await waitFor(win, () => act(doc) === 'scr-v2-fes-lobby', 3000, '入ったら待合へ');
+    assertEqual(errors.length, 0, '未捕捉の例外が無い');
+    win.close();
+  });
+
+  await r.test('追記7：前に「やさしい」を選んだ端末は、次に開いた時も「やさしい」', async () => {
+    const { win, doc, errors } = await 入る画面({ storage: { fes_diff_v1: 'easy' } });
+    assertEqual(Array.from(doc.querySelectorAll('.v2-diff.is-on')).map((d) => d.getAttribute('data-fes-diff')).join(','), 'easy', '前に選んだ「やさしい」');
+    doc.querySelector('[data-fes-diff="normal"]').click();
+    assertEqual(win.localStorage.getItem('fes_diff_v1'), 'normal', '選び直すと覚え直す');
     assertEqual(errors.length, 0, '未捕捉の例外が無い');
     win.close();
   });

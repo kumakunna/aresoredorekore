@@ -1393,14 +1393,50 @@ function pickCart(doc, id) {
   // 演出そのものを見るので、ここだけ本物の速さで動かす（launch({fx:true})）
   // ===================================================================
 
-  await r.test('扉：開いた先で何が始まるかが、扉に書いてある', async () => {
-    const { win, doc, errors } = await launch();
-    // 初めて触る人は、扉が開くまで何が起きるか分からないまま待たされていた
-    const lead = el(doc, 'doorLead');
-    assert(lead, '扉に一言が置いてある');
-    assert(/あそび/.test(lead.textContent), '何をするところかが分かる（実際: ' + lead.textContent + '）');
-    assertNoErrors(errors, '扉で未捕捉の例外');
+  // 指示71-4（68-7 の3）：扉（押して開く・明朝体とはんこ・「あそびをえらぼう」）をやめて、ロゴの動きにした。
+  // それまでここにあった「扉に一言が置いてある」は、扉ごと無くなった（一言のあとに約1秒、クリーム色の空の画面が出ていた・追記6）。
+  // ロゴの決まり：見本の時間（1.3秒見せて 0.25秒で消える）・1日に1回・演出「なし」と /fes・QR・TV では出さない・押すと飛ばせる・音なし
+  const 今日 = (w) => { const d = new w.Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+  const 入口まで = async (win, doc) => { const t0 = Date.now(); await waitFor(win, () => activeScreen(doc) !== 'scr-door', 6000, '起動の画面を抜ける'); return Date.now() - t0; };
+
+  await r.test('71-4：その日はじめての起動はロゴの動き（見本の時間・音なし）。そのあと入口へ。2回目からは出さない', async () => {
+    const { win, doc, errors } = await launch({ fx: true, noDoorWait: true });
+    const 音0 = win.sfxProbe().log.length;
+    await waitFor(win, () => el(doc, 'doorScene').classList.contains('play'), 2000, 'ロゴが動きはじめる');
+    assert(!doc.getElementById('doorLead') && !doc.getElementById('doorPanel'), '扉（板・一言）は無い');
+    assertEqual(doc.querySelectorAll('#doorScene svg .s').length, 3, '半円3つ');
+    assert(doc.querySelector('#doorScene svg .a') && doc.querySelector('#doorScene svg .w'), '「あ」と英字');
+    const ms = await 入口まで(win, doc);
+    assert(ms >= 1200 && ms <= 2600, 'ロゴは見本の時間（1.3秒＋消える0.25秒）だけ出る（' + ms + 'ms）');
+    assertEqual(activeScreen(doc), 'scr-v2-home', '入口へ');
+    assertEqual(win.sfxProbe().log.length, 音0, 'ロゴは音を鳴らさない');
+    assertEqual(win.localStorage.getItem('acac-logo-day'), 今日(win), 'その日の印が残る');
+    assertNoErrors(errors, 'ロゴで未捕捉の例外');
     win.close();
+    // 同じ日の2回目
+    const t2 = await launch({ fx: true, noDoorWait: true, storage: { 'acac-logo-day': 今日(win) } });
+    const ms2 = await 入口まで(t2.win, t2.doc);
+    assert(!t2.doc.getElementById('doorScene').classList.contains('play'), '2回目はロゴを動かさない');
+    assert(ms2 < 1000, '2回目はすぐ入口（' + ms2 + 'ms）');
+    t2.win.close();
+  });
+
+  await r.test('71-4：ロゴは押すと飛ばせる。演出「なし」・/fes・部屋の QR・TV から来た時は出さない', async () => {
+    const t = await launch({ fx: true, noDoorWait: true });
+    await waitFor(t.win, () => t.doc.getElementById('doorScene').classList.contains('play'), 2000, 'ロゴが動きはじめる');
+    await sleep(t.win, 200);
+    t.doc.getElementById('doorScene').click();
+    const ms = await 入口まで(t.win, t.doc);
+    assert(ms < 900, '押したら、すぐ入口へ（' + ms + 'ms）');
+    t.win.close();
+    for (const [名, o] of [['演出「なし」', { prefs: { fxSpeed: 'skip' } }], ['/fes', { url: 'http://localhost/?fes=1', fakeSocket: true }],
+      ['部屋の QR', { url: 'http://localhost/?room=TST754', fakeSocket: true }], ['TV', { url: 'http://localhost/?tv=1', fakeSocket: true }]]) {
+      const u = await launch(Object.assign({ fx: true, noDoorWait: true }, o));
+      await sleep(u.win, 600);
+      assert(!u.doc.getElementById('doorScene').classList.contains('play'), 名 + 'ではロゴを出さない');
+      assertEqual(u.win.localStorage.getItem('acac-logo-day'), null, 名 + 'では、その日の印も残さない（ふつうの入口で1回見られる）');
+      u.win.close();
+    }
   });
 
 

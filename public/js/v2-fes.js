@@ -281,7 +281,9 @@
     var wipe = 待つ ? Math.max(0, tl.stop - 0.4) : 0;
     var tile = V.tile(g.world, 'v2-a-slam v2-d1');
     if (待つ) tile = '<div' + at(tl.stop) + '>' + tile.replace(/ v2-d1/, '') + '</div>';
-    return '<div class="v2-layer v2-w-' + e(g.world) + '"' + at(wipe) + '>' + V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) + '</div>' +
+    // 指示71 追記7：TV で出るまでの約2秒、スマホは空だった。その間だけ「TVを見て！」（data-tvuntil：TV で出る時刻に消える）
+    var 見て = 待つ ? '<div class="v2-dlook" role="status" data-tvuntil="' + Math.max(0, wipe).toFixed(2) + '">' + e(U().待合.TVを見て) + '</div>' : '';
+    return '<div class="v2-layer v2-w-' + e(g.world) + '"' + at(wipe) + '>' + V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) + '</div>' + 見て +
       '<div class="v2-in v2-swap v2-w-' + e(g.world) + '"' + (待つ ? ' style="animation-delay:' + (wipe + 0.35).toFixed(2) + 's"' : '') + '>' +
         '<div class="v2-a-fade">' + V.hdHtml('Next Game', D.見出し) + '</div>' +
         '<div class="v2-dec">' +

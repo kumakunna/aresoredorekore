@@ -270,8 +270,10 @@ async function launch(opts) {
    * 演出そのものを見る検査（opts.fx）では、扉も本物のまま動かす
    */
   if (!opts.fx) {
+    // 指示71-4：扉をやめてロゴの動き（1日に1回・1.55秒）。jsdom は毎回まっさらな localStorage なので、
+    // そのままだと全部の起動で「その日の1回目」を引く。ロゴはここで外す（opts.fx の検査では本物のまま動く）
     const 扉 = [['setTimeout(openDoorAndEnter, fxMs(240))', 'setTimeout(openDoorAndEnter, 0)', 2],
-                ['setTimeout(function(){ goTo(next); }, fxMs(260))', 'setTimeout(function(){ goTo(next); }, 0)', 1]];
+                ['var LOGO_OFF = false;', 'var LOGO_OFF = true;', 1]];
     扉.forEach(([from, to, 件]) => {
       const n = html.split(from).length - 1;
       if (n !== 件) throw new Error('扉の待ちが見つかりません（' + from + ' が ' + n + '件。実装が変わった可能性があります）');

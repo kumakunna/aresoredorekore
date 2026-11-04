@@ -1,0 +1,42 @@
+[
+  {
+    "name": "W1 部屋にいても取らない",
+    "file": "public/index.html",
+    "suite": "tests/wake-keep.js",
+    "from": "    want: function(){ return !!(rt && rt.state && rt.state.code) || !!(fes.join && fes.join.reserved); } }) : null;",
+    "to": "    want: function(){ return false; } }) : null;",
+    "expect": "画面：部屋に入ると取る"
+  },
+  {
+    "name": "W2 見え直しても取り直さない",
+    "file": "public/js/wake-keep.js",
+    "suite": "tests/wake-keep.js",
+    "from": "      doc.addEventListener('visibilitychange', function () { if (visible()) sync(); });",
+    "to": "",
+    "expect": "見えなくなるとブラウザが外す"
+  },
+  {
+    "name": "W3 部屋を出ても外さない",
+    "file": "public/js/wake-keep.js",
+    "suite": "tests/wake-keep.js",
+    "from": "    function sync() { if (wanted()) acquire(); else release(); }",
+    "to": "    function sync() { if (wanted()) acquire(); }",
+    "expect": "取りたくなくなったら外す"
+  },
+  {
+    "name": "W4 取りに行く途中で出ても持ちっぱなし",
+    "file": "public/js/wake-keep.js",
+    "suite": "tests/wake-keep.js",
+    "from": "        if (stopped || !wanted()) {",
+    "to": "        if (stopped) {",
+    "expect": "取りに行っている途中で部屋を出た"
+  },
+  {
+    "name": "W5 使えない端末で例外",
+    "file": "public/js/wake-keep.js",
+    "suite": "tests/wake-keep.js",
+    "from": "      }, function () { asking = false; });",
+    "to": "      });",
+    "expect": "使えない端末"
+  }
+]

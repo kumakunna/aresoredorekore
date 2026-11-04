@@ -10219,6 +10219,7 @@
 <script src="js/emoji-list.js"></script>
 <script src="js/titles.js"></script>
 <script src="js/rt-client.js"></script>
+<script src="js/wake-keep.js"></script>
 <script src="js/qr.js"></script>
 <script>
 (function(){
@@ -33558,6 +33559,12 @@
     rt.on('fes', function(){ var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-lobby') rtRenderCurrent(); });
     rt.on('fesStaff', function(p){ fes.staff = p; var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-staff') fesRenderStaff(); });
   }
+
+  // 指示71-1：部屋にいる間（予約して待っている間も）は、スマホと TV の画面を消さない（public/js/wake-keep.js・設定には無い・いつも入）。
+  // 取るかどうかは「部屋にいるか・予約して待っているか」の1つだけ。入る・出る・出される・閉じるの道ごとには書かない（2秒ごとと、部屋の知らせのたびに見る）
+  var wakeKeep = (typeof WakeKeep !== 'undefined') ? WakeKeep.create({ nav: navigator, doc: document,
+    want: function(){ return !!(rt && rt.state && rt.state.code) || !!(fes.join && fes.join.reserved); } }) : null;
+  if(rt && wakeKeep) rt.on('status', function(){ wakeKeep.sync(); });
 
   // ---- 押した時（文化祭の画面だけ。data-fes-*） ----
   document.addEventListener('input', function(e){

@@ -1,0 +1,164 @@
+[
+ {
+  "name": "K1 差しかえの答えに見た問題を残さない",
+  "file": "bomb-room.js",
+  "suite": "tests/fes.js",
+  "from": "  w.log.push(shown ? { uid: uid, by: memberId, answer: answer, correct: correct, shown: shown }\n    : { uid: uid, by: memberId, answer: answer, correct: correct });",
+  "to": "  w.log.push({ uid: uid, by: memberId, answer: answer, correct: correct });",
+  "expect": "むずかしさ（クイズ解除の協力版）",
+  "only": "むずかしさ（クイズ解除の協力版）"
+ },
+ {
+  "name": "K2 迷った問題をコードの問題で数える",
+  "file": "public/js/v2-fes.js",
+  "suite": "tests/fes.js",
+  "from": "        var q = t.shown ? t.shown.question : c.question, a = t.shown ? t.shown.name : c.name;",
+  "to": "        var q = c.question, a = c.name;",
+  "expect": "むずかしさ（クイズ解除の協力版）",
+  "only": "むずかしさ（クイズ解除の協力版）"
+ },
+ {
+  "name": "K3 記録の元の問題の行に差しかえも入れる",
+  "file": "bomb-room.js",
+  "suite": "tests/fes.js",
+  "from": "    w.log.filter((t) => t.uid === x.uid && !t.shown)));",
+  "to": "    w.log.filter((t) => t.uid === x.uid)));",
+  "expect": "むずかしさ（クイズ解除の協力版）",
+  "only": "むずかしさ（クイズ解除の協力版）"
+ },
+ {
+  "name": "K4 ライフを本数÷4.3 にもどす",
+  "file": "public/js/bomb-logic.js",
+  "suite": "tests/fes.js",
+  "from": "livesPer: 2.5,",
+  "to": "livesPer: 4.3,",
+  "expect": "指示68-2 第4節",
+  "only": "指示68-2 第4節"
+ },
+ {
+  "name": "K5 ライフの上限を12にもどす",
+  "file": "public/js/bomb-logic.js",
+  "suite": "tests/fes.js",
+  "from": "  var MAX_LIVES = 20;",
+  "to": "  var MAX_LIVES = 12;",
+  "expect": "指示68-2 第4節",
+  "only": "指示68-2 第4節"
+ },
+ {
+  "name": "K6 13個からもハートを並べる",
+  "file": "public/js/v2-fes.js",
+  "suite": "tests/fes-screens.js",
+  "from": "    if ((max || 0) > 12) {",
+  "to": "    if (false) {",
+  "expect": "客観検査 1-1",
+  "only": "客観検査 1-1"
+ },
+ {
+  "name": "K7 始める時に隠した名前を合わせない",
+  "file": "realtime.js",
+  "suite": "tests/fes.js",
+  "from": "    // 客観検査 G2：文化祭で係が隠した人は、ゲームの名前の表でも ●●●（始める前に隠した時）\n    syncHiddenNames(room);",
+  "to": "",
+  "expect": "門6（ゲームの中）",
+  "only": "門6（ゲームの中）"
+ },
+ {
+  "name": "K8 遊んでいる途中の隠す／もどすを配り直さない",
+  "file": "realtime.js",
+  "suite": "tests/fes.js",
+  "from": "      if (syncHiddenNames(room)) pushWolfState(room);",
+  "to": "",
+  "expect": "門6（ゲームの中）",
+  "only": "門6（ゲームの中）"
+ },
+ {
+  "name": "K9 準備OK を待つ人の名前を元のまま",
+  "file": "realtime.js",
+  "suite": "tests/fes.js",
+  "from": "    waitingNames: game ? waiting.filter((m) => m.readyGame !== game).map((m) => shownName(room, m)) : [],",
+  "to": "    waitingNames: game ? waiting.filter((m) => m.readyGame !== game).map((m) => m.name) : [],",
+  "expect": "門6（ゲームの中）",
+  "only": "門6（ゲームの中）"
+ },
+ {
+  "name": "K10 帰った人を外さない",
+  "file": "fes-room.js",
+  "suite": "tests/fes.js",
+  "from": "  if (sweepGone(room, now, api)) return true;\n",
+  "to": "",
+  "expect": "帰った人：",
+  "only": "帰った人："
+ },
+ {
+  "name": "K11 ゲームの中の人も外す",
+  "file": "fes-room.js",
+  "suite": "tests/fes.js",
+  "from": "    !!m.goneAt && now - m.goneAt >= ms && !isPlaying(room, m.id));",
+  "to": "    !!m.goneAt && now - m.goneAt >= ms);",
+  "expect": "帰った人：",
+  "only": "帰った人："
+ },
+ {
+  "name": "K12 TV も外す",
+  "file": "fes-room.js",
+  "suite": "tests/fes.js",
+  "from": "  const gone = Array.from(room.members.values()).filter((m) => !m.connected && m.role !== 'bigscreen' &&",
+  "to": "  const gone = Array.from(room.members.values()).filter((m) => !m.connected &&",
+  "expect": "帰った人：",
+  "only": "帰った人："
+ },
+ {
+  "name": "K13 遊んでいる間も外す",
+  "file": "fes-room.js",
+  "suite": "tests/fes.js",
+  "from": "  if (f.phase !== PHASE.LOBBY && f.phase !== PHASE.IDLE) return false;\n",
+  "to": "",
+  "expect": "帰った人：",
+  "only": "帰った人："
+ },
+ {
+  "name": "K14 とばすをたずねずに送る",
+  "file": "public/js/v2-fes.js",
+  "suite": "tests/fes-screens.js",
+  "from": "data-v2-open=\"#v2Skip\">",
+  "to": "data-fes-act=\"pause\">",
+  "expect": "客観検査 B2",
+  "only": "客観検査 B2"
+ },
+ {
+  "name": "K15 枠の「とばす」で送らない",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "from": "    if(act === 'fes-skip-ok' && rt){ V2.close(b.closest('.v2-dlg')); if(fes.staff) rt.fesSkip(fes.staff.code); return; }",
+  "to": "    if(act === 'fes-skip-ok' && rt){ V2.close(b.closest('.v2-dlg')); return; }",
+  "expect": "客観検査 B2",
+  "only": "客観検査 B2"
+ },
+ {
+  "name": "K16 称号の知らせがシートを避けない",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "from": ", .screen.active .v2-sheet.is-open')));",
+  "to": "')));",
+  "expect": "客観検査 A1",
+  "only": "客観検査 A1"
+ },
+ {
+  "name": "K17 3画面に浮いた ← を出す",
+  "file": "public/index.html",
+  "suite": "tests/oldscr.js",
+  "from": "    'scr-login', 'scr-titles', 'scr-rename',\n",
+  "to": "",
+  "expect": "客観検査 F1",
+  "only": "客観検査 F1"
+ },
+ {
+  "name": "K18 3画面に灰色の帯",
+  "file": "public/index.html",
+  "suite": "tests/oldscr.js",
+  "from": "  .v2.v2-oldscr .wiz-body{background:none;}\n",
+  "to": "",
+  "expect": "客観検査 F1",
+  "only": "客観検査 F1"
+ }
+]

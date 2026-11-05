@@ -467,6 +467,23 @@ async function 入った(o) {
     win.close();
   });
 
+  // 客観検査 1-1（2026-11-05）：ライフは本数÷2.5（30本で12・50本で20）。13個からは並べず「❤️×のこり」
+  //（20個並べると、16人のスマホの上の帯で時計が画面の外へ押し出された・v2-shot）
+  await r.test('客観検査 1-1：ライフが12個までは並べ、13個からは「❤️×のこり」で出す（スマホの盤）', async () => {
+    const { win, doc } = await launch({ fakeSocket: true, atEntry: true });
+    win.V2Screens.fes(FesScenes.view('fes2-play'));
+    let scr = doc.getElementById('scr-v2-fes-lobby');
+    assertEqual(scr.querySelectorAll('.v2-ptop .v2-life').length, 12, '6人（30本）はハートを12個並べる');
+    assert(!scr.querySelector('.v2-ptop .v2-lives.is-count'), '12個までは数の形にしない');
+    win.V2Screens.fes(FesScenes.view('fes2-play16'));
+    scr = doc.getElementById('scr-v2-fes-lobby');
+    const c = scr.querySelector('.v2-ptop .v2-lives.is-count');
+    assert(c, '16人（50本・ライフ20）は数の形');
+    assertEqual(scr.querySelectorAll('.v2-ptop .v2-life').length, 0, 'ハートを20個並べない');
+    assert(/^❤️×\d+$/.test(c.textContent.trim()) && /ライフ \d+\/20/.test(c.getAttribute('aria-label') || ''), '「❤️×のこり」と、読み上げは「ライフ のこり/20」（' + c.textContent + '）');
+    win.close();
+  });
+
   // 客観検査 A1（2026-11-05）：結果の「つづけて遊ぶ？」のシートの上に、称号の知らせがかぶさっていた
   //（知らせの置き場を測る帯に、新しい見た目のシートが入っていなかった）。jsdom は版組みをしないので、位置は本物の値で差し込む
   await r.test('客観検査 A1：称号の知らせは、結果の「つづけて遊ぶ？」のシートより上に出る', async () => {

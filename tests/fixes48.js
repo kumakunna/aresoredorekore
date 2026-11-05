@@ -241,9 +241,10 @@ async function run() {
     await sleep(win, 250);
     assertEqual(activeScreen(doc), 'scr-titles', '見ている画面から勝手に飛ばさない');
 
-    // 自分で待合へもどる → ここでルールへ引っぱられる
-    const back = doc.querySelector('#floatingBackBtn');
-    if (back && back.style.display !== 'none') back.click();
+    // 自分で待合へもどる → ここでルールへ引っぱられる。
+    // 客観検査 F1（2026-11-05）：称号の画面には浮いた ← を出さない（見出しにかぶっていた）。もどるのは画面の中の「← もどる」
+    assertEqual(doc.querySelector('#floatingBackBtn').style.display, 'none', '称号の画面に浮いた ← は無い（F1）');
+    doc.querySelector('#titlesBackBtn').click();
     await waitFor(win, () => activeScreen(doc) !== 'scr-titles', 4000, '待合へもどる');
     assertEqual(activeScreen(doc), 'scr-rt-rules',
       '戻ってきたら、ルールが出る（読まずに準備OKを押せてしまわない）');

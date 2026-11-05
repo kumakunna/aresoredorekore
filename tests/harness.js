@@ -8,6 +8,23 @@
 
 const fs = require('fs');
 const path = require('path');
+/**
+ * **jsdom の CSS の値の覚え（4096件）を広げる**（11/05・指示71 で見つけた）。jsdom は「性質と値の組」が正しいかを
+ * 覚えておく LRU（css-values.js・4096件）を持つ。アプリの CSS の組がそれを越えると、画面を開くたびに覚えが
+ * 入れかわり続けて毎回読み直しになり、1枚の読みこみが約4割遅くなった（449→616ms）——rt-screens（約300枚）が
+ * run-tests の20分を越えた。v2.18 はぎりぎり下だった（指示71 の CSS で越えた。1行ずつでは遅くならず、数で越える）。
+ * jsdom を読む前に、jsdom が作る 4096 件の覚えだけを広げる（node_modules は直さない・本番の画面には関係ない）
+ */
+(function 覚えを広げる() {
+  try {
+    const helpers = path.join(path.dirname(require.resolve('jsdom/package.json')), 'lib', 'jsdom', 'living', 'css', 'helpers');
+    const m = require(require.resolve('lru-cache', { paths: [helpers] }));
+    const Base = m.LRUCache;
+    m.LRUCache = class extends Base {
+      constructor(o) { super(o && o.max === 4096 ? Object.assign({}, o, { max: 8192 }) : o); }
+    };
+  } catch (e) { /* 形が変わっていたら、何もしない（遅くなるだけ） */ }
+})();
 const { JSDOM, VirtualConsole } = require('jsdom');
 const TitleLogic = require('../public/js/titles');
 
@@ -838,6 +855,8 @@ function createRunner(title) {
     async test(name, fn) {
       if (だけ && String(name).indexOf(だけ) === -1) return;
       const t0 = Date.now();
+      // 止まっている検査を探す時だけ（ACAC_TRACE=1）：始めた検査の名前を、その場で出す（ふだんは終わってからまとめて出す）
+      if (process.env.ACAC_TRACE) console.error('▶ ' + name);
       try {
         await fn();
         results.push({ name, ok: true, ms: Date.now() - t0 });

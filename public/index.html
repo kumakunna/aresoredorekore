@@ -6459,6 +6459,8 @@
   .v2 .v2-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:none;
     margin:0 calc(var(--v2-side-r) * -1) 0 calc(var(--v2-side) * -1);padding:0 var(--v2-side-r) 2px var(--v2-side);}
   .v2 .v2-chips::-webkit-scrollbar{display:none;}
+  /* 指示71-7 C5：チップの右の端はうすく（「正体をさ」で切れて見えた。続きがあると分かる） */
+  .v2 .v2-chips{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent);}
   .v2 .v2-chip{flex:none;white-space:nowrap;display:inline-flex;align-items:center;border:2.5px solid var(--wl);border-radius:999px;padding:8px 13px;
     font-weight:800;font-size:14px;line-height:1.2;background:transparent;color:var(--wi);cursor:pointer;}
   .v2 .v2-chip:active{transform:scale(.96);}
@@ -6570,6 +6572,8 @@
   .v2 .v2-opt.is-on .v2-ock .v2-ic{visibility:visible;}
   .v2 .v2-oscroll{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:12px;}
   .v2 .v2-oscroll::-webkit-scrollbar{display:none;}
+  /* 指示71-7 C7：下に続きがある時だけ、下の端をうすく（巻けると分かる） */
+  .v2 .v2-oscroll.is-more{-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(180deg,#000 calc(100% - 36px),transparent);}
   .v2 .v2-olink{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:6px 0;font-weight:900;font-size:14px;color:var(--wi);cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
   .v2 .v2-olink:active{transform:scale(.97);}
   .v2 .v2-olink .v2-ic{width:16px;height:16px;}
@@ -10483,7 +10487,7 @@
      * この宣言とは tests/big-screen.js が**両方向で**照合する（落とし穴20）。
      * **不在で表さない**（落とし穴36）——競争版にも false を明示で書く
      */
-    {id:"bomb-coop", icon:"💣", title:"クイズ解除（協力版）", sub:"問題を読んで3択・ライフ制の協力プレイ", advanced:false, strict:false, oneWord:false, bomb:true, coopLayout:true, game:'bomb',
+    {id:"bomb-coop", icon:"💣", title:"クイズ解除（協力版）", sub:"みんなで1つの爆弾を止める", advanced:false, strict:false, oneWord:false, bomb:true, coopLayout:true, game:'bomb',
       // 第45弾 45-3：2行目は「コードをタップするとAIの説明文が出る」だった。
       // 遊んだ人は「タップした瞬間に3択が出た」と報告した。調べたら**2つ違っていた**：
       //
@@ -10507,16 +10511,16 @@
     // 棚・設定・遊ぶ画面には出ない（hidden）。中身（ルール・設定・進行役）は無い
     {id:"defuse", icon:"🧰", title:"実物解除", sub:"（削除したゲーム）", hidden:true, removed:true, game:'defuse'},
     {id:"defuse-focus", icon:"🎯", title:"集中解除", sub:"（削除したゲーム）", hidden:true, removed:true, game:'defuse'},
-    {id:"quizking", icon:"👑", title:"クイズ王決定戦", sub:"難易度をえらんで挑戦・高難易度ほど高得点", advanced:false, strict:false, oneWord:false, quiz:true, hidden:true, game:'quizking',
+    {id:"quizking", icon:"👑", title:"クイズ王決定戦", sub:"むずかしさをえらんで挑戦・むずかしいほど高得点", advanced:false, strict:false, oneWord:false, quiz:true, hidden:true, game:'quizking',
       bullets:["自分の番に挑戦する難易度をえらぶ","難しいほど高得点（点は難易度のボタンに出ます）","問題を読んで3択で答える","正解で得点、外れても減点なし","気に入らないお題はパスできる"]},
     // ---- 第30弾：カセット「クイズ王」。4つとも1人1台・部屋が必須 ----
     // 全員が同時に別々の画面を見る（自分の問題・自分の番・自分の押しボタン）ので、
     // 1台を回す手渡しでは成立しない。出題は問題バンクから（ゲーム中にAIは呼ばない）
-    {id:"quizrush", icon:"⚡", title:"クイズラッシュ", sub:"難易度を選んで解き続ける・時間いっぱい", advanced:false, strict:false, oneWord:false, quizKing:true, quizRush:true, roomOnly:true, game:'quizrush', minPlayers:2, timer:180,
-      tv:[["🏃","時間いっぱい、次々に答え続ける"], ["⭐","難しい問題ほど高得点"], ["🎚️","難易度はそれぞれがえらぶ"]],
+    {id:"quizrush", icon:"⚡", title:"クイズラッシュ", sub:"むずかしさをえらんで解き続ける・時間いっぱい", advanced:false, strict:false, oneWord:false, quizKing:true, quizRush:true, roomOnly:true, game:'quizrush', minPlayers:2, timer:180,
+      tv:[["🏃","時間いっぱい、次々に答え続ける"], ["⭐","難しい問題ほど高得点"], ["🎚️","むずかしさはそれぞれがえらぶ"]],
       bullets:["挑む難易度を、自分でえらぶ","難しいほど高得点（点は難易度のボタンに出ます）","制限時間いっぱい、次々に答え続ける","答えたくない問題はパスできる（回数は設定できる）","難易度は途中で変えられる（変えられなくもできる）","ラウンド制にすると、勝ったラウンド数で優勝を決める"]},
-    {id:"quizlist", icon:"🔁", title:"つぎつぎクイズ", sub:"順番に1つずつ答える・既出はアウト", advanced:false, strict:false, oneWord:false, quizKing:true, quizList:true, roomOnly:true, game:'quizlist', minPlayers:2, timer:180,
-      tv:[["💬","順番に1つずつ、お題の答えを言う"], ["🏆","協力は目標数、脱落は残った1人が勝ち"], ["❌","既出・間違い・時間切れはアウト"]],
+    {id:"quizlist", icon:"🔁", title:"つぎつぎクイズ", sub:"順番に1つずつ答える・出た答えはアウト", advanced:false, strict:false, oneWord:false, quizKing:true, quizList:true, roomOnly:true, game:'quizlist', minPlayers:2, timer:180,
+      tv:[["💬","順番に1つずつ、お題の答えを言う"], ["🏆","協力は目標数、脱落は残った1人が勝ち"], ["❌","出た答え・間違い・時間切れはアウト"]],
       bullets:["お題が1つ出る（例：赤い食べ物）","順番に1人1個ずつ、まだ出ていない答えを言う","間違い・既出・時間切れはアウト","協力形式：みんなで目標の数まで出せたら成功","脱落形式：最後まで残った1人が勝ち","誰の番かは全員の画面にリアルタイムで出る"]},
     {id:"quizreveal", icon:"🔎", title:"とくとくクイズ", sub:"だんだん見えてくる・早いほど高得点", advanced:false, strict:false, oneWord:false, quizKing:true, quizReveal:true, roomOnly:true, game:'quizreveal', minPlayers:2, timer:180,
       tv:[["👀","問題文が1文字ずつ開いていく"], ["⚡","早く押して当てるほど高得点"], ["❌","外した人は、その問題だけお休み"]],
@@ -13269,7 +13273,9 @@
     var items = ids.map(function(gid){
       var g = gameById(gid);
       return { id: gid, icon: g.icon, title: g.title, sub: g.sub || '', why: gameHeadsWhy(gid, n), on: gid === state.selectedGameId };
-    }).concat(((c && c.paused) || []).map(function(p){ return { id: p.id, ic: 'pause', title: p.title, why: UiText.HOME.一覧.お休み + '（' + p.なぜ + '）' }; }));
+    });
+    // 指示71-7（68-0b C6・見本 sg2）：いまの人数で遊べない札は、遊べる札の間に入れず、下にまとめる（並びの順はそのまま）
+    items = items.filter(function(x){ return !x.why; }).concat(items.filter(function(x){ return !!x.why; })).concat(((c && c.paused) || []).map(function(p){ return { id: p.id, ic: 'pause', title: p.title, why: UiText.HOME.一覧.お休み + '（' + p.なぜ + '）' }; }));
     var scr = el('scr-game');
     fesWorld(scr, (c && c.theme) || 'wait');
     el('gameCards').innerHTML = V2Home.opts({ world: (c && c.theme) || 'wait', name: c ? (c.title || '').replace(/<br>/g, '') : '', n: n, items: items });
@@ -13386,11 +13392,11 @@
     { id:'bomb',            title:'クイズ解除',         icon:'💣', sub:'問題を読んで3択・コードを解除する', usesTopicPool:true, maxPlayers:16 },   // 指示68-2：16人まで
     // 指示68-1：削除したゲーム。名前だけ残す（古い記録が読めるように）。どのカセットにも入っていない
     { id:'defuse',          title:'実物解除',           icon:'🧰', sub:'（削除したゲーム）', maxPlayers:0, removed:true },
-    { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'難易度をえらんで挑戦・高難度ほど高得点', usesTopicPool:true },
+    { id:'quizking',        title:'クイズ王決定戦',     icon:'👑', sub:'むずかしさをえらんで挑戦・むずかしいほど高得点', usesTopicPool:true },
     // 第30弾：カセット「クイズ王」の4ゲーム。出題は問題バンク（quiz-bank.js）から。
     // ゲーム中にAIは呼ばないので usesTopicPool は付けない（お題プールも使わない）
-    { id:'quizrush',        title:'クイズラッシュ',     icon:'⚡', sub:'難易度を選んで解き続ける・時間いっぱい', maxPlayers:0 },
-    { id:'quizlist',        title:'つぎつぎクイズ',     icon:'🔁', sub:'順番に1つずつ答える・既出はアウト', maxPlayers:0 },
+    { id:'quizrush',        title:'クイズラッシュ',     icon:'⚡', sub:'むずかしさをえらんで解き続ける・時間いっぱい', maxPlayers:0 },
+    { id:'quizlist',        title:'つぎつぎクイズ',     icon:'🔁', sub:'順番に1つずつ答える・出た答えはアウト', maxPlayers:0 },
     { id:'quizreveal',      title:'とくとくクイズ',     icon:'🔎', sub:'だんだん見えてくる・早いほど高得点', maxPlayers:0 },
     { id:'buzzer',          title:'早押しトーナメント', icon:'🥊', sub:'1対1の勝ち抜き・先に3問正解で勝ち', usesTopicPool:true },
     { id:'auction',         title:'オークションバトル', icon:'💰', sub:'チップを賭けて正解を競う', usesTopicPool:true },
@@ -16171,14 +16177,29 @@
     el('modeHead').innerHTML = V2Home.ohead({ world: world, name: gameTitleOf(state.selectedGameId), n: currentPlayerCount() || null });
     // お休み中のゲーム（実物解除）は、ゲームの札が無いカセット（1つだけ）の時にここで理由つきで出す
     var paused = (c && cassetteGames(c).length === 1) ? (c.paused || []) : [];
+    // 指示71-7（68-0b C7）：上にゲーム名が出ているので、札の題は「協力版」だけ（「クイズ解除（協力版）」と毎回くり返さない）
+    var gname = gameTitleOf(state.selectedGameId);
     el('modeCards').innerHTML = V2Home.optItems(list.map(function(m){
-      return { id: m.id, icon: m.icon, title: String(m.title || '').replace(/<br>/g, ''), sub: m.sub, why: modeLockReason(m), on: m.id === state.selectedModeId };
+      return { id: m.id, icon: m.icon, title: modeShortTitle(String(m.title || '').replace(/<br>/g, ''), gname), sub: m.sub, why: modeLockReason(m), on: m.id === state.selectedModeId };
     }).concat(paused.map(function(p){ return { id: 'paused-' + p.id, ic: 'pause', title: p.title, why: UiText.HOME.一覧.お休み + '（' + p.なぜ + '）' }; })), 'data-id');
     var sel = modeById(state.selectedModeId);
     el('modeRules').innerHTML = (sel && sel.tv) ? V2.rulesHtml(sel.tv) : '';
     V2.mount(scr);
+    v2ScrollHint(scr.querySelector('.v2-oscroll'));
     renderScorePreview();
     renderModeRoomNote();
+  }
+  /** 「クイズ解除（協力版）」のように、ゲーム名＋（モード）の題は、ゲーム名が上にある所では（）の中だけにする（指示71-7 C7） */
+  function modeShortTitle(t, gname){
+    var m = /^(.+)（([^）]+)）$/.exec(t || '');
+    return (m && gname && m[1] === gname) ? m[2] : t;
+  }
+  /** 巻ける箱の下に続きがある時だけ、下の端をうすくする（指示71-7 C7：下で切れたルールの札が、巻けると分からなかった） */
+  function v2ScrollHint(box){
+    if(!box) return;
+    var f = function(){ box.classList.toggle('is-more', box.scrollTop + box.clientHeight < box.scrollHeight - 4); };
+    if(!box.__hint){ box.__hint = true; box.addEventListener('scroll', f, { passive: true }); window.addEventListener('resize', f); }
+    requestAnimationFrame(f);
   }
   // 第26弾-3：部屋のために選んでいる時は、そのことを見えるようにしておく。
   // 手渡しのつもりで人数を数えている人が、ここで気づけるように

@@ -264,7 +264,9 @@
     }).join('');
     var chips = '<button type="button" class="v2-chip is-on" data-home-chip="all">' + e(P.ぜんぶ) + '</button>' +
       (p.groups || []).map(function (g) { return '<button type="button" class="v2-chip" data-home-chip="' + e(g.id) + '">' + e(g.chip || g.label) + '</button>'; }).join('');
-    var faces = (p.faces || []).slice(0, 5).map(function (f) { return V.avHtml(f, 'is-sm'); }).join('');
+    // 指示71-7（68-0b C5）：顔は3つまで＋「+7」（5つ並べると重なって読めなかった・見本どおり）
+    var faces = (p.faces || []).slice(0, 3).map(function (f) { return V.avHtml(f, 'is-sm'); }).join('') +
+      ((p.faces || []).length > 3 ? '<span class="v2-faces-more">+' + ((p.faces || []).length - 3) + '</span>' : '');
     return V.bgHtml() + V.brandHtml() + backHtml('pick-exit') +
       '<div class="v2-in">' + hd(P.英, P.見出し, true, true) +
         '<div class="v2-pills">' + ctx + '</div>' +

@@ -299,6 +299,14 @@ function clearReady(room) {
  * **数えるのは「つながっているプレイヤー」だけ。** 切れた人・大画面は待たない
  * （settleAfterMemberGone と同じ考え。待つと、寝落ちした1人で全員が止まる）。
  */
+/**
+ * 客観検査 G2（2026-11-05）：みんなに配る名前。文化祭で係が隠した人は ●●●（元の名前を届けない）。
+ * 部屋の名簿・準備OK の「〇〇さんを待っています」・アルバムの名前は、ここを通す（1か所・落とし穴1）
+ */
+function shownName(room, m) {
+  return (room && room.fes && room.fes.hidden.has(m.id)) ? '●●●' : m.name;
+}
+
 function readyTally(room) {
   const game = room.state.game;
   const waiting = playerMembers(room).filter((m) => m.connected);
@@ -307,7 +315,7 @@ function readyTally(room) {
     count: done.length,
     total: waiting.length,
     // まだの人の名前。ホストの画面に「〇〇さんを待っています」と出す（公開情報）
-    waitingNames: game ? waiting.filter((m) => m.readyGame !== game).map((m) => m.name) : [],
+    waitingNames: game ? waiting.filter((m) => m.readyGame !== game).map((m) => shownName(room, m)) : [],
     all: !!game && waiting.length > 0 && done.length === waiting.length
   };
 }
@@ -571,7 +579,7 @@ function publicSnapshot(room) {
       .map((m) => ({
         id: m.id,
         // 指示66-2：係が隠した人は、名前を ●●● にして配る（スマホにもTVにも、元の名前を届けない）
-        name: (room.fes && room.fes.hidden.has(m.id)) ? '●●●' : m.name,
+        name: shownName(room, m),
         role: m.role,
         connected: m.connected,
         isHost: m.id === room.hostMemberId,
@@ -1303,6 +1311,24 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     removeMember: (room, id, reason) => removeMember(room, id, reason)
   };
   /** 文化祭の部屋の今を配る：部屋の知らせ（全員）と、本人だけのもの（自分の投票・むずかしさ） */
+  /**
+   * 客観検査 G2（2026-11-05）：係が隠した人の名前を、動いているゲームの名前の表（w.names）にも効かせる。
+   * 部屋の名簿（publicSnapshot）は ●●● にしていたが、ゲームの進行役は始める時に元の名前を写して
+   * ゲーム中・結果の TV とスマホへ配っていた。始めた直後と、隠す／もどすたびに呼ぶ。
+   * もどす時は部屋の名前（m.name）から戻す。部屋にいない人（抜けた人）の名前は書きかえない
+   */
+  function syncHiddenNames(room) {
+    if (!room || !room.fes) return false;
+    const w = driverStateOf(room);
+    if (!w || !w.names) return false;
+    let changed = false;
+    Object.keys(w.names).forEach((id) => {
+      const m = room.members.get(id);
+      const want = room.fes.hidden.has(id) ? '●●●' : (m ? m.name : w.names[id]);
+      if (w.names[id] !== want) { w.names[id] = want; changed = true; }
+    });
+    return changed;
+  }
   function pushFes(room) {
     broadcast(room);
     for (const m of room.members.values()) {
@@ -1385,6 +1411,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     let res;
     try { res = entry.driver.startGame(room, payload || {}, ctx); } finally { 始めている最中 = false; }
     if (!res.ok) return res;
+    // 客観検査 G2：文化祭で係が隠した人は、ゲームの名前の表でも ●●●（始める前に隠した時）
+    syncHiddenNames(room);
     // 指示63 第4部：数えている間は始まっていない。持ち時間は0になった瞬間から減る
     if (countdownMs > 0) {
       room.countdownUntil = Date.now() + countdownMs;
@@ -1982,6 +2010,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (!room || !room.members.has(id)) return fail(cb, 'member_not_found', 'その人は部屋にいません');
       if (payload.hidden === false) room.fes.hidden.delete(id); else room.fes.hidden.add(id);
       if (typeof cb === 'function') cb({ ok: true });
+      // 客観検査 G2：遊んでいる途中に隠す／もどすと、ゲームの知らせも配り直す
+      if (syncHiddenNames(room)) pushWolfState(room);
       pushFes(room);
     });
     // 係：部屋から外す。**だれを外したかは、残った人に知らせない**

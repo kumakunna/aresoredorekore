@@ -386,6 +386,42 @@ async function join(srv, code, name, diff, extra) {
     await srv.close();
   });
 
+  // 客観検査 G2（2026-11-05）：●●● は部屋の名簿だけで、ゲームの進行役は始める時に元の名前を写していた。
+  // ゲーム中・結果の TV とスマホにも、隠した名前を届けない（始める前に隠した時も、遊んでいる途中で隠した時も）
+  await r.test('門6（ゲームの中）：隠した名前は、ゲーム中と結果の知らせにも出ない・もどすと戻る', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv);
+    const tv = await join(srv, code, 'TV', null, { role: 'bigscreen' });
+    const a = await join(srv, code, 'ふう');
+    const bad = await join(srv, code, 'わるいなまえ');
+    await staff.call('fes:watch', { code });
+    assertEqual((await staff.call('fes:hide', { code, memberId: bad.memberId })).ok, true, '始まる前に隠す');
+    await waitUntil(() => fesOf(a).phase === 'vote', '投票へ');
+    for (const d of [a, bad]) await d.call('fes:vote', { mode: 'bomb-coop' });
+    await waitUntil(() => fesOf(a).phase === 'ready', 'ルールと準備OKへ');
+    for (const d of [a, bad]) await d.call('room:ready', { game: 'bomb' });
+    await waitUntil(() => fesOf(a).phase === 'play' && a.room.state && a.room.state.data, '始まる');
+    const bomb = srv.store.get(code).bomb;
+    assert(bomb && bomb.playerIds.indexOf(bad.memberId) !== -1, '隠した人もゲームに入っている（型(b)：名前が配られる状況を作れている）');
+    // 1本切って「〇〇 が切った」の名前が配られる形にする
+    const uid = bomb.wires[0].uid;
+    await bad.call('wolf:act', { targetId: uid });
+    await waitUntil(() => bad.wolf && bad.wolf.open, 'コードを開ける');
+    await bad.call('wolf:vote', { targetId: bad.wolf.open.choices[bad.wolf.open.correct] });
+    await sleep(150);
+    for (const d of [tv, a, bad]) {
+      assert(!JSON.stringify(d.room).includes('わるいなまえ'), 'ゲーム中の部屋の知らせに元の名前が無い（' + (d === tv ? 'TV' : 'スマホ') + '）');
+      if (d.wolf) assert(!JSON.stringify(d.wolf).includes('わるいなまえ'), '本人だけの知らせにも元の名前が無い');
+    }
+    // 遊んでいる途中で もどす → ゲームの知らせにも戻る。もう一度隠す → また消える
+    await staff.call('fes:hide', { code, memberId: bad.memberId, hidden: false });
+    await waitUntil(() => JSON.stringify(tv.room.state.data).includes('わるいなまえ'), 'もどすと、ゲームの知らせにも名前が戻る');
+    await staff.call('fes:hide', { code, memberId: bad.memberId });
+    await waitUntil(() => !JSON.stringify(tv.room).includes('わるいなまえ'), '遊んでいる途中で隠しても、すぐ消える');
+    [staff, tv, a, bad].forEach((d) => d.close());
+    await srv.close();
+  });
+
   await r.test('門7（サーバー）：★は1回で送られ、押し直すと上書き・ひとことは別に送る・やめた人も送れる', async () => {
     const srv = await startTestServer();
     const { staff, code } = await makeFes(srv);

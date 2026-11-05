@@ -17,9 +17,10 @@ const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'),
 
 // ログイン画面（scr-login）の中身だけを切り出す
 function loginScreenHtml() {
-  const start = HTML.indexOf('<div class="screen" id="scr-login">');
+  // 指示71-7：ログインの画面は新しい見た目の箱の印（v2 v2-w-wait v2-oldscr）も持つ。印の数によらず見つける
+  const start = HTML.search(/<div class="screen[^"]*" id="scr-login">/);
   assert(start >= 0, 'ログイン画面（scr-login）が見つからない');
-  const next = HTML.indexOf('class="screen"', start + 10);
+  const next = HTML.indexOf('<div class="screen', start + 10);
   return HTML.slice(start, next < 0 ? HTML.length : next);
 }
 

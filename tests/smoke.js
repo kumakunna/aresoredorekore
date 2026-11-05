@@ -2770,7 +2770,9 @@ async function startModeWithTimerOff(win, doc, id) {
     const ids = Array.from(doc.querySelectorAll('#modeCards [data-id]')).map(c => c.dataset.id);
     assertEqual(ids.join(','), 'bomb-coop,bomb-race', 'クイズ解除の2枚だけが並ぶ');
     const cards = Array.from(doc.querySelectorAll('#modeCards [data-id]'));
-    assert(/クイズ解除/.test(cards[0].textContent), 'モードカードの名前が「クイズ解除」になっている');
+    // 指示71-7（68-0b C7）：上にゲーム名（クイズ解除）が出ているので、札の題は「協力版」だけ
+    assert(/クイズ解除/.test(doc.getElementById('modeHead').textContent), 'モードの画面の上の名前が「クイズ解除」になっている');
+    assert(/協力版/.test(cards[0].textContent) && !/クイズ解除/.test(cards[0].textContent), 'モードカードの名前は「協力版」（ゲーム名をくり返さない）');
 
     // 競争版は部屋が必須なので、手渡し方式では選べない（理由が読める）
     assert(cards[1].classList.contains('is-off'), '競争版は手渡しでは選べない');

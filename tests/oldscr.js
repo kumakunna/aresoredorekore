@@ -55,7 +55,7 @@ const SERVER = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
   });
 
   await r.test('68-0b C21：今までの見た目の画面の見出しは ← の丸のぶん右へ・「不正解」の知らせは時計の下（tools/aresore-walk.js で重なり0）', async () => {
-    assert(/\.screen:not\(\.v2\) > \.wiz-head, \.screen:not\(\.v2\) > h2\.scr-title\{padding-left:40px;\}/.test(HTML), '見出しを ← の丸のぶん右へ');
+    assert(/\.screen:not\(\.v2\) > \.wiz-head, \.screen:not\(\.v2\) > \.scr-title\{padding-left:40px;\}/.test(HTML), '見出しを ← の丸のぶん右へ（タグで縛らない・tests/ui-kit.js）');
     assert(/\.foul-toast\{\s*position:fixed;top:100px;/.test(HTML), '知らせは時計の下（top:100px）');
     assert(!/棚にもどる</.test(HTML), '無くなった棚へ「もどる」と書いたボタンが無い');
   });

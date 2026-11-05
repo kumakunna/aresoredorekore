@@ -806,13 +806,16 @@ async function join(srv, code, name, diff, extra) {
     assertEqual(room.fes.phase, 'lobby', '待合（型(b)：外す段にいる）');
     FesRoom.tick(room, now, api);
     assertEqual(removed.join(','), 'gone:fes_gone', '2分たった人だけ外す（TV と2分たっていない人は残す）');
-    // ゲームの中の人は、切れて何分たっても外さない（戻ればそのまま続きから）
+    // 待合と呼び込みのほか（投票・決定・準備OK・遊ぶ・結果）では外さない。ゲームの中の人は、切れて何分たっても外さない（戻ればそのまま続きから）
     add('player', { connected: false, goneAt: now - 300000 });
-    room.fes.phase = 'play';
     room.fes.played = { mode: 'bomb-coop', round: 1, ids: ['a', 'player'] };
-    FesRoom.tick(room, now, api);
-    assertEqual(removed.length, 1, '遊んでいる間は外さない');
-    room.fes.phase = 'lobby'; room.fes.played = null;
+    for (const ph of ['vote', 'decide', 'ready', 'play', 'result']) {
+      room.fes.phase = ph;
+      room.fes.endsAt = now + 60000;   // 段の時計で先へ進まないように
+      FesRoom.tick(room, now, api);
+      assertEqual(removed.length, 1, ph + ' の間は外さない');
+    }
+    room.fes.phase = 'lobby'; room.fes.played = null; room.fes.endsAt = null;
     FesRoom.tick(room, now, api);
     assertEqual(removed.join(','), 'gone:fes_gone,player:fes_gone', '待合にもどったら外す');
   });

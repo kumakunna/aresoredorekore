@@ -319,7 +319,7 @@ function roundDetail(room, mode) {
  * api：startGameNow / clearGameState / driverStateOf / removeMember / tell
  */
 /**
- * 客観検査 G1：帰った人（切れて goneMs たった人）を外す。待合と呼び込みの間だけ・TV とゲームの中の人はのぞく。
+ * 客観検査 G1：帰った人（切れて goneMs たった人）を外す。待合と呼び込みの間だけ（＝いまのゲームの中の人はいない）・TV はのぞく。
  * 外すのは realtime.js の removeMember（いなくなる経路を1か所に・落とし穴17）。外した人がいれば true
  */
 function sweepGone(room, now, api) {
@@ -327,7 +327,7 @@ function sweepGone(room, now, api) {
   if (f.phase !== PHASE.LOBBY && f.phase !== PHASE.IDLE) return false;
   const ms = f.times.goneMs || TIMES.goneMs;
   const gone = Array.from(room.members.values()).filter((m) => !m.connected && m.role !== 'bigscreen' &&
-    !!m.goneAt && now - m.goneAt >= ms && !isPlaying(room, m.id));
+    !!m.goneAt && now - m.goneAt >= ms);
   gone.forEach((m) => api.removeMember(room, m.id, 'fes_gone'));
   return gone.length > 0;
 }

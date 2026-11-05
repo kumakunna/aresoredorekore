@@ -90,15 +90,6 @@
   "only": "帰った人："
  },
  {
-  "name": "K11 ゲームの中の人も外す",
-  "file": "fes-room.js",
-  "suite": "tests/fes.js",
-  "from": "    !!m.goneAt && now - m.goneAt >= ms && !isPlaying(room, m.id));",
-  "to": "    !!m.goneAt && now - m.goneAt >= ms);",
-  "expect": "帰った人：",
-  "only": "帰った人："
- },
- {
   "name": "K12 TV も外す",
   "file": "fes-room.js",
   "suite": "tests/fes.js",

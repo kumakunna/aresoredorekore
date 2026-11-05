@@ -6247,6 +6247,9 @@
   .v2 .v2-ttop .v2-lives.is-many{font-size:50px;gap:4px;}
   .v2 .v2-ptop .v2-lives.is-many{font-size:15px;gap:1px;}
   .v2 .v2-tend .v2-lives.is-many{font-size:60px;gap:8px;}
+  /* 客観検査（2026-11-05）：ライフが13個から（本数÷2.5・50本で20）は並べず「❤️×のこり」。数字は字幅をそろえる */
+  .v2 .v2-lives.is-count{gap:.12em;align-items:baseline;white-space:nowrap;}
+  .v2 .v2-lives.is-count b{font-weight:900;font-variant-numeric:tabular-nums;}
   .v2 .v2-tclock .v2-cd-n{background:rgba(0,0,0,.35);font-size:84px;padding:4px 18px;border-radius:18px;}
   .v2 .v2-tmid{display:flex;flex-direction:column;align-items:center;gap:22px;}
   .v2 .v2-tpn{display:flex;align-items:baseline;gap:20px;}

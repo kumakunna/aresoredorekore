@@ -494,6 +494,10 @@
       '</div></div>';
   }
   function livesHtml(n, max) {
+    // 客観検査（2026-11-05）：ライフは本数÷2.5 で 12〜20 になる。13個からは並べず「❤️×のこり」（スマホの上の帯で時計を押し出さない）
+    if ((max || 0) > 12) {
+      return '<span class="v2-lives is-count" role="img" aria-label="' + e(U().遊ぶ.ライフ + ' ' + Math.max(0, n | 0) + '/' + max) + '">❤️<b>×' + Math.max(0, n | 0) + '</b></span>';
+    }
     // 指示68-T 6：ライフは人数の表で 7〜12 になる。7つからは小さく並べる（TV で見出しを押しつぶさない）
     var h = '<span class="v2-lives' + ((max || 0) > 6 ? ' is-many' : '') + '">';
     for (var i = 0; i < (max || 0); i++) h += '<span class="' + (i < n ? 'v2-life' : 'v2-life is-gone') + '">❤️</span>';

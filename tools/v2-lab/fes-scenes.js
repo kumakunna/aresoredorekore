@@ -50,8 +50,8 @@ function 進める(room) { room.fes.endsAt = Date.now() - 1; FesRoom.tick(room, 
 function のこり(room, sec) { room.fes.endsAt = Date.now() + sec * 1000; }
 
 /** クイズ解除（協力版）を本当に動かして、成功（ok）か爆発（boom）で終わらせる */
-function クイズ解除を終える(room, ok) {
-  const ids = Array.from(room.members.values()).filter((m) => m.role === 'player').map((m) => m.id).slice(0, 8);
+function クイズ解除を終える(room, ok, o) {
+  const ids = Array.from(room.members.values()).filter((m) => m.role === 'player').map((m) => m.id).slice(0, (o && o.max) || 8);
   room.members.forEach((m) => { if (m.role === 'player' && ids.indexOf(m.id) === -1) m.role = 'waiting'; });
   const res = BombRoom.startGame(room, FesRoom.gameOf('bomb-coop').start, { notify() {} });
   if (!res.ok) throw new Error('クイズ解除を始められません: ' + res.error);
@@ -63,7 +63,7 @@ function クイズ解除を終える(room, ok) {
     BombRoom.submitVote(room, who, x.choices[x.correct]);
   });
   if (!ok) {
-    // ライフがなくなるまで外す（ライフは人数の表で決まる：30本で7・指示68-T 6）。のこりのコードを順に、何度でも
+    // ライフがなくなるまで外す（ライフは人数の表で決まる：30本で12・50本で20・指示68-T 6・客観検査 2026-11-05）。のこりのコードを順に、何度でも
     for (let k = 0; k < 60 && w.phase !== 'ended'; k++) {
       const x = w.wires[solve + (k % (w.wires.length - solve))];
       BombRoom.submitAction(room, ids[0], x.uid);
@@ -168,6 +168,10 @@ const BUILD = {
   'fes2-readied': (o) => { const r = 部屋(o.n || 8); FesRoom.tick(r, Date.now(), api); 進める(r); FesRoom.vote(r, 'm1', 'bomb-coop'); 進める(r); 進める(r);
     ['m1', 'm2', 'm5', 'm6', 'm7'].forEach((id) => { const m = r.members.get(id); if (m) m.readyGame = 'bomb'; }); のこり(r, 12); return lab(r, 'scr-v2-fes-lobby'); },
   'fes2-play': (o) => { const r = 部屋(o.n || 6); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-lobby', 'm1', { secret: JSON.parse(JSON.stringify(BombRoom.privateFor(r, 'm1'))) }); },
+  // 客観検査（2026-11-05）：ライフを本数÷2.5 にしたので、16人（50本）でハートが20個。スマホの上の帯に入るかを撮る
+  'fes2-play16': (o) => { const r = 部屋(16, o.long); クイズ解除の途中(r, { max: 16 }); return lab(r, 'scr-v2-fes-lobby', 'm1', { secret: JSON.parse(JSON.stringify(BombRoom.privateFor(r, 'm1'))) }); },
+  'fes2-result16': (o) => { const r = 部屋(16, o.long); クイズ解除を終える(r, true, { max: 16 }); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); },
+  'fes2-tv-result16': (o) => { const r = 部屋(16, o.long); クイズ解除を終える(r, true, { max: 16 }); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   'fes2-tv-play': (o) => { const r = 部屋(o.n || 8, o.long); クイズ解除の途中(r); return lab(r, 'scr-v2-fes-tv', 'tv'); },
   // 指示68-2 第2節：TV の盤。16人で50本・正しく切った瞬間（火花と「〇〇 が切った」）・のこり1本
   'fes2-tv-play16': (o) => { const r = 部屋(16, o.long); クイズ解除の途中(r, { max: 16 }); return lab(r, 'scr-v2-fes-tv', 'tv'); },
@@ -220,7 +224,7 @@ const SCENES = [
   ['fes2-safety', 'phone', 'f1'], ['fes2-cd', 'phone', 'f10'], ['fes2-tv-cd', 'tv', 't10'],
   ['fes2-join', 'phone', 'f2a'], ['fes2-join-on', 'phone', null], ['fes2-join-bad', 'phone', 'f2b'],
   ['fes2-lobby', 'phone', 'f3'], ['fes2-fb', 'phone', 'f4'], ['fes2-fbmini', 'phone', null],
-  ['fes2-play', 'phone', 'f11'], ['fes2-tv-play16', 'tv', null], ['fes2-tv-play-cut', 'tv', null], ['fes2-tv-play-last', 'tv', null], ['fes2-tv-play', 'tv', 't11'],
+  ['fes2-play', 'phone', 'f11'], ['fes2-play16', 'phone', null], ['fes2-result16', 'phone', null], ['fes2-tv-result16', 'tv', null], ['fes2-tv-play16', 'tv', null], ['fes2-tv-play-cut', 'tv', null], ['fes2-tv-play-last', 'tv', null], ['fes2-tv-play', 'tv', 't11'],
   ['fes2-look', 'phone', 'f5a'], ['fes2-look-icon', 'phone', 'f5b'], ['fes2-look-name', 'phone', 'f5c'],
   ['fes2-vote', 'phone', 'f7'], ['fes2-vote-t', 'phone', null], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'], ['fes2-readied', 'phone', null],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],

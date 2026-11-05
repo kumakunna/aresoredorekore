@@ -77,13 +77,13 @@ function requireAuth(req, res, next) {
 app.post('/api/auth/register', (req, res) => {
   const { username, password, code } = req.body || {};
   if (!matchesRegisterCode(code, REGISTER_CODES)) {
-    return res.status(403).json({ error: '登録コードが違います' });
+    return res.status(403).json({ error: '登録コード（合言葉）がちがうようです。係の人にたずねてね' });
   }
   if (!username || !password || password.length < 6) {
-    return res.status(400).json({ error: 'ユーザー名とパスワード（6文字以上）が必要です' });
+    return res.status(400).json({ error: 'ユーザー名と、6文字以上のパスワードを入れてね' });
   }
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-  if (exists) return res.status(409).json({ error: 'そのユーザー名は既に使われています' });
+  if (exists) return res.status(409).json({ error: 'そのユーザー名は、もう使われています。ほかの名前にしてね' });
 
   const hash = bcrypt.hashSync(password, 10);
   // 第48弾 48-8：**登録の時は、見せる名前＝ログインID**から始める。
@@ -107,7 +107,7 @@ app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body || {};
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!user || !bcrypt.compareSync(password || '', user.password_hash)) {
-    return res.status(401).json({ error: 'ユーザー名またはパスワードが違います' });
+    return res.status(401).json({ error: 'ユーザー名かパスワードがちがうようです。もう一度たしかめてね' });
   }
   req.session.userId = user.id;
   res.json({ id: user.id, username: user.username,

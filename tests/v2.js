@@ -137,7 +137,9 @@ function v2のクラス(css) {
     win.V2Screens.fesLobby(view); win.V2Screens.fesTv(view); win.V2Screens.parts({ world: 'bomb' });
     const 許す = /^(v2|v2-[a-z0-9-]+|screen|active|scr-in-fwd|scr-in-back|is-[a-z0-9-]+|emj|emj-[a-z]+)$/;
     const 見た = new Set(), 外 = new Set(), is = new Set();
-    doc.querySelectorAll('.screen.v2, .screen.v2 *').forEach((e) => {
+    // 指示71-7：ログイン・称号・名前を変える（.v2-oldscr）は、今までの部品（id・JS が付ける印）をそのまま新しい見た目の箱で着せ直す画面
+    // （⚙ の .v2-setov と同じやり方・その箱の CSS は全部 .v2.v2-oldscr から書いてある）。新しい部品で作る画面だけを見る
+    doc.querySelectorAll('.screen.v2:not(.v2-oldscr), .screen.v2:not(.v2-oldscr) *').forEach((e) => {
       (typeof e.className === 'string' ? e.className : (e.getAttribute('class') || '')).split(/\s+/).filter(Boolean).forEach((c) => {
         見た.add(c);
         if (!許す.test(c)) 外.add(c);

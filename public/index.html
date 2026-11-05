@@ -6700,6 +6700,56 @@
   /* 指示71-5（68-0b B21）：満員の TV の小さい QR */
   .v2 .v2-tqr.is-full .v2-tqr-mini{display:block;width:300px;height:300px;}
   .v2 .v2-tqr.is-full .v2-tqr-mini svg{display:block;width:100%;height:100%;}
+  /* 指示71-7（68-7 の2・68-0b C23）：ログイン・新しく登録・称号・名前を変える。流れと部品（id・JS が付ける印）はそのまま、
+     新しい見た目の箱（.v2.v2-oldscr）の中で着せ直す（⚙ の .v2-setov と同じやり方）。古い規則より強くするため .v2.v2-oldscr から書く */
+  .screen.v2.v2-oldscr{background:linear-gradient(180deg,var(--wt),var(--wb));font-size:15px;line-height:1.55;}
+  .v2.v2-oldscr .scr-title,.v2.v2-oldscr .wiz-head h2{font-family:var(--v2-jp);font-weight:900;font-size:28px;line-height:1.2;color:var(--wi);letter-spacing:0;}
+  .v2.v2-oldscr .scr-sub,.v2.v2-oldscr .wiz-lead{font-weight:800;font-size:14px;line-height:1.6;color:var(--ws);margin:8px 0 16px;}
+  .v2.v2-oldscr input[type=text],.v2.v2-oldscr input[type=password]{display:block;width:100%;min-height:52px;margin:0 0 12px;padding:10px 14px;border:3px solid var(--wl);border-radius:14px;
+    background:var(--wc2);color:var(--wi);font-family:var(--v2-jp);font-weight:800;font-size:16px;box-shadow:none;}
+  .v2.v2-oldscr input::placeholder{color:var(--ws);opacity:.8;}
+  .v2.v2-oldscr input:focus{outline:none;border-color:var(--wi);}
+  /* まちがえた時：赤い字で責めない。何をすればいいかの一言を、ふつうの札で（大切なこと7「責める時は静かに」） */
+  .v2.v2-oldscr .serial-error{font-weight:800;font-size:14px;line-height:1.55;color:var(--wi);background:var(--wc2);border:3px solid var(--wl);border-radius:14px;padding:10px 14px;margin:4px 0 0;}
+  .v2.v2-oldscr .serial-error:empty{display:none;}
+  .v2.v2-oldscr .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;padding:8px 16px;margin:0;border-radius:16px;box-shadow:none;
+    font-family:var(--v2-jp);font-weight:900;font-size:16px;letter-spacing:0;background:var(--wc2);color:var(--wi);border:3px solid var(--wl);text-decoration:none;}
+  .v2.v2-oldscr .btn:active{transform:scale(.97);}
+  .v2.v2-oldscr .btn.btn-main,.v2.v2-oldscr .btn.btn-teal{background:var(--wbtn);color:var(--wbtn-ink);border-color:var(--wbtn);}
+  .v2.v2-oldscr .btn.btn-ghost{background:transparent;border-color:transparent;font-weight:800;font-size:15px;color:var(--ws);min-height:48px;}
+  .v2.v2-oldscr .btn + .btn,.v2.v2-oldscr .join-divider + .btn,.v2.v2-oldscr .serial-error + .btn{margin-top:14px;}
+  .v2.v2-oldscr .join-divider{margin:20px 0 6px;color:var(--ws);font-weight:800;font-size:13px;}
+  .v2.v2-oldscr .join-divider::before,.v2.v2-oldscr .join-divider::after{background:var(--wl2);}
+  .v2.v2-oldscr .mic-status{font-weight:800;font-size:13px;line-height:1.6;color:var(--ws);}
+  .v2.v2-oldscr .prof-icon{font-size:64px;}
+  .v2.v2-oldscr .prof-title{font-family:var(--v2-jp);font-weight:900;font-size:24px;line-height:1.3;color:var(--wi);}
+  .v2.v2-oldscr .prof-name{font-weight:800;font-size:14px;color:var(--ws);margin-top:6px;}
+  .v2.v2-oldscr .prof-acts{gap:12px;margin-top:14px;}
+  .v2.v2-oldscr .prof-acts .btn{width:auto;flex:1 1 0;font-size:15px;min-height:48px;padding:8px 12px;margin:0;}
+  .v2.v2-oldscr .prof-acts .btn + .btn{margin-top:0;}
+  .v2.v2-oldscr #titleHandoffNote,.v2.v2-oldscr #titleGuestNote{margin:14px 0 10px;}
+  .v2.v2-oldscr .prof-sec{margin:22px 0 12px;font-weight:900;font-size:16px;color:var(--wi);}
+  /* C23：「49 / 122」が右で切れていた（巻ける箱の右端と、等幅の字の幅）→ 字を詰めず、右に余白 */
+  .v2.v2-oldscr .prof-count{font-family:var(--v2-en);font-weight:800;font-size:16px;color:var(--ws);white-space:nowrap;padding-right:6px;flex:none;}
+  /* 札は2列（3列だと9字の名前が「…の／証」と2字だけの行に割れた）。印の下に字 */
+  .v2.v2-oldscr .prof-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .v2.v2-oldscr .prof-part{background:var(--wc2);border:3px solid var(--wl);border-radius:16px;padding:10px 8px;}
+  .v2.v2-oldscr .prof-part .pp-emoji{font-size:26px;}
+  .v2.v2-oldscr .prof-part .pp-label{font-weight:800;font-size:13px;line-height:1.45;color:var(--wi);margin-top:6px;min-width:0;word-break:keep-all;overflow-wrap:anywhere;text-wrap:balance;}
+  @supports (word-break:auto-phrase){ .v2.v2-oldscr .prof-part .pp-label{word-break:auto-phrase;} }   /* 文節で折る（「言葉の達人見習／い」にしない） */
+  .v2.v2-oldscr .prof-cas{min-height:56px;margin:0 0 12px;padding:10px 14px;background:var(--wc2);border:3px solid var(--wl);border-radius:16px;font-weight:800;}
+  .v2.v2-oldscr .prof-cas:active{transform:scale(.98);background:var(--wc2);}
+  .v2.v2-oldscr .prof-cas-name{font-size:15px;}
+  .v2.v2-oldscr .prof-cas-rest{font-size:13px;color:var(--ws);}
+  .v2.v2-oldscr .set-menu{gap:12px;}
+  .v2.v2-oldscr .set-row{gap:12px;padding:12px 14px;min-height:68px;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;color:var(--wi);}
+  .v2.v2-oldscr .set-row:active{transform:scale(.98);}
+  .v2.v2-oldscr .set-row .sr-icon{width:44px;height:44px;border-radius:14px;background:var(--wc);border:2px solid var(--wl2);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none;}
+  .v2.v2-oldscr .set-row .sr-text{font-weight:900;font-size:16px;}
+  .v2.v2-oldscr .set-row .sr-sub{font-weight:800;font-size:13px;line-height:1.5;color:var(--ws);margin-top:6px;}
+  .v2.v2-oldscr .set-row .sr-arrow{font-family:var(--v2-en);font-weight:900;font-size:24px;color:var(--wi);}
+  .v2.v2-oldscr .wiz-foot{gap:12px;}
+  :root.fs-large .v2.v2-oldscr .mic-status,:root.fs-large .v2.v2-oldscr .scr-sub,:root.fs-large .v2.v2-oldscr .wiz-lead{font-size:16px;}
   /* ---- v2 ここまで ---- */
 
   /* ===================================================================
@@ -7825,7 +7875,8 @@
   </div>
 
   <!-- 2: login -->
-  <div class="screen" id="scr-login">
+  <!-- 指示71-7（68-7 の2）：ログイン・新しく登録は、流れと部品はそのままで、新しい見た目の箱（.v2.v2-oldscr）の中で着せ直す -->
+  <div class="screen v2 v2-w-wait v2-oldscr" id="scr-login">
     <h2 class="scr-title" id="loginTitle">ログイン</h2>
     <p class="scr-sub" id="loginSub">進行役のアカウントでログインしてください</p>
 
@@ -7860,7 +7911,7 @@
   <!-- 第42弾 2-1：いまの自分 と、あつめたもの だけ。
        **未取得を灰色や「？？？」で並べない**（6節の禁止）。
        未取得は、カセットごとの1行に畳んで 2-4 のシートへ送る -->
-  <div class="screen" id="scr-titles">
+  <div class="screen v2 v2-w-wait v2-oldscr" id="scr-titles">
     <div class="prof-head">
       <div class="prof-icon" id="titlePreviewIcon">🙂</div>
       <div class="prof-title" id="titlePreviewTitle">はじめの一歩</div>
@@ -7894,13 +7945,13 @@
   </div>
 
   <!-- 名前を変える -->
-  <div class="screen" id="scr-rename">
+  <div class="screen v2 v2-w-wait v2-oldscr" id="scr-rename">
     <div class="wiz-head"><h2 class="scr-title">名前を変える</h2></div>
     <!-- 第48弾 48-8：**「部屋の名簿・記録に出る」は半分しか本当ではなかった**（落とし穴33）。
          部屋に入る時の名前は、その場で打つ別のもの（ここの名前が初期値に入るだけ）。
          記録に残るのも、その時に打ったプレイヤー名。
-         ここの名前が必ず出るのは、棚のバーと称号の画面 -->
-    <p class="wiz-lead">棚のバーと、称号の画面に出る名前です。部屋に入る時は、この名前が最初に入ります（その場で変えられます）。変えても、いままでの記録は残ります。</p>
+         ここの名前が必ず出るのは称号の画面（棚のバーは 66-3 で棚ごと無くなった・指示71-7 C23） -->
+    <p class="wiz-lead">称号の画面に出る名前です。部屋に入る時は、この名前が最初に入ります（その場で変えられます）。変えても、いままでの記録は残ります。</p>
     <div class="wiz-body">
       <input type="text" id="renameInput" maxlength="20" placeholder="あたらしい名前">
       <div class="mic-status" id="renameNote" style="margin-top:8px;"></div>
@@ -11277,7 +11328,7 @@
   /**
    * 「ゲームをえらぶ」の道すじ（第41弾 2-1）。
    *
-   *   ログインしていない → ログイン（下に「ログインせずに棚を見る」）
+   *   ログインしていない → ログイン（下に「ログインせずにゲームを見る」）
    *   部屋を持っている   → いま開いている部屋の確認
    *   それ以外           → 棚
    *
@@ -12856,10 +12907,13 @@
     el('profOwned').innerHTML = もっている.length
       ? もっている.map(function(p){
           return '<div class="prof-part"><span class="pp-emoji">' + (p.emoji || '🏷') + '</span>' +
-            '<span class="pp-label">' + escapeHtml(p.label) + '</span></div>';
+            // 指示71-7：文節で折る（新しい見た目の部品 V2.phrase。「ベテラン解除班／の証」のように2字だけの行にしない）
+            '<span class="pp-label" data-v2-wrap>' + (typeof V2 !== 'undefined' && V2.phrase ? V2.phrase(p.label) : escapeHtml(p.label)) + '</span></div>';
         }).join('')
       : '';
     el('profOwned').style.display = もっている.length ? '' : 'none';
+    // 1〜2字だけの行を直す（新しい見た目の部品・画面が見えてから測る）
+    if(typeof V2 !== 'undefined' && V2.fixWraps) setTimeout(function(){ requestAnimationFrame(function(){ V2.fixWraps(el('profOwned')); }); }, 0);
 
     // 2-4：カセットごとの1行。**残りの数だけを出す**（何が足りないかはシートで）
     el('profCassettes').innerHTML = titleCassettes().map(function(cas){
@@ -15889,7 +15943,7 @@
       (loginCameFrom === 'scr-v2-home') ? '← さいしょにもどる' : '← もどる';
     // 2-1：ログインしない道も、行き止まりにしない
     el('loginBrowseBtn').textContent =
-      (typeof UiText !== 'undefined') ? UiText.ENTRY.見るだけ : 'ログインせずに棚を見る';
+      (typeof UiText !== 'undefined') ? UiText.ENTRY.見るだけ : 'ログインせずにゲームを見る';
     goTo('scr-login');
     return false;
   }

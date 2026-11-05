@@ -259,5 +259,32 @@
   "to": "",
   "expect": "指示71-2：ふだんの部屋の待合",
   "only": "指示71-2：ふだんの部屋の待合"
+ },
+ {
+  "name": "O1 ログインの画面が古い見た目のまま（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/oldscr.js",
+  "from": "<div class=\"screen v2 v2-w-wait v2-oldscr\" id=\"scr-login\">",
+  "to": "<div class=\"screen\" id=\"scr-login\">",
+  "expect": "3つの画面は新しい見た目の箱",
+  "only": "3つの画面は新しい見た目の箱"
+ },
+ {
+  "name": "O2 まちがえた時の言葉が「違います」（直す前）",
+  "file": "server.js",
+  "suite": "tests/oldscr.js",
+  "from": "'ユーザー名かパスワードがちがうようです。もう一度たしかめてね'",
+  "to": "'ユーザー名またはパスワードが違います'",
+  "expect": "まちがえた時は",
+  "only": "まちがえた時は"
+ },
+ {
+  "name": "O3 名前を変えるが「棚のバー」と言う（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/oldscr.js",
+  "from": "<p class=\"wiz-lead\">称号の画面に出る名前です。",
+  "to": "<p class=\"wiz-lead\">棚のバーと、称号の画面に出る名前です。",
+  "expect": "無くなった「棚」",
+  "only": "無くなった「棚」"
  }
 ]

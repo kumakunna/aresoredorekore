@@ -467,6 +467,48 @@ async function 入った(o) {
     win.close();
   });
 
+  // 客観検査 A1（2026-11-05）：結果の「つづけて遊ぶ？」のシートの上に、称号の知らせがかぶさっていた
+  //（知らせの置き場を測る帯に、新しい見た目のシートが入っていなかった）。jsdom は版組みをしないので、位置は本物の値で差し込む
+  await r.test('客観検査 A1：称号の知らせは、結果の「つづけて遊ぶ？」のシートより上に出る', async () => {
+    const { win, doc } = await launch({ fakeSocket: true, atEntry: true });
+    win.V2Screens.fes(FesScenes.view('fes2-result'));
+    const scr = doc.getElementById('scr-v2-fes-lobby');
+    doc.querySelectorAll('.screen.active').forEach((s) => s.classList.remove('active'));
+    scr.classList.add('active');   // 描くだけの入口なので、本物と同じく「いまの画面」にする
+    const sheet = scr.querySelector('.v2-contsheet');
+    assert(sheet && sheet.classList.contains('is-open'), '「つづけて遊ぶ？」のシートが開いている（型(b)）');
+    Object.defineProperty(doc.documentElement, 'clientHeight', { configurable: true, get: () => 844 });
+    sheet.getBoundingClientRect = () => ({ top: 620, bottom: 844, left: 0, right: 390, width: 390, height: 224 });
+    win.titleToastProbe(['🏅 ためしの称号']);
+    const 下 = parseFloat(doc.getElementById('titleGotOverlay').style.bottom);
+    assert(下 >= 844 - 620, 'シートの上端（620）より上に置く（bottom ' + doc.getElementById('titleGotOverlay').style.bottom + '）');
+    win.close();
+  });
+
+  // 客観検査 B2（2026-11-05）：「この回をとばす」は一時停止のすぐ右にあり、押すとすぐ遊んでいる回を消していた（戻せない）
+  await r.test('客観検査 B2：係の「この回をとばす」は、1回押しただけでは送らない。たずねる枠の「とばす」で、はじめて送る', async () => {
+    const { win, doc } = await launch({ fakeSocket: true, atEntry: true });
+    win.V2Screens.fes(FesScenes.view('fes2-staff'));
+    const scr = doc.getElementById('scr-v2-fes-staff');
+    const btn = Array.from(scr.querySelectorAll('.v2-adm-ops .v2-btn')).find((b) => /この回をとばす/.test(b.textContent));
+    assert(btn, '「この回をとばす」のボタンがある');
+    btn.click();
+    await sleep(win, 30);
+    assertEqual(emits(win, 'fes:skip').length, 0, '1回押しただけでは送らない');
+    const dlg = scr.querySelector('[data-v2-id="v2Skip"]');
+    assert(dlg && dlg.classList.contains('is-open'), 'たずねる枠が開く');
+    assert(/待合/.test(dlg.textContent) && /もどせ/.test(dlg.textContent), 'とばすとどうなるか（待合にもどる・もどせない）を書く');
+    dlg.querySelector('[data-v2-close]').click();
+    await sleep(win, 30);
+    assertEqual(emits(win, 'fes:skip').length, 0, '「やめる」なら送らない');
+    btn.click();
+    await sleep(win, 30);
+    scr.querySelector('[data-v2-id="v2Skip"] [data-v2-act="fes-skip-ok"]').click();
+    await sleep(win, 30);
+    assertEqual(emits(win, 'fes:skip').length, 1, '枠の「とばす」で1回だけ送る');
+    win.close();
+  });
+
   await r.test('B2：文化祭の「入る」は、名前が空・8字より長い・はじかれた直後は押せない。字を入れるたびにボタンも変わる', async () => {
     const { win, doc } = await 入る画面();
     doc.querySelector('[data-fes-diff="normal"]').click();

@@ -12698,7 +12698,8 @@
     var H = document.documentElement.clientHeight;
     if(!H) return;
     var 帯 = [el('thanksBtn'), el('reactBar')]
-      .concat(Array.prototype.slice.call(document.querySelectorAll('.screen.active .wiz-foot, .screen.active [id$="LeaveBtn"]')));
+      // 客観検査 A1（2026-11-05）：新しい見た目の開いているシート（文化祭の結果の「つづけて遊ぶ？」など）も帯に数える
+      .concat(Array.prototype.slice.call(document.querySelectorAll('.screen.active .wiz-foot, .screen.active [id$="LeaveBtn"], .screen.active .v2-sheet.is-open')));
     var 上端 = H;
     帯.forEach(function(e){
       if(!e) return;
@@ -33016,6 +33017,8 @@
     // 指示66-2：係の「部屋を作り直す」の確認の枠（V2.dlgHtml のボタンは data-v2-act で届く）
     if(act === 'recreate' && rt){ V2.close(b.closest('.v2-dlg')); rt.fesCreate(true).then(function(){ fesOpenStaff(); }); return; }
     // 指示68-0b A4：係の「外す」の確認の枠で「外す」
+    // 客観検査 B2：係の「この回をとばす」の確認の枠で「とばす」
+    if(act === 'fes-skip-ok' && rt){ V2.close(b.closest('.v2-dlg')); if(fes.staff) rt.fesSkip(fes.staff.code); return; }
     if(act === 'fes-kick-ok' && rt){ V2.close(b.closest('.v2-dlg')); var kid = fes.kickId; fes.kickId = null; if(kid && fes.staff) rt.fesKick(fes.staff.code, kid); return; }
   });
   /** 係の「外す」：だれを外すかを決めて描き直し（枠の見出しに名前が入る）、枠を開く。名前は係の名簿のもの（係だけが見る画面） */
@@ -34030,7 +34033,7 @@
     }
     else if(act === 'rejoin' && fes.quit){ var c2 = fes.quit.code; fes.quit = null; fes.join.diff = null; fes.join.err = ''; goTo('scr-v2-fes-join'); fesOpenJoin(c2); }
     else if(act === 'pause' && fes.staff) rt.fesPause(fes.staff.code, !(fes.staff.fes && fes.staff.fes.paused));
-    else if(act === 'skip' && fes.staff) rt.fesSkip(fes.staff.code);
+    // 「この回をとばす」は確認の枠から送る（客観検査 B2・data-v2-act="fes-skip-ok"）
     else if(act === 'bgm' && fes.staff) rt.fesBgm(fes.staff.code, !(fes.staff.fes && fes.staff.fes.bgm));   // 指示68-T 三の束2
     else if(act === 'fb'){ fesLoadFeedback().then(function(){ V2.open(document.querySelector('#scr-v2-fes-staff [data-v2-id="v2Fb"]')); }); }
     else if(act === 'recreate' || act === 'create'){

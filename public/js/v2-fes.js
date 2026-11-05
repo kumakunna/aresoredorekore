@@ -758,7 +758,8 @@
         '</div>' +
         '<div class="v2-adm-ops">' +
           '<button type="button" class="v2-btn is-sec" data-fes-act="pause">' + V.icon(f.paused ? 'play' : 'pause') + '<span>' + e(f.paused ? S.つづける : S.一時停止) + '</span></button>' +
-          '<button type="button" class="v2-btn is-sec" data-fes-act="skip">' + V.icon('skip') + '<span>' + e(S.とばす) + '</span></button>' +
+          // 客観検査 B2（2026-11-05）：「とばす」は押したらたずねる（一時停止のすぐ右・遊んでいる回を消して戻せない）
+          '<button type="button" class="v2-btn is-sec" data-v2-open="#v2Skip">' + V.icon('skip') + '<span>' + e(S.とばす) + '</span></button>' +
           // 指示68-T 三の束2：待合の BGM（TV だけ・とても小さく・はじめは切）
           '<button type="button" class="v2-btn ' + (f.bgm ? 'is-pri' : 'is-sec') + '" data-fes-act="bgm" aria-pressed="' + !!f.bgm + '"><span>' + e(S.BGM + '：' + (f.bgm ? S.入 : S.切)) + '</span></button>' +
           '<button type="button" class="v2-btn is-sec" data-v2-open="#v2Calib">' + V.icon('calib') + '<span>' + e(S.端あわせ) + '</span></button>' +
@@ -785,6 +786,8 @@
         (o.ver ? '<p class="v2-hint v2-c" data-fes-ver>' + e(o.ver) + '</p>' : '') +
       '</div>' +
       V.scrimHtml() + V.scrimHtml(true) +
+      V.dlgHtml({ id: 'v2Skip', keep: true, title: S.とばしますか, text: S.とばす説明,
+        btns: [{ label: S.とばす確定, pri: true, act: 'fes-skip-ok' }, { label: S.やめる }] }) +
       V.dlgHtml({ id: 'v2Recreate', keep: true, title: S.作り直しますか, text: S.作り直し説明,
         btns: [{ label: S.作り直す確定, pri: true, act: 'recreate' }, { label: S.やめる }] }) +
       // 指示68-0b A4：「外す」は押したらたずねる。だれを外すか（o.kickName）は押した時に決まる（index.html の fesAskKick）

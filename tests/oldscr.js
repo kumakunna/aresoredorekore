@@ -35,6 +35,23 @@ const SERVER = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
     assert(!/違います'/.test(SERVER), '「違います」で終わる言葉が残っていない');
   });
 
+  // 客観検査 F1（2026-11-05）：.v2 にした3画面では、71-7 C21 の字下げ（.screen:not(.v2)）が効かず、
+  // 浮いた ← の丸が見出しの頭（「名前を変える」の「名」）にかぶっていた。画面の中に「← もどる」があるので、浮いた ← は出さない
+  await r.test('客観検査 F1：3つの画面では浮いた ← を出さない（画面の中の「← もどる」1つにする）・下のうすい帯を描かない', async () => {
+    const { win, doc } = await launch({});
+    assert(typeof win.goToScreen === 'function', '画面を移る関数がある（型(b)）');
+    for (const [id, back] of [['scr-login', 'loginBackBtn'], ['scr-titles', 'titlesBackBtn'], ['scr-rename', 'renameBackBtn']]) {
+      win.goToScreen('scr-v2-home');
+      win.goToScreen(id);
+      await sleep(win, 30);
+      assertEqual(doc.querySelector('.screen.active').id, id, id + ' に移った（型(b)）');
+      assertEqual(doc.getElementById('floatingBackBtn').style.display, 'none', id + '：浮いた ← を出さない');
+      assert(doc.getElementById(back), id + '：画面の中にもどる道がある（' + back + '）');
+    }
+    assert(/\.v2\.v2-oldscr \.wiz-body\{background:none;\}/.test(HTML), '黄色い地の上で灰色の帯にならない（巻ける影の色 --paper を描かない）');
+    win.close();
+  });
+
   await r.test('無くなった「棚」を言わない（名前を変える・ログインせずに見る）', async () => {
     const { win, doc } = await launch({});
     const lead = doc.querySelector('#scr-rename .wiz-lead').textContent;

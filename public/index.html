@@ -6714,6 +6714,8 @@
      新しい見た目の箱（.v2.v2-oldscr）の中で着せ直す（⚙ の .v2-setov と同じやり方）。古い規則より強くするため .v2.v2-oldscr から書く */
   .screen.v2.v2-oldscr{background:linear-gradient(180deg,var(--wt),var(--wb));font-size:15px;line-height:1.55;}
   .v2.v2-oldscr .scr-title,.v2.v2-oldscr .wiz-head h2{font-family:var(--v2-jp);font-weight:900;font-size:28px;line-height:1.2;color:var(--wi);letter-spacing:0;}
+  /* 客観検査 F1（2026-11-05）：巻ける影の色（--paper・古いクリーム）が黄色い地の上で灰色の帯に見えた。この3画面は短いので影を描かない */
+  .v2.v2-oldscr .wiz-body{background:none;}
   .v2.v2-oldscr .scr-sub,.v2.v2-oldscr .wiz-lead{font-weight:800;font-size:14px;line-height:1.6;color:var(--ws);margin:8px 0 16px;}
   .v2.v2-oldscr input[type=text],.v2.v2-oldscr input[type=password]{display:block;width:100%;min-height:52px;margin:0 0 12px;padding:10px 14px;border:3px solid var(--wl);border-radius:14px;
     background:var(--wc2);color:var(--wi);font-family:var(--v2-jp);font-weight:800;font-size:16px;box-shadow:none;}
@@ -15526,6 +15528,9 @@
     'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-v2-parts', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-staff',
     // 指示66-3：ふだんの画面も同じ（左上の ‹ が画面の中にある）
     'scr-v2-home', 'scr-v2-join', 'scr-v2-pick', 'scr-game', 'scr-mode', 'scr-next',
+    // 客観検査 F1（2026-11-05）：新しい見た目に着せ直した3画面（.v2.v2-oldscr）。画面の中に「← もどる」があり、
+    // 浮いた ← が見出しの頭にかぶっていた（.screen:not(.v2) の字下げが効かない）
+    'scr-login', 'scr-titles', 'scr-rename',
     // 第38弾：部屋の画面はここに書かない。RT_SCREENS から導く（下）
   ];
   function canGoBackOne(screenId){

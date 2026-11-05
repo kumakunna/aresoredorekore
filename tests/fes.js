@@ -786,6 +786,37 @@ async function join(srv, code, name, diff, extra) {
       'いちばん迷った問題は、外した人が見た問題と、その正解（' + JSON.stringify(m) + '）');
   });
 
+  // 客観検査 G1（くまくんの決め 2026-11-05「4.A」）：タブを閉じて帰った人は、名簿に残り続けていた
+  // （TV の待合の名前の壁と「Room n/16」に入り続け、新しく来た同じ名前の人に ② が付いた）。
+  // 待合（と呼び込み）の間に、切れて2分たった人を外す。いまのゲームの中の人・TV は外さない
+  await r.test('帰った人：待合で、切れて2分たった人を外す（ゲームの中の人・TV・2分たっていない人は外さない）', async () => {
+    assertEqual(FesRoom.TIMES.goneMs, 120000, '外すまでの長さは2分（席の取っておき30秒より長い）');
+    const RT = require('../realtime');
+    const room = new RT.RoomStore().create({ ownerUserId: 1 });
+    const now = Date.now();
+    const add = (id, o) => room.members.set(id, Object.assign({ id, name: id, role: 'player', connected: true, joinedAt: 0, readyGame: null }, o));
+    add('a'); add('b');
+    add('gone', { connected: false, goneAt: now - 121000 });
+    add('soon', { connected: false, goneAt: now - 60000 });
+    add('tv', { role: 'bigscreen', connected: false, goneAt: now - 600000 });
+    FesRoom.init(room, { games: 全部on() });
+    const removed = [];
+    const api = { startGameNow: () => ({ ok: true }), clearGameState() {}, driverStateOf: () => null,
+      removeMember: (r2, id, why) => { removed.push(id + ':' + why); r2.members.delete(id); return true; } };
+    assertEqual(room.fes.phase, 'lobby', '待合（型(b)：外す段にいる）');
+    FesRoom.tick(room, now, api);
+    assertEqual(removed.join(','), 'gone:fes_gone', '2分たった人だけ外す（TV と2分たっていない人は残す）');
+    // ゲームの中の人は、切れて何分たっても外さない（戻ればそのまま続きから）
+    add('player', { connected: false, goneAt: now - 300000 });
+    room.fes.phase = 'play';
+    room.fes.played = { mode: 'bomb-coop', round: 1, ids: ['a', 'player'] };
+    FesRoom.tick(room, now, api);
+    assertEqual(removed.length, 1, '遊んでいる間は外さない');
+    room.fes.phase = 'lobby'; room.fes.played = null;
+    FesRoom.tick(room, now, api);
+    assertEqual(removed.join(','), 'gone:fes_gone,player:fes_gone', '待合にもどったら外す');
+  });
+
   // ---- 指示68-1 門5：候補の数（1つ・2つ・4つ以上） ----
   const 表 = (modes) => modes.map((m, i) => ({ mode: m, game: m, min: 2, max: 8, on: true, start: { game: m } }));
   await r.test('門5：候補が1つなら投票を飛ばして決定のカードへ（係がほかを切にした部屋）', async () => {

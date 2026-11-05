@@ -106,7 +106,10 @@ const TIMES = {
   // その間に来た人や予約の人が入らないように。すぎて戻った時に満員なら「つぎの回」（fesHold）として待合で待つ
   holdMs: 30000,
   // 指示71 追記1（11/04）：予約した端末が切れても、順番を取っておく長さ。それまでは切れるとすぐ消え、スマホは「予約しました」のままだった
-  reserveKeepMs: 60000
+  reserveKeepMs: 60000,
+  // 客観検査 G1（くまくんの決め 2026-11-05「4.A」）：切れてからこれだけたった人は、待合の間に部屋から外す（帰った人）。
+  // 席の取っておき holdMs（30秒）より長く。外すのは待合と呼び込みの間だけで、いまのゲームの中の人は外さない
+  goneMs: 120000
 };
 
 const PHASE = { IDLE: 'idle', LOBBY: 'lobby', VOTE: 'vote', DECIDE: 'decide', READY: 'ready', PLAY: 'play', RESULT: 'result' };
@@ -315,11 +318,25 @@ function roundDetail(room, mode) {
  * 見回りから呼ぶ（0.5秒ごと）。変わったら true を返す（realtime.js が配る）。
  * api：startGameNow / clearGameState / driverStateOf / removeMember / tell
  */
+/**
+ * 客観検査 G1：帰った人（切れて goneMs たった人）を外す。待合と呼び込みの間だけ・TV とゲームの中の人はのぞく。
+ * 外すのは realtime.js の removeMember（いなくなる経路を1か所に・落とし穴17）。外した人がいれば true
+ */
+function sweepGone(room, now, api) {
+  const f = room.fes;
+  if (f.phase !== PHASE.LOBBY && f.phase !== PHASE.IDLE) return false;
+  const ms = f.times.goneMs || TIMES.goneMs;
+  const gone = Array.from(room.members.values()).filter((m) => !m.connected && m.role !== 'bigscreen' &&
+    !!m.goneAt && now - m.goneAt >= ms && !isPlaying(room, m.id));
+  gone.forEach((m) => api.removeMember(room, m.id, 'fes_gone'));
+  return gone.length > 0;
+}
 function tick(room, now, api) {
   const f = room.fes;
   if (!f) return false;
   // 係が一時停止している間は、どの段階も進めない
   if (f.pausedLeft) return false;
+  if (sweepGone(room, now, api)) return true;
   const t = f.times;
   const n = livePeople(room).length;
   switch (f.phase) {

@@ -489,7 +489,7 @@ function resultView(room, memberId) {
       tries: w.log
         .map((t, i) => ({ t: t, i: i }))
         .filter((e) => e.t.uid === x.uid && (coop || e.t.by === memberId))
-        .map((e) => ({
+        .map((e) => Object.assign({
           name: coop ? (w.names[e.t.by] || '') : null,
           answer: e.t.answer,
           correct: e.t.correct,
@@ -497,7 +497,8 @@ function resultView(room, memberId) {
           // コードごとに束ねると、束の外の前後関係が消える——
           // 「最後に決めた人」を出すのに要る（無いと、盤の並び順を時間だと読んでしまう）
           at: e.i
-        }))
+          // 客観検査 E1：差しかえた問題への答えには、その人が見た問題と正解を付ける（終わったあとなので出してよい）
+        }, e.t.shown ? { shown: { question: e.t.shown.question, name: e.t.shown.name } } : {}))
     }))
   };
   if (w.mode === BombLogic.MODE.COOP) {
@@ -689,7 +690,13 @@ function submitVote(room, memberId, targetId) {
   delete w.open[memberId];
   const now = Date.now();
   const correct = BombLogic.isCorrect(wire, answer);
-  w.log.push({ uid: uid, by: memberId, answer: answer, correct: correct });
+  // 客観検査 E1（2026-11-05）：差しかえた問題に答えた時は、その人が見た問題も残す。
+  // 無いと、記録（/fes/bomb-stats）と TV の「いちばん迷った問題」が、元のコードの問題として数えてしまう
+  const shown = q.key !== uid
+    ? { question: wire.question || wire.description || wire.name || '', name: wire.name || '', tier: wire.tier }
+    : null;
+  w.log.push(shown ? { uid: uid, by: memberId, answer: answer, correct: correct, shown: shown }
+    : { uid: uid, by: memberId, answer: answer, correct: correct });
   if (correct) {
     e.solved[uid] = true;
     e.solvedCount++;
@@ -806,9 +813,29 @@ function isAllDone(room) {
  */
 function clockKind() { return 'play'; }
 
+/**
+ * 客観検査 E1（2026-11-05）：記録（/fes/bomb-stats）に残す「問題ごとの行」。
+ * 元のコードの問題の行には、そのコードの問題そのものへの答えだけを入れる。
+ * むずかしさの上限で差しかえた問題への答えは、**その人が見た問題・その段**の行に入れる
+ * （それまでは差しかえへの答えが元の むずかしい 問題の行に入り、正答率がずれていた）
+ */
+function statsQuestions(w) {
+  const row = (q, tier, tries) => ({ q, tier, tries: tries.length,
+    firstOk: tries.length ? !!tries[0].correct : null, wrong: tries.filter((t) => !t.correct).length,
+    solved: tries.some((t) => t.correct) });
+  const rows = w.wires.map((x) => row(x.question || x.description || x.name, x.tier,
+    w.log.filter((t) => t.uid === x.uid && !t.shown)));
+  Object.keys(w.subs || {}).forEach((key) => {
+    const s = w.subs[key];
+    rows.push(row(s.question || s.description || s.name, s.tier,
+      w.log.filter((t) => t.shown && (t.uid + '|' + t.by) === key)));
+  });
+  return rows;
+}
+
 module.exports = {
   PHASE, MIN_PLAYERS, TEAM_KEY,
   startGame, publicView, privateFor,
   submitAction, submitVote, isAllDone, advance,
-  playersOf, expectedMembers, entryOf, resultView, clockKind
+  playersOf, expectedMembers, entryOf, resultView, clockKind, statsQuestions
 };

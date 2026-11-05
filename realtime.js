@@ -706,12 +706,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const w = room.bomb;
       if (w.result && w.result.aborted) return;
       const v = BombRoom.resultView(room);
-      const questions = w.wires.map((x) => {
-        const tries = w.log.filter((t) => t.uid === x.uid);
-        return { q: x.question || x.description || x.name, tier: x.tier, tries: tries.length,
-          firstOk: tries.length ? !!tries[0].correct : null, wrong: tries.filter((t) => !t.correct).length,
-          solved: tries.some((t) => t.correct) };
-      });
+      // 客観検査 E1：差しかえた問題への答えは、見せた問題の行へ（BombRoom.statsQuestions）
+      const questions = BombRoom.statsQuestions(w);
       fesStore.recordBombPlay({ room: room.code, fes: !!room.fes, mode: w.mode, players: w.playerIds.length, codes: w.wires.length,
         lives: w.lives, timerSec: w.timerSec, cause: v.cause, success: w.mode === 'coop' ? !!v.success : null,
         solved: v.solved, misses: v.misses, elapsedSec: v.elapsedSec, ver: APP_VERSION.VERSION, questions });

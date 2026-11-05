@@ -724,6 +724,30 @@ async function join(srv, code, name, diff, extra) {
     assertEqual(BombRoom.privateFor(race, 'e').open.description, rh.description, '競争版では差しかえない');
     // 公開の知らせに差しかえの問題が漏れない
     assert(!JSON.stringify(BombRoom.publicView(room)).includes(sub.description), '差しかえた問題はみんなに配らない');
+
+    // 客観検査 E1（2026-11-05）：差しかえた問題への答えは「その人が見た問題」として数える。
+    // それまでは元のコード（むずかしい）の問題の行と、TV の「いちばん迷った問題」に入っていた
+    const hard4 = w.wires.find((x) => x.tier === 'hard' && [hard.uid, hard2.uid, hard3.uid].indexOf(x.uid) === -1);
+    assert(hard4, 'むずかしい層のコードがもう1本ある（型(b)）');
+    BombRoom.submitAction(room, 'e', hard4.uid);
+    const sub4 = w.subs[hard4.uid + '|e'];
+    assert(sub4 && sub4.question !== hard4.question, 'やさしいの人には、このコードも別の問題が出る（型(b)）');
+    const wrong4 = sub4.choices.find((c, i) => i !== sub4.correct);
+    assertEqual(BombRoom.submitVote(room, 'e', wrong4).correct, false, '差しかえた問題をわざと外す');
+    const rows = BombRoom.statsQuestions(w);
+    const rowOrig = rows.find((x) => x.q === hard4.question);
+    const rowSub = rows.find((x) => x.q === sub4.question);
+    assert(rowOrig && rowOrig.tries === 0 && rowOrig.wrong === 0, '元の（むずかしい）問題の行には、差しかえへの答えを入れない（' + JSON.stringify(rowOrig) + '）');
+    assert(rowSub && rowSub.tries === 1 && rowSub.wrong === 1 && rowSub.tier === sub4.tier && rowSub.firstOk === false,
+      '差しかえた問題の行が、見せた問題・その段で1回外れとして残る（' + JSON.stringify(rowSub) + '）');
+    const rowSub1 = rows.find((x) => x.q === sub.question);
+    assert(rowSub1 && rowSub1.tries === 1 && rowSub1.firstOk === true, '当てた差しかえも、見せた問題の行に入る');
+    assert(rows.find((x) => x.q === hard.question).tries === 0, '当てた差しかえも、元の問題の行には入らない');
+    // 終わったあとの TV の「いちばん迷った問題」も、見せた問題と、その問題の正解
+    const V2Fes = require('../public/js/v2-fes.js');
+    const m = V2Fes.mostMissed(BombRoom.resultView(room).codes);
+    assert(m && m.question === sub4.question && m.answer === sub4.choices[sub4.correct],
+      'いちばん迷った問題は、外した人が見た問題と、その正解（' + JSON.stringify(m) + '）');
   });
 
   // ---- 指示68-1 門5：候補の数（1つ・2つ・4つ以上） ----

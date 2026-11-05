@@ -425,12 +425,20 @@
    * 出すのは問題と正解だけ（だれが外したかは出さない）。だれも外していなければ出さない
    */
   function mostMissed(codes) {
-    var best = null, most = 0;
+    // 客観検査 E1（2026-11-05）：外した数は「その人が見た問題」ごとに数える。
+    // むずかしさの上限で差しかえた問題への答えには shown（見た問題と正解）が付いている。
+    // それまではコードごとに数え、差しかえへの外れが元のコードの問題と正解として TV に出ていた
+    var best = null, most = 0, seen = {}, order = [];
     (codes || []).forEach(function (c) {
-      var n = (c.tries || []).filter(function (t) { return !t.correct; }).length;
-      if (n > 0 && n >= most) { most = n; best = c; }
+      (c.tries || []).forEach(function (t) {
+        var q = t.shown ? t.shown.question : c.question, a = t.shown ? t.shown.name : c.name;
+        var k = q + '\n' + a;
+        if (!seen[k]) { seen[k] = { question: q, answer: a, wrong: 0 }; order.push(k); }
+        if (!t.correct) seen[k].wrong++;
+      });
     });
-    return best ? { question: best.question, answer: best.name, wrong: most } : null;
+    order.forEach(function (k) { var x = seen[k]; if (x.wrong > 0 && x.wrong >= most) { most = x.wrong; best = x; } });
+    return best;
   }
   function missedHtml(codes) {
     var m = mostMissed(codes), Rz = U().結果;

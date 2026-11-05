@@ -60,6 +60,15 @@ const SERVER = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
     assert(!/棚にもどる</.test(HTML), '無くなった棚へ「もどる」と書いたボタンが無い');
   });
 
+  await r.test('68-0b C15：部屋の知らせ・たずねる文は ui-text.js（HOME.部屋の知らせ）だけに書く。index.html に同じ字をじかに書かない', async () => {
+    const U = require('../public/js/ui-text.js');
+    const 知らせ = U.HOME.部屋の知らせ;
+    assert(知らせ && Object.keys(知らせ).length >= 17, '部屋の知らせが17種ある（' + Object.keys(知らせ || {}).length + '）');
+    const じか = Object.keys(知らせ).filter((k) => HTML.indexOf("'" + 知らせ[k] + "'") !== -1 || HTML.indexOf('"' + 知らせ[k] + '"') !== -1);
+    assertEqual(じか.join('・'), '', 'index.html にじかに書いた知らせが無い');
+    assert((HTML.match(/UiText\.HOME\.部屋の知らせ\./g) || []).length >= 30, 'index.html は ui-text の名前で呼ぶ（新しい画面のつなぎと今までの部屋の画面の両方）');
+  });
+
   r.finish();
   process.exit(0);
 })();

@@ -304,5 +304,14 @@
   "to": "    position:fixed;top:16px;",
   "expect": "68-0b C21",
   "only": "68-0b C21"
+ },
+ {
+  "name": "C15 知らせを index.html にじかに書く（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/oldscr.js",
+  "from": "title: UiText.HOME.部屋の知らせ.ゆずりますか,",
+  "to": "title: '進行役をゆずりますか？',",
+  "expect": "68-0b C15",
+  "only": "68-0b C15"
  }
 ]

@@ -17806,7 +17806,7 @@
   el('rtCreateBtn').addEventListener('click', async function(){
     // 第26弾-3：部屋を立てるのはログインが要る（サーバー側でも弾くが、
     // 名前を入れさせてから断るのは気の毒なので先に頼む）
-    if(!(await requireLogin('部屋を立てるにはログインが必要です', 'scr-rt-lobby'))) return;
+    if(!(await requireLogin(UiText.HOME.部屋の知らせ.ログインして立てる, 'scr-rt-lobby'))) return;
     var name = el('rtCreateName').value.trim();
     if(!name){ el('rtLobbyStatus').textContent = '名前を入れてください'; return; }
     this.disabled = true;
@@ -17815,7 +17815,7 @@
     if(!res.ok){
       el('rtLobbyStatus').textContent = (res.error === 'auth_required')
         ? '部屋を作るにはログインが必要です（設定からログインしてください）'
-        : (res.message || '部屋を作れませんでした');
+        : (res.message || UiText.HOME.部屋の知らせ.作れない);
       return;
     }
     // 2-4：**押すとコードとQRが出た待合へ。**
@@ -18026,7 +18026,7 @@
     this.disabled = true;
     var res = await rt.setReady(true);
     this.disabled = false;
-    if(!res.ok){ showFlash(res.message || '送れませんでした', 'hit-wrong'); return; }
+    if(!res.ok){ showFlash(res.message || UiText.HOME.部屋の知らせ.送れない, 'hit-wrong'); return; }
     rtMarkRulesSeen(key);   // 押した＝読んだ。2周目からは待合で押すだけ（端末にも残す・指示63）
     goTo('scr-v2-room');
   });
@@ -18066,21 +18066,21 @@
     var room = rt && rt.state.room;
     var gameId = rtPickedGame();
     if(!room || !gameId) return;
-    if(!await UiKit.confirm('ルールをもう一度、みんなに見せますか？',
-      'みんなの画面にルールが出ます。押し終わっていた「準備OK」も外れます',
+    if(!await UiKit.confirm(UiText.HOME.部屋の知らせ.ルールを見せますか,
+      UiText.HOME.部屋の知らせ.ルールを見せる説明,
       { ok: '見せる' })) return;
     this.disabled = true;
     var 今の札 = (rtView() && rtView().rulesEpoch) || 0;
     var res = await rt.pickGame(gameId, { reset: true, data: { rulesEpoch: 今の札 + 1 } });
     this.disabled = false;
-    if(!res.ok){ showFlash(res.message || '出し直せませんでした', 'hit-wrong'); return; }
+    if(!res.ok){ showFlash(res.message || UiText.HOME.部屋の知らせ.出し直せない, 'hit-wrong'); return; }
     try{ FxKit.notice(UiText.RULES.みんなに見せた); }catch(e){}
   });
   el('rtRoomReadyBtn').addEventListener('click', async function(){
     this.disabled = true;
     var res = await rt.setReady(true);
     this.disabled = false;
-    if(!res.ok) showFlash(res.message || '送れませんでした', 'hit-wrong');
+    if(!res.ok) showFlash(res.message || UiText.HOME.部屋の知らせ.送れない, 'hit-wrong');
   });
   /**
    * 第37弾：全員そろったら、進行役の端末がそのまま始める。
@@ -18212,7 +18212,7 @@
     el('rtRoomShowRulesBtn').style.display = (host && picked && supported) ? '' : 'none';
     el('rtRoomReadyBtn').disabled = false;
     el('rtRoomNote').textContent = 多すぎ
-      ? (多すぎ + (host ? '。' + gameMaxPlayers(picked) + '人まで減ると始められます' : ''))
+      ? (多すぎ + (host ? '。' + gameMaxPlayers(picked) + UiText.HOME.部屋の知らせ.減ると始められる : ''))
       : rtRoomNoteText(host, picked, supported, enough, need, room.playerCount);
     /**
      * 指示63 第3部：**進行役の「はじめる」が押せない時は、その真上に理由を出す。**
@@ -18343,7 +18343,7 @@
     if(big && !await rtHandOverBeforeBig()) return;
     var res = await rt.setRole(big ? 'bigscreen' : 'player');
     if(res && res.ok === false){
-      showFlash(res.message || '切り替えられませんでした', 'hit-wrong');
+      showFlash(res.message || UiText.HOME.部屋の知らせ.切り替えられない, 'hit-wrong');
       return;
     }
     // 返ってきた部屋を先に反映する。配信を待ってから画面を決めると、
@@ -18371,8 +18371,8 @@
     var h = e.target.closest('[data-rmhost]');
     if(h){
       var hid = h.dataset.rmhost;
-      if(!await UiKit.confirm('進行役をゆずりますか？',
-        nameOf(hid) + ' さんが進行役になります', { ok: 'ゆずる' })) return;
+      if(!await UiKit.confirm(UiText.HOME.部屋の知らせ.ゆずりますか,
+        nameOf(hid) + UiText.HOME.部屋の知らせ.進行役になる, { ok: 'ゆずる' })) return;
       var r1 = await rt.transferHost(hid);
       if(!r1.ok) showFlash(r1.message || 'ゆずれませんでした', 'hit-wrong');
       return;
@@ -18382,12 +18382,12 @@
       var rid = ro.dataset.rmrole;
       var to = ro.dataset.to;
       if(!await UiKit.confirm(
-        to === 'bigscreen' ? '大画面にしますか？' : 'プレイヤーにもどしますか？',
+        to === 'bigscreen' ? UiText.HOME.部屋の知らせ.大画面にしますか : 'プレイヤーにもどしますか？',
         nameOf(rid) + ' さんを' +
           (to === 'bigscreen' ? '大画面にします（遊ぶ人数に数えません）' : 'プレイヤーにもどします'),
         { ok: to === 'bigscreen' ? '大画面にする' : 'もどす' })) return;
       var r2 = await rt.setRole(to, rid);
-      if(!r2.ok) showFlash(r2.message || '切り替えられませんでした', 'hit-wrong');
+      if(!r2.ok) showFlash(r2.message || UiText.HOME.部屋の知らせ.切り替えられない, 'hit-wrong');
       return;
     }
     var k = e.target.closest('[data-rmkick]');
@@ -18445,7 +18445,7 @@
     this.disabled = true;
     var res = await rt.closeRoom();
     this.disabled = false;
-    if(!res.ok){ el('rtRoomNote').textContent = res.message || 'とじられませんでした'; return; }
+    if(!res.ok){ el('rtRoomNote').textContent = res.message || UiText.HOME.部屋の知らせ.とじられない; return; }
     // **元ホストも「部屋に入る」へ着地する。**
     // 棚へ返すと、いま自分が何をしたかったのか（別の部屋に入る）から遠ざかる
     openJoinScreen('scr-entry');
@@ -23448,7 +23448,7 @@
     var pass = e.target.closest('[data-aupass]');
     if(pass){
       var pr = await rt.act(null, { pass: true });
-      if(!pr.ok) showFlash(pr.message || '送れませんでした', 'hit-wrong');
+      if(!pr.ok) showFlash(pr.message || UiText.HOME.部屋の知らせ.送れない, 'hit-wrong');
       return;
     }
     var ask = e.target.closest('[data-auask]');
@@ -31835,7 +31835,7 @@
   el('setRoomBody').addEventListener('click', async function(e){
     var h = e.target.closest('[data-sethost]');
     if(h){
-      if(!await UiKit.confirm('進行役をゆずりますか？',
+      if(!await UiKit.confirm(UiText.HOME.部屋の知らせ.ゆずりますか,
         'この人が進行役になります', { ok: 'ゆずる' })) return;
       var r1 = await rt.transferHost(h.dataset.sethost);
       if(!r1.ok) showFlash(r1.message || 'ゆずれませんでした', 'hit-wrong');
@@ -34143,7 +34143,7 @@
     if(await homeRoomStillOpen('make')) return;
     // ログインしたら、頼まれた用事の続き（部屋をつくる）にもどる——入口へもどった時に続けて作る
     if(!loggedIn()) home.afterLogin = 'make';
-    if(!(await requireLogin('部屋を立てるにはログインが必要です', 'scr-v2-home'))) return;
+    if(!(await requireLogin(UiText.HOME.部屋の知らせ.ログインして立てる, 'scr-v2-home'))) return;
     home.afterLogin = null;
     var c = NameFilter.check(homeName() || state.displayName || '');
     var name = c.ok ? c.name : Array.from(String(state.displayName || 'host')).slice(0, 8).join('');
@@ -34151,7 +34151,7 @@
     rtForgetRulesSeen();   // 別の部屋では、また最初から読む
     var res = await rt.createRoom(name, 'player', myLook());
     if(!res.ok){
-      showFlash(res.error === 'auth_required' ? '部屋を作るにはログインが必要です' : (res.message || '部屋を作れませんでした'), 'hit');
+      showFlash(res.error === 'auth_required' ? UiText.HOME.部屋の知らせ.ログインして作る : (res.message || UiText.HOME.部屋の知らせ.作れない), 'hit');
       return;
     }
     goTo(rtWantScreen());
@@ -34503,7 +34503,7 @@
       if(m.id === meId) return;
       ops[m.id] = [
         { act: 'room-host', icon: 'crown', label: '進行役をゆずる' },
-        { act: 'room-big', icon: 'tv', label: 'この人の端末を TV にする' },
+        { act: 'room-big', icon: 'tv', label: UiText.HOME.部屋の知らせ.端末をTVに },
         { act: 'room-kick', icon: 'door', label: R.外す, danger: true }
       ];
     });
@@ -34515,11 +34515,11 @@
       ready: rtReadyTally(), iReady: rtIAmReady(),
       canStart: !!(host && enough && !多すぎ && picked && supported && allReady),
       waitText: 待ち.length ? 待ち.map(function(x){ return x.name; }).join('・') + ' さん' + R.を待っています : '',
-      note: 多すぎ ? (多すぎ + (host ? '。' + gameMaxPlayers(picked) + '人まで減ると始められます' : ''))
+      note: 多すぎ ? (多すぎ + (host ? '。' + gameMaxPlayers(picked) + UiText.HOME.部屋の知らせ.減ると始められる : ''))
                   : (picked ? rtRoomNoteText(host, picked, supported, enough, need, room.playerCount) : ''),
       qr: qr, local: /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname), tvUrl: location.origin + '/tv',
       pair: homePairHtml(room.pairNote), look: fesLookData(meId), lookSheets: V2Fes.lookSheets(fesLookData(meId)),
-      lookNew: !!((myTitles.newIds || []).length), albumTitle: '📸 きょうのアルバム', menu: homeRoomMenuItems() };
+      lookNew: !!((myTitles.newIds || []).length), albumTitle: UiText.HOME.部屋の知らせ.アルバム, menu: homeRoomMenuItems() };
   }
   // アルバムの箱（写真を撮る・箱から出す・受けとる）は今までのものをそのまま使い、待合のシートの中へ付け替える
   var homeAlbumNode = null;
@@ -34579,10 +34579,10 @@
     var host = rt.isHost(), picked = rtPickedGame(), T = homeT().部屋;
     var items = [];
     if(host) items.push({ act: 'room-look', icon: 'smile', label: T.着替える });
-    items.push({ act: 'room-album', icon: 'camera', label: '📸 きょうのアルバム' });
+    items.push({ act: 'room-album', icon: 'camera', label: UiText.HOME.部屋の知らせ.アルバム });
     // 決めたあとでも、進行役はゲームをえらびなおせる（押しまちがいで止まらない）
     if(host && picked) items.push({ act: 'room-pick', icon: 'grid', label: T.えらびなおす });
-    if(host && picked) items.push({ act: 'room-reshow', icon: 'rules', label: 'ルールをもう一度みんなに見せる' });
+    if(host && picked) items.push({ act: 'room-reshow', icon: 'rules', label: UiText.HOME.部屋の知らせ.ルールをもう一度 });
     items.push({ act: 'room-tome', icon: 'tv', label: T.このスマホを });
     if(host) items.push({ act: 'room-toguest', icon: 'person', label: UiText.ROLE.ゲストになる });
     // 進行役も、部屋を残して自分だけ出られる（前の「← 部屋を出る」。進行役はサーバーが次の人へゆずる）。とじるのは進行役だけ
@@ -34794,7 +34794,7 @@
     }
     // 待合
     else if(act === 'room-pick'){ var pk = b.closest('.v2-sheet'); if(pk) V2.close(pk); home.pick.open = false; goTo('scr-v2-pick'); }
-    else if(act === 'room-ready'){ b.disabled = true; var r0 = await rt.setReady(true); b.disabled = false; if(!r0.ok) showFlash(r0.message || '送れませんでした', 'hit-wrong'); }
+    else if(act === 'room-ready'){ b.disabled = true; var r0 = await rt.setReady(true); b.disabled = false; if(!r0.ok) showFlash(r0.message || UiText.HOME.部屋の知らせ.送れない, 'hit-wrong'); }
     else if(act === 'room-rules') goTo('scr-rt-rules');
     else if(act === 'room-start'){ b.disabled = true; await rtStartGameNow(); }
     else if(act === 'room-tome'){ V2.close(b.closest('.v2-sheet')); rtSetDisplayMode(true); }
@@ -34802,10 +34802,10 @@
     else if(act === 'room-album'){ V2.close(b.closest('.v2-sheet')); renderAlbumBox(); V2.open(el('scr-v2-room').querySelector('[data-v2-id="v2Album"]')); }
     else if(act === 'room-reshow'){
       V2.close(b.closest('.v2-sheet'));
-      if(!await homeAsk('scr-v2-room', { title: 'ルールをもう一度、みんなに見せますか？', text: 'みんなの画面にルールが出ます。押し終わっていた「準備OK」も外れます', ok: '見せる' })) return;
+      if(!await homeAsk('scr-v2-room', { title: UiText.HOME.部屋の知らせ.ルールを見せますか, text: UiText.HOME.部屋の知らせ.ルールを見せる説明, ok: '見せる' })) return;
       var 札 = (rtView() && rtView().rulesEpoch) || 0;
       var r1 = await rt.pickGame(rtPickedGame(), { reset: true, data: { rulesEpoch: 札 + 1 } });
-      if(!r1.ok){ showFlash(r1.message || '出し直せませんでした', 'hit-wrong'); return; }
+      if(!r1.ok){ showFlash(r1.message || UiText.HOME.部屋の知らせ.出し直せない, 'hit-wrong'); return; }
       try{ FxKit.notice(UiText.RULES.みんなに見せた); }catch(x){}
     }
     else if(act === 'room-toguest'){
@@ -34813,7 +34813,7 @@
       var RT = UiText.ROLE;
       if(!await homeAsk('scr-v2-room', { title: RT.見出し, text: RT.本文, ok: RT.進む, danger: true })) return;
       var r2 = await rt.closeRoom();
-      if(!r2.ok){ showFlash(r2.message || 'とじられませんでした', 'hit'); return; }
+      if(!r2.ok){ showFlash(r2.message || UiText.HOME.部屋の知らせ.とじられない, 'hit'); return; }
       openV2Join({});
     }
     else if(act === 'room-close' || act === 'next-close'){
@@ -34821,7 +34821,7 @@
       var N = homeT().つぎ, sid = homeCur();
       if(!await homeAsk(sid, { title: N.とじますか, text: N.とじる説明, ok: N.とじる確定, danger: true })) return;
       var r3 = await rt.closeRoom();
-      if(!r3.ok){ showFlash(r3.message || 'とじられませんでした', 'hit'); return; }
+      if(!r3.ok){ showFlash(r3.message || UiText.HOME.部屋の知らせ.とじられない, 'hit'); return; }
       goTo('scr-v2-home');
     }
     else if(act === 'room-leave'){
@@ -34837,16 +34837,16 @@
       if(!m) return;
       var R = homeT().部屋, res;
       if(act === 'room-host'){
-        if(!await homeAsk('scr-v2-room', { title: '進行役をゆずりますか？', text: m.name + ' さんが進行役になります', ok: 'ゆずる' })) return;
+        if(!await homeAsk('scr-v2-room', { title: UiText.HOME.部屋の知らせ.ゆずりますか, text: m.name + UiText.HOME.部屋の知らせ.進行役になる, ok: 'ゆずる' })) return;
         res = await rt.transferHost(who);
       } else if(act === 'room-big'){
-        if(!await homeAsk('scr-v2-room', { title: '大画面にしますか？', text: m.name + ' さんを大画面にします（遊ぶ人数に数えません）', ok: '大画面にする' })) return;
+        if(!await homeAsk('scr-v2-room', { title: UiText.HOME.部屋の知らせ.大画面にしますか, text: m.name + UiText.HOME.部屋の知らせ.大画面にする説明, ok: '大画面にする' })) return;
         res = await rt.setRole('bigscreen', who);
       } else {
         if(!await homeAsk('scr-v2-room', { title: m.name + R.外しますか, text: R.外す説明, ok: R.外す, danger: true })) return;
         res = await rt.kick(who);
       }
-      if(res && !res.ok) showFlash(res.message || '切り替えられませんでした', 'hit-wrong');
+      if(res && !res.ok) showFlash(res.message || UiText.HOME.部屋の知らせ.切り替えられない, 'hit-wrong');
     }
   });
   // 新しい見た目の画面の ⚙：待合では部屋のシート、それ以外はアプリの設定（v2-kit の data-v2-act="gear"）

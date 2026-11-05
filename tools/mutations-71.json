@@ -66,8 +66,8 @@
   "name": "S3 部屋でも古い scr-titles へ行く",
   "file": "public/index.html",
   "suite": "tests/fes-screens.js",
-  "from": "      if(inRoomNow()){\n        var look = document.querySelector",
-  "to": "      if(false){\n        var look = document.querySelector",
+  "from": "      if(inRoomNow()){\n        var lookScr = document.querySelector",
+  "to": "      if(false){\n        var lookScr = document.querySelector",
   "expect": "指示71-2：文化祭の待合で ⚙",
   "only": "指示71-2：文化祭の待合で ⚙"
  },

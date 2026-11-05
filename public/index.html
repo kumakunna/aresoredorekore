@@ -738,8 +738,9 @@
   .flash-overlay.hit{animation:flashHit .5s ease;}
   .flash-overlay.hit-wrong{background:var(--ink);animation:flashHit .5s ease;}
   @keyframes flashHit{0%{opacity:0;}20%{opacity:.75;}100%{opacity:0;}}
+  /* 指示71-7（68-0b C21）：知らせは時計の下に（top:16px だと、あれそれどれこれの時計を約1.6秒隠していた） */
   .foul-toast{
-    position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);
+    position:fixed;top:100px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);
     padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;z-index:82;opacity:0;transition:opacity .3s;pointer-events:none;
   }
   .foul-toast.show{opacity:1;}
@@ -1345,6 +1346,8 @@
   /* A：⚙の分だけ右側を空けて、トップバーのボタンと重ならないようにする。
      第28弾-4：戻る矢印のぶん、左側も同じだけ空ける */
   .play-topbar, .bomb-topbar{padding-right:42px;padding-left:42px;}
+  /* 指示71-7（68-0b C21）：今までの見た目の画面の見出しも、← の丸のぶん右へ（設定 1/5〜5/5・プレイヤー・ルールで 22×14px 重なっていた・tools/aresore-walk.js） */
+  .screen:not(.v2) > .wiz-head, .screen:not(.v2) > h2.scr-title{padding-left:40px;}
   /* ===== 第13弾：扉（友達の部屋に入るイメージ・奥に開く） ===== */
   /* 第32弾-D 第4部：初回だけの安全の案内。**指示66-2 F1 で新しい見た目にした**（黄色の世界・字は大きく短く）。
      見た目は v2 の節（.v2-safety）。ここは重ね方だけ */
@@ -6754,6 +6757,23 @@
   .v2.v2-oldscr .set-row .sr-arrow{font-family:var(--v2-en);font-weight:900;font-size:24px;color:var(--wi);}
   .v2.v2-oldscr .wiz-foot{gap:12px;}
   :root.fs-large .v2.v2-oldscr .mic-status,:root.fs-large .v2.v2-oldscr .scr-sub,:root.fs-large .v2.v2-oldscr .wiz-lead{font-size:16px;}
+  /* 指示71-7（68-0b C19）：/tv（TV として入る）を TV で開いた時は、スマホの幅の列ではなく TV の大きさの形（字 42px 以上）。
+     横に広い画面の時だけ（スマホで /tv を開いた時は今までどおり） */
+  @media (min-width:900px) and (min-aspect-ratio:4/3){
+    .app:has(.v2.is-tvjoin.active){max-width:none;}
+    .screen.v2.is-tvjoin .v2-in{left:50%;right:auto;width:min(1500px,86vw);transform:translateX(-50%);padding:6vh 0 5vh;}
+    .screen.v2.is-tvjoin .v2-hd-en{font-size:44px;}
+    .screen.v2.is-tvjoin .v2-hd-ttl{font-size:120px;margin-top:16px;}
+    .screen.v2.is-tvjoin .v2-field{gap:28px;margin-top:5vh;}
+    .screen.v2.is-tvjoin .v2-field-l{font-size:48px;}
+    .screen.v2.is-tvjoin .v2-code6{gap:28px;}
+    .screen.v2.is-tvjoin .v2-code6 b{height:200px;font-size:120px;border-width:6px;border-radius:28px;}
+    .screen.v2.is-tvjoin .v2-hint,.screen.v2.is-tvjoin .v2-why{font-size:44px;line-height:1.4;}
+    .screen.v2.is-tvjoin .v2-btn{min-height:130px;font-size:56px;border-radius:32px;}
+    .screen.v2.is-tvjoin .v2-corner.is-l{left:5vw;top:5vh;}   /* TV の安全な枠の中（上5%・左5%）*/
+    .screen.v2.is-tvjoin .v2-corner .v2-cbtn,.screen.v2.is-tvjoin .v2-corner .v2-ring{width:96px;height:96px;}
+    .screen.v2.is-tvjoin .v2-corner .v2-ring .v2-ic{width:52px;height:52px;}
+  }
   /* ---- v2 ここまで ---- */
 
   /* ===================================================================
@@ -7821,7 +7841,7 @@
     </div>
     <div class="wiz-foot" style="flex-direction:column;">
       <button class="btn btn-main" id="ctPlayBtn">🎮 このゲームであそぶ</button>
-      <button class="btn btn-ghost" id="ctBackBtn" style="margin-top:0;">← 棚にもどる</button>
+      <button class="btn btn-ghost" id="ctBackBtn" style="margin-top:0;">← もどる</button>
     </div>
   </div>
 
@@ -7904,7 +7924,7 @@
          初めて来た人が、何があるか見てから決められるようにする -->
     <button class="btn btn-ghost" id="loginBrowseBtn"></button>
     <!-- 第26弾-2：棚が先に来るようになったので、ログインしないで戻る道を残す -->
-    <button class="btn btn-ghost" id="loginBackBtn">← 棚にもどる</button>
+    <button class="btn btn-ghost" id="loginBackBtn">← もどる</button>
   </div>
 
   <!-- 第26弾-4：称号（アイコンと二つ名）。持っているものから組み合わせを選ぶ -->
@@ -8011,7 +8031,7 @@
     <div class="name-rows" id="nameRows"></div>
     <div class="mic-status" id="playerCountNote" style="display:none;line-height:1.7;"></div>
     <button class="btn btn-main" id="setupNextBtn" style="margin-top:auto;">つぎへ</button>
-    <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">🏠 棚にもどる</button>
+    <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">← ゲームをえらぶ にもどる</button>
   </div>
 
   <!-- 3.5: game（第15弾・1つのカセットに複数ゲームが入っている時だけ通る画面） -->
@@ -9519,7 +9539,7 @@
     <div class="rules-body" id="rulesBody"></div>
     <div class="rules-video-placeholder" id="rulesVideoArea" style="display:none;"></div>
     <button class="btn btn-main" id="rulesStartBtn" style="margin-top:auto;">はじめる</button>
-    <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">🏠 棚にもどる</button>
+    <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">← ゲームをえらぶ にもどる</button>
   </div>
 
   <!-- 5: ready -->
@@ -9538,7 +9558,7 @@
     </div>
     <button class="btn btn-ghost" id="rulesReviewBtn">📖 ルール説明</button>
     <button class="btn btn-ghost" id="readyBackBtn">← モードをえらびなおす</button>
-    <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">🏠 棚にもどる</button>
+    <button class="btn btn-ghost" data-go-shelf style="margin-top:0;">← ゲームをえらぶ にもどる</button>
   </div>
 
   <!-- 6: countdown -->
@@ -31158,7 +31178,7 @@
         var c = cassetteById(state.selectedCassetteId);
         return cassetteGames(c).length > 1;
       } },
-    { id:'shelf', icon:'📚', label:'別のカセットへ', sub:'棚にもどる' }
+    { id:'shelf', icon:'📚', label:'別のカセットへ', sub:'ゲームをえらぶ にもどる' }
   ];
   function nextChoicesHtml(){
     // サバイバルは「ラウンドを重ねて1人になるまで」なので、言葉だけ合わせる
@@ -34158,6 +34178,7 @@
   function renderV2Join(){
     var scr = el('scr-v2-join'); if(!scr) return;
     scr.innerHTML = V2Home.join(home.join);
+    scr.classList.toggle('is-tvjoin', !!home.join.tv);   // 指示71-7 C19：TV として入る（横に広い画面では TV の大きさの形）
     V2.mount(scr);
   }
   /** コードの6文字がそろって「入る」：部屋を覗く → 文化祭なら文化祭の入り方、TV ならそのまま、ほかは名前へ */

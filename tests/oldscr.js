@@ -43,6 +43,23 @@ const SERVER = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
     win.close();
   });
 
+  await r.test('68-0b C19：/tv（TV として入る）は、横に広い画面では TV の大きさの形（字は 42px 以上）', async () => {
+    const t = await launch({ url: 'http://localhost/?tv=1', fakeSocket: true });
+    await waitFor(t.win, () => t.doc.querySelector('.screen.active') && t.doc.querySelector('.screen.active').id === 'scr-v2-join', 4000, 'TV として入る画面');
+    assert(t.doc.getElementById('scr-v2-join').classList.contains('is-tvjoin'), 'TV として入る印（is-tvjoin）');
+    t.win.close();
+    const m = /@media \(min-width:900px\) and \(min-aspect-ratio:4\/3\)\{([\s\S]*?)\n  \}/.exec(HTML);
+    assert(m && /\.screen\.v2\.is-tvjoin/.test(m[1]), '横に広い画面の時だけの決まりがある');
+    const 大きさ = (m[1].match(/font-size:(\d+)px/g) || []).map((x) => +x.replace(/\D/g, ''));
+    assert(大きさ.length >= 5 && 大きさ.every((x) => x >= 42), 'TV の字はどれも 42px 以上（' + 大きさ.join(',') + '）');
+  });
+
+  await r.test('68-0b C21：今までの見た目の画面の見出しは ← の丸のぶん右へ・「不正解」の知らせは時計の下（tools/aresore-walk.js で重なり0）', async () => {
+    assert(/\.screen:not\(\.v2\) > \.wiz-head, \.screen:not\(\.v2\) > h2\.scr-title\{padding-left:40px;\}/.test(HTML), '見出しを ← の丸のぶん右へ');
+    assert(/\.foul-toast\{\s*position:fixed;top:100px;/.test(HTML), '知らせは時計の下（top:100px）');
+    assert(!/棚にもどる</.test(HTML), '無くなった棚へ「もどる」と書いたボタンが無い');
+  });
+
   r.finish();
   process.exit(0);
 })();

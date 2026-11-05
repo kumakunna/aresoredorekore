@@ -286,5 +286,23 @@
   "to": "<p class=\"wiz-lead\">棚のバーと、称号の画面に出る名前です。",
   "expect": "無くなった「棚」",
   "only": "無くなった「棚」"
+ },
+ {
+  "name": "C19 TV として入るの印を付けない（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/oldscr.js",
+  "from": "    scr.classList.toggle('is-tvjoin', !!home.join.tv);",
+  "to": "",
+  "expect": "68-0b C19",
+  "only": "68-0b C19"
+ },
+ {
+  "name": "C21 知らせが時計の上（直す前）",
+  "file": "public/index.html",
+  "suite": "tests/oldscr.js",
+  "from": "    position:fixed;top:100px;",
+  "to": "    position:fixed;top:16px;",
+  "expect": "68-0b C21",
+  "only": "68-0b C21"
  }
 ]

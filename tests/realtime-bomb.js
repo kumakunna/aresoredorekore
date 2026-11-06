@@ -511,9 +511,18 @@ async function missOne(srv, d) {
       const 全部の答え = srv.store.get(rm.code).bomb.wires.map((x) => x.name);
       const ほかの答え = 全部の答え.filter((n) => n !== 見た答え);
       assert(ほかの答え.length >= 1, 'ほかの端子が2本以上ある（無ければ、下は何も試していない）');
-      const 秘密の文字 = JSON.stringify(rm.host.you);
+      // 答えが乗りうる欄（answer・choices）の値だけを、秘密の中から全部ひろって「同じ字か」で比べる。
+      // それまでは秘密の字全体を部分一致で探していたので、本物の問題の答え「ア」（quiz-bank.js）が
+      // ほかの問題文の中の「ア」に当たり、たまに赤くなった（落とし穴10-d・指示74 で npm test が1件赤）
+      const 答えの欄 = [];
+      (function ひろう(v, key) {
+        if (Array.isArray(v)) { v.forEach((x) => ひろう(x, key)); return; }
+        if (v && typeof v === 'object') { Object.keys(v).forEach((k) => ひろう(v[k], k)); return; }
+        if (typeof v === 'string' && (key === 'answer' || key === 'choices')) 答えの欄.push(v);
+      })(rm.host.you, null);
+      assert(答えの欄.indexOf(見た答え) !== -1, '型(b)：ひろい方で、見た1本の正解（peek.answer）がひろえている');
       ほかの答え.forEach((n) => {
-        assert(秘密の文字.indexOf(n) === -1, 'ほかの端子の答え「' + n + '」は届かない');
+        assert(答えの欄.indexOf(n) === -1, 'ほかの端子の答え「' + n + '」は届かない');
       });
 
       for (let i = 0; i < 3; i++) { await solveOne(srv, rm.guests[0]); await sleep(30); }

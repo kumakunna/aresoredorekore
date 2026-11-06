@@ -4979,7 +4979,12 @@
   .v2 .v2-grab{width:44px;height:5px;border-radius:3px;background:#C8C8C8;margin:0 auto;flex:none;}
   .v2 .v2-sh{display:flex;align-items:center;gap:10px;flex:none;}
   .v2 .v2-sh-ttl{font-size:20px;font-weight:900;line-height:1.3;}
-  .v2 .v2-sbody{flex:1;min-height:0;overflow:auto;scrollbar-width:none;}
+  /* 指示74 2：中身の高さを元にする。ひとことの書く箱が 84px のうち 11px しか見えなかった（11/6 Android・PC の Chrome でも同じ形）。
+     高さを決めていないシート（下から出る・高さは中身まかせ）は、Chrome が中の巻ける箱の高さを「中身」ではなく
+     ほぼ 0 として数える——中が block で、行の中の箱（textarea）や、上下の余白（p の margin）だけの時。flex:1 1 auto にしても変わらなかった。
+     中を縦の flex にすると、中身の高さで数える（tools/sheet-shot.js で 18種類 × 2つの大きさを測った）。
+     is-tall／is-mid は高さが決まっているので、余りはこれまでどおり伸びて埋める。入らなければ 90% まで高くなり、それでも入らなければ中が巻ける */
+  .v2 .v2-sbody{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-width:none;display:flex;flex-direction:column;}
   .v2 .v2-sbody::-webkit-scrollbar{display:none;}
   /* 中の部品は縮めない（指示68-0b B1：部屋の QR のシートで、コードの箱が 11px まで押しつぶされて注意書きに重なっていた）。
      入らなければシートが高くなり（90% まで）、それでも入らなければ中が巻ける */

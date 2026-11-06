@@ -877,5 +877,85 @@ async function 入った(o) {
     win.close();
   });
 
+  // ---- 指示74：別のアプリに切りかえて、もどってきた人（サーバーの側は tests/fes-revive.js） ----
+  const 一言 = (doc) => { const t = doc.getElementById('foulToast'); return t && t.classList.contains('show') ? t.textContent : ''; };
+  const 入る画面の札 = (doc) => Array.prototype.map.call(doc.querySelectorAll('#scr-v2-fes-join .v2-note, #scr-v2-fes-join [role="status"], #scr-v2-fes-join .v2-info, #scr-v2-fes-join .v2-err'), (e) => e.textContent).join(' / ');
+
+  for (const 道 of ['room:kicked（socket が生きていた）', 'つなぎ直しの自動の入り直し（通信が切れていた）']) {
+    await r.test('74 門3・4（画面）：2分たって外された人がもどる → ' + 道 + ' → 入る画面に「しばらく はなれていたので」。名前とむずかしさは入ったまま、「入る」1回で入れる', async () => {
+      const { win, doc } = await 入った();
+      流す(win, 'fes2-lobby');
+      if (道.indexOf('room:kicked') === 0) win.__rtFake.fire('room:kicked', { by: null, reason: 'fes_gone' });
+      else {
+        win.__rtFake.replies['room:join'] = (p) => (p && p.auto ? { ok: false, error: 'fes_gone', message: 'しばらく はなれていたので、もう一度 入ってね' }
+          : { ok: true, code: 'TST754', memberId: 'm9', room: FesScenes.view('fes2-lobby').room });
+        await つなぎ直す(win);
+        const auto = emits(win, 'room:join').filter((e) => e.payload && e.payload.auto);
+        assertEqual(auto.length, 1, '型(b)：つなぎ直しの自動の入り直しを送っている（auto の印つき）');
+      }
+      await waitFor(win, () => act(doc) === 'scr-v2-fes-join', 2000, '入る画面へ（止まった部屋の画面のままにしない）');
+      await waitFor(win, () => doc.querySelector('[data-fes-name]'), 2000, '名前の箱');
+      const 札 = 入る画面の札(doc) || doc.getElementById('scr-v2-fes-join').textContent;
+      assert(札.indexOf(win.UiText.FES.入る.はなれていた) !== -1, '「' + win.UiText.FES.入る.はなれていた + '」が出る（' + 札.slice(0, 80) + '）');
+      assert(!doc.querySelector('#scr-v2-fes-join .v2-inp.is-bad'), '名前のまちがい（赤い枠）にはしない');
+      assertEqual(doc.querySelector('[data-fes-name]').value, 'ふう', '名前は入ったまま');
+      assert(doc.querySelector('[data-fes-diff="normal"].is-on, [data-fes-diff="normal"][aria-checked="true"], [data-fes-diff="normal"][aria-pressed="true"]'), 'むずかしさは入ったまま（ふつう）');
+      win.__rtFake.replies['room:join'] = () => ({ ok: true, code: 'TST754', memberId: 'm9', room: FesScenes.view('fes2-lobby').room });
+      const before = emits(win, 'room:join').length;
+      doc.querySelector('[data-fes-act="join"]').click();
+      await waitFor(win, () => act(doc) === 'scr-v2-fes-lobby', 3000, '「入る」1回で待合へ');
+      assertEqual(emits(win, 'room:join').length - before, 1, '入るのは1回');
+      const last = emits(win, 'room:join').slice(-1)[0].payload;
+      assertEqual(last.name, 'ふう', '同じ名前で');
+      assertEqual(last.diff, 'normal', '同じむずかしさで');
+      assert(!last.auto, '自動の入り直しの印は付かない（本人が押した）');
+      win.close();
+    });
+  }
+
+  await r.test('74 門5（画面）：投票を押した答えが ok でない → 「つなぎ直しています」を出して、いるよ（room:here）を送る。ok の時は出さない', async () => {
+    const { win, doc } = await 入った();
+    流す(win, 'fes2-vote');
+    await waitFor(win, () => doc.querySelector('#scr-v2-fes-lobby .v2-vlist'), 2000, '投票の画面');
+    win.__rtFake.replies['fes:vote'] = () => ({ ok: false, error: 'not_player', message: '投票できません' });
+    doc.querySelector('[data-fes-pick="bomb-coop"]').click();
+    const here0 = emits(win, 'room:here').length;
+    doc.querySelector('[data-fes-act="vote"]').click();
+    await waitFor(win, () => 一言(doc), 2000, '一言が出る');
+    assertEqual(一言(doc), win.UiText.FES.遊ぶ.つなぎ直し, '一言は「つなぎ直しています」');
+    await waitFor(win, () => emits(win, 'room:here').length > here0, 2000, 'いるよ（room:here）を送る');
+    const h = emits(win, 'room:here').slice(-1)[0].payload;
+    assertEqual(h.code, 'TST754', '部屋のコードを添える');
+    assertEqual(h.memberId, 'm1', '自分の memberId を添える');
+    // ok の時は出さない（型(c)：もう一方の入力）
+    await sleep(win, 1800);
+    assertEqual(一言(doc), '', '型(b)：一言は消えている');
+    win.__rtFake.replies['fes:vote'] = () => ({ ok: true, vote: 'bomb-coop' });
+    const here1 = emits(win, 'room:here').length;
+    doc.querySelector('[data-fes-act="vote"]').click();
+    await sleep(win, 200);
+    assertEqual(一言(doc), '', 'ok の時は一言を出さない');
+    assertEqual(emits(win, 'room:here').length, here1, 'ok の時は いるよ を送らない');
+    win.close();
+  });
+
+  await r.test('74（画面）：画面がまた見えた（visibilitychange）→ すぐ いるよ（room:here）を送る。部屋にいない時は送らない', async () => {
+    const t0 = await 入る画面();
+    const n0 = emits(t0.win, 'room:here').length;
+    t0.win.document.dispatchEvent(new t0.win.Event('visibilitychange'));
+    await sleep(t0.win, 50);
+    assertEqual(emits(t0.win, 'room:here').length, n0, '部屋に入る前は送らない');
+    t0.win.close();
+    const { win, doc } = await 入った();
+    const n1 = emits(win, 'room:here').length;
+    doc.dispatchEvent(new win.Event('visibilitychange'));
+    await sleep(win, 50);
+    assertEqual(emits(win, 'room:here').length, n1 + 1, '見えた時に1回送る');
+    win.dispatchEvent(new win.Event('pageshow'));
+    await sleep(win, 50);
+    assertEqual(emits(win, 'room:here').length, n1 + 2, 'ページにもどった時（pageshow）も送る');
+    win.close();
+  });
+
   r.finish();
 })();

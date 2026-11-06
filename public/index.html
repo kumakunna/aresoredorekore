@@ -25944,8 +25944,10 @@
       // 指示66-2：文化祭の部屋で席を空けた（2回押さなかった）・係が外した。入る画面へ（名前はそのまま入れ直せる）
       if(p && /^fes/.test(p.reason || '')){
         var code = fes.join.code || (fes.quit && fes.quit.code);
-        fes.join.diff = null;
-        fes.join.err = p.reason === 'fes_idle' ? UiText.FES.入る.席を空けた : UiText.FES.入る.出ました;
+        // 指示74（案A・くまくん 11/6）：2分より長く離れて外された人は、名前とむずかしさを入れたまま、静かな札で「もう一度 入ってね」（「入る」を1回）。
+        //   socket が生きていた（room:kicked・room:here）／通信が切れてつなぎ直した（自動の入り直し）の、どちらの道もここに来る
+        if(p.reason === 'fes_gone'){ fes.join.err = ''; fes.join.info = UiText.FES.入る.はなれていた; fes.join.busy = false; }
+        else { fes.join.diff = null; fes.join.err = p.reason === 'fes_idle' ? UiText.FES.入る.席を空けた : UiText.FES.入る.出ました; }
         goTo('scr-v2-fes-join'); if(code) fesOpenJoin(code); else fesRenderJoin();
         return;
       }
@@ -33778,6 +33780,16 @@
     // 指示71 追記1：この部屋に予約していた端末（開き直した・つなぎ直した）は、合い札で同じ予約にもどる
     if(p && p.ok) fesResume();
   }
+  /**
+   * 指示74：押した時の答えを見る（投票・準備OK・つづける・マス・答える・閉じる）。
+   * ok でなかったら、何も出ないままにしない：静かな一言を出して、つなぎ直す（rt.here：サーバーがいまの画面を送り直す）。
+   * 11/6 の実機では、つながっていない扱いのまま押して、何も起きずに固まっていた（not_player・not_in_room を見ていなかった）
+   */
+  function fesPressed(res){
+    if(!res || res.ok) return;
+    showQuietNote(UiText.FES.遊ぶ.つなぎ直し);
+    if(rt && rt.here) rt.here();
+  }
   var FES_JOIN_ERR = { name_blocked: '使えない', name_long: '長い', name_empty: '空', diff_required: 'えらんでね', room_full: '満員', room_not_found: '部屋が無い' };
   async function fesJoin(){
     var j = fes.join, J = UiText.FES.入る;
@@ -33990,10 +34002,10 @@
     if(b.hasAttribute('data-fes-word')){ fes.lookDraft = fes.lookDraft || Object.assign({}, myTitles.equipped); fes.lookDraft[fes.lookSlot || 'first'] = b.getAttribute('data-fes-word'); rtRenderCurrent(); return; }
     // F11：盤のマス・3択・閉じる（今の画面と同じ送り方：rt.act と rt.vote）
     if(b.hasAttribute('data-fes-cell')){
-      rt.act(b.getAttribute('data-fes-cell')).then(function(res){ if(res && !res.ok && res.error === 'taken') showFlash(UiText.FES.遊ぶ.挑戦中, 'hit'); });
+      rt.act(b.getAttribute('data-fes-cell')).then(function(res){ if(res && !res.ok && res.error === 'taken') showFlash(UiText.FES.遊ぶ.挑戦中, 'hit'); else fesPressed(res); });
       return;
     }
-    if(b.hasAttribute('data-fes-ans')){ Array.prototype.forEach.call(b.parentNode.querySelectorAll('button'), function(x){ x.disabled = true; }); rt.vote(b.getAttribute('data-fes-ans')); return; }
+    if(b.hasAttribute('data-fes-ans')){ Array.prototype.forEach.call(b.parentNode.querySelectorAll('button'), function(x){ x.disabled = true; }); rt.vote(b.getAttribute('data-fes-ans')).then(fesPressed); return; }
     // 指示68-T 二の束1：くまくんだけ、ゲームごとの入／切
     if(b.hasAttribute('data-fes-game')){ if(!b.disabled) rt.fesGame(fes.staff.code, b.getAttribute('data-fes-game'), !b.getAttribute('data-on')); return; }
     if(b.hasAttribute('data-fes-hide')){ rt.fesHide(fes.staff.code, b.getAttribute('data-fes-hide'), !b.getAttribute('data-hidden')); return; }
@@ -34004,10 +34016,10 @@
     if(act === 'join') fesJoin();
     else if(act === 'reserve') fesReserve();
     else if(act === 'unreserve'){ rt.fesUnreserve(fes.join.code); fes.join.reserved = null; fes.join.full = false; fes.join.err = ''; fes.join.turnUntil = null; fesResvSave(null); fesRenderJoin(); }
-    else if(act === 'vote' && fes.sel) rt.fesVote(fes.sel);
-    else if(act === 'ready') rt.setReady(true);
-    else if(act === 'continue') rt.fesContinue();
-    else if(act === 'bclose') rt.act(null);
+    else if(act === 'vote' && fes.sel) rt.fesVote(fes.sel).then(fesPressed);
+    else if(act === 'ready') rt.setReady(true).then(fesPressed);
+    else if(act === 'continue') rt.fesContinue().then(fesPressed);
+    else if(act === 'bclose') rt.act(null).then(fesPressed);
     else if(act === 'look'){
       fes.lookDraft = null; fes.lookSlot = 'first'; clearTitleNew(); rtRenderCurrent();
       // 指示71-2 で見つけた：描き直したあとで、着替えのシートをここで開く。ボタンの data-v2-open に任せると、

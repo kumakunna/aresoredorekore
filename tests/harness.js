@@ -205,6 +205,8 @@ async function launch(opts) {
           close: function(){ s.disconnect(); },
           disconnect: function(){ f.connected = false; f.fire('disconnect'); }
         };
+        // 指示74：本物の socket と同じく「いまつながっているか」を持つ（rt-client.js の here が見る）
+        Object.defineProperty(s, 'connected', { get: function(){ return !!f.connected; } });
         f.socket = s;
         f.fire = function(name, payload){
           (f.handlers[name] || []).forEach(function(fn){ fn(payload); });

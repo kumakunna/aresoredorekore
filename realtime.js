@@ -634,6 +634,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   const describe = (opts.describe !== undefined) ? opts.describe : safeRequireAi();
   // 掃除の間隔と猶予はテストから短くできるようにする（本番は既定値のまま）
   const sweepIntervalMs = opts.sweepIntervalMs || SWEEP_INTERVAL_MS;
+  // 指示74：hb:ping を送る間隔。**検査だけが縮める**（落とし穴24。本番は10秒のまま・25秒の判定は変えない）
+  const heartbeatIntervalMs = opts.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
   // 指示63 第4部：開始の 3-2-1 の長さ。**検査だけが 0 にできる**（実時間を待つ検査が
   // 1本ごとに3秒延びるため。落とし穴24：遊びの数字は変えず、検査の側に早送りを持つ）。
   // 実時間で数える検査は tests/realtime-countdown.js に1本残す
@@ -683,6 +685,50 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   function emitPrivate(room, memberId, event, payload) {
     const s = socketOf(memberId, room);
     if (s) s.emit(event, payload);
+  }
+
+  /**
+   * 指示74：その人として部屋につながっている socket を全部。
+   * 名簿の socketId だけでは足りない——25秒 hb:pong が無いと socketId は null になるが、
+   * 通信（WebSocket）そのものは生きていて、部屋の流れ（room:コード）にも入ったままのことがある
+   *（スマホで別のアプリに切りかえた時。11/6 に iPhone と Android で起きた）
+   */
+  function socketsOf(room, memberId) {
+    const out = [];
+    for (const s of io.sockets.sockets.values()) {
+      if (s.data && s.data.roomCode === room.code && s.data.memberId === memberId) out.push(s);
+    }
+    const s0 = socketOf(memberId, room);
+    if (s0 && out.indexOf(s0) === -1) out.push(s0);
+    return out;
+  }
+  /**
+   * 指示74：外した人の socket を、部屋から切りはなす（kick・文化祭の「席を空ける」「外す」「帰った人」の全部がここを通る）。
+   * 「つながっていない」にされたあとも生きている socket にも届ける。届かないと、スマホは止まった部屋の画面のままになる。
+   * **名簿から消す前に呼ぶ**（socketOf は名簿を見る）
+   */
+  function detachMember(room, memberId, kicked) {
+    socketsOf(room, memberId).forEach((s) => {
+      s.emit('room:kicked', kicked);
+      s.leave('room:' + room.code);
+      s.data.roomCode = null;
+      s.data.memberId = null;
+    });
+  }
+  /**
+   * 指示74：その人の「いま」を全部送り直す（部屋の知らせ＋本人だけの知らせ）。
+   * 入る・入り直す・もどる（socket が生きていた）の全部がここを通る（道ごとに書かない・落とし穴17）。
+   * onlyMe：部屋の知らせを本人の socket にだけ送る（みんなから見て何も変わっていない時）
+   */
+  function resendAll(room, member, onlyMe) {
+    if (onlyMe) { const s = socketOf(member.id, room); if (s) s.emit('room:update', publicSnapshot(room)); }
+    else broadcast(room);
+    const dr = driverOf(room);
+    if (dr) {
+      const mine = dr.privateFor(room, member.id);
+      if (mine) emitPrivate(room, member.id, 'wolf:you', mine);
+    }
+    if (room.fes) emitPrivate(room, member.id, 'fes:you', FesRoom.privateFor(room, member.id));
   }
 
   // 第21弾-7：状態が動いたら、公開情報は全員へ、秘密は本人にだけ配る。
@@ -1207,13 +1253,13 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   timers.push(setInterval(() => {
     const now = Date.now();
     eachRoom('ハートビート送信', (room) => {
-      for (const m of room.members.values()) {
-        if (!m.connected) continue;
-        const s = socketOf(m.id, room);
-        if (s) s.emit('hb:ping', { at: now });
-      }
+      // 指示74：名簿の socketId ではなく、部屋の流れに入っている socket 全部へ送る。
+      // それまでは「つながっている人の socketId」だけに送っていたので、25秒答えなかった人
+      //（socketId が null になった人）には二度と届かず、通信が生きていても、もどれなかった。
+      // 答えが届けば、socket.use の見張り（reviveIfAway）がその人をもどす
+      io.to('room:' + room.code).emit('hb:ping', { at: now });
     });
-  }, HEARTBEAT_INTERVAL_MS));
+  }, heartbeatIntervalMs));
 
   timers.push(setInterval(() => {
     const now = Date.now();
@@ -1291,15 +1337,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   function removeMember(room, memberId, reason) {
     const target = room.members.get(memberId);
     if (!target) return false;
-    const s = socketOf(target.id, room);
+    // 指示74：「つながっていない」にされたあとも生きている socket にも知らせる（2分たって外された人が、止まった画面のままにならない）
+    detachMember(room, target.id, { by: null, reason: reason || 'fes' });
     room.members.delete(target.id);
     if (room.fes) { room.fes.votes.delete(target.id); room.fes.cont.delete(target.id); room.fes.hidden.delete(target.id); }
-    if (s) {
-      s.emit('room:kicked', { by: null, reason: reason || 'fes' });
-      s.leave('room:' + room.code);
-      s.data.roomCode = null;
-      s.data.memberId = null;
-    }
     if (!connectedMembers(room).length) room.emptySince = Date.now();
     settleAfterMemberGone(room);
     return true;
@@ -1461,6 +1502,51 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       socket.join('room:' + room.code);
     }
 
+    /**
+     * 指示74：**通信が生きている socket から何か届いたら、その人を「つながっている」にもどす**（ここ1か所）。
+     *
+     * スマホで別のアプリに切りかえると JS が止まり、25秒 hb:pong が無いので markDisconnected
+     *（connected=false・socketId=null）になる。でも通信そのものは socket.io の ping の時間までは残る。
+     * もどってきた端末の socket は、socket.data に部屋と memberId を持ったままなので、
+     * ここで socketId をこの socket に戻して、いまの全部を送り直す（入り直しと同じ形・resendAll）。
+     * 同じ人が別の socket（タブ・つなぎ直し）で生きている時は、そちらを正とする（古い socket で取り返さない）。
+     * 返すのは 'none'（部屋の人ではない）／'gone'（名簿から外されていた）／'other'／'here'／'back'
+     */
+    function reviveIfAway() {
+      const room = currentRoom();
+      if (!room) return 'none';
+      const me = currentMember();
+      if (!me) {
+        // 名簿から外されたあと（文化祭で2分たった）。部屋の流れから外して、入る画面へ（案A・くまくん 11/6）
+        if (!room.fes) return 'none';
+        socket.leave('room:' + room.code);
+        socket.data.roomCode = null;
+        socket.data.memberId = null;
+        socket.emit('room:kicked', { by: null, reason: 'fes_gone' });
+        return 'gone';
+      }
+      if (me.socketId && me.socketId !== socket.id && io.sockets.sockets.get(me.socketId)) return 'other';
+      me.lastSeen = Date.now();
+      if (me.connected && me.socketId === socket.id) return 'here';
+      comeBack(room, me);
+      return 'back';
+    }
+    /** 指示74：もどる（socket が生きていた・room:here）。room:join の入り直しと同じ判断（満員なら「つぎの回」を待つ）を通す */
+    function comeBack(room, me) {
+      if (room.fes) FesRoom.onReturn(room, me, Date.now());
+      attachMember(room, me);
+      ensureHost(room, 'join');
+      refreshPairNote(room);
+      resendAll(room, me);
+    }
+    // 入る・出る・作る は、それぞれの受け口が自分で決める（ここで先にもどすと、出る人をいったん戻してしまう）
+    const NO_REVIVE = new Set(['room:join', 'room:create', 'room:leave', 'room:here', 'fes:create', 'fes:watch']);
+    socket.use((packet, next) => {
+      try { if (!NO_REVIVE.has(packet && packet[0])) reviveIfAway(); }
+      catch (e) { console.error('[realtime] もどす処理で例外:', e); }
+      next();
+    });
+
     // ---- 第2部-1：部屋を作る（ログイン済みのアカウントだけ） ----
     socket.on('room:create', (payload, cb) => {
       const sess = sessionOf(socket);
@@ -1537,6 +1623,11 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 指示66-2：文化祭の部屋は、新しく入る人に門が3つある——名前の決まり（8字・使えない言葉）・むずかしさ・16人まで。
       // 入り直し（同じ memberId）は前の名前とむずかしさのまま通す。TV（大画面）は名前を出さないので見ない
       let fesDiff = null;
+      // 指示74（案A・くまくん 11/6）：通信が切れて socket.io がつなぎ直した時の、自動の入り直し（rt-client.js の auto）。
+      // その間に2分たって名簿から外されていたら、新しい人として黙って入れ直さない。入る画面へ（socket が生きていた時の room:here と同じ形）
+      if (room.fes && !member && rejoinId && payload.auto && normalizeRole(payload.role) !== ROLE_BIGSCREEN) {
+        return fail(cb, 'fes_gone', 'しばらく はなれていたので、もう一度 入ってね');
+      }
       if (room.fes && !member && normalizeRole(payload && payload.role) !== ROLE_BIGSCREEN) {
         const c = NameFilter.check(name);
         // 入力された名前は、はじいたものも残す（1か月で消える・見られるのはくまくんだけ）
@@ -1623,16 +1714,11 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (typeof cb === 'function') {
         cb({ ok: true, code: room.code, memberId: member.id, room: publicSnapshot(room) });
       }
-      broadcast(room);
       // 第21弾：画面ロックなどで一度切れた人が戻ってきた時、
       // 自分の役職と今の局面をすぐ受け取れるようにする。
       // これが無いと、戻ってきても画面が止まったままになる。
-      const rejoinDriver = driverOf(room);
-      if (rejoinDriver) {
-        const mine = rejoinDriver.privateFor(room, member.id);
-        if (mine) emitPrivate(room, member.id, 'wolf:you', mine);
-      }
-      if (room.fes) emitPrivate(room, member.id, 'fes:you', FesRoom.privateFor(room, member.id));
+      // 指示74：送り直しは resendAll の1か所（socket が生きていた時の「もどる」と同じ）
+      resendAll(room, member);
     });
 
     // ---- 第37弾：ルールを読んで「準備OK」 ----
@@ -1765,8 +1851,41 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     socket.on('clock:sync', (payload, cb) => { if (typeof cb === 'function') cb({ now: Date.now() }); });
 
     socket.on('hb:pong', () => {
-      const me = currentMember();
-      if (me) me.lastSeen = Date.now();
+      // lastSeen を直すのと「つながっている」にもどすのは、socket.use の reviveIfAway（指示74）。
+      // ここで lastSeen だけ直すと、別の socket が正の時に古い socket が判定を延ばしてしまう
+    });
+
+    /**
+     * 指示74：スマホが「いるよ」と知らせる（画面がまた見えた時・押して失敗した時。rt-client.js の here）。
+     * 端末が覚えている code＋memberId で本人を確かめる（room:leave・room:join の入り直しと同じ信頼のしかた）。
+     * いれば、いまの全部を送り直す。名簿にいなければ、文化祭は fes_gone（入る画面へ・案A）
+     */
+    socket.on('room:here', (payload, cb) => {
+      const p = payload || {};
+      const code = p.code || socket.data.roomCode;
+      const room = code ? store.get(code) : null;
+      if (!room) return fail(cb, 'room_not_found', '部屋がありません');
+      const id = p.memberId || socket.data.memberId;
+      const me = id ? room.members.get(id) : null;
+      if (!me) {
+        if (socket.data.roomCode === room.code) {
+          socket.leave('room:' + room.code);
+          socket.data.roomCode = null;
+          socket.data.memberId = null;
+        }
+        return room.fes ? fail(cb, 'fes_gone', 'しばらく はなれていたので、もう一度 入ってね') : fail(cb, 'not_in_room', '部屋に入っていません');
+      }
+      // 同じ人が別の socket で生きている（タブを2つ開いた）：そちらを正とする
+      if (me.connected && me.socketId && me.socketId !== socket.id && io.sockets.sockets.get(me.socketId)) {
+        if (typeof cb === 'function') cb({ ok: true, other: true });
+        return;
+      }
+      socket.data.roomCode = room.code;
+      socket.data.memberId = me.id;
+      const back = !(me.connected && me.socketId === socket.id);
+      if (back) comeBack(room, me);
+      else { me.lastSeen = Date.now(); resendAll(room, me, true); }
+      if (typeof cb === 'function') cb({ ok: true, back });
     });
 
     // ---- 第4部：汎用の状態更新（ゲーム固有の中身はここに載せる） ----
@@ -1925,14 +2044,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (!target) return fail(cb, 'member_not_found', 'その人は部屋にいません');
       if (target.id === me.id) return fail(cb, 'cannot_kick_self', '自分は出せません');
 
-      const s = socketOf(target.id, room);
+      // 指示74：生きている socket 全部に（文化祭の removeMember と同じ1か所）
+      detachMember(room, target.id, { by: me.name });
       room.members.delete(target.id);
-      if (s) {
-        s.emit('room:kicked', { by: me.name });
-        s.leave('room:' + room.code);
-        s.data.roomCode = null;
-        s.data.memberId = null;
-      }
       // 第35弾B：出されたことを残った人に言葉で伝える（出された本人には room:kicked が届く）
       io.to('room:' + room.code).emit('room:memberGone', { name: target.name, reason: 'kick' });
       ensureHost(room, 'kick');

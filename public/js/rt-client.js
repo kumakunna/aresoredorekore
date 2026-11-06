@@ -64,41 +64,7 @@
         // それだけではサーバーから見て「切断したまま」なので、
         // 前と同じメンバーとして入り直す。新しい参加者として増えないよう
         // memberId を必ず添える。
-        if (state.code && state.memberId && !state.rejoining) {
-          state.rejoining = true;
-          call('room:join', {
-            code: state.code, name: state.name, role: state.role, memberId: state.memberId,
-            // 第42弾 門E6：つなぎ直しでも姿を添える。
-            // ここを忘れると、画面を消して戻った人だけ名簿から顔が消える（落とし穴1）
-            look: state.look || null
-          }).then(function (res) {
-            state.rejoining = false;
-            if (res && res.ok) {
-              // 第35弾A：入り直しの往復中に、本人が「部屋を出る」を押していた場合。
-              // ここで room を書き戻すと「画面は棚なのに部屋に居る」ゾンビ状態になる。
-              // サーバー側に入り直してしまった自分の枠を、あらためて出しておく
-              if (!state.code) {
-                call('room:leave', { code: res.code, memberId: res.memberId });
-                return;
-              }
-              state.room = res.room;
-              emitLocal('rejoined', state);
-            } else if (res && res.error === 'room_not_found') {
-              // 第27弾-1：入り直そうとしたら、その部屋がもう無かった。
-              // サーバーが再起動した（メモリ上の部屋は消える仕様）か、
-              // 誰も繋がっていない時間が続いて片付けられたか、のどちらか。
-              //
-              // ここで黙っていたのが、実機で起きた「全員が固まって、
-              // ブラウザを立ち上げ直すまで直らない」の正体。
-              // 画面は前のままなのに、押しても何も起きない状態になっていた。
-              // 部屋の印を落として、画面側に知らせる。
-              state.code = null; state.memberId = null;
-              state.room = null; state.secret = null;
-              emitLocal('lost', { reason: 'room_not_found', message: res.message || '' });
-            }
-            emitLocal('status', state);
-          });
-        }
+        rejoin();
       });
       socket.on('disconnect', function () {
         state.connected = false;
@@ -132,13 +98,7 @@
       // 第24弾-3-5：ホストがゲームを終了すると、部屋ごと畳まれる。
       // 全員がここで抜ける（ホストだけ終わって他が置き去りにならないように）
       // 第32弾-B-1：部屋から出された。理由を伝えて、画面が固まらないようにする
-      socket.on('room:kicked', function (p) {
-        forgetLastRoom();
-        state.code = null; state.memberId = null; state.room = null; state.secret = null;
-        部屋を覚える();   // 出されたら忘れる
-        emitLocal('kicked', p || {});
-        emitLocal('status', state);
-      });
+      socket.on('room:kicked', function (p) { 出された(p); });
       socket.on('room:closed', function (p) {
         // 2026-11-01：記憶を消すと自分の役も分からなくなる。TV だったかを先に読んで知らせに添える
         //（文化祭の作り直しで、TV がスマホの入口へ飛んでいた・tools/fes-soak.js で見つけた）
@@ -161,6 +121,111 @@
       // サーバーからの死活確認。返さないと切断扱いになる
       socket.on('hb:ping', function () { socket.emit('hb:pong'); });
       return true;
+    }
+
+    /**
+     * 部屋から出された（進行役の kick・文化祭の「席を空ける」「外す」・2分たって外された）。
+     * サーバーからの room:kicked と、もどった時の答え（fes_gone）の両方がここを通る（指示74）。
+     * 2回届いても、知らせるのは1回（部屋の印が残っている時だけ）
+     */
+    function 出された(p) {
+      if (!state.code && !state.memberId) return;
+      forgetLastRoom();
+      state.code = null; state.memberId = null; state.room = null; state.secret = null; state.fes = null;
+      部屋を覚える();   // 出されたら忘れる
+      emitLocal('kicked', p || {});
+      emitLocal('status', state);
+    }
+
+    /**
+     * つなぎ直した時の入り直し（socket.io が通信をつなぎ直した＝45秒より長く離れていた時など）。
+     *
+     * スマホの画面を消すと、しばらくして接続が切れる（JSが止まって
+     * ハートビートに応えられなくなるため）。socket.io は自動でつなぎ直すが、
+     * それだけではサーバーから見て「切断したまま」なので、
+     * 前と同じメンバーとして入り直す。新しい参加者として増えないよう
+     * memberId を必ず添える。
+     */
+    function rejoin() {
+      if (!state.code || !state.memberId || state.rejoining) return;
+      state.rejoining = true;
+      call('room:join', {
+        code: state.code, name: state.name, role: state.role, memberId: state.memberId,
+        // 第42弾 門E6：つなぎ直しでも姿を添える。
+        // ここを忘れると、画面を消して戻った人だけ名簿から顔が消える（落とし穴1）
+        look: state.look || null,
+        // 指示74：自動の入り直しの印。文化祭で2分たって外されていたら、新しい人として黙って入らず fes_gone が返る
+        auto: true
+      }).then(function (res) {
+        state.rejoining = false;
+        if (res && res.ok) {
+          // 第35弾A：入り直しの往復中に、本人が「部屋を出る」を押していた場合。
+          // ここで room を書き戻すと「画面は棚なのに部屋に居る」ゾンビ状態になる。
+          // サーバー側に入り直してしまった自分の枠を、あらためて出しておく
+          if (!state.code) {
+            call('room:leave', { code: res.code, memberId: res.memberId });
+            return;
+          }
+          state.room = res.room;
+          emitLocal('rejoined', state);
+        } else if (res && res.error === 'room_not_found') {
+          部屋が無い(res);
+        } else if (res && res.error === 'fes_gone') {
+          // 指示74（案A）：2分より長く離れて、名簿から外されていた。入る画面へ（名前とむずかしさは入ったまま）
+          出された({ by: null, reason: 'fes_gone' });
+        }
+        emitLocal('status', state);
+      });
+    }
+    // 第27弾-1：入り直そうとしたら、その部屋がもう無かった。
+    // サーバーが再起動した（メモリ上の部屋は消える仕様）か、
+    // 誰も繋がっていない時間が続いて片付けられたか、のどちらか。
+    //
+    // ここで黙っていたのが、実機で起きた「全員が固まって、
+    // ブラウザを立ち上げ直すまで直らない」の正体。
+    // 画面は前のままなのに、押しても何も起きない状態になっていた。
+    // 部屋の印を落として、画面側に知らせる。
+    function 部屋が無い(res) {
+      if (!state.code) return;
+      state.code = null; state.memberId = null;
+      state.room = null; state.secret = null;
+      emitLocal('lost', { reason: 'room_not_found', message: (res && res.message) || '' });
+      emitLocal('status', state);
+    }
+
+    /**
+     * 指示74：「いるよ」をすぐ知らせる（画面がまた見えた時・押して失敗した時）。10秒の hb:ping を待たない。
+     *
+     * 別のアプリに切りかえて25秒〜45秒でもどると、通信は生きたまま、サーバーからは「つながっていない」に
+     * なっている。答え（room:here）が来れば、サーバーがいまの全部を送り直す。
+     * 名簿から外されていたら（2分）、文化祭は入る画面へ（fes_gone）・ふつうの部屋はつなぎ直しと同じ入り直し。
+     * 通信が切れていたら、つなぎ直しを急がせる（つながったら rejoin が走る）
+     */
+    var hereBusy = false;
+    function here() {
+      if (!socket || !state.code || !state.memberId || hereBusy) return Promise.resolve({ ok: false, error: 'skip' });
+      if (!socket.connected) {
+        try { socket.connect(); } catch (e) { /* つなぎ直しは socket.io にまかせる */ }
+        return Promise.resolve({ ok: false, error: 'not_connected' });
+      }
+      hereBusy = true;
+      var code = state.code, memberId = state.memberId;
+      return call('room:here', { code: code, memberId: memberId }, 5000).then(function (res) {
+        hereBusy = false;
+        // 往復の間に、本人が出た・別の部屋に入った時は何もしない
+        if (state.code !== code || state.memberId !== memberId) return res;
+        if (res && res.error === 'fes_gone') 出された({ by: null, reason: 'fes_gone' });
+        else if (res && res.error === 'room_not_found') 部屋が無い(res);
+        else if (res && res.error === 'not_in_room') rejoin();
+        return res;
+      });
+    }
+    // 画面がまた見えるようになった時（別のアプリからもどった・戻るボタンでページにもどった）
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') here(); });
+    }
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('pageshow', function () { here(); });
     }
 
     function call(event, payload, timeoutMs) {
@@ -471,7 +536,7 @@
     }
 
     return {
-      state: state, on: on, available: available, connect: connect, reconnect: reconnect,
+      state: state, on: on, available: available, connect: connect, reconnect: reconnect, here: here,
       createRoom: createRoom, joinRoom: joinRoom, setRole: setRole, setLook: setLook,
       peekRoom: peekRoom, dropRoom: dropRoom,
       transferHost: transferHost, kick: kick, leave: leave, closeRoom: closeRoom, pickGame: pickGame,

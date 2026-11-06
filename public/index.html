@@ -4826,6 +4826,10 @@
     word-break:keep-all;overflow-wrap:anywhere;line-break:strict;
     -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;}
   .v2 *{text-box:trim-both cap alphabetic;}
+  /* 指示74 3：打つ箱（input・textarea）は詰めない。入力の中の字の行は、箱が自分で切りぬく——
+     詰めると「大文字の高さ〜ベースライン」の 13px ほどの帯だけが見え、字の上下が切れる
+    （11/6 Samsung Internet の名前の箱。Chrome 133+ も同じ・tools/name-box-shot.js で 字の行 15→28px だったのが直る） */
+  .v2 input, .v2 textarea{text-box:normal;}
   .v2 :where(button){font:inherit;color:inherit;letter-spacing:inherit;margin:0;-webkit-tap-highlight-color:transparent;
     transition:transform var(--v2-press) var(--v2-ease);}
   .v2 .v2-en{font-family:var(--v2-en);}
@@ -5172,7 +5176,18 @@
   .v2 .v2-field-l{font-weight:900;font-size:14px;}
   .v2 .v2-inp{display:flex;align-items:center;gap:8px;height:56px;border:3px solid var(--wl);border-radius:14px;background:#fff;color:#141414;padding:0 14px;}
   .v2 .v2-inp.is-bad{border-color:var(--v2-red);}
-  .v2 .v2-inp-in{flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:var(--v2-jp);font-weight:900;font-size:20px;color:#141414;padding:0;height:100%;}
+  /* 指示74 3：名前の箱を、どのブラウザでも同じ形に固める（11/6 Samsung Internet：入力の中に白い箱と緑っぽい枠が出て、字の上下が切れた）。
+     ・緑っぽい枠＝古い全体の決まり `input[type=text]:focus{outline:2px solid var(--teal)}`（0,2,1）が、ここの outline:0（0,2,0）に勝っていた（落とし穴53）
+     ・字の上下が切れる＝行の高さが normal のまま（M PLUS 1 の 900 では、中の字の箱が字より低い）。Android の形の Chrome でも下が切れた（tools/name-box-shot.js）
+     行の高さは 28px と決め、箱は 44px（56px の外の箱の中で上下に 8px ずつ余る）。ブラウザの入力の見た目（appearance）と自動入力の色も固める。
+     さわっている印は外の .v2-inp に出す（:focus-within） */
+  .v2 .v2-inp-in{flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:var(--v2-jp);font-weight:900;font-size:20px;color:#141414;padding:0;
+    height:44px;line-height:28px;margin:0;-webkit-appearance:none;appearance:none;border-radius:0;box-shadow:none;}
+  .v2 .v2-inp-in:focus, .v2 .v2-inp-in:focus-visible{outline:none;}
+  .v2 .v2-inp-in:-webkit-autofill, .v2 .v2-inp-in:-webkit-autofill:focus, .v2 .v2-inp-in:autofill{
+    -webkit-box-shadow:0 0 0 60px #fff inset;box-shadow:0 0 0 60px #fff inset;-webkit-text-fill-color:#141414;caret-color:#141414;transition:background-color 99999s;}
+  .v2 .v2-inp:focus-within{box-shadow:0 0 0 4px rgba(20,20,20,.14);}
+  .v2 .v2-inp:focus-within:not(.is-bad){border-color:var(--wi);}
   .v2 .v2-inp-cnt{flex:none;font-weight:800;font-size:13px;color:#5A5A5A;}
   .v2 .v2-inp-cnt.is-over{color:var(--v2-red);}
   .v2 .v2-why{font-weight:900;font-size:13px;color:var(--v2-red);line-height:1.45;}
@@ -5208,7 +5223,10 @@
   .v2 .v2-stars button.is-on{color:#F5B400;}
   .v2 .v2-stars.is-sm button{width:36px;height:36px;}
   .v2 .v2-stars.is-sm button .v2-ic{width:30px;height:30px;}
-  .v2 .v2-textarea{min-height:84px;border:3px solid #141414;border-radius:14px;padding:10px 12px;font-family:var(--v2-jp);font-weight:700;font-size:16px;color:#141414;background:#fff;resize:none;width:100%;box-sizing:border-box;}
+  .v2 .v2-textarea{min-height:84px;border:3px solid #141414;border-radius:14px;padding:10px 12px;font-family:var(--v2-jp);font-weight:700;font-size:16px;color:#141414;background:#fff;resize:none;width:100%;box-sizing:border-box;line-height:1.5;-webkit-appearance:none;appearance:none;outline:0;box-shadow:none;}
+  /* 指示74 3：ひとことの書く箱も名前の箱と同じに固める（行の高さ・ブラウザの見た目・さわった時の印・自動入力の色） */
+  .v2 .v2-textarea:focus, .v2 .v2-textarea:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(20,20,20,.14);}
+  .v2 .v2-textarea:-webkit-autofill, .v2 .v2-textarea:autofill{-webkit-box-shadow:0 0 0 200px #fff inset;box-shadow:0 0 0 200px #fff inset;-webkit-text-fill-color:#141414;}
   .v2 .v2-fbcard b{font-weight:900;font-size:17px;}
   /* F7 投票：押す＝えらぶ（札が浮く）。投票したら外れない。票の数は出さない（00 の1・2） */
   .v2 .v2-vlist{display:flex;flex-direction:column;gap:14px;}

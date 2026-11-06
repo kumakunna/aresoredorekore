@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文化祭の配置づくり</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Kaku+Gothic+New:wght@700&display=swap" rel="stylesheet">
+<style>
+/* 方眼紙の上の図面：紙・墨の壁・出し物ごとの色札。机を動かして案を比べる道具 */
+:root{
+  --paper:#f4f5f0; --paper-2:#e9ebe3; --card:#fbfbf8; --grid:#e1e4da; --grid-strong:#d2d7cb;
+  --ink:#1b2225; --ink-2:#4a555a; --ink-3:#7a8589; --line:#cdd2c8; --wall:#1f272a;
+  --accent:#1e5bc6; --accent-bg:#e5edfb; --accent-ink:#ffffff;
+  --ok:#2c7a31; --ok-bg:#e4f1e4; --warn:#9a5800; --warn-bg:#faeedb; --bad:#c0342a; --bad-bg:#fbe5e2;
+  --desk:#f0e1c2; --desk-line:#9a7a4b; --chair:#738087; --chair-bg:#e2e6e3;
+  --room:#e4e6df; --pillar:#b9bfb7; --tv:#29323a;
+  --c-atsumare:#6648d4; --b-atsumare:#ebe6ff;
+  --c-analog:#0c7766; --b-analog:#d9f1ea;
+  --c-digital:#1d5cba; --b-digital:#dfe9fa;
+  --c-food:#ad5600; --b-food:#fbe8d0;
+  --c-eat:#3c7a1b; --b-eat:#e3f1d6;
+  --c-staff:#56616a; --b-staff:#e6eaed;
+  --c-other:#a92e63; --b-other:#f9e1ec;
+  --c-show:#0b6a86; --b-show:#d9eff5;
+  --c-cafe:#866800; --b-cafe:#f7efcc;
+  --font-ui:"BIZ UDPGothic","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --font-head:"Zen Kaku Gothic New","BIZ UDPGothic","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#111516; --paper-2:#1a2022; --card:#151a1c; --grid:#1c2325; --grid-strong:#252e31;
+    --ink:#e3e9e7; --ink-2:#a9b4b7; --ink-3:#7e8a8d; --line:#2d373a; --wall:#d5dcda;
+    --accent:#7fa7ff; --accent-bg:#1a2744; --accent-ink:#0d1526;
+    --ok:#74cf7a; --ok-bg:#152c18; --warn:#f0b24e; --warn-bg:#342511; --bad:#ff7d70; --bad-bg:#3a1613;
+    --desk:#3a3124; --desk-line:#b5925c; --chair:#93a0a6; --chair-bg:#242c2e;
+    --room:#1b2123; --pillar:#4b5456; --tv:#9aa6aa;
+    --c-atsumare:#b5a4ff; --b-atsumare:#2a2150;
+    --c-analog:#66d2bb; --b-analog:#0f322b;
+    --c-digital:#8fb6ff; --b-digital:#13284a;
+    --c-food:#ffb766; --b-food:#3a2810;
+    --c-eat:#a6d77e; --b-eat:#1c3112;
+    --c-staff:#b4bfc8; --b-staff:#252b30;
+    --c-other:#f39cc4; --b-other:#3a1828;
+    --c-show:#72cfea; --b-show:#0e2c35;
+    --c-cafe:#e7c95b; --b-cafe:#352c09;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111516; --paper-2:#1a2022; --card:#151a1c; --grid:#1c2325; --grid-strong:#252e31;
+  --ink:#e3e9e7; --ink-2:#a9b4b7; --ink-3:#7e8a8d; --line:#2d373a; --wall:#d5dcda;
+  --accent:#7fa7ff; --accent-bg:#1a2744; --accent-ink:#0d1526;
+  --ok:#74cf7a; --ok-bg:#152c18; --warn:#f0b24e; --warn-bg:#342511; --bad:#ff7d70; --bad-bg:#3a1613;
+  --desk:#3a3124; --desk-line:#b5925c; --chair:#93a0a6; --chair-bg:#242c2e;
+  --room:#1b2123; --pillar:#4b5456; --tv:#9aa6aa;
+  --c-atsumare:#b5a4ff; --b-atsumare:#2a2150;
+  --c-analog:#66d2bb; --b-analog:#0f322b;
+  --c-digital:#8fb6ff; --b-digital:#13284a;
+  --c-food:#ffb766; --b-food:#3a2810;
+  --c-eat:#a6d77e; --b-eat:#1c3112;
+  --c-staff:#b4bfc8; --b-staff:#252b30;
+  --c-other:#f39cc4; --b-other:#3a1828;
+  --c-show:#72cfea; --b-show:#0e2c35;
+  --c-cafe:#e7c95b; --b-cafe:#352c09;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.55;-webkit-text-size-adjust:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-rows:auto minmax(0,1fr);height:100%}
+/* header */
+.top{display:flex;align-items:center;gap:12px;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--card);min-width:0}
+.brand{display:flex;flex-direction:column;flex:none;line-height:1.2}
+.brand h1{margin:0;font:700 17px/1.2 var(--font-head);letter-spacing:.02em;text-wrap:balance}
+.brand span{font-size:11.5px;color:var(--ink-3);letter-spacing:.04em}
+.tabs{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;padding:2px;scrollbar-width:thin}
+.tab{flex:none;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--ink-2);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.tab:hover{border-color:var(--ink-3);color:var(--ink)}
+.tab.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.tab.add{border-style:dashed;color:var(--accent);background:transparent}
+.topact{display:flex;align-items:center;gap:6px;flex:none}
+.ibtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:36px;height:36px;padding:0 8px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--ink)}
+.ibtn:hover{border-color:var(--ink-3)}
+.ibtn:disabled{opacity:.35;cursor:default}
+.ibtn svg{width:18px;height:18px;flex:none}
+.status{font-size:12px;color:var(--ink-3);white-space:nowrap;display:inline-flex;align-items:center;gap:6px;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.status::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink-3);flex:none}
+.status[data-k="saved"]::before{background:var(--ok)}
+.status[data-k="saving"]::before,.status[data-k="wait"]::before{background:var(--accent)}
+.status[data-k="local"]::before,.status[data-k="slow"]::before,.status[data-k="readonly"]::before{background:var(--warn)}
+.status[data-k="error"]::before{background:var(--bad)}
+/* work area */
+.work{display:grid;grid-template-columns:84px minmax(0,1fr) 352px;min-height:0}
+.tools{display:flex;flex-direction:column;gap:4px;padding:10px 8px;border-right:1px solid var(--line);background:var(--card);overflow-y:auto}
+.tools .sep{height:1px;background:var(--line);margin:6px 4px;flex:none}
+.tools .lbl{font-size:10.5px;color:var(--ink-3);text-align:center;letter-spacing:.06em;margin-top:2px}
+.tool{display:flex;flex-direction:column;align-items:center;gap:3px;border:1px solid transparent;background:transparent;border-radius:12px;padding:8px 4px;font-size:11.5px;color:var(--ink-2);flex:none}
+.tool svg{width:22px;height:22px}
+.tool:hover{background:var(--paper);color:var(--ink)}
+.tool[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);font-weight:700}
+.stage{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--paper)}
+#svg{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+#svg.panning{cursor:grabbing}
+.stage[data-tool="pen"] #svg,.stage[data-tool^="place"] #svg{cursor:crosshair}
+.stage[data-tool="erase"] #svg{cursor:cell}
+.float{position:absolute;display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 4px 18px rgba(20,30,30,.12)}
+.zoom{right:12px;bottom:12px}
+.zoom .ibtn{height:34px;min-width:34px;font-size:12px}
+.snapbtn[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.penbar{left:12px;top:12px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+.swatch{width:28px;height:28px;border-radius:50%;border:2px solid var(--card);box-shadow:0 0 0 1px var(--line)}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
+.wbtn{height:30px;min-width:40px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:12px}
+.wbtn[aria-pressed="true"]{border-color:var(--ink);font-weight:700}
+.hint{left:50%;transform:translateX(-50%);top:12px;font-size:13px;padding:8px 14px;color:var(--ink);pointer-events:none}
+.tosel{display:none}
+/* panel */
+.panel{overflow-y:auto;border-left:1px solid var(--line);background:var(--card);padding:4px max(16px,env(safe-area-inset-right,0px)) 24px 16px}
+.sec{padding:14px 0;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:0}
+.sec h2{margin:0 0 10px;font:700 13px/1.3 var(--font-head);letter-spacing:.06em;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.sec h2 .cnt{font:400 12px var(--font-ui);color:var(--ink-3);letter-spacing:0}
+.kv{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.kv b{font-size:15px}
+.muted{color:var(--ink-3);font-size:12.5px}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:10px}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:7px 12px;font-size:13px;color:var(--ink)}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.btn:disabled{opacity:.4;cursor:default}
+.step{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.step button{border:0;background:var(--paper);width:36px;height:34px;font-size:18px;line-height:1}
+.step output{min-width:44px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--paper);padding:7px 10px;font-size:12.5px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 10px;font-size:12.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.chip i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.chip[aria-pressed="true"]{font-weight:700;color:var(--ink);border-width:2px;padding:4px 9px}
+.grp{font-size:11.5px;color:var(--ink-3);margin:8px 0 4px;letter-spacing:.06em}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--ink-3)}
+.field input,textarea{border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:8px 10px;width:100%}
+textarea{min-height:110px;resize:vertical;line-height:1.6}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.chk{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:start;padding:8px 10px;border-radius:10px;background:var(--paper)}
+.chk .ic{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:700}
+.chk[data-lv="ok"] .ic{background:var(--ok-bg);color:var(--ok)}
+.chk[data-lv="warn"] .ic{background:var(--warn-bg);color:var(--warn)}
+.chk[data-lv="bad"] .ic{background:var(--bad-bg);color:var(--bad)}
+.chk[data-lv="none"] .ic{background:var(--paper-2);color:var(--ink-3)}
+.chk .t{font-weight:700;font-size:13px}
+.chk .d{font-size:12.5px;color:var(--ink-2)}
+.chk button.link{border:0;background:none;padding:0;color:var(--accent);font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
+.legend{display:flex;flex-direction:column;gap:4px}
+.legend button{display:flex;align-items:center;gap:8px;border:0;background:none;padding:5px 6px;border-radius:8px;text-align:left;width:100%}
+.legend button:hover{background:var(--paper)}
+.legend i{width:12px;height:12px;border-radius:3px;flex:none}
+.legend span{flex:1;min-width:0}
+.legend em{font-style:normal;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;font:700 13px var(--font-head);letter-spacing:.06em;color:var(--ink-2)}
+.help{margin:10px 0 0;padding-left:18px;color:var(--ink-2);font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--paper)}
+.note{font-size:12.5px;color:var(--ink-2);background:var(--paper);border-radius:10px;padding:8px 10px}
+.note.warn{background:var(--warn-bg);color:var(--ink)}
+/* popover */
+.pop{position:fixed;z-index:20;min-width:240px;max-width:min(320px,calc(100vw - 32px));background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 10px 40px rgba(10,20,20,.2)}
+.pop .mi{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:9px;font-size:13.5px}
+.pop .mi:hover{background:var(--paper)}
+.pop .mi.danger{color:var(--bad)}
+.pop .msg{padding:8px 10px;font-size:13px}
+.pop .acts{display:flex;gap:8px;justify-content:flex-end;padding:6px 4px 2px}
+/* 机を増やす・固定・くらべる */
+.deskbar{left:12px;top:12px;flex-wrap:wrap;max-width:calc(100% - 24px);font-size:13px}
+.deskbar .seg button{display:flex;flex-direction:column;align-items:center;line-height:1.25;padding:5px 10px}
+.deskbar .seg small{font-size:11px;opacity:.85;font-variant-numeric:tabular-nums}
+.lockbar{left:50%;transform:translateX(-50%);top:12px;font-size:13px;padding:6px 6px 6px 12px;gap:10px;max-width:calc(100% - 24px);border-color:var(--warn);background:var(--warn-bg);color:var(--ink)}
+.lockbar svg{width:16px;height:16px;flex:none;color:var(--warn)}
+.tab .lk{width:12px;height:12px;margin-right:4px;vertical-align:-1px}
+.dlg{position:fixed;inset:0;z-index:30;background:rgba(10,20,20,.38);display:grid;place-items:center;padding:16px}
+.dlg .box{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 60px rgba(10,20,20,.3);width:min(1080px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;min-width:0}
+.dlg .bh{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 18px;border-bottom:1px solid var(--line)}
+.dlg h2{margin:0;font:700 16px/1.3 var(--font-head);letter-spacing:.03em}
+.dlg .scroll{overflow:auto;padding:10px 18px 18px;min-height:0}
+.cmp{border-collapse:collapse;font-size:13px;width:100%;font-variant-numeric:tabular-nums}
+.cmp th,.cmp td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.cmp th:first-child,.cmp td:first-child{text-align:left;white-space:normal;min-width:170px}
+.cmp thead th{font-size:11.5px;color:var(--ink-3);font-weight:700;background:var(--card);vertical-align:bottom;line-height:1.3}
+.cmp th:first-child,.cmp td:first-child{position:sticky;left:0;z-index:1;background:var(--card)}
+.cmp tbody tr{cursor:pointer}
+.cmp tbody tr:hover,.cmp tbody tr:hover td:first-child{background:var(--paper)}
+.cmp tbody tr.on,.cmp tbody tr.on td:first-child{background:var(--accent-bg)}
+@media (max-width:600px){.cmp th:first-child,.cmp td:first-child{min-width:132px;max-width:150px}.dlg{padding:8px}.dlg .scroll{padding:8px 10px 14px}}
+.cmp .n-bad{color:var(--bad);font-weight:700}
+.cmp .n-warn{color:var(--warn);font-weight:700}
+.cmp .z{color:var(--ink-3)}
+.cmp .lk{width:12px;height:12px;margin-right:4px;vertical-align:-1px;color:var(--warn)}
+@media (prefers-reduced-motion:no-preference){.lockbar.flash{animation:lkflash .5s}@keyframes lkflash{0%,100%{transform:translateX(-50%)}25%{transform:translateX(calc(-50% - 6px))}75%{transform:translateX(calc(-50% + 6px))}}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* svg drawing */
+@media (max-width:900px){
+  .app{height:auto;min-height:100%}
+  .top{flex-wrap:wrap;row-gap:6px}
+  .tabs{order:3;flex-basis:100%}
+  .work{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 62vh auto}
+  .tools{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:6px max(16px,env(safe-area-inset-left,0px))}
+  .tools .sep{width:1px;height:auto;margin:4px 2px}
+  .tools .lbl{display:none}
+  .tool{min-width:62px}
+  .panel{border-left:0;border-top:1px solid var(--line);overflow:visible;padding:4px 16px 32px}
+  .status{max-width:160px}
+  .hint{top:auto;bottom:66px}
+  .tosel{display:inline-flex;left:12px;top:12px;font-weight:700;color:var(--accent);border-color:var(--accent);padding:8px 12px}
+}
+@media (prefers-reduced-motion:no-preference){.tab,.tool,.btn,.chip{transition:background-color .12s,border-color .12s,color .12s}}
+</style>
+<style id="svgcss">
+.gridline{stroke:var(--grid);stroke-width:1.2}
+.room{fill:var(--room)}
+.pillar{fill:var(--pillar)}
+.wall{fill:none;stroke:var(--wall);stroke-width:5;stroke-linejoin:miter;stroke-linecap:square}
+.stairs{stroke:var(--ink-3);stroke-width:1.5}
+.door-arc{fill:none;stroke:var(--ink-3);stroke-width:1.5;stroke-dasharray:6 5}
+.door-leaf{stroke:var(--wall);stroke-width:2.5}
+.fixed{fill:var(--paper-2);stroke:var(--ink-3);stroke-width:1.5}
+.rlabel{font-size:24px;fill:var(--ink-2);text-anchor:middle;dominant-baseline:central}
+.flabel{font-size:17px;fill:var(--ink-3);text-anchor:middle;dominant-baseline:central}
+.desk rect{fill:var(--desk);stroke:var(--desk-line);stroke-width:1.5}
+.dlabel{fill:var(--ink);text-anchor:middle;dominant-baseline:central;font-weight:700}
+.chair{fill:var(--chair-bg);stroke:var(--chair);stroke-width:1.5}
+.zone rect{fill:var(--paper-2);fill-opacity:.6;stroke:var(--ink-3);stroke-width:2;stroke-dasharray:10 7}
+.zlabel{font-weight:700;fill:var(--ink-2)}
+.zsub{fill:var(--ink-2)}
+.hit{fill:transparent}
+.hitl{stroke:transparent;stroke-width:34}
+.mon .scr{fill:var(--tv)}
+.mon .stand{fill:var(--ink-3)}
+.tv .tvb{fill:var(--tv)}
+.tvlabel{font-size:20px;fill:var(--ink-2);text-anchor:middle;dominant-baseline:central;font-weight:700}
+.notebg{fill:var(--card);stroke-width:2}
+.notet{text-anchor:middle;dominant-baseline:central;font-weight:700}
+.ink{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.tray rect{fill:none;stroke:var(--ink-3);stroke-width:2;stroke-dasharray:12 8}
+.selbox{fill:none;stroke:var(--accent)}
+.hline{stroke:var(--accent)}
+.handle{fill:var(--card);stroke:var(--accent);cursor:grab}
+.marquee{fill:var(--accent-bg);fill-opacity:.4;stroke:var(--accent)}
+.desk,.loose,.mon,.zone,.notei,.arrow,.tv,.umb{cursor:grab}
+.addmark circle{fill:var(--accent);stroke:var(--card);stroke-width:2}
+.addmark path{fill:none;stroke:var(--accent-ink);stroke-width:2;stroke-linecap:round}
+.umb.bad .fixed{stroke:var(--bad);stroke-width:3}
+.halo{paint-order:stroke;stroke:var(--paper);stroke-width:6px;stroke-linejoin:round}
+.zl{pointer-events:none}
+.ghost{fill:none;stroke:var(--ink-3);stroke-width:2;stroke-dasharray:5 5;opacity:.8}
+.desk.cat-atsumare rect{fill:var(--b-atsumare);stroke:var(--c-atsumare);stroke-width:2}.desk.cat-atsumare .dlabel{fill:var(--c-atsumare)}.zone.cat-atsumare rect{fill:var(--b-atsumare);stroke:var(--c-atsumare)}.zone.cat-atsumare .zlabel{fill:var(--c-atsumare)}.loose.cat-atsumare .chair{stroke:var(--c-atsumare);stroke-width:2.5}.mon.cat-atsumare .scr{stroke:var(--c-atsumare);stroke-width:3}.tv.cat-atsumare .tvb{stroke:var(--c-atsumare);stroke-width:4}.tv.cat-atsumare .tvlabel{fill:var(--c-atsumare)}
+.desk.cat-analog rect{fill:var(--b-analog);stroke:var(--c-analog);stroke-width:2}.desk.cat-analog .dlabel{fill:var(--c-analog)}.zone.cat-analog rect{fill:var(--b-analog);stroke:var(--c-analog)}.zone.cat-analog .zlabel{fill:var(--c-analog)}.loose.cat-analog .chair{stroke:var(--c-analog);stroke-width:2.5}.mon.cat-analog .scr{stroke:var(--c-analog);stroke-width:3}.tv.cat-analog .tvb{stroke:var(--c-analog);stroke-width:4}.tv.cat-analog .tvlabel{fill:var(--c-analog)}
+.desk.cat-digital rect{fill:var(--b-digital);stroke:var(--c-digital);stroke-width:2}.desk.cat-digital .dlabel{fill:var(--c-digital)}.zone.cat-digital rect{fill:var(--b-digital);stroke:var(--c-digital)}.zone.cat-digital .zlabel{fill:var(--c-digital)}.loose.cat-digital .chair{stroke:var(--c-digital);stroke-width:2.5}.mon.cat-digital .scr{stroke:var(--c-digital);stroke-width:3}.tv.cat-digital .tvb{stroke:var(--c-digital);stroke-width:4}.tv.cat-digital .tvlabel{fill:var(--c-digital)}
+.desk.cat-food rect{fill:var(--b-food);stroke:var(--c-food);stroke-width:2}.desk.cat-food .dlabel{fill:var(--c-food)}.zone.cat-food rect{fill:var(--b-food);stroke:var(--c-food)}.zone.cat-food .zlabel{fill:var(--c-food)}.loose.cat-food .chair{stroke:var(--c-food);stroke-width:2.5}.mon.cat-food .scr{stroke:var(--c-food);stroke-width:3}.tv.cat-food .tvb{stroke:var(--c-food);stroke-width:4}.tv.cat-food .tvlabel{fill:var(--c-food)}
+.desk.cat-eat rect{fill:var(--b-eat);stroke:var(--c-eat);stroke-width:2}.desk.cat-eat .dlabel{fill:var(--c-eat)}.zone.cat-eat rect{fill:var(--b-eat);stroke:var(--c-eat)}.zone.cat-eat .zlabel{fill:var(--c-eat)}.loose.cat-eat .chair{stroke:var(--c-eat);stroke-width:2.5}.mon.cat-eat .scr{stroke:var(--c-eat);stroke-width:3}.tv.cat-eat .tvb{stroke:var(--c-eat);stroke-width:4}.tv.cat-eat .tvlabel{fill:var(--c-eat)}
+.desk.cat-cafe rect{fill:var(--b-cafe);stroke:var(--c-cafe);stroke-width:2}.desk.cat-cafe .dlabel{fill:var(--c-cafe)}.zone.cat-cafe rect{fill:var(--b-cafe);stroke:var(--c-cafe)}.zone.cat-cafe .zlabel{fill:var(--c-cafe)}.loose.cat-cafe .chair{stroke:var(--c-cafe);stroke-width:2.5}.mon.cat-cafe .scr{stroke:var(--c-cafe);stroke-width:3}.tv.cat-cafe .tvb{stroke:var(--c-cafe);stroke-width:4}.tv.cat-cafe .tvlabel{fill:var(--c-cafe)}
+.desk.cat-show rect{fill:var(--b-show);stroke:var(--c-show);stroke-width:2}.desk.cat-show .dlabel{fill:var(--c-show)}.zone.cat-show rect{fill:var(--b-show);stroke:var(--c-show)}.zone.cat-show .zlabel{fill:var(--c-show)}.loose.cat-show .chair{stroke:var(--c-show);stroke-width:2.5}.mon.cat-show .scr{stroke:var(--c-show);stroke-width:3}.tv.cat-show .tvb{stroke:var(--c-show);stroke-width:4}.tv.cat-show .tvlabel{fill:var(--c-show)}
+.desk.cat-staff rect{fill:var(--b-staff);stroke:var(--c-staff);stroke-width:2}.desk.cat-staff .dlabel{fill:var(--c-staff)}.zone.cat-staff rect{fill:var(--b-staff);stroke:var(--c-staff)}.zone.cat-staff .zlabel{fill:var(--c-staff)}.loose.cat-staff .chair{stroke:var(--c-staff);stroke-width:2.5}.mon.cat-staff .scr{stroke:var(--c-staff);stroke-width:3}.tv.cat-staff .tvb{stroke:var(--c-staff);stroke-width:4}.tv.cat-staff .tvlabel{fill:var(--c-staff)}
+.desk.cat-other rect{fill:var(--b-other);stroke:var(--c-other);stroke-width:2}.desk.cat-other .dlabel{fill:var(--c-other)}.zone.cat-other rect{fill:var(--b-other);stroke:var(--c-other)}.zone.cat-other .zlabel{fill:var(--c-other)}.loose.cat-other .chair{stroke:var(--c-other);stroke-width:2.5}.mon.cat-other .scr{stroke:var(--c-other);stroke-width:3}.tv.cat-other .tvb{stroke:var(--c-other);stroke-width:4}.tv.cat-other .tvlabel{fill:var(--c-other)}
+
+.desk.un rect{stroke-dasharray:6 5;opacity:.75}
+.desk.bad rect{stroke:var(--bad);stroke-width:4}
+.chair.bad,.loose.bad .chair{stroke:var(--bad);stroke-width:3}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>文化祭の配置づくり</h1><span>教室・もとの机19台</span></div>
+    <nav class="tabs" id="tabs" aria-label="案の切りかえ"></nav>
+    <div class="topact">
+      <button class="ibtn" id="cmpBtn" title="全部の案を、数でくらべる">くらべる</button>
+      <button class="ibtn" id="planMenu" aria-label="この案のメニュー" title="この案の名前・固定・コピー・消す"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+      <button class="ibtn" id="undo" aria-label="元に戻す" title="元に戻す（Ctrl+Z）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button>
+      <button class="ibtn" id="redo" aria-label="やり直す" title="やり直す（Ctrl+Y）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></svg></button>
+      <span class="status" id="status" data-k="wait" role="status">読み込み中…</span>
+    </div>
+  </header>
+  <div class="work">
+    <div class="tools" id="tools" role="toolbar" aria-label="道具">
+      <button class="tool" data-tool="select" aria-pressed="true" title="えらぶ・動かす（V）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 3l14 7.5-6.2 1.6L10.5 19z"/></svg>動かす</button>
+      <button class="tool" data-tool="pen" aria-pressed="false" title="ペンで描く（P）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 20l1-4.5L16 4.5l3.5 3.5L8.5 19z"/><path d="M14 7l3.5 3.5"/></svg>ペン</button>
+      <button class="tool" data-tool="erase" aria-pressed="false" title="描いた線を消す（E）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M9 19h11"/><path d="M4.5 14.5l8-8 6 6-6.5 6.5H8.5z"/></svg>消しゴム</button>
+      <div class="sep" aria-hidden="true"></div>
+      <div class="lbl" aria-hidden="true">置く</div>
+      <button class="tool" data-tool="place:desk" aria-pressed="false" title="机を増やす（学校に借りる机）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><rect x="2.5" y="11" width="19" height="7" rx="1.5"/><path d="M12 2.5v6M9 5.5h6"/></svg>机</button>
+      <button class="tool" data-tool="place:monitor" aria-pressed="false" title="モニターを置く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="11" rx="1.5"/><path d="M9 20h6M12 16v4"/></svg>モニター</button>
+      <button class="tool" data-tool="place:chair" aria-pressed="false" title="いすを1つ置く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="6"/></svg>いす</button>
+      <button class="tool" data-tool="place:row" aria-pressed="false" title="いすの列を置く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="3"/><circle cx="12" cy="12" r="3"/><circle cx="19" cy="12" r="3"/></svg>いすの列</button>
+      <button class="tool" data-tool="place:zone" aria-pressed="false" title="エリア（場所）を置く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2.5"><rect x="3.5" y="5" width="17" height="14" rx="2"/></svg>エリア</button>
+      <button class="tool" data-tool="place:note" aria-pressed="false" title="文字を置く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 6h14M12 6v13"/></svg>文字</button>
+      <button class="tool" data-tool="place:arrow" aria-pressed="false" title="矢印（人の流れ）を置く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M14 7l5 5-5 5"/></svg>矢印</button>
+    </div>
+    <section class="stage" id="stage" data-tool="select">
+      <svg id="svg" role="application" aria-label="教室の配置図。机をドラッグして動かせます">
+        <defs>
+          <pattern id="gridp" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" class="gridline"/></pattern>
+        </defs>
+        <g id="world"><g id="gStatic"></g><g id="gDyn"></g><g id="gOver"></g></g>
+      </svg>
+      <div class="float penbar" id="penbar" hidden>
+        <span class="muted">色</span>
+        <span id="swatches" class="row"></span>
+        <span class="muted">太さ</span>
+        <span class="row" id="widths"></span>
+        <button class="btn" id="inkToggle" aria-pressed="true">線を見せる</button>
+        <button class="btn" id="inkClear">線を全部消す</button>
+      </div>
+      <div class="float hint" id="hint" hidden></div>
+      <div class="float deskbar" id="deskbar" hidden><span class="muted">増やす机</span><span class="seg" id="deskKinds"></span><span class="muted">→ 置きたい所をタップ</span></div>
+      <div class="float lockbar" id="lockbar" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>この案は固定しています（直せません）</span><button class="btn" id="unlockBtn">固定を外す</button></div>
+      <button class="float tosel btn" id="toInsp" hidden>えらんだ物を変える ↓</button>
+      <div class="float zoom" role="group" aria-label="見え方">
+        <button class="ibtn snapbtn" id="snap" aria-pressed="true" title="5cm・15°ごとにそろえる">そろえる</button>
+        <button class="ibtn" id="zoomOut" aria-label="小さく"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+        <button class="ibtn" id="zoomIn" aria-label="大きく"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+        <button class="ibtn" id="fitRoom" title="教室を大きく見る">教室</button>
+        <button class="ibtn" id="fitAll" title="全体を見る">全体</button>
+      </div>
+    </section>
+    <aside class="panel" id="panel">
+      <section class="sec" id="secSel" hidden><h2 id="selTitle">えらんだ物</h2><div id="insp"></div></section>
+      <section class="sec"><h2>チェック <span class="cnt" id="chkCnt"></span></h2><ul class="checks" id="checks"></ul></section>
+      <section class="sec"><h2>出し物の一覧</h2><p class="muted" style="margin:0 0 8px">机・エリア・TV をえらんで、出し物の札を付けます。名前を押すと、その出し物の物をまとめてえらびます。</p><div class="legend" id="legend"></div></section>
+      <section class="sec"><h2>この案のメモ</h2><textarea id="memo" placeholder="決めたこと・気になることを書いておく" aria-label="この案のメモ"></textarea></section>
+      <section class="sec">
+        <h2>みんなに見せる</h2>
+        <div class="stack">
+          <div class="row">
+            <button class="btn" id="copySum">まとめを文字でコピー</button>
+            <button class="btn" id="savePng" hidden>画像で保存（PNG）</button>
+          </div>
+          <div class="muted" id="shareMsg"></div>
+          <textarea id="copyArea" readonly hidden aria-label="コピー用の文"></textarea>
+        </div>
+      </section>
+      <section class="sec" id="secFile">
+        <h2>ファイルで受け渡す</h2>
+        <p class="muted" style="margin:0 0 8px">案は、このパソコンのブラウザに保存されます。ほかの人に渡す時は「書き出す」でファイルを作り、受け取った人が「読み込む」を押します。同じ案は、あとで直した方が残ります。</p>
+        <div class="row">
+          <button class="btn" id="exportPlans" hidden>全部の案を書き出す</button>
+          <button class="btn" id="importPlans">ファイルを読み込む</button>
+          <input type="file" id="importFile" accept=".json,application/json" hidden>
+        </div>
+      </section>
+      <section class="sec">
+        <details>
+          <summary>使い方</summary>
+          <ul class="help">
+            <li>机はドラッグで動かします。えらぶと、この欄で「出し物」「いす」「向き」を変えられます。</li>
+            <li>机にはケーブル（LAN・PC の電源）が付いているので、動かすのは少しだけ。元の場所は点線で出ます。使わない机は「使わない机にする」で、教室の外の置き場に移します。</li>
+            <li>右の列の長机3台（いす4つ）は、90×45cm の机2つをくっつけた物です。えらんで「2つに分ける」で分けられます（「くっつける」でもどせます）。右上の小さい机にはケーブルがないので、どこへでも動かせます。</li>
+            <li>机を増やす時は、左の「机」で大きさをえらんで置きます（学校に借りる机。ケーブルがないので、電源・LAN は使えません）。増やした机は「消す」で消せます。</li>
+            <li>上の「くらべる」で、全部の案の数（直す所・いす・増やす机など）を1つの表で見られます。</li>
+            <li>決めた案は、上の「…」→「この案を固定する」で、うっかり直されないようにできます。</li>
+            <li>いすは、机ごとに <b>−</b> <b>＋</b> で増やす・減らす。いすだけ置くときは「いす」「いすの列」。</li>
+            <li>出し物の札は、机・エリア・TV・モニターに付けられます（1つにいくつでも。同じ種類はまとめて「デジタル1・2」のように出ます）。</li>
+            <li>「ペン」で自由に描けます。「消しゴム」で線をなぞると消えます。</li>
+            <li>上の「＋ 新しい案」で、いまの並びから作るか、今の案をコピーします。案ごとに別のページです。</li>
+            <li>案はこのブラウザに保存されます。別のパソコンや人に渡す時は「ファイルで受け渡す」を使います。</li>
+            <li>拡大はホイールか2本の指。何もない所をドラッグすると図が動きます。<kbd>Shift</kbd> を押しながらドラッグで、まとめてえらべます。</li>
+            <li>キー：<kbd>Ctrl</kbd>+<kbd>Z</kbd> 元に戻す／<kbd>R</kbd> 90°回す／<kbd>Delete</kbd> 消す／矢印キーで少し動かす／<kbd>Ctrl</kbd>+<kbd>D</kbd> コピー</li>
+            <li>大きさは、くまくんの手描きの図からの目安です（長机を 180×45cm、方眼1マスを 50cm として描いています）。</li>
+          </ul>
+        </details>
+      </section>
+    </aside>
+  </div>
+</div>
+<div class="pop" id="pop" hidden></div>
+<div class="dlg" id="cmpDlg" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="cmpTitle"><div class="bh"><h2 id="cmpTitle">案をくらべる</h2><button class="ibtn" id="cmpClose">とじる</button></div><div class="scroll"><p class="muted" style="margin:0 0 8px">行を押すと、その案を開きます。数え方は右の「チェック」と同じです。</p><div style="overflow-x:auto"><table class="cmp" id="cmpTable"></table></div></div></div></div>
+<script>window.HAICHI_API=true;window.HAICHI_SEED=[{"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["dg2"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["dg4"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 0, "cx": 602, "cy": 113, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 0, "cx": 592, "cy": 238, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 4, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 2, "cx": 577, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["dg5"], "unused": false}, {"chairs": 0, "cx": 756, "cy": 113, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 0, "cx": 776, "cy": 238, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 4, "cx": 816, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["dg6"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 230, "cy": 445, "h": 130, "id": "ijl6i21uc9p", "rot": 0, "t": "zone", "tags": ["dg1", "dg2"], "text": "", "w": 440}, {"cx": 700, "cy": 585, "h": 120, "id": "i0qdv5fcozc", "rot": 0, "t": "zone", "tags": ["dg5", "dg6"], "text": "", "w": 480}, {"cx": 690, "cy": 445, "h": 140, "id": "ijeilb9mng6", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 450}, {"cx": 230, "cy": 730, "h": 140, "id": "i3r0ulkin7a", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 450}, {"cx": 235, "cy": 585, "h": 140, "id": "i9koav48us4", "rot": 0, "t": "zone", "tags": ["dg3", "dg4"], "text": "", "w": 460}, {"cx": 690, "cy": 150, "h": 290, "id": "is8h7zx05ac", "rot": 0, "t": "zone", "tags": ["fd1", "fd2"], "text": "", "w": 450}, {"cx": 235, "cy": 190, "h": 360, "id": "i1ad8bzdnr6", "rot": 0, "t": "zone", "tags": ["atsumare", "eat"], "text": "", "w": 450}, {"cx": 155, "cy": 730, "id": "iop1i70dubm", "rot": 180, "t": "monitor", "tags": []}, {"cx": 385, "cy": 725, "id": "i376k9ylw2k", "rot": 180, "t": "monitor", "tags": []}, {"cx": 870, "cy": 445, "id": "i6ridrchxh8", "rot": 180, "t": "monitor", "tags": []}, {"cx": 630, "cy": 440, "id": "inz4vzj9yna", "rot": 180, "t": "monitor", "tags": []}, {"cx": 565, "cy": 165, "id": "itq96mr040j", "rot": 0, "t": "chair", "tags": []}, {"cx": 615, "cy": 170, "id": "idbwop0bbw7", "rot": 0, "t": "chair", "tags": []}], "memo": "理想？", "name": "案G（一つづつ）", "order": 9, "strokes": [{"c": "#d42a1f", "p": [576.3, 820.3, 556.6, 813.4, 535.6, 804.1, 514.7, 794.8, 498.4, 787.8, 486.8, 780.8, 479.8, 776.2, 472.9, 769.2, 463.6, 759.9, 461.3, 752.9, 456.6, 746, 447.3, 736.7], "w": 8}, {"c": "#d42a1f", "p": [445, 734.3, 445, 748.3, 446.1, 757.6], "w": 8}, {"c": "#d42a1f", "p": [438, 729.7, 460.1, 739, 474, 743.6], "w": 8}, {"c": "#d42a1f", "p": [98.7, 841.3, 99.8, 848.2, 106.8, 859.9, 111.4, 869.2, 111.4, 878.5, 113.8, 885.4], "w": 8}, {"c": "#d42a1f", "p": [103.3, 852.9, 116.1, 859.9, 137, 866.8, 157.9, 869.2, 185.8, 873.8, 216, 876.1, 246.3, 878.5, 278.8, 878.5, 313.7, 880.8, 353.2, 883.1, 392.7, 883.1, 425.2, 883.1, 446.1, 880.8, 453.1, 880.8], "w": 8}, {"c": "#d42a1f", "p": [105.6, 845.9, 123.1, 845.9, 148.6, 841.3, 176.5, 834.3, 199.8, 829.6, 209.1, 827.3], "w": 8}], "tv": {"tv1": ["atsumare", "asobi"], "tv2": ["fd1", "movie"]}, "updated": 1793584183065, "id": "p-762qfdtgxn"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["fd3"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 148, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 293, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1", "dg2"], "unused": false}, {"chairs": 3, "cx": 796, "cy": 148, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 293, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3", "dg4"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 245, "cy": 605, "h": 420, "id": "ic9sujmwf7i", "rot": 0, "t": "zone", "tags": ["eat"], "text": "", "w": 480}, {"cx": 710, "cy": 605, "h": 140, "id": "ijeilb9mng6", "rot": 0, "t": "zone", "tags": ["dg1", "dg5"], "text": "", "w": 480}, {"cx": 690, "cy": 460, "h": 130, "id": "i3r0ulkin7a", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 440}, {"cx": 695, "cy": 305, "h": 140, "id": "i9koav48us4", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 460}, {"cx": 345, "cy": 205, "h": 380, "id": "i2kn8qvyzjf", "rot": 0, "t": "zone", "tags": ["fd3", "fd2"], "text": "", "w": 210}, {"cx": 110, "cy": 210, "h": 350, "id": "is8h7zx05ac", "rot": 0, "t": "zone", "tags": ["fd1"], "text": "", "w": 230}, {"cx": 700, "cy": 130, "h": 210, "id": "i1ad8bzdnr6", "rot": 0, "t": "zone", "tags": ["atsumare"], "text": "", "w": 500}, {"cx": 635, "cy": 295, "id": "iop1i70dubm", "rot": 0, "t": "monitor", "tags": []}, {"cx": 755, "cy": 295, "id": "i376k9ylw2k", "rot": 0, "t": "monitor", "tags": []}, {"cx": 525, "cy": 450, "id": "i6ridrchxh8", "rot": 0, "t": "monitor", "tags": []}, {"cx": 770, "cy": 435, "id": "inz4vzj9yna", "rot": 0, "t": "monitor", "tags": []}], "memo": "ぐっちゃ", "name": "案A（初期案）", "order": 2, "strokes": [{"c": "#d42a1f", "p": [576.3, 820.3, 556.6, 813.4, 535.6, 804.1, 514.7, 794.8, 498.4, 787.8, 486.8, 780.8, 479.8, 776.2, 472.9, 769.2, 463.6, 759.9, 461.3, 752.9, 456.6, 746, 447.3, 736.7], "w": 8}, {"c": "#d42a1f", "p": [445, 734.3, 445, 748.3, 446.1, 757.6], "w": 8}, {"c": "#d42a1f", "p": [438, 729.7, 460.1, 739, 474, 743.6], "w": 8}, {"c": "#d42a1f", "p": [98.7, 841.3, 99.8, 848.2, 106.8, 859.9, 111.4, 869.2, 111.4, 878.5, 113.8, 885.4], "w": 8}, {"c": "#d42a1f", "p": [103.3, 852.9, 116.1, 859.9, 137, 866.8, 157.9, 869.2, 185.8, 873.8, 216, 876.1, 246.3, 878.5, 278.8, 878.5, 313.7, 880.8, 353.2, 883.1, 392.7, 883.1, 425.2, 883.1, 446.1, 880.8, 453.1, 880.8], "w": 8}, {"c": "#d42a1f", "p": [105.6, 845.9, 123.1, 845.9, 148.6, 841.3, 176.5, 834.3, 199.8, 829.6, 209.1, 827.3], "w": 8}], "tv": {"tv1": ["movie", "fd1"], "tv2": ["atsumare", "asobi"]}, "updated": 1793426606714, "id": "p-80lyfd63da"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["fd3"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 148, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 293, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3"], "unused": false}, {"chairs": 3, "cx": 796, "cy": 148, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["dg2"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 293, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["dg4", "dg5"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "id": "p-bkai", "items": [{"cx": 225, "cy": 285, "h": 420, "id": "z-play", "rot": 0, "t": "zone", "tags": ["atsumare", "eat"], "text": "食べながら遊べる", "w": 480}, {"cx": 100, "cy": 670, "h": 350, "id": "z-fd1", "rot": 0, "t": "zone", "tags": ["fd1"], "text": "", "w": 230}, {"cx": 340, "cy": 675, "h": 380, "id": "z-fd23", "rot": 0, "t": "zone", "tags": ["fd2", "fd3"], "text": "", "w": 210}, {"cx": 700, "cy": 130, "h": 210, "id": "z-dgf", "rot": 0, "t": "zone", "tags": ["dg1", "dg2"], "text": "", "w": 500}, {"cx": 695, "cy": 305, "h": 140, "id": "z-an1", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 460}, {"cx": 690, "cy": 460, "h": 130, "id": "z-an2", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 440}, {"cx": 710, "cy": 605, "h": 140, "id": "z-dgb", "rot": 0, "t": "zone", "tags": ["dg3", "dg4", "dg5"], "text": "", "w": 480}, {"cx": 635, "cy": 295, "id": "m-b", "rot": 0, "t": "monitor", "tags": ["anB"]}, {"cx": 755, "cy": 295, "id": "m-a", "rot": 0, "t": "monitor", "tags": ["anA"]}, {"cx": 525, "cy": 450, "id": "m-c", "rot": 0, "t": "monitor", "tags": ["anC"]}, {"cx": 770, "cy": 435, "id": "m-d", "rot": 0, "t": "monitor", "tags": ["anD"]}, {"color": "#1e5bc6", "cx": 511, "cy": 800, "id": "a-in", "rot": 270, "t": "arrow", "tags": [], "w": 110}, {"color": "#d42a1f", "cx": 150, "cy": 860, "id": "a-out", "rot": 90, "t": "arrow", "tags": [], "w": 100}, {"color": "#1e5bc6", "cx": 585, "cy": 840, "id": "n-in", "rot": 0, "size": 20, "t": "note", "tags": [], "text": "入口だけ"}, {"color": "#d42a1f", "cx": 260, "cy": 905, "id": "n-out", "rot": 0, "size": 20, "t": "note", "tags": [], "text": "出口だけ（階段へ）"}], "memo": "案B改（入口と出口を分ける）\nくまくんの案B がもとです。机は動かしていません。\n\n・真ん中のドア＝入口だけ。入ってすぐ、飲食で買う。\n・左うしろのドア＝出口だけ。出るとすぐ階段。\n・お客さんの流れが一方通行になるので、ドアの前で入る人と出る人がぶつからない。\n・あつまれと食べる場所は同じ所（18席）。食べながら自分のスマホで遊べる。\n・TV①：あつまれだけ（遊んでいる間ずっと使うため）。TV②：制作中の動画とあそびまち（飲食のメニューも）。\n・元の飲食3 の机は、デジタル6 になりました（入口のすぐ横）。\n\n気になる所\n・飲食2 の列がドアの前にのびないように、列は教室の中へ並ぶ。係が声をかける。\n・デジタル6 が入口のすぐ横。飲み物を持った人が通るので、パソコンにこぼれないよう気をつける。\n・食べ終わった人が席に長く座ると、あつまれの席が足りなくなる。\n・出口のドアに「出口」、入口のドアに「入口」の紙をはる。", "name": "案B改（入口と出口を分ける）", "order": 6, "strokes": [], "tv": {"tv1": ["atsumare"], "tv2": ["movie", "asobi"]}, "updated": 1793446500000}, {"desks": [{"chairs": 1, "cx": 24, "cy": 220, "id": "d1", "kind": "long", "rot": 270, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 2, "cx": 120, "cy": 662.5, "id": "d2", "kind": "long", "rot": 0, "side": "back", "tags": ["eat"], "unused": false}, {"chairs": 2, "cx": 120, "cy": 455, "id": "d3", "kind": "long", "rot": 0, "side": "back", "tags": ["anA"], "unused": false}, {"chairs": 2, "cx": 120, "cy": 500, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 2, "cx": 120, "cy": 707.5, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 0, "cx": 445, "cy": 1065, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": true}, {"chairs": 0, "cx": 660, "cy": 1065, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": true}, {"chairs": 2, "cx": 345, "cy": 455, "id": "d8", "kind": "long", "rot": 0, "side": "back", "tags": ["anB"], "unused": false}, {"chairs": 2, "cx": 345, "cy": 500, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 2, "cx": 375, "cy": 735, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2", "fd3"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 148, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 293, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 470, "id": "d13", "kind": "long", "rot": 0, "side": "both", "tags": ["anC"], "unused": false}, {"chairs": 1, "cx": 801.5, "cy": 632.5, "id": "d14", "kind": "long", "rot": -22, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 2, "cx": 796, "cy": 148, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["dg2"], "unused": false}, {"chairs": 2, "cx": 826, "cy": 293, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["dg4", "dg5"], "unused": false}, {"chairs": 2, "cx": 790, "cy": 470, "id": "d17", "kind": "long", "rot": 0, "side": "both", "tags": ["anD"], "unused": false}, {"chairs": 1, "cx": 620, "cy": 681.5, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 260, "cy": 225, "h": 310, "id": "z-atsu", "rot": 0, "t": "zone", "tags": ["atsumare"], "text": "立って遊ぶ所", "w": 400}, {"cx": 242.5, "cy": 691, "h": 242, "id": "z-eat", "rot": 0, "t": "zone", "tags": ["eat"], "text": "座って・立って食べる", "w": 445}, {"cx": 200, "cy": 477, "id": "m-a", "rot": 90, "t": "monitor", "tags": ["anA"]}, {"cx": 425, "cy": 477, "id": "m-b", "rot": 90, "t": "monitor", "tags": ["anB"]}, {"cx": 502, "cy": 470, "id": "m-c", "rot": 90, "t": "monitor", "tags": ["anC"]}, {"cx": 710, "cy": 470, "id": "m-d", "rot": 90, "t": "monitor", "tags": ["anD"]}, {"color": "#1e5bc6", "cx": 511, "cy": 800, "id": "a-1", "rot": 270, "t": "arrow", "tags": [], "w": 110}, {"color": "#1e5bc6", "cx": 160, "cy": 873, "id": "a-2", "rot": 180, "t": "arrow", "tags": [], "w": 120}, {"color": "#1b2225", "cx": 708, "cy": 100, "id": "n-1", "rot": 0, "size": 20, "t": "note", "tags": [], "text": "TV②：使い道を決める"}, {"color": "#1e5bc6", "cx": 580, "cy": 840, "id": "n-2", "rot": 0, "size": 20, "t": "note", "tags": [], "text": "出入口"}, {"color": "#1e5bc6", "cx": 240, "cy": 900, "id": "n-3", "rot": 0, "size": 18, "t": "note", "tags": [], "text": "出入口"}], "memo": "Claude の案1（たたき台です。大きさは手描きの図からの目安）\n\n・あつまれ：TV① の前を空けて「立って遊ぶ所」に。パソコンの机は左の壁ぎわ。\n・デジタル：右前の4台は今の並びのまま（動かさなくてよい）。TV② を使うかは決める。中身が分かったら札を付け直す。\n・アナログ：A と B は机2台をくっつけて4人席。C と D は机1台で向かい合わせの2人席。どれも机の端にモニター。\n・飲食：後ろのドアの左右にまとめた。飲食1 はななめの壁に沿って2台。飲食2・3 は1台を半分ずつ。売る人は壁の側。\n・食べる場所：左うしろ。机2台で4席と、立って食べる所。\n・使わない机：2台（教室の外のどこに置くか決める）。\n\n気になる所\n・デジタルとアナログ C・D の間が約50cm で、せまい。\n・コンセントの場所が分からない。パソコン・モニター・TV の机は、コンセントを見て直す。\n・飲食2 と飲食3 が1台を分けてよいか、チームに聞く。", "name": "Claude の案1（机を大きく動かす・使えない）", "order": 1, "strokes": [], "tv": {"tv1": ["atsumare"], "tv2": []}, "updated": 1793424601000, "id": "p-claude1"}, {"desks": [{"chairs": 4, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 4, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 6, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "both", "tags": ["eat"], "unused": false}, {"chairs": 1, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 1, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 4, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 4, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 6, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "both", "tags": ["eat"], "unused": false}, {"chairs": 1, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["fd3"], "unused": false}, {"chairs": 1, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 148, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 293, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3"], "unused": false}, {"chairs": 4, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "both", "tags": ["anB"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "both", "tags": ["anC"], "unused": false}, {"chairs": 2, "cx": 796, "cy": 148, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["dg2"], "unused": false}, {"chairs": 2, "cx": 826, "cy": 293, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["dg4", "dg5"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "both", "tags": ["anA"], "unused": false}, {"chairs": 2, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "both", "tags": ["anD"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 662, "cy": 438, "id": "m-b", "rot": 90, "t": "monitor", "tags": ["anB"]}, {"cx": 906, "cy": 438, "id": "m-a", "rot": 90, "t": "monitor", "tags": ["anA"]}, {"cx": 662, "cy": 583, "id": "m-c", "rot": 90, "t": "monitor", "tags": ["anC"]}, {"cx": 906, "cy": 583, "id": "m-d", "rot": 90, "t": "monitor", "tags": ["anD"]}, {"color": "#1e5bc6", "cx": 511, "cy": 800, "id": "a-1", "rot": 270, "t": "arrow", "tags": [], "w": 110}, {"color": "#1e5bc6", "cx": 160, "cy": 873, "id": "a-2", "rot": 180, "t": "arrow", "tags": [], "w": 120}, {"color": "#1e5bc6", "cx": 580, "cy": 840, "id": "n-2", "rot": 0, "size": 20, "t": "note", "tags": [], "text": "出入口"}, {"color": "#1e5bc6", "cx": 240, "cy": 900, "id": "n-3", "rot": 0, "size": 18, "t": "note", "tags": [], "text": "出入口"}], "memo": "Claude の案2（机を動かさない案）\n机はケーブル（LAN・PC の電源）があるので、どれも今の場所のまま。いすと札だけ変えました。\n\n・あつまれ：TV① の前の4台（左の2列の1・2番目）。いすを4脚ずつで16人分。スマホで遊ぶので、座ったまま TV を見られる。\n・デジタル：右前の4台（TV② の前）。どの机でも LAN と PC の電源が使える。\n・アナログ：右の真ん中〜うしろの4台。A（4人）と B（4人まで）は向かい合わせで4席、C・D は向かい合わせで2席。モニターは机の右の端。\n・食べる場所：左の2列の3番目（2台・12席）。\n・飲食：左の2列のうしろの4台。飲食1 はいちばん後ろの2台（ドアに近い）、飲食2・3 はその前。\n・TV①：あつまれ／TV②：制作中の動画とあそびまち（飲食のメニューも）。\n\n気になる所\n・あつまれに「立って遊ぶ所」がない。16人をこえたら、うしろで立って見てもらう。\n・アナログの机は奥行きがせまい（45cm くらい）。ボードゲームだと机の上が足りないかもしれない。\n・飲食の列と食べる場所のあいだを、人が通れるかを当日見る。", "name": "Claude の案2（机を動かさない）", "order": 2, "strokes": [], "tv": {"tv1": ["atsumare"], "tv2": ["movie", "asobi"]}, "updated": 1793425500000, "id": "p-claude2"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["fd3"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 148, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 293, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3"], "unused": false}, {"chairs": 3, "cx": 796, "cy": 148, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["dg2"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 293, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["dg5", "dg4"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 235, "cy": 595, "h": 420, "id": "ic9sujmwf7i", "rot": 0, "t": "zone", "tags": ["eat", "atsumare"], "text": "", "w": 480}, {"cx": 710, "cy": 605, "h": 140, "id": "ijeilb9mng6", "rot": 0, "t": "zone", "tags": ["dg5", "dg3"], "text": "", "w": 480}, {"cx": 690, "cy": 460, "h": 130, "id": "i3r0ulkin7a", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 440}, {"cx": 695, "cy": 305, "h": 140, "id": "i9koav48us4", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 460}, {"cx": 345, "cy": 205, "h": 380, "id": "i2kn8qvyzjf", "rot": 0, "t": "zone", "tags": ["fd3", "fd2"], "text": "", "w": 210}, {"cx": 110, "cy": 195, "h": 350, "id": "is8h7zx05ac", "rot": 0, "t": "zone", "tags": ["fd1"], "text": "", "w": 230}, {"cx": 700, "cy": 130, "h": 210, "id": "i1ad8bzdnr6", "rot": 0, "t": "zone", "tags": ["dg1", "dg2"], "text": "", "w": 500}, {"cx": 635, "cy": 295, "id": "iop1i70dubm", "rot": 0, "t": "monitor", "tags": []}, {"cx": 755, "cy": 295, "id": "i376k9ylw2k", "rot": 0, "t": "monitor", "tags": []}, {"cx": 525, "cy": 450, "id": "i6ridrchxh8", "rot": 0, "t": "monitor", "tags": []}, {"cx": 770, "cy": 435, "id": "inz4vzj9yna", "rot": 0, "t": "monitor", "tags": []}], "memo": "スタッフが一番大変\n大画面なし部屋を立ててもらう", "name": "案D（あつまれの原点回帰）", "order": 5, "strokes": [{"c": "#d42a1f", "p": [576.3, 820.3, 556.6, 813.4, 535.6, 804.1, 514.7, 794.8, 498.4, 787.8, 486.8, 780.8, 479.8, 776.2, 472.9, 769.2, 463.6, 759.9, 461.3, 752.9, 456.6, 746, 447.3, 736.7], "w": 8}, {"c": "#d42a1f", "p": [445, 734.3, 445, 748.3, 446.1, 757.6], "w": 8}, {"c": "#d42a1f", "p": [438, 729.7, 460.1, 739, 474, 743.6], "w": 8}, {"c": "#d42a1f", "p": [98.7, 841.3, 99.8, 848.2, 106.8, 859.9, 111.4, 869.2, 111.4, 878.5, 113.8, 885.4], "w": 8}, {"c": "#d42a1f", "p": [103.3, 852.9, 116.1, 859.9, 137, 866.8, 157.9, 869.2, 185.8, 873.8, 216, 876.1, 246.3, 878.5, 278.8, 878.5, 313.7, 880.8, 353.2, 883.1, 392.7, 883.1, 425.2, 883.1, 446.1, 880.8, 453.1, 880.8], "w": 8}, {"c": "#d42a1f", "p": [105.6, 845.9, 123.1, 845.9, 148.6, 841.3, 176.5, 834.3, 199.8, 829.6, 209.1, 827.3], "w": 8}], "tv": {"tv1": ["fd1", "asobi"], "tv2": ["movie", "asobi"]}, "updated": 1793459620203, "id": "p-djgutehb5d"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 582, "cy": 148, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 582, "cy": 293, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 2, "cx": 582, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 796, "cy": 148, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 4, "cx": 826, "cy": 293, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 4, "cx": 826, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": [], "unused": false}, {"chairs": 0, "cx": 891.5, "cy": 232.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [], "memo": "くまくんの図の、今の教室の並びです。この案はさわらずに残して、上の「＋ 新しい案」から作るのがおすすめです。", "name": "いまの並び", "order": 0, "strokes": [], "tv": {"tv1": [], "tv2": []}, "updated": 1793424827973, "id": "p-now"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["eat", "atsumare"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 593, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["fd3"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 148, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 293, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3"], "unused": false}, {"chairs": 3, "cx": 796, "cy": 148, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["dg2"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 293, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["dg4", "dg5"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 225, "cy": 285, "h": 420, "id": "ic9sujmwf7i", "rot": 0, "t": "zone", "tags": ["eat", "atsumare"], "text": "", "w": 480}, {"cx": 710, "cy": 605, "h": 140, "id": "ijeilb9mng6", "rot": 0, "t": "zone", "tags": ["dg5", "dg3"], "text": "", "w": 480}, {"cx": 690, "cy": 460, "h": 130, "id": "i3r0ulkin7a", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 440}, {"cx": 695, "cy": 305, "h": 140, "id": "i9koav48us4", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 460}, {"cx": 340, "cy": 675, "h": 380, "id": "i2kn8qvyzjf", "rot": 0, "t": "zone", "tags": ["fd3", "fd2"], "text": "", "w": 210}, {"cx": 100, "cy": 670, "h": 350, "id": "is8h7zx05ac", "rot": 0, "t": "zone", "tags": ["fd1"], "text": "", "w": 230}, {"cx": 700, "cy": 130, "h": 210, "id": "i1ad8bzdnr6", "rot": 0, "t": "zone", "tags": ["dg1", "dg2"], "text": "", "w": 500}, {"cx": 635, "cy": 295, "id": "iop1i70dubm", "rot": 0, "t": "monitor", "tags": []}, {"cx": 755, "cy": 295, "id": "i376k9ylw2k", "rot": 0, "t": "monitor", "tags": []}, {"cx": 525, "cy": 450, "id": "i6ridrchxh8", "rot": 0, "t": "monitor", "tags": []}, {"cx": 770, "cy": 435, "id": "inz4vzj9yna", "rot": 0, "t": "monitor", "tags": []}], "memo": "一番いいが客のことを考えてない", "name": "案B（入口を減らす）", "order": 3, "strokes": [{"c": "#d42a1f", "p": [576.3, 820.3, 556.6, 813.4, 535.6, 804.1, 514.7, 794.8, 498.4, 787.8, 486.8, 780.8, 479.8, 776.2, 472.9, 769.2, 463.6, 759.9, 461.3, 752.9, 456.6, 746, 447.3, 736.7], "w": 8}, {"c": "#d42a1f", "p": [445, 734.3, 445, 748.3, 446.1, 757.6], "w": 8}, {"c": "#d42a1f", "p": [438, 729.7, 460.1, 739, 474, 743.6], "w": 8}, {"c": "#1b2225", "p": [153.3, 892.1, 153.3, 882.8, 154.5, 875.8, 154.5, 864.2, 154.5, 854.9, 156.8, 847.9, 156.8, 859.6, 156.8, 868.9, 156.8, 880.5, 156.8, 889.8, 153.3, 878.1, 151, 871.2, 148.7, 861.9, 146.3, 852.6, 146.3, 843.3, 144, 852.6, 144, 866.5, 145.2, 882.8, 145.2, 896.7, 147.5, 906], "w": 8}, {"c": "#d42a1f", "p": [156.8, 917.7, 159.1, 906, 159.1, 896.7, 159.1, 885.1, 159.1, 875.8, 158, 866.5, 158, 857.2, 158, 847.9, 158, 831.7, 158, 841, 155.6, 857.2, 153.3, 871.2, 151, 882.8, 148.7, 889.8, 148.7, 878.1, 149.8, 866.5, 152.2, 852.6, 154.5, 843.3, 154.5, 836.3, 154.5, 843.3, 151, 854.9, 146.3, 868.9, 144, 875.8, 142.9, 864.2, 142.9, 852.6, 145.2, 843.3, 145.2, 836.3, 145.2, 854.9, 145.2, 866.5, 145.2, 875.8, 144, 882.8], "w": 8}, {"c": "#d42a1f", "p": [217.2, 843.3, 216.1, 850.3, 216.1, 859.6, 209.1, 861.9, 202.1, 861.9, 188.2, 864.2, 181.2, 868.9], "w": 8}, {"c": "#d42a1f", "p": [198.6, 841, 201, 857.2, 203.3, 866.5, 207.9, 878.1, 214.9, 892.1, 221.9, 903.7, 228.9, 915.3, 233.5, 924.6, 235.8, 931.6], "w": 8}], "tv": {"tv1": ["atsumare", "asobi"], "tv2": ["asobi", "movie"]}, "updated": 1793426150950, "id": "p-ntqonq69rp"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3"], "unused": false}, {"chairs": 4, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["dg2"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["dg4"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 4, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 0, "cx": 602, "cy": 113, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 0, "cx": 592, "cy": 238, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 2, "cx": 577, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["dg5"], "unused": false}, {"chairs": 0, "cx": 756, "cy": 113, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 0, "cx": 776, "cy": 238, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 4, "cx": 816, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["dg6"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 695, "cy": 585, "h": 160, "id": "i4elyamxo66", "rot": 0, "t": "zone", "tags": ["dg5", "dg6"], "text": "", "w": 470}, {"cx": 230, "cy": 305, "h": 110, "id": "i0qdv5fcozc", "rot": 0, "t": "zone", "tags": ["dg1", "dg2"], "text": "", "w": 460}, {"cx": 695, "cy": 405, "h": 200, "id": "ic9sujmwf7i", "rot": 0, "t": "zone", "tags": ["eat"], "text": "", "w": 460}, {"cx": 235, "cy": 445, "h": 140, "id": "ijeilb9mng6", "rot": 0, "t": "zone", "tags": ["dg3", "dg4"], "text": "", "w": 450}, {"cx": 230, "cy": 730, "h": 140, "id": "i3r0ulkin7a", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 450}, {"cx": 235, "cy": 585, "h": 140, "id": "i9koav48us4", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 460}, {"cx": 690, "cy": 150, "h": 290, "id": "is8h7zx05ac", "rot": 0, "t": "zone", "tags": ["fd1", "fd2"], "text": "", "w": 450}, {"cx": 235, "cy": 125, "h": 230, "id": "i1ad8bzdnr6", "rot": 0, "t": "zone", "tags": ["atsumare"], "text": "", "w": 450}, {"cx": 155, "cy": 730, "id": "iop1i70dubm", "rot": 180, "t": "monitor", "tags": []}, {"cx": 385, "cy": 725, "id": "i376k9ylw2k", "rot": 180, "t": "monitor", "tags": []}, {"cx": 150, "cy": 585, "id": "i6ridrchxh8", "rot": 180, "t": "monitor", "tags": []}, {"cx": 370, "cy": 585, "id": "inz4vzj9yna", "rot": 180, "t": "monitor", "tags": []}, {"cx": 565, "cy": 165, "id": "itq96mr040j", "rot": 0, "t": "chair", "tags": []}, {"cx": 615, "cy": 170, "id": "idbwop0bbw7", "rot": 0, "t": "chair", "tags": []}], "memo": "理想？", "name": "案E改（あつまれへらす）", "order": 10, "strokes": [{"c": "#d42a1f", "p": [576.3, 820.3, 556.6, 813.4, 535.6, 804.1, 514.7, 794.8, 498.4, 787.8, 486.8, 780.8, 479.8, 776.2, 472.9, 769.2, 463.6, 759.9, 461.3, 752.9, 456.6, 746, 447.3, 736.7], "w": 8}, {"c": "#d42a1f", "p": [445, 734.3, 445, 748.3, 446.1, 757.6], "w": 8}, {"c": "#d42a1f", "p": [438, 729.7, 460.1, 739, 474, 743.6], "w": 8}, {"c": "#d42a1f", "p": [98.7, 841.3, 99.8, 848.2, 106.8, 859.9, 111.4, 869.2, 111.4, 878.5, 113.8, 885.4], "w": 8}, {"c": "#d42a1f", "p": [103.3, 852.9, 116.1, 859.9, 137, 866.8, 157.9, 869.2, 185.8, 873.8, 216, 876.1, 246.3, 878.5, 278.8, 878.5, 313.7, 880.8, 353.2, 883.1, 392.7, 883.1, 425.2, 883.1, 446.1, 880.8, 453.1, 880.8], "w": 8}, {"c": "#d42a1f", "p": [105.6, 845.9, 123.1, 845.9, 148.6, 841.3, 176.5, 834.3, 199.8, 829.6, 209.1, 827.3], "w": 8}], "tv": {"tv1": ["atsumare", "asobi"], "tv2": ["fd1", "movie"]}, "updated": 1793583781433, "id": "p-pogxo1b684"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare", "eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 0, "cx": 602, "cy": 113, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 0, "cx": 592, "cy": 238, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 4, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 3, "cx": 577, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1", "dg2", "dg3"], "unused": false}, {"chairs": 0, "cx": 756, "cy": 113, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 0, "cx": 776, "cy": 238, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 4, "cx": 816, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["dg4", "dg5", "dg6"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 690, "cy": 585, "h": 120, "id": "i0qdv5fcozc", "rot": 0, "t": "zone", "tags": ["dg1", "dg2", "dg3", "dg4", "dg5", "dg6"], "text": "", "w": 460}, {"cx": 690, "cy": 440, "h": 140, "id": "ijeilb9mng6", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 450}, {"cx": 230, "cy": 730, "h": 140, "id": "i3r0ulkin7a", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 450}, {"cx": 690, "cy": 150, "h": 290, "id": "is8h7zx05ac", "rot": 0, "t": "zone", "tags": ["fd1", "fd2"], "text": "", "w": 450}, {"cx": 235, "cy": 330, "h": 640, "id": "i1ad8bzdnr6", "rot": 0, "t": "zone", "tags": ["atsumare", "eat"], "text": "", "w": 450}, {"cx": 155, "cy": 730, "id": "iop1i70dubm", "rot": 180, "t": "monitor", "tags": []}, {"cx": 385, "cy": 725, "id": "i376k9ylw2k", "rot": 180, "t": "monitor", "tags": []}, {"cx": 630, "cy": 445, "id": "i6ridrchxh8", "rot": 180, "t": "monitor", "tags": []}, {"cx": 860, "cy": 445, "id": "inz4vzj9yna", "rot": 180, "t": "monitor", "tags": []}, {"cx": 565, "cy": 165, "id": "itq96mr040j", "rot": 0, "t": "chair", "tags": []}, {"cx": 615, "cy": 170, "id": "idbwop0bbw7", "rot": 0, "t": "chair", "tags": []}], "memo": "理想？", "name": "案F（あつまれフリースペースを広げた）", "order": 8, "strokes": [{"c": "#d42a1f", "p": [576.3, 820.3, 556.6, 813.4, 535.6, 804.1, 514.7, 794.8, 498.4, 787.8, 486.8, 780.8, 479.8, 776.2, 472.9, 769.2, 463.6, 759.9, 461.3, 752.9, 456.6, 746, 447.3, 736.7], "w": 8}, {"c": "#d42a1f", "p": [445, 734.3, 445, 748.3, 446.1, 757.6], "w": 8}, {"c": "#d42a1f", "p": [438, 729.7, 460.1, 739, 474, 743.6], "w": 8}, {"c": "#d42a1f", "p": [98.7, 841.3, 99.8, 848.2, 106.8, 859.9, 111.4, 869.2, 111.4, 878.5, 113.8, 885.4], "w": 8}, {"c": "#d42a1f", "p": [103.3, 852.9, 116.1, 859.9, 137, 866.8, 157.9, 869.2, 185.8, 873.8, 216, 876.1, 246.3, 878.5, 278.8, 878.5, 313.7, 880.8, 353.2, 883.1, 392.7, 883.1, 425.2, 883.1, 446.1, 880.8, 453.1, 880.8], "w": 8}, {"c": "#d42a1f", "p": [105.6, 845.9, 123.1, 845.9, 148.6, 841.3, 176.5, 834.3, 199.8, 829.6, 209.1, 827.3], "w": 8}], "tv": {"tv1": ["atsumare", "movie"], "tv2": ["fd1", "asobi"]}, "updated": 1793587020694, "id": "p-v8mkkhs76m"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1", "dg2", "dg3"], "unused": false}, {"chairs": 4, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["atsumare"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["dg4", "dg5", "dg6"], "unused": false}, {"chairs": 4, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 0, "cx": 602, "cy": 113, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 0, "cx": 592, "cy": 238, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 2, "cx": 577, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 0, "cx": 756, "cy": 113, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 0, "cx": 776, "cy": 238, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 4, "cx": 816, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 695, "cy": 480, "h": 350, "id": "ic9sujmwf7i", "rot": 0, "t": "zone", "tags": ["eat"], "text": "", "w": 460}, {"cx": 235, "cy": 445, "h": 140, "id": "ijeilb9mng6", "rot": 0, "t": "zone", "tags": ["dg1", "dg2", "dg3", "dg4", "dg5", "dg6"], "text": "", "w": 450}, {"cx": 230, "cy": 730, "h": 140, "id": "i3r0ulkin7a", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 450}, {"cx": 235, "cy": 585, "h": 140, "id": "i9koav48us4", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 460}, {"cx": 690, "cy": 150, "h": 290, "id": "is8h7zx05ac", "rot": 0, "t": "zone", "tags": ["fd1", "fd2"], "text": "", "w": 450}, {"cx": 230, "cy": 190, "h": 360, "id": "i1ad8bzdnr6", "rot": 0, "t": "zone", "tags": ["atsumare"], "text": "", "w": 440}, {"cx": 155, "cy": 730, "id": "iop1i70dubm", "rot": 180, "t": "monitor", "tags": []}, {"cx": 385, "cy": 725, "id": "i376k9ylw2k", "rot": 180, "t": "monitor", "tags": []}, {"cx": 150, "cy": 585, "id": "i6ridrchxh8", "rot": 180, "t": "monitor", "tags": []}, {"cx": 370, "cy": 585, "id": "inz4vzj9yna", "rot": 180, "t": "monitor", "tags": []}, {"cx": 565, "cy": 165, "id": "itq96mr040j", "rot": 0, "t": "chair", "tags": []}, {"cx": 615, "cy": 170, "id": "idbwop0bbw7", "rot": 0, "t": "chair", "tags": []}], "memo": "理想？", "name": "案E（左右反対）", "order": 7, "strokes": [{"c": "#d42a1f", "p": [576.3, 820.3, 556.6, 813.4, 535.6, 804.1, 514.7, 794.8, 498.4, 787.8, 486.8, 780.8, 479.8, 776.2, 472.9, 769.2, 463.6, 759.9, 461.3, 752.9, 456.6, 746, 447.3, 736.7], "w": 8}, {"c": "#d42a1f", "p": [445, 734.3, 445, 748.3, 446.1, 757.6], "w": 8}, {"c": "#d42a1f", "p": [438, 729.7, 460.1, 739, 474, 743.6], "w": 8}, {"c": "#d42a1f", "p": [98.7, 841.3, 99.8, 848.2, 106.8, 859.9, 111.4, 869.2, 111.4, 878.5, 113.8, 885.4], "w": 8}, {"c": "#d42a1f", "p": [103.3, 852.9, 116.1, 859.9, 137, 866.8, 157.9, 869.2, 185.8, 873.8, 216, 876.1, 246.3, 878.5, 278.8, 878.5, 313.7, 880.8, 353.2, 883.1, 392.7, 883.1, 425.2, 883.1, 446.1, 880.8, 453.1, 880.8], "w": 8}, {"c": "#d42a1f", "p": [105.6, 845.9, 123.1, 845.9, 148.6, 841.3, 176.5, 834.3, 199.8, 829.6, 209.1, 827.3], "w": 8}], "tv": {"tv1": ["atsumare", "asobi"], "tv2": ["fd1", "movie"]}, "updated": 1793586909354, "id": "p-x8jp4rersq"}, {"desks": [{"chairs": 3, "cx": 100, "cy": 148, "id": "d1", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 293, "id": "d2", "kind": "long", "rot": 0, "side": "front", "tags": ["fd1"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 438, "id": "d3", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 583, "id": "d4", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 100, "cy": 728, "id": "d5", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 148, "id": "d6", "kind": "long", "rot": 0, "side": "front", "tags": ["fd2"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 293, "id": "d7", "kind": "long", "rot": 0, "side": "front", "tags": ["fd3"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 438, "id": "d8", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 583, "id": "d9", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 344, "cy": 728, "id": "d10", "kind": "long", "rot": 0, "side": "front", "tags": ["eat"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 148, "id": "d11", "kind": "long", "rot": 0, "side": "front", "tags": ["dg1"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 293, "id": "d12", "kind": "long", "rot": 0, "side": "front", "tags": ["anB"], "unused": false}, {"chairs": 3, "cx": 582, "cy": 438, "id": "d13", "kind": "long", "rot": 0, "side": "front", "tags": ["anC"], "unused": false}, {"chairs": 2, "cx": 582, "cy": 583, "id": "d14", "kind": "long", "rot": 0, "side": "front", "tags": ["dg3"], "unused": false}, {"chairs": 3, "cx": 796, "cy": 148, "id": "d15", "kind": "short", "rot": 0, "side": "front", "tags": ["dg2"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 293, "id": "d16", "kind": "long", "rot": 0, "side": "front", "tags": ["anA"], "unused": false}, {"chairs": 4, "cx": 826, "cy": 438, "id": "d17", "kind": "long", "rot": 0, "side": "front", "tags": ["anD"], "unused": false}, {"chairs": 3, "cx": 826, "cy": 583, "id": "d18", "kind": "long", "rot": 0, "side": "front", "tags": ["dg5", "dg4"], "unused": false}, {"chairs": 0, "cx": 896.5, "cy": 227.5, "id": "d19", "kind": "small", "rot": 90, "side": "front", "tags": [], "unused": false}], "items": [{"cx": 680, "cy": 125, "h": 210, "id": "iog76c67wyk", "rot": 0, "t": "zone", "tags": ["dg1", "dg2"], "text": "", "w": 440}, {"cx": 245, "cy": 605, "h": 420, "id": "ic9sujmwf7i", "rot": 0, "t": "zone", "tags": ["eat"], "text": "", "w": 480}, {"cx": 725, "cy": 600, "h": 140, "id": "ijeilb9mng6", "rot": 0, "t": "zone", "tags": ["dg5", "dg3"], "text": "", "w": 480}, {"cx": 690, "cy": 460, "h": 130, "id": "i3r0ulkin7a", "rot": 0, "t": "zone", "tags": ["anC", "anD"], "text": "", "w": 440}, {"cx": 695, "cy": 305, "h": 140, "id": "i9koav48us4", "rot": 0, "t": "zone", "tags": ["anA", "anB"], "text": "", "w": 460}, {"cx": 345, "cy": 205, "h": 380, "id": "i2kn8qvyzjf", "rot": 0, "t": "zone", "tags": ["fd3", "fd2"], "text": "", "w": 210}, {"cx": 110, "cy": 195, "h": 350, "id": "is8h7zx05ac", "rot": 0, "t": "zone", "tags": ["fd1"], "text": "", "w": 230}, {"cx": 635, "cy": 295, "id": "iop1i70dubm", "rot": 0, "t": "monitor", "tags": []}, {"cx": 755, "cy": 295, "id": "i376k9ylw2k", "rot": 0, "t": "monitor", "tags": []}, {"cx": 525, "cy": 450, "id": "i6ridrchxh8", "rot": 0, "t": "monitor", "tags": []}, {"cx": 770, "cy": 435, "id": "inz4vzj9yna", "rot": 0, "t": "monitor", "tags": []}], "memo": "楽", "name": "案C（あつまれ削除）", "order": 4, "strokes": [{"c": "#d42a1f", "p": [576.3, 820.3, 556.6, 813.4, 535.6, 804.1, 514.7, 794.8, 498.4, 787.8, 486.8, 780.8, 479.8, 776.2, 472.9, 769.2, 463.6, 759.9, 461.3, 752.9, 456.6, 746, 447.3, 736.7], "w": 8}, {"c": "#d42a1f", "p": [445, 734.3, 445, 748.3, 446.1, 757.6], "w": 8}, {"c": "#d42a1f", "p": [438, 729.7, 460.1, 739, 474, 743.6], "w": 8}, {"c": "#d42a1f", "p": [98.7, 841.3, 99.8, 848.2, 106.8, 859.9, 111.4, 869.2, 111.4, 878.5, 113.8, 885.4], "w": 8}, {"c": "#d42a1f", "p": [103.3, 852.9, 116.1, 859.9, 137, 866.8, 157.9, 869.2, 185.8, 873.8, 216, 876.1, 246.3, 878.5, 278.8, 878.5, 313.7, 880.8, 353.2, 883.1, 392.7, 883.1, 425.2, 883.1, 446.1, 880.8, 453.1, 880.8], "w": 8}, {"c": "#d42a1f", "p": [105.6, 845.9, 123.1, 845.9, 148.6, 841.3, 176.5, 834.3, 199.8, 829.6, 209.1, 827.3], "w": 8}], "tv": {"tv1": ["asobi", "fd1"], "tv2": ["movie", "asobi"]}, "updated": 1793426131063, "id": "p-yb0mln6w5p"}];</script>
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rad = d => d * Math.PI / 180;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const r1 = v => Math.round(v * 10) / 10;
+const num = (v, d) => (typeof v === 'number' && isFinite(v)) ? v : d;
+
+/* ====== 教室まわりの形（単位 cm・手描きの図からの目安） ====== */
+const WALLS = [
+  [[188,924],[0,924],[0,71],[55,71],[55,0],[1508,0],[1508,190],[1853,190],[1853,451],[1609,451],[1609,654],[1134,654],[615,924],[241,924]],
+  [[861,0],[861,191],[934,191]],
+  [[934,0],[934,673],[698,769],[535,769]],
+  [[487,817],[155,817],[155,849]],
+  [[155,897],[155,924]],
+  [[1185,0],[1185,256]],
+  [[934,256],[998,256]], [[1078,256],[1240,256]], [[1316,256],[1387,256]],
+  [[1387,190],[1387,290]], [[1387,384],[1387,654]],
+  [[1387,190],[1508,190]],
+  [[1248,416],[1019,416],[1019,560],[1134,654]],
+  [[1322,416],[1387,416]],
+  [[1609,190],[1609,451]],
+  [[59,924],[59,1056],[265,1056],[265,924]]
+];
+const WALL_SEGS = [];
+WALLS.forEach(pl => { for (let i = 0; i < pl.length - 1; i++) WALL_SEGS.push([pl[i], pl[i + 1]]); });
+const DOORS = [
+  {h:[535,769], c:[487,817], o:[486,722], name:'教室の後ろのドア'},
+  {h:[155,849], c:[155,897], o:[107,849], name:'教室の左下のドア'},
+  {h:[241,924], c:[188,924], o:[241,977], name:'階段のドア'},
+  {h:[1078,256], c:[998,256], o:[1078,176], name:'男子トイレのドア'},
+  {h:[1316,256], c:[1240,256], o:[1316,180], name:'女子トイレのドア'},
+  {h:[1322,416], c:[1248,416], o:[1322,490], name:'倉庫のドア'},
+  {h:[1387,384], c:[1387,290], o:[1293,384], name:'EVホールのドア'}
+];
+DOORS.forEach(d => {
+  const v1 = [d.c[0] - d.h[0], d.c[1] - d.h[1]], v2 = [d.o[0] - d.h[0], d.o[1] - d.h[1]];
+  const r = Math.hypot(v1[0], v1[1]), a1 = Math.atan2(v1[1], v1[0]);
+  const cross = v1[0] * v2[1] - v1[1] * v2[0], dir = cross > 0 ? 1 : -1;
+  const pts = [d.h];
+  for (let i = 0; i <= 8; i++) { const a = a1 + dir * (Math.PI / 2) * (i / 8); pts.push([d.h[0] + r * Math.cos(a), d.h[1] + r * Math.sin(a)]); }
+  d.poly = pts; d.r = r; d.sweep = cross > 0 ? 1 : 0;
+});
+const ROOMS = [
+  {poly:[[934,0],[1185,0],[1185,256],[934,256]], label:'男子トイレ', at:[1060,96]},
+  {poly:[[1185,0],[1508,0],[1508,190],[1387,190],[1387,256],[1185,256]], label:'女子トイレ', at:[1346,96]},
+  {poly:[[1019,416],[1387,416],[1387,654],[1134,654],[1019,560]], label:'倉庫', sub:'鍵つき・入れない', at:[1222,528]},
+  {poly:[[1609,190],[1853,190],[1853,451],[1609,451]], label:'エレベーター', at:[1731,320]}
+];
+const PILLARS = [[[0,0],[55,0],[55,71],[0,71]], [[861,0],[934,0],[934,191],[861,191]]];
+const FIXED = [
+  {label:'コンテナ', cx:580, cy:901, w:55, h:36, rot:0, lx:580, ly:870},
+  {label:'机', cx:690, cy:860, w:80, h:36, rot:-27.5, lx:705, ly:806},
+  {label:'ゴミ箱', cx:1046, cy:606, w:40, h:28, rot:39.3, lx:0, ly:0},
+  {label:'ゴミ箱', cx:1077, cy:631, w:40, h:28, rot:39.3, lx:984, ly:658}
+];
+const LABELS = [['廊下',1150,336],['EVホール',1498,520],['通路',860,750],['後ろの通路',330,850],['階段',222,1018]];
+const TVS = [{id:'tv1', name:'TV①', cx:225, cy:26, w:130, h:14}, {id:'tv2', name:'TV②', cx:708, cy:26, w:130, h:14}];
+const CLASSROOM = [[0,71],[55,71],[55,0],[861,0],[861,191],[934,191],[934,673],[698,769],[535,769],[487,817],[155,817],[155,924],[0,924]];
+const TRAY = {x:330, y:990};
+/* 傘立て：案ごとに動かせる（1つだけ・消せない） */
+const UMB = {cx:352, cy:907, w:68, h:27};
+const DIM = {
+  long:{L:180, D:45, max:4, nm:'長机', lab:'長机 180cm', name:'長机（180×45cm）'},
+  short:{L:120, D:45, max:3, nm:'短い机', lab:'短い机 120cm', name:'短い机（120×45cm）'},
+  half:{L:90, D:45, max:2, nm:'短い机', lab:'短い机 90cm', name:'短い机（90×45cm）'},
+  square:{L:90, D:90, max:2, nm:'正方形の机', lab:'正方形 90cm', name:'正方形の机（90×90cm）'},
+  small:{L:61, D:49, max:1, nm:'小さい机', lab:'小さい机', name:'小さい机（61×49cm）'}
+};
+const DESK_COUNT = 19;
+/* 増やせる机（学校に借りる・ケーブルなし） */
+const ADD_KINDS = ['long', 'short', 'half', 'square'];
+const ADD_CHAIRS = {long: 3, short: 2, half: 2, square: 2};
+const MAX_ADD = 40;
+
+/* ====== 出し物 ====== */
+const CATS = [['atsumare','あつまれ、あれこれ'],['analog','アナログゲーム'],['digital','デジタルゲーム'],['food','飲食'],['eat','食べる場所'],['cafe','お絵かきカフェ'],['show','TV で流す'],['staff','係'],['other','その他']];
+const EX = [
+  {id:'atsumare', name:'あつまれ、あれこれ', short:'あつまれ', cat:'atsumare'},
+  {id:'anA', name:'アナログA（4人いる）', short:'アナログA', cat:'analog', min:4, max:99},
+  {id:'anB', name:'アナログB（4人まで）', short:'アナログB', cat:'analog', min:1, max:4},
+  {id:'anC', name:'アナログC（2人まで）', short:'アナログC', cat:'analog', min:1, max:2},
+  {id:'anD', name:'アナログD（2人まで）', short:'アナログD', cat:'analog', min:1, max:2},
+  {id:'dg1', name:'デジタル1', short:'デジタル1', cat:'digital'},
+  {id:'dg2', name:'デジタル2', short:'デジタル2', cat:'digital'},
+  {id:'dg3', name:'デジタル3', short:'デジタル3', cat:'digital'},
+  {id:'dg4', name:'デジタル4', short:'デジタル4', cat:'digital'},
+  {id:'dg5', name:'デジタル5', short:'デジタル5', cat:'digital'},
+  {id:'dg6', name:'デジタル6', short:'デジタル6', cat:'digital'},
+  {id:'fd1', name:'飲食1（作る所・食べ物と飲み物4種）', short:'飲食1', cat:'food'},
+  {id:'fd2', name:'飲食2（作る所・飲み物）', short:'飲食2', cat:'food'},
+  {id:'eat', name:'食べる場所（フリースペース）', short:'食べる場所', cat:'eat'},
+  {id:'cafe', name:'お絵かきカフェ', short:'お絵かきカフェ', cat:'cafe'},
+  {id:'movie', name:'制作中の動画', short:'制作動画', cat:'show'},
+  {id:'asobi', name:'あそびまち（飲食のメニューも）', short:'あそびまち', cat:'show'},
+  {id:'staff', name:'係・受付', short:'係・受付', cat:'staff'},
+  {id:'tvpc', name:'TV の PC（切りかえ）', short:'TVのPC', cat:'staff'},
+  {id:'other', name:'その他', short:'その他', cat:'other'}
+];
+const EXM = Object.fromEntries(EX.map(e => [e.id, e]));
+const PEN_COLORS = [['#d42a1f','赤'],['#1e5bc6','青'],['#2b8a3e','緑'],['#e8590c','オレンジ'],['#7b3fd1','むらさき'],['#1b2225','黒']];
+const NOTE_COLORS = [['#1b2225','黒'],['#d42a1f','赤'],['#1e5bc6','青'],['#2b8a3e','緑'],['#e8590c','オレンジ']];
+const COLOR_OK = new Set(PEN_COLORS.map(c => c[0]));
+
+/* ====== いまの並び（くまくんの図から） ====== */
+const TEMPLATE = [
+  ['d1','long',100,148,3],['d2','long',100,293,3],['d3','long',100,438,3],['d4','long',100,583,3],['d5','long',100,728,3],
+  ['d6','long',344,148,3],['d7','long',344,293,3],['d8','long',344,438,3],['d9','long',344,583,3],['d10','long',344,728,3],
+  ['d11','long',582,148,3],['d12','long',582,293,3],['d13','long',582,438,3],['d14','long',582,583,2],
+  ['d15','short',796,148,3],['d16','long',826,293,4],['d17','long',826,438,4],['d18','long',826,583,4],
+  ['d19','small',896.5,227.5,0]
+];
+/* 右の3台の長机（いす4つ）は、90×45cm の机2つをくっつけた物（分けられる） */
+const SPLIT = {d16: 1, d17: 1, d18: 1};
+/* ケーブルのない机（どこへでも動かせる） */
+const FREE = new Set(['d19']);
+function halvesOf(id, cx, cy, rot) { const a = rotPt(-45, 0, cx, cy, rot), b = rotPt(45, 0, cx, cy, rot); return [{id: id + 'a', cx: a[0], cy: a[1]}, {id: id + 'b', cx: b[0], cy: b[1]}]; }
+const TPOS = {};
+for (const t of TEMPLATE) { const rot = t[1] === 'small' ? 90 : 0; TPOS[t[0]] = {cx: t[2], cy: t[3], rot}; if (SPLIT[t[0]]) for (const h of halvesOf(t[0], t[2], t[3], rot)) TPOS[h.id] = {cx: h.cx, cy: h.cy, rot}; }
+const isAdd = d => d.id.charAt(0) === 'x';
+const isFree = d => isAdd(d) || FREE.has(d.id);
+function moveOf(d) { const t = TPOS[d.id]; if (!t || isFree(d)) return {dist: 0, dr: 0}; return {dist: Math.hypot(d.cx - t.cx, d.cy - t.cy), dr: Math.abs((((d.rot - t.rot) % 360) + 540) % 360 - 180)}; }
+const MOVE_OK = 30;
+const TEMPLATE_CHAIRS = TEMPLATE.reduce((a, t) => a + t[4], 0);
+function templatePlan(id, name) {
+  return {id, name: name || 'いまの並び', order: 0,
+    desks: TEMPLATE.map(([did, kind, cx, cy, ch]) => ({id: did, kind, cx, cy, rot: kind === 'small' ? 90 : 0, chairs: ch, side: 'front', tags: [], unused: false})),
+    items: [], tv: {tv1: [], tv2: []}, strokes: [], memo: '', updated: 0};
+}
+
+/* ====== 幾何 ====== */
+function rotPt(lx, ly, cx, cy, rot) { const c = Math.cos(rad(rot)), s = Math.sin(rad(rot)); return [cx + lx * c - ly * s, cy + lx * s + ly * c]; }
+function toLocal(px, py, cx, cy, rot) { const c = Math.cos(rad(rot)), s = Math.sin(rad(rot)); const dx = px - cx, dy = py - cy; return [dx * c + dy * s, -dx * s + dy * c]; }
+function rectPoly(cx, cy, w, h, rot) { return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(([x, y]) => rotPt(x, y, cx, cy, rot)); }
+function overlap(A, B, eps) {
+  eps = eps == null ? 0.8 : eps;
+  for (const P of [A, B]) {
+    const n = P.length, m = n === 2 ? 1 : n;
+    for (let i = 0; i < m; i++) {
+      const p = P[i], q = P[(i + 1) % n];
+      let ax = p[1] - q[1], ay = q[0] - p[0]; const len = Math.hypot(ax, ay); if (!len) continue; ax /= len; ay /= len;
+      let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+      for (const v of A) { const t = v[0] * ax + v[1] * ay; if (t < a0) a0 = t; if (t > a1) a1 = t; }
+      for (const v of B) { const t = v[0] * ax + v[1] * ay; if (t < b0) b0 = t; if (t > b1) b1 = t; }
+      if (a1 - b0 <= eps || b1 - a0 <= eps) return false;
+    }
+  }
+  return true;
+}
+function inPoly(pt, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) c = !c; } return c; }
+function segDist(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1]; const l2 = dx * dx + dy * dy; let t = l2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 : 0; t = clamp(t, 0, 1); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); }
+function polyDist(A, B) {
+  if (overlap(A, B, -0.01)) return 0;
+  let m = Infinity;
+  for (const p of A) for (let i = 0; i < B.length; i++) m = Math.min(m, segDist(p, B[i], B[(i + 1) % B.length]));
+  for (const p of B) for (let i = 0; i < A.length; i++) m = Math.min(m, segDist(p, A[i], A[(i + 1) % A.length]));
+  return m;
+}
+function polyArea(P) { let a = 0; for (let i = 0; i < P.length; i++) { const [x1, y1] = P[i], [x2, y2] = P[(i + 1) % P.length]; a += x1 * y2 - x2 * y1; } return Math.abs(a) / 2; }
+const deskPoly = (d, pad) => { const {L, D} = DIM[d.kind]; pad = pad || 0; return rectPoly(d.cx, d.cy, L + pad * 2, D + pad * 2, d.rot); };
+function chairPts(d) {
+  const {L, D, max} = DIM[d.kind]; const n = d.chairs | 0; if (!n) return [];
+  let f = 0, b = 0;
+  if (d.side === 'front') f = Math.min(n, max); else if (d.side === 'back') b = Math.min(n, max); else { f = Math.min(Math.ceil(n / 2), max); b = Math.min(n - f, max); }
+  const off = D / 2 + 24, res = [];
+  const put = (k, sg) => { for (let i = 0; i < k; i++) res.push(rotPt(-L / 2 + L * (i + 0.5) / k, sg * off, d.cx, d.cy, d.rot)); };
+  put(f, 1); put(b, -1);
+  return res;
+}
+function rowPts(it) { const n = it.n | 0, res = []; for (let i = 0; i < n; i++) res.push(rotPt(-(n - 1) * 22 + i * 44, 0, it.cx, it.cy, it.rot || 0)); return res; }
+function maxChairs(d) { const m = DIM[d.kind].max; return d.side === 'both' ? m * 2 : m; }
+
+/* ====== 状態 ====== */
+const S = {plans: new Map(), order: [], cur: null, sel: new Set(), tool: 'select', pen: {c: '#d42a1f', w: 8}, showInk: true, snap: true,
+  k: 0.5, tx: 0, ty: 0, drag: null, bad: new Map(), hist: new Map(), lastNudge: 0, fitted: false};
+const ST = {standalone: false, db: null, dl: null, ready: false, readOnly: false, dirty: new Set(), saving: new Set(), del: new Set(), timer: 0, pending: new Map(), retry: new Map(),
+  base: new Map(), flushing: false, again: false, lastEdit: 0};
+S.deskKind = 'long';
+const svg = $('#svg'), world = $('#world'), gStatic = $('#gStatic'), gDyn = $('#gDyn'), gOver = $('#gOver');
+const cur = () => S.plans.get(S.cur);
+const newId = p => p + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+
+/* ====== 正規化（保存データは信用しない） ====== */
+const ITEM_T = new Set(['monitor','chair','row','zone','note','arrow','umb']);
+function cleanTags(t) { return Array.isArray(t) ? [...new Set(t.map(x => x === 'fd3' ? 'dg6' : x).filter(x => typeof x === 'string' && EXM[x]))].slice(0, MAX_TAGS) : []; }
+const MAX_TAGS = 12;
+function normalize(data, id) {
+  const tpl = templatePlan(id);
+  const p = {id, name: String(data && data.name || 'いまの並び').slice(0, 40), order: num(data && data.order, 0), updated: num(data && data.updated, 0),
+    memo: String(data && data.memo || '').slice(0, 4000), desks: [], items: [], tv: {tv1: [], tv2: []}, strokes: []};
+  p.lock = !!(data && data.lock);
+  const src = new Map((Array.isArray(data && data.desks) ? data.desks : []).filter(d => d && typeof d.id === 'string').map(d => [d.id, d]));
+  for (const t of tpl.desks) {
+    // 分けた長机は、2つの短い机（〇〇a・〇〇b）として持つ
+    if (SPLIT[t.id] && !src.has(t.id) && (src.has(t.id + 'a') || src.has(t.id + 'b'))) {
+      for (const h of halvesOf(t.id, t.cx, t.cy, t.rot)) p.desks.push(mkDesk({id: h.id, kind: 'half', cx: h.cx, cy: h.cy, rot: t.rot, chairs: Math.floor(t.chairs / 2)}, src.get(h.id) || {}));
+      continue;
+    }
+    p.desks.push(mkDesk(t, src.get(t.id) || {}));
+  }
+  // 増やした机（id が x で始まる）
+  let nAdd = 0;
+  for (const [id, d] of src) {
+    if (!/^x[A-Za-z0-9_-]{1,39}$/.test(id) || !ADD_KINDS.includes(d.kind)) continue;
+    p.desks.push(mkDesk({id, kind: d.kind, cx: 467, cy: 470, rot: 0, chairs: 0}, d));
+    if (++nAdd >= MAX_ADD) break;
+  }
+  let umb = null;
+  for (const it of (Array.isArray(data && data.items) ? data.items : [])) {
+    if (!it || !ITEM_T.has(it.t)) continue;
+    if (it.t === 'umb') { if (!umb) { umb = {id: 'umb', t: 'umb', cx: clamp(num(it.cx, UMB.cx), -400, 2600), cy: clamp(num(it.cy, UMB.cy), -400, 1800), rot: num(it.rot, 0) % 360, tags: []}; p.items.push(umb); } continue; }
+    const o = {id: typeof it.id === 'string' ? it.id.slice(0, 40) : newId('i'), t: it.t, cx: clamp(num(it.cx, 400), -400, 2600), cy: clamp(num(it.cy, 400), -400, 1800), rot: num(it.rot, 0) % 360, tags: cleanTags(it.tags)};
+    if (it.t === 'row') o.n = clamp(Math.round(num(it.n, 4)), 1, 12);
+    if (it.t === 'zone') { o.w = clamp(num(it.w, 300), 40, 2000); o.h = clamp(num(it.h, 200), 40, 2000); o.text = String(it.text || '').slice(0, 40); }
+    if (it.t === 'note') { o.text = String(it.text || 'メモ').slice(0, 40); o.size = clamp(num(it.size, 28), 14, 80); o.color = COLOR_OK.has(it.color) ? it.color : '#1b2225'; }
+    if (it.t === 'arrow') { o.w = clamp(num(it.w, 150), 40, 1200); o.color = COLOR_OK.has(it.color) ? it.color : '#1e5bc6'; }
+    p.items.push(o);
+    if (p.items.length > 300) break;
+  }
+  if (!umb) p.items.push({id: 'umb', t: 'umb', cx: UMB.cx, cy: UMB.cy, rot: 0, tags: []});
+  if (data && data.tv) for (const k of ['tv1', 'tv2']) p.tv[k] = cleanTags(data.tv[k]);
+  for (const s of (Array.isArray(data && data.strokes) ? data.strokes : [])) {
+    if (!s || !Array.isArray(s.p)) continue;
+    const pts = s.p.filter(v => typeof v === 'number' && isFinite(v)).slice(0, 6000);
+    if (pts.length < 4) continue;
+    p.strokes.push({c: COLOR_OK.has(s.c) ? s.c : '#d42a1f', w: clamp(num(s.w, 8), 3, 40), p: pts.length % 2 ? pts.slice(0, -1) : pts});
+    if (p.strokes.length > 400) break;
+  }
+  return p;
+}
+function mkDesk(t, d) {
+  const side = ['front','back','both'].includes(d.side) ? d.side : 'front';
+  const desk = {id: t.id, kind: t.kind, cx: clamp(num(d.cx, t.cx), -400, 2600), cy: clamp(num(d.cy, t.cy), -400, 1800), rot: num(d.rot, t.rot) % 360,
+    chairs: 0, side, tags: cleanTags(d.tags), unused: !!d.unused};
+  desk.chairs = clamp(Math.round(num(d.chairs, t.chairs)), 0, maxChairs(desk));
+  return desk;
+}
+function serialize(p) { return {name: p.name, order: p.order, updated: p.updated, memo: p.memo, lock: !!p.lock, desks: p.desks, items: p.items, tv: p.tv, strokes: p.strokes}; }
+function content(p) { return JSON.stringify({desks: p.desks, items: p.items, tv: p.tv, strokes: p.strokes}); }
+
+/* ====== 履歴 ====== */
+function hist(id) { if (!S.hist.has(id)) S.hist.set(id, {u: [], r: []}); return S.hist.get(id); }
+function commit(before) {
+  const p = cur(); if (!p) return;
+  if (before != null && before !== content(p)) { const h = hist(p.id); h.u.push(before); if (h.u.length > 80) h.u.shift(); h.r = []; markDirty(p.id); }
+  else if (before == null) markDirty(p.id);
+  renderAll();
+}
+function act(fn) { const p = cur(); if (!p || blocked()) return false; const before = content(p); fn(p); commit(before); return true; }
+function restore(json) { const p = cur(); const o = JSON.parse(json); const n = normalize(Object.assign(serialize(p), o), p.id); p.desks = n.desks; p.items = n.items; p.tv = n.tv; p.strokes = n.strokes; }
+function undo() { const p = cur(); if (!p || blocked()) return; const h = hist(p.id); if (!h.u.length) return; h.r.push(content(p)); restore(h.u.pop()); pruneSel(); markDirty(p.id); renderAll(); }
+function redo() { const p = cur(); if (!p || blocked()) return; const h = hist(p.id); if (!h.r.length) return; h.u.push(content(p)); restore(h.r.pop()); pruneSel(); markDirty(p.id); renderAll(); }
+
+/* ====== 見え方（拡大・移動） ====== */
+function applyView() { world.setAttribute('transform', `translate(${r1(S.tx)} ${r1(S.ty)}) scale(${S.k})`); renderOverlay(); }
+function fit(b) {
+  const r = svg.getBoundingClientRect(); if (r.width < 10 || r.height < 10) return;
+  const k = Math.min(r.width / b.w, r.height / b.h) * 0.94;
+  S.k = clamp(k, 0.05, 8); S.tx = (r.width - b.w * S.k) / 2 - b.x * S.k; S.ty = (r.height - b.h * S.k) / 2 - b.y * S.k; applyView();
+}
+const ROOM_B = {x: -30, y: -30, w: 994, h: 984};
+function allBounds() { const p = cur(); const un = p ? p.desks.filter(d => d.unused).length : 0; const bottom = un ? TRAY.y + 60 + Math.ceil(un / 4) * 70 + 40 : 1090; return {x: -40, y: -40, w: 1933, h: bottom + 40}; }
+function zoomAt(f, sx, sy) { const k = clamp(S.k * f, 0.05, 8); f = k / S.k; S.tx = sx - (sx - S.tx) * f; S.ty = sy - (sy - S.ty) * f; S.k = k; applyView(); }
+function toWorld(e) { const r = svg.getBoundingClientRect(); return [(e.clientX - r.left - S.tx) / S.k, (e.clientY - r.top - S.ty) / S.k]; }
+
+/* ====== 静的な図 ====== */
+const pts = P => P.map(p => r1(p[0]) + ',' + r1(p[1])).join(' ');
+function staticSVG() {
+  let s = `<rect x="-300" y="-300" width="2600" height="1800" fill="url(#gridp)"/>`;
+  ROOMS.forEach(r => { s += `<polygon class="room" points="${pts(r.poly)}"/>`; });
+  PILLARS.forEach(p => { s += `<polygon class="pillar" points="${pts(p)}"/>`; });
+  for (let x = 75; x <= 175; x += 14) s += `<line class="stairs" x1="${x}" y1="930" x2="${x}" y2="985"/><line class="stairs" x1="${x}" y1="995" x2="${x}" y2="1050"/>`;
+  s += `<line class="stairs" x1="59" y1="990" x2="180" y2="990"/>`;
+  WALLS.forEach(pl => { s += `<polyline class="wall" points="${pts(pl)}"/>`; });
+  DOORS.forEach(d => { s += `<path class="door-arc" d="M${d.c[0]} ${d.c[1]} A${r1(d.r)} ${r1(d.r)} 0 0 ${d.sweep} ${d.o[0]} ${d.o[1]}"/><line class="door-leaf" x1="${d.h[0]}" y1="${d.h[1]}" x2="${d.o[0]}" y2="${d.o[1]}"/>`; });
+  FIXED.forEach(f => { s += `<rect class="fixed" x="${-f.w/2}" y="${-f.h/2}" width="${f.w}" height="${f.h}" rx="3" transform="translate(${f.cx} ${f.cy}) rotate(${f.rot})"/>`; if (f.lx) s += `<text class="flabel" x="${f.lx}" y="${f.ly}">${f.label}</text>`; });
+  ROOMS.forEach(r => { s += `<text class="rlabel" x="${r.at[0]}" y="${r.at[1]}">${r.label}</text>`; if (r.sub) s += `<text class="flabel" x="${r.at[0]}" y="${r.at[1] + 32}">${r.sub}</text>`; });
+  LABELS.forEach(([t, x, y]) => { s += `<text class="rlabel" x="${x}" y="${y}">${t}</text>`; });
+  return s;
+}
+
+/* ====== 動く物の図 ====== */
+function catOf(tags) { return tags && tags.length && EXM[tags[0]] ? EXM[tags[0]].cat : ''; }
+function tagGroups(tags) {
+  const xs = (tags || []).map(t => EXM[t]).filter(Boolean), groups = [], byBase = new Map();
+  for (const x of xs) {
+    const m = x.short.match(/^(.*?)([0-9A-Z])$/);
+    if (m && byBase.has(m[1])) { byBase.get(m[1]).suf.push(m[2]); continue; }
+    const g = m ? {base: m[1], suf: [m[2]]} : {base: x.short, suf: null};
+    groups.push(g); if (m) byBase.set(m[1], g);
+  }
+  return groups.map(g => g.suf ? g.base + g.suf.join('・') : g.base);
+}
+function tagLabel(tags) { return tagGroups(tags).join('／'); }
+/* 札の文字を行に分ける（まとまりの途中では切らない） */
+function packLines(groups, maxChars) {
+  const lines = []; let cur = '';
+  for (const g of groups) { const next = cur ? cur + '／' + g : g; if (cur && [...next].length > maxChars) { lines.push(cur); cur = g; } else cur = next; }
+  if (cur) lines.push(cur);
+  return lines;
+}
+function flipFor(rot) { const r = ((rot % 360) + 360) % 360; return (r > 90 && r <= 270) ? 180 : 0; }
+function deskSVG(d) {
+  const {L, D} = DIM[d.kind], cat = catOf(d.tags), lab = tagLabel(d.tags);
+  const cls = 'desk' + (cat ? ' cat-' + cat : '') + (d.unused ? ' un' : '') + (S.bad.has(d.id) ? ' bad' : '');
+  let t = '';
+  if (lab) {
+    const groups = tagGroups(d.tags), total = [...lab].length;
+    let lines = [lab], fs = 0;
+    for (let n = 1; n <= 4; n++) {
+      lines = n === 1 ? [lab] : packLines(groups, Math.ceil(total / n));
+      const longest = Math.max(...lines.map(l => [...l].length));
+      fs = Math.min((L - 14) / longest * 1.05, (D - 4) / (lines.length * 1.12), 22);
+      if (fs >= 11 || n === 4) break;
+    }
+    fs = Math.max(fs, 7);
+    t = `<g transform="rotate(${flipFor(d.rot)})">` + lines.map((l, i) => `<text class="dlabel" font-size="${r1(fs)}" y="${r1((i - (lines.length - 1) / 2) * fs * 1.12)}">${esc(l)}</text>`).join('') + '</g>';
+  }
+  const mark = isAdd(d) ? `<g class="addmark" transform="translate(${-L/2 + 3} ${-D/2 + 3})"><circle r="9"/><path d="M-4.5 0H4.5M0 -4.5V4.5"/></g>` : '';
+  return `<g class="${cls}" data-id="${d.id}" transform="translate(${r1(d.cx)} ${r1(d.cy)}) rotate(${r1(d.rot)})"><rect x="${-L/2}" y="${-D/2}" width="${L}" height="${D}" rx="4"/>${t}${mark}</g>`;
+}
+function chairSVG(x, y, id, extra) { return `<circle class="chair${extra || ''}" data-id="${id}" cx="${r1(x)}" cy="${r1(y)}" r="16"/>`; }
+function itemSVG(it) {
+  const cat = catOf(it.tags), bad = S.bad.has(it.id) ? ' bad' : '', tr = `translate(${r1(it.cx)} ${r1(it.cy)}) rotate(${r1(it.rot || 0)})`;
+  if (it.t === 'monitor') return `<g class="mon${cat ? ' cat-' + cat : ''}" data-id="${it.id}" transform="${tr}"><rect class="hit" x="-34" y="-14" width="68" height="34"/><rect class="scr" x="-28" y="-6" width="56" height="12" rx="2"/><rect class="stand" x="-8" y="6" width="16" height="6" rx="1"/></g>`;
+  if (it.t === 'chair') return `<g class="loose${cat ? ' cat-' + cat : ''}${bad}" data-id="${it.id}"><circle class="chair" cx="${r1(it.cx)}" cy="${r1(it.cy)}" r="16"/></g>`;
+  if (it.t === 'row') { let s = `<g class="loose${cat ? ' cat-' + cat : ''}${bad}" data-id="${it.id}" transform="${tr}"><rect class="hit" x="${-(it.n * 22) - 6}" y="-22" width="${it.n * 44 + 12}" height="44"/>`; for (let i = 0; i < it.n; i++) s += `<circle class="chair" cx="${-(it.n - 1) * 22 + i * 44}" cy="0" r="16"/>`; return s + '</g>'; }
+  if (it.t === 'note') { const w = Math.max(40, [...it.text].length * it.size * 0.98 + it.size * 0.8), h = it.size * 1.6; return `<g class="notei" data-id="${it.id}" transform="${tr}"><rect class="notebg" x="${r1(-w/2)}" y="${r1(-h/2)}" width="${r1(w)}" height="${r1(h)}" rx="${r1(h/2)}" style="stroke:${it.color}"/><text class="notet" font-size="${it.size}" style="fill:${it.color}">${esc(it.text)}</text></g>`; }
+  if (it.t === 'umb') return `<g class="umb${bad}" data-id="umb" transform="${tr}"><rect class="hit" x="${-UMB.w/2 - 6}" y="${-UMB.h/2 - 6}" width="${UMB.w + 12}" height="${UMB.h + 12}"/><rect class="fixed" x="${-UMB.w/2}" y="${-UMB.h/2}" width="${UMB.w}" height="${UMB.h}" rx="3"/><g transform="rotate(${flipFor(it.rot || 0)})"><text class="flabel" y="${flipFor(it.rot || 0) ? 29 : -29}">傘立て</text></g></g>`;
+  if (it.t === 'arrow') { const L = it.w / 2; return `<g class="arrow" data-id="${it.id}" transform="${tr}" style="color:${it.color}"><line class="hitl" x1="${-L}" y1="0" x2="${L}" y2="0"/><line x1="${-L}" y1="0" x2="${L - 22}" y2="0" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M${L} 0 L${L - 30} -17 L${L - 30} 17Z" fill="currentColor"/></g>`; }
+  return '';
+}
+function zoneSVG(it) {
+  const cat = catOf(it.tags), head = tagLabel(it.tags) || 'エリア', area = (it.w * it.h / 10000).toFixed(1);
+  const fs = clamp(Math.min(it.w, it.h) / 6, 14, 26);
+  const sub = (it.text ? it.text + '　' : '') + '約' + area + '㎡';
+  return `<g class="zone${cat ? ' cat-' + cat : ''}" data-id="${it.id}" transform="translate(${r1(it.cx)} ${r1(it.cy)}) rotate(${r1(it.rot || 0)})"><rect x="${-it.w/2}" y="${-it.h/2}" width="${it.w}" height="${it.h}" rx="10"/></g>`;
+}
+function zoneLabelSVG(it) {
+  const cat = catOf(it.tags), head = tagLabel(it.tags) || 'エリア', area = (it.w * it.h / 10000).toFixed(1);
+  const fs = clamp(Math.min(it.w, it.h) / 6, 14, 26);
+  const sub = (it.text ? it.text + '　' : '') + '約' + area + '㎡';
+  const heads = it.tags && it.tags.length ? packLines(tagGroups(it.tags), Math.max(4, Math.floor((it.w - 24) / fs))) : [head];
+  const hl = heads.map((l, i) => `<text class="zlabel halo" x="${-it.w/2 + 12}" y="${r1(-it.h/2 + fs + 6 + i * fs * 1.15)}" font-size="${r1(fs)}">${esc(l)}</text>`).join('');
+  return `<g class="zone zl${cat ? ' cat-' + cat : ''}" transform="translate(${r1(it.cx)} ${r1(it.cy)}) rotate(${r1(it.rot || 0)})">${hl}<text class="zsub halo" x="${-it.w/2 + 12}" y="${r1(-it.h/2 + fs + 10 + heads.length * fs * 1.15)}" font-size="${r1(fs * 0.72)}">${esc(sub)}</text></g>`;
+}
+function tvSVG(tv, tags) {
+  const cat = catOf(tags), lab = tagLabel(tags);
+  return `<g class="tv${cat ? ' cat-' + cat : ''}" data-id="${tv.id}" transform="translate(${tv.cx} ${tv.cy})"><rect class="hit" x="${-tv.w/2 - 6}" y="-16" width="${tv.w + 12}" height="64"/><rect class="tvb" x="${-tv.w/2}" y="${-tv.h/2}" width="${tv.w}" height="${tv.h}" rx="3"/><text class="tvlabel" y="34">${tv.name}</text>${lab ? packLines(tagGroups(tags), 9).map((l, i) => `<text class="tvlabel" y="${58 + i * 22}" font-size="17">${esc(l)}</text>`).join('') : ''}</g>`;
+}
+function strokeSVG(s, i) { let d = 'M' + r1(s.p[0]) + ' ' + r1(s.p[1]); for (let j = 2; j < s.p.length; j += 2) d += 'L' + r1(s.p[j]) + ' ' + r1(s.p[j + 1]); return `<path class="ink" data-s="${i}" d="${d}" stroke="${s.c}" stroke-width="${s.w}"/>`; }
+function traySVG(p) {
+  const un = p.desks.filter(d => d.unused).length; if (!un) return '';
+  const rows = Math.ceil(un / 4), h = 50 + rows * 70;
+  return `<g class="tray"><rect x="${TRAY.x}" y="${TRAY.y}" width="880" height="${h}" rx="14"/><text class="rlabel" x="${TRAY.x + 20}" y="${TRAY.y + 26}" style="text-anchor:start">使わない机の置き場（教室の外・${un}台）</text></g>`;
+}
+function traySlot(i) { return [TRAY.x + 115 + (i % 4) * 215, TRAY.y + 75 + Math.floor(i / 4) * 70]; }
+function dynSVG(p, forExport) {
+  let s = '';
+  s += traySVG(p);
+  for (const it of p.items) if (it.t === 'zone') s += zoneSVG(it);
+  for (const d of p.desks) { if (d.unused) continue; const ex = S.bad.has(d.id) && !forExport ? ' bad' : ''; for (const [x, y] of chairPts(d)) s += chairSVG(x, y, d.id, ex); }
+  if (!forExport) for (const d of p.desks) { const m = moveOf(d); if (m.dist > 3 || m.dr > 1) { const t = TPOS[d.id], {L, D} = DIM[d.kind]; s += `<rect class="ghost" x="${-L/2}" y="${-D/2}" width="${L}" height="${D}" rx="4" transform="translate(${t.cx} ${t.cy}) rotate(${t.rot})"/>`; } }
+  for (const d of p.desks) s += deskSVG(d);
+  for (const tv of TVS) s += tvSVG(tv, p.tv[tv.id] || []);
+  for (const it of p.items) if (it.t !== 'zone') s += itemSVG(it);
+  for (const it of p.items) if (it.t === 'zone') s += zoneLabelSVG(it);
+  if (S.showInk || forExport) s += `<g class="inks">${p.strokes.map(strokeSVG).join('')}</g>`;
+  if (S.drag && S.drag.type === 'stroke' && !forExport) s += strokeSVG({c: S.pen.c, w: S.pen.w, p: S.drag.pts}, -1);
+  return s;
+}
+
+/* ====== えらんだ物の枠 ====== */
+function objOf(id, p) { p = p || cur(); if (!p) return null; const d = p.desks.find(x => x.id === id); if (d) return {kind: 'desk', o: d}; const it = p.items.find(x => x.id === id); if (it) return {kind: 'item', o: it}; const tv = TVS.find(x => x.id === id); if (tv) return {kind: 'tv', o: tv}; return null; }
+function boxOf(r) {
+  const o = r.o;
+  if (r.kind === 'desk') { const {L, D} = DIM[o.kind]; return {cx: o.cx, cy: o.cy, w: L, h: D + (o.chairs ? (o.side === 'both' ? 96 : 48) : 0), oy: o.chairs ? (o.side === 'front' ? 24 : o.side === 'back' ? -24 : 0) : 0, rot: o.rot}; }
+  if (r.kind === 'tv') return {cx: o.cx, cy: o.cy, w: o.w, h: o.h, oy: 0, rot: 0};
+  switch (o.t) {
+    case 'monitor': return {cx: o.cx, cy: o.cy, w: 60, h: 22, oy: 3, rot: o.rot};
+    case 'chair': return {cx: o.cx, cy: o.cy, w: 34, h: 34, oy: 0, rot: 0};
+    case 'row': return {cx: o.cx, cy: o.cy, w: o.n * 44, h: 34, oy: 0, rot: o.rot};
+    case 'zone': return {cx: o.cx, cy: o.cy, w: o.w, h: o.h, oy: 0, rot: o.rot};
+    case 'note': { const w = Math.max(40, [...o.text].length * o.size * 0.98 + o.size * 0.8); return {cx: o.cx, cy: o.cy, w, h: o.size * 1.6, oy: 0, rot: o.rot}; }
+    case 'arrow': return {cx: o.cx, cy: o.cy, w: o.w, h: 40, oy: 0, rot: o.rot};
+    case 'umb': return {cx: o.cx, cy: o.cy, w: UMB.w, h: UMB.h, oy: 0, rot: o.rot};
+  }
+  return null;
+}
+function renderOverlay() {
+  const k = 1 / S.k; let s = '';
+  for (const id of S.sel) {
+    const r = objOf(id); if (!r) continue; const b = boxOf(r); if (!b) continue;
+    const pad = 6 * k;
+    s += `<g transform="translate(${r1(b.cx)} ${r1(b.cy)}) rotate(${r1(b.rot)})"><rect class="selbox" x="${r1(-b.w/2 - pad)}" y="${r1(-b.h/2 + b.oy - pad)}" width="${r1(b.w + pad * 2)}" height="${r1(b.h + pad * 2)}" rx="${r1(6 * k)}" style="stroke-width:${r1(2 * k)};stroke-dasharray:${r1(6 * k)} ${r1(4 * k)}"/>`;
+    if (S.sel.size === 1 && r.kind !== 'tv' && !(r.kind === 'item' && r.o.t === 'chair')) {
+      const hy = -b.h / 2 + b.oy - pad - 30 * k;
+      s += `<line class="hline" x1="0" y1="${r1(-b.h/2 + b.oy - pad)}" x2="0" y2="${r1(hy)}" style="stroke-width:${r1(1.5 * k)}"/><circle class="handle" data-h="rot" data-for="${id}" cx="0" cy="${r1(hy)}" r="${r1(9 * k)}" style="stroke-width:${r1(2 * k)}"/>`;
+      if (r.kind === 'item' && r.o.t === 'zone') s += `<rect class="handle" data-h="size" data-for="${id}" x="${r1(b.w/2 - 9 * k)}" y="${r1(b.h/2 - 9 * k)}" width="${r1(18 * k)}" height="${r1(18 * k)}" rx="${r1(3 * k)}" style="stroke-width:${r1(2 * k)}"/>`;
+      if (r.kind === 'item' && r.o.t === 'arrow') s += `<circle class="handle" data-h="len" data-for="${id}" cx="${r1(b.w/2)}" cy="0" r="${r1(9 * k)}" style="stroke-width:${r1(2 * k)}"/>`;
+    }
+    s += '</g>';
+  }
+  if (S.drag && S.drag.type === 'box') { const [a, b] = [S.drag.a, S.drag.b]; s += `<rect class="marquee" x="${r1(Math.min(a[0], b[0]))}" y="${r1(Math.min(a[1], b[1]))}" width="${r1(Math.abs(a[0] - b[0]))}" height="${r1(Math.abs(a[1] - b[1]))}" style="stroke-width:${r1(1.5 * k)}"/>`; }
+  gOver.innerHTML = s;
+}
+
+/* ====== 重なりチェック ====== */
+const SOLIDS = [...PILLARS.map(p => ({poly: p, name: '柱・壁'})), ...FIXED.map(f => ({poly: rectPoly(f.cx, f.cy, f.w, f.h, f.rot), name: f.label})), ...TVS.map(t => ({poly: rectPoly(t.cx, t.cy, t.w, t.h, 0), name: t.name}))];
+function dname(p, id) { const r = objOf(id, p); if (!r) return '物'; if (r.kind === 'desk') { const l = tagLabel(r.o.tags); return DIM[r.o.kind].nm + (isAdd(r.o) ? '（増やした）' : '') + (l ? '（' + l + '）' : ''); } if (r.kind === 'item') return ({chair: 'いす', row: 'いすの列', umb: '傘立て'})[r.o.t] || '物'; return '物'; }
+function computeProblems(p) {
+  const probs = [], bad = new Map();
+  const add = (id, kind, text) => { const key = id + '|' + kind; if (bad.has(key)) return; bad.set(key, 1); probs.push({id, kind, text}); };
+  const desks = p.desks.filter(d => !d.unused);
+  const dp = desks.map(d => ({id: d.id, poly: deskPoly(d)}));
+  const chairs = [];
+  for (const d of desks) for (const [x, y] of chairPts(d)) chairs.push({id: d.id, poly: rectPoly(x, y, 30, 30, d.rot)});
+  for (const it of p.items) {
+    if (it.t === 'chair') chairs.push({id: it.id, poly: rectPoly(it.cx, it.cy, 30, 30, 0)});
+    if (it.t === 'row') for (const [x, y] of rowPts(it)) chairs.push({id: it.id, poly: rectPoly(x, y, 30, 30, it.rot || 0)});
+  }
+  const umb = p.items.find(it => it.t === 'umb'), umbPoly = umb ? rectPoly(umb.cx, umb.cy, UMB.w, UMB.h, umb.rot || 0) : null;
+  const solids = umbPoly ? SOLIDS.concat([{poly: umbPoly, name: '傘立て'}]) : SOLIDS;
+  const hitWall = poly => WALL_SEGS.some(sg => overlap(poly, sg));
+  const hitSolid = poly => solids.find(o => overlap(poly, o.poly));
+  if (umbPoly) {
+    if (hitWall(umbPoly)) add('umb', 'wall', 'が壁にかかっています');
+    const so = SOLIDS.find(o => overlap(umbPoly, o.poly)); if (so) add('umb', 'solid', 'が' + so.name + 'に重なっています');
+    const dr = DOORS.find(d => overlap(umbPoly, d.poly)); if (dr) add('umb', 'door', 'が' + dr.name + 'の開く所をふさいでいます');
+  }
+  const hitDoor = poly => DOORS.find(d => overlap(poly, d.poly));
+  for (let i = 0; i < dp.length; i++) {
+    const a = dp[i];
+    if (hitWall(a.poly)) add(a.id, 'wall', 'が壁にかかっています');
+    const so = hitSolid(a.poly); if (so) add(a.id, 'solid', 'が' + so.name + 'に重なっています');
+    const dr = hitDoor(a.poly); if (dr) add(a.id, 'door', 'が' + dr.name + 'の開く所をふさいでいます');
+    for (let j = i + 1; j < dp.length; j++) if (overlap(a.poly, dp[j].poly)) { add(a.id, 'desk', 'がほかの机と重なっています'); add(dp[j].id, 'desk', 'がほかの机と重なっています'); }
+  }
+  for (let i = 0; i < chairs.length; i++) {
+    const c = chairs[i];
+    if (hitWall(c.poly)) add(c.id, 'cwall', 'のいすが壁にかかっています');
+    else if (hitSolid(c.poly)) add(c.id, 'csolid', 'のいすが物に重なっています');
+    const dr = hitDoor(c.poly); if (dr) add(c.id, 'cdoor', 'のいすが' + dr.name + 'の開く所をふさいでいます');
+    for (const d of dp) if (d.id !== c.id && overlap(c.poly, d.poly)) { add(c.id, 'cdesk', 'のいすが机に重なっています'); break; }
+    for (let j = i + 1; j < chairs.length; j++) if (overlap(c.poly, chairs[j].poly, 2)) { add(c.id, 'cc', 'のいすがほかのいすと重なっています'); if (chairs[j].id !== c.id) add(chairs[j].id, 'cc', 'のいすがほかのいすと重なっています'); }
+  }
+  const ids = new Map(); for (const pr of probs) ids.set(pr.id, true);
+  return {probs, ids};
+}
+function exStats(p) {
+  const st = {}; for (const e of EX) st[e.id] = {desks: [], zones: [], seats: 0, monitors: 0, objs: [], tvs: []};
+  // 1台の机に同じ種類の出し物が2つ以上ある時（例：アナログC・D）は、いす・モニターを分けて数える
+  const share = d => { const n = {}; for (const t of d.tags) n[EXM[t].cat] = (n[EXM[t].cat] || 0) + 1; return t => n[EXM[t].cat] || 1; };
+  for (const d of p.desks) { if (d.unused) continue; const k = share(d), n = chairPts(d).length; for (const t of d.tags) { st[t].desks.push(d); st[t].seats += n / k(t); st[t].objs.push(d.id); } }
+  for (const it of p.items) for (const t of it.tags || []) { const x = st[t]; x.objs.push(it.id); if (it.t === 'zone') x.zones.push(it); else if (it.t === 'chair') x.seats += 1; else if (it.t === 'row') x.seats += it.n; else if (it.t === 'monitor') x.monitors++; }
+  for (const it of p.items) if (it.t === 'monitor' && !(it.tags || []).length) { for (const d of p.desks) { if (d.unused) continue; if (inPoly([it.cx, it.cy], deskPoly(d, 14))) { const k = share(d); for (const t of d.tags) st[t].monitors += 1 / k(t); break; } } }
+  for (const tv of TVS) for (const t of (p.tv[tv.id] || [])) { st[t].tvs.push(tv); st[t].objs.push(tv.id); }
+  return st;
+}
+function objPoly(id, p) { const r = objOf(id, p); if (!r) return null; if (r.kind === 'desk') return deskPoly(r.o); const b = boxOf(r); return rectPoly(b.cx, b.cy, b.w, b.h, b.rot); }
+function computeChecks(p, pure) {
+  const out = [], st = exStats(p), pr = computeProblems(p);
+  if (!pure) S.bad = pr.ids;
+  const total = p.desks.length, live = p.desks.filter(d => !d.unused);
+  const inRoom = live.filter(d => inPoly([d.cx, d.cy], CLASSROOM)).length;
+  const unused = total - live.length, outside = live.length - inRoom;
+  const added = p.desks.filter(isAdd), splitN = Object.keys(SPLIT).filter(id => p.desks.some(d => d.id === id + 'a')).length;
+  const extra = [splitN ? `長机を分けて +${splitN}` : '', added.length ? `増やした机 +${added.length}` : ''].filter(Boolean).join('・');
+  out.push({lv: 'ok', t: '机', d: `教室に ${inRoom} 台${unused ? '・使わない ' + unused + ' 台' : ''}${outside ? '・教室の外 ' + outside + ' 台' : ''}（全部で ${total} 台${extra ? '：もとの19台・' + extra : ''}）`});
+  const moved = p.desks.filter(d => !isFree(d)).map(d => Object.assign({d}, moveOf(d))).filter(x => x.dist > 3 || x.dr > 1 || x.d.unused);
+  const far = moved.filter(x => x.dist > MOVE_OK || x.dr > 10 || x.d.unused);
+  if (!moved.length) out.push({lv: 'ok', t: '机を動かす量', d: 'どの机も今の場所のまま（ケーブルはそのまま）'});
+  else if (far.length) out.push({lv: 'warn', t: '机を動かす量', d: `ケーブルがあるのに大きく動かした机 ${far.length} 台（いちばん約 ${Math.round(Math.max(...far.map(x => x.dist)))}cm${far.some(x => x.d.unused) ? '・使わない机をふくむ' : ''}）。点線が元の場所です`, ids: far.map(x => x.d.id)});
+  else out.push({lv: 'ok', t: '机を動かす量', d: `少しだけ動かした机 ${moved.length} 台（どれも ${MOVE_OK}cm 以内）`, ids: moved.map(x => x.d.id)});
+  if (added.length) {
+    const by = ADD_KINDS.map(k => [k, added.filter(d => d.kind === k).length]).filter(x => x[1]).map(([k, n]) => `${DIM[k].lab} ${n}`).join('・');
+    out.push({lv: 'warn', t: '増やした机', d: `${added.length} 台（${by}）。借りられるか先生に確かめる`, ids: added.map(d => d.id)});
+  }
+  const powerUse = d => d.tags.some(t => t === 'tvpc' || EXM[t].cat === 'digital' || EXM[t].cat === 'analog') || p.items.some(it => it.t === 'monitor' && inPoly([it.cx, it.cy], deskPoly(d, 14)));
+  const noPow = live.filter(d => isFree(d) && powerUse(d));
+  if (noPow.length) out.push({lv: 'warn', t: 'ケーブルのない机', d: `${noPow.length} 台で、モニター・PC を使おうとしています（電源・LAN がない。延長コードがいる）`, ids: noPow.map(d => d.id)});
+  let seats = 0; for (const d of p.desks) if (!d.unused) seats += chairPts(d).length; for (const it of p.items) { if (it.t === 'chair') seats++; if (it.t === 'row') seats += it.n; }
+  const diff = seats - TEMPLATE_CHAIRS;
+  out.push({lv: 'ok', t: 'いす', d: `合計 ${seats} 脚（いまの並び ${TEMPLATE_CHAIRS} 脚から ${diff >= 0 ? '+' : ''}${diff}）`});
+  if (pr.probs.length) {
+    const shown = pr.probs.slice(0, 6).map(x => ({id: x.id, text: dname(p, x.id) + x.text}));
+    out.push({lv: 'bad', t: `重なり・ふさぎ ${pr.probs.length} か所`, d: '', list: shown, more: pr.probs.length - shown.length});
+  } else out.push({lv: 'ok', t: '重なり・ふさぎ', d: '机・いすの重なりや、ドアをふさいでいる所はありません'});
+  // あつまれ
+  const a = st.atsumare;
+  if (a.tvs.length) out.push({lv: 'ok', t: 'あつまれ、あれこれ', d: a.tvs.map(t => t.name).join('・') + ' を使う' + zoneText(a), ids: a.objs});
+  else if (a.objs.length) {
+    let best = Infinity, which = null;
+    for (const id of a.objs) { const P = objPoly(id, p); if (!P) continue; for (const tv of TVS) { const dd = polyDist(P, rectPoly(tv.cx, tv.cy, tv.w, tv.h, 0)); if (dd < best) { best = dd; which = tv; } } }
+    out.push(best <= 250 ? {lv: 'ok', t: 'あつまれ、あれこれ', d: which.name + ' のそば' + zoneText(a) + '（TV に札を付けると、どちらを使うかはっきりします）', ids: a.objs} : {lv: 'bad', t: 'あつまれ、あれこれ', d: 'TV から遠いです（TV のそばにする）', ids: a.objs});
+  } else out.push({lv: 'none', t: 'あつまれ、あれこれ', d: 'まだ置いていません（TV のそばにする）'});
+  const tvUse = ['movie', 'asobi'].map(id => ({e: EXM[id], tv: st[id].tvs}));
+  const tvMissing = tvUse.filter(x => !x.tv.length).map(x => x.e.short);
+  out.push(!tvMissing.length ? {lv: 'ok', t: 'TV で流す物', d: tvUse.map(x => x.e.short + '：' + x.tv.map(t => t.name).join('・')).join('／') + (st.atsumare.tvs.length ? '／あつまれ：' + st.atsumare.tvs.map(t => t.name).join('・') : '')} : {lv: 'none', t: 'TV で流す物', d: `${tvMissing.join('・')} を流す TV が決まっていません（TV をえらんで札を付ける）`});
+  // アナログ
+  if (st.tvpc.desks.length) { const d0 = st.tvpc.desks[0]; out.push({lv: 'ok', t: 'TV の PC', d: TVS.map(tv => `${tv.name} まで約 ${(polyDist(deskPoly(d0), rectPoly(tv.cx, tv.cy, tv.w, tv.h, 0)) / 100).toFixed(1)}m`).join('・') + '（HDMI の長さを確かめる）', ids: st.tvpc.objs}); }
+  for (const id of ['anA', 'anB', 'anC', 'anD']) {
+    const e = EXM[id], x = st[id];
+    if (!x.objs.length) { out.push({lv: 'none', t: e.name, d: 'まだ置いていません（机とモニターがいる）'}); continue; }
+    const probs = [];
+    let lv = 'ok';
+    if (!x.desks.length) { lv = 'bad'; probs.push('机がない'); }
+    if (x.monitors < 0.99) { lv = 'bad'; probs.push(x.monitors ? 'モニターが足りない' : 'モニターがない'); }
+    if (x.seats < e.min) { lv = 'bad'; probs.push(id === 'anA' ? 'いすが足りない（4人いる）' : 'いすがない'); }
+    else if (x.seats > e.max) { if (lv === 'ok') lv = 'warn'; probs.push(`いすが多い（${e.max}人まで）`); }
+    out.push({lv, t: e.name, d: `机 ${x.desks.length}${x.desks.some(d => d.tags.filter(t => EXM[t].cat === 'analog').length > 1) ? '（ほかのアナログと同じ机）' : ''}・いす ${fmtN(x.seats)}・モニター ${fmtN(x.monitors)}` + (probs.length ? '　→ ' + probs.join('、') : ''), ids: x.objs});
+  }
+  // デジタル
+  const dg = ['dg1', 'dg2', 'dg3', 'dg4', 'dg5', 'dg6'].filter(id => st[id].objs.length);
+  const dgDesks = new Set(); ['dg1', 'dg2', 'dg3', 'dg4', 'dg5', 'dg6'].forEach(id => st[id].desks.forEach(d => dgDesks.add(d.id)));
+  out.push(dg.length ? {lv: dg.length >= 6 ? 'ok' : 'warn', t: 'デジタルゲーム', d: `${dg.length} つ・机 ${dgDesks.size} 台（6つの予定・中身はまだ分からない）`, ids: dg.flatMap(id => st[id].objs)} : {lv: 'none', t: 'デジタルゲーム', d: 'まだ置いていません（6つの予定）'});
+  // 飲食
+  for (const id of ['fd1', 'fd2']) { const e = EXM[id], x = st[id]; out.push(x.desks.length ? {lv: 'ok', t: e.name, d: `机 ${x.desks.length}${x.seats ? '・いす ' + fmtN(x.seats) + '（売る人）' : ''}`, ids: x.objs} : {lv: x.objs.length ? 'warn' : 'none', t: e.name, d: x.objs.length ? '机がありません' : 'まだ置いていません'}); }
+  // 食べる場所
+  const eat = st.eat;
+  if (eat.objs.length) {
+    const inside = eat.desks.some(d => inPoly([d.cx, d.cy], CLASSROOM)) || eat.zones.some(z => inPoly([z.cx, z.cy], CLASSROOM));
+    out.push({lv: inside ? 'ok' : 'bad', t: '食べる場所', d: (inside ? '教室の中' : '教室の中にない') + `・机 ${eat.desks.length}・いす ${fmtN(eat.seats)}` + zoneText(eat), ids: eat.objs});
+  } else out.push({lv: 'none', t: '食べる場所', d: 'まだ置いていません（この教室の中にする）'});
+  // お絵かきカフェ
+  const cf = st.cafe;
+  if (cf.objs.length) {
+    const share = cf.desks.filter(d => d.tags.includes('eat')).length;
+    out.push({lv: cf.desks.length || cf.zones.length ? 'ok' : 'warn', t: 'お絵かきカフェ', d: `机 ${cf.desks.length}・いす ${fmtN(cf.seats)}` + zoneText(cf) + (share ? `（食べる場所と同じ机 ${share} 台・時間で分ける）` : ''), ids: cf.objs});
+  } else out.push({lv: 'none', t: 'お絵かきカフェ', d: 'まだ置いていません'});
+  // 飲み物と機械
+  const food = ['fd1', 'fd2'].flatMap(id => st[id].desks);
+  const machines = [];
+  for (const it of p.items) if (it.t === 'monitor') machines.push({poly: rectPoly(it.cx, it.cy, 56, 12, it.rot || 0)});
+  for (const d of p.desks) if (!d.unused && d.tags.some(t => EXM[t].cat === 'digital')) machines.push({poly: deskPoly(d)});
+  let near = Infinity, nearIds = [];
+  for (const f of food) for (const m of machines) { const dd = polyDist(deskPoly(f), m.poly); if (dd < near) { near = dd; nearIds = [f.id]; } }
+  if (food.length && machines.length) out.push(near < 100 ? {lv: 'warn', t: '飲み物と機械', d: `飲食の机とモニター・パソコンが近いです（約 ${Math.round(near)}cm）。こぼれた時に困ります`, ids: nearIds} : {lv: 'ok', t: '飲み物と機械', d: `いちばん近い所で約 ${Math.round(near)}cm はなれています`});
+  if (unused) out.push({lv: 'warn', t: '使わない机', d: `${unused} 台。教室の外のどこに置くか決める`, ids: p.desks.filter(d => d.unused).map(d => d.id)});
+  return out;
+}
+function fmtN(v) { return String(Math.round(v * 10) / 10); }
+function zoneText(x) { if (!x.zones.length) return ''; const a = x.zones.reduce((s, z) => s + z.w * z.h, 0) / 10000; return `・場所 約${a.toFixed(1)}㎡`; }
+
+/* ====== 画面 ====== */
+const LOCK_SVG = '<svg class="lk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+let raf = 0;
+function schedule() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawDyn(); }); }
+let lastChecks = [];
+function drawDyn() { const p = cur(); if (!p) return; lastChecks = computeChecks(p); gDyn.innerHTML = dynSVG(p); renderOverlay(); }
+function renderAll() {
+  const p = cur(); if (!p) return;
+  drawDyn(); renderChecks();
+  const ae = document.activeElement;
+  if (!(ae && ae.matches && ae.matches('#insp input, #insp textarea'))) renderInspector();   // 文字を打っている間は、欄を作り直さない
+  renderTabs(); updateUndo();
+  const m = $('#memo'); if (document.activeElement !== m && m.value !== p.memo) m.value = p.memo;
+  m.readOnly = !!p.lock || ST.readOnly;
+  $('#lockbar').hidden = !p.lock;
+  if (!$('#cmpDlg').hidden) renderCompare();
+}
+function updateUndo() { const p = cur(); const h = p ? hist(p.id) : {u: [], r: []}; const lk = !!(p && p.lock); $('#undo').disabled = lk || !h.u.length; $('#redo').disabled = lk || !h.r.length; }
+function renderTabs() {
+  const tabs = $('#tabs');
+  tabs.innerHTML = S.order.map(id => { const p = S.plans.get(id); return `<button class="tab${id === S.cur ? ' on' : ''}" data-plan="${id}" aria-current="${id === S.cur}">${p.lock ? LOCK_SVG + '<span class="sr">固定：</span>' : ''}${esc(p.name)}</button>`; }).join('') + `<button class="tab add" id="addPlan">＋ 新しい案</button>`;
+}
+function renderChecks() {
+  const el = $('#checks');
+  const counts = {bad: 0, warn: 0}; lastChecks.forEach(c => { if (counts[c.lv] != null) counts[c.lv]++; });
+  $('#chkCnt').textContent = counts.bad ? `直す所 ${counts.bad}` + (counts.warn ? `・気になる所 ${counts.warn}` : '') : counts.warn ? `気になる所 ${counts.warn}` : '';
+  const ic = {ok: '✓', warn: '!', bad: '×', none: '–'};
+  el.innerHTML = lastChecks.map((c, i) => {
+    let list = '';
+    if (c.list) list = '<div class="d">' + c.list.map(x => `<div><button class="link" data-pick="${esc(x.id)}">${esc(x.text)}</button></div>`).join('') + (c.more > 0 ? `<div>ほか ${c.more} か所</div>` : '') + '</div>';
+    const pick = c.ids && c.ids.length ? ` <button class="link" data-picks="${i}">えらぶ</button>` : '';
+    return `<li class="chk" data-lv="${c.lv}"><span class="ic" aria-hidden="true">${ic[c.lv]}</span><div><div class="t">${esc(c.t)}${pick}</div>${c.d ? `<div class="d">${esc(c.d)}</div>` : ''}${list}</div></li>`;
+  }).join('');
+}
+function chipsHTML(sel) {
+  let s = '';
+  for (const [cat, cname] of CATS) {
+    const xs = EX.filter(e => e.cat === cat); if (!xs.length) continue;
+    s += `<div class="grp">${cname}</div><div class="chips">` + xs.map(e => `<button class="chip" data-tag="${e.id}" aria-pressed="${sel.has(e.id)}" style="border-color:${sel.has(e.id) ? 'var(--c-' + cat + ')' : ''}"><i style="background:var(--c-${cat})"></i>${esc(cat === 'atsumare' || cat === 'eat' || cat === 'other' || cat === 'staff' || cat === 'show' ? e.short : e.name.replace(/（.*）/, ''))}</button>`).join('') + '</div>';
+  }
+  return s;
+}
+function rotBtns() { return `<div class="row"><button class="btn" data-act="rot" data-v="-90">↺ 90°</button><button class="btn" data-act="rot" data-v="-15">↺ 15°</button><button class="btn" data-act="rot" data-v="15">↻ 15°</button><button class="btn" data-act="rot" data-v="90">↻ 90°</button></div>`; }
+function renderInspector() {
+  const el = $('#insp'), p = cur(); if (!p) return;
+  const ids = [...S.sel].filter(id => objOf(id));
+  const st = exStats(p);
+  $('#legend').innerHTML = EX.map(e => { const x = st[e.id]; const n = x.objs.length; return `<button data-exsel="${e.id}"${n ? '' : ' disabled'}><i style="background:var(--c-${e.cat})"></i><span>${esc(e.name)}</span><em>${n ? (x.desks.length ? '机' + x.desks.length : '') + (x.zones.length ? (x.desks.length ? '・' : '') + 'エリア' + x.zones.length : '') + (x.tvs.length ? ((x.desks.length || x.zones.length) ? '・' : '') + 'TV' : '') + ((!x.desks.length && !x.zones.length && !x.tvs.length) ? n + '個' : '') : 'なし'}</em></button>`; }).join('');
+  $('#secSel').hidden = !ids.length;
+  $('#toInsp').hidden = !ids.length || S.tool !== 'select';
+  if (!ids.length) { el.innerHTML = ''; return; }
+  const rs = ids.map(objOf);
+  if (rs.length > 1) {
+    $('#selTitle').innerHTML = `えらんだ物 <span class="cnt">${rs.length} 個</span>`;
+    const common = new Set(EX.map(e => e.id).filter(t => rs.every(r => tagsOf(r).includes(t))));
+    const canDel = rs.some(r => (r.kind === 'item' && r.o.t !== 'umb') || (r.kind === 'desk' && isAdd(r.o)));
+    el.innerHTML = `<div class="stack"><div><div class="muted">出し物の札（まとめて付ける・はずす）</div>${chipsHTML(common)}</div><div><div class="muted" style="margin-bottom:6px">向き（それぞれその場で回す）</div>${rotBtns()}</div><div class="row">${canDel ? '<button class="btn danger" data-act="del">消す（もとからある机・TV・傘立てはそのまま）</button>' : ''}<button class="btn" data-act="clearsel">えらぶのをやめる</button></div></div>`;
+    return;
+  }
+  const r = rs[0], o = r.o, tagSet = new Set(tagsOf(r));
+  let h = '';
+  if (r.kind === 'desk') {
+    $('#selTitle').textContent = DIM[o.kind].name + (isAdd(o) ? '・増やした机' : '');
+    const m = maxChairs(o);
+    h += `<div class="stack"><div><div class="muted">出し物の札（いくつでも）</div>${chipsHTML(tagSet)}</div>`;
+    h += `<div class="kv"><span>いす</span><span class="step"><button data-act="chairs" data-v="-1" aria-label="いすを減らす">−</button><output>${o.chairs}</output><button data-act="chairs" data-v="1" aria-label="いすを増やす">＋</button></span></div>`;
+    h += `<div class="kv"><span>いすの位置</span><span class="seg"><button data-act="side" data-v="front" aria-pressed="${o.side === 'front'}">片側</button><button data-act="side" data-v="back" aria-pressed="${o.side === 'back'}">反対側</button><button data-act="side" data-v="both" aria-pressed="${o.side === 'both'}">両側</button></span></div>`;
+    h += `<div class="muted">この机は いす ${m} 脚まで</div>`;
+    h += `<div><div class="muted" style="margin-bottom:6px">向き（今 ${Math.round(((o.rot % 360) + 360) % 360)}°）</div>${rotBtns()}</div>`;
+    if (SPLIT[o.id] && !o.unused) h += `<button class="btn" data-act="split">2つに分ける（90×45cm の机2つ）</button>`;
+    if (pairOf(cur(), o)) h += `<button class="btn" data-act="join">もう片方とくっつける（長机にもどす）</button>`;
+    if (isAdd(o)) h += `<div class="row"><button class="btn" data-act="dup">コピーして置く</button><button class="btn danger" data-act="del">この机を消す</button></div>`;
+    else h += o.unused ? `<button class="btn primary" data-act="unused" data-v="0">教室にもどす</button>` : `<button class="btn" data-act="unused" data-v="1">使わない机にする（置き場へ）</button>`;
+    if (isAdd(o)) h += `<div class="note">増やした机です（学校に借りる）。ケーブルがないので、どこへでも動かせます。電源・LAN は使えません</div>`;
+    else if (FREE.has(o.id)) h += `<div class="note">この机にはケーブルがありません。どこへでも動かせます</div>`;
+    else { const mv = moveOf(o); h += `<div class="note${mv.dist > MOVE_OK || mv.dr > 10 ? ' warn' : ''}">机にはケーブル（LAN・PC の電源）が付いています。動かすのは少しだけ（目安 ${MOVE_OK}cm）。いまの並びから 約 ${Math.round(mv.dist)}cm${mv.dr > 1 ? '・' + Math.round(mv.dr) + '°' : ''}</div>`; }
+    if (!isAdd(o)) h += `<div class="muted">机は、左の「机」で増やせます（借りられるかは先生に確かめる）</div>`;
+    h += '</div>';
+  } else if (r.kind === 'tv') {
+    $('#selTitle').textContent = o.name + '（動かせません）';
+    h += `<div class="stack"><div><div class="muted">この TV を使う出し物</div>${chipsHTML(tagSet)}</div></div>`;
+  } else {
+    const names = {monitor: 'モニター', chair: 'いす', row: 'いすの列', zone: 'エリア', note: '文字', arrow: '矢印', umb: '傘立て'};
+    $('#selTitle').textContent = names[o.t];
+    if (o.t === 'umb') { el.innerHTML = `<div class="stack"><div><div class="muted" style="margin-bottom:6px">向き（今 ${Math.round(((o.rot % 360) + 360) % 360)}°）</div>${rotBtns()}</div><div class="muted">傘立ては、ドラッグで動かせます（1つだけ・消せません）</div></div>`; return; }
+    h += '<div class="stack">';
+    if (o.t !== 'note' && o.t !== 'arrow') h += `<div><div class="muted">出し物の札</div>${chipsHTML(tagSet)}</div>`;
+    if (o.t === 'row') h += `<div class="kv"><span>いすの数</span><span class="step"><button data-act="rown" data-v="-1" aria-label="減らす">−</button><output>${o.n}</output><button data-act="rown" data-v="1" aria-label="増やす">＋</button></span></div>`;
+    if (o.t === 'zone') h += `<div class="field"><label for="ztext">ひとこと（なくてもよい）</label><input id="ztext" data-edit="text" maxlength="40" value="${esc(o.text)}" placeholder="例：立って遊ぶ所"></div><div class="muted">大きさ 約 ${(o.w / 100).toFixed(1)}m × ${(o.h / 100).toFixed(1)}m（${(o.w * o.h / 10000).toFixed(1)}㎡）。右下の四角で変えられます</div>`;
+    if (o.t === 'note') h += `<div class="field"><label for="ntext">文字</label><input id="ntext" data-edit="text" maxlength="40" value="${esc(o.text)}"></div><div class="kv"><span>大きさ</span><span class="seg">${[[20, '小'], [28, '中'], [44, '大']].map(([v, l]) => `<button data-act="nsize" data-v="${v}" aria-pressed="${o.size === v}">${l}</button>`).join('')}</span></div>`;
+    if (o.t === 'note' || o.t === 'arrow') h += `<div class="kv"><span>色</span><span class="row">${NOTE_COLORS.map(([c, l]) => `<button class="swatch" data-act="color" data-v="${c}" aria-label="${l}" aria-pressed="${o.color === c}" style="background:${c}"></button>`).join('')}</span></div>`;
+    if (o.t === 'arrow') h += `<div class="kv"><span>長さ</span><span class="step"><button data-act="alen" data-v="-25" aria-label="短く">−</button><output>${Math.round(o.w)}</output><button data-act="alen" data-v="25" aria-label="長く">＋</button></span></div>`;
+    if (o.t !== 'chair') h += `<div><div class="muted" style="margin-bottom:6px">向き（今 ${Math.round(((o.rot % 360) + 360) % 360)}°）</div>${rotBtns()}</div>`;
+    h += `<div class="row"><button class="btn" data-act="dup">コピーして置く</button><button class="btn danger" data-act="del">消す</button></div></div>`;
+  }
+  el.innerHTML = h;
+}
+function tagsOf(r) { if (r.kind === 'tv') return cur().tv[r.o.id] || []; return r.o.tags || []; }
+function setTagsOf(r, tags) { if (r.kind === 'tv') cur().tv[r.o.id] = tags; else if (r.o.t !== 'note' && r.o.t !== 'arrow' && r.o.t !== 'umb') r.o.tags = tags; }
+function pruneSel() { S.sel = new Set([...S.sel].filter(id => objOf(id))); }
+
+/* ====== 操作 ====== */
+function setTool(t) {
+  S.tool = t; $('#stage').dataset.tool = t;
+  document.querySelectorAll('.tool').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
+  $('#penbar').hidden = !(t === 'pen' || t === 'erase');
+  $('#deskbar').hidden = t !== 'place:desk';
+  const hint = $('#hint');
+  const msgs = {erase: '消したい線をなぞってください', 'place:monitor': '置きたい所をタップ', 'place:chair': '置きたい所をタップ', 'place:row': '置きたい所をタップ', 'place:zone': '置きたい所をタップ（あとで大きさを変えられます）', 'place:note': '置きたい所をタップ', 'place:arrow': '置きたい所をタップ'};
+  hint.hidden = !msgs[t]; hint.textContent = msgs[t] || '';
+  $('#toInsp').hidden = !S.sel.size || t !== 'select';
+}
+const isLocked = () => { const p = cur(); return !!(p && p.lock); };
+/* 直してよいか（見るだけ・固定の時は直さない） */
+function blocked() {
+  if (ST.readOnly) return true;
+  if (isLocked()) {
+    toast('この案は固定しています。直す時は「固定を外す」を押してください');
+    const b = $('#lockbar'); b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash');
+    return true;
+  }
+  return false;
+}
+function placeDesk(w) {
+  const p = cur(); if (!p) return;
+  if (p.desks.filter(isAdd).length >= MAX_ADD) { toast(`増やせる机は ${MAX_ADD} 台までです`); return; }
+  const snap = v => S.snap ? Math.round(v / 5) * 5 : v;
+  const d = {id: newId('x'), kind: S.deskKind, cx: snap(w[0]), cy: snap(w[1]), rot: 0, chairs: ADD_CHAIRS[S.deskKind], side: 'front', tags: [], unused: false};
+  if (!act(q => { q.desks.push(d); })) return;
+  S.sel = new Set([d.id]); setTool('select'); renderAll();
+}
+function placeItem(kind, w) {
+  if (blocked()) { setTool('select'); return; }
+  if (kind === 'desk') return placeDesk(w);
+  const snap = v => S.snap ? Math.round(v / 5) * 5 : v;
+  const it = {id: newId('i'), t: kind, cx: snap(w[0]), cy: snap(w[1]), rot: 0, tags: []};
+  if (kind === 'row') it.n = 4;
+  if (kind === 'zone') { it.w = 300; it.h = 200; it.text = ''; }
+  if (kind === 'note') { it.text = 'メモ'; it.size = 28; it.color = '#1b2225'; }
+  if (kind === 'arrow') { it.w = 150; it.color = '#1e5bc6'; }
+  act(p => { if (kind === 'zone') p.items.unshift(it); else p.items.push(it); });
+  S.sel = new Set([it.id]); setTool('select'); renderAll();
+  if (kind === 'note') setTimeout(() => { const i = $('#ntext'); if (i) { i.focus(); i.select(); } }, 30);
+}
+function rotateSel(dv) {
+  act(p => { for (const id of S.sel) { const r = objOf(id); if (!r || r.kind === 'tv') continue; if (r.kind === 'item' && r.o.t === 'chair') continue; r.o.rot = ((r.o.rot || 0) + dv + 360) % 360; } });
+}
+function deleteSel() {
+  const del = [...S.sel].filter(id => { const r = objOf(id); return r && ((r.kind === 'item' && r.o.t !== 'umb') || (r.kind === 'desk' && isAdd(r.o))); });
+  if (!del.length) return;
+  if (!act(p => { p.items = p.items.filter(i => !del.includes(i.id)); p.desks = p.desks.filter(d => !del.includes(d.id)); })) return;
+  del.forEach(id => S.sel.delete(id)); renderAll();
+}
+function duplicateSel() {
+  const rs = [...S.sel].map(objOf).filter(r => r && ((r.kind === 'item' && r.o.t !== 'umb') || (r.kind === 'desk' && isAdd(r.o))));
+  if (!rs.length) return;
+  const p0 = cur(); if (rs.some(r => r.kind === 'desk') && p0.desks.filter(isAdd).length + rs.filter(r => r.kind === 'desk').length > MAX_ADD) { toast(`増やせる机は ${MAX_ADD} 台までです`); return; }
+  const news = rs.map(r => Object.assign(JSON.parse(JSON.stringify(r.o)), {id: newId(r.kind === 'desk' ? 'x' : 'i'), cx: r.o.cx + 30, cy: r.o.cy + 30}));
+  if (!act(p => { for (const n of news) { if (n.kind) p.desks.push(n); else if (n.t === 'zone') p.items.unshift(n); else p.items.push(n); } })) return;
+  S.sel = new Set(news.map(n => n.id)); renderAll();
+}
+/* 右の長机を、90×45cm の机2つに分ける／もどす */
+function pairOf(p, d) { const m = /^(d\d+)([ab])$/.exec(d.id); if (!m || !SPLIT[m[1]]) return null; return p.desks.find(x => x.id === m[1] + (m[2] === 'a' ? 'b' : 'a')) || null; }
+function splitDesk(p, d) {
+  const hs = halvesOf(d.id, d.cx, d.cy, d.rot), m = maxChairs({kind: 'half', side: d.side});
+  const ca = Math.min(Math.ceil(d.chairs / 2), m), cb = Math.min(d.chairs - ca, m);
+  const mk = (h, c) => ({id: h.id, kind: 'half', cx: r1(h.cx), cy: r1(h.cy), rot: d.rot, chairs: c, side: d.side, tags: [...d.tags], unused: false});
+  p.desks.splice(p.desks.indexOf(d), 1, mk(hs[0], ca), mk(hs[1], cb));
+  return hs[0].id;
+}
+function joinDesk(p, d) {
+  const o = pairOf(p, d); if (!o) return null;
+  const [A, B] = d.id.endsWith('a') ? [d, o] : [o, d], live = [A, B].filter(x => !x.unused);
+  const base = A.id.slice(0, -1), side = A.side;
+  const nd = {id: base, kind: 'long', cx: A.cx, cy: A.cy, rot: A.rot, chairs: 0, side, tags: [...new Set([...A.tags, ...B.tags])].slice(0, MAX_TAGS), unused: false};
+  if (live.length === 2) { nd.cx = r1((A.cx + B.cx) / 2); nd.cy = r1((A.cy + B.cy) / 2); }
+  else if (live.length === 1) { nd.cx = live[0].cx; nd.cy = live[0].cy; nd.rot = live[0].rot; }
+  nd.chairs = clamp(A.chairs + B.chairs, 0, maxChairs(nd));
+  const i = Math.min(p.desks.indexOf(A), p.desks.indexOf(B));
+  p.desks = p.desks.filter(x => x !== A && x !== B); p.desks.splice(i, 0, nd);
+  if (!live.length) setUnused(nd, true);
+  return base;
+}
+function nudge(dx, dy) {
+  const p = cur(); if (!p || !S.sel.size || blocked()) return;
+  const now = Date.now(), before = content(p);
+  for (const id of S.sel) { const r = objOf(id); if (!r || r.kind === 'tv') continue; r.o.cx += dx; r.o.cy += dy; }
+  if (now - S.lastNudge > 900) { const h = hist(p.id); h.u.push(before); h.r = []; }
+  S.lastNudge = now; markDirty(p.id); renderAll();
+}
+function setUnused(d, on) {
+  const p = cur();
+  if (on) { const used = p.desks.filter(x => x.unused && x !== d).length; const [x, y] = traySlot(used); d.unused = true; d.cx = x; d.cy = y; d.rot = d.kind === 'small' ? 90 : 0; }
+  else { d.unused = false; d.cx = 467; d.cy = 470; }
+}
+
+/* ====== ポインター ====== */
+const ptrs = new Map();
+svg.addEventListener('pointerdown', e => {
+  if (e.button > 0 && e.pointerType === 'mouse') return;
+  svg.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  closePop();
+  if (ptrs.size === 2) { if (S.drag && S.drag.type === 'move' && S.drag.moved) { commit(S.drag.before); } const [a, b] = [...ptrs.values()]; S.drag = {type: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y), m0: {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}, k0: S.k, tx0: S.tx, ty0: S.ty}; return; }
+  const w = toWorld(e), p = cur(); if (!p) return;
+  const tgt = e.target.closest('[data-h],[data-id]');
+  if (S.tool === 'pen') { if (blocked()) { setTool('select'); return; } S.drag = {type: 'stroke', pts: [r1(w[0]), r1(w[1])]}; return; }
+  if (S.tool === 'erase') { if (blocked()) { setTool('select'); return; } S.drag = {type: 'erase', before: content(p), changed: false}; eraseAt(w); return; }
+  if (S.tool.startsWith('place:')) { placeItem(S.tool.slice(6), w); return; }
+  if (tgt && tgt.dataset.h) {
+    const r = objOf(tgt.dataset.for); if (!r) return;
+    const o = r.o; const d = {type: tgt.dataset.h, o, before: content(p)};
+    if (d.type === 'size') { d.anchor = rotPt(-o.w / 2, -o.h / 2, o.cx, o.cy, o.rot || 0); }
+    if (d.type === 'len') { d.anchor = rotPt(-o.w / 2, 0, o.cx, o.cy, o.rot || 0); }
+    S.drag = d; return;
+  }
+  if (tgt && tgt.dataset.id) {
+    const id = tgt.dataset.id;
+    if (e.shiftKey) { if (S.sel.has(id)) S.sel.delete(id); else S.sel.add(id); renderAll(); return; }
+    const wasSel = S.sel.has(id);
+    if (!wasSel) S.sel = new Set([id]);
+    const objs = [...S.sel].map(objOf).filter(r => r && r.kind !== 'tv').map(r => ({o: r.o, cx0: r.o.cx, cy0: r.o.cy}));
+    S.drag = {type: 'move', start: w, objs, before: content(p), moved: false, clicked: id, wasSel};
+    renderInspector(); renderOverlay(); schedule();
+    return;
+  }
+  if (e.shiftKey) { S.drag = {type: 'box', a: w, b: w}; return; }
+  S.drag = {type: 'pan', sx: e.clientX, sy: e.clientY, tx0: S.tx, ty0: S.ty, moved: false}; svg.classList.add('panning');
+});
+svg.addEventListener('pointermove', e => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  const d = S.drag; if (!d) return;
+  if (d.type === 'pinch') {
+    if (ptrs.size < 2) return; const [a, b] = [...ptrs.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y), m = {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}, r = svg.getBoundingClientRect();
+    const k = clamp(d.k0 * dist / Math.max(1, d.d0), 0.05, 8);
+    const wx = (d.m0.x - r.left - d.tx0) / d.k0, wy = (d.m0.y - r.top - d.ty0) / d.k0;
+    S.k = k; S.tx = m.x - r.left - wx * k; S.ty = m.y - r.top - wy * k; applyView(); return;
+  }
+  const w = toWorld(e);
+  if (d.type === 'pan') { S.tx = d.tx0 + (e.clientX - d.sx); S.ty = d.ty0 + (e.clientY - d.sy); if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 4) d.moved = true; applyView(); return; }
+  if (d.type === 'move') {
+    if (ST.readOnly) return;
+    let dx0 = w[0] - d.start[0], dy0 = w[1] - d.start[1];
+    if (isLocked()) { if (!d.warned && Math.hypot(dx0, dy0) * S.k >= 4) { d.warned = true; blocked(); } return; }
+    let dx = w[0] - d.start[0], dy = w[1] - d.start[1];
+    if (!d.moved && Math.hypot(dx, dy) * S.k < 4) return;
+    d.moved = true;
+    if (S.snap && !e.altKey) { dx = Math.round(dx / 5) * 5; dy = Math.round(dy / 5) * 5; }
+    for (const o of d.objs) { o.o.cx = r1(o.cx0 + dx); o.o.cy = r1(o.cy0 + dy); }
+    schedule(); return;
+  }
+  if ((d.type === 'rot' || d.type === 'size' || d.type === 'len') && isLocked()) { if (!d.warned) { d.warned = true; blocked(); } return; }
+  if (d.type === 'rot') { if (ST.readOnly) return; let a = Math.atan2(w[1] - d.o.cy, w[0] - d.o.cx) * 180 / Math.PI + 90; if (S.snap && !e.altKey) a = Math.round(a / 15) * 15; d.o.rot = r1(((a % 360) + 360) % 360); schedule(); return; }
+  if (d.type === 'size') { if (ST.readOnly) return; const o = d.o; const [lx, ly] = toLocal(w[0], w[1], d.anchor[0], d.anchor[1], o.rot || 0); let nw = Math.max(60, lx), nh = Math.max(60, ly); if (S.snap && !e.altKey) { nw = Math.round(nw / 10) * 10; nh = Math.round(nh / 10) * 10; } o.w = nw; o.h = nh; const c = rotPt(nw / 2, nh / 2, d.anchor[0], d.anchor[1], o.rot || 0); o.cx = r1(c[0]); o.cy = r1(c[1]); schedule(); return; }
+  if (d.type === 'len') { if (ST.readOnly) return; const o = d.o; let vx = w[0] - d.anchor[0], vy = w[1] - d.anchor[1]; let L = Math.max(40, Math.hypot(vx, vy)), a = Math.atan2(vy, vx) * 180 / Math.PI; if (S.snap && !e.altKey) { a = Math.round(a / 15) * 15; L = Math.round(L / 10) * 10; } o.w = L; o.rot = r1(((a % 360) + 360) % 360); const c = rotPt(L / 2, 0, d.anchor[0], d.anchor[1], o.rot); o.cx = r1(c[0]); o.cy = r1(c[1]); schedule(); return; }
+  if (d.type === 'stroke') { const n = d.pts.length; const lx = d.pts[n - 2], ly = d.pts[n - 1]; if (Math.hypot(w[0] - lx, w[1] - ly) * S.k >= 3) { d.pts.push(r1(w[0]), r1(w[1])); if (d.pts.length < 12000) schedule(); } return; }
+  if (d.type === 'erase') { eraseAt(w); return; }
+  if (d.type === 'box') { d.b = w; renderOverlay(); return; }
+});
+function endPtr(e) {
+  ptrs.delete(e.pointerId);
+  const d = S.drag; if (!d) return;
+  if (d.type === 'pinch') { if (ptrs.size < 2) S.drag = null; return; }
+  svg.classList.remove('panning');
+  const p = cur();
+  if (d.type === 'pan') { if (!d.moved && S.sel.size) { S.sel.clear(); S.drag = null; renderAll(); } S.drag = null; flushPending(); return; }
+  S.drag = null;
+  if (d.type === 'move') { if (d.moved) { for (const o of d.objs) { const x = o.o; if (!x.kind || !DIM[x.kind]) continue; const inTray = x.cx >= TRAY.x && x.cx <= TRAY.x + 880 && x.cy >= TRAY.y; if (inTray) x.unused = true; else if (x.unused && inPoly([x.cx, x.cy], CLASSROOM)) x.unused = false; } commit(d.before); } else { if (d.wasSel && S.sel.size > 1) S.sel = new Set([d.clicked]); renderAll(); } }
+  else if (d.type === 'rot' || d.type === 'size' || d.type === 'len') { if (!d.warned) commit(d.before); else renderAll(); }
+  else if (d.type === 'stroke') { if (d.pts.length >= 4) { const before = content(p); p.strokes.push({c: S.pen.c, w: S.pen.w, p: d.pts}); commit(before); } else renderAll(); }
+  else if (d.type === 'erase') { if (d.changed) commit(d.before); }
+  else if (d.type === 'box') { const x0 = Math.min(d.a[0], d.b[0]), x1 = Math.max(d.a[0], d.b[0]), y0 = Math.min(d.a[1], d.b[1]), y1 = Math.max(d.a[1], d.b[1]); const inb = o => o.cx >= x0 && o.cx <= x1 && o.cy >= y0 && o.cy <= y1; for (const dd of p.desks) if (inb(dd)) S.sel.add(dd.id); for (const it of p.items) if (inb(it)) S.sel.add(it.id); renderAll(); }
+  flushPending();
+}
+svg.addEventListener('pointerup', endPtr);
+svg.addEventListener('pointercancel', endPtr);
+svg.addEventListener('wheel', e => { e.preventDefault(); const r = svg.getBoundingClientRect(); const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; zoomAt(Math.exp(-dy * 0.0015), e.clientX - r.left, e.clientY - r.top); }, {passive: false});
+function eraseAt(w) {
+  const p = cur(), d = S.drag; if (!p || ST.readOnly || p.lock) return;
+  const tol = 10 / S.k;
+  const keep = p.strokes.filter(s => { for (let j = 0; j + 3 < s.p.length; j += 2) if (segDist(w, [s.p[j], s.p[j + 1]], [s.p[j + 2], s.p[j + 3]]) <= tol + s.w / 2) return false; return true; });
+  if (keep.length !== p.strokes.length) { p.strokes = keep; if (d) d.changed = true; schedule(); }
+}
+
+/* ====== パネルの操作 ====== */
+$('#tools').addEventListener('click', e => { const b = e.target.closest('[data-tool]'); if (!b) return; if (b.dataset.tool !== 'select' && blocked()) return; setTool(b.dataset.tool); });
+$('#deskKinds').innerHTML = [['long', '長机', '180×45'], ['short', '短い机', '120×45'], ['half', '短い机', '90×45'], ['square', '正方形', '90×90']].map(([k, a, b]) => `<button data-dk="${k}" aria-pressed="${k === S.deskKind}">${a}<small>${b}</small></button>`).join('');
+$('#deskKinds').addEventListener('click', e => { const b = e.target.closest('[data-dk]'); if (!b) return; S.deskKind = b.dataset.dk; document.querySelectorAll('[data-dk]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+$('#unlockBtn').addEventListener('click', () => setLock(false));
+$('#legend').addEventListener('click', e => {
+  const p = cur(); if (!p) return;
+  const ex = e.target.closest('[data-exsel]'); if (ex) { const st = exStats(p); S.sel = new Set(st[ex.dataset.exsel].objs); setTool('select'); renderAll(); }
+});
+$('#toInsp').addEventListener('click', () => { $('#secSel').scrollIntoView({behavior: 'smooth', block: 'start'}); });
+$('#insp').addEventListener('click', e => {
+  const p = cur(); if (!p) return;
+  const tg = e.target.closest('[data-tag]');
+  if (tg) {
+    const t = tg.dataset.tag, rs = [...S.sel].map(objOf).filter(r => r && !(r.kind === 'item' && (r.o.t === 'note' || r.o.t === 'arrow' || r.o.t === 'umb')));
+    if (!rs.length) return;
+    const all = rs.every(r => tagsOf(r).includes(t));
+    act(() => { for (const r of rs) { let tags = tagsOf(r).filter(x => x !== t); if (!all) { tags.push(t); if (tags.length > MAX_TAGS) tags = tags.slice(-MAX_TAGS); } if (r.kind === 'desk' && r.o.unused) continue; setTagsOf(r, tags); } });
+    return;
+  }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act, v = b.dataset.v;
+  const one = S.sel.size === 1 ? objOf([...S.sel][0]) : null;
+  if (a === 'rot') return rotateSel(+v);
+  if (a === 'del') return deleteSel();
+  if (a === 'dup') return duplicateSel();
+  if (a === 'clearsel') { S.sel.clear(); renderAll(); return; }
+  if (!one) return;
+  const o = one.o;
+  if (a === 'split' || a === 'join') {
+    let nid = null;
+    if (!act(q => { const d = q.desks.find(x => x.id === o.id); if (d) nid = a === 'split' ? splitDesk(q, d) : joinDesk(q, d); })) return;
+    if (nid) { S.sel = new Set([nid]); renderAll(); }
+    return;
+  }
+  act(() => {
+    if (a === 'chairs') o.chairs = clamp(o.chairs + (+v), 0, maxChairs(o));
+    if (a === 'side') { o.side = v; o.chairs = clamp(o.chairs, 0, maxChairs(o)); }
+    if (a === 'unused') setUnused(o, v === '1');
+    if (a === 'rown') o.n = clamp(o.n + (+v), 1, 12);
+    if (a === 'nsize') o.size = +v;
+    if (a === 'color') o.color = v;
+    if (a === 'alen') { const L = clamp(o.w + (+v), 40, 1200); const anc = rotPt(-o.w / 2, 0, o.cx, o.cy, o.rot || 0); o.w = L; const c = rotPt(L / 2, 0, anc[0], anc[1], o.rot || 0); o.cx = r1(c[0]); o.cy = r1(c[1]); }
+  });
+  if (a === 'unused') { const b2 = allBounds(); if (v === '1') fit(b2); }
+});
+let editBefore = null;
+$('#insp').addEventListener('focusin', e => { if (e.target.dataset.edit) editBefore = content(cur()); });
+$('#insp').addEventListener('input', e => { const f = e.target.dataset.edit; if (!f) return; const r = S.sel.size === 1 ? objOf([...S.sel][0]) : null; if (!r) return; if (blocked()) { e.target.value = r.o[f] || ''; return; } r.o[f] = e.target.value.slice(0, 40); markDirty(cur().id); schedule(); });
+$('#insp').addEventListener('change', e => { if (!e.target.dataset.edit) return; commit(editBefore); editBefore = null; });
+$('#checks').addEventListener('click', e => {
+  const one = e.target.closest('[data-pick]'); if (one) { S.sel = new Set([one.dataset.pick]); renderAll(); return; }
+  const many = e.target.closest('[data-picks]'); if (many) { const c = lastChecks[+many.dataset.picks]; if (c && c.ids) { S.sel = new Set(c.ids); renderAll(); } }
+});
+$('#memo').addEventListener('input', e => { const p = cur(); if (!p) return; if (ST.readOnly || p.lock) { e.target.value = p.memo; blocked(); return; } p.memo = e.target.value.slice(0, 4000); markDirty(p.id); });
+$('#undo').addEventListener('click', undo);
+$('#redo').addEventListener('click', redo);
+$('#zoomIn').addEventListener('click', () => { const r = svg.getBoundingClientRect(); zoomAt(1.25, r.width / 2, r.height / 2); });
+$('#zoomOut').addEventListener('click', () => { const r = svg.getBoundingClientRect(); zoomAt(0.8, r.width / 2, r.height / 2); });
+$('#fitRoom').addEventListener('click', () => fit(ROOM_B));
+$('#fitAll').addEventListener('click', () => fit(allBounds()));
+$('#snap').addEventListener('click', e => { S.snap = !S.snap; e.currentTarget.setAttribute('aria-pressed', String(S.snap)); });
+$('#swatches').innerHTML = PEN_COLORS.map(([c, l]) => `<button class="swatch" data-pc="${c}" aria-label="${l}" aria-pressed="${c === S.pen.c}" style="background:${c}"></button>`).join('');
+$('#widths').innerHTML = [[4, '細'], [8, '中'], [16, '太']].map(([w, l]) => `<button class="wbtn" data-pw="${w}" aria-pressed="${w === S.pen.w}">${l}</button>`).join('');
+$('#penbar').addEventListener('click', e => {
+  const c = e.target.closest('[data-pc]'); if (c) { S.pen.c = c.dataset.pc; document.querySelectorAll('[data-pc]').forEach(b => b.setAttribute('aria-pressed', String(b === c))); if (S.tool !== 'pen') setTool('pen'); return; }
+  const w = e.target.closest('[data-pw]'); if (w) { S.pen.w = +w.dataset.pw; document.querySelectorAll('[data-pw]').forEach(b => b.setAttribute('aria-pressed', String(b === w))); if (S.tool !== 'pen') setTool('pen'); return; }
+  if (e.target.closest('#inkToggle')) { S.showInk = !S.showInk; $('#inkToggle').setAttribute('aria-pressed', String(S.showInk)); $('#inkToggle').textContent = S.showInk ? '線を見せる' : '線をかくしている'; schedule(); return; }
+  if (e.target.closest('#inkClear')) { const p = cur(); if (p && p.strokes.length) act(q => { q.strokes = []; }); }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input,textarea,select')) return;
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && k === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return; }
+  if (mod) return;
+  if (e.key === 'Delete' || e.key === 'Backspace') { if (S.sel.size) { e.preventDefault(); deleteSel(); } return; }
+  if (e.key === 'Escape') { setTool('select'); S.sel.clear(); closePop(); renderAll(); return; }
+  if (k === 'r') { if (S.sel.size) rotateSel(e.shiftKey ? -90 : 90); return; }
+  if (k === 'v') return setTool('select');
+  if (k === 'p') { if (!blocked()) setTool('pen'); return; }
+  if (k === 'e') { if (!blocked()) setTool('erase'); return; }
+  const st = e.shiftKey ? 25 : 5;
+  const mv = {arrowleft: [-st, 0], arrowright: [st, 0], arrowup: [0, -st], arrowdown: [0, st]}[k];
+  if (mv && S.sel.size) { e.preventDefault(); nudge(mv[0], mv[1]); }
+});
+
+/* ====== 案の切りかえ・メニュー ====== */
+function rebuildOrder() { S.order = [...S.plans.values()].sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name, 'ja')).map(p => p.id); }
+function switchPlan(id) { if (!S.plans.has(id) || id === S.cur) return; S.cur = id; S.sel.clear(); saveUI(); renderAll(); const b = $(`.tab[data-plan="${CSS.escape(id)}"]`); if (b) b.scrollIntoView({block: 'nearest', inline: 'nearest'}); }
+function addPlan(from) {
+  const maxO = Math.max(0, ...[...S.plans.values()].map(p => p.order));
+  const id = newId('p-');
+  let p;
+  if (from === 'copy' && cur()) { p = normalize(JSON.parse(JSON.stringify(serialize(cur()))), id); p.name = (cur().name + 'のコピー').slice(0, 40); p.lock = false; }
+  else { p = templatePlan(id, '案' + (S.plans.size + 1)); }
+  p.order = maxO + 1; p.updated = Date.now();
+  S.plans.set(id, p); rebuildOrder(); S.cur = id; S.sel.clear(); markDirty(id); saveUI(); renderAll();
+}
+const pop = $('#pop');
+function openPop(anchor, html) {
+  pop.innerHTML = html; pop.hidden = false;
+  const r = anchor.getBoundingClientRect(), pw = pop.offsetWidth;
+  pop.style.left = clamp(r.left, 16, window.innerWidth - pw - 16) + 'px'; pop.style.top = (r.bottom + 6) + 'px';
+  const f = pop.querySelector('input,button'); if (f) f.focus();
+}
+function closePop() { if (!pop.hidden) { pop.hidden = true; pop.innerHTML = ''; } }
+document.addEventListener('pointerdown', e => { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('#planMenu,#addPlan')) closePop(); });
+$('#tabs').addEventListener('click', e => {
+  const t = e.target.closest('[data-plan]'); if (t) { switchPlan(t.dataset.plan); return; }
+  if (e.target.closest('#addPlan')) openPop(e.target.closest('#addPlan'), `<button class="mi" data-pa="new">いまの並びから作る</button><button class="mi" data-pa="copy">この案をコピーして作る</button>`);
+});
+$('#planMenu').addEventListener('click', e => {
+  const p = cur(); if (!p) return;
+  openPop(e.currentTarget, `<div class="msg"><b>${esc(p.name)}</b>${p.lock ? '（固定）' : ''}</div>` + (p.lock
+    ? `<button class="mi" data-pa="unlock">固定を外す（直せるようにする）</button><button class="mi" data-pa="copy">この案をコピーして作る</button>`
+    : `<button class="mi" data-pa="rename">名前を変える</button><button class="mi" data-pa="lock">この案を固定する（うっかり直さない）</button><button class="mi" data-pa="copy">この案をコピーして作る</button><button class="mi danger" data-pa="delask">この案を消す</button>`));
+});
+pop.addEventListener('click', e => {
+  const b = e.target.closest('[data-pa]'); if (!b) return; const a = b.dataset.pa, p = cur();
+  if (a === 'new' || a === 'copy') { closePop(); addPlan(a === 'copy' ? 'copy' : 'new'); return; }
+  if (a === 'lock' || a === 'unlock') { closePop(); setLock(a === 'lock'); return; }
+  if (a === 'rename') { pop.innerHTML = `<form class="stack" id="renameF" style="padding:6px"><div class="field"><label for="rn">案の名前</label><input id="rn" maxlength="40" value="${esc(p.name)}"></div><div class="acts"><button type="button" class="btn" data-pa="cancel">やめる</button><button class="btn primary">変える</button></div></form>`; const i = $('#rn'); i.focus(); i.select(); return; }
+  if (a === 'delask') { if (S.plans.size <= 1) { pop.innerHTML = `<div class="msg">最後の1つの案は消せません。</div><div class="acts"><button class="btn" data-pa="cancel">とじる</button></div>`; return; } pop.innerHTML = `<div class="msg">「${esc(p.name)}」を消しますか？ 消すと元に戻せません。</div><div class="acts"><button class="btn" data-pa="cancel">やめる</button><button class="btn danger" data-pa="del">消す</button></div>`; return; }
+  if (a === 'del') { const id = p.id; S.plans.delete(id); S.hist.delete(id); ST.dirty.delete(id); ST.del.add(id); rebuildOrder(); S.cur = S.order[0]; S.sel.clear(); closePop(); saveLocal(); scheduleFlush(); saveUI(); renderAll(); return; }
+  if (a === 'cancel') closePop();
+});
+pop.addEventListener('submit', e => { e.preventDefault(); const p = cur(); const v = $('#rn').value.trim().slice(0, 40); if (v && p && !blocked()) { p.name = v; markDirty(p.id); renderTabs(); } closePop(); });
+function setLock(on) {
+  const p = cur(); if (!p || ST.readOnly) return;
+  p.lock = !!on; if (on) { setTool('select'); }
+  markDirty(p.id); renderAll();
+  toast(on ? `「${p.name}」を固定しました（直す時は「固定を外す」）` : `「${p.name}」の固定を外しました`);
+}
+
+/* ====== 案をくらべる ====== */
+function planNums(p) {
+  const checks = computeChecks(p, true), st = exStats(p);
+  let seats = 0; for (const d of p.desks) if (!d.unused) seats += chairPts(d).length; for (const it of p.items) { if (it.t === 'chair') seats++; if (it.t === 'row') seats += it.n; }
+  const far = p.desks.filter(d => !isFree(d)).map(d => Object.assign({d}, moveOf(d))).filter(x => x.dist > MOVE_OK || x.dr > 10 || x.d.unused).length;
+  const cnt = lv => checks.filter(c => c.lv === lv).length;
+  return {bad: cnt('bad'), warn: cnt('warn'), none: cnt('none'), seats, far, added: p.desks.filter(isAdd).length, atsu: st.atsumare.seats, eat: st.eat.seats, cafe: st.cafe.seats};
+}
+function fmtTime(t) { if (!t) return '—'; const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; }
+function renderCompare() {
+  const nn = (v, cls) => v ? `<span class="${cls}">${v}</span>` : `<span class="z">0</span>`;
+  const rows = S.order.map(id => { const p = S.plans.get(id), n = planNums(p);
+    return `<tr data-cmp="${esc(p.id)}" class="${p.id === S.cur ? 'on' : ''}" tabindex="0"><td>${p.lock ? LOCK_SVG : ''}${esc(p.name)}</td><td>${nn(n.bad, 'n-bad')}</td><td>${nn(n.warn, 'n-warn')}</td><td>${n.none}</td><td>${n.seats}</td><td>${fmtN(n.atsu)}</td><td>${fmtN(n.eat)}</td><td>${fmtN(n.cafe)}</td><td>${nn(n.far, 'n-warn')}</td><td>${n.added}</td><td>${fmtTime(p.updated)}</td></tr>`; });
+  $('#cmpTable').innerHTML = `<thead><tr><th>案</th><th>直す所</th><th>気になる所</th><th>まだ置いていない</th><th>いす</th><th>あつまれの席</th><th>食べる場所の席</th><th>カフェの席</th><th>大きく動かす机</th><th>増やす机</th><th>最後に直した</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+}
+let cmpFrom = null;
+function openCompare() { closePop(); renderCompare(); cmpFrom = document.activeElement; $('#cmpDlg').hidden = false; $('#cmpClose').focus(); }
+function closeCompare() { $('#cmpDlg').hidden = true; if (cmpFrom && cmpFrom.focus) cmpFrom.focus(); cmpFrom = null; }
+$('#cmpBtn').addEventListener('click', openCompare);
+$('#cmpClose').addEventListener('click', closeCompare);
+$('#cmpDlg').addEventListener('click', e => { if (e.target === e.currentTarget) { closeCompare(); return; } const tr = e.target.closest('[data-cmp]'); if (tr) { closeCompare(); switchPlan(tr.dataset.cmp); } });
+$('#cmpDlg').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.stopPropagation(); closeCompare(); return; }
+  if (e.key === 'Enter' || e.key === ' ') { const tr = e.target.closest('[data-cmp]'); if (tr) { e.preventDefault(); closeCompare(); switchPlan(tr.dataset.cmp); } }
+});
+pop.addEventListener('keydown', e => { if (e.key === 'Escape') closePop(); });
+
+/* ====== 保存（みんなで同じ案を見る保存先 → なければこのブラウザ） ====== */
+const LS_KEY = 'haichi.v1.plans', UI_KEY = 'haichi.v1.ui', DIRTY_KEY = 'haichi.v1.dirty';
+/* まだ保存先に届いていない案の id を、このブラウザに覚えておく（開き直しても、届くまで持っておくため） */
+function saveDirty() { try { localStorage.setItem(DIRTY_KEY, JSON.stringify([...new Set([...ST.dirty, ...ST.saving])])); } catch (e) {} }
+function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify([...S.plans.values()].map(p => Object.assign({id: p.id}, serialize(p))))); } catch (e) {} }
+function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({cur: S.cur})); } catch (e) {} }
+function loadLocal() {
+  try { const a = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (Array.isArray(a) && a.length) { for (const d of a.slice(0, 60)) if (d && typeof d.id === 'string') S.plans.set(d.id, normalize(d, d.id)); } } catch (e) {}
+  if (!S.plans.size && Array.isArray(window.HAICHI_SEED)) { for (const d of window.HAICHI_SEED.slice(0, 60)) if (d && typeof d.id === 'string') S.plans.set(d.id, normalize(d, d.id)); }
+  if (!S.plans.size) { const t = templatePlan('p-now'); S.plans.set(t.id, t); }
+  try { const d = JSON.parse(localStorage.getItem(DIRTY_KEY) || '[]'); if (Array.isArray(d)) for (const id of d) if (typeof id === 'string' && S.plans.has(id)) ST.dirty.add(id); } catch (e) {}
+  rebuildOrder();
+  let c = null; try { c = (JSON.parse(localStorage.getItem(UI_KEY) || 'null') || {}).cur; } catch (e) {}
+  S.cur = S.plans.has(c) ? c : S.order[0];
+}
+const STATUS = {wait: '読み込み中…', empty: 'まだ保存していません（さわると保存）', saving: '保存中…', saved: '保存しました（みんなで同じ案）', local: 'このブラウザにだけ保存', slow: '保存先につながりません。つながったら自動で送ります', readonly: '見るだけ（変更は保存されません）', error: '保存できませんでした', full: '保存先がいっぱいです'};
+function setStatus(k) { ST.status = k; const el = $('#status'); el.dataset.k = k; el.textContent = STATUS[k] || ''; }
+/* 比べるための形（正規化して文字にする） */
+const canonData = (id, data) => JSON.stringify(serialize(normalize(data, id)));
+const canonPlan = p => JSON.stringify(serialize(normalize(serialize(p), p.id)));
+function markDirty(id) {
+  const p = S.plans.get(id); if (!p) return;
+  p.updated = Math.max(Date.now(), (p.updated || 0) + 1); ST.lastEdit = Date.now(); saveLocal();
+  if (ST.readOnly) return;
+  if (ST.ready === 'none') { setStatus('local'); return; }
+  ST.dirty.add(id); saveDirty();
+  if (ST.db) { if (ST.status !== 'slow') setStatus('saving'); scheduleFlush(); }
+}
+function scheduleFlush() { if (!ST.db || ST.readOnly) return; clearTimeout(ST.timer); ST.timer = setTimeout(flush, 700); }
+async function flush() {
+  if (!ST.db || ST.readOnly) return;
+  if (ST.flushing) { ST.again = true; return; }
+  ST.flushing = true; ST.again = false;
+  let failed = false;
+  try {
+    // 送る前に、保存先の今の形を聞いて、ほかの人の直しを手元に合わせる（上書きして消さないため）
+    if (ST.db.pull && ST.dirty.size) { try { await ST.db.pull(); ST.retry.delete('_pull'); } catch (e) { failed = true; onWriteErr(e, null, false); } }
+    for (const id of [...ST.del]) {
+      if (failed) break;
+      if (ST.saving.has(id)) continue;
+      ST.del.delete(id); ST.saving.add(id);
+      try { const r = await ST.db.doc('plans/' + id).delete(); ST.retry.delete(id); ST.base.delete(id); if (ST.db.saved) ST.db.saved(id, r); }
+      catch (e) { failed = true; onWriteErr(e, id, true); }
+      finally { ST.saving.delete(id); }
+    }
+    for (const id of [...ST.dirty]) {
+      if (failed) break;   // つながらない時は、残りもまとめて、あとでやり直す
+      if (ST.saving.has(id) || ST.pending.has(id)) continue;   // 動かしている最中の案は、動かし終わってから送る
+      const p = S.plans.get(id); ST.dirty.delete(id); if (!p) { saveDirty(); continue; }
+      const data = JSON.parse(JSON.stringify(serialize(p)));
+      ST.saving.add(id);
+      try { const r = await ST.db.doc('plans/' + id).set(data); ST.retry.delete(id); ST.base.set(id, canonData(id, data)); if (ST.db.saved) ST.db.saved(id, r); }
+      catch (e) { failed = true; onWriteErr(e, id, false); }
+      finally { ST.saving.delete(id); saveDirty(); }
+    }
+  } finally { ST.flushing = false; }
+  if (failed) return;   // やり直しは onWriteErr のタイマーにまかせる
+  const left = [...ST.dirty].filter(id => !ST.pending.has(id)).length + ST.del.size;
+  if (left || ST.again) scheduleFlush();
+  else if (!ST.dirty.size && !ST.readOnly && ST.status !== 'error') setStatus('saved');
+}
+function onWriteErr(e, id, isDel) {
+  const code = e && e.code;
+  if (code === 'invalid_argument' && !isDel && id) {
+    const big = JSON.stringify(serialize(S.plans.get(id) || {})).length > 240000;
+    if (big) { setStatus('error'); toast('この案は描いた線が多すぎて保存できません。線を少し消してください'); return; }
+    ST.readOnly = true; setStatus('readonly'); return;
+  }
+  if (code === 'denied') { ST.readOnly = true; setStatus('readonly'); return; }
+  // つながらない・いっぱい・そのほか：直した分は捨てずに持っておき、間をあけて、届くまで何回でもやり直す
+  if (id) { if (isDel) ST.del.add(id); else ST.dirty.add(id); }
+  saveDirty();
+  const rk = id || '_pull', n = (ST.retry.get(rk) || 0) + 1; ST.retry.set(rk, n);
+  setStatus(code === 'quota_exceeded' ? 'full' : 'slow');
+  clearTimeout(ST.timer);
+  ST.timer = setTimeout(flush, Math.min(15000, 1500 * Math.pow(1.5, Math.min(n - 1, 6))) + Math.random() * 1000);
+}
+function toast(msg) { const el = $('#shareMsg'); el.textContent = msg; }
+/* 保存先から来た案を手元に入れる。
+   ・送っている／消している／動かしている最中の案は、いまは使わない（'skip'：次は全部聞き直す）
+   ・手元にまだ送っていない直しがある案は、「元の形」とくらべて、両方の直しを合わせる（物ごと）
+   ・それ以外は、保存先の形にする */
+function forgetHist(id) { const h = S.hist.get(id); if (h) { h.u = []; h.r = []; } if (id === S.cur) editBefore = null; }
+function integrate(id, data) {
+  if (ST.saving.has(id) || ST.del.has(id)) return 'skip';
+  if (S.drag && id === S.cur) { ST.pending.set(id, {data, base: ST.base.get(id)}); return 'skip'; }
+  const rem = normalize(data, id), remJ = JSON.stringify(serialize(rem)), local = S.plans.get(id);
+  if (!local) { S.plans.set(id, rem); ST.base.set(id, remJ); return 'changed'; }
+  if (ST.dirty.has(id)) {
+    const baseJ = ST.base.get(id);
+    if (baseJ === remJ) return '';   // 保存先は前のまま：手元の直しを送るだけ
+    if (baseJ == null) {
+      // 元の形が分からない（開き直した時など）：あとから直した方を残す
+      ST.base.set(id, remJ);
+      if ((rem.updated || 0) > (local.updated || 0)) { ST.dirty.delete(id); saveDirty(); S.plans.set(id, rem); forgetHist(id); toast(`「${local.name}」は、ほかの人があとから直したので、その形にしました`); return 'changed'; }
+      return '';
+    }
+    const merged = merge3(normalize(JSON.parse(baseJ), id), local, rem);
+    merged.updated = Math.max(Date.now(), (local.updated || 0) + 1, (rem.updated || 0) + 1);
+    ST.base.set(id, remJ); S.plans.set(id, merged); forgetHist(id);
+    if (id === S.cur) toast(`「${merged.name}」に、ほかの人の直しを合わせました`);
+    return 'changed';
+  }
+  ST.base.set(id, remJ);
+  if (canonPlan(local) === remJ) return '';
+  S.plans.set(id, rem); forgetHist(id);
+  return 'changed';
+}
+/* 3つの形（元・手元・保存先）から、物ごとに合わせる。両方が同じ物を変えていたら、あとから直した方 */
+function merge3(B, L, R) {
+  const J = x => JSON.stringify(x), preferL = (L.updated || 0) >= (R.updated || 0);
+  const pick = (b, l, r) => { const jb = J(b), jl = J(l), jr = J(r); if (jl === jr || jr === jb) return l; if (jl === jb) return r; return preferL ? l : r; };
+  const byId = (b, l, r) => {
+    const Bm = new Map(b.map(x => [x.id, x])), Lm = new Map(l.map(x => [x.id, x])), Rm = new Map(r.map(x => [x.id, x])), out = [];
+    for (const x of r) {
+      const ob = Bm.get(x.id), ol = Lm.get(x.id);
+      if (!ol) { if (ob && J(ob) === J(x)) continue; out.push(x); continue; }   // 手元で消した物は、保存先が変えていなければ消したまま
+      out.push(ob ? pick(ob, ol, x) : (preferL ? ol : x));
+    }
+    for (const x of l) { if (Rm.has(x.id)) continue; const ob = Bm.get(x.id); if (ob && J(ob) === J(x)) continue; out.push(x); }   // 手元で足した物を足す（保存先で消した物は、手元で変えていなければ消す）
+    return out;
+  };
+  const bySet = (b, l, r) => {
+    const Bs = new Set(b.map(J)), Ls = new Set(l.map(J)), Rs = new Set(r.map(J));
+    const out = r.filter(x => !(Bs.has(J(x)) && !Ls.has(J(x))));
+    for (const x of l) if (!Rs.has(J(x)) && !Bs.has(J(x))) out.push(x);
+    return out;
+  };
+  const m = {name: pick(B.name, L.name, R.name), order: pick(B.order, L.order, R.order), memo: pick(B.memo, L.memo, R.memo), lock: pick(!!B.lock, !!L.lock, !!R.lock), updated: L.updated,
+    tv: {tv1: pick(B.tv.tv1, L.tv.tv1, R.tv.tv1), tv2: pick(B.tv.tv2, L.tv.tv2, R.tv.tv2)},
+    desks: byId(B.desks, L.desks, R.desks), items: byId(B.items, L.items, R.items), strokes: bySet(B.strokes, L.strokes, R.strokes)};
+  return normalize(JSON.parse(J(m)), L.id);
+}
+/* 動かし終わった時：動かしている間に来た案は、保存先から聞き直して合わせる */
+function flushPending() {
+  if (!ST.pending.size) return;
+  const list = [...ST.pending]; ST.pending.clear();
+  if (ST.db && ST.db.pull) { ST.db.pull(true).catch(() => {}); if (ST.dirty.size) scheduleFlush(); return; }
+  let ch = false;
+  for (const [id, x] of list) if (ST.base.get(id) === x.base && integrate(id, x.data) === 'changed') ch = true;
+  if (ch) { rebuildOrder(); pruneSel(); saveLocal(); renderAll(); }
+  if (ST.dirty.size) scheduleFlush();
+}
+function onSnap(snap) {
+  let changed = false, again = false; const seen = new Set(snap.stale || []);
+  for (const doc of snap.docs) {
+    const id = doc.id; seen.add(id); const data = doc.data(); if (!data) continue;
+    const r = integrate(id, data);
+    if (r === 'changed') changed = true; else if (r === 'skip') again = true;
+  }
+  if (!snap.metadata.fromCache) {
+    ST.ready = true;
+    if (snap.size) for (const id of [...S.plans.keys()]) if (!seen.has(id) && !ST.dirty.has(id) && !ST.saving.has(id) && !ST.pending.has(id)) { S.plans.delete(id); ST.base.delete(id); changed = true; }
+    if (!ST.dirty.size && !ST.saving.size && !ST.del.size && !ST.readOnly) setStatus(snap.size ? 'saved' : 'empty');
+    else if ((ST.dirty.size || ST.del.size) && ST.status !== 'slow' && !ST.flushing) scheduleFlush();   // 前に開いた時の、届いていない分も、ここで送る（保存先の今の形と比べてから）
+  }
+  if (changed) {
+    rebuildOrder(); if (!S.plans.has(S.cur)) { S.cur = S.order[0]; S.sel.clear(); }
+    pruneSel(); saveLocal(); renderAll();
+  }
+  return again;
+}
+/* ====== あつまれのサーバーに置いた時の保存先（URL の key で入る・3秒ごとに新しい案を聞く） ======
+   古い答えで巻き戻らないように：送り終わった案は「その時の版（rev）」を覚え、それより古い答えの中のその案は使わない */
+function serverDb() {
+  const key = new URLSearchParams(location.search).get('key') || '';
+  const q = (extra) => '?key=' + encodeURIComponent(key) + (extra || '');
+  const err = (status) => { const e = new Error('http ' + status); e.code = status === 413 ? 'invalid_argument' : status === 403 || status === 401 ? 'denied' : status === 507 ? 'quota_exceeded' : 'unavailable'; return e; };
+  async function call(method, url, body) {
+    // x-haichi-v：この形のページ（机を分ける・増やす等）だとサーバーに知らせる。古いページの保存は、サーバーが断る
+    const r = await fetch(url, {method, headers: body ? {'content-type': 'application/json', 'x-haichi-v': '2'} : {'x-haichi-v': '2'}, body: body ? JSON.stringify(body) : undefined, cache: 'no-store'});
+    if (!r.ok) throw err(r.status);
+    if (r.status === 204) return null;
+    try { return await r.json(); } catch (e) { return null; }
+  }
+  const sv = {rev: -1, full: false, inflight: null, saved: new Map(), seeded: false, h: null};
+  async function once() {
+    const t0 = Date.now(), since = sv.full ? -1 : sv.rev; sv.full = false;
+    const res = await call('GET', '/api/haichi/plans' + q('&since=' + since));
+    if (res && Array.isArray(res.plans)) {
+      if (!res.plans.length && !sv.seeded && Array.isArray(window.HAICHI_SEED)) {
+        sv.seeded = true;
+        for (const d of window.HAICHI_SEED) { const {id, ...data} = d; try { await call('PUT', '/api/haichi/plans/' + encodeURIComponent(id) + q(), {data}); } catch (e) {} }
+        sv.full = true; return once();
+      }
+      sv.seeded = true;
+      const now = Date.now(), rv = typeof res.rev === 'number' ? res.rev : null, stale = new Set();
+      for (const [id, s] of [...sv.saved]) {
+        if (now - s.t > 20000) { sv.saved.delete(id); continue; }
+        if (s.rev != null && rv != null) { if (rv < s.rev) stale.add(id); else sv.saved.delete(id); }
+        else if (t0 <= s.t) { stale.add(id); sv.full = true; }   // 版が分からない時：送り終わる前に聞いた答えは使わず、次は全部聞き直す
+      }
+      sv.rev = res.rev;
+      const again = sv.h && sv.h.cb({docs: res.plans.filter(x => x && typeof x.id === 'string' && !stale.has(x.id)).map(x => ({id: x.id, data: () => x.data})), size: res.plans.length, stale, metadata: {fromCache: false}});
+      if (again) sv.full = true;
+    }
+    if (sv.h && sv.h.onOk) sv.h.onOk();
+  }
+  function pull(full) { if (full) sv.full = true; if (!sv.inflight) sv.inflight = once().finally(() => { sv.inflight = null; }); return sv.inflight; }
+  return {
+    pull,
+    saved(id, r) { sv.saved.set(id, {rev: r && typeof r.rev === 'number' ? r.rev : null, t: Date.now()}); },
+    doc(path) {
+      const id = encodeURIComponent(path.split('/')[1]);
+      return {
+        set: (data) => call('PUT', '/api/haichi/plans/' + id + q(), {data}),
+        delete: () => call('DELETE', '/api/haichi/plans/' + id + q())
+      };
+    },
+    collection() {
+      return {
+        onSnapshot(cb, onErr, onOk) {
+          sv.h = {cb, onErr, onOk}; let stopped = false;
+          async function loop() {
+            if (stopped) return;
+            try { await pull(); }
+            catch (e) { if (e.code === 'denied') { stopped = true; onErr(e); return; } onErr(e); }
+            setTimeout(loop, document.hidden ? 10000 : (Date.now() - ST.lastEdit < 20000 ? 1500 : 3000));   // 直している間は早めに聞く
+          }
+          loop();
+          return () => { stopped = true; };
+        }
+      };
+    }
+  };
+}
+async function initServer() {
+  const db = serverDb();
+  ST.db = db; ST.standalone = true; setStatus('wait');
+  $('#savePng').hidden = false; $('#exportPlans').hidden = false;
+  db.collection('plans').onSnapshot(onSnap, e => {
+    if (e.code === 'denied') { ST.db = null; ST.readOnly = true; setStatus('readonly'); toast('URL の合い言葉がちがうようです。もらった URL をそのまま開いてください'); renderAll(); }
+    else if (!ST.readOnly) setStatus('slow');
+  }, () => {
+    // つながった。止まっていた間の直しがあれば、すぐ送る
+    if (ST.status !== 'slow' || ST.readOnly) return;
+    if (ST.dirty.size || ST.del.size) { clearTimeout(ST.timer); flush(); }
+    else setStatus('saved');
+  });
+}
+async function initCaps() {
+  if (window.HAICHI_API) return initServer();
+  const C = window.claude;
+  if (!C || typeof C.use !== 'function') { ST.ready = 'none'; ST.standalone = true; setStatus('local'); $('#savePng').hidden = false; $('#exportPlans').hidden = false; return; }
+  let db = null;
+  try { db = await C.use('db'); } catch (e) { db = null; }
+  if (db) {
+    ST.db = db; setStatus('wait');
+    const t = setTimeout(() => { if (ST.ready !== true) setStatus('slow'); }, 10000);
+    try {
+      db.collection('plans').onSnapshot(s => { if (!s.metadata.fromCache) clearTimeout(t); onSnap(s); }, err => { clearTimeout(t); if (err && err.code === 'revoked') { ST.db = null; setStatus('local'); } else setStatus('slow'); });
+    } catch (e) { clearTimeout(t); ST.db = null; setStatus('local'); }
+  } else { ST.ready = 'none'; setStatus('local'); }
+  try { const dl = await C.use('downloads'); if (dl) { ST.dl = dl; $('#savePng').hidden = false; $('#exportPlans').hidden = false; } } catch (e) {}
+}
+
+/* ====== みんなに見せる ====== */
+function summaryText() {
+  const p = cur(); if (!p) return '';
+  const lines = [`【${p.name}】文化祭の配置（教室）`];
+  for (const c of lastChecks) { const mark = {ok: '○', warn: '△', bad: '×', none: '－'}[c.lv]; lines.push(`${mark} ${c.t}：${c.d || ''}${c.list ? c.list.map(x => ' / ' + x.text).join('') : ''}`); }
+  if (p.memo.trim()) { lines.push(''); lines.push('メモ：'); lines.push(p.memo.trim()); }
+  return lines.join('\n');
+}
+$('#copySum').addEventListener('click', async () => {
+  const txt = summaryText(), area = $('#copyArea');
+  try { await navigator.clipboard.writeText(txt); area.hidden = true; toast('コピーしました。LINE などに貼れます'); }
+  catch (e) { area.hidden = false; area.value = txt; area.focus(); area.select(); toast('自動でコピーできませんでした。下の文を選んでコピーしてください'); }
+});
+const SVG_EXPORT_VARS = '--paper:#f4f5f0; --paper-2:#e9ebe3; --card:#fbfbf8; --grid:#e1e4da; --grid-strong:#d2d7cb;--ink:#1b2225; --ink-2:#4a555a; --ink-3:#7a8589; --line:#cdd2c8; --wall:#1f272a;--accent:#1e5bc6; --accent-bg:#e5edfb; --accent-ink:#ffffff;--ok:#2c7a31; --ok-bg:#e4f1e4; --warn:#9a5800; --warn-bg:#faeedb; --bad:#c0342a; --bad-bg:#fbe5e2;--desk:#f0e1c2; --desk-line:#9a7a4b; --chair:#738087; --chair-bg:#e2e6e3;--room:#e4e6df; --pillar:#b9bfb7; --tv:#29323a;--c-atsumare:#6648d4; --b-atsumare:#ebe6ff;--c-analog:#0c7766; --b-analog:#d9f1ea;--c-digital:#1d5cba; --b-digital:#dfe9fa;--c-food:#ad5600; --b-food:#fbe8d0;--c-eat:#3c7a1b; --b-eat:#e3f1d6;--c-staff:#56616a; --b-staff:#e6eaed;--c-other:#a92e63; --b-other:#f9e1ec;--c-show:#0b6a86; --b-show:#d9eff5;--c-cafe:#866800; --b-cafe:#f7efcc;';
+$('#savePng').addEventListener('click', async () => {
+  const p = cur(); if (!p || !(ST.dl || ST.standalone)) return;
+  const b = allBounds(), scale = 1.4;
+  const css = document.getElementById('svgcss').textContent;
+  const keepBad = S.bad; S.bad = new Map();
+  const body = staticSVG() + dynSVG(p, true);
+  S.bad = keepBad;
+  const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(b.w * scale)}" height="${Math.round(b.h * scale + 60)}" viewBox="${b.x} ${b.y - 50} ${b.w} ${b.h + 50}"><style>svg{${SVG_EXPORT_VARS}font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif}${css}</style><rect x="${b.x}" y="${b.y - 50}" width="${b.w}" height="${b.h + 50}" fill="#ffffff"/><defs><pattern id="gridp" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" class="gridline"/></pattern></defs><text x="${b.x + 20}" y="${b.y - 14}" font-size="30" font-weight="700" fill="#1b2225">${esc(p.name)}</text>${body}</svg>`;
+  try {
+    const url = URL.createObjectURL(new Blob([markup], {type: 'image/svg+xml'}));
+    const img = new Image(); img.src = url; await img.decode();
+    const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+    cv.getContext('2d').drawImage(img, 0, 0); URL.revokeObjectURL(url);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    await saveFile(`配置_${p.name}.png`, blob);
+    toast('画像を保存しました');
+  } catch (e) { if (e && e.code === 'declined') toast('保存をやめました'); else if (e && (e.code === 'unavailable' || e.code === 'not_granted')) { $('#savePng').hidden = true; toast('この画面では画像の保存が使えません'); } else toast('画像を作れませんでした'); }
+});
+
+/* ====== ファイルで受け渡す ====== */
+function safeName(n) { return n.replace(/[\\/:*?"<>|]/g, '_'); }
+async function saveFile(name, blob) {
+  name = safeName(name);
+  if (ST.dl) { await ST.dl.save({filename: name, data: blob}); return; }
+  // ファイルとして開いた時：Chrome・Edge は保存先と名前をえらぶ画面を出す（名前が「download」にならないように）
+  if (typeof window.showSaveFilePicker === 'function') {
+    const png = /\.png$/i.test(name);
+    let h = null;
+    try { h = await window.showSaveFilePicker({suggestedName: name, types: [{description: png ? '画像' : '案のファイル', accept: png ? {'image/png': ['.png']} : {'application/json': ['.json']}}]}); }
+    catch (e) { if (e && e.name === 'AbortError') throw {code: 'declined'}; h = null; }
+    if (h) { const w = await h.createWritable(); await w.write(blob); await w.close(); return; }
+  }
+  const a =document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+$('#exportPlans').addEventListener('click', async () => {
+  const d = new Date(), stamp = `${d.getMonth() + 1}月${d.getDate()}日_${d.getHours()}時${String(d.getMinutes()).padStart(2, '0')}分`;
+  const data = {app: 'haichi', v: 1, exported: Date.now(), plans: S.order.map(id => Object.assign({id}, serialize(S.plans.get(id))))};
+  try { await saveFile(`文化祭の配置_${stamp}.json`, new Blob([JSON.stringify(data)], {type: 'application/json'})); toast(`${data.plans.length} 個の案を書き出しました`); }
+  catch (e) { if (e && e.code === 'declined') toast('書き出しをやめました'); else toast('書き出せませんでした'); }
+});
+$('#importPlans').addEventListener('click', () => { if (ST.readOnly) { toast('見るだけの時は読み込めません'); return; } $('#importFile').value = ''; $('#importFile').click(); });
+$('#importFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  let arr = null;
+  try { const j = JSON.parse(await f.text()); arr = Array.isArray(j) ? j : (j && Array.isArray(j.plans) ? j.plans : null); } catch (err) { arr = null; }
+  if (!arr) { toast('このファイルは読み込めません（「全部の案を書き出す」で作ったファイルをえらんでください）'); return; }
+  let add = 0, upd = 0, same = 0;
+  for (const d of arr.slice(0, 60)) {
+    if (!d || typeof d.id !== 'string') continue;
+    const ex = S.plans.get(d.id), inc = normalize(d, d.id);
+    if (ex && (inc.updated || 0) <= (ex.updated || 0)) { same++; continue; }
+    S.plans.set(d.id, inc); if (ex) upd++; else add++;
+    const keep = inc.updated; markDirty(d.id); inc.updated = keep;
+  }
+  saveLocal(); rebuildOrder(); renderAll();
+  toast(`読み込みました：新しい案 ${add}・新しくなった案 ${upd}・変わらない案 ${same}`);
+});
+
+/* ====== はじめ ====== */
+gStatic.innerHTML = staticSVG();
+loadLocal();
+setStatus('wait');
+renderAll();
+const ro = new ResizeObserver(() => { if (!S.fitted) { const r = svg.getBoundingClientRect(); if (r.width > 10) { fit(r.width < 700 ? ROOM_B : allBounds()); S.fitted = true; } } });
+ro.observe(svg);
+initCaps();
+})();
+</script>
+</body>
+</html>

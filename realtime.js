@@ -636,6 +636,9 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   const sweepIntervalMs = opts.sweepIntervalMs || SWEEP_INTERVAL_MS;
   // 指示74：hb:ping を送る間隔。**検査だけが縮める**（落とし穴24。本番は10秒のまま・25秒の判定は変えない）
   const heartbeatIntervalMs = opts.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
+  // 11/7 の検査の準備 7・6：検査のための記録（probe.js）。**はっきり入れた時だけ**（PROBE=err,lag）。無ければ何もしない
+  const probeFlags = opts.probe && opts.probe.flags ? opts.probe.flags() : null;
+  const lagOn = !!(probeFlags && probeFlags.lag);
   // 指示63 第4部：開始の 3-2-1 の長さ。**検査だけが 0 にできる**（実時間を待つ検査が
   // 1本ごとに3秒延びるため。落とし穴24：遊びの数字は変えず、検査の側に早送りを持つ）。
   // 実時間で数える検査は tests/realtime-countdown.js に1本残す
@@ -669,7 +672,14 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     return (socket.request && socket.request.session) || {};
   }
 
+  /**
+   * 11/7 の検査の準備 6：遅れを測る印。知らせを出す直前に、同じ相手へ「いま出す」とサーバーの時刻を送る（lag:t）。
+   * 同じ socket への送りは順番が変わらないので、端末は次に来た同じ名前の知らせと組にする（rt-client.js）。
+   * 入っていない時（PROBE に lag が無い）は何も送らない
+   */
+  function lagMark(target, event) { if (lagOn) target.emit('lag:t', { e: event, t: Date.now() }); }
   function broadcast(room) {
+    lagMark(io.to('room:' + room.code), 'room:update');
     io.to('room:' + room.code).emit('room:update', publicSnapshot(room));
     // 指示66-2：文化祭の部屋は、係の画面にも元の名前つきで配る（入る・出る・切れる、のどれでも）
     if (room.fes) pushStaff(room);
@@ -684,7 +694,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
   // 秘密の情報は「その人のsocketにだけ」送る。部屋全体には流さない
   function emitPrivate(room, memberId, event, payload) {
     const s = socketOf(memberId, room);
-    if (s) s.emit(event, payload);
+    if (s) { lagMark(s, event); s.emit(event, payload); }
   }
 
   /**
@@ -1411,7 +1421,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       fes: FesRoom.publicView(room, Date.now())
     };
   }
-  function pushStaff(room) { io.to('fesstaff:' + room.code).emit('fes:staff', staffView(room)); }
+  function pushStaff(room) { lagMark(io.to('fesstaff:' + room.code), 'fes:staff'); io.to('fesstaff:' + room.code).emit('fes:staff', staffView(room)); }
   /** いまの文化祭の部屋（/fes が飛ばす先。作り直したら新しい方） */
   function currentFesRoom() {
     let best = null;
@@ -1469,6 +1479,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     // 第34弾 2-1：始まる合図。全員の端末に同じ放送が届いた瞬間から
     // 3-2-1を数えるので、そろって見える（ゲームの状態はその下に描かれて待つ）
     // 指示68-T 二の束5：0になるサーバーの時刻も添える。受けた端末は残りから数える（遅れて受けた TV も、ほかと同じ時刻に0になる）
+    lagMark(io.to('room:' + room.code), 'room:countdown');
     io.to('room:' + room.code).emit('room:countdown', { seconds: COUNTDOWN_SECONDS, endsAt: room.countdownUntil || null, now: Date.now() });
     pushWolfState(room);
     return { ok: true };
@@ -1476,7 +1487,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
 
   io.on('connection', (socket) => {
     // 指示68-1：いまの版を知らせる。古い画面のままの端末は、待合にいる時だけ読み込み直す（public/js/version.js が1か所）
-    socket.emit('app:version', { v: APP_VERSION.VERSION });
+    // 11/7 の検査の準備 7・6：検査のための記録が入っている時だけ、端末に知らせる（入っていなければ今までと同じ形）
+    socket.emit('app:version', probeFlags ? { v: APP_VERSION.VERSION, probe: probeFlags } : { v: APP_VERSION.VERSION });
     // このsocketがどの部屋の誰なのか。join/create が成功した時に埋まる
     socket.data.roomCode = null;
     socket.data.memberId = null;

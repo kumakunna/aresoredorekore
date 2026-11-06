@@ -10,6 +10,9 @@
 //   → http://localhost:3001/dev-login を一度開くと、検証用ユーザーでログイン状態になる
 //   （.claude/launch.json の aresore-dev がこれを起動する）
 
+// 11/7 の検査の準備 7・6：手元の検証用は、エラーと遅れの記録を入れて立てる（本番は .env の PROBE が無ければ動かない）
+// （本番かどうかは === で見る：tests/v2.js が「!== 'production'」の最初の1つを /v2lab の門として読むため）
+if (process.env.NODE_ENV === 'production') { /* 本番では足さない */ } else if (process.env.PROBE == null) process.env.PROBE = 'err,lag';
 const { app } = require('../server.js');
 const db = require('../db');
 

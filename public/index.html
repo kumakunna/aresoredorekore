@@ -10394,6 +10394,8 @@
 <script src="/socket.io/socket.io.min.js"></script>
 <!-- 指示55-①：1v1の組をつくる共通部品A。**quiz-logic より前に置く**——
      quiz-logic が buildPairs と shuffled をここから借りている（UMD の依存） -->
+<!-- 11/7 の検査の準備 7：エラーを読み込んですぐから拾うので、いちばん先に読む（送るのはサーバーが入れた時だけ） -->
+<script src="js/probe.js"></script>
 <script src="js/version.js"></script>
 <script src="js/versus.js"></script>
 <script src="js/wolf-logic.js"></script>
@@ -17745,6 +17747,12 @@
   // ===================== 第21弾-5：1人1台の部屋 =====================
   // 手渡し方式とは別の入り口。ここから先の画面は scr-rt-* だけを使う。
   var rt = (typeof RTClient !== 'undefined') ? RTClient.create() : null;
+  // 11/7 の検査の準備 7・6：エラーと遅れの記録（サーバーが PROBE で入れた時だけ送る・public/js/probe.js）
+  if(rt && window.ProbeKit) ProbeKit.attach(rt, {
+    role: function(){ var id = (document.querySelector('.screen.active') || {}).id; return id === 'scr-v2-fes-staff' ? 'staff' : (rtIsBigScreen() ? 'tv' : 'phone'); },
+    phase: function(){ var r = rt.state.room; return r ? ((r.fes && r.fes.phase) || (r.state && r.state.phase) || null) : null; },
+    game: function(){ var r = rt.state.room; return r && r.state ? (r.state.game || null) : null; }
+  });
 
   function rtUnavailableMsg(){
     return '通信の準備ができていません。ページを開き直すか、手渡し方式でお楽しみください。';

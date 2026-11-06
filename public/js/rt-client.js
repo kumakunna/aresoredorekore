@@ -32,6 +32,7 @@
     };
     var socket = null;
     var listeners = {};
+    var lagPending = {};   // 11/7 の検査の準備 6：知らせの名前 → サーバーが出した時刻（lag:t）
 
     function emitLocal(name, payload) {
       (listeners[name] || []).forEach(function (fn) {
@@ -120,6 +121,16 @@
       socket.on('room:memberGone', function (p) { emitLocal('memberGone', p || {}); });
       // サーバーからの死活確認。返さないと切断扱いになる
       socket.on('hb:ping', function () { socket.emit('hb:pong'); });
+      // 11/7 の検査の準備 6：遅れの印（サーバーが PROBE=lag の時だけ届く）。lag:t のあとに来た同じ名前の知らせと組にして、
+      // 受け取った時刻（ふだんの受け口より前＝onAny）と、受け口が全部終わった時刻（そのあとのマイクロタスク）を画面側（public/js/probe.js）へ渡す
+      if (socket.onAny) socket.onAny(function (ev, p) {
+        if (ev === 'lag:t') { if (p && p.e) lagPending[p.e] = p.t; return; }
+        var t = lagPending[ev];
+        if (t == null) return;
+        delete lagPending[ev];
+        var recv = Date.now();
+        Promise.resolve().then(function () { emitLocal('lag', { e: ev, t: t, recv: recv, done: Date.now() }); });
+      });
       return true;
     }
 

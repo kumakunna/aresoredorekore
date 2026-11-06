@@ -46,3 +46,5 @@ docs/監査_指示71/
 
 # 客観検査 2026-11-05：写真と一覧（大きい）
 docs/監査_客観検査_2026-11/画像/
+# 指示74：シート・名前の箱・離れてもどる通しの写真（tools/sheet-shot.js・name-box-shot.js・fes-away-walk.js が作る）
+docs/指示74/写真/

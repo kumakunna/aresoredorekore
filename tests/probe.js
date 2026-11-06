@@ -94,7 +94,7 @@ function phone(url) {
       const res = await post(srv.url + '/api/probe/err', { list: [{
         msg: 'TypeError: x is undefined', src: 'https://aresoredorekore.duckdns.org/js/v2-fes.js?room=KZ3DBC&key=ひみつ', line: 12, col: 3,
         stack: 'TypeError: x\n    at f (https://aresoredorekore.duckdns.org/js/v2-fes.js?room=KZ3DBC:12:3)\n    at g (http://localhost/index.html:9:1)',
-        kind: 'error', scr: 'scr-v2-fes-lobby', role: 'phone', ua: 'Mozilla/5.0 (iPhone)', v: '2.21', n: 1, at: 1,
+        kind: 'error', scr: 'scr-v2-fes-lobby', role: 'phone', ua: 'Mozilla/5.0 (iPhone)', v: '2.21', n: 1, at: 1, vis: 'hidden', conn: false,
         name: 'ふう', memberId: 'm_abc', code: 'KZ3DBC'
       }] });
       assertEqual(res.status, 200, '受け取る');
@@ -108,6 +108,8 @@ function phone(url) {
       assert(JSON.stringify(g).indexOf('ふう') === -1, '名前は残らない');
       assertEqual(g.scr, 'scr-v2-fes-lobby', '画面の id は残す');
       assertEqual(g.ua, 'Mozilla/5.0 (iPhone)', '機種（UA）は残す');
+      assertEqual(g.vis, 'hidden', '画面が見えていたかを残す');
+      assertEqual(g.conn, false, '通信がつながっていたかを残す');
       assert(typeof g.t === 'number', 'サーバーが受け取った時刻');
     } finally { await srv.close(); }
   });
@@ -169,6 +171,8 @@ function phone(url) {
     const e = t.sent[0].body.list[0];
     assertEqual(e.msg, 'ReferenceError: boom', 'エラーの字');
     assertEqual(e.line, 7, '行');
+    assertEqual(e.vis, 'visible', 'その時、画面が見えていたか');
+    assertEqual(typeof e.conn, 'boolean', '通信がつながっていたか');
     assert(e.ua && e.v, '機種と版');
     t.err('ReferenceError: boom');
     t.err('ReferenceError: boom');

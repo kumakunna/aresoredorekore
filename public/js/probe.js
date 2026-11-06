@@ -30,7 +30,9 @@
     if (P.errs.length + P.sentErr >= MAX_ERRS) return;
     var e = { kind: kind, msg: String(msg || '').slice(0, 300), src: src || null, line: line | 0, col: col | 0,
       stack: stack ? String(stack).slice(0, 800) : null, at: Date.now(), scr: scr(), role: role(),
-      ua: (root.navigator && navigator.userAgent) || '', v: (root.AppVersion && AppVersion.VERSION) || null, n: 1 };
+      ua: (root.navigator && navigator.userAgent) || '', v: (root.AppVersion && AppVersion.VERSION) || null, n: 1,
+      // 追加（調べた結果から）：その時、画面が見えていたか・通信がつながっていたか（もどった直後のエラーを見分ける）
+      vis: (root.document && document.visibilityState) || null, conn: !!(P.rt && P.rt.state && P.rt.state.connected) };
     P.seen[key] = e;
     P.errs.push(e);
     flushErr();
@@ -56,7 +58,8 @@
   // ---- 6：遅れ ----
   function syncClock() {
     if (!P.rt || !P.rt.clockSync) return;
-    P.rt.clockSync(5).then(function (samples) {
+    // 8回たずねて、往復がいちばん短かった回の差を使う（追加：調べた結果から）
+    P.rt.clockSync(8).then(function (samples) {
       var best = null;
       (samples || []).forEach(function (s) { var rtt = s.t1 - s.t0; if (!best || rtt < best.rtt) best = { rtt: rtt, offset: s.server - (s.t0 + s.t1) / 2 }; });
       if (best) { P.offset = best.offset; P.rtt = best.rtt; }
@@ -65,16 +68,16 @@
   function onLag(m) {
     if (!P.flags || !P.flags.lag || !m) return;
     var raf = root.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
-    // 画面に出た時刻：受け口が終わったあとの、次のコマが描かれたあと（rAF の中から setTimeout 0）
+    // 画面に出た時刻：受け口が終わったあとの、次のコマ（requestAnimationFrame の中で取る＝そのコマを描く直前）
     raf(function () {
-      setTimeout(function () {
+      (function () {
         var paint = Date.now();
         var x = { e: m.e, net: P.offset == null ? null : (m.recv + P.offset - m.t), handle: m.done - m.recv, paint: paint - m.recv,
           rtt: P.rtt, scr: scr(), role: m.e === 'fes:staff' ? 'staff' : role(), at: m.t };   // 係の画面の知らせは係（係の画面の id が無い時も）
         try { if (P.info && P.info.phase) x.ph = P.info.phase(); if (P.info && P.info.game) x.game = P.info.game(); } catch (e) {}
         P.lag.push(x);
         P.lagAll.push(x); if (P.lagAll.length > LAG_MAX) P.lagAll.shift();
-      }, 0);
+      })();
     });
   }
   setInterval(function () {
@@ -90,8 +93,10 @@
     P.rt = rt; P.info = info || null;
     rt.on('version', function (p) { P.setFlags(p && p.probe ? { err: !!p.probe.err, lag: !!p.probe.lag } : null); });
     rt.on('lag', onLag);
-    // つなぎ直したら時計を合わせ直す（回線が変わることがある）
+    // 時計を合わせ直す：つなぎ直した時・画面がまた見えた時（回線が変わることがある）・1分ごと
     rt.on('status', function (st) { if (st && st.connected && P.flags && P.flags.lag) syncClock(); });
+    if (root.document && document.addEventListener) document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && P.flags && P.flags.lag) syncClock(); });
+    setInterval(function () { if (P.flags && P.flags.lag) syncClock(); }, 60000);
   };
   /** サーバーが「入っている」か（app:version に添うものと同じ）。true／false の欄がそろっている時だけ受け取る */
   P.setFlags = function (f) {

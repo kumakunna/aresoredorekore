@@ -40,7 +40,7 @@ if (!ONLY_LAG) {
     const k = e.msg + '|' + e.src + '|' + e.line;
     const x = g.get(k) || { msg: e.msg, src: e.src, line: e.line, kind: e.kind, n: 0, rows: 0, ua: {}, scr: {}, role: {}, first: e.t, last: e.t, stack: e.stack, v: {} };
     x.n += e.n || 1; x.rows++; x.ua[uaShort(e.ua || '')] = (x.ua[uaShort(e.ua || '')] || 0) + 1; x.scr[e.scr || '-'] = (x.scr[e.scr || '-'] || 0) + 1;
-    x.role[e.role] = (x.role[e.role] || 0) + 1; x.v[e.v || '-'] = 1; x.first = Math.min(x.first, e.t); x.last = Math.max(x.last, e.t);
+    x.role[e.role] = (x.role[e.role] || 0) + 1; x.v[e.v || '-'] = 1; x.hidden = (x.hidden || 0) + (e.vis === 'hidden' ? 1 : 0); x.off = (x.off || 0) + (e.conn === false ? 1 : 0); x.first = Math.min(x.first, e.t); x.last = Math.max(x.last, e.t);
     g.set(k, x);
   });
   out.errors = Array.from(g.values()).sort((a, b) => b.rows - a.rows);
@@ -64,7 +64,7 @@ console.log('記録：' + DIR + '（' + DAY + (SINCE || UNTIL ? ' ' + (SINCE || 
 if (out.errors) {
   console.log('\n■ エラー ' + out.errors.length + ' 種類（' + out.errors.reduce((s, e) => s + e.rows, 0) + ' 台ぶん）');
   out.errors.forEach((e) => console.log('- ' + e.rows + '台・' + e.n + '回  ' + e.msg + '  （' + (e.src || '-') + ':' + e.line + '）\n    機種 ' + JSON.stringify(e.ua) + '・画面 ' + JSON.stringify(e.scr) + '・役 ' + JSON.stringify(e.role) +
-    '・版 ' + Object.keys(e.v).join(',') + '・' + jst(e.first) + '〜' + jst(e.last) + (e.stack ? '\n    ' + String(e.stack).split('\n').slice(0, 2).join(' / ') : '')));
+    '・版 ' + Object.keys(e.v).join(',') + '・画面が裏 ' + (e.hidden || 0) + '・切れていた ' + (e.off || 0) + '・' + jst(e.first) + '〜' + jst(e.last) + (e.stack ? '\n    ' + String(e.stack).split('\n').slice(0, 2).join(' / ') : '')));
 }
 if (out.lag) {
   console.log('\n■ 遅れ（ms）　net＝サーバー→受け取り　paint＝受け取り→画面に出た');

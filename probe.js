@@ -36,7 +36,8 @@ function cleanError(b) {
     stack: cut(String(b.stack || '').split('\n').slice(0, 4).map((l) => l.replace(/https?:\/\/[^/\s)]+/g, '').replace(/\?[^:\s)]*/g, '')).join('\n'), 600),
     kind: b.kind === 'rejection' ? 'rejection' : 'error',
     scr: cut(b.scr, 40), role: b.role === 'tv' ? 'tv' : b.role === 'staff' ? 'staff' : 'phone',
-    ua: cut(b.ua, 200), v: cut(b.v, 12), n: Math.max(1, Math.min(999, b.n | 0)), at: Number(b.at) || null
+    ua: cut(b.ua, 200), v: cut(b.v, 12), n: Math.max(1, Math.min(999, b.n | 0)), at: Number(b.at) || null,
+    vis: b.vis === 'visible' || b.vis === 'hidden' ? b.vis : null, conn: b.conn === true
   };
 }
 /** 遅れ1件（6）。数とどの場面かだけ */

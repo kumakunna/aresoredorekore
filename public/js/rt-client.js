@@ -210,6 +210,8 @@
       }
       hereBusy = true;
       var code = state.code, memberId = state.memberId;
+      // 送った時の通信。答えを待つ間に socket.io が自分でつなぎ直していたら、新しい通信は切らない（レビューで見つけた）
+      var engine = socket.io && socket.io.engine;
       return call('room:here', { code: code, memberId: memberId }, 5000).then(function (res) {
         hereBusy = false;
         // 往復の間に、本人が出た・別の部屋に入った時は何もしない
@@ -217,6 +219,11 @@
         if (res && res.error === 'fes_gone') 出された({ by: null, reason: 'fes_gone' });
         else if (res && res.error === 'room_not_found') 部屋が無い(res);
         else if (res && res.error === 'not_in_room') rejoin();
+        // 答えが来ない＝通信が切れているのに、socket.io はまだ気づいていない（iPhone で長く裏にいたあと、よく起きる）。
+        // socket.io の見張り（約35秒）を待たずに、いまつなぎ直す（つながったら rejoin が同じ人として入り直す）
+        else if (res && res.error === 'timeout' && engine && socket && socket.io && socket.io.engine === engine) {
+          try { engine.close(); } catch (e) { /* つなぎ直しは socket.io にまかせる */ }
+        }
         return res;
       });
     }

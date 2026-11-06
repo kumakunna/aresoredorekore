@@ -206,6 +206,52 @@ async function toVote(srv, code) {
     await srv.close();
   });
 
+  await r.test('3b：画面がまた見えたのに「いるよ」の答えが来ない（通信が切れているのに socket.io がまだ気づいていない）→ すぐつなぎ直して、同じ人で入り直す', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv, ['pittari', 'soroe']);
+    const ds = await others(srv, code, ['ひろ', 'びび']);
+    const ph = await phoneJoin(srv, code, 'ふう', { reconnectionDelay: 100, reconnectionDelayMax: 100, randomizationFactor: 0 });
+    let rejoined = 0;
+    ph.rt.on('rejoined', () => { rejoined++; });
+    const emit = ph.sock.emit;
+    let dropHere = true;
+    ph.sock.emit = function (ev) { if (dropHere && ev === 'room:here') return ph.sock; return emit.apply(ph.sock, arguments); };   // 届かない
+    const t = Date.now();
+    const res = await ph.rt.here();
+    assertEqual(res.error, 'timeout', '型(b)：答えが来ない（5秒）');
+    dropHere = false;
+    await waitUntil(() => rejoined > 0, 'つなぎ直して入り直す（socket.io の約35秒を待たない）', 5000);
+    assert(Date.now() - t < 9000, '答えが来ないと分かってから、すぐつなぎ直す（' + (Date.now() - t) + 'ms）');
+    assertEqual(ph.rt.state.memberId, ph.memberId, '同じ人のまま');
+    assertEqual(memberOf(srv, code, ph.memberId).connected, true, 'つながっている');
+    [staff, ...ds].forEach((d) => d.close()); ph.sock.close();
+    await srv.close();
+  });
+
+  await r.test('3c：「いるよ」の答えを待つ間に socket.io が自分でつなぎ直した → 時間切れでも、新しい通信は切らない（入り直しは1回だけ）', async () => {
+    const srv = await startTestServer();
+    const { staff, code } = await makeFes(srv, ['pittari', 'soroe']);
+    const ds = await others(srv, code, ['ひろ', 'びび']);
+    const ph = await phoneJoin(srv, code, 'ふう', { reconnectionDelay: 100, reconnectionDelayMax: 100, randomizationFactor: 0 });
+    let rejoined = 0;
+    ph.rt.on('rejoined', () => { rejoined++; });
+    const emit = ph.sock.emit;
+    ph.sock.emit = function (ev) { if (ev === 'room:here') return ph.sock; return emit.apply(ph.sock, arguments); };   // 死んだ通信に送った
+    const p = ph.rt.here();
+    await sleep(200);
+    ph.sock.io.engine.close();                          // その間に socket.io が切断に気づいて、つなぎ直す
+    await waitUntil(() => rejoined === 1, 'つなぎ直して入り直す', 4000);
+    const engine = ph.sock.io.engine;
+    const res = await p;
+    assertEqual(res.error, 'timeout', '型(b)：最初の「いるよ」は時間切れ');
+    await sleep(1500);
+    assertEqual(ph.sock.io.engine, engine, '新しい通信はそのまま（切っていない）');
+    assertEqual(rejoined, 1, '入り直しは1回だけ');
+    assertEqual(memberOf(srv, code, ph.memberId).connected, true, 'つながっている');
+    [staff, ...ds].forEach((d) => d.close()); ph.sock.close();
+    await srv.close();
+  });
+
   await r.test('4：クイズ解除の途中で離れて、もどる → 盤（wolf:you）が届き、マスを押せる', async () => {
     const srv = await startTestServer();
     const { staff, code } = await makeFes(srv, ['bomb-coop']);

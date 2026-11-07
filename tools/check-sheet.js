@@ -188,7 +188,10 @@ async function certEnd() {
   });
 
   // C. 文化祭のゲーム（FES_GAMES × スマホ／TV × 準備OK・遊ぶ・結果）
-  FesRoom.FES_GAMES.forEach((g) => {
+  // 係が入／切できない物（on も testing も無い＝棚から下ろした）は、文化祭の候補に出ない。行を作らず1行の注記にする（fes-room.js の switchable と同じ決め）
+  const 出る = FesRoom.FES_GAMES.filter((g) => g.on || g.testing), 出ない = FesRoom.FES_GAMES.filter((g) => !(g.on || g.testing));
+  if (出ない.length) add('文化祭のゲーム', '棚から下ろした：' + 出ない.map((g) => g.mode).join('・'), '係の入／切に出ない・投票の候補にならない（見る所なし。出ていたら NG）', 'fes-room.js switchable');
+  出る.forEach((g) => {
     const scr = GS[g.game] || [];
     const tag = `${g.mode}（${g.min}〜${g.max}人・はじめは${g.on || g.def ? '入' : '切'}${g.testing ? '・テスト中' : ''}）`;
     const phone = scr.filter((s) => !/-tv$/.test(s));
@@ -227,7 +230,7 @@ async function certEnd() {
 
   // I. 全部の画面（ホーム・古い画面も。文化祭で上に出た物は「上にも」）
   const fesScr = new Set(['scr-door', 'scr-v2-fes-join', 'scr-v2-fes-quit', 'scr-v2-fes-lobby', 'scr-v2-fes-tv', 'scr-rt-big']);
-  FesRoom.FES_GAMES.forEach((g) => (GS[g.game] || []).forEach((s) => fesScr.add(s)));
+  FesRoom.FES_GAMES.filter((g) => g.on || g.testing).forEach((g) => (GS[g.game] || []).forEach((s) => fesScr.add(s)));
   const group = (id) => /^scr-v2-fes|^scr-door$/.test(id) ? '文化祭' : /^scr-v2-/.test(id) ? '新しい見た目' : /^scr-rt-/.test(id) ? 'ふだんの部屋' : /^scr-set-/.test(id) ? '設定（手渡し）' : '手渡し・ホーム';
   I.SCREEN_IDS.forEach((id) => add('全部の画面：' + group(id), id, '開く・字の見切れ・重なり・はみ出し（4 の写真）' + (fesScr.has(id) ? '（文化祭で上にも）' : ''), 'inventory SCREEN_IDS'));
   I.OVERLAY_IDS.forEach((id) => add('全部の画面：かぶさる物', id, '開く・閉じる・下の画面が押せない', 'inventory OVERLAY_IDS'));

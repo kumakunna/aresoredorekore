@@ -237,7 +237,11 @@ function まとめ() {
   let staff = null;
   if (SERVE) { await サーバーを立てる(); log('検証用サーバー', URL); }
   let code;
-  if (CREATE) { staff = await 係(); code = staff.code; log('係が部屋を作った', code, staff.入 ? '入：' + staff.入.join(',') : ''); }
+  if (CREATE) {
+    staff = await 係(); code = staff.code; log('係が部屋を作った', code, staff.入 ? '入：' + staff.入.join(',') : '');
+    // 棚から下ろしたゲームは入にできない（候補にならない）。--all がそれを待ち続けないように、--vote から外す
+    if (VOTE && staff.入) { const out = VOTE.filter((g) => !staff.入.includes(g)); if (out.length) { log('入にできない（棚から下ろした）：' + out.join(',')); 記録.入にできない = out; VOTE.splice(0, VOTE.length, ...VOTE.filter((g) => staff.入.includes(g))); } }
+  }
   else { const j = await (await fetch(URL + '/api/fes/current')).json(); code = j && j.code; }
   if (!code) { console.error('文化祭の部屋がありません（係が作ってから。手元なら --create）'); process.exit(3); }
   const bots = [];

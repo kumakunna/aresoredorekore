@@ -135,6 +135,7 @@ function init(room, opts) {
     inset: 0,              // TVの端あわせ（ふちから内側へ何%縮めるか）
     note: null,            // 待合に出す一言のもと（'too_few' など）
     queue: [],             // 指示66-3：満員の時の予約（つぎの回に入る）。{ socketId, token, at, offerUntil }。入った順
+    waits: [],             // 指示75 1-6：係が長押しの「外す」でしばらく入れなくした人。{ dev, name, until }。**外に出さない**
     shown: {},             // 指示68-1：mode -> 最後に候補に出した回（出ていない回が長い順に選ぶ）
     games: o.games || null,  // 検査だけが差しかえる（無ければ FES_GAMES）
     enabled: Object.assign({}, o.enabled || {}),   // 係の入／切（mode -> 真偽）。入れ物（fes-store）から読んだ物。無いゲームははじめの値
@@ -144,6 +145,26 @@ function init(room, opts) {
     onPhase: o.onPhase || null   // 指示68-T 二の束6：段階が変わった時に呼ぶ（回ごとの記録）
   };
   return room.fes;
+}
+
+// ===================== 指示75 1-6：係の長押しの「外す」＝しばらく入れない（くまくんの決め 7.A） =====================
+// ふつうの「外す」は今のまま（すぐ入れる）。長押しで 30秒・1分・5分 をえらぶと、その間は同じ端末（dev）と同じ名前の両方で入れない。
+// 名前は「ふう②」の ② を取って比べる（係が見た名前と、本人が打った名前は ② だけちがう）。
+// 端末の札（dev）は、その端末のブラウザに1つ（rt-client.js）。札を消す（別のブラウザ・プライベート）と名前の方で止まる
+const WAIT_CHOICES = [30000, 60000, 300000];
+function nameKey(n) { return String(n || '').replace(/[②-⑳＋]+$/, ''); }
+function addWait(room, m, ms, now) {
+  const f = room.fes;
+  f.waits = (f.waits || []).filter((w) => w.until > now);
+  f.waits.push({ dev: m.dev || null, name: nameKey(m.name), until: now + ms });
+}
+/** その端末・名前が入れるまでの、のこり（ミリ秒）。入れるなら 0 */
+function waitLeft(room, dev, name, now) {
+  const f = room.fes;
+  if (!f || !f.waits || !f.waits.length) return 0;
+  const k = nameKey(name);
+  return f.waits.filter((w) => w.until > now && ((dev && w.dev === dev) || (k && w.name === k)))
+    .reduce((a, w) => Math.max(a, w.until - now), 0);
 }
 
 // ===================== 指示66-3：満員の時の予約（つぎの回に入る） =====================
@@ -493,7 +514,9 @@ function closeReady(room, now, api) {
   const f = room.fes;
   const g = gameOf(f.pick.mode, f);
   const live = livePeople(room);
-  let pressed = live.filter((m) => m.readyGame === g.game)
+  // 指示75 1-3（A04）：押したあと一瞬切れた人（回線の切りかえ 4G⇔5G など）も、席を取っておく間（holdMs）なら押したまま今回に入る。
+  // それまでは「つながっている人だけ」で数えていたので、締め切りの瞬間に切れていた人は、押したのに外れていた
+  let pressed = people(room).filter((m) => m.readyGame === g.game && (m.connected || seatKept(room, m, now)))
     .sort((a, b) => (a.readyAt || 0) - (b.readyAt || 0));
   live.filter((m) => m.readyGame !== g.game).forEach((m) => missed(room, m, api));
   pressed.forEach((m) => { m.fesMiss = 0; });
@@ -620,5 +643,5 @@ function privateFor(room, memberId) {
   };
 }
 
-module.exports = { resumeReserve, goneReserve, etaMs, FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, roundDetail, ROOM_MAX, MISS_LIMIT, DIFFS, diffOf, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
+module.exports = { WAIT_CHOICES, addWait, waitLeft, nameKey, resumeReserve, goneReserve, etaMs, FES_GAMES, gamesFor, switchesFor, setGame, MIN_ON, roundDetail, ROOM_MAX, MISS_LIMIT, DIFFS, diffOf, TIMES, PHASE, OFFER_MS, init, tick, allReady, vote, keepGoing, pause, skip, publicView, privateFor, candidatesFor, gameOf,
   reserve, unreserve, held, queueTick, seats, onReturn, promoteHeld, isPlaying };

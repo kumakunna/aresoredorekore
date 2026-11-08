@@ -467,6 +467,61 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示75 1-6（くまくんの決め 7.A）：「外す」の長押し（0.5秒）で、30秒・1分・5分。ふつうの押しは今のまま（A4 の枠）
+  await r.test('指示75 1-6：「外す」を長押しすると「30秒・1分・5分」の枠。えらんだ時間を添えて送る。長押しのあとの click でふつうの枠を重ねない', async () => {
+    const { win, doc } = await launch({ fakeSocket: true, atEntry: true });
+    const lab = FesScenes.view('fes2-staff');
+    win.V2Screens.fes(lab);
+    const scr = doc.getElementById('scr-v2-fes-staff');
+    assert(/長押し/.test(scr.querySelector('[data-fes-kick-hint]').textContent), '名簿の上に小さく「長押しで、しばらく入れなくできます」');
+    const btn = scr.querySelector('[data-fes-kick="m2"]');
+    // 短い押し（0.5秒より前に指を上げる）は、今のまま
+    btn.dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+    await sleep(win, 150);
+    btn.dispatchEvent(new win.Event('pointerup', { bubbles: true }));
+    btn.click();
+    await sleep(win, 30);
+    assert(scr.querySelector('[data-v2-id="v2Kick"]').classList.contains('is-open'), '短い押しは、今までの「外しますか？」');
+    assert(!scr.querySelector('[data-v2-id="v2KickWait"]').classList.contains('is-open'), '「しばらく」の枠は出ない');
+    scr.querySelector('[data-v2-id="v2Kick"] [data-v2-close]').click();
+    await sleep(win, 30);
+    // 長押し
+    const b2 = scr.querySelector('[data-fes-kick="m2"]');
+    b2.dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+    await sleep(win, 650);
+    b2.dispatchEvent(new win.Event('pointerup', { bubbles: true }));
+    b2.click();                                  // 指を上げた時の click
+    await sleep(win, 30);
+    const dlg = scr.querySelector('[data-v2-id="v2KickWait"]');
+    assert(dlg.classList.contains('is-open'), '長押しで「しばらく入れない」の枠');
+    assert(!scr.querySelector('[data-v2-id="v2Kick"]').classList.contains('is-open'), '長押しのあとの click で、ふつうの枠を重ねない');
+    assertEqual(Array.from(dlg.querySelectorAll('[data-v2-act^="fes-kick-wait-"]')).map((b) => b.textContent).join(','), '30秒,1分,5分', '3つの時間');
+    assert(dlg.textContent.indexOf(lab.staff.members.find((m) => m.id === 'm2').name) !== -1, 'だれか、名前が出る');
+    assertEqual(emits(win, 'fes:kick').length, 0, 'えらぶまで送らない');
+    dlg.querySelector('[data-v2-act="fes-kick-wait-60000"]').click();
+    await sleep(win, 30);
+    assertEqual(emits(win, 'fes:kick').length, 1, '1回だけ送る');
+    assertEqual(emits(win, 'fes:kick')[0].payload.waitMs, 60000, '1分を添えて送る');
+    assertEqual(emits(win, 'fes:kick')[0].payload.memberId, 'm2', '押した人');
+    // jsdom は user-select・touch-callout を計算しないので、規則が書いてあるかを見る
+    const rule = Array.from(doc.querySelectorAll('style')).map((st) => st.textContent).join(' ')
+      .match(/\.v2 \.v2-adm-b\[data-fes-kick\]\{[^}]*\}/);
+    assert(rule && /-webkit-touch-callout:none/.test(rule[0]) && /user-select:none/.test(rule[0]), '長押しで字のえらび・ふきだしメニューが出ない規則がある');
+    win.close();
+  });
+
+  await r.test('指示75 1-6：しばらく入れない人のスマホ：入る画面に「しばらくしてから入れます。あと約◯秒」（赤い字にしない）', async () => {
+    const { win, doc } = await 入る画面();
+    win.__rtFake.replies['room:join'] = () => ({ ok: false, error: 'fes_wait', message: 'しばらくしてから入れます', waitMs: 25400 });
+    const n = doc.querySelector('[data-fes-name]');
+    n.value = 'ふう'; n.dispatchEvent(new win.Event('input', { bubbles: true }));
+    doc.querySelector('[data-fes-act="join"]').click();
+    await waitFor(win, () => /しばらくしてから入れます。あと約26秒/.test(doc.getElementById('scr-v2-fes-join').textContent), 3000, 'しばらく');
+    assert(!doc.querySelector('#scr-v2-fes-join .is-bad, #scr-v2-fes-join .v2-why'), '赤い字・赤い枠（名前のまちがい）にしない');
+    assertEqual(emits(win, 'room:join')[0].payload.dev && typeof emits(win, 'room:join')[0].payload.dev, 'string', '入る時に端末の札を添える');
+    win.close();
+  });
+
   // 客観検査 1-1（2026-11-05）：ライフは本数÷2.5（30本で12・50本で20）。13個からは並べず「❤️×のこり」
   //（20個並べると、16人のスマホの上の帯で時計が画面の外へ押し出された・v2-shot）
   await r.test('客観検査 1-1：ライフが12個までは並べ、13個からは「❤️×のこり」で出す（スマホの盤）', async () => {
@@ -954,6 +1009,58 @@ async function 入った(o) {
     win.dispatchEvent(new win.Event('pageshow'));
     await sleep(win, 50);
     assertEqual(emits(win, 'room:here').length, n1 + 2, 'ページにもどった時（pageshow）も送る');
+    win.close();
+  });
+
+  // 指示75 1-2（A03・A07・A09）：つながっていない間・裏から戻って いまの全部が届く前は、「つなぎ直しています」を出して押せなくする。届いたら消す
+  const 幕 = (doc) => doc.getElementById('rtStale');
+  const 幕がふさぐ = (doc) => !!(幕(doc) && 幕(doc).classList.contains('is-block'));
+  await r.test('指示75 1-2：通信が切れた → すぐ押せなくなり、0.3秒で「つなぎ直しています」。押しても送らない。つなぎ直して入り直せたら消える', async () => {
+    const { win, doc } = await 入った();
+    流す(win, 'fes2-vote');
+    await waitFor(win, () => doc.querySelector('[data-fes-pick]'), 2000, '投票の画面');
+    assert(!幕がふさぐ(doc), 'つながっている間は出ない');
+    win.__rtFake.socket.disconnect();
+    assert(幕がふさぐ(doc), '切れたら、すぐ押せなくする');
+    await sleep(win, 350);
+    assert(幕(doc).classList.contains('is-show') && /つなぎ直しています/.test(幕(doc).textContent), '0.3秒たっても切れていたら「つなぎ直しています」');
+    const n = emits(win, 'fes:vote').length;
+    // jsdom は重なりで押す先を決めないので、幕そのものを押して、下へ通さないかを見る（幕は body の最後・どの画面よりも上）
+    幕(doc).dispatchEvent(new win.Event('click', { bubbles: true, cancelable: true }));
+    assertEqual(emits(win, 'fes:vote').length, n, '幕を押しても投票を送らない');
+    assertEqual(doc.body.lastElementChild, 幕(doc), '幕は body の最後（画面の上）');
+    win.__rtFake.connected = true; win.__rtFake.fire('connect');   // つなぎ直し → 入り直し（room:join の答え ok）
+    await waitFor(win, () => !幕がふさぐ(doc), 2000, '入り直せたら消える');
+    win.close();
+  });
+
+  await r.test('指示75 1-2：1.5秒より長く裏にいて戻った → いまの全部（room:here の答え）が届くまで押せない。届いたら消える。すぐ戻った時は出さない', async () => {
+    const { win, doc } = await 入った();
+    流す(win, 'fes2-vote');
+    let 答え = null;
+    win.__rtFake.replies['room:here'] = (p, cb) => { 答え = cb; };   // 答えを遅らせる
+    const vis = (v) => { Object.defineProperty(doc, 'visibilityState', { value: v, configurable: true }); doc.dispatchEvent(new win.Event('visibilitychange')); };
+    vis('hidden'); await sleep(win, 200); vis('visible');
+    await sleep(win, 50);
+    assert(!幕がふさぐ(doc), '0.2秒で戻った時は出さない（ちらつかせない）');
+    if (答え) { 答え({ ok: true }); 答え = null; }
+    vis('hidden'); await sleep(win, 1700); vis('visible');
+    await sleep(win, 50);
+    assert(幕がふさぐ(doc), '1.5秒より長く裏にいたら、届くまで押せない');
+    assert(答え, 'いるよ（room:here）を送っている');
+    答え({ ok: true });
+    await waitFor(win, () => !幕がふさぐ(doc), 1000, '届いたら消える');
+    win.close();
+  });
+
+  await r.test('指示75 1-2：オフライン（機内モード）→「電波がとどいていないようです」。オンラインにもどって答えが来たら消える', async () => {
+    const { win, doc } = await 入った();
+    流す(win, 'fes2-vote');
+    win.dispatchEvent(new win.Event('offline'));
+    await sleep(win, 350);
+    assert(幕がふさぐ(doc) && /電波がとどいていない/.test(幕(doc).textContent), 'オフラインの字');
+    win.dispatchEvent(new win.Event('online'));
+    await waitFor(win, () => !幕がふさぐ(doc), 2000, 'もどって答えが来たら消える');
     win.close();
   });
 

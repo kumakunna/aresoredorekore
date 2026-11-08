@@ -46,6 +46,23 @@
       };
     }
 
+    /**
+     * 指示75 1-2（A03・A07・A09）：**いまの画面が古いかもしれない間**（stale）。画面はこの間、押せなくして「つなぎ直しています」を出す（index.html）。
+     * 11/7、Android を40秒裏に回して戻すと、古い画面（0秒の問題など）が押せそうな見た目のまま 1.3〜5.5秒。機内モードでも数字が動き続けた。
+     * 古いかもしれないのは：通信が切れた／裏から戻って、いまの全部を受け取る前／オフライン／サーバーの「いるよ」（hb:ping・10秒ごと）が来ない。
+     * 消えるのは：いまの全部が届いた時（入り直し・room:here の答え）。部屋にいない時は出さない
+     */
+    var STALE_HB_MS = 22000;   // hb:ping は10秒ごと。2回つづけて来なければ、通信が死んでいる（socket.io が気づくのは約35秒）
+    var lastHb = 0, hiddenAt = 0;
+    function setStale(on, why) {
+      on = !!on && !!state.code;
+      // 古いまま理由だけ変わった（切れた → オフラインと分かった）時も知らせる（画面の字を変える）。オフラインの字は、もどるまで残す
+      if (!!state.stale === on && (!on || state.staleWhy === (why || '') || state.staleWhy === 'offline')) return;
+      state.stale = on; state.staleWhy = on ? (why || '') : '';
+      emitLocal('stale', { on: on, why: state.staleWhy });
+    }
+    function freshNow() { lastHb = Date.now(); setStale(false); }
+
     // socket.io が読み込めていない環境（テストのjsdomなど）では何もしない。
     // 手渡し方式に影響を出さないため、ここで例外を投げない。
     function available() { return !!io; }
@@ -69,6 +86,7 @@
       });
       socket.on('disconnect', function () {
         state.connected = false;
+        setStale(true, 'disconnect');   // 指示75 1-2
         emitLocal('status', state);
       });
       // 部屋の公開情報。誰が見てもよいものだけが入っている
@@ -120,7 +138,7 @@
       // 第35弾B：誰かが名簿から消えた（自分で退室 or 出された）。理由つきで届く
       socket.on('room:memberGone', function (p) { emitLocal('memberGone', p || {}); });
       // サーバーからの死活確認。返さないと切断扱いになる
-      socket.on('hb:ping', function () { socket.emit('hb:pong'); });
+      socket.on('hb:ping', function () { lastHb = Date.now(); socket.emit('hb:pong'); });
       // 11/7 の検査の準備 6：遅れの印（サーバーが PROBE=lag の時だけ届く）。lag:t のあとに来た同じ名前の知らせと組にして、
       // 受け取った時刻（ふだんの受け口より前＝onAny）と、受け口が全部終わった時刻（そのあとのマイクロタスク）を画面側（public/js/probe.js）へ渡す
       if (socket.onAny) socket.onAny(function (ev, p) {
@@ -165,6 +183,7 @@
         // 第42弾 門E6：つなぎ直しでも姿を添える。
         // ここを忘れると、画面を消して戻った人だけ名簿から顔が消える（落とし穴1）
         look: state.look || null,
+        dev: devId(),   // 指示75 1-4・1-6：端末の札
         // 指示74：自動の入り直しの印。文化祭で2分たって外されていたら、新しい人として黙って入らず fes_gone が返る
         auto: true
       }).then(function (res) {
@@ -178,6 +197,7 @@
             return;
           }
           state.room = res.room;
+          freshNow();   // 指示75 1-2：いまの全部が届いた
           emitLocal('rejoined', state);
         } else if (res && res.error === 'room_not_found') {
           部屋が無い(res);
@@ -200,6 +220,7 @@
       if (!state.code) return;
       state.code = null; state.memberId = null;
       state.room = null; state.secret = null;
+      setStale(false);   // 指示75 1-2
       emitLocal('lost', { reason: 'room_not_found', message: (res && res.message) || '' });
       emitLocal('status', state);
     }
@@ -227,6 +248,7 @@
         hereBusy = false;
         // 往復の間に、本人が出た・別の部屋に入った時は何もしない
         if (state.code !== code || state.memberId !== memberId) return res;
+        if (res && res.ok) freshNow();   // 指示75 1-2：サーバーが いまの全部を送り直した（答えより先に届いている）
         if (res && res.error === 'fes_gone') 出された({ by: null, reason: 'fes_gone' });
         else if (res && res.error === 'room_not_found') 部屋が無い(res);
         else if (res && res.error === 'not_in_room') rejoin();
@@ -240,10 +262,28 @@
     }
     // 画面がまた見えるようになった時（別のアプリからもどった・戻るボタンでページにもどった）
     if (typeof document !== 'undefined' && document.addEventListener) {
-      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') here(); });
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState !== 'visible') { hiddenAt = Date.now(); return; }
+        // 指示75 1-2：1.5秒より長く裏にいたら、いまの全部が届くまで古いかもしれない（押せなくする）
+        if (hiddenAt && Date.now() - hiddenAt > 1500) setStale(true, 'back');
+        hiddenAt = 0;
+        here();
+      });
     }
     if (typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('pageshow', function () { here(); });
+      // 指示75 1-2：オフライン（機内モードなど）。もどったら、すぐ「いるよ」
+      window.addEventListener('offline', function () { setStale(true, 'offline'); });
+      window.addEventListener('online', function () { here(); });
+    }
+    // 指示75 1-2：hb:ping が来ない（通信は切れているのに、socket.io がまだ気づいていない）。3秒ごとに見る
+    // ブラウザの中だけ（Node の検査で require した時は回さない＝プロセスが終われなくなる）
+    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+      var hbWatch = setInterval(function () {
+        if (!state.code || !socket || !socket.connected || !lastHb || document.visibilityState === 'hidden') return;
+        if (Date.now() - lastHb > STALE_HB_MS) { setStale(true, 'silent'); lastHb = Date.now(); here(); }
+      }, 3000);
+      if (hbWatch && hbWatch.unref) hbWatch.unref();
     }
 
     function call(event, payload, timeoutMs) {
@@ -285,6 +325,7 @@
           }));
         } else localStorage.removeItem(記憶の鍵);
       } catch (e) {}
+      if (!state.code) setStale(false);   // 指示75 1-2：部屋から出た（出された・とじた・無かった）ら、合図は消す
     }
     function 部屋を思い出す() {
       try {
@@ -336,9 +377,25 @@
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
         部屋を覚える();
+        freshNow();   // 指示75 1-2
       } else state.error = res.message || res.error;
       emitLocal('status', state);
       return res;
+    }
+    /**
+     * 指示75 1-4・1-6：この端末のブラウザの札（でたらめな字・ブラウザに1つ）。文化祭の部屋に入る時に添える。
+     * 「入る」の返事が届く前に読み込み直しても同じ席にもどる（A15）・係がしばらく入れなくした端末を見分ける。
+     * 名前でも memberId でもない（部屋の知らせには出ない・サーバーのメモリにだけ）。読めない端末（プライベートなど）は毎回ちがう札
+     */
+    var 端末の鍵 = 'acac-dev', 端末の札 = null;
+    function devId() {
+      if (端末の札) return 端末の札;
+      try { 端末の札 = localStorage.getItem(端末の鍵); } catch (e) {}
+      if (!端末の札) {
+        端末の札 = 'd' + Math.floor(Math.random() * 1e12).toString(36) + Date.now().toString(36);
+        try { localStorage.setItem(端末の鍵, 端末の札); } catch (e) {}
+      }
+      return 端末の札;
     }
     async function joinRoom(code, name, role, look, diff, reserve) {
       connect();
@@ -348,12 +405,13 @@
       var 添える = state.memberId || ((前 && 前.code === String(code || '').toUpperCase().trim()) ? 前.memberId : null);
       // 指示66-2：文化祭の部屋は、むずかしさ（easy／normal／hard）を添えて入る。ふつうの部屋は送らない
       var res = await call('room:join', { code: code, name: name, role: role, memberId: 添える,
-        look: state.look || null, diff: diff || undefined, reserve: reserve || undefined });
+        look: state.look || null, diff: diff || undefined, reserve: reserve || undefined, dev: devId() });
       if (res.ok) {
         state.code = res.code; state.memberId = res.memberId; state.room = res.room;
         state.name = name; state.role = role || 'player';
         部屋を覚える();
         forgetLastRoom();   // 戻れた（または別の部屋に入った）。もう手がかりは要らない
+        freshNow();   // 指示75 1-2
       } else state.error = res.message || res.error;
       emitLocal('status', state);
       return res;
@@ -465,7 +523,8 @@
     function fesCreate(recreate) { connect(); return call('fes:create', { recreate: !!recreate }); }
     function fesWatch(code) { connect(); return call('fes:watch', { code: code || null }); }
     function fesHide(code, memberId, hidden) { return call('fes:hide', { code: code, memberId: memberId, hidden: hidden !== false }); }
-    function fesKick(code, memberId) { return call('fes:kick', { code: code, memberId: memberId }); }
+    // 指示75 1-6：waitMs（30000・60000・300000）を添えると、その間は同じ端末と同じ名前で入れない（長押しの「外す」）
+    function fesKick(code, memberId, waitMs) { return call('fes:kick', { code: code, memberId: memberId, waitMs: waitMs || undefined }); }
     // 指示68-T 二の束1：係（くまくん）のゲームごとの入／切（「テスト中を入れる」を置きかえた）
     function fesGame(code, mode, on) { return call('fes:game', { code: code, mode: mode, on: !!on }); }
     // 指示68-T 三の束2：待合の BGM の入／切（係）
@@ -563,6 +622,7 @@
       startWolf: startWolf, act: act, vote: vote, nextPhase: nextPhase, pause: pause,
       gameOptions: gameOptions,
       react: react, thanks: thanks, clockSync: clockSync,
+      isStale: function () { return !!state.stale; },
       albumAdd: albumAdd, albumRemove: albumRemove, albumGet: albumGet, albumDone: albumDone,
       isHost: isHost, me: me,
       fesVote: fesVote, fesContinue: fesContinue, fesFeedback: fesFeedback,

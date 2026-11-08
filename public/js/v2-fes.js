@@ -339,7 +339,9 @@
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({ who: people(view).length - (hold ? 1 : 0) }) +
       '<div class="v2-in">' + V.hdHtml('Next…', R.つぎの回に) +
         V.meHtml(meOf(view)) +
-        '<p class="v2-note">' + e(R.理由[(view.you || {}).bench] || R.理由.late) + '<br>' + e(hold ? R.空いたら : R.見ていてね) + '</p>' +
+        // 指示75 1-3（A04）：理由が分からない時（本人だけの知らせがまだ届いていない・つなぎ直しの途中）は、理由を言わない。
+        // それまでは「ゲームの途中で入ったので」を出していて、ずっと部屋にいた人に、ちがう理由を見せていた
+        '<p class="v2-note">' + (R.理由[(view.you || {}).bench] ? e(R.理由[view.you.bench]) + '<br>' : '') + e(hold ? R.空いたら : R.見ていてね) + '</p>' +
       '</div>' +
       (hold ? V.bandHtml({ lab: '', msg: R.空くのを, end: '' }) : band(view, g ? g.name : '', R.遊んでいます));
   }
@@ -775,6 +777,7 @@
         // 入はいつも2本以上：入が2本の時、その2本の「切」は押せない（サーバーも断る）
         (o.canNames ? gamesHtml(st.games || [], o.info) : '') +
         '<span class="v2-lbl">' + e(S.いる人) + '</span>' +
+        (mem.length ? '<p class="v2-hint" data-fes-kick-hint>' + e(S.長押し) + '</p>' : '') +
         '<div class="v2-adm-mem">' + (mem.length ? mem.map(function (m) {
           // 指示68-0b B5：隠した人は名前を灰色にして、横に「かくし中」の札（「●●● びび」が名前の一部に見えていた）
           return '<div class="v2-adm-r' + (m.connected ? '' : ' is-off') + (m.hidden ? ' is-hidden' : '') + '"><span class="v2-adm-who"><span class="v2-adm-nm v2-cut" data-v2-fit="12">' + e(m.name) + '</span>' +
@@ -793,6 +796,9 @@
       // 指示68-0b A4：「外す」は押したらたずねる。だれを外すか（o.kickName）は押した時に決まる（index.html の fesAskKick）
       V.dlgHtml({ id: 'v2Kick', keep: true, title: (o.kickName || '') + S.外しますか後, text: S.外す説明,
         btns: [{ label: S.外す確定, pri: true, act: 'fes-kick-ok' }, { label: S.やめる }] }) +
+      // 指示75 1-6：「外す」の長押し。30秒・1分・5分（index.html の fesAskKick(id, true)）
+      V.dlgHtml({ id: 'v2KickWait', keep: true, title: (o.kickName || '') + S.しばらく後, text: S.しばらく説明,
+        btns: S.待ち.map(function (w) { return { label: w.label, pri: true, act: 'fes-kick-wait-' + w.ms }; }).concat([{ label: S.やめる }]) }) +
       V.sheetHtml({ id: 'v2Calib', title: S.端あわせ, body: '<p class="v2-hint">' + e(S.端あわせ説明) + '</p><div class="v2-calib-ops">' +
         [0, 2.5, 5].map(function (v) { return '<button type="button" class="v2-btn ' + ((f.inset || 0) === v ? 'is-pri' : 'is-sec') + '" data-fes-inset="' + v + '">' + v + '%</button>'; }).join('') + '</div>' }) +
       V.sheetHtml({ id: 'v2Fb', tall: true, title: S.感想 + '（' + S.今日 + ' ' + fb.length + S.件 + '）', body: fbList(fb, o.info) });

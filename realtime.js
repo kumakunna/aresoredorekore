@@ -1344,11 +1344,11 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
    * 外された本人にだけ room:kicked を届ける。**だれを外したかは、残った人に知らせない**（見本 F14）。
    * 外したあとは、ほかの経路と同じ settleAfterMemberGone を通す（落とし穴17）
    */
-  function removeMember(room, memberId, reason) {
+  function removeMember(room, memberId, reason, extra) {
     const target = room.members.get(memberId);
     if (!target) return false;
     // 指示74：「つながっていない」にされたあとも生きている socket にも知らせる（2分たって外された人が、止まった画面のままにならない）
-    detachMember(room, target.id, { by: null, reason: reason || 'fes' });
+    detachMember(room, target.id, Object.assign({ by: null, reason: reason || 'fes' }, extra || {}));
     room.members.delete(target.id);
     if (room.fes) { room.fes.votes.delete(target.id); room.fes.cont.delete(target.id); room.fes.hidden.delete(target.id); }
     if (!connectedMembers(room).length) room.emptySince = Date.now();
@@ -1640,8 +1640,30 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       if (room.fes && !member && rejoinId && payload.auto && normalizeRole(payload.role) !== ROLE_BIGSCREEN) {
         return fail(cb, 'fes_gone', 'しばらく はなれていたので、もう一度 入ってね');
       }
+      // 指示75 1-4（A15）：端末の札（dev・その端末のブラウザに1つ・rt-client.js）。**名簿の外に出さない**（publicSnapshot に入れない）。
+      // 「入る」の返事が届く前に読み込み直すと、端末はまだ memberId を覚えていない。同じ端末なら、前の席にもどる
+      //（それまでは新しい人「ふう②」になり、前の席が帰った人を外すまでの2分残って、同じ人が2人に見えた）
+      const dev = payload && typeof payload.dev === 'string' && payload.dev ? payload.dev.slice(0, 64) : null;
+      let sameDevice = false;
+      if (room.fes && !member && dev && !payload.auto && normalizeRole(payload.role) !== ROLE_BIGSCREEN) {
+        member = Array.from(room.members.values()).find((m) => m.dev === dev && m.role !== ROLE_BIGSCREEN) || null;
+        sameDevice = !!member;
+      }
+      // 同じ端末で名前を変えて入り直した：新しい名前にも名前の決まり（使えない言葉・8字）を通す
+      if (sameDevice && name !== member.name) {
+        const c = NameFilter.check(name);
+        if (!c.ok) return fail(cb, 'name_' + c.reason, c.reason === 'long' ? '名前は8字までです' : 'この名前は使えません。ほかの名前にしてね');
+        name = NameFilter.dedupe(c.name, Array.from(room.members.values()).filter((m) => m !== member).map((m) => m.name));
+        if (FesRoom.diffOf(payload.diff)) member.fesDiff = FesRoom.diffOf(payload.diff);
+      }
       if (room.fes && !member && normalizeRole(payload && payload.role) !== ROLE_BIGSCREEN) {
         const c = NameFilter.check(name);
+        // 指示75 1-6：係が長押しの「外す」でしばらく入れなくした人（同じ端末か同じ名前）。責めない言い方で、のこりを返す
+        const waitMs = FesRoom.waitLeft(room, dev, c.ok ? c.name : name, Date.now());
+        if (waitMs > 0) {
+          if (typeof cb === 'function') cb({ ok: false, error: 'fes_wait', message: 'しばらくしてから入れます', waitMs });
+          return;
+        }
         // 入力された名前は、はじいたものも残す（1か月で消える・見られるのはくまくんだけ）
         if (fesStore) { try { fesStore.logName(room.code, name, !c.ok, c.reason); } catch (e) { console.error('[realtime] 名前の記録で例外:', e); } }
         if (!c.ok) {
@@ -1683,6 +1705,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         // 30秒の間と、いま遊んでいるゲームの中にいる人は、そのまま戻る（fes-room.js の onReturn）
         FesRoom.onReturn(room, member, Date.now());
         member.name = name;
+        if (dev && room.fes) member.dev = dev;   // 指示75 1-4・1-6：端末の札（名簿の外に出さない）
         // 指示66-2：文化祭で「今回は入らなかった人」（waiting）は、入り直しても今回のゲームに入れない
         if (payload && payload.role && member.role !== 'waiting') member.role = normalizeRole(payload.role);
       } else {
@@ -1705,7 +1728,8 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           joinedAt: 戻り ? 戻り.joinedAt : Date.now(),
           lastSeen: Date.now(),
           readyGame: null,  // 第37弾：あとから入った人は、必ず「まだ押していない」から始まる
-          userId: sessionOf(socket).userId || null
+          userId: sessionOf(socket).userId || null,
+          dev: room.fes ? dev : null   // 指示75 1-4・1-6：端末の札（名簿の外に出さない）
         };
         room.members.set(member.id, member);
         if (戻り) room.left.delete(戻り.id);
@@ -2144,7 +2168,12 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     socket.on('fes:kick', (payload, cb) => {
       if (!staffRole()) return fail(cb, 'not_staff', '係のアカウントでログインしてください');
       const room = staffRoom(payload);
-      if (!room || !removeMember(room, payload && payload.memberId, 'fes_staff')) return fail(cb, 'member_not_found', 'その人は部屋にいません');
+      // 指示75 1-6（くまくんの決め 7.A）：waitMs があれば、長押しの「外す」＝その間は同じ端末と同じ名前で入れない（30秒・1分・5分だけ）
+      const waitMs = payload && payload.waitMs != null ? +payload.waitMs : 0;
+      if (waitMs && FesRoom.WAIT_CHOICES.indexOf(waitMs) === -1) return fail(cb, 'bad_wait', '30秒・1分・5分 のどれかをえらんでね');
+      const target = room && room.members.get(payload && payload.memberId);
+      if (target && waitMs) FesRoom.addWait(room, target, waitMs, Date.now());
+      if (!room || !removeMember(room, payload && payload.memberId, waitMs ? 'fes_wait' : 'fes_staff', waitMs ? { waitMs } : null)) return fail(cb, 'member_not_found', 'その人は部屋にいません');
       if (typeof cb === 'function') cb({ ok: true });
       pushFes(room);
     });

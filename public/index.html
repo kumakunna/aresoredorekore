@@ -126,6 +126,9 @@
     display:flex;
     justify-content:center;
     min-height:100vh;
+    /* 指示75 1-1（A05・A13）：スマホの 100vh は「バーを全部かくした時の高さ」。バーが出ている間はページが96px 長くなり、
+       iPhone の Safari がその余りへスクロールして、上が切れて下にベージュの帯が出た。dvh（いま見えている高さ）に書き直す（tests/viewport-height.js） */
+    min-height:100dvh;
     -webkit-tap-highlight-color:transparent;
   }
   .app{
@@ -4846,7 +4849,8 @@
   /* ---- 入れ物の側（v2 の画面が出ている間だけ） ---- */
   .app:has(.v2.active){border-left:0;border-right:0;}
   .app:has(.v2-tv.active){max-width:none;}
-  html:has(.v2.active),body:has(.v2.active){overflow:hidden;}
+  /* 指示75 1-1：v2 の画面の間は、ページを画面の高さに止める（はみ出しを隠すだけでは、iPhone の Safari はキーボードのあとにスクロールできた） */
+  html:has(.v2.active),body:has(.v2.active){height:100%;min-height:0;overflow:hidden;}
 
   /* ---- スマホの画面 ---- */
   .screen.v2.v2-scr{position:relative;padding:0;min-height:0;height:100vh;height:100dvh;overflow:hidden;
@@ -6198,6 +6202,19 @@
   .v2 .v2-adm-r.is-hidden .v2-adm-nm{color:var(--ws);}
   .v2 .v2-adm-tag{font-weight:900;font-size:12px;line-height:1;border-radius:999px;padding:5px 8px;background:var(--wdim);color:var(--wi);white-space:nowrap;}
   .v2 .v2-adm-b{border:2px solid var(--wl);background:transparent;color:var(--wi);border-radius:10px;font-weight:900;font-size:13px;min-height:44px;padding:0 10px;cursor:pointer;display:flex;align-items:center;gap:4px;flex:none;}
+  /* 指示75 1-2：つなぎ直している間の幕。is-block＝押せない（透明）・is-show＝薄い幕と字の帯（0.25秒）。どの画面よりも上 */
+  #rtStale{position:fixed;inset:0;z-index:2147483000;display:none;background:rgba(255,255,255,0);transition:background-color .25s ease;}
+  #rtStale.is-block{display:block;}
+  #rtStale.is-show{background:rgba(250,248,242,.55);}
+  #rtStale .rt-stale-band{position:absolute;left:16px;right:16px;top:calc(env(safe-area-inset-top,0px) + 16px);display:flex;align-items:center;justify-content:center;gap:10px;
+    min-height:52px;padding:10px 16px;border-radius:16px;background:rgba(28,30,40,.92);color:#fff;font-weight:900;font-size:17px;line-height:1.4;text-align:center;
+    opacity:0;transform:translateY(-8px);transition:opacity .25s ease,transform .25s ease;}
+  #rtStale.is-show .rt-stale-band{opacity:1;transform:none;}
+  #rtStale .rt-stale-dot{flex:none;width:12px;height:12px;border-radius:50%;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;animation:rt-stale-spin .8s linear infinite;}
+  @keyframes rt-stale-spin{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion: reduce){ #rtStale .rt-stale-dot{animation:none;} #rtStale,#rtStale .rt-stale-band{transition:none;} }
+  /* 指示75 1-6：「外す」の長押しで、字のえらび・メニュー（iPhone の長押しのふきだし）を出さない */
+  .v2 .v2-adm-b[data-fes-kick]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
   .v2 .v2-adm-b.is-on{background:#141414;color:#fff;border-color:#141414;}
   .v2 .v2-adm-b .v2-ic{width:15px;height:15px;}
   .v2 .v2-calib-ops{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
@@ -15773,6 +15790,61 @@
    */
   var V2_INSTEAD = { 'scr-entry': 'scr-v2-home', 'scr-room-open': 'scr-v2-home', 'scr-shelf': 'scr-v2-pick',
     'scr-cassette': 'scr-v2-pick', 'scr-play-way': 'scr-v2-pick', 'scr-rt-lobby': 'scr-v2-join', 'scr-rt-room': 'scr-v2-room' };
+  /**
+   * 指示75 1-1（A05）：iPhone・iPad の Safari で、画面が切りかわったあと上が切れて下に余白が出た（11/7）。
+   * 元はページが画面より長かったこと（body の 100vh・tests/viewport-height.js）。ここはその上の守り：
+   * (b) v2 の画面（ページがスクロールしない作り）で、画面が変わった時・visualViewport が変わった時（キーボードを閉じた・バーが出入りした）に、
+   *     ページの位置を 0 にもどす。打っている途中（入力欄にいる間）は動かさない（打つ所がキーボードに隠れないよう、Safari がずらしている）。
+   *     古い画面（長いページをスクロールする作り）にはさわらない
+   * (c) 起きる条件を探すため、画面が変わるたびに 高さ・位置 をこの端末にだけ残す（最近50件・**どこにも送らない**）。
+   *     係が見る時は、そのスマホのアドレスの最後に #vplog を付ける（読み込み直さずに一覧が出る）
+   */
+  var VP_LOG_KEY = 'acac-vplog', VP_LOG_MAX = 50;
+  function vpV2(){ return !!document.querySelector('.screen.v2.active'); }
+  function vpTyping(){ var a = document.activeElement; return !!(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)); }
+  function vpSnap(why){
+    var vv = window.visualViewport, d = document.documentElement;
+    return { t: Date.now(), why: why, scr: ((document.querySelector('.screen.active') || {}).id || ''),
+      ih: window.innerHeight, vh: vv ? Math.round(vv.height) : null, top: vv ? Math.round(vv.offsetTop) : null,
+      sy: Math.round(window.scrollY || 0), sh: d.scrollHeight };
+  }
+  function vpLog(why){
+    try{ var a = JSON.parse(localStorage.getItem(VP_LOG_KEY) || '[]'); a.push(vpSnap(why)); if(a.length > VP_LOG_MAX) a = a.slice(-VP_LOG_MAX); localStorage.setItem(VP_LOG_KEY, JSON.stringify(a)); }catch(e){}
+  }
+  function vpReset(){
+    if(!vpV2() || vpTyping()) return false;
+    var vv = window.visualViewport;
+    if((window.scrollY || 0) === 0 && !(vv && vv.offsetTop)) return false;
+    try{ window.scrollTo(0, 0); }catch(e){}
+    return true;
+  }
+  function vpAfterScreen(){ var moved = vpReset(); vpLog(moved ? 'screen+reset' : 'screen'); }
+  if(window.visualViewport){
+    var vpT = null;
+    var vpOn = function(e){ clearTimeout(vpT); vpT = setTimeout(function(){ var moved = vpReset(); if(vpV2()) vpLog('vv-' + e.type + (moved ? '+reset' : '')); }, 120); };
+    window.visualViewport.addEventListener('resize', vpOn);
+    window.visualViewport.addEventListener('scroll', vpOn);
+  }
+  // キーボードを閉じた（入力欄から外れた）あと、Safari がずらしたままの位置をもどす
+  document.addEventListener('focusout', function(){ setTimeout(function(){ if(vpReset()) vpLog('focusout+reset'); }, 150); });
+  /** #vplog：この端末に残した記録を、画面の上に出す（係が見る・送らない）。とじると #vplog を消す */
+  function vpShowLog(){
+    if(location.hash !== '#vplog') return;
+    var box = el('vpLogBox');
+    if(!box){ box = document.createElement('div'); box.id = 'vpLogBox'; document.body.appendChild(box); }
+    var a = []; try{ a = JSON.parse(localStorage.getItem(VP_LOG_KEY) || '[]'); }catch(e){}
+    var now = vpSnap('now'), pad = function(n){ return ('0' + n).slice(-2); };
+    var row = function(x){ var d = new Date(x.t); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + ' ' + x.why + ' ' + x.scr.replace(/^scr-/, '') +
+      ' ih' + x.ih + ' vv' + x.vh + ' top' + x.top + ' y' + x.sy + ' sh' + x.sh + (x.sh > x.ih ? ' ＜長い' : ''); };
+    box.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:#fff;color:#000;font:12px/1.5 monospace;overflow:auto;padding:12px;white-space:pre-wrap;');
+    box.textContent = '画面の高さの記録（この端末だけ・最近' + a.length + '件・送っていません）\n' + navigator.userAgent + '\n\n' + a.slice().reverse().map(row).join('\n') + '\n\nいま: ' + row(now) + '\n';
+    var close = document.createElement('button'); close.type = 'button'; close.textContent = 'とじる';
+    close.setAttribute('style', 'position:sticky;top:0;float:right;min-height:44px;padding:0 16px;font-size:16px;');
+    close.onclick = function(){ box.remove(); try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){} };
+    box.insertBefore(close, box.firstChild);
+  }
+  window.addEventListener('hashchange', vpShowLog);
+  setTimeout(vpShowLog, 0);
   function goTo(id){
     if(V2_INSTEAD[id]) id = V2_INSTEAD[id];
     // 第45弾 45-1：起動時に「見たい時」をもどしたことを、最初の画面移りで1度だけ言う。
@@ -15808,6 +15880,8 @@
     var next = el(id);
     next.classList.add('active', back ? 'scr-in-back' : 'scr-in-fwd');
     applyGameTheme(id); // 第18弾-5：人狼カセットの遊んでいる画面だけ夜の配色にする
+    vpAfterScreen();    // 指示75 1-1：v2 の画面ならページの位置を 0 に・高さの記録（この端末だけ）
+    if(rt && rt.isStale && rt.isStale()) rtStaleSync();   // 指示75 1-2：古いかもしれない間に画面が変わった（部屋の画面か、を見直す）
     // 1：ゲーム進行中の画面では、どこからでも設定（＝ゲーム終了）に入れるようにする
     if(id !== 'scr-mode') goTo.fromNext = false;   // 「つぎは？」から来た印は、モードの画面にいる間だけ
     // 指示68-1：版が変わっていたら、待合に着いた時に読み込み直す
@@ -20078,6 +20152,39 @@
   function rtIsBigScreen(){
     var me = rt && rt.me();
     return !!(me && me.role === 'bigscreen');
+  }
+  /**
+   * 指示75 1-2（A03・A07・A09）：**いまの画面が古いかもしれない間**（rt の stale：通信が切れた・裏から戻って いまの全部が届く前・
+   * オフライン・サーバーの「いるよ」が来ない）は、部屋の画面を押せなくして「つなぎ直しています」。届いたら消す（0.25秒）。
+   * 押す所は透明の幕ですぐふさぐ。字の帯と薄い幕は、0.3秒たっても続いていたら出す（一瞬で戻る時にちらつかせない）。
+   * TV（大画面）には出さない（みんなが見る画面で、押す所が無い）。部屋の画面でない所（入口・入る画面）にも出さない
+   */
+  var rtStaleT = null;
+  function rtRoomScreen(id){
+    if(!id) return false;
+    if(RT_SCREENS.indexOf(id) !== -1 || /^scr-rt-/.test(id)) return true;
+    for(var k in RT_GAME_SCREENS){ if(RT_GAME_SCREENS[k] === id) return true; }
+    return !!v2GameOf(id);
+  }
+  function rtStaleSync(){
+    var on = !!(rt && rt.isStale && rt.isStale()) && !rtIsBigScreen() && rtRoomScreen((document.querySelector('.screen.active') || {}).id);
+    var v = el('rtStale');
+    if(!v){
+      if(!on) return;
+      v = document.createElement('div'); v.id = 'rtStale'; v.setAttribute('role', 'status'); v.setAttribute('aria-live', 'polite');
+      v.innerHTML = '<div class="rt-stale-band"><span class="rt-stale-dot" aria-hidden="true"></span><span data-rt-stale-msg></span></div>';
+      // 押した所を下に通さない（透明の幕がふさぐ）
+      ['click', 'pointerdown', 'touchstart'].forEach(function(t){ v.addEventListener(t, function(e){ e.preventDefault(); e.stopPropagation(); }, true); });
+      document.body.appendChild(v);
+    }
+    clearTimeout(rtStaleT);
+    if(on){
+      v.querySelector('[data-rt-stale-msg]').textContent = rt.state.staleWhy === 'offline' ? UiText.FES.遊ぶ.電波 : UiText.FES.遊ぶ.つなぎ直し;
+      v.classList.add('is-block');
+      rtStaleT = setTimeout(function(){ v.classList.add('is-show'); }, 300);
+    } else {
+      v.classList.remove('is-show', 'is-block');
+    }
   }
 
   /**
@@ -25872,8 +25979,19 @@
    * 知らせに添えた送った時刻（sentAt）からの3秒（＝今までどおり）、つなぎ直しは端末の時計で
    */
   var rtCdShown = null;
-  function rtCountdown(endsAt, seconds, sentAt){
+  /**
+   * 指示75 1-5（A12）：送った時刻（sentAt）を持たない合図（つなぎ直した・読み込み直した端末の countdownEndsAt）は、
+   * 端末の時計で数えると、時計のずれの分だけ早く・遅く0になる（11/7、TV を出す PC が1.9秒進んでいた）。
+   * サーバーの時計とのずれ（so.offset）がまだ無ければ、時計合わせ（soroeSync）を待ってから数える（合わせられなかった時だけ端末の時計）
+   */
+  var rtCdPending = null;
+  function rtCountdown(endsAt, seconds, sentAt, noWait){
     if(endsAt && rtCdShown === endsAt) return;   // 同じ回を2回出さない（知らせと部屋の状態の両方で届く）
+    if(endsAt && !sentAt && !noWait && typeof so !== 'undefined' && so.offset == null){
+      rtCdPending = { endsAt: endsAt, seconds: seconds };
+      if(!so.inflight){ so.busy = false; soroeSync(); }
+      return;
+    }
     if(endsAt) rtCdShown = endsAt;
     var full = (seconds > 0 ? seconds : 3) * 1000, rem = full;
     if(endsAt){
@@ -25911,6 +26029,8 @@
     rt.on('memberGone', rtNoticeMemberGone); // 第35弾B：退室・kickの知らせ（理由つき）
     rt.on('you', function(){ rtSync(); });
     rt.on('rejoined', function(){
+      // 指示75 1-5：つなぎ直したら、サーバーの時計とのずれを測り直す（入った時の1回だけだった）
+      if(typeof so !== 'undefined' && !so.inflight){ so.busy = false; soroeSync(); }
       rtSync();
       // **2秒であきらめて棚へ通した後、つながった場合。**
       // rtSync は棚にいる時は何もしないので、ここで帰り道を出す
@@ -25923,6 +26043,8 @@
     // サーバーが再起動したか、誰も繋がっていない時間が続いて片付けられたか。
     // 以前はここで何も起きず、画面が前のまま固まっていた（押しても無反応）。
     // 2026-10-29：係の画面は部屋の一員ではないので、つなぎ直しても「部屋が無い」の知らせが来ない。つながり直したら見張りを入れ直す
+    // 指示75 1-2：古いかもしれない間は、部屋の画面を押せなくして「つなぎ直しています」
+    rt.on('stale', rtStaleSync);
     var rtWasConnected = false;
     rt.on('status', function(st){
       var now = !!(st && st.connected);
@@ -25978,6 +26100,8 @@
         // 指示74（案A・くまくん 11/6）：2分より長く離れて外された人は、名前とむずかしさを入れたまま、静かな札で「もう一度 入ってね」（「入る」を1回）。
         //   socket が生きていた（room:kicked・room:here）／通信が切れてつなぎ直した（自動の入り直し）の、どちらの道もここに来る
         if(p.reason === 'fes_gone'){ fes.join.err = ''; fes.join.info = UiText.FES.入る.はなれていた; fes.join.busy = false; }
+        // 指示75 1-6：係が長押しの「外す」でしばらく入れなくした。赤い字にしない（名前のまちがいに見えない）。名前とむずかしさはそのまま
+        else if(p.reason === 'fes_wait'){ fes.join.err = ''; fes.join.info = fesWaitText(p.waitMs); fes.join.busy = false; }
         else { fes.join.diff = null; fes.join.err = p.reason === 'fes_idle' ? UiText.FES.入る.席を空けた : UiText.FES.入る.出ました; }
         goTo('scr-v2-fes-join'); if(code) fesOpenJoin(code); else fesRenderJoin();
         return;
@@ -33058,15 +33182,36 @@
     // 客観検査 B2：係の「この回をとばす」の確認の枠で「とばす」
     if(act === 'fes-skip-ok' && rt){ V2.close(b.closest('.v2-dlg')); if(fes.staff) rt.fesSkip(fes.staff.code); return; }
     if(act === 'fes-kick-ok' && rt){ V2.close(b.closest('.v2-dlg')); var kid = fes.kickId; fes.kickId = null; if(kid && fes.staff) rt.fesKick(fes.staff.code, kid); return; }
+    // 指示75 1-6：長押しの「外す」で、えらんだ時間（30秒・1分・5分）
+    var kw = /^fes-kick-wait-(\d+)$/.exec(act || '');
+    if(kw && rt){ V2.close(b.closest('.v2-dlg')); var kid2 = fes.kickId; fes.kickId = null; if(kid2 && fes.staff) rt.fesKick(fes.staff.code, kid2, +kw[1]); return; }
   });
-  /** 係の「外す」：だれを外すかを決めて描き直し（枠の見出しに名前が入る）、枠を開く。名前は係の名簿のもの（係だけが見る画面） */
-  function fesAskKick(id){
+  /**
+   * 係の「外す」：だれを外すかを決めて描き直し（枠の見出しに名前が入る）、枠を開く。名前は係の名簿のもの（係だけが見る画面）。
+   * 指示75 1-6：wait（長押し）なら「しばらく入れない」の枠（30秒・1分・5分）
+   */
+  function fesAskKick(id, wait){
     if(!((fes.staff && fes.staff.members) || []).some(function(x){ return x.id === id; })) return;
     fes.kickId = id;
     fesRenderStaff();
-    var dlg = el('scr-v2-fes-staff').querySelector('[data-v2-id="v2Kick"]');
+    var dlg = el('scr-v2-fes-staff').querySelector('[data-v2-id="' + (wait ? 'v2KickWait' : 'v2Kick') + '"]');
     if(dlg) V2.open(dlg);
   }
+  /**
+   * 指示75 1-6：「外す」の長押し（0.5秒）。ふつうの押し（短い）は今のまま（click → fesAskKick）。
+   * 長押しが決まったら、そのあとに来る click は捨てる（ふつうの押しの枠を重ねて開かない）。指が動いたら（スクロール）長押しにしない
+   */
+  var FES_LONG_MS = 500, fesLong = { t: null, id: null, x: 0, y: 0, fired: 0 };
+  document.addEventListener('pointerdown', function(e){
+    var b = e.target.closest && e.target.closest('#scr-v2-fes-staff [data-fes-kick]');
+    if(!b) return;
+    clearTimeout(fesLong.t);
+    fesLong.id = b.getAttribute('data-fes-kick'); fesLong.x = e.clientX; fesLong.y = e.clientY;
+    fesLong.t = setTimeout(function(){ fesLong.t = null; fesLong.fired = Date.now(); try{ FxKit.vibe('ok'); }catch(x){} fesAskKick(fesLong.id, true); }, FES_LONG_MS);
+  }, true);
+  function fesLongCancel(e){ if(fesLong.t && (!e || e.type !== 'pointermove' || Math.abs(e.clientX - fesLong.x) + Math.abs(e.clientY - fesLong.y) > 10)){ clearTimeout(fesLong.t); fesLong.t = null; } }
+  ['pointerup', 'pointercancel', 'pointermove'].forEach(function(t){ document.addEventListener(t, fesLongCancel, true); });
+  document.addEventListener('contextmenu', function(e){ if(e.target.closest && e.target.closest('#scr-v2-fes-staff [data-fes-kick]')) e.preventDefault(); }, true);
   // TV の大きさが変わったら、1920×1080 の箱を合わせ直す
   window.addEventListener('resize', function(){ var t = el('scr-v2-fes-tv'); if(t && t.classList.contains('active')){ var r = (typeof fesRoom === 'function') && fesRoom(); V2.fitTv(t, r ? r.fes.inset : 0); } });
   // 指示68-3・68-4：新しい見た目のゲームの TV も同じ
@@ -33600,10 +33745,13 @@
   function soServerNow(){ return soNow() + (so.offset || 0); }
   function soroeSync(){
     if(so.busy || !rt || !rt.clockSync) return;
-    so.busy = true;
+    so.busy = true; so.inflight = true;
     rt.clockSync(SoroeLogic.RULES.SYNC_SAMPLES, soNow).then(function(samples){
+      so.inflight = false;
       var o = SoroeLogic.offsetOf(samples);
       if(o){ so.offset = o.offset; so.rtt = o.rtt; }
+      // 指示75 1-5：時計合わせを待っていた 3・2・1（つなぎ直した端末）。合わせられなかった時は端末の時計で
+      if(rtCdPending){ var pe = rtCdPending; rtCdPending = null; rtCountdown(pe.endsAt, pe.seconds, null, true); }
       // 返事が1つも無かった時は、すぐには聞き直さない（つながっていない時は失敗がすぐ返り、描き直し→聞き直しが休みなく回って画面がかたまる）
       setTimeout(function(){
         so.busy = false;
@@ -33821,6 +33969,11 @@
     showQuietNote(UiText.FES.遊ぶ.つなぎ直し);
     if(rt && rt.here) rt.here();
   }
+  /** 指示75 1-6：「しばらくしてから入れます。あと約30秒」。1分より長い時は分で（切り上げ） */
+  function fesWaitText(ms){
+    var J = UiText.FES.入る, s = Math.max(1, Math.ceil((+ms || 0) / 1000));
+    return J.しばらく + '。' + J.あと約 + (s < 60 ? s + J.秒 : Math.ceil(s / 60) + J.分);
+  }
   var FES_JOIN_ERR = { name_blocked: '使えない', name_long: '長い', name_empty: '空', diff_required: 'えらんでね', room_full: '満員', room_not_found: '部屋が無い' };
   async function fesJoin(){
     var j = fes.join, J = UiText.FES.入る;
@@ -33833,6 +33986,8 @@
     j.info = '';
     // 指示71 追記2e：部屋が無い（作り直された・まちがったコード）は、名前のまちがいではない。部屋を待つ画面へ（できたら自動で入る）
     if(!res.ok && res.error === 'room_not_found'){ el('scr-v2-fes-join').innerHTML = V2Fes.wait({}); V2.mount(el('scr-v2-fes-join')); fesWaitRoom(false); return; }
+    // 指示75 1-6：しばらく入れない（係の長押しの「外す」）。赤い字にしない
+    if(!res.ok && res.error === 'fes_wait'){ j.err = ''; j.info = fesWaitText(res.waitMs); fesRenderJoin(); return; }
     if(!res.ok){
       j.err = J[FES_JOIN_ERR[res.error]] || res.message || '';
       // 満員は赤い字（名前のまちがい）にしない。赤を使わない札で
@@ -34041,7 +34196,8 @@
     if(b.hasAttribute('data-fes-game')){ if(!b.disabled) rt.fesGame(fes.staff.code, b.getAttribute('data-fes-game'), !b.getAttribute('data-on')); return; }
     if(b.hasAttribute('data-fes-hide')){ rt.fesHide(fes.staff.code, b.getAttribute('data-fes-hide'), !b.getAttribute('data-hidden')); return; }
     // 指示68-0b A4：押したらたずねる（すぐには外さない）。外すのは枠の「外す」（data-v2-act="fes-kick-ok"）
-    if(b.hasAttribute('data-fes-kick')){ fesAskKick(b.getAttribute('data-fes-kick')); return; }
+    // 指示75 1-6：長押しで「しばらく入れない」の枠を開いた直後の click は捨てる（ふつうの押しの枠を重ねない）
+    if(b.hasAttribute('data-fes-kick')){ if(Date.now() - fesLong.fired < 800) return; fesAskKick(b.getAttribute('data-fes-kick')); return; }
     if(b.hasAttribute('data-fes-inset')){ rt.fesInset(fes.staff.code, +b.getAttribute('data-fes-inset')); return; }
     var act = b.getAttribute('data-fes-act');
     if(act === 'join') fesJoin();

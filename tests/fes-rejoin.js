@@ -176,7 +176,9 @@ const memberOf = (srv, code, id) => srv.store.get(code).members.get(id);
     await srv.close();
   });
 
-  await r.test('2：準備OK を押したあとで切れた人は、締め切りの時に「いない人」として外れる（押した記録は残るが、数えるのは つながっている人だけ）', async () => {
+  // 指示75 1-3（A04・11/7 の検査）：回線の切りかえ（4G⇔5G）で一瞬切れた人が、次のゲームに入れなかった。
+  // 席の取っておき（holdMs 30秒）の間の人は、押した準備OK のまま今回に入る（それまでは「つながっている人だけ」で、切れていた人は外れた）
+  await r.test('2（指示75 1-3）：準備OK を押したあとで切れて、締め切りをまたいで戻った人 → 席の取っておき（30秒）の間なら今回に入る', async () => {
     const srv = await startTestServer(Object.assign({}, T, { readyMs: 2500 }));
     const { staff, code } = await makeFes(srv, ['pittari']);
     const a = await join(srv, code, 'ふう');
@@ -184,16 +186,160 @@ const memberOf = (srv, code, id) => srv.store.get(code).members.get(id);
     const c = await join(srv, code, 'びび');
     await waitUntil(() => fesOf(a).phase === 'ready', 'ルールと準備OKへ');
     for (const d of [a, b, c]) await d.call('room:ready', { game: 'pittari' });
-    c.close();                                     // 押したあと、のこり3秒の間に切れた
+    c.close();                                     // 押したあと、のこり3秒の間に切れた（回線の切りかえ）
+    await waitUntil(() => !memberOf(srv, code, c.memberId).connected, 'びびが切れる');
     await waitUntil(() => fesOf(a).phase === 'play', '始まる', 6000);
-    assert(srv.store.get(code).pittari.playerIds.indexOf(c.memberId) === -1, '切れた人は今回に入らない');
-    const m = memberOf(srv, code, c.memberId);
-    assertEqual(m.role, 'waiting', '待つ人になる');
-    // 締め切りのあとで戻っても、今回には入れない（waiting のまま）
-    const c2 = await join(srv, code, 'びび', { memberId: c.memberId });
-    assertEqual(memberOf(srv, code, c2.memberId).role, 'waiting', '戻っても今回は待つ');
-    assertEqual(c2.me && c2.me.bench, 'full', '【本番で困る】理由は「押したが上限で入れなかった」と出る（ほんとうは切れていた）');
+    assert(srv.store.get(code).pittari.playerIds.indexOf(c.memberId) !== -1, '席を取っておいている人は、押した準備OK のまま今回に入る');
+    assertEqual(memberOf(srv, code, c.memberId).role, 'player', '遊ぶ人のまま');
+    // socket.io のつなぎ直し（自動の入り直し・memberId つき）で戻る
+    const c2 = await join(srv, code, 'びび', { memberId: c.memberId, auto: true });
+    assertEqual(c2.res.ok, true, '戻れる');
+    assertEqual(memberOf(srv, code, c.memberId).role, 'player', '戻っても遊ぶ人');
+    assertEqual(c2.me && c2.me.bench, null, '「TV を見ていてね」にならない');
+    assertEqual(c2.me && c2.me.playing, true, 'いまのゲームの中');
     [staff, a, b, c2].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('2（指示75 1-3）：押したあと切れたまま、席の取っておき（30秒）をすぎた人は、今回に入れない（来ない人で始めない）', async () => {
+    const srv = await startTestServer(Object.assign({}, T, { readyMs: 2500, holdMs: 300 }));
+    const { staff, code } = await makeFes(srv, ['pittari']);
+    const a = await join(srv, code, 'ふう');
+    const b = await join(srv, code, 'ひろ');
+    const c = await join(srv, code, 'びび');
+    await waitUntil(() => fesOf(a).phase === 'ready', 'ルールと準備OKへ');
+    for (const d of [a, b, c]) await d.call('room:ready', { game: 'pittari' });
+    c.close();
+    await waitUntil(() => fesOf(a).phase === 'play', '始まる', 6000);
+    assert(srv.store.get(code).pittari.playerIds.indexOf(c.memberId) === -1, '取っておく時間をすぎた人は今回に入らない');
+    [staff, a, b].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  // 指示75 1-3 の門：「10秒切れる→もどる→次の回に入る」。どの段階で切れても、もどったあとの次の回に入れる
+  for (const at of ['lobby', 'vote', 'decide', 'ready', 'play', 'result']) {
+    await r.test('指示75 1-3：' + at + ' の間に10秒切れて（socket が切れる）、自動の入り直しでもどる → 次の回に入れる', async () => {
+      const srv = await startTestServer(Object.assign({}, T, { lobbyMs: 600, readyMs: 1500, resultMs: 800 }));
+      // 候補を2つにして、投票の段階も通る（全員がぴったり10秒に入れる）
+      const { staff, code } = await makeFes(srv, ['pittari', 'soroe']);
+      const a = await join(srv, code, 'ふう');
+      const b = await join(srv, code, 'ひろ');
+      let c = await join(srv, code, 'びび');
+      const id = c.memberId;
+      const room = srv.store.get(code);
+      const ds = () => [a, b, c].filter((d) => d.socket.connected);
+      // 段階を進める：投票はぴったり10秒に入れる・遊んでいる回は締め切りで進める
+      async function step(press) {
+        const f = room.fes;
+        if (f.phase === 'vote') for (const d of ds()) await d.call('fes:vote', { mode: 'pittari' });
+        if (f.phase === 'ready' && press) for (const d of ds()) await d.call('room:ready', { game: room.state.game });
+        if (f.phase === 'play' && room.pittari && room.pittari.phase !== 'ended') room.pittari.deadline = Date.now() - 1;
+        await sleep(60);
+      }
+      const until = async (fn, label, press) => { const lim = Date.now() + 15000; while (!fn() && Date.now() < lim) await step(press); assert(fn(), label); };
+      await until(() => room.fes.phase === at, at + ' に来る', true);
+      c.close();
+      await waitUntil(() => !room.members.get(id).connected, '切れる');
+      // 「10秒」：席の取っておき（30秒）より短い。ここでは、切れている間に段階が1つ以上進むまで待つ
+      await until(() => room.fes.phase !== at, '切れている間に段階が進む', false);
+      c = await join(srv, code, 'びび', { memberId: id, auto: true });
+      assertEqual(c.res.ok, true, 'もどれる（' + c.res.error + '）');
+      assertEqual(c.memberId, id, '同じ人');
+      // もどったあとの、次の準備OK まで進めて、全員で押す
+      await until(() => room.fes.phase === 'ready', 'もどったあとの準備OK に来る', false);
+      for (const d of [a, b, c]) await d.call('room:ready', { game: room.state.game });
+      await until(() => room.fes.phase === 'play', '始まる', false);
+      assert(room.pittari.playerIds.indexOf(id) !== -1, '次の回に入る（' + at + ' で切れた人）');
+      assertEqual(c.me && c.me.bench, null, '「TV を見ていてね」にならない');
+      [staff, a, b, c].forEach((d) => d.close());
+      await srv.close();
+    });
+  }
+
+  // 指示75 1-4（A15）：「入る」のあと同じタブで読み込み直すと、同じ人が2人（約2分＝帰った人を外す時間 goneMs で1人にもどる）。
+  // 読み込み直しが「入る」の返事より先だと、端末はまだ memberId を覚えていない → 新しい人として入り、前の席が2分残る。
+  // 直す形：端末の札（dev・その端末のブラウザに1つ）を入る時に添え、同じ端末なら前の席にもどる
+  await r.test('指示75 1-4：入る→0〜1000ms のどこかで読み込み直す（同じ端末・memberId はまだ覚えていないことがある）を20回 → いつも1人', async () => {
+    // 前の回の人の席（取っておき）で16人の門がふさがらないよう、取っておきだけ短く
+    const srv = await startTestServer(Object.assign({}, T, { lobbyMs: 600000, holdMs: 50 }));
+    const { staff, code } = await makeFes(srv, ['pittari']);
+    const b = await join(srv, code, 'ひろ');
+    const room = srv.store.get(code);
+    const 数 = (name) => Array.from(room.members.values()).filter((m) => m.name.replace(/[②-⑨]$/, '') === name).length;
+    for (let i = 0; i < 20; i++) {
+      const dev = 'dev-reload-' + i, name = 'よみ' + i;
+      const wait = Math.round(i * 1000 / 19);
+      const d1 = await device(srv.url);
+      let got = null;
+      d1.socket.emit('room:join', { code, name, diff: 'normal', dev }, (res) => { got = res; });
+      await sleep(wait);
+      const saved = got && got.ok ? got.memberId : null;   // 返事が来ていれば、端末は memberId を覚えている
+      d1.socket.close();                                     // 読み込み直し
+      const d2 = await device(srv.url);
+      const r2 = await d2.call('room:join', Object.assign({ code, name, diff: 'normal', dev }, saved ? { memberId: saved } : {}));
+      assertEqual(r2.ok, true, i + '回目：入れる');
+      await sleep(30);
+      assertEqual(数(name), 1, i + '回目（' + wait + 'ms で読み込み直し・memberId ' + (saved ? 'あり' : 'なし') + '）：名簿は1人');
+      d2.close();
+    }
+    [staff, b].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('指示75 1-4：ちがう端末で同じ名前は、いままでどおり別の人（「ふう②」）', async () => {
+    const srv = await startTestServer(Object.assign({}, T, { lobbyMs: 600000 }));
+    const { staff, code } = await makeFes(srv, ['pittari']);
+    const a = await join(srv, code, 'ふう', { dev: 'dev-A' });
+    const a2 = await join(srv, code, 'ふう', { dev: 'dev-B' });
+    assert(a2.memberId !== a.memberId, '別の人');
+    assertEqual(memberOf(srv, code, a2.memberId).name, 'ふう②', '名前は「ふう②」');
+    assert(!JSON.stringify(a.room).includes('dev-A'), '端末の札は部屋の知らせに出ない（みんなに配らない）');
+    [staff, a, a2].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  // 指示75 1-6（くまくんの決め 7.A）：係の「外す」。ふつうに押す＝今のまま（すぐ入れる）。長押し＝30秒・1分・5分 入れない（同じ端末と同じ名前）
+  await r.test('指示75 1-6：ふつうの「外す」は今のまま（すぐ入り直せる）', async () => {
+    const srv = await startTestServer(Object.assign({}, T, { lobbyMs: 600000 }));
+    const { staff, code } = await makeFes(srv, ['pittari']);
+    const a = await join(srv, code, 'ふう', { dev: 'dev-K' });
+    let kicked = null; a.socket.on('room:kicked', (p) => { kicked = p; });
+    const k = await staff.call('fes:kick', { code, memberId: a.memberId });
+    assertEqual(k.ok, true, '外せる');
+    await waitUntil(() => kicked, '外された知らせ');
+    assertEqual(kicked.reason, 'fes_staff', '理由は今のまま');
+    const a2 = await join(srv, code, 'ふう', { dev: 'dev-K' });
+    assertEqual(a2.res.ok, true, 'すぐ入り直せる');
+    [staff, a, a2].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('指示75 1-6：長押しの「外す」（30秒）→ 同じ端末も同じ名前も、30秒は入れない。すぎたら入れる。ほかの人は入れる', async () => {
+    const srv = await startTestServer(Object.assign({}, T, { lobbyMs: 600000 }));
+    const { staff, code } = await makeFes(srv, ['pittari']);
+    const a = await join(srv, code, 'ふう', { dev: 'dev-K' });
+    let kicked = null; a.socket.on('room:kicked', (p) => { kicked = p; });
+    const bad = await staff.call('fes:kick', { code, memberId: a.memberId, waitMs: 12345 });
+    assertEqual(bad.ok, false, '決めた3つ（30秒・1分・5分）のほかは断る');
+    const k = await staff.call('fes:kick', { code, memberId: a.memberId, waitMs: 30000 });
+    assertEqual(k.ok, true, '外せる');
+    await waitUntil(() => kicked, '外された知らせ');
+    assertEqual(kicked.reason, 'fes_wait', '理由は「しばらく入れない」');
+    assert(kicked.waitMs > 29000 && kicked.waitMs <= 30000, 'のこりの時間が届く（' + kicked.waitMs + '）');
+    const s1 = await join(srv, code, 'ふう', { dev: 'dev-K' });
+    assertEqual(s1.res.error, 'fes_wait', '同じ端末・同じ名前は入れない');
+    assert(s1.res.waitMs > 0, 'のこりの時間が返る');
+    const s2 = await join(srv, code, 'べつ', { dev: 'dev-K' });
+    assertEqual(s2.res.error, 'fes_wait', '同じ端末で名前を変えても入れない');
+    const s3 = await join(srv, code, 'ふう', { dev: 'dev-OTHER' });
+    assertEqual(s3.res.error, 'fes_wait', 'ちがう端末でも同じ名前は入れない');
+    const s4 = await join(srv, code, 'ひろ', { dev: 'dev-H' });
+    assertEqual(s4.res.ok, true, 'ほかの人は入れる');
+    // 30秒すぎた（時計は待たずに、入れない時間の終わりを前へずらす）
+    srv.store.get(code).fes.waits.forEach((w) => { w.until = Date.now() - 1; });
+    const s5 = await join(srv, code, 'ふう', { dev: 'dev-K' });
+    assertEqual(s5.res.ok, true, 'すぎたら入れる');
+    [staff, a, s1, s2, s3, s4, s5].forEach((d) => d.close());
     await srv.close();
   });
 

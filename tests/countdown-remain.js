@@ -60,5 +60,32 @@ async function 部屋() {
     t.win.close();
   });
 
+  // 指示75 1-5（A12）：端末の時計がずれていても（11/7、TV を出す PC が1.9秒進んでいた）、3・2・1 の0は ほかの端末と0.3秒以内。
+  // つなぎ直した端末は「送った時刻」を持たない（部屋の状態の countdownEndsAt だけ）ので、端末の時計で数えると、ずれの分だけ早く・遅く0になった。
+  // サーバーの時計とのずれ（clock:sync）を測ってから数える
+  for (const skew of [2000, -2000]) {
+    await r.test('指示75 1-5：端末の時計が ' + (skew > 0 ? '+' : '') + skew / 1000 + '秒ずれていても、つなぎ直した端末の 3・2・1 はサーバーの0の時刻に合う（0.3秒以内）', async () => {
+      const t = await launch({ fakeSocket: true });
+      const lab = ButtonScenes.view('pt-set');
+      const room = JSON.parse(JSON.stringify(lab.room));
+      // サーバーの時計＝端末の時計 − skew（端末が skew だけ進んでいる）。
+      // 読み込み直した端末：はじめて届く部屋の状態に、もう countdownEndsAt が入っている（時計合わせより先に届く）
+      let serverNow = 0;
+      t.win.__rtFake.replies = { 'room:create': () => { serverNow = Date.now() - skew; room.countdownEndsAt = serverNow + 2200; return { ok: true, code: room.code, memberId: 'm1', room }; },
+        'clock:sync': (p, cb) => { setTimeout(() => cb({ ok: true, now: Date.now() - skew }), 10); } };
+      await H.makeRoomV2(t.win, t.doc);
+      t.win.__rtFake.fire('room:update', room);       // サーバーでは、0まであと2.2秒
+      await sleep(t.win, 150);
+      assertEqual(数字(t.doc), '3', 'サーバーの残り2.2秒どおり「3」から（端末の時計で数えると ' + (skew > 0 ? '0.2秒＝出ない' : '4.2秒') + '）');
+      const at = Date.now();
+      let seen2 = null;
+      while (Date.now() - at < 1500 && !seen2) { await sleep(t.win, 20); if (数字(t.doc) === '2') seen2 = Date.now(); }
+      assert(seen2, '「2」に変わる');
+      const want = serverNow + 200 + skew;          // サーバーの「2」になる時刻を、端末の時計に直した物
+      assert(Math.abs(seen2 - want) <= 300, '「2」に変わる時刻のずれ ' + (seen2 - want) + 'ms（0.3秒以内）');
+      t.win.close();
+    });
+  }
+
   r.finish();
 })();

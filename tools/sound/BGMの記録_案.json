@@ -1,0 +1,29 @@
+{
+ "A": {
+  "label": "オルゴール（チェレスタ＋やわらかいカリンバ・92 BPM）",
+  "bpm": 92,
+  "bars": 16,
+  "loop_s": 41.7391,
+  "lufs_integrated": -20.0,
+  "peak_db_mp3": -6.65,
+  "kb": 392
+ },
+ "B": {
+  "label": "マリンバだけ（メロディと低い音・100 BPM）",
+  "bpm": 100,
+  "bars": 16,
+  "loop_s": 38.4,
+  "lufs_integrated": -20.0,
+  "peak_db_mp3": -4.65,
+  "kb": 346
+ },
+ "C": {
+  "label": "カリンバだけ（4分の和音とメロディ・88 BPM）",
+  "bpm": 88,
+  "bars": 16,
+  "loop_s": 43.6364,
+  "lufs_integrated": -20.0,
+  "peak_db_mp3": -6.0,
+  "kb": 530
+ }
+}

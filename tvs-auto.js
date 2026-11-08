@@ -4,7 +4,7 @@
 //   ・あそびまちの呼び出し：TV② をあそびまちに30秒。そのあと、自動が入なら回すのにもどる・切なら元の画面へ
 //   ・あつまれに人が入った（呼び込み idle → 待合 lobby）：TV① をあつまれへ
 //   ・**あつまれのゲーム中（play）にあつまれを映している TV は、自動では決して切りかえない**
-//   ・あつまれを映している TV は、人がいる間（idle 以外）も回さない（決めごと：呼び込みから人が来てあつまれへもどしたのに、
+//   ・あつまれを映している TV は、人がいる間（idle 以外）も回さない・呼び出しでも動かさない（指示75 3-6）（決めごと：呼び込みから人が来てあつまれへもどしたのに、
 //     次の秒で回して離れてしまうのを防ぐ。指示書に無い所・2026-11-02 Claude Code が決めた）
 // 係が出す物のボタンを押したら、その TV の自動は切（tvs-routes.js）。ここは押したことを reset で知るだけ
 
@@ -85,7 +85,8 @@ function createAuto() {
   /** あそびまちの呼び出しが鳴った。TV② をあそびまちに30秒 */
   function chime(ctx) {
     const tv = 2;
-    if (!ctx.settings.chime || !usable(ctx, tv, 'asobi') || locked(ctx, tv)) return [];
+    // 指示75 3-6（A24(b)）：あつまれを映していて人がいる間（呼び込み以外）は、回すのと同じく呼び出しでも動かさない
+    if (!ctx.settings.chime || !usable(ctx, tv, 'asobi') || locked(ctx, tv) || peopleOnFes(ctx, tv)) return [];
     const back = hold[tv] ? hold[tv].back : ctx.screens[tv].item;
     hold[tv] = { until: ctx.now + CHIME_SEC * 1000, back: back === 'asobi' ? null : back };
     return ctx.screens[tv].item === 'asobi' ? [] : [{ tv, item: 'asobi', why: 'chime' }];

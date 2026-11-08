@@ -66,6 +66,9 @@
 (function(){
   'use strict';
   var TVN = { 1: 'TV①', 2: 'TV②' };
+  // 指示75 3-7：左右も出す（「TV①（左）」）。どちらが左かは「はじめる」の置き場所で決まる（入れかえたら名前も入れかわる）
+  var SIDE = { left: '左', right: '右' };
+  function tvLabel(tv){ var sd = S && S.tvs && S.tvs[tv] && S.tvs[tv].side; return TVN[tv] + (SIDE[sd] ? '（' + SIDE[sd] + '）' : ''); }
   var S = null;                         // サーバーから届いた今の状態
   var mine = { 1: null, 2: null };      // この端末が押した切りかえ { seq, timer }
   var fb = { 1: { text: '', cls: '' }, 2: { text: '', cls: '' } };
@@ -98,7 +101,7 @@
       var items = S.items.filter(function(it){ return it.tvs.indexOf(tv) !== -1; });
       var live = T.connected && T.ext;
       var on = !!(S.settings && S.settings.auto[tv]);
-      var html = '<div class="name">' + TVN[tv] + '：' + esc(itemName(T.item)) + (on ? '<small>自動</small>' : '') + '</div>' +
+      var html = '<div class="name">' + tvLabel(tv) + '：' + esc(itemName(T.item)) + (on ? '<small>自動</small>' : '') + '</div>' +
         '<div class="st"><span class="c ' + (live ? 'is-ok' : 'is-ng') + '">' + (live ? '● つながっている' : '× 切れている') + '</span>' +
         (T.seen ? '<span>最後の連絡 ' + hhmm(T.seen) + '</span>' : '') + '</div>' +
         '<div class="alert" role="alert"><span>あつまれの開き直しが要ります</span><button type="button" data-reload>開き直す</button></div>' +

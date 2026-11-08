@@ -9,6 +9,9 @@
     const s = await send({ t: 'status' });
     if (!s) return;
     if (!$('server').value) $('server').value = s.server;
+    // 指示75 3-8：TV 専用の Chrome でない所では、大きく言って「はじめる」を押せなくする
+    $('notTv').style.display = s.tvProfile ? 'none' : 'block';
+    $('start').disabled = !s.tvProfile;
     $('wins').innerHTML = [1, 2].map((n) => 'TV' + (n === 1 ? '①' : '②') + '：' + (s.windows[n] ? '<span class="ok">出ています</span>' : '<span class="ng">出ていません</span>')).join('　') +
       (s.swapped ? '（入れかえ中）' : '');
     $('loginLink').href = s.server + '/';
@@ -45,7 +48,7 @@
     $('msg').textContent = '開いています…';
     const me = await chrome.windows.getCurrent();
     const r = await send({ t: 'start', server: $('server').value.trim(), windowId: me.id });
-    $('msg').textContent = r && r.ok ? '' : 'うまくいきませんでした';
+    $('msg').textContent = r && r.ok ? '' : (r && r.error === 'not_tv_chrome' ? 'TV 専用の Chrome で開いてください' : 'うまくいきませんでした');
     setTimeout(refresh, 1500);
   });
   $('swap').addEventListener('click', () => send({ t: 'swap' }).then(refresh));

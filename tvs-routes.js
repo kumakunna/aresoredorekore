@@ -2,6 +2,7 @@
 //
 //   GET /tvs               … リモコン（係のスマホ）
 //   GET /tvs/items         … 出す物の一覧（係の画面）
+//   GET /tvs/mark          … TV 専用の Chrome の印（指示75 3-8・ログイン不要・字だけ）
 //   GET /tvs/log           … 切りかえの記録の全部（指示75 2-10・検索としぼり込み）
 //   GET /tvs/screen?tv=N   … TV の PC の「休けい」のタブ。サーバーとつながり、拡張機能に伝える役（指示69 2-1）
 //   GET /api/tvs/asobi     … あそびまちの URL（key 付き）。**拡張機能だけが**休けいのタブから読む。リモコンは読まない
@@ -51,6 +52,9 @@ function mountTvs(app, io, opts) {
   app.get('/tvs', send('remote.html'));
   app.get('/tvs/items', send('items.html'));
   app.get('/tvs/screen', send('screen.html'));
+  // 指示75 3-8：TV 専用の Chrome の印のページ。「あつまれ TV」（TVを開く.cmd・ショートカット）が起動のたびに開き、拡張機能（tv-mark.js）が
+  // 「このプロフィールは TV 専用」と覚えてタブを閉じる。ログインは要らない（字だけ・あそびまちの事も係の事も何も出さない）
+  app.get('/tvs/mark', (req, res) => res.set('Cache-Control', 'no-store').type('html').send(gatePage('TV 専用の Chrome', 'この Chrome を TV 専用として覚えました。このタブは自分で閉じます。')));
   // 指示75 2-10（くまくんの決め）：切りかえの記録の全部（1か月）。だれが・何を（字で検索）・TV でしぼる・時刻でしぼる。リモコンの下の「ぜんぶ見る」から
   app.get('/tvs/log', (req, res) => {
     if (!pageGate(req, res)) return;
@@ -98,7 +102,7 @@ function mountTvs(app, io, opts) {
     const tvs = {};
     [1, 2].forEach((tv) => {
       const L = live[tv];
-      tvs[tv] = { item: sc[tv].item, prev: sc[tv].prev, connected: L.sockets.size > 0, ext: L.sockets.size > 0 && L.ext,
+      tvs[tv] = { item: sc[tv].item, prev: sc[tv].prev, connected: L.sockets.size > 0, ext: L.sockets.size > 0 && L.ext, side: L.side || null,
         seen: L.seen || null, shown: L.shown, stuck: L.stuck };
     });
     return { items, tvs, playing: isPlaying(), settings: store.settings(), log: store.listLog(10).map((r) => ({ at: r.at, who: whoName(r.who), tv: r.tv, item: r.item })) };
@@ -177,6 +181,8 @@ function mountTvs(app, io, opts) {
         if (p && p.have && typeof p.have === 'object') have = Object.assign({}, have, clean(p.have));
         if (p && typeof p.stuck === 'boolean') L.stuck = p.stuck;
         if (p && p.durations) durations = Object.assign({}, durations, cleanNum(p.durations));
+        // 指示75 3-7：その TV が左か右か（拡張機能が「はじめる」の置き場所から教える）。左右のほかの字は受けとらない
+        if (p && (p.side === 'left' || p.side === 'right')) L.side = p.side;
         broadcast();
       });
       // 拡張機能が切りかえ終わった（返事）。リモコンに「変わりました」

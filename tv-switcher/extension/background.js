@@ -9,7 +9,10 @@
 importScripts('logic.js', 'media-db.js');
 
 const EXT = chrome.runtime.getURL('');
-const BLANK = { server: 'https://aresoredorekore.duckdns.org', win: {}, tabs: { 1: {}, 2: {} }, active: { 1: null, 2: null }, items: [], asobiUrl: '', stuck: { 1: false, 2: false }, place: null, notice: { 1: '', 2: '' }, durations: {}, chimeAt: 0 };
+const BLANK = { server: 'https://aresoredorekore.duckdns.org', win: {}, tabs: { 1: {}, 2: {} }, active: { 1: null, 2: null }, items: [], asobiUrl: '', stuck: { 1: false, 2: false }, place: null, notice: { 1: '', 2: '' }, durations: {}, chimeAt: 0,
+  // 指示75：asobiLoaded＝あそびまちのタブを読み込んだ時刻（3-1）・asobiErr＝開けなかったあそびまちのタブ（3-3）・placingUntil＝自分で窓を置いている間（3-2）・
+  // startedAt＝「はじめる」の時刻（3-1）・tvProfile＝TV 専用の Chrome の印（3-8）
+  asobiLoaded: {}, asobiErr: {}, placingUntil: 0, startedAt: 0, tvProfile: false };
 
 // 知らせは1つずつ順に（同時に来ても、窓とタブの記録が食いちがわない）
 let chain = Promise.resolve();
@@ -92,6 +95,12 @@ async function start(S, startWindowId) {
   let place = TvsLogic.pickDisplays(displays, startDisplay);
   if (S.place && S.place.swapped) place = { 1: place[2], 2: place[1] };
   S.place = Object.assign({}, S.place || {}, { 1: place[1], 2: place[2] });
+  S.startedAt = Date.now();
+  // 指示75 3-4（A29 (a)）：「はじめる」の画面が TV の上に開いていたら、主の画面（ノート PC）へ動かす（TV の窓と重ねない）
+  const home = TvsLogic.homeDisplay(displays);
+  if (sw && home && startDisplay && startDisplay !== home.id && displays.length >= 2) {
+    try { await chrome.windows.update(sw.id, { state: 'normal' }); await chrome.windows.update(sw.id, { left: home.bounds.left + 40, top: home.bounds.top + 40 }); } catch (e) {}
+  }
   for (const tv of [1, 2]) {
     let w = await winAlive(S.win[tv]);
     if (!w) {
@@ -107,7 +116,7 @@ async function start(S, startWindowId) {
       const tabs = await chrome.tabs.query({ windowId: w.id });
       tabs.sort((a, b) => a.index - b.index).forEach((t, i) => { if (urls[i]) S.tabs[tv][urls[i].id] = t.id; });
     }
-    await placeWindow(w.id, place[tv]);
+    await ensurePlaced(S, tv);
   }
   await save(S);
   return true;
@@ -118,6 +127,27 @@ async function placeWindow(id, p) {
   await chrome.windows.update(id, { left: b.left, top: b.top, width: b.width, height: b.height });
   if (p.full) await chrome.windows.update(id, { state: 'fullscreen' });
 }
+/**
+ * 指示75 3-2（A25・A27）：TV の窓を置き場所にもどす。もう正しい画面で全画面なら何もしない（「はじめる」の押し直しで窓を一瞬ふつうにしない）。
+ * 同じ画面で全画面だけ外れた（Esc・F11）なら、全画面にもどすだけ。別の画面へ動いていたら動かす——その時、あそびまちが前に出ていたら
+ * いったん休けいのタブを前にしてから動かす（ふつうの大きさの一瞬に、アドレス欄へ key 付きの URL が出ないように）。動かしおえたら元へ
+ */
+async function ensurePlaced(S, tv) {
+  const p = S.place && S.place[tv];
+  const w = await winAlive(S.win[tv]);
+  if (!p || !w) return false;
+  const step = TvsLogic.placeStep(w, p);
+  if (step === 'none') return true;
+  S.placingUntil = Date.now() + 1500;
+  if (step === 'full') { await chrome.windows.update(w.id, { state: 'fullscreen' }); return true; }
+  const asobi = await tabAlive((S.tabs[tv] || {}).asobi), rest = await tabAlive((S.tabs[tv] || {}).rest);
+  const hide = !!(asobi && asobi.active && rest);
+  if (hide) await chrome.tabs.update(rest.id, { active: true });
+  await placeWindow(w.id, p);
+  if (hide) await chrome.tabs.update(asobi.id, { active: true });
+  S.placingUntil = Date.now() + 1500;
+  return true;
+}
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   queue(async () => {
@@ -126,7 +156,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     const tv = Number(msg && msg.tv) || (sender.tab ? tvOfWindow(S, sender.tab.windowId) : null);
     switch (msg && msg.t) {
       case 'ping':
-        res = { ok: true, have: await haveMedia(S), stuck: !!S.stuck[tv], durations: S.durations };
+        // 指示75 3-7：その TV が左か右か（リモコンの「TV①（左）」）
+        res = { ok: true, have: await haveMedia(S), stuck: !!S.stuck[tv], durations: S.durations, side: TvsLogic.sideOf(S.place, tv) };
         break;
       case 'sync':   // 休けいのタブから：出す物の一覧（と、bridge.js が読んだあそびまちの URL）
         if (Array.isArray(msg.items)) S.items = msg.items;
@@ -154,12 +185,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         break;
       }
       case 'start':
+        // 指示75 3-8（A22・A30）：TV 専用の Chrome でない所では、はじめない（ふだんの Chrome に入った拡張機能で TV の PC が2台になりかけた）
+        if (!S.tvProfile) { res = { ok: false, error: 'not_tv_chrome' }; break; }
         if (msg.server) S.server = String(msg.server).replace(/\/+$/, '');
         res = { ok: await start(S, msg.windowId) };
         break;
       case 'swap':   // TV① と TV② の左右が逆だった時：窓の置き場所を入れかえる（中身と名前はそのまま）
         S.place = Object.assign({}, S.place || {}, { swapped: !(S.place && S.place.swapped), 1: S.place && S.place[2], 2: S.place && S.place[1] });
-        for (const n of [1, 2]) { const w = await winAlive(S.win[n]); if (w && S.place[n]) await placeWindow(w.id, S.place[n]); }
+        for (const n of [1, 2]) await ensurePlaced(S, n);
         break;
       case 'asobi-guide':   // あそびまちの「押すと始まります」を押してもらう間、両方の TV にあそびまちを出す
         // 手で切りかえたとは数えない（数えると、サーバーの今の画面があそびまちになり、「押しおわった」でもどる先が無くなっていた・11/02 通しで見た）
@@ -177,14 +210,21 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         for (const id of Object.keys(S.tabs[tv] || {})) { try { await chrome.tabs.sendMessage(S.tabs[tv][id], { t: 'notice', text: S.notice[tv] }); } catch (e) {} }
         break;
       }
+      case 'place-check':  // 指示75 3-2：TV の窓のページの resize（notice.js・media.js）。全画面が外れていたら置き直す
+        if (tv && Date.now() >= (S.placingUntil || 0)) await ensurePlaced(S, tv);
+        break;
       case 'notice-get':   // notice.js が開いた時に聞く（その窓の TV の一言。TV の窓でなければ空）
         res = { ok: true, text: tv && S.notice ? S.notice[tv] || '' : '' };
         break;
       case 'duration':     // media.js：動画の長さ（「1回分」に使う）
         if (msg.id && msg.sec > 0) S.durations = Object.assign({}, S.durations, { [msg.id]: msg.sec });
         break;
+      case 'tv-profile':   // 指示75 3-8：「あつまれ TV」（TV 専用の Chrome）から開いた印のページ（/tvs/mark）。このプロフィールを TV 専用と覚え、そのタブは閉じる
+        S.tvProfile = true;
+        if (sender.tab) { try { await chrome.tabs.remove(sender.tab.id); } catch (e) {} }
+        break;
       case 'status':
-        res = { ok: true, server: S.server, windows: { 1: !!(await winAlive(S.win[1])), 2: !!(await winAlive(S.win[2])) }, items: S.items, asobi: !!S.asobiUrl, swapped: !!(S.place && S.place.swapped) };
+        res = { ok: true, tvProfile: !!S.tvProfile, server: S.server, windows: { 1: !!(await winAlive(S.win[1])), 2: !!(await winAlive(S.win[2])) }, items: S.items, asobi: !!S.asobiUrl, swapped: !!(S.place && S.place.swapped) };
         break;
       case 'media-changed': {   // 「はじめる」の画面で画像・動画をえらんだ：すぐサーバーに教える（10秒ごとの確かめを待たない。待つと、えらんだ直後のリモコンが「まだありません」のままだった）
         const have = await haveMedia(S);
@@ -208,6 +248,8 @@ chrome.tabs.onActivated.addListener((info) => {
     const tv = tvOfWindow(S, info.windowId);
     if (!tv) return;
     const id = itemOfTab(S, tv, info.tabId);
+    // 指示75 3-3：開けなかったあそびまちのタブが見えた → すぐ開き直す
+    if (id === 'asobi' && S.asobiErr && S.asobiErr[info.tabId]) { try { await chrome.tabs.reload(info.tabId); } catch (e) {} }
     if (!id || S.active[tv] === id || S.guide) return;   // あそびまちの準備の間は数えない
     if (S.boot && S.boot[tv]) return;                     // 窓を開いた直後（サーバーの最初の「出して」の前）は数えない
     S.active[tv] = id;
@@ -218,17 +260,89 @@ chrome.tabs.onActivated.addListener((info) => {
 });
 
 // あそびまちの呼び出し：鳴らすタブ（logic.js asobiOwner）の音が始まったら、その窓の休けいのタブからサーバーへ（10秒に1回まで）
+// 指示75 3-1（A28）：読み込んでから20秒・あそびまちの準備の間・「はじめる」から20秒の音は数えない（開いた時の「押すと始まります」の音を、
+// だれも呼ばれていないのに呼び出しと数えていた・5回中4回）。決まりは logic.js chimeCounts
 chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (info.status === 'loading') {
+    queue(async () => {
+      const S = await load();
+      if (![1, 2].some((n) => (S.tabs[n] || {}).asobi === tabId)) return;
+      S.asobiLoaded = Object.assign({}, S.asobiLoaded, { [tabId]: Date.now() });
+      await save(S);
+    });
+  }
   if (info.audible !== true) return;
   queue(async () => {
     const S = await load();
     const owner = TvsLogic.asobiOwner(S.items);
     if ((S.tabs[owner] || {}).asobi !== tabId) return;
     const t = Date.now();
-    if (t - (S.chimeAt || 0) < 10000) return;
+    if (!TvsLogic.chimeCounts({ now: t, loadedAt: (S.asobiLoaded || {})[tabId], guide: !!S.guide, startedAt: S.startedAt, chimeAt: S.chimeAt })) return;
     S.chimeAt = t;
     await save(S);
     await push(S, owner, { t: 'chime' });
+  });
+});
+
+// 指示75 3-2（A25）：TV の窓の全画面が外れた（Esc・F11・画面のつなぎ直し）→ 2秒以内に自分で置き直す。自分で置いている間（placingUntil）は見ない
+chrome.windows.onBoundsChanged.addListener((w) => {
+  setTimeout(() => queue(async () => {
+    const S = await load();
+    const tv = tvOfWindow(S, w.id);
+    if (!tv || Date.now() < (S.placingUntil || 0)) return;
+    await ensurePlaced(S, tv);
+    await save(S);
+  }), 400);
+});
+
+// 指示75 3-4（A29 (d)）：画面の数や並びが変わった（TV の電源・入力の切りかえ）→ 置き場所を決め直して、TV の窓を置き直す（1.5秒まとめて）
+let displayTimer = null;
+chrome.system.display.onDisplayChanged.addListener(() => {
+  clearTimeout(displayTimer);
+  displayTimer = setTimeout(() => queue(async () => {
+    const S = await load();
+    if (!S.place || !(await winAlive(S.win[1]) || await winAlive(S.win[2]))) return;
+    const displays = await chrome.system.display.getInfo();
+    let place = TvsLogic.pickDisplays(displays, null);
+    if (S.place.swapped) place = { 1: place[2], 2: place[1] };
+    S.place = Object.assign({}, S.place, { 1: place[1], 2: place[2] });
+    for (const n of [1, 2]) await ensurePlaced(S, n);
+    await save(S);
+  }), 1500);
+});
+
+// 指示75 3-3（A26）：あそびまちが開けない（名前が引けない・つながらない）→ エラーの画面のままにしない。30秒ごとと、見えた時に開き直す
+chrome.webNavigation.onErrorOccurred.addListener((d) => {
+  if (d.frameId !== 0 || /ERR_ABORTED/.test(d.error || '')) return;
+  queue(async () => {
+    const S = await load();
+    if (![1, 2].some((n) => (S.tabs[n] || {}).asobi === d.tabId)) return;
+    S.asobiErr = Object.assign({}, S.asobiErr, { [d.tabId]: Date.now() });
+    await save(S);
+    chrome.alarms.create('asobi-retry', { periodInMinutes: 0.5 });
+    // 10秒後にも開き直す（また開けなければ、ここにもう一度来て10秒後に）。裏の処理が眠っても、30秒ごとの見張り（alarms）が残る
+    setTimeout(() => queue(async () => { const S2 = await load(); if (S2.asobiErr && S2.asobiErr[d.tabId] && await tabAlive(d.tabId)) { try { await chrome.tabs.reload(d.tabId); } catch (e) {} } }), 10000);
+  });
+});
+chrome.webNavigation.onCompleted.addListener((d) => {
+  if (d.frameId !== 0) return;
+  queue(async () => {
+    const S = await load();
+    if (!S.asobiErr || !S.asobiErr[d.tabId]) return;
+    const e = Object.assign({}, S.asobiErr); delete e[d.tabId];
+    S.asobiErr = e;
+    await save(S);
+    if (!Object.keys(e).length) chrome.alarms.clear('asobi-retry');
+  });
+});
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name !== 'asobi-retry') return;
+  queue(async () => {
+    const S = await load();
+    const ids = Object.keys(S.asobiErr || {}).map(Number);
+    if (!ids.length) { chrome.alarms.clear('asobi-retry'); return; }
+    for (const id of ids) { if (await tabAlive(id)) { try { await chrome.tabs.reload(id); } catch (e) {} } else { delete S.asobiErr[id]; } }
+    await save(S);
   });
 });
 

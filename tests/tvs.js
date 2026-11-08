@@ -521,6 +521,78 @@ async function screen(url, cookie, tv) {
     assertEqual(one[1].bounds.width + '/' + one[2].bounds.left + '/' + one[1].full, '960/960/false', '1つ：左右に分ける（全画面にしない）');
   });
 
+  // ===================== 指示75 束3（11/7 の本物の TV で見つけた直し）=====================
+  await r.test('指示75 3-4：画面が3つ以上の時は、主の画面（ノート PC）をのぞく。「はじめる」の画面が TV の上に開いていても、まちがえない', async () => {
+    const d = (id, left, primary) => ({ id, isPrimary: !!primary, bounds: { left, top: 0, width: 1920, height: 1080 } });
+    const ds = [d('sony', 0), d('dell', 1920), d('pc', 3840, true)];
+    const onTv = Logic.pickDisplays(ds, 'sony');   // 「はじめる」の画面が SONY の上に開いた（A29 (a)）
+    assertEqual(onTv[1].bounds.left + '/' + onTv[2].bounds.left, '0/1920', 'TV① は SONY・TV② は DELL（ノート PC はのぞく）');
+    const onPc = Logic.pickDisplays(ds, 'pc');
+    assertEqual(onPc[1].bounds.left + '/' + onPc[2].bounds.left, '0/1920', 'PC の上で押しても同じ');
+    const noPrimary = Logic.pickDisplays([d('a', 0), d('b', 1920), d('c', 3840)], 'c');
+    assertEqual(noPrimary[1].bounds.left + '/' + noPrimary[2].bounds.left, '0/1920', '主の画面が分からない時は、今までどおり押した画面をのぞく');
+    assertEqual(Logic.homeDisplay(ds).id, 'pc', '「はじめる」の画面を置く所は、主の画面');
+  });
+
+  await r.test('指示75 3-7：左右の名前。TV① が左なら「左」。入れかえたら名前も入れかわる', async () => {
+    const L = { bounds: { left: 0, top: 0, width: 1920, height: 1080 } }, R = { bounds: { left: 1920, top: 0, width: 1920, height: 1080 } };
+    assertEqual(Logic.sideOf({ 1: L, 2: R }, 1) + '/' + Logic.sideOf({ 1: L, 2: R }, 2), 'left/right', 'ふつう');
+    assertEqual(Logic.sideOf({ 1: R, 2: L, swapped: true }, 1) + '/' + Logic.sideOf({ 1: R, 2: L, swapped: true }, 2), 'right/left', '入れかえたら逆');
+    assertEqual(Logic.sideOf(null, 1), null, '置き場所が分からない時は出さない');
+  });
+
+  await r.test('指示75 3-1：読み込んでから20秒・あそびまちの準備の間・「はじめる」から20秒の音は、呼び出しに数えない', async () => {
+    const t = 100000;
+    assertEqual(Logic.chimeCounts({ now: t, loadedAt: t - 5000 }), false, '読み込んで5秒（「押すと始まります」の音）');
+    assertEqual(Logic.chimeCounts({ now: t, loadedAt: t - 19000 }), false, '19秒');
+    assertEqual(Logic.chimeCounts({ now: t, loadedAt: t - 21000 }), true, '21秒たったら数える');
+    assertEqual(Logic.chimeCounts({ now: t, loadedAt: t - 60000, guide: true }), false, 'あそびまちの準備の間');
+    assertEqual(Logic.chimeCounts({ now: t, loadedAt: t - 60000, startedAt: t - 3000 }), false, '「はじめる」の直後');
+    assertEqual(Logic.chimeCounts({ now: t, loadedAt: t - 60000, chimeAt: t - 5000 }), false, '10秒に1回まで');
+    assertEqual(Logic.chimeCounts({ now: t, loadedAt: t - 60000, chimeAt: t - 11000 }), true, '11秒前なら数える');
+  });
+
+  await r.test('指示75 3-2：置き直しの決め。もう正しい画面で全画面なら何もしない（窓を一瞬ふつうにしない）。同じ画面でふつうなら全画面だけ。別の画面なら動かす', async () => {
+    const p = { bounds: { left: 1920, top: 0, width: 1920, height: 1080 }, full: true };
+    assertEqual(Logic.placeStep({ state: 'fullscreen', left: 1920, top: 0, width: 1920, height: 1080 }, p), 'none', '正しい所で全画面');
+    assertEqual(Logic.placeStep({ state: 'normal', left: 2000, top: 40, width: 1200, height: 800 }, p), 'full', '同じ画面で全画面が外れた（Esc・F11）：全画面にもどすだけ');
+    assertEqual(Logic.placeStep({ state: 'maximized', left: 1912, top: -8, width: 1936, height: 1096 }, p), 'full', '同じ画面で最大化');
+    assertEqual(Logic.placeStep({ state: 'fullscreen', left: 0, top: 0, width: 1920, height: 1080 }, p), 'move', '別の画面へ動いていた（TV の電源・入力の切りかえ）');
+    assertEqual(Logic.placeStep({ state: 'normal', left: 0, top: 0, width: 800, height: 600 }, Object.assign({}, p, { full: false })), 'move', '全画面にしない置き方（画面が1つ）は大きさを合わせる');
+  });
+
+  await r.test('指示75 3-8：TV 専用の印のページ（/tvs/mark）はログイン無しで開ける。字だけ（スクリプト・あそびまちの事は出さない）', async () => {
+    const srv = await startTestServer();
+    try {
+      const res = await fetch(srv.url + '/tvs/mark');
+      const t = await res.text();
+      assertEqual(res.status, 200, 'ログイン無しで開ける');
+      assert(/TV 専用/.test(t), '字');
+      assert(t.indexOf('<script') === -1 && !/asobi|あそびまち|key/i.test(t), 'スクリプトも、あそびまちの事も無い');
+      const m = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', 'tv-switcher', 'extension', 'manifest.json'), 'utf8'));
+      assert(m.content_scripts.some((c) => c.js.indexOf('tv-mark.js') !== -1 && c.matches.every((u) => /\/tvs\/mark\*$/.test(u))), '拡張機能の tv-mark.js は /tvs/mark だけで動く');
+      const cmd = require('fs').readFileSync(require('path').join(__dirname, '..', 'tv-switcher', 'TVを開く.cmd'), 'utf8');
+      assert(/\/tvs\/mark"/.test(cmd), 'TVを開く.cmd は /tvs/mark を開く');
+    } finally { await srv.close(); }
+  });
+
+  await r.test('指示75 3-7：休けいのタブが左右を教えると、リモコンの状態に入る（リモコンは「TV①（左）」と出す）', async () => {
+    const srv = await startTestServer();
+    try {
+      const staff = await login(srv.url, STAFF);
+      const s1 = await screen(srv.url, staff, 1);
+      const rm = await dev(srv.url, staff, { as: 'remote' });
+      s1.socket.emit('tvs:pong', { ext: true, side: 'right' });
+      await until(() => rm.state && rm.state.tvs[1].side === 'right', '右が届く');
+      s1.socket.emit('tvs:pong', { ext: true, side: 'up' });
+      await sleep(100);
+      assertEqual(rm.state.tvs[1].side, 'right', '左右のほかの字は受けとらない');
+      const html = require('fs').readFileSync(require('path').join(__dirname, '..', 'tv-switcher', 'pages', 'remote.html'), 'utf8');
+      assert(/SIDE\s*=\s*\{\s*left:\s*'左'/.test(html) && /tvLabel\(/.test(html), 'リモコンは左右の名前を TV の名前に付ける（tvLabel）');
+      [s1, rm].forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   // 指示75 2-10（くまくんの決め）：切りかえの記録の全部に、検索としぼり込み（だれが・何を・TV・時刻）。係だけ
   await r.test('指示75 2-10：切りかえの記録（/tvs/log）は係だけ。字で検索・TV でしぼれる', async () => {
     const srv = await startTestServer();

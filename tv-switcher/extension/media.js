@@ -43,4 +43,7 @@
   // 「はじめる」の画面でえらび直したら、その物だけ出し直す（ページは開き直さない）
   chrome.runtime.onMessage.addListener((m) => { if (m && m.t === 'media-changed' && m.id === id) draw(); });
   draw();
+  // 指示75 3-2：窓の大きさが変わった → 裏の処理に置き直しを頼む（notice.js と同じ。拡張機能のページには notice.js が入らないので、ここでも）
+  let rt = null;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { chrome.runtime.sendMessage({ t: 'place-check' }).catch(() => {}); }, 150); });
 })();

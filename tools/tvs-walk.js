@@ -114,6 +114,8 @@ async function until(fn, label, ms) {
   const log = fs.openSync(path.join(OUT, 'server.log'), 'w');
   const srv = spawn(process.execPath, ['tools/dev-server.js'], { cwd: ROOT, stdio: ['ignore', log, log],
     env: Object.assign({}, process.env, { PORT: String(PORT), TVS_ASOBI_URL: 'http://127.0.0.1:' + MON + '/monitor?key=FAKE-NOT-REAL' }) });
+  monitor.__socks = new Set();
+  monitor.on('connection', (sk) => { monitor.__socks.add(sk); sk.on('close', () => monitor.__socks.delete(sk)); });
   await new Promise((r) => monitor.listen(MON, '127.0.0.1', r));
   await until(async () => (await fetch(BASE + '/api/fes/current')).ok, 'サーバー');
 
@@ -151,6 +153,16 @@ async function until(fn, label, ms) {
     await scall('tvs:settings', { auto: undefined, rot: { 1: [], 2: [{ item: 'menu', sec: 20 }, { item: 'asobi', sec: 20 }, { item: 'video', sec: null }] }, chime: true, fesBack: true, rest: '準備中です', notice: { 1: '', 2: '' } });
     await scall('tvs:auto', { tv: 1, on: false }); await scall('tvs:auto', { tv: 2, on: false });
     await scall('tvs:items:update', { id: 'video', sound: false });
+    // 指示75 3-8：TV 専用の印が無い Chrome では「はじめる」を押せない（大きな札）。印のページ（/tvs/mark）を開くと押せる
+    await sleep(3500);   // 「はじめる」の画面は3秒ごとに状態を読み直す
+    const 印の前 = await ev(start, '({ 押せない: document.getElementById("start").disabled, 札: getComputedStyle(document.getElementById("notTv")).display !== "none" })');
+    const r0 = await sv('chrome.runtime.sendMessage({ t: "start", server: ' + JSON.stringify(BASE) + ' })');
+    await cdp('Target.createTarget', { url: BASE + '/tvs/mark', newWindow: false });
+    await until(async () => (await sv('chrome.storage.local.get("S").then((v) => !!(v.S && v.S.tvProfile))')), 'TV 専用の印', 15000);
+    await sleep(3500);
+    const 印の後 = await ev(start, '({ 押せない: document.getElementById("start").disabled, 札: getComputedStyle(document.getElementById("notTv")).display !== "none" })');
+    const markTabs = (await targets()).filter((t) => t.type === 'page' && /\/tvs\/mark/.test(t.url)).length;
+    note('75 3-8 TV 専用の印', { 印の前: 印の前, 裏から押しても: r0 && r0.error, 印の後: 印の後, 印のタブ: markTabs ? '残っている' : '閉じた' });
     await ev(start, 'document.getElementById("server").value = ' + JSON.stringify(BASE) + '; document.getElementById("start").click(); true');
     const S = () => sv('chrome.storage.local.get("S").then((v) => v.S)');
     await until(async () => { const s = await S(); return s && Object.keys(s.tabs[1] || {}).length === 5 && Object.keys(s.tabs[2] || {}).length === 5; }, '窓2つ・タブ5つずつ', 30000);
@@ -288,6 +300,7 @@ async function until(fn, label, ms) {
     }
     await cdp('Emulation.clearDeviceMetricsOverride', {}, rs);
 
+    await part75({ remote, press, sv, S, pick, ev, start, scall, BASE });
     await part2({ remote, press, sv, S, pick, staff: cx.staff });
     // 門14：あつまれの TV を裏にしたまま、文化祭の部屋を回す
     if (HIDDEN_MIN > 0) await hidden(remote, press, sv, S, born);
@@ -385,6 +398,58 @@ async function hidden(remote, press, sv, S, born) {
     note('門14 にせのモニターの setInterval(2秒) の間', { 回: iv.length, はじめ5分の最大ms: mx(early), 五分より後の最大ms: mx(late) });
   }
   bots.forEach((b) => b.close()); staff.close();
+}
+
+// ---- 指示75 束3：呼び出しのまちがい・全画面を自分でもどす・あそびまちが開けない時 ----
+async function part75(c) {
+  const chimes = async () => ((await new Promise((r) => c.scall('tvs:state', {}, r))) || {}).log;
+  const logNow = async () => { const st = await fetch(c.BASE + '/tvs', {}); void st; };
+  void logNow;
+  // 3-1：「はじめる」を5回（3秒おき）と、あそびまちのタブの読み込み直し → 呼び出しは0回
+  const before = (await c.sv('chrome.storage.local.get("S").then((v) => v.S.chimeAt || 0)'));
+  for (let i = 0; i < 5; i++) { await c.ev(c.start, 'document.getElementById("start").click(); true'); await sleep(3000); }
+  await c.sv('chrome.storage.local.get("S").then((v) => Promise.all([1, 2].map((n) => chrome.tabs.reload(v.S.tabs[n].asobi))))');
+  await sleep(6000);
+  const after = (await c.sv('chrome.storage.local.get("S").then((v) => v.S.chimeAt || 0)'));
+  note('75 3-1 はじめる5回＋あそびまちの読み込み直し：呼び出しに数えた', after > before ? 'あり（まちがい）' : '0回');
+  // 3-1 の裏：20秒をすぎたら、本物の呼び出し（にせのモニターが鳴る）は数える（数えない時間を足しすぎていない）
+  await sleep(21000);
+  callAt = Date.now();
+  const ok31 = await until(async () => (await c.sv('chrome.storage.local.get("S").then((v) => v.S.chimeAt || 0)')) > after, '20秒すぎの呼び出し', 15000).then(() => true).catch(() => false);
+  note('75 3-1 20秒をすぎた本物の呼び出し', ok31 ? '数えた' : '数えなかった（まちがい）');
+
+  // 3-2：TV① の全画面を外す（Esc の代わり）→ 自分でもどるまで
+  const S0 = await c.S();
+  const 状態 = (tv) => c.sv('chrome.windows.get(' + S0.win[tv] + ').then((w) => w.state)');
+  await c.sv('self.__bc = []; chrome.windows.onBoundsChanged.addListener((w) => self.__bc.push(w.id + ":" + w.state)); true');
+  await c.sv('chrome.windows.update(' + S0.win[1] + ', { state: "normal" }).then(() => true)');
+  const t0 = Date.now();
+  let back = null;
+  while (Date.now() - t0 < 5000) { if ((await 状態(1)) === 'fullscreen') { back = Date.now() - t0; break; } await sleep(50); }
+  note('75 3-2 全画面を外した → もどるまで（ms）', back == null ? 'もどらない' : back);
+  note('75 3-2 （調べ）窓の大きさが変わった知らせ・今の状態・placingUntil', { 知らせ: await c.sv('self.__bc'), 今: await 状態(1), placing: (await c.S()).placingUntil - Date.now() });
+  // 3-2：TV② にあそびまちを出したまま「はじめる」を押し直す → TV② の窓は一度もふつうの大きさにならない（アドレス欄に URL が出ない）
+  // 直前の本物の呼び出しで TV② がもうあそびまちのことがある。いったん休けいにしてから
+  if ((await c.S()).active[2] === 'asobi') await c.press(2, 'rest');
+  await c.press(2, 'asobi');
+  await c.sv('self.__ws = []; self.__wt = setInterval(() => chrome.windows.get(' + S0.win[2] + ').then((w) => self.__ws.push(w.state)), 30); true');
+  await c.ev(c.start, 'document.getElementById("start").click(); true');
+  await sleep(2500);
+  const ws = await c.sv('(clearInterval(self.__wt), Array.from(new Set(self.__ws)))');
+  note('75 3-2 あそびまちを出したまま はじめる を押し直した時の TV② の窓', ws);
+  await c.press(2, 'rest');
+
+  // 3-3：あそびまちを開けない形（にせのモニターを止める）→ TV② のあそびまちを読み込み直す → エラーの画面 → モニターをもどす → 30秒以内に自分で開き直す
+  await new Promise((r) => monitor.close(r));
+  for (const sk of monitor.__socks || []) { try { sk.destroy(); } catch (e) {} }
+  await c.sv('chrome.storage.local.get("S").then((v) => chrome.tabs.reload(v.S.tabs[2].asobi))');
+  await until(async () => Object.keys((await c.S()).asobiErr || {}).length > 0, 'あそびまちが開けない形', 15000).catch(() => null);
+  const errSeen = Object.keys((await c.S()).asobiErr || {}).length;
+  await new Promise((r) => monitor.listen(MON, '127.0.0.1', r));
+  const t1 = Date.now();
+  const ok = await until(async () => Object.keys((await c.S()).asobiErr || {}).length === 0, 'あそびまちがもどる', 45000).then(() => true).catch(() => false);
+  note('75 3-3 あそびまちが開けない → もどしてから自分で開き直すまで（秒）', { 開けない形になった: errSeen > 0, もどった: ok, 秒: +((Date.now() - t1) / 1000).toFixed(1) });
+  void chimes;
 }
 
 // ---- 二の束（指示69）：お知らせの一言・休けいの字・動画の音・自動で回す・呼び出し・記録 ----

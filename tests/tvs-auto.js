@@ -103,6 +103,23 @@ function world(opt) {
     assert(w.log.length > 0 && w.log.every((x) => /auto$/.test(x)), 'だれもいなくなったら回し始める（' + w.log.join('|') + '）');
   });
 
+  // 指示75 3-6（A24(b)・11/7 の本物の TV で起きた）：TV② にあつまれを出している時、投票・準備・結果の間に呼び出しが鳴ると30秒あそびまちへ行っていた。
+  // 人がいる間（呼び込み idle 以外）は、回すのと同じく呼び出しでも動かさない
+  for (const phase of ['lobby', 'vote', 'decide', 'ready', 'result']) {
+    await r.test('指示75 3-6：TV② にあつまれを出していて人がいる間（' + phase + '）は、呼び出しでも動かさない', async () => {
+      const w = world({ phase, settings: { auto: { 1: false, 2: false } } });
+      w.screens[2] = { item: 'fes' };
+      w.chime(); w.run(40);
+      assertEqual(w.log.join('|'), '', 'TV② はあつまれのまま');
+    });
+  }
+  await r.test('指示75 3-6：呼び込み（idle）の間は、TV② にあつまれを出していても呼び出しで あそびまちへ（今までどおり）', async () => {
+    const w = world({ phase: 'idle', settings: { auto: { 1: false, 2: false } } });
+    w.screens[2] = { item: 'fes' };
+    w.chime(); w.run(31);
+    assertEqual(w.log.join('|'), '0s TV2 asobi chime|30s TV2 fes chime-end', 'あそびまちへ行って、もどる');
+  });
+
   await r.test('ゲーム中でも、あつまれを映していない TV は回る。呼び出しも TV② があつまれでなければ出す', async () => {
     const w = world({ phase: 'play' });
     w.screens[1] = { item: 'fes' };

@@ -7,7 +7,9 @@
     "tabs",
     "storage",
     "unlimitedStorage",
-    "system.display"
+    "system.display",
+    "webNavigation",
+    "alarms"
   ],
   "host_permissions": [
     "https://aresoredorekore.duckdns.org/*",
@@ -31,6 +33,17 @@
         "bridge.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://aresoredorekore.duckdns.org/tvs/mark*",
+        "http://localhost/tvs/mark*",
+        "http://127.0.0.1/tvs/mark*"
+      ],
+      "js": [
+        "tv-mark.js"
+      ],
+      "run_at": "document_idle"
     },
     {
       "matches": [

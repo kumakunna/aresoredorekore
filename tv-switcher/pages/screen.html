@@ -85,7 +85,7 @@
   socket.on('tvs:items', function(p){ ext({ t: 'sync', tv: tv, items: p.items }, 8000); });
   socket.on('tvs:reload', function(p){ ext({ t: 'reload', tv: tv, item: p.item }); });
   socket.on('tvs:ping', function(){
-    ext({ t: 'ping', tv: tv }).then(function(p){ socket.emit('tvs:pong', { ext: !!p, have: p && p.have, durations: p && p.durations, stuck: p ? !!p.stuck : undefined }); });
+    ext({ t: 'ping', tv: tv }).then(function(p){ socket.emit('tvs:pong', { ext: !!p, have: p && p.have, durations: p && p.durations, stuck: p ? !!p.stuck : undefined, side: p && p.side }); });
   });
 })();
 </script>

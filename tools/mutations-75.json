@@ -228,5 +228,59 @@
   "from": "    if(FES_LATE_ERRORS.indexOf(res.error) === -1) showQuietNote",
   "to": "    showQuietNote",
   "expect": "一言を出さない"
+ },
+ {
+  "name": "75-3-1 読み込み直後も数える",
+  "file": "tv-switcher/extension/logic.js",
+  "suite": "tests/tvs.js",
+  "only": "3-1",
+  "from": "    if (o.loadedAt && o.now - o.loadedAt < CHIME_QUIET_MS) return false;",
+  "to": "",
+  "expect": "読み込んで5秒"
+ },
+ {
+  "name": "75-3-2 いつも動かす",
+  "file": "tv-switcher/extension/logic.js",
+  "suite": "tests/tvs.js",
+  "only": "3-2",
+  "from": "    if (p.full) return w.state === 'fullscreen' ? 'none' : 'full';",
+  "to": "    if (p.full) return 'move';",
+  "expect": "正しい所で全画面"
+ },
+ {
+  "name": "75-3-4 主の画面をのぞかない",
+  "file": "tv-switcher/extension/logic.js",
+  "suite": "tests/tvs.js",
+  "only": "3-4",
+  "from": "ds = ds.filter((d) => d.id !== (pri ? pri.id : startDisplayId));",
+  "to": "ds = ds.filter((d) => d.id !== startDisplayId);",
+  "expect": "SONY"
+ },
+ {
+  "name": "75-3-6 人がいても呼び出しで動かす",
+  "file": "tvs-auto.js",
+  "suite": "tests/tvs-auto.js",
+  "only": "3-6",
+  "from": " || locked(ctx, tv) || peopleOnFes(ctx, tv)) return [];",
+  "to": " || locked(ctx, tv)) return [];",
+  "expect": "あつまれのまま"
+ },
+ {
+  "name": "75-3-7 左右を受けとらない",
+  "file": "tvs-routes.js",
+  "suite": "tests/tvs.js",
+  "only": "3-7",
+  "from": "        if (p && (p.side === 'left' || p.side === 'right')) L.side = p.side;",
+  "to": "",
+  "expect": "右が届く"
+ },
+ {
+  "name": "75-3-8 印のページが無い",
+  "file": "tvs-routes.js",
+  "suite": "tests/tvs.js",
+  "only": "3-8",
+  "from": "  app.get('/tvs/mark', (req, res) =>",
+  "to": "  app.get('/tvs/mark-x', (req, res) =>",
+  "expect": "ログイン無しで開ける"
  }
 ]

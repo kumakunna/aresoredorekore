@@ -490,7 +490,8 @@ async function 入った(o) {
     b2.dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
     await sleep(win, 650);
     b2.dispatchEvent(new win.Event('pointerup', { bubbles: true }));
-    b2.click();                                  // 指を上げた時の click
+    // 指を上げた時の click（長押しで係の画面が描き直されるので、いまのボタンを押す。外れた古いボタンを押しても何も起きない）
+    scr.querySelector('[data-fes-kick="m2"]').click();
     await sleep(win, 30);
     const dlg = scr.querySelector('[data-v2-id="v2KickWait"]');
     assert(dlg.classList.contains('is-open'), '長押しで「しばらく入れない」の枠');

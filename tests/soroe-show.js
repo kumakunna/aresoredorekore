@@ -78,6 +78,78 @@ const ButtonScenes = require('../tools/v2-lab/button-scenes');
     assert(box.querySelector('.v2-sog-rk.is-still'), '下のまま');
   });
 
+  // ===================== 指示75 2-7（くまくんの直し案・11/7 23:03）：言葉で決めた所だけ =====================
+  const TV描く = (id, edit) => {
+    const lab = ButtonScenes.view(id);
+    const data = JSON.parse(JSON.stringify(lab.room.state.data));
+    if (edit) edit(data);
+    const v = { data, members: lab.room.members, meId: 'tv', you: {}, fes: { inset: 0 }, end: Date.now() + 8000 };
+    box.innerHTML = W.V2Soroe.tv(v);
+    return v;
+  };
+  const 字 = () => box.textContent.replace(/\s+/g, ' ');
+  await r.test('指示75 2-7 b・c・f：TV のゲーム中（1〜5回目）は、左上は「n/5回目」だけ。合図の札・「今日の最高」・縦のロゴは出さない', async () => {
+    for (const signal of ['count', 'fade', 'seeno']) {
+      TV描く('so-tv-launch', (d) => { d.signal = signal; d.best = 470; d.round = 2; });
+      assert(box.querySelector('.v2-opill') && /2\/5回目/.test(box.querySelector('.v2-opill').textContent), signal + '：n/5回目');
+      assert(!box.querySelector('.v2-omode'), signal + '：横の札（合図の名前）は出さない');
+      assert(!box.querySelector('.v2-sobest') && !/今日の最高/.test(字()), signal + '：「今日の最高」は出さない');
+      assert(!box.querySelector('.v2-tbrand'), signal + '：縦の「ATSUMARE AREKORE.」は出さない');
+    }
+  });
+
+  await r.test('指示75 2-7 c：5回目の「点が2倍」は TV に残す', async () => {
+    TV描く('so-tv-launch', (d) => { d.round = 5; d.double = true; });
+    assert(box.querySelector('.v2-ptx2') && /点が2倍/.test(box.querySelector('.v2-ptx2').textContent), '点が2倍');
+  });
+
+  await r.test('指示75 2-7 d：TV から長い文を消し、1語だけ（せーのの回は「せーの！」・カウントの回は数字の箱だけ）', async () => {
+    const T = W.UiText.SOROE;
+    for (const signal of ['count', 'fade', 'seeno']) {
+      TV描く('so-tv-launch', (d) => { d.signal = signal; });
+      [T.ゼロで押す, T.消える説明, T.せーの説明].forEach((s) => assert(字().indexOf(s.replace(/\s+/g, ' ')) === -1, signal + '：TV に長い文が無い（' + s + '）'));
+      assert(!box.querySelector('.v2-sosig .v2-hint'), signal + '：説明の札が無い');
+    }
+    TV描く('so-tv-launch', (d) => { d.signal = 'seeno'; });
+    assertEqual(box.querySelector('.v2-sosig').textContent.trim(), T.せーの, 'せーのの回は「せーの！」だけ');
+  });
+
+  await r.test('指示75 2-7 d：カウントが消える回は、数字が消えた後の箱に「？」（止まったように見せない）。TV だけ', async () => {
+    const f = W.V2Soroe.countText;
+    assert(typeof f === 'function', '数えの字を決める所が1か所にある');
+    assertEqual(f(2500, 1000, 'fade', true), '3', '3');
+    assertEqual(f(1500, 1000, 'fade', true), '2', '2');
+    assertEqual(f(500, 1000, 'fade', true), '？', 'TV：1 からは「？」');
+    assertEqual(f(-200, 1000, 'fade', true), '？', 'TV：0 のあとも「？」');
+    assertEqual(f(500, 1000, 'fade', false), '', 'スマホは今のまま（消える）');
+    assertEqual(f(500, 1000, 'count', true), '1', 'ふつうの回は 1');
+    assertEqual(f(-10, 1000, 'count', true), '0', 'ふつうの回は 0');
+    assertEqual(f(3500, 1000, 'count', true), '', '3秒より前は出さない');
+  });
+
+  await r.test('指示75 2-7 d：スマホに説明を大きく（見出しと発射ボタンの間）。「スマホの数字で押してね」も（くまくんの答え 4.A）', async () => {
+    const T = W.UiText.SOROE;
+    for (const [signal, want] of [['count', T.ゼロで押す], ['fade', T.消える説明], ['seeno', T.せーの説明]]) {
+      const lab = ButtonScenes.view('so-launch');
+      const data = JSON.parse(JSON.stringify(lab.room.state.data)); data.signal = signal;
+      box.className = 'screen v2 v2-scr';
+      box.innerHTML = W.V2Soroe.phone({ data, members: lab.room.members, meId: 'm1', you: {}, local: { ready: true } });
+      const g = box.querySelector('.v2-soguide');
+      assert(g && g.textContent.indexOf(want) !== -1, signal + '：説明が大きな札で出る');
+      if (signal !== 'seeno') assert(/スマホの数字/.test(g.textContent), signal + '：スマホの数字で押してね');
+      assert(box.querySelector('[data-so-fire]'), signal + '：発射ボタンはある');
+    }
+    box.className = 'screen v2 v2-tv is-play';
+  });
+
+  await r.test('指示75 2-7 b・f：結果の画面には「今日の最高」と縦のロゴがもどる', async () => {
+    const lab = ButtonScenes.view('so-result');
+    const v = { data: lab.room.state.data, members: lab.room.members, meId: 'tv', you: {}, fes: { inset: 0 }, end: Date.now() + 8000 };
+    box.innerHTML = W.V2Soroe.tv(v);
+    assert(box.querySelector('.v2-tbrand'), '縦のロゴ');
+    if (lab.room.state.data.result && lab.room.state.data.result.dayBest != null) assert(/今日の最高/.test(字()), '今日の最高');
+  });
+
   t.win.close();
   r.finish();
 })();

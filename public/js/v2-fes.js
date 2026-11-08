@@ -546,7 +546,7 @@
     var inset = (view.fes && view.fes.inset) || 0;
     return '<div class="v2-tvc' + (o.cls ? ' ' + o.cls : '') + '" style="--v2-inset:' + inset + '">' +
       (o.layer || K().bgHtml({ names: o.names || people(view, true).map(function (m) { return m.name; }) })) +
-      K().brandHtml(true) + '<div class="v2-safe">' + inner + '</div></div>';
+      (o.noBrand ? '' : K().brandHtml(true)) + '<div class="v2-safe">' + inner + '</div></div>';   // 指示75 2-7 f：noBrand＝縦のロゴを出さない
   }
   /** F6 だれもいない：呼び込み（時計は回さない） */
   function tvIdle(view) {

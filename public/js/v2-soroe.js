@@ -23,18 +23,38 @@
   function isPlayer(view) {
     return ((view.data || {}).players || []).some(function (p) { return p.id === view.meId; });
   }
-  function topRow(view) {
+  /** 上の行。指示75 2-7 c：TV は「n/5回目」だけ（合図の名前の札は出さない）。5回目の「点が2倍」は残す */
+  function topRow(view, tv) {
     var d = view.data || {}, V = K(), t = T();
     return '<div class="v2-otop"><span class="v2-opill"><b class="v2-num">' + V.digits(d.round || 1) + '</b><small>/' + V.digits(d.total || 5) + '</small>' + e(t.回目) + '</span>' +
-      '<span class="v2-omode">' + e((t.合図 || {})[d.signal] || '') + '</span>' +
+      (tv ? '' : '<span class="v2-omode">' + e((t.合図 || {})[d.signal] || '') + '</span>') +
       (d.double ? '<span class="v2-ptx2">' + e(t.二倍) + '</span>' : '') + '</div>';
   }
-  /** 合図（スマホと TV で同じ）。数は index.html が [data-so-count] に入れる。せーのの回は数を出さない */
+  /**
+   * 合図（スマホと TV で同じ）。数は index.html が [data-so-count] に入れる（字は countText）。せーのの回は数を出さない。
+   * 指示75 2-7 d：説明の長い文は TV から消して、スマホに大きく（guideHtml）。TV に残すのは1語だけ（「せーの！」・数字の箱）
+   */
   function signalHtml(view, tv) {
     var d = view.data || {}, t = T();
-    if (d.signal === 'seeno') return '<div class="v2-sosig is-seeno' + (tv ? ' is-tv' : '') + '"><div class="v2-sosay">' + e(t.せーの) + '</div><div class="v2-hint v2-c">' + e(t.せーの説明) + '</div></div>';
-    return '<div class="v2-sosig' + (tv ? ' is-tv' : '') + '"><div class="v2-socount" data-so-count aria-live="off"></div>' +
-      '<div class="v2-hint v2-c">' + e(d.signal === 'fade' ? t.消える説明 : t.ゼロで押す) + '</div></div>';
+    if (d.signal === 'seeno') return '<div class="v2-sosig is-seeno' + (tv ? ' is-tv' : '') + '"><div class="v2-sosay">' + e(t.せーの) + '</div></div>';
+    return '<div class="v2-sosig' + (tv ? ' is-tv' : '') + '"><div class="v2-socount" data-so-count aria-live="off"></div></div>';
+  }
+  /** 指示75 2-7 d：スマホの説明（見出しと発射ボタンの間に大きく）。数える回は「スマホの数字を見て押してね」も（くまくんの答え 4.A：TV は少し遅れて見える） */
+  function guideHtml(view) {
+    var d = view.data || {}, t = T();
+    var main = d.signal === 'seeno' ? t.せーの説明 : (d.signal === 'fade' ? t.消える説明 : t.ゼロで押す);
+    return '<div class="v2-soguide"><p class="v2-soguide-m" data-v2-wrap>' + e(main) + '</p>' +
+      (d.signal === 'seeno' ? '' : '<p class="v2-soguide-s">' + e(t.スマホの数字) + '</p>') + '</div>';
+  }
+  /**
+   * 数えの字（index.html の soroeAfter が 20ms ごとに呼ぶ）。left：0 までのこり（ms）・step：1つの数の長さ。
+   * 3つ前より前は出さない。カウントが消える回は「1」から消える——指示75 2-7 d：TV は消えた後の箱に「？」（止まったように見せない）
+   */
+  function countText(left, step, signal, tv) {
+    var n = Math.ceil(left / step);
+    var txt = left > 3 * step ? '' : (n <= 0 ? '0' : String(n));
+    if (signal === 'fade' && n <= 1) txt = tv ? '？' : '';
+    return txt;
   }
 
   // ===================== スマホ =====================
@@ -49,7 +69,7 @@
     var loc = view.local || {}, you = view.you || {};
     var body = (loc.pressed || you.pressed)
       ? '<div class="v2-ptdone"><div class="v2-ptstop">' + e(t.押した) + '</div><div class="v2-hint v2-c" role="status">' + e(t.まって) + '</div></div>'
-      : signalHtml(view, false) + '<button type="button" class="v2-ptbtn v2-sobtn" data-so-fire' + (loc.ready ? '' : ' disabled') + '>' + e(loc.ready ? t.発射 : t.準備中) + '</button>';
+      : signalHtml(view, false) + guideHtml(view) + '<button type="button" class="v2-ptbtn v2-sobtn" data-so-fire' + (loc.ready ? '' : ' disabled') + '>' + e(loc.ready ? t.発射 : t.準備中) + '</button>';
     return head + '<div class="v2-in is-noband v2-oph v2-ptrun">' + topRow(view) + body + '</div>';
   }
 
@@ -82,9 +102,11 @@
   function columnHtml(k, tl) {
     var t = T();
     // ビルは最初の画面（柱の下 20%）に全部おさまる高さ。1段目で屋上を追いこす
-    var bld = [[2, 8, 8], [11, 7, 12], [19, 9, 9], [30, 6, 14], [62, 8, 11], [71, 7, 13], [79, 9, 8], [89, 8, 12]].map(function (b) {
-      return '<i class="v2-sobld" style="left:' + b[0] + '%;width:' + b[1] + '%;height:' + b[2] + '%"></i>';
-    }).join('');
+    // 指示75 2-7 e：遠くの影絵のビル。奥（is-far・明るい青灰色）と手前（is-near・少し濃い）の2段。高さはばらばら。まん中（発射台）はあける
+    var 奥 = [[0, 9, 12], [8, 7, 15], [16, 10, 10], [27, 8, 13], [33, 6, 9], [60, 7, 14], [67, 9, 10], [77, 8, 16], [86, 7, 11], [93, 8, 13]];
+    var 前 = [[3, 7, 6], [12, 8, 8.5], [22, 6, 5], [29, 7, 7], [63, 8, 7.5], [72, 6, 5.5], [81, 8, 8], [91, 7, 6]];
+    var bld = 奥.map(function (b) { return '<i class="v2-sobld is-far" style="left:' + b[0] + '%;width:' + b[1] + '%;height:' + b[2] + '%"></i>'; }).join('') +
+      前.map(function (b) { return '<i class="v2-sobld is-near" style="left:' + b[0] + '%;width:' + b[1] + '%;height:' + b[2] + '%"></i>'; }).join('');
     var 雲 = [[6, 44, 30], [44, 48, 26], [70, 45, 24], [22, 54, 20]].map(function (c) {
       return '<i class="v2-socloud" style="left:' + c[0] + '%;bottom:' + c[1] + '%;width:' + c[2] + '%"></i>';
     }).join('');
@@ -207,10 +229,10 @@
     var d = view.data || {}, t = T();
     if (d.phase === 'ended') return F().tvc(view, '<div class="v2-otv is-end">' + resultBody(view, true) + '</div>', { names: (d.players || []).map(function (p) { return p.name; }) });
     var layer = '<div class="v2-sowrap is-tv is-full">' + sceneHtml(view, true, d.phase === 'roundResult' ? '' : signalHtml(view, true)) + '</div>';
-    var inner = '<div class="v2-otv v2-sotv">' + topRow(view) +
-      (d.best != null && d.phase !== 'roundResult' ? '<div class="v2-sobest">' + e(t.今日の最高 + ' ' + d.best + t.点) + '</div>' : '') + '</div>';
-    return F().tvc(view, inner, { layer: layer });
+    // 指示75 2-7 b：「今日の最高」はゲーム中（1〜5回目）は出さない（結果の画面に残す）。f：縦のロゴもゲーム中は出さない（結果からもどる）
+    var inner = '<div class="v2-otv v2-sotv">' + topRow(view, true) + '</div>';
+    return F().tvc(view, inner, { layer: layer, noBrand: true });
   }
 
-  return { phone: phone, tv: tv, resultBody: resultBody, STEP: STEP, STEP_S: STEP_S, PLOP_S: PLOP_S, MARK: MARK, timeline: timeline };
+  return { phone: phone, tv: tv, resultBody: resultBody, countText: countText, guideHtml: guideHtml, STEP: STEP, STEP_S: STEP_S, PLOP_S: PLOP_S, MARK: MARK, timeline: timeline };
 });

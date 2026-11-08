@@ -159,5 +159,29 @@
   "from": "    if(room.fes){ rtSeenConnected = null; return; }",
   "to": "    void 0;",
   "expect": "出さない"
+ },
+ {
+  "name": "75-2-7b TV に今日の最高",
+  "file": "public/js/v2-soroe.js",
+  "suite": "tests/soroe-show.js",
+  "from": "    var inner = '<div class=\"v2-otv v2-sotv\">' + topRow(view, true) + '</div>';",
+  "to": "    var inner = '<div class=\"v2-otv v2-sotv\">' + topRow(view, true) + '<div class=\"v2-sobest\">今日の最高</div></div>';",
+  "expect": "今日の最高"
+ },
+ {
+  "name": "75-2-7f TV のゲーム中に縦のロゴ",
+  "file": "public/js/v2-soroe.js",
+  "suite": "tests/soroe-show.js",
+  "from": "{ layer: layer, noBrand: true }",
+  "to": "{ layer: layer }",
+  "expect": "縦の"
+ },
+ {
+  "name": "75-2-7d 消える回の？をやめる",
+  "file": "public/js/v2-soroe.js",
+  "suite": "tests/soroe-show.js",
+  "from": "txt = tv ? '？' : '';",
+  "to": "txt = '';",
+  "expect": "？"
  }
 ]

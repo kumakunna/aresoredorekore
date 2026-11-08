@@ -4741,6 +4741,19 @@
   .au-delta.minus{color:var(--stamp);}
 
 
+  /* 指示75 1-2：つなぎ直している間の幕。is-block＝押せない（透明）・is-show＝薄い幕と字の帯（0.25秒）。どの画面よりも上。
+     古い画面（scr-rt-*）にも出すので v2 の節の外に置く（v2 の規則は v2 の箱の中だけ・tests/v2.js） */
+  #rtStale{position:fixed;inset:0;z-index:2147483000;display:none;background:rgba(255,255,255,0);transition:background-color calc(.25s * var(--fx-scale,1)) ease;}
+  #rtStale.is-block{display:block;}
+  #rtStale.is-show{background:rgba(250,248,242,.55);}
+  #rtStale .rt-stale-band{position:absolute;left:16px;right:16px;top:calc(env(safe-area-inset-top,0px) + 16px);display:flex;align-items:center;justify-content:center;gap:10px;
+    min-height:52px;padding:10px 16px;border-radius:16px;background:rgba(28,30,40,.92);color:#fff;font-weight:900;font-size:17px;line-height:1.4;text-align:center;
+    opacity:0;transform:translateY(-8px);transition:opacity calc(.25s * var(--fx-scale,1)) ease,transform calc(.25s * var(--fx-scale,1)) ease;}
+  #rtStale.is-show .rt-stale-band{opacity:1;transform:none;}
+  #rtStale .rt-stale-dot{flex:none;width:12px;height:12px;border-radius:50%;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;animation:rt-stale-spin .8s linear infinite;}
+  @keyframes rt-stale-spin{to{transform:rotate(360deg);}}
+  :root.fx-skip #rtStale .rt-stale-dot{animation:none;}
+  @media (prefers-reduced-motion: reduce){ #rtStale .rt-stale-dot{animation:none;} #rtStale,#rtStale .rt-stale-band{transition:none;} }
   /* ===================================================================
      指示66：新しい見た目（v2）
      **古い画面と混ぜない。**ここから「v2 ここまで」の印までの規則は、すべて `.v2` の箱の中にだけ効く。
@@ -6202,17 +6215,6 @@
   .v2 .v2-adm-r.is-hidden .v2-adm-nm{color:var(--ws);}
   .v2 .v2-adm-tag{font-weight:900;font-size:12px;line-height:1;border-radius:999px;padding:5px 8px;background:var(--wdim);color:var(--wi);white-space:nowrap;}
   .v2 .v2-adm-b{border:2px solid var(--wl);background:transparent;color:var(--wi);border-radius:10px;font-weight:900;font-size:13px;min-height:44px;padding:0 10px;cursor:pointer;display:flex;align-items:center;gap:4px;flex:none;}
-  /* 指示75 1-2：つなぎ直している間の幕。is-block＝押せない（透明）・is-show＝薄い幕と字の帯（0.25秒）。どの画面よりも上 */
-  #rtStale{position:fixed;inset:0;z-index:2147483000;display:none;background:rgba(255,255,255,0);transition:background-color .25s ease;}
-  #rtStale.is-block{display:block;}
-  #rtStale.is-show{background:rgba(250,248,242,.55);}
-  #rtStale .rt-stale-band{position:absolute;left:16px;right:16px;top:calc(env(safe-area-inset-top,0px) + 16px);display:flex;align-items:center;justify-content:center;gap:10px;
-    min-height:52px;padding:10px 16px;border-radius:16px;background:rgba(28,30,40,.92);color:#fff;font-weight:900;font-size:17px;line-height:1.4;text-align:center;
-    opacity:0;transform:translateY(-8px);transition:opacity .25s ease,transform .25s ease;}
-  #rtStale.is-show .rt-stale-band{opacity:1;transform:none;}
-  #rtStale .rt-stale-dot{flex:none;width:12px;height:12px;border-radius:50%;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;animation:rt-stale-spin .8s linear infinite;}
-  @keyframes rt-stale-spin{to{transform:rotate(360deg);}}
-  @media (prefers-reduced-motion: reduce){ #rtStale .rt-stale-dot{animation:none;} #rtStale,#rtStale .rt-stale-band{transition:none;} }
   /* 指示75 1-6：「外す」の長押しで、字のえらび・メニュー（iPhone の長押しのふきだし）を出さない */
   .v2 .v2-adm-b[data-fes-kick]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
   .v2 .v2-adm-b.is-on{background:#141414;color:#fff;border-color:#141414;}

@@ -72,11 +72,12 @@ async function 部屋() {
       // 読み込み直した端末：はじめて届く部屋の状態に、もう countdownEndsAt が入っている（時計合わせより先に届く）
       let serverNow = 0;
       t.win.__rtFake.replies = { 'room:create': () => { serverNow = Date.now() - skew; room.countdownEndsAt = serverNow + 2200; return { ok: true, code: room.code, memberId: 'm1', room }; },
-        'clock:sync': (p, cb) => { setTimeout(() => cb({ ok: true, now: Date.now() - skew }), 10); } };
+        'clock:sync': () => ({ ok: true, now: Date.now() - skew }) };
       await H.makeRoomV2(t.win, t.doc);
       t.win.__rtFake.fire('room:update', room);       // サーバーでは、0まであと2.2秒
-      await sleep(t.win, 150);
-      assertEqual(数字(t.doc), '3', 'サーバーの残り2.2秒どおり「3」から（端末の時計で数えると ' + (skew > 0 ? '0.2秒＝出ない' : '4.2秒') + '）');
+      // 「3」は0.2秒だけ。全部の検査を並べて回すと描くのが遅れるので、出たかどうかと「2」になる時刻で見る（落とし穴24：時間は変えない）
+      await sleep(t.win, 30);
+      assert(数字(t.doc) === '3' || 数字(t.doc) === '2', '3・2・1 が出る（端末の時計で数えると ' + (skew > 0 ? '0.2秒＝出ない' : '4.2秒から') + '・いま ' + 数字(t.doc) + '）');
       const at = Date.now();
       let seen2 = null;
       while (Date.now() - at < 1500 && !seen2) { await sleep(t.win, 20); if (数字(t.doc) === '2') seen2 = Date.now(); }

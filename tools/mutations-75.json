@@ -97,5 +97,23 @@
   "from": "        if (Date.now() - lastHb > STALE_HB_MS) { setStale(true, 'silent'); lastHb = Date.now(); here(); }",
   "to": "        void STALE_HB_MS;",
   "expect": "22秒より長く"
+ },
+ {
+  "name": "75-2-11 文化祭の TV にも⚙",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "2-11",
+  "from": "(!fesTv && (rtIsBigScreen() ||",
+  "to": "(true && (rtIsBigScreen() ||",
+  "expect": "文化祭の TV で"
+ },
+ {
+  "name": "75-2-12 v2 の決まりを外す",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "2-12",
+  "from": "(id.indexOf('scr-v2-') !== 0 && noGear",
+  "to": "(true && noGear",
+  "expect": "古い浮いた"
  }
 ]

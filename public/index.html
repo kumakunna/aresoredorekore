@@ -15896,8 +15896,13 @@
     // **⚙が出ていれば出口がある。**
     // 到達しうる画面を手で並べて例外にすると、画面を足した日に漏れる（落とし穴4）——
     // 一覧を持たず、「大画面なら常に出す」という1つの規則にする
+    // 指示75 2-12：**v2 の画面（scr-v2-…）は古い浮いた ⚙ を出さない**（自分の ⚙ を右上に持つ）。一覧に足すのではなく1つの決まりに
+    //（早答え・数字ちかい方が一覧に無く、⚙ が2つ重なっていた・落とし穴4）。noGear に残っている scr-v2- の行は、この決まりの前からの物
+    // 指示75 2-11（くまくんの答え 1.C）：**文化祭の TV には、どの画面にも ⚙ を出さない**（代わりは係の画面とリモコン /tvs）。
+    // ふだんの部屋の大画面は、47-2 のまま出す
+    var fesTv = rtIsBigScreen() && !!fesRoom();
     el('floatingGearBtn').style.display =
-      (rtIsBigScreen() || (noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0))
+      (!fesTv && (rtIsBigScreen() || (id.indexOf('scr-v2-') !== 0 && noGear.indexOf(id) === -1 && id.indexOf('scr-set-') !== 0)))
         ? 'block' : 'none';
     // 第28弾-4：一個前に戻れる時だけ矢印を出す（押せない矢印は置かない）
     el('floatingBackBtn').style.display = canGoBackOne(id) ? 'flex' : 'none';

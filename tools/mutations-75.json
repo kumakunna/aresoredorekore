@@ -150,5 +150,14 @@
   "from": "    var day = jstDay(), asked = {};",
   "to": "    var day = new Date(Date.now()).toISOString().slice(0, 10), asked = {};",
   "expect": "同じ日の10時"
+ },
+ {
+  "name": "75-2-8 文化祭でもスマホに出す",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "2-8",
+  "from": "    if(room.fes){ rtSeenConnected = null; return; }",
+  "to": "    void 0;",
+  "expect": "出さない"
  }
 ]

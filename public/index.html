@@ -25956,6 +25956,8 @@
     // 別の部屋に移ったら覚えていたものは捨てる。
     // 残すと、入った瞬間に「戻りました」が出てしまう
     if(rtSeenCode !== room.code){ rtSeenConnected = null; rtSeenCode = room.code; }
+    // 指示75 2-8（くまくんの答え 6.A）：文化祭では、遊ぶ人のスマホと TV に出さない（係の画面だけ・fesStaffNotice）
+    if(room.fes){ rtSeenConnected = null; return; }
     var now = {};
     room.members.forEach(function(m){ now[m.id] = !!m.connected; });
     if(rtSeenConnected){
@@ -33199,6 +33201,20 @@
     if(kw && rt){ V2.close(b.closest('.v2-dlg')); var kid2 = fes.kickId; fes.kickId = null; if(kid2 && fes.staff) rt.fesKick(fes.staff.code, kid2, +kw[1]); return; }
   });
   /**
+   * 指示75 2-8（くまくんの答え 6.A）：「〇〇さんが席を外しました／もどりました」は、文化祭では係の画面だけに出す。
+   * 係は部屋の一員ではないので、係の名簿（fes:staff）の前と今をくらべる。今きたばかりの人・名簿から消えた人は言わない
+   */
+  function fesStaffNotice(prev, cur){
+    if(typeof FxKit === 'undefined' || !prev || !cur || prev.code !== cur.code) return;
+    if((document.querySelector('.screen.active') || {}).id !== 'scr-v2-fes-staff') return;
+    var was = {}; (prev.members || []).forEach(function(m){ was[m.id] = !!m.connected; });
+    (cur.members || []).forEach(function(m){
+      if(was[m.id] === undefined) return;
+      if(was[m.id] && !m.connected) FxKit.notice(m.name + 'さんが席を外しました');
+      if(!was[m.id] && m.connected) FxKit.notice(m.name + 'さんがもどりました', 'back');
+    });
+  }
+  /**
    * 係の「外す」：だれを外すかを決めて描き直し（枠の見出しに名前が入る）、枠を開く。名前は係の名簿のもの（係だけが見る画面）。
    * 指示75 1-6：wait（長押し）なら「しばらく入れない」の枠（30秒・1分・5分）
    */
@@ -34147,7 +34163,7 @@
       fesJoin();
     });
     rt.on('fes', function(){ var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-lobby') rtRenderCurrent(); });
-    rt.on('fesStaff', function(p){ fes.staff = p; var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-staff') fesRenderStaff(); });
+    rt.on('fesStaff', function(p){ fesStaffNotice(fes.staff, p); fes.staff = p; var cur = (document.querySelector('.screen.active') || {}).id; if(cur === 'scr-v2-fes-staff') fesRenderStaff(); });
   }
 
   // 指示71-1：部屋にいる間（予約して待っている間も）は、スマホと TV の画面を消さない（public/js/wake-keep.js・設定には無い・いつも入）。

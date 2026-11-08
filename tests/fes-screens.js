@@ -415,6 +415,40 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示75 2-8（くまくんの答え 6.A）：「〇〇さんが席を外しました／もどりました」は、文化祭では係の画面だけ（遊ぶ人のスマホと TV には出さない）
+  const 知らせの字 = (doc) => ((doc.getElementById('fxNotices') || {}).textContent || '');
+  await r.test('指示75 2-8：文化祭のスマホと TV には「席を外しました／もどりました」を出さない', async () => {
+    for (const asTv of [false, true]) {
+      const { win, doc } = await 入った();
+      const lab = FesScenes.view('fes2-lobby');
+      const room = JSON.parse(JSON.stringify(lab.room));
+      if (asTv) room.members.forEach((m) => { if (m.id === 'm1') m.role = 'bigscreen'; });
+      const other = room.members.find((m) => m.id !== 'm1' && m.role !== 'bigscreen');
+      win.__rtFake.fire('room:update', room); await sleep(win, 40);
+      const r2 = JSON.parse(JSON.stringify(room)); r2.members.find((m) => m.id === other.id).connected = false;
+      win.__rtFake.fire('room:update', r2); await sleep(win, 60);
+      win.__rtFake.fire('room:update', room); await sleep(win, 60);
+      assert(!/席を外しました|もどりました/.test(知らせの字(doc)), (asTv ? 'TV' : 'スマホ') + 'に出さない（' + 知らせの字(doc).slice(0, 60) + '）');
+      win.close();
+    }
+  });
+
+  await r.test('指示75 2-8：係の画面には「〇〇さんが席を外しました／もどりました」を出す', async () => {
+    const { win, doc } = await launch({ url: 'http://localhost/?fes=1&staff=1', fakeSocket: true });
+    const lab = FesScenes.view('fes2-staff');
+    const st = JSON.parse(JSON.stringify(lab.staff));
+    win.__rtFake.replies = { 'fes:watch': () => ({ ok: true, role: 'staff', room: lab.room, staff: st }) };
+    await waitFor(win, () => act(doc) === 'scr-v2-fes-staff', 6000, '係の画面');
+    win.__rtFake.fire('fes:staff', st); await sleep(win, 40);
+    const who = st.members.find((m) => m.connected);
+    const s2 = JSON.parse(JSON.stringify(st)); s2.members.find((m) => m.id === who.id).connected = false;
+    win.__rtFake.fire('fes:staff', s2); await sleep(win, 60);
+    assert(new RegExp(who.name + 'さんが席を外しました').test(知らせの字(doc)), '席を外した（' + 知らせの字(doc).slice(0, 60) + '）');
+    win.__rtFake.fire('fes:staff', st); await sleep(win, 60);
+    assert(new RegExp(who.name + 'さんがもどりました').test(知らせの字(doc)), 'もどった');
+    win.close();
+  });
+
   // 指示75 2-5（A33）：ひとことの箱の「1日」の区切りを日本の0時に（それまでは toISOString の UTC で、日本の朝9時に日が変わっていた）
   await r.test('指示75 2-5：感想を聞くのは日本の日付で1日1回（朝8時半に聞いたら、同じ日の10時には聞かない。次の日の朝には聞く）', async () => {
     const { win, doc } = await 入った();

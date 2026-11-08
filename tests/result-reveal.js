@@ -82,6 +82,22 @@ async function 場面(lab, screen, me) {
     t.win.close();
   });
 
+  await r.test('指示76 2-2（A5）：9人以上の2列の順位は縦の順（左の列が 1〜8位・右の列が 9〜16位）。出る動き（下から・1位は最後）はそのまま', async () => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const rule = (css.match(/\.v2 \.v2-otv \.v2-oranks\.is-c2\{[^}]*\}/) || [''])[0];
+    assert(/grid-auto-flow:column/.test(rule) && /grid-template-rows:repeat\(var\(--rk-rows\),\s*auto\)/.test(rule), '列ごとに上から下へ並べる：' + rule);
+    [[16, 8], [9, 5], [11, 6]].forEach(([n, rows]) => {
+      const html = V2.rankRevealHtml({ meId: 'tv' }, Array.from({ length: n }, (_, i) => ({ id: 'm' + i, name: 'p' + i, rank: i + 1, score: 10 - i })), true, '点');
+      const box = W.doc.createElement('div'); box.innerHTML = html;
+      const list = box.querySelector('.v2-oranks.is-c2');
+      assert(list, n + '人は2列');
+      assertEqual(list.style.getPropertyValue('--rk-rows').trim(), String(rows), n + '人：左の列は ' + rows + '行');
+      // 並べる順は順位の順のまま（列の中で上から）。出る遅れも前と同じ（下の順位ほど早い）
+      const ranks = Array.from(list.querySelectorAll('.v2-rk .v2-rk-n')).map((x) => x.textContent);
+      assertEqual(ranks.join(','), Array.from({ length: n }, (_, i) => String(i + 1)).join(','), '順位の順');
+    });
+  });
+
   W.win.close();
   r.finish();
 })();

@@ -747,6 +747,9 @@
     padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;z-index:82;opacity:0;transition:opacity .3s;pointer-events:none;
   }
   .foul-toast.show{opacity:1;}
+  /* 指示76 2-10：解除中（新しい見た目）のライフの知らせは「解除ずみ」の字と入れかわる（ライフのすぐ下・押す物に重ねない） */
+  .v2 .v2-pnum .v2-pmiss{font-weight:900;font-size:15px;color:#FF8A8A;white-space:nowrap;}
+  .v2 .v2-pnum.is-miss > span:not(.v2-pmiss){display:none;}
 
   /* ==========================================================
      第32弾-C：演出の共通部品（js/fx.js から使う）
@@ -5567,7 +5570,8 @@
   /* 札は透けない色（うしろを通る旗の棒と点の棒が、字の上に見えない） */
   .v2 .v2-q2line .v2-ptp-tag{background:color-mix(in srgb,var(--won) 88%,var(--wi));}
   .v2 .v2-q2line .v2-ptwin{min-width:960px;max-width:100%;justify-content:center;padding:8px 40px;border-width:5px;}
-  .v2 .v2-q2line .v2-ptwin-n{line-height:1.15;max-width:1200px;}
+  /* 指示76 2-4（A7）：名前は 140px まで大きくなる。字の箱を英字の高さで切ると（.v2 * の text-box）、日本語の字が札の上下からはみ出した。行の箱を字の高さに */
+  .v2 .v2-q2line .v2-ptwin-n{line-height:1.15;max-width:1200px;text-box:normal;}
   .v2 .v2-ptr.is-perfect.v2-q2line .v2-ptwin{top:0;background:#FFD84A;border-color:#B8860B;color:#3A2A00;}
   /* ---- 指示68-4：ぴったり10秒（v2-pittari.js）・そろえて発射（v2-soroe.js）。上の行と開く札は、みんなと同じの物を使う ---- */
   .v2 .v2-ptx2{background:var(--wi);color:var(--won);border-radius:999px;padding:2px 10px;font-weight:900;font-size:13px;line-height:1.4;white-space:nowrap;}
@@ -5991,7 +5995,9 @@
   .v2 .v2-otv.is-fesend .v2-oranks.is-c2 .v2-rk{padding:3px 22px;}
   .v2 .v2-otv.is-fesend .v2-oranks.is-c2 .v2-rk-n,.v2 .v2-otv.is-fesend .v2-oranks.is-c2 .v2-rk-nm{font-size:44px;}
   .v2 .v2-otv.is-fesend .v2-oranks.is-c2 .v2-rk-x{font-size:42px;}
-  .v2 .v2-otv .v2-oranks.is-c2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;}
+  /* 指示76 2-2（A5）：2列は縦の順（左の列が 1〜8位・右の列が 9〜16位）。行の数は人数の半分（--rk-rows・V2.rankRevealHtml が入れる）。
+     横の順だと、縦に読んで 1・3・5… と飛んだ。暗くする幕（.v2-rkdim）は position:absolute なので、升目を取らない */
+  .v2 .v2-otv .v2-oranks.is-c2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-flow:column;grid-template-rows:repeat(var(--rk-rows), auto);gap:12px 24px;}
   /* 結果の見せ場（Claude チャットの台本・くまくん 10/31・V2.rankRevealHtml）。TV だけ動く。素の形＝最後の形（演出「なし」はすぐ最後の形）
      0〜0.8 少し暗く → 0.8〜2.0 下の順位から1行ずつ下から → 2.0 1位の所が空いて光る → 2.8 1位の名前が大きく・冠 → 3.3 暗さがもどる */
   .v2 .v2-oranks.is-reveal{position:relative;}
@@ -6707,6 +6713,8 @@
   .v2.v2-setov .set-back{position:absolute;left:0;top:50%;transform:translateY(-50%);}
   .v2.v2-setov .close-x{position:absolute;right:0;top:50%;transform:translateY(-50%);}
   .v2.v2-setov .set-back:active,.v2.v2-setov .close-x:active{transform:translateY(-50%) scale(.94);}
+  /* 指示76 2-9：文化祭のスマホの「字の大きさ」は、見た目と演出のページの文字サイズだけ（ほかの項目は出さない） */
+  #settingsOverlay.is-fes .set-page[data-page="display"] > .card:not(.js-set-font){display:none;}
   .v2.v2-setov #loggedInAs{font-weight:800;font-size:13px;color:var(--ws);text-align:center;margin-bottom:14px;}
   .v2.v2-setov .set-menu{gap:10px;margin-bottom:10px;}
   .v2.v2-setov #setQuickMenu > .set-menu{margin-bottom:20px;}
@@ -10131,6 +10139,8 @@
       </div>
 
       <div class="set-page" data-page="sound" style="display:none;">
+        <!-- 指示76 2-9：文化祭のスマホは、ここの一番上に「すべての音を消す」（入口の行を5つにまとめたため） -->
+        <div id="setSoundMute"></div>
         <div class="card">
           <div class="tp-label">効果音　<span id="setSeVolValue">70</span></div>
           <input type="range" id="setSeVol" min="0" max="100" step="5" value="70">
@@ -10144,7 +10154,7 @@
           <div class="mic-status">早押しトーナメントなどで、問題を読み上げる音の大きさです</div>
         </div>
         <!-- 第32弾-D 第1部：BGMは効果音とは別に切れるようにする -->
-        <div class="card">
+        <div class="card" id="setBgmCard">
           <div class="tp-label">BGM　<span id="setBgmVolValue">40</span></div>
           <input type="range" id="setBgmVol" min="0" max="100" step="5" value="40">
           <div class="mic-status">人狼の夜やオークションの入札中など、声を使わない場面でだけ流れます。0にすると流れません</div>
@@ -10168,7 +10178,7 @@
           <input type="range" id="setBright" min="70" max="140" step="5" value="100">
           <div class="mic-status">人狼・爆弾解除のように暗い見た目のカセットを、明るい場所で遊ぶ時に上げてください</div>
         </div>
-        <div class="card">
+        <div class="card js-set-font">
           <div class="tp-label">文字サイズ　<span id="setFontValue">100</span>%</div>
           <input type="range" id="setFont" min="85" max="130" step="5" value="100">
           <div class="mic-status">この文の大きさも、その場で変わります</div>
@@ -15537,9 +15547,33 @@
   function showFlash(msg, variantClass){
     var t = el('foulToast');
     t.textContent = msg; t.classList.add('show');
+    flashOnly(variantClass);
+    setTimeout(function(){ t.classList.remove('show'); }, 1600);
+  }
+  function flashOnly(variantClass){
     var ov = el('flashOverlay');
     ov.classList.remove('hit','hit-wrong'); void ov.offsetWidth; ov.classList.add(variantClass);
-    setTimeout(function(){ t.classList.remove('show'); }, 1600);
+  }
+  /**
+   * 指示76 2-10：解除中（新しい見た目）のライフの知らせ。「解除ずみ」の行（ライフのすぐ下・問題のシートより上）の字を 1.6秒だけ差しかえる。
+   * 画面は部屋の知らせのたびに描き直すので、出している間は描く側（V2Fes.play の view.missNote）も同じ字を出す。押す物には重ねない
+   */
+  var v2Miss = { until: 0, text: '' };
+  function v2MissNote(){ return performance.now() < v2Miss.until ? v2Miss.text : ''; }
+  function v2MissShow(text){
+    v2Miss = { until: performance.now() + 1600, text: text };
+    v2MissApply();
+    setTimeout(v2MissApply, 1650);
+  }
+  function v2MissApply(){
+    var t = v2MissNote();
+    document.querySelectorAll('.screen.active .v2-play .v2-pnum').forEach(function(row){
+      var n = row.querySelector('.v2-pmiss');
+      row.classList.toggle('is-miss', !!t);
+      if(!t){ if(n) n.remove(); return; }
+      if(!n){ n = document.createElement('span'); n.className = 'v2-pmiss'; n.setAttribute('role', 'status'); row.appendChild(n); }
+      n.textContent = t;
+    });
   }
   /**
    * 第32弾-C 原則C：責める側の一言。
@@ -25799,7 +25833,7 @@
   }
 
   // サーバーの成績が動いた分だけ、音と演出を出す
-  function rtBombFeedback(you){
+  function rtBombFeedback(you, o){
     var now = { solved: you.solvedCount, misses: you.misses, failed: !!you.failed };
     if(!rtBombPrev){ rtBombPrev = now; return; }
     if(now.solved > rtBombPrev.solved) sfx('cut');
@@ -25807,9 +25841,12 @@
       sfx('miss');
       var lives = el('rtBombLives');
       lives.classList.remove('shake'); void lives.offsetWidth; lives.classList.add('shake');
-      showFlash(you.mode === 'race'
-        ? '💔 ちがう！ライフ−1・残り時間−10秒'
-        : '💔 ライフが1つ割れた', 'hit-wrong');
+      var 一言 = you.mode === 'race' ? '💔 ちがう！ライフ−1・残り時間−10秒' : '💔 ライフが1つ割れた';
+      // 指示76 2-10（くまくんの答え 11/8）：新しい見た目の解除中（文化祭・ふだんの部屋の協力版）は、上に浮く知らせ（#foulToast）を使わない。
+      // 浮く知らせは「コードをえらんで」と凡例にかぶり、問題のシートが上まで来る画面では問題の字にもかかりうる。
+      // ライフのすぐ下の「解除ずみ」の行に出す（v2MissShow）。光（flashOverlay）は今までどおり
+      if(o && o.v2){ v2MissShow(一言); flashOnly('hit-wrong'); }
+      else showFlash(一言, 'hit-wrong');
     }
     // 脱落の爆発はここには無い（第47弾 47-1 で rtOnce へ移した）。
     // ここで「前は false・いまは true」を見ていたが、初回の描画でもう true だと
@@ -31510,6 +31547,9 @@
     safety: '安全に関する設定', tiers: UiText.TIERS.入口,
     records: '記録', danger: '危険な操作'
   };
+  // 指示76 2-9：文化祭の ⚙ では、ページの題も入口の行と同じ言葉に（「安全に関する設定」→「光と揺れ」など）
+  var SET_TITLES_FES = { sound: '音', safety: '光と揺れ', display: '字の大きさ', rules: 'ルール' };
+  function setTitleOf(page){ return (setContext() === 'fes' && SET_TITLES_FES[page]) || SET_TITLES[page] || '設定'; }
   function inRoomNow(){ return !!(rt && rt.state.room); }
   /**
    * **いま遊んでいるゲームの正本**（第43弾）。
@@ -31540,6 +31580,9 @@
   var setOpenedFrom = 'shelf';
   function setContext(){
     if(typeof rtIsBigScreen === 'function' && rtIsBigScreen()) return 'bigscreen';
+    // 指示76 2-9（くまくんの答え 3.A）：文化祭の部屋で遊ぶ人のスマホ。入口は5つだけ（音・光と揺れ・字の大きさ・ルール・部屋を出る）。
+    // 係（進行役）は今までどおり
+    if(inRoomNow() && rt.state.room.fes && !rt.isHost()) return 'fes';
     if(inRoomNow()) return rt.isHost() ? 'roomHost' : 'roomGuest';
     return (setOpenedFrom === 'play') ? 'handoff' : 'shelf';
   }
@@ -31572,7 +31615,8 @@
     document.querySelectorAll('#settingsOverlay .set-page').forEach(function(el2){
       el2.style.display = (el2.dataset.page === page) ? 'block' : 'none';
     });
-    el('setTitle').textContent = SET_TITLES[page] || '設定';
+    el('setTitle').textContent = setTitleOf(page);
+    el('settingsOverlay').classList.toggle('is-fes', setContext() === 'fes');
     el('setBackBtn').style.display = (setStack.length > 1) ? 'block' : 'none';
     renderSetPage(page);
   }
@@ -31606,7 +31650,12 @@
     { icon:function(){ return tempMute ? '🔊' : '🔇'; },
       label:function(){ return tempMute ? UiText.SET.音をもどす : UiText.SET.音を消す; },
       sub:function(){ return tempMute ? UiText.SET.音をもどすの補足 : UiText.SET.音を消すの補足; },
-      act:'muteAll', id:'setMuteRow' },
+      act:'muteAll', id:'setMuteRow', when:function(){ return setContext() !== 'fes'; } },
+    // 指示76 2-9：文化祭のスマホの入口（5つ）。すべての音を消すは「音」のページの一番上（renderSetPrefs）
+    { icon:'🔊', label:'音', page:'sound', when:ctxIs('fes'), sub:'すべての音を消す・音量' },
+    { icon:'🛡', label:'光と揺れ', page:'safety', when:ctxIs('fes'), sub:'光の点滅・画面の揺れ・振動' },
+    { icon:'あ', label:'字の大きさ', page:'display', when:ctxIs('fes'), sub:'説明や名前の字を大きく' },
+    { icon:'📖', label:'ルール', page:'rules', when:ctxIs('fes'), sub:'いま遊ぶゲームのルール' },
     /**
      * 第48弾 48-5：**ポーズ。** 指示48 が「先頭に足す」と決めたので、
      * **第43弾の「上に3つ」は4つになった**（増やしたのはこの1つだけ）。
@@ -31639,18 +31688,20 @@
     // 指示64 D1：大画面にも「部屋を出る」。TVの画面からボタンを消したので、出る道はここ。
     // 1行を2つの立場で使う（言い方も確認も同じ1か所・落とし穴1）
     { icon:'🚪', label:'部屋を出る', act:'leaveRoom', danger:true,
-      when:ctxIs('roomGuest', 'bigscreen'), sub:'ゲームはほかの人たちで続きます' }
+      when:ctxIs('roomGuest', 'bigscreen', 'fes'), sub:'ゲームはほかの人たちで続きます' }
   ];
   var SET_ROOT_ITEMS = [
-    { icon:'🎮', label:'いま遊んでいるゲーム', page:'game',
+    { icon:'🎮', label:'いま遊んでいるゲーム', page:'game', when:notFes,
       sub:'ルールの見返し・このゲームの設定' },
-    { icon:'🚪', label:'部屋', page:'room', when:inRoomNow,
+    { icon:'🚪', label:'部屋', page:'room', when:function(){ return inRoomNow() && notFes(); },
       sub:'メンバー・つながり具合・部屋コード' },
-    { icon:'⚙', label:'アプリの設定', page:'app',
+    { icon:'⚙', label:'アプリの設定', page:'app', when:notFes,
       sub:'音・見た目・安全・記録' },
-    { icon:'⚠️', label:'危険な操作', page:'danger', danger:true,
+    { icon:'⚠️', label:'危険な操作', page:'danger', danger:true, when:notFes,
       sub:'押すともどせないもの' }
   ];
+  // 指示76 2-9：文化祭のスマホには出さない（ゲームのページ・部屋のページ・アプリの設定のほかの項目・危険な操作）
+  function notFes(){ return setContext() !== 'fes'; }
   var SET_GAME_ITEMS = [
     { icon:'📖', label:'ルールをもう一度見る', page:'rules' },
     { icon:'🎛', label:'このゲームの設定', page:'gamecfg',
@@ -31723,6 +31774,7 @@
     if(act === 'muteAll'){
       setTempMute(!tempMute);
       renderSetPage('root');   // 見た目で状態が分かる（音なしへの配慮・2-9）
+      if(setContext() === 'fes') renderSetPrefs();   // 指示76 2-9：文化祭は「音」のページの中の行
       return;
     }
     if(act === 'endGame'){ await actEndGame(btn); return; }
@@ -31922,6 +31974,7 @@
   // ルールの見返し。モードが持っている bullets をそのまま出す
   // （実物解除で作ったモジュール説明の見返しと同じ考え方）
   function renderSetRules(){
+    if(setContext() === 'fes'){ renderSetRulesFes(); return; }
     // 第43弾：ここも部屋が正。**題名が「いま遊んでいるゲーム」なので、
     // 部屋のゲームを見ないと、行の名前そのものが嘘になる**
     var np43 = nowPlaying();
@@ -31933,6 +31986,20 @@
       // 組み立ては modeRulesHtml が1か所で持つ（指示44 44-6）
       modeRulesHtml(m, '<ol class="rules-ol"><li>このゲームの説明は、まだ用意できていません</li></ol>') +
       '</div>';
+  }
+
+  /**
+   * 指示76 2-9：文化祭のルール。投票・準備の札とシートと同じ中身（fesInfo・V2.rulesBodyHtml）を、決まったゲームで。
+   * 決まる前（待合・投票）は「投票で決まったら、ここにルールが出ます」。
+   * それまでは、ふだんの部屋のルールの見返しが出て「あれそれどれこれ・このゲームの説明は、まだ用意できていません」と出ていた
+   */
+  function renderSetRulesFes(){
+    var f = rt.state.room.fes || {}, P = f.phase;
+    var mode = (P === 'play' || P === 'result') && f.played ? f.played.mode : ((P === 'decide' || P === 'ready') && f.pick ? f.pick.mode : null);
+    var g = mode ? fesInfo(mode) : null;
+    el('setRulesBody').innerHTML = g
+      ? '<div class="card"><div class="sec-title">' + escapeHtml(g.name + (g.edition ? '（' + g.edition + '）' : '')) + '</div>' + V2.rulesBodyHtml(g) + '</div>'
+      : '<div class="card"><div class="mic-status">' + escapeHtml(UiText.SET.文化祭のルール未決) + '</div></div>';
   }
 
   function renderSetGameCfg(){
@@ -32078,6 +32145,10 @@
 
   // ---- アプリ全体の設定 ----
   function renderSetPrefs(){
+    // 指示76 2-9：文化祭のスマホの「音」。すべての音を消すを一番上に。BGM は文化祭のスマホでは流れない（TV の待合だけ）ので出さない（落とし穴21）
+    var 文化祭 = setContext() === 'fes';
+    el('setSoundMute').innerHTML = 文化祭 ? setMenuHtml([Object.assign({}, SET_QUICK_ITEMS[0], { when:null })]) : '';
+    el('setBgmCard').style.display = 文化祭 ? 'none' : '';
     el('setSeVol').value = appPrefs.seVolume;
     el('setSeVolValue').textContent = appPrefs.seVolume;
     el('setSpeechVol').value = appPrefs.speechVolume;
@@ -32352,6 +32423,8 @@
     el('loggedInAs').textContent = inn ? ('ログイン中：'+state.displayName) : 'ログインしていません';
     el('logoutBtn').style.display = inn ? '' : 'none';
     el('settingsLoginBtn').style.display = inn ? 'none' : '';
+    // 指示76 2-9：文化祭のスマホでは、ログインの字とボタンを出さない（押すと部屋の外のログインの画面へ行く）
+    if(setContext() === 'fes'){ el('loggedInAs').textContent = ''; el('logoutBtn').style.display = 'none'; el('settingsLoginBtn').style.display = 'none'; }
     // 第43弾 2-2：**棚では入口を飛ばす。**
     // 棚には「いま遊んでいるゲーム」も「いま要るもの」も無いので、
     // 一段だけの入口を見せるのは、押させるだけの階段になる
@@ -33422,13 +33495,15 @@
     if(lab && lab.cut) view.cut = lab.cut;   // 指示68-2：見本データの「切った瞬間」
     // 指示68-2 第2節：TV の盤で、正しく切られた瞬間（火花・「〇〇 が切った」・TV の音）
     if(!lab && cur === 'scr-v2-fes-tv' && view.game === 'bomb' && view.data && view.data.phase === 'play') view.cut = bombTvCut(view.data.board || [], room.code + ':' + f.round);
-    var out = cur === 'scr-v2-fes-tv' ? V2Fes.tv(view) : V2Fes.phone(view);
-    // F11：解除中の音・心臓・残りライフ1の赤い縁は、今のクイズ解除の部品をそのまま使う（新しく作らない）
+    // F11：解除中の音・心臓・残りライフ1の赤い縁は、今のクイズ解除の部品をそのまま使う（新しく作らない）。
+    // 指示76 2-10：描く前に（ライフの知らせを、この描き直しの「解除ずみ」の行に入れるため）
     if(!lab && f.phase === 'play' && cur === 'scr-v2-fes-lobby' && view.secret && view.secret.board){
-      rtBombFeedback(view.secret);
+      rtBombFeedback(view.secret, { v2: true });
       startBombHeart(view.secret.misses);
       el('app').classList.toggle('bomb-danger', view.secret.lives === 1);
     }
+    view.missNote = lab ? (lab.missNote || '') : v2MissNote();
+    var out = cur === 'scr-v2-fes-tv' ? V2Fes.tv(view) : V2Fes.phone(view);
     // 指示68-2 第5節：TV が解除中をこの画面で見ていたら「見ていた」（決着で今までの画面に移った最初の1枚を、
     // 見始めの静かな1枚にしない＝終わりの演出が出る）。のこりライフ1の縁の脈打ちも TV で（第47弾 47-6 を引き継ぐ）
     if(!lab && view.game === 'bomb' && view.data && view.data.phase === 'play'){

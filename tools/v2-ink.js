@@ -30,12 +30,20 @@ const MOCK = path.join(__dirname, '..', 'docs', '指示66', '見本', 'festival.
 const PARTS = [
   { 何: 'YOU の札', app: '.v2-me .v2-you', mock: '[data-id="f3"] .me .you', inset: [8, 2] },
   { 何: '5秒以下の赤い札（4）', app: '.v2-band .v2-cd-n', mock: null, inset: [10, 2], state: 'lo' },
-  { 何: 'ルールの番号 1', app: '[data-v2-id="v2Rules-bomb-coop"] .v2-rb:nth-child(1) .v2-rb-k', mock: '[data-id="rules3"] .rb:nth-child(1) .k', inset: 6, x: true, state: 'rules' },
-  { 何: 'ルールの番号 2', app: '[data-v2-id="v2Rules-bomb-coop"] .v2-rb:nth-child(2) .v2-rb-k', mock: '[data-id="rules3"] .rb:nth-child(2) .k', inset: 6, x: true, state: 'rules' },
-  { 何: 'ルールの番号 3', app: '[data-v2-id="v2Rules-bomb-coop"] .v2-rb:nth-child(3) .v2-rb-k', mock: '[data-id="rules3"] .rb:nth-child(3) .k', inset: 6, x: true, state: 'rules' },
+  { 何: 'ルールの番号 1', app: '[data-v2-id="v2Rules-bomb-coop"] .v2-rl:nth-child(1) .v2-rb-k', mock: '[data-id="rules3"] .rb:nth-child(1) .k', inset: 6, x: true, state: 'rules' },
+  { 何: 'ルールの番号 2', app: '[data-v2-id="v2Rules-bomb-coop"] .v2-rl:nth-child(2) .v2-rb-k', mock: '[data-id="rules3"] .rb:nth-child(2) .k', inset: 6, x: true, state: 'rules' },
+  { 何: 'ルールの番号 3', app: '[data-v2-id="v2Rules-bomb-coop"] .v2-rl:nth-child(3) .v2-rb-k', mock: '[data-id="rules3"] .rb:nth-child(3) .k', inset: 6, x: true, state: 'rules' },
   { 何: 'シートの「とじる」', app: '[data-v2-id="v2Rules-bomb-coop"] .v2-sfoot .v2-btn', mock: '[data-id="rules3"] .sfoot .btn', inset: [18, 5], state: 'rules' },
-  { 何: '着替えのボタン', app: '#scr-v2-fes-lobby .v2-in > .v2-btn.is-lite', mock: '[data-id="f3"] .btn.lite', inset: [18, 5] }
+  { 何: '着替えのボタン', app: '#scr-v2-fes-lobby .v2-in > .v2-btn.is-lite', mock: '[data-id="f3"] .btn.lite', inset: [18, 5] },
+  // 指示76 2-1（A4）：ルールの番号の場所は指示68-T 2 でくわしい説明（.v2-rl）に変わっていた（測れず「—」のままだった・落とし穴47）。数字の札（League Spartan）を全部。scene・size があれば、その場面をその大きさで開いて測る（見本には無い）
+  { 何: '解除中の時計（スマホ）', app: '.screen.active .v2-pclock .v2-cd-n', mock: null, inset: [8, 1], scene: 'fes2-play' },
+  { 何: '3択の A（スマホ）', app: '.screen.active .v2-qsheet .v2-choice:nth-child(1) .v2-choice-k', mock: null, inset: 4, x: true, scene: 'fes2-play' },
+  { 何: '3択の B（スマホ）', app: '.screen.active .v2-qsheet .v2-choice:nth-child(2) .v2-choice-k', mock: null, inset: 4, x: true, scene: 'fes2-play' },
+  { 何: '解除中の時計（TV）', app: '.screen.active .v2-tclock .v2-cd-n', mock: null, inset: [16, 2], scene: 'fes2-tv-play', size: 'tv' },
+  { 何: '早答えの時計（スマホ）', app: '.screen.active .v2-oclock .v2-cd-n', mock: null, inset: [8, 1], scene: 'qh-choose' },   // 早答えの TV には時計を出さない
+  { 何: 'みんなと同じの時計（TV）', app: '.screen.active .v2-oclock .v2-cd-n', mock: null, inset: [16, 2], scene: 'onaji-tv-choose', size: 'tv' }
 ];
+const SIZES = { phone: { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }, tv: { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false } };
 
 /** ページの中：その要素の内側を撮った画像から、描かれている所の外形を出す */
 const 外形 = `async function(sel, inset, k, shot){
@@ -89,12 +97,14 @@ async function 測る(dev, sel, inset) {
     if (!効く) throw new Error('物差しが効いていません');
 
     const 状態 = { base: { freeze: 23 }, lo: { freeze: 4 }, rules: { freeze: 23, open: 'v2Rules-bomb-coop' } };
+    const devs = { phone: dev };
     for (const p of PARTS) {
-      await 開く(dev, PORT, lobby, 状態[p.state || 'base']);
-      const a = await 測る(dev, p.app, p.inset);
+      const d = p.size && p.size !== 'phone' ? (devs[p.size] = devs[p.size] || await br.newDevice('ink-' + p.size, SIZES[p.size])) : dev;
+      await 開く(d, PORT, p.scene ? SCENES.find((s) => s.id === p.scene) : lobby, 状態[p.state || 'base']);
+      const a = await 測る(d, p.app, p.inset);
       表.push({ 何: p.何, アプリ: a });
     }
-    await dev.close();
+    for (const k of Object.keys(devs)) await devs[k].close();
     // ---- 見本の同じ部品 ----
     const mk = await br.newDevice('mock', { width: 2100, height: 1300, deviceScaleFactor: 1 });
     await mk.go('file:///' + MOCK.replace(/\\/g, '/'));

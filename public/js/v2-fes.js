@@ -371,7 +371,9 @@
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
       '<div class="v2-in is-noband v2-play">' +
         '<div class="v2-ptop">' + livesHtml(lives, max) + '<span class="v2-pclock">' + (view.end ? V.cd({ end: view.end, mmss: true, label: '', unit: '' }) : '') + '</span></div>' +
-        '<div class="v2-pnum"><b class="v2-num">' + V.digits(solved) + '</b><b class="v2-num v2-pnum-of">/' + V.digits(total) + '</b><span>' + e(P.解除ずみ) + '</span></div>' +
+        // 指示76 2-10：ライフが割れた知らせは、この行の「解除ずみ」と 1.6秒入れかわる（view.missNote・index.html の v2MissShow）
+        '<div class="v2-pnum' + (view.missNote ? ' is-miss' : '') + '"><b class="v2-num">' + V.digits(solved) + '</b><b class="v2-num v2-pnum-of">/' + V.digits(total) + '</b><span>' + e(P.解除ずみ) + '</span>' +
+          (view.missNote ? '<span class="v2-pmiss" role="status">' + e(view.missNote) + '</span>' : '') + '</div>' +
         '<div class="v2-prog"><i style="width:' + (total ? Math.round(solved / total * 100) : 0) + '%"></i></div>' +
         '<div class="v2-row v2-pkey"><span class="v2-pkey-t">' + e(P.えらんで) + '</span><span class="v2-tierkey">' +
           // 指示71 追記2g：盤は3色（やさしい・ふつう・むずかしい）。凡例も3つ（それまでは5段の端の「かんたん／むり」で、むりは盤に出ない）

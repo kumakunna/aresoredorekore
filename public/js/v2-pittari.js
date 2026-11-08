@@ -227,7 +227,7 @@
         dots + pins + '</div>' +
       (上.length ? '<div class="v2-ptwin" style="animation-delay:' + ss(tl.end) + '"><span class="v2-ptwin-c" aria-hidden="true">👑</span>' +
         '<span class="v2-ptwin-n v2-cut">' + e(上.map(function (x) { return x.name; }).join('・')) + '</span>' +
-        '<span class="v2-ptwin-d">' + e(Lg.diffText(上[0].diff)) + '</span></div>' : '<div class="v2-ptwin is-none" style="animation-delay:' + ss(tl.end) + '">' + e(t.だれも) + '</div>') +
+        '<span class="v2-ptwin-d">' + e(Lg.winDiffText(上.map(function (x) { return x.diff; }))) + '</span></div>' : '<div class="v2-ptwin is-none" style="animation-delay:' + ss(tl.end) + '">' + e(t.だれも) + '</div>') +
       (perfect ? '<div class="v2-ptgold" aria-hidden="true">' + 粒 + '</div><div class="v2-ptband" style="animation-delay:' + ss(tl.end + 0.15) + '">' + e(t.ぴったり) + '</div>' : '') +
     '</div>';
   }

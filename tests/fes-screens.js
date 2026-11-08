@@ -914,22 +914,106 @@ async function 入った(o) {
     win.close();
   });
 
-  await r.test('指示71-2：文化祭の待合で ⚙ → アプリの設定 →「アイコン・二つ名」→ 新しい見た目の着替えのシート（古い scr-titles へ行かない）', async () => {
-    const { win, doc, errors } = await 入った();
-    流す(win, 'fes2-lobby');
-    await sleep(win, 200);
-    doc.querySelector('#scr-v2-fes-lobby [data-v2-act="gear"]').click();
-    await sleep(win, 150);
-    const ov = doc.getElementById('settingsOverlay');
-    assert(ov.classList.contains('show') && ov.classList.contains('v2'), '⚙ の設定が、新しい見た目（v2）で開く');
-    doc.querySelector('#settingsOverlay [data-setpage="app"]').click();
+  // 指示71-2 の「⚙ → アプリの設定 → アイコン・二つ名」は、指示76 2-9（くまくんの答え 3.A）で文化祭の ⚙ から外した。
+  // 着替えは待合の「アイコン・二つ名をかえる」から開く（上の F5 着替え）。文化祭の ⚙ に出る物は下の 2-9 で見る
+
+  // ===== 指示76 2-9（E1・くまくんの答え 3.A）：文化祭のスマホの ⚙ の中は5つだけ =====
+  /** 設定の中で、本当に見えているか（自分と祖先の display・hidden） */
+  const 見える = (win, e) => { for (let x = e; x && x.id !== 'settingsOverlay'; x = x.parentElement) { if (x.hidden || win.getComputedStyle(x).display === 'none') return false; } return !!e; };
+  async function fes歯車(sceneId) {
+    const t = await 入った();
+    流す(t.win, sceneId || 'fes2-lobby');
+    await sleep(t.win, 200);
+    t.doc.querySelector('#scr-v2-fes-lobby [data-v2-act="gear"]').click();
+    await sleep(t.win, 150);
+    return t;
+  }
+  const 行 = (win, doc) => Array.from(doc.querySelectorAll('#settingsOverlay .set-page[data-page="root"] .set-row')).filter((x) => 見える(win, x)).map((x) => x.querySelector('.sr-text').firstChild.textContent);
+  await r.test('指示76 2-9：文化祭のスマホの ⚙ の入口は「音・光と揺れ・字の大きさ・ルール・部屋を出る」の5つだけ。ログインの字とボタンは出さない。絵文字の表記と版は残す', async () => {
+    const { win, doc, errors } = await fes歯車();
+    assertEqual(行(win, doc).join('／'), '音／光と揺れ／字の大きさ／ルール／部屋を出る', '入口の行');
+    assert(!見える(win, doc.getElementById('loggedInAs')) || doc.getElementById('loggedInAs').textContent === '', '「ログインしていません」を出さない');
+    assert(!見える(win, doc.getElementById('settingsLoginBtn')), '「ログインする」を出さない');
+    assert(!見える(win, doc.getElementById('logoutBtn')), '「ログアウト」も出さない');
+    assert(見える(win, doc.getElementById('setCredit')) && 見える(win, doc.getElementById('setVersion')), '絵文字の表記と版は残す');
+    // 行き先：音は音量のページ（すべての音を消す・効果音・BGM）、光と揺れは安全の設定、字の大きさは文字サイズだけ
+    const 開く = async (label) => { Array.from(doc.querySelectorAll('#settingsOverlay .set-page[data-page="root"] .set-row')).find((x) => x.textContent.indexOf(label) === 0 || x.querySelector('.sr-text').firstChild.textContent === label).click(); await sleep(win, 50); };
+    await 開く('音');
+    assert(見える(win, doc.querySelector('#settingsOverlay [data-setact="muteAll"]')), '音のページに「すべての音を消す」');
+    assert(見える(win, doc.getElementById('setSeVol')), '効果音の音量');
+    assert(!見える(win, doc.getElementById('setBgmVol')), 'BGM は文化祭のスマホでは流れない（TV の待合だけ）ので出さない（落とし穴21）');
+    const 見えている字 = Array.from(doc.querySelectorAll('#settingsOverlay .set-page[data-page="sound"] .card')).filter((x) => 見える(win, x)).map((x) => x.textContent).join('');
+    assert(見えている字.indexOf('人狼') === -1, '文化祭に無いゲームの話（人狼の夜…）を出さない');
+    doc.getElementById('setBackBtn').click(); await sleep(win, 30);
+    await 開く('光と揺れ');
+    assert(見える(win, doc.querySelector('#settingsOverlay .set-page[data-page="safety"]')), '光と揺れ＝安全に関する設定のページ');
+    assertEqual(doc.getElementById('setTitle').textContent, '光と揺れ', '題も「光と揺れ」');
+    doc.getElementById('setBackBtn').click(); await sleep(win, 30);
+    await 開く('字の大きさ');
+    assert(見える(win, doc.getElementById('setFont')), '文字サイズのつまみ');
+    assert(!見える(win, doc.getElementById('setBright')) && !見える(win, doc.getElementById('setReactionsToggle')), '見た目と演出のほかの項目は出さない');
+    assertEqual(doc.getElementById('setTitle').textContent, '字の大きさ', '題も「字の大きさ」');
+    H.assertNoErrors(errors, '文化祭の ⚙ で未捕捉の例外');
+    win.close();
+  });
+
+  await r.test('指示76 2-9：文化祭の ⚙ のルールは、決まったゲームのルール。決まる前は「投票で決まったら、ここにルールが出ます」（あれそれどれこれの文を出さない）', async () => {
+    const { win, doc } = await fes歯車('fes2-vote');
+    const ルールへ = async () => { Array.from(doc.querySelectorAll('#settingsOverlay .set-page[data-page="root"] .set-row')).find((x) => x.querySelector('.sr-text').firstChild.textContent === 'ルール').click(); await sleep(win, 50); };
+    await ルールへ();
+    const body = () => doc.getElementById('setRulesBody').textContent;
+    assert(body().indexOf('投票で決まったら、ここにルールが出ます') !== -1, '決まる前：' + body());
+    assert(!/まだ用意できていません|あれそれどれこれ|進行役/.test(body()), 'まちがった文を出さない：' + body());
+    doc.getElementById('closeSettingsBtn').click(); await sleep(win, 50);
+    流す(win, 'fes2-ready'); await sleep(win, 200);   // 準備OK の画面（決まったあと。決まる画面は動きだけで ⚙ が無い）
+    doc.querySelector('#scr-v2-fes-lobby [data-v2-act="gear"]').click(); await sleep(win, 150);
+    await ルールへ();
+    assert(/クイズ解除/.test(body()), '決まったゲームの名前：' + body());
+    assert(doc.querySelectorAll('#setRulesBody .v2-rl, #setRulesBody .v2-rb').length >= 3, '文化祭の投票・準備と同じルールの中身（くわしい説明）');
+    assert(!/まだ用意できていません/.test(body()), '「まだ用意できていません」を出さない');
+    win.close();
+  });
+
+  await r.test('指示76 2-9：文化祭でない部屋の ⚙ は今のまま（いま遊んでいるゲーム・部屋・アプリの設定・ログインの字）', async () => {
+    const { win, doc } = await launch({ fakeSocket: true });
+    await H.makeRoomV2(win, doc);
+    win.openSettings && win.openSettings('room');
+    if (!doc.getElementById('settingsOverlay').classList.contains('show')) doc.getElementById('floatingGearBtn').click();
     await sleep(win, 100);
-    doc.querySelector('#settingsOverlay [data-setact="titles"]').click();
-    const look = () => doc.querySelector('#scr-v2-fes-lobby [data-v2-id="v2Look"]');
-    await waitFor(win, () => look() && look().classList.contains('is-open'), 2000, '着替えのシートが開く');
-    assertEqual(act(doc), 'scr-v2-fes-lobby', '古い scr-titles へ行かない');
-    assert(!ov.classList.contains('show'), '設定は閉じる');
-    H.assertNoErrors(errors, '⚙ から着替えで未捕捉の例外');
+    const rows = 行(win, doc).join('／');
+    assert(/いま遊んでいるゲーム/.test(rows) && /アプリの設定/.test(rows) && /危険な操作/.test(rows) && /すべての音を消す/.test(rows), 'ふだんの入口：' + rows);
+    assert(見える(win, doc.getElementById('loggedInAs')) && doc.getElementById('loggedInAs').textContent !== '', 'ログインの字は出る');
+    win.close();
+  });
+
+  // ===== 指示76 2-10（くまくんの答え 11/8・束2 に入れた）：クイズ解除の「ライフが1つ割れた」は、ライフの近くの空いた所に =====
+  await r.test('指示76 2-10：ライフが割れた知らせは「解除ずみ」の行（ライフのすぐ下）に出す。問題の字・3択・マスに重ねない。出ている間もマスと3択を押せる。描き直しても消えず、1.6秒で消える', async () => {
+    const { win, doc, errors } = await 入った();
+    const lab = 流す(win, 'fes2-play');
+    win.__rtFake.fire('wolf:you', lab.secret);
+    await waitFor(win, () => doc.querySelector('#scr-v2-fes-lobby .v2-bgrid'), 2000, '盤');
+    const sec = JSON.parse(JSON.stringify(lab.secret));
+    sec.misses = (sec.misses || 0) + 1; if (sec.lives != null) sec.lives -= 1;
+    win.__rtFake.fire('wolf:you', sec);
+    await sleep(win, 60);
+    const note = () => doc.querySelector('#scr-v2-fes-lobby .v2-pnum .v2-pmiss');
+    assert(note() && /ライフが1つ割れた/.test(note().textContent), '「解除ずみ」の行に知らせ');
+    assert(!doc.getElementById('foulToast').classList.contains('show'), '上に浮く知らせ（#foulToast）は出さない（問題の字・凡例にかぶっていた）');
+    assert(!note().closest('.v2-qsheet') && !note().closest('.v2-bgrid'), '問題のシートの中・盤の中ではない');
+    const scr = doc.getElementById('scr-v2-fes-lobby');
+    const 空き = scr.querySelector('.v2-bcell:not(:disabled):not(.is-mine)');
+    const n0 = emits(win, 'wolf:act').length;
+    空き.click();
+    assertEqual(emits(win, 'wolf:act').length, n0 + 1, '知らせが出ている間もマスを押せる');
+    const v0 = emits(win, 'wolf:vote').length;
+    scr.querySelector('[data-fes-ans]').click();
+    assertEqual(emits(win, 'wolf:vote').length, v0 + 1, '知らせが出ている間も3択を押せる');
+    win.__rtFake.fire('room:update', lab.room);
+    await sleep(win, 60);
+    assert(note(), '部屋の知らせで描き直しても、知らせは残る');
+    await sleep(win, 1800);
+    assert(!note(), '1.6秒で消える');
+    H.assertNoErrors(errors, 'ライフの知らせで未捕捉の例外');
     win.close();
   });
 

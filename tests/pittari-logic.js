@@ -65,5 +65,13 @@ const 点 = (r) => ids.map((id) => r.points[id]).join(',');
     assertEqual(+m[1] + '〜' + m[2], L.RULES.MIN_PLAYERS + '〜' + L.RULES.MAX_PLAYERS, 'MODES の下限と上限');
   });
 
+  await r.test('指示76 2-3（A6）：同点で勝った人の差。＋と−がまざる時は「±」（1人目の向きだけを出さない）', async () => {
+    assertEqual(L.winDiffText([-10, 10]), '±0.01秒', '−0.01 と ＋0.01 の同点');
+    assertEqual(L.winDiffText([10, -10, 10]), '±0.01秒', '3人');
+    assertEqual(L.winDiffText([120, 120]), '+0.12秒', '同じ向きの同点は、その向き');
+    assertEqual(L.winDiffText([-50]), '-0.05秒', '1人');
+    assertEqual(L.winDiffText([0, 0]), '±0.00秒', 'ぴったりの同点');
+  });
+
   r.finish();
 })();

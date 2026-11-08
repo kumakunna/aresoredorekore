@@ -60,6 +60,17 @@
     if (diff === 0) return '±0.00秒';
     return (diff > 0 ? '+' : '-') + (Math.abs(diff) / 1000).toFixed(2) + '秒';
   }
+  /**
+   * 指示76 2-3（A6）：同点で勝った人たちの差。同点は「差の大きさ」が同じなので、向き（早い／おそい）がまざる時は「±」。
+   * それまでは1人目の向きだけを出していた（「たかはし・でん -0.01秒」で、でんは +0.01秒だった）
+   */
+  function winDiffText(diffs) {
+    var list = (diffs || []).filter(function (d) { return typeof d === 'number'; });
+    if (!list.length) return '';
+    var 上 = list.some(function (d) { return d > 0; }), 下 = list.some(function (d) { return d < 0; });
+    if (上 && 下) return '±' + (Math.abs(list[0]) / 1000).toFixed(2) + '秒';
+    return diffText(list[0]);
+  }
 
   /**
    * 1回の点。
@@ -115,6 +126,6 @@
     };
   }
 
-  return { RULES: RULES, ROUNDS: ROUNDS, Stopwatch: Stopwatch, validMs: validMs, roundDiff: roundDiff, diffText: diffText,
+  return { RULES: RULES, ROUNDS: ROUNDS, Stopwatch: Stopwatch, validMs: validMs, roundDiff: roundDiff, diffText: diffText, winDiffText: winDiffText,
     scoreRound: scoreRound, finalResult: finalResult };
 });

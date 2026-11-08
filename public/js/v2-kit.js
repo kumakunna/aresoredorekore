@@ -66,8 +66,10 @@
   // ---------- 字 ----------
   /** 数字を1桁ずつ同じ幅の箱に入れる（数が変わっても横にずれない） */
   // data-overlapok：数字は1字ずつ幅 .56em の箱に詰める。字の箱の左右の余白だけが隣と重なり、字は重ならない（物差しの K1 に数えない・指示68-0b）
+  // 指示76 2-1（A4）：数字のあいだの字（「:」「/」「.」）も要素で包む。時計の札（.v2-cd-n）は inline-flex で、包んでいない字は
+  // 名前の無い箱になり、字の箱を詰める決まり（.v2 * の text-box）が効かない——その箱だけ背が高くなり、数字が上に寄った（TV 11px・スマホ 3px）
   function digits(n) {
-    return String(n).split('').map(function (d) { return /[0-9]/.test(d) ? '<i data-overlapok>' + d + '</i>' : esc(d); }).join('');
+    return String(n).split('').map(function (d) { return /[0-9]/.test(d) ? '<i data-overlapok>' + d + '</i>' : '<span class="v2-dsep">' + esc(d) + '</span>'; }).join('');
   }
   /** 長い文を文節（BudouX）で切り、切れ目にだけ <wbr> を入れる。字は esc 済み */
   // 決まった文の改行の印（\n）は、そこで必ず折る（見出しの「いっしょに／あそぼう！」のように、文節では切れない所・指示66-2）
@@ -181,7 +183,7 @@
     el.__v2sec = sec;
     var lo = +el.getAttribute('data-lo');
     var n = el.querySelector('.v2-cd-n');
-    if (n) n.innerHTML = el.hasAttribute('data-mmss') ? digits(('0' + Math.floor(sec / 60)).slice(-2)) + ':' + digits(('0' + (sec % 60)).slice(-2)) : digits(sec);
+    if (n) n.innerHTML = el.hasAttribute('data-mmss') ? digits(('0' + Math.floor(sec / 60)).slice(-2) + ':' + ('0' + (sec % 60)).slice(-2)) : digits(sec);
     el.classList.toggle('is-lo', sec <= lo);
     el.classList.toggle('is-one', sec < 10);
     // 5秒以下は、数が変わるたびに1回だけ弾む（演出「なし」では CSS が止める）
@@ -494,7 +496,7 @@
         '<span class="v2-rk-nm v2-cut"' + (top && tv ? ' data-v2-fit' : '') + '>' + esc(x.name) + '</span><span class="v2-rk-x">' + digits(x.score) + esc(点) + '</span></div>';
     }).join('');
     var 待つ = !tv && !(view && view.fes && view.fes.phase);
-    return '<div class="v2-ranks v2-oranks' + (tv ? ' is-reveal' : '') + (tv === 'still' ? ' is-still' : '') + (rk.length > 8 && tv ? ' is-c2' : '') + '"' + (待つ ? tvAt(view, RANK_TL.top) : '') + '>' +
+    return '<div class="v2-ranks v2-oranks' + (tv ? ' is-reveal' : '') + (tv === 'still' ? ' is-still' : '') + (rk.length > 8 && tv ? ' is-c2" style="--rk-rows:' + Math.ceil(rk.length / 2) : '') + '"' + (待つ ? tvAt(view, RANK_TL.top) : '') + '>' +
       (tv ? '<i class="v2-rkdim" aria-hidden="true"></i>' : '') + rows + '</div>';
   }
   function rulesBodyHtml(g) {

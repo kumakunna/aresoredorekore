@@ -107,6 +107,24 @@ function tvView(room) {
     assertEqual(Math.round((tl.rank - tl.fast) * 10) / 10, 1.2, '札が見える 1.2秒は、順位（tl.rank）と札（tl.fast）の差と同じ');
   });
 
+  await r.test('指示76 2-4（A7・D1）：数字ちかい方の勝った人の札は「差 3km²」（多く答えた時も少なく答えた時も。「あと」は少ない時の言い方）', async () => {
+    const QNear = require(path.join(__dirname, '..', 'qnear-room.js'));
+    [[3, '多く'], [-3, '少なく']].forEach(([d, how]) => {
+      const room = S.数字(2, 0);
+      const a = room.qnear.qs[0].answer;
+      QNear.submitAction(room, 'm1', null, { value: a + d });
+      QNear.submitAction(room, 'm2', null, { value: a + 500 });
+      QNear.advance(room);
+      const v = { data: JSON.parse(JSON.stringify(QNear.publicView(room))), members: [], meId: 'tv', you: {}, fes: null, end: Date.now() + 8000 };
+      box.innerHTML = W.V2Quiz2.near.tv(v);
+      const t = box.querySelector('.v2-ptwin-d').textContent;
+      assert(/^差 3/.test(t) && t.indexOf('あと') === -1, how + '答えた人：' + t);
+    });
+    // 札の高さは名前の字に合わせる（名前の字 140px まで・CSS は jsdom では測れないので決まりの字を見る）
+    const css = require('fs').readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(css.indexOf('.v2 .v2-q2line .v2-ptwin-n{line-height:1.15;max-width:1200px;text-box:normal;}') !== -1, '名前の行の箱を字の高さにする（英字の高さで切らない）');
+  });
+
   t.win.close();
   r.finish();
 })();

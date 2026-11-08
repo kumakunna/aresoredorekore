@@ -62,6 +62,17 @@ const SC = require('../tools/v2-lab/scenes.js');
     assert(n && n.hasAttribute('data-v2-fit') && n.classList.contains('v2-cut'), '名前は1行で、入らなければ字を小さく');
   });
 
+  await r.test('指示76 1-1（A1）：札の中は上から「絵→名前→小さい字」。3枚で絵の位置がそろい、小さい字は名前に重ならない', async () => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    const card = (css.match(/\.v2 \.v2-dcard\{[^}]*\}/) || [''])[0];
+    assert(/justify-content:flex-start/.test(card) && /padding-top:108px/.test(card), '上から詰める（まん中にそろえると、小さい字の無い札だけ絵が下がった）：' + card);
+    assert(css.indexOf('.v2 .v2-dcard-t small{display:block;font-size:52px;margin-top:30px;}') !== -1, '小さい字は名前の下の行・間 30px');
+    // 小さい字は「（協力版）」「（多い方）」の2つ。並べた札の名前の中に入る
+    const { box } = 描く('fes2-tv-decide-a');
+    const smalls = Array.from(box.querySelectorAll('.v2-dcard .v2-dcard-t small')).map((x) => x.textContent);
+    assertEqual(smalls.join('/'), '（協力版）/（多い方）', '小さい字のある札');
+  });
+
   t.win.close();
   r.finish();
 })();

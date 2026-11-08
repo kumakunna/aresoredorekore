@@ -62,6 +62,20 @@ const 合図 = (doc) => doc.querySelector('.fx-cue');
     t.win.close();
   });
 
+  await r.test('指示76 1-3（A3）：TV の「スタート！」は、時計と下の説明にかからない所（上の札と時計の間）。スマホはまん中のまま', async () => {
+    const t = await 場面('pt-tv-run', { me: 'tv' });
+    const c = 合図(t.doc);
+    assert(c && c.classList.contains('is-tv'), 'TV の合図には is-tv の印（' + (c && c.className) + '）');
+    t.win.close();
+    const p = await 場面('pt-run');
+    assert(!合図(p.doc).classList.contains('is-tv'), 'スマホの合図には付けない');
+    p.win.close();
+    // 置き場所は CSS（jsdom は calc を解かないので、決まりの字を見る）。数字の意味は index.html の注釈
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(css.indexOf(':root.big-screen .fx-cue.is-pt-go.is-tv{align-items:flex-start;padding-top:calc(50vh - min(19.43vw, 34.54vh));}') !== -1, 'TV では上に寄せる（y=167 から）');
+    assert(css.indexOf(':root.big-screen .fx-cue.is-pt-go.is-tv .fx-cue-text{font-size:min(7.97vw, 14.17vh);}') !== -1, '札の高さが時計の上の空きに入る字の大きさ（153px）');
+  });
+
   await r.test('4回目（時計が最初から見えない回）：「よーい……」と「スタート！」がほかの回より大きい', async () => {
     const set = await 場面('pt-set', { edit: (d) => { d.show = false; d.round = 4; } });
     const 大 = set.doc.querySelector('#scr-v2-pittari .v2-ptset');

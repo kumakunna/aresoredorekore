@@ -848,6 +848,12 @@
   :root.big-screen .fx-cue-m .fx-cue-text{font-size:min(4.4vw,84px);max-width:80vw;}
   :root.big-screen .fx-cue-l .fx-cue-text{font-size:min(10vw,190px);}
   :root.big-screen .fx-cue-xl .fx-cue-text{font-size:min(14vw,260px);}
+  /* 指示76 1-3（A3）：ぴったり10秒の TV の「スタート！」は、まん中ではなく、上の札（何回目・目標）と時計の間に置く。
+     まん中に出すと、時計の数字と下の説明の上半分を隠した。TV の画面（1920×1080 を縮めて、まん中に置く・V2.fitTv）の
+     y=167〜420 に札が来る形：上の空きは「まん中 − 373 × 縮め」、字は 153 × 縮め（行 1.15＋上下 .25em で札の高さは字の 1.65倍）。
+     見えない回（xl）も同じ大きさ（大きくすると時計の「？」にかかる） */
+  :root.big-screen .fx-cue.is-pt-go.is-tv{align-items:flex-start;padding-top:calc(50vh - min(19.43vw, 34.54vh));}
+  :root.big-screen .fx-cue.is-pt-go.is-tv .fx-cue-text{font-size:min(7.97vw, 14.17vh);}
   @keyframes fxCueIn{ 0%{transform:scale(.6);opacity:0;} 100%{transform:scale(1);opacity:1;} }
   @keyframes fxCueOut{ to{transform:scale(1.06);opacity:0;} }
 
@@ -6145,11 +6151,15 @@
     gap:40px;opacity:0;visibility:hidden;}
   .v2.is-play .v2-dcards{animation:v2-dgone calc(.3s * var(--fx-scale)) ease both;}
   @keyframes v2-dgone{from{opacity:1;visibility:visible;}to{opacity:0;visibility:hidden;}}
-  .v2 .v2-dcard{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;border-radius:40px;
-    background:rgba(255,255,255,.14);text-align:center;}
+  /* 指示76 1-1（A1）：札の中は上から「絵→名前→小さい字」。上から詰めて置く（まん中にそろえると、小さい字の無い札だけ絵が下がった）。
+     上の余白 108px は、小さい字のある札（絵 280・間 28・名前・間 30・小さい字）が札のまん中に来る量 */
+  .v2 .v2-dcard{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:28px;border-radius:40px;
+    background:rgba(255,255,255,.14);text-align:center;padding-top:108px;}
   .v2 .v2-dcard-tile{width:280px;height:280px;}
   .v2 .v2-dcard-n{font-weight:900;font-size:64px;line-height:1.1;white-space:nowrap;max-width:100%;padding:0 12px;}   /* 名前は1行（7字で札の幅いっぱい）。入らなければ V2 の fit が字を小さく（下限 48px） */
-  .v2 .v2-dcard-t small{display:block;font-size:52px;}
+  /* 小さい字は名前の下の行。字の箱は英字の高さで切ってある（.v2 * の text-box）ので、日本語の字は上下に約 0.15em はみ出す。
+     名前の足（64px の 0.15em）と小さい字の頭（52px の 0.15em）がぶつからないよう、間を 30px（はみ出しの合計 約 18px ＋ 12px） */
+  .v2 .v2-dcard-t small{display:block;font-size:52px;margin-top:30px;}
   /* スポットライト：1か所ずつ光る（光っている間だけ見える。最後の1つは止まったまま） */
   .v2 .v2-dhop{position:absolute;top:-24px;bottom:-24px;width:calc((100% - (var(--dc) - 1) * 40px) / var(--dc) + 40px);transform:translateX(-50%);
     border-radius:52px;border:8px solid #FFE58A;box-shadow:0 0 60px rgba(255,229,138,.75),inset 0 0 60px rgba(255,229,138,.35);opacity:0;pointer-events:none;z-index:2;}
@@ -33755,7 +33765,7 @@
     if(d.phase === 'run'){
       rtOnce('pt:v08:' + key, true, function(){ if(window.Sound) Sound.voice('v08'); });
       var 遊ぶ = tv || (d.players || []).some(function(p){ return p.id === view.meId; });
-      if(遊ぶ) FxKit.cue(UiText.PITTARI.スタート, { ms: 600, size: d.show === false ? 'xl' : 'l', cls: 'is-pt-go' });
+      if(遊ぶ) FxKit.cue(UiText.PITTARI.スタート, { ms: 600, size: d.show === false ? 'xl' : 'l', cls: 'is-pt-go' + (tv ? ' is-tv' : '') });   // 指示76 1-3：TV は時計の上の空き（index.html の .fx-cue.is-pt-go.is-tv）
       sfx('decide');
     }
     if(d.phase !== 'roundResult') return;

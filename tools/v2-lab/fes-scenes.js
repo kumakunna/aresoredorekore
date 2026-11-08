@@ -213,6 +213,11 @@ const BUILD = {
   BUILD['fes2-result-' + m] = (o) => { const r = 部屋(o.n || 16); クイズ2を終える(r, m); のこり(r, 15); return lab(r, 'scr-v2-fes-lobby'); };
   BUILD['fes2-tv-result-' + m] = (o) => { const r = 部屋(o.n || 16); クイズ2を終える(r, m); のこり(r, 15); return lab(r, 'scr-v2-fes-tv', 'tv'); };
 });
+// 指示76 1-1（A1）：決まる画面の3枚の札を、6本のゲーム全部で撮る（小さい字のある「協力版」「多い方」・1行の名前・長い名前）
+[['a', ['bomb-coop', 'onaji-many', 'pittari']], ['b', ['soroe', 'qhaya', 'qnear']]].forEach(([k, list]) => {
+  BUILD['fes2-tv-decide-' + k] = (o) => { const r = 部屋(o.n || 6); FesRoom.tick(r, Date.now(), api); 進める(r); r.fes.candidates = list.slice();
+    ['m1', 'm2', 'm3'].forEach((id) => FesRoom.vote(r, id, list[1])); 進める(r); return lab(r, 'scr-v2-fes-tv', 'tv'); };
+});
 BUILD['fes2-tv-idle4'] = () => { const v = BUILD['fes2-tv-idle'](); v.room.fes.games = v.room.fes.games.slice(0, 4); return v; };
 
 // 見せ場の動画（tools/v2-film.js）：投票の決定を、動きを頭から（play）
@@ -229,7 +234,7 @@ const SCENES = [
   ['fes2-vote', 'phone', 'f7'], ['fes2-vote-t', 'phone', null], ['fes2-voted', 'phone', null], ['fes2-decide', 'phone', 'f8'], ['fes2-decide-one', 'phone', null], ['fes2-ready', 'phone', 'f9'], ['fes2-readied', 'phone', null],
   ['fes2-wait', 'phone', null], ['fes2-result', 'phone', 'f12'], ['fes2-boom', 'phone', null], ['fes2-quit', 'phone', 'f13'], ['fes2-staff', 'phone', 'f14'],
   ['fes2-tv-idle', 'tv', 't6a'], ['fes2-tv-one', 'tv', 't6b'], ['fes2-tv-lobby', 'tv', 't3'], ['fes2-tv-full', 'tv', 't6c'],
-  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-film-decide-one', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b'], ['fes2-tv-result-soroe', 'tv', null], ['fes2-tv-idle4', 'tv', null], ['fes2-result-qhaya', 'phone', null], ['fes2-result-qnear', 'phone', null], ['fes2-tv-result-qhaya', 'tv', null], ['fes2-tv-result-qnear', 'tv', null]
+  ['fes2-tv-vote', 'tv', 't7'], ['fes2-tv-decide', 'tv', 't8'], ['fes2-tv-film-decide', 'tv', null], ['fes2-tv-film-decide-one', 'tv', null], ['fes2-tv-decide-one', 'tv', null], ['fes2-tv-decide-a', 'tv', null], ['fes2-tv-decide-b', 'tv', null], ['fes2-tv-ready', 'tv', 't9'], ['fes2-tv-result', 'tv', 't12a'], ['fes2-tv-boom', 'tv', 't12b'], ['fes2-tv-result-soroe', 'tv', null], ['fes2-tv-idle4', 'tv', null], ['fes2-result-qhaya', 'phone', null], ['fes2-result-qnear', 'phone', null], ['fes2-tv-result-qhaya', 'tv', null], ['fes2-tv-result-qnear', 'tv', null]
 ].map(([id, kind, mock]) => ({ id, kind, draw: 'fes', fes: true,
   screen: BUILD[id]({}).screen, mock: mock ? { page: 'festival.html', id: mock } : null }));
 

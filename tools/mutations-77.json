@@ -1,0 +1,29 @@
+[
+ {
+  "name": "77-2-1 穴うめの字数をもどす",
+  "file": "public/js/quiz-bank.js",
+  "suite": "tests/quiz-bank.js",
+  "only": "指示77 2-1",
+  "from": "choices: ['落ちる', '上がる', '降りる']",
+  "to": "choices: ['落ちる', '登る', '降りる']",
+  "expect": "指示77 2-1"
+ },
+ {
+  "name": "77-2-2 かっこだけちがう同じ問題を作る",
+  "file": "public/js/quiz-bank.js",
+  "suite": "tests/quiz-bank.js",
+  "only": "指示77 2-2",
+  "from": "{ q: '「椿」の読みは？',",
+  "to": "{ q: '水がこおる温度は？（気圧）',",
+  "expect": "指示77 2-2"
+ },
+ {
+  "name": "77-3 言い方をもどす",
+  "file": "public/js/quiz-bank.js",
+  "suite": "tests/quiz-bank.js",
+  "only": "指示77 束1",
+  "from": "{ q: '群馬県の県庁所在地は？',",
+  "to": "{ q: 'いまの群馬県の県庁所在地は？',",
+  "expect": "指示77 束1"
+ }
+]

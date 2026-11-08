@@ -124,6 +124,23 @@ async function run() {
     } finally { await srv.close(); }
   });
 
+  // 指示76 2-15：部屋にはいるがゲームが動いていない（終わった・まだ始まっていない）時に押したマス・答えは「すれちがい」。
+  // not_in_room で返すと、端末は「つなぎ直しています」を出して入り直しまでする（本当は部屋にいる）
+  await r.test('指示76 2-15：ゲームが動いていない時のマス・答え・進めるは not_playing（not_in_room ではない）', async () => {
+    const srv = await startTestServer();
+    try {
+      const rm = await makeRoom(srv, 2);
+      for (const ev of ['wolf:act', 'wolf:vote', 'wolf:next']) {
+        const res = await rm.all[0].call(ev, { targetId: null });
+        assertEqual(res.ok, false, ev + '：受け付けない');
+        assertEqual(res.error, 'not_playing', ev + '：理由');
+      }
+      const d = await device(srv.url);
+      const out = await d.call('wolf:act', { targetId: null });
+      assertEqual(out.error, 'not_in_room', '部屋に入っていない端末は今までどおり not_in_room');
+    } finally { await srv.close(); }
+  });
+
   await r.test('d09：存在しない・解散済みの部屋コードは、入室も在室確認も正しく断られる', async () => {
     const srv = await startTestServer();
     try {

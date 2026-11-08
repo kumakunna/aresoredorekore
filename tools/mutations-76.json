@@ -88,5 +88,23 @@
   "from": "    view.missNote = lab ? (lab.missNote || '') : v2MissNote();",
   "to": "    view.missNote = '';",
   "expect": "指示76 2-10"
+ },
+ {
+  "name": "76-2-15a 3-2-1 の最中をすれちがいにしない",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "指示76 2-15",
+  "from": "    'not_started', 'paused', 'wrong_phase',",
+  "to": "    'paused', 'wrong_phase',",
+  "expect": "（not_started）"
+ },
+ {
+  "name": "76-2-15b 解除中の一言を浮く知らせにもどす",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "指示76 2-15",
+  "from": "    if(document.querySelector('.screen.active .v2-play .v2-pnum')){ v2MissShow(text); if(flash) flashOnly(flash); return; }",
+  "to": "    void 0;",
+  "expect": "本当のつながりの問題"
  }
 ]

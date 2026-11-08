@@ -221,7 +221,7 @@ async function until(fn, label, ms) {
     note('リモコン', '両方 ● つながっている');
     // リモコンの一言（変わりました・TV から返事がありません）を、ページの中で時刻つきで書き留める。
     // 外から何度も読みに行く形だと、読むのが遅れた間に「変わりました」（4秒で消える）を見のがす（11/02 に見た）
-    await ev(remote, `(() => { window.__fb = []; let last = {}; new MutationObserver(() => { document.querySelectorAll('.tv').forEach((x) => { const tv = x.getAttribute('data-tv'); const f = x.querySelector('.fb'); const t = f ? f.textContent : ''; if (t !== last[tv]) { last[tv] = t; window.__fb.push({ t: Date.now(), tv: +tv, text: t }); } }); }).observe(document.body, { childList: true, subtree: true, characterData: true }); return true; })()`);
+    await ev(remote, `(() => { window.__fb = []; let last = {}; new MutationObserver(() => { document.querySelectorAll('.tv').forEach((x) => { const tv = x.getAttribute('data-tv'); const f = x.querySelector('[data-say]'); const t = f ? f.textContent : ''; if (t !== last[tv]) { last[tv] = t; window.__fb.push({ t: Date.now(), tv: +tv, text: t }); } }); }).observe(document.body, { childList: true, subtree: true, characterData: true }); return true; })()`);
 
     // 開き直していないかの印：はじめの timeOrigin
     const born = {};
@@ -486,6 +486,37 @@ async function part754(c) {
     return { 印: (S.vset.video || {}).marks, 一覧: Array.from(after.querySelectorAll('.mlist li input')).map((i) => i.value), 範囲のえらび: after.querySelectorAll('.rng select').length };
   })()`);
   note('75 4-2 はじめるの画面で「ここに印」', ui);
+  // くまくん（11/8）：並べかえ・名前を直す・消す・「始めを今の時刻に」も、1回ずつ押して確かめる
+  const ops = await c.ev(c.start, `(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = async () => (await chrome.storage.local.get('S')).S.vset.video;
+    const box = () => document.querySelector('[data-marks="video"]');
+    const press = (label, li) => { const b = Array.from((li || box()).querySelectorAll('button')).find((x) => x.textContent === label); b.click(); };
+    const out = {};
+    // 2つ目の印（0.5秒）
+    const v = box().querySelector('video.prev'); v.currentTime = 0.5; await wait(300);
+    box().querySelector('input[type=text]').value = 'ふたつめ'; press('ここに印'); await wait(700);
+    out.二つ = (await S()).marks.map((m) => m.name).join(',');
+    // 名前を直す（一覧の1つ目）
+    const nm = box().querySelector('.mlist li input'); nm.value = 'なおした'; nm.dispatchEvent(new Event('change', { bubbles: true })); await wait(700);
+    out.名前を直す = (await S()).marks.map((m) => m.name).join(',');
+    // 並べかえ（1つ目を ↓）
+    press('↓', box().querySelector('.mlist li')); await wait(700);
+    out.並べかえ = (await S()).marks.map((m) => m.name).join(',');
+    // 始めを今の時刻に（0.8秒）
+    box().querySelector('video.prev').currentTime = 0.8; await wait(300);
+    press('始めを今の時刻に'); await wait(700);
+    out.始め = (await S()).start;
+    // 消す（一覧の2つ目）
+    press('消す', box().querySelectorAll('.mlist li')[1]); await wait(700);
+    out.消す = (await S()).marks.map((m) => m.name).join(',');
+    return out;
+  })()`);
+  note('75 4-2 印の操作（くまくんの確かめ）', ops);
+  // 4-6 の5・6：番号つきの手順と、TV ごとの3つの印
+  await sleep(3500);
+  note('75 4-6 はじめるの画面', await c.ev(c.start, `({ 手順: Array.from(document.querySelectorAll('h2.step')).map((h) => h.textContent).join(' / '),
+    印: Array.from(document.querySelectorAll('[data-tvlook]')).map((x) => x.textContent).join(' | '), 準備: !!document.querySelector('h2.prep') })`));
 
   // 4-2〜4-5：動画1 に印2つ・範囲 0.5〜3.0秒・くり返し入（4秒の動画）。TV① に動画1
   await c.sv('chrome.runtime.sendMessage({ t: "vset", id: "video", vset: { marks: [{ id: "a", name: "いち", t: 1.0 }, { id: "b", name: "に", t: 2.0 }], start: 0.5, end: 3.0, loop: true, from: null } })');
@@ -493,6 +524,13 @@ async function part754(c) {
   await c.press(1, 'video');
   await until(() => c.ev(c.remote, '!!document.querySelector(".tv[data-tv=\\"1\\"] [data-jump=\\"b\\"]")'), 'リモコンに印', 20000);
   note('75 4-3 動画が出ている時のリモコン（390×844）', await fit());
+  // 4-6 の1・2：押したボタンが光る・返事は名前の横・「さっきの画面（…）にもどす」
+  const p46 = await c.ev(c.remote, `(async () => { const b = document.querySelector('.tv[data-tv="2"] [data-item="menu"]'); b.click();
+    const lit = document.querySelector('.tv[data-tv="2"] [data-item="menu"]').classList.contains('is-press');
+    let say = ''; for (let i = 0; i < 40 && !say; i++) { await new Promise((r) => setTimeout(r, 50)); say = document.querySelector('.tv[data-tv="2"] [data-say]').textContent; }
+    await new Promise((r) => setTimeout(r, 400));
+    return { 光る: lit, 三百ms後: document.querySelector('.tv[data-tv="2"] .is-press') ? '光ったまま' : '消えた', 返事: say, もどる: document.querySelector('.tv[data-tv="2"] [data-back]').textContent }; })()`);
+  note('75 4-6 リモコン（押したら光る・返事・もどる先）', p46);
   const shot = await c.cdp('Page.captureScreenshot', { format: 'png' }, rs);
   fs.writeFileSync(path.join(OUT, 'remote-video-390x844.png'), Buffer.from(shot.data, 'base64'));
   await c.cdp('Emulation.clearDeviceMetricsOverride', {}, rs);

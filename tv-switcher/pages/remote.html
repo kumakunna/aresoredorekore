@@ -51,6 +51,13 @@
   .back{min-height:44px;font-size:15px;font-weight:700;border:2px solid var(--line);background:#fff;border-radius:12px;padding:0 12px;color:var(--ink)}
   .back:disabled{opacity:.4}
   .fb{font-size:15px;font-weight:700;min-height:20px;line-height:20px}.fb.is-ok{color:var(--ok)}.fb.is-ng{color:var(--ng)}
+  /* 指示75 4-6 の1（くまくんがえらんだ）：押したボタンは0.3秒光る。返事（変わりました・返事がありません）は TV の名前の横に大きく */
+  .name{display:flex;align-items:center;gap:8px}.name .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .name .say{flex:none;font-size:17px;font-weight:800;border-radius:999px;padding:4px 12px;line-height:1.2}
+  .name .say.is-ok{background:var(--ok);color:#fff}.name .say.is-ng{background:var(--ng);color:#fff}.name .say:empty{display:none}
+  button.is-press{box-shadow:0 0 0 4px var(--now);transition:box-shadow .3s ease}
+  /* 指示75 4-6 の2：もどる先の名前で「さっきの画面」が長くなる。もどすボタンが残りの幅を使い、「自動で回す」は折らない */
+  .row .back{flex:1 1 auto;min-width:0;line-height:1.2;padding:4px 10px}.row .auto{flex:none;white-space:nowrap}
   .alert{display:none;align-items:center;justify-content:space-between;gap:6px;background:var(--warn);border-radius:8px;padding:2px 6px;font-size:14px;font-weight:700}
   .tv.is-stuck .alert{display:flex}.tv.is-stuck .st{display:none}
   .alert button{min-height:40px;font-size:15px;font-weight:700;border:0;background:var(--ink);color:#fff;border-radius:10px;padding:0 12px}
@@ -82,6 +89,7 @@
   var mine = { 1: null, 2: null };      // この端末が押した切りかえ { seq, timer }
   var fb = { 1: { text: '', cls: '' }, 2: { text: '', cls: '' } };
   var ask = { 1: null, 2: null };       // ゲーム中の確かめ { item } か { back:true }
+  var pressed = null;                   // 指示75 4-6 の1：いま光らせているボタン
   var socket = io('/tvs', { auth: { as: 'remote' } });
   socket.on('connect', function(){ document.body.classList.remove('is-off'); });
   socket.on('disconnect', function(){ document.body.classList.add('is-off'); });
@@ -111,7 +119,8 @@
       var items = S.items.filter(function(it){ return it.tvs.indexOf(tv) !== -1 && it.have !== false; });
       var live = T.connected && T.ext;
       var on = !!(S.settings && S.settings.auto[tv]);
-      var html = '<div class="name">' + tvLabel(tv) + '：' + esc(itemName(T.item)) + (on ? '<small>自動</small>' : '') + '</div>' +
+      var html = '<div class="name"><span class="nm">' + tvLabel(tv) + '：' + esc(itemName(T.item)) + (on ? '<small>自動</small>' : '') + '</span>' +
+        '<span class="say ' + fb[tv].cls + '" data-say role="status">' + esc(fb[tv].text) + '</span></div>' +
         '<div class="st"><span class="c ' + (live ? 'is-ok' : 'is-ng') + '">' + (live ? '● つながっている' : '× 切れている') + '</span>' +
         (T.seen ? '<span>最後の連絡 ' + hhmm(T.seen) + '</span>' : '') + '</div>' +
         '<div class="alert" role="alert"><span>あつまれの開き直しが要ります</span><button type="button" data-reload>開き直す</button></div>' +
@@ -121,12 +130,17 @@
             esc(it.name) + (now ? '<span class="b">いま</span>' : none ? '<span class="b">まだありません</span>' : '') + '</button>';
         }).join('') + '</div>' +
         vidHtml(tv, T) +
-        '<div class="row"><button type="button" class="back" data-back' + (T.prev ? '' : ' disabled') + '>さっきの画面にもどす</button>' +
+        // 指示75 4-6 の2：何にもどるのかを書く（「さっきの画面（メニュー）にもどす」）
+        '<div class="row"><button type="button" class="back" data-back' + (T.prev ? '' : ' disabled') + '>さっきの画面' + (T.prev && itemName(T.prev) ? '（' + esc(itemName(T.prev)) + '）' : '') + 'にもどす</button>' +
         '<button type="button" class="auto' + (on ? ' on' : '') + '" data-auto aria-pressed="' + on + '">自動で回す：' + (on ? '入' : '切') + '</button></div>' +
-        '<div class="fb ' + fb[tv].cls + '" role="status">' + esc(fb[tv].text) + '</div>' +
+
         '<div class="ask" role="dialog" aria-label="ゲーム中の確かめ"><p>いまゲーム中です。<br>切りかえますか？</p>' +
         '<div><button type="button" class="go" data-ask-go>切りかえる</button><button type="button" data-ask-no>やめる</button></div></div>';
       sec.innerHTML = html;
+      if (pressed && pressed.tv === tv && Date.now() < pressed.until) {
+        var pb = sec.querySelector('[data-item="' + pressed.key + '"],[data-jump="' + pressed.key + '"],[data-vop="' + pressed.key + '"]' + (pressed.key === 'back' ? ',[data-back]' : ''));
+        if (pb) { pb.classList.add('is-press'); setTimeout(function(){ pb.classList.remove('is-press'); }, Math.max(0, pressed.until - Date.now())); }
+      }
       sec.classList.toggle('is-stuck', !!(T.stuck && T.connected));
       sec.classList.toggle('is-ask', !!ask[tv]);
     });
@@ -170,6 +184,9 @@
     var sec = ev.target.closest('.tv'); if (!sec) return;
     var tv = Number(sec.getAttribute('data-tv'));
     var b = ev.target.closest('button'); if (!b || b.disabled) return;
+    // 指示75 4-6 の1：押したボタンを0.3秒光らせる（描き直しても光るように、押した物の名前を覚えておく）
+    pressed = { key: b.getAttribute('data-item') || b.getAttribute('data-jump') || b.getAttribute('data-vop') || (b.hasAttribute('data-back') ? 'back' : ''), tv: tv, until: Date.now() + 300 };
+    b.classList.add('is-press'); setTimeout(function(){ b.classList.remove('is-press'); }, 300);
     if (b.hasAttribute('data-item')) return send(tv, { item: b.getAttribute('data-item') });
     if (b.hasAttribute('data-back')) return send(tv, { back: true });
     if (b.hasAttribute('data-auto')) return socket.emit('tvs:auto', { tv: tv, on: !(S.settings && S.settings.auto[tv]) }, function(){});

@@ -250,6 +250,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         await push(S, tv, { t: 'vtime', item: msg.id, cur: msg.cur, dur: msg.dur, paused: !!msg.paused });
         break;
       }
+      case 'conn':   // 指示75 4-6 の6：休けいのタブがサーバーにつながった／切れた
+        if (tv) S.conn = Object.assign({}, S.conn, { [tv]: !!msg.on });
+        break;
       case 'notice-get':   // notice.js が開いた時に聞く（その窓の TV の一言。TV の窓でなければ空）
         res = { ok: true, text: tv && S.notice ? S.notice[tv] || '' : '' };
         break;
@@ -261,7 +264,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         if (sender.tab) { try { await chrome.tabs.remove(sender.tab.id); } catch (e) {} }
         break;
       case 'status':
-        res = { ok: true, tvProfile: !!S.tvProfile, vset: S.vset || {}, server: S.server, windows: { 1: !!(await winAlive(S.win[1])), 2: !!(await winAlive(S.win[2])) }, items: S.items, asobi: !!S.asobiUrl, swapped: !!(S.place && S.place.swapped) };
+        // 指示75 4-6 の6：TV ごとに「全画面・つながっている・ログイン」（ログインは、サーバーから出す物の一覧が届いたか）
+        const look = {};
+        for (const n of [1, 2]) { const w = await winAlive(S.win[n]); look[n] = { win: !!w, full: !!(w && w.state === 'fullscreen'), conn: !!(w && S.conn && S.conn[n]), login: !!(w && S.items.length) }; }
+        res = { ok: true, tvProfile: !!S.tvProfile, vset: S.vset || {}, look, side: { 1: TvsLogic.sideOf(S.place, 1), 2: TvsLogic.sideOf(S.place, 2) }, server: S.server, windows: { 1: !!(await winAlive(S.win[1])), 2: !!(await winAlive(S.win[2])) }, items: S.items, asobi: !!S.asobiUrl, swapped: !!(S.place && S.place.swapped) };
         break;
       case 'media-changed': {   // 「はじめる」の画面で画像・動画をえらんだ：すぐサーバーに教える（10秒ごとの確かめを待たない。待つと、えらんだ直後のリモコンが「まだありません」のままだった）
         const have = await haveMedia(S);

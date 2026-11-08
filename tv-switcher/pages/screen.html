@@ -54,7 +54,10 @@
 
   var socket = io('/tvs', { auth: { as: 'screen', tv: tv } });
   var first = true;
+  // 指示75 4-6 の6：「はじめる」の画面に「サーバーにつながっている」を出すため、拡張機能に知らせる
+  socket.on('disconnect', function(){ ext({ t: 'conn', tv: tv, on: false }); });
   socket.on('connect', function(){
+    ext({ t: 'conn', tv: tv, on: true });
     ext({ t: 'ping', tv: tv }).then(function(p){
       socket.emit('tvs:hello', { ext: !!p, have: p && p.have, durations: p && p.durations }, function(r){
         if (!r || !r.ok) return;

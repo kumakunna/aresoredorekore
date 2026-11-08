@@ -12,8 +12,16 @@
     // 指示75 3-8：TV 専用の Chrome でない所では、大きく言って「はじめる」を押せなくする
     $('notTv').style.display = s.tvProfile ? 'none' : 'block';
     $('start').disabled = !s.tvProfile;
-    $('wins').innerHTML = [1, 2].map((n) => 'TV' + (n === 1 ? '①' : '②') + '：' + (s.windows[n] ? '<span class="ok">出ています</span>' : '<span class="ng">出ていません</span>')).join('　') +
-      (s.swapped ? '（入れかえ中）' : '');
+    // 指示75 4-6 の6：TV ごとに「全画面・つながっている・ログイン」の3つの印
+    const SIDE = { left: '左', right: '右' };
+    const mk = (on, label) => '<span class="' + (on ? 'ok' : 'ng') + '">' + (on ? '✓ ' : '× ') + label + '</span>';
+    $('wins').innerHTML = [1, 2].map((n) => {
+      const L = (s.look || {})[n] || {};
+      const nm = 'TV' + (n === 1 ? '①' : '②') + (s.side && SIDE[s.side[n]] ? '（' + SIDE[s.side[n]] + '）' : '');
+      return '<div class="tvlook" data-tvlook="' + n + '"><b>' + nm + '</b>' + (L.win ? mk(L.full, '全画面') + mk(L.conn, 'つながっている') + mk(L.login, 'ログイン') : '<span class="ng">出ていません</span>') + '</div>';
+    }).join('') + (s.swapped ? '<p class="hint">（入れかえ中）</p>' : '');
+    const left = s.side && s.side[1] === 'right' ? 'TV②（左）' : 'TV①（左）';
+    if ($('soundTv')) $('soundTv').textContent = s.side && s.side[1] ? left : 'TV①';
     $('loginLink').href = s.server + '/';
     $('login').style.display = s.windows[1] && !s.items.length ? 'block' : 'none';
     $('asobiNo').textContent = s.items.length && !s.asobi ? 'サーバーに、あそびまちのアドレスがまだありません' : '';

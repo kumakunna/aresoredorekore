@@ -282,5 +282,41 @@
   "from": "  app.get('/tvs/mark', (req, res) =>",
   "to": "  app.get('/tvs/mark-x', (req, res) =>",
   "expect": "ログイン無しで開ける"
+ },
+ {
+  "name": "75-4-1 動画2を足さない",
+  "file": "tvs-store.js",
+  "suite": "tests/tvs.js",
+  "only": "4-1",
+  "from": "  { id: 'video2', name: '動画2', kind: 'video', sound: 0 }",
+  "to": "  { id: 'video9', name: '動画2', kind: 'video', sound: 0 }",
+  "expect": "並び"
+ },
+ {
+  "name": "75-4-3 印へ飛ぶを止める",
+  "file": "tvs-routes.js",
+  "suite": "tests/tvs.js",
+  "only": "4-2・4-3",
+  "from": "        msg = { op: 'seek', t: m.t, item: sc.item };",
+  "to": "        msg = { op: 'seek', t: 0, item: sc.item };",
+  "expect": "印へ飛ぶは時刻にして送る"
+ },
+ {
+  "name": "75-4-4 くり返しで始めにもどらない",
+  "file": "tv-switcher/extension/logic.js",
+  "suite": "tests/tvs.js",
+  "only": "4-2・4-4",
+  "from": "    if (cur >= R.end - 0.02) return R.loop ? R.start : 'stop';",
+  "to": "    if (cur >= R.end - 0.02) return null;",
+  "expect": "終わりで始めにもどる"
+ },
+ {
+  "name": "75-4-2 名前を切らない",
+  "file": "tv-switcher/extension/logic.js",
+  "suite": "tests/tvs.js",
+  "only": "4-2・4-4",
+  "from": "name: String(m.name || '').slice(0, MARK_NAME_MAX)",
+  "to": "name: String(m.name || '')",
+  "expect": "名前は20字まで"
  }
 ]

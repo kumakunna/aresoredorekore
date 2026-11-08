@@ -125,6 +125,18 @@ function tvView(room) {
     assert(css.indexOf('.v2 .v2-q2line .v2-ptwin-n{line-height:1.15;max-width:1200px;text-box:normal;}') !== -1, '名前の行の箱を字の高さにする（英字の高さで切らない）');
   });
 
+  await r.test('指示77（11/9 の答え 2.A）：TV の早答えの上の帯に、どの層でも層の名前が出る（ナニソレ・むりで「みんなで早答え・」と終わっていた）', async () => {
+    const Q = require('../public/js/quiz-bank');
+    Q.TIERS.forEach((tier) => {
+      const room = S.早答え(6, 0); const w = room.qhaya;
+      w.qs[w.round] = Object.assign({}, w.qs[w.round], { tier });
+      box.innerHTML = W.V2Quiz2.haya.tv(tvView(room));
+      const t = box.querySelector('.v2-omode').textContent;
+      assert(!/・$/.test(t) && t.split('・')[1], tier + '：' + t);
+    });
+    assertEqual(W.UiText.QUIZ2.層.nanisore + '・' + W.UiText.QUIZ2.層.muri, 'ナニソレ・むり', '名前');
+  });
+
   t.win.close();
   r.finish();
 })();

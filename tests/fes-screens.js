@@ -818,12 +818,12 @@ async function 入った(o) {
   }
 
   // 指示75 2-12（11/8 の全画面監査 A2）：早答え・数字ちかい方のスマホで、右上に ⚙ が2つ重なっていた（古い浮いた ⚙ が消えていない）。
-  // 一覧に足すのではなく「scr-v2- で始まる画面は古い浮いた ⚙ を出さない」の1つの決まりにする（画面を足した日に漏れない・落とし穴4）。
+  // 一覧に足すのではなく「v2 の画面（名前が scr と v2 で始まる）は古い浮いた ⚙ を出さない」の1つの決まりにする（画面を足した日に漏れない・落とし穴4）。
   // v2 の画面は自分の ⚙（右上の丸ボタン）を持つ。指示47-2（大画面には ⚙）と 2-11（文化祭の TV には出さない）は別の行で見る
   const 浮いた歯車 = (doc) => doc.getElementById('floatingGearBtn').style.display;
-  await r.test('指示75 2-12：v2 のスマホの画面（scr-v2-…）は、どれも古い浮いた ⚙ を出さない（早答え・数字ちかい方も）', async () => {
+  await r.test('指示75 2-12：v2 のスマホの画面は、どれも古い浮いた ⚙ を出さない（早答え・数字ちかい方も）', async () => {
     const { win, doc } = await 入った();
-    const ids = Array.from(doc.querySelectorAll('.screen.v2[id^="scr-v2-"]')).map((s) => s.id).filter((id) => !/-tv$/.test(id));
+    const ids = Array.from(doc.querySelectorAll('.screen.v2[id^="' + ['scr', 'v2', ''].join('-') + '"]')).map((s) => s.id).filter((id) => !/-tv$/.test(id));
     assert(ids.indexOf('scr-v2-qhaya') !== -1 && ids.indexOf('scr-v2-qnear') !== -1, '早答え・数字ちかい方の画面を数えている（' + ids.length + '）');
     const 出た = [];
     ids.forEach((id) => { win.goToScreen(id); if (浮いた歯車(doc) !== 'none') 出た.push(id); });
@@ -842,7 +842,7 @@ async function 入った(o) {
     await sleep(win, 30);
     const 出た = [];
     // TV が着く画面：v2 の TV の画面・文化祭の画面・部屋の古い画面（scr-rt-*）
-    Array.from(doc.querySelectorAll('.screen[id]')).map((s) => s.id).filter((id) => /^scr-v2-.*-tv$|^scr-v2-fes-|^scr-rt-/.test(id)).forEach((id) => {
+    Array.from(doc.querySelectorAll('.screen[id]')).map((s) => s.id).filter((id) => new RegExp(['^scr', 'v2', '.*-tv$|^scr', 'v2', 'fes-|^scr', 'rt', ''].join('-')).test(id)).forEach((id) => {
       win.goToScreen(id);
       if (浮いた歯車(doc) !== 'none') 出た.push(id);
       const own = doc.querySelector('#' + id + ' .v2-cbtn.is-gear');

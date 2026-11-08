@@ -411,9 +411,11 @@ function v2のクラス(css) {
     assertEqual(無い.join('・'), '', 'public/ に無い画像');
   });
 
-  await r.test('縦の英字は、画面いっぱいの塗り（幕）より上・TV では端から少し内側', async () => {
+  // 指示75 2-4（くまくんの決め・11/7 の検査 A35）で決まりが変わった：縦の字は、暗い幕とシートの**後ろ**（開いたシートの字の上に乗っていた）。
+  // それまでの「幕より上」（指示66）を、ここで書きかえた。くわしい順は tests/v2-layers.js
+  await r.test('縦の英字は、暗い幕（シートを開いた時）より下・TV では端から少し内側', async () => {
     const z = (sel) => { const x = cssRules(V2CSS).find((y) => y.sel === sel); const m = x && /z-index:(\d+)/.exec(x.body); return m ? +m[1] : null; };
-    assert(z('.v2 .v2-brand') > z('.v2 .v2-scrim'), 'スマホの縦の字は幕より上');
+    assert(z('.v2 .v2-brand') < z('.v2 .v2-scrim'), 'スマホの縦の字は暗い幕より下（指示75 2-4）');
     assert(z('.v2 .v2-tbrand') > 3, 'TV の縦の字は中身より上');
     const tb = cssRules(V2CSS).find((y) => y.sel === '.v2 .v2-tbrand');
     assert(/right:60px/.test(tb.body), 'TV の縦の字は端ぴったりにしない（安全な枠の近く）');

@@ -25,5 +25,50 @@
   "from": "{ q: '群馬県の県庁所在地は？',",
   "to": "{ q: 'いまの群馬県の県庁所在地は？',",
   "expect": "指示77 束1"
+ },
+ {
+  "name": "77-5-1 ふりがなを添えない",
+  "file": "tools/gen-table-questions.js",
+  "suite": "tests/quiz-bank.js",
+  "only": "指示77 5-1",
+  "from": "const label = (r) => r.yomi ? r.name + '（' + r.yomi + '）' : r.name;",
+  "to": "const label = (r) => r.name;",
+  "expect": "指示77 5-1"
+ },
+ {
+  "name": "77-5-3 東京都を2020年の値に",
+  "file": "question-tables/pref-pop.json",
+  "suite": "tests/quiz-bank.js",
+  "only": "指示77 5-3",
+  "from": "\"value\": 14236627",
+  "to": "\"value\": 14047594",
+  "expect": "指示77 5-3"
+ },
+ {
+  "name": "77-11/9-1 X008 の正解だけ長く",
+  "file": "public/js/quiz-bank.js",
+  "suite": "tests/quiz-bank.js",
+  "only": "X008",
+  "from": "'太陽風が大気に当たる'",
+  "to": "'太陽風と大気がぶつかって光る'",
+  "expect": "X008"
+ },
+ {
+  "name": "77-11/9-2 層の名前（ナニソレ・むり）を消す",
+  "file": "public/js/ui-text.js",
+  "suite": "tests/quiz2-tv.js",
+  "only": "層の名前",
+  "from": ", nanisore: 'ナニソレ', muri: 'むり' }",
+  "to": " }",
+  "expect": "層の名前"
+ },
+ {
+  "name": "77-11/9-5 選択肢を折れ方を直す札にしない",
+  "file": "public/js/v2-quiz2.js",
+  "suite": "tests/quiz2-tv.js",
+  "only": "11/9 の答え 5",
+  "from": "v2-och-t\" data-v2-wrap data-v2-words>",
+  "to": "v2-och-t\" data-v2-wrap>",
+  "expect": "11/9 の答え 5"
  }
 ]

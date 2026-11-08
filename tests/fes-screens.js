@@ -1054,6 +1054,33 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示75 1-2b（くまくん 11/8）：通信は切れているのに socket.io がまだ気づかない（機内モードの A09）。サーバーの「いるよ」（hb:ping・10秒ごと）が
+  // 22秒来なければ古いかもしれない。時間は端末の時計を進めて作る（22秒は待たない・判定の22秒そのものは変えない＝落とし穴24）
+  await r.test('指示75 1-2b：「いるよ」（hb:ping）が22秒来ない → 幕が出て、いるよ（room:here）を送る。答えが来たら消える。18秒ほどなら出さない', async () => {
+    const { win, doc } = await 入った();
+    流す(win, 'fes2-vote');
+    let 答え = null;
+    win.__rtFake.replies['room:here'] = (p, cb) => { 答え = cb; };
+    win.__rtFake.fire('hb:ping', { at: Date.now() });            // いま「いるよ」が来た
+    const 本物 = win.Date.now.bind(win.Date);
+    let 進める = 0;
+    win.Date.now = () => 本物() + 進める;
+    const n0 = emits(win, 'room:here').length;
+    進める = 15000;                                               // 15秒（＋見張りを待つ3秒あまり＝22秒より短い）：まだ待つ
+    await sleep(win, 3300);                                      // 見張りは3秒ごと
+    assert(!幕がふさぐ(doc), '18秒ほどでは出さない');
+    assertEqual(emits(win, 'room:here').length, n0, '18秒ほどでは送らない');
+    進める = 23000;                                               // 23秒：2回つづけて来なかった
+    await sleep(win, 3300);
+    assert(幕がふさぐ(doc), '22秒より長く来なければ、押せなくする');
+    assertEqual(emits(win, 'room:here').length, n0 + 1, 'いるよ（room:here）を1回送る');
+    assert(答え, '答えを待っている');
+    答え({ ok: true });
+    await waitFor(win, () => !幕がふさぐ(doc), 1000, '答えが来たら消える');
+    win.Date.now = 本物;
+    win.close();
+  });
+
   await r.test('指示75 1-2：オフライン（機内モード）→「電波がとどいていないようです」。オンラインにもどって答えが来たら消える', async () => {
     const { win, doc } = await 入った();
     流す(win, 'fes2-vote');

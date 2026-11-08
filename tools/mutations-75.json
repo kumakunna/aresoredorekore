@@ -88,5 +88,14 @@
   "from": "    vpAfterScreen();    // 指示75 1-1",
   "to": "    void 0;    // 指示75 1-1",
   "expect": "最近50件"
+ },
+ {
+  "name": "75-1-2d いるよが来なくても見ない",
+  "file": "public/js/rt-client.js",
+  "suite": "tests/fes-screens.js",
+  "only": "1-2b",
+  "from": "        if (Date.now() - lastHb > STALE_HB_MS) { setStale(true, 'silent'); lastHb = Date.now(); here(); }",
+  "to": "        void STALE_HB_MS;",
+  "expect": "22秒より長く"
  }
 ]

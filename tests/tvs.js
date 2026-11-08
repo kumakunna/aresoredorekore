@@ -573,6 +573,10 @@ async function screen(url, cookie, tv) {
       assert(m.content_scripts.some((c) => c.js.indexOf('tv-mark.js') !== -1 && c.matches.every((u) => /\/tvs\/mark\*$/.test(u))), '拡張機能の tv-mark.js は /tvs/mark だけで動く');
       const cmd = require('fs').readFileSync(require('path').join(__dirname, '..', 'tv-switcher', 'TVを開く.cmd'), 'utf8');
       assert(/\/tvs\/mark"/.test(cmd), 'TVを開く.cmd は /tvs/mark を開く');
+      // くまくんの答え（11/8）：「あつまれ TV」から開いても札が出る時（前に作ったショートカット）の直し方を、札に1行
+      const st = require('fs').readFileSync(require('path').join(__dirname, '..', 'tv-switcher', 'extension', 'start.html'), 'utf8');
+      const box = (/<div id="notTv"[\s\S]*?<\/div>/.exec(st) || [''])[0];
+      assert(/「あつまれ TV」から開いてもこの札が出る時は、ショートカットを作る\.ps1 をもう一度実行してください/.test(box), '札に、ショートカットの作り直しの1行');
     } finally { await srv.close(); }
   });
 

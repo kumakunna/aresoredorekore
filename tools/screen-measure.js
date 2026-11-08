@@ -153,7 +153,12 @@ const MEASURE = function (opts) {
   }
   var txt = '';
   try { txt = (root.innerText || '').replace(/\s+/g, ' ').slice(0, 4000); } catch (e) {}
-  return { n: texts.length, issues: out, txt: txt };
+  // 指示75 2-11・2-12：見えている ⚙ の数（古い浮いた ⚙ と、v2 の右上の ⚙）。文化祭の TV は 0・スマホは 1 のはず
+  var gears = Array.prototype.filter.call(document.querySelectorAll('#floatingGearBtn, .screen.active .v2-cbtn.is-gear'), function (g) {
+    var r = g.getBoundingClientRect(), cs = getComputedStyle(g);
+    return r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden' && parseFloat(cs.opacity) > 0;
+  }).length;
+  return { n: texts.length, issues: out, txt: txt, gears: gears };
 };
 
 /** 物差しの自己検査：わざと悪い物を足して、それぞれ言うか。返り値は言わなかった物の名前（空なら合格） */

@@ -151,7 +151,7 @@ async function 係() {
         const file = String(++連番).padStart(3, '0') + '_' + d.tag + '_' + mode + '_' + now.scr.replace(/^scr-/, '') + '_' + now.stage + '.jpg';
         await d.shot(path.join(OUT, file)).catch(() => 0);
         const m = await d.ev('(' + MEASURE.toString() + ')(' + JSON.stringify({ tv: !!d.isTv }) + ')').catch((e) => ({ n: 0, issues: [{ kind: '測れない', text: String(e.message).slice(0, 80) }] }));
-        記録.撮った.push({ file, dev: d.tag, tv: !!d.isTv, mode, scr: now.scr, stage: now.stage, n: m.n, issues: m.issues, txt: m.txt || '' });
+        記録.撮った.push({ file, dev: d.tag, tv: !!d.isTv, mode, scr: now.scr, stage: now.stage, n: m.n, issues: m.issues, txt: m.txt || '', gears: m.gears });
         if (m.issues.length) log(d.tag, mode, now.scr, now.stage, m.issues.length + '件');
       }
       await sleep(700);

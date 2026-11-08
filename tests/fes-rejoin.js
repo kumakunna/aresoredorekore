@@ -396,6 +396,79 @@ const memberOf = (srv, code, id) => srv.store.get(code).members.get(id);
     await srv.close();
   });
 
+  // 指示75 2-9（くまくんの決め）：入退室の記録（係だけ・検索つき）。入った・出た・席を外した・もどった・外された（係・しばらく入れない・
+  // しばらく押さなかった・帰った）・満員で断られた を、時刻と名前で残す。残す長さは名前の記録と同じ（1か月）
+  await r.test('指示75 2-9：入退室の記録が残り、係の画面（/fes/presence）で名前の検索・種類でしぼれる。係でない人は見られない', async () => {
+    const srv = await startTestServer(Object.assign({}, T, { lobbyMs: 600000 }));
+    const { staff, code } = await makeFes(srv, ['pittari']);
+    const a = await join(srv, code, 'あおい', { dev: 'dev-a' });
+    const b = await join(srv, code, 'べに', { dev: 'dev-b' });
+    a.close();
+    await waitUntil(() => !memberOf(srv, code, a.memberId).connected, 'あおいが切れる');
+    const a2 = await join(srv, code, 'あおい', { memberId: a.memberId, auto: true });
+    await staff.call('fes:kick', { code, memberId: b.memberId });
+    const b2 = await join(srv, code, 'べに', { dev: 'dev-b' });
+    await staff.call('fes:kick', { code, memberId: b2.memberId, waitMs: 30000 });
+    // 満員：16人まで入れて、17人目
+    const 人 = [];
+    for (let i = 0; i < 15; i++) 人.push(await join(srv, code, 'ひと' + i));
+    const full = await join(srv, code, 'あふれ');
+    assertEqual(full.res.error, 'room_full', '17人目は満員');
+    await a2.call('room:leave', { code, memberId: a.memberId });
+    await sleep(100);
+    const rows = srv.io.fesStore.listPresence();
+    const 種類 = (name) => rows.filter((x) => x.name === name).map((x) => x.kind).reverse().join(',');
+    assertEqual(種類('あおい'), 'join,away,back,leave', 'あおい：入った・席を外した・もどった・出た');
+    assertEqual(種類('べに'), 'join,kick,join,kick_wait', 'べに：入った・係が外した・入った・しばらく入れない');
+    assertEqual(種類('あふれ'), 'full', '満員で断られた');
+    assert(rows.every((x) => x.room === code && typeof x.at === 'number'), '部屋と時刻');
+    // 係の画面
+    const ck = await login(srv.url, STAFF);
+    const page = async (q) => { const res = await fetch(srv.url + '/fes/presence' + q, { headers: { Cookie: ck } }); return { s: res.status, t: await res.text() }; };
+    const all = await page('');
+    assertEqual(all.s, 200, '係は見られる');
+    assert(/あおい/.test(all.t) && /べに/.test(all.t) && /満員/.test(all.t), '一覧に出る');
+    const q1 = await page('?q=' + encodeURIComponent('あお'));
+    assert(/あおい/.test(q1.t) && !/べに/.test(q1.t), '名前で検索');
+    const q2 = await page('?kind=kick_wait');
+    assert(/べに/.test(q2.t) && !/あおい/.test(q2.t), '種類でしぼる');
+    const x = await fetch(srv.url + '/fes/presence');
+    assertEqual(x.status, 401, 'ログインしていない人は見られない');
+    const other = await login(srv.url, 12345);
+    const y = await fetch(srv.url + '/fes/presence', { headers: { Cookie: other } });
+    assertEqual(y.status, 403, '係でない人は見られない');
+    // 名前は字のまま（HTML として動かさない・落とし穴43）。入れ物に直に置いて見る（名前の決まりが < を通すかに頼らない）
+    srv.io.fesStore.logPresence(code, '<b>x', 'join');
+    const esc = await page('?q=' + encodeURIComponent('<b>'));
+    assert(esc.t.indexOf('<b>x') === -1 && esc.t.indexOf('&lt;b&gt;x') !== -1, '名前は字のまま');
+    [staff, a2, b, b2, full, ...人].forEach((d) => d.close());
+    await srv.close();
+  });
+
+  await r.test('指示75 2-10：名前の記録（/fes/names）は字で検索・はじいたかでしぼれる。回ごとの記録（/fes/rounds）はゲームでしぼれる', async () => {
+    const srv = await startTestServer(Object.assign({}, T, { lobbyMs: 600000 }));
+    const { staff, code } = await makeFes(srv, ['pittari']);
+    const a = await join(srv, code, 'みかん');
+    const b = await join(srv, code, 'りんご');
+    srv.io.fesStore.logName(code, 'わるいことば', true, 'blocked');
+    srv.io.fesStore.recordRound({ room: code, round: 1, mode: 'soroe', players: 3, detail: { rounds: [] } });
+    srv.io.fesStore.recordRound({ room: code, round: 2, mode: 'pittari', players: 3, detail: { rounds: [] } });
+    const ck = await login(srv.url, OWNER);
+    const get = async (p) => (await fetch(srv.url + p, { headers: { Cookie: ck } })).text();
+    const n1 = await get('/fes/names?q=' + encodeURIComponent('みか'));
+    assert(/みかん/.test(n1) && !/りんご/.test(n1), '名前：字で検索');
+    const n2 = await get('/fes/names?kind=blocked');
+    assert(/わるいことば/.test(n2) && !/<td>みかん<\/td>/.test(n2), '名前：はじいた名前だけ');
+    const n3 = await get('/fes/names?only=blocked');
+    assert(/わるいことば/.test(n3) && !/<td>みかん<\/td>/.test(n3), '名前：前からの ?only=blocked も効く');
+    const r1 = await get('/fes/rounds?kind=soroe');
+    assert(/そろえて発射/.test(r1) && !/<td>ぴったり10秒<\/td>/.test(r1), '回ごと：ゲームでしぼる');
+    const fut = await get('/fes/names?from=2099-01-01T00:00');
+    assert(!/<td>みかん<\/td>/.test(fut), '時刻でしぼる（未来からは0件）');
+    [staff, a, b].forEach((d) => d.close());
+    await srv.close();
+  });
+
   // 5：4本のゲームそれぞれ、遊んでいる途中で切れて同じ memberId で戻る
   const GAMES = [
     { mode: 'bomb-coop', game: 'bomb' },

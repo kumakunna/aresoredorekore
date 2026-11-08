@@ -25,6 +25,14 @@ function createFesStore(db) {
       reason TEXT,
       at INTEGER NOT NULL
     );
+    -- 指示75 2-9：入退室の記録（係だけが見る・1か月で消す）。kind：join・leave・away・back・kick・kick_wait・idle・gone・full
+    CREATE TABLE IF NOT EXISTS fes_presence (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room TEXT NOT NULL,
+      name TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS fes_feedback (
       key TEXT PRIMARY KEY,         -- 部屋・回・人ごとに1つ（★を変えたら上書き）
       room TEXT NOT NULL,
@@ -98,6 +106,8 @@ function createFesStore(db) {
   const updStars = db.prepare('UPDATE fes_feedback SET stars = ?, name = ?, updated_at = ?, ver = COALESCE(?, ver) WHERE key = ?');
   const updText = db.prepare('UPDATE fes_feedback SET text = ?, name = ?, updated_at = ?, ver = COALESCE(?, ver) WHERE key = ?');
   const delNames = db.prepare('DELETE FROM fes_names WHERE at < ?');
+  const insPresence = db.prepare('INSERT INTO fes_presence (room, name, kind, at) VALUES (?, ?, ?, ?)');
+  const delPresence = db.prepare('DELETE FROM fes_presence WHERE at < ?');
   const delFb = db.prepare('DELETE FROM fes_feedback WHERE at < ?');
   // 指示68-2：クイズ解除の記録。cause は defused（解除）・lives（爆発）・time（時間切れ）、競争版は firstDone・allDone。
   // first_ok は 1回目で正解（1）・外した（0）・だれも答えなかった（NULL）
@@ -139,6 +149,15 @@ function createFesStore(db) {
       this.purge(now);
       return db.prepare('SELECT * FROM fes_rounds ORDER BY at DESC LIMIT 2000').all()
         .map((r) => Object.assign(r, { detail: r.detail ? (() => { try { return JSON.parse(r.detail); } catch (e) { return null; } })() : null }));
+    },
+    /** 指示75 2-9：入退室を1つ残す（名前と時刻と種類だけ。端末の札・memberId は残さない） */
+    logPresence(room, name, kind, now) {
+      insPresence.run(String(room || ''), String(name || '').slice(0, 64), String(kind || ''), now || Date.now());
+    },
+    /** 新しい順（係の画面・/fes/presence） */
+    listPresence(now) {
+      this.purge(now);
+      return db.prepare('SELECT room, name, kind, at FROM fes_presence ORDER BY id DESC LIMIT 5000').all();
     },
     /** 入力された名前を1つ残す（はじいた名前も） */
     logName(room, name, blocked, reason, now) {
@@ -194,7 +213,7 @@ function createFesStore(db) {
     purge(now) {
       const cut = (now || Date.now()) - RETAIN_MS;
       delQ.run(cut);
-      return { names: delNames.run(cut).changes, feedback: delFb.run(cut).changes, bomb: delPlays.run(cut).changes, rounds: delRounds.run(cut).changes };
+      return { names: delNames.run(cut).changes, presence: delPresence.run(cut).changes, feedback: delFb.run(cut).changes, bomb: delPlays.run(cut).changes, rounds: delRounds.run(cut).changes };
     },
     listNames(now) {
       this.purge(now);

@@ -1229,6 +1229,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
 
   function markDisconnected(member, room) {
     if (!member.connected) return;
+    logPresence(room, member, 'away');   // 指示75 2-9
     member.connected = false;
     member.socketId = null;
     // 2026-11-01 F2：文化祭は、切れてから30秒は席を取っておく（fes-room.js の holdMs）
@@ -1344,9 +1345,18 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
    * 外された本人にだけ room:kicked を届ける。**だれを外したかは、残った人に知らせない**（見本 F14）。
    * 外したあとは、ほかの経路と同じ settleAfterMemberGone を通す（落とし穴17）
    */
+  /**
+   * 指示75 2-9：入退室の記録（文化祭の部屋の遊ぶ人だけ・TV はのぞく）。記録に失敗しても進行は止めない
+   */
+  const PRESENCE_OF_REASON = { fes_staff: 'kick', fes_wait: 'kick_wait', fes_idle: 'idle', fes_gone: 'gone' };
+  function logPresence(room, m, kind) {
+    if (!fesStore || !fesStore.logPresence || !room || !room.fes || !m || m.role === ROLE_BIGSCREEN) return;
+    try { fesStore.logPresence(room.code, m.name, kind); } catch (e) { console.error('[realtime] 入退室の記録で例外:', e); }
+  }
   function removeMember(room, memberId, reason, extra) {
     const target = room.members.get(memberId);
     if (!target) return false;
+    logPresence(room, target, PRESENCE_OF_REASON[reason] || 'kick');
     // 指示74：「つながっていない」にされたあとも生きている socket にも知らせる（2分たって外された人が、止まった画面のままにならない）
     detachMember(room, target.id, Object.assign({ by: null, reason: reason || 'fes' }, extra || {}));
     room.members.delete(target.id);
@@ -1545,6 +1555,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
     }
     /** 指示74：もどる（socket が生きていた・room:here）。room:join の入り直しと同じ判断（満員なら「つぎの回」を待つ）を通す */
     function comeBack(room, me) {
+      if (!me.connected) logPresence(room, me, 'back');   // 指示75 2-9
       if (room.fes) FesRoom.onReturn(room, me, Date.now());
       attachMember(room, me);
       ensureHost(room, 'join');
@@ -1631,6 +1642,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       // 同じ端末が入り直した時は、前のメンバーとして復帰する（再接続で別人が増えないように）
       const rejoinId = payload && payload.memberId;
       let member = rejoinId ? room.members.get(rejoinId) : null;
+      let isNew = false;   // 指示75 2-9：新しく入った人（入退室の記録の「入った」）
 
       // 指示66-2：文化祭の部屋は、新しく入る人に門が3つある——名前の決まり（8字・使えない言葉）・むずかしさ・16人まで。
       // 入り直し（同じ memberId）は前の名前とむずかしさのまま通す。TV（大画面）は名前を出さないので見ない
@@ -1674,7 +1686,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         const live = FesRoom.seats(room, Date.now());
         // 指示66-3：予約の人のために取っておいている席も、空いていない席として数える（予約した本人は、自分の token で入れる）
         const reserveToken = payload && payload.reserve ? String(payload.reserve) : null;
-        if (live + FesRoom.held(room, reserveToken, Date.now()) >= FesRoom.ROOM_MAX) return fail(cb, 'room_full', '満員です（16人まで）。つぎの回をまってね');
+        if (live + FesRoom.held(room, reserveToken, Date.now()) >= FesRoom.ROOM_MAX) {
+          logPresence(room, { name: c.name, role: 'player' }, 'full');   // 指示75 2-9：満員で断られた
+          return fail(cb, 'room_full', '満員です（16人まで）。つぎの回をまってね');
+        }
         if (reserveToken) FesRoom.unreserve(room, reserveToken);
         // 同じ名前が2人いたら、2人目は自動で「ふう②」（見本 F2）
         name = NameFilter.dedupe(c.name, Array.from(room.members.values()).map((m) => m.name));
@@ -1701,6 +1716,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           .forEach((m) => room.members.delete(m.id));
       }
       if (member) {
+        if (!member.connected) logPresence(room, member, 'back');   // 指示75 2-9：もどった
         // 2026-11-01 F2（くまくんの答え）：30秒をすぎて戻った時に満員なら「つぎの回」として待合で待つ（締め出さない）。
         // 30秒の間と、いま遊んでいるゲームの中にいる人は、そのまま戻る（fes-room.js の onReturn）
         FesRoom.onReturn(room, member, Date.now());
@@ -1732,6 +1748,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
           dev: room.fes ? dev : null   // 指示75 1-4・1-6：端末の札（名簿の外に出さない）
         };
         room.members.set(member.id, member);
+        isNew = true;
         if (戻り) room.left.delete(戻り.id);
         if (fesDiff) {
           member.fesDiff = fesDiff;
@@ -1743,6 +1760,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       }
       // 第42弾 門E6：**入り直しでも作り直しでも、姿はここ1か所で入れる**（落とし穴17）
       applyLook(member, (payload && payload.look) || (戻り && 戻り.look));
+      if (isNew) logPresence(room, member, 'join');   // 指示75 2-9：入った
       attachMember(room, member);
       ensureHost(room, 'join'); // ホスト不在の部屋に入ったら、その人がホストになる
       refreshPairNote(room);    // 第32弾-E 第1部：顔ぶれが変わったら一言を作り直す
@@ -2105,6 +2123,7 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
         if (r2 && m2) { room = r2; me = m2; }
       }
       if (room && me) {
+        logPresence(room, me, 'leave');   // 指示75 2-9：出た
         keepLeft(room, me);   // 指示63 2-1：同じ人として戻れるように、消す前に控えへ写す
         room.members.delete(me.id);
         socket.leave('room:' + room.code);

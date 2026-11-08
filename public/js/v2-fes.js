@@ -773,6 +773,8 @@
           (o.canNames ? '<a class="v2-btn is-sec" href="/fes/names" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.名前の記録) + '</span></a>' : '') +
           // 指示68-T 二の束6：回ごとの記録（名前は無い）。係なら先生も見られる。別のタブで開く
           (o.canFb ? '<a class="v2-btn is-sec" href="/fes/rounds" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.回ごとの記録) + '</span></a>' : '') +
+          // 指示75 2-9：入退室の記録（係のアカウントだけ・名前で検索・種類でしぼる）。別のタブで開く
+          (o.canFb ? '<a class="v2-btn is-sec" href="/fes/presence" target="_blank" rel="noopener">' + V.icon('list') + '<span>' + e(S.入退室の記録) + '</span></a>' : '') +
         '</div>' +
         // 指示68-T 二の束1：くまくん（owner）だけ、ゲームごとの入／切（「テスト中を入れる」を置きかえた）。
         // 入はいつも2本以上：入が2本の時、その2本の「切」は押せない（サーバーも断る）
@@ -813,12 +815,17 @@
       var g = info ? info(mode) : null;
       return '<div class="v2-fbsum-s"><span class="v2-lbl">' + e(g ? g.name : mode) + '</span><b>★ ' + avg.toFixed(1) + '</b></div>';
     }).join('');
-    return (平均 ? '<div class="v2-fbsum">' + 平均 + '</div>' : '') +
+    // 指示75 2-10：字で検索・ゲームでしぼる。打っている途中で描き直さない（index.html が行の hidden だけを切りかえる・fesFbFilter）
+    var modes = []; fb.forEach(function (x) { if (modes.indexOf(x.mode) === -1) modes.push(x.mode); });
+    var flt = fb.length ? '<div class="v2-fbflt"><input type="search" class="v2-fbq" data-fes-fbq placeholder="' + e(S.感想をさがす) + '" enterkeyhint="search">' +
+      '<select class="v2-fbmode" data-fes-fbmode aria-label="' + e(S.ゲームでしぼる) + '"><option value="">' + e(S.ぜんぶのゲーム) + '</option>' +
+      modes.map(function (m) { var g = info ? info(m) : null; return '<option value="' + e(m) + '">' + e(g ? g.name : m) + '</option>'; }).join('') + '</select></div>' : '';
+    return (平均 ? '<div class="v2-fbsum">' + 平均 + '</div>' : '') + flt +
       '<div class="v2-fb">' + fb.map(function (x) {
         var g = info ? info(x.mode) : null, t = new Date(x.at);
         var hm = (t.getHours() < 10 ? '0' : '') + t.getHours() + ':' + (t.getMinutes() < 10 ? '0' : '') + t.getMinutes();
         var stars = ''; for (var i = 0; i < (x.stars || 0); i++) stars += V.icon('star');
-        return '<div class="v2-fb-f"><div class="v2-fb-h"><span class="v2-fb-st">' + stars + '</span>' + e((g ? g.name : x.mode) + '・' + hm) + '</div>' +
+        return '<div class="v2-fb-f" data-mode="' + e(x.mode) + '"><div class="v2-fb-h"><span class="v2-fb-st">' + stars + '</span>' + e((g ? g.name : x.mode) + '・' + hm) + '</div>' +
           '<p>' + e(x.text || S.ひとことなし) + '</p></div>';
       }).join('') + '</div>';
   }

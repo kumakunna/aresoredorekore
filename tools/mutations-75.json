@@ -183,5 +183,32 @@
   "from": "txt = tv ? '？' : '';",
   "to": "txt = '';",
   "expect": "？"
+ },
+ {
+  "name": "75-2-9 入ったを残さない",
+  "file": "realtime.js",
+  "suite": "tests/fes-rejoin.js",
+  "only": "2-9",
+  "from": "      if (isNew) logPresence(room, member, 'join');",
+  "to": "      void isNew;",
+  "expect": "あおい"
+ },
+ {
+  "name": "75-2-10 字の検索を効かせない",
+  "file": "fes-routes.js",
+  "suite": "tests/fes-rejoin.js",
+  "only": "2-10",
+  "from": "(!q || String(textOf(r)).toLowerCase().indexOf(q) !== -1)",
+  "to": "(true)",
+  "expect": "字で検索"
+ },
+ {
+  "name": "75-2-10b 感想のしぼり込みを効かせない",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "2-10",
+  "from": "      row.hidden = !!((ms && row.getAttribute('data-mode') !== ms) || (qs && row.textContent.toLowerCase().indexOf(qs) === -1));",
+  "to": "      row.hidden = false;",
+  "expect": "字で検索"
  }
 ]

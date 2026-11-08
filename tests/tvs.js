@@ -521,6 +521,29 @@ async function screen(url, cookie, tv) {
     assertEqual(one[1].bounds.width + '/' + one[2].bounds.left + '/' + one[1].full, '960/960/false', '1つ：左右に分ける（全画面にしない）');
   });
 
+  // 指示75 2-10（くまくんの決め）：切りかえの記録の全部に、検索としぼり込み（だれが・何を・TV・時刻）。係だけ
+  await r.test('指示75 2-10：切りかえの記録（/tvs/log）は係だけ。字で検索・TV でしぼれる', async () => {
+    const srv = await startTestServer();
+    try {
+      const staff = await login(srv.url, STAFF), nobody = await login(srv.url, NOBODY);
+      assertEqual((await fetch(srv.url + '/tvs/log')).status, 401, 'ログイン無し');
+      assertEqual((await fetch(srv.url + '/tvs/log', { headers: { cookie: nobody } })).status, 403, '係でない');
+      const s1 = await screen(srv.url, staff, 1), s2 = await screen(srv.url, staff, 2);
+      const rm = await dev(srv.url, staff, { as: 'remote' });
+      await rm.call('tvs:show', { tv: 1, item: 'menu' });
+      await rm.call('tvs:show', { tv: 2, item: 'rest' });
+      const get = async (q) => { const res = await fetch(srv.url + '/tvs/log' + q, { headers: { cookie: staff } }); return { s: res.status, t: await res.text() }; };
+      const all = await get('');
+      assertEqual(all.s, 200, '係は見られる');
+      assert(/メニュー/.test(all.t) && /休けい/.test(all.t), '名前で出る');
+      const one = await get('?kind=2');
+      assert(/休けい/.test(one.t) && !/<td>メニュー<\/td>/.test(one.t), 'TV②だけ');
+      const q = await get('?q=' + encodeURIComponent('メニュー'));
+      assert(/<td>メニュー<\/td>/.test(q.t) && !/<td>休けい<\/td>/.test(q.t), '字で検索');
+      [s1, s2, rm].forEach((d) => d.close());
+    } finally { await srv.close(); }
+  });
+
   await r.test('門10：このスイートで出たログに、あそびまちの key が1度も無い', async () => {
     assert(出た.length >= 0, '');
     assert(!出た.some((s) => s.indexOf('TVS-SECRET') !== -1), 'ログに key が出た：' + 出た.filter((s) => s.indexOf('TVS-SECRET') !== -1)[0]);

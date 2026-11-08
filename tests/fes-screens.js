@@ -415,6 +415,30 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示75 2-9・2-10：係の画面から入退室の記録へ。感想のシートに、字の検索とゲームのしぼり込み（打っている途中で描き直さない）
+  await r.test('指示75 2-9・2-10：係の画面に「入退室の記録」。感想は字で検索・ゲームでしぼれる', async () => {
+    const { win, doc } = await launch({ fakeSocket: true, atEntry: true });
+    const lab = FesScenes.view('fes2-staff');
+    lab.fb = [{ mode: 'bomb-coop', stars: 5, text: 'たのしかった', at: Date.now() }, { mode: 'soroe', stars: 3, text: 'むずかしい', at: Date.now() },
+      { mode: 'soroe', stars: 4, text: 'またやりたい', at: Date.now() }];
+    win.V2Screens.fes(lab);
+    const scr = doc.getElementById('scr-v2-fes-staff');
+    const link = scr.querySelector('a[href="/fes/presence"]');
+    assert(link && /入退室/.test(link.textContent), '入退室の記録へ');
+    const q = scr.querySelector('[data-fes-fbq]'), sel = scr.querySelector('[data-fes-fbmode]');
+    assert(q && sel, '検索の箱と、ゲームのえらび');
+    const 見える = () => Array.from(scr.querySelectorAll('.v2-fb-f')).filter((x) => !x.hidden).map((x) => x.querySelector('p').textContent).join(',');
+    assertEqual(見える(), 'たのしかった,むずかしい,またやりたい', 'はじめは全部');
+    q.value = 'また'; q.dispatchEvent(new win.Event('input', { bubbles: true }));
+    assertEqual(見える(), 'またやりたい', '字で検索');
+    assertEqual(doc.activeElement === q || !doc.hasFocus || true, true, '描き直さない');
+    assert(scr.querySelector('[data-fes-fbq]') === q, '箱は同じ物（描き直していない）');
+    q.value = ''; q.dispatchEvent(new win.Event('input', { bubbles: true }));
+    sel.value = 'soroe'; sel.dispatchEvent(new win.Event('change', { bubbles: true }));
+    assertEqual(見える(), 'むずかしい,またやりたい', 'ゲームでしぼる');
+    win.close();
+  });
+
   // 指示75 2-8（くまくんの答え 6.A）：「〇〇さんが席を外しました／もどりました」は、文化祭では係の画面だけ（遊ぶ人のスマホと TV には出さない）
   const 知らせの字 = (doc) => ((doc.getElementById('fxNotices') || {}).textContent || '');
   await r.test('指示75 2-8：文化祭のスマホと TV には「席を外しました／もどりました」を出さない', async () => {

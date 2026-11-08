@@ -5235,6 +5235,11 @@
   .v2 .v2-minipill{position:absolute;left:12px;bottom:calc(var(--v2-bandh) + 12px);z-index:23;display:none;align-items:center;gap:6px;border:0;border-radius:999px;
     padding:8px 14px;background:var(--wsheet);color:var(--wsheet-ink);font-weight:900;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.14);cursor:pointer;min-height:44px;}   /* 指示75 2-1：44px 以上（34px だった） */
   .v2 .v2-minipill.is-on{display:inline-flex;}
+  /* 指示75 2-10：係の感想のしぼり込み（打つ所は 16px・押す所は 44px） */
+  .v2 .v2-fbflt{display:flex;gap:8px;margin:4px 0 10px;}
+  .v2 .v2-fbq{flex:1 1 auto;min-width:0;min-height:44px;font-size:16px;padding:0 12px;border:2px solid var(--wl);border-radius:12px;background:#FFFFFF;color:#141414;}
+  .v2 .v2-fbmode{flex:none;max-width:45%;min-height:44px;font-size:16px;padding:0 8px;border:2px solid var(--wl);border-radius:12px;background:#FFFFFF;color:#141414;}
+  .v2 .v2-fb-f[hidden]{display:none;}
   .v2 .v2-minipill .v2-ic{width:18px;height:18px;color:#F5B400;}
   .v2 .v2-stars{display:flex;gap:6px;}
   .v2 .v2-stars button{width:44px;height:44px;border:0;background:none;padding:0;cursor:pointer;color:#D9D4C4;display:flex;align-items:center;justify-content:center;}
@@ -34173,6 +34178,18 @@
   if(rt && wakeKeep) rt.on('status', function(){ wakeKeep.sync(); });
 
   // ---- 押した時（文化祭の画面だけ。data-fes-*） ----
+  /**
+   * 指示75 2-10：係の画面の感想のしぼり込み。描き直さずに、行の hidden だけを切りかえる（打っている途中の字と、キーボードを消さない）
+   */
+  function fesFbFilter(root){
+    var q = root.querySelector('[data-fes-fbq]'), m = root.querySelector('[data-fes-fbmode]');
+    var qs = q ? q.value.trim().toLowerCase() : '', ms = m ? m.value : '';
+    root.querySelectorAll('.v2-fb-f').forEach(function(row){
+      row.hidden = !!((ms && row.getAttribute('data-mode') !== ms) || (qs && row.textContent.toLowerCase().indexOf(qs) === -1));
+    });
+  }
+  document.addEventListener('input', function(e){ if(e.target.matches && e.target.matches('[data-fes-fbq]')) fesFbFilter(e.target.closest('.v2-sheet') || document); });
+  document.addEventListener('change', function(e){ if(e.target.matches && e.target.matches('[data-fes-fbmode]')) fesFbFilter(e.target.closest('.v2-sheet') || document); });
   document.addEventListener('input', function(e){
     var t = e.target;
     if(!t.matches || !t.matches('[data-fes-name]')) return;

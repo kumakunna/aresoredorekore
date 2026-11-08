@@ -2,6 +2,7 @@
 //
 //   GET /tvs               … リモコン（係のスマホ）
 //   GET /tvs/items         … 出す物の一覧（係の画面）
+//   GET /tvs/log           … 切りかえの記録の全部（指示75 2-10・検索としぼり込み）
 //   GET /tvs/screen?tv=N   … TV の PC の「休けい」のタブ。サーバーとつながり、拡張機能に伝える役（指示69 2-1）
 //   GET /api/tvs/asobi     … あそびまちの URL（key 付き）。**拡張機能だけが**休けいのタブから読む。リモコンは読まない
 //   socket.io の /tvs      … 係のログインが無いと、つながらない
@@ -50,6 +51,22 @@ function mountTvs(app, io, opts) {
   app.get('/tvs', send('remote.html'));
   app.get('/tvs/items', send('items.html'));
   app.get('/tvs/screen', send('screen.html'));
+  // 指示75 2-10（くまくんの決め）：切りかえの記録の全部（1か月）。だれが・何を（字で検索）・TV でしぼる・時刻でしぼる。リモコンの下の「ぜんぶ見る」から
+  app.get('/tvs/log', (req, res) => {
+    if (!pageGate(req, res)) return;
+    const F = require('./fes-routes');
+    const f = F.filterOf(req);
+    const names = {}; store.items().forEach((it) => { names[it.id] = it.name; });
+    const all = store.listLog(5000).map((r) => ({ at: r.at, who: whoName(r.who), tv: r.tv, item: names[r.item] || r.item }));
+    const rows = F.applyFilter(all, f, (r) => r.who + ' ' + r.item, (r) => String(r.tv), (r) => r.at);
+    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    const when = (at) => { const d = new Date(+at + 9 * 3600 * 1000); const z = (n) => (n < 10 ? '0' : '') + n; return (d.getUTCMonth() + 1) + '/' + d.getUTCDate() + ' ' + z(d.getUTCHours()) + ':' + z(d.getUTCMinutes()) + ':' + z(d.getUTCSeconds()); };
+    const body = F.filterForm('/tvs/log', f, [['1', 'TV①'], ['2', 'TV②']], 'だれが・何を で検索') +
+      '<p class="n">' + rows.length + '件 / ' + all.length + '件・1か月より前のものは消えます・<a href="/tvs">リモコンへ</a></p>' +
+      '<table><thead><tr><th>いつ</th><th>TV</th><th>何を</th><th>だれが</th></tr></thead><tbody>' +
+      rows.map((r) => '<tr><td>' + when(r.at) + '</td><td>TV' + (r.tv === 2 ? '②' : '①') + '</td><td>' + esc(r.item) + '</td><td>' + esc(r.who) + '</td></tr>').join('') + '</tbody></table>';
+    res.set('Cache-Control', 'no-store').type('html').send(F.namesPage('切りかえの記録', body));
+  });
   app.get('/api/tvs/asobi', (req, res) => {
     const uid = req.session && req.session.userId;
     if (!uid) return res.status(401).json({ error: 'ログインしてください' });

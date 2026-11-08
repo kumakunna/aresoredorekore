@@ -95,6 +95,30 @@ function 描く(win, view) {
     assert(css.indexOf('@keyframes v2-oplus{0%{opacity:0;transform:translateY(12px);}25%{opacity:1;transform:none;}75%{opacity:1;}100%{opacity:0;transform:translateY(-6px);}}') !== -1, '上がるのは少しだけ（上の段にかからない）');
     // 実際の重なり（止めた時計で 2.8〜4.2秒・8人と16人）は 10/31 に測って0（直す前は 8人で2か所・16人で9か所）
   });
+
+  await r.test('指示76 2-6（A9）：冠は勝った答えの札の上（人の札の横に浮かない・名前の札の下にもぐらない）。名前の札の場所は、ほかの答えの玉の山より上だけ', async () => {
+    const t2 = await launch({ fakeSocket: true });
+    ['onaji-tv-unveil16', 'onaji-tv-solo', 'onaji-tv-unveil16-14'].forEach((id) => {
+      const v = viewOf(id), rv = v.data.reveal;
+      const box = 描く(t2.win, v);
+      const cols = Array.from(box.querySelectorAll('.v2-ocol'));
+      rv.winners.forEach((k) => {
+        assert(cols[k].querySelector('.v2-ocard .v2-ocrown2'), id + '：' + KEYS(k) + ' の冠は答えの札の上');
+      });
+      assertEqual(box.querySelectorAll('.v2-opile .v2-ocrown2').length, 0, id + '：玉の山の中に冠を置かない');
+      // ほかの答えの玉の山の段の数（--lp）。名前の札の場所の下の端は、その段の上（CSS は .has-otags）
+      const per = Math.max(1, Math.floor(((1728 - 28 * (cols.length - 1)) / cols.length - 6) / 94));
+      let lp = 1;
+      cols.forEach((c, k) => { if (rv.winners.indexOf(k) === -1) lp = Math.max(lp, Math.ceil(rv.counts[k] / per)); });
+      const stg = box.querySelector('.v2-ostg');
+      assert(stg.classList.contains('has-otags'), id + '：名前の札がある印');
+      assertEqual(stg.style.getPropertyValue('--lp').trim(), String(lp), id + '：玉の山の段の数');
+      box.remove();
+    });
+    t2.win.close();
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(css.indexOf('.v2 .v2-ounv.is-tv .v2-ostg.has-otags .v2-otags{bottom:calc(218px + var(--lp) * 94px);align-content:end;}') !== -1, '名前の札の場所の下の端を、玉の山の上に');
+  });
   r.finish();
 })();
 

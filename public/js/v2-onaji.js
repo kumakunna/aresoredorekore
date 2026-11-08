@@ -152,6 +152,16 @@
     (view.members || []).forEach(function (m) { if (m && m.name) o[m.name] = m.icon; });
     return o;
   }
+  /**
+   * 指示76 2-6：名前の札の場所は、ほかの答えの玉の山（と冠）より上だけ（16人で、名前の札がほかの答えの人の玉を隠していた）。
+   * 返すのは、勝っていない答えのうち一番高い山の段の数（1より小さくしない＝冠の高さぶんは必ずあける）。
+   * 1段の玉の数は TV の札の幅から（1728px を答えの数で分け、間 28px。玉 84px＋間 10px・山の左右 8px）
+   */
+  function 山の段(names, crown, C) {
+    var per = Math.max(1, Math.floor(((1728 - 28 * (C - 1)) / C - 6) / 94)), lp = 1;
+    (names || []).forEach(function (list, k) { if (crown.indexOf(k) === -1) lp = Math.max(lp, Math.ceil(((list || []).length) / per)); });
+    return lp;
+  }
   function tvUnveilHtml(view) {
     var d = view.data || {}, r = d.reveal || {}, V = K(), t = T(), tl = timeline(view);
     var choices = r.choices || (d.topic && d.topic.choices) || [], C = Math.max(1, choices.length);
@@ -172,8 +182,9 @@
           : '<span class="v2-ocn" style="animation-delay:' + ss(on) + ';animation-duration:' + ss(Math.max(0.01, (ds[j + 1] || { land: on }).land - on)) + '">' + V.digits(j + 1) + '</span>';
       }).join('') : '<span class="v2-ocn is-last" style="animation-duration:' + ss(tl.crown) + '">' + V.digits(0) + '</span>';
       return '<div class="v2-ocol' + (win ? ' is-win' : (crown.length ? ' is-lose' : '')) + '">' +
-        '<div class="v2-opile">' + (win ? '<i class="v2-ospot"></i>' : '') + balls + (win ? '<span class="v2-ocrown2" aria-hidden="true">👑</span>' : '') + '</div>' +
-        '<div class="v2-ocard"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-ocard-t" data-v2-wrap>' + V.phrase(c) + '</span>' +
+        // 指示76 2-6（A9）：冠は勝った答えの札の上（玉の山のいちばん上に置くと、玉が名前の札に変わったあと、人の札の横に浮いて「その人が1位」に見えた）
+        '<div class="v2-opile">' + (win ? '<i class="v2-ospot"></i>' : '') + balls + '</div>' +
+        '<div class="v2-ocard' + (win ? ' has-crown' : '') + '">' + (win ? '<span class="v2-ocrown2" aria-hidden="true">👑</span>' : '') + '<span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-ocard-t" data-v2-wrap>' + V.phrase(c) + '</span>' +
           '<span class="v2-ocnt"><b class="v2-num">' + cnt + '</b><small>' + e(t.人) + '</small></span></div></div>';
     }).join('');
     // 冠の山の玉が、名前の札に変わる（全員同じ大きさ。ひとりだけの時は大きく1枚）
@@ -181,7 +192,8 @@
     if (tl.crowned.length) {
       var n = tl.crowned.length, tc = tl.solo ? 1 : Math.min(4, n), rows = Math.ceil(n / tc), 山 = {};
       crown.forEach(function (k) { (names[k] || []).forEach(function (nm) { 山[nm] = k; }); });
-      tags = '<div class="v2-otags' + (tl.solo ? ' is-solo' : '') + '" style="--tc:' + tc + '">' + tl.crowned.map(function (nm, i) {
+      // 指示76 2-6：4段（13人から）は札を小さく・段の間をつめる（玉の山と冠より上の場所に入れるため・index.html の .is-many）
+      tags = '<div class="v2-otags' + (tl.solo ? ' is-solo' : '') + (rows >= 4 ? ' is-many' : '') + '" style="--tc:' + tc + '">' + tl.crowned.map(function (nm, i) {
         var col = i % tc, row = Math.floor(i / tc);
         var sx = (((山[nm] || 0) + 0.5) / C - (col + 0.5) / tc) * 92, sy = 34 - (row - (rows - 1) / 2) * 9;
         return '<span class="v2-otag" style="--sx:' + sx.toFixed(1) + 'vw;--sy:' + sy.toFixed(1) + 'vmin;animation-delay:' + ss(tl.tags + i * 0.06) + '">' +
@@ -196,7 +208,7 @@
     return '<div class="v2-ounv is-tv is-stage">' + '<i class="v2-odim"></i>' +
       '<div class="v2-osay" aria-hidden="true">' + e(t.せーの) + '</div>' +
       '<div class="v2-oqs" data-v2-wrap>' + V.phrase(r.q || (d.topic && d.topic.q) || '') + '</div>' +
-      '<div class="v2-ostg" style="--oc:' + C + '">' + cols + tags + (ban ? '<div class="v2-oban-at" style="animation-delay:' + ss(tl.crown) + '">' + ban + '</div>' : '') + '</div>' +
+      '<div class="v2-ostg' + (tags ? ' has-otags' : '') + '" style="--oc:' + C + (tags ? ';--lp:' + 山の段(names, crown, C) : '') + '">' + cols + tags + (ban ? '<div class="v2-oban-at" style="animation-delay:' + ss(tl.crown) + '">' + ban + '</div>' : '') + '</div>' +
     '</div>';
   }
 

@@ -5511,7 +5511,9 @@
   .v2 .v2-q2tv .v2-q2hop{top:0;bottom:-10px;border:0;border-radius:0;box-shadow:none;
     background:linear-gradient(180deg,rgba(255,240,190,.04),rgba(255,240,190,.46));clip-path:polygon(38% 0,62% 0,100% 100%,0 100%);}
   /* いちばん早かった人：名前の箱は画面の幅の半分より広く（字の大きさは長さで決める・v2-quiz2.js bigFs） */
-  .v2 .v2-q2tv .v2-q2fast{gap:12px;}
+  /* 指示76 2-5（A8）：「いちばん早かったのは」が問題文と名前の札にはさまれ、字の下が札に隠れていた（問題文の下 0px・札の上 2px）。
+     見出しごと 40px 下げ、見出しと札の間を 28px に（下の名前の札（.v2-otags）の上まではまだ 100px 以上ある・16人の長い名前でも） */
+  .v2 .v2-q2tv .v2-q2fast{gap:28px;top:40px;}
   .v2 .v2-q2tv .v2-q2fast small{font-size:48px;}
   .v2 .v2-q2fast-r{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px 28px;max-width:100%;}
   .v2 .v2-q2tv .v2-q2fast b{min-width:960px;max-width:min(1440px,100%);line-height:1.1;padding:26px 40px;text-align:center;}
@@ -5833,7 +5835,8 @@
   .v2 .v2-sowrap.is-tv .v2-sog-m i{width:60px;height:8px;}
   .v2 .v2-sowrap.is-tv .v2-sog-m b{font-size:42px;border-radius:14px;padding:4px 14px;}
   .v2 .v2-sowrap.is-tv .v2-sog-m.is-space i{width:64px;height:64px;margin-right:-28px;}
-  .v2 .v2-sowrap.is-tv .v2-sog-flag{right:84px;width:8px;height:64px;transform:translateY(calc(100% + 26px));}
+  /* 指示76 2-7：旗は札の下に 40px あける（26px では、札からはみ出す字の足（0.15em）に旗の柱がかかった・月・雲の上でも） */
+  .v2 .v2-sowrap.is-tv .v2-sog-flag{right:84px;width:8px;height:64px;transform:translateY(calc(100% + 40px));}
   .v2 .v2-sowrap.is-tv .v2-sog-flag i{left:8px;width:44px;height:32px;}
   .v2 .v2-sowrap.is-tv .v2-sog-rk{width:60px;height:60px;}
   :root.fx-skip .v2 .v2-sog-m.is-space i{animation:none;}
@@ -5869,7 +5872,8 @@
   .v2 .v2-soscene .v2-socount:not(:empty),.v2 .v2-soscene .v2-sosay{background:rgba(4,30,40,.62);border-radius:40px;padding:0 48px;}
   .v2 .v2-sosig.is-tv{gap:40px;}
   .v2 .v2-sosig.is-tv .v2-socount{font-size:360px;min-height:360px;}
-  .v2 .v2-sosig.is-tv .v2-sosay{font-size:150px;line-height:1.3;}
+  /* 指示76 2-7：字の箱は英字の高さで切ってある（.v2 * の text-box）ので、日本語の字が暗い札から上下に 11px はみ出した。札の上下に 18px */
+  .v2 .v2-sosig.is-tv .v2-sosay{font-size:150px;line-height:1.3;padding:18px 48px;}
   .v2 .v2-sowrap.is-tv .v2-socloud{box-shadow:60px -24px 0 14px #FFFFFF,-48px -14px 0 6px #FFFFFF;}
   .v2 .v2-sowrap.is-tv .v2-sostars{background-size:160px 120px,97px 73px;}
   /* 指示68-T：通りすぎる看板は、右はしの高さの目じるし（字の左はしは 1530px あたり）より左で終わる。ロケット（右はし 1130px）とのあいだに収める */
@@ -5935,6 +5939,16 @@
     background:radial-gradient(ellipse at 50% 100%,rgba(255,238,170,.6),rgba(255,238,170,0) 72%);}
   /* 冠は山のいちばん上の段（玉のすぐ上）に乗る：折り返しの1段ぶんを使う */
   .v2 .v2-ocrown2{flex:0 0 100%;text-align:center;font-size:84px;line-height:1;z-index:2;}
+  /* 指示76 2-6（A9）：冠は勝った答えの札のすぐ上（札の中に置き、札の上の外へ出す）。名前の札の場所（.has-otags）はこの冠より上で終わる */
+  .v2 .v2-ocard.has-crown{position:relative;}
+  .v2 .v2-ocard.has-crown .v2-ocrown2{position:absolute;left:0;right:0;top:-96px;}
+  /* 名前の札の場所の下の端：札の上（下から 206px）＋ほかの答えの玉の山の段（1段 94px・--lp は v2-onaji.js の 山の段）＋あき 12px */
+  .v2 .v2-ounv.is-tv .v2-ostg.has-otags .v2-otags{bottom:calc(218px + var(--lp) * 94px);align-content:end;}   /* 下にそろえる：いちばん上の段の「+1点！」が問題文にかからない */
+  /* 4段（13人から）：札を小さく・段の間をつめる（「+1点！」も小さく、段の間の中に） */
+  .v2 .v2-otags.is-many{row-gap:44px;}
+  .v2 .v2-otags.is-many .v2-otag{font-size:40px;padding:6px 20px 6px 8px;gap:10px;}
+  .v2 .v2-otags.is-many .v2-otag-f{width:52px;height:52px;font-size:34px;}
+  .v2 .v2-otags.is-many .v2-otag .v2-oplus{font-size:34px;top:-32px;}
   .v2.is-play .v2-ospot{animation:v2-ofade calc(.4s * var(--fx-scale)) ease both;animation-delay:calc(2.25s * var(--fx-scale));}
   .v2.is-play .v2-ocrown2{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;animation-delay:calc(2.25s * var(--fx-scale));}
   .v2 .v2-ocard{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:12px;padding:16px 22px;min-height:140px;border-radius:26px;
@@ -6218,7 +6232,7 @@
   .v2 .v2-tend .v2-lives{font-size:96px;gap:14px;}
   .v2 .v2-tranks{display:flex;flex-direction:column;gap:14px;font-weight:900;font-size:64px;}
   .v2 .v2-trk{display:flex;align-items:baseline;gap:28px;min-width:0;max-width:1400px;}
-  .v2 .v2-tvc.is-gold .v2-nr{color:color-mix(in srgb,var(--v2-gold) 26%,transparent);}
+  /* 指示76 2-8（A11）：解除成功の名前の壁を金色にしない（この画面だけ金色で太く、主役の「解除成功！」とぶつかった）。ほかの画面と同じうすい壁 */
   .v2 .v2-tvc.is-dim .v2-nr{color:color-mix(in srgb,#fff 3%,transparent);}
   /* F14 係の画面 */
   .v2 .v2-adm{gap:12px;}
@@ -6714,7 +6728,7 @@
   .v2.v2-setov .close-x{position:absolute;right:0;top:50%;transform:translateY(-50%);}
   .v2.v2-setov .set-back:active,.v2.v2-setov .close-x:active{transform:translateY(-50%) scale(.94);}
   /* 指示76 2-9：文化祭のスマホの「字の大きさ」は、見た目と演出のページの文字サイズだけ（ほかの項目は出さない） */
-  #settingsOverlay.is-fes .set-page[data-page="display"] > .card:not(.js-set-font){display:none;}
+  .v2.v2-setov.is-fes .set-page[data-page="display"] > .card:not(.js-set-font){display:none;}
   .v2.v2-setov #loggedInAs{font-weight:800;font-size:13px;color:var(--ws);text-align:center;margin-bottom:14px;}
   .v2.v2-setov .set-menu{gap:10px;margin-bottom:10px;}
   .v2.v2-setov #setQuickMenu > .set-menu{margin-bottom:20px;}

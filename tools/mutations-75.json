@@ -133,5 +133,13 @@
   "from": "emblem(emb || world)",
   "to": "emblem(world)",
   "expect": "印の絵がちがう"
+ },
+ {
+  "name": "75-2-4 縦の字を幕の上に",
+  "file": "public/index.html",
+  "suite": "tests/v2-layers.js",
+  "from": ".v2 .v2-brand{position:absolute;right:5px;top:50%;z-index:28;",
+  "to": ".v2 .v2-brand{position:absolute;right:5px;top:50%;z-index:36;",
+  "expect": "縦の字"
  }
 ]

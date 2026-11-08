@@ -4895,8 +4895,9 @@
   .v2 .v2-nr:nth-child(even){animation-duration:calc(130s * var(--fx-scale));animation-direction:reverse;}
   .v2 .v2-glow{display:inline-block;color:var(--v2-gold);transform-origin:50% 60%;
     animation:v2-name-in calc(2.6s * var(--fx-scale)) var(--v2-pop-soft) both;}
-  /* 右の縦の字。どの色の上でも、目をこらせば読める明るさ（差の合成で灰色に見せる）。画面いっぱいの塗りより上 */
-  .v2 .v2-brand{position:absolute;right:5px;top:50%;z-index:36;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;
+  /* 右の縦の字。どの色の上でも、目をこらせば読める明るさ（差の合成で灰色に見せる）。画面いっぱいの塗りより上。
+     指示75 2-4（A35）：暗い幕（29）・シート（30）・確かめの枠（41）より下（36 だった時は、開いたシートの字の上に乗っていた）。帯・知らせ・カードより上 */
+  .v2 .v2-brand{position:absolute;right:5px;top:50%;z-index:28;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;
     font-family:var(--v2-en);font-weight:800;font-size:9.5px;letter-spacing:.2em;white-space:nowrap;
     color:rgba(255,255,255,.62);mix-blend-mode:difference;pointer-events:none;}
 

@@ -704,6 +704,22 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示75 2-2（A19・A20）：外された時・しばらく押さなかった時の字を赤くしない。名前の箱を赤い枠にしない（名前のまちがいに見える）
+  for (const reason of ['fes_idle', 'fes_staff']) {
+    await r.test('指示75 2-2：' + reason + ' で入る画面にもどった → 知らせの色の字（赤い字・名前の箱の赤い枠にしない）', async () => {
+      const { win, doc } = await 入った();
+      win.__rtFake.fire('room:kicked', { by: null, reason });
+      await waitFor(win, () => act(doc) === 'scr-v2-fes-join' && doc.querySelector('[data-fes-name]'), 3000, '入る画面');
+      await sleep(win, 50);
+      const scr = doc.getElementById('scr-v2-fes-join');
+      const want = reason === 'fes_idle' ? /席を空けました/ : /部屋から出ました/;
+      assert(want.test(scr.textContent), '理由の字が出る');
+      assert(!scr.querySelector('.v2-why, .v2-inp.is-bad'), '赤い字・赤い枠にしない');
+      assert(Array.from(scr.querySelectorAll('.v2-note')).some((n) => want.test(n.textContent)), '知らせの札（v2-note）で出す');
+      win.close();
+    });
+  }
+
   // 指示75 2-12（11/8 の全画面監査 A2）：早答え・数字ちかい方のスマホで、右上に ⚙ が2つ重なっていた（古い浮いた ⚙ が消えていない）。
   // 一覧に足すのではなく「scr-v2- で始まる画面は古い浮いた ⚙ を出さない」の1つの決まりにする（画面を足した日に漏れない・落とし穴4）。
   // v2 の画面は自分の ⚙（右上の丸ボタン）を持つ。指示47-2（大画面には ⚙）と 2-11（文化祭の TV には出さない）は別の行で見る

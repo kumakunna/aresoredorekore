@@ -1312,7 +1312,8 @@
   /* 1：ゲーム中どこからでも開ける設定ボタン（ゲーム共通） */
   /* A：viewport固定だとPCでアプリ枠から離れ、スマホでは⏸/🏁と重なるので .app 基準に配置 */
   .floating-gear{
-    position:absolute;top:6px;right:8px;z-index:60;width:32px;height:32px;border-radius:50%;
+    /* 指示75 2-1：押す所は 44px 以上（32px だった・クイズ解除の盤など古い画面のゲーム中） */
+    position:absolute;top:6px;right:8px;z-index:60;width:44px;height:44px;border-radius:50%;
     background:rgba(255,255,255,.85);border:1px solid var(--line);font-size:14px;cursor:pointer;opacity:.55;
   }
   .floating-gear:active{opacity:1;}
@@ -5225,13 +5226,13 @@
   .v2 .v2-pop.is-open{transform:none;opacity:1;pointer-events:auto;}
   .v2 .v2-pcard{display:flex;flex-direction:column;gap:10px;background:var(--wsheet);color:var(--wsheet-ink);border-radius:20px 20px 16px 16px;padding:14px 14px 12px;box-shadow:0 -8px 24px rgba(0,0,0,.16);}
   .v2 .v2-pcard-h{display:flex;align-items:center;gap:10px;}
-  .v2 .v2-pcard .v2-x{width:36px;height:36px;}
+  .v2 .v2-pcard .v2-x{width:44px;height:44px;}   /* 指示75 2-1：押す所は 44px 以上（36px だった） */
   .v2 .v2-pt{font-weight:900;font-size:17px;line-height:1.3;}
-  .v2 .v2-ps{align-self:flex-start;border:0;background:none;padding:6px 0;font-weight:900;font-size:14px;color:var(--wsheet-soft);cursor:pointer;}
+  .v2 .v2-ps{align-self:flex-start;border:0;background:none;padding:6px 0;font-weight:900;font-size:14px;color:var(--wsheet-soft);cursor:pointer;min-height:44px;display:inline-flex;align-items:center;}   /* 指示75 2-1：44px 以上 */
   .v2 .v2-sent{display:inline-flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:var(--v2-ok-ink);}
   .v2 .v2-sent .v2-ic{width:18px;height:18px;}
   .v2 .v2-minipill{position:absolute;left:12px;bottom:calc(var(--v2-bandh) + 12px);z-index:23;display:none;align-items:center;gap:6px;border:0;border-radius:999px;
-    padding:8px 14px;background:var(--wsheet);color:var(--wsheet-ink);font-weight:900;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.14);cursor:pointer;}
+    padding:8px 14px;background:var(--wsheet);color:var(--wsheet-ink);font-weight:900;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.14);cursor:pointer;min-height:44px;}   /* 指示75 2-1：44px 以上（34px だった） */
   .v2 .v2-minipill.is-on{display:inline-flex;}
   .v2 .v2-minipill .v2-ic{width:18px;height:18px;color:#F5B400;}
   .v2 .v2-stars{display:flex;gap:6px;}
@@ -8847,7 +8848,7 @@
       <button class="btn btn-outline" id="rtBombReviewBtn" style="display:none;margin-top:14px;">🔍 答え合わせを見る ›</button>
       <button class="btn btn-main" id="rtBombAgainBtn" style="display:none;margin-top:14px;">つぎは？ ▶</button>
       <button class="btn btn-outline" id="rtBombEndBtn" style="display:none;margin-top:10px;">🏁 部屋をとじる</button>
-      <button class="btn btn-ghost" id="rtBombLeaveBtn" style="display:none;margin-top:10px;">← 部屋を出る</button>
+      <button class="btn btn-ghost" id="rtBombLeaveBtn" style="display:none;margin-top:10px;min-height:44px;">← 部屋を出る</button>
     </div>
   </div>
 
@@ -26109,7 +26110,8 @@
         if(p.reason === 'fes_gone'){ fes.join.err = ''; fes.join.info = UiText.FES.入る.はなれていた; fes.join.busy = false; }
         // 指示75 1-6：係が長押しの「外す」でしばらく入れなくした。赤い字にしない（名前のまちがいに見えない）。名前とむずかしさはそのまま
         else if(p.reason === 'fes_wait'){ fes.join.err = ''; fes.join.info = fesWaitText(p.waitMs); fes.join.busy = false; }
-        else { fes.join.diff = null; fes.join.err = p.reason === 'fes_idle' ? UiText.FES.入る.席を空けた : UiText.FES.入る.出ました; }
+        // 指示75 2-2（A19・A20）：外された・しばらく押さなかったは、名前のまちがいではない。赤い字と名前の箱の赤い枠にせず、知らせの札で
+        else { fes.join.diff = null; fes.join.err = ''; fes.join.busy = false; fes.join.info = p.reason === 'fes_idle' ? UiText.FES.入る.席を空けた : UiText.FES.入る.出ました; }
         goTo('scr-v2-fes-join'); if(code) fesOpenJoin(code); else fesRenderJoin();
         return;
       }

@@ -229,7 +229,8 @@
         starsHtml(fb.stars, false) +
         (fb.sent ? '<span class="v2-sent" role="status">' + V.icon('check') + e(F.送りました) + '</span>' : '') +
         '<button type="button" class="v2-ps" data-v2-open="#v2FbText">' + e(F.ひとこと書く) + ' ›</button></div></div>' +
-      '<button type="button" class="v2-minipill is-on" data-fes-act="fbopen">' + V.icon('star') + '<span>' + e(F.感想) + '</span></button>';
+      // 指示75 2-1：たたんだ「★ 感想」は、カードを開いている間は出さない（カードの下からのぞいて、「ひとこと書く」と重なっていた）
+      '<button type="button" class="v2-minipill' + (fb.open ? '' : ' is-on') + '" data-fes-act="fbopen">' + V.icon('star') + '<span>' + e(F.感想) + '</span></button>';
   }
   function fbSheet(view) {
     var fb = view.fb; if (!fb) return '';

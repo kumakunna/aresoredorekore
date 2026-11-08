@@ -67,6 +67,10 @@ const MEASURE = function (opts) {
   for (var i = 0; i < T.length; i++) for (var j = i + 1; j < T.length; j++) {
     var a = T[i], b = T[j];
     if (a.e.contains(b.e) || b.e.contains(a.e)) continue;
+    // 開いている浮いた層（感想のカード・シート・確かめの枠・知らせ）と、その下の画面の字は、上に重ねる作り（指示75 2-1）。同じ層どうしだけ比べる
+    var LAYER = '.v2-pop.is-open,.v2-sheet.is-open,.v2-dlg.is-open,.v2-toast.is-open';
+    var la = a.e.closest ? a.e.closest(LAYER) : null, lb = b.e.closest ? b.e.closest(LAYER) : null;
+    if (la !== lb) continue;
     // 画面の外（巻いた先・横に送った札）どうしの重なりは見えないので数えない
     if (a.r.bottom < 0 || a.r.top > vh || a.r.right < 0 || a.r.left > vw || b.r.bottom < 0 || b.r.top > vh || b.r.right < 0 || b.r.left > vw) continue;
     var w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left), h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);

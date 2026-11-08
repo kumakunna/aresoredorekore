@@ -115,5 +115,14 @@
   "from": "(id.indexOf('scr-v2-') !== 0 && noGear",
   "to": "(true && noGear",
   "expect": "古い浮いた"
+ },
+ {
+  "name": "75-2-2 外された字を赤に",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "2-2",
+  "from": "fes.join.err = ''; fes.join.busy = false; fes.join.info = p.reason === 'fes_idle'",
+  "to": "fes.join.busy = false; fes.join.err = p.reason === 'fes_idle'",
+  "expect": "赤い字"
  }
 ]

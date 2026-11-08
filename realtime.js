@@ -1987,7 +1987,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = currentRoom();
       const me = currentMember();
       const dr = room && driverOf(room);
-      if (!room || !me || !dr) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      // 指示76 2-15：部屋にはいるが、ゲームがもう終わった（3択に答えたのと同時に決着した）は「すれちがい」。
+      // それまで not_in_room で返し、端末が「つなぎ直しています」を出して入り直しまでしていた
+      if (!dr) return fail(cb, 'not_playing', 'いまは遊んでいません');
       // 第48弾 48-5：止まっている間は受け付けない。
       // **できていないのに ok を返さない**（落とし穴14）
       if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
@@ -2016,7 +2019,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = currentRoom();
       const me = currentMember();
       const dr = room && driverOf(room);
-      if (!room || !me || !dr) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      // 指示76 2-15：部屋にはいるが、ゲームがもう終わった（3択に答えたのと同時に決着した）は「すれちがい」。
+      // それまで not_in_room で返し、端末が「つなぎ直しています」を出して入り直しまでしていた
+      if (!dr) return fail(cb, 'not_playing', 'いまは遊んでいません');
       // 第48弾 48-5：止まっている間は受け付けない。
       // **できていないのに ok を返さない**（落とし穴14）
       if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');
@@ -2062,7 +2068,10 @@ function attachRealtime(httpServer, sessionMiddleware, options) {
       const room = currentRoom();
       const me = currentMember();
       const dr = room && driverOf(room);
-      if (!room || !me || !dr) return fail(cb, 'not_in_room', '部屋に入っていません');
+      if (!room || !me) return fail(cb, 'not_in_room', '部屋に入っていません');
+      // 指示76 2-15：部屋にはいるが、ゲームがもう終わった（3択に答えたのと同時に決着した）は「すれちがい」。
+      // それまで not_in_room で返し、端末が「つなぎ直しています」を出して入り直しまでしていた
+      if (!dr) return fail(cb, 'not_playing', 'いまは遊んでいません');
       if (room.hostMemberId !== me.id) return fail(cb, 'not_host', '進行役だけが進められます');
       // 第48弾 48-5：止まっている間は進めない（落とし穴14）
       if (isPaused(room)) return fail(cb, 'paused', 'いまポーズ中です');

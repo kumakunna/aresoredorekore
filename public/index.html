@@ -34100,11 +34100,21 @@
    * 11/6 の実機では、つながっていない扱いのまま押して、何も起きずに固まっていた（not_player・not_in_room を見ていなかった）
    */
   // 指示75 束2 の答え 3.A：押したのが締め切りとすれちがった（段階がもう進んだ）は、つながりの問題ではない。一言は出さず、いまの画面だけもらい直す
-  var FES_LATE_ERRORS = ['not_ready_time', 'already_started', 'stale_game', 'not_voting', 'not_result', 'no_game'];
+  // 指示76 2-15（くまくんの答え 11/9）：解除中の「すれちがい」も同じ（つながりは平気）。
+  //   3-2-1 の最中（not_started）・係が止めている（paused）・もう終わった（wrong_phase・not_playing・already_done）・
+  //   ほかの人が解いた直後（already_solved）・閉じたあと（nothing_open）・前の盤や前の問題のまま押した（unknown_code・not_a_choice）・
+  //   この回に入っていない（not_expected）。どれも、いまの画面をもらい直せば正しい形になる
+  var FES_LATE_ERRORS = ['not_ready_time', 'already_started', 'stale_game', 'not_voting', 'not_result', 'no_game',
+    'not_started', 'paused', 'wrong_phase', 'not_playing', 'already_done', 'already_solved', 'nothing_open', 'unknown_code', 'not_a_choice', 'not_expected'];
   function fesPressed(res){
     if(!res || res.ok) return;
-    if(FES_LATE_ERRORS.indexOf(res.error) === -1) showQuietNote(UiText.FES.遊ぶ.つなぎ直し);
+    if(FES_LATE_ERRORS.indexOf(res.error) === -1) fesNote(UiText.FES.遊ぶ.つなぎ直し);
     if(rt && rt.here) rt.here();
+  }
+  /** 指示76 2-15：文化祭の一言。解除中（新しい見た目）は「解除ずみ」の行（ライフの知らせと同じ・問題の字と凡例にかからない）、ほかは今までの浮く知らせ */
+  function fesNote(text, flash){
+    if(document.querySelector('.screen.active .v2-play .v2-pnum')){ v2MissShow(text); if(flash) flashOnly(flash); return; }
+    if(flash) showFlash(text, flash); else showQuietNote(text);
   }
   /** 指示75 1-6：「しばらくしてから入れます。あと約30秒」。1分より長い時は分で（切り上げ） */
   function fesWaitText(ms){
@@ -34337,7 +34347,7 @@
     if(b.hasAttribute('data-fes-word')){ fes.lookDraft = fes.lookDraft || Object.assign({}, myTitles.equipped); fes.lookDraft[fes.lookSlot || 'first'] = b.getAttribute('data-fes-word'); rtRenderCurrent(); return; }
     // F11：盤のマス・3択・閉じる（今の画面と同じ送り方：rt.act と rt.vote）
     if(b.hasAttribute('data-fes-cell')){
-      rt.act(b.getAttribute('data-fes-cell')).then(function(res){ if(res && !res.ok && res.error === 'taken') showFlash(UiText.FES.遊ぶ.挑戦中, 'hit'); else fesPressed(res); });
+      rt.act(b.getAttribute('data-fes-cell')).then(function(res){ if(res && !res.ok && res.error === 'taken') fesNote(UiText.FES.遊ぶ.挑戦中, 'hit'); else fesPressed(res); });
       return;
     }
     if(b.hasAttribute('data-fes-ans')){ Array.prototype.forEach.call(b.parentNode.querySelectorAll('button'), function(x){ x.disabled = true; }); rt.vote(b.getAttribute('data-fes-ans')).then(fesPressed); return; }

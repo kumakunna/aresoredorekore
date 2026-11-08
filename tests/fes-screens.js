@@ -1221,6 +1221,54 @@ async function 入った(o) {
     });
   }
 
+  // 指示76 束2 の答え 1.A（11/9）：解除中に押した答えが「すれちがい」（3-2-1 の最中・もう終わった・ほかの人が解いた直後・係が止めている…）は、
+  // つながりの問題ではない。一言を出さず、画面だけもらい直す（rt.here は全部で）。本当のつながりの問題は「つなぎ直しています」を、
+  // 解除中は浮く知らせではなく「解除ずみ」の行に（ライフの知らせと同じ・問題の字と凡例にかからない）。分け方は docs/監査_指示76の門.md の 2-15
+  async function 解除中(o) {
+    const t = await 入った();
+    const lab = 流す(t.win, 'fes2-play');
+    t.win.__rtFake.fire('wolf:you', lab.secret);
+    await waitFor(t.win, () => t.doc.querySelector('#scr-v2-fes-lobby .v2-bgrid'), 2000, '盤');
+    return Object.assign(t, { lab });
+  }
+  const 行の一言 = (doc) => { const n = doc.querySelector('#scr-v2-fes-lobby .v2-pnum .v2-pmiss'); return n ? n.textContent : ''; };
+  const すれちがい = ['not_started', 'wrong_phase', 'already_solved', 'paused', 'already_done', 'nothing_open', 'not_playing', 'unknown_code', 'not_a_choice', 'not_expected'];
+  for (const error of すれちがい) {
+    await r.test('指示76 2-15：解除中に押した答えが「すれちがい」（' + error + '）なら一言を出さず、画面だけもらい直す（マスも3択も）', async () => {
+      const { win, doc } = await 解除中();
+      const scr = doc.getElementById('scr-v2-fes-lobby');
+      win.__rtFake.replies['wolf:act'] = () => ({ ok: false, error, message: 'x' });
+      win.__rtFake.replies['wolf:vote'] = () => ({ ok: false, error, message: 'x' });
+      const here0 = emits(win, 'room:here').length;
+      scr.querySelector('.v2-bcell:not(:disabled):not(.is-mine)').click();
+      await sleep(win, 200);
+      assertEqual(一言(doc) + 行の一言(doc), '', 'マス：一言を出さない');
+      await waitFor(win, () => emits(win, 'room:here').length > here0, 2000, 'マス：画面をもらい直す（room:here）');
+      const here1 = emits(win, 'room:here').length;
+      doc.getElementById('scr-v2-fes-lobby').querySelector('[data-fes-ans]').click();
+      await sleep(win, 200);
+      assertEqual(一言(doc) + 行の一言(doc), '', '3択：一言を出さない');
+      await waitFor(win, () => emits(win, 'room:here').length > here1, 2000, '3択：画面をもらい直す（room:here）');
+      win.close();
+    });
+  }
+  await r.test('指示76 2-15：解除中の本当のつながりの問題（not_in_room）は「つなぎ直しています」を「解除ずみ」の行に（浮く知らせは使わない）。ほかの人が挑戦中（taken）も同じ行に', async () => {
+    const { win, doc } = await 解除中();
+    const scr = () => doc.getElementById('scr-v2-fes-lobby');
+    win.__rtFake.replies['wolf:act'] = () => ({ ok: false, error: 'not_in_room', message: 'x' });
+    scr().querySelector('.v2-bcell:not(:disabled):not(.is-mine)').click();
+    await sleep(win, 200);
+    assert(/つなぎ直しています/.test(行の一言(doc)), '「解除ずみ」の行に「つなぎ直しています」：' + 行の一言(doc));
+    assertEqual(一言(doc), '', '浮く知らせ（#foulToast）は出さない');
+    await sleep(win, 1800);
+    win.__rtFake.replies['wolf:act'] = () => ({ ok: false, error: 'taken', message: 'x' });
+    scr().querySelector('.v2-bcell:not(:disabled):not(.is-mine)').click();
+    await sleep(win, 200);
+    assert(/挑戦中/.test(行の一言(doc)), '挑戦中も「解除ずみ」の行に：' + 行の一言(doc));
+    assertEqual(一言(doc), '', '浮く知らせは出さない');
+    win.close();
+  });
+
   // 指示75 束2 の答え 2.A（11/8）：「〇〇さんが部屋を抜けました」も、文化祭では遊ぶ人のスマホと TV に出さない（2-8 と同じ・係は入退室の記録で見る）
   await r.test('指示75 答え2：文化祭のスマホと TV には「〇〇さんが部屋を抜けました／出されました」を出さない', async () => {
     for (const asTv of [false, true]) {

@@ -12,15 +12,19 @@
 const { DEFAULT_SETTINGS } = require('./tvs-auto');
 
 const RETAIN_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_ITEMS = 6;   // リモコンが 1列3つ×2段で、スクロールせずに出せる数（指示69 2-2）
+// 指示75 4-1：8つまで（はじめからの7つ＋足せる1つ）。リモコンは物の数で 1列3つ／4つ×2段にかえ、スクロールせずに出す
+const MAX_ITEMS = 8;
 
 // はじめからある物。並び＝TV の PC のタブの並び（Ctrl+1〜5）。kind：fes=あつまれの TV／images=PC の画像／asobi=あそびまち／video=PC の動画／rest=休けい
 const BUILTIN = [
   { id: 'fes', name: 'あつまれ', kind: 'fes', sound: 1 },
   { id: 'menu', name: 'メニュー', kind: 'images', sound: 0 },
   { id: 'asobi', name: 'あそびまち', kind: 'asobi', sound: 1 },
-  { id: 'video', name: '動画', kind: 'video', sound: 0 },   // 動画の音は、はじめ「切」（指示69 くまくんの決め）
-  { id: 'rest', name: '休けい', kind: 'rest', sound: 0 }
+  { id: 'video', name: '動画1', kind: 'video', sound: 0 },   // 動画の音は、はじめ「切」（指示69 くまくんの決め）
+  { id: 'rest', name: '休けい', kind: 'rest', sound: 0 },
+  // 指示75 4-1（くまくんの決め）：動画と画像を2つずつ、別々のボタンで。休けいは5つ目のまま（TV の PC の Ctrl+5）・新しい2つはそのあと
+  { id: 'menu2', name: '画像2', kind: 'images', sound: 0 },
+  { id: 'video2', name: '動画2', kind: 'video', sound: 0 }
 ];
 const KINDS = ['url', 'images', 'video'];   // 係が足せる種類（URL／PC の画像／PC の動画）
 const DEFAULT_SCREEN = { 1: 'fes', 2: 'rest' };
@@ -56,7 +60,14 @@ function createTvsStore(db) {
     );
   `);
   const ins = db.prepare('INSERT OR IGNORE INTO tvs_items (id, name, kind, url, tvs, sound, ord, builtin) VALUES (?, ?, ?, NULL, ?, ?, ?, 1)');
-  BUILTIN.forEach((b, i) => ins.run(b.id, b.name, b.kind, '12', b.sound, i + 1));
+  // 指示75 4-1：前からの入れ物は、はじめの5つの並び（ord 1〜5）と足した物の並びを変えず、無い物（画像2・動画2）をいちばんうしろに足す。
+  // 「動画」は「動画1」に（係が名前を変えていなければ）
+  db.prepare("UPDATE tvs_items SET name = '動画1' WHERE id = 'video' AND builtin = 1 AND name = '動画'").run();
+  BUILTIN.forEach((b, i) => {
+    if (db.prepare('SELECT 1 FROM tvs_items WHERE id = ?').get(b.id)) return;
+    const max = (db.prepare('SELECT MAX(ord) AS m FROM tvs_items').get() || {}).m || 0;
+    ins.run(b.id, b.name, b.kind, '12', b.sound, Math.max(i + 1, max + 1));
+  });
 
   const row = (r) => ({ id: r.id, name: r.name, kind: r.kind, url: r.url || null, tvs: String(r.tvs).split('').map(Number).filter((n) => n === 1 || n === 2),
     sound: !!r.sound, builtin: !!r.builtin });

@@ -165,9 +165,9 @@ async function until(fn, label, ms) {
     note('75 3-8 TV 専用の印', { 印の前: 印の前, 裏から押しても: r0 && r0.error, 印の後: 印の後, 印のタブ: markTabs ? '残っている' : '閉じた' });
     await ev(start, 'document.getElementById("server").value = ' + JSON.stringify(BASE) + '; document.getElementById("start").click(); true');
     const S = () => sv('chrome.storage.local.get("S").then((v) => v.S)');
-    await until(async () => { const s = await S(); return s && Object.keys(s.tabs[1] || {}).length === 5 && Object.keys(s.tabs[2] || {}).length === 5; }, '窓2つ・タブ5つずつ', 30000);
+    await until(async () => { const s = await S(); return s && Object.keys(s.tabs[1] || {}).length === 7 && Object.keys(s.tabs[2] || {}).length === 7; }, '窓2つ・タブ7つずつ（指示75 4-1）', 30000);
     let st = await S();
-    note('はじめる', 'TV① と TV② の窓・タブ5つずつ');
+    note('はじめる', 'TV① と TV② の窓・タブ7つずつ');
 
     // 動画と画像を「はじめる」の画面に入れる（キャンバスで作る・4秒の動画と画像2枚）
     { const s = await attach(start); await cdp('Page.bringToFront', {}, s).catch(() => {}); for (const type of ['mousePressed', 'mouseReleased']) await cdp('Input.dispatchMouseEvent', { type, x: 5, y: 5, button: 'left', clickCount: 1 }, s); }
@@ -301,6 +301,7 @@ async function until(fn, label, ms) {
     await cdp('Emulation.clearDeviceMetricsOverride', {}, rs);
 
     await part75({ remote, press, sv, S, pick, ev, start, scall, BASE });
+    await part754({ remote, press, sv, S, pick, ev, start, cdp, attach });
     await part2({ remote, press, sv, S, pick, staff: cx.staff });
     // 門14：あつまれの TV を裏にしたまま、文化祭の部屋を回す
     if (HIDDEN_MIN > 0) await hidden(remote, press, sv, S, born);
@@ -452,6 +453,74 @@ async function part75(c) {
   void chimes;
 }
 
+// ---- 指示75 束4：動画と画像を2つずつ・印へ飛ぶ・範囲のくり返し ----
+async function part754(c) {
+  // 4-1：画像2・動画2 にもファイルを入れる → リモコンのボタンが7つ（1列4つ）。390×844 でスクロール無し
+  await c.ev(c.start, `(async () => {
+    const v = await MediaDb.get('video'); await MediaDb.put('video2', v);
+    const m = await MediaDb.get('menu'); await MediaDb.put('menu2', m.slice(0, 1));
+    await chrome.runtime.sendMessage({ t: 'media-changed', id: 'video2' }); await chrome.runtime.sendMessage({ t: 'media-changed', id: 'menu2' });
+    return true; })()`);
+  await until(() => c.ev(c.remote, 'document.querySelectorAll(".tv[data-tv=\\"1\\"] .grid button").length === 7'), 'リモコンのボタンが7つ', 20000);
+  const rs = await c.attach(c.remote);
+  await c.cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }, rs);
+  await sleep(400);
+  const fit = () => c.ev(c.remote, `(() => { const main = document.querySelector('main'); const bs = Array.from(document.querySelectorAll('main button'));
+    return { scroll: main.getBoundingClientRect().bottom > innerHeight + 1, out: bs.filter((b) => { const r = b.getBoundingClientRect(); return r.width && (r.bottom > innerHeight || r.top < 0 || r.right > innerWidth); }).length,
+      small: bs.filter((b) => { const r = b.getBoundingClientRect(); return r.width && r.height < 44; }).length, n: bs.length, cols: getComputedStyle(document.querySelector('.grid')).gridTemplateColumns.split(' ').length }; })()`);
+  note('75 4-1 ボタン7つ（390×844）', await fit());
+
+  // 4-2：「はじめる」の画面の、印を付ける所（動画の見本・ここに印・名前・一覧）。名前を入れて「ここに印」→ 覚える
+  // ファイルが変わると、裏の処理が「はじめる」の画面に描き直しを頼む（media-redraw）。この道具は上で media-changed を送った
+  await until(() => c.ev(c.start, '!!document.querySelector("[data-marks=\\"video\\"] video.prev")'), '印を付ける所', 15000);
+  const ui = await c.ev(c.start, `(async () => {
+    const box = document.querySelector('[data-marks="video"]'); const v = box.querySelector('video.prev');
+    // 裏のタブでは見本の動画が読みこまれないことがある。3秒まで待つ（読めなくても印は付けられる＝時刻は 0）
+    await Promise.race([new Promise((r) => (v.readyState >= 1 ? r() : v.addEventListener('loadedmetadata', r, { once: true }))), new Promise((r) => setTimeout(r, 3000))]);
+    v.currentTime = 1.5; await new Promise((r) => setTimeout(r, 300));
+    box.querySelector('input[type=text]').value = 'てすと';
+    Array.from(box.querySelectorAll('button')).find((b) => b.textContent === 'ここに印').click();
+    await new Promise((r) => setTimeout(r, 800));
+    const S = (await chrome.storage.local.get('S')).S;
+    const after = document.querySelector('[data-marks="video"]');
+    return { 印: (S.vset.video || {}).marks, 一覧: Array.from(after.querySelectorAll('.mlist li input')).map((i) => i.value), 範囲のえらび: after.querySelectorAll('.rng select').length };
+  })()`);
+  note('75 4-2 はじめるの画面で「ここに印」', ui);
+
+  // 4-2〜4-5：動画1 に印2つ・範囲 0.5〜3.0秒・くり返し入（4秒の動画）。TV① に動画1
+  await c.sv('chrome.runtime.sendMessage({ t: "vset", id: "video", vset: { marks: [{ id: "a", name: "いち", t: 1.0 }, { id: "b", name: "に", t: 2.0 }], start: 0.5, end: 3.0, loop: true, from: null } })');
+  if ((await c.S()).active[1] === 'video') await c.press(1, 'rest');   // 前の門で TV① に動画を出したまま
+  await c.press(1, 'video');
+  await until(() => c.ev(c.remote, '!!document.querySelector(".tv[data-tv=\\"1\\"] [data-jump=\\"b\\"]")'), 'リモコンに印', 20000);
+  note('75 4-3 動画が出ている時のリモコン（390×844）', await fit());
+  const shot = await c.cdp('Page.captureScreenshot', { format: 'png' }, rs);
+  fs.writeFileSync(path.join(OUT, 'remote-video-390x844.png'), Buffer.from(shot.data, 'base64'));
+  await c.cdp('Emulation.clearDeviceMetricsOverride', {}, rs);
+  const vt = (await c.pick(1, 'video')).targetId;
+  // 印へ飛ぶ：押してから、動画のタブが受けとるまで（同じ PC の時計）
+  const jumps = [];
+  for (let i = 0; i < 5; i++) {
+    const n0 = await c.ev(vt, '(window.__ops || []).length');
+    const t0 = Date.now();
+    await c.ev(c.remote, 'document.querySelector(".tv[data-tv=\\"1\\"] [data-jump=\\"' + (i % 2 ? 'a' : 'b') + '\\"]").click(), true');
+    await until(async () => (await c.ev(vt, '(window.__ops || []).length')) > n0, '動画が動く', 5000);
+    const at = await c.ev(vt, '(window.__ops || []).slice(-1)[0].at');
+    jumps.push(at - t0);
+    await sleep(600);
+  }
+  note('75 4-3 印へ飛ぶ：押してから TV の動画が動くまで（ms）', jumps);
+  // 範囲のくり返し：20ms ごとに時刻を見て、もどった所の前と後
+  const wraps = await c.ev(vt, `(async () => { const v = document.querySelector('video'); const out = []; let prev = v.currentTime; const t0 = performance.now();
+    while (performance.now() - t0 < 9000) { await new Promise((r) => setTimeout(r, 20)); const c = v.currentTime; if (c < prev - 0.5) out.push([Math.round(prev * 100) / 100, Math.round(c * 100) / 100]); prev = c; }
+    return out; })()`);
+  note('75 4-4 範囲 0.5〜3.0秒のくり返し（もどる前の時刻・もどった時刻）', wraps);
+  // ここから流す：「はじめの位置」を印「に」（2.0秒）にして、ほかの物を出してから動画にもどす
+  await c.sv('chrome.runtime.sendMessage({ t: "vset", id: "video", vset: { marks: [{ id: "a", name: "いち", t: 1.0 }, { id: "b", name: "に", t: 2.0 }], start: 0.5, end: 3.0, loop: true, from: "b" } })');
+  await c.press(1, 'rest'); await sleep(800); await c.press(1, 'video'); await sleep(250);
+  note('75 4-5 ここから流す（はじめの位置 2.0秒）：出した直後の時刻', await c.ev(vt, 'Math.round(document.querySelector("video").currentTime * 100) / 100'));
+  await c.press(1, 'rest');
+}
+
 // ---- 二の束（指示69）：お知らせの一言・休けいの字・動画の音・自動で回す・呼び出し・記録 ----
 async function part2(c) {
   const { remote, press, sv, S, pick, staff } = c;
@@ -543,7 +612,7 @@ async function reopen(c) {
   const S = () => sv('chrome.storage.local.get("S").then((v) => v.S)');
   const got = await until(async () => {
     const s = await S();
-    if (!s || Object.keys(s.tabs[1] || {}).length !== 5 || Object.keys(s.tabs[2] || {}).length !== 5) return null;
+    if (!s || Object.keys(s.tabs[1] || {}).length !== 7 || Object.keys(s.tabs[2] || {}).length !== 7) return null;   // 指示75 4-1：7つ
     const act = {};
     for (const tv of [1, 2]) {
       const tabs = await sv('chrome.tabs.query({ windowId: ' + s.win[tv] + ', active: true }).then((t) => t.map((x) => x.id))');

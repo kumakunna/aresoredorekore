@@ -29,6 +29,15 @@
   .st{font-size:14px;line-height:20px;min-height:20px;display:flex;align-items:center;gap:6px}
   .st .c{font-weight:700}.st .c.is-ok{color:var(--ok)}.st .c.is-ng{color:var(--ng)}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  /* 指示75 4-1：物が7つ以上なら1列4つ（2段で8つまで・スクロールしない） */
+  .grid.is-4{grid-template-columns:repeat(4,1fr)}.grid.is-4 button{font-size:15px}
+  /* 指示75 4-3：その TV に動画が出ている時だけ、動画の操作と印 */
+  .vid{display:flex;flex-direction:column;gap:6px}
+  .vid .vrow{display:flex;gap:6px;align-items:center}
+  .vid button{min-height:44px;font-size:15px;font-weight:700;border:2px solid var(--line);background:#fff;border-radius:12px;padding:0 12px;color:var(--ink);white-space:nowrap}
+  .vid .vt{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px;margin-left:auto}
+  .vid .marks{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .vid .marks button{flex:0 0 auto;max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grid button{min-height:56px;font-size:17px;font-weight:700;border:2px solid var(--line);background:#FAFAF7;color:var(--ink);border-radius:12px;padding:4px;position:relative;line-height:1.15}
   .grid button.is-now{background:var(--now);border-color:var(--now);color:#fff}
   .grid button .b{display:block;font-size:12px;font-weight:700;margin-top:2px}
@@ -98,18 +107,20 @@
     if (!S) return;
     [1, 2].forEach(function(tv){
       var T = S.tvs[tv], sec = document.querySelector('.tv[data-tv="' + tv + '"]');
-      var items = S.items.filter(function(it){ return it.tvs.indexOf(tv) !== -1; });
+      // 指示75 4-1：ボタンは、出せる物（ファイルがある物）だけ。物の数で 1列3つ／4つ
+      var items = S.items.filter(function(it){ return it.tvs.indexOf(tv) !== -1 && it.have !== false; });
       var live = T.connected && T.ext;
       var on = !!(S.settings && S.settings.auto[tv]);
       var html = '<div class="name">' + tvLabel(tv) + '：' + esc(itemName(T.item)) + (on ? '<small>自動</small>' : '') + '</div>' +
         '<div class="st"><span class="c ' + (live ? 'is-ok' : 'is-ng') + '">' + (live ? '● つながっている' : '× 切れている') + '</span>' +
         (T.seen ? '<span>最後の連絡 ' + hhmm(T.seen) + '</span>' : '') + '</div>' +
         '<div class="alert" role="alert"><span>あつまれの開き直しが要ります</span><button type="button" data-reload>開き直す</button></div>' +
-        '<div class="grid">' + items.map(function(it){
+        '<div class="grid' + (items.length > 6 ? ' is-4' : '') + '">' + items.map(function(it){
           var now = it.id === T.item, none = it.have === false;
           return '<button type="button" data-item="' + esc(it.id) + '"' + (now ? ' class="is-now" aria-current="true"' : '') + (none ? ' disabled' : '') + '>' +
             esc(it.name) + (now ? '<span class="b">いま</span>' : none ? '<span class="b">まだありません</span>' : '') + '</button>';
         }).join('') + '</div>' +
+        vidHtml(tv, T) +
         '<div class="row"><button type="button" class="back" data-back' + (T.prev ? '' : ' disabled') + '>さっきの画面にもどす</button>' +
         '<button type="button" class="auto' + (on ? ' on' : '') + '" data-auto aria-pressed="' + on + '">自動で回す：' + (on ? '入' : '切') + '</button></div>' +
         '<div class="fb ' + fb[tv].cls + '" role="status">' + esc(fb[tv].text) + '</div>' +
@@ -124,6 +135,20 @@
     }).join('') || '<li>まだありません</li>';
   }
 
+  /** 指示75 4-3：その TV に動画が出ている時の操作（印へ飛ぶ・再生／止める・10秒もどす／すすめる・いまの時刻） */
+  function fmt(t){ if (t == null || !isFinite(t)) return '-'; var m = Math.floor(t / 60), s = Math.floor(t - m * 60); return m + ':' + (s < 10 ? '0' : '') + s; }
+  function vidHtml(tv, T){
+    var it = S.items.filter(function(x){ return x.id === T.item; })[0];
+    if (!it || it.kind !== 'video') return '';
+    var vs = (S.vsets || {})[it.id] || { marks: [] }, vt = T.vtime;
+    return '<div class="vid" data-vid>' +
+      '<div class="vrow"><button type="button" data-vop="skip" data-by="-10" aria-label="10秒もどす">−10秒</button>' +
+      '<button type="button" data-vop="' + (vt && !vt.paused ? 'pause' : 'play') + '">' + (vt && !vt.paused ? '止める' : '再生') + '</button>' +
+      '<button type="button" data-vop="skip" data-by="10" aria-label="10秒すすめる">＋10秒</button>' +
+      '<span class="vt" data-vt>' + (vt ? fmt(vt.cur) + ' / ' + fmt(vt.dur) : '') + '</span></div>' +
+      (vs.marks.length ? '<div class="marks">' + vs.marks.map(function(m){ return '<button type="button" data-jump="' + esc(m.id) + '">' + esc(m.name) + '</button>'; }).join('') + '</div>' : '') +
+      '</div>';
+  }
   function send(tv, what, force){
     var ev = what.back ? 'tvs:back' : 'tvs:show';
     socket.emit(ev, { tv: tv, item: what.item, force: !!force }, function(r){
@@ -151,6 +176,9 @@
     if (b.hasAttribute('data-ask-go')) return ask[tv] && send(tv, ask[tv], true);
     if (b.hasAttribute('data-ask-no')) { ask[tv] = null; return draw(); }
     if (b.hasAttribute('data-reload')) socket.emit('tvs:reload', { tv: tv }, function(){ say(tv, '開き直しています', '', 4000); });
+    // 指示75 4-3：動画の操作
+    if (b.hasAttribute('data-jump')) return socket.emit('tvs:video', { tv: tv, op: 'jump', mark: b.getAttribute('data-jump') }, function(r){ if (!r || !r.ok) say(tv, 'うまくいきませんでした', 'is-ng', 3000); });
+    if (b.hasAttribute('data-vop')) return socket.emit('tvs:video', { tv: tv, op: b.getAttribute('data-vop'), by: Number(b.getAttribute('data-by')) || undefined }, function(){});
   });
 })();
 </script>

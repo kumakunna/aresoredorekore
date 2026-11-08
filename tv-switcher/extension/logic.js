@@ -101,7 +101,37 @@
     return w.left === b.left && w.top === b.top && w.width === b.width && w.height === b.height ? 'none' : 'move';
   }
 
-  const api = { asobiOwner, muted, plan, pickDisplays, homeDisplay, sideOf, chimeCounts, placeStep, CHIME_QUIET_MS };
+  // ---- 指示75 束4：動画の印・範囲とくり返し・はじめの位置（くまくんの決め）----
+  // vset（動画ごとの設定・TV の PC の拡張機能が覚える）：{ marks:[{ id, name, t }], start, end（印の id か秒）, loop（真偽）, from（はじめの位置・印の id か秒） }
+  const MARK_NAME_MAX = 20, MARKS_MAX = 30;
+  function cleanVset(v) {
+    const o = v || {};
+    const marks = (Array.isArray(o.marks) ? o.marks : []).filter((m) => m && typeof m.t === 'number' && isFinite(m.t)).slice(0, MARKS_MAX)
+      .map((m) => ({ id: String(m.id || '').slice(0, 20), name: String(m.name || '').slice(0, MARK_NAME_MAX), t: Math.max(0, Math.round(m.t * 10) / 10) }));
+    const pos = (x) => (typeof x === 'number' && isFinite(x) && x >= 0 ? x : (typeof x === 'string' && marks.some((m) => m.id === x) ? x : null));
+    return { marks, start: pos(o.start), end: pos(o.end), loop: o.loop !== false, from: pos(o.from) };
+  }
+  /** 印の id か秒を、秒に */
+  function secOf(vs, x) { if (typeof x === 'number') return x; const m = ((vs && vs.marks) || []).find((k) => k.id === x); return m ? m.t : null; }
+  /** 流す範囲。dur：動画の長さ。何も決めない時は全部・くり返す。終わりが始めより前なら終わりは動画の終わり */
+  function rangeOf(vs, dur) {
+    const d = typeof dur === 'number' && isFinite(dur) && dur > 0 ? dur : Infinity;
+    let start = secOf(vs, vs && vs.start); if (start == null || start >= d) start = 0;
+    let end = secOf(vs, vs && vs.end); if (end == null || end <= start || end > d) end = d;
+    let from = secOf(vs, vs && vs.from); if (from == null || from < start || from >= end) from = start;
+    return { start, end, loop: !(vs && vs.loop === false), from };
+  }
+  /** いまの時刻で何をするか：null（そのまま）・秒（そこへ）・'stop'（止める）。終わりを 0.05秒すぎたら */
+  function loopStep(cur, R) {
+    if (cur < R.start - 0.05) return R.start;
+    if (cur >= R.end - 0.02) return R.loop ? R.start : 'stop';
+    return null;
+  }
+  /** 自動で回す時の「1回分」（秒）＝範囲の長さ */
+  function rotSec(vs, dur) { const R = rangeOf(vs, dur); return isFinite(R.end) ? Math.round((R.end - R.start) * 10) / 10 : null; }
+
+  const api = { asobiOwner, muted, plan, pickDisplays, homeDisplay, sideOf, chimeCounts, placeStep, CHIME_QUIET_MS,
+    cleanVset, rangeOf, loopStep, rotSec, secOf, MARK_NAME_MAX };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.TvsLogic = api;
 })(typeof self !== 'undefined' ? self : globalThis);

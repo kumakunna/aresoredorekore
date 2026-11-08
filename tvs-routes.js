@@ -20,6 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const { createTvsStore } = require('./tvs-store');
 const { createAuto } = require('./tvs-auto');
+const TvsLogic = require('./tv-switcher/extension/logic');   // 指示75 束4：動画の印の決まり（拡張機能と同じ物）
 
 const PAGES = path.join(__dirname, 'tv-switcher', 'pages');
 const PING_MS = 10000;
@@ -36,6 +37,7 @@ function mountTvs(app, io, opts) {
   const roleOf = (uid) => (uid && io.fesRoleOf ? io.fesRoleOf(uid) : null);
   const auto = createAuto();
   let durations = {};   // PC の動画の長さ（秒・拡張機能が教える）。「1回分」に使う
+  let vsets = {};       // 指示75 4-2：動画の印・範囲（名前と時刻だけ・拡張機能が教える）。リモコンに出す
   try { store.purge(now()); } catch (e) { console.error('[tvs] 記録の掃除で例外:', e); }
 
   // ---- HTTP ----
@@ -103,9 +105,9 @@ function mountTvs(app, io, opts) {
     [1, 2].forEach((tv) => {
       const L = live[tv];
       tvs[tv] = { item: sc[tv].item, prev: sc[tv].prev, connected: L.sockets.size > 0, ext: L.sockets.size > 0 && L.ext, side: L.side || null,
-        seen: L.seen || null, shown: L.shown, stuck: L.stuck };
+        seen: L.seen || null, shown: L.shown, stuck: L.stuck, vtime: L.vtime && L.vtime.item === sc[tv].item ? L.vtime : null };
     });
-    return { items, tvs, playing: isPlaying(), settings: store.settings(), log: store.listLog(10).map((r) => ({ at: r.at, who: whoName(r.who), tv: r.tv, item: r.item })) };
+    return { items, tvs, vsets, playing: isPlaying(), settings: store.settings(), log: store.listLog(10).map((r) => ({ at: r.at, who: whoName(r.who), tv: r.tv, item: r.item })) };
   }
   function whoName(w) {
     const m = /^(owner|staff):([0-9]+)$/.exec(String(w || ''));
@@ -183,6 +185,17 @@ function mountTvs(app, io, opts) {
         if (p && p.durations) durations = Object.assign({}, durations, cleanNum(p.durations));
         // 指示75 3-7：その TV が左か右か（拡張機能が「はじめる」の置き場所から教える）。左右のほかの字は受けとらない
         if (p && (p.side === 'left' || p.side === 'right')) L.side = p.side;
+        // 指示75 4-2：動画の印（名前と時刻だけ・ファイルは TV の PC）。動画の物の分だけ受けとる
+        if (p && p.vsets && typeof p.vsets === 'object') {
+          const vids = store.items().filter((it) => it.kind === 'video').map((it) => it.id);
+          Object.keys(p.vsets).forEach((id) => { if (vids.indexOf(id) !== -1) vsets[id] = TvsLogic.cleanVset(p.vsets[id]); });
+        }
+        broadcast();
+      });
+      // 指示75 4-3：動画のいまの時刻（1秒ごと・見えている動画だけ）。リモコンに出す
+      socket.on('tvs:vtime', (p) => {
+        if (!p || typeof p.cur !== 'number' || !isFinite(p.cur)) return;
+        L.vtime = { item: String(p.item || ''), cur: Math.round(p.cur * 10) / 10, dur: typeof p.dur === 'number' && isFinite(p.dur) ? Math.round(p.dur * 10) / 10 : null, paused: !!p.paused, at: now() };
         broadcast();
       });
       // 拡張機能が切りかえ終わった（返事）。リモコンに「変わりました」
@@ -212,6 +225,24 @@ function mountTvs(app, io, opts) {
     socket.join('remote');
     socket.emit('tvs:state', state());
     socket.on('tvs:show', (p, cb) => change(socket, p && p.tv, p && p.item, !!(p && p.force), cb));
+    // 指示75 4-3：リモコンから動画を動かす（印へ飛ぶ・再生・止める・10秒もどす／すすめる）。その TV の休けいのタブへ取り次ぐ
+    socket.on('tvs:video', (p, cb) => {
+      const tv = Number(p && p.tv);
+      const done = (r) => { if (typeof cb === 'function') cb(r); };
+      if (tv !== 1 && tv !== 2) return done({ ok: false, error: 'tv' });
+      const sc = store.screens()[tv];
+      const op = String((p && p.op) || '');
+      let msg = null;
+      if (op === 'jump') {
+        const vs = vsets[sc.item]; const m = vs && vs.marks.find((k) => k.id === String(p.mark || ''));
+        if (!m) return done({ ok: false, error: 'mark' });
+        msg = { op: 'seek', t: m.t, item: sc.item };
+      } else if (op === 'play' || op === 'pause') msg = { op, item: sc.item };
+      else if (op === 'skip' && (p.by === 10 || p.by === -10)) msg = { op: 'skip', by: p.by, item: sc.item };
+      else return done({ ok: false, error: 'op' });
+      live[tv].sockets.forEach((s) => s.emit('tvs:video', msg));
+      done({ ok: true });
+    });
     socket.on('tvs:back', (p, cb) => {
       const t = Number(p && p.tv);
       const sc = store.screens()[t];

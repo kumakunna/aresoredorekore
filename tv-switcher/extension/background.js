@@ -12,7 +12,9 @@ const EXT = chrome.runtime.getURL('');
 const BLANK = { server: 'https://aresoredorekore.duckdns.org', win: {}, tabs: { 1: {}, 2: {} }, active: { 1: null, 2: null }, items: [], asobiUrl: '', stuck: { 1: false, 2: false }, place: null, notice: { 1: '', 2: '' }, durations: {}, chimeAt: 0,
   // 指示75：asobiLoaded＝あそびまちのタブを読み込んだ時刻（3-1）・asobiErr＝開けなかったあそびまちのタブ（3-3）・placingUntil＝自分で窓を置いている間（3-2）・
   // startedAt＝「はじめる」の時刻（3-1）・tvProfile＝TV 専用の Chrome の印（3-8）
-  asobiLoaded: {}, asobiErr: {}, placingUntil: 0, startedAt: 0, tvProfile: false };
+  asobiLoaded: {}, asobiErr: {}, placingUntil: 0, startedAt: 0, tvProfile: false,
+  // 指示75 束4：動画ごとの印・範囲・くり返し・はじめの位置（vset）。動画のファイルといっしょに、この PC に覚える
+  vset: {} };
 
 // 知らせは1つずつ順に（同時に来ても、窓とタブの記録が食いちがわない）
 let chain = Promise.resolve();
@@ -74,6 +76,13 @@ async function show(S, tv, id) {
 async function haveMedia(S) {
   const ids = S.items.filter((it) => it.kind === 'images' || it.kind === 'video').map((it) => it.id);
   try { return await MediaDb.have(ids); } catch (e) { return {}; }
+}
+
+/** 指示75 4-4：自動で回す時の「1回分」（秒）。範囲を決めた動画は範囲の長さ、ほかは動画の長さ */
+function rotDurations(S) {
+  const out = Object.assign({}, S.durations);
+  Object.keys(S.vset || {}).forEach((id) => { const d = (S.durations || {})[id]; const r = TvsLogic.rotSec(S.vset[id], d); if (r) out[id] = r; });
+  return out;
 }
 
 /** 休けいのタブ（サーバーとつながっている）へ知らせる */
@@ -157,7 +166,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     switch (msg && msg.t) {
       case 'ping':
         // 指示75 3-7：その TV が左か右か（リモコンの「TV①（左）」）
-        res = { ok: true, have: await haveMedia(S), stuck: !!S.stuck[tv], durations: S.durations, side: TvsLogic.sideOf(S.place, tv) };
+        // 指示75 4-4：自動で回す時の「1回分」は、範囲を決めた動画では範囲の長さ。印（名前と時刻）もサーバーへ
+        res = { ok: true, have: await haveMedia(S), stuck: !!S.stuck[tv], durations: rotDurations(S), side: TvsLogic.sideOf(S.place, tv), vsets: S.vset || {} };
         break;
       case 'sync':   // 休けいのタブから：出す物の一覧（と、bridge.js が読んだあそびまちの URL）
         if (Array.isArray(msg.items)) S.items = msg.items;
@@ -213,6 +223,33 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       case 'place-check':  // 指示75 3-2：TV の窓のページの resize（notice.js・media.js）。全画面が外れていたら置き直す
         if (tv && Date.now() >= (S.placingUntil || 0)) await ensurePlaced(S, tv);
         break;
+      case 'vset': {   // 指示75 4-2・4-4・4-5：「はじめる」の画面で印・範囲を変えた。覚えて、動画のタブとサーバー（休けいのタブ経由）に知らせる
+        if (!msg.id) break;
+        S.vset = Object.assign({}, S.vset, { [msg.id]: TvsLogic.cleanVset(msg.vset) });
+        for (const n of [1, 2]) {
+          const tabId = (S.tabs[n] || {})[msg.id];
+          if (tabId) { try { await chrome.tabs.sendMessage(tabId, { t: 'vset', id: msg.id, vset: S.vset[msg.id] }); } catch (e) {} }
+          await push(S, n, { t: 'vsets', vsets: S.vset, durations: rotDurations(S) });
+        }
+        res = { ok: true, vset: S.vset[msg.id] };
+        break;
+      }
+      case 'vset-get':   // media.js が開いた時に聞く
+        res = { ok: true, vset: (S.vset || {})[msg.id] || null };
+        break;
+      case 'video': {    // 指示75 4-3：休けいのタブから（リモコン → サーバー → 休けいのタブ）。その TV に出ている動画のタブへ
+        const id = S.active[tv];
+        const it = (S.items || []).find((x) => x.id === id);
+        const tabId = (S.tabs[tv] || {})[id];
+        if (!it || it.kind !== 'video' || !tabId || (msg.item && msg.item !== id)) { res = { ok: false }; break; }
+        try { res = await chrome.tabs.sendMessage(tabId, { t: 'video', op: msg.op, at: msg.at, by: msg.by }); } catch (e) { res = { ok: false }; }
+        break;
+      }
+      case 'video-time': {   // media.js（見えている動画）から1秒ごと：その窓の休けいのタブへ（サーバー → リモコン）
+        if (!tv || !sender.tab || S.active[tv] !== msg.id) break;
+        await push(S, tv, { t: 'vtime', item: msg.id, cur: msg.cur, dur: msg.dur, paused: !!msg.paused });
+        break;
+      }
       case 'notice-get':   // notice.js が開いた時に聞く（その窓の TV の一言。TV の窓でなければ空）
         res = { ok: true, text: tv && S.notice ? S.notice[tv] || '' : '' };
         break;
@@ -224,11 +261,13 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         if (sender.tab) { try { await chrome.tabs.remove(sender.tab.id); } catch (e) {} }
         break;
       case 'status':
-        res = { ok: true, tvProfile: !!S.tvProfile, server: S.server, windows: { 1: !!(await winAlive(S.win[1])), 2: !!(await winAlive(S.win[2])) }, items: S.items, asobi: !!S.asobiUrl, swapped: !!(S.place && S.place.swapped) };
+        res = { ok: true, tvProfile: !!S.tvProfile, vset: S.vset || {}, server: S.server, windows: { 1: !!(await winAlive(S.win[1])), 2: !!(await winAlive(S.win[2])) }, items: S.items, asobi: !!S.asobiUrl, swapped: !!(S.place && S.place.swapped) };
         break;
       case 'media-changed': {   // 「はじめる」の画面で画像・動画をえらんだ：すぐサーバーに教える（10秒ごとの確かめを待たない。待つと、えらんだ直後のリモコンが「まだありません」のままだった）
         const have = await haveMedia(S);
         for (const n of [1, 2]) await push(S, n, { t: 'have', have });
+        // 指示75 4-2：開いている「はじめる」の画面にも描き直しを頼む（印を付ける所は、動画のファイルがある時だけ出る）
+        chrome.runtime.sendMessage({ t: 'media-redraw', id: msg.id }).catch(() => {});
         res = { ok: true, have };
         break;
       }

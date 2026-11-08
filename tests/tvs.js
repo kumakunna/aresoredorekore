@@ -158,7 +158,7 @@ async function screen(url, cookie, tv) {
       const s1 = await screen(srv.url, staff, 1), s2 = await screen(srv.url, staff, 2);
       assertEqual(s1.hello.item, 'fes', 'TV① のはじめはあつまれ');
       assertEqual(s2.hello.item, 'rest', 'TV② のはじめは休けい');
-      assertEqual(s1.hello.items.map((it) => it.id).join(','), 'fes,menu,asobi,video,rest', 'タブの並び＝Ctrl+1〜5');
+      assertEqual(s1.hello.items.map((it) => it.id).join(','), 'fes,menu,asobi,video,rest,menu2,video2', 'タブの並び＝Ctrl+1〜7（指示75 4-1：休けいは5つ目のまま・画像2・動画2 はうしろ）');
       const res = await a.call('tvs:show', { tv: 2, item: 'menu' });
       assert(res.ok && res.seq, '押したら ok と番号');
       await until(() => a.acks.some((x) => x.tv === 2 && x.seq === res.seq), 'リモコンA に返事');
@@ -519,6 +519,72 @@ async function screen(url, cookie, tv) {
     assertEqual(three[1].bounds.left + '/' + three[2].bounds.left, '1920/3840', '3つ：PC の画面をのぞいた左右');
     const one = Logic.pickDisplays([d('only', 0)], 'only');
     assertEqual(one[1].bounds.width + '/' + one[2].bounds.left + '/' + one[1].full, '960/960/false', '1つ：左右に分ける（全画面にしない）');
+  });
+
+  // ===================== 指示75 束4（くまくんの決め）：動画と画像を2つずつ・印・範囲とくり返し =====================
+  await r.test('指示75 4-1：動画1・動画2・画像1（メニュー）・画像2 が別々の物。休けいは5つ目のまま（Ctrl+5）・新しい2つはそのあと。上限は8つ', async () => {
+    const st = createTvsStore(new Database(':memory:'));
+    const it = st.items();
+    assertEqual(it.map((x) => x.id + ':' + x.name).join(','), 'fes:あつまれ,menu:メニュー,asobi:あそびまち,video:動画1,rest:休けい,menu2:画像2,video2:動画2', '並び');
+    assertEqual(it.filter((x) => x.kind === 'video').length + '/' + it.filter((x) => x.kind === 'images').length, '2/2', '動画2つ・画像2つ');
+    assertEqual(MAX_ITEMS, 8, '上限は8つ（足せる物は1つ）');
+  });
+
+  await r.test('指示75 4-1：前からの入れ物（動画が「動画」・6つまで）は、名前を「動画1」にして、画像2・動画2 をうしろに足す（足してあった物の並びは変えない）', async () => {
+    const db = new Database(':memory:');
+    db.exec(`CREATE TABLE tvs_items (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, url TEXT, tvs TEXT NOT NULL, sound INTEGER NOT NULL DEFAULT 0, ord INTEGER NOT NULL, builtin INTEGER NOT NULL DEFAULT 0)`);
+    const ins = db.prepare('INSERT INTO tvs_items (id, name, kind, url, tvs, sound, ord, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    [['fes', 'あつまれ', 'fes', 1], ['menu', 'メニュー', 'images', 2], ['asobi', 'あそびまち', 'asobi', 3], ['video', '動画', 'video', 4], ['rest', '休けい', 'rest', 5]]
+      .forEach((b) => ins.run(b[0], b[1], b[2], null, '12', 0, b[3], 1));
+    ins.run('x1', '学校の地図', 'url', 'https://example.com/', '12', 0, 6, 0);
+    const st = createTvsStore(db);
+    assertEqual(st.items().map((x) => x.name).join(','), 'あつまれ,メニュー,あそびまち,動画1,休けい,学校の地図,画像2,動画2', '名前を直し、足した物のうしろに2つ');
+    const st2 = createTvsStore(db);
+    assertEqual(st2.items().length, 8, 'もう一度開いても増えない');
+  });
+
+  await r.test('指示75 4-2・4-4・4-5：印と範囲の決まり（logic.js）。範囲は印か時刻・終わりで始めにもどる・「1回分」は範囲の長さ・はじめの位置', async () => {
+    const vs = { marks: [{ id: 'a', name: 'はじめ', t: 5 }, { id: 'b', name: 'おわり', t: 20 }], start: 'a', end: 'b', loop: true, from: 8 };
+    const R = Logic.rangeOf(vs, 60);
+    assertEqual(R.start + '/' + R.end + '/' + R.loop + '/' + R.from, '5/20/true/8', '印からえらぶ・はじめの位置');
+    assertEqual(Logic.rangeOf({ start: 3.5, end: 9 }, 60).start + '/' + Logic.rangeOf({ start: 3.5, end: 9 }, 60).end, '3.5/9', '時刻でも');
+    assertEqual(Logic.rangeOf({}, 60).start + '/' + Logic.rangeOf({}, 60).end + '/' + Logic.rangeOf({}, 60).loop, '0/60/true', '何も決めない時は全部・くり返す');
+    assertEqual(Logic.rangeOf({ start: 30, end: 10 }, 60).end, 60, '終わりが始めより前なら、終わりは動画の終わり');
+    assertEqual(Logic.loopStep(19.8, R), null, '終わりの前は何もしない');
+    assertEqual(Logic.loopStep(20.05, R), 5, '終わりで始めにもどる');
+    assertEqual(Logic.loopStep(20.05, Object.assign({}, R, { loop: false })), 'stop', 'くり返し切なら止める');
+    assertEqual(Logic.loopStep(2, R), 5, '始めより前なら始めへ');
+    assertEqual(Logic.rotSec(vs, 60), 15, '自動で回す「1回分」＝範囲の長さ');
+    assertEqual(Logic.cleanVset({ marks: [{ id: 'a', name: 'x'.repeat(40), t: -3 }, { id: 'b', name: 'ok', t: 'z' }], loop: 'yes', start: 'nope' }).marks.map((m) => m.name.length + ':' + m.t).join(','), '20:0', '名前は20字まで・時刻は0以上の数だけ');
+  });
+
+  await r.test('指示75 4-2・4-3：印（名前と時刻だけ）がリモコンに届く。リモコンの「印へ飛ぶ・再生／止める・10秒もどす／すすめる」は、その TV の休けいのタブへ届く。いまの時刻もリモコンへ', async () => {
+    const srv = await startTestServer();
+    try {
+      const staff = await login(srv.url, STAFF);
+      const s1 = await screen(srv.url, staff, 1);
+      const vids = []; s1.socket.on('tvs:video', (p) => vids.push(p));
+      const rm = await dev(srv.url, staff, { as: 'remote' });
+      // 印へ飛ぶのは、その TV に動画が出ている時だけ。TV① に動画1 を出す（ファイルがある体）
+      s1.socket.emit('tvs:pong', { ext: true, have: { video: true } });
+      await until(() => rm.state && rm.state.items.find((x) => x.id === 'video').have === true, '動画1 がある');
+      assertEqual((await rm.call('tvs:show', { tv: 1, item: 'video' })).ok, true, 'TV① に動画1');
+      s1.socket.emit('tvs:pong', { ext: true, vsets: { video: { marks: [{ id: 'm1', name: 'あいさつ', t: 12.5 }], start: null, end: null, loop: true, from: null }, nope: { marks: [] } } });
+      await until(() => rm.state && rm.state.vsets && rm.state.vsets.video, '印が届く');
+      assertEqual(rm.state.vsets.video.marks.map((m) => m.name + '@' + m.t).join(','), 'あいさつ@12.5', '名前と時刻');
+      assert(!rm.state.vsets.nope, '動画でない物の印は受けとらない');
+      for (const p of [{ op: 'jump', mark: 'm1' }, { op: 'play' }, { op: 'pause' }, { op: 'skip', by: -10 }, { op: 'skip', by: 10 }]) {
+        const r1 = await rm.call('tvs:video', Object.assign({ tv: 1 }, p));
+        assertEqual(r1.ok, true, p.op + ' を受けた');
+      }
+      await until(() => vids.length === 5, 'TV① の休けいのタブに5つ届く');
+      assertEqual(vids.map((v) => v.op + (v.t != null ? '@' + v.t : '') + (v.by ? ':' + v.by : '')).join(','), 'seek@12.5,play,pause,skip:-10,skip:10', '印へ飛ぶは時刻にして送る');
+      assertEqual((await rm.call('tvs:video', { tv: 1, op: 'rm -rf' })).ok, false, '知らない操作は断る');
+      assertEqual((await rm.call('tvs:video', { tv: 1, op: 'jump', mark: 'zz' })).ok, false, '無い印は断る');
+      s1.socket.emit('tvs:vtime', { item: 'video', cur: 33.3, dur: 60, paused: false });
+      await until(() => rm.state.tvs[1].vtime && rm.state.tvs[1].vtime.cur === 33.3, 'いまの時刻がリモコンへ');
+      [s1, rm].forEach((d) => d.close());
+    } finally { await srv.close(); }
   });
 
   // ===================== 指示75 束3（11/7 の本物の TV で見つけた直し）=====================

@@ -47,6 +47,9 @@
     if (d.push && d.push.t === 'stuck') socket.emit('tvs:stuck', { on: !!d.push.on });
     if (d.push && d.push.t === 'chime') socket.emit('tvs:chime', {});
     if (d.push && d.push.t === 'have') socket.emit('tvs:pong', { ext: true, have: d.push.have });
+    // 指示75 束4：印と範囲（名前と時刻だけ）・動画のいまの時刻
+    if (d.push && d.push.t === 'vsets') socket.emit('tvs:pong', { ext: true, vsets: d.push.vsets, durations: d.push.durations });
+    if (d.push && d.push.t === 'vtime') socket.emit('tvs:vtime', { item: d.push.item, cur: d.push.cur, dur: d.push.dur, paused: d.push.paused });
   });
 
   var socket = io('/tvs', { auth: { as: 'screen', tv: tv } });
@@ -84,8 +87,10 @@
   socket.on('tvs:apply', function(p){ show(p.item, p.seq); });
   socket.on('tvs:items', function(p){ ext({ t: 'sync', tv: tv, items: p.items }, 8000); });
   socket.on('tvs:reload', function(p){ ext({ t: 'reload', tv: tv, item: p.item }); });
+  // 指示75 4-3：リモコンからの動画の操作（印へ飛ぶ＝seek・再生・止める・10秒）
+  socket.on('tvs:video', function(p){ ext({ t: 'video', tv: tv, op: p.op, at: p.t, by: p.by, item: p.item }); });
   socket.on('tvs:ping', function(){
-    ext({ t: 'ping', tv: tv }).then(function(p){ socket.emit('tvs:pong', { ext: !!p, have: p && p.have, durations: p && p.durations, stuck: p ? !!p.stuck : undefined, side: p && p.side }); });
+    ext({ t: 'ping', tv: tv }).then(function(p){ socket.emit('tvs:pong', { ext: !!p, have: p && p.have, durations: p && p.durations, stuck: p ? !!p.stuck : undefined, side: p && p.side, vsets: p && p.vsets }); });
   });
 })();
 </script>

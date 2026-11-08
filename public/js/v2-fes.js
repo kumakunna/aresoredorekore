@@ -152,7 +152,7 @@
         (n === 1 ? aloneHtml(view) : '') +
         (候補.length ? '<div class="v2-nexts"><div class="v2-nexts-l"><span class="v2-lbl">' + e(F.候補) + '</span><span class="v2-lbl">' + e(F.長押し) + '</span></div>' +
           '<div class="v2-nexts-row">' + 候補.map(function (g) {
-            return '<button type="button" class="v2-nx" data-v2-lp="#v2Rules-' + e(g.id) + '">' + V.tile(g.world) +
+            return '<button type="button" class="v2-nx" data-v2-lp="#v2Rules-' + e(g.id) + '">' + V.tile(g.world, '', g.emb) +
               '<span class="v2-nx-nm v2-cut" data-v2-fit>' + e(g.name) + '</span></button>';
           }).join('') + '</div></div>' : '') +
       '</div>' +
@@ -265,7 +265,7 @@
           // data-dimok：投票したあとの、えらばなかった札はわざと薄くする（投票はもう変えられない。長押しでルールは見られる。物差しの K2 に数えない・指示68-0b）
           return '<div class="v2-vcard' + (on ? ' is-on' : '') + (voted ? ' is-voted' : '') + '"' + (mine && !on ? ' data-dimok' : '') + ' role="button" tabindex="0" data-fes-pick="' + e(g.id) + '" data-v2-lp="#v2Rules-' + e(g.id) + '">' +
             (voted ? '<span class="v2-vok">' + V.icon('check') + e(P.投票ずみ) + '</span>' : '') +
-            V.tile(g.world) +
+            V.tile(g.world, '', g.emb) +
             '<span class="v2-vt"><span class="v2-vn v2-cut" data-v2-fit>' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span>' +
               '<span class="v2-vmeta">' + (g.kind ? '<span>' + e(g.kind) + '</span>' : '') + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></span>' +
             // 指示71-5（68-0b C10）：「長押し か ⓘ でルール」と書いてあるので、印も ⓘ（紙の印だった）
@@ -290,7 +290,7 @@
     var 待つ = V.hasTv(view), tl = 待つ ? decideTimeline(view) : null;
     var at = function (sec) { return 待つ ? V.tvAt(view, sec) + ' style="animation-delay:0s"' : ''; };
     var wipe = 待つ ? Math.max(0, tl.stop - 0.4) : 0;
-    var tile = V.tile(g.world, 'v2-a-slam v2-d1');
+    var tile = V.tile(g.world, 'v2-a-slam v2-d1', g.emb);
     if (待つ) tile = '<div' + at(tl.stop) + '>' + tile.replace(/ v2-d1/, '') + '</div>';
     // 指示71 追記7：TV で出るまでの約2秒、スマホは空だった。その間だけ「TVを見て！」（data-tvuntil：TV で出る時刻に消える）
     var 見て = 待つ ? '<div class="v2-dlook" role="status" data-tvuntil="' + Math.max(0, wipe).toFixed(2) + '">' + e(U().待合.TVを見て) + '</div>' : '';
@@ -552,7 +552,7 @@
   function tvIdle(view) {
     var F = U().待合, V = K();
     // 指示71 追記7：印だけでは何のゲームか分からないので、名前を下に（動きは文化祭のあと）
-    var tiles = (view.games || []).map(function (id) { var g = view.info(id); return g ? '<span class="v2-tgame">' + V.tile(g.world, 'v2-ttile') + '<span class="v2-tgame-n">' + e(g.name) + '</span></span>' : ''; }).join('');
+    var tiles = (view.games || []).map(function (id) { var g = view.info(id); return g ? '<span class="v2-tgame">' + V.tile(g.world, 'v2-ttile', g.emb) + '<span class="v2-tgame-n">' + e(g.name) + '</span></span>' : ''; }).join('');
     return tvc(view,
       '<div class="v2-tvIdle"><div class="v2-tvIdle-l">' + V.hdHtml(F.呼び込み英, F.呼び込み.join('\n'), true) +
         '<div class="v2-tsteps"><div class="v2-tstep"><span class="v2-tstep-ri">' + V.icon('camera') + '</span><span>' + e(F.読む) + '</span></div>' +
@@ -596,7 +596,7 @@
     return tvc(view,
       '<div class="v2-tin">' + V.hdHtml('Vote!', P.見出し, true) +
         '<div class="v2-tvVote"><div class="v2-vrows">' + list.map(function (g) {
-          return '<div class="v2-tvrow">' + V.tile(g.world) + '<span class="v2-vt"><span class="v2-vn">' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span></span>' +
+          return '<div class="v2-tvrow">' + V.tile(g.world, '', g.emb) + '<span class="v2-vt"><span class="v2-vn">' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span></span>' +
             '<span class="v2-vmeta">' + (g.kind ? '<span>' + e(g.kind) + '</span>' : '') + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></div>';
         }).join('') + '</div>' +
         '<div class="v2-qrside">' + qrHtml(view, 'is-sm', P.いまから) + '</div></div></div>' +
@@ -633,7 +633,7 @@
     var cards = tl.single ? '' : '<div class="v2-dcards" style="--dc:' + C + ';animation-delay:' + ss(tl.stop) + '">' + tl.list.map(function (m, k) {
       var c = view.info(m) || {};
       // 68-S の残り5：名前は1行。札に入らない時だけ字を小さく（下限 48px・V2 の fit）
-      return '<div class="v2-dcard">' + V.tile(c.world, 'v2-dcard-tile') + '<div class="v2-dcard-n v2-cut" data-v2-fit="48">' + gnameHtml(c, 'v2-dcard-t') + '</div></div>';
+      return '<div class="v2-dcard">' + V.tile(c.world, 'v2-dcard-tile', c.emb) + '<div class="v2-dcard-n v2-cut" data-v2-fit="48">' + gnameHtml(c, 'v2-dcard-t') + '</div></div>';
     }).join('') + tl.hops.map(function (h, i) {
       var last = i === tl.hops.length - 1;
       return '<i class="v2-dhop' + (last ? ' is-last' : '') + '" style="left:' + ((h.k + 0.5) / C * 100).toFixed(2) + '%;' +
@@ -646,7 +646,7 @@
         '<div class="v2-tdec2-hd v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall : tl.stop) + '">' + V.hdHtml('Next Game', D.見出し, true) + '</div>' +
         cards +
         '<div class="v2-dwin v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall + 0.15 : tl.stop + 0.15) + '">' +
-          V.tile(g.world, 'v2-dwin-tile') +
+          V.tile(g.world, 'v2-dwin-tile', g.emb) +
           '<div class="v2-gname">' + gnameHtml(g, 'v2-gname-t') + '</div>' +
           (tl.single ? '<span class="v2-dstamp" style="animation-delay:' + ss(tl.stop) + '">' + e(D.これだ) + '</span>' : '') +
           '<div class="v2-who5" style="animation-delay:' + ss(tl.who) + '">' + e(who) + '</div></div>' +
@@ -667,7 +667,7 @@
     var 待ち = !wait.length ? (そろった ? R.まもなく : '') : wait.length + R.待っています;
     return tvc(view,
       '<div class="v2-tvB"><div class="v2-tvB-l">' +
-        '<div class="v2-thd"><div class="v2-thd-en">Next Game</div><div class="v2-thd-ttl v2-tg">' + V.tile(g.world, 'v2-tg-tile') + gnameHtml(g, 'v2-tg-n') + '</div><div class="v2-arrow"></div></div>' +
+        '<div class="v2-thd"><div class="v2-thd-en">Next Game</div><div class="v2-thd-ttl v2-tg">' + V.tile(g.world, 'v2-tg-tile', g.emb) + gnameHtml(g, 'v2-tg-n') + '</div><div class="v2-arrow"></div></div>' +
         '<div class="v2-trules">' + (g.rules || []).slice(0, 3).map(function (r) {
           return '<div class="v2-trule"><span class="v2-trule-ri">' + e(r[0]) + '</span><span class="v2-trule-t" data-v2-wrap>' + V.phrase(r[1]) + '</span></div>';
         }).join('') + '</div>' +

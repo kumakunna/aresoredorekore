@@ -124,5 +124,14 @@
   "from": "fes.join.err = ''; fes.join.busy = false; fes.join.info = p.reason === 'fes_idle'",
   "to": "fes.join.busy = false; fes.join.err = p.reason === 'fes_idle'",
   "expect": "赤い字"
+ },
+ {
+  "name": "75-2-3 自分の印を使わない",
+  "file": "public/js/v2-kit.js",
+  "suite": "tests/fes-screens.js",
+  "only": "2-3",
+  "from": "emblem(emb || world)",
+  "to": "emblem(world)",
+  "expect": "印の絵がちがう"
  }
 ]

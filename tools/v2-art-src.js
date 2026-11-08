@@ -73,6 +73,13 @@ var EMB = {
     '<path d="M48.5 63.5a11.5 11.5 0 1 1 17 10c-3.4 1.9-5.5 4.2-5.5 8v2.5" fill="none" stroke="var(--e3,#0B2D72)" stroke-width="9" stroke-linecap="round"/>'+
     '<circle cx="60" cy="96" r="5.6" fill="var(--e3,#0B2D72)"/>'+
     '<path d="M35 37L40 11l13 14 7-19 7 19 13-14 5 26z" fill="var(--e2,#F5C542)" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/>'; },
+  // 指示75 2-3（A34）：数字ちかい方の印（的と矢）。それまでは「みんなで早答え」と同じクイズの印で、TV の呼び込みで右の2つが同じに見えた。色はクイズの世界のまま
+  qnear:function(){ return ''+
+    '<circle cx="54" cy="66" r="44" fill="var(--e1,#F2F7FF)" stroke="currentColor" stroke-width="6"/>'+
+    '<circle cx="54" cy="66" r="28" fill="var(--e2,#F5C542)" stroke="currentColor" stroke-width="5.5"/>'+
+    '<circle cx="54" cy="66" r="12" fill="var(--e3,#0B2D72)" stroke="currentColor" stroke-width="5"/>'+
+    '<path d="M56 64L100 20" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>'+
+    '<path d="M94 14l18-4-4 18-8-6z" fill="var(--e2,#F5C542)" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>'; },
   wolf:function(){ return ''+
     '<circle cx="90" cy="26" r="15" fill="var(--e2,#FFE38A)" stroke="currentColor" stroke-width="5.5"/>'+
     '<path d="M36 56L40 22l17 18" fill="var(--e1,#160A33)" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/>'+

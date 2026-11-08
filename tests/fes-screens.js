@@ -704,6 +704,22 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示75 2-3（A34）：TV の呼び込みで「みんなで早答え」と「数字ちかい方」が同じクイズの印だった。数字ちかい方に自分の印（的と矢）
+  await r.test('指示75 2-3：TV の呼び込み・投票の札で、数字ちかい方は早答えとちがう印（色はクイズの世界のまま）', async () => {
+    const { win, doc } = await launch({ fakeSocket: true, atEntry: true });
+    const lab = FesScenes.view('fes2-tv-idle');
+    lab.room.fes.games = ['bomb-coop', 'qhaya', 'qnear'];
+    win.V2Screens.fes(lab);
+    const scr = doc.getElementById(lab.screen);
+    const 印 = Array.from(scr.querySelectorAll('.v2-tgame')).map((t) => ({ n: t.textContent, svg: (t.querySelector('.v2-emb') || {}).innerHTML || '', cls: t.querySelector('.v2-tile').className }));
+    const haya = 印.find((x) => /早答え/.test(x.n)), near = 印.find((x) => /ちかい/.test(x.n));
+    assert(haya && near, '2つとも出ている（' + 印.map((x) => x.n).join('・') + '）');
+    const 形 = (svg) => svg.replace(/v2e\d+/g, '');
+    assert(near.svg && 形(near.svg) !== 形(haya.svg), '印の絵がちがう');
+    assert(/v2-w-quiz/.test(near.cls), '色はクイズの世界のまま');
+    win.close();
+  });
+
   // 指示75 2-2（A19・A20）：外された時・しばらく押さなかった時の字を赤くしない。名前の箱を赤い枠にしない（名前のまちがいに見える）
   for (const reason of ['fes_idle', 'fes_staff']) {
     await r.test('指示75 2-2：' + reason + ' で入る画面にもどった → 知らせの色の字（赤い字・名前の箱の赤い枠にしない）', async () => {

@@ -70,6 +70,13 @@ const r2 = (n) => Math.round(n * 100) / 100;
       const k = it.key.slice(2);
       (it.key[0] === 'i' ? icons : embs)[k] = { vb: vb, d: it.d };
     }
+    // 指示75 2-3 で見つけた：みんなと同じ・ぴったり10秒・そろえて発射の印は v2-art-src.js に無く、書き出し済みの v2-art.js にだけある。
+    // そのまま書き出すと黙って消える（11/8 に「印 9」になった）。見本に無い物は、書き出し済みの物を残す
+    try {
+      const OLD = require(OUT);
+      Object.keys(OLD.EMB || {}).forEach((k) => { if (!embs[k]) { embs[k] = OLD.EMB[k]; console.log('見本に無い印を残しました: ' + k); } });
+      Object.keys(OLD.ICONS || {}).forEach((k) => { if (!icons[k]) { icons[k] = OLD.ICONS[k]; console.log('見本に無いアイコンを残しました: ' + k); } });
+    } catch (e) { /* はじめて書き出す時 */ }
     const src = [
       '/* v2-art.js — 新しい見た目（指示66）のアイコンとゲームの印。',
       ' * tools/gen-v2-art.js が tools/v2-art-src.js（見本の絵）を Chrome で測り、',

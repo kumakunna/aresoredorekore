@@ -56,9 +56,11 @@
     if (world === 'aresore') return '<img class="v2-logo" src="' + esc(cfg.logo) + '" alt="あれそれどれこれ" draggable="false">';
     return Art ? Art.emblem(world) : '';
   }
-  /** 印の札（世界の色の角丸＋印） */
-  function tile(world, cls) {
-    return '<span class="v2-tile v2-w-' + esc(world) + (cls ? ' ' + cls : '') + '"><span class="v2-emb">' + emblem(world) + '</span></span>';
+  /**
+   * 印の札（世界の色の角丸＋印）。emb：世界とちがう印を使うゲーム（指示75 2-3：数字ちかい方は、クイズの世界の色で「的と矢」）。無ければ世界の印
+   */
+  function tile(world, cls, emb) {
+    return '<span class="v2-tile v2-w-' + esc(world) + (cls ? ' ' + cls : '') + '"><span class="v2-emb">' + emblem(emb || world) + '</span></span>';
   }
 
   // ---------- 字 ----------

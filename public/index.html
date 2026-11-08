@@ -33036,6 +33036,7 @@
   //（そのとき「さっき入った」は、部屋の知らせの前後の差から端末が出す。部屋は入った時刻を配らない）
 
   /** そのモードの世界・名前・人数と時間・ルール3つ。**MODES・GAMES・CASSETTES から導く**（手で書かない・落とし穴4） */
+  var V2_EMB_OF_MODE = { qnear: 'qnear' };
   function v2ModeInfo(modeId){
     var m = modeById(modeId);
     if(!m) return null;
@@ -33048,7 +33049,8 @@
     var e = estimatePlayMinutes(m.id, 4);
     var 時 = (e && e.min) ? ('約' + e.min + '分') : '';
     // 版・人は別にも返す（文化祭の画面は時間だけ文化祭の値にして meta を組み直す・fesInfo）
-    return { id: m.id, world: (c && c.theme) || 'wait', name: gameTitleOf(gid),
+    // 指示75 2-3：emb＝世界とちがう印（同じ世界に2つのゲームがある時。いまは数字ちかい方だけ・v2-art.js の EMB にある物）
+    return { id: m.id, world: (c && c.theme) || 'wait', emb: V2_EMB_OF_MODE[m.id] || null, name: gameTitleOf(gid),
              meta: [版, 人, 時].filter(Boolean).join('・'), 版: 版, 人: 人, rules: m.tv || [], detail: v2RulesDetail(m) };
   }
   /**
@@ -33085,7 +33087,7 @@
           '<span class="v2-faces">' + 顔 + '</span></span><span class="v2-facesbtn-n"><span>' + ps.length + V2.esc(UiText.V2.人) + '</span>' + V2.icon('chev') + '</span></button>' +
         (候補.length ? '<div class="v2-nexts"><div class="v2-nexts-l"><span class="v2-lbl">' + V2.esc(F.候補) + '</span><span class="v2-lbl">' + V2.esc(F.長押し) + '</span></div>' +
           '<div class="v2-nexts-row">' + 候補.map(function(g){
-            return '<button type="button" class="v2-nx" data-v2-lp="#v2Rules-' + V2.esc(g.id) + '">' + V2.tile(g.world) +
+            return '<button type="button" class="v2-nx" data-v2-lp="#v2Rules-' + V2.esc(g.id) + '">' + V2.tile(g.world, '', g.emb) +
               '<span class="v2-nx-nm v2-cut" data-v2-fit>' + V2.esc(g.name) + '</span></button>';
           }).join('') + '</div></div>' : '') +
       '</div>' +

@@ -210,5 +210,23 @@
   "from": "      row.hidden = !!((ms && row.getAttribute('data-mode') !== ms) || (qs && row.textContent.toLowerCase().indexOf(qs) === -1));",
   "to": "      row.hidden = false;",
   "expect": "字で検索"
+ },
+ {
+  "name": "75-答え2 抜けたを出す",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "答え2",
+  "from": "    if(fesRoom()) return;\n",
+  "to": "",
+  "expect": "出さない"
+ },
+ {
+  "name": "75-答え3 すれちがいでも出す",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "答え3",
+  "from": "    if(FES_LATE_ERRORS.indexOf(res.error) === -1) showQuietNote",
+  "to": "    showQuietNote",
+  "expect": "一言を出さない"
  }
 ]

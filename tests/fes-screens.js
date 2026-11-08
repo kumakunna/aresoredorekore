@@ -1122,6 +1122,36 @@ async function 入った(o) {
     });
   }
 
+  // 指示75 束2 の答え 3.A（11/8）：準備OK が締め切りとすれちがった（もう準備OK の時間ではない・もう始まっている）は、つながりの問題ではない。
+  // 「つなぎ直しています」を出さない（通しで 3-2-1 の下に残っていた）。つながりの問題（not_player・not_in_room・時間切れ）は今のまま出す
+  for (const error of ['not_ready_time', 'already_started', 'stale_game', 'not_voting', 'not_result']) {
+    await r.test('指示75 答え3：押した答えが「時間がすぎた」（' + error + '）なら、「つなぎ直しています」を出さない', async () => {
+      const { win, doc } = await 入った();
+      流す(win, 'fes2-ready');
+      await waitFor(win, () => doc.querySelector('[data-fes-act="ready"]'), 2000, '準備OK の画面');
+      win.__rtFake.replies['room:ready'] = () => ({ ok: false, error, message: 'x' });
+      doc.querySelector('[data-fes-act="ready"]').click();
+      await sleep(win, 300);
+      assertEqual(一言(doc), '', '一言を出さない');
+      win.close();
+    });
+  }
+
+  // 指示75 束2 の答え 2.A（11/8）：「〇〇さんが部屋を抜けました」も、文化祭では遊ぶ人のスマホと TV に出さない（2-8 と同じ・係は入退室の記録で見る）
+  await r.test('指示75 答え2：文化祭のスマホと TV には「〇〇さんが部屋を抜けました／出されました」を出さない', async () => {
+    for (const asTv of [false, true]) {
+      const { win, doc } = await 入った();
+      const room = JSON.parse(JSON.stringify(FesScenes.view('fes2-lobby').room));
+      if (asTv) room.members.forEach((m) => { if (m.id === 'm1') m.role = 'bigscreen'; });
+      win.__rtFake.fire('room:update', room); await sleep(win, 40);
+      win.__rtFake.fire('room:memberGone', { name: 'ひろ', reason: 'leave' });
+      win.__rtFake.fire('room:memberGone', { name: 'びび', reason: 'kick' });
+      await sleep(win, 60);
+      assert(!/抜けました|出されました/.test(知らせの字(doc)), (asTv ? 'TV' : 'スマホ') + 'に出さない（' + 知らせの字(doc).slice(0, 60) + '）');
+      win.close();
+    }
+  });
+
   await r.test('74 門5（画面）：投票を押した答えが ok でない → 「つなぎ直しています」を出して、いるよ（room:here）を送る。ok の時は出さない', async () => {
     const { win, doc } = await 入った();
     流す(win, 'fes2-vote');

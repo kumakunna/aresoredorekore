@@ -9,6 +9,6 @@
   else root.AppVersion = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  var VERSION = '2.23';
+  var VERSION = '2.24';
   return { VERSION: VERSION, label: 'v' + VERSION, name: 'あつまれ、あれこれ v' + VERSION };
 });

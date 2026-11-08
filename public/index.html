@@ -25982,6 +25982,8 @@
   // 切断（席を外しました）と同じく原則E：音も振動も鳴らさない
   function rtNoticeMemberGone(p){
     if(typeof FxKit === 'undefined') return;
+    // 指示75 束2 の答え 2.A：文化祭では、遊ぶ人のスマホと TV に出さない（2-8 と同じ・係は入退室の記録 /fes/presence で見る）
+    if(fesRoom()) return;
     var name = (p && p.name) || '?';
     FxKit.notice(p && p.reason === 'kick'
       ? name + 'さんが部屋から出されました'
@@ -33998,9 +34000,11 @@
    * ok でなかったら、何も出ないままにしない：静かな一言を出して、つなぎ直す（rt.here：サーバーがいまの画面を送り直す）。
    * 11/6 の実機では、つながっていない扱いのまま押して、何も起きずに固まっていた（not_player・not_in_room を見ていなかった）
    */
+  // 指示75 束2 の答え 3.A：押したのが締め切りとすれちがった（段階がもう進んだ）は、つながりの問題ではない。一言は出さず、いまの画面だけもらい直す
+  var FES_LATE_ERRORS = ['not_ready_time', 'already_started', 'stale_game', 'not_voting', 'not_result', 'no_game'];
   function fesPressed(res){
     if(!res || res.ok) return;
-    showQuietNote(UiText.FES.遊ぶ.つなぎ直し);
+    if(FES_LATE_ERRORS.indexOf(res.error) === -1) showQuietNote(UiText.FES.遊ぶ.つなぎ直し);
     if(rt && rt.here) rt.here();
   }
   /** 指示75 1-6：「しばらくしてから入れます。あと約30秒」。1分より長い時は分で（切り上げ） */

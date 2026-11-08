@@ -34,6 +34,8 @@ const TVS = /^(\d+)x(\d+)$/.exec(String(arg('tv', '1920x1080')));
 const OUT = path.resolve(arg('out', path.join(ROOT, 'docs', '検査_1107', '写真', 'walk')));
 const BASE = 'http://localhost:' + PORT;
 const VISION = arg('vision', null);
+// 指示76 2-9：--gear で、1台目のスマホが投票と準備OK の段に来た時に ⚙ を開き、入口と中のページ（音・光と揺れ・字の大きさ・ルール）を撮って測る
+const GEAR = !!arg('gear', false);
 const NAMES = ['あき', 'いお', 'うた', 'えま', 'おと', 'かい'];
 const t0 = Date.now();
 const 分 = () => ((Date.now() - t0) / 60000).toFixed(1);
@@ -153,6 +155,10 @@ async function 係() {
         const m = await d.ev('(' + MEASURE.toString() + ')(' + JSON.stringify({ tv: !!d.isTv }) + ')').catch((e) => ({ n: 0, issues: [{ kind: '測れない', text: String(e.message).slice(0, 80) }] }));
         記録.撮った.push({ file, dev: d.tag, tv: !!d.isTv, mode, scr: now.scr, stage: now.stage, n: m.n, issues: m.issues, txt: m.txt || '', gears: m.gears });
         if (m.issues.length) log(d.tag, mode, now.scr, now.stage, m.issues.length + '件');
+        if (GEAR && d === devs[1] && (now.stage === 'vote' || now.stage === 'ready') && !済み.has('gear|' + now.stage)) {
+          済み.add('gear|' + now.stage);
+          await 歯車を撮る(d, mode, now.stage, () => String(++連番).padStart(3, '0'), 記録);
+        }
       }
       await sleep(700);
     }
@@ -160,6 +166,32 @@ async function 係() {
     await 終わる(GAMES.every((g) => 済.has(g)) ? '全部のゲームを回した（' + round + '回）' : MIN + '分たった（' + GAMES.filter((g) => 済.has(g)).length + '/' + GAMES.length + '本）');
   } catch (e) { 記録.失敗 = String(e && e.stack || e); console.error(e); await 終わる('失敗'); }
 })().catch((e) => { console.error(e); process.exit(1); });
+
+/** 指示76 2-9：⚙ を開いて、入口と中のページを撮って測る（文化祭のスマホは5つだけ） */
+async function 歯車を撮る(d, mode, stage, no, 記録) {
+  const ok = await d.ev("(function(){ var g=document.querySelector('.screen.active [data-v2-act=\"gear\"]'); if(!g) return false; g.click(); return true; })()").catch(() => false);
+  if (!ok) { log('⚙ が見つからない', stage); return; }
+  await sleep(500);
+  const 行 = await d.ev("Array.from(document.querySelectorAll('#settingsOverlay .set-page[data-page=\"root\"] .set-row')).filter(function(x){ return x.offsetParent; }).map(function(x){ return x.querySelector('.sr-text').firstChild.textContent; })").catch(() => []);
+  log('⚙ の入口（' + stage + '）：' + 行.join('・'));
+  const 撮る = async (name) => {
+    const file = no() + '_' + d.tag + '_' + mode + '_gear-' + name + '_' + stage + '.jpg';
+    await d.shot(path.join(OUT, file)).catch(() => 0);
+    const m = await d.ev('(' + MEASURE.toString() + ')(' + JSON.stringify({ tv: false }) + ')').catch(() => ({ n: 0, issues: [] }));
+    記録.撮った.push({ file, dev: d.tag, tv: false, mode, scr: 'settings-' + name, stage, n: m.n, issues: m.issues, txt: m.txt || '', gears: m.gears, rows: name === 'root' ? 行 : undefined });
+  };
+  await 撮る('root');
+  for (const [label, name] of [['音', 'sound'], ['光と揺れ', 'safety'], ['字の大きさ', 'display'], ['ルール', 'rules']]) {
+    const hit = await d.ev("(function(){ var r=Array.from(document.querySelectorAll('#settingsOverlay .set-page[data-page=\"root\"] .set-row')).find(function(x){ return x.offsetParent && x.querySelector('.sr-text').firstChild.textContent===" + JSON.stringify(label) + "; }); if(!r) return false; r.click(); return true; })()").catch(() => false);
+    if (!hit) continue;
+    await sleep(400);
+    await 撮る(name);
+    await d.ev("(function(){ var b=document.getElementById('setBackBtn'); if(b) b.click(); return 1; })()").catch(() => 0);
+    await sleep(250);
+  }
+  await d.ev("(function(){ var c=document.getElementById('closeSettingsBtn'); if(c) c.click(); return 1; })()").catch(() => 0);
+  await sleep(300);
+}
 
 /** 種類ごとの数と、どこで出たか（同じ字・同じ要素は1行にまとめる） */
 function 一覧(r) {

@@ -18,14 +18,18 @@ function 乱数(seed) { let a = seed >>> 0; return function () { a = (a + 0x6D2B
 /** 種を決めた Math.random で f を呼ぶ（呼び終えたら元にもどす） */
 function 種を決めて(seed, f) { const old = Math.random; Math.random = 乱数(seed); try { return f(); } finally { Math.random = old; } }
 
-/** query：URLSearchParams か { scene, n, long, cd, me } */
-function labHtml(query) {
+/**
+ * query：URLSearchParams か { scene, n, long, cd, me }。
+ * publicDir：index.html を読む public/（指示76：直す前の作業ツリーの画面を撮る時。それまでは、いつもこのリポジトリの index.html を読んでいたので、
+ * 直す前の写真に、直した後の CSS が入っていた——index.html だけを直した所は、前と後が同じに写る）
+ */
+function labHtml(query, publicDir) {
   const q = query instanceof URLSearchParams ? query : new URLSearchParams(query || {});
   const sceneId = q.get('scene') || 'fes-lobby';
   const num = (k) => (q.get(k) == null || q.get(k) === '' ? undefined : +q.get(k));
   const seed = 種([sceneId, q.get('n') || '', q.get('long') || '', q.get('world') || ''].join('|'));
   const view = 種を決めて(seed, () => SCENES.view(sceneId, { n: num('n'), long: q.get('long') === '1', cd: num('cd'), me: num('me'), world: q.get('world') || undefined }));
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+  const html = fs.readFileSync(path.join(publicDir || path.join(ROOT, 'public'), 'index.html'), 'utf8');
   // </script> を字として含めない（名前に入っていても台本が途中で切れないように）
   const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
   const inject = '<script>window.__V2LAB_SCENES=' + json(SCENES.SCENES.map((s) => ({ id: s.id, screen: s.screen, draw: s.draw }))) +

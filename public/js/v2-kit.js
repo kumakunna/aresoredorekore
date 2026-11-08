@@ -106,12 +106,48 @@
    * 前の文節ごと次の行へ送る（「コードを全部切ればみんなの／勝ち」→「コードを全部切れば／みんなの勝ち」）。
    * 切れ目を消しきっても直らなければ、字を少し小さくする（9割まで）
    */
+  /**
+   * 指示77（くまくん 11/9 の答え 5）：言葉（文節＝<wbr> のあいだ）の途中で行が折れているか。
+   * 「・」「＝」のすぐあと（名前の区切り）で折れるのはよい。折れているのは、その言葉が箱の幅より長い時だけ
+   */
+  function brokenWord(el) {
+    var d = D(), w = d.createTreeWalker(el, 1 | 4), n, soft = true, prev = '', top = null;
+    while ((n = w.nextNode())) {
+      if (n.nodeType === 1) { if (n.tagName === 'WBR') soft = true; continue; }
+      var t = n.nodeValue;
+      for (var i = 0; i < t.length; i++) {
+        var rg = d.createRange(); rg.setStart(n, i); rg.setEnd(n, i + 1);
+        var b = rg.getClientRects()[0];
+        if (b && b.width) {
+          if (top != null && b.top > top + b.height * 0.5 && !soft && !/[・＝]/.test(prev)) return true;
+          if (top == null || b.top > top + b.height * 0.5) top = b.top;
+        }
+        prev = t[i]; soft = false;
+      }
+    }
+    return false;
+  }
   function fixWraps(scope) {
     var d = D(); if (!d) return;
     var list = (scope || d).querySelectorAll('[data-v2-wrap]');
     for (var i = 0; i < list.length; i++) {
       var el = list[i];
       if (!el.getClientRects().length) continue;   // 見えていないものは測れない
+      // 指示77（11/9 の答え 5）：data-v2-words の札（TV の早答えの問題文と選択肢）は、1つの言葉が1行に入らず途中で折れる時、
+      // その札だけ字を小さくする（7割まで）。言葉が入れば、最後の行が1〜2字だけ・行の頭が「、」になる形も消える
+      if (el.hasAttribute('data-v2-words')) {
+        var fw = parseFloat(getComputedStyle(el).fontSize), bw = +el.getAttribute('data-v2-fs0') || fw, gw = 0;
+        el.setAttribute('data-v2-fs0', bw);
+        if (el.style.fontSize) { el.style.fontSize = ''; fw = bw; }
+        // 最後の行が1〜2字だけの時も、字を小さくして前の行に入れる（<wbr> は消さない：消すと言葉が長くなり、途中で折れる）
+        for (; gw < 80; gw++) {
+          var rw = brokenWord(el) ? null : rowsOf(el);
+          if (rw && !(rw.length >= 2 && rw[rw.length - 1].replace(SOFT, '').length <= 2)) break;
+          if (fw <= bw * 0.7) break;
+          fw = Math.max(bw * 0.7, fw - 1); el.style.fontSize = fw + 'px';
+        }
+        continue;
+      }
       for (var guard = 0; guard < 12; guard++) {
         var rows = rowsOf(el);
         if (rows.length < 2 || rows[rows.length - 1].replace(SOFT, '').length > 2) break;

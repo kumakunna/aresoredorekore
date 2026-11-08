@@ -137,6 +137,17 @@ function tvView(room) {
     assertEqual(W.UiText.QUIZ2.層.nanisore + '・' + W.UiText.QUIZ2.層.muri, 'ナニソレ・むり', '名前');
   });
 
+  await r.test('指示77（11/9 の答え 5）：TV の早答えの問題文と選択肢（答えている間・開いた時）は、言葉の途中で折れたら字を小さくする札（data-v2-words）。折れ方の数は tools/quiz-fit-shot.js --all', async () => {
+    const room = S.早答え(6, 0);
+    box.innerHTML = W.V2Quiz2.haya.tv(tvView(room));
+    assert(box.querySelector('.v2-otq[data-v2-words]'), '答えている間の問題文');
+    assertEqual(box.querySelectorAll('.v2-och-t[data-v2-words]').length, room.qhaya.qs[room.qhaya.round].choices.length, '答えている間の選択肢');
+    const open = S.早答え(6, 1);
+    box.innerHTML = W.V2Quiz2.haya.tv(tvView(open));
+    assert(box.querySelector('.v2-oqs[data-v2-words]') && box.querySelectorAll('.v2-ocard-t[data-v2-words]').length >= 3, '開いた時の問題文と答えの札');
+    assert(typeof W.V2.fixWraps === 'function', '直すのは V2.fixWraps（relayout の中）');
+  });
+
   t.win.close();
   r.finish();
 })();

@@ -142,10 +142,10 @@
     }
     function tvChoose(view) {
       var d = view.data || {}, V = K(), t = T(), topic = d.topic || { q: '', choices: [] };
-      return '<div class="v2-q2qa"><div class="v2-otq" data-v2-wrap>' + V.phrase(topic.q) + '</div>' + sparkHtml(d.answered || 0) + '</div>' +
+      return '<div class="v2-q2qa"><div class="v2-otq" data-v2-wrap data-v2-words>' + V.phrase(topic.q) + '</div>' + sparkHtml(d.answered || 0) + '</div>' +
         barHtml(view, 10) +
         '<div class="v2-ochs is-n' + topic.choices.length + '">' + topic.choices.map(function (c, k) {
-          return '<div class="v2-och"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-och-t" data-v2-wrap>' + V.phrase(c) + '</span></div>';
+          return '<div class="v2-och"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-och-t" data-v2-wrap data-v2-words>' + V.phrase(c) + '</span></div>';
         }).join('') + '</div>' +
         (d.double ? '<div class="v2-q2dbl is-tv">' + e(t.二倍) + '</div>' : '');
     }
@@ -162,7 +162,7 @@
         // まちがいの札はわざと暗くする（data-dimok：物差しの色の差に数えない）
         return '<div class="v2-ocol' + (win ? ' is-win is-right' : ' is-wrong') + '"' + (win ? '' : ' data-dimok') + ' style="--wd:' + ss(tl.stop) + '">' +
           '<div class="v2-opile">' + balls + '</div>' +
-          '<div class="v2-ocard"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-ocard-t" data-v2-wrap>' + V.phrase(c) + '</span>' +
+          '<div class="v2-ocard"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-ocard-t" data-v2-wrap data-v2-words>' + V.phrase(c) + '</span>' +
             '<span class="v2-ocnt"><b class="v2-num"><span class="v2-ocn is-last">' + V.digits(counts[k] || 0) + '</span></b><small>' + e(t.人) + '</small></span></div></div>';
       }).join('');
       var hops = tl.hops.map(function (h, i) {
@@ -185,7 +185,7 @@
       return '<div class="v2-ounv is-tv is-stage">' + '<i class="v2-odim"></i>' +
         '<div class="v2-osay" aria-hidden="true">' + e(t.せーの) + '</div>' +
         '<div class="v2-osay is-ans" aria-hidden="true" style="animation-delay:' + ss(tl.say) + '">' + e(t.正解は) + '</div>' +
-        '<div class="v2-oqs" data-v2-wrap>' + V.phrase(r.q || '') + '</div>' +
+        '<div class="v2-oqs" data-v2-wrap data-v2-words>' + V.phrase(r.q || '') + '</div>' +
         '<div class="v2-ostg' + (r.ranking ? ' has-rank' : '') + '" style="--oc:' + C + ';--rk:' + ss(tl.rank) + ';--tg:' + ss(tl.tags) + '">' + cols + '<div class="v2-q2hops">' + hops + '</div>' + tags + fast +
           (r.ranking ? rankHtml(r.ranking, tl.rank) : '') + '</div></div>';
     }
@@ -258,7 +258,7 @@
     }
     function tvGuess(view) {
       var d = view.data || {}, V = K(), t = T(), topic = d.topic || {};
-      return '<div class="v2-q2qa is-near"><div class="v2-otq" data-v2-wrap>' + V.phrase(topic.q || '') + '</div>' + sparkHtml(d.answered || 0) + '</div>' +
+      return '<div class="v2-q2qa is-near"><div class="v2-otq" data-v2-wrap data-v2-words>' + V.phrase(topic.q || '') + '</div>' + sparkHtml(d.answered || 0) + '</div>' +
         '<div class="v2-q2unit">？ <small>' + e(topic.unit || '') + '</small></div>' + barHtml(view, 15);
     }
     function tvOpen(view) {

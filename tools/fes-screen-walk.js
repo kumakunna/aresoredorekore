@@ -104,7 +104,7 @@ async function 係() {
         const miss = await d.ev('(' + SELFTEST.toString() + ')(' + JSON.stringify(MEASURE.toString()) + ')');
         記録.自己検査 = miss;
         if (miss.length) throw new Error('物差しが言わない：' + miss.join('・'));
-        log('物差しの自己検査 ○（7つとも言った）');
+        log('物差しの自己検査 ○（わざと足した物を全部言った）');
       }
       d.cfg = { name: NAMES[i], diff: i % 2 ? 'easy' : 'normal', round: 0, target: null };
     }

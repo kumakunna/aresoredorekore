@@ -1,0 +1,92 @@
+[
+ {
+  "name": "75-1-2a 幕をつながない",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "指示75 1-2",
+  "from": "    rt.on('stale', rtStaleSync);",
+  "to": "    void rtStaleSync;",
+  "expect": "押せなく"
+ },
+ {
+  "name": "75-1-2b 裏から戻っても古いとしない",
+  "file": "public/js/rt-client.js",
+  "suite": "tests/fes-screens.js",
+  "only": "指示75 1-2",
+  "from": "        if (hiddenAt && Date.now() - hiddenAt > 1500) setStale(true, 'back');",
+  "to": "        void hiddenAt;",
+  "expect": "1.5秒より長く"
+ },
+ {
+  "name": "75-1-2c オフラインを見ない",
+  "file": "public/js/rt-client.js",
+  "suite": "tests/fes-screens.js",
+  "only": "指示75 1-2",
+  "from": "      window.addEventListener('offline', function () { setStale(true, 'offline'); });",
+  "to": "      void 0;",
+  "expect": "オフラインの字"
+ },
+ {
+  "name": "75-1-6a 長押しでふつうの枠を開く",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "指示75 1-6",
+  "from": "fesAskKick(fesLong.id, true); }, FES_LONG_MS);",
+  "to": "fesAskKick(fesLong.id); }, FES_LONG_MS);",
+  "expect": "長押しで「しばらく"
+ },
+ {
+  "name": "75-1-6b 長押しのあとの click を捨てない",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "指示75 1-6",
+  "from": "if(Date.now() - fesLong.fired < 800) return; ",
+  "to": "",
+  "expect": "重ねない"
+ },
+ {
+  "name": "75-1-6c しばらく入れないを見ない",
+  "file": "realtime.js",
+  "suite": "tests/fes-rejoin.js",
+  "only": "指示75 1-6",
+  "from": "        if (waitMs > 0) {",
+  "to": "        if (waitMs < 0) {",
+  "expect": "入れない"
+ },
+ {
+  "name": "75-1-3 取っておきの人を数えない",
+  "file": "fes-room.js",
+  "suite": "tests/fes-rejoin.js",
+  "only": "指示75 1-3",
+  "from": "m.readyGame === g.game && (m.connected || seatKept(room, m, now)))",
+  "to": "m.readyGame === g.game && m.connected)",
+  "expect": "席を取っておいている"
+ },
+ {
+  "name": "75-1-4 同じ端末を見ない",
+  "file": "realtime.js",
+  "suite": "tests/fes-rejoin.js",
+  "only": "指示75 1-4",
+  "from": "        member = Array.from(room.members.values()).find((m) => m.dev === dev && m.role !== ROLE_BIGSCREEN) || null;",
+  "to": "        member = null;",
+  "expect": "名簿は1人"
+ },
+ {
+  "name": "75-1-5 時計合わせを待たない",
+  "file": "public/index.html",
+  "suite": "tests/countdown-remain.js",
+  "only": "指示75 1-5",
+  "from": "    if(endsAt && !sentAt && !noWait && typeof so !== 'undefined' && so.offset == null){",
+  "to": "    if(false){",
+  "expect": "指示75 1-5"
+ },
+ {
+  "name": "75-1-1c 高さの記録を残さない",
+  "file": "public/index.html",
+  "suite": "tests/viewport-height.js",
+  "only": "(c)",
+  "from": "    vpAfterScreen();    // 指示75 1-1",
+  "to": "    void 0;    // 指示75 1-1",
+  "expect": "最近50件"
+ }
+]

@@ -141,5 +141,14 @@
   "from": ".v2 .v2-brand{position:absolute;right:5px;top:50%;z-index:28;",
   "to": ".v2 .v2-brand{position:absolute;right:5px;top:50%;z-index:36;",
   "expect": "縦の字"
+ },
+ {
+  "name": "75-2-5 UTC の日付にもどす",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "2-5",
+  "from": "    var day = jstDay(), asked = {};",
+  "to": "    var day = new Date(Date.now()).toISOString().slice(0, 10), asked = {};",
+  "expect": "同じ日の10時"
  }
 ]

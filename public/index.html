@@ -12679,7 +12679,7 @@
     if(!ids || !ids.length) return;
     // 手に入れた日を覚えておく（コレクション画面で出す）。
     // **記録は数えた時点で済ませる**——見せるのが後になっても、数えないことにはしない
-    var today = new Date().toISOString().slice(0, 10);
+    var today = jstDay();   // 指示75 2-5 と同じ：手に入れた日も日本の日付で（UTC だと朝9時より前は前の日になっていた）
     myTitles.gotAt = myTitles.gotAt || {};
     ids.forEach(function(id){ if(!myTitles.gotAt[id]) myTitles.gotAt[id] = today; });
     saveTitleGotAt();
@@ -33865,7 +33865,8 @@
   function fesFeedbackCheck(view){
     var f = view.fes, played = f.played;
     if(f.phase !== 'lobby' || !played || played.ids.indexOf(view.meId) === -1) return;
-    var day = new Date().toISOString().slice(0, 10), asked = {};
+    // 指示75 2-5（A33）：「1日」は日本の0時で区切る（toISOString の UTC だと、日本の朝9時に日が変わっていた）
+    var day = jstDay(), asked = {};
     try{ asked = JSON.parse(localStorage.getItem(FES_FB_KEY) || '{}') || {}; }catch(e){ asked = {}; }
     if(fes.fb && fes.fb.round === played.round) return;
     if(asked[day + ':' + played.mode]) return;

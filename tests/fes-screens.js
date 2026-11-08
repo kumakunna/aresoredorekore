@@ -415,6 +415,29 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示75 2-5（A33）：ひとことの箱の「1日」の区切りを日本の0時に（それまでは toISOString の UTC で、日本の朝9時に日が変わっていた）
+  await r.test('指示75 2-5：感想を聞くのは日本の日付で1日1回（朝8時半に聞いたら、同じ日の10時には聞かない。次の日の朝には聞く）', async () => {
+    const { win, doc } = await 入った();
+    const 本物 = win.Date.now.bind(win.Date);
+    let 時 = Date.parse('2026-11-14T08:30:00+09:00');           // 文化祭の朝 8:30（UTC では 11/13）
+    win.Date.now = () => 時;
+    const lab = FesScenes.view('fes2-result');
+    const 回 = (round) => { const room = JSON.parse(JSON.stringify(lab.room)); room.fes.phase = 'lobby'; room.state.data = {}; room.fes.played.round = round; return room; };
+    const 開いた = () => doc.querySelector('[data-v2-id="v2FbPop"]').classList.contains('is-open');
+    win.__rtFake.fire('room:update', 回(1));
+    await waitFor(win, () => doc.querySelector('[data-v2-id="v2FbPop"].is-open'), 2000, '8:30 は聞く');
+    doc.querySelector('[data-fes-act="fbfold"]').click();
+    時 = Date.parse('2026-11-14T10:00:00+09:00');                // 同じ日の 10:00（UTC では 11/14 になる）
+    win.__rtFake.fire('room:update', 回(2));
+    await sleep(win, 60);
+    assert(!開いた(), '同じ日の10時、同じゲームは聞かない');
+    時 = Date.parse('2026-11-15T07:00:00+09:00');                // 次の日の朝
+    win.__rtFake.fire('room:update', 回(3));
+    await waitFor(win, () => 開いた(), 2000, '次の日は、また聞く');
+    win.Date.now = 本物;
+    win.close();
+  });
+
   await r.test('F11（画面）：クイズ解除の解除中は新しい見た目。マスを押すと開き、3択で答え、閉じると手放す（今の画面と同じ送り方）', async () => {
     const { win, doc } = await 入った();
     const lab = 流す(win, 'fes2-play');

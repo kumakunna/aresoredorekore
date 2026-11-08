@@ -5,4 +5,5 @@ rem  --autoplay-policy=no-user-gesture-required … 人が押さなくても音�
 set "CHROME=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
 if not exist "%CHROME%" set "CHROME=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
 if not exist "%CHROME%" set "CHROME=%LocalAppData%\Google\Chrome\Application\chrome.exe"
-start "" "%CHROME%" --user-data-dir="%LocalAppData%\AtsumareTV" --autoplay-policy=no-user-gesture-required --no-first-run
+rem  指示75 3-8：起動のたびに /tvs/mark を開く（拡張機能が「TV 専用の Chrome」と覚えて、そのタブを閉じる。印の無い Chrome では「はじめる」を押せない）
+start "" "%CHROME%" --user-data-dir="%LocalAppData%\AtsumareTV" --autoplay-policy=no-user-gesture-required --no-first-run "https://aresoredorekore.duckdns.org/tvs/mark"

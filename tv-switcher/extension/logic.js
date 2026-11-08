@@ -51,7 +51,9 @@
    */
   function pickDisplays(displays, startDisplayId) {
     let ds = (displays || []).slice().sort((a, b) => a.bounds.left - b.bounds.left || a.bounds.top - b.bounds.top);
-    if (ds.length >= 3) ds = ds.filter((d) => d.id !== startDisplayId);
+    // 指示75 3-4（A29 (a)）：3つ以上なら、主の画面（ノート PC・isPrimary）をのぞく。「はじめる」の画面が TV の上に開いていても、まちがえない。
+    // 主の画面が分からない時だけ、今までどおり「はじめる」を押した画面をのぞく
+    if (ds.length >= 3) { const pri = ds.find((d) => d.isPrimary); ds = ds.filter((d) => d.id !== (pri ? pri.id : startDisplayId)); }
     if (ds.length >= 2) return { 1: { bounds: ds[0].bounds, full: true }, 2: { bounds: ds[1].bounds, full: true } };
     const b = (ds[0] && ds[0].bounds) || { left: 0, top: 0, width: 1280, height: 720 };
     const w = Math.floor(b.width / 2);
@@ -59,7 +61,47 @@
       2: { bounds: { left: b.left + w, top: b.top, width: w, height: b.height }, full: false } };
   }
 
-  const api = { asobiOwner, muted, plan, pickDisplays };
+  /** 指示75 3-4：「はじめる」の画面を置く所（主の画面。分からなければ左はし） */
+  function homeDisplay(displays) {
+    const ds = (displays || []).slice().sort((a, b) => a.bounds.left - b.bounds.left);
+    return ds.find((d) => d.isPrimary) || ds[0] || null;
+  }
+
+  /** 指示75 3-7：TV の左右（置き場所 place の左の位置でくらべる）。分からない時は null */
+  function sideOf(place, tv) {
+    const a = place && place[1] && place[1].bounds, b = place && place[2] && place[2].bounds;
+    if (!a || !b || a.left === b.left) return null;
+    const leftTv = a.left < b.left ? 1 : 2;
+    return tv === leftTv ? 'left' : 'right';
+  }
+
+  /**
+   * 指示75 3-1（A28）：あそびまちのタブの音を「呼び出し」に数えるか。
+   * 読み込んでから20秒（開いた時の「押すと始まります」の音）・あそびまちの準備の間・「はじめる」から20秒は数えない。10秒に1回まで
+   */
+  const CHIME_QUIET_MS = 20000, CHIME_GAP_MS = 10000;
+  function chimeCounts(o) {
+    if (o.guide) return false;
+    if (o.loadedAt && o.now - o.loadedAt < CHIME_QUIET_MS) return false;
+    if (o.startedAt && o.now - o.startedAt < CHIME_QUIET_MS) return false;
+    if (o.chimeAt && o.now - o.chimeAt < CHIME_GAP_MS) return false;
+    return true;
+  }
+
+  /**
+   * 指示75 3-2：窓の置き直しで何をするか。w：chrome.windows の窓・p：置き場所 { bounds, full }。
+   *   'none'（そのまま）・'full'（同じ画面で全画面だけ外れた＝全画面にもどすだけ。窓をふつうの大きさにしない）・'move'（別の画面へ動かす）
+   * 窓のまん中が置き場所の画面の中なら「同じ画面」
+   */
+  function placeStep(w, p) {
+    const b = p.bounds, cx = w.left + w.width / 2, cy = w.top + w.height / 2;
+    const same = cx >= b.left && cx < b.left + b.width && cy >= b.top && cy < b.top + b.height;
+    if (!same) return 'move';
+    if (p.full) return w.state === 'fullscreen' ? 'none' : 'full';
+    return w.left === b.left && w.top === b.top && w.width === b.width && w.height === b.height ? 'none' : 'move';
+  }
+
+  const api = { asobiOwner, muted, plan, pickDisplays, homeDisplay, sideOf, chimeCounts, placeStep, CHIME_QUIET_MS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.TvsLogic = api;
 })(typeof self !== 'undefined' ? self : globalThis);

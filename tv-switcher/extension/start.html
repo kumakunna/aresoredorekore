@@ -7,6 +7,7 @@
   h1{font-size:26px;margin:0 0 16px}h2{font-size:19px;margin:24px 0 8px}
   button{font-size:18px;font-weight:700;min-height:52px;padding:0 20px;border-radius:12px;border:2px solid #1A1A1A;background:#fff;color:#1A1A1A;cursor:pointer}
   button.big{font-size:24px;min-height:72px;padding:0 40px;background:#1A1A1A;color:#fff}
+  button:disabled{opacity:.35;cursor:not-allowed}
   input[type=text]{font-size:16px;min-height:44px;width:100%;padding:0 10px;border-radius:10px;border:2px solid #E4DCC4}
   .box{background:#fff;border:1px solid #E4DCC4;border-radius:12px;padding:14px;margin:10px 0}
   .ok{color:#1A7F37;font-weight:700}.ng{color:#B42318;font-weight:700}
@@ -16,6 +17,9 @@
 </style></head>
 <body>
 <h1>TV の切りかえ</h1>
+<!-- 指示75 3-8：TV 専用の Chrome（デスクトップの「あつまれ TV」）でない所では、はじめない -->
+<div id="notTv" style="display:none;background:#FFE9E6;border:3px solid #B42318;border-radius:14px;padding:18px;margin:0 0 16px;font-size:22px;font-weight:800;line-height:1.5">
+  TV 専用の Chrome で開いてください<br><span style="font-size:18px">デスクトップの「あつまれ TV」から開いた Chrome でだけ「はじめる」を押せます。<br>この Chrome（ふだんの Chrome）は閉じてかまいません。</span></div>
 <div class="row"><button class="big" id="start">はじめる</button><span id="msg"></span></div>
 <div class="box"><div id="wins">TV①：－　TV②：－</div>
   <p id="login" class="ng" style="display:none">TV に「ログインしてください」が出ていたら、この Chrome で係のアカウントでログインしてから、もう一度「はじめる」を押してください。<a id="loginLink" href="#" target="_blank">ログインの画面を開く</a></p>

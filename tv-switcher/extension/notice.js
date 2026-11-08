@@ -23,5 +23,9 @@
     host.setAttribute('data-text', t);
   }
   chrome.runtime.onMessage.addListener((m) => { if (m && m.t === 'notice') draw(m.text); });
+  // 指示75 3-2：窓の大きさが変わった（全画面が外れた・別の画面へ動いた）→ 裏の処理に置き直しを頼む（TV の窓でなければ裏の処理が何もしない）。
+  // 窓の「状態」が変わっただけでは chrome.windows.onBoundsChanged が来ないので、見えているページの resize で知る
+  let rt = null;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { try { chrome.runtime.sendMessage({ t: 'place-check' }).catch(() => {}); } catch (e) {} }, 150); });
   try { chrome.runtime.sendMessage({ t: 'notice-get' }).then((r) => draw(r && r.text)).catch(() => {}); } catch (e) {}
 })();

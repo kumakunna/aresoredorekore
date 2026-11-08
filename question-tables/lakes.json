@@ -34,22 +34,26 @@
     {
       "name": "中海",
       "value": 86,
-      "tier": "hard"
+      "tier": "hard",
+      "yomi": "なかうみ"
     },
     {
       "name": "屈斜路湖",
       "value": 80,
-      "tier": "hard"
+      "tier": "hard",
+      "yomi": "くっしゃろこ"
     },
     {
       "name": "宍道湖",
       "value": 79,
-      "tier": "hard"
+      "tier": "hard",
+      "yomi": "しんじこ"
     },
     {
       "name": "支笏湖",
       "value": 78,
-      "tier": "hard"
+      "tier": "hard",
+      "yomi": "しこつこ"
     },
     {
       "name": "洞爺湖",

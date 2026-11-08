@@ -29,7 +29,8 @@
     {
       "name": "天塩川",
       "value": 256,
-      "tier": "hard"
+      "tier": "hard",
+      "yomi": "てしおがわ"
     },
     {
       "name": "北上川",
@@ -39,7 +40,8 @@
     {
       "name": "阿武隈川",
       "value": 239,
-      "tier": "hard"
+      "tier": "hard",
+      "yomi": "あぶくまがわ"
     },
     {
       "name": "木曽川",
@@ -59,7 +61,8 @@
     {
       "name": "阿賀野川",
       "value": 210,
-      "tier": "hard"
+      "tier": "hard",
+      "yomi": "あがのがわ"
     },
     {
       "name": "四万十川",

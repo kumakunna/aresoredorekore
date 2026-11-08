@@ -1,94 +1,94 @@
 {
   "id": "pref-pop",
-  "title": "都道府県の人口（2020年）",
+  "title": "都道府県の人口（2025年）",
   "what": "人口",
   "unit": "人",
-  "source": "総務省統計局「令和2年国勢調査 人口等基本集計 結果の概要」（確定値・令和2年10月1日現在）の都道府県別人口 https://www.stat.go.jp/data/kokusei/2020/kekka/pdf/outline_01.pdf",
-  "checked": "2026-10-27 手伝い（別の目）が PDF を開き、都道府県コード順の数の行を写して、順位の列（東京1・神奈川2…鳥取47）と合うことを確かめた（指示68-Q）",
+  "source": "総務省統計局「令和7年国勢調査 人口等基本集計 結果の概要」（確定値・令和7年10月1日現在・2026年9月29日公表）表Ⅰ－２－１ 都道府県別人口 https://www.stat.go.jp/data/kokusei/2025/kekka/pdf/outline_01.pdf",
+  "checked": "2026-11-08 Claude チャットが統計局の PDF を開き、表Ⅰ－２－１ から16行の2025年の人口を読んだ（2020年の人口と2020年の順位が前の表と同じ行で読んだ。検査_1107_道具census2025-check.py・結果は 問題監査_1108人口2025_確定値.json）。2026-11-09 Claude Code が同じ PDF を pdftotext で文字にし、2020年の人口の列（前の表の値）で行を合わせて16行を照らした（指示77 5-3）",
   "ask": {
-    "compare": "{a}と{b}、人口が多いのはどっち？（2020年）",
-    "number": "{a}の人口は約何人？（2020年・いちばん近い人の勝ち）"
+    "compare": "{a}と{b}、人口が多いのはどっち？（2025年）",
+    "number": "{a}の人口は約何人？（2025年・いちばん近い人の勝ち）"
   },
   "minGap": 100000,
   "rows": [
     {
       "name": "東京都",
-      "value": 14047594,
+      "value": 14236627,
       "tier": "easy"
     },
     {
       "name": "神奈川県",
-      "value": 9237337,
+      "value": 9193922,
       "tier": "normal"
     },
     {
       "name": "大阪府",
-      "value": 8837685,
+      "value": 8759312,
       "tier": "easy"
     },
     {
       "name": "愛知県",
-      "value": 7542415,
+      "value": 7448043,
       "tier": "normal"
     },
     {
       "name": "埼玉県",
-      "value": 7344765,
+      "value": 7287325,
       "tier": "normal"
     },
     {
       "name": "北海道",
-      "value": 5224614,
+      "value": 4980272,
       "tier": "normal"
     },
     {
       "name": "福岡県",
-      "value": 5135214,
+      "value": 5077785,
       "tier": "normal"
     },
     {
       "name": "広島県",
-      "value": 2799702,
+      "value": 2682786,
       "tier": "hard"
     },
     {
       "name": "京都府",
-      "value": 2578087,
+      "value": 2500173,
       "tier": "normal"
     },
     {
       "name": "宮城県",
-      "value": 2301996,
+      "value": 2225414,
       "tier": "hard"
     },
     {
       "name": "沖縄県",
-      "value": 1467480,
+      "value": 1466548,
       "tier": "normal"
     },
     {
       "name": "石川県",
-      "value": 1132526,
+      "value": 1086596,
       "tier": "hard"
     },
     {
       "name": "秋田県",
-      "value": 959502,
+      "value": 881470,
       "tier": "hard"
     },
     {
       "name": "高知県",
-      "value": 691527,
+      "value": 642836,
       "tier": "hard"
     },
     {
       "name": "島根県",
-      "value": 671126,
+      "value": 628887,
       "tier": "hard"
     },
     {
       "name": "鳥取県",
-      "value": 553407,
+      "value": 523073,
       "tier": "normal"
     }
   ]

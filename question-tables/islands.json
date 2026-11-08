@@ -33,9 +33,10 @@
       "tier": "easy"
     },
     {
-      "name": "沖縄島",
+      "name": "沖縄本島",
       "value": 1208,
-      "tier": "normal"
+      "tier": "normal",
+      "row": "沖縄島"
     },
     {
       "name": "佐渡島",
@@ -51,7 +52,8 @@
     {
       "name": "対馬",
       "value": 696,
-      "tier": "hard"
+      "tier": "hard",
+      "yomi": "つしま"
     },
     {
       "name": "淡路島",
@@ -71,7 +73,8 @@
     {
       "name": "小豆島",
       "value": 153,
-      "tier": "normal"
+      "tier": "normal",
+      "yomi": "しょうどしま"
     }
   ]
 }

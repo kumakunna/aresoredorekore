@@ -45,11 +45,14 @@ function problemsOf(t) {
     names.add(r.name);
     if (typeof r.value !== 'number' || !isFinite(r.value)) out.push(at + r.name + ' の値が数でない');
     if (TIERS.indexOf(r.tier) === -1) out.push(at + r.name + ' の層は ' + TIERS.join('・') + ' のどれか');
+    if (r.yomi != null && !/^[ぁ-ゖー]+$/.test(r.yomi)) out.push(at + r.name + ' の yomi はひらがなだけ');
   });
   return out;
 }
 
 const fill = (s, a, b) => s.replace('{a}', a).replace('{b}', b == null ? '' : b);
+/** 指示77 5-1（くまくんの答え 2.A）：問題文の名前には読みを添える（「天塩川（てしおがわ）」）。選択肢は名前のまま */
+const label = (r) => r.yomi ? r.name + '（' + r.yomi + '）' : r.name;
 const harder = (x, y) => TIERS[Math.max(TIERS.indexOf(x), TIERS.indexOf(y))];
 
 /**
@@ -88,10 +91,10 @@ function questionsFrom(t) {
   }
   const compare = picked.map(([a, b]) => {
     const top = a.value > b.value ? a : b;
-    return { q: fill(t.ask.compare, a.name, b.name), choices: [top.name, top === a ? b.name : a.name], correct: 0,
+    return { q: fill(t.ask.compare, label(a), label(b)), choices: [top.name, top === a ? b.name : a.name], correct: 0,
       tier: harder(a.tier, b.tier), table: t.id };
   });
-  const number = rows.map((r) => ({ q: fill(t.ask.number, r.name), answer: r.value, unit: t.unit, tier: r.tier, table: t.id }));
+  const number = rows.map((r) => ({ q: fill(t.ask.number, label(r)), answer: r.value, unit: t.unit, tier: r.tier, table: t.id }));
   return { compare, number };
 }
 

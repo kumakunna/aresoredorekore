@@ -506,5 +506,48 @@ const { createRunner, assert, assertEqual } = require('./harness');
     assertEqual(Q.TIERS.map((t) => t + Q.questionsOf(t).length).join(' '), 'easy88 normal199 hard154 nanisore10 muri10', '層ごとの数');
   });
 
+  // ===== 指示77 束5：数字ちかい方（表から作る問題）=====
+  const Gen77 = require('../tools/gen-table-questions');
+  const 表 = Gen77.readTables();
+  const YOMI = { rivers: { 天塩川: 'てしおがわ', 阿武隈川: 'あぶくまがわ', 阿賀野川: 'あがのがわ' },
+    lakes: { 屈斜路湖: 'くっしゃろこ', 宍道湖: 'しんじこ', 支笏湖: 'しこつこ', 中海: 'なかうみ' },
+    mountains: { 御嶽山: 'おんたけさん', 鳥海山: 'ちょうかいさん', 石鎚山: 'いしづちさん', 宮之浦岳: 'みやのうらだけ', 羊蹄山: 'ようていざん', 開聞岳: 'かいもんだけ' },
+    islands: { 対馬: 'つしま', 小豆島: 'しょうどしま' } };
+  await r.test('指示77 5-1：読みにくい名前に yomi（ひらがなだけ）。yomi がある行は、数字ちかい方の問題文に「名前（よみ）」が出る（表を全部回す）', async () => {
+    Object.keys(YOMI).forEach((id) => {
+      const t = 表.find((x) => x.id === id);
+      Object.keys(YOMI[id]).forEach((nm) => {
+        const row = t.rows.find((x) => x.name === nm);
+        assert(row, id + '：' + nm + ' の行');
+        assertEqual(row && row.yomi, YOMI[id][nm], id + '：' + nm + ' の yomi');
+      });
+    });
+    表.forEach((t) => t.rows.forEach((row) => {
+      if (row.yomi == null) return;
+      assert(/^[ぁ-ゖー]+$/.test(row.yomi), t.id + '：' + row.name + ' の yomi はひらがなだけ（' + row.yomi + '）');
+      const q = Gen77.questionsFrom(t).number.find((x) => x.answer === row.value && x.q.indexOf(row.name) !== -1);
+      assert(q && q.q.indexOf(row.name + '（' + row.yomi + '）') !== -1, t.id + '：' + row.name + ' の問題文に「名前（よみ）」：' + (q && q.q));
+    }));
+  });
+  await r.test('指示77 5-2：「沖縄島」は「沖縄本島」（表の名前は row に残す）', async () => {
+    const t = 表.find((x) => x.id === 'islands');
+    const row = t.rows.find((x) => x.name === '沖縄本島');
+    assert(row && row.row === '沖縄島', '沖縄本島（row 沖縄島）');
+    assert(!t.rows.some((x) => x.name === '沖縄島'), '名前が「沖縄島」の行は無い');
+  });
+  await r.test('指示77 5-3：都道府県の人口は2025年の国勢調査の確定値（16行）。問題文は（2025年…）で、（2020年…）が残っていない', async () => {
+    const t = 表.find((x) => x.id === 'pref-pop');
+    const want = { 東京都: 14236627, 神奈川県: 9193922, 大阪府: 8759312, 愛知県: 7448043, 埼玉県: 7287325, 北海道: 4980272, 福岡県: 5077785, 広島県: 2682786,
+      京都府: 2500173, 宮城県: 2225414, 沖縄県: 1466548, 石川県: 1086596, 秋田県: 881470, 高知県: 642836, 島根県: 628887, 鳥取県: 523073 };
+    assertEqual(t.title, '都道府県の人口（2025年）', '題');
+    assertEqual(t.rows.length, 16, '16行');
+    t.rows.forEach((x) => assertEqual(x.value, want[x.name], x.name));
+    const T = require('../public/js/quiz-tables.js');
+    const qs = T.number.filter((x) => x.table === 'pref-pop').concat(T.compare.filter((x) => x.table === 'pref-pop'));
+    assert(qs.length && qs.every((x) => /（2025年/.test(x.q)), '問題文に（2025年');
+    assert(!qs.some((x) => /2020年/.test(x.q)), '（2020年が残っていない');
+    assert(/令和7年国勢調査/.test(T.sources['pref-pop']), '出典は令和7年国勢調査');
+  });
+
   r.finish();
 })();

@@ -4,6 +4,7 @@
 //   node tools/quiz-fit-shot.js --all --out DIR              … 3択の問題を全部（数を出す・悪い物は写真）
 //   node tools/quiz-fit-shot.js --q "問題文1|問題文2" --out DIR  … この問題だけ（全部写真）
 //   --size 1920x1080（スマホは 390x844：答える画面）  --shots 30（--all で撮る悪い物の数）
+//   --near：数字ちかい方（表から作った問題・選択肢なし）。--q が無ければ、読み（yomi）を添えた問題を全部（指示77 5-1）
 //
 // 決まり（くまくん 11/9）：問題文は2行まで・選択肢は2行まで。どちらも
 //   ① 言葉の途中で折れない（折れる所は文節＝BudouX の切れ目だけ）
@@ -18,23 +19,28 @@ const { 配り手, 開く } = require('./v2-lab/open');
 const { SCENES } = require('./v2-lab/scenes');
 const S = require('./v2-lab/quiz2-scenes');
 const QHaya = require('../qhaya-room');
+const QNear = require('../qnear-room');
 const Q = require('../public/js/quiz-bank');
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf('--' + k); return i === -1 ? d : (argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : true); };
 const ALL = !!arg('all', false);
+const NEAR = !!arg('near', false);
 const OUT = path.resolve(arg('out', path.join(__dirname, '..', 'docs', '検査_1107', '写真', 'quiz-fit')));
 const SZ = /^(\d+)x(\d+)$/.exec(arg('size', '1920x1080'));
 const TV = +SZ[1] >= 1000;
 const SHOTS = +arg('shots', 30);
 const all = []; Q.TIERS.forEach((t) => Q.questionsOf(t).forEach((q) => all.push(Object.assign({ tier: t }, q))));
-const LIST = ALL ? all.filter((q) => q.choices.length === 3) : String(arg('q', '')).split('|').map((s) => s.trim()).filter(Boolean).map((t) => all.find((q) => q.q === t) || { missing: t });
+const 表の数 = require('../public/js/quiz-tables.js').number;
+const LIST = NEAR ? (arg('q', null) ? String(arg('q')).split('|').map((t) => 表の数.find((q) => q.q === t) || { missing: t }) : 表の数.filter((q) => /（[ぁ-ゖー]+）/.test(q.q)))
+  : ALL ? all.filter((q) => q.choices.length === 3) : String(arg('q', '')).split('|').map((s) => s.trim()).filter(Boolean).map((t) => all.find((q) => q.q === t) || { missing: t });
 
 // ページの中：字ごとの行・文節の切れ目から、3つの決まりを見る
 const 測る = `function(data, tv){
   var s = document.querySelector('.screen.active');
-  s.innerHTML = tv ? V2Quiz2.haya.tv({ data: data, members: [], meId: 'tv', you: {}, fes: null, end: Date.now() + 8000 })
-                   : V2Quiz2.haya.phone({ data: data, members: [], meId: 'm1', you: {}, fes: null, end: Date.now() + 8000 });
+  var G = data.__near ? V2Quiz2.near : V2Quiz2.haya;
+  s.innerHTML = tv ? G.tv({ data: data, members: [], meId: 'tv', you: {}, fes: null, end: Date.now() + 8000 })
+                   : G.phone({ data: data, members: [], meId: 'm1', you: {}, fes: null, end: Date.now() + 8000 });
   V2.fitTv(s); V2.relayout(s);
   var 頭NG = /^[、。，．」』）！？ー…・]/;
   function 見る(el){
@@ -63,13 +69,20 @@ const 測る = `function(data, tv){
   let 撮った = 0;
   try {
     const dev = await b.newDevice('fit', TV ? { width: +SZ[1], height: +SZ[2], mobile: false, deviceScaleFactor: 1 } : { width: +SZ[1], height: +SZ[2], mobile: true, deviceScaleFactor: 2 });
-    await 開く(dev, 3993, SCENES.find((s) => s.id === (TV ? 'qh-tv-choose' : 'qh-choose')), { freeze: 20 });
+    await 開く(dev, 3993, SCENES.find((s) => s.id === (NEAR ? (TV ? 'qn-tv-guess' : 'qn-guess') : (TV ? 'qh-tv-choose' : 'qh-choose'))), { freeze: 20 });
     for (let i = 0; i < LIST.length; i++) {
       const hit = LIST[i];
       if (hit.missing) { 悪い.push({ q: hit.missing, why: ['問題が無い'] }); continue; }
-      const r = S.早答え(6, 0); const w = r.qhaya;
-      w.qs[w.round] = Object.assign({}, w.qs[w.round], { q: hit.q, choices: hit.choices.slice(), correct: 0, tier: hit.tier });
-      const data = JSON.parse(JSON.stringify(QHaya.publicView(r)));
+      let data;
+      if (NEAR) {
+        const r = S.数字(6, 0); const w = r.qnear;
+        w.qs[w.round] = Object.assign({}, w.qs[w.round], { q: hit.q, answer: hit.answer, unit: hit.unit, tier: hit.tier });
+        data = Object.assign(JSON.parse(JSON.stringify(QNear.publicView(r))), { __near: true });
+      } else {
+        const r = S.早答え(6, 0); const w = r.qhaya;
+        w.qs[w.round] = Object.assign({}, w.qs[w.round], { q: hit.q, choices: hit.choices.slice(), correct: 0, tier: hit.tier });
+        data = JSON.parse(JSON.stringify(QHaya.publicView(r)));
+      }
       const m = await dev.ev('(' + 測る + ')(' + JSON.stringify(data) + ',' + TV + ')');
       数.問題++; 数.選択肢 += m.ch.length;
       const why = [];

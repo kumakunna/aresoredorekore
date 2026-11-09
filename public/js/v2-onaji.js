@@ -117,7 +117,8 @@
       '<div class="v2-oqs" data-v2-wrap>' + V.phrase(r.q || (d.topic && d.topic.q) || '') + '</div>' +
       '<div class="v2-obars"' + (待つ ? at(tl.crown) : '') + '>' + rows + '</div>' + (待つ && ban ? '<div' + at(tl.crown) + '>' + ban + '</div>' : ban) +
       (names.length && !r.scatter && d.mode !== 'team'
-        ? '<div class="v2-onames"' + (待つ ? at(tl.tags) : '') + '>' + names.map(function (nm) { return '<span class="v2-oname v2-cut">' + e(nm) + '</span>'; }).join('') + '</div>' : '') +
+        // 指示76 5-12（D4）：名前の札の前に1語の見出し（何の人たちか・案）
+        ? '<div class="v2-onames"' + (待つ ? at(tl.tags) : '') + '><span class="v2-onames-h">' + e(t.点の人) + '</span>' + names.map(function (nm) { return '<span class="v2-oname v2-cut">' + e(nm) + '</span>'; }).join('') + '</div>' : '') +
     '</div>';
   }
 

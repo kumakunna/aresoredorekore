@@ -179,6 +179,24 @@ const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     assert(/大画面の処刑の瞬間/.test(css), 'ふだんの部屋の文は残す');
   });
 
+  await r.test('束5 5-5・5-12・5-13：数字ちかい方の入れる前は「―」・名前の札の前の見出し・TV の線の外', async () => {
+    const v = 場面(Q2, 'qn-guess');
+    const ph = 描く(W.V2Quiz2.near.phone(Object.assign({}, v, { local: { digits: '' } })));
+    assertEqual(ph.querySelector('[data-qn-disp]').textContent, '―', '入れる前は「―」（km² だけが浮かない）');
+    const tv = 描く(W.V2Quiz2.haya.tv(Object.assign(場面(Q2, 'qh-tv-open'), { meId: 'tv' })), true);
+    assertEqual((tv.querySelector('.v2-otags-h') || {}).textContent, W.UiText.QUIZ2.正解した人, '早答えの TV の名前の札の見出し');
+    const on = 描く(W.V2Onaji.phone(Object.assign(場面(Onaji, 'onaji-unveil'), { meId: 'm1' })));
+    const h = on.querySelector('.v2-onames-h');
+    assert(!on.querySelector('.v2-onames') || (h && h.textContent === W.UiText.ONAJI ? true : !!h), 'みんなと同じの名前の札に見出し');
+    const far = 描く(W.V2Quiz2.near.tv(Object.assign(場面(Q2, 'qn-tv-open'), { meId: 'tv' })), true);
+    const f = far.querySelector('.v2-q2far');
+    assert(!f || (f.querySelector('small') || {}).textContent === W.UiText.QUIZ2.線の外, '線の外の人数に「線の外」');
+  });
+  await r.test('束5 5-2・5-9：シートの黒い「とじる」はまん中・⚙ の部屋コードの QR は札の中（svg を行の外に）', async () => {
+    assert(css.indexOf('.v2 .v2-catbtns .v2-btn.is-pri{justify-content:center;}') !== -1, 'とじるはまん中');
+    assert(css.indexOf('.v2.v2-setov .qr-box svg{display:block;') !== -1, 'QR は札の中');
+  });
+
   W.close();
   r.finish();
 })();

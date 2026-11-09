@@ -175,7 +175,8 @@
       // 名前の札は1行に6枚まで（16人でも3段＝いちばん早かった人の下に入る）。6文字より長い名前がある時は、切らずに1行に4枚（4段）
       var long = right.some(function (x) { return String(x.name).length > 5; });
       var TC = Math.min(long ? 4 : 6, right.length);
-      var tags = right.length ? '<div class="v2-otags' + (long ? ' is-long' : '') + '" style="--tc:' + TC + '">' + right.map(function (x, i) {
+      // 指示76 5-12（D4）：名前の札の前に1語の見出し（何の人たちか・案・くまくんがえらぶ）
+      var tags = right.length ? '<div class="v2-otags' + (long ? ' is-long' : '') + '" style="--tc:' + TC + '"><span class="v2-otags-h">' + e(t.正解した人) + '</span>' + right.map(function (x, i) {
         var col = i % TC, sx = ((r.correct + 0.5) / C - (col + 0.5) / TC) * 92;
         return '<span class="v2-otag" style="--sx:' + sx.toFixed(1) + 'vw;--sy:30vmin;animation-delay:' + ss(tl.tags + i * 0.05) + '"><span class="v2-cut">' + e(x.name) + '</span></span>';
       }).join('') + '</div>' : '';
@@ -245,7 +246,7 @@
           '<div class="v2-minebox"' + at + '><span>' + e(t.あなたの点) + '</span><b>' + V.digits(you.myScore || 0) + '<small>' + e(t.点) + '</small></b></div></div>';
       }
       var done = typeof you.myValue === 'number';
-      var shown = done ? fmt(you.myValue) : (loc.digits ? fmt(Number(loc.digits)) : '');
+      var shown = done ? fmt(you.myValue) : (loc.digits ? fmt(Number(loc.digits)) : t.未入力);   // 指示76 5-5（A16）：入れる前は「―」（「km²」だけが浮いていた）
       var keys = ['7', '8', '9', '4', '5', '6', '1', '2', '3', 'del', '0', 'go'].map(function (k) {
         if (k === 'del') return '<button type="button" class="v2-q2key is-sub" data-qn-key="del"' + (done ? ' disabled' : '') + '>' + e(t.けす) + '</button>';
         if (k === 'go') return '<button type="button" class="v2-q2key is-go" data-qn-go' + (done || !loc.digits ? ' disabled' : '') + '>' + e(t.決定) + '</button>';
@@ -299,7 +300,8 @@
         var list = rows.filter(function (x) { return x.far === side; });
         if (!list.length) return '';
         var at = tl.pins[rows.indexOf(list[0])].at;
-        return '<div class="v2-q2far is-' + side + '" style="animation-delay:' + ss(at) + '"><b>' + (side === 'left' ? '←' : '→') + ' ' + V.digits(list.length) + e(t.人) + '</b>' +
+        // 指示76 5-13（D5）：「→ 1人」だけでは分からない。上に「線の外」（案・くまくんがえらぶ）
+        return '<div class="v2-q2far is-' + side + '" style="animation-delay:' + ss(at) + '"><small>' + e(t.線の外) + '</small><b>' + (side === 'left' ? '←' : '→') + ' ' + V.digits(list.length) + e(t.人) + '</b>' +
           // 名前は出さない（線の外の せまい所。名前は切らない決まりなので、長い名前が入らない）。だれが遠かったかは、スマホと結果で分かる
           '</div>';
       };

@@ -10255,7 +10255,7 @@
         <div class="card">
           <div class="toggle-row-mini">
             <div>画面の揺れをつかう
-              <div class="mic-status">ミスした時のライフや、大画面の処刑の瞬間などが、一瞬揺れます</div>
+              <div class="mic-status" id="setShakeSub">ミスした時のライフや、大画面の処刑の瞬間などが、一瞬揺れます</div>
             </div>
             <div class="switch on" id="setShakeToggle"></div>
           </div>
@@ -32159,7 +32159,10 @@
   function renderSetPrefs(){
     // 指示76 2-9：文化祭のスマホの「音」。すべての音を消すを一番上に。BGM は文化祭のスマホでは流れない（TV の待合だけ）ので出さない（落とし穴21）
     var 文化祭 = setContext() === 'fes';
-    el('setSoundMute').innerHTML = 文化祭 ? setMenuHtml([Object.assign({}, SET_QUICK_ITEMS[0], { when:null })]) : '';
+    el('setSoundMute').innerHTML = 文化祭 ? setMenuHtml([Object.assign({}, SET_QUICK_ITEMS[0], { when:null,
+      sub:function(){ return tempMute ? UiText.SET.音をもどすの補足 : UiText.SET.音を消すの補足文化祭; } })]) : '';
+    // 指示76 束5（くまくんの答え 11/9）：文化祭のスマホの「光と揺れ」の説明に、人狼（大画面の処刑）を書かない
+    var 揺れ = el('setShakeSub'); if(揺れ){ if(!揺れ.dataset.base) 揺れ.dataset.base = 揺れ.textContent; 揺れ.textContent = 文化祭 ? UiText.SET.揺れの補足文化祭 : 揺れ.dataset.base; }
     el('setBgmCard').style.display = 文化祭 ? 'none' : '';
     el('setSeVol').value = appPrefs.seVolume;
     el('setSeVolValue').textContent = appPrefs.seVolume;

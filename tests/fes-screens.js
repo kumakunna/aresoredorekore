@@ -942,12 +942,14 @@ async function 入った(o) {
     assert(見える(win, doc.querySelector('#settingsOverlay [data-setact="muteAll"]')), '音のページに「すべての音を消す」');
     assert(見える(win, doc.getElementById('setSeVol')), '効果音の音量');
     assert(!見える(win, doc.getElementById('setBgmVol')), 'BGM は文化祭のスマホでは流れない（TV の待合だけ）ので出さない（落とし穴21）');
+    assert(/効果音を、まとめて止めます/.test(doc.querySelector('#settingsOverlay [data-setact="muteAll"]').textContent) && !/BGM/.test(doc.querySelector('#settingsOverlay [data-setact="muteAll"]').textContent), '指示76 束5：すべての音を消すの説明に BGM を書かない');
     const 見えている字 = Array.from(doc.querySelectorAll('#settingsOverlay .set-page[data-page="sound"] .card')).filter((x) => 見える(win, x)).map((x) => x.textContent).join('');
     assert(見えている字.indexOf('人狼') === -1, '文化祭に無いゲームの話（人狼の夜…）を出さない');
     doc.getElementById('setBackBtn').click(); await sleep(win, 30);
     await 開く('光と揺れ');
     assert(見える(win, doc.querySelector('#settingsOverlay .set-page[data-page="safety"]')), '光と揺れ＝安全に関する設定のページ');
     assertEqual(doc.getElementById('setTitle').textContent, '光と揺れ', '題も「光と揺れ」');
+    assertEqual(doc.getElementById('setShakeSub').textContent, 'ミスした時のライフなどが、一瞬揺れます', '指示76 束5：揺れの説明に人狼（大画面の処刑）を書かない');
     doc.getElementById('setBackBtn').click(); await sleep(win, 30);
     await 開く('字の大きさ');
     assert(見える(win, doc.getElementById('setFont')), '文字サイズのつまみ');

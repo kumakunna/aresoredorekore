@@ -135,9 +135,10 @@
       var at = V.tvAt(view, timeline(view).stop);
       return '<div class="v2-oq" data-v2-wrap>' + V.phrase(r.q || '') + '</div>' +
         '<div class="v2-q2mine' + (right ? ' is-right' : '') + '"' + at + '>' +
-          (right ? '<b>' + e(t.正解) + '</b><span class="v2-num">+' + V.digits(you.myPoints || 0) + e(t.点) + '</span>'
-            : '<small>' + e(t.ざんねん) + '</small>') +
-          '<span class="v2-q2mine-a">' + e(KEYS.charAt(r.correct) + '　' + ((r.choices || [])[r.correct] || '')) + '</span></div>' +
+          // 指示76 5-11（D3）：まちがえた時は「正解は C だんご」と「つぎはきっと！」を別の行に（「つぎはきっと C だんご」と読めた）
+          (right ? '<b>' + e(t.正解) + '</b><span class="v2-num">+' + V.digits(you.myPoints || 0) + e(t.点) + '</span>' : '') +
+          '<span class="v2-q2mine-a">' + e((right ? '' : t.正解の札 + ' ') + KEYS.charAt(r.correct) + '　' + ((r.choices || [])[r.correct] || '')) + '</span>' +
+          (right ? '' : '<small>' + e(t.ざんねん) + '</small>') + '</div>' +
         '<div class="v2-minebox"' + at + '><span>' + e(t.あなたの点) + '</span><b>' + V.digits(you.myScore || 0) + '<small>' + e(t.点) + '</small></b></div>';
     }
     function tvChoose(view) {

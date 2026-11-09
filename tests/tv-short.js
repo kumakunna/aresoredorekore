@@ -154,6 +154,31 @@ const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     assert(!/📸 きょうのアルバム/.test(css), 'ページの中にも無い');
   });
 
+  // ===== 束5 =====
+  await r.test('束5 5-10（D2）：みんなと同じ（一致団結）の結果で、0問の時は「0問で全員そろった」を出さない', async () => {
+    const v = 場面(Onaji, 'onaji-team-result');
+    v.data.result.together = 0;
+    const ph = 描く(W.V2Onaji.resultBody(Object.assign({}, v, { meId: 'm1' }), false));
+    assert(!/0問で全員そろった/.test(ph.textContent), '0問の文が無い：' + ph.textContent.slice(0, 80));
+    v.data.result.together = 2;
+    const ph2 = 描く(W.V2Onaji.resultBody(Object.assign({}, v, { meId: 'm1' }), false));
+    assert(/2問で全員そろった/.test(ph2.textContent), '1問以上は出す');
+  });
+  await r.test('束5 5-11（D3）：早答えでまちがえた時は「正解は C だんご」と「つぎはきっと！」を分ける（つながって読めない）', async () => {
+    const v = 場面(Q2, 'qh-open');
+    const you = Object.assign({}, v.you, { myRight: false, myPoints: 0 });
+    const ph = 描く(W.V2Quiz2.haya.phone(Object.assign({}, v, { you })));
+    const box = ph.querySelector('.v2-q2mine');
+    const a = box.querySelector('.v2-q2mine-a').textContent, s = (box.querySelector('small') || {}).textContent || '';
+    assert(/^正解は /.test(a), '正解の行は「正解は」から：' + a);
+    assertEqual(s, 'つぎはきっと！', 'はげましは別の行');
+  });
+  await r.test('束5（11/9 の答え 5）：文化祭のスマホの ⚙ の説明に、文化祭で起きないことを書かない（ふだんの部屋は今のまま）', async () => {
+    assertEqual(W.UiText.SET.音を消すの補足文化祭, '効果音を、まとめて止めます', '音（BGM は流れない）');
+    assertEqual(W.UiText.SET.揺れの補足文化祭, 'ミスした時のライフなどが、一瞬揺れます', '光と揺れ（人狼をしない）');
+    assert(/大画面の処刑の瞬間/.test(css), 'ふだんの部屋の文は残す');
+  });
+
   W.close();
   r.finish();
 })();

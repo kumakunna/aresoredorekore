@@ -228,7 +228,8 @@
       var all = res.questions && res.together === res.questions;
       return head + '<div class="v2-osync' + (all ? ' is-gold' : '') + '"><span class="v2-lbl">' + e(t.そろい度) + '</span>' +
         '<b class="v2-num">' + V.digits(res.sync || 0) + '<small>%</small></b>' +
-        '<span class="v2-osync-s">' + e((res.together || 0) + t.そろった数) + '</span>' +
+        // 指示76 5-10（D2）：0問の時は出さない（「0問で全員そろった」は、ほめているのか分からない）
+        (res.together ? '<span class="v2-osync-s">' + e(res.together + t.そろった数) + '</span>' : '') +
         (all ? '<span class="v2-osync-w">' + e(t.ぴったり) + '</span>' : '') + '</div>' + awards;
     }
     var rk = res.ranking || [];

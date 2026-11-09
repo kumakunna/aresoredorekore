@@ -60,12 +60,13 @@ const 測る = `function(data, tv){
     return { t: text, lines: lines.map(function(l){ return l.s; }), 途中: 途中, 短い: 短い, 頭: 頭, fs: parseFloat(getComputedStyle(el).fontSize) };
   }
   var els = [].slice.call(s.querySelectorAll('[data-v2-wrap]'));
-  return { q: 見る(els[0]), ch: els.slice(1).map(見る) };
+  var ch = els.slice(1).map(見る), fs = ch.map(function(x){ return x.fs; });
+  return { q: 見る(els[0]), ch: ch, ばらばら: fs.length > 1 && Math.max.apply(null, fs) - Math.min.apply(null, fs) > 0.5 };   // 11/9 の答え 4：同じ問題の札の字の大きさ
 }`;
 
 (async () => {
   const srv = await 配り手(3993); const b = await launch({ port: 9693 });
-  const 数 = { 問題: 0, 選択肢: 0, 問題3行: 0, 選択肢3行: 0, 途中: 0, 短い: 0, 頭: 0 }, 悪い = [];
+  const 数 = { 問題: 0, 選択肢: 0, 問題3行: 0, 選択肢3行: 0, 途中: 0, 短い: 0, 頭: 0, 字の大きさ: 0 }, 悪い = [];
   let 撮った = 0;
   try {
     const dev = await b.newDevice('fit', TV ? { width: +SZ[1], height: +SZ[2], mobile: false, deviceScaleFactor: 1 } : { width: +SZ[1], height: +SZ[2], mobile: true, deviceScaleFactor: 2 });
@@ -87,6 +88,7 @@ const 測る = `function(data, tv){
       数.問題++; 数.選択肢 += m.ch.length;
       const why = [];
       if (m.q.lines.length > 2) { 数.問題3行++; why.push('問題 ' + m.q.lines.length + '行'); }
+      if (m.ばらばら) { 数.字の大きさ++; why.push('選択肢の字の大きさがそろっていない（' + m.ch.map((x) => x.fs).join('/') + '）'); }
       [m.q].concat(m.ch).forEach((x, k) => {
         const 名 = k ? '選択肢「' + x.t + '」' : '問題';
         if (k && x.lines.length > 2) { 数.選択肢3行++; why.push(名 + ' ' + x.lines.length + '行'); }
@@ -101,7 +103,7 @@ const 測る = `function(data, tv){
       if (!ALL) console.log((why.length ? '✖ ' : '✔ ') + hit.q + '　問題 ' + m.q.lines.join('／') + '　選択肢 ' + m.ch.map((x) => x.lines.join('／')).join('｜') + (file ? '　→ ' + file : ''));
     }
   } finally { await b.close(); srv.close(); }
-  console.log('\n問題 ' + 数.問題 + '・選択肢 ' + 数.選択肢 + '：問題が3行以上 ' + 数.問題3行 + '・選択肢が3行以上 ' + 数.選択肢3行 + '・言葉の途中で折れる ' + 数.途中 + '・最後の行が1〜2字 ' + 数.短い + '・行の頭が「、」など ' + 数.頭);
+  console.log('\n問題 ' + 数.問題 + '・選択肢 ' + 数.選択肢 + '：問題が3行以上 ' + 数.問題3行 + '・選択肢が3行以上 ' + 数.選択肢3行 + '・言葉の途中で折れる ' + 数.途中 + '・最後の行が1〜2字 ' + 数.短い + '・行の頭が「、」など ' + 数.頭 + '・選択肢の字の大きさがそろっていない ' + 数.字の大きさ);
   if (ALL) 悪い.slice(0, 80).forEach((x) => console.log('  ' + x.q + '（' + x.tier + '）：' + x.why.join('・') + (x.file ? '　→ ' + x.file : '')));
   require('fs').mkdirSync(OUT, { recursive: true });
   require('fs').writeFileSync(path.join(OUT, '記録.json'), JSON.stringify({ 数, 悪い }, null, 1));

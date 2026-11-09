@@ -68,6 +68,9 @@ const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
   await r.test('3-2 英語の小見出しが無い（見出しの部品・ページの中・言葉の表）。YOU は「あなた」', async () => {
     assert(W.V2.hdHtml('Vote!', '投票', true).indexOf('Vote') === -1 && W.V2.hdHtml('Next', 'つぎ').indexOf('Next') === -1, '見出しの部品は英語を出さない');
     assert(!/v2-hd-en|v2-thd-en|v2-sdec-en/.test(css), 'ページの中に英語の小見出しの部品が無い');
+    ['v2-fes.js', 'v2-home.js', 'v2-kit.js', 'v2-onaji.js', 'v2-pittari.js', 'v2-quiz2.js', 'v2-soroe.js'].forEach((f) => {
+      assert(!/v2-t?hd-en|v2-sdec-en/.test(fs.readFileSync(path.join(ROOT, 'public', 'js', f), 'utf8')), f + ' に英語の小見出しの部品が無い（準備の画面が自分で組み立てていた）');
+    });
     const ui = fs.readFileSync(path.join(ROOT, 'public', 'js', 'ui-text.js'), 'utf8');
     assert(!/^\s*[^\s:]*英: '/m.test(ui), '言葉の表に「英」が残っていない');
     assertEqual(W.UiText.V2.あなた, 'あなた', 'YOU は「あなた」');

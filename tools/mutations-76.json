@@ -106,5 +106,50 @@
   "from": "    if(document.querySelector('.screen.active .v2-play .v2-pnum')){ v2MissShow(text); if(flash) flashOnly(flash); return; }",
   "to": "    void 0;",
   "expect": "本当のつながりの問題"
+ },
+ {
+  "name": "76-3-1a 数字ちかい方の TV に「いちばん近い人の勝ち」を残す",
+  "file": "public/js/v2-quiz2.js",
+  "suite": "tests/tv-short.js",
+  "only": "数字ちかい方",
+  "from": ".replace(/（いちばん近い人の勝ち）/g, '').replace(/・いちばん近い人の勝ち/g, ''); }",
+  "to": "; }",
+  "expect": "数字ちかい方"
+ },
+ {
+  "name": "76-3-1b ぴったりの説明を TV にも出す",
+  "file": "public/js/v2-pittari.js",
+  "suite": "tests/tv-short.js",
+  "only": "TV のよーい",
+  "from": "(tv ? (d.show === false ?",
+  "to": "(false ? (d.show === false ?",
+  "expect": "TV のよーい"
+ },
+ {
+  "name": "76-3-2 TV の見出しに英語をもどす",
+  "file": "public/js/v2-kit.js",
+  "suite": "tests/tv-short.js",
+  "only": "3-2",
+  "from": "'<div class=\"v2-thd\"><div class=\"v2-thd-ttl\" data-v2-wrap>' + phrase(ttl)",
+  "to": "'<div class=\"v2-thd\"><div class=\"v2-thd-en\">' + esc(en) + '</div><div class=\"v2-thd-ttl\" data-v2-wrap>' + phrase(ttl)",
+  "expect": "3-2"
+ },
+ {
+  "name": "76-3-3 下の帯にすりガラスをもどす",
+  "file": "public/index.html",
+  "suite": "tests/tv-short.js",
+  "only": "3-3 ガラス",
+  "from": "background:var(--wband);}",
+  "to": "background:var(--wband);backdrop-filter:blur(14px);}",
+  "expect": "3-3 ガラス"
+ },
+ {
+  "name": "76-3-4 選択肢の札を、字をそろえる組にしない",
+  "file": "public/js/v2-quiz2.js",
+  "suite": "tests/tv-short.js",
+  "only": "11/9 の答え 4",
+  "from": "v2-och-t\" data-v2-wrap data-v2-words=\"ch\">",
+  "to": "v2-och-t\" data-v2-wrap data-v2-words>",
+  "expect": "11/9 の答え 4"
  }
 ]

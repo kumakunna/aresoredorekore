@@ -321,7 +321,7 @@
       : '<button type="button" class="v2-btn is-pri" data-fes-act="ready">' + e(R.準備OK) + '</button>';
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
       '<div class="v2-in">' +
-        '<div class="v2-hd"><div class="v2-hd-en">Next Game</div><div class="v2-hd-ttl">' + gnameHtml(g, 'v2-hd-g') + '</div><div class="v2-arrow"></div></div>' +
+        '<div class="v2-hd"><div class="v2-hd-ttl">' + gnameHtml(g, 'v2-hd-g') + '</div><div class="v2-arrow"></div></div>' +
         V.rulesHtml(g.rules) +
         '<button type="button" class="v2-rmore" data-v2-open="#v2Rules-' + e(g.id) + '">' + e(W().more || 'くわしく見る') + V.icon('chev') + '</button>' +
         '<div class="v2-spacer"></div>' + btn +

@@ -151,5 +151,50 @@
   "from": "v2-och-t\" data-v2-wrap data-v2-words=\"ch\">",
   "to": "v2-och-t\" data-v2-wrap data-v2-words>",
   "expect": "11/9 の答え 4"
+ },
+ {
+  "name": "76-4 線の絵の印を絵文字の字のまま出す",
+  "file": "public/js/v2-kit.js",
+  "suite": "tests/tv-short.js",
+  "only": "束4：文化祭の6本",
+  "from": "return m ? icon(m[1], 'v2-ric') : esc(x);",
+  "to": "return esc(x);",
+  "expect": "束4：文化祭の6本"
+ },
+ {
+  "name": "76-5-10 0問でも出す",
+  "file": "public/js/v2-onaji.js",
+  "suite": "tests/tv-short.js",
+  "only": "5-10",
+  "from": "(res.together ? '<span class=\"v2-osync-s\">'",
+  "to": "(true ? '<span class=\"v2-osync-s\">'",
+  "expect": "5-10"
+ },
+ {
+  "name": "76-5-11 正解は を付けない",
+  "file": "public/js/v2-quiz2.js",
+  "suite": "tests/tv-short.js",
+  "only": "5-11",
+  "from": "(right ? '' : t.正解の札 + ' ')",
+  "to": "('')",
+  "expect": "5-11"
+ },
+ {
+  "name": "76-5-5 入れる前を空に",
+  "file": "public/js/v2-quiz2.js",
+  "suite": "tests/tv-short.js",
+  "only": "5-5",
+  "from": "(loc.digits ? fmt(Number(loc.digits)) : t.未入力)",
+  "to": "(loc.digits ? fmt(Number(loc.digits)) : '')",
+  "expect": "5-5"
+ },
+ {
+  "name": "76-5-fes 文化祭の音の説明を BGM つきに",
+  "file": "public/index.html",
+  "suite": "tests/fes-screens.js",
+  "only": "指示76 2-9：文化祭のスマホの ⚙ の入口",
+  "from": "UiText.SET.音を消すの補足文化祭; } })]) : '';",
+  "to": "UiText.SET.音を消すの補足; } })]) : '';",
+  "expect": "BGM を書かない"
  }
 ]

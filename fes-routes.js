@@ -202,7 +202,8 @@ function namesPage(title, body) {
     '<meta name="robots" content="noindex"><title>' + esc(title) + '</title><style>' +
     'body{margin:0;padding:16px;font-family:system-ui,sans-serif;background:#FFF6DC;color:#1A1A1A}h1{font-size:22px;margin:4px 0 8px}' +
     '.n,.f{margin:4px 0;font-size:14px}a{color:#1A1A1A;font-weight:700}table{width:100%;border-collapse:collapse;margin-top:10px;background:#fff;font-size:15px}' +
-    'th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #EEE;word-break:break-all}th{font-size:12px;color:#555}tr.b td{background:#FFE9E6}' +
+    // 指示76 5-7（A18）：word-break:break-all だと、スマホで日付や部屋コードが1字ずつ縦に並んだ。ふつうの切れ目で折り、入らない時だけ字の中で折る
+    'th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #EEE;word-break:normal;overflow-wrap:anywhere}th{font-size:12px;color:#555}tr.b td{background:#FFE9E6}' +
     // 指示75 2-10：しぼり込みの form。打つ所は 16px（iPhone が勝手に大きくしない）・押す所は 44px
     '.flt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.flt input,.flt select,.flt button{font-size:16px;min-height:44px;padding:0 10px;border:1px solid #BBB;border-radius:8px;background:#fff}' +
     '.flt input[type=search]{flex:1 1 180px}.flt button{font-weight:700}.flt label{font-size:14px;display:flex;align-items:center;gap:4px}.flt a{min-height:44px;display:inline-flex;align-items:center}' +

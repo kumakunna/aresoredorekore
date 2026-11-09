@@ -197,6 +197,12 @@ const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     assert(css.indexOf('.v2.v2-setov .qr-box svg{display:block;') !== -1, 'QR は札の中');
   });
 
+  await r.test('束5 5-7（A18）：係の記録のページ（名前・回ごと）は、日付や部屋コードを1字ずつ折らない（word-break:break-all をやめる）', async () => {
+    const page = require('../fes-routes.js').namesPage('回ごとの記録', '<table><tr><td>11/9 01:57</td><td>64REF4</td></tr></table>');
+    assert(!/break-all/.test(page), 'break-all が無い');
+    assert(/overflow-wrap:anywhere/.test(page), '入らない時だけ字の中で折る');
+  });
+
   W.close();
   r.finish();
 })();

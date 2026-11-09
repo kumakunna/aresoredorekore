@@ -4831,13 +4831,13 @@
   /* 明るい世界と暗い世界で、カード・線・帯の作り方を変える */
   .v2-w-wait,.v2-w-aresore,.v2-w-sugoroku,.v2-w-shinka,.v2-w-onaji,.v2-w-pittari{
     --wc:rgba(255,255,255,.66);--wc2:rgba(255,255,255,.9);--wl:var(--wi);--wl2:rgba(0,0,0,.14);
-    --wband:rgba(255,250,236,.74);--wscrim:rgba(16,16,18,.48);--wdim:rgba(0,0,0,.08);
+    --wband:color-mix(in srgb,#FFFAEC 74%,var(--wb));--wscrim:rgba(16,16,18,.48);--wdim:rgba(0,0,0,.08);
     --wsheet:#FFFDF6;--wsheet-ink:#1A1A1A;--wsheet-soft:#4A4334;--wglow:rgba(255,255,255,.34);
     --wbtn:var(--wi);--wbtn-ink:var(--won);--wdone:var(--v2-done);--wdone-ink:var(--v2-done-ink);--wok:var(--v2-ok-ink);
   }
   .v2-w-wolf,.v2-w-bomb,.v2-w-quiz,.v2-w-auction,.v2-w-falsetrue,.v2-w-rcard,.v2-w-soroe{
     --wc:rgba(255,255,255,.09);--wc2:rgba(255,255,255,.16);--wl:rgba(255,255,255,.34);--wl2:rgba(255,255,255,.16);
-    --wband:rgba(8,8,10,.52);--wscrim:rgba(0,0,0,.55);--wdim:rgba(255,255,255,.06);
+    --wband:color-mix(in srgb,#08080A 52%,var(--wb));--wscrim:rgba(0,0,0,.55);--wdim:rgba(255,255,255,.06);
     --wsheet:#FFFFFF;--wsheet-ink:#141414;--wsheet-soft:#4A4A4A;--wglow:rgba(255,255,255,.08);
     --wbtn:var(--wa);--wbtn-ink:#141414;--wdone:var(--v2-done-d);--wdone-ink:var(--v2-done-d-ink);--wok:#7DE3A2;
   }
@@ -4919,7 +4919,6 @@
   /* 見出し：小さな英字＋大きな日本語＋長い矢印 */
   /* 右上の丸ボタン（⚙ と いる人：あわせて約100px）の下に字をもぐらせない。矢印だけは右の端まで伸ばす */
   .v2 .v2-hd{display:flex;flex-direction:column;padding-right:100px;}
-  .v2 .v2-hd-en{font-family:var(--v2-en);font-weight:800;font-size:13px;letter-spacing:.03em;line-height:1.1;}
   .v2 .v2-hd-ttl{font-weight:900;font-size:29px;line-height:1.16;margin-top:7px;letter-spacing:.005em;}
   .v2 .v2-arrow{position:relative;height:4px;background:currentColor;margin:13px 14px 0 0;}
   .v2 .v2-arrow::after{content:"";position:absolute;right:-15px;top:-7px;border-left:17px solid currentColor;border-top:9px solid transparent;border-bottom:9px solid transparent;}
@@ -4965,10 +4964,9 @@
   .v2 .v2-me-tt{font-weight:800;font-size:13px;color:var(--ws);line-height:1.3;}
   .v2 .v2-you{margin-left:auto;flex:none;font-family:var(--v2-en);font-weight:900;font-size:13px;background:var(--wi);color:var(--won);border-radius:7px;padding:5px 8px;line-height:1;}
 
-  /* 下の帯（すりガラス。上に線と矢印。うしろの絵はぼけて見える） */
+  /* 下の帯（上に線と矢印）。指示76 3-3（くまくんの答え 7.A）：すりガラス（backdrop-filter）をやめ、透けない色（--wband は地の色に混ぜた色） */
   .v2 .v2-band{position:absolute;left:0;right:0;bottom:0;height:var(--v2-bandh);z-index:20;display:flex;align-items:center;gap:12px;
-    padding:8px var(--v2-side-r) calc(8px + var(--v2-safe-b)) var(--v2-side);background:var(--wband);
-    -webkit-backdrop-filter:blur(14px) saturate(1.35);backdrop-filter:blur(14px) saturate(1.35);}
+    padding:8px var(--v2-side-r) calc(8px + var(--v2-safe-b)) var(--v2-side);background:var(--wband);}
   .v2 .v2-band::before{content:"";position:absolute;left:0;right:16px;top:0;height:4px;background:currentColor;}
   .v2 .v2-band::after{content:"";position:absolute;right:2px;top:-7px;border-left:17px solid currentColor;border-top:9px solid transparent;border-bottom:9px solid transparent;}
   .v2 .v2-band-what{min-width:0;display:flex;flex-direction:column;gap:6px;}
@@ -4976,9 +4974,6 @@
   .v2 .v2-band-msg{font-weight:900;font-size:17px;line-height:1.25;}
   /* 端の箱は flex にする：ふつうの箱だと、字の箱を詰める決まり（text-box）が中の札（inline-flex）の下を切り捨て、札が箱の下へはみ出す */
   .v2 .v2-band-end{margin-left:auto;flex:none;display:flex;align-items:center;}
-  @supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
-    .v2 .v2-band{background:var(--wb);}
-  }
 
   /* のこり時間（1行）。5秒以下は赤い札に白い数字。**札の大きさはふだんから取っておく**（切りかわっても字が動かない）。
      1桁になったら「のこり」が数字に寄る（それは数字の箱が1つ減るから。札の内側の余白は変わらない） */
@@ -5116,7 +5111,6 @@
     font-family:var(--v2-en);font-weight:800;font-size:30px;letter-spacing:.18em;white-space:nowrap;
     color:rgba(255,255,255,.62);mix-blend-mode:difference;pointer-events:none;}
   .v2 .v2-thd{display:flex;flex-direction:column;}
-  .v2 .v2-thd-en{font-family:var(--v2-en);font-weight:800;font-size:44px;line-height:1.05;letter-spacing:.02em;}
   .v2 .v2-thd-ttl{font-weight:900;font-size:80px;line-height:1.08;letter-spacing:.005em;margin-top:18px;}
   .v2 .v2-thd .v2-arrow{height:8px;margin:26px 30px 0 0;}
   .v2 .v2-thd .v2-arrow::after{right:-30px;top:-13px;border-left:32px solid currentColor;border-top:17px solid transparent;border-bottom:17px solid transparent;}
@@ -5354,11 +5348,6 @@
   .v2 .v2-q2qa{position:relative;padding:22px 34px;border-radius:30px;background:var(--wc2);border:5px solid var(--wl);
     box-shadow:0 0 70px rgba(255,236,170,.35);}
   .v2 .v2-q2qa.is-near{margin-top:30px;}
-  .v2 .v2-q2spark{position:absolute;inset:0;pointer-events:none;}
-  .v2 .v2-q2spark i{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;border-radius:50%;background:#FFE58A;
-    box-shadow:0 0 18px #FFE58A;transform:rotate(var(--a)) translateX(min(48vw,880px)) rotate(calc(var(--a) * -1)) scale(.9);}
-  .v2 .v2-q2spark i:last-child{animation:v2-q2spark calc(.35s * var(--fx-scale)) var(--v2-pop) both;}
-  @keyframes v2-q2spark{from{opacity:0;}}
   .v2 .v2-q2bar{position:relative;height:30px;border-radius:999px;background:rgba(0,0,0,.18);overflow:hidden;}
   /* 帯の長さは、のこり時間（端末の時計）を描いた所で入れる。演出「なし」でも時計は時計なので、動きだけ止めて、いまの長さで出す */
   .v2 .v2-q2bar i{position:absolute;inset:0;border-radius:999px;background:var(--wi);transform-origin:0 50%;transform:scaleX(var(--from));
@@ -5491,13 +5480,13 @@
   .v2 .v2-q2tv .v2-q2qa{text-align:center;padding:28px 48px;border-color:#FFE58A;
     box-shadow:0 0 0 4px rgba(255,229,138,.35),0 0 120px rgba(255,229,138,.45);}
   .v2 .v2-q2tv .v2-q2qa .v2-otq{font-size:80px;}
-  .v2 .v2-q2tv .v2-och{position:relative;justify-content:center;text-align:center;padding:96px 24px 28px;font-size:80px;line-height:1.15;}
+  .v2 .v2-q2tv .v2-och{position:relative;justify-content:center;text-align:center;padding:96px 24px 28px;font-size:80px;line-height:1.15;background:color-mix(in srgb,#fff 16%,var(--wb));}   /* 指示76 3-3：ガラスの板をやめる */
   .v2 .v2-q2tv .v2-ochs.is-n4 .v2-och{font-size:68px;}
   .v2 .v2-q2tv .v2-och .v2-okey{position:absolute;left:22px;top:22px;}
   /* 開く（早答え）：問題文 64px。答えの札は1行（字・人数）にして、上を名前の札と「いちばん早かった人」にあける */
   .v2 .v2-q2tv .v2-ounv.is-tv .v2-oqs{font-size:64px;line-height:1.2;}
   .v2 .v2-q2tv .v2-ocol{position:relative;z-index:1;}
-  .v2 .v2-q2tv .v2-ocard{flex-wrap:nowrap;min-height:0;margin-top:8px;padding:10px 20px;}
+  .v2 .v2-q2tv .v2-ocard{flex-wrap:nowrap;min-height:0;margin-top:8px;padding:10px 20px;background:color-mix(in srgb,#fff 16%,var(--wb));}   /* 指示76 3-3：ガラスの板をやめる */
   .v2 .v2-q2tv .v2-ocard-t{font-size:48px;}
   .v2 .v2-q2tv .v2-ocnt{flex:none;}
   .v2 .v2-q2tv .v2-ocnt b{font-size:72px;}
@@ -5615,7 +5604,9 @@
   .v2 .v2-ptset.is-tv .v2-pttgt span{font-size:90px;}
   .v2 .v2-ptset.is-tv .v2-hint{font-size:48px;}
   .v2 .v2-ptclock.is-tv{font-size:280px;margin:0;}
-  .v2 .v2-pthint{font-weight:900;font-size:56px;line-height:1.3;text-align:center;}
+  /* 指示76 3-1：説明はスマホに大きく（TV からは消した）。見えない回の TV は1語の札 */
+  .v2 .v2-ptguide{margin:0;font-weight:900;font-size:22px;line-height:1.5;text-align:center;color:var(--wi);max-width:22em;}
+  .v2 .v2-ptword{font-weight:900;font-size:72px;line-height:1.2;padding:6px 40px;border-radius:999px;background:var(--wc2);}
   .v2 .v2-otv .v2-ptx2{font-size:44px;padding:6px 22px;}
   .v2 .v2-ptwrap.is-tv{gap:20px;margin-top:0;flex:1;min-height:0;justify-content:flex-end;}
   .v2 .v2-ptwrap.is-tv .v2-ptline{height:calc(var(--lanes) * 78px + 130px);}
@@ -5683,7 +5674,8 @@
   .v2 .v2-ptwin.is-none{font-weight:900;font-size:56px;}
   .v2.is-play .v2-ptwin{animation:v2-ptwin calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
   @keyframes v2-ptwin{0%{opacity:0;transform:translateX(-50%) scale(1.8);}60%{opacity:1;transform:translateX(-50%) scale(.95);}100%{opacity:1;transform:translateX(-50%) scale(1);}}
-  .v2 .v2-ptgold{position:absolute;inset:0;pointer-events:none;z-index:1;}
+  .v2 .v2-ptgold{position:absolute;inset:0;pointer-events:none;z-index:0;}   /* 指示76 3-3：紙ふぶきは名前の札と線より下（字にかぶらない） */
+  .v2 .v2-ptr-ruler{z-index:1;}
   .v2 .v2-ptwin,.v2 .v2-ptband{z-index:2;}
   .v2 .v2-ptgold-p{position:absolute;width:20px;height:20px;border-radius:50%;background:#FFD54A;box-shadow:0 0 16px rgba(255,213,74,.9);opacity:.9;}
   .v2.is-play .v2-ptgold-p{animation:v2-ptspark var(--v2-show) var(--v2-ease) both;}
@@ -5855,10 +5847,6 @@
   .v2 .v2-sowrap.is-tv .v2-soarrive.is-quiet b{font-size:72px;}
   .v2.is-play .v2-soarrive{animation:v2-slam calc(.55s * var(--fx-scale)) var(--v2-pop) both;}
   /* 宇宙：金の粒（点滅しない）と、全員の名前の星座（協力の成功は全員が主役） */
-  .v2 .v2-sospace{position:absolute;inset:0;pointer-events:none;z-index:3;}
-  .v2 .v2-sospk{position:absolute;width:8px;height:8px;border-radius:50%;background:#FFE680;box-shadow:0 0 10px rgba(255,230,128,.9);opacity:.9;}
-  .v2 .v2-sowrap.is-tv .v2-sospk{width:16px;height:16px;}
-  .v2.is-play .v2-sospk{animation:v2-ptspark var(--v2-show) var(--v2-ease) both;}
   .v2 .v2-sostarn{position:absolute;z-index:4;max-width:13%;font-weight:900;font-size:15px;line-height:1.2;color:#FFF7D6;text-shadow:0 0 12px rgba(255,214,90,.95),0 0 3px rgba(255,214,90,.9);}
   .v2 .v2-sowrap.is-tv .v2-sostarn{font-size:46px;}
   .v2.is-play .v2-sostarn{animation:v2-sostarn var(--v2-show) var(--v2-ease) both;}
@@ -6174,7 +6162,7 @@
   /* 指示76 1-1（A1）：札の中は上から「絵→名前→小さい字」。上から詰めて置く（まん中にそろえると、小さい字の無い札だけ絵が下がった）。
      上の余白 108px は、小さい字のある札（絵 280・間 28・名前・間 30・小さい字）が札のまん中に来る量 */
   .v2 .v2-dcard{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:28px;border-radius:40px;
-    background:rgba(255,255,255,.14);text-align:center;padding-top:108px;}
+    background:color-mix(in srgb,#fff 14%,var(--wb));text-align:center;padding-top:108px;}   /* 指示76 3-3：ガラスの板をやめる（透けない色） */
   .v2 .v2-dcard-tile{width:280px;height:280px;}
   .v2 .v2-dcard-n{font-weight:900;font-size:64px;line-height:1.1;white-space:nowrap;max-width:100%;padding:0 12px;}   /* 名前は1行（7字で札の幅いっぱい）。入らなければ V2 の fit が字を小さく（下限 48px） */
   /* 小さい字は名前の下の行。字の箱は英字の高さで切ってある（.v2 * の text-box）ので、日本語の字は上下に約 0.15em はみ出す。
@@ -6677,7 +6665,6 @@
     padding:0 var(--v2-side-r) 0 var(--v2-side);background:linear-gradient(180deg,var(--wt),var(--wb));color:var(--wi);
     animation:v2-wipe var(--v2-show) var(--v2-ease) both;}
   .v2 .v2-sdec>*:not(.v2-bg):not(.v2-sdec-nx){position:relative;z-index:2;}
-  .v2 .v2-sdec-en{font-weight:800;font-size:15px;letter-spacing:.14em;}
   .v2 .v2-sdec .v2-tile{width:168px;height:168px;box-shadow:0 0 0 6px rgba(255,255,255,.85);}
   .v2 .v2-sdec-dn{max-width:100%;font-weight:900;font-size:34px;line-height:1.15;}
   .v2 .v2-sdec-ln{width:70%;height:4px;background:currentColor;transform-origin:0 50%;}
@@ -6695,7 +6682,6 @@
   @keyframes v2-draw{from{transform:scaleX(0);}to{transform:scaleX(1);}}
   /* 間は 48px（150px の日本語は text-box の箱の上に約 27px はみ出し、24px では印の白い縁にもぐった・指示68-0b B6。文化祭の TV の決定と同じ） */
   .v2 .v2-tvc .v2-sdec{padding:54px 96px;gap:48px;}
-  .v2 .v2-tvc .v2-sdec-en{font-size:60px;}
   .v2 .v2-tvc .v2-sdec .v2-tile{width:300px;height:300px;box-shadow:0 0 0 10px rgba(255,255,255,.88);}
   .v2 .v2-tvc .v2-sdec-dn{font-size:150px;line-height:1.05;}
   .v2 .v2-tvc .v2-sdec-ln{width:52%;height:8px;}
@@ -6728,6 +6714,8 @@
   .v2.v2-setov .close-x{position:absolute;right:0;top:50%;transform:translateY(-50%);}
   .v2.v2-setov .set-back:active,.v2.v2-setov .close-x:active{transform:translateY(-50%) scale(.94);}
   /* 指示76 2-9：文化祭のスマホの「字の大きさ」は、見た目と演出のページの文字サイズだけ（ほかの項目は出さない） */
+  /* 指示76 3-2：部屋に入った人の画面の部屋のコード（もと英語の小見出し「Room ABC123」の中） */
+  .v2 .v2-ecode-g b{font-weight:900;letter-spacing:.06em;}
   .v2.v2-setov.is-fes .set-page[data-page="display"] > .card:not(.js-set-font){display:none;}
   .v2.v2-setov #loggedInAs{font-weight:800;font-size:13px;color:var(--ws);text-align:center;margin-bottom:14px;}
   .v2.v2-setov .set-menu{gap:10px;margin-bottom:10px;}
@@ -6849,7 +6837,6 @@
   @media (min-width:900px) and (min-aspect-ratio:4/3){
     .app:has(.v2.is-tvjoin.active){max-width:none;}
     .screen.v2.is-tvjoin .v2-in{left:50%;right:auto;width:min(1500px,86vw);transform:translateX(-50%);padding:6vh 0 5vh;}
-    .screen.v2.is-tvjoin .v2-hd-en{font-size:44px;}
     .screen.v2.is-tvjoin .v2-hd-ttl{font-size:120px;margin-top:16px;}
     .screen.v2.is-tvjoin .v2-field{gap:28px;margin-top:5vh;}
     .screen.v2.is-tvjoin .v2-field-l{font-size:48px;}
@@ -7775,7 +7762,7 @@
        見本 docs/指示66/見本/festival.html の f1。絵記号（data-ic）は出す時に V2.icon で入れる -->
   <div id="safetyGate" class="v2 v2-w-wait v2-safety" style="display:none;">
     <div class="v2-in is-noband">
-      <div class="v2-hd"><div class="v2-hd-en">Before you play</div><div class="v2-hd-ttl">はじめに、<br>光と揺れの確認</div><div class="v2-arrow"></div></div>
+      <div class="v2-hd"><div class="v2-hd-ttl">はじめに、<br>光と揺れの確認</div><div class="v2-arrow"></div></div>
       <p class="v2-lead">このアプリには、光の点滅や、画面が揺れる演出があります。気分が悪くなりそうなら、ここで切れます。</p>
       <button type="button" class="v2-safe-row" id="sgFlashBtn"><span class="v2-sri"><i data-ic="bolt"></i></span><span class="v2-safe-t"><b>光の点滅をつかう</b><span class="v2-hint">爆発の白い光・正解の光など</span></span><span class="v2-sw"></span></button>
       <button type="button" class="v2-safe-row" id="sgShakeBtn"><span class="v2-sri"><i data-ic="vibe"></i></span><span class="v2-safe-t"><b>画面の揺れをつかう</b><span class="v2-hint">まちがえた時に、少しだけ揺れる</span></span><span class="v2-sw"></span></button>
@@ -8130,7 +8117,7 @@
     <div class="v2-brand" aria-hidden="true">ATSUMARE AREKORE.</div>
     <div class="v2-corner is-l"><button type="button" class="v2-cbtn" data-go-shelf aria-label="もどる"><span class="v2-ring"><i data-ic="back"></i></span></button></div>
     <div class="v2-in is-noband">
-      <div class="v2-hd is-back"><div class="v2-hd-en">Game</div><div class="v2-hd-ttl" id="gameTitle">どれで遊ぶ？</div><div class="v2-arrow"></div></div>
+      <div class="v2-hd is-back"><div class="v2-hd-ttl" id="gameTitle">どれで遊ぶ？</div><div class="v2-arrow"></div></div>
       <div class="v2-oscroll" id="gameCards"></div>
       <button type="button" class="v2-btn is-pri" id="gameNextBtn">これで遊ぶ</button>
     </div>
@@ -8147,7 +8134,7 @@
       <button type="button" class="v2-cbtn is-gear" id="gearBtn" aria-label="設定"><span class="v2-ring"><i data-ic="gear"></i></span></button>
     </div>
     <div class="v2-in is-noband">
-      <div class="v2-hd is-back"><div class="v2-hd-en">Mode</div><div class="v2-hd-ttl">どう遊ぶ？</div><div class="v2-arrow"></div></div>
+      <div class="v2-hd is-back"><div class="v2-hd-ttl">どう遊ぶ？</div><div class="v2-arrow"></div></div>
       <div class="v2-oscroll">
         <div id="modeHead"></div>
         <div class="v2-pills" id="modeScorePreview" style="display:none;"></div>
@@ -33188,7 +33175,7 @@
       (並び.length > 7 ? '<span class="v2-faces-more">+' + (並び.length - 7) + '</span>' : '');
     var h = V2.bgHtml() + V2.brandHtml() + V2.cornerHtml({ who: ps.length, whoOpen: '#v2Roster' }) +
       '<div class="v2-in">' +
-        V2.hdHtml('Waiting…', F.見出し) +
+        V2.hdHtml('', F.見出し) +
         V2.meHtml(me) +
         '<button type="button" class="v2-btn is-lite" data-v2-act="look">' + V2.icon('tag') + '<span>' + V2.esc(F.着替え) + '</span></button>' +
         '<button type="button" class="v2-facesbtn" data-v2-open="#v2Roster"><span class="v2-facesbtn-l"><span class="v2-lbl">' + V2.esc(F.いる人) + '</span>' +
@@ -33230,12 +33217,12 @@
     var h = '<div class="v2-tvc">' + V2.bgHtml({ names: ps.map(function(m){ return m.name; }) }) + V2.brandHtml(true) +
       '<div class="v2-safe"><div class="v2-tva">' +
         '<div class="v2-tqr">' + qr + '</div>' +
-        '<div class="v2-tva-r">' + V2.hdHtml('Room', F.見出し, true) +
+        '<div class="v2-tva-r">' + V2.hdHtml('', F.見出し, true) +
           '<div class="v2-tgrid ' + (cols === 3 ? 'is-c3' : 'is-c2') + '">' +
             ps.map(function(m){ return V2.tmemHtml(m, { two: two, sm: cols === 3 }); }).join('') + '</div>' +
         '</div></div>' +
         V2.tbandHtml([
-          { lab: 'Room', en: true, num: n, small: '/' + (view.max || '') + UiText.V2.人 },
+          { lab: UiText.V2.人数, num: n, small: '/' + (view.max || '') + UiText.V2.人 },
           { lab: F.コード, val: view.code, valEn: true },
           { lab: F.次は, val: (view.next && view.next.label) || F.投票, grow: true }
         ], view.next && view.next.endsAt ? V2.cd({ end: view.next.endsAt, tv: true }) : '') +
@@ -33261,7 +33248,7 @@
     var 節 = function(名, 中身){ return '<div class="v2-parts-sec"><div class="v2-lbl">' + V2.esc(名) + '</div>' + 中身 + '</div>'; };
     var h = V2.bgHtml() + V2.brandHtml() + V2.cornerHtml({ who: 6 }) +
       '<div class="v2-in is-scroll"><div class="v2-parts">' +
-        V2.hdHtml('Parts', '新しい見た目の部品') +
+        V2.hdHtml('', '新しい見た目の部品') +
         節('ボタン', '<button type="button" class="v2-btn is-pri">' + V2.esc(W.start) + '</button>' +
           '<button type="button" class="v2-btn is-sec">' + V2.esc(W.back) + '</button>' +
           '<button type="button" class="v2-btn is-lite">' + V2.icon('tag') + '<span>' + V2.esc(F.着替え) + '</span></button>' +
@@ -34880,7 +34867,7 @@
     try{ qr = QR.toSvg(roomJoinUrl(room.code), { quiet: 2 }); }catch(e){ qr = ''; }
     return { host: host, code: room.code, meId: meId, members: ps.map(function(m){ return Object.assign({}, m, { off: !m.connected }); }),
       others: ps.filter(function(m){ return m.id !== meId; }), me: me, fresh: home.roomFresh, ops: ops,
-      picked: (picked && supported) ? { world: info ? info.world : ((cassetteOfGame(picked) || {}).theme || 'wait'), name: info ? info.name : gameTitleOf(picked), label: homeT().決めた.英 } : null,
+      picked: (picked && supported) ? { world: info ? info.world : ((cassetteOfGame(picked) || {}).theme || 'wait'), name: info ? info.name : gameTitleOf(picked), label: homeT().決めた.札 } : null,
       ready: rtReadyTally(), iReady: rtIAmReady(),
       canStart: !!(host && enough && !多すぎ && picked && supported && allReady),
       waitText: 待ち.length ? 待ち.map(function(x){ return x.name; }).join('・') + ' さん' + R.を待っています : '',

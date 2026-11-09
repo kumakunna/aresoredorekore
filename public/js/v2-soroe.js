@@ -62,7 +62,7 @@
     var d = view.data || {}, V = K(), t = T();
     var head = V.bgHtml() + V.brandHtml() + V.cornerHtml({});
     if (!isPlayer(view) && d.phase !== 'ended') {
-      return head + '<div class="v2-in">' + V.hdHtml('Next…', t.見ていて見出し) + '<p class="v2-note">' + e(t.見ていてね) + '</p></div>';
+      return head + '<div class="v2-in">' + V.hdHtml('', t.見ていて見出し) + '<p class="v2-note">' + e(t.見ていてね) + '</p></div>';
     }
     if (d.phase === 'roundResult') return head + '<div class="v2-in is-noband v2-oph">' + topRow(view) + phoneRevealHtml(view) + '</div>';
     if (d.phase === 'ended') return head + '<div class="v2-in is-scroll v2-oph">' + resultBody(view, false) + endButtons(view) + '</div>';
@@ -156,8 +156,7 @@
   /** 宇宙：金の粒と、全員の名前の星座（ロケットのまわりをあけて、左右に散らす） */
   function spaceHtml(view, tl) {
     var d = view.data || {}, names = (d.players || []).map(function (p) { return p.name; }).slice(0, 18);
-    var 粒 = '';
-    for (var i = 0; i < 28; i++) 粒 += '<i class="v2-sospk" style="left:' + ((i * 41) % 100) + '%;top:' + (8 + (i * 29) % 84) + '%;animation-delay:' + ss(tl.arrive + 0.1 + (i % 10) * 0.05) + '"></i>';
+    // 指示76 3-3：金の粒（v2-sospk）はやめた（名前の星座にかぶった）。銀河は景色の柱（v2-sogalaxy）に残す
     // TV の安全な枠（左右 96px＝5%）の内側。ロケット（まん中）と見出し・帯（上）をあける
     var 列 = [6, 20, 34, 66, 80, 94], 行 = [58, 72, 86];
     var 星 = names.map(function (nm, i) {
@@ -165,7 +164,7 @@
       var 右 = c > 50;
       return '<span class="v2-sostarn v2-cut" style="' + (右 ? 'right:' + (100 - c) : 'left:' + c) + '%;top:' + r + '%;animation-delay:' + ss(tl.arrive + 0.25 + i * 0.06) + '">' + e(nm) + '</span>';
     }).join('');
-    return '<div class="v2-sospace" aria-hidden="true">' + 粒 + '</div>' + 星;
+    return 星;
   }
   /** 場面。phase が launch の時は発射台（合図を上に重ねる）、roundResult の時は開く */
   function sceneHtml(view, tv, overlay) {
@@ -199,7 +198,7 @@
 
   function resultBody(view, tv, o) {
     var d = view.data || {}, res = d.result || {}, V = K(), t = T();
-    var head = o && o.noHead ? '' : V.hdHtml('Result!', t.結果, tv);
+    var head = o && o.noHead ? '' : V.hdHtml('', t.結果, tv);
     var hs = (res.heights || []).map(function (h, i) {
       return '<div class="v2-rk"><span class="v2-rk-n v2-num">' + V.digits(i + 1) + '</span><span class="v2-rk-nm v2-cut">' +
         e(h.flew ? (t.高さ || {})[h.height] : t.飛ばず) + (h.double ? ' ' + t.二倍 : '') + '</span><span class="v2-rk-x">' + V.digits(h.points) + e(t.点) + '</span></div>';

@@ -19,7 +19,7 @@ const LAUNCH = { fakeSocket: true };
  */
 const 待合 = {
   scr: (doc) => doc.getElementById('scr-v2-room'),
-  code: (doc) => { const b = doc.querySelector('#scr-v2-room .v2-ecode b'); if (b) return b.textContent; const m = /Room (w{6})/.exec((doc.querySelector('#scr-v2-room .v2-hd-en') || {}).textContent || ''); return m ? m[1] : '------'; },
+  code: (doc) => { const b = doc.querySelector('#scr-v2-room .v2-ecode b'); if (b) return b.textContent; const m = /([A-Z0-9]{6})/.exec((doc.querySelector('#scr-v2-room .v2-ecode-g b') || {}).textContent || ''); return m ? m[1] : '------'; },
   count: (doc) => doc.querySelectorAll('#scr-v2-room .v2-mems .v2-mem').length + (doc.querySelector('#scr-v2-room .v2-me') ? 1 : 0) + '人',
   mems: (doc) => Array.from(doc.querySelectorAll('#scr-v2-room .v2-mems .v2-mem')),
   start: (doc) => doc.querySelector('#scr-v2-room [data-home-act="room-start"]'),

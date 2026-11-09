@@ -129,6 +129,21 @@
   }
   function fixWraps(scope) {
     var d = D(); if (!d) return;
+    fixWrapsOne(d, scope);
+    // 指示77（くまくんの答え 11/9 の4）：同じ問題の札（data-v2-words="ch"：選択肢・開いた時の答えの札）は、いちばん小さい札の字にそろえる
+    //（1枚だけ小さいと、その札が目立つ）。札の組は、並べている箱（.v2-ochs・.v2-ostg）ごと
+    var boxes = [];
+    Array.prototype.forEach.call((scope || d).querySelectorAll('[data-v2-words="ch"]'), function (el) {
+      var box = el.closest('.v2-ochs, .v2-ostg') || el.parentNode; if (boxes.indexOf(box) === -1) boxes.push(box);
+    });
+    boxes.forEach(function (box) {
+      var list = Array.prototype.filter.call(box.querySelectorAll('[data-v2-words="ch"]'), function (el) { return el.getClientRects().length; });
+      if (list.length < 2) return;
+      var min = Math.min.apply(null, list.map(function (el) { return parseFloat(getComputedStyle(el).fontSize); }));
+      list.forEach(function (el) { if (parseFloat(getComputedStyle(el).fontSize) > min + 0.1) el.style.fontSize = min + 'px'; });
+    });
+  }
+  function fixWrapsOne(d, scope) {
     var list = (scope || d).querySelectorAll('[data-v2-wrap]');
     for (var i = 0; i < list.length; i++) {
       var el = list[i];
@@ -431,11 +446,17 @@
   /** 右の縦の字（スマホ／TV） */
   function brandHtml(tv) { return '<div class="' + (tv ? 'v2-tbrand' : 'v2-brand') + '" aria-hidden="true">ATSUMARE AREKORE.</div>'; }
   /** 見出し：小さな英字＋大きな日本語（文節で折る）＋長い矢印 */
+  /**
+   * 見出し：大きい日本語＋長い矢印（指示76 3-2・くまくんの答え 5.A：英語の小見出しを消した）。
+   * 1つめの引数（もと英語の小見出し）は、呼ぶ側を一度に書きかえないために残してあるが、使わない
+   */
+  /** 指示76 3-1（くまくんの答え 4.B）：TV の結果の賞の題は（…）の説明を外す（「体内時計の名人（5回の…）」→「体内時計の名人」）。スマホはそのまま */
+  function tvLabel(s, tv) { return tv ? String(s == null ? '' : s).replace(/（[^）]*）/g, '') : s; }
   function hdHtml(en, ttl, tv) {
     // クラス名は継ぎ足しで組まない（tests/dead-style.js と tests/v2.js が名前そのもので照らす）
     return tv
-      ? '<div class="v2-thd"><div class="v2-thd-en">' + esc(en) + '</div><div class="v2-thd-ttl" data-v2-wrap>' + phrase(ttl) + '</div><div class="v2-arrow"></div></div>'
-      : '<div class="v2-hd"><div class="v2-hd-en">' + esc(en) + '</div><div class="v2-hd-ttl" data-v2-wrap>' + phrase(ttl) + '</div><div class="v2-arrow"></div></div>';
+      ? '<div class="v2-thd"><div class="v2-thd-ttl" data-v2-wrap>' + phrase(ttl) + '</div><div class="v2-arrow"></div></div>'
+      : '<div class="v2-hd"><div class="v2-hd-ttl" data-v2-wrap>' + phrase(ttl) + '</div><div class="v2-arrow"></div></div>';
   }
   /** 右上の丸ボタン。who＝いる人の数（押すと名簿）、gear＝設定 */
   function cornerHtml(o) {
@@ -592,7 +613,7 @@
     digits: digits, phrase: phrase, fit: fit, wrapHtml: wrapHtml, fixWraps: fixWraps, rowsOf: rowsOf, relayout: relayout,
     now: now, setClockOffset: setClockOffset, freeze: freeze, cd: cd, mount: mount, tick: tick,
     open: open, close: close, closeTop: closeTop, topLayer: topLayer, show: show,
-    nameWallHtml: nameWallHtml, glow: glow, fitTv: fitTv,
+    nameWallHtml: nameWallHtml, tvLabel: tvLabel, glow: glow, fitTv: fitTv,
     bgHtml: bgHtml, brandHtml: brandHtml, hdHtml: hdHtml, cornerHtml: cornerHtml, avHtml: avHtml, meHtml: meHtml,
     bandHtml: bandHtml, toastHtml: toastHtml, scrimHtml: scrimHtml, sheetHtml: sheetHtml, xHtml: xHtml, dlgHtml: dlgHtml,
     rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rulesBodyHtml: rulesBodyHtml, hasTv: hasTv, tvAt: tvAt, rankRevealHtml: rankRevealHtml, RANK_TL: RANK_TL, rheadHtml: rheadHtml, rowHtml: rowHtml,

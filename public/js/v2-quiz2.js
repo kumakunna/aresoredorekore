@@ -17,6 +17,12 @@
   var KEYS = 'ABCD';
   var ss = function (sec) { return 'calc(' + sec.toFixed(2) + 's * var(--fx-scale))'; };
 
+  /**
+   * 指示76 3-1（くまくんの答え 4.B）：数字ちかい方の TV の問題文から「いちばん近い人の勝ち」を外す。
+   * 問題の文そのものに入っている（quiz-tables.js の147問）ので、TV に出す時に「（いちばん近い人の勝ち）」「・いちばん近い人の勝ち」の所だけ。ほかの説明（平年値など）は残す。スマホはそのまま
+   */
+  function tvQ(q) { return String(q == null ? '' : q).replace(/（いちばん近い人の勝ち）/g, '').replace(/・いちばん近い人の勝ち/g, ''); }
+  // 指示76 3-3（くまくんの答え 7.A）：答えるたびに問題の箱にともる光の粒（v2-q2spark）はやめた。止まった画面では迷子の点に見えた
   function isPlayer(view) {
     var d = view.data || {};
     return (d.players || []).some(function (p) { return p.id === view.meId; });
@@ -40,12 +46,6 @@
     return '<div class="v2-q2bar"><i style="--from:' + from.toFixed(3) + ';animation-duration:' + Math.round(rem) + 'ms"></i>' +
       '<b style="animation-delay:' + Math.max(0, Math.round(rem - 3000)) + 'ms"></b></div>';
   }
-  /** だれかが答えるたびに、札のまわりに光の粒が1つともる（だれが何を押したかは出さない） */
-  function sparkHtml(n) {
-    var s = '';
-    for (var i = 0; i < n; i++) s += '<i style="--a:' + ((i * 137.5) % 360).toFixed(1) + 'deg"></i>';
-    return '<div class="v2-q2spark" aria-hidden="true">' + s + '</div>';
-  }
   function endButtons(view) {
     if (view.fesRoom) return '';
     var t = T();
@@ -58,9 +58,9 @@
   /** 結果（スマホ・TV・文化祭の結果で同じ物）：順位と、ほめる札 */
   function resultBody(view, tv, o, mode) {
     var d = view.data || {}, res = d.result || {}, V = K(), t = T();
-    var head = o && o.noHead ? '' : V.hdHtml('Result!', t.結果, tv);
+    var head = o && o.noHead ? '' : V.hdHtml('', t.結果, tv);
     var 札 = mode === 'near' ? [t.ぴったりの人, res.perfect || []] : [t.早い人, res.fastestMost || []];
-    var aws = 札[1].length ? '<div class="v2-oaws"' + (tv || (view.fes && view.fes.phase) ? '' : V.tvAt(view, V.RANK_TL.top)) + '><div class="v2-oaw"><span class="v2-oaw-t">' + e(札[0]) + '</span><span class="v2-oaw-n" data-v2-wrap>' +
+    var aws = 札[1].length ? '<div class="v2-oaws"' + (tv || (view.fes && view.fes.phase) ? '' : V.tvAt(view, V.RANK_TL.top)) + '><div class="v2-oaw"><span class="v2-oaw-t">' + e(V.tvLabel(札[0], tv)) + '</span><span class="v2-oaw-n" data-v2-wrap>' +
       V.phrase(札[1].slice(0, 6).join('・') + (札[1].length > 6 ? t.ほか + (札[1].length - 6) + t.人 : '')) + '</span></div></div>' : '';
     var rk = res.ranking || [];
     var me = rk.filter(function (x) { return x.id === view.meId; })[0];
@@ -111,7 +111,7 @@
     function phone(view) {
       var d = view.data || {}, V = K(), you = view.you || {}, t = T();
       var head = V.bgHtml() + V.brandHtml() + V.cornerHtml({});
-      if (!isPlayer(view) && d.phase !== 'ended') return head + '<div class="v2-in">' + V.hdHtml('Next…', t.見ていて見出し) + '<p class="v2-note">' + e(t.見ていてね) + '</p></div>';
+      if (!isPlayer(view) && d.phase !== 'ended') return head + '<div class="v2-in">' + V.hdHtml('', t.見ていて見出し) + '<p class="v2-note">' + e(t.見ていてね) + '</p></div>';
       if (d.phase === 'ended') return head + '<div class="v2-in is-scroll v2-oph">' + resultBody(view, false, null, 'haya') + endButtons(view) + '</div>';
       if (d.phase === 'unveil') return head + '<div class="v2-in is-noband v2-oph">' + topRow(view, false, 'haya') + mineOpen(view) + '</div>';
       var topic = d.topic || { q: '', choices: [] }, mine = typeof you.myPick === 'number' ? you.myPick : null;
@@ -142,10 +142,10 @@
     }
     function tvChoose(view) {
       var d = view.data || {}, V = K(), t = T(), topic = d.topic || { q: '', choices: [] };
-      return '<div class="v2-q2qa"><div class="v2-otq" data-v2-wrap data-v2-words>' + V.phrase(topic.q) + '</div>' + sparkHtml(d.answered || 0) + '</div>' +
+      return '<div class="v2-q2qa"><div class="v2-otq" data-v2-wrap data-v2-words>' + V.phrase(topic.q) + '</div>' + '</div>' +
         barHtml(view, 10) +
         '<div class="v2-ochs is-n' + topic.choices.length + '">' + topic.choices.map(function (c, k) {
-          return '<div class="v2-och"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-och-t" data-v2-wrap data-v2-words>' + V.phrase(c) + '</span></div>';
+          return '<div class="v2-och"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-och-t" data-v2-wrap data-v2-words="ch">' + V.phrase(c) + '</span></div>';
         }).join('') + '</div>' +
         (d.double ? '<div class="v2-q2dbl is-tv">' + e(t.二倍) + '</div>' : '');
     }
@@ -162,7 +162,7 @@
         // まちがいの札はわざと暗くする（data-dimok：物差しの色の差に数えない）
         return '<div class="v2-ocol' + (win ? ' is-win is-right' : ' is-wrong') + '"' + (win ? '' : ' data-dimok') + ' style="--wd:' + ss(tl.stop) + '">' +
           '<div class="v2-opile">' + balls + '</div>' +
-          '<div class="v2-ocard"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-ocard-t" data-v2-wrap data-v2-words>' + V.phrase(c) + '</span>' +
+          '<div class="v2-ocard"><span class="v2-okey">' + KEYS.charAt(k) + '</span><span class="v2-ocard-t" data-v2-wrap data-v2-words="ch">' + V.phrase(c) + '</span>' +
             '<span class="v2-ocnt"><b class="v2-num"><span class="v2-ocn is-last">' + V.digits(counts[k] || 0) + '</span></b><small>' + e(t.人) + '</small></span></div></div>';
       }).join('');
       var hops = tl.hops.map(function (h, i) {
@@ -227,7 +227,7 @@
     function phone(view) {
       var d = view.data || {}, V = K(), you = view.you || {}, t = T(), loc = view.local || {};
       var head = V.bgHtml() + V.brandHtml() + V.cornerHtml({});
-      if (!isPlayer(view) && d.phase !== 'ended') return head + '<div class="v2-in">' + V.hdHtml('Next…', t.見ていて見出し) + '<p class="v2-note">' + e(t.見ていてね) + '</p></div>';
+      if (!isPlayer(view) && d.phase !== 'ended') return head + '<div class="v2-in">' + V.hdHtml('', t.見ていて見出し) + '<p class="v2-note">' + e(t.見ていてね) + '</p></div>';
       if (d.phase === 'ended') return head + '<div class="v2-in is-scroll v2-oph">' + resultBody(view, false, null, 'near') + endButtons(view) + '</div>';
       var topic = d.topic || {};
       if (d.phase === 'unveil') {
@@ -258,7 +258,7 @@
     }
     function tvGuess(view) {
       var d = view.data || {}, V = K(), t = T(), topic = d.topic || {};
-      return '<div class="v2-q2qa is-near"><div class="v2-otq" data-v2-wrap data-v2-words>' + V.phrase(topic.q || '') + '</div>' + sparkHtml(d.answered || 0) + '</div>' +
+      return '<div class="v2-q2qa is-near"><div class="v2-otq" data-v2-wrap data-v2-words>' + V.phrase(tvQ(topic.q)) + '</div>' + '</div>' +
         '<div class="v2-q2unit">？ <small>' + e(topic.unit || '') + '</small></div>' + barHtml(view, 15);
     }
     function tvOpen(view) {
@@ -310,7 +310,7 @@
         ? '<div class="v2-ptwin" style="animation-delay:' + ss(tl.end) + '"><span class="v2-ptwin-c" aria-hidden="true">👑</span><span class="v2-ptwin-n v2-cut" style="font-size:' + bigFs(上.map(function (x) { return x.name; }).join('・'), 140) + 'px">' + e(上.map(function (x) { return x.name; }).join('・')) + '</span>' +
           '<span class="v2-ptwin-d">' + e(上[0].diff === 0 ? t.ぴったり : t.差 + ' ' + fmt(上[0].diff) + (r.unit || '')) + '</span></div>'
         : '<div class="v2-ptwin is-none" style="animation-delay:' + ss(tl.end) + '">' + e(t.だれも入れず) + '</div>';
-      return '<div class="v2-oqs v2-q2q" data-v2-wrap>' + V.phrase(r.q || '') + '</div>' +
+      return '<div class="v2-oqs v2-q2q" data-v2-wrap data-v2-words>' + V.phrase(tvQ(r.q)) + '</div>' +
         '<div class="v2-ptr' + (perfect ? ' is-perfect' : '') + ' v2-q2line" style="--zt:' + ss(tl.zoom) + '">' +
         '<i class="v2-ptr-dim"></i>' +
         '<div class="v2-osay is-ans" aria-hidden="true" style="animation-delay:' + ss(tl.say) + '">' + e(t.正解は) + '</div>' +

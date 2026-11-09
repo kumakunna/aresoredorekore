@@ -38,7 +38,7 @@
     var d = view.data || {}, V = K(), t = T();
     var head = V.bgHtml() + V.brandHtml() + V.cornerHtml({});
     if (!isPlayer(view) && d.phase !== 'ended') {
-      return head + '<div class="v2-in">' + V.hdHtml('Next…', t.見ていて見出し) + '<p class="v2-note">' + e(t.見ていてね) + '</p></div>';
+      return head + '<div class="v2-in">' + V.hdHtml('', t.見ていて見出し) + '<p class="v2-note">' + e(t.見ていてね) + '</p></div>';
     }
     if (d.phase === 'roundResult') return head + '<div class="v2-in is-noband v2-oph">' + topRow(view) + lineHtml(view, false) + mineHtml(view) + '</div>';
     if (d.phase === 'ended') return head + '<div class="v2-in is-scroll v2-oph">' + resultBody(view, false) + endButtons(view) + '</div>';
@@ -49,9 +49,12 @@
   function setHtml(view, tv) {
     var d = view.data || {}, V = K(), t = T();
     // 指示68-T 3：時計が最初から見えない回は「よーい……」を大きく（スタートの字も大きい・index.html の pittariFx）
+    // 指示76 3-1（くまくんの答え 4.B）：遊んでいる最中の TV は1語。説明（時計は3秒で消えます…）はスマホに大きく。
+    // 見えない回の TV は1語の札だけ（t.見えない回TV）
     return '<div class="v2-ptset' + (tv ? ' is-tv' : '') + (d.show === false ? ' is-blind' : '') + '"><div class="v2-ptready">' + e(t.よーい) + '</div>' +
       '<div class="v2-pttgt"><b class="v2-num">' + V.digits(d.target || 10) + '</b><span>' + e(t.秒) + '</span></div>' +
-      '<div class="v2-hint v2-c">' + e(d.show === false ? t.見えない回 : t.三秒で消える) + '</div></div>';
+      (tv ? (d.show === false ? '<div class="v2-ptword">' + e(t.見えない回TV) + '</div>' : '')
+          : '<p class="v2-ptguide">' + e(d.show === false ? t.見えない回 : t.三秒で消える) + '</p>') + '</div>';
   }
   /** はかる（スマホ）：時計と大きなボタンだけ。押したら「ストップ！」だけ（タイムは出さない） */
   function runHtml(view) {
@@ -59,9 +62,10 @@
     if (loc.stopped || you.stopped) {
       return '<div class="v2-ptdone"><div class="v2-ptstop">' + e(t.ストップ済) + '</div><div class="v2-hint v2-c" role="status">' + e(t.開くまで) + '</div></div>';
     }
+    // 指示76 3-1・A17：説明は時計とボタンのあいだに大きく（それまでは画面のいちばん下に小さく・iPhone の下のバーに近かった）
     return '<div class="v2-ptclock" data-pt-clock aria-hidden="true">0.0</div>' +
-      '<button type="button" class="v2-ptbtn" data-pt-stop>' + e(t.ストップ) + '</button>' +
-      '<div class="v2-hint v2-c">' + e(t.心の中で) + '</div>';
+      '<p class="v2-ptguide">' + e(t.心の中で) + '</p>' +
+      '<button type="button" class="v2-ptbtn" data-pt-stop>' + e(t.ストップ) + '</button>';
   }
   function mineHtml(view) {
     var you = view.you || {}, t = T(), V = K(), Lg = L();
@@ -235,11 +239,11 @@
   /** 結果（スマホ・TV・文化祭の結果の画面で同じ物） */
   function resultBody(view, tv, o) {
     var d = view.data || {}, res = d.result || {}, V = K(), t = T();
-    var head = o && o.noHead ? '' : V.hdHtml('Result!', t.結果, tv);
+    var head = o && o.noHead ? '' : V.hdHtml('', t.結果, tv);
     var aw = res.awards || {};
     var awards = '<div class="v2-oaws"' + (tv || (view.fes && view.fes.phase) ? '' : V.tvAt(view, V.RANK_TL.top)) + '>' + [['perfect', t.ぴったりの人], ['master', t.名人]].filter(function (x) { return (aw[x[0]] || []).length; }).map(function (x) {
       var ns = aw[x[0]], 見せる = ns.slice(0, 6).join('・') + (ns.length > 6 ? t.ほか + (ns.length - 6) + t.人 : '');
-      return '<div class="v2-oaw"><span class="v2-oaw-t">' + e(x[1]) + '</span><span class="v2-oaw-n" data-v2-wrap>' + V.phrase(見せる) + '</span></div>';
+      return '<div class="v2-oaw"><span class="v2-oaw-t">' + e(V.tvLabel(x[1], tv)) + '</span><span class="v2-oaw-n" data-v2-wrap>' + V.phrase(見せる) + '</span></div>';
     }).join('') + '</div>';
     var rk = res.ranking || [];
     var me = rk.filter(function (x) { return x.id === view.meId; })[0];
@@ -269,7 +273,7 @@
     if (d.phase === 'roundResult') inner = '<div class="v2-otv">' + topRow(view) + tvRevealHtml(view) + '</div>';
     else if (d.phase === 'ended') inner = '<div class="v2-otv is-end">' + resultBody(view, true) + '</div>';
     else if (d.phase === 'run') inner = '<div class="v2-otv">' + topRow(view) + '<div class="v2-ptset is-tv">' +
-      '<div class="v2-ptclock is-tv" data-pt-clock aria-hidden="true">0.0</div><div class="v2-pthint">' + e(T().心の中で) + '</div></div></div>';
+      '<div class="v2-ptclock is-tv" data-pt-clock aria-hidden="true">0.0</div></div></div>';   // 指示76 3-1：説明は TV から消した（スマホに大きく）
     else inner = '<div class="v2-otv">' + topRow(view) + setHtml(view, true) + '</div>';
     return F().tvc(view, inner, { cls: 壁, names: (d.players || []).map(function (p) { return p.name; }) });
   }

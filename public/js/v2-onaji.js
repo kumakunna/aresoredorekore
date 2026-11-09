@@ -48,7 +48,7 @@
     var d = view.data || {}, V = K();
     var head = V.bgHtml() + V.brandHtml() + V.cornerHtml({});
     if (!isPlayer(view) && d.phase !== 'ended') {
-      return head + '<div class="v2-in">' + V.hdHtml('Next…', T().見ていて見出し) + '<p class="v2-note">' + e(T().見ていてね) + '</p></div>';
+      return head + '<div class="v2-in">' + V.hdHtml('', T().見ていて見出し) + '<p class="v2-note">' + e(T().見ていてね) + '</p></div>';
     }
     if (d.phase === 'unveil') return head + '<div class="v2-in is-noband v2-oph">' + topRow(view) + unveilHtml(view, false) + mineHtml(view) + '</div>';
     if (d.phase === 'ended') return head + '<div class="v2-in is-scroll v2-oph">' + resultBody(view, false) + endButtons(view) + '</div>';
@@ -109,7 +109,7 @@
     // 指示68-T 二の束3：TV がいる部屋のスマホは、人数・冠・帯を TV の冠（tl.crown）、名前を TV の名前の札（tl.tags）と同じ時刻に
     var 待つ = !tv && V.hasTv(view), tl = 待つ ? timeline(view) : null;
     var at = function (sec) { return 待つ ? V.tvAt(view, sec) : ''; };
-    if (r.scatter) ban = '<div class="v2-oban is-scatter">' + e(t.ばらばら) + '<small>' + e(t.ばらばら説明) + '</small></div>';
+    if (r.scatter) ban = '<div class="v2-oban is-scatter">' + e(t.ばらばら) + (tv ? '' : '<small>' + e(t.ばらばら説明) + '</small>') + '</div>';   // 指示76 3-1：TV は1語
     else if (d.mode === 'team') ban = r.together ? '<div class="v2-oban is-gold">' + e(t.そろった) + '</div>'
       : '<div class="v2-oban">' + e(t.そろい度) + '<b class="v2-num">' + V.digits(r.ratio || 0) + '</b>%</div>';
     return '<div class="v2-ounv' + (tv ? ' is-tv' : '') + '">' +
@@ -202,7 +202,7 @@
       }).join('') + '</div>';
     }
     var ban = '';
-    if (r.scatter) ban = '<div class="v2-oban is-scatter">' + e(t.ばらばら) + '<small>' + e(t.ばらばら説明) + '</small></div>';
+    if (r.scatter) ban = '<div class="v2-oban is-scatter">' + e(t.ばらばら) + '</div>';   // 指示76 3-1：TV は「ばらばら！」だけ（説明はスマホにある）
     else if (team) ban = r.together ? '<div class="v2-oban is-gold">' + e(t.そろった) + '</div>'
       : '<div class="v2-oban">' + e(t.そろい度) + '<b class="v2-num">' + V.digits(r.ratio || 0) + '</b>%</div>';
     return '<div class="v2-ounv is-tv is-stage">' + '<i class="v2-odim"></i>' +
@@ -216,13 +216,13 @@
   function resultBody(view, tv, o) {
     var d = view.data || {}, res = d.result || {}, V = K(), t = T();
     // 文化祭の結果の TV は、外側がゲームの名前の見出しを持つ（o.noHead）
-    var head = o && o.noHead ? '' : V.hdHtml('Result!', t.結果, tv);
+    var head = o && o.noHead ? '' : V.hdHtml('', t.結果, tv);
     var aw = res.awards || {};
     var awards = '<div class="v2-oaws"' + (tv || (view.fes && view.fes.phase) ? '' : V.tvAt(view, V.RANK_TL.top)) + '>' +
       [['same', t.同じ賞], ['solo', t.ひとり賞]].filter(function (x) { return (aw[x[0]] || []).length; }).map(function (x) {
         // 並んだ人が多い時は、はじめの6人と「ほか◯人」（16人で全員が並んでも、札が1行で切れない）
         var ns = aw[x[0]], 見せる = ns.slice(0, 6).join('・') + (ns.length > 6 ? t.ほか + (ns.length - 6) + t.人 : '');
-        return '<div class="v2-oaw"><span class="v2-oaw-t">' + e(x[1]) + '</span><span class="v2-oaw-n" data-v2-wrap>' + V.phrase(見せる) + '</span></div>';
+        return '<div class="v2-oaw"><span class="v2-oaw-t">' + e(V.tvLabel(x[1], tv)) + '</span><span class="v2-oaw-n" data-v2-wrap>' + V.phrase(見せる) + '</span></div>';
       }).join('') + '</div>';
     if (res.mode === 'team') {
       var all = res.questions && res.together === res.questions;

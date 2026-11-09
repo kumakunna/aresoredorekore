@@ -70,7 +70,7 @@
     var len = o.masked ? 0 : Array.from(String(o.name || '')).length;
     var h = V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
       '<div class="v2-in is-scroll">' +
-        V.hdHtml('Join', J.見出し) +
+        V.hdHtml('', J.見出し) +
         '<div class="v2-pills"><span class="v2-pill">' + e(J.部屋 + ' ' + (o.code || '')) + '</span>' +
           // 指示71 追記2k：人数の札はいつも置く（はじめに人数が取れなくても、あとで書きかえられるように）。分からない間は見せない
           '<span class="v2-pill" data-fes-n' + (o.n != null ? '' : ' style="display:none"') + '>' + (o.n != null ? e(J.いま + ' ' + o.n + UiText.V2.人) : '') + '</span>' + '</div>' +
@@ -140,7 +140,7 @@
     var note = f.note === 'too_few' ? F.少なすぎ : (f.note === 'skipped' ? F.とばした : '');
     var h = V.bgHtml() + V.brandHtml() + V.cornerHtml({ who: n, whoOpen: '#v2Roster' }) +
       '<div class="v2-in">' +
-        V.hdHtml('Waiting…', F.見出し) +
+        V.hdHtml('', F.見出し) +
         V.meHtml(me) +
         // 着替え（F5）：見本データ（lab）で look が無い時は、今までのシート（data-v2-act="look"）
         (view.look ? '<button type="button" class="v2-btn is-lite" data-v2-open="#v2Look" data-fes-act="look">' : '<button type="button" class="v2-btn is-lite" data-v2-act="look">') +
@@ -259,7 +259,7 @@
              : '<button type="button" class="v2-btn is-pri" disabled>' + e(P.えらんでね) + '</button>');
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({ who: people(view).length }) +
       '<div class="v2-in">' +
-        V.hdHtml('Vote!', P.見出し) +
+        V.hdHtml('', P.見出し) +
         '<div class="v2-vlist' + (mine ? ' is-chosen' : '') + '">' + list.map(function (g) {
           var on = sel === g.id, voted = mine === g.id;
           // data-dimok：投票したあとの、えらばなかった札はわざと薄くする（投票はもう変えられない。長押しでルールは見られる。物差しの K2 に数えない・指示68-0b）
@@ -296,7 +296,7 @@
     var 見て = 待つ ? '<div class="v2-dlook" role="status" data-tvuntil="' + Math.max(0, wipe).toFixed(2) + '">' + e(U().待合.TVを見て) + '</div>' : '';
     return '<div class="v2-layer v2-w-' + e(g.world) + '"' + at(wipe) + '>' + V.bgHtml({ names: people(view, true).map(function (m) { return m.name; }) }) + '</div>' + 見て +
       '<div class="v2-in v2-swap v2-w-' + e(g.world) + '"' + (待つ ? ' style="animation-delay:' + (wipe + 0.35).toFixed(2) + 's"' : '') + '>' +
-        '<div class="v2-a-fade">' + V.hdHtml('Next Game', D.見出し) + '</div>' +
+        '<div class="v2-a-fade">' + V.hdHtml('', D.見出し) + '</div>' +
         '<div class="v2-dec">' +
           tile +
           '<div class="v2-gname v2-a-slam' + (待つ ? '"' + at(tl.stop) : ' v2-d2"') + '>' + gnameHtml(g, 'v2-gname-t') + '</div>' +
@@ -338,7 +338,7 @@
     var hold = (view.you || {}).bench === 'hold';
     // 「つぎの回」を待つ人の人数は部屋の人（自分を数えない）。待合の時計は自分には関係ないので出さない
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({ who: people(view).length - (hold ? 1 : 0) }) +
-      '<div class="v2-in">' + V.hdHtml('Next…', R.つぎの回に) +
+      '<div class="v2-in">' + V.hdHtml('', R.つぎの回に) +
         V.meHtml(meOf(view)) +
         // 指示75 1-3（A04）：理由が分からない時（本人だけの知らせがまだ届いていない・つなぎ直しの途中）は、理由を言わない。
         // それまでは「ゲームの途中で入ったので」を出していて、ずっと部屋にいた人に、ちがう理由を見せていた
@@ -468,7 +468,7 @@
     if (g.id === 'bomb-coop' && d.team) {
       var t = d.team, ok = t.solved >= t.total;
       var mine = (d.board || []).filter(function (c) { return c.solvedBy && c.solvedBy === meOf(view).name; }).length;
-      body = V.hdHtml(ok ? Rz.成功英 : Rz.爆発英, ok ? Rz.成功 : Rz.爆発) +
+      body = V.hdHtml('', ok ? Rz.成功 : Rz.爆発) +
         '<div class="v2-team"><div class="v2-team-big"><b>' + V.digits(t.solved) + '</b><span>/' + V.digits(t.total) + e(Rz.本) + '</span></div>' +
           '<div class="v2-team-sub">' + e(ok ? Rz.全部 : Rz.あと + (t.total - t.solved) + Rz.だった) + livesHtml(t.lives, t.livesMax) + '</div></div>' +
         '<div class="v2-minebox"><span>' + e(meOf(view).name + Rz.が切った) + '</span><b>' + V.digits(mine) + '<small>' + e(Rz.本) + '</small></b></div>';
@@ -477,7 +477,7 @@
       body = gameMod(view).resultBody(view, false);
     } else {
       var rk = (d.result && d.result.ranking) || [];
-      body = V.hdHtml(Rz.おわり英, Rz.おわり) +
+      body = V.hdHtml('', Rz.おわり) +
         '<div class="v2-ranks">' + rk.map(function (r) {
           var x = r.段絵 ? (r.段絵 + ' ' + (r.段名 || '')) : (r.livesMax ? livesHtml(r.lives, r.livesMax) : '');
           return '<div class="v2-rk' + (r.id === view.meId ? ' is-me' : '') + '"><span class="v2-rk-n v2-num">' + V.digits(r.rank) + '</span>' +
@@ -513,7 +513,7 @@
   function quit(o) {
     var Y = U().やめた, V = K();
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
-      '<div class="v2-in">' + V.hdHtml(Y.英, Y.見出し) +
+      '<div class="v2-in">' + V.hdHtml('', Y.見出し) +
         (o.game ? '<div class="v2-card v2-fbcard"><b>' + e(o.game.name + U().待合.どうだった) + '</b>' + starsHtml(o.stars, false) +
           '<textarea class="v2-textarea" data-fes-text maxlength="200" placeholder="' + e(Y.ひとことどうぞ) + '"></textarea>' +
           (o.sent ? '<div class="v2-sent" role="status">' + V.icon('check') + e(Y.送りました) + '</div>'
@@ -556,7 +556,7 @@
     // 指示71 追記7：印だけでは何のゲームか分からないので、名前を下に（動きは文化祭のあと）
     var tiles = (view.games || []).map(function (id) { var g = view.info(id); return g ? '<span class="v2-tgame">' + V.tile(g.world, 'v2-ttile', g.emb) + '<span class="v2-tgame-n">' + e(g.name) + '</span></span>' : ''; }).join('');
     return tvc(view,
-      '<div class="v2-tvIdle"><div class="v2-tvIdle-l">' + V.hdHtml(F.呼び込み英, F.呼び込み.join('\n'), true) +
+      '<div class="v2-tvIdle"><div class="v2-tvIdle-l">' + V.hdHtml('', F.呼び込み.join('\n'), true) +
         '<div class="v2-tsteps"><div class="v2-tstep"><span class="v2-tstep-ri">' + V.icon('camera') + '</span><span>' + e(F.読む) + '</span></div>' +
           '<div class="v2-tstep"><span class="v2-tstep-ri">' + V.icon('pen') + '</span><span>' + e(F.名前を入れて) + '<em>' + e(U().入る.入る) + '</em>' + e(F.入るを押す) + '</span></div></div>' +
         '<div class="v2-tgames' + ((view.games || []).length > 4 ? ' is-many' : '') + '">' + tiles + '<span class="v2-tnote">' + e(F.約) + '</span></div></div>' +
@@ -580,13 +580,13 @@
     return tvc(view,
       // 9人からは「名前が主役」：QR を 350px（くまくんの下限・2026-10-24）にして、名前の札を広げる（8字の名前が入る）
       '<div class="v2-tva' + (満員 ? ' is-full' : (cols === 3 ? ' is-many' : '')) + '">' + 左 +
-        '<div class="v2-tva-r">' + V.hdHtml('Room', 見出し, true) +
+        '<div class="v2-tva-r">' + V.hdHtml('', 見出し, true) +
           '<div class="v2-tgrid ' + (cols === 3 ? 'is-c3' : 'is-c2') + '">' +
             ps.map(function (m) { return V.tmemHtml(m, { two: two, sm: cols === 3 }); }).join('') + '</div>' +
           (n === 1 ? '<div class="v2-tnote">' + e(F.友だちと) + '</div>' : '') +
         '</div></div>' +
       V.tbandHtml([
-        { lab: 'Room', en: true, num: n, small: '/' + (view.max || '') + UiText.V2.人 },
+        { lab: UiText.V2.人数, num: n, small: '/' + (view.max || '') + UiText.V2.人 },
         { lab: F.コード, val: view.code, valEn: true },
         { lab: F.次は, val: n < 2 ? F.そろったら : F.投票, grow: true }
       ], view.end ? cdHtml(view, true) : ''));
@@ -596,7 +596,7 @@
     var P = U().投票, V = K(), f = view.fes || {};
     var list = (f.candidates || []).map(view.info).filter(Boolean);
     return tvc(view,
-      '<div class="v2-tin">' + V.hdHtml('Vote!', P.見出し, true) +
+      '<div class="v2-tin">' + V.hdHtml('', P.見出し, true) +
         '<div class="v2-tvVote"><div class="v2-vrows">' + list.map(function (g) {
           return '<div class="v2-tvrow">' + V.tile(g.world, '', g.emb) + '<span class="v2-vt"><span class="v2-vn">' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span></span>' +
             '<span class="v2-vmeta">' + (g.kind ? '<span>' + e(g.kind) + '</span>' : '') + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></div>';
@@ -645,7 +645,7 @@
     return tvc(view,
       '<div class="v2-tdec2' + (tl.single ? ' is-single' : '') + '" style="--sx:' + sx.toFixed(1) + 'vw">' +
         '<i class="v2-ddim"></i>' +
-        '<div class="v2-tdec2-hd v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall : tl.stop) + '">' + V.hdHtml('Next Game', D.見出し, true) + '</div>' +
+        '<div class="v2-tdec2-hd v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall : tl.stop) + '">' + V.hdHtml('', D.見出し, true) + '</div>' +
         cards +
         '<div class="v2-dwin v2-w-' + e(g.world) + '" style="animation-delay:' + ss(tl.single ? tl.fall + 0.15 : tl.stop + 0.15) + '">' +
           V.tile(g.world, 'v2-dwin-tile', g.emb) +
@@ -679,7 +679,7 @@
         }).join('') + '</div></div>' +
       '<div class="v2-qrside">' + qrHtml(view, 'is-sm', R.つぎの回に) + '</div></div>' +
       V.tbandHtml([
-        { lab: 'Ready', en: true, num: ok.length, small: '/' + n + UiText.V2.人 },
+        { lab: UiText.V2.準備OK, num: ok.length, small: '/' + n + UiText.V2.人 },
         { lab: そろった ? R.そろった : R.準備中, val: 待ち, grow: true }
       ], cdHtml(view, true)));
   }
@@ -743,9 +743,9 @@
   function staff(o) {
     var S = U().係, V = K();
     // 2026-10-29：つなぎ直したら部屋が無かった（サーバーが作り直された）。大きく出して、作るボタンを置く
-    if (o.lost) return V.bgHtml() + '<div class="v2-in">' + V.hdHtml(S.英, S.見出し) + '<p class="v2-fes-lost" role="alert">' + e(S.消えた) + '</p>' +
+    if (o.lost) return V.bgHtml() + '<div class="v2-in">' + V.hdHtml('', S.見出し) + '<p class="v2-fes-lost" role="alert">' + e(S.消えた) + '</p>' +
       '<button type="button" class="v2-btn is-pri" data-fes-act="create">' + e(S.作る) + '</button></div>';
-    if (o.err) return V.bgHtml() + '<div class="v2-in">' + V.hdHtml(S.英, S.見出し) + '<p class="v2-note">' + e(o.err) + '</p>' +
+    if (o.err) return V.bgHtml() + '<div class="v2-in">' + V.hdHtml('', S.見出し) + '<p class="v2-note">' + e(o.err) + '</p>' +
       (o.canCreate ? '<button type="button" class="v2-btn is-pri" data-fes-act="create">' + e(S.作る) + '</button>' : '') + '</div>';
     var st = o.staff || {}, f = st.fes || {};
     var mem = st.members || [];
@@ -754,7 +754,7 @@
     var いま = f.paused ? S.止まっている : (S.段階[f.phase] || '');
     var fb = o.fb || [];
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
-      '<div class="v2-in is-scroll v2-adm">' + V.hdHtml(S.英, S.見出し) +
+      '<div class="v2-in is-scroll v2-adm">' + V.hdHtml('', S.見出し) +
         '<div class="v2-adm-st">' +
           '<div class="v2-adm-s"><span class="v2-lbl">' + e(S.いま) + '</span><b>' + e(いま) + '</b>' + (o.end && !f.paused ? '<span class="v2-adm-cd">' + V.cd({ end: o.end, label: S.のこり }) + '</span>' : '') + '</div>' +
           '<div class="v2-adm-s"><span class="v2-lbl">' + e(S.部屋) + '</span><b>' + e(live + '/' + (f.max || 16) + UiText.V2.人) + ' · <span class="v2-en">' + e(st.code || '') + '</span></b></div>' +
@@ -846,7 +846,7 @@
     var J = U().入る, V = K(), re = !!(o && o.recreating);
     var b = re ? J.作り直し中 : J.まもなく, sp = re ? J.できたら : J.待ってね;
     if (o && o.tv) return tvc({ fes: { inset: (o.inset || 0) } }, '<div class="v2-fes-wait is-tv" role="status"><b>' + e(b) + '</b><span>' + e(sp) + '</span></div>', { names: [] });
-    return V.bgHtml() + V.brandHtml() + '<div class="v2-in">' + V.hdHtml(re ? J.作り直し英 : 'Soon', re ? J.作り直し見出し : J.まもなく見出し) +
+    return V.bgHtml() + V.brandHtml() + '<div class="v2-in">' + V.hdHtml('', re ? J.作り直し見出し : J.まもなく見出し) +
       '<div class="v2-fes-wait" role="status"><b>' + e(b) + '</b><span>' + e(sp) + '</span></div></div>';
   }
 

@@ -73,7 +73,7 @@
     var h = V.bgHtml() + V.brandHtml() + backHtml('join-back') + '<div class="v2-in is-noband">';
     if (o.step === 'name') {
       var len = Array.from(String(o.name || '')).length;
-      h += hd(J.名前英, J.名前見出し, true) +
+      h += hd('', J.名前見出し, true) +
         '<label class="v2-field v2-a-rise"><span class="v2-field-l">' + e(J.名前の札) + '</span>' +
           '<span class="v2-inp' + (o.err ? ' is-bad' : '') + '"><input type="text" class="v2-inp-in" data-home-name maxlength="16" autocomplete="nickname" enterkeyhint="go" value="' + e(o.name || '') + '">' +
           '<span class="v2-inp-cnt' + (len > 8 ? ' is-over' : '') + '" data-home-cnt>' + len + '/8</span></span>' +
@@ -86,7 +86,7 @@
       var code = String(o.code || '').toUpperCase().slice(0, 6), n = code.length;
       var boxes = '';
       for (var i = 0; i < 6; i++) boxes += '<b class="' + (i === n ? 'is-cur' : '') + '">' + e(code.charAt(i)) + '</b>';
-      h += hd(J.英, o.tv ? J.TV見出し : J.見出し, true) +
+      h += hd('', o.tv ? J.TV見出し : J.見出し, true) +
         '<label class="v2-field v2-a-rise"><span class="v2-field-l">' + e(J.コード) + '</span>' +
           '<span class="v2-code6' + (o.err ? ' is-bad' : '') + '"><input type="text" class="v2-code6-in" data-home-code maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" value="' + e(code) + '" aria-label="' + e(J.コード) + '">' + boxes + '</span>' +
           (o.err ? '<span class="v2-why" role="alert">' + e(o.err) + '</span>' : '<span class="v2-hint">' + e(o.tv ? J.TVのヒント : J.コードのヒント) + '</span>') +
@@ -122,7 +122,7 @@
     var body;
     var band;
     if (v.host) {
-      body = hd(R.英, R.見出し) +
+      body = hd('', R.見出し) +
         '<button type="button" class="v2-card v2-ecode v2-a-rise" data-v2-open="#v2RoomQr"><span class="v2-lbl">' + e(R.コード) + '</span><b class="v2-en">' + e(v.code) + '</b>' + V.icon('qr', 'v2-ecode-qr') + '</button>' +
         '<button type="button" class="v2-btn is-lite v2-a-rise" data-v2-open="#v2RoomTv">' + V.icon('tv') + '<span>' + e(R.TVに映す) + '</span></button>' +
         '<div class="v2-mems-box"><div class="v2-mems-l"><span class="v2-lbl">' + e(R.入った人 + ' ' + n + 人()) + '</span>' +
@@ -131,7 +131,8 @@
           '<div class="v2-mems' + (n >= 9 ? ' is-many' : '') + '" data-v2-clip="#v2Roster" data-v2-clip-t="' + e(R.ほか) + '">' + ps.map(memHtml).join('') + '</div>' +
           (n < 2 ? '<p class="v2-hint">' + e(R.まだ1人) + '</p>' : '') + (v.pair || '') + '</div>';
     } else {
-      body = hd(R.英 + ' ' + v.code, R.入りました) +
+      // 指示76 3-2：部屋のコードは英語の小見出し（Room ABC123）の中にあった。日本語の1行で残す
+      body = hd('', R.入りました) + '<p class="v2-note v2-ecode-g">' + e(R.コード) + ' <b class="v2-en">' + e(v.code) + '</b></p>' +
         // 指示71-7（68-0b C4）：二つ名が無い時は出さない（「二つ名なし」と書いていた）
         V.meHtml({ icon: v.me.icon, name: v.me.name, title: v.me.title || '' }) +
         '<button type="button" class="v2-btn is-lite v2-a-rise"' + (v.look ? ' data-v2-open="#v2Look"' : ' data-v2-act="look"') + '>' + V.icon('smile') + '<span>' + e(R.着替える) + '</span>' + (v.lookNew ? '<span class="v2-new">NEW</span>' : '') + '</button>' +
@@ -174,7 +175,7 @@
       V.sheetHtml({ id: 'v2Roster', title: R.いる人 + ' ' + n + 人(), body: '<div class="v2-roster">' + ps.map(function (m) { return V.rowHtml(m, tag(m), m.id === v.meId); }).join('') + '</div>' }) +
       (v.lookSheets || '') +
       V.sheetHtml({ id: 'v2Album', title: v.albumTitle || '', body: '<div data-home-album></div>' }) +
-      V.sheetHtml({ id: 'v2RoomMenu', title: R.英 + ' ' + v.code, body: '<div class="v2-catbtns">' + (v.menu || []).map(function (it) {
+      V.sheetHtml({ id: 'v2RoomMenu', title: R.コード + ' ' + v.code, body: '<div class="v2-catbtns">' + (v.menu || []).map(function (it) {
         return '<button type="button" class="v2-btn is-sec' + (it.danger ? ' v2-danger' : '') + '" data-home-act="' + e(it.act) + '">' + V.icon(it.icon) + '<span>' + e(it.label) + '</span></button>';
       }).join('') + '</div>' }) +
       V.scrimHtml(true) + (v.dlg || '');
@@ -190,7 +191,7 @@
       '<div class="v2-safe">' +
         '<div class="v2-tva' + (cols === 3 ? ' is-many' : '') + (rows > 5 ? ' is-low' : '') + '">' +
           '<div class="v2-tqr">' + (v.qr || '') + '<div class="v2-tqr-cap" data-v2-wrap>' + V.phrase(T.QR) + '</div></div>' +
-          '<div class="v2-tva-r">' + V.hdHtml('Room', T.見出し, true) +
+          '<div class="v2-tva-r">' + V.hdHtml('', T.見出し, true) +
             '<span class="v2-tnote">' + e(T.入った人 + ' ' + n + 人()) + '</span>' +
             '<div class="v2-tgrid ' + (cols === 3 ? 'is-c3' : 'is-c2') + '">' +
               ps.map(function (m) {
@@ -200,7 +201,7 @@
             (n < 2 ? '<div class="v2-tnote">' + e(T.ひとり) + '</div>' : '') +
           '</div></div>' +
         V.tbandHtml([
-          { lab: 'Room', en: true, num: n, small: '/' + (v.max || 16) + 人() },
+          { lab: UiText.V2.人数, num: n, small: '/' + (v.max || 16) + 人() },
           { lab: T.コード, val: v.code, valEn: true },
           { lab: T.進行役, val: v.hostName || '', grow: true }
         ]) +
@@ -268,12 +269,12 @@
     var faces = (p.faces || []).slice(0, 3).map(function (f) { return V.avHtml(f, 'is-sm'); }).join('') +
       ((p.faces || []).length > 3 ? '<span class="v2-faces-more">+' + ((p.faces || []).length - 3) + '</span>' : '');
     return V.bgHtml() + V.brandHtml() + backHtml('pick-exit') +
-      '<div class="v2-in">' + hd(P.英, P.見出し, true, true) +
+      '<div class="v2-in">' + hd('', P.見出し, true, true) +
         '<div class="v2-pills">' + ctx + '</div>' +
         '<div class="v2-chips" data-home-chips>' + chips + '</div>' +
         '<div class="v2-slist" data-home-list>' + list + '</div>' +
       '</div>' +
-      V.bandHtml({ lab: p.ctx === 'room' ? U().部屋.待合 : P.英, msg: p.ctx === 'room' ? p.wait + P.待っています : P.ひとりで, end: faces ? '<span class="v2-faces">' + faces + '</span>' : '' }) +
+      V.bandHtml({ lab: p.ctx === 'room' ? U().部屋.待合 : P.帯, msg: p.ctx === 'room' ? p.wait + P.待っています : P.ひとりで, end: faces ? '<span class="v2-faces">' + faces + '</span>' : '' }) +
       '<div class="v2-ov v2-w-' + e(c.world || 'wait') + (p.open ? ' is-open' : '') + '" data-home-ov aria-hidden="' + (p.open ? 'false' : 'true') + '">' +
         '<div class="v2-pager" data-home-pager><div class="v2-track" data-home-track style="transform:translateX(' + (-100 * cur) + '%)">' +
           cards.map(function (x, k) { return pageHtml(x, k === cur); }).join('') + '</div></div>' +
@@ -323,7 +324,6 @@
   function decided(o) {
     var D = U().決めた, V = K();
     var inner = V.bgHtml() +
-      '<div class="v2-sdec-en v2-en v2-a-fade">' + e(D.英) + '</div>' +
       V.tile(o.world, 'v2-a-slam') +
       '<div class="v2-sdec-dn v2-cut v2-a-rise" data-v2-fit>' + e(o.name) + '</div>' +
       '<div class="v2-sdec-ln v2-a-draw"></div>' +
@@ -350,7 +350,7 @@
       }).join('') + (small.length > 1 ? '</div>' : '') : '') +
       (o.room ? '<button type="button" class="v2-btn is-lite v2-a-rise" data-home-act="next-close">' + V.icon('door') + '<span>' + e(N.とじる) + '</span></button>' : '');
     return V.bgHtml() + V.brandHtml() + V.cornerHtml({}) +
-      '<div class="v2-in">' + V.hdHtml(N.英, N.見出し) +
+      '<div class="v2-in">' + V.hdHtml('', N.見出し) +
         (o.game ? '<div class="v2-card is-flat v2-epick v2-a-rise"><span class="v2-lbl">' + e(N.さっき) + '</span><div class="v2-row">' + V.tile(o.game.world, 'is-sm') +
           '<b class="v2-epick-nm v2-cut">' + e(o.game.name) + '</b>' + (o.game.meta ? '<span class="v2-pill">' + e(o.game.meta) + '</span>' : '') + '</div></div>' : '') +
         '<div class="v2-spacer"></div>' +

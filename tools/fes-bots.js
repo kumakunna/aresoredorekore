@@ -171,35 +171,37 @@ function プレイヤー(i, code) {
     }
     if (f.phase === 'result' && once('cont:' + f.round)) setTimeout(() => call('fes:continue', {}), rnd(1500, 6000));
     if (f.phase !== 'play' || !st.game) return;
+    // 遊ぶ段の「1回だけ」は文化祭の回ごとに分ける（同じゲームが2回目に来ると、問題の番号が1からもどるので、前の回の鍵で黙っていた・11/9）
+    const onceG = (k) => once('回' + f.round + ':' + k);
     const v = st.data || {};
     const g = st.game;
     const s = {
-      from, game: g, room, view: v, mine: bot.mine, me: bot.memberId, once,
+      from, game: g, room, view: v, mine: bot.mine, me: bot.memberId, once: onceG,
       act: (payload, cb) => call('wolf:act', payload, cb), vote: (payload, cb) => call('wolf:vote', payload, cb),
       emit: (ev, payload, cb) => call(ev, payload, cb), later: (ms, fn) => setTimeout(fn, ms), log: (m) => log(name, m)
     };
     if (g === 'bomb' || g === 'rcard') { const play = 台本(g); if (play) try { play(bot, s); } catch (e) { log(name, '台本で失敗', e.message); } return; }
     if (g === 'shinka') {
       if (v.phase !== 'throw') return;
-      if (once('sh:' + v.round + ':' + (v.matches || []).filter((m) => !m.done).length)) setTimeout(() => call('wolf:act', { hand: pick(['g', 'c', 'p']) }), rnd(500, 3000));
+      if (onceG('sh:' + v.round + ':' + (v.matches || []).filter((m) => !m.done).length)) setTimeout(() => call('wolf:act', { hand: pick(['g', 'c', 'p']) }), rnd(500, 3000));
       return;
     }
-    if ((g === 'onaji' || g === 'qhaya') && v.phase === 'choose' && v.topic && once(g + ':' + v.round)) {
+    if ((g === 'onaji' || g === 'qhaya') && v.phase === 'choose' && v.topic && onceG(g + ':' + v.round)) {
       const k = Math.floor(Math.random() * v.topic.choices.length), wait = rnd(1500, 6000);
       setTimeout(() => call('wolf:act', g === 'qhaya' ? { targetId: null, pick: k, ms: Math.round(wait) } : { targetId: null, pick: k }), wait);
       return;
     }
-    if (g === 'pittari' && v.phase === 'run' && once('pt:' + v.round)) {
+    if (g === 'pittari' && v.phase === 'run' && onceG('pt:' + v.round)) {
       const target = (v.target || 10) * 1000, ms = Math.round(target + rnd(-1500, 1500));
       setTimeout(() => call('wolf:act', { targetId: null, ms }), Math.max(0, ms));
       return;
     }
-    if (g === 'soroe' && v.phase === 'launch' && v.zeroAt && once('so:' + v.round)) {
+    if (g === 'soroe' && v.phase === 'launch' && v.zeroAt && onceG('so:' + v.round)) {
       const at = v.zeroAt + rnd(-400, 400);
       setTimeout(() => call('wolf:act', { targetId: null, at: Math.round(serverNow()) }), Math.max(0, at - serverNow()));
       return;
     }
-    if (g === 'qnear' && v.phase === 'guess' && once('qn:' + v.round)) {
+    if (g === 'qnear' && v.phase === 'guess' && onceG('qn:' + v.round)) {
       setTimeout(() => call('wolf:act', { targetId: null, value: String(Math.floor(rnd(0, 9999))) }), rnd(2000, 8000));
     }
   }

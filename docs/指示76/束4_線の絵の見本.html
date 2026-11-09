@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>束4 線の絵の見本</title>
+<style>
+  /* 指示76 束4：描く前の見本（3つ）。いまの線の絵（tools/v2-art-src.js の S＝線 2.4・角は丸・1色）と同じ描き方。
+     左＝いまの絵文字、右＝線の絵。上の段は TV の準備（.v2-trule-ri 48px）、下の段はスマホの準備（.v2-rule-ri 42px）の大きさ */
+  :root{--ink:#3A0F22;--card:#FFF3F7;--bg:#F7A9C0;}
+  body{margin:0;padding:24px;background:var(--bg);font-family:"M PLUS 1","Hiragino Sans",sans-serif;color:var(--ink);}
+  h1{font-size:22px;margin:0 0 6px;} p{margin:0 0 18px;font-size:14px;font-weight:700;}
+  .row{display:flex;gap:18px;align-items:stretch;margin-bottom:18px;flex-wrap:wrap;}
+  .cell{background:var(--card);border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:220px;}
+  .cap{font-size:13px;font-weight:800;opacity:.8;}
+  .pair{display:flex;gap:14px;align-items:center;}
+  .ri{display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(255,255,255,.9);flex:none;}
+  .tv .ri{width:48px;height:48px;font-size:32px;}
+  .ph .ri{width:42px;height:42px;border-radius:12px;font-size:26px;}
+  .ri svg{width:68%;height:68%;display:block;}
+  .t{font-weight:900;font-size:18px;}
+  .old{font-size:12px;opacity:.7}
+</style></head><body>
+<h1>束4：ルールの札の絵文字 → 線の絵（見本3つ）</h1>
+<p>左が今の絵文字、右が線の絵。線は 2.4・角は丸・1色（今の ⚙・人・時計と同じ描き方）。くらべるために、今ある線の絵（人・時計・王冠）も並べています。</p>
+
+<div class="row tv" id="tv"></div>
+<div class="row ph" id="ph"></div>
+
+<script>
+var S = 'fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"';
+// ---- 見本3つ（新しく描いた）----
+var NEW = {
+  // 🐺 → 狼の顔（とがった耳・ほおの張り・細い鼻すじ。ねこに見えないよう、あごを下へ長く）
+  wolf: '<path ' + S + ' d="M5 3l3.5 5h7L19 3l1 8.5-4 3.5-1.5 5h-5L8 15l-4-3.5z"/>' +
+        '<circle fill="currentColor" cx="9.6" cy="11.4" r="1.2"/><circle fill="currentColor" cx="14.4" cy="11.4" r="1.2"/>' +
+        '<path fill="currentColor" d="M10.8 16.4h2.4L12 18z"/>',
+  // 💣 → 丸い爆弾・口金・導火線・火花（線が丸から1本だけ出ると「♂」に見えたので、口金と火花を足す）
+  bomb: '<circle ' + S + ' cx="10.5" cy="14" r="6.8"/><path ' + S + ' d="M13.6 8.5l1.8-1.8 2.4 2.4-1.8 1.8"/>' +
+        '<path ' + S + ' d="M16.6 7.9c.4-1.7 1.4-2.8 3-3.2"/><path ' + S + ' d="M21.5 2.2l-.6 1.4M22.4 5.4l-1.4.1"/>' +
+        '<path ' + S + ' d="M6.6 13.2a4 4 0 0 1 2.6-2.8"/>',
+  // 🎯 → まと（二重の丸と中心の点）
+  target: '<circle ' + S + ' cx="12" cy="12" r="8.5"/><circle ' + S + ' cx="12" cy="12" r="4.3"/><circle fill="currentColor" cx="12" cy="12" r="1.5"/>'
+};
+// ---- 今ある線の絵（くらべる用・tools/v2-art-src.js から写した） ----
+var OLD = {
+  person: '<circle ' + S + ' cx="12" cy="8" r="4"/><path ' + S + ' d="M4.5 20c1.3-4 4.3-6 7.5-6s6.2 2 7.5 6"/>',
+  timer: '<circle ' + S + ' cx="12" cy="13.5" r="7.5"/><path ' + S + ' d="M12 13.5V9.5M9.5 2.5h5M18.5 6.5l1.5-1.5"/>',
+  crown: '<path ' + S + ' d="M3.5 18l-1-10 5.5 4.5L12 5l4 7.5L21.5 8l-1 10z"/>'
+};
+function svg(d){ return '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>'; }
+var items = [
+  ['🐺', 'wolf', 'みんなと違うお題の人がまざる', NEW],
+  ['💣', 'bomb', 'あいての9まいに、爆弾をしかける', NEW],
+  ['🎯', 'target', 'いちばん近い人の勝ち', NEW],
+  ['（今ある）', 'person', '人', OLD], ['（今ある）', 'timer', '時計', OLD], ['（今ある）', 'crown', '王冠', OLD]
+];
+['tv', 'ph'].forEach(function (id) {
+  document.getElementById(id).innerHTML = items.map(function (it) {
+    return '<div class="cell"><div class="cap">' + (id === 'tv' ? 'TV 48px' : 'スマホ 42px') + '・' + it[1] + '</div><div class="pair">' +
+      (it[3] === NEW ? '<div class="ri">' + it[0] + '</div>' : '') + '<div class="ri">' + svg(it[3][it[1]]) + '</div><span class="t">' + it[2] + '</span></div></div>';
+  }).join('');
+});
+</script>
+</body></html>

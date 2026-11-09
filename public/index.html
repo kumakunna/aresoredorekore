@@ -1894,6 +1894,9 @@
   .big-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
     padding:12px 8px;background:var(--card);border:1px solid var(--line);border-radius:12px;text-align:center;}
   .big-card .bcd-icon{font-size:30px;line-height:1;}
+  /* 指示76 束4：古い TV のルールの札でも線の絵（V2.ruleIc）を字の大きさで。v2 の節の外に置く（v2 の規則は .v2 の箱の中だけ） */
+  .big-card .bcd-icon .v2-ric{display:inline-flex;width:1em;height:1em;}
+  .big-card .bcd-icon .v2-ric svg{width:100%;height:100%;}
   .big-card .bcd-text{font-size:var(--fs-body);font-weight:700;line-height:1.4;}
 
   /* ---- 第32弾-A：カセットの詳しい説明 ---- */
@@ -6223,8 +6226,6 @@
   /* 指示76 束4：ルールの札の線の絵（V2.ruleIc）。札の中の絵の大きさ（TV 48px・スマホ 42px の札の 68%） */
   .v2 .v2-ric{width:68%;height:68%;display:flex;}
   .v2 .v2-ric svg{width:100%;height:100%;display:block;}
-  .big-card .bcd-icon .v2-ric{display:inline-flex;width:1em;height:1em;}
-  .big-card .bcd-icon .v2-ric svg{width:100%;height:100%;}
   .v2 .v2-tmem.is-wait{opacity:.6;}
   /* 指示71-5（68-0b C11）：TV の準備OK の人に緑の縁（見本） */
   .v2 .v2-tgrid:not(.v2-ogrid) .v2-tmem.is-ok{border-color:var(--v2-ok);}   /* みんなと同じの段（.v2-ogrid）は自分の色のまま */

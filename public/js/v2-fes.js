@@ -671,7 +671,7 @@
       '<div class="v2-tvB"><div class="v2-tvB-l">' +
         '<div class="v2-thd"><div class="v2-thd-ttl v2-tg">' + V.tile(g.world, 'v2-tg-tile', g.emb) + gnameHtml(g, 'v2-tg-n') + '</div><div class="v2-arrow"></div></div>' +
         '<div class="v2-trules">' + (g.rules || []).slice(0, 3).map(function (r) {
-          return '<div class="v2-trule"><span class="v2-trule-ri">' + e(r[0]) + '</span><span class="v2-trule-t" data-v2-wrap>' + V.phrase(r[1]) + '</span></div>';
+          return '<div class="v2-trule"><span class="v2-trule-ri">' + V.ruleIc(r[0]) + '</span><span class="v2-trule-t" data-v2-wrap>' + V.phrase(r[1]) + '</span></div>';
         }).join('') + '</div>' +
         '<div class="v2-tgrid ' + (n >= 10 ? 'is-c4' : 'is-c3') + '">' + ps.map(function (m) {
           return '<div class="v2-tmem is-sm ' + (m.ready ? 'is-ok' : 'is-wait') + '">' + V.avHtml(m.icon) + '<div class="v2-tmem-who"><div class="v2-tmem-nm v2-cut" data-v2-fit="42">' + e(m.name) + '</div></div>' +

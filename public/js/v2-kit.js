@@ -500,10 +500,18 @@
       (o.text ? '<div class="v2-dlg-txt">' + esc(o.text) + '</div>' : '') +
       (o.btns || []).map(function (b) { return '<button type="button" class="v2-btn ' + (b.pri ? 'is-pri' : 'is-sec') + '"' + (b.act ? ' data-v2-act="' + esc(b.act) + '"' : ' data-v2-close') + '>' + esc(b.label) + '</button>'; }).join('') + '</div>';
   }
-  /** ルールの札（いつも3つ）。rules：[[絵文字, 文], …]（MODES[].tv をそのまま渡す） */
+  /**
+   * 指示76 束4（くまくんの答え 6.B）：ルールの札の絵。「ic:名前」なら線の絵（v2-art の ICONS）、そうでなければ絵文字のまま。
+   * いまは文化祭の6本だけが線の絵（MODES[].tv の1つめ）。ほかのゲームは1枚の中でまざらないよう、絵文字のまま
+   */
+  function ruleIc(x) {
+    var m = /^ic:([a-z]+)$/.exec(String(x == null ? '' : x));
+    return m ? icon(m[1], 'v2-ric') : esc(x);
+  }
+  /** ルールの札（いつも3つ）。rules：[[絵, 文], …]（MODES[].tv をそのまま渡す） */
   function rulesHtml(rules) {
     return '<div class="v2-rules">' + (rules || []).slice(0, 3).map(function (r, i) {
-      return '<div class="v2-rule"><span class="v2-rule-k"><span>' + (i + 1) + '</span></span><span class="v2-rule-ri">' + esc(r[0]) + '</span><span class="v2-rule-t" data-v2-wrap>' + phrase(r[1]) + '</span></div>';
+      return '<div class="v2-rule"><span class="v2-rule-k"><span>' + (i + 1) + '</span></span><span class="v2-rule-ri">' + ruleIc(r[0]) + '</span><span class="v2-rule-t" data-v2-wrap>' + phrase(r[1]) + '</span></div>';
     }).join('') + '</div>';
   }
   /** ルールのシートの中身：番号つきで大きく3つ */
@@ -613,7 +621,7 @@
     digits: digits, phrase: phrase, fit: fit, wrapHtml: wrapHtml, fixWraps: fixWraps, rowsOf: rowsOf, relayout: relayout,
     now: now, setClockOffset: setClockOffset, freeze: freeze, cd: cd, mount: mount, tick: tick,
     open: open, close: close, closeTop: closeTop, topLayer: topLayer, show: show,
-    nameWallHtml: nameWallHtml, tvLabel: tvLabel, glow: glow, fitTv: fitTv,
+    nameWallHtml: nameWallHtml, tvLabel: tvLabel, ruleIc: ruleIc, glow: glow, fitTv: fitTv,
     bgHtml: bgHtml, brandHtml: brandHtml, hdHtml: hdHtml, cornerHtml: cornerHtml, avHtml: avHtml, meHtml: meHtml,
     bandHtml: bandHtml, toastHtml: toastHtml, scrimHtml: scrimHtml, sheetHtml: sheetHtml, xHtml: xHtml, dlgHtml: dlgHtml,
     rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rulesBodyHtml: rulesBodyHtml, hasTv: hasTv, tvAt: tvAt, rankRevealHtml: rankRevealHtml, RANK_TL: RANK_TL, rheadHtml: rheadHtml, rowHtml: rowHtml,

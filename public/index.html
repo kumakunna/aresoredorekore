@@ -6212,6 +6212,11 @@
   .v2 .v2-trule{display:flex;align-items:center;gap:14px;background:var(--wc);border-radius:24px;padding:16px 18px;font-weight:900;font-size:42px;line-height:1.3;}
   .v2 .v2-trule-ri{width:72px;height:72px;border-radius:20px;background:var(--wc2);display:flex;align-items:center;justify-content:center;flex:none;font-size:44px;line-height:1;}
   .v2 .v2-trule-t{min-width:0;}
+  /* 指示76 束4：ルールの札の線の絵（V2.ruleIc）。札の中の絵の大きさ（TV 48px・スマホ 42px の札の 68%） */
+  .v2 .v2-ric{width:68%;height:68%;display:flex;}
+  .v2 .v2-ric svg{width:100%;height:100%;display:block;}
+  .big-card .bcd-icon .v2-ric{display:inline-flex;width:1em;height:1em;}
+  .big-card .bcd-icon .v2-ric svg{width:100%;height:100%;}
   .v2 .v2-tmem.is-wait{opacity:.6;}
   /* 指示71-5（68-0b C11）：TV の準備OK の人に緑の縁（見本） */
   .v2 .v2-tgrid:not(.v2-ogrid) .v2-tmem.is-ok{border-color:var(--v2-ok);}   /* みんなと同じの段（.v2-ogrid）は自分の色のまま */
@@ -8791,7 +8796,7 @@
         <!-- 第32弾-E 第6部：アルバム。写真は端末で縮めてから箱（サーバー）へ、
              ホストに渡し終えたら消す。（指示63：遊ぶ人に関係の薄い説明は、待合のいちばん下へ） -->
         <div class="card" id="rtAlbumBox" style="margin-top:14px;">
-          <div class="sec-title">📸 きょうのアルバム</div>
+          <div class="sec-title">きょうのアルバム</div>
           <div class="mic-status" id="albumStatusLine" style="margin-bottom:10px;"></div>
           <input type="file" id="albumFile" accept="image/*" capture="environment" style="display:none;">
           <button class="btn btn-outline" id="albumAddBtn">📷 写真をとって、箱に入れる</button>
@@ -10603,7 +10608,7 @@
       // どちらも実装が正しいので、言葉の側を実装に合わせた。
       // ここの各行が本当かは tests/fixes45.js が1行ずつ照合する
       // 指示71-5（68-0b C11）：TV で2行までの短い文（見本）。「切れば」だけの行ができていた
-      tv:[["🔌","コードをえらんで3択"], ["❤️","まちがえるとライフ-1"], ["🏆","全部切れば解除成功"]],
+      tv:[["ic:plug","コードをえらんで3択"], ["ic:heart","まちがえるとライフ-1"], ["ic:trophy","全部切れば解除成功"]],
       bullets:["チームで協力して爆弾を解除する","コードをタップすると、問題と3つの答えが出る","3択で答え、正解でコードが切れる","外れるとライフが1つ減る（同じコードは何度でも再挑戦できる）","ライフが0で爆発・全解除で勝利","部屋を立てて遊ぶと、全員が同じ盤面を自分のスマホで見られる"]},
     // 競争版：1人1台・部屋が必須。観戦者は出ない（全員が同じコードに同時に挑む）
     {id:"bomb-race", icon:"🏁", title:"クイズ解除（競争版）", sub:"同じコードに全員で同時挑戦・順位がつく", advanced:false, strict:false, oneWord:false, bomb:true, bombRace:true, coopLayout:false, roomOnly:true, game:'bomb', minPlayers:2,
@@ -10672,7 +10677,7 @@
     // ルールの札3枚は指示書のまま。3つのモードは、送る onajiMode だけが違う（進行役は1つ・onaji-room.js）。
     // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js の抽出がこの順）
     {id:"onaji-many", icon:"🤝", title:"みんなと同じ（多い方）", sub:"お題に答えて、いちばん多い答えをねらう", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'many', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
-      tv:[["👥","お題に、3つか4つの中から答える"], ["👑","いちばん多い答えの人に1点"], ["🔄","5問で1回。1問は約20秒"]],
+      tv:[["ic:people","お題に、3つか4つの中から答える"], ["ic:crown","いちばん多い答えの人に1点"], ["ic:refresh","5問で1回。1問は約20秒"]],
       bullets:["1人1台・部屋が必要です（3〜16人）","お題が出たら、10秒で3つか4つの中から答えをえらぶ","えらんだら変えられない。だれが何をえらんだかは、開くまでだれにも見えない","「せーの！」で開く。いちばん多い答えをえらんだ人に1点","並んだら、並んだ答えの人みんなに1点","全員ちがう答えなら「ばらばら！」で、この問題はだれも点なし","5問で1回。点がいちばん多い人の勝ち"]},
     {id:"onaji-few", icon:"🤝", title:"みんなと同じ（少ない方）", sub:"お題に答えて、いちばん少ない答えをねらう", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'few', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
       tv:[["👥","お題に、3つか4つの中から答える"], ["💎","いちばん少ない答えの人に1点"], ["🔄","5問で1回。1問は約20秒"]],
@@ -10680,18 +10685,18 @@
     // 指示68-5：クイズ王2.0。文化祭のクイズ王はこの2つだけ（今の4つはカセットから外した・コードは残す）。部屋（2〜16人）専用
     // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js の抽出がこの順）
     {id:"qhaya", icon:"⚡", title:"みんなで早答え", sub:"全員が同じ問題に同時に答える。早く正しいほど高い点", advanced:false, strict:false, oneWord:false, qhaya:true, roomOnly:true, game:'qhaya', minPlayers:2, maxPlayers:16,
-      tv:[["⚡","全員が同じ問題に、同時に答える"], ["⏱","早く正しく答えるほど、点が高い"], ["👑","10問で1回。最後の問題は点が2倍"]],
+      tv:[["ic:bolt","全員が同じ問題に、同時に答える"], ["ic:timer","早く正しく答えるほど、点が高い"], ["ic:crown","10問で1回。最後の問題は点が2倍"]],
       bullets:["1人1台・部屋が必要です（2〜16人）","問題はテレビとスマホに出る。答えはスマホの3つか4つのボタン","10秒で答える。押したら変えられない","正解で100点＋早さの点（0秒で100点・10秒で0点）。まちがいは0点（引かない）","1〜3問目はやさしい・4〜7問目はふつう・8〜10問目はむずかしい","3問ごとに順位が動く。最後の問題は点が2倍"]},
     {id:"qnear", icon:"🎯", title:"数字ちかい方", sub:"答えを数字で入れる。いちばん近い人の勝ち", advanced:false, strict:false, oneWord:false, qnear:true, roomOnly:true, game:'qnear', minPlayers:2, maxPlayers:16,
-      tv:[["📱","答えを数字で入れる"], ["🎯","いちばん近い人の勝ち"], ["👑","5問で1回"]],
+      tv:[["ic:phone","答えを数字で入れる"], ["ic:target","いちばん近い人の勝ち"], ["ic:crown","5問で1回"]],
       bullets:["1人1台・部屋が必要です（2〜16人）","問題はテレビに出る。スマホの数字のボタンで答えを入れる","15秒で入れる。「決定」を押したら変えられない","近い順に5・3・1点（差が同じなら同じ順位）。ぴったりは＋5点","だれも正確には知らないけれど、だいたいは考えられる問題（高さ・長さ・人口など）"]},
     // 指示68-4：ぴったり10秒（競争）・そろえて発射（協力）。どちらもボタン1つ・部屋（2〜16人）専用
     // **属性の並びは roomOnly → game → minPlayers**（tests/inventory.js の抽出がこの順）
     {id:"pittari", icon:"🏁", title:"ぴったり10秒", sub:"心の中で10秒数えて、ぴったりで止める", advanced:false, strict:false, oneWord:false, pittari:true, roomOnly:true, game:'pittari', minPlayers:2, maxPlayers:16,
-      tv:[["🏁","スタートから、心の中で10秒数える"], ["✋","10秒だと思ったら「ストップ」"], ["👑","いちばん近い人の勝ち。5回勝負"]],
+      tv:[["ic:flag","スタートから、心の中で10秒数える"], ["ic:hand","10秒だと思ったら「ストップ」"], ["ic:crown","いちばん近い人の勝ち。5回勝負"]],
       bullets:["1人1台・部屋が必要です（2〜16人）","「スタート！」で、全員のスマホの時計が動き始める","時計は3秒で見えなくなる。そこからは心の中で数える","目標の秒だと思ったら「ストップ」。タイムは、みんなで開くまでだれにも見えない","開くと、目標に近い順に5・4・3・2・1点（差が同じなら同じ順位）","5回の目標は 10秒 → 5秒 → 15秒 → 10秒（時計が最初から見えない）→ 20秒（点が2倍）"]},
     {id:"soroe", icon:"🎆", title:"そろえて発射", sub:"全員で同じ瞬間に押して、ロケットを飛ばす協力ゲーム", advanced:false, strict:false, oneWord:false, soroe:true, roomOnly:true, game:'soroe', minPlayers:2, maxPlayers:16,
-      tv:[["🎆","全員で、同じ瞬間に「発射」を押す"], ["⭐","そろうほど、ロケットが高く飛ぶ"], ["🔥","5回たして、今日の記録をめざす"]],
+      tv:[["ic:sparkle","全員で、同じ瞬間に「発射」を押す"], ["ic:starline","そろうほど、ロケットが高く飛ぶ"], ["ic:flame","5回たして、今日の記録をめざす"]],
       bullets:["1人1台・部屋が必要です（2〜16人）","合図にあわせて、全員で同じ瞬間に「発射」を押す","いちばん早い人と、いちばん遅い人の差が小さいほど高く飛ぶ（宇宙・月・雲の上・ビルの上）。人数が多いほど、少しゆるくなる","合図は回ごとに変わる：カウントの0で押す／カウントが途中で消える／みんなで声を合わせて「せーの」","押した人が半分より少ない回は、ロケットが飛ばない","だれがずれたかは出さない。みんなの記録だけ"]},
     {id:"onaji-team", icon:"🤝", title:"みんなと同じ（一致団結）", sub:"みんなで同じ答えにそろえる協力モード", advanced:false, strict:false, oneWord:false, onaji:true, onajiMode:'team', roomOnly:true, game:'onaji', minPlayers:3, maxPlayers:16,
       tv:[["👥","お題に、3つか4つの中から答える"], ["🤝","みんなで同じ答えにそろえる"], ["🔄","5問で1回。1問は約20秒"]],
@@ -23971,7 +23976,8 @@
   function bigRuleCardsHtml(m){
     var cards = (m && m.tv) || [];
     return cards.map(function(c){
-      return '<div class="big-card"><span class="bcd-icon">' + escapeHtml(c[0]) + '</span>' +
+      // 指示76 束4：文化祭の6本の札は線の絵（ic:名前）。ふだんの部屋の古い TV でも同じ部品で描く（印の字のまま出さない）
+      return '<div class="big-card"><span class="bcd-icon">' + V2.ruleIc(c[0]) + '</span>' +
         '<span class="bcd-text">' + escapeHtml(c[1]) + '</span></div>';
     }).join('');
   }

@@ -120,6 +120,40 @@ const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     assert(ph.textContent.indexOf(S.飛ばなかった || '押した人が少なくて') !== -1 || ph.textContent.indexOf(S.ひとりでは || 'ひとりでは') !== -1, 'スマホに説明：' + ph.textContent.slice(0, 80));
   });
 
+  // ===== 束4（くまくんの答え 6.B・11/9 の案B）：文化祭の6本のルールの札は線の絵。ほかのゲームは今のまま（1枚の中で絵文字と線の絵をまぜない） =====
+  const FES6 = ['bomb-coop', 'onaji-many', 'pittari', 'soroe', 'qhaya', 'qnear'];
+  // 遊び方の表（index.html の MODES）から、id と札（tv）を読む（tests/inventory.js と同じ読み方）
+  const MODESX = css.slice(css.indexOf('var MODES = ['), css.indexOf('function modeById')).split(/\n\s*\{id:"/).slice(1).map((blk) => {
+    const id = (blk.match(/^([a-z0-9-]+)"/) || [])[1];
+    const m = blk.match(/\btv:(\[\[[^\n]*\]\])/);
+    return { id, tv: m ? JSON.parse(m[1]) : null };
+  }).filter((x) => x.id);
+  const 絵文字 = /\p{Extended_Pictographic}/u;
+  await r.test('束4：文化祭の6本のルールの札に絵文字 0（準備のスマホ・TV・ゲームの紹介は同じ部品）。ほかのゲームの札は絵文字のまま', async () => {
+    FES6.forEach((id) => {
+      const m = MODESX.find((x) => x.id === id);
+      assert(m && m.tv.length === 3, id + '：札が3つ');
+      m.tv.forEach((c) => assert(/^ic:[a-z]+$/.test(c[0]), id + '：線の絵の印（' + c[0] + '）'));
+      const ph = 描く(W.V2.rulesHtml(m.tv));
+      assertEqual(ph.querySelectorAll('.v2-rule-ri svg').length, 3, id + '：スマホの札に線の絵が3つ');
+      assert(!絵文字.test(ph.textContent), id + '：スマホの札に絵文字が無い');
+    });
+    const other = MODESX.filter((x) => x.tv && FES6.indexOf(x.id) === -1);
+    other.forEach((m) => {
+      const n = m.tv.filter((c) => /^ic:/.test(c[0])).length;
+      assert(n === 0 || n === m.tv.length, m.id + '：1枚の中で絵文字と線の絵がまざらない');
+    });
+    assert(other.some((m) => m.tv.some((c) => 絵文字.test(c[0]))), 'ほかのゲームは絵文字のまま');
+    // TV の準備（v2-fes.js tvReady）も同じ部品で描く
+    const lab = FesScenes.view('fes2-tv-ready-pittari');
+    void lab;
+    assert(/V\.ruleIc\(r\[0\]\)/.test(fs.readFileSync(path.join(ROOT, 'public', 'js', 'v2-fes.js'), 'utf8')), 'TV の準備の札も V2.ruleIc');
+  });
+  await r.test('束4：「📸 きょうのアルバム」は絵文字を消す（絵が2つ並んでいた）', async () => {
+    assert(W.UiText && !/📸/.test(JSON.stringify(W.UiText)), '言葉の表に📸が無い');
+    assert(!/📸 きょうのアルバム/.test(css), 'ページの中にも無い');
+  });
+
   W.close();
   r.finish();
 })();

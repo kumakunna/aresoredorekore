@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tools/quiz-fit-shot.js — TV の早答え（1920×1080・答えている間）で、問題文と選択肢の折れ方を測る（指示77 束3・11/9 の答え 5）
 //
-//   node tools/quiz-fit-shot.js --all --out DIR              … 3択の問題を全部（数を出す・悪い物は写真）
+//   node tools/quiz-fit-shot.js --all --out DIR              … 3択・4択の問題を全部（数を出す・悪い物は写真）。--choices 4 で4択だけ
 //   node tools/quiz-fit-shot.js --q "問題文1|問題文2" --out DIR  … この問題だけ（全部写真）
 //   --size 1920x1080（スマホは 390x844：答える画面）  --shots 30（--all で撮る悪い物の数）
 //   --near：数字ちかい方（表から作った問題・選択肢なし）。--q が無ければ、読み（yomi）を添えた問題を全部（指示77 5-1）
@@ -33,7 +33,7 @@ const SHOTS = +arg('shots', 30);
 const all = []; Q.TIERS.forEach((t) => Q.questionsOf(t).forEach((q) => all.push(Object.assign({ tier: t }, q))));
 const 表の数 = require('../public/js/quiz-tables.js').number;
 const LIST = NEAR ? (arg('q', null) ? String(arg('q')).split('|').map((t) => 表の数.find((q) => q.q === t) || { missing: t }) : 表の数.filter((q) => /（[ぁ-ゖー]+）/.test(q.q)))
-  : ALL ? all.filter((q) => q.choices.length === 3) : String(arg('q', '')).split('|').map((s) => s.trim()).filter(Boolean).map((t) => all.find((q) => q.q === t) || { missing: t });
+  : ALL ? all.filter((q) => !arg('choices', null) || q.choices.length === +arg('choices')) : String(arg('q', '')).split('|').map((s) => s.trim()).filter(Boolean).map((t) => all.find((q) => q.q === t) || { missing: t });
 
 // ページの中：字ごとの行・文節の切れ目から、3つの決まりを見る
 const 測る = `function(data, tv){

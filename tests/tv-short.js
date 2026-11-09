@@ -201,6 +201,9 @@ const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     const page = require('../fes-routes.js').namesPage('回ごとの記録', '<table><tr><td>11/9 01:57</td><td>64REF4</td></tr></table>');
     assert(!/break-all/.test(page), 'break-all が無い');
     assert(/overflow-wrap:anywhere/.test(page), '入らない時だけ字の中で折る');
+    assert(/td\.t,td\.c\{white-space:nowrap\}/.test(page), '日付（td.t）と部屋コード（td.c）の列は折らない（列がせまいと日付が3行・コードが2行に折れた）');
+    const src = fs.readFileSync(path.join(ROOT, 'fes-routes.js'), 'utf8');
+    assert(!/<td>' \+ whenText\(/.test(src) && !/<td>' \+ esc\(r\.room\)/.test(src), '日付と部屋コードのセルに印が付いている');
   });
 
   W.close();

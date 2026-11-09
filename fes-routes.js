@@ -71,7 +71,7 @@ function mountFesRoutes(app, io) {
     const body = filterForm('/fes/names', f, [['blocked', 'はじいた名前（' + blockedN + '件）'], ['ok', '通った名前']], '名前・部屋で検索') +
       '<p class="n">' + rows.length + '件 / ' + all.length + '件・1か月より前のものは消えます</p>' +
       '<table><thead><tr><th>いつ</th><th>部屋</th><th>名前</th><th>はじいた</th></tr></thead><tbody>' +
-      rows.map((r) => '<tr' + (r.blocked ? ' class="b"' : '') + '><td>' + whenText(r.at) + '</td><td>' + esc(r.room) + '</td><td>' + esc(r.name) + '</td><td>' +
+      rows.map((r) => '<tr' + (r.blocked ? ' class="b"' : '') + '><td class="t">' + whenText(r.at) + '</td><td class="c">' + esc(r.room) + '</td><td>' + esc(r.name) + '</td><td>' +
         (r.blocked ? esc(REASON[r.reason] || r.reason || 'はじいた') : '') + '</td></tr>').join('') +
       '</tbody></table>';
     page(200, '名前の記録', body);
@@ -90,8 +90,8 @@ function mountFesRoutes(app, io) {
     const body = filterForm('/fes/presence', f, Object.keys(PRESENCE).map((k) => [k, PRESENCE[k]]), '名前で検索') +
       '<p class="n">' + rows.length + '件 / ' + all.length + '件・1か月より前のものは消えます</p>' +
       '<table><thead><tr><th>いつ</th><th>名前</th><th>何が</th><th>部屋</th></tr></thead><tbody>' +
-      rows.map((r) => '<tr' + (/^(kick|kick_wait|full)$/.test(r.kind) ? ' class="b"' : '') + '><td>' + whenText(r.at) + '</td><td>' + esc(r.name) + '</td><td>' +
-        esc(PRESENCE[r.kind] || r.kind) + '</td><td>' + esc(r.room) + '</td></tr>').join('') + '</tbody></table>';
+      rows.map((r) => '<tr' + (/^(kick|kick_wait|full)$/.test(r.kind) ? ' class="b"' : '') + '><td class="t">' + whenText(r.at) + '</td><td>' + esc(r.name) + '</td><td>' +
+        esc(PRESENCE[r.kind] || r.kind) + '</td><td class="c">' + esc(r.room) + '</td></tr>').join('') + '</tbody></table>';
     page(200, '入退室の記録', body);
   });
   // 指示68-2：あそびテストの記録（10/30 の結果で、人数の表 BombLogic.SIZING の数字を決め直す）
@@ -138,7 +138,7 @@ function roundsHtml(rows, allN) {
   };
   return '<p class="n">' + rows.length + '回' + (allN != null && allN !== rows.length ? ' / ' + allN + '回' : '') + '・名前は残していません・1か月より前のものは消えます</p>' +
     '<table><thead><tr><th>いつ</th><th>ゲーム</th><th>人数</th><th>待合→開始</th><th>開始→結果</th><th>結果→次</th><th>中身</th></tr></thead><tbody>' +
-    rows.map((r) => '<tr><td>' + whenText(r.result_at || r.at) + '</td><td>' + esc(MODE_NAME[r.mode] || r.mode) + '</td><td>' + r.players + '</td><td>' +
+    rows.map((r) => '<tr><td class="t">' + whenText(r.result_at || r.at) + '</td><td>' + esc(MODE_NAME[r.mode] || r.mode) + '</td><td>' + r.players + '</td><td>' +
       sec(r.lobby_at, r.start_at) + '</td><td>' + sec(r.start_at, r.result_at) + '</td><td>' + sec(r.result_at, r.next_at) + '</td><td>' + 中身(r) + '</td></tr>').join('') +
     '</tbody></table>';
 }
@@ -154,7 +154,7 @@ function bombStatsHtml(st) {
     '<h2>難しさごとの正答率（1回目で正解）</h2><table><thead><tr><th>難しさ</th><th>答えた</th><th>正答率</th></tr></thead><tbody>' +
     st.tiers.map((t) => '<tr><td>' + esc(t.tier) + '</td><td>' + t.asked + '</td><td>' + pct(t.first_ok_rate) + '</td></tr>').join('') + '</tbody></table>' +
     '<h2>試合</h2><table><thead><tr><th>いつ</th><th>人数</th><th>本数・ライフ・時間</th><th>終わり方</th><th>解除・ミス・かかった秒</th></tr></thead><tbody>' +
-    st.plays.map((p) => '<tr><td>' + whenText(p.at) + (p.fes ? '（文化祭）' : '') + '</td><td>' + p.players + '</td><td>' + p.codes + '本・' + p.lives + '・' + p.timer_sec + '秒</td><td>' +
+    st.plays.map((p) => '<tr><td class="t">' + whenText(p.at) + (p.fes ? '（文化祭）' : '') + '</td><td>' + p.players + '</td><td>' + p.codes + '本・' + p.lives + '・' + p.timer_sec + '秒</td><td>' +
       esc(CAUSE[p.cause] || p.cause || '') + '</td><td>' + (p.solved == null ? '' : p.solved) + '・' + (p.misses == null ? '' : p.misses) + '・' + p.elapsed_sec + '</td></tr>').join('') + '</tbody></table>' +
     '<h2>問題ごと（答えた数の多い順）</h2><table><thead><tr><th>問題</th><th>難しさ</th><th>答えた</th><th>正答率</th><th>外した</th></tr></thead><tbody>' +
     st.questions.map((q) => '<tr' + (q.first_ok_rate != null && q.first_ok_rate < 50 ? ' class="b"' : '') + '><td>' + esc(q.q) + '</td><td>' + esc(q.tier) + '</td><td>' + q.asked + '</td><td>' +
@@ -203,7 +203,7 @@ function namesPage(title, body) {
     'body{margin:0;padding:16px;font-family:system-ui,sans-serif;background:#FFF6DC;color:#1A1A1A}h1{font-size:22px;margin:4px 0 8px}' +
     '.n,.f{margin:4px 0;font-size:14px}a{color:#1A1A1A;font-weight:700}table{width:100%;border-collapse:collapse;margin-top:10px;background:#fff;font-size:15px}' +
     // 指示76 5-7（A18）：word-break:break-all だと、スマホで日付や部屋コードが1字ずつ縦に並んだ。ふつうの切れ目で折り、入らない時だけ字の中で折る
-    'th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #EEE;word-break:normal;overflow-wrap:anywhere}th{font-size:12px;color:#555}tr.b td{background:#FFE9E6}' +
+    'th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #EEE;word-break:normal;overflow-wrap:anywhere}td.t,td.c{white-space:nowrap}th{font-size:12px;color:#555}tr.b td{background:#FFE9E6}' +
     // 指示75 2-10：しぼり込みの form。打つ所は 16px（iPhone が勝手に大きくしない）・押す所は 44px
     '.flt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.flt input,.flt select,.flt button{font-size:16px;min-height:44px;padding:0 10px;border:1px solid #BBB;border-radius:8px;background:#fff}' +
     '.flt input[type=search]{flex:1 1 180px}.flt button{font-weight:700}.flt label{font-size:14px;display:flex;align-items:center;gap:4px}.flt a{min-height:44px;display:inline-flex;align-items:center}' +

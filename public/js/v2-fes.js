@@ -598,7 +598,7 @@
     return tvc(view,
       '<div class="v2-tin">' + V.hdHtml('', P.見出し, true) +
         '<div class="v2-tvVote"><div class="v2-vrows">' + list.map(function (g) {
-          return '<div class="v2-tvrow">' + V.tile(g.world, '', g.emb) + '<span class="v2-vt"><span class="v2-vn">' + e(g.name) + '</span><span class="v2-vb">' + e(g.lead) + '</span></span>' +
+          return '<div class="v2-tvrow">' + V.tile(g.world, '', g.emb) + '<span class="v2-vt"><span class="v2-vn">' + e(g.name) + '</span><span class="v2-vb">' + e((P.一言TV || {})[g.id] || g.lead) + '</span></span>' +
             '<span class="v2-vmeta">' + (g.kind ? '<span>' + e(g.kind) + '</span>' : '') + (g.minutes ? '<span>' + e(g.minutes) + '</span>' : '') + '</span></div>';
         }).join('') + '</div>' +
         '<div class="v2-qrside">' + qrHtml(view, 'is-sm', P.いまから) + '</div></div></div>' +
@@ -669,11 +669,11 @@
     var 待ち = !wait.length ? (そろった ? R.まもなく : '') : wait.length + R.待っています;
     return tvc(view,
       '<div class="v2-tvB"><div class="v2-tvB-l">' +
-        '<div class="v2-thd"><div class="v2-thd-en">Next Game</div><div class="v2-thd-ttl v2-tg">' + V.tile(g.world, 'v2-tg-tile', g.emb) + gnameHtml(g, 'v2-tg-n') + '</div><div class="v2-arrow"></div></div>' +
+        '<div class="v2-thd"><div class="v2-thd-ttl v2-tg">' + V.tile(g.world, 'v2-tg-tile', g.emb) + gnameHtml(g, 'v2-tg-n') + '</div><div class="v2-arrow"></div></div>' +
         '<div class="v2-trules">' + (g.rules || []).slice(0, 3).map(function (r) {
           return '<div class="v2-trule"><span class="v2-trule-ri">' + e(r[0]) + '</span><span class="v2-trule-t" data-v2-wrap>' + V.phrase(r[1]) + '</span></div>';
         }).join('') + '</div>' +
-        '<div class="v2-tgrid is-c3">' + ps.map(function (m) {
+        '<div class="v2-tgrid ' + (n >= 10 ? 'is-c4' : 'is-c3') + '">' + ps.map(function (m) {
           return '<div class="v2-tmem is-sm ' + (m.ready ? 'is-ok' : 'is-wait') + '">' + V.avHtml(m.icon) + '<div class="v2-tmem-who"><div class="v2-tmem-nm v2-cut" data-v2-fit="42">' + e(m.name) + '</div></div>' +
             '<span class="v2-tmem-st">' + (m.ready ? V.icon('check') : '…') + '</span></div>';
         }).join('') + '</div></div>' +

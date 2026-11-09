@@ -174,7 +174,8 @@
     var 着 = '';
     if (r) {
       着 = !r.flew
-        ? '<div class="v2-soarrive is-quiet" style="animation-delay:' + ss(tl.arrive) + '"><b>' + e(t.プスッ) + '</b><small>' + e(r.count < 2 && r.n >= 2 && r.count * 2 >= r.n ? t.ひとりでは : t.飛ばなかった) + '</small></div>'
+        // 指示76 束3 の答え 3.A（11/9）：TV は「プスッ」だけ（遊んでいる最中の TV は1語）。説明はスマホ（phoneRevealHtml）
+        ? '<div class="v2-soarrive is-quiet" style="animation-delay:' + ss(tl.arrive) + '"><b>' + e(t.プスッ) + '</b>' + (tv ? '' : '<small>' + e(飛ばない理由(r)) + '</small>') + '</div>'
         : '<div class="v2-soarrive' + (r.height === 'space' ? ' is-gold' : '') + (r.height === 'plop' ? ' is-plop' : '') + '" style="animation-delay:' + ss(tl.arrive) + '"><b>' + e((t.着いた || {})[r.height] || '') + '</b>' +
           '<small>' + e(t.差 + ' ' + (r.spread / 1000).toFixed(2) + t.秒 + '　＋' + r.points + t.点) + '</small></div>';
     }
@@ -184,6 +185,7 @@
       (r && r.together ? '<div class="v2-soband" style="animation-delay:' + ss(tl.arrive + 0.35) + '">' + e(t.全員そろった) + '</div>' : '') +
       (overlay || '') + '</div>';
   }
+  function 飛ばない理由(r) { var t = T(); return r.count < 2 && r.n >= 2 && r.count * 2 >= r.n ? t.ひとりでは : t.飛ばなかった; }
   /** スマホの開く：TV がある部屋は「TV を見てね」と小さなロケット、着いたら高さと点だけ。TV が無い部屋は同じ場面を出す */
   function phoneRevealHtml(view) {
     var d = view.data || {}, r = d.reveal || {}, t = T();
@@ -193,7 +195,7 @@
     return '<div class="v2-solook"><span class="v2-sorocket is-mini" aria-hidden="true">' + K().emblem('soroe') + '</span>' +
       '<div class="v2-solook-t">' + e(t.TVを見て) + '</div>' +
       '<div class="v2-solook-r" style="animation-delay:' + ss(tl.arrive) + '"><b>' + e(r.flew ? (t.着いた || {})[r.height] : t.飛ばず) + '</b>' +
-        (r.flew ? '<small>' + e('＋' + r.points + t.点) + '</small>' : '') + '</div></div>';
+        (r.flew ? '<small>' + e('＋' + r.points + t.点) + '</small>' : '<small>' + e(飛ばない理由(r)) + '</small>') + '</div></div>';
   }
 
   function resultBody(view, tv, o) {

@@ -35,7 +35,7 @@
     var clock = answering && view.end && !tv ? V.cd({ end: view.end, label: '', unit: t.秒 }) : '';
     return '<div class="v2-otop"><span class="v2-opill"><b class="v2-num">' + V.digits(d.round || 1) + '</b><small>/' + V.digits(d.total || 10) + '</small>' + e(t.問目) + '</span>' +
       // 遊び方の名前と層は TV だけ（スマホの細い幅では行が折れる）
-      (tv ? '<span class="v2-omode">' + e(mode === 'near' ? t.ちかい : t.早答え) + (d.tier && mode !== 'near' ? '・' + e((t.層 || {})[d.tier] || '') : '') + '</span>' : '') +
+      (tv ? '<span class="v2-omode">' + e(mode === 'near' ? t.ちかい : t.早答え帯) + (d.tier && mode !== 'near' ? '・' + e((t.層 || {})[d.tier] || '') : '') + '</span>' : '') +
       '<span class="v2-oclock">' + clock + '</span></div>';
   }
   /** 答えている間の帯（のこり時間でちぢむ・のこり3秒で赤い縁）。描き直しても、いまの長さから続ける */

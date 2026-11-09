@@ -104,6 +104,22 @@ const css = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
     assert(Array.from(o.querySelectorAll('.v2-ocard-t')).every((x) => x.getAttribute('data-v2-words') === 'ch'), '開いた時の答えの札も同じ組');
   });
 
+  await r.test('束3 の答え（11/9）：早答えの TV の帯は「早答え・やさしい」・数字ちかい方の投票の TV の説明・見えない回は「時計なし」', async () => {
+    const g = 描く(W.V2Quiz2.haya.tv(Object.assign(場面(Q2, 'qh-tv-choose'), { meId: 'tv' })), true);
+    assertEqual(g.querySelector('.v2-omode').textContent, '早答え・' + W.UiText.QUIZ2.層[場面(Q2, 'qh-tv-choose').data.tier], '帯');
+    assertEqual(W.UiText.FES.投票.一言TV.qnear, 'いちばん近い数を当てる', '数字ちかい方の説明');
+    assertEqual(W.UiText.PITTARI.見えない回TV, '時計なし', '見えない回の1語');
+  });
+  await r.test('束3 の答え（11/9）：そろえて発射の飛ばなかった回は、TV は「プスッ」だけ・説明はスマホ', async () => {
+    const v = 場面(Btn, 'so-tv-notflew');
+    const tv = 描く(W.V2Soroe.tv(Object.assign({}, v, { meId: 'tv' })), true);
+    const a = tv.querySelector('.v2-soarrive');
+    assert(a && !a.querySelector('small') && /プスッ/.test(a.textContent), 'TV は1語：' + (a && a.textContent));
+    const ph = 描く(W.V2Soroe.phone(Object.assign({}, v, { meId: 'm1' })));
+    const S = W.UiText.SOROE || {};
+    assert(ph.textContent.indexOf(S.飛ばなかった || '押した人が少なくて') !== -1 || ph.textContent.indexOf(S.ひとりでは || 'ひとりでは') !== -1, 'スマホに説明：' + ph.textContent.slice(0, 80));
+  });
+
   W.close();
   r.finish();
 })();

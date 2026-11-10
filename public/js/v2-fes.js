@@ -95,7 +95,6 @@
         // 指示71 追記1：「あと約◯分」（出せない時は出さない）・予約が消えた時（「予約しました」のままにしない）
         (o.reserved && o.eta ? '<p class="v2-note" role="status">' + e(J.あと約 + o.eta + J.分) + '</p>' : '') +
         (o.resvLost && !o.reserved ? '<p class="v2-note" role="status">' + e(J.順番が消えた) + '</p>' : '') +
-        '<p class="v2-hint v2-c">' + e(J.記録) + '</p>' +
         (o.reserved
           ? '<button type="button" class="v2-btn is-pri" disabled>' + e(J.予約中) + '</button>' +
             '<button type="button" class="v2-btn is-lite" data-fes-act="unreserve">' + e(J.予約をやめる) + '</button>'

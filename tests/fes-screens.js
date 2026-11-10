@@ -101,10 +101,11 @@ async function 入った(o) {
     win.close();
   });
 
-  await r.test('名前：使えない言葉は送る前に止め、入力欄にも残さない（●●●）・記録の知らせと本名の注意が出ている', async () => {
+  await r.test('名前：使えない言葉は送る前に止め、入力欄にも残さない（●●●）・本名の注意が出ている（記録の知らせは出さない）', async () => {
     const { win, doc } = await 入る画面();
     const scr = doc.getElementById('scr-v2-fes-join');
-    assert(Array.from(scr.querySelectorAll('.v2-hint')).some((e) => /1か月記録します/.test(e.textContent)), '名前を記録することを、入る画面に出している');
+    // 2026-11-10 くまくんの決め：「入力した名前を1か月記録します」の知らせは出さない
+    assert(!/記録します/.test(scr.textContent), '入る画面に、名前を記録する知らせを出していない');
     assert(Array.from(scr.querySelectorAll('.v2-hint')).some((e) => /本名は出さないでね/.test(e.textContent)), '「本名は出さないでね」');
     const n = doc.querySelector('[data-fes-name]');
     n.value = 'ハチイチゼロ'; n.dispatchEvent(new win.Event('input', { bubbles: true }));

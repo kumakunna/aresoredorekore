@@ -138,7 +138,8 @@
     var 次 = n < 2 ? F.そろったら : F.投票;
     var note = f.note === 'too_few' ? F.少なすぎ : (f.note === 'skipped' ? F.とばした : '');
     var h = V.bgHtml() + V.brandHtml() + V.cornerHtml({ who: n, whoOpen: '#v2Roster' }) +
-      '<div class="v2-in">' +
+      // 最終監査 11/10：巻ける層にする（iPhone SE の Safari の本当の高さ 548 で、候補の札が下の帯の裏に隠れていた。高い画面では巻く所が無いので今までどおり）
+      '<div class="v2-in is-scroll">' +
         V.hdHtml('', F.見出し) +
         V.meHtml(me) +
         // 着替え（F5）：見本データ（lab）で look が無い時は、今までのシート（data-v2-act="look"）

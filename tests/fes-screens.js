@@ -84,6 +84,23 @@ async function 入った(o) {
     }
   });
 
+  // 最終監査 11/10 ②：iPhone SE の Safari の本当の高さ（375×548）で、待合の「次の投票の候補」の札が下の帯の裏に隠れていた
+  // （tools/fes-screen-walk.js --sizes 375x548,390x664 の「ボタンが画面の下に隠れる」）。投票・準備OK・遊ぶ6本は収まっていた。
+  // jsdom は高さを測れないので、ここは「待合の中身の層が巻ける」ことを見る（測るのは fes-screen-walk）
+  await r.test('最終監査 11/10：待合の中身の層は縦に巻ける（低いスマホで候補の札が帯の裏に隠れない）。1人の時（QR つき）も', async () => {
+    const { win, doc, errors } = await 入った();
+    for (const n of [6, 1]) {
+      const lab = FesScenes.view('fes2-lobby', n === 1 ? { n: 1 } : undefined);
+      win.__rtFake.fire('room:update', lab.room); win.__rtFake.fire('fes:you', lab.you);
+      const sel = n === 1 ? '#scr-v2-fes-lobby .v2-alone' : '#scr-v2-fes-lobby .v2-nexts';   // 1人の時は QR の札（候補の札より先に下へ伸びる）
+      await waitFor(win, () => doc.querySelector(sel), 2000, n + '人の待合');
+      const lay = doc.querySelector(sel).closest('.v2-in');
+      assert(lay && lay.classList.contains('is-scroll'), n + '人：候補の札の入った層が is-scroll（overflow-y:auto）');
+    }
+    assertEqual(errors.length, 0, '未捕捉の例外が無い');
+    win.close();
+  });
+
   await r.test('追記7：1人の時のスマホに「あと1人で はじまるよ」と /fes の QR。2人からは出さない（TV の呼び込みの名前は tools/v2-shot.js の fes2-tv-idle4）', async () => {
     const { win, doc, errors } = await 入った();
     const one = FesScenes.view('fes2-lobby', { n: 1 });

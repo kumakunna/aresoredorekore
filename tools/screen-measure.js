@@ -103,6 +103,15 @@ const MEASURE = function (opts) {
     var name = (e.getAttribute('aria-label') || e.innerText || e.value || '').replace(/\s+/g, ' ').trim().slice(0, 20);
     if (m < 24) out.push({ kind: 'ボタン 24px未満', text: name, el: label(e), w: Math.round(r.width), h: Math.round(r.height) });
     else if (m < 44) out.push({ kind: 'ボタン 44px未満', text: name, el: label(e), w: Math.round(r.width), h: Math.round(r.height) });
+    // ⑨ 最終監査 11/10：押す所が画面の下に隠れて、巻いても届かない（スマホだけ）。それまで縦のはみ出しは TV だけ数えていた。
+    //    iPhone の Safari はバーが出たままなので、本当に見える高さ（SE で約548）で撮った時にだけ出る
+    //    下の帯の裏も数える：v2 の中身の層（.v2-in）は帯のぶん下を空けてあり、層の下の端より下へ出た物は帯の裏か画面の外
+    var lay = e.closest && e.closest('.v2-in'), lb = lay ? lay.getBoundingClientRect().bottom : vh;
+    var edge = Math.min(vh, lb);
+    if (r.bottom > edge + 1) {
+      for (var p = e.parentElement; p; p = p.parentElement) { var pc = getComputedStyle(p); if (/(auto|scroll)/.test(pc.overflowY) && p.scrollHeight > p.clientHeight + 1) return; }
+      out.push({ kind: 'ボタンが画面の下に隠れる', text: name, el: label(e), top: Math.round(r.top), bottom: Math.round(r.bottom), edge: Math.round(edge), ih: vh });
+    }
   });
   // ⑥ コントラスト（字の色と、後ろの塗りの色。後ろが絵・グラデーションなら「測れない」）
   function rgba(s) { var m = /rgba?\(([^)]+)\)/.exec(s || ''); if (!m) return null; var p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; }
@@ -174,7 +183,8 @@ const SELFTEST = function (measureSrc) {
     '<div style="position:absolute;left:10px;top:180px;font-size:9px">小さい字</div>' +
     '<button style="position:absolute;left:10px;top:220px;width:30px;height:30px;font-size:14px">x</button>' +
     '<div style="position:absolute;left:10px;top:270px;font-size:16px;color:#bbb">うすい字うすい字</div>' +
-    '<input style="position:absolute;left:10px;top:310px;font-size:13px" value="a">';
+    '<input style="position:absolute;left:10px;top:310px;font-size:13px" value="a">' +
+    '<button style="position:absolute;left:10px;top:' + (innerHeight + 20) + 'px;width:200px;height:56px;font-size:16px">下に隠れる</button>';
   document.body.appendChild(box);
   var prev = document.querySelector('.screen.active:not(#mz-selftest)');
   if (prev) prev.classList.remove('active');
@@ -185,7 +195,7 @@ const SELFTEST = function (measureSrc) {
   tall.remove();
   box.remove(); if (prev) prev.classList.add('active');
   var kinds = r.issues.map(function (x) { return x.kind; });
-  var want = ['はみ出し', '字が切れている', '重なり', '小さい字（12px未満）', 'ボタン 44px未満', 'コントラスト 4.5:1未満', '入力欄の字 16px未満（iPhone で拡大される）', 'ページが画面より長い'];
+  var want = ['はみ出し', '字が切れている', '重なり', '小さい字（12px未満）', 'ボタン 44px未満', 'コントラスト 4.5:1未満', '入力欄の字 16px未満（iPhone で拡大される）', 'ページが画面より長い', 'ボタンが画面の下に隠れる'];
   return want.filter(function (k) { return kinds.indexOf(k) === -1; });
 };
 

@@ -64,6 +64,26 @@ async function 入った(o) {
     win.close();
   });
 
+  // 最終監査 11/10 ④：返事が来ない（8秒の timeout・つながっていない・空の返事）と、何も言わずにボタンがもどっていた
+  await r.test('最終監査 11/10：「入る」の返事が来ない時は、赤くない札で「つながりにくい・もう一度押してね」。名前は消さない', async () => {
+    for (const error of ['timeout', 'not_connected', 'no_response']) {
+      const { win, doc, errors } = await 入る画面();
+      win.__rtFake.replies['room:join'] = () => ({ ok: false, error });
+      const n = doc.querySelector('[data-fes-name]');
+      n.value = 'ふう'; n.dispatchEvent(new win.Event('input', { bubbles: true }));
+      doc.querySelector('[data-fes-act="join"]').click();
+      await waitFor(win, () => emits(win, 'room:join').length === 1 && !doc.querySelector('[data-fes-act="join"]').disabled, 3000, error + '：返事のあと');
+      const scr = doc.getElementById('scr-v2-fes-join');
+      const note = Array.from(scr.querySelectorAll('.v2-note')).map((e) => e.textContent).join('／');
+      assert(/つながりにくい/.test(note) && /もう一度/.test(note), error + '：「つながりにくい…もう一度押してね」の札（実際：' + note + '）');
+      assert(!scr.querySelector('.v2-why'), error + '：赤い字（名前のまちがい）にしない');
+      assertEqual(doc.querySelector('[data-fes-name]').value, 'ふう', error + '：名前は入ったまま');
+      assertEqual(act(doc), 'scr-v2-fes-join', error + '：入る画面のまま');
+      assertEqual(errors.length, 0, '未捕捉の例外が無い');
+      win.close();
+    }
+  });
+
   await r.test('追記7：1人の時のスマホに「あと1人で はじまるよ」と /fes の QR。2人からは出さない（TV の呼び込みの名前は tools/v2-shot.js の fes2-tv-idle4）', async () => {
     const { win, doc, errors } = await 入った();
     const one = FesScenes.view('fes2-lobby', { n: 1 });
@@ -202,6 +222,32 @@ async function 入った(o) {
     assert(!記憶.some((v) => v.indexOf('TST754') !== -1), '消えた部屋（TST754）の記憶が残っていない');
     win.close();
   });
+
+  // 最終監査 11/10 ①：待合と TV の待合だけが「作り直しています」へ行き、遊んでいる最中（scr-v2-◯◯・scr-v2-◯◯-tv）は
+  // ふつうのホームと「部屋を作り直してください」（係むけの文）に落ちていた。分かれ道を「いまの画面」ではなく「文化祭の部屋にいたか」で決める
+  for (const tv of [false, true]) {
+    await r.test('最終監査 11/10：遊んでいる最中（' + (tv ? 'TV' : 'スマホ') + '）に部屋が消えても、ホームではなく「作り直しています」へ', async () => {
+      const { win, doc } = await 入った();
+      const lab = FesScenes.view('fes2-lobby');
+      const room = JSON.parse(JSON.stringify(lab.room));
+      if (tv) {
+        // この端末を TV（bigscreen）として部屋の知らせに載せる
+        room.members = (room.members || []).map((m) => (m.id === 'm1' ? Object.assign({}, m, { role: 'bigscreen' }) : m));
+        if (!room.members.some((m) => m.id === 'm1')) room.members.push({ id: 'm1', name: 'TV', role: 'bigscreen', connected: true });
+      }
+      win.__rtFake.fire('room:update', room);
+      const 遊ぶ = tv ? 'scr-v2-onaji-tv' : 'scr-v2-onaji';
+      win.goToScreen(遊ぶ);
+      await waitFor(win, () => act(doc) === 遊ぶ, 2000, '遊ぶ画面');
+      const 移った = []; win.fesNav = (u) => 移った.push(u);
+      win.__rtFake.replies['room:join'] = 部屋が無い;
+      await つなぎ直す(win);
+      await waitFor(win, () => 移った.length || act(doc) === 'scr-v2-home', 2000, 'どこかへ移る');
+      assert(act(doc) !== 'scr-v2-home', 'ホームに落ちない');
+      assertEqual(移った[0], '/?fes=1&wait=1' + (tv ? '&tv=1' : ''), (tv ? 'TV は TV のまま、' : '') + '作り直しを待つ画面へ');
+      win.close();
+    });
+  }
 
   // 2026-11-01 耐久（tools/fes-soak.js）で見つけた：係が部屋を作り直すと、TV が「名前を入れてね」（スマホの入口）に落ちていた。
   // rt-client は部屋の記憶を消してから closed を知らせるので、その時の rtIsBigScreen() はいつも偽だった

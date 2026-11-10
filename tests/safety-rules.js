@@ -71,6 +71,15 @@ function animations() {
     assert(/no-flash|fxFlash|can\.flash/.test(CSS + FX), '「光の点滅をつかう」を切ると止まる');
   });
 
+  await r.test('最終監査 11/10：「光の点滅」を切ると、全画面の光（.fx-flash・.flash-overlay）はどれも出ない', async () => {
+    // .flash-overlay（flashOnly）は FxKit を通らず、クイズ解除でまちがえるたびに全員の画面へ0.5秒かぶさっていた。
+    // 門は「全画面の光の入れ物ごとに :root.no-flash の display:none が1行ある」こと（入れ物を足した日に漏れたら赤）
+    ['fx-flash', 'flash-overlay'].forEach((cls) => {
+      const re = new RegExp(':root\\.no-flash\\s+\\.' + cls + '\\s*\\{[^}]*display\\s*:\\s*none');
+      assert(re.test(CSS), '光を切った人には .' + cls + ' を出さない（:root.no-flash .' + cls + '{display:none}）');
+    });
+  });
+
   await r.test('演出「スキップ」でも、くり返す動きがチカチカしない（正本6・指示66-1 で見つけた）', async () => {
     // アプリ全体のスキップ（:root.fx-skip *）は、動きの長さを 0.001秒に縮める。
     // **回数を止めないと**、infinite の動きは 1ms でくり返し続け、描くたびにでたらめな位置へ飛ぶ

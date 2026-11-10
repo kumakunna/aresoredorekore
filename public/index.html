@@ -1376,6 +1376,8 @@
      片方だけ直す日が来る（落とし穴1）。**両方の親（:root）に1つだけ置く。**
      先例は `:root.fx-skip`（689行）と `:root.fs-*`（65行〜）。 */
   :root.no-flash .fx-flash{display:none;}
+  /* 最終監査 11/10：flashOnly（.flash-overlay）は FxKit を通らない全画面の光。クイズ解除のまちがいで全員に出ていた */
+  :root.no-flash .flash-overlay{display:none;}
   :root.no-flash .bomb-boom{display:none;}
   :root.no-flash .app.bomb-danger::before{animation:none;opacity:.8;}
   :root.no-shake .fx-shake,:root.no-shake .fx-shake-big{animation:none;}
@@ -26142,12 +26144,16 @@
       if(now && !rtWasConnected && (document.querySelector('.screen.active') || {}).id === 'scr-v2-fes-staff') fesOpenStaff();
       rtWasConnected = now;
     });
-    rt.on('lost', function(){
+    rt.on('lost', function(p){
       var cur = (document.querySelector('.screen.active') || {}).id;
       if(RT_SCREENS.indexOf(cur) === -1) return; // もう部屋の画面にいないなら何もしない
       // 2026-10-29：文化祭の部屋（参加者・TV）は、ホームではなく「作り直しています」の画面へ。係が作り直したら自動で入る（TV は TV のまま）
       //   消えた部屋の記憶は端末からも落とす（残すと、読み込み直した時のつなぎ直しが前の部屋に入ろうとして失敗し、新しい部屋に入った TV の印まで消していた）
-      if(cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv'){ rt.dropRoom(); window.fesNav('/?fes=1&wait=1' + (cur === 'scr-v2-fes-tv' ? '&tv=1' : '')); return; }
+      // 最終監査 11/10：分かれ道は「いまの画面」ではなく「文化祭の部屋にいたか」（rt-client が消す前に覚えた wasFes）。
+      //   遊んでいる最中（scr-v2-◯◯・scr-v2-◯◯-tv）はホームと係むけの文に落ちていた
+      var wasFes = !!(p && p.wasFes) || cur === 'scr-v2-fes-lobby' || cur === 'scr-v2-fes-tv';
+      var wasTv = !!(p && p.wasBigScreen) || cur === 'scr-v2-fes-tv';
+      if(wasFes){ rt.dropRoom(); window.fesNav('/?fes=1&wait=1' + (wasTv ? '&tv=1' : '')); return; }
       closeSettingsIfOpen();   // 第43弾 2-8
       goBack('scr-v2-home');
       setTimeout(function(){
@@ -34136,6 +34142,8 @@
     return J.しばらく + '。' + J.あと約 + (s < 60 ? s + J.秒 : Math.ceil(s / 60) + J.分);
   }
   var FES_JOIN_ERR = { name_blocked: '使えない', name_long: '長い', name_empty: '空', diff_required: 'えらんでね', room_full: '満員', room_not_found: '部屋が無い' };
+  /** rt-client の call が、返事の無い時に返す error（rt-client.js の call） */
+  var FES_NO_REPLY = ['timeout', 'not_connected', 'no_response'];
   async function fesJoin(){
     var j = fes.join, J = UiText.FES.入る;
     var c = NameFilter.check(j.name);
@@ -34149,6 +34157,8 @@
     if(!res.ok && res.error === 'room_not_found'){ el('scr-v2-fes-join').innerHTML = V2Fes.wait({}); V2.mount(el('scr-v2-fes-join')); fesWaitRoom(false); return; }
     // 指示75 1-6：しばらく入れない（係の長押しの「外す」）。赤い字にしない
     if(!res.ok && res.error === 'fes_wait'){ j.err = ''; j.info = fesWaitText(res.waitMs); fesRenderJoin(); return; }
+    // 最終監査 11/10：返事が来ない（timeout・not_connected・no_response）は、赤くない札で「もう一度押してね」（それまでは何も出なかった）
+    if(!res.ok && FES_NO_REPLY.indexOf(res.error) !== -1){ j.err = ''; j.info = J.つながりにくい; fesRenderJoin(); return; }
     if(!res.ok){
       j.err = J[FES_JOIN_ERR[res.error]] || res.message || '';
       // 満員は赤い字（名前のまちがい）にしない。赤を使わない札で

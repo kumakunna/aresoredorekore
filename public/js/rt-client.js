@@ -218,10 +218,15 @@
     // 部屋の印を落として、画面側に知らせる。
     function 部屋が無い(res) {
       if (!state.code) return;
+      // 最終監査 11/10：消す前に「文化祭の部屋だったか・TV だったか」を覚えて渡す（closed の wasBigScreen と同じ形）。
+      // 消したあとでは、遊んでいる最中の画面から文化祭かどうかが分からず、ホームへ落ちていた
+      var mine = me();
+      var wasFes = !!(state.room && state.room.fes);
+      var wasBig = !!(mine && mine.role === 'bigscreen');
       state.code = null; state.memberId = null;
       state.room = null; state.secret = null;
       setStale(false);   // 指示75 1-2
-      emitLocal('lost', { reason: 'room_not_found', message: (res && res.message) || '' });
+      emitLocal('lost', { reason: 'room_not_found', message: (res && res.message) || '', wasFes: wasFes, wasBigScreen: wasBig });
       emitLocal('status', state);
     }
 

@@ -509,5 +509,14 @@ function kindOf(mark) {
       '固有の名詞をかなに崩してしまっている');
   });
 
+  await r.test('11/11：お問い合わせのメールは ui-text.js の1か所だけに書く（画面の組み立てにじかに書かない）', async () => {
+    assert(UiText.CONTACT && UiText.CONTACT.メール === 'ryouta.vantan.0719@gmail.com' && UiText.CONTACT.前 === 'お問い合わせ：', 'UiText.CONTACT');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'ui-text.js'), 'utf8');
+    assertEqual((src.match(/ryouta\.vantan\.0719@gmail\.com/g) || []).length, 1, 'ui-text.js に1回');
+    ['index.html', 'js/v2-fes.js', 'js/v2-home.js', 'js/v2-kit.js'].forEach((f) => {
+      assert(!/ryouta\.vantan/.test(fs.readFileSync(path.join(__dirname, '..', 'public', f), 'utf8')), f + ' にじかに書かない');
+    });
+  });
+
   r.finish();
 })();

@@ -62,6 +62,8 @@
         '<button type="button" class="v2-btn is-sec v2-ebig v2-a-rise" data-home-act="join">' + V.icon('door') +
           '<span class="v2-ebig-t"><span>' + e(H.入る) + '</span><small>' + e(H.入る説明) + '</small></span></button>' +
         '<button type="button" class="v2-btn is-lite v2-a-rise" data-home-act="one">' + V.icon('phone') + '<span>' + e(H['1台']) + '</span></button>' +
+        // 11/11 くまくんの決め：いちばん最初の画面の下に、お問い合わせ（字は ui-text.js の CONTACT）
+        V.contactHtml() +
       '</div>' +
       V.scrimHtml(true) + (o.dlg || '');
   }

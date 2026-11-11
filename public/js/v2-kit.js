@@ -443,6 +443,12 @@
     return '<div class="v2-bg" aria-hidden="true"><div class="v2-circles"><i></i><i></i><i></i></div>' +
       (o.names && o.names.length ? '<div class="v2-wall">' + nameWallHtml(o.names, o.rows) + '</div>' : '') + '</div>';
   }
+  /** 11/11：お問い合わせの1行（字は UiText.CONTACT の1か所。押すとメールが開く・字は選んで写せる）。TV には置かない */
+  function contactHtml() {
+    var C = (typeof UiText !== 'undefined' && UiText.CONTACT) || null;
+    if (!C) return '';
+    return '<p class="v2-contact">' + esc(C.前) + '<a href="mailto:' + esc(C.メール) + '">' + esc(C.メール) + '</a></p>';
+  }
   /** 右の縦の字（スマホ／TV） */
   function brandHtml(tv) { return '<div class="' + (tv ? 'v2-tbrand' : 'v2-brand') + '" aria-hidden="true">ATSUMARE AREKORE.</div>'; }
   /** 見出し：小さな英字＋大きな日本語（文節で折る）＋長い矢印 */
@@ -622,7 +628,7 @@
     now: now, setClockOffset: setClockOffset, freeze: freeze, cd: cd, mount: mount, tick: tick,
     open: open, close: close, closeTop: closeTop, topLayer: topLayer, show: show,
     nameWallHtml: nameWallHtml, tvLabel: tvLabel, ruleIc: ruleIc, glow: glow, fitTv: fitTv,
-    bgHtml: bgHtml, brandHtml: brandHtml, hdHtml: hdHtml, cornerHtml: cornerHtml, avHtml: avHtml, meHtml: meHtml,
+    bgHtml: bgHtml, brandHtml: brandHtml, contactHtml: contactHtml, hdHtml: hdHtml, cornerHtml: cornerHtml, avHtml: avHtml, meHtml: meHtml,
     bandHtml: bandHtml, toastHtml: toastHtml, scrimHtml: scrimHtml, sheetHtml: sheetHtml, xHtml: xHtml, dlgHtml: dlgHtml,
     rulesHtml: rulesHtml, rulesBigHtml: rulesBigHtml, rulesBodyHtml: rulesBodyHtml, hasTv: hasTv, tvAt: tvAt, rankRevealHtml: rankRevealHtml, RANK_TL: RANK_TL, rheadHtml: rheadHtml, rowHtml: rowHtml,
     tmemHtml: tmemHtml, tbandHtml: tbandHtml

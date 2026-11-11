@@ -1363,7 +1363,13 @@
     見ていてね: 'いまの5回が終わったら、つぎの回からいっしょに遊べます'
   };
 
-  return { WORDS: WORDS, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET, HOME: HOME,
+  /**
+   * 11/11 くまくんの決め：お問い合わせ先（あつまれ・あそびまち共通のメール）。**画面に出すのはこの1か所から**。
+   * 出すのは文化祭の入る画面の下・⚙ の下（版の近く）・いちばん最初の画面（入口）の下。TV には出さない
+   */
+  var CONTACT = { 前: 'お問い合わせ：', メール: 'ryouta.vantan.0719@gmail.com' };
+
+  return { WORDS: WORDS, CONTACT: CONTACT, BANNED: BANNED, JARGON: JARGON, MSG: MSG, KEPT: KEPT, SHELF: SHELF, SET: SET, HOME: HOME,
            TITLES: TITLES, TIMER: TIMER, BOMB: BOMB, TUTORIAL: TUTORIAL, LEAVE: LEAVE,
            WAY: WAY, ENTRY: ENTRY, ROLE: ROLE, RULES: RULES, NOW: NOW, TOPIC: TOPIC, TIERS: TIERS, PAUSE: PAUSE,
            AUTH: AUTH, V2: V2, FES: FES, ONAJI: ONAJI, PITTARI: PITTARI, SOROE: SOROE, QUIZ2: QUIZ2 };

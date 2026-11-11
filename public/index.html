@@ -1526,6 +1526,9 @@
     background:var(--card);color:var(--ink);font-size:15px;font-family:inherit;
   }
   .set-credit{font-size:10.5px;color:var(--ink-soft);text-align:center;margin-top:14px;line-height:1.7;}
+  /* 11/11：お問い合わせ。押すとメールが開く・長押しで字を選んで写せる（まわりが user-select:none でも） */
+  .set-contact{-webkit-user-select:text;user-select:text;word-break:break-all;}
+  .set-contact a{color:inherit;text-decoration:underline;-webkit-user-select:text;user-select:text;}
   /* 部屋のメンバー一覧 */
   .set-member{
     display:flex;align-items:center;gap:8px;flex-wrap:wrap;
@@ -5193,6 +5196,9 @@
   /* ==== 指示66-2：文化祭の流れ（見本 festival.html の F1〜F14。値は見本の ds.css・festival.html から） ==== */
   .v2 .v2-spacer{flex:1;min-height:0;}
   .v2 .v2-hint{font-weight:800;font-size:13px;color:var(--ws);line-height:1.5;margin:0;}
+  /* 11/11：お問い合わせの1行（入口・文化祭の入る画面のいちばん下・小さく）。押すとメール・字を選んで写せる */
+  .v2 .v2-contact{font-weight:700;font-size:12px;color:var(--ws);line-height:1.5;margin:2px 0 0;text-align:center;-webkit-user-select:text;user-select:text;word-break:break-all;}
+  .v2 .v2-contact a{color:inherit;text-decoration:underline;-webkit-user-select:text;user-select:text;}
   .v2 .v2-c{text-align:center;}
   .v2 .v2-note{margin:0;font-weight:800;font-size:15px;line-height:1.55;background:var(--wc);border-radius:14px;padding:12px 14px;}
   .v2 .v2-card{display:flex;flex-direction:column;gap:12px;background:var(--wc2);border:3px solid var(--wl);border-radius:18px;padding:14px;}
@@ -10329,6 +10335,8 @@
       <button class="btn btn-ghost" id="logoutBtn" style="display:none;">ログアウト</button>
       <button class="btn btn-main" id="settingsLoginBtn" style="display:none;">ログインする</button>
       <div class="set-credit" id="setCredit">絵文字は Twemoji（© 2020 Twitter, Inc and other contributors / CC-BY 4.0）を使っています。</div>
+      <!-- 11/11 くまくんの決め：お問い合わせ（字は ui-text.js の CONTACT・openSettings が入れる）。TV には出さない -->
+      <div class="set-credit set-contact" id="setContact"></div>
       <!-- 指示68-1：版（public/js/version.js が1か所）。TV には出さない（openSettings で隠す） -->
       <div class="set-credit" id="setVersion"></div>
     </div>
@@ -32451,6 +32459,14 @@
     setOpenedFrom = from || 'shelf';
     el('setVersion').textContent = AppVersion.name;
     el('setVersion').style.display = rtIsBigScreen() ? 'none' : '';
+    // 11/11：お問い合わせ（字は UiText.CONTACT の1か所）。版と同じく TV（大画面）では隠す
+    if(!el('setContact').firstChild){
+      el('setContact').appendChild(document.createTextNode(UiText.CONTACT.前));
+      var 宛先 = document.createElement('a');
+      宛先.href = 'mailto:' + UiText.CONTACT.メール; 宛先.textContent = UiText.CONTACT.メール;
+      el('setContact').appendChild(宛先);
+    }
+    el('setContact').style.display = rtIsBigScreen() ? 'none' : '';
     // 第26弾-2：棚から開いた時は、まだログインしていないことがある。
     // 記録に関わる操作は、ログインしてからでないと意味がないので隠す
     var inn = loggedIn();

@@ -56,6 +56,28 @@ const 一覧の札 = (doc) => Array.from(doc.querySelectorAll('#scr-v2-pick [dat
     t.win.close();
   });
 
+  await r.test('11/11：いちばん最初の画面（入口）と、ふだんの ⚙ の下に「お問い合わせ：メール」。TV（大画面）の ⚙ には出さない', async () => {
+    const t = await launch({ fakeSocket: true, atEntry: true });
+    const 見る = (p, where) => {
+      assert(p, where + 'に「お問い合わせ」の行がある');
+      assertEqual(p.textContent.replace(/\s+/g, ''), 'お問い合わせ：ryouta.vantan.0719@gmail.com', where + 'の字');
+      const a = p.querySelector('a');
+      assert(a && a.getAttribute('href') === 'mailto:ryouta.vantan.0719@gmail.com', where + '：押すとメールが開く');
+    };
+    const p = t.doc.querySelector('#scr-v2-home .v2-in .v2-contact');
+    見る(p, '入口');
+    assert(t.doc.querySelector('#scr-v2-home [data-home-act="one"]').compareDocumentPosition(p) & 4, '入口のボタンより下');
+    click(t.doc, t.doc.querySelector('#scr-v2-home [data-v2-act="gear"]'));
+    await sleep(t.win, 60);
+    const c = t.doc.getElementById('setContact');
+    見る(c, 'ふだんの ⚙');
+    assert(c.style.display !== 'none', 'ふだんの ⚙ では見える');
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/el\('setContact'\)\.style\.display = rtIsBigScreen\(\) \? 'none' : ''/.test(src), 'TV（大画面）の ⚙ では隠す（版と同じ決まり）');
+    assertNoErrors(t.errors, '入口');
+    t.win.close();
+  });
+
   await r.test('E1 入口：「1台で遊ぶ」はログインしていなくても、ゲームをえらぶ一覧まで行ける（見本 S5）', async () => {
     const t = await launch({ fakeSocket: true, atEntry: true, loggedOut: true });
     click(t.doc, t.doc.querySelector('#scr-v2-home [data-home-act="one"]'));

@@ -101,6 +101,8 @@
           : (o.full && o.diff ? '<button type="button" class="v2-btn is-pri" data-fes-act="reserve"' + (o.busy ? ' disabled' : '') + '>' + e(J.予約する) + '</button>'
             : '<button type="button" class="v2-btn is-pri" data-fes-act="join"' + (joinOk(o) ? '' : ' disabled') + '>' +
               e(o.diff ? J.入る : J.えらんでね) + '</button>')) +
+        // 11/11 くまくんの決め：入る画面の下に小さく、お問い合わせ（押すとメール・字を選んで写せる）
+        V.contactHtml() +
       '</div>' +
       // 指示71-6：予約の「どうぞ」。画面いっぱい・残りの秒数。このあと自分で入りにいく（入れたら待合へ移るので消える）
       (o.turn ? '<div class="v2-turn" role="alert"><b>' + e(J.どうぞ見出し) + '</b><span>' + e(J.どうぞ本文) + '</span>' +

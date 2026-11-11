@@ -138,6 +138,35 @@ async function 入った(o) {
     win.close();
   });
 
+  // ===== 11/11 くまくんの決め：お問い合わせ先（メール）を、入る画面の下と ⚙ に。TV には出さない =====
+  const 問い合わせ = (box, where) => {
+    const p = box && (box.matches && box.matches('.v2-contact, .set-contact') ? box : box.querySelector('.v2-contact, .set-contact'));
+    assert(p, where + 'に「お問い合わせ」の行がある');
+    assertEqual(p.textContent.replace(/\s+/g, ''), 'お問い合わせ：ryouta.vantan.0719@gmail.com', where + 'の字');
+    const a = p.querySelector('a');
+    assert(a && a.getAttribute('href') === 'mailto:ryouta.vantan.0719@gmail.com', where + '：押すとメールが開く（mailto）');
+    return p;
+  };
+  await r.test('11/11：文化祭の入る画面のいちばん下に、小さく「お問い合わせ：メール」（押すとメール・字を選んで写せる）', async () => {
+    const { win, doc, errors } = await 入る画面();
+    const box = doc.querySelector('#scr-v2-fes-join .v2-in');
+    const p = 問い合わせ(box, '入る画面');
+    assert(doc.querySelector('#scr-v2-fes-join [data-fes-act="join"]').compareDocumentPosition(p) & 4, '「入る」のボタンより下');
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert(/\.v2 \.v2-contact\{[^}]*user-select:text/.test(css) && /\.set-contact\{[^}]*user-select:text/.test(css), '字を選んで写せる（user-select:text）');
+    H.assertNoErrors(errors, '入る画面');
+    win.close();
+  });
+  await r.test('11/11：文化祭の TV には、どの場面にも「お問い合わせ」を出さない', async () => {
+    const t = await launch({ fakeSocket: true, atEntry: true });
+    FesScenes.SCENES.filter((s) => s.kind === 'tv').forEach((s) => {
+      t.win.V2Screens.fes(FesScenes.view(s.id));
+      const scr = t.doc.getElementById(s.screen);
+      assert(scr && !/お問い合わせ/.test(scr.textContent), s.id + ' に出さない');
+    });
+    t.win.close();
+  });
+
   await r.test('名前：使えない言葉は送る前に止め、入力欄にも残さない（●●●）・本名の注意が出ている（記録の知らせは出さない）', async () => {
     const { win, doc } = await 入る画面();
     const scr = doc.getElementById('scr-v2-fes-join');
@@ -1000,6 +1029,9 @@ async function 入った(o) {
     assert(!見える(win, doc.getElementById('settingsLoginBtn')), '「ログインする」を出さない');
     assert(!見える(win, doc.getElementById('logoutBtn')), '「ログアウト」も出さない');
     assert(見える(win, doc.getElementById('setCredit')) && 見える(win, doc.getElementById('setVersion')), '絵文字の表記と版は残す');
+    // 11/11：⚙ の入口の5つは変えずに、絵文字の表記と版の近くに「お問い合わせ」
+    assert(見える(win, doc.getElementById('setContact')), '⚙ にお問い合わせの行が見える');
+    問い合わせ(doc.getElementById('setContact'), '文化祭の ⚙');
     // 行き先：音は音量のページ（すべての音を消す・効果音・BGM）、光と揺れは安全の設定、字の大きさは文字サイズだけ
     const 開く = async (label) => { Array.from(doc.querySelectorAll('#settingsOverlay .set-page[data-page="root"] .set-row')).find((x) => x.textContent.indexOf(label) === 0 || x.querySelector('.sr-text').firstChild.textContent === label).click(); await sleep(win, 50); };
     await 開く('音');

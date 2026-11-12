@@ -240,18 +240,34 @@
     // 5秒以下は、数が変わるたびに1回だけ弾む（演出「なし」では CSS が止める）
     if (sec <= lo && n) { n.classList.remove('is-tick'); void n.offsetWidth; n.classList.add('is-tick'); }
   }
+  /**
+   * 指示78 イ：のこり時間のゲージ（data-v2-bar・data-end・data-total）。ふだんは CSS の動きでなめらかに減る。
+   * 演出「なし」（:root.fx-skip）では動きが 0.001秒で終わって空になっていたので、ここで1秒ごとに --v2-left（1〜0）を書く。
+   * CSS は fx-skip の時だけ animation を止めて、この値の長さで描く（なめらかでなくてよい・1秒ごとに減る）
+   */
+  function renderBar(el) {
+    var total = +el.getAttribute('data-total');
+    var v = total > 0 ? Math.min(1, secLeft(el) * 1000 / total) : 0;
+    if (el.__v2left === v) return;
+    el.__v2left = v;
+    el.style.setProperty('--v2-left', v.toFixed(3));
+  }
   function tick() {
     var d = D(); if (!d) return;
     var list = d.querySelectorAll('[data-v2-cd]');
     for (var i = 0; i < list.length; i++) renderCd(list[i]);
-    if (!list.length && timer) { clearInterval(timer); timer = null; }
+    var bars = d.querySelectorAll('[data-v2-bar]');
+    for (var j = 0; j < bars.length; j++) renderBar(bars[j]);
+    if (!list.length && !bars.length && timer) { clearInterval(timer); timer = null; }
   }
   /** 描いたあとに呼ぶ。のこり時間があれば、すぐ描いて時計を回す */
   function mount(scope) {
     var d = D(); if (!d) return;
     var list = (scope || d).querySelectorAll('[data-v2-cd]');
     for (var i = 0; i < list.length; i++) { list[i].__v2sec = null; renderCd(list[i]); }
-    if (list.length && !timer) timer = setInterval(tick, 200);
+    var bars = (scope || d).querySelectorAll('[data-v2-bar]');
+    for (var j = 0; j < bars.length; j++) { bars[j].__v2left = null; renderBar(bars[j]); }
+    if ((list.length || bars.length) && !timer) timer = setInterval(tick, 200);
     relayout(scope);
   }
   /** 字の形が届いた時・画面の大きさが変わった時にも呼ぶ（名前の縮め・短い行の直し） */

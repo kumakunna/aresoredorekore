@@ -732,6 +732,32 @@ async function 入った(o) {
     win.close();
   });
 
+  // 指示78 イ（11/12 くまくんの実機）：⚙「光と揺れ」の「演出の速さ：なし」で、「つづけて遊ぶ？」のゲージ（残り時間）が出なかった。
+  // ゲージは CSS の動きだけで減っていて、「なし」（:root.fx-skip *）が動きを 0.001秒に縮めるので、出た瞬間に空になっていた。
+  // 「なし」の時は動きをやめ、V2 の時計が1秒ごとに書く --v2-left の長さで描く。jsdom は版組みをしないので、値と CSS の決まりを見る
+  await r.test('指示78 イ：演出「なし」でも「つづけて遊ぶ？」のゲージが見えて、時間とともに減る', async () => {
+    const { win, doc } = await launch({ fakeSocket: true, atEntry: true });
+    doc.documentElement.classList.add('fx-skip');
+    win.V2Screens.fes(FesScenes.view('fes2-result'));
+    const scr = doc.getElementById('scr-v2-fes-lobby');
+    const bar = scr.querySelector('.v2-contsheet [data-fes-bar]');
+    assert(bar, 'ゲージがある');
+    assert(bar.hasAttribute('data-v2-bar') && +bar.getAttribute('data-total') > 0, 'ゲージに「全体の長さ」（data-total）がある＝V2 の時計が書ける');
+    const v0 = parseFloat(bar.style.getPropertyValue('--v2-left'));
+    assert(v0 > 0.5, 'はじめはほぼ満タン（--v2-left ' + v0 + '）＝空ではない');
+    // 「なし」の決まり：動きをやめて、--v2-left の長さで描く（0.001秒で空になる動きに任せない）
+    const 決まり = [];
+    Array.from(doc.styleSheets).forEach((s) => { try { Array.from(s.cssRules).forEach((x) => { if (x.selectorText && /fx-skip/.test(x.selectorText) && /\[data-v2-bar\]/.test(x.selectorText)) 決まり.push(x); }); } catch (e) {} });
+    assert(決まり.length === 1, '「なし」の時のゲージの決まりが1つある（' + 決まり.length + '）');
+    const st = 決まり[0].style;
+    assert(/none/.test(st.getPropertyValue('animation') || st.getPropertyValue('animation-name')) && st.getPropertyPriority('animation') === 'important', '「なし」では動きを止める（!important で :root.fx-skip * に勝つ）');
+    assert(/scaleX\(var\(--v2-left/.test(st.getPropertyValue('transform')), '「なし」では --v2-left の長さで描く');
+    await sleep(win, 2300);
+    const v1 = parseFloat(bar.style.getPropertyValue('--v2-left'));
+    assert(v1 < v0 && v1 > 0, '2秒あとには減っている（' + v0 + ' → ' + v1 + '）');
+    win.close();
+  });
+
   // 客観検査 B2（2026-11-05）：「この回をとばす」は一時停止のすぐ右にあり、押すとすぐ遊んでいる回を消していた（戻せない）
   await r.test('客観検査 B2：係の「この回をとばす」は、1回押しただけでは送らない。たずねる枠の「とばす」で、はじめて送る', async () => {
     const { win, doc } = await launch({ fakeSocket: true, atEntry: true });

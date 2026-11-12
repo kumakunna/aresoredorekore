@@ -196,6 +196,42 @@ function v2のクラス(css) {
     assertEqual(速さをかけていない(汚).length, 1, 'かけていない長さを混ぜると、それを言う');
   });
 
+  // 指示78 ア（11/12 くまくんの実機）：画面の入れかわりで「画面ごと透明から出す」と、出る最初のコマにうしろの紙の色（ベージュ）が
+  // 画面いっぱいに見える。暗い世界のゲームから「つづける？」へ移る瞬間に、光と揺れを切っていても画面全体が光った。
+  // 本物の Chrome のコマの明るさは tools/flash-film.js が測る（光ったら終了コード 1）。ここは CSS の形を見張る
+  // css は v2 の節。古い画面の入れかわり（.screen.scr-in-fwd・v2 の印なし）も v2 の画面に当たるので、全体（STYLE）からも見る
+  function 画面ごと透明になる(css, all) {
+    const 全体 = (all || STYLE).replace(/\/\*[\s\S]*?\*\//g, '');
+    const 消える = new Set();
+    全体.replace(/@keyframes\s+([\w-]+)\s*\{([\s\S]*?\})\s*\}/g, (m, name, body) => { if (/opacity\s*:\s*(0?\.\d+|0)\s*[;}]/.test(body.split('}')[0])) 消える.add(name); return m; });
+    const bad = [];
+    let 止めた = false;
+    const 見る = (src, v2だけ) => src.replace(/([^{}]+)\{([^{}]*)\}/g, (m, sel, body) => {
+      sel.split(',').map((s) => s.trim()).filter((s) => /\.screen\b/.test(s) && /scr-in-(fwd|back)/.test(s) && !/::?(after|before)/.test(s) && (v2だけ ? /\.v2\b/.test(s) : !/\.v2\b/.test(s))).forEach((s) => {
+        const a = /animation(?:-name)?\s*:\s*([^;]+)/.exec(body);
+        if (!a) return;
+        if (v2だけ && /^none\b/.test(a[1].trim())) 止めた = true;
+        if (a[1].split(/[\s,]+/).some((w) => 消える.has(w))) bad.push(s + ' → ' + a[1].trim());
+      });
+      return m;
+    });
+    const v2bad = (見る(css, true), bad.splice(0));
+    見る(全体, false);
+    const 古い = 止めた ? [] : bad.map((x) => x + '（v2 の画面にも当たる）');
+    return v2bad.concat(古い);
+  }
+  await r.test('指示78 ア：画面の入れかわりで、画面そのものを透明から出さない（うしろの紙の色が画面全体に光る）', async () => {
+    assertEqual(画面ごと透明になる(V2CSS).join('\n'), '', '画面ごと透明から出す入れかわり');
+    assert(/\.screen\.v2\.scr-in-fwd::after[^{]*\{[^}]*var\(--wt\)/.test(V2CSS), 'かわりに、その世界の色の幕（::after）をかぶせて消す');
+    // 赤くなるか（落とし穴10）
+    const 汚 = V2CSS + '\n  .screen.v2.scr-in-fwd{animation:v2-fade var(--v2-move) var(--v2-ease);}\n';
+    assertEqual(画面ごと透明になる(汚).length, 1, '画面ごと透明から出す入れかわりを混ぜると、それを言う');
+    // 2つ目の穴（直した後の実測で見つけた）：v2 の画面で動きを止める1行が無いと、古い画面の入れかわり（40%の半透明から）が当たる
+    const 止めない = V2CSS.replace(/\.screen\.v2\.scr-in-fwd,\.screen\.v2\.scr-in-back\{animation:none;\}/, '');
+    assert(止めない !== V2CSS, '見張る1行が今の CSS にある');
+    assert(画面ごと透明になる(止めない).length >= 1, 'v2 の画面で止めないと、古い入れかわりが当たると言う');
+  });
+
   await r.test('くり返す動きは、演出「なし」と「動きを減らす」で止まる（アプリのスキップは回数を止めないので、チカチカする）', async () => {
     const { 回る, bad } = 止まらない(V2CSS);
     assert(回る.length >= 2, 'くり返す動きを集められている（実際:' + 回る.join('・') + '）');   // 型(b)

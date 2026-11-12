@@ -495,10 +495,18 @@
       '<div class="v2-in' + (gameMod(view) && d.result ? ' is-scroll is-fesres' : '') + '">' + body + '</div>' +
       '<div class="v2-sheet is-open v2-contsheet" data-v2-id="v2Cont" data-v2-keep data-v2-state aria-hidden="false"><div class="v2-cont">' +
         '<div class="v2-cont-t">' + e(Rz.つづけて) + '</div>' +
-        '<div class="v2-syncbar"><i data-fes-bar style="animation-duration:' + Math.max(0, (view.end || 0) - Date.now()) + 'ms"></i></div>' +
+        barHtml(view) +
         cont +
         '<div class="v2-cnote">' + e(Rz.押さないと) + (view.end ? V.cd({ end: view.end, label: '', unit: '' }) : '') + e(Rz.秒で) + '</div>' +
       '</div></div>';
+  }
+  /**
+   * 「つづけて遊ぶ？」のゲージ。指示78 イ：演出「なし」でも見えて減る（data-v2-bar を V2 の時計が1秒ごとに書く・CSS は fx-skip の時だけそれで描く）。
+   * 長さは段の全体（view.total）から測る。描き直しても、頭（満タン）から流し直さない（それまでは人が「つづける」を押すたびに満タンへもどっていた）
+   */
+  function barHtml(view) {
+    var left = Math.max(0, (view.end || 0) - Date.now()), total = Math.max(left, view.total || 0) || 1;
+    return '<div class="v2-syncbar"><i data-fes-bar data-v2-bar data-end="' + (+view.end || 0) + '" data-total="' + total + '" style="animation-duration:' + total + 'ms;animation-delay:-' + (total - left) + 'ms;--v2-left:' + (left / total).toFixed(3) + '"></i></div>';
   }
   function livesHtml(n, max) {
     // 客観検査（2026-11-05）：ライフは本数÷2.5 で 12〜20 になる。13個からは並べず「❤️×のこり」（スマホの上の帯で時計を押し出さない）

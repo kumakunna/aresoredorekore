@@ -33547,6 +33547,42 @@
     tl.hops.forEach(function(h){ v2FxAt(h.at, function(){ sfx('tick'); }); });
     v2FxAt(tl.stop, function(){ 声('v05'); sfx('decide'); }, true);
   }
+  /**
+   * 指示78 ウ（11/12 くまくんの実機・答え 1.B）：TV の「つぎのゲームは…」（決まる段）は、.v2.is-play の間だけ動く。
+   * 最初に描いてから 0.8秒（V2_PLAY_GRACE_MS）より後に部屋の知らせ（人が入る・つながりが変わる・係の操作）が来て描き直すと、
+   * is-play が外れて最後の形に飛んでいた（tools/decide-tv-probe.js --poke：1.5秒目の描き直しで、札が飛び出す・色が広がる・はずむが出ない）。
+   * **TV の決まる段だけ**、台本（decideTimeline の who 3.0秒＋最後の動き 0.25秒）が終わるまで中身を入れかえない。止まらない作り：
+   *   ・待つのは台本の長さ（3.5秒×演出の速さ）で、どんな時も 4秒まで
+   *   ・台本が終わったら、知らせが来ていなくても時計で1回、最新の形に描く（係の操作も遅れて 4秒以内に TV に出る）
+   *   ・段・回・部屋（作り直し）・一時停止・つながり（切れた／つなぎ直した）が変わったら、待たずにすぐ描く
+   * スマホの描き直しは変えない
+   */
+  var FES_TV_DECIDE_HOLD_MS = 3500, FES_TV_DECIDE_HOLD_MAX = 4000;
+  function fesTvDecideSig(room, f){
+    return [room.code, f.round, f.phase, f.paused ? 1 : 0, (rt && rt.state.connects) || 0, rt && rt.state.connected ? 1 : 0].join(':');
+  }
+  function fesTvDecideRelease(){ var h = fes.tvDecHold; if(h){ clearTimeout(h.timer); fes.tvDecHold = null; } }
+  /** 待っている間なら true（描かない）。待つ理由が無くなっていたら、ここで待つのをやめて false（すぐ描く） */
+  function fesTvDecideHeld(cur, room, f){
+    var h = fes.tvDecHold;
+    if(!h) return false;
+    if(cur !== 'scr-v2-fes-tv' || h.sig !== fesTvDecideSig(room, f) || performance.now() >= h.until){ fesTvDecideRelease(); return false; }
+    h.waited = (h.waited || 0) + 1;
+    return true;
+  }
+  function fesTvDecideStart(room, f){
+    fesTvDecideRelease();
+    var ms = Math.min(FES_TV_DECIDE_HOLD_MAX, fxMs(FES_TV_DECIDE_HOLD_MS));
+    if(!(ms > 0)) return;
+    var h = fes.tvDecHold = { sig: fesTvDecideSig(room, f), at: performance.now(), until: performance.now() + ms, ms: ms };
+    h.timer = setTimeout(function(){
+      if(fes.tvDecHold !== h) return;
+      fes.tvDecHold = null;
+      var a = document.querySelector('.screen.active');
+      if(a && a.id === 'scr-v2-fes-tv') fesRender('scr-v2-fes-tv');   // 台本のあと、最新の形で1回（知らせが無くても）
+    }, ms);
+  }
+  window.fesTvDecideHoldProbe = function(){ var h = fes.tvDecHold; return h ? { ms: h.ms, waited: h.waited || 0, left: Math.max(0, Math.round(h.until - performance.now())) } : null; };
   function fesRender(cur, lab){
     var room = lab ? lab.room : (fesRoom() || bombV2Room()); if(!room) return;
     var scr = el(cur); if(!scr) return;
@@ -33590,6 +33626,8 @@
       });
     }
     if(!lab && view.game === 'bomb') bombLastCall(gd, 'fes:bomb:' + f.round + ':' + cur);
+    // 指示78 ウ：決まる段の TV は、動きの台本が終わるまで中身を入れかえない（入れかえると is-play が外れて、最後の形に飛んでいた）
+    if(!lab && fesTvDecideHeld(cur, room, f)) return;
     var back = fesKeep(scr);
     scr.innerHTML = out.html;
     fesWorld(scr, out.world);
@@ -33601,7 +33639,7 @@
     if(fesFirst) fes.playAt = performance.now();
     var fes続き = !lab && !fesFirst && scr.classList.contains('is-play') && performance.now() - (fes.playAt || 0) < V2_PLAY_GRACE_MS;
     scr.classList.toggle('is-play', f.phase === 'decide' && (lab ? !!lab.play : (fesFirst || fes続き)));
-    if(f.phase === 'decide' && !lab && cur === 'scr-v2-fes-tv' && fesFirst) fesDecideFx(view);   // 音は最初の1回だけ
+    if(f.phase === 'decide' && !lab && cur === 'scr-v2-fes-tv' && fesFirst){ fesDecideFx(view); fesTvDecideStart(room, f); }   // 音は最初の1回だけ
     if(f.phase === 'decide') fes.playAnim = key + cur;
     if(!lab && cur !== 'scr-v2-fes-tv') tvWaitApply(scr, 'fes:' + key);   // 指示68-T 二の束3：TV がいる部屋のスマホは、TV で出る時刻まで隠す
     back();

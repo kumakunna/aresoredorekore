@@ -87,6 +87,8 @@ async function 係() {
       if (!(await tv.ev('!!window.__dt').catch(() => false))) await 入れる(tv, { tv: true }, true);
       if (f.phase === 'decide' && 前 !== 'decide') {
         決 = Date.now(); log('決まる段', f.pick && f.pick.mode, f.pick && f.pick.lot);
+        // 写真：決まる段の 0.5・1.6（係が押した直後）・2.8・3.4・4.5 秒（監査の証拠）
+        for (const ms of [500, 1600, 2800, 3400, 4500]) setTimeout(() => tv.shot(path.join(OUT, 'r' + 済 + '_' + String(ms).padStart(4, '0') + 'ms.jpg')).catch(() => 0), ms);
         if (POKE) setTimeout(async () => {
           const gs = ((await staff.call('fes:watch', { code })).staff || {}).games || [];
           const g = gs.find((x) => !x.on) || gs[gs.length - 1];

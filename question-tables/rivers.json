@@ -30,18 +30,21 @@
       "name": "天塩川",
       "value": 256,
       "tier": "hard",
-      "yomi": "てしおがわ"
+      "yomi": "てしおがわ",
+      "noNumber": true
     },
     {
       "name": "北上川",
       "value": 249,
-      "tier": "hard"
+      "tier": "hard",
+      "noNumber": true
     },
     {
       "name": "阿武隈川",
       "value": 239,
       "tier": "hard",
-      "yomi": "あぶくまがわ"
+      "yomi": "あぶくまがわ",
+      "noNumber": true
     },
     {
       "name": "木曽川",
@@ -56,13 +59,15 @@
     {
       "name": "天竜川",
       "value": 213,
-      "tier": "normal"
+      "tier": "normal",
+      "noNumber": true
     },
     {
       "name": "阿賀野川",
       "value": 210,
       "tier": "hard",
-      "yomi": "あがのがわ"
+      "yomi": "あがのがわ",
+      "noNumber": true
     },
     {
       "name": "四万十川",
@@ -73,12 +78,14 @@
     {
       "name": "吉野川",
       "value": 194,
-      "tier": "normal"
+      "tier": "normal",
+      "noNumber": true
     },
     {
       "name": "十勝川",
       "value": 156,
-      "tier": "hard"
+      "tier": "hard",
+      "noNumber": true
     },
     {
       "name": "筑後川",

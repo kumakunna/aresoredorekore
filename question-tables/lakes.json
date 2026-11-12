@@ -24,7 +24,8 @@
     {
       "name": "サロマ湖",
       "value": 152,
-      "tier": "hard"
+      "tier": "hard",
+      "noNumber": true
     },
     {
       "name": "猪苗代湖",
@@ -35,25 +36,29 @@
       "name": "中海",
       "value": 86,
       "tier": "hard",
-      "yomi": "なかうみ"
+      "yomi": "なかうみ",
+      "noNumber": true
     },
     {
       "name": "屈斜路湖",
       "value": 80,
       "tier": "hard",
-      "yomi": "くっしゃろこ"
+      "yomi": "くっしゃろこ",
+      "noNumber": true
     },
     {
       "name": "宍道湖",
       "value": 79,
       "tier": "hard",
-      "yomi": "しんじこ"
+      "yomi": "しんじこ",
+      "noNumber": true
     },
     {
       "name": "支笏湖",
       "value": 78,
       "tier": "hard",
-      "yomi": "しこつこ"
+      "yomi": "しこつこ",
+      "noNumber": true
     },
     {
       "name": "洞爺湖",
@@ -73,7 +78,8 @@
     {
       "name": "田沢湖",
       "value": 26,
-      "tier": "hard"
+      "tier": "hard",
+      "noNumber": true
     },
     {
       "name": "諏訪湖",

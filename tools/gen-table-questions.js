@@ -4,7 +4,7 @@
 // question-tables/*.json（表1つに出典1つ）から、2つの形の問題を作って
 // public/js/quiz-tables.js に書き出す。手で直さない（直すのは表の方）。
 //   ・どっちが上？ … 「AとB、高いのはどっち？」の2択（形は quiz-bank の3択・4択と同じ { q, choices, correct }）
-//   ・数字ちかい方 … 「Aの標高は何m？」答えの数と単位（quiz-bank の数字で答える問題の箱と同じ形）
+//   ・数字ちかい方 … 「Aの標高は何m？」答えの数と単位（quiz-bank の数字で答える問題の箱と同じ形）。行に "noNumber": true があれば作らない（指示78 エ-1）
 //
 // **表を出典で確かめたら、その表から作った問題は1問ずつ確かめ直さなくてよい**（くまくんの決め）。
 // だから表には、出典（URL）と「いつ・何を確かめたか」（checked）を必ず書く。無ければここで止まる。
@@ -46,6 +46,7 @@ function problemsOf(t) {
     if (typeof r.value !== 'number' || !isFinite(r.value)) out.push(at + r.name + ' の値が数でない');
     if (TIERS.indexOf(r.tier) === -1) out.push(at + r.name + ' の層は ' + TIERS.join('・') + ' のどれか');
     if (r.yomi != null && !/^[ぁ-ゖー]+$/.test(r.yomi)) out.push(at + r.name + ' の yomi はひらがなだけ');
+    if (r.noNumber != null && r.noNumber !== true) out.push(at + r.name + ' の noNumber は true だけ（外さない行には書かない）');
   });
   return out;
 }
@@ -94,7 +95,9 @@ function questionsFrom(t) {
     return { q: fill(t.ask.compare, label(a), label(b)), choices: [top.name, top === a ? b.name : a.name], correct: 0,
       tier: harder(a.tier, b.tier), table: t.id };
   });
-  const number = rows.map((r) => ({ q: fill(t.ask.number, label(r)), answer: r.value, unit: t.unit, tier: r.tier, table: t.id }));
+  // 指示78 エ-1（11/12 くまくんの頼み）：文化祭の人には難しすぎる行は、数字ちかい方の問題にしない（noNumber）。
+  // 行は消さない（どっちが上？では使う。上の compare はこの印を見ない）
+  const number = rows.filter((r) => !r.noNumber).map((r) => ({ q: fill(t.ask.number, label(r)), answer: r.value, unit: t.unit, tier: r.tier, table: t.id }));
   return { compare, number };
 }
 

@@ -525,7 +525,10 @@ const { createRunner, assert, assertEqual } = require('./harness');
     表.forEach((t) => t.rows.forEach((row) => {
       if (row.yomi == null) return;
       assert(/^[ぁ-ゖー]+$/.test(row.yomi), t.id + '：' + row.name + ' の yomi はひらがなだけ（' + row.yomi + '）');
-      const q = Gen77.questionsFrom(t).number.find((x) => x.answer === row.value && x.q.indexOf(row.name) !== -1);
+      // 指示78 エ-1：数字ちかい方から外した行（noNumber）は、どっちが上？の問題文で見る
+      const qs = Gen77.questionsFrom(t);
+      const q = row.noNumber ? qs.compare.find((x) => x.choices.indexOf(row.name) !== -1) : qs.number.find((x) => x.answer === row.value && x.q.indexOf(row.name) !== -1);
+      if (row.noNumber && !q) return;   // どっちが上？の上限で組に入らなかった行
       assert(q && q.q.indexOf(row.name + '（' + row.yomi + '）') !== -1, t.id + '：' + row.name + ' の問題文に「名前（よみ）」：' + (q && q.q));
     }));
   });
@@ -547,6 +550,32 @@ const { createRunner, assert, assertEqual } = require('./harness');
     assert(qs.length && qs.every((x) => /（2025年/.test(x.q)), '問題文に（2025年');
     assert(!qs.some((x) => /2020年/.test(x.q)), '（2020年が残っていない');
     assert(/令和7年国勢調査/.test(T.sources['pref-pop']), '出典は令和7年国勢調査');
+  });
+
+  // 指示78 エ-1（11/12 くまくんの頼み・Claude チャットが選んだ26行）：文化祭の人には難しすぎる行を、数字ちかい方の問題にしない。
+  // 表の行は消さない（どっちが上？で使う）。印は表の行の "noNumber": true（tools/gen-table-questions.js が見る）
+  const 外す78 = { mountains: ['北岳', '槍ヶ岳', '御嶽山', '立山', '白山', '旭岳（大雪山）', '鳥海山', '石鎚山', '宮之浦岳', '羊蹄山', '岩木山', '伊吹山', '開聞岳'],
+    rivers: ['天塩川', '北上川', '阿武隈川', '天竜川', '阿賀野川', '吉野川', '十勝川'],
+    lakes: ['サロマ湖', '中海', '屈斜路湖', '宍道湖', '支笏湖', '田沢湖'] };
+  await r.test('指示78 エ-1：難しすぎる26行は数字ちかい方に出ない（147→121問）。表の行は残り、どっちが上？は変わらない', async () => {
+    const T = require('../public/js/quiz-tables.js');
+    Object.keys(外す78).forEach((id) => {
+      const t = 表.find((x) => x.id === id);
+      外す78[id].forEach((nm) => {
+        const row = t.rows.find((x) => x.name === nm);
+        assert(row, id + '：' + nm + ' の行は残っている');
+        assertEqual(row && row.noNumber, true, id + '：' + nm + ' に noNumber');
+        assert(!T.number.some((x) => x.table === id && x.answer === row.value && x.q.indexOf(nm) === 0), id + '：' + nm + ' は数字ちかい方に出ない');
+      });
+    });
+    // 印は26行だけ（ほかの行に付け間違えていない）
+    const 印 = 表.reduce((n, t) => n + t.rows.filter((x) => x.noNumber).length, 0);
+    assertEqual(印, 26, 'noNumber の行の数');
+    assertEqual(T.number.length, 121, '数字ちかい方の問題の数');
+    // どっちが上？は印を見ない：印を全部外して作っても、どっちが上？は同じ
+    const 印なし = 表.map((t) => Object.assign({}, t, { rows: t.rows.map((x) => { const y = Object.assign({}, x); delete y.noNumber; return y; }) }));
+    assertEqual(JSON.stringify(印なし.map((t) => Gen77.questionsFrom(t).compare)), JSON.stringify(表.map((t) => Gen77.questionsFrom(t).compare)), 'どっちが上？は外す前と同じ');
+    assertEqual(T.compare.length, 296, 'どっちが上？の数');
   });
 
   r.finish();

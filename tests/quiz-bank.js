@@ -578,5 +578,40 @@ const { createRunner, assert, assertEqual } = require('./harness');
     assertEqual(T.compare.length, 296, 'どっちが上？の数');
   });
 
+  // 指示78 エ-2（11/12）：数字ちかい方の問題文の都市・島・湖・山・川の名前に、全部よみ（numYomi）。どっちが上？は1文字も変えない。都道府県と国は付けない
+  const 足す78 = {
+    'city-temp': '札幌さっぽろ・仙台せんだい・東京とうきょう・新潟にいがた・名古屋なごや・大阪おおさか・広島ひろしま・高知こうち・福岡ふくおか・鹿児島かごしま・那覇なは・青森あおもり・長野ながの・金沢かなざわ・松山まつやま',
+    islands: '本州ほんしゅう・北海道本島ほっかいどうほんとう・九州きゅうしゅう・四国しこく・沖縄本島おきなわほんとう・佐渡島さどがしま・奄美大島あまみおおしま・淡路島あわじしま・屋久島やくしま・種子島たねがしま',
+    lakes: '琵琶湖びわこ・霞ヶ浦かすみがうら・猪苗代湖いなわしろこ・洞爺湖とうやこ・浜名湖はまなこ・十和田湖とわだこ・諏訪湖すわこ・山中湖やまなかこ',
+    mountains: '富士山ふじさん・浅間山あさまやま・阿蘇山あそさん・六甲山ろっこうさん・筑波山つくばさん・高尾山たかおさん',
+    rivers: '信濃川しなのがわ・利根川とねがわ・石狩川いしかりがわ・木曽川きそがわ・最上川もがみがわ・四万十川しまんとがわ・筑後川ちくごがわ・淀川よどがわ' };
+  await r.test('指示78 エ-2：数字ちかい方の都市・島・湖・山・川は、名前に全部よみ（47個足した）。どっちが上？は変わらない。都道府県と国には付けない', async () => {
+    const T = require('../public/js/quiz-tables.js');
+    let 足した = 0;
+    Object.keys(足す78).forEach((id) => {
+      const t = 表.find((x) => x.id === id);
+      足す78[id].split('・').forEach((w) => {
+        const m = /^(.+?)([ぁ-ゖー]+)$/.exec(w), row = t.rows.find((x) => x.name === m[1]);
+        assert(row, id + '：' + m[1] + ' の行');
+        assertEqual(row && row.numYomi, m[2], id + '：' + m[1] + ' の numYomi');
+        足した++;
+      });
+      // 数字ちかい方に出る行は、全部「名前（よみ）」で始まる（すでにある yomi も含めて）
+      t.rows.filter((x) => !x.noNumber).forEach((x) => {
+        const q = T.number.find((y) => y.table === id && y.answer === x.value && y.q.indexOf(x.name) === 0);
+        assert(q && /^[^（]+（[ぁ-ゖー]+）/.test(q.q), id + '：' + x.name + ' の数字ちかい方の問題文によみ：' + (q && q.q));
+      });
+    });
+    assertEqual(足した, 47, '足したよみの数');
+    ['pref-area', 'pref-pop', 'world-area', 'world-pop', 'planets'].forEach((id) => {
+      const t = 表.find((x) => x.id === id);
+      if (t) assert(!t.rows.some((x) => x.numYomi), id + ' には numYomi を付けない');
+    });
+    // どっちが上？は numYomi を見ない：外して作っても同じ
+    const 外して = 表.map((t) => Object.assign({}, t, { rows: t.rows.map((x) => { const y = Object.assign({}, x); delete y.numYomi; return y; }) }));
+    assertEqual(JSON.stringify(外して.map((t) => Gen77.questionsFrom(t).compare)), JSON.stringify(表.map((t) => Gen77.questionsFrom(t).compare)), 'どっちが上？は1文字も変わらない');
+    assert(!T.compare.some((q) => /（(さっぽろ|ほんしゅう|びわこ|ふじさん|しなのがわ)）/.test(q.q)), 'どっちが上？の問題文に足したよみが出ない');
+  });
+
   r.finish();
 })();

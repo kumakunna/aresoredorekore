@@ -76,8 +76,28 @@
   function phrase(text) {
     return String(text == null ? '' : text).split('\n').map(function (s) {
       var parts = (Budoux && Budoux.parse) ? Budoux.parse(s) : [s];
-      return parts.map(esc).join('<wbr>');
+      return keepYomi(s, parts).map(esc).join('<wbr>');
     }).join('<br>');
+  }
+  /**
+   * 指示78 エ-3（11/12）：よみのカッコを割らない。BudouX はよみの中にも切れ目を置く（「鹿児島（か｜ごしま）」「沖縄本島（｜おきな｜わほんとう）」）。
+   * そこで折れると「（か」「ごしま）」と読めず、brokenWord も <wbr> の所は「折ってよい」と見るので字を小さくする仕組みも動かない。
+   *   ・ひらがな（と「ー」）だけのカッコ（＝よみ）の中には切れ目を置かない（「）」の前も）
+   *   ・「（」のすぐあとには切れ目を置かない（行の終わりに「（」だけ残さない）
+   *   ・名前とよみのカッコの間（「（」の前）は今までどおり折ってよい（長い名前がスマホの1行に入らない時のため）
+   * ほかの文の切れ目は変えない
+   */
+  function keepYomi(s, parts) {
+    if (parts.length < 2 || s.indexOf('（') === -1) return parts;
+    var 消す = {}, re = /（[ぁ-ゖー]+）/g, m;
+    while ((m = re.exec(s))) for (var k = m.index + 1; k <= m.index + m[0].length - 1; k++) 消す[k] = 1;
+    for (var i = 0; i < s.length; i++) if (s[i] === '（') 消す[i + 1] = 1;
+    var out = [parts[0]], at = parts[0].length;
+    for (var j = 1; j < parts.length; j++) {
+      if (消す[at]) out[out.length - 1] += parts[j]; else out.push(parts[j]);
+      at += parts[j].length;
+    }
+    return out;
   }
   /** 文節で折る字の箱（ルールの文・見出しなど）。描いたあと fixWraps が「1〜2文字だけの行」を直す */
   function wrapHtml(text, cls) { return '<span class="' + esc(cls || '') + '" data-v2-wrap>' + phrase(text) + '</span>'; }

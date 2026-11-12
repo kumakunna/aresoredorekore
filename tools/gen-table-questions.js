@@ -46,6 +46,8 @@ function problemsOf(t) {
     if (typeof r.value !== 'number' || !isFinite(r.value)) out.push(at + r.name + ' の値が数でない');
     if (TIERS.indexOf(r.tier) === -1) out.push(at + r.name + ' の層は ' + TIERS.join('・') + ' のどれか');
     if (r.yomi != null && !/^[ぁ-ゖー]+$/.test(r.yomi)) out.push(at + r.name + ' の yomi はひらがなだけ');
+    if (r.numYomi != null && !/^[ぁ-ゖー]+$/.test(r.numYomi)) out.push(at + r.name + ' の numYomi はひらがなだけ');
+    if (r.numYomi != null && r.yomi != null) out.push(at + r.name + ' は yomi と numYomi の両方がある（どちらか1つ）');
     if (r.noNumber != null && r.noNumber !== true) out.push(at + r.name + ' の noNumber は true だけ（外さない行には書かない）');
   });
   return out;
@@ -54,6 +56,11 @@ function problemsOf(t) {
 const fill = (s, a, b) => s.replace('{a}', a).replace('{b}', b == null ? '' : b);
 /** 指示77 5-1（くまくんの答え 2.A）：問題文の名前には読みを添える（「天塩川（てしおがわ）」）。選択肢は名前のまま */
 const label = (r) => r.yomi ? r.name + '（' + r.yomi + '）' : r.name;
+/**
+ * 指示78 エ-2（11/12）：数字ちかい方の問題文だけに添えるよみ（numYomi）。都市・島・湖・山・川の名前に全部。
+ * どっちが上？の問題文は1文字も変えない（くまくんの決め）ので、yomi とは分けて持つ。都道府県と国の表には付けない
+ */
+const numLabel = (r) => r.numYomi ? r.name + '（' + r.numYomi + '）' : label(r);
 const harder = (x, y) => TIERS[Math.max(TIERS.indexOf(x), TIERS.indexOf(y))];
 
 /**
@@ -97,7 +104,7 @@ function questionsFrom(t) {
   });
   // 指示78 エ-1（11/12 くまくんの頼み）：文化祭の人には難しすぎる行は、数字ちかい方の問題にしない（noNumber）。
   // 行は消さない（どっちが上？では使う。上の compare はこの印を見ない）
-  const number = rows.filter((r) => !r.noNumber).map((r) => ({ q: fill(t.ask.number, label(r)), answer: r.value, unit: t.unit, tier: r.tier, table: t.id }));
+  const number = rows.filter((r) => !r.noNumber).map((r) => ({ q: fill(t.ask.number, numLabel(r)), answer: r.value, unit: t.unit, tier: r.tier, table: t.id }));
   return { compare, number };
 }
 

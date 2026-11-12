@@ -232,6 +232,43 @@ function v2のクラス(css) {
     assert(画面ごと透明になる(止めない).length >= 1, 'v2 の画面で止めないと、古い入れかわりが当たると言う');
   });
 
+  // 指示78 エ-3（11/12）：よみのカッコを割らない行変え。BudouX はよみの中にも切れ目を置く（「鹿児島（か｜ごしま）」）ので、
+  // そこで折れると「（か」「ごしま）」と読めない。phrase は、ひらがなだけのカッコの中と「（」のすぐあとに <wbr> を入れない
+  await r.test('指示78 エ-3：よみのカッコの中と「（」のすぐあとに <wbr> が無い。ほかの文の切れ目は変わらない', async () => {
+    require('../public/js/budoux-ja.js');
+    const V2 = require('../public/js/v2-kit.js');
+    const 切れ目 = (html) => { const at = new Set(); let n = 0; html.split('<wbr>').forEach((p, i, a) => { n += p.replace(/&[a-z]+;|&#\d+;/g, '_').length; if (i < a.length - 1) at.add(n); }); return at; };
+    const 文5 = ['鹿児島（かごしま）の年の平均気温は約何度？', '十和田湖（とわだこ）の面積は約何km²？', '沖縄本島（おきなわほんとう）の面積は約何km²？',
+      '霞ヶ浦（かすみがうら）の面積は約何km²？', '御嶽山（おんたけさん）と富士山、高いのはどっち？'];
+    文5.forEach((s) => {
+      const h = V2.phrase(s);
+      assert(!/（[^）]*<wbr>[^）]*）/.test(h), 'よみのカッコの中に切れ目が無い：' + h);
+      assert(!/（<wbr>/.test(h), '「（」のすぐあとに切れ目が無い：' + h);
+      assert(/<wbr>（/.test(h), '名前とよみのカッコの間は、今までどおり折ってよい：' + h);
+    });
+    // 全部の問題文（quiz-bank・quiz-tables）と ui-text の文で、前（BudouX の切れ目そのまま）と後をくらべる。
+    // 後の切れ目は前の切れ目の一部で、消えたのは「よみのカッコの中」か「（」のすぐあとだけ
+    const Q = require('../public/js/quiz-bank.js'), T = require('../public/js/quiz-tables.js'), U = require('../public/js/ui-text.js');
+    const 文 = new Set();
+    Q.TIERS.forEach((t) => Q.questionsOf(t).forEach((q) => { 文.add(q.q); (q.choices || []).forEach((c) => 文.add(String(c))); }));
+    T.compare.concat(T.number).forEach((q) => 文.add(q.q));
+    (function 掃く(x) { if (typeof x === 'string') x.split('\n').forEach((s) => 文.add(s)); else if (x && typeof x === 'object') Object.keys(x).forEach((k) => 掃く(x[k])); })(U);
+    const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let 変わった = 0;
+    文.forEach((s) => {
+      if (/\n/.test(s)) return;
+      const 前 = globalThis.BudouxJa.parse(s).map(esc).join('<wbr>'), 後 = V2.phrase(s);
+      if (前 === 後) return;
+      変わった++;
+      assertEqual(後.replace(/<wbr>/g, ''), 前.replace(/<wbr>/g, ''), '字は変わらない：' + s);
+      const a = 切れ目(前), b = 切れ目(後);
+      b.forEach((k) => assert(a.has(k), '新しい切れ目を足していない：' + s));
+      const よみ = []; const re = /（[ぁ-ゖー]+）/g; let m; while ((m = re.exec(s))) よみ.push([m.index, m.index + m[0].length - 1]);
+      a.forEach((k) => { if (b.has(k)) return; assert(s[k - 1] === '（' || よみ.some(([o, c]) => k > o && k <= c), '消したのはよみのカッコの中か「（」のあとだけ：' + s + '（' + k + '字目）'); });
+    });
+    assert(変わった > 0, '変わった文がある（よみのある問題文）');
+  });
+
   await r.test('くり返す動きは、演出「なし」と「動きを減らす」で止まる（アプリのスキップは回数を止めないので、チカチカする）', async () => {
     const { 回る, bad } = 止まらない(V2CSS);
     assert(回る.length >= 2, 'くり返す動きを集められている（実際:' + 回る.join('・') + '）');   // 型(b)

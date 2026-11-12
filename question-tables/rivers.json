@@ -14,17 +14,20 @@
     {
       "name": "信濃川",
       "value": 367,
-      "tier": "easy"
+      "tier": "easy",
+      "numYomi": "しなのがわ"
     },
     {
       "name": "利根川",
       "value": 322,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "とねがわ"
     },
     {
       "name": "石狩川",
       "value": 268,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "いしかりがわ"
     },
     {
       "name": "天塩川",
@@ -49,12 +52,14 @@
     {
       "name": "木曽川",
       "value": 229,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "きそがわ"
     },
     {
       "name": "最上川",
       "value": 229,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "もがみがわ"
     },
     {
       "name": "天竜川",
@@ -73,7 +78,8 @@
       "name": "四万十川",
       "row": "渡川",
       "value": 196,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "しまんとがわ"
     },
     {
       "name": "吉野川",
@@ -90,12 +96,14 @@
     {
       "name": "筑後川",
       "value": 143,
-      "tier": "hard"
+      "tier": "hard",
+      "numYomi": "ちくごがわ"
     },
     {
       "name": "淀川",
       "value": 75,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "よどがわ"
     }
   ]
 }

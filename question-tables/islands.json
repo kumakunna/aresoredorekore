@@ -14,40 +14,47 @@
     {
       "name": "本州",
       "value": 227943,
-      "tier": "easy"
+      "tier": "easy",
+      "numYomi": "ほんしゅう"
     },
     {
       "name": "北海道本島",
       "value": 77982,
       "tier": "easy",
-      "row": "北海道"
+      "row": "北海道",
+      "numYomi": "ほっかいどうほんとう"
     },
     {
       "name": "九州",
       "value": 36782,
-      "tier": "easy"
+      "tier": "easy",
+      "numYomi": "きゅうしゅう"
     },
     {
       "name": "四国",
       "value": 18296,
-      "tier": "easy"
+      "tier": "easy",
+      "numYomi": "しこく"
     },
     {
       "name": "沖縄本島",
       "value": 1208,
       "tier": "normal",
-      "row": "沖縄島"
+      "row": "沖縄島",
+      "numYomi": "おきなわほんとう"
     },
     {
       "name": "佐渡島",
       "value": 855,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "さどがしま"
     },
     {
       "name": "奄美大島",
       "row": "大島（鹿児島県）",
       "value": 712,
-      "tier": "hard"
+      "tier": "hard",
+      "numYomi": "あまみおおしま"
     },
     {
       "name": "対馬",
@@ -58,17 +65,20 @@
     {
       "name": "淡路島",
       "value": 592,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "あわじしま"
     },
     {
       "name": "屋久島",
       "value": 504,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "やくしま"
     },
     {
       "name": "種子島",
       "value": 444,
-      "tier": "hard"
+      "tier": "hard",
+      "numYomi": "たねがしま"
     },
     {
       "name": "小豆島",

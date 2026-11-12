@@ -14,12 +14,14 @@
     {
       "name": "琵琶湖",
       "value": 669,
-      "tier": "easy"
+      "tier": "easy",
+      "numYomi": "びわこ"
     },
     {
       "name": "霞ヶ浦",
       "value": 168,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "かすみがうら"
     },
     {
       "name": "サロマ湖",
@@ -30,7 +32,8 @@
     {
       "name": "猪苗代湖",
       "value": 103,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "いなわしろこ"
     },
     {
       "name": "中海",
@@ -63,17 +66,20 @@
     {
       "name": "洞爺湖",
       "value": 71,
-      "tier": "hard"
+      "tier": "hard",
+      "numYomi": "とうやこ"
     },
     {
       "name": "浜名湖",
       "value": 65,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "はまなこ"
     },
     {
       "name": "十和田湖",
       "value": 61,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "とわだこ"
     },
     {
       "name": "田沢湖",
@@ -84,12 +90,14 @@
     {
       "name": "諏訪湖",
       "value": 13,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "すわこ"
     },
     {
       "name": "山中湖",
       "value": 7,
-      "tier": "normal"
+      "tier": "normal",
+      "numYomi": "やまなかこ"
     }
   ]
 }

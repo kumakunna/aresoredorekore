@@ -9,7 +9,7 @@
 // ページの中で拾う（rAF ごと）。出た 1.5秒前〜3.5秒後のコマを、別の白いページの canvas で小さく描いて、平均の明るさ（0〜1）を出す。
 // 光った＝「出る前の落ち着いた明るさ」と「出た後の落ち着いた明るさ」の**両方より 0.12 以上明るいコマ**がある（一瞬だけ画面全体が明るくなる）。
 // その瞬間に始まった CSS アニメ・遷移も拾って並べる（どの部品が光ったかの手がかり）。
-// 記録：docs/検査_1107_証拠/監査_全画面/flash-<tag>/ に 記録.json・明るさ.md・光ったコマの写真。1件でも光れば終了コード 1。
+// 記録：検査_1107_証拠/監査_全画面/指示78/flash-<tag>/ に 記録.json・明るさ.md・光ったコマの写真。1件でも光れば終了コード 1。
 
 const fs = require('fs');
 const path = require('path');
@@ -25,7 +25,7 @@ const PORT = +arg('port', 3431), CDP = +arg('cdp', 9731), MIN = +arg('min', 20);
 const GAMES = String(arg('games', 'onaji-many')).split(',');
 const TAG = String(arg('tag', 'now'));
 const FX = String(arg('fx', 'normal'));
-const OUT = path.resolve(arg('out', path.join(ROOT, 'docs', '検査_1107_証拠', '監査_全画面', 'flash-' + TAG)));
+const OUT = path.resolve(arg('out', path.join(ROOT, '..', '検査_1107_証拠', '監査_全画面', '指示78', 'flash-' + TAG)));
 const BASE = 'http://localhost:' + PORT;
 const 光った差 = 0.12;
 const t0 = Date.now();

@@ -6,7 +6,7 @@
 // 手元の検証用サーバーだけ。係（/dev-login）が部屋を作り、スマホ2台（tools/fes-agent.js）と TV 1920×1080。
 // TV のページの中で、決まる段のあいだ「画面の描き直し（#scr-v2-fes-tv の中身の入れかえ）」「is-play の付け外し」
 // 「始まった CSS アニメ（v2-dhop・v2-dwin・v2-dwash など）」を時刻つきで拾う。--reduce は TV を「動きを減らす」（Windows のアニメーション切）にする。
-// 記録：docs/検査_1107_証拠/監査_全画面/decide-tv[-reduce]/記録.json
+// 記録：検査_1107_証拠/監査_全画面/指示78/decide-tv[-reduce]/記録.json
 
 const fs = require('fs');
 const path = require('path');
@@ -23,7 +23,7 @@ const PORT = +arg('port', 3441), CDP = +arg('cdp', 9741), ROUNDS = +arg('rounds'
 const JOIN = !!arg('join', false);
 // --poke：決まる段に入って 1.5秒あとに、係が使っていないゲームの入／切を1回ずつ押す（部屋の知らせが TV に届いて描き直す）
 const POKE = !!arg('poke', false);
-const OUT = path.resolve(arg('out', path.join(ROOT, 'docs', '検査_1107_証拠', '監査_全画面', 'decide-tv' + (REDUCE ? '-reduce' : '') + (JOIN ? '-join' : '') + (POKE ? '-poke' : ''))));
+const OUT = path.resolve(arg('out', path.join(ROOT, '..', '検査_1107_証拠', '監査_全画面', '指示78', 'decide-tv' + (REDUCE ? '-reduce' : '') + (JOIN ? '-join' : '') + (POKE ? '-poke' : ''))));
 const BASE = 'http://localhost:' + PORT;
 const t0 = Date.now();
 const log = (...a) => console.log(((Date.now() - t0) / 1000).toFixed(0).padStart(4) + '秒 ' + a.join(' '));
